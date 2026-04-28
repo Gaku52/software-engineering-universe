@@ -1,100 +1,100 @@
-# Rust ベストプラクティス
+# Rust Best Practices
 
-> clippy・API 設計・エラーハンドリング・テスト戦略など、Rust で品質の高いコードを書くための実践的な指針を体系的に学ぶ。本章は Rust 中級〜上級者が実務で参照するリファレンスとして設計されている。
+> Systematically learn practical guidelines for writing high-quality Rust code, including clippy, API design, error handling, and testing strategies. This chapter is designed as a reference for intermediate to advanced Rust developers to consult in real-world work.
 
-## この章で学ぶこと
+## What You'll Learn in This Chapter
 
-1. **コード品質ツール** — clippy、rustfmt、cargo-audit による自動品質管理
-2. **API 設計原則** — 型駆動設計、ビルダーパターン、ゼロコスト抽象化
-3. **エラーハンドリング** — thiserror/anyhow の使い分け、エラー設計の原則
-4. **テスト戦略** — ユニットテスト、統合テスト、プロパティベーステスト、モック
-5. **パフォーマンス** — メモリ割り当て削減、プロファイリング、並列化
-6. **プロジェクト構成** — ワークスペース管理、ドキュメント、CI/CD 統合
+1. **Code quality tools** — Automated quality management with clippy, rustfmt, and cargo-audit
+2. **API design principles** — Type-driven design, the builder pattern, and zero-cost abstractions
+3. **Error handling** — Choosing between thiserror/anyhow and principles of error design
+4. **Testing strategies** — Unit tests, integration tests, property-based tests, and mocking
+5. **Performance** — Reducing memory allocations, profiling, and parallelization
+6. **Project structure** — Workspace management, documentation, and CI/CD integration
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Your understanding will deepen if you have the following knowledge before reading this guide:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [データベース — sqlx / diesel / SeaORM](./03-database.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- An understanding of the contents of [Database — sqlx / diesel / SeaORM](./03-database.md)
 
 ---
 
-## 1. clippy による静的解析
+## 1. Static Analysis with clippy
 
-### 1.1 品質管理ツールチェーン全体像
+### 1.1 Overview of the Quality Management Toolchain
 
 ```
-Rust 品質管理ツールチェーン
-============================
+Rust Quality Management Toolchain
+==================================
 
-ソースコード
+Source code
     |
     v
-[rustfmt]     --> コードフォーマット統一
+[rustfmt]     --> Unify code formatting
     |
     v
-[clippy]      --> 静的解析 (700+ lint ルール)
+[clippy]      --> Static analysis (700+ lint rules)
     |
     v
-[cargo test]  --> ユニットテスト + 統合テスト + doc テスト
+[cargo test]  --> Unit tests + integration tests + doc tests
     |
     v
-[cargo audit] --> 依存関係の脆弱性チェック
+[cargo audit] --> Vulnerability check on dependencies
     |
     v
-[cargo deny]  --> ライセンス・重複依存チェック
+[cargo deny]  --> License and duplicate dependency check
     |
     v
-[cargo semver-checks] --> セマンティックバージョニング検証
+[cargo semver-checks] --> Semantic versioning verification
     |
     v
-本番ビルド
+Production build
 
-ツール間の役割分担:
+Roles of each tool:
 ┌──────────────────┬───────────────────────────────────┐
-│ ツール            │ 検出対象                           │
+│ Tool              │ Detection target                  │
 ├──────────────────┼───────────────────────────────────┤
-│ rustfmt          │ フォーマット不統一                   │
-│ clippy           │ コードの匂い、非効率、バグの種       │
-│ cargo test       │ ロジックエラー、回帰バグ             │
-│ cargo audit      │ 既知の脆弱性（CVE）                 │
-│ cargo deny       │ ライセンス違反、重複依存             │
-│ cargo semver-checks│ 後方互換性のない API 変更          │
-│ miri             │ 未定義動作（unsafe コード）          │
-│ cargo-fuzz       │ ファジングによるクラッシュ検出        │
+│ rustfmt          │ Formatting inconsistencies         │
+│ clippy           │ Code smells, inefficiencies, bugs  │
+│ cargo test       │ Logic errors, regression bugs      │
+│ cargo audit      │ Known vulnerabilities (CVEs)       │
+│ cargo deny       │ License violations, dup. deps      │
+│ cargo semver-checks│ Backward-incompatible API changes│
+│ miri             │ Undefined behavior (unsafe code)   │
+│ cargo-fuzz       │ Crash detection through fuzzing    │
 └──────────────────┴───────────────────────────────────┘
 ```
 
-### 1.2 clippy 設定と主要 lint
+### 1.2 clippy Configuration and Key Lints
 
 ```toml
-# Cargo.toml での clippy 設定
+# clippy configuration in Cargo.toml
 [lints.clippy]
-# pedantic レベル（厳格）
+# pedantic level (strict)
 pedantic = { level = "warn", priority = -1 }
-# 個別に許可
+# Allow individually
 module_name_repetitions = "allow"
 must_use_candidate = "allow"
 
-# 追加の警告
+# Additional warnings
 nursery = { level = "warn", priority = -1 }
 unwrap_used = "deny"
 expect_used = "warn"
 panic = "deny"
 
-# セキュリティ関連
-# SQL インジェクション等の防止
-# 暗号の不適切な使用の検出
+# Security-related
+# Prevention of SQL injection, etc.
+# Detection of inappropriate cryptographic usage
 ```
 
 ```rust
-// clippy が検出する典型的な改善点
+// Typical improvements detected by clippy
 
-// === 不要なクローン ===
-// [NG] 不要なクローン
+// === Unnecessary clones ===
+// [NG] Unnecessary clone
 let s = String::from("hello");
 let t = s.clone();  // clippy: redundant_clone
 println!("{}", t);
@@ -103,14 +103,14 @@ println!("{}", t);
 let s = String::from("hello");
 println!("{}", s);
 
-// === 非効率な文字列結合 ===
-// [NG] 非効率な文字列結合
+// === Inefficient string concatenation ===
+// [NG] Inefficient string concatenation
 let mut result = String::new();
 for item in items {
     result = result + &item.to_string();  // clippy: string_add
 }
 
-// [OK] 効率的な結合
+// [OK] Efficient concatenation
 let result: String = items.iter().map(|i| i.to_string()).collect();
 
 // === map + unwrap ===
@@ -120,12 +120,12 @@ let values: Vec<i32> = strings.iter().map(|s| s.parse().unwrap()).collect();
 // [OK] filter_map
 let values: Vec<i32> = strings.iter().filter_map(|s| s.parse().ok()).collect();
 
-// === 不要な if let ===
+// === Unnecessary if let ===
 // [NG]
 if let Some(value) = option {
     do_something(value);
 } else {
-    // 何もしない
+    // do nothing
 }
 
 // [OK]
@@ -133,20 +133,20 @@ if let Some(value) = option {
     do_something(value);
 }
 
-// === 複雑な型の繰り返し ===
-// [NG] 同じ型を何度も書く
+// === Repetition of complex types ===
+// [NG] Writing the same type repeatedly
 fn process(data: HashMap<String, Vec<(u64, String, bool)>>) -> HashMap<String, Vec<(u64, String, bool)>> {
     data
 }
 
-// [OK] 型エイリアスを使う
+// [OK] Use a type alias
 type DataMap = HashMap<String, Vec<(u64, String, bool)>>;
 fn process(data: DataMap) -> DataMap {
     data
 }
 
-// === match の改善 ===
-// [NG] 単純な match は if let で
+// === Improving match ===
+// [NG] Use if let for simple match
 match result {
     Ok(value) => do_something(value),
     Err(_) => (),
@@ -157,8 +157,8 @@ if let Ok(value) = result {
     do_something(value);
 }
 
-// === Iterator のメソッドチェーン ===
-// [NG] 手動ループ
+// === Iterator method chaining ===
+// [NG] Manual loop
 let mut count = 0;
 for item in &items {
     if item.is_active() {
@@ -166,44 +166,44 @@ for item in &items {
     }
 }
 
-// [OK] イテレータメソッド
+// [OK] Iterator method
 let count = items.iter().filter(|i| i.is_active()).count();
 ```
 
-### 1.3 clippy の lint レベル詳細
+### 1.3 clippy Lint Levels in Detail
 
 ```
-clippy lint レベルの階層:
+Hierarchy of clippy lint levels:
 
- correctness（正確性）  --- デフォルト: deny
-   → 明らかなバグ、未定義動作の可能性
-   → 例: approx_constant, infinite_loop, invalid_regex
+ correctness  --- default: deny
+   -> Obvious bugs, possibility of undefined behavior
+   -> Examples: approx_constant, infinite_loop, invalid_regex
 
- suspicious（疑わしい）  --- デフォルト: warn
-   → バグの可能性が高いコード
-   → 例: suspicious_arithmetic, suspicious_else_formatting
+ suspicious  --- default: warn
+   -> Code that is likely to be a bug
+   -> Examples: suspicious_arithmetic, suspicious_else_formatting
 
- style（スタイル）  --- デフォルト: warn
-   → より慣用的に書ける箇所
-   → 例: needless_return, redundant_closure, manual_map
+ style  --- default: warn
+   -> Places that could be written more idiomatically
+   -> Examples: needless_return, redundant_closure, manual_map
 
- complexity（複雑性）  --- デフォルト: warn
-   → 簡略化できるコード
-   → 例: needless_bool, too_many_arguments
+ complexity  --- default: warn
+   -> Code that could be simplified
+   -> Examples: needless_bool, too_many_arguments
 
- perf（パフォーマンス）  --- デフォルト: warn
-   → パフォーマンス改善の余地
-   → 例: box_vec, unnecessary_to_owned
+ perf (performance)  --- default: warn
+   -> Room for performance improvement
+   -> Examples: box_vec, unnecessary_to_owned
 
- pedantic（衒学的）  --- デフォルト: allow
-   → 厳格だが議論の余地がある改善
-   → 例: must_use_candidate, missing_errors_doc
+ pedantic  --- default: allow
+   -> Strict but debatable improvements
+   -> Examples: must_use_candidate, missing_errors_doc
 
- nursery（実験的）  --- デフォルト: allow
-   → まだ安定していない新しい lint
+ nursery (experimental)  --- default: allow
+   -> New lints that are not yet stable
 ```
 
-### 1.4 rustfmt 設定
+### 1.4 rustfmt Configuration
 
 ```toml
 # rustfmt.toml
@@ -215,13 +215,13 @@ use_try_shorthand = true
 imports_granularity = "Crate"
 group_imports = "StdExternalCrate"
 reorder_imports = true
-# nightly 限定の設定（必要に応じて）
+# Nightly-only settings (use as needed)
 # wrap_comments = true
 # format_code_in_doc_comments = true
 # normalize_comments = true
 ```
 
-### 1.5 cargo-deny によるサプライチェーンセキュリティ
+### 1.5 Supply Chain Security with cargo-deny
 
 ```toml
 # deny.toml
@@ -235,13 +235,13 @@ allow = [
     "ISC",
     "Unicode-DFS-2016",
 ]
-copyleft = "deny"  # GPL 系を禁止
+copyleft = "deny"  # Forbid GPL family
 
 [bans]
-multiple-versions = "warn"  # 同じクレートの複数バージョン
-wildcards = "deny"          # ワイルドカード依存を禁止
+multiple-versions = "warn"  # Multiple versions of the same crate
+wildcards = "deny"          # Forbid wildcard dependencies
 deny = [
-    # 特定のクレートを禁止
+    # Forbid specific crates
     { name = "openssl", wrappers = ["openssl-sys"] },
 ]
 
@@ -259,44 +259,44 @@ allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 
 ---
 
-## 2. API 設計原則
+## 2. API Design Principles
 
-### 2.1 型駆動設計
+### 2.1 Type-Driven Design
 
 ```
-型駆動設計の考え方
-====================
+The Idea of Type-Driven Design
+==============================
 
-不正な状態を型で表現不可能にする
+Make invalid states unrepresentable in the type system.
 
-[NG] 文字列で状態管理
+[NG] Manage state with strings
   status: String  --> "active", "inactive", "pending", "actve" (typo!)
 
-[OK] 列挙型で状態管理
+[OK] Manage state with an enum
   enum Status { Active, Inactive, Pending }
-  --> コンパイル時に不正な状態を排除
+  --> Eliminate invalid states at compile time
 
-[NG] Option の連鎖
-  name: Option<String>, email: Option<String>  --> 片方だけ None?
+[NG] Chained Options
+  name: Option<String>, email: Option<String>  --> Only one is None?
 
-[OK] 状態ごとの型
+[OK] A type per state
   enum User {
       Anonymous,
       Registered { name: String, email: String },
   }
 
-型駆動設計の原則:
-  1. 不正な状態は型レベルで排除する
-  2. newtypeパターンでドメイン概念を表現する
-  3. 列挙型で状態の網羅性を保証する
-  4. PhantomData で型レベルの状態遷移を実現する
+Principles of type-driven design:
+  1. Eliminate invalid states at the type level
+  2. Express domain concepts with the newtype pattern
+  3. Guarantee state exhaustiveness with enums
+  4. Realize type-level state transitions with PhantomData
 ```
 
-### 2.2 newtype パターンによるドメイン型
+### 2.2 Domain Types via the newtype Pattern
 
 ```rust
-/// newtype パターン: 基本型にドメイン意味を付与
-/// 異なる ID 型を混同するバグを防止
+/// newtype pattern: Attach domain meaning to primitive types.
+/// Prevents bugs caused by mixing up different ID types.
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct UserId(String);
@@ -311,10 +311,10 @@ impl UserId {
     pub fn new(id: impl Into<String>) -> Result<Self, ValidationError> {
         let id = id.into();
         if id.is_empty() {
-            return Err(ValidationError::new("UserId", "ID は空にできません"));
+            return Err(ValidationError::new("UserId", "ID must not be empty"));
         }
         if id.len() > 64 {
-            return Err(ValidationError::new("UserId", "ID は64文字以内"));
+            return Err(ValidationError::new("UserId", "ID must be 64 characters or fewer"));
         }
         Ok(Self(id))
     }
@@ -324,24 +324,24 @@ impl UserId {
     }
 }
 
-// newtype による型安全性
+// Type safety via newtype
 fn get_user_orders(user_id: &UserId, order_repo: &OrderRepo) -> Vec<Order> {
     order_repo.find_by_user(user_id)
 }
 
-// コンパイルエラー！ OrderId を UserId の位置に渡せない
-// let orders = get_user_orders(&order_id, &repo);  // エラー！
+// Compile error! You cannot pass an OrderId where a UserId is expected.
+// let orders = get_user_orders(&order_id, &repo);  // Error!
 
-// 正しい使い方
+// Correct usage
 let user_id = UserId::new("user-123")?;
 let orders = get_user_orders(&user_id, &repo);
 ```
 
-### 2.3 ビルダーパターン（Typestate）
+### 2.3 Builder Pattern (Typestate)
 
 ```rust
-/// 型安全なビルダーパターン（Typestate パターン）
-/// コンパイル時に必須フィールドの設定を強制する
+/// A type-safe builder pattern (Typestate pattern).
+/// Forces required fields to be set at compile time.
 pub struct RequestBuilder<S: BuilderState> {
     url: String,
     method: String,
@@ -370,7 +370,7 @@ impl RequestBuilder<NoUrl> {
         }
     }
 
-    /// URL を設定（必須。これを呼ばないと build() できない）
+    /// Set the URL (required; build() cannot be called without this).
     pub fn url(self, url: impl Into<String>) -> RequestBuilder<HasUrl> {
         RequestBuilder {
             url: url.into(),
@@ -404,7 +404,7 @@ impl RequestBuilder<HasUrl> {
         self
     }
 
-    /// ビルド: HasUrl 状態でのみ呼べる
+    /// Build: callable only in the HasUrl state.
     pub fn build(self) -> Request {
         Request {
             url: self.url,
@@ -416,7 +416,7 @@ impl RequestBuilder<HasUrl> {
     }
 }
 
-// 使用例: url() を呼ばないと build() できない
+// Usage example: build() cannot be called without url()
 let req = RequestBuilder::new()
     .url("https://api.example.com")
     .method("POST")
@@ -425,15 +425,15 @@ let req = RequestBuilder::new()
     .timeout(std::time::Duration::from_secs(10))
     .build();
 
-// コンパイルエラー！ url() を呼んでいない
+// Compile error! url() was not called.
 // let req = RequestBuilder::new().build();
 ```
 
-### 2.4 より複雑な Typestate の例
+### 2.4 A More Complex Typestate Example
 
 ```rust
-/// 接続のライフサイクルを型で表現
-/// Disconnected -> Connected -> Authenticated の順でのみ遷移可能
+/// Express the connection lifecycle in the type system.
+/// Transitions are only allowed in the order Disconnected -> Connected -> Authenticated.
 
 pub struct Connection<S: ConnectionState> {
     inner: TcpStream,
@@ -467,7 +467,7 @@ impl Connection<Connected> {
         username: &str,
         password: &str,
     ) -> Result<Connection<Authenticated>, AuthError> {
-        // 認証ロジック...
+        // Authentication logic...
         Ok(Connection {
             inner: self.inner,
             _state: PhantomData,
@@ -475,15 +475,15 @@ impl Connection<Connected> {
     }
 
     pub fn disconnect(self) {
-        // 接続を閉じる
+        // Close the connection
         drop(self.inner);
     }
 }
 
 impl Connection<Authenticated> {
-    /// 認証済み接続でのみクエリを実行可能
+    /// Queries can only be executed on an authenticated connection.
     pub fn query(&mut self, sql: &str) -> Result<QueryResult, DbError> {
-        // クエリ実行...
+        // Execute query...
         todo!()
     }
 
@@ -492,40 +492,40 @@ impl Connection<Authenticated> {
     }
 }
 
-// 使用例
+// Usage example
 let conn = Connection::<Disconnected>::new("localhost:5432")?;
 let auth_conn = conn.authenticate("user", "pass")?;
 let result = auth_conn.query("SELECT * FROM users")?;
 
-// コンパイルエラー: 未認証接続ではクエリできない
+// Compile error: cannot query on an unauthenticated connection
 // let conn = Connection::<Disconnected>::new("localhost:5432")?;
-// conn.query("SELECT 1");  // エラー！
+// conn.query("SELECT 1");  // Error!
 ```
 
-### 2.5 関数の引数設計
+### 2.5 Designing Function Arguments
 
 ```rust
-// === 所有権の最小化 ===
+// === Minimize ownership ===
 
-// [NG] 不必要に所有権を要求
+// [NG] Unnecessarily demanding ownership
 fn count_words(text: String) -> usize {
     text.split_whitespace().count()
 }
 
-// [OK] 参照で十分
+// [OK] A reference is enough
 fn count_words(text: &str) -> usize {
     text.split_whitespace().count()
 }
 
-// === impl Into<T> による柔軟な API ===
+// === Flexible APIs with impl Into<T> ===
 
-// [NG] String のみ受け付け
+// [NG] Accepts only String
 fn greet(name: String) {
     println!("Hello, {}!", name);
 }
-// greet("world".to_string());  // 呼び出し側でtoString必須
+// greet("world".to_string());  // The caller must call to_string()
 
-// [OK] &str でも String でも受け付け
+// [OK] Accepts both &str and String
 fn greet(name: impl Into<String>) {
     let name = name.into();
     println!("Hello, {}!", name);
@@ -533,19 +533,19 @@ fn greet(name: impl Into<String>) {
 // greet("world");  // OK
 // greet(String::from("world"));  // OK
 
-// === スライス vs Vec ===
+// === Slice vs Vec ===
 
-// [NG] Vec を要求
+// [NG] Demands a Vec
 fn sum(numbers: Vec<i32>) -> i32 {
     numbers.iter().sum()
 }
 
-// [OK] スライスを受け取る（Vec, 配列, どちらでもOK）
+// [OK] Take a slice (works for Vec, arrays, etc.)
 fn sum(numbers: &[i32]) -> i32 {
     numbers.iter().sum()
 }
 
-// === AsRef による汎用的な参照変換 ===
+// === Generic reference conversion via AsRef ===
 fn read_file(path: impl AsRef<std::path::Path>) -> Result<String, io::Error> {
     std::fs::read_to_string(path)
 }
@@ -553,54 +553,54 @@ fn read_file(path: impl AsRef<std::path::Path>) -> Result<String, io::Error> {
 // read_file(String::from("config.toml"));         // String
 // read_file(std::path::PathBuf::from("config.toml")); // PathBuf
 
-// === Cow による遅延クローン ===
+// === Lazy cloning with Cow ===
 use std::borrow::Cow;
 
 fn normalize_name(name: &str) -> Cow<'_, str> {
     if name.contains(char::is_uppercase) {
-        // 変換が必要な場合のみ新しい String を作成
+        // Allocate a new String only when conversion is needed
         Cow::Owned(name.to_lowercase())
     } else {
-        // そのまま参照を返す（割り当てなし）
+        // Return the reference as-is (no allocation)
         Cow::Borrowed(name)
     }
 }
 ```
 
-### 2.6 戻り値の設計
+### 2.6 Designing Return Values
 
 ```rust
-// === イテレータを返す（遅延評価） ===
+// === Return iterators (lazy evaluation) ===
 
-// [NG] Vec を返す（全要素をヒープに割り当て）
+// [NG] Returning a Vec (allocates all elements on the heap)
 fn even_numbers(data: &[i32]) -> Vec<i32> {
     data.iter().filter(|&&x| x % 2 == 0).copied().collect()
 }
 
-// [OK] impl Iterator を返す（遅延評価、割り当てなし）
+// [OK] Return impl Iterator (lazy, no allocation)
 fn even_numbers(data: &[i32]) -> impl Iterator<Item = i32> + '_ {
     data.iter().filter(|&&x| x % 2 == 0).copied()
 }
 
 // === Option<&T> vs &Option<T> ===
 
-// [OK] Option<&T> を返す（呼び出し側が値の存在を判断）
+// [OK] Return Option<&T> (the caller decides whether the value exists)
 fn find_user(&self, id: &UserId) -> Option<&User> {
     self.users.get(id)
 }
 
-// === Result にコンテキストを付ける ===
+// === Add context to Result ===
 use anyhow::Context;
 
 fn load_config(path: &str) -> anyhow::Result<Config> {
     let content = std::fs::read_to_string(path)
-        .with_context(|| format!("設定ファイルの読み込みに失敗: {}", path))?;
+        .with_context(|| format!("failed to read configuration file: {}", path))?;
 
     let config: Config = toml::from_str(&content)
-        .with_context(|| format!("設定ファイルのパースに失敗: {}", path))?;
+        .with_context(|| format!("failed to parse configuration file: {}", path))?;
 
     config.validate()
-        .with_context(|| format!("設定のバリデーションに失敗: {}", path))?;
+        .with_context(|| format!("configuration validation failed: {}", path))?;
 
     Ok(config)
 }
@@ -608,56 +608,56 @@ fn load_config(path: &str) -> anyhow::Result<Config> {
 
 ---
 
-## 3. エラーハンドリング戦略
+## 3. Error Handling Strategies
 
-### 3.1 エラー型の設計
+### 3.1 Designing Error Types
 
 ```rust
 use thiserror::Error;
 
-/// アプリケーション全体のエラー型
+/// Application-wide error type.
 #[derive(Error, Debug)]
 pub enum AppError {
-    #[error("データベースエラー: {0}")]
+    #[error("database error: {0}")]
     Database(#[from] sqlx::Error),
 
-    #[error("認証エラー: {0}")]
+    #[error("authentication error: {0}")]
     Auth(#[from] AuthError),
 
-    #[error("バリデーションエラー: {field} - {message}")]
+    #[error("validation error: {field} - {message}")]
     Validation { field: String, message: String },
 
-    #[error("リソースが見つかりません: {resource_type} (id={id})")]
+    #[error("resource not found: {resource_type} (id={id})")]
     NotFound { resource_type: String, id: String },
 
-    #[error("外部サービスエラー: {service} - {0}", service = .service)]
+    #[error("external service error: {service} - {0}", service = .service)]
     ExternalService {
         service: String,
         #[source]
         source: reqwest::Error,
     },
 
-    #[error("レート制限超過: {retry_after_secs}秒後にリトライしてください")]
+    #[error("rate limit exceeded: please retry after {retry_after_secs} seconds")]
     RateLimited { retry_after_secs: u64 },
 
-    #[error("内部エラー")]
+    #[error("internal error")]
     Internal(#[source] anyhow::Error),
 }
 
-/// 認証固有のエラー型
+/// Authentication-specific error type.
 #[derive(Error, Debug)]
 pub enum AuthError {
-    #[error("トークンが無効です")]
+    #[error("invalid token")]
     InvalidToken,
-    #[error("トークンの有効期限切れ")]
+    #[error("token has expired")]
     TokenExpired,
-    #[error("権限不足: {required} が必要です")]
+    #[error("insufficient permissions: {required} is required")]
     InsufficientPermissions { required: String },
-    #[error("アカウントがロックされています")]
+    #[error("account is locked")]
     AccountLocked,
 }
 
-/// HTTP ステータスコードへの変換
+/// Conversion to HTTP status code.
 impl AppError {
     pub fn status_code(&self) -> u16 {
         match self {
@@ -674,7 +674,7 @@ impl AppError {
         }
     }
 
-    /// ユーザーに見せても安全なメッセージか判定
+    /// Determine whether the message is safe to expose to users.
     pub fn is_safe_to_expose(&self) -> bool {
         matches!(
             self,
@@ -685,14 +685,14 @@ impl AppError {
         )
     }
 
-    /// エラーレスポンスの生成
+    /// Generate an error response.
     pub fn to_response(&self) -> ErrorResponse {
         ErrorResponse {
             status: self.status_code(),
             message: if self.is_safe_to_expose() {
                 self.to_string()
             } else {
-                "内部エラーが発生しました".to_string()
+                "an internal error occurred".to_string()
             },
             error_code: self.error_code(),
         }
@@ -714,91 +714,91 @@ impl AppError {
     }
 }
 
-/// Result 型エイリアス
+/// Result type alias.
 pub type AppResult<T> = Result<T, AppError>;
 ```
 
-### 3.2 thiserror vs anyhow の使い分け
+### 3.2 Choosing Between thiserror and anyhow
 
 ```
 ┌──────────────┬───────────────────────┬───────────────────────┐
 │              │ thiserror             │ anyhow                │
 ├──────────────┼───────────────────────┼───────────────────────┤
-│ 用途         │ ライブラリ             │ アプリケーション       │
-│ エラー型     │ 独自 enum 定義         │ anyhow::Error (動的)   │
-│ パターンマッチ│ 可能                  │ downcast が必要        │
-│ コンテキスト  │ 手動で付与             │ .context() で簡単      │
-│ 依存関係     │ 少ない                │ anyhow 1つ            │
-│ エラーチェーン│ #[from], #[source]    │ 自動                  │
-│ 表示         │ #[error("...")] で定義 │ Display 自動実装       │
+│ Use case     │ Libraries              │ Applications          │
+│ Error type   │ Custom enum            │ anyhow::Error (dynamic)│
+│ Pattern match│ Possible              │ Requires downcast     │
+│ Context      │ Added manually         │ Easy via .context()   │
+│ Dependencies │ Few                    │ Just anyhow           │
+│ Error chains │ #[from], #[source]    │ Automatic             │
+│ Display      │ Defined via #[error("...")] │ Auto-implemented Display │
 └──────────────┴───────────────────────┴───────────────────────┘
 
-使い分けのガイドライン:
-  - ライブラリのパブリック API → thiserror
-  - アプリケーションの内部ロジック → anyhow
-  - CLI ツールの main() → anyhow::Result<()>
-  - Web サーバーのハンドラ → thiserror（ステータスコード変換のため）
+Guidelines for choosing:
+  - Public library API           -> thiserror
+  - Internal application logic   -> anyhow
+  - main() of a CLI tool         -> anyhow::Result<()>
+  - Web server handlers          -> thiserror (for status code conversion)
 ```
 
 ```rust
-// === ライブラリでの thiserror 使用例 ===
+// === Example of using thiserror in a library ===
 // my_library/src/lib.rs
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum ParseError {
-    #[error("不正な構文 (行 {line}, 列 {column}): {message}")]
+    #[error("invalid syntax (line {line}, column {column}): {message}")]
     Syntax {
         line: usize,
         column: usize,
         message: String,
     },
-    #[error("未知のトークン: {0}")]
+    #[error("unknown token: {0}")]
     UnknownToken(String),
-    #[error("IO エラー")]
+    #[error("IO error")]
     Io(#[from] std::io::Error),
 }
 
-// 呼び出し側でパターンマッチ可能
+// The caller can pattern-match on the error
 pub fn parse(input: &str) -> Result<Ast, ParseError> {
     // ...
     Err(ParseError::Syntax {
         line: 10,
         column: 5,
-        message: "予期しない ')' ".to_string(),
+        message: "unexpected ')'".to_string(),
     })
 }
 
 
-// === アプリケーションでの anyhow 使用例 ===
+// === Example of using anyhow in an application ===
 // my_app/src/main.rs
 use anyhow::{Context, Result};
 
 fn main() -> Result<()> {
     let config = load_config("config.toml")
-        .context("アプリケーションの設定読み込みに失敗")?;
+        .context("failed to load application configuration")?;
 
     let db = connect_database(&config.database_url)
-        .context("データベース接続に失敗")?;
+        .context("failed to connect to the database")?;
 
     let server = start_server(&config, db)
-        .context("サーバーの起動に失敗")?;
+        .context("failed to start the server")?;
 
-    server.run().context("サーバーの実行中にエラー")
+    server.run().context("error while running the server")
 }
 
-// エラーチェーン表示例:
-// Error: サーバーの起動に失敗
+// Example error chain output:
+// Error: failed to start the server
 //
 // Caused by:
-//     0: データベース接続に失敗
+//     0: failed to connect to the database
 //     1: Connection refused (os error 111)
 ```
 
-### 3.3 エラーハンドリングのパターン
+### 3.3 Error Handling Patterns
 
 ```rust
-// === パターン1: ? 演算子による伝播 ===
+// === Pattern 1: Propagation with the ? operator ===
 fn process_user(id: &UserId) -> AppResult<UserResponse> {
     let user = user_repo.find(id)
         .map_err(AppError::Database)?
@@ -813,18 +813,18 @@ fn process_user(id: &UserId) -> AppResult<UserResponse> {
     Ok(UserResponse::from(user, profile))
 }
 
-// === パターン2: エラーの変換と集約 ===
+// === Pattern 2: Error transformation and aggregation ===
 fn validate_user_input(input: &CreateUserInput) -> AppResult<()> {
     let mut errors = Vec::new();
 
     if input.name.is_empty() {
-        errors.push(("name", "名前は必須です"));
+        errors.push(("name", "name is required"));
     }
     if input.name.len() > 100 {
-        errors.push(("name", "名前は100文字以内です"));
+        errors.push(("name", "name must be 100 characters or fewer"));
     }
     if !input.email.contains('@') {
-        errors.push(("email", "有効なメールアドレスを入力してください"));
+        errors.push(("email", "please enter a valid email address"));
     }
 
     if let Some((field, message)) = errors.first() {
@@ -837,7 +837,7 @@ fn validate_user_input(input: &CreateUserInput) -> AppResult<()> {
     Ok(())
 }
 
-// === パターン3: リトライ付きエラーハンドリング ===
+// === Pattern 3: Error handling with retries ===
 async fn with_retry<F, Fut, T, E>(
     f: F,
     max_retries: u32,
@@ -859,12 +859,12 @@ where
                     attempt = attempt + 1,
                     max_retries,
                     error = %e,
-                    "リトライ中..."
+                    "retrying..."
                 );
                 last_error = Some(e);
                 if attempt < max_retries {
                     tokio::time::sleep(delay).await;
-                    delay *= 2; // 指数バックオフ
+                    delay *= 2; // exponential backoff
                 }
             }
         }
@@ -873,7 +873,7 @@ where
     Err(last_error.unwrap())
 }
 
-// === パターン4: カスタムエラーコンテキスト ===
+// === Pattern 4: Custom error context ===
 trait ResultExt<T> {
     fn with_not_found(self, resource_type: &str, id: &str) -> AppResult<T>;
 }
@@ -887,43 +887,43 @@ impl<T> ResultExt<T> for Option<T> {
     }
 }
 
-// 使用例
+// Usage example
 let user = user_repo.find(&user_id)?
     .with_not_found("User", user_id.as_str())?;
 ```
 
 ---
 
-## 4. テスト戦略
+## 4. Testing Strategies
 
-### 4.1 テストの構成と種類
+### 4.1 Test Composition and Types
 
 ```
-テストピラミッド:
+The Test Pyramid:
 
           /\
-         /  \       E2E テスト（少数、低速、高コスト）
+         /  \       E2E tests (few, slow, expensive)
         /    \
        /------\
-      / 統合    \    統合テスト（中程度）
-     / テスト    \
+      / Integ. \    Integration tests (medium)
+     / tests    \
     /------------\
-   / ユニットテスト \  ユニットテスト（多数、高速、低コスト）
+   /  Unit tests  \  Unit tests (many, fast, cheap)
   /________________\
 
-Rust のテスト配置:
+Test layout in Rust:
   src/
-  ├── lib.rs          # #[cfg(test)] mod tests { ... }  ← ユニットテスト
-  ├── module_a.rs     # #[cfg(test)] mod tests { ... }  ← ユニットテスト
-  └── module_b.rs     # #[cfg(test)] mod tests { ... }  ← ユニットテスト
+  ├── lib.rs          # #[cfg(test)] mod tests { ... }  <- unit tests
+  ├── module_a.rs     # #[cfg(test)] mod tests { ... }  <- unit tests
+  └── module_b.rs     # #[cfg(test)] mod tests { ... }  <- unit tests
   tests/
-  ├── integration_a.rs  ← 統合テスト（別クレートとしてコンパイル）
-  └── integration_b.rs  ← 統合テスト
+  ├── integration_a.rs  <- integration tests (compiled as a separate crate)
+  └── integration_b.rs  <- integration tests
   benches/
-  └── benchmark.rs      ← ベンチマーク（criterion）
+  └── benchmark.rs      <- benchmarks (criterion)
 ```
 
-### 4.2 ユニットテストのパターン
+### 4.2 Unit Test Patterns
 
 ```rust
 // src/domain/price.rs
@@ -939,7 +939,7 @@ pub fn calculate_price(base: f64, tax_rate: f64, discount: Option<f64>) -> f64 {
 mod tests {
     use super::*;
 
-    // === 基本テスト ===
+    // === Basic tests ===
     #[test]
     fn test_price_without_discount() {
         let result = calculate_price(100.0, 0.1, None);
@@ -958,16 +958,16 @@ mod tests {
         assert!((result - 110.0).abs() < f64::EPSILON);
     }
 
-    // === テーブル駆動テスト ===
+    // === Table-driven tests ===
     #[test]
     fn test_price_calculation_table() {
         let cases = vec![
             // (base, tax_rate, discount, expected, description)
-            (100.0, 0.10, None,       110.0, "割引なし・税率10%"),
-            (100.0, 0.10, Some(0.2),  88.0,  "20%割引・税率10%"),
-            (100.0, 0.08, Some(0.5),  54.0,  "50%割引・税率8%"),
-            (0.0,   0.10, None,       0.0,   "0円の商品"),
-            (100.0, 0.0,  Some(0.0),  100.0, "割引0%・税率0%"),
+            (100.0, 0.10, None,       110.0, "no discount, 10% tax"),
+            (100.0, 0.10, Some(0.2),  88.0,  "20% discount, 10% tax"),
+            (100.0, 0.08, Some(0.5),  54.0,  "50% discount, 8% tax"),
+            (0.0,   0.10, None,       0.0,   "free item"),
+            (100.0, 0.0,  Some(0.0),  100.0, "0% discount, 0% tax"),
         ];
 
         for (base, tax, discount, expected, desc) in cases {
@@ -980,7 +980,7 @@ mod tests {
         }
     }
 
-    // === プロパティベーステスト ===
+    // === Property-based tests ===
     use proptest::prelude::*;
 
     proptest! {
@@ -1008,12 +1008,12 @@ mod tests {
 }
 ```
 
-### 4.3 モックとテストダブル
+### 4.3 Mocks and Test Doubles
 
 ```rust
-// === トレイトベースのモック ===
+// === Trait-based mocking ===
 
-// プロダクションコード
+// Production code
 #[async_trait]
 pub trait UserRepository: Send + Sync {
     async fn find(&self, id: &UserId) -> Result<Option<User>, DbError>;
@@ -1042,7 +1042,7 @@ impl<R: UserRepository> UserService<R> {
     }
 }
 
-// テスト用モック
+// Mock for testing
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1116,10 +1116,10 @@ mod tests {
 }
 ```
 
-### 4.4 統合テストとテストヘルパー
+### 4.4 Integration Tests and Test Helpers
 
 ```rust
-// tests/common/mod.rs - テストヘルパー
+// tests/common/mod.rs - test helpers
 pub struct TestApp {
     pub db: PgPool,
     pub addr: String,
@@ -1162,7 +1162,7 @@ impl TestApp {
 
 impl Drop for TestApp {
     fn drop(&mut self) {
-        // テストDB のクリーンアップ
+        // Clean up the test database
     }
 }
 
@@ -1207,10 +1207,10 @@ async fn test_create_user_validation_error() {
 }
 ```
 
-### 4.5 ドキュメントテスト
+### 4.5 Documentation Tests
 
 ```rust
-/// 2つの数値を加算する。
+/// Adds two numbers.
 ///
 /// # Examples
 ///
@@ -1223,22 +1223,22 @@ async fn test_create_user_validation_error() {
 ///
 /// # Panics
 ///
-/// オーバーフローが発生する場合にパニックする（debug ビルドのみ）。
+/// Panics on overflow (debug builds only).
 ///
 /// ```should_panic
 /// use my_crate::add;
-/// let _ = add(i32::MAX, 1);  // debug ビルドでパニック
+/// let _ = add(i32::MAX, 1);  // panics in debug builds
 /// ```
 pub fn add(a: i32, b: i32) -> i32 {
     a + b
 }
 
-/// ファイルを読み込んでパースする。
+/// Reads and parses a file.
 ///
 /// # Errors
 ///
-/// - ファイルが見つからない場合
-/// - パースに失敗した場合
+/// - When the file cannot be found
+/// - When parsing fails
 ///
 /// # Examples
 ///
@@ -1255,7 +1255,7 @@ pub fn parse_config(path: &str) -> anyhow::Result<Config> {
 }
 ```
 
-### 4.6 CI/CD 設定（GitHub Actions）
+### 4.6 CI/CD Configuration (GitHub Actions)
 
 ```yaml
 # .github/workflows/rust.yml
@@ -1325,7 +1325,7 @@ jobs:
       - name: Upload coverage
         uses: codecov/codecov-action@v3
 
-  # MSRV (Minimum Supported Rust Version) チェック
+  # MSRV (Minimum Supported Rust Version) check
   msrv:
     runs-on: ubuntu-latest
     steps:
@@ -1336,65 +1336,65 @@ jobs:
 
 ---
 
-## 5. パフォーマンスのベストプラクティス
+## 5. Performance Best Practices
 
-### 5.1 割り当て回避の比較表
+### 5.1 Comparison Table for Avoiding Allocations
 
-| パターン | ヒープ割り当て | 推奨度 | 説明 |
+| Pattern | Heap allocation | Recommendation | Description |
 |---|---|---|---|
-| `String` を引数に | 毎回 | 低 | 呼び出し側でクローン必要 |
-| `&str` を引数に | なし | 高 | 借用で十分な場合 |
-| `impl Into<String>` | 必要時のみ | 高 | 柔軟な API |
-| `Cow<'_, str>` | 必要時のみ | 中 | 所有/借用を動的切替 |
-| `Vec<T>` を返す | 毎回 | 中 | イテレータを返す方が良い場合あり |
-| `impl Iterator` を返す | なし | 高 | 遅延評価 |
-| `Box<dyn Trait>` | 毎回 | 低 | 動的ディスパッチ + ヒープ割り当て |
-| `impl Trait` | なし | 高 | 静的ディスパッチ、インライン化可能 |
-| `Arc<T>` | 最初のみ | 中 | 参照カウント（共有所有権） |
+| `String` as argument | Every call | Low | Caller must clone |
+| `&str` as argument | None | High | When borrowing is enough |
+| `impl Into<String>` | Only when needed | High | Flexible API |
+| `Cow<'_, str>` | Only when needed | Medium | Dynamic switch between owned/borrowed |
+| Returning `Vec<T>` | Every call | Medium | Returning an iterator may be better |
+| Returning `impl Iterator` | None | High | Lazy evaluation |
+| `Box<dyn Trait>` | Every call | Low | Dynamic dispatch + heap allocation |
+| `impl Trait` | None | High | Static dispatch, can be inlined |
+| `Arc<T>` | Initial only | Medium | Reference counting (shared ownership) |
 
-### 5.2 具体的な最適化パターン
+### 5.2 Concrete Optimization Patterns
 
 ```rust
-// === 1. String の割り当て削減 ===
+// === 1. Reducing String allocations ===
 
-// [NG] 毎回新しい String を作成
+// [NG] Allocates a new String each time
 fn format_name(first: &str, last: &str) -> String {
     let mut result = String::new();
     result.push_str(first);
     result.push(' ');
     result.push_str(last);
-    result  // 3回のリアロケーション可能性
+    result  // Possibly 3 reallocations
 }
 
-// [OK] 容量を事前確保
+// [OK] Reserve capacity in advance
 fn format_name(first: &str, last: &str) -> String {
     let mut result = String::with_capacity(first.len() + 1 + last.len());
     result.push_str(first);
     result.push(' ');
     result.push_str(last);
-    result  // リアロケーションなし
+    result  // No reallocation
 }
 
-// [Best] format! マクロ
+// [Best] format! macro
 fn format_name(first: &str, last: &str) -> String {
     format!("{} {}", first, last)
 }
 
 
-// === 2. Vec の事前確保 ===
+// === 2. Pre-allocating a Vec ===
 
-// [NG] 都度リアロケーション
+// [NG] Reallocates each time
 fn collect_even(data: &[i32]) -> Vec<i32> {
     let mut result = Vec::new();
     for &n in data {
         if n % 2 == 0 {
-            result.push(n);  // 容量不足時にリアロケーション
+            result.push(n);  // Reallocates when capacity is exceeded
         }
     }
     result
 }
 
-// [OK] 容量を事前確保
+// [OK] Reserve capacity in advance
 fn collect_even(data: &[i32]) -> Vec<i32> {
     let mut result = Vec::with_capacity(data.len() / 2);
     for &n in data {
@@ -1405,28 +1405,28 @@ fn collect_even(data: &[i32]) -> Vec<i32> {
     result
 }
 
-// [Best] イテレータを使用
+// [Best] Use iterators
 fn collect_even(data: &[i32]) -> Vec<i32> {
     data.iter().copied().filter(|n| n % 2 == 0).collect()
 }
 
 
-// === 3. 不要なクローンの削除 ===
+// === 3. Removing unnecessary clones ===
 
-// [NG] 不要なクローン
+// [NG] Unnecessary clone
 struct Config {
     name: String,
     values: Vec<String>,
 }
 
 impl Config {
-    // name のクローンが不要
+    // The clone of `name` is unnecessary
     fn get_name(&self) -> String {
-        self.name.clone()  // 毎回ヒープ割り当て
+        self.name.clone()  // Heap allocates every call
     }
 }
 
-// [OK] 参照を返す
+// [OK] Return a reference
 impl Config {
     fn name(&self) -> &str {
         &self.name
@@ -1434,24 +1434,24 @@ impl Config {
 }
 
 
-// === 4. SmallVec による小さな配列の最適化 ===
+// === 4. Optimizing small arrays with SmallVec ===
 use smallvec::SmallVec;
 
-// 通常は要素数が少ない場合、ヒープ割り当てを回避
+// Avoid heap allocation when there are few elements
 fn parse_tags(input: &str) -> SmallVec<[&str; 4]> {
-    // 4個以下ならスタック上に配置
-    // 5個以上になったら自動的にヒープに切り替え
+    // Up to 4 elements are stored on the stack
+    // Automatically switches to heap when exceeding 5
     input.split(',').map(str::trim).collect()
 }
 
 
-// === 5. 文字列インターン / アリーナアロケータ ===
+// === 5. String interning / arena allocator ===
 use bumpalo::Bump;
 
 fn process_many_strings(inputs: &[String]) {
     let arena = Bump::new();
 
-    // アリーナに確保: 一括解放されるため個別の dealloc 不要
+    // Allocate in the arena: freed all at once, no individual dealloc needed
     let processed: Vec<&str> = inputs
         .iter()
         .map(|s| {
@@ -1460,33 +1460,33 @@ fn process_many_strings(inputs: &[String]) {
         })
         .collect();
 
-    // processed を使用...
+    // Use processed...
 
-    // arena がドロップされると全て一括解放
+    // When the arena is dropped, everything is freed at once
 }
 ```
 
-### 5.3 プロファイリングツール
+### 5.3 Profiling Tools
 
 ```
-パフォーマンス計測ツール:
+Performance measurement tools:
 
 ┌──────────────────┬──────────────────────────────────────┐
-│ ツール            │ 用途                                  │
+│ Tool             │ Purpose                              │
 ├──────────────────┼──────────────────────────────────────┤
-│ criterion        │ マイクロベンチマーク（統計的に信頼性高）  │
-│ flamegraph       │ CPU プロファイル可視化                  │
-│ perf (Linux)     │ CPU サンプリングプロファイラ             │
-│ Instruments (Mac)│ macOS 用プロファイラ                   │
-│ heaptrack        │ ヒープ割り当てプロファイリング           │
-│ dhat             │ ヒープ割り当て分析（Valgrind）          │
-│ cachegrind       │ キャッシュヒット率分析                  │
-│ tokio-console    │ async タスクのデバッグ・モニタリング     │
+│ criterion        │ Microbenchmarks (statistically reliable) │
+│ flamegraph       │ CPU profile visualization             │
+│ perf (Linux)     │ CPU sampling profiler                 │
+│ Instruments (Mac)│ Profiler for macOS                    │
+│ heaptrack        │ Heap allocation profiling             │
+│ dhat             │ Heap allocation analysis (Valgrind)   │
+│ cachegrind       │ Cache hit-rate analysis              │
+│ tokio-console    │ Debugging/monitoring async tasks      │
 └──────────────────┴──────────────────────────────────────┘
 ```
 
 ```rust
-// criterion によるベンチマーク
+// Benchmarking with criterion
 // benches/benchmark.rs
 use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
 
@@ -1532,34 +1532,34 @@ criterion_group!(benches, bench_fibonacci);
 criterion_main!(benches);
 ```
 
-### 5.4 並列化（rayon）
+### 5.4 Parallelization (rayon)
 
 ```rust
 use rayon::prelude::*;
 
-// === CPU バウンドの並列化 ===
+// === Parallelizing CPU-bound work ===
 
-// 逐次処理
+// Sequential
 fn process_images_sequential(images: &[Image]) -> Vec<ProcessedImage> {
     images.iter().map(|img| process_image(img)).collect()
 }
 
-// 並列処理（rayon）
+// Parallel (rayon)
 fn process_images_parallel(images: &[Image]) -> Vec<ProcessedImage> {
     images.par_iter().map(|img| process_image(img)).collect()
 }
 
-// 並列ソート
+// Parallel sort
 fn sort_large_data(data: &mut [f64]) {
     data.par_sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
 }
 
-// 並列リデュース
+// Parallel reduce
 fn parallel_sum(data: &[f64]) -> f64 {
     data.par_iter().sum()
 }
 
-// カスタム並列度
+// Custom parallelism
 fn with_custom_thread_pool() {
     let pool = rayon::ThreadPoolBuilder::new()
         .num_threads(4)
@@ -1567,7 +1567,7 @@ fn with_custom_thread_pool() {
         .unwrap();
 
     pool.install(|| {
-        // このブロック内の par_iter は4スレッドで実行
+        // par_iter inside this block runs on 4 threads
         let result: Vec<_> = (0..1000)
             .into_par_iter()
             .map(|i| expensive_computation(i))
@@ -1578,57 +1578,57 @@ fn with_custom_thread_pool() {
 
 ---
 
-## 6. プロジェクト構成
+## 6. Project Structure
 
-### 6.1 ワークスペース構成
+### 6.1 Workspace Layout
 
 ```
-推奨プロジェクト構成:
+Recommended project layout:
 
 my-project/
-├── Cargo.toml          # ワークスペースルート
-├── deny.toml           # cargo-deny 設定
-├── rustfmt.toml        # フォーマット設定
+├── Cargo.toml          # workspace root
+├── deny.toml           # cargo-deny config
+├── rustfmt.toml        # formatting config
 ├── .github/
 │   └── workflows/
 │       └── ci.yml
 ├── crates/
-│   ├── my-app/         # バイナリクレート
+│   ├── my-app/         # binary crate
 │   │   ├── Cargo.toml
 │   │   └── src/
 │   │       └── main.rs
-│   ├── my-core/        # コアロジック（ドメイン）
+│   ├── my-core/        # core logic (domain)
 │   │   ├── Cargo.toml
 │   │   └── src/
 │   │       ├── lib.rs
 │   │       ├── domain/
 │   │       ├── service/
 │   │       └── error.rs
-│   ├── my-api/         # Web API レイヤー
+│   ├── my-api/         # web API layer
 │   │   ├── Cargo.toml
 │   │   └── src/
 │   │       ├── lib.rs
 │   │       ├── routes/
 │   │       ├── middleware/
 │   │       └── extractors/
-│   ├── my-db/          # データベースレイヤー
+│   ├── my-db/          # database layer
 │   │   ├── Cargo.toml
 │   │   └── src/
 │   │       ├── lib.rs
 │   │       ├── models/
 │   │       ├── repositories/
 │   │       └── migrations/
-│   └── my-shared/      # 共通型・ユーティリティ
+│   └── my-shared/      # shared types and utilities
 │       ├── Cargo.toml
 │       └── src/
 │           ├── lib.rs
 │           └── types.rs
-└── tests/              # ワークスペースレベルの統合テスト
+└── tests/              # workspace-level integration tests
     └── e2e/
 ```
 
 ```toml
-# ルート Cargo.toml
+# Root Cargo.toml
 [workspace]
 resolver = "2"
 members = [
@@ -1659,13 +1659,13 @@ pedantic = { level = "warn", priority = -1 }
 unwrap_used = "deny"
 ```
 
-### 6.2 依存関係の方向
+### 6.2 Direction of Dependencies
 
 ```
-クレート間の依存関係:
+Dependencies between crates:
 
   ┌──────────┐
-  │  my-app  │ (バイナリ: main.rs)
+  │  my-app  │ (binary: main.rs)
   └──────────┘
     │  │  │
     │  │  └─────────────────────┐
@@ -1681,29 +1681,29 @@ unwrap_used = "deny"
   │            my-shared                  │
   └──────────────────────────────────────┘
 
-  ルール:
-  - 矢印の方向にのみ依存可能
-  - my-shared は他のクレートに依存しない
-  - my-core は my-db に依存しない（トレイトで抽象化）
-  - 循環依存は禁止
+  Rules:
+  - Dependencies may only flow in the direction of the arrows
+  - my-shared depends on no other crate
+  - my-core does not depend on my-db (abstract via traits)
+  - Circular dependencies are forbidden
 ```
 
-### 6.3 feature フラグの活用
+### 6.3 Leveraging Feature Flags
 
 ```toml
 # crates/my-core/Cargo.toml
 [features]
 default = []
-# テスト用のヘルパーを公開
+# Expose helpers for testing
 test-helpers = []
-# ベンチマーク用の内部関数公開
+# Expose internal functions for benchmarking
 bench = []
-# 追加機能
+# Additional functionality
 advanced-analytics = ["dep:stats"]
 ```
 
 ```rust
-// feature フラグによる条件付きコンパイル
+// Conditional compilation via feature flags
 #[cfg(feature = "test-helpers")]
 pub mod test_helpers {
     use super::*;
@@ -1720,18 +1720,18 @@ pub mod test_helpers {
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-patterns
 
-### 7.1 過剰な unwrap/expect
+### 7.1 Excessive unwrap/expect
 
-**問題**: `unwrap()` はパニックを引き起こし、サーバーアプリケーションではプロセスが停止する。
+**Problem**: `unwrap()` causes a panic and stops the process in a server application.
 
 ```rust
-// [NG] 連続する unwrap
+// [NG] Successive unwraps
 let config = std::fs::read_to_string("config.toml").unwrap();
 let port: u16 = env::var("PORT").unwrap().parse().unwrap();
 
-// [OK] 適切なエラーハンドリング
+// [OK] Proper error handling
 let config = std::fs::read_to_string("config.toml")
     .context("Failed to read config.toml")?;
 let port: u16 = env::var("PORT")
@@ -1739,45 +1739,45 @@ let port: u16 = env::var("PORT")
     .parse()
     .context("Invalid PORT value")?;
 
-// unwrap() が許される場面:
-// 1. テストコード
+// Cases where unwrap() is acceptable:
+// 1. Test code
 #[test]
 fn test_something() {
-    let result = my_function().unwrap();  // テストでは OK
+    let result = my_function().unwrap();  // OK in tests
 }
 
-// 2. 論理的に失敗しないことが証明できる場合（コメント必須）
-let regex = Regex::new(r"^\d+$").unwrap();  // 定数パターンは失敗しない
+// 2. When it can be proven that it cannot logically fail (a comment is required)
+let regex = Regex::new(r"^\d+$").unwrap();  // A constant pattern cannot fail
 
-// 3. プロトタイプ・実験コード（本番前に除去）
+// 3. Prototype/experimental code (remove before production)
 ```
 
-### 7.2 不要な Clone の多用
+### 7.2 Overuse of Unnecessary Clone
 
-**問題**: 所有権の問題を Clone で回避すると、不要なメモリ割り当てが増え、パフォーマンスが劣化する。
+**Problem**: Working around ownership issues with Clone increases memory allocations and degrades performance.
 
 ```rust
-// [NG] 不要なクローン
+// [NG] Unnecessary clone
 fn process(items: &[String]) {
     for item in items {
-        let owned = item.clone();  // 毎回ヒープ割り当て
+        let owned = item.clone();  // Heap allocates every iteration
         do_something(owned);
     }
 }
 
-// [OK] 借用で十分
+// [OK] Borrowing is enough
 fn process(items: &[String]) {
     for item in items {
-        do_something_ref(item);  // &str で受け取る
+        do_something_ref(item);  // Take &str
     }
 }
 
-// [NG] Arc の不要なクローン
+// [NG] Unnecessary cloning of an Arc
 fn process_shared(data: Arc<Vec<String>>) {
-    let cloned = data.clone();  // Arc のクローンは安い...
-    let cloned2 = data.clone(); // ...が、不要なら避ける
+    let cloned = data.clone();  // Cloning an Arc is cheap...
+    let cloned2 = data.clone(); // ...but avoid it when unnecessary
 
-    // 1つの関数内で同じ Arc を複数回クローンする必要はない
+    // No need to clone the same Arc multiple times in a single function
     use_data(&data);
     use_data_again(&data);
 }
@@ -1789,10 +1789,10 @@ fn process_shared(data: &Arc<Vec<String>>) {
 }
 ```
 
-### 7.3 過剰な抽象化
+### 7.3 Excessive Abstraction
 
 ```rust
-// [NG] 不要なトレイト・ジェネリクス
+// [NG] Unnecessary trait/generics
 trait Addable<T> {
     fn add(&self, other: &T) -> T;
 }
@@ -1803,40 +1803,40 @@ impl Addable<i32> for i32 {
     }
 }
 
-// [OK] 単純に関数で十分
+// [OK] A simple function suffices
 fn add(a: i32, b: i32) -> i32 {
     a + b
 }
 
-// 抽象化が正当化される場面:
-// - 複数の実装が実際に存在する場合
-// - テスト時にモックが必要な場合
-// - 将来的な拡張が確実に予想される場合
+// Cases where abstraction is justified:
+// - When multiple implementations actually exist
+// - When mocking is required for tests
+// - When future extension is reliably foreseen
 ```
 
-### 7.4 unsafe の不適切な使用
+### 7.4 Inappropriate Use of unsafe
 
 ```rust
-// [NG] 安全な代替手段があるのに unsafe を使う
+// [NG] Using unsafe when a safe alternative exists
 unsafe fn get_element(slice: &[i32], index: usize) -> i32 {
-    *slice.get_unchecked(index)  // 境界チェックをスキップ
+    *slice.get_unchecked(index)  // Skips bounds checking
 }
 
-// [OK] 安全な方法
+// [OK] The safe approach
 fn get_element(slice: &[i32], index: usize) -> Option<i32> {
     slice.get(index).copied()
 }
 
-// unsafe が正当化される場面:
-// - FFI（外部関数インターフェース）
-// - パフォーマンスクリティカルなホットパス（プロファイリングで確認済み）
-// - 低レベルのメモリ操作（カスタムアロケータなど）
-// ※ 必ず Safety コメントを書く
+// Cases where unsafe is justified:
+// - FFI (Foreign Function Interface)
+// - Performance-critical hot paths (verified by profiling)
+// - Low-level memory operations (custom allocators, etc.)
+// * Always include a Safety comment
 
 /// # Safety
 ///
-/// `ptr` は有効な `T` へのポインタであり、
-/// 少なくとも `len` 個の連続した `T` が読み取り可能でなければならない。
+/// `ptr` must be a valid pointer to `T`, and at least `len`
+/// consecutive `T` values must be readable.
 unsafe fn read_buffer<T>(ptr: *const T, len: usize) -> Vec<T>
 where
     T: Copy,
@@ -1848,15 +1848,15 @@ where
 
 ---
 
-## 8. ドキュメント作成のベストプラクティス
+## 8. Documentation Best Practices
 
-### 8.1 ドキュメントコメントの規約
+### 8.1 Conventions for Doc Comments
 
 ```rust
-/// ユーザーアカウントを表すドメインモデル。
+/// Domain model representing a user account.
 ///
-/// ユーザーは作成後、アクティブ化してからでないと
-/// 操作を行うことはできない。
+/// A user cannot perform operations until they have been
+/// activated after creation.
 ///
 /// # Examples
 ///
@@ -1871,26 +1871,26 @@ where
 ///
 /// # Errors
 ///
-/// - 名前が空文字列の場合
-/// - メールアドレスの形式が不正な場合
+/// - When the name is an empty string
+/// - When the email address has an invalid format
 pub struct User {
     // ...
 }
 
-/// ユーザーを作成する。
+/// Creates a user.
 ///
-/// 新しいユーザーは非アクティブ状態で作成される。
-/// [`User::activate`] を呼んでアクティブ化する必要がある。
+/// New users are created in an inactive state.
+/// You must call [`User::activate`] to activate them.
 ///
 /// # Arguments
 ///
-/// * `name` - ユーザー名（1文字以上、100文字以内）
-/// * `email` - メールアドレス（RFC 5322 準拠）
+/// * `name` - User name (1 to 100 characters)
+/// * `email` - Email address (RFC 5322 compliant)
 ///
 /// # Errors
 ///
-/// * [`ValidationError::EmptyName`] - 名前が空の場合
-/// * [`ValidationError::InvalidEmail`] - メールが不正な場合
+/// * [`ValidationError::EmptyName`] - When the name is empty
+/// * [`ValidationError::InvalidEmail`] - When the email is invalid
 ///
 /// # Examples
 ///
@@ -1906,117 +1906,117 @@ pub fn new(name: &str, email: &str) -> Result<Self, ValidationError> {
 
 ---
 
-## API 設計の指針比較表
+## API Design Principles Comparison Table
 
-| 原則 | 良い例 | 悪い例 |
+| Principle | Good example | Bad example |
 |---|---|---|
-| **型で不変条件を表現** | `NonZeroU32` | `u32`（0チェックを忘れる） |
-| **所有権を最小限に** | `fn process(data: &[u8])` | `fn process(data: Vec<u8>)` |
-| **列挙型で網羅性** | `match` の全パターン | `if/else` の連鎖 |
-| **newtype で意味付け** | `struct UserId(u64)` | `u64`（何の ID?） |
-| **ビルダーで複雑な構築** | `Config::builder().port(8080).build()` | `Config::new(8080, ...)` 引数多数 |
-| **From/Into で変換** | `impl From<String> for Name` | 手動変換関数 |
-| **イテレータを返す** | `fn items(&self) -> impl Iterator` | `fn items(&self) -> Vec<T>` |
-| **エラー型を分ける** | ライブラリ用/アプリ用で分離 | 全部 `String` で返す |
+| **Express invariants in types** | `NonZeroU32` | `u32` (forgetting the zero check) |
+| **Minimize ownership** | `fn process(data: &[u8])` | `fn process(data: Vec<u8>)` |
+| **Exhaustiveness via enums** | All `match` patterns | Chains of `if/else` |
+| **Newtype for meaning** | `struct UserId(u64)` | `u64` (ID for what?) |
+| **Builder for complex construction** | `Config::builder().port(8080).build()` | `Config::new(8080, ...)` with many args |
+| **Conversion via From/Into** | `impl From<String> for Name` | Manual conversion functions |
+| **Return iterators** | `fn items(&self) -> impl Iterator` | `fn items(&self) -> Vec<T>` |
+| **Separate error types** | Library vs. application | All returned as `String` |
 
 ---
 
 ## FAQ
 
-### Q1: clippy の警告をすべて修正すべきですか？
+### Q1: Should I fix every clippy warning?
 
-**A**: `warn` レベルの lint は基本的に修正すべきです。ただし、`pedantic` レベルには過度に厳格なものもあるため、プロジェクトに合わせて `#[allow]` で個別に許可できます。`deny` に設定した lint は CI で必ずチェックしてください。チームで合意した設定を `Cargo.toml` の `[lints]` セクションに記述し、全員が同じルールを使うようにしましょう。
+**A**: Lints at the `warn` level should generally be fixed. However, some `pedantic` lints are overly strict, so you can selectively allow them with `#[allow]` to fit your project. Lints set to `deny` should always be checked in CI. Record the configuration agreed upon by your team in the `[lints]` section of `Cargo.toml` so everyone uses the same rules.
 
-### Q2: anyhow と thiserror はどう使い分けますか？
-
-**A**:
-- **thiserror**: ライブラリで使用。呼び出し側がエラー型をパターンマッチで処理できる
-- **anyhow**: アプリケーションで使用。エラーの種類よりもコンテキスト情報が重要な場合
-ライブラリでは `thiserror` で型を定義し、アプリケーションの `main` や CLI では `anyhow::Result` で統一するのが一般的です。Web サーバーのハンドラではステータスコード変換が必要なので thiserror が適しています。
-
-### Q3: Rust のパフォーマンスチューニングの進め方は？
-
-**A**: 以下の順序で進めます:
-1. **ベンチマーク** を `criterion` で作成し、現状を計測
-2. **プロファイル** を `perf`/`flamegraph` で実行し、ホットスポットを特定
-3. **アルゴリズム改善** が最優先（O(n^2) -> O(n log n) など）
-4. **割り当て削減** — Clone の除去、`String` -> `&str`、`Vec` -> スライス
-5. **並列化** — rayon による data parallelism
-6. **unsafe** — 最終手段。必ずベンチマークで効果を確認
-計測なしの最適化は避けてください。
-
-### Q4: feature フラグはどう設計すべきですか？
-
-**A**: 以下の原則に従います:
-- `default` フィーチャーは最小限に（ユーザーが opt-in する設計）
-- 重い依存関係は feature フラグで制御
-- テスト用ヘルパーは `test-helpers` feature で公開
-- `serde` サポートは `serde` feature で opt-in
-
-### Q5: unsafe コードはどう管理すべきですか？
+### Q2: How should I choose between anyhow and thiserror?
 
 **A**:
-- 最小限の範囲で使用する（unsafe ブロックを小さく保つ）
-- 必ず `# Safety` ドキュメントを書く
-- 可能なら安全な抽象をラッパーとして提供する
-- Miri (`cargo +nightly miri test`) で未定義動作を検出
-- `unsafe_code` lint を `deny` に設定し、明示的に許可する
+- **thiserror**: Use in libraries. The caller can pattern-match on the error type.
+- **anyhow**: Use in applications. When contextual information is more important than the error variant.
+It is common to define types with `thiserror` in libraries and unify on `anyhow::Result` in `main` or CLIs of applications. For web server handlers, `thiserror` is suitable because it allows status code conversion.
+
+### Q3: How should I approach performance tuning in Rust?
+
+**A**: Proceed in the following order:
+1. **Benchmark** with `criterion` to measure the current state
+2. **Profile** with `perf`/`flamegraph` to identify hotspots
+3. **Algorithmic improvement** is the highest priority (e.g., O(n^2) -> O(n log n))
+4. **Reduce allocations** — eliminate Clones, `String` -> `&str`, `Vec` -> slices
+5. **Parallelize** — data parallelism with rayon
+6. **unsafe** — last resort. Always verify the gain via benchmarks.
+Avoid optimization without measurement.
+
+### Q4: How should I design feature flags?
+
+**A**: Follow these principles:
+- Keep the `default` feature minimal (design for opt-in by users)
+- Gate heavy dependencies behind feature flags
+- Expose test helpers under a `test-helpers` feature
+- Make `serde` support opt-in via a `serde` feature
+
+### Q5: How should I manage unsafe code?
+
+**A**:
+- Use it within minimal scope (keep unsafe blocks small)
+- Always write a `# Safety` doc comment
+- When possible, provide a safe abstraction as a wrapper
+- Detect undefined behavior with Miri (`cargo +nightly miri test`)
+- Set the `unsafe_code` lint to `deny` and explicitly allow it where required
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key point |
 |---|---|
-| clippy | 700+ の lint で一般的なミスを防止。CI で必須 |
-| rustfmt | コードフォーマットの統一。チーム開発で必須 |
-| cargo-deny | サプライチェーンセキュリティ。ライセンス管理 |
-| API 設計 | 型で不変条件を表現。所有権は最小限に |
-| エラー処理 | ライブラリは thiserror、アプリは anyhow |
-| テスト | ユニット + 統合 + プロパティベース + ドキュメントテスト |
-| パフォーマンス | 計測優先。不要な Clone と割り当てを排除 |
-| プロジェクト構成 | ワークスペースで分割。依存の方向を一方向に |
-| ドキュメント | Examples, Errors, Safety を必ず書く |
+| clippy | Prevents common mistakes with 700+ lints. Required in CI. |
+| rustfmt | Unifies code formatting. Essential for team development. |
+| cargo-deny | Supply chain security. License management. |
+| API design | Express invariants in types. Minimize ownership. |
+| Error handling | Use thiserror for libraries, anyhow for applications. |
+| Testing | Unit + integration + property-based + doc tests. |
+| Performance | Measurement first. Eliminate unnecessary Clone and allocations. |
+| Project structure | Split into a workspace. Keep dependencies one-directional. |
+| Documentation | Always write Examples, Errors, and Safety sections. |
 
 ---
 
-## 演習問題
+## Exercises
 
-### 演習1: 型駆動設計
+### Exercise 1: Type-Driven Design
 
-以下の構造体を、不正な状態が表現不可能になるよう再設計せよ。
+Redesign the following struct so that invalid states are unrepresentable.
 
 ```rust
 struct User {
-    name: String,           // 空文字列もOK？
-    email: String,          // 不正な形式もOK？
-    age: i32,               // 負の値もOK？
-    role: String,           // "admin", "user", "guest" 以外もOK？
+    name: String,           // Empty string allowed?
+    email: String,          // Invalid format allowed?
+    age: i32,               // Negative values allowed?
+    role: String,           // Anything other than "admin", "user", "guest"?
     verified: bool,
-    verification_code: Option<String>, // verified=true なのに code がある？
+    verification_code: Option<String>, // verified=true but code is present?
 }
 ```
 
-### 演習2: エラー型の設計
+### Exercise 2: Designing Error Types
 
-EC サイトの注文処理で発生しうるエラーを thiserror で定義せよ。最低5種類のエラーバリアントを含め、HTTP ステータスコードへの変換メソッドも実装すること。
+Define the errors that may occur in order processing on an e-commerce site using thiserror. Include at least five error variants, and also implement a method that converts to HTTP status codes.
 
-### 演習3: テスト戦略
+### Exercise 3: Testing Strategy
 
-以下の関数に対して、(1) 通常のユニットテスト、(2) テーブル駆動テスト、(3) プロパティベーステスト を書け。
+For the following function, write (1) a regular unit test, (2) a table-driven test, and (3) a property-based test.
 
 ```rust
 pub fn parse_csv_line(line: &str) -> Vec<String> {
-    // カンマ区切りでフィールドを分割
-    // ダブルクォートで囲まれたフィールド内のカンマは無視
-    // ダブルクォート内の "" はエスケープされた "
+    // Split fields by comma
+    // Ignore commas inside fields surrounded by double quotes
+    // "" inside double quotes is an escaped "
     todo!()
 }
 ```
 
-### 演習4: パフォーマンス改善
+### Exercise 4: Performance Improvement
 
-以下のコードのパフォーマンスを改善せよ。改善前後で criterion ベンチマークを書き、効果を測定すること。
+Improve the performance of the following code. Write criterion benchmarks before and after the change to measure the effect.
 
 ```rust
 fn count_word_frequencies(text: &str) -> HashMap<String, usize> {
@@ -2030,22 +2030,22 @@ fn count_word_frequencies(text: &str) -> HashMap<String, usize> {
 }
 ```
 
-### 演習5: ワークスペース設計
+### Exercise 5: Workspace Design
 
-ブログシステム（記事の CRUD、ユーザー認証、コメント機能）のワークスペース構成を設計せよ。各クレートの責任と依存関係を図示し、Cargo.toml を書くこと。
+Design the workspace layout for a blog system (CRUD for articles, user authentication, comments). Diagram the responsibilities and dependencies of each crate, and write the Cargo.toml.
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Reading
 
-- [FFI](../03-systems/02-ffi-interop.md) — 他言語連携のベストプラクティス
-- 非同期プログラミング — async Rust の設計パターン
+- [FFI](../03-systems/02-ffi-interop.md) — Best practices for cross-language integration
+- Asynchronous programming — Design patterns for async Rust
 
-## 参考文献
+## References
 
-1. **Rust API Guidelines**: [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/) — 公式 API 設計ガイドライン
-2. **clippy Lints**: [Clippy Lint List](https://rust-lang.github.io/rust-clippy/master/) — 全 lint の一覧と説明
-3. **Rust Design Patterns**: [Rust Design Patterns](https://rust-unofficial.github.io/patterns/) — Rust 特有の設計パターン集
-4. **Rust Performance Book**: [The Rust Performance Book](https://nnethercote.github.io/perf-book/) — パフォーマンスチューニング
-5. **Error Handling in Rust**: [Error Handling Survey](https://blog.burntsushi.net/rust-error-handling/) — エラーハンドリングの包括的ガイド
-6. **Cargo Book**: [The Cargo Book](https://doc.rust-lang.org/cargo/) — Cargo の公式ドキュメント
+1. **Rust API Guidelines**: [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/) — Official API design guidelines
+2. **clippy Lints**: [Clippy Lint List](https://rust-lang.github.io/rust-clippy/master/) — A list and explanation of all lints
+3. **Rust Design Patterns**: [Rust Design Patterns](https://rust-unofficial.github.io/patterns/) — A collection of Rust-specific design patterns
+4. **Rust Performance Book**: [The Rust Performance Book](https://nnethercote.github.io/perf-book/) — Performance tuning
+5. **Error Handling in Rust**: [Error Handling Survey](https://blog.burntsushi.net/rust-error-handling/) — A comprehensive guide to error handling
+6. **Cargo Book**: [The Cargo Book](https://doc.rust-lang.org/cargo/) — The official Cargo documentation
