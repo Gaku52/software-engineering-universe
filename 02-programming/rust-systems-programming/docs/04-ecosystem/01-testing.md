@@ -1,91 +1,91 @@
-# テスト — proptest、criterion
+# Testing — proptest, criterion
 
-> Rust のテストエコシステムを単体テスト・統合テスト・プロパティテスト・ベンチマークまで網羅的に習得する
+> Comprehensively master Rust's testing ecosystem, covering unit tests, integration tests, property-based testing, and benchmarks
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **標準テスト** — #[test], #[cfg(test)], assert マクロ、テスト構成
-2. **プロパティテスト** — proptest / quickcheck による性質ベーステスト
-3. **ベンチマーク** — criterion による統計的パフォーマンス測定
-4. **テスト設計パターン** — モック、スタブ、フィクスチャ、テスタブルアーキテクチャ
-5. **テスト自動化** — カバレッジ計測、CI 統合、ミューテーションテスト
+1. **Standard Testing** — #[test], #[cfg(test)], assert macros, test organization
+2. **Property-Based Testing** — Property-based tests with proptest / quickcheck
+3. **Benchmarking** — Statistical performance measurement with criterion
+4. **Test Design Patterns** — Mocks, stubs, fixtures, testable architecture
+5. **Test Automation** — Coverage measurement, CI integration, mutation testing
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Reading this guide will be more meaningful if you have the following knowledge:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Cargo/ワークスペース — features、publish](./00-cargo-workspace.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the contents of [Cargo/Workspaces — features, publish](./00-cargo-workspace.md)
 
 ---
 
-## 1. テスト体系の全体像
+## 1. Overview of the Testing System
 
 ```
-┌────────────────── Rust テスト体系 ──────────────────┐
+┌──────────── Rust Testing System ─────────────────────┐
 │                                                      │
-│  ┌─ 単体テスト (Unit Test) ──────────────────────┐  │
-│  │  src/ 内に #[cfg(test)] mod tests で定義       │  │
-│  │  プライベート関数もテスト可能                    │  │
-│  │  $ cargo test --lib                            │  │
-│  └────────────────────────────────────────────────┘  │
+│  ┌─ Unit Test ─────────────────────────────────────┐ │
+│  │  Defined in src/ with #[cfg(test)] mod tests   │ │
+│  │  Private functions can also be tested           │ │
+│  │  $ cargo test --lib                             │ │
+│  └─────────────────────────────────────────────────┘ │
 │                                                      │
-│  ┌─ 統合テスト (Integration Test) ────────────────┐  │
-│  │  tests/ ディレクトリに配置                      │  │
-│  │  公開APIのみテスト (外部クレートとして扱う)      │  │
-│  │  $ cargo test --test test_name                 │  │
-│  └────────────────────────────────────────────────┘  │
+│  ┌─ Integration Test ──────────────────────────────┐ │
+│  │  Placed in the tests/ directory                 │ │
+│  │  Tests only the public API (treated as external)│ │
+│  │  $ cargo test --test test_name                  │ │
+│  └─────────────────────────────────────────────────┘ │
 │                                                      │
-│  ┌─ ドキュメントテスト (Doc Test) ────────────────┐  │
-│  │  /// コメント内のコードブロック                  │  │
-│  │  ドキュメントと同時にテストも維持                │  │
-│  │  $ cargo test --doc                            │  │
-│  └────────────────────────────────────────────────┘  │
+│  ┌─ Documentation Test (Doc Test) ─────────────────┐ │
+│  │  Code blocks inside /// comments                │ │
+│  │  Maintains documentation and tests together     │ │
+│  │  $ cargo test --doc                             │ │
+│  └─────────────────────────────────────────────────┘ │
 │                                                      │
-│  ┌─ プロパティテスト ─────────────────────────────┐  │
-│  │  proptest / quickcheck                          │  │
-│  │  ランダム入力で性質を検証                        │  │
-│  └────────────────────────────────────────────────┘  │
+│  ┌─ Property-Based Test ───────────────────────────┐ │
+│  │  proptest / quickcheck                          │ │
+│  │  Verifies properties with random inputs         │ │
+│  └─────────────────────────────────────────────────┘ │
 │                                                      │
-│  ┌─ ベンチマーク ─────────────────────────────────┐  │
-│  │  criterion / divan                              │  │
-│  │  統計的なパフォーマンス計測                      │  │
-│  │  $ cargo bench                                 │  │
-│  └────────────────────────────────────────────────┘  │
+│  ┌─ Benchmark ─────────────────────────────────────┐ │
+│  │  criterion / divan                              │ │
+│  │  Statistical performance measurement            │ │
+│  │  $ cargo bench                                  │ │
+│  └─────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────┘
 ```
 
-### 1.1 テストファイル配置の規約
+### 1.1 File Layout Conventions for Tests
 
 ```
 my-project/
 ├── src/
-│   ├── lib.rs              # ライブラリルート + 単体テスト
-│   ├── parser.rs           # 各モジュール内に #[cfg(test)] mod tests
+│   ├── lib.rs              # Library root + unit tests
+│   ├── parser.rs           # #[cfg(test)] mod tests in each module
 │   ├── validator.rs
 │   └── utils/
 │       └── mod.rs
-├── tests/                   # 統合テスト
+├── tests/                   # Integration tests
 │   ├── common/
-│   │   └── mod.rs          # テスト共通ヘルパー（テストとして実行されない）
-│   ├── api_test.rs         # 各ファイルが独立したテストクレート
+│   │   └── mod.rs          # Shared test helpers (not run as tests)
+│   ├── api_test.rs         # Each file is an independent test crate
 │   ├── parser_test.rs
 │   └── e2e/
-│       └── main.rs         # サブディレクトリはバイナリクレートとして扱う
+│       └── main.rs         # Subdirectories are treated as binary crates
 ├── benches/
-│   ├── parser_bench.rs     # criterion ベンチマーク
+│   ├── parser_bench.rs     # criterion benchmarks
 │   └── sorting_bench.rs
 └── examples/
-    └── basic.rs            # cargo test --examples でテスト可能
+    └── basic.rs            # Can be tested with cargo test --examples
 ```
 
 ---
 
-## 2. 標準テスト
+## 2. Standard Tests
 
-### コード例1: 単体テストの基本パターン
+### Code Example 1: Basic Unit Test Patterns
 
 ```rust
 // src/lib.rs
@@ -98,13 +98,13 @@ impl Calculator {
 
     pub fn divide(a: f64, b: f64) -> Result<f64, &'static str> {
         if b == 0.0 {
-            Err("ゼロ除算エラー")
+            Err("division by zero error")
         } else {
             Ok(a / b)
         }
     }
 
-    /// 内部ヘルパー (プライベート)
+    /// Internal helper (private)
     fn clamp(value: i64, min: i64, max: i64) -> i64 {
         value.max(min).min(max)
     }
@@ -128,17 +128,17 @@ mod tests {
     #[test]
     fn test_divide_success() {
         let result = Calculator::divide(10.0, 3.0).unwrap();
-        assert!((result - 3.333).abs() < 0.001, "結果が期待値と異なる: {}", result);
+        assert!((result - 3.333).abs() < 0.001, "result differs from expected: {}", result);
     }
 
     #[test]
     fn test_divide_by_zero() {
         let result = Calculator::divide(1.0, 0.0);
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "ゼロ除算エラー");
+        assert_eq!(result.unwrap_err(), "division by zero error");
     }
 
-    // プライベート関数もテスト可能
+    // Private functions can also be tested
     #[test]
     fn test_clamp() {
         assert_eq!(Calculator::clamp(5, 0, 10), 5);
@@ -146,7 +146,7 @@ mod tests {
         assert_eq!(Calculator::clamp(15, 0, 10), 10);
     }
 
-    // パニックの検証
+    // Verifying panics
     #[test]
     #[should_panic(expected = "index out of bounds")]
     fn test_index_panic() {
@@ -154,39 +154,39 @@ mod tests {
         let _ = v[5];
     }
 
-    // 条件付きスキップ
+    // Conditional skip
     #[test]
-    #[ignore = "CI環境でのみ実行"]
+    #[ignore = "Run only in CI environments"]
     fn test_slow_integration() {
         std::thread::sleep(std::time::Duration::from_secs(10));
     }
 }
 ```
 
-### 2.1 assert マクロの詳細と活用
+### 2.1 Details and Usage of assert Macros
 
 ```rust
 #[cfg(test)]
 mod assert_examples {
-    // --- 基本的な assert ---
+    // --- Basic assert ---
     #[test]
     fn test_assert_basic() {
         let x = 42;
         assert!(x > 0);
-        assert!(x > 0, "x は正数であるべき: x = {}", x);
+        assert!(x > 0, "x should be positive: x = {}", x);
     }
 
-    // --- 等値比較 ---
+    // --- Equality comparison ---
     #[test]
     fn test_assert_eq() {
         let expected = vec![1, 2, 3];
         let actual = vec![1, 2, 3];
-        // 失敗時: left と right の値が表示される
+        // On failure: the values of left and right are displayed
         assert_eq!(expected, actual);
-        assert_eq!(expected, actual, "ベクタが一致しない");
+        assert_eq!(expected, actual, "vectors do not match");
     }
 
-    // --- 非等値比較 ---
+    // --- Inequality comparison ---
     #[test]
     fn test_assert_ne() {
         let a = "hello";
@@ -194,7 +194,7 @@ mod assert_examples {
         assert_ne!(a, b);
     }
 
-    // --- 浮動小数点の比較（epsilon ベース） ---
+    // --- Floating-point comparison (epsilon-based) ---
     #[test]
     fn test_float_comparison() {
         let result = 0.1 + 0.2;
@@ -203,12 +203,12 @@ mod assert_examples {
 
         assert!(
             (result - expected).abs() < epsilon,
-            "浮動小数点比較失敗: {} != {} (差: {})",
+            "floating-point comparison failed: {} != {} (diff: {})",
             result, expected, (result - expected).abs()
         );
     }
 
-    // --- Result を返すテスト ---
+    // --- Tests that return Result ---
     #[test]
     fn test_with_result() -> Result<(), Box<dyn std::error::Error>> {
         let value: i32 = "42".parse()?;
@@ -216,20 +216,20 @@ mod assert_examples {
         Ok(())
     }
 
-    // --- debug_assert（リリースビルドでは除去） ---
+    // --- debug_assert (removed in release builds) ---
     #[test]
     fn test_debug_assert() {
-        debug_assert!(true, "デバッグビルドでのみチェック");
+        debug_assert!(true, "Checked only in debug builds");
         debug_assert_eq!(1 + 1, 2);
         debug_assert_ne!(1, 2);
     }
 
-    // --- カスタム assert マクロ ---
+    // --- Custom assert macro ---
     macro_rules! assert_between {
         ($value:expr, $min:expr, $max:expr) => {
             assert!(
                 $value >= $min && $value <= $max,
-                "{} は {} から {} の範囲外です (実際: {})",
+                "{} is outside the range {} to {} (actual: {})",
                 stringify!($value), $min, $max, $value
             );
         };
@@ -243,33 +243,33 @@ mod assert_examples {
 }
 ```
 
-### 2.2 テストの構造化パターン
+### 2.2 Test Structuring Patterns
 
 ```rust
-// テストモジュールの階層化
+// Hierarchical test modules
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // --- Arrange-Act-Assert (AAA) パターン ---
+    // --- Arrange-Act-Assert (AAA) pattern ---
     #[test]
     fn test_user_registration() {
-        // Arrange: テストデータの準備
+        // Arrange: prepare test data
         let email = "test@example.com";
         let password = "SecureP@ss123";
         let mut service = UserService::new(MockDatabase::new());
 
-        // Act: テスト対象の実行
+        // Act: execute the system under test
         let result = service.register(email, password);
 
-        // Assert: 結果の検証
+        // Assert: verify the result
         assert!(result.is_ok());
         let user = result.unwrap();
         assert_eq!(user.email, email);
-        assert!(user.password_hash != password); // ハッシュ化されている
+        assert!(user.password_hash != password); // confirms it was hashed
     }
 
-    // --- Given-When-Then パターン ---
+    // --- Given-When-Then pattern ---
     mod given_valid_input {
         use super::*;
 
@@ -300,7 +300,7 @@ mod tests {
         }
     }
 
-    // --- テストフィクスチャ ---
+    // --- Test fixtures ---
     struct TestFixture {
         db: MockDatabase,
         service: UserService,
@@ -342,10 +342,10 @@ mod tests {
 }
 ```
 
-### コード例2: 統合テストとテストヘルパー
+### Code Example 2: Integration Tests and Test Helpers
 
 ```rust
-// tests/common/mod.rs — テストヘルパー
+// tests/common/mod.rs — test helpers
 pub struct TestContext {
     pub temp_dir: tempfile::TempDir,
     pub config: String,
@@ -387,16 +387,16 @@ fn test_full_workflow() {
 }
 ```
 
-### 2.3 高度な統合テストパターン
+### 2.3 Advanced Integration Test Patterns
 
 ```rust
-// tests/api_integration.rs — Web API の統合テスト
+// tests/api_integration.rs — integration tests for a Web API
 use axum::http::StatusCode;
 use reqwest::Client;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 
-/// テスト用のサーバーを起動するヘルパー
+/// Helper to spawn a test server
 async fn spawn_test_server() -> (SocketAddr, tokio::task::JoinHandle<()>) {
     let app = my_app::create_app().await;
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -406,7 +406,7 @@ async fn spawn_test_server() -> (SocketAddr, tokio::task::JoinHandle<()>) {
         axum::serve(listener, app).await.unwrap();
     });
 
-    // サーバー起動を待つ
+    // Wait for the server to start
     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
     (addr, handle)
@@ -434,11 +434,11 @@ async fn test_create_and_get_user() {
     let client = Client::new();
     let base_url = format!("http://{}", addr);
 
-    // ユーザー作成
+    // Create user
     let create_response = client
         .post(format!("{}/api/users", base_url))
         .json(&serde_json::json!({
-            "name": "テストユーザー",
+            "name": "Test User",
             "email": "test@example.com"
         }))
         .send()
@@ -449,7 +449,7 @@ async fn test_create_and_get_user() {
     let created_user: serde_json::Value = create_response.json().await.unwrap();
     let user_id = created_user["id"].as_u64().unwrap();
 
-    // ユーザー取得
+    // Get user
     let get_response = client
         .get(format!("{}/api/users/{}", base_url, user_id))
         .send()
@@ -458,15 +458,15 @@ async fn test_create_and_get_user() {
 
     assert_eq!(get_response.status(), StatusCode::OK);
     let user: serde_json::Value = get_response.json().await.unwrap();
-    assert_eq!(user["name"], "テストユーザー");
+    assert_eq!(user["name"], "Test User");
     assert_eq!(user["email"], "test@example.com");
 }
 ```
 
-### 2.4 Testcontainers による DB テスト
+### 2.4 DB Tests with Testcontainers
 
 ```rust
-// tests/database_test.rs — testcontainers を使った実際の DB テスト
+// tests/database_test.rs — real DB tests using testcontainers
 use testcontainers::{clients::Cli, images::postgres::Postgres};
 use sqlx::PgPool;
 
@@ -480,7 +480,7 @@ async fn setup_test_db(docker: &Cli) -> (PgPool, testcontainers::Container<Postg
 
     let pool = PgPool::connect(&database_url).await.unwrap();
 
-    // マイグレーション実行
+    // Run migrations
     sqlx::migrate!("./migrations")
         .run(&pool)
         .await
@@ -496,48 +496,48 @@ async fn test_user_repository() {
 
     let repo = UserRepository::new(pool.clone());
 
-    // ユーザー作成
+    // Create user
     let user = repo.create("test@example.com", "Test User").await.unwrap();
     assert_eq!(user.email, "test@example.com");
 
-    // ユーザー検索
+    // Find user
     let found = repo.find_by_email("test@example.com").await.unwrap();
     assert!(found.is_some());
     assert_eq!(found.unwrap().name, "Test User");
 
-    // 存在しないユーザー
+    // Nonexistent user
     let not_found = repo.find_by_email("nobody@example.com").await.unwrap();
     assert!(not_found.is_none());
 }
 ```
 
-### コード例3: 非同期テスト
+### Code Example 3: Asynchronous Tests
 
 ```rust
-// tokio のテストマクロ
+// tokio's test macro
 #[tokio::test]
 async fn test_async_operation() {
     let result = async_fetch_data("test").await;
     assert!(result.is_ok());
 }
 
-// タイムアウト付きテスト
+// Test with timeout
 #[tokio::test(flavor = "multi_thread")]
 async fn test_with_timeout() {
     let result = tokio::time::timeout(
         std::time::Duration::from_secs(5),
         long_running_task(),
     ).await;
-    assert!(result.is_ok(), "タイムアウト!");
+    assert!(result.is_ok(), "timed out!");
 }
 
-// テスト用の時間制御
+// Time control for tests
 #[tokio::test]
 async fn test_time_control() {
-    tokio::time::pause(); // 仮想時間モード
+    tokio::time::pause(); // virtual time mode
     let start = tokio::time::Instant::now();
     tokio::time::sleep(tokio::time::Duration::from_secs(3600)).await;
-    // 実際には即座に完了 (仮想時間が進む)
+    // Completes immediately in reality (virtual time advances)
     assert!(start.elapsed() >= tokio::time::Duration::from_secs(3600));
 }
 
@@ -545,25 +545,25 @@ async fn async_fetch_data(_: &str) -> Result<String, String> { Ok("data".into())
 async fn long_running_task() -> String { "done".into() }
 ```
 
-### 2.5 非同期テストの高度なパターン
+### 2.5 Advanced Patterns for Asynchronous Tests
 
 ```rust
 use tokio::sync::mpsc;
 use std::sync::Arc;
 
-// --- チャネルを使ったテスト ---
+// --- Tests using channels ---
 #[tokio::test]
 async fn test_producer_consumer() {
     let (tx, mut rx) = mpsc::channel::<String>(10);
 
-    // プロデューサー
+    // Producer
     let producer = tokio::spawn(async move {
         for i in 0..5 {
             tx.send(format!("message_{}", i)).await.unwrap();
         }
     });
 
-    // コンシューマー
+    // Consumer
     let mut received = Vec::new();
     while let Some(msg) = rx.recv().await {
         received.push(msg);
@@ -575,7 +575,7 @@ async fn test_producer_consumer() {
     assert_eq!(received[4], "message_4");
 }
 
-// --- 並行処理のテスト ---
+// --- Concurrency tests ---
 #[tokio::test]
 async fn test_concurrent_access() {
     use tokio::sync::RwLock;
@@ -583,7 +583,7 @@ async fn test_concurrent_access() {
     let data = Arc::new(RwLock::new(Vec::<i32>::new()));
     let mut handles = Vec::new();
 
-    // 複数の書き込みタスク
+    // Multiple writer tasks
     for i in 0..10 {
         let data = Arc::clone(&data);
         handles.push(tokio::spawn(async move {
@@ -592,20 +592,20 @@ async fn test_concurrent_access() {
         }));
     }
 
-    // 全タスクの完了を待つ
+    // Wait for all tasks to complete
     for handle in handles {
         handle.await.unwrap();
     }
 
     let result = data.read().await;
     assert_eq!(result.len(), 10);
-    // 順序は保証されないが、全要素が含まれるはず
+    // Order is not guaranteed, but all elements should be present
     let mut sorted: Vec<i32> = result.clone();
     sorted.sort();
     assert_eq!(sorted, (0..10).collect::<Vec<_>>());
 }
 
-// --- リトライ機能のテスト ---
+// --- Tests for retry logic ---
 #[tokio::test]
 async fn test_retry_logic() {
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -618,15 +618,15 @@ async fn test_retry_logic() {
         async move {
             let attempt = count.fetch_add(1, Ordering::SeqCst);
             if attempt < 2 {
-                Err("一時的なエラー".to_string())
+                Err("transient error".to_string())
             } else {
-                Ok("成功".to_string())
+                Ok("success".to_string())
             }
         }
     }).await;
 
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "成功");
+    assert_eq!(result.unwrap(), "success");
     assert_eq!(attempt_count.load(Ordering::SeqCst), 3);
 }
 
@@ -654,12 +654,12 @@ where
 }
 ```
 
-### 2.6 ドキュメントテスト
+### 2.6 Documentation Tests
 
 ```rust
-/// 2つの数値を加算する。
+/// Adds two numbers.
 ///
-/// # 使用例
+/// # Examples
 ///
 /// ```
 /// use my_lib::add;
@@ -668,18 +668,18 @@ where
 /// assert_eq!(add(-1, 1), 0);
 /// ```
 ///
-/// # パニック
+/// # Panics
 ///
-/// オーバーフロー時にパニックする（デバッグビルド）。
+/// Panics on overflow (in debug builds).
 ///
 /// ```should_panic
 /// use my_lib::add;
 ///
-/// // i64::MAX + 1 はオーバーフロー
+/// // i64::MAX + 1 overflows
 /// let _ = add(i64::MAX, 1);
 /// ```
 ///
-/// # エラーハンドリングの例
+/// # Error Handling Example
 ///
 /// ```
 /// use my_lib::divide;
@@ -688,43 +688,43 @@ where
 /// assert!(result.is_err());
 /// ```
 ///
-/// # 非表示コード（セットアップコード）
+/// # Hidden Code (setup code)
 ///
 /// ```
-/// # // この行はドキュメントには表示されないがテストでは実行される
+/// # // This line is hidden in the rendered docs but executed in tests
 /// # use my_lib::Calculator;
 /// let calc = Calculator::new();
 /// assert_eq!(calc.add(1, 2), 3);
 /// ```
 ///
-/// # コンパイルのみ（実行しない）
+/// # Compile Only (do not run)
 ///
 /// ```no_run
 /// use my_lib::Server;
 ///
-/// // 実行はしないがコンパイルは通ることを確認
+/// // Not run, but verified to compile
 /// let server = Server::bind("0.0.0.0:8080").await.unwrap();
 /// server.run().await;
 /// ```
 ///
-/// # コンパイルもしない（ドキュメント表示用）
+/// # Neither Compiled Nor Run (display-only docs)
 ///
 /// ```ignore
-/// // このコードはテストされない（外部依存がある場合等）
+/// // This code is not tested (e.g. when external dependencies are required)
 /// let result = external_api::call().await;
 /// ```
 ///
-/// # テキストブロック（コードとして扱わない）
+/// # Text Block (not treated as code)
 ///
 /// ```text
-/// これはテキストとして表示されるだけで、テストもコンパイルもされない。
+/// This is shown as plain text and is neither tested nor compiled.
 /// ```
 pub fn add(a: i64, b: i64) -> i64 {
     a + b
 }
 ```
 
-### 2.7 rstest によるパラメータ化テスト
+### 2.7 Parameterized Tests with rstest
 
 ```rust
 // Cargo.toml:
@@ -733,7 +733,7 @@ pub fn add(a: i64, b: i64) -> i64 {
 
 use rstest::rstest;
 
-// --- パラメータ化テスト（テーブル駆動テスト） ---
+// --- Parameterized tests (table-driven tests) ---
 #[rstest]
 #[case("", true)]
 #[case(" ", true)]
@@ -743,7 +743,7 @@ fn test_is_blank(#[case] input: &str, #[case] expected: bool) {
     assert_eq!(input.trim().is_empty(), expected);
 }
 
-// --- フィクスチャ ---
+// --- Fixtures ---
 #[rstest::fixture]
 fn database() -> MockDatabase {
     let db = MockDatabase::new();
@@ -759,10 +759,10 @@ fn service(database: MockDatabase) -> UserService {
 #[rstest]
 fn test_find_user(service: UserService) {
     let user = service.find_by_id(1).unwrap();
-    assert_eq!(user.name, "テストユーザー");
+    assert_eq!(user.name, "Test User");
 }
 
-// --- 複数パラメータの組み合わせ ---
+// --- Combinations of multiple parameters ---
 #[rstest]
 fn test_format_combinations(
     #[values("json", "yaml", "toml")] format: &str,
@@ -773,7 +773,7 @@ fn test_format_combinations(
     assert!(result.is_ok());
 }
 
-// --- 非同期フィクスチャ ---
+// --- Asynchronous fixtures ---
 #[rstest]
 #[tokio::test]
 async fn test_async_with_fixture(
@@ -786,38 +786,39 @@ async fn test_async_with_fixture(
 
 ---
 
-## 3. プロパティテスト
+## 3. Property-Based Testing
 
-### テスト手法の比較
+### Comparison of Testing Approaches
 
 ```
-┌─────────── テスト手法の比較 ───────────┐
-│                                         │
-│  Example-based Test (従来型):           │
-│    入力: 具体的な値                      │
-│    assert_eq!(sort(vec![3,1,2]),         │
-│               vec![1,2,3]);             │
-│    → 特定のケースのみ検証               │
-│                                         │
-│  Property-based Test:                   │
-│    入力: ランダム生成 (数百〜数千パターン)│
-│    proptest! {                          │
-│      fn test(v: Vec<i32>) {            │
-│        let sorted = sort(v);            │
-│        assert!(is_sorted(&sorted));     │
-│      }                                  │
-│    }                                    │
-│    → 性質 (invariant) を検証             │
-│    → 反例を自動的に最小化 (shrinking)    │
-└─────────────────────────────────────────┘
+┌─────────── Comparison of Testing Approaches ───────┐
+│                                                     │
+│  Example-based Test (traditional):                  │
+│    Input: concrete values                           │
+│    assert_eq!(sort(vec![3,1,2]),                    │
+│               vec![1,2,3]);                         │
+│    -> Verifies only specific cases                  │
+│                                                     │
+│  Property-based Test:                               │
+│    Input: randomly generated (hundreds-thousands)   │
+│    proptest! {                                      │
+│      fn test(v: Vec<i32>) {                         │
+│        let sorted = sort(v);                        │
+│        assert!(is_sorted(&sorted));                 │
+│      }                                              │
+│    }                                                │
+│    -> Verifies properties (invariants)              │
+│    -> Automatically minimizes counterexamples       │
+│       (shrinking)                                   │
+└─────────────────────────────────────────────────────┘
 ```
 
-### コード例4: proptest の使用
+### Code Example 4: Using proptest
 
 ```rust
 use proptest::prelude::*;
 
-/// テスト対象: カスタムソート
+/// System under test: custom sort
 fn insertion_sort(mut arr: Vec<i32>) -> Vec<i32> {
     for i in 1..arr.len() {
         let key = arr[i];
@@ -832,24 +833,24 @@ fn insertion_sort(mut arr: Vec<i32>) -> Vec<i32> {
 }
 
 proptest! {
-    // ソート後のベクタは昇順である
+    // The sorted vector is in ascending order
     #[test]
     fn test_sort_is_ordered(mut v in prop::collection::vec(any::<i32>(), 0..100)) {
         let sorted = insertion_sort(v.clone());
         for window in sorted.windows(2) {
             prop_assert!(window[0] <= window[1],
-                "ソートされていない: {} > {}", window[0], window[1]);
+                "not sorted: {} > {}", window[0], window[1]);
         }
     }
 
-    // ソート後の長さは変わらない
+    // The length is preserved after sorting
     #[test]
     fn test_sort_preserves_length(v in prop::collection::vec(any::<i32>(), 0..100)) {
         let sorted = insertion_sort(v.clone());
         prop_assert_eq!(v.len(), sorted.len());
     }
 
-    // ソート後は元の要素を全て含む
+    // All original elements are preserved after sorting
     #[test]
     fn test_sort_preserves_elements(v in prop::collection::vec(any::<i32>(), 0..100)) {
         let mut original = v.clone();
@@ -859,7 +860,7 @@ proptest! {
         prop_assert_eq!(original, sorted);
     }
 
-    // カスタム戦略: メールアドレスのバリデーション
+    // Custom strategy: email address validation
     #[test]
     fn test_email_validation(
         local in "[a-z][a-z0-9]{0,15}",
@@ -868,7 +869,7 @@ proptest! {
     ) {
         let email = format!("{}@{}.{}", local, domain, tld);
         prop_assert!(is_valid_email(&email),
-            "有効なメールアドレスが拒否された: {}", email);
+            "valid email was rejected: {}", email);
     }
 }
 
@@ -877,16 +878,16 @@ fn is_valid_email(email: &str) -> bool {
 }
 ```
 
-### 3.1 カスタム戦略 (Strategy) の実装
+### 3.1 Implementing Custom Strategies
 
 ```rust
 use proptest::prelude::*;
 use proptest::strategy::Strategy;
 
-// --- カスタムデータ型の生成戦略 ---
+// --- Generation strategy for custom data types ---
 #[derive(Debug, Clone, PartialEq)]
 struct Money {
-    amount: i64,     // セント単位
+    amount: i64,     // in cents
     currency: String,
 }
 
@@ -897,13 +898,13 @@ impl Money {
 
     fn add(&self, other: &Money) -> Result<Money, String> {
         if self.currency != other.currency {
-            return Err("通貨が異なります".to_string());
+            return Err("currencies differ".to_string());
         }
         Ok(Money::new(self.amount + other.amount, &self.currency))
     }
 }
 
-// Money のための Arbitrary 実装
+// Arbitrary implementation for Money
 fn money_strategy() -> impl Strategy<Value = Money> {
     (
         -1_000_000i64..1_000_000i64,
@@ -911,7 +912,7 @@ fn money_strategy() -> impl Strategy<Value = Money> {
     ).prop_map(|(amount, currency)| Money::new(amount, currency))
 }
 
-// 同一通貨の Money ペア戦略
+// Strategy for a pair of Money values with the same currency
 fn same_currency_pair() -> impl Strategy<Value = (Money, Money)> {
     prop::sample::select(vec!["JPY", "USD", "EUR"]).prop_flat_map(|currency| {
         (
@@ -922,7 +923,7 @@ fn same_currency_pair() -> impl Strategy<Value = (Money, Money)> {
 }
 
 proptest! {
-    // 加算の可換性: a + b == b + a
+    // Commutativity of addition: a + b == b + a
     #[test]
     fn test_money_addition_commutative((a, b) in same_currency_pair()) {
         let ab = a.add(&b).unwrap();
@@ -930,7 +931,7 @@ proptest! {
         prop_assert_eq!(ab.amount, ba.amount);
     }
 
-    // ゼロの加算: a + 0 == a
+    // Identity of zero addition: a + 0 == a
     #[test]
     fn test_money_addition_identity(a in money_strategy()) {
         let zero = Money::new(0, &a.currency);
@@ -938,7 +939,7 @@ proptest! {
         prop_assert_eq!(result.amount, a.amount);
     }
 
-    // 異なる通貨の加算はエラー
+    // Adding different currencies fails
     #[test]
     fn test_different_currency_fails(
         amount1 in -1_000_000i64..1_000_000i64,
@@ -950,7 +951,7 @@ proptest! {
     }
 }
 
-// --- JSON のラウンドトリップテスト ---
+// --- JSON round-trip test ---
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -969,7 +970,7 @@ fn user_profile_strategy() -> impl Strategy<Value = UserProfile> {
 }
 
 proptest! {
-    // シリアライズ → デシリアライズで元に戻る
+    // Serialization -> deserialization yields the original value
     #[test]
     fn test_json_roundtrip(profile in user_profile_strategy()) {
         let json = serde_json::to_string(&profile).unwrap();
@@ -979,49 +980,49 @@ proptest! {
 }
 ```
 
-### 3.2 proptest の設定とチューニング
+### 3.2 Configuring and Tuning proptest
 
 ```rust
 use proptest::prelude::*;
 use proptest::test_runner::Config;
 
-// --- テスト設定のカスタマイズ ---
+// --- Customizing test configuration ---
 proptest! {
     #![proptest_config(Config::with_cases(10_000))]
 
     #[test]
     fn test_with_more_cases(x in any::<i32>()) {
-        // デフォルト256回 → 10,000回のテスト
+        // Default 256 cases -> 10,000 cases
         prop_assert!(x.checked_add(0) == Some(x));
     }
 }
 
-// ProptestConfig の詳細設定
+// Detailed ProptestConfig settings
 fn custom_config() -> ProptestConfig {
     ProptestConfig {
-        cases: 1000,            // テストケース数
-        max_shrink_iters: 10000, // 最大シュリンク反復回数
-        max_shrink_time: 30000,  // シュリンク最大時間（ミリ秒）
-        fork: false,            // フォークプロセスで実行
-        timeout: 60000,         // テストタイムアウト（ミリ秒）
+        cases: 1000,            // number of test cases
+        max_shrink_iters: 10000, // max shrink iterations
+        max_shrink_time: 30000,  // max shrink time (milliseconds)
+        fork: false,            // run in a forked process
+        timeout: 60000,         // test timeout (milliseconds)
         ..ProptestConfig::default()
     }
 }
 
-// --- 回帰テストファイル ---
-// proptest-regressions/ ディレクトリに失敗ケースが保存される
-// このディレクトリは Git にコミットすること
+// --- Regression test files ---
+// Failure cases are saved in the proptest-regressions/ directory
+// Commit this directory to Git
 
-// proptest-regressions/my_tests.txt の例:
+// Example of proptest-regressions/my_tests.txt:
 // # seed = "cc deadbeef12345678..."
-// # 失敗した入力を再現するシード
+// # Seed for reproducing the failed input
 ```
 
 ---
 
-## 4. ベンチマーク
+## 4. Benchmarking
 
-### コード例5: criterion ベンチマーク
+### Code Example 5: criterion Benchmarks
 
 ```rust
 // benches/sorting_bench.rs
@@ -1103,31 +1104,31 @@ criterion_main!(benches);
 // criterion = { version = "0.5", features = ["html_reports"] }
 ```
 
-### ベンチマーク結果の読み方
+### How to Read Benchmark Results
 
 ```
-┌──────────── criterion 出力の解釈 ──────────────┐
+┌──────────── Interpreting criterion Output ──────┐
 │                                                  │
 │  fibonacci/iterative/20                          │
 │                  time:   [12.3 ns 12.5 ns 12.7 ns]
 │                          ~~~~~~~ ~~~~~~~ ~~~~~~~
-│                          下限95%  中央値  上限95%
+│                          95% lower median 95% upper
 │                                                  │
-│  change: [-2.1234% -0.5678% +1.0123%]           │
+│  change: [-2.1234% -0.5678% +1.0123%]            │
 │          ~~~~~~~~  ~~~~~~~~  ~~~~~~~~            │
-│          最小変化   推定変化   最大変化             │
-│          (95% 信頼区間)                           │
+│          min change estimate max change          │
+│          (95% confidence interval)               │
 │                                                  │
 │  Performance has improved. (p < 0.05)            │
-│  → 統計的に有意な性能改善                         │
+│  -> Statistically significant improvement        │
 │                                                  │
-│  HTML レポート:                                   │
+│  HTML report:                                    │
 │  target/criterion/report/index.html              │
-│  → グラフで時系列変化を可視化                     │
+│  -> Visualize changes over time with graphs      │
 └──────────────────────────────────────────────────┘
 ```
 
-### 4.1 高度なベンチマーク設定
+### 4.1 Advanced Benchmark Configuration
 
 ```rust
 // benches/advanced_bench.rs
@@ -1142,20 +1143,20 @@ use std::time::Duration;
 fn bench_with_setup(c: &mut Criterion) {
     let mut group = c.benchmark_group("with_setup");
 
-    // ベンチマークグループの設定
-    group.sample_size(100);              // サンプル数
-    group.measurement_time(Duration::from_secs(10)); // 計測時間
-    group.warm_up_time(Duration::from_secs(3));      // ウォームアップ
-    group.noise_threshold(0.05);         // ノイズ閾値（5%）
-    group.confidence_level(0.95);        // 信頼区間
-    group.significance_level(0.05);      // 有意水準
+    // Benchmark group settings
+    group.sample_size(100);              // sample count
+    group.measurement_time(Duration::from_secs(10)); // measurement time
+    group.warm_up_time(Duration::from_secs(3));      // warm-up
+    group.noise_threshold(0.05);         // noise threshold (5%)
+    group.confidence_level(0.95);        // confidence interval
+    group.significance_level(0.05);      // significance level
 
-    // プロット設定
+    // Plot configuration
     let plot_config = PlotConfiguration::default()
         .summary_scale(AxisScale::Logarithmic);
     group.plot_config(plot_config);
 
-    // --- セットアップ付きベンチマーク ---
+    // --- Benchmark with setup ---
     for size in [100, 1_000, 10_000, 100_000].iter() {
         group.bench_with_input(
             BenchmarkId::new("hashmap_insert", size),
@@ -1163,14 +1164,14 @@ fn bench_with_setup(c: &mut Criterion) {
             |b, &size| {
                 b.iter_batched(
                     || {
-                        // セットアップ（計測時間に含まない）
+                        // Setup (excluded from measurement time)
                         let data: Vec<(String, i32)> = (0..size)
                             .map(|i| (format!("key_{}", i), i as i32))
                             .collect();
                         data
                     },
                     |data| {
-                        // 計測対象のコード
+                        // Code under measurement
                         let mut map = std::collections::HashMap::new();
                         for (k, v) in data {
                             map.insert(k, v);
@@ -1186,7 +1187,7 @@ fn bench_with_setup(c: &mut Criterion) {
     group.finish();
 }
 
-// --- スループットベンチマーク ---
+// --- Throughput benchmark ---
 fn bench_throughput(c: &mut Criterion) {
     let mut group = c.benchmark_group("throughput");
 
@@ -1199,7 +1200,7 @@ fn bench_throughput(c: &mut Criterion) {
             &data,
             |b, data| {
                 b.iter(|| {
-                    // 圧縮ベンチマーク
+                    // Compression benchmark
                     let mut encoder = flate2::write::GzEncoder::new(
                         Vec::new(),
                         flate2::Compression::default(),
@@ -1214,7 +1215,7 @@ fn bench_throughput(c: &mut Criterion) {
     group.finish();
 }
 
-// --- 非同期ベンチマーク ---
+// --- Asynchronous benchmark ---
 fn bench_async(c: &mut Criterion) {
     let rt = tokio::runtime::Runtime::new().unwrap();
 
@@ -1242,7 +1243,7 @@ criterion_group!(benches, bench_with_setup, bench_throughput, bench_async);
 criterion_main!(benches);
 ```
 
-### 4.2 divan ベンチマーク（代替ツール）
+### 4.2 divan Benchmarks (an Alternative Tool)
 
 ```rust
 // benches/divan_bench.rs
@@ -1272,21 +1273,21 @@ fn bench_generic<T: Default + Clone>() -> Vec<T> {
     vec![T::default(); 1000]
 }
 
-// divan の利点:
-// - #[divan::bench] 属性だけで簡単にベンチマーク定義
-// - 型パラメータのベンチマーク
-// - 引数のベンチマーク
-// - criterion より設定がシンプル
+// Advantages of divan:
+// - Define benchmarks easily with just the #[divan::bench] attribute
+// - Type-parameterized benchmarks
+// - Argument-parameterized benchmarks
+// - Simpler configuration than criterion
 ```
 
 ---
 
-## 5. テスト戦略
+## 5. Test Strategies
 
-### コード例6: モック/スタブ
+### Code Example 6: Mocks/Stubs
 
 ```rust
-/// テスト可能な設計: trait でインターフェースを定義
+/// Testable design: define an interface with a trait
 trait EmailSender {
     fn send(&self, to: &str, subject: &str, body: &str) -> Result<(), String>;
 }
@@ -1294,12 +1295,12 @@ trait EmailSender {
 struct SmtpSender;
 impl EmailSender for SmtpSender {
     fn send(&self, to: &str, subject: &str, body: &str) -> Result<(), String> {
-        // 実際のSMTP送信
+        // Actual SMTP send
         Ok(())
     }
 }
 
-/// テスト用モック
+/// Mock for testing
 #[cfg(test)]
 struct MockEmailSender {
     sent: std::cell::RefCell<Vec<(String, String, String)>>,
@@ -1331,16 +1332,16 @@ impl MockEmailSender {
 impl EmailSender for MockEmailSender {
     fn send(&self, to: &str, subject: &str, body: &str) -> Result<(), String> {
         if self.should_fail {
-            return Err("送信失敗".into());
+            return Err("send failed".into());
         }
         self.sent.borrow_mut().push((to.into(), subject.into(), body.into()));
         Ok(())
     }
 }
 
-// ビジネスロジック
+// Business logic
 fn notify_user(sender: &dyn EmailSender, user_email: &str) -> Result<(), String> {
-    sender.send(user_email, "通知", "処理が完了しました")
+    sender.send(user_email, "Notification", "Processing complete")
 }
 
 #[cfg(test)]
@@ -1363,7 +1364,7 @@ mod tests {
 }
 ```
 
-### 5.1 mockall を使った自動モック生成
+### 5.1 Automatic Mock Generation with mockall
 
 ```rust
 // Cargo.toml:
@@ -1393,9 +1394,9 @@ struct UserService<R: UserRepository, N: NotificationService> {
 
 impl<R: UserRepository, N: NotificationService> UserService<R, N> {
     fn register(&self, email: &str, name: &str) -> Result<User, String> {
-        // 既存ユーザーチェック
+        // Check for an existing user
         if self.repo.find_by_email(email).is_some() {
-            return Err("メールアドレスが既に登録されています".to_string());
+            return Err("email address is already registered".to_string());
         }
 
         let user = User {
@@ -1404,7 +1405,7 @@ impl<R: UserRepository, N: NotificationService> UserService<R, N> {
             name: name.to_string(),
         };
         self.repo.save(&user).map_err(|e| e.to_string())?;
-        self.notification.send_email(email, "登録完了", "登録が完了しました")?;
+        self.notification.send_email(email, "Registration Complete", "Registration is complete")?;
         Ok(user)
     }
 }
@@ -1419,23 +1420,23 @@ mod tests {
         let mut mock_repo = MockUserRepository::new();
         let mut mock_notif = MockNotificationService::new();
 
-        // find_by_email は None を返す（既存ユーザーなし）
+        // find_by_email returns None (no existing user)
         mock_repo
             .expect_find_by_email()
             .with(eq("new@example.com"))
             .times(1)
             .returning(|_| None);
 
-        // save は成功
+        // save succeeds
         mock_repo
             .expect_save()
             .times(1)
             .returning(|_| Ok(()));
 
-        // メール送信は成功
+        // Email send succeeds
         mock_notif
             .expect_send_email()
-            .with(eq("new@example.com"), eq("登録完了"), always())
+            .with(eq("new@example.com"), eq("Registration Complete"), always())
             .times(1)
             .returning(|_, _, _| Ok(()));
 
@@ -1444,7 +1445,7 @@ mod tests {
             notification: mock_notif,
         };
 
-        let result = service.register("new@example.com", "新規ユーザー");
+        let result = service.register("new@example.com", "New User");
         assert!(result.is_ok());
     }
 
@@ -1453,16 +1454,16 @@ mod tests {
         let mut mock_repo = MockUserRepository::new();
         let mock_notif = MockNotificationService::new();
 
-        // 既存ユーザーが見つかる
+        // Existing user is found
         mock_repo
             .expect_find_by_email()
             .returning(|_| Some(User {
                 id: 1,
                 email: "existing@example.com".to_string(),
-                name: "既存ユーザー".to_string(),
+                name: "Existing User".to_string(),
             }));
 
-        // save は呼ばれない
+        // save is never called
         mock_repo.expect_save().never();
 
         let service = UserService {
@@ -1470,14 +1471,14 @@ mod tests {
             notification: mock_notif,
         };
 
-        let result = service.register("existing@example.com", "テスト");
+        let result = service.register("existing@example.com", "test");
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("既に登録"));
+        assert!(result.unwrap_err().contains("already registered"));
     }
 }
 ```
 
-### 5.2 wiremock を使った HTTP モック
+### 5.2 HTTP Mocking with wiremock
 
 ```rust
 // Cargo.toml:
@@ -1489,36 +1490,36 @@ use wiremock::matchers::{method, path, query_param, body_json};
 
 #[tokio::test]
 async fn test_external_api_call() {
-    // モックサーバーの起動
+    // Start a mock server
     let mock_server = MockServer::start().await;
 
-    // モックレスポンスの設定
+    // Configure the mock response
     Mock::given(method("GET"))
         .and(path("/api/users/42"))
         .respond_with(
             ResponseTemplate::new(200)
                 .set_body_json(serde_json::json!({
                     "id": 42,
-                    "name": "テストユーザー",
+                    "name": "Test User",
                     "email": "test@example.com"
                 }))
         )
-        .expect(1)  // 1回だけ呼ばれることを期待
+        .expect(1)  // Expect to be called exactly once
         .mount(&mock_server)
         .await;
 
-    // テスト対象のクライアント
+    // Client under test
     let client = ApiClient::new(&mock_server.uri());
     let user = client.get_user(42).await.unwrap();
 
-    assert_eq!(user.name, "テストユーザー");
+    assert_eq!(user.name, "Test User");
 }
 
 #[tokio::test]
 async fn test_api_error_handling() {
     let mock_server = MockServer::start().await;
 
-    // 500 エラーのモック
+    // Mock for 500 error
     Mock::given(method("GET"))
         .and(path("/api/users/999"))
         .respond_with(ResponseTemplate::new(500))
@@ -1535,7 +1536,7 @@ async fn test_api_error_handling() {
 async fn test_api_retry_on_timeout() {
     let mock_server = MockServer::start().await;
 
-    // 最初の2回はタイムアウト、3回目で成功
+    // First two calls time out, third succeeds
     Mock::given(method("GET"))
         .and(path("/api/data"))
         .respond_with(
@@ -1555,7 +1556,7 @@ async fn test_api_retry_on_timeout() {
 }
 ```
 
-### 5.3 スナップショットテスト
+### 5.3 Snapshot Testing
 
 ```rust
 // Cargo.toml:
@@ -1567,17 +1568,17 @@ use insta::{assert_snapshot, assert_json_snapshot, assert_yaml_snapshot};
 #[test]
 fn test_html_rendering() {
     let html = render_template("welcome", &context);
-    // スナップショットファイルに保存された期待値と比較
+    // Compare against the expected value stored in the snapshot file
     assert_snapshot!(html);
 }
 
 #[test]
 fn test_api_response_format() {
     let response = create_user_response(&user);
-    // JSON 形式でスナップショット
+    // Snapshot in JSON format
     assert_json_snapshot!(response, {
-        ".id" => "[id]",           // 動的な値をマスク
-        ".created_at" => "[date]", // 日時をマスク
+        ".id" => "[id]",           // mask dynamic values
+        ".created_at" => "[date]", // mask timestamps
     });
 }
 
@@ -1587,18 +1588,18 @@ fn test_config_serialization() {
     assert_yaml_snapshot!(config);
 }
 
-// スナップショットの更新:
-// cargo insta test         # テスト実行
-// cargo insta review       # 差分レビュー & 承認
-// cargo insta accept       # 全承認
+// Updating snapshots:
+// cargo insta test         # run tests
+// cargo insta review       # review and approve diffs
+// cargo insta accept       # accept all
 ```
 
-### 5.4 ファジングテスト
+### 5.4 Fuzz Testing
 
 ```rust
 // Cargo.toml:
 // [dependencies]
-// # fuzz ターゲットは別途 cargo-fuzz で管理
+// # fuzz targets are managed separately with cargo-fuzz
 //
 // fuzz/Cargo.toml:
 // [dependencies]
@@ -1610,13 +1611,13 @@ fn test_config_serialization() {
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
-    // 任意のバイト列をパーサーに渡す
+    // Pass arbitrary byte sequences to the parser
     if let Ok(input) = std::str::from_utf8(data) {
         let _ = my_lib::parse(input);
     }
 });
 
-// Arbitrary トレイトを使った構造化ファジング
+// Structured fuzzing with the Arbitrary trait
 use arbitrary::Arbitrary;
 
 #[derive(Debug, Arbitrary)]
@@ -1630,88 +1631,88 @@ fuzz_target!(|input: FuzzInput| {
     let _ = my_lib::process_user(&input.name, input.age, &input.values);
 });
 
-// 実行方法:
+// How to run:
 // cargo install cargo-fuzz
-// cargo fuzz init           # fuzz/ ディレクトリ作成
-// cargo fuzz add parse_input  # ファズターゲット追加
-// cargo +nightly fuzz run parse_input  # ファジング実行（nightly 必須）
-// cargo +nightly fuzz run parse_input -- -max_total_time=60  # 60秒で終了
+// cargo fuzz init           # create the fuzz/ directory
+// cargo fuzz add parse_input  # add a fuzz target
+// cargo +nightly fuzz run parse_input  # run fuzzing (requires nightly)
+// cargo +nightly fuzz run parse_input -- -max_total_time=60  # exit after 60 seconds
 ```
 
 ---
 
-## 6. テストカバレッジとCI統合
+## 6. Test Coverage and CI Integration
 
-### 6.1 カバレッジ計測
+### 6.1 Measuring Coverage
 
 ```bash
 # --- cargo-llvm-cov ---
 cargo install cargo-llvm-cov
 
-# テストカバレッジの計測
-cargo llvm-cov                     # コンソール出力
-cargo llvm-cov --html              # HTML レポート
-cargo llvm-cov --lcov --output-path lcov.info  # LCOV 形式
+# Measure test coverage
+cargo llvm-cov                     # console output
+cargo llvm-cov --html              # HTML report
+cargo llvm-cov --lcov --output-path lcov.info  # LCOV format
 
-# 特定のテストのみ
-cargo llvm-cov --lib               # 単体テストのみ
-cargo llvm-cov --test integration  # 統合テストのみ
-cargo llvm-cov --all-features      # 全 feature
+# Specific test only
+cargo llvm-cov --lib               # unit tests only
+cargo llvm-cov --test integration  # integration tests only
+cargo llvm-cov --all-features      # all features
 
-# ワークスペース全体
+# Whole workspace
 cargo llvm-cov --workspace
 
-# カバレッジ閾値の確認
-cargo llvm-cov --fail-under-lines 80  # 行カバレッジ 80% 未満で失敗
+# Check coverage threshold
+cargo llvm-cov --fail-under-lines 80  # fail if line coverage is below 80%
 
-# --- tarpaulin (Linux のみ) ---
+# --- tarpaulin (Linux only) ---
 cargo install cargo-tarpaulin
 cargo tarpaulin --out html --all-features
 ```
 
-### 6.2 ミューテーションテスト
+### 6.2 Mutation Testing
 
 ```bash
-# cargo-mutants — ミューテーションテスト
+# cargo-mutants — mutation testing
 cargo install cargo-mutants
 
-# ミューテーションテスト実行
-cargo mutants                      # 全ミュータント実行
-cargo mutants -- -p my-crate       # 特定クレートのみ
-cargo mutants --list               # ミュータントの一覧
-cargo mutants --timeout-multiplier 3  # タイムアウト倍率
+# Run mutation tests
+cargo mutants                      # run all mutants
+cargo mutants -- -p my-crate       # specific crate only
+cargo mutants --list               # list mutants
+cargo mutants --timeout-multiplier 3  # timeout multiplier
 
-# 結果の読み方:
-# caught: テストがミュータントを検出（良い）
-# missed: テストがミュータントを見逃した（テスト追加が必要）
-# unviable: コンパイルできないミュータント（無視してOK）
-# timeout: タイムアウト（テストが遅すぎる可能性）
+# How to interpret results:
+# caught: tests detected the mutant (good)
+# missed: tests missed the mutant (need to add tests)
+# unviable: mutant fails to compile (safe to ignore)
+# timeout: timed out (tests may be too slow)
 ```
 
-### 6.3 テストの高速化
+### 6.3 Speeding Up Tests
 
 ```bash
-# --- nextest: 高速テストランナー ---
+# --- nextest: a fast test runner ---
 cargo install cargo-nextest
 
-# テスト実行（並列度が高い）
-cargo nextest run                  # デフォルトの並列実行
-cargo nextest run --workspace      # ワークスペース全体
-cargo nextest run -p my-crate      # 特定クレート
-cargo nextest run --retries 2      # 失敗時リトライ
-cargo nextest run --test-threads 8 # スレッド数指定
+# Run tests (highly parallel)
+cargo nextest run                  # default parallel execution
+cargo nextest run --workspace      # whole workspace
+cargo nextest run -p my-crate      # specific crate
+cargo nextest run --retries 2      # retry on failure
+cargo nextest run --test-threads 8 # specify thread count
 
-# テストのフィルタリング
-cargo nextest run -E 'test(test_parse)'     # 名前でフィルタ
-cargo nextest run -E 'package(my-crate)'    # パッケージでフィルタ
-cargo nextest run -E 'kind(test)'           # テスト種類でフィルタ
+# Filtering tests
+cargo nextest run -E 'test(test_parse)'     # filter by name
+cargo nextest run -E 'package(my-crate)'    # filter by package
+cargo nextest run -E 'kind(test)'           # filter by test kind
 
-# テスト結果の保存
+# Save test results
 cargo nextest run --message-format json > results.json
 ```
 
 ```toml
-# .config/nextest.toml — nextest の設定
+# .config/nextest.toml — nextest configuration
 [store]
 dir = "target/nextest"
 
@@ -1725,7 +1726,7 @@ retries = 2
 fail-fast = false
 slow-timeout = { period = "120s", terminate-after = 3 }
 
-# テストグループ（リソース制限）
+# Test groups (resource limits)
 [test-groups.serial-db]
 max-threads = 1
 
@@ -1735,72 +1736,72 @@ test-group = "serial-db"
 
 ---
 
-## 7. 比較表
+## 7. Comparison Tables
 
-### テストフレームワーク比較
+### Comparison of Testing Frameworks
 
-| フレームワーク | 種類 | 特徴 | 用途 |
+| Framework | Type | Features | Use Case |
 |---|---|---|---|
-| 標準 #[test] | 単体/統合 | 組み込み、設定不要 | 基本テスト |
-| proptest | プロパティ | 自動生成+shrinking | 仕様の検証 |
-| quickcheck | プロパティ | Haskell 由来 | 軽量プロパティテスト |
-| criterion | ベンチマーク | 統計的分析、HTML | パフォーマンス回帰 |
-| divan | ベンチマーク | #[divan::bench] | シンプルなベンチ |
-| rstest | パラメータ化 | #[rstest] + fixtures | テーブル駆動テスト |
-| mockall | モック | 自動モック生成 | 依存の差し替え |
-| wiremock | HTTPモック | 非同期対応 | 外部APIテスト |
-| insta | スナップショット | JSON/YAML対応 | 出力の回帰テスト |
-| cargo-fuzz | ファジング | libFuzzer ベース | セキュリティテスト |
-| nextest | テストランナー | 高速並列実行 | CI/CD |
+| Standard #[test] | Unit/Integration | Built-in, zero-config | Basic tests |
+| proptest | Property-based | Auto-generation + shrinking | Verifying specifications |
+| quickcheck | Property-based | Derived from Haskell | Lightweight property tests |
+| criterion | Benchmark | Statistical analysis, HTML | Performance regression |
+| divan | Benchmark | #[divan::bench] | Simple benchmarks |
+| rstest | Parameterized | #[rstest] + fixtures | Table-driven tests |
+| mockall | Mock | Automatic mock generation | Replacing dependencies |
+| wiremock | HTTP mock | Async support | External API testing |
+| insta | Snapshot | JSON/YAML support | Output regression tests |
+| cargo-fuzz | Fuzzing | Based on libFuzzer | Security testing |
+| nextest | Test runner | Fast parallel execution | CI/CD |
 
-### assert マクロ比較
+### Comparison of assert Macros
 
-| マクロ | 用途 | 失敗時メッセージ |
+| Macro | Use Case | Failure Message |
 |---|---|---|
-| `assert!(expr)` | 真偽値 | "assertion failed" |
-| `assert_eq!(a, b)` | 等値比較 | left と right の値を表示 |
-| `assert_ne!(a, b)` | 非等値 | left と right が等しい |
-| `debug_assert!()` | デバッグビルドのみ | リリースでは除去 |
-| `prop_assert!()` | proptest 内 | 反例の最小化を実行 |
-| `assert_snapshot!()` | insta | スナップショットとの差分 |
+| `assert!(expr)` | Boolean | "assertion failed" |
+| `assert_eq!(a, b)` | Equality | Displays values of left and right |
+| `assert_ne!(a, b)` | Inequality | left and right are equal |
+| `debug_assert!()` | Debug builds only | Removed in release |
+| `prop_assert!()` | Inside proptest | Performs counterexample shrinking |
+| `assert_snapshot!()` | insta | Diff against the snapshot |
 
-### テスト実行コマンド比較
+### Comparison of Test Execution Commands
 
-| コマンド | 対象 | 説明 |
+| Command | Target | Description |
 |---|---|---|
-| `cargo test` | 全テスト | 単体+統合+ドキュメントテスト |
-| `cargo test --lib` | 単体テスト | src/ 内の #[test] のみ |
-| `cargo test --test name` | 特定統合テスト | tests/name.rs |
-| `cargo test --doc` | ドキュメントテスト | /// 内のコードブロック |
-| `cargo test --examples` | サンプルコード | examples/ のコンパイルテスト |
-| `cargo test name` | 名前フィルタ | テスト名に "name" を含むもの |
-| `cargo test -- --nocapture` | 出力表示 | println! の出力を表示 |
-| `cargo test -- --test-threads=1` | シリアル実行 | 並列実行を無効化 |
-| `cargo test -- --ignored` | 無視テスト | #[ignore] のテストを実行 |
-| `cargo test -- --include-ignored` | 全テスト | 無視テストも含め全実行 |
+| `cargo test` | All tests | Unit + integration + doc tests |
+| `cargo test --lib` | Unit tests | Only #[test] inside src/ |
+| `cargo test --test name` | Specific integration test | tests/name.rs |
+| `cargo test --doc` | Doc tests | Code blocks inside /// |
+| `cargo test --examples` | Example code | Compile tests for examples/ |
+| `cargo test name` | Name filter | Tests whose name contains "name" |
+| `cargo test -- --nocapture` | Show output | Display println! output |
+| `cargo test -- --test-threads=1` | Serial execution | Disable parallel execution |
+| `cargo test -- --ignored` | Ignored tests | Run tests marked #[ignore] |
+| `cargo test -- --include-ignored` | All tests | Run all including ignored ones |
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン1: テスト間の状態共有
+### Anti-Pattern 1: Sharing State Between Tests
 
 ```rust
-// NG: 静的変数でテスト間に状態が漏れる
+// BAD: state leaks between tests via static variables
 static mut COUNTER: u32 = 0;
 
 #[test]
 fn test_a() {
     unsafe { COUNTER += 1; }
-    // テスト実行順序に依存!
+    // Depends on test execution order!
 }
 
 #[test]
 fn test_b() {
-    unsafe { assert_eq!(COUNTER, 0); } // test_a が先に実行されると失敗!
+    unsafe { assert_eq!(COUNTER, 0); } // fails if test_a runs first!
 }
 
-// OK: 各テストが独立したセットアップ
+// GOOD: each test sets up its own independent state
 #[test]
 fn test_a_isolated() {
     let mut counter = 0u32;
@@ -1815,42 +1816,42 @@ fn test_b_isolated() {
 }
 ```
 
-### アンチパターン2: ベンチマークでの最適化除去
+### Anti-Pattern 2: Optimization Removal in Benchmarks
 
 ```rust
-// NG: コンパイラが結果を使わないコードを除去する
+// BAD: the compiler removes code whose result is unused
 fn bench_bad(c: &mut Criterion) {
     c.bench_function("sum", |b| {
         b.iter(|| {
-            let sum: u64 = (0..1000).sum(); // 最適化で除去される可能性
+            let sum: u64 = (0..1000).sum(); // may be optimized away
         });
     });
 }
 
-// OK: black_box で最適化を防ぐ
+// GOOD: prevent optimization with black_box
 use criterion::black_box;
 fn bench_good(c: &mut Criterion) {
     c.bench_function("sum", |b| {
         b.iter(|| {
             let sum: u64 = (0..1000).sum();
-            black_box(sum) // コンパイラに「この値は使われる」と伝える
+            black_box(sum) // tells the compiler "this value is used"
         });
     });
 }
 ```
 
-### アンチパターン3: テストでの実装の過剰検証
+### Anti-Pattern 3: Over-verifying Implementation Details in Tests
 
 ```rust
-// NG: 実装の詳細を検証している
+// BAD: verifying implementation details
 #[test]
 fn test_sort_uses_quicksort() {
-    // 内部でクイックソートを使っているかチェック ← 実装詳細
+    // Checks whether quicksort is used internally <- implementation detail
     let comparisons = count_comparisons(sort, &data);
     assert!(comparisons < n * log2(n) * 1.5);
 }
 
-// OK: 振る舞い（インターフェース）を検証
+// GOOD: verify behavior (interface)
 #[test]
 fn test_sort_produces_ordered_output() {
     let input = vec![3, 1, 4, 1, 5, 9, 2, 6];
@@ -1859,10 +1860,10 @@ fn test_sort_produces_ordered_output() {
 }
 ```
 
-### アンチパターン4: テストの重複
+### Anti-Pattern 4: Duplicated Tests
 
 ```rust
-// NG: ほぼ同じテストのコピー&ペースト
+// BAD: copy-pasted near-identical tests
 #[test]
 fn test_parse_int_positive() {
     assert_eq!(parse("42"), Ok(42));
@@ -1876,7 +1877,7 @@ fn test_parse_int_positive_3() {
     assert_eq!(parse("999"), Ok(999));
 }
 
-// OK: パラメータ化テスト
+// GOOD: parameterized test
 #[rstest]
 #[case("42", 42)]
 #[case("100", 100)]
@@ -1888,17 +1889,17 @@ fn test_parse_int(#[case] input: &str, #[case] expected: i32) {
 }
 ```
 
-### アンチパターン5: 遅すぎるテスト
+### Anti-Pattern 5: Tests That Are Too Slow
 
 ```rust
-// NG: テストが遅い（I/O、ネットワーク、大量データ）
+// BAD: slow tests (I/O, network, large data)
 #[test]
 fn test_slow_network_call() {
     let response = reqwest::blocking::get("https://api.example.com/data").unwrap();
     assert_eq!(response.status(), 200);
 }
 
-// OK: モックを使って高速化
+// GOOD: speed up using mocks
 #[tokio::test]
 async fn test_fast_with_mock() {
     let mock_server = MockServer::start().await;
@@ -1916,12 +1917,12 @@ async fn test_fast_with_mock() {
 
 ---
 
-## 9. テスタブルアーキテクチャ
+## 9. Testable Architecture
 
-### 9.1 依存性注入パターン
+### 9.1 Dependency Injection Patterns
 
 ```rust
-// --- trait による依存性注入 ---
+// --- Dependency injection via traits ---
 pub trait Clock {
     fn now(&self) -> chrono::DateTime<chrono::Utc>;
 }
@@ -1943,7 +1944,7 @@ impl Clock for FixedClock {
     }
 }
 
-// 時刻に依存するビジネスロジック
+// Time-dependent business logic
 pub struct TokenService<C: Clock> {
     clock: C,
     expiry_duration: chrono::Duration,
@@ -1978,7 +1979,7 @@ mod tests {
 
     #[test]
     fn test_token_expiry() {
-        // 固定時刻でテスト
+        // Test with a fixed time
         let fixed_time = chrono::Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap();
         let clock = FixedClock(fixed_time);
         let service = TokenService::new(clock, 24);
@@ -1993,7 +1994,7 @@ mod tests {
 
     #[test]
     fn test_expired_token() {
-        // 1日後の時刻でチェック
+        // Check using a time one day later
         let future_time = chrono::Utc.with_ymd_and_hms(2024, 1, 3, 0, 0, 0).unwrap();
         let clock = FixedClock(future_time);
         let service = TokenService::new(clock, 24);
@@ -2009,27 +2010,28 @@ mod tests {
 }
 ```
 
-### 9.2 テストダブルの種類
+### 9.2 Types of Test Doubles
 
 ```
-┌────────────── テストダブルの種類 ──────────────┐
+┌────────────── Types of Test Doubles ────────────┐
 │                                                  │
-│  Dummy:  引数を満たすだけ（メソッドは呼ばれない）│
-│  Stub:   固定値を返す                            │
-│  Spy:    呼び出しを記録する                      │
-│  Mock:   期待される呼び出しを検証する            │
-│  Fake:   動作する簡易実装（インメモリDB等）      │
+│  Dummy:  Just satisfies arguments (never called) │
+│  Stub:   Returns fixed values                    │
+│  Spy:    Records invocations                     │
+│  Mock:   Verifies expected invocations           │
+│  Fake:   Working simplified implementation       │
+│          (e.g., in-memory DB)                    │
 │                                                  │
-│  使い分け:                                       │
-│  - 戻り値の制御 → Stub                          │
-│  - 呼び出し回数の検証 → Mock (mockall)          │
-│  - 副作用の記録 → Spy                           │
-│  - 統合テスト → Fake (インメモリ実装)            │
+│  When to use which:                              │
+│  - Control return values -> Stub                 │
+│  - Verify call counts -> Mock (mockall)          │
+│  - Record side effects -> Spy                    │
+│  - Integration tests -> Fake (in-memory impl)    │
 └──────────────────────────────────────────────────┘
 ```
 
 ```rust
-// Fake パターン: インメモリリポジトリ
+// Fake pattern: in-memory repository
 pub struct InMemoryUserRepository {
     users: std::sync::Mutex<Vec<User>>,
     next_id: std::sync::atomic::AtomicU64,
@@ -2081,114 +2083,114 @@ impl UserRepository for InMemoryUserRepository {
 
 ## FAQ
 
-### Q1: テストの実行順序は?
+### Q1: What is the test execution order?
 
-**A:** Rust のテストはデフォルトで並列に実行されます。`cargo test -- --test-threads=1` でシリアル実行に変更できます。テスト間に依存関係がある設計は避けるべきです。
+**A:** Rust tests run in parallel by default. You can switch to serial execution with `cargo test -- --test-threads=1`. Designs that depend on inter-test relationships should be avoided.
 
-### Q2: テストカバレッジの計測方法は?
+### Q2: How do I measure test coverage?
 
-**A:** `cargo-llvm-cov` または `tarpaulin` を使います。
+**A:** Use `cargo-llvm-cov` or `tarpaulin`.
 
 ```bash
 # cargo-llvm-cov
 cargo install cargo-llvm-cov
-cargo llvm-cov --html         # HTML レポート生成
-cargo llvm-cov --open         # ブラウザで開く
+cargo llvm-cov --html         # generate HTML report
+cargo llvm-cov --open         # open in browser
 
-# tarpaulin (Linux のみ)
+# tarpaulin (Linux only)
 cargo install cargo-tarpaulin
 cargo tarpaulin --out html
 ```
 
-### Q3: proptest で失敗した場合のデバッグ方法は?
+### Q3: How do I debug failures in proptest?
 
-**A:** proptest は失敗した入力を自動的に最小化 (shrink) して再テストします。失敗したシードは `proptest-regressions/` ディレクトリに保存され、次回以降のテストで自動的に再実行されます。
+**A:** proptest automatically minimizes (shrinks) failing inputs and re-tests them. Failing seeds are saved in the `proptest-regressions/` directory and will be re-run automatically on subsequent test runs.
 
 ```
 # proptest-regressions/test_name.txt
-# 失敗した入力のシードが保存される
+# Stores seeds for failing inputs
 cc deadbeef12345678
 ```
 
-### Q4: テストのフィルタリング方法は?
+### Q4: How do I filter tests?
 
-**A:** テスト名やモジュール名でフィルタリングできます。
+**A:** You can filter by test name or module name.
 
 ```bash
-# 名前に "parse" を含むテストのみ
+# Only tests whose name contains "parse"
 cargo test parse
 
-# 特定モジュールのテスト
+# Tests in a specific module
 cargo test tests::given_valid_input
 
-# 正規表現フィルタ（nextest）
+# Regex filter (nextest)
 cargo nextest run -E 'test(/test_parse_.*/)'
 
-# 無視テストの実行
+# Run ignored tests
 cargo test -- --ignored
 
-# 全テスト（無視含む）
+# All tests (including ignored)
 cargo test -- --include-ignored
 ```
 
-### Q5: テストのデバッグ方法は?
+### Q5: How do I debug tests?
 
-**A:** 複数の方法があります。
+**A:** Several methods are available.
 
 ```bash
-# println! の出力を表示
+# Display println! output
 cargo test -- --nocapture
 
-# 特定のテストのみ実行 + 出力表示
+# Run only a specific test, with output
 cargo test test_my_function -- --nocapture
 
-# RUST_LOG で詳細ログ
+# Detailed logging via RUST_LOG
 RUST_LOG=debug cargo test -- --nocapture
 
-# デバッガ接続（lldb/gdb）
-# 1. テストバイナリのパスを確認
+# Attach a debugger (lldb/gdb)
+# 1. Find the test binary path
 cargo test --no-run --message-format=json | jq '.executable'
-# 2. デバッガで実行
+# 2. Run under the debugger
 lldb target/debug/deps/my_crate-abc123 -- test_my_function
 ```
 
-### Q6: 統合テストのコンパイルが遅い場合は?
+### Q6: What if integration tests are slow to compile?
 
-**A:** 統合テストは各ファイルが独立したバイナリクレートとしてコンパイルされます。ファイル数を減らすことで改善できます。
+**A:** Each integration test file is compiled as an independent binary crate. You can improve compile times by reducing the number of files.
 
 ```rust
-// NG: 多数の統合テストファイル（それぞれ独立コンパイル）
+// BAD: many integration test files (each compiled independently)
 // tests/test_auth.rs
 // tests/test_users.rs
 // tests/test_orders.rs
 // tests/test_payments.rs
-// → 4 つのバイナリがコンパイルされる
+// -> 4 binaries are compiled
 
-// OK: 単一のエントリポイントからモジュールを読み込む
+// GOOD: load modules from a single entry point
 // tests/integration.rs
 mod auth;
 mod users;
 mod orders;
 mod payments;
-// → 1 つのバイナリで全テスト実行
+// -> all tests run from a single binary
 ```
 
-### Q7: feature ごとにテストを分ける方法は?
+### Q7: How do I separate tests by feature?
 
-**A:** `#[cfg(feature = "...")]` をテストモジュールに適用します。
+**A:** Apply `#[cfg(feature = "...")]` to test modules.
 
 ```rust
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // 常に実行されるテスト
+    // Always-run test
     #[test]
     fn test_basic() {
         assert!(true);
     }
 
-    // json feature 有効時のみ
+    // Only when the json feature is enabled
     #[cfg(feature = "json")]
     mod json_tests {
         use super::*;
@@ -2201,7 +2203,7 @@ mod tests {
         }
     }
 
-    // async feature 有効時のみ
+    // Only when the async feature is enabled
     #[cfg(feature = "async")]
     mod async_tests {
         use super::*;
@@ -2217,35 +2219,35 @@ mod tests {
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Topic | Key Points |
 |---|---|
-| #[test] | 標準テスト。#[cfg(test)] で本番ビルドから除外 |
-| 統合テスト | tests/ ディレクトリ。公開 API のみテスト |
-| doc テスト | /// コメント内コード。ドキュメントとテストを同時管理 |
-| proptest | ランダム入力で性質を検証。反例を自動最小化 |
-| criterion | 統計的ベンチマーク。回帰検知に有効 |
-| divan | シンプルなベンチマーク。属性マクロで定義 |
-| rstest | パラメータ化テスト。フィクスチャサポート |
-| mockall | trait ベースの自動モック生成 |
-| wiremock | HTTP モック。非同期テスト対応 |
-| insta | スナップショットテスト。JSON/YAML 対応 |
-| モック | trait ベースで依存を差し替え |
-| テスト隔離 | 各テストは独立。状態共有は禁止 |
-| black_box | ベンチマークの最適化除去を防止 |
-| nextest | 高速テストランナー。CI/CD に最適 |
-| cargo-llvm-cov | コードカバレッジ計測 |
-| cargo-mutants | ミューテーションテスト |
-| cargo-fuzz | ファジングテスト |
+| #[test] | Standard tests. Excluded from production builds with #[cfg(test)] |
+| Integration tests | The tests/ directory. Tests only the public API |
+| Doc tests | Code in /// comments. Manage docs and tests together |
+| proptest | Verify properties with random inputs. Auto-minimizes counterexamples |
+| criterion | Statistical benchmarks. Effective for regression detection |
+| divan | Simple benchmarks. Defined with attribute macros |
+| rstest | Parameterized tests. Supports fixtures |
+| mockall | Trait-based automatic mock generation |
+| wiremock | HTTP mocks. Supports async tests |
+| insta | Snapshot testing. Supports JSON/YAML |
+| Mocks | Replace dependencies based on traits |
+| Test isolation | Each test is independent. Sharing state is forbidden |
+| black_box | Prevents removal of benchmarked code by optimization |
+| nextest | Fast test runner. Ideal for CI/CD |
+| cargo-llvm-cov | Code coverage measurement |
+| cargo-mutants | Mutation testing |
+| cargo-fuzz | Fuzz testing |
 
-## 次に読むべきガイド
+## Further Reading
 
-- [Serde](./02-serde.md) — テストフィクスチャの読み込みに活用
-- [ベストプラクティス](./04-best-practices.md) — テスタブルな設計パターン
-- [Cargo/ワークスペース](./00-cargo-workspace.md) — テスト構成とプロファイル
+- [Serde](./02-serde.md) — Useful for loading test fixtures
+- [Best Practices](./04-best-practices.md) — Testable design patterns
+- [Cargo/Workspaces](./00-cargo-workspace.md) — Test configuration and profiles
 
-## 参考文献
+## References
 
 1. **The Rust Book — Testing**: https://doc.rust-lang.org/book/ch11-00-testing.html
 2. **proptest book**: https://proptest-rs.github.io/proptest/intro.html
