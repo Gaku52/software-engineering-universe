@@ -1,69 +1,69 @@
 # Serde — JSON/TOML/YAML
 
-> Rust の事実上の標準シリアライゼーションフレームワーク Serde を、JSON/TOML/YAML の実践的な変換パターンと共に習得する
+> Master Serde, Rust's de facto standard serialization framework, alongside practical conversion patterns for JSON/TOML/YAML
 
-## この章で学ぶこと
+## What you will learn in this chapter
 
-1. **Serde の仕組み** — Serialize/Deserialize trait、derive マクロ、Data Model
-2. **フォーマット別実践** — JSON (serde_json), TOML (toml), YAML (serde_yaml) の使い分け
-3. **カスタマイズ** — 属性マクロ、カスタムシリアライザ、ゼロコピーデシリアライゼーション
-4. **高度なパターン** — flatten、untagged enum、Visitor パターン、serde_with
-5. **パフォーマンス** — ゼロコピー、simd-json、バイナリフォーマット
+1. **How Serde works** — Serialize/Deserialize traits, derive macros, and the Data Model
+2. **Format-specific practice** — How to choose between JSON (serde_json), TOML (toml), and YAML (serde_yaml)
+3. **Customization** — Attribute macros, custom serializers, and zero-copy deserialization
+4. **Advanced patterns** — flatten, untagged enums, the Visitor pattern, and serde_with
+5. **Performance** — Zero-copy, simd-json, and binary formats
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [テスト — proptest、criterion](./01-testing.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the contents of [Testing — proptest, criterion](./01-testing.md)
 
 ---
 
-## 1. Serde アーキテクチャ
+## 1. Serde Architecture
 
 ```
-┌──────────────── Serde のレイヤー構造 ────────────────┐
-│                                                       │
-│  ┌─────────────┐   Serialize    ┌─────────────────┐  │
-│  │  Rust の型   │ ─────────────→ │  Serde Data     │  │
-│  │  struct,enum │               │  Model          │  │
-│  │  Vec, HashMap│ ←───────────── │  (29種の型)     │  │
-│  └─────────────┘  Deserialize   └────────┬────────┘  │
-│                                          │            │
-│                                   Serializer /        │
-│                                   Deserializer        │
-│                                   (フォーマット別)     │
-│                                          │            │
-│                    ┌─────────────────────┼──────┐    │
-│                    ▼                     ▼      ▼    │
-│              ┌──────────┐  ┌──────────┐  ┌──────┐   │
-│              │   JSON   │  │   TOML   │  │ YAML │   │
-│              │serde_json│  │   toml   │  │serde │   │
-│              │          │  │          │  │_yaml │   │
-│              └──────────┘  └──────────┘  └──────┘   │
-│                                                       │
-│  この分離により:                                      │
-│  - 1回の derive で全フォーマット対応                   │
-│  - 新フォーマット追加が容易                            │
-│  - 型→型の直接変換も可能 (serde_transcode)            │
-└───────────────────────────────────────────────────────┘
+┌──────────────── Serde Layered Structure ────────────────┐
+│                                                          │
+│  ┌─────────────┐   Serialize    ┌─────────────────┐     │
+│  │  Rust types │ ─────────────→ │  Serde Data     │     │
+│  │  struct,enum│                │  Model          │     │
+│  │  Vec,HashMap│ ←───────────── │  (29 types)     │     │
+│  └─────────────┘  Deserialize   └────────┬────────┘     │
+│                                          │               │
+│                                   Serializer /           │
+│                                   Deserializer           │
+│                                   (per format)           │
+│                                          │               │
+│                    ┌─────────────────────┼──────┐       │
+│                    ▼                     ▼      ▼       │
+│              ┌──────────┐  ┌──────────┐  ┌──────┐      │
+│              │   JSON   │  │   TOML   │  │ YAML │      │
+│              │serde_json│  │   toml   │  │serde │      │
+│              │          │  │          │  │_yaml │      │
+│              └──────────┘  └──────────┘  └──────┘      │
+│                                                          │
+│  This separation enables:                                │
+│  - Support for all formats with a single derive          │
+│  - Easy addition of new formats                          │
+│  - Direct type-to-type conversion (serde_transcode)      │
+└──────────────────────────────────────────────────────────┘
 ```
 
-### 1.1 Serde Data Model の29種の型
+### 1.1 The 29 types of the Serde Data Model
 
 ```
 ┌──────────── Serde Data Model ──────────────┐
 │                                              │
-│  プリミティブ:                                │
+│  Primitives:                                 │
 │    bool, i8, i16, i32, i64, i128            │
 │    u8, u16, u32, u64, u128                  │
 │    f32, f64                                  │
 │    char, string                              │
 │    byte_array, bytes                         │
 │                                              │
-│  複合型:                                     │
+│  Composite types:                            │
 │    option       → Option<T>                 │
 │    unit         → ()                        │
 │    unit_struct  → struct Unit;              │
@@ -78,16 +78,16 @@
 │    struct       → struct S { f: T }         │
 │    struct_variant → enum E { A { f: T } }   │
 │                                              │
-│  derive マクロは Rust の型を上記モデルに       │
-│  マッピングするコードを自動生成する             │
+│  The derive macro automatically generates    │
+│  code mapping Rust types to the model above. │
 └──────────────────────────────────────────────┘
 ```
 
-### 1.2 Cargo.toml での設定
+### 1.2 Cargo.toml configuration
 
 ```toml
 [dependencies]
-# Serde コア（derive マクロ付き）
+# Serde core (with derive macros)
 serde = { version = "1", features = ["derive"] }
 
 # JSON
@@ -99,38 +99,38 @@ toml = "0.8"
 # YAML
 serde_yaml = "0.9"
 
-# バイナリフォーマット
-bincode = "1"              # Rust 同士の通信
+# Binary formats
+bincode = "1"              # Rust-to-Rust communication
 rmp-serde = "1"            # MessagePack
 ciborium = "0.2"           # CBOR
-postcard = "1"             # 組み込み向け小型フォーマット
+postcard = "1"             # Compact format for embedded systems
 
-# ユーティリティ
-serde_with = "3"           # カスタムシリアライゼーションヘルパー
-serde_repr = "0.1"         # 列挙体を整数として表現
-serde_ignored = "0.1"      # 未知フィールドの収集
+# Utilities
+serde_with = "3"           # Custom serialization helpers
+serde_repr = "0.1"         # Represent enums as integers
+serde_ignored = "0.1"      # Collect unknown fields
 
-# 高速JSON
-simd-json = "0.13"         # SIMD を活用した高速 JSON パーサー
-sonic-rs = "0.3"           # 高速 JSON シリアライザ/デシリアライザ
+# Fast JSON
+simd-json = "0.13"         # Fast JSON parser using SIMD
+sonic-rs = "0.3"           # Fast JSON serializer/deserializer
 ```
 
 ---
 
-## 2. 基本的な使い方
+## 2. Basic usage
 
-### コード例1: derive による自動実装
+### Code example 1: Automatic implementation via derive
 
 ```rust
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Config {
-    /// サーバー設定
+    /// Server settings
     server: ServerConfig,
-    /// データベース設定
+    /// Database settings
     database: DatabaseConfig,
-    /// 機能フラグ
+    /// Feature flags
     #[serde(default)]
     features: Features,
 }
@@ -196,24 +196,24 @@ fn main() -> anyhow::Result<()> {
     let config: Config = toml::from_str(toml_str)?;
     println!("TOML: {:?}", config);
 
-    // 出力
-    println!("\n--- JSON出力 ---");
+    // Output
+    println!("\n--- JSON output ---");
     println!("{}", serde_json::to_string_pretty(&config)?);
 
-    println!("\n--- TOML出力 ---");
+    println!("\n--- TOML output ---");
     println!("{}", toml::to_string_pretty(&config)?);
 
     Ok(())
 }
 ```
 
-### 2.1 serde_json の詳細な使い方
+### 2.1 Detailed usage of serde_json
 
 ```rust
 use serde::{Serialize, Deserialize};
 use serde_json::{json, Value, Map};
 
-// --- json! マクロによる動的 JSON 構築 ---
+// --- Building dynamic JSON with the json! macro ---
 fn build_json_response(user_id: u64, name: &str) -> Value {
     json!({
         "status": "success",
@@ -235,7 +235,7 @@ fn build_json_response(user_id: u64, name: &str) -> Value {
     })
 }
 
-// --- Value の操作 ---
+// --- Manipulating Value ---
 fn manipulate_json() {
     let mut value = json!({
         "users": [
@@ -244,38 +244,38 @@ fn manipulate_json() {
         ]
     });
 
-    // ポインタアクセス
+    // Pointer access
     if let Some(name) = value.pointer("/users/0/name") {
-        println!("最初のユーザー: {}", name);
+        println!("First user: {}", name);
     }
 
-    // ミュータブルポインタアクセス
+    // Mutable pointer access
     if let Some(age) = value.pointer_mut("/users/1/age") {
         *age = json!(26);
     }
 
-    // 配列への追加
+    // Appending to an array
     if let Some(users) = value["users"].as_array_mut() {
         users.push(json!({"name": "Charlie", "age": 35}));
     }
 
-    // マップの操作
+    // Manipulating a map
     if let Some(obj) = value.as_object_mut() {
         obj.insert("total".to_string(), json!(3));
     }
 }
 
-// --- ストリーミング読み書き ---
+// --- Streaming read/write ---
 use std::io::{BufReader, BufWriter};
 use std::fs::File;
 
 fn stream_json() -> anyhow::Result<()> {
-    // ファイルからストリーミング読み込み
+    // Streaming read from a file
     let file = File::open("large_data.json")?;
     let reader = BufReader::new(file);
     let data: Vec<Record> = serde_json::from_reader(reader)?;
 
-    // ファイルへストリーミング書き込み
+    // Streaming write to a file
     let file = File::create("output.json")?;
     let writer = BufWriter::new(file);
     serde_json::to_writer_pretty(writer, &data)?;
@@ -283,7 +283,7 @@ fn stream_json() -> anyhow::Result<()> {
     Ok(())
 }
 
-// --- 行区切り JSON (NDJSON / JSON Lines) ---
+// --- Line-delimited JSON (NDJSON / JSON Lines) ---
 fn process_ndjson(input: &str) -> Vec<Record> {
     input
         .lines()
@@ -300,16 +300,16 @@ fn write_ndjson(records: &[Record], writer: &mut impl std::io::Write) -> anyhow:
     Ok(())
 }
 
-// --- serde_json::Value と型の相互変換 ---
+// --- Mutual conversion between serde_json::Value and types ---
 fn value_conversion() -> anyhow::Result<()> {
-    // 型 → Value
+    // Type → Value
     let user = User { name: "Alice".into(), age: 30 };
     let value: Value = serde_json::to_value(&user)?;
 
-    // Value → 型
+    // Value → Type
     let user2: User = serde_json::from_value(value)?;
 
-    // Value を使った部分的なデシリアライズ
+    // Partial deserialization using Value
     let json_str = r#"{"name": "Bob", "age": 25, "extra": "ignored"}"#;
     let value: Value = serde_json::from_str(json_str)?;
     let name: String = serde_json::from_value(value["name"].clone())?;
@@ -318,25 +318,25 @@ fn value_conversion() -> anyhow::Result<()> {
 }
 ```
 
-### 2.2 serde_json::RawValue の活用
+### 2.2 Leveraging serde_json::RawValue
 
 ```rust
 use serde::{Serialize, Deserialize};
 use serde_json::value::RawValue;
 
-/// RawValue: JSON をパースせずにそのまま保持
-/// パフォーマンスが重要な中間処理で有用
+/// RawValue: holds JSON without parsing it
+/// Useful for performance-critical intermediate processing
 #[derive(Serialize, Deserialize)]
 struct Envelope<'a> {
     #[serde(rename = "type")]
     msg_type: String,
-    /// JSON ペイロードをパースせずに保持
+    /// Holds the JSON payload without parsing
     #[serde(borrow)]
     payload: &'a RawValue,
 }
 
 fn route_message(json: &str) -> anyhow::Result<()> {
-    // エンベロープだけパースして、ペイロードは型に応じて後でパースする
+    // Parse only the envelope; the payload is parsed later according to type
     let envelope: Envelope = serde_json::from_str(json)?;
 
     match envelope.msg_type.as_str() {
@@ -349,30 +349,30 @@ fn route_message(json: &str) -> anyhow::Result<()> {
             handle_order_event(event);
         }
         _ => {
-            // 未知のイベントもペイロードを保持して転送可能
-            println!("未知のイベント: {}", envelope.payload.get());
+            // Unknown events can also be forwarded with payload retained
+            println!("Unknown event: {}", envelope.payload.get());
         }
     }
 
     Ok(())
 }
 
-// RawValue を使った透過的な JSON プロキシ
+// A transparent JSON proxy using RawValue
 #[derive(Serialize, Deserialize)]
 struct ProxyRequest {
     target: String,
     headers: std::collections::HashMap<String, String>,
-    /// リクエストボディをパースせずに転送
+    /// Forward the request body without parsing it
     body: Box<RawValue>,
 }
 ```
 
-### コード例2: 列挙体のシリアライゼーション
+### Code example 2: Enum serialization
 
 ```rust
 use serde::{Serialize, Deserialize};
 
-/// タグ付き列挙体 (デフォルト: 外部タグ)
+/// Tagged enum (default: externally tagged)
 #[derive(Debug, Serialize, Deserialize)]
 enum Message {
     Text(String),
@@ -383,7 +383,7 @@ enum Message {
 // JSON: {"Image": {"url": "...", "width": 800, "height": 600}}
 // JSON: "Ping"
 
-/// 内部タグ形式
+/// Internally tagged form
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 enum Event {
@@ -396,7 +396,7 @@ enum Event {
 }
 // JSON: {"type": "user.created", "id": 1, "name": "Alice"}
 
-/// 隣接タグ形式
+/// Adjacently tagged form
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "data")]
 enum ApiResponse {
@@ -406,7 +406,7 @@ enum ApiResponse {
 // JSON: {"kind": "Success", "data": {...}}
 // JSON: {"kind": "Error", "data": {"code": 404, "message": "Not found"}}
 
-/// タグなし形式 (各バリアントのフィールドで判別)
+/// Untagged form (distinguished by each variant's fields)
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 enum NumberOrString {
@@ -416,12 +416,12 @@ enum NumberOrString {
 // JSON: 42.0 or "hello"
 ```
 
-### 2.3 列挙体表現の詳細比較
+### 2.3 Detailed comparison of enum representations
 
 ```rust
 use serde::{Serialize, Deserialize};
 
-// --- 外部タグ (Externally Tagged) [デフォルト] ---
+// --- Externally Tagged [default] ---
 #[derive(Serialize, Deserialize)]
 enum ExternalTag {
     Variant1(String),
@@ -431,9 +431,9 @@ enum ExternalTag {
 // {"Variant1": "hello"}
 // {"Variant2": {"x": 1, "y": 2}}
 // "Variant3"
-// 利点: 明確。欠点: ネストが深くなる
+// Pros: clear. Cons: deeply nested.
 
-// --- 内部タグ (Internally Tagged) ---
+// --- Internally Tagged ---
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
 enum InternalTag {
@@ -444,9 +444,9 @@ enum InternalTag {
 }
 // {"type": "circle", "radius": 5.0}
 // {"type": "rectangle", "width": 10.0, "height": 20.0}
-// 利点: フラット。欠点: タプルバリアントに使えない
+// Pros: flat. Cons: cannot be used with tuple variants.
 
-// --- 隣接タグ (Adjacently Tagged) ---
+// --- Adjacently Tagged ---
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "t", content = "c")]
 enum AdjacentTag {
@@ -457,9 +457,9 @@ enum AdjacentTag {
 // {"t": "Text", "c": "hello"}
 // {"t": "Number", "c": 42}
 // {"t": "Pair", "c": ["hello", 42]}
-// 利点: タプルバリアント可。欠点: 冗長
+// Pros: tuple variants work. Cons: verbose.
 
-// --- タグなし (Untagged) ---
+// --- Untagged ---
 #[derive(Serialize, Deserialize)]
 #[serde(untagged)]
 enum Untagged {
@@ -470,9 +470,9 @@ enum Untagged {
     Object(std::collections::HashMap<String, serde_json::Value>),
 }
 // 42, 3.14, "hello", [...], {...}
-// 利点: 自然な JSON。欠点: バリアント順序が重要、エラーメッセージが不明瞭
+// Pros: natural JSON. Cons: variant order matters; error messages are unclear.
 
-// --- serde_repr: 整数表現 ---
+// --- serde_repr: integer representation ---
 use serde_repr::{Serialize_repr, Deserialize_repr};
 
 #[derive(Debug, Serialize_repr, Deserialize_repr)]
@@ -488,42 +488,42 @@ enum Priority {
 
 ---
 
-## 3. serde 属性マクロ一覧
+## 3. List of serde attribute macros
 
 ```
-┌──────────── serde 主要属性一覧 ──────────────┐
-│                                                │
-│  フィールド属性:                                │
-│  #[serde(rename = "fieldName")]  名前変更      │
-│  #[serde(alias = "old_name")]    別名          │
-│  #[serde(default)]               デフォルト値   │
-│  #[serde(default = "fn_name")]   カスタム初期値 │
-│  #[serde(skip)]                  無視           │
-│  #[serde(skip_serializing)]      出力時のみ無視 │
-│  #[serde(skip_deserializing)]    入力時のみ無視 │
-│  #[serde(skip_serializing_if)]   条件付き無視   │
-│  #[serde(flatten)]               フラットに展開 │
-│  #[serde(with = "module")]       カスタム変換   │
-│                                                │
-│  コンテナ属性:                                  │
-│  #[serde(rename_all = "camelCase")]  全名前変更 │
-│  #[serde(tag = "type")]          タグ形式      │
-│  #[serde(deny_unknown_fields)]   未知フィールド禁止 │
-│  #[serde(transparent)]           内部型として扱う │
-└────────────────────────────────────────────────┘
+┌──────────── Major serde attributes ──────────────┐
+│                                                    │
+│  Field attributes:                                 │
+│  #[serde(rename = "fieldName")]  Rename            │
+│  #[serde(alias = "old_name")]    Alias             │
+│  #[serde(default)]               Default value     │
+│  #[serde(default = "fn_name")]   Custom default    │
+│  #[serde(skip)]                  Ignore            │
+│  #[serde(skip_serializing)]      Ignore on output  │
+│  #[serde(skip_deserializing)]    Ignore on input   │
+│  #[serde(skip_serializing_if)]   Conditional skip  │
+│  #[serde(flatten)]               Flatten in place  │
+│  #[serde(with = "module")]       Custom conversion │
+│                                                    │
+│  Container attributes:                             │
+│  #[serde(rename_all = "camelCase")]  Rename all    │
+│  #[serde(tag = "type")]          Tag form          │
+│  #[serde(deny_unknown_fields)]   Reject unknowns   │
+│  #[serde(transparent)]           Treat as inner    │
+└────────────────────────────────────────────────────┘
 ```
 
-### 3.1 属性マクロの詳細リファレンス
+### 3.1 Detailed reference of attribute macros
 
 ```rust
 use serde::{Serialize, Deserialize};
 
 // ========================================
-// コンテナ属性（struct / enum 全体に適用）
+// Container attributes (apply to entire struct/enum)
 // ========================================
 
 // --- rename_all ---
-// 全フィールドの名前変換規則を一括指定
+// Specify the renaming convention for all fields at once
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]       // camelCase
 // #[serde(rename_all = "snake_case")]    // snake_case
@@ -540,29 +540,29 @@ struct UserProfile {
     is_active: bool,        // → "isActive"
 }
 
-// --- シリアライズとデシリアライズで別の規則 ---
+// --- Different rules for serialization and deserialization ---
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all(serialize = "camelCase", deserialize = "snake_case"))]
 struct MixedNaming {
-    field_name: String,     // シリアライズ: "fieldName", デシリアライズ: "field_name"
+    field_name: String,     // serialize: "fieldName", deserialize: "field_name"
 }
 
 // --- deny_unknown_fields ---
-// 未知のフィールドがあるとエラー
+// Error if there are unknown fields
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct StrictConfig {
     host: String,
     port: u16,
-    // {"host": "localhost", "port": 8080, "extra": true} → エラー!
+    // {"host": "localhost", "port": 8080, "extra": true} → Error!
 }
 
 // --- transparent ---
-// ニュータイプを内部の型として扱う
+// Treat a newtype as the inner type
 #[derive(Serialize, Deserialize)]
 #[serde(transparent)]
 struct UserId(u64);
-// JSON: 42 ({"UserId": 42} ではない)
+// JSON: 42 (not {"UserId": 42})
 
 #[derive(Serialize, Deserialize)]
 #[serde(transparent)]
@@ -570,7 +570,7 @@ struct Email(String);
 // JSON: "user@example.com"
 
 // ========================================
-// フィールド属性
+// Field attributes
 // ========================================
 
 #[derive(Serialize, Deserialize)]
@@ -580,26 +580,26 @@ struct DetailedExample {
     id: u64,
 
     // --- alias ---
-    // デシリアライズ時に複数の名前を受け付ける
+    // Accept multiple names during deserialization
     #[serde(alias = "userName", alias = "user_name")]
     name: String,
 
     // --- default ---
     #[serde(default)]
-    count: u32,             // 無ければ 0
+    count: u32,             // 0 if absent
 
     #[serde(default = "default_status")]
-    status: String,         // 無ければ "active"
+    status: String,         // "active" if absent
 
     // --- skip ---
     #[serde(skip)]
-    internal_state: u32,    // シリアライズ/デシリアライズの両方で無視
+    internal_state: u32,    // Ignored in both serialization and deserialization
 
     #[serde(skip_serializing)]
-    write_only_field: String, // 書き込みのみ（出力しない）
+    write_only_field: String, // Write-only (not output)
 
     #[serde(skip_deserializing)]
-    computed_field: String,  // 読み取りのみ（入力から無視）
+    computed_field: String,  // Read-only (ignored from input)
 
     // --- skip_serializing_if ---
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -612,12 +612,12 @@ struct DetailedExample {
     retry_count: u32,
 
     // --- flatten ---
-    // ネストを解消してフラットに展開
+    // Eliminate nesting and expand inline
     #[serde(flatten)]
     metadata: std::collections::HashMap<String, serde_json::Value>,
 
     // --- with ---
-    // カスタムシリアライゼーションモジュール
+    // Custom serialization module
     #[serde(with = "chrono::serde::ts_seconds")]
     created_at: chrono::DateTime<chrono::Utc>,
 
@@ -627,12 +627,12 @@ struct DetailedExample {
     label: String,
 
     // --- getter ---
-    // シリアライズ時にメソッドを呼ぶ
+    // Call a method during serialization
     #[serde(getter = "DetailedExample::computed_value")]
     computed: String,
 
     // --- bound ---
-    // derive で生成されるトレイト境界をカスタマイズ
+    // Customize the trait bounds generated by derive
     // #[serde(bound(serialize = "T: Serialize + Display"))]
     // #[serde(bound(deserialize = "T: Deserialize<'de> + Default"))]
 }
@@ -656,37 +656,37 @@ where
 }
 ```
 
-### コード例3: 実践的な属性マクロ使用
+### Code example 3: Practical use of attribute macros
 
 ```rust
 use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]  // 全フィールドを camelCase に
-#[serde(deny_unknown_fields)]       // 未知のフィールドを拒否
+#[serde(rename_all = "camelCase")]  // Rename all fields to camelCase
+#[serde(deny_unknown_fields)]       // Reject unknown fields
 struct UserProfile {
     user_id: u64,                    // → "userId"
     display_name: String,            // → "displayName"
 
-    #[serde(rename = "email")]       // 明示的リネーム
+    #[serde(rename = "email")]       // Explicit rename
     email_address: String,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    bio: Option<String>,             // None なら出力しない
+    bio: Option<String>,             // Do not output if None
 
     #[serde(default)]
-    is_active: bool,                 // 入力に無ければ false
+    is_active: bool,                 // false if missing in input
 
     #[serde(with = "chrono::serde::ts_seconds")]
-    created_at: DateTime<Utc>,       // Unix タイムスタンプとして
+    created_at: DateTime<Utc>,       // As Unix timestamp
 
     #[serde(flatten)]
     metadata: std::collections::HashMap<String, serde_json::Value>,
-    // 追加フィールドをフラットに格納
+    // Store additional fields flatly
 }
 
-// 入力 JSON:
+// Input JSON:
 // {
 //   "userId": 1,
 //   "displayName": "Alice",
@@ -697,7 +697,7 @@ struct UserProfile {
 // }
 ```
 
-### 3.2 serde_with クレートの活用
+### 3.2 Leveraging the serde_with crate
 
 ```rust
 use serde::{Serialize, Deserialize};
@@ -705,52 +705,52 @@ use serde_with::{serde_as, DisplayFromStr, DurationSeconds, TimestampSeconds};
 use std::collections::HashMap;
 use std::time::Duration;
 
-// serde_as は #[serde(with = "...")] をより使いやすくしたマクロ
+// serde_as is a macro that makes #[serde(with = "...")] easier to use
 #[serde_as]
 #[derive(Serialize, Deserialize)]
 struct AdvancedConfig {
-    // --- Duration を秒数として表現 ---
+    // --- Represent Duration as seconds ---
     #[serde_as(as = "DurationSeconds<u64>")]
     timeout: Duration,
     // JSON: {"timeout": 30}
 
-    // --- Display/FromStr による変換 ---
+    // --- Conversion via Display/FromStr ---
     #[serde_as(as = "DisplayFromStr")]
     ip_address: std::net::IpAddr,
     // JSON: {"ip_address": "192.168.1.1"}
 
-    // --- HashMap のキーを文字列として表現 ---
+    // --- Represent HashMap keys as strings ---
     #[serde_as(as = "HashMap<DisplayFromStr, _>")]
     port_mapping: HashMap<u16, String>,
     // JSON: {"port_mapping": {"8080": "web", "5432": "db"}}
 
-    // --- Vec をカンマ区切り文字列として ---
+    // --- Represent Vec as a comma-separated string ---
     #[serde_as(as = "serde_with::StringWithSeparator::<serde_with::CommaSeparator, String>")]
     tags: Vec<String>,
     // JSON: {"tags": "rust,async,web"}
 
-    // --- DateTime を RFC3339 文字列として ---
+    // --- Represent DateTime as an RFC3339 string ---
     #[serde_as(as = "TimestampSeconds<String>")]
     created_at: chrono::DateTime<chrono::Utc>,
 
-    // --- Option<Vec> で None と空を区別 ---
+    // --- Distinguish between None and empty with Option<Vec> ---
     #[serde_as(as = "Option<Vec<DisplayFromStr>>")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     allowed_ips: Option<Vec<std::net::IpAddr>>,
 
-    // --- Base64 エンコーディング ---
+    // --- Base64 encoding ---
     #[serde_as(as = "serde_with::base64::Base64")]
     binary_data: Vec<u8>,
     // JSON: {"binary_data": "SGVsbG8gV29ybGQ="}
 }
 ```
 
-### コード例4: カスタムデシリアライザ
+### Code example 4: Custom deserializer
 
 ```rust
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-/// 文字列またはu64としてデシリアライズ可能なID
+/// An ID that can be deserialized as either a string or u64
 #[derive(Debug, Clone)]
 struct FlexibleId(u64);
 
@@ -767,7 +767,7 @@ impl<'de> Deserialize<'de> for FlexibleId {
             type Value = FlexibleId;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("数値または文字列のID")
+                formatter.write_str("a numeric or string ID")
             }
 
             fn visit_u64<E: de::Error>(self, v: u64) -> Result<FlexibleId, E> {
@@ -777,7 +777,7 @@ impl<'de> Deserialize<'de> for FlexibleId {
             fn visit_str<E: de::Error>(self, v: &str) -> Result<FlexibleId, E> {
                 v.parse::<u64>()
                     .map(FlexibleId)
-                    .map_err(|_| E::custom(format!("無効なID: {}", v)))
+                    .map_err(|_| E::custom(format!("invalid ID: {}", v)))
             }
         }
 
@@ -791,7 +791,7 @@ impl Serialize for FlexibleId {
     }
 }
 
-// {"id": 42} も {"id": "42"} も受け付ける
+// Accepts both {"id": 42} and {"id": "42"}
 #[derive(Debug, Serialize, Deserialize)]
 struct Record {
     id: FlexibleId,
@@ -799,13 +799,13 @@ struct Record {
 }
 ```
 
-### 3.3 より複雑なカスタムデシリアライザ
+### 3.3 More complex custom deserializers
 
 ```rust
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{self, Visitor, MapAccess, SeqAccess};
 
-/// カンマ区切り文字列または配列として受け入れる
+/// Accept either a comma-separated string or an array
 fn deserialize_string_or_array<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
 where
     D: Deserializer<'de>,
@@ -816,7 +816,7 @@ where
         type Value = Vec<String>;
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-            formatter.write_str("文字列またはstringの配列")
+            formatter.write_str("a string or an array of strings")
         }
 
         fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
@@ -837,12 +837,12 @@ where
 
 #[derive(Deserialize)]
 struct FlexibleConfig {
-    // "tags": "rust,async,web" も "tags": ["rust", "async", "web"] もOK
+    // Both "tags": "rust,async,web" and "tags": ["rust", "async", "web"] are accepted
     #[serde(deserialize_with = "deserialize_string_or_array")]
     tags: Vec<String>,
 }
 
-/// 環境変数からのフォールバック付きデシリアライズ
+/// Deserialize with environment variable fallback
 fn deserialize_with_env_fallback<'de, D>(deserializer: D) -> Result<String, D::Error>
 where
     D: Deserializer<'de>,
@@ -851,7 +851,7 @@ where
     if value.starts_with("${") && value.ends_with("}") {
         let env_var = &value[2..value.len() - 1];
         std::env::var(env_var)
-            .map_err(|_| de::Error::custom(format!("環境変数 {} が見つかりません", env_var)))
+            .map_err(|_| de::Error::custom(format!("environment variable {} not found", env_var)))
     } else {
         Ok(value)
     }
@@ -860,7 +860,7 @@ where
 #[derive(Deserialize)]
 struct SecureConfig {
     host: String,
-    // "password": "${DB_PASSWORD}" → 環境変数 DB_PASSWORD の値に展開
+    // "password": "${DB_PASSWORD}" → expanded to the value of the DB_PASSWORD env var
     #[serde(deserialize_with = "deserialize_with_env_fallback")]
     password: String,
 }
@@ -868,34 +868,34 @@ struct SecureConfig {
 
 ---
 
-## 4. ゼロコピーデシリアライゼーション
+## 4. Zero-copy deserialization
 
-### コード例5: 借用データのデシリアライズ
+### Code example 5: Deserializing borrowed data
 
 ```rust
 use serde::Deserialize;
 
-/// ゼロコピー: 入力文字列から借用してデシリアライズ
+/// Zero-copy: deserialize by borrowing from the input string
 #[derive(Debug, Deserialize)]
 struct LogEntry<'a> {
     #[serde(borrow)]
-    level: &'a str,           // 入力文字列への借用 (コピーなし)
+    level: &'a str,           // Borrow from the input string (no copy)
     #[serde(borrow)]
     message: &'a str,
     timestamp: u64,
     #[serde(borrow)]
-    tags: Vec<&'a str>,       // 各タグも借用
+    tags: Vec<&'a str>,       // Each tag is borrowed too
 }
 
 fn parse_logs(json_bytes: &[u8]) -> Vec<LogEntry<'_>> {
-    // 入力バッファを直接参照 → メモリコピーなし
+    // Reference the input buffer directly → no memory copy
     serde_json::from_slice(json_bytes).unwrap()
 }
 
-/// 所有版 (比較用)
+/// Owned version (for comparison)
 #[derive(Debug, Deserialize)]
 struct OwnedLogEntry {
-    level: String,             // String をヒープに確保
+    level: String,             // Allocate String on the heap
     message: String,
     timestamp: u64,
     tags: Vec<String>,
@@ -907,69 +907,69 @@ fn main() {
         {"level": "ERROR", "message": "Connection lost", "timestamp": 1700000001, "tags": ["network"]}
     ]"#;
 
-    // ゼロコピー版 (高速、メモリ効率的)
+    // Zero-copy version (fast, memory-efficient)
     let entries: Vec<LogEntry> = serde_json::from_slice(json).unwrap();
     println!("{:?}", entries);
 
-    // ※ entries のライフタイムは json バッファに依存
-    // json が drop されると entries も無効になる
+    // Note: the lifetime of `entries` depends on the `json` buffer.
+    // If `json` is dropped, `entries` becomes invalid as well.
 }
 ```
 
-### 4.1 ゼロコピーの制約と注意点
+### 4.1 Constraints and caveats of zero-copy
 
 ```rust
 use serde::Deserialize;
 
-// --- ゼロコピーが可能な条件 ---
-// 1. 入力が &str や &[u8] である（所有型の String や Vec<u8> ではない）
-// 2. エスケープシーケンスを含まない文字列
-// 3. from_str() または from_slice() を使用（from_reader() は不可）
+// --- Conditions under which zero-copy is possible ---
+// 1. Input is &str or &[u8] (not the owned String or Vec<u8>)
+// 2. Strings contain no escape sequences
+// 3. Use from_str() or from_slice() (from_reader() is not supported)
 
-// ゼロコピーが可能な場合
+// When zero-copy is possible
 #[derive(Deserialize)]
 struct ZeroCopy<'a> {
     #[serde(borrow)]
-    name: &'a str,       // OK: 入力バッファからの借用
+    name: &'a str,       // OK: borrowed from the input buffer
     #[serde(borrow)]
-    data: &'a [u8],      // OK: バイト列の借用
-    count: u64,           // OK: コピーでも軽量
+    data: &'a [u8],      // OK: borrowed byte slice
+    count: u64,           // OK: lightweight even when copied
 }
 
-// ゼロコピーが不可能な場合
+// When zero-copy is not possible
 #[derive(Deserialize)]
 struct NeedsCopy {
-    // エスケープが含まれる可能性がある → ゼロコピー不可
-    // "hello \"world\"" → アンエスケープ後の新しい文字列が必要
+    // May contain escapes → zero-copy not possible
+    // "hello \"world\"" → a new unescaped string is needed
     name: String,
 }
 
-// --- Cow<str> で条件付きゼロコピー ---
+// --- Conditional zero-copy with Cow<str> ---
 use std::borrow::Cow;
 
 #[derive(Deserialize)]
 struct SmartCopy<'a> {
     #[serde(borrow)]
-    name: Cow<'a, str>,   // エスケープなし → 借用、エスケープあり → 所有
+    name: Cow<'a, str>,   // No escapes → borrowed; with escapes → owned
     // "hello" → Cow::Borrowed("hello")
     // "hello \"world\"" → Cow::Owned("hello \"world\"")
 }
 
-// パフォーマンス比較
+// Performance comparison
 fn benchmark_zero_copy(json: &[u8]) {
-    // ゼロコピー: ~50ns for small JSON
+    // Zero-copy: ~50ns for small JSON
     let _: Vec<LogEntry> = serde_json::from_slice(json).unwrap();
 
-    // 所有コピー: ~200ns for same JSON (String 確保のオーバーヘッド)
+    // Owned copy: ~200ns for the same JSON (overhead of String allocation)
     let _: Vec<OwnedLogEntry> = serde_json::from_slice(json).unwrap();
 }
 ```
 
 ---
 
-## 5. フォーマット別活用
+## 5. Format-specific usage
 
-### コード例6: TOML 設定ファイルの読み書き
+### Code example 6: Reading and writing TOML configuration files
 
 ```rust
 use serde::{Serialize, Deserialize};
@@ -1047,12 +1047,12 @@ fn save_config(path: &Path, config: &AppConfig) -> anyhow::Result<()> {
 // endpoint = "http://localhost:9090"
 ```
 
-### 5.1 YAML の活用
+### 5.1 Working with YAML
 
 ```rust
 use serde::{Serialize, Deserialize};
 
-// --- Kubernetes 風の YAML 設定 ---
+// --- Kubernetes-style YAML configuration ---
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Deployment {
@@ -1181,7 +1181,7 @@ spec:
     let deployment: Deployment = serde_yaml::from_str(yaml)?;
     println!("{:#?}", deployment);
 
-    // YAML に再出力
+    // Re-emit as YAML
     let output = serde_yaml::to_string(&deployment)?;
     println!("{}", output);
 
@@ -1189,13 +1189,13 @@ spec:
 }
 ```
 
-### 5.2 マルチフォーマット対応の設定ローダー
+### 5.2 Multi-format configuration loader
 
 ```rust
 use serde::de::DeserializeOwned;
 use std::path::Path;
 
-/// ファイル拡張子に基づいて適切なフォーマットでデシリアライズ
+/// Deserialize using the appropriate format based on the file extension
 fn load_config_auto<T: DeserializeOwned>(path: &Path) -> anyhow::Result<T> {
     let content = std::fs::read_to_string(path)?;
 
@@ -1210,7 +1210,7 @@ fn load_config_auto<T: DeserializeOwned>(path: &Path) -> anyhow::Result<T> {
             serde_yaml::from_str(&content).map_err(Into::into)
         }
         _ => {
-            // 拡張子が不明な場合は順に試行
+            // Try each format in turn when the extension is unknown
             serde_json::from_str(&content)
                 .or_else(|_| toml::from_str(&content).map_err(Into::into))
                 .or_else(|_: anyhow::Error| serde_yaml::from_str(&content).map_err(Into::into))
@@ -1218,9 +1218,9 @@ fn load_config_auto<T: DeserializeOwned>(path: &Path) -> anyhow::Result<T> {
     }
 }
 
-/// 環境変数によるオーバーライド付き設定ローダー
+/// Configuration loader with environment variable overrides
 fn load_config_with_env<T: DeserializeOwned + Serialize>(path: &Path) -> anyhow::Result<T> {
-    // 1. ファイルから読み込み
+    // 1. Read from file
     let content = std::fs::read_to_string(path)?;
     let mut value: serde_json::Value = match path.extension().and_then(|e| e.to_str()) {
         Some("toml") => {
@@ -1234,12 +1234,12 @@ fn load_config_with_env<T: DeserializeOwned + Serialize>(path: &Path) -> anyhow:
         _ => serde_json::from_str(&content)?,
     };
 
-    // 2. 環境変数でオーバーライド（APP_ プレフィックス）
+    // 2. Override with environment variables (APP_ prefix)
     if let Some(obj) = value.as_object_mut() {
         for (key, val) in obj.iter_mut() {
             let env_key = format!("APP_{}", key.to_uppercase().replace('-', "_"));
             if let Ok(env_val) = std::env::var(&env_key) {
-                // 型に応じて変換
+                // Convert according to type
                 if val.is_number() {
                     if let Ok(n) = env_val.parse::<i64>() {
                         *val = serde_json::json!(n);
@@ -1255,12 +1255,12 @@ fn load_config_with_env<T: DeserializeOwned + Serialize>(path: &Path) -> anyhow:
         }
     }
 
-    // 3. 型に変換
+    // 3. Convert to the target type
     serde_json::from_value(value).map_err(Into::into)
 }
 ```
 
-### 5.3 バイナリフォーマット
+### 5.3 Binary formats
 
 ```rust
 use serde::{Serialize, Deserialize};
@@ -1283,12 +1283,12 @@ fn binary_formats_comparison() -> anyhow::Result<()> {
         readings: vec![1.0, 2.5, 3.7, 4.2, 5.1],
     };
 
-    // --- JSON (テキスト) ---
+    // --- JSON (text) ---
     let json = serde_json::to_string(&data)?;
     println!("JSON:     {} bytes", json.len());
     // ~120 bytes
 
-    // --- bincode (Rust 最適化バイナリ) ---
+    // --- bincode (Rust-optimized binary) ---
     let bincode_data = bincode::serialize(&data)?;
     println!("bincode:  {} bytes", bincode_data.len());
     // ~60 bytes
@@ -1309,35 +1309,35 @@ fn binary_formats_comparison() -> anyhow::Result<()> {
     let decoded: SensorData = ciborium::from_reader(&cbor_buf[..])?;
     assert_eq!(data, decoded);
 
-    // --- postcard (組み込み向け) ---
+    // --- postcard (for embedded systems) ---
     let postcard_data = postcard::to_allocvec(&data)?;
     println!("postcard: {} bytes", postcard_data.len());
-    // ~40 bytes (最もコンパクト)
+    // ~40 bytes (most compact)
 
     Ok(())
 }
 
-// パフォーマンス目安:
-// | フォーマット | サイズ | シリアライズ速度 | デシリアライズ速度 |
+// Performance ballpark:
+// | Format     | Size   | Serialize speed | Deserialize speed |
 // |------------|--------|-----------------|-------------------|
-// | JSON       | 大     | 中              | 中                |
-// | bincode    | 小     | 非常に高速       | 非常に高速         |
-// | MessagePack| 中     | 高速            | 高速              |
-// | CBOR       | 中     | 高速            | 高速              |
-// | postcard   | 最小   | 高速            | 高速              |
+// | JSON       | Large  | Medium          | Medium            |
+// | bincode    | Small  | Very fast       | Very fast         |
+// | MessagePack| Medium | Fast            | Fast              |
+// | CBOR       | Medium | Fast            | Fast              |
+// | postcard   | Smallest | Fast          | Fast              |
 ```
 
 ---
 
-## 6. 高度なパターン
+## 6. Advanced patterns
 
-### 6.1 flatten と untagged の組み合わせ
+### 6.1 Combining flatten and untagged
 
 ```rust
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 
-/// API レスポンスの汎用エンベロープ
+/// Generic envelope for API responses
 #[derive(Serialize, Deserialize)]
 struct ApiResponse<T> {
     success: bool,
@@ -1360,10 +1360,10 @@ struct ApiError {
     details: Option<HashMap<String, String>>,
 }
 
-// 成功時: {"success": true, "data": {...}}
-// 失敗時: {"success": false, "error": {"code": "NOT_FOUND", "message": "..."}}
+// On success: {"success": true, "data": {...}}
+// On failure: {"success": false, "error": {"code": "NOT_FOUND", "message": "..."}}
 
-/// Partial Update パターン（PATCH リクエスト用）
+/// Partial Update pattern (for PATCH requests)
 #[derive(Serialize, Deserialize)]
 struct UserUpdate {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1389,12 +1389,12 @@ impl UserUpdate {
 }
 ```
 
-### 6.2 型安全なビルダーパターンとの組み合わせ
+### 6.2 Combining with type-safe builder patterns
 
 ```rust
 use serde::{Serialize, Deserialize};
 
-/// 設定のバリデーション付きデシリアライズ
+/// Configuration deserialization with validation
 #[derive(Debug)]
 pub struct ValidatedConfig {
     pub host: String,
@@ -1404,7 +1404,7 @@ pub struct ValidatedConfig {
     pub cert_path: Option<String>,
 }
 
-// 中間表現（Serde でデシリアライズ）
+// Intermediate representation (deserialized by Serde)
 #[derive(Deserialize)]
 struct RawConfig {
     host: String,
@@ -1422,7 +1422,7 @@ impl TryFrom<RawConfig> for ValidatedConfig {
     type Error = ConfigError;
 
     fn try_from(raw: RawConfig) -> Result<Self, Self::Error> {
-        // バリデーション
+        // Validation
         if raw.port == 0 {
             return Err(ConfigError::InvalidPort);
         }
@@ -1445,11 +1445,11 @@ impl TryFrom<RawConfig> for ValidatedConfig {
 
 #[derive(Debug, thiserror::Error)]
 enum ConfigError {
-    #[error("ポート番号が無効です")]
+    #[error("invalid port number")]
     InvalidPort,
-    #[error("最大接続数が無効です: {0}")]
+    #[error("invalid max connections: {0}")]
     InvalidMaxConnections(u32),
-    #[error("TLS が有効ですが証明書パスが指定されていません")]
+    #[error("TLS is enabled but no certificate path is specified")]
     TlsWithoutCert,
 }
 
@@ -1460,15 +1460,15 @@ fn load_validated_config(json: &str) -> Result<ValidatedConfig, Box<dyn std::err
 }
 ```
 
-### 6.3 #[serde(remote)] による外部型のシリアライゼーション
+### 6.3 Serializing external types via #[serde(remote)]
 
 ```rust
 use serde::{Serialize, Deserialize};
 
-// 外部クレートの型に Serialize/Deserialize を実装する
-// (孤児ルールにより直接 impl できないため)
+// Implement Serialize/Deserialize for types from external crates
+// (cannot be done directly due to the orphan rule)
 
-// --- 方法1: remote derive ---
+// --- Method 1: remote derive ---
 mod external_crate {
     pub struct Color {
         pub r: u8,
@@ -1477,7 +1477,7 @@ mod external_crate {
     }
 }
 
-// リモート型の「シャドウ定義」
+// "Shadow definition" of the remote type
 #[derive(Serialize, Deserialize)]
 #[serde(remote = "external_crate::Color")]
 struct ColorDef {
@@ -1495,12 +1495,12 @@ struct Theme {
     secondary_color: external_crate::Color,
 }
 
-// --- 方法2: ニュータイプラッパー ---
+// --- Method 2: newtype wrapper ---
 #[derive(Serialize, Deserialize)]
 #[serde(transparent)]
 struct ColorWrapper(#[serde(with = "ColorDef")] external_crate::Color);
 
-// --- 方法3: From/Into による変換 ---
+// --- Method 3: conversion via From/Into ---
 #[derive(Serialize, Deserialize)]
 struct SerializableColor {
     r: u8,
@@ -1523,9 +1523,9 @@ impl From<SerializableColor> for external_crate::Color {
 
 ---
 
-## 7. パフォーマンス最適化
+## 7. Performance optimization
 
-### 7.1 simd-json による高速パーシング
+### 7.1 Fast parsing with simd-json
 
 ```rust
 // Cargo.toml:
@@ -1548,7 +1548,7 @@ struct DataRecord {
 }
 
 fn parse_with_simd_json(json_bytes: &mut [u8]) -> Result<LargeDataset, simd_json::Error> {
-    // 注意: simd-json はインプレースで動作するため、入力を mut で受け取る
+    // Note: simd-json operates in place, so the input is taken as mut
     simd_json::from_slice(json_bytes)
 }
 
@@ -1556,24 +1556,24 @@ fn parse_with_serde_json(json_str: &str) -> Result<LargeDataset, serde_json::Err
     serde_json::from_str(json_str)
 }
 
-// パフォーマンス比較（大きい JSON ファイル）:
+// Performance comparison (large JSON file):
 // serde_json: ~100ms for 100MB
-// simd-json:  ~40ms for 100MB (2-3x 高速)
+// simd-json:  ~40ms for 100MB (2-3x faster)
 //
-// simd-json の制約:
-// - 入力が mut &[u8] である必要がある
-// - SIMD 対応 CPU が必要（ほとんどのモダン CPU で対応）
-// - ストリーミングパースは未対応
+// Constraints of simd-json:
+// - Input must be mut &[u8]
+// - Requires a SIMD-capable CPU (most modern CPUs are supported)
+// - Streaming parse is not supported
 ```
 
-### 7.2 パフォーマンスのベストプラクティス
+### 7.2 Performance best practices
 
 ```rust
 use serde::{Serialize, Deserialize};
 
-// --- 1. 不要なクローンを避ける ---
+// --- 1. Avoid unnecessary clones ---
 
-// NG: 毎回 String を確保
+// BAD: allocates a String every time
 fn parse_many_bad(jsons: &[&str]) -> Vec<String> {
     jsons.iter()
         .filter_map(|j| {
@@ -1583,7 +1583,7 @@ fn parse_many_bad(jsons: &[&str]) -> Vec<String> {
         .collect()
 }
 
-// OK: ゼロコピーで借用
+// GOOD: borrow with zero-copy
 fn parse_many_good<'a>(jsons: &'a [&'a str]) -> Vec<&'a str> {
     #[derive(Deserialize)]
     struct NameOnly<'a> {
@@ -1599,9 +1599,9 @@ fn parse_many_good<'a>(jsons: &'a [&'a str]) -> Vec<&'a str> {
         .collect()
 }
 
-// --- 2. 部分的なデシリアライズ ---
+// --- 2. Partial deserialization ---
 
-// NG: 全フィールドをデシリアライズ
+// BAD: deserialize all fields
 #[derive(Deserialize)]
 struct FullUser {
     id: u64,
@@ -1613,31 +1613,31 @@ struct FullUser {
     history: Vec<serde_json::Value>,
 }
 
-// OK: 必要なフィールドだけデシリアライズ
+// GOOD: deserialize only the fields you need
 #[derive(Deserialize)]
 struct UserSummary {
     id: u64,
     name: String,
-    // 他のフィールドは無視される（deny_unknown_fields がなければ）
+    // Other fields are ignored (unless deny_unknown_fields is set)
 }
 
-// --- 3. バッファの再利用 ---
+// --- 3. Buffer reuse ---
 fn process_stream(reader: impl std::io::BufRead) {
-    // serde_json::StreamDeserializer で連続 JSON をパース
+    // Parse a sequence of JSON values with serde_json::StreamDeserializer
     let stream = serde_json::Deserializer::from_reader(reader)
         .into_iter::<DataRecord>();
 
     for result in stream {
         match result {
             Ok(record) => process_record(&record),
-            Err(e) => eprintln!("パースエラー: {}", e),
+            Err(e) => eprintln!("parse error: {}", e),
         }
     }
 }
 
-// --- 4. pre-allocated String/Vec ---
+// --- 4. Pre-allocated String/Vec ---
 fn serialize_with_capacity(records: &[DataRecord]) -> String {
-    // 推定サイズを事前確保
+    // Pre-allocate the estimated size
     let estimated_size = records.len() * 100;
     let mut buf = Vec::with_capacity(estimated_size);
     serde_json::to_writer(&mut buf, records).unwrap();
@@ -1647,86 +1647,86 @@ fn serialize_with_capacity(records: &[DataRecord]) -> String {
 
 ---
 
-## 8. 比較表
+## 8. Comparison tables
 
-### フォーマット比較
+### Format comparison
 
-| 特性 | JSON | TOML | YAML | bincode | MessagePack |
+| Aspect | JSON | TOML | YAML | bincode | MessagePack |
 |---|---|---|---|---|---|
-| 用途 | API通信、データ交換 | 設定ファイル | 設定、CI/CD | Rust内部通信 | 言語横断通信 |
-| 人間可読性 | 中 | 高い | 高い | 不可 | 不可 |
-| コメント | 不可 | 可能 (#) | 可能 (#) | - | - |
-| ネスト | 自由 | 制限あり | 自由 | - | 自由 |
-| 日付型 | 文字列 | ネイティブ | 文字列 | - | - |
-| Rust クレート | serde_json | toml | serde_yaml | bincode | rmp-serde |
-| パフォーマンス | 高速 (simd-json) | 中 | 低め | 非常に高速 | 高速 |
-| データサイズ | 大 | - | 大 | 小 | 中 |
-| スキーマ | なし | なし | なし | なし | なし |
+| Use case | API communication, data interchange | Configuration files | Configuration, CI/CD | Rust internal communication | Cross-language communication |
+| Human readability | Medium | High | High | Not readable | Not readable |
+| Comments | Not supported | Supported (#) | Supported (#) | - | - |
+| Nesting | Free | Restricted | Free | - | Free |
+| Date type | String | Native | String | - | - |
+| Rust crate | serde_json | toml | serde_yaml | bincode | rmp-serde |
+| Performance | Fast (simd-json) | Medium | Slower | Very fast | Fast |
+| Data size | Large | - | Large | Small | Medium |
+| Schema | None | None | None | None | None |
 
-### serde_json 関数比較
+### Comparison of serde_json functions
 
-| 関数 | 入力 | 出力 | ゼロコピー |
+| Function | Input | Output | Zero-copy |
 |---|---|---|---|
-| `from_str(&str)` | 文字列 | T | 可能 (`&'a str`) |
-| `from_slice(&[u8])` | バイト列 | T | 可能 |
-| `from_reader(Read)` | ストリーム | T | 不可 |
-| `from_value(Value)` | JSON Value | T | 不可 |
+| `from_str(&str)` | String | T | Possible (`&'a str`) |
+| `from_slice(&[u8])` | Byte slice | T | Possible |
+| `from_reader(Read)` | Stream | T | Not possible |
+| `from_value(Value)` | JSON Value | T | Not possible |
 | `to_string(&T)` | T | String | - |
-| `to_string_pretty(&T)` | T | String (整形) | - |
-| `to_writer(Write, &T)` | T | ストリーム出力 | - |
+| `to_string_pretty(&T)` | T | String (formatted) | - |
+| `to_writer(Write, &T)` | T | Stream output | - |
 | `to_value(&T)` | T | JSON Value | - |
 
-### enum 表現形式の比較
+### Comparison of enum representation forms
 
-| 形式 | 属性 | JSON 例 | 適用場面 |
+| Form | Attribute | JSON example | When to use |
 |---|---|---|---|
-| 外部タグ | (デフォルト) | `{"Variant": data}` | Rust 間通信 |
-| 内部タグ | `#[serde(tag = "type")]` | `{"type": "variant", ...}` | REST API |
-| 隣接タグ | `#[serde(tag = "t", content = "c")]` | `{"t": "variant", "c": data}` | タプルバリアント |
-| タグなし | `#[serde(untagged)]` | `data` | 多態的 JSON |
-| 整数表現 | `serde_repr` | `0, 1, 2` | DB/Protocol |
+| Externally tagged | (default) | `{"Variant": data}` | Rust-to-Rust communication |
+| Internally tagged | `#[serde(tag = "type")]` | `{"type": "variant", ...}` | REST APIs |
+| Adjacently tagged | `#[serde(tag = "t", content = "c")]` | `{"t": "variant", "c": data}` | Tuple variants |
+| Untagged | `#[serde(untagged)]` | `data` | Polymorphic JSON |
+| Integer representation | `serde_repr` | `0, 1, 2` | DB / protocols |
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-patterns
 
-### アンチパターン1: 全フィールドを Option にする
+### Anti-pattern 1: Making every field Option
 
 ```rust
-// NG: 全フィールドを Option にして「何でも受け入れる」
+// BAD: make every field Option to "accept anything"
 #[derive(Deserialize)]
 struct BadConfig {
     host: Option<String>,
     port: Option<u16>,
     database_url: Option<String>,
-    // → 実行時に None チェックが散乱
+    // → None checks scattered throughout runtime
 }
 
-// OK: 必須フィールドは型で表現、デフォルト値を活用
+// GOOD: express required fields in the type, leverage default values
 #[derive(Deserialize)]
 struct GoodConfig {
-    host: String,                    // 必須
+    host: String,                    // Required
     #[serde(default = "default_port")]
-    port: u16,                       // デフォルト値あり
-    database_url: String,            // 必須
+    port: u16,                       // Has default value
+    database_url: String,            // Required
     #[serde(default)]
-    cache_ttl: Option<u64>,          // 本当にオプションなもののみ
+    cache_ttl: Option<u64>,          // Only what is genuinely optional
 }
 
 fn default_port() -> u16 { 8080 }
 ```
 
-### アンチパターン2: serde_json::Value の多用
+### Anti-pattern 2: Overusing serde_json::Value
 
 ```rust
-// NG: 型安全性を放棄して全て Value で扱う
+// BAD: forgo type safety and treat everything as Value
 fn bad_process(json: &str) -> String {
     let v: serde_json::Value = serde_json::from_str(json).unwrap();
-    let name = v["user"]["name"].as_str().unwrap(); // 実行時パニックの危険
+    let name = v["user"]["name"].as_str().unwrap(); // risk of runtime panic
     name.to_string()
 }
 
-// OK: 構造体で型安全にデシリアライズ
+// GOOD: deserialize type-safely with structs
 #[derive(Deserialize)]
 struct ApiResponse {
     user: User,
@@ -1741,22 +1741,22 @@ fn good_process(json: &str) -> Result<String, serde_json::Error> {
     Ok(response.user.name)
 }
 
-// Value が適切な場面:
-// - スキーマが不定の JSON (追加フィールドの保持)
-// - JSON の部分的な操作 (特定キーの書き換え)
-// - 型変換のブリッジ (serde_json::from_value)
+// When Value is appropriate:
+// - JSON with an unfixed schema (preserving extra fields)
+// - Partial JSON manipulation (rewriting specific keys)
+// - Bridging type conversion (serde_json::from_value)
 ```
 
-### アンチパターン3: デシリアライズエラーの unwrap
+### Anti-pattern 3: unwrapping deserialization errors
 
 ```rust
-// NG: パースエラーを無視
+// BAD: ignore parse errors
 fn bad_parse(json: &str) -> Config {
     serde_json::from_str(json).unwrap()
-    // ユーザー入力ならパニックする可能性大
+    // High risk of panic on user input
 }
 
-// OK: エラーを適切に処理
+// GOOD: handle errors appropriately
 fn good_parse(json: &str) -> Result<Config, AppError> {
     serde_json::from_str(json).map_err(|e| {
         AppError::InvalidConfig {
@@ -1766,17 +1766,17 @@ fn good_parse(json: &str) -> Result<Config, AppError> {
     })
 }
 
-// OK: 詳細なエラーメッセージ
+// GOOD: detailed error messages
 fn parse_with_context(json: &str, source: &str) -> anyhow::Result<Config> {
     serde_json::from_str(json)
-        .with_context(|| format!("設定ファイル '{}' のパースに失敗", source))
+        .with_context(|| format!("failed to parse config file '{}'", source))
 }
 ```
 
-### アンチパターン4: flatten の過剰使用
+### Anti-pattern 4: Overusing flatten
 
 ```rust
-// NG: flatten をネストして使用（パフォーマンス低下）
+// BAD: nesting flatten (performance degradation)
 #[derive(Deserialize)]
 struct BadNested {
     #[serde(flatten)]
@@ -1787,10 +1787,10 @@ struct BadNested {
     more: MoreFields,
     #[serde(flatten)]
     catchall: HashMap<String, Value>,
-    // → 各 flatten がバッファリングを要求し、O(n^2) に近くなる
+    // → each flatten requires buffering, approaching O(n^2)
 }
 
-// OK: 明示的なフィールド定義
+// GOOD: explicit field definitions
 #[derive(Deserialize)]
 struct GoodExplicit {
     // base fields
@@ -1799,39 +1799,39 @@ struct GoodExplicit {
     // extra fields
     tags: Vec<String>,
     category: String,
-    // 残りだけ catchall
+    // catchall only for the rest
     #[serde(flatten)]
     extra: HashMap<String, Value>,
 }
 ```
 
-### アンチパターン5: シリアライゼーションに秘密情報を含める
+### Anti-pattern 5: Including secrets in serialization
 
 ```rust
-// NG: パスワードがシリアライズされる
+// BAD: passwords get serialized
 #[derive(Serialize, Deserialize)]
 struct UserAccount {
     email: String,
-    password_hash: String,    // API レスポンスに含まれてしまう!
-    api_key: String,          // ログに出力されてしまう!
+    password_hash: String,    // ends up in the API response!
+    api_key: String,          // ends up in logs!
 }
 
-// OK: skip_serializing で機密情報を除外
+// GOOD: exclude sensitive information with skip_serializing
 #[derive(Serialize, Deserialize)]
 struct SecureUserAccount {
     email: String,
-    #[serde(skip_serializing)]   // 出力しない
+    #[serde(skip_serializing)]   // do not output
     password_hash: String,
     #[serde(skip_serializing)]
     api_key: String,
 }
 
-// OK: 別の型で API レスポンスを定義
+// GOOD: define a separate type for the API response
 #[derive(Serialize)]
 struct UserResponse {
     email: String,
     display_name: String,
-    // 機密情報は含めない
+    // Sensitive information is not included
 }
 ```
 
@@ -1839,40 +1839,40 @@ struct UserResponse {
 
 ## FAQ
 
-### Q1: `#[serde(flatten)]` のパフォーマンスへの影響は?
+### Q1: What is the performance impact of `#[serde(flatten)]`?
 
-**A:** flatten はデシリアライズ時に全フィールドをバッファリングするため、大きな構造体では性能低下が発生します。頻繁にデシリアライズする場合は、flatten を避けて明示的なフィールド定義を検討してください。
+**A:** flatten buffers all fields during deserialization, which causes performance degradation in large structs. If you deserialize frequently, consider avoiding flatten in favor of explicit field definitions.
 
-### Q2: JSON と TOML の相互変換は可能?
+### Q2: Is mutual conversion between JSON and TOML possible?
 
-**A:** Serde の Data Model を経由して簡単に変換できます。
+**A:** They can be easily converted via Serde's Data Model.
 
 ```rust
 let config: AppConfig = toml::from_str(toml_str)?;
 let json_str = serde_json::to_string_pretty(&config)?;
-// TOML → Rust 型 → JSON の2段階変換
+// Two-step conversion: TOML → Rust type → JSON
 ```
 
-### Q3: バイナリフォーマットはどれがおすすめ?
+### Q3: Which binary format is recommended?
 
-**A:** 高速性重視なら `bincode` (Rust同士の通信)、サイズ重視なら `MessagePack` (rmp-serde)、スキーマ定義が必要なら `Protocol Buffers` (prost) を選択してください。全て Serde 経由で透過的に使えます。
+**A:** For top speed choose `bincode` (Rust-to-Rust communication); for size efficiency choose `MessagePack` (rmp-serde); when schema definitions are needed choose `Protocol Buffers` (prost). All can be used transparently through Serde.
 
-### Q4: derive が使えない場合（手動実装が必要な場合）は?
+### Q4: When derive cannot be used (when manual implementation is needed)?
 
-**A:** 以下のケースでは手動実装が必要です。
+**A:** Manual implementation is needed in the following cases.
 
 ```rust
-// 1. 既存の型に impl できない場合 → #[serde(remote)] を使用
-// 2. 複雑な条件分岐が必要な場合 → Visitor パターン
-// 3. 複数の入力形式を受け入れる場合 → deserialize_any
-// 4. ストリーミング処理が必要な場合 → SeqAccess/MapAccess
+// 1. When you cannot impl on an existing type → use #[serde(remote)]
+// 2. When complex conditional branching is needed → Visitor pattern
+// 3. When accepting multiple input forms → deserialize_any
+// 4. When streaming processing is needed → SeqAccess/MapAccess
 
-// ほとんどの場合、serde_with クレートで解決可能
+// In most cases this can be solved with the serde_with crate
 ```
 
-### Q5: エラーメッセージを改善するには?
+### Q5: How do I improve error messages?
 
-**A:** serde_path_to_error を使用すると、エラーが発生したフィールドのパスが分かります。
+**A:** Using serde_path_to_error tells you the path of the field where the error occurred.
 
 ```rust
 // Cargo.toml: serde_path_to_error = "0.1"
@@ -1880,14 +1880,14 @@ let json_str = serde_json::to_string_pretty(&config)?;
 fn parse_with_path(json: &str) -> Result<Config, String> {
     let deserializer = &mut serde_json::Deserializer::from_str(json);
     serde_path_to_error::deserialize(deserializer)
-        .map_err(|e| format!("パスエラー '{}': {}", e.path(), e.inner()))
-    // エラー例: "パスエラー 'server.port': invalid type: string "abc", expected u16"
+        .map_err(|e| format!("path error '{}': {}", e.path(), e.inner()))
+    // Example error: "path error 'server.port': invalid type: string "abc", expected u16"
 }
 ```
 
-### Q6: 大きな JSON ファイルを効率的に処理するには?
+### Q6: How do I efficiently process a large JSON file?
 
-**A:** ストリーミングデシリアライズを使用します。
+**A:** Use streaming deserialization.
 
 ```rust
 use std::io::BufReader;
@@ -1897,7 +1897,7 @@ fn process_large_json(path: &str) -> anyhow::Result<()> {
     let file = File::open(path)?;
     let reader = BufReader::new(file);
 
-    // JSON 配列の各要素を順次処理（全体をメモリに保持しない）
+    // Process each element of a JSON array sequentially (without keeping the whole thing in memory)
     let stream = serde_json::Deserializer::from_reader(reader)
         .into_iter::<Record>();
 
@@ -1907,40 +1907,40 @@ fn process_large_json(path: &str) -> anyhow::Result<()> {
         process(&record);
         count += 1;
     }
-    println!("処理レコード数: {}", count);
+    println!("records processed: {}", count);
     Ok(())
 }
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key points |
 |---|---|
-| derive | `#[derive(Serialize, Deserialize)]` で自動実装 |
-| JSON | serde_json。API通信の標準。高速 |
-| TOML | toml クレート。設定ファイルに最適 |
-| YAML | serde_yaml。CI/CD設定でよく使用 |
-| 属性マクロ | rename, default, skip で柔軟にカスタマイズ |
-| enum 表現 | tag, content, untagged で JSON 形式を制御 |
-| ゼロコピー | `#[serde(borrow)]` + `&'a str` で高性能 |
-| Value | 型不定 JSON のみに使用。型安全な構造体を優先 |
-| serde_with | カスタムシリアライゼーションヘルパー集 |
-| RawValue | JSON をパースせずに保持。ルーティングに有用 |
-| simd-json | SIMD 活用の高速 JSON パーサー |
-| バイナリ | bincode, MessagePack, CBOR, postcard |
-| flatten | 構造をフラット化。パフォーマンスに注意 |
-| remote | 外部型への Serde 実装 |
-| serde_path_to_error | エラーの発生箇所を特定 |
+| derive | Auto-implementation via `#[derive(Serialize, Deserialize)]` |
+| JSON | serde_json. The standard for API communication. Fast |
+| TOML | toml crate. Best suited for configuration files |
+| YAML | serde_yaml. Often used for CI/CD configuration |
+| Attribute macros | Customize flexibly with rename, default, skip |
+| enum representation | Control JSON form with tag, content, untagged |
+| Zero-copy | High performance via `#[serde(borrow)]` + `&'a str` |
+| Value | Use only for JSON of unknown shape; prefer type-safe structs |
+| serde_with | A collection of custom serialization helpers |
+| RawValue | Holds JSON without parsing. Useful for routing |
+| simd-json | Fast JSON parser leveraging SIMD |
+| Binary | bincode, MessagePack, CBOR, postcard |
+| flatten | Flatten the structure. Watch performance |
+| remote | Serde implementation for external types |
+| serde_path_to_error | Pinpoint where errors occur |
 
-## 次に読むべきガイド
+## Recommended next reads
 
-- [データベース](./03-database.md) — SQLx/SeaORM でのSerde連携
-- [Axum](../02-async/04-axum-web.md) — JSON API の構築
-- [テスト](./01-testing.md) — テストフィクスチャとしてのSerde活用
+- [Database](./03-database.md) — Serde integration with SQLx/SeaORM
+- [Axum](../02-async/04-axum-web.md) — Building JSON APIs
+- [Testing](./01-testing.md) — Using Serde for test fixtures
 
-## 参考文献
+## References
 
 1. **Serde Documentation**: https://serde.rs/
 2. **serde_json crate**: https://docs.rs/serde_json/latest/serde_json/
