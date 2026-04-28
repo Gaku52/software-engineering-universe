@@ -1,131 +1,131 @@
-# Cargo/ワークスペース — features、publish
+# Cargo / Workspaces — features and publish
 
-> Cargo のパッケージ管理、ワークスペースによるモノレポ構成、feature フラグ、crates.io への公開手順を体系的に習得する
+> Systematically master Cargo's package management, monorepo organization with workspaces, feature flags, and the procedure for publishing to crates.io.
 
-## この章で学ぶこと
+## What you will learn in this chapter
 
-1. **Cargo 基本操作** — 依存関係管理、プロファイル設定、ビルドスクリプト
-2. **ワークスペース** — マルチクレート構成、依存の共有、選択的ビルド
-3. **Feature フラグと公開** — 条件付きコンパイル、セマンティックバージョニング、crates.io 公開
-4. **Cargo ツールチェーン** — clippy、rustfmt、cargo-deny、cargo-audit などの品質管理ツール
-5. **CI/CD 統合** — GitHub Actions 等での自動ビルド・テスト・公開パイプライン
+1. **Cargo basics** — dependency management, profile configuration, build scripts
+2. **Workspaces** — multi-crate organization, sharing dependencies, selective builds
+3. **Feature flags and publishing** — conditional compilation, semantic versioning, publishing to crates.io
+4. **Cargo toolchain** — quality-management tools such as clippy, rustfmt, cargo-deny, and cargo-audit
+5. **CI/CD integration** — automated build, test, and publish pipelines on GitHub Actions and similar systems
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Reading this guide is easier if you already have the following knowledge:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related fundamental concepts
 
 ---
 
-## 1. Cargo プロジェクト構造
+## 1. Cargo project structure
 
 ```
-┌──────────────── Cargo プロジェクト構成 ──────────────┐
+┌──────────────── Cargo project layout ───────────────┐
 │                                                       │
-│  単一クレート:                                        │
+│  Single crate:                                        │
 │  my-app/                                              │
-│  ├── Cargo.toml        (パッケージ定義)               │
-│  ├── Cargo.lock        (依存バージョン固定)            │
+│  ├── Cargo.toml        (package definition)           │
+│  ├── Cargo.lock        (pinned dependency versions)   │
 │  ├── src/                                             │
-│  │   ├── main.rs       (バイナリクレート)              │
-│  │   ├── lib.rs        (ライブラリクレート)            │
-│  │   └── bin/          (追加バイナリ)                  │
+│  │   ├── main.rs       (binary crate)                 │
+│  │   ├── lib.rs        (library crate)                │
+│  │   └── bin/          (additional binaries)          │
 │  │       └── tool.rs                                  │
-│  ├── tests/            (統合テスト)                    │
-│  ├── benches/          (ベンチマーク)                  │
-│  ├── examples/         (使用例)                       │
-│  └── build.rs          (ビルドスクリプト)              │
+│  ├── tests/            (integration tests)            │
+│  ├── benches/          (benchmarks)                   │
+│  ├── examples/         (usage examples)               │
+│  └── build.rs          (build script)                 │
 │                                                       │
-│  ワークスペース:                                      │
+│  Workspace:                                           │
 │  my-workspace/                                        │
-│  ├── Cargo.toml        (workspace 定義)               │
+│  ├── Cargo.toml        (workspace definition)         │
 │  ├── crates/                                          │
-│  │   ├── core/         (共通ライブラリ)               │
-│  │   ├── cli/          (CLI アプリ)                   │
-│  │   └── server/       (Web サーバー)                 │
-│  └── Cargo.lock        (ワークスペース全体で共有)      │
+│  │   ├── core/         (shared library)               │
+│  │   ├── cli/          (CLI app)                      │
+│  │   └── server/       (web server)                   │
+│  └── Cargo.lock        (shared across the workspace)  │
 └───────────────────────────────────────────────────────┘
 ```
 
-### 1.1 ディレクトリ規約の詳細
+### 1.1 Directory convention details
 
-Cargo は規約ベースのディレクトリ構造を採用しており、各ディレクトリには明確な役割があります。
+Cargo adopts a convention-based directory structure, and each directory has a clear role.
 
 ```
 my-project/
-├── Cargo.toml          # パッケージマニフェスト
-├── Cargo.lock          # 依存の正確なバージョンを記録
-├── rust-toolchain.toml # ツールチェーンバージョン指定
+├── Cargo.toml          # Package manifest
+├── Cargo.lock          # Records the exact versions of dependencies
+├── rust-toolchain.toml # Toolchain version specification
 ├── .cargo/
-│   └── config.toml     # Cargo ローカル設定
+│   └── config.toml     # Cargo local configuration
 ├── src/
-│   ├── main.rs         # デフォルトのバイナリエントリポイント
-│   ├── lib.rs          # ライブラリのルートモジュール
+│   ├── main.rs         # Default binary entry point
+│   ├── lib.rs          # Root module of the library
 │   └── bin/
-│       ├── admin.rs    # 追加バイナリ: cargo run --bin admin
+│       ├── admin.rs    # Additional binary: cargo run --bin admin
 │       └── migrate/
-│           └── main.rs # 追加バイナリ: cargo run --bin migrate
+│           └── main.rs # Additional binary: cargo run --bin migrate
 ├── tests/
-│   ├── integration_test.rs    # 各ファイルが独立したテストクレート
+│   ├── integration_test.rs    # Each file is an independent test crate
 │   └── common/
-│       └── mod.rs             # テスト共通ヘルパー
+│       └── mod.rs             # Shared test helpers
 ├── benches/
-│   └── my_bench.rs            # criterion ベンチマーク
+│   └── my_bench.rs            # criterion benchmark
 ├── examples/
 │   ├── basic_usage.rs         # cargo run --example basic_usage
 │   └── advanced/
 │       └── main.rs            # cargo run --example advanced
-└── build.rs                   # ビルドスクリプト
+└── build.rs                   # Build script
 ```
 
-### 1.2 .cargo/config.toml の設定
+### 1.2 .cargo/config.toml settings
 
-`.cargo/config.toml` はプロジェクトレベルの Cargo 設定を行うファイルです。
+`.cargo/config.toml` is the file that holds project-level Cargo configuration.
 
 ```toml
 # .cargo/config.toml
 
-# ビルドターゲットの指定
+# Build target specification
 [build]
-# クロスコンパイルのデフォルトターゲット
+# Default target for cross-compilation
 # target = "x86_64-unknown-linux-musl"
 
-# ジョブ数の制限（CI 環境で有用）
+# Limit on the number of jobs (useful in CI environments)
 jobs = 4
 
-# リンカーの指定
+# Linker specification
 [target.x86_64-unknown-linux-gnu]
 linker = "clang"
 rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 
-# macOS での設定
+# macOS settings
 [target.aarch64-apple-darwin]
 rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 
-# Windows MSVC での設定
+# Settings for Windows MSVC
 [target.x86_64-pc-windows-msvc]
 rustflags = ["-C", "target-feature=+crt-static"]
 
-# エイリアス（カスタムコマンド）
+# Aliases (custom commands)
 [alias]
 xtask = "run --package xtask --"
 ci = "test --workspace --all-features"
 lint = "clippy --workspace --all-targets --all-features -- -D warnings"
 fmt-check = "fmt --all -- --check"
 
-# レジストリ設定
+# Registry settings
 [registries.my-private]
 index = "sparse+https://cargo.my-company.com/index/"
 
-# 環境変数
+# Environment variables
 [env]
 RUST_BACKTRACE = "1"
 RUST_LOG = { value = "info", force = false }
 
-# ネットワーク設定
+# Network settings
 [net]
 retry = 3
 git-fetch-with-cli = true
@@ -133,7 +133,7 @@ git-fetch-with-cli = true
 
 ### 1.3 rust-toolchain.toml
 
-プロジェクト全体で使用する Rust バージョンを固定するファイルです。
+This file pins the Rust version used throughout the project.
 
 ```toml
 # rust-toolchain.toml
@@ -146,9 +146,9 @@ profile = "default"
 
 ---
 
-## 2. Cargo.toml の詳細設定
+## 2. Detailed Cargo.toml configuration
 
-### コード例1: 充実した Cargo.toml
+### Code example 1: A fully featured Cargo.toml
 
 ```toml
 [package]
@@ -167,29 +167,29 @@ categories = ["web-programming"]
 exclude = ["tests/fixtures/**", ".github/**"]
 
 [lib]
-# クレートタイプ (複数指定可)
+# Crate types (multiple values allowed)
 # crate-type = ["lib", "cdylib"]
 
 [dependencies]
-# バージョン指定の方法
+# Ways to specify versions
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1", features = ["full"], optional = true }
 log = "0.4"
 
-# Git リポジトリから
+# From a Git repository
 # my-dep = { git = "https://github.com/user/repo", branch = "main" }
 
-# ローカルパスから (開発時)
+# From a local path (during development)
 # my-local = { path = "../my-local" }
 
 [dev-dependencies]
-# テスト・ベンチマークのみ
+# Used only for tests and benchmarks
 tokio = { version = "1", features = ["full", "test-util"] }
 criterion = { version = "0.5", features = ["html_reports"] }
 tempfile = "3"
 
 [build-dependencies]
-# build.rs でのみ使用
+# Used only by build.rs
 cc = "1"
 
 [features]
@@ -198,56 +198,56 @@ json = ["serde/derive"]
 async = ["dep:tokio"]
 full = ["json", "async"]
 
-# プロファイル設定
+# Profile settings
 [profile.dev]
 opt-level = 0
 debug = true
 
 [profile.release]
 opt-level = 3
-lto = "thin"          # リンク時最適化
-strip = true           # デバッグ情報除去
-codegen-units = 1      # 最大最適化 (ビルド遅い)
-panic = "abort"        # パニック時即座に終了
+lto = "thin"          # Link-time optimization
+strip = true           # Strip debug information
+codegen-units = 1      # Maximum optimization (slow build)
+panic = "abort"        # Terminate immediately on panic
 
 [profile.bench]
 inherits = "release"
-debug = true           # ベンチマークのプロファイリング用
+debug = true           # For benchmark profiling
 ```
 
-### 2.1 依存関係の詳細な指定方法
+### 2.1 Detailed ways to specify dependencies
 
 ```toml
 [dependencies]
-# 基本的なバージョン指定
-serde = "1.0"                           # ^1.0.0 と同等
+# Basic version specification
+serde = "1.0"                           # Equivalent to ^1.0.0
 serde_json = "1.0.100"                  # ^1.0.100
 
-# 厳密なバージョン指定
-pin-project = "=1.1.3"                  # 完全一致
+# Strict version specification
+pin-project = "=1.1.3"                  # Exact match
 
-# バージョン範囲
-rand = ">=0.8, <0.9"                    # 範囲指定
+# Version ranges
+rand = ">=0.8, <0.9"                    # Range specification
 
-# チルダ要件（マイナーバージョンを固定）
+# Tilde requirement (pin the minor version)
 semver = "~1.0.4"                       # >=1.0.4, <1.1.0
 
-# ワイルドカード
+# Wildcard
 uuid = "1.*"                            # >=1.0.0, <2.0.0
 
-# Git リポジトリからの依存
+# Dependencies from a Git repository
 my-lib = { git = "https://github.com/user/repo" }
 my-lib-branch = { git = "https://github.com/user/repo", branch = "develop" }
 my-lib-tag = { git = "https://github.com/user/repo", tag = "v1.0.0" }
 my-lib-rev = { git = "https://github.com/user/repo", rev = "abc1234" }
 
-# ローカルパスからの依存（開発時）
+# Dependencies from a local path (during development)
 my-local = { path = "../my-local-crate" }
 
-# パスと バージョンの両方指定（公開時に path は無視される）
+# Both path and version specified (path is ignored when publishing)
 my-lib = { path = "../my-lib", version = "0.1.0" }
 
-# プラットフォーム固有の依存
+# Platform-specific dependencies
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.52", features = ["Win32_Foundation"] }
 
@@ -259,96 +259,96 @@ wasm-bindgen = "0.2"
 web-sys = { version = "0.3", features = ["Window", "Document"] }
 ```
 
-### 2.2 パッケージメタデータの詳細
+### 2.2 Package metadata details
 
 ```toml
 [package]
 name = "my-crate"
 version = "1.2.3"
 edition = "2021"                    # 2015, 2018, 2021, 2024
-rust-version = "1.75"              # MSRV（最低サポートバージョン）
+rust-version = "1.75"              # MSRV (minimum supported version)
 
-# 著者情報
+# Author information
 authors = ["Alice <alice@example.com>", "Bob <bob@example.com>"]
 description = "A brief description for crates.io"
-license = "MIT OR Apache-2.0"      # SPDX 表現
-license-file = "LICENSE"            # カスタムライセンスファイル
+license = "MIT OR Apache-2.0"      # SPDX expression
+license-file = "LICENSE"            # Custom license file
 
-# リンク
+# Links
 homepage = "https://my-crate.example.com"
 repository = "https://github.com/user/my-crate"
 documentation = "https://docs.rs/my-crate"
 readme = "README.md"
 
-# 分類
-keywords = ["parser", "json", "serialization"]   # 最大 5 個
+# Classification
+keywords = ["parser", "json", "serialization"]   # Up to 5 entries
 categories = ["encoding", "parser-implementations"]
 
-# 公開制御
-publish = true                      # false で公開禁止
-# publish = ["my-private-registry"]  # 特定レジストリのみに公開
+# Publish control
+publish = true                      # Set to false to forbid publishing
+# publish = ["my-private-registry"]  # Publish only to a specific registry
 
-# ファイル制御
+# File control
 include = ["src/**/*", "Cargo.toml", "LICENSE*", "README.md"]
 # exclude = ["tests/fixtures/**", ".github/**"]
 
-# バイナリ定義
+# Binary definitions
 name = "my-tool"
 path = "src/bin/tool.rs"
-required-features = ["cli"]         # この feature が有効な時のみビルド
+required-features = ["cli"]         # Build only when this feature is enabled
 
 name = "my-server"
 path = "src/bin/server.rs"
 required-features = ["server"]
 
-# ライブラリ定義
+# Library definition
 [lib]
-name = "my_crate"                   # ハイフンはアンダースコアに変換
+name = "my_crate"                   # Hyphens are converted to underscores
 crate-type = ["lib"]
 path = "src/lib.rs"
-doc = true                          # ドキュメント生成対象
-doctest = true                      # ドキュメントテスト有効
-test = true                         # テスト対象
+doc = true                          # Subject to documentation generation
+doctest = true                      # Documentation tests enabled
+test = true                         # Subject to testing
 ```
 
-### コード例2: ビルドスクリプト (build.rs)
+### Code example 2: Build script (build.rs)
 
 ```rust
 // build.rs
 use std::process::Command;
 
 fn main() {
-    // Git コミットハッシュを環境変数に設定
+    // Set the Git commit hash as an environment variable
     let output = Command::new("git")
         .args(["rev-parse", "--short", "HEAD"])
         .output()
-        .expect("git コマンド実行失敗");
+        .expect("git command failed");
     let git_hash = String::from_utf8(output.stdout).unwrap();
     println!("cargo:rustc-env=GIT_HASH={}", git_hash.trim());
 
-    // ビルド日時
+    // Build timestamp
     let now = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC");
     println!("cargo:rustc-env=BUILD_TIME={}", now);
 
-    // 条件付きコンパイルフラグ
+    // Conditional compilation flags
     if cfg!(target_os = "linux") {
         println!("cargo:rustc-cfg=has_epoll");
     }
 
-    // 再実行条件
+    // Re-run conditions
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=src/schema.sql");
 }
 
-// src/main.rs で使用:
+// Usage in src/main.rs:
 // const GIT_HASH: &str = env!("GIT_HASH");
 // const BUILD_TIME: &str = env!("BUILD_TIME");
 ```
 
-### 2.3 高度なビルドスクリプト
+### 2.3 Advanced build scripts
 
 ```rust
-// build.rs — C ライブラリとのリンク、コード生成を含む高度な例
+// build.rs — Advanced example including linking with a C library and code generation
 use std::env;
 use std::fs;
 use std::path::PathBuf;
@@ -358,7 +358,7 @@ fn main() {
     let target = env::var("TARGET").unwrap();
     let profile = env::var("PROFILE").unwrap();
 
-    // --- 1. C/C++ ライブラリのコンパイル ---
+    // --- 1. Compile a C/C++ library ---
     cc::Build::new()
         .file("native/crypto.c")
         .file("native/hash.c")
@@ -368,11 +368,11 @@ fn main() {
         .opt_level(if profile == "release" { 3 } else { 0 })
         .compile("native_crypto");
 
-    // --- 2. ネイティブライブラリのリンク ---
+    // --- 2. Link the native library ---
     println!("cargo:rustc-link-lib=static=native_crypto");
     println!("cargo:rustc-link-search=native={}", out_dir.display());
 
-    // システムライブラリのリンク（プラットフォーム依存）
+    // Link system libraries (platform dependent)
     if target.contains("linux") {
         println!("cargo:rustc-link-lib=dylib=ssl");
         println!("cargo:rustc-link-lib=dylib=crypto");
@@ -380,7 +380,7 @@ fn main() {
         println!("cargo:rustc-link-lib=framework=Security");
     }
 
-    // --- 3. protobuf コード生成 ---
+    // --- 3. protobuf code generation ---
     let proto_files = &["proto/api.proto", "proto/models.proto"];
     let proto_include = &["proto/"];
 
@@ -388,9 +388,9 @@ fn main() {
         .type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]")
         .out_dir(&out_dir)
         .compile_protos(proto_files, proto_include)
-        .expect("protobuf コンパイル失敗");
+        .expect("protobuf compilation failed");
 
-    // --- 4. バージョン情報ファイルの生成 ---
+    // --- 4. Generate a version information file ---
     let version_info = format!(
         r#"
         pub const VERSION: &str = "{}";
@@ -405,11 +405,11 @@ fn main() {
     );
     fs::write(out_dir.join("version_info.rs"), version_info).unwrap();
 
-    // --- 5. 再実行トリガー ---
+    // --- 5. Re-run triggers ---
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=native/");
     println!("cargo:rerun-if-changed=proto/");
-    // 環境変数の変更も監視
+    // Also watch for environment variable changes
     println!("cargo:rerun-if-env-changed=DATABASE_URL");
 }
 
@@ -425,11 +425,11 @@ fn get_git_hash() -> String {
 ```
 
 ```rust
-// src/lib.rs での利用
-// build.rs で生成したコードのインクルード
+// Usage in src/lib.rs
+// Include the code generated by build.rs
 include!(concat!(env!("OUT_DIR"), "/version_info.rs"));
 
-// protobuf 生成コードのインクルード
+// Include code generated by protobuf
 pub mod api {
     include!(concat!(env!("OUT_DIR"), "/api.rs"));
 }
@@ -439,59 +439,59 @@ pub mod models {
 }
 ```
 
-### 2.4 Cargo のビルドスクリプト出力命令一覧
+### 2.4 Reference list of Cargo build script output instructions
 
 ```rust
-// build.rs で使用可能な cargo: 命令の一覧
+// List of cargo: instructions usable in build.rs
 
 fn main() {
-    // --- リンク関連 ---
-    // ネイティブライブラリをリンク
-    println!("cargo:rustc-link-lib=static=mylib");      // 静的リンク
-    println!("cargo:rustc-link-lib=dylib=ssl");          // 動的リンク
-    println!("cargo:rustc-link-lib=framework=Security"); // macOS フレームワーク
+    // --- Linking related ---
+    // Link a native library
+    println!("cargo:rustc-link-lib=static=mylib");      // Static linking
+    println!("cargo:rustc-link-lib=dylib=ssl");          // Dynamic linking
+    println!("cargo:rustc-link-lib=framework=Security"); // macOS framework
 
-    // ライブラリ検索パス
+    // Library search paths
     println!("cargo:rustc-link-search=native=/usr/local/lib");
     println!("cargo:rustc-link-search=all=/opt/lib");
 
-    // --- コンパイラフラグ ---
-    // 環境変数として設定（env!() で取得可能）
+    // --- Compiler flags ---
+    // Set as an environment variable (retrievable via env!())
     println!("cargo:rustc-env=MY_VAR=my_value");
 
-    // 条件付きコンパイル cfg
+    // Conditional compilation cfg
     println!("cargo:rustc-cfg=my_feature");
     println!("cargo:rustc-cfg=my_key=\"my_value\"");
 
-    // コンパイラフラグ
+    // Compiler flags
     println!("cargo:rustc-flags=-l dylib=foo");
     println!("cargo:rustc-cdylib-link-arg=-Wl,-rpath,/usr/local/lib");
 
-    // --- 再実行制御 ---
-    // ファイル変更で再実行
+    // --- Re-run control ---
+    // Re-run on file change
     println!("cargo:rerun-if-changed=src/schema.sql");
     println!("cargo:rerun-if-changed=native/");
 
-    // 環境変数の変更で再実行
+    // Re-run on environment variable change
     println!("cargo:rerun-if-env-changed=DATABASE_URL");
 
-    // --- メタデータ ---
-    // 他のクレートの build.rs から DEP_<name>_<key> として参照可能
+    // --- Metadata ---
+    // Referenceable as DEP_<name>_<key> from another crate's build.rs
     println!("cargo:metadata=key=value");
 
-    // --- 警告 ---
+    // --- Warnings ---
     println!("cargo:warning=This is a build warning");
 }
 ```
 
 ---
 
-## 3. ワークスペース
+## 3. Workspaces
 
-### コード例3: ワークスペース構成
+### Code example 3: Workspace structure
 
 ```toml
-# Cargo.toml (ルート)
+# Cargo.toml (root)
 [workspace]
 members = [
     "crates/core",
@@ -501,14 +501,14 @@ members = [
 ]
 resolver = "2"
 
-# ワークスペース全体の依存バージョンを統一
+# Unify dependency versions across the entire workspace
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 anyhow = "1"
 tracing = "0.1"
 
-# ワークスペース共通のパッケージメタデータ
+# Shared package metadata for the workspace
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
@@ -541,10 +541,10 @@ tokio.workspace = true
 clap = { version = "4", features = ["derive"] }
 ```
 
-### ワークスペースの依存関係
+### Workspace dependencies
 
 ```
-┌──────────── ワークスペース依存グラフ ──────────────┐
+┌──────────── Workspace dependency graph ────────────┐
 │                                                     │
 │  project-cli                project-server          │
 │    │                          │                     │
@@ -561,52 +561,52 @@ clap = { version = "4", features = ["derive"] }
 │    ├── quote                                        │
 │    └── proc-macro2                                  │
 │                                                     │
-│  コマンド:                                          │
-│  $ cargo build -p project-cli    # 特定クレートのみ │
-│  $ cargo test --workspace        # 全テスト実行     │
-│  $ cargo doc --workspace         # 全ドキュメント   │
+│  Commands:                                          │
+│  $ cargo build -p project-cli    # Specific crate   │
+│  $ cargo test --workspace        # Run all tests    │
+│  $ cargo doc --workspace         # All docs         │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 3.1 実践的なワークスペース設計パターン
+### 3.1 Practical workspace design patterns
 
-#### パターン1: Webアプリケーション構成
+#### Pattern 1: Web application layout
 
 ```
 web-platform/
-├── Cargo.toml                 # ワークスペースルート
+├── Cargo.toml                 # Workspace root
 ├── crates/
-│   ├── domain/                # ドメインモデル（外部依存最小）
+│   ├── domain/                # Domain models (minimal external dependencies)
 │   │   ├── Cargo.toml
 │   │   └── src/lib.rs
-│   ├── repository/            # データアクセス層
+│   ├── repository/            # Data access layer
 │   │   ├── Cargo.toml
 │   │   └── src/lib.rs
-│   ├── usecase/               # ビジネスロジック
+│   ├── usecase/               # Business logic
 │   │   ├── Cargo.toml
 │   │   └── src/lib.rs
-│   ├── api/                   # HTTP API サーバー
+│   ├── api/                   # HTTP API server
 │   │   ├── Cargo.toml
 │   │   └── src/
 │   │       ├── main.rs
 │   │       ├── routes/
 │   │       └── middleware/
-│   ├── worker/                # バックグラウンドジョブ
+│   ├── worker/                # Background jobs
 │   │   ├── Cargo.toml
 │   │   └── src/main.rs
-│   ├── migration/             # DB マイグレーション
+│   ├── migration/             # DB migrations
 │   │   ├── Cargo.toml
 │   │   └── src/main.rs
-│   └── shared/                # 共通ユーティリティ
+│   └── shared/                # Common utilities
 │       ├── Cargo.toml
 │       └── src/lib.rs
-└── xtask/                     # ビルドタスクランナー
+└── xtask/                     # Build task runner
     ├── Cargo.toml
     └── src/main.rs
 ```
 
 ```toml
-# Cargo.toml (ルート)
+# Cargo.toml (root)
 [workspace]
 members = [
     "crates/domain",
@@ -621,33 +621,33 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-# ドメイン層
+# Domain layer
 serde = { version = "1", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 
-# インフラ層
+# Infrastructure layer
 sqlx = { version = "0.7", features = ["runtime-tokio", "postgres", "chrono", "uuid"] }
 redis = { version = "0.25", features = ["tokio-comp"] }
 
-# Web 層
+# Web layer
 axum = { version = "0.7", features = ["macros"] }
 tower = { version = "0.4", features = ["full"] }
 tower-http = { version = "0.5", features = ["cors", "trace", "compression-gzip"] }
 tokio = { version = "1", features = ["full"] }
 
-# 横断的関心事
+# Cross-cutting concerns
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 anyhow = "1"
 thiserror = "1"
 config = "0.14"
 
-# テスト
+# Testing
 wiremock = "0.6"
 testcontainers = "0.15"
 
-# ワークスペース内部
+# Internal to the workspace
 platform-domain = { path = "crates/domain" }
 platform-repository = { path = "crates/repository" }
 platform-usecase = { path = "crates/usecase" }
@@ -655,7 +655,7 @@ platform-shared = { path = "crates/shared" }
 ```
 
 ```toml
-# crates/domain/Cargo.toml — 外部依存を最小限に
+# crates/domain/Cargo.toml — Keep external dependencies to a minimum
 [package]
 name = "platform-domain"
 version.workspace = true
@@ -669,7 +669,7 @@ thiserror.workspace = true
 ```
 
 ```toml
-# crates/repository/Cargo.toml — DB アクセス
+# crates/repository/Cargo.toml — DB access
 [package]
 name = "platform-repository"
 version.workspace = true
@@ -690,7 +690,7 @@ tokio = { workspace = true, features = ["test-util"] }
 ```
 
 ```toml
-# crates/api/Cargo.toml — HTTP サーバー
+# crates/api/Cargo.toml — HTTP server
 [package]
 name = "platform-api"
 version.workspace = true
@@ -715,7 +715,7 @@ wiremock.workspace = true
 reqwest = { version = "0.12", features = ["json"] }
 ```
 
-#### パターン2: xtask パターン（ビルドタスクランナー）
+#### Pattern 2: The xtask pattern (build task runner)
 
 ```toml
 # xtask/Cargo.toml
@@ -723,7 +723,7 @@ reqwest = { version = "0.12", features = ["json"] }
 name = "xtask"
 version = "0.1.0"
 edition = "2021"
-publish = false    # 公開しない
+publish = false    # Do not publish
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
@@ -746,21 +746,21 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// すべてのチェックを実行（CI 用）
+    /// Run all checks (for CI)
     Ci,
-    /// データベースマイグレーションを実行
+    /// Run database migrations
     Migrate,
-    /// Docker イメージをビルド
+    /// Build a Docker image
     Docker {
         #[arg(long, default_value = "latest")]
         tag: String,
     },
-    /// リリースの準備
+    /// Prepare a release
     Release {
         #[arg(long)]
         version: String,
     },
-    /// コードカバレッジを計測
+    /// Measure code coverage
     Coverage,
 }
 
@@ -770,13 +770,13 @@ fn main() -> Result<()> {
 
     match cli.command {
         Commands::Ci => {
-            // フォーマットチェック
+            // Format check
             cmd!(sh, "cargo fmt --all -- --check").run()?;
             // Clippy
             cmd!(sh, "cargo clippy --workspace --all-targets --all-features -- -D warnings").run()?;
-            // テスト
+            // Tests
             cmd!(sh, "cargo test --workspace --all-features").run()?;
-            // ドキュメントテスト
+            // Documentation tests
             cmd!(sh, "cargo doc --workspace --no-deps").run()?;
             println!("CI checks passed!");
         }
@@ -787,7 +787,7 @@ fn main() -> Result<()> {
             cmd!(sh, "docker build -t platform-api:{tag} -f docker/Dockerfile .").run()?;
         }
         Commands::Release { version } => {
-            // バージョン更新、タグ作成、公開
+            // Bump version, create a tag, and publish
             println!("Releasing version {version}...");
             cmd!(sh, "cargo set-version --workspace {version}").run()?;
             cmd!(sh, "cargo check --workspace").run()?;
@@ -806,21 +806,21 @@ fn main() -> Result<()> {
 ```
 
 ```toml
-# .cargo/config.toml でエイリアス設定
+# Configure an alias in .cargo/config.toml
 [alias]
 xtask = "run --package xtask --"
 ```
 
 ```bash
-# 使用例
-cargo xtask ci          # CI チェック実行
-cargo xtask migrate     # マイグレーション
-cargo xtask docker --tag v1.0.0  # Docker ビルド
-cargo xtask release --version 1.0.0  # リリース
-cargo xtask coverage    # カバレッジ計測
+# Examples
+cargo xtask ci          # Run CI checks
+cargo xtask migrate     # Migrations
+cargo xtask docker --tag v1.0.0  # Docker build
+cargo xtask release --version 1.0.0  # Release
+cargo xtask coverage    # Measure coverage
 ```
 
-### 3.2 ワークスペースの exclude と default-members
+### 3.2 Workspace exclude and default-members
 
 ```toml
 [workspace]
@@ -828,12 +828,12 @@ members = [
     "crates/*",
     "xtask",
 ]
-# ワークスペースのメンバーから除外
+# Exclude from workspace members
 exclude = [
     "crates/experimental",
     "tools/standalone",
 ]
-# cargo build 時のデフォルト対象
+# Default targets when running cargo build
 default-members = [
     "crates/api",
     "crates/worker",
@@ -841,11 +841,11 @@ default-members = [
 resolver = "2"
 ```
 
-### 3.3 ワークスペース内のクレート間依存ルール
+### 3.3 Inter-crate dependency rules within a workspace
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│            依存の方向（許可される矢印のみ）               │
+│         Direction of dependencies (only allowed arrows)  │
 │                                                          │
 │   api ──────┐                                            │
 │   worker ───┤                                            │
@@ -855,19 +855,20 @@ resolver = "2"
 │             ▼           │                                │
 │         repository ─────┘                                │
 │                                                          │
-│   ルール:                                                │
-│   ✓ 上位層 → 下位層 への依存                             │
-│   ✗ 下位層 → 上位層 への依存（循環依存禁止）             │
-│   ✓ domain は外部クレートへの依存を最小限にする          │
-│   ✓ shared はどの層からも参照可能                        │
+│   Rules:                                                 │
+│   ✓ Upper layers may depend on lower layers              │
+│   ✗ Lower layers must not depend on upper layers         │
+│     (no circular dependencies)                           │
+│   ✓ domain keeps external crate dependencies minimal     │
+│   ✓ shared can be referenced from any layer              │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 4. Feature フラグ
+## 4. Feature flags
 
-### コード例4: Feature フラグの実装
+### Code example 4: Implementing feature flags
 
 ```rust
 // Cargo.toml
@@ -881,7 +882,7 @@ resolver = "2"
 
 // src/lib.rs
 
-/// JSON サポート (feature = "json" 時のみ有効)
+/// JSON support (only enabled when feature = "json")
 #[cfg(feature = "json")]
 pub mod json {
     use serde::{Serialize, de::DeserializeOwned};
@@ -895,7 +896,7 @@ pub mod json {
     }
 }
 
-/// YAML サポート
+/// YAML support
 #[cfg(feature = "yaml")]
 pub mod yaml {
     use serde::{Serialize, de::DeserializeOwned};
@@ -905,7 +906,7 @@ pub mod yaml {
     }
 }
 
-/// 非同期クライアント (feature = "async" 時のみ)
+/// Asynchronous client (only when feature = "async")
 #[cfg(feature = "async")]
 pub mod async_client {
     pub struct Client {
@@ -921,7 +922,7 @@ pub mod async_client {
     }
 }
 
-// feature の有無でコンパイル時にコードを切り替え
+// Switch code at compile time based on which features are enabled
 pub fn available_formats() -> Vec<&'static str> {
     let mut formats = Vec::new();
 
@@ -938,28 +939,28 @@ pub fn available_formats() -> Vec<&'static str> {
 }
 ```
 
-### 4.1 Feature フラグの高度なパターン
+### 4.1 Advanced feature flag patterns
 
 ```toml
-# Cargo.toml — 実践的な feature 設計
+# Cargo.toml — Practical feature design
 [features]
 default = ["std", "json"]
 
-# 基盤 features
+# Foundational features
 std = ["alloc", "serde/std", "chrono/std"]
 alloc = []
 
-# フォーマット features
+# Format features
 json = ["dep:serde_json"]
 yaml = ["dep:serde_yaml"]
 toml-support = ["dep:toml"]
 msgpack = ["dep:rmp-serde"]
 
-# ランタイム features
+# Runtime features
 async-tokio = ["dep:tokio", "dep:tokio-stream"]
 async-async-std = ["dep:async-std"]
 
-# データベース features
+# Database features
 postgres = ["dep:sqlx", "sqlx/postgres"]
 mysql = ["dep:sqlx", "sqlx/mysql"]
 sqlite = ["dep:sqlx", "sqlx/sqlite"]
@@ -968,14 +969,14 @@ sqlite = ["dep:sqlx", "sqlx/sqlite"]
 native-tls = ["dep:native-tls"]
 rustls = ["dep:rustls", "dep:webpki-roots"]
 
-# メタ features
+# Meta features
 full = [
     "std", "json", "yaml", "toml-support", "msgpack",
     "async-tokio", "postgres", "mysql", "sqlite",
     "rustls",
 ]
 
-# 内部 features（ユーザーが直接使用しない）
+# Internal features (not used directly by users)
 __internal_bench = []
 
 [dependencies]
@@ -999,9 +1000,9 @@ webpki-roots = { version = "0.26", optional = true }
 ```
 
 ```rust
-// src/lib.rs — feature フラグを活用した条件付きコンパイル
+// src/lib.rs — Conditional compilation leveraging feature flags
 
-// std/alloc の段階的対応
+// Gradual std/alloc support
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(feature = "alloc")]
@@ -1010,7 +1011,7 @@ extern crate alloc;
 #[cfg(feature = "alloc")]
 use alloc::{string::String, vec::Vec};
 
-// 複数 feature の組み合わせ
+// Combination of multiple features
 #[cfg(all(feature = "json", feature = "async-tokio"))]
 pub mod async_json {
     use serde::{Serialize, de::DeserializeOwned};
@@ -1028,7 +1029,7 @@ pub mod async_json {
     }
 }
 
-// いずれかの feature が有効な場合
+// When any of the listed features is enabled
 #[cfg(any(feature = "postgres", feature = "mysql", feature = "sqlite"))]
 pub mod database {
     pub fn is_database_enabled() -> bool {
@@ -1043,11 +1044,11 @@ pub mod database {
     }
 }
 
-// feature が無効な場合のフォールバック
+// Fallback when a feature is disabled
 #[cfg(not(any(feature = "native-tls", feature = "rustls")))]
 compile_error!("Either 'native-tls' or 'rustls' feature must be enabled");
 
-// テストでの feature 確認
+// Verifying features in tests
 #[cfg(test)]
 mod tests {
     #[test]
@@ -1063,12 +1064,12 @@ mod tests {
 }
 ```
 
-### 4.2 Feature の注意事項と cfg 属性の詳細
+### 4.2 Caveats for features and details on cfg attributes
 
 ```rust
-// cfg 属性の様々な使い方
+// Various ways to use cfg attributes
 
-// --- プラットフォーム検出 ---
+// --- Platform detection ---
 #[cfg(target_os = "linux")]
 fn platform_specific() -> &'static str { "Linux" }
 
@@ -1078,21 +1079,21 @@ fn platform_specific() -> &'static str { "macOS" }
 #[cfg(target_os = "windows")]
 fn platform_specific() -> &'static str { "Windows" }
 
-// --- アーキテクチャ検出 ---
+// --- Architecture detection ---
 #[cfg(target_arch = "x86_64")]
 fn simd_operation(data: &[f32]) -> f32 {
-    // SSE/AVX 命令を使用した最適化
+    // Optimization using SSE/AVX instructions
     data.iter().sum()
 }
 
 #[cfg(target_arch = "aarch64")]
 fn simd_operation(data: &[f32]) -> f32 {
-    // NEON 命令を使用した最適化
+    // Optimization using NEON instructions
     data.iter().sum()
 }
 
-// --- cfg_attr: 条件付き属性 ---
-// serde feature が有効な場合のみ derive
+// --- cfg_attr: conditional attributes ---
+// derive only when the serde feature is enabled
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -1100,118 +1101,118 @@ pub struct Config {
     pub value: i32,
 }
 
-// release ビルドではインライン化
+// Force inlining in release builds
 #[cfg_attr(not(debug_assertions), inline(always))]
 fn hot_path(x: i32) -> i32 {
     x * 2 + 1
 }
 
-// --- cfg! マクロ（ランタイム判定ではなくコンパイル時判定） ---
+// --- The cfg! macro (compile-time, not runtime, evaluation) ---
 fn log_platform() {
     if cfg!(target_os = "linux") {
         println!("Running on Linux");
     } else if cfg!(target_os = "macos") {
         println!("Running on macOS");
     }
-    // 注意: 上記は if 文に見えるがコンパイル時に確定する
-    // 到達不能なブランチはコンパイラが除去する
+    // Note: although it looks like an if statement, it is determined at compile time
+    // The compiler eliminates unreachable branches
 }
 ```
 
-### コード例5: crates.io への公開
+### Code example 5: Publishing to crates.io
 
 ```bash
-# 1. 公開前チェック
+# 1. Pre-publish check
 cargo publish --dry-run
 
-# 2. ドキュメントの確認
+# 2. Verify documentation
 cargo doc --open
 
-# 3. パッケージ内容の確認
+# 3. Verify package contents
 cargo package --list
 
-# 4. 公開 (crates.io アカウントとトークンが必要)
-cargo login  # 初回のみ
+# 4. Publish (a crates.io account and token are required)
+cargo login  # First time only
 cargo publish
 
-# ワークスペースの場合は個別に公開 (依存順序に注意)
+# For a workspace, publish individually (mind the dependency order)
 cargo publish -p project-core
 cargo publish -p project-macros
 cargo publish -p project-cli
 ```
 
 ```rust
-// バージョニング規則 (SemVer)
+// Versioning rules (SemVer)
 // MAJOR.MINOR.PATCH
 //
-// PATCH: バグ修正 (後方互換)
+// PATCH: bug fixes (backward compatible)
 //   0.1.0 → 0.1.1
 //
-// MINOR: 機能追加 (後方互換)
+// MINOR: feature additions (backward compatible)
 //   0.1.0 → 0.2.0
 //
-// MAJOR: 破壊的変更
-//   0.x.y → 1.0.0  (0.x は全て破壊的変更扱い)
+// MAJOR: breaking changes
+//   0.x.y → 1.0.0  (every change in 0.x is treated as breaking)
 //   1.0.0 → 2.0.0
 
-// 依存バージョン指定の意味:
+// Meaning of dependency version specifiers:
 // "1.0"     → >=1.0.0 && <2.0.0
 // "1.2.3"   → >=1.2.3 && <2.0.0
 // "~1.2.3"  → >=1.2.3 && <1.3.0
-// "=1.2.3"  → 1.2.3 のみ
-// ">=1, <2" → 範囲指定
+// "=1.2.3"  → 1.2.3 only
+// ">=1, <2" → range specifier
 ```
 
-### 4.3 公開前チェックリストと自動化
+### 4.3 Pre-publish checklist and automation
 
 ```bash
-# --- 公開前の包括的チェック ---
+# --- Comprehensive pre-publish checks ---
 
-# 1. コンパイルチェック（全 feature 組み合わせ）
+# 1. Compilation check (every feature combination)
 cargo check --all-features
 cargo check --no-default-features
 cargo check --features "json"
 cargo check --features "yaml"
 
-# 2. テスト
+# 2. Tests
 cargo test --all-features
 cargo test --no-default-features
 
 # 3. Clippy
 cargo clippy --all-features -- -D warnings
 
-# 4. フォーマット
+# 4. Formatting
 cargo fmt --check
 
-# 5. ドキュメント（壊れたリンクの検出）
+# 5. Documentation (detect broken links)
 RUSTDOCFLAGS="-D warnings" cargo doc --all-features --no-deps
 
-# 6. 最低サポートバージョン (MSRV) チェック
+# 6. Minimum supported version (MSRV) check
 cargo +1.75.0 check --all-features
 
-# 7. セキュリティ監査
+# 7. Security audit
 cargo audit
 cargo deny check
 
-# 8. ライセンスチェック
+# 8. License check
 cargo deny check licenses
 
-# 9. パッケージサイズの確認
+# 9. Package size verification
 cargo package --list | wc -l
 du -sh target/package/
 
-# 10. ドライラン
+# 10. Dry run
 cargo publish --dry-run
 ```
 
 ```rust
-// 自動公開スクリプト（xtask）
+// Automated publish script (xtask)
 // xtask/src/publish.rs
 use xshell::{cmd, Shell};
 use anyhow::Result;
 
 pub fn publish_workspace(sh: &Shell, dry_run: bool) -> Result<()> {
-    // 公開順序（依存関係順）
+    // Publish order (in dependency order)
     let publish_order = vec![
         "project-core",
         "project-macros",
@@ -1229,7 +1230,7 @@ pub fn publish_workspace(sh: &Shell, dry_run: bool) -> Result<()> {
             cmd!(sh, "cargo publish -p {crate_name} --dry-run").run()?;
         } else {
             cmd!(sh, "cargo publish -p {crate_name}").run()?;
-            // crates.io のインデックス更新を待つ
+            // Wait for the crates.io index to update
             std::thread::sleep(std::time::Duration::from_secs(30));
         }
     }
@@ -1240,60 +1241,60 @@ pub fn publish_workspace(sh: &Shell, dry_run: bool) -> Result<()> {
 
 ---
 
-## 5. プロファイル設定の詳細
+## 5. Profile configuration in detail
 
-### 5.1 各プロファイルの詳細比較
+### 5.1 Detailed comparison of profiles
 
 ```toml
-# --- 開発用プロファイル ---
+# --- Development profile ---
 [profile.dev]
-opt-level = 0          # 最適化なし（ビルド高速）
-debug = true           # 完全なデバッグ情報
-debug-assertions = true # debug_assert!() 有効
-overflow-checks = true  # 整数オーバーフロー検査
-lto = false            # LTO 無効
-codegen-units = 256    # 並列コンパイル（ビルド高速）
-incremental = true     # インクリメンタルコンパイル
-panic = "unwind"       # パニック時スタック巻き戻し
-strip = "none"         # シンボル除去なし
-split-debuginfo = "packed"  # デバッグ情報の格納方式
+opt-level = 0          # No optimization (fast build)
+debug = true           # Full debug information
+debug-assertions = true # debug_assert!() enabled
+overflow-checks = true  # Integer overflow checks
+lto = false            # LTO disabled
+codegen-units = 256    # Parallel compilation (fast build)
+incremental = true     # Incremental compilation
+panic = "unwind"       # Stack unwinding on panic
+strip = "none"         # No symbol stripping
+split-debuginfo = "packed"  # How debug information is stored
 
-# --- リリース用プロファイル ---
+# --- Release profile ---
 [profile.release]
-opt-level = 3          # 最大最適化
-debug = false          # デバッグ情報なし
+opt-level = 3          # Maximum optimization
+debug = false          # No debug information
 debug-assertions = false
 overflow-checks = false
-lto = "thin"           # Thin LTO（バランス良い）
-codegen-units = 1      # 単一コンパイル単位（最大最適化）
-incremental = false    # インクリメンタル無効
-panic = "abort"        # パニック時即座に終了（バイナリサイズ削減）
-strip = true           # シンボル除去
+lto = "thin"           # Thin LTO (good balance)
+codegen-units = 1      # Single codegen unit (maximum optimization)
+incremental = false    # Incremental disabled
+panic = "abort"        # Terminate immediately on panic (smaller binary)
+strip = true           # Strip symbols
 
-# --- ベンチマーク用（release を継承） ---
+# --- Benchmark profile (inherits release) ---
 [profile.bench]
 inherits = "release"
-debug = true           # プロファイリング用にデバッグ情報を残す
+debug = true           # Keep debug info for profiling
 
-# --- カスタムプロファイル: 本番デプロイ用 ---
+# --- Custom profile: production deployment ---
 [profile.production]
 inherits = "release"
-lto = "fat"            # Fat LTO（最大最適化、ビルド非常に遅い）
+lto = "fat"            # Fat LTO (maximum optimization, very slow build)
 codegen-units = 1
 strip = true
 panic = "abort"
 
-# --- カスタムプロファイル: 開発時だが少し最適化 ---
+# --- Custom profile: development with light optimization ---
 [profile.dev-fast]
 inherits = "dev"
-opt-level = 1          # 最小限の最適化（主にジェネリクスの肥大化防止）
+opt-level = 1          # Minimal optimization (mainly to avoid generic bloat)
 debug = true
 
-# --- 依存クレートのみ最適化（自分のコードは高速ビルド） ---
+# --- Optimize only dependencies (keep your own code building fast) ---
 [profile.dev.package."*"]
-opt-level = 2          # 依存は最適化（実行速度改善）
+opt-level = 2          # Optimize dependencies (improves runtime)
 
-# 特定の依存を最適化
+# Optimize specific dependencies
 [profile.dev.package.sqlx]
 opt-level = 3
 
@@ -1301,33 +1302,33 @@ opt-level = 3
 opt-level = 3
 ```
 
-### 5.2 バイナリサイズ最適化
+### 5.2 Binary size optimization
 
 ```toml
-# 最小バイナリサイズを目指すプロファイル
+# Profile aiming for minimum binary size
 [profile.min-size]
 inherits = "release"
-opt-level = "z"        # サイズ最適化 ("s" でもOK)
+opt-level = "z"        # Optimize for size ("s" also works)
 lto = "fat"
 codegen-units = 1
 panic = "abort"
 strip = true
 
-# Cargo.toml の [dependencies] で default-features = false を使う
-# 不要な機能を除外してバイナリサイズを削減
+# Use default-features = false in [dependencies] of Cargo.toml
+# Exclude unused features to reduce binary size
 ```
 
 ```bash
-# バイナリサイズの確認と分析
+# Verifying and analyzing binary size
 cargo build --release
 ls -la target/release/my-app
 
-# cargo-bloat でサイズ分析
+# Size analysis with cargo-bloat
 cargo install cargo-bloat
-cargo bloat --release -n 20          # 大きい関数 TOP20
-cargo bloat --release --crates       # クレート別サイズ
+cargo bloat --release -n 20          # Top 20 largest functions
+cargo bloat --release --crates       # Size by crate
 
-# twiggy で詳細分析
+# Detailed analysis with twiggy
 cargo install twiggy
 twiggy top target/release/my-app -n 20
 twiggy dominators target/release/my-app
@@ -1335,68 +1336,68 @@ twiggy dominators target/release/my-app
 
 ---
 
-## 6. Cargo ツールチェーン
+## 6. The Cargo toolchain
 
-### 6.1 必須ツール一覧
+### 6.1 Essential tools
 
 ```bash
-# --- フォーマッター ---
+# --- Formatter ---
 rustup component add rustfmt
-cargo fmt                          # フォーマット実行
-cargo fmt -- --check               # フォーマットチェック（CI 用）
-cargo fmt -- --emit files          # 変更ファイルのみ表示
+cargo fmt                          # Run formatting
+cargo fmt -- --check               # Check formatting (for CI)
+cargo fmt -- --emit files          # Show only changed files
 
-# --- リンター ---
+# --- Linter ---
 rustup component add clippy
-cargo clippy                                           # 基本チェック
-cargo clippy --all-targets --all-features              # 全対象チェック
-cargo clippy -- -D warnings                            # 警告をエラーに
-cargo clippy -- -W clippy::pedantic                    # より厳格なチェック
-cargo clippy --fix                                     # 自動修正
+cargo clippy                                           # Basic checks
+cargo clippy --all-targets --all-features              # Check everything
+cargo clippy -- -D warnings                            # Treat warnings as errors
+cargo clippy -- -W clippy::pedantic                    # Stricter checks
+cargo clippy --fix                                     # Apply auto-fixes
 
-# --- セキュリティ監査 ---
+# --- Security audit ---
 cargo install cargo-audit
-cargo audit                        # 脆弱性チェック
-cargo audit fix                    # 自動修正
+cargo audit                        # Vulnerability check
+cargo audit fix                    # Auto-fix
 
-# --- 依存ライセンス・ポリシーチェック ---
+# --- Dependency license / policy checks ---
 cargo install cargo-deny
-cargo deny init                    # deny.toml 生成
-cargo deny check                   # 全チェック
-cargo deny check licenses          # ライセンスのみ
-cargo deny check bans              # 禁止クレートチェック
-cargo deny check advisories        # セキュリティアドバイザリ
+cargo deny init                    # Generate deny.toml
+cargo deny check                   # All checks
+cargo deny check licenses          # Licenses only
+cargo deny check bans              # Banned crate check
+cargo deny check advisories        # Security advisories
 
-# --- 依存の更新 ---
+# --- Updating dependencies ---
 cargo install cargo-edit
-cargo upgrade                      # 依存を最新に更新
-cargo upgrade --incompatible       # 破壊的変更含む更新
-cargo add serde --features derive  # 依存の追加
+cargo upgrade                      # Update dependencies to the latest
+cargo upgrade --incompatible       # Include breaking updates
+cargo add serde --features derive  # Add a dependency
 
-# --- 未使用依存の検出 ---
+# --- Detecting unused dependencies ---
 cargo install cargo-machete
-cargo machete                      # 未使用クレートの検出
+cargo machete                      # Detect unused crates
 
-# --- ビルド時間分析 ---
+# --- Build time analysis ---
 cargo install cargo-timings
-cargo build --timings              # ビルド時間の詳細レポート
+cargo build --timings              # Detailed build timing report
 
-# --- コードカバレッジ ---
+# --- Code coverage ---
 cargo install cargo-llvm-cov
-cargo llvm-cov                     # テストカバレッジ計測
-cargo llvm-cov --html              # HTML レポート
-cargo llvm-cov --lcov              # LCOV 形式
+cargo llvm-cov                     # Measure test coverage
+cargo llvm-cov --html              # HTML report
+cargo llvm-cov --lcov              # LCOV format
 
-# --- クロスコンパイル ---
+# --- Cross-compilation ---
 cargo install cross
 cross build --target x86_64-unknown-linux-musl
 cross build --target aarch64-unknown-linux-gnu
 
-# --- ドキュメント ---
+# --- Documentation ---
 cargo doc --all-features --no-deps --open
 ```
 
-### 6.2 rustfmt.toml 設定
+### 6.2 rustfmt.toml configuration
 
 ```toml
 # rustfmt.toml
@@ -1406,88 +1407,88 @@ tab_spaces = 4
 use_small_heuristics = "Default"
 newline_style = "Unix"
 
-# インポート
+# Imports
 imports_granularity = "Crate"
 group_imports = "StdExternalCrate"
 reorder_imports = true
 
-# 関数
+# Functions
 fn_params_layout = "Tall"
 fn_single_line = false
 
-# 構造体
+# Structs
 struct_lit_single_line = true
 struct_variant_force_align = false
 
-# コメント
+# Comments
 normalize_comments = false
 normalize_doc_attributes = false
 wrap_comments = false
 
-# その他
+# Other
 format_code_in_doc_comments = true
 format_macro_matchers = true
 use_field_init_shorthand = true
 use_try_shorthand = true
 ```
 
-### 6.3 clippy.toml 設定
+### 6.3 clippy.toml configuration
 
 ```toml
 # clippy.toml
-# Clippy のプロジェクト固有設定
+# Project-specific Clippy configuration
 
-# 関数の認知的複雑度の上限
+# Upper bound on cognitive complexity per function
 cognitive-complexity-threshold = 25
 
-# 列挙型のバリアント数の上限
+# Upper bound on the number of enum variants
 enum-variant-size-threshold = 200
 
-# 型の最大サイズ（バイト）
+# Maximum type size on the stack (bytes)
 too-large-for-stack = 200
 
-# 許可されるワイルドカードインポートのモジュール
+# Modules where wildcard imports are allowed
 allowed-wildcard-imports = ["prelude"]
 
-# MSRVの指定
+# Specify the MSRV
 msrv = "1.75.0"
 
-# 型名の最大長
+# Maximum length of type names
 type-complexity-threshold = 250
 ```
 
 ```rust
-// Clippy 属性の使い方
+// Using Clippy attributes
 
-// ファイル全体で特定の警告を許可
+// Allow specific warnings across the whole file
 #![allow(clippy::module_inception)]
 
-// 関数レベルで許可
+// Allow at the function level
 #[allow(clippy::too_many_arguments)]
 fn complex_function(a: i32, b: i32, c: i32, d: i32, e: i32, f: i32, g: i32) {
     // ...
 }
 
-// 構造体レベルで許可
+// Allow at the struct level
 #[allow(clippy::large_enum_variant)]
 enum Message {
     Small(u8),
     Large([u8; 1024]),
 }
 
-// 厳格モード（pedantic lint を有効化）
+// Strict mode (enable pedantic lints)
 #![warn(clippy::pedantic)]
-// 特定の pedantic lint を除外
+// Exclude specific pedantic lints
 #![allow(clippy::must_use_candidate)]
 #![allow(clippy::missing_errors_doc)]
 
-// restriction lint（明示的に有効化が必要）
-#![warn(clippy::dbg_macro)]        // dbg! マクロの使用警告
-#![warn(clippy::print_stdout)]     // println! の使用警告
-#![warn(clippy::unwrap_used)]      // unwrap() の使用警告
+// Restriction lints (must be enabled explicitly)
+#![warn(clippy::dbg_macro)]        // Warn on use of dbg!
+#![warn(clippy::print_stdout)]     // Warn on use of println!
+#![warn(clippy::unwrap_used)]      // Warn on use of unwrap()
 ```
 
-### 6.4 cargo-deny の設定
+### 6.4 cargo-deny configuration
 
 ```toml
 # deny.toml
@@ -1533,14 +1534,14 @@ multiple-versions = "warn"
 wildcards = "deny"
 highlight = "all"
 
-# 特定クレートの禁止
+# Ban specific crates
 deny = [
-    { name = "openssl" },  # rustls を使用するポリシー
+    { name = "openssl" },  # Policy: use rustls instead
 ]
 
-# 特定クレートの重複を許可
+# Allow duplication for specific crates
 skip = [
-    { name = "syn", version = "1" },  # proc-macro で syn v1 と v2 が共存
+    { name = "syn", version = "1" },  # syn v1 and v2 coexist due to proc-macros
 ]
 
 [sources]
@@ -1552,9 +1553,9 @@ allow-git = []
 
 ---
 
-## 7. CI/CD 統合
+## 7. CI/CD integration
 
-### 7.1 GitHub Actions の設定
+### 7.1 GitHub Actions configuration
 
 ```yaml
 # .github/workflows/ci.yml
@@ -1671,31 +1672,31 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 ```
 
-### 7.2 Docker マルチステージビルド
+### 7.2 Docker multi-stage build
 
 ```dockerfile
-# Dockerfile — Rust マルチステージビルド
-# ステージ1: ビルド
+# Dockerfile — Rust multi-stage build
+# Stage 1: build
 FROM rust:1.78-slim-bookworm AS builder
 
 WORKDIR /app
 
-# 依存のキャッシュ層（ソースコード変更時に再ビルド不要）
+# Dependency cache layer (avoid rebuilding when source changes)
 COPY Cargo.toml Cargo.lock ./
 COPY crates/core/Cargo.toml crates/core/Cargo.toml
 COPY crates/api/Cargo.toml crates/api/Cargo.toml
-# ダミーソースでキャッシュ層を作成
+# Create cache layer with dummy sources
 RUN mkdir -p crates/core/src && echo "pub fn dummy() {}" > crates/core/src/lib.rs && \
     mkdir -p crates/api/src && echo "fn main() {}" > crates/api/src/main.rs && \
     cargo build --release -p platform-api && \
     rm -rf crates/
 
-# 実際のソースをコピーしてビルド
+# Copy real sources and build
 COPY . .
 RUN touch crates/core/src/lib.rs crates/api/src/main.rs && \
     cargo build --release -p platform-api
 
-# ステージ2: 実行環境
+# Stage 2: runtime
 FROM debian:bookworm-slim AS runtime
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
@@ -1706,84 +1707,84 @@ CMD ["platform-api"]
 
 ---
 
-## 8. 比較表
+## 8. Comparison tables
 
-### クレートタイプ比較
+### Crate type comparison
 
-| crate-type | 出力 | 用途 |
+| crate-type | Output | Use case |
 |---|---|---|
-| `lib` | rlib | 通常のRustライブラリ (デフォルト) |
-| `bin` | 実行ファイル | CLIアプリ・サーバー |
-| `cdylib` | .so / .dylib / .dll | FFI 用共有ライブラリ |
-| `staticlib` | .a / .lib | C/C++ への静的リンク |
-| `dylib` | .so / .dylib | Rust間の動的リンク (稀) |
-| `proc-macro` | コンパイラプラグイン | derive / attribute マクロ |
+| `lib` | rlib | Standard Rust library (default) |
+| `bin` | Executable | CLI apps and servers |
+| `cdylib` | .so / .dylib / .dll | Shared library for FFI |
+| `staticlib` | .a / .lib | Static linking into C/C++ |
+| `dylib` | .so / .dylib | Dynamic linking between Rust crates (rare) |
+| `proc-macro` | Compiler plugin | derive / attribute macros |
 
-### プロファイル比較
+### Profile comparison
 
-| 設定 | dev | release | 効果 |
+| Setting | dev | release | Effect |
 |---|---|---|---|
-| opt-level | 0 | 3 | 最適化レベル (0=なし, 3=最大) |
-| debug | true | false | デバッグ情報の有無 |
-| lto | false | "thin" | リンク時最適化 |
-| codegen-units | 256 | 1 | 並列コンパイル単位 |
-| strip | false | true | シンボル除去 |
-| panic | "unwind" | "abort" | パニック時の動作 |
+| opt-level | 0 | 3 | Optimization level (0 = none, 3 = maximum) |
+| debug | true | false | Whether debug info is included |
+| lto | false | "thin" | Link-time optimization |
+| codegen-units | 256 | 1 | Number of parallel codegen units |
+| strip | false | true | Whether symbols are stripped |
+| panic | "unwind" | "abort" | Behavior on panic |
 
-### バージョン指定方法の比較
+### Comparison of version specifier syntax
 
-| 記法 | 例 | 意味 | ユースケース |
+| Syntax | Example | Meaning | Use case |
 |---|---|---|---|
-| キャレット（デフォルト） | `"1.2.3"` | `>=1.2.3, <2.0.0` | 通常使用 |
-| チルダ | `"~1.2.3"` | `>=1.2.3, <1.3.0` | パッチ更新のみ許可 |
-| 完全一致 | `"=1.2.3"` | `1.2.3` のみ | 厳密なバージョン固定 |
-| ワイルドカード | `"1.*"` | `>=1.0.0, <2.0.0` | メジャーバージョンのみ固定 |
-| 範囲 | `">=1.2, <1.5"` | `>=1.2.0, <1.5.0` | 細かい範囲指定 |
-| 複合 | `">=1.2, <2"` | `>=1.2.0, <2.0.0` | 最低バージョン指定 |
+| Caret (default) | `"1.2.3"` | `>=1.2.3, <2.0.0` | Typical use |
+| Tilde | `"~1.2.3"` | `>=1.2.3, <1.3.0` | Allow only patch updates |
+| Exact | `"=1.2.3"` | `1.2.3` only | Strict version pinning |
+| Wildcard | `"1.*"` | `>=1.0.0, <2.0.0` | Pin only the major version |
+| Range | `">=1.2, <1.5"` | `>=1.2.0, <1.5.0` | Fine-grained range |
+| Compound | `">=1.2, <2"` | `>=1.2.0, <2.0.0` | Specify a minimum version |
 
-### Cargo コマンド一覧
+### List of Cargo commands
 
-| コマンド | 説明 | よく使うフラグ |
+| Command | Description | Common flags |
 |---|---|---|
-| `cargo new` | プロジェクト作成 | `--lib`, `--name` |
-| `cargo init` | 既存ディレクトリで初期化 | `--lib` |
-| `cargo build` | ビルド | `--release`, `-p <crate>` |
-| `cargo run` | ビルド＆実行 | `--release`, `--bin <name>` |
-| `cargo test` | テスト実行 | `--workspace`, `--lib`, `--doc` |
-| `cargo bench` | ベンチマーク | `-p <crate>` |
-| `cargo check` | コンパイルチェック（バイナリ生成なし） | `--all-features` |
-| `cargo clippy` | リント | `-- -D warnings` |
-| `cargo fmt` | フォーマット | `--check` |
-| `cargo doc` | ドキュメント生成 | `--open`, `--no-deps` |
-| `cargo publish` | crates.io 公開 | `--dry-run`, `-p <crate>` |
-| `cargo update` | Cargo.lock の更新 | `-p <crate>` |
-| `cargo tree` | 依存ツリー表示 | `--duplicates`, `-i <crate>` |
-| `cargo clean` | ビルド成果物削除 | `-p <crate>` |
-| `cargo vendor` | 依存をローカルにコピー | |
-| `cargo fix` | 自動修正 | `--edition` |
+| `cargo new` | Create a project | `--lib`, `--name` |
+| `cargo init` | Initialize an existing directory | `--lib` |
+| `cargo build` | Build | `--release`, `-p <crate>` |
+| `cargo run` | Build & run | `--release`, `--bin <name>` |
+| `cargo test` | Run tests | `--workspace`, `--lib`, `--doc` |
+| `cargo bench` | Run benchmarks | `-p <crate>` |
+| `cargo check` | Compile check (no binary output) | `--all-features` |
+| `cargo clippy` | Lint | `-- -D warnings` |
+| `cargo fmt` | Format | `--check` |
+| `cargo doc` | Generate documentation | `--open`, `--no-deps` |
+| `cargo publish` | Publish to crates.io | `--dry-run`, `-p <crate>` |
+| `cargo update` | Update Cargo.lock | `-p <crate>` |
+| `cargo tree` | Display dependency tree | `--duplicates`, `-i <crate>` |
+| `cargo clean` | Remove build artifacts | `-p <crate>` |
+| `cargo vendor` | Copy dependencies locally | |
+| `cargo fix` | Auto-fix | `--edition` |
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-patterns
 
-### アンチパターン1: Cargo.lock をライブラリで Git 管理
+### Anti-pattern 1: Tracking Cargo.lock in Git for libraries
 
 ```
-# NG: ライブラリクレートで Cargo.lock を commit
-# → 依存者が自分の Cargo.lock と競合する
+# NG: Committing Cargo.lock for a library crate
+# → Conflicts with consumers' own Cargo.lock
 
 # .gitignore
-# ライブラリの場合:
-Cargo.lock    ← ライブラリは .gitignore に含める
+# For libraries:
+Cargo.lock    ← Add to .gitignore for libraries
 
-# OK: バイナリ(アプリ)の場合は commit する
-# Cargo.lock  ← アプリは再現可能ビルドのため commit
+# OK: For binaries (apps), commit it
+# Cargo.lock  ← Apps commit it for reproducible builds
 ```
 
-### アンチパターン2: Feature フラグの過剰使用
+### Anti-pattern 2: Overuse of feature flags
 
 ```toml
-# NG: 細かすぎる feature 分割
+# NG: Feature splits that are too fine-grained
 [features]
 default = ["std"]
 std = []
@@ -1793,9 +1794,9 @@ parse-float = []
 parse-string = []
 format-int = []
 format-float = []
-# → ユーザーが何を有効にすべきか分からない
+# → Users cannot tell what to enable
 
-# OK: 意味のある粒度で分割
+# OK: Split at meaningful granularity
 [features]
 default = ["std"]
 std = ["alloc"]
@@ -1803,24 +1804,24 @@ alloc = []
 serde = ["dep:serde"]
 async = ["dep:tokio"]
 full = ["std", "serde", "async"]
-# → default で基本動作、full で全機能
+# → default for basic behavior, full for the full feature set
 ```
 
-### アンチパターン3: 循環依存
+### Anti-pattern 3: Circular dependencies
 
 ```
-# NG: クレート間の循環依存
-crate-a → crate-b → crate-a  ← コンパイルエラー
+# NG: Circular dependency between crates
+crate-a → crate-b → crate-a  ← Compile error
 
-# OK: 共通部分を分離
+# OK: Extract the shared portion
 crate-a → crate-common
 crate-b → crate-common
 ```
 
-### アンチパターン4: ワークスペースでバージョンが不統一
+### Anti-pattern 4: Inconsistent versions across the workspace
 
 ```toml
-# NG: 各クレートでバージョンがバラバラ
+# NG: Different versions in each crate
 # crates/a/Cargo.toml
 [dependencies]
 serde = "1.0.190"
@@ -1829,135 +1830,135 @@ serde = "1.0.190"
 [dependencies]
 serde = "1.0.195"
 
-# OK: workspace.dependencies で統一
+# OK: Unify with workspace.dependencies
 [workspace.dependencies]
 serde = { version = "1.0.195", features = ["derive"] }
 
-# 各クレートで workspace = true を使う
+# Use workspace = true in each crate
 [dependencies]
 serde.workspace = true
 ```
 
-### アンチパターン5: `*` ワイルドカードバージョン
+### Anti-pattern 5: `*` wildcard versions
 
 ```toml
-# NG: ワイルドカード使用
+# NG: Using a wildcard
 [dependencies]
-serde = "*"                # どのバージョンでも OK（危険）
+serde = "*"                # Any version is OK (dangerous)
 
-# OK: 適切なバージョン範囲
+# OK: Appropriate version range
 [dependencies]
-serde = "1"                # ^1.0.0（SemVer 互換範囲）
+serde = "1"                # ^1.0.0 (SemVer-compatible range)
 ```
 
-### アンチパターン6: dev-dependencies にリリース依存を混在
+### Anti-pattern 6: Mixing release dependencies into dev-dependencies
 
 ```toml
-# NG: テスト用の依存が本番にも含まれる
+# NG: Test-only dependencies are also pulled into production
 [dependencies]
 tokio = { version = "1", features = ["full"] }
-pretty_assertions = "1"    # テスト用なのに通常 dep に
+pretty_assertions = "1"    # Used only for tests but listed under dependencies
 
-# OK: テスト用は dev-dependencies に
+# OK: Move test-only deps to dev-dependencies
 [dependencies]
 tokio = { version = "1", features = ["full"] }
 
 [dev-dependencies]
-pretty_assertions = "1"    # テスト・例のみで使用
-tokio = { version = "1", features = ["test-util"] }  # テスト用追加 feature
+pretty_assertions = "1"    # Used only in tests/examples
+tokio = { version = "1", features = ["test-util"] }  # Extra test-only feature
 ```
 
 ---
 
-## 10. パフォーマンス最適化
+## 10. Performance optimization
 
-### 10.1 ビルド時間の短縮
+### 10.1 Reducing build time
 
 ```toml
-# .cargo/config.toml — ビルド高速化設定
+# .cargo/config.toml — Build acceleration settings
 
-# mold リンカー（Linux）
+# mold linker (Linux)
 [target.x86_64-unknown-linux-gnu]
 linker = "clang"
 rustflags = ["-C", "link-arg=-fuse-ld=mold"]
 
-# lld リンカー（macOS）
+# lld linker (macOS)
 [target.aarch64-apple-darwin]
 rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 
-# sccache を使用（分散キャッシュ）
+# Use sccache (distributed cache)
 [build]
 rustc-wrapper = "sccache"
 ```
 
 ```bash
-# ビルド時間の計測と分析
-cargo build --timings             # HTML レポート生成
-# target/cargo-timings/cargo-timing.html を確認
+# Measuring and analyzing build time
+cargo build --timings             # Generate HTML report
+# Inspect target/cargo-timings/cargo-timing.html
 
-# 特定クレートの依存チェーン分析
+# Analyze the dependency chain of a specific crate
 cargo tree -p heavy-crate --depth 3
 
-# コンパイル時間が長いクレートの特定
+# Identify crates with long compile times
 cargo build 2>&1 | grep "Compiling" | tail -20
 ```
 
-### 10.2 依存関係の管理戦略
+### 10.2 Strategies for managing dependencies
 
 ```bash
-# 依存ツリーの分析
-cargo tree                         # 完全な依存ツリー
-cargo tree --duplicates            # 重複する依存の表示
-cargo tree -i serde                # serde を使っているクレートを逆引き
-cargo tree --depth 1               # 直接依存のみ
-cargo tree -e features             # feature の伝播を表示
-cargo tree -f "{p} {f}"            # パッケージと feature を表示
+# Analyze the dependency tree
+cargo tree                         # Full dependency tree
+cargo tree --duplicates            # Show duplicated dependencies
+cargo tree -i serde                # Reverse lookup: which crates use serde
+cargo tree --depth 1               # Direct dependencies only
+cargo tree -e features             # Show feature propagation
+cargo tree -f "{p} {f}"            # Show package and features
 
-# 未使用依存の検出
+# Detect unused dependencies
 cargo machete
 
-# 依存の最新バージョン確認
-cargo outdated                     # cargo-outdated が必要
+# Check the latest versions of dependencies
+cargo outdated                     # Requires cargo-outdated
 ```
 
 ---
 
 ## FAQ
 
-### Q1: `cargo update` と `cargo upgrade` の違いは?
+### Q1: What is the difference between `cargo update` and `cargo upgrade`?
 
-**A:** `cargo update` は Cargo.lock を Cargo.toml の範囲内で最新に更新します(Cargo.toml は変更しない)。`cargo upgrade` は `cargo-edit` が提供するコマンドで、Cargo.toml 自体のバージョン指定を最新に書き換えます。
+**A:** `cargo update` updates Cargo.lock to the latest within the range allowed by Cargo.toml (Cargo.toml itself is not modified). `cargo upgrade`, provided by `cargo-edit`, rewrites the version specifications in Cargo.toml to the latest.
 
 ```bash
-# Cargo.toml: serde = "1.0.190" の場合
-cargo update -p serde    # Cargo.lock を 1.0.x の最新に
-                          # (Cargo.toml は変更しない)
+# When Cargo.toml has serde = "1.0.190"
+cargo update -p serde    # Updates Cargo.lock to the latest 1.0.x
+                          # (Cargo.toml is not modified)
 
-cargo upgrade -p serde   # Cargo.toml の serde を最新バージョンに書き換え
+cargo upgrade -p serde   # Rewrites serde in Cargo.toml to the latest version
                           # serde = "1.0.190" → serde = "1.0.210"
 ```
 
-### Q2: ワークスペースの一部だけテストするには?
+### Q2: How do I test only part of a workspace?
 
-**A:** `-p` フラグで特定のクレートを指定します。
+**A:** Specify the target crate with the `-p` flag.
 
 ```bash
-cargo test -p project-core          # core のテストのみ
-cargo test -p project-cli -- --nocapture  # cli のテスト (出力表示)
-cargo build -p project-server       # server のビルドのみ
-cargo clippy -p project-core        # core の lint のみ
+cargo test -p project-core          # Test only core
+cargo test -p project-cli -- --nocapture  # Test cli (show output)
+cargo build -p project-server       # Build only server
+cargo clippy -p project-core        # Lint only core
 ```
 
-### Q3: `optional = true` と `dep:` の違いは?
+### Q3: What is the difference between `optional = true` and `dep:`?
 
-**A:** `optional = true` はクレート名がそのまま feature 名になります。`dep:` 構文(Rust 2021+)は feature 名とクレート名を分離でき、名前の衝突を防ぎます。
+**A:** With `optional = true`, the crate name is implicitly used as the feature name. The `dep:` syntax (Rust 2021+) lets you separate the feature name from the crate name and avoid name collisions.
 
 ```toml
-# 旧方式: tokio という feature が暗黙的に作成される
+# Old way: a feature named tokio is implicitly created
 [dependencies]
 tokio = { version = "1", optional = true }
 
-# 新方式: feature 名を自由に設定
+# New way: choose the feature name freely
 [features]
 async-runtime = ["dep:tokio"]
 
@@ -1965,9 +1966,9 @@ async-runtime = ["dep:tokio"]
 tokio = { version = "1", optional = true }
 ```
 
-### Q4: プライベートレジストリの設定方法は?
+### Q4: How do I configure a private registry?
 
-**A:** `.cargo/config.toml` でレジストリを設定し、`Cargo.toml` で指定します。
+**A:** Configure the registry in `.cargo/config.toml` and specify it in `Cargo.toml`.
 
 ```toml
 # .cargo/config.toml
@@ -1979,114 +1980,114 @@ index = "sparse+https://cargo.my-company.com/index/"
 internal-lib = { version = "1.0", registry = "my-company" }
 
 [package]
-publish = ["my-company"]  # このレジストリにのみ公開可能
+publish = ["my-company"]  # Allow publishing only to this registry
 ```
 
-### Q5: MSRV（最低サポートバージョン）の管理方法は?
+### Q5: How do I manage MSRV (minimum supported version)?
 
-**A:** `rust-version` フィールドと CI で管理します。
+**A:** Manage it via the `rust-version` field together with CI.
 
 ```toml
 # Cargo.toml
 [package]
-rust-version = "1.75"  # この Rust バージョン以上で動作保証
+rust-version = "1.75"  # Compatibility guaranteed for this Rust version and above
 
-# CI で MSRV チェック
+# Check MSRV in CI
 # cargo +1.75.0 check --all-features
 ```
 
 ```bash
-# cargo-msrv で最低バージョンを自動検出
+# Automatically detect the minimum version with cargo-msrv
 cargo install cargo-msrv
-cargo msrv find              # 自動的に MSRV を検出
-cargo msrv verify            # 指定した MSRV で動作確認
+cargo msrv find              # Detect MSRV automatically
+cargo msrv verify            # Verify it works at the specified MSRV
 ```
 
-### Q6: ワークスペース全体の依存を一括更新するには?
+### Q6: How do I bulk-update dependencies across the workspace?
 
-**A:** `cargo update` はワークスペース全体の `Cargo.lock` を更新します。`cargo upgrade` で `workspace.dependencies` も更新可能です。
+**A:** `cargo update` updates the workspace-wide `Cargo.lock`. With `cargo upgrade`, you can also update `workspace.dependencies`.
 
 ```bash
-# Cargo.lock の更新（Cargo.toml の範囲内）
+# Update Cargo.lock (within the range of Cargo.toml)
 cargo update
 
-# Cargo.toml の workspace.dependencies を最新に
+# Update workspace.dependencies in Cargo.toml to the latest
 cargo upgrade --workspace
 
-# 特定のクレートのみ更新
+# Update only specific crates
 cargo update -p serde
 cargo upgrade -p serde --workspace
 ```
 
-### Q7: ビルドキャッシュの問題をデバッグするには?
+### Q7: How do I debug build cache issues?
 
-**A:** `CARGO_LOG` 環境変数や `--verbose` フラグを使用します。
+**A:** Use the `CARGO_LOG` environment variable or the `--verbose` flag.
 
 ```bash
-# 詳細なビルドログ
-cargo build -v               # verbose モード
-cargo build -vv              # さらに詳細
+# Detailed build logs
+cargo build -v               # verbose mode
+cargo build -vv              # Even more verbose
 
-# Cargo の内部ログ
+# Internal Cargo logs
 CARGO_LOG=cargo::core::compiler=trace cargo build
 
-# キャッシュの無効化（クリーンビルド）
+# Invalidate the cache (clean build)
 cargo clean
 cargo build
 
-# 特定クレートのみクリーン
+# Clean only specific crates
 cargo clean -p my-crate
 ```
 
-### Q8: feature フラグの組み合わせテストを効率化するには?
+### Q8: How do I efficiently test combinations of feature flags?
 
-**A:** `cargo hack` を使用して feature の組み合わせを自動テストできます。
+**A:** Use `cargo hack` to automatically test feature combinations.
 
 ```bash
-# cargo-hack インストール
+# Install cargo-hack
 cargo install cargo-hack
 
-# 全 feature の組み合わせをテスト
+# Test every combination of features
 cargo hack test --feature-powerset
 
-# 各 feature を個別にテスト
+# Test each feature individually
 cargo hack check --each-feature
 
-# default features なしで各 feature を個別テスト
+# Test each feature individually without default features
 cargo hack check --each-feature --no-default-features
 
-# --group-features で関連 feature をまとめてテスト
+# Group related features with --group-features
 cargo hack check --feature-powerset --group-features json,yaml,toml-support
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key points |
 |---|---|
-| Cargo.toml | パッケージ定義、依存、features、プロファイル |
-| Cargo.lock | 再現可能ビルド。アプリは commit、ライブラリは除外 |
-| ワークスペース | members で複数クレート管理。依存バージョン統一 |
-| workspace.dependencies | 全クレートで依存バージョンを一元管理 |
-| features | 条件付きコンパイル。default + full パターン |
-| プロファイル | dev (高速ビルド) vs release (高速実行) |
-| crates.io | `cargo publish` で公開。SemVer 遵守 |
-| build.rs | コード生成、環境変数設定、ネイティブライブラリリンク |
-| .cargo/config.toml | リンカー設定、エイリアス、ネットワーク設定 |
-| rust-toolchain.toml | ツールチェーンバージョン固定 |
-| cargo-deny | ライセンス・セキュリティ・依存ポリシーチェック |
-| xtask パターン | Rust 製のタスクランナーでビルド自動化 |
-| CI/CD | GitHub Actions で自動テスト・公開パイプライン |
-| パフォーマンス | mold/lld リンカー、sccache、profile 最適化 |
+| Cargo.toml | Package definition, dependencies, features, profiles |
+| Cargo.lock | Reproducible builds. Commit for apps, exclude for libraries |
+| Workspace | Manage multiple crates via members. Unify dependency versions |
+| workspace.dependencies | Centrally manage dependency versions across all crates |
+| features | Conditional compilation. The default + full pattern |
+| Profiles | dev (fast build) vs. release (fast execution) |
+| crates.io | Publish via `cargo publish`. Adhere to SemVer |
+| build.rs | Code generation, environment variables, native library linking |
+| .cargo/config.toml | Linker settings, aliases, network settings |
+| rust-toolchain.toml | Pin the toolchain version |
+| cargo-deny | License, security, and dependency policy checks |
+| xtask pattern | A Rust-based task runner to automate builds |
+| CI/CD | Automated test/publish pipelines via GitHub Actions |
+| Performance | mold/lld linkers, sccache, profile tuning |
 
-## 次に読むべきガイド
+## Recommended next reading
 
-- [テスト](./01-testing.md) — ワークスペース全体のテスト戦略
-- [Serde](./02-serde.md) — Cargo.toml でよく使う serde 設定
-- [ベストプラクティス](./04-best-practices.md) — API 設計とバージョニング
+- [Testing](./01-testing.md) — Workspace-wide testing strategy
+- [Serde](./02-serde.md) — Common serde configurations used in Cargo.toml
+- [Best practices](./04-best-practices.md) — API design and versioning
 
-## 参考文献
+## References
 
 1. **The Cargo Book**: https://doc.rust-lang.org/cargo/
 2. **Cargo Reference — Features**: https://doc.rust-lang.org/cargo/reference/features.html
