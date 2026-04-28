@@ -1,29 +1,29 @@
-# データベース — sqlx / diesel / SeaORM
+# Databases — sqlx / diesel / SeaORM
 
-> Rust でデータベースを扱うための主要 3 クレートを比較し、プロジェクトに最適な ORM / クエリビルダーを選択するための実践ガイド。
-
----
-
-## この章で学ぶこと
-
-1. **sqlx** — コンパイル時 SQL 検証を持つ非同期クエリライブラリ
-2. **diesel** — 型安全な DSL ベースの同期 ORM
-3. **SeaORM** — ActiveRecord パターンの非同期 ORM
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Serde — JSON/TOML/YAML](./02-serde.md) の内容を理解していること
+> A practical guide for comparing the three major crates for working with databases in Rust, helping you choose the optimal ORM / query builder for your project.
 
 ---
 
-## 1. Rust データベースクレートの全体像
+## What You Will Learn in This Chapter
 
-### 1.1 レイヤー構成
+1. **sqlx** — An asynchronous query library with compile-time SQL validation
+2. **diesel** — A type-safe, DSL-based synchronous ORM
+3. **SeaORM** — An asynchronous ORM following the ActiveRecord pattern
+
+
+## Prerequisites
+
+Before reading this guide, the following knowledge will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [Serde — JSON/TOML/YAML](./02-serde.md)
+
+---
+
+## 1. Overview of Rust Database Crates
+
+### 1.1 Layered Structure
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -32,7 +32,7 @@
 │  ORM / Query Layer                              │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
 │  │  diesel   │  │  SeaORM  │  │  sqlx    │      │
-│  │ (DSL型)   │  │ (AR型)   │  │ (Raw SQL)│      │
+│  │ (DSL)     │  │ (AR)     │  │ (Raw SQL)│      │
 │  └─────┬────┘  └─────┬────┘  └─────┬────┘      │
 │        │             │             │            │
 ├────────┼─────────────┼─────────────┼────────────┤
@@ -50,53 +50,53 @@
 └─────────────────────────────────────────────────┘
 ```
 
-### 1.2 選択フロー
+### 1.2 Selection Flow
 
 ```
-Rust でDBを使いたい
+Want to use a DB in Rust
        │
-       ├── 生の SQL を書きたい？
+       ├── Want to write raw SQL?
        │      │
        │      ├── Yes → sqlx
-       │      │         (コンパイル時SQL検証が魅力)
+       │      │         (compile-time SQL validation is appealing)
        │      │
        │      └── No ──┐
        │               │
-       ├── 型安全な DSL が欲しい？
+       ├── Want a type-safe DSL?
        │      │
        │      ├── Yes → diesel
-       │      │         (コンパイル時に全クエリを型検査)
+       │      │         (all queries are type-checked at compile time)
        │      │
        │      └── No ──┐
        │               │
-       └── ActiveRecord パターンが好み？
+       └── Prefer the ActiveRecord pattern?
               │
               └── Yes → SeaORM
-                        (Rails/Laravel 的な使い心地)
+                        (Rails/Laravel-like feel)
 ```
 
 ---
 
-## 2. sqlx — コンパイル時 SQL 検証
+## 2. sqlx — Compile-Time SQL Validation
 
-### 2.1 セットアップ
+### 2.1 Setup
 
 ```toml
 # Cargo.toml
 [dependencies]
 sqlx = { version = "0.8", features = [
-    "runtime-tokio",     # 非同期ランタイム
+    "runtime-tokio",     # async runtime
     "tls-rustls",        # TLS
-    "postgres",          # PostgreSQL ドライバ
-    "macros",            # query! マクロ
-    "migrate",           # マイグレーション
-    "chrono",            # 日時型サポート
-    "uuid",              # UUID 型サポート
+    "postgres",          # PostgreSQL driver
+    "macros",            # query! macro
+    "migrate",           # migrations
+    "chrono",            # date/time type support
+    "uuid",              # UUID type support
 ] }
 tokio = { version = "1", features = ["full"] }
 ```
 
-### 2.2 基本的な CRUD 操作
+### 2.2 Basic CRUD Operations
 
 ```rust
 use sqlx::{PgPool, FromRow};
@@ -111,7 +111,7 @@ struct User {
     created_at: DateTime<Utc>,
 }
 
-// コネクションプール作成
+// Create connection pool
 async fn create_pool() -> Result<PgPool, sqlx::Error> {
     PgPool::builder()
         .max_connections(10)
@@ -119,7 +119,7 @@ async fn create_pool() -> Result<PgPool, sqlx::Error> {
         .await
 }
 
-// INSERT — query! マクロでコンパイル時に SQL を検証
+// INSERT — validates SQL at compile time using the query! macro
 async fn create_user(pool: &PgPool, name: &str, email: &str) -> Result<User, sqlx::Error> {
     sqlx::query_as!(
         User,
@@ -136,7 +136,7 @@ async fn create_user(pool: &PgPool, name: &str, email: &str) -> Result<User, sql
     .await
 }
 
-// SELECT — 複数行取得
+// SELECT — fetch multiple rows
 async fn list_users(pool: &PgPool, limit: i64) -> Result<Vec<User>, sqlx::Error> {
     sqlx::query_as!(
         User,
@@ -170,16 +170,16 @@ async fn delete_user(pool: &PgPool, user_id: Uuid) -> Result<bool, sqlx::Error> 
 }
 ```
 
-### 2.3 マイグレーション
+### 2.3 Migrations
 
 ```bash
-# sqlx-cli のインストール
+# Install sqlx-cli
 cargo install sqlx-cli --no-default-features --features postgres
 
-# マイグレーション作成
+# Create a migration
 sqlx migrate add create_users_table
 
-# 生成されたファイルを編集
+# Edit the generated file
 # migrations/20260101000000_create_users_table.sql
 ```
 
@@ -197,31 +197,31 @@ CREATE INDEX idx_users_email ON users (email);
 ```
 
 ```bash
-# マイグレーション実行
+# Run migrations
 sqlx migrate run
 
-# マイグレーション状態確認
+# Check migration status
 sqlx migrate info
 ```
 
-### 2.4 トランザクションの高度な使い方
+### 2.4 Advanced Transaction Usage
 
-sqlx では `pool.begin()` でトランザクションを開始し、`commit()` または `rollback()` で終了する。`Transaction` は `Drop` 時に自動ロールバックするため、明示的な `rollback()` は必須ではない。
+In sqlx, you start a transaction with `pool.begin()` and end it with `commit()` or `rollback()`. Since `Transaction` automatically rolls back on `Drop`, an explicit `rollback()` is not required.
 
 ```rust
 use sqlx::PgPool;
 
-/// ネストされたトランザクション（SAVEPOINT を使用）
+/// Nested transactions (using SAVEPOINT)
 async fn nested_transaction_example(pool: &PgPool) -> Result<(), sqlx::Error> {
     let mut tx = pool.begin().await?;
 
-    // 外側のトランザクションで操作
+    // Operate within the outer transaction
     sqlx::query!("INSERT INTO audit_log (action) VALUES ('start_batch')")
         .execute(&mut *tx)
         .await?;
 
-    // SAVEPOINT を使ったネストされたトランザクション
-    let mut savepoint = tx.begin().await?;  // SAVEPOINT が自動作成される
+    // Nested transaction using SAVEPOINT
+    let mut savepoint = tx.begin().await?;  // SAVEPOINT is created automatically
 
     let result = sqlx::query!(
         "UPDATE inventory SET quantity = quantity - 1 WHERE product_id = $1 AND quantity > 0",
@@ -231,14 +231,14 @@ async fn nested_transaction_example(pool: &PgPool) -> Result<(), sqlx::Error> {
     .await?;
 
     if result.rows_affected() == 0 {
-        // 在庫不足の場合、SAVEPOINT までロールバック
-        // savepoint は Drop 時に自動ロールバック
+        // If out of stock, roll back to the SAVEPOINT
+        // savepoint is automatically rolled back on Drop
         drop(savepoint);
     } else {
-        savepoint.commit().await?;  // SAVEPOINT をリリース
+        savepoint.commit().await?;  // Release the SAVEPOINT
     }
 
-    // 外側のトランザクションはコミット
+    // Commit the outer transaction
     sqlx::query!("INSERT INTO audit_log (action) VALUES ('end_batch')")
         .execute(&mut *tx)
         .await?;
@@ -248,26 +248,26 @@ async fn nested_transaction_example(pool: &PgPool) -> Result<(), sqlx::Error> {
 }
 ```
 
-### 2.5 ストリーミングクエリ
+### 2.5 Streaming Queries
 
-大量のデータを扱う場合、全行をメモリにロードするのではなく、ストリーミングで1行ずつ処理できる。
+When handling large amounts of data, you can stream rows one at a time instead of loading the entire result set into memory.
 
 ```rust
 use sqlx::PgPool;
-use futures::TryStreamExt;  // try_next() を使うために必要
+use futures::TryStreamExt;  // required to use try_next()
 
-/// 100万行のデータをストリーミングで処理
+/// Process 1 million rows of data via streaming
 async fn process_large_dataset(pool: &PgPool) -> Result<(), sqlx::Error> {
     let mut stream = sqlx::query_as!(
         User,
         "SELECT id, name, email, created_at FROM users WHERE created_at > $1",
         cutoff_date,
     )
-    .fetch(pool);  // fetch() はストリームを返す（fetch_all() ではない）
+    .fetch(pool);  // fetch() returns a stream (not fetch_all())
 
     let mut count = 0u64;
     while let Some(user) = stream.try_next().await? {
-        // 1行ずつ処理 — メモリ使用量は一定
+        // Process one row at a time — memory usage stays constant
         process_user(&user).await?;
         count += 1;
 
@@ -281,14 +281,14 @@ async fn process_large_dataset(pool: &PgPool) -> Result<(), sqlx::Error> {
 }
 ```
 
-### 2.6 動的クエリの構築
+### 2.6 Building Dynamic Queries
 
-`query!` マクロは静的 SQL にしか対応しないが、`QueryBuilder` を使えば動的に SQL を組み立てられる。
+The `query!` macro only supports static SQL, but you can use `QueryBuilder` to assemble SQL dynamically.
 
 ```rust
 use sqlx::{PgPool, QueryBuilder, Postgres};
 
-/// 動的な検索条件でユーザーを検索
+/// Search for users with dynamic filter conditions
 async fn search_users(
     pool: &PgPool,
     name_filter: Option<&str>,
@@ -316,12 +316,12 @@ async fn search_users(
         builder.push_bind(min_date);
     }
 
-    // ORDER BY はバインド変数にできないため、ホワイトリストで検証
+    // ORDER BY cannot be a bind variable, so validate against a whitelist
     let safe_order = match order_by {
         "name" => "name",
         "email" => "email",
         "created_at" => "created_at",
-        _ => "created_at",  // デフォルト
+        _ => "created_at",  // default
     };
     builder.push(format!(" ORDER BY {} DESC", safe_order));
 
@@ -335,19 +335,19 @@ async fn search_users(
 }
 ```
 
-### 2.7 バルクインサート
+### 2.7 Bulk Insert
 
-大量のレコードを効率的に挿入する方法。
+Methods for efficiently inserting large numbers of records.
 
 ```rust
 use sqlx::{PgPool, QueryBuilder, Postgres};
 
-/// バルクインサート — 1回のクエリで複数行を挿入
+/// Bulk insert — insert multiple rows in a single query
 async fn bulk_insert_users(
     pool: &PgPool,
     users: &[(String, String)],  // (name, email)
 ) -> Result<u64, sqlx::Error> {
-    // PostgreSQL の場合、VALUES 句に複数行を指定
+    // For PostgreSQL, specify multiple rows in the VALUES clause
     let mut builder: QueryBuilder<Postgres> = QueryBuilder::new(
         "INSERT INTO users (id, name, email, created_at) "
     );
@@ -363,7 +363,7 @@ async fn bulk_insert_users(
     Ok(result.rows_affected())
 }
 
-/// UNNEST を使ったさらに高効率なバルクインサート
+/// Even more efficient bulk insert using UNNEST
 async fn bulk_insert_with_unnest(
     pool: &PgPool,
     names: &[String],
@@ -389,14 +389,14 @@ async fn bulk_insert_with_unnest(
 }
 ```
 
-### 2.8 カスタム型のマッピング
+### 2.8 Mapping Custom Types
 
-sqlx で PostgreSQL のカスタム型（ENUM、複合型）をマッピングする方法。
+How to map PostgreSQL custom types (ENUM, composite types) in sqlx.
 
 ```rust
 use sqlx::Type;
 
-// PostgreSQL ENUM 型のマッピング
+// Mapping a PostgreSQL ENUM type
 // CREATE TYPE user_role AS ENUM ('admin', 'moderator', 'user');
 #[derive(Debug, Clone, PartialEq, Type)]
 #[sqlx(type_name = "user_role", rename_all = "lowercase")]
@@ -429,7 +429,7 @@ async fn find_admins(pool: &PgPool) -> Result<Vec<UserWithRole>, sqlx::Error> {
     .await
 }
 
-// JSON 型のマッピング
+// Mapping a JSON type
 use sqlx::types::Json;
 use serde::{Serialize, Deserialize};
 
@@ -465,9 +465,9 @@ async fn update_preferences(
 
 ---
 
-## 3. diesel — 型安全な DSL ベース ORM
+## 3. diesel — A Type-Safe DSL-Based ORM
 
-### 3.1 セットアップ
+### 3.1 Setup
 
 ```toml
 # Cargo.toml
@@ -477,10 +477,10 @@ diesel_migrations = "2.2"
 dotenvy = "0.15"
 ```
 
-### 3.2 スキーマとモデル定義
+### 3.2 Schema and Model Definitions
 
 ```rust
-// src/schema.rs (diesel CLI が自動生成)
+// src/schema.rs (auto-generated by the diesel CLI)
 diesel::table! {
     users (id) {
         id -> Uuid,
@@ -530,7 +530,7 @@ pub struct NewUser<'a> {
 }
 ```
 
-### 3.3 CRUD 操作
+### 3.3 CRUD Operations
 
 ```rust
 use diesel::prelude::*;
@@ -580,9 +580,9 @@ fn delete_user(conn: &mut PgConnection, user_id: Uuid) -> QueryResult<usize> {
 }
 ```
 
-### 3.4 diesel-async による非同期対応
+### 3.4 Async Support via diesel-async
 
-diesel は本来同期的だが、`diesel-async` クレートを使うと非同期で操作できる。
+diesel is inherently synchronous, but the `diesel-async` crate enables asynchronous operation.
 
 ```toml
 # Cargo.toml
@@ -599,7 +599,7 @@ use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 
 type DbPool = Pool<AsyncPgConnection>;
 
-/// 非同期コネクションプールの作成
+/// Creating an async connection pool
 fn create_pool(database_url: &str) -> DbPool {
     let config = AsyncDieselConnectionManager::<AsyncPgConnection>::new(database_url);
     Pool::builder(config)
@@ -608,7 +608,7 @@ fn create_pool(database_url: &str) -> DbPool {
         .expect("Failed to create pool")
 }
 
-/// 非同期での CRUD 操作
+/// Async CRUD operations
 async fn create_user_async(
     pool: &DbPool,
     name: &str,
@@ -624,7 +624,7 @@ async fn create_user_async(
         .await
 }
 
-/// 非同期でのトランザクション
+/// Async transactions
 async fn transfer_with_diesel_async(
     pool: &DbPool,
     from_id: Uuid,
@@ -652,31 +652,31 @@ async fn transfer_with_diesel_async(
 }
 ```
 
-### 3.5 カスタムクエリとページネーション
+### 3.5 Custom Queries and Pagination
 
 ```rust
 use diesel::prelude::*;
 use diesel::dsl::count_star;
 
-/// ページネーション付きの検索
+/// Search with pagination
 fn paginated_users(
     conn: &mut PgConnection,
     page: i64,
     per_page: i64,
     name_filter: Option<&str>,
 ) -> QueryResult<(Vec<User>, i64)> {
-    let mut query = users::table.into_boxed();  // boxed() で動的クエリを有効化
+    let mut query = users::table.into_boxed();  // boxed() enables dynamic queries
 
     if let Some(name) = name_filter {
         query = query.filter(users::name.ilike(format!("%{}%", name)));
     }
 
-    // 総件数の取得
+    // Get total count
     let total = users::table
         .select(count_star())
         .first::<i64>(conn)?;
 
-    // ページネーション
+    // Pagination
     let results = query
         .order(users::created_at.desc())
         .limit(per_page)
@@ -687,7 +687,7 @@ fn paginated_users(
     Ok((results, total))
 }
 
-/// GROUP BY と集計関数
+/// GROUP BY and aggregate functions
 fn user_post_counts(conn: &mut PgConnection) -> QueryResult<Vec<(Uuid, String, i64)>> {
     users::table
         .left_join(posts::table)
@@ -697,7 +697,7 @@ fn user_post_counts(conn: &mut PgConnection) -> QueryResult<Vec<(Uuid, String, i
         .load::<(Uuid, String, i64)>(conn)
 }
 
-/// サブクエリの使用
+/// Using subqueries
 fn users_with_recent_posts(conn: &mut PgConnection) -> QueryResult<Vec<User>> {
     let recent_posters = posts::table
         .filter(posts::created_at.gt(chrono::Utc::now() - chrono::Duration::days(7)))
@@ -710,28 +710,28 @@ fn users_with_recent_posts(conn: &mut PgConnection) -> QueryResult<Vec<User>> {
 }
 ```
 
-### 3.6 diesel のマイグレーション管理
+### 3.6 Managing Migrations in diesel
 
 ```bash
-# diesel CLI のインストール
+# Install the diesel CLI
 cargo install diesel_cli --no-default-features --features postgres
 
-# プロジェクト初期化（diesel.toml と migrations/ ディレクトリ作成）
+# Initialize the project (creates diesel.toml and the migrations/ directory)
 diesel setup
 
-# マイグレーション作成
+# Create a migration
 diesel migration generate create_users
 
-# マイグレーション実行
+# Run migrations
 diesel migration run
 
-# マイグレーション巻き戻し
+# Roll back migrations
 diesel migration revert
 
-# マイグレーション状態確認
+# Check migration status
 diesel migration list
 
-# スキーマの再生成
+# Regenerate the schema
 diesel print-schema > src/schema.rs
 ```
 
@@ -749,13 +749,13 @@ CREATE TABLE users (
 DROP TABLE users;
 ```
 
-diesel のマイグレーションは `up.sql` と `down.sql` のペアで管理される。ロールバック可能なマイグレーションを書くことで、開発時のスキーマ変更が容易になる。
+diesel migrations are managed as pairs of `up.sql` and `down.sql`. Writing rollback-capable migrations makes schema changes easy during development.
 
 ---
 
-## 4. SeaORM — ActiveRecord パターンの非同期 ORM
+## 4. SeaORM — An ActiveRecord-Style Asynchronous ORM
 
-### 4.1 セットアップ
+### 4.1 Setup
 
 ```toml
 # Cargo.toml
@@ -767,7 +767,7 @@ sea-orm = { version = "1.0", features = [
 ] }
 ```
 
-### 4.2 エンティティ定義
+### 4.2 Entity Definition
 
 ```rust
 // src/entities/user.rs
@@ -798,7 +798,7 @@ impl Related<super::post::Entity> for Entity {
 impl ActiveModelBehavior for ActiveModel {}
 ```
 
-### 4.3 CRUD 操作
+### 4.3 CRUD Operations
 
 ```rust
 use sea_orm::*;
@@ -868,13 +868,13 @@ async fn delete_user(db: &DatabaseConnection, user_id: Uuid) -> Result<DeleteRes
 }
 ```
 
-### 4.4 SeaORM の高度なクエリ
+### 4.4 Advanced SeaORM Queries
 
 ```rust
 use sea_orm::*;
 use sea_orm::sea_query::{Expr, Func};
 
-/// 条件付き動的クエリ
+/// Conditional dynamic queries
 async fn search_users_sea(
     db: &DatabaseConnection,
     name_filter: Option<String>,
@@ -902,7 +902,7 @@ async fn search_users_sea(
     Ok((users, total))
 }
 
-/// カスタム SELECT とグループ化
+/// Custom SELECT and grouping
 async fn user_post_stats(
     db: &DatabaseConnection,
 ) -> Result<Vec<(Uuid, String, i64)>, DbErr> {
@@ -929,7 +929,7 @@ async fn user_post_stats(
     Ok(results.into_iter().map(|r| (r.user_id, r.user_name, r.post_count)).collect())
 }
 
-/// トランザクション
+/// Transactions
 async fn create_user_with_post(
     db: &DatabaseConnection,
     name: &str,
@@ -964,88 +964,88 @@ async fn create_user_with_post(
 }
 ```
 
-### 4.5 SeaORM CLI とコード生成
+### 4.5 SeaORM CLI and Code Generation
 
 ```bash
-# sea-orm-cli のインストール
+# Install sea-orm-cli
 cargo install sea-orm-cli
 
-# データベースからエンティティを自動生成
+# Auto-generate entities from the database
 sea-orm-cli generate entity \
     --database-url "postgres://user:pass@localhost:5432/mydb" \
     --output-dir src/entities \
     --with-serde both \
     --date-time-crate chrono
 
-# マイグレーション作成
+# Create a migration
 sea-orm-cli migrate generate create_users_table
 
-# マイグレーション実行
+# Run migrations
 sea-orm-cli migrate up
 
-# マイグレーション巻き戻し
+# Roll back migrations
 sea-orm-cli migrate down
 ```
 
-エンティティの自動生成は既存のデータベーススキーマから Rust コードを生成するため、特にレガシーデータベースとの統合時に非常に便利である。
+Auto-generating entities produces Rust code from an existing database schema, which is especially convenient when integrating with legacy databases.
 
 ---
 
-## 5. 比較表
+## 5. Comparison Tables
 
-### 5.1 機能比較
+### 5.1 Feature Comparison
 
-| 機能 | sqlx | diesel | SeaORM |
+| Feature | sqlx | diesel | SeaORM |
 |------|------|--------|--------|
-| **パラダイム** | 生 SQL + マクロ | DSL ベース ORM | ActiveRecord ORM |
-| **非同期対応** | ネイティブ | diesel-async で対応 | ネイティブ |
-| **コンパイル時検証** | SQL 構文 + 型 | DSL レベルの型安全 | なし（ランタイム検証） |
-| **マイグレーション** | SQL ファイル | DSL or SQL | SeaORM CLI |
-| **PostgreSQL** | 対応 | 対応 | 対応 |
-| **MySQL** | 対応 | 対応 | 対応 |
-| **SQLite** | 対応 | 対応 | 対応 |
-| **トランザクション** | 対応 | 対応 | 対応 |
-| **接続プール** | 組み込み | 外部 (r2d2/deadpool) | 組み込み (sqlx ベース) |
-| **学習コスト** | 低（SQL が書ければ OK） | 中（DSL の習得が必要） | 中（エンティティ定義の理解） |
-| **コミュニティ** | 大 | 大 | 中 |
+| **Paradigm** | Raw SQL + macros | DSL-based ORM | ActiveRecord ORM |
+| **Async support** | Native | Available via diesel-async | Native |
+| **Compile-time validation** | SQL syntax + types | DSL-level type safety | None (runtime validation) |
+| **Migrations** | SQL files | DSL or SQL | SeaORM CLI |
+| **PostgreSQL** | Supported | Supported | Supported |
+| **MySQL** | Supported | Supported | Supported |
+| **SQLite** | Supported | Supported | Supported |
+| **Transactions** | Supported | Supported | Supported |
+| **Connection pool** | Built-in | External (r2d2/deadpool) | Built-in (sqlx-based) |
+| **Learning curve** | Low (knowing SQL is enough) | Medium (must learn the DSL) | Medium (understand entity definitions) |
+| **Community** | Large | Large | Medium |
 
-### 5.2 パフォーマンス特性比較
+### 5.2 Performance Characteristics Comparison
 
-| 観点 | sqlx | diesel | SeaORM |
+| Aspect | sqlx | diesel | SeaORM |
 |------|------|--------|--------|
-| **クエリ生成オーバーヘッド** | なし（生SQL） | 小（DSL→SQL変換） | 中（ORM抽象化） |
-| **コンパイル時間** | 中（マクロ展開） | 長（型推論が重い） | 中 |
-| **バイナリサイズ** | 小 | 中 | 中 |
-| **N+1 問題対策** | 手動（SQL制御） | 手動（JOIN記述） | find_with_related |
-| **バルクインサート** | query + unnest | insert_into().values(&vec) | insert_many() |
-| **生SQLフォールバック** | デフォルト | sql_query() | FromQueryResult |
+| **Query generation overhead** | None (raw SQL) | Small (DSL→SQL conversion) | Medium (ORM abstraction) |
+| **Compile time** | Medium (macro expansion) | Long (heavy type inference) | Medium |
+| **Binary size** | Small | Medium | Medium |
+| **N+1 problem mitigation** | Manual (control via SQL) | Manual (write JOINs) | find_with_related |
+| **Bulk insert** | query + unnest | insert_into().values(&vec) | insert_many() |
+| **Raw SQL fallback** | Default | sql_query() | FromQueryResult |
 
 ---
 
-## 6. 接続プールの設計と最適化
+## 6. Designing and Optimizing Connection Pools
 
-### 6.1 接続プールの基本原則
+### 6.1 Connection Pool Fundamentals
 
-データベース接続はリソースコストが高いため、接続プールを使って再利用する。プールサイズの設定はアプリケーションのパフォーマンスに直接影響する。
+Database connections are resource-intensive, so use a connection pool to reuse them. Pool size configuration directly affects application performance.
 
 ```rust
 use sqlx::postgres::PgPoolOptions;
 
-/// プロダクション向けの接続プール設定
+/// Production-grade connection pool configuration
 async fn create_production_pool(database_url: &str) -> Result<PgPool, sqlx::Error> {
     PgPoolOptions::new()
-        // 最大接続数: CPU コア数 * 2 + ディスクスピンドル数が目安
-        // 一般的には 10-20 が適切
+        // Max connections: a rule of thumb is CPU cores * 2 + number of disk spindles
+        // Generally 10-20 is appropriate
         .max_connections(20)
-        // 最小接続数: アイドル時にも維持する接続数
+        // Min connections: number of connections to keep alive while idle
         .min_connections(5)
-        // 接続タイムアウト: プールから接続を取得するまでの最大待ち時間
+        // Acquire timeout: maximum time to wait when getting a connection from the pool
         .acquire_timeout(std::time::Duration::from_secs(5))
-        // アイドルタイムアウト: 使われていない接続を閉じるまでの時間
+        // Idle timeout: time before closing unused connections
         .idle_timeout(std::time::Duration::from_secs(600))
-        // 接続の最大生存時間: 古い接続を定期的にリフレッシュ
+        // Max lifetime of a connection: periodically refresh old connections
         .max_lifetime(std::time::Duration::from_secs(1800))
-        // 接続時に実行される SQL（接続の検証やセッション設定）
+        // SQL run when a connection is established (validation or session setup)
         .after_connect(|conn, _meta| {
             Box::pin(async move {
                 sqlx::query("SET timezone = 'UTC'")
@@ -1062,32 +1062,32 @@ async fn create_production_pool(database_url: &str) -> Result<PgPool, sqlx::Erro
 }
 ```
 
-### 6.2 接続プールサイズの決定
+### 6.2 Determining Connection Pool Size
 
-接続プールサイズは以下の要因を考慮して決定する。
+Pool size should be determined considering the following factors.
 
 ```
-推奨プールサイズの計算式:
+Recommended pool size formula:
 
-  pool_size = (CPU コア数 * 2) + 有効ディスクスピンドル数
+  pool_size = (number of CPU cores * 2) + effective disk spindles
 
-例:
-  4コア CPU + SSD (1 スピンドル相当)
+Example:
+  4-core CPU + SSD (equivalent to 1 spindle)
   → pool_size = (4 * 2) + 1 = 9 ≈ 10
 
-注意事項:
-  - PostgreSQL のデフォルト最大接続数は 100
-  - 複数のアプリケーションインスタンスがある場合は合計を考慮
+Notes:
+  - PostgreSQL's default max_connections is 100
+  - When you have multiple application instances, consider the total
   - pool_size = max_connections(DB) / app_instances - margin
 ```
 
-### 6.3 接続プールの監視
+### 6.3 Monitoring the Connection Pool
 
 ```rust
 use sqlx::PgPool;
 use tracing::info;
 
-/// 接続プールの状態をログに出力
+/// Log the connection pool status
 async fn log_pool_status(pool: &PgPool) {
     let size = pool.size();
     let idle = pool.num_idle();
@@ -1100,7 +1100,7 @@ async fn log_pool_status(pool: &PgPool) {
         "Connection pool status"
     );
 
-    // プール使用率が 80% を超えたら警告
+    // Warn if pool utilization exceeds 80%
     if (acquired as f64 / size as f64) > 0.8 {
         tracing::warn!(
             "Connection pool utilization is high: {}/{}",
@@ -1110,7 +1110,7 @@ async fn log_pool_status(pool: &PgPool) {
     }
 }
 
-/// ヘルスチェック用のエンドポイント
+/// Health check endpoint
 async fn health_check(pool: &PgPool) -> Result<(), sqlx::Error> {
     sqlx::query("SELECT 1")
         .execute(pool)
@@ -1121,26 +1121,26 @@ async fn health_check(pool: &PgPool) -> Result<(), sqlx::Error> {
 
 ---
 
-## 7. テスト戦略
+## 7. Testing Strategy
 
-### 7.1 テスト用データベースの管理
+### 7.1 Managing Test Databases
 
-データベースのテストでは、各テストが独立して実行できるようにすることが重要である。
+For database tests, it is important that each test runs independently.
 
 ```rust
-/// テスト用のデータベースを作成するヘルパー
+/// Helper to create a test database
 async fn create_test_database() -> PgPool {
     let db_name = format!("test_{}", Uuid::new_v4().to_string().replace('-', ""));
     let admin_url = "postgres://user:pass@localhost:5432/postgres";
 
-    // テスト用データベースを作成
+    // Create the test database
     let admin_pool = PgPool::connect(admin_url).await.unwrap();
     sqlx::query(&format!("CREATE DATABASE {}", db_name))
         .execute(&admin_pool)
         .await
         .unwrap();
 
-    // テスト用データベースに接続してマイグレーション実行
+    // Connect to the test database and run migrations
     let test_url = format!("postgres://user:pass@localhost:5432/{}", db_name);
     let pool = PgPool::connect(&test_url).await.unwrap();
     sqlx::migrate!("./migrations")
@@ -1151,7 +1151,7 @@ async fn create_test_database() -> PgPool {
     pool
 }
 
-/// テスト終了後にデータベースを削除
+/// Drop the database after the test ends
 async fn cleanup_test_database(pool: PgPool, db_name: &str) {
     pool.close().await;
 
@@ -1164,9 +1164,9 @@ async fn cleanup_test_database(pool: PgPool, db_name: &str) {
 }
 ```
 
-### 7.2 トランザクションベースのテスト
+### 7.2 Transaction-Based Tests
 
-各テストをトランザクション内で実行し、終了後にロールバックすることで高速かつクリーンなテストを実現する。
+By running each test inside a transaction and rolling it back at the end, you can achieve fast and clean tests.
 
 ```rust
 #[cfg(test)]
@@ -1174,8 +1174,8 @@ mod tests {
     use super::*;
     use sqlx::PgPool;
 
-    /// トランザクション内でテストを実行するヘルパー
-    /// テスト終了時に自動ロールバックされる
+    /// Helper to run a test inside a transaction
+    /// Automatically rolled back at the end of the test
     async fn with_test_tx<F, Fut>(pool: &PgPool, f: F)
     where
         F: FnOnce(sqlx::Transaction<'_, sqlx::Postgres>) -> Fut,
@@ -1183,12 +1183,12 @@ mod tests {
     {
         let tx = pool.begin().await.unwrap();
         f(tx).await;
-        // tx は Drop 時に自動ロールバック
+        // tx is automatically rolled back on Drop
     }
 
     #[sqlx::test]
     async fn test_create_user(pool: PgPool) {
-        // sqlx::test マクロはテスト用DBを自動管理
+        // The sqlx::test macro automatically manages the test DB
         let user = create_user(&pool, "Test User", "test@example.com")
             .await
             .unwrap();
@@ -1199,7 +1199,7 @@ mod tests {
 
     #[sqlx::test(fixtures("users"))]
     async fn test_list_users(pool: PgPool) {
-        // fixtures ディレクトリから初期データを投入
+        // Load initial data from the fixtures directory
         let users = list_users(&pool, 10).await.unwrap();
         assert!(!users.is_empty());
     }
@@ -1230,7 +1230,7 @@ mod tests {
 }
 ```
 
-### 7.3 diesel のテスト
+### 7.3 Testing with diesel
 
 ```rust
 #[cfg(test)]
@@ -1238,14 +1238,14 @@ mod tests {
     use diesel::prelude::*;
     use diesel::Connection;
 
-    /// diesel でのトランザクションベーステスト
+    /// Transaction-based testing with diesel
     #[test]
     fn test_create_user_diesel() {
         let mut conn = PgConnection::establish("postgres://...")
             .expect("Failed to connect");
 
-        // test_transaction はトランザクション内でテストを実行し、
-        // 終了後に自動ロールバックする
+        // test_transaction runs the test inside a transaction
+        // and automatically rolls back at the end
         conn.test_transaction::<_, diesel::result::Error, _>(|conn| {
             let user = create_user(conn, "Test", "test@example.com")?;
             assert_eq!(user.name, "Test");
@@ -1260,10 +1260,10 @@ mod tests {
 }
 ```
 
-### 7.4 テストフィクスチャの管理
+### 7.4 Managing Test Fixtures
 
 ```sql
--- fixtures/users.sql（sqlx::test の fixtures で使用）
+-- fixtures/users.sql (used by sqlx::test fixtures)
 INSERT INTO users (id, name, email, created_at) VALUES
     ('550e8400-e29b-41d4-a716-446655440001', 'Alice', 'alice@example.com', '2026-01-01 00:00:00+00'),
     ('550e8400-e29b-41d4-a716-446655440002', 'Bob', 'bob@example.com', '2026-01-02 00:00:00+00'),
@@ -1271,7 +1271,7 @@ INSERT INTO users (id, name, email, created_at) VALUES
 ```
 
 ```rust
-/// テストデータビルダーパターン
+/// Test data builder pattern
 struct UserBuilder {
     name: String,
     email: String,
@@ -1302,7 +1302,7 @@ impl UserBuilder {
     }
 }
 
-// 使用例
+// Usage example
 #[sqlx::test]
 async fn test_with_builder(pool: PgPool) {
     let alice = UserBuilder::new()
@@ -1313,7 +1313,7 @@ async fn test_with_builder(pool: PgPool) {
 
     let bob = UserBuilder::new()
         .name("Bob")
-        .build(&pool)  // email は自動生成
+        .build(&pool)  // email is auto-generated
         .await;
 
     assert_ne!(alice.id, bob.id);
@@ -1322,19 +1322,19 @@ async fn test_with_builder(pool: PgPool) {
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### 8.1 N+1 クエリ問題
+### 8.1 N+1 Query Problem
 
 ```rust
-// NG: ユーザーごとに投稿を個別取得（N+1）
+// BAD: Fetching posts individually for each user (N+1)
 async fn bad_get_users_with_posts(pool: &PgPool) -> Result<Vec<(User, Vec<Post>)>> {
     let users = sqlx::query_as!(User, "SELECT * FROM users")
         .fetch_all(pool).await?;
 
     let mut result = Vec::new();
     for user in users {
-        // ユーザー数だけクエリが発行される!
+        // A query is issued for every single user!
         let posts = sqlx::query_as!(Post,
             "SELECT * FROM posts WHERE user_id = $1", user.id
         ).fetch_all(pool).await?;
@@ -1343,7 +1343,7 @@ async fn bad_get_users_with_posts(pool: &PgPool) -> Result<Vec<(User, Vec<Post>)
     Ok(result)
 }
 
-// OK: JOIN で1回のクエリで取得
+// GOOD: Fetch in a single query using JOIN
 async fn good_get_users_with_posts(pool: &PgPool) -> Result<Vec<UserWithPosts>> {
     sqlx::query_as!(UserWithPosts,
         r#"
@@ -1357,20 +1357,20 @@ async fn good_get_users_with_posts(pool: &PgPool) -> Result<Vec<UserWithPosts>> 
 }
 ```
 
-### 8.2 トランザクション未使用での複数操作
+### 8.2 Multiple Operations Without a Transaction
 
 ```rust
-// NG: トランザクションなしで関連データを操作
+// BAD: Operating on related data without a transaction
 async fn bad_transfer(pool: &PgPool, from: Uuid, to: Uuid, amount: i64) -> Result<()> {
     sqlx::query!("UPDATE accounts SET balance = balance - $1 WHERE id = $2", amount, from)
         .execute(pool).await?;
-    // ← ここで障害が発生すると残高が消失!
+    // ← If a failure occurs here, the balance is lost!
     sqlx::query!("UPDATE accounts SET balance = balance + $1 WHERE id = $2", amount, to)
         .execute(pool).await?;
     Ok(())
 }
 
-// OK: トランザクションで原子性を保証
+// GOOD: Guarantee atomicity with a transaction
 async fn good_transfer(pool: &PgPool, from: Uuid, to: Uuid, amount: i64) -> Result<()> {
     let mut tx = pool.begin().await?;
 
@@ -1379,21 +1379,21 @@ async fn good_transfer(pool: &PgPool, from: Uuid, to: Uuid, amount: i64) -> Resu
     sqlx::query!("UPDATE accounts SET balance = balance + $1 WHERE id = $2", amount, to)
         .execute(&mut *tx).await?;
 
-    tx.commit().await?;  // 両方成功した場合のみコミット
+    tx.commit().await?;  // Commit only if both succeed
     Ok(())
 }
 ```
 
-### 8.3 接続プールの枯渇
+### 8.3 Connection Pool Exhaustion
 
 ```rust
-// NG: 接続を長時間保持する
+// BAD: Holding a connection for a long time
 async fn bad_long_running(pool: &PgPool) -> Result<()> {
-    let mut tx = pool.begin().await?;  // 接続を1つ確保
+    let mut tx = pool.begin().await?;  // Acquire one connection
 
-    // 外部 API の呼び出しなど、DB と無関係な処理
+    // Operations unrelated to the DB, such as calling an external API
     let response = reqwest::get("https://api.example.com/slow-endpoint")
-        .await?;  // ← この間ずっと DB 接続を保持！
+        .await?;  // ← The DB connection is held the whole time!
 
     sqlx::query!("INSERT INTO results (data) VALUES ($1)", response.text().await?)
         .execute(&mut *tx).await?;
@@ -1402,14 +1402,14 @@ async fn bad_long_running(pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-// OK: DB 操作と非 DB 操作を分離
+// GOOD: Separate DB and non-DB operations
 async fn good_minimal_connection(pool: &PgPool) -> Result<()> {
-    // 1. まず外部 API を呼び出す（DB 接続不要）
+    // 1. First, call the external API (no DB connection needed)
     let response = reqwest::get("https://api.example.com/slow-endpoint")
         .await?;
     let data = response.text().await?;
 
-    // 2. DB 操作は最小限の時間で完了
+    // 2. Complete the DB operation in minimal time
     sqlx::query!("INSERT INTO results (data) VALUES ($1)", data)
         .execute(pool).await?;
 
@@ -1417,36 +1417,36 @@ async fn good_minimal_connection(pool: &PgPool) -> Result<()> {
 }
 ```
 
-### 8.4 不適切なインデックス設計
+### 8.4 Poor Index Design
 
 ```rust
-// NG: インデックスなしのカラムで頻繁に検索
+// BAD: Frequently searching on an unindexed column
 async fn bad_search(pool: &PgPool, status: &str) -> Result<Vec<Order>> {
-    // status カラムにインデックスがない場合、全テーブルスキャンになる
+    // Without an index on the status column, this becomes a full table scan
     sqlx::query_as!(Order, "SELECT * FROM orders WHERE status = $1", status)
         .fetch_all(pool).await
 }
 
-// OK: 適切なインデックスをマイグレーションで追加
+// GOOD: Add an appropriate index via migration
 // migrations/xxx_add_orders_status_index.sql:
 // CREATE INDEX CONCURRENTLY idx_orders_status ON orders (status);
 //
-// 複合インデックスの場合はカラム順序が重要:
+// For composite indexes, column order matters:
 // CREATE INDEX idx_orders_status_date ON orders (status, created_at DESC);
-// ↑ WHERE status = ? ORDER BY created_at DESC のクエリに最適
+// ↑ Optimal for queries like WHERE status = ? ORDER BY created_at DESC
 ```
 
-### 8.5 SELECT * の乱用
+### 8.5 Overuse of SELECT *
 
 ```rust
-// NG: 不要なカラムも含めて全カラム取得
+// BAD: Fetching all columns including unnecessary ones
 async fn bad_get_names(pool: &PgPool) -> Result<Vec<String>> {
-    let users = sqlx::query_as!(User, "SELECT * FROM users")  // 全カラム取得
+    let users = sqlx::query_as!(User, "SELECT * FROM users")  // fetches all columns
         .fetch_all(pool).await?;
-    Ok(users.into_iter().map(|u| u.name).collect())  // name しか使わない
+    Ok(users.into_iter().map(|u| u.name).collect())  // only name is used
 }
 
-// OK: 必要なカラムだけ取得
+// GOOD: Fetch only the columns you need
 async fn good_get_names(pool: &PgPool) -> Result<Vec<String>> {
     let rows = sqlx::query_scalar!("SELECT name FROM users")
         .fetch_all(pool).await?;
@@ -1456,12 +1456,12 @@ async fn good_get_names(pool: &PgPool) -> Result<Vec<String>> {
 
 ---
 
-## 9. パフォーマンスチューニング
+## 9. Performance Tuning
 
-### 9.1 EXPLAIN ANALYZE による実行計画の分析
+### 9.1 Analyzing Execution Plans with EXPLAIN ANALYZE
 
 ```rust
-/// クエリの実行計画を取得するユーティリティ
+/// Utility to retrieve the execution plan of a query
 async fn explain_query(pool: &PgPool, query: &str) -> Result<String, sqlx::Error> {
     let rows = sqlx::query_scalar::<_, String>(
         &format!("EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT) {}", query)
@@ -1472,7 +1472,7 @@ async fn explain_query(pool: &PgPool, query: &str) -> Result<String, sqlx::Error
     Ok(rows.join("\n"))
 }
 
-// 使用例
+// Usage example
 async fn debug_slow_query(pool: &PgPool) {
     let plan = explain_query(
         pool,
@@ -1480,42 +1480,42 @@ async fn debug_slow_query(pool: &PgPool) {
     ).await.unwrap();
 
     println!("Query Plan:\n{}", plan);
-    // Seq Scan が出ている場合はインデックスの追加を検討
-    // Nested Loop が出ている場合は JOIN の最適化を検討
+    // If you see Seq Scan, consider adding an index
+    // If you see Nested Loop, consider optimizing the JOIN
 }
 ```
 
-### 9.2 プリペアドステートメントのキャッシュ
+### 9.2 Prepared Statement Caching
 
 ```rust
-// sqlx の query! マクロはプリペアドステートメントを自動的にキャッシュする。
-// 手動でプリペアドステートメントを管理する必要がある場合:
+// The sqlx query! macro automatically caches prepared statements.
+// If you need to manage prepared statements manually:
 
 use sqlx::Statement;
 
 async fn cached_query_example(pool: &PgPool) -> Result<Vec<User>, sqlx::Error> {
-    // プリペアドステートメントは接続ごとにキャッシュされる
-    // query_as! マクロを使う場合は自動管理されるため手動管理は不要
+    // Prepared statements are cached per connection
+    // When using the query_as! macro, this is managed automatically — no manual handling required
 
-    // query() の場合は persistent() で制御可能
+    // For query(), you can control it via persistent()
     sqlx::query_as::<_, User>("SELECT id, name, email, created_at FROM users WHERE email = $1")
         .bind("test@example.com")
-        .persistent(true)  // プリペアドステートメントをキャッシュ（デフォルト: true）
+        .persistent(true)  // Cache the prepared statement (default: true)
         .fetch_all(pool)
         .await
 }
 ```
 
-### 9.3 バッチ処理とパイプライン
+### 9.3 Batch Processing and Pipelines
 
 ```rust
-/// 大量のデータを効率的にバッチ処理
+/// Efficient batch processing of large amounts of data
 async fn batch_update_status(
     pool: &PgPool,
     user_ids: &[Uuid],
     new_status: &str,
 ) -> Result<u64, sqlx::Error> {
-    // 一度に更新する数を制限してデッドロックリスクを軽減
+    // Limit the number updated at once to reduce deadlock risk
     const BATCH_SIZE: usize = 1000;
     let mut total_affected = 0u64;
 
@@ -1534,7 +1534,7 @@ async fn batch_update_status(
     Ok(total_affected)
 }
 
-/// COPY プロトコルによる超高速バルクロード（PostgreSQL 固有）
+/// Ultra-fast bulk loading using the COPY protocol (PostgreSQL specific)
 async fn bulk_load_with_copy(
     pool: &PgPool,
     csv_data: &str,
@@ -1551,15 +1551,15 @@ async fn bulk_load_with_copy(
 }
 ```
 
-### 9.4 読み取りレプリカの活用
+### 9.4 Leveraging Read Replicas
 
 ```rust
 use sqlx::PgPool;
 
-/// 読み取り/書き込みの分離パターン
+/// Read/write separation pattern
 struct DatabasePools {
-    writer: PgPool,   // プライマリ（書き込み用）
-    reader: PgPool,   // レプリカ（読み取り用）
+    writer: PgPool,   // primary (for writes)
+    reader: PgPool,   // replica (for reads)
 }
 
 impl DatabasePools {
@@ -1573,30 +1573,30 @@ impl DatabasePools {
             .await?;
 
         let reader = PgPoolOptions::new()
-            .max_connections(20)  // 読み取りの方が多いため大きく設定
+            .max_connections(20)  // larger because reads are more frequent
             .connect(reader_url)
             .await?;
 
         Ok(Self { writer, reader })
     }
 
-    /// 書き込み操作はプライマリに送信
+    /// Send write operations to the primary
     fn writer(&self) -> &PgPool {
         &self.writer
     }
 
-    /// 読み取り操作はレプリカに送信
+    /// Send read operations to the replica
     fn reader(&self) -> &PgPool {
         &self.reader
     }
 }
 
-// Axum での使用例
+// Usage example with Axum
 async fn list_users_handler(
     State(pools): State<DatabasePools>,
 ) -> Json<Vec<User>> {
     let users = sqlx::query_as!(User, "SELECT * FROM users LIMIT 50")
-        .fetch_all(pools.reader())  // レプリカから読み取り
+        .fetch_all(pools.reader())  // read from the replica
         .await
         .unwrap();
     Json(users)
@@ -1606,7 +1606,7 @@ async fn create_user_handler(
     State(pools): State<DatabasePools>,
     Json(payload): Json<CreateUserRequest>,
 ) -> Json<User> {
-    let user = create_user(pools.writer(), &payload.name, &payload.email)  // プライマリに書き込み
+    let user = create_user(pools.writer(), &payload.name, &payload.email)  // write to the primary
         .await
         .unwrap();
     Json(user)
@@ -1615,9 +1615,9 @@ async fn create_user_handler(
 
 ---
 
-## 10. エラーハンドリングのベストプラクティス
+## 10. Error Handling Best Practices
 
-### 10.1 カスタムエラー型の定義
+### 10.1 Defining Custom Error Types
 
 ```rust
 use thiserror::Error;
@@ -1648,7 +1648,7 @@ impl From<sqlx::Error> for AppError {
                 id: "unknown".to_string(),
             },
             sqlx::Error::Database(db_err) => {
-                // PostgreSQL エラーコードに基づく分類
+                // Classification based on PostgreSQL error codes
                 if let Some(code) = db_err.code() {
                     match code.as_ref() {
                         "23505" => AppError::DuplicateEntry {
@@ -1673,13 +1673,13 @@ impl From<sqlx::Error> for AppError {
 }
 ```
 
-### 10.2 リトライロジック
+### 10.2 Retry Logic
 
 ```rust
 use std::time::Duration;
 use tokio::time::sleep;
 
-/// デッドロックやタイムアウト時の自動リトライ
+/// Automatic retry on deadlocks or timeouts
 async fn with_retry<F, Fut, T>(
     max_retries: u32,
     base_delay: Duration,
@@ -1696,7 +1696,7 @@ where
             Ok(result) => return Ok(result),
             Err(err) if is_retryable(&err) && retries < max_retries => {
                 retries += 1;
-                let delay = base_delay * 2u32.pow(retries - 1);  // 指数バックオフ
+                let delay = base_delay * 2u32.pow(retries - 1);  // exponential backoff
                 let jitter = Duration::from_millis(rand::random::<u64>() % 100);
                 tracing::warn!(
                     retry = retries,
@@ -1711,7 +1711,7 @@ where
     }
 }
 
-/// リトライ可能なエラーかどうかを判定
+/// Determine whether an error is retryable
 fn is_retryable(err: &sqlx::Error) -> bool {
     match err {
         sqlx::Error::PoolTimedOut => true,
@@ -1728,12 +1728,12 @@ fn is_retryable(err: &sqlx::Error) -> bool {
                 false
             }
         }
-        sqlx::Error::Io(_) => true,  // ネットワークエラー
+        sqlx::Error::Io(_) => true,  // network error
         _ => false,
     }
 }
 
-// 使用例
+// Usage example
 async fn reliable_transfer(
     pool: &PgPool,
     from: Uuid,
@@ -1760,14 +1760,14 @@ async fn reliable_transfer(
 
 ---
 
-## 11. 実践的なリポジトリパターン
+## 11. Practical Repository Pattern
 
-### 11.1 リポジトリトレイトの定義
+### 11.1 Defining a Repository Trait
 
 ```rust
 use async_trait::async_trait;
 
-/// リポジトリパターン — DB 実装の抽象化
+/// Repository pattern — abstraction over the DB implementation
 #[async_trait]
 pub trait UserRepository: Send + Sync {
     async fn find_by_id(&self, id: Uuid) -> Result<Option<User>, AppError>;
@@ -1778,7 +1778,7 @@ pub trait UserRepository: Send + Sync {
     async fn delete(&self, id: Uuid) -> Result<bool, AppError>;
 }
 
-/// sqlx による実装
+/// Implementation using sqlx
 pub struct PgUserRepository {
     pool: PgPool,
 }
@@ -1883,13 +1883,13 @@ impl UserRepository for PgUserRepository {
 }
 ```
 
-### 11.2 テスト用モックリポジトリ
+### 11.2 Mock Repository for Testing
 
 ```rust
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 
-/// テスト用のインメモリリポジトリ
+/// In-memory repository for testing
 pub struct MockUserRepository {
     users: Arc<Mutex<HashMap<Uuid, User>>>,
 }
@@ -1958,7 +1958,7 @@ impl UserRepository for MockUserRepository {
     }
 }
 
-// テストでの使用例
+// Usage example in tests
 #[tokio::test]
 async fn test_user_service_with_mock() {
     let repo = MockUserRepository::new();
@@ -1976,23 +1976,23 @@ async fn test_user_service_with_mock() {
 
 ## 12. FAQ
 
-### Q1. sqlx の `query!` マクロはどうやってコンパイル時に SQL を検証している？
+### Q1. How does sqlx's `query!` macro validate SQL at compile time?
 
-**A.** `query!` マクロはコンパイル時に `DATABASE_URL` 環境変数で指定された実際のデータベースに接続し、`PREPARE` ステートメントを使って SQL の構文とカラム型を検証する。CI/CD ではオフラインモード（`sqlx prepare` で生成した `.sqlx/` ディレクトリ）を使うことで DB 接続なしでビルド可能。
+**A.** At compile time, the `query!` macro connects to the actual database specified by the `DATABASE_URL` environment variable and uses a `PREPARE` statement to validate SQL syntax and column types. In CI/CD, you can build without a DB connection by using offline mode (the `.sqlx/` directory generated via `sqlx prepare`).
 
 ```bash
-# オフライン用のクエリメタデータ生成
+# Generate query metadata for offline use
 cargo sqlx prepare
-# → .sqlx/ ディレクトリにメタデータが保存される（Git にコミット）
+# → metadata is saved in the .sqlx/ directory (commit to Git)
 ```
 
-### Q2. diesel と sqlx を同じプロジェクトで併用できる？
+### Q2. Can diesel and sqlx be used together in the same project?
 
-**A.** 技術的には可能だが推奨しない。依存関係が増え、接続プールの管理が複雑になる。複雑なクエリだけ生 SQL を使いたい場合、diesel の `sql_query()` や sqlx のように生 SQL を書ける機能で対応する方が良い。
+**A.** Technically possible but not recommended. It increases dependencies and complicates connection pool management. If you only need raw SQL for complex queries, it is better to use diesel's `sql_query()` or sqlx's ability to write raw SQL.
 
-### Q3. Web フレームワーク（Axum/Actix Web）との統合はどうする？
+### Q3. How do I integrate with web frameworks (Axum/Actix Web)?
 
-**A.** Axum の場合、`State` でプールを共有するのが一般的。
+**A.** With Axum, sharing the pool via `State` is the common approach.
 
 ```rust
 use axum::{extract::State, routing::get, Router, Json};
@@ -2019,41 +2019,41 @@ async fn main() {
 }
 ```
 
-### Q4. マイグレーションの本番運用はどうする？
+### Q4. How should migrations be operated in production?
 
-**A.** マイグレーションはアプリケーション起動時に自動実行するか、CI/CD パイプラインで実行する。
+**A.** Migrations are either run automatically at application startup or executed in the CI/CD pipeline.
 
 ```rust
-// アプリケーション起動時にマイグレーションを実行
+// Run migrations at application startup
 #[tokio::main]
 async fn main() {
     let pool = PgPool::connect("postgres://...").await.unwrap();
 
-    // マイグレーションの実行
+    // Run migrations
     sqlx::migrate!("./migrations")
         .run(&pool)
         .await
         .expect("Failed to run migrations");
 
-    // アプリケーションの起動
+    // Start the application
     start_server(pool).await;
 }
 ```
 
-本番環境では以下の点に注意する:
-- **ゼロダウンタイム**: `ALTER TABLE` はロックを取得するため、大きなテーブルでは `ALTER TABLE ... ADD COLUMN ... DEFAULT ...` を使う（PostgreSQL 11+ では即座に完了）
-- **ロールバック計画**: 各マイグレーションに対応するロールバック SQL を用意する
-- **テスト**: ステージング環境で事前にマイグレーションを検証する
+In production, keep the following in mind:
+- **Zero downtime**: Since `ALTER TABLE` acquires locks, on large tables use `ALTER TABLE ... ADD COLUMN ... DEFAULT ...` (instant on PostgreSQL 11+).
+- **Rollback plan**: Provide rollback SQL for each migration.
+- **Testing**: Validate migrations beforehand in a staging environment.
 
-### Q5. 大量データのページネーションで OFFSET が遅い場合は？
+### Q5. What if OFFSET is slow when paginating large datasets?
 
-**A.** OFFSET は指定された行数分をスキャンするため、大きなオフセットでは遅くなる。Cursor-based ページネーションを使う。
+**A.** OFFSET scans through the specified number of rows, so it becomes slow with large offsets. Use cursor-based pagination instead.
 
 ```rust
-/// Cursor-based ページネーション（OFFSET を使わない）
+/// Cursor-based pagination (without OFFSET)
 async fn list_users_cursor(
     pool: &PgPool,
-    cursor: Option<DateTime<Utc>>,  // 前ページの最後の created_at
+    cursor: Option<DateTime<Utc>>,  // the created_at of the last row on the previous page
     limit: i64,
 ) -> Result<Vec<User>, sqlx::Error> {
     match cursor {
@@ -2091,30 +2091,30 @@ async fn list_users_cursor(
 }
 ```
 
-### Q6. 複数データベースへの対応（マルチテナント）は？
+### Q6. How do I support multiple databases (multi-tenancy)?
 
-**A.** マルチテナントの実装方法はいくつかある。
+**A.** There are several ways to implement multi-tenancy.
 
 ```rust
-/// スキーマベースのマルチテナント（PostgreSQL）
+/// Schema-based multi-tenancy (PostgreSQL)
 async fn with_tenant_schema(
     pool: &PgPool,
     tenant_id: &str,
 ) -> Result<Vec<User>, sqlx::Error> {
     let mut conn = pool.acquire().await?;
 
-    // テナントのスキーマに切り替え
+    // Switch to the tenant's schema
     sqlx::query(&format!("SET search_path TO tenant_{}, public", tenant_id))
         .execute(&mut *conn)
         .await?;
 
-    // 以降のクエリはテナントのスキーマで実行される
+    // Subsequent queries run in the tenant's schema
     sqlx::query_as!(User, "SELECT id, name, email, created_at FROM users")
         .fetch_all(&mut *conn)
         .await
 }
 
-/// データベース分離型マルチテナント
+/// Database-isolated multi-tenancy
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -2143,50 +2143,50 @@ impl TenantPools {
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point in studying this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important. Beyond theory, deepening your understanding by writing actual code and verifying its behavior is crucial.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals to jump straight into advanced topics. We recommend solidly grasping the basic concepts explained in this guide before moving on to the next steps.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in everyday development work. It is especially important during code reviews and architectural design.
 
 ---
 
-## 13. まとめ
+## 13. Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| **sqlx** | 生 SQL 派向け、コンパイル時検証、非同期ネイティブ |
-| **diesel** | 型安全 DSL、コンパイル時保証最強、同期メイン（async 拡張あり） |
-| **SeaORM** | ActiveRecord パターン、Rails 的な開発体験、非同期ネイティブ |
-| **選定基準** | SQL 制御 → sqlx、型安全 → diesel、生産性 → SeaORM |
-| **接続プール** | 適切なサイズ設定、監視、タイムアウト設定が重要 |
-| **テスト** | トランザクションベースのテスト、リポジトリパターンでモック可能に |
-| **エラーハンドリング** | PostgreSQL エラーコードの分類、リトライロジックの実装 |
-| **パフォーマンス** | N+1 回避、Cursor-based ページネーション、EXPLAIN ANALYZE 活用 |
-| **共通注意点** | N+1 回避、トランザクション活用、接続プールの適切な設定 |
+| **sqlx** | For raw-SQL fans, compile-time validation, async-native |
+| **diesel** | Type-safe DSL, strongest compile-time guarantees, primarily synchronous (with async extension) |
+| **SeaORM** | ActiveRecord pattern, Rails-like development experience, async-native |
+| **Selection criteria** | SQL control → sqlx, type safety → diesel, productivity → SeaORM |
+| **Connection pool** | Proper sizing, monitoring, and timeout configuration are critical |
+| **Testing** | Transaction-based tests; the repository pattern enables mocking |
+| **Error handling** | Classify by PostgreSQL error codes; implement retry logic |
+| **Performance** | Avoid N+1, use cursor-based pagination, leverage EXPLAIN ANALYZE |
+| **Common cautions** | Avoid N+1, use transactions, properly configure the connection pool |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Reading
 
-- Rust 非同期プログラミングガイド — tokio ランタイムとの統合
-- Axum Web フレームワークガイド — DB 層との接続パターン
-- SQL パフォーマンスチューニング — インデックス設計とクエリ最適化
+- Rust Asynchronous Programming Guide — integration with the tokio runtime
+- Axum Web Framework Guide — patterns for connecting with the DB layer
+- SQL Performance Tuning — index design and query optimization
 
 ---
 
-## 参考文献
+## References
 
-1. **sqlx 公式リポジトリ** — https://github.com/launchbadge/sqlx
-2. **diesel 公式サイト** — "Getting Started with Diesel" — https://diesel.rs/guides/getting-started
-3. **SeaORM 公式ドキュメント** — https://www.sea-ql.org/SeaORM/docs/introduction/
+1. **sqlx official repository** — https://github.com/launchbadge/sqlx
+2. **diesel official site** — "Getting Started with Diesel" — https://diesel.rs/guides/getting-started
+3. **SeaORM official documentation** — https://www.sea-ql.org/SeaORM/docs/introduction/
 4. **The Rust Programming Language** — "Async/Await" — https://doc.rust-lang.org/book/
 5. **diesel-async** — https://github.com/weiznich/diesel_async
-6. **PostgreSQL 公式ドキュメント** — "Connection Pooling" — https://www.postgresql.org/docs/current/runtime-config-connection.html
-7. **Use The Index, Luke** — SQL インデックス設計ガイド — https://use-the-index-luke.com/
+6. **PostgreSQL official documentation** — "Connection Pooling" — https://www.postgresql.org/docs/current/runtime-config-connection.html
+7. **Use The Index, Luke** — A guide to SQL index design — https://use-the-index-luke.com/
