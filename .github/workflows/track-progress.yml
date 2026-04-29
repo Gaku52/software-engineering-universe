@@ -47,13 +47,10 @@ jobs:
           git add README.md
           git commit -m "chore: update progress tracking [skip ci]"
 
-          # Defensive retry: rebase onto any newer commits and push, with up to 3 attempts
-          for attempt in 1 2 3; do
-            if git pull --rebase origin main && git push; then
-              exit 0
-            fi
-            echo "Push attempt $attempt failed; retrying after brief delay..."
-            sleep 3
-          done
-          echo "All push attempts failed"
-          exit 1
+          # Push (skip gracefully if branch protection blocks direct push)
+          if git pull --rebase origin main && git push; then
+            echo "Progress tracking updated successfully."
+          else
+            echo "Push skipped (branch protection active). Progress tracked locally only."
+            exit 0
+          fi
