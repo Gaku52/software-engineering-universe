@@ -12,7 +12,7 @@ jobs:
   send-report:
     runs-on: ubuntu-latest
 
-    # ⭐ 重要: あなた（Gaku52）だけが実行できる制限
+    # 重要: あなた（Gaku52）だけが実行できる制限
     if: |
       github.repository_owner == 'Gaku52' &&
       (github.actor == 'Gaku52' || github.event_name == 'schedule')
@@ -36,31 +36,26 @@ jobs:
         working-directory: api-cost-skill
         run: npm run build
 
-      - name: Create .env file
-        working-directory: api-cost-skill
-        run: |
-          cat << EOF > .env
-          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY=${{ secrets.SUPABASE_SERVICE_KEY }}
-          EMAIL_PROVIDER=${{ secrets.EMAIL_PROVIDER }}
-          SMTP_HOST=${{ secrets.SMTP_HOST }}
-          SMTP_PORT=${{ secrets.SMTP_PORT }}
-          SMTP_USER=${{ secrets.SMTP_USER }}
-          SMTP_PASS=${{ secrets.SMTP_PASS }}
-          SMTP_FROM=${{ secrets.SMTP_FROM }}
-          NOTIFY_EMAIL=${{ secrets.NOTIFY_EMAIL }}
-          CREDIT_BALANCE=${{ secrets.CREDIT_BALANCE }}
-          DAILY_THRESHOLD=${{ secrets.DAILY_THRESHOLD }}
-          WEEKLY_THRESHOLD=${{ secrets.WEEKLY_THRESHOLD }}
-          MONTHLY_THRESHOLD=${{ secrets.MONTHLY_THRESHOLD }}
-          EOF
-
       - name: Send monthly report
         working-directory: api-cost-skill
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          EMAIL_PROVIDER: ${{ secrets.EMAIL_PROVIDER }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
+          CREDIT_BALANCE: ${{ secrets.CREDIT_BALANCE }}
+          DAILY_THRESHOLD: ${{ secrets.DAILY_THRESHOLD }}
+          WEEKLY_THRESHOLD: ${{ secrets.WEEKLY_THRESHOLD }}
+          MONTHLY_THRESHOLD: ${{ secrets.MONTHLY_THRESHOLD }}
         run: npm run report:monthly
 
       - name: Notify on failure
         if: failure()
         run: |
-          echo "⚠️ Monthly report failed"
+          echo "Monthly report failed"
           echo "Check the logs for details"
