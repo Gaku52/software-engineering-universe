@@ -1,77 +1,76 @@
-# 宣言ファイル（Declaration Files）完全ガイド
+# Complete Guide to Declaration Files
 
-> .d.ts ファイルの仕組みと書き方の全て。DefinitelyTyped、ambient declarations、モジュール拡張、Triple-Slash Directives、型定義の自動生成、ライブラリ作者向けベストプラクティスまで網羅的に解説します。
+> Everything about how `.d.ts` files work and how to write them. This guide covers DefinitelyTyped, ambient declarations, module augmentation, Triple-Slash Directives, automatic type-definition generation, and best practices for library authors.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **宣言ファイルの基本** -- .d.ts ファイルの役割、なぜ必要か、型情報の分離
-2. **declare キーワードの全種類** -- module, namespace, global, var, function, class の使い分け
-3. **Ambient Declarations** -- 実装を持たない型宣言の仕組みと原理
-4. **DefinitelyTyped エコシステム** -- @types パッケージの仕組み、検索、コントリビュート方法
-5. **モジュール拡張とグローバル拡張** -- 既存ライブラリの型定義を安全に拡張する技法
-6. **Triple-Slash Directives** -- /// <reference> の使い方と modern TypeScript での位置づけ
-7. **型定義の自動生成** -- tsc --declaration、dts-bundle-generator、API Extractor
-8. **ライブラリ作者向けベストプラクティス** -- 型定義のパッケージング、バージョニング、メンテナンス
-9. **トラブルシューティング** -- 型が見つからない、型の競合、パフォーマンス問題の解決法
+1. **The basics of declaration files** -- the role of `.d.ts` files, why they are needed, and the separation of type information
+2. **All variants of the `declare` keyword** -- when to use module, namespace, global, var, function, and class
+3. **Ambient Declarations** -- the mechanism and underlying principles of type declarations without implementations
+4. **The DefinitelyTyped ecosystem** -- how `@types` packages work, how to search them, and how to contribute
+5. **Module augmentation and global augmentation** -- safe techniques for extending the type definitions of existing libraries
+6. **Triple-Slash Directives** -- how `/// <reference>` works and its place in modern TypeScript
+7. **Automatic generation of type definitions** -- `tsc --declaration`, dts-bundle-generator, and API Extractor
+8. **Best practices for library authors** -- packaging, versioning, and maintaining type definitions
+9. **Troubleshooting** -- how to resolve missing types, type conflicts, and performance problems
 
+## Prerequisites
 
-## 前提知識
+To get the most out of this guide, the following knowledge will help:
 
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [型チャレンジ](./03-type-challenges.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+- Familiarity with the contents of [Type Challenges](./03-type-challenges.md)
 
 ---
 
-## 目次
+## Table of Contents
 
-1. [宣言ファイルの基本と役割](#1-宣言ファイルの基本と役割)
-2. [declare キーワードの全種類](#2-declare-キーワードの全種類)
-3. [Ambient Declarations の仕組み](#3-ambient-declarations-の仕組み)
-4. [DefinitelyTyped エコシステム](#4-definitelytyped-エコシステム)
-5. [モジュール拡張とグローバル拡張](#5-モジュール拡張とグローバル拡張)
+1. [The Basics and Role of Declaration Files](#1-the-basics-and-role-of-declaration-files)
+2. [All Variants of the `declare` Keyword](#2-all-variants-of-the-declare-keyword)
+3. [How Ambient Declarations Work](#3-how-ambient-declarations-work)
+4. [The DefinitelyTyped Ecosystem](#4-the-definitelytyped-ecosystem)
+5. [Module Augmentation and Global Augmentation](#5-module-augmentation-and-global-augmentation)
 6. [Triple-Slash Directives](#6-triple-slash-directives)
-7. [型定義の自動生成](#7-型定義の自動生成)
-8. [ライブラリ作者向けベストプラクティス](#8-ライブラリ作者向けベストプラクティス)
-9. [トラブルシューティング](#9-トラブルシューティング)
-10. [演習問題](#10-演習問題)
-11. [まとめ](#11-まとめ)
+7. [Automatic Generation of Type Definitions](#7-automatic-generation-of-type-definitions)
+8. [Best Practices for Library Authors](#8-best-practices-for-library-authors)
+9. [Troubleshooting](#9-troubleshooting)
+10. [Exercises](#10-exercises)
+11. [Summary](#11-summary)
 
 ---
 
-## 1. 宣言ファイルの基本と役割
+## 1. The Basics and Role of Declaration Files
 
-### 1.1 なぜ宣言ファイルが必要なのか
+### 1.1 Why Declaration Files Are Necessary
 
-TypeScript は JavaScript のスーパーセットですが、既存の JavaScript ライブラリは型情報を持っていません。宣言ファイル（.d.ts）は、**JavaScript コードに後付けで型情報を提供する**ための仕組みです。
+TypeScript is a superset of JavaScript, but existing JavaScript libraries do not carry type information. Declaration files (`.d.ts`) provide a mechanism for **adding type information to JavaScript code after the fact**.
 
 ```
-【問題】
-JavaScript ライブラリ (lodash.js) には型情報がない
+[Problem]
+A JavaScript library (lodash.js) has no type information
   ↓
-TypeScript プロジェクトで使うと any になってしまう
+When used in a TypeScript project, everything becomes `any`
   ↓
-型安全性が失われる
+Type safety is lost
 
-【解決】
-宣言ファイル (lodash.d.ts) を用意する
+[Solution]
+Provide a declaration file (lodash.d.ts)
   ↓
-型情報だけを記述（実装コードなし）
+It contains only type information (no implementation code)
   ↓
-TypeScript コンパイラが型チェックを実行できる
+The TypeScript compiler can perform type checking
 ```
 
-### 図解1: 宣言ファイルのエコシステム
+### Diagram 1: The Declaration File Ecosystem
 
 ```mermaid
 graph TB
-    A[JavaScript ライブラリ<br/>実装コード] -->|型情報なし| B[TypeScript プロジェクト]
-    C[宣言ファイル .d.ts<br/>型情報のみ] -->|型情報を提供| D[TypeScript コンパイラ]
+    A[JavaScript library<br/>implementation code] -->|no type info| B[TypeScript project]
+    C[Declaration file .d.ts<br/>type info only] -->|provides type info| D[TypeScript compiler]
     B --> D
-    D -->|型チェック実行| E[コンパイル結果<br/>JavaScript]
-    A -->|実行時に使用| F[ランタイム]
+    D -->|runs type checking| E[Compilation result<br/>JavaScript]
+    A -->|used at runtime| F[Runtime]
     E --> F
 
     style C fill:#e1f5ff
@@ -79,32 +78,32 @@ graph TB
     style A fill:#f0f0f0
 ```
 
-### 1.2 宣言ファイルの特徴
+### 1.2 Characteristics of Declaration Files
 
-| 特徴 | 説明 |
+| Characteristic | Description |
 |------|------|
-| **拡張子** | `.d.ts` （declaration TypeScript の略） |
-| **実装コードなし** | 型情報のみを記述。実行可能なコードは書かない |
-| **declare キーワード** | 外部に存在する値の型をコンパイラに伝える |
-| **コンパイル対象外** | `.d.ts` ファイルは JavaScript にコンパイルされない |
-| **型の契約書** | 実装とインターフェースを分離する設計パターン |
+| **Extension** | `.d.ts` (short for "declaration TypeScript") |
+| **No implementation code** | Contains only type information; no executable code |
+| **`declare` keyword** | Tells the compiler the type of values that exist externally |
+| **Excluded from compilation** | `.d.ts` files are not compiled to JavaScript |
+| **Type contracts** | A design pattern that separates implementation from interface |
 
-### コード例1: 基本的な .d.ts ファイルの構造
+### Code Example 1: Structure of a Basic `.d.ts` File
 
 ```typescript
 // types/math-utils.d.ts
 
-// 関数の宣言
+// Function declarations
 declare function add(a: number, b: number): number;
 declare function multiply(a: number, b: number): number;
 declare function divide(a: number, b: number): number | null;
 
-// 変数の宣言
+// Variable declarations
 declare const PI: number;
 declare const E: number;
 declare let debugMode: boolean;
 
-// クラスの宣言
+// Class declaration
 declare class Calculator {
   constructor(initial?: number);
   add(n: number): this;
@@ -115,24 +114,24 @@ declare class Calculator {
   reset(): this;
 }
 
-// インターフェース（declare 不要）
+// Interface (no `declare` needed)
 interface MathOptions {
   precision: number;
   roundingMode: "ceil" | "floor" | "round" | "trunc";
   useRadians?: boolean;
 }
 
-// 型エイリアス（declare 不要）
+// Type alias (no `declare` needed)
 type MathOperation = "add" | "subtract" | "multiply" | "divide";
 
-// 列挙型の宣言
+// Enum declaration
 declare enum MathMode {
   Strict,
   Loose,
   Scientific
 }
 
-// 名前空間の宣言
+// Namespace declaration
 declare namespace MathUtils {
   function randomInt(min: number, max: number): number;
   function clamp(value: number, min: number, max: number): number;
@@ -144,41 +143,41 @@ declare namespace MathUtils {
 }
 ```
 
-**ポイント:**
-- `declare` キーワードは「この値は外部に存在する」という宣言
-- `interface` と `type` は既に型レベルの構文なので `declare` 不要
-- クラスや関数は実装を書かず、型シグネチャのみ記述
+**Key points:**
+- The `declare` keyword states that "this value exists externally."
+- `interface` and `type` are already type-level constructs, so `declare` is unnecessary for them.
+- For classes and functions, you only write the type signatures, not the implementation.
 
-### 1.3 .d.ts ファイルと .ts ファイルの違い
+### 1.3 The Difference Between `.d.ts` Files and `.ts` Files
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ .ts ファイル（通常の TypeScript）                            │
+│ .ts file (regular TypeScript)                               │
 ├─────────────────────────────────────────────────────────────┤
-│ ✓ 実装コードを書く                                          │
-│ ✓ 型情報も書く                                              │
-│ ✓ JavaScript にコンパイルされる                             │
-│ ✓ ランタイムで実行される                                    │
+│ ✓ Contains implementation code                              │
+│ ✓ Contains type information                                 │
+│ ✓ Compiled to JavaScript                                    │
+│ ✓ Executed at runtime                                       │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
-│ .d.ts ファイル（宣言ファイル）                               │
+│ .d.ts file (declaration file)                               │
 ├─────────────────────────────────────────────────────────────┤
-│ ✗ 実装コードは書かない（書いてもコンパイル時に消える）      │
-│ ✓ 型情報のみ書く                                            │
-│ ✗ JavaScript にコンパイルされない                           │
-│ ✗ ランタイムでは使われない（コンパイル時のみ使用）          │
+│ ✗ No implementation code (any is removed at compile time)   │
+│ ✓ Contains only type information                            │
+│ ✗ Not compiled to JavaScript                                │
+│ ✗ Not used at runtime (only used during compilation)        │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### コード例2: .ts と .d.ts の対応関係
+### Code Example 2: Correspondence Between `.ts` and `.d.ts`
 
 ```typescript
-// math-utils.ts （実装ファイル）
+// math-utils.ts (implementation file)
 export const PI = 3.14159;
 
 export function add(a: number, b: number): number {
-  return a + b;  // 実装コードあり
+  return a + b;  // Has implementation code
 }
 
 export class Calculator {
@@ -200,129 +199,129 @@ export class Calculator {
 ```
 
 ```typescript
-// math-utils.d.ts （自動生成または手書き）
+// math-utils.d.ts (auto-generated or hand-written)
 export declare const PI: number;
 
 export declare function add(a: number, b: number): number;
-// 実装コードなし、型シグネチャのみ
+// No implementation code, only the type signature
 
 export declare class Calculator {
   constructor(initial?: number);
   add(n: number): this;
   result(): number;
-  // private フィールドは公開APIでないので省略されることも
+  // private fields are not part of the public API and may be omitted
 }
 ```
 
-### 1.4 宣言ファイルが必要なケース
+### 1.4 When Declaration Files Are Needed
 
 ```
-【ケース1】JavaScript ライブラリに型を付ける
-  例: jQuery, lodash, moment など型定義がない古いライブラリ
-  → @types/xxx パッケージ or 自前の .d.ts ファイル
+[Case 1] Adding types to a JavaScript library
+  Examples: jQuery, lodash, moment, and other older libraries without types
+  → @types/xxx package or your own .d.ts file
 
-【ケース2】グローバル変数に型を付ける
-  例: process.env, window.__INITIAL_STATE__, Webpack の define
-  → global.d.ts などで declare
+[Case 2] Adding types for global variables
+  Examples: process.env, window.__INITIAL_STATE__, Webpack's `define`
+  → Declare them in something like global.d.ts
 
-【ケース3】非 JS ファイルのインポートに型を付ける
-  例: import logo from "./logo.png"
-  → declare module "*.png" で型を定義
+[Case 3] Typing imports of non-JS files
+  Example: import logo from "./logo.png"
+  → Define a type with `declare module "*.png"`
 
-【ケース4】自作ライブラリの型定義を配布
-  例: npm パッケージとして公開する TypeScript ライブラリ
-  → tsc --declaration で .d.ts を自動生成
+[Case 4] Distributing type definitions for a library you wrote
+  Example: A TypeScript library published as an npm package
+  → Use `tsc --declaration` to auto-generate `.d.ts`
 
-【ケース5】モノレポ内で型情報を共有
-  例: 複数パッケージで共通の型定義を使う
-  → shared-types パッケージに .d.ts を集約
+[Case 5] Sharing type information within a monorepo
+  Example: Multiple packages share common type definitions
+  → Consolidate `.d.ts` files in a shared-types package
 ```
 
 ---
 
-## 2. declare キーワードの全種類
+## 2. All Variants of the `declare` Keyword
 
-### 2.1 declare の役割
+### 2.1 The Role of `declare`
 
-`declare` キーワードは「この値は外部のどこかに存在するので、型チェックに使ってほしい」とコンパイラに伝えるためのものです。
+The `declare` keyword tells the compiler, "This value exists somewhere externally; please use it for type checking."
 
 ```typescript
-// declare なし → エラー: 実装が必要
-function add(a: number, b: number): number;  // ❌ 実装がない
+// Without declare → error: implementation required
+function add(a: number, b: number): number;  // ❌ no implementation
 
-// declare あり → OK: 外部に存在することを宣言
-declare function add(a: number, b: number): number;  // ✅ 型情報のみ
+// With declare → OK: declares external existence
+declare function add(a: number, b: number): number;  // ✅ type info only
 ```
 
-### 図解2: declare キーワードの動作原理
+### Diagram 2: How the `declare` Keyword Works
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│ TypeScript コンパイラの視点                               │
+│ TypeScript compiler's perspective                         │
 ├──────────────────────────────────────────────────────────┤
 │                                                           │
 │  declare function foo(): void;                            │
 │          ↓                                                │
-│  「foo という関数がどこかに存在する」                     │
-│  「引数なし、戻り値 void」                                │
-│  「実装はチェックしない（外部にあるはず）」               │
+│  "A function called `foo` exists somewhere"               │
+│  "It takes no arguments and returns void"                 │
+│  "Don't check the implementation (it must be external)"   │
 │          ↓                                                │
-│  foo() を呼ぶコードを型チェックできる                     │
+│  Code that calls foo() can be type-checked                │
 │                                                           │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 declare function（関数の宣言）
+### 2.2 `declare function` (Function Declarations)
 
 ```typescript
 // types/api.d.ts
 
-// 単純な関数
+// Simple function
 declare function fetchData(url: string): Promise<unknown>;
 
-// オーバーロードも可能
+// Overloads are also possible
 declare function parse(data: string): object;
 declare function parse(data: Buffer): object;
 declare function parse(data: string | Buffer): object;
 
-// ジェネリック関数
+// Generic function
 declare function request<T = unknown>(
   url: string,
   options?: RequestOptions
 ): Promise<T>;
 
-// デフォルト引数（型レベルでは ? で表現）
+// Default arguments (expressed at the type level with `?`)
 declare function log(message: string, level?: "info" | "warn" | "error"): void;
 
-// Rest パラメータ
+// Rest parameters
 declare function sum(...numbers: number[]): number;
 
-// コールバック
+// Callback
 declare function addEventListener(
   event: string,
   handler: (e: Event) => void
 ): void;
 ```
 
-### 2.3 declare const/let/var（変数の宣言）
+### 2.3 `declare const/let/var` (Variable Declarations)
 
 ```typescript
 // types/globals.d.ts
 
-// 定数（最も一般的）
+// Constants (most common)
 declare const APP_VERSION: string;
 declare const API_ENDPOINT: string;
 declare const MAX_RETRY: number;
 
-// let（変更可能な値）
+// let (mutable values)
 declare let currentUser: User | null;
 declare let debugEnabled: boolean;
 
-// var（古い JavaScript コード向け）
+// var (for older JavaScript code)
 declare var jQuery: JQueryStatic;
 declare var $: JQueryStatic;
 
-// オブジェクト
+// Object
 declare const config: {
   readonly apiKey: string;
   timeout: number;
@@ -330,46 +329,46 @@ declare const config: {
 };
 ```
 
-**const vs let の使い分け:**
+**When to use const vs let:**
 ```typescript
-// 実行時に変更されない値 → const
+// Value that doesn't change at runtime → const
 declare const BUILD_TIME: string;
 
-// 実行時に変更される可能性がある値 → let
+// Value that may change at runtime → let
 declare let isLoggedIn: boolean;
 ```
 
-### 2.4 declare class（クラスの宣言）
+### 2.4 `declare class` (Class Declarations)
 
 ```typescript
 // types/database.d.ts
 
 declare class Database {
-  // コンストラクタ
+  // Constructor
   constructor(config: DatabaseConfig);
 
-  // メソッド（実装なし）
+  // Methods (no implementation)
   connect(): Promise<void>;
   disconnect(): Promise<void>;
   query<T = unknown>(sql: string, params?: unknown[]): Promise<T[]>;
 
-  // プロパティ
+  // Properties
   readonly isConnected: boolean;
   timeout: number;
 
-  // 静的メンバー
+  // Static members
   static create(config: DatabaseConfig): Database;
   static readonly defaultTimeout: number;
 }
 
-// 継承関係も表現可能
+// Inheritance can also be expressed
 declare class SQLDatabase extends Database {
   beginTransaction(): Promise<Transaction>;
   commit(): Promise<void>;
   rollback(): Promise<void>;
 }
 
-// 抽象クラス（実際は interface として使う方が一般的）
+// Abstract class (in practice, an interface is more common)
 declare abstract class BaseRepository<T> {
   abstract findById(id: string): Promise<T | null>;
   abstract save(entity: T): Promise<void>;
@@ -377,27 +376,27 @@ declare abstract class BaseRepository<T> {
 }
 ```
 
-### 2.5 declare module（モジュールの宣言）
+### 2.5 `declare module` (Module Declarations)
 
-最も重要な使い方の一つです。外部モジュール全体の型を定義します。
+This is one of the most important uses. It defines the types of an entire external module.
 
 ```typescript
 // types/custom-library.d.ts
 
-// モジュール全体の型を宣言
+// Declare types for the whole module
 declare module "custom-library" {
-  // エクスポートされる型
+  // Exported types
   export interface Config {
     host: string;
     port: number;
     ssl?: boolean;
   }
 
-  // エクスポートされる関数
+  // Exported functions
   export function createClient(config: Config): Client;
   export function parseUrl(url: string): ParsedUrl;
 
-  // エクスポートされるクラス
+  // Exported class
   export class Client {
     constructor(config: Config);
     connect(): Promise<void>;
@@ -405,24 +404,24 @@ declare module "custom-library" {
     send(data: string): Promise<Response>;
   }
 
-  // 型エイリアス
+  // Type alias
   export type ConnectionStatus = "connected" | "disconnected" | "connecting";
 
-  // デフォルトエクスポート
+  // Default export
   export default createClient;
 }
 
-// 使用側
+// Consumer side
 import customLib, { Client, Config } from "custom-library";
-// ↑ 型情報が効く
+// ↑ Type information is now available
 ```
 
-**Wildcard モジュール宣言:**
+**Wildcard module declarations:**
 
 ```typescript
 // types/assets.d.ts
 
-// 画像ファイル全般
+// Image files in general
 declare module "*.png" {
   const src: string;
   export default src;
@@ -438,7 +437,7 @@ declare module "*.svg" {
   export default src;
 }
 
-// SVG を React コンポーネントとして扱う場合
+// When SVGs are imported as React components
 declare module "*.svg?component" {
   import { FC, SVGProps } from "react";
   const Component: FC<SVGProps<SVGSVGElement>>;
@@ -456,13 +455,13 @@ declare module "*.module.scss" {
   export default classes;
 }
 
-// JSON ファイル
+// JSON files
 declare module "*.json" {
   const value: unknown;
   export default value;
 }
 
-// YAML ファイル
+// YAML files
 declare module "*.yaml" {
   const data: Record<string, unknown>;
   export default data;
@@ -477,20 +476,20 @@ declare module "*.worker.ts" {
 }
 ```
 
-### 2.6 declare namespace（名前空間の宣言）
+### 2.6 `declare namespace` (Namespace Declarations)
 
 ```typescript
 // types/jquery.d.ts
 
 declare namespace jQuery {
-  // ネストした名前空間
+  // Nested namespace
   namespace fn {
     interface JQuery {
       customPlugin(options?: CustomPluginOptions): this;
     }
   }
 
-  // インターフェース
+  // Interface
   interface AjaxSettings {
     url?: string;
     method?: "GET" | "POST" | "PUT" | "DELETE";
@@ -498,42 +497,42 @@ declare namespace jQuery {
     success?: (data: unknown) => void;
   }
 
-  // 関数
+  // Functions
   function ajax(settings: AjaxSettings): void;
   function get(url: string): Promise<unknown>;
 
-  // 定数
+  // Constants
   const version: string;
 }
 
-// グローバル変数としても使える
+// Can also be used as a global variable
 declare const jQuery: typeof jQuery;
 ```
 
-**モダンな TypeScript では namespace より module を推奨:**
+**In modern TypeScript, prefer module over namespace:**
 
 ```typescript
-// 古いスタイル（namespace）
+// Old style (namespace)
 declare namespace MyLib {
   function doSomething(): void;
 }
 
-// 新しいスタイル（module）
+// New style (module)
 declare module "my-lib" {
   export function doSomething(): void;
 }
 ```
 
-### 2.7 declare global（グローバルスコープへの追加）
+### 2.7 `declare global` (Adding to the Global Scope)
 
-モジュールファイル（export/import がある .d.ts）内でグローバル型を追加したい場合に使います。
+Use this when you want to add global types from inside a module file (a `.d.ts` file with `export`/`import`).
 
 ```typescript
 // types/global.d.ts
 
-// グローバル変数を追加
+// Add global variables
 declare global {
-  // Window オブジェクトの拡張
+  // Extend the Window object
   interface Window {
     __INITIAL_STATE__: {
       user: User | null;
@@ -543,40 +542,40 @@ declare global {
     dataLayer: unknown[];
   }
 
-  // グローバル関数
+  // Global functions
   function gtag(command: "event", action: string, params?: object): void;
   function gtag(command: "config", targetId: string, params?: object): void;
 
-  // グローバル型
+  // Global types
   type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
   interface JsonObject { [key: string]: JsonValue }
   interface JsonArray extends Array<JsonValue> {}
 
-  // Array の拡張（プロトタイプメソッド追加を想定）
+  // Extending Array (for adding prototype methods)
   interface Array<T> {
     last(): T | undefined;
     first(): T | undefined;
   }
 
-  // String の拡張
+  // Extending String
   interface String {
     capitalize(): string;
     truncate(length: number): string;
   }
 }
 
-// モジュールとして認識させるためのダミーエクスポート
+// Dummy export to make this file a module
 export {};
 ```
 
-**重要:** `declare global` を使うには、そのファイルがモジュールである必要があります（`export {}` など）。
+**Important:** To use `declare global`, the file must be a module (e.g., contain an `export {}`).
 
-### 2.8 declare enum（列挙型の宣言）
+### 2.8 `declare enum` (Enum Declarations)
 
 ```typescript
 // types/enums.d.ts
 
-// 通常の enum
+// Regular enum
 declare enum LogLevel {
   Debug,
   Info,
@@ -584,7 +583,7 @@ declare enum LogLevel {
   Error
 }
 
-// 文字列 enum
+// String enum
 declare enum Status {
   Pending = "PENDING",
   InProgress = "IN_PROGRESS",
@@ -592,7 +591,7 @@ declare enum Status {
   Failed = "FAILED"
 }
 
-// const enum（コンパイル時にインライン化される）
+// const enum (inlined at compile time)
 declare const enum Direction {
   Up,
   Down,
@@ -601,70 +600,70 @@ declare const enum Direction {
 }
 ```
 
-**注意:** `declare enum` は ambient context でのみ使用可能です。
+**Note:** `declare enum` can only be used in an ambient context.
 
-### 比較表1: declare の種類と用途
+### Comparison Table 1: Kinds of `declare` and Their Uses
 
-| 宣言方法 | 用途 | スコープ | 例 |
+| Declaration | Use | Scope | Example |
 |---------|------|---------|-----|
-| `declare function` | 関数の型宣言 | グローバル/モジュール | `declare function log(msg: string): void;` |
-| `declare const` | 定数の型宣言 | グローバル/モジュール | `declare const VERSION: string;` |
-| `declare let/var` | 変数の型宣言 | グローバル/モジュール | `declare let isDebug: boolean;` |
-| `declare class` | クラスの型宣言 | グローバル/モジュール | `declare class User { ... }` |
-| `declare module` | モジュール全体の型 | モジュール | `declare module "lib" { ... }` |
-| `declare namespace` | 名前空間の型 | グローバル/モジュール | `declare namespace App { ... }` |
-| `declare global` | グローバル型の追加 | グローバル（モジュール内から） | `declare global { ... }` |
-| `declare enum` | 列挙型の宣言 | グローバル/モジュール | `declare enum Color { Red, Green }` |
+| `declare function` | Function type declaration | Global / module | `declare function log(msg: string): void;` |
+| `declare const` | Constant type declaration | Global / module | `declare const VERSION: string;` |
+| `declare let/var` | Variable type declaration | Global / module | `declare let isDebug: boolean;` |
+| `declare class` | Class type declaration | Global / module | `declare class User { ... }` |
+| `declare module` | Type for an entire module | Module | `declare module "lib" { ... }` |
+| `declare namespace` | Namespace type declaration | Global / module | `declare namespace App { ... }` |
+| `declare global` | Adding global types | Global (from inside a module) | `declare global { ... }` |
+| `declare enum` | Enum declaration | Global / module | `declare enum Color { Red, Green }` |
 
 ---
 
-## 3. Ambient Declarations の仕組み
+## 3. How Ambient Declarations Work
 
-### 3.1 Ambient とは何か
+### 3.1 What Does "Ambient" Mean?
 
-**Ambient**（環境的、周囲の）という言葉は、「どこかに存在するが、TypeScript コンパイラからは直接見えない」値や型を表します。
+The word **ambient** describes values or types that "exist somewhere but are not directly visible to the TypeScript compiler."
 
 ```
-通常の宣言:
-  const x = 10;  // TypeScript が実装を見て型を推論
+Regular declaration:
+  const x = 10;  // TypeScript inspects the implementation and infers the type
 
-Ambient 宣言:
-  declare const x: number;  // 実装は見えないが「存在する」と信じる
+Ambient declaration:
+  declare const x: number;  // The implementation isn't visible, but we trust it "exists"
 ```
 
-### 3.2 Ambient Context とは
+### 3.2 What Is an Ambient Context?
 
-Ambient context は「実装コードを持たない型宣言のみの領域」です。以下が ambient context に該当します:
+An ambient context is "a region that contains only type declarations, with no implementation code." The following count as ambient contexts:
 
-1. `.d.ts` ファイル全体
-2. `declare module` ブロック内
-3. `declare namespace` ブロック内
-4. `declare global` ブロック内
+1. The entirety of a `.d.ts` file
+2. Inside a `declare module` block
+3. Inside a `declare namespace` block
+4. Inside a `declare global` block
 
 ```typescript
-// このファイル全体が ambient context
+// The entire file is an ambient context
 // types/example.d.ts
 
 declare const foo: string;  // OK: ambient context
 
-const bar = "hello";  // これは OK だが、実装コードは .d.ts では無視される
+const bar = "hello";  // This is allowed, but implementation code is ignored in .d.ts
 
 export function baz(): void {
-  // ❌ エラー: ambient context では実装を書けない
+  // ❌ Error: cannot include implementation in an ambient context
   console.log("test");
 }
 
-export declare function qux(): void;  // ✅ OK: 型宣言のみ
+export declare function qux(): void;  // ✅ OK: type declaration only
 ```
 
-### 3.3 Ambient Modules（アンビエントモジュール）
+### 3.3 Ambient Modules
 
-外部モジュールの型を宣言する機能です。
+A feature for declaring the types of an external module.
 
 ```typescript
 // types/external-libs.d.ts
 
-// JavaScript ライブラリに型を付ける
+// Add types to a JavaScript library
 declare module "legacy-lib" {
   export function doSomething(arg: string): number;
   export const version: string;
@@ -682,7 +681,7 @@ declare module "*.json" {
   export default value;
 }
 
-// バンドラー固有の機能（Vite の ?url import など）
+// Bundler-specific features (e.g., Vite's `?url` import)
 declare module "*?url" {
   const url: string;
   export default url;
@@ -700,12 +699,12 @@ declare module "*.wasm" {
 }
 ```
 
-### コード例3: Ambient Modules の実践例
+### Code Example 3: Practical Examples of Ambient Modules
 
 ```typescript
 // types/vendor.d.ts
 
-// jQuery プラグインの型定義
+// Type definitions for a jQuery plugin
 declare module "jquery-validation" {
   interface JQuery {
     validate(options?: ValidationOptions): Validator;
@@ -724,7 +723,7 @@ declare module "jquery-validation" {
   }
 }
 
-// Webpack の require.context
+// Webpack's require.context
 declare module "*.worker.js" {
   class WebpackWorker extends Worker {
     constructor();
@@ -732,7 +731,7 @@ declare module "*.worker.js" {
   export default WebpackWorker;
 }
 
-// Vite の import.meta.env
+// Vite's import.meta.env
 declare module "vite/client" {
   interface ImportMetaEnv {
     readonly VITE_APP_TITLE: string;
@@ -748,44 +747,44 @@ declare module "vite/client" {
 
 ### 3.4 Script vs Module Context
 
-TypeScript ファイルは「スクリプト」または「モジュール」のどちらかとして扱われます。
+A TypeScript file is treated as either a "script" or a "module."
 
 ```
-【スクリプト】
-  - export/import がない .ts/.d.ts ファイル
-  - グローバルスコープに直接宣言できる
-  - declare なしでグローバル変数を宣言可能
+[Script]
+  - A .ts/.d.ts file with no export/import
+  - Can declare directly into the global scope
+  - Can declare global variables without `declare`
 
-【モジュール】
-  - export/import がある .ts/.d.ts ファイル
-  - モジュールスコープ（ファイルごとに独立）
-  - グローバルに追加するには declare global が必要
+[Module]
+  - A .ts/.d.ts file with export/import
+  - Module scope (each file is independent)
+  - To add to the global scope, `declare global` is required
 ```
 
 ```typescript
-// global-script.d.ts （スクリプト）
-// export/import がない → スクリプトとして扱われる
+// global-script.d.ts (script)
+// No export/import → treated as a script
 
 interface User {
   id: string;
   name: string;
 }
 
-declare const currentUser: User;  // グローバルに追加される
+declare const currentUser: User;  // Added to the global scope
 
-// このファイルは全プロジェクトで User と currentUser が使える
+// In this file, User and currentUser are available throughout the project
 ```
 
 ```typescript
-// module-types.d.ts （モジュール）
-// export がある → モジュールとして扱われる
+// module-types.d.ts (module)
+// Has an export → treated as a module
 
 export interface Product {
   id: string;
   name: string;
 }
 
-// グローバルに追加したい場合は declare global が必要
+// To add to the global scope, `declare global` is required
 declare global {
   interface Window {
     products: Product[];
@@ -793,25 +792,25 @@ declare global {
 }
 ```
 
-### 図解3: Ambient Declarations の解決フロー
+### Diagram 3: Resolution Flow for Ambient Declarations
 
 ```mermaid
 flowchart TD
-    A[TypeScript コード] --> B{import/require がある?}
-    B -->|Yes| C[モジュール解決]
-    B -->|No| D[グローバル解決]
+    A[TypeScript code] --> B{Has import/require?}
+    B -->|Yes| C[Module resolution]
+    B -->|No| D[Global resolution]
 
-    C --> E{パッケージ内に型定義?}
-    E -->|Yes| F[package.json の types フィールド]
-    E -->|No| G{@types パッケージ?}
-    G -->|Yes| H[@types/xxx から読み込み]
-    G -->|No| I[declare module で宣言]
+    C --> E{Type defs in package?}
+    E -->|Yes| F[`types` field in package.json]
+    E -->|No| G{An @types package?}
+    G -->|Yes| H[Load from @types/xxx]
+    G -->|No| I[Declare with declare module]
 
-    D --> J[.d.ts ファイルから検索]
-    J --> K[tsconfig.json の include/files]
-    K --> L[typeRoots からグローバル型を読み込み]
+    D --> J[Search .d.ts files]
+    J --> K[include/files in tsconfig.json]
+    K --> L[Load global types from typeRoots]
 
-    F --> M[型チェック実行]
+    F --> M[Run type checking]
     H --> M
     I --> M
     L --> M
@@ -823,39 +822,39 @@ flowchart TD
 
 ---
 
-## 4. DefinitelyTyped エコシステム
+## 4. The DefinitelyTyped Ecosystem
 
-### 4.1 DefinitelyTyped とは
+### 4.1 What Is DefinitelyTyped?
 
-DefinitelyTyped は、**JavaScript ライブラリの型定義を集約したコミュニティリポジトリ**です。8,000 以上のパッケージの型定義が管理されています。
+DefinitelyTyped is **a community repository that aggregates type definitions for JavaScript libraries**. It manages type definitions for over 8,000 packages.
 
 ```
-GitHub リポジトリ:
+GitHub repository:
   https://github.com/DefinitelyTyped/DefinitelyTyped
 
-公式サイト:
+Official site:
   https://www.typescriptlang.org/dt/
 
-型定義の検索:
+Search for type definitions:
   https://www.typescriptlang.org/dt/search
 ```
 
-### 4.2 @types パッケージの仕組み
+### 4.2 How `@types` Packages Work
 
 ```
-DefinitelyTyped に型定義をプッシュ
+Push type definitions to DefinitelyTyped
           ↓
-自動的に npm パッケージとして公開
+Automatically published as an npm package
           ↓
-@types/パッケージ名 でインストール可能
+Installable as @types/<package-name>
           ↓
-TypeScript が自動的に認識
+Automatically recognized by TypeScript
 ```
 
-### コード例4: @types パッケージの利用
+### Code Example 4: Using `@types` Packages
 
 ```bash
-# 型定義のインストール
+# Install type definitions
 npm install --save-dev @types/node
 npm install --save-dev @types/express
 npm install --save-dev @types/lodash
@@ -863,29 +862,29 @@ npm install --save-dev @types/jest
 npm install --save-dev @types/react
 npm install --save-dev @types/react-dom
 
-# 型定義の検索（TypeSearch CLI）
+# Search for type definitions (TypeSearch CLI)
 npx typesearch express
 npx typesearch moment
 npx typesearch socket.io
 
-# 特定バージョンの型定義をインストール
+# Install a specific version of a type definition
 npm install --save-dev @types/express@4.17.13
 ```
 
 ```typescript
-// @types/express がインストールされていれば型が効く
+// With @types/express installed, types are available
 import express, { Request, Response, NextFunction } from "express";
 
 const app = express();
 
-// Request, Response の型が正確に推論される
+// Request and Response types are inferred precisely
 app.get("/users/:id", (req: Request, res: Response) => {
-  const id = req.params.id;  // 型: string
-  const query = req.query;    // 型: qs.ParsedQs
+  const id = req.params.id;  // type: string
+  const query = req.query;    // type: qs.ParsedQs
   res.json({ id, query });
 });
 
-// Middleware の型も正確
+// Middleware types are also accurate
 app.use((req: Request, res: Response, next: NextFunction) => {
   console.log(`${req.method} ${req.path}`);
   next();
@@ -894,63 +893,63 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.listen(3000);
 ```
 
-### 4.3 型定義の解決順序
+### 4.3 Type Resolution Order
 
-TypeScript が型定義を探す優先順位は以下の通りです:
+The priority TypeScript uses to find type definitions is as follows:
 
 ```
-【優先度1】ローカルの .d.ts ファイル
-  └── tsconfig.json の include/files で指定されたファイル
-  └── 例: ./types/custom.d.ts
+[Priority 1] Local .d.ts files
+  └── Files specified by include/files in tsconfig.json
+  └── Example: ./types/custom.d.ts
 
-【優先度2】パッケージ自体に含まれる型定義
-  └── package.json の "types" または "typings" フィールド
-  └── 例: node_modules/axios/index.d.ts
+[Priority 2] Type definitions bundled with the package
+  └── The `types` or `typings` field in package.json
+  └── Example: node_modules/axios/index.d.ts
 
-【優先度3】@types パッケージ
-  └── node_modules/@types/ ディレクトリ
-  └── 例: node_modules/@types/express/index.d.ts
+[Priority 3] @types packages
+  └── Under node_modules/@types/
+  └── Example: node_modules/@types/express/index.d.ts
 
-【優先度4】typeRoots の設定
-  └── tsconfig.json の typeRoots で指定されたパス
-  └── デフォルト: ["./node_modules/@types"]
+[Priority 4] typeRoots configuration
+  └── Paths specified by typeRoots in tsconfig.json
+  └── Default: ["./node_modules/@types"]
 
-【優先度5】paths の設定
-  └── tsconfig.json の paths で指定されたエイリアス
+[Priority 5] paths configuration
+  └── Aliases specified by paths in tsconfig.json
 
-見つからない場合:
-  └── 暗黙的に any 型（noImplicitAny: true でエラー）
+If not found:
+  └── Implicitly typed `any` (with `noImplicitAny: true`, this is an error)
 ```
 
-### コード例5: tsconfig.json での型解決の設定
+### Code Example 5: Configuring Type Resolution in tsconfig.json
 
 ```json
 {
   "compilerOptions": {
-    // 型定義を探すルートディレクトリ
+    // Root directories to search for type definitions
     "typeRoots": [
-      "./types",              // プロジェクト独自の型定義
-      "./node_modules/@types" // npm の @types パッケージ
+      "./types",              // Project-specific type definitions
+      "./node_modules/@types" // npm @types packages
     ],
 
-    // 特定の @types のみ使用（指定しない場合は全て読み込む）
+    // Use only specific @types (if not specified, all are loaded)
     "types": [
-      "node",    // @types/node のみ
-      "jest",    // @types/jest のみ
-      "express"  // @types/express のみ
+      "node",    // Only @types/node
+      "jest",    // Only @types/jest
+      "express"  // Only @types/express
     ],
 
-    // カスタムパスマッピング
+    // Custom path mappings
     "paths": {
       "@/*": ["./src/*"],
       "@types/*": ["./types/*"],
       "~/*": ["./"]
     },
 
-    // 暗黙的な any を禁止（型定義がない場合エラー）
+    // Disallow implicit any (errors when type defs are missing)
     "noImplicitAny": true,
 
-    // 型定義の自動生成
+    // Auto-generate type definitions
     "declaration": true,
     "declarationMap": true,
     "emitDeclarationOnly": false
@@ -968,23 +967,23 @@ TypeScript が型定義を探す優先順位は以下の通りです:
 }
 ```
 
-### 4.4 DefinitelyTyped へのコントリビュート方法
+### 4.4 How to Contribute to DefinitelyTyped
 
-#### ステップ1: リポジトリをフォークしてクローン
+#### Step 1: Fork and Clone the Repository
 
 ```bash
-# フォーク後にクローン
+# Clone after forking
 git clone https://github.com/YOUR_USERNAME/DefinitelyTyped.git
 cd DefinitelyTyped
 
-# ブランチを作成
+# Create a branch
 git checkout -b add-types-for-my-library
 ```
 
-#### ステップ2: 型定義ファイルを作成
+#### Step 2: Create the Type Definition File
 
 ```bash
-# 新しいパッケージの型定義を追加
+# Add type definitions for a new package
 mkdir -p types/my-library
 cd types/my-library
 ```
@@ -1009,7 +1008,7 @@ export class Client {
   request<T>(path: string): Promise<T>;
 }
 
-export as namespace MyLibrary;  // UMD global も対応
+export as namespace MyLibrary;  // Also support UMD global
 ```
 
 ```json
@@ -1040,7 +1039,7 @@ export as namespace MyLibrary;  // UMD global も対応
 
 import { initialize, Client, Config } from "my-library";
 
-// 型テスト: これがコンパイルエラーにならなければOK
+// Type test: passes if it compiles without errors
 const config: Config = {
   apiKey: "test"
 };
@@ -1051,50 +1050,50 @@ const client = new Client(config);
 client.request<string>("/api/data");
 ```
 
-#### ステップ3: テストを実行
+#### Step 3: Run the Tests
 
 ```bash
-# 型定義のテストを実行
+# Run the type-definition tests
 npm test -- my-library
 ```
 
-#### ステップ4: Pull Request を作成
+#### Step 4: Open a Pull Request
 
 ```bash
 git add types/my-library
 git commit -m "Add type definitions for my-library"
 git push origin add-types-for-my-library
 
-# GitHub で Pull Request を作成
+# Open a Pull Request on GitHub
 ```
 
-### 比較表2: 型定義の提供方法の比較
+### Comparison Table 2: Comparing Methods of Providing Type Definitions
 
-| 提供方法 | 例 | メリット | デメリット | 推奨度 |
+| Method | Examples | Pros | Cons | Recommendation |
 |---------|-----|---------|-----------|--------|
-| **バンドル型**<br/>(パッケージに含む) | axios, zod, ts-node | ・ユーザーが追加インストール不要<br/>・バージョン不一致なし<br/>・常に最新 | ・ライブラリ作者の負担<br/>・型定義のバグもリリース必要 | ⭐⭐⭐⭐⭐ |
-| **@types パッケージ**<br/>(DefinitelyTyped) | @types/express, @types/lodash | ・コミュニティメンテナンス<br/>・ライブラリ作者の負担軽減<br/>・型のみ更新可能 | ・バージョン不一致のリスク<br/>・メンテナが少ない場合放置される | ⭐⭐⭐⭐ |
-| **自前 .d.ts**<br/>(プロジェクト内) | types/custom-lib.d.ts | ・完全な制御<br/>・プロジェクト固有の調整可能 | ・メンテナンスコスト<br/>・他プロジェクトで再利用不可 | ⭐⭐⭐ |
-| **型なし** | 古い jQuery プラグインなど | なし | ・型安全性なし<br/>・any になる<br/>・補完なし | ⭐ |
+| **Bundled types**<br/>(included in the package) | axios, zod, ts-node | - No additional install for users<br/>- No version mismatch<br/>- Always up to date | - Burden on the library author<br/>- Type-def bugs require a release | ⭐⭐⭐⭐⭐ |
+| **`@types` package**<br/>(DefinitelyTyped) | @types/express, @types/lodash | - Community-maintained<br/>- Less burden on author<br/>- Type-only updates possible | - Risk of version mismatch<br/>- May go stale with few maintainers | ⭐⭐⭐⭐ |
+| **Hand-written .d.ts**<br/>(in the project) | types/custom-lib.d.ts | - Full control<br/>- Project-specific tweaks possible | - Maintenance cost<br/>- Not reusable across projects | ⭐⭐⭐ |
+| **No types** | Old jQuery plugins, etc. | None | - No type safety<br/>- Becomes any<br/>- No autocomplete | ⭐ |
 
 ---
 
-## 5. モジュール拡張とグローバル拡張
+## 5. Module Augmentation and Global Augmentation
 
-### 5.1 モジュール拡張（Module Augmentation）
+### 5.1 Module Augmentation
 
-既存のモジュールの型定義を拡張する技法です。
+A technique for extending the type definitions of an existing module.
 
-### コード例6: Express の型を拡張
+### Code Example 6: Extending Express Types
 
 ```typescript
 // types/express-extension.d.ts
 
 import "express";
 
-// Express の既存インターフェースを拡張
+// Extend Express's existing interface
 declare module "express" {
-  // Request インターフェースにカスタムプロパティを追加
+  // Add custom properties to the Request interface
   interface Request {
     userId?: string;
     role?: "admin" | "user" | "guest";
@@ -1102,26 +1101,26 @@ declare module "express" {
     correlationId: string;
   }
 
-  // Response インターフェースも拡張可能
+  // The Response interface can also be extended
   interface Response {
     sendSuccess<T>(data: T): void;
     sendError(message: string, code?: number): void;
   }
 }
 
-// 実装側（別ファイル）
+// Implementation side (separate file)
 import { Request, Response, NextFunction } from "express";
 
-// ミドルウェアで拡張したプロパティを設定
+// Set the augmented properties in middleware
 function authMiddleware(req: Request, res: Response, next: NextFunction) {
-  req.userId = "user-123";     // ✅ OK: 拡張されている
+  req.userId = "user-123";     // ✅ OK: extended
   req.role = "admin";          // ✅ OK
   req.startTime = Date.now();  // ✅ OK
   req.correlationId = crypto.randomUUID();  // ✅ OK
   next();
 }
 
-// Response の拡張メソッドを実装
+// Implement the extended Response methods
 function setupResponseHelpers(req: Request, res: Response, next: NextFunction) {
   res.sendSuccess = function<T>(data: T) {
     this.json({ success: true, data });
@@ -1134,18 +1133,18 @@ function setupResponseHelpers(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-// 使用例
+// Usage example
 app.get("/api/data", (req, res) => {
-  res.sendSuccess({ items: [] });  // ✅ 型安全
+  res.sendSuccess({ items: [] });  // ✅ type-safe
 });
 ```
 
-### 5.2 グローバル型の拡張
+### 5.2 Extending Global Types
 
 ```typescript
 // types/global-extensions.d.ts
 
-// Window オブジェクトの拡張
+// Extend the Window object
 declare global {
   interface Window {
     __REDUX_DEVTOOLS_EXTENSION__?: {
@@ -1168,61 +1167,61 @@ declare global {
     };
   }
 
-  // Array の拡張（プロトタイプメソッド追加を想定）
+  // Extending Array (assuming added prototype methods)
   interface Array<T> {
     /**
-     * 配列の最後の要素を取得
+     * Returns the last element of the array
      */
     last(): T | undefined;
 
     /**
-     * 配列の最初の要素を取得
+     * Returns the first element of the array
      */
     first(): T | undefined;
 
     /**
-     * ランダムな要素を取得
+     * Returns a random element
      */
     random(): T | undefined;
 
     /**
-     * 重複を除去
+     * Removes duplicates
      */
     unique(): T[];
   }
 
-  // String の拡張
+  // Extending String
   interface String {
     /**
-     * 最初の文字を大文字に
+     * Capitalizes the first character
      */
     capitalize(): string;
 
     /**
-     * 指定された長さで切り詰める
+     * Truncates to the specified length
      */
     truncate(length: number, suffix?: string): string;
 
     /**
-     * kebab-case に変換
+     * Converts to kebab-case
      */
     toKebabCase(): string;
   }
 
-  // Number の拡張
+  // Extending Number
   interface Number {
     /**
-     * 通貨形式にフォーマット
+     * Formats as currency
      */
     toCurrency(locale?: string): string;
 
     /**
-     * パーセント形式にフォーマット
+     * Formats as a percentage
      */
     toPercent(decimals?: number): string;
   }
 
-  // グローバル型エイリアスの追加
+  // Add global type aliases
   type Nullable<T> = T | null;
   type Optional<T> = T | undefined;
   type Maybe<T> = T | null | undefined;
@@ -1236,11 +1235,11 @@ declare global {
   };
 }
 
-// モジュールとして認識させる
+// Make this file a module
 export {};
 ```
 
-### 5.3 環境変数の型定義
+### 5.3 Type Definitions for Environment Variables
 
 ```typescript
 // types/env.d.ts
@@ -1248,18 +1247,18 @@ export {};
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
-      // 必須の環境変数（undefined にならない）
+      // Required environment variables (never undefined)
       NODE_ENV: "development" | "production" | "test";
       PORT: string;
       DATABASE_URL: string;
       JWT_SECRET: string;
 
-      // オプショナルな環境変数
+      // Optional environment variables
       REDIS_URL?: string;
       SENTRY_DSN?: string;
       LOG_LEVEL?: "debug" | "info" | "warn" | "error";
 
-      // 外部サービスのキー
+      // External service keys
       STRIPE_SECRET_KEY?: string;
       SENDGRID_API_KEY?: string;
       AWS_ACCESS_KEY_ID?: string;
@@ -1270,12 +1269,12 @@ declare global {
 
 export {};
 
-// 使用側
-const port = parseInt(process.env.PORT);      // 型: number（string を parse）
-const redis = process.env.REDIS_URL;          // 型: string | undefined
-const nodeEnv = process.env.NODE_ENV;         // 型: "development" | "production" | "test"
+// Consumer side
+const port = parseInt(process.env.PORT);      // type: number (parsed from string)
+const redis = process.env.REDIS_URL;          // type: string | undefined
+const nodeEnv = process.env.NODE_ENV;         // type: "development" | "production" | "test"
 
-// 環境変数のバリデーション関数（型安全）
+// Type-safe environment-variable validation
 function validateEnv(): void {
   const required: (keyof NodeJS.ProcessEnv)[] = [
     "NODE_ENV",
@@ -1292,12 +1291,12 @@ function validateEnv(): void {
 }
 ```
 
-### コード例7: Wildcard モジュール宣言（アセットファイル）
+### Code Example 7: Wildcard Module Declarations (Asset Files)
 
 ```typescript
 // types/assets.d.ts
 
-// 画像ファイル
+// Image files
 declare module "*.png" {
   const src: string;
   export default src;
@@ -1328,7 +1327,7 @@ declare module "*.svg" {
   export default src;
 }
 
-// SVG を React コンポーネントとしてインポート（Vite, CRA など）
+// Importing SVG as a React component (Vite, CRA, etc.)
 declare module "*.svg?component" {
   import { FC, SVGProps } from "react";
   const Component: FC<SVGProps<SVGSVGElement>>;
@@ -1356,7 +1355,7 @@ declare module "*.less" {
   export default classes;
 }
 
-// CSS Modules（明示的に .module.* を使う場合）
+// CSS Modules (when using .module.* explicitly)
 declare module "*.module.css" {
   const classes: { readonly [key: string]: string };
   export default classes;
@@ -1422,7 +1421,7 @@ declare module "*.wasm" {
   export default moduleFactory;
 }
 
-// Vite 固有の import suffixes
+// Vite-specific import suffixes
 declare module "*?raw" {
   const content: string;
   export default content;
@@ -1438,16 +1437,16 @@ declare module "*?inline" {
   export default content;
 }
 
-// 使用例
-import logo from "./logo.png";                    // 型: string
-import styles from "./App.module.css";            // 型: { readonly [key: string]: string }
-import IconComponent from "./icon.svg?component"; // 型: FC<SVGProps<SVGSVGElement>>
-import data from "./config.json";                 // 型: unknown
-import readme from "./README.md";                 // 型: string
-import Worker from "./compute.worker.ts";         // 型: typeof WebpackWorker
+// Usage examples
+import logo from "./logo.png";                    // type: string
+import styles from "./App.module.css";            // type: { readonly [key: string]: string }
+import IconComponent from "./icon.svg?component"; // type: FC<SVGProps<SVGSVGElement>>
+import data from "./config.json";                 // type: unknown
+import readme from "./README.md";                 // type: string
+import Worker from "./compute.worker.ts";         // type: typeof WebpackWorker
 ```
 
-### 5.4 サードパーティライブラリの型拡張の実例
+### 5.4 Real-World Example: Extending Third-Party Library Types
 
 ```typescript
 // types/axios-extension.d.ts
@@ -1456,7 +1455,7 @@ import "axios";
 
 declare module "axios" {
   export interface AxiosRequestConfig {
-    // カスタムプロパティを追加
+    // Add custom properties
     skipAuthRefresh?: boolean;
     retryCount?: number;
     cacheKey?: string;
@@ -1472,7 +1471,7 @@ import "@testing-library/jest-dom";
 declare global {
   namespace jest {
     interface Matchers<R> {
-      // カスタムマッチャーを追加
+      // Add custom matchers
       toBeWithinRange(floor: number, ceiling: number): R;
       toHaveBeenCalledOnceWith(...args: unknown[]): R;
     }
@@ -1486,9 +1485,9 @@ export {};
 
 ## 6. Triple-Slash Directives
 
-### 6.1 Triple-Slash Directives とは
+### 6.1 What Are Triple-Slash Directives?
 
-`///` で始まる特殊なコメントで、TypeScript コンパイラに追加の指示を与えます。
+Special comments beginning with `///` that give the TypeScript compiler additional instructions.
 
 ```typescript
 /// <reference path="..." />
@@ -1499,7 +1498,7 @@ export {};
 
 ### 6.2 `/// <reference path="..." />`
 
-他の `.d.ts` ファイルを明示的に読み込みます。
+Explicitly loads another `.d.ts` file.
 
 ```typescript
 // types/global.d.ts
@@ -1510,20 +1509,20 @@ export {};
 declare const APP_VERSION: string;
 ```
 
-**注意:** モダンな TypeScript では `tsconfig.json` の `include` で管理するのが推奨されます。
+**Note:** In modern TypeScript, managing this through `include` in `tsconfig.json` is recommended.
 
 ```json
 // tsconfig.json
 {
   "include": [
-    "types/**/*.d.ts"  // これで全ての .d.ts を自動読み込み
+    "types/**/*.d.ts"  // This auto-loads all .d.ts files
   ]
 }
 ```
 
 ### 6.3 `/// <reference types="..." />`
 
-特定の `@types` パッケージを明示的に読み込みます。
+Explicitly loads a specific `@types` package.
 
 ```typescript
 // types/global.d.ts
@@ -1531,17 +1530,17 @@ declare const APP_VERSION: string;
 /// <reference types="node" />
 /// <reference types="jest" />
 
-// これで Node.js と Jest の型が使える
-declare const buffer: Buffer;  // Node.js の Buffer 型
+// Now Node.js and Jest types are available
+declare const buffer: Buffer;  // Node.js Buffer type
 ```
 
-**使用場面:**
-- グローバルスクリプトファイルで特定の `@types` を使いたい場合
-- ライブラリの `.d.ts` ファイルで依存する `@types` を明示する場合
+**When to use:**
+- When you want to use specific `@types` from a global script file
+- When a library's `.d.ts` file needs to declare its dependency on `@types`
 
 ### 6.4 `/// <reference lib="..." />`
 
-TypeScript の組み込みライブラリを読み込みます。
+Loads TypeScript's built-in libraries.
 
 ```typescript
 // types/modern-features.d.ts
@@ -1550,17 +1549,17 @@ TypeScript の組み込みライブラリを読み込みます。
 /// <reference lib="dom" />
 /// <reference lib="webworker" />
 
-// ES2020 の機能が使える
+// ES2020 features are available
 declare function useBigInt(value: bigint): void;
 
-// DOM の型が使える
+// DOM types are available
 declare function useDocument(doc: Document): void;
 
-// Web Worker の型が使える
+// Web Worker types are available
 declare function setupWorker(worker: Worker): void;
 ```
 
-**利用可能なライブラリ:**
+**Available libraries:**
 ```
 es5, es6, es2015, es2016, es2017, es2018, es2019, es2020, es2021, es2022
 dom, dom.iterable
@@ -1570,20 +1569,20 @@ scripthost
 
 ### 6.5 `/// <reference no-default-lib="true" />`
 
-デフォルトのライブラリ（lib.d.ts）を読み込まないようにします。
+Prevents loading the default library (lib.d.ts).
 
 ```typescript
 /// <reference no-default-lib="true" />
 /// <reference lib="es2020" />
 
-// これで ES2020 の型のみが使える（デフォルトの型は使えない）
+// Now only ES2020 types are available (default types are not)
 ```
 
-**使用場面:**
-- 非常に限定的な環境（組み込みシステムなど）の型定義を書く場合
-- 通常のプロジェクトでは使わない
+**When to use:**
+- When writing type definitions for very limited environments (e.g., embedded systems)
+- Not used in normal projects
 
-### コード例8: Triple-Slash Directives の実践例
+### Code Example 8: Practical Examples of Triple-Slash Directives
 
 ```typescript
 // types/polyfills.d.ts
@@ -1591,7 +1590,7 @@ scripthost
 /// <reference lib="es2015.promise" />
 /// <reference lib="es2015.iterable" />
 
-// Promise と Iterable の機能を使ったカスタム型定義
+// Custom type definitions using Promise and Iterable features
 declare function customAsyncIterator<T>(
   items: Iterable<T>
 ): AsyncIterableIterator<T>;
@@ -1603,7 +1602,7 @@ declare function customAsyncIterator<T>(
 /// <reference types="jquery" />
 /// <reference types="bootstrap" />
 
-// jQuery プラグインの型定義
+// Type definitions for a jQuery plugin
 declare module "jquery-custom-plugin" {
   interface JQuery {
     customPlugin(options?: CustomPluginOptions): JQuery;
@@ -1616,21 +1615,21 @@ declare module "jquery-custom-plugin" {
 }
 ```
 
-### 6.6 モダンな代替方法
+### 6.6 Modern Alternatives
 
-Triple-Slash Directives の多くは `tsconfig.json` で代替可能です。
+Most Triple-Slash Directives can be replaced by `tsconfig.json`.
 
 ```json
 {
   "compilerOptions": {
-    // /// <reference lib="..." /> の代わり
+    // Replaces /// <reference lib="..." />
     "lib": ["es2020", "dom", "dom.iterable"],
 
-    // /// <reference types="..." /> の代わり
+    // Replaces /// <reference types="..." />
     "types": ["node", "jest", "testing-library__jest-dom"],
 
-    // /// <reference path="..." /> の代わり
-    // include で管理
+    // Replaces /// <reference path="..." />
+    // Manage with `include`
   },
 
   "include": [
@@ -1640,27 +1639,27 @@ Triple-Slash Directives の多くは `tsconfig.json` で代替可能です。
 }
 ```
 
-**推奨事項:**
-- 新規プロジェクトでは `tsconfig.json` を使う
-- Triple-Slash Directives は `.d.ts` ファイル内の依存関係を明示する場合のみ使う
-- `/// <reference path>` は避ける（include で管理する方が明確）
+**Recommendations:**
+- For new projects, use `tsconfig.json`.
+- Use Triple-Slash Directives only when you need to make dependencies inside a `.d.ts` file explicit.
+- Avoid `/// <reference path>` (managing via `include` is clearer).
 
 ---
 
-## 7. 型定義の自動生成
+## 7. Automatic Generation of Type Definitions
 
-### 7.1 tsc --declaration
+### 7.1 `tsc --declaration`
 
-TypeScript コンパイラ自体が型定義ファイルを生成できます。
+The TypeScript compiler itself can generate type-definition files.
 
 ```bash
-# 型定義を生成しながらコンパイル
+# Generate type definitions while compiling
 tsc --declaration
 
-# 型定義のみ生成（JavaScript は生成しない）
+# Generate only type definitions (no JavaScript)
 tsc --emitDeclarationOnly
 
-# ソースマップも生成
+# Also generate source maps
 tsc --declaration --declarationMap
 ```
 
@@ -1668,38 +1667,38 @@ tsc --declaration --declarationMap
 // tsconfig.json
 {
   "compilerOptions": {
-    "declaration": true,           // .d.ts ファイルを生成
-    "declarationMap": true,        // .d.ts.map を生成（デバッグ用）
-    "emitDeclarationOnly": false,  // true にすると .js を生成しない
+    "declaration": true,           // Generate .d.ts files
+    "declarationMap": true,        // Generate .d.ts.map (for debugging)
+    "emitDeclarationOnly": false,  // If true, no .js is generated
     "outDir": "./dist",
-    "declarationDir": "./dist/types"  // 型定義の出力先を分ける場合
+    "declarationDir": "./dist/types"  // Use to separate type-definition output
   }
 }
 ```
 
-### コード例9: 自動生成される型定義の例
+### Code Example 9: Example of Auto-Generated Type Definitions
 
 ```typescript
 // src/calculator.ts
 
 /**
- * 計算機クラス
+ * Calculator class
  */
 export class Calculator {
   private value: number;
 
   /**
-   * コンストラクタ
-   * @param initial 初期値
+   * Constructor
+   * @param initial Initial value
    */
   constructor(initial: number = 0) {
     this.value = initial;
   }
 
   /**
-   * 加算
-   * @param n 加算する値
-   * @returns this（メソッドチェーン用）
+   * Addition
+   * @param n Value to add
+   * @returns this (for method chaining)
    */
   add(n: number): this {
     this.value += n;
@@ -1707,7 +1706,7 @@ export class Calculator {
   }
 
   /**
-   * 減算
+   * Subtraction
    */
   subtract(n: number): this {
     this.value -= n;
@@ -1715,7 +1714,7 @@ export class Calculator {
   }
 
   /**
-   * 結果を取得
+   * Returns the result
    */
   result(): number {
     return this.value;
@@ -1723,17 +1722,17 @@ export class Calculator {
 }
 
 /**
- * 設定オプション
+ * Configuration options
  */
 export interface CalculatorOptions {
-  /** 精度 */
+  /** Precision */
   precision: number;
-  /** デバッグモード */
+  /** Debug mode */
   debug?: boolean;
 }
 
 /**
- * ファクトリ関数
+ * Factory function
  */
 export function createCalculator(options?: CalculatorOptions): Calculator {
   const calc = new Calculator();
@@ -1744,71 +1743,71 @@ export function createCalculator(options?: CalculatorOptions): Calculator {
 }
 ```
 
-↓ `tsc --declaration` で自動生成される型定義:
+↓ Auto-generated by `tsc --declaration`:
 
 ```typescript
 // dist/calculator.d.ts
 
 /**
- * 計算機クラス
+ * Calculator class
  */
 export declare class Calculator {
   private value;
   /**
-   * コンストラクタ
-   * @param initial 初期値
+   * Constructor
+   * @param initial Initial value
    */
   constructor(initial?: number);
   /**
-   * 加算
-   * @param n 加算する値
-   * @returns this（メソッドチェーン用）
+   * Addition
+   * @param n Value to add
+   * @returns this (for method chaining)
    */
   add(n: number): this;
   /**
-   * 減算
+   * Subtraction
    */
   subtract(n: number): this;
   /**
-   * 結果を取得
+   * Returns the result
    */
   result(): number;
 }
 
 /**
- * 設定オプション
+ * Configuration options
  */
 export interface CalculatorOptions {
-  /** 精度 */
+  /** Precision */
   precision: number;
-  /** デバッグモード */
+  /** Debug mode */
   debug?: boolean;
 }
 
 /**
- * ファクトリ関数
+ * Factory function
  */
 export declare function createCalculator(options?: CalculatorOptions): Calculator;
 ```
 
-**特徴:**
-- JSDoc コメントも保持される
-- `private` フィールドは型定義に残る（実装は消える）
-- 型推論された部分も明示的に型が書かれる
+**Notes:**
+- JSDoc comments are preserved.
+- `private` fields remain in the type definitions (the implementation is removed).
+- Inferred types are written explicitly.
 
 ### 7.2 dts-bundle-generator
 
-複数の `.d.ts` ファイルを1つのファイルにバンドルするツールです。
+A tool that bundles multiple `.d.ts` files into a single file.
 
 ```bash
 npm install --save-dev dts-bundle-generator
 ```
 
 ```bash
-# 単一の .d.ts ファイルを生成
+# Generate a single .d.ts file
 npx dts-bundle-generator -o dist/index.d.ts src/index.ts
 
-# 設定ファイルを使う
+# Use a config file
 npx dts-bundle-generator --config dts-bundle.config.js
 ```
 
@@ -1820,13 +1819,13 @@ module.exports = {
       filePath: "./src/index.ts",
       outFile: "./dist/index.d.ts",
       libraries: {
-        // 外部ライブラリをインライン化するか
+        // Whether to inline external libraries
         inlinedLibraries: ["lib-a"]
       },
       output: {
-        // 型の並び替え
+        // Sort declarations
         sortNodes: true,
-        // export = の形式を使う（CommonJS 用）
+        // Use export = form (for CommonJS)
         exportReferencedTypes: true
       }
     }
@@ -1834,9 +1833,9 @@ module.exports = {
 };
 ```
 
-### 7.3 API Extractor（Microsoft）
+### 7.3 API Extractor (Microsoft)
 
-大規模なライブラリ向けの型定義生成・検証ツールです。
+A type-definition generation and verification tool aimed at large libraries.
 
 ```bash
 npm install --save-dev @microsoft/api-extractor
@@ -1874,46 +1873,46 @@ npm install --save-dev @microsoft/api-extractor
 ```
 
 ```bash
-# API レポートを生成
+# Generate the API report
 npx api-extractor run --local
 ```
 
-**API Extractor の機能:**
-- 型定義のロールアップ（1ファイルにまとめる）
-- 公開 API の変更検出（breaking changes）
-- API ドキュメントの生成
-- 内部型の除外（@internal タグ）
+**Features of API Extractor:**
+- Type-definition rollup (combine into a single file)
+- Detection of public API changes (breaking changes)
+- API documentation generation
+- Excluding internal types (with the `@internal` tag)
 
-### 7.4 型定義生成のベストプラクティス
+### 7.4 Best Practices for Generating Type Definitions
 
 ```typescript
 // src/public-api.ts
 
 /**
- * 公開 API のエントリポイント
- * これを index.ts から re-export する
+ * Entry point for the public API
+ * Re-export this from index.ts
  */
 
-// 公開する型・関数のみエクスポート
+// Only export public types and functions
 export { Calculator, CalculatorOptions } from "./calculator";
 export { formatNumber } from "./utils/format";
 export type { FormatOptions } from "./utils/format";
 
-// 内部型は export しない
-// import { InternalHelper } from "./internal";  // これは export しない
+// Do not export internal types
+// import { InternalHelper } from "./internal";  // Don't export this
 ```
 
 ```typescript
 // src/index.ts
 
-// 全ての公開 API を re-export
+// Re-export the entire public API
 export * from "./public-api";
 
-// デフォルトエクスポートも必要なら
+// Default export, if needed
 export { default } from "./main";
 ```
 
-**package.json の設定:**
+**package.json configuration:**
 
 ```json
 {
@@ -1949,11 +1948,11 @@ export { default } from "./main";
 
 ---
 
-## 8. ライブラリ作者向けベストプラクティス
+## 8. Best Practices for Library Authors
 
-### 8.1 型定義のパッケージング
+### 8.1 Packaging Type Definitions
 
-#### パターン1: TypeScript で書いて自動生成
+#### Pattern 1: Write in TypeScript and auto-generate
 
 ```
 my-library/
@@ -1961,7 +1960,7 @@ my-library/
 │   ├── index.ts
 │   ├── calculator.ts
 │   └── utils.ts
-├── dist/           # ビルド結果
+├── dist/           # Build output
 │   ├── index.js
 │   ├── index.d.ts
 │   ├── calculator.js
@@ -1981,13 +1980,13 @@ my-library/
 }
 ```
 
-#### パターン2: JavaScript で書いて手動で型定義
+#### Pattern 2: Write in JavaScript and hand-write the type definitions
 
 ```
 my-library/
 ├── src/
-│   ├── index.js       # 実装コード
-│   └── index.d.ts     # 手書きの型定義
+│   ├── index.js       # Implementation code
+│   └── index.d.ts     # Hand-written type definitions
 ├── package.json
 └── tsconfig.json
 ```
@@ -2000,33 +1999,33 @@ my-library/
 }
 ```
 
-#### パターン3: 型定義を別パッケージで配布（非推奨）
+#### Pattern 3: Distribute type definitions as a separate package (not recommended)
 
 ```
-my-library/           # 実装パッケージ
+my-library/           # Implementation package
 └── index.js
 
-@types/my-library/    # 型定義パッケージ（DefinitelyTyped）
+@types/my-library/    # Type-definition package (DefinitelyTyped)
 └── index.d.ts
 ```
 
-### 8.2 型定義の品質ガイドライン
+### 8.2 Quality Guidelines for Type Definitions
 
 ```typescript
-// ❌ BAD: any を使う
+// ❌ BAD: using `any`
 export function processData(data: any): any;
 
-// ✅ GOOD: 具体的な型を書く
+// ✅ GOOD: write specific types
 export function processData<T>(data: T[]): ProcessedData<T>;
 
-// ❌ BAD: オーバーロードが多すぎて混乱
+// ❌ BAD: too many overloads make things confusing
 export function request(url: string): Promise<unknown>;
 export function request(url: string, options: RequestOptions): Promise<unknown>;
 export function request(url: string, method: string): Promise<unknown>;
 export function request(url: string, method: string, body: unknown): Promise<unknown>;
-// ... （10個以上続く）
+// ... (10 or more continue)
 
-// ✅ GOOD: オプションオブジェクトでまとめる
+// ✅ GOOD: consolidate into an options object
 export interface RequestOptions {
   method?: string;
   body?: unknown;
@@ -2034,33 +2033,33 @@ export interface RequestOptions {
 }
 export function request(url: string, options?: RequestOptions): Promise<unknown>;
 
-// ❌ BAD: 内部実装の詳細を露出
+// ❌ BAD: exposing internal implementation details
 export class DatabaseConnection {
   private _socket: Socket;
   private _buffer: Buffer;
   private _internalState: ComplexInternalState;
-  // 外部から見る必要のない詳細
+  // Details that don't need to be visible from the outside
 }
 
-// ✅ GOOD: 公開 API のみ型定義に含める
+// ✅ GOOD: include only the public API in the type definition
 export declare class DatabaseConnection {
   connect(): Promise<void>;
   query<T>(sql: string): Promise<T[]>;
   close(): Promise<void>;
-  // 内部実装は隠す
+  // Hide internal details
 }
 ```
 
-### 8.3 JSDoc との連携
+### 8.3 Combining with JSDoc
 
 ```typescript
 /**
- * ユーザーを作成します
+ * Creates a user.
  *
- * @param name - ユーザー名
- * @param email - メールアドレス
- * @returns 作成されたユーザー
- * @throws {ValidationError} バリデーションエラーが発生した場合
+ * @param name - User name
+ * @param email - Email address
+ * @returns The created user
+ * @throws {ValidationError} If a validation error occurs
  * @example
  * ```ts
  * const user = await createUser("Alice", "alice@example.com");
@@ -2073,28 +2072,28 @@ export declare function createUser(
 ): Promise<User>;
 
 /**
- * ユーザー情報
+ * User information
  * @public
  */
 export interface User {
-  /** ユーザーID */
+  /** User ID */
   readonly id: string;
 
-  /** ユーザー名 */
+  /** User name */
   name: string;
 
-  /** メールアドレス */
+  /** Email address */
   email: string;
 
   /**
-   * 作成日時
-   * @remarks ISO 8601 形式の文字列
+   * Creation date
+   * @remarks ISO 8601 formatted string
    */
   createdAt: string;
 }
 ```
 
-### 8.4 バージョニングと後方互換性
+### 8.4 Versioning and Backward Compatibility
 
 ```typescript
 // v1.0.0
@@ -2103,23 +2102,23 @@ export interface Config {
   port: number;
 }
 
-// v1.1.0 - 後方互換性を保ちながら拡張
+// v1.1.0 - extend while preserving backward compatibility
 export interface Config {
   host: string;
   port: number;
-  timeout?: number;  // オプショナルなので既存コードは動く
+  timeout?: number;  // Optional, so existing code still works
 }
 
 // v2.0.0 - Breaking change
 export interface Config {
   host: string;
   port: number;
-  timeout: number;  // 必須に変更（breaking）
-  ssl: boolean;     // 新しい必須フィールド（breaking）
+  timeout: number;  // Now required (breaking)
+  ssl: boolean;     // New required field (breaking)
 }
 ```
 
-**非推奨（deprecated）のマーキング:**
+**Marking deprecations:**
 
 ```typescript
 /**
@@ -2128,22 +2127,22 @@ export interface Config {
 export declare function oldFunction(data: string): void;
 
 /**
- * 新しい推奨関数
+ * The new recommended function
  */
 export declare function newFunction(data: string, options?: NewOptions): void;
 ```
 
-### 8.5 複数のモジュール解決戦略への対応
+### 8.5 Supporting Multiple Module Resolution Strategies
 
 ```json
-// package.json - Node.js の ESM/CJS 両対応
+// package.json - Node.js with both ESM and CJS support
 {
   "name": "my-library",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.cjs",      // CommonJS
   "module": "./dist/index.mjs",    // ESM
-  "types": "./dist/index.d.ts",    // 型定義
+  "types": "./dist/index.d.ts",    // Type definitions
   "exports": {
     ".": {
       "import": {
@@ -2165,14 +2164,14 @@ export declare function newFunction(data: string, options?: NewOptions): void;
 ```
 
 ```typescript
-// dist/index.d.ts (共通の型定義)
+// dist/index.d.ts (shared type definitions)
 export declare class MyClass { /* ... */ }
 export declare function myFunction(): void;
 
-// dist/index.d.mts (ESM 用、必要な場合)
+// dist/index.d.mts (for ESM, if needed)
 export { MyClass, myFunction } from "./index.js";
 
-// dist/index.d.cts (CJS 用、必要な場合)
+// dist/index.d.cts (for CJS, if needed)
 export = MyLibrary;
 declare namespace MyLibrary {
   class MyClass { /* ... */ }
@@ -2182,23 +2181,23 @@ declare namespace MyLibrary {
 
 ---
 
-## 9. トラブルシューティング
+## 9. Troubleshooting
 
-### 9.1 型が見つからない
+### 9.1 Type Not Found
 
-#### 問題: `Cannot find module 'xxx' or its corresponding type declarations`
+#### Problem: `Cannot find module 'xxx' or its corresponding type declarations`
 
 ```typescript
-import express from "express";  // ❌ エラー
+import express from "express";  // ❌ Error
 ```
 
-#### 解決策:
+#### Solutions:
 
 ```bash
-# @types パッケージをインストール
+# Install the @types package
 npm install --save-dev @types/express
 
-# または自前の型定義を作成
+# Or create your own type definitions
 # types/express.d.ts
 declare module "express" {
   const express: any;
@@ -2206,77 +2205,77 @@ declare module "express" {
 }
 ```
 
-#### 問題: tsconfig.json の設定ミス
+#### Problem: misconfiguration in tsconfig.json
 
 ```json
-// ❌ BAD: types を指定すると、それ以外の @types が読み込まれない
+// ❌ BAD: specifying `types` excludes other @types
 {
   "compilerOptions": {
-    "types": ["node"]  // @types/jest などが読み込まれなくなる
+    "types": ["node"]  // @types/jest etc. won't load
   }
 }
 
-// ✅ GOOD: types を指定しない（全ての @types を読み込む）
+// ✅ GOOD: don't specify `types` (loads all @types)
 {
   "compilerOptions": {
-    // types フィールドを削除
+    // Remove the `types` field
   }
 }
 ```
 
-### 9.2 型の競合
+### 9.2 Type Conflicts
 
-#### 問題: 同じ名前の型が複数定義されている
+#### Problem: the same name is defined multiple times
 
 ```
 Error: Duplicate identifier 'Request'.
 ```
 
-**原因:**
-- `@types/express` と `@types/node` で `Request` が重複
-- 異なるバージョンの型定義が混在
+**Causes:**
+- `Request` is duplicated between `@types/express` and `@types/node`.
+- Mixed versions of type definitions.
 
-**解決策1: typeRoots で整理**
+**Solution 1: Organize with typeRoots**
 
 ```json
 {
   "compilerOptions": {
     "typeRoots": [
-      "./types",              // 自前の型定義を優先
+      "./types",              // Prefer your own type definitions
       "./node_modules/@types"
     ]
   }
 }
 ```
 
-**解決策2: 型エイリアスで回避**
+**Solution 2: Use type aliases to avoid conflicts**
 
 ```typescript
 import { Request as ExpressRequest } from "express";
 import { IncomingMessage as NodeRequest } from "http";
 
-// 明示的に使い分ける
+// Use them explicitly
 function handleExpress(req: ExpressRequest) { /* ... */ }
 function handleNode(req: NodeRequest) { /* ... */ }
 ```
 
-**解決策3: モジュール拡張で統合**
+**Solution 3: Unify with module augmentation**
 
 ```typescript
 // types/unified.d.ts
 import "express";
 
 declare module "express" {
-  // Express の Request を拡張して統一
+  // Extend Express's Request and unify
   interface Request extends NodeJS.IncomingMessage {
-    // 追加プロパティ
+    // Extra properties
   }
 }
 ```
 
-### 9.3 グローバル型が認識されない
+### 9.3 Global Types Are Not Recognized
 
-#### 問題: `declare global` が効かない
+#### Problem: `declare global` does not take effect
 
 ```typescript
 // types/global.d.ts
@@ -2286,13 +2285,13 @@ declare global {
   }
 }
 
-// ❌ エラー: Property 'myGlobal' does not exist on type 'Window'
+// ❌ Error: Property 'myGlobal' does not exist on type 'Window'
 window.myGlobal = "test";
 ```
 
-**原因:** ファイルがモジュールとして認識されていない
+**Cause:** the file is not being recognized as a module.
 
-**解決策: export を追加**
+**Solution: add an export**
 
 ```typescript
 // types/global.d.ts
@@ -2302,19 +2301,19 @@ declare global {
   }
 }
 
-export {};  // ✅ これでモジュールになる
+export {};  // ✅ Now it's a module
 ```
 
-### 9.4 .d.ts ファイルが読み込まれない
+### 9.4 `.d.ts` Files Are Not Loaded
 
-#### 確認ポイント:
+#### Things to check:
 
 ```json
 // tsconfig.json
 {
   "include": [
     "src/**/*",
-    "types/**/*.d.ts"  // ✅ これがあるか確認
+    "types/**/*.d.ts"  // ✅ Make sure this exists
   ],
 
   "exclude": [
@@ -2325,43 +2324,43 @@ export {};  // ✅ これでモジュールになる
 ```
 
 ```bash
-# TypeScript がどのファイルを読み込んでいるか確認
+# Check which files TypeScript is loading
 npx tsc --listFiles | grep ".d.ts"
 
-# トレースログでデバッグ
+# Debug with trace logs
 npx tsc --traceResolution | grep "my-module"
 ```
 
-### 9.5 パフォーマンス問題
+### 9.5 Performance Problems
 
-#### 問題: 型チェックが遅い
+#### Problem: type checking is slow
 
-**原因:**
-- 巨大な `.d.ts` ファイル
-- 過剰な型の再帰
-- 不要な @types パッケージを全て読み込んでいる
+**Causes:**
+- Huge `.d.ts` files
+- Excessive type recursion
+- Loading all unnecessary `@types` packages
 
-**解決策1: types で限定**
-
-```json
-{
-  "compilerOptions": {
-    "types": ["node", "jest"]  // 必要な型だけ指定
-  }
-}
-```
-
-**解決策2: skipLibCheck を有効化**
+**Solution 1: Limit with `types`**
 
 ```json
 {
   "compilerOptions": {
-    "skipLibCheck": true  // .d.ts のチェックをスキップ（高速化）
+    "types": ["node", "jest"]  // Only the types you need
   }
 }
 ```
 
-**解決策3: incremental build**
+**Solution 2: Enable `skipLibCheck`**
+
+```json
+{
+  "compilerOptions": {
+    "skipLibCheck": true  // Skip checking .d.ts (faster)
+  }
+}
+```
+
+**Solution 3: Incremental build**
 
 ```json
 {
@@ -2372,9 +2371,9 @@ npx tsc --traceResolution | grep "my-module"
 }
 ```
 
-### 9.6 モジュール解決の問題
+### 9.6 Module Resolution Problems
 
-#### 問題: paths が効かない
+#### Problem: `paths` do not work
 
 ```json
 // tsconfig.json
@@ -2390,15 +2389,15 @@ npx tsc --traceResolution | grep "my-module"
 ```
 
 ```typescript
-import { User } from "@/models/user";  // ❌ エラー
+import { User } from "@/models/user";  // ❌ Error
 ```
 
-**解決策: moduleResolution を確認**
+**Solution: check moduleResolution**
 
 ```json
 {
   "compilerOptions": {
-    "moduleResolution": "node",  // または "bundler" (TS 5.0+)
+    "moduleResolution": "node",  // or "bundler" (TS 5.0+)
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
@@ -2407,18 +2406,18 @@ import { User } from "@/models/user";  // ❌ エラー
 }
 ```
 
-**注意:** `paths` はコンパイル時のみ有効。実行時はバンドラー（Webpack, Vite など）の設定も必要。
+**Note:** `paths` only takes effect at compile time. At runtime you also need bundler configuration (Webpack, Vite, etc.).
 
 ---
 
-## 10. 演習問題
+## 10. Exercises
 
-### 演習レベル1: 基礎（JavaScript ライブラリに型を付ける）
+### Exercise Level 1: Basics (Add Types to a JavaScript Library)
 
-次の JavaScript ライブラリに型定義を作成してください。
+Create type definitions for the following JavaScript library.
 
 ```javascript
-// math-lib.js (実装コード)
+// math-lib.js (implementation code)
 
 function add(a, b) {
   return a + b;
@@ -2446,30 +2445,30 @@ class Calculator {
 module.exports = { add, multiply, Calculator };
 ```
 
-**タスク:**
-1. `types/math-lib.d.ts` を作成
-2. `add`, `multiply`, `Calculator` の型を定義
-3. 型安全に使えることを確認
+**Tasks:**
+1. Create `types/math-lib.d.ts`.
+2. Define types for `add`, `multiply`, and `Calculator`.
+3. Verify that they can be used type-safely.
 
 <details>
-<summary>解答例を見る</summary>
+<summary>Show example answer</summary>
 
 ```typescript
 // types/math-lib.d.ts
 
 declare module "math-lib" {
   /**
-   * 2つの数値を加算
+   * Adds two numbers
    */
   export function add(a: number, b: number): number;
 
   /**
-   * 2つの数値を乗算
+   * Multiplies two numbers
    */
   export function multiply(a: number, b: number): number;
 
   /**
-   * 計算機クラス
+   * Calculator class
    */
   export class Calculator {
     constructor(initial?: number);
@@ -2483,43 +2482,43 @@ declare module "math-lib" {
 // test.ts
 import { add, multiply, Calculator } from "math-lib";
 
-const sum = add(1, 2);        // 型: number
-const product = multiply(3, 4); // 型: number
+const sum = add(1, 2);        // type: number
+const product = multiply(3, 4); // type: number
 
 const calc = new Calculator(10);
 calc.add(5).add(3);
-const result = calc.result();  // 型: number
+const result = calc.result();  // type: number
 ```
 </details>
 
 ---
 
-### 演習レベル2: 応用（モジュール拡張）
+### Exercise Level 2: Applied (Module Augmentation)
 
-Express アプリケーションで、Request オブジェクトにカスタムプロパティを追加する型定義を作成してください。
+In an Express application, create type definitions that add custom properties to the Request object.
 
-**要件:**
-1. `req.currentUser` に `User` 型を追加
-2. `req.requestId` に `string` 型を追加
-3. `req.startTime` に `number` 型を追加
-4. 型安全にアクセスできること
+**Requirements:**
+1. Add a `User` type to `req.currentUser`.
+2. Add a `string` to `req.requestId`.
+3. Add a `number` to `req.startTime`.
+4. Allow type-safe access.
 
 <details>
-<summary>解答例を見る</summary>
+<summary>Show example answer</summary>
 
 ```typescript
 // types/express.d.ts
 
 import "express";
 
-// User 型の定義
+// Definition of the User type
 interface User {
   id: string;
   email: string;
   role: "admin" | "user";
 }
 
-// Express の Request を拡張
+// Augment Express's Request
 declare module "express" {
   interface Request {
     currentUser?: User;
@@ -2534,7 +2533,7 @@ declare module "express" {
 import { Request, Response, NextFunction } from "express";
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
-  // ✅ 型安全にアクセス
+  // ✅ Type-safe access
   req.currentUser = {
     id: "user-123",
     email: "user@example.com",
@@ -2552,9 +2551,9 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
 import { Request, Response } from "express";
 
 export function getUserProfile(req: Request, res: Response) {
-  // ✅ 型推論が効く
-  const user = req.currentUser;  // 型: User | undefined
-  const requestId = req.requestId;  // 型: string
+  // ✅ Type inference works
+  const user = req.currentUser;  // type: User | undefined
+  const requestId = req.requestId;  // type: string
 
   if (!user) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -2570,18 +2569,18 @@ export function getUserProfile(req: Request, res: Response) {
 
 ---
 
-### 演習レベル3: 発展（型定義の自動生成とパッケージング）
+### Exercise Level 3: Advanced (Auto-Generating and Packaging Type Definitions)
 
-TypeScript で書いたライブラリを npm パッケージとして公開する準備をしてください。
+Prepare a TypeScript-authored library to be published as an npm package.
 
-**要件:**
-1. 型定義を自動生成する設定
-2. CommonJS と ESM の両対応
-3. 適切な package.json の設定
-4. 公開前のチェックリスト
+**Requirements:**
+1. Configure auto-generation of type definitions.
+2. Support both CommonJS and ESM.
+3. Set up `package.json` properly.
+4. A pre-publish checklist.
 
 <details>
-<summary>解答例を見る</summary>
+<summary>Show example answer</summary>
 
 ```typescript
 // src/index.ts
@@ -2703,49 +2702,49 @@ export function createLogger(options?: LoggerOptions): Logger {
 }
 ```
 
-**公開前チェックリスト:**
+**Pre-publish checklist:**
 ```bash
-# ✅ ビルドが成功するか
+# ✅ Build succeeds
 npm run build
 
-# ✅ 型定義が生成されているか
+# ✅ Type definitions are generated
 ls dist/esm/*.d.ts
 ls dist/cjs/*.d.ts
 
-# ✅ package.json の types フィールドが正しいか
+# ✅ The `types` field in package.json is correct
 cat package.json | grep "types"
 
-# ✅ files に必要なファイルが含まれているか
+# ✅ All required files are included in `files`
 npm pack --dry-run
 
-# ✅ 実際にインポートできるかテスト
-# test-project で npm link を使ってテスト
+# ✅ Verify that imports actually work
+# Use `npm link` in a test project to test
 
-# ✅ 公開
+# ✅ Publish
 npm publish --access public
 ```
 </details>
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: any で型定義を誤魔化す
+### Anti-Pattern 1: Using `any` to fudge type definitions
 
 ```typescript
-// ❌ BAD: 面倒だから any で逃げる
+// ❌ BAD: skip the work and use any
 declare module "some-library" {
   const lib: any;
   export default lib;
 }
 
-// 使用側で型安全性が失われる
+// On the consumer side, type safety is lost
 import lib from "some-library";
-lib.doSomething();  // any なので何でもOK（危険）
+lib.doSomething();  // any allows anything (dangerous)
 ```
 
 ```typescript
-// ✅ GOOD: 最低限の型を書く（段階的に充実させる）
+// ✅ GOOD: write at least minimal types (improve incrementally)
 declare module "some-library" {
   export interface Config {
     apiKey: string;
@@ -2755,19 +2754,19 @@ declare module "some-library" {
   export function initialize(config: Config): void;
   export function doSomething(input: string): Promise<unknown>;
 
-  // 戻り値が不明な場合は unknown を使う（any より安全）
+  // When the return type is unknown, use `unknown` (safer than any)
   export function complexOperation(): unknown;
 }
 ```
 
-**理由:** `any` は型チェックを完全に無効化します。`unknown` を使えば、使用側で型ガードが必須になります。
+**Reason:** `any` completely disables type checking. With `unknown`, the consumer is forced to use type guards.
 
 ---
 
-### アンチパターン2: 不要なトリプルスラッシュディレクティブ
+### Anti-Pattern 2: Unnecessary triple-slash directives
 
 ```typescript
-// ❌ BAD: 現代の TypeScript では不要なケースが多い
+// ❌ BAD: often unnecessary in modern TypeScript
 /// <reference types="node" />
 /// <reference types="jest" />
 /// <reference path="./custom-types.d.ts" />
@@ -2776,13 +2775,13 @@ declare module "some-library" {
 declare const config: Config;
 ```
 
-**問題点:**
-- tsconfig.json で管理できることを冗長に書いている
-- メンテナンスが二重になる
-- ファイルの依存関係が不明確
+**Issues:**
+- Redundantly writes things that can be managed in tsconfig.json.
+- Maintenance is duplicated.
+- File dependencies become unclear.
 
 ```json
-// ✅ GOOD: tsconfig.json で管理する
+// ✅ GOOD: manage from tsconfig.json
 {
   "compilerOptions": {
     "types": ["node", "jest"]
@@ -2795,18 +2794,18 @@ declare const config: Config;
 
 ```typescript
 // types/config.d.ts
-// Triple-Slash なしで OK
+// Works without triple-slash directives
 declare const config: Config;
 ```
 
-**例外:** ライブラリの `.d.ts` ファイルで他の `@types` パッケージに依存する場合は `/// <reference types>` を使うことがあります。
+**Exception:** when a library's `.d.ts` file depends on other `@types` packages, you may use `/// <reference types>`.
 
 ---
 
-### アンチパターン3: グローバル汚染
+### Anti-Pattern 3: Polluting the global scope
 
 ```typescript
-// ❌ BAD: 何でもかんでもグローバルに追加
+// ❌ BAD: dump everything into the global scope
 // types/global.d.ts
 
 interface User { /* ... */ }
@@ -2819,17 +2818,17 @@ declare const currentUser: User;
 declare const products: Product[];
 declare function fetchOrders(): Promise<Order[]>;
 
-// ファイル全体がグローバルスコープ（export/import なし）
+// The whole file is global scope (no export/import)
 ```
 
-**問題点:**
-- 名前空間の汚染（他のライブラリと競合の可能性）
-- どこで定義されているか追跡困難
-- テストや型のモック化が難しい
+**Issues:**
+- Namespace pollution (potential conflict with other libraries).
+- Hard to track where things are defined.
+- Difficult to test or mock types.
 
 ```typescript
-// ✅ GOOD: モジュールとして定義し、必要な部分だけグローバルに
-// types/models.ts （モジュール）
+// ✅ GOOD: define as a module and put only what's needed in the global scope
+// types/models.ts (module)
 export interface User { /* ... */ }
 export interface Product { /* ... */ }
 export interface Order { /* ... */ }
@@ -2842,7 +2841,7 @@ export type Role = "admin" | "user";
 import { User } from "./models";
 
 declare global {
-  // 本当に必要なものだけグローバルに
+  // Put only what's truly needed in the global scope
   interface Window {
     currentUser?: User;
   }
@@ -2853,10 +2852,10 @@ export {};
 
 ---
 
-### アンチパターン4: 過度に複雑な型定義
+### Anti-Pattern 4: Overly complex type definitions
 
 ```typescript
-// ❌ BAD: 読めない・メンテ不可能な型
+// ❌ BAD: unreadable, unmaintainable types
 type ComplexType<T extends Record<string, unknown>> = {
   [K in keyof T]: T[K] extends infer R
     ? R extends Array<infer U>
@@ -2869,14 +2868,14 @@ type ComplexType<T extends Record<string, unknown>> = {
     : never;
 };
 
-// 使う側も理解不能
+// Even users can't understand it
 declare function process<T extends Record<string, unknown>>(
   data: ComplexType<T>
 ): ComplexType<ComplexType<T>>;
 ```
 
 ```typescript
-// ✅ GOOD: シンプルで理解しやすい型
+// ✅ GOOD: simple, easy-to-understand types
 type RemoveFunctions<T> = {
   [K in keyof T as T[K] extends Function ? never : K]: T[K];
 };
@@ -2887,27 +2886,27 @@ type DeepRemoveFunctions<T> = {
     : T[K];
 };
 
-// 段階的に定義し、名前を付ける
+// Define gradually and give names
 declare function process<T extends object>(
   data: DeepRemoveFunctions<T>
 ): DeepRemoveFunctions<T>;
 ```
 
-**原則:** 型定義は「正確さ」と「可読性」のバランスが重要。100% 完璧を目指すより、80% の精度で読みやすい方が良い場合が多いです。
+**Principle:** Type definitions need a balance between accuracy and readability. Aiming for 80% precision but high readability is often better than chasing 100% perfection.
 
 ---
 
-## エッジケース分析
+## Edge Case Analysis
 
-### エッジケース1: UMD モジュールの型定義
+### Edge Case 1: Type Definitions for UMD Modules
 
-UMD（Universal Module Definition）は CommonJS、AMD、グローバル変数のすべてに対応するパターンです。
+UMD (Universal Module Definition) is a pattern that supports CommonJS, AMD, and global variables all at once.
 
 ```typescript
 // types/my-umd-lib.d.ts
 
-// UMD モジュールの型定義
-export as namespace MyLib;  // グローバル変数としても使える
+// Type definitions for a UMD module
+export as namespace MyLib;  // Also usable as a global variable
 
 export interface Config {
   debug: boolean;
@@ -2921,22 +2920,22 @@ export class Client {
 }
 ```
 
-**使用例:**
+**Usage examples:**
 
 ```typescript
-// ESM / CommonJS でインポート
+// Import via ESM / CommonJS
 import { initialize, Client } from "my-umd-lib";
 
-// グローバル変数としても使える（script タグで読み込んだ場合）
+// Also usable as a global variable (when loaded via a script tag)
 MyLib.initialize({ debug: true });
 const client = new MyLib.Client({ debug: false });
 ```
 
 ---
 
-### エッジケース2: 条件付きエクスポート
+### Edge Case 2: Conditional Exports
 
-Node.js の環境（開発/本番）によって型が変わる場合。
+When the type changes depending on the Node.js environment (development/production).
 
 ```typescript
 // types/conditional.d.ts
@@ -2945,7 +2944,7 @@ declare module "my-lib" {
   export interface Config {
     apiKey: string;
 
-    // 開発環境のみ有効なプロパティ
+    // A property only valid in development
     debugTools?: typeof process.env.NODE_ENV extends "development"
       ? DebugTools
       : never;
@@ -2958,13 +2957,13 @@ declare module "my-lib" {
 }
 ```
 
-**実用例:**
+**Practical example:**
 
 ```typescript
-// process.env.NODE_ENV が "development" の場合のみ型チェックが通る
+// Type checks pass only when process.env.NODE_ENV is "development"
 const config: Config = {
   apiKey: "xxx",
-  debugTools: {  // 本番では型エラーになってほしい
+  debugTools: {  // Should be a type error in production
     inspectState: () => {},
     resetCache: () => {}
   }
@@ -2973,25 +2972,25 @@ const config: Config = {
 
 ---
 
-### エッジケース3: 循環参照する型定義
+### Edge Case 3: Circular Type Definitions
 
 ```typescript
 // types/circular.d.ts
 
-// 循環参照する型
+// Circular types
 export interface TreeNode {
   value: number;
-  children: TreeNode[];  // 自分自身を参照
+  children: TreeNode[];  // References itself
   parent?: TreeNode;
 }
 
 export interface Employee {
   name: string;
-  manager?: Employee;     // 自分自身を参照
+  manager?: Employee;     // References itself
   subordinates: Employee[];
 }
 
-// 相互参照する型
+// Mutually recursive types
 export interface Author {
   name: string;
   books: Book[];
@@ -3003,17 +3002,17 @@ export interface Book {
 }
 ```
 
-**TypeScript は循環参照を正しく処理できます。**
+**TypeScript handles circular references correctly.**
 
 ---
 
-### エッジケース4: オーバーロードの型定義
+### Edge Case 4: Type Definitions with Overloads
 
 ```typescript
 // types/overload.d.ts
 
 declare module "query-builder" {
-  // オーバーロード: 引数の数や型で戻り値の型が変わる
+  // Overloads: the return type changes based on argument count and types
   export function query(sql: string): Promise<unknown[]>;
   export function query<T>(sql: string, parser: (row: unknown) => T): Promise<T[]>;
   export function query<T>(sql: string, options: QueryOptions<T>): Promise<T[]>;
@@ -3026,21 +3025,21 @@ declare module "query-builder" {
 }
 ```
 
-**使用例:**
+**Usage examples:**
 
 ```typescript
 import { query } from "query-builder";
 
-// オーバーロード1: 戻り値は unknown[]
+// Overload 1: returns unknown[]
 const rows1 = await query("SELECT * FROM users");
 
-// オーバーロード2: 戻り値は User[]
+// Overload 2: returns User[]
 const rows2 = await query<User>("SELECT * FROM users", (row: any) => ({
   id: row.id,
   name: row.name
 }));
 
-// オーバーロード3: 戻り値は User[]
+// Overload 3: returns User[]
 const rows3 = await query<User>("SELECT * FROM users", {
   parser: (row: any) => ({ id: row.id, name: row.name }),
   timeout: 5000
@@ -3051,9 +3050,9 @@ const rows3 = await query<User>("SELECT * FROM users", {
 
 ## FAQ
 
-### Q1: .d.ts ファイルはどこに置くべきですか?
+### Q1: Where should `.d.ts` files be placed?
 
-**A:** プロジェクトのルートに `types/` ディレクトリを作成し、そこに配置するのが一般的です。
+**A:** A common convention is to create a `types/` directory at the project root.
 
 ```
 project/
@@ -3066,7 +3065,7 @@ project/
 └── package.json
 ```
 
-`tsconfig.json` の `include` に追加:
+Add to `include` in `tsconfig.json`:
 
 ```json
 {
@@ -3077,7 +3076,7 @@ project/
 }
 ```
 
-**ライブラリを公開する場合:**
+**When publishing a library:**
 
 ```
 my-library/
@@ -3085,66 +3084,66 @@ my-library/
 │   └── index.ts
 ├── dist/
 │   ├── index.js
-│   └── index.d.ts  ← 自動生成される型定義
+│   └── index.d.ts  ← Auto-generated type definitions
 └── package.json
     └── "types": "./dist/index.d.ts"
 ```
 
 ---
 
-### Q2: @types パッケージとライブラリのバージョンが合わない場合はどうすればいいですか?
+### Q2: What if the version of an `@types` package doesn't match the library version?
 
-**A:** `@types/xxx` のメジャーバージョンは、対応するライブラリのメジャーバージョンに合わせるのが慣例です。
+**A:** It's customary to align the major version of `@types/xxx` with the library's major version.
 
 ```bash
-# express 4.x を使っている場合
+# When using express 4.x
 npm install express@4.18.0
 npm install --save-dev @types/express@4.17.0
 
-# バージョンを揃える
+# Match versions
 npm install --save-dev @types/express@$(npm info express version | cut -d. -f1)
 ```
 
-**パッチレベルの不一致は通常問題ありません。**
+**Patch-level mismatches are usually fine.**
 
 ```
 express: 4.18.2
-@types/express: 4.17.17  ← マイナーバージョンが違っても通常 OK
+@types/express: 4.17.17  ← Usually OK even with a different minor version
 ```
 
-**大きな不一致がある場合:**
-- モジュール拡張で差分を補う
-- DefinitelyTyped に型定義を更新する PR を出す
-- 最終手段として自前の型定義を書く
+**When there is a large mismatch:**
+- Bridge the gap with module augmentation
+- Submit a PR to update the type definitions on DefinitelyTyped
+- As a last resort, write your own type definitions
 
 ---
 
-### Q3: ライブラリに型定義が全くない場合はどうしますか?
+### Q3: What should I do if a library has no type definitions at all?
 
-**A:** 以下の優先順位で対応します:
+**A:** Address it in the following priority order:
 
-**1. DefinitelyTyped に型定義がないか確認**
+**1. Check whether DefinitelyTyped already has type definitions**
 
 ```bash
-# TypeSearch で検索
+# Search with TypeSearch
 npx typesearch library-name
 
-# または公式サイトで検索
+# Or search on the official site
 # https://www.typescriptlang.org/dt/search
 ```
 
-**2. 自前の `.d.ts` ファイルを作成（最低限使う API だけ）**
+**2. Create your own `.d.ts` file (only the API you need)**
 
 ```typescript
 // types/library-name.d.ts
 declare module "library-name" {
-  // 使う関数だけ定義
+  // Define only the functions you actually use
   export function doSomething(input: string): Promise<unknown>;
   export function configure(options: unknown): void;
 }
 ```
 
-**3. 暫定的に `any` にする（最終手段）**
+**3. Temporarily fall back to `any` (last resort)**
 
 ```typescript
 // types/library-name.d.ts
@@ -3154,58 +3153,58 @@ declare module "library-name" {
 }
 ```
 
-**長期的には DefinitelyTyped に型定義をコントリビュートすることを検討してください。**
+**In the long run, consider contributing the type definitions to DefinitelyTyped.**
 
 ---
 
-### Q4: declare global を使っても型が認識されない場合は?
+### Q4: What if `declare global` does not seem to work?
 
-**A:** 以下を確認してください:
+**A:** Check the following:
 
-**1. ファイルがモジュールになっているか**
+**1. Is the file actually a module?**
 
 ```typescript
-// ❌ モジュールでない（export/import なし）
+// ❌ Not a module (no export/import)
 declare global {
   interface Window {
     myGlobal: string;
   }
 }
 
-// ✅ モジュール（export を追加）
+// ✅ Module (export added)
 declare global {
   interface Window {
     myGlobal: string;
   }
 }
-export {};  // ダミーエクスポート
+export {};  // Dummy export
 ```
 
-**2. tsconfig.json の include に含まれているか**
+**2. Is the file in `include` of tsconfig.json?**
 
 ```json
 {
   "include": [
-    "types/**/*.d.ts"  // ← これがないと読み込まれない
+    "types/**/*.d.ts"  // ← Without this, the file won't be loaded
   ]
 }
 ```
 
-**3. コンパイラを再起動**
+**3. Restart the compiler**
 
-IDE の TypeScript サーバーをリロード:
+Reload your IDE's TypeScript server:
 - VS Code: `Cmd+Shift+P` → "TypeScript: Restart TS Server"
 
 ---
 
-### Q5: 型定義を自動生成した際、private メンバーも含まれてしまうのですが?
+### Q5: When auto-generating type definitions, private members are also included. What can I do?
 
-**A:** `tsc --declaration` は private メンバーも型定義に含めます（実装は削除されます）。
+**A:** `tsc --declaration` includes private members in the type definitions (only the implementation is removed).
 
 ```typescript
 // src/calculator.ts
 export class Calculator {
-  private value: number = 0;  // private だが...
+  private value: number = 0;  // Despite being private...
 
   add(n: number): this {
     this.value += n;
@@ -3214,22 +3213,22 @@ export class Calculator {
 }
 ```
 
-↓ 生成される型定義:
+↓ Generated type definitions:
 
 ```typescript
 // dist/calculator.d.ts
 export declare class Calculator {
-  private value;  // ← 含まれる（実装は削除）
+  private value;  // ← Included (implementation removed)
   add(n: number): this;
 }
 ```
 
-**完全に隠したい場合:**
+**To hide it completely:**
 
 ```typescript
 // src/calculator.ts
 export class Calculator {
-  #value: number = 0;  // # を使う（真の private）
+  #value: number = 0;  // Use # (truly private)
 
   add(n: number): this {
     this.#value += n;
@@ -3238,23 +3237,23 @@ export class Calculator {
 }
 ```
 
-↓ 生成される型定義:
+↓ Generated type definitions:
 
 ```typescript
 // dist/calculator.d.ts
 export declare class Calculator {
-  #private;  // ← 詳細は隠される
+  #private;  // ← Details are hidden
   add(n: number): this;
 }
 ```
 
-または **API Extractor** を使って内部型を除外する方法もあります（`@internal` タグ）。
+You can also use **API Extractor** to exclude internal types (with the `@internal` tag).
 
 ---
 
-### Q6: モノレポで型定義を共有するには?
+### Q6: How can I share type definitions in a monorepo?
 
-**A:** 共通の型定義パッケージを作成します。
+**A:** Create a shared type-definition package.
 
 ```
 monorepo/
@@ -3303,61 +3302,61 @@ const user: User = { id: "1", name: "Alice" };
 
 ---
 
-## 11. まとめ
+## 11. Summary
 
-### 宣言ファイルの本質
+### The Essence of Declaration Files
 
-| 項目 | 内容 |
+| Item | Content |
 |------|------|
-| **目的** | JavaScript コードに型情報を後付けで提供する |
-| **ファイル拡張子** | `.d.ts` |
-| **実装の有無** | 型情報のみ、実装コードなし |
-| **コンパイル** | `.d.ts` ファイルは JavaScript にコンパイルされない |
-| **スコープ** | グローバル（スクリプト）またはモジュール |
+| **Purpose** | Provide type information for JavaScript code after the fact |
+| **File extension** | `.d.ts` |
+| **Implementation?** | Type information only; no implementation code |
+| **Compilation** | `.d.ts` files are not compiled to JavaScript |
+| **Scope** | Global (script) or module |
 
-### declare キーワードの使い分け
+### Choosing Among the `declare` Variants
 
 ```typescript
-// 値の宣言
+// Value declarations
 declare const VERSION: string;
 declare let isDebug: boolean;
 declare function log(msg: string): void;
 declare class User { /* ... */ }
 declare enum Status { /* ... */ }
 
-// モジュールの宣言
+// Module declaration
 declare module "library-name" { /* ... */ }
 
-// 名前空間の宣言（レガシー）
+// Namespace declaration (legacy)
 declare namespace MyLib { /* ... */ }
 
-// グローバル型の追加（モジュール内から）
+// Adding global types (from inside a module)
 declare global { /* ... */ }
 ```
 
-### 型定義の提供パターン
+### Patterns for Providing Type Definitions
 
 ```
-【パターン1】バンドル型（推奨）
-  - パッケージに型定義を含める
-  - package.json の "types" フィールドで指定
-  - ユーザーが追加インストール不要
+[Pattern 1] Bundled types (recommended)
+  - Include type definitions in the package
+  - Specify with the "types" field in package.json
+  - No additional installation by users
 
-【パターン2】@types パッケージ
-  - DefinitelyTyped で管理
-  - コミュニティメンテナンス
+[Pattern 2] @types packages
+  - Managed via DefinitelyTyped
+  - Community-maintained
   - npm install --save-dev @types/xxx
 
-【パターン3】自前 .d.ts
-  - プロジェクト内の types/ ディレクトリ
-  - 完全な制御が可能
-  - メンテナンスコスト高
+[Pattern 3] Hand-written .d.ts
+  - In the project's types/ directory
+  - Full control
+  - Higher maintenance cost
 ```
 
-### モジュール拡張のパターン
+### Module Augmentation Patterns
 
 ```typescript
-// 既存モジュールの型を拡張
+// Extend the type of an existing module
 import "express";
 declare module "express" {
   interface Request {
@@ -3365,7 +3364,7 @@ declare module "express" {
   }
 }
 
-// グローバル型を追加
+// Add to the global scope
 declare global {
   interface Window {
     analytics: Analytics;
@@ -3373,96 +3372,96 @@ declare global {
 }
 export {};
 
-// Wildcard モジュール宣言
+// Wildcard module declaration
 declare module "*.css" {
   const classes: Record<string, string>;
   export default classes;
 }
 ```
 
-### 型定義の自動生成
+### Auto-Generating Type Definitions
 
 ```bash
-# TypeScript コンパイラで生成
+# Generate using the TypeScript compiler
 tsc --declaration
 
-# 単一ファイルにバンドル
+# Bundle into a single file
 npx dts-bundle-generator -o dist/index.d.ts src/index.ts
 
-# API Extractor（大規模プロジェクト向け）
+# API Extractor (for large projects)
 npx api-extractor run
 ```
 
-### ベストプラクティス
+### Best Practices
 
-1. **any を避ける** → `unknown` を使う
-2. **Triple-Slash Directives より tsconfig.json** を使う
-3. **型定義はシンプルに** → 複雑すぎる型は避ける
-4. **JSDoc を活用** → ドキュメントも型定義に含める
-5. **バージョニングを意識** → breaking changes は慎重に
-6. **後方互換性を保つ** → オプショナルプロパティで拡張
-7. **skipLibCheck: true** でパフォーマンス改善
-8. **incremental: true** でビルド高速化
+1. **Avoid `any`** → use `unknown` instead
+2. **Prefer tsconfig.json over Triple-Slash Directives**
+3. **Keep type definitions simple** → avoid overly complex types
+4. **Leverage JSDoc** → include documentation in type definitions
+5. **Be mindful of versioning** → handle breaking changes carefully
+6. **Preserve backward compatibility** → extend with optional properties
+7. **`skipLibCheck: true`** for performance
+8. **`incremental: true`** to speed up builds
 
-### トラブルシューティング早見表
+### Troubleshooting Quick Reference
 
-| 問題 | 解決策 |
+| Problem | Solution |
 |------|--------|
-| 型が見つからない | `@types/xxx` をインストール、または自前の `.d.ts` を作成 |
-| 型の競合 | `typeRoots` で整理、型エイリアスで回避 |
-| グローバル型が効かない | `export {}` でモジュール化、`declare global` を使う |
-| .d.ts が読み込まれない | `tsconfig.json` の `include` を確認 |
-| 型チェックが遅い | `skipLibCheck: true`、`types` で限定 |
-| paths が効かない | `moduleResolution` を確認、バンドラーの設定も必要 |
+| Type not found | Install `@types/xxx`, or create your own `.d.ts` |
+| Type conflicts | Organize via `typeRoots`; resolve with type aliases |
+| Global types don't work | Make the file a module with `export {}`; use `declare global` |
+| `.d.ts` not loaded | Check `include` in `tsconfig.json` |
+| Type checking is slow | Use `skipLibCheck: true`; restrict via `types` |
+| `paths` doesn't work | Check `moduleResolution`; bundler config is also needed |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- 01-conditional-types.md -- 条件型とテンプレートリテラル型
-- 02-mapped-types.md -- マップ型と変換パターン
-- 03-type-inference.md -- 型推論の仕組みとテクニック
-- [../02-patterns/00-error-handling.md](../02-patterns/00-error-handling.md) -- エラーハンドリングパターン
-- [../03-tooling/00-tsconfig.md](../03-tooling/00-tsconfig.md) -- tsconfig.json 完全ガイド
+- 01-conditional-types.md -- Conditional types and template literal types
+- 02-mapped-types.md -- Mapped types and transformation patterns
+- 03-type-inference.md -- How type inference works and techniques
+- [../02-patterns/00-error-handling.md](../02-patterns/00-error-handling.md) -- Error-handling patterns
+- [../03-tooling/00-tsconfig.md](../03-tooling/00-tsconfig.md) -- Complete guide to tsconfig.json
 
 ---
 
-## 参考文献
+## References
 
 1. **TypeScript Handbook: Declaration Files**
    - https://www.typescriptlang.org/docs/handbook/declaration-files/introduction.html
-   - 公式ドキュメント。宣言ファイルの基本から応用まで網羅
+   - Official docs. Covers declaration files from basics to advanced topics.
 
 2. **DefinitelyTyped**
    - https://github.com/DefinitelyTyped/DefinitelyTyped
-   - 世界最大の型定義リポジトリ。8,000+ パッケージの型定義
+   - The world's largest type-definition repository, with type defs for 8,000+ packages.
 
 3. **TypeScript Deep Dive: Declaration Files**
    - https://basarat.gitbook.io/typescript/type-system/intro
-   - Basarat による詳細解説
+   - In-depth explanation by Basarat.
 
 4. **TypeSearch**
    - https://www.typescriptlang.org/dt/search
-   - 型定義パッケージの検索エンジン
+   - A search engine for type-definition packages.
 
 5. **Microsoft API Extractor**
    - https://api-extractor.com/
-   - 大規模プロジェクト向けの型定義管理ツール
+   - A type-definition management tool for large projects.
 
 6. **TypeScript Module Resolution**
    - https://www.typescriptlang.org/docs/handbook/module-resolution.html
-   - モジュール解決の仕組みを理解するための公式ドキュメント
+   - Official docs explaining how module resolution works.
 
 7. **Publishing TypeScript Libraries**
    - https://www.typescriptlang.org/docs/handbook/declaration-files/publishing.html
-   - ライブラリ公開時の型定義のベストプラクティス
+   - Best practices for type definitions when publishing a library.
 
 8. **Triple-Slash Directives**
    - https://www.typescriptlang.org/docs/handbook/triple-slash-directives.html
-   - Triple-Slash Directives の全種類と使い方
+   - All variants and uses of triple-slash directives.
 
 ---
 
-**文字数:** 約 42,000 文字
+**Character count:** approximately 42,000 characters
 
-このガイドは、TypeScript の宣言ファイル（.d.ts）に関する包括的な知識を提供します。基本的な使い方から、DefinitelyTyped への貢献、モジュール拡張、型定義の自動生成、ライブラリ作者向けのベストプラクティス、トラブルシューティングまで、実務で必要な全ての知識を網羅しています。
+This guide provides comprehensive knowledge about TypeScript declaration files (`.d.ts`). It covers everything from basic usage to contributing to DefinitelyTyped, module augmentation, automatic generation of type definitions, best practices for library authors, and troubleshooting -- all the practical knowledge you need.
