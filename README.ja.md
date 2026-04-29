@@ -10,7 +10,8 @@
 ![Score](https://img.shields.io/badge/Avg%20Score-90.3%2F100-brightgreen)
 <!-- PROGRESS_BADGES_END -->
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/Code-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/Content-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 
 ソフトウェア開発の全領域をカバーする体系的な知識ベース。
 CS基礎からAI活用まで、36 Skills / 952ガイドファイル / 4,300万字超。
@@ -195,7 +196,12 @@ This knowledge base is free and open source. For deeper, production-focused cont
 
 ## License
 
-MIT License - See [LICENSE](LICENSE)
+This project uses a **dual license**:
+
+- **Code** (`.js`, `.ts`, `.yml`, etc.): [MIT License](https://opensource.org/licenses/MIT)
+- **Content** (`.md`, guides, tutorials): [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+
+See [LICENSE](LICENSE) for details.
 
 ---
 

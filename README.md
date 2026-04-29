@@ -8,7 +8,8 @@
 ![Characters](https://img.shields.io/badge/Characters-47294K-informational)
 <!-- PROGRESS_BADGES_END -->
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/Code-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/Content-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 
 A systematic knowledge base covering all areas of software development.
 From CS fundamentals to AI — 36 Skills / 952 guide files / 43M+ characters.
@@ -197,7 +198,12 @@ This knowledge base is free and open source. For deeper, production-focused cont
 
 ## License
 
-MIT License - See [LICENSE](LICENSE)
+This project uses a **dual license**:
+
+- **Code** (`.js`, `.ts`, `.yml`, etc.): [MIT License](https://opensource.org/licenses/MIT)
+- **Content** (`.md`, guides, tutorials): [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+
+See [LICENSE](LICENSE) for details.
 
 ---
 
