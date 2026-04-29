@@ -1,34 +1,34 @@
-# TypeScript概要
+# TypeScript Overview
 
-> JavaScriptの完全な上位互換（スーパーセット）として設計された静的型付き言語。型システムによりコードの安全性・保守性・開発体験を劇的に向上させる。
+> A statically typed language designed as a complete superset of JavaScript. Its type system dramatically improves code safety, maintainability, and developer experience.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **TypeScriptとは何か** -- JavaScriptとの関係、スーパーセットの意味、コンパイルの仕組み
-2. **型システムがもたらす価値** -- バグの早期発見、リファクタリング安全性、IDE支援
-3. **歴史とエコシステム** -- 誕生の背景、バージョンの変遷、主要ツールチェーン
-4. **プロジェクト構成と設定** -- tsconfig.json の詳細、モジュールシステム、ビルド構成
-5. **実務での導入戦略** -- 新規プロジェクト、既存プロジェクト移行、段階的導入
-6. **TypeScriptの内部動作** -- コンパイラの仕組み、型推論エンジン、型消去
-7. **パフォーマンスと最適化** -- コンパイル速度の改善、プロジェクト参照、インクリメンタルビルド
+1. **What TypeScript is** -- Its relationship with JavaScript, the meaning of being a superset, and how compilation works
+2. **The value the type system brings** -- Early bug detection, refactoring safety, and IDE assistance
+3. **History and ecosystem** -- The background of its birth, version evolution, and major toolchains
+4. **Project structure and configuration** -- Details of tsconfig.json, module systems, and build configuration
+5. **Adoption strategies in practice** -- New projects, migration of existing projects, and incremental adoption
+6. **TypeScript's internals** -- How the compiler works, the type inference engine, and type erasure
+7. **Performance and optimization** -- Improving compile speed, project references, and incremental builds
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. TypeScriptとは何か
+## 1. What Is TypeScript
 
-### JavaScriptのスーパーセット
+### A Superset of JavaScript
 
-TypeScriptはMicrosoftが2012年に公開したオープンソース言語である。全ての正しいJavaScriptコードはそのままTypeScriptとしても有効である。TypeScriptはそこに**静的型付け**を追加する。
+TypeScript is an open-source language released by Microsoft in 2012. All valid JavaScript code is also valid as TypeScript. TypeScript adds **static typing** on top of that.
 
-この「スーパーセット」という概念は非常に重要である。C言語とC++の関係に似ているが、TypeScriptの場合はコンパイル後にJavaScriptに変換される点が異なる。つまり、TypeScriptの型情報は実行時には一切存在しない。これを「型消去（Type Erasure）」と呼ぶ。
+The concept of being a "superset" is extremely important. It is similar to the relationship between C and C++, but with TypeScript, the difference is that it is converted to JavaScript after compilation. In other words, TypeScript's type information does not exist at runtime at all. This is called "Type Erasure".
 
 ```
 +------------------------------------------+
@@ -36,31 +36,31 @@ TypeScriptはMicrosoftが2012年に公開したオープンソース言語であ
 |  +------------------------------------+  |
 |  |          JavaScript                |  |
 |  |  +------------------------------+  |  |
-|  |  |       ECMAScript仕様         |  |  |
+|  |  |     ECMAScript Spec          |  |  |
 |  |  +------------------------------+  |  |
 |  +------------------------------------+  |
-|  + 型アノテーション                     |  |
-|  + インターフェース                     |  |
-|  + ジェネリクス                         |  |
-|  + 列挙型                               |  |
-|  + その他の型機能                       |  |
+|  + Type Annotations                     |  |
+|  + Interfaces                           |  |
+|  + Generics                             |  |
+|  + Enums                                |  |
+|  + Other type features                  |  |
 +------------------------------------------+
 ```
 
-### スーパーセットであることの実践的意味
+### Practical Meaning of Being a Superset
 
-スーパーセットであることは、以下のような実践的な利点をもたらす。
+Being a superset brings the following practical benefits.
 
 ```typescript
-// 1. 既存のJavaScriptファイルをそのまま .ts に変更できる
-// rename: utils.js → utils.ts
-// 型エラーが出る箇所を段階的に修正していけばよい
+// 1. You can rename existing JavaScript files directly to .ts
+// rename: utils.js -> utils.ts
+// You can fix the locations where type errors appear incrementally
 
-// 2. JavaScriptライブラリをそのまま利用できる
-import _ from "lodash"; // JavaScriptライブラリ
-// @types/lodash をインストールすれば型補完も効く
+// 2. JavaScript libraries can be used as-is
+import _ from "lodash"; // JavaScript library
+// Installing @types/lodash also enables type completion
 
-// 3. JSDocコメントによる段階的な型付けも可能
+// 3. Gradual typing via JSDoc comments is also possible
 /**
  * @param {string} name
  * @returns {string}
@@ -68,138 +68,138 @@ import _ from "lodash"; // JavaScriptライブラリ
 function greetJS(name) {
   return `Hello, ${name}!`;
 }
-// TypeScriptコンパイラはJSDocの型情報も認識する
+// The TypeScript compiler also recognizes type information from JSDoc
 ```
 
-### コード例1: JavaScriptがそのままTypeScript
+### Code Example 1: JavaScript That Is Already TypeScript
 
 ```typescript
-// これは有効なJavaScriptであり、同時に有効なTypeScriptでもある
+// This is valid JavaScript and at the same time valid TypeScript
 const greet = (name) => `Hello, ${name}!`;
 console.log(greet("World"));
 ```
 
-### コード例2: 型アノテーションの追加
+### Code Example 2: Adding Type Annotations
 
 ```typescript
-// 型アノテーションを追加すると、TypeScriptの力を活用できる
+// Adding type annotations lets you leverage the power of TypeScript
 const greet = (name: string): string => `Hello, ${name}!`;
 
-// コンパイルエラー: Argument of type 'number' is not assignable to parameter of type 'string'
+// Compile error: Argument of type 'number' is not assignable to parameter of type 'string'
 // greet(42);
 
 console.log(greet("World")); // OK
 ```
 
-### コンパイルフロー
+### Compilation Flow
 
 ```
-  TypeScript ソースコード (.ts / .tsx)
+  TypeScript source code (.ts / .tsx)
          |
          v
   +-------------------+
   | TypeScript        |
-  | コンパイラ (tsc)   |
+  | compiler (tsc)    |
   +-------------------+
          |
     +----+----+
     |         |
     v         v
- JavaScript  型エラー
- (.js)       レポート
+ JavaScript  Type error
+ (.js)       reports
 ```
 
-### コンパイルプロセスの詳細
+### Details of the Compilation Process
 
-TypeScriptコンパイラ（tsc）の内部処理は複数のフェーズに分かれている。
+The internal processing of the TypeScript compiler (tsc) is divided into several phases.
 
 ```
-  ソースコード (.ts)
+  Source code (.ts)
        |
        v
   +-------------+
-  | Scanner     |  テキスト → トークン列
-  +-------------+
-       |
-       v
-  +-------------+
-  | Parser      |  トークン列 → AST (抽象構文木)
+  | Scanner     |  Text -> Token stream
   +-------------+
        |
        v
   +-------------+
-  | Binder      |  AST → シンボルテーブル構築
+  | Parser      |  Token stream -> AST (Abstract Syntax Tree)
   +-------------+
        |
        v
   +-------------+
-  | Checker     |  型チェック実行（最も重い処理）
+  | Binder      |  AST -> Symbol table construction
   +-------------+
        |
        v
   +-------------+
-  | Emitter     |  AST → JavaScript出力
+  | Checker     |  Type checking (the heaviest processing)
   +-------------+
        |
        v
-  JavaScript (.js) + 宣言ファイル (.d.ts) + ソースマップ (.js.map)
+  +-------------+
+  | Emitter     |  AST -> JavaScript output
+  +-------------+
+       |
+       v
+  JavaScript (.js) + Declaration files (.d.ts) + Source maps (.js.map)
 ```
 
 ```typescript
-// コンパイラの各フェーズが何をするかの具体例
+// Concrete examples of what each phase of the compiler does
 
-// Scanner: テキストを解析してトークン列を生成
-// "const x: number = 42;" → [const, x, :, number, =, 42, ;]
+// Scanner: parses text and generates a token stream
+// "const x: number = 42;" -> [const, x, :, number, =, 42, ;]
 
-// Parser: トークン列からASTを構築
+// Parser: builds an AST from the token stream
 // VariableStatement
-//   └── VariableDeclaration
-//       ├── Identifier: x
-//       ├── TypeAnnotation: NumberKeyword
-//       └── Initializer: NumericLiteral(42)
+//   |- VariableDeclaration
+//       |- Identifier: x
+//       |- TypeAnnotation: NumberKeyword
+//       |- Initializer: NumericLiteral(42)
 
-// Binder: シンボルテーブルを構築
-// Symbol "x" → { type: number, flags: const, declarations: [...] }
+// Binder: builds the symbol table
+// Symbol "x" -> { type: number, flags: const, declarations: [...] }
 
-// Checker: 型チェックを実行
-// x の型 (number) と初期値 (42: number) が互換 → OK
+// Checker: performs type checking
+// The type of x (number) and the initial value (42: number) are compatible -> OK
 
-// Emitter: JavaScriptを出力
-// "const x = 42;" （型アノテーションが除去される）
+// Emitter: outputs JavaScript
+// "const x = 42;" (type annotations are removed)
 ```
 
-### コード例3: コンパイル実行
+### Code Example 3: Running the Compiler
 
 ```bash
-# TypeScriptコンパイラのインストール
+# Install the TypeScript compiler
 npm install -g typescript
 
-# コンパイル
-tsc hello.ts        # -> hello.js が生成される
+# Compile
+tsc hello.ts        # -> generates hello.js
 
-# コンパイル（型チェックのみ、出力なし）
+# Compile (type-check only, no output)
 tsc --noEmit hello.ts
 
-# 宣言ファイルの生成
-tsc --declaration hello.ts  # -> hello.d.ts も生成される
+# Generate declaration files
+tsc --declaration hello.ts  # -> also generates hello.d.ts
 
-# ソースマップの生成
-tsc --sourceMap hello.ts    # -> hello.js.map も生成される
+# Generate source maps
+tsc --sourceMap hello.ts    # -> also generates hello.js.map
 
-# ウォッチモード（ファイル変更を監視して自動コンパイル）
+# Watch mode (monitor file changes and auto-compile)
 tsc --watch
 
-# 特定のターゲットバージョンでコンパイル
+# Compile to a specific target version
 tsc --target ES2020 hello.ts
 
-# 複数ファイルのコンパイル
+# Compile multiple files
 tsc src/**/*.ts --outDir dist/
 ```
 
-### 型消去（Type Erasure）の具体例
+### Concrete Example of Type Erasure
 
 ```typescript
-// TypeScriptソース
+// TypeScript source
 interface User {
   id: number;
   name: string;
@@ -214,7 +214,7 @@ console.log(user.name);
 ```
 
 ```javascript
-// コンパイル後のJavaScript（型情報が完全に消去される）
+// Compiled JavaScript (type information is completely erased)
 "use strict";
 function getUser(id) {
   return { id, name: "Alice" };
@@ -222,24 +222,24 @@ function getUser(id) {
 const user = getUser(1);
 console.log(user.name);
 
-// interface User は完全に消えている
-// 関数の引数型・返り値型も消えている
-// 変数の型アノテーションも消えている
+// interface User has completely disappeared
+// The argument types and return type of the function are also gone
+// The variable's type annotation is also gone
 ```
 
-### 型消去されないTypeScript構文
+### TypeScript Syntax That Is Not Erased
 
-一部のTypeScript固有の構文は、コンパイル後もJavaScriptコードとして残る。
+Some TypeScript-specific syntax remains as JavaScript code even after compilation.
 
 ```typescript
-// 1. enum はJavaScriptオブジェクトに変換される
+// 1. enum is converted into a JavaScript object
 enum Direction {
   Up = "UP",
   Down = "DOWN",
   Left = "LEFT",
   Right = "RIGHT",
 }
-// ↓ コンパイル後
+// v After compilation
 // var Direction;
 // (function (Direction) {
 //     Direction["Up"] = "UP";
@@ -248,38 +248,38 @@ enum Direction {
 //     Direction["Right"] = "RIGHT";
 // })(Direction || (Direction = {}));
 
-// 2. const enum はインライン展開される
+// 2. const enum is inlined
 const enum StatusCode {
   OK = 200,
   NotFound = 404,
   ServerError = 500,
 }
 const code = StatusCode.OK;
-// ↓ コンパイル後
-// const code = 200; // 直接値が埋め込まれる
+// v After compilation
+// const code = 200; // The value is embedded directly
 
-// 3. namespace はIIFEに変換される
+// 3. namespace is converted to an IIFE
 namespace MathUtils {
   export function add(a: number, b: number): number {
     return a + b;
   }
 }
-// ↓ コンパイル後
+// v After compilation
 // var MathUtils;
 // (function (MathUtils) {
 //     function add(a, b) { return a + b; }
 //     MathUtils.add = add;
 // })(MathUtils || (MathUtils = {}));
 
-// 4. デコレータ（experimentalDecorators）はヘルパー関数に変換される
-// 5. パラメータプロパティはコンストラクタ代入に変換される
+// 4. Decorators (experimentalDecorators) are converted into helper functions
+// 5. Parameter properties are converted into constructor assignments
 class Point {
   constructor(
     public x: number,
     public y: number
   ) {}
 }
-// ↓ コンパイル後
+// v After compilation
 // class Point {
 //     constructor(x, y) {
 //         this.x = x;
@@ -290,52 +290,52 @@ class Point {
 
 ---
 
-## 2. 型システムがもたらす価値
+## 2. The Value Brought by the Type System
 
-### コード例4: 型がバグを防ぐ
+### Code Example 4: Types Prevent Bugs
 
 ```typescript
-// JavaScript（実行時まで気づかない）
+// JavaScript (you don't notice until runtime)
 function calculateArea(width, height) {
   return width * height;
 }
-calculateArea("10", 20); // "1020" -- 意図しない文字列連結
+calculateArea("10", 20); // "1020" -- unintended string concatenation
 
-// TypeScript（コンパイル時に検出）
+// TypeScript (detected at compile time)
 function calculateArea(width: number, height: number): number {
   return width * height;
 }
-// calculateArea("10", 20); // コンパイルエラー！
-calculateArea(10, 20); // 200 -- 正しい結果
+// calculateArea("10", 20); // Compile error!
+calculateArea(10, 20); // 200 -- correct result
 ```
 
-### 型によるバグ防止の詳細パターン
+### Detailed Patterns of Bug Prevention via Types
 
 ```typescript
-// パターン1: null/undefined アクセスの防止
+// Pattern 1: Preventing access to null/undefined
 function getLength(str: string | null): number {
-  // str.length; // エラー: Object is possibly 'null'
+  // str.length; // Error: Object is possibly 'null'
   if (str === null) return 0;
-  return str.length; // OK: null チェック後は安全
+  return str.length; // OK: safe after the null check
 }
 
-// パターン2: 存在しないプロパティへのアクセス防止
+// Pattern 2: Preventing access to non-existent properties
 interface Config {
   host: string;
   port: number;
 }
 
 function createConnection(config: Config) {
-  // config.hostname; // エラー: Property 'hostname' does not exist
+  // config.hostname; // Error: Property 'hostname' does not exist
   return `${config.host}:${config.port}`; // OK
 }
 
-// パターン3: 配列操作の型安全性
+// Pattern 3: Type safety for array operations
 const numbers: number[] = [1, 2, 3];
-// numbers.push("4"); // エラー: Argument of type 'string' is not assignable
+// numbers.push("4"); // Error: Argument of type 'string' is not assignable
 numbers.push(4); // OK
 
-// パターン4: switch文の網羅性チェック
+// Pattern 4: Exhaustiveness checking in switch statements
 type Shape = "circle" | "square" | "triangle";
 
 function getArea(shape: Shape, size: number): number {
@@ -346,27 +346,27 @@ function getArea(shape: Shape, size: number): number {
       return size * size;
     case "triangle":
       return (Math.sqrt(3) / 4) * size * size;
-    // "triangle" を忘れた場合、コンパイラが警告する
-    // （exhaustive check を有効にしている場合）
+    // If "triangle" is forgotten, the compiler warns
+    // (when exhaustive check is enabled)
   }
 }
 
-// パターン5: 関数の戻り値の型チェック
+// Pattern 5: Type checking the return value of a function
 function divide(a: number, b: number): number {
   if (b === 0) {
-    // return "Error"; // エラー: Type 'string' is not assignable to type 'number'
+    // return "Error"; // Error: Type 'string' is not assignable to type 'number'
     throw new Error("Division by zero");
   }
   return a / b;
 }
 
-// パターン6: 暗黙の型変換の防止
+// Pattern 6: Preventing implicit type conversions
 const value: number = 42;
-// const result: string = value; // エラー: Type 'number' is not assignable to type 'string'
-const result: string = String(value); // OK: 明示的な変換
+// const result: string = value; // Error: Type 'number' is not assignable to type 'string'
+const result: string = String(value); // OK: explicit conversion
 ```
 
-### コード例5: IDEの自動補完
+### Code Example 5: IDE Auto-Completion
 
 ```typescript
 interface User {
@@ -377,17 +377,17 @@ interface User {
 }
 
 function displayUser(user: User) {
-  // user. と入力した時点で id, name, email, createdAt が候補に表示される
+  // The moment you type "user.", id, name, email, and createdAt appear as candidates
   console.log(`${user.name} <${user.email}>`);
 }
 ```
 
-### IDEサポートの詳細
+### Details of IDE Support
 
-TypeScriptの型情報は、IDE（VSCode, WebStorm等）で以下のような高度な開発支援を可能にする。
+TypeScript's type information enables advanced development support in IDEs (VSCode, WebStorm, etc.) such as the following.
 
 ```typescript
-// 1. 自動補完（IntelliSense）
+// 1. Auto-completion (IntelliSense)
 interface ApiResponse<T> {
   data: T;
   status: number;
@@ -400,11 +400,11 @@ interface ApiResponse<T> {
   };
 }
 
-// response. と入力するだけで data, status, headers, pagination が候補に表示
-// response.pagination. と入力すれば page, perPage, total, totalPages が表示
-// 階層の深いプロパティまで正確に補完される
+// Just typing "response." displays data, status, headers, pagination as candidates
+// Typing "response.pagination." displays page, perPage, total, totalPages
+// Even deeply nested properties are completed accurately
 
-// 2. シグネチャヘルプ（関数の引数情報表示）
+// 2. Signature help (display of function argument information)
 function createUser(
   name: string,
   email: string,
@@ -417,71 +417,71 @@ function createUser(
   // ...
   return {} as User;
 }
-// createUser( と入力した時点で、3つの引数の型情報が表示される
-// 第3引数のオブジェクト構造も表示される
+// The moment you type "createUser(", the type information of the three arguments is shown
+// The structure of the third argument's object is also shown
 
-// 3. クイック情報（ホバー時の型情報表示）
+// 3. Quick info (type information shown on hover)
 const users = [
   { id: 1, name: "Alice", age: 30 },
   { id: 2, name: "Bob", age: 25 },
 ];
-// users にホバーすると { id: number; name: string; age: number; }[] と表示
+// Hovering on users displays { id: number; name: string; age: number; }[]
 
 const names = users.map(u => u.name);
-// names にホバーすると string[] と表示
+// Hovering on names displays string[]
 
 const eldest = users.reduce((prev, curr) =>
   prev.age > curr.age ? prev : curr
 );
-// eldest にホバーすると { id: number; name: string; age: number } と表示
+// Hovering on eldest displays { id: number; name: string; age: number }
 
-// 4. エラーのインライン表示
+// 4. Inline error display
 const config = {
   host: "localhost",
   port: 3000,
 };
-// config.port = "8080"; // 赤い波線でエラー表示: Type 'string' is not assignable to type 'number'
+// config.port = "8080"; // Red squiggly error: Type 'string' is not assignable to type 'number'
 
-// 5. リファクタリング支援
-// - シンボル名の一括変更（F2キー）
-// - 関数の抽出
-// - インターフェースの自動抽出
-// - import文の自動追加・整理
+// 5. Refactoring support
+// - Bulk rename of symbols (F2 key)
+// - Extract function
+// - Auto-extract interface
+// - Auto-add and organize import statements
 
-// 6. コードナビゲーション
-// - 定義へのジャンプ（F12）
-// - 参照の検索（Shift+F12）
-// - 実装へのジャンプ（Ctrl+F12）
-// - 型定義へのジャンプ
+// 6. Code navigation
+// - Go to definition (F12)
+// - Find references (Shift+F12)
+// - Go to implementation (Ctrl+F12)
+// - Go to type definition
 ```
 
-### 型システムの利点比較
+### Comparison of the Benefits of the Type System
 
-| 観点 | JavaScript (型なし) | TypeScript (型あり) |
-|------|---------------------|---------------------|
-| バグ検出タイミング | 実行時（本番含む） | コンパイル時（開発中） |
-| リファクタリング | 手動で全箇所確認 | コンパイラが影響範囲を自動検出 |
-| IDE補完 | 推測ベース（不正確） | 型情報ベース（正確） |
-| ドキュメント | コメントで記述（陳腐化しやすい） | 型が生きたドキュメントになる |
-| チーム開発 | 口頭・ドキュメント依存 | 型がコントラクトとして機能 |
-| 学習コスト | 低い | やや高い（投資価値あり） |
-| デバッグ時間 | 長い（型起因のバグが多い） | 短い（型エラーは開発中に解消） |
-| コードレビュー | 型の意図を口頭で確認 | 型が意図を明示する |
-| 新メンバーのオンボーディング | コードを読んで型を推測 | 型が入口ガイドになる |
+| Aspect | JavaScript (untyped) | TypeScript (typed) |
+|--------|----------------------|--------------------|
+| Bug detection timing | Runtime (including production) | Compile time (during development) |
+| Refactoring | Manually verify all locations | Compiler auto-detects affected scope |
+| IDE completion | Guess-based (inaccurate) | Type-information-based (accurate) |
+| Documentation | Written in comments (easy to become stale) | Types serve as living documentation |
+| Team development | Depends on verbal communication and docs | Types act as contracts |
+| Learning cost | Low | Slightly high (worth the investment) |
+| Debugging time | Long (many type-related bugs) | Short (type errors resolved during development) |
+| Code review | Type intent confirmed verbally | Types make intent explicit |
+| New member onboarding | Read code and infer types | Types serve as an entry guide |
 
-### コード例6: リファクタリング安全性
+### Code Example 6: Refactoring Safety
 
 ```typescript
-// 大規模リファクタリングのシナリオ
-// Before: price フィールドが円単位
+// Scenario of a large-scale refactor
+// Before: the price field is in yen
 interface Product {
   id: number;
   name: string;
-  price: number; // 円単位
+  price: number; // in yen
 }
 
 function formatPrice(product: Product): string {
-  return `¥${product.price.toLocaleString()}`;
+  return `\u00A5${product.price.toLocaleString()}`;
 }
 
 function calculateTotal(products: Product[]): number {
@@ -492,29 +492,29 @@ function applyDiscount(product: Product, rate: number): number {
   return product.price * (1 - rate);
 }
 
-// After: price を priceInCents にリネーム（銭単位に変更）
+// After: rename price to priceInCents (changed to sub-yen units)
 interface Product {
   id: number;
   name: string;
-  priceInCents: number; // 銭単位
+  priceInCents: number; // in sub-yen units
 }
 
-// TypeScriptコンパイラが以下の全箇所でエラーを出す:
-// - formatPrice 内の product.price
-// - calculateTotal 内の p.price
-// - applyDiscount 内の product.price
-// → 修正漏れが絶対に起きない
+// The TypeScript compiler reports errors at all of these locations:
+// - product.price inside formatPrice
+// - p.price inside calculateTotal
+// - product.price inside applyDiscount
+// -> Missed updates can never happen
 
-// さらに、型の変更による影響範囲を「エラー一覧」として確認できる
-// IDE上では赤い波線として視覚的に表示される
+// Furthermore, the impact of the type change can be reviewed as a list of errors
+// Visually shown as red squiggles in the IDE
 ```
 
-### 大規模プロジェクトでのTypeScriptの効果
+### The Effect of TypeScript in Large-Scale Projects
 
 ```typescript
-// 実際のプロジェクトで型がどのように安全性を担保するかの例
+// Example of how types provide safety in real projects
 
-// API レスポンスの型定義
+// API response type definition
 interface ApiResponse<T> {
   success: boolean;
   data: T;
@@ -529,7 +529,7 @@ interface ApiResponse<T> {
   };
 }
 
-// ユーザー関連の型定義
+// User-related type definitions
 interface User {
   id: string;
   email: string;
@@ -552,29 +552,29 @@ interface User {
   updatedAt: string;
 }
 
-// APIクライアント
+// API client
 async function fetchUser(id: string): Promise<ApiResponse<User>> {
   const response = await fetch(`/api/users/${id}`);
   return response.json();
 }
 
-// 呼び出し側で型安全にデータにアクセスできる
+// Callers can access the data in a type-safe way
 async function displayUserProfile(userId: string): Promise<void> {
   const result = await fetchUser(userId);
 
   if (result.success) {
-    // result.data は User 型として認識される
+    // result.data is recognized as the User type
     const { profile, settings } = result.data;
     console.log(`${profile.firstName} ${profile.lastName}`);
     console.log(`Theme: ${settings.theme}`);
     console.log(`Language: ${settings.language}`);
 
-    // settings.notifications.email は boolean として認識
+    // settings.notifications.email is recognized as boolean
     if (settings.notifications.email) {
       console.log("Email notifications are enabled");
     }
   } else {
-    // result.error にアクセスできる
+    // We can access result.error
     console.error(`Error: ${result.error?.message}`);
   }
 }
@@ -582,28 +582,28 @@ async function displayUserProfile(userId: string): Promise<void> {
 
 ---
 
-## 3. 歴史とエコシステム
+## 3. History and Ecosystem
 
-### TypeScriptの歴史年表
+### TypeScript History Timeline
 
 ```
-2012  v0.8   初回リリース（Microsoft）
-  |          Anders Hejlsberg（C#設計者）が主導
+2012  v0.8   Initial release (Microsoft)
+  |          Led by Anders Hejlsberg (designer of C#)
   |
-2013  v0.9   ジェネリクスの導入
+2013  v0.9   Introduction of generics
   |
-2014  v1.0   安定版リリース
-  |          Angular 2がTypeScriptを採用（大きな転機）
+2014  v1.0   Stable release
+  |          Angular 2 adopts TypeScript (a major turning point)
   |
-2015  v1.5   ES2015モジュール対応、デコレータ（実験的）
+2015  v1.5   ES2015 module support, decorators (experimental)
   |
 2016  v2.0   Non-nullable types, Tagged Unions, readonly
   |   v2.1   keyof, Mapped Types, Lookup Types
   |
-2017  v2.3   --strict フラグ導入
+2017  v2.3   --strict flag introduced
   |   v2.4   String enums
   |
-2018  v3.0   Project References, unknown型
+2018  v3.0   Project References, unknown type
   |   v3.1   Mapped types on tuples and arrays
   |
 2019  v3.7   Optional Chaining (?.), Nullish Coalescing (??)
@@ -612,32 +612,32 @@ async function displayUserProfile(userId: string): Promise<void> {
 2020  v4.0   Variadic Tuple Types, Labeled Tuples
   |   v4.1   Template Literal Types, Key Remapping
   |
-2021  v4.5   Awaited型, ESM対応強化
-  |   v4.7   Node.js ESM 対応, instantiation expressions
+2021  v4.5   Awaited type, enhanced ESM support
+  |   v4.7   Node.js ESM support, instantiation expressions
   |
-2022  v4.9   satisfies 演算子
+2022  v4.9   satisfies operator
   |
-2023  v5.0   Decorators (Stage 3), const型パラメータ
-  |   v5.2   using宣言, デコレータメタデータ
+2023  v5.0   Decorators (Stage 3), const type parameters
+  |   v5.2   using declaration, decorator metadata
   |
-2024  v5.4   NoInfer, Object.groupBy型
-  |   v5.5   型述語の推論、正規表現チェック
+2024  v5.4   NoInfer, Object.groupBy types
+  |   v5.5   Type predicate inference, regex checks
   |   v5.6   --noUncheckedSideEffectImports
   |
-2025  v5.7   --erasableSyntaxOnly, 最新機能
-  |          Node.js が --experimental-strip-types で直接実行対応
+2025  v5.7   --erasableSyntaxOnly, latest features
+  |          Node.js supports direct execution via --experimental-strip-types
 ```
 
-### 各バージョンの注目機能の詳細
+### Details of Notable Features in Each Version
 
 ```typescript
 // TypeScript 2.0: Non-nullable types
-// strictNullChecks を有効にすることで、null/undefined を厳密に型チェック
+// Enabling strictNullChecks strictly type-checks null/undefined
 let name: string;
-// name = null;  // エラー（strictNullChecks有効時）
+// name = null;  // Error (when strictNullChecks is enabled)
 let nullableName: string | null = null; // OK
 
-// TypeScript 2.1: keyof と Mapped Types
+// TypeScript 2.1: keyof and Mapped Types
 interface Person {
   name: string;
   age: number;
@@ -645,12 +645,12 @@ interface Person {
 type PersonKeys = keyof Person; // "name" | "age"
 type ReadonlyPerson = { readonly [K in keyof Person]: Person[K] };
 
-// TypeScript 3.0: unknown型
-// any よりも安全な「何でも受け入れるが使う前にチェックが必要」な型
+// TypeScript 3.0: unknown type
+// A safer alternative to any -- "accepts anything but requires checking before use"
 function processValue(value: unknown): string {
-  // value.toString(); // エラー: Object is of type 'unknown'
+  // value.toString(); // Error: Object is of type 'unknown'
   if (typeof value === "string") {
-    return value.toUpperCase(); // OK: string に絞り込まれた
+    return value.toUpperCase(); // OK: narrowed to string
   }
   return String(value);
 }
@@ -665,34 +665,34 @@ interface Company {
   };
 }
 function getCountry(company: Company): string | undefined {
-  return company.address?.country; // address が undefined でも安全
+  return company.address?.country; // safe even if address is undefined
 }
 
 // TypeScript 4.1: Template Literal Types
 type HTTPMethod = "GET" | "POST" | "PUT" | "DELETE";
 type Endpoint = "/users" | "/posts" | "/comments";
 type Route = `${HTTPMethod} ${Endpoint}`;
-// "GET /users" | "GET /posts" | ... | "DELETE /comments" の24通りの組み合わせ
+// 24 combinations: "GET /users" | "GET /posts" | ... | "DELETE /comments"
 
-// TypeScript 4.9: satisfies 演算子
-// 型チェックしつつ、推論された型を維持する
+// TypeScript 4.9: satisfies operator
+// Type-checks while keeping the inferred type
 const palette = {
   red: [255, 0, 0],
   green: "#00FF00",
   blue: [0, 0, 255],
 } satisfies Record<string, string | number[]>;
 
-// palette.red は number[] として推論される（Record<string, string | number[]> ではない）
-const redValue = palette.red[0]; // number（satisfies なしでは string | number になる）
+// palette.red is inferred as number[] (not Record<string, string | number[]>)
+const redValue = palette.red[0]; // number (without satisfies it would be string | number)
 
-// TypeScript 5.0: const型パラメータ
+// TypeScript 5.0: const type parameters
 function createRoute<const T extends readonly string[]>(routes: T): T {
   return routes;
 }
 const routes = createRoute(["home", "about", "contact"]);
-// routes の型は readonly ["home", "about", "contact"]（as const 不要）
+// routes has type readonly ["home", "about", "contact"] (no need for "as const")
 
-// TypeScript 5.2: using宣言（Explicit Resource Management）
+// TypeScript 5.2: using declaration (Explicit Resource Management)
 class FileHandle {
   [Symbol.dispose]() {
     console.log("File closed");
@@ -700,34 +700,34 @@ class FileHandle {
 }
 function processFile() {
   using file = new FileHandle();
-  // file を使う処理
-  // スコープを抜けると自動的に [Symbol.dispose]() が呼ばれる
+  // Code that uses file
+  // Once the scope is exited, [Symbol.dispose]() is called automatically
 }
 ```
 
-### エコシステム全体像
+### Ecosystem Overview
 
-| カテゴリ | 主要ツール | 役割 |
-|----------|-----------|------|
-| コンパイラ | tsc | 型チェック + トランスパイル |
-| バンドラ | esbuild, SWC, Vite | 高速ビルド |
-| リンター | typescript-eslint | コード品質チェック |
-| フォーマッター | Prettier, dprint | コード整形 |
-| テスト | Vitest, Jest | 型安全なテスト |
-| スキーマ | Zod, io-ts, Valibot | ランタイムバリデーション |
-| ORM | Prisma, Drizzle, Kysely | 型安全なDB操作 |
-| API | tRPC, GraphQL Code Generator | 型安全なAPI通信 |
-| フレームワーク | Next.js, Remix, Astro, Hono | フルスタック開発 |
-| ランタイム | Node.js, Deno, Bun | TypeScript実行環境 |
-| モノレポ | Turborepo, Nx | 大規模プロジェクト管理 |
+| Category | Major Tools | Role |
+|----------|-------------|------|
+| Compiler | tsc | Type checking + transpilation |
+| Bundler | esbuild, SWC, Vite | Fast builds |
+| Linter | typescript-eslint | Code quality checks |
+| Formatter | Prettier, dprint | Code formatting |
+| Testing | Vitest, Jest | Type-safe testing |
+| Schema | Zod, io-ts, Valibot | Runtime validation |
+| ORM | Prisma, Drizzle, Kysely | Type-safe database operations |
+| API | tRPC, GraphQL Code Generator | Type-safe API communication |
+| Frameworks | Next.js, Remix, Astro, Hono | Full-stack development |
+| Runtimes | Node.js, Deno, Bun | TypeScript execution environments |
+| Monorepo | Turborepo, Nx | Large-scale project management |
 
-### エコシステムの詳細解説
+### Detailed Explanation of the Ecosystem
 
 ```typescript
-// ===== Zod: ランタイムバリデーション =====
+// ===== Zod: runtime validation =====
 import { z } from "zod";
 
-// スキーマ定義 = 型定義 + バリデーション
+// Schema definition = type definition + validation
 const UserSchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1).max(100),
@@ -736,17 +736,17 @@ const UserSchema = z.object({
   role: z.enum(["admin", "user", "guest"]),
 });
 
-// スキーマから型を自動生成
+// Auto-generate the type from the schema
 type User = z.infer<typeof UserSchema>;
-// → { id: string; name: string; email: string; age: number; role: "admin" | "user" | "guest" }
+// -> { id: string; name: string; email: string; age: number; role: "admin" | "user" | "guest" }
 
-// ランタイムでバリデーション
+// Validate at runtime
 function createUser(input: unknown): User {
-  return UserSchema.parse(input); // 不正なデータは例外をスロー
+  return UserSchema.parse(input); // Throws on invalid data
 }
 
-// ===== Prisma: 型安全なDB操作 =====
-// schema.prisma から自動生成される型を使用
+// ===== Prisma: type-safe database operations =====
+// Use types auto-generated from schema.prisma
 // const user = await prisma.user.findUnique({
 //   where: { id: "..." },
 //   select: {
@@ -757,14 +757,14 @@ function createUser(input: unknown): User {
 //     },
 //   },
 // });
-// user の型: { name: string; email: string; posts: { title: string }[] } | null
+// Type of user: { name: string; email: string; posts: { title: string }[] } | null
 
-// ===== tRPC: 型安全なAPI通信 =====
-// サーバー側の型定義がクライアント側に自動伝播
-// APIのスキーマ変更時にクライアント側でコンパイルエラーが出る
-// → フロントエンドとバックエンドの型不整合を完全に防止
+// ===== tRPC: type-safe API communication =====
+// Server-side type definitions auto-propagate to the client
+// When the API schema changes, compile errors appear on the client side
+// -> Completely prevents type mismatches between frontend and backend
 
-// ===== Vitest: 型安全なテスト =====
+// ===== Vitest: type-safe testing =====
 import { describe, it, expect } from "vitest";
 
 describe("User", () => {
@@ -781,89 +781,89 @@ describe("User", () => {
 });
 ```
 
-### コード例7: 最小限のTypeScriptプロジェクト構成
+### Code Example 7: Minimal TypeScript Project Setup
 
 ```bash
-# プロジェクト初期化
+# Initialize the project
 mkdir my-ts-project && cd my-ts-project
 npm init -y
 npm install typescript --save-dev
 npx tsc --init
 
-# ディレクトリ構成
+# Directory structure
 # my-ts-project/
-# ├── src/
-# │   └── index.ts
-# ├── dist/           # コンパイル出力
-# ├── tsconfig.json
-# └── package.json
+# +- src/
+# |   +- index.ts
+# +- dist/           # Compilation output
+# +- tsconfig.json
+# +- package.json
 ```
 
 ---
 
-## 4. プロジェクト構成と設定
+## 4. Project Structure and Configuration
 
-### tsconfig.json の詳細
+### Details of tsconfig.json
 
-tsconfig.json はTypeScriptプロジェクトの設定ファイルであり、コンパイラの動作を制御する。以下に実務で頻繁に使用する設定を網羅的に解説する。
+tsconfig.json is the configuration file for a TypeScript project and controls the compiler's behavior. Below is a comprehensive explanation of settings frequently used in practice.
 
 ```jsonc
 {
   "compilerOptions": {
-    // ===== 型チェック関連 =====
-    "strict": true,                    // 全てのstrictチェックを有効化（推奨）
-    // strict: true は以下を全て有効にする:
-    // - strictNullChecks: null/undefined の厳密チェック
-    // - strictFunctionTypes: 関数型の厳密チェック
-    // - strictBindCallApply: bind/call/apply の厳密チェック
-    // - strictPropertyInitialization: クラスプロパティの初期化チェック
-    // - noImplicitAny: 暗黙の any を禁止
-    // - noImplicitThis: 暗黙の this を禁止
-    // - alwaysStrict: "use strict" を出力
-    // - useUnknownInCatchVariables: catch 変数を unknown 型に
+    // ===== Type checking related =====
+    "strict": true,                    // Enables all strict checks (recommended)
+    // strict: true enables all of the following:
+    // - strictNullChecks: strict null/undefined checking
+    // - strictFunctionTypes: strict function type checking
+    // - strictBindCallApply: strict bind/call/apply checking
+    // - strictPropertyInitialization: class property initialization checking
+    // - noImplicitAny: forbids implicit any
+    // - noImplicitThis: forbids implicit this
+    // - alwaysStrict: emits "use strict"
+    // - useUnknownInCatchVariables: catch variables typed as unknown
 
-    "noUncheckedIndexedAccess": true,  // インデックスアクセスに undefined を追加
-    "noUnusedLocals": true,            // 未使用ローカル変数をエラーに
-    "noUnusedParameters": true,        // 未使用パラメータをエラーに
-    "noImplicitReturns": true,         // 暗黙のreturnをエラーに
-    "noFallthroughCasesInSwitch": true, // switchのフォールスルーをエラーに
-    "exactOptionalPropertyTypes": true, // オプショナルプロパティの厳密チェック
-    "noPropertyAccessFromIndexSignature": true, // インデックスシグネチャへのドットアクセスを禁止
+    "noUncheckedIndexedAccess": true,  // Adds undefined to indexed access
+    "noUnusedLocals": true,            // Errors on unused local variables
+    "noUnusedParameters": true,        // Errors on unused parameters
+    "noImplicitReturns": true,         // Errors on implicit returns
+    "noFallthroughCasesInSwitch": true, // Errors on switch fallthrough
+    "exactOptionalPropertyTypes": true, // Strict checking of optional properties
+    "noPropertyAccessFromIndexSignature": true, // Forbid dot-access on index signatures
 
-    // ===== モジュール関連 =====
-    "module": "ESNext",                // モジュールシステム
-    "moduleResolution": "bundler",     // モジュール解決戦略（bundler推奨）
-    "esModuleInterop": true,           // CommonJS/ESM相互運用
-    "allowImportingTsExtensions": true, // .ts拡張子でのimportを許可
-    "resolveJsonModule": true,         // JSONファイルのimportを許可
-    "isolatedModules": true,           // ファイル単位のトランスパイルを保証
+    // ===== Module related =====
+    "module": "ESNext",                // Module system
+    "moduleResolution": "bundler",     // Module resolution strategy (bundler recommended)
+    "esModuleInterop": true,           // CommonJS/ESM interoperability
+    "allowImportingTsExtensions": true, // Allow imports with .ts extension
+    "resolveJsonModule": true,         // Allow importing JSON files
+    "isolatedModules": true,           // Guarantee per-file transpilation
 
-    // ===== 出力関連 =====
-    "target": "ES2022",                // 出力するJavaScriptのバージョン
-    "outDir": "./dist",                // 出力先ディレクトリ
-    "declaration": true,               // .d.ts ファイルを生成
-    "declarationMap": true,            // .d.ts のソースマップを生成
-    "sourceMap": true,                 // .js のソースマップを生成
-    "removeComments": false,           // コメントを維持
+    // ===== Output related =====
+    "target": "ES2022",                // Target JavaScript version
+    "outDir": "./dist",                // Output directory
+    "declaration": true,               // Emit .d.ts files
+    "declarationMap": true,            // Emit source maps for .d.ts
+    "sourceMap": true,                 // Emit source maps for .js
+    "removeComments": false,           // Keep comments
 
-    // ===== パス関連 =====
-    "rootDir": "./src",                // ソースのルートディレクトリ
-    "baseUrl": "./src",                // パス解決のベース
-    "paths": {                         // パスエイリアス
+    // ===== Path related =====
+    "rootDir": "./src",                // Root directory for sources
+    "baseUrl": "./src",                // Base for path resolution
+    "paths": {                         // Path aliases
       "@/*": ["./*"],
       "@components/*": ["./components/*"],
       "@utils/*": ["./utils/*"],
       "@types/*": ["./types/*"]
     },
 
-    // ===== その他 =====
-    "skipLibCheck": true,              // .d.ts のチェックをスキップ（ビルド高速化）
-    "forceConsistentCasingInFileNames": true, // ファイル名の大文字小文字を厳密チェック
-    "lib": ["ES2022", "DOM", "DOM.Iterable"] // 使用するライブラリの型定義
+    // ===== Other =====
+    "skipLibCheck": true,              // Skip type checking of .d.ts (speeds up builds)
+    "forceConsistentCasingInFileNames": true, // Strict file name casing checks
+    "lib": ["ES2022", "DOM", "DOM.Iterable"] // Library type definitions to use
   },
 
-  "include": ["src/**/*"],             // コンパイル対象
-  "exclude": [                         // コンパイル除外
+  "include": ["src/**/*"],             // Files to compile
+  "exclude": [                         // Files to exclude
     "node_modules",
     "dist",
     "**/*.test.ts",
@@ -872,10 +872,10 @@ tsconfig.json はTypeScriptプロジェクトの設定ファイルであり、�
 }
 ```
 
-### プロジェクト種別ごとの推奨tsconfig
+### Recommended tsconfig per Project Type
 
 ```jsonc
-// ===== Node.js バックエンドプロジェクト =====
+// ===== Node.js backend project =====
 {
   "compilerOptions": {
     "target": "ES2022",
@@ -898,7 +898,7 @@ tsconfig.json はTypeScriptプロジェクトの設定ファイルであり、�
 ```
 
 ```jsonc
-// ===== React フロントエンドプロジェクト =====
+// ===== React frontend project =====
 {
   "compilerOptions": {
     "target": "ES2022",
@@ -913,7 +913,7 @@ tsconfig.json はTypeScriptプロジェクトの設定ファイルであり、�
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true  // Vite/esbuildがビルドするため、tscは型チェックのみ
+    "noEmit": true  // Vite/esbuild handles building, so tsc only type-checks
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
@@ -921,7 +921,7 @@ tsconfig.json はTypeScriptプロジェクトの設定ファイルであり、�
 ```
 
 ```jsonc
-// ===== ライブラリプロジェクト =====
+// ===== Library project =====
 {
   "compilerOptions": {
     "target": "ES2020",
@@ -936,7 +936,7 @@ tsconfig.json はTypeScriptプロジェクトの設定ファイルであり、�
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    // ライブラリは幅広い環境で使えるよう、低めのtargetを設定
+    // For libraries, set a lower target so they work in a wide range of environments
     "lib": ["ES2020"]
   },
   "include": ["src"],
@@ -944,121 +944,121 @@ tsconfig.json はTypeScriptプロジェクトの設定ファイルであり、�
 }
 ```
 
-### モジュールシステムの選択
+### Choosing a Module System
 
 ```typescript
-// ===== CommonJS (Node.js 伝統的なモジュールシステム) =====
+// ===== CommonJS (the traditional Node.js module system) =====
 // tsconfig: "module": "CommonJS"
-const express = require("express");  // require を使用
-module.exports = { myFunction };     // module.exports を使用
+const express = require("express");  // Use require
+module.exports = { myFunction };     // Use module.exports
 
-// ===== ESModules (現代の標準モジュールシステム) =====
+// ===== ESModules (the modern standard module system) =====
 // tsconfig: "module": "ESNext" or "NodeNext"
-import express from "express";       // import を使用
-export { myFunction };               // export を使用
+import express from "express";       // Use import
+export { myFunction };               // Use export
 
-// ===== moduleResolution の選択指針 =====
-// "node10" (= "node"): 古いNode.jsスタイル（非推奨）
-// "node16" / "nodenext": Node.js 16+のESM対応
-// "bundler": Vite, webpack等のバンドラー使用時（推奨）
+// ===== Choosing moduleResolution =====
+// "node10" (= "node"): old Node.js style (deprecated)
+// "node16" / "nodenext": Node.js 16+ ESM support
+// "bundler": when using Vite, webpack, etc. (recommended)
 
-// moduleResolution による動作の違い
-// "bundler" の場合:
-import { utils } from "./utils";     // 拡張子省略OK
+// Behavioral differences depending on moduleResolution
+// With "bundler":
+import { utils } from "./utils";     // Extension may be omitted
 import data from "./data.json";      // JSON import OK
 
-// "nodenext" の場合:
-import { utils } from "./utils.js";  // 拡張子必須（.ts → .js）
+// With "nodenext":
+import { utils } from "./utils.js";  // Extension required (.ts -> .js)
 import data from "./data.json" with { type: "json" }; // import assertions
 ```
 
-### ディレクトリ構成パターン
+### Directory Structure Patterns
 
 ```
-# ===== 小規模プロジェクト =====
+# ===== Small project =====
 my-app/
-├── src/
-│   ├── index.ts          # エントリポイント
-│   ├── types.ts          # 型定義
-│   ├── utils.ts          # ユーティリティ
-│   └── config.ts         # 設定
-├── tests/
-│   └── index.test.ts
-├── tsconfig.json
-├── package.json
-└── .gitignore
++- src/
+|   +- index.ts          # Entry point
+|   +- types.ts          # Type definitions
+|   +- utils.ts          # Utilities
+|   +- config.ts         # Configuration
++- tests/
+|   +- index.test.ts
++- tsconfig.json
++- package.json
++- .gitignore
 
-# ===== 中規模プロジェクト（機能ごとに分割） =====
+# ===== Medium project (split by feature) =====
 my-app/
-├── src/
-│   ├── index.ts
-│   ├── types/
-│   │   ├── index.ts
-│   │   ├── user.ts
-│   │   └── product.ts
-│   ├── services/
-│   │   ├── user.service.ts
-│   │   └── product.service.ts
-│   ├── repositories/
-│   │   ├── user.repository.ts
-│   │   └── product.repository.ts
-│   ├── controllers/
-│   │   ├── user.controller.ts
-│   │   └── product.controller.ts
-│   ├── middleware/
-│   │   ├── auth.ts
-│   │   └── validation.ts
-│   └── utils/
-│       ├── logger.ts
-│       └── helpers.ts
-├── tests/
-│   ├── services/
-│   ├── repositories/
-│   └── controllers/
-├── tsconfig.json
-├── tsconfig.test.json    # テスト用設定
-├── package.json
-└── .gitignore
++- src/
+|   +- index.ts
+|   +- types/
+|   |   +- index.ts
+|   |   +- user.ts
+|   |   +- product.ts
+|   +- services/
+|   |   +- user.service.ts
+|   |   +- product.service.ts
+|   +- repositories/
+|   |   +- user.repository.ts
+|   |   +- product.repository.ts
+|   +- controllers/
+|   |   +- user.controller.ts
+|   |   +- product.controller.ts
+|   +- middleware/
+|   |   +- auth.ts
+|   |   +- validation.ts
+|   +- utils/
+|       +- logger.ts
+|       +- helpers.ts
++- tests/
+|   +- services/
+|   +- repositories/
+|   +- controllers/
++- tsconfig.json
++- tsconfig.test.json    # Configuration for tests
++- package.json
++- .gitignore
 
-# ===== 大規模プロジェクト（モノレポ） =====
+# ===== Large project (monorepo) =====
 my-monorepo/
-├── packages/
-│   ├── shared/           # 共通型定義・ユーティリティ
-│   │   ├── src/
-│   │   ├── tsconfig.json
-│   │   └── package.json
-│   ├── api/              # バックエンド
-│   │   ├── src/
-│   │   ├── tsconfig.json
-│   │   └── package.json
-│   ├── web/              # フロントエンド
-│   │   ├── src/
-│   │   ├── tsconfig.json
-│   │   └── package.json
-│   └── mobile/           # モバイルアプリ
-│       ├── src/
-│       ├── tsconfig.json
-│       └── package.json
-├── tsconfig.base.json    # 共通設定
-├── turbo.json            # Turborepo設定
-├── package.json
-└── pnpm-workspace.yaml
++- packages/
+|   +- shared/           # Shared type definitions and utilities
+|   |   +- src/
+|   |   +- tsconfig.json
+|   |   +- package.json
+|   +- api/              # Backend
+|   |   +- src/
+|   |   +- tsconfig.json
+|   |   +- package.json
+|   +- web/              # Frontend
+|   |   +- src/
+|   |   +- tsconfig.json
+|   |   +- package.json
+|   +- mobile/           # Mobile app
+|       +- src/
+|       +- tsconfig.json
+|       +- package.json
++- tsconfig.base.json    # Common configuration
++- turbo.json            # Turborepo configuration
++- package.json
++- pnpm-workspace.yaml
 ```
 
 ---
 
-## 5. 実務での導入戦略
+## 5. Adoption Strategies in Practice
 
-### 新規プロジェクトでの導入
+### Adoption in New Projects
 
 ```bash
-# ===== 方法1: 手動セットアップ =====
+# ===== Approach 1: manual setup =====
 mkdir new-project && cd new-project
 npm init -y
 npm install typescript @types/node --save-dev
 npx tsc --init
 
-# package.json にスクリプトを追加
+# Add scripts to package.json
 # {
 #   "scripts": {
 #     "build": "tsc",
@@ -1067,31 +1067,31 @@ npx tsc --init
 #   }
 # }
 
-# ===== 方法2: フレームワークのスキャフォールディング =====
+# ===== Approach 2: framework scaffolding =====
 # Next.js
 npx create-next-app@latest --typescript
 
 # Vite + React
 npm create vite@latest my-app -- --template react-ts
 
-# Hono（バックエンド）
+# Hono (backend)
 npm create hono@latest
 
 # Astro
 npm create astro@latest
 ```
 
-### 既存JavaScriptプロジェクトからの段階的移行
+### Incremental Migration from Existing JavaScript Projects
 
 ```typescript
-// ===== ステップ1: TypeScriptの導入（最小限） =====
-// tsconfig.json を作成（permissiveな設定から開始）
+// ===== Step 1: introduce TypeScript (minimal) =====
+// Create tsconfig.json (start with permissive settings)
 // {
 //   "compilerOptions": {
-//     "allowJs": true,          // .jsファイルも含める
-//     "checkJs": false,         // .jsの型チェックは無効
-//     "strict": false,          // strictモードは後で有効化
-//     "noImplicitAny": false,   // 暗黙のanyを許容
+//     "allowJs": true,          // Include .js files
+//     "checkJs": false,         // Disable type checking of .js
+//     "strict": false,          // Enable strict mode later
+//     "noImplicitAny": false,   // Allow implicit any
 //     "target": "ES2020",
 //     "module": "ESNext",
 //     "moduleResolution": "bundler",
@@ -1102,34 +1102,34 @@ npm create astro@latest
 //   "include": ["src/**/*"]
 // }
 
-// ===== ステップ2: ファイルを段階的に .ts に変更 =====
-// 依存関係の少ない末端ファイルから変更していく
-// utils.js → utils.ts
-// constants.js → constants.ts
+// ===== Step 2: change files to .ts incrementally =====
+// Start from leaf files with the fewest dependencies
+// utils.js -> utils.ts
+// constants.js -> constants.ts
 
-// ===== ステップ3: 型定義を追加 =====
-// まず @types パッケージをインストール
+// ===== Step 3: add type definitions =====
+// First install @types packages
 // npm install @types/express @types/lodash --save-dev
 
-// ===== ステップ4: strictモードを段階的に有効化 =====
-// 1. noImplicitAny: true   （暗黙のanyを禁止）
-// 2. strictNullChecks: true （null/undefinedを厳密チェック）
+// ===== Step 4: enable strict mode incrementally =====
+// 1. noImplicitAny: true   (forbid implicit any)
+// 2. strictNullChecks: true (strict null/undefined checking)
 // 3. strictFunctionTypes: true
-// 4. strict: true           （全てのstrictチェックを有効化）
+// 4. strict: true           (enable all strict checks)
 
-// ===== ステップ5: 残りの .js ファイルを変換 =====
-// 優先度の高い順に変換していく
-// 1. 型定義ファイル（types, interfaces）
-// 2. ユーティリティ関数
-// 3. ビジネスロジック
-// 4. API層
-// 5. UI層
+// ===== Step 5: convert remaining .js files =====
+// Convert in priority order
+// 1. Type definition files (types, interfaces)
+// 2. Utility functions
+// 3. Business logic
+// 4. API layer
+// 5. UI layer
 ```
 
-### 移行時の実践的テクニック
+### Practical Techniques for Migration
 
 ```typescript
-// テクニック1: JSDocで型を付ける（.tsに変更せずに型チェック）
+// Technique 1: add types via JSDoc (type-check without changing to .ts)
 // config: "checkJs": true, "allowJs": true
 
 // utils.js
@@ -1146,12 +1146,12 @@ function createPerson(name, age) {
   };
 }
 
-// テクニック2: 一時的な型アサーションで移行を進める
-// 完全な型付けが難しい場合の暫定措置
-const legacyConfig = getLegacyConfig() as any; // 暫定的にany
-// TODO: getLegacyConfig の戻り値型を定義する
+// Technique 2: use temporary type assertions to keep migrating
+// A stopgap for cases where complete typing is hard
+const legacyConfig = getLegacyConfig() as any; // Temporarily any
+// TODO: define the return type of getLegacyConfig
 
-// テクニック3: 宣言ファイルで既存モジュールに型を付ける
+// Technique 3: type existing modules using declaration files
 // legacy-module.d.ts
 declare module "legacy-module" {
   export function doSomething(input: string): Promise<number>;
@@ -1161,12 +1161,12 @@ declare module "legacy-module" {
   }
 }
 
-// テクニック4: @ts-expect-error で既知の型エラーを一時的に抑制
+// Technique 4: temporarily suppress known type errors with @ts-expect-error
 // @ts-expect-error: Legacy code, will be fixed in #1234
 const result = legacyFunction(untypedData);
 
-// テクニック5: 型安全な移行用ユーティリティ
-// 安全にunknownからの型変換を行うヘルパー
+// Technique 5: type-safe migration utilities
+// Helpers that perform safe type conversions from unknown
 function isString(value: unknown): value is string {
   return typeof value === "string";
 }
@@ -1183,43 +1183,43 @@ function assertNonNull<T>(value: T | null | undefined, message?: string): T {
 }
 ```
 
-### TypeScript導入の効果測定
+### Measuring the Impact of TypeScript Adoption
 
 ```typescript
-// 導入効果を測定するための指標
+// Metrics for measuring adoption impact
 
-// 1. バグ検出率の変化
-// - TypeScript導入前: 本番環境で発見されるバグの件数
-// - TypeScript導入後: コンパイル時に発見されるバグの件数
-// 一般的に、型関連のバグの80%以上がコンパイル時に検出される
+// 1. Change in bug detection rate
+// - Before adoption: number of bugs found in production
+// - After adoption: number of bugs found at compile time
+// Generally, more than 80% of type-related bugs are detected at compile time
 
-// 2. 開発速度の変化
-// - 初期: 型定義の作成で速度が10-20%低下
-// - 中期: IDE支援により速度が回復
-// - 長期: リファクタリング速度が50-100%向上
+// 2. Change in development speed
+// - Initial: speed drops 10-20% due to creating type definitions
+// - Mid-term: speed recovers thanks to IDE support
+// - Long-term: refactoring speed improves by 50-100%
 
-// 3. コードレビュー効率
-// - 型の意図が明確になり、レビュー時間が20-30%短縮
-// - 「この関数の引数は何型？」という質問が激減
+// 3. Code review efficiency
+// - Type intent becomes clear, cutting review time by 20-30%
+// - Questions like "what type is this argument?" decrease drastically
 
-// 4. 新メンバーのオンボーディング時間
-// - 型定義がドキュメントとして機能し、コード理解が加速
-// - 一般的に30-50%の時間短縮が報告されている
+// 4. New member onboarding time
+// - Type definitions act as documentation, accelerating code understanding
+// - Generally a 30-50% reduction in time is reported
 ```
 
 ---
 
-## 6. TypeScriptの内部動作
+## 6. TypeScript Internals
 
-### 型推論エンジンの仕組み
+### How the Type Inference Engine Works
 
-TypeScriptの型推論は「構造的型付け（Structural Typing）」に基づいている。
+TypeScript's type inference is based on "Structural Typing".
 
 ```typescript
-// 構造的型付け vs 名前的型付け
+// Structural typing vs Nominal typing
 
-// TypeScriptは構造的型付け（Duck Typing）
-// 同じ構造を持つ型は互換性がある
+// TypeScript uses structural typing (Duck Typing)
+// Types with the same structure are compatible
 interface Point {
   x: number;
   y: number;
@@ -1231,13 +1231,13 @@ interface Coordinate {
 }
 
 const point: Point = { x: 1, y: 2 };
-const coord: Coordinate = point; // OK: 構造が同じなので互換性あり
+const coord: Coordinate = point; // OK: compatible because the structure is the same
 
-// Java/C#などは名前的型付け（Nominal Typing）
-// 同じ構造でも型名が異なれば互換性がない
-// TypeScriptでこれを再現するにはブランド型を使う
+// Languages like Java and C# use nominal typing
+// Even with the same structure, different type names are not compatible
+// To emulate this in TypeScript, use branded types
 
-// ブランド型（Nominal Typing のエミュレーション）
+// Branded types (emulation of Nominal Typing)
 type USD = number & { __brand: "USD" };
 type EUR = number & { __brand: "EUR" };
 
@@ -1251,33 +1251,33 @@ function createEUR(amount: number): EUR {
 
 const dollars: USD = createUSD(100);
 const euros: EUR = createEUR(85);
-// const mixed: USD = euros; // エラー: EUR は USD に代入できない
+// const mixed: USD = euros; // Error: EUR cannot be assigned to USD
 ```
 
-### 型推論のフロー制御（Control Flow Analysis）
+### Control Flow Analysis for Type Inference
 
 ```typescript
-// TypeScriptは制御フローを分析して型を自動的に絞り込む
+// TypeScript analyzes control flow to automatically narrow types
 
 function processInput(input: string | number | null | undefined) {
-  // この時点: string | number | null | undefined
+  // At this point: string | number | null | undefined
 
   if (input === null || input === undefined) {
-    return; // この分岐後: string | number
+    return; // After this branch: string | number
   }
 
-  // この時点: string | number (null | undefined は除外)
+  // At this point: string | number (null | undefined excluded)
 
   if (typeof input === "string") {
-    // この分岐内: string
+    // Inside this branch: string
     console.log(input.toUpperCase()); // OK
   } else {
-    // この分岐内: number
+    // Inside this branch: number
     console.log(input.toFixed(2)); // OK
   }
 }
 
-// instanceof による型の絞り込み
+// Type narrowing with instanceof
 class Dog {
   bark() { console.log("Woof!"); }
 }
@@ -1287,13 +1287,13 @@ class Cat {
 
 function makeSound(animal: Dog | Cat) {
   if (animal instanceof Dog) {
-    animal.bark(); // OK: Dog に絞り込まれた
+    animal.bark(); // OK: narrowed to Dog
   } else {
-    animal.meow(); // OK: Cat に絞り込まれた
+    animal.meow(); // OK: narrowed to Cat
   }
 }
 
-// in 演算子による型の絞り込み
+// Type narrowing using the in operator
 interface Fish {
   swim: () => void;
 }
@@ -1303,13 +1303,13 @@ interface Bird {
 
 function move(animal: Fish | Bird) {
   if ("swim" in animal) {
-    animal.swim(); // OK: Fish に絞り込まれた
+    animal.swim(); // OK: narrowed to Fish
   } else {
-    animal.fly(); // OK: Bird に絞り込まれた
+    animal.fly(); // OK: narrowed to Bird
   }
 }
 
-// ユーザー定義型ガード
+// User-defined type guards
 interface ApiError {
   type: "error";
   code: number;
@@ -1329,41 +1329,41 @@ function isApiError<T>(result: ApiResult<T>): result is ApiError {
 
 function handleResult<T>(result: ApiResult<T>): T {
   if (isApiError(result)) {
-    // result は ApiError に絞り込まれた
+    // result is narrowed to ApiError
     throw new Error(`API Error ${result.code}: ${result.message}`);
   }
-  // result は ApiSuccess<T> に絞り込まれた
+  // result is narrowed to ApiSuccess<T>
   return result.data;
 }
 ```
 
-### 型の互換性チェック
+### Type Compatibility Checks
 
 ```typescript
-// TypeScriptの型互換性ルール
+// Type compatibility rules in TypeScript
 
-// 1. Excess Property Check（余剰プロパティチェック）
+// 1. Excess property checks
 interface Options {
   width: number;
   height: number;
 }
 
-// オブジェクトリテラルを直接代入する場合は余剰プロパティがエラーになる
-// const opts: Options = { width: 100, height: 200, color: "red" }; // エラー
+// When directly assigning an object literal, excess properties are an error
+// const opts: Options = { width: 100, height: 200, color: "red" }; // Error
 
-// 変数経由で代入する場合は余剰プロパティが許容される
+// When assigning via a variable, excess properties are tolerated
 const rawOpts = { width: 100, height: 200, color: "red" };
-const opts: Options = rawOpts; // OK（余剰プロパティは無視される）
+const opts: Options = rawOpts; // OK (excess properties are ignored)
 
-// 2. 関数の互換性
+// 2. Function compatibility
 type Handler = (event: MouseEvent) => void;
 type GeneralHandler = (event: Event) => void;
 
-// 関数パラメータは反変（contravariant）
-// より広い型のパラメータを受け入れる関数は、より狭い型のパラメータを持つ関数に代入できない
-// let handler: Handler = generalHandler; // strictFunctionTypes 有効時はエラー
+// Function parameters are contravariant
+// A function that accepts wider-typed parameters cannot be assigned to one with narrower-typed parameters
+// let handler: Handler = generalHandler; // Error when strictFunctionTypes is enabled
 
-// 3. 共変（covariant）な戻り値
+// 3. Covariant return values
 interface Animal { name: string; }
 interface Dog extends Animal { breed: string; }
 
@@ -1371,54 +1371,54 @@ type GetAnimal = () => Animal;
 type GetDog = () => Dog;
 
 const getDog: GetDog = () => ({ name: "Buddy", breed: "Labrador" });
-const getAnimal: GetAnimal = getDog; // OK: Dog は Animal のサブタイプ
+const getAnimal: GetAnimal = getDog; // OK: Dog is a subtype of Animal
 ```
 
 ---
 
-## 7. パフォーマンスと最適化
+## 7. Performance and Optimization
 
-### コンパイル速度の改善
+### Improving Compile Speed
 
 ```jsonc
-// tsconfig.json でのパフォーマンス最適化
+// Performance optimizations in tsconfig.json
 
 {
   "compilerOptions": {
-    // 1. skipLibCheck: .d.ts ファイルの型チェックをスキップ
-    "skipLibCheck": true,   // ビルド時間を30-50%短縮できることがある
+    // 1. skipLibCheck: skip type checking of .d.ts files
+    "skipLibCheck": true,   // Can shorten build times by 30-50%
 
-    // 2. incremental: インクリメンタルコンパイル
-    "incremental": true,    // .tsbuildinfo ファイルで差分ビルド
+    // 2. incremental: incremental compilation
+    "incremental": true,    // Differential builds via .tsbuildinfo file
     "tsBuildInfoFile": "./dist/.tsbuildinfo",
 
-    // 3. isolatedModules: ファイル単位でのトランスパイルを保証
-    "isolatedModules": true // esbuild/SWC との互換性確保
+    // 3. isolatedModules: guarantee per-file transpilation
+    "isolatedModules": true // Ensure compatibility with esbuild/SWC
   }
 }
 ```
 
-### プロジェクト参照（Project References）
+### Project References
 
 ```jsonc
-// 大規模プロジェクトでビルド時間を劇的に短縮する仕組み
+// A mechanism to dramatically reduce build time in large projects
 
-// tsconfig.json (ルート)
+// tsconfig.json (root)
 {
   "references": [
     { "path": "./packages/shared" },
     { "path": "./packages/api" },
     { "path": "./packages/web" }
   ],
-  "files": []  // ルートはファイルをコンパイルしない
+  "files": []  // Root does not compile any files
 }
 
 // packages/shared/tsconfig.json
 {
   "compilerOptions": {
-    "composite": true,      // プロジェクト参照に必須
-    "declaration": true,    // .d.ts を出力
-    "declarationMap": true, // ソースへのジャンプを可能に
+    "composite": true,      // Required for project references
+    "declaration": true,    // Emit .d.ts
+    "declarationMap": true, // Enable jumping to source
     "outDir": "./dist"
   },
   "include": ["src/**/*"]
@@ -1431,26 +1431,26 @@ const getAnimal: GetAnimal = getDog; // OK: Dog は Animal のサブタイプ
     "outDir": "./dist"
   },
   "references": [
-    { "path": "../shared" }  // shared パッケージへの依存
+    { "path": "../shared" }  // Dependency on the shared package
   ],
   "include": ["src/**/*"]
 }
 ```
 
 ```bash
-# プロジェクト参照を使ったビルド
-tsc --build              # 全パッケージをビルド（依存関係順に）
-tsc --build --watch      # ウォッチモード
-tsc --build --clean      # ビルド成果物を削除
-tsc --build --verbose    # 詳細ログ出力
+# Build using project references
+tsc --build              # Build all packages (in dependency order)
+tsc --build --watch      # Watch mode
+tsc --build --clean      # Remove build artifacts
+tsc --build --verbose    # Verbose log output
 ```
 
-### ビルドツールとの組み合わせ
+### Combining with Build Tools
 
 ```typescript
-// ===== esbuild: 超高速バンドラー =====
-// TypeScriptの型チェックは行わず、トランスパイルのみ
-// tsc の 10-100倍高速
+// ===== esbuild: ultra-fast bundler =====
+// Does not perform TypeScript type checking; transpiles only
+// 10-100x faster than tsc
 
 // esbuild.config.ts
 import { build } from "esbuild";
@@ -1464,7 +1464,7 @@ await build({
   format: "esm",
 });
 
-// 型チェックは tsc --noEmit で別途実行
+// Run type checking separately with tsc --noEmit
 // package.json:
 // {
 //   "scripts": {
@@ -1474,13 +1474,13 @@ await build({
 //   }
 // }
 
-// ===== SWC: Rustベースの高速トランスパイラ =====
-// Next.js, Vite で内部的に使用される
+// ===== SWC: a Rust-based fast transpiler =====
+// Used internally by Next.js and Vite
 
-// ===== Vite: 開発サーバー + ビルドツール =====
-// 開発時: esbuild でトランスパイル（型チェックなし、高速HMR）
-// ビルド時: Rollup + esbuild でバンドル
-// 型チェック: vite-plugin-checker で別スレッド実行
+// ===== Vite: dev server + build tool =====
+// During development: transpile with esbuild (no type checking, fast HMR)
+// Build time: bundle with Rollup + esbuild
+// Type checking: run on a separate thread via vite-plugin-checker
 
 // vite.config.ts
 import { defineConfig } from "vite";
@@ -1491,16 +1491,16 @@ export default defineConfig({
   plugins: [
     react(),
     checker({
-      typescript: true,  // TypeScript 型チェックを別スレッドで実行
+      typescript: true,  // Run TypeScript type checking on a separate thread
     }),
   ],
 });
 ```
 
-### CI/CDパイプラインでの型チェック
+### Type Checking in CI/CD Pipelines
 
 ```yaml
-# GitHub Actions での型チェック例
+# Example of type checking via GitHub Actions
 # .github/workflows/typecheck.yml
 name: TypeScript Check
 
@@ -1520,7 +1520,7 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
-      - run: npx tsc --noEmit  # 型チェックのみ（出力なし）
+      - run: npx tsc --noEmit  # Type-check only (no output)
 
   lint:
     runs-on: ubuntu-latest
@@ -1547,39 +1547,39 @@ jobs:
 
 ---
 
-## 8. TypeScriptランタイム環境
+## 8. TypeScript Runtime Environments
 
-### Node.js での TypeScript 実行
+### Running TypeScript on Node.js
 
 ```bash
-# ===== 方法1: ts-node（従来の方法） =====
+# ===== Approach 1: ts-node (the traditional approach) =====
 npm install ts-node --save-dev
 npx ts-node src/index.ts
 
-# ===== 方法2: tsx（高速な ts-node 代替） =====
+# ===== Approach 2: tsx (a fast alternative to ts-node) =====
 npm install tsx --save-dev
 npx tsx src/index.ts
-npx tsx watch src/index.ts  # ウォッチモード付き
+npx tsx watch src/index.ts  # With watch mode
 
-# ===== 方法3: Node.js 22+ のネイティブ TypeScript サポート =====
-# --experimental-strip-types フラグで直接実行
+# ===== Approach 3: native TypeScript support in Node.js 22+ =====
+# Run directly with the --experimental-strip-types flag
 node --experimental-strip-types src/index.ts
 
-# Node.js 23+ では --experimental-transform-types も利用可能
-# enum や namespace などの TypeScript 固有構文もサポート
+# In Node.js 23+, --experimental-transform-types is also available
+# It supports TypeScript-specific syntax such as enum and namespace
 ```
 
-### Deno での TypeScript 実行
+### Running TypeScript on Deno
 
 ```bash
-# Deno は TypeScript をネイティブサポート
-# 設定ファイルなしで .ts ファイルを直接実行できる
+# Deno supports TypeScript natively
+# You can run .ts files directly with no configuration
 deno run src/index.ts
 
-# パーミッション付きで実行
+# Run with permissions
 deno run --allow-net --allow-read src/server.ts
 
-# deno.json で TypeScript コンパイラオプションを設定可能
+# TypeScript compiler options can be set in deno.json
 # {
 #   "compilerOptions": {
 #     "strict": true,
@@ -1588,33 +1588,33 @@ deno run --allow-net --allow-read src/server.ts
 # }
 ```
 
-### Bun での TypeScript 実行
+### Running TypeScript on Bun
 
 ```bash
-# Bun は TypeScript をネイティブサポート
-# 非常に高速な実行が可能
+# Bun supports TypeScript natively
+# Very fast execution is possible
 bun run src/index.ts
 
-# テスト実行
+# Run tests
 bun test
 
-# パッケージインストール（npmの5-10倍高速）
+# Package install (5-10x faster than npm)
 bun install
 ```
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: any の濫用
+### Anti-Pattern 1: Overuse of any
 
 ```typescript
-// BAD: anyを使うと型システムの恩恵がゼロになる
+// BAD: using any nullifies all benefits of the type system
 function processData(data: any): any {
   return data.map((item: any) => item.value);
 }
 
-// GOOD: 適切な型を定義する
+// GOOD: define proper types
 interface DataItem {
   value: string;
 }
@@ -1622,76 +1622,76 @@ function processData(data: DataItem[]): string[] {
   return data.map((item) => item.value);
 }
 
-// BETTER: ジェネリクスで汎用的にする
+// BETTER: make it generic with generics
 function processData<T, K extends keyof T>(data: T[], key: K): T[K][] {
   return data.map((item) => item[key]);
 }
 ```
 
-### アンチパターン2: TypeScriptを「ただのJavaScript + 拡張子変更」として使う
+### Anti-Pattern 2: Using TypeScript as Just "JavaScript with a Renamed Extension"
 
 ```typescript
-// BAD: .ts にしただけで型を一切書かない
-// tsconfig.json で strict: false にする
-// → JavaScriptと変わらず、移行コストだけ発生
+// BAD: only renamed to .ts and never wrote any types
+// Setting strict: false in tsconfig.json
+// -> No different from JavaScript, only the migration cost is paid
 
-// GOOD: strict: true を有効にし、段階的に型をつける
+// GOOD: enable strict: true and add types incrementally
 // tsconfig.json
 {
   "compilerOptions": {
-    "strict": true  // 全てのstrictチェックを有効化
+    "strict": true  // Enable all strict checks
   }
 }
 ```
 
-### アンチパターン3: 過度に複雑な型定義
+### Anti-Pattern 3: Excessively Complex Type Definitions
 
 ```typescript
-// BAD: 読めない型定義
+// BAD: unreadable type definitions
 type DeepPartial<T> = T extends object
   ? { [P in keyof T]?: DeepPartial<T[P]> extends infer U
       ? U extends never ? never : U : never }
   : T;
 
-// GOOD: コメントで意図を説明し、テストで動作を保証
+// GOOD: explain intent in comments and verify behavior with tests
 /**
- * オブジェクトの全プロパティを再帰的にオプショナルにする。
- * 深いネスト構造の部分更新に使用。
+ * Recursively makes all properties of an object optional.
+ * Used for partial updates of deeply nested structures.
  */
 type DeepPartial<T> = T extends object
   ? { [P in keyof T]?: DeepPartial<T[P]> }
   : T;
 
-// 型のテスト（型レベルのテスト）
+// Type tests (testing at the type level)
 type _TestDeepPartial = DeepPartial<{
   a: { b: { c: string } };
 }>;
-// 期待: { a?: { b?: { c?: string } } }
+// Expected: { a?: { b?: { c?: string } } }
 ```
 
-### アンチパターン4: @ts-ignore の乱用
+### Anti-Pattern 4: Abuse of @ts-ignore
 
 ```typescript
-// BAD: エラーを握りつぶす
+// BAD: silently swallows the error
 // @ts-ignore
 const result = someFunction(invalidArg);
 
-// BETTER: @ts-expect-error で理由を明記（エラーが解消されたら検知できる）
+// BETTER: use @ts-expect-error and state the reason (you can detect when the error is resolved)
 // @ts-expect-error: Legacy API requires string but we pass number. Fix in #1234
 const result = someFunction(invalidArg);
 
-// BEST: 型を正しく修正する
+// BEST: fix the type properly
 const result = someFunction(validArg as ExpectedType);
 ```
 
-### アンチパターン5: 型アサーション（as）の過剰使用
+### Anti-Pattern 5: Excessive Use of Type Assertions (as)
 
 ```typescript
-// BAD: 型アサーションで型チェックを迂回
+// BAD: bypassing type checking with type assertions
 const data = JSON.parse(response) as UserData;
-// → response が不正な形式でもコンパイルエラーにならない
+// -> No compile error even if response has an invalid format
 
-// GOOD: ランタイムバリデーションを組み合わせる
+// GOOD: combine with runtime validation
 import { z } from "zod";
 
 const UserDataSchema = z.object({
@@ -1704,14 +1704,14 @@ type UserData = z.infer<typeof UserDataSchema>;
 
 function parseUserData(response: string): UserData {
   const parsed = JSON.parse(response);
-  return UserDataSchema.parse(parsed); // 実行時にも型チェック
+  return UserDataSchema.parse(parsed); // Type-checked at runtime as well
 }
 ```
 
-### アンチパターン6: 型定義の重複
+### Anti-Pattern 6: Duplicated Type Definitions
 
 ```typescript
-// BAD: 同じ構造を複数箇所で定義
+// BAD: defining the same structure in multiple places
 interface CreateUserRequest {
   name: string;
   email: string;
@@ -1719,12 +1719,12 @@ interface CreateUserRequest {
 }
 
 interface UpdateUserRequest {
-  name: string;     // 重複！
-  email: string;    // 重複！
-  age: number;      // 重複！
+  name: string;     // Duplicate!
+  email: string;    // Duplicate!
+  age: number;      // Duplicate!
 }
 
-// GOOD: ユーティリティ型で派生させる
+// GOOD: derive with utility types
 interface User {
   id: string;
   name: string;
@@ -1739,32 +1739,32 @@ type UpdateUserRequest = Partial<CreateUserRequest>;
 type UserResponse = Pick<User, "id" | "name" | "email">;
 ```
 
-### アンチパターン7: 不適切なenum使用
+### Anti-Pattern 7: Improper Use of enum
 
 ```typescript
-// BAD: 数値enumは意図しない挙動を起こしやすい
+// BAD: numeric enums easily produce unintended behavior
 enum Status {
   Active,   // 0
   Inactive, // 1
   Pending,  // 2
 }
-const status: Status = 999; // エラーにならない！（数値enumの落とし穴）
+const status: Status = 999; // No error! (a pitfall of numeric enums)
 
-// GOOD: 文字列enumを使う
+// GOOD: use string enums
 enum Status {
   Active = "ACTIVE",
   Inactive = "INACTIVE",
   Pending = "PENDING",
 }
 
-// BETTER: union typeを使う（多くの場合こちらが推奨）
+// BETTER: use union types (in many cases this is recommended)
 type Status = "active" | "inactive" | "pending";
 
-// union type の方が:
-// - Tree-shakingが効く
-// - JavaScript出力がシンプル
-// - 型の推論が自然
-// - as const と組み合わせやすい
+// Union types are:
+// - Tree-shakable
+// - Produce simpler JavaScript output
+// - Have more natural type inference
+// - Easy to combine with as const
 
 const STATUS = {
   Active: "active",
@@ -1778,59 +1778,59 @@ type Status = (typeof STATUS)[keyof typeof STATUS];
 
 ---
 
-## 9. TypeScriptの設計哲学
+## 9. TypeScript's Design Philosophy
 
-### ゴール（公式Design Goals より）
+### Goals (from the official Design Goals)
 
-TypeScriptの設計は以下の目標に基づいている。
-
-```
-1. 静的に型付けされたコードの構造的な不整合を検出する
-2. 大規模プログラムの構造化メカニズムを提供する
-3. 実行時に追加のオーバーヘッドを課さない
-4. 出力されるJavaScriptは明快で慣用的なものにする
-5. 一貫性があり完全に消去可能な型システムを使用する
-6. 現在と将来のECMAScript提案に沿った言語とする
-7. JavaScript のランタイム動作を変更しない（型の世界と値の世界を厳密に分離）
-```
-
-### 非ゴール（Non-Goals）
+TypeScript's design is based on the following goals.
 
 ```
-1. 音響的(sound)な型システムは追求しない（実用性を優先）
-2. JavaScript プログラムの高速化は目的としない
-3. プログラムの正しさの証明は目的としない
-4. TypeScript固有のランタイム機能の提供（型消去の原則を守る）
+1. Detect structural mismatches in statically typed code
+2. Provide structuring mechanisms for large programs
+3. Impose no additional runtime overhead
+4. Emit clean and idiomatic JavaScript
+5. Use a consistent and fully erasable type system
+6. Stay aligned with current and future ECMAScript proposals
+7. Do not change JavaScript's runtime behavior (strictly separate the type world from the value world)
+```
+
+### Non-Goals
+
+```
+1. Do not pursue a sound type system (prioritize practicality)
+2. Speeding up JavaScript programs is not a goal
+3. Proving program correctness is not a goal
+4. Providing TypeScript-specific runtime features (preserve the type-erasure principle)
 ```
 
 ```typescript
-// 音響性（Soundness）を追求しない例
-// TypeScriptは意図的に安全でない操作を許容している
+// Examples of not pursuing soundness
+// TypeScript intentionally allows certain unsafe operations
 
-// 例1: 配列のインデックスアクセス
+// Example 1: array indexed access
 const arr: string[] = ["a", "b", "c"];
-const item: string = arr[10]; // undefined が返るが、型は string
-// noUncheckedIndexedAccess: true で改善可能
+const item: string = arr[10]; // Returns undefined but the type is string
+// Improved by setting noUncheckedIndexedAccess: true
 
-// 例2: any 型の存在
-// any は型システムの「脱出口」として意図的に用意されている
+// Example 2: existence of any
+// any is intentionally provided as an "escape hatch" for the type system
 
-// 例3: 型アサーション
-const value = "hello" as unknown as number; // 任意の型変換が可能
+// Example 3: type assertion
+const value = "hello" as unknown as number; // Allows arbitrary type conversion
 
-// これらは「実用的であること」を優先した設計判断
-// 100%安全な型システムは使いにくくなりがちで、
-// TypeScriptは実用性と安全性のバランスを取っている
+// These design decisions prioritize practicality
+// A 100% safe type system tends to be hard to use, and
+// TypeScript balances practicality and safety
 ```
 
 ---
 
-## 10. よくある開発パターン
+## 10. Common Development Patterns
 
-### 環境変数の型安全な読み込み
+### Type-Safe Loading of Environment Variables
 
 ```typescript
-// 環境変数の型定義
+// Type definition for environment variables
 interface EnvConfig {
   NODE_ENV: "development" | "staging" | "production";
   PORT: number;
@@ -1840,7 +1840,7 @@ interface EnvConfig {
   LOG_LEVEL: "debug" | "info" | "warn" | "error";
 }
 
-// 環境変数の読み込みとバリデーション
+// Loading and validation of environment variables
 function loadEnvConfig(): EnvConfig {
   const requiredVars = [
     "NODE_ENV",
@@ -1867,7 +1867,7 @@ function loadEnvConfig(): EnvConfig {
   };
 }
 
-// Zodを使ったよりロバストな方法
+// A more robust approach using Zod
 import { z } from "zod";
 
 const envSchema = z.object({
@@ -1880,13 +1880,13 @@ const envSchema = z.object({
 });
 
 export const env = envSchema.parse(process.env);
-// env は完全に型安全で、ランタイムバリデーション済み
+// env is fully type-safe and runtime-validated
 ```
 
-### エラーハンドリングパターン
+### Error Handling Patterns
 
 ```typescript
-// Result型パターン（例外を使わないエラーハンドリング）
+// Result type pattern (error handling without exceptions)
 type Result<T, E = Error> =
   | { success: true; data: T }
   | { success: false; error: E };
@@ -1899,7 +1899,7 @@ function err<E>(error: E): Result<never, E> {
   return { success: false, error };
 }
 
-// 使用例
+// Usage example
 interface ValidationError {
   field: string;
   message: string;
@@ -1920,7 +1920,7 @@ function validateAge(age: number): Result<number, ValidationError> {
   return ok(age);
 }
 
-// Result型のチェーン
+// Chaining the Result type
 function registerUser(email: string, age: number): Result<{ id: string }, ValidationError> {
   const emailResult = validateEmail(email);
   if (!emailResult.success) return emailResult;
@@ -1932,10 +1932,10 @@ function registerUser(email: string, age: number): Result<{ id: string }, Valida
 }
 ```
 
-### 設定の型安全な管理
+### Type-Safe Configuration Management
 
 ```typescript
-// アプリケーション設定の型安全な管理
+// Type-safe management of application configuration
 interface AppConfig {
   server: {
     host: string;
@@ -1969,7 +1969,7 @@ interface AppConfig {
   };
 }
 
-// デフォルト設定と環境固有設定のマージ
+// Merging default configuration with environment-specific configuration
 const defaultConfig: AppConfig = {
   server: {
     host: "0.0.0.0",
@@ -1999,13 +1999,13 @@ const defaultConfig: AppConfig = {
   },
 };
 
-// DeepPartial でオーバーライドを型安全に
+// Type-safe overrides via DeepPartial
 type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
 };
 
 function createConfig(overrides: DeepPartial<AppConfig>): AppConfig {
-  // deep merge 実装
+  // deep merge implementation
   return deepMerge(defaultConfig, overrides) as AppConfig;
 }
 
@@ -2038,45 +2038,46 @@ function deepMerge<T extends Record<string, unknown>>(
 
 ## FAQ
 
-### Q1: TypeScriptは実行時に型チェックを行いますか？
+### Q1: Does TypeScript perform type checking at runtime?
 
-**A:** いいえ。TypeScriptの型情報はコンパイル時に全て消去（erasure）されます。実行時はただのJavaScriptです。実行時バリデーションが必要な場合は Zod や io-ts などのライブラリを併用します。
+**A:** No. All of TypeScript's type information is erased at compile time. At runtime it is just JavaScript. When you need runtime validation, use libraries such as Zod or io-ts in combination.
 
-### Q2: TypeScriptを学ぶにはJavaScriptを先に覚えるべきですか？
+### Q2: Should I learn JavaScript before TypeScript?
 
-**A:** はい、推奨します。TypeScriptはJavaScriptの上に構築されているため、JavaScriptの基礎（関数、オブジェクト、プロトタイプ、非同期処理）を理解していると学習がスムーズです。ただし、最初からTypeScriptで学ぶアプローチも増えています。
+**A:** Yes, it is recommended. TypeScript is built on top of JavaScript, so understanding the JavaScript fundamentals (functions, objects, prototypes, asynchronous handling) makes learning much smoother. That said, an approach of learning TypeScript from the start is becoming more common.
 
-### Q3: TypeScriptのデメリットは何ですか？
+### Q3: What are the disadvantages of TypeScript?
 
-**A:** 主なデメリットは以下の通りです:
-- **学習コスト**: 型システムの概念を学ぶ必要がある
-- **ビルドステップ**: コンパイルが必要（ただしesbuild等で高速化可能）
-- **型定義の保守**: 複雑な型は保守コストが発生する
-- **サードパーティ型**: 一部のライブラリは型定義が不完全
-とはいえ、中〜大規模プロジェクトではこれらのコストを大きく上回るメリットがあります。
+**A:** The main disadvantages are as follows:
+- **Learning cost**: you must learn the concepts of the type system
+- **Build step**: compilation is required (though it can be sped up with tools such as esbuild)
+- **Maintaining type definitions**: complex types incur maintenance cost
+- **Third-party types**: some libraries have incomplete type definitions
 
-### Q4: TypeScriptとFlowの違いは何ですか？
+That said, in mid-to-large-scale projects, the benefits far outweigh these costs.
 
-**A:** FlowはMeta（旧Facebook）が開発した型チェッカーで、TypeScriptと同様にJavaScriptに静的型付けを追加する。主な違いは以下の通り。
+### Q4: What is the difference between TypeScript and Flow?
 
-| 比較項目 | TypeScript | Flow |
-|----------|-----------|------|
-| 開発元 | Microsoft | Meta |
-| 言語 vs ツール | 言語（独自コンパイラ） | ツール（型チェッカーのみ） |
-| エコシステム | 圧倒的に大きい | 縮小傾向 |
-| IDE支援 | VSCode等で標準的 | 限定的 |
-| 型定義の共有 | DefinitelyTyped | 独自のflow-typed |
-| コミュニティ | 非常に活発 | Meta社内中心 |
-| 採用状況(2025) | デファクトスタンダード | Reactのコードベース等 |
+**A:** Flow is a type checker developed by Meta (formerly Facebook), and like TypeScript it adds static typing to JavaScript. The main differences are as follows.
 
-現在はTypeScriptが事実上の標準であり、新規プロジェクトではTypeScriptを選択するのが一般的である。
+| Comparison | TypeScript | Flow |
+|------------|-----------|------|
+| Developer | Microsoft | Meta |
+| Language vs tool | Language (its own compiler) | Tool (type checker only) |
+| Ecosystem | Overwhelmingly large | Shrinking |
+| IDE support | Standard in VSCode etc. | Limited |
+| Sharing type definitions | DefinitelyTyped | Its own flow-typed |
+| Community | Very active | Mostly internal to Meta |
+| Adoption (2025) | De facto standard | The React codebase, etc. |
 
-### Q5: .d.ts ファイルとは何ですか？
+Today, TypeScript is effectively the standard, and choosing TypeScript for new projects is the norm.
 
-**A:** `.d.ts` ファイルは「型宣言ファイル（Declaration File）」であり、JavaScriptライブラリの型情報を提供する。
+### Q5: What are .d.ts files?
+
+**A:** `.d.ts` files are "Declaration Files" that provide type information for JavaScript libraries.
 
 ```typescript
-// math-lib.d.ts -- JavaScriptライブラリ math-lib の型宣言
+// math-lib.d.ts -- type declarations for the JavaScript library math-lib
 declare module "math-lib" {
   export function add(a: number, b: number): number;
   export function multiply(a: number, b: number): number;
@@ -2092,104 +2093,104 @@ declare module "math-lib" {
   }
 }
 
-// 使用例
+// Usage
 import { add, Calculator } from "math-lib";
 const result = add(1, 2); // number
 const calc = new Calculator({ precision: 2, rounding: "round" });
 ```
 
-### Q6: DefinitelyTypedとは何ですか？
+### Q6: What is DefinitelyTyped?
 
-**A:** DefinitelyTypedは、TypeScriptの型定義を集めたコミュニティリポジトリ（GitHub上）である。`@types/xxx` パッケージとしてnpmで公開されている。
+**A:** DefinitelyTyped is a community repository on GitHub that gathers TypeScript type definitions. It is published on npm as `@types/xxx` packages.
 
 ```bash
-# DefinitelyTyped からの型定義インストール
+# Install type definitions from DefinitelyTyped
 npm install @types/express --save-dev
 npm install @types/lodash --save-dev
 npm install @types/react --save-dev
 npm install @types/node --save-dev
 
-# パッケージ自体に型定義が含まれている場合は @types 不要
-# 例: axios, zod, prisma, date-fns 等
+# If the package itself ships type definitions, @types is unnecessary
+# Examples: axios, zod, prisma, date-fns, etc.
 ```
 
-### Q7: strict: true にすべきですか？
+### Q7: Should I set strict: true?
 
-**A:** 新規プロジェクトでは必ず `strict: true` にすべきです。既存プロジェクトの移行では段階的に有効化することを推奨します。strictモードが有効にする個別のフラグとその効果は以下の通り。
+**A:** For new projects, you should always set `strict: true`. For migrating existing projects, enabling it incrementally is recommended. The individual flags that strict mode enables and their effects are as follows.
 
 ```typescript
-// strictNullChecks: null/undefined の厳密チェック
+// strictNullChecks: strict null/undefined checking
 let name: string;
-// name = null; // エラー
+// name = null; // Error
 let nullableName: string | null = null; // OK
 
-// noImplicitAny: 暗黙の any を禁止
-// function process(data) {} // エラー: 'data' パラメータには暗黙の 'any' 型があります
+// noImplicitAny: forbid implicit any
+// function process(data) {} // Error: parameter 'data' implicitly has an 'any' type
 function process(data: unknown) {} // OK
 
-// strictFunctionTypes: 関数パラメータの反変チェック
-// strictBindCallApply: bind/call/apply の型チェック
-// strictPropertyInitialization: クラスプロパティの初期化チェック
+// strictFunctionTypes: contravariance check on function parameters
+// strictBindCallApply: type checks for bind/call/apply
+// strictPropertyInitialization: class property initialization checks
 
 class User {
-  // name: string; // エラー: 初期化されていない
+  // name: string; // Error: not initialized
   name: string = ""; // OK
   // or
-  // name!: string; // 明示的にアサーション（非推奨だが使える）
+  // name!: string; // Explicit assertion (not recommended but possible)
 }
 ```
 
-### Q8: TypeScript の Node.js ネイティブサポートとは？
+### Q8: What is Node.js native TypeScript support?
 
-**A:** Node.js 22.6.0 以降で `--experimental-strip-types` フラグが追加され、TypeScriptファイルを直接実行できるようになった。これはTypeScriptの型アノテーションを単純に除去（strip）してJavaScriptとして実行する仕組みである。
+**A:** Starting from Node.js 22.6.0, the `--experimental-strip-types` flag was added, allowing direct execution of TypeScript files. This mechanism simply strips the TypeScript type annotations and runs the file as JavaScript.
 
 ```bash
 # Node.js 22.6.0+
 node --experimental-strip-types src/index.ts
 
-# Node.js 23.6.0+ ではフラグなしで実行可能（デフォルト有効）
+# In Node.js 23.6.0+ it can run without the flag (enabled by default)
 node src/index.ts
 
-# 注意: enum, namespace, パラメータプロパティなどの
-# TypeScript固有の構文はstrip-typesでは対応しない
-# --experimental-transform-types が必要
+# Note: TypeScript-specific syntax such as enum, namespace, and parameter properties
+# is not handled by strip-types
+# --experimental-transform-types is required
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 内容 |
-|------|------|
-| TypeScriptとは | JavaScriptのスーパーセットで、静的型付けを追加する言語 |
-| 開発元 | Microsoft（2012年公開、オープンソース） |
-| コンパイル | .ts → .js に変換。型情報は実行時に消去される |
-| 主な利点 | バグ早期発見、IDE支援、リファクタリング安全性 |
-| 主なコスト | 学習曲線、ビルドステップ、型定義保守 |
-| エコシステム | tsc, esbuild, Vitest, Zod, Prisma, tRPC など充実 |
-| strict モード | 推奨。型チェックの恩恵を最大化する |
-| 構造的型付け | 同じ構造を持つ型は互換性がある（Duck Typing） |
-| 型消去 | コンパイル時に型情報は完全に消去される |
-| ランタイム | Node.js, Deno, Bun が直接実行をサポート |
-| 設計哲学 | 実用性と安全性のバランス、JavaScript互換性の維持 |
-| 導入戦略 | 新規は strict:true、既存は段階的移行が推奨 |
-
----
-
-## 次に読むべきガイド
-
-- [01-type-basics.md](./01-type-basics.md) -- 型の基礎（プリミティブ型、リテラル型、配列、タプル）
-- [02-functions-and-objects.md](./02-functions-and-objects.md) -- 関数とオブジェクト型
+| Item | Content |
+|------|---------|
+| What TypeScript is | A superset of JavaScript and a language that adds static typing |
+| Developer | Microsoft (released in 2012, open source) |
+| Compilation | Converts .ts -> .js. Type information is erased at runtime |
+| Main benefits | Early bug detection, IDE support, refactoring safety |
+| Main costs | Learning curve, build step, type-definition maintenance |
+| Ecosystem | Rich set of tools: tsc, esbuild, Vitest, Zod, Prisma, tRPC, etc. |
+| strict mode | Recommended. Maximizes the benefits of type checking |
+| Structural typing | Types with the same structure are compatible (Duck Typing) |
+| Type erasure | Type information is completely removed at compile time |
+| Runtimes | Node.js, Deno, and Bun support direct execution |
+| Design philosophy | Balance practicality and safety, preserve JavaScript compatibility |
+| Adoption strategy | New projects: strict:true; existing projects: incremental migration recommended |
 
 ---
 
-## 参考文献
+## Recommended Next Guides
 
-1. **TypeScript公式ドキュメント** -- https://www.typescriptlang.org/docs/
-2. **TypeScript Deep Dive (日本語版)** -- https://typescript-jp.gitbook.io/deep-dive/
-3. **Programming TypeScript (Boris Cherny著, O'Reilly)** -- 型システムの理論と実践を網羅した書籍
-4. **TypeScript GitHub リポジトリ** -- https://github.com/microsoft/TypeScript
+- [01-type-basics.md](./01-type-basics.md) -- Type fundamentals (primitives, literal types, arrays, tuples)
+- [02-functions-and-objects.md](./02-functions-and-objects.md) -- Function and object types
+
+---
+
+## References
+
+1. **TypeScript official documentation** -- https://www.typescriptlang.org/docs/
+2. **TypeScript Deep Dive (Japanese version)** -- https://typescript-jp.gitbook.io/deep-dive/
+3. **Programming TypeScript (Boris Cherny, O'Reilly)** -- A book that comprehensively covers the theory and practice of the type system
+4. **TypeScript GitHub repository** -- https://github.com/microsoft/TypeScript
 5. **TypeScript Design Goals** -- https://github.com/microsoft/TypeScript/wiki/TypeScript-Design-Goals
 6. **DefinitelyTyped** -- https://github.com/DefinitelyTyped/DefinitelyTyped
 7. **TypeScript Playground** -- https://www.typescriptlang.org/play
-8. **Effective TypeScript (Dan Vanderkam著, O'Reilly)** -- 実務で使える62のベストプラクティス
+8. **Effective TypeScript (Dan Vanderkam, O'Reilly)** -- 62 best practices usable in real-world work
