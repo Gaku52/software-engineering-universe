@@ -1,38 +1,38 @@
-# Union型とIntersection型
+# Union Types and Intersection Types
 
-> 型を「または」「かつ」で組み合わせる強力な仕組み。判別共用体と型ガードによる安全な型の絞り込みを習得する。
+> A powerful mechanism for combining types with "or" and "and". Master safe type narrowing using discriminated unions and type guards.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **Union型** -- `|` 演算子による型の合成、判別共用体、型の絞り込み
-2. **Intersection型** -- `&` 演算子による型の合成、ミックスインパターン
-3. **型ガード** -- typeof, instanceof, in, ユーザー定義型ガードによるナローイング
-4. **網羅性チェック** -- never型を活用した安全な分岐処理
-5. **実践パターン** -- 実務で頻出するUnion/Intersection型の設計手法
+1. **Union types** -- Type composition with the `|` operator, discriminated unions, type narrowing
+2. **Intersection types** -- Type composition with the `&` operator, mixin patterns
+3. **Type guards** -- Narrowing via typeof, instanceof, in, and user-defined type guards
+4. **Exhaustiveness checking** -- Safe branching using the never type
+5. **Practical patterns** -- Design techniques for Union/Intersection types frequently used in real-world code
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [関数とオブジェクト型](./02-functions-and-objects.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+- Understanding the content of [Functions and Object Types](./02-functions-and-objects.md)
 
 ---
 
-## 1. Union型
+## 1. Union Types
 
-Union型は、ある値が「複数の型のいずれか」であることを表現する型システムの基本機能である。集合論的に言えば「和集合（union）」に相当し、型 A または型 B のどちらかの値を受け入れる。
+A union type is a fundamental feature of the type system that expresses that a value is "one of multiple types". In set-theoretic terms, it corresponds to a "union", accepting values of either type A or type B.
 
-### なぜUnion型が重要なのか
+### Why Union Types Matter
 
-実務のプログラミングでは、関数が複数の型の引数を受け取ったり、APIレスポンスが成功時と失敗時で異なる構造を返したりする場面が頻繁に発生する。Union型を使うことで、これらの「複数の可能性」を型レベルで正確に表現でき、型ガードと組み合わせることで各分岐先でのプロパティアクセスを安全に行える。
+In real-world programming, situations frequently arise where functions accept arguments of multiple types or where API responses return different structures on success and failure. By using union types, you can accurately express these "multiple possibilities" at the type level, and when combined with type guards, you can safely access properties in each branch.
 
-### コード例1: 基本的なUnion型
+### Code Example 1: Basic Union Types
 
 ```typescript
-// 文字列または数値を受け取る
+// Accepts a string or a number
 function formatId(id: string | number): string {
   if (typeof id === "string") {
     return id.toUpperCase();
@@ -43,94 +43,94 @@ function formatId(id: string | number): string {
 formatId("abc");  // "ABC"
 formatId(42);     // "000042"
 
-// Union型の変数
+// Union type variable
 let value: string | number | boolean;
 value = "hello";  // OK
 value = 42;       // OK
 value = true;     // OK
-// value = [];    // エラー: Type 'never[]' is not assignable to type 'string | number | boolean'
+// value = [];    // Error: Type 'never[]' is not assignable to type 'string | number | boolean'
 ```
 
-### コード例1b: Union型でのメソッドアクセス制限
+### Code Example 1b: Method Access Restrictions on Union Types
 
-Union型の変数に対しては、**すべての構成型に共通するメンバー**にのみアクセスできる。これは型安全性を保つための重要な制約である。
+For variables of union types, you can only access **members common to all constituent types**. This is an important constraint for maintaining type safety.
 
 ```typescript
 function describe(value: string | number): string {
-  // toString() は string と number の両方に存在するため OK
+  // toString() exists on both string and number, so OK
   return value.toString();
 
-  // value.toUpperCase() はエラー
-  // → number には toUpperCase が存在しない
+  // value.toUpperCase() is an error
+  // -> toUpperCase does not exist on number
 
-  // value.toFixed(2) もエラー
-  // → string には toFixed が存在しない
+  // value.toFixed(2) is also an error
+  // -> toFixed does not exist on string
 }
 
-// Union型の配列
+// Array of union types
 type StringOrNumber = string | number;
 const mixed: StringOrNumber[] = [1, "two", 3, "four"];
 
-// 配列メソッドは使えるが、要素の型は string | number
+// Array methods are usable, but element type is string | number
 mixed.forEach((item) => {
-  console.log(item.toString()); // OK: 共通メソッド
-  // console.log(item.toUpperCase()); // エラー
+  console.log(item.toString()); // OK: common method
+  // console.log(item.toUpperCase()); // Error
 });
 ```
 
-### コード例1c: リテラル型のUnion
+### Code Example 1c: Union of Literal Types
 
 ```typescript
-// 文字列リテラル型のUnion（列挙的な使い方）
+// Union of string literal types (enum-like usage)
 type Direction = "north" | "south" | "east" | "west";
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 type LogLevel = "debug" | "info" | "warn" | "error";
 
 function move(direction: Direction): void {
-  // direction は4つの文字列リテラルのいずれか
+  // direction is one of four string literals
   console.log(`Moving ${direction}`);
 }
 
 move("north"); // OK
-// move("up"); // エラー: Argument of type '"up"' is not assignable
+// move("up"); // Error: Argument of type '"up"' is not assignable
 
-// 数値リテラル型のUnion
+// Union of numeric literal types
 type DiceValue = 1 | 2 | 3 | 4 | 5 | 6;
 type HttpStatusCode = 200 | 201 | 400 | 401 | 403 | 404 | 500;
 
-// テンプレートリテラル型とUnionの組み合わせ
+// Combination of template literal types and unions
 type EventName = `on${Capitalize<"click" | "hover" | "focus">}`;
 // "onClick" | "onHover" | "onFocus"
 
 type CSSUnit = `${number}${"px" | "em" | "rem" | "%"}`;
-// "10px", "1.5em", "100%" などを許容
+// Allows "10px", "1.5em", "100%", etc.
 ```
 
-### Union型と型推論
+### Union Types and Type Inference
 
 ```typescript
-// TypeScriptはコンテキストからUnion型を推論する
+// TypeScript infers union types from context
 const arr = [1, "hello", true]; // (string | number | boolean)[]
 
-// 条件式でのUnion型推論
+// Union type inference in conditional expressions
 function getValue(flag: boolean) {
   return flag ? "text" : 42;
 }
-// 戻り値型: string | number
+// Return type: string | number
 
-// as const でリテラル型のUnionを得る
+// Use as const to obtain a union of literal types
 const ROLES = ["admin", "user", "guest"] as const;
 type Role = (typeof ROLES)[number]; // "admin" | "user" | "guest"
 ```
 
 ---
 
-### コード例2: 判別共用体（Discriminated Unions）
+### Code Example 2: Discriminated Unions
 
-判別共用体は、Union型の中で最も重要かつ実践的なパターンである。共通の「判別子（discriminant）」プロパティを持つオブジェクト型のUnionで、switch文やif文で安全に型を絞り込める。
+Discriminated unions are the most important and practical pattern within union types. They are unions of object types that share a common "discriminant" property, allowing safe type narrowing through switch or if statements.
 
 ```typescript
-// 共通のリテラル型プロパティ（判別子）を持つUnion
+// Union with a common literal type property (discriminant)
 interface Circle {
   kind: "circle";
   radius: number;
@@ -162,10 +162,10 @@ function area(shape: Shape): number {
 }
 ```
 
-### 判別共用体の構造
+### Structure of a Discriminated Union
 
 ```
-  Shape (Union型)
+  Shape (Union type)
   +-----------+--------------+--------------+
   |  Circle   |  Rectangle   |  Triangle    |
   +-----------+--------------+--------------+
@@ -177,17 +177,17 @@ function area(shape: Shape): number {
        ^             ^              ^
        |             |              |
    kind = "circle"  kind = "rect"  kind = "tri"
-   → radius が      → width,      → base,
-     利用可能         height が      height が
-                      利用可能       利用可能
+   -> radius       -> width,      -> base,
+     available       height         height
+                     available      available
 ```
 
-### コード例2b: 実務における判別共用体
+### Code Example 2b: Discriminated Unions in Practice
 
-APIレスポンス、状態管理、イベントハンドリングなど、判別共用体は多岐にわたって活用される。
+Discriminated unions are leveraged across many areas including API responses, state management, and event handling.
 
 ```typescript
-// --- パターン1: API レスポンス ---
+// --- Pattern 1: API Response ---
 type ApiResponse<T> =
   | { status: "success"; data: T; timestamp: string }
   | { status: "error"; error: { code: string; message: string }; timestamp: string }
@@ -208,7 +208,7 @@ function handleResponse<T>(response: ApiResponse<T>): void {
   }
 }
 
-// --- パターン2: Redux アクション ---
+// --- Pattern 2: Redux Action ---
 type UserAction =
   | { type: "USER_FETCH_REQUEST" }
   | { type: "USER_FETCH_SUCCESS"; payload: User[] }
@@ -226,10 +226,10 @@ function userReducer(state: UserState, action: UserAction): UserState {
     case "USER_FETCH_FAILURE":
       return { ...state, loading: false, error: action.error };
     case "USER_CREATE":
-      // action.payload は Omit<User, "id"> 型
+      // action.payload has type Omit<User, "id">
       return state;
     case "USER_UPDATE":
-      // action.payload.id と action.payload.changes にアクセス可能
+      // action.payload.id and action.payload.changes are accessible
       return state;
     case "USER_DELETE":
       return {
@@ -239,7 +239,7 @@ function userReducer(state: UserState, action: UserAction): UserState {
   }
 }
 
-// --- パターン3: フォームフィールドバリデーション結果 ---
+// --- Pattern 3: Form field validation result ---
 type ValidationResult =
   | { valid: true }
   | { valid: false; errors: string[] };
@@ -248,10 +248,10 @@ function validateEmail(email: string): ValidationResult {
   const errors: string[] = [];
 
   if (!email.includes("@")) {
-    errors.push("メールアドレスには @ が必要です");
+    errors.push("Email address must contain @");
   }
   if (email.length > 255) {
-    errors.push("255文字以内で入力してください");
+    errors.push("Must be 255 characters or fewer");
   }
 
   return errors.length > 0
@@ -261,15 +261,15 @@ function validateEmail(email: string): ValidationResult {
 
 const result = validateEmail("test");
 if (!result.valid) {
-  // result.errors にアクセス可能（型安全）
+  // result.errors is accessible (type-safe)
   result.errors.forEach((err) => console.log(err));
 }
 ```
 
-### コード例2c: 複数の判別子を持つパターン
+### Code Example 2c: Patterns with Multiple Discriminants
 
 ```typescript
-// 2つの判別子を組み合わせる例
+// Example combining two discriminants
 type Notification =
   | { channel: "email"; priority: "high"; to: string; subject: string; body: string }
   | { channel: "email"; priority: "low"; to: string; body: string }
@@ -280,7 +280,7 @@ function sendNotification(notification: Notification): void {
   switch (notification.channel) {
     case "email":
       if (notification.priority === "high") {
-        // subject にアクセス可能
+        // subject is accessible
         console.log(`[URGENT] ${notification.subject}: ${notification.body}`);
       } else {
         console.log(notification.body);
@@ -296,38 +296,38 @@ function sendNotification(notification: Notification): void {
 }
 ```
 
-### 判別共用体のベストプラクティス
+### Best Practices for Discriminated Unions
 
 ```
-判別共用体の設計チェックリスト:
+Discriminated union design checklist:
 
-  [1] 判別子はリテラル型であること
-      ✓ kind: "circle"        （文字列リテラル）
-      ✓ type: 1               （数値リテラル）
-      ✓ success: true          （booleanリテラル）
-      ✗ kind: string           （広すぎる）
+  [1] The discriminant must be a literal type
+      OK  kind: "circle"        (string literal)
+      OK  type: 1               (numeric literal)
+      OK  success: true          (boolean literal)
+      NG  kind: string           (too broad)
 
-  [2] 判別子のプロパティ名はUnion全体で統一する
-      ✓ { kind: "a", ... } | { kind: "b", ... }
-      ✗ { kind: "a", ... } | { type: "b", ... }
+  [2] The discriminant property name should be uniform across the union
+      OK  { kind: "a", ... } | { kind: "b", ... }
+      NG  { kind: "a", ... } | { type: "b", ... }
 
-  [3] 判別子の値はUnion内で一意であること
-      ✓ { kind: "circle" } | { kind: "rect" }
-      ✗ { kind: "shape" }  | { kind: "shape" }
+  [3] Discriminant values must be unique within the union
+      OK  { kind: "circle" } | { kind: "rect" }
+      NG  { kind: "shape" }  | { kind: "shape" }
 
-  [4] 網羅性チェック（exhaustiveness check）を必ず入れる
+  [4] Always include exhaustiveness checks
 ```
 
 ---
 
-## 2. Intersection型
+## 2. Intersection Types
 
-Intersection型は、複数の型を「すべて満たす」型を作成する。集合論的には「積集合（intersection）」に相当する。Union型が「AまたはB」なのに対し、Intersection型は「AかつB」を意味する。
+An intersection type creates a type that "satisfies all" of multiple types. In set-theoretic terms, it corresponds to an "intersection". While union types mean "A or B", intersection types mean "A and B".
 
-### コード例3: Intersection型の基本
+### Code Example 3: Basics of Intersection Types
 
 ```typescript
-// 型の合成（全てのプロパティを持つ）
+// Type composition (has all properties)
 type HasId = { id: number };
 type HasName = { name: string };
 type HasEmail = { email: string };
@@ -341,7 +341,7 @@ const user: User = {
   email: "alice@example.com",
 };
 
-// ミックスインパターン
+// Mixin pattern
 type Timestamped = {
   createdAt: Date;
   updatedAt: Date;
@@ -355,10 +355,10 @@ type BaseEntity = HasId & Timestamped & SoftDeletable;
 // { id: number; createdAt: Date; updatedAt: Date; deletedAt: Date | null }
 ```
 
-### コード例3b: Intersection型の実用パターン
+### Code Example 3b: Practical Patterns of Intersection Types
 
 ```typescript
-// --- パターン1: 関心事の分離と合成 ---
+// --- Pattern 1: Separation of concerns and composition ---
 type WithPagination = {
   page: number;
   pageSize: number;
@@ -375,7 +375,7 @@ type WithFiltering = {
   filters: Record<string, string | number | boolean>;
 };
 
-// 必要な機能を組み合わせてリスト取得の型を構築
+// Build the list-fetching type by combining required features
 type PaginatedSortedList<T> = {
   items: T[];
 } & WithPagination & WithSorting;
@@ -394,7 +394,7 @@ const userList: PaginatedSortedList<User> = {
   sortOrder: "desc",
 };
 
-// --- パターン2: ロール別の権限拡張 ---
+// --- Pattern 2: Permission expansion by role ---
 type BasePermissions = {
   canRead: boolean;
   canWrite: boolean;
@@ -411,7 +411,7 @@ type SuperAdminPermissions = AdminPermissions & {
   canDeployApp: boolean;
 };
 
-// --- パターン3: React コンポーネントのProps合成 ---
+// --- Pattern 3: Composing React component props ---
 type WithClassName = {
   className?: string;
 };
@@ -430,7 +430,7 @@ type ButtonProps = {
   variant: "primary" | "secondary" | "danger";
 } & WithClassName & WithTestId & WithDisabled;
 
-// --- パターン4: イベントハンドラのメタデータ付与 ---
+// --- Pattern 4: Adding metadata to event handlers ---
 type EventMetadata = {
   timestamp: number;
   source: string;
@@ -450,104 +450,104 @@ type OrderPlacedEvent = EventMetadata & {
 type AppEvent = UserCreatedEvent | OrderPlacedEvent;
 ```
 
-### Union vs Intersection 比較
+### Union vs Intersection Comparison
 
-| 特性 | Union (`A \| B`) | Intersection (`A & B`) |
+| Property | Union (`A \| B`) | Intersection (`A & B`) |
 |------|-------------------|------------------------|
-| 意味 | A **または** B | A **かつ** B |
-| プロパティ | 共通のプロパティのみアクセス可 | 全てのプロパティにアクセス可 |
-| 集合論 | 和集合 | 積集合 |
-| 値の範囲 | 広がる（受け入れが緩い） | 狭まる（要件が厳しい） |
-| 型の範囲 | 広い（どちらかを満たせばOK） | 狭い（全てを満たす必要） |
-| 使用場面 | 複数の可能性を表す | 型の合成・拡張 |
-| 代入互換性 | 各メンバー型はUnion型に代入可能 | Intersection型は各メンバー型に代入可能 |
+| Meaning | A **or** B | A **and** B |
+| Properties | Only common properties accessible | All properties accessible |
+| Set theory | Union | Intersection |
+| Value range | Wider (more permissive acceptance) | Narrower (stricter requirements) |
+| Type range | Broad (satisfying either is OK) | Narrow (must satisfy all) |
+| Use case | Expressing multiple possibilities | Type composition / extension |
+| Assignment compatibility | Each member type is assignable to the union | Intersection type is assignable to each member type |
 
 ```
   Union (A | B)               Intersection (A & B)
 +-------+-------+           +-------+
 |       |  A&B  |           |  A&B  |
 |   A   |       |   B      +-------+
-|       +-------+           A の全プロパティ
-+-------+       |           かつ
-        |       |           B の全プロパティ
-        +-------+           を持つ
-A または B の値
+|       +-------+           Has all properties of A
++-------+       |           and
+        |       |           all properties of B
+        +-------+
+A or B value
 ```
 
-### Intersection型で起きる型の矛盾
+### Type Conflicts in Intersection Types
 
 ```typescript
-// プリミティブ型同士のIntersectionは never になる
+// Intersection of primitive types becomes never
 type Impossible1 = string & number;      // never
 type Impossible2 = "hello" & "world";    // never
 type Impossible3 = true & false;         // never
 
-// オブジェクト型で同名プロパティの型が矛盾する場合
+// When properties of the same name conflict in object types
 type A = { x: string; shared: number };
 type B = { y: boolean; shared: string };
 type C = A & B;
 // C = { x: string; y: boolean; shared: never }
-// shared は string & number = never
-// → C型の値を作ることは実質不可能
+// shared is string & number = never
+// -> It is essentially impossible to create a value of type C
 
-// これを避けるにはOmitで矛盾するプロパティを除外する
+// To avoid this, exclude conflicting properties with Omit
 type SafeMerge = A & Omit<B, "shared">;
 // { x: string; shared: number; y: boolean }
 ```
 
-### Intersection型と関数型の合成
+### Intersection Types and Function Type Composition
 
 ```typescript
-// 関数型のIntersection = オーバーロード
+// Intersection of function types = overloads
 type NumberToString = (x: number) => string;
 type StringToNumber = (x: string) => number;
 
 type Combined = NumberToString & StringToNumber;
-// オーバーロードのように振る舞う
+// Behaves like overloads
 // (x: number) => string
 // (x: string) => number
 
 declare const fn: Combined;
-fn(42);      // string を返す
-fn("hello"); // number を返す
+fn(42);      // returns string
+fn("hello"); // returns number
 ```
 
 ---
 
-## 3. 型ガードとナローイング
+## 3. Type Guards and Narrowing
 
-型ガードは、Union型の変数を特定の型に「絞り込む（narrow）」ための仕組みである。TypeScriptのコントロールフロー解析がif文やswitch文の条件を追跡し、各ブロック内での変数の型を自動的に狭める。
+Type guards are mechanisms for "narrowing" a union type variable down to a specific type. TypeScript's control flow analysis tracks the conditions of if/switch statements and automatically narrows the type of variables within each block.
 
-### ナローイングの概念図
+### Conceptual Diagram of Narrowing
 
 ```
   function handle(x: string | number | null) {
 
-  x の型: string | number | null
+  Type of x: string | number | null
       |
       v
   if (x === null) return;
       |
       v
-  x の型: string | number    ← null が除外された
+  Type of x: string | number    <- null has been excluded
       |
       v
   if (typeof x === "string") {
       |
       v
-    x の型: string             ← number が除外された
+    Type of x: string             <- number has been excluded
   } else {
       |
       v
-    x の型: number             ← string が除外された
+    Type of x: number             <- string has been excluded
   }
 ```
 
-### コード例4: 組み込み型ガード
+### Code Example 4: Built-in Type Guards
 
 ```typescript
 function process(value: string | number | boolean | Date) {
-  // typeof ガード
+  // typeof guard
   if (typeof value === "string") {
     console.log(value.toUpperCase()); // string
     return;
@@ -563,11 +563,11 @@ function process(value: string | number | boolean | Date) {
     return;
   }
 
-  // この時点で value は Date 型に絞り込まれている
+  // At this point, value is narrowed to Date
   console.log(value.toISOString());    // Date
 }
 
-// instanceof ガード
+// instanceof guard
 function formatError(error: Error | string): string {
   if (error instanceof Error) {
     return error.message;   // Error
@@ -575,7 +575,7 @@ function formatError(error: Error | string): string {
   return error;             // string
 }
 
-// in ガード
+// in guard
 interface Dog { bark(): void; breed: string; }
 interface Cat { meow(): void; indoor: boolean; }
 
@@ -588,10 +588,10 @@ function speak(pet: Dog | Cat): void {
 }
 ```
 
-### コード例4b: typeofガードの完全リファレンス
+### Code Example 4b: Complete Reference for typeof Guards
 
 ```typescript
-// typeof で判定できる型は7種類
+// typeof can identify 7 types
 function typeofDemo(value: unknown): string {
   switch (typeof value) {
     case "string":
@@ -617,32 +617,32 @@ function typeofDemo(value: unknown): string {
   }
 }
 
-// typeof の注意点
-typeof null === "object";        // JavaScript の歴史的バグ
-typeof [] === "object";          // 配列もobject
-typeof new Date() === "object";  // Dateもobject
-// → これらの判別には instanceof や Array.isArray を使う
+// Caveats of typeof
+typeof null === "object";        // historical bug in JavaScript
+typeof [] === "object";          // arrays are also object
+typeof new Date() === "object";  // Date is also object
+// -> Use instanceof or Array.isArray to distinguish these
 ```
 
-### コード例4c: 真偽値チェックによるナローイング
+### Code Example 4c: Narrowing via Truthiness Checks
 
 ```typescript
-// TypeScript は truthy/falsy チェックでも型を絞り込む
+// TypeScript also narrows types through truthy/falsy checks
 function processOptional(value: string | null | undefined): string {
-  // falsy チェックで null と undefined を除外
+  // Falsy check excludes null and undefined
   if (!value) {
     return "default";
   }
-  // value は string 型（null, undefined, "" が除外される）
+  // value is string (null, undefined, "" are excluded)
   return value.toUpperCase();
 }
 
-// !! による真偽値変換
+// Boolean conversion via !!
 function hasValue(x: string | null | undefined): x is string {
-  return !!x; // null, undefined, "" は false
+  return !!x; // null, undefined, "" become false
 }
 
-// nullish coalescing と optional chaining
+// Nullish coalescing and optional chaining
 type Config = {
   database?: {
     host?: string;
@@ -655,10 +655,10 @@ function getDbHost(config: Config): string {
 }
 ```
 
-### コード例5: ユーザー定義型ガード
+### Code Example 5: User-Defined Type Guards
 
 ```typescript
-// 型述語 (Type Predicate): `value is Type`
+// Type predicate: `value is Type`
 interface Fish { swim(): void; kind: "fish"; }
 interface Bird { fly(): void; kind: "bird"; }
 
@@ -668,13 +668,13 @@ function isFish(pet: Fish | Bird): pet is Fish {
 
 function move(pet: Fish | Bird): void {
   if (isFish(pet)) {
-    pet.swim();  // Fish として使える
+    pet.swim();  // Usable as Fish
   } else {
-    pet.fly();   // Bird として使える
+    pet.fly();   // Usable as Bird
   }
 }
 
-// アサーション関数: asserts
+// Assertion function: asserts
 function assertIsString(value: unknown): asserts value is string {
   if (typeof value !== "string") {
     throw new Error(`Expected string, got ${typeof value}`);
@@ -683,15 +683,15 @@ function assertIsString(value: unknown): asserts value is string {
 
 function processInput(input: unknown): void {
   assertIsString(input);
-  // この時点で input は string 型
+  // At this point, input is of type string
   console.log(input.toUpperCase());
 }
 ```
 
-### コード例5b: 実践的なユーザー定義型ガード
+### Code Example 5b: Practical User-Defined Type Guards
 
 ```typescript
-// --- パターン1: APIレスポンスの型ガード ---
+// --- Pattern 1: Type guards for API responses ---
 interface SuccessResponse<T> {
   success: true;
   data: T;
@@ -718,13 +718,13 @@ async function fetchUser(id: string): Promise<User> {
   );
 
   if (isError(result)) {
-    throw new Error(result.error.message); // ErrorResponse として型安全
+    throw new Error(result.error.message); // type-safe as ErrorResponse
   }
 
-  return result.data; // SuccessResponse<User> として型安全
+  return result.data; // type-safe as SuccessResponse<User>
 }
 
-// --- パターン2: 配列フィルタリングでの型ガード ---
+// --- Pattern 2: Type guards in array filtering ---
 type MaybeUser = User | null | undefined;
 
 function isUser(value: MaybeUser): value is User {
@@ -738,11 +738,11 @@ const mixedResults: MaybeUser[] = [
   undefined,
 ];
 
-// filter + 型ガードで型安全に null/undefined を除去
+// filter + type guard removes null/undefined in a type-safe way
 const validUsers: User[] = mixedResults.filter(isUser);
-// validUsers の型は User[]（null | undefined が除外されている）
+// validUsers has type User[] (null | undefined excluded)
 
-// --- パターン3: unknown型の安全な処理 ---
+// --- Pattern 3: Safe handling of unknown ---
 interface JsonObject {
   [key: string]: unknown;
 }
@@ -769,7 +769,7 @@ function parseConfig(raw: unknown): Record<string, string> {
   return result;
 }
 
-// --- パターン4: asserts でのバリデーション ---
+// --- Pattern 4: Validation using asserts ---
 function assertPositive(value: number): asserts value is number {
   if (value <= 0) {
     throw new RangeError(`Expected positive number, got ${value}`);
@@ -785,49 +785,49 @@ function assertNonEmpty(arr: unknown[]): asserts arr is [unknown, ...unknown[]] 
 function processOrder(quantity: number, items: string[]): void {
   assertPositive(quantity);
   assertNonEmpty(items);
-  // quantity > 0 が保証されている
-  // items は少なくとも1要素ある
+  // quantity > 0 is guaranteed
+  // items has at least one element
   console.log(`Processing ${quantity} of ${items[0]}`);
 }
 ```
 
-### 型ガードの一覧と使い分け
+### List of Type Guards and How to Use Them
 
-| 型ガード | 構文 | 適用対象 | 用途 |
+| Type Guard | Syntax | Target | Use Case |
 |---------|------|---------|------|
-| typeof | `typeof x === "string"` | プリミティブ型 | string, number, boolean, symbol, bigint, undefined, function |
-| instanceof | `x instanceof Error` | クラスインスタンス | Error, Date, RegExp, カスタムクラス |
-| in | `"key" in x` | オブジェクトのプロパティ | プロパティ有無で型を判別 |
-| Array.isArray | `Array.isArray(x)` | 配列 | 配列かオブジェクトかの判別 |
-| 等値チェック | `x === null` | リテラル型 | null, undefined, 特定の文字列 |
-| 型述語 | `x is Type` | カスタム判定 | 複雑な条件での型絞り込み |
-| asserts | `asserts x is Type` | アサーション | 条件を満たさない場合に例外送出 |
+| typeof | `typeof x === "string"` | Primitive types | string, number, boolean, symbol, bigint, undefined, function |
+| instanceof | `x instanceof Error` | Class instances | Error, Date, RegExp, custom classes |
+| in | `"key" in x` | Object properties | Distinguish types by property presence |
+| Array.isArray | `Array.isArray(x)` | Arrays | Distinguish array from object |
+| Equality check | `x === null` | Literal types | null, undefined, specific strings |
+| Type predicate | `x is Type` | Custom predicates | Type narrowing under complex conditions |
+| asserts | `asserts x is Type` | Assertion | Throw an exception if condition not met |
 
 ```
-型ガードの選択フローチャート:
+Type guard selection flowchart:
 
-  絞り込みたい型は？
+  What type do you want to narrow to?
       |
-      +-- プリミティブ → typeof
+      +-- Primitive -> typeof
       |
-      +-- クラスインスタンス → instanceof
+      +-- Class instance -> instanceof
       |
-      +-- 配列 → Array.isArray
+      +-- Array -> Array.isArray
       |
-      +-- null / undefined → 等値チェック (=== null)
+      +-- null / undefined -> equality check (=== null)
       |
-      +-- オブジェクトの構造 → in演算子 or ユーザー定義型ガード
+      +-- Object structure -> in operator or user-defined type guard
       |
-      +-- 複雑な条件 → ユーザー定義型ガード (is / asserts)
+      +-- Complex condition -> user-defined type guard (is / asserts)
 ```
 
 ---
 
-## 4. 網羅性チェック
+## 4. Exhaustiveness Checking
 
-### コード例6: never を使った網羅性チェック
+### Code Example 6: Exhaustiveness Checking with never
 
-判別共用体のswitch文で、全ケースを処理したことをコンパイラに保証させるパターン。新しいメンバーが追加された際にコンパイルエラーとなり、処理漏れを防止できる。
+A pattern in switch statements over discriminated unions that lets the compiler guarantee that all cases have been handled. When a new member is added, a compile error occurs, preventing missed handling.
 
 ```typescript
 type Status = "pending" | "approved" | "rejected";
@@ -835,29 +835,29 @@ type Status = "pending" | "approved" | "rejected";
 function handleStatus(status: Status): string {
   switch (status) {
     case "pending":
-      return "審査中です";
+      return "Under review";
     case "approved":
-      return "承認されました";
+      return "Approved";
     case "rejected":
-      return "却下されました";
+      return "Rejected";
     default:
-      // 全てのケースを処理した場合、ここに到達しない
-      // 新しいStatusが追加された場合、コンパイルエラーになる
+      // If all cases are handled, this branch is not reached
+      // If a new Status is added, this becomes a compile error
       const _exhaustive: never = status;
       throw new Error(`Unknown status: ${_exhaustive}`);
   }
 }
 
-// assertNever ヘルパー関数
+// assertNever helper function
 function assertNever(value: never): never {
   throw new Error(`Unexpected value: ${value}`);
 }
 ```
 
-### コード例6b: 網羅性チェックの応用
+### Code Example 6b: Applications of Exhaustiveness Checking
 
 ```typescript
-// --- パターン1: 複雑な判別共用体での網羅性チェック ---
+// --- Pattern 1: Exhaustiveness checking on complex discriminated unions ---
 type PaymentMethod =
   | { type: "credit_card"; cardNumber: string; expiry: string }
   | { type: "bank_transfer"; bankCode: string; accountNumber: string }
@@ -876,12 +876,12 @@ function processPayment(payment: PaymentMethod): string {
       return `PayPal payment to ${payment.email}`;
     default:
       return assertNever(payment);
-      // もし新しい payment type を追加したら、
-      // ここでコンパイルエラーが発生する
+      // If a new payment type is added,
+      // a compile error occurs here
   }
 }
 
-// --- パターン2: if-else チェーンでの網羅性チェック ---
+// --- Pattern 2: Exhaustiveness checking in if-else chains ---
 type Animal = { kind: "dog"; breed: string } | { kind: "cat"; indoor: boolean } | { kind: "bird"; canFly: boolean };
 
 function describeAnimal(animal: Animal): string {
@@ -894,39 +894,39 @@ function describeAnimal(animal: Animal): string {
   if (animal.kind === "bird") {
     return `Bird (${animal.canFly ? "can fly" : "cannot fly"})`;
   }
-  // TypeScript は animal が never であることを認識
+  // TypeScript recognizes that animal is never
   return assertNever(animal);
 }
 
-// --- パターン3: マップオブジェクトによる網羅性チェック ---
+// --- Pattern 3: Exhaustiveness checking via map objects ---
 type Fruit = "apple" | "banana" | "cherry";
 
-// Record<Fruit, T> は全ての Fruit をキーに持つことを要求する
+// Record<Fruit, T> requires keys for all Fruit values
 const fruitEmoji: Record<Fruit, string> = {
   apple: "apple",
   banana: "banana",
   cherry: "cherry",
-  // grape: "grape" ← Fruit に含まれないのでエラー
-  // cherry を削除するとエラー（全キーが必要）
+  // grape: "grape" <- Error since not in Fruit
+  // Removing cherry causes an error (all keys required)
 };
 
-// satisfies を使ったさらに柔軟な網羅性チェック（TypeScript 4.9+）
+// More flexible exhaustiveness checking using satisfies (TypeScript 4.9+)
 const fruitColors = {
   apple: "red",
   banana: "yellow",
   cherry: "dark red",
 } satisfies Record<Fruit, string>;
-// fruitColors.apple は "red" リテラル型（Record では string に広がる）
+// fruitColors.apple has the literal type "red" (would widen to string with Record)
 ```
 
 ---
 
-## 5. Intersection型の高度な利用
+## 5. Advanced Use of Intersection Types
 
-### コード例7: Intersection型の高度な利用
+### Code Example 7: Advanced Use of Intersection Types
 
 ```typescript
-// 条件付きプロパティの合成
+// Composition of conditional properties
 type BaseConfig = {
   host: string;
   port: number;
@@ -953,7 +953,7 @@ type WithRetry = {
   };
 };
 
-// 組み合わせて様々な構成を作る
+// Combine to create various configurations
 type SecureConfig = BaseConfig & WithAuth & WithSSL;
 type BasicConfig = BaseConfig & WithAuth;
 type PublicConfig = BaseConfig;
@@ -968,10 +968,10 @@ const secureConfig: SecureConfig = {
 };
 ```
 
-### コード例7b: ジェネリクスとIntersection/Unionの組み合わせ
+### Code Example 7b: Combining Generics with Intersection/Union
 
 ```typescript
-// --- パターン1: 汎用的なResult型 ---
+// --- Pattern 1: Generic Result type ---
 type Result<T, E = Error> =
   | { ok: true; value: T }
   | { ok: false; error: E };
@@ -987,10 +987,10 @@ const result = divide(10, 3);
 if (result.ok) {
   console.log(result.value.toFixed(2)); // "3.33"
 } else {
-  console.log(result.error.toUpperCase()); // エラーメッセージ
+  console.log(result.error.toUpperCase()); // error message
 }
 
-// --- パターン2: Branded Types とUnion ---
+// --- Pattern 2: Branded types and unions ---
 type Brand<T, B extends string> = T & { readonly __brand: B };
 
 type UserId = Brand<string, "UserId">;
@@ -1006,7 +1006,7 @@ function createOrderId(id: string): OrderId {
 }
 
 function getUserById(id: UserId): Promise<User> {
-  // UserId 型のみ受け入れ、OrderId を渡すとコンパイルエラー
+  // Accepts only UserId; passing OrderId is a compile error
   return fetch(`/api/users/${id}`).then((r) => r.json());
 }
 
@@ -1014,19 +1014,19 @@ const userId = createUserId("user-123");
 const orderId = createOrderId("order-456");
 
 getUserById(userId);  // OK
-// getUserById(orderId); // エラー: OrderId は UserId に代入できない
+// getUserById(orderId); // Error: OrderId is not assignable to UserId
 
-// --- パターン3: Union型の分配条件型 ---
+// --- Pattern 3: Distributive conditional types over unions ---
 type ToArray<T> = T extends unknown ? T[] : never;
 
 type StringOrNumberArray = ToArray<string | number>;
-// string[] | number[]（分配される）
+// string[] | number[] (distributed)
 
 type NonDistributed<T> = [T] extends [unknown] ? T[] : never;
 type Mixed = NonDistributed<string | number>;
-// (string | number)[]（分配されない）
+// (string | number)[] (not distributed)
 
-// --- パターン4: Mapped TypesとUnion ---
+// --- Pattern 4: Mapped types and unions ---
 type EventMap = {
   click: { x: number; y: number };
   keypress: { key: string };
@@ -1044,14 +1044,15 @@ type EventHandlers = {
 //   scroll: (event: { offset: number }) => void;
 // }
 
-// Union からイベント名を取得
+
+// Obtain event names from the union
 type EventName = keyof EventMap; // "click" | "keypress" | "scroll"
 ```
 
-### コード例7c: Union型のユーティリティ型
+### Code Example 7c: Utility Types for Union Types
 
 ```typescript
-// Union型から特定の型を抽出する
+// Extract specific types from a union
 type Extract<T, U> = T extends U ? T : never;
 type Exclude<T, U> = T extends U ? never : T;
 
@@ -1060,12 +1061,12 @@ type AllTypes = string | number | boolean | null | undefined;
 type OnlyStrings = Extract<AllTypes, string>;       // string
 type NoNullish = Exclude<AllTypes, null | undefined>; // string | number | boolean
 
-// Union型のメンバー数をカウントする（型レベル）
+// Count the number of members in a union (at the type level)
 type UnionToIntersection<U> =
   (U extends unknown ? (k: U) => void : never) extends
   (k: infer I) => void ? I : never;
 
-// 条件型でUnionをフィルタリング
+// Filter a union via conditional types
 type FilterByKind<T, K extends string> = T extends { kind: K } ? T : never;
 
 type Shape =
@@ -1082,12 +1083,12 @@ type RectOrTriangle = FilterByKind<Shape, "rectangle" | "triangle">;
 
 ---
 
-## 6. 実践的なパターン集
+## 6. Practical Pattern Collection
 
-### パターン1: 状態マシン（State Machine）
+### Pattern 1: State Machine
 
 ```typescript
-// 注文の状態遷移を判別共用体で表現
+// Express order state transitions as a discriminated union
 type OrderState =
   | { status: "draft"; items: CartItem[] }
   | { status: "submitted"; items: CartItem[]; submittedAt: Date }
@@ -1102,7 +1103,7 @@ interface CartItem {
   price: number;
 }
 
-// 状態遷移関数（型安全）
+// State transition functions (type-safe)
 function submitOrder(order: Extract<OrderState, { status: "draft" }>): Extract<OrderState, { status: "submitted" }> {
   return {
     ...order,
@@ -1123,34 +1124,34 @@ function payOrder(
   };
 }
 
-// 不正な遷移はコンパイルエラー
-// payOrder(draftOrder, "pay-123"); // エラー: draft → paid は不可
+// Invalid transitions become compile errors
+// payOrder(draftOrder, "pay-123"); // Error: draft -> paid is not allowed
 
-// 状態に応じた表示
+// Display based on state
 function renderOrderStatus(order: OrderState): string {
   switch (order.status) {
     case "draft":
-      return `下書き（${order.items.length}件の商品）`;
+      return `Draft (${order.items.length} items)`;
     case "submitted":
-      return `注文済み（${order.submittedAt.toLocaleDateString()}）`;
+      return `Submitted (${order.submittedAt.toLocaleDateString()})`;
     case "paid":
-      return `決済完了（決済ID: ${order.paymentId}）`;
+      return `Paid (Payment ID: ${order.paymentId})`;
     case "shipped":
-      return `発送済み（追跡番号: ${order.trackingNumber}）`;
+      return `Shipped (Tracking: ${order.trackingNumber})`;
     case "delivered":
-      return `配達完了（${order.deliveredAt.toLocaleDateString()}）`;
+      return `Delivered (${order.deliveredAt.toLocaleDateString()})`;
     case "cancelled":
-      return `キャンセル（理由: ${order.reason}）`;
+      return `Cancelled (Reason: ${order.reason})`;
     default:
       return assertNever(order);
   }
 }
 ```
 
-### パターン2: ビルダーパターンとIntersection型
+### Pattern 2: Builder Pattern with Intersection Types
 
 ```typescript
-// Intersection型を活用した型安全なビルダー
+// Type-safe builder leveraging intersection types
 type QueryBuilder<T extends Record<string, unknown>> = {
   select<K extends keyof T>(
     ...keys: K[]
@@ -1166,19 +1167,19 @@ type QueryBuilder<T extends Record<string, unknown>> = {
   execute(): Promise<T[]>;
 };
 
-// 使用イメージ
+// Usage example
 declare const userQuery: QueryBuilder<User>;
-// 型安全なチェーン
+// Type-safe chain
 const result = await userQuery
   .select("name", "email")    // Pick<User, "name" | "email">
   .where({ role: "admin" })
-  .orderBy("name", "asc")     // "name" | "email" のみ指定可
+  .orderBy("name", "asc")     // Only "name" | "email" can be specified
   .limit(10)
   .execute();
 // result: Pick<User, "name" | "email">[]
 ```
 
-### パターン3: 型安全なイベントエミッター
+### Pattern 3: Type-Safe Event Emitter
 
 ```typescript
 type EventDefinitions = {
@@ -1219,7 +1220,7 @@ class TypedEventEmitter<Events extends Record<string, unknown>> {
 
 const emitter = new TypedEventEmitter<EventDefinitions>();
 
-// 型安全なイベントリスナー
+// Type-safe event listener
 emitter.on("user:login", (data) => {
   // data: { userId: string; timestamp: Date }
   console.log(`User ${data.userId} logged in at ${data.timestamp}`);
@@ -1230,31 +1231,31 @@ emitter.on("order:created", (data) => {
   console.log(`Order ${data.orderId}: $${data.total}`);
 });
 
-// 型安全な emit
+// Type-safe emit
 emitter.emit("user:login", {
   userId: "user-123",
   timestamp: new Date(),
 });
 
-// エラー: 型が一致しない
-// emitter.emit("user:login", { orderId: "xxx" }); // コンパイルエラー
-// emitter.emit("unknown:event", {}); // コンパイルエラー
+// Error: types do not match
+// emitter.emit("user:login", { orderId: "xxx" }); // compile error
+// emitter.emit("unknown:event", {}); // compile error
 ```
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: 型ガードなしでUnion型を使う
+### Anti-Pattern 1: Using Union Types Without Type Guards
 
 ```typescript
-// BAD: 型ガードなしでプロパティアクセス
+// BAD: property access without a type guard
 function getLength(value: string | string[]): number {
-  // return value.split("").length; // エラー: string[] に split はない
-  return (value as string).length;  // as で逃げる → 配列の場合にバグ
+  // return value.split("").length; // Error: string[] has no split
+  return (value as string).length;  // Escaping with as -> bug when it's an array
 }
 
-// GOOD: 型ガードで安全に処理
+// GOOD: handle safely with a type guard
 function getLength(value: string | string[]): number {
   if (typeof value === "string") {
     return value.length;
@@ -1262,7 +1263,7 @@ function getLength(value: string | string[]): number {
   return value.length;
 }
 
-// さらに良い: Array.isArray を使う
+// Even better: use Array.isArray
 function getLength(value: string | string[]): number {
   if (Array.isArray(value)) {
     return value.length;
@@ -1271,46 +1272,46 @@ function getLength(value: string | string[]): number {
 }
 ```
 
-### アンチパターン2: 判別子なしのUnion型オブジェクト
+### Anti-Pattern 2: Union Type Objects Without a Discriminant
 
 ```typescript
-// BAD: 判別するプロパティがない
+// BAD: no property to discriminate on
 type Response = { data: string } | { error: string };
 
 function handle(res: Response) {
-  // res.data にアクセスできない（error側の可能性があるため）
-  // res.error にもアクセスできない
-  if ("data" in res) {  // in ガードで対処可能だが不安定
+  // Cannot access res.data (it could be the error variant)
+  // Cannot access res.error either
+  if ("data" in res) {  // The in guard works but is fragile
     console.log(res.data);
   }
 }
 
-// GOOD: 判別子を設ける
+// GOOD: provide a discriminant
 type Response =
   | { success: true; data: string }
   | { success: false; error: string };
 
 function handle(res: Response) {
   if (res.success) {
-    console.log(res.data);   // 安全
+    console.log(res.data);   // safe
   } else {
-    console.log(res.error);  // 安全
+    console.log(res.error);  // safe
   }
 }
 ```
 
-### アンチパターン3: Union型が膨大になる
+### Anti-Pattern 3: Union Types That Become Massive
 
 ```typescript
-// BAD: Union型のメンバーが多すぎてメンテナンス不能
+// BAD: too many union members to maintain
 type Event =
   | { type: "a"; data: A }
   | { type: "b"; data: B }
   | { type: "c"; data: C }
-  // ... 50個以上のメンバー
+  // ... over 50 members
   | { type: "zz"; data: ZZ };
 
-// GOOD: ジェネリクスでパターンを抽出し、サブグループに分割
+// GOOD: extract the pattern with generics and split into subgroups
 type CrudEvent<Entity extends string, T> =
   | { type: `${Entity}:created`; data: T }
   | { type: `${Entity}:updated`; data: T; changes: Partial<T> }
@@ -1323,70 +1324,70 @@ type ProductEvent = CrudEvent<"product", Product>;
 type AppEvent = UserEvent | OrderEvent | ProductEvent;
 ```
 
-### アンチパターン4: as による不安全なキャスト
+### Anti-Pattern 4: Unsafe Casting via as
 
 ```typescript
-// BAD: Union型を as で無理やりキャスト
+// BAD: forcibly casting a union type with as
 function processShape(shape: Shape) {
-  const circle = shape as Circle; // kind が "circle" でなくてもキャストされる
-  console.log(circle.radius); // ランタイムエラーの可能性
+  const circle = shape as Circle; // cast even when kind is not "circle"
+  console.log(circle.radius); // potential runtime error
 }
 
-// GOOD: 型ガードで安全に絞り込む
+// GOOD: narrow safely with a type guard
 function processShape(shape: Shape) {
   if (shape.kind === "circle") {
-    console.log(shape.radius); // Circle 型として安全にアクセス
+    console.log(shape.radius); // safe access as Circle
   }
 }
 ```
 
-### アンチパターン5: Intersection型の意図しない never
+### Anti-Pattern 5: Unintended never in Intersection Types
 
 ```typescript
-// BAD: 矛盾するIntersectionに気づかない
+// BAD: not noticing a contradictory intersection
 type Config = { mode: "development" } & { mode: "production" };
 // mode: "development" & "production" = never
-// → Config型の値は作れない
+// -> No value of type Config can be created
 
-// GOOD: Union型を使う
+// GOOD: use a union type
 type Config = { mode: "development" } | { mode: "production" };
 
-// BAD: 関数型のIntersectionの誤解
+// BAD: misunderstanding intersections of function types
 type F = ((x: string) => void) & ((x: number) => void);
-// これはオーバーロードとして動作する（エラーではない）
-// ただし意図しないオーバーロードに注意
+// This works as overloads (not an error)
+// But beware of unintended overloads
 ```
 
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured config file | Check the path and format of the config file |
+| Timeout | Network latency / lack of resources | Adjust timeout values, add retry logic |
+| Out of memory | Increase in data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access permissions | Verify execution user permissions, review settings |
+| Data inconsistency | Concurrency conflicts | Introduce locking, manage transactions |
 
-### デバッグの手順
+### Debugging Procedure
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace and identify the location
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Formulate hypotheses**: List possible causes
+4. **Step-by-step verification**: Verify hypotheses with logging or a debugger
+5. **Fix and regression test**: After fixing, run tests on related areas as well
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utilities
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger setup
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1394,50 +1395,50 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input and output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"exception: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps to diagnose when performance issues arise:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check I/O waits**: Examine disk and network I/O
+4. **Check concurrent connections**: Examine connection pool state
 
-| 問題の種類 | 診断ツール | 対策 |
+| Issue Type | Diagnostic Tool | Mitigation |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Improve algorithms, parallelize |
+| Memory leaks | tracemalloc, objgraph | Properly release references |
+| I/O bottlenecks | strace, iostat | Asynchronous I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 ---
 
 ## FAQ
 
-### Q1: Union型のメンバーが多くなりすぎた場合はどうしますか？
+### Q1: What should I do if a union type has too many members?
 
-**A:** 判別共用体を使いつつ、関連するメンバーをグループ化してサブUnionに分割します。また、ジェネリクスを活用して共通パターンを抽出することも有効です。
+**A:** Use discriminated unions while grouping related members into sub-unions. Leveraging generics to extract common patterns is also effective.
 ```typescript
 type CrudEvent<T> =
   | { type: "created"; entity: T }
@@ -1445,109 +1446,109 @@ type CrudEvent<T> =
   | { type: "deleted"; id: string };
 ```
 
-### Q2: `A & B` で A と B のプロパティ型が矛盾する場合はどうなりますか？
+### Q2: What happens if property types conflict between A and B in `A & B`?
 
-**A:** 矛盾するプロパティの型は `never` になります。
+**A:** The conflicting property type becomes `never`.
 ```typescript
 type A = { x: string };
 type B = { x: number };
 type C = A & B;
-// C の x は string & number = never
-// → C 型の値を作ることは実質不可能
+// x in C is string & number = never
+// -> It is essentially impossible to create a value of type C
 ```
 
-Omitを使って矛盾するプロパティを除外するか、型設計を見直すことを推奨します。
+We recommend excluding the conflicting property with Omit or revisiting the type design.
 ```typescript
 type SafeMerge = Omit<A, keyof B> & B;
-// B のプロパティが優先される
+// B's properties take precedence
 ```
 
-### Q3: 型ガードの `is` 構文は必ず必要ですか？
+### Q3: Is the `is` syntax always required for type guards?
 
-**A:** `typeof`, `instanceof`, `in` などの組み込みガードではTypeScriptが自動的にナローイングします。ユーザー定義の関数で型を絞り込みたい場合のみ `is` 構文（型述語）が必要です。カスタムのバリデーション関数を作る際に特に有用です。
+**A:** With built-in guards such as `typeof`, `instanceof`, and `in`, TypeScript narrows types automatically. The `is` syntax (type predicate) is required only when narrowing types via a user-defined function. It is especially useful when creating custom validation functions.
 
-### Q4: Union型とenumはどう使い分けますか？
+### Q4: How should I choose between union types and enums?
 
-**A:** TypeScriptでは文字列リテラルのUnion型が一般的に推奨されます。enumはツリーシェイキングされにくく、JavaScriptに変換されるとオブジェクトとして残ります。一方、Union型はコンパイル後に消えるため、バンドルサイズに影響しません。
+**A:** In TypeScript, string literal union types are generally recommended. Enums are difficult to tree-shake and remain as objects after being compiled to JavaScript. Union types, on the other hand, disappear after compilation, so they do not affect bundle size.
 
 ```typescript
-// enumの場合
+// Enum case
 enum Status {
   Active = "active",
   Inactive = "inactive",
 }
 
-// Union型の場合（推奨）
+// Union type case (recommended)
 type Status = "active" | "inactive";
 
-// const enum は消えるがバレル再エクスポートで問題が起きる場合がある
+// const enum disappears, but issues can occur with barrel re-exports
 const enum Color {
   Red = "red",
   Blue = "blue",
 }
 ```
 
-### Q5: 判別共用体の判別子にはどんな型が使えますか？
+### Q5: What types can be used as discriminants in discriminated unions?
 
-**A:** 文字列リテラル、数値リテラル、boolean リテラル（true/false）が使えます。最も一般的なのは文字列リテラルです。
+**A:** String literals, numeric literals, and boolean literals (true/false) can be used. The most common is the string literal.
 
 ```typescript
-// 文字列リテラル（最も一般的）
+// String literal (most common)
 type A = { kind: "a"; ... } | { kind: "b"; ... };
 
-// 数値リテラル
+// Numeric literal
 type B = { code: 200; data: T } | { code: 404; message: string };
 
-// boolean リテラル
+// Boolean literal
 type C = { success: true; data: T } | { success: false; error: E };
 ```
 
-### Q6: Union型のメンバーの順序は重要ですか？
+### Q6: Does the order of members in a union type matter?
 
-**A:** 型レベルでは順序は関係ありません。`string | number` と `number | string` は同じ型です。ただし、コードの可読性のためにメンバーを論理的にグループ化することを推奨します。
+**A:** At the type level, order does not matter. `string | number` and `number | string` are the same type. However, for code readability we recommend logically grouping members.
 
-### Q7: Intersection型はいつ使うべきですか？
+### Q7: When should I use intersection types?
 
-**A:** 主に以下の場面で使用します：
-1. **型の合成**: 小さな型を組み合わせて大きな型を作る
-2. **ミックスイン**: 既存の型に機能を追加する
-3. **ジェネリクスの制約**: `T extends A & B` で複数の制約を課す
-4. **関数のオーバーロード**: 関数型のIntersectionはオーバーロードとして動作する
+**A:** Mainly in the following situations:
+1. **Type composition**: Combining small types into larger ones
+2. **Mixins**: Adding features to existing types
+3. **Generic constraints**: Imposing multiple constraints with `T extends A & B`
+4. **Function overloads**: Intersections of function types act as overloads
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 内容 |
+| Item | Content |
 |------|------|
-| Union型 (`\|`) | 「いずれかの型」を表す。型ガードで絞り込んで使う |
-| Intersection型 (`&`) | 「全ての型の組み合わせ」を表す。型の合成に使う |
-| 判別共用体 | 共通のリテラル型プロパティで型を区別する安全なパターン |
-| typeof | プリミティブ型の判定。string, number, boolean 等 |
-| instanceof | クラスインスタンスの判定 |
-| in | プロパティの存在チェック |
-| ユーザー定義型ガード | `value is Type` で独自の型判定関数を定義 |
-| asserts | 条件を満たさない場合に例外を投げるアサーション関数 |
-| 網羅性チェック | never + default で全ケースの処理漏れを検出 |
-| 分配条件型 | Union型に条件型を適用するとメンバーごとに分配される |
+| Union type (`\|`) | Means "one of the types". Use it after narrowing with type guards |
+| Intersection type (`&`) | Means "combination of all types". Used for type composition |
+| Discriminated union | A safe pattern that distinguishes types via a common literal-typed property |
+| typeof | Detects primitive types: string, number, boolean, etc. |
+| instanceof | Detects class instances |
+| in | Checks for property existence |
+| User-defined type guard | Define a custom type-checking function with `value is Type` |
+| asserts | Assertion functions that throw an exception when the condition is not met |
+| Exhaustiveness check | Detects missed branches across all cases via never + default |
+| Distributive conditional types | Conditional types applied to union types distribute over each member |
 
 ---
 
-## 演習問題
+## Exercises
 
-### 問題1: 判別共用体の設計
+### Problem 1: Designing a Discriminated Union
 
-以下の要件を満たす判別共用体 `Shape` を定義し、面積を計算する `calculateArea` 関数を実装してください。
+Define a discriminated union `Shape` that meets the following requirements, and implement a `calculateArea` function that calculates the area.
 
-- Circle（半径）
-- Rectangle（幅、高さ）
-- Triangle（底辺、高さ）
-- Ellipse（長径、短径）
+- Circle (radius)
+- Rectangle (width, height)
+- Triangle (base, height)
+- Ellipse (major axis, minor axis)
 
-網羅性チェックを含めること。
+Include exhaustiveness checking.
 
 ```typescript
-// ここに実装を書いてください
+// Write your implementation here
 type Shape = /* ... */;
 
 function calculateArea(shape: Shape): number {
@@ -1555,9 +1556,9 @@ function calculateArea(shape: Shape): number {
 }
 ```
 
-### 問題2: 型ガード関数の実装
+### Problem 2: Implementing a Type Guard Function
 
-以下の `unknown` 型のデータが特定のインターフェースを満たすかどうかを判定する型ガード関数を実装してください。
+Implement a type guard function that determines whether `unknown` data satisfies a specific interface.
 
 ```typescript
 interface UserProfile {
@@ -1568,21 +1569,21 @@ interface UserProfile {
 }
 
 function isUserProfile(value: unknown): value is UserProfile {
-  // ここに実装を書いてください
+  // Write your implementation here
 }
 ```
 
-### 問題3: Result型の実装
+### Problem 3: Implementing a Result Type
 
-以下の仕様に従って `Result<T, E>` 型を定義し、ユーティリティ関数を実装してください。
+Define a `Result<T, E>` type and implement utility functions according to the following spec.
 
-- `Result<T, E>` は `Ok<T>` または `Err<E>` のUnion型
-- `map` 関数: 成功値を変換する
-- `flatMap` 関数: 成功値から新しいResultを生成する
-- `unwrapOr` 関数: 成功値を取得するか、デフォルト値を返す
+- `Result<T, E>` is a union of `Ok<T>` or `Err<E>`
+- `map` function: Transforms the success value
+- `flatMap` function: Generates a new Result from a success value
+- `unwrapOr` function: Returns the success value or a default value
 
 ```typescript
-// ここに実装を書いてください
+// Write your implementation here
 type Result<T, E> = /* ... */;
 
 function map<T, U, E>(result: Result<T, E>, fn: (value: T) => U): Result<U, E> {
@@ -1598,9 +1599,9 @@ function unwrapOr<T, E>(result: Result<T, E>, defaultValue: T): T {
 }
 ```
 
-### 問題4: 型安全なイベントシステム
+### Problem 4: Type-Safe Event System
 
-以下のイベント定義に対応する型安全なイベントバスを実装してください。`emit` 時にイベント名と一致しないデータを渡すとコンパイルエラーになること。
+Implement a type-safe event bus corresponding to the following event definitions. When `emit` is called with data that does not match the event name, a compile error must occur.
 
 ```typescript
 type Events = {
@@ -1609,24 +1610,24 @@ type Events = {
   "order:placed": { orderId: string; items: string[] };
 };
 
-// EventBus クラスを実装してください
+// Implement the EventBus class
 class EventBus<E extends Record<string, unknown>> {
-  // on, emit, off メソッドを実装
+  // Implement on, emit, off methods
 }
 ```
 
-### 問題5: 状態マシンの型安全な遷移
+### Problem 5: Type-Safe State Machine Transitions
 
-以下の状態遷移図に基づいて、不正な遷移をコンパイルエラーにする関数群を実装してください。
+Based on the state transition diagram below, implement a set of functions that turn invalid transitions into compile errors.
 
 ```
-  draft → submitted → approved → published
-                  ↘ rejected
-  (いずれの状態からも cancelled に遷移可能)
+  draft -> submitted -> approved -> published
+                    \-> rejected
+  (Any state can transition to cancelled)
 ```
 
 ```typescript
-// 各状態の型と遷移関数を実装してください
+// Implement the type for each state and the transition functions
 type ArticleState = /* ... */;
 
 function submit(article: /* draft */): /* submitted */ { ... }
@@ -1636,9 +1637,9 @@ function publish(article: /* approved */): /* published */ { ... }
 function cancel(article: ArticleState): /* cancelled */ { ... }
 ```
 
-### 問題6: Intersection型によるプラグインシステム
+### Problem 6: Plugin System Using Intersection Types
 
-基本機能を持つ `BaseApp` に対して、Intersection型で機能を拡張するプラグインシステムを設計してください。各プラグインは独自のメソッドとプロパティを追加します。
+For a `BaseApp` with basic functionality, design a plugin system that extends features via intersection types. Each plugin adds its own methods and properties.
 
 ```typescript
 type BaseApp = {
@@ -1647,11 +1648,11 @@ type BaseApp = {
   start(): void;
 };
 
-type WithAuth = { /* 認証機能 */ };
-type WithLogging = { /* ログ機能 */ };
-type WithCache = { /* キャッシュ機能 */ };
+type WithAuth = { /* authentication feature */ };
+type WithLogging = { /* logging feature */ };
+type WithCache = { /* caching feature */ };
 
-// 任意のプラグインの組み合わせでアプリを構成する型を定義してください
+// Define a type that composes the app from any combination of plugins
 type MyApp = BaseApp & WithAuth & WithLogging;
 
 function createApp<T extends BaseApp>(config: T): T {
@@ -1661,18 +1662,18 @@ function createApp<T extends BaseApp>(config: T): T {
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Reads
 
-- [04-generics.md](./04-generics.md) -- ジェネリクス
-- [../02-patterns/02-discriminated-unions.md](../02-patterns/02-discriminated-unions.md) -- 判別共用体パターン（実践編）
-- [../01-advanced-types/00-conditional-types.md](../01-advanced-types/00-conditional-types.md) -- 条件型
+- [04-generics.md](./04-generics.md) -- Generics
+- [../02-patterns/02-discriminated-unions.md](../02-patterns/02-discriminated-unions.md) -- Discriminated union patterns (practical edition)
+- [../01-advanced-types/00-conditional-types.md](../01-advanced-types/00-conditional-types.md) -- Conditional types
 
 ---
 
-## 参考文献
+## References
 
 1. **TypeScript Handbook: Narrowing** -- https://www.typescriptlang.org/docs/handbook/2/narrowing.html
 2. **TypeScript Handbook: Unions and Intersection Types** -- https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#union-types
 3. **Discriminated Unions in TypeScript** -- https://www.typescriptlang.org/docs/handbook/typescript-in-5-minutes-func.html#discriminated-unions
-4. **Effective TypeScript** -- Dan Vanderkam著, O'Reilly. Item 22: Understand Type Narrowing
-5. **Programming TypeScript** -- Boris Cherny著, O'Reilly. Chapter 6: Advanced Types
+4. **Effective TypeScript** -- by Dan Vanderkam, O'Reilly. Item 22: Understand Type Narrowing
+5. **Programming TypeScript** -- by Boris Cherny, O'Reilly. Chapter 6: Advanced Types
