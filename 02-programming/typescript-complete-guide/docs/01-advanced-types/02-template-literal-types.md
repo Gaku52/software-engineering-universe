@@ -1,65 +1,65 @@
-# テンプレートリテラル型
+# Template Literal Types
 
-> 文字列パターンを型レベルで表現する。パス型、イベント名、CSSプロパティなどの型安全な文字列操作と型レベルパーサーの実装を学ぶ。
+> Express string patterns at the type level. Learn type-safe string manipulation and type-level parser implementation, including path types, event names, and CSS properties.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **基本構文** -- テンプレートリテラル型の構文と文字列Unionの組み合わせ
-2. **文字列操作型** -- Uppercase, Lowercase, Capitalize, Uncapitalize の活用
-3. **パターンマッチングと infer** -- 文字列の分解と型の抽出
-4. **高度なパターン** -- パス型、型レベルパーサー、文字列の分解と再構成
-5. **実務パターン** -- CSSプロパティ、ルーティング、i18n、SQL型安全化
-6. **パフォーマンスとベストプラクティス** -- Union爆発の回避と効率的な型設計
+1. **Basic Syntax** -- Template literal type syntax and combination with string unions
+2. **String Manipulation Types** -- Using Uppercase, Lowercase, Capitalize, and Uncapitalize
+3. **Pattern Matching and infer** -- Decomposing strings and extracting types
+4. **Advanced Patterns** -- Path types, type-level parsers, and string decomposition/reconstruction
+5. **Practical Patterns** -- CSS properties, routing, i18n, and type-safe SQL
+6. **Performance and Best Practices** -- Avoiding union explosion and efficient type design
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+To get the most out of this guide, you should be familiar with:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [マップ型（Mapped Types）](./01-mapped-types.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+- The content of [Mapped Types](./01-mapped-types.md)
 
 ---
 
-## 1. 基本構文
+## 1. Basic Syntax
 
-### 1.1 テンプレートリテラル型の基本
+### 1.1 Basics of Template Literal Types
 
-テンプレートリテラル型は、TypeScript 4.1 で導入された機能で、文字列リテラル型をテンプレートとして合成できる。JavaScript のテンプレートリテラル構文をそのまま型レベルに持ち込んだもの。
+Template literal types were introduced in TypeScript 4.1 and allow you to compose string literal types as templates. They bring JavaScript's template literal syntax directly to the type level.
 
 ```typescript
-// 文字列リテラル型の合成
+// Composing string literal types
 type Greeting = `Hello, ${string}`;
 
 const a: Greeting = "Hello, World";  // OK
 const b: Greeting = "Hello, Alice";  // OK
-// const c: Greeting = "Hi, World";  // エラー: "Hi, World" は `Hello, ${string}` に代入不可
+// const c: Greeting = "Hi, World";  // Error: "Hi, World" is not assignable to `Hello, ${string}`
 
-// string 以外のプリミティブ型も埋め込み可能
+// Primitive types other than string can also be embedded
 type NumberString = `value-${number}`;
 const d: NumberString = "value-42";    // OK
 const e: NumberString = "value-3.14";  // OK
-// const f: NumberString = "value-abc"; // エラー
+// const f: NumberString = "value-abc"; // Error
 
 type BooleanString = `is-${boolean}`;
 const g: BooleanString = "is-true";   // OK
 const h: BooleanString = "is-false";  // OK
-// const i: BooleanString = "is-yes"; // エラー
+// const i: BooleanString = "is-yes"; // Error
 
-// bigint も使用可能
+// bigint is also usable
 type BigIntString = `big-${bigint}`;
 const j: BigIntString = "big-12345678901234567890"; // OK
 
-// null と undefined も使用可能（ただし実用性は低い）
+// null and undefined are also usable (though rarely useful in practice)
 type NullString = `value-${null}`;       // "value-null"
 type UndefString = `value-${undefined}`; // "value-undefined"
 ```
 
-### 1.2 Union型との組み合わせ（直積展開）
+### 1.2 Combining with Union Types (Cartesian Product Expansion)
 
 ```typescript
-// Union型との組み合わせ（直積）
+// Combining with union types (cartesian product)
 type Color = "red" | "green" | "blue";
 type Size = "small" | "medium" | "large";
 
@@ -68,30 +68,30 @@ type ColorSize = `${Color}-${Size}`;
 // "green-small" | "green-medium" | "green-large" |
 // "blue-small" | "blue-medium" | "blue-large"
 
-// 3つのUnionの直積
+// Cartesian product of three unions
 type Prefix = "btn" | "link";
 type Variant = "primary" | "secondary";
 type State = "active" | "disabled";
 
 type ClassName = `${Prefix}-${Variant}-${State}`;
-// 2 × 2 × 2 = 8 パターン
+// 2 × 2 × 2 = 8 patterns
 // "btn-primary-active" | "btn-primary-disabled" | "btn-secondary-active" | ...
 // "link-primary-active" | "link-primary-disabled" | "link-secondary-active" | ...
 
-// 数値リテラルとの組み合わせ
+// Combining with numeric literals
 type Port = 80 | 443 | 8080 | 3000;
 type Protocol = "http" | "https";
 type URL = `${Protocol}://localhost:${Port}`;
 // "http://localhost:80" | "http://localhost:443" | ... | "https://localhost:3000"
 ```
 
-### Union型の直積展開
+### Cartesian Product Expansion of Union Types
 
 ```
   Color = "red" | "green" | "blue"
   Size  = "small" | "medium" | "large"
 
-  `${Color}-${Size}` の展開:
+  Expansion of `${Color}-${Size}`:
 
   "red"   × "small"  → "red-small"
   "red"   × "medium" → "red-medium"
@@ -103,26 +103,26 @@ type URL = `${Protocol}://localhost:${Port}`;
   "blue"  × "medium" → "blue-medium"
   "blue"  × "large"  → "blue-large"
 
-  結果: 3 × 3 = 9 パターンのUnion
+  Result: a union of 3 × 3 = 9 patterns
 
-  3つのUnionの場合:
-  |A| × |B| × |C| = 結果のUnionメンバー数
-  例: 10 × 10 × 10 = 1,000 パターン → 注意が必要
+  For three unions:
+  |A| × |B| × |C| = number of resulting union members
+  Example: 10 × 10 × 10 = 1,000 patterns → caution required
 ```
 
-### 1.3 イベントハンドラ名の型
+### 1.3 Event Handler Name Types
 
 ```typescript
 type DomEvent = "click" | "focus" | "blur" | "change" | "submit" |
   "mouseenter" | "mouseleave" | "keydown" | "keyup" | "scroll" |
   "resize" | "load" | "error" | "input" | "drag" | "drop";
 
-// on + PascalCase のイベントハンドラ名
+// Event handler names with on + PascalCase
 type EventHandler = `on${Capitalize<DomEvent>}`;
 // "onClick" | "onFocus" | "onBlur" | "onChange" | "onSubmit" |
 // "onMouseenter" | "onMouseleave" | "onKeydown" | "onKeyup" | ...
 
-// data- 属性の型
+// Type for data- attributes
 type DataAttribute = `data-${string}`;
 
 function setAttribute(element: HTMLElement, attr: DataAttribute, value: string): void {
@@ -131,9 +131,9 @@ function setAttribute(element: HTMLElement, attr: DataAttribute, value: string):
 
 setAttribute(document.body, "data-theme", "dark");     // OK
 setAttribute(document.body, "data-user-id", "123");    // OK
-// setAttribute(document.body, "class", "main");        // エラー
+// setAttribute(document.body, "class", "main");        // Error
 
-// CSSカスタムプロパティ
+// CSS custom properties
 type CSSCustomProperty = `--${string}`;
 
 function setCustomProp(name: CSSCustomProperty, value: string): void {
@@ -142,9 +142,9 @@ function setCustomProp(name: CSSCustomProperty, value: string): void {
 
 setCustomProp("--primary-color", "#333");   // OK
 setCustomProp("--font-size", "16px");       // OK
-// setCustomProp("primary-color", "#333");  // エラー: -- で始まらない
+// setCustomProp("primary-color", "#333");  // Error: does not start with --
 
-// ARIA属性の型
+// Type for ARIA attributes
 type AriaAttribute = `aria-${string}`;
 type AriaRole = "button" | "dialog" | "alert" | "navigation" | "main" | "complementary";
 
@@ -153,34 +153,34 @@ function setAria(element: HTMLElement, attr: AriaAttribute, value: string): void
 }
 ```
 
-### 1.4 名前空間付きの型定義
+### 1.4 Namespaced Type Definitions
 
 ```typescript
-// 名前空間付きイベント名（jQuery風）
+// Namespaced event names (jQuery-style)
 type Namespace = "app" | "user" | "ui" | "data";
 type BaseEvent = "init" | "update" | "destroy" | "error";
 
 type NamespacedEvent = `${Namespace}:${BaseEvent}`;
 // "app:init" | "app:update" | "app:destroy" | "app:error" |
-// "user:init" | "user:update" | ... (4 × 4 = 16パターン)
+// "user:init" | "user:update" | ... (4 × 4 = 16 patterns)
 
-// ワイルドカードを含むパターン
+// Patterns including wildcards
 type EventPattern = NamespacedEvent | `${Namespace}:*` | "*";
 
-// Redis のキーパターン
+// Redis key patterns
 type CachePrefix = "user" | "post" | "session" | "config";
 type CacheKey = `${CachePrefix}:${string}`;
 
 function getCache(key: CacheKey): Promise<string | null> {
-  // 実装...
+  // Implementation...
   return Promise.resolve(null);
 }
 
 getCache("user:123");         // OK
 getCache("session:abc-def");  // OK
-// getCache("invalid");       // エラー
+// getCache("invalid");       // Error
 
-// 環境変数のプレフィックス
+// Environment variable prefixes
 type EnvPrefix = "NEXT_PUBLIC" | "VITE" | "REACT_APP";
 type PublicEnvVar = `${EnvPrefix}_${string}`;
 
@@ -191,44 +191,44 @@ function getPublicEnv(key: PublicEnvVar): string | undefined {
 
 ---
 
-## 2. 文字列操作型
+## 2. String Manipulation Types
 
-### 2.1 組み込み文字列操作型
+### 2.1 Built-in String Manipulation Types
 
-TypeScript には4つの組み込み文字列操作型がある。これらは条件型とは異なり、コンパイラに組み込まれた特殊な型。
+TypeScript provides four built-in string manipulation types. Unlike conditional types, these are special types built into the compiler.
 
 ```typescript
-// Uppercase<S>: 全て大文字に
+// Uppercase<S>: convert all to uppercase
 type A = Uppercase<"hello">;      // "HELLO"
 type A2 = Uppercase<"Hello">;     // "HELLO"
-type A3 = Uppercase<"HELLO">;     // "HELLO"（既に大文字）
+type A3 = Uppercase<"HELLO">;     // "HELLO" (already uppercase)
 
-// Lowercase<S>: 全て小文字に
+// Lowercase<S>: convert all to lowercase
 type B = Lowercase<"HELLO">;      // "hello"
 type B2 = Lowercase<"Hello">;     // "hello"
-type B3 = Lowercase<"hello">;     // "hello"（既に小文字）
+type B3 = Lowercase<"hello">;     // "hello" (already lowercase)
 
-// Capitalize<S>: 先頭を大文字に
+// Capitalize<S>: capitalize the first character
 type C = Capitalize<"hello">;     // "Hello"
-type C2 = Capitalize<"Hello">;    // "Hello"（既にCapitalize済み）
-type C3 = Capitalize<"hELLO">;    // "HELLO"（先頭のみ変更、残りはそのまま）
+type C2 = Capitalize<"Hello">;    // "Hello" (already capitalized)
+type C3 = Capitalize<"hELLO">;    // "HELLO" (only the first changes; rest stays as-is)
 
-// Uncapitalize<S>: 先頭を小文字に
+// Uncapitalize<S>: uncapitalize the first character
 type D = Uncapitalize<"Hello">;   // "hello"
-type D2 = Uncapitalize<"hello">;  // "hello"（既にuncapitalize済み）
-type D3 = Uncapitalize<"HELLO">;  // "hELLO"（先頭のみ変更）
+type D2 = Uncapitalize<"hello">;  // "hello" (already uncapitalized)
+type D3 = Uncapitalize<"HELLO">;  // "hELLO" (only the first changes)
 
-// Union型との組み合わせ（各メンバーに個別適用）
+// Combining with union types (applied to each member individually)
 type Events = "click" | "focus" | "blur";
 type PascalEvents = Capitalize<Events>;  // "Click" | "Focus" | "Blur"
 type UpperEvents = Uppercase<Events>;    // "CLICK" | "FOCUS" | "BLUR"
 type LowerEvents = Lowercase<Uppercase<Events>>;  // "click" | "focus" | "blur"
 ```
 
-### 2.2 ケース変換の実装
+### 2.2 Implementing Case Conversions
 
 ```typescript
-// キャメルケース → スネークケース
+// camelCase → snake_case
 type CamelToSnake<S extends string> =
   S extends `${infer Head}${infer Tail}`
     ? Tail extends Uncapitalize<Tail>
@@ -238,9 +238,9 @@ type CamelToSnake<S extends string> =
 
 type Snake1 = CamelToSnake<"camelCaseString">;    // "camel_case_string"
 type Snake2 = CamelToSnake<"getElementById">;      // "get_element_by_id"
-type Snake3 = CamelToSnake<"XMLParser">;           // "x_m_l_parser"（注意: 連続大文字は個別に変換）
+type Snake3 = CamelToSnake<"XMLParser">;           // "x_m_l_parser" (note: consecutive uppercase letters are converted individually)
 
-// スネークケース → キャメルケース
+// snake_case → camelCase
 type SnakeToCamel<S extends string> =
   S extends `${infer Head}_${infer Tail}`
     ? `${Lowercase<Head>}${Capitalize<SnakeToCamel<Tail>>}`
@@ -250,7 +250,7 @@ type Camel1 = SnakeToCamel<"snake_case_string">;  // "snakeCaseString"
 type Camel2 = SnakeToCamel<"user_id">;             // "userId"
 type Camel3 = SnakeToCamel<"created_at">;           // "createdAt"
 
-// スネークケース → パスカルケース
+// snake_case → PascalCase
 type SnakeToPascal<S extends string> =
   S extends `${infer Head}_${infer Tail}`
     ? `${Capitalize<Lowercase<Head>>}${SnakeToPascal<Tail>}`
@@ -259,7 +259,7 @@ type SnakeToPascal<S extends string> =
 type Pascal1 = SnakeToPascal<"user_profile">;      // "UserProfile"
 type Pascal2 = SnakeToPascal<"api_response_data">;  // "ApiResponseData"
 
-// ケバブケース → キャメルケース
+// kebab-case → camelCase
 type KebabToCamel<S extends string> =
   S extends `${infer Head}-${infer Tail}`
     ? `${Lowercase<Head>}${Capitalize<KebabToCamel<Tail>>}`
@@ -269,7 +269,7 @@ type Kebab1 = KebabToCamel<"kebab-case-string">;  // "kebabCaseString"
 type Kebab2 = KebabToCamel<"font-size">;            // "fontSize"
 type Kebab3 = KebabToCamel<"border-top-width">;     // "borderTopWidth"
 
-// キャメルケース → ケバブケース
+// camelCase → kebab-case
 type CamelToKebab<S extends string> =
   S extends `${infer Head}${infer Tail}`
     ? Tail extends Uncapitalize<Tail>
@@ -282,10 +282,10 @@ type KebabR2 = CamelToKebab<"borderTopWidth">;      // "border-top-width"
 type KebabR3 = CamelToKebab<"backgroundColor">;     // "background-color"
 ```
 
-### 2.3 文字列の結合と分割
+### 2.3 Joining and Splitting Strings
 
 ```typescript
-// 文字列の結合（Join）
+// Joining strings (Join)
 type Join<T extends string[], D extends string> =
   T extends []
     ? ""
@@ -300,7 +300,7 @@ type Joined2 = Join<["hello", "world"], " ">;  // "hello world"
 type Joined3 = Join<["one"], ",">;             // "one"
 type Joined4 = Join<[], ",">;                  // ""
 
-// 文字列の分割（Split）
+// Splitting strings (Split)
 type Split<S extends string, D extends string> =
   S extends `${infer Head}${D}${infer Tail}`
     ? [Head, ...Split<Tail, D>]
@@ -311,7 +311,7 @@ type Splitted2 = Split<"hello", ".">;        // ["hello"]
 type Splitted3 = Split<"a-b-c-d", "-">;      // ["a", "b", "c", "d"]
 type Splitted4 = Split<"hello world", " ">;  // ["hello", "world"]
 
-// 文字列の置換（Replace）
+// Replacing strings (Replace)
 type Replace<
   S extends string,
   From extends string,
@@ -323,7 +323,7 @@ type Replace<
 type Replaced1 = Replace<"hello world", "world", "TypeScript">;
 // "hello TypeScript"
 
-// 全置換（ReplaceAll）
+// Replacing all occurrences (ReplaceAll)
 type ReplaceAll<
   S extends string,
   From extends string,
@@ -335,7 +335,7 @@ type ReplaceAll<
 type ReplacedAll1 = ReplaceAll<"a-b-c-d", "-", ".">;  // "a.b.c.d"
 type ReplacedAll2 = ReplaceAll<"aaa", "a", "bb">;      // "bbbbbb"
 
-// トリム（前後の空白を除去）
+// Trim (remove leading and trailing whitespace)
 type TrimLeft<S extends string> =
   S extends ` ${infer Rest}` | `\n${infer Rest}` | `\t${infer Rest}`
     ? TrimLeft<Rest>
@@ -351,38 +351,38 @@ type Trim<S extends string> = TrimLeft<TrimRight<S>>;
 type Trimmed = Trim<"  hello  ">;  // "hello"
 ```
 
-### 文字列操作型の一覧
+### List of String Manipulation Types
 
-| 型 | 入力 | 出力 | 用途 |
-|----|------|------|------|
-| `Uppercase<S>` | `"hello"` | `"HELLO"` | HTTP メソッド、定数名 |
-| `Lowercase<S>` | `"HELLO"` | `"hello"` | 正規化 |
-| `Capitalize<S>` | `"hello"` | `"Hello"` | PascalCase、イベント名 |
-| `Uncapitalize<S>` | `"Hello"` | `"hello"` | camelCase 変換 |
+| Type | Input | Output | Use Case |
+|------|-------|--------|----------|
+| `Uppercase<S>` | `"hello"` | `"HELLO"` | HTTP methods, constant names |
+| `Lowercase<S>` | `"HELLO"` | `"hello"` | Normalization |
+| `Capitalize<S>` | `"hello"` | `"Hello"` | PascalCase, event names |
+| `Uncapitalize<S>` | `"Hello"` | `"hello"` | camelCase conversion |
 
-### カスタム文字列操作型の一覧
+### List of Custom String Manipulation Types
 
-| 型 | 入力 | 出力 | 用途 |
-|----|------|------|------|
-| `CamelToSnake<S>` | `"camelCase"` | `"camel_case"` | API通信 |
-| `SnakeToCamel<S>` | `"snake_case"` | `"snakeCase"` | API通信 |
-| `KebabToCamel<S>` | `"kebab-case"` | `"kebabCase"` | CSS→JS |
-| `CamelToKebab<S>` | `"camelCase"` | `"camel-case"` | JS→CSS |
-| `Split<S, D>` | `"a.b.c", "."` | `["a","b","c"]` | パス解析 |
-| `Join<T, D>` | `["a","b"], "."` | `"a.b"` | パス構築 |
-| `Replace<S, F, T>` | `"ab", "a", "x"` | `"xb"` | 文字列変換 |
-| `Trim<S>` | `" abc "` | `"abc"` | 入力正規化 |
+| Type | Input | Output | Use Case |
+|------|-------|--------|----------|
+| `CamelToSnake<S>` | `"camelCase"` | `"camel_case"` | API communication |
+| `SnakeToCamel<S>` | `"snake_case"` | `"snakeCase"` | API communication |
+| `KebabToCamel<S>` | `"kebab-case"` | `"kebabCase"` | CSS → JS |
+| `CamelToKebab<S>` | `"camelCase"` | `"camel-case"` | JS → CSS |
+| `Split<S, D>` | `"a.b.c", "."` | `["a","b","c"]` | Path parsing |
+| `Join<T, D>` | `["a","b"], "."` | `"a.b"` | Path construction |
+| `Replace<S, F, T>` | `"ab", "a", "x"` | `"xb"` | String transformation |
+| `Trim<S>` | `" abc "` | `"abc"` | Input normalization |
 
 ---
 
-## 3. パターンマッチングと infer
+## 3. Pattern Matching and infer
 
-### 3.1 文字列の分解
+### 3.1 Decomposing Strings
 
-テンプレートリテラル型の中で `infer` を使うと、文字列をパターンマッチングして部分文字列を抽出できる。
+Using `infer` inside template literal types lets you pattern-match strings and extract substrings.
 
 ```typescript
-// 先頭文字の取得
+// Get the first character
 type FirstChar<S extends string> =
   S extends `${infer F}${string}` ? F : never;
 
@@ -390,7 +390,7 @@ type FC1 = FirstChar<"hello">;  // "h"
 type FC2 = FirstChar<"A">;      // "A"
 type FC3 = FirstChar<"">;       // never
 
-// 残りの文字列の取得
+// Get the rest of the string
 type RestChars<S extends string> =
   S extends `${string}${infer R}` ? R : never;
 
@@ -398,7 +398,7 @@ type RC1 = RestChars<"hello">;  // "ello"
 type RC2 = RestChars<"A">;      // ""
 type RC3 = RestChars<"">;       // never
 
-// 最後の文字の取得
+// Get the last character
 type LastChar<S extends string> =
   S extends `${infer Rest}${infer Last}`
     ? Last extends ""
@@ -408,7 +408,7 @@ type LastChar<S extends string> =
         : LastChar<`${Rest}${LastChar<Last>}`>
     : never;
 
-// 文字列の反転
+// Reversing a string
 type Reverse<S extends string> =
   S extends `${infer First}${infer Rest}`
     ? `${Reverse<Rest>}${First}`
@@ -416,7 +416,7 @@ type Reverse<S extends string> =
 
 type Rev = Reverse<"hello">;  // "olleh"
 
-// 文字列にある文字が含まれるか
+// Check if a string contains a given substring
 type Includes<S extends string, Search extends string> =
   S extends `${string}${Search}${string}` ? true : false;
 
@@ -424,14 +424,14 @@ type Inc1 = Includes<"hello world", "world">;  // true
 type Inc2 = Includes<"hello world", "xyz">;    // false
 type Inc3 = Includes<"typescript", "script">;  // true
 
-// 文字列が特定の文字列で始まるか
+// Check if a string starts with a given prefix
 type StartsWith<S extends string, Prefix extends string> =
   S extends `${Prefix}${string}` ? true : false;
 
 type SW1 = StartsWith<"hello world", "hello">;  // true
 type SW2 = StartsWith<"hello world", "world">;  // false
 
-// 文字列が特定の文字列で終わるか
+// Check if a string ends with a given suffix
 type EndsWith<S extends string, Suffix extends string> =
   S extends `${string}${Suffix}` ? true : false;
 
@@ -439,10 +439,10 @@ type EW1 = EndsWith<"hello world", "world">;  // true
 type EW2 = EndsWith<"hello world", "hello">;  // false
 ```
 
-### 3.2 パスパラメータの抽出
+### 3.2 Extracting Path Parameters
 
 ```typescript
-// URLパスパラメータの抽出（基本版）
+// Extracting URL path parameters (basic version)
 type ExtractParams<T extends string> =
   T extends `${string}:${infer Param}/${infer Rest}`
     ? Param | ExtractParams<Rest>
@@ -457,9 +457,9 @@ type Params2 = ExtractParams<"/api/v1/:version/users/:id/profile">;
 // "version" | "id"
 
 type Params3 = ExtractParams<"/static/index.html">;
-// never（パラメータなし）
+// never (no parameters)
 
-// パラメータからオブジェクト型を生成
+// Generate an object type from parameters
 type RouteParams<T extends string> = {
   [K in ExtractParams<T>]: string;
 };
@@ -467,39 +467,39 @@ type RouteParams<T extends string> = {
 type UserPostParams = RouteParams<"/users/:userId/posts/:postId">;
 // { userId: string; postId: string }
 
-// 型付きパラメータ（数値IDの場合）
+// Typed parameters (numeric IDs)
 type TypedRouteParams<T extends string> = {
   [K in ExtractParams<T>]: K extends `${string}Id` ? number : string;
 };
 
 type TypedParams = TypedRouteParams<"/users/:userId/posts/:postId">;
-// { userId: number; postId: number }（Idで終わるパラメータは number）
+// { userId: number; postId: number } (parameters ending in "Id" become numbers)
 ```
 
-### パス型のパターンマッチング
+### Pattern Matching for Path Types
 
 ```
-  入力: "/users/:userId/posts/:postId"
+  Input: "/users/:userId/posts/:postId"
 
-  ステップ1: `${string}:${infer P}/${infer R}`
+  Step 1: `${string}:${infer P}/${infer R}`
     P = "userId"
     R = "posts/:postId"
 
-  ステップ2: ExtractParams<"posts/:postId">
+  Step 2: ExtractParams<"posts/:postId">
     `${string}:${infer P}`
     P = "postId"
 
-  結果: "userId" | "postId"
+  Result: "userId" | "postId"
 
-  RouteParams による変換:
+  Conversion via RouteParams:
     "userId" | "postId"
     → { userId: string; postId: string }
 ```
 
-### 3.3 型安全なルーター
+### 3.3 Type-Safe Router
 
 ```typescript
-// ルート定義
+// Route definitions
 type Routes = {
   "/": {};
   "/users": {};
@@ -510,7 +510,7 @@ type Routes = {
   "/settings/:section": { section: string };
 };
 
-// ルートパスからパラメータ型を自動推論する版
+// Version that automatically infers parameter types from the route path
 type ExtractRouteParams<T extends string> =
   T extends `${string}:${infer Param}/${infer Rest}`
     ? { [K in Param | keyof ExtractRouteParamsHelper<Rest>]: string }
@@ -525,7 +525,7 @@ type ExtractRouteParamsHelper<T extends string> =
       ? { [K in Param]: string }
       : {};
 
-// 型安全なナビゲーション関数
+// Type-safe navigation function
 type Route = "/users" | "/users/:id" | "/posts/:postId/comments/:commentId" |
   "/settings" | "/settings/:section";
 
@@ -535,19 +535,19 @@ function navigate<T extends Route>(
     ? []
     : [params: ExtractRouteParams<T>]
 ): void {
-  // 実装省略
+  // Implementation omitted
 }
 
-navigate("/users");                                           // OK: パラメータ不要
+navigate("/users");                                           // OK: no parameters required
 navigate("/users/:id", { id: "123" });                        // OK
 navigate("/posts/:postId/comments/:commentId", {
   postId: "1",
   commentId: "42",
 });                                                           // OK
-// navigate("/users/:id");                                    // エラー: パラメータが必要
-// navigate("/users/:id", { id: "123", extra: "x" });         // エラー: 余分なパラメータ
+// navigate("/users/:id");                                    // Error: parameters are required
+// navigate("/users/:id", { id: "123", extra: "x" });         // Error: extra parameter
 
-// パスの構築（パラメータを実際の値に置換）
+// Building paths (substituting parameters with actual values)
 type BuildPath<
   Path extends string,
   Params extends Record<string, string>
@@ -565,10 +565,10 @@ type Built = BuildPath<"/users/:id/posts/:postId", { id: "123"; postId: "456" }>
 // "/users/123/posts/456"
 ```
 
-### 3.4 クエリパラメータの型安全な解析
+### 3.4 Type-Safe Parsing of Query Parameters
 
 ```typescript
-// クエリ文字列の解析
+// Parsing a query string
 type ParseQueryString<S extends string> =
   S extends `${infer Key}=${infer Value}&${infer Rest}`
     ? { [K in Key]: Value } & ParseQueryString<Rest>
@@ -582,7 +582,7 @@ type Query1 = ParseQueryString<"page=1&limit=10&sort=name">;
 type Query2 = ParseQueryString<"q=typescript&lang=ja">;
 // { q: "typescript" } & { lang: "ja" }
 
-// URL全体の解析
+// Parsing a full URL
 type ParseURL<S extends string> =
   S extends `${infer Protocol}://${infer Host}/${infer Path}?${infer Query}`
     ? {
@@ -618,34 +618,34 @@ type URLParsed = ParseURL<"https://api.example.com/users?page=1&limit=10">;
 
 ---
 
-## 4. 高度なテンプレートリテラル型
+## 4. Advanced Template Literal Types
 
-### 4.1 CSSプロパティの型安全化
+### 4.1 Type-Safe CSS Properties
 
 ```typescript
-// CSS値の型
+// Types for CSS values
 type CSSUnit = "px" | "em" | "rem" | "%" | "vh" | "vw" | "vmin" | "vmax" | "ch" | "ex";
 type CSSValue = `${number}${CSSUnit}` | "auto" | "0" | "inherit" | "initial" | "unset";
 
 function setWidth(width: CSSValue): void {
-  // 実装
+  // Implementation
 }
 
 setWidth("100px");    // OK
 setWidth("50%");      // OK
 setWidth("auto");     // OK
 setWidth("2.5rem");   // OK
-// setWidth("100");   // エラー: 単位がない
-// setWidth("abc");   // エラー
+// setWidth("100");   // Error: unit is missing
+// setWidth("abc");   // Error
 
-// CSS色の型（16進数カラー）
+// CSS color types (hex colors)
 type HexDigit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
   | "a" | "b" | "c" | "d" | "e" | "f"
   | "A" | "B" | "C" | "D" | "E" | "F";
 
-type HexColor = `#${string}`;  // 簡略版（厳密には6桁 or 8桁チェックが必要）
+type HexColor = `#${string}`;  // Simplified version (strictly speaking, you'd need 6- or 8-digit checks)
 
-// CSS関数値の型
+// CSS function value types
 type CSSFunction =
   | `rgb(${number}, ${number}, ${number})`
   | `rgba(${number}, ${number}, ${number}, ${number})`
@@ -653,7 +653,7 @@ type CSSFunction =
   | `calc(${string})`
   | `var(${CSSCustomProperty})`;
 
-// CSS変換の型
+// CSS transform types
 type CSSTransform =
   | `translateX(${CSSValue})`
   | `translateY(${CSSValue})`
@@ -664,14 +664,14 @@ type CSSTransform =
   | `skewX(${number}deg)`
   | `skewY(${number}deg)`;
 
-// CSS グリッド / フレックスボックスの型
+// CSS Grid / Flexbox types
 type FlexDirection = "row" | "column" | "row-reverse" | "column-reverse";
 type FlexWrap = "nowrap" | "wrap" | "wrap-reverse";
 type FlexFlow = `${FlexDirection} ${FlexWrap}`;
 
 type GridTemplate = `repeat(${number}, ${CSSValue | "1fr" | "auto"})` | string;
 
-// CSSプロパティからReactスタイルオブジェクトへ
+// From CSS property names to React style objects
 type CSSPropertyName =
   | "background-color" | "font-size" | "font-weight" | "font-family"
   | "border-radius" | "border-width" | "border-color" | "border-style"
@@ -689,16 +689,16 @@ type ReactProperty = CSSToReact<"background-color">;  // "backgroundColor"
 type ReactProperty2 = CSSToReact<"border-top-width">; // "borderTopWidth"
 ```
 
-### 4.2 SQL クエリの型安全化
+### 4.2 Type-Safe SQL Queries
 
 ```typescript
-// SELECT 句からカラム名を抽出
+// Extract column names from a SELECT clause
 type ExtractColumns<S extends string> =
   S extends `${infer Col}, ${infer Rest}`
     ? Trim<Col> | ExtractColumns<Rest>
     : Trim<S>;
 
-// テーブル名を抽出
+// Extract the table name
 type ExtractTable<S extends string> =
   S extends `${string} FROM ${infer Table} ${string}`
     ? Trim<Table>
@@ -706,7 +706,7 @@ type ExtractTable<S extends string> =
       ? Trim<Table>
       : never;
 
-// SELECT クエリの型解析
+// Type-level parsing of a SELECT query
 type ParseSelect<S extends string> =
   S extends `SELECT ${infer Columns} FROM ${infer Rest}`
     ? {
@@ -723,7 +723,7 @@ type Parsed = ParseSelect<"SELECT name, email, age FROM users WHERE id = 1">;
 //   table: "users";
 // }
 
-// 型安全な SQL ビルダー（概念的な実装）
+// Type-safe SQL builder (conceptual implementation)
 type TableName = "users" | "posts" | "comments";
 
 type TableSchema = {
@@ -748,31 +748,31 @@ type TableSchema = {
   };
 };
 
-// SELECT できるカラムを型で制約
+// Constrain selectable columns by type
 type ValidColumn<T extends TableName> = keyof TableSchema[T] & string;
 
 type SelectResult<T extends TableName, Cols extends ValidColumn<T>> =
   Pick<TableSchema[T], Cols>;
 
-// 使用イメージ
+// Usage example
 function select<T extends TableName, C extends ValidColumn<T>>(
   table: T,
   columns: C[]
 ): Promise<SelectResult<T, C>[]> {
-  // 実装...
+  // Implementation...
   return Promise.resolve([]);
 }
 
-// 型安全に使用
+// Type-safe usage
 const result = await select("users", ["name", "email"]);
-// result は Pick<TableSchema["users"], "name" | "email">[]
+// result is Pick<TableSchema["users"], "name" | "email">[]
 // = { name: string; email: string }[]
 ```
 
-### 4.3 型レベルのJSONパーサー
+### 4.3 A Type-Level JSON Parser
 
 ```typescript
-// 数字文字列を数値に変換
+// Convert numeric strings to numbers
 type StringToNumber<S extends string> =
   S extends `${infer N extends number}` ? N : never;
 
@@ -780,13 +780,13 @@ type N1 = StringToNumber<"42">;    // 42
 type N2 = StringToNumber<"0">;     // 0
 type N3 = StringToNumber<"3.14">;  // 3.14
 
-// ブーリアン文字列を boolean に変換
+// Convert boolean strings to booleans
 type StringToBoolean<S extends string> =
   S extends "true" ? true :
   S extends "false" ? false :
   never;
 
-// 文字列の長さを型レベルで計算
+// Compute string length at the type level
 type StringLength<
   S extends string,
   Acc extends unknown[] = []
@@ -798,7 +798,7 @@ type L1 = StringLength<"hello">;      // 5
 type L2 = StringLength<"">;           // 0
 type L3 = StringLength<"TypeScript">; // 10
 
-// 文字列の繰り返し
+// Repeating a string
 type Repeat<
   S extends string,
   N extends number,
@@ -812,7 +812,7 @@ type Rep1 = Repeat<"ab", 3>;    // "ababab"
 type Rep2 = Repeat<"-", 5>;     // "-----"
 type Rep3 = Repeat<"ha", 2>;    // "haha"
 
-// パディング
+// Padding
 type PadStart<
   S extends string,
   Length extends number,
@@ -824,10 +824,10 @@ type PadStart<
 type Padded = PadStart<"42", 5, "0">;  // "00042"
 ```
 
-### 4.4 型安全なテンプレートエンジン
+### 4.4 Type-Safe Template Engine
 
 ```typescript
-// テンプレート文字列からプレースホルダーを抽出
+// Extract placeholders from a template string
 type ExtractPlaceholders<T extends string> =
   T extends `${string}{{${infer Name}}}${infer Rest}`
     ? Name | ExtractPlaceholders<Rest>
@@ -836,7 +836,7 @@ type ExtractPlaceholders<T extends string> =
 type Placeholders = ExtractPlaceholders<"Hello, {{name}}! You have {{count}} messages.">;
 // "name" | "count"
 
-// テンプレートのデータ型を自動生成
+// Automatically generate a data type for the template
 type TemplateData<T extends string> = {
   [K in ExtractPlaceholders<T>]: string | number;
 };
@@ -844,7 +844,7 @@ type TemplateData<T extends string> = {
 type Data = TemplateData<"Hello, {{name}}! You have {{count}} messages.">;
 // { name: string | number; count: string | number }
 
-// 型安全なテンプレートレンダリング関数
+// Type-safe template rendering function
 function render<T extends string>(
   template: T,
   data: TemplateData<T>
@@ -856,23 +856,23 @@ function render<T extends string>(
   return result;
 }
 
-// 使用例
+// Usage example
 const message = render(
   "Hello, {{name}}! You have {{count}} new messages.",
-  { name: "Alice", count: 5 }  // name と count が必須
+  { name: "Alice", count: 5 }  // name and count are required
 );
 
 // render(
 //   "Hello, {{name}}!",
-//   { name: "Alice", count: 5 }  // エラー: count は不要
+//   { name: "Alice", count: 5 }  // Error: count is unnecessary
 // );
 
 // render(
 //   "Hello, {{name}}! {{greeting}}",
-//   { name: "Alice" }  // エラー: greeting が不足
+//   { name: "Alice" }  // Error: greeting is missing
 // );
 
-// Mustache風のセクション解析
+// Mustache-style section parsing
 type ExtractSections<T extends string> =
   T extends `${string}{{#${infer Section}}}${infer Content}{{/${infer _End}}}${infer Rest}`
     ? { section: Section; content: Content } | ExtractSections<Rest>
@@ -882,23 +882,23 @@ type Sections = ExtractSections<"{{#items}}{{name}}: {{price}}{{/items}}{{#foote
 // { section: "items"; content: "{{name}}: {{price}}" } | { section: "footer"; content: "{{text}}" }
 ```
 
-### 4.5 型安全な正規表現風パターン
+### 4.5 Type-Safe Regex-Like Patterns
 
 ```typescript
-// 簡易的な正規表現パターンマッチング型
+// Simplified regex-like pattern matching types
 
-// メールアドレスのパターン（簡易版）
+// Email address pattern (simplified version)
 type EmailPattern = `${string}@${string}.${string}`;
 
-// IPv4アドレスのパターン（簡易版）
+// IPv4 address pattern (simplified version)
 type IPv4Pattern = `${number}.${number}.${number}.${number}`;
 
-// セマンティックバージョニング
+// Semantic versioning
 type SemVer = `${number}.${number}.${number}`;
 type SemVerWithPre = `${number}.${number}.${number}-${string}`;
 type SemVerFull = SemVer | SemVerWithPre;
 
-// セマンティックバージョンの解析
+// Parsing a semantic version
 type ParseSemVer<S extends string> =
   S extends `${infer Major extends number}.${infer Minor extends number}.${infer Patch extends number}-${infer Pre}`
     ? { major: Major; minor: Minor; patch: Patch; prerelease: Pre }
@@ -912,12 +912,12 @@ type Version = ParseSemVer<"1.2.3">;
 type VersionPre = ParseSemVer<"2.0.0-beta.1">;
 // { major: 2; minor: 0; patch: 0; prerelease: "beta.1" }
 
-// 日付パターン
+// Date patterns
 type DatePattern = `${number}-${number}-${number}`;
 type TimePattern = `${number}:${number}:${number}`;
 type DateTimePattern = `${DatePattern}T${TimePattern}`;
 
-// ISO 8601 日付の解析
+// Parsing ISO 8601 dates
 type ParseDate<S extends string> =
   S extends `${infer Y extends number}-${infer M extends number}-${infer D extends number}`
     ? { year: Y; month: M; day: D }
@@ -926,47 +926,47 @@ type ParseDate<S extends string> =
 type ParsedDate = ParseDate<"2024-12-25">;
 // { year: 2024; month: 12; day: 25 }
 
-// UUID パターン
+// UUID pattern
 type UUIDSegment = `${string}`;
 type UUIDPattern = `${UUIDSegment}-${UUIDSegment}-${UUIDSegment}-${UUIDSegment}-${UUIDSegment}`;
 ```
 
 ---
 
-## 5. 実務パターン
+## 5. Practical Patterns
 
-### 5.1 国際化（i18n）の型安全化
+### 5.1 Type-Safe Internationalization (i18n)
 
 ```typescript
-// 翻訳キーの型安全な管理
+// Type-safe management of translation keys
 interface TranslationSchema {
   common: {
-    save: "保存";
-    cancel: "キャンセル";
-    delete: "削除";
-    confirm: "確認";
-    loading: "読み込み中...";
+    save: "Save";
+    cancel: "Cancel";
+    delete: "Delete";
+    confirm: "Confirm";
+    loading: "Loading...";
   };
   auth: {
-    login: "ログイン";
-    logout: "ログアウト";
-    register: "新規登録";
-    forgotPassword: "パスワードを忘れた場合";
+    login: "Log in";
+    logout: "Log out";
+    register: "Sign up";
+    forgotPassword: "Forgot password?";
   };
   errors: {
-    notFound: "ページが見つかりません";
-    unauthorized: "認証が必要です";
+    notFound: "Page not found";
+    unauthorized: "Authentication required";
     validation: {
-      required: "必須項目です";
-      minLength: "{{min}}文字以上入力してください";
-      maxLength: "{{max}}文字以下で入力してください";
-      email: "有効なメールアドレスを入力してください";
-      pattern: "{{pattern}}の形式で入力してください";
+      required: "This field is required";
+      minLength: "Please enter at least {{min}} characters";
+      maxLength: "Please enter no more than {{max}} characters";
+      email: "Please enter a valid email address";
+      pattern: "Please use the {{pattern}} format";
     };
   };
 }
 
-// ドットパスで翻訳キーを生成
+// Generate translation keys via dot paths
 type TranslationPath<T, Prefix extends string = ""> =
   T extends string
     ? Prefix
@@ -978,7 +978,7 @@ type TranslationPath<T, Prefix extends string = ""> =
 type TranslationKey = TranslationPath<TranslationSchema>;
 // "common.save" | "common.cancel" | ... | "errors.validation.required" | ...
 
-// 翻訳値の型を取得
+// Get the type of a translation value
 type TranslationValue<T, Path extends string> =
   Path extends `${infer Key}.${infer Rest}`
     ? Key extends keyof T
@@ -988,13 +988,13 @@ type TranslationValue<T, Path extends string> =
       ? T[Path]
       : never;
 
-// プレースホルダーの抽出
+// Extract placeholders
 type ExtractI18nParams<S extends string> =
   S extends `${string}{{${infer Param}}}${infer Rest}`
     ? Param | ExtractI18nParams<Rest>
     : never;
 
-// 翻訳関数の型
+// Type for the translation function
 type TranslateParams<Key extends TranslationKey> =
   ExtractI18nParams<TranslationValue<TranslationSchema, Key> & string> extends never
     ? [params?: never]
@@ -1004,22 +1004,22 @@ function t<K extends TranslationKey>(
   key: K,
   ...args: TranslateParams<K>
 ): string {
-  // 実装...
+  // Implementation...
   return "";
 }
 
-// 使用例
-t("common.save");                     // OK: パラメータなし
-t("errors.validation.minLength", { min: 3 });    // OK: min パラメータ必須
-t("errors.validation.maxLength", { max: 100 });  // OK: max パラメータ必須
-// t("errors.validation.minLength");  // エラー: パラメータが必要
-// t("invalid.key");                  // エラー: 無効なキー
+// Usage examples
+t("common.save");                     // OK: no parameters
+t("errors.validation.minLength", { min: 3 });    // OK: min parameter required
+t("errors.validation.maxLength", { max: 100 });  // OK: max parameter required
+// t("errors.validation.minLength");  // Error: parameters required
+// t("invalid.key");                  // Error: invalid key
 ```
 
-### 5.2 GraphQL クエリの型安全化
+### 5.2 Type-Safe GraphQL Queries
 
 ```typescript
-// GraphQL スキーマの型定義
+// GraphQL schema type definitions
 type GraphQLSchema = {
   Query: {
     user: { args: { id: string }; return: User };
@@ -1041,7 +1041,7 @@ type GraphQLSchema = {
   };
 };
 
-// クエリフィールドの抽出
+// Extract query fields
 type ExtractFields<S extends string> =
   S extends `${infer Field} ${infer Rest}`
     ? Trim<Field> | ExtractFields<Rest>
@@ -1049,21 +1049,21 @@ type ExtractFields<S extends string> =
       ? Trim<Field> | ExtractFields<Rest>
       : Trim<S>;
 
-// 型安全な GraphQL クエリ結果
+// Type-safe GraphQL query result
 type QueryResult<
   Schema extends Record<string, any>,
   Fields extends keyof Schema
 > = Pick<Schema, Fields>;
 
-// 使用イメージ
+// Usage example
 type UserQueryResult = QueryResult<GraphQLSchema["User"], "id" | "name" | "email">;
 // { id: string; name: string; email: string }
 ```
 
-### 5.3 環境変数の型安全化
+### 5.3 Type-Safe Environment Variables
 
 ```typescript
-// 環境変数の型定義
+// Environment variable type definitions
 type EnvSchema = {
   NODE_ENV: "development" | "production" | "test";
   PORT: `${number}`;
@@ -1075,7 +1075,7 @@ type EnvSchema = {
   REDIS_URL: `redis://${string}`;
 };
 
-// 環境変数のアクセサー型
+// Accessor type for environment variables
 type EnvAccessor<T extends Record<string, string>> = {
   get<K extends keyof T>(key: K): T[K];
   getOrDefault<K extends keyof T>(key: K, defaultValue: T[K]): T[K];
@@ -1083,7 +1083,7 @@ type EnvAccessor<T extends Record<string, string>> = {
   require<K extends keyof T>(key: K): NonNullable<T[K]>;
 };
 
-// 型安全な環境変数パーサー
+// Type-safe environment variable parser
 type ParseEnvValue<T extends string> =
   T extends `${number}` ? number :
   T extends "true" | "false" ? boolean :
@@ -1095,7 +1095,7 @@ type ParsedEnv<T extends Record<string, string>> = {
 
 type ParsedEnvSchema = ParsedEnv<EnvSchema>;
 // {
-//   NODE_ENV: string;  (リテラル型のため)
+//   NODE_ENV: string;  (because of literal types)
 //   PORT: number;
 //   DATABASE_URL: string;
 //   API_KEY: string;
@@ -1106,17 +1106,17 @@ type ParsedEnvSchema = ParsedEnv<EnvSchema>;
 // }
 ```
 
-### 5.4 コマンドラインの型安全化
+### 5.4 Type-Safe Command Lines
 
 ```typescript
-// CLI コマンドの型定義
+// CLI command type definitions
 type Command = "init" | "build" | "deploy" | "test" | "lint";
 type Flag = "--verbose" | "--quiet" | "--dry-run" | "--force" | "--watch";
 type Option = "--config" | "--output" | "--env" | "--port";
 
 type CLIInput = `${Command}${` ${Flag}`}${` ${Option}=${string}`}`;
 
-// コマンド引数のパーサー
+// Parser for command arguments
 type ParseFlags<S extends string> =
   S extends `${string}--${infer Flag} ${infer Rest}`
     ? `--${Flag extends `${infer Name} ${string}` ? Name : Flag}` | ParseFlags<Rest>
@@ -1137,32 +1137,32 @@ type ParsedCommand = ParseOptions<"build --config=webpack.config.js --output=dis
 
 ---
 
-## 6. パフォーマンスとベストプラクティス
+## 6. Performance and Best Practices
 
-### 6.1 Union爆発の回避
+### 6.1 Avoiding Union Explosion
 
 ```typescript
-// BAD: 組み合わせが爆発する
-// type Letter = "a" | "b" | "c" | ... | "z";  // 26個
-// type TwoLetters = `${Letter}${Letter}`;       // 26 × 26 = 676個
-// type ThreeLetters = `${Letter}${Letter}${Letter}`; // 17,576個！
-// → コンパイルが極端に遅くなる
+// BAD: combinations explode
+// type Letter = "a" | "b" | "c" | ... | "z";  // 26 members
+// type TwoLetters = `${Letter}${Letter}`;       // 26 × 26 = 676 members
+// type ThreeLetters = `${Letter}${Letter}${Letter}`; // 17,576 members!
+// → compilation becomes extremely slow
 
-// GOOD: パターンで妥協する
-type ThreeLetters = `${string}${string}${string}`; // 広いが高速
+// GOOD: settle for a pattern
+type ThreeLetters = `${string}${string}${string}`; // broad but fast
 
-// GOOD: 必要な組み合わせだけを生成
-type ValidCodes = "AAA" | "BBB" | "CCC";  // 手動で定義
+// GOOD: generate only the combinations you need
+type ValidCodes = "AAA" | "BBB" | "CCC";  // defined manually
 
-// GOOD: テンプレートリテラル型のUnionサイズを制限
-// 各位置のUnionメンバー数の目安:
-// - 2 × 2 × 2 = 8 → 問題なし
-// - 10 × 10 = 100 → 許容範囲
-// - 20 × 20 = 400 → やや遅くなる可能性
-// - 50 × 50 = 2,500 → 注意が必要
-// - 100 × 100 = 10,000 → 避けるべき
+// GOOD: limit union sizes in template literal types
+// Rough guidelines for the number of union members per position:
+// - 2 × 2 × 2 = 8 → no issues
+// - 10 × 10 = 100 → acceptable
+// - 20 × 20 = 400 → may become somewhat slow
+// - 50 × 50 = 2,500 → caution required
+// - 100 × 100 = 10,000 → should be avoided
 
-// 対処法1: ブランド型で制約
+// Mitigation 1: constrain via branded types
 type ThreeLetterCode = string & { readonly __brand: unique symbol };
 
 function createCode(code: string): ThreeLetterCode {
@@ -1172,7 +1172,7 @@ function createCode(code: string): ThreeLetterCode {
   return code as ThreeLetterCode;
 }
 
-// 対処法2: テンプレートリテラル型 + ランタイムバリデーション
+// Mitigation 2: combine template literal types with runtime validation
 type DateString = `${number}-${number}-${number}`;
 
 function isDateString(s: string): s is DateString {
@@ -1180,75 +1180,75 @@ function isDateString(s: string): s is DateString {
 }
 ```
 
-### 6.2 デバッグテクニック
+### 6.2 Debugging Techniques
 
 ```typescript
-// テクニック1: 段階的な型の確認
+// Technique 1: verify types step by step
 type Step1 = ExtractParams<"/users/:userId/posts/:postId">;
-// ホバーして確認: "userId" | "postId"
+// Hover to verify: "userId" | "postId"
 
 type Step2 = RouteParams<"/users/:userId/posts/:postId">;
-// ホバーして確認: { userId: string; postId: string }
+// Hover to verify: { userId: string; postId: string }
 
-// テクニック2: テスト用の型チェック
+// Technique 2: type-checking helpers for tests
 type Expect<T extends true> = T;
 type Equal<X, Y> =
   (<T>() => T extends X ? 1 : 2) extends
   (<T>() => T extends Y ? 1 : 2) ? true : false;
 
-// テストケース
+// Test cases
 type TestSplit1 = Expect<Equal<Split<"a.b.c", ".">, ["a", "b", "c"]>>;
 type TestJoin1 = Expect<Equal<Join<["a", "b", "c"], ".">, "a.b.c">>;
 type TestReplace1 = Expect<Equal<Replace<"ab", "a", "x">, "xb">>;
 type TestTrim1 = Expect<Equal<Trim<"  hello  ">, "hello">>;
 
-// テクニック3: エラーメッセージの改善
+// Technique 3: improve error messages
 type ValidatePath<T extends string> =
   T extends `/${string}`
     ? T
-    : `パスは '/' で始まる必要があります。受け取った値: '${T}'`;
+    : `Path must start with '/'. Received: '${T}'`;
 
 type ValidPath = ValidatePath<"/users">;    // "/users"
-type InvalidPath = ValidatePath<"users">;   // "パスは '/' で始まる必要があります。受け取った値: 'users'"
+type InvalidPath = ValidatePath<"users">;   // "Path must start with '/'. Received: 'users'"
 ```
 
-### 6.3 ベストプラクティス
+### 6.3 Best Practices
 
 ```typescript
-// 1. テンプレートリテラル型は「パターンのヒント」として使う
-// 厳密なバリデーションはランタイムで行う
+// 1. Use template literal types as "pattern hints"
+// Perform strict validation at runtime
 
-// GOOD: 型でパターンを示し、ランタイムで検証
+// GOOD: indicate the pattern via types and validate at runtime
 type Email = `${string}@${string}.${string}`;
 
 function validateEmail(email: string): email is Email {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-// 2. 再利用可能な小さな部品に分割
+// 2. Break things into small, reusable parts
 type Protocol = "http" | "https";
 type Domain = `${string}.${string}`;
 type Path = `/${string}`;
 type URL = `${Protocol}://${Domain}${Path}`;
 
-// 3. ケース変換は必要な場合のみ使用
-// 型の可読性を優先する
+// 3. Use case conversions only when necessary
+// Prioritize type readability
 
-// BAD: 過度なケース変換チェーン
+// BAD: excessive case-conversion chains
 type OverlyComplex<T extends string> =
   Capitalize<Lowercase<CamelToSnake<SnakeToCamel<T>>>>;
 
-// GOOD: 必要な変換のみ
+// GOOD: only the conversions you need
 type ApiToCamel<T extends string> = SnakeToCamel<T>;
 
-// 4. 条件型と組み合わせる場合は段階的に
-// BAD: 1つの型で全てを行う
+// 4. When combining with conditional types, do it step by step
+// BAD: do everything in a single type
 type DoEverything<T extends string> =
   T extends `${infer A}:${infer B}`
     ? `${Capitalize<A>}: ${B extends `${infer C}.${infer D}` ? `${Uppercase<C>}.${D}` : B}`
     : never;
 
-// GOOD: 分割して名前をつける
+// GOOD: split and name each part
 type ParsePrefix<T extends string> =
   T extends `${infer Prefix}:${infer Rest}` ? [Prefix, Rest] : never;
 
@@ -1257,71 +1257,71 @@ type FormatPrefix<T extends string> = Capitalize<T>;
 type FormatValue<T extends string> =
   T extends `${infer Head}.${infer Tail}` ? `${Uppercase<Head>}.${Tail}` : T;
 
-// 5. ドキュメントとしてのテスト型を残す
+// 5. Leave test types as documentation
 type _TestCamelToSnake = Expect<Equal<CamelToSnake<"camelCase">, "camel_case">>;
 type _TestSnakeToCamel = Expect<Equal<SnakeToCamel<"snake_case">, "snakeCase">>;
 ```
 
 ---
 
-## テンプレートリテラル型 vs 通常の文字列型
+## Template Literal Types vs. Plain String Types
 
-| 特性 | string | リテラル型 | テンプレートリテラル型 |
-|------|--------|-----------|---------------------|
-| 範囲 | 任意の文字列 | 特定の値のみ | パターンに一致する文字列 |
-| 例 | `string` | `"hello"` | `` `hello-${string}` `` |
-| 型安全性 | 低 | 高（固定値） | 中〜高（パターン） |
-| 用途 | 汎用 | 定数 | パターン化された文字列 |
-| Union展開 | なし | なし | 自動的に直積展開 |
-| infer | 不可 | 不可 | パターンマッチ可能 |
-| パフォーマンス | 最速 | 高速 | Union数に依存 |
+| Characteristic | string | Literal Type | Template Literal Type |
+|----------------|--------|--------------|----------------------|
+| Range | Any string | Specific values only | Strings matching a pattern |
+| Example | `string` | `"hello"` | `` `hello-${string}` `` |
+| Type safety | Low | High (fixed value) | Medium-to-high (pattern) |
+| Use case | General-purpose | Constants | Patterned strings |
+| Union expansion | None | None | Automatic cartesian expansion |
+| infer | Not possible | Not possible | Pattern matching is possible |
+| Performance | Fastest | Fast | Depends on union size |
 
-### テンプレートリテラル型の展開ルール
+### Expansion Rules for Template Literal Types
 
 ```
   `${A | B}${C | D}`
-  展開:
+  Expansion:
     → `${A}${C}` | `${A}${D}` | `${B}${C}` | `${B}${D}`
 
   `${"get" | "set"}${"Name" | "Age"}`
-  展開:
+  Expansion:
     → "getName" | "getAge" | "setName" | "setAge"
 
-  `${string}` → string（パターンを表す）
-  `${number}` → `${number}`（数値文字列パターン）
+  `${string}` → string (represents a pattern)
+  `${number}` → `${number}` (numeric string pattern)
   `${boolean}` → "true" | "false"
-  `${bigint}` → `${bigint}`（bigint文字列パターン）
+  `${bigint}` → `${bigint}` (bigint string pattern)
 
-  注意: 組み合わせ数が爆発する場合あり
-  |A| × |B| = 結果のUnionメンバー数
+  Note: combinations may explode.
+  |A| × |B| = number of resulting union members
 ```
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: Union爆発
+### Anti-Pattern 1: Union Explosion
 
 ```typescript
-// BAD: 組み合わせが爆発する
-// type Letter = "a" | "b" | "c" | ... | "z";  // 26個
-// type TwoLetters = `${Letter}${Letter}`;       // 26 × 26 = 676個
-// type ThreeLetters = `${Letter}${Letter}${Letter}`; // 17,576個！
-// → コンパイルが極端に遅くなる
+// BAD: combinations explode
+// type Letter = "a" | "b" | "c" | ... | "z";  // 26 members
+// type TwoLetters = `${Letter}${Letter}`;       // 26 × 26 = 676 members
+// type ThreeLetters = `${Letter}${Letter}${Letter}`; // 17,576 members!
+// → compilation becomes extremely slow
 
-// GOOD: パターンで妥協する
-type ThreeLetterPattern = `${string}${string}${string}`; // 広いが高速
-// または正規表現ベースのランタイムバリデーションと併用
+// GOOD: settle for a pattern
+type ThreeLetterPattern = `${string}${string}${string}`; // broad but fast
+// Or combine with regex-based runtime validation
 ```
 
-### アンチパターン2: 実行時検証の代わりにテンプレートリテラル型を使う
+### Anti-Pattern 2: Using Template Literal Types Instead of Runtime Validation
 
 ```typescript
-// BAD: 型だけでメールアドレスを検証しようとする
+// BAD: try to validate email addresses with types alone
 type Email = `${string}@${string}.${string}`;
-const email: Email = "not-valid@@"; // これが通ってしまう場合がある
+const email: Email = "not-valid@@"; // this can sometimes pass
 
-// GOOD: 型は大まかなパターンに留め、実行時バリデーションを併用
+// GOOD: keep types as rough patterns, and use runtime validation
 import { z } from "zod";
 const emailSchema = z.string().email();
 type EmailBrand = string & { readonly __email: unique symbol };
@@ -1332,10 +1332,10 @@ function parseEmail(input: string): EmailBrand {
 }
 ```
 
-### アンチパターン3: 過度に深い再帰
+### Anti-Pattern 3: Excessively Deep Recursion
 
 ```typescript
-// BAD: 文字列の全文字を型レベルでイテレーション
+// BAD: iterating through every character of a string at the type level
 type CountChar<S extends string, C extends string, Acc extends any[] = []> =
   S extends `${infer Head}${infer Tail}`
     ? Head extends C
@@ -1343,22 +1343,22 @@ type CountChar<S extends string, C extends string, Acc extends any[] = []> =
       : CountChar<Tail, C, Acc>
     : Acc["length"];
 
-// 短い文字列なら OK だが、長い文字列ではスタックオーバーフロー
+// OK for short strings, but causes stack overflow on long ones
 type Count = CountChar<"hello world", "l">;  // 3
 
-// GOOD: 型レベルでやるべきことと、ランタイムでやるべきことを分ける
+// GOOD: separate what should be done at the type level vs. at runtime
 function countChar(s: string, c: string): number {
   return s.split(c).length - 1;
 }
 ```
 
-### アンチパターン4: テンプレートリテラル型の可読性の無視
+### Anti-Pattern 4: Ignoring Readability of Template Literal Types
 
 ```typescript
-// BAD: 1行に詰め込みすぎ
+// BAD: too much crammed into one line
 type ParseComplexURL<S extends string> = S extends `${infer P}://${infer U}@${infer H}:${infer Port extends number}/${infer Path}?${infer Q}#${infer F}` ? { protocol: P; user: U; host: H; port: Port; path: Path; query: Q; fragment: F } : never;
 
-// GOOD: 段階的に分割
+// GOOD: split into stages
 type ParseProtocol<S extends string> =
   S extends `${infer Protocol}://${infer Rest}`
     ? { protocol: Protocol; rest: Rest }
@@ -1375,24 +1375,24 @@ type ParseHost<S extends string> =
     : S extends `${infer Host}/${infer Rest}`
       ? { host: Host; port: never; rest: Rest }
       : never;
-// 各部品を組み合わせて最終的な型を構築
+// Combine each part to construct the final type
 ```
 
 ---
 
 ## FAQ
 
-### Q1: テンプレートリテラル型のパフォーマンスへの影響は？
+### Q1: What is the performance impact of template literal types?
 
-**A:** Union型の直積展開により、組み合わせ数が急速に増加します。TypeScriptは内部的に最大100,000程度のUnionメンバーを処理できますが、数千を超えるとコンパイルが遅くなります。大きなUnionの直積は避けてください。目安として、各位置のUnionサイズが10以下であれば問題ありません。
+**A:** Cartesian expansion of union types causes the number of combinations to grow rapidly. TypeScript can internally process up to roughly 100,000 union members, but compilation slows down well before reaching the thousands. Avoid cartesian products of large unions. As a rule of thumb, you should be fine if each position's union size is 10 or fewer.
 
-### Q2: テンプレートリテラル型でパスの型安全性を確保する実践的な方法は？
+### Q2: What is a practical way to ensure path type safety with template literal types?
 
-**A:** ルーティングライブラリ（React Router, tRPC, Hono など）の多くがテンプレートリテラル型を活用した型安全なルーティングを提供しています。自前で実装するよりも、既存ライブラリの型定義を活用するのが実用的です。自前で実装する場合は、パスパラメータの抽出パターンを小さなユーティリティ型に分割してください。
+**A:** Many routing libraries (React Router, tRPC, Hono, etc.) provide type-safe routing built on template literal types. Leveraging existing libraries' type definitions is more practical than rolling your own. If you do implement it yourself, break path-parameter extraction patterns into small utility types.
 
-### Q3: `${number}` はどのような文字列にマッチしますか？
+### Q3: What kinds of strings does `${number}` match?
 
-**A:** `"0"`, `"42"`, `"3.14"`, `"-1"` など、数値のリテラル表現にマッチします。ただし `"1e10"` のような科学表記にもマッチする場合があります。`"NaN"` や `"Infinity"` もマッチします。厳密な数値文字列の検証にはランタイムチェックを併用してください。
+**A:** It matches numeric literal representations such as `"0"`, `"42"`, `"3.14"`, and `"-1"`. However, scientific notation like `"1e10"` may also match. `"NaN"` and `"Infinity"` match as well. For strict numeric-string validation, combine with runtime checks.
 
 ```typescript
 type Test1 = "42" extends `${number}` ? true : false;      // true
@@ -1403,53 +1403,53 @@ type Test5 = "abc" extends `${number}` ? true : false;     // false
 type Test6 = "" extends `${number}` ? true : false;        // false
 ```
 
-### Q4: テンプレートリテラル型は TypeScript のどのバージョンから使えますか？
+### Q4: From which version of TypeScript can template literal types be used?
 
-**A:** TypeScript 4.1 で基本機能が導入されました。以降のバージョンで改善されています:
+**A:** The basic feature was introduced in TypeScript 4.1, with improvements in subsequent releases:
 
-- **4.1**: テンプレートリテラル型の導入、Key Remapping
-- **4.3**: テンプレートリテラル型の改善（infer との組み合わせ強化）
-- **4.5**: Tail-call optimization の改善（深い再帰のサポート向上）
-- **4.7**: `infer extends` 制約の追加
-- **4.8**: テンプレートリテラル型での `${infer N extends number}` のサポート
+- **4.1**: Introduction of template literal types and key remapping
+- **4.3**: Improvements to template literal types (stronger combination with `infer`)
+- **4.5**: Improvements to tail-call optimization (better support for deep recursion)
+- **4.7**: Addition of the `infer extends` constraint
+- **4.8**: Support for `${infer N extends number}` in template literal types
 
-### Q5: テンプレートリテラル型と正規表現の違いは？
+### Q5: What is the difference between template literal types and regular expressions?
 
-**A:** テンプレートリテラル型はコンパイル時の型レベルのパターンマッチングで、正規表現はランタイムの文字列マッチングです。テンプレートリテラル型でできることは正規表現よりもかなり限定的です（量指定子やキャラクタクラスがない）。複雑なパターン検証には、テンプレートリテラル型で大まかなパターンを定義し、ランタイムで正規表現による厳密な検証を行うアプローチが推奨されます。
+**A:** Template literal types perform pattern matching at compile time on the type level, while regular expressions match strings at runtime. What you can do with template literal types is far more limited than regular expressions (no quantifiers or character classes). For complex pattern validation, the recommended approach is to define a rough pattern with template literal types and perform strict validation with regular expressions at runtime.
 
-### Q6: テンプレートリテラル型で生成したユニオン型のメンバー数を知る方法は？
+### Q6: How can you find out the number of union members generated from a template literal type?
 
-**A:** 型レベルで直接メンバー数を数えることは難しいですが、`UnionToTuple` のような型を使えば概念的にはできます。実務では、エディタのホバー表示で展開された型を確認するか、型テストで期待するメンバーが含まれているかを検証するのが実用的です。
-
----
-
-## まとめ
-
-| 項目 | 内容 |
-|------|------|
-| 基本構文 | `` `prefix-${Type}` `` で文字列パターンを型に |
-| Union展開 | `${A \| B}` は自動的に直積展開される |
-| 文字列操作 | Uppercase, Lowercase, Capitalize, Uncapitalize |
-| infer | テンプレートリテラル型の中でパターンマッチ可能 |
-| ケース変換 | CamelToSnake, SnakeToCamel 等のカスタム型 |
-| パス型 | URLパラメータの型安全な抽出に有用 |
-| 文字列操作 | Split, Join, Replace, Trim 等の型レベル文字列操作 |
-| 実務パターン | CSS, SQL, i18n, テンプレートエンジン等 |
-| 注意点 | Union爆発によるコンパイル速度低下に注意 |
-| ベストプラクティス | 小さく分割、ランタイム検証と併用 |
+**A:** It is difficult to count members directly at the type level, but conceptually you can use a type like `UnionToTuple`. In practice, it is more pragmatic to confirm the expanded type via the editor's hover display, or to verify expected members are included via type tests.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [03-type-challenges.md](./03-type-challenges.md) -- 型チャレンジ
-- [04-declaration-files.md](./04-declaration-files.md) -- 宣言ファイル
-- [00-conditional-types.md](./00-conditional-types.md) -- 条件型
-- [01-mapped-types.md](./01-mapped-types.md) -- マップ型
+| Item | Details |
+|------|---------|
+| Basic syntax | `` `prefix-${Type}` `` turns string patterns into types |
+| Union expansion | `${A \| B}` is automatically expanded as a cartesian product |
+| String manipulation | Uppercase, Lowercase, Capitalize, Uncapitalize |
+| infer | Pattern matching is possible inside template literal types |
+| Case conversion | Custom types like CamelToSnake and SnakeToCamel |
+| Path types | Useful for type-safe extraction of URL parameters |
+| String operations | Type-level operations like Split, Join, Replace, Trim |
+| Practical patterns | CSS, SQL, i18n, template engines, and more |
+| Caveats | Watch out for compilation slowdowns due to union explosion |
+| Best practices | Split into small parts and combine with runtime validation |
 
 ---
 
-## 参考文献
+## Recommended Next Reads
+
+- [03-type-challenges.md](./03-type-challenges.md) -- Type challenges
+- [04-declaration-files.md](./04-declaration-files.md) -- Declaration files
+- [00-conditional-types.md](./00-conditional-types.md) -- Conditional types
+- [01-mapped-types.md](./01-mapped-types.md) -- Mapped types
+
+---
+
+## References
 
 1. **TypeScript Handbook: Template Literal Types** -- https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html
 2. **TypeScript 4.1 Release Notes** -- https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-1.html
