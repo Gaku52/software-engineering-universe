@@ -22,7 +22,7 @@ jobs:
       - name: Check clone traffic
         id: traffic
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.TRAFFIC_TOKEN }}
         run: |
           # クローンデータ取得（過去14日間）
           CLONES_JSON=$(gh api repos/${{ github.repository }}/traffic/clones)
@@ -47,7 +47,7 @@ jobs:
           if [ "$CLONE_UNIQUES" -gt 100 ]; then
             ALERT=true
             echo "alert_reason=Unique clones exceeded 100 ($CLONE_UNIQUES)" >> $GITHUB_OUTPUT
-          elif [ "$VIEW_UNIQUES" -gt 0 ] && [ "$(( CLONE_UNIQUES / VIEW_UNIQUES ))" -gt 10 ]; then
+          elif [ "$VIEW_UNIQUES" -gt 0 ] && [ "$CLONE_UNIQUES" -gt "$(( VIEW_UNIQUES * 10 ))" ]; then
             ALERT=true
             echo "alert_reason=Clone/View ratio anomaly (${CLONE_UNIQUES} clones vs ${VIEW_UNIQUES} views)" >> $GITHUB_OUTPUT
           fi
