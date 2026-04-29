@@ -1,148 +1,148 @@
-# ジェネリクス
+# Generics
 
-> 型パラメータを使い、再利用可能かつ型安全なコードを書く。制約、条件型、型推論の仕組みを理解する。
+> Use type parameters to write reusable and type-safe code. Understand constraints, conditional types, and how type inference works.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **ジェネリクスの基本** -- 型パラメータ、型引数の推論、ジェネリック関数・クラス・インターフェース
-2. **型制約（constraints）** -- extends による型パラメータの制約、複数制約
-3. **ジェネリクスの応用** -- 条件型との組み合わせ、デフォルト型パラメータ、型推論（infer）
-4. **実践パターン** -- Repository, Result型, Builder, 型安全なイベント, ファクトリパターン
-5. **高度なジェネリクス** -- 再帰型、分配条件型、可変長タプル
+1. **Generics Basics** -- Type parameters, type argument inference, generic functions/classes/interfaces
+2. **Type Constraints** -- Constraining type parameters with `extends`, multiple constraints
+3. **Applied Generics** -- Combining with conditional types, default type parameters, type inference (`infer`)
+4. **Practical Patterns** -- Repository, Result type, Builder, type-safe events, factory pattern
+5. **Advanced Generics** -- Recursive types, distributive conditional types, variadic tuples
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+To get the most out of this guide, the following knowledge is helpful:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Union型とIntersection型](./03-union-intersection.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding the contents of [Union and Intersection Types](./03-union-intersection.md)
 
 ---
 
-## 1. ジェネリクスの基本
+## 1. Generics Basics
 
-ジェネリクスは、TypeScriptにおける「型の変数化」の仕組みである。関数やクラスを定義する際に具体的な型を指定する代わりに型パラメータを使い、呼び出し時に実際の型が決まるようにする。これにより、同じロジックを異なる型に対して再利用でき、かつ型安全性を維持できる。
+Generics is TypeScript's mechanism for "parameterizing types." Instead of specifying concrete types when defining functions or classes, you use type parameters, and the actual type is determined when called. This allows the same logic to be reused for different types while maintaining type safety.
 
-### なぜジェネリクスが必要なのか
+### Why Are Generics Needed?
 
-ジェネリクスがないと、以下の2つの選択肢しかない：
+Without generics, you only have two choices:
 
 ```typescript
-// 選択肢1: 型ごとに関数を定義（コード重複）
+// Option 1: Define a function for each type (code duplication)
 function identityString(value: string): string { return value; }
 function identityNumber(value: number): number { return value; }
 function identityBoolean(value: boolean): boolean { return value; }
-// ... 型が増えるたびに関数が増える
+// ... functions multiply as types increase
 
-// 選択肢2: any を使う（型安全性の喪失）
+// Option 2: Use any (loss of type safety)
 function identityAny(value: any): any { return value; }
-const result = identityAny("hello"); // result の型は any → 型情報が失われる
+const result = identityAny("hello"); // type of result is any -> type information is lost
 
-// ジェネリクスによる解決: 再利用性と型安全性の両立
+// Solution with generics: both reusability and type safety
 function identity<T>(value: T): T { return value; }
-const result = identity("hello"); // result の型は string
+const result = identity("hello"); // type of result is string
 ```
 
-### コード例1: ジェネリック関数
+### Code Example 1: Generic Function
 
 ```typescript
-// 型パラメータ T を使った汎用関数
+// A generic function using type parameter T
 function identity<T>(value: T): T {
   return value;
 }
 
-// 型引数の明示的指定
-const str = identity<string>("hello");  // 型: string
-const num = identity<number>(42);       // 型: number
+// Explicit type argument specification
+const str = identity<string>("hello");  // type: string
+const num = identity<number>(42);       // type: number
 
-// 型引数の推論（多くの場合、明示不要）
-const inferred = identity("hello");     // 型: string（推論される）
+// Type argument inference (often unnecessary to specify explicitly)
+const inferred = identity("hello");     // type: string (inferred)
 ```
 
-### 型推論エンジンの動作
+### How the Type Inference Engine Works
 
 ```
-  呼び出し: identity("hello")
+  Call: identity("hello")
                 |
                 v
-  型推論エンジン:
-    1. T は引数の型から推論される
-    2. "hello" の型は string
-    3. よって T = string
+  Type inference engine:
+    1. T is inferred from the argument type
+    2. The type of "hello" is string
+    3. Therefore T = string
                 |
                 v
-  インスタンス化: identity<string>(value: string): string
+  Instantiation: identity<string>(value: string): string
                 |
                 v
-  結果の型: string
+  Result type: string
 
   ────────────────────────────────
 
-  呼び出し: identity<number>(42)
+  Call: identity<number>(42)
                 |
                 v
-  型パラメータが明示的に指定されている
-    T = number（明示的）
+  Type parameter is explicitly specified
+    T = number (explicit)
                 |
                 v
-  引数チェック: 42 は number → OK
+  Argument check: 42 is number -> OK
                 |
                 v
-  結果の型: number
+  Result type: number
 ```
 
-### コード例1b: アロー関数でのジェネリクス
+### Code Example 1b: Generics with Arrow Functions
 
 ```typescript
-// 通常のアロー関数
+// Standard arrow function
 const identity = <T>(value: T): T => value;
 
-// .tsx ファイルでの回避策（JSX タグとの混同を防ぐ）
-const identity1 = <T,>(value: T): T => value;           // 末尾カンマ
+// Workarounds in .tsx files (to avoid confusion with JSX tags)
+const identity1 = <T,>(value: T): T => value;           // trailing comma
 const identity2 = <T extends unknown>(value: T): T => value; // extends
 
-// 複数型パラメータ
+// Multiple type parameters
 const pair = <A, B>(a: A, b: B): [A, B] => [a, b];
 
-// 制約付き
+// With constraint
 const getLength = <T extends { length: number }>(value: T): number => value.length;
 ```
 
-### コード例2: 実用的なジェネリック関数
+### Code Example 2: Practical Generic Functions
 
 ```typescript
-// 配列の最初の要素を返す
+// Returns the first element of an array
 function first<T>(arr: T[]): T | undefined {
   return arr[0];
 }
 
-first([1, 2, 3]);       // 型: number | undefined
-first(["a", "b"]);      // 型: string | undefined
+first([1, 2, 3]);       // type: number | undefined
+first(["a", "b"]);      // type: string | undefined
 
-// ペアを作る
+// Create a pair
 function pair<A, B>(a: A, b: B): [A, B] {
   return [a, b];
 }
 
-const p = pair("name", 42);  // 型: [string, number]
+const p = pair("name", 42);  // type: [string, number]
 
-// オブジェクトからキーの値を取得
+// Get a value by key from an object
 function getProperty<T, K extends keyof T>(obj: T, key: K): T[K] {
   return obj[key];
 }
 
 const user = { name: "Alice", age: 30 };
-const name = getProperty(user, "name");  // 型: string
-const age = getProperty(user, "age");    // 型: number
-// getProperty(user, "email");            // エラー: "email" は keyof User にない
+const name = getProperty(user, "name");  // type: string
+const age = getProperty(user, "age");    // type: number
+// getProperty(user, "email");            // error: "email" is not in keyof User
 ```
 
-### コード例2b: さらに実用的なジェネリック関数
+### Code Example 2b: Even More Practical Generic Functions
 
 ```typescript
-// 配列をグループ化する
+// Group an array
 function groupBy<T, K extends string | number>(
   items: T[],
   getKey: (item: T) => K,
@@ -171,10 +171,10 @@ const products: Product[] = [
 ];
 
 const grouped = groupBy(products, (p) => p.category);
-// 型: Record<string, Product[]>
+// type: Record<string, Product[]>
 // { fruit: [...], vegetable: [...] }
 
-// 配列のユニーク要素を取得
+// Get unique elements from an array
 function unique<T>(items: T[], getKey?: (item: T) => unknown): T[] {
   if (!getKey) {
     return [...new Set(items)];
@@ -188,7 +188,7 @@ function unique<T>(items: T[], getKey?: (item: T) => unknown): T[] {
   });
 }
 
-// プロミスのリトライ
+// Promise retry
 async function retry<T>(
   fn: () => Promise<T>,
   options: { maxRetries: number; delayMs: number },
@@ -207,7 +207,7 @@ async function retry<T>(
   throw lastError;
 }
 
-// 型安全なメモ化
+// Type-safe memoization
 function memoize<Args extends unknown[], R>(
   fn: (...args: Args) => R,
 ): (...args: Args) => R {
@@ -231,12 +231,12 @@ const memoizedFetch = memoize(async (url: string) => {
 
 ---
 
-## 2. ジェネリクスの様々な形
+## 2. Various Forms of Generics
 
-### コード例3: ジェネリックインターフェースとクラス
+### Code Example 3: Generic Interfaces and Classes
 
 ```typescript
-// ジェネリックインターフェース
+// Generic interface
 interface Repository<T> {
   findById(id: string): Promise<T | null>;
   findAll(): Promise<T[]>;
@@ -244,7 +244,7 @@ interface Repository<T> {
   delete(id: string): Promise<void>;
 }
 
-// ジェネリッククラス
+// Generic class
 class InMemoryRepository<T extends { id: string }> implements Repository<T> {
   private items: Map<string, T> = new Map();
 
@@ -266,7 +266,7 @@ class InMemoryRepository<T extends { id: string }> implements Repository<T> {
   }
 }
 
-// 使用例
+// Usage
 interface User {
   id: string;
   name: string;
@@ -274,13 +274,13 @@ interface User {
 
 const userRepo = new InMemoryRepository<User>();
 await userRepo.save({ id: "1", name: "Alice" });
-const user = await userRepo.findById("1");  // 型: User | null
+const user = await userRepo.findById("1");  // type: User | null
 ```
 
-### コード例3b: ジェネリッククラスの高度なパターン
+### Code Example 3b: Advanced Generic Class Patterns
 
 ```typescript
-// --- パターン1: 型安全なスタック ---
+// --- Pattern 1: Type-safe stack ---
 class Stack<T> {
   private items: T[] = [];
 
@@ -304,7 +304,7 @@ class Stack<T> {
     return this.items.length;
   }
 
-  // イテレータサポート
+  // Iterator support
   *[Symbol.iterator](): IterableIterator<T> {
     for (let i = this.items.length - 1; i >= 0; i--) {
       yield this.items[i];
@@ -315,9 +315,9 @@ class Stack<T> {
 const numberStack = new Stack<number>();
 numberStack.push(1);
 numberStack.push(2);
-numberStack.pop(); // 型: number | undefined
+numberStack.pop(); // type: number | undefined
 
-// --- パターン2: 型安全なLinkedList ---
+// --- Pattern 2: Type-safe LinkedList ---
 class LinkedListNode<T> {
   constructor(
     public value: T,
@@ -358,13 +358,13 @@ class LinkedList<T> {
   }
 }
 
-// --- パターン3: Observable / EventEmitter ---
+// --- Pattern 3: Observable / EventEmitter ---
 class TypedObservable<T> {
   private observers: ((value: T) => void)[] = [];
 
   subscribe(observer: (value: T) => void): () => void {
     this.observers.push(observer);
-    // unsubscribe 関数を返す
+    // Returns an unsubscribe function
     return () => {
       this.observers = this.observers.filter((o) => o !== observer);
     };
@@ -384,27 +384,27 @@ const unsub = priceUpdates.subscribe((data) => {
 });
 
 priceUpdates.notify({ symbol: "AAPL", price: 150.5 });
-unsub(); // 購読解除
+unsub(); // Unsubscribe
 ```
 
-### コード例4: ジェネリック型エイリアス
+### Code Example 4: Generic Type Aliases
 
 ```typescript
-// 非同期操作の結果型
+// Result type for async operations
 type AsyncResult<T> = {
   data: T | null;
   loading: boolean;
   error: Error | null;
 };
 
-// APIレスポンス
+// API response
 type ApiResponse<T> = {
   status: number;
   data: T;
   timestamp: string;
 };
 
-// ページネーション付きレスポンス
+// Paginated response
 type Paginated<T> = {
   items: T[];
   total: number;
@@ -413,14 +413,14 @@ type Paginated<T> = {
   hasNext: boolean;
 };
 
-// 使用例
+// Usage
 type UserListResponse = ApiResponse<Paginated<User>>;
 ```
 
-### コード例4b: 型エイリアスの高度なパターン
+### Code Example 4b: Advanced Type Alias Patterns
 
 ```typescript
-// --- パターン1: Result型（Railway指向プログラミング） ---
+// --- Pattern 1: Result type (Railway-oriented programming) ---
 type Result<T, E = Error> =
   | { ok: true; value: T }
   | { ok: false; error: E };
@@ -453,7 +453,7 @@ function flatMap<T, U, E>(
   return result;
 }
 
-// 使用例: バリデーションのチェーン
+// Usage: chained validation
 function validateAge(age: number): Result<number, string> {
   if (age < 0 || age > 150) return err("Invalid age");
   return ok(age);
@@ -465,7 +465,7 @@ function validateName(name: string): Result<string, string> {
   return ok(name.trim());
 }
 
-// --- パターン2: DeepPartial ---
+// --- Pattern 2: DeepPartial ---
 type DeepPartial<T> = T extends object
   ? { [K in keyof T]?: DeepPartial<T[K]> }
   : T;
@@ -485,16 +485,16 @@ interface AppConfig {
   };
 }
 
-// 一部のネストされたプロパティのみ上書き
+// Override only some nested properties
 function mergeConfig(
   base: AppConfig,
   overrides: DeepPartial<AppConfig>,
 ): AppConfig {
-  // deep merge 実装
+  // deep merge implementation
   return { ...base, ...overrides } as AppConfig;
 }
 
-// --- パターン3: DeepReadonly ---
+// --- Pattern 3: DeepReadonly ---
 type DeepReadonly<T> = T extends Function
   ? T
   : T extends object
@@ -510,10 +510,10 @@ const config: DeepReadonly<AppConfig> = {
   cache: { enabled: true, ttlSeconds: 3600 },
 };
 
-// config.database.host = "other"; // エラー: readonly
-// config.cache.enabled = false;   // エラー: readonly
+// config.database.host = "other"; // error: readonly
+// config.cache.enabled = false;   // error: readonly
 
-// --- パターン4: Nullable<T> ---
+// --- Pattern 4: Nullable<T> ---
 type Nullable<T> = { [K in keyof T]: T[K] | null };
 
 interface UserForm {
@@ -526,42 +526,42 @@ type NullableUserForm = Nullable<UserForm>;
 // { name: string | null; email: string | null; bio: string | null }
 ```
 
-### ジェネリクスの適用箇所
+### Where Generics Apply
 
 ```
 +------------------+---------------------------+---------------------+
-| 適用箇所         | 構文                      | 例                  |
+| Location         | Syntax                    | Example             |
 +------------------+---------------------------+---------------------+
-| 関数             | function fn<T>(x: T): T   | identity<T>         |
-| アロー関数       | const fn = <T>(x: T): T   | <T>(x: T) => T     |
-| インターフェース | interface I<T> { ... }    | Repository<T>       |
-| クラス           | class C<T> { ... }        | Stack<T>            |
-| 型エイリアス     | type T<U> = { ... }       | Result<T>           |
-| メソッド         | method<T>(x: T): T        | Array#map           |
+| Function         | function fn<T>(x: T): T   | identity<T>         |
+| Arrow function   | const fn = <T>(x: T): T   | <T>(x: T) => T      |
+| Interface        | interface I<T> { ... }    | Repository<T>       |
+| Class            | class C<T> { ... }        | Stack<T>            |
+| Type alias       | type T<U> = { ... }       | Result<T>           |
+| Method           | method<T>(x: T): T        | Array#map           |
 +------------------+---------------------------+---------------------+
 ```
 
 ---
 
-## 3. 型制約（Constraints）
+## 3. Type Constraints
 
-型制約は、ジェネリック型パラメータが満たすべき条件を指定する仕組みである。`extends` キーワードを使って「Tはこの型のサブタイプでなければならない」という制約を課す。
+Type constraints are a mechanism for specifying conditions that a generic type parameter must satisfy. Using the `extends` keyword, you impose the constraint that "T must be a subtype of this type."
 
-### コード例5: extends による制約
+### Code Example 5: Constraints with `extends`
 
 ```typescript
-// T は { length: number } を持つ型に制約される
+// T is constrained to types that have { length: number }
 function logLength<T extends { length: number }>(value: T): T {
   console.log(`Length: ${value.length}`);
   return value;
 }
 
-logLength("hello");       // OK: string は length を持つ
-logLength([1, 2, 3]);     // OK: number[] は length を持つ
+logLength("hello");       // OK: string has length
+logLength([1, 2, 3]);     // OK: number[] has length
 logLength({ length: 10 }); // OK
-// logLength(42);          // エラー: number は length を持たない
+// logLength(42);          // error: number does not have length
 
-// keyof による制約
+// Constraint via keyof
 function pick<T, K extends keyof T>(obj: T, keys: K[]): Pick<T, K> {
   const result = {} as Pick<T, K>;
   for (const key of keys) {
@@ -572,13 +572,13 @@ function pick<T, K extends keyof T>(obj: T, keys: K[]): Pick<T, K> {
 
 const user = { id: 1, name: "Alice", email: "alice@test.com", age: 30 };
 const picked = pick(user, ["name", "email"]);
-// 型: { name: string; email: string }
+// type: { name: string; email: string }
 ```
 
-### コード例5b: 制約の実践パターン
+### Code Example 5b: Practical Constraint Patterns
 
 ```typescript
-// --- パターン1: Comparable な型に制約 ---
+// --- Pattern 1: Constrain to a Comparable type ---
 interface Comparable<T> {
   compareTo(other: T): number;
 }
@@ -600,9 +600,9 @@ class Money implements Comparable<Money> {
 
 const a = new Money(100, "USD");
 const b = new Money(200, "USD");
-const result = max(a, b); // 型: Money
+const result = max(a, b); // type: Money
 
-// --- パターン2: コンストラクタ制約 ---
+// --- Pattern 2: Constructor constraint ---
 type Constructor<T = unknown> = new (...args: any[]) => T;
 
 function createInstance<T>(ctor: Constructor<T>, ...args: any[]): T {
@@ -614,9 +614,9 @@ class UserEntity {
 }
 
 const user2 = createInstance(UserEntity, "Alice", "alice@test.com");
-// 型: UserEntity
+// type: UserEntity
 
-// --- パターン3: Record制約 ---
+// --- Pattern 3: Record constraint ---
 function mergeObjects<
   T extends Record<string, unknown>,
   U extends Record<string, unknown>,
@@ -628,9 +628,9 @@ const merged = mergeObjects(
   { name: "Alice", age: 30 },
   { email: "alice@test.com", active: true },
 );
-// 型: { name: string; age: number } & { email: string; active: boolean }
+// type: { name: string; age: number } & { email: string; active: boolean }
 
-// --- パターン4: 再帰的制約 ---
+// --- Pattern 4: Recursive constraint ---
 interface TreeNode<T extends TreeNode<T>> {
   parent: T | null;
   children: T[];
@@ -652,10 +652,10 @@ class DOMElement implements TreeNode<DOMElement> {
 }
 ```
 
-### コード例6: 複数の型パラメータと制約
+### Code Example 6: Multiple Type Parameters and Constraints
 
 ```typescript
-// マージ関数
+// Merge function
 function merge<
   T extends Record<string, unknown>,
   U extends Record<string, unknown>
@@ -667,16 +667,16 @@ const merged = merge(
   { name: "Alice" },
   { age: 30 }
 );
-// 型: { name: string } & { age: number }
+// type: { name: string } & { age: number }
 
-// デフォルト型パラメータ
+// Default type parameter
 interface FetchOptions<T = unknown> {
   url: string;
   method?: "GET" | "POST";
   body?: T;
 }
 
-// T を指定しなければ unknown になる
+// If T is not specified, it becomes unknown
 const opts: FetchOptions = { url: "/api/users" };
 const opts2: FetchOptions<{ name: string }> = {
   url: "/api/users",
@@ -685,21 +685,21 @@ const opts2: FetchOptions<{ name: string }> = {
 };
 ```
 
-### コード例6b: 条件付き型パラメータのデフォルト
+### Code Example 6b: Defaults for Conditional Type Parameters
 
 ```typescript
-// デフォルト型パラメータの活用
+// Using default type parameters
 type Container<T = string> = {
   value: T;
   toString(): string;
 };
 
-// T を省略すると string
+// Omitting T gives string
 const c1: Container = { value: "hello", toString: () => "hello" };
-// T を指定
+// Specifying T
 const c2: Container<number> = { value: 42, toString: () => "42" };
 
-// 複数のデフォルト型パラメータ
+// Multiple default type parameters
 type ApiCall<
   TResponse = unknown,
   TError = Error,
@@ -709,81 +709,81 @@ type ApiCall<
   onError(handler: (error: TError) => void): void;
 };
 
-// 一部だけ指定（前から順に）
+// Specifying only some (in order from the start)
 type SimpleCall = ApiCall<{ data: string }>;
 // TResponse = { data: string }, TError = Error, TParams = Record<string, string>
 
 type FullCall = ApiCall<User[], string, { page: number }>;
-// 全て指定
+// All specified
 ```
 
-### 制約の階層図
+### Constraint Hierarchy Diagram
 
 ```
-  <T>                     制約なし（全ての型を受け入れる）
+  <T>                     No constraint (accepts all types)
     |
     v
-  <T extends object>     オブジェクト型に制限
+  <T extends object>     Restricted to object types
     |
     v
-  <T extends Record<string, unknown>>  文字列キーのオブジェクト
+  <T extends Record<string, unknown>>  Object with string keys
     |
     v
-  <T extends { id: number }>   id プロパティを持つ型に制限
+  <T extends { id: number }>   Restricted to types with id property
     |
     v
-  <T extends User>        User 型を満たす型に制限
+  <T extends User>        Restricted to types satisfying User
     |
     v
-  <T extends Admin>       Admin（extends User）を満たす型に制限
+  <T extends Admin>       Restricted to types satisfying Admin (extends User)
 
-  制約が強くなるほど:
-  - 受け入れる型の範囲が狭まる
-  - 型パラメータ内で使えるプロパティ/メソッドが増える
-  - 型安全性が向上する
+  As constraints become stronger:
+  - The range of accepted types narrows
+  - More properties/methods become usable inside the type parameter
+  - Type safety improves
 ```
 
 ---
 
-## 4. ジェネリクスの応用
+## 4. Applied Generics
 
-### コード例7: 条件型と型推論（infer）
+### Code Example 7: Conditional Types and Type Inference (`infer`)
 
 ```typescript
-// Promiseの中身を取り出す型
+// Type that extracts the contents of a Promise
 type Unwrap<T> = T extends Promise<infer U> ? U : T;
 
 type A = Unwrap<Promise<string>>;  // string
 type B = Unwrap<Promise<number>>;  // number
-type C = Unwrap<string>;           // string（Promiseでなければそのまま）
+type C = Unwrap<string>;           // string (passes through if not a Promise)
 
-// 深くネストしたPromiseも再帰的にアンラップ
+// Recursively unwrap deeply nested Promises
 type DeepUnwrap<T> = T extends Promise<infer U> ? DeepUnwrap<U> : T;
 
 type D = DeepUnwrap<Promise<Promise<Promise<string>>>>; // string
 
-// 関数の戻り値型を取り出す（ReturnType相当）
+// Extract the return type of a function (equivalent to ReturnType)
 type MyReturnType<T> = T extends (...args: any[]) => infer R ? R : never;
 
 type E = MyReturnType<() => string>;            // string
 type F = MyReturnType<(x: number) => boolean>;  // boolean
 
-// 関数の引数型を取り出す（Parameters相当）
+// Extract the parameter types of a function (equivalent to Parameters)
 type MyParameters<T> = T extends (...args: infer P) => any ? P : never;
 
 type G = MyParameters<(a: string, b: number) => void>; // [string, number]
 
-// 配列の要素型を取り出す
+// Extract the element type of an array
 type ElementOf<T> = T extends (infer U)[] ? U : never;
 
 type H = ElementOf<string[]>;     // string
 type I = ElementOf<number[]>;     // number
 ```
 
-### コード例7b: inferの高度な活用
+### Code Example 7b: Advanced Uses of `infer`
 
 ```typescript
-// --- コンストラクタの引数型を取り出す ---
+// --- Extract a constructor's argument types ---
 type ConstructorArgs<T> = T extends new (...args: infer A) => any ? A : never;
 
 class UserEntity {
@@ -792,7 +792,7 @@ class UserEntity {
 
 type UserArgs = ConstructorArgs<typeof UserEntity>; // [string, number]
 
-// --- オブジェクト型からメソッドのみ抽出 ---
+// --- Extract only methods from an object type ---
 type MethodsOf<T> = {
   [K in keyof T as T[K] extends Function ? K : never]: T[K];
 };
@@ -810,7 +810,7 @@ type UserServiceMethods = MethodsOf<UserService>;
 //   createUser: (data: Omit<User, "id">) => Promise<User>;
 // }
 
-// --- テンプレートリテラル型からの推論 ---
+// --- Inference from template literal types ---
 type ParseRoute<T extends string> =
   T extends `${string}:${infer Param}/${infer Rest}`
     ? Param | ParseRoute<Rest>
@@ -821,7 +821,7 @@ type ParseRoute<T extends string> =
 type RouteParams = ParseRoute<"/users/:userId/posts/:postId">;
 // "userId" | "postId"
 
-// --- Promiseの型からasync関数の型を構築 ---
+// --- Construct an async function type from a Promise type ---
 type AsyncFunction<T extends (...args: any[]) => any> =
   ReturnType<T> extends Promise<any>
     ? T
@@ -836,10 +836,10 @@ function toAsync<T extends (...args: any[]) => any>(
 }
 ```
 
-### コード例8: ジェネリクスとマップ型
+### Code Example 8: Generics and Mapped Types
 
 ```typescript
-// 全プロパティをオプショナルかつnullableにする
+// Make all properties optional and nullable
 type NullablePartial<T> = {
   [K in keyof T]?: T[K] | null;
 };
@@ -853,7 +853,7 @@ interface User {
 type UpdateUserInput = NullablePartial<User>;
 // { id?: number | null; name?: string | null; email?: string | null }
 
-// イベントマップからハンドラ型を生成
+// Generate handler types from an event map
 type EventMap = {
   click: { x: number; y: number };
   keypress: { key: string; code: number };
@@ -872,10 +872,10 @@ type Handlers = EventHandlers<EventMap>;
 // }
 ```
 
-### コード例8b: マップ型の高度なパターン
+### Code Example 8b: Advanced Mapped Type Patterns
 
 ```typescript
-// --- パターン1: Getter/Setter の自動生成 ---
+// --- Pattern 1: Auto-generate getters/setters ---
 type Getters<T> = {
   [K in keyof T as `get${Capitalize<string & K>}`]: () => T[K];
 };
@@ -904,7 +904,7 @@ type UserSetters = Setters<UserProps>;
 //   setActive: (value: boolean) => void;
 // }
 
-// --- パターン2: Readonly を特定のキーだけに適用 ---
+// --- Pattern 2: Apply Readonly only to specific keys ---
 type ReadonlyPick<T, K extends keyof T> = {
   readonly [P in K]: T[P];
 } & {
@@ -914,20 +914,20 @@ type ReadonlyPick<T, K extends keyof T> = {
 type UserWithReadonlyId = ReadonlyPick<User, "id">;
 // { readonly id: number; name: string; email: string }
 
-// --- パターン3: 条件付きプロパティの変換 ---
+// --- Pattern 3: Conditional property transformation ---
 type StringToNumber<T> = {
   [K in keyof T]: T[K] extends string ? number : T[K];
 };
 
 interface RawData {
   name: string;
-  count: string;   // 文字列として受信
+  count: string;   // received as string
   active: boolean;
 }
 
 type ParsedData = StringToNumber<RawData>;
 // { name: number; count: number; active: boolean }
-// ↑ name も number になってしまう。より精密な制御が必要:
+// ^ name also becomes number. More precise control is needed:
 
 type ParseNumericStrings<T, K extends keyof T> = {
   [P in keyof T]: P extends K
@@ -938,7 +938,7 @@ type ParseNumericStrings<T, K extends keyof T> = {
 type BetterParsed = ParseNumericStrings<RawData, "count">;
 // { name: string; count: number; active: boolean }
 
-// --- パターン4: フィルタリング ---
+// --- Pattern 4: Filtering ---
 type FilterByType<T, ValueType> = {
   [K in keyof T as T[K] extends ValueType ? K : never]: T[K];
 };
@@ -960,25 +960,25 @@ type NumberConfigs = FilterByType<Config, number>;
 
 ---
 
-## 5. 可変長タプルと高度なジェネリクス
+## 5. Variadic Tuples and Advanced Generics
 
-### コード例9: 可変長タプル型（Variadic Tuple Types）
+### Code Example 9: Variadic Tuple Types
 
-TypeScript 4.0 で導入された可変長タプル型により、タプルの型パラメータにスプレッド構文を使えるようになった。
+Variadic tuple types, introduced in TypeScript 4.0, allow you to use spread syntax in tuple type parameters.
 
 ```typescript
-// 基本的な可変長タプル
+// Basic variadic tuples
 type Prepend<T, Tuple extends unknown[]> = [T, ...Tuple];
 type Append<Tuple extends unknown[], T> = [...Tuple, T];
 
 type A = Prepend<string, [number, boolean]>; // [string, number, boolean]
 type B = Append<[number, boolean], string>;  // [number, boolean, string]
 
-// 複数の配列を連結する型
+// Type that concatenates multiple arrays
 type Concat<A extends unknown[], B extends unknown[]> = [...A, ...B];
 type C = Concat<[1, 2], [3, 4]>; // [1, 2, 3, 4]
 
-// 実用例: 型安全な関数合成
+// Practical example: type-safe function composition
 function compose<A extends unknown[], B, C>(
   f: (arg: B) => C,
   g: (...args: A) => B,
@@ -990,10 +990,10 @@ const toNumber = (s: string): number => parseInt(s, 10);
 const add = (a: number, b: number): number => a + b;
 
 const addStrings = compose(String, add);
-// 型: (a: number, b: number) => string
+// type: (a: number, b: number) => string
 addStrings(1, 2); // "3"
 
-// pipe 関数
+// pipe function
 function pipe<A, B>(value: A, fn1: (a: A) => B): B;
 function pipe<A, B, C>(value: A, fn1: (a: A) => B, fn2: (b: B) => C): C;
 function pipe<A, B, C, D>(
@@ -1012,20 +1012,20 @@ const result = pipe(
   (s: string) => s.toLowerCase(),
   (s: string) => s.split(", "),
 );
-// 型: string[]
-// 値: ["hello", "world!"]
+// type: string[]
+// value: ["hello", "world!"]
 ```
 
-### コード例10: 再帰型
+### Code Example 10: Recursive Types
 
 ```typescript
-// --- JSON型の定義 ---
+// --- JSON type definition ---
 type JsonPrimitive = string | number | boolean | null;
 type JsonArray = JsonValue[];
 type JsonObject = { [key: string]: JsonValue };
 type JsonValue = JsonPrimitive | JsonArray | JsonObject;
 
-// --- パスによるネストアクセスの型 ---
+// --- Type for nested access by path ---
 type PathOf<T, Prefix extends string = ""> = T extends object
   ? {
       [K in keyof T & string]: T[K] extends object
@@ -1052,7 +1052,7 @@ type StatePaths = PathOf<AppState>;
 // "user" | "user.name" | "user.settings" | "user.settings.theme"
 // | "user.settings.notifications" | "cart" | "cart.items" | "cart.total"
 
-// --- 型レベルの数値演算（型安全なカウンタ） ---
+// --- Type-level arithmetic (type-safe counter) ---
 type BuildTuple<N extends number, T extends unknown[] = []> =
   T["length"] extends N ? T : BuildTuple<N, [...T, unknown]>;
 
@@ -1064,27 +1064,27 @@ type Sum = Add<3, 4>; // 7
 
 ---
 
-## 型制約パターン比較
+## Type Constraint Pattern Comparison
 
-| パターン | 構文 | 用途 |
-|----------|------|------|
-| 上界制約 | `<T extends U>` | T を U のサブタイプに制限 |
-| keyof制約 | `<K extends keyof T>` | K を T のキーに制限 |
-| 複数制約 | `<T extends A & B>` | T を A かつ B を満たす型に制限 |
-| デフォルト型 | `<T = DefaultType>` | 型引数省略時のデフォルト |
-| 条件型 | `T extends U ? X : Y` | 型レベルの条件分岐 |
-| 推論 | `T extends X<infer U>` | 構造から型を抽出 |
-| コンストラクタ | `<T extends new (...) => any>` | クラスコンストラクタに制限 |
-| 関数 | `<T extends (...) => any>` | 関数型に制限 |
+| Pattern | Syntax | Use case |
+|---------|--------|----------|
+| Upper bound | `<T extends U>` | Constrain T to a subtype of U |
+| keyof constraint | `<K extends keyof T>` | Constrain K to keys of T |
+| Multiple constraint | `<T extends A & B>` | Constrain T to types satisfying both A and B |
+| Default type | `<T = DefaultType>` | Default when type argument is omitted |
+| Conditional type | `T extends U ? X : Y` | Type-level conditional branching |
+| Inference | `T extends X<infer U>` | Extract a type from a structure |
+| Constructor | `<T extends new (...) => any>` | Constrain to class constructors |
+| Function | `<T extends (...) => any>` | Constrain to function types |
 
 ---
 
-## 6. 実践パターン集
+## 6. Practical Pattern Collection
 
-### パターン1: 型安全なAPIクライアント
+### Pattern 1: Type-safe API Client
 
 ```typescript
-// エンドポイント定義
+// Endpoint definitions
 interface ApiEndpoints {
   "GET /users": {
     params: { page?: number; limit?: number };
@@ -1109,7 +1109,7 @@ interface ApiEndpoints {
   };
 }
 
-// 型安全なfetch関数
+// Type-safe fetch function
 type ExtractMethod<T extends string> = T extends `${infer M} ${string}` ? M : never;
 type ExtractPath<T extends string> = T extends `${string} ${infer P}` ? P : never;
 
@@ -1121,23 +1121,23 @@ async function apiCall<K extends keyof ApiEndpoints>(
   endpoint: K,
   options: Omit<ApiEndpoints[K], "response">,
 ): Promise<GetResponse<ApiEndpoints[K]>> {
-  // 実装は省略
+  // implementation omitted
   return {} as any;
 }
 
-// 使用例: 型安全なAPI呼び出し
+// Usage: type-safe API calls
 const users = await apiCall("GET /users", { params: { page: 1, limit: 20 } });
-// 型: { users: User[]; total: number }
+// type: { users: User[]; total: number }
 
 const user = await apiCall("POST /users", { body: { name: "Alice", email: "a@test.com" } });
-// 型: User
+// type: User
 ```
 
-### パターン2: 型安全なDIコンテナ
+### Pattern 2: Type-safe DI Container
 
 ```typescript
 class Token<T> {
-  // ブランド型として機能
+  // Functions as a brand type
   private readonly _brand: T = undefined!;
   constructor(public readonly name: string) {}
 }
@@ -1158,7 +1158,7 @@ class DIContainer {
   }
 }
 
-// トークン定義
+// Token definitions
 const LoggerToken = new Token<ILogger>("Logger");
 const UserRepoToken = new Token<IUserRepository>("UserRepo");
 
@@ -1166,11 +1166,11 @@ const container = new DIContainer();
 container.bind(LoggerToken, () => new ConsoleLogger());
 container.bind(UserRepoToken, () => new PostgresUserRepo());
 
-const logger = container.resolve(LoggerToken); // 型: ILogger
-const repo = container.resolve(UserRepoToken); // 型: IUserRepository
+const logger = container.resolve(LoggerToken); // type: ILogger
+const repo = container.resolve(UserRepoToken); // type: IUserRepository
 ```
 
-### パターン3: 型安全なフォームバリデーション
+### Pattern 3: Type-safe Form Validation
 
 ```typescript
 type ValidationRule<T> = {
@@ -1211,7 +1211,7 @@ function validateForm<T extends Record<string, unknown>>(
   return errors;
 }
 
-// 使用例
+// Usage
 interface LoginForm {
   email: string;
   password: string;
@@ -1219,12 +1219,12 @@ interface LoginForm {
 
 const loginSchema: FormSchema<LoginForm> = {
   email: [
-    { validate: (v) => v.length > 0, message: "メールアドレスは必須です" },
-    { validate: (v) => v.includes("@"), message: "有効なメールアドレスを入力してください" },
+    { validate: (v) => v.length > 0, message: "Email is required" },
+    { validate: (v) => v.includes("@"), message: "Please enter a valid email address" },
   ],
   password: [
-    { validate: (v) => v.length >= 8, message: "パスワードは8文字以上です" },
-    { validate: (v) => /[A-Z]/.test(v), message: "大文字を含めてください" },
+    { validate: (v) => v.length >= 8, message: "Password must be at least 8 characters" },
+    { validate: (v) => /[A-Z]/.test(v), message: "Must include an uppercase letter" },
   ],
 };
 
@@ -1238,57 +1238,57 @@ const errors = validateForm(
 
 ---
 
-## アンチパターン
+## Anti-patterns
 
-### アンチパターン1: 不要なジェネリクス
+### Anti-pattern 1: Unnecessary Generics
 
 ```typescript
-// BAD: T を使っていないのにジェネリクスにしている
+// BAD: making it generic even though T is not used
 function greet<T>(name: string): string {
   return `Hello, ${name}`;
 }
 
-// BAD: ジェネリクスが過剰（T を返さないので不要）
+// BAD: excessive generics (unnecessary because T is not returned)
 function getLength<T extends { length: number }>(x: T): number {
   return x.length;
 }
-// GOOD: ジェネリクス不要
+// GOOD: generics not needed
 function getLength(x: { length: number }): number {
   return x.length;
 }
 
-// ジェネリクスが必要なケースの判断基準:
-// 1. 入力型と出力型を関連付ける場合 → 必要
+// Criteria for when generics are needed:
+// 1. When relating input and output types -> needed
 //    function first<T>(arr: T[]): T | undefined
-// 2. 複数の引数の型を関連付ける場合 → 必要
+// 2. When relating types of multiple arguments -> needed
 //    function merge<T>(a: T, b: Partial<T>): T
-// 3. 入力型の情報を出力に伝播させない場合 → 不要
+// 3. When not propagating input type info to output -> not needed
 //    function getLength(x: { length: number }): number
 ```
 
-### アンチパターン2: any で制約を回避
+### Anti-pattern 2: Bypassing Constraints with `any`
 
 ```typescript
-// BAD: 制約エラーを any で黙らせる
+// BAD: silencing constraint errors with any
 function merge<T>(a: T, b: T): T {
   return { ...(a as any), ...(b as any) } as T;
 }
 
-// GOOD: 適切な制約をつける
+// GOOD: apply appropriate constraints
 function merge<T extends Record<string, unknown>>(a: T, b: Partial<T>): T {
   return { ...a, ...b };
 }
 ```
 
-### アンチパターン3: 型パラメータの名前が不明瞭
+### Anti-pattern 3: Unclear Type Parameter Names
 
 ```typescript
-// BAD: 何を表しているか分からない
+// BAD: meaning is unclear
 function process<A, B, C, D>(a: A, b: B): C {
   // ...
 }
 
-// GOOD: 意味のある名前を使う
+// GOOD: use meaningful names
 function transform<TInput, TOutput>(
   input: TInput,
   transformer: (item: TInput) => TOutput,
@@ -1296,23 +1296,23 @@ function transform<TInput, TOutput>(
   return transformer(input);
 }
 
-// 型パラメータの命名慣例:
-// T, U, V        - 汎用的な型（1〜3個の場合）
-// TInput, TOutput - 入出力の関係
-// TKey, TValue    - キーと値の関係
-// TEntity, TDto   - ドメインオブジェクト
-// K extends keyof T - オブジェクトのキー
-// E               - エラー型 or 要素型
-// R               - 戻り値型
+// Type parameter naming conventions:
+// T, U, V         - generic types (1 to 3 parameters)
+// TInput, TOutput - input/output relationship
+// TKey, TValue    - key-value relationship
+// TEntity, TDto   - domain objects
+// K extends keyof T - object keys
+// E               - error type or element type
+// R               - return type
 ```
 
-### アンチパターン4: ジェネリクスの過度なネスト
+### Anti-pattern 4: Excessive Generic Nesting
 
 ```typescript
-// BAD: 読みにくいネスト
+// BAD: hard-to-read nesting
 type Complex<T> = Promise<Result<Array<Partial<Readonly<T>>>>>;
 
-// GOOD: 中間型を定義して段階的に構築
+// GOOD: define intermediate types and build up gradually
 type ReadonlyPartial<T> = Readonly<Partial<T>>;
 type ResultList<T> = Result<ReadonlyPartial<T>[]>;
 type AsyncResultList<T> = Promise<ResultList<T>>;
@@ -1321,33 +1321,33 @@ type AsyncResultList<T> = Promise<ResultList<T>>;
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Misconfigured config file | Check the config file's path and format |
+| Timeout | Network latency / resource shortage | Adjust timeout values, add retry logic |
+| Out of memory | Increased data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access permissions | Check the executing user's permissions, review settings |
+| Data inconsistency | Concurrent processing conflict | Introduce locking mechanism, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace and identify where it occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form a hypothesis**: List possible causes
+4. **Verify step by step**: Verify hypotheses using log output and debuggers
+5. **Fix and regression test**: After fixing, run tests on related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1355,102 +1355,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"exception: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Problems
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps to diagnose when performance issues arise:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check for I/O waits**: Examine disk and network I/O conditions
+4. **Check the number of concurrent connections**: Examine connection pool state
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem type | Diagnostic tools | Countermeasures |
+|--------------|------------------|-----------------|
+| CPU load | cProfile, py-spy | Algorithm improvements, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexing, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes criteria for making technology selections.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | When to prioritize | When you can compromise |
+|-----------|-------------------|-------------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed users |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow           │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  (1) Team size?                                 │
+│    ├─ Small (1-5 people) -> Monolith            │
+│    └─ Large (10+ people) -> (2)                 │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  (2) Deployment frequency?                      │
+│    ├─ Once a week or less -> Monolith + modules │
+│    └─ Daily / multiple times -> (3)             │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  (3) Inter-team independence?                   │
+│    ├─ High -> Microservices                     │
+│    └─ Medium -> Modular monolith                │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze them from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. long-term cost**
+- A method that is fast in the short term may become technical debt in the long term
+- Conversely, over-engineering has high short-term costs and can delay the project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. flexibility**
+- A unified tech stack has lower learning costs
+- Adopting diverse technologies allows the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- High abstraction enables high reusability but can make debugging difficult
+- Low abstraction is intuitive but tends to cause code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Template for recording design decisions
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1460,17 +1460,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and issues"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1478,7 +1478,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1486,15 +1486,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
-            icon = "✅" if c['type'] == 'positive' else "⚠️"
+            icon = "[+]" if c['type'] == 'positive' else "[!]"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1503,114 +1503,114 @@ class ArchitectureDecisionRecord:
 
 ## FAQ
 
-### Q1: `<T>` と `<T extends unknown>` は同じですか？
+### Q1: Are `<T>` and `<T extends unknown>` the same?
 
-**A:** はい、実質同じです。全ての型は `unknown` のサブタイプなので、`<T>` と `<T extends unknown>` は等価です。ただし、`<T extends object>` とすると null, undefined, プリミティブは除外されます。
+**A:** Yes, effectively the same. Since every type is a subtype of `unknown`, `<T>` and `<T extends unknown>` are equivalent. However, `<T extends object>` excludes null, undefined, and primitives.
 
-### Q2: ジェネリクスの型パラメータ名の慣例は？
+### Q2: What are the conventions for generic type parameter names?
 
-**A:** 一般的な慣例:
-- `T` (Type): 汎用的な型
-- `K` (Key): キーの型
-- `V` (Value): 値の型
-- `E` (Element / Error): 要素型やエラー型
-- `R` (Return / Result): 戻り値型
+**A:** Common conventions:
+- `T` (Type): a generic type
+- `K` (Key): the type of a key
+- `V` (Value): the type of a value
+- `E` (Element / Error): an element or error type
+- `R` (Return / Result): a return type
 
-複雑な場合は `TInput`, `TOutput` のように説明的な名前を使うことも推奨されます。
+For more complex cases, descriptive names such as `TInput`, `TOutput` are also recommended.
 
-### Q3: アロー関数でジェネリクスを使うとJSXと衝突しませんか？
+### Q3: Don't generics in arrow functions clash with JSX?
 
-**A:** `.tsx` ファイルでは `<T>` が JSX タグと誤認される場合があります。回避策として `<T,>` や `<T extends unknown>` を使います。
+**A:** In `.tsx` files, `<T>` may be misinterpreted as a JSX tag. As workarounds, use `<T,>` or `<T extends unknown>`.
 ```typescript
-// .tsx ファイルでの回避策
+// Workarounds in .tsx files
 const identity = <T,>(value: T): T => value;
 const identity = <T extends unknown>(value: T): T => value;
 ```
 
-### Q4: ジェネリクスはランタイムに影響しますか？
+### Q4: Do generics affect runtime?
 
-**A:** いいえ。ジェネリクスはコンパイル時にのみ存在し、JavaScript に変換された後は完全に消去されます（type erasure）。ランタイムのパフォーマンスへの影響はゼロです。
+**A:** No. Generics exist only at compile time and are completely erased after being converted to JavaScript (type erasure). There is zero impact on runtime performance.
 
-### Q5: ジェネリクスと共変性・反変性の関係は？
+### Q5: How do generics relate to covariance and contravariance?
 
-**A:** TypeScriptの型パラメータの変性（variance）は使用位置で決まります：
-- **共変（covariant）**: 出力位置（戻り値型）→ サブタイプの方向に互換
-- **反変（contravariant）**: 入力位置（引数型）→ スーパータイプの方向に互換
-- **不変（invariant）**: 入出力の両方で使用 → 完全一致が必要
+**A:** The variance of TypeScript's type parameters is determined by their usage position:
+- **Covariant**: output position (return type) -> compatible in the subtype direction
+- **Contravariant**: input position (argument type) -> compatible in the supertype direction
+- **Invariant**: used in both input and output -> exact match required
 
 ```typescript
-// TypeScript 4.7+ では in/out 修飾子で変性を明示できる
-interface Producer<out T> {  // T は共変
+// In TypeScript 4.7+ you can specify variance with in/out modifiers
+interface Producer<out T> {  // T is covariant
   produce(): T;
 }
 
-interface Consumer<in T> {  // T は反変
+interface Consumer<in T> {  // T is contravariant
   consume(value: T): void;
 }
 
-interface Processor<in out T> {  // T は不変
+interface Processor<in out T> {  // T is invariant
   process(value: T): T;
 }
 ```
 
-### Q6: 型パラメータにデフォルト値を指定する場合の注意点は？
+### Q6: What should I keep in mind when specifying defaults for type parameters?
 
-**A:** デフォルト型パラメータは末尾に配置する必要があります（関数のデフォルト引数と同様）。また、デフォルト値は制約を満たす必要があります。
+**A:** Default type parameters must be placed at the end (similar to default function arguments). Also, the default value must satisfy the constraint.
 
 ```typescript
-// OK: デフォルト型は制約を満たしている
+// OK: default type satisfies the constraint
 type Container<T extends object = Record<string, unknown>> = { data: T };
 
-// エラー: デフォルト型 string が object 制約を満たさない
+// Error: default type string does not satisfy the object constraint
 // type Bad<T extends object = string> = { data: T };
 
-// OK: デフォルト型パラメータは末尾
+// OK: default type parameter at the end
 type Result<T, E = Error> = { value: T } | { error: E };
 
-// エラー: デフォルト型パラメータの後に必須パラメータは置けない
+// Error: required parameter cannot follow a default type parameter
 // type Bad<T = string, U> = { a: T; b: U };
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 内容 |
-|------|------|
-| ジェネリクスとは | 型をパラメータ化し、再利用可能な型安全コードを書く仕組み |
-| 型推論 | 多くの場合、TypeScriptが型引数を自動推論する |
-| 制約 (extends) | 型パラメータが満たすべき条件を指定する |
-| デフォルト型 | 型引数を省略した場合の既定値を設定 |
-| infer | 条件型の中で型を抽出するキーワード |
-| 適用箇所 | 関数、クラス、インターフェース、型エイリアス |
-| 設計指針 | 不要なジェネリクスは避け、型を返す場合に使う |
-| 可変長タプル | スプレッド構文でタプルの型を合成 |
-| 再帰型 | 自己参照する型定義で木構造やパス型を表現 |
-| 変性 | in/out 修飾子で型パラメータの変性を明示 |
+| Item | Content |
+|------|---------|
+| What generics are | A mechanism to parameterize types and write reusable, type-safe code |
+| Type inference | In many cases, TypeScript automatically infers type arguments |
+| Constraints (extends) | Specify conditions that a type parameter must satisfy |
+| Default types | Set the default value used when a type argument is omitted |
+| infer | Keyword used inside conditional types to extract a type |
+| Where to apply | Functions, classes, interfaces, type aliases |
+| Design guideline | Avoid unnecessary generics; use them when returning types |
+| Variadic tuples | Compose tuple types with spread syntax |
+| Recursive types | Express tree structures and path types with self-referencing type definitions |
+| Variance | Specify type parameter variance with in/out modifiers |
 
 ---
 
-## 演習問題
+## Exercises
 
-### 問題1: 汎用的なキャッシュクラス
+### Exercise 1: A Generic Cache Class
 
-以下の仕様を満たすジェネリックな `Cache<K, V>` クラスを実装してください。
+Implement a generic `Cache<K, V>` class that satisfies the following specification.
 
-- `get(key: K): V | undefined` -- キーに対応する値を取得
-- `set(key: K, value: V, ttlMs?: number)` -- 値をセット（オプションでTTL指定）
-- `has(key: K): boolean` -- キーが存在するか確認
-- `delete(key: K): boolean` -- キーを削除
-- TTLが切れたエントリは自動的に無効になること
+- `get(key: K): V | undefined` -- get the value associated with the key
+- `set(key: K, value: V, ttlMs?: number)` -- set a value (optionally specifying a TTL)
+- `has(key: K): boolean` -- check whether a key exists
+- `delete(key: K): boolean` -- delete a key
+- Entries whose TTL has expired must automatically become invalid
 
 ```typescript
 class Cache<K, V> {
-  // ここに実装を書いてください
+  // Write your implementation here
 }
 ```
 
-### 問題2: 型安全なEventEmitter
+### Exercise 2: A Type-safe EventEmitter
 
-以下のイベント定義から型安全なEventEmitterを実装してください。`on` で登録したイベント名と `emit` で発火するイベント名の型チェック、およびペイロードの型チェックが行われること。
+Implement a type-safe EventEmitter from the following event definitions. Type-checking should be enforced for the event names registered with `on` and emitted via `emit`, as well as for the payload types.
 
 ```typescript
 type Events = {
@@ -1620,13 +1620,13 @@ type Events = {
 };
 
 class TypedEmitter<E extends Record<string, unknown>> {
-  // on, emit, off, once を実装
+  // Implement on, emit, off, once
 }
 ```
 
-### 問題3: DeepPick の実装
+### Exercise 3: Implementing DeepPick
 
-ネストされたオブジェクト型から、ドット区切りのパスで指定したプロパティのみを抽出する `DeepPick` 型を実装してください。
+Implement a `DeepPick` type that extracts only the properties specified by dot-separated paths from a nested object type.
 
 ```typescript
 interface User {
@@ -1654,17 +1654,17 @@ type Result = DeepPick<User, "name" | "address.city" | "address.country.code">;
 // }
 ```
 
-### 問題4: パイプライン関数
+### Exercise 4: Pipeline Function
 
-任意の数の変換関数を受け取り、左から右に適用する `pipe` 関数を実装してください。各関数の入力型と前の関数の出力型が一致することを型レベルで保証すること。
+Implement a `pipe` function that takes any number of transformation functions and applies them from left to right. Guarantee at the type level that the input type of each function matches the output type of the previous one.
 
 ```typescript
 function pipe<A>(value: A): A;
 function pipe<A, B>(value: A, fn1: (a: A) => B): B;
 function pipe<A, B, C>(value: A, fn1: (a: A) => B, fn2: (b: B) => C): C;
-// ... オーバーロードを追加
+// ... add overloads
 
-// 使用例
+// Usage
 const result = pipe(
   "  Hello, World!  ",
   (s) => s.trim(),
@@ -1675,36 +1675,36 @@ const result = pipe(
 // result: number (= 2)
 ```
 
-### 問題5: 型安全な状態管理
+### Exercise 5: Type-safe State Management
 
-以下の仕様を満たすジェネリックな状態管理クラスを実装してください。
+Implement a generic state management class that satisfies the following specification.
 
-- 初期状態を受け取りストアを作成する
-- `getState()` で現在の状態を取得
-- `setState(updater: (state: T) => T)` で状態を更新
-- `subscribe(listener: (state: T) => void)` で変更を監視
-- `select<U>(selector: (state: T) => U)` で部分的な状態を取得
+- Receives an initial state to create the store
+- `getState()` to get the current state
+- `setState(updater: (state: T) => T)` to update the state
+- `subscribe(listener: (state: T) => void)` to observe changes
+- `select<U>(selector: (state: T) => U)` to get a partial state
 
 ```typescript
 class Store<T extends Record<string, unknown>> {
-  // ここに実装を書いてください
+  // Write your implementation here
 }
 ```
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Reading
 
-- [../01-advanced-types/00-conditional-types.md](../01-advanced-types/00-conditional-types.md) -- 条件型（詳細）
-- [../01-advanced-types/01-mapped-types.md](../01-advanced-types/01-mapped-types.md) -- マップ型（詳細）
-- [../02-patterns/00-error-handling.md](../02-patterns/00-error-handling.md) -- Result型の実践
+- [../01-advanced-types/00-conditional-types.md](../01-advanced-types/00-conditional-types.md) -- Conditional types (in detail)
+- [../01-advanced-types/01-mapped-types.md](../01-advanced-types/01-mapped-types.md) -- Mapped types (in detail)
+- [../02-patterns/00-error-handling.md](../02-patterns/00-error-handling.md) -- Practical use of the Result type
 
 ---
 
-## 参考文献
+## References
 
 1. **TypeScript Handbook: Generics** -- https://www.typescriptlang.org/docs/handbook/2/generics.html
 2. **TypeScript Deep Dive: Generics** -- https://basarat.gitbook.io/typescript/type-system/generics
-3. **Effective TypeScript, Item 26: Understand How Context Is Used in Type Inference** -- Dan Vanderkam著, O'Reilly
-4. **Programming TypeScript** -- Boris Cherny著, O'Reilly. Chapter 4: Functions (Generics section)
+3. **Effective TypeScript, Item 26: Understand How Context Is Used in Type Inference** -- by Dan Vanderkam, O'Reilly
+4. **Programming TypeScript** -- by Boris Cherny, O'Reilly. Chapter 4: Functions (Generics section)
 5. **TypeScript 4.0: Variadic Tuple Types** -- https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-0.html
