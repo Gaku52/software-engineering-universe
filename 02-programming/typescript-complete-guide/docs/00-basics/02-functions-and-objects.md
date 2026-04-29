@@ -1,106 +1,106 @@
-# 関数とオブジェクト型
+# Functions and Object Types
 
-> TypeScriptにおける関数シグネチャ、オーバーロード、interface、type aliasの使い分けを網羅する。
+> Comprehensive coverage of function signatures, overloads, and the proper use of interfaces vs type aliases in TypeScript.
 
-## この章で学ぶこと
+## What You'll Learn in This Chapter
 
-1. **関数の型付け** -- パラメータ型、戻り値型、オプショナル引数、デフォルト値、rest引数、オーバーロード
-2. **interface** -- オブジェクトの構造を定義し、クラスやモジュール間の契約として使う
-3. **type alias** -- 型エイリアスによる柔軟な型定義とinterfaceとの使い分け
-4. **構造的型付け** -- TypeScript独自の型互換性判定メカニズム
-5. **高度な関数パターン** -- ジェネリック関数、this型、コンストラクタ型、コールバックパターン
-6. **オブジェクト型の高度なパターン** -- インデックスシグネチャ、Record、Mapped Types
+1. **Typing functions** -- parameter types, return types, optional parameters, default values, rest parameters, and overloads
+2. **interface** -- defining object structures and using them as contracts between classes and modules
+3. **type alias** -- flexible type definitions and how to choose between type aliases and interfaces
+4. **Structural typing** -- TypeScript's unique mechanism for determining type compatibility
+5. **Advanced function patterns** -- generic functions, the this type, constructor types, and callback patterns
+6. **Advanced object type patterns** -- index signatures, Record, and Mapped Types
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, the following knowledge will help deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [型の基礎](./01-type-basics.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Type Basics](./01-type-basics.md)
 
 ---
 
-## 1. 関数の型付け
+## 1. Typing Functions
 
-### コード例1: 基本的な関数型
+### Code Example 1: Basic Function Types
 
 ```typescript
-// 関数宣言
+// Function declaration
 function add(a: number, b: number): number {
   return a + b;
 }
 
-// アロー関数
+// Arrow function
 const multiply = (a: number, b: number): number => a * b;
 
-// 関数型の変数
+// Variable with a function type
 const divide: (a: number, b: number) => number = (a, b) => a / b;
 
-// 型エイリアスで関数型を定義
+// Defining a function type with a type alias
 type MathOp = (a: number, b: number) => number;
 const subtract: MathOp = (a, b) => a - b;
 ```
 
-### 関数型の記法詳細
+### Function Type Notation in Detail
 
 ```typescript
-// ===== 関数宣言のバリエーション =====
+// ===== Variations of function declarations =====
 
-// 1. function宣言（ホイスティングされる）
+// 1. function declaration (hoisted)
 function greet(name: string): string {
   return `Hello, ${name}!`;
 }
 
-// 2. 関数式
+// 2. Function expression
 const greetExpr = function (name: string): string {
   return `Hello, ${name}!`;
 };
 
-// 3. アロー関数（thisをバインドしない）
+// 3. Arrow function (does not bind `this`)
 const greetArrow = (name: string): string => `Hello, ${name}!`;
 
-// 4. ジェネリック関数
+// 4. Generic function
 function identity<T>(value: T): T {
   return value;
 }
 
-// 5. ジェネリックアロー関数（TSXとの衝突を避けるため extends を使う）
+// 5. Generic arrow function (use `extends` to avoid conflicts with TSX)
 const identityArrow = <T extends unknown>(value: T): T => value;
 
-// ===== 関数型の定義方法 =====
+// ===== Ways to define function types =====
 
-// 方法1: 型エイリアス
+// Method 1: Type alias
 type Formatter = (input: string) => string;
 
-// 方法2: interface（call signature）
+// Method 2: interface (call signature)
 interface FormatterInterface {
   (input: string): string;
 }
 
-// 方法3: interface（メソッドシグネチャ）
+// Method 3: interface (method signature)
 interface StringUtils {
   format(input: string): string;
   trim(input: string): string;
 }
 
-// 方法4: オブジェクトリテラル内のメソッド
+// Method 4: Method inside an object literal
 type Logger = {
   log(message: string): void;
   error(message: string, error?: Error): void;
   warn(message: string): void;
 };
 
-// ===== 関数型とプロパティの複合型 =====
-// 関数でありながらプロパティも持つ型
+// ===== Composite types: function with properties =====
+// A type that is callable but also has properties
 interface CreateElement {
   (tag: string): HTMLElement;
   defaultNamespace: string;
   supportedTags: string[];
 }
 
-// 実装例
+// Implementation example
 const createElement: CreateElement = Object.assign(
   (tag: string) => document.createElement(tag),
   {
@@ -113,58 +113,58 @@ createElement("div"); // HTMLElement
 createElement.defaultNamespace; // string
 ```
 
-### コード例2: オプショナル引数とデフォルト値
+### Code Example 2: Optional Parameters and Default Values
 
 ```typescript
-// オプショナル引数（?）
+// Optional parameter (?)
 function greet(name: string, greeting?: string): string {
   return `${greeting ?? "Hello"}, ${name}!`;
 }
 greet("Alice");           // "Hello, Alice!"
 greet("Alice", "Hi");     // "Hi, Alice!"
 
-// デフォルト値
+// Default value
 function createUser(name: string, role: string = "viewer"): { name: string; role: string } {
   return { name, role };
 }
 createUser("Bob");              // { name: "Bob", role: "viewer" }
 createUser("Bob", "admin");     // { name: "Bob", role: "admin" }
 
-// rest引数
+// Rest parameters
 function sum(...numbers: number[]): number {
   return numbers.reduce((total, n) => total + n, 0);
 }
 sum(1, 2, 3, 4, 5); // 15
 ```
 
-### オプショナル引数の詳細パターン
+### Detailed Patterns for Optional Parameters
 
 ```typescript
-// オプショナル引数 vs デフォルト値 の違い
+// Difference between optional parameters and default values
 function example1(x: number, y?: number): number {
-  // y の型は number | undefined
+  // Type of y is number | undefined
   return x + (y ?? 0);
 }
 
 function example2(x: number, y: number = 0): number {
-  // y の型は number（デフォルト値があるため）
+  // Type of y is number (because of the default value)
   return x + y;
 }
 
-// 呼び出し方の違い
-example1(1);           // OK: y は undefined
-example1(1, undefined); // OK: y は undefined
-example1(1, 2);        // OK: y は 2
+// Differences in how they are called
+example1(1);           // OK: y is undefined
+example1(1, undefined); // OK: y is undefined
+example1(1, 2);        // OK: y is 2
 
-example2(1);           // OK: y は 0
-example2(1, undefined); // OK: y は 0（undefinedの場合もデフォルト値が使われる）
-example2(1, 2);        // OK: y は 2
+example2(1);           // OK: y is 0
+example2(1, undefined); // OK: y is 0 (default value is used even when undefined is passed)
+example2(1, 2);        // OK: y is 2
 
-// オプショナル引数は最後に配置する必要がある
-// function bad(x?: number, y: number) {} // エラー
+// Optional parameters must be placed at the end
+// function bad(x?: number, y: number) {} // Error
 function good(y: number, x?: number) {} // OK
 
-// デフォルト値は途中の引数にも使える
+// Default values can be used on parameters that aren't last
 function createRange(start: number = 0, end: number, step: number = 1): number[] {
   const result: number[] = [];
   for (let i = start; i < end; i += step) {
@@ -175,47 +175,47 @@ function createRange(start: number = 0, end: number, step: number = 1): number[]
 createRange(undefined, 5);     // [0, 1, 2, 3, 4] (start = 0)
 createRange(2, 10, 3);         // [2, 5, 8]
 
-// rest引数の型付け詳細
+// Detailed typing of rest parameters
 function createLogger(prefix: string, ...tags: string[]): void {
   console.log(`[${prefix}]`, ...tags.map(t => `#${t}`));
 }
 createLogger("APP", "info", "startup"); // [APP] #info #startup
 
-// rest引数のタプル型
+// Tuple-typed rest parameters
 function query(sql: string, ...params: [string, ...number[]]): void {
   console.log(sql, params);
 }
 query("SELECT * FROM users WHERE name = ? AND age > ?", "Alice", 30);
 
-// スプレッド引数の型安全性
+// Type safety of spread arguments
 function add3(a: number, b: number, c: number): number {
   return a + b + c;
 }
 const args = [1, 2, 3] as const; // readonly [1, 2, 3]
-add3(...args); // OK（as const が必要。なければ number[] と推論され、3引数に合わない）
+add3(...args); // OK (`as const` is required; otherwise inferred as number[], which doesn't match 3 args)
 ```
 
-### コード例3: 関数オーバーロード
+### Code Example 3: Function Overloads
 
 ```typescript
-// オーバーロードシグネチャ
+// Overload signatures
 function createElement(tag: "div"): HTMLDivElement;
 function createElement(tag: "span"): HTMLSpanElement;
 function createElement(tag: "input"): HTMLInputElement;
-// 実装シグネチャ
+// Implementation signature
 function createElement(tag: string): HTMLElement {
   return document.createElement(tag);
 }
 
-const div = createElement("div");     // 型: HTMLDivElement
-const span = createElement("span");   // 型: HTMLSpanElement
-const input = createElement("input"); // 型: HTMLInputElement
+const div = createElement("div");     // Type: HTMLDivElement
+const span = createElement("span");   // Type: HTMLSpanElement
+const input = createElement("input"); // Type: HTMLInputElement
 ```
 
-### オーバーロードの詳細パターン
+### Detailed Overload Patterns
 
 ```typescript
-// パターン1: 引数の数によるオーバーロード
+// Pattern 1: Overload by number of arguments
 function padding(all: number): string;
 function padding(vertical: number, horizontal: number): string;
 function padding(top: number, right: number, bottom: number, left: number): string;
@@ -233,7 +233,7 @@ padding(10);           // "10px"
 padding(10, 20);       // "10px 20px"
 padding(10, 20, 30, 40); // "10px 20px 30px 40px"
 
-// パターン2: 引数の型によるオーバーロード
+// Pattern 2: Overload by argument type
 function parseInput(input: string): string[];
 function parseInput(input: number): number[];
 function parseInput(input: string | number): (string | number)[] {
@@ -246,7 +246,7 @@ function parseInput(input: string | number): (string | number)[] {
 const strResult = parseInput("a,b,c"); // string[]
 const numResult = parseInput(42);       // number[]
 
-// パターン3: 戻り値型のオーバーロード
+// Pattern 3: Overload by return type
 function fetchData(url: string, format: "json"): Promise<object>;
 function fetchData(url: string, format: "text"): Promise<string>;
 function fetchData(url: string, format: "blob"): Promise<Blob>;
@@ -261,8 +261,8 @@ function fetchData(url: string, format: string): Promise<unknown> {
   });
 }
 
-// パターン4: ジェネリクスを使ったオーバーロードの代替
-// オーバーロードの代わりに条件型を使う方法
+// Pattern 4: Using generics as an alternative to overloads
+// Using conditional types instead of overloads
 type ParseResult<T> = T extends string ? string[] : T extends number ? number[] : never;
 
 function parseInputGeneric<T extends string | number>(input: T): ParseResult<T> {
@@ -272,31 +272,31 @@ function parseInputGeneric<T extends string | number>(input: T): ParseResult<T> 
   return [input] as ParseResult<T>;
 }
 
-// パターン5: メソッドオーバーロード
+// Pattern 5: Method overloads
 class EventEmitter {
   on(event: "click", handler: (x: number, y: number) => void): void;
   on(event: "keypress", handler: (key: string) => void): void;
   on(event: "scroll", handler: (position: number) => void): void;
   on(event: string, handler: (...args: unknown[]) => void): void {
-    // 実装
+    // Implementation
   }
 }
 
 const emitter = new EventEmitter();
 emitter.on("click", (x, y) => {
-  // x: number, y: number と推論される
+  // Inferred as x: number, y: number
   console.log(x, y);
 });
 emitter.on("keypress", (key) => {
-  // key: string と推論される
+  // Inferred as key: string
   console.log(key);
 });
 ```
 
-### this型の制御
+### Controlling the `this` Type
 
 ```typescript
-// this パラメータ（実際の引数ではなく、this の型を指定する）
+// `this` parameter (not an actual argument; it specifies the type of `this`)
 interface User {
   name: string;
   greet(this: User): string;
@@ -311,15 +311,15 @@ const user: User = {
 
 user.greet(); // OK
 // const greetFn = user.greet;
-// greetFn(); // エラー: this の型が User ではない
+// greetFn(); // Error: type of `this` is not User
 
-// クラスでの this 型
+// `this` type in a class
 class Builder {
   private items: string[] = [];
 
   add(item: string): this {
     this.items.push(item);
-    return this; // this を返すことでメソッドチェーンを可能に
+    return this; // Returning `this` enables method chaining
   }
 
   build(): string[] {
@@ -336,14 +336,14 @@ class EnhancedBuilder extends Builder {
   }
 }
 
-// メソッドチェーンが型安全に動作
+// Method chaining works in a type-safe manner
 const result = new EnhancedBuilder()
-  .setPrefix("item-")  // EnhancedBuilder を返す
-  .add("one")           // EnhancedBuilder を返す（Builder ではない）
+  .setPrefix("item-")  // Returns EnhancedBuilder
+  .add("one")           // Returns EnhancedBuilder (not Builder)
   .add("two")
   .build();
 
-// thisの型ガード
+// `this` type guards
 class FileReader {
   private content: string | null = null;
   private loaded: boolean = false;
@@ -359,23 +359,23 @@ class FileReader {
 
   getContent(): string {
     if (this.isLoaded()) {
-      return this.content; // string として安全にアクセス
+      return this.content; // Safely accessed as string
     }
     throw new Error("File not loaded");
   }
 }
 ```
 
-### 関数型の記法比較
+### Comparison of Function Type Notations
 
 ```
-  関数宣言          アロー関数型         call signature
+  Function declaration   Arrow function type    call signature
 +---------------+  +------------------+  +---------------------+
 | function      |  | (a: T, b: U)     |  | interface Fn {      |
 |   fn(a: T):U  |  |   => R           |  |   (a: T, b: U): R  |
 +---------------+  +------------------+  +---------------------+
 
-  メソッドシグネチャ     コンストラクタシグネチャ
+  Method signature        Constructor signature
 +---------------------+  +-----------------------+
 | interface Obj {     |  | interface Ctor {      |
 |   method(a: T): R   |  |   new (a: T): Obj     |
@@ -383,17 +383,17 @@ class FileReader {
 +---------------------+  +-----------------------+
 ```
 
-### コールバック関数の型パターン
+### Callback Function Type Patterns
 
 ```typescript
-// ===== コールバック関数の型定義 =====
+// ===== Defining callback function types =====
 
-// シンプルなコールバック
+// Simple callbacks
 type SimpleCallback = () => void;
 type ErrorCallback = (error: Error | null) => void;
 type DataCallback<T> = (error: Error | null, data: T) => void;
 
-// Node.jsスタイルのコールバック
+// Node.js-style callback
 type NodeCallback<T> = (error: NodeJS.ErrnoException | null, result: T) => void;
 
 function readFile(
@@ -408,16 +408,16 @@ function readFile(
   }
 }
 
-// Promise型の関数
+// Promise-returning function type
 type AsyncFunction<T, R> = (input: T) => Promise<R>;
 
-// ミドルウェアパターン
+// Middleware pattern
 type Middleware<T> = (
   context: T,
   next: () => Promise<void>
 ) => Promise<void>;
 
-// Express風のミドルウェア
+// Express-style middleware
 interface Request {
   path: string;
   method: string;
@@ -435,16 +435,16 @@ type ExpressMiddleware = (
   next: NextFunction
 ) => void | Promise<void>;
 
-// イベントリスナーの型
+// Event listener types
 type EventListener<T = Event> = (event: T) => void;
 
-// 高階関数の型
+// Higher-order function types
 type Predicate<T> = (value: T) => boolean;
 type Mapper<T, U> = (value: T, index: number) => U;
 type Reducer<T, U> = (accumulator: U, value: T, index: number) => U;
 type Comparator<T> = (a: T, b: T) => number;
 
-// 高階関数の実装例
+// Higher-order function implementation
 function pipe<T>(...fns: ((value: T) => T)[]): (value: T) => T {
   return (value: T) => fns.reduce((acc, fn) => fn(acc), value);
 }
@@ -458,10 +458,10 @@ const processString = pipe<string>(
 processString("  Hello World  "); // "hello-world"
 ```
 
-### 非同期関数の型
+### Async Function Types
 
 ```typescript
-// async/await の型付け
+// Typing async/await
 async function fetchUser(id: number): Promise<User> {
   const response = await fetch(`/api/users/${id}`);
   if (!response.ok) {
@@ -470,14 +470,14 @@ async function fetchUser(id: number): Promise<User> {
   return response.json();
 }
 
-// Promise ユーティリティの型
+// Promise utility types
 type PromiseType<T> = T extends Promise<infer U> ? U : T;
 type Unwrapped = PromiseType<Promise<string>>; // string
 
-// Awaited型（TypeScript 4.5+）
-type AwaitedResult = Awaited<Promise<Promise<string>>>; // string（深いPromiseも解決）
+// Awaited type (TypeScript 4.5+)
+type AwaitedResult = Awaited<Promise<Promise<string>>>; // string (resolves nested Promises too)
 
-// 非同期ジェネレーター
+// Async generator
 async function* generateNumbers(count: number): AsyncGenerator<number> {
   for (let i = 0; i < count; i++) {
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -485,14 +485,14 @@ async function* generateNumbers(count: number): AsyncGenerator<number> {
   }
 }
 
-// 非同期イテレータの消費
+// Consuming an async iterator
 async function processNumbers(): Promise<void> {
   for await (const num of generateNumbers(5)) {
     console.log(num); // 0, 1, 2, 3, 4
   }
 }
 
-// 型安全なリトライ関数
+// Type-safe retry function
 async function withRetry<T>(
   fn: () => Promise<T>,
   options: {
@@ -527,7 +527,7 @@ async function withRetry<T>(
   throw lastError;
 }
 
-// 使用例
+// Usage example
 const user = await withRetry(
   () => fetchUser(1),
   {
@@ -535,7 +535,7 @@ const user = await withRetry(
     delay: 500,
     shouldRetry: (err) => {
       if (err instanceof Error && err.message.includes("HTTP 404")) {
-        return false; // 404はリトライしない
+        return false; // Do not retry on 404
       }
       return true;
     },
@@ -547,35 +547,35 @@ const user = await withRetry(
 
 ## 2. interface
 
-### コード例4: interface の定義と使用
+### Code Example 4: Defining and Using Interfaces
 
 ```typescript
-// 基本的なinterface
+// Basic interface
 interface User {
-  readonly id: number;     // 読み取り専用
-  name: string;            // 必須プロパティ
-  email: string;           // 必須プロパティ
-  age?: number;            // オプショナルプロパティ
+  readonly id: number;     // Read-only
+  name: string;            // Required property
+  email: string;           // Required property
+  age?: number;            // Optional property
 }
 
-// インデックスシグネチャ
+// Index signature
 interface Dictionary {
   [key: string]: string;
 }
 
-// 関数を持つinterface
+// Interface with functions
 interface Formatter {
   format(value: unknown): string;
   readonly prefix: string;
 }
 
-// interface の継承
+// Interface inheritance
 interface Employee extends User {
   department: string;
   salary: number;
 }
 
-// 複数の継承
+// Multiple inheritance
 interface Manager extends Employee {
   reports: Employee[];
 }
@@ -590,10 +590,10 @@ const manager: Manager = {
 };
 ```
 
-### interface の高度なパターン
+### Advanced Interface Patterns
 
 ```typescript
-// ===== 複数のinterfaceの継承 =====
+// ===== Inheriting multiple interfaces =====
 interface Serializable {
   serialize(): string;
 }
@@ -606,13 +606,13 @@ interface Loggable {
   log(level: "info" | "warn" | "error"): void;
 }
 
-// 複数のinterfaceを同時に継承
+// Inherit multiple interfaces simultaneously
 interface Document extends Serializable, Printable, Loggable {
   title: string;
   content: string;
 }
 
-// ===== ジェネリックinterface =====
+// ===== Generic interfaces =====
 interface Repository<T> {
   findById(id: string): Promise<T | null>;
   findAll(filter?: Partial<T>): Promise<T[]>;
@@ -627,10 +627,10 @@ interface User {
   email: string;
 }
 
-// 具体的な型でRepository を使用
+// Use Repository with a concrete type
 class UserRepository implements Repository<User> {
   async findById(id: string): Promise<User | null> {
-    // データベースから取得
+    // Fetch from database
     return null;
   }
 
@@ -651,7 +651,7 @@ class UserRepository implements Repository<User> {
   }
 }
 
-// ===== コンストラクタシグネチャ =====
+// ===== Constructor signatures =====
 interface Constructable<T> {
   new (...args: unknown[]): T;
 }
@@ -668,14 +668,14 @@ class MyService {
 
 const service = createInstance(MyService); // MyService
 
-// ===== ハイブリッドinterface（関数 + プロパティ） =====
+// ===== Hybrid interface (function + properties) =====
 interface JQuery {
   (selector: string): JQuery;
   ajax(settings: object): Promise<unknown>;
   version: string;
 }
 
-// ===== Mapped Types風のinterface（限定的） =====
+// ===== Mapped Types-style interface (limited) =====
 interface StringMap {
   [key: string]: string;
 }
@@ -684,22 +684,22 @@ interface NumberMap {
   [key: string]: number;
 }
 
-// ===== readonly インデックスシグネチャ =====
+// ===== readonly index signature =====
 interface ReadonlyStringMap {
   readonly [key: string]: string;
 }
 ```
 
-### コード例5: interface のマージ（Declaration Merging）
+### Code Example 5: Interface Merging (Declaration Merging)
 
 ```typescript
-// 同名のinterfaceは自動的にマージされる
+// Interfaces with the same name are automatically merged
 interface Window {
   myCustomProperty: string;
 }
 
-// これでグローバルの Window に myCustomProperty が追加される
-// ライブラリの型拡張に便利
+// This adds myCustomProperty to the global Window
+// Useful for extending types from libraries
 
 interface Config {
   host: string;
@@ -707,10 +707,10 @@ interface Config {
 }
 
 interface Config {
-  debug: boolean;      // マージされる
+  debug: boolean;      // Merged
 }
 
-// 結果の型: { host: string; port: number; debug: boolean }
+// Resulting type: { host: string; port: number; debug: boolean }
 const config: Config = {
   host: "localhost",
   port: 3000,
@@ -718,11 +718,11 @@ const config: Config = {
 };
 ```
 
-### Declaration Merging の実務パターン
+### Practical Patterns for Declaration Merging
 
 ```typescript
-// パターン1: サードパーティライブラリの型拡張
-// Express の Request にカスタムプロパティを追加
+// Pattern 1: Extending types from third-party libraries
+// Add custom properties to Express's Request
 declare global {
   namespace Express {
     interface Request {
@@ -736,7 +736,7 @@ declare global {
   }
 }
 
-// パターン2: 環境変数の型定義
+// Pattern 2: Typing environment variables
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
@@ -748,10 +748,10 @@ declare global {
   }
 }
 
-// これにより process.env.PORT が string 型として認識される
+// Now process.env.PORT is recognized as a string
 const port = parseInt(process.env.PORT, 10);
 
-// パターン3: Window オブジェクトの拡張
+// Pattern 3: Extending the Window object
 declare global {
   interface Window {
     __APP_CONFIG__: {
@@ -764,8 +764,8 @@ declare global {
   }
 }
 
-// パターン4: モジュール拡張
-// date-fns のような既存ライブラリに型を追加
+// Pattern 4: Module augmentation
+// Add types to existing libraries like date-fns
 declare module "express-session" {
   interface SessionData {
     userId: string;
@@ -773,7 +773,7 @@ declare module "express-session" {
   }
 }
 
-// パターン5: namespace とのマージ
+// Pattern 5: Merging with a namespace
 interface Color {
   r: number;
   g: number;
@@ -796,7 +796,7 @@ namespace Color {
   export const Blue: Color = { r: 0, g: 0, b: 255 };
 }
 
-// interface としても namespace としても使える
+// Usable as both an interface and a namespace
 const color: Color = Color.fromHex("#ff0000");
 const red: Color = Color.Red;
 ```
@@ -805,53 +805,53 @@ const red: Color = Color.Red;
 
 ## 3. type alias
 
-### コード例6: type alias の柔軟性
+### Code Example 6: The Flexibility of type alias
 
 ```typescript
-// オブジェクト型
+// Object type
 type Point = {
   x: number;
   y: number;
 };
 
-// Union型
+// Union type
 type Result<T> = { success: true; data: T } | { success: false; error: Error };
 
-// 関数型
+// Function type
 type EventHandler = (event: Event) => void;
 
-// タプル型
+// Tuple type
 type Coordinate = [number, number];
 
-// マップ型
+// Mapped type
 type Readonly<T> = { readonly [K in keyof T]: T[K] };
 
-// 条件型
+// Conditional type
 type NonNullable<T> = T extends null | undefined ? never : T;
 
-// テンプレートリテラル型
+// Template literal types
 type HttpMethod = `${"GET" | "POST" | "PUT" | "DELETE"}`;
 type Endpoint = `/${string}`;
 type ApiRoute = `${HttpMethod} ${Endpoint}`;
 ```
 
-### type alias の高度なパターン
+### Advanced Patterns with type alias
 
 ```typescript
-// ===== 条件型の活用 =====
+// ===== Leveraging conditional types =====
 type IsString<T> = T extends string ? true : false;
 type A = IsString<"hello">; // true
 type B = IsString<42>;      // false
 
-// 条件型による型の抽出
+// Extracting types via conditional types
 type ExtractArrayType<T> = T extends (infer U)[] ? U : never;
 type Elem = ExtractArrayType<string[]>; // string
 
-// Promiseの中身を取得
+// Extract the inner type of a Promise
 type UnwrapPromise<T> = T extends Promise<infer U> ? U : T;
 type Result = UnwrapPromise<Promise<string>>; // string
 
-// 関数の引数型と戻り値型の抽出
+// Extract function parameter and return types
 type ParamTypes<T> = T extends (...args: infer P) => unknown ? P : never;
 type ReturnType<T> = T extends (...args: unknown[]) => infer R ? R : never;
 
@@ -863,7 +863,7 @@ type Optional<T> = { [K in keyof T]?: T[K] };
 type Required<T> = { [K in keyof T]-?: T[K] };
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };
 
-// Key Remapping（TypeScript 4.1+）
+// Key Remapping (TypeScript 4.1+)
 type Getters<T> = {
   [K in keyof T as `get${Capitalize<string & K>}`]: () => T[K];
 };
@@ -883,8 +883,8 @@ type PersonGetters = Getters<Person>;
 type PersonSetters = Setters<Person>;
 // { setName: (value: string) => void; setAge: (value: number) => void }
 
-// ===== ユーティリティ型の組み合わせ =====
-// APIレスポンスのCRUD型を自動生成
+// ===== Combining utility types =====
+// Auto-generate CRUD types for API responses
 type CreateInput<T> = Omit<T, "id" | "createdAt" | "updatedAt">;
 type UpdateInput<T> = Partial<Omit<T, "id" | "createdAt" | "updatedAt">>;
 type ListResponse<T> = {
@@ -915,7 +915,7 @@ type UpdateArticleInput = UpdateInput<Article>;
 
 type ArticleListResponse = ListResponse<Article>;
 
-// ===== 再帰型 =====
+// ===== Recursive types =====
 type JSON =
   | string
   | number
@@ -924,19 +924,19 @@ type JSON =
   | JSON[]
   | { [key: string]: JSON };
 
-// 深い読み取り専用
+// Deep readonly
 type DeepReadonly<T> = T extends (infer U)[]
   ? ReadonlyArray<DeepReadonly<U>>
   : T extends object
   ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
   : T;
 
-// 深いPartial
+// Deep Partial
 type DeepPartial<T> = T extends object
   ? { [K in keyof T]?: DeepPartial<T[K]> }
   : T;
 
-// パスの型安全なアクセス
+// Type-safe path access
 type Path<T, K extends keyof T> = K extends string
   ? T[K] extends Record<string, unknown>
     ? `${K}.${Path<T[K], keyof T[K]>}` | K
@@ -944,55 +944,55 @@ type Path<T, K extends keyof T> = K extends string
   : never;
 ```
 
-### interface vs type alias 比較
+### Comparison: interface vs type alias
 
-| 特性 | interface | type alias |
+| Feature | interface | type alias |
 |------|-----------|------------|
-| オブジェクト型 | OK | OK |
-| Union型 | 不可 | OK |
-| Intersection | extends で継承 | `&` で合成 |
-| Declaration Merging | OK（同名で自動マージ） | 不可（重複エラー） |
-| implements | OK | OK（一部制限あり） |
-| 条件型・マップ型 | 不可 | OK |
-| パフォーマンス | やや高速（キャッシュ） | 複雑な型は遅くなる場合あり |
-| 推奨シーン | オブジェクト構造、公開API | Union、複雑な型変換 |
+| Object types | OK | OK |
+| Union types | Not supported | OK |
+| Intersection | Inherit via `extends` | Combine via `&` |
+| Declaration Merging | OK (auto-merged when names match) | Not supported (duplicate error) |
+| implements | OK | OK (some restrictions) |
+| Conditional / Mapped types | Not supported | OK |
+| Performance | Slightly faster (cached) | Complex types may be slower |
+| Recommended use cases | Object structures, public APIs | Unions, complex type transformations |
 
-### 使い分けの判断フロー
+### Decision Flow for Choosing Between Them
 
 ```
-  型を定義したい
+  You want to define a type
       |
       v
-  Union型が必要？ ----Yes----> type alias
+  Need a Union type?  ----Yes----> type alias
       |
       No
       |
       v
-  条件型/マップ型が必要？ ----Yes----> type alias
+  Need a conditional/mapped type?  ----Yes----> type alias
       |
       No
       |
       v
-  Declaration Mergingが必要？ ----Yes----> interface
+  Need Declaration Merging?  ----Yes----> interface
       |
       No
       |
       v
-  オブジェクトの構造定義？ ----Yes----> interface（推奨）
-      |                                  または type（好み）
+  Defining the structure of an object?  ----Yes----> interface (recommended)
+      |                                              or type (preference)
       No
       |
       v
-  type alias を使用
+  Use type alias
 ```
 
-### 実務でのスタイルガイド
+### Practical Style Guide
 
 ```typescript
-// ===== Google TypeScript Style Guide の方針 =====
-// interface と type のどちらでも表現できる場合は interface を使う
+// ===== Google TypeScript Style Guide's stance =====
+// When something can be expressed by either interface or type, use interface
 
-// interface が適切な場合
+// Cases where interface is appropriate
 interface UserService {
   getUser(id: string): Promise<User>;
   createUser(data: CreateUserInput): Promise<User>;
@@ -1006,14 +1006,14 @@ interface ApiResponse<T> {
   message: string;
 }
 
-// type が必要な場合
+// Cases where type is required
 type UserId = string;
 type UserRole = "admin" | "editor" | "viewer";
 type Result<T, E = Error> = { ok: true; value: T } | { ok: false; error: E };
 type Handler = (req: Request, res: Response) => Promise<void>;
 
-// ===== 別のスタイル: 常に type を使う =====
-// 一部のチームではシンプルさのため全て type を使う方針もある
+// ===== Alternate style: always use type =====
+// Some teams use type for everything for simplicity
 type User = {
   id: string;
   name: string;
@@ -1025,14 +1025,14 @@ type UserService = {
   createUser(data: CreateUserInput): Promise<User>;
 };
 
-// どちらのスタイルでも、チーム内で統一することが重要
+// Either style works; consistency within the team is what matters
 ```
 
 ---
 
-## 4. 構造的型付け（Structural Typing）
+## 4. Structural Typing
 
-### コード例7: ダックタイピング
+### Code Example 7: Duck Typing
 
 ```typescript
 interface Point {
@@ -1040,25 +1040,25 @@ interface Point {
   y: number;
 }
 
-// Point インターフェースを明示的にimplementsしていなくてもOK
+// No need to explicitly implement the Point interface
 const point = { x: 10, y: 20, z: 30 };
 
 function printPoint(p: Point): void {
   console.log(`(${p.x}, ${p.y})`);
 }
 
-// point は x, y を持っているので Point として受け入れられる
-printPoint(point); // OK: 構造が一致していれば良い
+// `point` has x and y, so it's accepted as a Point
+printPoint(point); // OK: as long as the structure matches
 
-// 過剰プロパティチェック（直接オブジェクトリテラルの場合のみ）
-// printPoint({ x: 10, y: 20, z: 30 }); // エラー: z は Point に存在しない
+// Excess property check (only for direct object literals)
+// printPoint({ x: 10, y: 20, z: 30 }); // Error: z does not exist on Point
 ```
 
-### 構造的型付けの詳細
+### Structural Typing in Detail
 
 ```typescript
-// ===== 構造的型付けの基本原則 =====
-// 「必要なプロパティを全て持っていれば、その型として扱える」
+// ===== The basic principle of structural typing =====
+// "If it has all the required properties, it can be treated as that type"
 
 interface HasName {
   name: string;
@@ -1070,58 +1070,58 @@ interface HasAge {
 
 interface Person extends HasName, HasAge {}
 
-// 全く関係のないオブジェクトでも、構造が一致すればOK
+// Even completely unrelated objects work as long as the structure matches
 const dog = {
   name: "Buddy",
   age: 5,
-  breed: "Labrador", // 余分なプロパティ
+  breed: "Labrador", // Extra property
 };
 
 function greetPerson(person: Person): string {
   return `Hello, ${person.name}! You are ${person.age} years old.`;
 }
 
-greetPerson(dog); // OK: dog は name と age を持っている
+greetPerson(dog); // OK: dog has both name and age
 
-// ===== Excess Property Check（余剰プロパティチェック） =====
-// オブジェクトリテラルを直接代入する場合のみ発動
+// ===== Excess Property Check =====
+// Triggered only when assigning an object literal directly
 
-// エラー: オブジェクトリテラルを直接渡す場合
-// greetPerson({ name: "Alice", age: 30, extra: true }); // エラー
+// Error: passing an object literal directly
+// greetPerson({ name: "Alice", age: 30, extra: true }); // Error
 
-// OK: 一度変数に代入してから渡す場合
+// OK: assign to a variable first, then pass it
 const alice = { name: "Alice", age: 30, extra: true };
 greetPerson(alice); // OK
 
-// OK: スプレッド構文で渡す場合
-greetPerson({ ...alice }); // OK（これはオブジェクトリテラルだがスプレッドなので...）
-// 実際にはこれもエラーになる。正確にはスプレッドもExcess Property Checkの対象
+// OK: passing via spread syntax
+greetPerson({ ...alice }); // OK (it's an object literal but uses spread, so...)
+// Actually this also produces an error. Strictly speaking, spread is also subject to Excess Property Check
 
-// Excess Property Checkを回避する方法
-// 方法1: インデックスシグネチャを追加
+// Ways to work around the Excess Property Check
+// Method 1: Add an index signature
 interface FlexiblePerson {
   name: string;
   age: number;
-  [key: string]: unknown; // 任意のプロパティを許容
+  [key: string]: unknown; // Allows arbitrary properties
 }
 
-// 方法2: 変数経由で渡す（上述）
-// 方法3: 型アサーション
+// Method 2: Pass via a variable (described above)
+// Method 3: Type assertion
 greetPerson({ name: "Alice", age: 30, extra: true } as Person);
 
-// ===== 関数の構造的互換性 =====
+// ===== Structural compatibility of functions =====
 type Handler = (event: MouseEvent) => void;
 
-// パラメータが少ない関数は互換性がある
-const simpleHandler: Handler = () => {}; // OK: パラメータを無視
+// A function with fewer parameters is compatible
+const simpleHandler: Handler = () => {}; // OK: ignoring parameters
 const eventHandler: Handler = (event) => {
   console.log(event.clientX);
 }; // OK
 
-// パラメータが多い関数は互換性がない
-// const badHandler: Handler = (event: MouseEvent, extra: string) => {}; // エラー
+// A function with more parameters is not compatible
+// const badHandler: Handler = (event: MouseEvent, extra: string) => {}; // Error
 
-// ===== クラスの構造的互換性 =====
+// ===== Structural compatibility of classes =====
 class Cat {
   name: string;
   constructor(name: string) { this.name = name; }
@@ -1134,10 +1134,10 @@ class FakeCat {
   meow(): void { console.log("Fake meow!"); }
 }
 
-// FakeCat は Cat と構造が同じなので互換性がある
+// FakeCat is compatible with Cat because the structure matches
 const cat: Cat = new FakeCat("Kitty"); // OK
 
-// private/protected メンバーがある場合は別
+// Different rules apply when there are private/protected members
 class RealCat {
   private id: number = 0;
   name: string;
@@ -1150,57 +1150,57 @@ class AnotherCat {
   constructor(name: string) { this.name = name; }
 }
 
-// private メンバーの出所が異なるため互換性がない
-// const realCat: RealCat = new AnotherCat("Kitty"); // エラー
+// Not compatible because the private members come from different declarations
+// const realCat: RealCat = new AnotherCat("Kitty"); // Error
 ```
 
-### 構造的型付けの図解
+### Diagram of Structural Typing
 
 ```
-  名前的型付け (Java, C# など)           構造的型付け (TypeScript)
+  Nominal typing (Java, C#, etc.)        Structural typing (TypeScript)
 +----------------------------+    +----------------------------+
 | class Dog implements       |    | interface HasName {        |
 |   Animal { ... }           |    |   name: string;            |
 |                            |    | }                          |
-| → Dog は Animal の名前で   |    |                            |
-|   型チェック               |    | // { name: string } を持つ |
-+----------------------------+    | // 全てのオブジェクトが     |
-                                  | // HasName として使える     |
+| -> Dog is type-checked     |    |                            |
+|   under the name Animal    |    | // Any object that has     |
++----------------------------+    | // { name: string } can    |
+                                  | // be used as HasName      |
                                   +----------------------------+
 ```
 
 ---
 
-## 5. オブジェクト型の高度なパターン
+## 5. Advanced Object Type Patterns
 
-### インデックスシグネチャの詳細
+### Index Signatures in Detail
 
 ```typescript
-// 基本的なインデックスシグネチャ
+// Basic index signature
 interface StringMap {
   [key: string]: string;
 }
 
-// 明示的なプロパティとインデックスシグネチャの共存
+// Coexistence of explicit properties and an index signature
 interface Config {
-  name: string;                  // 明示的なプロパティ
-  version: number;               // 明示的なプロパティ
-  [key: string]: string | number; // インデックスシグネチャ（上のプロパティの型を含む必要がある）
+  name: string;                  // Explicit property
+  version: number;               // Explicit property
+  [key: string]: string | number; // Index signature (must include the types of the properties above)
 }
 
-// number インデックスシグネチャ
+// `number` index signature
 interface StringArray {
   [index: number]: string;
   length: number;
 }
 
-// string と number のインデックスシグネチャの共存
+// Coexistence of string and number index signatures
 interface MixedIndex {
   [key: string]: string | number;
-  [index: number]: string; // number インデックスは string インデックスのサブタイプでなければならない
+  [index: number]: string; // The number index must be a subtype of the string index
 }
 
-// Record型（インデックスシグネチャの代替として推奨）
+// Record type (recommended over index signatures)
 type UserRoles = Record<string, "admin" | "editor" | "viewer">;
 
 const roles: UserRoles = {
@@ -1209,7 +1209,7 @@ const roles: UserRoles = {
   charlie: "viewer",
 };
 
-// Record の応用
+// Applications of Record
 type HttpHeaders = Record<string, string | string[]>;
 type QueryParams = Record<string, string | number | boolean>;
 type Translations = Record<string, Record<string, string>>;
@@ -1220,10 +1220,10 @@ const translations: Translations = {
 };
 ```
 
-### readonly の詳細
+### `readonly` in Detail
 
 ```typescript
-// ===== readonly プロパティ =====
+// ===== readonly properties =====
 interface ImmutableUser {
   readonly id: string;
   readonly name: string;
@@ -1238,9 +1238,9 @@ const user: ImmutableUser = {
   createdAt: new Date(),
 };
 
-// user.name = "Bob"; // エラー: readonly プロパティは変更できない
+// user.name = "Bob"; // Error: readonly properties cannot be modified
 
-// ===== Readonly<T> ユーティリティ型 =====
+// ===== Readonly<T> utility type =====
 interface MutableConfig {
   host: string;
   port: number;
@@ -1250,8 +1250,8 @@ interface MutableConfig {
 type FrozenConfig = Readonly<MutableConfig>;
 // { readonly host: string; readonly port: number; readonly debug: boolean }
 
-// ===== readonly の限界 =====
-// readonly は浅い（shallow）: ネストしたオブジェクトは変更可能
+// ===== Limitations of readonly =====
+// readonly is shallow: nested objects are still mutable
 interface Settings {
   readonly theme: {
     primary: string;
@@ -1263,10 +1263,10 @@ const settings: Settings = {
   theme: { primary: "#007bff", secondary: "#6c757d" },
 };
 
-// settings.theme = { primary: "#000", secondary: "#fff" }; // エラー
-settings.theme.primary = "#000"; // OK！（ネストした中身は変更可能）
+// settings.theme = { primary: "#000", secondary: "#fff" }; // Error
+settings.theme.primary = "#000"; // OK! (nested contents are still mutable)
 
-// 深い readonly を実現する DeepReadonly
+// DeepReadonly to achieve deep immutability
 type DeepReadonly<T> = T extends (infer U)[]
   ? ReadonlyArray<DeepReadonly<U>>
   : T extends object
@@ -1274,9 +1274,9 @@ type DeepReadonly<T> = T extends (infer U)[]
   : T;
 
 type DeepFrozenSettings = DeepReadonly<Settings>;
-// 全階層が readonly になる
+// All levels become readonly
 
-// ===== const assertion との組み合わせ =====
+// ===== Combining with const assertion =====
 const CONFIG = {
   api: {
     baseUrl: "https://api.example.com",
@@ -1288,21 +1288,21 @@ const CONFIG = {
     notifications: false,
   },
 } as const;
-// 全プロパティが readonly かつリテラル型
+// All properties become readonly literal types
 ```
 
-### ユーティリティ型の網羅的解説
+### Comprehensive Guide to Utility Types
 
 ```typescript
-// TypeScript 組み込みのユーティリティ型
+// TypeScript's built-in utility types
 
-// ===== オブジェクト操作 =====
+// ===== Object manipulation =====
 
-// Partial<T>: 全プロパティをオプショナルに
+// Partial<T>: makes every property optional
 type PartialUser = Partial<User>;
 // { id?: string; name?: string; email?: string }
 
-// Required<T>: 全プロパティを必須に
+// Required<T>: makes every property required
 interface OptionalUser {
   id: string;
   name?: string;
@@ -1311,87 +1311,87 @@ interface OptionalUser {
 type RequiredUser = Required<OptionalUser>;
 // { id: string; name: string; email: string }
 
-// Pick<T, K>: 指定したプロパティのみ取得
+// Pick<T, K>: keep only the specified properties
 type UserName = Pick<User, "name" | "email">;
 // { name: string; email: string }
 
-// Omit<T, K>: 指定したプロパティを除外
+// Omit<T, K>: exclude the specified properties
 type UserWithoutId = Omit<User, "id">;
 // { name: string; email: string }
 
-// Record<K, V>: キーと値の型を指定したオブジェクト
+// Record<K, V>: object with the specified key and value types
 type StatusMessages = Record<"success" | "error" | "warning", string>;
 // { success: string; error: string; warning: string }
 
-// Readonly<T>: 全プロパティを readonly に
+// Readonly<T>: makes every property readonly
 type ImmutableUser = Readonly<User>;
 
-// ===== Union操作 =====
+// ===== Union manipulation =====
 
-// Exclude<T, U>: T から U を除外
+// Exclude<T, U>: remove U from T
 type NonString = Exclude<string | number | boolean, string>;
 // number | boolean
 
-// Extract<T, U>: T から U に代入可能な型を抽出
+// Extract<T, U>: extract the types in T assignable to U
 type StringOrNumber = Extract<string | number | boolean, string | number>;
 // string | number
 
-// NonNullable<T>: null と undefined を除外
+// NonNullable<T>: remove null and undefined
 type Defined = NonNullable<string | null | undefined>;
 // string
 
-// ===== 関数操作 =====
+// ===== Function manipulation =====
 
-// Parameters<T>: 関数のパラメータ型をタプルで取得
+// Parameters<T>: get the parameter types as a tuple
 type AddParams = Parameters<typeof add>;
 // [a: number, b: number]
 
-// ReturnType<T>: 関数の戻り値型を取得
+// ReturnType<T>: get the return type
 type AddReturn = ReturnType<typeof add>;
 // number
 
-// ConstructorParameters<T>: コンストラクタのパラメータ型
+// ConstructorParameters<T>: parameters of the constructor
 class MyClass {
   constructor(name: string, age: number) {}
 }
 type CtorParams = ConstructorParameters<typeof MyClass>;
 // [name: string, age: number]
 
-// InstanceType<T>: コンストラクタのインスタンス型
+// InstanceType<T>: instance type of the constructor
 type Instance = InstanceType<typeof MyClass>;
 // MyClass
 
-// ===== 文字列操作 =====
+// ===== String manipulation =====
 type Upper = Uppercase<"hello">;        // "HELLO"
 type Lower = Lowercase<"HELLO">;        // "hello"
 type Cap = Capitalize<"hello">;         // "Hello"
 type Uncap = Uncapitalize<"Hello">;     // "hello"
 
-// ===== Promise操作 =====
+// ===== Promise manipulation =====
 type AwaitedType = Awaited<Promise<Promise<string>>>;
 // string
 
-// ===== その他 =====
-// ThisParameterType<T>: this パラメータの型を取得
-// OmitThisParameter<T>: this パラメータを除外した関数型
-// ThisType<T>: this の型を指定するマーカー型
+// ===== Other =====
+// ThisParameterType<T>: get the type of the `this` parameter
+// OmitThisParameter<T>: function type without the `this` parameter
+// ThisType<T>: marker type to specify the type of `this`
 
-// NoInfer<T>（TypeScript 5.4+）: 型推論を抑制
+// NoInfer<T> (TypeScript 5.4+): suppress type inference
 function createPair<T>(a: T, b: NoInfer<T>): [T, T] {
   return [a, b];
 }
 createPair("hello", "world"); // OK
-// createPair("hello", 42);   // エラー: T は string と推論され、42 は string に代入不可
+// createPair("hello", 42);   // Error: T is inferred as string, and 42 is not assignable to string
 ```
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: 過度にネストした型定義
+### Anti-Pattern 1: Excessively Nested Type Definitions
 
 ```typescript
-// BAD: インライン型定義が深くネストして読めない
+// BAD: deeply nested inline type definitions are hard to read
 function processOrder(
   order: {
     items: {
@@ -1403,7 +1403,7 @@ function processOrder(
   }
 ): void { /* ... */ }
 
-// GOOD: 型を分割して名前をつける
+// GOOD: split the types and give them names
 interface Address {
   street: string;
   city: string;
@@ -1429,28 +1429,28 @@ interface Order {
 function processOrder(order: Order): void { /* ... */ }
 ```
 
-### アンチパターン2: interfaceとtypeの無秩序な混在
+### Anti-Pattern 2: Unstructured Mixing of interface and type
 
 ```typescript
-// BAD: 同じプロジェクト内でinterfaceとtypeを一貫性なく使う
+// BAD: using interface and type inconsistently in the same project
 interface User { name: string; }
-type Product = { name: string; };    // なぜここだけtype？
+type Product = { name: string; };    // Why is only this one a type?
 interface Order { items: string[]; }
-type Invoice = { total: number; };   // 一貫性がない
+type Invoice = { total: number; };   // Inconsistent
 
-// GOOD: チームで方針を決めて統一する
-// 方針例: オブジェクト構造はinterface、Unionや複雑な型はtype
+// GOOD: agree on a policy as a team and stick to it
+// Example: use interface for object structures, and type for unions or complex types
 interface User { name: string; }
 interface Product { name: string; }
 interface Order { items: string[]; }
-type PaymentMethod = "credit" | "debit" | "cash"; // Union はtype
-type Result<T> = Success<T> | Failure;             // Union はtype
+type PaymentMethod = "credit" | "debit" | "cash"; // Union -> type
+type Result<T> = Success<T> | Failure;             // Union -> type
 ```
 
-### アンチパターン3: 巨大なinterfaceを作る
+### Anti-Pattern 3: Building Massive Interfaces
 
 ```typescript
-// BAD: 1つのinterfaceに全てを詰め込む
+// BAD: cramming everything into a single interface
 interface User {
   id: string;
   name: string;
@@ -1478,10 +1478,10 @@ interface User {
     followers: number;
     following: number;
   };
-  // ... さらに続く
+  // ... and on it goes
 }
 
-// GOOD: 責務ごとにinterfaceを分割する
+// GOOD: split interfaces by responsibility
 interface UserIdentity {
   id: string;
   name: string;
@@ -1521,22 +1521,22 @@ interface UserStats {
   following: number;
 }
 
-// 必要に応じて組み合わせる
+// Compose them as needed
 interface User extends UserIdentity, UserProfile, UserSettings {
   billing: UserBilling;
   social: UserSocial;
   stats: UserStats;
 }
 
-// 用途に応じて必要な型だけ使う
+// Use only the types needed for each use case
 type PublicUser = UserIdentity & UserProfile & { stats: UserStats };
 type AdminUser = User & UserCredentials;
 ```
 
-### アンチパターン4: 関数のパラメータが多すぎる
+### Anti-Pattern 4: Too Many Function Parameters
 
 ```typescript
-// BAD: パラメータが多すぎて順序を間違えやすい
+// BAD: too many parameters make argument order easy to mistake
 function createUser(
   name: string,
   email: string,
@@ -1548,18 +1548,18 @@ function createUser(
 ): User {
   // ...
 }
-// 呼び出し時にどの引数がどれか分からない
+// At the call site, it's unclear which argument is which
 createUser("Alice", "alice@example.com", 30, "admin", "Engineering", true, "system");
 
-// GOOD: オブジェクト引数を使う
+// GOOD: use an options object
 interface CreateUserOptions {
   name: string;
   email: string;
   age: number;
   role: "admin" | "editor" | "viewer";
   department: string;
-  isActive?: boolean;  // デフォルト true
-  createdBy?: string;  // デフォルト "system"
+  isActive?: boolean;  // Defaults to true
+  createdBy?: string;  // Defaults to "system"
 }
 
 function createUser(options: CreateUserOptions): User {
@@ -1567,7 +1567,7 @@ function createUser(options: CreateUserOptions): User {
   // ...
 }
 
-// 呼び出し時に各フィールドが明確
+// Each field is clear at the call site
 createUser({
   name: "Alice",
   email: "alice@example.com",
@@ -1577,10 +1577,10 @@ createUser({
 });
 ```
 
-### アンチパターン5: 型のコピペ
+### Anti-Pattern 5: Copy-Pasting Types
 
 ```typescript
-// BAD: 同じ型定義を複数ファイルで重複
+// BAD: duplicating the same type across multiple files
 // file: user-service.ts
 interface User {
   id: string;
@@ -1588,14 +1588,14 @@ interface User {
   email: string;
 }
 
-// file: user-controller.ts（同じ定義をコピペ）
+// file: user-controller.ts (copy-pasted definition)
 interface User {
   id: string;
   name: string;
   email: string;
 }
 
-// GOOD: 共通の型ファイルからインポート
+// GOOD: import from a shared types file
 // file: types/user.ts
 export interface User {
   id: string;
@@ -1609,51 +1609,51 @@ import type { User } from "../types/user";
 // file: user-controller.ts
 import type { User } from "../types/user";
 
-// import type を使うことで、ランタイムには含まれないことを明示
+// Using `import type` makes it explicit that nothing is included at runtime
 ```
 
 
 ---
 
-## 実践演習
+## Hands-On Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Properly handle errors
+- Include test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Template for basic implementation
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Practice for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data-processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1662,26 +1662,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Practice for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1689,7 +1689,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with a size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1700,14 +1700,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Look up by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Remove by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1715,7 +1715,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1723,44 +1723,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1769,7 +1769,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1784,92 +1784,92 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f} seconds")
+    print(f"Efficient version:   {fast_time:.6f} seconds")
+    print(f"Speedup:             {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithmic complexity
+- Choose appropriate data structures
+- Measure the impact with benchmarks
 ---
 
 ## FAQ
 
-### Q1: 関数のオーバーロードとUnion型パラメータ、どちらを使うべきですか？
+### Q1: When should I use function overloads vs Union-typed parameters?
 
-**A:** 入力の型に応じて戻り値の型が変わる場合はオーバーロードが適切です。戻り値が同じなら Union型パラメータの方がシンプルです。
+**A:** Use overloads when the return type changes based on the input type. If the return type stays the same, a Union-typed parameter is simpler.
 
 ```typescript
-// Union型で十分なケース
+// Cases where a Union type is enough
 function len(x: string | any[]): number { return x.length; }
 
-// オーバーロードが必要なケース（戻り値の型が変わる）
+// Cases that require overloads (return type varies)
 function parse(input: string): string[];
 function parse(input: string[]): string[][];
 function parse(input: string | string[]) { /* ... */ }
 
-// ジェネリクスで解決できるケース（オーバーロードより推奨）
+// Cases solvable with generics (preferred over overloads)
 function firstElement<T>(arr: T[]): T | undefined {
   return arr[0];
 }
-// string[] → string | undefined
-// number[] → number | undefined
+// string[] -> string | undefined
+// number[] -> number | undefined
 ```
 
-### Q2: `readonly` と `Readonly<T>` の違いは？
+### Q2: What's the difference between `readonly` and `Readonly<T>`?
 
-**A:** `readonly` はプロパティ単位の修飾子で、`Readonly<T>` はオブジェクト全体の全プロパティを一括で readonly にするユーティリティ型です。ネストしたオブジェクトの深い部分までは `Readonly<T>` でも readonly にはなりません。深い immutability が必要な場合はカスタムの `DeepReadonly` 型を定義します。
+**A:** `readonly` is a per-property modifier, while `Readonly<T>` is a utility type that makes all of an object's properties readonly at once. Even with `Readonly<T>`, deeply nested parts of the object don't become readonly. When you need deep immutability, define a custom `DeepReadonly` type.
 
-### Q3: `{}` 型は何を表しますか？
+### Q3: What does the `{}` type represent?
 
-**A:** `{}` は「null と undefined 以外の全ての値」を表します。空オブジェクト型ではありません。空オブジェクトを表したい場合は `Record<string, never>` を使うのが正確です。`{}` は意図せず広い型になるため、避けるべきです。
+**A:** `{}` represents "any value other than null and undefined". It is not the type of an empty object. To represent an empty object accurately, use `Record<string, never>`. Because `{}` unintentionally becomes very broad, you should avoid it.
 
 ```typescript
-// {} は null/undefined 以外の全てを受け入れる
+// {} accepts everything except null/undefined
 const a: {} = "hello";     // OK
 const b: {} = 42;          // OK
 const c: {} = true;        // OK
 const d: {} = { foo: 1 };  // OK
-// const e: {} = null;     // エラー
-// const f: {} = undefined; // エラー
+// const e: {} = null;     // Error
+// const f: {} = undefined; // Error
 
-// 空オブジェクトを表す正しい方法
+// The correct way to represent an empty object
 type EmptyObject = Record<string, never>;
 const empty: EmptyObject = {};
-// const notEmpty: EmptyObject = { key: "value" }; // エラー
+// const notEmpty: EmptyObject = { key: "value" }; // Error
 
-// object 型は非プリミティブを表す
+// The `object` type represents any non-primitive value
 const g: object = { foo: 1 }; // OK
 const h: object = [1, 2, 3];  // OK
-// const i: object = "hello";  // エラー（プリミティブ）
-// const j: object = 42;       // エラー（プリミティブ）
+// const i: object = "hello";  // Error (primitive)
+// const j: object = 42;       // Error (primitive)
 ```
 
-### Q4: interfaceの継承(extends)とIntersection(&)の違いは？
+### Q4: What's the difference between interface inheritance (`extends`) and Intersection (`&`)?
 
-**A:** 機能的にはほぼ同じですが、重要な違いがあります。
+**A:** They are functionally similar, but there are important differences.
 
 ```typescript
-// extends: プロパティが衝突するとコンパイルエラー
+// extends: a property conflict is a compile error
 interface A { x: number; }
-// interface B extends A { x: string; } // エラー: x の型が互換性なし
+// interface B extends A { x: string; } // Error: x types are incompatible
 
-// Intersection(&): プロパティが衝突すると never になる
+// Intersection (&): a property conflict becomes never
 type A = { x: number; };
 type B = { x: string; };
 type C = A & B;
-// C.x の型は number & string = never（使い物にならない）
+// The type of C.x is number & string = never (unusable)
 
-// extends の方がエラーを早期に検出できるため、推奨
+// `extends` is preferred because it surfaces errors earlier
 ```
 
-### Q5: コンストラクタ型とは何ですか？
+### Q5: What is a constructor type?
 
-**A:** `new` キーワードで呼び出せる関数の型です。クラスをファクトリ関数に渡す場合などに使います。
+**A:** It's a type representing a function that can be called with `new`. It's useful for passing classes to factory functions and similar scenarios.
 
 ```typescript
 interface Constructor<T> {
@@ -1887,42 +1887,42 @@ class MyService {
 const instance = createInstance(MyService); // MyService
 console.log(instance.name); // "service"
 
-// abstract クラスは Constructor に代入できない
-// abstract class を含める場合は Function を使う
+// Abstract classes cannot be assigned to Constructor
+// Use this when you need to include abstract classes
 type AbstractConstructor<T> = abstract new (...args: any[]) => T;
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 内容 |
+| Topic | Description |
 |------|------|
-| 関数型 | パラメータ型と戻り値型を明示。推論にも頼れる |
-| オプショナル引数 | `?` で省略可能に。デフォルト値も指定可 |
-| オーバーロード | 入力に応じて戻り値型を変えたいときに使う |
-| this型 | メソッドチェーンやコンテキストの型安全性を確保 |
-| interface | オブジェクト構造の定義。継承・マージが可能 |
-| type alias | 柔軟な型定義。Union、条件型、マップ型に必須 |
-| 構造的型付け | 名前ではなく構造で型の互換性を判定 |
-| 使い分け | オブジェクト→interface、Union/複雑な型→type |
-| readonly | 浅い不変性。深い不変性にはDeepReadonlyが必要 |
-| ユーティリティ型 | Partial, Pick, Omit, Record等で型を効率的に操作 |
+| Function types | Annotate parameter and return types explicitly. You can also rely on inference |
+| Optional parameters | Use `?` to make them omittable. Default values can also be specified |
+| Overloads | Use when the return type should vary based on the input |
+| `this` type | Ensures type safety for method chains and contextual code |
+| interface | Defines object structures. Supports inheritance and merging |
+| type alias | Flexible type definitions. Essential for unions, conditional types, and mapped types |
+| Structural typing | Compatibility is judged by structure, not by name |
+| When to use which | Object structures -> interface; unions/complex types -> type |
+| readonly | Shallow immutability. DeepReadonly is needed for deep immutability |
+| Utility types | Manipulate types efficiently with Partial, Pick, Omit, Record, and so on |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Reading
 
-- [03-union-intersection.md](./03-union-intersection.md) -- Union型とIntersection型
-- [04-generics.md](./04-generics.md) -- ジェネリクス
+- [03-union-intersection.md](./03-union-intersection.md) -- Union and Intersection types
+- [04-generics.md](./04-generics.md) -- Generics
 
 ---
 
-## 参考文献
+## References
 
 1. **TypeScript Handbook: More on Functions** -- https://www.typescriptlang.org/docs/handbook/2/functions.html
 2. **TypeScript Handbook: Object Types** -- https://www.typescriptlang.org/docs/handbook/2/objects.html
 3. **TypeScript Handbook: Type Manipulation** -- https://www.typescriptlang.org/docs/handbook/2/types-from-types.html
-4. **Effective TypeScript, Item 13: Know the Differences Between type and interface** -- Dan Vanderkam著, O'Reilly
+4. **Effective TypeScript, Item 13: Know the Differences Between type and interface** -- by Dan Vanderkam, O'Reilly
 5. **TypeScript Deep Dive: Functions** -- https://basarat.gitbook.io/typescript/type-system/functions
 6. **Google TypeScript Style Guide** -- https://google.github.io/styleguide/tsguide.html
