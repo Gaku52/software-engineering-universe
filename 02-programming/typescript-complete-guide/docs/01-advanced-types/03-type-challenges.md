@@ -1,108 +1,108 @@
-# 型チャレンジ
+# Type Challenges
 
-> Type Challenges の代表的な問題を解説し、型レベルプログラミングの実践力を養う。実用的な型パズルの解法パターンを習得する。
+> Walks through representative Type Challenges problems to build practical skill in type-level programming. Master the solution patterns for practical type puzzles.
 
-## この章で学ぶこと
+## What you will learn in this chapter
 
-1. **型レベルプログラミングの基礎テクニック** -- 再帰、パターンマッチ、アキュムレータ
-2. **初級チャレンジ** -- Pick, Readonly, TupleToUnion, Last, Includes 等
-3. **中級チャレンジ** -- DeepReadonly, Flatten, StringToUnion, CamelCase, Chainable 等
-4. **上級チャレンジ** -- 型レベル算術、パーサー、Union操作 等
-5. **実務への応用** -- 型パズルのテクニックを実務コードに活かす方法
+1. **Fundamental techniques of type-level programming** -- recursion, pattern matching, accumulators
+2. **Easy challenges** -- Pick, Readonly, TupleToUnion, Last, Includes, etc.
+3. **Medium challenges** -- DeepReadonly, Flatten, StringToUnion, CamelCase, Chainable, etc.
+4. **Hard challenges** -- type-level arithmetic, parsers, Union manipulation, etc.
+5. **Application to real work** -- how to apply type-puzzle techniques in production code
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Reading this guide will be more rewarding if you have the following knowledge:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [テンプレートリテラル型](./02-template-literal-types.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+- Familiarity with [Template Literal Types](./02-template-literal-types.md)
 
 ---
 
-## 1. 型レベルプログラミングの基礎テクニック
+## 1. Fundamental Techniques of Type-Level Programming
 
-### 1.1 主要テクニック一覧
+### 1.1 List of Key Techniques
 
 ```
 +------------------+-------------------------------+------------------------+
-| テクニック       | 用途                          | 使用する構文           |
+| Technique        | Purpose                       | Syntax used            |
 +------------------+-------------------------------+------------------------+
-| 条件型           | 型の分岐                      | T extends U ? X : Y    |
-| infer            | 型の抽出                      | T extends F<infer U>   |
-| 再帰             | 繰り返し処理                  | Type<T> = ... Type<U>  |
-| タプル操作       | 長さカウント、ループ          | [...T, U], T["length"] |
-| 文字列操作       | パターンマッチ                | `${infer H}${infer T}` |
-| マップ型         | プロパティ変換                | { [K in keyof T]: ... }|
-| Key Remapping    | キー名の変換                  | [K in ... as ...]      |
-| 分配条件型       | Union の各メンバーに適用      | T extends any ? F<T>   |
-| タプル→ユニオン  | 配列型からユニオン型へ        | T[number]              |
-| ユニオン→交差    | ユニオン型からインターセクション | 反変位置での infer    |
+| Conditional type | Type branching                | T extends U ? X : Y    |
+| infer            | Type extraction               | T extends F<infer U>   |
+| Recursion        | Repetitive processing         | Type<T> = ... Type<U>  |
+| Tuple operations | Length count, looping         | [...T, U], T["length"] |
+| String ops       | Pattern matching              | `${infer H}${infer T}` |
+| Mapped type      | Property transformation       | { [K in keyof T]: ... }|
+| Key Remapping    | Renaming keys                 | [K in ... as ...]      |
+| Distributive     | Apply to each union member    | T extends any ? F<T>   |
+| Tuple → Union    | Array type to union type      | T[number]              |
+| Union → Intersect| Union type to intersection    | infer in contravariant |
 +------------------+-------------------------------+------------------------+
 ```
 
-### 1.2 テスト用ユーティリティ型
+### 1.2 Utility Types for Testing
 
-型チャレンジの解答を検証するために、以下のユーティリティ型を使用する。
+The following utility types are used to verify solutions to type challenges.
 
 ```typescript
-// 2つの型が等しいかの判定（最も正確な実装）
+// Determine whether two types are equal (the most accurate implementation)
 type Equal<X, Y> =
   (<T>() => T extends X ? 1 : 2) extends
   (<T>() => T extends Y ? 1 : 2) ? true : false;
 
-// Equal が true であることを期待する型（falseだとコンパイルエラー）
+// Type that expects Equal to be true (compile error if false)
 type Expect<T extends true> = T;
 
-// Equal が false であることを期待する型
+// Type that expects Equal to be false
 type ExpectFalse<T extends false> = T;
 
-// テスト例
+// Test examples
 type Test1 = Expect<Equal<1, 1>>;           // OK
 type Test2 = Expect<Equal<"a", "a">>;       // OK
-// type Test3 = Expect<Equal<1, 2>>;         // コンパイルエラー（期待通り）
-// type Test4 = Expect<Equal<string, number>>; // コンパイルエラー（期待通り）
+// type Test3 = Expect<Equal<1, 2>>;         // Compile error (as expected)
+// type Test4 = Expect<Equal<string, number>>; // Compile error (as expected)
 
-// Not型: boolean を反転
+// Not type: invert a boolean
 type Not<T extends boolean> = T extends true ? false : true;
 
-// テスト
+// Tests
 type Test5 = Expect<Not<false>>;            // OK
 type Test6 = ExpectFalse<Not<true>>;        // OK
 ```
 
-### 1.3 タプルを使ったカウンター
+### 1.3 Counters Using Tuples
 
 ```typescript
-// 型レベルの数値演算にはタプルの長さを使う
+// Type-level numeric operations use the length of a tuple
 type Length<T extends readonly unknown[]> = T["length"];
 
 type A = Length<[1, 2, 3]>;  // 3
 type B = Length<[]>;          // 0
 
-// 指定した長さのタプルを構築
+// Build a tuple of the specified length
 type BuildTuple<N extends number, T extends unknown[] = []> =
   T["length"] extends N ? T : BuildTuple<N, [...T, unknown]>;
 
 type Tuple3 = BuildTuple<3>;   // [unknown, unknown, unknown]
 type Tuple5 = BuildTuple<5>;   // [unknown, unknown, unknown, unknown, unknown]
 
-// 型レベルの加算
+// Type-level addition
 type Add<A extends number, B extends number> =
   [...BuildTuple<A>, ...BuildTuple<B>]["length"] & number;
 
 type Sum = Add<3, 4>;  // 7
 
-// 型レベルの減算
+// Type-level subtraction
 type Subtract<A extends number, B extends number> =
   BuildTuple<A> extends [...BuildTuple<B>, ...infer Rest]
     ? Rest["length"]
-    : never;  // B > A の場合は never
+    : never;  // never when B > A
 
 type Diff = Subtract<7, 3>;  // 4
 
-// 型レベルの乗算
+// Type-level multiplication
 type Multiply<
   A extends number,
   B extends number,
@@ -115,7 +115,7 @@ type Multiply<
 
 type Product = Multiply<3, 4>;  // 12
 
-// 型レベルの比較
+// Type-level comparison
 type GreaterThanOrEqual<
   A extends number,
   B extends number,
@@ -129,47 +129,47 @@ type GreaterThanOrEqual<
     : GreaterThanOrEqual<A, B, [...Count, unknown]>;
 ```
 
-### 1.4 再帰のパターン
+### 1.4 Recursion Patterns
 
 ```typescript
-// パターン1: 配列の再帰処理（先頭から処理）
+// Pattern 1: Recursive array processing (from the head)
 type ProcessArray<T extends unknown[]> =
   T extends [infer First, ...infer Rest]
-    ? /* First を処理 */ [First, ...ProcessArray<Rest>]
+    ? /* process First */ [First, ...ProcessArray<Rest>]
     : [];
 
-// パターン2: 配列の再帰処理（末尾から処理）
+// Pattern 2: Recursive array processing (from the tail)
 type ProcessFromEnd<T extends unknown[]> =
   T extends [...infer Init, infer Last]
     ? [...ProcessFromEnd<Init>, Last]
     : [];
 
-// パターン3: アキュムレータパターン（結果を蓄積）
+// Pattern 3: Accumulator pattern (accumulate the result)
 type Accumulate<
   T extends unknown[],
-  Acc extends unknown[] = []  // 結果を蓄積
+  Acc extends unknown[] = []  // accumulate the result
 > = T extends [infer First, ...infer Rest]
   ? Accumulate<Rest, [...Acc, First]>
   : Acc;
 
-// パターン4: 文字列の再帰処理
+// Pattern 4: Recursive string processing
 type ProcessString<S extends string> =
   S extends `${infer First}${infer Rest}`
     ? `${First}${ProcessString<Rest>}`
     : "";
 
-// パターン5: 深さ制限付き再帰
+// Pattern 5: Recursion with depth limit
 type LimitedRecursion<
   T,
   Depth extends unknown[] = []
 > = Depth["length"] extends 10
-  ? T  // 深さ制限で停止
+  ? T  // stop at the depth limit
   : T extends object
     ? { [K in keyof T]: LimitedRecursion<T[K], [...Depth, unknown]> }
     : T;
 
-// パターン6: 2分割による効率的な再帰
-// 直線的な再帰より深い再帰が可能
+// Pattern 6: Efficient recursion via halving
+// Allows deeper recursion than linear recursion
 type DeepBuild<
   N extends number,
   T extends unknown[] = [unknown]
@@ -184,19 +184,19 @@ type DeepBuild<
 
 ---
 
-## 2. 初級チャレンジ
+## 2. Easy Challenges
 
-### 2.1 MyPick（Pick の自作）
+### 2.1 MyPick (implement Pick yourself)
 
 ```typescript
-// 課題: Pick<T, K> を自作せよ
-// 要件: T から K で指定されたプロパティだけを選択する型を実装する
+// Task: Implement Pick<T, K> yourself
+// Requirement: select only the properties specified by K from T
 
 type MyPick<T, K extends keyof T> = {
   [P in K]: T[P];
 };
 
-// テスト
+// Test
 interface Todo {
   title: string;
   description: string;
@@ -206,7 +206,7 @@ interface Todo {
 type TodoPreview = MyPick<Todo, "title" | "completed">;
 // { title: string; completed: boolean }
 
-// 検証
+// Verification
 type TestPick1 = Expect<Equal<
   MyPick<Todo, "title">,
   { title: string }
@@ -216,23 +216,23 @@ type TestPick2 = Expect<Equal<
   { title: string; completed: boolean }
 >>;
 
-// 解説:
-// - K extends keyof T で K を T のキーに制限
-// - [P in K] で K のメンバーをイテレーション
-// - T[P] で元の型の値をそのまま使用
+// Explanation:
+// - K extends keyof T constrains K to keys of T
+// - [P in K] iterates over members of K
+// - T[P] reuses the original type's value as-is
 ```
 
 ### 2.2 MyReadonly
 
 ```typescript
-// 課題: Readonly<T> を自作せよ
-// 要件: T の全プロパティを readonly にする
+// Task: Implement Readonly<T> yourself
+// Requirement: make all properties of T readonly
 
 type MyReadonly<T> = {
   readonly [K in keyof T]: T[K];
 };
 
-// テスト
+// Test
 type ReadonlyTodo = MyReadonly<Todo>;
 // { readonly title: string; readonly description: string; readonly completed: boolean }
 
@@ -245,8 +245,8 @@ type TestReadonly = Expect<Equal<
 ### 2.3 TupleToUnion
 
 ```typescript
-// 課題: タプル型をUnion型に変換せよ
-// 要件: [1, 2, 3] → 1 | 2 | 3
+// Task: Convert a tuple type to a union type
+// Requirement: [1, 2, 3] -> 1 | 2 | 3
 
 type TupleToUnion<T extends readonly unknown[]> = T[number];
 
@@ -254,14 +254,14 @@ type A = TupleToUnion<[1, 2, 3]>;        // 1 | 2 | 3
 type B = TupleToUnion<["a", "b", "c"]>;   // "a" | "b" | "c"
 type C = TupleToUnion<[string, number]>;   // string | number
 
-// 検証
+// Verification
 type TestTTU = Expect<Equal<TupleToUnion<[1, 2, 3]>, 1 | 2 | 3>>;
 
-// 解説:
-// T[number] は配列型のインデックスシグネチャで、全要素の型のユニオンを返す
-// [1, 2, 3] の場合: [1, 2, 3][number] = 1 | 2 | 3
+// Explanation:
+// T[number] is the index signature of an array type, returning the union of all element types
+// For [1, 2, 3]: [1, 2, 3][number] = 1 | 2 | 3
 
-// 再帰版（理解を深めるため）
+// Recursive version (for deeper understanding)
 type TupleToUnionRecursive<T extends readonly unknown[]> =
   T extends [infer First, ...infer Rest]
     ? First | TupleToUnionRecursive<Rest>
@@ -271,18 +271,18 @@ type TupleToUnionRecursive<T extends readonly unknown[]> =
 ### 2.4 First
 
 ```typescript
-// 課題: 配列の最初の要素の型を取得せよ
-// 要件: First<[3, 2, 1]> = 3、First<[]> = never
+// Task: Get the type of the first element of an array
+// Requirement: First<[3, 2, 1]> = 3, First<[]> = never
 
-// 解法1: infer を使用
+// Solution 1: use infer
 type First<T extends readonly unknown[]> =
   T extends [infer F, ...unknown[]] ? F : never;
 
-// 解法2: 条件型で空配列チェック
+// Solution 2: empty array check via conditional type
 type First2<T extends readonly unknown[]> =
   T extends [] ? never : T[0];
 
-// 解法3: T["length"] を使用
+// Solution 3: use T["length"]
 type First3<T extends readonly unknown[]> =
   T["length"] extends 0 ? never : T[0];
 
@@ -290,7 +290,7 @@ type D = First<[3, 2, 1]>;  // 3
 type E = First<[]>;          // never
 type F = First<[undefined]>; // undefined
 
-// 検証
+// Verification
 type TestFirst1 = Expect<Equal<First<[3, 2, 1]>, 3>>;
 type TestFirst2 = Expect<Equal<First<[]>, never>>;
 type TestFirst3 = Expect<Equal<First<[undefined]>, undefined>>;
@@ -299,8 +299,8 @@ type TestFirst3 = Expect<Equal<First<[undefined]>, undefined>>;
 ### 2.5 Last
 
 ```typescript
-// 課題: 配列の最後の要素の型を取得せよ
-// 要件: Last<[1, 2, 3]> = 3
+// Task: Get the type of the last element of an array
+// Requirement: Last<[1, 2, 3]> = 3
 
 type Last<T extends readonly unknown[]> =
   T extends [...unknown[], infer L] ? L : never;
@@ -309,23 +309,23 @@ type G = Last<[1, 2, 3]>;  // 3
 type H = Last<["a"]>;       // "a"
 type I = Last<[]>;           // never
 
-// 検証
+// Verification
 type TestLast1 = Expect<Equal<Last<[1, 2, 3]>, 3>>;
 type TestLast2 = Expect<Equal<Last<["a"]>, "a">>;
 type TestLast3 = Expect<Equal<Last<[]>, never>>;
 
-// 解説:
-// [...unknown[], infer L] は「最後の要素を L として抽出」するパターン
-// TypeScript 4.0+ の Variadic Tuple Types を活用
+// Explanation:
+// [...unknown[], infer L] is the pattern for "extract the last element as L"
+// Leverages Variadic Tuple Types from TypeScript 4.0+
 ```
 
 ### 2.6 Includes
 
 ```typescript
-// 課題: 配列にUが含まれるか判定せよ
-// 要件: Includes<[1, 2, 3], 2> = true
+// Task: Determine whether an array contains U
+// Requirement: Includes<[1, 2, 3], 2> = true
 
-// 正確な等値判定（IsEqual）
+// Strict equality check (IsEqual)
 type IsEqual<A, B> =
   (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2)
     ? true
@@ -342,35 +342,35 @@ type J = Includes<[1, 2, 3], 2>;       // true
 type K = Includes<[1, 2, 3], 4>;       // false
 type L = Includes<["a", "b"], "a">;     // true
 type M = Includes<[true, false], true>; // true
-type N = Includes<[boolean], true>;     // false（boolean !== true）
+type N = Includes<[boolean], true>;     // false (boolean !== true)
 
-// 検証
+// Verification
 type TestInc1 = Expect<Equal<Includes<[1, 2, 3], 2>, true>>;
 type TestInc2 = Expect<Equal<Includes<[1, 2, 3], 4>, false>>;
 type TestInc3 = Expect<Equal<Includes<[boolean], true>, false>>;
 
-// 解説:
-// IsEqual は (<T>() => T extends X ? 1 : 2) のパターンで厳密な型比較を行う
-// extends による比較では boolean と true が一致してしまうため、
-// この特殊なパターンが必要
+// Explanation:
+// IsEqual performs strict type comparison via the (<T>() => T extends X ? 1 : 2) pattern
+// Plain extends comparison would consider boolean and true equivalent,
+// so this special pattern is required
 ```
 
-### 2.7 Push と Unshift
+### 2.7 Push and Unshift
 
 ```typescript
-// 課題: Push<T, U> - 配列の末尾に要素を追加
+// Task: Push<T, U> - append an element to the end of an array
 type Push<T extends unknown[], U> = [...T, U];
 
 type P1 = Push<[1, 2], 3>;       // [1, 2, 3]
 type P2 = Push<[], 1>;            // [1]
 
-// 課題: Unshift<T, U> - 配列の先頭に要素を追加
+// Task: Unshift<T, U> - prepend an element to the beginning of an array
 type Unshift<T extends unknown[], U> = [U, ...T];
 
 type U1 = Unshift<[1, 2], 0>;    // [0, 1, 2]
 type U2 = Unshift<[], 1>;         // [1]
 
-// 課題: Pop<T> - 配列の末尾要素を除去
+// Task: Pop<T> - remove the last element of an array
 type Pop<T extends unknown[]> =
   T extends [...infer Init, unknown] ? Init : [];
 
@@ -378,7 +378,7 @@ type Pop1 = Pop<[1, 2, 3]>;  // [1, 2]
 type Pop2 = Pop<[1]>;         // []
 type Pop3 = Pop<[]>;           // []
 
-// 課題: Shift<T> - 配列の先頭要素を除去
+// Task: Shift<T> - remove the first element of an array
 type Shift<T extends unknown[]> =
   T extends [unknown, ...infer Rest] ? Rest : [];
 
@@ -389,27 +389,27 @@ type Shift2 = Shift<[1]>;         // []
 ### 2.8 Concat
 
 ```typescript
-// 課題: Concat<T, U> - 2つの配列を結合
+// Task: Concat<T, U> - concatenate two arrays
 type Concat<T extends unknown[], U extends unknown[]> = [...T, ...U];
 
 type C1 = Concat<[1, 2], [3, 4]>;     // [1, 2, 3, 4]
 type C2 = Concat<[], [1]>;             // [1]
 type C3 = Concat<[1], []>;             // [1]
 
-// 検証
+// Verification
 type TestConcat = Expect<Equal<Concat<[1, 2], [3, 4]>, [1, 2, 3, 4]>>;
 ```
 
 ### 2.9 If
 
 ```typescript
-// 課題: If<C, T, F> - Cがtrueなら T、falseなら F
+// Task: If<C, T, F> - T if C is true, F if C is false
 type If<C extends boolean, T, F> = C extends true ? T : F;
 
 type If1 = If<true, "a", "b">;   // "a"
 type If2 = If<false, "a", "b">;  // "b"
 
-// 検証
+// Verification
 type TestIf1 = Expect<Equal<If<true, "a", "b">, "a">>;
 type TestIf2 = Expect<Equal<If<false, "a", "b">, "b">>;
 ```
@@ -417,13 +417,13 @@ type TestIf2 = Expect<Equal<If<false, "a", "b">, "b">>;
 ### 2.10 Awaited
 
 ```typescript
-// 課題: Promise の解決値の型を取得せよ
-// 要件: ネストした Promise も再帰的に展開
+// Task: Get the type that a Promise resolves to
+// Requirement: Recursively unwrap nested Promises
 
 type MyAwaited<T> =
   T extends Promise<infer U>
     ? U extends Promise<any>
-      ? MyAwaited<U>  // ネストした Promise を再帰的に展開
+      ? MyAwaited<U>  // recursively unwrap nested Promises
       : U
     : never;
 
@@ -431,46 +431,46 @@ type Aw1 = MyAwaited<Promise<string>>;            // string
 type Aw2 = MyAwaited<Promise<Promise<number>>>;    // number
 type Aw3 = MyAwaited<Promise<Promise<Promise<boolean>>>>; // boolean
 
-// もっとシンプルな実装
+// A simpler implementation
 type MyAwaited2<T> =
   T extends Promise<infer U> ? MyAwaited2<U> : T;
 
-// 検証
+// Verification
 type TestAwaited = Expect<Equal<MyAwaited<Promise<string>>, string>>;
 ```
 
-### 初級チャレンジ解法パターン
+### Solution Patterns for Easy Challenges
 
 ```
-  問題の種類            使うテクニック           典型例
+  Problem type           Technique used         Typical example
 +-------------------+----------------------+------------------+
-| プロパティ変換     | マップ型              | Pick, Readonly   |
-| 配列の先頭/末尾   | infer + rest          | First, Last      |
-| 配列 → Union      | インデックスアクセス  | TupleToUnion     |
-| 要素の検索         | 再帰 + IsEqual       | Includes         |
-| 長さ取得           | T["length"]           | Length           |
-| 配列操作           | スプレッド構文        | Push, Concat     |
-| 条件分岐           | 条件型                | If, Awaited      |
-| Promise展開        | infer + 再帰          | Awaited          |
+| Property transform | Mapped type          | Pick, Readonly   |
+| Head/tail of array | infer + rest         | First, Last      |
+| Array -> Union     | Index access         | TupleToUnion     |
+| Element search     | Recursion + IsEqual  | Includes         |
+| Length             | T["length"]          | Length           |
+| Array operations   | Spread syntax        | Push, Concat     |
+| Conditional        | Conditional type     | If, Awaited      |
+| Promise unwrap     | infer + recursion    | Awaited          |
 +-------------------+----------------------+------------------+
 ```
 
 ---
 
-## 3. 中級チャレンジ
+## 3. Medium Challenges
 
 ### 3.1 DeepReadonly
 
 ```typescript
-// 課題: 全てのネストしたプロパティをreadonlyにせよ
+// Task: Make all nested properties readonly
 type DeepReadonly<T> =
   T extends (...args: any[]) => any
-    ? T  // 関数はそのまま
+    ? T  // leave functions as-is
     : T extends object
       ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
-      : T;  // プリミティブはそのまま
+      : T;  // leave primitives as-is
 
-// テスト
+// Test
 interface Config {
   db: {
     host: string;
@@ -484,24 +484,24 @@ interface Config {
 }
 
 type ReadonlyConfig = DeepReadonly<Config>;
-// 全てのネストされたプロパティがreadonly
+// All nested properties are readonly
 
-// 検証
+// Verification
 type TestDeepReadonly = Expect<Equal<
   DeepReadonly<{ a: { b: string } }>,
   { readonly a: { readonly b: string } }
 >>;
 
-// 解説:
-// 1. 関数は再帰しない（無限ループ防止）
-// 2. object の場合は再帰的に DeepReadonly を適用
-// 3. プリミティブ（string, number等）はそのまま返す
+// Explanation:
+// 1. Do not recurse into functions (avoid infinite loops)
+// 2. For object types, apply DeepReadonly recursively
+// 3. Return primitives (string, number, etc.) as-is
 ```
 
 ### 3.2 Flatten
 
 ```typescript
-// 課題: ネストした配列をフラットにする型
+// Task: Flatten a nested array type
 type Flatten<T extends unknown[]> =
   T extends [infer First, ...infer Rest]
     ? First extends unknown[]
@@ -511,13 +511,13 @@ type Flatten<T extends unknown[]> =
 
 type F1 = Flatten<[1, [2, [3]], 4]>;    // [1, 2, 3, 4]
 type F2 = Flatten<[[1, 2], [3, 4]]>;    // [1, 2, 3, 4]
-type F3 = Flatten<[1, 2, 3]>;           // [1, 2, 3]（フラットなら変わらない）
+type F3 = Flatten<[1, 2, 3]>;           // [1, 2, 3] (unchanged if already flat)
 type F4 = Flatten<[]>;                   // []
 
-// 検証
+// Verification
 type TestFlatten = Expect<Equal<Flatten<[1, [2, [3]], 4]>, [1, 2, 3, 4]>>;
 
-// 深さ制限付きFlatten
+// Flatten with depth limit
 type FlattenDepth<
   T extends unknown[],
   Depth extends number = 1,
@@ -537,11 +537,11 @@ type FD2 = FlattenDepth<[1, [2, [3, [4]]]], 2>;  // [1, 2, 3, [4]]
 ### 3.3 Chainable
 
 ```typescript
-// 課題: チェイン可能なオプション設定
-// 要件:
-// - option(key, value) で設定を追加
-// - 同じキーを2回設定するとエラー
-// - get() で最終的な型を取得
+// Task: Chainable option configuration
+// Requirements:
+// - option(key, value) adds a setting
+// - Setting the same key twice is an error
+// - get() returns the final type
 
 type Chainable<T = {}> = {
   option<K extends string, V>(
@@ -551,26 +551,26 @@ type Chainable<T = {}> = {
   get(): T;
 };
 
-// 使用例
+// Usage
 declare const config: Chainable;
 const result = config
   .option("name", "TypeScript")
   .option("version", 5)
   .option("strict", true)
   .get();
-// 型: { name: string; version: number; strict: boolean }
+// type: { name: string; version: number; strict: boolean }
 
-// 解説:
-// 1. Chainable<T> はこれまでに設定されたオプションの型 T を保持
-// 2. option() は新しいキーと値を T に追加した Chainable を返す
-// 3. K extends keyof T ? never : K で重複キーを防止
-// 4. get() は蓄積された型 T を返す
+// Explanation:
+// 1. Chainable<T> holds the type T of options set so far
+// 2. option() returns a Chainable with the new key and value added to T
+// 3. K extends keyof T ? never : K prevents duplicate keys
+// 4. get() returns the accumulated type T
 ```
 
 ### 3.4 StringToUnion
 
 ```typescript
-// 課題: 文字列をUnion型に変換
+// Task: Convert a string to a union type
 type StringToUnion<S extends string> =
   S extends `${infer C}${infer Rest}`
     ? C | StringToUnion<Rest>
@@ -580,16 +580,16 @@ type STU1 = StringToUnion<"hello">;  // "h" | "e" | "l" | "o"
 type STU2 = StringToUnion<"abc">;    // "a" | "b" | "c"
 type STU3 = StringToUnion<"">;       // never
 
-// 検証
+// Verification
 type TestSTU = Expect<Equal<StringToUnion<"abc">, "a" | "b" | "c">>;
 
-// 注意: "hello" の結果に "l" は1つだけ含まれる（Unionは重複を除去）
+// Note: the result of "hello" contains only one "l" (unions deduplicate)
 ```
 
 ### 3.5 Trim
 
 ```typescript
-// 課題: 文字列の前後の空白を除去
+// Task: Remove whitespace from both ends of a string
 type TrimLeft<S extends string> =
   S extends `${" " | "\n" | "\t"}${infer Rest}`
     ? TrimLeft<Rest>
@@ -606,14 +606,14 @@ type T1 = Trim<"  hello  ">;   // "hello"
 type T2 = Trim<"\nhello\n">;   // "hello"
 type T3 = Trim<"\t hello \t">; // "hello"
 
-// 検証
+// Verification
 type TestTrim = Expect<Equal<Trim<"  hello  ">, "hello">>;
 ```
 
-### 3.6 Replace と ReplaceAll
+### 3.6 Replace and ReplaceAll
 
 ```typescript
-// 課題: 文字列の最初の一致箇所を置換
+// Task: Replace the first match in a string
 type Replace<S extends string, From extends string, To extends string> =
   From extends ""
     ? S
@@ -625,7 +625,7 @@ type R1 = Replace<"types are fun!", "fun", "awesome">;  // "types are awesome!"
 type R2 = Replace<"foobar", "bar", "baz">;               // "foobaz"
 type R3 = Replace<"foobar", "", "baz">;                   // "foobar"
 
-// 課題: 文字列の全ての一致箇所を置換
+// Task: Replace all matches in a string
 type ReplaceAll<S extends string, From extends string, To extends string> =
   From extends ""
     ? S
@@ -640,7 +640,7 @@ type RA2 = ReplaceAll<"aaa", "a", "b">;        // "bbb"
 ### 3.7 Reverse
 
 ```typescript
-// 課題: タプルを逆順にせよ
+// Task: Reverse a tuple
 type Reverse<T extends unknown[]> =
   T extends [infer First, ...infer Rest]
     ? [...Reverse<Rest>, First]
@@ -650,10 +650,10 @@ type Rev1 = Reverse<[1, 2, 3]>;       // [3, 2, 1]
 type Rev2 = Reverse<["a", "b", "c"]>; // ["c", "b", "a"]
 type Rev3 = Reverse<[]>;               // []
 
-// 検証
+// Verification
 type TestReverse = Expect<Equal<Reverse<[1, 2, 3]>, [3, 2, 1]>>;
 
-// 文字列のReverse
+// String reverse
 type ReverseString<S extends string> =
   S extends `${infer First}${infer Rest}`
     ? `${ReverseString<Rest>}${First}`
@@ -662,33 +662,33 @@ type ReverseString<S extends string> =
 type RS1 = ReverseString<"hello">;  // "olleh"
 ```
 
-### 3.8 Omit の自作
+### 3.8 Implementing Omit
 
 ```typescript
-// 課題: Omit<T, K> を自作せよ
-// 方法1: Pick + Exclude
+// Task: Implement Omit<T, K> yourself
+// Approach 1: Pick + Exclude
 type MyOmit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
 
-// 方法2: マップ型 + as句
+// Approach 2: Mapped type + as clause
 type MyOmit2<T, K extends keyof T> = {
   [P in keyof T as P extends K ? never : P]: T[P];
 };
 
-// テスト
+// Test
 type OmitTest = MyOmit<Todo, "description">;
 // { title: string; completed: boolean }
 
-// 検証
+// Verification
 type TestOmit = Expect<Equal<
   MyOmit<Todo, "description">,
   { title: string; completed: boolean }
 >>;
 ```
 
-### 3.9 ReturnType の自作
+### 3.9 Implementing ReturnType
 
 ```typescript
-// 課題: ReturnType<T> を自作せよ
+// Task: Implement ReturnType<T> yourself
 type MyReturnType<T extends (...args: any) => any> =
   T extends (...args: any) => infer R ? R : never;
 
@@ -696,21 +696,21 @@ type RT1 = MyReturnType<() => string>;            // string
 type RT2 = MyReturnType<(x: number) => boolean>;  // boolean
 type RT3 = MyReturnType<() => void>;               // void
 
-// 検証
+// Verification
 type TestRT = Expect<Equal<MyReturnType<() => string>, string>>;
 ```
 
-### 3.10 Parameters の自作
+### 3.10 Implementing Parameters
 
 ```typescript
-// 課題: Parameters<T> を自作せよ
+// Task: Implement Parameters<T> yourself
 type MyParameters<T extends (...args: any) => any> =
   T extends (...args: infer P) => any ? P : never;
 
 type Params1 = MyParameters<(a: string, b: number) => void>;  // [a: string, b: number]
 type Params2 = MyParameters<() => void>;                        // []
 
-// 検証
+// Verification
 type TestParams = Expect<Equal<
   MyParameters<(a: string, b: number) => void>,
   [a: string, b: number]
@@ -719,31 +719,31 @@ type TestParams = Expect<Equal<
 
 ---
 
-## 4. 上級チャレンジ
+## 4. Hard Challenges
 
 ### 4.1 CamelCase
 
 ```typescript
-// 課題: ケバブケースをキャメルケースに変換
+// Task: Convert kebab-case to camelCase
 type CamelCase<S extends string> =
   S extends `${infer Head}-${infer Tail}`
     ? Tail extends Capitalize<Tail>
-      ? `${Head}-${CamelCase<Tail>}`  // 既に大文字始まりなら - を保持
+      ? `${Head}-${CamelCase<Tail>}`  // keep '-' if already starts with uppercase
       : `${Head}${CamelCase<Capitalize<Tail>>}`
     : S;
 
 type CC1 = CamelCase<"foo-bar-baz">;       // "fooBarBaz"
 type CC2 = CamelCase<"hello-world">;        // "helloWorld"
 type CC3 = CamelCase<"no-dash">;            // "noDash"
-type CC4 = CamelCase<"already">;            // "already"（ダッシュなし）
+type CC4 = CamelCase<"already">;            // "already" (no dash)
 
-// より厳密な実装
+// A stricter implementation
 type CamelCase2<S extends string> =
   S extends `${infer Head}-${infer Tail}`
     ? `${Lowercase<Head>}${CamelCase2<Capitalize<Tail>>}`
     : S;
 
-// オブジェクトのキーをCamelCaseに変換
+// Convert object keys to CamelCase
 type CamelCaseKeys<T> = {
   [K in keyof T as K extends string ? CamelCase2<K> : K]:
     T[K] extends object
@@ -778,7 +778,7 @@ type CamelResponse = CamelCaseKeys<ApiResponse>;
 ### 4.2 Unique
 
 ```typescript
-// 課題: タプルから重複を除去
+// Task: Remove duplicates from a tuple
 type Unique<T extends unknown[], Seen extends unknown[] = []> =
   T extends [infer First, ...infer Rest]
     ? Includes<Seen, First> extends true
@@ -790,14 +790,14 @@ type U1 = Unique<[1, 1, 2, 2, 3, 3]>;           // [1, 2, 3]
 type U2 = Unique<[1, "a", 2, "b", 2, "a"]>;      // [1, "a", 2, "b"]
 type U3 = Unique<[string, string, number]>;        // [string, number]
 
-// 検証
+// Verification
 type TestUnique = Expect<Equal<Unique<[1, 1, 2, 2, 3, 3]>, [1, 2, 3]>>;
 ```
 
 ### 4.3 Zip
 
 ```typescript
-// 課題: 2つの配列をペアにする
+// Task: Pair up two arrays
 type Zip<
   T extends unknown[],
   U extends unknown[]
@@ -811,9 +811,9 @@ type Z1 = Zip<[1, 2, 3], ["a", "b", "c"]>;
 // [[1, "a"], [2, "b"], [3, "c"]]
 
 type Z2 = Zip<[1, 2], ["a", "b", "c"]>;
-// [[1, "a"], [2, "b"]]（短い方に合わせる）
+// [[1, "a"], [2, "b"]] (matches the shorter one)
 
-// 検証
+// Verification
 type TestZip = Expect<Equal<
   Zip<[1, 2, 3], ["a", "b", "c"]>,
   [[1, "a"], [2, "b"], [3, "c"]]
@@ -823,7 +823,7 @@ type TestZip = Expect<Equal<
 ### 4.4 GroupBy
 
 ```typescript
-// 課題: 配列を条件でグルーピング
+// Task: Group an array by a condition
 type GroupBy<
   T extends Record<string, any>[],
   Key extends string
@@ -847,7 +847,7 @@ type Grouped = GroupBy<Items, "type">;
 ### 4.5 TupleToNestedObject
 
 ```typescript
-// 課題: タプルからネストしたオブジェクト型を生成
+// Task: Build a nested object type from a tuple
 type TupleToNestedObject<
   T extends string[],
   V
@@ -864,7 +864,7 @@ type Nested2 = TupleToNestedObject<["x"], number>;
 type Nested3 = TupleToNestedObject<[], boolean>;
 // boolean
 
-// 検証
+// Verification
 type TestNested = Expect<Equal<
   TupleToNestedObject<["a", "b"], string>,
   { a: { b: string } }
@@ -874,8 +874,8 @@ type TestNested = Expect<Equal<
 ### 4.6 UnionToIntersection
 
 ```typescript
-// 課題: Union型をIntersection型に変換
-// これは「型パズルの王道」と呼ばれる高度なテクニック
+// Task: Convert a union type to an intersection type
+// This is regarded as the "royal road of type puzzles" - an advanced technique
 
 type UnionToIntersection<U> =
   (U extends any ? (k: U) => void : never) extends (k: infer I) => void
@@ -889,21 +889,21 @@ type UTI2 = UnionToIntersection<((x: string) => void) | ((x: number) => void)>;
 // ((x: string) => void) & ((x: number) => void)
 // = (x: string & number) => void = (x: never) => void
 
-// 解説:
+// Explanation:
 // 1. (U extends any ? (k: U) => void : never)
-//    → 分配条件型により各ユニオンメンバーを関数引数にラップ
-//    → ((k: { a: 1 }) => void) | ((k: { b: 2 }) => void)
+//    -> Distributive conditional type wraps each union member as a function argument
+//    -> ((k: { a: 1 }) => void) | ((k: { b: 2 }) => void)
 // 2. extends (k: infer I) => void
-//    → 関数引数は反変位置（contravariant position）
-//    → 反変位置での infer はインターセクションを推論
-//    → I = { a: 1 } & { b: 2 }
+//    -> Function parameters are in a contravariant position
+//    -> infer in a contravariant position infers an intersection
+//    -> I = { a: 1 } & { b: 2 }
 ```
 
 ### 4.7 UnionToTuple
 
 ```typescript
-// 課題: Union型をタプル型に変換
-// 注意: ユニオンの順序は保証されない
+// Task: Convert a union type to a tuple type
+// Note: the order of union members is not guaranteed
 
 type LastOfUnion<T> =
   UnionToIntersection<
@@ -918,44 +918,44 @@ type UnionToTuple<T, Last = LastOfUnion<T>> =
     : [...UnionToTuple<Exclude<T, Last>>, Last];
 
 type UT1 = UnionToTuple<"a" | "b" | "c">;
-// ["a", "b", "c"]（順序は保証されない）
+// ["a", "b", "c"] (order not guaranteed)
 
 type UT2 = UnionToTuple<1 | 2 | 3>;
-// [1, 2, 3]（順序は保証されない）
+// [1, 2, 3] (order not guaranteed)
 ```
 
 ### 4.8 IsUnion
 
 ```typescript
-// 課題: 型がUnion型かどうかを判定
+// Task: Determine whether a type is a union type
 type IsUnion<T, Copy = T> =
-  T extends any  // 分配条件型で各メンバーに展開
-    ? [Copy] extends [T]  // 元の型全体が現在のメンバーのサブタイプか
-      ? false  // サブタイプなら単一型
-      : true   // そうでなければUnion
+  T extends any  // distribute via distributive conditional types
+    ? [Copy] extends [T]  // is the original whole type a subtype of the current member?
+      ? false  // if subtype, it's a single type
+      : true   // otherwise it's a union
     : never;
 
 type IU1 = IsUnion<string>;           // false
 type IU2 = IsUnion<string | number>;  // true
 type IU3 = IsUnion<never>;            // false
-type IU4 = IsUnion<boolean>;          // true（boolean = true | false）
+type IU4 = IsUnion<boolean>;          // true (boolean = true | false)
 
-// 検証
+// Verification
 type TestIsUnion1 = Expect<Equal<IsUnion<string | number>, true>>;
 type TestIsUnion2 = Expect<Equal<IsUnion<string>, false>>;
 type TestIsUnion3 = Expect<Equal<IsUnion<boolean>, true>>;
 
-// 解説:
-// boolean は実は true | false のユニオン型
-// 分配条件型で T extends any により各メンバーに展開される
-// [Copy] extends [T] で「元の型全体」と「個別メンバー」を比較
-// 単一型なら一致するが、ユニオンなら一致しない
+// Explanation:
+// boolean is actually the union type true | false
+// The distributive conditional type T extends any expands across members
+// [Copy] extends [T] compares "the whole original type" with "an individual member"
+// They match for a single type but not for a union
 ```
 
 ### 4.9 PercentageParser
 
 ```typescript
-// 課題: 文字列を符号、数値、パーセント記号に分解
+// Task: Decompose a string into sign, number, and percent symbol
 type PercentageParser<S extends string> =
   S extends `${infer Sign extends "+" | "-"}${infer Num}%`
     ? [Sign, Num, "%"]
@@ -974,12 +974,12 @@ type PP4 = PercentageParser<"42">;     // ["", "42", ""]
 type PP5 = PercentageParser<"">;       // ["", "", ""]
 ```
 
-### 4.10 型レベルの FizzBuzz
+### 4.10 Type-Level FizzBuzz
 
 ```typescript
-// 課題: 型レベルで FizzBuzz を実装
+// Task: Implement FizzBuzz at the type level
 
-// 3で割り切れるか判定
+// Test divisibility by 3
 type IsDivisibleBy3<
   N extends number,
   Count extends unknown[] = [],
@@ -990,7 +990,7 @@ type IsDivisibleBy3<
     ? IsDivisibleBy3<N, Count, []>
     : IsDivisibleBy3<N, [...Count, unknown], [...Triple, unknown]>;
 
-// 5で割り切れるか判定
+// Test divisibility by 5
 type IsDivisibleBy5<
   N extends number,
   Count extends unknown[] = [],
@@ -1001,7 +1001,7 @@ type IsDivisibleBy5<
     ? IsDivisibleBy5<N, Count, []>
     : IsDivisibleBy5<N, [...Count, unknown], [...Penta, unknown]>;
 
-// FizzBuzz の1要素
+// One element of FizzBuzz
 type FBValue<N extends number> =
   IsDivisibleBy3<N> extends true
     ? IsDivisibleBy5<N> extends true
@@ -1011,29 +1011,29 @@ type FBValue<N extends number> =
       ? "Buzz"
       : N;
 
-// FizzBuzz の実行
+// Run FizzBuzz
 type FizzBuzz<
   N extends number,
   Acc extends (string | number)[] = [],
-  Count extends unknown[] = [unknown]  // 1から開始
+  Count extends unknown[] = [unknown]  // start from 1
 > = Count["length"] extends [...BuildTuple<N>, unknown]["length"]
   ? Acc
   : FizzBuzz<N, [...Acc, FBValue<Count["length"] & number>], [...Count, unknown]>;
 
-// 小さな数でテスト
+// Test with a small number
 type FB15 = FizzBuzz<15>;
 // [1, 2, "Fizz", 4, "Buzz", "Fizz", 7, 8, "Fizz", "Buzz", 11, "Fizz", 13, 14, "FizzBuzz"]
 ```
 
 ---
 
-## 5. 実務への応用
+## 5. Application to Real Work
 
-### 5.1 型チャレンジのテクニックを実務で活かす
+### 5.1 Applying Type Challenge Techniques in Practice
 
 ```typescript
-// パターン1: APIレスポンスの型変換（CamelCase チャレンジの応用）
-// スネークケースのAPIレスポンスをキャメルケースに自動変換
+// Pattern 1: Type conversion of API responses (application of the CamelCase challenge)
+// Automatically convert snake_case API responses into camelCase
 
 type SnakeToCamel<S extends string> =
   S extends `${infer Head}_${infer Tail}`
@@ -1049,7 +1049,7 @@ type CamelizeKeys<T> = {
       : T[K];
 };
 
-// パターン2: 設定オブジェクトの型安全化（Chainable チャレンジの応用）
+// Pattern 2: Type-safe configuration object (application of the Chainable challenge)
 class ConfigBuilder<T extends Record<string, unknown> = {}> {
   private config: T;
 
@@ -1076,7 +1076,7 @@ const config = new ConfigBuilder()
   .build();
 // Readonly<{ host: string; port: number; debug: boolean }>
 
-// パターン3: 型安全なパスアクセス（TupleToNestedObject チャレンジの応用）
+// Pattern 3: Type-safe path access (application of the TupleToNestedObject challenge)
 type PathValue<T, P extends string> =
   P extends `${infer Key}.${infer Rest}`
     ? Key extends keyof T
@@ -1090,7 +1090,7 @@ function get<T, P extends string>(obj: T, path: P): PathValue<T, P> {
   return path.split(".").reduce((acc: any, key) => acc?.[key], obj);
 }
 
-// パターン4: 型安全なイベントシステム（StringToUnion チャレンジの応用）
+// Pattern 4: Type-safe event system (application of the StringToUnion challenge)
 type EventCallback<T> = (data: T) => void;
 
 class TypedEmitter<Events extends Record<string, any>> {
@@ -1115,97 +1115,97 @@ class TypedEmitter<Events extends Record<string, any>> {
 }
 ```
 
-### 5.2 型チャレンジの知識が必要になる場面
+### 5.2 Situations Where Type Challenge Knowledge Matters
 
 ```typescript
-// 場面1: ライブラリの型定義を読み解く
-// Prisma、tRPC、Zod などの高度な型定義は
-// 条件型、infer、再帰を駆使している
+// Situation 1: Reading library type definitions
+// Advanced type definitions in Prisma, tRPC, Zod, etc. heavily use
+// conditional types, infer, and recursion
 
-// 場面2: 自作ライブラリの型設計
-// 型安全な API を提供するために
-// マップ型 + テンプレートリテラル型の組み合わせが必要
+// Situation 2: Designing types for your own libraries
+// Providing type-safe APIs often requires combining
+// mapped types and template literal types
 
-// 場面3: 複雑なジェネリクスの問題解決
-// 「なぜ型が合わない？」を理解するために
-// 分配条件型やinferの挙動の知識が必要
+// Situation 3: Solving complex generics issues
+// To understand "why doesn't this type match?"
+// you need knowledge of distributive conditional types and infer behavior
 
-// 場面4: カスタムユーティリティ型の作成
-// 標準のPartial, Pickでは不十分な場合に
-// DeepPartial, PickByType 等を自作する必要がある
+// Situation 4: Creating custom utility types
+// When standard Partial and Pick aren't enough, you need to
+// craft your own DeepPartial, PickByType, and similar types
 ```
 
 ---
 
-## 難易度別チャレンジ分類
+## Challenges by Difficulty
 
-| 難易度 | チャレンジ | 必要テクニック |
+| Difficulty | Challenge | Required techniques |
 |--------|-----------|---------------|
-| Easy | Pick, Readonly, First, Length | マップ型、infer |
-| Easy | TupleToUnion, Includes, If | インデックスアクセス、再帰 |
-| Easy | Push, Unshift, Concat, Awaited | スプレッド、再帰 |
-| Medium | DeepReadonly, Flatten, Trim | 再帰、文字列操作 |
-| Medium | Chainable, CamelCase, Omit | Key Remapping、テンプレートリテラル |
-| Medium | Replace, Reverse, StringToUnion | 文字列再帰 |
-| Hard | UnionToIntersection, UnionToTuple | 反変位置、分配条件型 |
-| Hard | IsUnion, FizzBuzz, CurryFn | 高度な再帰、複合テクニック |
-| Extreme | JSON Parser, SQL Parser | 全テクニック総合 |
+| Easy | Pick, Readonly, First, Length | Mapped types, infer |
+| Easy | TupleToUnion, Includes, If | Index access, recursion |
+| Easy | Push, Unshift, Concat, Awaited | Spread, recursion |
+| Medium | DeepReadonly, Flatten, Trim | Recursion, string operations |
+| Medium | Chainable, CamelCase, Omit | Key Remapping, template literals |
+| Medium | Replace, Reverse, StringToUnion | String recursion |
+| Hard | UnionToIntersection, UnionToTuple | Contravariance, distributive conditional types |
+| Hard | IsUnion, FizzBuzz, CurryFn | Advanced recursion, combined techniques |
+| Extreme | JSON Parser, SQL Parser | All techniques combined |
 
 ---
 
-## 解法パターンの選び方
+## How to Choose the Solution Pattern
 
-| パターン | 判断基準 | 例 |
+| Pattern | When to use | Examples |
 |----------|---------|-----|
-| マップ型 | オブジェクトのプロパティを変換 | Pick, Readonly, Partial |
-| infer + 条件型 | 構造から型を抽出 | ReturnType, First, Last |
-| 再帰 + タプル | 配列要素を順に処理 | Flatten, Includes, Reverse |
-| 再帰 + 文字列 | 文字列を1文字ずつ処理 | Trim, CamelCase, StringToUnion |
-| タプル長 | 数値の演算 | Add, Subtract, GreaterThan |
-| Key Remapping | キー名の変換 | CamelCaseKeys, Getters |
-| 分配条件型 | ユニオンの各メンバーに処理 | Extract, Exclude, NonNullable |
-| 反変位置 infer | ユニオン→インターセクション | UnionToIntersection |
-| アキュムレータ | 結果を蓄積しながら再帰 | Unique, FizzBuzz, GroupBy |
+| Mapped type | Transform object properties | Pick, Readonly, Partial |
+| infer + conditional type | Extract a type from structure | ReturnType, First, Last |
+| Recursion + tuple | Process array elements in order | Flatten, Includes, Reverse |
+| Recursion + string | Process a string one character at a time | Trim, CamelCase, StringToUnion |
+| Tuple length | Numeric arithmetic | Add, Subtract, GreaterThan |
+| Key Remapping | Rename keys | CamelCaseKeys, Getters |
+| Distributive | Process each union member | Extract, Exclude, NonNullable |
+| Contravariant infer | Union -> Intersection | UnionToIntersection |
+| Accumulator | Recurse while accumulating results | Unique, FizzBuzz, GroupBy |
 
 ```
-  問題を見たとき:
+  When you see a problem:
 
-  1. 入力の型は何？
-     +-- オブジェクト → マップ型を検討
-     +-- 配列/タプル → infer + ... rest を検討
-     +-- 文字列 → テンプレートリテラル + infer を検討
-     +-- ユニオン → 分配条件型を検討
-     +-- 数値 → タプル長カウンターを検討
+  1. What is the input type?
+     +-- Object        -> consider mapped types
+     +-- Array/tuple   -> consider infer + ... rest
+     +-- String        -> consider template literal + infer
+     +-- Union         -> consider distributive conditional types
+     +-- Number        -> consider a tuple-length counter
 
-  2. 処理の種類は？
-     +-- 変換 → 元の構造を保持しつつ各要素を変換
-     +-- フィルタ → never を返して除外
-     +-- 抽出 → infer で一部を取り出す
-     +-- 構築 → アキュムレータで結果を蓄積
-     +-- 判定 → true / false を返す
+  2. What kind of processing?
+     +-- Transform -> preserve the original structure while transforming each element
+     +-- Filter    -> return never to exclude
+     +-- Extract   -> use infer to pull out a portion
+     +-- Build     -> accumulate the result with an accumulator
+     +-- Decide    -> return true / false
 
-  3. 再帰が必要？
-     +-- ネストした構造 → 再帰
-     +-- 可変長のデータ → 再帰 + 終了条件
-     +-- 固定構造 → 非再帰
+  3. Is recursion needed?
+     +-- Nested structure   -> recursion
+     +-- Variable-length    -> recursion + termination condition
+     +-- Fixed structure    -> non-recursive
 ```
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: プロダクションコードで複雑な型パズルを使う
+### Anti-pattern 1: Using complex type puzzles in production code
 
 ```typescript
-// BAD: 型レベルのSQL パーサーをプロダクションで使う
-type ParseSQL<T extends string> = /* 数百行の型定義 */;
-// → コンパイル時間が爆発、エラーメッセージが意味不明
+// BAD: using a type-level SQL parser in production
+type ParseSQL<T extends string> = /* hundreds of lines of type definitions */;
+// -> compile time explodes, error messages become incomprehensible
 
-// GOOD: ライブラリの型を使う、またはシンプルな型で十分
+// GOOD: use library types or keep types simple
 import { sql } from "drizzle-orm";
-// ライブラリが適切な型安全性を提供
+// The library provides appropriate type safety
 
-// GOOD: 必要十分な型を定義
+// GOOD: define just-enough types
 type QueryResult<T extends string> = T extends `SELECT * FROM users`
   ? User[]
   : T extends `SELECT * FROM posts`
@@ -1213,103 +1213,103 @@ type QueryResult<T extends string> = T extends `SELECT * FROM users`
     : unknown[];
 ```
 
-### アンチパターン2: 再帰深度の限界を考慮しない
+### Anti-pattern 2: Ignoring recursion-depth limits
 
 ```typescript
-// BAD: 深い再帰
+// BAD: deep recursion
 type Repeat<S extends string, N extends number, Acc extends string = ""> =
   BuildTuple<N> extends [unknown, ...infer Rest]
     ? Repeat<S, Rest["length"] & number, `${Acc}${S}`>
     : Acc;
 
-// type Long = Repeat<"a", 1000>;  // エラー: 再帰が深すぎる
+// type Long = Repeat<"a", 1000>;  // Error: recursion is too deep
 
-// TypeScriptの再帰制限は約1000回程度（TS 4.5+）
-// GOOD: 再帰深度を意識して設計する
-// 大きな数値の演算は型レベルでは避ける
+// TypeScript's recursion limit is around 1000 (TS 4.5+)
+// GOOD: design with recursion depth in mind
+// Avoid arithmetic on large numbers at the type level
 ```
 
-### アンチパターン3: IsEqual の誤った実装
+### Anti-pattern 3: Incorrect implementation of IsEqual
 
 ```typescript
-// BAD: extends による比較
+// BAD: comparison via extends
 type BadEqual<A, B> = A extends B ? B extends A ? true : false : false;
 
-// 問題: any, boolean, union 型で誤った結果になる
-type Test1 = BadEqual<boolean, true>;   // boolean（true | false を返す）
+// Problem: produces wrong results for any, boolean, and union types
+type Test1 = BadEqual<boolean, true>;   // boolean (returns true | false)
 type Test2 = BadEqual<any, string>;     // boolean
 
-// GOOD: 正確な等値判定
+// GOOD: strict equality check
 type GoodEqual<X, Y> =
   (<T>() => T extends X ? 1 : 2) extends
   (<T>() => T extends Y ? 1 : 2) ? true : false;
 
-type Test3 = GoodEqual<boolean, true>;  // false（正しい）
-type Test4 = GoodEqual<any, string>;    // false（正しい）
+type Test3 = GoodEqual<boolean, true>;  // false (correct)
+type Test4 = GoodEqual<any, string>;    // false (correct)
 ```
 
-### アンチパターン4: 分配条件型の意図しない動作
+### Anti-pattern 4: Unintended behavior of distributive conditional types
 
 ```typescript
-// BAD: never や boolean で予期しない結果
+// BAD: unexpected results with never or boolean
 type BadIsNever<T> = T extends never ? true : false;
-type Test1 = BadIsNever<never>;  // never（true でも false でもない！）
+type Test1 = BadIsNever<never>;  // never (neither true nor false!)
 
-// GOOD: 非分配で判定
+// GOOD: non-distributive check
 type GoodIsNever<T> = [T] extends [never] ? true : false;
 type Test2 = GoodIsNever<never>;  // true
 
-// BAD: boolean の分配を忘れる
+// BAD: forgetting that boolean distributes
 type BadCheck<T> = T extends true ? "yes" : "no";
-type Test3 = BadCheck<boolean>;  // "yes" | "no"（boolean = true | false が分配される）
+type Test3 = BadCheck<boolean>;  // "yes" | "no" (boolean = true | false is distributed)
 
-// GOOD: 意図を明確にする
+// GOOD: make the intent explicit
 type GoodCheck<T> = [T] extends [true] ? "yes" : "no";
-type Test4 = GoodCheck<boolean>;  // "no"（boolean は [true] のサブタイプではない）
+type Test4 = GoodCheck<boolean>;  // "no" (boolean is not a subtype of [true])
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement appropriate error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Template for a basic implementation
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise on basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1318,26 +1318,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: applied patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise on applied patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1345,7 +1345,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1356,14 +1356,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Remove by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1371,7 +1371,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1379,44 +1379,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1425,7 +1425,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1440,47 +1440,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient: {slow_time:.4f}s")
+    print(f"Efficient:   {fast_time:.6f}s")
+    print(f"Speedup:     {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be aware of algorithmic complexity
+- Choose the right data structure
+- Measure the impact with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Configuration file issues | Check the config file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Growing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Verify the executing user's permissions, review settings |
+| Data inconsistency | Concurrency conflicts | Introduce locking, manage transactions |
 
-### デバッグの手順
+### Debugging Procedure
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: read the stack trace and identify the location
+2. **Establish reproduction steps**: reproduce the error with minimal code
+3. **Form hypotheses**: list possible causes
+4. **Verify step by step**: use logging or a debugger to test hypotheses
+5. **Fix and run regression tests**: after fixing, run tests on related areas as well
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger setup
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1488,79 +1488,79 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+When performance problems occur, follow these diagnostic steps:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: measure with profiling tools
+2. **Check memory usage**: look for memory leaks
+3. **Check I/O waits**: inspect disk and network I/O
+4. **Check concurrent connections**: review the connection pool state
 
-| 問題の種類 | 診断ツール | 対策 |
+| Issue type | Diagnostic tool | Countermeasures |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Improve algorithms, parallelize |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexing, query optimization |
 ---
 
 ## FAQ
 
-### Q1: Type Challenges はどのように取り組むべきですか？
+### Q1: How should I tackle Type Challenges?
 
-**A:** Easy から順に取り組みましょう。各問題について以下の手順で進めます:
-1. 問題の要件を理解する（入力と期待される出力を確認）
-2. 使えそうなテクニックを考える（マップ型？再帰？infer？）
-3. 小さなケースから実装する
-4. エッジケースを確認する（空配列、never、boolean、any）
+**A:** Start with Easy and work your way up. For each problem, follow these steps:
+1. Understand the requirements (verify input and expected output)
+2. Think about applicable techniques (mapped type? recursion? infer?)
+3. Implement starting from small cases
+4. Verify edge cases (empty array, never, boolean, any)
 
-https://tsch.js.org/ でブラウザ上で挑戦できます。各問題にはテストケースが付属しているので、自分の解答が正しいか即座に確認できます。
+You can attempt them in your browser at https://tsch.js.org/. Each problem comes with test cases so you can immediately verify your solution.
 
-### Q2: 型レベルプログラミングは実務で役立ちますか？
+### Q2: Is type-level programming useful in real work?
 
-**A:** ライブラリ作者にとっては非常に重要です。アプリケーション開発者にとっても、以下の場面で役立ちます:
-- 型エラーの理解（なぜこの型が通らないのかを理解）
-- ユーティリティ型の活用（DeepPartial, PickByType 等）
-- ライブラリの型定義の読解（Prisma, tRPC, Zod 等）
-- カスタムユーティリティ型の作成
+**A:** It is critically important for library authors. For application developers, it is also useful in scenarios such as:
+- Understanding type errors (knowing why a type doesn't compile)
+- Leveraging utility types (DeepPartial, PickByType, etc.)
+- Reading library type definitions (Prisma, tRPC, Zod, etc.)
+- Creating custom utility types
 
-ただし、過度に複雑な型を書く必要はなく、基本的な型パズルの解法パターン（条件型、infer、マップ型、再帰）を理解していれば十分です。
+That said, you don't need to write overly complex types. As long as you understand the basic type-puzzle solution patterns (conditional types, infer, mapped types, recursion), that is enough.
 
-### Q3: TypeScriptの型システムはチューリング完全ですか？
+### Q3: Is TypeScript's type system Turing complete?
 
-**A:** はい、再帰制限を除けばチューリング完全です。理論的にはあらゆる計算を型レベルで表現できますが、実用上は以下の制限があります:
-- 再帰深度制限（約1000回、TS 4.5+）
-- Unionメンバー数制限（約100,000）
-- コンパイル時間の増大
+**A:** Yes, modulo the recursion limit. In theory you can express any computation at the type level, but in practice there are limits:
+- Recursion depth limit (about 1000, TS 4.5+)
+- Union member count limit (about 100,000)
+- Increasing compile times
 
-型レベルで「できる」ことと「すべき」ことは異なります。ランタイムで簡単にできることを型レベルで複雑に実装する必要はありません。
+What you "can" do at the type level differs from what you "should" do. Don't implement complex things at the type level when they're easy to do at runtime.
 
-### Q4: Equal 型の仕組みがわかりません
+### Q4: I don't understand how the Equal type works
 
-**A:** `Equal<X, Y>` の実装を段階的に説明します:
+**A:** Let's break down `Equal<X, Y>` step by step:
 
 ```typescript
 type Equal<X, Y> =
@@ -1568,64 +1568,64 @@ type Equal<X, Y> =
   (<T>() => T extends Y ? 1 : 2) ? true : false;
 ```
 
-1. `<T>() => T extends X ? 1 : 2` は「T が X のサブタイプなら 1、そうでなければ 2 を返す関数型」
-2. X と Y が同じ型なら、この2つの関数型も同じ → true
-3. X と Y が異なる型なら、関数型も異なる → false
+1. `<T>() => T extends X ? 1 : 2` is "a function type that returns 1 if T is a subtype of X, otherwise 2"
+2. If X and Y are the same type, these two function types are also the same -> true
+3. If X and Y are different types, the function types differ -> false
 
-この方法が extends による比較より正確な理由:
-- `any extends string` は条件分岐で特殊な挙動をする
-- `boolean extends true` は分配されてしまう
-- この関数型パターンはこれらの問題を回避する
+Why this is more accurate than plain extends comparison:
+- `any extends string` behaves specially in conditional branches
+- `boolean extends true` gets distributed
+- This function-type pattern avoids these problems
 
-### Q5: 再帰が深すぎるエラーが出た場合の対処法は？
+### Q5: What do I do when I get a "recursion is too deep" error?
 
-**A:** 以下の対策があります:
-1. **再帰深度カウンターを追加**: タプルの長さで深さを追跡し、上限で停止
-2. **末尾再帰最適化**: TypeScript 4.5+ では一部の再帰が最適化される
-3. **分割統治法**: 問題を小さく分割して再帰の深さを減らす
-4. **ランタイムに移行**: 型レベルでやるべきでない処理かもしれない
+**A:** Possible countermeasures:
+1. **Add a recursion depth counter**: track depth via tuple length and stop at the limit
+2. **Tail-call optimization**: TS 4.5+ optimizes some tail-recursive types
+3. **Divide and conquer**: split the problem to reduce recursion depth
+4. **Move to runtime**: it may not be a job for the type level
 
 ```typescript
-// 末尾再帰の最適化が効くパターン
+// A pattern where tail-call optimization applies
 type TailRecursive<T extends unknown[], Acc extends unknown[] = []> =
   T extends [infer First, ...infer Rest]
-    ? TailRecursive<Rest, [...Acc, First]>  // 末尾位置で再帰
+    ? TailRecursive<Rest, [...Acc, First]>  // recursive call in tail position
     : Acc;
 
-// 末尾再帰でないパターン（最適化されない）
+// Non-tail-recursive pattern (not optimized)
 type NonTailRecursive<T extends unknown[]> =
   T extends [infer First, ...infer Rest]
-    ? [First, ...NonTailRecursive<Rest>]  // スプレッドの後に再帰結果
+    ? [First, ...NonTailRecursive<Rest>]  // spread after the recursive result
     : [];
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 内容 |
+| Item | Content |
 |------|------|
-| 型レベルプログラミング | 条件型、infer、再帰を使った型の計算 |
-| 基本テクニック | マップ型、タプル操作、文字列パターンマッチ |
-| テスト | Equal + Expect で型の正しさを検証 |
+| Type-level programming | Type-level computation using conditional types, infer, and recursion |
+| Basic techniques | Mapped types, tuple operations, string pattern matching |
+| Testing | Verify type correctness with Equal + Expect |
 | Easy | Pick, Readonly, First, TupleToUnion, Includes, Awaited |
 | Medium | DeepReadonly, Flatten, CamelCase, Chainable, Trim |
 | Hard | UnionToIntersection, UnionToTuple, IsUnion, FizzBuzz |
-| 実務での活用 | API型変換、設定ビルダー、イベントシステム |
-| 注意点 | 再帰深度制限、コンパイル速度、IsEqual の正確性 |
+| Practical use | API type conversion, configuration builders, event systems |
+| Caveats | Recursion-depth limit, compilation speed, accuracy of IsEqual |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Reading
 
-- [04-declaration-files.md](./04-declaration-files.md) -- 宣言ファイル
-- [00-conditional-types.md](./00-conditional-types.md) -- 条件型
-- [01-mapped-types.md](./01-mapped-types.md) -- マップ型
-- [02-template-literal-types.md](./02-template-literal-types.md) -- テンプレートリテラル型
+- [04-declaration-files.md](./04-declaration-files.md) -- Declaration files
+- [00-conditional-types.md](./00-conditional-types.md) -- Conditional types
+- [01-mapped-types.md](./01-mapped-types.md) -- Mapped types
+- [02-template-literal-types.md](./02-template-literal-types.md) -- Template literal types
 
 ---
 
-## 参考文献
+## References
 
 1. **Type Challenges** -- https://tsch.js.org/
 2. **TypeScript Type-Level Programming** -- https://type-level-typescript.com/
