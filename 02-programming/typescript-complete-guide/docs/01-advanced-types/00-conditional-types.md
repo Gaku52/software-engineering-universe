@@ -1,56 +1,55 @@
-# 条件型（Conditional Types）
+# Conditional Types
 
-> 型レベルの条件分岐を実現する強力な型機能。extends、infer、分配条件型、再帰的条件型によって高度な型変換を行う。
+> A powerful type feature that enables conditional branching at the type level. With `extends`, `infer`, distributive conditional types, and recursive conditional types, you can perform sophisticated type transformations.
 
-## この章で学ぶこと
+## What you'll learn in this chapter
 
-1. **条件型の基本** -- `T extends U ? X : Y` の構文、型レベルの if/else
-2. **infer キーワード** -- 型パターンマッチングによる型の抽出
-3. **分配条件型** -- Union型の分配処理とその制御
-4. **再帰的条件型** -- 深いネスト構造に対する再帰的な型変換
-5. **実践的なユーティリティ型の構築** -- 条件型を組み合わせた実用的な型の設計
-6. **パフォーマンスとデバッグ** -- 条件型のコンパイル性能と問題解決手法
+1. **Basics of conditional types** -- The `T extends U ? X : Y` syntax, type-level if/else
+2. **The infer keyword** -- Extracting types via type pattern matching
+3. **Distributive conditional types** -- How union types are distributed and how to control it
+4. **Recursive conditional types** -- Recursive type transformations for deeply nested structures
+5. **Building practical utility types** -- Designing useful types by combining conditional types
+6. **Performance and debugging** -- Compile-time performance and troubleshooting techniques
 
+## Prerequisites
 
-## 前提知識
+Before reading this guide, the following knowledge will deepen your understanding:
 
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. 条件型の基本
+## 1. Basics of Conditional Types
 
-### 1.1 基本構文と評価ルール
+### 1.1 Basic Syntax and Evaluation Rules
 
-条件型は TypeScript の型システムにおける「if/else」に相当する。型パラメータが特定の条件を満たすかどうかに基づいて、異なる型を返す。
+A conditional type is the type-system equivalent of an "if/else" in TypeScript. It returns a different type depending on whether a type parameter satisfies a particular condition.
 
 ```typescript
-// 基本構文: T extends U ? TrueType : FalseType
-// 「T が U に代入可能であれば TrueType、そうでなければ FalseType」
+// Basic syntax: T extends U ? TrueType : FalseType
+// "If T is assignable to U, return TrueType; otherwise return FalseType"
 
-// 最も単純な例: 型が string かどうかを判定
+// The simplest example: check whether the type is string
 type IsString<T> = T extends string ? true : false;
 
 type A = IsString<string>;   // true
 type B = IsString<number>;   // false
-type C = IsString<"hello">;  // true（リテラル型もstringのサブタイプ）
-type D = IsString<any>;      // boolean（any は特殊: true | false に展開される）
-type E = IsString<never>;    // never（never は空のユニオンとして扱われる）
+type C = IsString<"hello">;  // true (literal types are subtypes of string)
+type D = IsString<any>;      // boolean (any is special: expands to true | false)
+type E = IsString<never>;    // never (never is treated as an empty union)
 
-// extends の意味: 「サブタイプである」
+// What `extends` means: "is a subtype of"
 // string extends string → true
-// "hello" extends string → true（リテラル型はstringのサブタイプ）
+// "hello" extends string → true (literal types are subtypes of string)
 // number extends string → false
-// string extends "hello" → false（stringは"hello"のスーパータイプ）
+// string extends "hello" → false (string is a supertype of "hello")
 ```
 
-### 1.2 ネストした条件型
+### 1.2 Nested Conditional Types
 
 ```typescript
-// 型に応じて異なる変換を適用
+// Apply different transformations based on the type
 type TypeName<T> =
   T extends string ? "string" :
   T extends number ? "number" :
@@ -74,10 +73,10 @@ type T8 = TypeName<symbol>;       // "symbol"
 type T9 = TypeName<bigint>;       // "bigint"
 ```
 
-### 1.3 実用例: null安全なユーティリティ型
+### 1.3 Practical Example: Null-safe Utility Type
 
 ```typescript
-// null と undefined を除外する型（標準ライブラリの NonNullable）
+// A type that excludes null and undefined (the standard library's NonNullable)
 type NonNullable<T> = T extends null | undefined ? never : T;
 
 type R1 = NonNullable<string | null>;             // string
@@ -85,7 +84,7 @@ type R2 = NonNullable<number | undefined>;         // number
 type R3 = NonNullable<string | null | undefined>;  // string
 type R4 = NonNullable<null | undefined>;           // never
 
-// 実務例: API レスポンスの型からnullを除外
+// Real-world example: exclude null from an API response type
 interface ApiResponse {
   user: {
     name: string;
@@ -94,22 +93,22 @@ interface ApiResponse {
   };
 }
 
-// Nullableなフィールドの型を安全に取得
+// Safely obtain the type of a nullable field
 type UserEmail = NonNullable<ApiResponse["user"]["email"]>;  // string
 type UserPhone = NonNullable<ApiResponse["user"]["phone"]>;  // string
 ```
 
-### 1.4 条件型とジェネリック制約の組み合わせ
+### 1.4 Combining Conditional Types with Generic Constraints
 
 ```typescript
-// ジェネリック制約と条件型を組み合わせた実用パターン
+// A practical pattern combining generic constraints and conditional types
 type MessageFor<T extends { type: string }> =
   T extends { type: "error" } ? { message: string; code: number } :
   T extends { type: "warning" } ? { message: string } :
   T extends { type: "info" } ? { text: string } :
   never;
 
-// 使用例
+// Usage example
 interface ErrorEvent { type: "error"; }
 interface WarningEvent { type: "warning"; }
 interface InfoEvent { type: "info"; }
@@ -118,35 +117,35 @@ type ErrorMsg = MessageFor<ErrorEvent>;    // { message: string; code: number }
 type WarningMsg = MessageFor<WarningEvent>; // { message: string }
 type InfoMsg = MessageFor<InfoEvent>;       // { text: string }
 
-// 関数での使用: 型安全なイベントハンドラ
+// Use in a function: a type-safe event handler
 function handleEvent<T extends { type: string }>(
   event: T,
   handler: (msg: MessageFor<T>) => void
 ): void {
-  // 実装...
+  // implementation...
 }
 ```
 
-### 条件型の評価フロー
+### Conditional Type Evaluation Flow
 
 ```
-  条件型: T extends U ? X : Y
+  Conditional type: T extends U ? X : Y
 
-  評価プロセス:
+  Evaluation process:
   +----------+
-  | T は U の |---Yes---> X を返す
-  | サブタイプ|
-  | か？      |---No----> Y を返す
+  | Is T a   |---Yes---> return X
+  | subtype  |
+  | of U?    |---No----> return Y
   +----------+
 
-  例: IsString<number>
+  Example: IsString<number>
   +----------+
   | number   |
   | extends  |---No----> false
   | string?  |
   +----------+
 
-  複数段のネスト:
+  Multi-level nesting:
   TypeName<string[]>
   +----------+
   | string[] |           +----------+
@@ -154,13 +153,13 @@ function handleEvent<T extends { type: string }>(
   | string?  |           | extends  |---No----> | ...      |
   +----------+           | number?  |           |          |---...
                          +----------+           +----------+
-                         ...最終的に "array" に到達
+                         ...eventually reaches "array"
 ```
 
-### 1.5 条件型と関数オーバーロードの比較
+### 1.5 Comparing Conditional Types and Function Overloads
 
 ```typescript
-// 関数オーバーロードによるアプローチ
+// Approach using function overloads
 function processValue(value: string): string[];
 function processValue(value: number): number;
 function processValue(value: string | number): string[] | number {
@@ -170,7 +169,7 @@ function processValue(value: string | number): string[] | number {
   return value * 2;
 }
 
-// 条件型によるアプローチ（よりスケーラブル）
+// Approach using conditional types (more scalable)
 type ProcessResult<T> =
   T extends string ? string[] :
   T extends number ? number :
@@ -185,55 +184,55 @@ function processValueGeneric<T extends string | number>(
   return (value as number) * 2 as ProcessResult<T>;
 }
 
-// 両方とも型安全に動作
+// Both work in a type-safe manner
 const strResult = processValueGeneric("a,b,c");  // string[]
 const numResult = processValueGeneric(42);         // number
 ```
 
-### 1.6 extends の意味を深く理解する
+### 1.6 Understanding the Meaning of `extends` Deeply
 
 ```typescript
-// extends は「サブタイプ関係」を判定する
-// TypeScript のサブタイプ関係は構造的型付け（structural typing）に基づく
+// `extends` checks the "subtype relationship"
+// Subtype relationships in TypeScript are based on structural typing
 
-// 基本的なサブタイプ関係
-type Test1 = "hello" extends string ? true : false;     // true（リテラル→一般）
-type Test2 = string extends "hello" ? true : false;     // false（一般→リテラルは不可）
+// Basic subtype relationships
+type Test1 = "hello" extends string ? true : false;     // true (literal -> general)
+type Test2 = string extends "hello" ? true : false;     // false (general -> literal is not allowed)
 type Test3 = 42 extends number ? true : false;          // true
 type Test4 = true extends boolean ? true : false;       // true
 
-// オブジェクト型のサブタイプ: プロパティが多いほうがサブタイプ
+// Subtypes of object types: more properties means a subtype
 type Test5 = { a: string; b: number } extends { a: string } ? true : false;  // true
 type Test6 = { a: string } extends { a: string; b: number } ? true : false;  // false
 
-// 関数型のサブタイプ: 反変性（引数は逆方向）
+// Subtypes of function types: contravariance (parameters go in the opposite direction)
 type Test7 = ((x: string) => void) extends ((x: string | number) => void) ? true : false;
-// false（引数は反変）
+// false (parameters are contravariant)
 
 type Test8 = ((x: string | number) => void) extends ((x: string) => void) ? true : false;
-// true（より広い引数型を受け取れる関数はサブタイプ）
+// true (a function that accepts a wider parameter type is a subtype)
 
-// any と unknown の特殊性
-type Test9 = any extends string ? true : false;      // boolean（true | false）
+// The peculiarities of any and unknown
+type Test9 = any extends string ? true : false;      // boolean (true | false)
 type Test10 = unknown extends string ? true : false;  // false
 type Test11 = string extends any ? true : false;      // true
 type Test12 = string extends unknown ? true : false;  // true
 
-// never の特殊性
-type Test13 = never extends string ? true : false;    // never（分配で空のユニオン）
+// The peculiarity of never
+type Test13 = never extends string ? true : false;    // never (empty union due to distribution)
 type TestNeverWrapped = [never] extends [string] ? true : false;  // true
 ```
 
 ---
 
-## 2. infer キーワード
+## 2. The infer Keyword
 
-### 2.1 基本的な型の抽出
+### 2.1 Basic Type Extraction
 
-`infer` キーワードは条件型の `extends` 節内で使用し、型のパターンマッチングにより部分的な型を抽出する。
+The `infer` keyword is used inside the `extends` clause of a conditional type, and it extracts a partial type via type pattern matching.
 
 ```typescript
-// 関数の戻り値型を取得（標準ライブラリの ReturnType）
+// Get the return type of a function (the standard library's ReturnType)
 type ReturnType<T> = T extends (...args: any[]) => infer R ? R : never;
 
 type A = ReturnType<() => string>;             // string
@@ -241,38 +240,38 @@ type B = ReturnType<(x: number) => boolean>;   // boolean
 type C = ReturnType<typeof Math.max>;          // number
 type D = ReturnType<typeof JSON.parse>;        // any
 
-// Promiseの中身を取得（標準ライブラリの Awaited）
+// Get the value inside a Promise (the standard library's Awaited)
 type Awaited<T> = T extends Promise<infer U> ? Awaited<U> : T;
 
 type E = Awaited<Promise<string>>;            // string
-type F = Awaited<Promise<Promise<number>>>;   // number（再帰的に展開）
-type G = Awaited<string>;                     // string（Promiseでなければそのまま）
+type F = Awaited<Promise<Promise<number>>>;   // number (recursively unwrapped)
+type G = Awaited<string>;                     // string (returned as-is if not a Promise)
 
-// 関数のパラメータ型を取得（標準ライブラリの Parameters）
+// Get the parameter types of a function (the standard library's Parameters)
 type Parameters<T> = T extends (...args: infer P) => any ? P : never;
 
 type H = Parameters<(a: string, b: number) => void>;  // [string, number]
 type I = Parameters<() => void>;                        // []
 
-// 配列の要素型を取得
+// Get the element type of an array
 type ElementType<T> = T extends (infer U)[] ? U : never;
 
 type J = ElementType<string[]>;   // string
 type K = ElementType<number[]>;   // number
-type L = ElementType<string>;     // never（配列でないため）
+type L = ElementType<string>;     // never (because it is not an array)
 ```
 
-### 2.2 infer の高度な使い方
+### 2.2 Advanced Use of infer
 
 ```typescript
-// オブジェクトのプロパティ型を抽出
+// Extract the type of an object's property
 type PropType<T, K extends string> =
   T extends { [key in K]: infer V } ? V : never;
 
 type UserName = PropType<{ name: string; age: number }, "name">;  // string
 type UserAge = PropType<{ name: string; age: number }, "age">;    // number
 
-// テンプレートリテラル型でのinfer
+// infer with template literal types
 type ExtractRouteParams<T extends string> =
   T extends `${string}:${infer Param}/${infer Rest}`
     ? Param | ExtractRouteParams<`/${Rest}`>
@@ -283,7 +282,7 @@ type ExtractRouteParams<T extends string> =
 type Params = ExtractRouteParams<"/users/:userId/posts/:postId">;
 // "userId" | "postId"
 
-// コンストラクタのインスタンス型を取得（標準ライブラリの InstanceType）
+// Get the instance type of a constructor (the standard library's InstanceType)
 type InstanceType<T> = T extends new (...args: any[]) => infer R ? R : never;
 
 class MyClass {
@@ -292,17 +291,17 @@ class MyClass {
 
 type MyInstance = InstanceType<typeof MyClass>;  // MyClass
 
-// コンストラクタのパラメータ型を取得（標準ライブラリの ConstructorParameters）
+// Get the parameter types of a constructor (the standard library's ConstructorParameters)
 type ConstructorParameters<T> =
   T extends new (...args: infer P) => any ? P : never;
 
 type MyCtorParams = ConstructorParameters<typeof MyClass>;  // [string]
 ```
 
-### 2.3 複数の infer を使ったパターンマッチング
+### 2.3 Pattern Matching with Multiple infers
 
 ```typescript
-// 関数型から引数と戻り値を同時に抽出
+// Extract both arguments and return type from a function type at once
 type FuncParts<T> =
   T extends (...args: infer A) => infer R
     ? { args: A; returnType: R }
@@ -311,7 +310,7 @@ type FuncParts<T> =
 type Parts = FuncParts<(x: string, y: number) => boolean>;
 // { args: [x: string, y: number]; returnType: boolean }
 
-// Map型からキーと値を同時に抽出
+// Extract both key and value from a Map type at once
 type MapParts<T> =
   T extends Map<infer K, infer V>
     ? { key: K; value: V }
@@ -320,7 +319,7 @@ type MapParts<T> =
 type MP = MapParts<Map<string, number>>;
 // { key: string; value: number }
 
-// タプル型の先頭と残りを分割
+// Split a tuple into its head and tail
 type Head<T extends any[]> =
   T extends [infer H, ...any[]] ? H : never;
 
@@ -330,32 +329,32 @@ type Tail<T extends any[]> =
 type H = Head<[1, 2, 3]>;  // 1
 type TT = Tail<[1, 2, 3]>; // [2, 3]
 
-// タプル型の最後の要素を取得
+// Get the last element of a tuple
 type Last<T extends any[]> =
   T extends [...any[], infer L] ? L : never;
 
 type LL = Last<[1, 2, 3]>;  // 3
 
-// タプル型から最後の要素を除いた残りを取得
+// Get all but the last element of a tuple
 type Init<T extends any[]> =
   T extends [...infer I, any] ? I : never;
 
 type II = Init<[1, 2, 3]>;  // [1, 2]
 ```
 
-### 2.4 infer と共変位置・反変位置
+### 2.4 infer in Covariant and Contravariant Positions
 
 ```typescript
-// infer の位置によって推論結果が異なる
+// Inference results differ depending on the position of infer
 
-// 共変位置（covariant position）での infer: ユニオン型が推論される
+// infer in a covariant position: a union type is inferred
 type Foo<T> =
   T extends { a: infer U; b: infer U } ? U : never;
 
 type FooResult = Foo<{ a: string; b: number }>;
-// string | number（共変位置なのでユニオン）
+// string | number (union, because of covariant position)
 
-// 反変位置（contravariant position）での infer: インターセクション型が推論される
+// infer in a contravariant position: an intersection type is inferred
 type Bar<T> =
   T extends {
     a: (x: infer U) => void;
@@ -366,9 +365,9 @@ type BarResult = Bar<{
   a: (x: string) => void;
   b: (x: number) => void;
 }>;
-// string & number → never（stringとnumberのインターセクションは存在しない）
+// string & number → never (the intersection of string and number does not exist)
 
-// 実用例: 関数のオーバーロードからすべてのパラメータ型を取得
+// Practical example: get all parameter types from an overloaded function
 type UnionOfParams<T> =
   T extends {
     (x: infer A): any;
@@ -376,22 +375,22 @@ type UnionOfParams<T> =
   } ? A | B : never;
 ```
 
-### 2.5 infer を使った文字列操作
+### 2.5 String Manipulation with infer
 
 ```typescript
-// 文字列の先頭文字を取得
+// Get the first character of a string
 type FirstChar<T extends string> =
   T extends `${infer F}${string}` ? F : never;
 
 type FC = FirstChar<"hello">;  // "h"
 
-// 文字列の残り部分を取得
+// Get the rest of the string
 type RestOfString<T extends string> =
   T extends `${string}${infer R}` ? R : never;
 
 type RS = RestOfString<"hello">;  // "ello"
 
-// 文字列を指定文字で分割
+// Split a string by a specified delimiter
 type Split<S extends string, D extends string> =
   S extends `${infer Head}${D}${infer Tail}`
     ? [Head, ...Split<Tail, D>]
@@ -399,7 +398,7 @@ type Split<S extends string, D extends string> =
 
 type Splitted = Split<"a.b.c", ".">;  // ["a", "b", "c"]
 
-// 文字列の置換
+// String replacement
 type Replace<
   S extends string,
   From extends string,
@@ -411,7 +410,7 @@ type Replace<
 type Replaced = Replace<"hello world", "world", "TypeScript">;
 // "hello TypeScript"
 
-// すべてを置換
+// Replace all occurrences
 type ReplaceAll<
   S extends string,
   From extends string,
@@ -424,97 +423,97 @@ type ReplacedAll = ReplaceAll<"a-b-c-d", "-", ".">;
 // "a.b.c.d"
 ```
 
-### infer の位置と抽出される型
+### infer Position and the Extracted Type
 
 ```
-  パターン                          infer の位置       抽出される型
+  Pattern                           infer position    Extracted type
 +-------------------------------------+----------------+------------------+
-| T extends (infer U)[]               | 配列の要素     | 要素型           |
-| T extends (...args: infer P) => any | 関数の引数     | パラメータタプル |
-| T extends (...args: any) => infer R | 関数の戻り値   | 戻り値型         |
-| T extends Promise<infer U>          | Promiseの中身  | 解決値の型       |
-| T extends Map<infer K, infer V>     | Mapの型引数    | キーと値の型     |
-| T extends Set<infer U>              | Setの型引数    | 要素型           |
-| T extends { a: infer U }            | プロパティ値   | プロパティの型   |
-| T extends [infer H, ...infer T]     | タプルの分割   | 先頭と残り       |
-| T extends `${infer A}.${infer B}`   | 文字列の分割   | 部分文字列       |
-| T extends new (...args: infer P)... | コンストラクタ | コンストラクタ引数|
+| T extends (infer U)[]               | array element  | element type     |
+| T extends (...args: infer P) => any | function args  | parameter tuple  |
+| T extends (...args: any) => infer R | function ret   | return type      |
+| T extends Promise<infer U>          | Promise value  | resolved type    |
+| T extends Map<infer K, infer V>     | Map type args  | key & value types|
+| T extends Set<infer U>              | Set type arg   | element type     |
+| T extends { a: infer U }            | property value | property type    |
+| T extends [infer H, ...infer T]     | tuple split    | head & rest      |
+| T extends `${infer A}.${infer B}`   | string split   | substrings       |
+| T extends new (...args: infer P)... | constructor    | constructor args |
 +-------------------------------------+----------------+------------------+
 ```
 
 ---
 
-## 3. 分配条件型
+## 3. Distributive Conditional Types
 
-### 3.1 分配（Distribution）の仕組み
+### 3.1 How Distribution Works
 
-条件型にユニオン型が「裸の（naked）」型パラメータとして渡されると、ユニオンの各メンバーに対して個別に条件型が評価される。これを「分配（distribution）」と呼ぶ。
+When a union type is passed to a conditional type as a "naked" type parameter, the conditional type is evaluated individually for each member of the union. This is called "distribution".
 
 ```typescript
-// Union型が条件型に渡されると「分配」される
+// When a union type is passed to a conditional type, it is "distributed"
 type ToArray<T> = T extends any ? T[] : never;
 
-// string | number が渡されると:
+// When string | number is passed:
 // ToArray<string> | ToArray<number>
 // = string[] | number[]
 type A = ToArray<string | number>;  // string[] | number[]
 
-// 分配が起こる条件:
-// 1. 条件型の被チェック型が「裸の型パラメータ」であること
-// 2. 型パラメータにユニオン型が渡されること
+// Conditions for distribution to occur:
+// 1. The checked type in the conditional type must be a "naked type parameter"
+// 2. The type parameter must be a union type
 
-// 分配を防ぎたい場合は [] で囲む
+// To prevent distribution, wrap with []
 type ToArrayNonDist<T> = [T] extends [any] ? T[] : never;
 
 type B = ToArrayNonDist<string | number>;  // (string | number)[]
 ```
 
-### 3.2 分配の詳細な挙動
+### 3.2 Detailed Behavior of Distribution
 
 ```typescript
-// 分配が起こるパターンの詳細
+// Detailed patterns where distribution occurs
 
-// パターン1: 裸の型パラメータ → 分配する
+// Pattern 1: naked type parameter → distributes
 type Dist1<T> = T extends string ? T : never;
 type R1 = Dist1<string | number | boolean>;  // string
 
-// パターン2: 型パラメータが別の型で包まれている → 分配しない
+// Pattern 2: type parameter wrapped by another type → does not distribute
 type NoDist1<T> = [T] extends [string] ? T : never;
-type R2 = NoDist1<string | number>;  // never（ユニオン全体がstringではない）
+type R2 = NoDist1<string | number>;  // never (the entire union is not a string)
 
-// パターン3: 型パラメータがプロパティとして使われている → 分配しない
+// Pattern 3: type parameter used as a property → does not distribute
 type NoDist2<T> = { value: T } extends { value: string } ? T : never;
 type R3 = NoDist2<string | number>;  // never
 
-// パターン4: 型パラメータが配列の要素として使われている → 分配しない
+// Pattern 4: type parameter used as the element of an array → does not distribute
 type NoDist3<T> = T[] extends string[] ? T : never;
 type R4 = NoDist3<string | number>;  // never
 
-// 重要: 分配はextends句の左辺の型パラメータのみに適用
+// Important: distribution applies only to type parameters on the left side of the extends clause
 type Example<T, U> = T extends U ? T : never;
-// T が分配される（左辺）、U は分配されない（右辺）
+// T is distributed (left side), U is not distributed (right side)
 type R5 = Example<"a" | "b" | "c", "a" | "c">;  // "a" | "c"
 ```
 
-### 3.3 分配条件型の実用例
+### 3.3 Practical Examples of Distributive Conditional Types
 
 ```typescript
-// Union型からnullとundefinedを除外（NonNullable の実装）
+// Exclude null and undefined from a union type (implementation of NonNullable)
 type MyNonNullable<T> = T extends null | undefined ? never : T;
 
 type A = MyNonNullable<string | null | undefined>;  // string
 
-// Union型から特定の型を抽出（Extract の実装）
+// Extract a specific type from a union (implementation of Extract)
 type MyExtract<T, U> = T extends U ? T : never;
 
 type B = MyExtract<"a" | "b" | "c", "a" | "c">;  // "a" | "c"
 
-// Union型から特定の型を除外（Exclude の実装）
+// Exclude a specific type from a union (implementation of Exclude)
 type MyExclude<T, U> = T extends U ? never : T;
 
 type C = MyExclude<"a" | "b" | "c", "a">;  // "b" | "c"
 
-// 判別共用体から特定のメンバーを抽出
+// Extract a specific member from a discriminated union
 type Action =
   | { type: "fetch"; url: string }
   | { type: "save"; data: unknown }
@@ -526,7 +525,7 @@ type FetchAction = Extract<Action, { type: "fetch" }>;
 type NonFetchAction = Exclude<Action, { type: "fetch" }>;
 // { type: "save"; data: unknown } | { type: "delete"; id: string }
 
-// オブジェクト型のフィルタリング: 特定の型のプロパティだけを残す
+// Filtering an object type: keep only properties of a specific type
 type FilterByValueType<T, ValueType> = {
   [K in keyof T as T[K] extends ValueType ? K : never]: T[K];
 };
@@ -545,23 +544,24 @@ type NumberProps = FilterByValueType<User, number>;
 // { age: number }
 ```
 
-### 3.4 分配条件型と never
+### 3.4 Distributive Conditional Types and never
 
 ```typescript
-// never はユニオン型の「空」として扱われる
-// 分配条件型に never を渡すと、処理すべきメンバーがないため結果も never
+// `never` is treated as the "empty" union type
+// When `never` is passed to a distributive conditional type, there are no
+// members to process, so the result is also `never`
 
 type Test<T> = T extends string ? "yes" : "no";
-type Result1 = Test<never>;  // never（"yes" でも "no" でもない）
+type Result1 = Test<never>;  // never (neither "yes" nor "no")
 
-// never を検出したい場合は分配を防ぐ
+// To detect `never`, prevent distribution
 type IsNever<T> = [T] extends [never] ? true : false;
 
 type Result2 = IsNever<never>;       // true
 type Result3 = IsNever<string>;      // false
 type Result4 = IsNever<undefined>;   // false
 
-// 実用例: 型がneverかどうかで処理を分岐
+// Practical example: branch processing based on whether the type is never
 type SafeReturn<T> =
   [T] extends [never]
     ? undefined
@@ -570,21 +570,22 @@ type SafeReturn<T> =
 type R1 = SafeReturn<string>;  // string
 type R2 = SafeReturn<never>;   // undefined
 
-// Union型が空かどうかの判定
+// Determine whether a union type is empty
 type IsEmptyUnion<T> = [T] extends [never] ? true : false;
 
-// never と void の違い
-type TestVoid = Test<void>;    // "no"（void はユニオンメンバーとして評価される）
-type TestNever = Test<never>;  // never（空のユニオン）
+// Difference between never and void
+type TestVoid = Test<void>;    // "no" (void is evaluated as a union member)
+type TestNever = Test<never>;  // never (empty union)
 ```
 
-### 3.5 分配条件型を使ったユニオン操作
+### 3.5 Union Manipulation Using Distributive Conditional Types
 
 ```typescript
-// ユニオン型のメンバー数を数える（概念的なアプローチ）
-// 直接的にはできないが、タプルに変換して長さを取得する手法がある
+// Counting the members of a union type (a conceptual approach)
+// Although it cannot be done directly, there is a technique to convert it to
+// a tuple and read its length
 
-// ユニオンをタプルに変換（順序は保証されない）
+// Convert a union to a tuple (the order is not guaranteed)
 type UnionToIntersection<U> =
   (U extends any ? (k: U) => void : never) extends (k: infer I) => void
     ? I
@@ -604,7 +605,7 @@ type UnionToTuple<T, Last = LastOfUnion<T>> =
 
 type Tuple = UnionToTuple<"a" | "b" | "c">;  // ["a", "b", "c"]
 
-// ユニオン型のすべてのペアを生成
+// Generate every pair from a union type
 type Pairs<T, U = T> =
   T extends any
     ? U extends any
@@ -620,20 +621,20 @@ type AllPairs = Pairs<"a" | "b" | "c">;
 
 ---
 
-## 4. 再帰的条件型
+## 4. Recursive Conditional Types
 
-### 4.1 深いオブジェクトの型変換
+### 4.1 Deep Object Type Transformations
 
 ```typescript
-// ネストしたオブジェクトの深いReadonly
+// Deep Readonly for nested objects
 type DeepReadonly<T> =
   T extends (...args: any[]) => any
-    ? T  // 関数はそのまま
+    ? T  // functions are kept as-is
     : T extends any[]
-      ? DeepReadonlyArray<T>  // 配列は別処理
+      ? DeepReadonlyArray<T>  // arrays are handled separately
       : T extends object
         ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
-        : T;  // プリミティブはそのまま
+        : T;  // primitives are kept as-is
 
 type DeepReadonlyArray<T extends any[]> =
   readonly [...{ [K in keyof T]: DeepReadonly<T[K]> }];
@@ -654,11 +655,11 @@ interface Config {
 }
 
 type ReadonlyConfig = DeepReadonly<Config>;
-// 全てのネストされたプロパティがreadonly
-// features は readonly string[]
-// nested.list は readonly { readonly id: number; readonly name: string }[]
+// All nested properties become readonly
+// features becomes readonly string[]
+// nested.list becomes readonly { readonly id: number; readonly name: string }[]
 
-// 深いPartial
+// Deep Partial
 type DeepPartial<T> =
   T extends (...args: any[]) => any
     ? T
@@ -669,9 +670,9 @@ type DeepPartial<T> =
         : T;
 
 type PartialConfig = DeepPartial<Config>;
-// 全てのネストされたプロパティがオプショナル
+// All nested properties become optional
 
-// 深いRequired
+// Deep Required
 type DeepRequired<T> =
   T extends (...args: any[]) => any
     ? T
@@ -682,21 +683,21 @@ type DeepRequired<T> =
         : T;
 ```
 
-### 4.2 フラット化型
+### 4.2 Flatten Types
 
 ```typescript
-// フラット化（ネストした配列を1段階平坦化）
+// Flatten (one-level flattening of a nested array)
 type Flatten<T> = T extends (infer U)[] ? U : T;
 
 type A = Flatten<string[][]>;  // string[]
 type B = Flatten<string[]>;    // string
 
-// 深いフラット化
+// Deep flattening
 type DeepFlatten<T> = T extends (infer U)[] ? DeepFlatten<U> : T;
 
 type C = DeepFlatten<string[][][]>;  // string
 
-// 指定した深さまでフラット化
+// Flatten up to a specified depth
 type FlattenDepth<
   T extends any[],
   Depth extends number = 1,
@@ -713,16 +714,16 @@ type FD1 = FlattenDepth<[1, [2, [3, [4]]]], 1>;  // [1, 2, [3, [4]]]
 type FD2 = FlattenDepth<[1, [2, [3, [4]]]], 2>;  // [1, 2, 3, [4]]
 ```
 
-### 4.3 型レベルの文字列操作（再帰的）
+### 4.3 Type-level String Manipulation (Recursive)
 
 ```typescript
-// 文字列を大文字に変換
+// Convert a string to upper case
 type UpperCase<S extends string> =
   S extends `${infer First}${infer Rest}`
     ? `${Uppercase<First>}${UpperCase<Rest>}`
     : S;
 
-// キャメルケースをスネークケースに変換
+// Convert camelCase to snake_case
 type CamelToSnake<S extends string> =
   S extends `${infer First}${infer Rest}`
     ? First extends Uppercase<First>
@@ -735,7 +736,7 @@ type CamelToSnake<S extends string> =
 type Snake = CamelToSnake<"camelCaseString">;
 // "camel_case_string"
 
-// スネークケースをキャメルケースに変換
+// Convert snake_case to camelCase
 type SnakeToCamel<S extends string> =
   S extends `${infer Head}_${infer Tail}`
     ? `${Head}${Capitalize<SnakeToCamel<Tail>>}`
@@ -744,7 +745,7 @@ type SnakeToCamel<S extends string> =
 type Camel = SnakeToCamel<"snake_case_string">;
 // "snakeCaseString"
 
-// ケバブケースをキャメルケースに変換
+// Convert kebab-case to camelCase
 type KebabToCamel<S extends string> =
   S extends `${infer Head}-${infer Tail}`
     ? `${Head}${Capitalize<KebabToCamel<Tail>>}`
@@ -753,7 +754,7 @@ type KebabToCamel<S extends string> =
 type Kebab = KebabToCamel<"kebab-case-string">;
 // "kebabCaseString"
 
-// 文字列の長さを取得
+// Get the length of a string
 type StringLength<
   S extends string,
   Counter extends any[] = []
@@ -764,10 +765,10 @@ type StringLength<
 type Len = StringLength<"hello">;  // 5
 ```
 
-### 4.4 型レベルの算術演算
+### 4.4 Type-level Arithmetic
 
 ```typescript
-// 型レベルの加算
+// Type-level addition
 type Add<A extends number, B extends number> =
   [...BuildTuple<A>, ...BuildTuple<B>]["length"] & number;
 
@@ -778,7 +779,7 @@ type BuildTuple<
 
 type Sum = Add<3, 4>;  // 7
 
-// 型レベルの比較
+// Type-level comparison
 type GreaterThan<
   A extends number,
   B extends number,
@@ -792,7 +793,7 @@ type GreaterThan<
 type GT = GreaterThan<5, 3>;  // true
 type LT = GreaterThan<2, 4>;  // false
 
-// 型レベルの範囲生成
+// Type-level range generation
 type Range<
   Start extends number,
   End extends number,
@@ -805,10 +806,10 @@ type Range<
 type R = Range<1, 5>;  // [1, 2, 3, 4, 5]
 ```
 
-### 4.5 ドットパスによるネストプロパティアクセス
+### 4.5 Nested Property Access via Dot Paths
 
 ```typescript
-// パスからドット区切りのキーを生成
+// Generate dot-separated keys from a path
 type DotPath<T, Prefix extends string = ""> =
   T extends object
     ? {
@@ -842,7 +843,7 @@ type SettingPaths = DotPath<Settings>;
 // | "theme.font.family" | "theme.font.weight"
 // | "user" | "user.name" | "user.preferences" | "user.preferences.darkMode"
 
-// ドットパスで値の型を取得
+// Get the type of a value at a dot path
 type PathValue<T, P extends string> =
   P extends `${infer Key}.${infer Rest}`
     ? Key extends keyof T
@@ -856,7 +857,7 @@ type ThemeColor = PathValue<Settings, "theme.color">;      // string
 type FontWeight = PathValue<Settings, "theme.font.weight">; // number
 type DarkMode = PathValue<Settings, "user.preferences.darkMode">; // boolean
 
-// 型安全なgetByPath関数
+// Type-safe getByPath function
 function getByPath<T, P extends DotPath<T>>(
   obj: T,
   path: P
@@ -869,23 +870,23 @@ function getByPath<T, P extends DotPath<T>>(
   return result;
 }
 
-// 使用例
+// Usage example
 declare const settings: Settings;
-const color = getByPath(settings, "theme.color");           // string型
-const weight = getByPath(settings, "theme.font.weight");    // number型
-// getByPath(settings, "theme.invalid");  // コンパイルエラー
+const color = getByPath(settings, "theme.color");           // typed as string
+const weight = getByPath(settings, "theme.font.weight");    // typed as number
+// getByPath(settings, "theme.invalid");  // compile error
 ```
 
 ---
 
-## 5. 実践的なユーティリティ型の構築
+## 5. Building Practical Utility Types
 
-### 5.1 APIレスポンスの型変換
+### 5.1 API Response Type Transformation
 
 ```typescript
-// APIレスポンスのフィールドを自動変換する型
+// A type that automatically transforms API response fields
 
-// スネークケースのキーをキャメルケースに変換
+// Convert snake_case keys to camelCase
 type SnakeToCamelKeys<T> =
   T extends any[]
     ? { [K in keyof T]: SnakeToCamelKeys<T[K]> }
@@ -897,7 +898,7 @@ type SnakeToCamelKeys<T> =
         }
       : T;
 
-// APIレスポンス型（サーバーはスネークケースで返す）
+// API response type (the server returns snake_case)
 interface ApiUserResponse {
   user_id: number;
   first_name: string;
@@ -911,7 +912,7 @@ interface ApiUserResponse {
   };
 }
 
-// フロントエンド用にキャメルケースに変換
+// Convert to camelCase for the frontend
 type UserData = SnakeToCamelKeys<ApiUserResponse>;
 // {
 //   userId: number;
@@ -926,7 +927,7 @@ type UserData = SnakeToCamelKeys<ApiUserResponse>;
 //   };
 // }
 
-// 日付文字列をDateに変換する型
+// A type that converts date strings to Date
 type ConvertDates<T> =
   T extends object
     ? {
@@ -939,15 +940,15 @@ type ConvertDates<T> =
     : T;
 
 type UserWithDates = ConvertDates<UserData>;
-// createdAt が Date 型に変換される
+// createdAt is converted to the Date type
 ```
 
-### 5.2 フォームバリデーション型
+### 5.2 Form Validation Types
 
 ```typescript
-// フォームのバリデーションルールを型安全に定義
+// Define form validation rules in a type-safe way
 
-// バリデーションルール
+// Validation rules
 interface ValidationRules {
   required: boolean;
   minLength: number;
@@ -958,7 +959,7 @@ interface ValidationRules {
   custom: (value: any) => boolean;
 }
 
-// フォームフィールドの型からバリデーションエラー型を自動生成
+// Auto-generate a validation-error type from the form-field type
 type ValidationErrors<T> = {
   [K in keyof T]?: T[K] extends object
     ? T[K] extends any[]
@@ -967,7 +968,7 @@ type ValidationErrors<T> = {
     : string;
 };
 
-// フォームの状態型
+// Form state type
 type FormState<T> = {
   values: T;
   errors: ValidationErrors<T>;
@@ -976,7 +977,7 @@ type FormState<T> = {
   isSubmitting: boolean;
 };
 
-// 使用例
+// Usage example
 interface LoginForm {
   email: string;
   password: string;
@@ -992,7 +993,7 @@ type LoginFormState = FormState<LoginForm>;
 //   isSubmitting: boolean;
 // }
 
-// ネストしたフォーム
+// Nested form
 interface RegistrationForm {
   personal: {
     firstName: string;
@@ -1027,18 +1028,18 @@ type RegistrationErrors = ValidationErrors<RegistrationForm>;
 // }
 ```
 
-### 5.3 状態管理の型安全な設計
+### 5.3 Type-safe State Management Design
 
 ```typescript
-// Redux風の型安全なアクション定義
+// Redux-style type-safe action definitions
 
-// アクションクリエータの型を定義
+// Define the type of an action creator
 type ActionCreator<T extends string, P = void> =
   P extends void
     ? { type: T }
     : { type: T; payload: P };
 
-// アクションの型マップからアクション型を自動生成
+// Auto-generate action types from a type map of actions
 type ActionMap = {
   INCREMENT: void;
   DECREMENT: void;
@@ -1050,12 +1051,12 @@ type ActionMap = {
   RESET: void;
 };
 
-// マップからすべてのアクション型を生成
+// Generate all action types from the map
 type Actions = {
   [K in keyof ActionMap]: ActionCreator<K & string, ActionMap[K]>;
 }[keyof ActionMap];
 
-// Actions は以下のユニオン型:
+// Actions is the following union type:
 // | { type: "INCREMENT" }
 // | { type: "DECREMENT" }
 // | { type: "SET_COUNT"; payload: number }
@@ -1065,7 +1066,7 @@ type Actions = {
 // | { type: "REMOVE_ITEM"; payload: string }
 // | { type: "RESET" }
 
-// reducer の型安全な定義
+// Type-safe reducer definition
 type State = {
   count: number;
   name: string;
@@ -1078,15 +1079,15 @@ function reducer(state: State, action: Actions): State {
     case "INCREMENT":
       return { ...state, count: state.count + 1 };
     case "SET_COUNT":
-      return { ...state, count: action.payload }; // payload は number
+      return { ...state, count: action.payload }; // payload is number
     case "SET_USER":
-      return { ...state, user: action.payload };   // payload は { name: string; age: number }
+      return { ...state, user: action.payload };   // payload is { name: string; age: number }
     case "ADD_ITEM":
       return { ...state, items: [...state.items, action.payload] };
     case "REMOVE_ITEM":
       return {
         ...state,
-        items: state.items.filter(i => i.id !== action.payload),  // payload は string
+        items: state.items.filter(i => i.id !== action.payload),  // payload is string
       };
     case "RESET":
       return { count: 0, name: "", user: null, items: [] };
@@ -1096,10 +1097,10 @@ function reducer(state: State, action: Actions): State {
 }
 ```
 
-### 5.4 型安全なイベントエミッタ
+### 5.4 Type-safe Event Emitter
 
 ```typescript
-// イベントマップの型定義
+// Define an event map type
 interface EventMap {
   connect: { host: string; port: number };
   disconnect: { reason: string };
@@ -1109,7 +1110,7 @@ interface EventMap {
   "user:leave": { userId: string };
 }
 
-// 条件型を使って型安全なイベントエミッタを定義
+// Define a type-safe event emitter using conditional types
 type EventHandler<T> = (event: T) => void;
 
 type EventHandlers<M> = {
@@ -1141,29 +1142,29 @@ class TypedEventEmitter<M extends Record<string, any>> {
   }
 }
 
-// 使用例
+// Usage example
 const emitter = new TypedEventEmitter<EventMap>();
 
 emitter.on("connect", (event) => {
-  // event は { host: string; port: number } と推論される
+  // event is inferred as { host: string; port: number }
   console.log(`Connected to ${event.host}:${event.port}`);
 });
 
 emitter.on("message", (event) => {
-  // event は { from: string; text: string; timestamp: number } と推論される
+  // event is inferred as { from: string; text: string; timestamp: number }
   console.log(`${event.from}: ${event.text}`);
 });
 
-// emitter.on("connect", (event: { invalid: true }) => {}); // コンパイルエラー
-// emitter.emit("message", { invalid: true }); // コンパイルエラー
+// emitter.on("connect", (event: { invalid: true }) => {}); // compile error
+// emitter.emit("message", { invalid: true }); // compile error
 ```
 
-### 5.5 ビルダーパターンの型安全な実装
+### 5.5 Type-safe Implementation of the Builder Pattern
 
 ```typescript
-// 条件型を使った型安全なビルダー
+// A type-safe builder using conditional types
 
-// 必須フィールドの追跡
+// Track required fields
 type RequiredFields = {
   name: string;
   age: number;
@@ -1176,62 +1177,62 @@ type OptionalFields = {
   bio?: string;
 };
 
-// ビルダーの状態を型パラメータで追跡
+// Track the builder's state in a type parameter
 type BuilderState<
   Required extends Record<string, any>,
   Set extends string = never
 > = {
-  // すべての必須フィールドが設定済みなら build() が使える
+  // build() is callable only when all required fields have been set
   build: [Exclude<keyof Required, Set>] extends [never]
     ? () => Required & OptionalFields
     : never;
 } & {
-  // まだ設定されていないフィールドのセッター
+  // Setters for fields that have not been set yet
   [K in Exclude<keyof Required, Set> & string as `set${Capitalize<K>}`]:
     (value: Required[K]) => BuilderState<Required, Set | K>;
 } & {
-  // オプショナルフィールドのセッター
+  // Setters for optional fields
   [K in keyof OptionalFields & string as `set${Capitalize<K>}`]:
     (value: NonNullable<OptionalFields[K]>) => BuilderState<Required, Set>;
 };
 
-// 使用イメージ（概念的な型のみ）
+// Conceptual usage (types only)
 // const user = createBuilder<RequiredFields>()
 //   .setName("Alice")   // BuilderState<RequiredFields, "name">
 //   .setAge(30)          // BuilderState<RequiredFields, "name" | "age">
 //   .setEmail("a@b.c")  // BuilderState<RequiredFields, "name" | "age" | "email">
-//   .build();            // Required & OptionalFields（build が使える）
+//   .build();            // Required & OptionalFields (build is callable)
 ```
 
 ---
 
-## 6. パフォーマンスとデバッグ
+## 6. Performance and Debugging
 
-### 6.1 条件型のパフォーマンス考慮事項
+### 6.1 Performance Considerations of Conditional Types
 
 ```typescript
-// 条件型のコンパイル性能に関する注意点
+// Things to keep in mind regarding compile-time performance of conditional types
 
-// BAD: 深い再帰はコンパイルが遅くなる
+// BAD: deep recursion makes compilation slow
 type DeepNested1<T, Depth extends any[] = []> =
   Depth["length"] extends 100
     ? T
     : DeepNested1<T[], [...Depth, 0]>;
 
-// TypeScript には再帰の深さ制限がある（通常50〜100程度）
-// 過度な再帰はエラー "Type instantiation is excessively deep" を引き起こす
+// TypeScript has a recursion-depth limit (typically around 50 to 100)
+// Excessive recursion causes the error "Type instantiation is excessively deep"
 
-// GOOD: 再帰の深さを制限する
+// GOOD: limit the recursion depth
 type SafeDeepType<T, Depth extends any[] = []> =
-  Depth["length"] extends 10  // 妥当な深さに制限
+  Depth["length"] extends 10  // limit to a reasonable depth
     ? T
     : T extends object
       ? { [K in keyof T]: SafeDeepType<T[K], [...Depth, 0]> }
       : T;
 
-// BAD: ユニオン型の爆発
-// 分配条件型 + 大きなユニオン = 計算量の爆発
-type HugeUnion = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h"; // 8メンバー
+// BAD: union-type explosion
+// distributive conditional type + large union = computational explosion
+type HugeUnion = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h"; // 8 members
 type Combinations<T, U = T> =
   T extends any
     ? U extends any
@@ -1240,42 +1241,42 @@ type Combinations<T, U = T> =
     : never;
 
 type AllCombinations = Combinations<HugeUnion>;
-// 8 × 8 = 64 のユニオンメンバーが生成される
-// メンバーが増えると指数的にコンパイルが遅くなる
+// Generates 8 × 8 = 64 union members
+// Adding more members makes compilation exponentially slower
 
-// GOOD: 必要な組み合わせだけを生成
+// GOOD: generate only the combinations you need
 type SpecificCombinations = ["a", "b"] | ["a", "c"] | ["b", "c"];
 ```
 
-### 6.2 条件型のデバッグテクニック
+### 6.2 Debugging Techniques for Conditional Types
 
 ```typescript
-// テクニック1: 中間型を変数化して確認
-type Debug1 = string extends any ? true : false;  // true を確認
+// Technique 1: capture intermediate types in variables to verify them
+type Debug1 = string extends any ? true : false;  // verify it is true
 
-// テクニック2: エラーメッセージを利用した型の確認
+// Technique 2: confirm a type using error messages
 type ShowType<T> = T & { __debug: T };
 
-// テクニック3: 型テスト用のユーティリティ
+// Technique 3: utilities for type-level testing
 type Expect<T extends true> = T;
 type Equal<X, Y> =
   (<T>() => T extends X ? 1 : 2) extends
   (<T>() => T extends Y ? 1 : 2) ? true : false;
 
-// テストの記述
+// Writing tests
 type TestCase1 = Expect<Equal<IsString<string>, true>>;  // OK
 type TestCase2 = Expect<Equal<IsString<number>, false>>; // OK
-// type TestCase3 = Expect<Equal<IsString<string>, false>>; // コンパイルエラー（期待通り）
+// type TestCase3 = Expect<Equal<IsString<string>, false>>; // compile error (as expected)
 
-// テクニック4: 条件型の展開を追跡
-// TypeScript の Language Server の "Expand Type" 機能を使う
-// VSCode で変数の上にホバーすると展開された型が表示される
+// Technique 4: trace conditional-type expansion
+// Use the "Expand Type" feature of the TypeScript Language Server
+// In VSCode, hovering over a variable shows the expanded type
 
-// テクニック5: @ts-expect-error を使ったネガティブテスト
-// @ts-expect-error -- number は string ではないのでエラーになるべき
+// Technique 5: negative testing with @ts-expect-error
+// @ts-expect-error -- number is not a string, so this should error
 type NegativeTest: IsString<number> = true;
 
-// テクニック6: 型の等値性を確認するヘルパー
+// Technique 6: a helper to confirm type equality
 type Assert<T, Expected> = T extends Expected
   ? Expected extends T
     ? true
@@ -1283,50 +1284,51 @@ type Assert<T, Expected> = T extends Expected
   : { error: "Types are not equal"; got: T; expected: Expected };
 
 type Check1 = Assert<ReturnType<() => string>, string>;  // true
-type Check2 = Assert<ReturnType<() => number>, string>;  // エラー情報付きオブジェクト
+type Check2 = Assert<ReturnType<() => number>, string>;  // an object with error info
 ```
 
-### 6.3 条件型の制限事項
+### 6.3 Limitations of Conditional Types
 
 ```typescript
-// 制限1: 条件型の中で型ガードは使えない
-// BAD: ランタイムの typeof は型レベルでは使えない
-// type RuntimeCheck<T> = typeof T === "string" ? true : false; // エラー
+// Limitation 1: type guards cannot be used inside conditional types
+// BAD: runtime typeof cannot be used at the type level
+// type RuntimeCheck<T> = typeof T === "string" ? true : false; // error
 
-// 制限2: 条件型の遅延評価
-// 条件型は型パラメータが未解決の場合、評価が遅延される
+// Limitation 2: lazy evaluation of conditional types
+// When the type parameter is unresolved, evaluation of the conditional type is deferred
 function example<T>(x: T) {
-  // この時点では T が不明なので条件型は展開されない
+  // T is unknown at this point, so the conditional type is not expanded
   type Result = T extends string ? "string" : "other";
-  // Result は T extends string ? "string" : "other" のまま
+  // Result remains as T extends string ? "string" : "other"
 }
 
-// 制限3: 再帰の深さ制限
-// TypeScript 4.5+ では1000レベルまでの再帰が可能だが
-// 実際にはもっと浅い段階でパフォーマンスが問題になる
+// Limitation 3: recursion depth limit
+// TypeScript 4.5+ allows recursion up to 1000 levels, but in practice
+// performance becomes an issue at much shallower levels
 
-// 制限4: 型推論の優先度
-// 複数の infer が同じ型変数名を使う場合の挙動
+// Limitation 4: priority of type inference
+// Behavior when multiple infer instances use the same type variable name
 type Ambiguous<T> =
   T extends { a: infer U; b: infer U }
     ? U
     : never;
 
-// 共変位置なのでユニオンになる
+// Covariant position, so the result is a union
 type AmbiguousResult = Ambiguous<{ a: string; b: number }>;
 // string | number
 
-// 制限5: 条件型と関数引数の型推論の相互作用
-// 条件型の結果を関数の引数として使う場合、型推論が期待通りに動かないことがある
+// Limitation 5: interaction between conditional types and function-argument inference
+// When a conditional type result is used as a function argument, type inference
+// may not work as expected
 function problematic<T extends string | number>(
   value: T,
   transform: (x: T extends string ? string : number) => void
 ): void {
-  // T が未解決なので条件型も未解決
-  // transform(value); // エラー: T は T extends string ? string : number に代入できない
+  // T is unresolved, so the conditional type is also unresolved
+  // transform(value); // error: T is not assignable to T extends string ? string : number
 }
 
-// 回避策: オーバーロードや型アサーションを使う
+// Workaround: use overloads or type assertions
 function fixed(value: string, transform: (x: string) => void): void;
 function fixed(value: number, transform: (x: number) => void): void;
 function fixed(value: string | number, transform: (x: any) => void): void {
@@ -1336,51 +1338,52 @@ function fixed(value: string | number, transform: (x: any) => void): void {
 
 ---
 
-## 7. 高度な条件型パターン
+## 7. Advanced Conditional Type Patterns
 
-### 7.1 型レベルの JSON パーサー
+### 7.1 A Type-level JSON Parser
 
 ```typescript
-// JSON 文字列を型レベルでパースする（概念的な実装）
+// Parse a JSON string at the type level (a conceptual implementation)
 
-// 空白のスキップ
+// Skip whitespace
 type SkipWhitespace<S extends string> =
   S extends ` ${infer Rest}` | `\n${infer Rest}` | `\t${infer Rest}`
     ? SkipWhitespace<Rest>
     : S;
 
-// 文字列リテラルのパース
+// Parse a string literal
 type ParseString<S extends string> =
   S extends `"${infer Content}"${infer Rest}`
     ? [Content, Rest]
     : never;
 
-// 数値のパース（簡略版）
+// Parse a number (simplified)
 type ParseNumber<S extends string> =
   S extends `${infer N extends number}${infer Rest}`
     ? [N, Rest]
     : never;
 
-// ブーリアンのパース
+// Parse a boolean
 type ParseBool<S extends string> =
   S extends `true${infer Rest}` ? [true, Rest] :
   S extends `false${infer Rest}` ? [false, Rest] :
   never;
 
-// null のパース
+// Parse null
 type ParseNull<S extends string> =
   S extends `null${infer Rest}` ? [null, Rest] : never;
 
-// これらを組み合わせてJSONの各値型をパースできる
-// 実際のフルパーサーは非常に複雑だが、型レベルプログラミングの可能性を示す例
+// Combining these allows parsing each JSON value type
+// A real full parser is very complex, but this example shows the
+// possibilities of type-level programming
 ```
 
-### 7.2 型レベルのパス解析
+### 7.2 Type-level Path Analysis
 
 ```typescript
-// URLパスのパラメータを型安全に抽出
+// Type-safe extraction of URL path parameters
 
-// パスパラメータの抽出
+// Extract path parameters
 type ExtractParams<Path extends string> =
   Path extends `${string}:${infer Param}/${infer Rest}`
     ? { [K in Param | keyof ExtractParamsObj<Rest>]: string }
@@ -1395,7 +1398,7 @@ type ExtractParamsObj<Path extends string> =
       ? { [K in Param]: string }
       : {};
 
-// クエリパラメータの型安全な定義
+// Type-safe definition of query parameters
 type QueryParams<T extends string> =
   T extends `${string}?${infer Query}`
     ? ParseQuery<Query>
@@ -1408,7 +1411,7 @@ type ParseQuery<Q extends string> =
       ? { [K in Key]: Value }
       : {};
 
-// Express風のルーター型定義
+// Express-style router type definition
 type Route<
   Method extends "GET" | "POST" | "PUT" | "DELETE",
   Path extends string,
@@ -1422,11 +1425,11 @@ type Route<
   response: Response;
 };
 
-// 使用例
+// Usage example
 type UserRoute = Route<"GET", "/users/:userId/posts/:postId">;
-// params は { userId: string; postId: string }
+// params is { userId: string; postId: string }
 
-// 型安全なルートハンドラ
+// Type-safe route handler
 type RouteHandler<R extends Route<any, any, any, any>> = (
   req: {
     params: R["params"];
@@ -1434,24 +1437,24 @@ type RouteHandler<R extends Route<any, any, any, any>> = (
   }
 ) => Promise<R["response"]>;
 
-// 実装例
+// Implementation example
 type GetUserRoute = Route<"GET", "/users/:userId", never, { name: string; age: number }>;
 
 const getUserHandler: RouteHandler<GetUserRoute> = async (req) => {
-  const userId = req.params.userId;  // string 型
-  return { name: "Alice", age: 30 };  // { name: string; age: number } を返す必要がある
+  const userId = req.params.userId;  // typed as string
+  return { name: "Alice", age: 30 };  // must return { name: string; age: number }
 };
 ```
 
-### 7.3 型レベルの状態マシン
+### 7.3 Type-level State Machines
 
 ```typescript
-// 条件型で状態遷移を型安全に表現
+// Express state transitions safely with conditional types
 
-// 状態の定義
+// State definitions
 type OrderState = "draft" | "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
 
-// 状態遷移の定義（条件型を使用）
+// Define state transitions (using conditional types)
 type ValidTransition<From extends OrderState> =
   From extends "draft" ? "pending" | "cancelled" :
   From extends "pending" ? "confirmed" | "cancelled" :
@@ -1461,18 +1464,18 @@ type ValidTransition<From extends OrderState> =
   From extends "cancelled" ? never :
   never;
 
-// 状態遷移が有効かどうかの判定
+// Determine whether a state transition is valid
 type CanTransition<From extends OrderState, To extends OrderState> =
   To extends ValidTransition<From> ? true : false;
 
-// 型テスト
+// Type tests
 type Test1 = CanTransition<"draft", "pending">;      // true
 type Test2 = CanTransition<"draft", "shipped">;       // false
 type Test3 = CanTransition<"confirmed", "shipped">;   // true
 type Test4 = CanTransition<"delivered", "draft">;      // false
 type Test5 = CanTransition<"cancelled", "pending">;    // false
 
-// 型安全な状態遷移関数
+// Type-safe state transition function
 class Order<S extends OrderState> {
   constructor(
     public readonly state: S,
@@ -1486,15 +1489,15 @@ class Order<S extends OrderState> {
   }
 }
 
-// 使用例
+// Usage example
 const order = new Order("draft", "order-001");
 const pending = order.transition("pending");      // Order<"pending">
 const confirmed = pending.transition("confirmed"); // Order<"confirmed">
 const shipped = confirmed.transition("shipped");    // Order<"shipped">
-// shipped.transition("draft");                    // コンパイルエラー！
-// confirmed.transition("delivered");              // コンパイルエラー！
+// shipped.transition("draft");                    // compile error!
+// confirmed.transition("delivered");              // compile error!
 
-// 各状態で利用可能なアクションを型で表現
+// Express the available actions for each state via types
 type ActionsForState<S extends OrderState> =
   S extends "draft" ? { edit: () => void; submit: () => void; cancel: () => void } :
   S extends "pending" ? { confirm: () => void; cancel: () => void } :
@@ -1505,30 +1508,30 @@ type ActionsForState<S extends OrderState> =
   never;
 ```
 
-### 7.4 条件型を使ったバリデーションDSL
+### 7.4 A Validation DSL Using Conditional Types
 
 ```typescript
-// 型レベルのバリデーションルール定義
+// Type-level validation rule definitions
 
-// バリデーションルールの型
+// Validation rule type
 type Rule<T, Message extends string = string> = {
   validate: (value: T) => boolean;
   message: Message;
 };
 
-// フィールドの型からバリデーションルールを条件型で決定
+// Determine validation rules from the field type using conditional types
 type DefaultRules<T> =
   T extends string
-    ? Rule<string, "文字列は空にできません"> | Rule<string, "最大文字数を超えています">
+    ? Rule<string, "String cannot be empty"> | Rule<string, "Exceeds maximum length">
     : T extends number
-      ? Rule<number, "数値は0以上である必要があります"> | Rule<number, "数値が大きすぎます">
+      ? Rule<number, "Number must be 0 or greater"> | Rule<number, "Number is too large">
       : T extends boolean
-        ? Rule<boolean, "必須項目です">
+        ? Rule<boolean, "This field is required">
         : T extends any[]
-          ? Rule<T, "少なくとも1つの要素が必要です">
-          : Rule<T, "無効な値です">;
+          ? Rule<T, "At least one element is required">
+          : Rule<T, "Invalid value">;
 
-// フォームフィールド定義の型
+// Form-field configuration type
 type FieldConfig<T> = {
   type: T extends string ? "text" | "email" | "password" | "url"
     : T extends number ? "number" | "range" | "slider"
@@ -1541,32 +1544,32 @@ type FieldConfig<T> = {
   rules?: DefaultRules<T>[];
 };
 
-// 使用例
+// Usage example
 type UserFormConfig = {
   [K in keyof RequiredFields]: FieldConfig<RequiredFields[K]>;
 };
 
-// 型推論により、各フィールドに適切な設定型が割り当てられる
+// Type inference assigns the appropriate config type to each field
 const formConfig: UserFormConfig = {
   name: {
-    type: "text",        // "text" | "email" | "password" | "url" のみ許可
-    label: "名前",
+    type: "text",        // only "text" | "email" | "password" | "url" allowed
+    label: "Name",
     defaultValue: "",
     rules: [
-      { validate: (v) => v.length > 0, message: "文字列は空にできません" },
+      { validate: (v) => v.length > 0, message: "String cannot be empty" },
     ],
   },
   age: {
-    type: "number",      // "number" | "range" | "slider" のみ許可
-    label: "年齢",
+    type: "number",      // only "number" | "range" | "slider" allowed
+    label: "Age",
     defaultValue: 0,
     rules: [
-      { validate: (v) => v >= 0, message: "数値は0以上である必要があります" },
+      { validate: (v) => v >= 0, message: "Number must be 0 or greater" },
     ],
   },
   email: {
     type: "email",
-    label: "メールアドレス",
+    label: "Email Address",
     defaultValue: "",
   },
 };
@@ -1574,14 +1577,14 @@ const formConfig: UserFormConfig = {
 
 ---
 
-## 8. 実務での条件型のベストプラクティス
+## 8. Best Practices for Conditional Types in Practice
 
-### 8.1 段階的な型設計
+### 8.1 Incremental Type Design
 
 ```typescript
-// GOOD: 複雑な条件型を小さな部品に分割
+// GOOD: split a complex conditional type into small pieces
 
-// Step 1: 基本的な判定型
+// Step 1: basic decision types
 type IsArray<T> = T extends any[] ? true : false;
 type IsFunction<T> = T extends (...args: any[]) => any ? true : false;
 type IsObject<T> = T extends object
@@ -1592,7 +1595,7 @@ type IsObject<T> = T extends object
       : true
   : false;
 
-// Step 2: 変換型
+// Step 2: transformation types
 type Writable<T> = { -readonly [K in keyof T]: T[K] };
 type DeepWritable<T> =
   IsFunction<T> extends true ? T :
@@ -1600,11 +1603,11 @@ type DeepWritable<T> =
   IsObject<T> extends true ? { -readonly [K in keyof T]: DeepWritable<T[K]> } :
   T;
 
-// Step 3: 組み合わせ型
+// Step 3: combined types
 type Mutable<T, Deep extends boolean = false> =
   Deep extends true ? DeepWritable<T> : Writable<T>;
 
-// 使用例
+// Usage example
 interface ReadonlyConfig {
   readonly host: string;
   readonly port: number;
@@ -1623,49 +1626,49 @@ type DeepMutable = Mutable<ReadonlyConfig, true>;
 // { host: string; port: number; db: { name: string; options: { ssl: boolean } } }
 ```
 
-### 8.2 条件型の命名規則
+### 8.2 Naming Conventions for Conditional Types
 
 ```typescript
-// 命名規則のベストプラクティス
+// Best practices for naming conventions
 
-// 1. Is- プレフィックス: boolean を返す型
+// 1. Is- prefix: types that return a boolean
 type IsString<T> = T extends string ? true : false;
 type IsNullable<T> = null extends T ? true : false;
 type IsUnion<T> = [T] extends [UnionToIntersection<T>] ? false : true;
 
-// 2. Extract/Get プレフィックス: 一部を取り出す型
+// 2. Extract / Get prefix: types that extract a part
 type ExtractArrayElement<T> = T extends (infer U)[] ? U : never;
 type GetReturnType<T> = T extends (...args: any[]) => infer R ? R : never;
 
-// 3. To/As プレフィックス: 変換する型
+// 3. To / As prefix: types that transform
 type ToArray<T> = T extends any ? T[] : never;
 type ToPromise<T> = T extends any ? Promise<T> : never;
 type AsReadonly<T> = { readonly [K in keyof T]: T[K] };
 
-// 4. Without/Omit プレフィックス: 除外する型
+// 4. Without / Omit prefix: types that exclude
 type WithoutNullable<T> = T extends null | undefined ? never : T;
 type WithoutFunctions<T> = {
   [K in keyof T as T[K] extends Function ? never : K]: T[K];
 };
 
-// 5. Deep プレフィックス: 再帰的に適用する型
+// 5. Deep prefix: types that apply recursively
 type DeepReadonly<T> = /* ... */;
 type DeepPartial<T> = /* ... */;
 type DeepRequired<T> = /* ... */;
 ```
 
-### 8.3 エラーメッセージの改善
+### 8.3 Improving Error Messages
 
 ```typescript
-// 条件型でカスタムエラーメッセージを提供する
+// Provide custom error messages with conditional types
 
-// 基本的なアプローチ: never の代わりにエラーメッセージを含む型を返す
+// Basic approach: return a type containing an error message instead of never
 type MustBeString<T> =
   T extends string
     ? T
     : { __error: `Expected string but got ${T & string}` };
 
-// より高度なアプローチ: ブランド型でエラーメッセージを表現
+// More advanced approach: express error messages with branded types
 type TypeError<Message extends string> = { readonly __typeError: Message } & never;
 
 type SafeDivide<A extends number, B extends number> =
@@ -1673,11 +1676,11 @@ type SafeDivide<A extends number, B extends number> =
     ? TypeError<"Division by zero is not allowed">
     : number;
 
-// 使用時
+// On use
 type Result1 = SafeDivide<10, 2>;  // number
 type Result2 = SafeDivide<10, 0>;  // TypeError<"Division by zero is not allowed">
 
-// 型制約の違反をわかりやすく報告
+// Report violations of type constraints in a clear way
 type ValidateConfig<T> =
   T extends { host: string }
     ? T extends { port: number }
@@ -1688,56 +1691,56 @@ type ValidateConfig<T> =
 
 ---
 
-## 組み込み条件型比較
+## Comparison of Built-in Conditional Types
 
-| ユーティリティ型 | 定義 | 用途 |
+| Utility Type | Definition | Use |
 |-----------------|------|------|
-| `NonNullable<T>` | `T extends null \| undefined ? never : T` | null/undefinedを除外 |
-| `Extract<T, U>` | `T extends U ? T : never` | Union型から特定の型を抽出 |
-| `Exclude<T, U>` | `T extends U ? never : T` | Union型から特定の型を除外 |
-| `ReturnType<T>` | `T extends (...) => infer R ? R : any` | 関数の戻り値型を取得 |
-| `Parameters<T>` | `T extends (...args: infer P) => any ? P : never` | 関数のパラメータ型を取得 |
-| `InstanceType<T>` | `T extends new (...) => infer R ? R : any` | コンストラクタのインスタンス型 |
-| `ConstructorParameters<T>` | `T extends new (...args: infer P) => any ? P : never` | コンストラクタのパラメータ型 |
-| `Awaited<T>` | 再帰的にPromiseを展開 | Promise解決後の型を取得 |
-| `ThisParameterType<T>` | `T extends (this: infer U, ...) => any ? U : unknown` | this パラメータの型 |
-| `OmitThisParameter<T>` | this パラメータを除外 | this なしの関数型 |
+| `NonNullable<T>` | `T extends null \| undefined ? never : T` | Excludes null/undefined |
+| `Extract<T, U>` | `T extends U ? T : never` | Extracts specific types from a union |
+| `Exclude<T, U>` | `T extends U ? never : T` | Excludes specific types from a union |
+| `ReturnType<T>` | `T extends (...) => infer R ? R : any` | Gets the return type of a function |
+| `Parameters<T>` | `T extends (...args: infer P) => any ? P : never` | Gets the parameter types of a function |
+| `InstanceType<T>` | `T extends new (...) => infer R ? R : any` | Gets the instance type of a constructor |
+| `ConstructorParameters<T>` | `T extends new (...args: infer P) => any ? P : never` | Gets the parameter types of a constructor |
+| `Awaited<T>` | Recursively unwraps Promises | Gets the type after a Promise resolves |
+| `ThisParameterType<T>` | `T extends (this: infer U, ...) => any ? U : unknown` | Gets the type of the `this` parameter |
+| `OmitThisParameter<T>` | Removes the `this` parameter | Function type without `this` |
 
 ---
 
-## 分配 vs 非分配 比較
+## Distributive vs Non-distributive Comparison
 
-| 特性 | 分配条件型 | 非分配条件型 |
+| Characteristic | Distributive Conditional Type | Non-distributive Conditional Type |
 |------|-----------|-------------|
-| 構文 | `T extends U ? X : Y` | `[T] extends [U] ? X : Y` |
-| Union入力 | 各メンバーに個別適用 | Union全体として評価 |
+| Syntax | `T extends U ? X : Y` | `[T] extends [U] ? X : Y` |
+| Union input | applied to each member individually | evaluated as the entire union |
 | `string \| number` | `F<string> \| F<number>` | `F<string \| number>` |
-| never の扱い | never を返す | 正常に評価 |
-| 主な用途 | フィルタリング、型変換 | Union全体の判定、never検出 |
+| Handling of never | returns never | evaluated normally |
+| Main use | filtering, type transformation | judging the entire union, detecting never |
 
 ```
-  分配 (Distributive)
+  Distributive
   ToArray<string | number>
     → ToArray<string> | ToArray<number>
     → string[] | number[]
 
-  非分配 (Non-distributive)
+  Non-distributive
   ToArrayNonDist<string | number>
     → (string | number)[]
 
-  never の扱いの違い
-  分配: Test<never> → never
-  非分配: [never] extends [string] ? true : false → true
+  Difference in handling of never
+  Distributive: Test<never> → never
+  Non-distributive: [never] extends [string] ? true : false → true
 ```
 
 ---
 
-## アンチパターン
+## Anti-patterns
 
-### アンチパターン1: 過度に複雑な条件型
+### Anti-pattern 1: Overly complex conditional types
 
 ```typescript
-// BAD: 読めない条件型のネスト
+// BAD: unreadable nested conditional types
 type ComplexType<T> =
   T extends string
     ? T extends `${infer A}.${infer B}`
@@ -1747,30 +1750,30 @@ type ComplexType<T> =
       : [T]
     : never;
 
-// GOOD: ステップごとに型を分割して名前をつける
+// GOOD: split into named types step by step
 type SplitDot<T extends string> =
   T extends `${infer A}.${infer B}` ? [A, B] : [T];
 
 type SplitDash<T extends string> =
   T extends `${infer A}-${infer B}` ? [A, B] : [T];
 
-// 組み合わせて使う（各ステップの意味が明確）
+// Combine them (the meaning of each step is clear)
 type ParseSegment<T extends string> =
   SplitDot<T> extends [infer First extends string, infer Second]
     ? [...SplitDash<First>, Second]
     : SplitDot<T>;
 ```
 
-### アンチパターン2: 再帰の深さ制限を無視
+### Anti-pattern 2: Ignoring recursion depth limits
 
 ```typescript
-// BAD: 無限再帰に近い型（コンパイルが非常に遅くなる）
+// BAD: a type that approaches infinite recursion (compilation becomes very slow)
 type InfiniteNest<T> = {
   value: T;
   children: InfiniteNest<T>[];
 };
 
-// GOOD: 再帰の深さを制限する
+// GOOD: limit the recursion depth
 type Nest<T, Depth extends number[] = []> =
   Depth["length"] extends 5
     ? T
@@ -1780,21 +1783,21 @@ type Nest<T, Depth extends number[] = []> =
       };
 ```
 
-### アンチパターン3: 不必要な条件型の使用
+### Anti-pattern 3: Using conditional types unnecessarily
 
 ```typescript
-// BAD: 条件型が不要なケース
+// BAD: cases where a conditional type is unneeded
 type Unnecessary<T> = T extends any ? T : never;
-// T をそのまま返しているだけ（分配によるユニオン展開以外に意味がない）
+// Just returns T as-is (it has no meaning beyond union expansion via distribution)
 
-// BAD: 単純なマッピングに条件型を使う
+// BAD: using a conditional type for simple mapping
 type BadMapping<T> =
   T extends "a" ? 1 :
   T extends "b" ? 2 :
   T extends "c" ? 3 :
   never;
 
-// GOOD: レコード型を使う
+// GOOD: use a record type
 type GoodMapping = {
   a: 1;
   b: 2;
@@ -1803,17 +1806,17 @@ type GoodMapping = {
 type Mapped<T extends keyof GoodMapping> = GoodMapping[T];
 ```
 
-### アンチパターン4: 型アサーションに頼りすぎる
+### Anti-pattern 4: Over-relying on type assertions
 
 ```typescript
-// BAD: 条件型の結果を常にアサーションで上書き
+// BAD: always overriding the conditional-type result with an assertion
 function process<T extends string | number>(value: T) {
-  // 条件型の結果を活用できていない
+  // Cannot leverage the result of the conditional type
   const result = transform(value) as any;
   return result;
 }
 
-// GOOD: 型の絞り込みを使って条件型と連携
+// GOOD: use type narrowing in concert with the conditional type
 function processGood<T extends string | number>(
   value: T
 ): T extends string ? string[] : number {
@@ -1822,24 +1825,24 @@ function processGood<T extends string | number>(
   }
   return (value as number) * 2 as T extends string ? string[] : number;
 }
-// ※ 条件型の戻り値ではアサーションが必要だが、最小限に留める
+// Note: assertions are required for the conditional-type return value, but keep them minimal
 ```
 
-### アンチパターン5: 分配の予期しない動作
+### Anti-pattern 5: Unexpected behavior of distribution
 
 ```typescript
-// BAD: 分配を意識せずにユニオンを渡す
+// BAD: passing a union without being aware of distribution
 type Wrapper<T> = T extends any ? { value: T } : never;
 type Result = Wrapper<string | number>;
-// { value: string } | { value: number }（意図と異なる場合がある）
+// { value: string } | { value: number } (may differ from intent)
 
-// GOOD: 意図を明確にする
-// ユニオン全体を包みたい場合
+// GOOD: make intent clear
+// When you want to wrap the entire union
 type WrapperUnion<T> = [T] extends [any] ? { value: T } : never;
 type ResultUnion = WrapperUnion<string | number>;
 // { value: string | number }
 
-// 個別に包みたい場合（分配を意図的に使用）
+// When you intentionally want to wrap each individually (using distribution on purpose)
 type WrapperDist<T> = T extends any ? { value: T } : never;
 type ResultDist = WrapperDist<string | number>;
 // { value: string } | { value: number }
@@ -1849,65 +1852,65 @@ type ResultDist = WrapperDist<string | number>;
 
 ## FAQ
 
-### Q1: 条件型はどこで使うのが最も効果的ですか？
+### Q1: Where are conditional types most effective?
 
-**A:** ライブラリの型定義や、APIの型変換（レスポンス型の自動導出など）で最も効果的です。アプリケーションコードでは、組み込みの `ReturnType`, `Parameters`, `Awaited` などのユーティリティ型を使うだけで十分なことが多いです。具体的な使いどころ:
+**A:** They are most effective in library type definitions and API type transformations (such as automatically deriving response types). In application code, the built-in utility types `ReturnType`, `Parameters`, `Awaited`, etc., are often enough. Specific places where they are useful:
 
-- ライブラリの公開API型定義
-- APIレスポンスの型変換（スネークケース→キャメルケースなど）
-- 状態管理のアクション型の自動生成
-- フォームバリデーションの型安全な定義
-- ルーティングのパラメータ型の抽出
+- Library public-API type definitions
+- Transforming API response types (e.g., snake_case -> camelCase)
+- Auto-generating action types for state management
+- Type-safe definitions for form validation
+- Extracting routing parameter types
 
-### Q2: infer は条件型の中でしか使えませんか？
+### Q2: Can `infer` only be used inside conditional types?
 
-**A:** はい、`infer` は `extends` 節の中でのみ使用できます。`T extends ... infer U ... ? X : Y` の形式でのみ有効です。条件型の外で型を「抽出」したい場合は、別途条件型を定義する必要があります。
+**A:** Yes, `infer` can only be used inside an `extends` clause. It is valid only in the form `T extends ... infer U ... ? X : Y`. To "extract" a type outside a conditional type, you have to define a separate conditional type.
 
 ```typescript
-// infer は必ず extends 節の中で使う
+// infer must be inside an extends clause
 type GetFirst<T> = T extends [infer F, ...any[]] ? F : never;
 
-// 以下はエラー
-// type Invalid<T> = infer U;  // エラー: infer は条件型でのみ使用可能
+// The following errors
+// type Invalid<T> = infer U;  // error: infer can only be used inside conditional types
 ```
 
-### Q3: 分配条件型で never はどう扱われますか？
+### Q3: How is `never` handled in distributive conditional types?
 
-**A:** `never` は空の Union として扱われるため、分配条件型に `never` が渡されると結果も `never` になります。
+**A:** `never` is treated as an empty union, so when `never` is passed to a distributive conditional type, the result is also `never`.
 
 ```typescript
 type Test<T> = T extends string ? "yes" : "no";
-type Result = Test<never>; // never（"yes" でも "no" でもない）
+type Result = Test<never>; // never (neither "yes" nor "no")
 
-// never を正しく検出するには非分配にする
+// To detect never properly, switch to non-distributive
 type IsNever<T> = [T] extends [never] ? true : false;
 type Check = IsNever<never>; // true
 ```
 
-### Q4: 条件型のコンパイル時間が遅い場合の対処法は？
+### Q4: What can I do when conditional types cause slow compile times?
 
-**A:** 以下の対策が有効です:
+**A:** The following measures are effective:
 
-1. **再帰の深さを制限する** -- カウンター用タプルで深さを管理
-2. **ユニオン型の爆発を避ける** -- 分配で大きなユニオンが生成されないよう注意
-3. **型をキャッシュする** -- 中間結果を型エイリアスに保存
-4. **条件型を分割する** -- 1つの条件型でやりすぎない
-5. **`declare` でテスト用の型インスタンスを作成** -- 全体ビルドせずに確認
+1. **Limit recursion depth** -- manage depth with a counter tuple
+2. **Avoid union explosion** -- be careful not to generate large unions via distribution
+3. **Cache types** -- store intermediate results in type aliases
+4. **Split conditional types** -- do not pack too much into a single conditional type
+5. **Create test type instances with `declare`** -- check without running a full build
 
-### Q5: 条件型と型ガード（type predicate）の違いは？
+### Q5: What is the difference between conditional types and type predicates (type guards)?
 
-**A:** 条件型はコンパイル時に型を変換するための仕組みで、型ガードはランタイムの値チェックに基づいて型を絞り込む仕組みです。
+**A:** Conditional types are a compile-time mechanism for transforming types, while type guards narrow types at runtime based on value checks.
 
 ```typescript
-// 条件型: コンパイル時
+// Conditional type: compile time
 type IsString<T> = T extends string ? true : false;
 
-// 型ガード: ランタイム
+// Type guard: runtime
 function isString(value: unknown): value is string {
   return typeof value === "string";
 }
 
-// 両者を組み合わせるパターン
+// Pattern combining both
 function processValue<T>(value: T): T extends string ? string[] : T {
   if (isString(value)) {
     return value.split(",") as any;
@@ -1916,37 +1919,37 @@ function processValue<T>(value: T): T extends string ? string[] : T {
 }
 ```
 
-### Q6: 条件型の中で複数の infer を使う場合の注意点は？
+### Q6: What should I be aware of when using multiple `infer`s in a conditional type?
 
-**A:** 同じ名前の `infer` 型変数を複数箇所で使う場合、それらが共変位置にあればユニオン型、反変位置にあればインターセクション型として推論されます。意図しない結果を避けるため、異なる名前を使うか、位置を意識して設計してください。
+**A:** When you use the same `infer` variable name in multiple positions, they are inferred as a union if they are in covariant positions and as an intersection if they are in contravariant positions. To avoid unexpected results, use different names or be aware of the position when designing.
 
 ```typescript
-// 同名の infer が共変位置に複数ある場合 → ユニオン
+// Multiple inferred U in covariant positions → union
 type CovariantInfer<T> =
   T extends { a: infer U; b: infer U } ? U : never;
 
 type R1 = CovariantInfer<{ a: string; b: number }>;  // string | number
 
-// 異なる名前を使えば個別に取得可能
+// Use different names to extract individually
 type SeparateInfer<T> =
   T extends { a: infer A; b: infer B } ? [A, B] : never;
 
 type R2 = SeparateInfer<{ a: string; b: number }>;  // [string, number]
 ```
 
-### Q7: TypeScript のバージョンによる条件型の違いは？
+### Q7: How have conditional types differed across TypeScript versions?
 
-**A:** 主な進化の経緯:
+**A:** Major evolutionary milestones:
 
-- **TypeScript 2.8**: 条件型の導入（`T extends U ? X : Y`）
-- **TypeScript 4.1**: テンプレートリテラル型の導入で文字列操作が可能に
-- **TypeScript 4.5**: 再帰制限の緩和（1000レベルまで）、Tail-call optimization
-- **TypeScript 4.7**: `infer` に `extends` 制約を追加可能に（`infer U extends string`）
-- **TypeScript 4.9**: `satisfies` 演算子の導入（条件型と併用で型安全性向上）
-- **TypeScript 5.0**: const型パラメータの導入
+- **TypeScript 2.8**: introduction of conditional types (`T extends U ? X : Y`)
+- **TypeScript 4.1**: introduction of template literal types, enabling string manipulation
+- **TypeScript 4.5**: relaxed recursion limits (up to 1000 levels), tail-call optimization
+- **TypeScript 4.7**: ability to add `extends` constraints on `infer` (`infer U extends string`)
+- **TypeScript 4.9**: introduction of the `satisfies` operator (improves type safety when used with conditional types)
+- **TypeScript 5.0**: introduction of const type parameters
 
 ```typescript
-// TypeScript 4.7+: infer に制約を追加
+// TypeScript 4.7+: add a constraint on infer
 type FirstIfString<T> =
   T extends [infer F extends string, ...any[]]
     ? F
@@ -1958,32 +1961,32 @@ type R2 = FirstIfString<[42, "hello"]>;  // never
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 内容 |
+| Item | Content |
 |------|------|
-| 条件型 | `T extends U ? X : Y` で型レベルの条件分岐 |
-| infer | パターンマッチで型を抽出するキーワード |
-| 分配条件型 | Union型の各メンバーに個別に条件型を適用 |
-| 非分配 | `[T] extends [U]` で分配を抑制 |
-| 再帰的条件型 | 深いネスト構造の型変換に使用 |
-| 組み込み型 | ReturnType, Parameters, Awaited, Extract, Exclude 等 |
-| 共変/反変 | infer の位置によりユニオン/インターセクションが推論される |
-| パフォーマンス | 再帰深度とユニオンサイズに注意 |
-| デバッグ | Equal, Expect 等のテストユーティリティを活用 |
-| ベストプラクティス | 小さな部品に分割、命名規則を統一、エラーメッセージを改善 |
+| Conditional type | Type-level conditional branching with `T extends U ? X : Y` |
+| infer | Keyword that extracts types via pattern matching |
+| Distributive conditional type | Applies the conditional type individually to each member of a union |
+| Non-distributive | Suppresses distribution with `[T] extends [U]` |
+| Recursive conditional type | Used for type transformations of deeply nested structures |
+| Built-in types | ReturnType, Parameters, Awaited, Extract, Exclude, etc. |
+| Covariance / contravariance | Position of infer determines whether a union or intersection is inferred |
+| Performance | Beware of recursion depth and union size |
+| Debugging | Make use of test utilities like Equal and Expect |
+| Best practice | Split into small pieces, unify naming conventions, improve error messages |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Reading
 
-- [01-mapped-types.md](./01-mapped-types.md) -- マップ型
-- [02-template-literal-types.md](./02-template-literal-types.md) -- テンプレートリテラル型
-- [03-type-challenges.md](./03-type-challenges.md) -- 型パズル・チャレンジ
+- [01-mapped-types.md](./01-mapped-types.md) -- Mapped types
+- [02-template-literal-types.md](./02-template-literal-types.md) -- Template literal types
+- [03-type-challenges.md](./03-type-challenges.md) -- Type puzzles and challenges
 
 ---
 
-## 参考文献
+## References
 
 1. **TypeScript Handbook: Conditional Types** -- https://www.typescriptlang.org/docs/handbook/2/conditional-types.html
 2. **TypeScript Deep Dive: Conditional Types** -- https://basarat.gitbook.io/typescript/type-system/conditional-types
