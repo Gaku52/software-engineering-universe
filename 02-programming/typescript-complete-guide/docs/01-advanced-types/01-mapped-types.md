@@ -1,38 +1,38 @@
-# マップ型（Mapped Types）
+# Mapped Types
 
-> 既存の型を変換して新しい型を生成する。Partial, Required, Readonly, Record などのユーティリティ型の仕組みを理解し、独自のマップ型を構築する。
+> Transform existing types to generate new ones. Understand the inner workings of utility types like Partial, Required, Readonly, and Record, and build your own mapped types.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **マップ型の基本** -- `{ [K in keyof T]: ... }` 構文、プロパティの変換
-2. **組み込みユーティリティ型** -- Partial, Required, Readonly, Record, Pick, Omit の内部実装
-3. **Key Remapping** -- `as` 句によるキー名の変換、フィルタリング
-4. **高度なマップ型** -- 再帰マップ型、条件付きマッピング、複合パターン
-5. **実務パターン** -- フォーム状態管理、API型変換、イベントシステム設計
-6. **パフォーマンスとデバッグ** -- マップ型のコンパイル性能と問題解決
+1. **Mapped Type Basics** -- The `{ [K in keyof T]: ... }` syntax and property transformation
+2. **Built-in Utility Types** -- Internal implementations of Partial, Required, Readonly, Record, Pick, and Omit
+3. **Key Remapping** -- Key name transformation and filtering using the `as` clause
+4. **Advanced Mapped Types** -- Recursive mapped types, conditional mapping, and composite patterns
+5. **Practical Patterns** -- Form state management, API type transformation, and event system design
+6. **Performance and Debugging** -- Compilation performance and troubleshooting for mapped types
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+This guide is easier to understand if you have the following knowledge:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [条件型（Conditional Types）](./00-conditional-types.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+- Familiarity with the content of [Conditional Types](./00-conditional-types.md)
 
 ---
 
-## 1. マップ型の基本
+## 1. Mapped Type Basics
 
-### 1.1 基本構文
+### 1.1 Basic Syntax
 
-マップ型は、既存の型のキーをイテレーションして新しい型を構築する。JavaScript の `Array.map()` に似たイメージで、型を変換する。
+Mapped types iterate over the keys of an existing type to construct a new type. Conceptually similar to JavaScript's `Array.map()`, they transform types.
 
 ```typescript
-// 基本構文: { [K in keyof T]: 変換後の型 }
-// T の各プロパティキー K に対して、変換後の型を指定する
+// Basic syntax: { [K in keyof T]: transformed type }
+// For each property key K in T, specify the transformed type
 
-// T の全プロパティを string 型にする
+// Make every property of T be of type string
 type Stringify<T> = {
   [K in keyof T]: string;
 };
@@ -46,7 +46,7 @@ interface User {
 type StringUser = Stringify<User>;
 // { id: string; name: string; active: string }
 
-// T の全プロパティをオプショナルにする（Partial相当）
+// Make every property of T optional (equivalent to Partial)
 type MyPartial<T> = {
   [K in keyof T]?: T[K];
 };
@@ -54,7 +54,7 @@ type MyPartial<T> = {
 type PartialUser = MyPartial<User>;
 // { id?: number; name?: string; active?: boolean }
 
-// T の全プロパティを Promise でラップする
+// Wrap every property of T in a Promise
 type Promisified<T> = {
   [K in keyof T]: Promise<T[K]>;
 };
@@ -62,7 +62,7 @@ type Promisified<T> = {
 type PromiseUser = Promisified<User>;
 // { id: Promise<number>; name: Promise<string>; active: Promise<boolean> }
 
-// T の全プロパティを配列にする
+// Make every property of T an array
 type Arrayified<T> = {
   [K in keyof T]: T[K][];
 };
@@ -71,46 +71,46 @@ type ArrayUser = Arrayified<User>;
 // { id: number[]; name: string[]; active: boolean[] }
 ```
 
-### 1.2 マップ型の変換イメージ
+### 1.2 Conceptual View of Mapped Type Transformation
 
 ```
-  元の型 T                    マップ型 { [K in keyof T]: F(T[K]) }
+  Original type T              Mapped type { [K in keyof T]: F(T[K]) }
 +------------------+        +------------------+
 | id: number       |  --->  | id: F(number)    |
 | name: string     |  --->  | name: F(string)  |
 | active: boolean  |  --->  | active: F(bool)  |
 +------------------+        +------------------+
 
-  各プロパティに変換関数 F を適用するイメージ
+  Conceptually, transformation function F is applied to each property
 
-  マップ型の構成要素:
+  Components of a mapped type:
   { [K in keyof T]: T[K] }
      ^  ^     ^       ^
-     |  |     |       +--- 値の型（変換可能）
-     |  |     +----------- イテレーション対象
-     |  +----------------- イテレーション変数
-     +--------------------- プロパティキー
+     |  |     |       +--- Value type (transformable)
+     |  |     +----------- Iteration target
+     |  +----------------- Iteration variable
+     +--------------------- Property key
 ```
 
-### 1.3 修飾子の追加・除去
+### 1.3 Adding and Removing Modifiers
 
 ```typescript
-// readonly の追加
+// Add readonly
 type MyReadonly<T> = {
   readonly [K in keyof T]: T[K];
 };
 
-// readonly の除去（-readonly）
+// Remove readonly (-readonly)
 type Mutable<T> = {
   -readonly [K in keyof T]: T[K];
 };
 
-// オプショナルの除去（-?）
+// Remove optional (-?)
 type MyRequired<T> = {
   [K in keyof T]-?: T[K];
 };
 
-// 例
+// Example
 interface Config {
   readonly host: string;
   readonly port: number;
@@ -123,7 +123,7 @@ type MutableConfig = Mutable<Config>;
 type RequiredConfig = MyRequired<Config>;
 // { readonly host: string; readonly port: number; debug: boolean }
 
-// 両方の修飾子を同時に操作
+// Manipulate both modifiers simultaneously
 type MutableRequired<T> = {
   -readonly [K in keyof T]-?: T[K];
 };
@@ -131,7 +131,7 @@ type MutableRequired<T> = {
 type MutableRequiredConfig = MutableRequired<Config>;
 // { host: string; port: number; debug: boolean }
 
-// readonly かつ optional に
+// Make readonly and optional at the same time
 type ReadonlyPartial<T> = {
   readonly [K in keyof T]?: T[K];
 };
@@ -140,10 +140,10 @@ type ReadonlyPartialConfig = ReadonlyPartial<Config>;
 // { readonly host?: string; readonly port?: number; readonly debug?: boolean }
 ```
 
-### 1.4 keyof の詳細な挙動
+### 1.4 Detailed Behavior of keyof
 
 ```typescript
-// keyof は型のすべてのプロパティキーのユニオンを返す
+// keyof returns a union of all property keys of a type
 interface Example {
   name: string;
   age: number;
@@ -153,55 +153,55 @@ interface Example {
 
 type Keys = keyof Example;
 // "name" | "age" | 0 | typeof Symbol.iterator
-// → string | number | symbol のいずれかになりうる
+// → can be any of string | number | symbol
 
-// マップ型で文字列キーのみを使用する場合
+// Use only string keys in a mapped type
 type StringKeysOnly<T> = {
   [K in keyof T & string]: T[K];
 };
 
-// 数値キーのみを使用する場合
+// Use only number keys
 type NumberKeysOnly<T> = {
   [K in keyof T & number]: T[K];
 };
 
-// keyof の特殊なケース: インデックスシグネチャ
+// Special case of keyof: index signatures
 interface IndexSignature {
   [key: string]: number;
   specific: 42;
 }
 
 type ISKeys = keyof IndexSignature;
-// string | number（インデックスシグネチャにより）
-// "specific" は string に含まれる
+// string | number (due to the index signature)
+// "specific" is included in string
 
-// 配列型の keyof
+// keyof of an array type
 type ArrayKeys = keyof string[];
-// number | "length" | "push" | "pop" | "concat" | ... (配列のメソッドも含む)
+// number | "length" | "push" | "pop" | "concat" | ... (also includes array methods)
 
-// タプル型の keyof
+// keyof of a tuple type
 type TupleKeys = keyof [string, number];
-// "0" | "1" | "length" | "push" | ... (配列メソッドも含む)
+// "0" | "1" | "length" | "push" | ... (also includes array methods)
 ```
 
-### 1.5 マップ型と in 演算子
+### 1.5 Mapped Types and the in Operator
 
 ```typescript
-// in 演算子はユニオン型のメンバーをイテレーションする
-// keyof T だけでなく、任意のユニオン型を使用できる
+// The in operator iterates over members of a union type
+// You can use any union type, not just keyof T
 
-// 文字列リテラルのユニオンから型を生成
+// Generate a type from a union of string literals
 type StatusFlags = {
   [K in "loading" | "error" | "success"]: boolean;
 };
 // { loading: boolean; error: boolean; success: boolean }
 
-// 数値リテラルのユニオンから型を生成
+// Generate a type from a union of numeric literals
 type DigitMap = {
   [K in 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9]: string;
 };
 
-// テンプレートリテラル型と組み合わせ
+// Combine with template literal types
 type CSSVariables = {
   [K in `--color-${"primary" | "secondary" | "accent"}`]: string;
 };
@@ -214,31 +214,31 @@ type CSSVariables = {
 
 ---
 
-## 2. 組み込みユーティリティ型
+## 2. Built-in Utility Types
 
-### 2.1 主要ユーティリティ型の実装
+### 2.1 Implementations of Major Utility Types
 
 ```typescript
-// Partial<T>: 全プロパティをオプショナルに
+// Partial<T>: make every property optional
 type Partial<T> = { [K in keyof T]?: T[K] };
 
-// Required<T>: 全プロパティを必須に
+// Required<T>: make every property required
 type Required<T> = { [K in keyof T]-?: T[K] };
 
-// Readonly<T>: 全プロパティをreadonly に
+// Readonly<T>: make every property readonly
 type Readonly<T> = { readonly [K in keyof T]: T[K] };
 
-// Record<K, V>: キーの集合からオブジェクト型を生成
+// Record<K, V>: generate an object type from a set of keys
 type Record<K extends keyof any, T> = { [P in K]: T };
 
-// Pick<T, K>: 特定のプロパティのみ取り出す
+// Pick<T, K>: extract only specific properties
 type Pick<T, K extends keyof T> = { [P in K]: T[P] };
 
-// Omit<T, K>: 特定のプロパティを除外する
+// Omit<T, K>: exclude specific properties
 type Omit<T, K extends keyof any> = Pick<T, Exclude<keyof T, K>>;
 ```
 
-### 2.2 ユーティリティ型の活用パターン
+### 2.2 Patterns for Using Utility Types
 
 ```typescript
 interface User {
@@ -250,39 +250,39 @@ interface User {
   updatedAt: Date;
 }
 
-// 更新時は全フィールドオプショナル（idとcreatedAtは変更不可）
+// On update, all fields are optional (id and createdAt cannot be changed)
 type UpdateUser = Partial<Omit<User, "id" | "createdAt">>;
 // { name?: string; email?: string; password?: string; updatedAt?: Date }
 
-// 公開APIのレスポンス（パスワードを除外）
+// Public API response (excluding password)
 type PublicUser = Omit<User, "password">;
 // { id: number; name: string; email: string; createdAt: Date; updatedAt: Date }
 
-// 作成時の型（idとタイムスタンプは自動生成）
+// Type for creation (id and timestamps are auto-generated)
 type CreateUser = Omit<User, "id" | "createdAt" | "updatedAt">;
 // { name: string; email: string; password: string }
 
-// ステータスマップ
+// Status map
 type StatusMap = Record<"pending" | "active" | "inactive", number>;
 // { pending: number; active: number; inactive: number }
 
-// 部分的にReadonly
+// Partially Readonly
 type UserWithReadonlyId = Readonly<Pick<User, "id">> & Omit<User, "id">;
 // { readonly id: number; name: string; email: string; ... }
 
-// 部分的にPartial
+// Partially Partial
 type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
 type UserOptionalEmail = PartialBy<User, "email" | "password">;
 // { id: number; name: string; email?: string; password?: string; createdAt: Date; updatedAt: Date }
 
-// 部分的にRequired
+// Partially Required
 type RequiredBy<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
 ```
 
-### 2.3 Record の高度な使い方
+### 2.3 Advanced Usage of Record
 
 ```typescript
-// Record を使ったルックアップテーブル
+// Lookup table using Record
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 
 type EndpointConfig = {
@@ -293,10 +293,10 @@ type EndpointConfig = {
 
 type ApiEndpoints = Record<HttpMethod, EndpointConfig[]>;
 
-// Record とジェネリクスの組み合わせ
+// Combination of Record and generics
 type EntityStore<T extends string, E> = Record<T, E[]>;
 
-// 使用例
+// Usage example
 interface Product {
   id: string;
   name: string;
@@ -310,7 +310,7 @@ type ProductStore = EntityStore<"electronics" | "clothing" | "food", Product>;
 //   food: Product[];
 // }
 
-// Record を使ったキャッシュ型
+// Cache type using Record
 type CacheEntry<T> = {
   data: T;
   timestamp: number;
@@ -319,7 +319,7 @@ type CacheEntry<T> = {
 
 type Cache<Keys extends string, Value> = Record<Keys, CacheEntry<Value> | null>;
 
-// Recordの型安全な初期化
+// Type-safe initialization of a Record
 function createRecord<K extends string, V>(
   keys: K[],
   initialValue: V
@@ -335,10 +335,10 @@ const flags = createRecord(["loading", "error", "success"] as const, false);
 // Record<"loading" | "error" | "success", boolean>
 ```
 
-### 2.4 Pick と Omit の高度なパターン
+### 2.4 Advanced Patterns with Pick and Omit
 
 ```typescript
-// 条件付き Pick: 特定の型のプロパティだけを選択
+// Conditional Pick: select only properties of a particular type
 type PickByType<T, ValueType> = {
   [K in keyof T as T[K] extends ValueType ? K : never]: T[K];
 };
@@ -358,7 +358,7 @@ type StringFields = PickByType<UserProfile, string>;
 type NumberFields = PickByType<UserProfile, number>;
 // { age: number; score: number }
 
-// 条件付き Omit: 特定の型のプロパティを除外
+// Conditional Omit: exclude properties of a particular type
 type OmitByType<T, ValueType> = {
   [K in keyof T as T[K] extends ValueType ? never : K]: T[K];
 };
@@ -366,7 +366,7 @@ type OmitByType<T, ValueType> = {
 type NonStringFields = OmitByType<UserProfile, string>;
 // { age: number; isActive: boolean; score: number }
 
-// 再帰的 Pick: ネストされたオブジェクトの特定パスのみ抽出
+// Recursive Pick: extract only a specific path from a nested object
 type DeepPick<T, Paths extends string> =
   Paths extends `${infer Key}.${infer Rest}`
     ? Key extends keyof T
@@ -394,42 +394,42 @@ type JustAvatar = DeepPick<NestedUser, "profile.avatar.url">;
 // { profile: { avatar: { url: string } } }
 ```
 
-### ユーティリティ型の関係
+### Relationships Among Utility Types
 
 ```
-  元の型 T
+  Original type T
     |
-    +---> Partial<T>     全プロパティ ? 付与
+    +---> Partial<T>     Add ? to every property
     |
-    +---> Required<T>    全プロパティ ? 除去
+    +---> Required<T>    Remove ? from every property
     |
-    +---> Readonly<T>    全プロパティ readonly 付与
+    +---> Readonly<T>    Add readonly to every property
     |
-    +---> Pick<T, K>     指定プロパティのみ抽出
+    +---> Pick<T, K>     Extract only the specified properties
     |       |
     |       +---> Omit<T, K> = Pick<T, Exclude<keyof T, K>>
     |
-    +---> Record<K, V>   キー集合 → オブジェクト型生成
+    +---> Record<K, V>   Key set -> generate object type
     |
-    +--- 組み合わせパターン ---+
-    |                          |
-    +---> PartialBy<T, K>      Omit<T, K> & Partial<Pick<T, K>>
-    +---> RequiredBy<T, K>     Omit<T, K> & Required<Pick<T, K>>
-    +---> ReadonlyBy<T, K>     Omit<T, K> & Readonly<Pick<T, K>>
-    +---> PickByType<T, V>     値の型でフィルタリング
-    +---> OmitByType<T, V>     値の型で除外
+    +--- Combination patterns ---+
+    |                             |
+    +---> PartialBy<T, K>         Omit<T, K> & Partial<Pick<T, K>>
+    +---> RequiredBy<T, K>        Omit<T, K> & Required<Pick<T, K>>
+    +---> ReadonlyBy<T, K>        Omit<T, K> & Readonly<Pick<T, K>>
+    +---> PickByType<T, V>        Filter by value type
+    +---> OmitByType<T, V>        Exclude by value type
 ```
 
 ---
 
-## 3. Key Remapping（キー再マッピング）
+## 3. Key Remapping
 
-### 3.1 as 句によるキー変換
+### 3.1 Key Transformation via the as Clause
 
-TypeScript 4.1 で導入された Key Remapping（`as` 句）を使うと、マップ型のキーを動的に変換できる。
+Key Remapping (the `as` clause), introduced in TypeScript 4.1, lets you transform mapped type keys dynamically.
 
 ```typescript
-// プロパティ名にプレフィックスを追加
+// Add a prefix to property names
 type Prefixed<T, P extends string> = {
   [K in keyof T as `${P}${Capitalize<string & K>}`]: T[K];
 };
@@ -442,7 +442,7 @@ interface User {
 type PrefixedUser = Prefixed<User, "get">;
 // { getName: string; getAge: number }
 
-// サフィックスを追加
+// Add a suffix
 type Suffixed<T, S extends string> = {
   [K in keyof T as `${string & K}${S}`]: T[K];
 };
@@ -450,7 +450,7 @@ type Suffixed<T, S extends string> = {
 type UserChangedFlags = Suffixed<User, "Changed">;
 // { nameChanged: string; ageChanged: number }
 
-// getter メソッドに変換
+// Convert to getter methods
 type Getters<T> = {
   [K in keyof T as `get${Capitalize<string & K>}`]: () => T[K];
 };
@@ -458,7 +458,7 @@ type Getters<T> = {
 type UserGetters = Getters<User>;
 // { getName: () => string; getAge: () => number }
 
-// setter メソッドに変換
+// Convert to setter methods
 type Setters<T> = {
   [K in keyof T as `set${Capitalize<string & K>}`]: (value: T[K]) => void;
 };
@@ -466,7 +466,7 @@ type Setters<T> = {
 type UserSetters = Setters<User>;
 // { setName: (value: string) => void; setAge: (value: number) => void }
 
-// getter と setter を合成
+// Compose getters and setters
 type GettersAndSetters<T> = Getters<T> & Setters<T>;
 
 type UserAccessors = GettersAndSetters<User>;
@@ -478,10 +478,10 @@ type UserAccessors = GettersAndSetters<User>;
 // }
 ```
 
-### 3.2 フィルタリング
+### 3.2 Filtering
 
 ```typescript
-// 特定の型のプロパティだけ抽出（フィルタリング）
+// Extract only properties of a specific type (filtering)
 type OnlyStrings<T> = {
   [K in keyof T as T[K] extends string ? K : never]: T[K];
 };
@@ -496,7 +496,7 @@ interface Mixed {
 type StringProps = OnlyStrings<Mixed>;
 // { name: string; email: string }
 
-// 関数プロパティだけ抽出
+// Extract only function properties
 type OnlyFunctions<T> = {
   [K in keyof T as T[K] extends (...args: any[]) => any ? K : never]: T[K];
 };
@@ -512,7 +512,7 @@ interface Service {
 type ServiceMethods = OnlyFunctions<Service>;
 // { start: () => void; stop: () => void; getStatus: () => string }
 
-// 関数以外のプロパティを抽出
+// Extract non-function properties
 type OnlyData<T> = {
   [K in keyof T as T[K] extends (...args: any[]) => any ? never : K]: T[K];
 };
@@ -520,7 +520,7 @@ type OnlyData<T> = {
 type ServiceData = OnlyData<Service>;
 // { name: string; port: number }
 
-// 特定のプレフィックスを持つプロパティだけ抽出
+// Extract only properties with a specific prefix
 type WithPrefix<T, P extends string> = {
   [K in keyof T as K extends `${P}${string}` ? K : never]: T[K];
 };
@@ -540,7 +540,7 @@ type DbConfig = WithPrefix<AppConfig, "db">;
 type ApiConfig = WithPrefix<AppConfig, "api">;
 // { apiKey: string; apiUrl: string }
 
-// プレフィックスを除去してリマップ
+// Strip the prefix and remap
 type StripPrefix<T, P extends string> = {
   [K in keyof T as K extends `${P}${infer Rest}`
     ? Uncapitalize<Rest>
@@ -551,10 +551,10 @@ type CleanDbConfig = StripPrefix<AppConfig, "db">;
 // { host: string; port: number; name: string }
 ```
 
-### 3.3 イベントハンドラ生成
+### 3.3 Generating Event Handlers
 
 ```typescript
-// イベント名からハンドラ型を自動生成
+// Auto-generate handler types from event names
 type EventMap = {
   click: { x: number; y: number };
   focus: { target: HTMLElement };
@@ -576,7 +576,7 @@ type Handlers = EventHandlers<EventMap>;
 //   onScroll: (event: { scrollTop: number; scrollLeft: number }) => void;
 // }
 
-// イベントリスナー追加/削除メソッドの生成
+// Generate add/remove event listener methods
 type EventMethods<T> = {
   [K in keyof T as `add${Capitalize<string & K>}Listener`]:
     (handler: (event: T[K]) => void) => void;
@@ -594,7 +594,7 @@ type EventEmitterMethods = EventMethods<EventMap>;
 //   ...
 // }
 
-// 逆マッピング（ハンドラ名からイベント名を取得）
+// Reverse mapping (derive the event name from a handler name)
 type HandlerToEvent<T extends string> =
   T extends `on${infer E}` ? Uncapitalize<E> : never;
 
@@ -602,10 +602,10 @@ type EventName = HandlerToEvent<"onClick">;  // "click"
 type EventName2 = HandlerToEvent<"onResize">; // "resize"
 ```
 
-### 3.4 キャメルケース変換
+### 3.4 Camel Case Conversion
 
 ```typescript
-// スネークケースからキャメルケースへのキー変換
+// Key conversion from snake_case to camelCase
 type SnakeToCamel<S extends string> =
   S extends `${infer Head}_${infer Tail}`
     ? `${Head}${Capitalize<SnakeToCamel<Tail>>}`
@@ -619,7 +619,7 @@ type CamelizeKeys<T> = {
     : T[K];
 };
 
-// APIレスポンス（スネークケース）
+// API response (snake_case)
 interface ApiResponse {
   user_id: number;
   first_name: string;
@@ -647,7 +647,7 @@ type CamelizedResponse = CamelizeKeys<ApiResponse>;
 //   };
 // }
 
-// キャメルケースからスネークケースへ
+// camelCase to snake_case
 type CamelToSnake<S extends string> =
   S extends `${infer First}${infer Rest}`
     ? First extends Uppercase<First>
@@ -668,15 +668,15 @@ type SnakifyKeys<T> = {
 
 ---
 
-## 4. 高度なマップ型
+## 4. Advanced Mapped Types
 
-### 4.1 DeepPartial と DeepReadonly
+### 4.1 DeepPartial and DeepReadonly
 
 ```typescript
-// DeepPartial: 再帰的に全プロパティをオプショナルにする
+// DeepPartial: recursively make every property optional
 type DeepPartial<T> =
   T extends (...args: any[]) => any
-    ? T  // 関数はそのまま
+    ? T  // leave functions as-is
     : T extends any[]
       ? DeepPartialArray<T>
       : T extends object
@@ -709,9 +709,9 @@ interface Config {
 }
 
 type PartialConfig = DeepPartial<Config>;
-// 全てのネストしたプロパティもオプショナル
+// All nested properties are also optional
 
-// 深い部分だけ更新できるマージ関数
+// Merge function that allows updating just deep parts
 function deepMerge<T extends object>(
   base: T,
   updates: DeepPartial<T>
@@ -733,7 +733,7 @@ function deepMerge<T extends object>(
   return result;
 }
 
-// 使用例
+// Usage example
 const defaultConfig: Config = {
   server: { host: "localhost", port: 3000, ssl: { cert: "", key: "", passphrase: "" } },
   logging: { level: "info", file: "app.log", format: { timestamp: true, colors: false } },
@@ -741,11 +741,11 @@ const defaultConfig: Config = {
 };
 
 const updatedConfig = deepMerge(defaultConfig, {
-  server: { port: 8080 },           // port だけ変更
-  logging: { level: "debug" },       // level だけ変更
+  server: { port: 8080 },           // change only port
+  logging: { level: "debug" },       // change only level
 });
 
-// DeepReadonly: 再帰的に全プロパティを readonly にする
+// DeepReadonly: recursively make every property readonly
 type DeepReadonly<T> =
   T extends (...args: any[]) => any
     ? T
@@ -756,10 +756,10 @@ type DeepReadonly<T> =
         : T;
 
 type FrozenConfig = DeepReadonly<Config>;
-// 全てのネストしたプロパティが readonly
-// features は readonly string[]
+// All nested properties become readonly
+// features becomes readonly string[]
 
-// DeepRequired: 再帰的に全プロパティを必須にする
+// DeepRequired: recursively make every property required
 type DeepRequired<T> =
   T extends (...args: any[]) => any
     ? T
@@ -769,7 +769,7 @@ type DeepRequired<T> =
         ? { [K in keyof T]-?: DeepRequired<T[K]> }
         : T;
 
-// DeepMutable: 再帰的に readonly を除去
+// DeepMutable: recursively remove readonly
 type DeepMutable<T> =
   T extends (...args: any[]) => any
     ? T
@@ -780,10 +780,10 @@ type DeepMutable<T> =
         : T;
 ```
 
-### 4.2 条件付きマッピング
+### 4.2 Conditional Mapping
 
 ```typescript
-// プロパティの型に応じて異なる変換を適用
+// Apply different transformations depending on the property's type
 type TransformByType<T> = {
   [K in keyof T]: T[K] extends string
     ? { type: "string"; value: T[K]; maxLength: number }
@@ -811,7 +811,7 @@ type ProductSchema = TransformByType<Product>;
 //   tags: { type: "array"; value: string[]; minItems: number; maxItems: number };
 // }
 
-// Nullable なプロパティだけを必須にする（null を除去）
+// Make only nullable properties strict (remove null)
 type StrictNonNullable<T> = {
   [K in keyof T]: NonNullable<T[K]>;
 };
@@ -826,7 +826,7 @@ interface ApiUser {
 type StrictUser = StrictNonNullable<ApiUser>;
 // { name: string; email: string; phone: string; age: number }
 
-// Nullable なプロパティだけをオプショナルにする
+// Make only nullable properties optional
 type NullableToOptional<T> = {
   [K in keyof T as null extends T[K] ? never : undefined extends T[K] ? never : K]: T[K];
 } & {
@@ -837,10 +837,10 @@ type OptionalizedUser = NullableToOptional<ApiUser>;
 // { name: string } & { email?: string; phone?: string; age?: number }
 ```
 
-### 4.3 テンプレートリテラルとの組み合わせ
+### 4.3 Combining With Template Literal Types
 
 ```typescript
-// CSSプロパティから React スタイルオブジェクトを生成
+// Generate a React style object from CSS properties
 type CSSProperties = {
   "background-color": string;
   "font-size": string;
@@ -849,7 +849,7 @@ type CSSProperties = {
   "padding-left": string;
 };
 
-// ケバブケースからキャメルケースへ
+// kebab-case to camelCase
 type KebabToCamel<S extends string> =
   S extends `${infer Head}-${infer Tail}`
     ? `${Head}${Capitalize<KebabToCamel<Tail>>}`
@@ -867,10 +867,10 @@ type ReactStyle = {
 //   paddingLeft: string;
 // }
 
-// 環境変数の型定義
+// Type definitions for environment variables
 type EnvVarName = "DATABASE_URL" | "API_KEY" | "PORT" | "NODE_ENV";
 
-// process.env の型安全なアクセサー
+// Type-safe accessors for process.env
 type EnvAccessors = {
   [K in EnvVarName as `get${SnakeToPascal<K>}`]: () => string;
 };
@@ -889,10 +889,10 @@ type SnakeToPascal<S extends string> =
 // }
 ```
 
-### 4.4 実践的なマップ型の組み合わせ
+### 4.4 Practical Combinations of Mapped Types
 
 ```typescript
-// フォームの状態型を自動生成
+// Auto-generate form state types
 interface FormFields {
   username: string;
   email: string;
@@ -901,7 +901,7 @@ interface FormFields {
   agreeToTerms: boolean;
 }
 
-// 各フィールドの状態
+// State of each field
 type FieldState<T> = {
   value: T;
   error: string | null;
@@ -910,7 +910,7 @@ type FieldState<T> = {
   validating: boolean;
 };
 
-// フォーム全体の状態
+// Overall form state
 type FormState<T> = {
   fields: {
     [K in keyof T]: FieldState<T[K]>;
@@ -934,7 +934,7 @@ type MyFormState = FormState<FormFields>;
 //   submitCount: number;
 // }
 
-// フォームのバリデーションルール型
+// Type for form validation rules
 type ValidationRule<T> = {
   validate: (value: T) => boolean;
   message: string;
@@ -946,22 +946,22 @@ type FormValidation<T> = {
 
 const validationRules: FormValidation<FormFields> = {
   username: [
-    { validate: (v) => v.length >= 3, message: "3文字以上必要です" },
-    { validate: (v) => /^[a-zA-Z0-9]+$/.test(v), message: "英数字のみ使用できます" },
+    { validate: (v) => v.length >= 3, message: "Must be at least 3 characters" },
+    { validate: (v) => /^[a-zA-Z0-9]+$/.test(v), message: "Only alphanumeric characters allowed" },
   ],
   email: [
-    { validate: (v) => v.includes("@"), message: "有効なメールアドレスを入力してください" },
+    { validate: (v) => v.includes("@"), message: "Please enter a valid email address" },
   ],
   age: [
-    { validate: (v) => v >= 0, message: "0以上の数値を入力してください" },
-    { validate: (v) => v <= 150, message: "150以下の数値を入力してください" },
+    { validate: (v) => v >= 0, message: "Please enter a number greater than or equal to 0" },
+    { validate: (v) => v <= 150, message: "Please enter a number less than or equal to 150" },
   ],
   agreeToTerms: [
-    { validate: (v) => v === true, message: "利用規約に同意してください" },
+    { validate: (v) => v === true, message: "You must agree to the terms of service" },
   ],
 };
 
-// フォームアクション型の自動生成
+// Auto-generate form action types
 type FormActions<T> = {
   [K in keyof T as `set${Capitalize<string & K>}`]: (value: T[K]) => void;
 } & {
@@ -993,12 +993,12 @@ type MyFormActions = FormActions<FormFields>;
 
 ---
 
-## 5. 実務パターン
+## 5. Practical Patterns
 
-### 5.1 API クライアントの型定義
+### 5.1 Type Definitions for an API Client
 
 ```typescript
-// RESTful API のエンドポイント定義
+// RESTful API endpoint definitions
 interface ApiEndpoints {
   "/users": {
     GET: { response: User[]; query: { page: number; limit: number } };
@@ -1017,7 +1017,7 @@ interface ApiEndpoints {
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
-// エンドポイントからリクエスト型を生成
+// Generate the request type from an endpoint
 type RequestConfig<
   Path extends keyof ApiEndpoints,
   Method extends keyof ApiEndpoints[Path]
@@ -1029,7 +1029,7 @@ type RequestConfig<
     ? { params: P }
     : {});
 
-// エンドポイントからレスポンス型を取得
+// Get the response type from an endpoint
 type ResponseType<
   Path extends keyof ApiEndpoints,
   Method extends keyof ApiEndpoints[Path]
@@ -1037,7 +1037,7 @@ type ResponseType<
   ? R
   : never;
 
-// 型安全な API クライアント
+// Type-safe API client
 class ApiClient {
   async request<
     Path extends keyof ApiEndpoints,
@@ -1047,30 +1047,30 @@ class ApiClient {
     path: Path,
     config?: RequestConfig<Path, Method>
   ): Promise<ResponseType<Path, Method>> {
-    // 実装...
+    // implementation...
     return {} as ResponseType<Path, Method>;
   }
 }
 
-// 使用例
+// Usage example
 const api = new ApiClient();
 
-// 型安全に API を呼び出せる
+// API calls are type-safe
 const users = await api.request("GET", "/users", {
   query: { page: 1, limit: 10 },
 });
-// users は User[] 型
+// users is of type User[]
 
 const newUser = await api.request("POST", "/users", {
   body: { name: "Alice", email: "alice@example.com", password: "secret" },
 });
-// newUser は User 型
+// newUser is of type User
 ```
 
-### 5.2 状態管理パターン
+### 5.2 State Management Patterns
 
 ```typescript
-// Zustand 風の型安全なストア定義
+// Type-safe Zustand-style store definition
 type StoreDefinition<T extends object> = {
   state: T;
   actions: {
@@ -1110,7 +1110,7 @@ type AppStore = StoreDefinition<AppState>;
 //   computed: Record<string, (...args: any[]) => any>;
 // }
 
-// Immer 風の不変更新パターン
+// Immer-style immutable update pattern
 type DraftState<T> = {
   -readonly [K in keyof T]: T[K] extends object
     ? T[K] extends (...args: any[]) => any
@@ -1123,15 +1123,15 @@ function produce<T extends object>(
   state: T,
   recipe: (draft: DraftState<T>) => void
 ): T {
-  // 実装...
+  // implementation...
   return state;
 }
 ```
 
-### 5.3 データベースモデル型の自動生成
+### 5.3 Auto-Generating Database Model Types
 
 ```typescript
-// モデル定義からCRUD操作の型を自動生成
+// Auto-generate CRUD operation types from model definitions
 
 interface ModelDefinition {
   User: {
@@ -1159,13 +1159,13 @@ interface ModelDefinition {
   };
 }
 
-// 自動生成されるフィールドを除いた作成用の型
+// Type for creation, excluding auto-generated fields
 type AutoFields = "id" | "createdAt" | "updatedAt";
 
 type CreateInput<T> = Omit<T, AutoFields>;
 type UpdateInput<T> = Partial<Omit<T, AutoFields>>;
 
-// モデルごとのリポジトリインターフェース
+// Repository interface for each model
 type Repository<T> = {
   findById: (id: number) => Promise<T | null>;
   findMany: (where?: Partial<T>) => Promise<T[]>;
@@ -1175,7 +1175,7 @@ type Repository<T> = {
   count: (where?: Partial<T>) => Promise<number>;
 };
 
-// 全モデルのリポジトリを一括生成
+// Generate repositories for all models at once
 type Repositories = {
   [K in keyof ModelDefinition as Uncapitalize<string & K>]:
     Repository<ModelDefinition[K]>;
@@ -1188,7 +1188,7 @@ type Repositories = {
 //   comment: Repository<ModelDefinition["Comment"]>;
 // }
 
-// 使用例
+// Usage example
 declare const repos: Repositories;
 
 const user = await repos.user.findById(1);          // User | null
@@ -1200,10 +1200,10 @@ const newComment = await repos.comment.create({
 });  // Comment
 ```
 
-### 5.4 国際化（i18n）の型安全な設計
+### 5.4 Type-Safe Internationalization (i18n) Design
 
 ```typescript
-// 翻訳キーの型安全な管理
+// Type-safe management of translation keys
 interface Translations {
   common: {
     save: string;
@@ -1230,7 +1230,7 @@ interface Translations {
   };
 }
 
-// ドットパスで翻訳キーを生成
+// Generate translation keys via dot paths
 type DotPath<T, Prefix extends string = ""> =
   T extends string
     ? Prefix
@@ -1244,25 +1244,25 @@ type TranslationKey = DotPath<Translations>;
 // | "auth.login" | "auth.logout" | ...
 // | "errors.validation.required" | "errors.validation.minLength" | ...
 
-// 型安全な翻訳関数
+// Type-safe translation function
 function t(key: TranslationKey): string {
-  // 実装...
+  // implementation...
   return "";
 }
 
-// 使用例
+// Usage example
 t("common.save");        // OK
 t("auth.login");         // OK
-// t("invalid.key");     // コンパイルエラー
-// t("common");          // コンパイルエラー（リーフノードのみ許可）
+// t("invalid.key");     // compile error
+// t("common");          // compile error (only leaf nodes are allowed)
 ```
 
-### 5.5 テスト用のモック型生成
+### 5.5 Generating Mock Types for Testing
 
 ```typescript
-// インターフェースから自動でモック型を生成
+// Auto-generate mock types from interfaces
 
-// 全メソッドを jest.Mock に変換
+// Convert all methods to jest.Mock
 type MockedMethods<T> = {
   [K in keyof T as T[K] extends (...args: any[]) => any ? K : never]:
     T[K] extends (...args: infer A) => infer R
@@ -1270,7 +1270,7 @@ type MockedMethods<T> = {
       : never;
 };
 
-// プロパティはそのまま、メソッドだけモック化
+// Keep properties as-is, mock only methods
 type Mocked<T> = {
   [K in keyof T]: T[K] extends (...args: any[]) => any
     ? T[K] extends (...args: infer A) => infer R
@@ -1296,7 +1296,7 @@ type MockedUserService = Mocked<UserService>;
 //   getUserCount: jest.Mock<number, []>;
 // }
 
-// モックファクトリ関数
+// Mock factory function
 function createMock<T extends object>(): Mocked<T> {
   return new Proxy({} as Mocked<T>, {
     get: (target, prop) => {
@@ -1308,27 +1308,27 @@ function createMock<T extends object>(): Mocked<T> {
   });
 }
 
-// 使用例
+// Usage example
 const mockService = createMock<UserService>();
 mockService.getUser.mockResolvedValue({ id: 1, name: "Alice" } as User);
 ```
 
 ---
 
-## 6. パフォーマンスとデバッグ
+## 6. Performance and Debugging
 
-### 6.1 コンパイル性能の最適化
+### 6.1 Optimizing Compilation Performance
 
 ```typescript
-// マップ型のパフォーマンスに関する注意点
+// Notes on the performance of mapped types
 
-// BAD: 不必要な再帰
+// BAD: unnecessary recursion
 type BadDeepReadonly<T> = {
   readonly [K in keyof T]: T[K] extends object ? BadDeepReadonly<T[K]> : T[K];
 };
-// 配列やDate、Functionも再帰してしまう
+// Recurses into arrays, Date, and functions as well
 
-// GOOD: 適切な条件分岐で再帰を制限
+// GOOD: limit recursion via appropriate conditional branches
 type GoodDeepReadonly<T> =
   T extends Function ? T :
   T extends Date ? T :
@@ -1339,88 +1339,88 @@ type GoodDeepReadonly<T> =
   T extends object ? { readonly [K in keyof T]: GoodDeepReadonly<T[K]> } :
   T;
 
-// BAD: 大量のキーでの Key Remapping
-// 数百のプロパティを持つ型に対してテンプレートリテラルでリマップ
-// → コンパイル時間が大幅に増加
+// BAD: Key Remapping over a large number of keys
+// Remapping with template literals on a type with hundreds of properties
+// → significantly increases compilation time
 
-// GOOD: 必要なプロパティだけを処理
+// GOOD: process only the necessary properties
 type SelectiveRemap<T, Keys extends keyof T> = {
   [K in Keys as `get${Capitalize<string & K>}`]: () => T[K];
 } & Omit<T, Keys>;
 
-// BAD: マップ型の重複適用
+// BAD: redundant application of mapped types
 type Redundant<T> = Readonly<Partial<Required<Partial<T>>>>;
-// Partial の後に Required して再び Partial... 無意味
+// Partial then Required then Partial again... pointless
 
-// GOOD: 1回の変換で済ませる
+// GOOD: do it in a single transformation
 type Clean<T> = { readonly [K in keyof T]?: T[K] };
 ```
 
-### 6.2 デバッグテクニック
+### 6.2 Debugging Techniques
 
 ```typescript
-// テクニック1: Prettify で型を展開して確認
+// Technique 1: use Prettify to expand a type for inspection
 type Prettify<T> = {
   [K in keyof T]: T[K];
 } & {};
 
-// 型をフラットに展開してホバーで確認しやすくする
+// Flatten the type so it's easier to inspect via hover
 type ComplexType = Omit<User, "password"> & Partial<Pick<User, "email">>;
 type PrettifiedType = Prettify<ComplexType>;
-// エディタでホバーすると展開された型が見える
+// Hovering in your editor shows the expanded type
 
-// テクニック2: 型の等値テスト
+// Technique 2: type equality testing
 type Equal<X, Y> =
   (<T>() => T extends X ? 1 : 2) extends
   (<T>() => T extends Y ? 1 : 2) ? true : false;
 
 type Expect<T extends true> = T;
 
-// テストケースの記述
+// Writing test cases
 type TestPartial = Expect<Equal<
   MyPartial<{ a: string; b: number }>,
   { a?: string; b?: number }
 >>;
 
-// テクニック3: 型エラーの可視化
+// Technique 3: visualizing type errors
 type ShowError<T, Message extends string> = T & { __error: Message };
 
-// テクニック4: 段階的な型の構築
+// Technique 4: incremental type construction
 type Step1 = keyof User;                      // "id" | "name" | "email" | ...
 type Step2 = Exclude<Step1, "password">;      // "id" | "name" | "email" | "createdAt" | "updatedAt"
-type Step3 = Pick<User, Step2>;               // パスワード以外のUser
-type Step4 = Prettify<Step3>;                 // 展開して確認
+type Step3 = Pick<User, Step2>;               // User without password
+type Step4 = Prettify<Step3>;                 // expand to inspect
 
-// テクニック5: ブランド型でのデバッグ
+// Technique 5: debugging with branded types
 type Debug<T, Label extends string = ""> = T & { __debug: Label; __type: T };
 ```
 
-### 6.3 よくあるエラーと対処法
+### 6.3 Common Errors and How to Fix Them
 
 ```typescript
-// エラー1: "Type 'string' cannot be used to index type 'T'"
-// 原因: keyof T は string | number | symbol を返す可能性がある
-// 解決: & string で制限する
+// Error 1: "Type 'string' cannot be used to index type 'T'"
+// Cause: keyof T may return string | number | symbol
+// Fix: constrain with & string
 type BadGetters<T> = {
-  // [K in keyof T as `get${Capitalize<K>}`]: () => T[K]; // エラー
+  // [K in keyof T as `get${Capitalize<K>}`]: () => T[K]; // error
   [K in keyof T as K extends string ? `get${Capitalize<K>}` : never]: () => T[K]; // OK
 };
 
-// エラー2: "Type instantiation is excessively deep and possibly infinite"
-// 原因: 再帰が深すぎる
-// 解決: 深さカウンターを追加
+// Error 2: "Type instantiation is excessively deep and possibly infinite"
+// Cause: recursion is too deep
+// Fix: add a depth counter
 type SafeDeep<T, Depth extends any[] = []> =
   Depth["length"] extends 10
-    ? T  // 深さ制限で停止
+    ? T  // stop at the depth limit
     : T extends object
       ? { [K in keyof T]: SafeDeep<T[K], [...Depth, 0]> }
       : T;
 
-// エラー3: "Expression produces a union type that is too complex to represent"
-// 原因: マップ型の結果が巨大なユニオンになる
-// 解決: 処理対象を限定する
+// Error 3: "Expression produces a union type that is too complex to represent"
+// Cause: the result of the mapped type produces a huge union
+// Fix: limit what is processed
 
-// エラー4: 修飾子の意図しない伝播
+// Error 4: unintended modifier propagation
 interface WithOptional {
   required: string;
   optional?: number;
@@ -1428,13 +1428,13 @@ interface WithOptional {
 
 type Mapped = { [K in keyof WithOptional]: string };
 // { required: string; optional?: string }
-// ← optional の ? が保持される！
+// ← the ? on optional is preserved!
 
-// 解決: 明示的に必須にする
+// Fix: explicitly make it required
 type MappedRequired = { [K in keyof WithOptional]-?: string };
 // { required: string; optional: string }
 
-// エラー5: readonly の意図しない伝播
+// Error 5: unintended readonly propagation
 interface WithReadonly {
   readonly fixed: string;
   mutable: number;
@@ -1442,112 +1442,112 @@ interface WithReadonly {
 
 type MappedRO = { [K in keyof WithReadonly]: boolean };
 // { readonly fixed: boolean; mutable: boolean }
-// ← readonly が保持される！
+// ← readonly is preserved!
 
-// 解決: 明示的に除去する
+// Fix: remove it explicitly
 type MappedMutable = { -readonly [K in keyof WithReadonly]: boolean };
 // { fixed: boolean; mutable: boolean }
 ```
 
 ---
 
-## ユーティリティ型早見表
+## Utility Type Cheat Sheet
 
-| 型 | 入力 | 出力 | 用途 |
+| Type | Input | Output | Purpose |
 |----|------|------|------|
-| `Partial<T>` | `{ a: string; b: number }` | `{ a?: string; b?: number }` | 部分更新 |
-| `Required<T>` | `{ a?: string; b?: number }` | `{ a: string; b: number }` | 必須化 |
-| `Readonly<T>` | `{ a: string }` | `{ readonly a: string }` | 不変化 |
-| `Record<K,V>` | `"a" \| "b", number` | `{ a: number; b: number }` | 辞書作成 |
-| `Pick<T,K>` | `{ a: 1; b: 2; c: 3 }, "a"\|"b"` | `{ a: 1; b: 2 }` | 選択 |
-| `Omit<T,K>` | `{ a: 1; b: 2; c: 3 }, "c"` | `{ a: 1; b: 2 }` | 除外 |
+| `Partial<T>` | `{ a: string; b: number }` | `{ a?: string; b?: number }` | Partial update |
+| `Required<T>` | `{ a?: string; b?: number }` | `{ a: string; b: number }` | Make required |
+| `Readonly<T>` | `{ a: string }` | `{ readonly a: string }` | Make immutable |
+| `Record<K,V>` | `"a" \| "b", number` | `{ a: number; b: number }` | Build a dictionary |
+| `Pick<T,K>` | `{ a: 1; b: 2; c: 3 }, "a"\|"b"` | `{ a: 1; b: 2 }` | Selection |
+| `Omit<T,K>` | `{ a: 1; b: 2; c: 3 }, "c"` | `{ a: 1; b: 2 }` | Exclusion |
 
-### カスタムユーティリティ型早見表
+### Custom Utility Type Cheat Sheet
 
-| 型 | 説明 | 用途 |
+| Type | Description | Purpose |
 |----|------|------|
-| `DeepPartial<T>` | 再帰的に全プロパティをオプショナル | 設定のマージ |
-| `DeepReadonly<T>` | 再帰的に全プロパティを readonly | 不変データ構造 |
-| `DeepRequired<T>` | 再帰的に全プロパティを必須 | バリデーション後 |
-| `DeepMutable<T>` | 再帰的に readonly を除去 | Draft パターン |
-| `PartialBy<T, K>` | 特定プロパティだけオプショナル | 部分的な省略 |
-| `RequiredBy<T, K>` | 特定プロパティだけ必須 | 部分的な必須化 |
-| `PickByType<T, V>` | 特定の型のプロパティを抽出 | 型フィルタリング |
-| `OmitByType<T, V>` | 特定の型のプロパティを除外 | 型フィルタリング |
-| `Prettify<T>` | 型をフラットに展開 | デバッグ |
-| `Mocked<T>` | メソッドをモックに変換 | テスト |
+| `DeepPartial<T>` | Recursively make every property optional | Merging configuration |
+| `DeepReadonly<T>` | Recursively make every property readonly | Immutable data structures |
+| `DeepRequired<T>` | Recursively make every property required | Post-validation |
+| `DeepMutable<T>` | Recursively remove readonly | Draft pattern |
+| `PartialBy<T, K>` | Make only specific properties optional | Partial omission |
+| `RequiredBy<T, K>` | Make only specific properties required | Partial requirement |
+| `PickByType<T, V>` | Extract properties by type | Type filtering |
+| `OmitByType<T, V>` | Exclude properties by type | Type filtering |
+| `Prettify<T>` | Flatten and expand a type | Debugging |
+| `Mocked<T>` | Convert methods to mocks | Testing |
 
 ---
 
-## 修飾子操作比較
+## Modifier Operation Comparison
 
-| 操作 | 構文 | 効果 | 例 |
+| Operation | Syntax | Effect | Example |
 |------|------|------|-----|
-| optional追加 | `[K in keyof T]?:` | `?` 追加 | `Partial<T>` |
-| optional除去 | `[K in keyof T]-?:` | `?` 除去 | `Required<T>` |
-| readonly追加 | `readonly [K in keyof T]:` | `readonly` 追加 | `Readonly<T>` |
-| readonly除去 | `-readonly [K in keyof T]:` | `readonly` 除去 | `Mutable<T>` |
-| 両方追加 | `readonly [K in keyof T]?:` | 両方追加 | `ReadonlyPartial<T>` |
-| 両方除去 | `-readonly [K in keyof T]-?:` | 両方除去 | `MutableRequired<T>` |
+| Add optional | `[K in keyof T]?:` | Add `?` | `Partial<T>` |
+| Remove optional | `[K in keyof T]-?:` | Remove `?` | `Required<T>` |
+| Add readonly | `readonly [K in keyof T]:` | Add `readonly` | `Readonly<T>` |
+| Remove readonly | `-readonly [K in keyof T]:` | Remove `readonly` | `Mutable<T>` |
+| Add both | `readonly [K in keyof T]?:` | Add both | `ReadonlyPartial<T>` |
+| Remove both | `-readonly [K in keyof T]-?:` | Remove both | `MutableRequired<T>` |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: マップ型で不要な複雑さを追加
+### Anti-Pattern 1: Adding Unnecessary Complexity With Mapped Types
 
 ```typescript
-// BAD: マップ型を使う必要のないケース
+// BAD: a case where you don't need a mapped type
 type UserKeys = {
   [K in "name" | "email"]: string;
 };
 
-// GOOD: シンプルに書ける
+// GOOD: write it simply
 interface UserKeys {
   name: string;
   email: string;
 }
 
-// BAD: 単なるコピー
+// BAD: just a copy
 type Copy<T> = { [K in keyof T]: T[K] };
-// T と同じ型を返すだけ（Prettify 目的を除く）
+// Returns the same type as T (apart from Prettify use cases)
 
-// GOOD: 変換が伴う場合にのみマップ型を使用
+// GOOD: only use mapped types when a transformation is involved
 type Nullable<T> = { [K in keyof T]: T[K] | null };
 ```
 
-### アンチパターン2: DeepReadonly を全てに適用
+### Anti-Pattern 2: Applying DeepReadonly to Everything
 
 ```typescript
-// BAD: 全てのオブジェクトを DeepReadonly にする
+// BAD: making every object DeepReadonly
 type DeepReadonly<T> = { readonly [K in keyof T]: DeepReadonly<T[K]> };
 type State = DeepReadonly<HugeComplexType>;
-// コンパイルが遅くなり、エラーメッセージが読めなくなる
+// Compilation slows down and error messages become unreadable
 
-// GOOD: 必要な境界でのみ Readonly を使う
+// GOOD: use Readonly only at necessary boundaries
 function getConfig(): Readonly<Config> {
   return config;
 }
 
-// GOOD: 入力の境界で不変性を保証
+// GOOD: enforce immutability at input boundaries
 function processData(data: Readonly<InputData>): OutputData {
-  // data を変更しない保証
+  // Guarantees that data is not modified
   return transform(data);
 }
 ```
 
-### アンチパターン3: 過度な型レベルプログラミング
+### Anti-Pattern 3: Excessive Type-Level Programming
 
 ```typescript
-// BAD: ランタイムで簡単にできることを型レベルで複雑に実装
-type TypeLevelSort<T extends number[]> = /* 非常に複雑な型 */;
+// BAD: implementing in the type system what is easy to do at runtime
+type TypeLevelSort<T extends number[]> = /* a very complex type */;
 
-// GOOD: ランタイムで処理し、型は結果だけ保証
+// GOOD: handle it at runtime; the type only guarantees the result
 function sortNumbers<T extends number[]>(arr: T): number[] {
   return [...arr].sort((a, b) => a - b);
 }
 
-// BAD: 型推論に頼りすぎてコードが読めない
+// BAD: relying so heavily on type inference that the code becomes unreadable
 type AbstractFactory<
   T extends Record<string, new (...args: any[]) => any>,
   K extends keyof T = keyof T
@@ -1556,17 +1556,17 @@ type AbstractFactory<
     (...args: ConstructorParameters<T[P]>) => InstanceType<T[P]>;
 };
 
-// GOOD: 必要な抽象化レベルに留める
+// GOOD: stay at the level of abstraction you actually need
 interface Factory {
   createUser(name: string, age: number): User;
   createPost(title: string, content: string): Post;
 }
 ```
 
-### アンチパターン4: Key Remapping の乱用
+### Anti-Pattern 4: Overusing Key Remapping
 
 ```typescript
-// BAD: 1つの型で多数の変換を行う
+// BAD: doing many transformations in a single type
 type EverythingAtOnce<T> = {
   [K in keyof T as
     T[K] extends string
@@ -1583,7 +1583,7 @@ type EverythingAtOnce<T> = {
       : { type: "other"; value: T[K] };
 };
 
-// GOOD: 分割して名前をつける
+// GOOD: split it up and give pieces names
 type PrefixByType<T> = {
   [K in keyof T as `${TypePrefix<T[K]>}_${string & K}`]: T[K];
 };
@@ -1599,9 +1599,9 @@ type TypePrefix<T> =
 
 ## FAQ
 
-### Q1: `keyof T` と `keyof T & string` の違いは？
+### Q1: What's the difference between `keyof T` and `keyof T & string`?
 
-**A:** `keyof T` は `string | number | symbol` のいずれかを返す可能性があります。テンプレートリテラル型で `${K}` のように文字列として使う場合、`K` が `string` でなければならないため、`keyof T & string` として文字列キーのみに限定します。
+**A:** `keyof T` may return `string | number | symbol`. When you use it as a string in a template literal type like `${K}`, `K` must be `string`, so you constrain it to string keys only with `keyof T & string`.
 
 ```typescript
 interface Example {
@@ -1613,16 +1613,16 @@ type AllKeys = keyof Example;            // "name" | 0
 type StringKeys = keyof Example & string; // "name"
 ```
 
-### Q2: マップ型で一部のプロパティだけ変換することはできますか？
+### Q2: Can a mapped type transform only some properties?
 
-**A:** はい、`Pick` と `Omit` を組み合わせるか、Key Remapping の `as` 句で条件分岐します。
+**A:** Yes. You can either combine `Pick` and `Omit`, or branch on conditions in the `as` clause of Key Remapping.
 
 ```typescript
-// 方法1: Pick + Omit の組み合わせ
+// Option 1: combine Pick + Omit
 type PartialBy<T, K extends keyof T> =
   Omit<T, K> & Partial<Pick<T, K>>;
 
-// 方法2: Key Remapping + 条件型
+// Option 2: Key Remapping + conditional types
 type SelectivePartial<T, K extends keyof T> = {
   [P in keyof T as P extends K ? P : never]?: T[P];
 } & {
@@ -1630,24 +1630,24 @@ type SelectivePartial<T, K extends keyof T> = {
 };
 ```
 
-### Q3: `Record<string, T>` と `{ [key: string]: T }` は同じですか？
+### Q3: Are `Record<string, T>` and `{ [key: string]: T }` the same?
 
-**A:** ほぼ同じですが、微妙な違いがあります。`Record<string, T>` はマップ型として定義されており、エディタでの型表示が異なります。また、`Record` はジェネリクスとの相互作用が良い場合があります。実用上は同じ意味で使えます。
+**A:** Almost the same, but with subtle differences. `Record<string, T>` is defined as a mapped type, and editors display the type differently. `Record` also tends to interact better with generics. In practical use, they have the same meaning.
 
 ```typescript
-// これらはほぼ同等
+// These are roughly equivalent
 type A = Record<string, number>;
 type B = { [key: string]: number };
 
-// ただし Record<string, T> は string | number キーの両方を受け付ける
-// （JavaScript のインデックスシグネチャの仕様による）
+// However, Record<string, T> accepts both string and number keys
+// (due to JavaScript's index signature semantics)
 const a: A = { foo: 1 };
-a[0] = 2;  // OK（number キーも使える）
+a[0] = 2;  // OK (number keys are also allowed)
 ```
 
-### Q4: マップ型で配列やタプルを扱えますか？
+### Q4: Can mapped types handle arrays and tuples?
 
-**A:** はい、マップ型は配列やタプルにも適用できます。配列/タプルに対してマップ型を使うと、要素の型が変換されます。
+**A:** Yes, mapped types can be applied to arrays and tuples as well. When applied to an array/tuple, the element types are transformed.
 
 ```typescript
 type MapArray<T extends any[]> = {
@@ -1657,13 +1657,13 @@ type MapArray<T extends any[]> = {
 type Result = MapArray<[string, number, string]>;
 // [number, number, number]
 
-// ただし、配列のメソッド（push, pop など）にも適用されるので注意
-// 通常はジェネリック制約を使って要素のみを変換する
+// Note that array methods (push, pop, etc.) are also affected,
+// so it's common to use generic constraints to transform only the elements
 ```
 
-### Q5: マップ型の結果で修飾子（optional, readonly）が意図しない形になるのはなぜ？
+### Q5: Why do modifiers (optional, readonly) end up in unexpected forms in the result of a mapped type?
 
-**A:** マップ型は元の型のプロパティの修飾子をそのまま引き継ぎます。これは「同型写像（homomorphic mapped type）」と呼ばれる挙動です。修飾子を変更したい場合は、`?`, `-?`, `readonly`, `-readonly` を明示的に使用してください。
+**A:** Mapped types inherit the modifiers of the original type's properties as-is. This behavior is called a "homomorphic mapped type." If you want to change modifiers, explicitly use `?`, `-?`, `readonly`, or `-readonly`.
 
 ```typescript
 interface Original {
@@ -1671,18 +1671,18 @@ interface Original {
   b?: number;
 }
 
-// 修飾子がそのまま引き継がれる
+// Modifiers are inherited as-is
 type Inherited = { [K in keyof Original]: boolean };
 // { readonly a: boolean; b?: boolean }
 
-// 修飾子を明示的に制御
+// Control the modifiers explicitly
 type Normalized = { -readonly [K in keyof Original]-?: boolean };
 // { a: boolean; b: boolean }
 ```
 
-### Q6: Omit<T, K> と Pick<T, Exclude<keyof T, K>> の違いは？
+### Q6: What's the difference between Omit<T, K> and Pick<T, Exclude<keyof T, K>>?
 
-**A:** 実装上は同じです。`Omit` は `Pick` と `Exclude` の組み合わせで定義されています。ただし、`Omit` の `K` は `keyof any`（= `string | number | symbol`）制約なので、`T` に存在しないキーを指定してもエラーになりません。一方、`Pick` の `K` は `keyof T` 制約なので、存在しないキーを指定するとエラーになります。
+**A:** They are the same in terms of implementation. `Omit` is defined as a combination of `Pick` and `Exclude`. However, the `K` of `Omit` is constrained by `keyof any` (= `string | number | symbol`), so specifying a key that doesn't exist on `T` doesn't produce an error. The `K` of `Pick`, on the other hand, is constrained by `keyof T`, so specifying a non-existent key does produce an error.
 
 ```typescript
 interface User {
@@ -1690,41 +1690,41 @@ interface User {
   age: number;
 }
 
-type A = Omit<User, "nonexistent">;       // OK（User と同じ型）
-// type B = Pick<User, "nonexistent">;     // エラー: "nonexistent" は keyof User にない
+type A = Omit<User, "nonexistent">;       // OK (same type as User)
+// type B = Pick<User, "nonexistent">;     // error: "nonexistent" is not in keyof User
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 内容 |
+| Item | Content |
 |------|------|
-| マップ型 | `{ [K in keyof T]: ... }` で型のプロパティを変換 |
-| 修飾子 | `?`, `readonly` の追加・除去（`-?`, `-readonly`） |
-| Key Remapping | `as` 句でキー名を変換・フィルタリング（TS 4.1+） |
-| 組み込み型 | Partial, Required, Readonly, Record, Pick, Omit |
-| 再帰マップ型 | DeepPartial, DeepReadonly などネスト構造に対応 |
-| 条件付きマッピング | プロパティの型に応じた異なる変換 |
-| 実用パターン | フォーム状態、API型変換、モック生成、i18n |
-| パフォーマンス | 再帰深度制限、不要な再帰の回避 |
-| デバッグ | Prettify, 段階的構築, 型テスト |
+| Mapped types | Transform a type's properties with `{ [K in keyof T]: ... }` |
+| Modifiers | Add/remove `?` and `readonly` (`-?`, `-readonly`) |
+| Key Remapping | Transform/filter key names with the `as` clause (TS 4.1+) |
+| Built-in types | Partial, Required, Readonly, Record, Pick, Omit |
+| Recursive mapped types | DeepPartial, DeepReadonly, etc. handle nested structures |
+| Conditional mapping | Apply different transformations based on the property's type |
+| Practical patterns | Form state, API type transformation, mock generation, i18n |
+| Performance | Limit recursion depth, avoid unnecessary recursion |
+| Debugging | Prettify, incremental construction, type tests |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Reading
 
-- [02-template-literal-types.md](./02-template-literal-types.md) -- テンプレートリテラル型
-- [03-type-challenges.md](./03-type-challenges.md) -- 型チャレンジ
-- [00-conditional-types.md](./00-conditional-types.md) -- 条件型
+- [02-template-literal-types.md](./02-template-literal-types.md) -- Template literal types
+- [03-type-challenges.md](./03-type-challenges.md) -- Type challenges
+- [00-conditional-types.md](./00-conditional-types.md) -- Conditional types
 
 ---
 
-## 参考文献
+## References
 
 1. **TypeScript Handbook: Mapped Types** -- https://www.typescriptlang.org/docs/handbook/2/mapped-types.html
 2. **TypeScript Handbook: Utility Types** -- https://www.typescriptlang.org/docs/handbook/utility-types.html
-3. **Effective TypeScript, Item 14: Use Type Operations and Generics to Avoid Repeating Yourself** -- Dan Vanderkam著, O'Reilly
+3. **Effective TypeScript, Item 14: Use Type Operations and Generics to Avoid Repeating Yourself** -- by Dan Vanderkam, O'Reilly
 4. **TypeScript 4.1 Release Notes: Key Remapping** -- https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-1.html
 5. **Type-Level TypeScript** -- https://type-level-typescript.com/
 6. **Total TypeScript: Mapped Types** -- https://www.totaltypescript.com/
