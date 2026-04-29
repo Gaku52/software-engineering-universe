@@ -1,138 +1,138 @@
-# 型の基礎
+# Type Basics
 
-> TypeScriptの根幹をなすプリミティブ型、リテラル型、配列、タプル、enum、特殊型（any/unknown/never）を体系的に学ぶ。
+> Systematically learn the primitive types, literal types, arrays, tuples, enums, and special types (any/unknown/never) that form the foundation of TypeScript.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **プリミティブ型とリテラル型** -- string, number, boolean, symbol, bigint およびリテラル型による値の制限
-2. **コレクション型** -- 配列型、タプル型、readonly修飾子による不変性の表現
-3. **特殊型** -- any, unknown, never, void, null, undefined の正しい使い分け
-4. **型推論** -- TypeScriptが自動的に型を推論する仕組み
-5. **型の拡張と絞り込み** -- widening, narrowing, const assertion
-6. **実務パターン** -- 各型を実務でどのように活用するか
+1. **Primitive and literal types** -- string, number, boolean, symbol, bigint, and restricting values via literal types
+2. **Collection types** -- array types, tuple types, and expressing immutability with the readonly modifier
+3. **Special types** -- correctly distinguishing between any, unknown, never, void, null, and undefined
+4. **Type inference** -- how TypeScript automatically infers types
+5. **Type widening and narrowing** -- widening, narrowing, and const assertions
+6. **Practical patterns** -- how to leverage each type in real-world code
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Reading the following beforehand will deepen your understanding of this guide:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [TypeScript概要](./00-typescript-overview.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [TypeScript Overview](./00-typescript-overview.md)
 
 ---
 
-## 1. プリミティブ型
+## 1. Primitive Types
 
-### コード例1: 基本的なプリミティブ型
+### Code Example 1: Basic Primitive Types
 
 ```typescript
-// 文字列
+// String
 const name: string = "TypeScript";
 
-// 数値（整数・浮動小数点の区別なし）
+// Number (no distinction between integers and floating-point numbers)
 const age: number = 12;
 const pi: number = 3.14159;
 
-// 真偽値
+// Boolean
 const isReady: boolean = true;
 
-// シンボル
+// Symbol
 const uniqueKey: symbol = Symbol("key");
 
-// BigInt（大きな整数）
+// BigInt (large integers)
 const huge: bigint = 9007199254740991n;
 
-// null と undefined
+// null and undefined
 const nothing: null = null;
 const notDefined: undefined = undefined;
 ```
 
-### プリミティブ型の一覧
+### List of Primitive Types
 
 ```
 +------------------+-------------------+------------------------+
-| 型               | 値の例            | 用途                   |
+| Type             | Example value     | Use case               |
 +------------------+-------------------+------------------------+
-| string           | "hello"           | テキストデータ         |
-| number           | 42, 3.14          | 数値全般               |
-| boolean          | true, false       | 論理値                 |
-| symbol           | Symbol("id")      | ユニークキー           |
-| bigint           | 100n              | 巨大整数               |
-| null             | null              | 値の不在（意図的）     |
-| undefined        | undefined         | 値の未定義             |
+| string           | "hello"           | Text data              |
+| number           | 42, 3.14          | Numeric values         |
+| boolean          | true, false       | Logical values         |
+| symbol           | Symbol("id")      | Unique keys            |
+| bigint           | 100n              | Huge integers          |
+| null             | null              | Absence (intentional)  |
+| undefined        | undefined         | Value not defined      |
 +------------------+-------------------+------------------------+
 ```
 
-### string型の詳細
+### Details of the string Type
 
 ```typescript
-// 文字列の基本操作と型
+// Basic string operations and types
 const greeting: string = "Hello, TypeScript!";
-const templateStr: string = `Count: ${42}`; // テンプレートリテラル
+const templateStr: string = `Count: ${42}`; // Template literal
 const multiLine: string = `
-  複数行の
-  文字列も
-  string型
+  Multi-line
+  strings are also
+  string type
 `;
 
-// string と String の違い（重要）
-const primitive: string = "hello";       // プリミティブ型（推奨）
-// const wrapped: String = new String("hello"); // ラッパーオブジェクト型（非推奨）
+// Difference between string and String (important)
+const primitive: string = "hello";       // Primitive type (recommended)
+// const wrapped: String = new String("hello"); // Wrapper object type (not recommended)
 
-// プリミティブ型を使うべき理由
-// 1. String オブジェクトは typeof で "object" を返す
-// 2. String オブジェクトは == 比較で予期しない結果になる
-// 3. TypeScript のほぼ全てのAPIはプリミティブ string を期待する
+// Why you should use the primitive type
+// 1. The String object returns "object" with typeof
+// 2. The String object yields unexpected results with == comparison
+// 3. Almost all of TypeScript's APIs expect primitive string
 
-// 文字列操作の型推論
-const upper = "hello".toUpperCase(); // string と推論
-const includes = "hello".includes("ell"); // boolean と推論
-const split = "a,b,c".split(","); // string[] と推論
-const charAt = "hello".charAt(0); // string と推論（"h" ではない）
+// Type inference for string operations
+const upper = "hello".toUpperCase(); // Inferred as string
+const includes = "hello".includes("ell"); // Inferred as boolean
+const split = "a,b,c".split(","); // Inferred as string[]
+const charAt = "hello".charAt(0); // Inferred as string (not "h")
 
-// テンプレートリテラル型（型レベルの文字列操作）
+// Template literal types (string operations at the type level)
 type Greeting = `Hello, ${string}!`;
 const greet1: Greeting = "Hello, World!"; // OK
 const greet2: Greeting = "Hello, TypeScript!"; // OK
-// const greet3: Greeting = "Hi, World!"; // エラー: "Hi, World!" は "Hello, ${string}!" に代入不可
+// const greet3: Greeting = "Hi, World!"; // Error: "Hi, World!" is not assignable to "Hello, ${string}!"
 ```
 
-### number型の詳細
+### Details of the number Type
 
 ```typescript
-// 数値の基本
+// Basics of numbers
 const integer: number = 42;
 const float: number = 3.14;
 const negative: number = -100;
-const hex: number = 0xff;         // 16進数 = 255
-const octal: number = 0o77;      // 8進数 = 63
-const binary: number = 0b1010;   // 2進数 = 10
-const scientific: number = 1e10; // 指数表記 = 10000000000
+const hex: number = 0xff;         // Hexadecimal = 255
+const octal: number = 0o77;      // Octal = 63
+const binary: number = 0b1010;   // Binary = 10
+const scientific: number = 1e10; // Exponential notation = 10000000000
 
-// 特殊な数値
+// Special numeric values
 const inf: number = Infinity;
 const negInf: number = -Infinity;
 const notANumber: number = NaN;
-// NaN は number 型に含まれることに注意
+// Note that NaN is included in the number type
 
-// NaN のチェック
+// Checking for NaN
 function isValidNumber(value: number): boolean {
   return !Number.isNaN(value) && Number.isFinite(value);
 }
 
-// number と bigint は互換性がない
+// number and bigint are not compatible
 const num: number = 42;
 const big: bigint = 42n;
-// const mixed: number = big; // エラー: bigint を number に代入できない
-// const result = num + big;  // エラー: number と bigint は演算できない
+// const mixed: number = big; // Error: cannot assign bigint to number
+// const result = num + big;  // Error: cannot perform arithmetic between number and bigint
 
-// 安全な整数範囲
+// Safe integer range
 const maxSafe: number = Number.MAX_SAFE_INTEGER;  // 9007199254740991
 const minSafe: number = Number.MIN_SAFE_INTEGER;  // -9007199254740991
-// この範囲を超える場合は bigint を使用する
+// Use bigint when exceeding this range
 
-// 数値の型ガード
+// Type guard for numbers
 function processNumber(value: unknown): number {
   if (typeof value === "number" && !Number.isNaN(value)) {
     return value;
@@ -141,22 +141,22 @@ function processNumber(value: unknown): number {
 }
 ```
 
-### boolean型の詳細
+### Details of the boolean Type
 
 ```typescript
-// 真偽値の基本
+// Basics of booleans
 const isActive: boolean = true;
 const isDisabled: boolean = false;
 
-// 型推論と boolean
-const result = 10 > 5; // boolean と推論
-const comparison = "a" === "b"; // boolean と推論
+// Type inference and boolean
+const result = 10 > 5; // Inferred as boolean
+const comparison = "a" === "b"; // Inferred as boolean
 
-// boolean のリテラル型
+// Literal types of boolean
 type True = true;
 type False = false;
 
-// 条件分岐での活用
+// Use in conditional branching
 interface Feature {
   enabled: boolean;
   name: string;
@@ -166,33 +166,33 @@ function isFeatureEnabled(feature: Feature): feature is Feature & { enabled: tru
   return feature.enabled;
 }
 
-// truthy/falsy とTypeScriptの型システム
-// JavaScriptの falsy 値: false, 0, "", null, undefined, NaN
-// TypeScriptの boolean 型は true と false のみ
-// 他の falsy 値は boolean 型ではない
+// truthy/falsy and TypeScript's type system
+// JavaScript falsy values: false, 0, "", null, undefined, NaN
+// TypeScript's boolean type only includes true and false
+// Other falsy values are not of type boolean
 
-// strictNullChecks 有効時の安全な boolean 変換
+// Safe boolean conversion when strictNullChecks is enabled
 function toBooleanSafe(value: unknown): boolean {
-  return Boolean(value); // 明示的な変換
-  // return !!value; // ダブルバング（こちらも一般的）
+  return Boolean(value); // Explicit conversion
+  // return !!value; // Double-bang (also common)
 }
 ```
 
-### symbol型の詳細
+### Details of the symbol Type
 
 ```typescript
-// symbol の基本
+// Basics of symbol
 const sym1: symbol = Symbol("description");
 const sym2: symbol = Symbol("description");
-console.log(sym1 === sym2); // false（常にユニーク）
+console.log(sym1 === sym2); // false (always unique)
 
-// unique symbol: より厳密なシンボル型
+// unique symbol: a stricter symbol type
 const UNIQUE_KEY: unique symbol = Symbol("uniqueKey");
-// unique symbol は const 宣言でのみ使用可能
+// unique symbol can only be used with const declarations
 
-// シンボルの実務での用途
+// Practical uses of symbols
 
-// 1. オブジェクトのプライベートプロパティ（WeakMapの代替）
+// 1. Private properties of an object (alternative to WeakMap)
 const _privateData = Symbol("privateData");
 
 class MyClass {
@@ -207,11 +207,11 @@ class MyClass {
   }
 }
 
-// 2. Well-known Symbols（組み込みシンボル）
+// 2. Well-known Symbols (built-in symbols)
 class CustomCollection {
   private items: number[] = [];
 
-  // Symbol.iterator を実装してイテラブルにする
+  // Make iterable by implementing Symbol.iterator
   [Symbol.iterator](): Iterator<number> {
     let index = 0;
     const items = this.items;
@@ -230,58 +230,58 @@ class CustomCollection {
   }
 }
 
-// 3. Symbol.dispose（TypeScript 5.2+）
+// 3. Symbol.dispose (TypeScript 5.2+)
 class Resource {
   [Symbol.dispose](): void {
     console.log("Resource disposed");
   }
 }
 
-// using 宣言でスコープ終了時に自動的に dispose される
+// With a using declaration, dispose is called automatically when the scope ends
 // function useResource() {
 //   using resource = new Resource();
-//   // ... resource を使用
-// } // ← ここで自動的に [Symbol.dispose]() が呼ばれる
+//   // ... use resource
+// } // <- [Symbol.dispose]() is called automatically here
 ```
 
-### bigint型の詳細
+### Details of the bigint Type
 
 ```typescript
-// bigint の基本
+// Basics of bigint
 const big1: bigint = 100n;
 const big2: bigint = BigInt(100);
 const big3: bigint = BigInt("9007199254740991");
 
-// bigint の演算
+// bigint arithmetic
 const sum: bigint = 100n + 200n;       // 300n
 const product: bigint = 10n * 20n;     // 200n
-const division: bigint = 10n / 3n;     // 3n（切り捨て）
+const division: bigint = 10n / 3n;     // 3n (truncated)
 const remainder: bigint = 10n % 3n;    // 1n
 const power: bigint = 2n ** 64n;       // 18446744073709551616n
 
-// bigint と number は混在演算できない
-// const mixed = 1n + 1; // エラー
+// bigint and number cannot be mixed in arithmetic
+// const mixed = 1n + 1; // Error
 
-// bigint の比較は number と可能
-console.log(1n === 1);  // false（型が異なる）
-console.log(1n == 1);   // true（値が同じ）
+// bigint can be compared with number
+console.log(1n === 1);  // false (different types)
+console.log(1n == 1);   // true (same value)
 console.log(1n < 2);    // true
 
-// bigint の実務での用途
-// 1. データベースの大きなID（snowflake ID等）
+// Practical uses of bigint
+// 1. Large database IDs (e.g., snowflake IDs)
 type SnowflakeId = bigint;
 const discordId: SnowflakeId = 1234567890123456789n;
 
-// 2. 暗号学的な計算
-// 3. 高精度の金融計算（整数での扱い）
-// 4. タイムスタンプのナノ秒精度
+// 2. Cryptographic computations
+// 3. High-precision financial calculations (handled as integers)
+// 4. Nanosecond-precision timestamps
 
-// bigint の制約
-// - JSON.stringify() で直接シリアライズできない
-// - Math オブジェクトの関数は使えない
-// - number への暗黙変換はない
+// Constraints of bigint
+// - Cannot be directly serialized with JSON.stringify()
+// - Math object functions cannot be used with it
+// - There is no implicit conversion to number
 
-// JSON シリアライズの解決策
+// Workaround for JSON serialization
 function bigintReplacer(_key: string, value: unknown): unknown {
   if (typeof value === "bigint") {
     return value.toString();
@@ -295,30 +295,30 @@ JSON.stringify(data, bigintReplacer); // '{"id":"123456789012345"}'
 
 ---
 
-## 2. リテラル型
+## 2. Literal Types
 
-### コード例2: リテラル型で値を制限する
+### Code Example 2: Restricting Values with Literal Types
 
 ```typescript
-// 文字列リテラル型
+// String literal types
 type Direction = "north" | "south" | "east" | "west";
 let dir: Direction = "north"; // OK
-// dir = "up"; // コンパイルエラー
+// dir = "up"; // Compile error
 
-// 数値リテラル型
+// Numeric literal types
 type DiceRoll = 1 | 2 | 3 | 4 | 5 | 6;
 let roll: DiceRoll = 3; // OK
-// roll = 7; // コンパイルエラー
+// roll = 7; // Compile error
 
-// 真偽値リテラル型
+// Boolean literal types
 type Success = true;
 const result: Success = true;
 ```
 
-### リテラル型の実務パターン
+### Practical Patterns for Literal Types
 
 ```typescript
-// パターン1: HTTPメソッドの制限
+// Pattern 1: Restricting HTTP methods
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
 
 interface RequestConfig {
@@ -336,10 +336,10 @@ function makeRequest(config: RequestConfig): Promise<Response> {
   });
 }
 
-// makeRequest({ method: "GETTT", url: "/" }); // エラー: "GETTT" は HttpMethod に代入不可
+// makeRequest({ method: "GETTT", url: "/" }); // Error: "GETTT" is not assignable to HttpMethod
 makeRequest({ method: "GET", url: "/api/users" }); // OK
 
-// パターン2: ステータスの状態遷移
+// Pattern 2: State transitions of statuses
 type OrderStatus = "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
 
 interface Order {
@@ -348,7 +348,7 @@ interface Order {
   amount: number;
 }
 
-// 状態遷移の制約を型で表現
+// Express transition constraints in the type system
 function transitionOrder(
   order: Order,
   newStatus: OrderStatus
@@ -370,9 +370,9 @@ function transitionOrder(
   return { ...order, status: newStatus };
 }
 
-// パターン3: 数値リテラル型の活用
+// Pattern 3: Leveraging numeric literal types
 type Bit = 0 | 1;
-type Nibble = [Bit, Bit, Bit, Bit]; // 4ビット
+type Nibble = [Bit, Bit, Bit, Bit]; // 4 bits
 
 type LogLevel = 0 | 1 | 2 | 3 | 4;
 const LOG_LEVELS = {
@@ -383,7 +383,7 @@ const LOG_LEVELS = {
   ERROR: 4 as const,
 };
 
-// パターン4: テンプレートリテラル型との組み合わせ
+// Pattern 4: Combining with template literal types
 type CSSUnit = "px" | "em" | "rem" | "%" | "vh" | "vw";
 type CSSValue = `${number}${CSSUnit}`;
 
@@ -393,9 +393,9 @@ function setWidth(element: HTMLElement, width: CSSValue): void {
 
 // setWidth(element, "100px");  // OK
 // setWidth(element, "2.5rem"); // OK
-// setWidth(element, "100");    // エラー: 単位がない
+// setWidth(element, "100");    // Error: missing unit
 
-// パターン5: リテラル型を使ったオーバーロードの代替
+// Pattern 5: Using literal types as an alternative to overloading
 type EventType = "click" | "hover" | "focus";
 
 interface EventPayload {
@@ -413,39 +413,39 @@ function handleEvent<T extends EventType>(
 
 handleEvent("click", { x: 100, y: 200, button: 0 }); // OK
 handleEvent("hover", { x: 100, y: 200 }); // OK
-// handleEvent("click", { x: 100, y: 200 }); // エラー: button が不足
+// handleEvent("click", { x: 100, y: 200 }); // Error: button is missing
 ```
 
-### コード例3: const アサーション
+### Code Example 3: const Assertion
 
 ```typescript
-// as const でリテラル型に狭める
+// Narrow to literal types with as const
 const config = {
   host: "localhost",
   port: 3000,
 } as const;
-// 型: { readonly host: "localhost"; readonly port: 3000 }
+// Type: { readonly host: "localhost"; readonly port: 3000 }
 
-// as const なしの場合
+// Without as const
 const config2 = {
   host: "localhost",
   port: 3000,
 };
-// 型: { host: string; port: number } -- 広い型になる
+// Type: { host: string; port: number } -- becomes a wider type
 ```
 
-### const アサーションの詳細パターン
+### Detailed Patterns of const Assertions
 
 ```typescript
-// 配列への as const
+// as const on arrays
 const colors = ["red", "green", "blue"] as const;
-// 型: readonly ["red", "green", "blue"]
-// colors[0] は "red" 型（string ではなく）
+// Type: readonly ["red", "green", "blue"]
+// colors[0] is of type "red" (not string)
 
-// as const から Union 型を生成
+// Generating a union type from as const
 type Color = (typeof colors)[number]; // "red" | "green" | "blue"
 
-// ネストしたオブジェクトへの as const
+// as const on nested objects
 const theme = {
   colors: {
     primary: "#007bff",
@@ -464,12 +464,12 @@ const theme = {
   },
 } as const;
 
-// 深いネストの値もリテラル型として認識される
+// Deeply nested values are also recognized as literal types
 type PrimaryColor = typeof theme.colors.primary; // "#007bff"
 type AllColors = (typeof theme.colors)[keyof typeof theme.colors];
 // "#007bff" | "#6c757d" | "#dc3545"
 
-// 関数の引数で as const を活用
+// Leveraging as const in function arguments
 function createConfig<const T extends Record<string, unknown>>(config: T): T {
   return config;
 }
@@ -479,9 +479,9 @@ const appConfig = createConfig({
   timeout: 5000,
   retry: 3,
 });
-// appConfig.apiUrl は "https://api.example.com" 型
+// appConfig.apiUrl is of type "https://api.example.com"
 
-// satisfies と as const の組み合わせ
+// Combining satisfies and as const
 interface ThemeConfig {
   colors: Record<string, string>;
   spacing: Record<string, number>;
@@ -497,48 +497,48 @@ const validatedTheme = {
     large: 16,
   },
 } as const satisfies ThemeConfig;
-// 型チェックされつつ、リテラル型が維持される
-// validatedTheme.colors.primary は "#007bff" 型
+// Type-checked while preserving literal types
+// validatedTheme.colors.primary is of type "#007bff"
 ```
 
 ---
 
-## 3. 配列とタプル
+## 3. Arrays and Tuples
 
-### コード例4: 配列型
+### Code Example 4: Array Types
 
 ```typescript
-// 配列の2つの記法
+// Two notations for arrays
 const numbers: number[] = [1, 2, 3];
 const strings: Array<string> = ["a", "b", "c"];
 
-// 読み取り専用配列
+// Read-only arrays
 const frozen: readonly number[] = [1, 2, 3];
-// frozen.push(4); // コンパイルエラー: push は readonly 配列に存在しない
+// frozen.push(4); // Compile error: push does not exist on readonly array
 
 const frozenAlt: ReadonlyArray<number> = [1, 2, 3];
 ```
 
-### 配列型の詳細パターン
+### Detailed Patterns for Array Types
 
 ```typescript
-// 多次元配列
+// Multidimensional arrays
 const matrix: number[][] = [
   [1, 2, 3],
   [4, 5, 6],
   [7, 8, 9],
 ];
 
-// 3次元配列
+// 3-dimensional array
 const cube: number[][][] = [
   [[1, 2], [3, 4]],
   [[5, 6], [7, 8]],
 ];
 
-// Union型の配列
+// Array of union types
 const mixed: (string | number)[] = [1, "hello", 2, "world"];
 
-// オブジェクト配列
+// Array of objects
 interface User {
   id: number;
   name: string;
@@ -550,17 +550,17 @@ const users: User[] = [
   { id: 2, name: "Bob", email: "bob@example.com" },
 ];
 
-// 配列メソッドの型推論
+// Type inference for array methods
 const doubled = numbers.map(n => n * 2); // number[]
 const filtered = numbers.filter(n => n > 1); // number[]
 const found = numbers.find(n => n === 2); // number | undefined
 const sum = numbers.reduce((acc, n) => acc + n, 0); // number
 const names = users.map(u => u.name); // string[]
 
-// filter で型を絞り込む
+// Narrowing types with filter
 const mixedArray: (string | number | null)[] = [1, "hello", null, 2, "world", null];
 
-// 型述語を使った filter
+// filter using a type predicate
 const nonNull = mixedArray.filter(
   (item): item is string | number => item !== null
 ); // (string | number)[]
@@ -569,7 +569,7 @@ const onlyStrings = mixedArray.filter(
   (item): item is string => typeof item === "string"
 ); // string[]
 
-// Array.isArray の型ガード
+// Array.isArray as a type guard
 function processInput(input: string | string[]): string[] {
   if (Array.isArray(input)) {
     return input; // string[]
@@ -577,50 +577,50 @@ function processInput(input: string | string[]): string[] {
   return [input]; // string[]
 }
 
-// readonly配列の実務パターン
+// Practical patterns for readonly arrays
 function processItems(items: readonly string[]): string {
-  // items.push("new"); // エラー: readonly 配列は変更できない
-  // items.sort();       // エラー: sort は配列を変更する
+  // items.push("new"); // Error: cannot modify a readonly array
+  // items.sort();       // Error: sort modifies the array
 
-  // 新しい配列を作成するメソッドは使える
-  const sorted = [...items].sort(); // OK: スプレッドでコピー
+  // Methods that produce new arrays are fine
+  const sorted = [...items].sort(); // OK: copy with spread
   return sorted.join(", ");
 }
 
-// ReadonlyArray と readonly の違い
-const arr1: ReadonlyArray<number> = [1, 2, 3]; // ジェネリック記法
-const arr2: readonly number[] = [1, 2, 3];     // 省略記法
-// 両者は完全に等価
+// Difference between ReadonlyArray and readonly
+const arr1: ReadonlyArray<number> = [1, 2, 3]; // Generic notation
+const arr2: readonly number[] = [1, 2, 3];     // Shorthand notation
+// The two are completely equivalent
 ```
 
-### コード例5: タプル型
+### Code Example 5: Tuple Types
 
 ```typescript
-// タプル: 要素数と各位置の型が固定された配列
+// Tuple: an array with a fixed number of elements and a fixed type at each position
 type Point2D = [number, number];
 type Point3D = [number, number, number];
 
 const origin: Point2D = [0, 0];
 const point: Point3D = [1, 2, 3];
 
-// ラベル付きタプル（可読性向上）
+// Labeled tuples (improved readability)
 type UserEntry = [id: number, name: string, active: boolean];
 const user: UserEntry = [1, "Alice", true];
 
-// 可変長タプル（rest要素）
+// Variadic tuples (rest elements)
 type StringNumberBooleans = [string, number, ...boolean[]];
 const data: StringNumberBooleans = ["hello", 42, true, false, true];
 ```
 
-### タプル型の詳細パターン
+### Detailed Patterns for Tuple Types
 
 ```typescript
-// タプルの分割代入
+// Destructuring tuples
 type NameAge = [name: string, age: number];
 const [userName, userAge]: NameAge = ["Alice", 30];
-// userName は string 型、userAge は number 型
+// userName is of type string, userAge is of type number
 
-// 関数の戻り値としてのタプル
+// Tuples as function return values
 function useState<T>(initial: T): [T, (newValue: T) => void] {
   let value = initial;
   const setValue = (newValue: T) => {
@@ -630,44 +630,44 @@ function useState<T>(initial: T): [T, (newValue: T) => void] {
 }
 
 const [count, setCount] = useState(0);
-// count は number 型
-// setCount は (newValue: number) => void 型
+// count is of type number
+// setCount is of type (newValue: number) => void
 
-// 複数の値を返す関数
+// Functions that return multiple values
 function divmod(a: number, b: number): [quotient: number, remainder: number] {
   return [Math.floor(a / b), a % b];
 }
 const [quotient, remainder] = divmod(17, 5); // [3, 2]
 
-// オプショナル要素を持つタプル
+// Tuples with optional elements
 type PartialPoint = [number, number, number?];
 const point2d: PartialPoint = [1, 2];     // OK
 const point3d: PartialPoint = [1, 2, 3];  // OK
 
-// 先頭にrest要素
-type TailString = [...number[], string]; // 最後が string、それ以前は number[]
+// Rest element at the start
+type TailString = [...number[], string]; // Last is string, the rest is number[]
 const data1: TailString = ["end"];            // OK
 const data2: TailString = [1, 2, 3, "end"];  // OK
 
-// 中間にrest要素
-type Sandwich = [string, ...number[], string]; // 先頭と末尾が string
+// Rest element in the middle
+type Sandwich = [string, ...number[], string]; // Both ends are string
 const s1: Sandwich = ["start", "end"];               // OK
 const s2: Sandwich = ["start", 1, 2, 3, "end"];     // OK
 
-// readonly タプル
+// readonly tuples
 type ReadonlyPoint = readonly [number, number];
 const p: ReadonlyPoint = [1, 2];
-// p[0] = 3; // エラー: readonly タプルは変更できない
+// p[0] = 3; // Error: cannot modify a readonly tuple
 
-// タプルの型推論とas const
+// Tuple type inference and as const
 const pair = [1, "hello"] as const; // readonly [1, "hello"]
-// as const なしの場合: (string | number)[] と推論される（タプルではなく配列）
+// Without as const, it is inferred as (string | number)[] (an array, not a tuple)
 
-// Variadic Tuple Types（TypeScript 4.0+）
+// Variadic Tuple Types (TypeScript 4.0+)
 type Concat<A extends readonly unknown[], B extends readonly unknown[]> = [...A, ...B];
 type Result = Concat<[1, 2], [3, 4]>; // [1, 2, 3, 4]
 
-// タプルを使ったイベントエミッタ
+// Event emitter using tuples
 type EventMap = {
   click: [x: number, y: number];
   keypress: [key: string, modifiers: string[]];
@@ -691,55 +691,55 @@ class TypedEventEmitter<T extends Record<string, unknown[]>> {
 
 const emitter = new TypedEventEmitter<EventMap>();
 emitter.on("click", (x, y) => {
-  // x は number, y は number と推論
+  // x is inferred as number, y as number
   console.log(`Clicked at (${x}, ${y})`);
 });
 emitter.emit("click", 100, 200); // OK
-// emitter.emit("click", "100", 200); // エラー: string は number に代入不可
+// emitter.emit("click", "100", 200); // Error: string is not assignable to number
 ```
 
-### 配列 vs タプル 比較
+### Array vs Tuple Comparison
 
-| 特性 | 配列 (Array) | タプル (Tuple) |
+| Property | Array | Tuple |
 |------|-------------|----------------|
-| 要素数 | 可変 | 固定（rest要素で可変も可） |
-| 要素の型 | 全要素同一型 | 位置ごとに異なる型が可能 |
-| 用途 | 同種データの集合 | 異種データの組み合わせ |
-| アクセス | インデックスで同一型 | インデックスで位置に応じた型 |
-| 例 | `number[]` | `[string, number]` |
-| 分割代入 | 型は同一 | 各変数が対応する型を持つ |
+| Number of elements | Variable | Fixed (variable also possible with rest elements) |
+| Element types | Same type for all elements | Different types possible at each position |
+| Use case | Collection of homogeneous data | Combination of heterogeneous data |
+| Access | Same type by index | Type depends on position by index |
+| Example | `number[]` | `[string, number]` |
+| Destructuring | Same type | Each variable has its corresponding type |
 
 ```
-  配列 (number[])           タプル ([string, number, boolean])
+  Array (number[])           Tuple ([string, number, boolean])
 +---+---+---+---+...      +--------+--------+---------+
 | n | n | n | n |          | string | number | boolean |
 +---+---+---+---+...      +--------+--------+---------+
- 全て同じ型                  位置ごとに異なる型
- 長さ不定                    長さ固定
+ All the same type           Different type per position
+ Variable length             Fixed length
 ```
 
 ---
 
-## 4. enum（列挙型）
+## 4. enum (Enumerated Types)
 
-### コード例6: enum の種類
+### Code Example 6: Kinds of enum
 
 ```typescript
-// 数値enum（デフォルト: 0から自動インクリメント）
+// Numeric enum (default: auto-increments from 0)
 enum Status {
   Pending,   // 0
   Active,    // 1
   Inactive,  // 2
 }
 
-// 文字列enum（推奨: 値が明示的）
+// String enum (recommended: values are explicit)
 enum Color {
   Red = "RED",
   Green = "GREEN",
   Blue = "BLUE",
 }
 
-// const enum（コンパイル時にインライン化、パフォーマンス向上）
+// const enum (inlined at compile time, performance gain)
 const enum HttpMethod {
   GET = "GET",
   POST = "POST",
@@ -747,15 +747,15 @@ const enum HttpMethod {
   DELETE = "DELETE",
 }
 
-// 使用例
+// Usage
 const status: Status = Status.Active;
 const method: HttpMethod = HttpMethod.GET;
 ```
 
-### enum の詳細パターン
+### Detailed enum Patterns
 
 ```typescript
-// 数値enumの開始値指定
+// Specifying the starting value of a numeric enum
 enum Priority {
   Low = 1,
   Medium = 5,
@@ -763,7 +763,7 @@ enum Priority {
   Critical = 100,
 }
 
-// 計算されたメンバー
+// Computed members
 enum FileAccess {
   None = 0,
   Read = 1 << 0,      // 1
@@ -774,7 +774,7 @@ enum FileAccess {
   All = Read | Write | Execute,  // 7
 }
 
-// ビットフラグとして使う
+// Using as bit flags
 function hasPermission(userPermissions: FileAccess, required: FileAccess): boolean {
   return (userPermissions & required) === required;
 }
@@ -783,67 +783,67 @@ const myPerms = FileAccess.ReadWrite;
 console.log(hasPermission(myPerms, FileAccess.Read));    // true
 console.log(hasPermission(myPerms, FileAccess.Execute)); // false
 
-// 数値enumの逆引き
+// Reverse lookup of numeric enums
 enum Direction {
   Up = 0,
   Down = 1,
   Left = 2,
   Right = 3,
 }
-console.log(Direction[0]); // "Up"（逆引き）
-console.log(Direction.Up); // 0（正引き）
-// 注意: 文字列enumには逆引きは存在しない
+console.log(Direction[0]); // "Up" (reverse lookup)
+console.log(Direction.Up); // 0 (forward lookup)
+// Note: reverse lookup does not exist for string enums
 
-// ヘテロジニアスenum（数値と文字列の混在、非推奨）
+// Heterogeneous enums (mixing numbers and strings, not recommended)
 enum Mixed {
   No = 0,
   Yes = "YES",
 }
 
-// enum をイテレートする
+// Iterating an enum
 enum Fruit {
   Apple = "APPLE",
   Banana = "BANANA",
   Cherry = "CHERRY",
 }
 
-// Object.values で文字列enumの値を取得
+// Get string enum values with Object.values
 const fruitValues = Object.values(Fruit); // ["APPLE", "BANANA", "CHERRY"]
 
-// 数値enumの場合は逆引きのキーも含まれるため注意
+// For numeric enums, the reverse-lookup keys are also included, so be careful
 const dirValues = Object.keys(Direction);
 // ["0", "1", "2", "3", "Up", "Down", "Left", "Right"]
-// → 数値enumのイテレートは避けるか、フィルタリングが必要
+// -> Avoid iterating numeric enums or filter them appropriately
 
-// const enum の注意点
+// Caveats for const enum
 const enum Speeds {
   Slow = 10,
   Medium = 50,
   Fast = 100,
 }
 const speed = Speeds.Fast;
-// コンパイル後: const speed = 100; // インライン化される
-// 利点: バンドルサイズ削減
-// 注意: --isolatedModules 使用時は const enum が使えない場合がある
+// After compilation: const speed = 100; // inlined
+// Advantage: smaller bundle size
+// Caveat: const enum may not be usable when using --isolatedModules
 ```
 
-### enum vs Union型 比較
+### enum vs Union Type Comparison
 
-| 特性 | enum | Union型 |
+| Property | enum | Union type |
 |------|------|---------|
-| ランタイムコード | 生成される（const enum除く） | なし（型情報のみ） |
-| バンドルサイズ | 増加する | 影響なし |
-| 逆引き | 数値enumは可能 | 不可 |
-| Tree-shaking | 困難な場合がある | 問題なし |
-| 型の拡張性 | 不可 | Union で柔軟に拡張可能 |
-| 推奨度 | const enum または非推奨傾向 | 多くの場面で推奨 |
+| Runtime code | Generated (except const enum) | None (type information only) |
+| Bundle size | Increases | No impact |
+| Reverse lookup | Possible for numeric enums | Not possible |
+| Tree-shaking | Sometimes difficult | No problem |
+| Type extensibility | Not possible | Flexibly extensible with unions |
+| Recommendation | const enum or trending toward not recommended | Recommended in many situations |
 
 ```typescript
-// モダンなTypeScriptではUnion型が推奨されるケースが多い
-// enum の代替
+// Modern TypeScript often recommends Union types
+// Alternative to enum
 type Color = "RED" | "GREEN" | "BLUE";
 
-// 定数オブジェクト + as const パターン
+// Constant object + as const pattern
 const Color = {
   Red: "RED",
   Green: "GREEN",
@@ -853,10 +853,10 @@ type Color = (typeof Color)[keyof typeof Color];
 // "RED" | "GREEN" | "BLUE"
 ```
 
-### as const パターンの実務的活用
+### Practical Use of the as const Pattern
 
 ```typescript
-// 定数オブジェクトパターンの完全な例
+// Complete example of the constant object pattern
 const HTTP_STATUS = {
   OK: 200,
   Created: 201,
@@ -867,116 +867,116 @@ const HTTP_STATUS = {
   InternalServerError: 500,
 } as const;
 
-// 値のUnion型
+// Union type of values
 type HttpStatusCode = (typeof HTTP_STATUS)[keyof typeof HTTP_STATUS];
 // 200 | 201 | 400 | 401 | 403 | 404 | 500
 
-// キーのUnion型
+// Union type of keys
 type HttpStatusName = keyof typeof HTTP_STATUS;
 // "OK" | "Created" | "BadRequest" | "Unauthorized" | "Forbidden" | "NotFound" | "InternalServerError"
 
-// 逆引きマップの型安全な実装
+// Type-safe implementation of a reverse-lookup map
 type ReverseMap<T extends Record<string, string | number>> = {
   [V in T[keyof T]]: {
     [K in keyof T]: T[K] extends V ? K : never;
   }[keyof T];
 };
 
-// ラベルの定義
+// Defining labels
 const LABELS = {
-  OK: "成功",
-  Created: "作成完了",
-  BadRequest: "不正なリクエスト",
-  Unauthorized: "認証が必要",
-  Forbidden: "アクセス拒否",
-  NotFound: "見つかりません",
-  InternalServerError: "サーバーエラー",
+  OK: "Success",
+  Created: "Created",
+  BadRequest: "Bad Request",
+  Unauthorized: "Authentication Required",
+  Forbidden: "Access Denied",
+  NotFound: "Not Found",
+  InternalServerError: "Server Error",
 } as const satisfies Record<HttpStatusName, string>;
 
 function getStatusLabel(code: HttpStatusCode): string {
   const entry = Object.entries(HTTP_STATUS).find(([_, v]) => v === code);
-  if (!entry) return "不明なステータス";
+  if (!entry) return "Unknown status";
   return LABELS[entry[0] as HttpStatusName];
 }
 ```
 
 ---
 
-## 5. 特殊型: any, unknown, never
+## 5. Special Types: any, unknown, never
 
-### 型の階層図
+### Type Hierarchy Diagram
 
 ```
-           any（全ての型のスーパータイプ）
+           any (supertype of all types)
           / | \
    string number boolean ... object
           \ | /
-         unknown（安全なany）
+         unknown (safe any)
             |
-          never（全ての型のサブタイプ、値を持たない）
+          never (subtype of all types, has no value)
 ```
 
-正確な型の階層はこのようになっている。
+The accurate type hierarchy is as follows.
 
 ```
-         any（特殊：全ての型に代入可能 & 全ての型から代入可能）
+         any (special: assignable to all types & assignable from all types)
           |
-        unknown（トップ型：全ての型から代入可能）
+        unknown (top type: assignable from all types)
        / | | \
 string number boolean object ... void null undefined
        \ | | /
-        never（ボトム型：全ての型に代入可能、値を持たない）
+        never (bottom type: assignable to all types, has no value)
 ```
 
-### コード例7: any vs unknown
+### Code Example 7: any vs unknown
 
 ```typescript
-// any: 型チェックを完全に無効化する（危険）
+// any: completely disables type checking (dangerous)
 let dangerous: any = "hello";
-dangerous.foo.bar.baz(); // コンパイルエラーなし → 実行時エラー
+dangerous.foo.bar.baz(); // No compile error -> runtime error
 
-// unknown: 型安全な「何でも受け取れる型」
+// unknown: a type-safe "can hold anything" type
 let safe: unknown = "hello";
-// safe.foo; // コンパイルエラー！ まず型を確認する必要がある
+// safe.foo; // Compile error! You must check the type first
 
-// unknownの正しい使い方: 型ガードで絞り込む
+// Correct way to use unknown: narrow with a type guard
 if (typeof safe === "string") {
-  console.log(safe.toUpperCase()); // OK: string として安全に使える
+  console.log(safe.toUpperCase()); // OK: can be safely used as string
 }
 ```
 
-### any の実務的な使いどころ（限定的）
+### Practical Cases for any (Limited)
 
 ```typescript
-// any が許容されるケース（極めて限定的）
+// Cases where any is acceptable (extremely limited)
 
-// 1. 型定義が存在しないサードパーティライブラリの一時的な利用
-// @ts-expect-error: 型定義が不完全なライブラリ
+// 1. Temporary use of a third-party library without type definitions
+// @ts-expect-error: library with incomplete type definitions
 declare const legacyLib: any;
 
-// 2. JSON.parse の戻り値（ただし unknown が望ましい）
-// JSON.parse は any を返すが、即座にバリデーションすべき
+// 2. The return value of JSON.parse (although unknown is preferable)
+// JSON.parse returns any, but should be validated immediately
 const parsed: unknown = JSON.parse(jsonString) as unknown;
 
-// 3. テストコードでの意図的な型違反
-// テストでエッジケースを検証する場合
+// 3. Intentional type violations in test code
+// When verifying edge cases in tests
 // expect(() => processUser(null as any)).toThrow();
 
-// 4. 型の複雑さを一時的に回避（TODO付きで）
-// TODO: #1234 で適切な型を定義する
+// 4. Temporarily avoiding type complexity (with a TODO)
+// TODO: define proper types in #1234
 function temporaryHandler(event: any): void {
   // ...
 }
 
-// any を段階的に排除するための tsconfig 設定
+// tsconfig settings to gradually eliminate any
 // {
 //   "compilerOptions": {
-//     "noImplicitAny": true,       // 暗黙のanyを禁止
-//     "noExplicitAny": false       // 明示的なanyは許可（将来的に禁止）
+//     "noImplicitAny": true,       // Forbid implicit any
+//     "noExplicitAny": false       // Allow explicit any (to be forbidden in future)
 //   }
 // }
 
-// ESLint ルールで any を制限
+// Restrict any with ESLint rules
 // {
 //   "rules": {
 //     "@typescript-eslint/no-explicit-any": "warn",
@@ -988,18 +988,18 @@ function temporaryHandler(event: any): void {
 // }
 ```
 
-### unknown の実務パターン
+### Practical Patterns for unknown
 
 ```typescript
-// unknown の使いどころ
+// Where to use unknown
 
-// 1. 外部データの受け取り
+// 1. Receiving external data
 async function fetchData(url: string): Promise<unknown> {
   const response = await fetch(url);
-  return response.json(); // unknown として返す
+  return response.json(); // Return as unknown
 }
 
-// 2. 型安全なパーサー
+// 2. A type-safe parser
 function parseJSON(json: string): unknown {
   try {
     return JSON.parse(json);
@@ -1008,8 +1008,8 @@ function parseJSON(json: string): unknown {
   }
 }
 
-// 3. unknown からの型安全な変換
-// 方法A: typeof による絞り込み
+// 3. Type-safe conversion from unknown
+// Method A: narrowing with typeof
 function processUnknown(value: unknown): string {
   if (typeof value === "string") return value;
   if (typeof value === "number") return String(value);
@@ -1021,7 +1021,7 @@ function processUnknown(value: unknown): string {
   return String(value);
 }
 
-// 方法B: ユーザー定義型ガード
+// Method B: user-defined type guards
 interface User {
   id: number;
   name: string;
@@ -1043,10 +1043,10 @@ function isUser(value: unknown): value is User {
 
 const data: unknown = await fetchData("/api/user/1");
 if (isUser(data)) {
-  console.log(data.name); // 安全にアクセス可能
+  console.log(data.name); // Safe access
 }
 
-// 方法C: Zodによるバリデーション（推奨）
+// Method C: validation with Zod (recommended)
 import { z } from "zod";
 
 const UserSchema = z.object({
@@ -1056,14 +1056,14 @@ const UserSchema = z.object({
 });
 
 function parseUser(data: unknown): User {
-  return UserSchema.parse(data); // 不正なデータはZodError
+  return UserSchema.parse(data); // Invalid data throws ZodError
 }
 
-// 4. catch ブロックでの unknown
+// 4. unknown in catch blocks
 try {
   await riskyOperation();
 } catch (error: unknown) {
-  // TypeScript 4.4+ で catch の変数は unknown 型（strict モード時）
+  // In TypeScript 4.4+, the catch variable is of type unknown (when strict mode is on)
   if (error instanceof Error) {
     console.error(error.message);
   } else if (typeof error === "string") {
@@ -1074,21 +1074,21 @@ try {
 }
 ```
 
-### コード例8: never型
+### Code Example 8: never Type
 
 ```typescript
-// never: 決して値を返さない（到達不能）
+// never: never returns a value (unreachable)
 function throwError(message: string): never {
   throw new Error(message);
 }
 
 function infiniteLoop(): never {
   while (true) {
-    // 永遠に終わらない
+    // Never ends
   }
 }
 
-// 網羅性チェック（exhaustive check）に使う
+// Use for exhaustiveness checking
 type Shape = "circle" | "square" | "triangle";
 
 function getArea(shape: Shape): number {
@@ -1100,19 +1100,19 @@ function getArea(shape: Shape): number {
     case "triangle":
       return (10 * 10) / 2;
     default:
-      // shape が never 型になる = 全てのケースを処理済み
+      // shape becomes never type = all cases handled
       const _exhaustive: never = shape;
       return _exhaustive;
   }
 }
 ```
 
-### never型の詳細パターン
+### Detailed Patterns for the never Type
 
 ```typescript
-// never型の高度な活用
+// Advanced uses of the never type
 
-// 1. 網羅性チェックのヘルパー関数
+// 1. Helper function for exhaustiveness checking
 function assertNever(value: never, message?: string): never {
   throw new Error(message ?? `Unexpected value: ${value}`);
 }
@@ -1131,35 +1131,35 @@ function reducer(state: number, action: Action): number {
     case "RESET":
       return 0;
     default:
-      return assertNever(action); // 新しい Action 型を追加するとここでエラー
+      return assertNever(action); // Adding a new Action type causes an error here
   }
 }
 
-// 2. 条件型での never の活用
-// never はUnion型から除外される
+// 2. Using never in conditional types
+// never is excluded from union types
 type RemoveString<T> = T extends string ? never : T;
 type Result = RemoveString<string | number | boolean>;
-// number | boolean（string が除外された）
+// number | boolean (string excluded)
 
-// 3. Exclude ユーティリティ型の内部実装
+// 3. Internal implementation of the Exclude utility type
 // type Exclude<T, U> = T extends U ? never : T;
 type WithoutNull = Exclude<string | null | undefined, null | undefined>;
 // string
 
-// 4. never を使った型レベルのアサーション
+// 4. Type-level assertions using never
 type Assert<T extends true> = T;
 type IsString<T> = T extends string ? true : false;
 
-// コンパイル時のテスト
+// Compile-time tests
 type _test1 = Assert<IsString<"hello">>; // OK
-// type _test2 = Assert<IsString<42>>;   // エラー: false は true に代入不可
+// type _test2 = Assert<IsString<42>>;   // Error: false is not assignable to true
 
-// 5. never と条件分岐
+// 5. never and conditional branching
 type IsNever<T> = [T] extends [never] ? true : false;
 type Test1 = IsNever<never>;  // true
 type Test2 = IsNever<string>; // false
 
-// 6. プロパティの禁止（特定のキーを使えなくする）
+// 6. Forbidding properties (preventing certain keys from being used)
 type Without<T, K extends keyof T> = {
   [P in keyof T as P extends K ? never : P]: T[P];
 };
@@ -1175,217 +1175,217 @@ type PublicUser = Without<FullUser, "password">;
 // { id: string; name: string; email: string }
 ```
 
-### コード例9: void と undefined
+### Code Example 9: void and undefined
 
 ```typescript
-// void: 戻り値がないことを示す
+// void: indicates that there is no return value
 function logMessage(msg: string): void {
   console.log(msg);
-  // return undefined; は暗黙的に行われる
+  // return undefined; is performed implicitly
 }
 
-// undefined: 値としてのundefined
+// undefined: undefined as a value
 let u: undefined = undefined;
 
-// void と undefined の違い
-// void はコールバックの戻り値を「無視する」意味を持つ
+// Difference between void and undefined
+// void carries the meaning of "ignoring the return value of a callback"
 type Callback = () => void;
 
-// void コールバックは実際には値を返しても良い（値が無視される）
-const cb: Callback = () => 42; // OK（42は無視される）
+// A void callback may actually return a value (the value is ignored)
+const cb: Callback = () => 42; // OK (42 is ignored)
 ```
 
-### void と undefined の詳細
+### Details of void and undefined
 
 ```typescript
-// void の正確な意味
-// void は「戻り値を使わない」という意図を表す
+// Precise meaning of void
+// void expresses the intent of "do not use the return value"
 
-// undefined は「値が undefined である」という具体的な型
+// undefined is a concrete type meaning "the value is undefined"
 function getUndefined(): undefined {
-  return undefined; // 明示的に undefined を返す必要がある
+  return undefined; // Must explicitly return undefined
 }
 
 function getVoid(): void {
-  // return; も return undefined; も OK
-  // 何も return しなくても OK
+  // return; or return undefined; are both fine
+  // It's also fine to not return anything
 }
 
-// 重要な違い: void を返す関数型の代入互換性
+// Important difference: assignment compatibility for functions returning void
 type VoidFunc = () => void;
 type UndefinedFunc = () => undefined;
 
-// void型の関数は実際には何でも返せる（値は無視される）
+// A function typed as void can actually return anything (the value is ignored)
 const f1: VoidFunc = () => 42;         // OK
 const f2: VoidFunc = () => "hello";    // OK
 const f3: VoidFunc = () => true;       // OK
 
-// undefined型の関数は undefined のみ返せる
-// const f4: UndefinedFunc = () => 42; // エラー
+// A function typed as undefined can only return undefined
+// const f4: UndefinedFunc = () => 42; // Error
 const f5: UndefinedFunc = () => undefined; // OK
 
-// この仕様の理由: Array.prototype.forEach の型
-// forEach のコールバックは void を返す
-// void でないと、map のように値を返すコールバックも使えなくなる
+// Reason for this design: the type of Array.prototype.forEach
+// forEach's callback returns void
+// If it weren't void, callbacks that return values (like map's) couldn't be used
 const arr = [1, 2, 3];
-arr.forEach(n => n * 2); // OK: n * 2 の結果は無視される
+arr.forEach(n => n * 2); // OK: the result of n * 2 is ignored
 
-// null と undefined の使い分け
-// TypeScript では strictNullChecks: true が推奨
-// null: 意図的に「値が存在しない」ことを示す
-// undefined: 「値が設定されていない」ことを示す
+// Choosing between null and undefined
+// In TypeScript, strictNullChecks: true is recommended
+// null: indicates that "a value intentionally does not exist"
+// undefined: indicates that "a value has not been set"
 
 interface UserProfile {
   name: string;
-  bio: string | null;        // 意図的に空: ユーザーが「未設定」を選択
-  middleName?: string;       // 省略可能: 設定されていない可能性
-  // middleName: string | undefined と同等
+  bio: string | null;        // Intentionally empty: user chose "not set"
+  middleName?: string;       // Optional: may not be set
+  // Equivalent to middleName: string | undefined
 }
 
-// 実務での慣例
-// - API レスポンス: null を使う（JSONに undefined は存在しない）
-// - オプショナルプロパティ: undefined（省略可能という意味）
-// - 関数の戻り値（見つからない場合）: undefined（Array.find 等の慣例）
-//   ただし null を返すパターン（document.getElementById 等）も一般的
+// Practical conventions
+// - API responses: use null (undefined does not exist in JSON)
+// - Optional properties: undefined (means optional)
+// - Function return value (when not found): undefined (convention of Array.find, etc.)
+//   Although patterns returning null (e.g., document.getElementById) are also common
 ```
 
 ---
 
-## 6. 型推論（Type Inference）
+## 6. Type Inference
 
-### 基本的な型推論
+### Basic Type Inference
 
 ```typescript
-// TypeScriptは多くの場面で型を自動的に推論する
+// TypeScript automatically infers types in many situations
 
-// 変数の初期化時
-const name = "TypeScript";  // string と推論
-const age = 12;             // 12 と推論（const のため リテラル型）
-let count = 0;              // number と推論（let のため ワイド型）
+// At variable initialization
+const name = "TypeScript";  // Inferred as string
+const age = 12;             // Inferred as 12 (literal type because of const)
+let count = 0;              // Inferred as number (wide type because of let)
 
-// const vs let の推論の違い
-const x = "hello";  // 型: "hello"（リテラル型）
-let y = "hello";    // 型: string（ワイド型）
+// Difference in inference between const and let
+const x = "hello";  // Type: "hello" (literal type)
+let y = "hello";    // Type: string (wide type)
 
-// const でもオブジェクトの場合は中身がワイドになる
+// Even with const, the contents of objects are widened
 const config = { host: "localhost", port: 3000 };
-// 型: { host: string; port: number }
-// host は "localhost" ではなく string と推論される
+// Type: { host: string; port: number }
+// host is inferred as string, not "localhost"
 
-// as const でリテラル型を維持
+// Preserve literal types with as const
 const configConst = { host: "localhost", port: 3000 } as const;
-// 型: { readonly host: "localhost"; readonly port: 3000 }
+// Type: { readonly host: "localhost"; readonly port: 3000 }
 
-// 関数の戻り値推論
+// Function return value inference
 function add(a: number, b: number) {
-  return a + b; // 戻り値は number と推論
+  return a + b; // Return value inferred as number
 }
 
 function createPair<T>(value: T) {
-  return [value, value] as const; // readonly [T, T] と推論
+  return [value, value] as const; // Inferred as readonly [T, T]
 }
 
-// 条件式の推論
+// Inference for conditional expressions
 const result = Math.random() > 0.5 ? "yes" : "no";
-// 型: "yes" | "no"
+// Type: "yes" | "no"
 
 const value = Math.random() > 0.5 ? 42 : "hello";
-// 型: 42 | "hello" (const の場合)
-// 型: number | string (let の場合)
+// Type: 42 | "hello" (in case of const)
+// Type: number | string (in case of let)
 ```
 
-### 文脈的型推論（Contextual Typing）
+### Contextual Typing
 
 ```typescript
-// 関数の引数の型から、コールバックのパラメータ型が推論される
+// Callback parameter types are inferred from the function argument's type
 
-// 例1: 配列メソッド
+// Example 1: Array methods
 const numbers = [1, 2, 3, 4, 5];
 const doubled = numbers.map(n => n * 2);
-// n は number と推論される（numbers が number[] なので）
+// n is inferred as number (because numbers is number[])
 
-// 例2: イベントハンドラ
+// Example 2: Event handlers
 document.addEventListener("click", event => {
-  // event は MouseEvent と推論される（"click" イベントの型定義から）
+  // event is inferred as MouseEvent (from the type definition of the "click" event)
   console.log(event.clientX, event.clientY);
 });
 
 document.addEventListener("keydown", event => {
-  // event は KeyboardEvent と推論される
+  // event is inferred as KeyboardEvent
   console.log(event.key);
 });
 
-// 例3: コールバック関数
+// Example 3: Callback function
 type Comparator<T> = (a: T, b: T) => number;
 
 function sort<T>(arr: T[], comparator: Comparator<T>): T[] {
   return [...arr].sort(comparator);
 }
 
-// a と b は number と推論される
+// a and b are inferred as number
 const sorted = sort([3, 1, 2], (a, b) => a - b);
 
-// 例4: Promise のコールバック
+// Example 4: Promise callback
 const promise = new Promise<string>((resolve, reject) => {
-  // resolve は (value: string) => void と推論
-  // reject は (reason?: any) => void と推論
+  // resolve is inferred as (value: string) => void
+  // reject is inferred as (reason?: any) => void
   resolve("done");
 });
 
-// 例5: satisfies を使った文脈的型推論
+// Example 5: Contextual typing with satisfies
 type Routes = Record<string, { method: "GET" | "POST"; handler: () => void }>;
 
 const routes = {
   "/users": { method: "GET", handler: () => {} },
   "/users/create": { method: "POST", handler: () => {} },
 } satisfies Routes;
-// routes の型は推論された具体的な型を維持しつつ、Routes との互換性が保証される
-// routes["/users"].method は "GET" 型（"GET" | "POST" ではない）
+// The type of routes preserves the inferred concrete types while ensuring compatibility with Routes
+// routes["/users"].method has type "GET" (not "GET" | "POST")
 ```
 
-### 型の拡張（Widening）と絞り込み（Narrowing）
+### Type Widening and Narrowing
 
 ```typescript
-// ===== Widening（型の拡張） =====
-// let で宣言した変数は、リテラル型ではなくワイド型に推論される
+// ===== Widening =====
+// Variables declared with let are inferred as wide types, not literal types
 
-let x = "hello";  // string（widenされた）
-const y = "hello"; // "hello"（widenされない）
+let x = "hello";  // string (widened)
+const y = "hello"; // "hello" (not widened)
 
-// Wideningが起こる場面
+// Situations where widening occurs
 let a = 42;        // number
 let b = true;      // boolean
-let c = null;      // any（strictNullChecks無効時）/ null（有効時）
-let d = undefined; // any（strictNullChecks無効時）/ undefined（有効時）
+let c = null;      // any (when strictNullChecks is off) / null (when on)
+let d = undefined; // any (when strictNullChecks is off) / undefined (when on)
 
-// Wideningを防ぐ方法
-let e: "hello" = "hello"; // 明示的な型アノテーション
-let f = "hello" as const; // as const アサーション（ただしletでは代入できなくなる）
+// How to prevent widening
+let e: "hello" = "hello"; // Explicit type annotation
+let f = "hello" as const; // as const assertion (but cannot be reassigned with let)
 
-// ===== Narrowing（型の絞り込み） =====
-// TypeScriptの制御フロー分析により、型が自動的に絞り込まれる
+// ===== Narrowing =====
+// TypeScript's control flow analysis automatically narrows the type
 
 function processValue(value: string | number | null) {
-  // この時点: string | number | null
+  // At this point: string | number | null
 
   if (value === null) {
-    // ここ: null
+    // Here: null
     return;
   }
-  // ここ: string | number
+  // Here: string | number
 
   if (typeof value === "string") {
-    // ここ: string
+    // Here: string
     console.log(value.toUpperCase());
   } else {
-    // ここ: number
+    // Here: number
     console.log(value.toFixed(2));
   }
 }
 
-// Narrowing のパターン一覧
+// List of narrowing patterns
 
-// 1. typeof ガード
+// 1. typeof guard
 function typeofGuard(x: unknown) {
   if (typeof x === "string") { /* x: string */ }
   if (typeof x === "number") { /* x: number */ }
@@ -1396,7 +1396,7 @@ function typeofGuard(x: unknown) {
   if (typeof x === "object" && x !== null) { /* x: object */ }
 }
 
-// 2. instanceof ガード
+// 2. instanceof guard
 function instanceofGuard(x: Date | RegExp) {
   if (x instanceof Date) {
     x.getFullYear(); // x: Date
@@ -1405,7 +1405,7 @@ function instanceofGuard(x: Date | RegExp) {
   }
 }
 
-// 3. in ガード
+// 3. in guard
 interface Fish { swim(): void; }
 interface Bird { fly(): void; }
 
@@ -1417,23 +1417,23 @@ function inGuard(animal: Fish | Bird) {
   }
 }
 
-// 4. 等価性チェック
+// 4. Equality check
 function equalityGuard(x: string | number, y: string | boolean) {
   if (x === y) {
-    // x と y の共通型: string
+    // The common type of x and y: string
     x.toUpperCase(); // x: string
     y.toUpperCase(); // y: string
   }
 }
 
-// 5. truthiness チェック
+// 5. Truthiness check
 function truthinessGuard(x: string | null | undefined) {
   if (x) {
-    x.toUpperCase(); // x: string（null, undefined, "" は除外）
+    x.toUpperCase(); // x: string (null, undefined, "" are excluded)
   }
 }
 
-// 6. Discriminated Union（タグ付きユニオン）
+// 6. Discriminated Union (tagged union)
 type Shape =
   | { kind: "circle"; radius: number }
   | { kind: "square"; side: number }
@@ -1450,7 +1450,7 @@ function area(shape: Shape): number {
   }
 }
 
-// 7. ユーザー定義型ガード（Type Predicate）
+// 7. User-defined type guard (Type Predicate)
 function isString(value: unknown): value is string {
   return typeof value === "string";
 }
@@ -1462,7 +1462,7 @@ function isNonNull<T>(value: T | null | undefined): value is T {
 const values: (string | null)[] = ["hello", null, "world", null];
 const nonNullValues = values.filter(isNonNull); // string[]
 
-// 8. assertion 関数
+// 8. Assertion functions
 function assertIsString(value: unknown): asserts value is string {
   if (typeof value !== "string") {
     throw new Error(`Expected string, got ${typeof value}`);
@@ -1471,52 +1471,52 @@ function assertIsString(value: unknown): asserts value is string {
 
 function processInput(input: unknown): string {
   assertIsString(input);
-  // ここ以降、input は string 型として扱える
+  // From here on, input is treated as type string
   return input.toUpperCase();
 }
 ```
 
 ---
 
-## 7. 型エイリアスとリテラル型の高度な活用
+## 7. Advanced Use of Type Aliases and Literal Types
 
-### テンプレートリテラル型
+### Template Literal Types
 
 ```typescript
-// テンプレートリテラル型の基本
+// Basics of template literal types
 type Greeting = `Hello, ${string}`;
 type EventName = `on${string}`;
 
-// リテラル型の組み合わせ
+// Combining literal types
 type Vertical = "top" | "middle" | "bottom";
 type Horizontal = "left" | "center" | "right";
 type Position = `${Vertical}-${Horizontal}`;
-// "top-left" | "top-center" | "top-right" | "middle-left" | ... (9通り)
+// "top-left" | "top-center" | "top-right" | "middle-left" | ... (9 combinations)
 
-// 組み込みの文字列操作型
+// Built-in string manipulation types
 type Upper = Uppercase<"hello">;     // "HELLO"
 type Lower = Lowercase<"HELLO">;     // "hello"
 type Capitalized = Capitalize<"hello">; // "Hello"
 type Uncapitalized = Uncapitalize<"Hello">; // "hello"
 
-// テンプレートリテラル型の実務パターン
-// CSS プロパティ名の型安全な生成
+// Practical patterns for template literal types
+// Type-safe generation of CSS property names
 type CSSProperty = "margin" | "padding" | "border";
 type CSSDirection = "top" | "right" | "bottom" | "left";
 type CSSDirectionalProperty = `${CSSProperty}-${CSSDirection}`;
 // "margin-top" | "margin-right" | ... | "border-left"
 
-// APIエンドポイントの型
+// API endpoint types
 type Entity = "user" | "post" | "comment";
 type CrudEndpoint = `/${Entity}s` | `/${Entity}s/:id`;
 // "/users" | "/users/:id" | "/posts" | "/posts/:id" | "/comments" | "/comments/:id"
 
-// イベント名の自動生成
+// Auto-generating event names
 type ModelEvents<T extends string> = `${T}Created` | `${T}Updated` | `${T}Deleted`;
 type UserEvents = ModelEvents<"user">;
 // "userCreated" | "userUpdated" | "userDeleted"
 
-// Getter/Setter の型
+// Getter/setter types
 type Getters<T> = {
   [K in keyof T as `get${Capitalize<string & K>}`]: () => T[K];
 };
@@ -1537,13 +1537,13 @@ type PersonSetters = Setters<Person>;
 // { setName: (value: string) => void; setAge: (value: number) => void }
 ```
 
-### 型のブランディング（Branded Types）
+### Branded Types
 
 ```typescript
-// TypeScript は構造的型付けなので、同じ構造の型は互換性がある
-// これが問題になる場合、ブランド型で名前的型付けを模倣する
+// TypeScript uses structural typing, so types with the same structure are compatible
+// When this becomes a problem, simulate nominal typing with branded types
 
-// 問題: string 同士は全て互換性がある
+// Problem: all strings are mutually compatible
 type UserId = string;
 type ProductId = string;
 
@@ -1553,14 +1553,14 @@ function getProduct(id: ProductId): void { /* ... */ }
 const userId: UserId = "user-123";
 const productId: ProductId = "prod-456";
 
-getUser(productId); // エラーにならない！（両方 string なので）
+getUser(productId); // No error! (both are strings)
 
-// 解決: ブランド型を使う
+// Solution: use branded types
 type BrandedUserId = string & { readonly __brand: unique symbol };
 type BrandedProductId = string & { readonly __brand: unique symbol };
 
 function createUserId(id: string): BrandedUserId {
-  // バリデーションを行う
+  // Validate
   if (!id.startsWith("user-")) {
     throw new Error("Invalid user ID format");
   }
@@ -1581,9 +1581,9 @@ const safeUserId = createUserId("user-123");
 const safeProductId = createProductId("prod-456");
 
 getUserById(safeUserId);     // OK
-// getUserById(safeProductId); // エラー！型が異なる
+// getUserById(safeProductId); // Error! Different types
 
-// 汎用的なブランド型のユーティリティ
+// Generic utility for branded types
 type Brand<T, B extends string> = T & { readonly __brand: B };
 
 type Email = Brand<string, "Email">;
@@ -1607,19 +1607,19 @@ function createPositiveNumber(value: number): PositiveNumber {
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: any で逃げる
+### Anti-Pattern 1: Escaping with any
 
 ```typescript
-// BAD: 型がわからないときに any を使う
+// BAD: using any when the type is unknown
 function parseJSON(json: string): any {
   return JSON.parse(json);
 }
 const data = parseJSON('{"name":"Alice"}');
-data.nonExistent.property; // 実行時エラー、コンパイラは警告しない
+data.nonExistent.property; // Runtime error, no compiler warning
 
-// GOOD: unknown を使い、型ガードで安全に処理
+// GOOD: use unknown and process safely with type guards
 function parseJSON(json: string): unknown {
   return JSON.parse(json);
 }
@@ -1627,41 +1627,41 @@ const data = parseJSON('{"name":"Alice"}');
 if (data !== null && typeof data === "object" && "name" in data) {
   console.log((data as { name: string }).name);
 }
-// さらに良い: Zodなどでバリデーション
+// Even better: validate with Zod or similar
 ```
 
-### アンチパターン2: 不必要な型アサーション
+### Anti-Pattern 2: Unnecessary Type Assertions
 
 ```typescript
-// BAD: 根拠なく型アサーション（as）を使う
+// BAD: using a type assertion (as) without justification
 const input = document.getElementById("name") as HTMLInputElement;
-input.value; // 実際にはnullかもしれない → 実行時エラー
+input.value; // Could actually be null -> runtime error
 
-// GOOD: 型ガードで安全に確認
+// GOOD: verify safely with a type guard
 const input = document.getElementById("name");
 if (input instanceof HTMLInputElement) {
-  input.value; // 安全
+  input.value; // Safe
 }
 ```
 
-### アンチパターン3: 過度にワイドな型
+### Anti-Pattern 3: Overly Wide Types
 
 ```typescript
-// BAD: string や number を使いすぎる
+// BAD: overusing string and number
 interface Config {
-  mode: string;      // 何でも入る
-  retries: number;   // 負の数も入る
-  level: string;     // 意味のない値も入る
+  mode: string;      // Anything goes
+  retries: number;   // Negative numbers also pass
+  level: string;     // Meaningless values also pass
 }
 
-// GOOD: リテラル型やブランド型で制約する
+// GOOD: constrain with literal types or branded types
 interface Config {
   mode: "development" | "staging" | "production";
   retries: 0 | 1 | 2 | 3 | 5 | 10;
   level: "debug" | "info" | "warn" | "error";
 }
 
-// さらに良い: 値の制約をランタイムでも保証
+// Even better: enforce value constraints at runtime as well
 import { z } from "zod";
 
 const ConfigSchema = z.object({
@@ -1673,87 +1673,87 @@ const ConfigSchema = z.object({
 type Config = z.infer<typeof ConfigSchema>;
 ```
 
-### アンチパターン4: null チェックの漏れ
+### Anti-Pattern 4: Missing null Checks
 
 ```typescript
-// BAD: strictNullChecks を無効にする
+// BAD: disabling strictNullChecks
 // tsconfig: "strictNullChecks": false
 
-// GOOD: strictNullChecks を有効にし、null を明示的に扱う
+// GOOD: enable strictNullChecks and handle null explicitly
 function findUser(id: string): User | null {
   const user = database.get(id);
   return user ?? null;
 }
 
 const user = findUser("123");
-// user.name; // エラー: Object is possibly 'null'
+// user.name; // Error: Object is possibly 'null'
 if (user !== null) {
   user.name; // OK
 }
 
-// Optional Chaining と Nullish Coalescing の活用
+// Use Optional Chaining and Nullish Coalescing
 const userName = user?.name ?? "Anonymous";
 const userAge = user?.profile?.age ?? 0;
 ```
 
-### アンチパターン5: 配列の安全でないインデックスアクセス
+### Anti-Pattern 5: Unsafe Indexed Access into Arrays
 
 ```typescript
-// BAD: 配列の要素が必ず存在すると仮定する
+// BAD: assuming array elements always exist
 const items: string[] = ["a", "b", "c"];
-const item: string = items[10]; // undefined が返るが、型は string
-item.toUpperCase(); // 実行時エラー！
+const item: string = items[10]; // Returns undefined, but the type is string
+item.toUpperCase(); // Runtime error!
 
-// GOOD: noUncheckedIndexedAccess を有効にする
+// GOOD: enable noUncheckedIndexedAccess
 // tsconfig: "noUncheckedIndexedAccess": true
-// items[10] の型は string | undefined になる
+// items[10] is now typed as string | undefined
 
 const safeItem = items[10];
-// safeItem.toUpperCase(); // エラー: Object is possibly 'undefined'
+// safeItem.toUpperCase(); // Error: Object is possibly 'undefined'
 if (safeItem !== undefined) {
   safeItem.toUpperCase(); // OK
 }
 
-// at() メソッドの活用（ES2022+）
-const lastItem = items.at(-1); // string | undefined（常にundefinedを含む）
+// Use the at() method (ES2022+)
+const lastItem = items.at(-1); // string | undefined (always includes undefined)
 ```
 
 ---
 
-## 8. 型アサーションと型ガードのベストプラクティス
+## 8. Best Practices for Type Assertions and Type Guards
 
-### 型アサーションの正しい使い方
+### Correct Use of Type Assertions
 
 ```typescript
-// 型アサーション（as）は「コンパイラより詳しいことを知っている」場合のみ使う
+// Use type assertions (as) only when you know more than the compiler
 
-// 許容されるケース1: DOM要素の型
+// Acceptable case 1: type of a DOM element
 const canvas = document.getElementById("myCanvas");
 if (canvas instanceof HTMLCanvasElement) {
-  const ctx = canvas.getContext("2d"); // OK: canvas は HTMLCanvasElement
+  const ctx = canvas.getContext("2d"); // OK: canvas is HTMLCanvasElement
 }
 
-// 許容されるケース2: 外部ライブラリの型が不正確
-// ライブラリの型定義が間違っている場合の一時的な回避策
+// Acceptable case 2: external library types are inaccurate
+// Temporary workaround when the library's type definitions are wrong
 const result = externalLib.getData() as unknown as CorrectType;
-// TODO: @types/external-lib にPRを送る
+// TODO: send a PR to @types/external-lib
 
-// 許容されるケース3: テストコード
-// テストでは意図的に不正な値を渡すことがある
+// Acceptable case 3: test code
+// In tests, you may intentionally pass invalid values
 it("should handle invalid input", () => {
   expect(() => processUser(null as unknown as User)).toThrow();
 });
 
-// 非推奨: 根拠のない型アサーション
-// const data = fetchData() as UserData; // データの形状が保証されない
+// Not recommended: unjustified type assertions
+// const data = fetchData() as UserData; // The shape of the data is not guaranteed
 ```
 
-### 型ガードの設計パターン
+### Type Guard Design Patterns
 
 ```typescript
-// 汎用的な型ガードの実装
+// Implementation of generic type guards
 
-// 1. プリミティブ型のガード集
+// 1. Type guards for primitives
 const is = {
   string: (value: unknown): value is string => typeof value === "string",
   number: (value: unknown): value is number =>
@@ -1770,7 +1770,7 @@ const is = {
   error: (value: unknown): value is Error => value instanceof Error,
 };
 
-// 使用例
+// Usage
 function processValue(value: unknown): string {
   if (is.string(value)) return value.toUpperCase();
   if (is.number(value)) return value.toFixed(2);
@@ -1782,7 +1782,7 @@ function processValue(value: unknown): string {
   return String(value);
 }
 
-// 2. オブジェクトのプロパティチェック
+// 2. Object property checks
 function hasProperty<K extends string>(
   obj: unknown,
   key: K
@@ -1801,7 +1801,7 @@ function hasProperties<K extends string>(
   );
 }
 
-// 3. 配列要素の型ガード
+// 3. Type guards for array elements
 function isArrayOf<T>(
   value: unknown,
   guard: (item: unknown) => item is T
@@ -1811,7 +1811,7 @@ function isArrayOf<T>(
 
 const data: unknown = [1, 2, 3];
 if (isArrayOf(data, is.number)) {
-  // data は number[] として扱える
+  // data can be treated as number[]
   const sum = data.reduce((a, b) => a + b, 0);
 }
 ```
@@ -1820,42 +1820,42 @@ if (isArrayOf(data, is.number)) {
 
 ## FAQ
 
-### Q1: `string` と `String` の違いは？
+### Q1: What is the difference between `string` and `String`?
 
-**A:** 小文字の `string` はTypeScriptのプリミティブ型です。大文字の `String` はJavaScriptのラッパーオブジェクト型です。常に小文字の `string` を使ってください。`number` / `Number`、`boolean` / `Boolean` も同様です。
+**A:** Lowercase `string` is the TypeScript primitive type. Uppercase `String` is the JavaScript wrapper object type. Always use lowercase `string`. The same applies to `number` / `Number` and `boolean` / `Boolean`.
 
 ```typescript
-// プリミティブ型（推奨）
+// Primitive types (recommended)
 const name: string = "Alice";
 const age: number = 30;
 const active: boolean = true;
 
-// ラッパーオブジェクト型（非推奨）
-// const name: String = new String("Alice"); // 使わない
-// const age: Number = new Number(30);       // 使わない
-// const active: Boolean = new Boolean(true); // 使わない
+// Wrapper object types (not recommended)
+// const name: String = new String("Alice"); // Don't use
+// const age: Number = new Number(30);       // Don't use
+// const active: Boolean = new Boolean(true); // Don't use
 
-// ラッパーオブジェクトはプリミティブに代入できるが、逆はできない
-const s: String = "hello"; // OK（暗黙変換）
-// const p: string = new String("hello"); // エラー
+// Wrapper objects can be assigned to primitives, but not vice versa
+const s: String = "hello"; // OK (implicit conversion)
+// const p: string = new String("hello"); // Error
 ```
 
-### Q2: タプルの要素数チェックは実行時にも行われますか？
+### Q2: Are tuple element-count checks performed at runtime?
 
-**A:** いいえ。タプルの型チェックはコンパイル時のみです。実行時にはただの配列になります。実行時の要素数チェックが必要な場合は、手動でバリデーションを書くか、Zodなどを使います。
+**A:** No. Tuple type checks are compile-time only. At runtime they are just arrays. If you need a runtime element-count check, write the validation manually or use Zod or similar.
 
 ```typescript
-// コンパイル時のチェック
+// Compile-time check
 type Point = [number, number];
-// const p: Point = [1]; // エラー: 要素が足りない
-// const p: Point = [1, 2, 3]; // エラー: 要素が多い
+// const p: Point = [1]; // Error: not enough elements
+// const p: Point = [1, 2, 3]; // Error: too many elements
 const p: Point = [1, 2]; // OK
 
-// 実行時はただの配列
+// At runtime it is just an array
 console.log(Array.isArray(p)); // true
-console.log(p.length); // 2（ただし型レベルでは length: 2）
+console.log(p.length); // 2 (although at the type level length is 2)
 
-// 実行時にタプルの形状を検証する関数
+// A function to validate tuple shape at runtime
 function isPoint(value: unknown): value is Point {
   return (
     Array.isArray(value) &&
@@ -1866,77 +1866,77 @@ function isPoint(value: unknown): value is Point {
 }
 ```
 
-### Q3: enum は使うべきですか？
+### Q3: Should I use enum?
 
-**A:** 2025年現在、多くのTypeScriptスタイルガイドでは `const enum` か、Union型 + `as const` オブジェクトパターンが推奨されています。通常の数値 enum は逆引きマッピングのためにランタイムコードを生成し、バンドルサイズに影響するためです。
+**A:** As of 2025, many TypeScript style guides recommend either `const enum` or the union type + `as const` object pattern. Regular numeric enums generate runtime code for reverse-lookup mapping, which affects bundle size.
 
-### Q4: noUncheckedIndexedAccess は有効にすべきですか？
+### Q4: Should I enable noUncheckedIndexedAccess?
 
-**A:** はい、推奨します。このオプションを有効にすると、配列やオブジェクトのインデックスアクセスの結果に `undefined` が追加され、安全なコードを書くことを促します。
+**A:** Yes, recommended. Enabling this option adds `undefined` to the result of array and object indexed access, encouraging you to write safer code.
 
 ```typescript
-// noUncheckedIndexedAccess: true の場合
+// When noUncheckedIndexedAccess: true
 const arr: string[] = ["a", "b", "c"];
 const item = arr[0]; // string | undefined
 
-// Record のアクセスも影響を受ける
+// Indexed access on Record is also affected
 const map: Record<string, number> = { a: 1, b: 2 };
 const value = map["c"]; // number | undefined
 
-// 非破壊的な回避方法
-// 1. 存在チェック
+// Non-destructive workarounds
+// 1. Existence check
 if (item !== undefined) {
   console.log(item.toUpperCase());
 }
 
-// 2. Non-null assertion（確実に存在する場合のみ）
-const first = arr[0]!; // string（undefined を除外）
+// 2. Non-null assertion (only when existence is guaranteed)
+const first = arr[0]!; // string (excludes undefined)
 
-// 3. at() メソッド（返り値は常に T | undefined）
+// 3. The at() method (always returns T | undefined)
 const last = arr.at(-1);
 ```
 
-### Q5: symbol はどういう場面で使うべきですか？
+### Q5: When should I use symbol?
 
-**A:** symbolは以下の場面で活用されます。
-1. **オブジェクトのメタデータプロパティ**: 通常のプロパティと衝突しないキーとして
-2. **Well-known Symbols**: `Symbol.iterator`, `Symbol.dispose` などの組み込みプロトコルの実装
-3. **プライベートに近いプロパティ**: 外部からアクセスされにくいプロパティキーとして（ただし真のプライベートではない）
-4. **ライブラリのプラグインシステム**: 識別子の衝突を避けるため
+**A:** Symbols are useful in the following situations.
+1. **Metadata properties on objects**: as keys that don't collide with regular properties
+2. **Well-known Symbols**: implementing built-in protocols such as `Symbol.iterator`, `Symbol.dispose`
+3. **Properties that are quasi-private**: as property keys that are hard to access externally (although not truly private)
+4. **Plugin systems for libraries**: to avoid identifier collisions
 
-一般的なアプリケーション開発では直接使う機会は少ないですが、ライブラリやフレームワークの内部実装では頻繁に使われます。
+In typical application development, you'll rarely use them directly, but they are frequently used in the internals of libraries and frameworks.
 
 ---
 
-## まとめ
+## Summary
 
-| 型カテゴリ | 型 | 用途 |
+| Type category | Type | Use case |
 |-----------|-----|------|
-| プリミティブ | string, number, boolean, symbol, bigint | 基本的な値 |
-| リテラル | "hello", 42, true | 特定の値に限定 |
-| テンプレートリテラル | `Hello, ${string}` | 文字列パターンの制約 |
-| コレクション | T[], [T1, T2] | 同種/異種データの集合 |
-| 列挙 | enum, const enum | 名前付き定数の集合 |
-| 特殊（危険） | any | 型チェック無効化（非推奨） |
-| 特殊（安全） | unknown | 型安全な任意値 |
-| 特殊（不在） | never | 到達不能、網羅性チェック |
-| 特殊（空） | void, null, undefined | 戻り値なし、値の不在 |
-| ブランド型 | Brand<T, B> | 構造的型付けに名前的型付けを追加 |
+| Primitive | string, number, boolean, symbol, bigint | Basic values |
+| Literal | "hello", 42, true | Restricting to specific values |
+| Template literal | `Hello, ${string}` | Constraining string patterns |
+| Collection | T[], [T1, T2] | Sets of homogeneous/heterogeneous data |
+| Enumeration | enum, const enum | Set of named constants |
+| Special (dangerous) | any | Disabling type checking (not recommended) |
+| Special (safe) | unknown | Type-safe arbitrary value |
+| Special (absent) | never | Unreachable, exhaustiveness check |
+| Special (empty) | void, null, undefined | No return value, absence of a value |
+| Branded type | Brand<T, B> | Adding nominal typing on top of structural typing |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Reads
 
-- [02-functions-and-objects.md](./02-functions-and-objects.md) -- 関数とオブジェクト型
-- [03-union-intersection.md](./03-union-intersection.md) -- Union型とIntersection型
+- [02-functions-and-objects.md](./02-functions-and-objects.md) -- Function and object types
+- [03-union-intersection.md](./03-union-intersection.md) -- Union and intersection types
 
 ---
 
-## 参考文献
+## References
 
 1. **TypeScript Handbook: Everyday Types** -- https://www.typescriptlang.org/docs/handbook/2/everyday-types.html
 2. **TypeScript Handbook: Narrowing** -- https://www.typescriptlang.org/docs/handbook/2/narrowing.html
 3. **TypeScript Handbook: Template Literal Types** -- https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html
 4. **TypeScript Deep Dive: TypeScript's Type System** -- https://basarat.gitbook.io/typescript/type-system
-5. **Effective TypeScript (Dan Vanderkam著, O'Reilly)** -- 特に Item 7: Think of Types as Sets of Values
-6. **TypeScript Playground** -- https://www.typescriptlang.org/play -- 型の動作を即座に確認できる
+5. **Effective TypeScript (Dan Vanderkam, O'Reilly)** -- especially Item 7: Think of Types as Sets of Values
+6. **TypeScript Playground** -- https://www.typescriptlang.org/play -- instantly verify how types behave
