@@ -1,128 +1,128 @@
-# コードスメル ── Long Method、God Class、その他の警告サイン
+# Code Smells — Long Method, God Class, and Other Warning Signs
 
-> コードスメルとは、コードの表面に現れる「何かがおかしい」という兆候である。バグではないが、設計上の問題を示唆する。スメルを素早く検出し、適切なリファクタリングに繋げる能力は、ソフトウェア品質を維持する上で不可欠である。Martin Fowler は『Refactoring』第2版で「スメルは設計品質の温度計」であると述べ、Kent Beck は「スメルが発する "ここを見て" というシグナルに耳を傾けよ」と説いた。本章では Martin Fowler の5分類を出発点に、22種以上のスメルを体系的に解説し、自動検出ツール・レビュー技法・段階的なリファクタリング戦略を深掘りする。
+> A code smell is a surface-level symptom that signals "something is off" in the code. It is not a bug, but it suggests an underlying design problem. The ability to quickly detect smells and connect them to appropriate refactoring is essential for maintaining software quality. In the second edition of *Refactoring*, Martin Fowler described smells as "a thermometer of design quality," and Kent Beck advised developers to "listen to the signals smells send — they're saying *look here*." This chapter uses Fowler's five-category taxonomy as a starting point, systematically covering 22 or more smells, and dives deep into automated detection tools, review techniques, and incremental refactoring strategies.
 
 ---
 
-## 前提知識
+## Prerequisites
 
-| 前提 | 参照先 |
+| Prerequisite | Reference |
 |------|--------|
-| クリーンコードの基本原則 | [00-principles/](../00-principles/) |
-| 命名と関数設計 | 01-practices/01-naming.md, 01-practices/02-functions.md |
-| テストの基礎 | [01-practices/04-testing-principles.md](../01-practices/04-testing-principles.md) |
-| オブジェクト指向の基本（クラス、継承、ポリモーフィズム） | ― |
+| Fundamentals of clean code principles | [00-principles/](../00-principles/) |
+| Naming and function design | 01-practices/01-naming.md, 01-practices/02-functions.md |
+| Basics of testing | [01-practices/04-testing-principles.md](../01-practices/04-testing-principles.md) |
+| Basics of object-oriented programming (classes, inheritance, polymorphism) | — |
 
 ---
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **主要なコードスメルの5分類** ── Martin Fowler の分類に基づく22種以上のスメルを理解する
-2. **スメルの重症度・影響度マトリクス** ── スメルの深刻さを定量的に評価する方法を身につける
-3. **スメルの自動検出と手動検出** ── ツールとコードレビューを組み合わせた検出技法を習得する
-4. **各スメルに対応するリファクタリング** ── スメルから適切なリファクタリングへの対応表を習得する
-5. **検出ワークフローの設計** ── CI/CD・レビュー・静的解析を統合した組織的な検出体制を構築できるようになる
+1. **The five categories of major code smells** — Understand 22+ smells based on Martin Fowler's taxonomy
+2. **Smell severity and impact matrix** — Learn how to quantitatively assess the seriousness of a smell
+3. **Automated and manual smell detection** — Master detection techniques combining tools with code review
+4. **Refactoring responses for each smell** — Learn the mapping from each smell to the appropriate refactoring technique
+5. **Designing a detection workflow** — Build an organizational detection system that integrates CI/CD, review, and static analysis
 
 ---
 
-## 1. コードスメルとは何か
+## 1. What Is a Code Smell?
 
-### 1.1 定義と歴史
+### 1.1 Definition and History
 
-「コードスメル」という用語は、Kent Beck が Martin Fowler との会話で使い始めたもので、1999年の『Refactoring: Improving the Design of Existing Code』初版で広く知られるようになった。
+The term "code smell" was coined by Kent Beck in conversation with Martin Fowler, and became widely known through the first edition of *Refactoring: Improving the Design of Existing Code* in 1999.
 
 ```
-スメルの本質
+The Essence of Smells
 
   +-----------------------------------------------------------------+
-  |  コードスメル ≠ バグ                                              |
-  |  コードスメル ≠ コーディング規約違反                              |
-  |  コードスメル  = 「ここに設計上の問題が潜んでいる可能性がある」   |
-  |                   というヒューリスティックな手がかり               |
+  |  Code smell ≠ bug                                               |
+  |  Code smell ≠ coding style violation                            |
+  |  Code smell  = a heuristic signal suggesting that               |
+  |               "a design problem may be lurking here"            |
   +-----------------------------------------------------------------+
 
-  スメルは以下の特徴を持つ:
-  1. 主観的 ── 文脈によって許容される場合もある
-  2. 累積的 ── 単体では軽微でも複合すると致命的になる
-  3. 検出可能 ── 多くはツールまたはレビューで発見できる
-  4. 対処可能 ── 各スメルに対応するリファクタリング技法が存在する
+  Smells have the following characteristics:
+  1. Subjective — may be acceptable depending on context
+  2. Cumulative — minor individually, but can become critical in combination
+  3. Detectable — most can be found with tools or review
+  4. Actionable — each smell has a corresponding refactoring technique
 ```
 
-### 1.2 スメルの「匂いの強さ」
+### 1.2 The "Odor Intensity" of a Smell
 
-全てのスメルが同じ深刻度ではない。Robert C. Martin は『Clean Code』で「匂いの強さ」という概念を導入し、修正の緊急度を判断する指針とした。
+Not all smells carry the same severity. Robert C. Martin introduced the concept of "odor intensity" in *Clean Code* as a guideline for judging the urgency of a fix.
 
 ```
-  匂いの強さレベル
+  Odor Intensity Levels
 
-  Level 5 (腐敗臭) ── 即座に修正すべき
-    例: 循環依存、テストなしの God Class
-    → 放置すると開発停止レベルの障害を引き起こす
+  Level 5 (Putrid) — Fix immediately
+    Example: Circular dependencies, God Class with no tests
+    → Left unaddressed, can cause development-halting failures
 
-  Level 4 (悪臭)   ── 次のスプリントで修正
-    例: Shotgun Surgery、Feature Envy の多発
-    → 変更のたびに不要な工数が発生する
+  Level 4 (Foul)   — Fix in the next sprint
+    Example: Shotgun Surgery, pervasive Feature Envy
+    → Every change incurs unnecessary effort
 
-  Level 3 (異臭)   ── 計画的に修正
-    例: Long Method、Primitive Obsession
-    → 可読性・保守性が徐々に悪化する
+  Level 3 (Off)    — Fix with a plan
+    Example: Long Method, Primitive Obsession
+    → Readability and maintainability degrade gradually
 
-  Level 2 (微臭)   ── 気づいたときに修正
-    例: コメントの過剰、不要なパラメータ
-    → ボーイスカウトルールで対処
+  Level 2 (Faint)  — Fix when noticed
+    Example: Excessive comments, unused parameters
+    → Address with the Boy Scout Rule
 
-  Level 1 (無臭)   ── 許容範囲
-    例: 文脈上やむを得ない複雑性
-    → ドキュメントで意図を記録して放置
+  Level 1 (None)   — Acceptable
+    Example: Complexity that is unavoidable given context
+    → Record the intent in documentation and leave it
 ```
 
 ---
 
-## 2. コードスメルの5分類体系
+## 2. The Five-Category Taxonomy of Code Smells
 
-Martin Fowler は『Refactoring』でスメルを5つのカテゴリに分類した。各カテゴリには複数のスメルが含まれ、それぞれに対応するリファクタリング技法が存在する。
+Martin Fowler organized smells into five categories in *Refactoring*. Each category contains multiple smells, and each smell has a corresponding refactoring technique.
 
 ```
 +-------------------------------------------------------------------+
-|  コードスメルの5分類 (Martin Fowler, 2018 2nd Edition)              |
+|  Five Categories of Code Smells (Martin Fowler, 2nd Edition 2018) |
 +-------------------------------------------------------------------+
-| 1. 肥大化 (Bloaters)                                              |
+| 1. Bloaters                                                       |
 |    Long Method, Large Class, Long Parameter List,                 |
 |    Data Clumps, Primitive Obsession                               |
 +-------------------------------------------------------------------+
-| 2. 乱用 (Object-Orientation Abusers)                              |
+| 2. Object-Orientation Abusers                                     |
 |    Switch Statements, Refused Bequest,                            |
 |    Parallel Inheritance Hierarchy, Alternative Classes with       |
 |    Different Interfaces, Temporary Field                          |
 +-------------------------------------------------------------------+
-| 3. 変更妨害 (Change Preventers)                                   |
+| 3. Change Preventers                                              |
 |    Divergent Change, Shotgun Surgery,                             |
 |    Parallel Inheritance Hierarchy                                 |
 +-------------------------------------------------------------------+
-| 4. 不要物 (Dispensables)                                          |
+| 4. Dispensables                                                   |
 |    Dead Code, Speculative Generality, Lazy Class,                 |
-|    Data Class, Duplicate Code, Comments (過剰な)                  |
+|    Data Class, Duplicate Code, Comments (excessive)               |
 +-------------------------------------------------------------------+
-| 5. 結合過多 (Couplers)                                            |
+| 5. Couplers                                                       |
 |    Feature Envy, Inappropriate Intimacy, Message Chains,          |
 |    Middle Man, Incomplete Library Class                            |
 +-------------------------------------------------------------------+
 ```
 
-### 2.1 スメル関連図 ── スメル間の因果関係
+### 2.1 Smell Relationship Diagram — Causal Relationships Between Smells
 
-スメルは単独で存在するのではなく、相互に関連し、連鎖的に発生することが多い。
+Smells do not exist in isolation; they are often interrelated and arise in chains.
 
 ```
-  スメル間の因果関係マップ
+  Causal Relationship Map Between Smells
 
-  [Long Method] ──引き起こす──> [Duplicated Code]
+  [Long Method] ──causes──> [Duplicated Code]
        |                              |
        v                              v
-  [Feature Envy] ──引き起こす──> [Shotgun Surgery]
+  [Feature Envy] ──causes──> [Shotgun Surgery]
        |                              |
        v                              v
-  [God Class] ──引き起こす──> [Divergent Change]
+  [God Class] ──causes──> [Divergent Change]
        |
        v
   [Inappropriate Intimacy]
@@ -130,47 +130,47 @@ Martin Fowler は『Refactoring』でスメルを5つのカテゴリに分類し
        v
   [Message Chains]
 
-  典型的な連鎖パターン:
-  1. Long Method → 重複コード → Shotgun Surgery
+  Typical chain patterns:
+  1. Long Method → Duplicate Code → Shotgun Surgery
   2. God Class → Divergent Change → Feature Envy
   3. Primitive Obsession → Data Clumps → Long Parameter List
 ```
 
 ---
 
-## 3. 肥大化スメル (Bloaters) の詳細
+## 3. Bloater Smells in Detail
 
-### 3.1 Long Method（長すぎるメソッド）
+### 3.1 Long Method
 
-**定義**: メソッドの行数が多すぎて、1つの画面に収まらない。一般的な閾値は20-30行以上。
+**Definition**: A method has too many lines and does not fit on a single screen. A common threshold is 20–30 lines or more.
 
-**検出指標**:
-- 行数: 20行以上で警告、50行以上で危険
-- サイクロマティック複雑度: 10以上
-- ネスト深度: 3レベル以上
-- コメントで区切られたブロックが存在
+**Detection indicators**:
+- Line count: Warning at 20+, danger at 50+
+- Cyclomatic complexity: 10 or higher
+- Nesting depth: 3 or more levels
+- Blocks separated by comments
 
-**コード例1: Long Method の検出と改善（Python）**
+**Code Example 1: Detecting and Improving a Long Method (Python)**
 
 ```python
-# NG: 1つのメソッドに複数の責任が混在 (50行以上)
+# NG: Multiple responsibilities mixed into a single method (50+ lines)
 class OrderProcessor:
     def process_order(self, order_data: dict) -> OrderResult:
-        # ── バリデーション ──
+        # ── Validation ──
         if not order_data.get('items'):
-            raise ValidationError("商品が選択されていません")
+            raise ValidationError("No items selected")
         if not order_data.get('customer_id'):
-            raise ValidationError("顧客情報がありません")
+            raise ValidationError("Customer information is missing")
         for item in order_data['items']:
             if item['quantity'] <= 0:
-                raise ValidationError(f"数量が不正: {item['name']}")
+                raise ValidationError(f"Invalid quantity: {item['name']}")
             product = self.db.query(
                 "SELECT stock FROM products WHERE id = %s", item['id']
             )
             if product.stock < item['quantity']:
-                raise ValidationError(f"在庫不足: {item['name']}")
+                raise ValidationError(f"Insufficient stock: {item['name']}")
 
-        # ── 合計計算 ──
+        # ── Total Calculation ──
         subtotal = 0
         for item in order_data['items']:
             price = item['unit_price'] * item['quantity']
@@ -185,7 +185,7 @@ class OrderProcessor:
         shipping = Decimal("500") if subtotal < Decimal("5000") else Decimal("0")
         total = subtotal + tax + shipping
 
-        # ── DB保存 ──
+        # ── Save to DB ──
         order = Order(
             customer_id=order_data['customer_id'],
             items=order_data['items'],
@@ -193,18 +193,18 @@ class OrderProcessor:
         )
         self.db.save(order)
 
-        # ── メール送信 ──
+        # ── Send Email ──
         customer = self.db.query(
             "SELECT * FROM customers WHERE id = %s",
             order_data['customer_id']
         )
         self.email_service.send(
             to=customer.email,
-            subject="ご注文ありがとうございます",
+            subject="Thank you for your order",
             body=self._render_confirmation(order)
         )
 
-        # ── 分析トラッキング ──
+        # ── Analytics Tracking ──
         self.analytics.track('order_completed', {
             'order_id': order.id,
             'total': float(total),
@@ -214,10 +214,10 @@ class OrderProcessor:
         return OrderResult.success(order)
 
 
-# OK: 意図ごとに関数を分離 ── 各メソッドは5-10行
+# OK: Separate functions by intent — each method is 5–10 lines
 class OrderProcessor:
     def process_order(self, order_data: dict) -> OrderResult:
-        """注文処理のオーケストレーション"""
+        """Orchestrates the order processing flow"""
         self._validate_order(order_data)
         pricing = self._calculate_pricing(order_data['items'])
         order = self._save_order(order_data, pricing)
@@ -226,43 +226,43 @@ class OrderProcessor:
         return OrderResult.success(order)
 
     def _validate_order(self, order_data: dict) -> None:
-        """注文データのバリデーション"""
+        """Validates order data"""
         validator = OrderValidator(self.db)
         validator.validate(order_data)
 
     def _calculate_pricing(self, items: list[dict]) -> OrderPricing:
-        """価格計算"""
+        """Calculates pricing"""
         calculator = PricingCalculator(self.db)
         return calculator.calculate(items)
 
     def _save_order(self, data: dict, pricing: OrderPricing) -> Order:
-        """注文のDB保存"""
+        """Saves the order to the database"""
         order = Order.from_data(data, pricing)
         self.db.save(order)
         return order
 
     def _send_confirmation(self, order: Order) -> None:
-        """確認メールの送信"""
+        """Sends a confirmation email"""
         customer = self.db.find_customer(order.customer_id)
         self.email_service.send_order_confirmation(customer, order)
 
     def _track_analytics(self, order: Order) -> None:
-        """分析トラッキング"""
+        """Tracks analytics"""
         self.analytics.track('order_completed', order.to_analytics_dict())
 ```
 
-### 3.2 God Class（神クラス / Large Class）
+### 3.2 God Class (Large Class)
 
-**定義**: あまりにも多くの責任を持つクラス。Single Responsibility Principle (SRP) に違反している。
+**Definition**: A class that has far too many responsibilities. Violates the Single Responsibility Principle (SRP).
 
-**検出指標**:
-- メソッド数: 20以上
-- フィールド数: 15以上
-- 行数: 500行以上
-- 依存するクラス数: 10以上
+**Detection indicators**:
+- Number of methods: 20 or more
+- Number of fields: 15 or more
+- Line count: 500 or more
+- Number of dependent classes: 10 or more
 
 ```
-  God Class の症状と分解
+  God Class Symptoms and Decomposition
 
   ┌────────────────────────────────────────────┐
   │  ApplicationManager                        │
@@ -286,7 +286,7 @@ class OrderProcessor:
   │  + trackEvent()                            │
   │  + ... (50+ methods)                       │
   └────────────────────────────────────────────┘
-         ↓ Extract Class で責任ごとに分離 ↓
+         ↓ Separate by responsibility using Extract Class ↓
   ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
   │ AuthSvc   │  │ OrderSvc  │  │ PaymentSvc│  │ EmailSvc  │
   │ ────────  │  │ ────────  │  │ ────────  │  │ ────────  │
@@ -296,29 +296,29 @@ class OrderProcessor:
   └──────────┘  └──────────┘  └──────────┘  └──────────┘
 ```
 
-**コード例2: God Class の段階的分解（Java）**
+**Code Example 2: Incrementally Decomposing a God Class (Java)**
 
 ```java
-// NG: God Class ── 複数の責任が1つのクラスに集中
+// NG: God Class — multiple responsibilities concentrated in one class
 public class ApplicationManager {
     private UserRepository userRepo;
     private OrderRepository orderRepo;
     private PaymentGateway paymentGw;
     private EmailService emailSvc;
 
-    // 認証の責任
+    // Authentication responsibility
     public User authenticateUser(String email, String password) {
         User user = userRepo.findByEmail(email);
-        if (user == null) throw new AuthException("ユーザーが見つかりません");
+        if (user == null) throw new AuthException("User not found");
         if (!BCrypt.checkpw(password, user.getPasswordHash())) {
-            throw new AuthException("パスワードが一致しません");
+            throw new AuthException("Password does not match");
         }
         user.setLastLogin(Instant.now());
         userRepo.save(user);
         return user;
     }
 
-    // 注文の責任
+    // Order responsibility
     public Order createOrder(User user, List<OrderItem> items) {
         Order order = new Order(user, items);
         order.setTotal(items.stream()
@@ -328,20 +328,20 @@ public class ApplicationManager {
         return order;
     }
 
-    // 決済の責任
+    // Payment responsibility
     public PaymentResult processPayment(Order order, CreditCard card) {
         return paymentGw.charge(card, order.getTotal());
     }
 
-    // メールの責任
+    // Email responsibility
     public void sendConfirmation(Order order) {
-        emailSvc.send(order.getUser().getEmail(), "注文確認", "...");
+        emailSvc.send(order.getUser().getEmail(), "Order Confirmation", "...");
     }
-    // ... さらに数十のメソッドが続く
+    // ... dozens more methods follow
 }
 
 
-// OK: 責任ごとにクラスを分離
+// OK: Separate classes by responsibility
 public class AuthenticationService {
     private final UserRepository userRepo;
     private final PasswordEncoder encoder;
@@ -353,9 +353,9 @@ public class AuthenticationService {
 
     public User authenticate(String email, String password) {
         User user = userRepo.findByEmail(email)
-            .orElseThrow(() -> new AuthException("ユーザーが見つかりません"));
+            .orElseThrow(() -> new AuthException("User not found"));
         if (!encoder.matches(password, user.getPasswordHash())) {
-            throw new AuthException("パスワードが一致しません");
+            throw new AuthException("Password does not match");
         }
         user.recordLogin();
         userRepo.save(user);
@@ -375,14 +375,14 @@ public class OrderService {
 }
 ```
 
-### 3.3 Long Parameter List（長すぎるパラメータリスト）
+### 3.3 Long Parameter List
 
-**定義**: メソッドのパラメータが多すぎる。一般的に4つ以上で警告。
+**Definition**: A method has too many parameters. Generally, four or more is a warning sign.
 
-**コード例3: Long Parameter List の改善（TypeScript）**
+**Code Example 3: Improving a Long Parameter List (TypeScript)**
 
 ```typescript
-// NG: パラメータが8つ ── 順序を間違えやすい
+// NG: 8 parameters — easy to mix up their order
 function createUser(
   firstName: string,
   lastName: string,
@@ -396,12 +396,12 @@ function createUser(
   // ...
 }
 
-// 呼び出し側: どのパラメータが何か分からない
-createUser("太郎", "山田", "taro@example.com", "090-1234-5678",
-           "丸の内1-1-1", "千代田区", "100-0001", "日本");
+// Caller side: hard to tell which parameter is which
+createUser("Taro", "Yamada", "taro@example.com", "090-1234-5678",
+           "Marunouchi 1-1-1", "Chiyoda-ku", "100-0001", "Japan");
 
 
-// OK: パラメータオブジェクトに集約
+// OK: Consolidate into parameter objects
 interface PersonalInfo {
   firstName: string;
   lastName: string;
@@ -415,7 +415,7 @@ interface Address {
   zipCode: string;
   country: string;
 
-  // Address 自身がバリデーションを持つ
+  // Address owns its own validation
   validate(): ValidationResult;
   format(): string;
 }
@@ -430,37 +430,37 @@ function createUser(request: CreateUserRequest): User {
   return new User(request);
 }
 
-// 呼び出し側: 構造が明確
+// Caller side: structure is clear
 createUser({
-  personal: { firstName: "太郎", lastName: "山田",
+  personal: { firstName: "Taro", lastName: "Yamada",
               email: "taro@example.com", phone: "090-1234-5678" },
-  address:  { street: "丸の内1-1-1", city: "千代田区",
-              zipCode: "100-0001", country: "日本",
+  address:  { street: "Marunouchi 1-1-1", city: "Chiyoda-ku",
+              zipCode: "100-0001", country: "Japan",
               validate() { /* ... */ }, format() { /* ... */ } },
 });
 ```
 
-### 3.4 Data Clumps（データの群れ）
+### 3.4 Data Clumps
 
-**定義**: 同じパラメータの組み合わせが複数の場所に繰り返し登場する。
+**Definition**: The same combination of parameters appears repeatedly in multiple places.
 
-**コード例4: Data Clumps の抽出（Python）**
+**Code Example 4: Extracting Data Clumps (Python)**
 
 ```python
-# NG: 同じパラメータ群が繰り返し登場
+# NG: The same group of parameters appears repeatedly
 def create_user(first_name, last_name, street, city, zip_code, country): ...
 def update_address(user_id, street, city, zip_code, country): ...
 def validate_address(street, city, zip_code, country): ...
 def format_address(street, city, zip_code, country): ...
 def calculate_shipping(street, city, zip_code, country, weight): ...
 
-# テスト: パラメータの組み合わせが多すぎてテストしづらい
+# Tests: too many parameter combinations to test easily
 
 
-# OK: データクラスに抽出
+# OK: Extract into a data class
 @dataclass(frozen=True)
 class Address:
-    """住所値オブジェクト ── 不変・バリデーション付き"""
+    """Address value object — immutable with validation"""
     street: str
     city: str
     zip_code: str
@@ -468,59 +468,59 @@ class Address:
 
     def __post_init__(self):
         if not self.zip_code:
-            raise ValueError("郵便番号は必須です")
+            raise ValueError("Zip code is required")
         if not self.country:
-            raise ValueError("国名は必須です")
+            raise ValueError("Country name is required")
 
     def validate(self) -> bool:
-        """住所の妥当性を検証"""
+        """Validates the address"""
         return bool(self.street and self.city and
                     self.zip_code and self.country)
 
-    def format(self, style: str = "japanese") -> str:
-        """住所をフォーマット"""
+    def format(self, style: str = "standard") -> str:
+        """Formats the address"""
         if style == "japanese":
             return f"〒{self.zip_code} {self.city}{self.street}"
         return f"{self.street}, {self.city} {self.zip_code}, {self.country}"
 
     def is_domestic(self) -> bool:
-        return self.country == "日本"
+        return self.country == "Japan"
 
 
 def create_user(first_name: str, last_name: str, address: Address): ...
 def update_address(user_id: str, address: Address): ...
 def calculate_shipping(address: Address, weight: float) -> Decimal: ...
 
-# テスト: Address を1つ作れば全関数で再利用可能
+# Tests: create one Address and reuse it across all functions
 ```
 
-### 3.5 Primitive Obsession（プリミティブ偏執）
+### 3.5 Primitive Obsession
 
-**定義**: ドメイン概念を `str`、`int`、`float` 等のプリミティブ型で表現し、型安全性を失っている。
+**Definition**: Domain concepts are expressed using primitive types such as `str`, `int`, or `float`, losing type safety.
 
-**コード例5: Primitive Obsession の改善（TypeScript）**
+**Code Example 5: Improving Primitive Obsession (TypeScript)**
 
 ```typescript
-// NG: ドメイン概念をプリミティブ型で表現
+// NG: Domain concepts expressed with primitive types
 function processPayment(
-  amount: number,       // 円？ドル？ マイナスは？
-  currency: string,     // "JPY"? "jpy"? "円"?
-  email: string,        // バリデーション済み？
-  cardNumber: string    // マスク済み？ 有効期限は？
+  amount: number,       // Yen? Dollars? Negative?
+  currency: string,     // "JPY"? "jpy"? "Yen"?
+  email: string,        // Already validated?
+  cardNumber: string    // Masked? Expiry date?
 ): boolean { /* ... */ }
 
-// 呼び出し側: 負の金額や不正なメールを渡せてしまう
+// Caller side: negative amounts or invalid emails can be passed
 processPayment(-1000, "yen", "not-an-email", "1234");
 
 
-// OK: 値オブジェクトで型安全性を確保
+// OK: Use value objects to ensure type safety
 class Money {
   readonly amount: number;
   readonly currency: Currency;
 
   constructor(amount: number, currency: Currency) {
-    if (amount < 0) throw new Error("金額は0以上でなければなりません");
-    if (!Number.isFinite(amount)) throw new Error("金額は有限の数値です");
+    if (amount < 0) throw new Error("Amount must be 0 or greater");
+    if (!Number.isFinite(amount)) throw new Error("Amount must be a finite number");
     this.amount = amount;
     this.currency = currency;
   }
@@ -537,7 +537,7 @@ class Money {
   }
 
   format(): string {
-    return new Intl.NumberFormat('ja-JP', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency', currency: this.currency
     }).format(this.amount);
   }
@@ -562,17 +562,17 @@ class CreditCard {
 
   constructor(number: string, expiry: Date) {
     if (!CreditCard.isValidLuhn(number)) {
-      throw new InvalidCardError("カード番号が不正です");
+      throw new InvalidCardError("Invalid card number");
     }
     if (expiry < new Date()) {
-      throw new ExpiredCardError("有効期限切れです");
+      throw new ExpiredCardError("Card has expired");
     }
     this.last4 = number.slice(-4);
     this.maskedNumber = `****-****-****-${this.last4}`;
   }
 
   private static isValidLuhn(number: string): boolean {
-    // Luhn アルゴリズムによる検証
+    // Validation using the Luhn algorithm
     let sum = 0;
     let isEven = false;
     for (let i = number.length - 1; i >= 0; i--) {
@@ -585,7 +585,7 @@ class CreditCard {
   }
 }
 
-// 型安全な関数シグネチャ
+// Type-safe function signature
 function processPayment(
   amount: Money,
   email: Email,
@@ -595,17 +595,17 @@ function processPayment(
 
 ---
 
-## 4. OO乱用スメル (Object-Orientation Abusers) の詳細
+## 4. Object-Orientation Abuser Smells in Detail
 
-### 4.1 Switch Statements（条件分岐の増殖）
+### 4.1 Switch Statements (Proliferating Conditionals)
 
-**定義**: 型や状態による条件分岐が複数箇所に散在している。新しい型や状態を追加するたびに、全ての分岐を修正する必要がある（Open-Closed Principle 違反）。
+**Definition**: Conditional branches based on type or state are scattered across multiple places. Every time a new type or state is added, all branches must be updated (violates the Open-Closed Principle).
 
-**コード例6: Switch Statements の改善（Python）**
+**Code Example 6: Improving Switch Statements (Python)**
 
 ```python
-# NG: 型による分岐が複数箇所に散在
-# 新しい Shape を追加するたびに全関数を修正する必要がある
+# NG: Type-based branching scattered across multiple locations
+# Every time a new Shape is added, all functions must be modified
 def calculate_area(shape):
     if shape.type == 'circle':
         return math.pi * shape.radius ** 2
@@ -614,7 +614,7 @@ def calculate_area(shape):
     elif shape.type == 'triangle':
         return shape.base * shape.height / 2
     else:
-        raise ValueError(f"未知の図形: {shape.type}")
+        raise ValueError(f"Unknown shape: {shape.type}")
 
 def calculate_perimeter(shape):
     if shape.type == 'circle':
@@ -624,7 +624,7 @@ def calculate_perimeter(shape):
     elif shape.type == 'triangle':
         return shape.side_a + shape.side_b + shape.side_c
     else:
-        raise ValueError(f"未知の図形: {shape.type}")
+        raise ValueError(f"Unknown shape: {shape.type}")
 
 def draw(shape, canvas):
     if shape.type == 'circle':
@@ -635,29 +635,29 @@ def draw(shape, canvas):
         canvas.draw_polygon(shape.vertices)
 
 
-# OK: ポリモーフィズムで置換 ── 新しい図形はクラスを追加するだけ
+# OK: Replace with polymorphism — adding a new shape only requires a new class
 from abc import ABC, abstractmethod
 import math
 
 class Shape(ABC):
-    """図形の基底クラス"""
+    """Base class for shapes"""
 
     @abstractmethod
     def area(self) -> float:
-        """面積を計算"""
+        """Calculate area"""
 
     @abstractmethod
     def perimeter(self) -> float:
-        """外周を計算"""
+        """Calculate perimeter"""
 
     @abstractmethod
     def draw(self, canvas: Canvas) -> None:
-        """キャンバスに描画"""
+        """Draw on canvas"""
 
 class Circle(Shape):
     def __init__(self, center: Point, radius: float):
         if radius <= 0:
-            raise ValueError("半径は正の数でなければなりません")
+            raise ValueError("Radius must be a positive number")
         self.center = center
         self.radius = radius
 
@@ -685,7 +685,7 @@ class Rectangle(Shape):
     def draw(self, canvas: Canvas) -> None:
         canvas.draw_rect(self.origin, self.width, self.height)
 
-# 新しい図形を追加: 既存コードの修正は不要
+# Adding a new shape: no modification to existing code needed
 class Pentagon(Shape):
     def __init__(self, center: Point, side_length: float):
         self.center = center
@@ -701,27 +701,27 @@ class Pentagon(Shape):
         canvas.draw_polygon(self._calculate_vertices())
 ```
 
-### 4.2 Refused Bequest（拒否された遺産）
+### 4.2 Refused Bequest
 
-**定義**: サブクラスが親クラスのメソッドやプロパティの大部分を使用しない。
+**Definition**: A subclass does not use most of the methods or properties of its parent class.
 
 ```python
-# NG: Stack は List のメソッドの大部分を使わない/使わせたくない
+# NG: Stack does not use (and should not expose) most of list's methods
 class Stack(list):
-    """スタック ── だが list の insert, sort, reverse が使えてしまう"""
+    """Stack — but insert, sort, and reverse from list are accessible"""
     def push(self, item):
         self.append(item)
 
     def peek(self):
         return self[-1] if self else None
 
-# stack.insert(0, "割り込み")  ← スタックの不変条件を破壊！
-# stack.sort()                  ← 意味がない操作が可能
+# stack.insert(0, "cut in line")  ← breaks the stack's invariant!
+# stack.sort()                     ← meaningless operation is possible
 
 
-# OK: 委譲（コンポジション）で必要なインターフェースだけを公開
+# OK: Use delegation (composition) to expose only the needed interface
 class Stack:
-    """スタック ── LIFO のみを公開"""
+    """Stack — exposes only LIFO operations"""
     def __init__(self):
         self._items: list = []
 
@@ -730,12 +730,12 @@ class Stack:
 
     def pop(self):
         if not self._items:
-            raise EmptyStackError("スタックが空です")
+            raise EmptyStackError("Stack is empty")
         return self._items.pop()
 
     def peek(self):
         if not self._items:
-            raise EmptyStackError("スタックが空です")
+            raise EmptyStackError("Stack is empty")
         return self._items[-1]
 
     def is_empty(self) -> bool:
@@ -745,16 +745,16 @@ class Stack:
         return len(self._items)
 ```
 
-### 4.3 Temporary Field（一時フィールド）
+### 4.3 Temporary Field
 
-**定義**: 特定のメソッドでのみ使用されるフィールドがクラスに存在する。
+**Definition**: A field exists in a class that is only used by a specific method.
 
 ```java
-// NG: totalSales と averagePrice は generateReport() でしか使わない
+// NG: totalSales and averagePrice are only used in generateReport()
 public class SalesAnalyzer {
     private List<Sale> sales;
-    private double totalSales;     // ← 一時フィールド
-    private double averagePrice;   // ← 一時フィールド
+    private double totalSales;     // ← temporary field
+    private double averagePrice;   // ← temporary field
 
     public Report generateReport() {
         this.totalSales = sales.stream().mapToDouble(Sale::getAmount).sum();
@@ -764,7 +764,7 @@ public class SalesAnalyzer {
 }
 
 
-// OK: メソッドローカル変数またはデータクラスに移動
+// OK: Move to method-local variables or a data class
 public class SalesAnalyzer {
     private final List<Sale> sales;
 
@@ -785,58 +785,58 @@ record SalesStatistics(double totalSales, double averagePrice) {}
 
 ---
 
-## 5. 変更妨害スメル (Change Preventers) の詳細
+## 5. Change Preventer Smells in Detail
 
-### 5.1 Divergent Change（発散的変更）
+### 5.1 Divergent Change
 
-**定義**: 1つのクラスが異なる理由で頻繁に変更される。
+**Definition**: A single class is frequently modified for different reasons.
 
 ```
-  Divergent Change の症状
+  Divergent Change Symptoms
 
-  [UserService] が以下の全ての変更で修正される:
-  ├── 認証方式の変更時     → authenticate() を修正
-  ├── 注文ロジックの変更時 → processOrder() を修正
-  ├── メール送信の変更時   → sendNotification() を修正
-  └── レポート形式の変更時 → generateReport() を修正
+  [UserService] is modified for all of the following changes:
+  ├── When changing authentication method   → modify authenticate()
+  ├── When changing order logic             → modify processOrder()
+  ├── When changing email delivery          → modify sendNotification()
+  └── When changing report format           → modify generateReport()
 
-  対策: Extract Class で責任を分離
-  [AuthService]         ← 認証方式の変更のみ
-  [OrderService]        ← 注文ロジックの変更のみ
-  [NotificationService] ← メール送信の変更のみ
-  [ReportService]       ← レポート形式の変更のみ
+  Fix: Separate responsibilities with Extract Class
+  [AuthService]         ← only changes for authentication method
+  [OrderService]        ← only changes for order logic
+  [NotificationService] ← only changes for email delivery
+  [ReportService]       ← only changes for report format
 ```
 
-### 5.2 Shotgun Surgery（散弾銃手術）
+### 5.2 Shotgun Surgery
 
-**定義**: 1つの変更を行うために、多数のクラスを修正する必要がある。Divergent Change の逆。
+**Definition**: A single change requires modifying many classes. The inverse of Divergent Change.
 
-**コード例7: Shotgun Surgery の検出と改善（Python）**
+**Code Example 7: Detecting and Improving Shotgun Surgery (Python)**
 
 ```python
-# NG: 「税率の変更」で6箇所のファイルを修正する必要がある
+# NG: Changing the "tax rate" requires modifying 6 files
 # order_service.py
 class OrderService:
     def calculate_total(self, order):
-        return order.subtotal * 1.10  # ← 税率ハードコード
+        return order.subtotal * 1.10  # ← hardcoded tax rate
 
 # invoice_service.py
 class InvoiceService:
     def generate(self, order):
-        tax = order.subtotal * 0.10   # ← 同じ税率
-        return f"税額: {tax}"
+        tax = order.subtotal * 0.10   # ← same tax rate
+        return f"Tax: {tax}"
 
 # report_service.py
 class ReportService:
     def monthly_tax(self, orders):
-        return sum(o.subtotal * 0.10 for o in orders)  # ← また同じ
+        return sum(o.subtotal * 0.10 for o in orders)  # ← again the same
 
-# receipt_printer.py, api_controller.py, test_helper.py ... 全て修正
+# receipt_printer.py, api_controller.py, test_helper.py ... all need to be modified
 
 
-# OK: 税率計算を1箇所に集約
+# OK: Consolidate tax calculation in one place
 class TaxCalculator:
-    """税金計算の唯一の真実の源 (Single Source of Truth)"""
+    """Single Source of Truth for tax calculations"""
     STANDARD_RATE = Decimal("0.10")
     REDUCED_RATE = Decimal("0.08")
 
@@ -852,7 +852,7 @@ class TaxCalculator:
         return amount + cls.calculate(amount, rate_type)
 
 
-# 全てのサービスが TaxCalculator を使う
+# All services use TaxCalculator
 class OrderService:
     def calculate_total(self, order):
         return TaxCalculator.add_tax(order.subtotal)
@@ -860,51 +860,51 @@ class OrderService:
 class InvoiceService:
     def generate(self, order):
         tax = TaxCalculator.calculate(order.subtotal)
-        return f"税額: {tax}"
+        return f"Tax: {tax}"
 ```
 
 ---
 
-## 6. 不要物スメル (Dispensables) の詳細
+## 6. Dispensable Smells in Detail
 
-### 6.1 Dead Code（デッドコード）
+### 6.1 Dead Code
 
-**定義**: 実行されないコード、呼び出されない関数、使われないインポート・変数。
+**Definition**: Code that is never executed, functions that are never called, unused imports or variables.
 
-**コード例8: Dead Code の検出と除去（Python）**
+**Code Example 8: Detecting and Removing Dead Code (Python)**
 
 ```python
-# NG: デッドコードが散在
-import os                     # ← 未使用インポート
-import json                   # ← 未使用インポート
+# NG: Dead code scattered throughout
+import os                     # ← unused import
+import json                   # ← unused import
 from datetime import datetime
 
 class UserManager:
     def __init__(self, db):
         self.db = db
-        self.cache = {}        # ← 一度も読み書きされない
+        self.cache = {}        # ← never read or written
 
     def get_user(self, user_id: str) -> User:
         return self.db.find(user_id)
 
     def _old_get_user(self, user_id: str) -> User:
-        """旧実装 ── いつか必要になるかもしれないので残す"""  # ← デッドコード
+        """Old implementation — keeping it in case it's needed someday"""  # ← dead code
         result = self.db.execute(f"SELECT * FROM users WHERE id = '{user_id}'")
         return User.from_row(result)
 
     def update_user(self, user_id: str, data: dict) -> User:
         user = self.get_user(user_id)
-        # if False:                              # ← 到達不能コード
+        # if False:                              # ← unreachable code
         #     self._send_update_notification(user)
         user.update(data)
         self.db.save(user)
         return user
 
-    def _send_update_notification(self, user):   # ← 呼び出されない
+    def _send_update_notification(self, user):   # ← never called
         pass
 
 
-# OK: デッドコードを完全に除去
+# OK: Remove dead code completely
 from datetime import datetime
 
 class UserManager:
@@ -920,95 +920,95 @@ class UserManager:
         self.db.save(user)
         return user
 
-# 旧実装が必要なら Git の履歴から復元可能
-# → デッドコードを「念のため」残す必要はない
+# Old implementations can be restored from Git history
+# → No need to keep dead code "just in case"
 ```
 
-### 6.2 Speculative Generality（投機的汎用化）
+### 6.2 Speculative Generality
 
-**定義**: 「将来必要になるかもしれない」と過度に抽象化されたコード。YAGNI (You Aren't Gonna Need It) 違反。
+**Definition**: Code that has been over-abstracted "in case it's needed in the future." Violates YAGNI (You Aren't Gonna Need It).
 
 ```python
-# NG: 現在 JSON しか使わないのに過度に抽象化
+# NG: Over-abstracted even though only JSON is currently used
 class SerializerFactory:
     def create(self, format_type: str) -> Serializer:
         if format_type == "json":
             return JsonSerializer()
-        elif format_type == "xml":          # ← 使われていない
+        elif format_type == "xml":          # ← never used
             return XmlSerializer()
-        elif format_type == "yaml":         # ← 使われていない
+        elif format_type == "yaml":         # ← never used
             return YamlSerializer()
-        elif format_type == "msgpack":      # ← 使われていない
+        elif format_type == "msgpack":      # ← never used
             return MsgpackSerializer()
-        elif format_type == "protobuf":     # ← 使われていない
+        elif format_type == "protobuf":     # ← never used
             return ProtobufSerializer()
 
 class Serializer(ABC): ...
 class JsonSerializer(Serializer): ...
-class XmlSerializer(Serializer): ...        # ← 使われていない
-class YamlSerializer(Serializer): ...       # ← 使われていない
-class MsgpackSerializer(Serializer): ...    # ← 使われていない
-class ProtobufSerializer(Serializer): ...   # ← 使われていない
+class XmlSerializer(Serializer): ...        # ← never used
+class YamlSerializer(Serializer): ...       # ← never used
+class MsgpackSerializer(Serializer): ...    # ← never used
+class ProtobufSerializer(Serializer): ...   # ← never used
 
 
-# OK: 必要なものだけを実装
+# OK: Implement only what is needed
 class JsonSerializer:
-    """JSON シリアライゼーション ── 現在必要な唯一のフォーマット"""
+    """JSON serialization — the only format currently needed"""
     def serialize(self, data: dict) -> str:
         return json.dumps(data, ensure_ascii=False, default=str)
 
     def deserialize(self, text: str) -> dict:
         return json.loads(text)
 
-# 将来 XML が必要になったら、そのときに抽象化を導入する
-# → "Rule of Three": 3回目のパターン出現まで抽象化を待つ
+# If XML is needed in the future, introduce the abstraction at that point
+# → "Rule of Three": wait until a pattern appears for the third time before abstracting
 ```
 
-### 6.3 Duplicate Code（重複コード）
+### 6.3 Duplicate Code
 
-**定義**: 同一または非常に類似したコードが複数箇所に存在する。
+**Definition**: Identical or very similar code exists in multiple locations.
 
-**コード例9: 重複コードの統合（Python）**
+**Code Example 9: Consolidating Duplicate Code (Python)**
 
 ```python
-# NG: ほぼ同じ検証ロジックが3箇所に重複
+# NG: Nearly identical validation logic duplicated in 3 places
 class UserRegistration:
     def register(self, data: dict):
-        # メールバリデーション (重複1)
+        # Email validation (duplicate 1)
         if not data.get('email'):
-            raise ValueError("メールは必須です")
+            raise ValueError("Email is required")
         if '@' not in data['email']:
-            raise ValueError("メール形式が不正です")
+            raise ValueError("Invalid email format")
         if len(data['email']) > 254:
-            raise ValueError("メールが長すぎます")
+            raise ValueError("Email is too long")
         # ...
 
 class ProfileUpdate:
     def update_email(self, data: dict):
-        # メールバリデーション (重複2 ── ほぼ同一)
+        # Email validation (duplicate 2 — nearly identical)
         if not data.get('new_email'):
-            raise ValueError("メールは必須です")
+            raise ValueError("Email is required")
         if '@' not in data['new_email']:
-            raise ValueError("メール形式が不正です")
+            raise ValueError("Invalid email format")
         if len(data['new_email']) > 254:
-            raise ValueError("メールが長すぎます")
+            raise ValueError("Email is too long")
         # ...
 
 class InviteService:
     def send_invite(self, email: str):
-        # メールバリデーション (重複3 ── 微妙に異なる)
+        # Email validation (duplicate 3 — slightly different)
         if not email or '@' not in email:
-            raise ValueError("不正なメール")
+            raise ValueError("Invalid email")
         # ...
 
 
-# OK: バリデーションロジックを値オブジェクトに統合
+# OK: Consolidate validation logic into a value object
 import re
 from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Email:
-    """メールアドレス値オブジェクト ── バリデーションは1箇所のみ"""
+    """Email address value object — validation in one place only"""
     value: str
 
     _PATTERN = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
@@ -1016,17 +1016,17 @@ class Email:
 
     def __post_init__(self):
         if not self.value:
-            raise ValueError("メールアドレスは必須です")
+            raise ValueError("Email address is required")
         if len(self.value) > self._MAX_LENGTH:
-            raise ValueError(f"メールアドレスは{self._MAX_LENGTH}文字以下です")
+            raise ValueError(f"Email address must be {self._MAX_LENGTH} characters or fewer")
         if not self._PATTERN.match(self.value):
-            raise ValueError(f"メール形式が不正です: {self.value}")
-        # frozen=True なので object.__setattr__ で正規化
+            raise ValueError(f"Invalid email format: {self.value}")
+        # frozen=True so normalize via object.__setattr__
         object.__setattr__(self, 'value', self.value.strip().lower())
 
 class UserRegistration:
     def register(self, data: dict):
-        email = Email(data.get('email', ''))  # バリデーションは Email 内で実行
+        email = Email(data.get('email', ''))  # validation runs inside Email
         # ...
 
 class ProfileUpdate:
@@ -1037,46 +1037,46 @@ class ProfileUpdate:
 
 ---
 
-## 7. 結合過多スメル (Couplers) の詳細
+## 7. Coupler Smells in Detail
 
-### 7.1 Feature Envy（他クラスへの羨望）
+### 7.1 Feature Envy
 
-**定義**: あるメソッドが、自クラスよりも他クラスのデータを多く参照している。
+**Definition**: A method references data from another class more than from its own class.
 
-**コード例10: Feature Envy の改善（Java）**
+**Code Example 10: Improving Feature Envy (Java)**
 
 ```java
-// NG: OrderPrinter が Order の内部データを過度に使用
+// NG: OrderPrinter excessively uses Order's internal data
 class OrderPrinter {
     String formatOrder(Order order) {
         StringBuilder sb = new StringBuilder();
-        sb.append("注文番号: ").append(order.getId()).append("\n");
-        sb.append("顧客名: ").append(order.getCustomer().getName()).append("\n");
-        sb.append("日付: ").append(order.getDate()
+        sb.append("Order #: ").append(order.getId()).append("\n");
+        sb.append("Customer: ").append(order.getCustomer().getName()).append("\n");
+        sb.append("Date: ").append(order.getDate()
             .format(DateTimeFormatter.ISO_DATE)).append("\n");
 
         double subtotal = 0;
         for (OrderItem item : order.getItems()) {
             double lineTotal = item.getPrice() * item.getQuantity();
             subtotal += lineTotal;
-            sb.append(String.format("  %s x%d = %.0f円\n",
+            sb.append(String.format("  %s x%d = $%.2f\n",
                 item.getName(), item.getQuantity(), lineTotal));
         }
         double tax = subtotal * 0.10;
-        sb.append(String.format("小計: %.0f円\n税: %.0f円\n合計: %.0f円\n",
+        sb.append(String.format("Subtotal: $%.2f\nTax: $%.2f\nTotal: $%.2f\n",
             subtotal, tax, subtotal + tax));
         return sb.toString();
     }
 }
 
 
-// OK: フォーマットロジックを Order に移動
+// OK: Move the formatting logic to Order
 class Order {
     public String format() {
         StringBuilder sb = new StringBuilder();
-        sb.append("注文番号: ").append(this.id).append("\n");
-        sb.append("顧客名: ").append(this.customer.getName()).append("\n");
-        sb.append("日付: ").append(this.date
+        sb.append("Order #: ").append(this.id).append("\n");
+        sb.append("Customer: ").append(this.customer.getName()).append("\n");
+        sb.append("Date: ").append(this.date
             .format(DateTimeFormatter.ISO_DATE)).append("\n");
         this.items.forEach(item -> sb.append(item.formatLine()));
         sb.append(formatTotals());
@@ -1086,7 +1086,7 @@ class Order {
     private String formatTotals() {
         double subtotal = calculateSubtotal();
         double tax = subtotal * 0.10;
-        return String.format("小計: %.0f円\n税: %.0f円\n合計: %.0f円\n",
+        return String.format("Subtotal: $%.2f\nTax: $%.2f\nTotal: $%.2f\n",
             subtotal, tax, subtotal + tax);
     }
 
@@ -1100,94 +1100,94 @@ class Order {
 class OrderItem {
     public String formatLine() {
         double lineTotal = this.price * this.quantity;
-        return String.format("  %s x%d = %.0f円\n",
+        return String.format("  %s x%d = $%.2f\n",
             this.name, this.quantity, lineTotal);
     }
 }
 ```
 
-### 7.2 Message Chains（メッセージチェーン / Demeter の法則違反）
+### 7.2 Message Chains (Law of Demeter Violation)
 
-**定義**: `a.getB().getC().getD().doSomething()` のように、オブジェクトの連鎖的なアクセスが発生する。
+**Definition**: A chain of object accesses occurs, such as `a.getB().getC().getD().doSomething()`.
 
-**コード例11: Message Chains の改善（Python）**
+**Code Example 11: Improving Message Chains (Python)**
 
 ```python
-# NG: Demeter の法則に違反
+# NG: Violates the Law of Demeter
 class OrderReport:
     def get_customer_city(self, order):
-        # order → customer → address → city の4段階チェーン
+        # 4-level chain: order → customer → address → city
         return order.get_customer().get_address().get_city()
 
     def get_payment_bank(self, order):
-        # order → payment → method → bank の4段階チェーン
+        # 4-level chain: order → payment → method → bank
         return order.get_payment().get_method().get_bank_name()
 
 
-# OK: 必要な情報を直接取得できるメソッドを提供
+# OK: Provide methods that directly retrieve the needed information
 class Order:
     def get_customer_city(self) -> str:
-        """顧客の都市名を返す（内部構造を隠蔽）"""
+        """Returns the customer's city (hides internal structure)"""
         return self._customer.get_city()
 
     def get_payment_bank(self) -> str:
-        """決済銀行名を返す"""
+        """Returns the payment bank name"""
         return self._payment.get_bank_name()
 
 class Customer:
     def get_city(self) -> str:
-        """住所の都市名を返す（内部構造を隠蔽）"""
+        """Returns the city from the address (hides internal structure)"""
         return self._address.city
 
 class Payment:
     def get_bank_name(self) -> str:
         return self._method.bank_name
 
-# 呼び出し側は1段階のみ
+# Caller only needs one level
 class OrderReport:
     def get_customer_city(self, order):
         return order.get_customer_city()
 ```
 
-### 7.3 Inappropriate Intimacy（不適切な親密さ）
+### 7.3 Inappropriate Intimacy
 
-**定義**: 2つのクラスが互いの内部実装に過度に依存している。
+**Definition**: Two classes are overly dependent on each other's internal implementations.
 
-**コード例12: Inappropriate Intimacy の改善（TypeScript）**
+**Code Example 12: Improving Inappropriate Intimacy (TypeScript)**
 
 ```typescript
-// NG: User と Profile が互いの内部を直接操作
+// NG: User and Profile directly manipulate each other's internals
 class User {
   public name: string;
   public email: string;
   public profile: Profile;
 
   updateProfile(bio: string): void {
-    // User が Profile の内部を直接操作
-    this.profile._bio = bio;               // private を迂回
-    this.profile._updatedAt = new Date();  // Profile の責任を侵害
+    // User directly manipulates Profile's internals
+    this.profile._bio = bio;               // bypasses private
+    this.profile._updatedAt = new Date();  // violates Profile's responsibility
   }
 }
 
 class Profile {
-  _bio: string;          // 本来は private にすべき
-  _updatedAt: Date;      // 本来は private にすべき
+  _bio: string;          // should be private
+  _updatedAt: Date;      // should be private
 
   getDisplayName(): string {
-    // Profile が User の内部を直接参照
+    // Profile directly references User's internals
     return `${this.user.name} (${this.user.email})`;
   }
 }
 
 
-// OK: 明確なインターフェースを通じてのみ通信
+// OK: Communicate only through clear interfaces
 class User {
   private readonly name: string;
   private readonly email: string;
   private readonly profile: Profile;
 
   updateProfile(bio: string): void {
-    this.profile.updateBio(bio);  // Profile のメソッドを呼ぶ
+    this.profile.updateBio(bio);  // calls Profile's method
   }
 
   getDisplayInfo(): UserDisplayInfo {
@@ -1200,7 +1200,7 @@ class Profile {
   private updatedAt: Date;
 
   updateBio(bio: string): void {
-    if (bio.length > 500) throw new Error("プロフィールは500文字以内");
+    if (bio.length > 500) throw new Error("Profile must be 500 characters or fewer");
     this.bio = bio;
     this.updatedAt = new Date();
   }
@@ -1213,110 +1213,110 @@ class Profile {
 
 ---
 
-## 8. スメルの影響度マトリクス
+## 8. Smell Impact Matrix
 
 ```
-  スメルの影響度マトリクス ── 縦軸: 影響度, 横軸: 検出しやすさ
+  Smell Impact Matrix — Vertical axis: Impact, Horizontal axis: Ease of detection
 
-  影響度: 大
+  Impact: High
     ^
-    |  [循環依存]    [Shotgun Surgery]
+    |  [Circular Dep.]  [Shotgun Surgery]
     |
-    |  [God Class]   [Divergent Change]
+    |  [God Class]      [Divergent Change]
     |
-    |  [Feature      [Long Method]     [Duplicate Code]
+    |  [Feature         [Long Method]     [Duplicate Code]
     |   Envy]
     |
-    |  [Message       [Dead Code]      [Long Parameter]
+    |  [Message          [Dead Code]      [Long Parameter]
     |   Chains]
     |
-    |  [Temporary     [Speculative     [過剰なコメント]
-    |   Field]         Generality]
-    +──────────────────────────────────────────────> 検出しやすさ
-   難しい                中間                 簡単
+    |  [Temporary        [Speculative     [Excessive Comments]
+    |   Field]            Generality]
+    +──────────────────────────────────────────────> Ease of detection
+   Hard               Medium                  Easy
 
-  ★ 右上ゾーン (高影響・検出容易) から着手するのが最も効率的
+  ★ Starting from the top-right zone (high impact, easy to detect) is most efficient
 ```
 
 ---
 
-## 9. スメルとリファクタリングの対応表
+## 9. Smell-to-Refactoring Mapping Table
 
-### 9.1 スメル → リファクタリング対応表
+### 9.1 Smell → Refactoring Mapping
 
-| コードスメル | 対応するリファクタリング | 自動化可否 | 優先度 |
+| Code Smell | Corresponding Refactoring | Automatable | Priority |
 |------------|----------------------|:--------:|:------:|
-| Long Method | Extract Method | 可 | 高 |
-| God Class | Extract Class, Move Method | 部分的 | 高 |
-| Feature Envy | Move Method, Move Field | 部分的 | 高 |
-| Data Clumps | Extract Class, Introduce Parameter Object | 部分的 | 中 |
-| Primitive Obsession | Replace Primitive with Object | 不可 | 中 |
-| Switch Statements | Replace Conditional with Polymorphism | 不可 | 中 |
-| Shotgun Surgery | Move Method, Inline Class | 不可 | 高 |
-| Divergent Change | Extract Class | 部分的 | 高 |
-| Dead Code | Safe Delete | 可 | 低 |
-| Duplicate Code | Extract Method, Pull Up Method | 部分的 | 中 |
-| Long Parameter List | Introduce Parameter Object | 部分的 | 中 |
-| Message Chains | Hide Delegate | 不可 | 中 |
-| Refused Bequest | Replace Inheritance with Delegation | 不可 | 低 |
-| Speculative Generality | Collapse Hierarchy, Remove Middle Man | 可 | 低 |
-| Inappropriate Intimacy | Move Method, Extract Class | 不可 | 高 |
-| Temporary Field | Extract Class | 部分的 | 低 |
+| Long Method | Extract Method | Yes | High |
+| God Class | Extract Class, Move Method | Partial | High |
+| Feature Envy | Move Method, Move Field | Partial | High |
+| Data Clumps | Extract Class, Introduce Parameter Object | Partial | Medium |
+| Primitive Obsession | Replace Primitive with Object | No | Medium |
+| Switch Statements | Replace Conditional with Polymorphism | No | Medium |
+| Shotgun Surgery | Move Method, Inline Class | No | High |
+| Divergent Change | Extract Class | Partial | High |
+| Dead Code | Safe Delete | Yes | Low |
+| Duplicate Code | Extract Method, Pull Up Method | Partial | Medium |
+| Long Parameter List | Introduce Parameter Object | Partial | Medium |
+| Message Chains | Hide Delegate | No | Medium |
+| Refused Bequest | Replace Inheritance with Delegation | No | Low |
+| Speculative Generality | Collapse Hierarchy, Remove Middle Man | Yes | Low |
+| Inappropriate Intimacy | Move Method, Extract Class | No | High |
+| Temporary Field | Extract Class | Partial | Low |
 
-### 9.2 自動検出ツール比較表
+### 9.2 Automated Detection Tools Comparison
 
-| ツール | 対応言語 | 検出可能なスメル | CI/CD統合 | ライセンス |
+| Tool | Supported Languages | Detectable Smells | CI/CD Integration | License |
 |--------|---------|---------------|:---------:|-----------|
-| SonarQube | 多言語(30+) | 複雑度, 重複, デッドコード, セキュリティ | 可 | Community Edition: 無料 |
-| PMD | Java, Apex | 複雑度, 命名, 設計問題 | 可 | BSD |
-| pylint | Python | 複雑度, 命名, 未使用コード, スタイル | 可 | GPL |
-| Ruff | Python | pylint + flake8 互換, 高速 | 可 | MIT |
-| ESLint | JS/TS | 複雑度, 未使用変数, スタイル | 可 | MIT |
-| RuboCop | Ruby | 複雑度, スタイル, 命名, Metrics | 可 | MIT |
-| detekt | Kotlin | 複雑度, コードスメル, スタイル | 可 | Apache 2.0 |
-| radon | Python | 複雑度(CC, MI)専用 | 可 | MIT |
-| jscpd | 多言語 | 重複コード検出専用 | 可 | MIT |
+| SonarQube | Multi-language (30+) | Complexity, duplication, dead code, security | Yes | Community Edition: Free |
+| PMD | Java, Apex | Complexity, naming, design issues | Yes | BSD |
+| pylint | Python | Complexity, naming, unused code, style | Yes | GPL |
+| Ruff | Python | pylint + flake8 compatible, fast | Yes | MIT |
+| ESLint | JS/TS | Complexity, unused variables, style | Yes | MIT |
+| RuboCop | Ruby | Complexity, style, naming, Metrics | Yes | MIT |
+| detekt | Kotlin | Complexity, code smells, style | Yes | Apache 2.0 |
+| radon | Python | Complexity (CC, MI) only | Yes | MIT |
+| jscpd | Multi-language | Duplicate code detection only | Yes | MIT |
 
 ---
 
-## 10. スメル検出のワークフロー
+## 10. Smell Detection Workflow
 
-### 10.1 3段階の検出体制
+### 10.1 Three-Stage Detection System
 
 ```
-  スメル検出の3段階ワークフロー
+  Three-Stage Smell Detection Workflow
 
   ┌──────────────────────────────────────────────┐
-  │  Stage 1: 自動検出 (pre-commit / CI)         │
-  │  ─────────────────────────────────           │
-  │  - Ruff/ESLint でスタイル・複雑度を自動チェック │
-  │  - radon で CC > 10 の関数を検出              │
-  │  - jscpd で重複率 > 3% をブロック             │
-  │  効果: 機械的に検出可能な60%のスメルを自動排除  │
+  │  Stage 1: Automated Detection (pre-commit / CI) │
+  │  ─────────────────────────────────              │
+  │  - Auto-check style and complexity with Ruff/ESLint │
+  │  - Detect functions with CC > 10 using radon   │
+  │  - Block duplication rate > 3% with jscpd      │
+  │  Effect: Automatically eliminates 60% of mechanically detectable smells │
   └──────────────┬───────────────────────────────┘
                  v
   ┌──────────────────────────────────────────────┐
-  │  Stage 2: コードレビュー (PR レビュー)         │
+  │  Stage 2: Code Review (PR Review)            │
   │  ─────────────────────────────────           │
-  │  - Feature Envy, God Class の兆候を人間が判断 │
-  │  - 設計意図との整合性を確認                    │
-  │  - チェックリスト形式で見落としを防止           │
-  │  効果: 文脈が必要な30%のスメルを検出           │
+  │  - Humans judge signs of Feature Envy, God Class │
+  │  - Verify alignment with design intent       │
+  │  - Use a checklist to prevent oversights     │
+  │  Effect: Detects 30% of smells requiring context │
   └──────────────┬───────────────────────────────┘
                  v
   ┌──────────────────────────────────────────────┐
-  │  Stage 3: 定期棚卸し (四半期レビュー)          │
+  │  Stage 3: Periodic Audit (Quarterly Review)  │
   │  ─────────────────────────────────           │
-  │  - SonarQube ダッシュボードでトレンド分析       │
-  │  - ホットスポット分析 (変更頻度 x 複雑度)      │
-  │  - 技術的負債バックログの優先度再評価           │
-  │  効果: 蓄積した10%のスメルを組織的に解消        │
+  │  - Trend analysis via SonarQube dashboard    │
+  │  - Hotspot analysis (change frequency x complexity) │
+  │  - Re-prioritize technical debt backlog      │
+  │  Effect: Systematically resolves 10% of accumulated smells │
   └──────────────────────────────────────────────┘
 ```
 
-### 10.2 CI/CD でのスメル検出設定（GitHub Actions）
+### 10.2 Smell Detection in CI/CD (GitHub Actions)
 
-**コード例13: スメル自動検出パイプライン**
+**Code Example 13: Automated Smell Detection Pipeline**
 
 ```yaml
 # .github/workflows/code-smell-detection.yml
@@ -1341,16 +1341,16 @@ jobs:
         run: |
           pip install ruff radon jscpd
 
-      # 1. Lint チェック (スタイル + 基本的なスメル)
+      # 1. Lint check (style + basic smells)
       - name: Ruff Lint
         run: ruff check src/ --output-format=github
 
-      # 2. サイクロマティック複雑度チェック
+      # 2. Cyclomatic complexity check
       - name: Complexity Check
         run: |
-          echo "## 複雑度レポート" >> $GITHUB_STEP_SUMMARY
+          echo "## Complexity Report" >> $GITHUB_STEP_SUMMARY
           radon cc src/ -a -nc --min C
-          # C以上 (複雑度11+) がある場合に警告
+          # Warn if complexity C or higher (11+) is found
           COMPLEX=$(radon cc src/ -nc --min C -j | python3 -c "
           import json, sys
           data = json.load(sys.stdin)
@@ -1358,61 +1358,61 @@ jobs:
           print(count)
           ")
           if [ "$COMPLEX" -gt 0 ]; then
-            echo "::warning::高複雑度の関数が${COMPLEX}個あります"
+            echo "::warning::Found ${COMPLEX} function(s) with high complexity"
           fi
 
-      # 3. コード重複チェック
+      # 3. Code duplication check
       - name: Duplication Check
         run: |
           jscpd src/ --min-lines 6 --min-tokens 50 \
                 --reporters "consoleFull" --threshold 3
 
-      # 4. デッドコード検出
+      # 4. Dead code detection
       - name: Dead Code Detection
         run: |
           pip install vulture
           vulture src/ --min-confidence 80
 
-      # 5. 保守性指数
+      # 5. Maintainability index
       - name: Maintainability Index
         run: |
           radon mi src/ -s --min B
 ```
 
-### 10.3 コードレビューチェックリスト
+### 10.3 Code Review Checklist
 
 ```
   ┌─────────────────────────────────────────────────────────┐
-  │  スメル検出チェックリスト (コードレビュー用)              │
+  │  Smell Detection Checklist (for Code Review)            │
   ├─────────────────────────────────────────────────────────┤
-  │  □ メソッドは20行以下か？（Long Method）                 │
-  │  □ クラスは単一責任か？（God Class）                     │
-  │  □ 同じパラメータ群の繰り返しはないか？（Data Clumps）   │
-  │  □ ドメイン概念にプリミティブ型を使っていないか？         │
-  │  □ 条件分岐が複数箇所に散在していないか？                │
-  │  □ メソッドは自クラスのデータを主に使用しているか？       │
-  │  □ 1つの変更で複数ファイルの修正が必要にならないか？      │
-  │  □ 使われていないコード・インポートはないか？             │
-  │  □ 「将来のため」の過度な抽象化はないか？                 │
-  │  □ オブジェクトのチェーンアクセス（a.b.c.d）はないか？   │
+  │  □ Is the method 20 lines or fewer? (Long Method)       │
+  │  □ Does the class have a single responsibility? (God Class) │
+  │  □ No repeated groups of the same parameters? (Data Clumps) │
+  │  □ Not using primitive types for domain concepts?        │
+  │  □ No conditional branches scattered across multiple locations? │
+  │  □ Does the method primarily use data from its own class? │
+  │  □ Will a single change require modifying multiple files? │
+  │  □ No unused code or imports?                           │
+  │  □ No excessive abstraction "for the future"?           │
+  │  □ No chained object access (a.b.c.d)?                  │
   └─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 11. ホットスポット分析 ── 優先度の科学的な判断
+## 11. Hotspot Analysis — Scientific Prioritization
 
-### 11.1 変更頻度 x 複雑度 分析
+### 11.1 Change Frequency x Complexity Analysis
 
-**コード例14: ホットスポット分析スクリプト（Python）**
+**Code Example 14: Hotspot Analysis Script (Python)**
 
 ```python
 #!/usr/bin/env python3
 """
-ホットスポット分析: 変更頻度と複雑度を組み合わせて
-リファクタリングの優先度を科学的に判断する。
+Hotspot analysis: Combines change frequency and complexity to
+scientifically prioritize refactoring.
 
-使用法:
+Usage:
   python hotspot_analysis.py /path/to/repo --days 90
 """
 import subprocess
@@ -1423,28 +1423,28 @@ from pathlib import Path
 
 @dataclass
 class FileMetrics:
-    """ファイルのスメル指標"""
+    """Smell metrics for a file"""
     path: str
-    change_count: int       # Git の変更回数
-    complexity: float       # 平均サイクロマティック複雑度
-    lines: int              # 行数
-    hotspot_score: float    # 変更頻度 x 複雑度
+    change_count: int       # Number of changes in Git
+    complexity: float       # Average cyclomatic complexity
+    lines: int              # Line count
+    hotspot_score: float    # Change frequency x complexity
 
     @property
     def priority(self) -> str:
         if self.hotspot_score > 100:
-            return "最優先"
+            return "Top Priority"
         elif self.hotspot_score > 50:
-            return "高"
+            return "High"
         elif self.hotspot_score > 20:
-            return "中"
-        return "低"
+            return "Medium"
+        return "Low"
 
 
 def analyze_hotspots(repo_path: str, days: int = 90) -> list[FileMetrics]:
-    """変更頻度 x 複雑度のホットスポットを分析"""
+    """Analyzes change frequency x complexity hotspots"""
 
-    # 1. Git log から変更頻度を取得
+    # 1. Get change frequency from Git log
     result = subprocess.run(
         ['git', 'log', '--format=format:', '--name-only',
          f'--since={days} days ago', '--diff-filter=M'],
@@ -1456,14 +1456,14 @@ def analyze_hotspots(repo_path: str, days: int = 90) -> list[FileMetrics]:
         if line and line.endswith('.py'):
             file_changes[line] = file_changes.get(line, 0) + 1
 
-    # 2. radon で複雑度を取得
+    # 2. Get complexity with radon
     result = subprocess.run(
         ['radon', 'cc', repo_path, '-a', '-j'],
         capture_output=True, text=True
     )
     complexity_data = json.loads(result.stdout)
 
-    # 3. ホットスポットスコアを計算
+    # 3. Calculate hotspot scores
     metrics = []
     for filepath, change_count in file_changes.items():
         cc = get_file_complexity(complexity_data, filepath)
@@ -1480,169 +1480,169 @@ def analyze_hotspots(repo_path: str, days: int = 90) -> list[FileMetrics]:
 
 
 def print_hotspot_report(metrics: list[FileMetrics]) -> None:
-    """ホットスポットレポートを出力"""
+    """Prints the hotspot report"""
     print("=" * 75)
-    print("  ホットスポット分析レポート")
+    print("  Hotspot Analysis Report")
     print("=" * 75)
-    print(f"{'優先度':<8} {'スコア':<8} {'変更':>4} {'CC':>5} {'行数':>6}  {'ファイル'}")
+    print(f"{'Priority':<12} {'Score':<8} {'Changes':>7} {'CC':>5} {'Lines':>6}  {'File'}")
     print("-" * 75)
     for m in metrics[:20]:
-        print(f"{m.priority:<8} {m.hotspot_score:>6.1f} {m.change_count:>4} "
+        print(f"{m.priority:<12} {m.hotspot_score:>6.1f} {m.change_count:>7} "
               f"{m.complexity:>5.1f} {m.lines:>6}  {m.path}")
 ```
 
-### 11.2 ホットスポットマトリクス
+### 11.2 Hotspot Matrix
 
 ```
-  変更頻度 x 複雑度マトリクス
+  Change Frequency x Complexity Matrix
 
-            変更頻度が高い (20+/四半期)
+            High change frequency (20+ / quarter)
                  |
    +-------------+-------------+
-   |  コードA     |  コードB     |
-   |  低複雑度    |  高複雑度    |
-   |  高変更      |  高変更      |
+   |  Code A      |  Code B      |
+   |  Low CC      |  High CC     |
+   |  High change |  High change |
    |              |              |
-   |  → 監視のみ  | → 最優先     |
-   |    問題なし  |    改善対象  |
+   |  → Monitor   | → Top        |
+   |    only      |   Priority   |
    +-------------+-------------+
-   |  コードC     |  コードD     |
-   |  低複雑度    |  高複雑度    |
-   |  低変更      |  低変更      |
+   |  Code C      |  Code D      |
+   |  Low CC      |  High CC     |
+   |  Low change  |  Low change  |
    |              |              |
-   |  → 放置可    | → 次フェーズ |
-   |             |    で改善    |
+   |  → Ignore    | → Improve in |
+   |              |   next phase |
    +-------------+-------------+
                  |
-            変更頻度が低い (< 5/四半期)
-   低複雑度 (CC<5) ──+── 高複雑度 (CC>10)
+            Low change frequency (< 5 / quarter)
+   Low CC (CC<5) ──+── High CC (CC>10)
 ```
 
 ---
 
-## 12. アンチパターン
+## 12. Anti-Patterns
 
-### アンチパターン1: スメルの放置（割れ窓理論）
-
-```
-  BAD: 放置の連鎖
-
-  最初の放置
-    → 「まあいいか、動いてるし」
-    → 追加の放置
-    → 「前からこうだし」
-    → 品質の雪崩的低下
-    → 「もう全部書き直すしかない」
-    → リファクタリング不能状態
-
-  なぜ危険か:
-  - 1つの Long Method を放置すると、同僚も「この長さが許容される」と学習する
-  - スメルは「割れた窓」と同じ ── 1つあると急速に増殖する
-  - James Q. Wilson & George L. Kelling の「割れ窓理論」がソフトウェアにも適用される
-
-  GOOD: ボーイスカウトルール
-  「来た時よりも美しく」── 触ったファイルは少しでもきれいにして去る
-  - 全てを一度に直す必要はない
-  - 関連する変更のついでに、近くのスメルを1つ修正する
-  - 小さな改善の積み重ねが大きな品質向上に繋がる
-```
-
-### アンチパターン2: 一度にすべてを直す（Big Bang リファクタリング）
+### Anti-Pattern 1: Ignoring Smells (Broken Window Theory)
 
 ```
-  BAD: 全スメルを一括修正
+  BAD: The chain of neglect
 
-  「週末にコード全体をきれいにしよう！」
-    → 巨大な変更セット（500ファイル変更）
-    → レビュー不能（差分が1万行）
-    → テストが壊れる
-    → マージコンフリクト地獄
-    → バグ混入リスク
-    → 結局 revert
+  First neglect
+    → "It's fine, it works"
+    → More neglect
+    → "It's always been like this"
+    → Avalanche decline in quality
+    → "We'd have to rewrite everything"
+    → State of unreformable code
 
-  GOOD: 段階的な改善
+  Why it's dangerous:
+  - Leaving one Long Method teaches teammates "this length is acceptable"
+  - Smells are like "broken windows" — one leads to rapid proliferation
+  - James Q. Wilson & George L. Kelling's "Broken Window Theory" applies to software too
 
-  Sprint N:   [Long Method x 3] を修正 (PR #101, #102, #103)
-  Sprint N+1: [God Class x 1] を分割  (PR #110)
-  Sprint N+2: [Dead Code] を一掃     (PR #120)
-
-  原則:
-  - 1スメル1プルリクエスト
-  - 各PRは300行以下の差分
-  - レビュー可能なサイズ
-  - テストが常に通る状態を維持
+  GOOD: The Boy Scout Rule
+  "Leave it cleaner than you found it" — clean up a little whenever you touch a file
+  - No need to fix everything at once
+  - Fix one nearby smell while making a related change
+  - Small improvements accumulate into significant quality gains
 ```
 
-### アンチパターン3: スメルの過剰検出（ツール信仰）
+### Anti-Pattern 2: Fixing Everything at Once (Big Bang Refactoring)
 
 ```
-  BAD: ツールの警告を全て修正しようとする
+  BAD: Fixing all smells in one batch
 
-  SonarQube: 「Issue 1,247件」
-    → 全件修正を目標にする
-    → 実際には誤検出(false positive)が30%
-    → 優先度の低いスメルにも同じ工数を投入
-    → 重要なスメルが埋もれる
+  "Let's clean up the whole codebase this weekend!"
+    → Massive changeset (500 files changed)
+    → Unreviable (10,000-line diff)
+    → Tests break
+    → Merge conflict hell
+    → Risk of introducing bugs
+    → End up reverting it all
 
-  GOOD: トリアージ（優先度分類）
+  GOOD: Incremental improvement
 
-  1. ツールの出力をホットスポット分析と組み合わせる
-  2. false positive をルールから除外設定
-  3. 影響度 x 変更頻度で優先度をつける
-  4. 上位20%のスメルに集中する（パレートの法則）
+  Sprint N:   Fix [Long Method x 3] (PR #101, #102, #103)
+  Sprint N+1: Split [God Class x 1]  (PR #110)
+  Sprint N+2: Purge [Dead Code]      (PR #120)
+
+  Principles:
+  - One smell per pull request
+  - Each PR has a diff under 300 lines
+  - Reviewable size
+  - Tests always remain passing
 ```
 
-### アンチパターン4: スメルを見つけたら即座にリファクタリング
+### Anti-Pattern 3: Over-Detection (Tool Worship)
 
 ```
-  BAD: デッドライン直前にリファクタリングを始める
+  BAD: Trying to fix every warning from tools
 
-  「このコード汚い！リファクタリングしなきゃ！」（リリース2日前）
-    → 予定外の変更
-    → テストの修正に想定以上の時間
-    → リリースが遅れる
+  SonarQube: "1,247 Issues"
+    → Setting a goal to fix all of them
+    → 30% are actually false positives
+    → Spending equal effort on low-priority smells
+    → Important smells get buried
 
-  GOOD: 記録して計画的に対処
+  GOOD: Triage (priority classification)
 
-  1. スメルを発見 → バックログに記録（場所、種類、推定工数）
-  2. 現在のタスクを完了
-  3. 次のスプリントプランニングで優先度を評価
-  4. テストが十分な状態でリファクタリングを実施
+  1. Combine tool output with hotspot analysis
+  2. Exclude false positives from rules
+  3. Prioritize by impact x change frequency
+  4. Focus on the top 20% of smells (Pareto principle)
+```
+
+### Anti-Pattern 4: Refactoring Immediately Upon Finding a Smell
+
+```
+  BAD: Starting a refactoring right before a deadline
+
+  "This code is messy! I need to refactor it!" (2 days before release)
+    → Unplanned changes
+    → Test fixes take longer than expected
+    → Release is delayed
+
+  GOOD: Record it and address it with a plan
+
+  1. Find a smell → record in the backlog (location, type, estimated effort)
+  2. Complete the current task
+  3. Evaluate priority in the next sprint planning
+  4. Perform refactoring once tests are sufficient
 ```
 
 ---
 
-## 13. 演習問題
+## 13. Exercises
 
-### 演習1（基本）: スメルの分類
+### Exercise 1 (Basic): Classifying Smells
 
-以下のコードに含まれるスメルを全て特定し、分類せよ。
+Identify and classify all smells in the following code.
 
 ```python
-# 問題コード: 以下のスメルを全て特定せよ
-import os, sys, json, csv, re  # 使われていないインポートあり
+# Problem code: identify all smells below
+import os, sys, json, csv, re  # some unused imports
 
 class AppManager:
-    """アプリケーション全体を管理するクラス"""
+    """Class that manages the entire application"""
     def __init__(self):
         self.db = Database()
         self.mailer = Mailer()
         self.cache = {}
-        self.temp_result = None   # 特定のメソッドでのみ使用
+        self.temp_result = None   # only used by a specific method
 
     def process(self, t, n, e, a, c, z, co):
-        """ユーザー登録処理"""
-        # バリデーション
+        """User registration processing"""
+        # Validation
         if not n:
-            raise ValueError("名前が必要")
+            raise ValueError("Name is required")
         if '@' not in e:
-            raise ValueError("メールが不正")
+            raise ValueError("Invalid email")
 
-        # ユーザー作成
+        # Create user
         user = {"type": t, "name": n, "email": e,
                 "address": a, "city": c, "zip": z, "country": co}
 
-        # 料金計算
+        # Pricing
         if t == "premium":
             price = 9800
         elif t == "standard":
@@ -1650,61 +1650,61 @@ class AppManager:
         elif t == "free":
             price = 0
 
-        # DB保存
+        # Save to DB
         self.db.execute(f"INSERT INTO users VALUES ('{n}', '{e}')")
 
-        # メール送信
-        self.mailer.send(e, "登録完了", f"ようこそ {n} さん")
+        # Send email
+        self.mailer.send(e, "Registration complete", f"Welcome {n}")
 
-        # キャッシュクリア
+        # Clear cache
         self.cache = {}
 
         self.temp_result = price
         return price
 ```
 
-**期待される回答**:
+**Expected Answer**:
 
-| スメル | 分類 | 箇所 |
+| Smell | Category | Location |
 |--------|------|------|
-| Dead Code (未使用インポート) | 不要物 | `os, sys, csv, re` |
-| God Class | 肥大化 | `AppManager` が DB・メール・キャッシュ・計算を担当 |
-| Long Parameter List | 肥大化 | `process(self, t, n, e, a, c, z, co)` 7パラメータ |
-| Data Clumps | 肥大化 | `a, c, z, co` は住所として一塊 |
-| Primitive Obsession | 肥大化 | ユーザー型を文字列で判定、メールが `str` |
-| Switch Statements | OO乱用 | `if t == "premium"` の分岐 |
-| Temporary Field | OO乱用 | `self.temp_result` |
-| 不明確な命名 | ― | `t, n, e, a, c, z, co` |
-| SQLインジェクション | セキュリティ | `f"INSERT INTO users VALUES ('{n}', '{e}')"` |
+| Dead Code (unused imports) | Dispensable | `os, sys, csv, re` |
+| God Class | Bloater | `AppManager` handles DB, mail, cache, and calculation |
+| Long Parameter List | Bloater | `process(self, t, n, e, a, c, z, co)` — 7 parameters |
+| Data Clumps | Bloater | `a, c, z, co` belong together as an address |
+| Primitive Obsession | Bloater | User type determined by string, email as `str` |
+| Switch Statements | OO Abuser | `if t == "premium"` branching |
+| Temporary Field | OO Abuser | `self.temp_result` |
+| Unclear naming | — | `t, n, e, a, c, z, co` |
+| SQL Injection | Security | `f"INSERT INTO users VALUES ('{n}', '{e}')"` |
 
 ---
 
-### 演習2（応用）: スメル除去リファクタリング
+### Exercise 2 (Applied): Refactoring to Remove Smells
 
-演習1のコードを以下の手順でリファクタリングせよ。
+Refactor the code from Exercise 1 following these steps:
 
-1. 未使用インポートを除去
-2. Data Clumps を値オブジェクトに抽出
-3. Primitive Obsession を型安全に改善
-4. Switch Statements をポリモーフィズムで置換
-5. God Class を責任ごとに分割
-6. Long Parameter List をパラメータオブジェクトに集約
+1. Remove unused imports
+2. Extract Data Clumps into value objects
+3. Improve Primitive Obsession for type safety
+4. Replace Switch Statements with polymorphism
+5. Split God Class by responsibility
+6. Consolidate Long Parameter List into parameter objects
 
-**期待される回答（概要）**:
+**Expected Answer (Summary)**:
 
 ```python
-# 1. 必要なインポートのみ
+# 1. Only necessary imports
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from decimal import Decimal
 
-# 2. 値オブジェクト
+# 2. Value objects
 @dataclass(frozen=True)
 class Email:
     value: str
     def __post_init__(self):
         if '@' not in self.value:
-            raise ValueError(f"不正なメール: {self.value}")
+            raise ValueError(f"Invalid email: {self.value}")
 
 @dataclass(frozen=True)
 class Address:
@@ -1713,7 +1713,7 @@ class Address:
     zip_code: str
     country: str
 
-# 3. ポリモーフィズムで料金計算
+# 3. Pricing via polymorphism
 class UserPlan(ABC):
     @abstractmethod
     def monthly_price(self) -> Decimal: ...
@@ -1730,7 +1730,7 @@ class FreePlan(UserPlan):
     def monthly_price(self) -> Decimal:
         return Decimal("0")
 
-# 4. パラメータオブジェクト
+# 4. Parameter object
 @dataclass
 class RegistrationRequest:
     name: str
@@ -1738,7 +1738,7 @@ class RegistrationRequest:
     address: Address
     plan: UserPlan
 
-# 5. 責任の分離
+# 5. Separation of responsibilities
 class UserRegistrationService:
     def __init__(self, repository, notifier):
         self.repository = repository
@@ -1753,199 +1753,199 @@ class UserRegistrationService:
 
 ---
 
-### 演習3（上級）: ホットスポット分析と改善計画
+### Exercise 3 (Advanced): Hotspot Analysis and Improvement Planning
 
-以下の分析結果を基に、3スプリント分の改善計画を立案せよ。
+Based on the following analysis results, draft an improvement plan for 3 sprints.
 
 ```
-ホットスポット分析結果:
-ファイル                      変更回数  CC   行数  スコア
+Hotspot Analysis Results:
+File                             Changes  CC   Lines  Score
 ------------------------------------------------------------
-src/services/order_service.py    42    18   850   756
-src/services/user_service.py     38    15   620   570
-src/utils/helpers.py             35     4   200   140
-src/api/endpoints.py             30    12   450   360
-src/models/payment.py            25     8   300   200
-src/config/settings.py           22     2   100    44
-src/services/email_service.py    15    10   350   150
-src/tests/test_helpers.py        10     3   150    30
+src/services/order_service.py       42    18   850    756
+src/services/user_service.py        38    15   620    570
+src/utils/helpers.py                35     4   200    140
+src/api/endpoints.py                30    12   450    360
+src/models/payment.py               25     8   300    200
+src/config/settings.py              22     2   100     44
+src/services/email_service.py       15    10   350    150
+src/tests/test_helpers.py           10     3   150     30
 ```
 
-**期待される回答（概要）**:
+**Expected Answer (Summary)**:
 
 ```
-Sprint 1 (最優先 ── スコア500超):
-  1. order_service.py (スコア756)
-     - God Class の分割: OrderCreation, OrderPricing, OrderFulfillment
-     - Long Method の Extract Method
-     - テストカバレッジ確保後にリファクタリング
-     推定工数: 8ストーリーポイント
+Sprint 1 (Top Priority — Score > 500):
+  1. order_service.py (Score 756)
+     - Split God Class: OrderCreation, OrderPricing, OrderFulfillment
+     - Extract Method for Long Method
+     - Refactor after ensuring test coverage
+     Estimated effort: 8 story points
 
-  2. user_service.py (スコア570)
-     - Feature Envy の Move Method
-     - 複雑なバリデーションの Extract Class
-     推定工数: 5ストーリーポイント
+  2. user_service.py (Score 570)
+     - Move Method for Feature Envy
+     - Extract Class for complex validation
+     Estimated effort: 5 story points
 
-Sprint 2 (高優先 ── スコア200-500):
-  3. endpoints.py (スコア360)
-     - Long Method の Extract Method
-     - Controller の薄型化 (ロジックを Service 層に移動)
-     推定工数: 5ストーリーポイント
+Sprint 2 (High Priority — Score 200–500):
+  3. endpoints.py (Score 360)
+     - Extract Method for Long Method
+     - Slim down controllers (move logic to Service layer)
+     Estimated effort: 5 story points
 
-  4. payment.py (スコア200)
-     - Primitive Obsession の改善 (金額を Money 値オブジェクトに)
-     推定工数: 3ストーリーポイント
+  4. payment.py (Score 200)
+     - Improve Primitive Obsession (convert amounts to Money value object)
+     Estimated effort: 3 story points
 
-Sprint 3 (中優先):
-  5. email_service.py (スコア150)
-     - 複雑度の削減
-  6. helpers.py (スコア140)
-     - 高変更頻度だが低複雑度 → 監視継続
+Sprint 3 (Medium Priority):
+  5. email_service.py (Score 150)
+     - Reduce complexity
+  6. helpers.py (Score 140)
+     - High change frequency but low complexity → continue monitoring
 
-  注: settings.py (スコア44), test_helpers.py (スコア30) は放置可
+  Note: settings.py (Score 44), test_helpers.py (Score 30) can be ignored
 ```
 
 ---
 
 ## 14. FAQ
 
-### Q1: コードスメルは必ず修正すべきか？
+### Q1: Should every code smell always be fixed?
 
-いいえ。スメルは「調査すべき兆候」であり、必ずしもリファクタリングが必要とは限らない。以下の判断基準を使う。
+No. A smell is a "signal to investigate," not necessarily an indication that refactoring is required. Use the following criteria:
 
-**修正すべき場合**:
-- 変更頻度が高いファイルに存在する（ホットスポット）
-- チーム内で同じスメルが繰り返し問題になっている
-- テストの追加・変更が困難になっている
-- 新メンバーのオンボーディングを妨げている
+**When to fix**:
+- It exists in a high-change-frequency file (hotspot)
+- The same smell has repeatedly caused problems within the team
+- It makes adding or modifying tests difficult
+- It hinders onboarding for new team members
 
-**放置してよい場合**:
-- 変更頻度が低い（年に1-2回程度）
-- 使い捨てコード（プロトタイプ、PoC）
-- レガシーシステムで近い将来廃止予定
-- 修正コストが得られる利益を大幅に上回る
+**When to leave it**:
+- Change frequency is low (once or twice a year)
+- Throwaway code (prototype, proof of concept)
+- Legacy system slated for decommissioning in the near future
+- The cost of fixing significantly outweighs the benefit
 
-### Q2: チームでスメルの基準が異なる場合はどうするか？
+### Q2: What if the team has different standards for smells?
 
-1. **客観的基準の設定**: SonarQube 等の静的解析ツールで数値基準を設定
-   - メソッド行数: 20行以下
-   - サイクロマティック複雑度: 10以下
-   - クラスの行数: 300行以下
-   - パラメータ数: 4つ以下
-2. **コーディング規約への明記**: チームで合意した閾値をドキュメント化
-3. **コードレビューチェックリスト**: スメル検出項目をレビューの必須確認事項に
-4. **定期的な「テクニカルレビュー会」**: 月1回、スメルの実例を共有して認識を統一
-5. **新メンバー向けオンボーディング**: スメルの事例集を研修資料に含める
+1. **Set objective criteria**: Configure numeric thresholds with static analysis tools like SonarQube
+   - Method line count: 20 or fewer
+   - Cyclomatic complexity: 10 or fewer
+   - Class line count: 300 or fewer
+   - Parameter count: 4 or fewer
+2. **Document in coding conventions**: Record team-agreed thresholds in documentation
+3. **Code review checklist**: Make smell detection items mandatory in reviews
+4. **Regular "technical review meetings"**: Share real examples of smells monthly to align understanding
+5. **Onboarding for new members**: Include a smell example catalog in training materials
 
-### Q3: レガシーコードのスメルはどこから手をつけるべきか？
+### Q3: Where should you start with smells in legacy code?
 
-**変更頻度が高いファイルから**。以下の手順で科学的にアプローチする。
+**Start with the most frequently changed files.** Use a scientific approach with the following steps:
 
 ```bash
-# Step 1: 変更頻度の高いファイルを特定
+# Step 1: Identify frequently changed files
 git log --format=format: --name-only --since="6 months ago" \
   | sort | uniq -c | sort -rn | head -20
 
-# Step 2: 複雑度が高いファイルを特定
+# Step 2: Identify files with high complexity
 radon cc src/ -a -nc --min C
 
-# Step 3: 両方に含まれるファイルがホットスポット
+# Step 3: Files appearing in both lists are hotspots
 ```
 
-### Q4: スメルの検出ツールが大量の警告を出す場合、どう対処するか？
+### Q4: How should you handle a detection tool generating a large number of warnings?
 
-1. **トリアージ**: ホットスポット分析で優先度をつける
-2. **ベースライン設定**: 現時点の警告数をベースラインとし、「新たな追加を防ぐ」ことに注力
-3. **品質ゲート**: 「新しいコードのスメル数が0であること」をPRマージ条件に
-4. **段階的な閾値引き下げ**: 四半期ごとに許容される警告数を減らす
-5. **false positive の除外**: 不要なルールを `.sonarqube-exclusions` 等で除外設定
+1. **Triage**: Prioritize using hotspot analysis
+2. **Set a baseline**: Use the current warning count as a baseline and focus on "preventing new additions"
+3. **Quality gate**: Make "zero new smells in new code" a condition for PR merge
+4. **Gradually lower thresholds**: Reduce the number of acceptable warnings each quarter
+5. **Exclude false positives**: Exclude unnecessary rules via `.sonarqube-exclusions` or similar
 
-### Q5: スメルとデザインパターンの関係は？
+### Q5: What is the relationship between smells and design patterns?
 
-スメルとデザインパターンは表裏一体の関係にある。
+Smells and design patterns are two sides of the same coin.
 
-| スメル | 対応するパターン | 参照 |
+| Smell | Corresponding Pattern | Reference |
 |--------|---------------|------|
 | Switch Statements | Strategy, State, Factory Method | design-patterns-guide/00-creational/ |
 | Feature Envy | Mediator, Facade | design-patterns-guide/02-behavioral/ |
 | Parallel Hierarchy | Bridge, Abstract Factory | design-patterns-guide/01-structural/ |
-| God Class | Facade + 複数の小さなクラスに分割 | design-patterns-guide/01-structural/ |
+| God Class | Facade + split into multiple smaller classes | design-patterns-guide/01-structural/ |
 | Message Chains | Facade, Mediator | design-patterns-guide/02-behavioral/ |
 
-### Q6: テストコードにもスメルはあるか？
+### Q6: Do test code smells exist?
 
-ある。テストスメル（Test Smell）は本番コードのスメルとは異なる独自のカテゴリを持つ。
+Yes. Test Smells are a distinct category separate from production code smells.
 
-| テストスメル | 説明 | 対策 |
+| Test Smell | Description | Fix |
 |------------|------|------|
-| Eager Test | 1つのテストが多くの機能を検証 | テストを分割 |
-| Mystery Guest | テストが外部リソースに暗黙に依存 | テストデータをテスト内に |
-| Assertion Roulette | 複数のアサーションにメッセージなし | 各アサーションにメッセージ追加 |
-| Test Code Duplication | テスト間で同じセットアップが重複 | pytest fixture, @Before で共通化 |
-| Slow Tests | テストの実行が遅い | テストダブルの活用、DB の in-memory 化 |
+| Eager Test | One test verifies too many features | Split the test |
+| Mystery Guest | Test implicitly depends on external resources | Include test data within the test |
+| Assertion Roulette | Multiple assertions without messages | Add a message to each assertion |
+| Test Code Duplication | Same setup duplicated across tests | Share via pytest fixture or @Before |
+| Slow Tests | Tests take too long to run | Use test doubles, in-memory DB |
 
-詳細は [テスト原則](../01-practices/04-testing-principles.md) を参照。
+For details, see [Testing Principles](../01-practices/04-testing-principles.md).
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. You deepen your understanding not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping straight to advanced topics. We recommend thoroughly understanding the core concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in everyday development work. It is particularly important during code reviews and architectural design.
 
 ---
 
-## 15. まとめ
+## 15. Summary
 
-| 分類 | 代表的スメル | 危険度 | 検出しやすさ | 主な対策 |
+| Category | Representative Smells | Severity | Ease of Detection | Primary Fix |
 |------|------------|:------:|:----------:|---------|
-| 肥大化 | Long Method, God Class | 高 | 高 | Extract Method/Class |
-| OO乱用 | Switch Statements, Refused Bequest | 中 | 高 | ポリモーフィズム, 委譲 |
-| 変更妨害 | Shotgun Surgery, Divergent Change | 高 | 低 | Move Method, Extract Class |
-| 不要物 | Dead Code, Speculative Generality | 低 | 高 | Safe Delete |
-| 結合過多 | Feature Envy, Message Chains | 高 | 中 | Move Method, Hide Delegate |
+| Bloaters | Long Method, God Class | High | High | Extract Method/Class |
+| OO Abusers | Switch Statements, Refused Bequest | Medium | High | Polymorphism, Delegation |
+| Change Preventers | Shotgun Surgery, Divergent Change | High | Low | Move Method, Extract Class |
+| Dispensables | Dead Code, Speculative Generality | Low | High | Safe Delete |
+| Couplers | Feature Envy, Message Chains | High | Medium | Move Method, Hide Delegate |
 
-| 検出段階 | 手法 | 効果 |
+| Detection Stage | Method | Effect |
 |---------|------|------|
-| 自動 (CI) | Ruff, ESLint, SonarQube | 機械的なスメルの60%を自動排除 |
-| レビュー | チェックリスト + 人間の判断 | 文脈が必要なスメルの30%を検出 |
-| 定期棚卸し | ホットスポット分析, ダッシュボード | 蓄積したスメルの10%を組織的に解消 |
+| Automated (CI) | Ruff, ESLint, SonarQube | Automatically eliminates 60% of mechanical smells |
+| Review | Checklist + human judgment | Detects 30% of smells requiring context |
+| Periodic Audit | Hotspot analysis, dashboard | Systematically resolves 10% of accumulated smells |
 
-| 原則 | 内容 |
+| Principle | Description |
 |------|------|
-| ボーイスカウトルール | 触ったファイルは少しでもきれいにして去る |
-| Rule of Three | 3回目のパターン出現までリファクタリングを待つ |
-| パレートの法則 | 上位20%のスメルに集中することで80%の効果を得る |
-| ホットスポット分析 | 変更頻度 x 複雑度で科学的に優先度を判断 |
+| Boy Scout Rule | Leave every file a little cleaner than you found it |
+| Rule of Three | Wait until a pattern appears for the third time before refactoring |
+| Pareto Principle | Focus on the top 20% of smells to gain 80% of the benefit |
+| Hotspot Analysis | Scientifically prioritize by change frequency x complexity |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [リファクタリング技法](./01-refactoring-techniques.md) ── スメルを解消する具体的手法（Extract Method, Move Method 等）
-- [レガシーコード](./02-legacy-code.md) ── スメルだらけのコードとの向き合い方（Seam, Characterization Test）
-- [技術的負債](./03-technical-debt.md) ── スメルの放置がもたらす負債とその返済戦略
-- [テスト原則](../01-practices/04-testing-principles.md) ── リファクタリングの安全網としてのテスト設計
-- 命名 ── 名前の改善によるスメルの予防
-- デザインパターン概要 ── スメルの構造的な解決策としてのパターン
-- システム設計の基礎 ── アーキテクチャレベルのスメル対策
+- [Refactoring Techniques](./01-refactoring-techniques.md) — Concrete techniques to resolve smells (Extract Method, Move Method, etc.)
+- [Legacy Code](./02-legacy-code.md) — How to deal with code full of smells (Seams, Characterization Tests)
+- [Technical Debt](./03-technical-debt.md) — The debt caused by ignoring smells and strategies to repay it
+- [Testing Principles](../01-practices/04-testing-principles.md) — Test design as a safety net for refactoring
+- Naming — Preventing smells through better names
+- Design Patterns Overview — Patterns as structural solutions to smells
+- Fundamentals of System Design — Addressing smells at the architecture level
 
 ---
 
-## 参考文献
+## References
 
-1. **Martin Fowler** 『Refactoring: Improving the Design of Existing Code』 Addison-Wesley, 2018 (2nd Edition) ── コードスメルの原典。22種のスメルとその対応リファクタリングを網羅。特に Chapter 3 "Bad Smells in Code" が本章の基礎。
-2. **Robert C. Martin** 『Clean Code: A Handbook of Agile Software Craftsmanship』 Prentice Hall, 2008 ── Chapter 17 "Smells and Heuristics" で、スメルの嗅覚を磨くためのヒューリスティクスを体系化。
-3. **Joshua Kerievsky** 『Refactoring to Patterns』 Addison-Wesley, 2004 ── スメルからデザインパターンへの対応を示した先駆的著作。スメルの解消手段としてパターンを位置づける。
-4. **Michael Feathers** 『Working Effectively with Legacy Code』 Prentice Hall, 2004 ── レガシーコード（テストのないコード）に対するスメル検出と安全なリファクタリングの技法。
-5. **Mika Mantyla & Casper Lassenius** "Subjective evaluation of software evolvability using code smells: An empirical study" (Empirical Software Engineering, 2006) ── コードスメルの客観的評価に関する学術研究。スメルの深刻度と保守性の相関を実証的に分析。
+1. **Martin Fowler** *Refactoring: Improving the Design of Existing Code* Addison-Wesley, 2018 (2nd Edition) — The original source on code smells. Covers 22 smells and their corresponding refactorings comprehensively. Especially Chapter 3 "Bad Smells in Code," which forms the foundation of this chapter.
+2. **Robert C. Martin** *Clean Code: A Handbook of Agile Software Craftsmanship* Prentice Hall, 2008 — Chapter 17 "Smells and Heuristics" systematizes heuristics for sharpening your nose for smells.
+3. **Joshua Kerievsky** *Refactoring to Patterns* Addison-Wesley, 2004 — A pioneering work that maps smells to design patterns. Positions patterns as the means to resolve smells.
+4. **Michael Feathers** *Working Effectively with Legacy Code* Prentice Hall, 2004 — Techniques for detecting smells in legacy code (code without tests) and performing safe refactoring.
+5. **Mika Mantyla & Casper Lassenius** "Subjective evaluation of software evolvability using code smells: An empirical study" (Empirical Software Engineering, 2006) — Academic research on the objective evaluation of code smells. Empirically analyzes the correlation between smell severity and maintainability.
