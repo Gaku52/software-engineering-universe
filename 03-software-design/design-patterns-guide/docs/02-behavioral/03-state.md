@@ -1,46 +1,46 @@
-# State パターン
+# State Pattern
 
-> オブジェクトの内部状態に応じて振る舞いを動的に切り替え、有限状態マシン (FSM) を型安全に実装する行動パターン
-
----
-
-## この章で学ぶこと
-
-1. **State パターンの基本構造と GoF の意図** -- 状態ごとにクラスを分離し、条件分岐の爆発を防ぐ設計手法の原理
-2. **有限状態マシン (FSM) の型安全な実装** -- 状態遷移図をコードに落とし込み、不正な遷移をコンパイル時に防止する
-3. **宣言的 FSM と階層状態マシン** -- XState 風の設定ベース FSM、親子状態による複雑さの管理
-4. **実プロダクトへの適用** -- EC注文管理、UIコンポーネント、フォームバリデーション、ゲーム AI での実践例
-5. **State パターンと他パターンの連携** -- Strategy、Command、Observer との組合せと使い分け
+> A behavioral pattern that dynamically switches behavior based on an object's internal state, enabling type-safe implementation of finite state machines (FSM)
 
 ---
 
-## 前提知識
+## What You Will Learn in This Chapter
 
-| トピック | 必要な理解 | 参照リンク |
+1. **Basic structure of the State pattern and GoF's intent** -- The principles of separating behavior into per-state classes to prevent conditional branch explosion
+2. **Type-safe implementation of finite state machines (FSM)** -- Translating state transition diagrams into code and preventing invalid transitions at compile time
+3. **Declarative FSM and hierarchical state machines** -- XState-style configuration-based FSM, managing complexity with parent-child states
+4. **Applying to real products** -- Practical examples in e-commerce order management, UI components, form validation, and game AI
+5. **Combining the State pattern with other patterns** -- Integration with Strategy, Command, and Observer, and when to use each
+
+---
+
+## Prerequisites
+
+| Topic | Required Understanding | Reference Link |
 |---------|-----------|-----------|
-| TypeScript の interface と class | インターフェース実装、ジェネリクス、型ガード | 02-programming |
-| SOLID 原則（特に OCP・SRP） | 開放閉鎖原則、単一責任原則の理解 | clean-code-principles |
-| Strategy パターン | アルゴリズムの切り替えの基本概念 | [01-strategy.md](./01-strategy.md) |
-| Observer パターン | 状態変化の通知 | [00-observer.md](./00-observer.md) |
-| Command パターン | 操作のカプセル化、Undo/Redo | [02-command.md](./02-command.md) |
+| TypeScript interface and class | Interface implementation, generics, type guards | 02-programming |
+| SOLID principles (especially OCP & SRP) | Open-Closed Principle, Single Responsibility Principle | clean-code-principles |
+| Strategy pattern | Basic concept of switching algorithms | [01-strategy.md](./01-strategy.md) |
+| Observer pattern | Notification of state changes | [00-observer.md](./00-observer.md) |
+| Command pattern | Encapsulating operations, Undo/Redo | [02-command.md](./02-command.md) |
 
 ---
 
-## なぜ State パターンが必要なのか
+## Why the State Pattern Is Needed
 
-### if/else の爆発問題
+### The if/else Explosion Problem
 
-注文管理システムで「注文のステータスに応じて異なる処理を行う」要件を考えてみましょう。
+Consider the requirement to "perform different processing based on order status" in an order management system.
 
 ```
-if/else アプローチの問題:
+Problems with the if/else approach:
 
 class Order {
   status: string = 'pending';
 
   pay(): void {
     if (this.status === 'pending') {
-      // 決済処理...
+      // Payment processing...
       this.status = 'paid';
     } else if (this.status === 'paid') {
       throw new Error('Already paid');
@@ -57,35 +57,35 @@ class Order {
     if (this.status === 'pending') {
       throw new Error('Must pay first');
     } else if (this.status === 'paid') {
-      // 発送処理...
+      // Shipping processing...
       this.status = 'shipped';
     } else if (...) { ... }
-    // 同じパターンの繰り返し...
+    // The same pattern repeats...
   }
 
-  deliver(): void { /* 同じパターン */ }
-  cancel(): void { /* 同じパターン */ }
-  refund(): void { /* 同じパターン */ }
+  deliver(): void { /* Same pattern */ }
+  cancel(): void { /* Same pattern */ }
+  refund(): void { /* Same pattern */ }
 }
 
-問題:
+Problems:
   ┌──────────────────────────────────────────────────┐
-  │ 状態 5 × メソッド 5 = 25 個の分岐               │
+  │ 5 states × 5 methods = 25 branches               │
   │                                                  │
-  │ 新しい状態 "returned" を追加すると:               │
-  │   → 全 5 メソッドを修正（OCP 違反）              │
-  │   → 修正漏れ → ランタイムエラー                  │
-  │   → テストケースが指数的に増加                    │
+  │ Adding a new state "returned":                    │
+  │   → All 5 methods must be modified (OCP violation)│
+  │   → Missed modifications → runtime errors        │
+  │   → Test cases grow exponentially                 │
   └──────────────────────────────────────────────────┘
 ```
 
-### State パターンによる解決
+### Solution with the State Pattern
 
 ```
-State パターンの解決:
+State pattern solution:
 
   ┌──────────────┐         ┌──────────────────┐
-  │   Context    │────────►│   State (抽象)    │
+  │   Context    │────────►│   State (abstract)│
   │ OrderContext │         │                  │
   │              │         │ + pay()          │
   │ - state ─────┤         │ + ship()         │
@@ -104,32 +104,32 @@ State パターンの解決:
                      │ cancel()→ │  │ cancel() →    │
                      │  Cancelled│  │  Cancelled     │
                      └───────────┘  └───────────────┘
-                     ...他の状態も同様
+                     ...same for other states
 
-  利点:
-  ✓ 各状態の振る舞いが1つのクラスにまとまる（SRP）
-  ✓ 新しい状態の追加は新クラスの追加のみ（OCP）
-  ✓ 不正な遷移はその状態クラス内で例外を投げるだけ
-  ✓ 各状態クラスを独立してテスト可能
+  Benefits:
+  ✓ Each state's behavior is consolidated in one class (SRP)
+  ✓ Adding a new state only requires adding a new class (OCP)
+  ✓ Invalid transitions simply throw exceptions within their state class
+  ✓ Each state class can be tested independently
 ```
 
-GoF の定義:
+GoF definition:
 
 > "Allow an object to alter its behavior when its internal state changes. The object will appear to change its class."
 >
 > -- Design Patterns: Elements of Reusable Object-Oriented Software (1994)
 
-State パターンの本質は **「条件分岐をポリモーフィズムに変換する」** ことです。`if (status === 'pending')` という条件分岐を、`PendingState` クラスの存在そのもので表現します。これにより、各状態の振る舞いが凝集し、状態の追加が既存コードに影響を与えなくなります。
+The essence of the State pattern is **"converting conditional branches into polymorphism"**. The conditional branch `if (status === 'pending')` is expressed by the very existence of the `PendingState` class. This consolidates each state's behavior and allows adding new states without affecting existing code.
 
 ---
 
-## 1. State パターンの構造
+## 1. Structure of the State Pattern
 
 ```
-State パターンの構成要素（GoF）:
+State pattern components (GoF):
 
   ┌──────────────────┐         ┌──────────────────┐
-  │    Context        │────────►│   State (抽象)    │
+  │    Context        │────────►│   State (abstract)│
   │                   │         │                  │
   │ - currentState    │         │ + handle(ctx)    │
   │ + request()       │         │                  │
@@ -140,36 +140,36 @@ State パターンの構成要素（GoF）:
                                │State A │  │ State B    │
                                │        │  │            │
                                │handle()│  │ handle()   │
-                               │→ Aの   │  │ → Bの      │
-                               │ 振る舞い│  │  振る舞い   │
-                               │→ Bに   │  │ → Cに      │
-                               │ 遷移   │  │  遷移      │
+                               │→ A's   │  │ → B's      │
+                               │behavior│  │  behavior  │
+                               │→ trans.│  │ → trans.   │
+                               │  to B  │  │  to C      │
                                └────────┘  └────────────┘
 
-  Context.request() は currentState.handle(this) に委譲
-  handle() の中で context.setState(new NextState()) を呼ぶ
+  Context.request() delegates to currentState.handle(this)
+  Inside handle(), context.setState(new NextState()) is called
 
-  ★ Strategy パターンとの違い:
-    Strategy: クライアントが外部から戦略を切り替える
-    State:    状態オブジェクト自身が次の状態に遷移する
+  ★ Difference from Strategy pattern:
+    Strategy: The client switches the strategy from outside
+    State:    The state object itself transitions to the next state
 
-  遷移の方向:
+  Direction of transitions:
     Strategy: Client → Context.setStrategy(new X())
     State:    StateA.handle() → context.setState(new StateB())
-              （状態が自分で次の状態を決める）
+              (the state decides its own next state)
 ```
 
 ---
 
-## 2. 基本実装 -- 注文ステータス管理
+## 2. Basic Implementation -- Order Status Management
 
-### コード例 1: GoF スタイルの State パターン
+### Code Example 1: GoF-style State Pattern
 
 ```typescript
-// order-state.ts -- 注文の状態管理
+// order-state.ts -- Order state management
 
 // ============================
-// State インターフェース
+// State interface
 // ============================
 interface OrderState {
   readonly name: string;
@@ -180,7 +180,7 @@ interface OrderState {
 }
 
 // ============================
-// Context: 注文
+// Context: Order
 // ============================
 class OrderContext {
   private state: OrderState;
@@ -217,7 +217,7 @@ class OrderContext {
     });
   }
 
-  // 操作を状態に委譲
+  // Delegate operations to the state
   pay(): void { this.state.pay(this); }
   ship(): void { this.state.ship(this); }
   deliver(): void { this.state.deliver(this); }
@@ -225,125 +225,125 @@ class OrderContext {
 }
 
 // ============================
-// Concrete State: Pending（未決済）
+// Concrete State: Pending (unpaid)
 // ============================
 class PendingState implements OrderState {
   readonly name = 'pending';
 
   pay(context: OrderContext): void {
-    console.log('決済処理を実行...');
+    console.log('Processing payment...');
     context.setState(new PaidState(), 'pay');
   }
 
   ship(_context: OrderContext): void {
-    throw new Error('未決済の注文は発送できません');
+    throw new Error('Cannot ship an unpaid order');
   }
 
   deliver(_context: OrderContext): void {
-    throw new Error('未決済の注文は配達完了にできません');
+    throw new Error('Cannot mark an unpaid order as delivered');
   }
 
   cancel(context: OrderContext): void {
-    console.log('注文をキャンセルしました');
+    console.log('Order has been cancelled');
     context.setState(new CancelledState(), 'cancel');
   }
 }
 
 // ============================
-// Concrete State: Paid（決済済み）
+// Concrete State: Paid
 // ============================
 class PaidState implements OrderState {
   readonly name = 'paid';
 
   pay(_context: OrderContext): void {
-    throw new Error('すでに決済済みです');
+    throw new Error('Already paid');
   }
 
   ship(context: OrderContext): void {
-    console.log('発送処理を実行...');
+    console.log('Processing shipment...');
     context.setState(new ShippedState(), 'ship');
   }
 
   deliver(_context: OrderContext): void {
-    throw new Error('発送前に配達完了にはできません');
+    throw new Error('Cannot mark as delivered before shipping');
   }
 
   cancel(context: OrderContext): void {
-    console.log('返金処理を実行...');
+    console.log('Processing refund...');
     context.setState(new CancelledState(), 'cancel');
   }
 }
 
 // ============================
-// Concrete State: Shipped（発送済み）
+// Concrete State: Shipped
 // ============================
 class ShippedState implements OrderState {
   readonly name = 'shipped';
 
   pay(_context: OrderContext): void {
-    throw new Error('発送済みの注文に決済はできません');
+    throw new Error('Cannot process payment for a shipped order');
   }
 
   ship(_context: OrderContext): void {
-    throw new Error('すでに発送済みです');
+    throw new Error('Already shipped');
   }
 
   deliver(context: OrderContext): void {
-    console.log('配達完了を記録...');
+    console.log('Recording delivery completion...');
     context.setState(new DeliveredState(), 'deliver');
   }
 
   cancel(_context: OrderContext): void {
-    throw new Error('発送済みの注文はキャンセルできません（返品手続きをご利用ください）');
+    throw new Error('Cannot cancel a shipped order (please use the return process)');
   }
 }
 
 // ============================
-// Concrete State: Delivered（配達完了） -- 終端状態
+// Concrete State: Delivered (terminal state)
 // ============================
 class DeliveredState implements OrderState {
   readonly name = 'delivered';
 
-  pay(): void { throw new Error('配達済みの注文に決済はできません'); }
-  ship(): void { throw new Error('配達済みの注文は発送できません'); }
-  deliver(): void { throw new Error('すでに配達済みです'); }
-  cancel(): void { throw new Error('配達済みの注文はキャンセルできません'); }
+  pay(): void { throw new Error('Cannot process payment for a delivered order'); }
+  ship(): void { throw new Error('Cannot ship a delivered order'); }
+  deliver(): void { throw new Error('Already delivered'); }
+  cancel(): void { throw new Error('Cannot cancel a delivered order'); }
 }
 
 // ============================
-// Concrete State: Cancelled（キャンセル済み） -- 終端状態
+// Concrete State: Cancelled (terminal state)
 // ============================
 class CancelledState implements OrderState {
   readonly name = 'cancelled';
 
-  pay(): void { throw new Error('キャンセル済みの注文に決済はできません'); }
-  ship(): void { throw new Error('キャンセル済みの注文は発送できません'); }
-  deliver(): void { throw new Error('キャンセル済みの注文は配達完了にできません'); }
-  cancel(): void { throw new Error('すでにキャンセル済みです'); }
+  pay(): void { throw new Error('Cannot process payment for a cancelled order'); }
+  ship(): void { throw new Error('Cannot ship a cancelled order'); }
+  deliver(): void { throw new Error('Cannot mark a cancelled order as delivered'); }
+  cancel(): void { throw new Error('Already cancelled'); }
 }
 
 // ============================
-// 使用例
+// Usage example
 // ============================
 const order = new OrderContext('ORD-001');
 console.log(order.getStateName()); // "pending"
 
 order.pay();
-// 決済処理を実行...
+// Processing payment...
 // [ORD-001] pending → paid (pay)
 
 order.ship();
-// 発送処理を実行...
+// Processing shipment...
 // [ORD-001] paid → shipped (ship)
 
 order.deliver();
-// 配達完了を記録...
+// Recording delivery completion...
 // [ORD-001] shipped → delivered (deliver)
 
 try {
-  order.cancel(); // 配達済みなのでエラー
+  order.cancel(); // Error because already delivered
 } catch (e) {
-  console.log(e.message); // "配達済みの注文はキャンセルできません"
+  console.log(e.message); // "Cannot cancel a delivered order"
 }
 
 console.log(order.getHistory());
@@ -356,7 +356,7 @@ console.log(order.getHistory());
 ```
 
 ```
-注文状態の遷移図:
+Order state transition diagram:
 
   ┌─────────┐   PAY    ┌─────────┐   SHIP   ┌──────────┐
   │ pending │────────►│  paid   │────────►│ shipped  │
@@ -369,46 +369,46 @@ console.log(order.getHistory());
   │cancelled │       │cancelled │        │ delivered │
   └──────────┘       └──────────┘        └───────────┘
 
-  ※ delivered, cancelled は終端状態（遷移先なし）
-  ※ shipped → cancel は不可（返品手続きが別途必要）
+  * delivered and cancelled are terminal states (no further transitions)
+  * shipped → cancel is not allowed (a separate return process is required)
 ```
 
 ---
 
-## 3. 型安全な FSM（有限状態マシン）
+## 3. Type-Safe FSM (Finite State Machine)
 
-### コード例 2: TypeScript の型システムで遷移を制約する
+### Code Example 2: Constraining Transitions with TypeScript's Type System
 
 ```typescript
-// typed-fsm.ts -- 型で遷移を制約する FSM
+// typed-fsm.ts -- FSM that constrains transitions with types
 
 // ============================
-// 状態とイベントの型定義
+// Type definitions for states and events
 // ============================
 type OrderStatus = 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled';
 type OrderEvent = 'PAY' | 'SHIP' | 'DELIVER' | 'CANCEL';
 
 // ============================
-// 許可される遷移を型レベルで定義
+// Define allowed transitions at the type level
 // ============================
 type TransitionMap = {
   pending:   { PAY: 'paid'; CANCEL: 'cancelled' };
   paid:      { SHIP: 'shipped'; CANCEL: 'cancelled' };
   shipped:   { DELIVER: 'delivered' };
-  delivered: {};  // 終端状態: 遷移先なし
-  cancelled: {};  // 終端状態: 遷移先なし
+  delivered: {};  // Terminal state: no transitions
+  cancelled: {};  // Terminal state: no transitions
 };
 
 // ============================
-// 型安全な遷移関数の型
+// Type of the type-safe transition function
 // ============================
-// これにより、存在しない遷移はコンパイル時にエラーになる
+// This causes non-existent transitions to produce compile-time errors
 type ValidEvent<S extends OrderStatus> = keyof TransitionMap[S];
 type NextState<S extends OrderStatus, E extends ValidEvent<S>> =
   TransitionMap[S][E];
 
 // ============================
-// FSM クラス（型安全版）
+// FSM class (type-safe version)
 // ============================
 const STATE_TRANSITIONS: Record<
   OrderStatus,
@@ -429,9 +429,9 @@ class TypedStateMachine<S extends OrderStatus> {
   }
 
   /**
-   * 型安全な遷移
-   * - 許可されたイベントのみ引数に取れる
-   * - 戻り値の型が次の状態に正しく推論される
+   * Type-safe transition
+   * - Only accepts allowed events as arguments
+   * - Return type is correctly inferred as the next state
    */
   transition<E extends ValidEvent<S>>(
     event: E
@@ -452,7 +452,7 @@ class TypedStateMachine<S extends OrderStatus> {
 }
 
 // ============================
-// 使用例: コンパイル時に不正な遷移を検出
+// Usage example: detecting invalid transitions at compile time
 // ============================
 const machine = new TypedStateMachine('pending' as const);
 
@@ -460,30 +460,30 @@ const paid = machine.transition('PAY');       // OK: pending → paid
 const shipped = paid.transition('SHIP');      // OK: paid → shipped
 const delivered = shipped.transition('DELIVER'); // OK: shipped → delivered
 
-// 以下はコンパイルエラー!
-// machine.transition('SHIP');    // Error: 'SHIP' は pending で許可されていない
-// machine.transition('DELIVER'); // Error: 'DELIVER' は pending で許可されていない
-// paid.transition('DELIVER');    // Error: 'DELIVER' は paid で許可されていない
-// delivered.transition('PAY');   // Error: delivered は終端状態（遷移先なし）
+// The following are compile errors!
+// machine.transition('SHIP');    // Error: 'SHIP' is not allowed in pending
+// machine.transition('DELIVER'); // Error: 'DELIVER' is not allowed in pending
+// paid.transition('DELIVER');    // Error: 'DELIVER' is not allowed in paid
+// delivered.transition('PAY');   // Error: delivered is a terminal state (no transitions)
 
-// 型推論の確認
+// Type inference verification
 type PaidMachine = typeof paid;    // TypedStateMachine<'paid'>
 type ShippedMachine = typeof shipped; // TypedStateMachine<'shipped'>
 ```
 
-この実装のポイントは、**遷移テーブルを型レベルで定義する**ことです。`TransitionMap` 型により、各状態から発行できるイベントとその遷移先が型として宣言されます。存在しない遷移（例: `pending` から `DELIVER`）は型エラーとしてコンパイル時に検出されます。
+The key to this implementation is **defining the transition table at the type level**. The `TransitionMap` type declares, for each state, the events that can be fired and their target states as types. Non-existent transitions (e.g., `DELIVER` from `pending`) are caught as type errors at compile time.
 
 ---
 
-## 4. 宣言的 FSM（XState 風）
+## 4. Declarative FSM (XState-style)
 
-### コード例 3: 設定オブジェクトで定義する FSM
+### Code Example 3: FSM Defined with a Configuration Object
 
 ```typescript
-// declarative-fsm.ts -- 設定ベースの FSM
+// declarative-fsm.ts -- Configuration-based FSM
 
 // ============================
-// FSM の設定型
+// FSM configuration types
 // ============================
 interface TransitionConfig<TContext> {
   target: string;
@@ -505,7 +505,7 @@ interface MachineConfig<TContext> {
 }
 
 // ============================
-// FSM エンジン
+// FSM engine
 // ============================
 type FSMEvent =
   | { type: 'transition'; from: string; to: string; event: string }
@@ -522,11 +522,11 @@ class FSM<TContext> {
     this.currentState = config.initial;
     this.context = { ...config.context };
 
-    // 初期状態の entry アクションを実行
+    // Execute the entry action for the initial state
     this.config.states[this.currentState]?.entry?.(this.context);
   }
 
-  /** イベントを送信して遷移を試みる */
+  /** Send an event to attempt a transition */
   send(event: string): boolean {
     const stateConfig = this.config.states[this.currentState];
     const transition = stateConfig?.on?.[event];
@@ -538,7 +538,7 @@ class FSM<TContext> {
       return false;
     }
 
-    // ガード条件のチェック
+    // Check guard conditions
     if (transition.guard && !transition.guard(this.context)) {
       this.notify({
         type: 'guard-blocked',
@@ -550,7 +550,7 @@ class FSM<TContext> {
 
     const from = this.currentState;
 
-    // exit → action → entry の順序で実行
+    // Execute in order: exit → action → entry
     stateConfig?.exit?.(this.context);
     transition.action?.(this.context);
 
@@ -569,7 +569,7 @@ class FSM<TContext> {
     return { ...this.context };
   }
 
-  /** 現在の状態で許可されるイベントの一覧 */
+  /** List of events allowed in the current state */
   allowedEvents(): string[] {
     const stateConfig = this.config.states[this.currentState];
     return stateConfig?.on ? Object.keys(stateConfig.on) : [];
@@ -590,7 +590,7 @@ class FSM<TContext> {
 }
 
 // ============================
-// 使用例: 信号機
+// Usage example: traffic light
 // ============================
 const trafficLight = new FSM({
   id: 'traffic-light',
@@ -598,7 +598,7 @@ const trafficLight = new FSM({
   context: { cycleCount: 0 },
   states: {
     red: {
-      entry: (ctx) => console.log(`赤信号 (サイクル: ${ctx.cycleCount})`),
+      entry: (ctx) => console.log(`Red light (cycle: ${ctx.cycleCount})`),
       on: {
         TIMER: {
           target: 'green',
@@ -607,13 +607,13 @@ const trafficLight = new FSM({
       },
     },
     green: {
-      entry: () => console.log('青信号'),
+      entry: () => console.log('Green light'),
       on: {
         TIMER: { target: 'yellow' },
       },
     },
     yellow: {
-      entry: () => console.log('黄信号'),
+      entry: () => console.log('Yellow light'),
       on: {
         TIMER: { target: 'red' },
       },
@@ -621,23 +621,23 @@ const trafficLight = new FSM({
   },
 });
 
-trafficLight.send('TIMER'); // 赤信号 (サイクル: 0) → 青信号
-trafficLight.send('TIMER'); // 青信号 → 黄信号
-trafficLight.send('TIMER'); // 黄信号 → 赤信号 (サイクル: 1)
+trafficLight.send('TIMER'); // Red light (cycle: 0) → Green light
+trafficLight.send('TIMER'); // Green light → Yellow light
+trafficLight.send('TIMER'); // Yellow light → Red light (cycle: 1)
 console.log(trafficLight.getContext()); // { cycleCount: 1 }
 ```
 
 ---
 
-## 5. 実用例: フォームバリデーション状態
+## 5. Practical Example: Form Validation State
 
-### コード例 4: 複雑なフォームの状態管理
+### Code Example 4: State Management for a Complex Form
 
 ```typescript
-// form-state.ts -- フォームの状態管理
+// form-state.ts -- Form state management
 
 // ============================
-// フォームコンテキスト
+// Form context
 // ============================
 interface FormContext {
   data: Record<string, string>;
@@ -647,7 +647,7 @@ interface FormContext {
 }
 
 // ============================
-// フォーム FSM
+// Form FSM
 // ============================
 const formMachine = new FSM<FormContext>({
   id: 'form',
@@ -660,11 +660,11 @@ const formMachine = new FSM<FormContext>({
   },
   states: {
     idle: {
-      entry: () => console.log('[Form] Idle - 入力待ち'),
+      entry: () => console.log('[Form] Idle - waiting for input'),
       on: {
         CHANGE: {
           target: 'editing',
-          action: () => console.log('[Form] 入力開始'),
+          action: () => console.log('[Form] Input started'),
         },
       },
     },
@@ -688,14 +688,14 @@ const formMachine = new FSM<FormContext>({
     },
     validating: {
       entry: (ctx) => {
-        console.log('[Form] バリデーション実行中...');
+        console.log('[Form] Running validation...');
         ctx.errors = {};
-        // バリデーションルールの適用
+        // Apply validation rules
         if (!ctx.data.email?.includes('@')) {
-          ctx.errors.email = 'メールアドレスの形式が不正です';
+          ctx.errors.email = 'Invalid email address format';
         }
         if (!ctx.data.name || ctx.data.name.length < 2) {
-          ctx.errors.name = '名前は2文字以上で入力してください';
+          ctx.errors.name = 'Name must be at least 2 characters';
         }
       },
       on: {
@@ -709,7 +709,7 @@ const formMachine = new FSM<FormContext>({
       },
     },
     submitting: {
-      entry: () => console.log('[Form] 送信中...'),
+      entry: () => console.log('[Form] Submitting...'),
       on: {
         SUCCESS: {
           target: 'success',
@@ -721,7 +721,7 @@ const formMachine = new FSM<FormContext>({
       },
     },
     success: {
-      entry: () => console.log('[Form] 送信成功!'),
+      entry: () => console.log('[Form] Submission successful!'),
       on: {
         RESET: {
           target: 'idle',
@@ -733,7 +733,7 @@ const formMachine = new FSM<FormContext>({
       },
     },
     error: {
-      entry: () => console.log('[Form] 送信エラー'),
+      entry: () => console.log('[Form] Submission error'),
       on: {
         RETRY: {
           target: 'submitting',
@@ -751,15 +751,15 @@ const formMachine = new FSM<FormContext>({
   },
 });
 
-// 使用例
+// Usage example
 formMachine.send('CHANGE');      // idle → editing
 formMachine.send('SUBMIT');      // editing → validating
-// バリデーションエラーがある場合:
+// If there are validation errors:
 formMachine.send('INVALID');     // validating → editing
 ```
 
 ```
-フォーム状態の遷移図:
+Form state transition diagram:
 
   ┌──────┐  CHANGE  ┌─────────┐  SUBMIT  ┌────────────┐
   │ idle │────────►│ editing │────────►│ validating │
@@ -783,12 +783,12 @@ formMachine.send('INVALID');     // validating → editing
 
 ---
 
-## 6. Python での State パターン
+## 6. State Pattern in Python
 
-### コード例 5: Python の ABC とデコレータによる State
+### Code Example 5: State Pattern with Python ABC and Decorators
 
 ```python
-# state_python.py -- Python での State パターン実装
+# state_python.py -- State pattern implementation in Python
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -797,11 +797,11 @@ from typing import Callable
 
 
 # ============================
-# 自動販売機の State パターン
+# State pattern for a vending machine
 # ============================
 
 class VendingState(ABC):
-    """自動販売機の状態インターフェース"""
+    """Vending machine state interface"""
 
     @abstractmethod
     def insert_coin(self, machine: VendingMachine, amount: int) -> None: ...
@@ -821,7 +821,7 @@ class VendingState(ABC):
 
 
 class IdleState(VendingState):
-    """待機状態: コイン投入待ち"""
+    """Idle state: waiting for coin insertion"""
 
     @property
     def name(self) -> str:
@@ -829,21 +829,21 @@ class IdleState(VendingState):
 
     def insert_coin(self, machine: VendingMachine, amount: int) -> None:
         machine.balance += amount
-        print(f"投入: {amount}円 (残高: {machine.balance}円)")
+        print(f"Inserted: {amount} yen (balance: {machine.balance} yen)")
         machine.set_state(HasMoneyState())
 
     def select_product(self, machine: VendingMachine, product: str) -> None:
-        print("先にコインを投入してください")
+        print("Please insert a coin first")
 
     def dispense(self, machine: VendingMachine) -> None:
-        print("先にコインを投入し、商品を選択してください")
+        print("Please insert a coin and select a product first")
 
     def cancel(self, machine: VendingMachine) -> None:
-        print("キャンセルする操作がありません")
+        print("There is nothing to cancel")
 
 
 class HasMoneyState(VendingState):
-    """コイン投入済み: 商品選択待ち"""
+    """Coin inserted: waiting for product selection"""
 
     @property
     def name(self) -> str:
@@ -851,51 +851,51 @@ class HasMoneyState(VendingState):
 
     def insert_coin(self, machine: VendingMachine, amount: int) -> None:
         machine.balance += amount
-        print(f"追加投入: {amount}円 (残高: {machine.balance}円)")
+        print(f"Additional coin: {amount} yen (balance: {machine.balance} yen)")
 
     def select_product(self, machine: VendingMachine, product: str) -> None:
         price = machine.get_price(product)
         if price is None:
-            print(f"商品 '{product}' は存在しません")
+            print(f"Product '{product}' does not exist")
             return
         if machine.balance < price:
-            print(f"残高不足: {machine.balance}円 < {price}円")
+            print(f"Insufficient balance: {machine.balance} yen < {price} yen")
             return
         if not machine.has_stock(product):
-            print(f"'{product}' は在庫切れです")
+            print(f"'{product}' is out of stock")
             return
 
         machine.selected_product = product
         machine.balance -= price
-        print(f"'{product}' を選択 (価格: {price}円, 残高: {machine.balance}円)")
+        print(f"Selected '{product}' (price: {price} yen, balance: {machine.balance} yen)")
         machine.set_state(DispensingState())
 
     def dispense(self, machine: VendingMachine) -> None:
-        print("先に商品を選択してください")
+        print("Please select a product first")
 
     def cancel(self, machine: VendingMachine) -> None:
-        print(f"返金: {machine.balance}円")
+        print(f"Refund: {machine.balance} yen")
         machine.balance = 0
         machine.set_state(IdleState())
 
 
 class DispensingState(VendingState):
-    """商品排出中"""
+    """Dispensing product"""
 
     @property
     def name(self) -> str:
         return "dispensing"
 
     def insert_coin(self, machine: VendingMachine, amount: int) -> None:
-        print("商品排出中です。しばらくお待ちください")
+        print("Dispensing product. Please wait")
 
     def select_product(self, machine: VendingMachine, product: str) -> None:
-        print("商品排出中です。しばらくお待ちください")
+        print("Dispensing product. Please wait")
 
     def dispense(self, machine: VendingMachine) -> None:
         product = machine.selected_product
         machine.reduce_stock(product)
-        print(f"'{product}' を排出しました")
+        print(f"Dispensed '{product}'")
         machine.selected_product = None
 
         if machine.balance > 0:
@@ -904,18 +904,18 @@ class DispensingState(VendingState):
             machine.set_state(IdleState())
 
     def cancel(self, machine: VendingMachine) -> None:
-        print("商品排出中はキャンセルできません")
+        print("Cannot cancel while dispensing")
 
 
 # ============================
-# Context: 自動販売機
+# Context: Vending machine
 # ============================
 @dataclass
 class VendingMachine:
     products: dict[str, dict] = field(default_factory=lambda: {
-        "コーラ": {"price": 120, "stock": 5},
-        "お茶": {"price": 100, "stock": 3},
-        "コーヒー": {"price": 150, "stock": 0},  # 在庫切れ
+        "Cola": {"price": 120, "stock": 5},
+        "Tea": {"price": 100, "stock": 3},
+        "Coffee": {"price": 150, "stock": 0},  # Out of stock
     })
     balance: int = 0
     selected_product: str | None = None
@@ -939,7 +939,7 @@ class VendingMachine:
         if product in self.products:
             self.products[product]["stock"] -= 1
 
-    # 操作を状態に委譲
+    # Delegate operations to the state
     def insert_coin(self, amount: int) -> None:
         self._state.insert_coin(self, amount)
 
@@ -954,39 +954,39 @@ class VendingMachine:
 
 
 # ============================
-# 使用例
+# Usage example
 # ============================
 if __name__ == "__main__":
     vm = VendingMachine()
 
-    vm.insert_coin(100)    # 投入: 100円
-    vm.insert_coin(50)     # 追加投入: 50円 (残高: 150円)
-    vm.select_product("コーラ")  # 'コーラ' を選択 (価格: 120円, 残高: 30円)
-    vm.dispense()          # 'コーラ' を排出しました
+    vm.insert_coin(100)    # Inserted: 100 yen
+    vm.insert_coin(50)     # Additional coin: 50 yen (balance: 150 yen)
+    vm.select_product("Cola")  # Selected 'Cola' (price: 120 yen, balance: 30 yen)
+    vm.dispense()          # Dispensed 'Cola'
 
-    print(f"State: {vm._state.name}")  # idle (残高0) or has_money (残高あり)
-    print(f"残高: {vm.balance}円")     # 30円
+    print(f"State: {vm._state.name}")  # idle (balance 0) or has_money (balance remaining)
+    print(f"Balance: {vm.balance} yen")  # 30 yen
 
-    vm.select_product("お茶")  # 先にコインを投入してください... wait
-    # 実は has_money 状態のはず (残高30円)
+    vm.select_product("Tea")  # Please insert a coin first... wait
+    # Actually should be has_money state (30 yen remaining)
 
-    print(f"遷移履歴: {vm._history}")
+    print(f"Transition history: {vm._history}")
 ```
 
 ---
 
-## 7. 階層状態マシン（HSM: Hierarchical State Machine）
+## 7. Hierarchical State Machine (HSM)
 
-### コード例 6: 親子状態による複雑さの管理
+### Code Example 6: Managing Complexity with Parent-Child States
 
 ```typescript
-// hierarchical-state.ts -- 階層状態マシン
+// hierarchical-state.ts -- Hierarchical state machine
 
 // ============================
-// HSM の構造
+// HSM structure
 // ============================
-// 階層状態マシンでは、状態を親子関係で整理できる
-// 子状態で処理できないイベントは親状態に委譲される
+// In a hierarchical state machine, states can be organized in parent-child relationships
+// Events that cannot be handled by a child state are delegated to the parent state
 
 interface HierarchicalState {
   readonly name: string;
@@ -1010,7 +1010,7 @@ class HSMEngine {
   send(event: string): void {
     let state: HierarchicalState | undefined = this.currentState;
 
-    // 現在の状態から親に向かって、ハンドラを探す
+    // Search for a handler from the current state up to parents
     while (state) {
       const nextState = state.handle(event, this.context);
       if (nextState !== null) {
@@ -1024,20 +1024,20 @@ class HSMEngine {
   }
 
   private transitionTo(target: HierarchicalState): void {
-    // 共通祖先を見つけて、exit/entry を正しい順序で実行
+    // Find common ancestor and execute exit/entry in the correct order
     const exitStates = this.getAncestors(this.currentState);
     const enterStates = this.getAncestors(target);
 
-    // 共通祖先より上はスキップ
+    // Skip states above the common ancestor
     const common = this.findCommonAncestor(exitStates, enterStates);
 
-    // exit: 現在の状態から共通祖先まで
+    // exit: from current state up to the common ancestor
     for (const s of exitStates) {
       if (s === common) break;
       s.exit?.(this.context);
     }
 
-    // entry: 共通祖先からターゲットまで
+    // entry: from the common ancestor down to the target
     const toEnter = [];
     for (const s of enterStates) {
       if (s === common) break;
@@ -1078,12 +1078,12 @@ class HSMEngine {
 }
 
 // ============================
-// 使用例: メディアプレーヤー
+// Usage example: media player
 // ============================
-// 階層構造:
+// Hierarchy:
 //   Root
 //   ├── Stopped
-//   └── Playing (親状態)
+//   └── Playing (parent state)
 //       ├── NormalSpeed
 //       └── FastForward
 
@@ -1093,18 +1093,18 @@ const stoppedState: HierarchicalState = {
     if (event === 'PLAY') return normalSpeedState;
     return null;
   },
-  entry() { console.log('[Stopped] 停止中'); },
+  entry() { console.log('[Stopped] Stopped'); },
 };
 
 const playingState: HierarchicalState = {
   name: 'playing',
   handle(event) {
-    // 子状態で処理されないイベントをここで処理
+    // Handle events not processed by child states here
     if (event === 'STOP') return stoppedState;
     return null;
   },
-  entry() { console.log('[Playing] 再生開始'); },
-  exit() { console.log('[Playing] 再生終了'); },
+  entry() { console.log('[Playing] Playback started'); },
+  exit() { console.log('[Playing] Playback ended'); },
 };
 
 const normalSpeedState: HierarchicalState = {
@@ -1112,9 +1112,9 @@ const normalSpeedState: HierarchicalState = {
   parent: playingState,
   handle(event) {
     if (event === 'FAST_FORWARD') return fastForwardState;
-    return null; // 親 (playing) に委譲
+    return null; // Delegate to parent (playing)
   },
-  entry() { console.log('[Normal] 通常速度'); },
+  entry() { console.log('[Normal] Normal speed'); },
 };
 
 const fastForwardState: HierarchicalState = {
@@ -1122,31 +1122,31 @@ const fastForwardState: HierarchicalState = {
   parent: playingState,
   handle(event) {
     if (event === 'NORMAL') return normalSpeedState;
-    return null; // 親 (playing) に委譲
+    return null; // Delegate to parent (playing)
   },
-  entry() { console.log('[FastForward] 早送り'); },
+  entry() { console.log('[FastForward] Fast forward'); },
 };
 
-// 使用例
+// Usage example
 const player = new HSMEngine(stoppedState, {});
-// [Stopped] 停止中
+// [Stopped] Stopped
 
 player.send('PLAY');
-// [Playing] 再生開始
-// [Normal] 通常速度
+// [Playing] Playback started
+// [Normal] Normal speed
 
 player.send('FAST_FORWARD');
-// [FastForward] 早送り
+// [FastForward] Fast forward
 
 player.send('STOP');
-// ★ fastForward 自体は STOP を処理できないので、
-//    親の playing に委譲 → stoppedState に遷移
-// [Playing] 再生終了
-// [Stopped] 停止中
+// ★ fastForward itself cannot handle STOP, so
+//    it delegates to the parent playing → transitions to stoppedState
+// [Playing] Playback ended
+// [Stopped] Stopped
 ```
 
 ```
-階層状態マシンの構造:
+Hierarchical state machine structure:
 
   ┌─────────────────────────────────────────┐
   │                Root                      │
@@ -1163,23 +1163,23 @@ player.send('STOP');
   │                                          │
   └──────────────────────────────────────────┘
 
-  イベント委譲の流れ:
-    FastForward で STOP を受け取った場合:
-    1. FastForward.handle('STOP') → null（処理できない）
-    2. Playing.handle('STOP') → stoppedState（親が処理）
+  Event delegation flow:
+    When STOP is received in FastForward:
+    1. FastForward.handle('STOP') → null (cannot handle)
+    2. Playing.handle('STOP') → stoppedState (parent handles it)
 ```
 
 ---
 
-## 8. React での State パターン
+## 8. State Pattern in React
 
-### コード例 7: useReducer + State パターンでUIの状態管理
+### Code Example 7: UI State Management with useReducer + State Pattern
 
 ```typescript
-// react-state-pattern.tsx -- React での State パターン活用
+// react-state-pattern.tsx -- Using the State pattern in React
 
 // ============================
-// UI の状態定義
+// UI state definitions
 // ============================
 type ModalState =
   | { status: 'closed' }
@@ -1199,7 +1199,7 @@ type ModalAction =
   | { type: 'RETRY' };
 
 // ============================
-// State パターンを Reducer で表現
+// Expressing the State pattern as a Reducer
 // ============================
 function modalReducer(state: ModalState, action: ModalAction): ModalState {
   switch (state.status) {
@@ -1231,7 +1231,7 @@ function modalReducer(state: ModalState, action: ModalAction): ModalState {
     case 'error':
       switch (action.type) {
         case 'RETRY':
-          if (state.retryCount >= 3) return state; // ガード条件
+          if (state.retryCount >= 3) return state; // Guard condition
           return { status: 'loading' };
         case 'CLOSE': return { status: 'closed' };
         default: return state;
@@ -1239,7 +1239,7 @@ function modalReducer(state: ModalState, action: ModalAction): ModalState {
 
     case 'confirming':
       switch (action.type) {
-        case 'CONFIRM_YES': return { status: 'closed' }; // 確認後に閉じる
+        case 'CONFIRM_YES': return { status: 'closed' }; // Close after confirmation
         case 'CONFIRM_NO': return { status: 'open', data: state.data };
         default: return state;
       }
@@ -1250,30 +1250,30 @@ function modalReducer(state: ModalState, action: ModalAction): ModalState {
 }
 
 // ============================
-// React コンポーネントでの使用
+// Usage in a React component
 // ============================
 /*
 function ModalComponent() {
   const [state, dispatch] = useReducer(modalReducer, { status: 'closed' });
 
-  // 状態に応じた UI レンダリング
+  // Render UI based on state
   switch (state.status) {
     case 'closed':
-      return <button onClick={() => dispatch({ type: 'OPEN' })}>開く</button>;
+      return <button onClick={() => dispatch({ type: 'OPEN' })}>Open</button>;
 
     case 'loading':
-      return <div>読み込み中...</div>;
+      return <div>Loading...</div>;
 
     case 'open':
       return (
         <div>
           <pre>{JSON.stringify(state.data)}</pre>
-          <button onClick={() => dispatch({ type: 'CLOSE' })}>閉じる</button>
+          <button onClick={() => dispatch({ type: 'CLOSE' })}>Close</button>
           <button onClick={() => dispatch({
             type: 'CONFIRM',
-            message: '本当に削除しますか？',
+            message: 'Are you sure you want to delete?',
           })}>
-            削除
+            Delete
           </button>
         </div>
       );
@@ -1281,13 +1281,13 @@ function ModalComponent() {
     case 'error':
       return (
         <div>
-          <p>エラー: {state.message}</p>
+          <p>Error: {state.message}</p>
           {state.retryCount < 3 && (
             <button onClick={() => dispatch({ type: 'RETRY' })}>
-              リトライ ({state.retryCount}/3)
+              Retry ({state.retryCount}/3)
             </button>
           )}
-          <button onClick={() => dispatch({ type: 'CLOSE' })}>閉じる</button>
+          <button onClick={() => dispatch({ type: 'CLOSE' })}>Close</button>
         </div>
       );
 
@@ -1295,8 +1295,8 @@ function ModalComponent() {
       return (
         <div>
           <p>{state.message}</p>
-          <button onClick={() => dispatch({ type: 'CONFIRM_YES' })}>はい</button>
-          <button onClick={() => dispatch({ type: 'CONFIRM_NO' })}>いいえ</button>
+          <button onClick={() => dispatch({ type: 'CONFIRM_YES' })}>Yes</button>
+          <button onClick={() => dispatch({ type: 'CONFIRM_NO' })}>No</button>
         </div>
       );
   }
@@ -1304,103 +1304,103 @@ function ModalComponent() {
 */
 ```
 
-React の `useReducer` は State パターンそのものです。state の `status` フィールドが「どの State クラスか」に対応し、`switch (state.status)` が「状態ごとの振る舞い分岐」に対応します。discriminated union（判別可能共用型）により、各状態で利用可能なプロパティが型安全に制限されます。
+React's `useReducer` is the State pattern itself. The `status` field of the state corresponds to "which State class", and `switch (state.status)` corresponds to "behavior branching per state". Discriminated unions ensure that the properties available in each state are type-safely restricted.
 
 ---
 
-## 9. 深掘り: State パターンの設計判断
+## 9. Deep Dive: Design Decisions for the State Pattern
 
-### 遷移の責任をどこに持たせるか
+### Where to Place Transition Responsibility
 
 ```
-方式1: State 内部で遷移（GoF の推奨）
-  各 State クラスが次の状態を直接知っている
+Approach 1: Transitions inside State (GoF recommendation)
+  Each State class directly knows the next state
   PaidState.ship() → context.setState(new ShippedState())
 
-  利点: 各状態が自律的、分散した制御
-  欠点: 状態間の結合、遷移の全体像が見づらい
+  Pros: Each state is autonomous, decentralized control
+  Cons: Coupling between states, the overall transition picture is hard to see
 
-方式2: Context / 遷移テーブルで一元管理
-  外部テーブルで全遷移を定義
+Approach 2: Centralized management via Context / transition table
+  All transitions are defined in an external table
   transitions['paid']['SHIP'] = 'shipped'
 
-  利点: 遷移の全体像が明確、変更しやすい
-  欠点: テーブルが大きくなる、ガード条件の表現が冗長
+  Pros: Overall transitions are clear, easy to change
+  Cons: Table grows large, guard conditions are verbose to express
 
-方式3: ハイブリッド
-  単純な遷移はテーブル、複雑な遷移はメソッド内で
-  guard 条件付き遷移はメソッドで、単純遷移はテーブルで
+Approach 3: Hybrid
+  Simple transitions use the table, complex transitions use methods
+  Transitions with guard conditions use methods, simple ones use the table
 ```
 
-### State オブジェクトの生成戦略
+### State Object Creation Strategy
 
 ```
-方式1: 毎回 new で生成
+Approach 1: Create a new instance each time
   context.setState(new PaidState());
-  利点: 状態固有のデータを保持可能
-  欠点: GC 負荷
+  Pros: Can hold state-specific data
+  Cons: GC pressure
 
-方式2: Singleton / 共有インスタンス
+Approach 2: Singleton / shared instance
   context.setState(PaidState.INSTANCE);
-  利点: メモリ効率が良い
-  欠点: 状態にデータを持てない
+  Pros: Memory efficient
+  Cons: Cannot hold data in the state
 
-方式3: Flyweight + 外部データ
-  状態は共有、データは Context に保持
-  利点: メモリ効率 + データ保持
-  欠点: 実装がやや複雑
+Approach 3: Flyweight + external data
+  State is shared, data is held in Context
+  Pros: Memory efficient + data holding
+  Cons: Implementation is slightly more complex
 
-  判断基準: 状態固有データがあるか？
-  ある → 方式1
-  ない → 方式2（推奨）
+  Decision criteria: Is there state-specific data?
+  Yes → Approach 1
+  No  → Approach 2 (recommended)
 ```
 
 ---
 
-## 10. 比較表
+## 10. Comparison Table
 
-### State vs 他のパターン
+### State vs Other Patterns
 
-| 特性 | State パターン | Strategy パターン | if/else 分岐 |
+| Characteristic | State Pattern | Strategy Pattern | if/else Branching |
 |------|--------------|-----------------|-------------|
-| 振る舞いの切替 | 内部状態に応じて自動 | 外部から明示的に注入 | 条件分岐で決定 |
-| 遷移の管理 | 状態クラスが遷移先を知る | 遷移の概念なし | コード内に散在 |
-| 遷移の主体 | State 自身が遷移を決定 | Client が切り替え | なし |
-| OCP (新しい状態の追加) | 新クラスを追加するだけ | 新戦略を追加するだけ | 全条件を修正 |
-| テスタビリティ | 状態ごとに独立テスト | 戦略ごとに独立テスト | 全パス網羅が困難 |
-| 複雑さ | 中（状態数に比例） | 低い | 状態数の二乗に比例 |
+| Behavior switching | Automatic based on internal state | Explicitly injected from outside | Determined by conditional branches |
+| Transition management | State class knows the next state | No concept of transitions | Scattered throughout code |
+| Who drives transitions | State itself decides the transition | Client switches | None |
+| OCP (adding new states) | Just add a new class | Just add a new strategy | Modify all conditions |
+| Testability | Independent test per state | Independent test per strategy | Hard to cover all paths |
+| Complexity | Medium (proportional to number of states) | Low | Proportional to the square of number of states |
 
-### FSM ライブラリの比較
+### FSM Library Comparison
 
-| 特性 | XState | Robot | Zustand + 自前FSM | 自前実装 |
+| Characteristic | XState | Robot | Zustand + custom FSM | Custom implementation |
 |------|--------|-------|--------------------|---------|
-| 型安全性 | 高い（v5で大幅改善） | 高い | 中 | 実装次第 |
-| 可視化 | Inspector / Visualizer | なし | なし | なし |
-| 階層状態 | 対応 | 非対応 | 非対応 | 要実装 |
-| 並行状態 | 対応 | 非対応 | 非対応 | 要実装 |
-| バンドルサイズ | ~40KB | ~1KB | ~3KB + 自前 | 0 |
-| 学習コスト | 高い | 低い | 中 | 低い |
-| 実績 | 大規模プロダクト多数 | 中規模 | 多数 | -- |
+| Type safety | High (greatly improved in v5) | High | Medium | Depends on implementation |
+| Visualization | Inspector / Visualizer | None | None | None |
+| Hierarchical states | Supported | Not supported | Not supported | Requires implementation |
+| Parallel states | Supported | Not supported | Not supported | Requires implementation |
+| Bundle size | ~40KB | ~1KB | ~3KB + custom | 0 |
+| Learning cost | High | Low | Medium | Low |
+| Track record | Many large-scale products | Medium scale | Many | -- |
 
-### State パターンの導入判断
+### Deciding When to Introduce the State Pattern
 
-| 判断基準 | State パターンが有効 | if/else で十分 |
+| Decision Criteria | State Pattern Is Effective | if/else Is Sufficient |
 |---------|---------------------|---------------|
-| 状態数 | 3つ以上 | 2つ以下 |
-| 状態依存メソッド数 | 2つ以上 | 1つ |
-| 新しい状態の追加 | 頻繁にありえる | ほぼ固定 |
-| 遷移ルール | 複雑（ガード条件あり） | 単純 |
-| テスト要件 | 状態ごとの独立テストが必要 | 網羅テストで十分 |
+| Number of states | 3 or more | 2 or fewer |
+| State-dependent methods | 2 or more | 1 |
+| Adding new states | Likely to happen frequently | Nearly fixed |
+| Transition rules | Complex (with guard conditions) | Simple |
+| Testing requirements | Independent tests per state needed | Coverage testing is enough |
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-patterns
 
-### アンチパターン 1: 巨大な switch/if-else チェーン
+### Anti-pattern 1: Giant switch/if-else chains
 
 ```typescript
 // ============================
-// [NG] 状態ごとの分岐が全メソッドに散在
+// [BAD] Per-state branching scattered across all methods
 // ============================
 class Order {
   status: string = 'pending';
@@ -1417,55 +1417,55 @@ class Order {
     } else if (this.status === 'cancelled') {
       throw new Error('Order is cancelled');
     }
-    // 新しい状態 "returned" を追加 → ここに分岐を追加
+    // Adding new state "returned" → add branch here
   }
 
   ship(): void {
     if (this.status === 'paid') { /* ... */ }
     else if (this.status === 'pending') { throw new Error('Must pay first'); }
     else if (this.status === 'shipped') { throw new Error('Already shipped'); }
-    // ... 同じパターンの繰り返し
-    // 新しい状態 "returned" を追加 → ここにも分岐を追加
+    // ... same pattern repeats
+    // Adding new state "returned" → add branch here too
   }
 
-  // deliver(), cancel() も同様...
-  // 5状態 x 4メソッド = 20箇所の条件分岐!!
+  // deliver(), cancel() follow the same pattern...
+  // 5 states x 4 methods = 20 conditional branches!!
 }
 
 // ============================
-// [OK] State パターンで状態ごとのクラスに分離
+// [GOOD] Separate into per-state classes using the State pattern
 // ============================
-// → 各状態の振る舞いが1クラスにまとまり、保守性が向上
-// → 新しい状態の追加は新クラスの追加のみ
-// → 既存コードの修正不要（OCP 準拠）
-// (実装は上記コード例 1 を参照)
+// → Each state's behavior is consolidated in one class, improving maintainability
+// → Adding a new state only requires adding a new class
+// → No modification to existing code required (OCP compliant)
+// (See Code Example 1 above for the implementation)
 ```
 
-### アンチパターン 2: 遷移の暗黙的な副作用
+### Anti-pattern 2: Implicit side effects in transitions
 
 ```typescript
 // ============================
-// [NG] 遷移の副作用が State 内に隠れている
+// [BAD] Side effects of transitions hidden inside the State
 // ============================
 class PaidStateNG implements OrderState {
   readonly name = 'paid';
 
   ship(context: OrderContext): void {
-    // ★ 遷移のたびに大量の副作用が暗黙的に実行される
+    // ★ A large number of side effects are executed implicitly on every transition
     sendEmail(context.orderId, 'Your order has been shipped!');
     updateInventory(context.orderId);
     notifyWarehouse(context.orderId);
     logToAnalytics('order_shipped', context.orderId);
     context.setState(new ShippedState(), 'ship');
-    // どの副作用が実行されるか、外から全く見えない
+    // What side effects run is completely invisible from the outside
   }
   // ...
 }
 
 // ============================
-// [OK] 副作用を遷移アクション/ミドルウェアとして明示
+// [GOOD] Explicitly define side effects as transition actions/middleware
 // ============================
-// 方法1: FSM の action として宣言的に定義
+// Method 1: Declare declaratively as FSM actions
 const orderFSM = new FSM<OrderContext>({
   id: 'order',
   initial: 'pending',
@@ -1476,7 +1476,7 @@ const orderFSM = new FSM<OrderContext>({
         SHIP: {
           target: 'shipped',
           action: (ctx) => {
-            // 副作用が明示的に定義されている
+            // Side effects are explicitly defined
             emailService.send(ctx.orderId, 'shipped');
             inventoryService.update(ctx.orderId);
             warehouseService.notify(ctx.orderId);
@@ -1488,16 +1488,16 @@ const orderFSM = new FSM<OrderContext>({
   },
 });
 
-// 方法2: Observer パターンと組合せ
-// State の遷移をイベントとして通知し、
-// 副作用はリスナー側で処理する
+// Method 2: Combine with Observer pattern
+// Notify state transitions as events,
+// and handle side effects on the listener side
 class OrderContextWithEvents extends OrderContext {
   private listeners: Array<(event: { from: string; to: string }) => void> = [];
 
   override setState(state: OrderState, action: string): void {
     const from = this.getStateName();
     super.setState(state, action);
-    // 遷移後にイベント通知
+    // Notify event after transition
     for (const listener of this.listeners) {
       listener({ from, to: state.name });
     }
@@ -1508,7 +1508,7 @@ class OrderContextWithEvents extends OrderContext {
   }
 }
 
-// 副作用をリスナーとして登録（テスト時はモックに差し替え可能）
+// Register side effects as listeners (can be replaced with mocks during testing)
 const order2 = new OrderContextWithEvents('ORD-002');
 order2.onTransition(({ from, to }) => {
   if (from === 'paid' && to === 'shipped') {
@@ -1518,11 +1518,11 @@ order2.onTransition(({ from, to }) => {
 });
 ```
 
-### アンチパターン 3: 状態とデータの混同
+### Anti-pattern 3: Confusing state with data
 
 ```typescript
 // ============================
-// [NG] フラグの組み合わせで「状態」を表現
+// [BAD] Representing "state" with a combination of flags
 // ============================
 class FormNG {
   isSubmitting: boolean = false;
@@ -1533,14 +1533,14 @@ class FormNG {
   submit(): void {
     if (this.isSubmitting) return;
     if (this.isValidating) return;
-    // isSubmitting && hasError はどういう状態？
-    // フラグの組み合わせ: 2^4 = 16 通り
-    // 実際に有効な状態はその一部だが、不正な組み合わせを防げない
+    // What does isSubmitting && hasError mean?
+    // Flag combinations: 2^4 = 16 possibilities
+    // Only some are valid states, but invalid combinations cannot be prevented
   }
 }
 
 // ============================
-// [OK] Discriminated Union で有効な状態のみを表現
+// [GOOD] Use Discriminated Union to represent only valid states
 // ============================
 type FormState =
   | { status: 'idle' }
@@ -1550,16 +1550,16 @@ type FormState =
   | { status: 'success'; submittedAt: Date }
   | { status: 'error'; message: string; retryCount: number };
 
-// 不正な状態の組み合わせが型レベルで存在しない
-// status === 'idle' のときに data にアクセス → 型エラー
+// Invalid state combinations do not exist at the type level
+// Accessing data when status === 'idle' → type error
 function handleForm(state: FormState): void {
   switch (state.status) {
     case 'error':
-      console.log(state.message);      // OK: error 状態にのみ message がある
+      console.log(state.message);      // OK: message only exists in error state
       console.log(state.retryCount);   // OK
       break;
     case 'idle':
-      // console.log(state.message);   // 型エラー! idle に message はない
+      // console.log(state.message);   // Type error! idle has no message
       break;
   }
 }
@@ -1567,24 +1567,24 @@ function handleForm(state: FormState): void {
 
 ---
 
-## 12. 演習問題
+## 12. Exercises
 
-### 演習 1（基礎）: ATM の状態管理
+### Exercise 1 (Basic): ATM State Management
 
-以下の仕様を満たす ATM の State パターンを実装してください。
+Implement an ATM State pattern that satisfies the following specification.
 
-**仕様:**
-- 状態: `idle`（待機） → `cardInserted`（カード挿入済み） → `pinVerified`（暗証番号確認済み） → `transacting`（取引中） → `idle`
-- 操作: `insertCard()`, `enterPin(pin)`, `selectTransaction(type)`, `ejectCard()`
-- 暗証番号は3回間違えるとカードをロック（`locked` 状態）
+**Specification:**
+- States: `idle` (waiting) → `cardInserted` (card inserted) → `pinVerified` (PIN verified) → `transacting` (in transaction) → `idle`
+- Operations: `insertCard()`, `enterPin(pin)`, `selectTransaction(type)`, `ejectCard()`
+- If the PIN is entered incorrectly 3 times, the card is locked (`locked` state)
 
-**期待される出力:**
+**Expected output:**
 ```
 atm.insertCard('1234-5678')
 → [ATM] idle → cardInserted
-atm.enterPin('0000')  // 間違い
-→ "暗証番号が違います (残り2回)"
-atm.enterPin('1234')  // 正解
+atm.enterPin('0000')  // Wrong
+→ "Incorrect PIN (2 attempts remaining)"
+atm.enterPin('1234')  // Correct
 → [ATM] cardInserted → pinVerified
 atm.selectTransaction('withdraw')
 → [ATM] pinVerified → transacting
@@ -1594,160 +1594,158 @@ atm.ejectCard()
 
 ---
 
-### 演習 2（応用）: WebSocket 接続の FSM
+### Exercise 2 (Intermediate): WebSocket Connection FSM
 
-以下の仕様を満たす WebSocket 接続状態の FSM を実装してください。
+Implement a WebSocket connection state FSM that satisfies the following specification.
 
-**仕様:**
-- 状態: `disconnected`, `connecting`, `connected`, `reconnecting`, `error`
-- イベント: `CONNECT`, `CONNECTED`, `DISCONNECT`, `ERROR`, `RETRY`
-- ガード条件: `reconnecting` → `connecting` はリトライ回数が5回以下の場合のみ
-- 自動リコネクト: `error` 状態で3秒後に自動 RETRY
+**Specification:**
+- States: `disconnected`, `connecting`, `connected`, `reconnecting`, `error`
+- Events: `CONNECT`, `CONNECTED`, `DISCONNECT`, `ERROR`, `RETRY`
+- Guard condition: `reconnecting` → `connecting` only allowed when retry count is 5 or fewer
+- Auto-reconnect: automatic RETRY after 3 seconds in `error` state
 
-**期待される出力:**
+**Expected output:**
 ```
 ws.send('CONNECT')    → disconnected → connecting
 ws.send('CONNECTED')  → connecting → connected
-ws.send('ERROR')      → connected → error → (3秒後) → reconnecting → connecting
+ws.send('ERROR')      → connected → error → (after 3s) → reconnecting → connecting
 ws.send('CONNECTED')  → connecting → connected
-// 5回以上リトライ失敗:
-ws.send('ERROR')      → "最大リトライ回数に達しました"
+// After 5 or more failed retries:
+ws.send('ERROR')      → "Maximum retry count reached"
 ```
 
 ---
 
-### 演習 3（発展）: ゲーム AI の行動状態マシン
+### Exercise 3 (Advanced): Game AI Behavior State Machine
 
-以下の仕様を満たす敵キャラクター AI の階層状態マシンを実装してください。
+Implement a hierarchical state machine for an enemy character AI that satisfies the following specification.
 
-**仕様:**
-- 親状態: `alive`, `dead`
-- `alive` の子状態: `idle`, `patrol`, `chase`, `attack`
-- 遷移条件:
-  - `idle` → `patrol`: 一定時間経過
-  - `patrol` → `chase`: プレイヤーを検知（距離 < 100）
-  - `chase` → `attack`: 攻撃範囲内（距離 < 20）
-  - `chase` → `patrol`: プレイヤーを見失う（距離 > 150）
-  - `attack` → `chase`: プレイヤーが攻撃範囲外に逃げる
+**Specification:**
+- Parent states: `alive`, `dead`
+- Child states of `alive`: `idle`, `patrol`, `chase`, `attack`
+- Transition conditions:
+  - `idle` → `patrol`: after a certain amount of time has passed
+  - `patrol` → `chase`: player detected (distance < 100)
+  - `chase` → `attack`: within attack range (distance < 20)
+  - `chase` → `patrol`: player lost (distance > 150)
+  - `attack` → `chase`: player escapes outside attack range
   - `alive.*` → `dead`: HP <= 0
 
-**期待される出力:**
+**Expected output:**
 ```
 enemy.update({ playerDistance: 200, hp: 100 })
-→ [idle] 待機中...
+→ [idle] Idling...
 enemy.update({ playerDistance: 80, hp: 100 })
-→ [idle → chase] プレイヤー検知! 追跡開始
+→ [idle → chase] Player detected! Starting pursuit
 enemy.update({ playerDistance: 15, hp: 100 })
-→ [chase → attack] 攻撃範囲内! 攻撃開始
+→ [chase → attack] Within attack range! Starting attack
 enemy.update({ playerDistance: 15, hp: 0 })
-→ [attack → dead] HP が 0 になりました（alive の子状態で共通ハンドリング）
+→ [attack → dead] HP reached 0 (common handling in alive child state)
 ```
 
 ---
 
 ## 13. FAQ
 
-### Q1: State パターンと Strategy パターンの違いは何ですか？
+### Q1: What is the difference between the State pattern and the Strategy pattern?
 
-構造（UML 図）はほぼ同じですが、**意図と遷移の有無**が本質的に異なります。
+The structure (UML diagram) is nearly identical, but they differ fundamentally in **intent and whether transitions exist**.
 
-| 比較項目 | State | Strategy |
+| Comparison | State | Strategy |
 |---------|-------|----------|
-| 意図 | 内部状態に応じて振る舞いが変わる | アルゴリズムを外部から注入 |
-| 遷移 | State 自身が次の状態に遷移する | 遷移の概念なし |
-| 切替の主体 | State オブジェクト自身 | Client（外部） |
-| 典型例 | 注文のライフサイクル管理 | ソートアルゴリズムの選択 |
+| Intent | Behavior changes based on internal state | Algorithm is injected from outside |
+| Transitions | State itself transitions to the next state | No concept of transitions |
+| Who switches | The State object itself | The Client (external) |
+| Typical example | Order lifecycle management | Choosing a sorting algorithm |
 
-判断基準: 「振る舞いの切り替えが自動か手動か」。ユーザーの操作とは無関係に、内部の条件によって振る舞いが変わるなら State、外部から明示的にアルゴリズムを選択するなら Strategy です。
+Decision criteria: "Is the behavior switching automatic or manual?" If behavior changes automatically based on internal conditions regardless of user action, use State. If an algorithm is explicitly selected from the outside, use Strategy.
 
-### Q2: 状態の数が多い場合はどうすべきですか？
+### Q2: What should I do when there are many states?
 
-状態が 10 以上になる場合は以下を検討してください。
+If there are 10 or more states, consider the following.
 
-1. **階層状態マシン（HSM）**: 共通の振る舞いを親状態にまとめる。XState はネイティブサポートあり。
-2. **並行状態マシン**: 独立した関心事を別の FSM に分離し並行で動かす。例: 「接続状態」と「認証状態」は別 FSM。
-3. **状態の分解**: 1つの「状態」が実は2つの独立した概念の組み合わせではないか検討する。例: `loadingAuthenticated` は `loading` x `authenticated` に分解。
+1. **Hierarchical State Machine (HSM)**: Consolidate common behavior in parent states. XState has native support.
+2. **Parallel state machines**: Separate independent concerns into separate FSMs running in parallel. For example: "connection state" and "authentication state" as separate FSMs.
+3. **State decomposition**: Check whether one "state" is actually a combination of two independent concepts. For example: `loadingAuthenticated` can be decomposed into `loading` x `authenticated`.
 
-### Q3: State パターンをどの程度の規模から導入すべきですか？
+### Q3: From what scale should I introduce the State pattern?
 
-**状態が3つ以上**かつ、**状態によって振る舞いが異なるメソッドが2つ以上**ある場合に検討する価値があります。状態が2つで分岐も1〜2箇所なら、シンプルな if 文の方が可読性が高いです。
+It is worth considering when there are **3 or more states** and **2 or more methods whose behavior differs by state**. If there are only 2 states and only 1-2 branching points, a simple if statement will be more readable.
 
-判断の公式:
+Decision formula:
 ```
-修正コスト = 新しい状態の追加時に修正するファイル/メソッドの数
-  if/else 方式: 修正コスト = メソッド数 × 1
-  State 方式:   修正コスト = 1（新クラスの追加のみ）
+Modification cost = number of files/methods to modify when adding a new state
+  if/else approach: modification cost = number of methods × 1
+  State approach:   modification cost = 1 (only adding a new class)
 
-修正コスト > 3 なら State パターンの導入効果あり
+If modification cost > 3, introducing the State pattern is worthwhile
 ```
 
-### Q4: XState を使うべきか、自前実装すべきか？
+### Q4: Should I use XState or a custom implementation?
 
-判断基準:
+Decision criteria:
 
-| 要件 | XState | 自前実装 |
+| Requirement | XState | Custom implementation |
 |------|--------|---------|
-| 階層状態が必要 | XState | 実装が大変 |
-| 可視化が必要 | XState（Inspector） | 別途開発が必要 |
-| バンドルサイズ制限 | 自前（~0KB） | -- |
-| 並行状態が必要 | XState | 実装が非常に大変 |
-| 単純な FSM（状態5個以下） | 自前 | -- |
-| チーム全員が XState を知っている | XState | -- |
+| Hierarchical states needed | XState | Hard to implement |
+| Visualization needed | XState (Inspector) | Requires separate development |
+| Bundle size constraints | Custom (~0KB) | -- |
+| Parallel states needed | XState | Very hard to implement |
+| Simple FSM (5 or fewer states) | Custom | -- |
+| Everyone on the team knows XState | XState | -- |
 
-### Q5: State パターンと状態管理ライブラリ（Redux, Zustand）の関係は？
+### Q5: What is the relationship between the State pattern and state management libraries (Redux, Zustand)?
 
-Redux や Zustand は「アプリケーション全体の状態」を管理するライブラリであり、State パターンは「特定のオブジェクトの振る舞いの切り替え」を管理するパターンです。
-
-両者は排他ではなく、**併用**するのが一般的です。例: Redux の store に注文のステータス（`pending`, `paid`, ...）を保持しつつ、各ステータスの振る舞い（許可される操作、UI の表示内容）は State パターンの reducer で管理する。React の `useReducer` は State パターンの典型的な実装例です。
+Redux and Zustand are libraries that manage "the entire application's state", while the State pattern manages "switching an object's behavior". The two are not mutually exclusive and are commonly **used together**. For example: hold the order status (`pending`, `paid`, ...) in the Redux store, while managing the behavior for each status (allowed operations, UI display content) in a State pattern reducer. React's `useReducer` is a typical implementation of the State pattern.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. It is recommended to thoroughly understand the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes particularly important during code reviews and architectural design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |------|------|
-| State パターンの本質 | 条件分岐をポリモーフィズムに変換。if/else の爆発を防止 |
-| Context | 現在の状態を保持し、操作を状態オブジェクトに委譲 |
-| 遷移の責任 | State 自身が次の状態を決定する（Strategy との決定的な違い） |
-| 型安全 FSM | TypeScript の型システムで遷移を制約。不正な遷移をコンパイル時に検出 |
-| 宣言的 FSM | 設定オブジェクトで状態遷移を定義。可視化・テストが容易 |
-| 階層状態マシン (HSM) | 親子関係で状態を整理。イベント委譲による共通処理の集約 |
-| React との連携 | useReducer + Discriminated Union が State パターンの実装 |
-| 導入判断 | 状態3以上 & 状態依存メソッド2以上で検討 |
+| Essence of the State pattern | Convert conditional branching into polymorphism. Prevent if/else explosion |
+| Context | Holds the current state and delegates operations to state objects |
+| Transition responsibility | The State itself decides the next state (the decisive difference from Strategy) |
+| Type-safe FSM | Constrain transitions with TypeScript's type system. Detect invalid transitions at compile time |
+| Declarative FSM | Define state transitions in a configuration object. Easy to visualize and test |
+| Hierarchical State Machine (HSM) | Organize states in parent-child relationships. Aggregate common processing via event delegation |
+| Integration with React | useReducer + Discriminated Union is an implementation of the State pattern |
+| Adoption decision | Consider when there are 3+ states & 2+ state-dependent methods |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [02-command.md](./02-command.md) -- Command パターンと Undo/Redo（Command + State で状態付き操作管理）
-- [01-strategy.md](./01-strategy.md) -- Strategy パターン（State との構造的類似点と意図の違い）
-- [04-iterator.md](./04-iterator.md) -- Iterator パターンとジェネレータ
-- [00-observer.md](./00-observer.md) -- Observer パターン（State 遷移の通知に活用）
-- Event Sourcing / CQRS -- State の変化をイベントとして記録
+- [02-command.md](./02-command.md) -- Command pattern and Undo/Redo (stateful operation management with Command + State)
+- [01-strategy.md](./01-strategy.md) -- Strategy pattern (structural similarities with State and differences in intent)
+- [04-iterator.md](./04-iterator.md) -- Iterator pattern and generators
+- [00-observer.md](./00-observer.md) -- Observer pattern (used for notifying State transitions)
+- Event Sourcing / CQRS -- Recording state changes as events
 
 ---
 
-## 参考文献
+## References
 
-1. **Design Patterns: Elements of Reusable Object-Oriented Software** -- Gamma, Helm, Johnson, Vlissides (GoF, 1994) -- State パターンの原典。Chapter 5, pp.305-313
-2. **XState Documentation** -- https://xstate.js.org/docs/ -- 宣言的状態マシンライブラリの公式ドキュメント
-3. **Statecharts: A Visual Formalism for Complex Systems** -- David Harel (1987) -- 階層状態マシンの理論的基盤。State パターンの学術的ルーツ
-4. **Refactoring.Guru - State** -- https://refactoring.guru/design-patterns/state -- 図解と多言語実装例
-5. **Ian Horrocks - Constructing the User Interface with Statecharts** -- Addison-Wesley (1999) -- UI 設計における状態マシンの実践的ガイド
+1. **Design Patterns: Elements of Reusable Object-Oriented Software** -- Gamma, Helm, Johnson, Vlissides (GoF, 1994) -- The original source for the State pattern. Chapter 5, pp.305-313
+2. **XState Documentation** -- https://xstate.js.org/docs/ -- Official documentation for the declarative state machine library
+3. **Statecharts: A Visual Formalism for Complex Systems** -- David Harel (1987) -- Theoretical foundation of hierarchical state machines. Academic roots of the State pattern
+4. **Refactoring.Guru - State** -- https://refactoring.guru/design-patterns/state -- Illustrated examples and multi-language implementations
+5. **Ian Horrocks - Constructing the User Interface with Statecharts** -- Addison-Wesley (1999) -- Practical guide for state machines in UI design
