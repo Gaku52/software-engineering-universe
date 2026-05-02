@@ -1,90 +1,90 @@
-# 関数型プログラミングの原則をクリーンコードに活かす
+# Applying Functional Programming Principles to Clean Code
 
-> 純粋関数、副作用分離、高階関数、パイプラインなど、関数型プログラミングの核心的な原則をクリーンコードの文脈で解説し、より安全で保守しやすいコードの実現を支援する。
+> This chapter explains the core principles of functional programming — pure functions, side effect separation, higher-order functions, and pipelines — in the context of clean code, helping you write safer and more maintainable software.
 
 ---
 
-## 前提知識
+## Prerequisites
 
-| トピック | 内容 | 参照先 |
+| Topic | Content | Reference |
 |---------|------|--------|
-| クリーンコードの基本原則 | 命名規則・関数設計・コメントの書き方 | 00-naming-conventions.md |
-| SOLID原則 | 単一責任、開放閉鎖、依存性逆転 | 04-solid-principles.md |
-| テスト原則 | ユニットテストの基本・テストピラミッド | [04-testing-principles.md](../01-practices/04-testing-principles.md) |
-| イミュータビリティ | 不変データ構造と値オブジェクト | [00-immutability.md](./00-immutability.md) |
-| Strategyパターン | 振る舞いの差し替え | [../../../design-patterns-guide/docs/02-behavioral/01-strategy.md](../../../design-patterns-guide/docs/02-behavioral/01-strategy.md) |
+| Clean Code Fundamentals | Naming conventions, function design, commenting | 00-naming-conventions.md |
+| SOLID Principles | Single responsibility, open/closed, dependency inversion | 04-solid-principles.md |
+| Testing Principles | Unit testing basics, test pyramid | [04-testing-principles.md](../01-practices/04-testing-principles.md) |
+| Immutability | Immutable data structures and value objects | [00-immutability.md](./00-immutability.md) |
+| Strategy Pattern | Swapping behavior | [../../../design-patterns-guide/docs/02-behavioral/01-strategy.md](../../../design-patterns-guide/docs/02-behavioral/01-strategy.md) |
 
 ---
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **純粋関数と参照透過性**の概念を理解し、テスト可能で予測可能な関数を設計できる
-2. **副作用の分離・Functional Core / Imperative Shell** パターンでアプリケーションを構造化できる
-3. **高階関数・カリー化・部分適用**を活用して、再利用性と合成可能性の高いコードを書ける
-4. **型安全なパイプラインとResult/Either型**で、宣言的かつ安全なデータ変換・エラーハンドリングを実装できる
-5. **関数型の原則をオブジェクト指向や日常の開発**に統合し、ハイブリッドアーキテクチャを実現できる
+1. Understand the concepts of **pure functions and referential transparency** to design testable, predictable functions
+2. Structure applications using **side effect separation and the Functional Core / Imperative Shell** pattern
+3. Write highly reusable and composable code by leveraging **higher-order functions, currying, and partial application**
+4. Implement **type-safe pipelines with Result/Either types** for declarative and safe data transformation and error handling
+5. Integrate **functional principles with object-oriented programming and everyday development** to achieve a hybrid architecture
 
 ---
 
-## 1. 関数型プログラミングの基礎概念
+## 1. Core Concepts of Functional Programming
 
-### 1.1 関数型の核心的原則
+### 1.1 The Core Principles of Functional Programming
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│          関数型プログラミングの5つの柱                   │
+│          The 5 Pillars of Functional Programming      │
 ├──────────────────────────────────────────────────────┤
 │                                                      │
 │  ┌──────────────┐                                    │
-│  │ 1. 純粋関数   │  同じ入力 → 常に同じ出力          │
-│  │              │  外部状態を変更しない               │
+│  │ 1. Pure      │  Same input → always same output  │
+│  │    Functions │  Does not modify external state   │
 │  └──────────────┘                                    │
 │           │                                          │
 │  ┌──────────────┐                                    │
-│  │ 2. 不変性    │  データは変更せずコピーを作る        │
-│  │              │  状態変化を明示的に管理              │
+│  │ 2. Immuta-   │  Copy data instead of mutating    │
+│  │    bility    │  Manage state changes explicitly  │
 │  └──────────────┘                                    │
 │           │                                          │
 │  ┌──────────────┐                                    │
-│  │ 3. 高階関数   │  関数を引数に取る、関数を返す       │
-│  │              │  振る舞いの抽象化                   │
+│  │ 3. Higher-   │  Take functions as arguments      │
+│  │    Order Fns │  Return functions as values       │
 │  └──────────────┘                                    │
 │           │                                          │
 │  ┌──────────────┐                                    │
-│  │ 4. 合成      │  小さい関数を組み合わせて大きな     │
-│  │              │  処理を構築する                     │
+│  │ 4. Composi-  │  Build large operations by        │
+│  │    tion      │  combining small functions        │
 │  └──────────────┘                                    │
 │           │                                          │
 │  ┌──────────────┐                                    │
-│  │ 5. 宣言的    │  「何をするか」を記述               │
-│  │              │  「どうやるか」を隠蔽               │
+│  │ 5. Declara-  │  Describe "what to do"            │
+│  │    tive      │  Hide "how to do it"              │
 │  └──────────────┘                                    │
 │                                                      │
 └──────────────────────────────────────────────────────┘
 ```
 
-### 1.2 プログラミングパラダイムのスペクトル
+### 1.2 The Spectrum of Programming Paradigms
 
 ```
-関数型の要素をどの程度取り入れるかはスペクトルで考える:
+Think of how much functional style to adopt as a spectrum:
 
-  純粋OOP ──────────── ハイブリッド ──────────── 純粋FP
+  Pure OOP ──────────── Hybrid ──────────── Pure FP
     │                      │                       │
     Java                TypeScript              Haskell
-   (従来)              Kotlin, Scala             Elm
+   (traditional)       Kotlin, Scala             Elm
                        Python, Rust              Erlang
 
-  現実世界のアプリケーション開発:
+  Real-world application development:
     │
-    ├── 純粋FPを全面採用する必要はない
-    ├── 「使える部分に関数型の原則を適用する」プラグマティックなアプローチ
-    └── テスタビリティ・予測可能性が向上する箇所に重点的に導入
+    ├── No need to adopt pure FP wholesale
+    ├── Pragmatic approach: "apply functional principles where they fit"
+    └── Focus on areas where testability and predictability improve
 ```
 
-### 1.3 命令型 vs 宣言型（関数型）
+### 1.3 Imperative vs. Declarative (Functional)
 
 ```
-命令型 (How):                    宣言型/関数型 (What):
+Imperative (How):                Declarative/Functional (What):
 ─────────────                   ─────────────────────
 
 result = []                      result = (
@@ -94,12 +94,13 @@ for item in items:                 items
         result.append(value)         .collect()
                                    )
 
-手順を1つずつ記述                 変換のパイプラインで記述
-ループ変数、条件分岐、副作用      宣言的、合成可能、テスト容易
+Describe steps one by one       Describe a pipeline of transformations
+Loop variables, conditionals,   Declarative, composable, easy to test
+side effects
 ```
 
 ```typescript
-// TypeScript: 命令型 vs 宣言型の実践的比較
+// TypeScript: Practical comparison of imperative vs. declarative
 
 interface Transaction {
   id: string;
@@ -109,7 +110,7 @@ interface Transaction {
   date: Date;
 }
 
-// NG: 命令型 — 中間変数、ループ、条件分岐が散在
+// NG: Imperative — intermediate variables, loops, and conditionals scattered throughout
 function summarizeImperative(transactions: Transaction[]): Record<string, number> {
   const result: Record<string, number> = {};
   for (let i = 0; i < transactions.length; i++) {
@@ -121,7 +122,7 @@ function summarizeImperative(transactions: Transaction[]): Record<string, number
       result[tx.category] += tx.amount;
     }
   }
-  // ソートのために配列に変換
+  // Convert to array for sorting
   const entries = Object.entries(result);
   entries.sort((a, b) => b[1] - a[1]);
   const sorted: Record<string, number> = {};
@@ -131,7 +132,7 @@ function summarizeImperative(transactions: Transaction[]): Record<string, number
   return sorted;
 }
 
-// OK: 宣言型 — パイプライン的な変換の連鎖
+// OK: Declarative — a pipeline-style chain of transformations
 function summarizeDeclarative(transactions: Transaction[]): Record<string, number> {
   return Object.fromEntries(
     Object.entries(
@@ -148,104 +149,104 @@ function summarizeDeclarative(transactions: Transaction[]): Record<string, numbe
 
 ---
 
-## 2. 純粋関数
+## 2. Pure Functions
 
-### 2.1 純粋関数の定義と利点
+### 2.1 Definition and Benefits of Pure Functions
 
 ```
-純粋関数の2つの条件:
+Two conditions for a pure function:
 
-  1. 同じ入力に対して常に同じ出力を返す（参照透過性）
-  2. 副作用がない（外部状態を変更しない）
+  1. Always returns the same output for the same input (referential transparency)
+  2. No side effects (does not modify external state)
 
 ┌────────────┐          ┌────────────────┐
-│  入力 A    │ ──────> │                │ ──────> 出力 X
-└────────────┘          │   純粋関数 f    │
+│  Input A   │ ──────> │                │ ──────> Output X
+└────────────┘          │  Pure fn f     │
                         │                │
-  入力 A（再度）──────> │  f(A) = X      │ ──────> 出力 X（必ず同じ）
-                        │  （常に同じ）   │
+  Input A (again) ────> │  f(A) = X      │ ──────> Output X (always the same)
+                        │  (always same) │
                         └────────────────┘
                               │
-                              │ 副作用なし:
-                              │ ・グローバル変数を変更しない
-                              │ ・ファイルに書き込まない
-                              │ ・DBを更新しない
-                              │ ・ネットワーク通信しない
-                              │ ・引数を変更しない
+                              │ No side effects:
+                              │ · Does not modify global variables
+                              │ · Does not write to files
+                              │ · Does not update the DB
+                              │ · Does not make network calls
+                              │ · Does not mutate arguments
 ```
 
 ```
-純粋関数のメリットマトリクス:
+Benefits matrix of pure functions:
 
-  メリット           説明                          影響度
-  ──────────────────────────────────────────────────────
-  テスト容易性       入出力のみテスト、モック不要      ★★★★★
-  推論容易性         関数の振る舞いが引数だけで決まる  ★★★★★
-  並行安全性         共有状態がないためロック不要       ★★★★☆
-  キャッシュ可能     参照透過性によりメモ化が安全       ★★★★☆
-  リファクタリング   関数の抽出・合成が安全            ★★★★☆
-  デバッグ容易性     再現性が保証される               ★★★★☆
+  Benefit            Description                               Impact
+  ──────────────────────────────────────────────────────────────────
+  Testability        Only test input/output, no mocks needed   ★★★★★
+  Reasoning          Behavior determined solely by arguments   ★★★★★
+  Concurrency safety No shared state, no locks needed          ★★★★☆
+  Cacheable          Memoization is safe due to ref. transp.   ★★★★☆
+  Refactoring        Safe to extract and compose functions     ★★★★☆
+  Debuggability      Reproducibility is guaranteed            ★★★★☆
 ```
 
-### 2.2 純粋関数の実装例
+### 2.2 Examples of Pure Function Implementations
 
 ```python
-# 純粋関数 vs 不純関数
+# Pure functions vs. impure functions
 
-# NG: 不純関数（外部状態に依存/変更）
-tax_rate = 0.10  # グローバル変数
+# NG: Impure function (depends on / modifies external state)
+tax_rate = 0.10  # global variable
 
 def calculate_total_impure(price: float) -> float:
-    """不純: 外部変数に依存"""
-    return price * (1 + tax_rate)  # tax_rateが変わると結果が変わる
+    """Impure: depends on external variable"""
+    return price * (1 + tax_rate)  # result changes if tax_rate changes
 
 total_items = []
 
 def add_to_cart_impure(item: dict) -> None:
-    """不純: 外部リストを変更"""
-    total_items.append(item)  # 副作用: 外部状態を変更
+    """Impure: modifies external list"""
+    total_items.append(item)  # side effect: modifies external state
 
-# OK: 純粋関数
+# OK: Pure functions
 def calculate_total_pure(price: float, tax_rate: float) -> float:
-    """純粋: 全ての依存が引数として明示"""
+    """Pure: all dependencies are explicit as arguments"""
     return price * (1 + tax_rate)
 
 def add_to_cart_pure(cart: tuple, item: dict) -> tuple:
-    """純粋: 新しいカートを返す（元は変更しない）"""
+    """Pure: returns a new cart (does not modify the original)"""
     return cart + (item,)
 
-# テストが簡単
+# Easy to test
 assert calculate_total_pure(1000, 0.10) == 1100.0
 assert calculate_total_pure(1000, 0.08) == 1080.0
-# → 何度実行しても同じ結果が保証される
+# → The same result is guaranteed no matter how many times it's run
 ```
 
-### 2.3 不純関数を純粋にリファクタリングする4つのパターン
+### 2.3 Four Patterns for Refactoring Impure Functions to Pure
 
 ```python
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 
-# === パターン1: 依存を引数に注入する ===
+# === Pattern 1: Inject dependencies as arguments ===
 
-# NG: 現在時刻に依存（非決定的）
+# NG: Depends on current time (non-deterministic)
 def is_business_hours_impure() -> bool:
     now = datetime.now()
     return 9 <= now.hour < 18
 
-# OK: 時刻を引数に注入
+# OK: Inject time as an argument
 def is_business_hours(current_hour: int) -> bool:
     return 9 <= current_hour < 18
 
-# テスト容易
+# Easy to test
 assert is_business_hours(10) == True
 assert is_business_hours(20) == False
 
 
-# === パターン2: 副作用を戻り値に変換する ===
+# === Pattern 2: Convert side effects to return values ===
 
-# NG: ログ出力（副作用）
+# NG: Log output (side effect)
 import logging
 
 def process_order_impure(order_id: str, amount: int) -> int:
@@ -256,7 +257,7 @@ def process_order_impure(order_id: str, amount: int) -> int:
     logging.info(f"Order {order_id}: amount={amount}, tax={tax}")
     return amount + tax
 
-# OK: 結果とログメッセージを分離して返す
+# OK: Separate the result and log messages, return both
 @dataclass(frozen=True)
 class ProcessResult:
     total: int
@@ -273,23 +274,23 @@ def process_order_pure(order_id: str, amount: int) -> ProcessResult:
         log_messages=(f"INFO: Order {order_id}: amount={amount}, tax={tax}",),
     )
 
-# テスト容易: ログ出力のモック不要
+# Easy to test: no need to mock log output
 result = process_order_pure("ORD-001", 1000)
 assert result.total == 1100
 assert "amount=1000" in result.log_messages[0]
 
 
-# === パターン3: 状態変更を新しい状態の返却に変える ===
+# === Pattern 3: Replace state mutation with returning new state ===
 
-# NG: オブジェクトの内部状態を変更
+# NG: Modifies an object's internal state
 class BankAccountMutable:
     def __init__(self, balance: int):
         self.balance = balance
 
     def withdraw(self, amount: int) -> None:
-        self.balance -= amount  # 副作用: 状態変更
+        self.balance -= amount  # side effect: state mutation
 
-# OK: 新しい状態を返す
+# OK: Returns new state
 @dataclass(frozen=True)
 class BankAccount:
     balance: int
@@ -299,26 +300,26 @@ class BankAccount:
 
 account = BankAccount(balance=10000)
 new_account = account.withdraw(3000)
-assert account.balance == 10000      # 元は変わらない
+assert account.balance == 10000      # original is unchanged
 assert new_account.balance == 7000
 
 
-# === パターン4: コールバックを高階関数に置き換える ===
+# === Pattern 4: Replace callbacks with higher-order functions ===
 
-# NG: グローバルなイベントバスに通知
-event_bus = []  # グローバル状態
+# NG: Notifies a global event bus
+event_bus = []  # global state
 
 def complete_task_impure(task_id: str) -> None:
     event_bus.append({"type": "task_completed", "task_id": task_id})
 
-# OK: 発行すべきイベントを戻り値に含める
+# OK: Include the events to be published in the return value
 @dataclass(frozen=True)
 class DomainEvent:
     event_type: str
     payload: dict
 
 def complete_task_pure(task_id: str) -> tuple[str, list[DomainEvent]]:
-    """タスク完了の結果とドメインイベントを返す"""
+    """Returns the result of task completion along with domain events"""
     return (
         "completed",
         [DomainEvent(event_type="task_completed", payload={"task_id": task_id})],
@@ -329,23 +330,23 @@ assert status == "completed"
 assert events[0].event_type == "task_completed"
 ```
 
-### 2.4 参照透過性の活用
+### 2.4 Leveraging Referential Transparency
 
 ```typescript
-// 参照透過性: 関数呼び出しをその結果で置き換えても意味が変わらない
+// Referential transparency: replacing a function call with its result does not change meaning
 
-// 純粋関数: 参照透過
+// Pure function: referentially transparent
 function add(a: number, b: number): number {
   return a + b;
 }
 
-// add(2, 3) は常に 5 なので、コード中の add(2, 3) を 5 に置換可能
+// add(2, 3) is always 5, so any occurrence of add(2, 3) can be replaced with 5
 const x = add(2, 3) * add(2, 3);
-const y = 5 * 5;  // 完全に等価
+const y = 5 * 5;  // completely equivalent
 
-// === 参照透過性が可能にすること ===
+// === What referential transparency enables ===
 
-// 1. メモ化（キャッシュ）
+// 1. Memoization (caching)
 function memoize<T extends (...args: any[]) => any>(fn: T): T {
   const cache = new Map<string, ReturnType<T>>();
   return ((...args: any[]) => {
@@ -357,7 +358,7 @@ function memoize<T extends (...args: any[]) => any>(fn: T): T {
   }) as T;
 }
 
-// 重い計算をメモ化で高速化
+// Speed up expensive computations with memoization
 const expensiveCalc = memoize((n: number): number => {
   console.log(`Computing for ${n}...`);
   return Array.from({ length: n }, (_, i) => i + 1)
@@ -365,22 +366,22 @@ const expensiveCalc = memoize((n: number): number => {
 });
 
 expensiveCalc(1000); // Computing for 1000... → 500500
-expensiveCalc(1000); // キャッシュから即返却 → 500500
+expensiveCalc(1000); // Returned immediately from cache → 500500
 
-// 2. 遅延評価（必要になるまで計算しない）
-// 3. 並列実行（順序に依存しない）
-// 4. テストの独立性（セットアップ不要）
-// 5. 等式推論（数学的にコードの正しさを証明できる）
+// 2. Lazy evaluation (compute only when needed)
+// 3. Parallel execution (independent of order)
+// 4. Test independence (no setup required)
+// 5. Equational reasoning (mathematically prove code correctness)
 ```
 
-### 2.5 メモ化の実践的な応用
+### 2.5 Practical Applications of Memoization
 
 ```typescript
-// React におけるメモ化の活用
+// Using memoization in React
 
-// useMemo: 参照透過な計算のメモ化
+// useMemo: memoize a referentially transparent computation
 function ExpenseReport({ transactions }: { transactions: Transaction[] }) {
-  // transactions が変わらない限り再計算されない
+  // Not recomputed unless transactions changes
   const summary = useMemo(() =>
     transactions
       .filter(tx => tx.type === "expense")
@@ -391,12 +392,12 @@ function ExpenseReport({ transactions }: { transactions: Transaction[] }) {
     [transactions]
   );
 
-  // useCallback: 関数自体のメモ化（子コンポーネントの再レンダリング防止）
+  // useCallback: memoize the function itself (prevents child component re-renders)
   const handleCategoryClick = useCallback(
     (category: string) => {
       console.log(`Selected: ${category}`);
     },
-    [] // 依存なし → 同じ関数参照が維持される
+    [] // no dependencies → the same function reference is preserved
   );
 
   return (
@@ -415,31 +416,31 @@ function ExpenseReport({ transactions }: { transactions: Transaction[] }) {
 ```
 
 ```python
-# Python: functools.lru_cache を使ったメモ化
+# Python: Memoization using functools.lru_cache
 
 from functools import lru_cache
 
-# 再帰的フィボナッチ — メモ化なしだと指数的計算量
+# Recursive Fibonacci — exponential complexity without memoization
 @lru_cache(maxsize=256)
 def fibonacci(n: int) -> int:
-    """O(n) に最適化されたフィボナッチ（メモ化）"""
+    """Fibonacci optimized to O(n) with memoization"""
     if n < 2:
         return n
     return fibonacci(n - 1) + fibonacci(n - 2)
 
-# メモ化が安全な理由: fibonacci は純粋関数
-assert fibonacci(50) == 12586269025  # 瞬時に計算
+# Why memoization is safe: fibonacci is a pure function
+assert fibonacci(50) == 12586269025  # computed instantly
 
-# キャッシュの状態確認
+# Check cache status
 print(fibonacci.cache_info())
 # CacheInfo(hits=48, misses=51, maxsize=256, currsize=51)
 ```
 
 ---
 
-## 3. 副作用の分離
+## 3. Side Effect Separation
 
-### 3.1 純粋コアと不純シェル（Functional Core / Imperative Shell）
+### 3.1 Pure Core and Impure Shell (Functional Core / Imperative Shell)
 
 ```
 ┌──────────────────────────────────────────────┐
@@ -447,50 +448,50 @@ print(fibonacci.cache_info())
 ├──────────────────────────────────────────────┤
 │                                              │
 │  ┌────────────────────────────────┐         │
-│  │     Imperative Shell (不純)    │         │
+│  │     Imperative Shell (impure)  │         │
 │  │  ┌──────────────────────┐     │         │
 │  │  │                      │     │         │
 │  │  │   Functional Core    │     │         │
-│  │  │   (純粋)             │     │         │
+│  │  │   (pure)             │     │         │
 │  │  │                      │     │         │
-│  │  │  ・ビジネスロジック   │     │         │
-│  │  │  ・データ変換         │     │         │
-│  │  │  ・バリデーション     │     │         │
-│  │  │  ・計算               │     │         │
+│  │  │  · Business logic    │     │         │
+│  │  │  · Data transforms   │     │         │
+│  │  │  · Validation        │     │         │
+│  │  │  · Calculations      │     │         │
 │  │  │                      │     │         │
 │  │  └──────────────────────┘     │         │
 │  │                                │         │
-│  │  ・DB読み書き                  │         │
-│  │  ・ファイルI/O                 │         │
-│  │  ・HTTP通信                   │         │
-│  │  ・ログ出力                   │         │
-│  │  ・時刻取得                   │         │
+│  │  · DB read/write               │         │
+│  │  · File I/O                    │         │
+│  │  · HTTP communication          │         │
+│  │  · Log output                  │         │
+│  │  · Time retrieval              │         │
 │  └────────────────────────────────┘         │
 │                                              │
-│  純粋な中心 → テスト容易、予測可能            │
-│  不純な外殻 → I/Oを集約、薄く保つ            │
+│  Pure center → easy to test, predictable    │
+│  Impure shell → consolidates I/O, kept thin │
 │                                              │
 └──────────────────────────────────────────────┘
 ```
 
 ```
-FC/IS パターンの責務分離フロー:
+FC/IS pattern responsibility separation flow:
 
   HTTP Request
       │
       ▼
   ┌─────────────────────────┐
-  │ Controller (Shell)       │  リクエスト解析
+  │ Controller (Shell)       │  Parse request
   │  ├ parse request         │
-  │  ├ read from DB          │  ← 副作用: DB読み取り
+  │  ├ read from DB          │  ← side effect: DB read
   │  └ call core logic ──────┼──────┐
   └─────────────────────────┘      │
                                     ▼
                             ┌───────────────────┐
-                            │ Core (純粋)        │
+                            │ Core (pure)        │
                             │  ├ validate        │
-                            │  ├ calculate       │  副作用なし
-                            │  ├ transform       │  テスト容易
+                            │  ├ calculate       │  no side effects
+                            │  ├ transform       │  easy to test
                             │  └ return result ──┼──────┐
                             └───────────────────┘      │
                                     ▲                   ▼
@@ -501,10 +502,10 @@ FC/IS パターンの責務分離フロー:
   └─────────────────────────┘             └─────────────────┘
 ```
 
-### 3.2 実装例：注文処理システム
+### 3.2 Implementation Example: Order Processing System
 
 ```python
-# Functional Core: 純粋なビジネスロジック
+# Functional Core: pure business logic
 from dataclasses import dataclass
 from typing import Optional
 
@@ -520,22 +521,22 @@ class Order:
     items: tuple[OrderItem, ...]
     discount_rate: float = 0.0
 
-# --- 純粋関数群（Functional Core）---
+# --- Pure functions (Functional Core) ---
 
 def calculate_subtotal(order: Order) -> int:
-    """小計を計算（純粋）"""
+    """Calculate subtotal (pure)"""
     return sum(item.price * item.quantity for item in order.items)
 
 def apply_discount(subtotal: int, discount_rate: float) -> int:
-    """割引を適用（純粋）"""
+    """Apply discount (pure)"""
     return int(subtotal * (1 - discount_rate))
 
 def calculate_tax(amount: int, tax_rate: float) -> int:
-    """税額を計算（純粋）"""
+    """Calculate tax amount (pure)"""
     return int(amount * tax_rate)
 
 def calculate_total(order: Order, tax_rate: float) -> dict:
-    """合計を計算（純粋 — 全てのロジックが関数合成）"""
+    """Calculate total (pure — all logic composed from functions)"""
     subtotal = calculate_subtotal(order)
     discounted = apply_discount(subtotal, order.discount_rate)
     tax = calculate_tax(discounted, tax_rate)
@@ -547,23 +548,23 @@ def calculate_total(order: Order, tax_rate: float) -> dict:
     }
 
 def validate_order(order: Order) -> list[str]:
-    """注文バリデーション（純粋 — エラーリストを返す）"""
+    """Order validation (pure — returns list of errors)"""
     errors = []
     if not order.items:
-        errors.append("注文に商品がありません")
+        errors.append("No items in order")
     for item in order.items:
         if item.quantity <= 0:
-            errors.append(f"{item.name}: 数量は1以上必要です")
+            errors.append(f"{item.name}: quantity must be at least 1")
         if item.price < 0:
-            errors.append(f"{item.name}: 価格が不正です")
+            errors.append(f"{item.name}: invalid price")
     if not (0.0 <= order.discount_rate <= 1.0):
-        errors.append("割引率は0〜1の範囲で指定してください")
+        errors.append("Discount rate must be between 0 and 1")
     return errors
 
-# --- Imperative Shell: I/Oと副作用 ---
+# --- Imperative Shell: I/O and side effects ---
 
 class OrderService:
-    """不純なシェル: I/Oを担当"""
+    """Impure shell: responsible for I/O"""
 
     def __init__(self, db, payment_gateway, notifier):
         self.db = db
@@ -571,16 +572,16 @@ class OrderService:
         self.notifier = notifier
 
     def process_order(self, order: Order) -> dict:
-        """注文処理（不純 — I/Oを呼ぶ）"""
-        # 1. 純粋なバリデーション
+        """Order processing (impure — calls I/O)"""
+        # 1. Pure validation
         errors = validate_order(order)
         if errors:
             return {"status": "error", "errors": errors}
 
-        # 2. 純粋な計算
+        # 2. Pure calculation
         totals = calculate_total(order, tax_rate=0.10)
 
-        # 3. 不純な処理（I/O）
+        # 3. Impure processing (I/O)
         payment_result = self.payment.charge(totals["total"])
         if not payment_result.success:
             return {"status": "payment_failed"}
@@ -590,12 +591,12 @@ class OrderService:
 
         return {"status": "success", "order_id": order_id, **totals}
 
-# テスト: 純粋部分はモック不要で簡単にテスト可能
+# Test: pure parts can be tested easily without mocks
 def test_calculate_total():
     order = Order(
         items=(
-            OrderItem("p1", "商品A", 1000, 2),
-            OrderItem("p2", "商品B", 500, 3),
+            OrderItem("p1", "Product A", 1000, 2),
+            OrderItem("p2", "Product B", 500, 3),
         ),
         discount_rate=0.1,
     )
@@ -605,12 +606,12 @@ def test_calculate_total():
     assert result["total"] == 3465  # (3500-350) * 1.10
 ```
 
-### 3.3 TypeScriptでの Functional Core / Imperative Shell
+### 3.3 Functional Core / Imperative Shell in TypeScript
 
 ```typescript
 // === Functional Core ===
 
-// 不変な型定義
+// Immutable type definitions
 interface UserRegistration {
   readonly email: string;
   readonly password: string;
@@ -626,26 +627,26 @@ interface ValidatedUser {
 
 type ValidationError = { field: string; message: string };
 
-// 純粋関数: バリデーション
+// Pure function: validation
 function validateRegistration(
   input: UserRegistration
 ): Result<UserRegistration, ValidationError[]> {
   const errors: ValidationError[] = [];
 
   if (!input.email.includes("@")) {
-    errors.push({ field: "email", message: "有効なメールアドレスを入力してください" });
+    errors.push({ field: "email", message: "Please enter a valid email address" });
   }
   if (input.password.length < 8) {
-    errors.push({ field: "password", message: "パスワードは8文字以上必要です" });
+    errors.push({ field: "password", message: "Password must be at least 8 characters" });
   }
   if (input.name.trim().length === 0) {
-    errors.push({ field: "name", message: "名前を入力してください" });
+    errors.push({ field: "name", message: "Please enter your name" });
   }
 
   return errors.length > 0 ? Err(errors) : Ok(input);
 }
 
-// 純粋関数: データ変換（hashPassword は純粋な暗号学的ハッシュとして扱う）
+// Pure function: data transformation (hashPassword treated as a pure cryptographic hash)
 function prepareUser(
   input: UserRegistration,
   hashedPassword: string
@@ -668,25 +669,25 @@ class UserRegistrationService {
   ) {}
 
   async register(input: UserRegistration): Promise<Result<string, string>> {
-    // 1. 純粋: バリデーション
+    // 1. Pure: validation
     const validated = validateRegistration(input);
     if (!validated.ok) {
       return Err(validated.error.map(e => e.message).join(", "));
     }
 
-    // 2. 不純: 重複チェック（DB読み取り）
+    // 2. Impure: duplicate check (DB read)
     const existing = await this.userRepo.findByEmail(input.email);
     if (existing) {
-      return Err("このメールアドレスは既に登録されています");
+      return Err("This email address is already registered");
     }
 
-    // 3. 不純: パスワードハッシュ化
+    // 3. Impure: password hashing
     const hashed = await this.hasher.hash(input.password);
 
-    // 4. 純粋: ユーザーデータの構築
+    // 4. Pure: build user data
     const user = prepareUser(input, hashed);
 
-    // 5. 不純: DB保存 + メール送信
+    // 5. Impure: DB save + email send
     const userId = await this.userRepo.save(user);
     await this.mailer.sendWelcome(user.normalizedEmail, user.name);
 
@@ -697,14 +698,14 @@ class UserRegistrationService {
 
 ---
 
-## 4. 高階関数
+## 4. Higher-Order Functions
 
-### 4.1 高階関数の基本パターン
+### 4.1 Basic Patterns of Higher-Order Functions
 
 ```typescript
-// 高階関数: 関数を引数に取る or 関数を返す
+// Higher-order functions: take functions as arguments OR return functions
 
-// 1. 関数を引数に取る
+// 1. Take a function as an argument
 function filter<T>(items: T[], predicate: (item: T) => boolean): T[] {
   const result: T[] = [];
   for (const item of items) {
@@ -713,7 +714,7 @@ function filter<T>(items: T[], predicate: (item: T) => boolean): T[] {
   return result;
 }
 
-// 2. 関数を返す（カリー化）
+// 2. Return a function (currying)
 function createMultiplier(factor: number): (n: number) => number {
   return (n: number) => n * factor;
 }
@@ -723,15 +724,15 @@ const triple = createMultiplier(3);
 console.log(double(5));  // 10
 console.log(triple(5));  // 15
 
-// 3. 関数を引数に取り、関数を返す（関数デコレータ）
+// 3. Take a function and return a function (function decorator)
 function withLogging<T extends (...args: any[]) => any>(
   fn: T,
   label: string
 ): T {
   return ((...args: any[]) => {
-    console.log(`[${label}] 呼び出し:`, args);
+    console.log(`[${label}] called:`, args);
     const result = fn(...args);
-    console.log(`[${label}] 結果:`, result);
+    console.log(`[${label}] result:`, result);
     return result;
   }) as T;
 }
@@ -739,10 +740,10 @@ function withLogging<T extends (...args: any[]) => any>(
 const add = (a: number, b: number) => a + b;
 const loggedAdd = withLogging(add, "add");
 loggedAdd(2, 3);
-// [add] 呼び出し: [2, 3]
-// [add] 結果: 5
+// [add] called: [2, 3]
+// [add] result: 5
 
-// 4. 部分適用
+// 4. Partial application
 function partial<T extends (...args: any[]) => any>(
   fn: T,
   ...presetArgs: any[]
@@ -754,13 +755,13 @@ const addTen = partial(add, 10);
 console.log(addTen(5));  // 15
 ```
 
-### 4.2 カリー化と部分適用の違い
+### 4.2 Difference Between Currying and Partial Application
 
 ```typescript
-// カリー化: 多引数関数を「1引数関数のチェーン」に変換する
-// 部分適用: 多引数関数の一部の引数を固定して新しい関数を作る
+// Currying: converts a multi-argument function into a chain of single-argument functions
+// Partial application: fixes some arguments of a multi-argument function to create a new function
 
-// === カリー化 ===
+// === Currying ===
 function curry<A, B, C>(fn: (a: A, b: B) => C): (a: A) => (b: B) => C {
   return (a: A) => (b: B) => fn(a, b);
 }
@@ -770,7 +771,7 @@ const add5 = curriedAdd(5);   // (b: number) => number
 console.log(add5(3));          // 8
 console.log(add5(10));         // 15
 
-// 汎用カリー化関数
+// General-purpose currying function
 function autoCurry(fn: Function) {
   return function curried(...args: any[]): any {
     if (args.length >= fn.length) {
@@ -780,22 +781,22 @@ function autoCurry(fn: Function) {
   };
 }
 
-// 実用例: ログフォーマッタ
+// Practical example: log formatter
 const formatLog = autoCurry(
   (level: string, module: string, message: string) =>
     `[${level}] [${module}] ${message}`
 );
 
-const errorLog = formatLog("ERROR");          // level を固定
-const dbError = errorLog("Database");          // module も固定
+const errorLog = formatLog("ERROR");          // fix level
+const dbError = errorLog("Database");          // fix module too
 console.log(dbError("Connection timeout"));    // [ERROR] [Database] Connection timeout
-console.log(formatLog("INFO", "API", "Request received")); // 全引数指定も可
+console.log(formatLog("INFO", "API", "Request received")); // all args at once also works
 ```
 
-### 4.3 実用的な高階関数パターン
+### 4.3 Practical Higher-Order Function Patterns
 
 ```python
-# Python: 実用的な高階関数
+# Python: practical higher-order functions
 
 from functools import wraps, reduce
 from typing import TypeVar, Callable, Any
@@ -803,9 +804,9 @@ import time
 
 T = TypeVar("T")
 
-# 1. リトライデコレータ（関数を受け取り関数を返す）
+# 1. Retry decorator (takes a function and returns a function)
 def retry(max_attempts: int = 3, delay: float = 1.0):
-    """リトライロジックを関数に付与する高階関数"""
+    """Higher-order function that adds retry logic to a function"""
     def decorator(fn: Callable[..., T]) -> Callable[..., T]:
         @wraps(fn)
         def wrapper(*args: Any, **kwargs: Any) -> T:
@@ -816,37 +817,37 @@ def retry(max_attempts: int = 3, delay: float = 1.0):
                 except Exception as e:
                     last_error = e
                     if attempt < max_attempts - 1:
-                        time.sleep(delay * (2 ** attempt))  # 指数バックオフ
+                        time.sleep(delay * (2 ** attempt))  # exponential backoff
             raise last_error
         return wrapper
     return decorator
 
 @retry(max_attempts=3, delay=0.5)
 def fetch_data(url: str) -> dict:
-    # 実際のHTTPリクエスト
+    # actual HTTP request
     pass
 
-# 2. パイプライン合成
+# 2. Pipeline composition
 def pipe(*functions: Callable) -> Callable:
-    """複数の関数を左から右に合成する"""
+    """Compose multiple functions from left to right"""
     def pipeline(value):
         return reduce(lambda acc, fn: fn(acc), functions, value)
     return pipeline
 
-# 使用例
+# Usage example
 process_text = pipe(
-    str.strip,              # 前後の空白除去
-    str.lower,              # 小文字化
-    lambda s: s.replace(" ", "_"),  # スペースをアンダースコアに
-    lambda s: s[:50],       # 50文字に制限
+    str.strip,              # trim leading/trailing whitespace
+    str.lower,              # convert to lowercase
+    lambda s: s.replace(" ", "_"),  # replace spaces with underscores
+    lambda s: s[:50],       # limit to 50 characters
 )
 
 result = process_text("  Hello World Example  ")
 # → "hello_world_example"
 
-# 3. バリデーション合成
+# 3. Validator composition
 def compose_validators(*validators):
-    """複数のバリデータを合成"""
+    """Compose multiple validators"""
     def validate(value):
         errors = []
         for validator in validators:
@@ -859,13 +860,13 @@ def compose_validators(*validators):
 def min_length(n):
     def validator(s):
         if len(s) < n:
-            return f"{n}文字以上必要です"
+            return f"Must be at least {n} characters"
     return validator
 
 def max_length(n):
     def validator(s):
         if len(s) > n:
-            return f"{n}文字以下にしてください"
+            return f"Must be {n} characters or fewer"
     return validator
 
 def matches_pattern(pattern, message):
@@ -875,19 +876,19 @@ def matches_pattern(pattern, message):
             return message
     return validator
 
-# バリデータの合成
+# Composing validators
 validate_username = compose_validators(
     min_length(3),
     max_length(20),
-    matches_pattern(r"^[a-zA-Z0-9_]+$", "英数字とアンダースコアのみ"),
+    matches_pattern(r"^[a-zA-Z0-9_]+$", "Only alphanumeric characters and underscores allowed"),
 )
 
-errors = validate_username("ab")  # ["3文字以上必要です"]
+errors = validate_username("ab")  # ["Must be at least 3 characters"]
 errors = validate_username("valid_user")  # None
 
-# 4. タイミングデコレータ（パフォーマンス計測）
+# 4. Timing decorator (performance measurement)
 def timed(fn: Callable[..., T]) -> Callable[..., T]:
-    """関数の実行時間を計測する高階関数"""
+    """Higher-order function that measures a function's execution time"""
     @wraps(fn)
     def wrapper(*args: Any, **kwargs: Any) -> T:
         start = time.perf_counter()
@@ -906,32 +907,32 @@ heavy_computation(1_000_000)  # heavy_computation: 0.0823s
 
 ---
 
-## 5. 関数型データ変換パイプライン
+## 5. Functional Data Transformation Pipelines
 
-### 5.1 パイプライン設計
+### 5.1 Pipeline Design
 
 ```
-データ変換パイプライン:
+Data transformation pipeline:
 
-  入力データ ──> [変換1] ──> [変換2] ──> [変換3] ──> 出力データ
+  Input data ──> [Transform 1] ──> [Transform 2] ──> [Transform 3] ──> Output data
 
-  例: ユーザーリストの処理
+  Example: processing a user list
 
   users ──> filter(active) ──> map(toDTO) ──> sort(byName) ──> take(10)
 
-  各ステップ:
-  ・純粋関数（副作用なし）
-  ・型安全（入力型 → 出力型が明確）
-  ・テスト可能（各ステップを個別にテスト）
-  ・合成可能（ステップの追加・削除が容易）
+  Each step:
+  · Pure function (no side effects)
+  · Type-safe (input type → output type is clear)
+  · Testable (each step can be tested independently)
+  · Composable (steps can be added or removed easily)
 ```
 
-### 5.2 TypeScriptでの型安全パイプライン
+### 5.2 Type-Safe Pipelines in TypeScript
 
 ```typescript
-// 型安全なパイプライン
+// Type-safe pipeline
 
-// パイプ関数（型推論対応）
+// Pipe function (with type inference)
 function pipe<A>(value: A): A;
 function pipe<A, B>(value: A, fn1: (a: A) => B): B;
 function pipe<A, B, C>(value: A, fn1: (a: A) => B, fn2: (b: B) => C): C;
@@ -942,7 +943,7 @@ function pipe(value: any, ...fns: Function[]): any {
   return fns.reduce((acc, fn) => fn(acc), value);
 }
 
-// データ変換関数
+// Data transformation functions
 interface User {
   id: string;
   name: string;
@@ -977,7 +978,7 @@ const sortByName = (users: UserDTO[]): UserDTO[] =>
 const take = (n: number) =>
   <T>(items: T[]): T[] => items.slice(0, n);
 
-// パイプラインの構築と実行
+// Build and execute the pipeline
 const result = pipe(
   users,
   filterActive,
@@ -986,13 +987,13 @@ const result = pipe(
   sortByName,
   take(10),
 );
-// 型安全: result の型は UserDTO[]
+// Type-safe: result type is UserDTO[]
 ```
 
-### 5.3 Python での遅延評価パイプライン
+### 5.3 Lazy Evaluation Pipelines in Python
 
 ```python
-# ジェネレータを活用した遅延評価パイプライン
+# Lazy evaluation pipeline using generators
 from typing import TypeVar, Callable, Iterator, Iterable
 from itertools import islice
 
@@ -1000,21 +1001,21 @@ T = TypeVar("T")
 U = TypeVar("U")
 
 class LazyPipeline:
-    """遅延評価パイプライン: 最終的に消費されるまで計算しない"""
+    """Lazy evaluation pipeline: does not compute until finally consumed"""
 
     def __init__(self, source: Iterable):
         self._source = source
 
     def filter(self, predicate: Callable) -> "LazyPipeline":
-        """条件に合う要素だけを通す（遅延）"""
+        """Pass only elements that match the condition (lazy)"""
         return LazyPipeline(x for x in self._source if predicate(x))
 
     def map(self, transform: Callable) -> "LazyPipeline":
-        """各要素を変換する（遅延）"""
+        """Transform each element (lazy)"""
         return LazyPipeline(transform(x) for x in self._source)
 
     def flat_map(self, transform: Callable) -> "LazyPipeline":
-        """各要素を変換してフラットにする（遅延）"""
+        """Transform each element and flatten (lazy)"""
         return LazyPipeline(
             item
             for x in self._source
@@ -1022,22 +1023,22 @@ class LazyPipeline:
         )
 
     def take(self, n: int) -> "LazyPipeline":
-        """先頭n件だけ取る（遅延）"""
+        """Take only the first n elements (lazy)"""
         return LazyPipeline(islice(self._source, n))
 
     def collect(self) -> list:
-        """パイプラインを実行してリストに収集"""
+        """Execute the pipeline and collect results into a list"""
         return list(self._source)
 
     def reduce(self, fn: Callable, initial=None):
-        """畳み込みでパイプラインを実行"""
+        """Execute the pipeline by folding"""
         from functools import reduce as _reduce
         if initial is not None:
             return _reduce(fn, self._source, initial)
         return _reduce(fn, self._source)
 
 
-# 使用例: 100万件のログから最新エラーを取得
+# Usage example: retrieve the latest errors from 1 million log entries
 import json
 from dataclasses import dataclass
 
@@ -1052,7 +1053,7 @@ def parse_log_line(line: str) -> LogEntry:
     data = json.loads(line)
     return LogEntry(**data)
 
-# 遅延評価なので、100万行あっても先頭5件見つかった時点で停止
+# Lazy evaluation: stops as soon as the first 5 entries are found, even with 1 million lines
 def get_recent_errors(log_lines: Iterable[str], service: str, limit: int = 5):
     return (
         LazyPipeline(log_lines)
@@ -1063,16 +1064,16 @@ def get_recent_errors(log_lines: Iterable[str], service: str, limit: int = 5):
         .collect()
     )
 
-# メモリ効率: ファイル全体をメモリに読み込まない
+# Memory efficient: does not load the entire file into memory
 # with open("app.log") as f:
 #     errors = get_recent_errors(f, service="payment", limit=5)
 ```
 
-### 5.4 Rust の Iterator パイプライン
+### 5.4 Rust Iterator Pipelines
 
 ```rust
-// Rust: ゼロコスト抽象化によるパイプライン
-// コンパイル時にループに最適化されるため、手書きのforループと同等の性能
+// Rust: pipelines with zero-cost abstractions
+// Compiled to loops at compile time, so equivalent performance to hand-written for loops
 
 #[derive(Debug, Clone)]
 struct SalesRecord {
@@ -1100,25 +1101,25 @@ fn top_products_by_region(records: &[SalesRecord], region: &str, top_n: usize) -
     sorted.into_iter().take(top_n).collect()
 }
 
-// 使用例
+// Usage example
 // let top = top_products_by_region(&sales_data, "Tokyo", 5);
 // → [("Product A", 150000.0), ("Product B", 120000.0), ...]
 ```
 
 ---
 
-## 6. 関数型エラーハンドリング
+## 6. Functional Error Handling
 
-### 6.1 Result/Either型
+### 6.1 Result/Either Types
 
 ```typescript
-// Result型: 例外を使わないエラーハンドリング
+// Result type: error handling without exceptions
 
 type Result<T, E> =
   | { ok: true; value: T }
   | { ok: false; error: E };
 
-// ヘルパー関数
+// Helper functions
 function Ok<T>(value: T): Result<T, never> {
   return { ok: true, value };
 }
@@ -1127,7 +1128,7 @@ function Err<E>(error: E): Result<never, E> {
   return { ok: false, error };
 }
 
-// Result のメソッドチェーン
+// Method chaining on Result
 function map<T, U, E>(
   result: Result<T, E>,
   fn: (value: T) => U
@@ -1142,7 +1143,7 @@ function flatMap<T, U, E>(
   return result.ok ? fn(result.value) : result;
 }
 
-// mapError: エラー型の変換
+// mapError: transform the error type
 function mapError<T, E, F>(
   result: Result<T, E>,
   fn: (error: E) => F
@@ -1151,34 +1152,34 @@ function mapError<T, E, F>(
 }
 ```
 
-### 6.2 Result型の実用的な連鎖
+### 6.2 Practical Chaining with the Result Type
 
 ```typescript
-// 実用例: バリデーション連鎖
+// Practical example: validation chaining
 type ValidationError = { field: string; message: string };
 
 function validateAge(age: number): Result<number, ValidationError> {
   if (age < 0 || age > 150) {
-    return Err({ field: "age", message: "年齢は0〜150の範囲で指定" });
+    return Err({ field: "age", message: "Age must be between 0 and 150" });
   }
   return Ok(age);
 }
 
 function validateName(name: string): Result<string, ValidationError> {
   if (name.length < 1 || name.length > 50) {
-    return Err({ field: "name", message: "名前は1〜50文字" });
+    return Err({ field: "name", message: "Name must be between 1 and 50 characters" });
   }
   return Ok(name);
 }
 
 function validateEmail(email: string): Result<string, ValidationError> {
   if (!email.includes("@")) {
-    return Err({ field: "email", message: "有効なメールアドレスを入力" });
+    return Err({ field: "email", message: "Please enter a valid email address" });
   }
   return Ok(email);
 }
 
-// パイプラインでのエラーハンドリング
+// Error handling in a pipeline
 function createUser(
   name: string, age: number, email: string
 ): Result<User, ValidationError> {
@@ -1199,7 +1200,7 @@ function createUser(
   });
 }
 
-// 全エラーを収集するパターン（Validation Applicative）
+// Pattern for collecting all errors (Validation Applicative)
 function validateAll<T, E>(
   results: Result<T, E>[]
 ): Result<T[], E[]> {
@@ -1217,7 +1218,7 @@ function validateAll<T, E>(
   return errors.length > 0 ? Err(errors) : Ok(values);
 }
 
-// 使用例: 全てのバリデーションエラーを一度に返す
+// Usage: return all validation errors at once
 function createUserCollectErrors(
   name: string, age: number, email: string
 ): Result<User, ValidationError[]> {
@@ -1239,10 +1240,10 @@ function createUserCollectErrors(
 }
 ```
 
-### 6.3 Python での Result 型
+### 6.3 Result Type in Python
 
 ```python
-# Python: Result 型による例外なしエラーハンドリング
+# Python: error handling without exceptions using the Result type
 from dataclasses import dataclass
 from typing import TypeVar, Generic, Union, Callable
 
@@ -1274,7 +1275,7 @@ class Err(Generic[E]):
         return False
 
     def map(self, fn: Callable) -> "Result":
-        return self  # エラーはそのまま伝播
+        return self  # error propagates as-is
 
     def flat_map(self, fn: Callable) -> "Result":
         return self
@@ -1284,27 +1285,27 @@ class Err(Generic[E]):
 
 Result = Union[Ok[T], Err[E]]
 
-# 実用例: ユーザー登録のバリデーションチェーン
+# Practical example: validation chain for user registration
 def validate_email(email: str) -> Result:
     if "@" not in email:
-        return Err(f"無効なメールアドレス: {email}")
+        return Err(f"Invalid email address: {email}")
     return Ok(email.lower())
 
 def validate_password(password: str) -> Result:
     if len(password) < 8:
-        return Err("パスワードは8文字以上必要です")
+        return Err("Password must be at least 8 characters")
     if not any(c.isupper() for c in password):
-        return Err("大文字を1つ以上含めてください")
+        return Err("Password must contain at least one uppercase letter")
     return Ok(password)
 
 def validate_age(age: int) -> Result:
     if age < 13:
-        return Err("13歳未満は登録できません")
+        return Err("Users under 13 cannot register")
     if age > 150:
-        return Err("無効な年齢です")
+        return Err("Invalid age")
     return Ok(age)
 
-# チェーン: 最初のエラーで短絡
+# Chain: short-circuits on the first error
 def register_user(email: str, password: str, age: int) -> Result:
     return (
         validate_email(email)
@@ -1321,100 +1322,100 @@ def register_user(email: str, password: str, age: int) -> Result:
         )
     )
 
-# テスト
+# Tests
 result = register_user("test@example.com", "SecurePass1", 25)
 assert result.is_ok()
 assert result.value["email"] == "test@example.com"
 
 error_result = register_user("invalid", "short", 10)
 assert not error_result.is_ok()
-assert error_result.error == "無効なメールアドレス: invalid"
+assert error_result.error == "Invalid email address: invalid"
 ```
 
-### 6.4 例外 vs Result 型の使い分け
+### 6.4 When to Use Exceptions vs. Result Types
 
 ```
-例外を使うべき場面:
-  ├── プログラマのミス（バグ）: IndexError, NullPointerException
-  ├── 回復不能なエラー: OutOfMemoryError, StackOverflowError
-  └── フレームワークが期待する慣習: Django, Spring の例外ハンドリング
+When to use exceptions:
+  ├── Programmer mistakes (bugs): IndexError, NullPointerException
+  ├── Unrecoverable errors: OutOfMemoryError, StackOverflowError
+  └── Framework conventions: Django, Spring exception handling
 
-Result型を使うべき場面:
-  ├── ビジネスロジックの失敗: バリデーションエラー、権限不足
-  ├── 予測可能な失敗: ファイル未発見、ネットワークタイムアウト
-  ├── 複数のエラーを収集: フォームバリデーション
-  └── エラーの型を明示: 呼び出し元にエラー処理を強制
+When to use Result types:
+  ├── Business logic failures: validation errors, insufficient permissions
+  ├── Predictable failures: file not found, network timeout
+  ├── Collecting multiple errors: form validation
+  └── Explicit error types: forcing the caller to handle errors
 
-判断フローチャート:
-  エラーは予測可能か？
-    ├── YES → 呼び出し元で処理すべきか？
-    │          ├── YES → Result型
-    │          └── NO  → 例外（上位で catch）
-    └── NO  → 例外（バグ、修正すべき）
+Decision flowchart:
+  Is the error predictable?
+    ├── YES → Should the caller handle it?
+    │          ├── YES → Result type
+    │          └── NO  → Exception (catch higher up)
+    └── NO  → Exception (bug, should be fixed)
 ```
 
 ---
 
-## 7. 関数型 vs オブジェクト指向の使い分け
+## 7. Functional vs. Object-Oriented: Choosing the Right Tool
 
-### 7.1 比較表
+### 7.1 Comparison Table
 
-| 観点 | 関数型 | オブジェクト指向 |
+| Aspect | Functional | Object-Oriented |
 |------|--------|----------------|
-| データと振る舞い | 分離 | 統合（カプセル化） |
-| 状態管理 | 不変データ + 変換 | オブジェクトの内部状態 |
-| 多態性 | パターンマッチ/高階関数 | サブタイプ多態 |
-| 抽象化 | 関数の合成 | クラスの継承/合成 |
-| 拡張の方向 | 新しい操作の追加が容易 | 新しい型の追加が容易 |
-| 得意な領域 | データ変換、パイプライン | 状態管理、UIコンポーネント |
-| テスト | 入出力のみ確認 | セットアップ + モック |
-| 並行処理 | 不変性により安全 | ロック・同期が必要 |
+| Data and behavior | Separated | Unified (encapsulation) |
+| State management | Immutable data + transforms | Object internal state |
+| Polymorphism | Pattern matching / higher-order functions | Subtype polymorphism |
+| Abstraction | Function composition | Class inheritance / composition |
+| Direction of extension | Easy to add new operations | Easy to add new types |
+| Strengths | Data transformation, pipelines | State management, UI components |
+| Testing | Verify input/output only | Setup + mocks |
+| Concurrency | Safe due to immutability | Requires locks and synchronization |
 
-### 7.2 Expression Problem
+### 7.2 The Expression Problem
 
 ```
-Expression Problem（型と操作の拡張ジレンマ）:
+Expression Problem (type vs. operation extension dilemma):
 
-  OOP: 新しい型の追加は容易、新しい操作の追加は困難
+  OOP: easy to add new types, hard to add new operations
   ┌────────────┐
-  │ Shape      │  新しい Shape（Triangle）を追加 → 容易
-  │  ├ Circle  │  新しい操作（area, perimeter）を追加
-  │  ├ Square  │  → 全 Shape クラスを修正必要
+  │ Shape      │  Adding a new Shape (Triangle) → easy
+  │  ├ Circle  │  Adding a new operation (area, perimeter)
+  │  ├ Square  │  → requires modifying all Shape classes
   │  └ ???     │
   └────────────┘
 
-  FP: 新しい操作の追加は容易、新しい型の追加は困難
+  FP: easy to add new operations, hard to add new types
   ┌────────────┐
-  │ area(s)    │  新しい操作（perimeter）を追加 → 容易
-  │ draw(s)    │  新しい型（Triangle）を追加
-  │ ???(s)     │  → 全関数を修正必要
+  │ area(s)    │  Adding a new operation (perimeter) → easy
+  │ draw(s)    │  Adding a new type (Triangle)
+  │ ???(s)     │  → requires modifying all functions
   └────────────┘
 
-  解決策: Visitor パターン / Type Class / Protocol
-  → 詳細は [../../design-patterns-guide/docs/02-behavioral/05-visitor.md]
+  Solution: Visitor pattern / Type Class / Protocol
+  → See [../../design-patterns-guide/docs/02-behavioral/05-visitor.md]
 ```
 
-### 7.3 ハイブリッドアプローチ
+### 7.3 Hybrid Approach
 
 ```
-推奨: 関数型+OOPのハイブリッド
-───────────────────────────────
+Recommended: Functional + OOP hybrid
+───────────────────────────────────
 
-  ┌─ ドメインモデル: イミュータブルなデータクラス (FP)
+  ┌─ Domain model: immutable data classes (FP)
   │
-  ├─ ビジネスロジック: 純粋関数 (FP)
+  ├─ Business logic: pure functions (FP)
   │
-  ├─ アプリケーション層: サービスクラス + DI (OOP)
+  ├─ Application layer: service classes + DI (OOP)
   │
-  ├─ インフラ層: リポジトリ、外部サービス (OOP)
+  ├─ Infrastructure layer: repositories, external services (OOP)
   │
-  └─ データ変換: パイプライン (FP)
+  └─ Data transformation: pipelines (FP)
 ```
 
 ```typescript
-// ハイブリッドアーキテクチャの実装例
+// Example of a hybrid architecture implementation
 
-// ===== ドメイン層: FP (不変データ + 純粋関数) =====
+// ===== Domain layer: FP (immutable data + pure functions) =====
 interface Product {
   readonly id: string;
   readonly name: string;
@@ -1432,7 +1433,7 @@ interface Cart {
   readonly appliedCoupon?: string;
 }
 
-// 純粋関数: カート操作
+// Pure functions: cart operations
 const addToCart = (cart: Cart, product: Product, quantity: number): Cart => ({
   ...cart,
   items: [
@@ -1464,21 +1465,21 @@ const applyCoupon = (cart: Cart, couponCode: string, discountRate: number): Cart
   })),
 });
 
-// 純粋関数: バリデーション
+// Pure function: validation
 const validateCart = (cart: Cart): string[] => {
   const errors: string[] = [];
   if (cart.items.length === 0) {
-    errors.push("カートが空です");
+    errors.push("Cart is empty");
   }
   for (const item of cart.items) {
     if (item.quantity > item.product.stock) {
-      errors.push(`${item.product.name}: 在庫不足 (在庫: ${item.product.stock})`);
+      errors.push(`${item.product.name}: insufficient stock (stock: ${item.product.stock})`);
     }
   }
   return errors;
 };
 
-// ===== アプリケーション層: OOP (DI + 副作用管理) =====
+// ===== Application layer: OOP (DI + side effect management) =====
 class CheckoutService {
   constructor(
     private readonly productRepo: ProductRepository,
@@ -1487,22 +1488,22 @@ class CheckoutService {
   ) {}
 
   async checkout(cart: Cart): Promise<Result<string, string>> {
-    // 1. 純粋: バリデーション
+    // 1. Pure: validation
     const errors = validateCart(cart);
     if (errors.length > 0) {
       return Err(errors.join("; "));
     }
 
-    // 2. 純粋: 合計計算
+    // 2. Pure: total calculation
     const total = calculateCartTotal(cart);
 
-    // 3. 不純: 決済
+    // 3. Impure: payment
     const paymentResult = await this.paymentGateway.charge(total);
     if (!paymentResult.ok) {
-      return Err("決済に失敗しました");
+      return Err("Payment failed");
     }
 
-    // 4. 不純: 注文保存
+    // 4. Impure: save order
     const orderId = await this.orderRepo.save(cart, total);
     return Ok(orderId);
   }
@@ -1511,19 +1512,19 @@ class CheckoutService {
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### 8.1 アンチパターン：隠れた副作用
+### 8.1 Anti-Pattern: Hidden Side Effects
 
 ```python
-# NG: 一見純粋に見えるが副作用がある
+# NG: looks pure but has side effects
 def process_items(items: list[dict]) -> list[dict]:
     for item in items:
-        item["processed"] = True  # 引数のリストを変更！
-        item["timestamp"] = datetime.now()  # 非決定的
+        item["processed"] = True  # mutates the argument list!
+        item["timestamp"] = datetime.now()  # non-deterministic
     return items
 
-# OK: 新しいリストを返す純粋関数
+# OK: pure function that returns a new list
 def process_items(
     items: list[dict], current_time: datetime
 ) -> list[dict]:
@@ -1533,14 +1534,14 @@ def process_items(
     ]
 ```
 
-**問題点**: 引数を直接変更する関数は呼び出し元のデータを壊す。時刻取得のような非決定的処理は引数で注入する。
+**Problem**: A function that directly mutates its arguments destroys the caller's data. Non-deterministic operations like time retrieval should be injected as arguments.
 
-**検出方法**: (1) 引数のオブジェクトに代入する操作（`obj["key"] = ...`, `obj.attr = ...`）を探す。(2) `datetime.now()`, `random()`, `uuid4()` 等の非決定的関数の呼び出しを探す。(3) Lint ルール（`no-param-reassign`）を設定する。
+**How to detect**: (1) Look for assignments to argument objects (`obj["key"] = ...`, `obj.attr = ...`). (2) Look for calls to non-deterministic functions like `datetime.now()`, `random()`, `uuid4()`. (3) Configure lint rules (`no-param-reassign`).
 
-### 8.2 アンチパターン：過度な抽象化
+### 8.2 Anti-Pattern: Excessive Abstraction
 
 ```python
-# NG: 関数型スタイルの過度な適用で読めないコード
+# NG: unreadable code from over-applying functional style
 result = reduce(
     lambda acc, f: f(acc),
     [
@@ -1552,12 +1553,12 @@ result = reduce(
     data,
 )
 
-# OK: 読みやすさを優先した関数型スタイル
+# OK: functional style prioritizing readability
 positive_numbers = [x for x in data if x > 0]
 squared = [x ** 2 for x in positive_numbers]
 result = sorted(squared, reverse=True)
 
-# または名前付き関数で意図を明確に
+# Or use named functions to make intent clear
 def keep_positive(nums): return [x for x in nums if x > 0]
 def square_all(nums): return [x ** 2 for x in nums]
 def sort_descending(nums): return sorted(nums, reverse=True)
@@ -1565,29 +1566,29 @@ def sort_descending(nums): return sorted(nums, reverse=True)
 result = sort_descending(square_all(keep_positive(data)))
 ```
 
-**問題点**: 関数型パターンを無理に適用して可読性を犠牲にしてはいけない。チームの理解レベルに合わせ、名前付き関数で意図を明確にする。
+**Problem**: Do not sacrifice readability by forcing functional patterns. Adapt to the team's level of understanding and use named functions to make intent clear.
 
-**判断基準**: (1) ネストした lambda が2段以上 → 名前付き関数に切り出す。(2) reduce の中身がすぐに理解できない → 明示的なループか内包表記に変える。(3) チームの半数以上が読めないコード → シンプルにする。
+**Decision criteria**: (1) Nested lambdas more than 2 levels deep → extract to named functions. (2) `reduce` body not immediately understandable → convert to explicit loops or comprehensions. (3) Code that more than half the team cannot read → simplify it.
 
-### 8.3 アンチパターン：モナドの過度な入れ子
+### 8.3 Anti-Pattern: Excessive Monad Nesting
 
 ```typescript
-// NG: Promise<Result<Option<T>>> の三重入れ子
+// NG: triple nesting of Promise<Result<Option<T>>>
 async function getUser(
   id: string
 ): Promise<Result<Option<User>, DatabaseError>> {
-  // 利用側が3段階のアンラップを強いられる
+  // Callers are forced to unwrap 3 levels deep
   const result = await getUser("123");
   if (!result.ok) {
-    // DatabaseError 処理
+    // handle DatabaseError
   } else if (result.value === null) {
-    // ユーザー未発見
+    // user not found
   } else {
-    // やっと User にアクセス
+    // finally access User
   }
 }
 
-// OK: 適切なレベルに統合
+// OK: unified at an appropriate level
 type GetUserError =
   | { type: "not_found"; userId: string }
   | { type: "database_error"; message: string };
@@ -1595,7 +1596,7 @@ type GetUserError =
 async function getUser(
   id: string
 ): Promise<Result<User, GetUserError>> {
-  // 利用側は Result の ok/error チェックのみ
+  // Callers only need to check Result ok/error
   const result = await getUser("123");
   if (!result.ok) {
     switch (result.error.type) {
@@ -1605,23 +1606,23 @@ async function getUser(
         return showErrorPage();
     }
   }
-  // すぐに User にアクセス
+  // access User immediately
 }
 ```
 
-**問題点**: 型の入れ子が深すぎると、型安全性のメリットよりもボイラープレートの負担が上回る。`Option` と `Error` を Union Type に統合するなど、適切な抽象度を選ぶ。
+**Problem**: When type nesting is too deep, the boilerplate burden outweighs the benefits of type safety. Choose an appropriate level of abstraction, such as merging `Option` and `Error` into a Union Type.
 
-### 8.4 アンチパターン：map/filter の乱用（パフォーマンス無視）
+### 8.4 Anti-Pattern: Overusing map/filter (Ignoring Performance)
 
 ```typescript
-// NG: 同じ配列を何度も走査（O(n) が4回）
+// NG: traverses the same array multiple times (O(n) × 4)
 const result = users
   .filter(u => u.active)
   .map(u => ({ ...u, name: u.name.toUpperCase() }))
   .filter(u => u.age >= 18)
   .map(u => u.name);
 
-// OK: reduce で1回の走査に統合（パフォーマンスクリティカルな場合）
+// OK: combine into a single traversal with reduce (for performance-critical cases)
 const result = users.reduce<string[]>((acc, u) => {
   if (u.active && u.age >= 18) {
     acc.push(u.name.toUpperCase());
@@ -1629,24 +1630,24 @@ const result = users.reduce<string[]>((acc, u) => {
   return acc;
 }, []);
 
-// 注意: 可読性とパフォーマンスのトレードオフ
-// - 数百件程度 → チェーン版で十分
-// - 数万件以上、ホットパス → reduce 版を検討
-// - まずプロファイリングで確認してから最適化
+// Note: trade-off between readability and performance
+// - Hundreds of items → chained version is fine
+// - Tens of thousands of items, hot path → consider the reduce version
+// - Always profile first before optimizing
 ```
 
-**問題点**: 関数型のチェーンは宣言的で読みやすいが、大量データでは中間配列のアロケーションがボトルネックになる場合がある。遅延評価パイプライン（セクション5.3）も選択肢。
+**Problem**: Functional chains are declarative and readable, but with large datasets, intermediate array allocations can become a bottleneck. Lazy evaluation pipelines (Section 5.3) are also an option.
 
 ---
 
-## 9. 演習問題
+## 9. Exercises
 
-### 演習1（基礎）: 売上データ変換パイプライン
+### Exercise 1 (Basic): Sales Data Transformation Pipeline
 
-**課題**: 以下の売上データを関数型パイプラインで処理し、カテゴリ別の月間売上サマリーを生成せよ。
+**Task**: Process the following sales data with a functional pipeline to generate a monthly sales summary by category.
 
 ```python
-# 入力データ
+# Input data
 from dataclasses import dataclass
 from datetime import date
 
@@ -1658,36 +1659,36 @@ class Sale:
     sale_date: date
 
 sales = [
-    Sale("商品A", "electronics", 15000, date(2025, 3, 1)),
-    Sale("商品B", "books", 2500, date(2025, 3, 5)),
-    Sale("商品C", "electronics", 8000, date(2025, 3, 10)),
-    Sale("商品D", "clothing", 5000, date(2025, 3, 15)),
-    Sale("商品E", "electronics", 22000, date(2025, 3, 20)),
-    Sale("商品F", "books", 1800, date(2025, 3, 25)),
-    Sale("商品G", "clothing", 12000, date(2025, 4, 1)),
-    Sale("商品H", "electronics", 9500, date(2025, 4, 5)),
+    Sale("Product A", "electronics", 15000, date(2025, 3, 1)),
+    Sale("Product B", "books", 2500, date(2025, 3, 5)),
+    Sale("Product C", "electronics", 8000, date(2025, 3, 10)),
+    Sale("Product D", "clothing", 5000, date(2025, 3, 15)),
+    Sale("Product E", "electronics", 22000, date(2025, 3, 20)),
+    Sale("Product F", "books", 1800, date(2025, 3, 25)),
+    Sale("Product G", "clothing", 12000, date(2025, 4, 1)),
+    Sale("Product H", "electronics", 9500, date(2025, 4, 5)),
 ]
 
-# 要件:
-# 1. 2025年3月のデータだけを抽出
-# 2. カテゴリ別に合計金額を集計
-# 3. 金額の降順でソート
-# 4. 結果を dict[str, int] で返す
+# Requirements:
+# 1. Extract only data from March 2025
+# 2. Aggregate total amounts by category
+# 3. Sort in descending order by amount
+# 4. Return result as dict[str, int]
 ```
 
-**期待される出力**:
+**Expected output**:
 
 ```python
 {"electronics": 45000, "clothing": 5000, "books": 4300}
 ```
 
-**模範解答**:
+**Model answer**:
 
 ```python
 from functools import reduce
 from collections import defaultdict
 
-# 純粋関数として定義
+# Defined as pure functions
 def filter_by_month(sales: list[Sale], year: int, month: int) -> list[Sale]:
     return [s for s in sales if s.sale_date.year == year and s.sale_date.month == month]
 
@@ -1700,7 +1701,7 @@ def group_by_category(sales: list[Sale]) -> dict[str, int]:
 def sort_by_value_desc(data: dict[str, int]) -> dict[str, int]:
     return dict(sorted(data.items(), key=lambda x: -x[1]))
 
-# パイプライン合成
+# Pipeline composition
 def pipe(*functions):
     def pipeline(value):
         return reduce(lambda acc, fn: fn(acc), functions, value)
@@ -1720,41 +1721,41 @@ print(result)
 
 ---
 
-### 演習2（応用）: Functional Core / Imperative Shell でユーザー登録を実装
+### Exercise 2 (Intermediate): Implement User Registration with Functional Core / Imperative Shell
 
-**課題**: 以下の要件を満たすユーザー登録システムを、Functional Core / Imperative Shell パターンで実装せよ。
+**Task**: Implement a user registration system that satisfies the following requirements using the Functional Core / Imperative Shell pattern.
 
 ```
-要件:
-  1. メール: @を含む、255文字以下、小文字正規化
-  2. パスワード: 8文字以上、英大文字・小文字・数字をそれぞれ1つ以上含む
-  3. 名前: 1〜50文字、前後の空白をトリム
-  4. 年齢: 13〜150歳
+Requirements:
+  1. Email: must contain @, 255 characters or fewer, normalize to lowercase
+  2. Password: at least 8 characters, must include uppercase, lowercase, and digits
+  3. Name: 1–50 characters, trim leading/trailing whitespace
+  4. Age: 13–150
 
 Functional Core:
-  - 全バリデーション関数は純粋
-  - バリデーション結果は Result 型で返す
-  - 全てのエラーを収集して返す（最初のエラーで停止しない）
+  - All validation functions are pure
+  - Validation results are returned as Result types
+  - Collect and return all errors (do not stop at the first error)
 
 Imperative Shell:
-  - DB保存（モック可）
-  - ウェルカムメール送信（モック可）
+  - DB save (can be mocked)
+  - Welcome email send (can be mocked)
 ```
 
-**期待される出力**:
+**Expected output**:
 
 ```python
-# 正常系
+# Success case
 result = register("Alice", "alice@example.com", "Passw0rd", 25)
 # → Ok({"id": "usr-xxx", "email": "alice@example.com", "name": "Alice"})
 
-# エラー系（全エラー収集）
+# Error case (collect all errors)
 result = register("", "invalid", "short", 10)
-# → Err(["名前を入力してください", "無効なメールアドレスです",
-#         "パスワードは8文字以上必要です", "13歳未満は登録できません"])
+# → Err(["Please enter your name", "Invalid email address",
+#         "Password must be at least 8 characters", "Users under 13 cannot register"])
 ```
 
-**模範解答**:
+**Model answer**:
 
 ```python
 from dataclasses import dataclass, field
@@ -1762,7 +1763,7 @@ from typing import Union
 import re
 import uuid
 
-# Result型
+# Result type
 @dataclass(frozen=True)
 class Ok:
     value: object
@@ -1775,47 +1776,47 @@ class Err:
 
 Result = Union[Ok, Err]
 
-# === Functional Core (純粋関数) ===
+# === Functional Core (pure functions) ===
 
 def validate_name(name: str) -> list[str]:
     errors = []
     trimmed = name.strip()
     if len(trimmed) == 0:
-        errors.append("名前を入力してください")
+        errors.append("Please enter your name")
     elif len(trimmed) > 50:
-        errors.append("名前は50文字以下にしてください")
+        errors.append("Name must be 50 characters or fewer")
     return errors
 
 def validate_email(email: str) -> list[str]:
     errors = []
     if "@" not in email:
-        errors.append("無効なメールアドレスです")
+        errors.append("Invalid email address")
     elif len(email) > 255:
-        errors.append("メールアドレスは255文字以下にしてください")
+        errors.append("Email must be 255 characters or fewer")
     return errors
 
 def validate_password(password: str) -> list[str]:
     errors = []
     if len(password) < 8:
-        errors.append("パスワードは8文字以上必要です")
+        errors.append("Password must be at least 8 characters")
     if not re.search(r"[A-Z]", password):
-        errors.append("パスワードに英大文字を含めてください")
+        errors.append("Password must contain at least one uppercase letter")
     if not re.search(r"[a-z]", password):
-        errors.append("パスワードに英小文字を含めてください")
+        errors.append("Password must contain at least one lowercase letter")
     if not re.search(r"\d", password):
-        errors.append("パスワードに数字を含めてください")
+        errors.append("Password must contain at least one digit")
     return errors
 
 def validate_age(age: int) -> list[str]:
     errors = []
     if age < 13:
-        errors.append("13歳未満は登録できません")
+        errors.append("Users under 13 cannot register")
     elif age > 150:
-        errors.append("無効な年齢です")
+        errors.append("Invalid age")
     return errors
 
 def validate_all(name: str, email: str, password: str, age: int) -> Result:
-    """全バリデーションを実行し、全エラーを収集（純粋関数）"""
+    """Run all validations and collect all errors (pure function)"""
     all_errors = (
         validate_name(name)
         + validate_email(email)
@@ -1838,23 +1839,23 @@ class UserService:
         self.mailer = mailer
 
     def register(self, name: str, email: str, password: str, age: int) -> Result:
-        # 1. 純粋: バリデーション
+        # 1. Pure: validation
         validation = validate_all(name, email, password, age)
         if not validation.is_ok():
             return validation
 
         user_data = validation.value
 
-        # 2. 不純: DB保存
+        # 2. Impure: DB save
         user_id = str(uuid.uuid4())
         self.db.save({"id": user_id, **user_data})
 
-        # 3. 不純: メール送信
+        # 3. Impure: send email
         self.mailer.send_welcome(user_data["email"], user_data["name"])
 
         return Ok({"id": user_id, **user_data})
 
-# テスト: 純粋部分はモック不要
+# Tests: pure parts require no mocks
 def test_validate_all_success():
     result = validate_all("Alice", "alice@example.com", "Passw0rd", 25)
     assert result.is_ok()
@@ -1863,11 +1864,11 @@ def test_validate_all_success():
 def test_validate_all_collects_all_errors():
     result = validate_all("", "invalid", "short", 10)
     assert not result.is_ok()
-    assert len(result.errors) == 4  # 4つのエラーが全て収集される
-    assert "名前を入力してください" in result.errors
-    assert "無効なメールアドレスです" in result.errors
-    assert "パスワードは8文字以上必要です" in result.errors
-    assert "13歳未満は登録できません" in result.errors
+    assert len(result.errors) == 4  # all 4 errors are collected
+    assert "Please enter your name" in result.errors
+    assert "Invalid email address" in result.errors
+    assert "Password must be at least 8 characters" in result.errors
+    assert "Users under 13 cannot register" in result.errors
 
 test_validate_all_success()
 test_validate_all_collects_all_errors()
@@ -1876,33 +1877,33 @@ print("All tests passed!")
 
 ---
 
-### 演習3（発展）: Result 型で注文処理パイプラインを実装
+### Exercise 3 (Advanced): Implement an Order Processing Pipeline with the Result Type
 
-**課題**: 以下の注文処理を Result 型のチェーンで実装し、エラー伝播をパイプラインで処理せよ。
+**Task**: Implement the following order processing using a chain of Result types, handling error propagation through the pipeline.
 
 ```
-処理フロー:
-  1. 在庫チェック → 在庫不足なら InsufficientStock エラー
-  2. 価格計算   → 合計0円以下なら InvalidTotal エラー
-  3. 割引適用   → 割引後の金額を計算
-  4. 税計算     → 税込み金額を返す
+Processing flow:
+  1. Stock check   → InsufficientStock error if stock is inadequate
+  2. Price calc    → InvalidTotal error if total is 0 or less
+  3. Apply discount → calculate discounted amount
+  4. Calculate tax  → return tax-inclusive amount
 
-全ステップが Result 型を返し、エラーはチェーン全体で伝播する
+Every step returns a Result type and errors propagate throughout the chain
 ```
 
-**期待される出力**:
+**Expected output**:
 
 ```python
-# 正常系
+# Success case
 result = process_order(order, inventory)
 # → Ok({"subtotal": 3500, "discount": 350, "tax": 315, "total": 3465})
 
-# 在庫不足
+# Insufficient stock
 result = process_order(large_order, limited_inventory)
-# → Err(OrderError("insufficient_stock", "商品A: 在庫不足 (要求: 100, 在庫: 5)"))
+# → Err(OrderError("insufficient_stock", "Product A: insufficient stock (requested: 100, available: 5)"))
 ```
 
-**模範解答**:
+**Model answer**:
 
 ```python
 from dataclasses import dataclass
@@ -1925,7 +1926,7 @@ class ErrResult:
     error: OrderError
     def is_ok(self): return False
     def then(self, fn):
-        return self  # エラーはそのまま伝播
+        return self  # error propagates as-is
 
 OrderResult = Union[OkResult, ErrResult]
 
@@ -1942,7 +1943,7 @@ class OrderRequest:
     discount_rate: float = 0.0
     tax_rate: float = 0.10
 
-# 各ステップの純粋関数（Result を返す）
+# Pure functions for each step (returning Result)
 
 def check_stock(order: OrderRequest, inventory: dict[str, int]) -> OrderResult:
     for item in order.items:
@@ -1950,7 +1951,7 @@ def check_stock(order: OrderRequest, inventory: dict[str, int]) -> OrderResult:
         if item.quantity > available:
             return ErrResult(OrderError(
                 "insufficient_stock",
-                f"{item.name}: 在庫不足 (要求: {item.quantity}, 在庫: {available})"
+                f"{item.name}: insufficient stock (requested: {item.quantity}, available: {available})"
             ))
     subtotal = sum(i.price * i.quantity for i in order.items)
     return OkResult({"items": order.items, "subtotal": subtotal,
@@ -1958,7 +1959,7 @@ def check_stock(order: OrderRequest, inventory: dict[str, int]) -> OrderResult:
 
 def validate_total(data: dict) -> OrderResult:
     if data["subtotal"] <= 0:
-        return ErrResult(OrderError("invalid_total", "合計金額が0以下です"))
+        return ErrResult(OrderError("invalid_total", "Total amount is 0 or less"))
     return OkResult(data)
 
 def apply_discount(data: dict) -> OrderResult:
@@ -1978,7 +1979,7 @@ def apply_tax(data: dict) -> OrderResult:
         "total": total,
     })
 
-# パイプライン実行
+# Execute the pipeline
 def process_order(order: OrderRequest, inventory: dict[str, int]) -> OrderResult:
     return (
         check_stock(order, inventory)
@@ -1987,11 +1988,11 @@ def process_order(order: OrderRequest, inventory: dict[str, int]) -> OrderResult
         .then(apply_tax)
     )
 
-# テスト
+# Tests
 order = OrderRequest(
     items=(
-        OrderItem("p1", "商品A", 1000, 2),
-        OrderItem("p2", "商品B", 500, 3),
+        OrderItem("p1", "Product A", 1000, 2),
+        OrderItem("p2", "Product B", 500, 3),
     ),
     discount_rate=0.1,
     tax_rate=0.10,
@@ -2006,7 +2007,7 @@ assert result.value["tax"] == 315
 assert result.value["total"] == 3465
 print(f"OK: {result.value}")
 
-# 在庫不足テスト
+# Insufficient stock test
 limited_inventory = {"p1": 1, "p2": 20}
 error_result = process_order(order, limited_inventory)
 assert not error_result.is_ok()
@@ -2014,9 +2015,9 @@ assert error_result.error.error_type == "insufficient_stock"
 print(f"Error: {error_result.error.message}")
 
 print("All tests passed!")
-# 出力:
+# Output:
 # OK: {'subtotal': 3500, 'discount': 350, 'tax': 315, 'total': 3465}
-# Error: 商品A: 在庫不足 (要求: 2, 在庫: 1)
+# Error: Product A: insufficient stock (requested: 2, available: 1)
 # All tests passed!
 ```
 
@@ -2024,42 +2025,42 @@ print("All tests passed!")
 
 ## 10. FAQ
 
-### Q1: 関数型プログラミングはパフォーマンスが悪いのでは？
+### Q1: Doesn't functional programming have poor performance?
 
-**A**: 新しいオブジェクトの生成にコストがかかるのは事実だが、現代のGCは短命オブジェクトの処理が非常に高速。構造共有や遅延評価を使えばパフォーマンスへの影響は最小限。JVMの場合、JITコンパイラがインライン化やエスケープ解析で最適化する。ボトルネックが確認された箇所のみ可変データを使うのが現実的。
+**A**: It is true that creating new objects has a cost, but modern GCs are very fast at processing short-lived objects. Using structural sharing and lazy evaluation minimizes the performance impact. On the JVM, the JIT compiler optimizes through inlining and escape analysis. A practical approach is to use mutable data only at confirmed bottlenecks.
 
-具体的な数値例として、Immutable.js の Map は100万エントリで通常の Object と比較して更新が約2倍遅いが、構造共有により変更検出（===比較）は O(1) で即座に完了する。React の shouldComponentUpdate のような場面では、不変データの方がトータルで高速になる。
+As a concrete example, Immutable.js's Map is about 2× slower for updates compared to a regular Object with 1 million entries, but structural sharing means change detection (`===` comparison) completes instantly in O(1). In scenarios like React's `shouldComponentUpdate`, immutable data can be faster overall.
 
-### Q2: React/Reduxと関数型プログラミングの関係は？
+### Q2: What is the relationship between React/Redux and functional programming?
 
-**A**: Reactは関数型の原則を多く取り入れている。(1) コンポーネントは「props → JSX」の純粋関数、(2) Reduxは「(state, action) → newState」の純粋なリデューサ、(3) useStateのイミュータブルな状態更新、(4) useMemoの参照透過性によるメモ化。フロントエンド開発者は自然に関数型の恩恵を受けている。
+**A**: React incorporates many functional principles: (1) components are pure functions from `props → JSX`, (2) Redux uses pure reducers `(state, action) → newState`, (3) immutable state updates with `useState`, and (4) memoization via `useMemo` based on referential transparency. Frontend developers naturally benefit from functional principles.
 
-さらに React 18+ の Concurrent Features は参照透過性を前提としている。レンダリングが中断・再開されてもUI が一貫するのは、レンダリング関数が純粋であるため。`StrictMode` で2回レンダリングされるのも、純粋性を検証するための仕組み。
+Furthermore, React 18+'s Concurrent Features assume referential transparency. The reason the UI stays consistent even when rendering is interrupted and resumed is that rendering functions are pure. The double-rendering in `StrictMode` is a mechanism for verifying purity.
 
-### Q3: チームに関数型の原則をどう導入するか？
+### Q3: How do I introduce functional principles to a team?
 
-**A**: 段階的な導入ロードマップを推奨する:
+**A**: A gradual adoption roadmap is recommended:
 
-1. **Week 1-2**: `map/filter/reduce` の活用から始める（for文の置き換え）
-2. **Week 3-4**: 純粋関数の概念を共有し、新規コードで副作用を分離する習慣をつける
-3. **Month 2**: イミュータブルなデータクラスを導入（`dataclass(frozen=True)`, `readonly`）
-4. **Month 3**: Lintルールで不変性を強制（`no-param-reassign`, `prefer-const`）
-5. **Month 4+**: Result型やパイプラインの導入を検討
+1. **Week 1-2**: Start with `map/filter/reduce` (replacing for loops)
+2. **Week 3-4**: Share the concept of pure functions and build the habit of separating side effects in new code
+3. **Month 2**: Introduce immutable data classes (`dataclass(frozen=True)`, `readonly`)
+4. **Month 3**: Enforce immutability with lint rules (`no-param-reassign`, `prefer-const`)
+5. **Month 4+**: Consider introducing Result types and pipelines
 
-一気にHaskellスタイルを強いるのではなく、各ステップで「テストが書きやすくなった」「バグが減った」という成果を実感させることが重要。
+Rather than forcing a full Haskell-style approach, what matters is letting each step deliver tangible results: "tests became easier to write," "bugs decreased."
 
-### Q4: 純粋関数のテストは本当にモック不要なのか？
+### Q4: Are tests for pure functions really mock-free?
 
-**A**: 純粋関数のテストにはモックが一切不要。入力を渡して出力を確認するだけでよい。これが Functional Core / Imperative Shell の最大のメリット。ビジネスロジックの80%以上を純粋関数で書ければ、テストスイートの大半はシンプルな入出力テストになり、テスト実行時間も大幅に短縮される。
+**A**: Tests for pure functions require absolutely no mocks. You only need to pass input and verify the output. This is the greatest benefit of Functional Core / Imperative Shell. If 80% or more of business logic is written as pure functions, the majority of the test suite becomes simple input/output tests and overall test execution time is drastically reduced.
 
 ```python
-# 純粋関数: モック不要
+# Pure function: no mocks needed
 def test_calculate_total():
     order = Order(items=(OrderItem("p1", "A", 1000, 2),), discount_rate=0.1)
     result = calculate_total(order, tax_rate=0.1)
-    assert result["total"] == 1980  # 入力→出力のみ確認
+    assert result["total"] == 1980  # only check input → output
 
-# 不純なシェル: モックが必要（だが薄い）
+# Impure shell: mocks needed (but thin)
 def test_order_service(mocker):
     mock_db = mocker.Mock()
     mock_payment = mocker.Mock(return_value=PaymentResult(success=True))
@@ -2067,111 +2068,111 @@ def test_order_service(mocker):
     # ...
 ```
 
-### Q5: 関数型プログラミングと依存性注入（DI）はどう関係するのか？
+### Q5: How does functional programming relate to dependency injection (DI)?
 
-**A**: 関数型では DI を「関数の引数」として実現する。OOP の DI コンテナを使うこともできるが、高階関数による「関数レベルの DI」も有効。
+**A**: In functional programming, DI is realized through "function arguments." You can also use OOP DI containers, but "function-level DI" via higher-order functions is also effective.
 
 ```typescript
-// OOP的DI
+// OOP-style DI
 class OrderService {
   constructor(private repo: OrderRepository) {}
   getOrder(id: string) { return this.repo.find(id); }
 }
 
-// 関数型DI: 依存を引数（高階関数）で渡す
+// Functional DI: pass dependencies as arguments (higher-order functions)
 const getOrder = (repo: OrderRepository) => (id: string) => repo.find(id);
 const getOrderFromDB = getOrder(new PostgresOrderRepository());
-const getOrderFromMock = getOrder(new MockOrderRepository());  // テスト用
+const getOrderFromMock = getOrder(new MockOrderRepository());  // for testing
 ```
 
-両方のアプローチを使い分けるのが現実的。サービス層は OOP の DI、ビジネスロジックは引数注入が見通しがよい。
+Using both approaches where appropriate is realistic. Service layers benefit from OOP DI; business logic benefits from argument injection for clarity.
 
-### Q6: イベントソーシングと関数型プログラミングの関係は？
+### Q6: What is the relationship between event sourcing and functional programming?
 
-**A**: イベントソーシングは本質的に関数型のパターン。現在の状態は「初期状態 + イベント列の左畳み込み（reduce/fold）」で計算される。
+**A**: Event sourcing is fundamentally a functional pattern. The current state is computed as "initial state + left fold (reduce/fold) over an event sequence."
 
 ```
 state = reduce(apply_event, events, initial_state)
 
-イベント: [Created, ItemAdded, ItemAdded, Discounted, Confirmed]
-         ↓ fold
-状態:    Order(items=2, discount=10%, status=confirmed)
+Events: [Created, ItemAdded, ItemAdded, Discounted, Confirmed]
+        ↓ fold
+State:  Order(items=2, discount=10%, status=confirmed)
 ```
 
-イベントは不変（過去のイベントは変更しない）、apply_event は純粋関数（同じイベント列からは常に同じ状態が再現される）。これにより完全な監査ログ、時点復元、デバッグが容易になる。詳細は ../../system-design-guide/docs/02-architecture/ を参照。
+Events are immutable (past events are never changed), and `apply_event` is a pure function (the same event sequence always reproduces the same state). This enables complete audit logs, point-in-time restoration, and easier debugging. See ../../system-design-guide/docs/02-architecture/ for details.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not through theory alone, but by actually writing code and confirming its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the core concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 11. まとめ
+## 11. Summary
 
-| カテゴリ | ポイント |
+| Category | Key Points |
 |---------|---------|
-| 純粋関数 | 同じ入力→同じ出力、副作用なし。テスト・推論が容易 |
-| 参照透過性 | 関数呼び出しを結果で置換可能。メモ化・並列化の基盤 |
-| 副作用分離 | Functional Core / Imperative Shell で構造化 |
-| 高階関数 | 振る舞いの抽象化。デコレータ、カリー化、部分適用 |
-| パイプライン | データ変換を宣言的に合成。遅延評価で大量データにも対応 |
-| エラー処理 | Result/Either型で例外を使わない安全なエラー伝播 |
-| 不変性 | データは変更せずコピー。並行安全、変更追跡が容易 |
-| ハイブリッド | FP + OOP の適材適所。ドメイン=FP、インフラ=OOP |
-| 導入戦略 | map/filter→純粋関数→不変データ→パイプラインの順で段階的に |
+| Pure functions | Same input → same output, no side effects. Easy to test and reason about |
+| Referential transparency | Function calls can be replaced with their results. Foundation for memoization and parallelization |
+| Side effect separation | Structured with Functional Core / Imperative Shell |
+| Higher-order functions | Abstraction of behavior. Decorators, currying, partial application |
+| Pipelines | Declaratively compose data transformations. Handles large data with lazy evaluation |
+| Error handling | Safe error propagation with Result/Either types without exceptions |
+| Immutability | Copy rather than mutate data. Safe for concurrency, easy to track changes |
+| Hybrid | FP + OOP used where appropriate. Domain = FP, Infrastructure = OOP |
+| Adoption strategy | Gradually: map/filter → pure functions → immutable data → pipelines |
 
 ```
-導入の成熟度モデル:
+Adoption maturity model:
 
-  Level 0: 命令型のみ（for, while, 状態変更）
+  Level 0: Imperative only (for, while, state mutation)
       ↓
-  Level 1: map/filter/reduce の活用
+  Level 1: Using map/filter/reduce
       ↓
-  Level 2: 純粋関数の意識的な分離
+  Level 2: Consciously separating pure functions
       ↓
   Level 3: Functional Core / Imperative Shell
       ↓
-  Level 4: Result型 + パイプライン合成
+  Level 4: Result types + pipeline composition
       ↓
-  Level 5: 型レベルプログラミング、Phantom Types 等
+  Level 5: Type-level programming, Phantom Types, etc.
 ```
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
-- [00-immutability.md](./00-immutability.md) — イミュータビリティの原則（不変データ構造と構造共有の詳細）
-- [01-composition-over-inheritance.md](./01-composition-over-inheritance.md) — 継承より合成の原則（Strategy, Decorator との連携）
-- [03-api-design.md](./03-api-design.md) — API設計（関数型エラーハンドリングのAPI適用）
-- [../01-practices/04-testing-principles.md](../01-practices/04-testing-principles.md) — テスト原則（純粋関数のテスト戦略）
-- ../../design-patterns-guide/docs/03-functional/ — 関数型デザインパターン（Monad, Functor）
-- [../../../design-patterns-guide/docs/02-behavioral/01-strategy.md](../../../design-patterns-guide/docs/02-behavioral/01-strategy.md) — Strategyパターン（高階関数との対比）
-- ../../system-design-guide/docs/00-fundamentals/ — システム設計の基礎（関数型アーキテクチャの全体像）
+- [00-immutability.md](./00-immutability.md) — Immutability principles (details on immutable data structures and structural sharing)
+- [01-composition-over-inheritance.md](./01-composition-over-inheritance.md) — Composition over inheritance (integration with Strategy and Decorator patterns)
+- [03-api-design.md](./03-api-design.md) — API design (applying functional error handling to APIs)
+- [../01-practices/04-testing-principles.md](../01-practices/04-testing-principles.md) — Testing principles (testing strategies for pure functions)
+- ../../design-patterns-guide/docs/03-functional/ — Functional design patterns (Monad, Functor)
+- [../../../design-patterns-guide/docs/02-behavioral/01-strategy.md](../../../design-patterns-guide/docs/02-behavioral/01-strategy.md) — Strategy pattern (comparison with higher-order functions)
+- ../../system-design-guide/docs/00-fundamentals/ — System design fundamentals (overall picture of functional architecture)
 
 ---
 
-## 参考文献
+## References
 
-1. Michael Feathers, **"Functional Design"** — 関数型設計の実践ガイド
-2. Eric Normand, **"Grokking Simplicity"** (Manning, 2021) — 実用的な関数型プログラミング入門
+1. Michael Feathers, **"Functional Design"** — A practical guide to functional design
+2. Eric Normand, **"Grokking Simplicity"** (Manning, 2021) — A practical introduction to functional programming
 3. Gary Bernhardt, **"Functional Core, Imperative Shell"** — https://www.destroyallsoftware.com/screencasts/catalog/functional-core-imperative-shell
 4. Martin Fowler, **"Collection Pipeline"** — https://martinfowler.com/articles/collection-pipeline/
-5. Scott Wlaschin, **"Domain Modeling Made Functional"** (Pragmatic, 2018) — 関数型ドメイン駆動設計
-6. Enrico Buonanno, **"Functional Programming in C#"** (Manning, 2nd ed., 2022) — 実践的な関数型プログラミング
-7. Brian Lonsdorf, **"Professor Frisby's Mostly Adequate Guide to Functional Programming"** — https://mostly-adequate.gitbook.io/mostly-adequate-guide/ — 無料のオンライン FP ガイド
-8. Rust by Example, **"Iterators"** — https://doc.rust-lang.org/rust-by-example/trait/iter.html — Rust のイテレータパイプライン
-9. Haskell Wiki, **"Functional programming"** — https://wiki.haskell.org/Functional_programming — 関数型プログラミングの理論的基盤
-10. Mark Seemann, **"From dependency injection to dependency rejection"** — https://blog.ploeh.dk/2017/01/27/from-dependency-injection-to-dependency-rejection/ — FP 視点の DI
+5. Scott Wlaschin, **"Domain Modeling Made Functional"** (Pragmatic, 2018) — Functional domain-driven design
+6. Enrico Buonanno, **"Functional Programming in C#"** (Manning, 2nd ed., 2022) — Practical functional programming
+7. Brian Lonsdorf, **"Professor Frisby's Mostly Adequate Guide to Functional Programming"** — https://mostly-adequate.gitbook.io/mostly-adequate-guide/ — Free online FP guide
+8. Rust by Example, **"Iterators"** — https://doc.rust-lang.org/rust-by-example/trait/iter.html — Rust iterator pipelines
+9. Haskell Wiki, **"Functional programming"** — https://wiki.haskell.org/Functional_programming — Theoretical foundations of functional programming
+10. Mark Seemann, **"From dependency injection to dependency rejection"** — https://blog.ploeh.dk/2017/01/27/from-dependency-injection-to-dependency-rejection/ — DI from a functional perspective
