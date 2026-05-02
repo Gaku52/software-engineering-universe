@@ -1,33 +1,33 @@
-# 継続的改善
+# Continuous Improvement
 
-> ソフトウェア品質の継続的な向上を、CI/CD パイプライン・自動化された品質ゲート・フィードバックループの構築を通じて実現する方法論を解説する。改善は一度きりのイベントではなく、日常に組み込まれたプロセスである。トヨタ生産方式の「カイゼン」、Lean Software Development の「Build-Measure-Learn」、そして Google の SRE プラクティスを融合し、エンジニアリング組織が持続的に品質を向上させるための体系的フレームワークを提供する
+> A methodology for achieving continuous improvement of software quality through CI/CD pipelines, automated quality gates, and feedback loops. Improvement is not a one-time event but a process embedded in daily work. This guide integrates Toyota's "Kaizen" production system, Lean Software Development's "Build-Measure-Learn," and Google's SRE practices to provide a systematic framework for engineering organizations to sustainably improve quality.
 
-## 前提知識
+## Prerequisites
 
-| トピック | 必要レベル | 参照ガイド |
+| Topic | Required Level | Reference Guide |
 |---------|----------|-----------|
-| テスト原則 | 基礎 | [テスト原則](../01-practices/04-testing-principles.md) |
-| 技術的負債 | 基礎 | [技術的負債](./03-technical-debt.md) |
-| リファクタリング技法 | 推奨 | [リファクタリング技法](./01-refactoring-techniques.md) |
-| コードスメル | 推奨 | [コードスメル](./00-code-smells.md) |
-| レガシーコード | 推奨 | [レガシーコード](./02-legacy-code.md) |
+| Testing Principles | Basic | [Testing Principles](../01-practices/04-testing-principles.md) |
+| Technical Debt | Basic | [Technical Debt](./03-technical-debt.md) |
+| Refactoring Techniques | Recommended | [Refactoring Techniques](./01-refactoring-techniques.md) |
+| Code Smells | Recommended | [Code Smells](./00-code-smells.md) |
+| Legacy Code | Recommended | [Legacy Code](./02-legacy-code.md) |
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **CI/CD パイプラインの品質ゲート設計** -- リント・テスト・カバレッジ・セキュリティスキャンの自動化と段階的ゲート設定
-2. **DORA メトリクスによるチームパフォーマンス測定** -- デプロイ頻度・リードタイム・変更失敗率・復旧時間の4指標とベンチマーク
-3. **品質メトリクスの可視化とトレンド分析** -- ダッシュボード構築、劣化検知、改善効果の定量的評価
-4. **PDCA/OODA サイクルによる改善プロセス** -- 計画・実行・検証・定着の反復サイクルとレトロスペクティブ
-5. **チーム文化としての改善** -- 心理的安全性、実験的改善、ボーイスカウトルール、学習する組織
+1. **Quality Gate Design for CI/CD Pipelines** -- Automation of lint, tests, coverage, and security scanning with staged gate configuration
+2. **Team Performance Measurement with DORA Metrics** -- The four indicators (deployment frequency, lead time, change failure rate, time to restore) and benchmarks
+3. **Visualization and Trend Analysis of Quality Metrics** -- Dashboard construction, degradation detection, and quantitative evaluation of improvement impact
+4. **Improvement Processes via PDCA/OODA Cycles** -- Iterative cycles of planning, execution, verification, and embedding, plus retrospectives
+5. **Improvement as Team Culture** -- Psychological safety, experimental improvement, the Boy Scout Rule, and learning organizations
 
 ---
 
-## 1. CI/CD パイプラインの品質ゲート
+## 1. Quality Gates in CI/CD Pipelines
 
-### 1.1 パイプライン全体アーキテクチャ
+### 1.1 Overall Pipeline Architecture
 
 ```
-CI/CD パイプラインの品質ゲートアーキテクチャ
+Quality Gate Architecture for CI/CD Pipelines
 
   Developer
      |
@@ -36,7 +36,7 @@ CI/CD パイプラインの品質ゲートアーキテクチャ
      |
      v
   ┌─────────────────────────────────────────────────────┐
-  │  Stage 1: Fast Feedback (< 2分)                      │
+  │  Stage 1: Fast Feedback (< 2 min)                    │
   │  ┌──────────┐  ┌──────────┐  ┌──────────┐          │
   │  │ Lint     │  │ Format   │  │ Type     │          │
   │  │ (Ruff)   │  │ (Black)  │  │ Check    │          │
@@ -44,11 +44,11 @@ CI/CD パイプラインの品質ゲートアーキテクチャ
   │  └────┬─────┘  └────┬─────┘  └────┬─────┘          │
   │       └──────────┬───┘            │                 │
   │                  v                v                 │
-  │            [全通過?] ──No──> PR ブロック              │
+  │            [All pass?] ──No──> Block PR             │
   │                  │Yes                               │
   │                  v                                  │
   ├─────────────────────────────────────────────────────┤
-  │  Stage 2: Core Verification (< 5分)                  │
+  │  Stage 2: Core Verification (< 5 min)                │
   │  ┌──────────┐  ┌──────────┐                         │
   │  │ Unit     │  │ Coverage │                         │
   │  │ Tests    │  │ Check    │                         │
@@ -56,11 +56,11 @@ CI/CD パイプラインの品質ゲートアーキテクチャ
   │  └────┬─────┘  └────┬─────┘                         │
   │       └──────┬───────┘                              │
   │              v                                      │
-  │        [全通過?] ──No──> PR ブロック                  │
+  │        [All pass?] ──No──> Block PR                 │
   │              │Yes                                   │
   │              v                                      │
   ├─────────────────────────────────────────────────────┤
-  │  Stage 3: Extended Verification (< 10分)             │
+  │  Stage 3: Extended Verification (< 10 min)           │
   │  ┌──────────┐  ┌──────────┐  ┌──────────┐          │
   │  │ Integ.   │  │ Security │  │ Dep.     │          │
   │  │ Tests    │  │ Scan     │  │ Audit    │          │
@@ -68,7 +68,7 @@ CI/CD パイプラインの品質ゲートアーキテクチャ
   │  └────┬─────┘  └────┬─────┘  └────┬─────┘          │
   │       └──────────┬───┘            │                 │
   │                  v                v                 │
-  │            [全通過?] ──No──> PR ブロック              │
+  │            [All pass?] ──No──> Block PR             │
   │                  │Yes                               │
   │                  v                                  │
   ├─────────────────────────────────────────────────────┤
@@ -79,7 +79,7 @@ CI/CD パイプラインの品質ゲートアーキテクチャ
   │  └────┬─────┘  └────┬─────┘  └────┬─────┘          │
   │       └──────────┬───┘            │                 │
   │                  v                v                 │
-  │            [全通過?] ──No──> デプロイ停止             │
+  │            [All pass?] ──No──> Halt Deploy          │
   │                  │Yes                               │
   │                  v                                  │
   ├─────────────────────────────────────────────────────┤
@@ -89,20 +89,20 @@ CI/CD パイプラインの品質ゲートアーキテクチャ
   │  │ Prod     │  │ Tests    │  │ & Alert  │          │
   │  └────┬─────┘  └────┬─────┘  └────┬─────┘          │
   │       │              │              │               │
-  │       │        [失敗?]──Yes──> 自動ロールバック       │
+  │       │        [Fail?]──Yes──> Auto Rollback        │
   │       │              │No                            │
   │       v              v                              │
-  │       ✓ デプロイ完了                                  │
+  │       ✓ Deploy Complete                             │
   └─────────────────────────────────────────────────────┘
 
-  設計原則:
-  - Fast Feedback First: 軽量チェックを先に（失敗の90%は最初の2分で検出）
-  - Fail Fast: 失敗したら即座に後続ステージをスキップ
-  - Parallel Execution: 独立したチェックは並列実行
-  - Progressive Confidence: ステージが進むほど信頼度が上がる
+  Design Principles:
+  - Fast Feedback First: Run lightweight checks first (90% of failures caught in the first 2 minutes)
+  - Fail Fast: Skip subsequent stages immediately upon failure
+  - Parallel Execution: Run independent checks in parallel
+  - Progressive Confidence: Each stage increases confidence level
 ```
 
-### 1.2 GitHub Actions 実装
+### 1.2 GitHub Actions Implementation
 
 ```yaml
 # .github/workflows/ci.yml
@@ -114,7 +114,7 @@ on:
   push:
     branches: [main]
 
-# 同一PRの実行中ワークフローをキャンセル
+# Cancel in-progress workflows on the same PR
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -287,11 +287,11 @@ jobs:
           severity: 'CRITICAL,HIGH'
 ```
 
-### 1.3 pre-commit 設定
+### 1.3 pre-commit Configuration
 
 ```yaml
 # .pre-commit-config.yaml
-# ローカル開発での品質チェック（CIの前段階）
+# Quality checks for local development (pre-CI stage)
 repos:
   # Ruff: Lint + Format (Python)
   - repo: https://github.com/astral-sh/ruff-pre-commit
@@ -309,7 +309,7 @@ repos:
         additional_dependencies: [types-requests, types-pyyaml]
         args: [--strict]
 
-  # 汎用チェック
+  # General checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:
@@ -325,7 +325,7 @@ repos:
       - id: no-commit-to-branch
         args: [--branch, main, --branch, master]
 
-  # コミットメッセージ規約
+  # Commit message conventions
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v3.1.0
     hooks:
@@ -333,7 +333,7 @@ repos:
         stages: [commit-msg]
         args: [feat, fix, refactor, docs, test, chore, ci, perf]
 
-  # セキュリティ
+  # Security
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.4.0
     hooks:
@@ -341,115 +341,115 @@ repos:
         args: ['--baseline', '.secrets.baseline']
 ```
 
-### 1.4 品質ゲートの段階的導入
+### 1.4 Phased Introduction of Quality Gates
 
 ```
-品質ゲートの段階的導入ロードマップ
+Phased Quality Gate Introduction Roadmap
 
-Phase 1 (Week 1-2): 基本ゲート
+Phase 1 (Week 1-2): Basic Gates
   ┌────────────────────────────────────────┐
-  │  [Warning のみ]                         │
+  │  [Warning Only]                         │
   │  - Lint (Ruff)                         │
   │  - Format (Black/Ruff)                 │
-  │  - 基本テスト実行                       │
+  │  - Basic test execution                │
   │                                        │
-  │  目的: チームの慣れ、既存コードの把握    │
+  │  Goal: Team familiarity, understand     │
+  │        existing codebase               │
   └────────────────────────────────────────┘
 
-Phase 2 (Week 3-4): ブロッキングゲート
+Phase 2 (Week 3-4): Blocking Gates
   ┌────────────────────────────────────────┐
   │  [Blocking]                             │
-  │  - Lint エラー → PR ブロック             │
-  │  - テスト失敗 → PR ブロック             │
+  │  - Lint errors → Block PR              │
+  │  - Test failures → Block PR            │
   │                                        │
   │  [Warning]                              │
-  │  - カバレッジ報告                       │
-  │  - 型チェック                           │
+  │  - Coverage reporting                  │
+  │  - Type check                          │
   │                                        │
-  │  目的: 最低限の品質保証                  │
+  │  Goal: Minimum quality assurance       │
   └────────────────────────────────────────┘
 
-Phase 3 (Month 2): 品質強化
+Phase 3 (Month 2): Quality Hardening
   ┌────────────────────────────────────────┐
   │  [Blocking]                             │
   │  - Lint + Format                       │
-  │  - テスト全通過                         │
-  │  - カバレッジ ≥ 70%                     │
-  │  - 型チェック                           │
+  │  - All tests pass                      │
+  │  - Coverage ≥ 70%                      │
+  │  - Type check                          │
   │                                        │
   │  [Warning]                              │
-  │  - セキュリティスキャン                  │
-  │  - 依存関係監査                         │
+  │  - Security scan                       │
+  │  - Dependency audit                    │
   │                                        │
-  │  目的: 中程度の品質保証                  │
+  │  Goal: Moderate quality assurance      │
   └────────────────────────────────────────┘
 
-Phase 4 (Month 3+): フルゲート
+Phase 4 (Month 3+): Full Gates
   ┌────────────────────────────────────────┐
   │  [Blocking]                             │
   │  - Lint + Format + Type Check          │
-  │  - Unit Tests 全通過                    │
-  │  - Integration Tests 全通過             │
-  │  - カバレッジ ≥ 80%                     │
-  │  - セキュリティスキャン (Critical/High)  │
-  │  - 依存関係の既知脆弱性 = 0              │
+  │  - All unit tests pass                 │
+  │  - All integration tests pass          │
+  │  - Coverage ≥ 80%                      │
+  │  - Security scan (Critical/High)       │
+  │  - Known dependency vulnerabilities = 0│
   │                                        │
-  │  目的: 高い品質保証                      │
+  │  Goal: High quality assurance          │
   └────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. DORA メトリクス
+## 2. DORA Metrics
 
-### 2.1 4つの主要指標
+### 2.1 The Four Key Indicators
 
-DORA (DevOps Research and Assessment) メトリクスは、2014年から始まった大規模調査に基づくソフトウェアデリバリーパフォーマンスの4つの主要指標である:
+DORA (DevOps Research and Assessment) metrics are four key indicators of software delivery performance based on large-scale research conducted since 2014:
 
 ```
-DORA メトリクスの4指標とベンチマーク
+DORA Metrics: Four Indicators and Benchmarks
 
 ┌─────────────────────────┬─────────────────────────┐
-│  1. デプロイ頻度          │  2. リードタイム           │
-│  (Deployment Frequency)  │  (Lead Time for Changes)│
+│  1. Deployment Frequency │  2. Lead Time            │
+│                          │  (Lead Time for Changes) │
 │                          │                         │
-│  「どれくらい頻繁に       │  「コミットからデプロイ    │
-│   本番にデプロイするか」  │   まで何時間かかるか」    │
+│  "How often do you       │  "How long from commit   │
+│   deploy to production?" │   to production deploy?" │
 │                          │                         │
-│  Elite: 日次複数回 (10x) │  Elite: < 1時間          │
-│  High:  日次 〜 週次     │  High:  < 1日            │
-│  Med:   週次 〜 月次     │  Med:   < 1週間          │
-│  Low:   月次以下         │  Low:   > 1ヶ月          │
+│  Elite: Multiple/day     │  Elite: < 1 hour         │
+│  High:  Daily ~ Weekly   │  High:  < 1 day          │
+│  Med:   Weekly ~ Monthly │  Med:   < 1 week         │
+│  Low:   Monthly or less  │  Low:   > 1 month        │
 │                          │                         │
-│  [スループット指標]       │  [スループット指標]       │
+│  [Throughput metric]     │  [Throughput metric]     │
 ├─────────────────────────┼─────────────────────────┤
-│  3. 変更失敗率            │  4. 復旧時間              │
-│  (Change Failure Rate)   │  (Time to Restore)      │
+│  3. Change Failure Rate  │  4. Time to Restore      │
 │                          │                         │
-│  「デプロイの何%が        │  「障害発生から復旧まで   │
-│   障害を引き起こすか」    │   何時間かかるか」       │
+│  "What % of deploys      │  "How long to recover    │
+│   cause incidents?"      │   from an incident?"    │
 │                          │                         │
-│  Elite: < 5%             │  Elite: < 1時間          │
-│  High:  < 15%            │  High:  < 1日            │
-│  Med:   < 30%            │  Med:   < 1週間          │
-│  Low:   > 30%            │  Low:   > 1ヶ月          │
+│  Elite: < 5%             │  Elite: < 1 hour         │
+│  High:  < 15%            │  High:  < 1 day          │
+│  Med:   < 30%            │  Med:   < 1 week         │
+│  Low:   > 30%            │  Low:   > 1 month        │
 │                          │                         │
-│  [安定性指標]            │  [安定性指標]            │
+│  [Stability metric]      │  [Stability metric]      │
 └─────────────────────────┴─────────────────────────┘
 
-重要な発見 (Accelerate 研究):
-  - Elite パフォーマーは Low と比較して:
-    - デプロイ頻度が 973倍 高い
-    - リードタイムが 6570倍 短い
-    - 復旧時間が 6570倍 短い
-    - 変更失敗率が 3倍 低い
-  - スループットと安定性はトレードオフではなく、両立する
+Key Findings (Accelerate research):
+  Elite performers compared to Low performers:
+    - 973x higher deployment frequency
+    - 6570x shorter lead time
+    - 6570x shorter time to restore
+    - 3x lower change failure rate
+  Throughput and stability are not a trade-off; they go together
 ```
 
-### 2.2 メトリクス収集と自動化
+### 2.2 Metrics Collection and Automation
 
 ```python
-"""DORA メトリクス収集フレームワーク"""
+"""DORA metrics collection framework"""
 import subprocess
 import json
 from datetime import datetime, timedelta
@@ -459,23 +459,23 @@ from typing import Optional
 
 @dataclass
 class DORAMetrics:
-    """DORA メトリクスのデータモデル"""
-    # 計測期間
+    """Data model for DORA metrics"""
+    # Measurement period
     period_start: datetime
     period_end: datetime
 
-    # 1. デプロイ頻度
+    # 1. Deployment frequency
     deploy_count: int = 0
     deploy_frequency_per_day: float = 0.0
 
-    # 2. リードタイム
+    # 2. Lead time
     lead_times_hours: list[float] = field(default_factory=list)
 
-    # 3. 変更失敗率
+    # 3. Change failure rate
     total_changes: int = 0
     failed_changes: int = 0
 
-    # 4. 復旧時間
+    # 4. Time to restore
     restore_times_hours: list[float] = field(default_factory=list)
 
     @property
@@ -511,18 +511,18 @@ class DORAMetrics:
         return sum(self.restore_times_hours) / len(self.restore_times_hours)
 
     def classify(self, metric: str) -> str:
-        """指標のパフォーマンスレベルを判定"""
+        """Determine the performance level for a metric"""
         classifications = {
             "deploy_frequency": [
-                (1.0, "Elite"),    # 日次以上
-                (0.14, "High"),    # 週次以上
-                (0.03, "Medium"),  # 月次以上
+                (1.0, "Elite"),    # Daily or more
+                (0.14, "High"),    # Weekly or more
+                (0.03, "Medium"),  # Monthly or more
                 (0.0, "Low"),
             ],
             "lead_time": [
-                (1.0, "Elite"),    # 1時間以内
-                (24.0, "High"),    # 1日以内
-                (168.0, "Medium"), # 1週間以内
+                (1.0, "Elite"),    # Within 1 hour
+                (24.0, "High"),    # Within 1 day
+                (168.0, "Medium"), # Within 1 week
                 (float("inf"), "Low"),
             ],
             "change_failure_rate": [
@@ -564,7 +564,7 @@ class DORAMetrics:
 
     @property
     def overall_level(self) -> str:
-        """総合パフォーマンスレベル"""
+        """Overall performance level"""
         levels = {
             "Elite": 4, "High": 3, "Medium": 2, "Low": 1
         }
@@ -587,14 +587,14 @@ def collect_dora_metrics(
     days: int = 30,
     deploy_tag_pattern: str = "v*"
 ) -> DORAMetrics:
-    """Git + GitHub CLI からDORAメトリクスを収集"""
+    """Collect DORA metrics from Git + GitHub CLI"""
     end = datetime.now()
     start = end - timedelta(days=days)
     since = start.isoformat()
 
     metrics = DORAMetrics(period_start=start, period_end=end)
 
-    # 1. デプロイ頻度 (タグベース)
+    # 1. Deployment frequency (tag-based)
     result = subprocess.run(
         ["git", "tag", "-l", deploy_tag_pattern, "--sort=-creatordate",
          "--format=%(creatordate:iso)"],
@@ -613,7 +613,7 @@ def collect_dora_metrics(
     metrics.deploy_count = len(deploy_dates)
     metrics.deploy_frequency_per_day = metrics.deploy_count / max(days, 1)
 
-    # 2. リードタイム (PR作成 → マージまでの時間)
+    # 2. Lead time (PR creation to merge)
     try:
         result = subprocess.run(
             ["gh", "pr", "list", "--state", "merged", "--limit", "100",
@@ -631,7 +631,7 @@ def collect_dora_metrics(
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
 
-    # 3. 変更失敗率 (revert / hotfix コミットの割合)
+    # 3. Change failure rate (ratio of revert/hotfix commits)
     result = subprocess.run(
         ["git", "log", "--oneline", "--since", since],
         capture_output=True, text=True, cwd=repo_path
@@ -655,56 +655,56 @@ def collect_dora_metrics(
 
 
 def print_dora_dashboard(metrics: DORAMetrics) -> None:
-    """DORAメトリクスダッシュボード"""
+    """DORA metrics dashboard"""
     width = 64
     print("=" * width)
-    print("  DORA メトリクスダッシュボード".center(width))
-    print(f"  期間: {metrics.period_start.strftime('%Y-%m-%d')} "
+    print("  DORA Metrics Dashboard".center(width))
+    print(f"  Period: {metrics.period_start.strftime('%Y-%m-%d')} "
           f"~ {metrics.period_end.strftime('%Y-%m-%d')} "
-          f"({metrics.period_days}日間)".center(width))
+          f"({metrics.period_days} days)".center(width))
     print("=" * width)
 
-    # デプロイ頻度
+    # Deployment frequency
     level = metrics.classify("deploy_frequency")
-    print(f"\n  [1] デプロイ頻度")
-    print(f"      回数: {metrics.deploy_count} 回")
-    print(f"      頻度: {metrics.deploy_frequency_per_day:.2f} 回/日")
-    print(f"      レベル: {level}")
+    print(f"\n  [1] Deployment Frequency")
+    print(f"      Count: {metrics.deploy_count}")
+    print(f"      Frequency: {metrics.deploy_frequency_per_day:.2f} /day")
+    print(f"      Level: {level}")
 
-    # リードタイム
+    # Lead time
     level = metrics.classify("lead_time")
-    print(f"\n  [2] リードタイム (PR作成→マージ)")
-    print(f"      平均: {metrics.avg_lead_time_hours:.1f} 時間")
-    print(f"      中央値: {metrics.median_lead_time_hours:.1f} 時間")
-    print(f"      レベル: {level}")
+    print(f"\n  [2] Lead Time (PR creation → merge)")
+    print(f"      Average: {metrics.avg_lead_time_hours:.1f} hours")
+    print(f"      Median: {metrics.median_lead_time_hours:.1f} hours")
+    print(f"      Level: {level}")
 
-    # 変更失敗率
+    # Change failure rate
     level = metrics.classify("change_failure_rate")
-    print(f"\n  [3] 変更失敗率")
-    print(f"      総変更: {metrics.total_changes} 件")
-    print(f"      失敗: {metrics.failed_changes} 件")
-    print(f"      失敗率: {metrics.change_failure_rate:.1f}%")
-    print(f"      レベル: {level}")
+    print(f"\n  [3] Change Failure Rate")
+    print(f"      Total changes: {metrics.total_changes}")
+    print(f"      Failures: {metrics.failed_changes}")
+    print(f"      Failure rate: {metrics.change_failure_rate:.1f}%")
+    print(f"      Level: {level}")
 
-    # 復旧時間
+    # Time to restore
     level = metrics.classify("restore_time")
-    print(f"\n  [4] 復旧時間")
-    print(f"      平均: {metrics.avg_restore_time_hours:.1f} 時間")
-    print(f"      レベル: {level}")
+    print(f"\n  [4] Time to Restore")
+    print(f"      Average: {metrics.avg_restore_time_hours:.1f} hours")
+    print(f"      Level: {level}")
 
-    # 総合
+    # Overall
     print(f"\n" + "-" * width)
     overall = metrics.overall_level
-    print(f"  総合パフォーマンス: {overall}")
+    print(f"  Overall Performance: {overall}")
     print("=" * width)
 ```
 
-### 2.3 トレンド可視化
+### 2.3 Trend Visualization
 
 ```
-デプロイ頻度の推移 (過去6ヶ月)
+Deployment Frequency Trend (Past 6 Months)
 
-  回/日
+  /day
   3.0 |                                          *
   2.5 |                                    *
   2.0 |                              *
@@ -712,17 +712,17 @@ def print_dora_dashboard(metrics: DORAMetrics) -> None:
   1.0 |              *   *
   0.5 |  *     *
   0.0 +----+----+----+----+----+----+
-      9月   10月  11月  12月  1月   2月
+      Sep  Oct  Nov  Dec  Jan  Feb
 
-  改善イベントの対応:
-  - 10月: CI/CD パイプライン導入 → 自動デプロイ開始
-  - 12月: Feature Flag 導入 → デプロイとリリースの分離
-  - 2月:  Trunk-Based Development 移行 → 小さなPR文化
+  Corresponding improvement events:
+  - Oct: CI/CD pipeline introduced → automated deployment started
+  - Dec: Feature Flags introduced → deployment and release decoupled
+  - Feb: Transition to Trunk-Based Development → small PR culture
 
 
-リードタイムの推移 (過去6ヶ月)
+Lead Time Trend (Past 6 Months)
 
-  時間
+  hours
   72  |  *
   48  |     *     *
   24  |              *
@@ -731,15 +731,15 @@ def print_dora_dashboard(metrics: DORAMetrics) -> None:
    4  |                                 *
    2  |                                      *
    0  +----+----+----+----+----+----+
-      9月   10月  11月  12月  1月   2月
+      Sep  Oct  Nov  Dec  Jan  Feb
 
-  改善イベントの対応:
-  - 10月: PR サイズ制限導入 (< 400行)
-  - 12月: レビュー応答 SLA 導入 (< 4時間)
-  - 2月:  自動レビューツール導入 (CodeRabbit)
+  Corresponding improvement events:
+  - Oct: PR size limit introduced (< 400 lines)
+  - Dec: Review response SLA introduced (< 4 hours)
+  - Feb: Automated review tool introduced (CodeRabbit)
 
 
-変更失敗率の推移 (過去6ヶ月)
+Change Failure Rate Trend (Past 6 Months)
 
   %
   25  |  *
@@ -749,47 +749,47 @@ def print_dora_dashboard(metrics: DORAMetrics) -> None:
    8  |                    *
    5  |                         *   *   *
    0  +----+----+----+----+----+----+
-      9月   10月  11月  12月  1月   2月
+      Sep  Oct  Nov  Dec  Jan  Feb
 
-  改善イベントの対応:
-  - 10月: カバレッジゲート 60% 導入
-  - 11月: カバレッジゲート 70% に引き上げ
-  - 1月:  カバレッジゲート 80% + E2E テスト追加
+  Corresponding improvement events:
+  - Oct: Coverage gate at 60% introduced
+  - Nov: Coverage gate raised to 70%
+  - Jan: Coverage gate at 80% + E2E tests added
 ```
 
 ---
 
-## 3. 品質メトリクスの可視化
+## 3. Visualizing Quality Metrics
 
-### 3.1 品質ダッシュボード
+### 3.1 Quality Dashboard
 
 ```python
-"""品質メトリクスの統合ダッシュボード"""
+"""Integrated dashboard for quality metrics"""
 from dataclasses import dataclass, field
 from datetime import datetime
 
 
 @dataclass
 class QualitySnapshot:
-    """ある時点の品質メトリクスのスナップショット"""
+    """A snapshot of quality metrics at a point in time"""
     timestamp: datetime
 
-    # コード品質
+    # Code quality
     avg_complexity: float
     duplication_percent: float
     type_coverage_percent: float
 
-    # テスト
+    # Testing
     test_coverage_percent: float
     test_count: int
-    test_pass_rate: float       # テスト成功率 (%)
+    test_pass_rate: float       # Test pass rate (%)
     test_execution_sec: float
 
-    # セキュリティ
+    # Security
     known_vulnerabilities: int
     security_hotspots: int
 
-    # 保守性
+    # Maintainability
     todo_fixme_count: int
     outdated_deps: int
     avg_file_size_lines: float
@@ -797,7 +797,7 @@ class QualitySnapshot:
 
 @dataclass
 class QualityTrend:
-    """品質メトリクスのトレンド分析"""
+    """Trend analysis for quality metrics"""
     snapshots: list[QualitySnapshot] = field(default_factory=list)
 
     def add_snapshot(self, snapshot: QualitySnapshot) -> None:
@@ -805,7 +805,7 @@ class QualityTrend:
         self.snapshots.sort(key=lambda s: s.timestamp)
 
     def get_trend(self, metric: str, periods: int = 6) -> list[tuple[datetime, float]]:
-        """指定メトリクスのトレンドデータを取得"""
+        """Get trend data for a specified metric"""
         recent = self.snapshots[-periods:]
         return [(s.timestamp, getattr(s, metric, 0.0)) for s in recent]
 
@@ -815,10 +815,10 @@ class QualityTrend:
         threshold_percent: float = 10.0,
         higher_is_better: bool = True
     ) -> bool:
-        """品質劣化を検出
+        """Detect quality degradation
 
-        直近2回のスナップショットを比較し、
-        threshold_percent 以上の劣化があれば True
+        Compares the two most recent snapshots and returns True
+        if degradation exceeds threshold_percent
         """
         if len(self.snapshots) < 2:
             return False
@@ -837,26 +837,26 @@ class QualityTrend:
             return change_percent > threshold_percent
 
     def generate_report(self) -> str:
-        """品質トレンドレポートを生成"""
+        """Generate a quality trend report"""
         if not self.snapshots:
-            return "データなし"
+            return "No data"
 
         current = self.snapshots[-1]
         lines = [
             "=" * 60,
-            "  品質トレンドレポート",
-            f"  時点: {current.timestamp.strftime('%Y-%m-%d %H:%M')}",
+            "  Quality Trend Report",
+            f"  As of: {current.timestamp.strftime('%Y-%m-%d %H:%M')}",
             "=" * 60,
         ]
 
-        # 劣化検出
+        # Degradation detection
         degradations = []
         checks = [
-            ("test_coverage_percent", "テストカバレッジ", True),
-            ("avg_complexity", "平均複雑度", False),
-            ("duplication_percent", "コード重複率", False),
-            ("known_vulnerabilities", "既知脆弱性", False),
-            ("outdated_deps", "古い依存関係", False),
+            ("test_coverage_percent", "Test Coverage", True),
+            ("avg_complexity", "Average Complexity", False),
+            ("duplication_percent", "Code Duplication Rate", False),
+            ("known_vulnerabilities", "Known Vulnerabilities", False),
+            ("outdated_deps", "Outdated Dependencies", False),
         ]
 
         for metric, name, higher_is_better in checks:
@@ -864,17 +864,17 @@ class QualityTrend:
                 degradations.append(name)
 
         if degradations:
-            lines.append(f"\n  [ALERT] 品質劣化検出:")
+            lines.append(f"\n  [ALERT] Quality Degradation Detected:")
             for d in degradations:
                 lines.append(f"    - {d}")
         else:
-            lines.append(f"\n  [OK] 品質劣化なし")
+            lines.append(f"\n  [OK] No Quality Degradation")
 
         lines.append("=" * 60)
         return "\n".join(lines)
 ```
 
-### 3.2 GitHub Actions での品質トレンド収集
+### 3.2 Quality Trend Collection with GitHub Actions
 
 ```yaml
 # .github/workflows/quality-trend.yml
@@ -882,7 +882,7 @@ name: Quality Trend Tracking
 
 on:
   schedule:
-    - cron: '0 9 * * 1'  # 毎週月曜9時
+    - cron: '0 9 * * 1'  # Every Monday at 9:00
   workflow_dispatch:
 
 jobs:
@@ -916,7 +916,7 @@ jobs:
             'todo_count': $(grep -r -c -E 'TODO|FIXME|HACK' src/ 2>/dev/null | awk -F: '{s+=\$2}END{print s+0}'),
           }
 
-          # トレンドファイルに追加
+          # Append to trend file
           try:
             with open('quality-trend.json') as f:
               trend = json.load(f)
@@ -925,7 +925,7 @@ jobs:
 
           trend.append(metrics)
 
-          # 直近52週分を保持
+          # Keep the last 52 weeks
           trend = trend[-52:]
 
           with open('quality-trend.json', 'w') as f:
@@ -945,12 +945,12 @@ jobs:
 
 ---
 
-## 4. 改善サイクル
+## 4. Improvement Cycles
 
-### 4.1 PDCA サイクル
+### 4.1 PDCA Cycle
 
 ```python
-"""改善サイクルの構造化フレームワーク"""
+"""Structured framework for improvement cycles"""
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -965,7 +965,7 @@ class CyclePhase(Enum):
 
 @dataclass
 class ImprovementGoal:
-    """改善目標"""
+    """Improvement goal"""
     metric: str
     current_value: float
     target_value: float
@@ -985,32 +985,32 @@ class ImprovementGoal:
 
 @dataclass
 class ImprovementCycle:
-    """品質改善の PDCA サイクル管理"""
+    """PDCA cycle management for quality improvement"""
     cycle_id: str
     phase: CyclePhase = CyclePhase.PLAN
     goals: list[ImprovementGoal] = field(default_factory=list)
     learnings: list[str] = field(default_factory=list)
 
     def plan(self, current_metrics: dict, improvement_areas: list[str]) -> dict:
-        """Plan: 現状分析と改善目標設定
+        """Plan: Analyze current state and set improvement goals
 
-        ステップ:
-        1. 現状メトリクスの分析
-        2. ボトルネックの特定
-        3. 改善目標の設定 (SMART原則)
-        4. アクションプランの策定
+        Steps:
+        1. Analyze current metrics
+        2. Identify bottlenecks
+        3. Set improvement goals (SMART principle)
+        4. Formulate action plan
         """
         targets = {}
         for area in improvement_areas:
             current = current_metrics.get(area, 0)
 
-            # 改善目標: 現状から10-30%改善
+            # Improvement goal: 10-30% better than current
             if area in ("test_coverage", "deploy_frequency"):
-                target = min(current * 1.2, 95.0)  # 20%向上、上限95%
+                target = min(current * 1.2, 95.0)  # 20% increase, cap at 95%
             elif area in ("avg_complexity", "lead_time_hours"):
-                target = current * 0.8  # 20%削減
+                target = current * 0.8  # 20% reduction
             elif area == "change_failure_rate":
-                target = max(current * 0.7, 5.0)  # 30%削減、下限5%
+                target = max(current * 0.7, 5.0)  # 30% reduction, floor at 5%
             else:
                 target = current * 1.1
 
@@ -1024,9 +1024,9 @@ class ImprovementCycle:
         return {"current_metrics": current_metrics, "targets": targets}
 
     def do(self, actions: list[dict]) -> list[str]:
-        """Do: 改善アクションの実施
+        """Do: Execute improvement actions
 
-        各アクションは以下の形式:
+        Each action has the format:
         {"name": str, "owner": str, "deadline": str, "execute": callable}
         """
         results = []
@@ -1035,16 +1035,16 @@ class ImprovementCycle:
         for action in actions:
             try:
                 action["execute"]()
-                results.append(f"[OK] {action['name']} (担当: {action['owner']})")
+                results.append(f"[OK] {action['name']} (Owner: {action['owner']})")
             except Exception as e:
                 results.append(f"[NG] {action['name']}: {e}")
 
         return results
 
     def check(self, targets: dict, actual_metrics: dict) -> dict:
-        """Check: 効果測定
+        """Check: Measure effectiveness
 
-        各目標に対する達成度を評価
+        Evaluate the degree of achievement against each goal
         """
         self.phase = CyclePhase.CHECK
         results = {}
@@ -1054,7 +1054,7 @@ class ImprovementCycle:
             actual_value = actual_metrics.get(metric, 0)
             current_value = target_info["current"]
 
-            # 改善方向に応じた達成判定
+            # Achievement determination based on improvement direction
             if metric in ("test_coverage", "deploy_frequency"):
                 achieved = actual_value >= target_value
                 improvement = actual_value - current_value
@@ -1072,10 +1072,10 @@ class ImprovementCycle:
         return results
 
     def act(self, check_results: dict) -> dict:
-        """Act: 標準化 or 方針修正
+        """Act: Standardize or adjust direction
 
-        達成: 改善をプロセスに組み込み（標準化）
-        未達: 原因分析 → 次サイクルの Plan に反映
+        Achieved: Embed improvement into processes (standardize)
+        Not achieved: Root cause analysis → Reflect in next cycle's Plan
         """
         self.phase = CyclePhase.ACT
         actions = {}
@@ -1084,105 +1084,105 @@ class ImprovementCycle:
             if result["achieved"]:
                 actions[metric] = {
                     "action": "standardize",
-                    "detail": f"{metric}: 改善をCI/CDパイプラインに組み込み、"
-                              f"閾値を {result['actual']} に更新",
+                    "detail": f"{metric}: Embed improvement into CI/CD pipeline, "
+                              f"update threshold to {result['actual']}",
                 }
             else:
                 actions[metric] = {
                     "action": "adjust",
-                    "detail": f"{metric}: 原因分析を実施。"
-                              f"目標={result['target']}, 実績={result['actual']}。"
-                              f"次サイクルで対策を強化",
+                    "detail": f"{metric}: Conduct root cause analysis. "
+                              f"Target={result['target']}, Actual={result['actual']}. "
+                              f"Strengthen countermeasures in next cycle",
                 }
                 self.learnings.append(
-                    f"{metric}: 目標未達。Gap={result['target'] - result['actual']:.1f}"
+                    f"{metric}: Goal not achieved. Gap={result['target'] - result['actual']:.1f}"
                 )
 
         return actions
 ```
 
-### 4.2 OODA ループ（高速改善向け）
+### 4.2 OODA Loop (for Rapid Improvement)
 
 ```
-OODA ループ (インシデント対応・緊急改善向け)
+OODA Loop (For Incident Response and Emergency Improvement)
 
   ┌──────────┐      ┌──────────┐
   │ Observe  │ ──→  │ Orient   │
-  │ (観察)   │      │ (情勢判断)│
+  │          │      │          │
   └──────────┘      └────┬─────┘
        ↑                  │
        │                  v
   ┌──────────┐      ┌──────────┐
   │ Act      │ ←──  │ Decide   │
-  │ (行動)   │      │ (決定)   │
+  │          │      │          │
   └──────────┘      └──────────┘
 
-  PDCA との違い:
+  Differences from PDCA:
   ┌────────────┬────────────────┬────────────────┐
   │            │ PDCA           │ OODA           │
   ├────────────┼────────────────┼────────────────┤
-  │ サイクル速度│ 数週間〜数ヶ月  │ 数分〜数時間    │
-  │ 適用場面    │ 計画的改善      │ 緊急対応・実験  │
-  │ 重視する点  │ 計画の精度      │ 判断の速度      │
-  │ フィードバック│ メトリクス     │ リアルタイム監視 │
+  │ Cycle speed│ Weeks ~ months │ Minutes ~ hours│
+  │ Use case   │ Planned improve│ Emergency/exp. │
+  │ Focus      │ Plan accuracy  │ Decision speed │
+  │ Feedback   │ Metrics        │ Real-time mon. │
   └────────────┴────────────────┴────────────────┘
 
-  例: 本番インシデント対応
-  Observe: アラート検知 → エラーログ確認 → 影響範囲特定
-  Orient:  根本原因の仮説立て → 過去の類似インシデント参照
-  Decide:  ロールバック or ホットフィックス → 対応方針決定
-  Act:     対応実施 → 結果確認 → 必要に応じて再ループ
+  Example: Production incident response
+  Observe: Alert detected → Check error logs → Identify impact scope
+  Orient:  Form hypothesis of root cause → Reference past similar incidents
+  Decide:  Rollback or hotfix → Decide on response policy
+  Act:     Implement response → Confirm result → Re-loop as needed
 ```
 
-### 4.3 振り返り（レトロスペクティブ）
+### 4.3 Retrospectives
 
 ```
-スプリント レトロスペクティブ テンプレート
+Sprint Retrospective Template
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Sprint N レトロスペクティブ (YYYY-MM-DD)
+Sprint N Retrospective (YYYY-MM-DD)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-【Keep (続けること)】
-  + PR レビューの24時間以内ルール → リードタイム短縮に効果
-  + ペアプログラミングの週1回実施 → 知識共有に効果
-  + 毎朝の15分スタンドアップ → ブロッカーの早期発見
+[Keep (What to continue)]
+  + PR review within 24 hours rule → effective for reducing lead time
+  + Weekly pair programming → effective for knowledge sharing
+  + 15-minute daily standup → early detection of blockers
 
-【Problem (問題点)】
-  - E2E テストが不安定 (Flaky率: 15%)
-  - デプロイ後の手動確認に30分かかっている
-  - コードレビューの待ち時間が平均8時間
+[Problem (Issues)]
+  - E2E tests are unstable (flaky rate: 15%)
+  - Manual confirmation after deploy takes 30 minutes
+  - Average code review wait time is 8 hours
 
-【Try (次に試すこと)】
-  - [ ] Flaky テストの quarantine と根本対策 (担当: Alice, 期限: Sprint N+1)
-  - [ ] Smoke テストの自動化 (担当: Bob, 期限: Sprint N+2)
-  - [ ] カバレッジ目標を 75% → 80% に引き上げ (チーム全体)
-  - [ ] レビュー応答時間の SLA: 4時間以内 (トライアル)
+[Try (What to attempt next)]
+  - [ ] Quarantine flaky tests and address root cause (Owner: Alice, Due: Sprint N+1)
+  - [ ] Automate smoke tests (Owner: Bob, Due: Sprint N+2)
+  - [ ] Raise coverage target from 75% to 80% (whole team)
+  - [ ] Review response time SLA: within 4 hours (trial)
 
-【メトリクス (前回 → 今回)】
-  デプロイ頻度:    1.2/日 → 1.5/日  [+25%]    (目標: 2.0/日)
-  リードタイム:    18h → 12h        [-33%]    (目標: 8h)
-  変更失敗率:      12% → 8%         [-33%]    (目標: 5%)
-  カバレッジ:      72% → 75%        [+4%]     (目標: 80%)
-  ビルド時間:      8min → 6min      [-25%]    (目標: 5min)
+[Metrics (Previous → Current)]
+  Deploy frequency:  1.2/day → 1.5/day  [+25%]    (Target: 2.0/day)
+  Lead time:         18h → 12h           [-33%]    (Target: 8h)
+  Change fail rate:  12% → 8%            [-33%]    (Target: 5%)
+  Coverage:          72% → 75%           [+4%]     (Target: 80%)
+  Build time:        8min → 6min         [-25%]    (Target: 5min)
 
-【前回の Try の結果】
-  [達成] テスト並列化 → ビルド時間 8分→6分
-  [未達] API ドキュメント自動生成 → リソース不足で着手できず → 次Sprintに繰越
-  [達成] pre-commit hooks 導入 → Lint違反のPRが0件に
+[Results from Previous Try]
+  [Achieved]     Test parallelization → build time 8min → 6min
+  [Not achieved] API documentation auto-generation → insufficient resources, not started → carried to next Sprint
+  [Achieved]     pre-commit hooks introduced → PRs with lint violations dropped to 0
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
 ```python
-"""レトロスペクティブの構造化"""
+"""Structured retrospectives"""
 from dataclasses import dataclass, field
 from datetime import date
 
 
 @dataclass
 class RetroItem:
-    """レトロスペクティブのアイテム"""
+    """A retrospective item"""
     category: str   # "keep", "problem", "try"
     description: str
     owner: str = ""
@@ -1196,7 +1196,7 @@ class RetroItem:
 
 @dataclass
 class SprintRetro:
-    """スプリントレトロスペクティブ"""
+    """Sprint retrospective"""
     sprint_name: str
     date: date
     items: list[RetroItem] = field(default_factory=list)
@@ -1216,11 +1216,11 @@ class SprintRetro:
         return [i for i in self.items if i.category == "try"]
 
     def carry_over_unfinished(self) -> list[RetroItem]:
-        """未達のTryを次回に繰り越し"""
+        """Carry over unfinished Try items to the next retrospective"""
         return [
             RetroItem(
                 category="try",
-                description=f"[繰越] {item.description}",
+                description=f"[Carried over] {item.description}",
                 owner=item.owner,
                 deadline=item.deadline,
                 status="carried_over",
@@ -1230,9 +1230,9 @@ class SprintRetro:
         ]
 
     def effectiveness_score(self) -> float:
-        """レトロスペクティブの効果スコア
+        """Effectiveness score for the retrospective
 
-        前回のTryのうち達成されたものの割合
+        The proportion of previous Try items that were achieved
         """
         if not self.previous_try_results:
             return 0.0
@@ -1246,495 +1246,500 @@ class SprintRetro:
 
 ---
 
-## 5. チーム文化としての改善
+## 5. Improvement as Team Culture
 
-### 5.1 心理的安全性と改善文化
+### 5.1 Psychological Safety and a Culture of Improvement
 
 ```
-改善文化の構築ピラミッド
+Pyramid for Building an Improvement Culture
 
-                    ┌─────────────┐
-                    │ 実験的改善   │
-                    │ (Innovation) │
-                    ├─────────────┤
-                    │ 継続的改善   │
-                    │ (Kaizen)    │
-                    ├─────────────┤
-                    │ 標準化       │
-                    │ (Standards) │
-                    ├─────────────┤
-                    │ 心理的安全性  │
-                    │ (Safety)    │
-                    └─────────────┘
+                    ┌─────────────────┐
+                    │ Experimental     │
+                    │ Improvement      │
+                    │ (Innovation)     │
+                    ├─────────────────┤
+                    │ Continuous       │
+                    │ Improvement      │
+                    │ (Kaizen)         │
+                    ├─────────────────┤
+                    │ Standardization  │
+                    │ (Standards)      │
+                    ├─────────────────┤
+                    │ Psychological    │
+                    │ Safety           │
+                    └─────────────────┘
 
-各レベルの特徴:
+Characteristics of each level:
 
-  1. 心理的安全性 (基盤)
-     - 「このコード、もっと良くできますね」と気軽に言える
-     - 「わかりません」と言える
-     - 失敗を責めるのではなく、学びとして共有する
-     - バグレポートは非難ではなく感謝
+  1. Psychological Safety (Foundation)
+     - Anyone can casually say "This code could be better"
+     - Anyone can say "I don't understand"
+     - Failures are shared as learnings, not blamed
+     - Bug reports are received with gratitude, not criticism
 
-  2. 標準化
-     - コーディング規約の合意と自動チェック
-     - テストの最低基準 (Definition of Done)
-     - CI/CD パイプラインの品質ゲート
-     - ドキュメントテンプレート
+  2. Standardization
+     - Agreed coding conventions with automated checks
+     - Minimum test standards (Definition of Done)
+     - CI/CD pipeline quality gates
+     - Documentation templates
 
-  3. 継続的改善 (カイゼン)
-     - ボーイスカウトルールの実践
-     - 毎スプリント 20% を改善に
-     - レトロスペクティブの定期開催
-     - メトリクスによる改善の可視化
+  3. Continuous Improvement (Kaizen)
+     - Practicing the Boy Scout Rule
+     - Dedicating 20% of every sprint to improvement
+     - Regular retrospectives
+     - Visualizing improvements with metrics
 
-  4. 実験的改善
-     - 新ツール・プラクティスの試験導入
-     - A/B テスト的なプロセス改善
-     - ハッカソン・20%タイム
-     - 失敗を前提とした小さな実験
+  4. Experimental Improvement
+     - Trial introduction of new tools and practices
+     - A/B test-style process improvements
+     - Hackathons / 20% time
+     - Small experiments that assume failure
 ```
 
-### 5.2 改善のための組織プラクティス
+### 5.2 Organizational Practices for Improvement
 
 ```python
-"""改善プラクティスの実装パターン"""
+"""Implementation patterns for improvement practices"""
 
 
 class ImprovementPractices:
-    """チーム改善プラクティス集"""
+    """Collection of team improvement practices"""
 
     @staticmethod
     def blameless_postmortem_template() -> str:
-        """ブレームレス・ポストモーテムのテンプレート"""
+        """Template for a blameless postmortem"""
         return """
         ========================================
-        ポストモーテム: [インシデント名]
-        日時: [YYYY-MM-DD]
+        Postmortem: [Incident Name]
+        Date: [YYYY-MM-DD]
         ========================================
 
-        ## タイムライン
-        - HH:MM 検知: [何が起きたか]
-        - HH:MM 対応開始: [誰が何をしたか]
-        - HH:MM 解決: [どう解決したか]
+        ## Timeline
+        - HH:MM Detection: [What happened]
+        - HH:MM Response started: [Who did what]
+        - HH:MM Resolved: [How it was resolved]
 
-        ## 影響範囲
-        - 影響ユーザー数: [N人]
-        - ダウンタイム: [N分]
-        - 収益影響: [推定金額]
+        ## Impact
+        - Affected users: [N]
+        - Downtime: [N minutes]
+        - Revenue impact: [Estimated amount]
 
-        ## 根本原因
-        [5 Whys 分析]
-        Why 1: なぜサービスが停止した？→ OOM Kill
-        Why 2: なぜメモリ不足？→ メモリリーク
-        Why 3: なぜリークを検知できなかった？→ 監視がなかった
-        Why 4: なぜ監視がなかった？→ 設定を忘れていた
-        Why 5: なぜ忘れた？→ チェックリストがなかった
+        ## Root Cause
+        [5 Whys Analysis]
+        Why 1: Why did the service go down? → OOM Kill
+        Why 2: Why was there insufficient memory? → Memory leak
+        Why 3: Why wasn't the leak detected? → No monitoring
+        Why 4: Why was there no monitoring? → It was forgotten
+        Why 5: Why was it forgotten? → No checklist existed
 
-        ## アクションアイテム
-        - [ ] メモリ監視アラートの追加 (担当: Alice, 期限: MM/DD)
-        - [ ] デプロイ前チェックリストに監視確認を追加 (担当: Bob)
-        - [ ] メモリリーク検出のテスト追加 (担当: Carol)
+        ## Action Items
+        - [ ] Add memory monitoring alerts (Owner: Alice, Due: MM/DD)
+        - [ ] Add monitoring check to pre-deploy checklist (Owner: Bob)
+        - [ ] Add tests for memory leak detection (Owner: Carol)
 
-        ## 学び
-        - [今回の教訓を文書化]
+        ## Learnings
+        - [Document lessons from this incident]
 
-        ## 注意: ポストモーテムは「誰のせいか」ではなく
-                「システムとプロセスをどう改善するか」に焦点を当てる
+        ## Note: A postmortem focuses on "how to improve the system
+                and process," not "whose fault it was"
         """
 
     @staticmethod
     def tech_radar_categories() -> dict:
-        """Technology Radar (技術選定の可視化)"""
+        """Technology Radar (visualizing technology choices)"""
         return {
-            "Adopt (推奨)": [
+            "Adopt (Recommended)": [
                 "Python 3.12", "pytest", "Ruff", "GitHub Actions",
                 "PostgreSQL 16", "Redis 7", "Docker",
             ],
-            "Trial (試用中)": [
+            "Trial (In evaluation)": [
                 "FastAPI", "Pydantic v2", "uv (package manager)",
                 "Playwright (E2E)", "OpenTelemetry",
             ],
-            "Assess (評価中)": [
-                "Rust (パフォーマンスクリティカル部分)",
+            "Assess (Under assessment)": [
+                "Rust (for performance-critical parts)",
                 "Deno", "Bun", "Effect-TS",
             ],
-            "Hold (非推奨)": [
-                "Django (新規プロジェクト)", "unittest (pytest推奨)",
-                "Travis CI (GitHub Actions推奨)", "Python 3.9以前",
+            "Hold (Not recommended)": [
+                "Django (for new projects)", "unittest (prefer pytest)",
+                "Travis CI (prefer GitHub Actions)", "Python 3.9 and earlier",
             ],
         }
 
     @staticmethod
     def definition_of_done() -> list[str]:
-        """Definition of Done (完了の定義)"""
+        """Definition of Done"""
         return [
-            "[ ] コードがリファクタリングされている（ボーイスカウトルール適用）",
-            "[ ] ユニットテストが書かれている（カバレッジ ≥ 80%）",
-            "[ ] 型ヒントが追加されている（MyPy strict パス）",
-            "[ ] Lint/Format チェックをパスしている",
-            "[ ] コードレビューが完了している（1名以上の承認）",
-            "[ ] 統合テストが更新されている（必要な場合）",
-            "[ ] ドキュメントが更新されている（API変更の場合）",
-            "[ ] セキュリティチェックをパスしている",
-            "[ ] パフォーマンスへの影響が確認されている",
-            "[ ] 新しい技術的負債がバックログに記録されている（発生した場合）",
+            "[ ] Code has been refactored (Boy Scout Rule applied)",
+            "[ ] Unit tests are written (coverage ≥ 80%)",
+            "[ ] Type hints added (MyPy strict passes)",
+            "[ ] Lint/Format checks pass",
+            "[ ] Code review completed (approved by at least 1 person)",
+            "[ ] Integration tests updated (if applicable)",
+            "[ ] Documentation updated (if API changes)",
+            "[ ] Security checks pass",
+            "[ ] Performance impact has been assessed",
+            "[ ] Any new technical debt is recorded in the backlog (if incurred)",
         ]
 ```
 
-### 5.3 改善の阻害要因と対策
+### 5.3 Obstacles to Improvement and Countermeasures
 
 ```
-改善の阻害要因と対策マップ
+Map of Improvement Obstacles and Countermeasures
 
-  阻害要因                        対策
+  Obstacle                          Countermeasure
   ┌───────────────────────┐     ┌───────────────────────┐
-  │ 「改善する時間がない」  │────→│ 20%ルールの制度化       │
-  │                       │     │ スプリント計画に組込     │
+  │ "No time to improve"  │────→│ Institutionalize 20%   │
+  │                       │     │ rule; embed in sprint  │
   └───────────────────────┘     └───────────────────────┘
   ┌───────────────────────┐     ┌───────────────────────┐
-  │ 「効果が見えない」     │────→│ メトリクスの可視化       │
-  │                       │     │ Before/After の定量比較  │
+  │ "Can't see the effect"│────→│ Visualize metrics      │
+  │                       │     │ Quantitative before/   │
+  │                       │     │ after comparison       │
   └───────────────────────┘     └───────────────────────┘
   ┌───────────────────────┐     ┌───────────────────────┐
-  │ 「失敗が怖い」        │────→│ 心理的安全性の構築       │
-  │                       │     │ ブレームレス文化         │
+  │ "Afraid of failure"   │────→│ Build psychological    │
+  │                       │     │ safety; blameless      │
+  │                       │     │ culture                │
   └───────────────────────┘     └───────────────────────┘
   ┌───────────────────────┐     ┌───────────────────────┐
-  │ 「何を改善すべきか     │────→│ DORA メトリクス          │
-  │  わからない」          │     │ ホットスポート分析       │
+  │ "Don't know what to   │────→│ DORA metrics           │
+  │  improve"             │     │ Hotspot analysis       │
   └───────────────────────┘     └───────────────────────┘
   ┌───────────────────────┐     ┌───────────────────────┐
-  │ 「改善が続かない」     │────→│ レトロスペクティブ       │
-  │                       │     │ PDCA サイクルの制度化    │
+  │ "Improvement doesn't  │────→│ Retrospectives         │
+  │  stick"               │     │ Institutionalize PDCA  │
   └───────────────────────┘     └───────────────────────┘
   ┌───────────────────────┐     ┌───────────────────────┐
-  │ 「経営層の理解がない」  │────→│ コスト試算で説明         │
-  │                       │     │ ROI ベースの提案         │
+  │ "No management buy-in"│────→│ Explain via cost       │
+  │                       │     │ estimates; ROI-based   │
+  │                       │     │ proposals              │
   └───────────────────────┘     └───────────────────────┘
 ```
 
 ---
 
-## 6. 比較表
+## 6. Comparison Tables
 
-### 6.1 改善手法比較
+### 6.1 Comparison of Improvement Methods
 
-| 改善手法 | 効果発現 | コスト | 持続性 | リスク | 適用場面 |
+| Improvement Method | Time to Effect | Cost | Sustainability | Risk | Use Case |
 |---------|:-------:|:-----:|:-----:|:-----:|---------|
-| pre-commit hooks | 即座 | 低 | 高 | 最小 | コードスタイル統一、基本チェック |
-| CI/CD パイプライン | 1-2週間 | 中 | 高 | 低 | テスト・ビルド・デプロイ自動化 |
-| DORA メトリクス | 1-3ヶ月 | 低 | 高 | 最小 | チームパフォーマンス可視化 |
-| レトロスペクティブ | Sprint単位 | 低 | 中 | 低 | プロセス改善、チーム学習 |
-| 20%ルール | 2-4週 | 低 | 高 | 低 | 計画的な品質向上 |
-| 技術的負債スプリント | 2-4週 | 高 | 中 | 中 | 蓄積した負債の集中返済 |
-| Feature Flag | 1-2週間 | 中 | 高 | 低 | デプロイとリリースの分離 |
-| Trunk-Based Dev | 1-3ヶ月 | 中 | 高 | 中 | 開発フロー最適化 |
+| pre-commit hooks | Immediate | Low | High | Minimal | Unify code style, basic checks |
+| CI/CD pipeline | 1-2 weeks | Medium | High | Low | Automate testing, build, deployment |
+| DORA metrics | 1-3 months | Low | High | Minimal | Visualize team performance |
+| Retrospectives | Per sprint | Low | Medium | Low | Process improvement, team learning |
+| 20% rule | 2-4 weeks | Low | High | Low | Planned quality improvement |
+| Technical debt sprint | 2-4 weeks | High | Medium | Medium | Concentrated repayment of accumulated debt |
+| Feature Flags | 1-2 weeks | Medium | High | Low | Separate deployment from release |
+| Trunk-Based Dev | 1-3 months | Medium | High | Medium | Optimize development flow |
 
-### 6.2 品質ゲート一覧
+### 6.2 Quality Gate Reference
 
-| 品質ゲート | 検出対象 | 推奨ツール (Python) | 推奨ツール (TypeScript) | 推奨閾値 |
+| Quality Gate | Detects | Recommended Tool (Python) | Recommended Tool (TypeScript) | Recommended Threshold |
 |-----------|---------|-------------------|----------------------|---------|
-| Lint | コードスタイル・潜在バグ | Ruff | ESLint | エラー0件 |
-| Format | コードフォーマット | Ruff Format | Prettier | 差分0件 |
-| Type Check | 型安全性 | MyPy (strict) | TypeScript (strict) | エラー0件 |
-| Unit Test | ロジックの正しさ | pytest | Jest / Vitest | 全通過 |
-| Coverage | テスト網羅率 | coverage.py | Istanbul / c8 | >= 80% |
-| Integration Test | コンポーネント連携 | pytest | Jest / Playwright | 全通過 |
-| Security Scan (SAST) | コードの脆弱性 | Bandit | ESLint Security | Critical/High: 0件 |
-| Security Scan (SCA) | 依存の脆弱性 | Safety / pip-audit | npm audit / Snyk | Critical: 0件 |
-| Container Scan | コンテナ脆弱性 | Trivy | Trivy | Critical/High: 0件 |
-| Complexity | コード複雑度 | radon | ESLint complexity | CC < 10 |
+| Lint | Code style / potential bugs | Ruff | ESLint | 0 errors |
+| Format | Code formatting | Ruff Format | Prettier | 0 diff |
+| Type Check | Type safety | MyPy (strict) | TypeScript (strict) | 0 errors |
+| Unit Test | Logic correctness | pytest | Jest / Vitest | All pass |
+| Coverage | Test coverage | coverage.py | Istanbul / c8 | >= 80% |
+| Integration Test | Component interaction | pytest | Jest / Playwright | All pass |
+| Security Scan (SAST) | Code vulnerabilities | Bandit | ESLint Security | Critical/High: 0 |
+| Security Scan (SCA) | Dependency vulnerabilities | Safety / pip-audit | npm audit / Snyk | Critical: 0 |
+| Container Scan | Container vulnerabilities | Trivy | Trivy | Critical/High: 0 |
+| Complexity | Code complexity | radon | ESLint complexity | CC < 10 |
 
-### 6.3 CI パイプライン速度最適化
+### 6.3 CI Pipeline Speed Optimizations
 
-| 最適化手法 | 効果 | 実装コスト | 適用条件 |
+| Optimization | Effect | Implementation Cost | Applicable Conditions |
 |-----------|------|----------|---------|
-| テスト並列化 (xdist) | ビルド時間 50-70% 削減 | 低 | テストが独立している |
-| Docker レイヤーキャッシュ | ビルド時間 30-50% 削減 | 低 | Docker ビルドあり |
-| 依存キャッシュ (actions/cache) | インストール時間 80% 削減 | 低 | 常に有効 |
-| Affected Test Detection | テスト時間 60-80% 削減 | 高 | モノレポ、大規模テスト |
-| ジョブ並列化 (matrix) | ビルド時間 40-60% 削減 | 低 | 複数環境テスト |
-| Spot/Preemptible Runners | コスト 60-80% 削減 | 中 | 非緊急ジョブ |
+| Test parallelization (xdist) | 50-70% build time reduction | Low | Tests are independent |
+| Docker layer cache | 30-50% build time reduction | Low | Docker builds present |
+| Dependency cache (actions/cache) | 80% install time reduction | Low | Always applicable |
+| Affected test detection | 60-80% test time reduction | High | Monorepo, large test suites |
+| Job parallelization (matrix) | 40-60% build time reduction | Low | Multi-environment testing |
+| Spot/Preemptible runners | 60-80% cost reduction | Medium | Non-urgent jobs |
 
 ---
 
-## 7. 演習問題
+## 7. Exercises
 
-### 演習 1: CI/CD パイプラインの設計（基礎）
+### Exercise 1: CI/CD Pipeline Design (Basic)
 
-以下の要件に基づき、GitHub Actions の CI パイプラインを設計せよ。
+Design a GitHub Actions CI pipeline based on the following requirements.
 
 ```
-プロジェクト情報:
-- 言語: Python 3.12
-- フレームワーク: FastAPI
+Project Information:
+- Language: Python 3.12
+- Framework: FastAPI
 - DB: PostgreSQL 16
-- テスト: pytest (unit + integration)
-- 現状: CI なし、手動デプロイ
+- Testing: pytest (unit + integration)
+- Current state: No CI, manual deployment
 
-要件:
-1. PR 時に自動実行される品質チェック
+Requirements:
+1. Automated quality checks triggered on PRs
 2. Lint + Format + Type Check (Stage 1)
 3. Unit Tests + Coverage >= 75% (Stage 2)
 4. Integration Tests with PostgreSQL (Stage 3)
-5. セキュリティスキャン (Stage 4)
-6. main ブランチへのマージ時に Staging デプロイ
+5. Security scan (Stage 4)
+6. Staging deployment on merge to main branch
 
-成果物:
-- .github/workflows/ci.yml の完全な YAML
+Deliverables:
+- Complete YAML for .github/workflows/ci.yml
 - .pre-commit-config.yaml
-- 品質ゲートの閾値設定
+- Quality gate threshold configuration
 ```
 
-**期待される回答のポイント:**
-- ステージ間の依存関係（needs）の正しい設定
-- PostgreSQL サービスコンテナの設定
-- キャッシュの活用（pip, Docker）
-- タイムアウトの設定
-- concurrency によるPRの重複実行防止
+**Key Points for Expected Answer:**
+- Correct configuration of inter-stage dependencies (`needs`)
+- PostgreSQL service container configuration
+- Cache utilization (pip, Docker)
+- Timeout configuration
+- Preventing duplicate PR runs via `concurrency`
 
-### 演習 2: DORA メトリクス改善計画（応用）
+### Exercise 2: DORA Metrics Improvement Plan (Applied)
 
-以下のチームの DORA メトリクスを分析し、改善計画を策定せよ。
-
-```
-現状のメトリクス:
-- デプロイ頻度: 0.3回/日 (週2回程度)
-- リードタイム: 72時間 (PR作成→マージ)
-- 変更失敗率: 18%
-- 復旧時間: 4時間
-
-ボトルネック（バリューストリームマッピング結果）:
-- コーディング: 4時間
-- PR作成: 30分
-- レビュー待ち: 24時間  ← ボトルネック1
-- レビュー: 2時間
-- CI パイプライン: 20分
-- マージ後の手動テスト: 4時間  ← ボトルネック2
-- 手動デプロイ: 2時間  ← ボトルネック3
-
-課題:
-1. 各メトリクスのパフォーマンスレベルを判定
-2. 3つのボトルネックに対する改善策を提案
-3. 3ヶ月後の目標メトリクスを設定
-4. 改善の PDCA サイクルを設計
-5. レトロスペクティブのテンプレートを作成
-```
-
-**期待される回答のポイント:**
-- レビュー待ち → レビュー応答 SLA 4時間、PRサイズ制限 400行
-- 手動テスト → E2E テスト自動化、Smoke テスト
-- 手動デプロイ → CI/CD パイプライン、自動デプロイ
-- 3ヶ月目標: デプロイ1.0/日、リードタイム24h、変更失敗率10%
-
-### 演習 3: 改善文化の構築計画（発展）
-
-レガシーなチーム文化を持つ組織で、継続的改善を定着させる計画を策定せよ。
+Analyze the following team's DORA metrics and formulate an improvement plan.
 
 ```
-現状:
-- チーム: 12名 (バックエンド6名、フロントエンド4名、QA2名)
-- テスト文化: QA チームが手動テストを実施。開発者はテストを書かない
-- CI: Jenkins が動いているが、失敗しても無視される
-- レトロスペクティブ: 実施されていない
-- コードレビュー: 形骸化（LGTM のみ）
-- 技術的負債: 膨大だが定量化されていない
+Current Metrics:
+- Deployment frequency: 0.3/day (~2 times/week)
+- Lead time: 72 hours (PR creation → merge)
+- Change failure rate: 18%
+- Time to restore: 4 hours
 
-課題:
-1. 心理的安全性を高めるための具体的アクション (5つ)
-2. 品質ゲートの段階的導入計画 (4フェーズ)
-3. 開発者がテストを書く文化への移行計画
-4. メトリクス駆動の改善サイクル設計
-5. 6ヶ月後の KPI と測定方法
-6. 経営層への説得資料 (ROI 試算)
+Bottlenecks (from value stream mapping):
+- Coding: 4 hours
+- PR creation: 30 minutes
+- Review wait: 24 hours  ← Bottleneck 1
+- Review: 2 hours
+- CI pipeline: 20 minutes
+- Manual testing after merge: 4 hours  ← Bottleneck 2
+- Manual deployment: 2 hours  ← Bottleneck 3
 
-評価基準:
-- 段階的アプローチの妥当性
-- チーム文化への配慮
-- 定量的な目標設定
-- 持続可能性
-- 経営層への説得力
+Tasks:
+1. Determine the performance level of each metric
+2. Propose improvements for the three bottlenecks
+3. Set target metrics for 3 months from now
+4. Design a PDCA improvement cycle
+5. Create a retrospective template
+```
+
+**Key Points for Expected Answer:**
+- Review wait → Review response SLA of 4 hours, PR size limit of 400 lines
+- Manual testing → E2E test automation, smoke tests
+- Manual deployment → CI/CD pipeline, automated deployment
+- 3-month targets: Deploy 1.0/day, lead time 24h, change failure rate 10%
+
+### Exercise 3: Building an Improvement Culture (Advanced)
+
+Formulate a plan for embedding continuous improvement in an organization with a legacy team culture.
+
+```
+Current State:
+- Team: 12 people (6 backend, 4 frontend, 2 QA)
+- Testing culture: QA team does manual testing. Developers don't write tests
+- CI: Jenkins is running but failures are ignored
+- Retrospectives: Not held
+- Code review: Perfunctory (LGTM only)
+- Technical debt: Enormous but not quantified
+
+Tasks:
+1. Five specific actions to increase psychological safety
+2. Phased quality gate introduction plan (4 phases)
+3. Transition plan to a culture where developers write tests
+4. Metrics-driven improvement cycle design
+5. KPIs at 6 months and how to measure them
+6. Management persuasion materials (ROI estimate)
+
+Evaluation Criteria:
+- Validity of the phased approach
+- Consideration for team culture
+- Quantitative goal setting
+- Sustainability
+- Persuasiveness to management
 ```
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン 1: メトリクスの目的化 (Goodhart's Law)
+### Anti-Pattern 1: Treating Metrics as Goals (Goodhart's Law)
 
 ```
-NG パターン:
-  「カバレッジ 100% を目標にする」
-  → 意味のないテストが大量に書かれる
-  → getter/setter のテスト、assert True のテスト
-  → カバレッジは 100% だがバグは減らない
-  → 開発速度は低下、チームのモチベーションも低下
+Bad Pattern:
+  "Set a goal of 100% coverage"
+  → A large number of meaningless tests get written
+  → Tests for getters/setters, tests with "assert True"
+  → Coverage reaches 100% but bugs don't decrease
+  → Development speed drops, team motivation also drops
 
-  「毎日デプロイすることが目標」
-  → 中身のない空デプロイが増える
-  → DORA メトリクスは改善するが品質は変わらない
+  "The goal is to deploy every day"
+  → Empty deploys with no substance increase
+  → DORA metrics improve but quality stays the same
 
   "When a measure becomes a target,
    it ceases to be a good measure."
   -- Goodhart's Law
 
-OK パターン:
-  メトリクスは「指標」であり「目標」ではない
-  → カバレッジ 80% を「最低ライン」として設定
-  → クリティカルパスの網羅を重視
-  → ミューテーションテストで「テストの品質」も測定
-  → 「バグの検出率」「回帰バグの発生率」を真の目標にする
+Good Pattern:
+  Metrics are "indicators," not "goals"
+  → Set 80% coverage as a "minimum baseline"
+  → Focus on covering critical paths
+  → Also measure "test quality" with mutation testing
+  → Make "bug detection rate" and "regression bug rate" the true goals
 ```
 
-### アンチパターン 2: 改善のための改善 (Shiny Object Syndrome)
+### Anti-Pattern 2: Improving for the Sake of Improving (Shiny Object Syndrome)
 
 ```
-NG パターン:
-  「最新のツールを導入しよう！」
-  → 既存のワークフローを壊す
-  → チームの学習コストが高い
-  → 実際の品質は改善しない
-  → 数ヶ月後に別の新しいツールに移行
+Bad Pattern:
+  "Let's introduce the latest tool!"
+  → Breaks existing workflows
+  → High learning cost for the team
+  → Actual quality doesn't improve
+  → Migrate to another new tool a few months later
 
-OK パターン: 問題起点の改善
-  1. 「本番障害が月3件ある」← 問題を特定
-  2. 「テストカバレッジが40%」← 原因を分析
-  3. 「CI にカバレッジゲート追加」← 対策を実施
-  4. 効果測定: 障害件数の推移を追跡
-  5. 改善確認: 月3件 → 月1件に減少 → 対策継続
+Good Pattern: Problem-driven improvement
+  1. "Three production incidents per month" ← Identify the problem
+  2. "Test coverage is 40%" ← Analyze the cause
+  3. "Add coverage gate to CI" ← Implement countermeasure
+  4. Measure effectiveness: Track incident count over time
+  5. Confirm improvement: 3/month → 1/month → Continue countermeasure
 
-  改善の動機は常に「具体的な問題」であるべき。
-  「面白そう」「流行っている」は改善の動機としては不適切。
+  The motivation for improvement should always be a "specific problem."
+  "Looks interesting" or "it's trending" are not appropriate motivators.
 ```
 
-### アンチパターン 3: Big Bang 改善
+### Anti-Pattern 3: Big Bang Improvement
 
 ```
-NG パターン:
-  「来月から全てのプロジェクトで以下を必須にする:
-   - カバレッジ 80%
-   - 型チェック strict
-   - E2E テスト必須
-   - セキュリティスキャン必須」
+Bad Pattern:
+  "Starting next month, all projects must have:
+   - Coverage 80%
+   - Type check strict
+   - E2E tests required
+   - Security scan required"
 
-  → 既存プロジェクトの CI が全部 Red になる
-  → 開発者が CI を無視し始める
-  → 「品質ゲートは邪魔」という認識が広まる
+  → All existing project CIs turn Red
+  → Developers start ignoring CI
+  → The perception that "quality gates are a nuisance" spreads
 
-OK パターン: 段階的導入
-  Phase 1 (2週間): Warning のみ、Blocking なし
-  Phase 2 (2週間): Lint + テスト失敗のみ Blocking
-  Phase 3 (1ヶ月): カバレッジ 60% を追加
-  Phase 4 (1ヶ月): カバレッジ 80% + 型チェック
+Good Pattern: Phased introduction
+  Phase 1 (2 weeks): Warning only, no blocking
+  Phase 2 (2 weeks): Only lint + test failures block
+  Phase 3 (1 month): Add coverage 60%
+  Phase 4 (1 month): Coverage 80% + type check
 
-  各フェーズで:
-  - チームのフィードバックを収集
-  - 痛みが大きければ閾値を調整
-  - 「なぜこのゲートが必要か」を丁寧に説明
+  At each phase:
+  - Collect team feedback
+  - Adjust thresholds if the pain is too great
+  - Carefully explain "why this gate is needed"
 ```
 
-### アンチパターン 4: レトロスペクティブの形骸化
+### Anti-Pattern 4: Retrospectives Becoming Perfunctory
 
 ```
-NG パターン:
-  毎回同じ流れ:
-  Keep: 「特にない」
-  Problem: 「忙しかった」
-  Try: 「もっと頑張る」
-  → 具体的なアクションアイテムなし
-  → 次回のレトロでも同じ内容
-  → 「レトロは時間の無駄」という認識
+Bad Pattern:
+  The same flow every time:
+  Keep: "Nothing in particular"
+  Problem: "It was a busy sprint"
+  Try: "Try harder"
+  → No concrete action items
+  → Same content at the next retro
+  → Perception that "retros are a waste of time"
 
-OK パターン:
-  1. 事前にメトリクスを共有（DORA、品質ダッシュボード）
-  2. データに基づく議論（「忙しかった」→「リードタイムが72h」）
-  3. 具体的なアクションアイテム（担当者、期限、完了条件）
-  4. 前回のTryの結果を必ず確認（達成/未達/繰越）
-  5. 効果測定（レトロの効果スコアを追跡）
-  6. ファシリテーターをローテーション（マンネリ防止）
+Good Pattern:
+  1. Share metrics in advance (DORA, quality dashboard)
+  2. Data-driven discussions ("it was busy" → "lead time was 72h")
+  3. Concrete action items (owner, deadline, completion criteria)
+  4. Always review results of previous Try items (achieved/not achieved/carried over)
+  5. Measure effectiveness (track the retrospective effectiveness score)
+  6. Rotate the facilitator (prevent staleness)
 ```
 
 ---
 
 ## 9. FAQ
 
-### Q1. CI パイプラインが遅い場合の対策は？
+### Q1. What should be done when the CI pipeline is slow?
 
-**A.** 5つの対策を優先度順に: (1) テストの並列実行（`pytest-xdist`, GitHub Actions の `matrix` 戦略）。最も効果が大きく、導入コストも低い。(2) Docker レイヤーキャッシュと pip キャッシュ（`actions/cache`）の活用。(3) 変更されたファイルに関連するテストのみ実行（affected test detection）。大規模リポジトリで特に有効。(4) ユニットテストと統合テストのジョブ分離による並列化。(5) Fast Feedback First の原則に基づくステージ設計（Lint は2分以内、ユニットテストは5分以内）。目標は PR のフィードバックまで10分以内。
+**A.** Five countermeasures in order of priority: (1) Run tests in parallel (`pytest-xdist`, GitHub Actions `matrix` strategy). This has the biggest impact and lowest adoption cost. (2) Use Docker layer caching and pip caching (`actions/cache`). (3) Run only tests related to changed files (affected test detection). Especially effective for large repositories. (4) Parallelize by separating unit test and integration test jobs. (5) Stage design based on the Fast Feedback First principle (lint within 2 minutes, unit tests within 5 minutes). The goal is PR feedback within 10 minutes.
 
-### Q2. DORA メトリクスの改善が停滞した場合は？
+### Q2. What to do when DORA metric improvement has stalled?
 
-**A.** バリューストリームマッピング（VSM）を実施する。「コード変更からデプロイまで」の各ステップの待ち時間を可視化する。多くの場合、ボトルネックは技術的な問題ではなくプロセスにある: コードレビューの待ち時間、手動テスト、承認プロセス。具体的な対策として、(1) レビュー応答時間の SLA 設定（4時間以内）、(2) PR サイズの制限（400行以下）、(3) 手動テストの自動化、(4) 承認プロセスの簡素化。Team Topologies のコンセプトを参考に、チーム構造自体の見直しも検討する。
+**A.** Conduct Value Stream Mapping (VSM). Visualize the wait time at each step from "code change to deployment." In most cases, the bottleneck is not a technical problem but a process one: code review wait time, manual testing, approval processes. Specific countermeasures: (1) Set a review response time SLA (within 4 hours), (2) Limit PR size (under 400 lines), (3) Automate manual testing, (4) Simplify approval processes. Also consider reviewing the team structure itself, referencing the Team Topologies concept.
 
-### Q3. 品質ゲートを厳しくしすぎて開発速度が落ちていないか？
+### Q3. Are quality gates too strict and slowing down development?
 
-**A.** 品質ゲートの導入初期は開発速度が一時的に10-20%低下する。しかし Accelerate の研究によれば、2-3ヶ月後には回帰バグの減少・レビューの効率化により、トータルの開発速度はゲート導入前を上回る。ゲートが厳しすぎると感じる場合は、(1) Warning レベルと Blocking レベルを分けて段階的に導入する、(2) 新規コードのみにゲートを適用する（既存コードは免除）、(3) チームのフィードバックを定期的に収集する。重要なのは「品質と速度はトレードオフではない」というマインドセットの共有。
+**A.** When quality gates are first introduced, development speed temporarily drops by 10-20%. However, according to Accelerate research, after 2-3 months, the total development speed surpasses the pre-gate state due to reduced regression bugs and more efficient reviews. If the gates feel too strict: (1) Separate Warning and Blocking levels and introduce them in stages, (2) Apply gates only to new code (exempt existing code), (3) Regularly collect team feedback. The important thing is sharing the mindset that "quality and speed are not a trade-off."
 
-### Q4. メトリクスを導入したが、チームが数字を気にしすぎてしまう
+### Q4. We introduced metrics but the team is too focused on the numbers.
 
-**A.** Goodhart's Law（アンチパターン1）に陥っている可能性がある。対策: (1) メトリクスは「健康診断の数値」であり「成績」ではないことを繰り返し伝える。(2) メトリクスを個人評価には絶対に使わない。チーム単位でのトレンドのみ追跡する。(3) 「なぜこのメトリクスを見るのか」の目的を常に明確にする。(4) 定量的メトリクスと定性的フィードバック（開発者満足度、DX Survey）を組み合わせる。
+**A.** There is a possibility of falling into Goodhart's Law (Anti-Pattern 1). Countermeasures: (1) Repeatedly convey that metrics are "health check numbers," not "grades." (2) Never use metrics for individual evaluations. Track only team-level trends. (3) Always make clear the purpose of "why we look at this metric." (4) Combine quantitative metrics with qualitative feedback (developer satisfaction, DX Surveys).
 
-### Q5. 小さなチーム（3-5名）でも DORA メトリクスは有効か？
+### Q5. Are DORA metrics useful for small teams (3-5 people)?
 
-**A.** 有効だが、収集方法を簡略化する。小規模チームでは自動収集スクリプトの構築に時間をかけるより、(1) デプロイ頻度は「先週何回デプロイしたか」を手動記録、(2) リードタイムは GitHub の PR マージ時間をスプレッドシートに転記、(3) 変更失敗率は「先週 revert した回数」を記録、から始める。月1回のレトロスペクティブでこれらの数値を振り返り、改善ポイントを議論する。自動化は改善文化が定着してから段階的に導入する。
+**A.** Yes, but simplify the collection method. For small teams, rather than spending time building automated collection scripts: (1) For deployment frequency, manually record "how many times did we deploy last week," (2) For lead time, transcribe PR merge times from GitHub to a spreadsheet, (3) For change failure rate, record "how many times did we revert last week." Start with these and review the numbers in a monthly retrospective to discuss improvement points. Introduce automation gradually once the improvement culture is established.
 
-### Q6. Feature Flag はどのように継続的改善に貢献するか？
+### Q6. How do Feature Flags contribute to continuous improvement?
 
-**A.** Feature Flag により「デプロイ」と「リリース」を分離できる。これが継続的改善に貢献する理由: (1) デプロイ頻度の向上 -- 未完成機能もフラグで無効化してデプロイできるため、小さな変更を頻繁にデプロイできる。(2) 変更失敗率の低下 -- 問題が発生したらフラグを無効化するだけで即座にロールバック。(3) リードタイムの短縮 -- ブランチの長寿命化を防ぎ、コンフリクトを減らす。(4) 実験的改善 -- A/B テストやカナリアリリースで新機能の効果を定量的に検証できる。注意点として、使い終わったフラグの削除を怠ると技術的負債になるため、フラグのライフサイクル管理が重要。
+**A.** Feature Flags allow "deployment" and "release" to be separated. Why this contributes to continuous improvement: (1) Higher deployment frequency -- Incomplete features can be deployed with flags disabled, enabling small changes to be deployed frequently. (2) Lower change failure rate -- If a problem occurs, just disable the flag for an immediate rollback. (3) Shorter lead time -- Prevents long-lived branches and reduces conflicts. (4) Experimental improvement -- The effect of new features can be quantitatively verified with A/B tests and canary releases. Note: Neglecting to delete finished flags creates technical debt, so flag lifecycle management is important.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| CI/CD パイプライン | Fast Feedback First: Lint → Test → Coverage → Security → Build → Deploy |
-| 品質ゲート | PR マージ条件: カバレッジ >= 80%、Lint 全通過、テスト全通過 |
-| 段階的導入 | Warning → 基本 Blocking → 品質強化 → フルゲート（3ヶ月かけて） |
-| DORA メトリクス | デプロイ頻度、リードタイム、変更失敗率、復旧時間の4指標 |
-| パフォーマンスレベル | Elite > High > Medium > Low（スループットと安定性は両立する） |
-| PDCA サイクル | Plan → Do → Check → Act の反復。メトリクスで効果を検証 |
-| レトロスペクティブ | Keep / Problem / Try + メトリクス + 前回 Try の結果確認 |
-| チーム文化 | 心理的安全性 → 標準化 → 継続的改善 → 実験的改善 |
-| アンチパターン | メトリクスの目的化、改善のための改善、Big Bang 導入、レトロの形骸化 |
+| CI/CD Pipeline | Fast Feedback First: Lint → Test → Coverage → Security → Build → Deploy |
+| Quality Gates | PR merge conditions: Coverage >= 80%, all lint checks pass, all tests pass |
+| Phased introduction | Warning → Basic Blocking → Quality Hardening → Full Gates (over 3 months) |
+| DORA Metrics | Four indicators: deployment frequency, lead time, change failure rate, time to restore |
+| Performance Levels | Elite > High > Medium > Low (throughput and stability go together) |
+| PDCA Cycle | Iterative Plan → Do → Check → Act. Verify effectiveness with metrics |
+| Retrospectives | Keep / Problem / Try + metrics + review of previous Try results |
+| Team Culture | Psychological safety → Standardization → Continuous improvement → Experimental improvement |
+| Anti-Patterns | Treating metrics as goals, improving for improvement's sake, Big Bang adoption, perfunctory retros |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [技術的負債](./03-technical-debt.md) -- 負債の定量化・優先度付け・計画的返済戦略
-- [コードスメル](./00-code-smells.md) -- 品質低下の兆候を早期発見するカタログ
-- [リファクタリング技法](./01-refactoring-techniques.md) -- 品質改善の具体的なコード変換手法
-- [レガシーコード](./02-legacy-code.md) -- 既存システムへの安全な変更技法
-- [テスト原則](../01-practices/04-testing-principles.md) -- 品質ゲートの基盤となるテスト設計
-- [コードレビューチェックリスト](../03-practices-advanced/04-code-review-checklist.md) -- レビューによる品質維持
-- [エラーハンドリング](../01-practices/02-error-handling.md) -- 堅牢なエラー処理と障害対応
+- [Technical Debt](./03-technical-debt.md) -- Quantifying debt, prioritization, and planned repayment strategies
+- [Code Smells](./00-code-smells.md) -- A catalog for early detection of signs of quality degradation
+- [Refactoring Techniques](./01-refactoring-techniques.md) -- Concrete code transformation methods for improving quality
+- [Legacy Code](./02-legacy-code.md) -- Techniques for safely making changes to existing systems
+- [Testing Principles](../01-practices/04-testing-principles.md) -- Test design that forms the foundation of quality gates
+- [Code Review Checklist](../03-practices-advanced/04-code-review-checklist.md) -- Maintaining quality through reviews
+- [Error Handling](../01-practices/02-error-handling.md) -- Robust error handling and incident response
 
 ---
 
-## 参考文献
+## References
 
-1. **Accelerate: The Science of Lean Software and DevOps** -- Nicole Forsgren, Jez Humble, Gene Kim (IT Revolution, 2018) -- DORA メトリクスの研究結果。6年間、数万チームの調査に基づくソフトウェアデリバリーパフォーマンスの科学的エビデンス
-2. **Continuous Delivery: Reliable Software Releases through Build, Test, and Deployment Automation** -- Jez Humble & David Farley (Addison-Wesley, 2010) -- CI/CD の原典。デプロイメントパイプラインの設計原則と実装パターン
-3. **The Phoenix Project** -- Gene Kim, Kevin Behr, George Spafford (IT Revolution, 2013) -- DevOps を物語形式で解説。IT 運用改善のフレームワーク（Three Ways）を提示
-4. **Team Topologies: Organizing Business and Technology Teams for Fast Flow** -- Matthew Skelton & Manuel Pais (IT Revolution, 2019) -- チーム構造と開発フロー。Cognitive Load を考慮したチーム設計
-5. **The DevOps Handbook, 2nd Edition** -- Gene Kim, Jez Humble, Patrick Debois, John Willis (IT Revolution, 2021) -- DevOps の包括的な実践ガイド。Three Ways（Flow, Feedback, Continual Learning）の詳細な実装方法
-6. **Lean Software Development** -- Mary Poppendieck & Tom Poppendieck (Addison-Wesley, 2003) -- トヨタ生産方式のソフトウェア開発への適用。ムダの排除と価値の最大化
-7. **Site Reliability Engineering** -- Betsy Beyer et al. (O'Reilly, 2016) -- Google の SRE プラクティス。SLI/SLO/SLA、エラーバジェット、ポストモーテムの実践
+1. **Accelerate: The Science of Lean Software and DevOps** -- Nicole Forsgren, Jez Humble, Gene Kim (IT Revolution, 2018) -- Research results on DORA metrics. Scientific evidence for software delivery performance based on six years of surveys across tens of thousands of teams
+2. **Continuous Delivery: Reliable Software Releases through Build, Test, and Deployment Automation** -- Jez Humble & David Farley (Addison-Wesley, 2010) -- The definitive text on CI/CD. Design principles and implementation patterns for deployment pipelines
+3. **The Phoenix Project** -- Gene Kim, Kevin Behr, George Spafford (IT Revolution, 2013) -- A narrative explanation of DevOps. Presents a framework (Three Ways) for IT operations improvement
+4. **Team Topologies: Organizing Business and Technology Teams for Fast Flow** -- Matthew Skelton & Manuel Pais (IT Revolution, 2019) -- Team structure and development flow. Team design that considers Cognitive Load
+5. **The DevOps Handbook, 2nd Edition** -- Gene Kim, Jez Humble, Patrick Debois, John Willis (IT Revolution, 2021) -- A comprehensive practical guide to DevOps. Detailed implementation of the Three Ways (Flow, Feedback, Continual Learning)
+6. **Lean Software Development** -- Mary Poppendieck & Tom Poppendieck (Addison-Wesley, 2003) -- Applying the Toyota Production System to software development. Eliminating waste and maximizing value
+7. **Site Reliability Engineering** -- Betsy Beyer et al. (O'Reilly, 2016) -- Google's SRE practices. Implementation of SLI/SLO/SLA, error budgets, and postmortems
