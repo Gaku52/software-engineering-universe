@@ -1,187 +1,187 @@
-# URL 短縮サービス設計
+# URL Shortener Service Design
 
-> TinyURL / bit.ly のような URL 短縮サービスをゼロから設計する。ハッシュ生成、リダイレクト最適化、スケーラビリティの観点でシステム設計面接に対応できる力を身につける。
-
----
-
-## この章で学ぶこと
-
-1. **要件定義とスケール見積もり** — 機能要件・非機能要件の整理と、トラフィック・ストレージの概算
-2. **コア設計** — 短縮 URL の生成アルゴリズム、データモデル、リダイレクトフロー
-3. **スケーラビリティ** — キャッシュ戦略、データベース分割、高可用性設計
-4. **運用設計** — 監視、アラート、障害対応、容量計画
-5. **セキュリティ** — 悪意ある URL の検出、レート制限、不正利用防止
+> Design a URL shortening service like TinyURL or bit.ly from scratch. Build the skills to handle system design interviews covering hash generation, redirect optimization, and scalability.
 
 ---
 
-## 前提知識
+## What You Will Learn
 
-| トピック | 必要レベル | 参考ガイド |
+1. **Requirements and Scale Estimation** — Organizing functional and non-functional requirements, estimating traffic and storage
+2. **Core Design** — Short URL generation algorithms, data models, redirect flow
+3. **Scalability** — Caching strategies, database partitioning, high availability design
+4. **Operations Design** — Monitoring, alerting, incident response, capacity planning
+5. **Security** — Detecting malicious URLs, rate limiting, abuse prevention
+
+---
+
+## Prerequisites
+
+| Topic | Required Level | Reference Guide |
 |---------|-----------|-----------|
-| データベース基礎 | RDB のインデックス設計、NoSQL の基本 | データベース |
-| キャッシュ設計 | Redis の基本操作、キャッシュ戦略 | キャッシュ |
-| ロードバランサー | L4/L7 の違い、分散アルゴリズム | ロードバランサー |
-| ハッシュとエンコーディング | Base62, MD5, SHA-256 の概念 | アルゴリズム基礎 |
-| Python / FastAPI | Web API 開発の基礎 | Python ガイド |
+| Database Basics | RDB index design, NoSQL fundamentals | Database |
+| Cache Design | Basic Redis operations, caching strategies | Cache |
+| Load Balancer | L4/L7 differences, distribution algorithms | Load Balancer |
+| Hash and Encoding | Base62, MD5, SHA-256 concepts | Algorithm Basics |
+| Python / FastAPI | Web API development basics | Python Guide |
 
 ---
 
-## 背景
+## Background
 
-### URL 短縮サービスとは
+### What Is a URL Shortener?
 
 ```
-長い URL:
+Long URL:
   https://www.example.com/products/electronics/smartphones/iphone-15-pro?color=blue&storage=256gb&ref=campaign-2026-winter
 
-短縮 URL:
+Short URL:
   https://short.ly/abc123
 
-用途:
-  1. SNS（Twitter/X の文字数制限）での URL 共有
-  2. QR コードの最適化（短い URL はより小さな QR コードになる）
-  3. アクセス解析（クリック数、地域、デバイス等の追跡）
-  4. ブランディング（カスタムドメイン: yourbrand.link/event）
-  5. 印刷物での URL 掲載（短い方が読みやすい）
+Use cases:
+  1. Sharing URLs on social media (character limits on Twitter/X)
+  2. QR code optimization (shorter URLs produce smaller QR codes)
+  3. Access analytics (tracking clicks, regions, devices, etc.)
+  4. Branding (custom domains: yourbrand.link/event)
+  5. URLs in print materials (shorter is easier to read)
 ```
 
-### なぜシステム設計面接で頻出なのか
+### Why Is It a Common System Design Interview Topic?
 
 ```
-URL 短縮サービスは以下の要素を網羅的にテストできる:
+A URL shortener comprehensively tests the following:
 
-  1. スケール見積もり: トラフィック・ストレージの概算
-  2. ハッシュ/エンコーディング: アルゴリズムの選択と設計
-  3. データベース設計: スキーマ、インデックス、シャーディング
-  4. キャッシュ戦略: 多層キャッシュ、キャッシュ無効化
-  5. 可用性設計: レプリカ、フェイルオーバー
-  6. トレードオフ判断: 301 vs 302、一貫性 vs 可用性
+  1. Scale estimation: approximating traffic and storage
+  2. Hash/encoding: selecting and designing algorithms
+  3. Database design: schema, indexes, sharding
+  4. Caching strategy: multi-layer cache, cache invalidation
+  5. Availability design: replicas, failover
+  6. Trade-off decisions: 301 vs 302, consistency vs availability
 
-  → シンプルな要件の中に、多くの設計判断が詰まっている
+  → Simple requirements that pack in many design decisions
 ```
 
 ---
 
-## 1. 要件定義
+## 1. Requirements
 
-### 1.1 機能要件
-
-```
-=== 必須機能 (Must Have) ===
-- 長い URL を短い URL に変換する
-  例: https://example.com/very/long/path → https://short.ly/abc123
-- 短縮 URL にアクセスすると元の URL にリダイレクトする
-- API でプログラマティックに短縮 URL を作成できる
-
-=== 重要機能 (Should Have) ===
-- カスタムエイリアスを指定できる（例: short.ly/my-event）
-- URL の有効期限を設定できる
-- アクセス統計を確認できる（クリック数、地域、デバイス）
-
-=== 追加機能 (Nice to Have) ===
-- ユーザー認証と URL 管理ダッシュボード
-- カスタムドメインのサポート
-- QR コード自動生成
-- URL のプレビューページ（リダイレクト前に行き先を表示）
-```
-
-### 1.2 非機能要件
+### 1.1 Functional Requirements
 
 ```
-=== パフォーマンス ===
-- リダイレクトのレイテンシ: P99 < 100ms
-- URL 作成のレイテンシ: P99 < 500ms
+=== Must Have ===
+- Convert a long URL to a short URL
+  Example: https://example.com/very/long/path → https://short.ly/abc123
+- Redirect from the short URL to the original URL
+- Allow programmatic short URL creation via API
 
-=== 可用性 ===
-- リダイレクト: 99.99% (年間ダウンタイム < 53分)
-- URL 作成: 99.9% (年間ダウンタイム < 8.8時間)
+=== Should Have ===
+- Support custom aliases (e.g., short.ly/my-event)
+- Set expiration dates for URLs
+- View access statistics (click count, region, device)
 
-=== スケーラビリティ ===
-- 読み取り:書き込み = 100:1 の読み取り重視
-- 水平スケール可能な設計
-
-=== セキュリティ ===
-- 悪意あるリダイレクト先（フィッシング等）の検出・ブロック
-- レート制限: IP あたり 100 URL/時間
-- 短縮キーの予測不可能性
+=== Nice to Have ===
+- User authentication and URL management dashboard
+- Custom domain support
+- Automatic QR code generation
+- URL preview page (show destination before redirecting)
 ```
 
-### 1.3 スケール見積もり
+### 1.2 Non-Functional Requirements
+
+```
+=== Performance ===
+- Redirect latency: P99 < 100ms
+- URL creation latency: P99 < 500ms
+
+=== Availability ===
+- Redirect: 99.99% (annual downtime < 53 minutes)
+- URL creation: 99.9% (annual downtime < 8.8 hours)
+
+=== Scalability ===
+- Read-heavy workload: read:write = 100:1
+- Design that supports horizontal scaling
+
+=== Security ===
+- Detect and block malicious redirect targets (phishing, etc.)
+- Rate limiting: 100 URLs/hour per IP
+- Unpredictable short keys
+```
+
+### 1.3 Scale Estimation
 
 ```python
-# === スケール見積もり計算 ===
+# === Scale Estimation Calculation ===
 
-# 前提
-daily_url_creation = 100_000_000    # 1日1億 URL 作成
-read_write_ratio = 100              # 読み取り:書き込み = 100:1
-daily_redirects = daily_url_creation * read_write_ratio  # 100億リダイレクト/日
-retention_years = 5                 # 5年間保持
+# Assumptions
+daily_url_creation = 100_000_000    # 100 million URL creations per day
+read_write_ratio = 100              # read:write = 100:1
+daily_redirects = daily_url_creation * read_write_ratio  # 10 billion redirects/day
+retention_years = 5                 # retain for 5 years
 
 # QPS (Queries Per Second)
 write_qps = daily_url_creation / 86400           # ≈ 1,160 QPS
-write_qps_peak = write_qps * 2                   # ≈ 2,320 QPS (ピーク)
+write_qps_peak = write_qps * 2                   # ≈ 2,320 QPS (peak)
 read_qps = daily_redirects / 86400               # ≈ 115,740 QPS
-read_qps_peak = read_qps * 2                     # ≈ 231,480 QPS (ピーク)
+read_qps_peak = read_qps * 2                     # ≈ 231,480 QPS (peak)
 
-# ストレージ
-total_urls = daily_url_creation * 365 * retention_years  # 182.5B (1,825億)
-bytes_per_record = 500                                    # URL + メタデータ
+# Storage
+total_urls = daily_url_creation * 365 * retention_years  # 182.5B (182.5 billion)
+bytes_per_record = 500                                    # URL + metadata
 total_storage_tb = total_urls * bytes_per_record / (1024**4)  # ≈ 91.25 TB
 
-# 帯域幅
-avg_redirect_size_bytes = 500           # リダイレクトレスポンスのサイズ
+# Bandwidth
+avg_redirect_size_bytes = 500           # redirect response size
 bandwidth_mbps = (read_qps * avg_redirect_size_bytes * 8) / (1024**2)  # ≈ 442 Mbps
 
-# キャッシュ (80-20 の法則)
-daily_unique_urls = daily_redirects * 0.2         # 20% がユニーク
+# Cache (80-20 rule)
+daily_unique_urls = daily_redirects * 0.2         # 20% are unique
 cache_memory_gb = (daily_unique_urls * bytes_per_record) / (1024**3)  # ≈ 931 GB
 
 print(f"""
-=== スケール見積もり結果 ===
-書き込み QPS:     {write_qps:,.0f} (ピーク: {write_qps_peak:,.0f})
-読み取り QPS:     {read_qps:,.0f} (ピーク: {read_qps_peak:,.0f})
-5年間の総URL数:   {total_urls / 1e9:.1f}B ({total_urls / 1e9:.1f}億)
-ストレージ:       {total_storage_tb:.1f} TB
-帯域幅:          {bandwidth_mbps:.0f} Mbps
-キャッシュ必要量: {cache_memory_gb:.0f} GB
+=== Scale Estimation Results ===
+Write QPS:        {write_qps:,.0f} (peak: {write_qps_peak:,.0f})
+Read QPS:         {read_qps:,.0f} (peak: {read_qps_peak:,.0f})
+Total URLs (5yr): {total_urls / 1e9:.1f}B ({total_urls / 1e9:.1f} billion)
+Storage:          {total_storage_tb:.1f} TB
+Bandwidth:        {bandwidth_mbps:.0f} Mbps
+Cache Required:   {cache_memory_gb:.0f} GB
 """)
 ```
 
-### 1.4 Back-of-the-envelope 計算のフレームワーク
+### 1.4 Back-of-the-Envelope Calculation Framework
 
 ```
-=== システム設計面接での概算テンプレート ===
+=== Estimation Template for System Design Interviews ===
 
-Step 1: 書き込み QPS
-  {日次書き込み数} ÷ 86,400 = 平均 QPS
-  平均 QPS × 2 = ピーク QPS
+Step 1: Write QPS
+  {daily writes} ÷ 86,400 = average QPS
+  average QPS × 2 = peak QPS
 
-Step 2: 読み取り QPS
-  書き込み QPS × R/W 比率
+Step 2: Read QPS
+  write QPS × R/W ratio
 
-Step 3: ストレージ
-  {日次書き込み数} × {保持日数} × {1レコードのサイズ}
+Step 3: Storage
+  {daily writes} × {retention days} × {bytes per record}
 
-Step 4: 帯域幅
-  QPS × {レスポンスサイズ}
+Step 4: Bandwidth
+  QPS × {response size}
 
-Step 5: キャッシュ
-  80-20 の法則を適用
-  → {日次読み取り数} × 20% × {1レコードのサイズ}
+Step 5: Cache
+  Apply the 80-20 rule
+  → {daily reads} × 20% × {bytes per record}
 
-重要: 正確な数値より桁数が合っていることが重要
-  1,160 QPS と 1,200 QPS は同じ。
-  1,160 QPS と 11,600 QPS は全く違う。
+Important: Order of magnitude matters more than exact numbers
+  1,160 QPS and 1,200 QPS are essentially the same.
+  1,160 QPS and 11,600 QPS are completely different.
 ```
 
 ---
 
-## 2. コア設計
+## 2. Core Design
 
-### 2.1 高レベルアーキテクチャ
+### 2.1 High-Level Architecture
 
 ```
-                    URL 短縮サービス全体構成
+                    URL Shortener Overall Architecture
 
   ┌──────────┐
   │ Client   │
@@ -194,10 +194,9 @@ Step 5: キャッシュ
   │ CDN /    │     │            Application Layer               │
   │ Edge     │     │  ┌────────────┐    ┌────────────────┐     │
   │ Cache    │ ──> │  │ Load       │ -> │ API Servers    │     │
-  └──────────┘     │  │ Balancer   │    │ (Write: 短縮)  │     │
-                   │  │ (Nginx/ALB)│    │ (Read: リダイ  │     │
-                   │  └────────────┘    │  レクト)        │     │
-                   │                    └───────┬────────┘     │
+  └──────────┘     │  │ Balancer   │    │ (Write: shorten│     │
+                   │  │ (Nginx/ALB)│    │ (Read: redirect│     │
+                   │  └────────────┘    └───────┬────────┘     │
                    └────────────────────────────┼──────────────┘
                                                 │
                               ┌─────────────────┼─────────────────┐
@@ -217,10 +216,10 @@ Step 5: キャッシュ
                                └──────────┘  └──────────┘
 ```
 
-### 2.2 短縮キー生成アルゴリズム
+### 2.2 Short Key Generation Algorithms
 
 ```python
-# === 方式1: Base62 エンコーディング ===
+# === Method 1: Base62 Encoding ===
 import string
 
 CHARSET = string.digits + string.ascii_lowercase + string.ascii_uppercase
@@ -228,9 +227,9 @@ BASE = len(CHARSET)  # 62
 
 
 def encode_base62(num: int) -> str:
-    """整数を Base62 文字列に変換する
+    """Convert an integer to a Base62 string
 
-    62進法でエンコード:
+    Encode in base 62:
     0-9 → '0'-'9'
     10-35 → 'a'-'z'
     36-61 → 'A'-'Z'
@@ -245,63 +244,63 @@ def encode_base62(num: int) -> str:
 
 
 def decode_base62(s: str) -> int:
-    """Base62 文字列を整数に戻す"""
+    """Convert a Base62 string back to an integer"""
     num = 0
     for char in s:
         num = num * BASE + CHARSET.index(char)
     return num
 
 
-# 7文字の Base62 で表現可能な範囲
-# 62^7 = 3,521,614,606,208 (約3.5兆通り)
+# Range expressible with 7 Base62 characters
+# 62^7 = 3,521,614,606,208 (approx. 3.5 trillion)
 assert encode_base62(123456789) == "8M0kX"
 assert decode_base62("8M0kX") == 123456789
 
 
-# === 方式2: MD5 ハッシュの先頭7文字 ===
+# === Method 2: First 7 Characters of MD5 Hash ===
 import hashlib
 
 
 def generate_hash_key(url: str, attempt: int = 0) -> str:
-    """URL の MD5 ハッシュから短縮キーを生成
+    """Generate a short key from the MD5 hash of a URL
 
-    衝突時は attempt をインクリメントして再試行
+    Increment attempt on collision and retry
     """
     input_str = url if attempt == 0 else f"{url}:{attempt}"
     hash_hex = hashlib.md5(input_str.encode()).hexdigest()
 
-    # 16進数を整数に変換し、Base62 エンコード
-    hash_int = int(hash_hex[:12], 16)  # 先頭12文字を使用
+    # Convert hex to integer, then Base62 encode
+    hash_int = int(hash_hex[:12], 16)  # use the first 12 characters
     key = encode_base62(hash_int)
-    return key[:7]  # 7文字に切り詰め
+    return key[:7]  # trim to 7 characters
 
 
-# 例
+# Example
 print(generate_hash_key("https://example.com/very/long/path"))  # => "aBcD123"
 
 
-# === 方式3: Snowflake ID + Base62 ===
+# === Method 3: Snowflake ID + Base62 ===
 import time
 import threading
 
 
 class SnowflakeIDGenerator:
-    """Twitter Snowflake 方式の分散 ID 生成
+    """Distributed ID generation using Twitter Snowflake method
 
-    64bit の ID:
-    - 1bit: 符号（常に0）
-    - 41bit: タイムスタンプ（ミリ秒）→ 約69年
-    - 10bit: マシン ID（1024台）
-    - 12bit: シーケンス番号（4096/ms/マシン）
+    64-bit ID:
+    - 1 bit: sign bit (always 0)
+    - 41 bits: timestamp (milliseconds) → ~69 years
+    - 10 bits: machine ID (1024 machines)
+    - 12 bits: sequence number (4096/ms/machine)
 
-    特徴:
-    - 時系列順のID生成
-    - 分散環境で衝突なし
-    - 高スループット（1マシンで409万ID/秒）
+    Features:
+    - Chronologically ordered ID generation
+    - No collisions in distributed environments
+    - High throughput (4.09 million IDs/sec per machine)
     """
 
     def __init__(self, machine_id: int):
-        self._machine_id = machine_id & 0x3FF  # 10bit
+        self._machine_id = machine_id & 0x3FF  # 10 bits
         self._sequence = 0
         self._last_timestamp = 0
         self._lock = threading.Lock()
@@ -314,7 +313,7 @@ class SnowflakeIDGenerator:
             if timestamp == self._last_timestamp:
                 self._sequence = (self._sequence + 1) & 0xFFF
                 if self._sequence == 0:
-                    # 同一ミリ秒でシーケンス上限 → 次のミリ秒まで待機
+                    # Sequence overflow within the same millisecond → wait for next ms
                     while timestamp <= self._last_timestamp:
                         timestamp = int(time.time() * 1000) - self._epoch
             else:
@@ -329,20 +328,20 @@ class SnowflakeIDGenerator:
             )
 
 
-# Snowflake ID → Base62 短縮キー
+# Snowflake ID → Base62 short key
 generator = SnowflakeIDGenerator(machine_id=1)
 snowflake_id = generator.next_id()
 short_key = encode_base62(snowflake_id)[:7]
 ```
 
-### 2.3 ハッシュ方式 vs カウンター方式 vs KGS
+### 2.3 Hash vs Counter vs KGS
 
-| 方式 | 仕組み | 長所 | 短所 | 適用場面 |
+| Method | Mechanism | Pros | Cons | Use Case |
 |------|--------|------|------|---------|
-| MD5/SHA256 ハッシュ | URL をハッシュ化し先頭7文字を使う | 同一 URL → 同一キー可能 | 衝突処理が必要 | デデュプリケーション重視 |
-| カウンター + Base62 | 自動採番の整数を Base62 変換 | 衝突なし、予測可能な長さ | 分散カウンターが必要 | シンプルな実装 |
-| Snowflake + Base62 | 分散 ID を Base62 変換 | 衝突なし、分散対応 | 8-10文字になりがち | 大規模分散システム |
-| 事前生成 (KGS) | キーを事前生成しプールから取り出す | 衝突なし、最高速 | キー管理サービスが必要 | 超高スループット |
+| MD5/SHA256 Hash | Hash the URL and use the first 7 characters | Same URL can map to same key | Collision handling required | When deduplication matters |
+| Counter + Base62 | Convert auto-incremented integer to Base62 | No collisions, predictable length | Requires distributed counter | Simple implementations |
+| Snowflake + Base62 | Convert distributed ID to Base62 | No collisions, distributed-ready | Keys tend to be 8-10 characters | Large-scale distributed systems |
+| Pre-generated (KGS) | Pre-generate keys and pull from a pool | No collisions, fastest | Requires key management service | Ultra-high throughput |
 
 ### 2.4 Key Generation Service (KGS)
 
@@ -358,18 +357,18 @@ logger = logging.getLogger(__name__)
 
 
 class KeyGenerationService:
-    """短縮URLキーを事前生成し、Redis のキューに格納する。
+    """Pre-generate short URL keys and store them in a Redis queue.
 
-    設計:
-    1. バックグラウンドで大量のキーを事前生成
-    2. Redis Set に格納（未使用キープール）
-    3. API サーバーは spop でアトミックにキーを取得
-    4. キー残量が閾値を下回ったら自動補充
+    Design:
+    1. Pre-generate a large number of keys in the background
+    2. Store in a Redis Set (unused key pool)
+    3. API servers atomically retrieve keys with spop
+    4. Automatically refill when the pool falls below a threshold
 
     ┌────────────┐     ┌─────────────────┐     ┌──────────┐
     │ Key        │ --> │ Redis           │ --> │ API      │
     │ Generator  │     │ unused_keys Set │     │ Server   │
-    │ (Background│     │ (100万キー)      │     │ (spop)   │
+    │ (Background│     │ (1M keys)       │     │ (spop)   │
     └────────────┘     └─────────────────┘     └──────────┘
     """
 
@@ -387,10 +386,10 @@ class KeyGenerationService:
         self._key_length = key_length
 
     def generate_keys(self, count: int = BATCH_GENERATE_SIZE) -> int:
-        """キーを一括生成してプールに追加する
+        """Bulk-generate keys and add them to the pool
 
         Returns:
-            実際に追加されたキー数
+            Number of keys actually added
         """
         charset = string.ascii_letters + string.digits
         generated = 0
@@ -401,7 +400,7 @@ class KeyGenerationService:
             pipe.sadd(self.UNUSED_KEY, key)
             generated += 1
 
-            # パイプラインのバッファが大きくなりすぎないように
+            # Flush periodically to avoid large pipeline buffers
             if generated % 10_000 == 0:
                 pipe.execute()
                 pipe = self._redis.pipeline()
@@ -409,57 +408,57 @@ class KeyGenerationService:
         pipe.execute()
         pool_size = self.pool_size()
         logger.info(
-            f"キー生成完了: {generated}件追加, "
-            f"プールサイズ: {pool_size}"
+            f"Key generation complete: {generated} added, "
+            f"pool size: {pool_size}"
         )
         return generated
 
     def get_key(self) -> str:
-        """未使用キーをプールから取得する（アトミック操作）
+        """Atomically retrieve an unused key from the pool
 
         Raises:
-            RuntimeError: キープールが枯渇した場合
+            RuntimeError: When the key pool is exhausted
         """
         key = self._redis.spop(self.UNUSED_KEY)
         if key is None:
             raise RuntimeError(
-                "キープール枯渇! generate_keys() を実行してください"
+                "Key pool exhausted! Please run generate_keys()"
             )
-        # 使用済みセットに追加（重複チェック用）
+        # Add to the used set (for deduplication checks)
         self._redis.sadd(self.USED_KEY, key)
         return key.decode()
 
     def return_key(self, key: str) -> None:
-        """キーをプールに返却する（URL 作成が失敗した場合）"""
+        """Return a key to the pool (when URL creation fails)"""
         self._redis.srem(self.USED_KEY, key)
         self._redis.sadd(self.UNUSED_KEY, key)
 
     def pool_size(self) -> int:
-        """未使用キーの残数を取得"""
+        """Get the number of remaining unused keys"""
         return self._redis.scard(self.UNUSED_KEY)
 
     def ensure_pool_size(self) -> None:
-        """プールサイズが閾値を下回ったら自動補充"""
+        """Automatically refill the pool when it falls below the threshold"""
         current = self.pool_size()
         if current < self.MIN_POOL_SIZE:
             logger.warning(
-                f"キープール残量低下: {current}, 補充開始"
+                f"Key pool running low: {current}, starting refill"
             )
             self.generate_keys(self.BATCH_GENERATE_SIZE)
 
     def is_key_used(self, key: str) -> bool:
-        """キーが使用済みか確認（カスタムエイリアスの重複チェック用）"""
+        """Check whether a key has been used (for custom alias deduplication)"""
         return self._redis.sismember(self.USED_KEY, key)
 ```
 
 ---
 
-## 3. データモデルとリダイレクト
+## 3. Data Model and Redirect
 
-### 3.1 データベーススキーマ
+### 3.1 Database Schema
 
 ```sql
--- URL マッピングテーブル（メインテーブル）
+-- URL mapping table (main table)
 CREATE TABLE url_mappings (
     id            BIGINT PRIMARY KEY AUTO_INCREMENT,
     short_key     VARCHAR(7) NOT NULL UNIQUE,
@@ -471,19 +470,19 @@ CREATE TABLE url_mappings (
     click_count   BIGINT DEFAULT 0,
     is_active     BOOLEAN DEFAULT TRUE,
 
-    -- インデックス
-    INDEX idx_short_key (short_key),             -- リダイレクト時のルックアップ
-    INDEX idx_user_id (user_id),                 -- ユーザーの URL 一覧
-    INDEX idx_expires_at (expires_at),           -- 期限切れクリーンアップ
-    INDEX idx_created_at (created_at)            -- 最新順の一覧
+    -- Indexes
+    INDEX idx_short_key (short_key),             -- lookup during redirect
+    INDEX idx_user_id (user_id),                 -- list URLs by user
+    INDEX idx_expires_at (expires_at),           -- expired URL cleanup
+    INDEX idx_created_at (created_at)            -- newest-first listing
 ) ENGINE=InnoDB;
 
--- アクセスログ（分析用、別テーブル/別 DB）
+-- Access logs (for analytics, separate table/DB)
 CREATE TABLE click_events (
     id            BIGINT PRIMARY KEY AUTO_INCREMENT,
     short_key     VARCHAR(7) NOT NULL,
     clicked_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    ip_address    VARCHAR(45),                    -- IPv6 対応
+    ip_address    VARCHAR(45),                    -- IPv6 compatible
     user_agent    VARCHAR(500),
     referer       VARCHAR(2048),
     country_code  CHAR(2),
@@ -491,7 +490,7 @@ CREATE TABLE click_events (
     os            VARCHAR(50),
     browser       VARCHAR(50),
 
-    -- パーティション: 月単位（大量データの管理用）
+    -- Partitioned by month (for managing large volumes of data)
     INDEX idx_short_key_time (short_key, clicked_at)
 ) ENGINE=InnoDB
 PARTITION BY RANGE (UNIX_TIMESTAMP(clicked_at)) (
@@ -500,30 +499,30 @@ PARTITION BY RANGE (UNIX_TIMESTAMP(clicked_at)) (
     PARTITION p_future VALUES LESS THAN MAXVALUE
 );
 
--- ユーザーテーブル（認証機能がある場合）
+-- Users table (when authentication is enabled)
 CREATE TABLE users (
     id            BIGINT PRIMARY KEY AUTO_INCREMENT,
     email         VARCHAR(255) NOT NULL UNIQUE,
     api_key       VARCHAR(64) NOT NULL UNIQUE,
     plan          ENUM('free', 'pro', 'enterprise') DEFAULT 'free',
-    rate_limit    INT DEFAULT 100,                -- 1時間あたりの URL 作成上限
+    rate_limit    INT DEFAULT 100,                -- max URL creations per hour
     created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     INDEX idx_api_key (api_key)
 ) ENGINE=InnoDB;
 ```
 
-### 3.2 NoSQL 代替案（DynamoDB）
+### 3.2 NoSQL Alternative (DynamoDB)
 
 ```python
-# DynamoDB スキーマ設計
+# DynamoDB schema design
 
 """
-DynamoDB テーブル設計（NoSQL 代替案）
+DynamoDB Table Design (NoSQL Alternative)
 
-テーブル: url_mappings
-  パーティションキー: short_key (String)
-  属性:
+Table: url_mappings
+  Partition key: short_key (String)
+  Attributes:
     - original_url (String)
     - user_id (String, optional)
     - created_at (Number, Unix timestamp)
@@ -532,17 +531,17 @@ DynamoDB テーブル設計（NoSQL 代替案）
     - is_active (Boolean)
 
   GSI: user_id-index
-    パーティションキー: user_id
-    ソートキー: created_at
+    Partition key: user_id
+    Sort key: created_at
 
-メリット:
-  - short_key でのルックアップが O(1) → 超低レイテンシ
-  - 水平スケールが自動（シャーディング不要）
-  - TTL 機能で期限切れ URL を自動削除
+Advantages:
+  - O(1) lookup by short_key → ultra-low latency
+  - Automatic horizontal scaling (no sharding required)
+  - TTL feature auto-deletes expired URLs
 
-デメリット:
-  - 複雑なクエリが困難（SQL の柔軟性がない）
-  - コストが読み書きキャパシティに依存
+Disadvantages:
+  - Complex queries are difficult (no SQL flexibility)
+  - Cost depends on read/write capacity
 """
 
 import boto3
@@ -553,7 +552,7 @@ table = dynamodb.Table('url_mappings')
 
 
 def create_short_url(short_key: str, original_url: str, ttl_days: int = 0):
-    """URL マッピングを作成"""
+    """Create a URL mapping"""
     item = {
         'short_key': short_key,
         'original_url': original_url,
@@ -568,12 +567,12 @@ def create_short_url(short_key: str, original_url: str, ttl_days: int = 0):
 
     table.put_item(
         Item=item,
-        ConditionExpression='attribute_not_exists(short_key)',  # 重複防止
+        ConditionExpression='attribute_not_exists(short_key)',  # prevent duplicates
     )
 
 
 def get_original_url(short_key: str) -> str | None:
-    """短縮キーから元 URL を取得"""
+    """Retrieve the original URL from a short key"""
     response = table.get_item(
         Key={'short_key': short_key},
         ProjectionExpression='original_url, is_active, expires_at',
@@ -582,7 +581,7 @@ def get_original_url(short_key: str) -> str | None:
     if not item or not item.get('is_active', True):
         return None
 
-    # 期限切れチェック
+    # Check expiration
     expires_at = item.get('expires_at')
     if expires_at and expires_at < int(datetime.now(timezone.utc).timestamp()):
         return None
@@ -591,7 +590,7 @@ def get_original_url(short_key: str) -> str | None:
 
 
 def increment_click_count(short_key: str):
-    """クリックカウントをアトミックにインクリメント"""
+    """Atomically increment the click count"""
     table.update_item(
         Key={'short_key': short_key},
         UpdateExpression='ADD click_count :inc',
@@ -599,10 +598,10 @@ def increment_click_count(short_key: str):
     )
 ```
 
-### 3.3 リダイレクトフロー
+### 3.3 Redirect Flow
 
 ```
-クライアント                API サーバー              Redis            DB
+Client                 API Server              Redis            DB
     |                          |                      |               |
     |  GET /abc123             |                      |               |
     |------------------------->|                      |               |
@@ -610,11 +609,11 @@ def increment_click_count(short_key: str):
     |                          |  GET url:abc123      |               |
     |                          |--------------------->|               |
     |                          |                      |               |
-    |                    [キャッシュヒット]              |               |
+    |                    [Cache Hit]                   |               |
     |  301/302 Redirect        |                      |               |
     |<-------------------------|                      |               |
     |                          |                      |               |
-    |                    [キャッシュミス]                |               |
+    |                    [Cache Miss]                  |               |
     |                          |  SELECT original_url |               |
     |                          |  WHERE short_key=    |               |
     |                          |  'abc123'            |               |
@@ -630,12 +629,12 @@ def increment_click_count(short_key: str):
     |  301/302 Redirect        |                      |               |
     |<-------------------------|                      |               |
     |                          |                      |               |
-    |          [非同期: クリックイベント記録]             |               |
+    |          [Async: record click event]             |               |
     |                          |---> [Message Queue]  |               |
     |                          |     → Click Logger   |               |
 ```
 
-### 3.4 API 実装
+### 3.4 API Implementation
 
 ```python
 # application/api/url_shortener_api.py
@@ -655,12 +654,12 @@ app = FastAPI(title="URL Shortener API")
 cache = redis.Redis(host="redis-host", port=6379, db=0, decode_responses=True)
 db = databases.Database("mysql://user:pass@db-host/url_shortener")
 
-CACHE_TTL = 86400  # 24時間
+CACHE_TTL = 86400  # 24 hours
 BASE_URL = "https://short.ly"
 
 
 class ShortenRequest(BaseModel):
-    """URL 短縮リクエスト"""
+    """URL shortening request"""
     url: HttpUrl
     custom_alias: Optional[str] = Field(
         None, min_length=4, max_length=30, pattern=r'^[a-zA-Z0-9_-]+$'
@@ -669,7 +668,7 @@ class ShortenRequest(BaseModel):
 
 
 class ShortenResponse(BaseModel):
-    """URL 短縮レスポンス"""
+    """URL shortening response"""
     short_url: str
     short_key: str
     original_url: str
@@ -677,7 +676,7 @@ class ShortenResponse(BaseModel):
 
 
 class UrlStatsResponse(BaseModel):
-    """URL 統計レスポンス"""
+    """URL statistics response"""
     short_key: str
     original_url: str
     click_count: int
@@ -685,31 +684,31 @@ class UrlStatsResponse(BaseModel):
     expires_at: Optional[str] = None
 
 
-# === URL 短縮 API ===
+# === URL Shortening API ===
 
 @app.post("/api/v1/shorten", response_model=ShortenResponse)
 async def shorten_url(
     request: ShortenRequest,
     api_key: str = Header(..., alias="X-API-Key"),
 ):
-    """長い URL を短縮する"""
-    # 1. API キーの認証（省略: 実際は認証ミドルウェアで処理）
+    """Shorten a long URL"""
+    # 1. API key authentication (simplified: handled by auth middleware in production)
     user = await authenticate_api_key(api_key)
 
-    # 2. レート制限チェック
+    # 2. Rate limit check
     await check_rate_limit(user.id)
 
-    # 3. URL の安全性チェック（フィッシング等）
+    # 3. URL safety check (phishing, etc.)
     if not await is_safe_url(str(request.url)):
         raise HTTPException(
             status_code=400,
-            detail="URL が安全でない可能性があります"
+            detail="The URL may not be safe"
         )
 
-    # 4. 短縮キーの取得
+    # 4. Get the short key
     if request.custom_alias:
         short_key = request.custom_alias
-        # カスタムエイリアスの重複チェック
+        # Check for duplicate custom alias
         existing = await db.fetch_one(
             "SELECT id FROM url_mappings WHERE short_key = :key",
             {"key": short_key}
@@ -717,20 +716,20 @@ async def shorten_url(
         if existing:
             raise HTTPException(
                 status_code=409,
-                detail=f"エイリアス '{short_key}' は既に使用されています"
+                detail=f"Alias '{short_key}' is already in use"
             )
     else:
         kgs = KeyGenerationService(redis_client=cache)
         short_key = kgs.get_key()
 
-    # 5. 有効期限の計算
+    # 5. Calculate expiration
     expires_at = None
     if request.expires_in_days:
         expires_at = datetime.now(timezone.utc) + timedelta(
             days=request.expires_in_days
         )
 
-    # 6. DB に保存
+    # 6. Save to DB
     try:
         await db.execute(
             """
@@ -747,12 +746,12 @@ async def shorten_url(
             }
         )
     except Exception as e:
-        # DB 保存失敗時はキーをプールに返却
+        # Return key to pool if DB save fails
         if not request.custom_alias:
             kgs.return_key(short_key)
-        raise HTTPException(status_code=500, detail="URL の作成に失敗しました")
+        raise HTTPException(status_code=500, detail="Failed to create URL")
 
-    # 7. キャッシュにも保存
+    # 7. Also save to cache
     cache.setex(f"url:{short_key}", CACHE_TTL, str(request.url))
 
     return ShortenResponse(
@@ -763,24 +762,24 @@ async def shorten_url(
     )
 
 
-# === リダイレクト API ===
+# === Redirect API ===
 
 @app.get("/{short_key}")
 async def redirect(short_key: str, request: Request):
-    """短縮 URL から元 URL へリダイレクトする"""
-    # 1. キャッシュを確認
+    """Redirect from a short URL to the original URL"""
+    # 1. Check cache
     cached_url = cache.get(f"url:{short_key}")
     if cached_url:
-        # 非同期でクリックイベントを記録（リダイレクトをブロックしない）
+        # Record click event asynchronously (does not block the redirect)
         asyncio.create_task(
             record_click_event(short_key, request)
         )
         return RedirectResponse(
             url=cached_url,
-            status_code=301,  # 永続リダイレクト
+            status_code=301,  # permanent redirect
         )
 
-    # 2. DB を確認
+    # 2. Check DB
     row = await db.fetch_one(
         """
         SELECT original_url, expires_at, is_active
@@ -791,34 +790,34 @@ async def redirect(short_key: str, request: Request):
     )
 
     if not row:
-        raise HTTPException(status_code=404, detail="URL が見つかりません")
+        raise HTTPException(status_code=404, detail="URL not found")
 
     if not row["is_active"]:
-        raise HTTPException(status_code=410, detail="URL は無効化されています")
+        raise HTTPException(status_code=410, detail="URL has been deactivated")
 
-    # 3. 期限切れチェック
+    # 3. Expiration check
     if row["expires_at"] and row["expires_at"] < datetime.now(timezone.utc):
-        raise HTTPException(status_code=410, detail="URL の有効期限が切れています")
+        raise HTTPException(status_code=410, detail="URL has expired")
 
     original_url = row["original_url"]
 
-    # 4. キャッシュに保存
+    # 4. Save to cache
     cache.setex(f"url:{short_key}", CACHE_TTL, original_url)
 
-    # 5. 非同期でクリックイベントを記録
+    # 5. Record click event asynchronously
     asyncio.create_task(record_click_event(short_key, request))
 
     return RedirectResponse(url=original_url, status_code=301)
 
 
-# === 統計 API ===
+# === Stats API ===
 
 @app.get("/api/v1/stats/{short_key}", response_model=UrlStatsResponse)
 async def get_stats(
     short_key: str,
     api_key: str = Header(..., alias="X-API-Key"),
 ):
-    """URL のアクセス統計を取得する"""
+    """Retrieve access statistics for a URL"""
     user = await authenticate_api_key(api_key)
 
     row = await db.fetch_one(
@@ -830,7 +829,7 @@ async def get_stats(
         {"key": short_key, "user_id": user.id}
     )
     if not row:
-        raise HTTPException(status_code=404, detail="URL が見つかりません")
+        raise HTTPException(status_code=404, detail="URL not found")
 
     return UrlStatsResponse(
         short_key=row["short_key"],
@@ -841,13 +840,13 @@ async def get_stats(
     )
 
 
-# === ヘルパー関数 ===
+# === Helper Functions ===
 
 async def record_click_event(short_key: str, request: Request) -> None:
-    """クリックイベントを非同期で記録する
+    """Record a click event asynchronously
 
-    注: 本番環境ではメッセージキュー（Kafka 等）に
-    発行して別サービスで処理するのが推奨
+    Note: In production, it is recommended to publish to a message queue
+    (e.g., Kafka) and process in a separate service
     """
     try:
         await db.execute(
@@ -863,19 +862,19 @@ async def record_click_event(short_key: str, request: Request) -> None:
                 "referer": request.headers.get("Referer", "")[:2048],
             }
         )
-        # クリックカウントのインクリメント
+        # Increment the click count
         await db.execute(
             "UPDATE url_mappings SET click_count = click_count + 1 WHERE short_key = :key",
             {"key": short_key}
         )
     except Exception as e:
-        # クリック記録の失敗はリダイレクトに影響させない
-        logger.error(f"クリックイベント記録失敗: {short_key}, {e}")
+        # Click recording failure must not affect redirects
+        logger.error(f"Failed to record click event: {short_key}, {e}")
 
 
 async def is_safe_url(url: str) -> bool:
-    """URL の安全性チェック（Google Safe Browsing API 等）"""
-    # 実装省略: 実際は外部 API で確認
+    """URL safety check (e.g., Google Safe Browsing API)"""
+    # Implementation omitted: check with an external API in production
     dangerous_patterns = [
         "phishing.example.com",
         "malware.example.com",
@@ -884,64 +883,64 @@ async def is_safe_url(url: str) -> bool:
 
 
 async def check_rate_limit(user_id: int) -> None:
-    """レート制限チェック"""
+    """Rate limit check"""
     key = f"rate_limit:{user_id}"
     current = cache.incr(key)
     if current == 1:
-        cache.expire(key, 3600)  # 1時間のウィンドウ
-    if current > 100:  # 1時間あたり100件
+        cache.expire(key, 3600)  # 1-hour window
+    if current > 100:  # 100 per hour
         raise HTTPException(
             status_code=429,
-            detail="レート制限を超過しました。1時間後に再試行してください"
+            detail="Rate limit exceeded. Please try again in one hour."
         )
 
 
 async def authenticate_api_key(api_key: str):
-    """API キーの認証"""
+    """API key authentication"""
     row = await db.fetch_one(
         "SELECT id, email, plan, rate_limit FROM users WHERE api_key = :key",
         {"key": api_key}
     )
     if not row:
-        raise HTTPException(status_code=401, detail="無効な API キーです")
+        raise HTTPException(status_code=401, detail="Invalid API key")
     return row
 ```
 
 ---
 
-## 4. スケーラビリティ設計
+## 4. Scalability Design
 
-### 4.1 キャッシュ戦略
+### 4.1 Caching Strategy
 
 ```
-                  読み取りリクエスト 115K QPS
+                  Read requests: 115K QPS
                          |
                          v
                   +--------------+
-                  | CDN / Edge   |  ← 最もホットな URL をエッジキャッシュ
-                  | Cache        |    (80% のリクエストをここで処理)
-                  | (CloudFront/ |    TTL: 5分 (頻繁にアクセスされる URL)
+                  | CDN / Edge   |  ← Edge-cache the hottest URLs
+                  | Cache        |    (handles 80% of requests here)
+                  | (CloudFront/ |    TTL: 5 minutes (frequently accessed URLs)
                   |  Fastly)     |
                   +--------------+
-                         |  キャッシュミス (20%)
+                         |  Cache miss (20%)
                          v
                   +--------------+
-                  | Redis        |  ← アプリレベルキャッシュ
-                  | Cluster      |    (残り 19% をここで処理)
-                  | (6ノード)     |    TTL: 24時間
+                  | Redis        |  ← Application-level cache
+                  | Cluster      |    (handles remaining 19% here)
+                  | (6 nodes)    |    TTL: 24 hours
                   +--------------+
-                         |  キャッシュミス (1%)
+                         |  Cache miss (1%)
                          v
                   +--------------+
-                  | DB Replica   |  ← リードレプリカ
-                  | (Read)       |    (最終的なフォールバック)
+                  | DB Replica   |  ← Read replica
+                  | (Read)       |    (final fallback)
                   +--------------+
 
-  実効 DB アクセス: 115,000 × 0.01 = 1,150 QPS
-  → DB への負荷を 99% 削減
+  Effective DB access: 115,000 × 0.01 = 1,150 QPS
+  → 99% reduction in DB load
 ```
 
-### 4.2 Redis Cluster 設計
+### 4.2 Redis Cluster Design
 
 ```python
 # infrastructure/cache/redis_cache.py
@@ -954,40 +953,40 @@ logger = logging.getLogger(__name__)
 
 
 class UrlCache:
-    """URL キャッシュ（Redis Cluster / Sentinel 対応）
+    """URL cache (Redis Cluster / Sentinel compatible)
 
-    設計判断:
-    - Redis Cluster: 水平分散（16384 スロット）
-    - Sentinel: 高可用性（マスター障害時の自動フェイルオーバー）
-    - TTL: 24時間（ホットな URL は自然にキャッシュに残る）
+    Design decisions:
+    - Redis Cluster: horizontal distribution (16384 slots)
+    - Sentinel: high availability (automatic failover on master failure)
+    - TTL: 24 hours (hot URLs naturally remain in cache)
     """
 
-    DEFAULT_TTL = 86400  # 24時間
+    DEFAULT_TTL = 86400  # 24 hours
 
     def __init__(self, redis_client: redis.Redis):
         self._redis = redis_client
 
     def get_url(self, short_key: str) -> str | None:
-        """キャッシュから URL を取得"""
+        """Retrieve a URL from cache"""
         result = self._redis.get(f"url:{short_key}")
         if result:
-            logger.debug(f"キャッシュヒット: {short_key}")
+            logger.debug(f"Cache hit: {short_key}")
             return result
-        logger.debug(f"キャッシュミス: {short_key}")
+        logger.debug(f"Cache miss: {short_key}")
         return None
 
     def set_url(
         self, short_key: str, original_url: str, ttl: int = DEFAULT_TTL
     ) -> None:
-        """URL をキャッシュに保存"""
+        """Store a URL in cache"""
         self._redis.setex(f"url:{short_key}", ttl, original_url)
 
     def delete_url(self, short_key: str) -> None:
-        """キャッシュから URL を削除（URL 無効化時）"""
+        """Delete a URL from cache (when deactivating a URL)"""
         self._redis.delete(f"url:{short_key}")
 
     def get_cache_stats(self) -> dict:
-        """キャッシュの統計情報"""
+        """Cache statistics"""
         info = self._redis.info("stats")
         hits = info.get("keyspace_hits", 0)
         misses = info.get("keyspace_misses", 0)
@@ -1000,7 +999,7 @@ class UrlCache:
         }
 ```
 
-### 4.3 データベースシャーディング
+### 4.3 Database Sharding
 
 ```python
 # infrastructure/database/shard_router.py
@@ -1008,15 +1007,15 @@ import hashlib
 
 
 class ConsistentHashShardRouter:
-    """一貫性ハッシュに基づくシャードルーティング
+    """Shard routing based on consistent hashing
 
-    設計判断:
-    - short_key のハッシュでシャードを決定
-    - 一貫性ハッシュリングでシャード追加/削除時の影響を最小化
-    - 仮想ノードで負荷の均等分散を実現
+    Design decisions:
+    - Determine shard from the hash of short_key
+    - Consistent hash ring minimizes impact when adding/removing shards
+    - Virtual nodes achieve even load distribution
 
     ┌────────────────────────────────────────────┐
-    │  一貫性ハッシュリング                         │
+    │  Consistent Hash Ring                        │
     │                                              │
     │       Shard0-v0                              │
     │      /          \                            │
@@ -1026,8 +1025,8 @@ class ConsistentHashShardRouter:
     │      \          /                            │
     │       Shard2-v0                              │
     │                                              │
-    │  short_key のハッシュ位置から                   │
-    │  時計回りで最初のノードがシャード               │
+    │  The first clockwise node from the           │
+    │  short_key's hash position is the shard      │
     └────────────────────────────────────────────┘
     """
 
@@ -1043,7 +1042,7 @@ class ConsistentHashShardRouter:
         self._build_ring()
 
     def _build_ring(self) -> None:
-        """ハッシュリングを構築"""
+        """Build the hash ring"""
         for shard_id in self._shard_configs:
             for i in range(self._virtual_nodes):
                 key = f"shard-{shard_id}-vnode-{i}"
@@ -1052,27 +1051,27 @@ class ConsistentHashShardRouter:
         self._sorted_keys = sorted(self._ring.keys())
 
     def get_shard(self, short_key: str) -> int:
-        """短縮キーからシャード番号を決定"""
+        """Determine the shard number from a short key"""
         hash_val = self._hash(short_key)
-        # 二分探索で最初の仮想ノードを見つける
+        # Binary search for the first virtual node
         for ring_key in self._sorted_keys:
             if hash_val <= ring_key:
                 return self._ring[ring_key]
-        # リングの末尾を超えた場合は先頭に戻る
+        # Wrap around to the start if past the end of the ring
         return self._ring[self._sorted_keys[0]]
 
     def get_connection_string(self, short_key: str) -> str:
-        """シャードの接続文字列を取得"""
+        """Get the connection string for a shard"""
         shard_id = self.get_shard(short_key)
         return self._shard_configs[shard_id]
 
     @staticmethod
     def _hash(key: str) -> int:
-        """キーのハッシュ値を計算"""
+        """Compute the hash value of a key"""
         return int(hashlib.md5(key.encode()).hexdigest(), 16)
 
 
-# 使用例
+# Usage example
 router = ConsistentHashShardRouter(
     shard_configs={
         0: "mysql://user:pass@shard-0.db/urls",
@@ -1083,17 +1082,17 @@ router = ConsistentHashShardRouter(
     virtual_nodes=150,
 )
 
-# 短縮キーからシャードを決定
+# Determine shard from short key
 shard_id = router.get_shard("abc123")
 conn_str = router.get_connection_string("abc123")
 ```
 
-### 4.4 高可用性設計
+### 4.4 High Availability Design
 
 ```
-=== マルチ AZ デプロイメント ===
+=== Multi-AZ Deployment ===
 
-  Region: ap-northeast-1 (東京)
+  Region: ap-northeast-1 (Tokyo)
 
   AZ-a                    AZ-c                    AZ-d
   ┌──────────────┐        ┌──────────────┐        ┌──────────────┐
@@ -1112,55 +1111,55 @@ conn_str = router.get_connection_string("abc123")
                           [ALB / NLB]
                                  │
                           [Route 53]
-                          (ヘルスチェック + フェイルオーバー)
+                          (Health check + failover)
 
-  障害パターンと対応:
-  1. API Server 障害 → ALB がヘルスチェックで検出、トラフィック迂回
-  2. Redis Master 障害 → Sentinel がフェイルオーバー、Replica を昇格
-  3. DB Master 障害 → 手動 or 自動フェイルオーバー、Replica を昇格
-  4. AZ 全体障害 → Route 53 が他 AZ にルーティング
+  Failure patterns and responses:
+  1. API Server failure → ALB detects via health check, reroutes traffic
+  2. Redis Master failure → Sentinel failover, promotes Replica
+  3. DB Master failure → manual or automatic failover, promotes Replica
+  4. Entire AZ failure → Route 53 routes to another AZ
 ```
 
 ---
 
-## 5. 301 vs 302 リダイレクト
+## 5. 301 vs 302 Redirect
 
-### 5.1 詳細比較
+### 5.1 Detailed Comparison
 
-| 観点 | 301 (Moved Permanently) | 302 (Found / Temporary) |
+| Aspect | 301 (Moved Permanently) | 302 (Found / Temporary) |
 |------|------------------------|------------------------|
-| ブラウザキャッシュ | キャッシュされる | キャッシュされない |
-| サーバー負荷 | 低い（2回目以降はサーバーに来ない） | 高い（毎回サーバーに来る） |
-| アクセス統計 | 正確に取れない（ブラウザがキャッシュ） | 毎回記録可能 |
-| SEO | リンクジュースが転送先に移る | 元 URL にリンクジュースが残る |
-| リダイレクト先の変更 | ブラウザキャッシュが残り反映遅延 | 即座に反映 |
-| 推奨用途 | 統計不要で高速性重視 | アクセス分析が必要な場合 |
+| Browser cache | Cached | Not cached |
+| Server load | Low (subsequent requests skip the server) | High (every request hits the server) |
+| Access statistics | Not accurate (browser caches the redirect) | Can be recorded every time |
+| SEO | Link juice passes to the destination | Link juice stays on the original URL |
+| Changing redirect target | Delayed due to browser cache | Takes effect immediately |
+| Recommended use | When statistics are not needed and speed is the priority | When access analytics are required |
 
-### 5.2 使い分けの判断基準
+### 5.2 Decision Criteria
 
 ```python
 def determine_redirect_status(url_mapping: dict) -> int:
-    """リダイレクトのステータスコードを判断する
+    """Determine the redirect status code
 
-    判断基準:
-    1. アクセス統計が有効 → 302（毎回サーバーを経由させる）
-    2. カスタムエイリアス → 302（リダイレクト先の変更可能性）
-    3. それ以外 → 301（パフォーマンス最優先）
+    Decision criteria:
+    1. Analytics enabled → 302 (route through server every time)
+    2. Custom alias → 302 (redirect target may change)
+    3. Otherwise → 301 (performance first)
     """
     if url_mapping.get('analytics_enabled'):
-        return 302  # 毎回サーバーを経由 → 統計取得可能
+        return 302  # route through server every time → can collect statistics
     if url_mapping.get('custom_alias'):
-        return 302  # リダイレクト先が変更される可能性
+        return 302  # redirect target may change
     if url_mapping.get('expires_at'):
-        return 302  # 有効期限あり → 期限切れの検知が必要
-    return 301      # 永続リダイレクト → 最高のパフォーマンス
+        return 302  # has expiration → need to detect when expired
+    return 301      # permanent redirect → best performance
 ```
 
 ---
 
-## 6. テスト
+## 6. Testing
 
-### 6.1 API のテスト
+### 6.1 API Tests
 
 ```python
 # tests/test_url_shortener_api.py
@@ -1170,7 +1169,7 @@ from unittest.mock import AsyncMock, patch
 
 
 class TestShortenURL:
-    """URL 短縮 API のテスト"""
+    """Tests for the URL shortening API"""
 
     @pytest.fixture
     def mock_kgs(self):
@@ -1179,8 +1178,8 @@ class TestShortenURL:
         return kgs
 
     @pytest.mark.asyncio
-    async def test_URL短縮_正常(self, client: AsyncClient, mock_kgs):
-        """有効な URL を短縮できる"""
+    async def test_shorten_url_success(self, client: AsyncClient, mock_kgs):
+        """Can shorten a valid URL"""
         response = await client.post(
             "/api/v1/shorten",
             json={"url": "https://example.com/very/long/path"},
@@ -1194,8 +1193,8 @@ class TestShortenURL:
         assert len(data["short_key"]) == 7
 
     @pytest.mark.asyncio
-    async def test_カスタムエイリアス(self, client: AsyncClient):
-        """カスタムエイリアスで短縮 URL を作成できる"""
+    async def test_custom_alias(self, client: AsyncClient):
+        """Can create a short URL with a custom alias"""
         response = await client.post(
             "/api/v1/shorten",
             json={
@@ -1210,9 +1209,9 @@ class TestShortenURL:
         assert data["short_key"] == "my-event"
 
     @pytest.mark.asyncio
-    async def test_カスタムエイリアス重複(self, client: AsyncClient):
-        """既存のエイリアスと重複する場合は 409 エラー"""
-        # 1回目: 成功
+    async def test_duplicate_custom_alias(self, client: AsyncClient):
+        """Returns 409 error when alias already exists"""
+        # First request: success
         await client.post(
             "/api/v1/shorten",
             json={
@@ -1222,7 +1221,7 @@ class TestShortenURL:
             headers={"X-API-Key": "valid-api-key"},
         )
 
-        # 2回目: 409 Conflict
+        # Second request: 409 Conflict
         response = await client.post(
             "/api/v1/shorten",
             json={
@@ -1234,8 +1233,8 @@ class TestShortenURL:
         assert response.status_code == 409
 
     @pytest.mark.asyncio
-    async def test_不正なURL(self, client: AsyncClient):
-        """不正な URL は 422 エラー"""
+    async def test_invalid_url(self, client: AsyncClient):
+        """Invalid URL returns 422 error"""
         response = await client.post(
             "/api/v1/shorten",
             json={"url": "not-a-valid-url"},
@@ -1244,9 +1243,9 @@ class TestShortenURL:
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_レート制限(self, client: AsyncClient):
-        """レート制限を超えると 429 エラー"""
-        for _ in range(101):  # 100 + 1 回
+    async def test_rate_limit(self, client: AsyncClient):
+        """Exceeding the rate limit returns 429 error"""
+        for _ in range(101):  # 100 + 1 times
             response = await client.post(
                 "/api/v1/shorten",
                 json={"url": "https://example.com/test"},
@@ -1257,12 +1256,12 @@ class TestShortenURL:
 
 
 class TestRedirect:
-    """リダイレクト API のテスト"""
+    """Tests for the redirect API"""
 
     @pytest.mark.asyncio
-    async def test_リダイレクト_正常(self, client: AsyncClient):
-        """有効な短縮 URL でリダイレクトされる"""
-        # URL を作成
+    async def test_redirect_success(self, client: AsyncClient):
+        """Valid short URL redirects correctly"""
+        # Create URL
         create_resp = await client.post(
             "/api/v1/shorten",
             json={"url": "https://example.com/target"},
@@ -1270,7 +1269,7 @@ class TestRedirect:
         )
         short_key = create_resp.json()["short_key"]
 
-        # リダイレクト
+        # Redirect
         response = await client.get(
             f"/{short_key}",
             follow_redirects=False,
@@ -1279,50 +1278,50 @@ class TestRedirect:
         assert response.headers["location"] == "https://example.com/target"
 
     @pytest.mark.asyncio
-    async def test_存在しないキー(self, client: AsyncClient):
-        """存在しない短縮キーは 404 エラー"""
+    async def test_nonexistent_key(self, client: AsyncClient):
+        """Non-existent short key returns 404 error"""
         response = await client.get("/nonexistent", follow_redirects=False)
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_期限切れURL(self, client: AsyncClient):
-        """期限切れの URL は 410 エラー"""
-        # 期限切れ URL を直接 DB に作成（テスト用）
-        # ... 省略
+    async def test_expired_url(self, client: AsyncClient):
+        """Expired URL returns 410 error"""
+        # Create an expired URL directly in the DB (for testing)
+        # ... omitted
         response = await client.get("/expired-key", follow_redirects=False)
         assert response.status_code == 410
 
 
 class TestKeyGenerationService:
-    """KGS のテスト"""
+    """Tests for KGS"""
 
-    def test_キー生成(self):
-        """指定数のキーが生成される"""
+    def test_key_generation(self):
+        """The specified number of keys are generated"""
         kgs = KeyGenerationService(redis_client=fake_redis)
         generated = kgs.generate_keys(count=1000)
         assert generated == 1000
         assert kgs.pool_size() >= 1000
 
-    def test_キー取得はアトミック(self):
-        """同じキーが2回取得されない"""
+    def test_key_retrieval_is_atomic(self):
+        """The same key is never retrieved twice"""
         kgs = KeyGenerationService(redis_client=fake_redis)
         kgs.generate_keys(count=100)
 
         keys = set()
         for _ in range(100):
             key = kgs.get_key()
-            assert key not in keys, f"重複キー: {key}"
+            assert key not in keys, f"Duplicate key: {key}"
             keys.add(key)
 
-    def test_プール枯渇時はエラー(self):
-        """プールが空の場合は RuntimeError"""
+    def test_error_on_pool_exhaustion(self):
+        """RuntimeError is raised when pool is empty"""
         kgs = KeyGenerationService(redis_client=fake_redis)
-        # プールは空
-        with pytest.raises(RuntimeError, match="キープール枯渇"):
+        # Pool is empty
+        with pytest.raises(RuntimeError, match="Key pool exhausted"):
             kgs.get_key()
 
-    def test_キー返却(self):
-        """失敗時にキーをプールに返却できる"""
+    def test_key_return(self):
+        """Can return a key to the pool on failure"""
         kgs = KeyGenerationService(redis_client=fake_redis)
         kgs.generate_keys(count=10)
         initial_size = kgs.pool_size()
@@ -1334,7 +1333,7 @@ class TestKeyGenerationService:
         assert kgs.pool_size() == initial_size
 ```
 
-### 6.2 Base62 エンコーディングのテスト
+### 6.2 Base62 Encoding Tests
 
 ```python
 # tests/test_base62.py
@@ -1342,28 +1341,28 @@ import pytest
 
 
 class TestBase62:
-    """Base62 エンコーディングのテスト"""
+    """Tests for Base62 encoding"""
 
-    def test_エンコード_デコードの往復(self):
-        """エンコード → デコードで元の値に戻る"""
+    def test_encode_decode_roundtrip(self):
+        """encode → decode returns the original value"""
         for num in [0, 1, 61, 62, 100, 123456789, 2**40]:
             encoded = encode_base62(num)
             decoded = decode_base62(encoded)
             assert decoded == num, f"num={num}, encoded={encoded}"
 
-    def test_キー長の検証(self):
-        """7文字以内で十分な範囲をカバーできる"""
+    def test_key_length_validation(self):
+        """7 characters cover a sufficient range"""
         # 62^7 = 3,521,614,606,208
         max_7char = 62**7 - 1
         encoded = encode_base62(max_7char)
         assert len(encoded) == 7
 
-    def test_ゼロ(self):
-        """0 のエンコード"""
+    def test_zero(self):
+        """Encoding of 0"""
         assert encode_base62(0) == "0"
 
-    def test_全文字が使われる(self):
-        """Base62 の全文字（0-9, a-z, A-Z）が使われる"""
+    def test_all_characters_used(self):
+        """All Base62 characters (0-9, a-z, A-Z) are used"""
         chars_used = set()
         for i in range(62):
             chars_used.add(encode_base62(i))
@@ -1372,144 +1371,144 @@ class TestBase62:
 
 ---
 
-## 7. 比較表
+## 7. Comparison Tables
 
-### 7.1 データベース選択
+### 7.1 Database Selection
 
-| 特性 | MySQL (RDB) | DynamoDB (NoSQL) | Cassandra |
+| Characteristic | MySQL (RDB) | DynamoDB (NoSQL) | Cassandra |
 |-----|:-----------:|:----------------:|:---------:|
-| ルックアップ速度 | 速い（インデックス） | 非常に速い（ハッシュキー） | 速い |
-| 水平スケール | シャーディングが必要 | 自動 | 自動 |
-| スキーマ柔軟性 | 固定（ALTER必要） | 柔軟 | 柔軟 |
-| トランザクション | 完全サポート | 制限的 | 制限的 |
-| 運用コスト | 中（自前管理） | 低（マネージド） | 高（運用複雑） |
-| 適用条件 | 中小規模、SQL が必要 | 大規模、シンプルなクエリ | 超大規模、書き込み重視 |
+| Lookup speed | Fast (index) | Very fast (hash key) | Fast |
+| Horizontal scaling | Requires sharding | Automatic | Automatic |
+| Schema flexibility | Fixed (ALTER required) | Flexible | Flexible |
+| Transactions | Full support | Limited | Limited |
+| Operational cost | Medium (self-managed) | Low (managed) | High (complex ops) |
+| Best fit | Small/medium scale, SQL needed | Large scale, simple queries | Ultra-large scale, write-heavy |
 
-### 7.2 キー生成方式
+### 7.2 Key Generation Methods
 
-| 方式 | 速度 | 衝突 | 分散対応 | 予測可能性 | 推奨場面 |
+| Method | Speed | Collisions | Distributed | Predictability | Recommended For |
 |-----|:----:|:----:|:-------:|:---------:|---------|
-| Base62 カウンター | 高 | なし | 困難 | 高（連番） | 小規模・単一サーバー |
-| MD5 ハッシュ | 中 | あり | 容易 | 低 | 同一URL同一キーが必要 |
-| Snowflake + Base62 | 高 | なし | 容易 | 中 | 大規模分散 |
-| KGS | 最高 | なし | 容易 | 低 | 超高スループット |
+| Base62 counter | High | None | Difficult | High (sequential) | Small scale, single server |
+| MD5 hash | Medium | Yes | Easy | Low | Same URL requires same key |
+| Snowflake + Base62 | High | None | Easy | Medium | Large-scale distributed |
+| KGS | Highest | None | Easy | Low | Ultra-high throughput |
 
-### 7.3 キャッシュ戦略
+### 7.3 Caching Strategy
 
-| 層 | 技術 | ヒット率 | TTL | 用途 |
+| Layer | Technology | Hit Rate | TTL | Purpose |
 |---|------|:-------:|:---:|------|
-| L1: CDN Edge | CloudFront / Fastly | 80% | 5分 | ホット URL の高速配信 |
-| L2: App Cache | Redis Cluster | 19% | 24時間 | アプリレベルの汎用キャッシュ |
-| L3: DB Replica | MySQL Replica | 1% | N/A | キャッシュミスのフォールバック |
+| L1: CDN Edge | CloudFront / Fastly | 80% | 5 min | Fast delivery of hot URLs |
+| L2: App Cache | Redis Cluster | 19% | 24 hr | General-purpose app-level cache |
+| L3: DB Replica | MySQL Replica | 1% | N/A | Fallback on cache miss |
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン 1: 全リクエストを DB に直接アクセス
+### Anti-Pattern 1: Direct DB Access for Every Request
 
 ```
-WHY: URL 短縮サービスは読み取りが 100:1 で圧倒的に多い。
-     キャッシュなしでは DB が 115,000 QPS を処理できない。
+WHY: URL shorteners are heavily read-biased at 100:1.
+     Without caching, the DB cannot handle 115,000 QPS.
 
 NG:
-  115,000 QPS → DB 直接アクセス → DB が即座にダウン
+  115,000 QPS → direct DB access → DB crashes immediately
 
-OK: 多層キャッシュ戦略を採用する
-  80-20 の法則: 20% の URL が 80% のトラフィックを受ける
-  CDN + Redis で 99% のリクエストを DB 到達前に処理
-  実効 DB アクセス: 115,000 × 0.01 = 1,150 QPS
+OK: Adopt a multi-layer caching strategy
+  80-20 rule: 20% of URLs receive 80% of traffic
+  CDN + Redis handles 99% of requests before reaching the DB
+  Effective DB access: 115,000 × 0.01 = 1,150 QPS
 ```
 
-### アンチパターン 2: 短縮キーを連番で生成
+### Anti-Pattern 2: Generating Short Keys Sequentially
 
 ```
-WHY: 連番は予測可能であり、セキュリティリスクがある。
-     全 URL を /1, /2, /3 ... で列挙可能。
+WHY: Sequential keys are predictable and pose a security risk.
+     All URLs can be enumerated as /1, /2, /3 ...
 
 NG:
-  auto_increment の連番をそのまま短縮キーにする
-  → 非公開 URL が推測される
-  → 競合他社が全 URL をスクレイピング可能
+  Use auto_increment values directly as short keys
+  → Private URLs can be guessed
+  → Competitors can scrape all URLs
 
-OK: ランダムまたは事前生成キー (KGS) を使用する
-  → 予測不可能な 7 文字のランダムキー
-  → KGS で衝突チェックを事前に完了
+OK: Use random or pre-generated keys (KGS)
+  → Unpredictable random 7-character keys
+  → Collision checks are completed in advance by KGS
 ```
 
-### アンチパターン 3: リダイレクトでアクセス統計を同期記録
+### Anti-Pattern 3: Synchronously Recording Access Statistics During Redirect
 
 ```
-WHY: リダイレクト API のクリティカルパスに DB 書き込みを入れると、
-     レイテンシが増加し、DB 書き込み障害がリダイレクトを阻害する。
+WHY: Adding DB writes to the critical path of the redirect API
+     increases latency and lets DB write failures block redirects.
 
 NG:
   @app.get("/{short_key}")
   async def redirect(short_key):
       url = await get_url(short_key)
-      await db.execute("INSERT INTO click_events ...")  # 同期書き込み
-      await db.execute("UPDATE url_mappings SET click_count += 1")  # 同期更新
+      await db.execute("INSERT INTO click_events ...")  # synchronous write
+      await db.execute("UPDATE url_mappings SET click_count += 1")  # synchronous update
       return RedirectResponse(url)
-  # → リダイレクトのレイテンシが DB 書き込みに依存
+  # → redirect latency depends on DB write performance
 
-OK: 非同期でクリックイベントを記録
+OK: Record click events asynchronously
   @app.get("/{short_key}")
   async def redirect(short_key):
       url = await get_url(short_key)
-      asyncio.create_task(record_click(short_key))  # 非同期
+      asyncio.create_task(record_click(short_key))  # async
       return RedirectResponse(url)
-  # → リダイレクトは即座に完了。統計はバックグラウンドで記録
+  # → redirect completes immediately; statistics are recorded in the background
 ```
 
-### アンチパターン 4: 単一障害点の放置
+### Anti-Pattern 4: Leaving Single Points of Failure
 
 ```
-WHY: KGS や Redis が単一インスタンスの場合、
-     その障害で全サービスが停止する。
+WHY: If KGS or Redis runs as a single instance,
+     its failure brings down the entire service.
 
 NG:
-  [API Server] → [KGS (1台)] → 障害! → 全 URL 作成不能
-  [API Server] → [Redis (1台)] → 障害! → 全リダイレクト遅延
+  [API Server] → [KGS (1 instance)] → failure! → all URL creation fails
+  [API Server] → [Redis (1 instance)] → failure! → all redirects slow down
 
-OK: 各コンポーネントを冗長化
-  KGS: Primary + Standby (自動フェイルオーバー)
-  Redis: Cluster (6ノード) + Sentinel
-  DB: Master + 2 Replica (異なる AZ)
-  API: 複数インスタンス + ヘルスチェック
+OK: Redundify each component
+  KGS: Primary + Standby (automatic failover)
+  Redis: Cluster (6 nodes) + Sentinel
+  DB: Master + 2 Replicas (different AZs)
+  API: Multiple instances + health checks
 ```
 
-### アンチパターン 5: URL の安全性チェックなし
+### Anti-Pattern 5: No URL Safety Check
 
 ```
-WHY: 短縮 URL はフィッシングやマルウェア配布に悪用される。
-     安全性チェックなしでは、自サービスが攻撃の踏み台になる。
+WHY: Short URLs can be abused for phishing and malware distribution.
+     Without safety checks, your service becomes a platform for attacks.
 
 NG:
   def shorten(url):
-      return create_short_url(url)  # 何でも受け入れる
+      return create_short_url(url)  # accepts anything
 
-OK: 多層の安全性チェック
-  1. URL 作成時: Google Safe Browsing API でスキャン
-  2. 定期スキャン: 既存 URL を定期的に再チェック
-  3. ユーザー報告: 悪意ある URL の報告機能
-  4. リダイレクト前: プレビューページの提供（オプション）
+OK: Multi-layer safety checks
+  1. On URL creation: scan with Google Safe Browsing API
+  2. Periodic scan: periodically re-check existing URLs
+  3. User reporting: allow users to report malicious URLs
+  4. Before redirect: offer a preview page (optional)
 ```
 
 ---
 
-## 9. 演習問題
+## 9. Exercises
 
-### 演習1: 基本 -- Base62 エンコーディングの実装（30分）
+### Exercise 1: Basic — Implement Base62 Encoding (30 minutes)
 
-**課題**: Base62 エンコーディングの完全な実装
+**Task**: Complete implementation of Base62 encoding
 
-要件:
-1. `encode_base62(num: int) -> str` と `decode_base62(s: str) -> int` を実装
-2. 0 から 62^7-1 までの範囲で正しく動作すること
-3. 負の数は ValueError を送出すること
-4. property-based testing で encode/decode の往復が正しいことを検証
+Requirements:
+1. Implement `encode_base62(num: int) -> str` and `decode_base62(s: str) -> int`
+2. Correctly handle the range from 0 to 62^7-1
+3. Raise ValueError for negative numbers
+4. Verify round-trip correctness using property-based testing
 
-**期待する出力**:
+**Expected Output**:
 ```python
 assert encode_base62(0) == "0"
 assert encode_base62(61) == "Z"
@@ -1517,24 +1516,24 @@ assert encode_base62(62) == "10"
 assert encode_base62(123456789) == "8M0kX"
 assert decode_base62("8M0kX") == 123456789
 
-# 往復テスト
+# Round-trip test
 for i in range(10000):
     assert decode_base62(encode_base62(i)) == i
 ```
 
-### 演習2: 応用 -- KGS のスレッドセーフ実装（60分）
+### Exercise 2: Intermediate — Thread-Safe KGS Implementation (60 minutes)
 
-**課題**: マルチスレッド環境で安全に動作する Key Generation Service を実装
+**Task**: Implement a Key Generation Service that operates safely in a multi-threaded environment
 
-要件:
-1. Redis の spop を使用してアトミックにキーを取得
-2. プールサイズ監視と自動補充機能
-3. キー返却機能（URL 作成失敗時）
-4. 100 並行スレッドでの動作テスト
+Requirements:
+1. Use Redis spop for atomic key retrieval
+2. Pool size monitoring and automatic refill
+3. Key return mechanism (when URL creation fails)
+4. Functional test with 100 concurrent threads
 
-**期待する出力**:
+**Expected Output**:
 ```python
-# 並行テスト
+# Concurrency test
 import concurrent.futures
 
 kgs = KeyGenerationService(redis_client)
@@ -1546,223 +1545,223 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=100) as executor:
     for future in concurrent.futures.as_completed(futures):
         all_keys.append(future.result())
 
-# 全キーがユニーク
+# All keys are unique
 assert len(set(all_keys)) == 1000
 ```
 
-### 演習3: 発展 -- 完全なシステム設計ドキュメント（90分）
+### Exercise 3: Advanced — Full System Design Document (90 minutes)
 
-**課題**: 以下の追加要件を含む URL 短縮サービスの設計書を作成
+**Task**: Create a design document for a URL shortener including the following additional requirements
 
-追加要件:
-1. マルチリージョン対応（東京 + バージニア）
-2. カスタムドメインのサポート（`yourbrand.link/event`）
-3. A/B テスト機能（同一短縮 URL で複数のリダイレクト先をランダムに振り分け）
-4. 不正利用検出（短時間に大量のリダイレクトが発生した場合にアラート）
+Additional requirements:
+1. Multi-region support (Tokyo + Virginia)
+2. Custom domain support (`yourbrand.link/event`)
+3. A/B testing feature (randomly distribute redirects across multiple targets from the same short URL)
+4. Abuse detection (alert when a large number of redirects occur in a short time)
 
-成果物:
-- 高レベルアーキテクチャ図
-- データモデル（テーブル設計）
-- API 設計（エンドポイント一覧）
-- 障害シナリオと対応策
-- コスト見積もり（AWS ベース）
+Deliverables:
+- High-level architecture diagram
+- Data model (table design)
+- API design (list of endpoints)
+- Failure scenarios and responses
+- Cost estimate (AWS-based)
 
-**期待する成果物の構成**:
+**Expected Deliverable Structure**:
 ```
-1. 要件定義（機能/非機能）
-2. アーキテクチャ図（マルチリージョン構成）
-3. データモデル（カスタムドメイン、A/B テスト対応）
-4. API 設計（RESTful + Rate Limiting）
-5. 障害対応マトリクス
-6. コスト概算
+1. Requirements definition (functional/non-functional)
+2. Architecture diagram (multi-region configuration)
+3. Data model (custom domain, A/B test support)
+4. API design (RESTful + Rate Limiting)
+5. Failure response matrix
+6. Cost estimate
 ```
 
 ---
 
 ## 10. FAQ
 
-### Q1: 短縮キーは何文字が最適ですか？
+### Q1: What is the optimal length for a short key?
 
-**A:** 6-7文字が一般的。Base62（英大小文字 + 数字）の場合:
-
-```
-文字数と表現可能な範囲:
-  5文字: 62^5 =     916,132,832 (約9億)
-  6文字: 62^6 =  56,800,235,584 (約568億)
-  7文字: 62^7 = 3,521,614,606,208 (約3.5兆)
-
-推奨:
-  - 5年間で 182.5B URL を想定 → 7文字で十分
-  - カスタムエイリアスは 4-30文字を許容
-  - 短すぎるとブルートフォースで列挙される危険
-
-面接では: 「7文字 Base62 で 3.5兆通り。
-  5年間の 1,825億 URL に対して約20倍の余裕がある」と回答
-```
-
-### Q2: 同じ URL が複数回短縮された場合、同じキーを返すべきですか？
-
-**A:** 設計判断に依存するが、一般的には異なるキーを返す。
+**A:** 6-7 characters is common. With Base62 (uppercase + lowercase letters + digits):
 
 ```
-方式1: 毎回異なるキーを返す（推奨）
-  メリット:
-  - ユーザーごとに独立したアクセス統計
-  - 実装がシンプル（重複チェック不要）
-  - 有効期限をユーザーごとに設定可能
-  デメリット:
-  - 同一 URL に対して複数キーが存在（ストレージ効率低下）
+Characters and expressible range:
+  5 chars: 62^5 =     916,132,832 (~916 million)
+  6 chars: 62^6 =  56,800,235,584 (~56.8 billion)
+  7 chars: 62^7 = 3,521,614,606,208 (~3.5 trillion)
 
-方式2: 同じキーを返す（デデュプリケーション）
-  メリット:
-  - ストレージ効率が良い
-  - CDN キャッシュの効率向上
-  デメリット:
-  - original_url → short_key の逆引きインデックスが必要
-  - ユーザーごとの統計が取れない
-  - 有効期限の管理が複雑
+Recommendations:
+  - Assuming 182.5B URLs over 5 years → 7 characters is sufficient
+  - Custom aliases allow 4-30 characters
+  - Too short risks brute-force enumeration
 
-面接では:
-  「bit.ly は同じユーザーが同じ URL を短縮すると同じキーを返す。
-   異なるユーザーなら異なるキーを返す」と回答
+In an interview: Answer with "7-character Base62 gives 3.5 trillion combinations.
+  That's about 20x the capacity for 182.5 billion URLs over 5 years."
 ```
 
-### Q3: 期限切れ URL の削除はどう行いますか？
+### Q2: If the same URL is shortened multiple times, should the same key be returned?
 
-**A:** 3つの戦略を組み合わせる。
+**A:** Depends on design decisions, but generally different keys are returned.
+
+```
+Option 1: Return a different key each time (recommended)
+  Pros:
+  - Independent access statistics per user
+  - Simpler implementation (no deduplication check needed)
+  - Per-user expiration settings
+  Cons:
+  - Multiple keys for the same URL (reduced storage efficiency)
+
+Option 2: Return the same key (deduplication)
+  Pros:
+  - Better storage efficiency
+  - Improved CDN cache efficiency
+  Cons:
+  - Requires a reverse index: original_url → short_key
+  - Cannot track per-user statistics
+  - Complex expiration management
+
+In an interview:
+  "bit.ly returns the same key when the same user shortens the same URL.
+   Different users get different keys."
+```
+
+### Q3: How are expired URLs deleted?
+
+**A:** Combine three strategies.
 
 ```python
-# 戦略1: Lazy Deletion（リダイレクト時に確認）
+# Strategy 1: Lazy Deletion (check at redirect time)
 @app.get("/{short_key}")
 async def redirect(short_key):
     url_data = await get_url_data(short_key)
     if url_data['expires_at'] < datetime.now():
-        raise HTTPException(status_code=410, detail="期限切れ")
+        raise HTTPException(status_code=410, detail="URL has expired")
     return RedirectResponse(url_data['original_url'])
 
-# 戦略2: Background Cleanup（定期バッチ）
-# Cron: 毎日 3:00 AM に実行
+# Strategy 2: Background Cleanup (periodic batch)
+# Cron: run daily at 3:00 AM
 async def cleanup_expired_urls():
     deleted = await db.execute(
         "DELETE FROM url_mappings WHERE expires_at < NOW() LIMIT 10000"
     )
-    # Redis キャッシュからも削除
+    # Also delete from Redis cache
     # ...
 
-# 戦略3: TTL in Cache
-# Redis の TTL で自動期限切れ
+# Strategy 3: TTL in Cache
+# Automatic expiration via Redis TTL
 cache.setex(f"url:{short_key}", ttl_seconds, original_url)
 
-# DynamoDB の TTL（NoSQL の場合）
-# expires_at カラムを TTL として設定 → 自動削除
+# DynamoDB TTL (for NoSQL)
+# Set expires_at column as TTL → auto-deleted
 ```
 
-### Q4: URL 短縮サービスの面接での進め方は？
+### Q4: How should I approach a URL shortener in an interview?
 
-**A:** 以下のフレームワークで 35-40分で回答する。
-
-```
-Step 1: 要件確認 (3-5分)
-  - 機能要件: "URL 短縮とリダイレクトが必須。統計は Must Have ですか？"
-  - 非機能要件: "想定するスケールは？ read:write 比率は？"
-  - スケール見積もり: QPS、ストレージ、帯域幅の概算
-
-Step 2: 高レベル設計 (10-15分)
-  - API 設計: POST /api/shorten, GET /:short_key
-  - アーキテクチャ図: Client → LB → API → Cache → DB
-  - データモデル: url_mappings テーブル
-
-Step 3: 深掘り (15-20分)
-  面接官の関心に応じて深掘り:
-  - キー生成: Base62 vs Hash vs KGS
-  - キャッシュ戦略: 多層キャッシュ、TTL
-  - DB 分割: シャーディング戦略
-  - 可用性: レプリカ、フェイルオーバー
-
-Step 4: まとめ (3-5分)
-  - トレードオフの説明
-  - さらなる改善点の提案
-```
-
-### Q5: read:write 比率が逆（write 重視）の場合はどうする？
-
-**A:** データベースとキー生成の設計が変わる。
+**A:** Use the following framework to answer in 35-40 minutes.
 
 ```
-Write 重視の場合の変更点:
+Step 1: Clarify requirements (3-5 minutes)
+  - Functional: "URL shortening and redirect are must-haves. Is analytics a Must Have?"
+  - Non-functional: "What scale do you expect? What is the read:write ratio?"
+  - Scale estimation: approximate QPS, storage, bandwidth
+
+Step 2: High-level design (10-15 minutes)
+  - API design: POST /api/shorten, GET /:short_key
+  - Architecture diagram: Client → LB → API → Cache → DB
+  - Data model: url_mappings table
+
+Step 3: Deep dive (15-20 minutes)
+  Go deeper based on interviewer interest:
+  - Key generation: Base62 vs Hash vs KGS
+  - Caching strategy: multi-layer cache, TTL
+  - DB partitioning: sharding strategy
+  - Availability: replicas, failover
+
+Step 4: Summary (3-5 minutes)
+  - Explain trade-offs
+  - Suggest further improvements
+```
+
+### Q5: What if the read:write ratio is reversed (write-heavy)?
+
+**A:** Database and key generation design change.
+
+```
+Changes for write-heavy workloads:
 
 1. DB: Write-optimized DB (Cassandra, ScyllaDB)
-   - LSM-tree ベースで書き込みに最適化
-   - MySQL の B-tree より書き込みが高速
+   - LSM-tree based, optimized for writes
+   - Faster writes than MySQL's B-tree
 
-2. キー生成: KGS の強化
-   - プールサイズを拡大（1000万キー以上）
-   - 複数 KGS インスタンスで並列取得
-   - キー生成をバックグラウンドで常時実行
+2. Key generation: Strengthen KGS
+   - Expand pool size (10 million keys or more)
+   - Multiple KGS instances for parallel retrieval
+   - Continuously generate keys in the background
 
-3. 非同期書き込み:
-   - URL 作成リクエスト → メッセージキュー → 非同期 DB 書き込み
-   - レスポンスはキュー投入後に即座に返す
+3. Asynchronous writes:
+   - URL creation request → message queue → async DB write
+   - Return response immediately after queuing
 
-4. バッチ書き込み:
-   - 書き込みをバッファリングしてバッチ INSERT
-   - レイテンシとスループットのトレードオフ
+4. Batch writes:
+   - Buffer writes and batch INSERT
+   - Trade-off between latency and throughput
 ```
 
-### Q6: マルチリージョンでの整合性はどう担保する？
+### Q6: How do you ensure consistency across multiple regions?
 
-**A:** 結果整合性を許容し、リージョン間の非同期レプリケーションを採用する。
+**A:** Accept eventual consistency and use asynchronous replication between regions.
 
 ```
-設計:
+Design:
   Tokyo Region  ←── async replication ──→  Virginia Region
 
-  1. 書き込み: 最寄りのリージョンで受け付け
-  2. レプリケーション: 非同期で他リージョンに伝播（数百ms〜数秒の遅延）
-  3. 読み取り: 最寄りのリージョンのレプリカから応答
+  1. Writes: accepted by the nearest region
+  2. Replication: asynchronously propagated to other regions (delay of hundreds of ms to seconds)
+  3. Reads: served from the nearest region's replica
 
-  衝突の可能性:
-  - 同一カスタムエイリアスが異なるリージョンで同時に作成される
-  - 解決: カスタムエイリアスは「グローバル一意性チェック」を同期的に実行
-         ランダムキーは衝突の確率が極めて低いため非同期で問題なし
+  Potential conflicts:
+  - The same custom alias is created simultaneously in different regions
+  - Solution: custom aliases use a synchronous "global uniqueness check"
+              random keys have an extremely low collision probability, so async is fine
 
-  DNS ルーティング:
-  Route 53 のレイテンシベースルーティングで最寄りリージョンに誘導
+  DNS routing:
+  Route 53 latency-based routing directs traffic to the nearest region
 ```
 
-### Q7: コスト見積もりは？
+### Q7: What does the cost estimate look like?
 
-**A:** AWS ベースの概算（月額）。
+**A:** Rough monthly estimate based on AWS.
 
 ```
-=== 月額コスト概算（100M URL/日の場合）===
+=== Monthly Cost Estimate (for 100M URLs/day) ===
 
-API サーバー:
-  EC2 c6g.2xlarge × 12台 (4AZ × 3台)
-  → $12 × 0.268/hr × 730hr = $2,348/月
+API Servers:
+  EC2 c6g.2xlarge × 12 instances (4 AZ × 3)
+  → $12 × 0.268/hr × 730hr = $2,348/month
 
-ロードバランサー:
+Load Balancer:
   ALB × 2 (internal + external)
-  → $16.43 × 2 + トラフィック ≈ $500/月
+  → $16.43 × 2 + traffic ≈ $500/month
 
 Redis (ElastiCache):
-  r6g.2xlarge × 6ノード (Cluster)
-  → $0.452/hr × 6 × 730hr = $1,980/月
+  r6g.2xlarge × 6 nodes (Cluster)
+  → $0.452/hr × 6 × 730hr = $1,980/month
 
 RDB (Aurora MySQL):
-  db.r6g.4xlarge × 3 (Master + 2 Replica)
-  → $1.12/hr × 3 × 730hr = $2,453/月
-  ストレージ: 91TB × $0.10 = $9,100/月
+  db.r6g.4xlarge × 3 (Master + 2 Replicas)
+  → $1.12/hr × 3 × 730hr = $2,453/month
+  Storage: 91TB × $0.10 = $9,100/month
 
 CDN (CloudFront):
-  10B req/日 × 30日 × $0.009/10K req ≈ $2,700/月
+  10B req/day × 30 days × $0.009/10K req ≈ $2,700/month
 
-合計: 約 $19,000/月 (約280万円/月)
+Total: approx. $19,000/month
 
-コスト最適化のポイント:
-  - リザーブドインスタンスで 30-40% 削減
-  - Spot インスタンスをバッチ処理に活用
-  - S3 + Athena でクリックログをコスト効率よく保存
+Cost optimization tips:
+  - Reserved instances reduce costs by 30-40%
+  - Use Spot instances for batch processing
+  - Store click logs cost-efficiently with S3 + Athena
 ```
 
 ---
@@ -1770,52 +1769,52 @@ CDN (CloudFront):
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the core concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 設計要素 | 選択 | 理由 |
+| Design Element | Choice | Reason |
 |----------|------|------|
-| キー生成 | KGS (事前生成) | 衝突なし、高速、分散対応 |
-| キー長 | 7文字 (Base62) | 3.5兆通りで5年間十分 |
-| リダイレクト | 301（統計不要時）/ 302（統計必要時） | 要件に応じて選択 |
-| キャッシュ | CDN + Redis Cluster | 読み取り QPS に対応、99% の DB 負荷削減 |
-| データベース | MySQL (Aurora) + シャーディング | 信頼性と拡張性のバランス |
-| 可用性 | マルチ AZ + レプリカ + フェイルオーバー | 99.99% SLA |
-| セキュリティ | URL スキャン + レート制限 | 悪用防止 |
-| 統計収集 | 非同期（メッセージキュー経由） | リダイレクトのレイテンシに影響しない |
+| Key generation | KGS (pre-generated) | No collisions, fast, distributed-ready |
+| Key length | 7 characters (Base62) | 3.5 trillion combinations, sufficient for 5 years |
+| Redirect | 301 (no analytics) / 302 (analytics needed) | Choose based on requirements |
+| Cache | CDN + Redis Cluster | Handles read QPS, 99% reduction in DB load |
+| Database | MySQL (Aurora) + sharding | Balance of reliability and scalability |
+| Availability | Multi-AZ + replicas + failover | 99.99% SLA |
+| Security | URL scanning + rate limiting | Abuse prevention |
+| Statistics collection | Async (via message queue) | Does not affect redirect latency |
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [チャットシステム設計](./01-chat-system.md) — リアルタイム通信のシステム設計
-- [通知システム設計](./02-notification-system.md) — 大規模通知配信の設計
-- [レート制限設計](./03-rate-limiter.md) — API レート制限の詳細設計
-- [検索エンジン設計](./04-search-engine.md) — 全文検索システムの設計
-- データベース — シャーディング・レプリケーションの詳細
-- キャッシュ — キャッシュ戦略の体系的解説
-- [イベント駆動アーキテクチャ](../02-architecture/03-event-driven.md) — 非同期処理の設計パターン
+- [Chat System Design](./01-chat-system.md) — System design for real-time communication
+- [Notification System Design](./02-notification-system.md) — Design for large-scale notification delivery
+- [Rate Limiter Design](./03-rate-limiter.md) — Detailed design of API rate limiting
+- [Search Engine Design](./04-search-engine.md) — Design of full-text search systems
+- Database — Details on sharding and replication
+- Cache — Systematic explanation of caching strategies
+- [Event-Driven Architecture](../02-architecture/03-event-driven.md) — Design patterns for asynchronous processing
 
 ---
 
-## 参考文献
+## References
 
 1. **System Design Interview: An Insider's Guide** — Alex Xu (2020) — Chapter 8: Design a URL Shortener
 2. **Designing Data-Intensive Applications** — Martin Kleppmann (O'Reilly, 2017) — Chapter 5-6: Replication and Partitioning
-3. **Scaling Memcache at Facebook** — Nishtala, R. et al. (NSDI '13, 2013) — 大規模キャッシュシステムの設計
-4. **Consistent Hashing and Random Trees** — Karger, D. et al. (STOC '97, 1997) — 一貫性ハッシュの理論的基盤
-5. **Twitter Snowflake** — https://blog.twitter.com/engineering/en_us/a/2010/announcing-snowflake — 分散 ID 生成の実践
-6. **bit.ly Architecture** — https://highscalability.com/bitly-lessons-learned-building-a-distributed-system-that-han/ — 実運用の知見
+3. **Scaling Memcache at Facebook** — Nishtala, R. et al. (NSDI '13, 2013) — Design of large-scale cache systems
+4. **Consistent Hashing and Random Trees** — Karger, D. et al. (STOC '97, 1997) — Theoretical foundation of consistent hashing
+5. **Twitter Snowflake** — https://blog.twitter.com/engineering/en_us/a/2010/announcing-snowflake — Distributed ID generation in practice
+6. **bit.ly Architecture** — https://highscalability.com/bitly-lessons-learned-building-a-distributed-system-that-han/ — Insights from production operation
