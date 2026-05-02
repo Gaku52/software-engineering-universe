@@ -1,49 +1,49 @@
-# tsconfig.json 完全ガイド
+# tsconfig.json Complete Guide
 
-> TypeScript コンパイラオプションの全体像を把握し、プロジェクトに最適な設定を選択する
+> Understand the full picture of TypeScript compiler options and choose the optimal configuration for your project
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **tsconfig.json の構造** -- ファイル構成、extends による継承、プロジェクト参照の仕組み
-2. **主要コンパイラオプション** -- strict系、module系、target系、path系の全オプションと推奨設定
-3. **ユースケース別設定** -- フロントエンド、バックエンド、ライブラリ、モノレポそれぞれの最適構成
-4. **パフォーマンスチューニング** -- 大規模プロジェクトでのビルド高速化手法
-5. **トラブルシューティング** -- よくある設定ミスとその解決策
+1. **tsconfig.json structure** -- File layout, inheritance via extends, and how project references work
+2. **Key compiler options** -- All options and recommended settings for strict, module, target, and path categories
+3. **Use-case-specific configurations** -- Optimal setups for frontend, backend, libraries, and monorepos
+4. **Performance tuning** -- Techniques for faster builds in large-scale projects
+5. **Troubleshooting** -- Common configuration mistakes and how to fix them
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. tsconfig.json の基本構造
+## 1. Basic Structure of tsconfig.json
 
-### 1-1. ファイル構成
+### 1-1. File Layout
 
 ```
-tsconfig.json の主要セクション:
+Main sections of tsconfig.json:
 
 +------------------------------------------+
 | {                                        |
 |   "compilerOptions": {                   |
-|     // コンパイラの動作設定              |
+|     // Compiler behavior settings        |
 |   },                                     |
-|   "include": [...],  // コンパイル対象   |
-|   "exclude": [...],  // 除外パターン     |
-|   "extends": "...",  // ベース設定の継承  |
-|   "references": [...] // プロジェクト参照 |
-|   "files": [...],    // 明示的なファイル  |
-|   "watchOptions": {} // ウォッチ設定      |
+|   "include": [...],  // Compilation targets   |
+|   "exclude": [...],  // Exclusion patterns    |
+|   "extends": "...",  // Inherit base config   |
+|   "references": [...] // Project references   |
+|   "files": [...],    // Explicit file list    |
+|   "watchOptions": {} // Watch settings        |
 | }                                        |
 +------------------------------------------+
 ```
 
 ```typescript
-// 基本的な tsconfig.json
+// Basic tsconfig.json
 {
   "compilerOptions": {
     "target": "ES2022",
@@ -64,35 +64,35 @@ tsconfig.json の主要セクション:
 }
 ```
 
-### 1-2. include / exclude / files の詳細
+### 1-2. Details of include / exclude / files
 
 ```typescript
-// include: glob パターンで対象を指定
+// include: specify targets using glob patterns
 {
   "include": [
-    "src/**/*",        // src 配下の全ファイル
-    "src/**/*.ts",     // .ts ファイルのみ（明示的）
-    "src/**/*.tsx",    // .tsx ファイルを含む
-    "types/**/*.d.ts"  // 型定義ファイル
+    "src/**/*",        // All files under src
+    "src/**/*.ts",     // Only .ts files (explicit)
+    "src/**/*.tsx",    // Include .tsx files
+    "types/**/*.d.ts"  // Type definition files
   ]
 }
 
-// exclude: include で指定した中から除外
-// ※ exclude はデフォルトで node_modules, bower_components, jspm_packages, outDir を除外
+// exclude: remove from what was specified in include
+// Note: exclude defaults to excluding node_modules, bower_components, jspm_packages, and outDir
 {
   "exclude": [
-    "node_modules",      // デフォルトで除外されるが明示推奨
-    "dist",              // ビルド出力先
-    "**/*.test.ts",      // テストファイル
-    "**/*.spec.ts",      // スペックファイル
-    "**/__tests__/**",   // テストディレクトリ
-    "coverage",          // カバレッジ出力先
-    "scripts"            // ビルドスクリプト等
+    "node_modules",      // Excluded by default, but explicit is recommended
+    "dist",              // Build output directory
+    "**/*.test.ts",      // Test files
+    "**/*.spec.ts",      // Spec files
+    "**/__tests__/**",   // Test directories
+    "coverage",          // Coverage output directory
+    "scripts"            // Build scripts, etc.
   ]
 }
 
-// files: 個別のファイルを直接指定（glob パターン不可）
-// 少数の特定ファイルだけをコンパイルしたい場合に使用
+// files: directly specify individual files (glob patterns not supported)
+// Use when you only want to compile a small number of specific files
 {
   "files": [
     "src/index.ts",
@@ -102,35 +102,35 @@ tsconfig.json の主要セクション:
 ```
 
 ```
-include / exclude / files の優先順位:
+Priority order of include / exclude / files:
 
   files > include > exclude
 
-  1. files に指定されたファイルは exclude で除外できない
-  2. include と exclude が競合する場合、exclude が優先
-  3. files が指定されている場合、files のみがコンパイル対象
-     （include と併用する場合は両方の合計が対象）
+  1. Files specified in files cannot be excluded by exclude
+  2. When include and exclude conflict, exclude takes priority
+  3. When files is specified, only files are compiled
+     (when used with include, both sets are combined)
 ```
 
-### 1-3. extends による継承
+### 1-3. Inheritance via extends
 
 ```
-extends チェーン:
+extends chain:
 
-  @tsconfig/node20/tsconfig.json   (コミュニティベース)
+  @tsconfig/node20/tsconfig.json   (community base)
        |
        v
-  tsconfig.base.json               (プロジェクト共通)
+  tsconfig.base.json               (project-wide common)
        |
    +---+---+---+
    |       |   |
    v       v   v
   tsconfig.json   tsconfig.test.json   tsconfig.build.json
-  (アプリ用)       (テスト用)            (ビルド用)
+  (for app)       (for tests)          (for builds)
 ```
 
 ```json
-// tsconfig.base.json -- 共通設定
+// tsconfig.base.json -- common settings
 {
   "compilerOptions": {
     "strict": true,
@@ -144,7 +144,7 @@ extends チェーン:
   }
 }
 
-// tsconfig.json -- アプリ用（継承 + 上書き）
+// tsconfig.json -- for app (inherit + override)
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
@@ -158,7 +158,7 @@ extends チェーン:
   "include": ["src/**/*"]
 }
 
-// tsconfig.test.json -- テスト用
+// tsconfig.test.json -- for tests
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
@@ -170,7 +170,7 @@ extends チェーン:
   "include": ["src/**/*", "tests/**/*"]
 }
 
-// tsconfig.build.json -- ビルド専用（テスト除外）
+// tsconfig.build.json -- for builds only (excluding tests)
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
@@ -183,17 +183,17 @@ extends チェーン:
 }
 ```
 
-### 1-4. コミュニティベースの利用
+### 1-4. Using Community Bases
 
 ```bash
-# コミュニティが提供する推奨設定をインストール
+# Install community-provided recommended configurations
 npm install -D @tsconfig/node20
 npm install -D @tsconfig/strictest
 npm install -D @tsconfig/vite-react
 ```
 
 ```json
-// @tsconfig/node20 を使った例
+// Example using @tsconfig/node20
 {
   "extends": "@tsconfig/node20/tsconfig.json",
   "compilerOptions": {
@@ -203,7 +203,7 @@ npm install -D @tsconfig/vite-react
   "include": ["src/**/*"]
 }
 
-// @tsconfig/strictest を使って最大限の厳密性を確保
+// Using @tsconfig/strictest for maximum strictness
 {
   "extends": "@tsconfig/strictest/tsconfig.json",
   "compilerOptions": {
@@ -215,7 +215,7 @@ npm install -D @tsconfig/vite-react
 ```
 
 ```
-@tsconfig/strictest が有効化するオプション:
+Options enabled by @tsconfig/strictest:
   - strict: true
   - noUncheckedIndexedAccess: true
   - noImplicitOverride: true
@@ -227,93 +227,93 @@ npm install -D @tsconfig/vite-react
   - isolatedModules: true
 ```
 
-### 1-5. watchOptions の設定
+### 1-5. watchOptions Configuration
 
 ```json
 {
   "watchOptions": {
-    // ファイル監視の方法
+    // Method for watching files
     "watchFile": "useFsEvents",
-    // ディレクトリ監視の方法
+    // Method for watching directories
     "watchDirectory": "useFsEvents",
-    // ポーリングのフォールバック間隔（ms）
+    // Fallback polling interval (ms)
     "fallbackPolling": "dynamicPriority",
-    // 同時変更の待機時間
+    // Wait time for simultaneous changes
     "synchronousWatchDirectory": false,
-    // 監視対象から除外
+    // Exclude from watching
     "excludeDirectories": ["**/node_modules", "dist"],
-    // ファイル監視対象の追加
+    // Additional file watch targets
     "excludeFiles": []
   }
 }
 ```
 
 ```
-watchFile のオプション:
-  useFsEvents       -- macOS / Windows で最も効率的（デフォルト）
-  fixedPollingInterval -- 一定間隔でポーリング
-  priorityPollingInterval -- 変更頻度に応じてポーリング
-  dynamicPriorityPolling -- 動的にポーリング間隔を調整
-  useFsEventsOnParentDirectory -- 親ディレクトリのイベントを使用
+watchFile options:
+  useFsEvents       -- Most efficient on macOS / Windows (default)
+  fixedPollingInterval -- Poll at fixed intervals
+  priorityPollingInterval -- Poll based on change frequency
+  dynamicPriorityPolling -- Dynamically adjust polling interval
+  useFsEventsOnParentDirectory -- Use events from parent directory
 
-推奨:
-  macOS/Windows → useFsEvents（デフォルト）
-  Linux → useFsEvents（inotify 利用可能な場合）
-  NFS/Docker → fixedPollingInterval（ネットワークFS対策）
+Recommendations:
+  macOS/Windows → useFsEvents (default)
+  Linux → useFsEvents (when inotify is available)
+  NFS/Docker → fixedPollingInterval (for network filesystem)
 ```
 
 ---
 
-## 2. strict 系オプション
+## 2. strict Options
 
-### 2-1. strict フラグの内訳
+### 2-1. Breakdown of the strict Flag
 
 ```
-strict: true は以下のフラグ全てを有効化:
+strict: true enables all of the following flags:
 
 +----------------------------------+-----------------------------------------+
-| オプション                        | 効果                                    |
+| Option                           | Effect                                  |
 +----------------------------------+-----------------------------------------+
-| strictNullChecks                 | null / undefined チェック               |
-| strictFunctionTypes              | 関数型の厳密チェック（反変性）          |
-| strictBindCallApply              | bind, call, apply の型チェック         |
-| strictPropertyInitialization     | class プロパティの初期化チェック        |
-| noImplicitAny                    | 暗黙の any を禁止                      |
-| noImplicitThis                   | 暗黙の this を禁止                     |
-| alwaysStrict                     | "use strict" を出力                    |
-| useUnknownInCatchVariables       | catch 変数を unknown 型に              |
+| strictNullChecks                 | null / undefined checks                 |
+| strictFunctionTypes              | Strict function type checks (contravariance) |
+| strictBindCallApply              | Type checks for bind, call, apply       |
+| strictPropertyInitialization     | Class property initialization checks    |
+| noImplicitAny                    | Disallow implicit any                   |
+| noImplicitThis                   | Disallow implicit this                  |
+| alwaysStrict                     | Emit "use strict"                       |
+| useUnknownInCatchVariables       | Make catch variables unknown type       |
 +----------------------------------+-----------------------------------------+
 ```
 
 ```typescript
-// strictNullChecks: true の効果
+// Effect of strictNullChecks: true
 function getUser(id: string): User | null {
   // ...
   return null;
 }
 
 const user = getUser("1");
-// user.name;  // エラー: Object is possibly 'null'
+// user.name;  // Error: Object is possibly 'null'
 if (user) {
-  user.name; // OK: null チェック後
+  user.name; // OK: after null check
 }
 
-// Optional Chaining との組み合わせ
-const name = user?.name; // 型: string | undefined
+// Combining with Optional Chaining
+const name = user?.name; // Type: string | undefined
 const upper = user?.name?.toUpperCase() ?? "Unknown";
 
-// Non-null Assertion（注意して使用）
-const forcedName = user!.name; // 型: string（null の可能性を無視）
-// ↑ ランタイムで null だとクラッシュするため、確実な場合のみ使用
+// Non-null Assertion (use with care)
+const forcedName = user!.name; // Type: string (ignores possibility of null)
+// ↑ Will crash at runtime if null, so only use when certain
 
-// strictFunctionTypes: true の効果（反変性チェック）
+// Effect of strictFunctionTypes: true (contravariance check)
 type Handler = (event: MouseEvent) => void;
-const handler: Handler = (event: Event) => {}; // エラー: 反変
-// MouseEvent は Event のサブタイプだが、Handler は MouseEvent を要求
-// Event の handler を MouseEvent の handler として使うと
-// MouseEvent 固有のプロパティにアクセスできない可能性がある
+const handler: Handler = (event: Event) => {}; // Error: contravariance
+// MouseEvent is a subtype of Event, but Handler requires MouseEvent
+// Using an Event handler as a MouseEvent handler may lack
+// access to MouseEvent-specific properties
 
-// strictFunctionTypes の実践例
+// Practical example of strictFunctionTypes
 interface Animal {
   name: string;
 }
@@ -323,112 +323,112 @@ interface Dog extends Animal {
 
 type Comparer<T> = (a: T, b: T) => number;
 const animalComparer: Comparer<Animal> = (a, b) => a.name.localeCompare(b.name);
-// const dogComparer: Comparer<Dog> = animalComparer; // strict: true ではエラー
+// const dogComparer: Comparer<Dog> = animalComparer; // Error with strict: true
 
-// strictBindCallApply: true の効果
+// Effect of strictBindCallApply: true
 function greet(name: string, age: number): string {
   return `Hello ${name}, age ${age}`;
 }
 greet.call(undefined, "Alice", 30);       // OK
-// greet.call(undefined, "Alice", "thirty"); // エラー: string は number に代入不可
-greet.bind(undefined, "Alice")(30);       // OK: 部分適用
-// greet.bind(undefined, "Alice")("thirty"); // エラー
+// greet.call(undefined, "Alice", "thirty"); // Error: string not assignable to number
+greet.bind(undefined, "Alice")(30);       // OK: partial application
+// greet.bind(undefined, "Alice")("thirty"); // Error
 
-// strictPropertyInitialization: true の効果
+// Effect of strictPropertyInitialization: true
 class User {
-  name: string;        // エラー: 初期化されていない
-  email: string = "";  // OK: 初期値あり
+  name: string;        // Error: not initialized
+  email: string = "";  // OK: has initial value
   age?: number;        // OK: optional
   id!: string;         // OK: definite assignment assertion
 
   constructor(name: string) {
-    this.name = name;  // OK: コンストラクタで初期化
+    this.name = name;  // OK: initialized in constructor
   }
 }
 
-// noImplicitAny: true の効果
-function processData(data) {} // エラー: Parameter 'data' implicitly has an 'any' type
-function processData(data: unknown) {} // OK: 明示的に型指定
+// Effect of noImplicitAny: true
+function processData(data) {} // Error: Parameter 'data' implicitly has an 'any' type
+function processData(data: unknown) {} // OK: type explicitly specified
 
-// useUnknownInCatchVariables: true の効果
+// Effect of useUnknownInCatchVariables: true
 try {
   throw new Error("boom");
 } catch (error) {
-  // error の型は unknown（true の場合）
-  // error の型は any（false の場合）
+  // Type of error is unknown (when true)
+  // Type of error is any (when false)
   if (error instanceof Error) {
-    console.log(error.message); // OK: Error 型に絞り込み
+    console.log(error.message); // OK: narrowed to Error type
   }
 }
 ```
 
-### 2-2. 追加の厳密性オプション（strict に含まれない）
+### 2-2. Additional Strictness Options (not included in strict)
 
 ```typescript
-// noUncheckedIndexedAccess: true（非常に推奨）
-// 配列やオブジェクトのインデックスアクセスに undefined を追加
+// noUncheckedIndexedAccess: true (highly recommended)
+// Adds undefined to array and object index access types
 const arr: string[] = ["a", "b", "c"];
-const item = arr[5]; // 型: string | undefined（true の場合）
-                      // 型: string（false の場合）
+const item = arr[5]; // Type: string | undefined (when true)
+                      // Type: string (when false)
 
-// 安全な使用パターン
+// Safe usage pattern
 if (item !== undefined) {
-  console.log(item.toUpperCase()); // OK: undefined チェック後
+  console.log(item.toUpperCase()); // OK: after undefined check
 }
 
-// for...of や forEach は影響を受けない
+// for...of and forEach are not affected
 for (const item of arr) {
-  console.log(item.toUpperCase()); // OK: item は string
+  console.log(item.toUpperCase()); // OK: item is string
 }
 
-// Record 型のインデックスアクセスにも適用
+// Also applies to Record type index access
 const dict: Record<string, number> = { a: 1, b: 2 };
-const value = dict["unknown"]; // 型: number | undefined
-// これにより辞書型の安全なアクセスが保証される
+const value = dict["unknown"]; // Type: number | undefined
+// This ensures safe access for dictionary types
 
 // exactOptionalPropertyTypes: true
-// undefined の明示的な代入と省略を区別
+// Distinguishes between explicit undefined assignment and omission
 interface Config {
   debug?: boolean;
 }
-const config1: Config = {};                        // OK: debug を省略
+const config1: Config = {};                        // OK: debug omitted
 const config2: Config = { debug: true };           // OK
-const config3: Config = { debug: undefined };      // エラー!
-// undefined を明示的に代入するなら debug?: boolean | undefined と書く
+const config3: Config = { debug: undefined };      // Error!
+// To explicitly assign undefined, write debug?: boolean | undefined
 
-// この区別が重要な理由:
-// Object.hasOwn(config, "debug") の結果が異なる
-// 省略: false、undefined代入: true
+// Why this distinction matters:
+// The result of Object.hasOwn(config, "debug") differs
+// Omitted: false, Assigned undefined: true
 
 // noPropertyAccessFromIndexSignature: true
-// インデックスシグネチャへのドットアクセスを禁止
+// Disallow dot access to index signatures
 interface Dict {
   [key: string]: string;
   knownKey: string;
 }
 declare const dict: Dict;
-dict.knownKey;      // OK: 既知のプロパティ
-dict.unknownKey;    // エラー: use dict["unknownKey"] instead
-dict["unknownKey"]; // OK: ブラケットアクセスを強制
+dict.knownKey;      // OK: known property
+dict.unknownKey;    // Error: use dict["unknownKey"] instead
+dict["unknownKey"]; // OK: bracket access enforced
 
 // noImplicitOverride: true
-// オーバーライドを明示的にする
+// Make overrides explicit
 class Base {
   greet() { return "hello"; }
 }
 
 class Derived extends Base {
-  greet() { return "hi"; } // エラー: override キーワードが必要
+  greet() { return "hi"; } // Error: override keyword required
   override greet() { return "hi"; } // OK
 }
 
 // noFallthroughCasesInSwitch: true
-// switch のフォールスルーを禁止
+// Disallow switch fallthrough
 function process(status: string) {
   switch (status) {
     case "active":
       console.log("Active");
-      // エラー: break がない（フォールスルー）
+      // Error: no break (fallthrough)
     case "inactive":
       console.log("Inactive");
       break;
@@ -436,16 +436,16 @@ function process(status: string) {
 }
 
 // allowUnreachableCode: false
-// 到達不可能なコードをエラーにする
+// Make unreachable code an error
 function example(x: number) {
   return x;
-  console.log("unreachable"); // エラー: Unreachable code detected
+  console.log("unreachable"); // Error: Unreachable code detected
 }
 
 // allowUnusedLabels: false
-// 未使用のラベルをエラーにする
+// Make unused labels an error
 function search(matrix: number[][]) {
-  loop: // エラー: 使用されていないラベル
+  loop: // Error: unused label
   for (const row of matrix) {
     for (const cell of row) {
       if (cell === 0) break;
@@ -454,10 +454,10 @@ function search(matrix: number[][]) {
 }
 ```
 
-### 2-3. strict 化の段階的アプローチ
+### 2-3. Incremental Approach to Strictification
 
 ```json
-// Step 1: 最小限の strict オプション（既存プロジェクト移行時）
+// Step 1: Minimal strict options (when migrating existing projects)
 {
   "compilerOptions": {
     "strict": false,
@@ -465,7 +465,7 @@ function search(matrix: number[][]) {
   }
 }
 
-// Step 2: null チェックの追加
+// Step 2: Add null checks
 {
   "compilerOptions": {
     "strict": false,
@@ -474,7 +474,7 @@ function search(matrix: number[][]) {
   }
 }
 
-// Step 3: 関数型の厳密化
+// Step 3: Stricter function types
 {
   "compilerOptions": {
     "strict": false,
@@ -485,14 +485,14 @@ function search(matrix: number[][]) {
   }
 }
 
-// Step 4: 全ての strict を有効化
+// Step 4: Enable all strict options
 {
   "compilerOptions": {
     "strict": true
   }
 }
 
-// Step 5: 追加の厳密性
+// Step 5: Additional strictness
 {
   "compilerOptions": {
     "strict": true,
@@ -509,12 +509,12 @@ function search(matrix: number[][]) {
 
 ## 3. module / moduleResolution
 
-### 3-1. module オプション
+### 3-1. module Option
 
 ```
-module オプションと出力形式:
+module option and output format:
 
-  TypeScript ソース          module          出力
+  TypeScript source       module          output
   +-----------+         +-----------+    +-----------+
   | import x  |  -----> | ESNext    | -> | import x  |
   | from "y"  |         +-----------+    | from "y"  |
@@ -523,14 +523,14 @@ module オプションと出力形式:
                         +-----------+    | require() |
                         +-----------+    +-----------+
                         | NodeNext  | -> | ESM or CJS|
-                        +-----------+    | (自動判別) |
+                        +-----------+    | (auto-detect) |
                         +-----------+    +-----------+
-                        | Preserve  | -> | そのまま   |
-                        +-----------+    | 保持       |
+                        | Preserve  | -> | as-is     |
+                        +-----------+    | preserved |
 ```
 
 ```json
-// フロントエンド（バンドラー使用）
+// Frontend (using a bundler)
 {
   "compilerOptions": {
     "module": "ESNext",
@@ -538,7 +538,7 @@ module オプションと出力形式:
   }
 }
 
-// Node.js バックエンド（ESM）
+// Node.js backend (ESM)
 {
   "compilerOptions": {
     "module": "NodeNext",
@@ -546,7 +546,7 @@ module オプションと出力形式:
   }
 }
 
-// ライブラリ（ESM出力 + 型定義）
+// Library (ESM output + type definitions)
 {
   "compilerOptions": {
     "module": "ESNext",
@@ -556,7 +556,7 @@ module オプションと出力形式:
   }
 }
 
-// Node.js バックエンド（CJS -- レガシー）
+// Node.js backend (CJS -- legacy)
 {
   "compilerOptions": {
     "module": "CommonJS",
@@ -565,42 +565,42 @@ module オプションと出力形式:
 }
 ```
 
-### 3-2. moduleResolution の違い
+### 3-2. Differences in moduleResolution
 
-| 値 | import 解決 | 拡張子 | package.json exports | 用途 |
+| Value | Import resolution | Extensions | package.json exports | Use case |
 |---|---|---|---|---|
-| `bundler` | バンドラー準拠 | 省略可 | サポート | Vite, webpack |
-| `NodeNext` | Node.js ESM 準拠 | 必須(.js) | サポート | Node.js |
-| `node` (旧) | CJS 準拠 | 省略可 | 非サポート | レガシー |
-| `node16` | Node.js 16 準拠 | 必須(.js) | サポート | Node.js 16 |
-| `classic` | TypeScript 独自 | 省略可 | 非サポート | 非推奨 |
+| `bundler` | Bundler-compliant | Can omit | Supported | Vite, webpack |
+| `NodeNext` | Node.js ESM-compliant | Required (.js) | Supported | Node.js |
+| `node` (legacy) | CJS-compliant | Can omit | Not supported | Legacy |
+| `node16` | Node.js 16-compliant | Required (.js) | Supported | Node.js 16 |
+| `classic` | TypeScript-specific | Can omit | Not supported | Deprecated |
 
 ```typescript
-// moduleResolution: "bundler" の挙動
-// 拡張子省略が可能（バンドラーが解決する前提）
-import { utils } from "./utils";       // OK: ./utils.ts を発見
-import { config } from "./config";     // OK: ./config.ts を発見
-import { Button } from "@/components"; // OK: パスエイリアスもサポート
+// Behavior of moduleResolution: "bundler"
+// Extensions can be omitted (assumes bundler will resolve)
+import { utils } from "./utils";       // OK: finds ./utils.ts
+import { config } from "./config";     // OK: finds ./config.ts
+import { Button } from "@/components"; // OK: path aliases also supported
 
-// moduleResolution: "NodeNext" の挙動
-// 拡張子 .js が必須（Node.js ESM の仕様）
-import { utils } from "./utils.js";    // OK: コンパイル後の拡張子を指定
+// Behavior of moduleResolution: "NodeNext"
+// .js extension is required (per Node.js ESM spec)
+import { utils } from "./utils.js";    // OK: specify post-compile extension
 import { config } from "./config.js";  // OK
-// import { utils } from "./utils";    // エラー: 拡張子が必要
+// import { utils } from "./utils";    // Error: extension required
 
-// NodeNext での package.json "type" フィールドとの関係
-// package.json に "type": "module" → .ts ファイルは ESM として扱われる
-// package.json に "type": "commonjs" → .ts ファイルは CJS として扱われる
-// .mts ファイル → 常に ESM
-// .cts ファイル → 常に CJS
+// Relationship with package.json "type" field in NodeNext
+// package.json "type": "module" → .ts files treated as ESM
+// package.json "type": "commonjs" → .ts files treated as CJS
+// .mts files → always ESM
+// .cts files → always CJS
 ```
 
 ### 3-3. module: "Preserve" (TypeScript 5.4+)
 
 ```typescript
-// module: "Preserve" は入力のモジュール構文をそのまま保持
-// moduleResolution: "bundler" と同等の解決を行いつつ、
-// import/require を書いたとおりに出力する
+// module: "Preserve" keeps the input module syntax as-is
+// Performs the same resolution as moduleResolution: "bundler"
+// while outputting import/require exactly as written
 
 // tsconfig.json
 {
@@ -610,20 +610,20 @@ import { config } from "./config.js";  // OK
   }
 }
 
-// 入力
+// Input
 import { foo } from "./foo";
 const bar = require("./bar");
 
-// 出力（そのまま保持）
+// Output (preserved as-is)
 import { foo } from "./foo";
 const bar = require("./bar");
-// バンドラーが最終的な解決を行う前提の設定
+// Configuration assumes the bundler handles final resolution
 ```
 
-### 3-4. package.json の exports フィールドとの連携
+### 3-4. Integration with package.json exports Field
 
 ```json
-// ライブラリの package.json
+// Library package.json
 {
   "name": "my-lib",
   "type": "module",
@@ -652,12 +652,12 @@ const bar = require("./bar");
 ```
 
 ```
-exports フィールドの解決順序:
+Resolution order of the exports field:
 
   import { x } from "my-lib"
        |
        v
-  package.json の "exports" を確認
+  Check "exports" in package.json
        |
   +----+----+
   |         |
@@ -671,9 +671,9 @@ exports フィールドの解決順序:
 
 ---
 
-## 4. パスエイリアス
+## 4. Path Aliases
 
-### 4-1. 基本設定
+### 4-1. Basic Configuration
 
 ```typescript
 // tsconfig.json
@@ -693,7 +693,7 @@ exports フィールドの解決順序:
   }
 }
 
-// 使用例
+// Usage examples
 import { Button } from "@components/Button";
 import { formatDate } from "@utils/date";
 import type { User } from "@types/user";
@@ -702,12 +702,12 @@ import { useAuth } from "@hooks/useAuth";
 import { UserService } from "@services/UserService";
 import { config } from "@config";
 
-// 注意: paths は型チェックのみ。実行時の解決には
-// バンドラー設定（Vite: resolve.alias）や
-// tsconfig-paths が別途必要
+// Note: paths is for type-checking only. Runtime resolution requires
+// separate bundler configuration (Vite: resolve.alias)
+// or tsconfig-paths
 ```
 
-### 4-2. バンドラーとの連携設定
+### 4-2. Integration with Bundler Configuration
 
 ```typescript
 // Vite: vite.config.ts
@@ -743,26 +743,26 @@ const config = {
   },
 };
 
-// Vitest: vitest.config.ts（vite.config.ts から自動取得）
-// Vite の resolve.alias がそのまま使われる
+// Vitest: vitest.config.ts (automatically picks up from vite.config.ts)
+// Vite's resolve.alias is used directly
 
-// Node.js 直接実行: tsconfig-paths を使用
+// Direct Node.js execution: use tsconfig-paths
 // node --import tsconfig-paths/register src/index.ts
 ```
 
-### 4-3. 複数の候補パスによるフォールバック
+### 4-3. Fallback with Multiple Candidate Paths
 
 ```json
 {
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      // 複数のパスを指定すると、順番に解決を試みる
+      // When multiple paths are specified, resolution is attempted in order
       "@shared/*": [
         "packages/shared/src/*",
         "packages/shared/dist/*"
       ],
-      // ワイルドカードなしの完全一致
+      // Exact match without wildcard
       "config": [
         "src/config/production.ts",
         "src/config/default.ts"
@@ -774,29 +774,29 @@ const config = {
 
 ---
 
-## 5. プロジェクト参照（Project References）
+## 5. Project References
 
-### 5-1. 基本構成
+### 5-1. Basic Structure
 
 ```
-モノレポでのプロジェクト参照:
+Project references in a monorepo:
 
   packages/
-  +-- shared/           ← 共有ライブラリ
+  +-- shared/           <- shared library
   |   +-- tsconfig.json (composite: true)
   |   +-- src/
-  +-- frontend/         ← フロントエンド
+  +-- frontend/         <- frontend
   |   +-- tsconfig.json (references: [shared])
   |   +-- src/
-  +-- backend/          ← バックエンド
+  +-- backend/          <- backend
   |   +-- tsconfig.json (references: [shared])
   |   +-- src/
-  +-- e2e/              ← E2E テスト
+  +-- e2e/              <- E2E tests
       +-- tsconfig.json (references: [frontend, backend])
       +-- tests/
 
-  tsc --build で依存順にビルド
-  → shared → frontend & backend (並列) → e2e
+  tsc --build builds in dependency order
+  → shared → frontend & backend (parallel) → e2e
 ```
 
 ```json
@@ -849,7 +849,7 @@ const config = {
   "include": ["src/**/*"]
 }
 
-// ルートの tsconfig.json（ソリューションファイル）
+// Root tsconfig.json (solution file)
 {
   "files": [],
   "references": [
@@ -861,135 +861,135 @@ const config = {
 }
 ```
 
-### 5-2. ビルドコマンド
+### 5-2. Build Commands
 
 ```bash
-# プロジェクト参照付きビルド（依存順に自動ビルド）
+# Build with project references (auto-builds in dependency order)
 tsc --build
 
-# ウォッチモード
+# Watch mode
 tsc --build --watch
 
-# クリーンビルド
+# Clean build
 tsc --build --clean
 
-# verbose でビルド過程を確認
+# Check build progress with verbose
 tsc --build --verbose
 
-# 特定のパッケージのみビルド（依存も含む）
+# Build only a specific package (including dependencies)
 tsc --build packages/frontend
 
-# 並列ビルドを強制（--build で自動的に並列化される場合がある）
+# Force parallel build (--build may automatically parallelize)
 tsc --build --force
 
-# ドライラン（実際にはビルドしない）
+# Dry run (does not actually build)
 tsc --build --dry
 ```
 
-### 5-3. composite の制約と効果
+### 5-3. Constraints and Effects of composite
 
 ```
-composite: true を設定すると:
+When composite: true is set:
 
-  1. declaration: true が強制される
-     → .d.ts ファイルが必ず生成される
+  1. declaration: true is enforced
+     → .d.ts files are always generated
 
-  2. rootDir が自動的に tsconfig.json の
-     ディレクトリに設定される（未指定時）
+  2. rootDir is automatically set to the directory
+     of tsconfig.json (when not specified)
 
-  3. すべてのソースファイルが include/files に
-     マッチする必要がある
+  3. All source files must match
+     include/files patterns
 
-  4. .tsbuildinfo ファイルが生成される
-     → インクリメンタルビルドが可能に
+  4. A .tsbuildinfo file is generated
+     → Incremental builds become possible
 
-  5. 参照元プロジェクトは .d.ts を介して
-     型情報を取得する（ソースを直接見ない）
+  5. Referencing projects obtain type information
+     via .d.ts (do not look at source directly)
 ```
 
 ---
 
-## 6. 出力関連オプション
+## 6. Output-Related Options
 
-### 6-1. declaration 系
+### 6-1. declaration Options
 
 ```json
 {
   "compilerOptions": {
-    // 型定義ファイル(.d.ts)を出力
+    // Output type definition files (.d.ts)
     "declaration": true,
 
-    // .d.ts.map ファイルを出力（ソースへのジャンプ用）
+    // Output .d.ts.map files (for jumping to source)
     "declarationMap": true,
 
-    // 型定義ファイルの出力先（outDir と分けたい場合）
+    // Output directory for type definitions (if different from outDir)
     "declarationDir": "./types",
 
-    // .js を出力せず .d.ts のみ出力
+    // Only output .d.ts, not .js
     "emitDeclarationOnly": true,
 
-    // ソースマップを出力
+    // Output source maps
     "sourceMap": true,
 
-    // .js にインラインソースマップを埋め込む
+    // Embed inline source maps in .js files
     "inlineSourceMap": false,
 
-    // ソースマップにソースコード自体を埋め込む
+    // Embed source code itself in source maps
     "inlineSources": false
   }
 }
 ```
 
-### 6-2. ビルド出力の設定
+### 6-2. Build Output Configuration
 
 ```json
 {
   "compilerOptions": {
-    // 出力先ディレクトリ
+    // Output directory
     "outDir": "./dist",
 
-    // ソースのルートディレクトリ（出力の構造に影響）
+    // Root directory of source (affects output structure)
     "rootDir": "./src",
 
-    // 複数のルートディレクトリを指定
+    // Specify multiple root directories
     "rootDirs": ["src", "generated"],
 
-    // 単一ファイルに出力（module: "system" or "amd" の場合のみ）
+    // Output to a single file (only when module: "system" or "amd")
     "outFile": "./dist/bundle.js",
 
-    // BOM (Byte Order Mark) を出力に含めない
+    // Do not include BOM (Byte Order Mark) in output
     "emitBOM": false,
 
-    // ファイルを出力しない（型チェックのみ）
+    // Do not emit files (type-check only)
     "noEmit": true,
 
-    // エラーがあっても出力する
+    // Emit even when errors exist
     "noEmitOnError": true,
 
-    // ヘルパー関数のインポートを使用（出力サイズ削減）
+    // Use imported helper functions (reduces output size)
     "importHelpers": true,
 
-    // ダウンレベル時のヘルパー関数をインライン化しない
+    // Do not inline helper functions when downleveling
     "noEmitHelpers": false,
 
-    // 改行コード
+    // Line ending
     "newLine": "lf",
 
-    // コメントを出力に含めない
+    // Do not include comments in output
     "removeComments": false,
 
-    // 各ファイルを独立してトランスパイル
+    // Transpile each file independently
     "isolatedModules": true
   }
 }
 ```
 
-### 6-3. isolatedModules の重要性
+### 6-3. Importance of isolatedModules
 
 ```typescript
-// isolatedModules: true の場合に禁止される構文
+// Syntax disallowed when isolatedModules: true
 
-// 1. const enum のエクスポート（cross-file inlining が不可能）
+// 1. Exporting const enums (cross-file inlining is not possible)
 // NG:
 export const enum Direction {
   Up,
@@ -998,7 +998,7 @@ export const enum Direction {
   Right,
 }
 
-// OK: 通常の enum を使用
+// OK: use a regular enum
 export enum Direction {
   Up,
   Down,
@@ -1006,38 +1006,38 @@ export enum Direction {
   Right,
 }
 
-// 2. 型のみの re-export
+// 2. Re-exporting types only
 // NG:
 import { User } from "./types";
-export { User }; // User が型なのか値なのか不明
+export { User }; // Unclear whether User is a type or a value
 
-// OK: type キーワードを明示
+// OK: explicitly use the type keyword
 import type { User } from "./types";
 export type { User };
-// もしくは
+// or
 export { type User } from "./types";
 
-// 3. 宣言だけのファイル（値のエクスポートがない）
-// NG: このファイルには値のエクスポートがない
+// 3. Declaration-only files (no value exports)
+// NG: this file has no value exports
 declare const x: number;
 
-// OK: 何らかの値をエクスポート
+// OK: export something as a value
 export {};
 declare const x: number;
 
-// isolatedModules を有効にすべき理由:
-// esbuild, SWC, Babel などのトランスパイラはファイル単位で変換するため
-// cross-file の情報が必要な構文を使うとビルドが壊れる
+// Why you should enable isolatedModules:
+// Transpilers like esbuild, SWC, and Babel transform files individually,
+// so using syntax that requires cross-file information will break the build
 ```
 
 ---
 
-## 7. jsx オプション
+## 7. jsx Option
 
 ```
-jsx オプションの出力:
+jsx option output:
 
-  入力: <div>Hello</div>
+  Input: <div>Hello</div>
 
   "jsx": "preserve"      → <div>Hello</div>        (.jsx)
   "jsx": "react"         → React.createElement(...) (.js)
@@ -1047,7 +1047,7 @@ jsx オプションの出力:
 ```
 
 ```json
-// React 17+ (自動 JSX トランスフォーム)
+// React 17+ (automatic JSX transform)
 {
   "compilerOptions": {
     "jsx": "react-jsx",
@@ -1063,7 +1063,7 @@ jsx オプションの出力:
   }
 }
 
-// Solid.js（Vite で変換するため preserve）
+// Solid.js (use preserve since Vite handles the transform)
 {
   "compilerOptions": {
     "jsx": "preserve",
@@ -1082,57 +1082,57 @@ jsx オプションの出力:
 
 ---
 
-## 8. パフォーマンス最適化
+## 8. Performance Optimization
 
-### 8-1. インクリメンタルビルド
+### 8-1. Incremental Builds
 
 ```json
 {
   "compilerOptions": {
-    // インクリメンタルビルドを有効化
+    // Enable incremental builds
     "incremental": true,
-    // ビルド情報ファイルの保存先
+    // Storage location for build info file
     "tsBuildInfoFile": "./.tsbuildinfo"
   }
 }
 ```
 
 ```
-インクリメンタルビルドの効果:
+Effect of incremental builds:
 
-  初回ビルド:
-  src/ (100ファイル) → tsc → dist/ + .tsbuildinfo
+  First build:
+  src/ (100 files) → tsc → dist/ + .tsbuildinfo
 
-  2回目以降（3ファイル変更）:
-  src/ (3ファイル変更) → tsc → 3ファイルのみ再コンパイル
+  Subsequent builds (3 files changed):
+  src/ (3 files changed) → tsc → only 3 files recompiled
 
-  効果:
-  - 大規模プロジェクトで 2回目以降のビルドが 50-80% 高速化
-  - .tsbuildinfo はキャッシュとして機能
-  - CI では .tsbuildinfo をキャッシュすると効果的
+  Benefits:
+  - Subsequent builds are 50-80% faster in large projects
+  - .tsbuildinfo acts as a cache
+  - Caching .tsbuildinfo in CI is effective
 ```
 
-### 8-2. 大規模プロジェクトでの高速化
+### 8-2. Speeding Up Large Projects
 
 ```json
-// パフォーマンス最適化設定
+// Performance optimization settings
 {
   "compilerOptions": {
-    // .d.ts ファイルの型チェックをスキップ
+    // Skip type checking of .d.ts files
     "skipLibCheck": true,
 
-    // インクリメンタルビルド
+    // Incremental builds
     "incremental": true,
 
-    // ファイルを出力しない（型チェックのみの場合）
+    // Do not emit files (when type-checking only)
     "noEmit": true,
 
-    // import type の自動検出
+    // Auto-detection of import type
     "verbatimModuleSyntax": true,
-    // ↑ isolatedModules + preserveValueImports + importsNotUsedAsValues
-    //   を1つのオプションで置き換え
+    // ↑ Replaces isolatedModules + preserveValueImports + importsNotUsedAsValues
+    //   with a single option
   },
-  // 対象ファイルを最小化
+  // Minimize target files
   "include": ["src/**/*"],
   "exclude": [
     "node_modules",
@@ -1145,10 +1145,10 @@ jsx オプションの出力:
 ```
 
 ```bash
-# tsc のパフォーマンス診断
+# tsc performance diagnostics
 tsc --extendedDiagnostics
 
-# 出力例:
+# Example output:
 # Files:           1234
 # Lines:           89012
 # Nodes:           345678
@@ -1164,18 +1164,18 @@ tsc --extendedDiagnostics
 # Emit time:       0.89s
 # Total time:      8.36s
 
-# traceResolution でモジュール解決をデバッグ
+# Debug module resolution with traceResolution
 tsc --traceResolution > trace.txt 2>&1
 
-# generateTrace でパフォーマンスプロファイルを生成
+# Generate a performance profile with generateTrace
 tsc --generateTrace ./trace-output
-# Chrome の chrome://tracing で trace.json を開いて分析
+# Open trace.json in Chrome at chrome://tracing for analysis
 ```
 
-### 8-3. CI/CD での最適化
+### 8-3. CI/CD Optimization
 
 ```yaml
-# GitHub Actions での TypeScript ビルド最適化
+# TypeScript build optimization in GitHub Actions
 name: TypeCheck
 on: [push, pull_request]
 
@@ -1191,7 +1191,7 @@ jobs:
 
       - run: npm ci
 
-      # .tsbuildinfo のキャッシュ
+      # Cache .tsbuildinfo
       - uses: actions/cache@v4
         with:
           path: .tsbuildinfo
@@ -1199,13 +1199,13 @@ jobs:
           restore-keys: |
             tsbuildinfo-${{ hashFiles('tsconfig.json') }}-
 
-      # 型チェックのみ実行
+      # Run type checking only
       - run: tsc --noEmit --incremental
 ```
 
 ---
 
-## ユースケース別推奨設定
+## Recommended Configurations by Use Case
 
 ### Next.js (App Router)
 
@@ -1233,7 +1233,7 @@ jobs:
 }
 ```
 
-### Node.js API サーバー
+### Node.js API Server
 
 ```json
 {
@@ -1286,7 +1286,7 @@ jobs:
 }
 ```
 
-### npm ライブラリ
+### npm Library
 
 ```json
 {
@@ -1336,7 +1336,7 @@ jobs:
 }
 ```
 
-### Electron アプリ
+### Electron App
 
 ```json
 {
@@ -1361,117 +1361,117 @@ jobs:
 
 ---
 
-## 比較表
+## Comparison Tables
 
-### target 値と対応 ECMAScript 機能
+### target Values and Corresponding ECMAScript Features
 
-| target | 主な機能 | Node.js | ブラウザ |
+| target | Key features | Node.js | Browser |
 |--------|---------|---------|---------|
-| ES2018 | async iteration, rest/spread | 10+ | モダン全て |
-| ES2019 | `Array.flat()`, `Object.fromEntries()` | 12+ | モダン全て |
-| ES2020 | `?.`, `??`, BigInt, `import()` | 14+ | モダン全て |
-| ES2021 | `&&=`, `\|\|=`, `??=`, WeakRef | 16+ | モダン全て |
-| ES2022 | Top-level await, `.at()`, `cause`, `#private` | 18+ | モダン全て |
-| ES2023 | Array `.findLast()`, hashbang | 20+ | 最新 |
-| ES2024 | `Object.groupBy()`, `Promise.withResolvers()` | 22+ | 最新 |
-| ESNext | 最新の Stage 4 提案 | 最新 | 最新 |
+| ES2018 | async iteration, rest/spread | 10+ | All modern |
+| ES2019 | `Array.flat()`, `Object.fromEntries()` | 12+ | All modern |
+| ES2020 | `?.`, `??`, BigInt, `import()` | 14+ | All modern |
+| ES2021 | `&&=`, `\|\|=`, `??=`, WeakRef | 16+ | All modern |
+| ES2022 | Top-level await, `.at()`, `cause`, `#private` | 18+ | All modern |
+| ES2023 | Array `.findLast()`, hashbang | 20+ | Latest |
+| ES2024 | `Object.groupBy()`, `Promise.withResolvers()` | 22+ | Latest |
+| ESNext | Latest Stage 4 proposals | Latest | Latest |
 
-### lib 値の選択ガイド
+### lib Value Selection Guide
 
-| 環境 | lib | 説明 |
+| Environment | lib | Description |
 |------|-----|------|
-| ブラウザ | `["dom", "dom.iterable", "esnext"]` | DOM API + 最新 JS |
-| Node.js | `["esnext"]` | JS のみ（DOM なし） |
+| Browser | `["dom", "dom.iterable", "esnext"]` | DOM API + latest JS |
+| Node.js | `["esnext"]` | JS only (no DOM) |
 | Web Worker | `["webworker", "esnext"]` | Worker API |
 | Service Worker | `["webworker", "esnext"]` | SW API |
-| 共有ライブラリ | `["esnext"]` | 環境非依存 |
-| Deno | `["deno.ns", "esnext"]` | Deno 名前空間 |
+| Shared library | `["esnext"]` | Environment-agnostic |
+| Deno | `["deno.ns", "esnext"]` | Deno namespace |
 
-### コンパイラオプション一覧（カテゴリ別）
+### Compiler Options by Category
 
-| カテゴリ | オプション | デフォルト | 推奨 |
+| Category | Option | Default | Recommended |
 |---------|-----------|----------|------|
-| 厳密性 | strict | false | true |
-| 厳密性 | noUncheckedIndexedAccess | false | true |
-| 厳密性 | exactOptionalPropertyTypes | false | 検討 |
-| モジュール | module | - | 環境に応じて |
-| モジュール | moduleResolution | - | bundler or NodeNext |
-| モジュール | verbatimModuleSyntax | false | true |
-| モジュール | isolatedModules | false | true |
-| 出力 | outDir | - | ./dist |
-| 出力 | declaration | false | ライブラリで true |
-| 出力 | sourceMap | false | true |
-| 出力 | noEmit | false | バンドラー使用時 true |
-| 互換性 | esModuleInterop | false | true |
-| 互換性 | skipLibCheck | false | true |
-| 互換性 | forceConsistentCasingInFileNames | false | true |
-| パフォーマンス | incremental | false | true |
+| Strictness | strict | false | true |
+| Strictness | noUncheckedIndexedAccess | false | true |
+| Strictness | exactOptionalPropertyTypes | false | Consider |
+| Module | module | - | Depends on environment |
+| Module | moduleResolution | - | bundler or NodeNext |
+| Module | verbatimModuleSyntax | false | true |
+| Module | isolatedModules | false | true |
+| Output | outDir | - | ./dist |
+| Output | declaration | false | true for libraries |
+| Output | sourceMap | false | true |
+| Output | noEmit | false | true when using bundler |
+| Compatibility | esModuleInterop | false | true |
+| Compatibility | skipLibCheck | false | true |
+| Compatibility | forceConsistentCasingInFileNames | false | true |
+| Performance | incremental | false | true |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### AP-1: strict: false のまま放置
+### AP-1: Leaving strict: false as-is
 
 ```json
-// NG: strict を無効にして型安全性を放棄
+// NG: disable strict and abandon type safety
 {
   "compilerOptions": {
     "strict": false,
     "noImplicitAny": false
   }
 }
-// any が蔓延し、TypeScript を使う意味が薄れる
-// バグの早期発見ができず、リファクタリングの安全性も損なわれる
+// any spreads everywhere, diminishing the value of using TypeScript
+// Early bug detection is lost and refactoring safety is compromised
 
-// OK: 段階的に strict 化
+// OK: incrementally enable strict
 {
   "compilerOptions": {
     "strict": true,
-    // 移行中は個別に緩める
+    // Temporarily relax individual flags during migration
     "strictPropertyInitialization": false
   }
 }
 ```
 
-### AP-2: skipLibCheck と型チェックの混同
+### AP-2: Confusing skipLibCheck with Disabling All Type Checks
 
 ```json
-// NG: skipLibCheck を型チェック全体の無効化と勘違い
-// skipLibCheck は .d.ts ファイルのチェックをスキップするだけ
-// 自分のコードの型チェックには影響しない
+// NG: Misunderstanding skipLibCheck as disabling all type checking
+// skipLibCheck only skips checking .d.ts files
+// It does not affect type checking of your own code
 
-// OK: skipLibCheck: true は推奨設定
-// .d.ts 間の型衝突を回避し、ビルド速度が向上する
+// OK: skipLibCheck: true is a recommended setting
+// Avoids type conflicts between .d.ts files and improves build speed
 {
   "compilerOptions": {
     "skipLibCheck": true
   }
 }
-// 特に @types パッケージ間で型の衝突が起きた場合に有効
-// 自分のコードの安全性は維持される
+// Especially useful when type conflicts occur between @types packages
+// Type safety of your own code is maintained
 ```
 
-### AP-3: moduleResolution: "node" を新規プロジェクトで使用
+### AP-3: Using moduleResolution: "node" in New Projects
 
 ```json
-// NG: 旧式の moduleResolution を使用
+// NG: Using an outdated moduleResolution
 {
   "compilerOptions": {
     "moduleResolution": "node"
   }
 }
-// package.json の "exports" フィールドをサポートしない
-// ESM の正しい解決ができない
+// Does not support the "exports" field in package.json
+// Cannot correctly resolve ESM
 
-// OK: 用途に応じた最新の設定
-// バンドラー使用時:
+// OK: Use the latest setting for your use case
+// When using a bundler:
 {
   "compilerOptions": {
     "moduleResolution": "bundler"
   }
 }
-// Node.js 直接実行時:
+// When running directly with Node.js:
 {
   "compilerOptions": {
     "moduleResolution": "NodeNext"
@@ -1479,10 +1479,10 @@ jobs:
 }
 ```
 
-### AP-4: paths を設定してバンドラー設定を忘れる
+### AP-4: Setting paths Without Configuring the Bundler
 
 ```typescript
-// tsconfig.json で paths を設定
+// Setting paths in tsconfig.json
 {
   "compilerOptions": {
     "paths": {
@@ -1491,10 +1491,10 @@ jobs:
   }
 }
 
-// NG: Vite の resolve.alias を設定し忘れる
-// → 型チェックは通るが、実行時にモジュールが見つからない
+// NG: Forgetting to set Vite's resolve.alias
+// → Type checking passes, but module not found at runtime
 
-// OK: 必ずバンドラー側にも同じエイリアスを設定
+// OK: Always set the same alias in the bundler as well
 // vite.config.ts
 import { defineConfig } from "vite";
 import path from "path";
@@ -1508,16 +1508,16 @@ export default defineConfig({
 });
 ```
 
-### AP-5: 巨大な include 範囲
+### AP-5: Overly Broad include Scope
 
 ```json
-// NG: プロジェクト全体を include
+// NG: Include the entire project
 {
   "include": ["**/*"]
 }
-// node_modules 以外の全ファイルがスキャンされ、パフォーマンス悪化
+// All files except node_modules are scanned, degrading performance
 
-// OK: ソースディレクトリのみを指定
+// OK: Specify only the source directory
 {
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
@@ -1526,63 +1526,63 @@ export default defineConfig({
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
-
-```
-エラー: Cannot find module './utils' or its corresponding type declarations.
-
-原因: moduleResolution の不一致
-解決:
-  1. moduleResolution: "bundler" の場合
-     → 拡張子なしでOK、バンドラーの設定を確認
-  2. moduleResolution: "NodeNext" の場合
-     → import "./utils.js" のように .js 拡張子を追加
-  3. ファイルが include パターンに含まれているか確認
-```
+### Common Errors and Solutions
 
 ```
-エラー: Type 'X' is not assignable to type 'Y'.
+Error: Cannot find module './utils' or its corresponding type declarations.
+
+Cause: moduleResolution mismatch
+Solution:
+  1. For moduleResolution: "bundler"
+     → Omitting extension is OK, check bundler configuration
+  2. For moduleResolution: "NodeNext"
+     → Add .js extension: import "./utils.js"
+  3. Verify the file is included in the include pattern
+```
+
+```
+Error: Type 'X' is not assignable to type 'Y'.
        Type 'undefined' is not assignable to type 'string'.
 
-原因: strictNullChecks が有効
-解決:
-  1. null/undefined チェックを追加
+Cause: strictNullChecks is enabled
+Solution:
+  1. Add null/undefined check
      if (value !== undefined) { ... }
-  2. Optional chaining を使用
+  2. Use optional chaining
      const name = user?.name ?? "default";
-  3. 型定義を修正して undefined を許容
+  3. Update type definition to allow undefined
      let name: string | undefined;
 ```
 
 ```
-エラー: 'X' is declared but its value is never read.
+Error: 'X' is declared but its value is never read.
 
-原因: noUnusedLocals / noUnusedParameters が有効
-解決:
-  1. 変数名の先頭に _ を付ける
+Cause: noUnusedLocals / noUnusedParameters is enabled
+Solution:
+  1. Prefix the variable name with _
      const _unused = someValue;
-  2. 本当に不要なら削除
-  3. tsconfig でオプションを調整（非推奨）
+  2. Remove if truly unnecessary
+  3. Adjust the option in tsconfig (not recommended)
 ```
 
 ```
-エラー: File 'X' is not listed within the file list of project 'Y'.
+Error: File 'X' is not listed within the file list of project 'Y'.
        Projects must list all files or use an 'include' pattern.
 
-原因: composite: true のプロジェクトで include に含まれないファイルを参照
-解決:
-  1. include パターンを修正して対象ファイルを含める
-  2. files に直接追加
-  3. 参照先プロジェクトの tsconfig を確認
+Cause: A file not included in include is referenced from a composite: true project
+Solution:
+  1. Fix the include pattern to cover the target file
+  2. Add directly to files
+  3. Check the referenced project's tsconfig
 ```
 
 ```
-エラー: Cannot use JSX unless the '--jsx' flag is provided.
+Error: Cannot use JSX unless the '--jsx' flag is provided.
 
-原因: jsx オプションが未設定
-解決:
+Cause: jsx option is not set
+Solution:
   {
     "compilerOptions": {
       "jsx": "react-jsx"  // React 17+
@@ -1593,45 +1593,45 @@ export default defineConfig({
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1640,26 +1640,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1667,7 +1667,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1678,14 +1678,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1693,7 +1693,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1701,44 +1701,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1747,7 +1747,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1762,106 +1762,106 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm complexity
+- Choose the appropriate data structure
+- Measure the effect with benchmarks
 ---
 
 ## FAQ
 
-### Q1: `verbatimModuleSyntax` は有効にすべきですか？
+### Q1: Should I enable `verbatimModuleSyntax`?
 
-TypeScript 5.0 以降で推奨されます。このオプションは `import type` と `import` を明確に区別し、型のみのインポートが実行時に残らないことを保証します。`isolatedModules` と `esModuleInterop` の一部を置き換える上位互換です。有効にすると以下の効果があります:
+Recommended for TypeScript 5.0 and later. This option clearly distinguishes `import type` from `import` and guarantees that type-only imports are not left in the runtime output. It is a superset that replaces parts of `isolatedModules` and `esModuleInterop`. Enabling it has the following effects:
 
-- `import type { X }` は必ず出力から除去される
-- 値として使われないインポートに `type` キーワードを強制する
-- esbuild, SWC などのトランスパイラとの互換性が向上する
-- バンドルサイズの最適化に貢献する
+- `import type { X }` is always removed from output
+- Forces the `type` keyword on imports not used as values
+- Improves compatibility with transpilers like esbuild and SWC
+- Contributes to bundle size optimization
 
-### Q2: `moduleResolution: "bundler"` はいつ使うべきですか？
+### Q2: When should I use `moduleResolution: "bundler"`?
 
-Vite, webpack, esbuild などのバンドラーを使用する場合に使います。Node.js で直接実行する場合は `NodeNext` を使ってください。`bundler` は拡張子の省略やindex ファイルの暗黙的な解決をサポートし、バンドラーの動作に合致します。具体的には:
+Use it when using bundlers such as Vite, webpack, or esbuild. When running directly with Node.js, use `NodeNext`. `bundler` supports omitting extensions and implicit resolution of index files, matching bundler behavior. Specifically:
 
-- 拡張子なしのインポートが許可される（`import "./utils"` が有効）
-- `index.ts` の暗黙的な解決がサポートされる
-- `package.json` の `exports` フィールドが正しく解決される
-- `import.meta.url` などの ESM 固有の構文がサポートされる
+- Imports without extensions are allowed (`import "./utils"` is valid)
+- Implicit resolution of `index.ts` is supported
+- The `exports` field in `package.json` is correctly resolved
+- ESM-specific syntax like `import.meta.url` is supported
 
-### Q3: `composite` と `references` の違いは何ですか？
+### Q3: What is the difference between `composite` and `references`?
 
-`composite: true` はプロジェクトが他のプロジェクトから参照可能であることを宣言します。`references` は依存先プロジェクトを指定します。モノレポで `tsc --build` を使う場合に両方が必要です。`composite` を有効にすると `declaration: true` が強制され、`.tsbuildinfo` ファイルが生成されます。
+`composite: true` declares that a project can be referenced by other projects. `references` specifies the dependency projects. Both are needed when using `tsc --build` in a monorepo. Enabling `composite` enforces `declaration: true` and generates a `.tsbuildinfo` file.
 
-### Q4: `noEmit: true` と `emitDeclarationOnly: true` の使い分けは？
+### Q4: When should I use `noEmit: true` vs `emitDeclarationOnly: true`?
 
-- `noEmit: true`: 一切のファイルを出力しない（型チェックのみ）。バンドラーが JS を生成し、tsc は型チェック専任にする場合に使用
-- `emitDeclarationOnly: true`: `.d.ts` ファイルのみ出力。esbuild/SWC で JS を生成し、tsc で型定義を生成する場合に使用
+- `noEmit: true`: Does not output any files (type-check only). Use when the bundler generates JS and tsc is dedicated to type checking.
+- `emitDeclarationOnly: true`: Only outputs `.d.ts` files. Use when generating JS with esbuild/SWC and generating type definitions with tsc.
 
-### Q5: `resolveJsonModule` と Import Attributes の関係は？
+### Q5: What is the relationship between `resolveJsonModule` and Import Attributes?
 
-`resolveJsonModule: true` は `.json` ファイルのインポートを型チェックします。TypeScript 5.3+ では Import Attributes（`import data from "./data.json" with { type: "json" }`）も使えます。`resolveJsonModule` は TypeScript 独自の機能で、Import Attributes は ECMAScript 標準です。将来的には Import Attributes が推奨されますが、現時点ではどちらも有効です。
+`resolveJsonModule: true` type-checks imports of `.json` files. TypeScript 5.3+ also supports Import Attributes (`import data from "./data.json" with { type: "json" }`). `resolveJsonModule` is a TypeScript-specific feature, while Import Attributes is an ECMAScript standard. Import Attributes will be recommended in the future, but both are valid at present.
 
-### Q6: `exactOptionalPropertyTypes` は有効にすべきですか？
+### Q6: Should I enable `exactOptionalPropertyTypes`?
 
-型の厳密性を高めたい場合に推奨しますが、既存のコードベースでは多くの修正が必要になる可能性があります。特に `{ prop?: T }` と `{ prop?: T | undefined }` を区別するため、`undefined` を明示的に代入しているコードがエラーになります。新規プロジェクトでは有効化を検討してください。
+Recommended when you want to increase type strictness, but it may require many fixes in existing codebases. In particular, code that explicitly assigns `undefined` will error since `{ prop?: T }` and `{ prop?: T | undefined }` are distinguished. Consider enabling it in new projects.
 
-### Q7: tsc の型チェックが遅い場合の対処法は？
+### Q7: What should I do when tsc type checking is slow?
 
-1. `skipLibCheck: true` で `.d.ts` のチェックをスキップ
-2. `incremental: true` でインクリメンタルビルドを有効化
-3. `tsc --extendedDiagnostics` でボトルネックを特定
-4. `include` の範囲を最小化
-5. プロジェクト参照で分割し、変更の影響範囲を限定
-6. `tsc --generateTrace` でプロファイルを取得し、型のインスタンス化が多いコードを特定
+1. Skip `.d.ts` checking with `skipLibCheck: true`
+2. Enable incremental builds with `incremental: true`
+3. Identify bottlenecks with `tsc --extendedDiagnostics`
+4. Minimize the scope of `include`
+5. Split with project references to limit the impact of changes
+6. Get a profile with `tsc --generateTrace` and identify code with many type instantiations
 
 ---
 
-## まとめ表
+## Summary Table
 
-| 概念 | 要点 |
+| Concept | Key Points |
 |------|------|
-| strict | 常に `true`。個別フラグで一時的に緩める |
-| target | 実行環境の最低バージョンに合わせる |
-| module | バンドラー → ESNext、Node.js → NodeNext |
-| moduleResolution | バンドラー → bundler、Node.js → NodeNext |
-| paths | 型チェック用。実行時にはバンドラー設定が別途必要 |
-| composite | モノレポのプロジェクト参照で使用 |
-| incremental | 大規模プロジェクトで必須。CI でもキャッシュ活用 |
-| verbatimModuleSyntax | 5.0+ で推奨。import type の一貫性を保証 |
-| isolatedModules | バンドラー使用時は必須。ファイル単位のトランスパイル互換性 |
-| skipLibCheck | 推奨。.d.ts のチェックをスキップしてビルド高速化 |
-| noUncheckedIndexedAccess | 推奨。配列・辞書アクセスの安全性を向上 |
+| strict | Always `true`. Temporarily relax with individual flags |
+| target | Match the minimum version of the runtime environment |
+| module | Bundler → ESNext, Node.js → NodeNext |
+| moduleResolution | Bundler → bundler, Node.js → NodeNext |
+| paths | For type checking only. Bundler config is also required at runtime |
+| composite | Used for project references in monorepos |
+| incremental | Essential for large projects. Also use cache in CI |
+| verbatimModuleSyntax | Recommended for 5.0+. Ensures consistency of import type |
+| isolatedModules | Required when using a bundler. File-by-file transpile compatibility |
+| skipLibCheck | Recommended. Skips .d.ts checking to speed up builds |
+| noUncheckedIndexedAccess | Recommended. Improves safety of array/dictionary access |
 
 ---
 
 
-## まとめ
+## Summary
 
-このガイドでは以下の重要なポイントを学びました:
+This guide covered the following key points:
 
-- 基本概念と原則の理解
-- 実践的な実装パターン
-- ベストプラクティスと注意点
-- 実務での活用方法
-
----
-
-## 次に読むべきガイド
-
-- [ビルドツール](./01-build-tools.md) -- tsc, esbuild, SWC, Vite の使い分け
-- [ESLint + TypeScript](./04-eslint-typescript.md) -- コンパイラ設定と lint の連携
-- [JS→TS 移行](./03-migration-guide.md) -- tsconfig の段階的な厳密化
+- Understanding basic concepts and principles
+- Practical implementation patterns
+- Best practices and things to watch out for
+- How to apply these in real-world work
 
 ---
 
-## 参考文献
+## Guides to Read Next
+
+- [Build Tools](./01-build-tools.md) -- When to use tsc, esbuild, SWC, and Vite
+- [ESLint + TypeScript](./04-eslint-typescript.md) -- Integration of compiler settings and linting
+- [JS to TS Migration](./03-migration-guide.md) -- Incrementally tightening tsconfig strictness
+
+---
+
+## References
 
 1. **TypeScript TSConfig Reference**
    https://www.typescriptlang.org/tsconfig

@@ -1,58 +1,58 @@
-# TypeScript ビルドツール完全ガイド
+# TypeScript Build Tools Complete Guide
 
-> tsc, esbuild, SWC, Vite を比較し、プロジェクトに最適なビルドパイプラインを構築する
+> Compare tsc, esbuild, SWC, and Vite to build the optimal build pipeline for your project
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **各ビルドツールの特性** -- tsc, esbuild, SWC, Vite それぞれの設計思想、速度、機能の違い
-2. **ビルドパイプラインの設計** -- 型チェックとトランスパイルの分離、開発/本番環境の構成パターン
-3. **移行とチューニング** -- 既存プロジェクトのビルド高速化と、ツール間の移行手順
-4. **モノレポでのビルド戦略** -- Turborepo, Nx との連携、キャッシュ活用
-5. **ライブラリのビルドとパッケージング** -- tsup, unbuild, ESM/CJS デュアル出力
+1. **Characteristics of each build tool** -- Design philosophy, speed, and feature differences between tsc, esbuild, SWC, and Vite
+2. **Build pipeline design** -- Separating type checking from transpilation, development/production configuration patterns
+3. **Migration and tuning** -- Speeding up builds in existing projects and migration steps between tools
+4. **Build strategies in monorepos** -- Integration with Turborepo and Nx, leveraging caching
+5. **Library builds and packaging** -- tsup, unbuild, ESM/CJS dual output
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [tsconfig.json 完全ガイド](./00-tsconfig.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding the content of [tsconfig.json Complete Guide](./00-tsconfig.md)
 
 ---
 
-## 1. ビルドツール全体像
+## 1. Build Tools Overview
 
-### 1-1. TypeScript ビルドの 2 つの役割
+### 1-1. Two Roles of TypeScript Builds
 
 ```
-TypeScript ビルドの分離:
+Separation of TypeScript builds:
 
-  .ts ファイル
+  .ts files
        |
   +----+----+
   |         |
   v         v
-型チェック   トランスパイル
+Type check  Transpile
 (tsc)       (esbuild / SWC / Vite)
   |         |
   v         v
-エラー報告   .js ファイル
+Error report  .js files
   |         |
   +----+----+
        |
        v
-  デプロイ可能なコード
+  Deployable code
 
-  ポイント: 型チェックとトランスパイルは分離できる
-  tsc は型チェックのみ (--noEmit) に使い、
-  高速トランスパイラで JS を生成するのが現代のベストプラクティス
+  Key point: Type checking and transpilation can be separated
+  Use tsc only for type checking (--noEmit),
+  and generate JS with a fast transpiler — this is the modern best practice
 ```
 
-### 1-2. 速度比較（10万行プロジェクト目安）
+### 1-2. Speed Comparison (Reference for 100k-line projects)
 
 ```
-ビルド速度比較 (相対値):
+Build speed comparison (relative values):
 
   tsc        ████████████████████████████████████  30s
   webpack+ts ████████████████████████████          25s
@@ -61,49 +61,49 @@ TypeScript ビルドの分離:
   esbuild    █                                      0.5s
   SWC        █                                      0.4s
 
-  ※ tsc は型チェック込み、他は型チェックなし（トランスパイルのみ）
-  ※ esbuild と SWC は型チェックなしの純粋なトランスパイル速度
+  * tsc includes type checking; others exclude it (transpile only)
+  * esbuild and SWC are pure transpile speeds without type checking
 
-型チェック + トランスパイルの合計時間:
+Total time for type checking + transpilation:
   tsc only        ████████████████████████████████████  30s
   tsc + esbuild   ████████████████  + █                 15.5s
   tsc + SWC       ████████████████  + █                 15.4s
   tsc + Vite      ████████████████  + ██                17s
 
-  → tsc の型チェック時間は変わらないが、
-    トランスパイルは高速ツールに任せることで
-    開発サーバーの起動やHMRが劇的に速くなる
+  → tsc type-check time stays the same, but
+    delegating transpilation to fast tools
+    dramatically speeds up dev server startup and HMR
 ```
 
-### 1-3. ツールの選定フローチャート
+### 1-3. Tool Selection Flowchart
 
 ```
-ビルドツール選定ガイド:
+Build tool selection guide:
 
-  Q1: フロントエンドアプリ？
-  ├── Yes → Vite を使う
+  Q1: Frontend app?
+  ├── Yes → Use Vite
   │         ├── React → @vitejs/plugin-react-swc
   │         ├── Vue → @vitejs/plugin-vue
   │         └── Svelte → @sveltejs/vite-plugin-svelte
   └── No
-      Q2: npm ライブラリ？
-      ├── Yes → tsup (esbuild ベース) or unbuild
+      Q2: npm library?
+      ├── Yes → tsup (esbuild-based) or unbuild
       └── No
-          Q3: Node.js バックエンド？
+          Q3: Node.js backend?
           ├── Yes
-          │   ├── 開発 → tsx (esbuild ベース)
-          │   └── 本番 → esbuild でバンドル
+          │   ├── Development → tsx (esbuild-based)
+          │   └── Production → bundle with esbuild
           └── No
-              Q4: モノレポ？
-              ├── Yes → Turborepo + 各パッケージのツール
-              └── → プロジェクトに合ったツールを選択
+              Q4: Monorepo?
+              ├── Yes → Turborepo + tools for each package
+              └── → Choose a tool suited to the project
 ```
 
 ---
 
-## 2. tsc（TypeScript Compiler）
+## 2. tsc (TypeScript Compiler)
 
-### 2-1. 基本コマンド
+### 2-1. Basic Commands
 
 ```typescript
 // package.json scripts
@@ -118,18 +118,18 @@ TypeScript ビルドの分離:
   }
 }
 
-// tsc の主要フラグ
-// tsc                    → tsconfig.json に従ってビルド
-// tsc --noEmit           → 型チェックのみ（ファイル出力なし）
-// tsc --watch            → ファイル変更を監視して再ビルド
-// tsc --build            → プロジェクト参照を含むインクリメンタルビルド
-// tsc --declaration      → .d.ts ファイルを生成
-// tsc --project tsconfig.test.json → 指定した設定ファイルを使用
-// tsc --extendedDiagnostics → パフォーマンス診断情報を出力
-// tsc --generateTrace ./trace → パフォーマンストレースを生成
+// Main tsc flags
+// tsc                    → Build according to tsconfig.json
+// tsc --noEmit           → Type check only (no file output)
+// tsc --watch            → Watch for file changes and rebuild
+// tsc --build            → Incremental build including project references
+// tsc --declaration      → Generate .d.ts files
+// tsc --project tsconfig.test.json → Use the specified config file
+// tsc --extendedDiagnostics → Output performance diagnostic information
+// tsc --generateTrace ./trace → Generate performance trace
 ```
 
-### 2-2. インクリメンタルビルド
+### 2-2. Incremental Builds
 
 ```json
 // tsconfig.json
@@ -139,32 +139,32 @@ TypeScript ビルドの分離:
     "tsBuildInfoFile": "./.tsbuildinfo"
   }
 }
-// 前回のビルド情報を .tsbuildinfo に保存し、
-// 変更のあったファイルのみ再コンパイル
-// → 2回目以降のビルドが大幅に高速化
+// Saves previous build info to .tsbuildinfo,
+// and recompiles only changed files
+// → Dramatically speeds up builds from the second run onward
 ```
 
 ```
-インクリメンタルビルドの効果（実測例）:
+Effect of incremental builds (measured example):
 
-  初回:     30.2s (全ファイル)
-  2回目:     4.1s (変更なし、キャッシュ検証のみ)
-  3回目:     6.8s (10ファイル変更)
-  クリーン後: 30.5s (キャッシュなし)
+  First run:     30.2s (all files)
+  Second run:     4.1s (no changes, cache validation only)
+  Third run:      6.8s (10 files changed)
+  After clean:   30.5s (no cache)
 
-  → 2回目以降は 70-85% の高速化
+  → 70-85% speedup from the second run onward
 
-  .tsbuildinfo ファイルの内容:
-  - 各ファイルのハッシュ
-  - 依存関係グラフ
-  - コンパイラオプションのスナップショット
-  - 出力ファイルのシグネチャ
+  Contents of .tsbuildinfo file:
+  - Hash of each file
+  - Dependency graph
+  - Snapshot of compiler options
+  - Signatures of output files
 ```
 
-### 2-3. tsc と他ツールの併用パターン
+### 2-3. Patterns for Using tsc with Other Tools
 
 ```json
-// パターン1: tsc (型チェック) + esbuild (トランスパイル)
+// Pattern 1: tsc (type checking) + esbuild (transpilation)
 {
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -173,7 +173,7 @@ TypeScript ビルドの分離:
   }
 }
 
-// パターン2: tsc (型定義生成) + esbuild (JS生成)
+// Pattern 2: tsc (type definition generation) + esbuild (JS generation)
 {
   "scripts": {
     "build:types": "tsc --emitDeclarationOnly --declaration --declarationMap",
@@ -182,7 +182,7 @@ TypeScript ビルドの分離:
   }
 }
 
-// パターン3: 並列実行（concurrently を使用）
+// Pattern 3: Parallel execution (using concurrently)
 {
   "scripts": {
     "dev": "concurrently \"tsc --noEmit --watch\" \"tsx watch src/index.ts\"",
@@ -191,51 +191,51 @@ TypeScript ビルドの分離:
 }
 ```
 
-### 2-4. tsc --build（プロジェクト参照ビルド）
+### 2-4. tsc --build (Project Reference Build)
 
 ```bash
-# モノレポでのビルド
-tsc --build                    # 全パッケージをビルド
-tsc --build packages/shared    # shared とその依存のみ
-tsc --build --watch            # ウォッチモード
-tsc --build --verbose          # 詳細出力
-tsc --build --dry              # ドライラン
-tsc --build --clean            # ビルド成果物を削除
-tsc --build --force            # キャッシュを無視して全ビルド
+# Building in a monorepo
+tsc --build                    # Build all packages
+tsc --build packages/shared    # Only shared and its dependencies
+tsc --build --watch            # Watch mode
+tsc --build --verbose          # Verbose output
+tsc --build --dry              # Dry run
+tsc --build --clean            # Delete build artifacts
+tsc --build --force            # Build everything ignoring cache
 ```
 
 ```
-tsc --build の動作:
+How tsc --build works:
 
-  1. 依存グラフを解析
-     shared → frontend (shared に依存)
-           → backend (shared に依存)
-           → e2e (frontend, backend に依存)
+  1. Analyze dependency graph
+     shared → frontend (depends on shared)
+           → backend (depends on shared)
+           → e2e (depends on frontend, backend)
 
-  2. トポロジカルソートで順序決定
+  2. Determine order via topological sort
      shared → [frontend, backend] → e2e
 
-  3. 各パッケージを順番にビルド
-     - .tsbuildinfo でキャッシュチェック
-     - 変更がなければスキップ
-     - 変更があれば再ビルド
+  3. Build each package in order
+     - Check cache via .tsbuildinfo
+     - Skip if no changes
+     - Rebuild if changed
 
-  4. 下流パッケージの再ビルド判定
-     - shared が変更 → frontend, backend, e2e 全て再ビルド
-     - frontend のみ変更 → frontend, e2e のみ再ビルド
+  4. Determine rebuilds for downstream packages
+     - shared changed → rebuild frontend, backend, e2e
+     - Only frontend changed → rebuild only frontend, e2e
 ```
 
 ---
 
 ## 3. esbuild
 
-### 3-1. 基本セットアップ
+### 3-1. Basic Setup
 
 ```typescript
 // esbuild.config.ts
 import * as esbuild from "esbuild";
 
-// シンプルなビルド
+// Simple build
 await esbuild.build({
   entryPoints: ["src/index.ts"],
   bundle: true,
@@ -247,19 +247,19 @@ await esbuild.build({
   minify: process.env.NODE_ENV === "production",
 });
 
-// 複数エントリーポイント
+// Multiple entry points
 await esbuild.build({
   entryPoints: ["src/index.ts", "src/worker.ts"],
   bundle: true,
   outdir: "dist",
-  splitting: true,  // コード分割（ESM のみ）
+  splitting: true,  // Code splitting (ESM only)
   format: "esm",
   platform: "node",
   target: "node20",
-  external: ["pg", "redis"], // バンドルしないパッケージ
+  external: ["pg", "redis"], // Packages to exclude from bundling
 });
 
-// ブラウザ向けビルド
+// Browser-targeted build
 await esbuild.build({
   entryPoints: ["src/app.ts"],
   bundle: true,
@@ -269,13 +269,13 @@ await esbuild.build({
   format: "esm",
   sourcemap: true,
   minify: true,
-  // CSS もバンドル
+  // Bundle CSS as well
   loader: {
     ".png": "file",
     ".svg": "dataurl",
     ".css": "css",
   },
-  // 環境変数の埋め込み
+  // Embed environment variables
   define: {
     "process.env.NODE_ENV": '"production"',
     "import.meta.env.VITE_API_URL": '"https://api.example.com"',
@@ -283,17 +283,17 @@ await esbuild.build({
 });
 ```
 
-### 3-2. esbuild プラグイン
+### 3-2. esbuild Plugins
 
 ```typescript
 import * as esbuild from "esbuild";
 import { readFile } from "fs/promises";
 
-// カスタムプラグインの作成
+// Creating a custom plugin
 const envPlugin: esbuild.Plugin = {
   name: "env-plugin",
   setup(build) {
-    // .env ファイルを読み込んで定義に変換
+    // Load .env file and convert to definitions
     build.onResolve({ filter: /^env$/ }, (args) => ({
       path: args.path,
       namespace: "env-ns",
@@ -316,7 +316,7 @@ const envPlugin: esbuild.Plugin = {
   },
 };
 
-// リビルド通知プラグイン
+// Rebuild notification plugin
 const notifyPlugin: esbuild.Plugin = {
   name: "notify-plugin",
   setup(build) {
@@ -341,11 +341,11 @@ const notifyPlugin: esbuild.Plugin = {
   },
 };
 
-// Node.js の外部パッケージを自動検出するプラグイン
+// Plugin to auto-detect external Node.js packages
 const nodeExternalsPlugin: esbuild.Plugin = {
   name: "node-externals",
   setup(build) {
-    // node_modules のパッケージを全て external にする
+    // Mark all node_modules packages as external
     build.onResolve({ filter: /^[^./]/ }, (args) => ({
       path: args.path,
       external: true,
@@ -353,7 +353,7 @@ const nodeExternalsPlugin: esbuild.Plugin = {
   },
 };
 
-// プラグインの使用
+// Using plugins
 await esbuild.build({
   entryPoints: ["src/index.ts"],
   bundle: true,
@@ -364,10 +364,10 @@ await esbuild.build({
 });
 ```
 
-### 3-3. 開発サーバー
+### 3-3. Development Server
 
 ```typescript
-// esbuild の watch + serve
+// esbuild watch + serve
 const ctx = await esbuild.context({
   entryPoints: ["src/index.ts"],
   bundle: true,
@@ -389,9 +389,9 @@ const ctx = await esbuild.context({
   ],
 });
 
-await ctx.watch(); // ファイル変更を監視して自動リビルド
+await ctx.watch(); // Watch for file changes and auto-rebuild
 
-// フロントエンド用の開発サーバー
+// Development server for frontend
 const serveCtx = await esbuild.context({
   entryPoints: ["src/app.ts"],
   bundle: true,
@@ -401,7 +401,7 @@ const serveCtx = await esbuild.context({
   sourcemap: true,
 });
 
-// 開発サーバーを起動
+// Start the development server
 const { host, port } = await serveCtx.serve({
   servedir: "public",
   port: 3000,
@@ -409,34 +409,34 @@ const { host, port } = await serveCtx.serve({
 console.log(`Dev server running at http://${host}:${port}`);
 ```
 
-### 3-4. esbuild の制限事項
+### 3-4. esbuild Limitations
 
 ```
-esbuild がサポートしない TypeScript 機能:
+TypeScript features not supported by esbuild:
 
-  1. 型チェック
-     → tsc --noEmit を別途実行
+  1. Type checking
+     → Run tsc --noEmit separately
 
-  2. const enum（cross-file inlining）
-     → isolatedModules: true で回避
-     → 通常の enum として扱われる
+  2. const enum (cross-file inlining)
+     → Work around with isolatedModules: true
+     → Treated as a regular enum
 
-  3. デコレータ（experimentalDecorators）
-     → ECMAScript 標準デコレータ (Stage 3) はサポート
-     → 旧式の TypeScript デコレータは --loader=ts で部分サポート
+  3. Decorators (experimentalDecorators)
+     → ECMAScript standard decorators (Stage 3) are supported
+     → Legacy TypeScript decorators have partial support via --loader=ts
 
-  4. 宣言ファイル（.d.ts）生成
-     → tsc --emitDeclarationOnly を併用
+  4. Declaration file (.d.ts) generation
+     → Use tsc --emitDeclarationOnly together
 
-  5. 一部のtsconfig オプション
-     → emitDecoratorMetadata: 非サポート
-     → paths: 限定的サポート（プラグインで対応可能）
+  5. Some tsconfig options
+     → emitDecoratorMetadata: not supported
+     → paths: limited support (can be handled with a plugin)
 
-  対策: esbuild は JS 生成のみに使い、
-        型関連は全て tsc に任せる
+  Solution: Use esbuild only for JS generation,
+            leave all type-related work to tsc
 ```
 
-### 3-5. package.json 設定
+### 3-5. package.json Configuration
 
 ```json
 {
@@ -453,7 +453,7 @@ esbuild がサポートしない TypeScript 機能:
 
 ## 4. SWC
 
-### 4-1. 基本セットアップ
+### 4-1. Basic Setup
 
 ```json
 // .swcrc
@@ -497,10 +497,10 @@ esbuild がサポートしない TypeScript 機能:
 }
 ```
 
-### 4-2. SWC + Node.js 実行
+### 4-2. SWC + Node.js Execution
 
 ```json
-// @swc-node/register で直接 .ts を実行
+// Run .ts files directly with @swc-node/register
 {
   "scripts": {
     "start": "node --import @swc-node/register/esm src/index.ts",
@@ -509,10 +509,10 @@ esbuild がサポートしない TypeScript 機能:
 }
 ```
 
-### 4-3. SWC の minification
+### 4-3. SWC Minification
 
 ```json
-// .swcrc に minify 設定を追加
+// Add minify settings to .swcrc
 {
   "jsc": {
     "parser": { "syntax": "typescript" },
@@ -536,65 +536,65 @@ esbuild がサポートしない TypeScript 機能:
 }
 ```
 
-### 4-4. SWC vs esbuild の詳細比較
+### 4-4. Detailed Comparison: SWC vs esbuild
 
 ```
-SWC と esbuild の違い:
+Differences between SWC and esbuild:
 
-  SWC (Rust 製):
-  ├── トランスパイルのみ（バンドルは swcpack で実験的）
-  ├── decorators の完全サポート（emitDecoratorMetadata 含む）
-  ├── Next.js / Parcel に組み込まれている
-  ├── プラグインシステム（Wasm / Rust）
-  └── minification サポート
+  SWC (written in Rust):
+  ├── Transpile only (bundling is experimental via swcpack)
+  ├── Full decorator support (including emitDecoratorMetadata)
+  ├── Embedded in Next.js / Parcel
+  ├── Plugin system (Wasm / Rust)
+  └── Minification support
 
-  esbuild (Go 製):
-  ├── トランスパイル + バンドル
-  ├── HTTP サーバー内蔵
-  ├── Tree-shaking サポート
-  ├── コード分割サポート
-  └── プラグインシステム（JavaScript）
+  esbuild (written in Go):
+  ├── Transpile + bundle
+  ├── Built-in HTTP server
+  ├── Tree-shaking support
+  ├── Code splitting support
+  └── Plugin system (JavaScript)
 
-  選択基準:
-  - バンドルが必要 → esbuild
-  - NestJS / Angular（旧式デコレータ） → SWC
-  - Next.js → SWC（組込み）
-  - 汎用トランスパイル → どちらでも
+  Selection criteria:
+  - Bundling needed → esbuild
+  - NestJS / Angular (legacy decorators) → SWC
+  - Next.js → SWC (built-in)
+  - General-purpose transpilation → either
 ```
 
 ---
 
 ## 5. Vite
 
-### 5-1. 基本設定
+### 5-1. Basic Configuration
 
 ```
-Vite の開発/本番フロー:
+Vite development/production flow:
 
-  開発 (dev):
+  Development (dev):
   +----------+     +---------+     +----------+
-  | .ts ファイル| --> | esbuild | --> | ブラウザ  |
-  | (ソース)   |     | (変換)  |     | (ESM)    |
+  | .ts files |  →  | esbuild |  →  | Browser  |
+  | (source)  |     | (transform)|  | (ESM)    |
   +----------+     +---------+     +----------+
-       ↑ HMR（ミリ秒単位で更新）
+       ↑ HMR (updates in milliseconds)
 
-  本番 (build):
+  Production (build):
   +----------+     +---------+     +----------+
-  | .ts ファイル| --> | Rollup  | --> | バンドル  |
-  | (ソース)   |     | + SWC   |     | (最適化) |
+  | .ts files |  →  | Rollup  |  →  | Bundle   |
+  | (source)  |     | + SWC   |     | (optimized)|
   +----------+     +---------+     +----------+
 
-  Vite 6.x 以降:
+  Vite 6.x and later:
   +----------+     +---------+     +----------+
-  | .ts ファイル| --> | Rolldown| --> | バンドル  |
-  | (ソース)   |     | (Rust)  |     | (高速)   |
+  | .ts files |  →  | Rolldown|  →  | Bundle   |
+  | (source)  |     | (Rust)  |     | (fast)   |
   +----------+     +---------+     +----------+
 ```
 
 ```typescript
 // vite.config.ts
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc"; // SWC 版 React プラグイン
+import react from "@vitejs/plugin-react-swc"; // SWC-based React plugin
 
 export default defineConfig({
   plugins: [react()],
@@ -602,23 +602,23 @@ export default defineConfig({
     target: "es2022",
     outDir: "dist",
     sourcemap: true,
-    // Rollup のオプション
+    // Rollup options
     rollupOptions: {
       output: {
-        // 手動チャンク分割
+        // Manual chunk splitting
         manualChunks: {
           vendor: ["react", "react-dom"],
           ui: ["@radix-ui/react-dialog", "@radix-ui/react-dropdown-menu"],
         },
-        // チャンクファイル名のフォーマット
+        // Chunk filename format
         chunkFileNames: "assets/[name]-[hash].js",
         entryFileNames: "assets/[name]-[hash].js",
         assetFileNames: "assets/[name]-[hash].[ext]",
       },
     },
-    // チャンクサイズ警告の閾値
+    // Chunk size warning threshold
     chunkSizeWarningLimit: 500,
-    // CSS のコード分割
+    // CSS code splitting
     cssCodeSplit: true,
   },
   resolve: {
@@ -632,7 +632,7 @@ export default defineConfig({
   server: {
     port: 3000,
     strictPort: true,
-    // プロキシ設定
+    // Proxy configuration
     proxy: {
       "/api": {
         target: "http://localhost:8080",
@@ -641,15 +641,15 @@ export default defineConfig({
       },
     },
   },
-  // 環境変数のプレフィックス
+  // Environment variable prefix
   envPrefix: "VITE_",
 });
 ```
 
-### 5-2. Vite プラグイン
+### 5-2. Vite Plugins
 
 ```typescript
-// よく使われる Vite プラグイン
+// Commonly used Vite plugins
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import tsconfigPaths from "vite-tsconfig-paths";
@@ -659,13 +659,13 @@ import { visualizer } from "rollup-plugin-visualizer";
 
 export default defineConfig({
   plugins: [
-    // React (SWC ベース、高速)
+    // React (SWC-based, fast)
     react(),
 
-    // tsconfig.json の paths を自動解決
+    // Automatically resolve paths from tsconfig.json
     tsconfigPaths(),
 
-    // 開発中にリアルタイム型チェック + ESLint
+    // Real-time type checking + ESLint during development
     checker({
       typescript: true,
       eslint: {
@@ -673,7 +673,7 @@ export default defineConfig({
       },
     }),
 
-    // Gzip / Brotli 圧縮
+    // Gzip / Brotli compression
     compression({
       algorithm: "gzip",
       threshold: 1024,
@@ -683,7 +683,7 @@ export default defineConfig({
       threshold: 1024,
     }),
 
-    // バンドルサイズの可視化
+    // Visualize bundle size
     visualizer({
       filename: "dist/stats.html",
       open: false,
@@ -694,18 +694,18 @@ export default defineConfig({
 });
 ```
 
-### 5-3. ライブラリモード
+### 5-3. Library Mode
 
 ```typescript
-// vite.config.ts -- ライブラリとしてビルド
+// vite.config.ts -- Building as a library
 import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
 
 export default defineConfig({
   plugins: [
     dts({
-      rollupTypes: true,           // 型定義を1ファイルにバンドル
-      insertTypesEntry: true,      // package.json の types を自動設定
+      rollupTypes: true,           // Bundle type definitions into one file
+      insertTypesEntry: true,      // Automatically set types in package.json
       tsconfigPath: "./tsconfig.build.json",
     }),
   ],
@@ -717,7 +717,7 @@ export default defineConfig({
       fileName: (format) => `index.${format === "es" ? "mjs" : "cjs"}`,
     },
     rollupOptions: {
-      // ピア依存はバンドルしない
+      // Do not bundle peer dependencies
       external: ["react", "react-dom", "react/jsx-runtime"],
       output: {
         globals: {
@@ -726,18 +726,18 @@ export default defineConfig({
         },
       },
     },
-    // ソースマップ生成
+    // Generate source maps
     sourcemap: true,
-    // minify しない（ライブラリの場合）
+    // Do not minify (for libraries)
     minify: false,
   },
 });
 ```
 
-### 5-4. SSR / バックエンド
+### 5-4. SSR / Backend
 
 ```typescript
-// vite.config.ts -- Node.js バックエンド
+// vite.config.ts -- Node.js backend
 import { defineConfig } from "vite";
 
 export default defineConfig({
@@ -754,12 +754,12 @@ export default defineConfig({
     },
   },
   ssr: {
-    noExternal: true, // 全ての依存をバンドル
-    // noExternal: ["specific-pkg"], // 特定のみバンドル
+    noExternal: true, // Bundle all dependencies
+    // noExternal: ["specific-pkg"], // Bundle only specific ones
   },
 });
 
-// Vite + Express の SSR 設定例
+// Example SSR configuration with Vite + Express
 // vite.config.ts
 export default defineConfig({
   build: {
@@ -774,14 +774,14 @@ export default defineConfig({
 });
 ```
 
-### 5-5. 環境変数の管理
+### 5-5. Environment Variable Management
 
 ```typescript
-// .env ファイルの読み込み順序:
-// .env                # 常に読み込み
-// .env.local          # 常に読み込み（.gitignore 推奨）
-// .env.[mode]         # 指定モードで読み込み
-// .env.[mode].local   # 指定モードで読み込み（.gitignore 推奨）
+// .env file loading order:
+// .env                # Always loaded
+// .env.local          # Always loaded (recommend adding to .gitignore)
+// .env.[mode]         # Loaded for the specified mode
+// .env.[mode].local   # Loaded for the specified mode (recommend adding to .gitignore)
 
 // .env
 VITE_API_URL=https://api.example.com
@@ -795,7 +795,7 @@ VITE_DEBUG=true
 VITE_API_URL=https://api.production.com
 VITE_DEBUG=false
 
-// src/vite-env.d.ts -- 型定義
+// src/vite-env.d.ts -- Type definitions
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
@@ -808,30 +808,30 @@ interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
 
-// 使用例
-const apiUrl = import.meta.env.VITE_API_URL; // 型: string
-const isDev = import.meta.env.DEV;            // 型: boolean
-const isProd = import.meta.env.PROD;          // 型: boolean
-const mode = import.meta.env.MODE;            // 型: string
+// Usage example
+const apiUrl = import.meta.env.VITE_API_URL; // type: string
+const isDev = import.meta.env.DEV;            // type: boolean
+const isProd = import.meta.env.PROD;          // type: boolean
+const mode = import.meta.env.MODE;            // type: string
 ```
 
 ---
 
 ## 6. tsx -- TypeScript Execute
 
-### 6-1. 基本的な使い方
+### 6-1. Basic Usage
 
 ```bash
-# インストール
+# Install
 npm install -D tsx
 
-# TypeScript ファイルを直接実行
+# Run TypeScript files directly
 npx tsx src/index.ts
 
-# ウォッチモード
+# Watch mode
 npx tsx watch src/index.ts
 
-# ESM として実行
+# Run as ESM
 npx tsx --esm src/index.ts
 
 # REPL
@@ -852,86 +852,86 @@ npx tsx
 ### 6-2. tsx vs ts-node vs node --loader
 
 ```
-TypeScript 実行ランナー比較:
+Comparison of TypeScript execution runners:
 
-  tsx (esbuild ベース):
-  ├── 起動時間: 非常に速い
-  ├── 型チェック: なし
-  ├── ESM サポート: あり
-  ├── tsconfig paths: 自動解決
-  └── 設定: ほぼ不要
+  tsx (esbuild-based):
+  ├── Startup time: Very fast
+  ├── Type checking: None
+  ├── ESM support: Yes
+  ├── tsconfig paths: Resolved automatically
+  └── Configuration: Almost none required
 
-  ts-node (tsc ベース):
-  ├── 起動時間: 遅い
-  ├── 型チェック: あり（swc モード時はなし）
-  ├── ESM サポート: 要設定
-  ├── tsconfig paths: tsconfig-paths 必要
-  └── 設定: 多い
+  ts-node (tsc-based):
+  ├── Startup time: Slow
+  ├── Type checking: Yes (none in swc mode)
+  ├── ESM support: Requires configuration
+  ├── tsconfig paths: Requires tsconfig-paths
+  └── Configuration: Extensive
 
   node --experimental-strip-types (Node.js 23+):
-  ├── 起動時間: 最速
-  ├── 型チェック: なし
-  ├── ESM サポート: あり
-  ├── tsconfig paths: 非サポート
-  └── 設定: 不要
-  └── 注意: enum, namespace 等は非サポート
+  ├── Startup time: Fastest
+  ├── Type checking: None
+  ├── ESM support: Yes
+  ├── tsconfig paths: Not supported
+  └── Configuration: None required
+  └── Note: enum, namespace, etc. are not supported
 
   node --import @swc-node/register/esm:
-  ├── 起動時間: 速い
-  ├── 型チェック: なし
-  ├── ESM サポート: あり
-  ├── tsconfig paths: 要設定
-  └── 設定: 少ない
+  ├── Startup time: Fast
+  ├── Type checking: None
+  ├── ESM support: Yes
+  ├── tsconfig paths: Requires configuration
+  └── Configuration: Minimal
 ```
 
 ---
 
-## 7. tsup / unbuild -- ライブラリビルダー
+## 7. tsup / unbuild -- Library Builders
 
-### 7-1. tsup の設定
+### 7-1. tsup Configuration
 
 ```typescript
 // tsup.config.ts
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  // エントリーポイント
+  // Entry points
   entry: ["src/index.ts", "src/utils/index.ts"],
 
-  // 出力形式（ESM + CJS）
+  // Output formats (ESM + CJS)
   format: ["esm", "cjs"],
 
-  // 型定義ファイル生成
+  // Generate type definition files
   dts: true,
 
-  // ソースマップ
+  // Source maps
   sourcemap: true,
 
-  // クリーンビルド
+  // Clean build
   clean: true,
 
-  // 外部パッケージ（バンドルしない）
+  // External packages (do not bundle)
   external: ["react", "react-dom"],
 
   // Tree-shaking
   treeshake: true,
 
-  // TypeScript のターゲット
+  // TypeScript target
   target: "es2020",
 
-  // 出力ディレクトリ
+  // Output directory
   outDir: "dist",
 
-  // コード分割
+  // Code splitting
   splitting: true,
 
-  // minify
+  // Minify
   minify: false,
 });
 ```
 
 ```json
-// package.json（デュアル ESM/CJS パッケージ）
+// package.json (dual ESM/CJS package)
 {
   "name": "my-lib",
   "version": "1.0.0",
@@ -971,7 +971,7 @@ export default defineConfig({
 }
 ```
 
-### 7-2. unbuild の設定
+### 7-2. unbuild Configuration
 
 ```typescript
 // build.config.ts
@@ -985,52 +985,52 @@ export default defineBuildConfig({
     emitCJS: true,
     inlineDependencies: true,
   },
-  // 自動 externals 検出
+  // Auto-detect externals
   externals: ["react"],
 });
 ```
 
-### 7-3. tsup vs unbuild の比較
+### 7-3. tsup vs unbuild Comparison
 
 ```
-ライブラリビルダー比較:
+Library builder comparison:
 
   tsup:
-  ├── エンジン: esbuild
-  ├── 速度: 非常に速い
-  ├── 設定: シンプル
-  ├── DTS: esbuild + tsc (ハイブリッド)
+  ├── Engine: esbuild
+  ├── Speed: Very fast
+  ├── Configuration: Simple
+  ├── DTS: esbuild + tsc (hybrid)
   ├── Tree-shaking: esbuild
-  └── 推奨: 小〜中規模ライブラリ
+  └── Recommended for: small to medium libraries
 
   unbuild:
-  ├── エンジン: Rollup
-  ├── 速度: 速い
-  ├── 設定: シンプル
+  ├── Engine: Rollup
+  ├── Speed: Fast
+  ├── Configuration: Simple
   ├── DTS: rollup-plugin-dts
-  ├── Tree-shaking: Rollup（高品質）
-  └── 推奨: Nuxt エコシステム
+  ├── Tree-shaking: Rollup (high quality)
+  └── Recommended for: Nuxt ecosystem
 
   Vite lib mode:
-  ├── エンジン: Rollup
-  ├── 速度: 速い
-  ├── 設定: Vite の知識が必要
+  ├── Engine: Rollup
+  ├── Speed: Fast
+  ├── Configuration: Requires Vite knowledge
   ├── DTS: vite-plugin-dts
-  ├── Tree-shaking: Rollup（高品質）
-  └── 推奨: Vite プロジェクトのライブラリ
+  ├── Tree-shaking: Rollup (high quality)
+  └── Recommended for: Libraries in Vite projects
 
   tsc:
-  ├── エンジン: TypeScript Compiler
-  ├── 速度: 遅い
-  ├── 設定: tsconfig.json
-  ├── DTS: ネイティブ（最も正確）
-  ├── Tree-shaking: なし
-  └── 推奨: 型定義の正確さが最重要の場合
+  ├── Engine: TypeScript Compiler
+  ├── Speed: Slow
+  ├── Configuration: tsconfig.json
+  ├── DTS: Native (most accurate)
+  ├── Tree-shaking: None
+  └── Recommended for: When accuracy of type definitions is paramount
 ```
 
 ---
 
-## 8. モノレポでのビルド戦略
+## 8. Build Strategies in Monorepos
 
 ### 8-1. Turborepo
 
@@ -1060,19 +1060,19 @@ export default defineBuildConfig({
 ```
 
 ```bash
-# Turborepo でのビルド
-turbo build           # 全パッケージをビルド（キャッシュ活用）
-turbo build --filter=web  # web パッケージのみ
-turbo build --force   # キャッシュを無視
-turbo dev             # 全パッケージの開発サーバー
+# Building with Turborepo
+turbo build           # Build all packages (with cache)
+turbo build --filter=web  # Only the web package
+turbo build --force   # Ignore cache
+turbo dev             # Dev server for all packages
 
-# リモートキャッシュ（チーム間でキャッシュ共有）
+# Remote cache (share cache across team members)
 turbo login
 turbo link
-turbo build  # リモートキャッシュを使用
+turbo build  # Use remote cache
 ```
 
-### 8-2. モノレポのパッケージ構成例
+### 8-2. Example Monorepo Package Structure
 
 ```
 monorepo/
@@ -1084,7 +1084,7 @@ monorepo/
 │       ├── package.json
 │       └── tsconfig.json
 ├── packages/
-│   ├── shared/            (tsup でビルド)
+│   ├── shared/            (built with tsup)
 │   │   ├── package.json
 │   │   ├── tsup.config.ts
 │   │   └── tsconfig.json
@@ -1092,7 +1092,7 @@ monorepo/
 │   │   ├── package.json
 │   │   ├── vite.config.ts
 │   │   └── tsconfig.json
-│   └── config-ts/         (共有 tsconfig)
+│   └── config-ts/         (shared tsconfig)
 │       ├── base.json
 │       ├── nextjs.json
 │       ├── node.json
@@ -1104,18 +1104,18 @@ monorepo/
 
 ---
 
-## 9. 最適なパイプライン設計
+## 9. Optimal Pipeline Design
 
-### 9-1. フロントエンド（React / Vue）
+### 9-1. Frontend (React / Vue)
 
 ```
-推奨パイプライン:
+Recommended pipeline:
 
-  開発:   Vite dev server (esbuild でトランスパイル)
-  型チェック: tsc --noEmit (バックグラウンド or CI)
-  本番ビルド: Vite build (Rollup + minify)
-  テスト:  Vitest (Vite と設定共有)
-  lint:   ESLint + Prettier
+  Development:   Vite dev server (transpiled with esbuild)
+  Type checking: tsc --noEmit (background or CI)
+  Production build: Vite build (Rollup + minify)
+  Testing:       Vitest (shares configuration with Vite)
+  Lint:          ESLint + Prettier
 
   package.json:
   {
@@ -1128,16 +1128,16 @@ monorepo/
   }
 ```
 
-### 9-2. Node.js バックエンド
+### 9-2. Node.js Backend
 
 ```
-推奨パイプライン:
+Recommended pipeline:
 
-  開発:   tsx (esbuild ベースの ts-node 代替)
-  型チェック: tsc --noEmit
-  本番ビルド: esbuild (バンドル + minify)
-  テスト:  Vitest
-  lint:   ESLint
+  Development:   tsx (esbuild-based ts-node alternative)
+  Type checking: tsc --noEmit
+  Production build: esbuild (bundle + minify)
+  Testing:       Vitest
+  Lint:          ESLint
 
   package.json:
   {
@@ -1149,17 +1149,17 @@ monorepo/
   }
 ```
 
-### 9-3. npm ライブラリ
+### 9-3. npm Library
 
 ```
-推奨パイプライン:
+Recommended pipeline:
 
-  開発:   tsx で実行テスト
-  型チェック: tsc --noEmit
-  ビルド: tsup (esbuild ベース、ESM + CJS 両出力)
-  型定義: tsup --dts (tsc を内部使用)
-  テスト:  Vitest
-  公開:   npm publish (prepublishOnly で build)
+  Development:   run tests with tsx
+  Type checking: tsc --noEmit
+  Build:         tsup (esbuild-based, outputs both ESM + CJS)
+  Type defs:     tsup --dts (uses tsc internally)
+  Testing:       Vitest
+  Publishing:    npm publish (build in prepublishOnly)
 
   package.json:
   {
@@ -1171,16 +1171,16 @@ monorepo/
   }
 ```
 
-### 9-4. フルスタック（Next.js + tRPC）
+### 9-4. Full Stack (Next.js + tRPC)
 
 ```
-推奨パイプライン:
+Recommended pipeline:
 
-  フレームワーク: Next.js (SWC 組込み)
-  API:    tRPC (型共有)
-  DB:     Prisma (型生成)
-  バリデーション: zod
-  テスト:  Vitest + Playwright
+  Framework:    Next.js (built-in SWC)
+  API:          tRPC (shared types)
+  DB:           Prisma (type generation)
+  Validation:   zod
+  Testing:      Vitest + Playwright
 
   package.json:
   {
@@ -1198,71 +1198,71 @@ monorepo/
 
 ---
 
-## 比較表
+## Comparison Tables
 
-### ビルドツール総合比較
+### Comprehensive Build Tool Comparison
 
-| 特性 | tsc | esbuild | SWC | Vite | tsup |
-|------|-----|---------|-----|------|------|
-| 言語 | TypeScript | Go | Rust | JS (esbuild/Rollup) | JS (esbuild) |
-| 型チェック | あり | なし | なし | なし | なし |
-| トランスパイル速度 | 遅い | 最速級 | 最速級 | 速い (esbuild) | 速い (esbuild) |
-| バンドル | なし | あり | 実験的 | あり (Rollup) | あり |
-| Tree-shaking | なし | あり | なし | あり | あり |
-| HMR | なし | 簡易 | なし | 優秀 | なし |
-| プラグイン | なし | あり | あり | 豊富 | esbuild互換 |
-| 設定の簡単さ | 中 | 高 | 中 | 高 | 最高 |
-| .d.ts 生成 | ネイティブ | なし | なし | プラグイン | あり |
-| CSS バンドル | なし | あり | なし | あり | なし |
-| コード分割 | なし | あり(ESM) | なし | あり | あり |
+| Characteristic | tsc | esbuild | SWC | Vite | tsup |
+|----------------|-----|---------|-----|------|------|
+| Language | TypeScript | Go | Rust | JS (esbuild/Rollup) | JS (esbuild) |
+| Type checking | Yes | No | No | No | No |
+| Transpile speed | Slow | Fastest class | Fastest class | Fast (esbuild) | Fast (esbuild) |
+| Bundling | No | Yes | Experimental | Yes (Rollup) | Yes |
+| Tree-shaking | No | Yes | No | Yes | Yes |
+| HMR | No | Basic | No | Excellent | No |
+| Plugins | No | Yes | Yes | Rich | esbuild-compatible |
+| Ease of configuration | Medium | High | Medium | High | Highest |
+| .d.ts generation | Native | No | No | Plugin | Yes |
+| CSS bundling | No | Yes | No | Yes | No |
+| Code splitting | No | Yes (ESM) | No | Yes | Yes |
 
-### 用途別推奨ツール
+### Recommended Tools by Use Case
 
-| 用途 | 推奨 | 理由 |
-|------|------|------|
-| React / Vue SPA | Vite | HMR, プラグイン充実 |
-| Next.js | (組込みSWC) | フレームワーク統合 |
-| Node.js API | esbuild / tsx | 高速、シンプル |
-| npm ライブラリ | tsup (esbuild) | ESM/CJS 両出力、DTS生成 |
-| モノレポ | Turborepo + Vite/esbuild | キャッシュ, 並列ビルド |
-| Deno | (組込み) | 設定不要 |
-| Bun | (組込み) | 設定不要、最速 |
-| Cloudflare Workers | wrangler (esbuild) | Edge 最適化 |
-| Electron | Vite + electron-builder | HMR + パッケージング |
+| Use case | Recommended | Reason |
+|----------|-------------|--------|
+| React / Vue SPA | Vite | HMR, rich plugins |
+| Next.js | (built-in SWC) | Framework integration |
+| Node.js API | esbuild / tsx | Fast, simple |
+| npm library | tsup (esbuild) | ESM/CJS dual output, DTS generation |
+| Monorepo | Turborepo + Vite/esbuild | Cache, parallel builds |
+| Deno | (built-in) | No configuration needed |
+| Bun | (built-in) | No configuration, fastest |
+| Cloudflare Workers | wrangler (esbuild) | Edge-optimized |
+| Electron | Vite + electron-builder | HMR + packaging |
 
-### パフォーマンス指標（実測参考値）
+### Performance Metrics (Measured Reference Values)
 
-| ツール | 1000ファイル | 5000ファイル | 10000ファイル |
-|--------|------------|------------|-------------|
-| tsc (初回) | 3s | 12s | 30s |
-| tsc (インクリメンタル) | 0.5s | 2s | 5s |
-| esbuild (バンドル) | 0.1s | 0.3s | 0.5s |
-| SWC (トランスパイル) | 0.08s | 0.25s | 0.4s |
-| Vite (dev起動) | 0.5s | 1.5s | 3s |
+| Tool | 1,000 files | 5,000 files | 10,000 files |
+|------|-------------|-------------|--------------|
+| tsc (first run) | 3s | 12s | 30s |
+| tsc (incremental) | 0.5s | 2s | 5s |
+| esbuild (bundle) | 0.1s | 0.3s | 0.5s |
+| SWC (transpile) | 0.08s | 0.25s | 0.4s |
+| Vite (dev startup) | 0.5s | 1.5s | 3s |
 | tsup | 0.3s | 0.8s | 1.5s |
 
 ---
 
-## アンチパターン
+## Anti-patterns
 
-### AP-1: tsc でトランスパイルとバンドルを兼ねる
+### AP-1: Using tsc for Both Transpilation and Bundling
 
 ```json
-// NG: tsc だけで全てをやろうとする
+// Bad: Trying to do everything with tsc alone
 {
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js"
   }
 }
-// 問題:
-// - バンドルされない（ファイルが分散）
-// - Tree-shaking なし
-// - パス解決が壊れることがある（paths）
-// - ビルドが遅い
-// - node_modules から直接 import が必要
+// Problems:
+// - No bundling (files are scattered)
+// - No tree-shaking
+// - Path resolution can break (paths)
+// - Slow builds
+// - Requires direct imports from node_modules
 
-// OK: 型チェックとビルドを分離
+// Good: Separate type checking and building
 {
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -1272,23 +1272,23 @@ monorepo/
 }
 ```
 
-### AP-2: 開発サーバーなしで手動リロード
+### AP-2: Manual Reload Without a Dev Server
 
 ```json
-// NG: 毎回手動でビルド→実行
+// Bad: Manually build then run each time
 {
   "scripts": {
     "dev": "tsc && node dist/index.js"
   }
 }
 
-// OK: ファイル監視で自動再起動
+// Good: Auto-restart on file change
 {
   "scripts": {
     "dev": "tsx watch src/index.ts"
   }
 }
-// もしくは
+// Or
 {
   "scripts": {
     "dev": "node --import @swc-node/register/esm --watch src/index.ts"
@@ -1296,17 +1296,17 @@ monorepo/
 }
 ```
 
-### AP-3: 型チェックをビルドに含めて CI を遅くする
+### AP-3: Slowing Down CI by Including Type Checking in the Build
 
 ```json
-// NG: ビルドと型チェックを直列実行
+// Bad: Running build and type check in series
 {
   "scripts": {
     "build": "tsc --noEmit && esbuild src/index.ts --bundle --outfile=dist/index.js"
   }
 }
 
-// OK: CI で並列実行
+// Good: Run in parallel in CI
 // .github/workflows/ci.yml
 // jobs:
 //   typecheck:
@@ -1319,13 +1319,13 @@ monorepo/
 //     run: npm test
 ```
 
-### AP-4: バンドルサイズを確認せずにデプロイ
+### AP-4: Deploying Without Checking Bundle Size
 
 ```typescript
-// NG: バンドル分析なしでデプロイ
-// → 不要な依存が含まれ、パフォーマンス悪化
+// Bad: Deploy without bundle analysis
+// → Unnecessary dependencies included, hurting performance
 
-// OK: バンドル分析を定期的に実施
+// Good: Regularly perform bundle analysis
 // vite.config.ts
 import { visualizer } from "rollup-plugin-visualizer";
 
@@ -1338,51 +1338,51 @@ export default defineConfig({
     }),
   ],
 });
-// npm run build 後に dist/stats.html を確認
+// After npm run build, review dist/stats.html
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1391,26 +1391,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following functionality.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1418,7 +1418,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1429,14 +1429,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1444,7 +1444,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1452,44 +1452,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1498,7 +1498,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1513,47 +1513,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be aware of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Misconfigured config file | Check config file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increased data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check execution user permissions, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, transaction management |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read the stack trace to identify where it occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form a hypothesis**: List possible causes
+4. **Gradual verification**: Use log output or a debugger to verify hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1561,102 +1561,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator to log function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Calling: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return value: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps to diagnose performance issues when they occur:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check for I/O waits**: Review disk and network I/O status
+4. **Check concurrent connections**: Review connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem type | Diagnostic tool | Solution |
+|--------------|-----------------|---------|
+| CPU load | cProfile, py-spy | Algorithm improvements, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the decision criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | Prioritize when | Can compromise when |
+|-----------|-----------------|---------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, speed to market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. What is the team size?                      │
+│    ├─ Small (1-5) → Monolith                    │
+│    └─ Large (10+) → Go to 2                     │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. How often do you deploy?                    │
+│    ├─ Weekly or less → Monolith + modules       │
+│    └─ Daily / multiple times → Go to 3         │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. How independent are the teams?              │
+│    ├─ High → Microservices                      │
+│    └─ Medium → Modular monolith                 │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs long-term cost**
+- A faster short-term approach can become technical debt in the long run
+- Conversely, over-engineering has a high short-term cost and can delay the project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs flexibility**
+- A unified technology stack has a low learning cost
+- Adopting diverse technologies enables the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- High abstraction offers high reusability, but can make debugging difficult
+- Low abstraction is intuitive, but code duplication tends to occur
 
 ```python
-# 設計判断の記録テンプレート
+# Template for recording design decisions
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1666,17 +1666,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1684,7 +1684,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1692,15 +1692,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1709,82 +1709,82 @@ class ArchitectureDecisionRecord:
 
 ## FAQ
 
-### Q1: tsx と ts-node の違いは何ですか？
+### Q1: What is the difference between tsx and ts-node?
 
-tsx は esbuild ベースで起動が非常に高速です。ts-node は tsc ベースで型チェックも行えますが遅いです。開発時の実行は tsx を推奨します。型チェックは別途 `tsc --noEmit` で行ってください。ts-node にも `--swc` フラグがありますが、tsx の方がセットアップが簡単で高速です。
+tsx is esbuild-based and starts up very fast. ts-node is tsc-based and can perform type checking, but is slow. tsx is recommended for running files during development. Perform type checking separately with `tsc --noEmit`. ts-node also has a `--swc` flag, but tsx is easier to set up and faster.
 
-### Q2: esbuild は enum をサポートしていますか？
+### Q2: Does esbuild support enums?
 
-esbuild は `const enum` を通常の `enum` として扱います。`isolatedModules: true` を設定していれば問題ありません（`const enum` の cross-file inlining が無効化されるため）。`verbatimModuleSyntax` を使う場合も同様です。通常の `enum` は問題なくサポートされています。
+esbuild treats `const enum` as a regular `enum`. This is fine if you have `isolatedModules: true` set (because cross-file inlining of `const enum` is disabled). The same applies when using `verbatimModuleSyntax`. Regular `enum` is supported without issues.
 
-### Q3: Vite の本番ビルドが開発時と挙動が異なることはありますか？
+### Q3: Can the production build behavior in Vite differ from development?
 
-はい。開発時は esbuild でトランスパイルし ESM をそのまま配信しますが、本番は Rollup でバンドルします。稀に挙動の差が出る場合があります。`vite preview` で本番ビルドをローカルで確認することを推奨します。具体的な差異としては、CSS の読み込み順序、動的インポートの分割粒度、環境変数の解決タイミングなどがあります。
+Yes. During development, Vite transpiles with esbuild and serves ESM directly, but in production it bundles with Rollup. Rare behavioral differences can occur. It is recommended to verify the production build locally with `vite preview`. Specific differences include CSS loading order, granularity of dynamic import splitting, and the timing of environment variable resolution.
 
-### Q4: Node.js 23+ の --experimental-strip-types は tsx の代替になりますか？
+### Q4: Can Node.js 23+ --experimental-strip-types replace tsx?
 
-部分的には代替になります。Node.js のネイティブ TypeScript サポートは型注釈を単純に除去するだけで、enum、namespace、decorators などの TypeScript 固有の構文はサポートしません。また、tsconfig.json の paths も解決しません。シンプルな TypeScript ファイルの実行には使えますが、複雑なプロジェクトでは tsx が引き続き推奨されます。
+It can be a partial replacement. Node.js's native TypeScript support simply strips type annotations and does not support TypeScript-specific syntax such as enum, namespace, and decorators. It also does not resolve tsconfig.json paths. It can be used for running simple TypeScript files, but tsx is still recommended for complex projects.
 
-### Q5: ビルドツールの移行は困難ですか？
+### Q5: Is migrating between build tools difficult?
 
-多くの場合、トランスパイラの移行は比較的容易です。esbuild → SWC、webpack → Vite などの移行は設定ファイルの書き換えが主な作業です。ただし、カスタムプラグインや特殊な設定に依存している場合は移行コストが高くなります。まず新ツールで小規模なプロジェクトを試してから、段階的に移行することを推奨します。
-
----
-
-## まとめ表
-
-| 概念 | 要点 |
-|------|------|
-| 分離原則 | 型チェック（tsc）とトランスパイルは別ツールに |
-| esbuild | Go 製、最速、バンドル可能、型チェックなし |
-| SWC | Rust 製、最速、Next.js 組込み、デコレータ完全サポート |
-| Vite | 開発 = esbuild、本番 = Rollup、HMR 優秀 |
-| tsup | esbuild ベースのライブラリビルダー、DTS 生成 |
-| tsx | esbuild ベースの ts-node 代替、高速、設定不要 |
-| Turborepo | モノレポのビルドキャッシュ、並列実行 |
-| unbuild | Rollup ベースのライブラリビルダー |
+In many cases, migrating transpilers is relatively straightforward. Migrations such as esbuild to SWC or webpack to Vite mainly involve rewriting configuration files. However, migration costs are higher if you depend on custom plugins or special configurations. It is recommended to first try the new tool on a small project, then migrate incrementally.
 
 ---
 
-## 10. Docker でのビルド最適化
+## Summary Table
 
-### 10-1. マルチステージビルド
+| Concept | Key point |
+|---------|-----------|
+| Separation principle | Use separate tools for type checking (tsc) and transpilation |
+| esbuild | Written in Go, fastest, can bundle, no type checking |
+| SWC | Written in Rust, fastest, built into Next.js, full decorator support |
+| Vite | Dev = esbuild, Production = Rollup, excellent HMR |
+| tsup | esbuild-based library builder, generates DTS |
+| tsx | esbuild-based ts-node alternative, fast, no configuration needed |
+| Turborepo | Build caching for monorepos, parallel execution |
+| unbuild | Rollup-based library builder |
+
+---
+
+## 10. Docker Build Optimization
+
+### 10-1. Multi-stage Builds
 
 ```dockerfile
-# ---- Builder ステージ ----
+# ---- Builder stage ----
 FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# 依存のインストール（キャッシュ効率化）
+# Install dependencies (optimize caching)
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# ソースコピー & ビルド
+# Copy source and build
 COPY tsconfig.json ./
 COPY src/ ./src/
 RUN npm run build
 
-# ---- Production ステージ ----
+# ---- Production stage ----
 FROM node:20-slim AS production
 
 WORKDIR /app
 
-# 本番依存のみインストール
+# Install production dependencies only
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-# ビルド成果物のみコピー
+# Copy only build artifacts
 COPY --from=builder /app/dist ./dist
 
-# Node.js で直接実行
+# Run directly with Node.js
 CMD ["node", "dist/index.js"]
 ```
 
-### 10-2. esbuild でバンドルした場合
+### 10-2. When Bundled with esbuild
 
 ```dockerfile
-# esbuild でバンドルすると node_modules が不要になる
+# Bundling with esbuild makes node_modules unnecessary
 FROM node:20-slim AS builder
 
 WORKDIR /app
@@ -1794,18 +1794,18 @@ COPY tsconfig.json ./
 COPY src/ ./src/
 RUN npx esbuild src/index.ts --bundle --platform=node --outfile=dist/index.js --format=esm --minify
 
-# ---- 軽量な Production ステージ ----
+# ---- Lightweight Production stage ----
 FROM node:20-slim AS production
 WORKDIR /app
 
-# バンドル済みファイルのみコピー（node_modules 不要）
+# Copy only the bundled file (no node_modules needed)
 COPY --from=builder /app/dist/index.js ./index.js
 
 CMD ["node", "index.js"]
-# → イメージサイズが大幅に削減される
+# → Image size is dramatically reduced
 ```
 
-### 10-3. .dockerignore の設定
+### 10-3. .dockerignore Configuration
 
 ```
 # .dockerignore
@@ -1823,15 +1823,15 @@ coverage
 
 ---
 
-## 11. ビルドパフォーマンスのデバッグ
+## 11. Debugging Build Performance
 
-### 11-1. tsc のパフォーマンス分析
+### 11-1. Analyzing tsc Performance
 
 ```bash
-# 詳細な診断情報
+# Detailed diagnostic information
 tsc --extendedDiagnostics --noEmit
 
-# 出力例:
+# Sample output:
 # Files:               1,234
 # Lines of Library:    35,678
 # Lines of Definitions: 89,012
@@ -1840,7 +1840,7 @@ tsc --extendedDiagnostics --noEmit
 # Identifiers:         123,456
 # Symbols:              67,890
 # Types:                34,567
-# Instantiations:      234,567  ← これが大きいと遅い
+# Instantiations:      234,567  ← Slow if this is large
 # Memory used:         456,789K
 # Assignability cache size: 12,345
 # Identity cache size:  1,234
@@ -1851,21 +1851,21 @@ tsc --extendedDiagnostics --noEmit
 # ResolveModule time:   0.34s
 # ResolveTypeRef time:  0.05s
 # Bind time:            0.45s
-# Check time:           5.67s   ← 通常最大
+# Check time:           5.67s   ← Usually the largest
 # printTime time:       0.89s
 # Emit time:            0.89s
 # Total time:           8.36s
 
-# Instantiations が大きい場合の対処:
-# 1. 複雑なジェネリクス型を簡素化
-# 2. 条件型のネストを減らす
-# 3. 型の再計算を避ける（type alias でキャッシュ）
+# How to deal with large Instantiations:
+# 1. Simplify complex generic types
+# 2. Reduce nesting of conditional types
+# 3. Avoid recalculating types (cache with type aliases)
 ```
 
-### 11-2. 型のパフォーマンスを改善するテクニック
+### 11-2. Techniques to Improve Type Performance
 
 ```typescript
-// NG: 深くネストされた条件型（Instantiations が爆発）
+// Bad: Deeply nested conditional types (Instantiations explode)
 type DeepPick<T, K extends string> =
   K extends `${infer First}.${infer Rest}`
     ? First extends keyof T
@@ -1875,15 +1875,15 @@ type DeepPick<T, K extends string> =
       ? { [P in K]: T[P] }
       : never;
 
-// OK: interface で中間型を定義してキャッシュ
+// Good: Define intermediate types with interface to cache them
 interface CachedDeepPick<T, First extends keyof T, Rest extends string> {
   [P in First]: DeepPick<T[First], Rest>;
 }
 
-// NG: 大量のユニオン型（チェックが O(n^2)）
+// Bad: Large union types (checking is O(n^2))
 type AllEvents = Event1 | Event2 | ... | Event100;
 
-// OK: 判別共用体でマップ型を使用
+// Good: Use a mapped type with a discriminated union
 interface EventMap {
   event1: Event1;
   event2: Event2;
@@ -1895,26 +1895,26 @@ type AllEvents = EventMap[keyof EventMap];
 ---
 
 
-## まとめ
+## Summary
 
-このガイドでは以下の重要なポイントを学びました:
+This guide covered the following key points:
 
-- 基本概念と原則の理解
-- 実践的な実装パターン
-- ベストプラクティスと注意点
-- 実務での活用方法
-
----
-
-## 次に読むべきガイド
-
-- [tsconfig.json](./00-tsconfig.md) -- ビルドツールと連携する TypeScript 設定
-- [テスト](./02-testing-typescript.md) -- Vitest の設定とビルドツールの連携
-- [ESLint + TypeScript](./04-eslint-typescript.md) -- ビルドパイプラインへの lint 統合
+- Understanding basic concepts and principles
+- Practical implementation patterns
+- Best practices and things to watch out for
+- How to apply them in real-world work
 
 ---
 
-## 参考文献
+## Guides to Read Next
+
+- [tsconfig.json](./00-tsconfig.md) -- TypeScript configuration that integrates with build tools
+- [Testing](./02-testing-typescript.md) -- Vitest configuration and build tool integration
+- [ESLint + TypeScript](./04-eslint-typescript.md) -- Integrating lint into the build pipeline
+
+---
+
+## References
 
 1. **esbuild** -- An extremely fast bundler for the web
    https://esbuild.github.io/

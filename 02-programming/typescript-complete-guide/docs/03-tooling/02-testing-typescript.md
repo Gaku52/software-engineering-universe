@@ -1,54 +1,54 @@
-# TypeScript テスト完全ガイド
+# TypeScript Testing Complete Guide
 
-> Vitest, Jest, 型テスト（tsd / expect-type）を使い、ランタイムの振る舞いと型の正しさの両方を検証する
+> Using Vitest, Jest, and type tests (tsd / expect-type) to verify both runtime behavior and type correctness
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **Vitest によるテスト** -- Vite エコシステムと統合した高速テストランナーのセットアップと活用
-2. **Jest + TypeScript** -- ts-jest / @swc/jest の設定と、既存プロジェクトでの Jest 運用
-3. **型テスト** -- `expectTypeOf`（Vitest 組込み）や tsd を使い、ライブラリの型定義が正しいことを検証する技法
-4. **テスト設計パターン** -- AAA パターン、テストダブル、統合テスト、E2E テストの構成方法
-5. **テストのパフォーマンスと保守性** -- 大規模プロジェクトでのテスト戦略と最適化手法
+1. **Testing with Vitest** -- Setup and usage of the fast test runner integrated with the Vite ecosystem
+2. **Jest + TypeScript** -- Configuration of ts-jest / @swc/jest and running Jest in existing projects
+3. **Type tests** -- Techniques for verifying that library type definitions are correct using `expectTypeOf` (built into Vitest) and tsd
+4. **Test design patterns** -- How to structure the AAA pattern, test doubles, integration tests, and E2E tests
+5. **Test performance and maintainability** -- Testing strategies and optimization techniques for large-scale projects
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [TypeScript ビルドツール完全ガイド](./01-build-tools.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of [TypeScript Build Tools Complete Guide](./01-build-tools.md)
 
 ---
 
 ## 1. Vitest
 
-### 1-1. セットアップ
+### 1-1. Setup
 
 ```
-Vitest のアーキテクチャ:
+Vitest architecture:
 
   vite.config.ts
        |
        v
   +----------+     +---------+     +----------+
-  | テスト    | --> | Vite    | --> | esbuild  |
-  | ファイル  |     | (変換)  |     | (高速TS) |
+  | Test      | --> | Vite    | --> | esbuild  |
+  | Files     |     | (trans) |     | (fast TS)|
   +----------+     +---------+     +----------+
        |
        v
   +----------+
-  | テスト   |
-  | 実行結果 |
+  | Test     |
+  | Results  |
   +----------+
 
-  Vitest の特徴:
-  - Vite と設定を共有（resolve.alias, plugins など）
-  - esbuild によるトランスパイルで高速
-  - Jest 互換の API
-  - 型テスト（expectTypeOf）が組込み
-  - HMR 対応のウォッチモード
-  - ブラウザモード（Playwright / WebDriverIO）
+  Vitest features:
+  - Shares config with Vite (resolve.alias, plugins, etc.)
+  - Fast transpilation via esbuild
+  - Jest-compatible API
+  - Built-in type tests (expectTypeOf)
+  - HMR-enabled watch mode
+  - Browser mode (Playwright / WebDriverIO)
 ```
 
 ```typescript
@@ -57,11 +57,11 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    globals: true,           // describe, it, expect をグローバルに
+    globals: true,           // Make describe, it, expect global
     environment: "node",     // or "jsdom", "happy-dom"
     include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
     exclude: ["node_modules", "dist", "e2e/**"],
-    // カバレッジ設定
+    // Coverage settings
     coverage: {
       provider: "v8",        // or "istanbul"
       reporter: ["text", "html", "lcov", "json-summary"],
@@ -69,7 +69,7 @@ export default defineConfig({
       exclude: [
         "src/**/*.test.ts",
         "src/**/*.d.ts",
-        "src/**/index.ts",    // re-export のみのファイル
+        "src/**/index.ts",    // re-export only files
         "src/types/**",
       ],
       thresholds: {
@@ -79,28 +79,28 @@ export default defineConfig({
         statements: 80,
       },
     },
-    // 型テストの設定
+    // Type test settings
     typecheck: {
-      enabled: true,         // 型テストを有効化
+      enabled: true,         // Enable type tests
       tsconfig: "./tsconfig.test.json",
       include: ["src/**/*.typetest.ts"],
     },
-    // テストのタイムアウト
+    // Test timeout
     testTimeout: 10000,
     hookTimeout: 10000,
-    // セットアップファイル
+    // Setup files
     setupFiles: ["./tests/setup.ts"],
-    // グローバルセットアップ（テストスイート全体で1回）
+    // Global setup (once for the entire test suite)
     globalSetup: ["./tests/global-setup.ts"],
-    // スナップショット
+    // Snapshots
     snapshotFormat: {
       printBasicPrototype: false,
     },
-    // モック自動クリーンアップ
+    // Automatic mock cleanup
     restoreMocks: true,
     clearMocks: true,
     mockReset: true,
-    // 並列実行の設定
+    // Parallel execution settings
     pool: "threads",          // or "forks", "vmThreads"
     poolOptions: {
       threads: {
@@ -143,7 +143,7 @@ export default defineConfig({
 }
 ```
 
-### 1-2. テストの書き方
+### 1-2. Writing Tests
 
 ```typescript
 // src/user-service.test.ts
@@ -151,7 +151,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { UserService } from "./user-service";
 import type { IUserRepository, IEmailService } from "./interfaces";
 
-// モック作成（型安全）
+// Create mocks (type-safe)
 function createMockUserRepo(): IUserRepository {
   return {
     findById: vi.fn(),
@@ -254,10 +254,10 @@ describe("UserService", () => {
 });
 ```
 
-### 1-3. vi.mock によるモジュールモック
+### 1-3. Module Mocking with vi.mock
 
 ```typescript
-// モジュール全体をモック
+// Mock entire module
 vi.mock("./database", () => ({
   db: {
     query: vi.fn(),
@@ -265,7 +265,7 @@ vi.mock("./database", () => ({
   },
 }));
 
-// 部分モック（実装の一部だけ置き換え）
+// Partial mock (replace only part of implementation)
 vi.mock("./utils", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./utils")>();
   return {
@@ -275,23 +275,23 @@ vi.mock("./utils", async (importOriginal) => {
   };
 });
 
-// スパイ
+// Spy
 import * as mathUtils from "./math-utils";
 vi.spyOn(mathUtils, "calculate").mockReturnValue(42);
 
-// 環境変数のモック
+// Environment variable mock
 vi.stubEnv("NODE_ENV", "test");
 vi.stubEnv("API_KEY", "test-key");
 
-// タイマーのモック
+// Timer mock
 vi.useFakeTimers();
 vi.setSystemTime(new Date("2024-06-15T12:00:00Z"));
-// テスト後にリストア
+// Restore after test
 afterEach(() => {
   vi.useRealTimers();
 });
 
-// fetch のモック
+// fetch mock
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
 
@@ -302,7 +302,7 @@ mockFetch.mockResolvedValue({
 });
 ```
 
-### 1-4. スナップショットテスト
+### 1-4. Snapshot Tests
 
 ```typescript
 import { describe, it, expect } from "vitest";
@@ -312,26 +312,26 @@ describe("Snapshot tests", () => {
     const user = createUser({ name: "Alice", email: "alice@test.com" });
 
     expect(user).toMatchSnapshot();
-    // 初回実行時に __snapshots__ にスナップショットが保存される
+    // On first run, the snapshot is saved in __snapshots__
   });
 
   it("should match inline snapshot", () => {
     const result = formatCurrency(1234.56, "JPY");
 
     expect(result).toMatchInlineSnapshot(`"¥1,235"`);
-    // スナップショットがテストファイル内に埋め込まれる
+    // The snapshot is embedded in the test file
   });
 
   it("should match serialized output", () => {
     const html = renderToString(<UserCard user={mockUser} />);
 
     expect(html).toMatchSnapshot();
-    // スナップショットの更新: vitest --update
+    // Update snapshot: vitest --update
   });
 });
 ```
 
-### 1-5. パラメタライズドテスト
+### 1-5. Parameterized Tests
 
 ```typescript
 import { describe, it, expect } from "vitest";
@@ -351,7 +351,7 @@ describe("calculateTax", () => {
   );
 });
 
-// テーブル形式
+// Table format
 describe("validateEmail", () => {
   it.each`
     email                | valid    | reason
@@ -370,7 +370,7 @@ describe("validateEmail", () => {
 
 ## 2. Jest + TypeScript
 
-### 2-1. ts-jest セットアップ
+### 2-1. ts-jest Setup
 
 ```typescript
 // jest.config.ts
@@ -400,19 +400,19 @@ const config: Config = {
       statements: 80,
     },
   },
-  // セットアップファイル
+  // Setup files
   setupFilesAfterSetup: ["<rootDir>/tests/setup.ts"],
-  // タイムアウト
+  // Timeout
   testTimeout: 10000,
 };
 
 export default config;
 ```
 
-### 2-2. @swc/jest（高速版）
+### 2-2. @swc/jest (Fast Version)
 
 ```typescript
-// jest.config.ts -- SWC を使って高速化
+// jest.config.ts -- Use SWC for faster execution
 import type { Config } from "jest";
 
 const config: Config = {
@@ -447,11 +447,11 @@ const config: Config = {
 export default config;
 ```
 
-### 2-3. Jest から Vitest への移行
+### 2-3. Migrating from Jest to Vitest
 
 ```typescript
-// Jest のコードはほぼそのまま Vitest で動作する
-// 主な変更点:
+// Jest code works almost as-is in Vitest
+// Main changes:
 
 // 1. jest.fn() → vi.fn()
 // 2. jest.mock() → vi.mock()
@@ -460,42 +460,43 @@ export default config;
 // 4. jest.config.ts → vitest.config.ts
 // 5. @types/jest → vitest/globals
 
-// 6. 非互換な機能:
+// 6. Incompatible features:
 //    - jest.requireActual() → await importOriginal()
 //    - jest.useFakeTimers("modern") → vi.useFakeTimers()
 //    - jest.runAllTimers() → vi.runAllTimers()
 
-// 移行スクリプト（sed で一括置換）
+// Migration script (bulk replace with sed)
 // sed -i 's/jest\.fn/vi.fn/g' **/*.test.ts
 // sed -i 's/jest\.mock/vi.mock/g' **/*.test.ts
 // sed -i 's/jest\.spyOn/vi.spyOn/g' **/*.test.ts
 
-// codemod ツールも利用可能:
+// Codemod tool also available:
 // npx @vitest/codemod migrate-jest
 ```
 
 ---
 
-## 3. 型テスト
+## 3. Type Tests
 
-### 3-1. Vitest の expectTypeOf
+### 3-1. Vitest's expectTypeOf
 
 ```
-型テストの目的:
+Purpose of type tests:
 
-  ライブラリのパブリック API
+  Library public API
        |
        v
   +------------------+
-  | 型の正しさを検証   |
+  | Verify type      |
+  | correctness      |
   |                  |
-  | - 推論結果       |
-  | - 代入可能性     |
-  | - エラーになること |
+  | - Inference result    |
+  | - Assignability       |
+  | - That errors occur   |
   +------------------+
        |
        v
-  型の回帰テスト（リファクタリングで型が壊れない保証）
+  Type regression tests (guarantee types don't break during refactoring)
 ```
 
 ```typescript
@@ -543,19 +544,19 @@ describe("Result type tests", () => {
   });
 
   it("should not accept wrong types", () => {
-    // @ts-expect-error -- number は string に代入不可
+    // @ts-expect-error -- number is not assignable to string
     const bad: Result<string, string> = Ok(42);
   });
 
-  // expectTypeOf の豊富なアサーション
+  // Rich assertions with expectTypeOf
   it("should demonstrate various type assertions", () => {
-    // 型が一致するか
+    // Whether types match
     expectTypeOf<string>().toEqualTypeOf<string>();
 
-    // 代入可能か
+    // Whether assignable
     expectTypeOf<string>().toMatchTypeOf<string | number>();
 
-    // 関数の引数の型
+    // Type of function parameters
     function greet(name: string, age: number): string {
       return `${name} (${age})`;
     }
@@ -563,10 +564,10 @@ describe("Result type tests", () => {
     expectTypeOf(greet).parameter(1).toBeNumber();
     expectTypeOf(greet).returns.toBeString();
 
-    // 配列の要素型
+    // Element type of arrays
     expectTypeOf<string[]>().items.toBeString();
 
-    // オブジェクトのプロパティ
+    // Object properties
     interface User {
       name: string;
       age: number;
@@ -577,33 +578,33 @@ describe("Result type tests", () => {
 });
 ```
 
-### 3-2. tsd を使った型テスト
+### 3-2. Type Tests with tsd
 
 ```typescript
-// test-d/index.test-d.ts（tsd 用）
+// test-d/index.test-d.ts (for tsd)
 import { expectType, expectError, expectAssignable, expectNotType } from "tsd";
 import { createStore, type Store } from "../src";
 
-// 型が正しく推論されること
+// Correct type should be inferred
 const store = createStore({ count: 0, name: "test" });
 expectType<Store<{ count: number; name: string }>>(store);
 
-// get が正しい型を返すこと
+// get should return the correct type
 const count = store.get("count");
 expectType<number>(count);
 
-// 存在しないキーでエラーになること
+// Non-existent key should produce an error
 expectError(store.get("nonexistent"));
 
-// 代入可能性のテスト
+// Assignability test
 expectAssignable<{ count: number }>(store.getState());
 
-// 型が一致しないこと
+// Types should not match
 expectNotType<string>(store.get("count"));
 ```
 
 ```json
-// package.json に tsd の設定
+// tsd configuration in package.json
 {
   "scripts": {
     "test:types": "tsd"
@@ -614,23 +615,23 @@ expectNotType<string>(store.get("count"));
 }
 ```
 
-### 3-3. @ts-expect-error による型テスト
+### 3-3. Type Tests with @ts-expect-error
 
 ```typescript
-// コンパイルエラーになることを検証
+// Verify that compile errors occur
 describe("type safety", () => {
   it("should reject wrong argument types", () => {
     function add(a: number, b: number): number {
       return a + b;
     }
 
-    // @ts-expect-error -- string は number に代入不可
+    // @ts-expect-error -- string is not assignable to number
     add("1", "2");
 
-    // @ts-expect-error -- 引数が足りない
+    // @ts-expect-error -- not enough arguments
     add(1);
 
-    // @ts-expect-error -- 引数が多すぎる
+    // @ts-expect-error -- too many arguments
     add(1, 2, 3);
   });
 
@@ -641,7 +642,7 @@ describe("type safety", () => {
     function getUser(id: UserId): void {}
     const orderId = "order-1" as OrderId;
 
-    // @ts-expect-error -- OrderId は UserId に代入不可
+    // @ts-expect-error -- OrderId is not assignable to UserId
     getUser(orderId);
   });
 
@@ -653,7 +654,7 @@ describe("type safety", () => {
 
     const config: Config = { apiUrl: "https://api.example.com", port: 3000 };
 
-    // @ts-expect-error -- readonly プロパティに代入不可
+    // @ts-expect-error -- cannot assign to readonly property
     config.apiUrl = "https://other.com";
   });
 
@@ -669,7 +670,7 @@ describe("type safety", () => {
         case "square":
           return shape.side ** 2;
         default:
-          // never 型で網羅性チェック
+          // Exhaustiveness check with never type
           const _exhaustive: never = shape;
           return _exhaustive;
       }
@@ -680,31 +681,31 @@ describe("type safety", () => {
 
 ---
 
-## 4. テスト設計パターン
+## 4. Test Design Patterns
 
-### 4-1. AAA パターン（Arrange-Act-Assert）
+### 4-1. AAA Pattern (Arrange-Act-Assert)
 
 ```typescript
 it("should calculate total with tax", () => {
-  // Arrange（準備）
+  // Arrange
   const items = [
     { price: 1000, quantity: 2 },
     { price: 500, quantity: 3 },
   ];
   const taxRate = 0.1;
 
-  // Act（実行）
+  // Act
   const total = calculateTotal(items, taxRate);
 
-  // Assert（検証）
+  // Assert
   expect(total).toBe(3850); // (1000*2 + 500*3) * 1.1
 });
 ```
 
-### 4-2. テストデータビルダー
+### 4-2. Test Data Builder
 
 ```typescript
-// テストデータビルダーパターン
+// Test data builder pattern
 class UserBuilder {
   private data: Partial<User> = {
     id: "default-id",
@@ -743,7 +744,7 @@ class UserBuilder {
   }
 }
 
-// 使用例
+// Usage example
 it("admin should have special permissions", () => {
   const admin = UserBuilder.create()
     .withName("Admin Alice")
@@ -754,10 +755,10 @@ it("admin should have special permissions", () => {
 });
 ```
 
-### 4-3. テストコンテキストファクトリー
+### 4-3. Test Context Factory
 
 ```typescript
-// テストヘルパー
+// Test helper
 function createTestContext() {
   const userRepo = createMockUserRepo();
   const emailService = createMockEmailService();
@@ -799,7 +800,7 @@ describe("UserService", () => {
 });
 ```
 
-### 4-4. HTTP モック（msw）
+### 4-4. HTTP Mocking (msw)
 
 ```typescript
 // tests/mocks/handlers.ts
@@ -844,7 +845,7 @@ beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-// テストでの使用
+// Usage in tests
 describe("UserApiClient", () => {
   it("should fetch users", async () => {
     const client = new UserApiClient("https://api.example.com");
@@ -860,7 +861,7 @@ describe("UserApiClient", () => {
     await expect(client.getUser("404")).rejects.toThrow("User not found");
   });
 
-  // テストごとにハンドラーを上書き
+  // Override handler per test
   it("should handle server errors", async () => {
     server.use(
       http.get("https://api.example.com/users", () => {
@@ -874,7 +875,7 @@ describe("UserApiClient", () => {
 });
 ```
 
-### 4-5. データベーステスト（Prisma + テストコンテナ）
+### 4-5. Database Tests (Prisma + Test Containers)
 
 ```typescript
 // tests/helpers/database.ts
@@ -886,14 +887,14 @@ let container: StartedPostgreSqlContainer;
 let prisma: PrismaClient;
 
 export async function setupTestDatabase(): Promise<PrismaClient> {
-  // Docker コンテナでテスト用 PostgreSQL を起動
+  // Start test PostgreSQL in a Docker container
   container = await new PostgreSqlContainer("postgres:16")
     .withDatabase("testdb")
     .start();
 
   const databaseUrl = container.getConnectionUri();
 
-  // マイグレーションを適用
+  // Apply migrations
   execSync(`DATABASE_URL="${databaseUrl}" npx prisma migrate deploy`, {
     stdio: "pipe",
   });
@@ -911,7 +912,7 @@ export async function teardownTestDatabase(): Promise<void> {
 }
 
 export async function cleanDatabase(): Promise<void> {
-  // トランザクションで全テーブルをクリア
+  // Clear all tables in a transaction
   const tablenames = await prisma.$queryRaw<
     { tablename: string }[]
   >`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`;
@@ -923,7 +924,7 @@ export async function cleanDatabase(): Promise<void> {
   }
 }
 
-// テストでの使用
+// Usage in tests
 describe("UserRepository (integration)", () => {
   let prisma: PrismaClient;
   let repo: UserRepository;
@@ -965,23 +966,23 @@ describe("UserRepository (integration)", () => {
 
 ---
 
-## 5. テストの構成と命名規則
+## 5. Test Organization and Naming Conventions
 
-### 5-1. ファイル構成パターン
+### 5-1. File Organization Patterns
 
 ```
-パターン A: コロケーション（同一ディレクトリ）
+Pattern A: Colocation (same directory)
 src/
 ├── user/
 │   ├── user-service.ts
-│   ├── user-service.test.ts      ← テストをソースの横に
+│   ├── user-service.test.ts      ← Tests alongside source
 │   ├── user-repository.ts
 │   └── user-repository.test.ts
 └── order/
     ├── order-service.ts
     └── order-service.test.ts
 
-パターン B: 分離ディレクトリ
+Pattern B: Separate directory
 src/
 ├── user/
 │   ├── user-service.ts
@@ -995,30 +996,30 @@ tests/
 └── e2e/
     └── api.test.ts
 
-パターン C: ハイブリッド（推奨）
+Pattern C: Hybrid (recommended)
 src/
 ├── user/
 │   ├── user-service.ts
-│   ├── user-service.test.ts      ← ユニットテスト
+│   ├── user-service.test.ts      ← Unit tests
 │   └── user-repository.ts
 tests/
-├── integration/                   ← 統合テスト
+├── integration/                   ← Integration tests
 │   └── user-creation.test.ts
-├── e2e/                           ← E2E テスト
+├── e2e/                           ← E2E tests
 │   └── user-api.test.ts
-├── helpers/                       ← テストヘルパー
+├── helpers/                       ← Test helpers
 │   ├── database.ts
 │   ├── builders.ts
 │   └── mocks.ts
-└── setup.ts                       ← グローバルセットアップ
+└── setup.ts                       ← Global setup
 ```
 
-### 5-2. テスト命名規則
+### 5-2. Test Naming Conventions
 
 ```typescript
-// 命名パターン: should + 期待される振る舞い + when + 条件
+// Naming pattern: should + expected behavior + when + condition
 describe("UserService.createUser", () => {
-  // 正常系
+  // Happy path
   it("should create user and return Ok when valid data is provided", async () => {
     // ...
   });
@@ -1027,7 +1028,7 @@ describe("UserService.createUser", () => {
     // ...
   });
 
-  // 異常系
+  // Error cases
   it("should return ValidationError when email is invalid", async () => {
     // ...
   });
@@ -1036,7 +1037,7 @@ describe("UserService.createUser", () => {
     // ...
   });
 
-  // 境界値
+  // Boundary values
   it("should accept name with exactly 100 characters", async () => {
     // ...
   });
@@ -1049,51 +1050,51 @@ describe("UserService.createUser", () => {
 
 ---
 
-## 6. テストピラミッドとカバレッジ戦略
+## 6. Test Pyramid and Coverage Strategy
 
 ```
-テストピラミッド:
+Test Pyramid:
 
          /\
-        /  \     E2E テスト（少数）
+        /  \     E2E Tests (few)
        /    \    - Playwright / Cypress
-      /------\   - ユーザーシナリオ全体
-     /        \  - 実行時間: 長い
-    /   統合    \
-   /   テスト    \  統合テスト（中程度）
-  /--------------\  - DB / API の結合
- /                \ - テストコンテナ
-/   ユニットテスト   \
-+-------------------+ ユニットテスト（多数）
-                       - 純粋な関数
-                       - モック使用
-                       - 実行時間: 短い
+      /------\   - Complete user scenarios
+     /        \  - Execution time: long
+    / Integra-  \
+   /   tion      \  Integration Tests (moderate)
+  /--------------\  - DB / API integration
+ /                \ - Test containers
+/   Unit Tests     \
++-------------------+ Unit Tests (many)
+                       - Pure functions
+                       - Uses mocks
+                       - Execution time: short
 
-目安:
-  ユニットテスト: 70%
-  統合テスト:     20%
-  E2E テスト:     10%
+Guidelines:
+  Unit tests:        70%
+  Integration tests: 20%
+  E2E tests:         10%
 ```
 
 ```typescript
-// カバレッジの除外設定
+// Coverage exclusion settings
 // vitest.config.ts
 {
   test: {
     coverage: {
       exclude: [
-        // テストファイル自体
+        // Test files themselves
         "**/*.test.ts",
         "**/*.spec.ts",
-        // 型定義
+        // Type definitions
         "**/*.d.ts",
-        // 設定ファイル
+        // Config files
         "*.config.ts",
-        // re-export のみのファイル
+        // re-export only files
         "**/index.ts",
-        // 生成コード
+        // Generated code
         "src/generated/**",
-        // テストヘルパー
+        // Test helpers
         "tests/**",
       ],
     },
@@ -1103,75 +1104,75 @@ describe("UserService.createUser", () => {
 
 ---
 
-## 比較表
+## Comparison Tables
 
-### テストランナー比較
+### Test Runner Comparison
 
-| 特性 | Vitest | Jest | Node.js test runner |
-|------|--------|------|---------------------|
-| 速度 | 非常に速い | 普通 | 速い |
-| TypeScript | Vite で変換 | ts-jest / @swc/jest | --loader |
-| 型テスト | expectTypeOf 組込み | tsd 別途 | なし |
-| HMR | あり | なし | なし |
-| UI | vitest --ui | jest-stare 等 | なし |
-| Watch | 最適化済み | あり | あり |
+| Feature | Vitest | Jest | Node.js test runner |
+|---------|--------|------|---------------------|
+| Speed | Very fast | Moderate | Fast |
+| TypeScript | Transformed via Vite | ts-jest / @swc/jest | --loader |
+| Type tests | expectTypeOf built-in | tsd separately | None |
+| HMR | Yes | No | No |
+| UI | vitest --ui | jest-stare etc. | None |
+| Watch | Optimized | Yes | Yes |
 | Coverage | v8 / istanbul | istanbul | v8 |
-| エコシステム | 成長中 | 最大 | 最小 |
-| ブラウザテスト | Playwright/WebDriverIO | jsdom のみ | なし |
-| セットアップ | 簡単 | 中程度 | 最小 |
-| スナップショット | あり | あり | あり |
+| Ecosystem | Growing | Largest | Minimal |
+| Browser tests | Playwright/WebDriverIO | jsdom only | None |
+| Setup | Easy | Moderate | Minimal |
+| Snapshots | Yes | Yes | Yes |
 
-### モック手法の比較
+### Mock Method Comparison
 
-| 手法 | 用途 | 型安全性 | 柔軟性 | 推奨場面 |
-|------|------|---------|--------|---------|
-| vi.fn() / jest.fn() | 関数モック | 中 | 高 | コールバック |
-| vi.mock() / jest.mock() | モジュールモック | 低 | 最高 | 外部依存 |
-| vi.spyOn() / jest.spyOn() | スパイ | 高 | 中 | 既存関数の監視 |
-| 手動モック | DI ベース | 最高 | 中 | サービス層 |
-| msw | HTTP モック | 高 | 高 | API クライアント |
-| testcontainers | 実 DB テスト | 最高 | 最高 | リポジトリ層 |
+| Method | Use case | Type safety | Flexibility | Recommended for |
+|--------|----------|-------------|-------------|-----------------|
+| vi.fn() / jest.fn() | Function mock | Medium | High | Callbacks |
+| vi.mock() / jest.mock() | Module mock | Low | Highest | External dependencies |
+| vi.spyOn() / jest.spyOn() | Spy | High | Medium | Monitoring existing functions |
+| Manual mock | DI-based | Highest | Medium | Service layer |
+| msw | HTTP mock | High | High | API clients |
+| testcontainers | Real DB tests | Highest | Highest | Repository layer |
 
-### テスト環境の比較
+### Test Environment Comparison
 
-| 環境 | 用途 | DOM | パフォーマンス |
-|------|------|-----|-------------|
-| node | バックエンド | なし | 最速 |
-| jsdom | フロントエンド | シミュレート | 速い |
-| happy-dom | フロントエンド | シミュレート | 速い |
-| playwright | E2E / ブラウザ | 実ブラウザ | 遅い |
+| Environment | Use case | DOM | Performance |
+|-------------|----------|-----|-------------|
+| node | Backend | None | Fastest |
+| jsdom | Frontend | Simulated | Fast |
+| happy-dom | Frontend | Simulated | Fast |
+| playwright | E2E / Browser | Real browser | Slow |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### AP-1: テストで any を使う
+### AP-1: Using any in Tests
 
 ```typescript
-// NG: any で型安全性を破壊
+// Bad: Destroying type safety with any
 it("should process data", () => {
   const mockData: any = { foo: "bar" };
-  const result = processUser(mockData); // 型チェックが効かない
+  const result = processUser(mockData); // Type checking doesn't work
   expect(result).toBeDefined();
 });
 
-// OK: 正しい型でテストデータを作成
+// Good: Create test data with proper types
 it("should process data", () => {
   const user = UserBuilder.create()
     .withName("Alice")
     .withEmail("alice@test.com")
     .build();
-  const result = processUser(user); // 型チェックが効く
+  const result = processUser(user); // Type checking works
   expect(result.name).toBe("Alice");
 });
 ```
 
-### AP-2: 実装の詳細をテストする
+### AP-2: Testing Implementation Details
 
 ```typescript
-// NG: 内部実装に依存したテスト（壊れやすい）
+// Bad: Test that depends on internal implementation (fragile)
 it("should call repository save then email send", async () => {
-  // save が email より先に呼ばれることをテスト
+  // Testing that save is called before email
   const callOrder: string[] = [];
   mockRepo.save.mockImplementation(() => {
     callOrder.push("save");
@@ -1183,10 +1184,10 @@ it("should call repository save then email send", async () => {
   });
 
   await service.createUser(data);
-  expect(callOrder).toEqual(["save", "email"]); // 内部実装に依存
+  expect(callOrder).toEqual(["save", "email"]); // Depends on internal implementation
 });
 
-// OK: 振る舞い（結果）をテスト
+// Good: Test behavior (results)
 it("should create user and send welcome email", async () => {
   const result = await service.createUser(data);
   expect(result).toMatchObject({ _tag: "Ok" });
@@ -1198,26 +1199,26 @@ it("should create user and send welcome email", async () => {
 });
 ```
 
-### AP-3: テスト間の依存関係
+### AP-3: Dependencies Between Tests
 
 ```typescript
-// NG: テスト間で状態を共有
+// Bad: Sharing state between tests
 let userId: string;
 
 it("should create user", async () => {
   const user = await service.createUser(data);
-  userId = user.id; // 次のテストで使う ← 危険!
+  userId = user.id; // Used in next test ← Dangerous!
   expect(user).toBeDefined();
 });
 
 it("should get user", async () => {
-  const user = await service.getUser(userId); // 前のテストに依存
+  const user = await service.getUser(userId); // Depends on previous test
   expect(user.name).toBe("Alice");
 });
 
-// OK: 各テストが独立
+// Good: Each test is independent
 it("should get created user", async () => {
-  // Arrange: テスト内で完結
+  // Arrange: self-contained within test
   const created = await service.createUser(data);
 
   // Act
@@ -1228,10 +1229,10 @@ it("should get created user", async () => {
 });
 ```
 
-### AP-4: 過度なモック
+### AP-4: Excessive Mocking
 
 ```typescript
-// NG: 全てをモックして何も検証していない
+// Bad: Mocking everything and verifying nothing
 it("should work", async () => {
   mockRepo.findById.mockResolvedValue(mockUser);
   mockRepo.save.mockResolvedValue(undefined);
@@ -1242,10 +1243,10 @@ it("should work", async () => {
 
   const result = await service.updateUser("id", { name: "New" });
 
-  expect(result).toBeDefined(); // 何を検証してるのか不明
+  expect(result).toBeDefined(); // Unclear what is being verified
 });
 
-// OK: 本当に重要な振る舞いに焦点を当てる
+// Good: Focus on truly important behavior
 it("should update user name and invalidate cache", async () => {
   mockRepo.findById.mockResolvedValue(existingUser);
   mockRepo.save.mockResolvedValue(undefined);
@@ -1263,45 +1264,45 @@ it("should update user name and invalidate cache", async () => {
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Write test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation pattern"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1310,26 +1311,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should be raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1337,7 +1338,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1348,14 +1349,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1363,7 +1364,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1371,44 +1372,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1417,7 +1418,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1432,47 +1433,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be aware of algorithmic complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Configuration file issues | Check config file path and format |
+| Timeout | Network delay / resource shortage | Adjust timeout value, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check running user permissions, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce lock mechanism, transaction management |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read the stack trace and identify where it occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Incremental verification**: Use logging and debugger to verify hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debug utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1480,89 +1481,89 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input and output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check I/O waits**: Check disk and network I/O status
+4. **Check concurrent connections**: Check connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem type | Diagnostic tool | Solution |
+|-------------|-----------------|----------|
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexing, query optimization |
 ---
 
 ## FAQ
 
-### Q1: Vitest と Jest のどちらを選ぶべきですか？
+### Q1: Should I choose Vitest or Jest?
 
-新規プロジェクトでは Vitest を推奨します。Vite エコシステムとの統合、型テストの組込みサポート、高速な実行が利点です。既存の Jest プロジェクトを無理に移行する必要はありませんが、Vitest は Jest 互換の API を提供しているため、移行は比較的容易です。@vitest/codemod で自動移行も可能です。
+Vitest is recommended for new projects. Its advantages are integration with the Vite ecosystem, built-in type test support, and fast execution. There is no need to forcibly migrate existing Jest projects, but since Vitest provides a Jest-compatible API, migration is relatively straightforward. Automatic migration is also possible with @vitest/codemod.
 
-### Q2: 型テストはどのくらい書くべきですか？
+### Q2: How many type tests should I write?
 
-ライブラリやユーティリティ型を公開する場合は必須です。アプリケーションコードでは、複雑なジェネリクス関数やユーティリティ型に対して書くと効果的です。全ての関数に型テストを書く必要はなく、「型の推論結果が重要な部分」に集中してください。
+They are essential when publishing libraries or utility types. For application code, they are effective when written for complex generic functions or utility types. There is no need to write type tests for every function -- focus on "parts where the type inference result matters."
 
-### Q3: テストカバレッジの目標は何%が適切ですか？
+### Q3: What is the appropriate test coverage target?
 
-80% が一般的な目標です。ただし、カバレッジ% だけを追うのではなく、「クリティカルパス（正常系・異常系の主要フロー）がカバーされているか」を重視してください。100% を目指すとテストの保守コストが膨大になります。
+80% is a common target. However, rather than chasing coverage % alone, prioritize whether "the critical path (main happy path and error flows) is covered." Aiming for 100% makes test maintenance costs enormous.
 
-### Q4: 統合テストで本物の DB を使うべきですか？
+### Q4: Should I use a real DB in integration tests?
 
-可能であれば testcontainers で本物の DB を使うことを推奨します。モックでは検出できない SQL の問題やデータの整合性エラーを発見できます。CI 環境では Docker が必要になりますが、GitHub Actions 等では容易に設定できます。
+If possible, it is recommended to use a real DB with testcontainers. You can discover SQL issues and data integrity errors that cannot be detected with mocks. Docker is required in CI environments, but it is easy to configure in GitHub Actions etc.
 
-### Q5: テストが遅い場合の対処法は？
+### Q5: What to do when tests are slow?
 
-1. `vitest --pool=threads` で並列実行
-2. `vitest --changed` で変更ファイルに関連するテストのみ実行
-3. モジュールモックの最小化（モックが多いほどオーバーヘッドが大きい）
-4. 統合テストとユニットテストの分離（`vitest --project unit`）
-5. CI では `--shard` で並列ジョブに分割
-
----
-
-## まとめ表
-
-| 概念 | 要点 |
-|------|------|
-| Vitest | Vite ベース、高速、型テスト組込み |
-| Jest | 最大のエコシステム、@swc/jest で高速化可能 |
-| 型テスト | expectTypeOf / tsd でライブラリの型を検証 |
-| @ts-expect-error | コンパイルエラーになることを検証 |
-| AAA パターン | Arrange-Act-Assert で構造化 |
-| DI + モック | インターフェースベースで差し替え容易に |
-| msw | HTTP リクエストのモック（サービスワーカー） |
-| テストピラミッド | ユニット 70%、統合 20%、E2E 10% |
+1. `vitest --pool=threads` for parallel execution
+2. `vitest --changed` to run only tests related to changed files
+3. Minimize module mocks (more mocks = greater overhead)
+4. Separate integration tests and unit tests (`vitest --project unit`)
+5. Use `--shard` in CI to split into parallel jobs
 
 ---
 
-## 7. React コンポーネントのテスト
+## Summary Table
+
+| Concept | Key points |
+|---------|------------|
+| Vitest | Vite-based, fast, built-in type tests |
+| Jest | Largest ecosystem, can be sped up with @swc/jest |
+| Type tests | Verify library types with expectTypeOf / tsd |
+| @ts-expect-error | Verify that compile errors occur |
+| AAA pattern | Structured with Arrange-Act-Assert |
+| DI + mocks | Easy to swap out with interface-based design |
+| msw | HTTP request mocking (service worker) |
+| Test pyramid | Unit 70%, integration 20%, E2E 10% |
+
+---
+
+## 7. Testing React Components
 
 ### 7-1. Testing Library + Vitest
 
@@ -1604,7 +1605,7 @@ describe("UserCard", () => {
     fireEvent.click(screen.getByRole("button", { name: /delete/i }));
 
     await waitFor(() => {
-      expect(screen.getByText("本当に削除しますか？")).toBeInTheDocument();
+      expect(screen.getByText("Are you sure you want to delete?")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: /confirm/i }));
@@ -1613,7 +1614,7 @@ describe("UserCard", () => {
 });
 ```
 
-### 7-2. カスタムフックのテスト
+### 7-2. Testing Custom Hooks
 
 ```typescript
 // src/hooks/useUsers.test.ts
@@ -1644,10 +1645,10 @@ describe("useUsers", () => {
       wrapper: createWrapper(),
     });
 
-    // 初期状態
+    // Initial state
     expect(result.current.isLoading).toBe(true);
 
-    // データ取得完了
+    // Data fetch complete
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
@@ -1657,7 +1658,7 @@ describe("useUsers", () => {
   });
 
   it("should handle error state", async () => {
-    // msw でエラーレスポンスを返す設定に上書き
+    // Override with msw to return error response
     server.use(
       http.get("https://api.example.com/users", () => {
         return new HttpResponse(null, { status: 500 });
@@ -1679,7 +1680,7 @@ describe("useUsers", () => {
 
 ---
 
-## 8. CI/CD でのテスト設定
+## 8. Test Configuration in CI/CD
 
 ### 8-1. GitHub Actions
 
@@ -1693,7 +1694,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        shard: [1/4, 2/4, 3/4, 4/4]  # テストを4分割
+        shard: [1/4, 2/4, 3/4, 4/4]  # Split tests into 4 shards
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -1731,32 +1732,32 @@ jobs:
           files: coverage/lcov.info
 ```
 
-### 8-2. テストのパフォーマンス最適化
+### 8-2. Test Performance Optimization
 
 ```typescript
-// vitest.config.ts でパフォーマンスを最適化
+// Optimize performance in vitest.config.ts
 export default defineConfig({
   test: {
-    // スレッドプールで並列実行
+    // Parallel execution with thread pool
     pool: "threads",
     poolOptions: {
       threads: {
-        // CPU コア数に合わせる
+        // Adjust to number of CPU cores
         minThreads: 2,
         maxThreads: 8,
       },
     },
-    // 失敗したテストを先に実行（フィードバック高速化）
+    // Run failed tests first (faster feedback)
     sequence: {
       shuffle: false,
     },
-    // テスト分離（メモリリーク防止）
+    // Test isolation (prevent memory leaks)
     isolate: true,
-    // ファイルごとのタイムアウト
+    // Per-file timeout
     testTimeout: 10000,
-    // 重いテストの特定
+    // Identify slow tests
     slowTestThreshold: 1000,
-    // レポーター設定
+    // Reporter settings
     reporters: ["default", "junit"],
     outputFile: {
       junit: "test-results/junit.xml",
@@ -1768,26 +1769,26 @@ export default defineConfig({
 ---
 
 
-## まとめ
+## Summary
 
-このガイドでは以下の重要なポイントを学びました:
+This guide covered the following key points:
 
-- 基本概念と原則の理解
-- 実践的な実装パターン
-- ベストプラクティスと注意点
-- 実務での活用方法
-
----
-
-## 次に読むべきガイド
-
-- [ビルドツール](./01-build-tools.md) -- Vitest と Vite の連携設定
-- [DI パターン](../02-patterns/04-dependency-injection.md) -- テスタブルな設計と DI
-- [ESLint + TypeScript](./04-eslint-typescript.md) -- テストコードの lint ルール
+- Understanding basic concepts and principles
+- Practical implementation patterns
+- Best practices and cautions
+- How to apply in real-world projects
 
 ---
 
-## 参考文献
+## Guides to Read Next
+
+- [Build Tools](./01-build-tools.md) -- Integration settings between Vitest and Vite
+- [DI Pattern](../02-patterns/04-dependency-injection.md) -- Testable design and DI
+- [ESLint + TypeScript](./04-eslint-typescript.md) -- Lint rules for test code
+
+---
+
+## References
 
 1. **Vitest** -- Next Generation Testing Framework
    https://vitest.dev/
