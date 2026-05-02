@@ -1,109 +1,111 @@
-# Iterator パターン
+# Iterator Pattern
 
-> コレクションの内部構造を隠蔽しつつ要素に順次アクセスする手法と、ジェネレータによる遅延評価を習得する
-
----
-
-## この章で学ぶこと
-
-1. **Iterator プロトコルの仕組み** -- Symbol.iterator と for...of の内部動作、カスタムイテレータの設計と実装
-2. **ジェネレータ関数 (function*)** -- yield による遅延評価、無限シーケンス、コルーチンとしてのジェネレータ
-3. **非同期イテレータ (AsyncGenerator)** -- API ページネーション、ストリーム処理、for await...of の活用
-4. **実用的なイテレータパターン** -- 遅延評価パイプライン、ツリー走査、外部イテレータと内部イテレータ
-5. **GoF の Iterator と JavaScript の Iterator プロトコル** -- 古典的パターンと言語組込みプロトコルの対応関係
+> Master techniques for sequentially accessing elements while hiding a collection's internal structure, and learn lazy evaluation using generators
 
 ---
 
-## 前提知識
+## What You Will Learn
 
-| トピック | 必要な理解 | 参照リンク |
+1. **How the Iterator protocol works** -- Internal workings of Symbol.iterator and for...of, designing and implementing custom iterators
+2. **Generator functions (function*)** -- Lazy evaluation with yield, infinite sequences, generators as coroutines
+3. **Async iterators (AsyncGenerator)** -- API pagination, stream processing, using for await...of
+4. **Practical iterator patterns** -- Lazy evaluation pipelines, tree traversal, external vs internal iterators
+5. **GoF Iterator and the JavaScript Iterator protocol** -- Relationship between the classic pattern and the language-built-in protocol
+
+---
+
+## Prerequisites
+
+| Topic | Required Understanding | Reference |
 |---------|-----------|-----------|
-| TypeScript のジェネリクス | `Iterable<T>`, `Iterator<T>`, `Generator<T>` の型パラメータ | 02-programming |
-| Promise / async-await | 非同期処理の基本、`for await...of` の構文 | 02-programming |
-| データ構造の基本 | 配列、連結リスト、ツリーの概念 | 01-cs-fundamentals |
-| Composite パターン | ツリー構造のパターン（走査に Iterator を利用） | [../01-structural/04-composite.md](../01-structural/04-composite.md) |
+| TypeScript generics | Type parameters of `Iterable<T>`, `Iterator<T>`, `Generator<T>` | 02-programming |
+| Promise / async-await | Basics of async processing, `for await...of` syntax | 02-programming |
+| Basic data structures | Concepts of arrays, linked lists, and trees | 01-cs-fundamentals |
+| Composite pattern | Tree structure pattern (uses Iterator for traversal) | [../01-structural/04-composite.md](../01-structural/04-composite.md) |
 
 ---
 
-## なぜ Iterator パターンが必要なのか
+## Why the Iterator Pattern Is Needed
 
-### コレクションの内部構造への依存問題
+### The Problem of Depending on a Collection's Internal Structure
 
 ```
-配列、連結リスト、ツリー、ハッシュマップ...
-コレクションの種類ごとに走査方法が異なる:
+Arrays, linked lists, trees, hash maps...
+Each collection type has a different traversal method:
 
-  配列:
+  Array:
     for (let i = 0; i < arr.length; i++) { arr[i] }
 
-  連結リスト:
+  Linked List:
     let node = head;
     while (node) { node = node.next; }
 
-  ツリー (深さ優先):
+  Tree (depth-first):
     function traverse(node) {
       visit(node);
       for (const child of node.children) traverse(child);
     }
 
-  ハッシュマップ:
+  Hash Map:
     for (const key of Object.keys(map)) { map[key] }
 
-  問題:
+  Problem:
   ┌────────────────────────────────────────────────┐
-  │ 利用者がコレクションの内部構造を知る必要がある    │
-  │ コレクションの種類を変えると、走査コードも変更     │
-  │ 走査ロジック (DFS/BFS 等) が利用者側に散在       │
+  │ Consumers need to know the internal structure  │
+  │ Changing the collection type requires changing │
+  │ the traversal code as well                     │
+  │ Traversal logic (DFS/BFS etc.) is scattered    │
+  │ across consumer code                           │
   └────────────────────────────────────────────────┘
 ```
 
-### Iterator パターンによる解決
+### Solution via the Iterator Pattern
 
 ```
-Iterator パターンの解決:
+Iterator pattern solution:
 
   ┌──────────────────┐     ┌──────────────────┐
   │   Collection     │────►│   Iterator       │
-  │ (内部構造を隠蔽)  │     │ (統一アクセス)    │
-  │                  │     │                  │
+  │ (hides internal  │     │ (unified access) │
+  │  structure)      │     │                  │
   │ [Symbol.iterator]│     │ + next()         │
   │   → Iterator     │     │   { value, done }│
   └──────────────────┘     └──────────────────┘
 
-  利用者側は常に同じコード:
+  Consumer always uses the same code:
     for (const item of collection) {
-      // 配列でも、リストでも、ツリーでも同じ
+      // Same for arrays, lists, trees, etc.
     }
 
-  利点:
-  ✓ コレクションの内部構造を知らなくてよい
-  ✓ 走査アルゴリズムを複数持てる（DFS, BFS, フィルタ付き等）
-  ✓ 遅延評価で無限シーケンスも表現可能
-  ✓ スプレッド演算子、分割代入、Array.from が自動的に使える
+  Benefits:
+  ✓ No need to know the collection's internal structure
+  ✓ Multiple traversal algorithms are supported (DFS, BFS, filtered, etc.)
+  ✓ Lazy evaluation can express infinite sequences
+  ✓ Spread operator, destructuring, Array.from work automatically
 ```
 
-GoF の定義:
+GoF definition:
 
 > "Provide a way to access the elements of an aggregate object sequentially without exposing its underlying representation."
 >
 > -- Design Patterns: Elements of Reusable Object-Oriented Software (1994)
 
-JavaScript/TypeScript では、Iterator パターンが **言語仕様に組み込まれている** 点が特徴的です。`Symbol.iterator` プロトコルを実装するだけで、`for...of`、スプレッド演算子、分割代入、`Array.from` などの言語機能が自動的に利用可能になります。
+In JavaScript/TypeScript, a notable feature is that the Iterator pattern is **built into the language specification**. Simply implementing the `Symbol.iterator` protocol automatically enables language features such as `for...of`, the spread operator, destructuring, and `Array.from`.
 
 ---
 
-## 1. Iterator プロトコルの構造
+## 1. Structure of the Iterator Protocol
 
 ```
-JavaScript/TypeScript の Iterator プロトコル:
+JavaScript/TypeScript Iterator protocol:
 
   ┌─────────────────────────────┐
   │        Iterable             │
   │                             │
   │  [Symbol.iterator]()        │
-  │    → Iterator を返す        │
+  │    → returns an Iterator    │
   │                             │
-  │  使える構文:                 │
+  │  Usable syntax:             │
   │    for...of                 │
   │    [...iterable]            │
   │    const [a, b] = iterable  │
@@ -118,37 +120,37 @@ JavaScript/TypeScript の Iterator プロトコル:
   │        Iterator             │
   │                             │
   │  next(): IteratorResult     │
-  │    { value: T, done: false }│  ← 値がある
+  │    { value: T, done: false }│  ← has a value
   │    { value: undefined,      │
-  │      done: true }           │  ← 終了
+  │      done: true }           │  ← finished
   │                             │
-  │  return?(): IteratorResult  │  ← 早期終了
-  │  throw?(e): IteratorResult  │  ← エラー注入
+  │  return?(): IteratorResult  │  ← early exit
+  │  throw?(e): IteratorResult  │  ← error injection
   └─────────────────────────────┘
 
-  呼び出しシーケンス:
+  Call sequence:
   ┌──────┐    ┌──────┐    ┌──────┐    ┌──────────┐
   │next()│───►│next()│───►│next()│───►│next()    │
   │{v:1, │    │{v:2, │    │{v:3, │    │{done:    │
   │ d:F} │    │ d:F} │    │ d:F} │    │ true}    │
   └──────┘    └──────┘    └──────┘    └──────────┘
 
-  ★ 重要: Iterable ≠ Iterator
-    Iterable: [Symbol.iterator]() メソッドを持つ → 何度でも Iterator を生成
-    Iterator: next() メソッドを持つ → 1回使い切り
+  ★ Important: Iterable ≠ Iterator
+    Iterable: has a [Symbol.iterator]() method → generates a new Iterator each time
+    Iterator: has a next() method → single-use
 ```
 
 ---
 
-## 2. カスタムイテレータの実装
+## 2. Implementing Custom Iterators
 
-### コード例 1: 範囲イテレータ（Range）
+### Code Example 1: Range Iterator
 
 ```typescript
-// range-iterator.ts -- 範囲イテレータ
+// range-iterator.ts -- Range iterator
 
 // ============================
-// Iterable を実装するクラス
+// Class implementing Iterable
 // ============================
 class Range implements Iterable<number> {
   constructor(
@@ -161,7 +163,7 @@ class Range implements Iterable<number> {
     if (step < 0 && start < end) throw new Error('start must be >= end for negative step');
   }
 
-  /** Iterable プロトコル: Iterator を生成して返す */
+  /** Iterable protocol: generates and returns an Iterator */
   [Symbol.iterator](): Iterator<number> {
     let current = this.start;
     const end = this.end;
@@ -179,12 +181,12 @@ class Range implements Iterable<number> {
     };
   }
 
-  /** 要素数を事前計算（遅延評価を維持しつつサイズ取得） */
+  /** Pre-calculate element count (get size while maintaining lazy evaluation) */
   get length(): number {
     return Math.max(0, Math.ceil((this.end - this.start) / this.step));
   }
 
-  /** 要素が含まれるか判定（O(1)） */
+  /** Check if a value is included (O(1)) */
   includes(value: number): boolean {
     if (this.step > 0) {
       if (value < this.start || value >= this.end) return false;
@@ -196,36 +198,36 @@ class Range implements Iterable<number> {
 }
 
 // ============================
-// 使用例
+// Usage examples
 // ============================
 
-// for...of で走査
+// Traverse with for...of
 for (const n of new Range(1, 5)) {
   console.log(n); // 1, 2, 3, 4
 }
 
-// スプレッド演算子
+// Spread operator
 const numbers = [...new Range(0, 10, 2)]; // [0, 2, 4, 6, 8]
 
-// 分割代入
+// Destructuring
 const [first, second] = new Range(10, 0, -3); // first=10, second=7
 
 // Array.from
 const arr = Array.from(new Range(1, 6)); // [1, 2, 3, 4, 5]
 
-// ★ Iterable なので何度でも走査可能
+// ★ Since it is Iterable, it can be traversed multiple times
 const range = new Range(1, 4);
 console.log([...range]); // [1, 2, 3]
-console.log([...range]); // [1, 2, 3] ← 2回目も同じ結果
+console.log([...range]); // [1, 2, 3] ← same result on second pass
 ```
 
-### コード例 2: 連結リストのイテレータ
+### Code Example 2: Linked List Iterator
 
 ```typescript
-// linked-list-iterator.ts -- 連結リストのイテレータ
+// linked-list-iterator.ts -- Linked list iterator
 
 // ============================
-// Node と LinkedList の定義
+// Node and LinkedList definitions
 // ============================
 class ListNode<T> {
   constructor(
@@ -249,7 +251,7 @@ class LinkedList<T> implements Iterable<T> {
     return this._size;
   }
 
-  /** 順方向のイテレータ */
+  /** Forward iterator */
   [Symbol.iterator](): Iterator<T> {
     let current = this.head;
 
@@ -265,9 +267,9 @@ class LinkedList<T> implements Iterable<T> {
     };
   }
 
-  /** 逆順イテレータ（複数の走査方法を提供） */
+  /** Reverse iterator (providing multiple traversal methods) */
   reversed(): Iterable<T> {
-    const items = [...this]; // 一度配列に
+    const items = [...this]; // convert to array first
     let index = items.length - 1;
 
     return {
@@ -284,7 +286,7 @@ class LinkedList<T> implements Iterable<T> {
     };
   }
 
-  /** 条件付きフィルタイテレータ */
+  /** Conditional filter iterator */
   filter(predicate: (value: T) => boolean): Iterable<T> {
     const source = this;
     return {
@@ -298,24 +300,24 @@ class LinkedList<T> implements Iterable<T> {
 }
 
 // ============================
-// 使用例
+// Usage examples
 // ============================
 const list = new LinkedList<number>();
 list.push(3);
 list.push(2);
 list.push(1);
 
-// 順方向
+// Forward
 for (const value of list) {
   console.log(value); // 1, 2, 3
 }
 
-// 逆順
+// Reverse
 for (const value of list.reversed()) {
   console.log(value); // 3, 2, 1
 }
 
-// フィルタ付き
+// With filter
 for (const value of list.filter(v => v % 2 !== 0)) {
   console.log(value); // 1, 3
 }
@@ -323,15 +325,15 @@ for (const value of list.filter(v => v % 2 !== 0)) {
 
 ---
 
-## 3. ジェネレータ関数
+## 3. Generator Functions
 
-### コード例 3: ジェネレータの基本と応用
+### Code Example 3: Generator Basics and Applications
 
 ```typescript
-// generators.ts -- ジェネレータの基本と応用
+// generators.ts -- Generator basics and applications
 
 // ============================
-// 基本的なジェネレータ
+// Basic generator
 // ============================
 function* fibonacci(): Generator<number> {
   let a = 0;
@@ -342,7 +344,7 @@ function* fibonacci(): Generator<number> {
   }
 }
 
-// 先頭 N 個を取得するヘルパー
+// Helper to get the first N elements
 function take<T>(n: number, iterable: Iterable<T>): T[] {
   const result: T[] = [];
   for (const item of iterable) {
@@ -356,22 +358,22 @@ console.log(take(8, fibonacci()));
 // [0, 1, 1, 2, 3, 5, 8, 13]
 
 // ============================
-// ジェネレータによるツリーの走査
+// Tree traversal using generators
 // ============================
 interface TreeNode<T> {
   value: T;
   children: TreeNode<T>[];
 }
 
-/** 深さ優先走査（前順: pre-order） */
+/** Depth-first traversal (pre-order) */
 function* depthFirst<T>(root: TreeNode<T>): Generator<T> {
   yield root.value;
   for (const child of root.children) {
-    yield* depthFirst(child); // yield* で再帰的にデリゲート
+    yield* depthFirst(child); // recursively delegate with yield*
   }
 }
 
-/** 深さ優先走査（後順: post-order） */
+/** Depth-first traversal (post-order) */
 function* depthFirstPostOrder<T>(root: TreeNode<T>): Generator<T> {
   for (const child of root.children) {
     yield* depthFirstPostOrder(child);
@@ -379,7 +381,7 @@ function* depthFirstPostOrder<T>(root: TreeNode<T>): Generator<T> {
   yield root.value;
 }
 
-/** 幅優先走査 (BFS) */
+/** Breadth-first traversal (BFS) */
 function* breadthFirst<T>(root: TreeNode<T>): Generator<T> {
   const queue: TreeNode<T>[] = [root];
   while (queue.length > 0) {
@@ -389,7 +391,7 @@ function* breadthFirst<T>(root: TreeNode<T>): Generator<T> {
   }
 }
 
-/** レベルごとのグループ化走査 */
+/** Level-grouped traversal */
 function* levelOrder<T>(root: TreeNode<T>): Generator<T[]> {
   let currentLevel: TreeNode<T>[] = [root];
   while (currentLevel.length > 0) {
@@ -404,7 +406,7 @@ function* levelOrder<T>(root: TreeNode<T>): Generator<T[]> {
 }
 
 // ============================
-// 使用例
+// Usage examples
 // ============================
 const tree: TreeNode<string> = {
   value: 'A',
@@ -433,9 +435,9 @@ console.log([...levelOrder(tree)]);
 ```
 
 ```
-ジェネレータの実行フロー:
+Generator execution flow:
 
-  function* gen() {        呼び出し側
+  function* gen() {        Caller side
     yield 1;               const g = gen();
     yield 2;               g.next() → { value: 1, done: false }
     yield 3;               g.next() → { value: 2, done: false }
@@ -446,26 +448,26 @@ console.log([...levelOrder(tree)]);
   │ Generator       │     │ Caller          │
   │                 │     │                 │
   │  ──── yield 1 ──┼────►│ value: 1        │
-  │  (一時停止)      │     │                 │
+  │  (suspended)    │     │                 │
   │                 │◄────┼── next() ───    │
   │  ──── yield 2 ──┼────►│ value: 2        │
-  │  (一時停止)      │     │                 │
+  │  (suspended)    │     │                 │
   │                 │◄────┼── next() ───    │
   │  ──── yield 3 ──┼────►│ value: 3        │
-  │  (一時停止)      │     │                 │
+  │  (suspended)    │     │                 │
   │                 │◄────┼── next() ───    │
   │  ──── return 4 ─┼────►│ done: true      │
   └─────────────────┘     └─────────────────┘
 
-  ★ yield は「一時停止 + 値の送出」
-  ★ next() は「再開 + 値の受信」
-  ★ return の値は for...of では取得されない
-    （done: true の value は無視される）
+  ★ yield means "suspend + emit a value"
+  ★ next() means "resume + receive a value"
+  ★ The value of return is not captured by for...of
+    (the value when done: true is ignored)
 
-  yield* によるデリゲート:
+  Delegation with yield*:
   function* outer() {
     yield 'a';
-    yield* inner();   // inner のすべての yield を外に転送
+    yield* inner();   // forwards all yields from inner to the outside
     yield 'c';
   }
   function* inner() { yield 'b1'; yield 'b2'; }
@@ -475,15 +477,15 @@ console.log([...levelOrder(tree)]);
 
 ---
 
-## 4. 非同期イテレータ
+## 4. Async Iterators
 
-### コード例 4: API ページネーションの自動走査
+### Code Example 4: Automatic Traversal of API Pagination
 
 ```typescript
-// async-iterators.ts -- 非同期イテレータの活用
+// async-iterators.ts -- Using async iterators
 
 // ============================
-// API ページネーション
+// API pagination
 // ============================
 interface PageResponse<T> {
   items: T[];
@@ -511,7 +513,7 @@ async function* fetchAllPages<T>(
     const data: PageResponse<T> = await response.json();
 
     for (const item of data.items) {
-      yield item; // 1件ずつ yield（メモリ効率が良い）
+      yield item; // yield one item at a time (memory-efficient)
     }
 
     hasMore = page * pageSize < data.total;
@@ -519,7 +521,7 @@ async function* fetchAllPages<T>(
   }
 }
 
-// 使用例: 全ユーザーを1件ずつ処理（メモリ効率が良い）
+// Usage: process all users one at a time (memory-efficient)
 interface User { id: string; name: string; active: boolean; }
 
 async function processAllUsers(): Promise<void> {
@@ -534,7 +536,7 @@ async function processAllUsers(): Promise<void> {
 }
 
 // ============================
-// ReadableStream のラインリーダー
+// ReadableStream line reader
 // ============================
 async function* readLines(
   stream: ReadableStream<Uint8Array>
@@ -557,7 +559,7 @@ async function* readLines(
       }
     }
 
-    // 最後のバッファ（改行なし）
+    // Last buffer (no trailing newline)
     if (buffer) {
       yield buffer;
     }
@@ -567,7 +569,7 @@ async function* readLines(
 }
 
 // ============================
-// Server-Sent Events (SSE) のストリーム
+// Server-Sent Events (SSE) stream
 // ============================
 async function* streamSSE(url: string): AsyncGenerator<{
   event: string;
@@ -579,8 +581,8 @@ async function* streamSSE(url: string): AsyncGenerator<{
   for await (const line of readLines(response.body)) {
     if (line.startsWith('event: ')) {
       const event = line.slice(7);
-      // 次の行が data:
-      // (簡略化: 実際の SSE パーサーはもっと複雑)
+      // Next line is data:
+      // (simplified: a real SSE parser is more complex)
       continue;
     }
     if (line.startsWith('data: ')) {
@@ -589,19 +591,19 @@ async function* streamSSE(url: string): AsyncGenerator<{
   }
 }
 
-// 使用例: SSE ストリームの購読
+// Usage: subscribing to an SSE stream
 async function watchUpdates(): Promise<void> {
   for await (const { event, data } of streamSSE('/api/events')) {
     console.log(`[${event}] ${data}`);
-    // 必要に応じて break で中断可能
+    // Can break to interrupt if needed
   }
 }
 ```
 
 ```
-同期 vs 非同期イテレータの対応関係:
+Correspondence between sync and async iterators:
 
-  同期                         非同期
+  Sync                         Async
   ─────────────────────────    ─────────────────────────
   Iterable                     AsyncIterable
   [Symbol.iterator]()          [Symbol.asyncIterator]()
@@ -609,29 +611,29 @@ async function watchUpdates(): Promise<void> {
   next(): IteratorResult       next(): Promise<IteratorResult>
   for...of                     for await...of
   function*                    async function*
-  yield                        yield (async コンテキスト内)
+  yield                        yield (inside async context)
   yield*                       yield*
 
-  ★ for await...of は以下と等価:
+  ★ for await...of is equivalent to:
   const iter = asyncIterable[Symbol.asyncIterator]();
   while (true) {
     const { value, done } = await iter.next();
     if (done) break;
-    // value を処理
+    // process value
   }
 ```
 
 ---
 
-## 5. イテレータパイプライン（遅延評価）
+## 5. Iterator Pipeline (Lazy Evaluation)
 
-### コード例 5: 関数型イテレータ操作ライブラリ
+### Code Example 5: Functional Iterator Operations Library
 
 ```typescript
-// iterator-pipeline.ts -- 関数型イテレータ操作
+// iterator-pipeline.ts -- Functional iterator operations
 
 // ============================
-// 遅延評価パイプラインクラス
+// Lazy evaluation pipeline class
 // ============================
 class Iter<T> implements Iterable<T> {
   constructor(private source: Iterable<T>) {}
@@ -640,14 +642,14 @@ class Iter<T> implements Iterable<T> {
     return new Iter(source);
   }
 
-  /** 無限の繰り返しイテレータ */
+  /** Infinite repetition iterator */
   static repeat<T>(value: T): Iter<T> {
     return new Iter((function* () {
       while (true) yield value;
     })());
   }
 
-  /** 自然数列 (0, 1, 2, ...) */
+  /** Natural number sequence (0, 1, 2, ...) */
   static naturals(): Iter<number> {
     return new Iter((function* () {
       let n = 0;
@@ -659,7 +661,7 @@ class Iter<T> implements Iterable<T> {
     yield* this.source;
   }
 
-  /** 値の変換 */
+  /** Transform values */
   map<U>(fn: (item: T, index: number) => U): Iter<U> {
     const source = this.source;
     return new Iter((function* () {
@@ -670,7 +672,7 @@ class Iter<T> implements Iterable<T> {
     })());
   }
 
-  /** フィルタリング */
+  /** Filtering */
   filter(predicate: (item: T) => boolean): Iter<T> {
     const source = this.source;
     return new Iter((function* () {
@@ -680,7 +682,7 @@ class Iter<T> implements Iterable<T> {
     })());
   }
 
-  /** 先頭 N 個を取得 */
+  /** Take first N elements */
   take(n: number): Iter<T> {
     const source = this.source;
     return new Iter((function* () {
@@ -693,7 +695,7 @@ class Iter<T> implements Iterable<T> {
     })());
   }
 
-  /** 先頭 N 個をスキップ */
+  /** Skip first N elements */
   skip(n: number): Iter<T> {
     const source = this.source;
     return new Iter((function* () {
@@ -705,7 +707,7 @@ class Iter<T> implements Iterable<T> {
     })());
   }
 
-  /** 条件を満たす間だけ取得 */
+  /** Take elements while condition is true */
   takeWhile(predicate: (item: T) => boolean): Iter<T> {
     const source = this.source;
     return new Iter((function* () {
@@ -716,7 +718,7 @@ class Iter<T> implements Iterable<T> {
     })());
   }
 
-  /** フラットマップ */
+  /** Flat map */
   flatMap<U>(fn: (item: T) => Iterable<U>): Iter<U> {
     const source = this.source;
     return new Iter((function* () {
@@ -726,7 +728,7 @@ class Iter<T> implements Iterable<T> {
     })());
   }
 
-  /** 隣接要素のペア */
+  /** Pairs of adjacent elements */
   pairwise(): Iter<[T, T]> {
     const source = this.source;
     return new Iter((function* () {
@@ -742,7 +744,7 @@ class Iter<T> implements Iterable<T> {
     })());
   }
 
-  /** チャンク分割 */
+  /** Chunk splitting */
   chunk(size: number): Iter<T[]> {
     const source = this.source;
     return new Iter((function* () {
@@ -758,7 +760,7 @@ class Iter<T> implements Iterable<T> {
     })());
   }
 
-  /** 重複除去 */
+  /** Deduplication */
   distinct(): Iter<T> {
     const source = this.source;
     return new Iter((function* () {
@@ -772,7 +774,7 @@ class Iter<T> implements Iterable<T> {
     })());
   }
 
-  /** 畳み込み（即座に評価） */
+  /** Fold/reduce (evaluates eagerly) */
   reduce<U>(fn: (acc: U, item: T) => U, initial: U): U {
     let result = initial;
     for (const item of this.source) {
@@ -781,12 +783,12 @@ class Iter<T> implements Iterable<T> {
     return result;
   }
 
-  /** 配列に変換（即座に評価） */
+  /** Convert to array (evaluates eagerly) */
   toArray(): T[] {
     return [...this.source];
   }
 
-  /** 最初の要素を取得 */
+  /** Get the first element */
   first(): T | undefined {
     for (const item of this.source) {
       return item;
@@ -794,14 +796,14 @@ class Iter<T> implements Iterable<T> {
     return undefined;
   }
 
-  /** 要素数をカウント */
+  /** Count elements */
   count(): number {
     let n = 0;
     for (const _ of this.source) n++;
     return n;
   }
 
-  /** 全要素が条件を満たすか */
+  /** Check if all elements satisfy the condition */
   every(predicate: (item: T) => boolean): boolean {
     for (const item of this.source) {
       if (!predicate(item)) return false;
@@ -809,7 +811,7 @@ class Iter<T> implements Iterable<T> {
     return true;
   }
 
-  /** いずれかの要素が条件を満たすか */
+  /** Check if any element satisfies the condition */
   some(predicate: (item: T) => boolean): boolean {
     for (const item of this.source) {
       if (predicate(item)) return true;
@@ -819,20 +821,20 @@ class Iter<T> implements Iterable<T> {
 }
 
 // ============================
-// 使用例: パイプラインで遅延評価
+// Usage: lazy evaluation via pipeline
 // ============================
 
-// フィボナッチ数列から偶数の二乗を5個取得
+// Get the first 5 squares of even Fibonacci numbers
 const result = Iter.from(fibonacci())
-  .filter(n => n % 2 === 0)       // 偶数のみ
-  .map(n => n * n)                 // 二乗
-  .take(5)                         // 先頭5個
+  .filter(n => n % 2 === 0)       // even numbers only
+  .map(n => n * n)                 // square them
+  .take(5)                         // first 5
   .toArray();
 
 console.log(result); // [0, 4, 64, 17956, ...]
-// → fibonacci は必要な分だけ生成される（遅延評価）
+// → fibonacci only generates as much as needed (lazy evaluation)
 
-// 自然数から素数を生成
+// Generate prime numbers from natural numbers
 function isPrime(n: number): boolean {
   if (n < 2) return false;
   for (let i = 2; i <= Math.sqrt(n); i++) {
@@ -849,7 +851,7 @@ const primes = Iter.naturals()
 
 console.log(primes); // [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
 
-// チャンク分割 + マップ
+// Chunk splitting + map
 const chunks = Iter.from(new Range(1, 11))
   .chunk(3)
   .map(chunk => chunk.reduce((a, b) => a + b, 0))
@@ -860,12 +862,12 @@ console.log(chunks); // [6, 15, 24, 10]
 ```
 
 ```
-遅延評価の動作イメージ:
+How lazy evaluation works:
 
   fibonacci() → filter(even) → map(square) → take(3) → toArray()
 
-  評価は「右から左」に要求が伝搬し、
-  「左から右」に値が1つずつ流れる:
+  Evaluation: demand propagates "right to left",
+  values flow one at a time "left to right":
 
   fib     filter    map      take    result
   ─────   ─────     ─────    ─────   ─────
@@ -875,20 +877,20 @@ console.log(chunks); // [6, 15, 24, 10]
   2    →  2      →  4     →  [0,4]
   3    →  (skip)
   5    →  (skip)
-  8    →  8      →  64    →  [0,4,64]  ← take(3) 完了!
+  8    →  8      →  64    →  [0,4,64]  ← take(3) done!
 
-  ★ fibonacci は 8 までしか計算されない（遅延評価のメリット）
-  ★ 中間配列は一切生成されない
+  ★ fibonacci is only computed up to 8 (benefit of lazy evaluation)
+  ★ No intermediate arrays are created at all
 ```
 
 ---
 
-## 6. Python のイテレータとジェネレータ
+## 6. Iterators and Generators in Python
 
-### コード例 6: Python の Iterator プロトコル
+### Code Example 6: Python's Iterator Protocol
 
 ```python
-# python_iterators.py -- Python のイテレータパターン
+# python_iterators.py -- Iterator pattern in Python
 
 from __future__ import annotations
 from typing import Iterator, Iterable, TypeVar, Callable, Generator
@@ -899,10 +901,10 @@ U = TypeVar("U")
 
 
 # ============================
-# カスタム Range (Python 組込みの range と同等)
+# Custom Range (equivalent to Python's built-in range)
 # ============================
 class MyRange:
-    """Python の range() を再実装"""
+    """Re-implementation of Python's range()"""
 
     def __init__(self, start: int, stop: int, step: int = 1):
         self.start = start
@@ -910,11 +912,11 @@ class MyRange:
         self.step = step
 
     def __iter__(self) -> Iterator[int]:
-        """__iter__ = [Symbol.iterator] に相当"""
+        """__iter__ is equivalent to [Symbol.iterator]"""
         current = self.start
         while (self.step > 0 and current < self.stop) or \
               (self.step < 0 and current > self.stop):
-            yield current  # Python ではジェネレータで簡潔に書ける
+            yield current  # In Python, generators allow concise writing
             current += self.step
 
     def __len__(self) -> int:
@@ -928,10 +930,10 @@ class MyRange:
 
 
 # ============================
-# ジェネレータの応用: パイプライン
+# Generator application: pipeline
 # ============================
 def take(n: int, iterable: Iterable[T]) -> Generator[T, None, None]:
-    """先頭 N 個を取得"""
+    """Get the first N elements"""
     count = 0
     for item in iterable:
         if count >= n:
@@ -941,7 +943,7 @@ def take(n: int, iterable: Iterable[T]) -> Generator[T, None, None]:
 
 
 def chunk(iterable: Iterable[T], size: int) -> Generator[list[T], None, None]:
-    """チャンク分割"""
+    """Chunk splitting"""
     buf: list[T] = []
     for item in iterable:
         buf.append(item)
@@ -953,26 +955,26 @@ def chunk(iterable: Iterable[T], size: int) -> Generator[list[T], None, None]:
 
 
 def flatten(iterable: Iterable[Iterable[T]]) -> Generator[T, None, None]:
-    """ネストしたイテラブルをフラット化"""
+    """Flatten nested iterables"""
     for inner in iterable:
-        yield from inner  # yield from = yield* に相当
+        yield from inner  # yield from is equivalent to yield*
 
 
 # ============================
-# Python のイテレータ式 (Generator Expression)
+# Python generator expressions
 # ============================
 def demonstrate_generators():
-    # リスト内包表記（即座に全要素を生成）
+    # List comprehension (generates all elements immediately)
     squares_list = [x**2 for x in range(10)]  # list
 
-    # ジェネレータ式（遅延評価）
+    # Generator expression (lazy evaluation)
     squares_gen = (x**2 for x in range(10))   # generator
 
-    # メモリ効率の違い:
-    # squares_list: 10個のint を全てメモリに保持
-    # squares_gen:  1個ずつ生成、メモリはO(1)
+    # Memory efficiency difference:
+    # squares_list: holds all 10 ints in memory
+    # squares_gen:  generates one at a time, O(1) memory
 
-    # パイプライン（関数の合成）
+    # Pipeline (function composition)
     import itertools
     result = list(
         itertools.islice(                    # take(5)
@@ -986,15 +988,15 @@ def demonstrate_generators():
 
 
 # ============================
-# 使用例
+# Usage examples
 # ============================
 if __name__ == "__main__":
-    # カスタム Range
+    # Custom Range
     for n in MyRange(1, 5):
         print(n, end=" ")  # 1 2 3 4
     print()
 
-    # チャンク分割
+    # Chunk splitting
     for c in chunk(range(1, 11), 3):
         print(c)
     # [1, 2, 3]
@@ -1002,23 +1004,23 @@ if __name__ == "__main__":
     # [7, 8, 9]
     # [10]
 
-    # itertools の活用
+    # Using itertools
     demonstrate_generators()
 ```
 
 ---
 
-## 7. 外部イテレータ vs 内部イテレータ
+## 7. External Iterator vs Internal Iterator
 
-### コード例 7: 両方のスタイルの比較と使い分け
+### Code Example 7: Comparison and Usage of Both Styles
 
 ```typescript
-// external-vs-internal.ts -- 外部イテレータと内部イテレータ
+// external-vs-internal.ts -- External and internal iterators
 
 // ============================
-// 外部イテレータ (External Iterator)
+// External Iterator
 // ============================
-// 利用者が明示的に next() を呼んで制御する
+// The consumer explicitly calls next() to control traversal
 class ExternalIterator<T> {
   private iterator: Iterator<T>;
 
@@ -1026,16 +1028,16 @@ class ExternalIterator<T> {
     this.iterator = iterable[Symbol.iterator]();
   }
 
-  /** 次の要素があるか */
+  /** Check if there is a next element */
   hasNext(): boolean {
     const result = this.iterator.next();
     if (result.done) return false;
-    // peek のために値を戻す必要があるが、Iterator は巻き戻せない
-    // → 実用的には1要素先読みバッファが必要
+    // We need to put the value back for peek, but Iterators cannot rewind
+    // → In practice, a 1-element lookahead buffer is needed
     return true;
   }
 
-  /** 次の要素を取得 */
+  /** Get the next element */
   next(): T {
     const result = this.iterator.next();
     if (result.done) throw new Error('No more elements');
@@ -1043,7 +1045,7 @@ class ExternalIterator<T> {
   }
 }
 
-// 先読み付き外部イテレータ
+// External iterator with lookahead
 class PeekableIterator<T> implements Iterable<T> {
   private iterator: Iterator<T>;
   private buffer: T[] = [];
@@ -1052,7 +1054,7 @@ class PeekableIterator<T> implements Iterable<T> {
     this.iterator = source[Symbol.iterator]();
   }
 
-  /** 次の要素を消費せずに確認 */
+  /** Inspect the next element without consuming it */
   peek(): T | undefined {
     if (this.buffer.length === 0) {
       const result = this.iterator.next();
@@ -1062,7 +1064,7 @@ class PeekableIterator<T> implements Iterable<T> {
     return this.buffer[0];
   }
 
-  /** 次の要素を取得して消費 */
+  /** Get and consume the next element */
   next(): T | undefined {
     if (this.buffer.length > 0) {
       return this.buffer.shift();
@@ -1089,9 +1091,9 @@ class PeekableIterator<T> implements Iterable<T> {
 }
 
 // ============================
-// 内部イテレータ (Internal Iterator)
+// Internal Iterator
 // ============================
-// コレクション側が走査を制御し、コールバックを呼ぶ
+// The collection controls traversal and calls the callback
 class InternalIterator<T> {
   constructor(private items: T[]) {}
 
@@ -1116,7 +1118,7 @@ class InternalIterator<T> {
 }
 
 // ============================
-// 外部イテレータの活用例: トークナイザー
+// External iterator use case: tokenizer
 // ============================
 function* tokenize(input: string): Generator<{ type: string; value: string }> {
   const patterns = [
@@ -1146,7 +1148,7 @@ function* tokenize(input: string): Generator<{ type: string; value: string }> {
   }
 }
 
-// PeekableIterator でパーサーを実装
+// Implement a parser using PeekableIterator
 function parseExpression(tokens: PeekableIterator<{ type: string; value: string }>): number {
   let result = parseTerm(tokens);
 
@@ -1172,136 +1174,137 @@ function parseTerm(tokens: PeekableIterator<{ type: string; value: string }>): n
   throw new Error(`Unexpected token: ${token.value}`);
 }
 
-// 使用例
+// Usage
 const tokens = new PeekableIterator(tokenize('3 + 5 - 2'));
 console.log(parseExpression(tokens)); // 6
 ```
 
 ```
-外部 vs 内部イテレータの比較:
+Comparison of external vs internal iterators:
 
-  外部イテレータ (for...of, next())
+  External Iterator (for...of, next())
   ┌──────────┐                    ┌──────────┐
-  │ 利用者   │── next() ─────────►│ Iterator │
+  │ Consumer │── next() ─────────►│ Iterator │
   │          │◄── { value, done } │          │
-  │ 制御権は │                    │ 値を提供 │
-  │ 利用者側 │                    │          │
+  │ Control  │                    │ Provides │
+  │ is with  │                    │ values   │
+  │ consumer │                    │          │
   └──────────┘                    └──────────┘
 
-  内部イテレータ (forEach, map)
+  Internal Iterator (forEach, map)
   ┌──────────┐                    ┌───────────┐
-  │ 利用者   │── callback ───────►│ Collection│
+  │ Consumer │── callback ───────►│ Collection│
   │          │                    │           │
-  │ コール   │◄── callback(item) ─│ 走査を    │
-  │ バックを │                    │ 制御する  │
-  │ 渡すだけ │                    │           │
+  │ Just     │◄── callback(item) ─│ Controls  │
+  │ provides │                    │ traversal │
+  │ callback │                    │           │
   └──────────┘                    └───────────┘
 
-  使い分け:
-  外部: 複数イテレータの同時走査、peek、早期終了
-  内部: シンプルな全要素処理、関数型スタイル
+  When to use which:
+  External: simultaneous traversal of multiple iterators, peek, early exit
+  Internal: simple full-element processing, functional style
 ```
 
 ---
 
-## 8. 深掘り: Iterator の設計判断
+## 8. Deep Dive: Iterator Design Decisions
 
-### イテレータの使い捨て問題
+### The Single-Use Iterator Problem
 
 ```
-Iterator は1回しか走査できない（使い捨て）:
+Iterators can only be traversed once (single-use):
   const gen = fibonacci();
   [...gen]  // [0, 1, 1, 2, ...]
-  [...gen]  // [] ← 空! 使い切り
+  [...gen]  // [] ← empty! iterator is exhausted
 
-Iterable は何度でも走査可能:
+Iterables can be traversed multiple times:
   const range = new Range(1, 5);
   [...range]  // [1, 2, 3, 4]
-  [...range]  // [1, 2, 3, 4] ← 何度でもOK
+  [...range]  // [1, 2, 3, 4] ← works every time
 
-理由: Iterable は [Symbol.iterator]() で毎回新しい Iterator を生成する
-     Generator は1つの Iterator インスタンスで、状態を内部に保持
+Reason: Iterable creates a new Iterator via [Symbol.iterator]() each time
+        A Generator is a single Iterator instance that holds its state internally
 
-  ★ 設計指針:
-    再利用するコレクション → Iterable インターフェースを実装（class + [Symbol.iterator]）
-    1回限りのストリーム → Generator 関数で十分
+  ★ Design guidelines:
+    Reusable collections → Implement the Iterable interface (class + [Symbol.iterator])
+    One-time streams → A Generator function is sufficient
 ```
 
-### 遅延評価 vs 即時評価
+### Lazy Evaluation vs Eager Evaluation
 
 ```
-即時評価 (Array.map/filter):
+Eager evaluation (Array.map/filter):
   [1,2,3,4,5].filter(x => x > 2).map(x => x * 2)
-  ステップ1: filter で中間配列 [3,4,5] を生成
-  ステップ2: map で結果配列 [6,8,10] を生成
-  → 2つの配列がメモリに存在
+  Step 1: filter produces intermediate array [3,4,5]
+  Step 2: map produces result array [6,8,10]
+  → Two arrays exist in memory
 
-遅延評価 (Iterator パイプライン):
+Lazy evaluation (Iterator pipeline):
   Iter.from([1,2,3,4,5]).filter(x => x > 2).map(x => x * 2).toArray()
-  → 中間配列なし、1要素ずつ処理
+  → No intermediate arrays, one element processed at a time
   → 1 → filter(skip) → 2 → filter(skip) → 3 → filter(pass) → map(6) → ...
 
-判断基準:
-  データが小さい(< 1000件) → 即時評価でOK（可読性優先）
-  データが大きい(> 10000件) → 遅延評価が有効
-  無限シーケンス → 遅延評価が必須
-  複数回走査 → 即時評価（配列に変換）
+Decision criteria:
+  Small data (< 1000 items) → Eager evaluation is fine (prioritize readability)
+  Large data (> 10000 items) → Lazy evaluation is effective
+  Infinite sequences → Lazy evaluation is required
+  Multiple traversals → Eager evaluation (convert to array)
 ```
 
 ---
 
-## 9. 比較表
+## 9. Comparison Tables
 
-### 走査方法の比較
+### Comparison of Traversal Methods
 
-| 特性 | for ループ | Array.map/filter | Generator | Iter パイプライン |
+| Property | for loop | Array.map/filter | Generator | Iter pipeline |
 |------|-----------|-----------------|-----------|-----------------|
-| 遅延評価 | 不可 | 不可（即座に配列生成） | 可能 | 可能 |
-| 無限シーケンス | 不可 | 不可 | 可能 | 可能 |
-| メモリ効率 | 良い | 中間配列が生成 | 最良 | 最良 |
-| チェーン可読性 | 低い | 高い | 中 | 高い |
-| 非同期対応 | 要工夫 | なし | AsyncGenerator | 拡張可能 |
-| 早期終了 (break) | 可能 | 不可（forEach） | 可能 | 可能 |
-| TypeScript 型推論 | 完全 | 完全 | 完全 | 完全 |
+| Lazy evaluation | No | No (array created immediately) | Yes | Yes |
+| Infinite sequences | No | No | Yes | Yes |
+| Memory efficiency | Good | Intermediate arrays created | Best | Best |
+| Chain readability | Low | High | Medium | High |
+| Async support | Requires work | None | AsyncGenerator | Extensible |
+| Early exit (break) | Yes | No (forEach) | Yes | Yes |
+| TypeScript type inference | Full | Full | Full | Full |
 
-### イテレータの種類
+### Types of Iterators
 
-| イテレータ種類 | 同期 Iterator | AsyncIterator | Generator | AsyncGenerator |
+| Iterator type | Sync Iterator | AsyncIterator | Generator | AsyncGenerator |
 |--------------|-------------|---------------|-----------|---------------|
-| プロトコル | Symbol.iterator | Symbol.asyncIterator | function* | async function* |
-| 構文 | for...of | for await...of | yield | yield (async内) |
-| ユースケース | コレクション走査 | API/Stream処理 | 遅延シーケンス | ページネーション |
-| 実行制御 | next() | next() (Promise) | yield で停止 | yield + await |
-| リソース解放 | return() | return() | try/finally | try/finally |
+| Protocol | Symbol.iterator | Symbol.asyncIterator | function* | async function* |
+| Syntax | for...of | for await...of | yield | yield (inside async) |
+| Use case | Collection traversal | API/Stream processing | Lazy sequences | Pagination |
+| Execution control | next() | next() (Promise) | suspend with yield | yield + await |
+| Resource release | return() | return() | try/finally | try/finally |
 
-### 言語間のイテレータ対応
+### Iterator Correspondence Across Languages
 
-| 概念 | JavaScript/TS | Python | Rust | Java |
+| Concept | JavaScript/TS | Python | Rust | Java |
 |------|--------------|--------|------|------|
 | Iterable | Symbol.iterator | `__iter__` | `IntoIterator` | `Iterable<T>` |
 | Iterator | `{ next() }` | `__next__` | `Iterator` trait | `Iterator<T>` |
-| Generator | `function*` | `yield` | -- (Iterator で代替) | -- |
-| 遅延パイプライン | 自前実装 | `itertools` | `.iter().map().filter()` | `Stream API` |
-| 非同期イテレータ | `async function*` | `async for` | `Stream` | `Flow (Kotlin)` |
+| Generator | `function*` | `yield` | -- (replaced by Iterator) | -- |
+| Lazy pipeline | Custom implementation | `itertools` | `.iter().map().filter()` | `Stream API` |
+| Async iterator | `async function*` | `async for` | `Stream` | `Flow (Kotlin)` |
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### アンチパターン 1: 全データをメモリに載せてから処理
+### Anti-Pattern 1: Loading All Data into Memory Before Processing
 
 ```typescript
 // ============================
-// [NG] 100万件を配列に全て読み込み
+// [BAD] Load 1 million records into an array
 // ============================
-const allUsers = await fetchAllUsers(); // メモリに100万件!
+const allUsers = await fetchAllUsers(); // 1 million records in memory!
 const activeUsers = allUsers.filter(u => u.active);
 const names = activeUsers.map(u => u.name);
-// → 中間配列が2つ生成される
-// → メモリ使用量: 100万件 × 3 配列
+// → Two intermediate arrays are created
+// → Memory usage: 1 million records × 3 arrays
 
 // ============================
-// [OK] ジェネレータで1件ずつ処理
+// [GOOD] Process one record at a time using a generator
 // ============================
 async function* fetchActiveUserNames(): AsyncGenerator<string> {
   for await (const user of fetchAllPages<User>('/api/users')) {
@@ -1311,35 +1314,35 @@ async function* fetchActiveUserNames(): AsyncGenerator<string> {
   }
 }
 
-// メモリ使用量はページサイズ分のみ
+// Memory usage is only the page size
 const names2: string[] = [];
 for await (const name of fetchActiveUserNames()) {
   names2.push(name);
-  if (names2.length >= 100) break; // 早期終了も可能
+  if (names2.length >= 100) break; // early exit is also possible
 }
 ```
 
-### アンチパターン 2: イテレータの再利用
+### Anti-Pattern 2: Reusing an Iterator
 
 ```typescript
 // ============================
-// [NG] 同じイテレータを2回消費しようとする
+// [BAD] Trying to consume the same iterator twice
 // ============================
 function* nums() { yield 1; yield 2; yield 3; }
 const iter = nums();
 
 console.log([...iter]); // [1, 2, 3]
-console.log([...iter]); // [] ← 空! イテレータは使い切り
+console.log([...iter]); // [] ← empty! iterator is exhausted
 
 // ============================
-// [OK 方法1] Iterable を保持し、必要なときに新しい Iterator を生成
+// [GOOD Option 1] Hold an Iterable and create a new Iterator when needed
 // ============================
 const range = new Range(1, 4);
 console.log([...range]); // [1, 2, 3]
-console.log([...range]); // [1, 2, 3] ← Iterable なので何度でも
+console.log([...range]); // [1, 2, 3] ← works any number of times since it's Iterable
 
 // ============================
-// [OK 方法2] ジェネレータをファクトリ関数でラップ
+// [GOOD Option 2] Wrap the generator in a factory function
 // ============================
 function numsIterable(): Iterable<number> {
   return {
@@ -1352,49 +1355,49 @@ console.log([...reusable]); // [1, 2, 3]
 console.log([...reusable]); // [1, 2, 3] ← OK
 ```
 
-### アンチパターン 3: 非同期処理での forEach / map の誤用
+### Anti-Pattern 3: Misusing forEach / map with Async Processing
 
 ```typescript
 // ============================
-// [NG] forEach 内で async/await が期待通り動かない
+// [BAD] async/await inside forEach does not work as expected
 // ============================
 const urls = ['url1', 'url2', 'url3'];
 
-// forEach は同期的に全コールバックを起動する
+// forEach launches all callbacks synchronously
 urls.forEach(async (url) => {
   const data = await fetch(url);
-  console.log(data); // 順序不定、エラーも捕捉できない
+  console.log(data); // order is non-deterministic, errors cannot be caught
 });
-console.log('完了'); // ← forEach のコールバックより先に実行される!
+console.log('Done'); // ← executes before the forEach callbacks!
 
 // ============================
-// [OK] for...of + await で逐次処理
+// [GOOD] Sequential processing with for...of + await
 // ============================
 for (const url of urls) {
   const data = await fetch(url);
-  console.log(data); // 順序保証、try/catch で捕捉可能
+  console.log(data); // order is guaranteed, catchable with try/catch
 }
-console.log('完了'); // ← 全 fetch 完了後に実行
+console.log('Done'); // ← executes after all fetches complete
 
-// [OK] 並列実行が必要な場合は Promise.all
+// [GOOD] Use Promise.all when parallel execution is needed
 const results = await Promise.all(urls.map(url => fetch(url)));
 ```
 
 ---
 
-## 11. 演習問題
+## 11. Exercises
 
-### 演習 1（基礎）: 二分木のイテレータ
+### Exercise 1 (Basic): Binary Tree Iterator
 
-以下の仕様を満たす二分木のイテレータを実装してください。
+Implement a binary tree iterator that meets the following specification.
 
-**仕様:**
-- 二分探索木 (BST) クラスを定義
-- 3つの走査方法を Generator で実装: `inOrder()`, `preOrder()`, `postOrder()`
-- デフォルトの `[Symbol.iterator]` は中順 (in-order) 走査
+**Specification:**
+- Define a binary search tree (BST) class
+- Implement three traversal methods using Generator: `inOrder()`, `preOrder()`, `postOrder()`
+- The default `[Symbol.iterator]` should use in-order traversal
 
 ```typescript
-// ヒント
+// Hint
 interface BSTNode<T> {
   value: T;
   left: BSTNode<T> | null;
@@ -1402,36 +1405,36 @@ interface BSTNode<T> {
 }
 ```
 
-**期待される出力:**
+**Expected output:**
 ```
-BST に 5, 3, 7, 1, 4, 6, 8 を挿入
+Insert 5, 3, 7, 1, 4, 6, 8 into BST
 
-inOrder:   [1, 3, 4, 5, 6, 7, 8]  // 昇順ソート
-preOrder:  [5, 3, 1, 4, 7, 6, 8]  // 根 → 左 → 右
-postOrder: [1, 4, 3, 6, 8, 7, 5]  // 左 → 右 → 根
+inOrder:   [1, 3, 4, 5, 6, 7, 8]  // sorted ascending
+preOrder:  [5, 3, 1, 4, 7, 6, 8]  // root → left → right
+postOrder: [1, 4, 3, 6, 8, 7, 5]  // left → right → root
 
-for (const value of bst) { ... }   // inOrder で走査
+for (const value of bst) { ... }   // traverses in inOrder
 [...bst]                            // [1, 3, 4, 5, 6, 7, 8]
 ```
 
 ---
 
-### 演習 2（応用）: 非同期パイプライン
+### Exercise 2 (Applied): Async Pipeline
 
-以下の仕様を満たす非同期イテレータパイプラインを実装してください。
+Implement an async iterator pipeline that meets the following specification.
 
-**仕様:**
-- `AsyncIter<T>` クラスを実装
-- `map`, `filter`, `take`, `buffer` (N件ずつバッチ化) を遅延評価で提供
-- `for await...of` で消費可能
+**Specification:**
+- Implement an `AsyncIter<T>` class
+- Provide `map`, `filter`, `take`, and `buffer` (batching N items at a time) with lazy evaluation
+- Consumable via `for await...of`
 
-**期待される出力:**
+**Expected output:**
 ```
 const pipeline = AsyncIter.from(fetchAllPages<User>('/api/users'))
   .filter(user => user.active)
   .map(user => user.name)
-  .buffer(10)  // 10件ずつバッチ化
-  .take(5);    // 5バッチ（最大50件）
+  .buffer(10)  // batch 10 items at a time
+  .take(5);    // 5 batches (up to 50 items)
 
 for await (const batch of pipeline) {
   console.log(`Processing batch of ${batch.length} names`);
@@ -1441,17 +1444,17 @@ for await (const batch of pipeline) {
 
 ---
 
-### 演習 3（発展）: コルーチンによるジョブスケジューラ
+### Exercise 3 (Advanced): Coroutine-Based Job Scheduler
 
-以下の仕様を満たすコルーチンベースのジョブスケジューラを実装してください。
+Implement a coroutine-based job scheduler that meets the following specification.
 
-**仕様:**
-- Generator の `next(value)` による双方向通信を活用
-- ジョブは Generator 関数で定義し、`yield` で実行権を返す
-- スケジューラが複数ジョブをラウンドロビンで実行
+**Specification:**
+- Use two-way communication via Generator's `next(value)`
+- Define jobs as Generator functions that yield to give up execution
+- The scheduler runs multiple jobs in round-robin fashion
 
 ```typescript
-// ヒント: ジョブの定義
+// Hint: job definition
 function* downloadJob(url: string): Generator<string, void, void> {
   yield `Starting download: ${url}`;
   yield `Downloading... 50%`;
@@ -1460,13 +1463,13 @@ function* downloadJob(url: string): Generator<string, void, void> {
 }
 ```
 
-**期待される出力:**
+**Expected output:**
 ```
 scheduler.add(downloadJob('file1.zip'));
 scheduler.add(downloadJob('file2.zip'));
 scheduler.run();
 
-// ラウンドロビン実行:
+// Round-robin execution:
 // [Job1] Starting download: file1.zip
 // [Job2] Starting download: file2.zip
 // [Job1] Downloading... 50%
@@ -1480,33 +1483,33 @@ scheduler.run();
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured configuration file | Check the path and format of the configuration file |
+| Timeout | Network delay / insufficient resources | Adjust timeout value, add retry logic |
+| Out of memory | Growth in data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check execution user's permissions, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanism, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace to identify where it occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form a hypothesis**: List possible causes
+4. **Verify incrementally**: Validate hypotheses using log output or a debugger
+5. **Fix and regression test**: After fixing, run tests for related areas as well
 
 ```python
-# デバッグ用ユーティリティ
+# Debug utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1514,77 +1517,77 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Calling: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return value: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps to diagnose performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check for I/O waits**: Inspect disk and network I/O status
+4. **Check concurrent connections**: Review connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem type | Diagnostic tool | Solution |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Index, query optimization |
 ---
 
 ## 12. FAQ
 
-### Q1: ジェネレータと普通の関数、どちらを使うべきですか？
+### Q1: When should I use a generator versus a regular function?
 
-データ量が有限で小さい場合は通常の関数（配列を返す）で十分です。以下の場合にジェネレータを検討してください。
+A regular function (returning an array) is sufficient when the data is finite and small. Consider a generator in the following cases:
 
-1. **無限シーケンス**: フィボナッチ数列、乱数列、連番など終わりのないデータ
-2. **大量データの逐次処理**: ファイル読み込み、API ページネーション、ログ解析
-3. **途中で処理を中断する可能性**: 条件に合う最初の要素を見つけたら停止
-4. **メモリ制約が厳しい場面**: 中間配列を生成したくない
+1. **Infinite sequences**: Fibonacci series, random sequences, counters, and other endless data
+2. **Sequential processing of large data**: File reading, API pagination, log analysis
+3. **Possibility of stopping midway**: Stop when the first element matching a condition is found
+4. **Memory-constrained environments**: When you want to avoid creating intermediate arrays
 
-ジェネレータの最大のメリットは「**必要になるまで計算しない**」遅延評価です。
+The biggest advantage of generators is lazy evaluation — **"don't compute until needed"**.
 
-### Q2: for...of と forEach の違いは何ですか？
+### Q2: What is the difference between for...of and forEach?
 
-| 比較項目 | `for...of` | `Array.forEach` |
+| Comparison | `for...of` | `Array.forEach` |
 |---------|-----------|----------------|
-| 対象 | 全 Iterable | Array のみ |
-| break | 可能 | 不可能 |
-| continue | 可能 | return で代替 |
-| async/await | 正常動作 | 期待通り動かない |
-| Generator 対応 | 可能 | 不可能 |
-| return | ループを抜ける | コールバックを抜ける（ループは継続） |
+| Target | All Iterables | Arrays only |
+| break | Possible | Not possible |
+| continue | Possible | Use return as substitute |
+| async/await | Works correctly | Does not work as expected |
+| Generator support | Yes | No |
+| return | Exits the loop | Exits the callback (loop continues) |
 
-基本方針: `for...of` を優先し、`forEach` は副作用のない単純な全要素処理のみに使用。
+Basic guideline: prefer `for...of`; use `forEach` only for simple, side-effect-free processing of all elements.
 
-### Q3: AsyncGenerator のエラーハンドリングはどうすべきですか？
+### Q3: How should error handling be done with AsyncGenerator?
 
-`for await...of` のブロック内で `try/catch` を使います。また、Generator の `throw()` メソッドで外部からエラーを注入することもできます。
+Use `try/catch` inside the `for await...of` block. You can also inject errors from the outside using the Generator's `throw()` method.
 
 ```typescript
-// 実践的なエラーハンドリング
+// Practical error handling
 async function* resilientFetch<T>(
   urls: string[]
 ): AsyncGenerator<T> {
@@ -1593,90 +1596,90 @@ async function* resilientFetch<T>(
       const res = await fetch(url);
       if (!res.ok) {
         console.warn(`Skipping ${url}: ${res.status}`);
-        continue; // 個別ページのエラーはスキップ
+        continue; // skip errors on individual pages
       }
       const data = await res.json();
       yield data;
     } catch (err) {
       console.warn(`Network error for ${url}:`, err);
-      // 致命的でなければ continue、致命的なら throw
+      // continue if non-fatal, throw if fatal
     }
   }
 }
 ```
 
-ページネーションのような処理では、個別ページのエラーはリトライまたはスキップし、致命的なエラーのみ全体を中断するような設計が実用的です。`finally` ブロックでリソースのクリーンアップ（ストリームの解放、コネクションのクローズ）を忘れないでください。
+For processing such as pagination, a practical design is to retry or skip errors on individual pages and only abort the entire process for fatal errors. Don't forget to clean up resources in `finally` blocks (releasing streams, closing connections).
 
-### Q4: Iterator パターンは関数型プログラミングとどう関係しますか？
+### Q4: How does the Iterator pattern relate to functional programming?
 
-Iterator パターンは関数型プログラミングの **遅延リスト (Lazy List)** と本質的に同じ概念です。Haskell のリストは遅延評価で、必要な要素のみ計算されます。JavaScript の Generator はこの概念を命令型言語に持ち込んだものです。
+The Iterator pattern is essentially the same concept as **Lazy Lists** in functional programming. Lists in Haskell are lazily evaluated, computing only the elements needed. JavaScript's Generator brings this concept into an imperative language.
 
-Rust の `Iterator` trait は、`map`, `filter`, `fold` などの関数型操作を遅延評価で提供しており、Iterator パターンと関数型プログラミングの融合の好例です。
+Rust's `Iterator` trait provides functional operations like `map`, `filter`, and `fold` with lazy evaluation, making it a great example of the fusion of the Iterator pattern and functional programming.
 
-### Q5: Generator の yield* と yield の違いは何ですか？
+### Q5: What is the difference between yield* and yield in a Generator?
 
-`yield` は1つの値を送出します。`yield*` は別の Iterable のすべての値を順に送出します（デリゲート）。
+`yield` emits a single value. `yield*` emits all values from another Iterable one by one (delegation).
 
 ```typescript
 function* example() {
-  yield 1;               // 1つの値
-  yield* [2, 3, 4];      // 配列の全要素を順に
-  yield* anotherGen();   // 別の Generator の全要素を順に
+  yield 1;               // a single value
+  yield* [2, 3, 4];      // all elements of the array in order
+  yield* anotherGen();   // all elements of another Generator in order
   yield 5;
 }
-// 結果: 1, 2, 3, 4, (anotherGen の全出力), 5
+// Result: 1, 2, 3, 4, (all output from anotherGen), 5
 ```
 
-`yield*` はツリーの再帰走査で特に有用です。子ノードのイテレータに走査を委譲する場合に、明示的なループなしで自然に書けます。
+`yield*` is especially useful for recursive tree traversal. When delegating traversal to a child node's iterator, it can be written naturally without an explicit loop.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory but by actually writing code and verifying how it behaves.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world development?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |------|------|
-| Iterator プロトコル | `Symbol.iterator` + `next()` で統一的な走査インターフェース |
-| Iterable vs Iterator | Iterable は何度でも走査可能、Iterator は1回使い切り |
-| for...of | Iterator プロトコルに基づくループ構文。break/continue/await 対応 |
-| Generator | `function*` と `yield` による遅延評価。無限シーケンスも表現可能 |
-| yield* | 別のイテレータにデリゲート。ツリー走査の再帰に有効 |
-| AsyncGenerator | `async function*` で非同期データの逐次処理 |
-| パイプライン | map/filter/take を遅延評価で連鎖。中間配列なし |
-| 外部 vs 内部 | 外部: 利用者が制御（peek, 複数同時走査）、内部: コレクションが制御（forEach） |
+| Iterator protocol | Unified traversal interface via `Symbol.iterator` + `next()` |
+| Iterable vs Iterator | Iterable can be traversed multiple times; Iterator is single-use |
+| for...of | Loop syntax based on the Iterator protocol. Supports break/continue/await |
+| Generator | Lazy evaluation with `function*` and `yield`. Can express infinite sequences |
+| yield* | Delegates to another iterator. Useful for recursive tree traversal |
+| AsyncGenerator | Sequential async data processing with `async function*` |
+| Pipeline | Chain map/filter/take with lazy evaluation. No intermediate arrays |
+| External vs Internal | External: consumer controls (peek, multiple simultaneous traversals); Internal: collection controls (forEach) |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [02-command.md](./02-command.md) -- Command パターンと操作のカプセル化（Command 履歴の走査に Iterator を活用）
-- [03-state.md](./03-state.md) -- State パターンと状態遷移
-- [../01-structural/04-composite.md](../01-structural/04-composite.md) -- Composite パターン（ツリー走査に Iterator を活用）
-- [../03-functional/02-fp-patterns.md](../03-functional/02-fp-patterns.md) -- 関数型パターン（パイプライン、合成）
-- [../03-functional/00-monad.md](../03-functional/00-monad.md) -- モナドパターン（Iterator は List モナドと関連）
+- [02-command.md](./02-command.md) -- Command pattern and encapsulation of operations (Iterator used to traverse Command history)
+- [03-state.md](./03-state.md) -- State pattern and state transitions
+- [../01-structural/04-composite.md](../01-structural/04-composite.md) -- Composite pattern (Iterator used for tree traversal)
+- [../03-functional/02-fp-patterns.md](../03-functional/02-fp-patterns.md) -- Functional patterns (pipelines, composition)
+- [../03-functional/00-monad.md](../03-functional/00-monad.md) -- Monad pattern (Iterator is related to the List monad)
 
 ---
 
-## 参考文献
+## References
 
-1. **Design Patterns: Elements of Reusable Object-Oriented Software** -- Gamma, Helm, Johnson, Vlissides (GoF, 1994) -- Iterator パターンの原典。Chapter 5, pp.257-271
-2. **MDN - Iterators and generators** -- https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Iterators_and_Generators -- JavaScript のイテレータとジェネレータの公式リファレンス
-3. **Exploring ES6 - Iterables and iterators** -- Axel Rauschmayer -- ES6 仕様に基づく詳細な解説
-4. **Python itertools documentation** -- https://docs.python.org/3/library/itertools.html -- Python のイテレータユーティリティ
-5. **Rust Iterator trait documentation** -- https://doc.rust-lang.org/std/iter/trait.Iterator.html -- 遅延評価イテレータの優れた実装例
+1. **Design Patterns: Elements of Reusable Object-Oriented Software** -- Gamma, Helm, Johnson, Vlissides (GoF, 1994) -- The original source of the Iterator pattern. Chapter 5, pp.257-271
+2. **MDN - Iterators and generators** -- https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Iterators_and_Generators -- Official reference for JavaScript iterators and generators
+3. **Exploring ES6 - Iterables and iterators** -- Axel Rauschmayer -- Detailed explanation based on the ES6 specification
+4. **Python itertools documentation** -- https://docs.python.org/3/library/itertools.html -- Python's iterator utilities
+5. **Rust Iterator trait documentation** -- https://doc.rust-lang.org/std/iter/trait.Iterator.html -- An excellent implementation example of lazy evaluation iterators
