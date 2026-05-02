@@ -1,128 +1,128 @@
-# ファンクタとアプリカティブ
+# Functor and Applicative
 
-> map と ap の抽象化を理解し、コンテキスト内の値に対する関数適用と合成を型安全に実現する
+> Understand the abstractions of map and ap, and achieve type-safe function application and composition over values in context
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **ファンクタの本質と法則** — map によるコンテキスト内の値の変換、ファンクタ則（恒等則・合成則）の意味と検証方法
-2. **アプリカティブの理論と実践** — 複数のコンテキスト付き値に対する関数適用、エラー蓄積型バリデーション、並列計算
-3. **型クラス階層の全体像** — Functor < Applicative < Monad の関係性、各レベルの能力と限界、実務での使い分け判断基準
-4. **圏論との接点** — プログラミングにおける圏論的概念の直感的理解と、なぜこの抽象化が有用なのか
+1. **The essence and laws of functors** — Transforming values in context via map, the meaning of functor laws (identity law and composition law) and how to verify them
+2. **Theory and practice of applicatives** — Applying functions to multiple contextualized values, error-accumulating validation, and parallel computation
+3. **The full picture of the type class hierarchy** — The relationship of Functor < Applicative < Monad, the capabilities and limits of each level, and criteria for choosing them in practice
+4. **Connection to category theory** — An intuitive understanding of category-theoretic concepts in programming, and why this abstraction is useful
 
 ---
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識を持っていることを推奨します。
+Before reading this guide, it is recommended that you have the following knowledge.
 
-| 前提知識 | 参照先 |
+| Prerequisite | Reference |
 |---|---|
-| TypeScript/Rust の基本的な型システム | [02-programming カテゴリ](../../../../02-programming/) |
-| ジェネリクスとインターフェース | [02-programming カテゴリ](../../../../02-programming/) |
-| 高階関数（map, filter, reduce） | [関数型パターン](./02-fp-patterns.md) |
-| モナドの基礎（flatMap/bind） | [モナド](./00-monad.md) |
-| クリーンコードの原則 | clean-code-principles |
+| Basic type system in TypeScript/Rust | [02-programming category](../../../../02-programming/) |
+| Generics and interfaces | [02-programming category](../../../../02-programming/) |
+| Higher-order functions (map, filter, reduce) | [Functional Patterns](./02-fp-patterns.md) |
+| Monad basics (flatMap/bind) | [Monad](./00-monad.md) |
+| Clean code principles | clean-code-principles |
 
 ---
 
-## 1. ファンクタの本質
+## 1. The Essence of Functors
 
-### 1.1 ファンクタとは何か — WHY から理解する
+### 1.1 What Is a Functor — Understanding from WHY
 
-プログラミングにおいて、値は様々な「コンテキスト（文脈）」に包まれて存在します。
+In programming, values exist wrapped in various "contexts."
 
 ```
-コンテキスト（文脈）の例
+Examples of contexts
 ===========================
 
-値が「存在しないかもしれない」 → Maybe / Option
-値が「エラーかもしれない」     → Result / Either
-値が「複数あるかもしれない」   → Array / List
-値が「未来に届くかもしれない」 → Promise / Future
-値が「副作用を伴うかもしれない」→ IO
-値が「環境に依存するかもしれない」→ Reader
+A value that "might not exist"        → Maybe / Option
+A value that "might be an error"      → Result / Either
+A value that "might be multiple"      → Array / List
+A value that "might arrive in future" → Promise / Future
+A value that "might have side effects"→ IO
+A value that "might depend on env"    → Reader
 
-問題: これらのコンテキスト内の値に対して
-      同じ変換ロジックを適用したい
-      → ファンクタが解決する
+Problem: We want to apply the same transformation logic
+         to values inside these contexts
+         → Functors solve this
 ```
 
-**WHY**: なぜファンクタが必要なのか？
+**WHY**: Why do we need functors?
 
-素朴なアプローチでは、コンテキストごとに別々の変換コードを書く必要があります。
+With a naive approach, you need to write separate transformation code for each context.
 
 ```typescript
-// コンテキストなし
+// Without context
 const doubled = value * 2;
 
-// Maybe コンテキスト — null チェックが必要
+// Maybe context — null check required
 if (maybeValue !== null) {
   const doubled = maybeValue * 2;
 }
 
-// Array コンテキスト — ループが必要
+// Array context — loop required
 const doubled = [];
 for (const v of array) {
   doubled.push(v * 2);
 }
 
-// Promise コンテキスト — コールバックが必要
+// Promise context — callback required
 promise.then(value => value * 2);
 ```
 
-これらはすべて「中の値に関数を適用する」という同じパターンです。ファンクタはこのパターンを `map` という統一的なインターフェースで抽象化します。
+All of these follow the same pattern of "applying a function to the value inside." Functors abstract this pattern with a unified interface called `map`.
 
 ```
-ファンクタ = map を持つ型
+Functor = a type that has map
 ===========================
 
-通常の関数適用:
+Ordinary function application:
   f : A -> B
   f(a)  -->  b
 
-ファンクタでの関数適用:
+Function application with a functor:
   F[A].map(f)  -->  F[B]
 
   Maybe[3].map(x => x * 2)  -->  Maybe[6]
   [1,2,3].map(x => x * 2)   -->  [2,4,6]
   Promise[data].then(parse)  -->  Promise[parsed]
 
-つまり:
-  「コンテキストを維持したまま中身だけを変換する」
-  これがファンクタの本質
+In other words:
+  "Transform only the content while keeping the context"
+  This is the essence of a functor
 ```
 
-### 1.2 ファンクタ則 — なぜ法則が重要なのか
+### 1.2 Functor Laws — Why Laws Matter
 
-ファンクタと名乗るには、`map` メソッドが2つの法則を満たす必要があります。法則を満たさない `map` は予測不可能な動作を引き起こし、リファクタリングの安全性を損ないます。
+To call itself a functor, the `map` method must satisfy two laws. A `map` that violates the laws causes unpredictable behavior and undermines the safety of refactoring.
 
 ```
-ファンクタ則:
-  1. 恒等則 (Identity Law):
+Functor Laws:
+  1. Identity Law:
      fa.map(id) === fa
-     「何もしない関数で map しても変化しない」
+     "Mapping with the identity function changes nothing"
 
-  2. 合成則 (Composition Law):
+  2. Composition Law:
      fa.map(f).map(g) === fa.map(x => g(f(x)))
-     「2回 map するのと、合成した関数で1回 map するのは同じ」
+     "Mapping twice is the same as mapping once with the composed function"
 
-なぜ法則が重要か:
-  - 恒等則: リファクタリング時に map(id) を安全に削除できる
-  - 合成則: パフォーマンス最適化で map の連鎖を1回にまとめられる
-  - 両方: コードの振る舞いを予測可能にする（等式推論）
+Why laws matter:
+  - Identity law: You can safely remove map(id) during refactoring
+  - Composition law: You can optimize performance by merging a chain of maps into one
+  - Both: Make code behavior predictable (equational reasoning)
 ```
 
-### 1.3 ファンクタの図解
+### 1.3 Functor Diagram
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  ファンクタの動作イメージ                            │
+│  How a Functor Works                                 │
 │                                                     │
-│  通常の関数:                                         │
+│  Ordinary function:                                  │
 │    f: A → B                                         │
 │    3  ──f(×2)──▶  6                                 │
 │                                                     │
-│  ファンクタの map:                                   │
+│  Functor map:                                        │
 │    map(f): F[A] → F[B]                              │
 │                                                     │
 │    ┌─────┐              ┌─────┐                     │
@@ -138,45 +138,45 @@ promise.then(value => value * 2);
 │    ┌─────────┐              ┌───────────┐           │
 │    │ Nothing │──map(×2)──▶  │  Nothing  │           │
 │    └─────────┘              └───────────┘           │
-│    (コンテキストが維持される)                         │
+│    (the context is preserved)                        │
 │                                                     │
-│  ポイント:                                           │
-│  - 箱（コンテキスト）の形は変わらない                │
-│  - 中身だけが変換される                              │
-│  - Nothing の場合は何もしない（安全にスキップ）      │
+│  Key points:                                         │
+│  - The shape of the box (context) does not change   │
+│  - Only the contents are transformed                │
+│  - Nothing is left unchanged (safely skipped)       │
 └─────────────────────────────────────────────────────┘
 ```
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  ファンクタ則の図解                                   │
+│  Functor Laws Diagram                                │
 │                                                     │
-│  恒等則: map(id) = id                                │
+│  Identity law: map(id) = id                          │
 │                                                     │
 │  ┌──────┐  map(id)  ┌──────┐                        │
-│  │ F[3] │──────────▶│ F[3] │  何も変わらない         │
+│  │ F[3] │──────────▶│ F[3] │  nothing changes        │
 │  └──────┘           └──────┘                        │
 │                                                     │
-│  合成則: map(g).map(f) = map(g∘f)                    │
+│  Composition law: map(g).map(f) = map(g∘f)           │
 │                                                     │
-│  方法1（2回map）:                                    │
+│  Method 1 (map twice):                               │
 │  ┌──────┐  map(f)  ┌──────┐  map(g)  ┌──────┐      │
 │  │ F[3] │────────▶│ F[6] │────────▶│ F[7] │      │
 │  └──────┘          └──────┘          └──────┘      │
 │                                                     │
-│  方法2（合成して1回map）:                             │
+│  Method 2 (compose then map once):                   │
 │  ┌──────┐  map(g∘f) ┌──────┐                        │
-│  │ F[3] │──────────▶│ F[7] │  同じ結果               │
+│  │ F[3] │──────────▶│ F[7] │  same result            │
 │  └──────┘           └──────┘                        │
 │                                                     │
-│  → パフォーマンス最適化に利用可能                     │
+│  → Can be used for performance optimization          │
 └─────────────────────────────────────────────────────┘
 ```
 
-### コード例 1: TypeScript での完全な Maybe ファンクタ実装
+### Code Example 1: Complete Maybe Functor Implementation in TypeScript
 
 ```typescript
-// === Maybe ファンクタの完全実装 ===
+// === Complete implementation of the Maybe functor ===
 
 class Maybe<T> {
   private constructor(private readonly value: T | null | undefined) {}
@@ -201,7 +201,7 @@ class Maybe<T> {
     return this.value != null;
   }
 
-  // ファンクタの核心: map
+  // The core of a functor: map
   map<U>(fn: (value: T) => U): Maybe<U> {
     if (this.value == null) return Maybe.nothing<U>();
     return Maybe.of(fn(this.value));
@@ -221,99 +221,99 @@ class Maybe<T> {
   }
 }
 
-// --- 使用例 ---
+// --- Usage examples ---
 
-// Array はファンクタ
+// Array is a functor
 const nums = [1, 2, 3];
 const doubled = nums.map(x => x * 2);       // [2, 4, 6]
 const strings = nums.map(x => x.toString()); // ["1", "2", "3"]
 
-// Promise はファンクタ
+// Promise is a functor
 const data = fetch("/api/users")
   .then(res => res.json())    // map
   .then(users => users[0]);   // map
 
-// Maybe はファンクタ
+// Maybe is a functor
 Maybe.of(5)
   .map(x => x * 2)    // Maybe(10)
   .map(x => x + 1);   // Maybe(11)
 
 Maybe.nothing<number>()
-  .map(x => x * 2)    // Nothing (スキップ)
-  .map(x => x + 1);   // Nothing (スキップ)
+  .map(x => x * 2)    // Nothing (skipped)
+  .map(x => x + 1);   // Nothing (skipped)
 
-// --- ファンクタ則の検証 ---
+// --- Verification of functor laws ---
 
-// 恒等関数
+// Identity function
 const id = <T>(x: T): T => x;
 
-// 1. 恒等則: fa.map(id) === fa
+// 1. Identity law: fa.map(id) === fa
 const fa = Maybe.of(42);
 const result1 = fa.map(id);
 console.log(fa.toString());       // Just(42)
-console.log(result1.toString());  // Just(42) ← 同じ
+console.log(result1.toString());  // Just(42) ← same
 
 const nothing = Maybe.nothing<number>();
 const result2 = nothing.map(id);
 console.log(nothing.toString());  // Nothing
-console.log(result2.toString()); // Nothing ← 同じ
+console.log(result2.toString()); // Nothing ← same
 
-// 2. 合成則: fa.map(f).map(g) === fa.map(x => g(f(x)))
+// 2. Composition law: fa.map(f).map(g) === fa.map(x => g(f(x)))
 const f = (x: number) => x * 2;
 const g = (x: number) => x + 1;
 
 const left  = fa.map(f).map(g);
 const right = fa.map(x => g(f(x)));
 console.log(left.toString());  // Just(85)
-console.log(right.toString()); // Just(85) ← 同じ
+console.log(right.toString()); // Just(85) ← same
 ```
 
-### コード例 2: Rust での Option/Result ファンクタ
+### Code Example 2: Option/Result Functor in Rust
 
 ```rust
-// Rust では Option と Result が標準でファンクタ（map を持つ型）
+// In Rust, Option and Result are standard functors (types with map)
 
 fn main() {
-    // === Option はファンクタ ===
+    // === Option is a functor ===
     let x: Option<i32> = Some(5);
     let y = x.map(|n| n * 2);        // Some(10)
     let z = x.map(|n| n.to_string()); // Some("5")
 
     let none: Option<i32> = None;
-    let w = none.map(|n| n * 2);      // None — 安全にスキップ
+    let w = none.map(|n| n * 2);      // None — safely skipped
 
     println!("y = {:?}", y);  // y = Some(10)
     println!("z = {:?}", z);  // z = Some("5")
     println!("w = {:?}", w);  // w = None
 
-    // === Result はファンクタ ===
+    // === Result is a functor ===
     let ok: Result<i32, String> = Ok(42);
     let mapped = ok.map(|n| n * 2);   // Ok(84)
 
     let err: Result<i32, String> = Err("failed".to_string());
-    let err_mapped = err.map(|n| n * 2);  // Err("failed") — エラーは保持
+    let err_mapped = err.map(|n| n * 2);  // Err("failed") — error is preserved
 
     println!("mapped = {:?}", mapped);       // mapped = Ok(84)
     println!("err_mapped = {:?}", err_mapped); // err_mapped = Err("failed")
 
-    // === ファンクタ則の検証 ===
-    // 恒等則
+    // === Verification of functor laws ===
+    // Identity law
     let id_fn = |x: i32| x;
     assert_eq!(Some(5).map(id_fn), Some(5));
     assert_eq!(None::<i32>.map(id_fn), None);
 
-    // 合成則
+    // Composition law
     let f = |x: i32| x * 2;
     let g = |x: i32| x + 1;
     assert_eq!(Some(5).map(f).map(g), Some(5).map(|x| g(f(x))));
     // Some(11) == Some(11)
 
-    // === 実践的なチェーン ===
+    // === Practical chaining ===
     let config = get_config_value("database.port")
         .map(|s| s.trim().to_string())
         .map(|s| s.parse::<u16>())
         .and_then(|r| r.ok());
-    // Option<u16> — 安全な型変換のチェーン
+    // Option<u16> — safe type conversion chain
 
     println!("config = {:?}", config);
 }
@@ -326,70 +326,70 @@ fn get_config_value(key: &str) -> Option<String> {
 }
 ```
 
-### コード例 3: Haskell でのファンクタ型クラス
+### Code Example 3: Functor Type Class in Haskell
 
 ```haskell
--- Haskell では Functor は型クラスとして定義される
--- これがファンクタの理論的な原点
+-- In Haskell, Functor is defined as a type class
+-- This is the theoretical origin of functors
 
 class Functor f where
     fmap :: (a -> b) -> f a -> f b
 
--- Maybe のファンクタインスタンス
+-- Functor instance for Maybe
 instance Functor Maybe where
     fmap _ Nothing  = Nothing
     fmap f (Just a) = Just (f a)
 
--- リストのファンクタインスタンス
+-- Functor instance for lists
 instance Functor [] where
     fmap = map
 
--- 使用例
+-- Usage examples
 example1 = fmap (*2) (Just 5)      -- Just 10
 example2 = fmap (*2) Nothing       -- Nothing
 example3 = fmap (*2) [1, 2, 3]     -- [2, 4, 6]
 
--- <$> は fmap の中置記法
+-- <$> is the infix notation for fmap
 example4 = (*2) <$> Just 5         -- Just 10
 example5 = show <$> [1, 2, 3]      -- ["1", "2", "3"]
 
--- ファンクタ則の検証
--- 恒等則: fmap id x == x
+-- Verification of functor laws
+-- Identity law: fmap id x == x
 prop_identity :: (Functor f, Eq (f a)) => f a -> Bool
 prop_identity x = fmap id x == x
 
--- 合成則: fmap (g . f) x == (fmap g . fmap f) x
+-- Composition law: fmap (g . f) x == (fmap g . fmap f) x
 prop_composition :: (Functor f, Eq (f c)) =>
                     (b -> c) -> (a -> b) -> f a -> Bool
 prop_composition g f x = fmap (g . f) x == (fmap g . fmap f) x
 ```
 
-### 1.4 身近なファンクタの例
+### 1.4 Examples of Everyday Functors
 
-私たちが日常的に使っているファンクタを整理します。
+Here is a summary of the functors we use on a daily basis.
 
 ```typescript
-// 1. Array — 最も身近なファンクタ
+// 1. Array — the most familiar functor
 const numbers = [1, 2, 3, 4, 5];
 const doubled = numbers.map(x => x * 2); // [2, 4, 6, 8, 10]
 
-// 2. Promise — 非同期のファンクタ
-// .then() が map に相当（正確にはモナドの bind でもある）
+// 2. Promise — an asynchronous functor
+// .then() is equivalent to map (strictly speaking, it is also monadic bind)
 const userPromise = fetch("/api/user")
   .then(res => res.json())       // map
   .then(data => data.name);      // map
 
-// 3. DOM NodeList を Array に変換して map
+// 3. Convert DOM NodeList to Array and map
 const elements = Array.from(document.querySelectorAll(".item"));
 const texts = elements.map(el => el.textContent);
 
-// 4. Map オブジェクト — entries を通じてファンクタ的に使える
+// 4. Map object — can be used functor-style via entries
 const prices = new Map([["apple", 100], ["banana", 200]]);
 const discounted = new Map(
   Array.from(prices.entries()).map(([k, v]) => [k, v * 0.9])
 );
 
-// 5. TypeScript の Record 型を map する汎用関数
+// 5. Generic function to map over a TypeScript Record type
 function mapRecord<K extends string, A, B>(
   record: Record<K, A>,
   fn: (a: A) => B
@@ -406,95 +406,95 @@ const doubled2 = mapRecord(inventory, x => x * 2);
 // { apple: 20, banana: 40, cherry: 10 }
 ```
 
-### 1.5 ファンクタではないものとの比較
+### 1.5 Comparison with Non-Functors
 
-ファンクタ則を満たさない、あるいは `map` の意味論が正しくない例を見ることで、ファンクタの理解を深めます。
+By examining examples that do not satisfy the functor laws or where the semantics of `map` are incorrect, we deepen our understanding of functors.
 
 ```typescript
-// === Set は（厳密には）ファンクタではない ===
-// 理由: map で重複が除去される可能性があり、構造が保存されない
+// === Set is not (strictly speaking) a functor ===
+// Reason: map can remove duplicates, which does not preserve structure
 
 const s = new Set([1, 2, 3]);
-// Set には map がないため Array に変換
+// Set has no map, so convert to Array first
 const mapped = new Set(Array.from(s).map(x => x % 2));
-// Set {1, 0} — 要素数が3→2に変わった!
-// ファンクタは構造を保存するべきだが、Set は構造（要素数）を変えうる
+// Set {1, 0} — the number of elements changed from 3 to 2!
+// A functor should preserve structure, but Set can change structure (element count)
 
-// === EventEmitter/Observable の subscribe は map ではない ===
-// 副作用を持つため、ファンクタ則を満たさない
-// ただし、RxJS の Observable.pipe(map(...)) は
-// 適切に実装されればファンクタ則を満たす
+// === subscribe on EventEmitter/Observable is not map ===
+// It has side effects and does not satisfy the functor laws
+// However, Observable.pipe(map(...)) in RxJS
+// satisfies the functor laws if implemented correctly
 
-// === 反例: 恒等則を破る悪い map ===
+// === Counter-example: a bad map that violates the identity law ===
 class BadContainer<T> {
   constructor(public value: T, public count: number = 0) {}
 
   map<U>(fn: (value: T) => U): BadContainer<U> {
-    // count をインクリメント — これは副作用!
+    // Incrementing count — this is a side effect!
     return new BadContainer(fn(this.value), this.count + 1);
   }
 }
 
 const c = new BadContainer(5);
 const c2 = c.map(x => x); // { value: 5, count: 1 }
-// c と c2 は count が異なる → 恒等則違反!
+// c and c2 differ in count → identity law violation!
 ```
 
 ---
 
-## 2. アプリカティブの本質
+## 2. The Essence of Applicatives
 
-### 2.1 アプリカティブが解決する問題
+### 2.1 The Problem Applicatives Solve
 
 ```
-アプリカティブ = ap を持つファンクタ
+Applicative = a functor that has ap
 =====================================
 
-問題: map では引数が1つの関数しか適用できない
+Problem: map can only apply functions with a single argument
 
-  add は 2引数: add(a, b) = a + b
+  add takes 2 arguments: add(a, b) = a + b
   Maybe[3].map(add) → Maybe[(b) => 3 + b]
-  ↑ 関数が Maybe の中に閉じ込められた!
-  この Maybe[(b) => 3 + b] を Maybe[5] に適用したい
-  → ファンクタの map だけでは不可能
+  ↑ The function is trapped inside Maybe!
+  We want to apply this Maybe[(b) => 3 + b] to Maybe[5]
+  → Impossible with functor's map alone
 
-解決: アプリカティブの ap (apply)
+Solution: Applicative's ap (apply)
   F[A → B].ap(F[A])  -->  F[B]
 
   Maybe[add].ap(Maybe[3]).ap(Maybe[5])  -->  Maybe[8]
 
-  コンテキストに閉じ込められた関数を
-  コンテキストに閉じ込められた値に適用できる!
+  A function trapped in a context can be applied
+  to a value trapped in a context!
 
-独立した値の組み合わせ:
-  ファンクタ:      1つの値を変換
-  アプリカティブ:  複数の独立した値を組み合わせ
-  モナド:          前の結果に依存した次の計算
+Combining independent values:
+  Functor:      transforms one value
+  Applicative:  combines multiple independent values
+  Monad:        computation dependent on the previous result
 ```
 
-**WHY**: なぜアプリカティブが必要なのか？
+**WHY**: Why do we need applicatives?
 
-ファンクタの `map` は1引数関数しか受け取れません。しかし実際のプログラミングでは、2つ以上の値を組み合わせて新しい値を作ることが頻繁にあります。
+Functor's `map` can only accept single-argument functions. In real programming, however, it is common to combine two or more values to produce a new value.
 
-- ユーザー名 + メールアドレス + 年齢 → ユーザーオブジェクト
-- 価格 + 数量 → 合計金額
-- 複数の API 結果 → 統合されたレスポンス
+- Username + email address + age → User object
+- Price + quantity → total amount
+- Multiple API results → integrated response
 
-これらの値がそれぞれコンテキスト（Maybe, Result, Promise）に包まれている場合、ファンクタだけでは対応できません。アプリカティブがこの問題を解決します。
+When each of these values is wrapped in a context (Maybe, Result, Promise), a functor alone cannot handle the combination. Applicatives solve this problem.
 
-### 2.2 アプリカティブの図解
+### 2.2 Applicative Diagram
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│  ファンクタ vs アプリカティブ vs モナド                        │
+│  Functor vs Applicative vs Monad                              │
 │                                                              │
-│  ■ ファンクタ (map): 1つの値を変換                            │
+│  ■ Functor (map): transforms one value                        │
 │                                                              │
 │    F[A] ──map(f)──▶ F[B]                                    │
 │                                                              │
 │    Maybe[3] ──map(×2)──▶ Maybe[6]                           │
 │                                                              │
-│  ■ アプリカティブ (ap): 複数の独立した値を組み合わせ           │
+│  ■ Applicative (ap): combines multiple independent values     │
 │                                                              │
 │    F[A→B→C]                                                  │
 │      │                                                       │
@@ -504,7 +504,7 @@ const c2 = c.map(x => x); // { value: 5, count: 1 }
 │      │                                                       │
 │    Maybe[add] ── ap(Maybe[3]) ── ap(Maybe[5]) ──▶ Maybe[8]  │
 │                                                              │
-│  ■ モナド (bind/flatMap): 依存する計算を連鎖                  │
+│  ■ Monad (bind/flatMap): chains dependent computations        │
 │                                                              │
 │    F[A] ──bind(A→F[B])──▶ F[B] ──bind(B→F[C])──▶ F[C]     │
 │                                                              │
@@ -515,37 +515,38 @@ const c2 = c.map(x => x); // { value: 5, count: 1 }
 │      │                          ├── bind(getOrders)          │
 │      │                          │     ──▶ Maybe[Orders]     │
 │      │                                                       │
-│    前の結果が次の計算に必要（依存関係あり）                    │
+│    The previous result is needed for the next computation    │
 └──────────────────────────────────────────────────────────────┘
 ```
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│  アプリカティブ vs モナドのエラーハンドリング比較              │
+│  Error Handling Comparison: Applicative vs Monad              │
 │                                                              │
-│  ■ モナド (Either/Result): 最初のエラーで停止                 │
+│  ■ Monad (Either/Result): stops at the first error            │
 │                                                              │
-│    validate(name)  ──Err──▶ ここで停止                       │
-│    validate(email) ──────▶ 実行されない                      │
-│    validate(age)   ──────▶ 実行されない                      │
-│    結果: Err("名前が不正")                                    │
+│    validate(name)  ──Err──▶ stops here                       │
+│    validate(email) ──────▶ not executed                      │
+│    validate(age)   ──────▶ not executed                      │
+│    Result: Err("name is invalid")                             │
 │                                                              │
-│  ■ アプリカティブ (Validation): 全エラーを蓄積                │
+│  ■ Applicative (Validation): accumulates all errors           │
 │                                                              │
 │    validate(name)  ──Err1──┐                                 │
-│    validate(email) ──Err2──┼──▶ 全エラーを結合               │
+│    validate(email) ──Err2──┼──▶ combines all errors          │
 │    validate(age)   ──Err3──┘                                 │
-│    結果: Err(["名前が不正", "メールが不正", "年齢が不正"])     │
+│    Result: Err(["name is invalid", "email is invalid",        │
+│                 "age is invalid"])                            │
 │                                                              │
-│  → フォームバリデーションでは                                 │
-│    アプリカティブが圧倒的に便利                               │
+│  → For form validation,                                       │
+│    applicative is overwhelmingly more convenient             │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### コード例 4: アプリカティブの完全実装（Maybe）
+### Code Example 4: Complete Applicative Implementation (Maybe)
 
 ```typescript
-// === Maybe のファンクタ + アプリカティブ + モナド 完全実装 ===
+// === Complete implementation of Maybe as Functor + Applicative + Monad ===
 
 class Maybe<T> {
   private constructor(private readonly value: T | null | undefined) {}
@@ -566,26 +567,26 @@ class Maybe<T> {
     return this.value == null;
   }
 
-  // --- ファンクタ ---
+  // --- Functor ---
   map<U>(fn: (value: T) => U): Maybe<U> {
     if (this.value == null) return Maybe.nothing<U>();
     return Maybe.of(fn(this.value));
   }
 
-  // --- アプリカティブ ---
-  // ap: Maybe に包まれた関数を Maybe に包まれた値に適用する
+  // --- Applicative ---
+  // ap: apply a function wrapped in Maybe to a value wrapped in Maybe
   ap<U>(maybeFn: Maybe<(value: T) => U>): Maybe<U> {
     if (this.value == null || maybeFn.isNothing()) return Maybe.nothing<U>();
     return Maybe.of(maybeFn.get()(this.value));
   }
 
-  // --- モナド ---
+  // --- Monad ---
   flatMap<U>(fn: (value: T) => Maybe<U>): Maybe<U> {
     if (this.value == null) return Maybe.nothing<U>();
     return fn(this.value);
   }
 
-  // --- ユーティリティ ---
+  // --- Utilities ---
   getOrElse(defaultValue: T): T {
     return this.value == null ? defaultValue : this.value;
   }
@@ -600,14 +601,14 @@ class Maybe<T> {
   }
 }
 
-// === liftA2, liftA3: 多引数関数をアプリカティブに持ち上げ ===
+// === liftA2, liftA3: lift multi-argument functions into the applicative ===
 
 function liftA2<A, B, C>(
   fn: (a: A, b: B) => C,
   ma: Maybe<A>,
   mb: Maybe<B>
 ): Maybe<C> {
-  // カリー化して ap で適用
+  // Curry and apply with ap
   return mb.ap(ma.map(a => (b: B) => fn(a, b)));
 }
 
@@ -620,20 +621,20 @@ function liftA3<A, B, C, D>(
   return mc.ap(mb.ap(ma.map(a => (b: B) => (c: C) => fn(a, b, c))));
 }
 
-// === 使用例 ===
+// === Usage examples ===
 
-// 2つの Maybe 値を組み合わせ
+// Combine two Maybe values
 const price = Maybe.of(100);
 const quantity = Maybe.of(3);
 const total = liftA2((p, q) => p * q, price, quantity);
 console.log(total.toString()); // Just(300)
 
-// 片方が Nothing なら結果も Nothing
+// If either is Nothing, the result is also Nothing
 const noPrice = Maybe.nothing<number>();
 const noTotal = liftA2((p, q) => p * q, noPrice, quantity);
 console.log(noTotal.toString()); // Nothing
 
-// 3つの Maybe 値を組み合わせてユーザーオブジェクトを作成
+// Combine three Maybe values to create a user object
 interface User {
   name: string;
   email: string;
@@ -654,18 +655,18 @@ const user = liftA3(createUser, userName, userEmail, userAge);
 console.log(user.toString());
 // Just({name: "Taro", email: "taro@example.com", age: 30})
 
-// 1つでも Nothing なら全体が Nothing
+// If even one is Nothing, the whole result is Nothing
 const noEmail = Maybe.nothing<string>();
 const noUser = liftA3(createUser, userName, noEmail, userAge);
 console.log(noUser.toString()); // Nothing
 ```
 
-### コード例 5: アプリカティブバリデーション（エラー蓄積）
+### Code Example 5: Applicative Validation (Error Accumulation)
 
 ```typescript
-// === Validation: アプリカティブの最大の利点 ===
-// モナド (flatMap) では最初のエラーで停止するが、
-// アプリカティブではすべてのエラーを収集できる
+// === Validation: the greatest advantage of applicatives ===
+// With a monad (flatMap), computation stops at the first error,
+// but with an applicative, all errors can be collected
 
 type Validation<E, A> =
   | { tag: "Success"; value: A }
@@ -683,7 +684,7 @@ function failOne<E, A>(error: E): Validation<E, A> {
   return { tag: "Failure", errors: [error] };
 }
 
-// map (ファンクタ)
+// map (functor)
 function mapV<E, A, B>(
   va: Validation<E, A>,
   fn: (a: A) => B
@@ -691,13 +692,13 @@ function mapV<E, A, B>(
   return va.tag === "Success" ? success(fn(va.value)) : va;
 }
 
-// ap (アプリカティブ) — エラーを蓄積する
+// ap (applicative) — accumulates errors
 function apV<E, A, B>(
   vf: Validation<E, (a: A) => B>,
   va: Validation<E, A>
 ): Validation<E, B> {
   if (vf.tag === "Failure" && va.tag === "Failure") {
-    return failure([...vf.errors, ...va.errors]);  // 両方のエラーを蓄積!
+    return failure([...vf.errors, ...va.errors]);  // accumulates both errors!
   }
   if (vf.tag === "Failure") return failure(vf.errors);
   if (va.tag === "Failure") return failure(va.errors);
@@ -722,7 +723,7 @@ function liftA3V<E, A, B, C, D>(
   return apV(apV(mapV(va, (a: A) => (b: B) => (c: C) => fn(a, b, c)), vb), vc);
 }
 
-// === バリデーション関数群 ===
+// === Validation functions ===
 
 interface ValidationError {
   field: string;
@@ -731,13 +732,13 @@ interface ValidationError {
 
 function validateName(name: string): Validation<ValidationError, string> {
   if (name.length === 0) {
-    return failOne({ field: "name", message: "名前は必須です" });
+    return failOne({ field: "name", message: "Name is required" });
   }
   if (name.length < 2) {
-    return failOne({ field: "name", message: "名前は2文字以上で入力してください" });
+    return failOne({ field: "name", message: "Name must be at least 2 characters" });
   }
   if (name.length > 50) {
-    return failOne({ field: "name", message: "名前は50文字以下で入力してください" });
+    return failOne({ field: "name", message: "Name must be 50 characters or less" });
   }
   return success(name);
 }
@@ -745,25 +746,25 @@ function validateName(name: string): Validation<ValidationError, string> {
 function validateEmail(email: string): Validation<ValidationError, string> {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
-    return failOne({ field: "email", message: "有効なメールアドレスを入力してください" });
+    return failOne({ field: "email", message: "Please enter a valid email address" });
   }
   return success(email);
 }
 
 function validateAge(age: number): Validation<ValidationError, number> {
   if (!Number.isInteger(age)) {
-    return failOne({ field: "age", message: "年齢は整数で入力してください" });
+    return failOne({ field: "age", message: "Age must be an integer" });
   }
   if (age < 0 || age > 150) {
-    return failOne({ field: "age", message: "年齢は0〜150の範囲で入力してください" });
+    return failOne({ field: "age", message: "Age must be between 0 and 150" });
   }
   if (age < 18) {
-    return failOne({ field: "age", message: "18歳以上である必要があります" });
+    return failOne({ field: "age", message: "Must be 18 years or older" });
   }
   return success(age);
 }
 
-// === ユーザー登録フォームの検証 ===
+// === Validation for user registration form ===
 
 interface UserRegistration {
   name: string;
@@ -788,9 +789,9 @@ function validateUserRegistration(input: {
   );
 }
 
-// === 実行例 ===
+// === Execution examples ===
 
-// 全てのフィールドが不正 → エラーが全て蓄積される
+// All fields are invalid → all errors are accumulated
 const result1 = validateUserRegistration({
   name: "",
   email: "invalid",
@@ -800,14 +801,14 @@ console.log(result1);
 // {
 //   tag: "Failure",
 //   errors: [
-//     { field: "name", message: "名前は必須です" },
-//     { field: "email", message: "有効なメールアドレスを入力してください" },
-//     { field: "age", message: "18歳以上である必要があります" }
+//     { field: "name", message: "Name is required" },
+//     { field: "email", message: "Please enter a valid email address" },
+//     { field: "age", message: "Must be 18 years or older" }
 //   ]
 // }
-// → モナドなら "名前は必須です" だけで停止していた!
+// → With a monad, it would have stopped at "Name is required"!
 
-// 全て有効な場合
+// When all are valid
 const result2 = validateUserRegistration({
   name: "Taro",
   email: "taro@example.com",
@@ -817,23 +818,23 @@ console.log(result2);
 // { tag: "Success", value: { name: "Taro", email: "taro@example.com", age: 25 } }
 ```
 
-### コード例 6: Promise.all はアプリカティブ
+### Code Example 6: Promise.all Is an Applicative
 
 ```typescript
-// === Promise.all はアプリカティブの ap に相当する ===
+// === Promise.all is equivalent to the applicative's ap ===
 
-// WHY: 独立した非同期処理を並列実行できる
-// → 逐次実行に比べて大幅な高速化が可能
+// WHY: Independent async operations can be run in parallel
+// → Significant speedup compared to sequential execution
 
-// --- アプリカティブ（Promise.all）: 独立した処理を並列実行 ---
+// --- Applicative (Promise.all): run independent operations in parallel ---
 async function getUserDashboard(userId: string) {
-  // 3つの API 呼び出しは互いに独立
+  // The 3 API calls are independent of each other
   const [user, orders, settings] = await Promise.all([
     fetchUser(userId),        // 200ms
     fetchOrders(userId),      // 300ms
     fetchSettings(userId),    // 150ms
   ]);
-  // 合計: max(200, 300, 150) = 300ms（並列実行）
+  // Total: max(200, 300, 150) = 300ms (parallel execution)
 
   return {
     userName: user.name,
@@ -842,17 +843,17 @@ async function getUserDashboard(userId: string) {
   };
 }
 
-// --- モナド（async/await逐次）: 依存する処理を直列実行 ---
+// --- Monad (sequential async/await): run dependent operations sequentially ---
 async function getOrderDetails(userId: string) {
   const user = await fetchUser(userId);                   // 200ms
-  const orders = await fetchOrders(user.id);              // 300ms（user に依存）
-  const details = await fetchOrderDetails(orders[0].id);  // 100ms（orders に依存）
-  // 合計: 200 + 300 + 100 = 600ms（逐次実行）
+  const orders = await fetchOrders(user.id);              // 300ms (depends on user)
+  const details = await fetchOrderDetails(orders[0].id);  // 100ms (depends on orders)
+  // Total: 200 + 300 + 100 = 600ms (sequential execution)
 
   return details;
 }
 
-// --- Promise.allSettled: 失敗しても全結果を取得 ---
+// --- Promise.allSettled: get all results even if some fail ---
 async function getUserDataSafe(userId: string) {
   const results = await Promise.allSettled([
     fetchUser(userId),
@@ -869,7 +870,7 @@ async function getUserDataSafe(userId: string) {
   });
 }
 
-// --- 実用的な例: API リクエストの並列バッチ処理 ---
+// --- Practical example: parallel batch API request processing ---
 async function batchFetch<T>(
   urls: string[],
   concurrency: number = 5
@@ -886,14 +887,14 @@ async function batchFetch<T>(
 }
 ```
 
-### コード例 7: Rust でのアプリカティブ的操作
+### Code Example 7: Applicative-Style Operations in Rust
 
 ```rust
-// Rust にはアプリカティブの直接的な構文はないが、
-// 同等のパターンは実現可能
+// Rust has no direct applicative syntax, but
+// equivalent patterns can be achieved
 
 fn main() {
-    // === Option の zip: アプリカティブ的な組み合わせ ===
+    // === Option's zip: applicative-style combination ===
     let x: Option<i32> = Some(3);
     let y: Option<i32> = Some(5);
     let sum = x.zip(y).map(|(a, b)| a + b);
@@ -903,15 +904,15 @@ fn main() {
     let no_sum = x.zip(z).map(|(a, b)| a + b);
     println!("no_sum = {:?}", no_sum); // None
 
-    // === 実践: 設定の並列パース ===
+    // === Practical: parallel config parsing ===
     let config = parse_config("8080", "localhost", "mydb");
     println!("config = {:?}", config);
     // Some(ServerConfig { port: 8080, host: "localhost", db: "mydb" })
 
-    // === エラー蓄積型バリデーション ===
+    // === Error-accumulating validation ===
     let result = validate_user_input("", "bad-email", -5);
     println!("validation = {:?}", result);
-    // Err(["名前は必須です", "無効なメールアドレス", "年齢は0以上"])
+    // Err(["Name is required", "Invalid email address", "Age must be 0 or greater"])
 }
 
 #[derive(Debug)]
@@ -930,7 +931,7 @@ fn parse_config(port_str: &str, host: &str, db: &str) -> Option<ServerConfig> {
     })
 }
 
-// エラー蓄積型バリデーション（アプリカティブ的）
+// Error-accumulating validation (applicative-style)
 fn validate_user_input(
     name: &str,
     email: &str,
@@ -939,13 +940,13 @@ fn validate_user_input(
     let mut errors = Vec::new();
 
     if name.is_empty() {
-        errors.push("名前は必須です".to_string());
+        errors.push("Name is required".to_string());
     }
     if !email.contains('@') {
-        errors.push("無効なメールアドレス".to_string());
+        errors.push("Invalid email address".to_string());
     }
     if age < 0 {
-        errors.push("年齢は0以上".to_string());
+        errors.push("Age must be 0 or greater".to_string());
     }
 
     if errors.is_empty() {
@@ -955,13 +956,13 @@ fn validate_user_input(
     }
 }
 
-// === Iterator の zip: アプリカティブ的操作 ===
+// === Iterator zip: applicative-style operation ===
 fn applicative_iterators() {
     let names = vec!["Alice", "Bob", "Charlie"];
     let ages = vec![30, 25, 35];
     let scores = vec![95, 87, 92];
 
-    // 3つのイテレータを zip で組み合わせ
+    // Combine 3 iterators with zip
     let students: Vec<_> = names.iter()
         .zip(ages.iter())
         .zip(scores.iter())
@@ -981,102 +982,103 @@ fn applicative_iterators() {
 
 ---
 
-## 3. 型クラス階層
+## 3. The Type Class Hierarchy
 
-### 3.1 Functor < Applicative < Monad の関係
+### 3.1 The Relationship of Functor < Applicative < Monad
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  型クラス階層（圏論的な包含関係）                              │
+│  Type class hierarchy (category-theoretic containment)       │
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │  Monad                                              │   │
 │  │  bind/flatMap: F[A] → (A → F[B]) → F[B]            │   │
-│  │  依存する計算の連鎖                                  │   │
+│  │  chaining dependent computations                    │   │
 │  │                                                     │   │
 │  │  ┌─────────────────────────────────────────────┐   │   │
 │  │  │  Applicative                                │   │   │
 │  │  │  ap:   F[A → B] → F[A] → F[B]              │   │   │
 │  │  │  pure: A → F[A]                             │   │   │
-│  │  │  独立した値の組み合わせ                      │   │   │
+│  │  │  combining independent values               │   │   │
 │  │  │                                             │   │   │
 │  │  │  ┌─────────────────────────────────────┐   │   │   │
 │  │  │  │  Functor                            │   │   │   │
 │  │  │  │  map/fmap: F[A] → (A → B) → F[B]   │   │   │   │
-│  │  │  │  1つの値の変換                       │   │   │   │
+│  │  │  │  transforming one value              │   │   │   │
 │  │  │  └─────────────────────────────────────┘   │   │   │
 │  │  └─────────────────────────────────────────────┘   │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
-│  重要: すべてのモナドはアプリカティブであり、                  │
-│        すべてのアプリカティブはファンクタである                 │
+│  Important: every monad is an applicative, and              │
+│             every applicative is a functor                   │
 │                                                             │
-│  しかし逆は成り立たない:                                      │
-│  - Validation はアプリカティブだがモナドではない               │
-│    (エラー蓄積にはアプリカティブが必要)                        │
+│  But the reverse does not hold:                              │
+│  - Validation is an applicative but not a monad              │
+│    (error accumulation requires an applicative)              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 使い分け比較表
+### 3.2 Comparison Table for Choosing
 
-| 特性 | Functor (map) | Applicative (ap) | Monad (bind) |
+| Characteristic | Functor (map) | Applicative (ap) | Monad (bind) |
 |---|---|---|---|
-| **1値の変換** | 可能 | 可能 | 可能 |
-| **複数値の組み合わせ** | 不可 | 可能 | 可能 |
-| **エラー蓄積** | 不可 | 可能 | 不可（最初で停止） |
-| **依存する計算** | 不可 | 不可 | 可能 |
-| **並列実行** | — | 可能 | 不可（逐次） |
-| **計算の静的解析** | 可能 | 可能 | 不可（動的） |
-| **日常での例** | Array.map | Promise.all | async/await |
+| **Transform one value** | Possible | Possible | Possible |
+| **Combine multiple values** | Not possible | Possible | Possible |
+| **Error accumulation** | Not possible | Possible | Not possible (stops at first) |
+| **Dependent computation** | Not possible | Not possible | Possible |
+| **Parallel execution** | — | Possible | Not possible (sequential) |
+| **Static analysis of computation** | Possible | Possible | Not possible (dynamic) |
+| **Everyday example** | Array.map | Promise.all | async/await |
 | **Haskell** | fmap / <$> | <*> | >>= / do |
 | **TypeScript** | .map() | Promise.all() | .then() / await |
 | **Rust** | .map() | .zip() | .and_then() / ? |
 
-### 3.3 アプリカティブとモナドの選択基準
+### 3.3 Criteria for Choosing Applicative vs Monad
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  選択フローチャート                                      │
+│  Selection flowchart                                     │
 │                                                         │
-│  「計算 B は計算 A の結果に依存するか？」                 │
+│  "Does computation B depend on the result of A?"         │
 │        │                                                │
-│        ├── YES → モナド（flatMap / bind / await）        │
-│        │         例: fetchUser → fetchOrders(user.id)   │
+│        ├── YES → Monad (flatMap / bind / await)          │
+│        │         e.g.: fetchUser → fetchOrders(user.id)  │
 │        │                                                │
-│        └── NO  → アプリカティブ（ap / Promise.all）      │
-│                  例: fetchUser + fetchProducts + fetchAds│
+│        └── NO  → Applicative (ap / Promise.all)          │
+│                  e.g.: fetchUser + fetchProducts + fetchAds│
 │                                                         │
-│  さらに:                                                 │
-│  「エラーを全て収集したいか？」                           │
+│  Additionally:                                           │
+│  "Do you want to collect all errors?"                    │
 │        │                                                │
-│        ├── YES → Validation（アプリカティブ）             │
-│        │         例: フォームバリデーション               │
+│        ├── YES → Validation (applicative)                │
+│        │         e.g.: form validation                   │
 │        │                                                │
-│        └── NO  → Either/Result（モナド）                 │
-│                  例: 最初のエラーで中断して早期リターン   │
+│        └── NO  → Either/Result (monad)                   │
+│                  e.g.: abort on first error, early return│
 │                                                         │
-│  パフォーマンスの観点:                                    │
-│  - アプリカティブは並列実行が可能                         │
-│  - モナドは逐次実行（前の結果が次に必要なため）           │
-│  - 可能な限りアプリカティブを選ぶと高速                   │
+│  From a performance perspective:                         │
+│  - Applicative allows parallel execution                 │
+│  - Monad requires sequential execution (each step needs  │
+│    the previous result)                                  │
+│  - Prefer applicative when possible for better speed     │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### コード例 8: 各レベルの能力の違いを示す実践例
+### Code Example 8: Practical Example Showing the Difference in Capability at Each Level
 
 ```typescript
-// === ファンクタレベル: 1つの値の変換 ===
+// === Functor level: transforming one value ===
 
-// ユーザーIDから表示名を取得
+// Get display name from user ID
 const displayName = Maybe.fromNullable(user)
   .map(u => u.firstName + " " + u.lastName)
   .map(name => name.trim())
   .map(name => name.toUpperCase());
 // Maybe<string>: Just("TARO YAMADA") or Nothing
 
-// === アプリカティブレベル: 独立した値の組み合わせ ===
+// === Applicative level: combining independent values ===
 
-// フォームの3つのフィールドを独立に検証して結合
+// Independently validate 3 form fields and combine
 const validatedForm = liftA3V(
   (name, email, age) => ({ name, email, age }),
   validateName(formData.name),
@@ -1084,96 +1086,99 @@ const validatedForm = liftA3V(
   validateAge(formData.age)
 );
 // Validation<Error[], FormData>
-// エラーは全フィールド分蓄積される
+// Errors accumulate for all fields
 
-// === モナドレベル: 依存する計算の連鎖 ===
+// === Monad level: chaining dependent computations ===
 
-// ユーザー取得 → 権限チェック → データ取得
+// Fetch user → check permissions → fetch data
 const result = Maybe.fromNullable(userId)
   .flatMap(id => findUser(id))           // Maybe<User>
   .flatMap(user => checkPermission(user)) // Maybe<Permission>
   .flatMap(perm => fetchData(perm));      // Maybe<Data>
-// 各ステップが前のステップの結果に依存
+// Each step depends on the result of the previous step
 
-// === 誤った選択の例 ===
+// === Examples of incorrect choices ===
 
-// [NG] 独立した処理をモナドで書く（不必要に逐次実行）
+// [NG] Writing independent operations with monad (unnecessarily sequential)
 const user2 = await fetchUser(userId);      // 200ms
-const products = await fetchProducts();      // 300ms（user に依存しない!）
-const ads = await fetchAds();                // 100ms（上記に依存しない!）
-// 合計: 600ms
+const products = await fetchProducts();      // 300ms (does not depend on user!)
+const ads = await fetchAds();                // 100ms (does not depend on above!)
+// Total: 600ms
 
-// [OK] アプリカティブで書く（並列実行）
+// [OK] Write with applicative (parallel execution)
 const [user3, products2, ads2] = await Promise.all([
   fetchUser(userId),    // 200ms
   fetchProducts(),      // 300ms
   fetchAds(),           // 100ms
 ]);
-// 合計: 300ms（2倍高速!）
+// Total: 300ms (2x faster!)
 ```
 
-### 3.4 日常での対応表
+### 3.4 Everyday Correspondence Table
 
-| 抽象化 | Array | Promise | Option/Maybe | Result/Either | IO |
+| Abstraction | Array | Promise | Option/Maybe | Result/Either | IO |
 |---|---|---|---|---|---|
 | **Functor (map)** | `.map()` | `.then()` | `.map()` | `.map()` | `.map()` |
-| **Applicative** | `zip`/スプレッド | `Promise.all()` | `liftA2` | `Validation` | `liftA2` |
-| **Monad (bind)** | `.flatMap()` | `async/await` | `.flatMap()`/`?.` | `?` 演算子 | `do` 記法 |
+| **Applicative** | `zip`/spread | `Promise.all()` | `liftA2` | `Validation` | `liftA2` |
+| **Monad (bind)** | `.flatMap()` | `async/await` | `.flatMap()`/`?.` | `?` operator | `do` notation |
 
 ---
 
-## 4. 圏論との接点 — 直感的な理解
+## 4. Connection to Category Theory — Intuitive Understanding
 
-### 4.1 プログラマのための圏論
+### 4.1 Category Theory for Programmers
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│  圏論の概念とプログラミングの対応                              │
+│  Correspondence between category theory concepts              │
+│  and programming                                             │
 │                                                              │
-│  圏論           プログラミング                                │
-│  ──────         ─────────────                                │
-│  圏(Category)   型の世界                                      │
-│  対象(Object)   型（Int, String, User, ...）                  │
-│  射(Morphism)   関数（A → B）                                │
-│  合成(∘)         関数合成 (f ∘ g)(x) = f(g(x))               │
-│  恒等射(id)     恒等関数 id(x) = x                           │
+│  Category theory    Programming                              │
+│  ──────────────     ─────────────                            │
+│  Category           The world of types                       │
+│  Object             Type (Int, String, User, ...)            │
+│  Morphism           Function (A → B)                        │
+│  Composition (∘)    Function composition (f ∘ g)(x) = f(g(x))│
+│  Identity (id)      Identity function id(x) = x             │
 │                                                              │
-│  ファンクタ     圏から圏への「構造を保つ写像」                 │
-│                 F: C → D                                     │
-│                 - 対象を対象に:  A → F[A]                     │
-│                 - 射を射に:     (A→B) → (F[A]→F[B])          │
-│                 これが map!                                   │
+│  Functor            A "structure-preserving map" from        │
+│                     one category to another                  │
+│                     F: C → D                                 │
+│                     - Objects to objects:  A → F[A]          │
+│                     - Morphisms to morphisms: (A→B) → (F[A]→F[B])│
+│                     This is map!                             │
 │                                                              │
-│  自然変換       ファンクタ間の「構造を保つ変換」               │
-│                 Maybe[A] → List[A]                           │
-│                 例: maybeToList(Just 5) = [5]                 │
-│                     maybeToList(Nothing) = []                 │
+│  Natural            A "structure-preserving transformation"  │
+│  Transformation     between functors                        │
+│                     Maybe[A] → List[A]                       │
+│                     e.g.: maybeToList(Just 5) = [5]          │
+│                           maybeToList(Nothing) = []          │
 │                                                              │
-│  モナド         自己ファンクタの圏のモノイド                   │
-│                 (join: F[F[A]] → F[A] と pure: A → F[A])     │
-│                 flatMap = join ∘ map                          │
+│  Monad              A monoid in the category of endofunctors │
+│                     (join: F[F[A]] → F[A] and pure: A → F[A])│
+│                     flatMap = join ∘ map                     │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 なぜ圏論が役立つのか
+### 4.2 Why Category Theory Is Useful
 
-圏論を知ることの実用的な価値:
+Practical value of knowing category theory:
 
-1. **API 設計**: ファンクタ則を満たす `map` を設計すれば、ユーザーが安心してリファクタリングできる
-2. **パフォーマンス最適化**: 合成則により、`map` チェーンを1回の `map` にまとめられる
-3. **ライブラリ理解**: fp-ts, cats, scalaz 等のライブラリの API が直感的に理解できる
-4. **パターン発見**: 「この型に map を実装できるか？」と考えることで、新しい抽象化を発見できる
+1. **API design**: Designing a `map` that satisfies the functor laws lets users refactor with confidence
+2. **Performance optimization**: The composition law allows merging a chain of `map` calls into a single `map`
+3. **Understanding libraries**: The APIs of libraries like fp-ts, cats, and scalaz become intuitively understandable
+4. **Pattern discovery**: Asking "can I implement map on this type?" leads to discovering new abstractions
 
 ---
 
-## 5. 高度なトピック
+## 5. Advanced Topics
 
-### 5.1 Traversable — ファンクタの中のアプリカティブ
+### 5.1 Traversable — An Applicative Inside a Functor
 
 ```typescript
-// Traversable: コンテキストの順序を入れ替える
-// 問題: Array<Maybe<number>> があるが、Maybe<Array<number>> が欲しい
-// つまり「1つでも Nothing があれば全体を Nothing にしたい」
+// Traversable: swap the order of contexts
+// Problem: we have Array<Maybe<number>> but want Maybe<Array<number>>
+// In other words, "if even one is Nothing, make the whole thing Nothing"
 
 function sequence<A>(maybes: Maybe<A>[]): Maybe<A[]> {
   return maybes.reduce<Maybe<A[]>>(
@@ -1183,7 +1188,7 @@ function sequence<A>(maybes: Maybe<A>[]): Maybe<A[]> {
   );
 }
 
-// map してから sequence する（より効率的）
+// map then sequence (more efficient)
 function traverse<A, B>(
   fn: (a: A) => Maybe<B>,
   arr: A[]
@@ -1195,14 +1200,14 @@ function traverse<A, B>(
   );
 }
 
-// 使用例
+// Usage examples
 const ids = [1, 2, 3, 4, 5];
 
-// 全ユーザーが見つかれば Just([users])、1人でも見つからなければ Nothing
+// Just([users]) if all users are found, Nothing if any one is not found
 const allUsers = traverse(id => findUserById(id), ids);
 // Maybe<User[]>
 
-// sequence の使用例
+// sequence usage example
 const maybeNumbers: Maybe<number>[] = [
   Maybe.of(1),
   Maybe.of(2),
@@ -1217,24 +1222,24 @@ const withNothing: Maybe<number>[] = [
   Maybe.of(3),
 ];
 const seqResult2 = sequence(withNothing);
-// Nothing — 1つでも Nothing なら全体が Nothing
+// Nothing — if even one is Nothing, the whole is Nothing
 ```
 
-### 5.2 Contravariant Functor — 反変ファンクタ
+### 5.2 Contravariant Functor
 
 ```typescript
-// 通常のファンクタは「出力」側に map する（共変: Covariant）
-// 反変ファンクタは「入力」側に map する（反変: Contravariant）
+// An ordinary functor maps on the "output" side (covariant)
+// A contravariant functor maps on the "input" side (contravariant)
 
-// 通常のファンクタ: F[A] → (A → B) → F[B]
-// 反変ファンクタ:   F[A] → (B → A) → F[B]
+// Ordinary functor:      F[A] → (A → B) → F[B]
+// Contravariant functor: F[A] → (B → A) → F[B]
 
-// 例: 比較関数（Comparator）は反変ファンクタ
+// Example: a Comparator is a contravariant functor
 interface Comparator<A> {
   compare: (a1: A, a2: A) => number;
 }
 
-// contramap: 入力側を変換
+// contramap: transform the input side
 function contramap<A, B>(
   comp: Comparator<A>,
   fn: (b: B) => A
@@ -1244,16 +1249,16 @@ function contramap<A, B>(
   };
 }
 
-// 数値比較器
+// Number comparator
 const numberComparator: Comparator<number> = {
   compare: (a, b) => a - b,
 };
 
-// 文字列の長さで比較（反変マッピング）
+// Compare by string length (contravariant mapping)
 const byLength = contramap(numberComparator, (s: string) => s.length);
 // Comparator<string>
 
-// ユーザーを年齢で比較（反変マッピング）
+// Compare people by age (contravariant mapping)
 interface Person {
   name: string;
   age: number;
@@ -1262,7 +1267,7 @@ interface Person {
 const byAge = contramap(numberComparator, (p: Person) => p.age);
 // Comparator<Person>
 
-// 使用
+// Usage
 const people: Person[] = [
   { name: "Alice", age: 30 },
   { name: "Bob", age: 25 },
@@ -1272,19 +1277,19 @@ const people: Person[] = [
 const sorted = [...people].sort(byAge.compare);
 // [Bob(25), Alice(30), Charlie(35)]
 
-// 反変ファンクタの法則:
-// 1. 恒等則: contramap(id) = id
-// 2. 合成則: contramap(f).contramap(g) = contramap(g . f)
-//            (注意: 通常のファンクタとは合成の順序が逆!)
+// Contravariant functor laws:
+// 1. Identity law: contramap(id) = id
+// 2. Composition law: contramap(f).contramap(g) = contramap(g . f)
+//    (Note: the order of composition is reversed compared to ordinary functors!)
 ```
 
-### 5.3 Free Applicative パターン
+### 5.3 Free Applicative Pattern
 
 ```typescript
-// Free Applicative: アプリカティブな操作を
-// データ構造として構築し、後から解釈する
+// Free Applicative: build applicative operations as
+// a data structure and interpret them later
 
-// 宣言的な API リクエスト定義
+// Declarative API request definition
 type ApiRequest<A> =
   | { tag: "Pure"; value: A }
   | { tag: "Fetch"; url: string; parse: (data: unknown) => A }
@@ -1317,7 +1322,7 @@ function liftA2Req<A, B, C>(
   return apReq(mapReq(ra, (a: A) => (b: B) => fn(a, b)), rb);
 }
 
-// リクエストの宣言（この時点ではまだ実行されない）
+// Request declaration (not executed at this point)
 const userReq = fetchReq("/api/user/1", (d: any) => d as User);
 const ordersReq = fetchReq("/api/orders?user=1", (d: any) => d as Order[]);
 
@@ -1327,7 +1332,7 @@ const dashboardReq = liftA2Req(
   ordersReq
 );
 
-// === インタプリタ1: 並列実行 ===
+// === Interpreter 1: parallel execution ===
 async function runParallel<A>(req: ApiRequest<A>): Promise<A> {
   if (req.tag === "Pure") return req.value;
   if (req.tag === "Fetch") {
@@ -1335,7 +1340,7 @@ async function runParallel<A>(req: ApiRequest<A>): Promise<A> {
     const data = await res.json();
     return req.parse(data);
   }
-  // Ap: 関数と引数を並列実行
+  // Ap: run function and argument in parallel
   const [fn, arg] = await Promise.all([
     runParallel(req.fn),
     runParallel(req.arg),
@@ -1343,14 +1348,14 @@ async function runParallel<A>(req: ApiRequest<A>): Promise<A> {
   return fn(arg);
 }
 
-// === インタプリタ2: URL 収集（テストやログ用） ===
+// === Interpreter 2: collect URLs (for testing or logging) ===
 function collectUrls<A>(req: ApiRequest<A>): string[] {
   if (req.tag === "Pure") return [];
   if (req.tag === "Fetch") return [req.url];
   return [...collectUrls(req.fn), ...collectUrls(req.arg)];
 }
 
-// 使用例
+// Usage examples
 const urls = collectUrls(dashboardReq);
 // ["/api/user/1", "/api/orders?user=1"]
 
@@ -1358,13 +1363,13 @@ const dashboard = await runParallel(dashboardReq);
 // { user: ..., orders: [...] }
 ```
 
-### 5.4 React におけるアプリカティブパターン
+### 5.4 Applicative Patterns in React
 
 ```tsx
-// === React Query (TanStack Query) での並列クエリ ===
+// === Parallel queries with React Query (TanStack Query) ===
 
 function Dashboard({ userId }: { userId: string }) {
-  // 3つのクエリを並列実行（アプリカティブ）
+  // Run 3 queries in parallel (applicative)
   const userQuery = useQuery({
     queryKey: ["user", userId],
     queryFn: () => fetchUser(userId),
@@ -1378,19 +1383,19 @@ function Dashboard({ userId }: { userId: string }) {
     queryFn: () => fetchSettings(userId),
   });
 
-  // 全クエリのローディング状態を組み合わせ
+  // Combine loading states of all queries
   if (userQuery.isLoading || ordersQuery.isLoading || settingsQuery.isLoading) {
     return <Loading />;
   }
 
-  // エラーの蓄積（アプリカティブ的）
+  // Error accumulation (applicative-style)
   const errors = [userQuery.error, ordersQuery.error, settingsQuery.error]
     .filter(Boolean);
   if (errors.length > 0) {
     return <ErrorList errors={errors} />;
   }
 
-  // 全データが揃った時のみレンダリング
+  // Render only when all data is available
   return (
     <DashboardView
       user={userQuery.data!}
@@ -1400,7 +1405,7 @@ function Dashboard({ userId }: { userId: string }) {
   );
 }
 
-// === フォームバリデーション ===
+// === Form validation ===
 function useFormValidation<T extends Record<string, unknown>>(
   validators: Record<keyof T, (value: unknown) => Validation<string, unknown>>
 ) {
@@ -1426,40 +1431,40 @@ function useFormValidation<T extends Record<string, unknown>>(
 }
 ```
 
-### 5.5 Haskell での型クラス階層
+### 5.5 Type Class Hierarchy in Haskell
 
 ```haskell
--- Haskell ではファンクタ・アプリカティブ・モナドは
--- 型クラスとして明示的に定義される
+-- In Haskell, Functor, Applicative, and Monad are
+-- explicitly defined as type classes
 
--- === ファンクタ ===
+-- === Functor ===
 class Functor f where
     fmap :: (a -> b) -> f a -> f b
 
--- === アプリカティブ ===
+-- === Applicative ===
 class Functor f => Applicative f where
     pure  :: a -> f a
     (<*>) :: f (a -> b) -> f a -> f b
 
--- === モナド ===
+-- === Monad ===
 class Applicative m => Monad m where
     (>>=) :: m a -> (a -> m b) -> m b
 
--- === 使用例 ===
+-- === Usage examples ===
 
--- ファンクタ
+-- Functor
 ex1 = fmap (+1) (Just 5)              -- Just 6
 ex2 = fmap (+1) [1, 2, 3]             -- [2, 3, 4]
 
--- アプリカティブ
+-- Applicative
 ex3 = pure (+) <*> Just 3 <*> Just 5  -- Just 8
 ex4 = pure (+) <*> Nothing <*> Just 5 -- Nothing
 
--- リストのアプリカティブ（直積 = 全組み合わせ）
+-- List applicative (Cartesian product = all combinations)
 ex5 = pure (+) <*> [1, 2] <*> [10, 20]
 -- [11, 21, 12, 22]
 
--- アプリカティブスタイルでのユーザー作成
+-- Creating a user in applicative style
 data User = User String String Int deriving (Show)
 
 mkUser :: String -> String -> Int -> User
@@ -1469,7 +1474,7 @@ validUser = mkUser <$> validateName "Taro"
                    <*> validateEmail "taro@example.com"
                    <*> validateAge 25
 
--- モナド（do 記法）
+-- Monad (do notation)
 ex6 = do
     user  <- findUser userId
     perms <- checkPermissions user
@@ -1478,46 +1483,46 @@ ex6 = do
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### 1. モナドを使うべき場面でアプリカティブを使う
+### 1. Using Applicative Where Monad Should Be Used
 
 ```typescript
-// [NG] 前の計算結果に依存する処理をアプリカティブで無理に書く
-// 問題: order は user.id に依存しているのに並列実行しようとしている
+// [NG] Forcing applicative for operations where the result of one depends on another
+// Problem: orders depends on user.id, but we try to run it in parallel
 
-// fetchOrders は userId ではなく user.id（取得結果に含まれるID）を必要とする
+// fetchOrders needs user.id (the ID in the fetched result), not userId
 const [user, orders] = await Promise.all([
   fetchUser(userId),
-  fetchOrders(userId),  // 本来は user.id が必要だが、userId で代用してしまっている
+  fetchOrders(userId),  // should use user.id, but falling back to userId
 ]);
 
-// [OK] 依存関係がある場合はモナド（async/await）を使う
+// [OK] Use monad (async/await) when there is a dependency
 const user = await fetchUser(userId);
-const orders = await fetchOrders(user.id);  // user.id に依存
-const details = await fetchOrderDetails(orders[0].id);  // orders に依存
+const orders = await fetchOrders(user.id);  // depends on user.id
+const details = await fetchOrderDetails(orders[0].id);  // depends on orders
 
-// 判断基準: 「後続の処理が前の処理の"結果"を引数にしているか？」
-// YES → モナド（逐次）、NO → アプリカティブ（並列可能）
+// Criterion: "Does the subsequent operation take the 'result' of the previous one as an argument?"
+// YES → Monad (sequential), NO → Applicative (parallelizable)
 ```
 
-### 2. ファンクタ則を破る map の実装
+### 2. A map Implementation That Violates the Functor Laws
 
 ```typescript
-// [NG] map 内で副作用を行う
+// [NG] Performing side effects inside map
 class BadMaybe<T> {
   private value: T | null;
 
   map<U>(fn: (value: T) => U): BadMaybe<U> {
-    console.log("mapping!");  // 副作用!
-    // 恒等則: badMaybe.map(id) で "mapping!" が出力される
-    // → id を適用しただけなのに観測可能な副作用が発生 → 恒等則違反
+    console.log("mapping!");  // side effect!
+    // Identity law: badMaybe.map(id) will print "mapping!"
+    // → An observable side effect occurs even though only id was applied → identity law violation
     if (this.value == null) return BadMaybe.nothing();
     return BadMaybe.of(fn(this.value));
   }
 }
 
-// [OK] map は純粋な変換のみ、副作用は別メソッドで
+// [OK] map is for pure transformation only; use a separate method for side effects
 class GoodMaybe<T> {
   private value: T | null;
 
@@ -1526,69 +1531,69 @@ class GoodMaybe<T> {
     return GoodMaybe.of(fn(this.value));
   }
 
-  // 副作用用の明示的なメソッド
+  // Explicit method for side effects
   tap(fn: (value: T) => void): GoodMaybe<T> {
     if (this.value != null) fn(this.value);
-    return this; // 元の値を返す
+    return this; // returns the original value
   }
 }
 
-// 使用例
+// Usage example
 GoodMaybe.of(42)
-  .tap(x => console.log(`値: ${x}`))  // 副作用は tap で
-  .map(x => x * 2);                    // map は純粋に
+  .tap(x => console.log(`Value: ${x}`))  // side effects go in tap
+  .map(x => x * 2);                       // map stays pure
 ```
 
-### 3. Validation を Either/Result と混同する
+### 3. Confusing Validation with Either/Result
 
 ```typescript
-// [NG] Either (モナド) でバリデーション → 最初のエラーで停止
+// [NG] Validation with Either (monad) → stops at the first error
 function validateWithEither(input: FormData): Either<string, User> {
-  const name = validateName(input.name);  // Err なら次へ進めない
-  if (name.isLeft()) return name;         // "名前が短すぎます" だけが返る
+  const name = validateName(input.name);  // If Err, cannot proceed to next
+  if (name.isLeft()) return name;         // only "name is too short" is returned
 
-  const email = validateEmail(input.email); // ここに到達しない可能性
+  const email = validateEmail(input.email); // may not be reached
   if (email.isLeft()) return email;
 
-  const age = validateAge(input.age);       // ここにも到達しない可能性
+  const age = validateAge(input.age);       // may not be reached either
   if (age.isLeft()) return age;
 
   return Right(createUser(name.get(), email.get(), age.get()));
 }
-// → ユーザーはエラーを1つずつしか修正できない（UX が悪い）
+// → Users can only fix one error at a time (poor UX)
 
-// [OK] Validation (アプリカティブ) → 全エラーを収集
+// [OK] Validation (applicative) → collects all errors
 function validateWithApplicative(input: FormData): Validation<string[], User> {
   return liftA3V(
     createUser,
-    validateName(input.name),    // 全て独立に実行される
-    validateEmail(input.email),  // 全て独立に実行される
-    validateAge(input.age)       // 全て独立に実行される
+    validateName(input.name),    // all executed independently
+    validateEmail(input.email),  // all executed independently
+    validateAge(input.age)       // all executed independently
   );
-  // ["名前が短すぎます", "無効なメールアドレス", "年齢が不正"] が全て返る
-  // → ユーザーは一度に全てのエラーを確認できる（UX が良い）
+  // ["name is too short", "invalid email address", "age is invalid"] are all returned
+  // → Users can see all errors at once (good UX)
 }
 ```
 
-### 4. 過度な抽象化 — YAGNI
+### 4. Over-Abstraction — YAGNI
 
 ```typescript
-// [NG] 小さなプロジェクトでフルスペックの型クラス階層を実装
-// TypeScript の型システムでは高カインド型をうまく表現できない
+// [NG] Implementing a full type class hierarchy for a small project
+// TypeScript's type system cannot express higher-kinded types well
 interface Functor<F> {
-  map<A, B>(fa: F, fn: (a: A) => B): F;  // F の型パラメータが失われている
+  map<A, B>(fa: F, fn: (a: A) => B): F;  // the type parameter of F is lost
 }
 interface Applicative<F> extends Functor<F> {
   pure<A>(a: A): F;
   ap<A, B>(ff: F, fa: F): F;
 }
-// → 複雑なだけで実用的なメリットが薄い
+// → Just complex with little practical benefit
 
-// [OK] 必要な箇所だけシンプルに実装
-// Maybe.map, Maybe.flatMap を直接実装し、
-// 型クラスの概念を「設計指針」として頭の中で活用する
+// [OK] Implement only what is needed, simply
+// Implement Maybe.map, Maybe.flatMap directly,
+// and use type class concepts as design guidelines in your head
 
-// 本格的に型クラス階層が必要なら fp-ts ライブラリを使う
+// If a proper type class hierarchy is truly needed, use the fp-ts library
 import * as O from "fp-ts/Option";
 import { pipe } from "fp-ts/function";
 
@@ -1601,11 +1606,11 @@ const result = pipe(
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1（基礎）: Maybe ファンクタの実装とファンクタ則の検証
+### Exercise 1 (Basic): Implement a Maybe Functor and Verify the Functor Laws
 
-**課題**: 以下の `Maybe` クラスの `map` を実装し、ファンクタ則（恒等則・合成則）をテストコードで検証してください。
+**Task**: Implement `map` for the `Maybe` class below and verify the functor laws (identity law and composition law) with test code.
 
 ```typescript
 class Maybe<T> {
@@ -1623,9 +1628,9 @@ class Maybe<T> {
     return this.value === null;
   }
 
-  // TODO: map を実装してください
+  // TODO: Implement map
   map<U>(fn: (value: T) => U): Maybe<U> {
-    // ここを実装
+    // implement here
   }
 
   getOrElse(defaultValue: T): T {
@@ -1639,222 +1644,222 @@ class Maybe<T> {
   }
 }
 
-// TODO: 以下のテストが全て PASS するようにしてください
+// TODO: Make all the following tests PASS
 const id = <T>(x: T): T => x;
 const f = (x: number) => x * 2;
 const g = (x: number) => x + 1;
 
-// テスト1: 恒等則（Just）
+// Test 1: Identity law (Just)
 console.assert(Maybe.of(42).map(id).equals(Maybe.of(42)));
-// テスト2: 恒等則（Nothing）
+// Test 2: Identity law (Nothing)
 console.assert(Maybe.nothing<number>().map(id).equals(Maybe.nothing<number>()));
-// テスト3: 合成則（Just）
+// Test 3: Composition law (Just)
 console.assert(Maybe.of(5).map(f).map(g).equals(Maybe.of(5).map(x => g(f(x)))));
-// テスト4: 合成則（Nothing）
+// Test 4: Composition law (Nothing)
 console.assert(Maybe.nothing<number>().map(f).map(g).equals(Maybe.nothing<number>().map(x => g(f(x)))));
 ```
 
-**期待される出力**:
+**Expected output**:
 
 ```
-恒等則 (Just): PASS — Just(42).map(id) === Just(42)
-恒等則 (Nothing): PASS — Nothing.map(id) === Nothing
-合成則 (Just): PASS — Just(5).map(f).map(g) === Just(5).map(g∘f)
-合成則 (Nothing): PASS — Nothing.map(f).map(g) === Nothing.map(g∘f)
-全テスト通過!
+Identity law (Just): PASS — Just(42).map(id) === Just(42)
+Identity law (Nothing): PASS — Nothing.map(id) === Nothing
+Composition law (Just): PASS — Just(5).map(f).map(g) === Just(5).map(g∘f)
+Composition law (Nothing): PASS — Nothing.map(f).map(g) === Nothing.map(g∘f)
+All tests passed!
 ```
 
-### 演習2（応用）: アプリカティブバリデーションの実装
+### Exercise 2 (Applied): Implement Applicative Validation
 
-**課題**: 以下の要件を満たすアプリカティブバリデーションシステムを構築してください。
+**Task**: Build an applicative validation system that satisfies the following requirements.
 
-要件:
-1. `Validation<E, A>` 型を実装する（Success/Failure）
-2. `map`, `ap` を実装する（`ap` はエラーを蓄積する）
-3. 以下のバリデーション関数を実装する:
-   - `validateUsername`: 3文字以上20文字以下、英数字のみ
-   - `validatePassword`: 8文字以上、大文字・小文字・数字を各1つ以上含む
-   - `validateConfirmPassword`: パスワードと一致すること
-4. `liftA3V` を使って全バリデーションを組み合わせる
-5. 全フィールドが不正な場合にすべてのエラーが蓄積されることを検証する
+Requirements:
+1. Implement the `Validation<E, A>` type (Success/Failure)
+2. Implement `map` and `ap` (`ap` should accumulate errors)
+3. Implement the following validation functions:
+   - `validateUsername`: 3–20 characters, alphanumeric only
+   - `validatePassword`: at least 8 characters, must contain at least one uppercase letter, one lowercase letter, and one digit
+   - `validateConfirmPassword`: must match the password
+4. Use `liftA3V` to combine all validations
+5. Verify that all errors are accumulated when all fields are invalid
 
 ```typescript
-// TODO: Validation 型, map, ap, liftA2V, liftA3V を実装
+// TODO: Implement Validation type, map, ap, liftA2V, liftA3V
 
-// TODO: バリデーション関数を実装
+// TODO: Implement validation functions
 
-// テストケース
+// Test cases
 const result1 = validateRegistration({
-  username: "ab",           // 短すぎる
-  password: "weak",         // 条件不足
-  confirmPassword: "wrong", // 不一致
+  username: "ab",           // too short
+  password: "weak",         // insufficient conditions
+  confirmPassword: "wrong", // does not match
 });
-// 期待: Failure(["ユーザー名は3文字以上...", "パスワードは8文字以上...", ...])
+// Expected: Failure(["Username must be at least 3 characters...", "Password must be at least 8 characters...", ...])
 
 const result2 = validateRegistration({
   username: "validuser",
   password: "Str0ngPass",
   confirmPassword: "Str0ngPass",
 });
-// 期待: Success({ username: "validuser", password: "Str0ngPass" })
+// Expected: Success({ username: "validuser", password: "Str0ngPass" })
 ```
 
-**期待される出力**:
+**Expected output**:
 
 ```
-テスト1 (全フィールド不正):
+Test 1 (all fields invalid):
   Failure:
-    - ユーザー名は3文字以上20文字以下で入力してください
-    - パスワードは8文字以上で入力してください
-    - パスワードに大文字を含めてください
-    - パスワードに数字を含めてください
-    - パスワードが一致しません
+    - Username must be between 3 and 20 characters
+    - Password must be at least 8 characters
+    - Password must contain an uppercase letter
+    - Password must contain a digit
+    - Passwords do not match
 
-テスト2 (全フィールド有効):
+Test 2 (all fields valid):
   Success: { username: "validuser", password: "Str0ngPass" }
 ```
 
-### 演習3（発展）: Free Applicative による宣言的 API クライアント
+### Exercise 3 (Advanced): Declarative API Client Using Free Applicative
 
-**課題**: Free Applicative パターンを使って、宣言的 API クライアントを実装してください。
+**Task**: Implement a declarative API client using the Free Applicative pattern.
 
-要件:
-1. `ApiRequest<A>` 型を定義する（Pure, Fetch, Ap の3つのケース）
-2. `map`, `ap`, `liftA2` を実装する
-3. 以下の2つのインタプリタを実装する:
-   - `runParallel`: リクエストを並列実行する（Promise.all を使用）
-   - `collectUrls`: 実行せずに全 URL を収集する
-4. モックサーバーを使ってテストする
+Requirements:
+1. Define the `ApiRequest<A>` type (three cases: Pure, Fetch, Ap)
+2. Implement `map`, `ap`, and `liftA2`
+3. Implement the following two interpreters:
+   - `runParallel`: execute requests in parallel (using Promise.all)
+   - `collectUrls`: collect all URLs without executing
+4. Test with a mock server
 
 ```typescript
-// TODO: ApiRequest<A> 型を定義
+// TODO: Define ApiRequest<A> type
 
-// TODO: map, ap, liftA2 を実装
+// TODO: Implement map, ap, liftA2
 
-// TODO: runParallel, collectUrls インタプリタを実装
+// TODO: Implement runParallel, collectUrls interpreters
 
-// テストケース
+// Test cases
 const dashboardReq = liftA2Req(
   (user, orders) => ({ user, orders }),
   fetchReq<User>("/api/user/1", data => data as User),
   fetchReq<Order[]>("/api/orders?user=1", data => data as Order[]),
 );
 
-// URL収集（実行せずに解析）
+// Collect URLs (analyze without executing)
 const urls = collectUrls(dashboardReq);
 console.log(urls); // ["/api/user/1", "/api/orders?user=1"]
 
-// 並列実行
+// Parallel execution
 const result = await runParallel(dashboardReq);
 console.log(result); // { user: {...}, orders: [...] }
 ```
 
-**期待される出力**:
+**Expected output**:
 
 ```
-収集されたURL:
+Collected URLs:
   /api/user/1
   /api/orders?user=1
 
-並列実行結果:
-  リクエスト: GET /api/user/1 ... 200 OK (120ms)
-  リクエスト: GET /api/orders?user=1 ... 200 OK (85ms)
-  結合結果: { user: { id: 1, name: "Taro" }, orders: [{ id: 101, ... }] }
+Parallel execution result:
+  Request: GET /api/user/1 ... 200 OK (120ms)
+  Request: GET /api/orders?user=1 ... 200 OK (85ms)
+  Combined result: { user: { id: 1, name: "Taro" }, orders: [{ id: 101, ... }] }
 ```
 
 ---
 
 ## FAQ
 
-### Q1: アプリカティブはいつ使うべきですか？
+### Q1: When should I use an applicative?
 
-**A**: 「複数の独立した計算の結果を組み合わせたい」場合に使います。典型的な3つのケース:
+**A**: Use it when you want to "combine the results of multiple independent computations." Three typical cases:
 
-1. **フォームバリデーション**: 全フィールドのエラーを一度に表示したい場合。モナドでは最初のエラーで停止するため、全エラーを収集するにはアプリカティブ（Validation型）が必要
-2. **並列 API 呼び出し**: `Promise.all` は独立した非同期処理を並列実行するアプリカティブの代表例
-3. **パーサーコンビネータ**: 独立したフィールドのパースを組み合わせる場合
+1. **Form validation**: When you want to display all field errors at once. With a monad, computation stops at the first error, so you need an applicative (Validation type) to collect all errors
+2. **Parallel API calls**: `Promise.all` is the quintessential example of an applicative for running independent async operations in parallel
+3. **Parser combinators**: When combining the parsing of independent fields
 
-### Q2: map と flatMap の違いを簡潔に説明すると？
+### Q2: Can you briefly explain the difference between map and flatMap?
 
-**A**: `map` は「箱の中身を変換して箱に戻す」、`flatMap` は「箱の中身を変換し、結果が二重の箱になったら一重にする」です。
+**A**: `map` "transforms the contents of a box and puts them back in a box," while `flatMap` "transforms the contents of a box, and if the result is a doubly-nested box, flattens it into a single box."
 
 ```typescript
-// map: (A → B) を F[A] に適用 → F[B]
-[1, 2].map(x => [x, x])     // [[1,1], [2,2]] — 二重配列
+// map: applies (A → B) to F[A] → F[B]
+[1, 2].map(x => [x, x])     // [[1,1], [2,2]] — nested array
 
-// flatMap: (A → F[B]) を F[A] に適用 → F[B]（flat + map）
-[1, 2].flatMap(x => [x, x]) // [1, 1, 2, 2]   — 平坦化される
+// flatMap: applies (A → F[B]) to F[A] → F[B] (flat + map)
+[1, 2].flatMap(x => [x, x]) // [1, 1, 2, 2]   — flattened
 
-// Maybe の場合
-Maybe.of(5).map(x => Maybe.of(x * 2))     // Maybe(Maybe(10)) — 二重 Maybe
-Maybe.of(5).flatMap(x => Maybe.of(x * 2)) // Maybe(10)         — 平坦化
+// For Maybe
+Maybe.of(5).map(x => Maybe.of(x * 2))     // Maybe(Maybe(10)) — double Maybe
+Maybe.of(5).flatMap(x => Maybe.of(x * 2)) // Maybe(10)         — flattened
 ```
 
-### Q3: Functor/Applicative/Monad を意識してコードを書く必要がありますか？
+### Q3: Do I need to consciously think about Functor/Applicative/Monad when writing code?
 
-**A**: 明示的に意識する必要はありません。`Array.map`、`Promise.all`、`async/await` を使う時点で既にこれらのパターンを活用しています。理論を知ることで以下のメリットがあります:
+**A**: You do not need to think about them explicitly. When you use `Array.map`, `Promise.all`, and `async/await`, you are already leveraging these patterns. Knowing the theory provides the following benefits:
 
-- **設計判断**: 「この処理は並列実行できるか？（→ アプリカティブ）」「前の結果に依存するか？（→ モナド）」という判断が的確になる
-- **API 理解**: 新しいライブラリの `map`, `flatMap`, `ap` 等のメソッドの意味が直感的に分かる
-- **バグ予防**: ファンクタ則を意識することで、`map` 内での副作用を避けるようになる
+- **Design decisions**: You can make accurate judgments like "can this operation be run in parallel? (→ applicative)" and "does it depend on the previous result? (→ monad)"
+- **Understanding APIs**: The meaning of methods like `map`, `flatMap`, and `ap` in new libraries becomes intuitively clear
+- **Bug prevention**: Being aware of the functor laws helps you avoid side effects inside `map`
 
-### Q4: TypeScript で高カインド型（HKT）は使えますか？
+### Q4: Can higher-kinded types (HKT) be used in TypeScript?
 
-**A**: TypeScript の型システムでは高カインド型を直接サポートしていません。fp-ts ライブラリがブランド型を使ったエミュレーションを提供しています。小規模なプロジェクトでは、各型（Maybe, Either, Validation）に直接 map/flatMap を実装するのが実用的です。
+**A**: TypeScript's type system does not directly support higher-kinded types. The fp-ts library provides an emulation using branded types. For small projects, it is practical to implement `map`/`flatMap` directly on each type (Maybe, Either, Validation).
 
-### Q5: アプリカティブと並列処理の関係は？
+### Q5: What is the relationship between applicatives and parallel processing?
 
-**A**: アプリカティブの `ap` は「計算間に依存関係がない」ことを型レベルで保証します。依存関係がないということは、理論的に並列実行が可能です。`Promise.all` はまさにこの性質を利用しています。ただし、アプリカティブ = 必ず並列実行ではなく、「並列実行が可能」という情報を提供するだけで、実際に並列にするかはインタプリタの実装次第です。
+**A**: Applicative's `ap` guarantees at the type level that "there is no dependency between computations." No dependency means parallel execution is theoretically possible. `Promise.all` makes direct use of this property. However, applicative does not necessarily mean parallel execution; it merely conveys that "parallel execution is possible," and whether it is actually parallelized depends on the interpreter's implementation.
 
-### Q6: Validation はモナドにならないのはなぜですか？
+### Q6: Why can't Validation be a monad?
 
-**A**: モナドの `bind/flatMap` は「前の計算の結果を使って次の計算を決める」ため、エラーの場合は短絡評価（Short-circuit）するしかありません。一方、アプリカティブの `ap` は「両方の計算を独立に実行して結果を組み合わせる」ため、両方がエラーの場合にエラーを蓄積できます。この「エラー蓄積」と「モナドの短絡評価」は本質的に両立しません。
+**A**: Monad's `bind/flatMap` "uses the result of the previous computation to determine the next computation," so in the case of an error, it has no choice but to short-circuit. Applicative's `ap`, on the other hand, "runs both computations independently and combines the results," so when both are errors, errors can be accumulated. This "error accumulation" and "monadic short-circuit evaluation" are fundamentally incompatible.
 
 ```haskell
--- モナドの bind は前の結果に依存する
--- エラーの場合、次の計算に渡す値がないため停止するしかない
-bind (Failure errs) f = Failure errs  -- f を呼べない
+-- Monad's bind depends on the previous result
+-- In case of an error, there is no value to pass to the next computation, so it must stop
+bind (Failure errs) f = Failure errs  -- cannot call f
 bind (Success a)    f = f a
 
--- アプリカティブの ap は両方を独立に評価できる
-ap (Failure e1) (Failure e2) = Failure (e1 ++ e2)  -- 両方のエラーを結合
+-- Applicative's ap can evaluate both independently
+ap (Failure e1) (Failure e2) = Failure (e1 ++ e2)  -- combine both errors
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |---|---|
-| ファンクタ | `map` でコンテキスト内の値を変換。Array, Option, Promise, Result 等 |
-| ファンクタ則 | 恒等則: `map(id) = id`、合成則: `map(f).map(g) = map(g . f)` |
-| アプリカティブ | `ap` で独立した複数の値を組み合わせ。エラー蓄積・並列実行が可能 |
-| Validation | アプリカティブの実践例。モナドと違い全エラーを収集できる |
-| モナド | `bind/flatMap` で依存する計算を連鎖。前の結果に基づく次の計算 |
-| 型クラス階層 | Functor < Applicative < Monad（包含関係） |
-| 選択基準 | 独立 → Applicative（並列可能）、依存 → Monad（逐次実行） |
-| Promise.all | アプリカティブの代表例。独立した非同期処理の並列実行 |
-| Traversable | `sequence`/`traverse` でコンテキストの順序を入れ替え |
-| 反変ファンクタ | 「入力」側に map する。Comparator, Predicate 等 |
-| 圏論との関係 | ファンクタは「構造を保つ写像」。法則が安全なリファクタリングを保証 |
-| 実践指針 | 最小限の抽象化を選ぶ（YAGNI）。TypeScript では fp-ts が実用的 |
+| Functor | Transform values in context with `map`. Array, Option, Promise, Result, etc. |
+| Functor laws | Identity: `map(id) = id`, Composition: `map(f).map(g) = map(g . f)` |
+| Applicative | Combine multiple independent values with `ap`. Enables error accumulation and parallel execution |
+| Validation | A practical example of applicative. Can collect all errors, unlike monad |
+| Monad | Chain dependent computations with `bind/flatMap`. Next computation based on previous result |
+| Type class hierarchy | Functor < Applicative < Monad (containment relationship) |
+| Selection criteria | Independent → Applicative (parallelizable), Dependent → Monad (sequential) |
+| Promise.all | The quintessential applicative example. Parallel execution of independent async operations |
+| Traversable | Swap context order with `sequence`/`traverse` |
+| Contravariant functor | Maps on the "input" side. Comparator, Predicate, etc. |
+| Relation to category theory | Functor is a "structure-preserving map." Laws guarantee safe refactoring |
+| Practical guidelines | Choose the minimal abstraction (YAGNI). fp-ts is practical for TypeScript |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [モナド](./00-monad.md) — flatMap/bind の詳細と応用、do 記法
-- [関数型パターン](./02-fp-patterns.md) — カリー化、パイプライン、レンズとの統合
-- クリーンコードの原則 — 関数設計の基本原則
-- [ビヘイビアパターン](../02-behavioral/) — OOP のパターンとの比較
-- [アーキテクチャパターン](../04-architectural/) — 大規模設計での関数型アプローチ
+- [Monad](./00-monad.md) — Details and applications of flatMap/bind, do notation
+- [Functional Patterns](./02-fp-patterns.md) — Integration with currying, pipelines, and lenses
+- Clean code principles — Fundamental principles of function design
+- [Behavioral Patterns](../02-behavioral/) — Comparison with OOP patterns
+- [Architectural Patterns](../04-architectural/) — Functional approaches in large-scale design
 
 ---
 
-## 参考文献
+## References
 
-1. **Haskell Wiki**: [Typeclassopedia](https://wiki.haskell.org/Typeclassopedia) — 型クラス階層の包括的ガイド。Functor, Applicative, Monad の関係を圏論的に解説
-2. **Giulio Canti**: [fp-ts](https://gcanti.github.io/fp-ts/) — TypeScript の関数型プログラミングライブラリ。HKT のエミュレーション手法が参考になる
-3. **Bartosz Milewski**: [Category Theory for Programmers](https://bartoszmilewski.com/2014/10/28/category-theory-for-programmers-the-preface/) — プログラマ向けの圏論入門。ファンクタの数学的背景を理解できる
-4. **Conor McBride, Ross Paterson**: [Applicative Programming with Effects](http://www.staff.city.ac.uk/~ross/papers/Applicative.html) — アプリカティブファンクタの原論文。理論的背景を深く知りたい場合
-5. **Brian Lonsdorf**: [Professor Frisby's Mostly Adequate Guide](https://mostly-adequate.gitbook.io/mostly-adequate-guide/) — JavaScript での関数型プログラミングの実践入門
+1. **Haskell Wiki**: [Typeclassopedia](https://wiki.haskell.org/Typeclassopedia) — A comprehensive guide to the type class hierarchy. Explains the relationship between Functor, Applicative, and Monad from a category-theoretic perspective
+2. **Giulio Canti**: [fp-ts](https://gcanti.github.io/fp-ts/) — Functional programming library for TypeScript. The HKT emulation technique is worth studying
+3. **Bartosz Milewski**: [Category Theory for Programmers](https://bartoszmilewski.com/2014/10/28/category-theory-for-programmers-the-preface/) — An introduction to category theory for programmers. Provides the mathematical background for understanding functors
+4. **Conor McBride, Ross Paterson**: [Applicative Programming with Effects](http://www.staff.city.ac.uk/~ross/papers/Applicative.html) — The original paper on applicative functors. For those who want a deep understanding of the theoretical background
+5. **Brian Lonsdorf**: [Professor Frisby's Mostly Adequate Guide](https://mostly-adequate.gitbook.io/mostly-adequate-guide/) — A practical introduction to functional programming in JavaScript
