@@ -1,211 +1,211 @@
-# テスト原則 ── 信頼性の高いテストスイートを構築する技法
+# Testing Principles ── Techniques for Building a Reliable Test Suite
 
-> テストはコードの品質を保証する安全網であり、設計を改善するフィードバックメカニズムである。AAA パターン・FIRST 原則・テストダブルの使い分けを理解し、信頼性の高いテストスイートを構築する手法を解説する。テストは「バグを見つけるもの」ではなく「安心して変更できる環境を作るもの」である。
-
----
-
-## この章で学ぶこと
-
-1. **テストの基本原則と設計哲学** ── テストピラミッド、AAA パターン、FIRST 原則による構造化と、テストが果たすべき本質的な役割を理解する
-2. **テストダブルの使い分け** ── Stub、Mock、Spy、Fake の役割と適切な選択基準を身につけ、テスト容易性の高い設計を実現する
-3. **実践的なテスト設計技法** ── 境界値テスト、パラメタライズテスト、プロパティベーステスト、TDD サイクルを習得する
-4. **テスト品質の維持と改善** ── Flaky テスト対策、テストカバレッジの適切な運用、ミューテーションテストによるテスト品質の検証方法を学ぶ
-5. **CI/CD パイプラインとの統合** ── テストの自動実行、並列化、選択実行によるフィードバックループの高速化を実現する
+> Tests are a safety net that guarantees code quality and a feedback mechanism that improves design. This guide explains how to build a reliable test suite by understanding the AAA pattern, FIRST principles, and how to choose the right test doubles. Tests are not about "finding bugs" — they are about "creating an environment where changes can be made with confidence."
 
 ---
 
-## 前提知識
+## What You Will Learn
 
-この章を理解するために、以下の知識があると望ましい。
+1. **Fundamental test principles and design philosophy** ── Understand the test pyramid, AAA pattern, and FIRST principles for structuring tests, along with the essential role tests should play
+2. **Choosing the right test doubles** ── Learn the roles of Stub, Mock, Spy, and Fake and how to select the appropriate one, enabling designs with high testability
+3. **Practical test design techniques** ── Master boundary value testing, parameterized testing, property-based testing, and the TDD cycle
+4. **Maintaining and improving test quality** ── Learn how to deal with flaky tests, use test coverage appropriately, and validate test quality with mutation testing
+5. **Integration with CI/CD pipelines** ── Achieve faster feedback loops through automated test execution, parallelization, and selective test execution
 
-| 前提知識 | 参照先 |
+---
+
+## Prerequisites
+
+The following knowledge is recommended to fully understand this chapter.
+
+| Prerequisite | Reference |
 |---------|--------|
-| 関数設計の原則 | [関数設計](./01-functions.md) |
-| クラス設計の基本 | クラス設計 |
-| Python の基本構文 | 基礎プログラミング知識 |
-| pytest の基本的な使い方 | pytest 公式ドキュメント |
+| Principles of function design | [Function Design](./01-functions.md) |
+| Basics of class design | Class Design |
+| Basic Python syntax | Foundational programming knowledge |
+| Basic usage of pytest | pytest official documentation |
 
 ---
 
-## 1. テストの本質 ── なぜテストを書くのか
+## 1. The Essence of Testing ── Why Write Tests?
 
-### 1.1 テストの3つの役割
+### 1.1 The Three Roles of Tests
 
-テストは単に「バグを見つけるもの」ではない。Vladimir Khorikov は『Unit Testing Principles, Practices, and Patterns』で、テストの役割を以下の3つに整理している。
-
-```
-テストの3つの役割
-────────────────────────────────────
-1. 回帰防止 (Regression Protection)
-   → コード変更が既存機能を壊していないことを保証する
-   → リファクタリングの安全網として機能する
-
-2. 設計フィードバック (Design Feedback)
-   → テストが書きにくい = 設計に問題がある
-   → テスタビリティが高い設計 = 良い設計（相関が高い）
-
-3. ドキュメンテーション (Living Documentation)
-   → テストは「コードがどう使われるか」の生きた仕様書
-   → テストが通る限り、その振る舞いは保証されている
-────────────────────────────────────
-```
-
-### 1.2 テストと設計の関係
-
-テストが書きにくい場合、それはコードの設計に問題がある兆候である。
+Tests are not simply about "finding bugs." Vladimir Khorikov organizes the roles of tests into the following three categories in *Unit Testing Principles, Practices, and Patterns*:
 
 ```
-テストの書きにくさと設計問題の対応
+The Three Roles of Tests
 ────────────────────────────────────
-テストの困難さ             → 設計上の問題
-──────────────────────── → ────────────────────
-準備(Arrange)が長い       → 依存が多すぎる（SRP違反）
-テストダブルが多い        → 結合度が高い
-テスト名が長い            → 関数の責務が多い
-テストケースが多すぎる    → 条件分岐が複雑すぎる
-外部システムに依存        → インターフェースが未分離
-テストの順序に依存        → グローバル状態がある
+1. Regression Protection
+   → Guarantees that code changes do not break existing functionality
+   → Acts as a safety net for refactoring
+
+2. Design Feedback
+   → If tests are hard to write, there is a design problem
+   → Highly testable design = good design (strong correlation)
+
+3. Living Documentation
+   → Tests are a living specification of "how code is used"
+   → As long as tests pass, that behavior is guaranteed
 ────────────────────────────────────
 ```
 
-### 1.3 テストのコストとリターン
+### 1.2 The Relationship Between Tests and Design
+
+When tests are hard to write, it is a sign of a design problem in the code.
 
 ```
-  テストの費用対効果
+Mapping test difficulty to design problems
+────────────────────────────────────
+Test difficulty               → Design problem
+──────────────────────────── → ────────────────────
+Long Arrange section          → Too many dependencies (SRP violation)
+Many test doubles             → High coupling
+Long test names               → Too many responsibilities per function
+Too many test cases           → Overly complex conditional logic
+Dependency on external systems → Interface not separated
+Tests depend on order         → Global state exists
+────────────────────────────────────
+```
 
-  リターン（バグ防止、安心感）
-  高 |         *  (ユニットテスト:
-    |        *    コアロジック)
-    |       *
-    |      *        * (統合テスト)
-    |     *       *
-    |    *      *
-    |   *     *       * (E2Eテスト)
-    |  *    *       *
-    | *   *       *
-  低 |___*______*________*___
-     低                  高
-        コスト（作成+保守）
+### 1.3 Cost vs. Return of Tests
 
-  最も費用対効果が高いのは:
-  「ビジネスロジックのユニットテスト」
+```
+  Cost-Effectiveness of Tests
+
+  Return (bug prevention, confidence)
+  High |         *  (Unit tests:
+      |        *    core logic)
+      |       *
+      |      *        * (Integration tests)
+      |     *       *
+      |    *      *
+      |   *     *       * (E2E tests)
+      |  *    *       *
+      | *   *       *
+  Low |___*______*________*___
+       Low                  High
+          Cost (creation + maintenance)
+
+  Highest cost-effectiveness:
+  "Unit tests for business logic"
 ```
 
 ---
 
-## 2. テストピラミッド
+## 2. The Test Pyramid
 
-### 2.1 全体構造
+### 2.1 Overall Structure
 
 ```
                   /\
-                 /  \          E2E テスト
-                / E2E \        (少数・遅い・高コスト)
+                 /  \          E2E Tests
+                / E2E \        (few, slow, high cost)
                /      \
               /--------\
-             /          \      統合テスト
-            / Integration\     (中程度)
+             /          \      Integration Tests
+            / Integration\     (moderate)
            /              \
           /----------------\
-         /                  \   ユニットテスト
-        /      Unit Tests    \  (多数・速い・低コスト)
+         /                  \   Unit Tests
+        /      Unit Tests    \  (many, fast, low cost)
        /                      \
       +------------------------+
 
-  ユニット : 統合 : E2E = 70% : 20% : 10% (目安)
+  Unit : Integration : E2E = 70% : 20% : 10% (guideline)
 ```
 
-この比率は Mike Cohn が『Succeeding with Agile』で提唱したものであり、絶対的なルールではなく目安である。プロジェクトの性質（API中心、UI中心、データパイプラインなど）によって最適な比率は変わる。
+This ratio was proposed by Mike Cohn in *Succeeding with Agile* and is a guideline, not an absolute rule. The optimal ratio varies depending on the nature of the project (API-centric, UI-centric, data pipeline, etc.).
 
-### 2.2 各レベルの特性と比較
+### 2.2 Characteristics and Comparison of Each Level
 
 ```
-レベル        速度      信頼性    保守コスト    フィードバック   検出するバグ
+Level        Speed     Reliability  Maintenance  Feedback     Bugs Detected
 ---------------------------------------------------------------------------
-Unit         < 1ms     高        低           即座          ロジックエラー
-Integration  < 1sec    中        中           数秒          接続・設定ミス
-E2E          < 30sec   低(Flaky) 高           数分          フロー全体の不整合
+Unit         < 1ms     High         Low          Immediate    Logic errors
+Integration  < 1sec    Medium       Medium       Seconds      Connection/config errors
+E2E          < 30sec   Low (Flaky)  High         Minutes      Full flow inconsistencies
 ```
 
-| テストレベル | テスト対象 | 具体例 | 使用するツール |
+| Test Level | Target | Examples | Tools Used |
 |-------------|-----------|--------|-------------|
-| Unit | 単一関数/メソッド | 価格計算、バリデーション | pytest, JUnit, Jest |
-| Integration | モジュール間の連携 | DB操作、API呼び出し | pytest + testcontainers |
-| E2E | ユーザーフロー全体 | 「ログイン→商品選択→決済」 | Playwright, Cypress |
+| Unit | Single function/method | Price calculation, validation | pytest, JUnit, Jest |
+| Integration | Inter-module interactions | DB operations, API calls | pytest + testcontainers |
+| E2E | Full user flows | "Login → product selection → payment" | Playwright, Cypress |
 
-### 2.3 テストピラミッドの変形
+### 2.3 Variations on the Test Pyramid
 
 ```
-テスティングトロフィー（Kent C. Dodds 提唱）
-── フロントエンドでは統合テストを重視する考え方
+Testing Trophy (proposed by Kent C. Dodds)
+── An approach that emphasizes integration tests for frontend
 
             /\
-           /  \          E2E (少数)
+           /  \          E2E (few)
           /----\
          /      \
-        / 統合    \      統合テスト (最多)
-       /  テスト   \
+        / Integra-\      Integration Tests (most)
+       /   tion    \
       /------------\
      /              \
-    /  ユニット      \   ユニットテスト (中程度)
+    /  Unit          \   Unit Tests (moderate)
    /                  \
   +--------------------+
-  |     Static Types    |   型チェック (基盤)
+  |     Static Types    |   Type checking (foundation)
   +--------------------+
 
-※ フロントエンドでは、個々の関数テストよりも
-   「コンポーネント間の連携」が正しいことの方が重要
+* For frontend, what matters more than individual function tests
+  is that "interactions between components" are correct
 ```
 
 ---
 
-## 3. AAA パターン
+## 3. The AAA Pattern
 
-### 3.1 Arrange-Act-Assert の基本
+### 3.1 Basics of Arrange-Act-Assert
 
-テストの構造化パターンとして最も広く使われている。Given-When-Then（BDD スタイル）とも対応する。
+This is the most widely used pattern for structuring tests. It also corresponds to Given-When-Then (BDD style).
 
-**コード例1: AAA パターンの基本形**
+**Code Example 1: Basic form of the AAA pattern**
 
 ```python
 def test_order_total_calculation():
-    # Arrange: テスト対象と前提条件を準備
+    # Arrange: prepare the subject under test and preconditions
     order = Order(id="order-1", user_id="user-1")
-    order.add_item(OrderItem(product_id="p1", name="商品A", price=1000, quantity=2))
-    order.add_item(OrderItem(product_id="p2", name="商品B", price=500, quantity=3))
+    order.add_item(OrderItem(product_id="p1", name="Product A", price=1000, quantity=2))
+    order.add_item(OrderItem(product_id="p2", name="Product B", price=500, quantity=3))
 
-    # Act: テスト対象のメソッドを実行
+    # Act: execute the method under test
     total = order.total_amount
 
-    # Assert: 期待結果を検証
+    # Assert: verify the expected result
     assert total == 3500  # 1000*2 + 500*3
 
 def test_order_cancel_shipped_raises_error():
     # Arrange
     order = Order(id="order-1", user_id="user-1", status="shipped")
 
-    # Act & Assert (例外の場合は一体化してよい)
-    with pytest.raises(ValueError, match="出荷済みの注文は取消不可"):
+    # Act & Assert (can be combined for exceptions)
+    with pytest.raises(ValueError, match="Cannot cancel a shipped order"):
         order.cancel()
 ```
 
-### 3.2 AAA パターンのガイドライン
+### 3.2 Guidelines for the AAA Pattern
 
 ```
-AAA パターンのガイドライン
+AAA Pattern Guidelines
 ────────────────────────────────────
-1. Arrange が長い場合 → ファクトリ関数やフィクスチャに抽出
-2. Act は原則1行 → 複数行になるなら関数が大きすぎる兆候
-3. Assert は1テスト1概念 → 複数の概念を検証しない
-4. 各セクションは空行で区切る → 視覚的に構造を明確にする
-5. コメントは省略可 → AAA の構造自体がドキュメント
+1. If Arrange is long → extract to factory functions or fixtures
+2. Act should be one line as a rule → multiple lines suggests the function is too large
+3. Assert one concept per test → do not verify multiple concepts
+4. Separate each section with a blank line → visually clarify structure
+5. Comments are optional → the AAA structure itself serves as documentation
 ────────────────────────────────────
 ```
 
-**コード例2: Arrange が長い場合の対処**
+**Code Example 2: Handling a long Arrange section**
 
 ```python
-# BAD: Arrange が長すぎる
+# BAD: Arrange is too long
 def test_monthly_report_generation():
     user = User(id="u1", name="Alice", role="admin")
     department = Department(id="d1", name="Engineering")
@@ -226,7 +226,7 @@ def test_monthly_report_generation():
     assert report.overtime_hours == 20
 
 
-# GOOD: ファクトリ関数でテストの意図を明確にする
+# GOOD: Use factory functions to clarify test intent
 def test_monthly_report_generation():
     team = create_team_with_single_member()
     time_entries = create_time_entries(regular_hours=120, overtime_hours=20)
@@ -238,14 +238,14 @@ def test_monthly_report_generation():
     assert report.overtime_hours == 20
 ```
 
-### 3.3 テスト名の命名規則
+### 3.3 Test Naming Conventions
 
-テスト名は「何がテストされているか」を読むだけで理解できるべきである。
+Test names should be understandable just by reading them — they should clearly convey "what is being tested."
 
-**コード例3: テスト名の命名パターン**
+**Code Example 3: Test naming patterns**
 
 ```python
-# 命名パターン1: [対象]_[状況]_[期待結果]
+# Naming pattern 1: [subject]_[condition]_[expected result]
 def test_order_when_empty_items_raises_validation_error():
     ...
 
@@ -255,7 +255,7 @@ def test_discount_when_total_exceeds_10000_applies_10_percent():
 def test_user_registration_with_duplicate_email_returns_conflict():
     ...
 
-# 命名パターン2: BDD スタイル (ネストクラス)
+# Naming pattern 2: BDD style (nested classes)
 class TestOrder:
     class TestPlace:
         def test_changes_status_to_placed(self): ...
@@ -267,7 +267,7 @@ class TestOrder:
         def test_raises_error_when_already_shipped(self): ...
         def test_restores_inventory(self): ...
 
-# 命名パターン3: should スタイル
+# Naming pattern 3: should style
 def test_order_should_calculate_total_including_tax():
     ...
 
@@ -275,38 +275,38 @@ def test_user_should_be_locked_after_five_failed_attempts():
     ...
 ```
 
-| 命名パターン | 例 | 適用場面 |
+| Naming Pattern | Example | When to Use |
 |-------------|-----|---------|
-| `test_[対象]_[状況]_[期待結果]` | `test_order_when_empty_raises_error` | 最も一般的 |
-| BDD ネストクラス | `TestOrder.TestCancel.test_restores_inventory` | テストが多い場合 |
-| should スタイル | `test_order_should_calculate_total` | 仕様の読み下し |
-| it スタイル (JS) | `it('calculates total including tax')` | Jest, Mocha |
+| `test_[subject]_[condition]_[expected result]` | `test_order_when_empty_raises_error` | Most common |
+| BDD nested class | `TestOrder.TestCancel.test_restores_inventory` | When there are many tests |
+| should style | `test_order_should_calculate_total` | Reading as a specification |
+| it style (JS) | `it('calculates total including tax')` | Jest, Mocha |
 
 ---
 
-## 4. FIRST 原則
+## 4. FIRST Principles
 
-FIRST 原則は、良いユニットテストの5つの特性を定義する。Robert C. Martin が『Clean Code』で提唱した。
+The FIRST principles define five characteristics of good unit tests. They were proposed by Robert C. Martin in *Clean Code*.
 
-| 原則 | 意味 | 具体的なガイドライン |
+| Principle | Meaning | Concrete Guidelines |
 |------|------|------------------|
-| **F**ast | 高速 | ユニットテスト1件 < 10ms。全スイート < 10秒 |
-| **I**ndependent | 独立 | テスト間に依存なし。順序を変えても結果が同じ |
-| **R**epeatable | 再現可能 | 環境・時刻に依存しない。CI でも同じ結果 |
-| **S**elf-Validating | 自己検証 | Pass/Fail が自動判定。手動確認不要 |
-| **T**imely | 適時 | プロダクションコードの直前・直後に書く |
+| **F**ast | High speed | Single unit test < 10ms. Full suite < 10 seconds |
+| **I**ndependent | Independent | No dependencies between tests. Same result regardless of order |
+| **R**epeatable | Reproducible | Not dependent on environment or time. Same result in CI |
+| **S**elf-Validating | Self-validating | Pass/Fail determined automatically. No manual verification needed |
+| **T**imely | Timely | Write tests immediately before or after production code |
 
-### 4.1 Fast（高速）
+### 4.1 Fast
 
-**コード例4: テスト速度の改善**
+**Code Example 4: Improving test speed**
 
 ```python
-# BAD (Fast 違反): 本物の外部APIを呼ぶ
+# BAD (Fast violation): calls a real external API
 def test_payment_processing():
-    result = stripe.Charge.create(amount=1000, currency="jpy")  # 実際のAPI呼び出し
+    result = stripe.Charge.create(amount=1000, currency="jpy")  # actual API call
     assert result.status == "succeeded"
 
-# GOOD: テストダブルで即座に応答
+# GOOD: respond immediately with a test double
 def test_payment_processing():
     gateway = StubPaymentGateway(always_succeeds=True)
     processor = PaymentProcessor(gateway=gateway)
@@ -316,51 +316,51 @@ def test_payment_processing():
     assert result.status == "succeeded"
 ```
 
-### 4.2 Independent（独立）
+### 4.2 Independent
 
-**コード例5: テスト間の依存を排除**
+**Code Example 5: Eliminating dependencies between tests**
 
 ```python
-# BAD (Independent 違反): テスト間で状態を共有
+# BAD (Independent violation): sharing state between tests
 class TestUserService:
-    user_id = None  # クラス変数で状態共有
+    user_id = None  # shared state via class variable
 
     def test_create_user(self):
         TestUserService.user_id = service.create_user("Alice")
 
     def test_get_user(self):
-        user = service.get_user(TestUserService.user_id)  # 前のテストに依存
+        user = service.get_user(TestUserService.user_id)  # depends on the previous test
         assert user.name == "Alice"
 
-# GOOD: 各テストが独立
+# GOOD: each test is independent
 class TestUserService:
     def test_create_user(self):
         user_id = service.create_user("Alice")
         assert user_id is not None
 
     def test_get_user(self):
-        user_id = service.create_user("Bob")  # 自分で準備
+        user_id = service.create_user("Bob")  # sets up its own data
         user = service.get_user(user_id)
         assert user.name == "Bob"
 ```
 
-### 4.3 Repeatable（再現可能）
+### 4.3 Repeatable
 
-**コード例6: 時刻依存の排除**
+**Code Example 6: Eliminating time dependency**
 
 ```python
-# BAD (Repeatable 違反): 現在時刻に依存
+# BAD (Repeatable violation): depends on the current time
 def test_is_expired():
     token = Token(expires_at=datetime(2026, 3, 1))
-    assert token.is_expired()  # 2026年3月以降にしか通らない
+    assert token.is_expired()  # only passes after March 2026
 
-# GOOD: 時刻を注入可能にする（依存性注入）
+# GOOD: inject time (dependency injection)
 def test_is_expired():
     token = Token(expires_at=datetime(2026, 3, 1))
-    now = datetime(2026, 3, 2)  # テスト用の固定時刻
+    now = datetime(2026, 3, 2)  # fixed time for testing
     assert token.is_expired(now=now)
 
-# GOOD (代替): freezegun で時刻を固定
+# GOOD (alternative): freeze time with freezegun
 from freezegun import freeze_time
 
 @freeze_time("2026-03-02")
@@ -370,51 +370,51 @@ def test_is_expired():
 ```
 
 ```python
-# BAD (Repeatable 違反): ランダム値に依存
+# BAD (Repeatable violation): depends on random values
 import random
 
 def test_shuffle_changes_order():
     items = [1, 2, 3, 4, 5]
     shuffled = shuffle(items)
-    assert items != shuffled  # まれに同じ順序になる
+    assert items != shuffled  # may occasionally produce the same order
 
-# GOOD: シードを固定
+# GOOD: fix the seed
 def test_shuffle_changes_order():
     items = [1, 2, 3, 4, 5]
-    shuffled = shuffle(items, seed=42)  # シード固定
-    assert shuffled == [3, 1, 4, 5, 2]  # 決定的な結果
+    shuffled = shuffle(items, seed=42)  # fixed seed
+    assert shuffled == [3, 1, 4, 5, 2]  # deterministic result
 ```
 
-### 4.4 Self-Validating（自己検証）
+### 4.4 Self-Validating
 
 ```python
-# BAD (Self-Validating 違反): 手動確認が必要
+# BAD (Self-Validating violation): requires manual verification
 def test_report_generation():
     report = generate_report(data)
-    print(report)  # 目視で確認 → Pass/Fail が自動判定できない
+    print(report)  # visual inspection required → Pass/Fail cannot be determined automatically
 
-# GOOD: 自動判定可能なアサーション
+# GOOD: assertions that can be evaluated automatically
 def test_report_generation():
     report = generate_report(data)
     assert report.total_rows == 100
-    assert report.summary == "月次レポート: 売上 ¥1,000,000"
+    assert report.summary == "Monthly Report: Sales ¥1,000,000"
     assert report.generated_at is not None
 ```
 
-### 4.5 Timely（適時）
+### 4.5 Timely
 
-TDD（テスト駆動開発）では、テストをプロダクションコードの前に書く。TDD でなくても、機能実装と同じタイミングでテストを書くべきである。「後でテストを書く」はほぼ「テストを書かない」と同義になりがちである。
+In TDD (Test-Driven Development), tests are written before production code. Even without TDD, tests should be written at the same time as the feature implementation. "Writing tests later" tends to become synonymous with "not writing tests at all."
 
 ```
-TDD サイクル (Red-Green-Refactor)
+TDD Cycle (Red-Green-Refactor)
 ────────────────────────────────────
-  1. Red   : 失敗するテストを書く（まだ実装がない）
-  2. Green : テストが通る最小限の実装を書く
-  3. Refactor : テストが通ったまま、コードを整理する
+  1. Red     : Write a failing test (implementation does not exist yet)
+  2. Green   : Write the minimum implementation to make the test pass
+  3. Refactor: Clean up the code while keeping the tests passing
 
   ┌─────────┐     ┌──────────┐     ┌────────────┐
   │  Red     │ ──→ │  Green   │ ──→ │  Refactor  │
-  │ (テスト) │     │ (実装)   │     │ (整理)     │
+  │ (test)   │     │ (impl)   │     │ (cleanup)  │
   └─────────┘     └──────────┘     └────────────┘
        ↑                                   │
        └───────────────────────────────────┘
@@ -423,64 +423,64 @@ TDD サイクル (Red-Green-Refactor)
 
 ---
 
-## 5. テストダブル
+## 5. Test Doubles
 
-### 5.1 種類と使い分け
+### 5.1 Types and How to Choose
 
 ```
-テストダブルの分類
+Classification of Test Doubles
 
-  テストダブル
-  ├── Dummy ─── 引数を埋めるだけ（使われない）
-  ├── Stub ──── 固定値を返す
-  ├── Spy ───── 実際の処理 + 呼び出し記録
-  ├── Mock ──── 呼び出しの検証（期待を設定）
-  └── Fake ──── 簡易だが動作する実装
+  Test Double
+  ├── Dummy ─── only fills in an argument (never used)
+  ├── Stub ──── returns a fixed value
+  ├── Spy ───── real processing + call recording
+  ├── Mock ──── verifies calls (expectations are set)
+  └── Fake ──── simplified but working implementation
 ```
 
-| 種類 | 目的 | 検証対象 | 例 |
+| Type | Purpose | What Is Verified | Example |
 |------|------|---------|-----|
-| **Dummy** | 引数を満たす | なし | テスト対象が使わない引数 |
-| **Stub** | 固定値を返す | 戻り値 | `find_by_id()` が固定のユーザーを返す |
-| **Mock** | 呼び出しを検証 | メソッド呼び出し | `send_email()` が正しい引数で呼ばれたか |
-| **Spy** | 実際の処理 + 記録 | 呼び出し回数・引数 | 実際にメール送信し、何回呼ばれたか記録 |
-| **Fake** | 簡易実装 | ロジック全体 | In-memory DB で Repository を代替 |
+| **Dummy** | Satisfies an argument | Nothing | An argument that the subject under test does not use |
+| **Stub** | Returns a fixed value | Return value | `find_by_id()` returns a fixed user |
+| **Mock** | Verifies calls | Method calls | Whether `send_email()` was called with the correct arguments |
+| **Spy** | Real processing + recording | Call count, arguments | Actually sends an email and records how many times it was called |
+| **Fake** | Simplified implementation | Entire logic | An in-memory DB as a substitute for a Repository |
 
-### 5.2 テストダブルの選択フロー
+### 5.2 Test Double Selection Flowchart
 
 ```
-テストダブル選択のフローチャート
+Flowchart for selecting a test double
 
-Q1: テスト対象が外部システムの「出力」に依存する？
-    （例: DB読み取り、API応答、設定値取得）
-    → Yes → Stub を使用
+Q1: Does the subject under test depend on "output" from an external system?
+    (e.g., DB reads, API responses, reading config values)
+    → Yes → Use a Stub
 
-Q2: テスト対象が外部システムに「入力」する？
-    （例: メール送信、DB書き込み、イベント発行）
-    → Yes → Mock を使用
+Q2: Does the subject under test send "input" to an external system?
+    (e.g., sending email, DB writes, emitting events)
+    → Yes → Use a Mock
 
-Q3: 完全な代替実装が必要？
-    （例: インメモリDB、ローカルファイルシステム）
-    → Yes → Fake を使用
+Q3: Is a complete alternative implementation needed?
+    (e.g., in-memory DB, local file system)
+    → Yes → Use a Fake
 
-Q4: 引数を満たすだけで良い？
-    → Yes → Dummy を使用
+Q4: Just need to fill in an argument?
+    → Yes → Use a Dummy
 ```
 
-### 5.3 実装例
+### 5.3 Implementation Examples
 
-**コード例7: Stub（固定値を返す）**
+**Code Example 7: Stub (returns a fixed value)**
 
 ```python
 class StubProductRepository:
-    """テスト用: 固定の商品データを返す。"""
+    """For testing: returns fixed product data."""
     def find_by_id(self, product_id: str) -> Product:
-        return Product(id=product_id, name="テスト商品", price=1000)
+        return Product(id=product_id, name="Test Product", price=1000)
 
     def find_all(self) -> list[Product]:
         return [
-            Product(id="p1", name="商品A", price=1000),
-            Product(id="p2", name="商品B", price=2000),
+            Product(id="p1", name="Product A", price=1000),
+            Product(id="p2", name="Product B", price=2000),
         ]
 
 def test_create_order_calculates_total():
@@ -497,7 +497,7 @@ def test_create_order_calculates_total():
     assert result.total_amount == 3000
 ```
 
-**コード例8: Mock（呼び出しを検証）**
+**Code Example 8: Mock (verifies calls)**
 
 ```python
 from unittest.mock import Mock, call
@@ -510,10 +510,10 @@ def test_order_placement_sends_notification():
     # Act
     service.place_order(order_id="order-1")
 
-    # Assert: 正しい引数で呼び出されたか検証
+    # Assert: verify called with correct arguments
     notifier.send.assert_called_once_with(
         recipient="customer@example.com",
-        subject="注文確定のお知らせ",
+        subject="Order Confirmation",
     )
 
 def test_bulk_notification_sends_to_all_users():
@@ -522,18 +522,18 @@ def test_bulk_notification_sends_to_all_users():
     service = NotificationService(notifier=notifier)
 
     # Act
-    service.notify_all(user_ids=["u1", "u2", "u3"], message="セール開始")
+    service.notify_all(user_ids=["u1", "u2", "u3"], message="Sale started")
 
-    # Assert: 3回呼び出されたか
+    # Assert: verify called 3 times
     assert notifier.send.call_count == 3
-    notifier.send.assert_any_call(user_id="u1", message="セール開始")
+    notifier.send.assert_any_call(user_id="u1", message="Sale started")
 ```
 
-**コード例9: Fake（簡易実装）**
+**Code Example 9: Fake (simplified implementation)**
 
 ```python
 class FakeOrderRepository:
-    """テスト用: インメモリで動作するリポジトリ。"""
+    """For testing: an in-memory repository."""
     def __init__(self):
         self._store: dict[str, Order] = {}
 
@@ -566,30 +566,30 @@ def test_order_persistence_and_retrieval():
     assert found.user_id == "u1"
 ```
 
-### 5.4 Mock の過剰使用の危険性
+### 5.4 The Danger of Overusing Mocks
 
-Mock を過剰に使うと、テストが実装詳細に結合し、リファクタリング時にテストが壊れる。Vladimir Khorikov は「Mock は出力（コマンド）の検証にのみ使い、入力（クエリ）には Stub を使え」と主張している。
+Overusing Mocks couples tests to implementation details, causing them to break during refactoring. Vladimir Khorikov argues that "Mocks should only be used to verify outputs (commands), and Stubs should be used for inputs (queries)."
 
 ```python
-# BAD: Mock の過剰使用（実装詳細に結合）
+# BAD: overuse of Mocks (coupled to implementation details)
 def test_order_creation_uses_correct_sql():
     db = Mock()
     service = OrderService(db=db)
     service.create_order(user_id="u1", items=[...])
 
-    # SQL 文の詳細をテスト → リファクタリングで壊れる
+    # Testing SQL details → breaks during refactoring
     db.execute.assert_called_with(
         "INSERT INTO orders (user_id, total) VALUES (%s, %s)",
         ("u1", 3000)
     )
 
-# GOOD: 振る舞いをテスト（Fake を使用）
+# GOOD: test behavior (use a Fake)
 def test_order_creation_persists_order():
     repo = FakeOrderRepository()
     service = OrderService(repo=repo)
     service.create_order(user_id="u1", items=[...])
 
-    # 結果の検証（実装詳細に依存しない）
+    # Verify the result (does not depend on implementation details)
     orders = repo.find_by_user("u1")
     assert len(orders) == 1
     assert orders[0].total == 3000
@@ -597,26 +597,26 @@ def test_order_creation_persists_order():
 
 ---
 
-## 6. 高度なテスト技法
+## 6. Advanced Test Techniques
 
-### 6.1 パラメタライズテスト
+### 6.1 Parameterized Tests
 
-同じロジックを異なる入力でテストする場合、パラメタライズテストが効率的である。
+When testing the same logic with different inputs, parameterized tests are efficient.
 
-**コード例10: パラメタライズテスト**
+**Code Example 10: Parameterized tests**
 
 ```python
 import pytest
 
 @pytest.mark.parametrize("total, expected_discount", [
-    (5000,  0),         # 5000円: 割引なし
-    (9999,  0),         # 9999円: 割引なし（境界値-1）
-    (10000, 0),         # 10000円: 割引なし（境界値）
-    (10001, 1000),      # 10001円: 10%割引（境界値+1）
-    (20000, 2000),      # 20000円: 10%割引
-    (49999, 4999),      # 49999円: 10%割引（次の境界値-1）
-    (50000, 7500),      # 50000円: 15%割引
-    (100000, 20000),    # 100000円: 20%割引
+    (5000,  0),         # 5000: no discount
+    (9999,  0),         # 9999: no discount (boundary - 1)
+    (10000, 0),         # 10000: no discount (boundary)
+    (10001, 1000),      # 10001: 10% discount (boundary + 1)
+    (20000, 2000),      # 20000: 10% discount
+    (49999, 4999),      # 49999: 10% discount (next boundary - 1)
+    (50000, 7500),      # 50000: 15% discount
+    (100000, 20000),    # 100000: 20% discount
 ])
 def test_discount_calculation(total, expected_discount):
     calculator = DiscountCalculator()
@@ -624,46 +624,46 @@ def test_discount_calculation(total, expected_discount):
 ```
 
 ```python
-# 複数パラメータの組み合わせ
+# Combination of multiple parameters
 @pytest.mark.parametrize("user_type, order_total, expected", [
     ("regular",  5000,  0),
     ("regular",  10001, 1000),
-    ("premium",  5000,  250),    # プレミアムは5%
-    ("premium",  10001, 1500),   # プレミアムは15%
-    ("vip",      5000,  500),    # VIPは10%
-    ("vip",      10001, 2000),   # VIPは20%
+    ("premium",  5000,  250),    # premium: 5%
+    ("premium",  10001, 1500),   # premium: 15%
+    ("vip",      5000,  500),    # VIP: 10%
+    ("vip",      10001, 2000),   # VIP: 20%
 ])
 def test_discount_by_user_type(user_type, order_total, expected):
     calculator = DiscountCalculator()
     assert calculator.calculate(order_total, user_type) == expected
 ```
 
-### 6.2 境界値テスト
+### 6.2 Boundary Value Testing
 
-境界値分析は、バグが最も発生しやすい「境界」に集中してテストする技法である。
+Boundary value analysis is a technique that focuses testing on "boundaries" where bugs are most likely to occur.
 
-**コード例11: 境界値テスト**
+**Code Example 11: Boundary value tests**
 
 ```python
 class TestPasswordValidation:
-    """パスワードバリデーションの境界値テスト。"""
+    """Boundary value tests for password validation."""
 
     @pytest.mark.parametrize("password, is_valid, description", [
-        ("1234567", False, "7文字: 最小-1 → 無効"),
-        ("12345678", True, "8文字: 最小境界 → 有効"),
-        ("123456789", True, "9文字: 最小+1 → 有効"),
-        ("A" * 19, True, "19文字: 最大-1 → 有効"),
-        ("A" * 20, True, "20文字: 最大境界 → 有効"),
-        ("A" * 21, False, "21文字: 最大+1 → 無効"),
+        ("1234567", False, "7 chars: min-1 → invalid"),
+        ("12345678", True, "8 chars: minimum boundary → valid"),
+        ("123456789", True, "9 chars: min+1 → valid"),
+        ("A" * 19, True, "19 chars: max-1 → valid"),
+        ("A" * 20, True, "20 chars: maximum boundary → valid"),
+        ("A" * 21, False, "21 chars: max+1 → invalid"),
     ])
     def test_length_boundary(self, password, is_valid, description):
         result = validate_password(password)
         assert result.is_valid == is_valid, description
 
     @pytest.mark.parametrize("password, is_valid, description", [
-        ("", False, "空文字列"),
-        ("a", False, "1文字"),
-        ("A" * 1000, False, "極端に長い文字列"),
+        ("", False, "empty string"),
+        ("a", False, "1 character"),
+        ("A" * 1000, False, "extremely long string"),
     ])
     def test_edge_cases(self, password, is_valid, description):
         result = validate_password(password)
@@ -671,48 +671,48 @@ class TestPasswordValidation:
 ```
 
 ```
-境界値分析のテンプレート
+Boundary Value Analysis Template
 ────────────────────────────────────
-  任意の範囲 [min, max] に対して以下をテスト:
+  For any range [min, max], test the following:
 
-  1. min - 1  (範囲外: 無効)
-  2. min      (境界値: 有効)
-  3. min + 1  (範囲内: 有効)
-  4. 代表的な中間値
-  5. max - 1  (範囲内: 有効)
-  6. max      (境界値: 有効)
-  7. max + 1  (範囲外: 無効)
+  1. min - 1  (out of range: invalid)
+  2. min      (boundary: valid)
+  3. min + 1  (in range: valid)
+  4. A representative middle value
+  5. max - 1  (in range: valid)
+  6. max      (boundary: valid)
+  7. max + 1  (out of range: invalid)
 
-  加えて:
-  8. 空入力 (None, "", [], 0)
-  9. 極端な値 (最大整数, 非常に長い文字列)
+  Also:
+  8. Empty input (None, "", [], 0)
+  9. Extreme values (max integer, very long string)
 ────────────────────────────────────
 ```
 
-### 6.3 プロパティベーステスト
+### 6.3 Property-Based Testing
 
-特定の入力値ではなく、「任意の入力に対して成り立つ性質」をテストする。
+Instead of specific input values, test "properties that hold for any input."
 
-**コード例12: プロパティベーステスト**
+**Code Example 12: Property-based tests**
 
 ```python
 from hypothesis import given, strategies as st
 
-# 性質1: ソートされたリストは元のリストと同じ要素を持つ
+# Property 1: a sorted list has the same elements as the original
 @given(st.lists(st.integers()))
 def test_sort_preserves_elements(lst):
     sorted_lst = sorted(lst)
     assert sorted(sorted_lst) == sorted(lst)
     assert len(sorted_lst) == len(lst)
 
-# 性質2: ソートされたリストは昇順
+# Property 2: a sorted list is in ascending order
 @given(st.lists(st.integers(), min_size=2))
 def test_sort_is_ordered(lst):
     sorted_lst = sorted(lst)
     for i in range(len(sorted_lst) - 1):
         assert sorted_lst[i] <= sorted_lst[i + 1]
 
-# 性質3: JSONエンコード→デコードで元のデータが復元される
+# Property 3: JSON encode → decode restores the original data
 @given(st.dictionaries(
     keys=st.text(min_size=1, max_size=50),
     values=st.one_of(st.integers(), st.text(), st.booleans(), st.none()),
@@ -722,22 +722,22 @@ def test_json_roundtrip(data):
     decoded = json.loads(encoded)
     assert decoded == data
 
-# 性質4: 金額計算で丸め誤差が発生しない
+# Property 4: no rounding errors in monetary calculations
 @given(
     price=st.decimals(min_value=1, max_value=1000000, places=0),
     quantity=st.integers(min_value=1, max_value=100),
 )
 def test_total_is_positive(price, quantity):
     total = price * quantity
-    assert total >= price  # 合計は単価以上
-    assert total >= quantity  # 合計は数量以上
+    assert total >= price  # total is at least the unit price
+    assert total >= quantity  # total is at least the quantity
 ```
 
-### 6.4 スナップショットテスト
+### 6.4 Snapshot Testing
 
-出力が複雑な場合、初回実行時の出力を「スナップショット」として保存し、以降の実行結果と比較する。
+When output is complex, the initial output is saved as a "snapshot" and subsequent runs are compared against it.
 
-**コード例13: スナップショットテスト（pytest-snapshot）**
+**Code Example 13: Snapshot testing (pytest-snapshot)**
 
 ```python
 def test_user_serialization(snapshot):
@@ -747,27 +747,27 @@ def test_user_serialization(snapshot):
     )
     result = user.to_dict()
 
-    # 初回: スナップショットを保存
-    # 2回目以降: 保存されたスナップショットと比較
+    # First run: save the snapshot
+    # Subsequent runs: compare against the saved snapshot
     snapshot.assert_match(json.dumps(result, indent=2), "user_serialization.json")
 ```
 
-### 6.5 テーブル駆動テスト（Go スタイル）
+### 6.5 Table-Driven Tests (Go Style)
 
-Go で広く使われるテストパターン。テストケースをテーブル（リスト）で定義し、ループで実行する。
+A test pattern widely used in Go. Test cases are defined in a table (list) and executed in a loop.
 
 ```python
-# テーブル駆動テスト
+# Table-driven tests
 class TestEmailValidation:
     test_cases = [
-        {"input": "user@example.com", "valid": True, "desc": "正常なメール"},
-        {"input": "user@example", "valid": False, "desc": "TLDなし"},
-        {"input": "@example.com", "valid": False, "desc": "ローカル部なし"},
-        {"input": "user@", "valid": False, "desc": "ドメインなし"},
-        {"input": "", "valid": False, "desc": "空文字列"},
-        {"input": "a" * 255 + "@example.com", "valid": False, "desc": "長すぎる"},
-        {"input": "user+tag@example.com", "valid": True, "desc": "プラスタグ"},
-        {"input": "user.name@example.com", "valid": True, "desc": "ドット入り"},
+        {"input": "user@example.com", "valid": True, "desc": "valid email"},
+        {"input": "user@example", "valid": False, "desc": "no TLD"},
+        {"input": "@example.com", "valid": False, "desc": "no local part"},
+        {"input": "user@", "valid": False, "desc": "no domain"},
+        {"input": "", "valid": False, "desc": "empty string"},
+        {"input": "a" * 255 + "@example.com", "valid": False, "desc": "too long"},
+        {"input": "user+tag@example.com", "valid": True, "desc": "plus tag"},
+        {"input": "user.name@example.com", "valid": True, "desc": "with dot"},
     ]
 
     @pytest.mark.parametrize("case", test_cases, ids=lambda c: c["desc"])
@@ -778,132 +778,132 @@ class TestEmailValidation:
 
 ---
 
-## 7. テスト品質の維持と改善
+## 7. Maintaining and Improving Test Quality
 
-### 7.1 テストカバレッジの適切な運用
+### 7.1 Appropriate Use of Test Coverage
 
 ```
-テストカバレッジの種類
+Types of Test Coverage
 ────────────────────────────────────
-1. 行カバレッジ (Line Coverage)
-   → 実行された行の割合。最も基本的だが浅い
+1. Line Coverage
+   → Percentage of lines executed. Most basic but shallow
 
-2. 分岐カバレッジ (Branch Coverage)
-   → if/else の各分岐が実行されたか。行より深い
+2. Branch Coverage
+   → Whether each branch of if/else was executed. Deeper than line coverage
 
-3. 条件カバレッジ (Condition Coverage)
-   → 複合条件(A && B)の各条件が true/false の両方を経験したか
+3. Condition Coverage
+   → Whether each condition in a compound expression (A && B) experienced both true and false
 
-4. ミューテーションスコア (Mutation Score)
-   → コードを意図的に壊した場合にテストが検出できる割合
-   → テストの「品質」を測る最も精度の高い指標
+4. Mutation Score
+   → Percentage of intentionally broken code that tests can detect
+   → The most accurate metric for measuring test "quality"
 ────────────────────────────────────
 ```
 
 ```python
-# カバレッジの限界を示す例
+# Example showing the limits of coverage
 def calculate_discount(amount: int, is_premium: bool) -> int:
     if amount > 10000 and is_premium:
         return int(amount * 0.15)
     return 0
 
-# このテストはLine Coverage 100% だがバグを見逃す
+# This test achieves 100% line coverage but misses a bug
 def test_discount():
-    assert calculate_discount(20000, True) == 3000  # カバレッジ100%
-    # だが (20000, False) → 0 のケースをテストしていない
-    # もし条件が or に変更されてもテストは通ってしまう
+    assert calculate_discount(20000, True) == 3000  # 100% coverage
+    # But the case (20000, False) → 0 is not tested
+    # If the condition is changed to 'or', the test still passes
 ```
 
-### 7.2 ミューテーションテスト
+### 7.2 Mutation Testing
 
-コードを意図的に「壊して」（ミュータント）、テストがそれを検出できるかを確認する。
+Intentionally "break" the code (create mutants) and verify whether tests can detect them.
 
 ```python
-# 元のコード
+# Original code
 def is_adult(age: int) -> bool:
     return age >= 18
 
-# ミュータント1: >= を > に変更
+# Mutant 1: change >= to >
 def is_adult_mutant1(age: int) -> bool:
-    return age > 18  # age == 18 のテストがないと検出できない
+    return age > 18  # not detectable without a test for age == 18
 
-# ミュータント2: 18 を 17 に変更
+# Mutant 2: change 18 to 17
 def is_adult_mutant2(age: int) -> bool:
-    return age >= 17  # 境界値テストがないと検出できない
+    return age >= 17  # not detectable without boundary value tests
 
-# ミュータント3: True/False を反転
+# Mutant 3: invert True/False
 def is_adult_mutant3(age: int) -> bool:
-    return not (age >= 18)  # 基本テストがあれば検出可能
+    return not (age >= 18)  # detectable if basic tests exist
 ```
 
 ```
-ミューテーションテストの実行 (mutmut)
+Running Mutation Tests (mutmut)
 ────────────────────────────────────
 $ pip install mutmut
 $ mutmut run --paths-to-mutate=src/ --tests-dir=tests/
 
-結果の読み方:
-  Killed: テストがミュータントを検出（良い）
-  Survived: テストがミュータントを見逃した（テスト不足）
-  Timeout: テストが終了しなかった
+How to read results:
+  Killed:   tests detected the mutant (good)
+  Survived: tests missed the mutant (insufficient tests)
+  Timeout:  tests did not complete
 
-ミューテーションスコア = Killed / (Killed + Survived) * 100
-目標: 80%以上
+Mutation score = Killed / (Killed + Survived) * 100
+Target: 80% or higher
 ────────────────────────────────────
 ```
 
-### 7.3 Flaky テスト対策
+### 7.3 Dealing with Flaky Tests
 
-Flaky テスト（不安定なテスト）は、テストスイート全体への信頼を毀損する。「テストが失敗しても、まあ Flaky だよね」という文化が定着すると、真のバグも見逃すようになる。
+Flaky tests (unstable tests) undermine trust in the entire test suite. Once the culture of "that test just fails sometimes, it's probably flaky" takes hold, real bugs start getting missed too.
 
 ```
-Flaky テストの主な原因と対策
+Common causes of flaky tests and countermeasures
 ────────────────────────────────────
-原因1: テスト間の順序依存
-  対策: → pytest-randomly でランダム順序で実行
-       → 各テストで状態をリセット
+Cause 1: Order dependency between tests
+  Countermeasure: → Run in random order with pytest-randomly
+                 → Reset state in each test
 
-原因2: タイミング依存（非同期処理）
-  対策: → sleep() ではなく明示的な待機（ポーリング）
-       → awaitility パターンの使用
+Cause 2: Timing dependency (async processing)
+  Countermeasure: → Use explicit waiting (polling) instead of sleep()
+                 → Use the awaitility pattern
 
-原因3: 外部サービスへの依存
-  対策: → テストダブルで置換
-       → WireMock 等でAPIをスタブ化
+Cause 3: Dependency on external services
+  Countermeasure: → Replace with test doubles
+                 → Stub APIs with WireMock or similar
 
-原因4: リソース競合（ポート、ファイル）
-  対策: → ランダムポートの使用
-       → テンポラリディレクトリの使用
+Cause 4: Resource contention (ports, files)
+  Countermeasure: → Use random ports
+                 → Use temporary directories
 
-原因5: 浮動小数点の比較
-  対策: → pytest.approx() の使用
-       → Decimal の使用
+Cause 5: Floating-point comparisons
+  Countermeasure: → Use pytest.approx()
+                 → Use Decimal
 ────────────────────────────────────
 ```
 
-**コード例14: Flaky テストの修正**
+**Code Example 14: Fixing a flaky test**
 
 ```python
-# BAD: タイミング依存
+# BAD: timing-dependent
 def test_async_job_completion():
     start_background_job("process-data")
-    time.sleep(5)  # 5秒で終わるはず... Flaky!
+    time.sleep(5)  # should finish in 5 seconds... Flaky!
     assert job_status("process-data") == "completed"
 
-# GOOD: ポーリングで待機
+# GOOD: wait with polling
 def test_async_job_completion():
     start_background_job("process-data")
 
-    # 最大30秒、1秒間隔でポーリング
+    # Poll every 1 second for up to 30 seconds
     for _ in range(30):
         if job_status("process-data") == "completed":
-            return  # テスト成功
+            return  # test passed
         time.sleep(1)
 
-    pytest.fail("ジョブが30秒以内に完了しなかった")
+    pytest.fail("Job did not complete within 30 seconds")
 
 
-# BETTER: tenacity ライブラリで待機
+# BETTER: wait using the tenacity library
 from tenacity import retry, stop_after_delay, wait_fixed
 
 @retry(stop=stop_after_delay(30), wait=wait_fixed(1))
@@ -917,43 +917,43 @@ def test_async_job_completion():
 
 ---
 
-## 8. テストの構造化とフィクスチャ
+## 8. Structuring Tests and Fixtures
 
-### 8.1 pytest フィクスチャ
+### 8.1 pytest Fixtures
 
-**コード例15: フィクスチャの活用**
+**Code Example 15: Using fixtures**
 
 ```python
 import pytest
 
-# セッションスコープ: テストスイート全体で1回だけ実行
+# Session scope: runs once for the entire test suite
 @pytest.fixture(scope="session")
 def database():
-    """テスト用データベースの作成と破棄。"""
+    """Create and tear down a test database."""
     db = create_test_database()
     create_schema(db)
     yield db
     drop_database(db)
 
-# 関数スコープ: 各テスト関数ごとに実行
+# Function scope: runs for each test function
 @pytest.fixture
 def clean_db(database):
-    """各テスト前にトランザクション開始、後にロールバック。"""
+    """Begin a transaction before each test, rollback after."""
     database.begin()
     yield database
     database.rollback()
 
-# カスタムファクトリフィクスチャ
+# Custom factory fixture
 @pytest.fixture
 def create_user(clean_db):
-    """テスト用ユーザーのファクトリ。"""
+    """Factory for test users."""
     def _create_user(name="Alice", email="alice@test.com", role="user"):
         user = User(name=name, email=email, role=role)
         clean_db.save(user)
         return user
     return _create_user
 
-# フィクスチャの使用
+# Using fixtures
 def test_user_can_place_order(create_user, clean_db):
     user = create_user(name="Bob")
     order = Order(user_id=user.id, items=[...])
@@ -962,16 +962,16 @@ def test_user_can_place_order(create_user, clean_db):
     assert order.user_id == user.id
 ```
 
-### 8.2 テストの分類とマーカー
+### 8.2 Test Classification and Markers
 
 ```python
-# conftest.py でマーカーを登録
+# Register markers in conftest.py
 def pytest_configure(config):
-    config.addinivalue_line("markers", "slow: 実行が遅いテスト")
-    config.addinivalue_line("markers", "integration: 統合テスト")
-    config.addinivalue_line("markers", "e2e: E2Eテスト")
+    config.addinivalue_line("markers", "slow: tests that take a long time to run")
+    config.addinivalue_line("markers", "integration: integration tests")
+    config.addinivalue_line("markers", "e2e: E2E tests")
 
-# テストにマーカーを付与
+# Apply markers to tests
 @pytest.mark.slow
 def test_full_data_migration():
     ...
@@ -980,17 +980,17 @@ def test_full_data_migration():
 def test_database_connection():
     ...
 
-# 特定のマーカーのテストのみ実行
-# $ pytest -m "not slow"           # 遅いテスト以外を実行
-# $ pytest -m "integration"        # 統合テストのみ実行
-# $ pytest -m "not e2e"            # E2E 以外を実行
+# Run only tests with specific markers
+# $ pytest -m "not slow"           # run all except slow tests
+# $ pytest -m "integration"        # run only integration tests
+# $ pytest -m "not e2e"            # run all except E2E
 ```
 
 ---
 
-## 9. CI/CD パイプラインとの統合
+## 9. Integration with CI/CD Pipelines
 
-### 9.1 テスト戦略の自動化
+### 9.1 Automating the Test Strategy
 
 ```yaml
 # .github/workflows/test.yml
@@ -1036,73 +1036,73 @@ jobs:
       - run: pytest tests/integration/ -v --timeout=60
 ```
 
-### 9.2 テストの並列実行
+### 9.2 Running Tests in Parallel
 
 ```
-テスト実行の高速化戦略
+Strategies for speeding up test execution
 ────────────────────────────────────
-1. pytest-xdist で並列実行
-   $ pytest -n auto  # CPU コア数に応じて自動並列化
+1. Parallel execution with pytest-xdist
+   $ pytest -n auto  # automatic parallelization based on CPU core count
 
-2. テストの分割
-   # CI で複数ジョブに分割
-   $ pytest --splits 4 --group 1  # 4分割の1番目
-   $ pytest --splits 4 --group 2  # 4分割の2番目
+2. Splitting tests
+   # Split into multiple jobs in CI
+   $ pytest --splits 4 --group 1  # group 1 of 4
+   $ pytest --splits 4 --group 2  # group 2 of 4
 
-3. 変更ファイルに関連するテストのみ実行
-   $ pytest --picked  # git diff のファイルに関連するテスト
+3. Run only tests related to changed files
+   $ pytest --picked  # tests related to files in git diff
 
-4. キャッシュの活用
-   $ pytest --lf  # 前回失敗したテストのみ再実行
-   $ pytest --ff  # 前回失敗したテストを先に実行
+4. Using the cache
+   $ pytest --lf  # re-run only tests that failed last time
+   $ pytest --ff  # run tests that failed last time first
 ────────────────────────────────────
 ```
 
 ---
 
-## 10. 比較表
+## 10. Comparison Tables
 
-### テスト手法の比較
+### Comparison of Test Techniques
 
-| 手法 | 粒度 | 速度 | 保守性 | 適用場面 |
+| Technique | Granularity | Speed | Maintainability | Use Case |
 |------|------|------|--------|---------|
-| ユニットテスト | メソッド/関数 | 最速 | 高 | ビジネスロジック、純関数 |
-| 統合テスト | モジュール間連携 | 中速 | 中 | DB操作、API連携 |
-| E2Eテスト | 全体フロー | 低速 | 低 | クリティカルパス |
-| スナップショット | UI出力 | 高速 | 低 | UIコンポーネント |
-| プロパティベース | ランダム入力 | 中速 | 高 | アルゴリズム、パーサー |
-| ミューテーション | テスト品質 | 低速 | ── | テストスイートの品質検証 |
+| Unit test | Method/function | Fastest | High | Business logic, pure functions |
+| Integration test | Inter-module interaction | Medium | Medium | DB operations, API integration |
+| E2E test | Full flow | Slow | Low | Critical paths |
+| Snapshot | UI output | Fast | Low | UI components |
+| Property-based | Random input | Medium | High | Algorithms, parsers |
+| Mutation | Test quality | Slow | ── | Validating test suite quality |
 
-### テストダブルの使い分け
+### Choosing the Right Test Double
 
-| テストダブル | 使う場面 | 避ける場面 |
+| Test Double | When to Use | When to Avoid |
 |------------|---------|-----------|
-| Stub | 外部サービスの応答を固定したい | ロジックが単純で不要 |
-| Mock | 副作用（メール送信等）の発生を検証したい | 実装詳細に結合してしまう場合 |
-| Fake | 完全なインメモリ代替が欲しい | 実装コストが高すぎる場合 |
-| Spy | 実際の処理を行いつつ記録したい | Mock で十分な場合 |
-| Dummy | 引数を埋めたいだけ | テスト対象が実際に使う場合 |
+| Stub | Want to fix the response from an external service | Simple logic where it is unnecessary |
+| Mock | Want to verify that a side effect (e.g., email sending) occurred | When it would couple to implementation details |
+| Fake | Want a complete in-memory substitute | When implementation cost is too high |
+| Spy | Want to run the real processing while also recording it | When a Mock is sufficient |
+| Dummy | Just need to fill an argument | When the subject under test actually uses it |
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-Patterns
 
-### アンチパターン 1: 実装詳細をテストする
+### Anti-Pattern 1: Testing Implementation Details
 
 ```python
-# BAD: 内部実装（メソッド呼び出し順序）をテスト
+# BAD: testing internal implementation (method call order)
 def test_order_creation_calls_methods_in_order():
     mock = Mock()
     service = OrderService(repo=mock)
     service.create_order(...)
     assert mock.method_calls == [
-        call.validate(),        # 内部の呼び出し順序に結合
+        call.validate(),        # coupled to internal call order
         call.calculate_tax(),
         call.save(),
     ]
-    # リファクタリングで内部実装を変えただけでテストが壊れる
+    # Changing the internal implementation during refactoring breaks the test
 
-# GOOD: 振る舞い（入力 → 出力）をテスト
+# GOOD: test behavior (input → output)
 def test_order_creation_returns_valid_order():
     repo = FakeOrderRepository()
     service = OrderService(repo=repo)
@@ -1111,20 +1111,20 @@ def test_order_creation_returns_valid_order():
     assert result.total > 0
 ```
 
-**なぜダメか:** 実装詳細に結合したテストは、コードをリファクタリングするたびに壊れる。テストがリファクタリングを妨害するようになると、テストの最大の価値（安心して変更できること）が失われる。
+**Why it is bad:** Tests coupled to implementation details break every time the code is refactored. When tests start blocking refactoring, the greatest value of tests — the ability to change code with confidence — is lost.
 
-### アンチパターン 2: テストが遅い
+### Anti-Pattern 2: Slow Tests
 
 ```python
-# BAD: 各テストで DB を初期化
+# BAD: initialize the DB in every test
 def test_user_query(self):
-    db.create_all()          # 毎回スキーマ作成 (遅い)
-    seed_test_data(1000)     # 毎回1000件投入 (遅い)
+    db.create_all()          # creates schema each time (slow)
+    seed_test_data(1000)     # inserts 1000 records each time (slow)
     result = query_users()
     assert len(result) > 0
     db.drop_all()
 
-# GOOD: フィクスチャで共有、トランザクションロールバック
+# GOOD: share with fixtures, rollback with transactions
 @pytest.fixture(scope="session")
 def db():
     create_schema()
@@ -1135,26 +1135,26 @@ def db():
 def transaction(db):
     db.begin()
     yield
-    db.rollback()    # 各テスト後にロールバック (高速)
+    db.rollback()    # rollback after each test (fast)
 ```
 
-**なぜダメか:** テストが遅いと、開発者はテストの実行を避けるようになる。「テストを実行するのが面倒」→「テストを書かない」→「品質低下」の悪循環に陥る。
+**Why it is bad:** When tests are slow, developers start avoiding running them. "Running tests is a pain" → "don't write tests" → "quality degrades" — a vicious cycle.
 
-### アンチパターン 3: テストが複数の概念を検証する
+### Anti-Pattern 3: Verifying Multiple Concepts in One Test
 
 ```python
-# BAD: 1つのテストで複数の概念を検証
+# BAD: verifying multiple concepts in a single test
 def test_user_creation():
     user = service.create_user("Alice", "alice@example.com")
-    assert user.id is not None                    # 概念1: ID生成
-    assert user.name == "Alice"                   # 概念2: 名前保存
-    assert user.email == "alice@example.com"      # 概念3: メール保存
-    assert user.created_at is not None            # 概念4: タイムスタンプ
-    assert user.status == "active"                # 概念5: 初期ステータス
-    assert email_was_sent("alice@example.com")    # 概念6: メール送信
-    assert audit_log_exists("user_created")       # 概念7: 監査ログ
+    assert user.id is not None                    # concept 1: ID generation
+    assert user.name == "Alice"                   # concept 2: name saved
+    assert user.email == "alice@example.com"      # concept 3: email saved
+    assert user.created_at is not None            # concept 4: timestamp
+    assert user.status == "active"                # concept 5: initial status
+    assert email_was_sent("alice@example.com")    # concept 6: email sent
+    assert audit_log_exists("user_created")       # concept 7: audit log
 
-# GOOD: 概念ごとにテストを分割
+# GOOD: split tests by concept
 def test_create_user_generates_unique_id():
     user = service.create_user("Alice", "alice@example.com")
     assert user.id is not None
@@ -1173,10 +1173,10 @@ def test_create_user_sends_welcome_email():
     assert email_was_sent("alice@example.com")
 ```
 
-### アンチパターン 4: 条件分岐のあるテスト
+### Anti-Pattern 4: Conditional Logic Inside Tests
 
 ```python
-# BAD: テスト内に条件分岐がある
+# BAD: conditional branching inside a test
 def test_discount(user_type):
     calculator = DiscountCalculator()
     if user_type == "premium":
@@ -1186,7 +1186,7 @@ def test_discount(user_type):
     else:
         assert calculator.calculate(10000, user_type) == 0
 
-# GOOD: パラメタライズテストで条件分岐を排除
+# GOOD: eliminate conditional branching with parameterized tests
 @pytest.mark.parametrize("user_type, expected", [
     ("premium", 1500),
     ("regular", 1000),
@@ -1199,11 +1199,11 @@ def test_discount(user_type, expected):
 
 ---
 
-## 12. 実践演習
+## 12. Practical Exercises
 
-### 演習1（基礎）: AAA パターンでテストを書く
+### Exercise 1 (Basic): Write tests using the AAA pattern
 
-以下の `PasswordValidator` クラスに対して、AAA パターンに従ったユニットテストを5つ以上書いてください。
+Write five or more unit tests for the following `PasswordValidator` class, following the AAA pattern.
 
 ```python
 class PasswordValidator:
@@ -1213,17 +1213,17 @@ class PasswordValidator:
     def validate(self, password: str) -> ValidationResult:
         errors = []
         if len(password) < self.MIN_LENGTH:
-            errors.append("最低8文字必要です")
+            errors.append("At least 8 characters required")
         if len(password) > self.MAX_LENGTH:
-            errors.append("最大64文字までです")
+            errors.append("Maximum 64 characters allowed")
         if not any(c.isupper() for c in password):
-            errors.append("大文字を1文字以上含めてください")
+            errors.append("Must contain at least one uppercase letter")
         if not any(c.isdigit() for c in password):
-            errors.append("数字を1文字以上含めてください")
+            errors.append("Must contain at least one digit")
         return ValidationResult(is_valid=len(errors) == 0, errors=errors)
 ```
 
-**期待される出力:**
+**Expected output:**
 
 ```python
 class TestPasswordValidator:
@@ -1238,22 +1238,22 @@ class TestPasswordValidator:
     def test_short_password_returns_error(self):
         result = self.validator.validate("Short1A")
         assert result.is_valid is False
-        assert "最低8文字必要です" in result.errors
+        assert "At least 8 characters required" in result.errors
 
     def test_too_long_password_returns_error(self):
         result = self.validator.validate("A1" + "a" * 63)
         assert result.is_valid is False
-        assert "最大64文字までです" in result.errors
+        assert "Maximum 64 characters allowed" in result.errors
 
     def test_no_uppercase_returns_error(self):
         result = self.validator.validate("lowercase123")
         assert result.is_valid is False
-        assert "大文字を1文字以上含めてください" in result.errors
+        assert "Must contain at least one uppercase letter" in result.errors
 
     def test_no_digit_returns_error(self):
         result = self.validator.validate("NoDigitsHere")
         assert result.is_valid is False
-        assert "数字を1文字以上含めてください" in result.errors
+        assert "Must contain at least one digit" in result.errors
 
     def test_multiple_violations_returns_all_errors(self):
         result = self.validator.validate("short")
@@ -1261,9 +1261,9 @@ class TestPasswordValidator:
         assert len(result.errors) >= 2
 ```
 
-### 演習2（応用）: テストダブルを使ったテスト
+### Exercise 2 (Applied): Tests using test doubles
 
-以下の `OrderService` に対して、Stub と Mock を使い分けたテストを書いてください。
+Write tests for the following `OrderService` that properly differentiate between Stub and Mock.
 
 ```python
 class OrderService:
@@ -1285,11 +1285,11 @@ class OrderService:
         return order
 ```
 
-**期待される出力:**
+**Expected output:**
 
 ```python
 def test_place_order_calculates_correct_total():
-    # Stub: 商品リポジトリから固定の商品を返す
+    # Stub: return fixed products from the product repository
     product_repo = StubProductRepo({
         "p1": Product(id="p1", price=1000),
         "p2": Product(id="p2", price=2000),
@@ -1308,37 +1308,37 @@ def test_place_order_calculates_correct_total():
 def test_place_order_sends_confirmation():
     product_repo = StubProductRepo({"p1": Product(id="p1", price=1000)})
     payment = StubPaymentGateway(always_succeeds=True)
-    notifier = Mock()  # Mock: 通知が呼ばれたか検証
+    notifier = Mock()  # Mock: verify that notification was called
 
     service = OrderService(product_repo, payment, notifier)
     service.place_order("u1", [{"id": "p1", "qty": 1}])
 
-    # 通知が正しく呼ばれたか検証
+    # Verify that notification was called correctly
     notifier.send_confirmation.assert_called_once()
 
 def test_place_order_raises_on_payment_failure():
     product_repo = StubProductRepo({"p1": Product(id="p1", price=1000)})
-    payment = StubPaymentGateway(always_fails=True, error="カード拒否")
+    payment = StubPaymentGateway(always_fails=True, error="Card declined")
     notifier = Mock()
 
     service = OrderService(product_repo, payment, notifier)
 
-    with pytest.raises(PaymentError, match="カード拒否"):
+    with pytest.raises(PaymentError, match="Card declined"):
         service.place_order("u1", [{"id": "p1", "qty": 1}])
 
-    # 決済失敗時は通知が送られないこと
+    # Verify that no notification is sent on payment failure
     notifier.send_confirmation.assert_not_called()
 ```
 
-### 演習3（発展）: プロパティベーステストの設計
+### Exercise 3 (Advanced): Designing property-based tests
 
-以下の `Money` クラスに対して、hypothesis を使ったプロパティベーステストを設計してください。「任意の金額に対して成り立つ性質」を3つ以上テストしてください。
+Design property-based tests using hypothesis for the following `Money` class. Test at least three "properties that hold for any monetary amount."
 
 ```python
 class Money:
     def __init__(self, amount: int, currency: str = "JPY"):
         if amount < 0:
-            raise ValueError("金額は0以上")
+            raise ValueError("Amount must be 0 or greater")
         self.amount = amount
         self.currency = currency
 
@@ -1351,34 +1351,34 @@ class Money:
         return Money(self.amount * factor, self.currency)
 ```
 
-**期待される出力:**
+**Expected output:**
 
 ```python
 from hypothesis import given, strategies as st
 
 jpy_amount = st.integers(min_value=0, max_value=10**9)
 
-# 性質1: 加算の可換性 (a + b == b + a)
+# Property 1: commutativity of addition (a + b == b + a)
 @given(a=jpy_amount, b=jpy_amount)
 def test_addition_is_commutative(a, b):
     m1 = Money(a).add(Money(b))
     m2 = Money(b).add(Money(a))
     assert m1.amount == m2.amount
 
-# 性質2: 加算の結合性 ((a + b) + c == a + (b + c))
+# Property 2: associativity of addition ((a + b) + c == a + (b + c))
 @given(a=jpy_amount, b=jpy_amount, c=jpy_amount)
 def test_addition_is_associative(a, b, c):
     left = Money(a).add(Money(b)).add(Money(c))
     right = Money(a).add(Money(b).add(Money(c)))
     assert left.amount == right.amount
 
-# 性質3: ゼロの加算は恒等 (a + 0 == a)
+# Property 3: adding zero is the identity (a + 0 == a)
 @given(a=jpy_amount)
 def test_adding_zero_is_identity(a):
     result = Money(a).add(Money(0))
     assert result.amount == a
 
-# 性質4: 乗算の分配法則 ((a + b) * n == a*n + b*n)
+# Property 4: distributive law for multiplication ((a + b) * n == a*n + b*n)
 @given(a=jpy_amount, b=jpy_amount, n=st.integers(min_value=0, max_value=100))
 def test_multiplication_distributes_over_addition(a, b, n):
     left = Money(a).add(Money(b)).multiply(n)
@@ -1389,33 +1389,33 @@ def test_multiplication_distributes_over_addition(a, b, n):
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Invalid configuration file | Verify the path and format of the configuration file |
+| Timeout | Network delay / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increase in data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Verify executing user's permissions, review settings |
+| Data inconsistency | Race condition in concurrent processing | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace and identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with the minimum amount of code
+3. **Form hypotheses**: List possible causes
+4. **Incremental verification**: Use logging output or a debugger to verify hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1423,143 +1423,143 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Called: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance problems:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check for I/O waits**: Verify disk and network I/O status
+4. **Check concurrent connections**: Verify connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem Type | Diagnostic Tool | Countermeasure |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| High CPU load | cProfile, py-spy | Algorithm improvements, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexing, query optimization |
 ---
 
 ## 13. FAQ
 
-### Q1. テストカバレッジは何%を目指すべきか？
+### Q1. What percentage of test coverage should I aim for?
 
-**A.** カバレッジ数値は目標ではなく指標。80%前後が現実的な目安だが、重要なのは「クリティカルパスが網羅されているか」。100%を目指すと getter/setter のような価値の低いテストが増え、保守コストが上がる。カバレッジが低い箇所を可視化し、ビジネスリスクの高い部分から優先的にテストを追加するのが効果的。
+**A.** Coverage numbers are an indicator, not a goal. Around 80% is a realistic guideline, but what matters is "whether critical paths are covered." Aiming for 100% tends to produce low-value tests for things like getters/setters, increasing maintenance costs. The effective approach is to visualize areas with low coverage and prioritize adding tests for the parts with the highest business risk.
 
-ミューテーションテストを併用すると、カバレッジ100%でもバグを見逃すテストを発見できる。カバレッジは「テストされていない箇所を見つけるツール」として使い、「テストの品質指標」としては使わないこと。
+Using mutation testing alongside coverage can reveal tests that miss bugs even at 100% coverage. Use coverage as a "tool to find untested areas," not as a "metric of test quality."
 
-### Q2. テストの実行が遅い場合の対策は？
+### Q2. What should I do if tests run slowly?
 
-**A.** 以下の優先順で対策する:
-1. テストピラミッドを守り、ユニットテストの割合を増やす
-2. テストの並列実行（`pytest-xdist -n auto`）
-3. DB テストはトランザクションロールバックで高速化
-4. 外部 API はテストダブルで置換
-5. CI ではテストを分割して並列ジョブで実行
-6. 変更されたファイルに関連するテストのみ実行（`pytest --picked`）
-7. Docker レイヤーキャッシュ、pip キャッシュの活用
+**A.** Address in the following priority order:
+1. Follow the test pyramid and increase the proportion of unit tests
+2. Run tests in parallel (`pytest-xdist -n auto`)
+3. Speed up DB tests with transaction rollback
+4. Replace external APIs with test doubles
+5. In CI, split tests and run in parallel jobs
+6. Run only tests related to changed files (`pytest --picked`)
+7. Use Docker layer caching and pip caching
 
-目標は「ユニットテスト全体 < 10秒、全テスト < 5分」。
+Target: "all unit tests < 10 seconds, all tests < 5 minutes."
 
-### Q3. Flaky テスト（不安定なテスト）の対処法は？
+### Q3. How do I deal with flaky tests (unstable tests)?
 
-**A.** Flaky テストの主な原因は (1) テスト間の順序依存、(2) タイミング依存（非同期処理の完了待ち不足）、(3) 外部サービスへの依存。対策として、独立性の確認（ランダム順序で実行）、明示的な待機（ポーリング + タイムアウト）、外部依存のモック化を行う。根本解決できない場合は quarantine（隔離）して個別に対処する。
+**A.** The main causes of flaky tests are (1) order dependency between tests, (2) timing dependency (insufficient waiting for async processing to complete), and (3) dependency on external services. Countermeasures include verifying independence (run in random order), explicit waiting (polling + timeout), and mocking external dependencies. If root cause resolution is not possible, quarantine the test and address it individually.
 
-Flaky テストは必ずトラッキングすること。「このテストは時々失敗する」を放置すると、チーム全体がテスト結果を信用しなくなる。
+Always track flaky tests. If "this test sometimes fails" is left unaddressed, the entire team will stop trusting test results.
 
-### Q4. TDD は必ず実践すべきか？
+### Q4. Should TDD always be practiced?
 
-**A.** TDD は強力な技法だが、全てのコードに適用すべきではない。以下の場面で特に効果的:
-- **ビジネスロジック**: 入出力が明確で、テストファーストが自然
-- **バグ修正**: バグを再現するテストを先に書き、修正して緑にする
-- **API設計**: テストがAPIの利用者視点を提供する
+**A.** TDD is a powerful technique, but it should not be applied to all code. It is particularly effective in the following situations:
+- **Business logic**: Input and output are clear, and test-first feels natural
+- **Bug fixes**: Write a test that reproduces the bug first, then fix it to make it green
+- **API design**: Tests provide the perspective of an API consumer
 
-一方、以下の場面では TDD が非効率な場合がある:
-- **プロトタイピング**: 仕様が流動的で、テストが無駄になりやすい
-- **UIレイアウト**: 見た目のテストは TDD に不向き
-- **探索的な実装**: 何を作るか自体が不明確な場合
+On the other hand, TDD can be inefficient in the following situations:
+- **Prototyping**: Specifications are fluid and tests are likely to become obsolete
+- **UI layout**: Visual tests are not well suited to TDD
+- **Exploratory implementation**: When what you are building is itself unclear
 
-### Q5. テストコードにもコードレビューは必要か？
+### Q5. Do test code reviews need to happen?
 
-**A.** 必要である。テストコードもプロダクションコードの一部であり、保守性が重要。レビューのポイント:
-- テスト名が意図を表現しているか
-- AAA パターンに従っているか
-- テストが実装詳細ではなく振る舞いを検証しているか
-- 境界値やエッジケースが考慮されているか
-- テストダブルの使い方が適切か
+**A.** Yes. Test code is part of production code and maintainability matters. Key review points:
+- Does the test name express the intent?
+- Does it follow the AAA pattern?
+- Does the test verify behavior rather than implementation details?
+- Are boundary values and edge cases considered?
+- Is the use of test doubles appropriate?
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just from theory, but from actually writing code and observing behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. It is recommended to thoroughly understand the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| テストの役割 | 回帰防止、設計フィードバック、ドキュメンテーション |
-| AAA パターン | Arrange → Act → Assert の3段階で構造化 |
-| FIRST 原則 | Fast, Independent, Repeatable, Self-Validating, Timely |
-| テストピラミッド | Unit 70% : Integration 20% : E2E 10% |
-| テストダブル | Stub (入力), Mock (出力検証), Fake (簡易実装) を適切に使い分け |
-| 命名規則 | [対象]_[状況]_[期待結果] で意図を明示 |
-| 振る舞いテスト | 実装詳細ではなく入出力をテスト |
-| カバレッジ | 80%目安。ミューテーションテストで品質も検証 |
-| Flaky 対策 | ランダム順序実行、ポーリング待機、外部依存のモック化 |
+| Role of tests | Regression protection, design feedback, documentation |
+| AAA pattern | Structured in three stages: Arrange → Act → Assert |
+| FIRST principles | Fast, Independent, Repeatable, Self-Validating, Timely |
+| Test pyramid | Unit 70% : Integration 20% : E2E 10% |
+| Test doubles | Use Stub (input), Mock (verify output), Fake (simplified implementation) appropriately |
+| Naming convention | [subject]_[condition]_[expected result] to express intent |
+| Behavioral testing | Test inputs and outputs, not implementation details |
+| Coverage | ~80% guideline. Verify quality with mutation testing as well |
+| Flaky test countermeasures | Random order execution, polling waits, mocking external dependencies |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [レガシーコード](../02-refactoring/02-legacy-code.md) ── テストのない既存コードへのテスト追加手法（特性テスト、Seam の発見）
-- [継続的改善](../02-refactoring/04-continuous-improvement.md) ── CI/CD でのテスト自動化と品質ゲートの設定
-- [コードスメル](../02-refactoring/00-code-smells.md) ── テストが書きにくいコードの改善指針
-- [リファクタリング技法](../02-refactoring/01-refactoring-techniques.md) ── テストで保護しながらコードを改善する手法
-- [API設計](../03-practices-advanced/03-api-design.md) ── API テストの設計と契約テスト
-- [コメント](./03-comments.md) ── テストコードにおけるドキュメンテーション
+- [Legacy Code](../02-refactoring/02-legacy-code.md) ── Techniques for adding tests to existing code without tests (characterization tests, finding seams)
+- [Continuous Improvement](../02-refactoring/04-continuous-improvement.md) ── Automating tests in CI/CD and setting quality gates
+- [Code Smells](../02-refactoring/00-code-smells.md) ── Guidelines for improving code that is hard to test
+- [Refactoring Techniques](../02-refactoring/01-refactoring-techniques.md) ── Techniques for improving code while protecting it with tests
+- [API Design](../03-practices-advanced/03-api-design.md) ── Designing API tests and contract tests
+- [Comments](./03-comments.md) ── Documentation in test code
 
 ---
 
-## 参考文献
+## References
 
-1. **Vladimir Khorikov** 『Unit Testing Principles, Practices, and Patterns』 Manning, 2020 ── テスト設計の決定版。Mock の過剰使用の弊害と、振る舞いテストの重要性を解説
-2. **Kent Beck** 『Test Driven Development: By Example』 Addison-Wesley, 2002 ── TDD の原典。Red-Green-Refactor サイクルの考案者による解説
-3. **Gerard Meszaros** 『xUnit Test Patterns: Refactoring Test Code』 Addison-Wesley, 2007 ── テストパターンの百科事典。テストダブルの分類の原典
-4. **Steve Freeman & Nat Pryce** 『Growing Object-Oriented Software, Guided by Tests』 Addison-Wesley, 2009 ── Mock を活用した Outside-In TDD の手法
-5. **Martin Fowler** "TestPyramid" (Blog, 2012) ── https://martinfowler.com/bliki/TestPyramid.html ── テストピラミッドの解説と実践的なガイドライン
+1. **Vladimir Khorikov** *Unit Testing Principles, Practices, and Patterns* Manning, 2020 ── The definitive guide to test design. Explains the pitfalls of overusing Mocks and the importance of behavioral testing
+2. **Kent Beck** *Test Driven Development: By Example* Addison-Wesley, 2002 ── The original text on TDD. An explanation by the inventor of the Red-Green-Refactor cycle
+3. **Gerard Meszaros** *xUnit Test Patterns: Refactoring Test Code* Addison-Wesley, 2007 ── An encyclopedia of test patterns. The original source for the classification of test doubles
+4. **Steve Freeman & Nat Pryce** *Growing Object-Oriented Software, Guided by Tests* Addison-Wesley, 2009 ── Outside-In TDD using Mocks
+5. **Martin Fowler** "TestPyramid" (Blog, 2012) ── https://martinfowler.com/bliki/TestPyramid.html ── Explanation of the test pyramid and practical guidelines
