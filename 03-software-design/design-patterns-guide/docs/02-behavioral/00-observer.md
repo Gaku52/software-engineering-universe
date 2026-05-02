@@ -1,81 +1,77 @@
-# Observer パターン
+# Observer Pattern
 
-> オブジェクト間に **1対多** の依存関係を定義し、あるオブジェクトの状態変化を依存するすべてのオブジェクトに自動通知する振る舞いパターン。イベント駆動設計の基盤であり、疎結合なシステムを構築するための最重要パターンの1つである。
-
----
-
-## この章で学ぶこと
-
-1. Observer パターン（Pub/Sub）の構造とイベント駆動設計の基礎を理解し、GoF の設計意図と現代の適用を把握する
-2. Push 型と Pull 型の通知モデルの違いと使い分け、型安全な EventEmitter の設計方法を習得する
-3. メモリリーク防止、イベントの順序保証、非同期通知、バックプレッシャーなど実運用上の課題と対策を身につける
+> A behavioral pattern that defines a **one-to-many** dependency between objects, automatically notifying all dependent objects when one object changes state. It is the foundation of event-driven design and one of the most important patterns for building loosely coupled systems.
 
 ---
 
-## 前提知識
+## What You Will Learn in This Chapter
 
-このガイドを読む前に、以下の概念を理解しておくことを推奨します。
+1. Understand the structure of the Observer pattern (Pub/Sub) and the fundamentals of event-driven design, grasping the GoF design intent and modern applications
+2. Learn the differences between Push and Pull notification models, when to use each, and how to design a type-safe EventEmitter
+3. Acquire practical knowledge of real-world challenges and countermeasures: memory leak prevention, event ordering guarantees, asynchronous notifications, and backpressure
 
-| 前提知識 | 説明 | 参照リンク |
+---
+
+## Prerequisites
+
+Before reading this guide, it is recommended to understand the following concepts.
+
+| Prerequisite | Description | Reference Link |
 |---------|------|-----------|
-| インタフェースとポリモーフィズム | 共通の契約を通じて異なる型を統一的に扱う概念 | [SOLID 原則](../../../clean-code-principles/docs/00-principles/01-solid.md) |
-| コールバック関数 | 他の関数に渡されて後から呼び出される関数 | [関数型パターン](../03-functional/02-fp-patterns.md) |
-| 依存性の方向と結合度 | モジュール間の依存関係の管理 | [クリーンコード原則](../../../clean-code-principles/docs/00-principles/) |
-| Promise/async-await | 非同期処理の基礎（非同期 Observer の理解に必要） | [モナドパターン](../03-functional/00-monad.md) |
+| Interfaces and Polymorphism | The concept of treating different types uniformly through a common contract | [SOLID Principles](../../../clean-code-principles/docs/00-principles/01-solid.md) |
+| Callback Functions | Functions passed to other functions to be called later | [Functional Patterns](../03-functional/02-fp-patterns.md) |
+| Dependency Direction and Coupling | Managing dependencies between modules | [Clean Code Principles](../../../clean-code-principles/docs/00-principles/) |
+| Promise/async-await | Fundamentals of asynchronous processing (required for understanding async Observer) | [Monad Pattern](../03-functional/00-monad.md) |
 
 ---
 
-## 1. Observer パターンとは何か
+## 1. What Is the Observer Pattern?
 
-### 1.1 解決する問題
+### 1.1 The Problem It Solves
 
-ソフトウェアシステムでは「ある部分の状態が変わったとき、それに依存する他の部分を更新したい」という要求が頻繁にある。
+In software systems, there is a frequent requirement: "when one part changes state, update all other parts that depend on it."
 
-- ユーザーが商品を購入したら、メール送信・在庫更新・分析データ記録を行いたい
-- データが変更されたら、関連するUIを全て再描画したい
-- センサーの値が変わったら、モニター・アラーム・ログの全てに反映したい
+- When a user purchases a product, send an email, update inventory, and record analytics data
+- When data changes, redraw all related UI elements
+- When a sensor value changes, reflect it in all monitors, alarms, and logs
 
-これらを直接的な関数呼び出しで実装すると、呼び出し元が全ての依存先を知る必要があり、**密結合**になる。新しい依存先を追加するたびに呼び出し元のコードを変更しなければならず、Open/Closed Principle に違反する。
+Implementing these with direct function calls requires the caller to know all its dependents, resulting in **tight coupling**. Every time a new dependent is added, the caller's code must be changed, violating the Open/Closed Principle.
 
-### 1.2 パターンの意図
+### 1.2 Pattern Intent
 
-GoF の定義:
+GoF definition:
 
 > Define a one-to-many dependency between objects so that when one object changes state, all its dependents are notified and updated automatically.
 
-日本語訳:
+### 1.3 WHY: Why Is the Observer Pattern Needed?
 
-> オブジェクト間に1対多の依存関係を定義し、あるオブジェクトの状態が変化したとき、依存する全てのオブジェクトに自動的に通知され更新されるようにする。
-
-### 1.3 WHY: なぜ Observer パターンが必要なのか
-
-根本的な理由は **依存関係の方向を逆転させる** ことにある。
+The fundamental reason is to **reverse the direction of dependencies**.
 
 ```
-直接呼び出し（密結合）:
+Direct calls (tight coupling):
   OrderService ----> EmailService
               |----> InventoryService
               |----> AnalyticsService
-  問題: OrderService が全ての後続処理を知っている
+  Problem: OrderService knows all downstream processes
 
-Observer パターン（疎結合）:
+Observer Pattern (loose coupling):
   OrderService --emit("ordered")--> EventBus
                                       |
   EmailService      <--- subscribe ---+
   InventoryService  <--- subscribe ---+
   AnalyticsService  <--- subscribe ---+
-  利点: OrderService は後続処理を知らない
+  Benefit: OrderService does not know about downstream processes
 ```
 
-1. **疎結合**: Subject は Observer の具体的な型を知らない。インタフェースのみに依存する
-2. **Open/Closed Principle**: 新しい Observer を追加しても Subject のコードは変更不要
-3. **実行時の動的構成**: Observer の登録・解除を実行時に自由に行える
+1. **Loose Coupling**: The Subject does not know the concrete types of its Observers. It depends only on interfaces
+2. **Open/Closed Principle**: Adding a new Observer requires no changes to the Subject's code
+3. **Runtime Dynamic Configuration**: Observers can be freely registered and deregistered at runtime
 
 ---
 
-## 2. Observer の構造
+## 2. Observer Structure
 
-### 2.1 クラス図
+### 2.1 Class Diagram
 
 ```
 +------------------+          +------------------+
@@ -92,26 +88,26 @@ Observer パターン（疎結合）:
                         +----------+  +----------+
 ```
 
-### 2.2 構成要素の役割
+### 2.2 Role of Each Component
 
-| 構成要素 | 役割 | 責務 |
+| Component | Role | Responsibility |
 |---------|------|------|
-| Subject (Publisher) | 状態を保持し、変更時に通知を発行 | Observer の登録/解除/通知の管理 |
-| Observer (Subscriber) | Subject の変更に反応 | update() で通知を受け取り処理 |
-| ConcreteSubject | 具体的な状態を持つ Subject | 状態変更時に notify() を呼ぶ |
-| ConcreteObserver | 具体的な反応ロジック | update() に応じた処理を実行 |
+| Subject (Publisher) | Holds state and publishes notifications on change | Manages Observer registration/deregistration/notification |
+| Observer (Subscriber) | Reacts to Subject changes | Receives notifications via update() and processes them |
+| ConcreteSubject | A Subject with concrete state | Calls notify() when state changes |
+| ConcreteObserver | Concrete reaction logic | Executes processing in response to update() |
 
-### 2.3 処理シーケンス
+### 2.3 Processing Sequence
 
 ```
-時系列の処理フロー:
+Temporal processing flow:
 
 Client          Subject              ObserverA       ObserverB
   |                |                    |               |
   |-- subscribe(A) -->|                 |               |
-  |                |-- 登録 ----------->|               |
+  |                |-- register ------->|               |
   |-- subscribe(B) -->|                 |               |
-  |                |-- 登録 --------------------------->|
+  |                |-- register --------------------------->|
   |                |                    |               |
   |-- setState() --->|                  |               |
   |                |-- notify() ------->|               |
@@ -120,57 +116,57 @@ Client          Subject              ObserverA       ObserverB
   |                |                    |   update(data)|
   |                |                    |               |
   |-- unsubscribe(A)->|                |               |
-  |                |-- 解除 ----------->|               |
+  |                |-- deregister ----->|               |
   |                |                    |               |
   |-- setState() --->|                  |               |
   |                |-- notify() --------------------------->|
   |                |                    |   update(data)|
-  |                |   (A には通知されない)              |
+  |                |   (A is not notified)              |
 ```
 
 ---
 
-## 3. Push 型 vs Pull 型
+## 3. Push vs Pull
 
-Observer パターンの通知モデルには Push 型と Pull 型の2種類がある。
+The Observer pattern has two notification models: Push and Pull.
 
 ```
-Push型: Subject が変更データを直接渡す
+Push: Subject directly passes changed data
 Subject --notify(data)--> Observer
-  利点: Observer は必要なデータをすぐ取得できる
-  欠点: 不要なデータも送られる、データ量が大きいと非効率
+  Benefit: Observer can immediately get the needed data
+  Drawback: Unnecessary data is also sent; inefficient for large data
 
-Pull型: Subject は通知のみ、Observer が取りに行く
+Pull: Subject only notifies; Observer fetches data
 Subject --notify()--> Observer --getState()--> Subject
-  利点: Observer が必要なデータだけ取得できる
-  欠点: Subject への追加アクセスが必要、Subject の公開インタフェースが増える
+  Benefit: Observer can fetch only the data it needs
+  Drawback: Requires additional access to Subject; increases Subject's public interface
 
-ハイブリッド型: イベント種別を通知し、Observer が詳細を取得
+Hybrid: Notify event type; Observer fetches details
 Subject --notify(eventType)--> Observer --getRelevantData()--> Subject
-  利点: Push と Pull の良いとこ取り
-  欠点: 設計がやや複雑
+  Benefit: Best of both Push and Pull
+  Drawback: Slightly more complex design
 ```
 
-### Push 型 vs Pull 型の判断基準
+### Decision Criteria for Push vs Pull
 
-| 判断基準 | Push 型 | Pull 型 |
+| Criteria | Push | Pull |
 |---------|---------|---------|
-| データが小さく固定的 | 適切 | 過剰 |
-| Observer ごとに必要なデータが異なる | 非効率 | 適切 |
-| Subject の状態が頻繁に変わる | 変更データのみ送信で効率的 | 毎回取得で非効率 |
-| Observer 数が多い | 各 Observer に同じデータを送信 | 各 Observer が個別に取得 |
-| リアルタイム性が重要 | 適切（遅延なし） | 追加通信による遅延 |
+| Data is small and fixed | Appropriate | Excessive |
+| Each Observer needs different data | Inefficient | Appropriate |
+| Subject state changes frequently | Efficient (send only changed data) | Inefficient (fetch each time) |
+| Many Observers | Send same data to each Observer | Each Observer fetches individually |
+| Real-time responsiveness is critical | Appropriate (no delay) | Delay due to additional communication |
 
 ---
 
-## 4. コード例
+## 4. Code Examples
 
-### コード例 1: 型安全な EventEmitter（TypeScript）
+### Code Example 1: Type-Safe EventEmitter (TypeScript)
 
 ```typescript
-// typed-event-emitter.ts — TypeScript で型安全な Observer パターン
+// typed-event-emitter.ts — Type-safe Observer pattern in TypeScript
 
-// イベントマップ: イベント名とそのデータ型を定義
+// Event map: defines event names and their data types
 type EventMap = {
   userCreated: { id: string; name: string; email: string };
   userDeleted: { id: string; reason: string };
@@ -183,8 +179,8 @@ class TypedEventEmitter<T extends Record<string, any>> {
   private onceListeners = new Map<keyof T, Set<Function>>();
 
   /**
-   * イベントを購読する
-   * @returns unsubscribe 関数
+   * Subscribe to an event
+   * @returns unsubscribe function
    */
   on<K extends keyof T>(event: K, handler: (data: T[K]) => void): () => void {
     if (!this.listeners.has(event)) {
@@ -192,14 +188,14 @@ class TypedEventEmitter<T extends Record<string, any>> {
     }
     this.listeners.get(event)!.add(handler);
 
-    // unsubscribe 関数を返す（クリーンアップ用）
+    // Return unsubscribe function (for cleanup)
     return () => {
       this.listeners.get(event)?.delete(handler);
     };
   }
 
   /**
-   * 一度だけ購読する
+   * Subscribe only once
    */
   once<K extends keyof T>(event: K, handler: (data: T[K]) => void): () => void {
     if (!this.onceListeners.has(event)) {
@@ -213,13 +209,13 @@ class TypedEventEmitter<T extends Record<string, any>> {
   }
 
   /**
-   * イベントを発行する
+   * Emit an event
    */
   emit<K extends keyof T>(event: K, data: T[K]): void {
-    // 通常のリスナー
+    // Regular listeners
     this.listeners.get(event)?.forEach(fn => fn(data));
 
-    // once リスナー（実行後に削除）
+    // once listeners (deleted after execution)
     const onceHandlers = this.onceListeners.get(event);
     if (onceHandlers) {
       onceHandlers.forEach(fn => fn(data));
@@ -228,7 +224,7 @@ class TypedEventEmitter<T extends Record<string, any>> {
   }
 
   /**
-   * 特定イベントの全リスナーを解除
+   * Remove all listeners for a specific event
    */
   removeAllListeners<K extends keyof T>(event?: K): void {
     if (event) {
@@ -241,7 +237,7 @@ class TypedEventEmitter<T extends Record<string, any>> {
   }
 
   /**
-   * リスナー数を取得（デバッグ・監視用）
+   * Get listener count (for debugging/monitoring)
    */
   listenerCount<K extends keyof T>(event: K): number {
     return (this.listeners.get(event)?.size ?? 0) +
@@ -249,20 +245,20 @@ class TypedEventEmitter<T extends Record<string, any>> {
   }
 }
 
-// --- 使用例 ---
+// --- Usage example ---
 const bus = new TypedEventEmitter<EventMap>();
 
-// 型安全: handler の引数は自動推論される
+// Type-safe: handler argument types are automatically inferred
 const unsubUser = bus.on("userCreated", (user) => {
   console.log(`Welcome, ${user.name}! (${user.email})`);
-  // user.id, user.name, user.email が型安全にアクセス可能
+  // user.id, user.name, user.email are type-safely accessible
 });
 
 bus.on("orderPlaced", (order) => {
   console.log(`Order ${order.orderId}: $${order.total}`);
 });
 
-// once: 最初の1回だけ
+// once: fires only for the first occurrence
 bus.once("userCreated", (user) => {
   console.log(`First user bonus for ${user.name}!`);
 });
@@ -273,27 +269,27 @@ bus.emit("userCreated", { id: "1", name: "Taro", email: "taro@example.com" });
 
 bus.emit("userCreated", { id: "2", name: "Hanako", email: "hanako@example.com" });
 // "Welcome, Hanako! (hanako@example.com)"
-// (once は実行されない)
+// (once is not executed)
 
-unsubUser(); // 購読解除
+unsubUser(); // Unsubscribe
 
 bus.emit("userCreated", { id: "3", name: "Jiro", email: "jiro@example.com" });
-// (何も出力されない — 解除済み)
+// (no output — already unsubscribed)
 ```
 
-### コード例 2: React ── カスタム Observable Hook
+### Code Example 2: React — Custom Observable Hook
 
 ```typescript
-// use-observable.ts — React でリアクティブデータを扱う Hook
+// use-observable.ts — Hook for handling reactive data in React
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-// Observable インタフェース
+// Observable interface
 interface Observable<T> {
   subscribe(observer: (value: T) => void): { unsubscribe: () => void };
   getValue(): T;
 }
 
-// SimpleObservable 実装
+// SimpleObservable implementation
 class SimpleObservable<T> implements Observable<T> {
   private observers = new Set<(value: T) => void>();
   private currentValue: T;
@@ -324,17 +320,17 @@ function useObservable<T>(observable$: Observable<T>): T {
   const [value, setValue] = useState<T>(() => observable$.getValue());
 
   useEffect(() => {
-    // 値が変わっている可能性があるので同期
+    // Sync in case the value has changed
     setValue(observable$.getValue());
 
     const subscription = observable$.subscribe(setValue);
-    return () => subscription.unsubscribe(); // クリーンアップ
+    return () => subscription.unsubscribe(); // Cleanup
   }, [observable$]);
 
   return value;
 }
 
-// 複数の Observable を組み合わせる Hook
+// Hook for combining multiple Observables
 function useCombinedObservable<T extends Record<string, Observable<any>>>(
   observables: T
 ): { [K in keyof T]: T[K] extends Observable<infer U> ? U : never } {
@@ -359,8 +355,8 @@ function useCombinedObservable<T extends Record<string, Observable<any>>>(
   return values;
 }
 
-// --- 使用例 ---
-// グローバルな Observable ストア
+// --- Usage example ---
+// Global Observable store
 const priceStore = new SimpleObservable<number>(100);
 const statusStore = new SimpleObservable<string>("idle");
 
@@ -376,14 +372,14 @@ function StockPrice({ symbol }: { symbol: string }) {
   );
 }
 
-// 外部から値を更新
-priceStore.next(105); // 全ての購読コンポーネントが自動再描画
+// Update value from outside
+priceStore.next(105); // All subscribed components automatically re-render
 ```
 
-### コード例 3: Node.js EventEmitter ── ドメインイベント
+### Code Example 3: Node.js EventEmitter — Domain Events
 
 ```typescript
-// order-service.ts — Node.js EventEmitter を使ったドメインイベント
+// order-service.ts — Domain events using Node.js EventEmitter
 import { EventEmitter } from "events";
 
 interface Order {
@@ -394,7 +390,7 @@ interface Order {
   status: string;
 }
 
-// ドメインサービス: 注文処理
+// Domain service: order processing
 class OrderService extends EventEmitter {
   private orders = new Map<string, Order>();
 
@@ -409,7 +405,7 @@ class OrderService extends EventEmitter {
 
     this.orders.set(order.id, order);
 
-    // ドメインイベントを発行（OrderService は後続処理を知らない）
+    // Emit domain event (OrderService does not know about downstream processes)
     this.emit("orderPlaced", order);
     return order;
   }
@@ -423,34 +419,34 @@ class OrderService extends EventEmitter {
   }
 }
 
-// --- Observer の登録（アプリケーション起動時） ---
+// --- Register Observers (at application startup) ---
 const orderService = new OrderService();
 
-// メール送信
+// Send email
 orderService.on("orderPlaced", (order: Order) => {
   console.log(`[Email] Sending confirmation for order ${order.id}`);
   // emailService.sendConfirmation(order);
 });
 
-// 在庫管理
+// Inventory management
 orderService.on("orderPlaced", (order: Order) => {
   console.log(`[Inventory] Decrementing stock for ${order.items.length} items`);
   // order.items.forEach(item => inventoryService.decrement(item.productId, item.quantity));
 });
 
-// 分析
+// Analytics
 orderService.on("orderPlaced", (order: Order) => {
   console.log(`[Analytics] Recording purchase: $${order.total}`);
   // analyticsService.trackPurchase(order);
 });
 
-// キャンセル時のハンドラ
+// Handler for cancellations
 orderService.on("orderCancelled", (order: Order) => {
   console.log(`[Email] Sending cancellation notice for ${order.id}`);
   console.log(`[Inventory] Restoring stock for ${order.items.length} items`);
 });
 
-// --- 使用例 ---
+// --- Usage example ---
 orderService.placeOrder("user-1", [
   { productId: "p-1", quantity: 2, price: 1000 },
   { productId: "p-2", quantity: 1, price: 3000 },
@@ -460,10 +456,10 @@ orderService.placeOrder("user-1", [
 // [Analytics] Recording purchase: $5000
 ```
 
-### コード例 4: Python ── Observer with WeakRef
+### Code Example 4: Python — Observer with WeakRef
 
 ```python
-# event_bus.py — WeakRef でメモリリークを防ぐ Observer パターン
+# event_bus.py — Observer pattern using WeakRef to prevent memory leaks
 from __future__ import annotations
 import weakref
 from typing import Any, Callable, Dict, List, Optional
@@ -473,7 +469,7 @@ from datetime import datetime
 
 @dataclass
 class Event:
-    """イベントの基底クラス"""
+    """Base class for events"""
     timestamp: datetime
     source: str
 
@@ -493,7 +489,7 @@ class OrderPlacedEvent(Event):
 
 
 class EventBus:
-    """WeakRef 対応の EventBus"""
+    """WeakRef-compatible EventBus"""
 
     def __init__(self) -> None:
         self._subscribers: Dict[str, List[weakref.ref]] = {}
@@ -501,19 +497,19 @@ class EventBus:
 
     def subscribe(self, event_type: str, handler: Callable) -> Callable[[], None]:
         """
-        イベントを購読する。
-        handler がメソッドの場合は WeakRef で保持し、
-        GC 時に自動的に解除される。
+        Subscribe to an event.
+        If handler is a method, held via WeakRef
+        and automatically deregistered when GC'd.
         """
         if hasattr(handler, '__self__'):
-            # バウンドメソッドの場合: WeakRef で保持
+            # Bound method: hold via WeakRef
             if event_type not in self._subscribers:
                 self._subscribers[event_type] = []
             ref = weakref.ref(handler.__self__)
             method_name = handler.__func__.__name__
             self._subscribers[event_type].append(ref)
         else:
-            # 通常の関数の場合
+            # Regular function
             if event_type not in self._function_subscribers:
                 self._function_subscribers[event_type] = []
             self._function_subscribers[event_type].append(handler)
@@ -528,25 +524,25 @@ class EventBus:
         return unsubscribe
 
     def publish(self, event_type: str, data: Any = None) -> None:
-        """イベントを発行する"""
-        # 通常の関数ハンドラ
+        """Emit an event"""
+        # Regular function handlers
         for handler in self._function_subscribers.get(event_type, []):
             handler(data)
 
-        # WeakRef ハンドラ（GC 済みのものを除去）
+        # WeakRef handlers (remove GC'd ones)
         if event_type in self._subscribers:
             alive_refs = []
             for ref in self._subscribers[event_type]:
                 obj = ref()
                 if obj is not None:
                     alive_refs.append(ref)
-                    # handle メソッドを呼び出す
+                    # Call the handle method
                     if hasattr(obj, 'handle_event'):
                         obj.handle_event(event_type, data)
             self._subscribers[event_type] = alive_refs
 
 
-# --- 使用例 ---
+# --- Usage example ---
 bus = EventBus()
 
 
@@ -565,7 +561,7 @@ bus.publish("user.created", UserCreatedEvent(
 ))
 # [Handler] Welcome email sent to taro@example.com
 
-unsub()  # 購読解除
+unsub()  # Unsubscribe
 
 bus.publish("user.created", UserCreatedEvent(
     timestamp=datetime.now(),
@@ -574,21 +570,21 @@ bus.publish("user.created", UserCreatedEvent(
     name="Hanako",
     email="hanako@example.com",
 ))
-# (何も出力されない)
+# (no output)
 ```
 
-### コード例 5: 非同期 Observer（Promise ベース）
+### Code Example 5: Async Observer (Promise-based)
 
 ```typescript
-// async-event-emitter.ts — 非同期 Observer の実装
+// async-event-emitter.ts — Async Observer implementation
 type AsyncHandler<T> = (data: T) => Promise<void> | void;
 
 interface EmitOptions {
-  /** 並列実行か順次実行か */
+  /** Parallel or sequential execution */
   mode: 'parallel' | 'sequential';
-  /** タイムアウト（ms） */
+  /** Timeout (ms) */
   timeout?: number;
-  /** エラー時に他のハンドラを継続するか */
+  /** Whether to continue other handlers on error */
   continueOnError?: boolean;
 }
 
@@ -604,8 +600,8 @@ class AsyncEventEmitter<T extends Record<string, any>> {
   }
 
   /**
-   * 並列実行: 全ハンドラを同時に実行
-   * 順序保証は不要だがスループットを最大化したい場合に使用
+   * Parallel execution: run all handlers simultaneously
+   * Use when order is not required but throughput should be maximized
    */
   async emitParallel<K extends keyof T>(
     event: K,
@@ -648,8 +644,8 @@ class AsyncEventEmitter<T extends Record<string, any>> {
   }
 
   /**
-   * 順次実行: ハンドラを登録順に1つずつ実行
-   * 順序保証が必要な場合に使用
+   * Sequential execution: run handlers one by one in registration order
+   * Use when order must be guaranteed
    */
   async emitSequential<K extends keyof T>(
     event: K,
@@ -664,7 +660,7 @@ class AsyncEventEmitter<T extends Record<string, any>> {
   }
 }
 
-// --- 使用例 ---
+// --- Usage example ---
 type AppEvents = {
   orderPlaced: { orderId: string; total: number };
   paymentProcessed: { orderId: string; amount: number };
@@ -682,7 +678,7 @@ emitter.on("orderPlaced", async (order) => {
   console.log(`[Inventory] Updated for ${order.orderId}`);
 });
 
-// 並列実行: 全ハンドラが同時に開始、最も遅いもので完了
+// Parallel execution: all handlers start simultaneously, completes when the slowest finishes
 const result = await emitter.emitParallel(
   "orderPlaced",
   { orderId: "ORD-1", total: 5000 },
@@ -690,14 +686,14 @@ const result = await emitter.emitParallel(
 );
 console.log(`Success: ${result.successes}, Errors: ${result.errors.length}`);
 
-// 順次実行: Email -> Inventory の順番で実行
+// Sequential execution: runs in order Email -> Inventory
 await emitter.emitSequential("orderPlaced", { orderId: "ORD-2", total: 3000 });
 ```
 
-### コード例 6: AbortController 統合 ── 安全な購読管理
+### Code Example 6: AbortController Integration — Safe Subscription Management
 
 ```typescript
-// abort-event-emitter.ts — AbortController で一括解除
+// abort-event-emitter.ts — Bulk deregistration via AbortController
 class ManagedEventEmitter<T extends Record<string, any>> {
   private listeners = new Map<keyof T, Set<Function>>();
 
@@ -715,7 +711,7 @@ class ManagedEventEmitter<T extends Record<string, any>> {
       this.listeners.get(event)?.delete(handler);
     };
 
-    // AbortSignal と連携: signal が abort されたら自動解除
+    // Integrate with AbortSignal: auto-deregister when signal is aborted
     if (signal) {
       signal.addEventListener('abort', unsubscribe, { once: true });
     }
@@ -728,12 +724,12 @@ class ManagedEventEmitter<T extends Record<string, any>> {
   }
 }
 
-// --- 使用例: コンポーネントのライフサイクルで一括管理 ---
+// --- Usage example: bulk management via component lifecycle ---
 class DashboardComponent {
   private abortController = new AbortController();
 
   constructor(private emitter: ManagedEventEmitter<AppEvents>) {
-    // AbortController の signal を渡す
+    // Pass the AbortController's signal
     const signal = this.abortController.signal;
 
     emitter.on("orderPlaced", (order) => {
@@ -746,7 +742,7 @@ class DashboardComponent {
   }
 
   destroy(): void {
-    // 全ての購読を一括解除
+    // Deregister all subscriptions at once
     this.abortController.abort();
     console.log("Dashboard: All subscriptions removed");
   }
@@ -762,13 +758,13 @@ dashboard.destroy();
 // Dashboard: All subscriptions removed
 
 emitter.emit("orderPlaced", { orderId: "2", total: 200 });
-// (何も出力されない — 全て解除済み)
+// (no output — all subscriptions removed)
 ```
 
-### コード例 7: Reactive Store（Redux 風 Observer）
+### Code Example 7: Reactive Store (Redux-style Observer)
 
 ```typescript
-// reactive-store.ts — Observer パターンで状態管理
+// reactive-store.ts — State management with Observer pattern
 type Reducer<S, A> = (state: S, action: A) => S;
 type Listener = () => void;
 type Middleware<S, A> = (store: Store<S, A>) =>
@@ -788,13 +784,13 @@ class Store<S, A extends { type: string }> {
     this.reducer = reducer;
     this.state = initialState;
 
-    // ミドルウェアチェーンの構築
+    // Build middleware chain
     let dispatch = (action: A) => {
       this.state = this.reducer(this.state, action);
-      this.listeners.forEach(listener => listener()); // 全 Observer に通知
+      this.listeners.forEach(listener => listener()); // Notify all Observers
     };
 
-    // ミドルウェアを逆順に適用
+    // Apply middlewares in reverse order
     for (let i = middlewares.length - 1; i >= 0; i--) {
       dispatch = middlewaresi(dispatch);
     }
@@ -816,7 +812,7 @@ class Store<S, A extends { type: string }> {
   }
 }
 
-// --- 使用例: カウンターストア ---
+// --- Usage example: counter store ---
 type CounterState = { count: number; history: number[] };
 type CounterAction =
   | { type: 'INCREMENT'; amount: number }
@@ -842,7 +838,7 @@ const counterReducer: Reducer<CounterState, CounterAction> = (state, action) => 
   }
 };
 
-// ロギングミドルウェア
+// Logging middleware
 const logger: Middleware<CounterState, CounterAction> =
   (store) => (next) => (action) => {
     console.log(`[Logger] Action: ${action.type}, Before: ${store.getState().count}`);
@@ -852,7 +848,7 @@ const logger: Middleware<CounterState, CounterAction> =
 
 const store = new Store(counterReducer, { count: 0, history: [0] }, [logger]);
 
-// Observer (購読者) の登録
+// Register Observer (subscriber)
 const unsub = store.subscribe(() => {
   console.log(`[UI] Count changed to: ${store.getState().count}`);
 });
@@ -867,12 +863,12 @@ store.send({ type: 'DECREMENT', amount: 2 });
 // [UI] Count changed to: 3
 // [Logger] After: 3
 
-unsub(); // UI の購読解除
+unsub(); // Unsubscribe UI
 
 store.send({ type: 'RESET' });
 // [Logger] Action: RESET, Before: 3
 // [Logger] After: 0
-// (UI には通知されない)
+// (UI is not notified)
 ```
 
 ---
@@ -880,99 +876,99 @@ store.send({ type: 'RESET' });
 ## 5. Observer vs Pub/Sub vs Reactive Streams
 
 ```
-Observer パターン（直接参照）
+Observer Pattern (direct reference)
   Subject <--------- Observer
     |  notify()  -->  |
     +---------------->+
-  特徴: Subject と Observer が互いを知る
-  用途: 単純な通知、UIバインディング
+  Characteristic: Subject and Observer know each other
+  Use case: simple notifications, UI binding
 
-Pub/Sub パターン（仲介者あり）
+Pub/Sub Pattern (with mediator)
   Publisher --> EventBus/Broker --> Subscriber
     publish()       |           subscribe()
                     |
-  特徴: 完全に疎結合（互いを知らない）
-  用途: マイクロサービス間通信、分散システム
+  Characteristic: Fully decoupled (neither knows the other)
+  Use case: inter-microservice communication, distributed systems
 
-Reactive Streams（ストリーム処理）
+Reactive Streams (stream processing)
   Observable --pipe(operators)--> Observer
     |                                |
     + map, filter, debounce,         + subscribe
       merge, switchMap etc.
-  特徴: オペレータによるデータ変換パイプライン
-  用途: 複雑なイベント処理、リアルタイムストリーム
+  Characteristic: Data transformation pipeline via operators
+  Use case: complex event processing, real-time streams
 ```
 
 ---
 
-## 6. 比較表
+## 6. Comparison Tables
 
-### 比較表 1: Observer vs Pub/Sub vs Reactive Streams
+### Comparison Table 1: Observer vs Pub/Sub vs Reactive Streams
 
-| 観点 | Observer | Pub/Sub | Reactive (RxJS) |
+| Aspect | Observer | Pub/Sub | Reactive (RxJS) |
 |------|:---:|:---:|:---:|
-| 結合度 | 中（Subject を知る） | 低（Bus 経由） | 低（ストリーム） |
-| 非同期対応 | 手動 | 手動/組み込み | 組み込み |
-| バックプレッシャー | なし | なし | あり |
-| オペレータ | なし | なし | 豊富（200+） |
-| エラーハンドリング | 手動 | 手動 | 組み込み |
-| メモリ管理 | 手動解除 | 手動解除 | 自動（complete） |
-| 適用規模 | 小〜中 | 中〜大 | 中〜大 |
-| 使用場面 | シンプルな通知 | マイクロサービス | ストリーム処理 |
+| Coupling | Medium (knows Subject) | Low (via Bus) | Low (stream) |
+| Async support | Manual | Manual/Built-in | Built-in |
+| Backpressure | None | None | Available |
+| Operators | None | None | Rich (200+) |
+| Error handling | Manual | Manual | Built-in |
+| Memory management | Manual unsubscribe | Manual unsubscribe | Automatic (complete) |
+| Scale | Small to medium | Medium to large | Medium to large |
+| Use case | Simple notifications | Microservices | Stream processing |
 
-### 比較表 2: 同期 vs 非同期通知
+### Comparison Table 2: Synchronous vs Asynchronous Notification
 
-| 観点 | 同期通知 | 非同期通知（並列） | 非同期通知（順次） |
+| Aspect | Sync Notification | Async (Parallel) | Async (Sequential) |
 |------|:---:|:---:|:---:|
-| 実装難易度 | 低い | 中 | 中 |
-| エラーハンドリング | 容易（try/catch） | 要設計（Promise.allSettled） | 容易（for await） |
-| パフォーマンス | ブロッキング | 高スループット | 中 |
-| 順序保証 | 自然に保証 | なし | あり |
-| デバッグ | 容易 | 困難 | 中 |
-| タイムアウト | 不要 | 推奨 | 推奨 |
+| Implementation complexity | Low | Medium | Medium |
+| Error handling | Easy (try/catch) | Requires design (Promise.allSettled) | Easy (for await) |
+| Performance | Blocking | High throughput | Medium |
+| Order guarantee | Naturally guaranteed | None | Available |
+| Debugging | Easy | Difficult | Medium |
+| Timeout | Not needed | Recommended | Recommended |
 
-### 比較表 3: フレームワークの Observer 実装
+### Comparison Table 3: Observer Implementations in Frameworks
 
-| フレームワーク | メカニズム | 購読解除 | 型安全性 |
+| Framework | Mechanism | Unsubscribe | Type Safety |
 |--------------|----------|---------|---------|
-| Node.js EventEmitter | on/emit | removeListener | 低い |
-| DOM EventTarget | addEventListener | removeEventListener | 中 |
-| React (useState) | setState + 再描画 | 自動 | 高い |
-| Vue (Reactive) | Proxy ベース | 自動 | 高い |
-| RxJS | Observable.subscribe | unsubscribe | 高い |
-| Redux | store.subscribe | 返り値の関数 | 高い |
-| Angular (Signals) | signal/effect | 自動 | 高い |
+| Node.js EventEmitter | on/emit | removeListener | Low |
+| DOM EventTarget | addEventListener | removeEventListener | Medium |
+| React (useState) | setState + re-render | Automatic | High |
+| Vue (Reactive) | Proxy-based | Automatic | High |
+| RxJS | Observable.subscribe | unsubscribe | High |
+| Redux | store.subscribe | Return value function | High |
+| Angular (Signals) | signal/effect | Automatic | High |
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### アンチパターン 1: メモリリーク（購読解除忘れ）
+### Anti-Pattern 1: Memory Leak (Forgetting to Unsubscribe)
 
 ```typescript
-// NG: コンポーネント破棄後もリスナーが残る
+// BAD: listener remains after component is destroyed
 class BadComponent {
   constructor(private emitter: EventEmitter) {
-    // 登録はするが、解除しない！
+    // Registers but does not unsubscribe!
     emitter.on("data", this.handleData);
   }
 
   handleData = (data: any) => {
-    this.element.textContent = data; // 破棄済みの要素にアクセス → エラー
+    this.element.textContent = data; // Accessing a destroyed element -> error
   };
 
   destroy(): void {
-    // handleData の解除を忘れている
+    // Forgot to unsubscribe handleData
     this.element.remove();
   }
 }
 
-// OK: 確実に購読解除する（複数の方法）
+// GOOD: reliably unsubscribe (multiple approaches)
 class GoodComponent {
   private unsubscribers: (() => void)[] = [];
 
   constructor(private emitter: TypedEventEmitter<AppEvents>) {
-    // 方法1: unsubscribe 関数を保持
+    // Method 1: retain unsubscribe functions
     this.unsubscribers.push(
       emitter.on("orderPlaced", this.handleOrder)
     );
@@ -985,22 +981,22 @@ class GoodComponent {
   handlePayment = (payment: any) => { /* ... */ };
 
   destroy(): void {
-    // 全ての購読を一括解除
+    // Deregister all subscriptions at once
     this.unsubscribers.forEach(unsub => unsub());
     this.unsubscribers = [];
     this.element.remove();
   }
 }
 
-// OK: React での正しいクリーンアップ
+// GOOD: correct cleanup in React
 function GoodReactComponent() {
   useEffect(() => {
     const unsub = emitter.on("data", handleData);
-    return () => unsub(); // useEffect のクリーンアップで確実に解除
+    return () => unsub(); // Reliably unsubscribed in useEffect cleanup
   }, []);
 }
 
-// OK: AbortController による一括管理
+// GOOD: bulk management via AbortController
 class BetterComponent {
   private controller = new AbortController();
 
@@ -1014,15 +1010,15 @@ class BetterComponent {
   handlePayment = (payment: any) => { /* ... */ };
 
   destroy(): void {
-    this.controller.abort(); // 全購読を一括解除
+    this.controller.abort(); // Deregister all subscriptions at once
   }
 }
 ```
 
-### アンチパターン 2: イベントの連鎖による無限ループ
+### Anti-Pattern 2: Infinite Loop from Event Chains
 
 ```typescript
-// NG: A の変更が B に通知 -> B の変更が A に通知 -> ...
+// BAD: change to A notifies B -> change to B notifies A -> ...
 const emitter = new TypedEventEmitter<{
   priceChanged: { price: number };
   taxChanged: { tax: number };
@@ -1030,19 +1026,19 @@ const emitter = new TypedEventEmitter<{
 
 emitter.on("priceChanged", ({ price }) => {
   const newTax = price * 0.1;
-  emitter.emit("taxChanged", { tax: newTax }); // taxChanged を発行
+  emitter.emit("taxChanged", { tax: newTax }); // emits taxChanged
 });
 
 emitter.on("taxChanged", ({ tax }) => {
   const newPrice = tax / 0.1;
-  emitter.emit("priceChanged", { price: newPrice }); // priceChanged を再発行！
-  // -> 無限ループ
+  emitter.emit("priceChanged", { price: newPrice }); // re-emits priceChanged!
+  // -> infinite loop
 });
 
-// OK: 循環検出ガード付き EventEmitter
+// GOOD: EventEmitter with circular detection guard
 class SafeEventEmitter<T extends Record<string, any>> {
   private listeners = new Map<keyof T, Set<Function>>();
-  private emitting = new Set<keyof T>(); // 現在発行中のイベント
+  private emitting = new Set<keyof T>(); // currently emitting events
 
   on<K extends keyof T>(event: K, handler: (data: T[K]) => void): () => void {
     if (!this.listeners.has(event)) {
@@ -1055,7 +1051,7 @@ class SafeEventEmitter<T extends Record<string, any>> {
   emit<K extends keyof T>(event: K, data: T[K]): void {
     if (this.emitting.has(event)) {
       console.warn(`[SafeEmitter] Circular emit detected for "${String(event)}". Skipping.`);
-      return; // 循環を防止
+      return; // Prevent circular emission
     }
 
     this.emitting.add(event);
@@ -1068,10 +1064,10 @@ class SafeEventEmitter<T extends Record<string, any>> {
 }
 ```
 
-### アンチパターン 3: God Observer（1つの Observer が全てを処理）
+### Anti-Pattern 3: God Observer (One Observer Handles Everything)
 
 ```typescript
-// NG: 1つの巨大な handler が全イベントを処理
+// BAD: one massive handler processes all events
 class GodObserver {
   handle(eventType: string, data: any): void {
     switch (eventType) {
@@ -1085,12 +1081,12 @@ class GodObserver {
         this.updateInventory(data);
         this.processPayment(data);
         break;
-      // ... 数十のイベントタイプ
+      // ... dozens of event types
     }
   }
 }
 
-// OK: 責務ごとに Observer を分離
+// GOOD: separate Observers by responsibility
 class EmailObserver {
   constructor(private emitter: EventEmitter) {
     emitter.on("userCreated", this.sendWelcome);
@@ -1098,9 +1094,9 @@ class EmailObserver {
     emitter.on("orderCancelled", this.sendCancellation);
   }
 
-  private sendWelcome = (data: any) => { /* メール送信のみ */ };
-  private sendConfirmation = (data: any) => { /* メール送信のみ */ };
-  private sendCancellation = (data: any) => { /* メール送信のみ */ };
+  private sendWelcome = (data: any) => { /* email sending only */ };
+  private sendConfirmation = (data: any) => { /* email sending only */ };
+  private sendCancellation = (data: any) => { /* email sending only */ };
 }
 
 class InventoryObserver {
@@ -1109,21 +1105,21 @@ class InventoryObserver {
     emitter.on("orderCancelled", this.restoreStock);
   }
 
-  private decrementStock = (data: any) => { /* 在庫管理のみ */ };
-  private restoreStock = (data: any) => { /* 在庫管理のみ */ };
+  private decrementStock = (data: any) => { /* inventory management only */ };
+  private restoreStock = (data: any) => { /* inventory management only */ };
 }
 ```
 
 ---
 
-## 8. 実世界での Observer パターン
+## 8. Observer Pattern in the Real World
 
-### 8.1 ブラウザ DOM イベント
+### 8.1 Browser DOM Events
 
 ```
-DOM のイベント伝搬（Observer パターンの実装）:
+DOM event propagation (Observer pattern implementation):
 
-     [window]          Capture Phase（上→下）
+     [window]          Capture Phase (top to bottom)
         |
      [document]
         |
@@ -1135,40 +1131,40 @@ DOM のイベント伝搬（Observer パターンの実装）:
         |
      [div.parent]
         |
-     [body]            Bubble Phase（下→上）
+     [body]            Bubble Phase (bottom to top)
         |
      [document]
         |
      [window]
 
 addEventListener(event, handler, { capture: true/false })
-  capture: true  → Capture Phase で実行
-  capture: false → Bubble Phase で実行（デフォルト）
+  capture: true  → executes in Capture Phase
+  capture: false → executes in Bubble Phase (default)
 ```
 
-### 8.2 React のリアクティブシステム
+### 8.2 React's Reactive System
 
 ```
-React の状態更新フロー:
+React state update flow:
 
   setState(newValue)
       |
       v
-  [Reconciler] -- 差分計算 (Virtual DOM diff)
+  [Reconciler] -- diff calculation (Virtual DOM diff)
       |
       v
-  [Commit Phase] -- DOM 更新
+  [Commit Phase] -- DOM update
       |
       v
   useEffect cleanup  → useEffect callback
-  (前の副作用のクリーン)   (新しい副作用の実行)
+  (clean previous side effects)   (execute new side effects)
 
-  本質: useState は Observer パターン
+  Essence: useState is the Observer pattern
   - setState = Subject.notify()
-  - コンポーネントの再描画 = Observer.update()
+  - Component re-render = Observer.update()
 ```
 
-### 8.3 マイクロサービスの Event-Driven Architecture
+### 8.3 Event-Driven Architecture in Microservices
 
 ```
 Event-Driven Architecture:
@@ -1180,28 +1176,28 @@ Event-Driven Architecture:
   Analytics Service   <--- subscribe("order.*") ----+
   Payment Service     <--- subscribe("order.created")+
 
-  メリット:
-  - サービス間の完全な疎結合
-  - 独立したデプロイとスケーリング
-  - 障害の伝搬を防止
-  - イベントの永続化と再生が可能
+  Benefits:
+  - Complete loose coupling between services
+  - Independent deployment and scaling
+  - Prevents fault propagation
+  - Events can be persisted and replayed
 ```
 
 ---
 
-## 9. 実践演習
+## 9. Practical Exercises
 
-### 演習 1: 基礎 ── 型安全な EventEmitter の実装
+### Exercise 1: Basic — Implement a Type-Safe EventEmitter
 
-**課題**: 以下の要件を満たす型安全な EventEmitter を実装せよ。
+**Task**: Implement a type-safe EventEmitter that satisfies the following requirements.
 
-1. `on(event, handler)`: イベントを購読し、購読解除関数を返す
-2. `once(event, handler)`: 1回だけ購読する
-3. `emit(event, data)`: イベントを発行する
-4. `listenerCount(event)`: リスナー数を返す
-5. イベント名とデータ型がジェネリクスで型安全に連携する
+1. `on(event, handler)`: subscribes to an event and returns an unsubscribe function
+2. `once(event, handler)`: subscribes only once
+3. `emit(event, data)`: emits an event
+4. `listenerCount(event)`: returns the number of listeners
+5. Event names and data types are linked type-safely via generics
 
-**テストケース**:
+**Test Cases**:
 
 ```typescript
 type Events = {
@@ -1228,16 +1224,16 @@ console.log(emitter.listenerCount("error"));   // 1
 emitter.emit("error", { code: 404, message: "Not Found" });
 // "Error 404: Not Found"
 
-console.log(emitter.listenerCount("error"));   // 0 (once は消費済み)
+console.log(emitter.listenerCount("error"));   // 0 (once has been consumed)
 
 unsub();
 console.log(emitter.listenerCount("message")); // 0
 ```
 
-**期待される出力**: 上記コメントの通り。
+**Expected Output**: As indicated in the comments above.
 
 <details>
-<summary>模範解答（クリックで展開）</summary>
+<summary>Reference Answer (click to expand)</summary>
 
 ```typescript
 class TypedEventEmitter<T extends Record<string, any>> {
@@ -1291,27 +1287,27 @@ class TypedEventEmitter<T extends Record<string, any>> {
 }
 ```
 
-**設計ポイント:**
-- `on` と `once` を別の Map で管理し、`once` は emit 時に clear する
-- 各メソッドが unsubscribe 関数を返すことで、クリーンアップを容易にする
-- `listenerCount` は両方の Map のサイズを合算する
+**Design Points:**
+- Manage `on` and `once` in separate Maps; `once` is cleared on emit
+- Each method returns an unsubscribe function, making cleanup easy
+- `listenerCount` sums the sizes of both Maps
 
 </details>
 
 ---
 
-### 演習 2: 応用 ── リアクティブ Store の実装
+### Exercise 2: Applied — Implement a Reactive Store
 
-**課題**: Redux 風のリアクティブ Store を Observer パターンで実装せよ。
+**Task**: Implement a Redux-style reactive Store using the Observer pattern.
 
-要件:
-1. `Store<S, A>` クラス: Reducer で状態を管理
-2. `getState()`: 現在の状態を取得
-3. `dispatch(action)`: アクションを発行し、全 Observer に通知
-4. `subscribe(listener)`: 状態変更を購読
-5. `select(selector)`: 状態の一部だけを監視し、変更時のみ通知
+Requirements:
+1. `Store<S, A>` class: manages state with a Reducer
+2. `getState()`: returns current state
+3. `dispatch(action)`: dispatches an action and notifies all Observers
+4. `subscribe(listener)`: subscribes to state changes
+5. `select(selector)`: watches only part of the state and notifies only on changes
 
-**テストケース**:
+**Test Cases**:
 
 ```typescript
 type State = { count: number; name: string };
@@ -1330,14 +1326,14 @@ const store = new Store<State, Action>(
   { count: 0, name: "initial" }
 );
 
-// count だけを監視
+// Watch only count
 const unsubCount = store.select(
   s => s.count,
   (count) => console.log(`Count: ${count}`)
 );
 
 store.dispatch({ type: 'SET_NAME', name: 'Taro' });
-// (count は変わっていないので何も出力されない)
+// (count has not changed, so no output)
 
 store.dispatch({ type: 'INCREMENT' });
 // "Count: 1"
@@ -1345,10 +1341,10 @@ store.dispatch({ type: 'INCREMENT' });
 unsubCount();
 ```
 
-**期待される出力**: 上記コメントの通り。
+**Expected Output**: As indicated in the comments above.
 
 <details>
-<summary>模範解答（クリックで展開）</summary>
+<summary>Reference Answer (click to expand)</summary>
 
 ```typescript
 type Reducer<S, A> = (state: S, action: A) => S;
@@ -1380,8 +1376,8 @@ class Store<S, A extends { type: string }> {
   }
 
   /**
-   * 状態の一部を監視し、変更時のみコールバックを呼ぶ
-   * 前回の選択結果と比較して変更があった場合のみ通知する
+   * Watch part of the state and call callback only when it changes.
+   * Notifies only when the result differs from the previous selected value.
    */
   select<R>(selector: Selector<S, R>, callback: (value: R) => void): () => void {
     let previousValue = selector(this.state);
@@ -1397,27 +1393,27 @@ class Store<S, A extends { type: string }> {
 }
 ```
 
-**設計ポイント:**
-- `select` は内部で `subscribe` を利用し、セレクタの結果が変わった場合のみコールバックを呼ぶ
-- 前回値との比較には `!==`（参照等価性）を使い、プリミティブ値とオブジェクト参照の両方に対応
-- `dispatch` は Reducer で新しい状態を生成してから全 Observer に通知する
+**Design Points:**
+- `select` internally uses `subscribe` and calls the callback only when the selector result changes
+- Comparison with previous value uses `!==` (reference equality), handling both primitives and object references
+- `dispatch` generates new state via the Reducer, then notifies all Observers
 
 </details>
 
 ---
 
-### 演習 3: 発展 ── 非同期 Event Bus with Retry
+### Exercise 3: Advanced — Async Event Bus with Retry
 
-**課題**: 非同期ハンドラをサポートし、失敗時にリトライ機能を持つ EventBus を実装せよ。
+**Task**: Implement an EventBus that supports async handlers and has retry functionality on failure.
 
-要件:
-1. `on(event, handler)`: 非同期ハンドラを登録
-2. `emit(event, data, options)`: イベント発行（並列/順次を選択可能）
-3. リトライ: 失敗したハンドラを指数バックオフで最大3回リトライ
-4. Dead Letter Queue: 全リトライが失敗したイベントを記録
-5. タイムアウト: 各ハンドラに制限時間を設定
+Requirements:
+1. `on(event, handler)`: register an async handler
+2. `emit(event, data, options)`: emit an event (selectable parallel/sequential)
+3. Retry: retry failed handlers up to 3 times with exponential backoff
+4. Dead Letter Queue: record events that fail all retries
+5. Timeout: set a time limit for each handler
 
-**テストケース**:
+**Test Cases**:
 
 ```typescript
 const bus = new ResilientEventBus();
@@ -1436,17 +1432,17 @@ await bus.emit("process", { id: "item-1" }, {
   retry: { maxAttempts: 3, backoffMs: 100 },
   timeoutMs: 5000,
 });
-// 1回目: 失敗 (100ms 待機)
-// 2回目: 失敗 (200ms 待機)
-// 3回目: "Processed: item-1"
+// 1st attempt: fails (wait 100ms)
+// 2nd attempt: fails (wait 200ms)
+// 3rd attempt: "Processed: item-1"
 
-console.log(bus.getDeadLetterQueue().length); // 0 (成功したため)
+console.log(bus.getDeadLetterQueue().length); // 0 (succeeded)
 ```
 
-**期待される出力**: 上記コメントの通り。
+**Expected Output**: As indicated in the comments above.
 
 <details>
-<summary>模範解答（クリックで展開）</summary>
+<summary>Reference Answer (click to expand)</summary>
 
 ```typescript
 type AsyncHandler<T> = (data: T) => Promise<void> | void;
@@ -1521,14 +1517,14 @@ class ResilientEventBus {
         } else {
           await promise;
         }
-        return; // 成功
+        return; // Success
       } catch (error) {
         if (attempt < maxAttempts) {
-          // 指数バックオフで待機
+          // Wait with exponential backoff
           const delay = backoffMs * Math.pow(2, attempt - 1);
           await new Promise(resolve => setTimeout(resolve, delay));
         } else {
-          // 全リトライ失敗 → Dead Letter Queue に記録
+          // All retries failed -> record in Dead Letter Queue
           this.deadLetterQueue.push({
             event,
             data,
@@ -1551,11 +1547,11 @@ class ResilientEventBus {
 }
 ```
 
-**設計ポイント:**
-- `executeWithRetry` で指数バックオフ（`backoffMs * 2^(attempt-1)`）を実装
-- タイムアウトは `Promise.race` でハンドラの Promise と競合させる
-- 全リトライが失敗したイベントは Dead Letter Queue に記録し、後から調査可能にする
-- `parallel` モードでは `Promise.allSettled` を使い、1つの失敗が他のハンドラに影響しないようにする
+**Design Points:**
+- `executeWithRetry` implements exponential backoff (`backoffMs * 2^(attempt-1)`)
+- Timeout races the handler's Promise against a timeout Promise using `Promise.race`
+- Events that fail all retries are recorded in the Dead Letter Queue for later investigation
+- In `parallel` mode, `Promise.allSettled` is used so one failure does not affect other handlers
 
 </details>
 
@@ -1563,73 +1559,73 @@ class ResilientEventBus {
 
 ## 10. FAQ
 
-### Q1: Observer パターンはどの言語/フレームワークで使われていますか？
+### Q1: In which languages/frameworks is the Observer pattern used?
 
-DOM の EventListener、Node.js の EventEmitter、Vue.js のリアクティブシステム、RxJS の Observable、Android の LiveData/Flow、React の useState/useEffect、Redux の store.subscribe、Angular の Signals、Swift の Combine フレームワークなど、ほぼ全てのUI/イベント駆動フレームワークで使われています。Observer パターンを知らずにモダンなフロントエンド/バックエンド開発を行うことは不可能です。
+It is used in virtually all UI/event-driven frameworks: DOM EventListener, Node.js EventEmitter, Vue.js reactive system, RxJS Observable, Android LiveData/Flow, React useState/useEffect, Redux store.subscribe, Angular Signals, Swift Combine framework, and more. It is impossible to do modern frontend/backend development without knowing the Observer pattern.
 
-### Q2: Observer が多すぎるとパフォーマンスに影響しますか？
+### Q2: Does having too many Observers affect performance?
 
-はい。通知が同期的な場合、Observer の数に比例してブロッキング時間が増えます。対策として: (1) 非同期通知に切り替える、(2) バッチ処理（React の自動バッチングのように複数の更新を1回にまとめる）、(3) デバウンス/スロットル（高頻度の通知を間引く）、(4) セレクタベースの購読（変更された部分のみ通知する）を検討してください。
+Yes. When notifications are synchronous, blocking time increases proportionally to the number of Observers. Countermeasures: (1) switch to asynchronous notifications, (2) batch processing (combining multiple updates into one, like React's automatic batching), (3) debounce/throttle (reducing high-frequency notifications), (4) selector-based subscriptions (notify only the parts that changed).
 
-### Q3: Redux と Observer パターンの関係は？
+### Q3: What is the relationship between Redux and the Observer pattern?
 
-Redux の `store.subscribe()` は Observer パターンそのものです。Action の dispatch で状態が変更され、購読しているコンポーネントに通知されます。React-Redux の `useSelector` は、セレクタの結果が変わった場合のみ再描画する最適化された Observer です。
+Redux's `store.subscribe()` is the Observer pattern itself. When an action is dispatched, the state changes and subscribed components are notified. React-Redux's `useSelector` is an optimized Observer that re-renders only when the selector result changes.
 
-### Q4: EventEmitter と Promise/async-await の使い分けは？
+### Q4: How do I decide between EventEmitter and Promise/async-await?
 
-一回限りの非同期操作（API呼び出し、ファイル読み込み）は Promise が適切です。繰り返し発生するイベント（クリック、メッセージ受信、状態変更）は EventEmitter が適切です。両方の特性が必要な場合は AsyncIterator や RxJS の Observable を検討してください。
+Promise is appropriate for one-time async operations (API calls, file reads). EventEmitter is appropriate for repeatedly occurring events (clicks, message reception, state changes). If you need characteristics of both, consider AsyncIterator or RxJS Observable.
 
-### Q5: WeakRef を使った Observer はいつ有効ですか？
+### Q5: When is a WeakRef-based Observer effective?
 
-WeakRef は Observer のライフサイクルが不明確な場合に有効です。例えば、プラグインシステムでプラグインが動的にロード/アンロードされる場合、WeakRef を使えばプラグインが GC された時点で自動的に購読が解除されます。ただし、GC のタイミングは不確定なため、明示的な購読解除が可能な場合はそちらを優先してください。
+WeakRef is effective when the Observer's lifecycle is unclear. For example, in a plugin system where plugins are dynamically loaded and unloaded, using WeakRef allows subscriptions to be automatically deregistered when the plugin is GC'd. However, since GC timing is non-deterministic, prefer explicit unsubscription when possible.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architectural design.
 
 ---
 
-## 11. まとめ
+## 11. Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| 目的 | 1対多の状態変化通知。疎結合なイベント駆動設計 |
-| Push 型 | データを直接渡す（シンプル、データが小さい場合に最適） |
-| Pull 型 | Observer が取りに行く（柔軟、Observer ごとに必要なデータが異なる場合） |
-| 購読解除 | メモリリーク防止のため**必須**。AbortController で一括管理が便利 |
-| 非同期通知 | 並列（高スループット）と順次（順序保証）を使い分ける |
-| 循環防止 | emitting ガードで同一イベントの再帰発行を防止 |
-| 進化系 | Pub/Sub（完全疎結合）、Reactive Streams（オペレータ付き） |
+| Purpose | One-to-many state change notification. Loosely coupled event-driven design |
+| Push | Passes data directly (simple, optimal when data is small) |
+| Pull | Observer fetches data (flexible, when each Observer needs different data) |
+| Unsubscribe | **Essential** to prevent memory leaks. AbortController is convenient for bulk management |
+| Async notifications | Choose between parallel (high throughput) and sequential (order guaranteed) |
+| Preventing circular calls | Use an emitting guard to prevent recursive emission of the same event |
+| Evolution | Pub/Sub (fully decoupled), Reactive Streams (with operators) |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [Strategy パターン](./01-strategy.md) -- アルゴリズムの交換
-- [Command パターン](./02-command.md) -- 操作のカプセル化と Undo/Redo
-- [State パターン](./03-state.md) -- 状態遷移の管理
-- [イベント駆動アーキテクチャ](../../../system-design-guide/docs/02-architecture/03-event-driven.md) -- マイクロサービスでの Observer
-- [モナドパターン](../03-functional/00-monad.md) -- Promise/async-await の理論的基盤
+- [Strategy Pattern](./01-strategy.md) -- Algorithm switching
+- [Command Pattern](./02-command.md) -- Encapsulating operations and Undo/Redo
+- [State Pattern](./03-state.md) -- Managing state transitions
+- [Event-Driven Architecture](../../../system-design-guide/docs/02-architecture/03-event-driven.md) -- Observer in microservices
+- [Monad Pattern](../03-functional/00-monad.md) -- Theoretical foundation of Promise/async-await
 
 ---
 
-## 参考文献
+## References
 
-1. Gamma, E., Helm, R., Johnson, R., Vlissides, J. (1994). *Design Patterns: Elements of Reusable Object-Oriented Software*. Addison-Wesley. -- Observer パターンの原典。
-2. ReactiveX Documentation. https://reactivex.io/ -- リアクティブプログラミングの包括的リファレンス。
-3. Node.js Events Documentation. https://nodejs.org/api/events.html -- Node.js の EventEmitter の公式ドキュメント。
-4. Redux Documentation. https://redux.js.org/ -- Observer パターンに基づく状態管理ライブラリ。
-5. MDN Web Docs -- EventTarget. https://developer.mozilla.org/en-US/docs/Web/API/EventTarget -- ブラウザのイベントシステム。
+1. Gamma, E., Helm, R., Johnson, R., Vlissides, J. (1994). *Design Patterns: Elements of Reusable Object-Oriented Software*. Addison-Wesley. -- The original source of the Observer pattern.
+2. ReactiveX Documentation. https://reactivex.io/ -- Comprehensive reference for reactive programming.
+3. Node.js Events Documentation. https://nodejs.org/api/events.html -- Official documentation for Node.js EventEmitter.
+4. Redux Documentation. https://redux.js.org/ -- State management library based on the Observer pattern.
+5. MDN Web Docs -- EventTarget. https://developer.mozilla.org/en-US/docs/Web/API/EventTarget -- Browser event system.
