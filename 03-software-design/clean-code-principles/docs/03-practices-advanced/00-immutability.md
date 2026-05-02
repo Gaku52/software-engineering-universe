@@ -1,148 +1,152 @@
-# イミュータビリティ（不変性）の原則
+# The Principle of Immutability
 
-> なぜ不変データが安全なコードを生むのか。言語別の実装パターン、パフォーマンスへの影響、マルチスレッド環境での恩恵まで、イミュータビリティの理論と実践を網羅する。
-
----
-
-## この章で学ぶこと
-
-1. **イミュータビリティの理論的根拠**を理解し、なぜ不変データが安全で予測可能なコードを生むか説明できる
-2. **言語別の不変性実装パターン**（Java、TypeScript、Python、Rust、Kotlin）を習得し、実務に適用できる
-3. **パフォーマンスとのトレードオフ**を理解し、構造共有やコピーオンライトなどの最適化手法を使い分けられる
-4. **不変データとアーキテクチャの関係**を把握し、イベントソーシング・CQRS・React状態管理に応用できる
-5. **段階的導入戦略**を立案し、既存チーム・既存コードベースにイミュータビリティを実践的に導入できる
+> Why immutable data leads to safer code. A comprehensive look at the theory and practice of immutability — covering language-specific implementation patterns, performance implications, and the benefits in multithreaded environments.
 
 ---
 
-## 前提知識
+## What You Will Learn in This Chapter
 
-このガイドを理解するには、以下の知識が必要です。
+1. Understand the **theoretical basis for immutability** and explain why immutable data leads to safe, predictable code
+2. Master **language-specific immutability patterns** (Java, TypeScript, Python, Rust, Kotlin) and apply them in practice
+3. Understand **tradeoffs with performance** and know when to use optimization techniques such as structural sharing and copy-on-write
+4. Understand **the relationship between immutable data and architecture** and apply it to event sourcing, CQRS, and React state management
+5. Plan a **gradual adoption strategy** and practically introduce immutability into existing teams and codebases
 
-| 前提知識 | 参照先 |
+---
+
+## Prerequisites
+
+The following knowledge is required to understand this guide.
+
+| Prerequisite | Reference |
 |---------|-------|
-| 変数、参照、値渡し/参照渡しの基礎 | 01-practices/00-naming-conventions.md |
-| オブジェクト指向の基本（クラス、インスタンス） | 00-principles/02-solid.md |
-| 基本的なデータ構造（配列、辞書、ツリー） | `01-cs-fundamentals/data-structures-algorithms` |
-| 関数型プログラミングの基礎概念 | [02-functional-principles.md](./02-functional-principles.md) |
-| マルチスレッドの基本概念（スレッド、ロック） | `01-cs-fundamentals/operating-systems` |
+| Variables, references, and the basics of pass-by-value/reference | 01-practices/00-naming-conventions.md |
+| Object-oriented basics (classes, instances) | 00-principles/02-solid.md |
+| Basic data structures (arrays, dictionaries, trees) | `01-cs-fundamentals/data-structures-algorithms` |
+| Foundational concepts of functional programming | [02-functional-principles.md](./02-functional-principles.md) |
+| Basic multithreading concepts (threads, locks) | `01-cs-fundamentals/operating-systems` |
 
 ---
 
-## 1. イミュータビリティとは何か
+## 1. What Is Immutability?
 
-### 1.1 定義と基本概念
+### 1.1 Definition and Basic Concepts
 
-イミュータビリティ（Immutability、不変性）とは、一度生成されたデータが以降変更されないという性質のことである。オブジェクトの状態を変えたい場合は、既存のオブジェクトを変更するのではなく、変更後の値を持つ新しいオブジェクトを生成する。
+Immutability is the property by which data, once created, cannot be changed afterward. When you want to change the state of an object, instead of modifying the existing object, you create a new object that holds the updated value.
 
-この概念は数学における変数と対応する。数学において x = 5 と定義したら、x は常に 5 である。プログラミングにおける「変数」は、名前に反して多くの言語で再代入可能であり、これがバグの温床となる。
+This concept corresponds to variables in mathematics. If you define x = 5 in math, x is always 5. The "variable" in programming — contrary to its name — can be reassigned in most languages, and this is a breeding ground for bugs.
 
-### 1.2 ミュータブル vs イミュータブル
+### 1.2 Mutable vs Immutable
 
 ```
-ミュータブル（可変）                 イミュータブル（不変）
+Mutable                              Immutable
 ─────────────────                ─────────────────
 
-  user.name = "田中"               newUser = user.copy(name="田中")
+  user.name = "Tanaka"               newUser = user.copy(name="Tanaka")
        │                                │
        v                                v
   ┌──────────┐                    ┌──────────┐  ┌──────────┐
   │ user     │                    │ user     │  │ newUser  │
-  │ name:"田中"│  ← 元が変わる     │ name:"鈴木"│  │ name:"田中"│
+  │ name:"Tanaka"│  ← original changes │ name:"Suzuki"│  │ name:"Tanaka"│
   │ age: 30  │                    │ age: 30  │  │ age: 30  │
   └──────────┘                    └──────────┘  └──────────┘
-                                   元は不変        新しいコピー
+                                   original unchanged  new copy
 
-  問題: 誰がいつ変えた？           利点: 変更履歴が明確
-  共有参照で予期せぬ変更           共有しても安全
+  Problem: who changed it and when?  Benefit: change history is clear
+  unexpected changes via shared refs  safe to share
 ```
 
-この違いは些細に見えるが、システムの複雑さが増すにつれて決定的な差をもたらす。ミュータブルなデータを複数のコンポーネントが共有すると、ある箇所での変更が予期せぬ形で他の箇所に波及する。いわゆる「幽霊のようなバグ」が発生し、再現困難なデバッグに膨大な時間を費やすことになる。
+This difference may seem minor, but it becomes decisive as system complexity grows. When multiple components share mutable data, a change in one place can unexpectedly ripple to others. The so-called "ghost bugs" appear — bugs that are hard to reproduce and cost enormous debugging time.
 
-### 1.3 不変性がもたらす利点
+### 1.3 Benefits of Immutability
 
 ```
 ┌───────────────────────────────────────────────────┐
-│            イミュータビリティの5つの利点              │
+│            Five Benefits of Immutability           │
 ├───────────────────────────────────────────────────┤
 │                                                   │
-│  1. 予測可能性                                     │
-│     値が変わらない → 関数の結果が常に同じ            │
+│  1. Predictability                                │
+│     Values don't change → functions always return │
+│     the same result                               │
 │                                                   │
-│  2. スレッド安全性                                  │
-│     変更がない → ロック不要 → デッドロックなし       │
+│  2. Thread Safety                                 │
+│     No mutations → no locks needed → no deadlocks │
 │                                                   │
-│  3. デバッグ容易性                                  │
-│     状態変化がない → 問題の再現が容易               │
+│  3. Ease of Debugging                             │
+│     No state changes → problems are easy to       │
+│     reproduce                                     │
 │                                                   │
-│  4. 変更検知の効率化                                │
-│     参照比較だけで変更判定 → O(1)                   │
+│  4. Efficient Change Detection                    │
+│     Reference comparison alone detects changes    │
+│     → O(1)                                        │
 │                                                   │
-│  5. 履歴管理（Undo/Redo）                          │
-│     古い状態がそのまま残る → タイムトラベル可能      │
+│  5. History Management (Undo/Redo)                │
+│     Old states are preserved as-is → time travel  │
+│     is possible                                   │
 │                                                   │
 └───────────────────────────────────────────────────┘
 ```
 
-### 1.4 不変性のレベル分類
+### 1.4 Levels of Immutability
 
-不変性には複数のレベルが存在する。これを理解しないと、「不変にしたつもり」のコードでバグが発生する。
+Immutability exists at multiple levels. Without understanding this, bugs can appear in code you thought was immutable.
 
 ```
-レベル1: 変数の不変性 (Variable Immutability)
+Level 1: Variable Immutability
 ─────────────────────────────────────────────
-  const x = 5;        // xに再代入できない
-  const obj = {a: 1}; // objに再代入できない
-  obj.a = 2;          // しかしプロパティは変更できる！
+  const x = 5;        // x cannot be reassigned
+  const obj = {a: 1}; // obj cannot be reassigned
+  obj.a = 2;          // but properties can still be changed!
 
-レベル2: オブジェクトの浅い不変性 (Shallow Immutability)
+Level 2: Shallow Object Immutability
 ──────────────────────────────────────────────────────
-  Object.freeze(obj);  // 直下のプロパティを変更不可
-  obj.a = 2;           // 静かに無視される（strictモードではエラー）
-  obj.nested.b = 3;    // ネストされたオブジェクトは変更可能！
+  Object.freeze(obj);  // direct properties become non-writable
+  obj.a = 2;           // silently ignored (throws in strict mode)
+  obj.nested.b = 3;    // nested objects can still be changed!
 
-レベル3: オブジェクトの深い不変性 (Deep Immutability)
+Level 3: Deep Object Immutability
 ───────────────────────────────────────────────────
-  deepFreeze(obj);     // 全階層のプロパティが変更不可
-  // または
-  type DeepReadonly<T> // TypeScriptの型レベルで保証
+  deepFreeze(obj);     // properties at all levels become non-writable
+  // or
+  type DeepReadonly<T> // guaranteed at the TypeScript type level
 
-レベル4: 言語レベルの不変性 (Language-level Immutability)
+Level 4: Language-Level Immutability
 ────────────────────────────────────────────────────────
-  Rust: let x = 5;    // デフォルトで不変
-  Haskell: 全てが不変  // 可変性は型で明示（IORef, STRef）
+  Rust: let x = 5;    // immutable by default
+  Haskell: everything is immutable  // mutability is explicit via types (IORef, STRef)
 ```
 
-### 1.5 不変性の適用スペクトラム
+### 1.5 The Immutability Spectrum
 
 ```
-完全ミュータブル ◄──────────────────────────────► 完全イミュータブル
+Fully Mutable ◄──────────────────────────────► Fully Immutable
 
-  C言語          Java        TypeScript      Scala         Haskell
-  (全て可変)     (finalあり)  (readonlyあり)  (valデフォルト) (全て不変)
+  C             Java        TypeScript      Scala         Haskell
+  (all mutable) (has final)  (has readonly)  (val default) (all immutable)
 
                     Rust
-                    (letデフォルト不変)
+                    (let is immutable by default)
 
                     Kotlin
-                    (val/varで明示)
+                    (explicit val/var)
 
-推奨ゾーン:
+Recommended Zone:
   ┌──────────────────────────────┐
-  │  デフォルト不変 + 必要な箇所のみ可変  │
-  │  (Rust/Kotlinのアプローチ)          │
+  │  Immutable by default + mutable only where needed  │
+  │  (Rust/Kotlin approach)                            │
   └──────────────────────────────┘
 ```
 
 ---
 
-## 2. 言語別イミュータビリティ実装
+## 2. Language-Specific Immutability Implementations
 
 ### 2.1 TypeScript / JavaScript
 
 ```typescript
-// TypeScript: イミュータブルなデータ操作
+// TypeScript: Immutable data operations
 
-// === 1. readonly と as const ===
+// === 1. readonly and as const ===
 
 interface User {
   readonly id: string;
@@ -156,7 +160,7 @@ interface Address {
   readonly city: string;
 }
 
-// as const で深い不変性
+// Deep immutability with as const
 const CONFIG = {
   api: {
     baseUrl: "https://api.example.com",
@@ -165,19 +169,19 @@ const CONFIG = {
   features: ["auth", "logging"] as const,
 } as const;
 
-// CONFIG.api.baseUrl = "xxx"; // コンパイルエラー
-// CONFIG.features.push("x");  // コンパイルエラー
+// CONFIG.api.baseUrl = "xxx"; // compile error
+// CONFIG.features.push("x");  // compile error
 
-// === 2. Readonly ユーティリティ型 ===
+// === 2. Readonly utility type ===
 
-// 浅いReadonly（1階層のみ）
+// Shallow Readonly (one level only)
 type ShallowReadonlyUser = Readonly<{
   name: string;
   address: { city: string };
 }>;
-// address.city は変更可能（浅い）
+// address.city can still be changed (shallow)
 
-// 深いReadonly（再帰的に全階層）
+// Deep Readonly (recursively all levels)
 type DeepReadonly<T> = {
   readonly [P in keyof T]: T[P] extends object
     ? T[P] extends Function
@@ -190,16 +194,16 @@ type FullyReadonlyUser = DeepReadonly<{
   name: string;
   address: { city: string; tags: string[] };
 }>;
-// address.city も tags も全て変更不可
+// address.city and tags are all non-writable
 
-// === 3. 不変な更新パターン ===
+// === 3. Immutable update patterns ===
 
 function updateUserName(user: User, newName: string): User {
-  // スプレッド構文で新しいオブジェクトを生成
+  // Generate a new object using spread syntax
   return { ...user, name: newName };
 }
 
-// ネストされたオブジェクトの更新
+// Updating a nested object
 function updateCity(user: User, newCity: string): User {
   return {
     ...user,
@@ -210,10 +214,10 @@ function updateCity(user: User, newCity: string): User {
   };
 }
 
-// === 4. 配列の不変操作 ===
+// === 4. Immutable array operations ===
 
 function addItem<T>(items: readonly T[], item: T): readonly T[] {
-  return [...items, item]; // 新しい配列を返す
+  return [...items, item]; // returns a new array
 }
 
 function removeItem<T>(items: readonly T[], index: number): readonly T[] {
@@ -228,7 +232,7 @@ function updateItem<T>(
   return items.map((item, i) => (i === index ? updater(item) : item));
 }
 
-// 配列の不変ソート
+// Immutable array sort
 function sortedBy<T, K>(
   items: readonly T[],
   keyFn: (item: T) => K
@@ -240,7 +244,7 @@ function sortedBy<T, K>(
   });
 }
 
-// === 5. Map/Set の不変操作 ===
+// === 5. Immutable Map/Set operations ===
 
 function addToMap<K, V>(
   map: ReadonlyMap<K, V>,
@@ -267,7 +271,7 @@ function addToSet<T>(set: ReadonlySet<T>, value: T): ReadonlySet<T> {
   return newSet;
 }
 
-// === 6. Object.freeze による実行時の不変性保証 ===
+// === 6. Runtime immutability guarantee with Object.freeze ===
 
 function deepFreeze<T extends object>(obj: T): Readonly<T> {
   Object.freeze(obj);
@@ -284,21 +288,21 @@ const frozenConfig = deepFreeze({
   api: { url: "https://example.com" },
   retries: 3,
 });
-// frozenConfig.api.url = "xxx"; // 実行時にTypeErrorが発生（strictモード）
+// frozenConfig.api.url = "xxx"; // TypeError at runtime (strict mode)
 ```
 
 ### 2.2 Java
 
 ```java
-// Java: イミュータブルクラスの設計パターン
+// Java: Design patterns for immutable classes
 
-// === 1. 基本的なイミュータブルクラス ===
-// Effective Java Item 17: Minimize mutability のルール
-// (1) セッターを提供しない
-// (2) クラスをfinalにする（継承禁止）
-// (3) 全フィールドをfinalにする
-// (4) 全フィールドをprivateにする
-// (5) 可変コンポーネントへの排他的アクセスを保証する
+// === 1. Basic immutable class ===
+// Rules from Effective Java Item 17: Minimize mutability
+// (1) Provide no setters
+// (2) Make the class final (prevent inheritance)
+// (3) Make all fields final
+// (4) Make all fields private
+// (5) Ensure exclusive access to mutable components
 
 public final class Money {
     private final int amount;
@@ -306,20 +310,20 @@ public final class Money {
 
     public Money(int amount, String currency) {
         if (amount < 0) {
-            throw new IllegalArgumentException("金額は0以上: " + amount);
+            throw new IllegalArgumentException("Amount must be >= 0: " + amount);
         }
         this.amount = amount;
-        this.currency = Objects.requireNonNull(currency, "通貨は必須");
+        this.currency = Objects.requireNonNull(currency, "Currency is required");
     }
 
     public int getAmount() { return amount; }
     public String getCurrency() { return currency; }
 
-    // 変更は新しいインスタンスを返す
+    // Mutations return a new instance
     public Money add(Money other) {
         if (!this.currency.equals(other.currency)) {
             throw new IllegalArgumentException(
-                "通貨が異なります: " + this.currency + " vs " + other.currency
+                "Currency mismatch: " + this.currency + " vs " + other.currency
             );
         }
         return new Money(this.amount + other.amount, this.currency);
@@ -331,7 +335,7 @@ public final class Money {
 
     public Money subtract(Money other) {
         if (!this.currency.equals(other.currency)) {
-            throw new IllegalArgumentException("通貨が異なります");
+            throw new IllegalArgumentException("Currency mismatch");
         }
         return new Money(this.amount - other.amount, this.currency);
     }
@@ -354,7 +358,7 @@ public final class Money {
     }
 }
 
-// === 2. Java 16+ Record（自動的にイミュータブル） ===
+// === 2. Java 16+ Record (automatically immutable) ===
 
 public record User(
     String id,
@@ -362,16 +366,16 @@ public record User(
     int age,
     Address address
 ) {
-    // コンパクトコンストラクタでバリデーション
+    // Validation in compact constructor
     public User {
-        Objects.requireNonNull(id, "IDは必須です");
-        Objects.requireNonNull(name, "名前は必須です");
+        Objects.requireNonNull(id, "ID is required");
+        Objects.requireNonNull(name, "Name is required");
         if (age < 0 || age > 200) {
-            throw new IllegalArgumentException("年齢は0〜200の範囲: " + age);
+            throw new IllegalArgumentException("Age must be between 0 and 200: " + age);
         }
     }
 
-    // Wither パターン：フィールドを変更した新しいインスタンスを返す
+    // Wither pattern: returns a new instance with a changed field
     public User withName(String newName) {
         return new User(id, newName, age, address);
     }
@@ -396,38 +400,38 @@ public record Address(String prefecture, String city, String zipCode) {
     }
 }
 
-// === 3. 不変コレクション ===
+// === 3. Immutable collections ===
 
-// Java 9+ ファクトリメソッド
+// Java 9+ factory methods
 var immutableList = List.of("a", "b", "c");
 var immutableMap = Map.of("key1", "value1", "key2", "value2");
 var immutableSet = Set.of(1, 2, 3);
 // immutableList.add("d"); // UnsupportedOperationException
 
-// Java 10+ コピーファクトリ
+// Java 10+ copy factory
 var mutableList = new ArrayList<>(List.of("a", "b"));
-var snapshot = List.copyOf(mutableList); // 不変のスナップショット
-mutableList.add("c"); // 元は変更可能
-// snapshot は変わらない
+var snapshot = List.copyOf(mutableList); // immutable snapshot
+mutableList.add("c"); // original is still mutable
+// snapshot is unchanged
 
-// Collections.unmodifiableList との違い
+// Difference from Collections.unmodifiableList
 var original = new ArrayList<>(List.of("a", "b"));
 var unmodifiable = Collections.unmodifiableList(original);
 original.add("c");
-// unmodifiable もサイズが3に！（ビューなので元が変わると影響を受ける）
+// unmodifiable now has size 3 as well! (it's a view, so changes to original affect it)
 
 var copied = List.copyOf(original);
 original.add("d");
-// copied はサイズ3のまま（コピーなので元の変更に影響されない）
+// copied remains size 3 (it's a copy, unaffected by changes to original)
 
-// === 4. 可変コンポーネントの防御的コピー ===
+// === 4. Defensive copying of mutable components ===
 
 public final class Period {
     private final Date start;
     private final Date end;
 
     public Period(Date start, Date end) {
-        // 防御的コピー: 呼び出し元のDateオブジェクトの変更から守る
+        // Defensive copy: protect against caller modifying the Date object
         this.start = new Date(start.getTime());
         this.end = new Date(end.getTime());
         if (this.start.compareTo(this.end) > 0) {
@@ -436,20 +440,20 @@ public final class Period {
     }
 
     public Date getStart() {
-        return new Date(start.getTime()); // 防御的コピーを返す
+        return new Date(start.getTime()); // return a defensive copy
     }
 
     public Date getEnd() {
         return new Date(end.getTime());
     }
 }
-// 注意: Java 8+ では Date の代わりに不変な LocalDate/LocalDateTime を使うべき
+// Note: In Java 8+, use the immutable LocalDate/LocalDateTime instead of Date
 ```
 
 ### 2.3 Python
 
 ```python
-# Python: イミュータビリティの実装パターン
+# Python: Immutability implementation patterns
 
 # === 1. frozen dataclass ===
 from dataclasses import dataclass, replace, field
@@ -461,7 +465,7 @@ class Point:
     y: float
 
     def translate(self, dx: float, dy: float) -> "Point":
-        """新しいPointを返す（元は変更しない）"""
+        """Returns a new Point (does not modify the original)"""
         return replace(self, x=self.x + dx, y=self.y + dy)
 
     def distance_to(self, other: "Point") -> float:
@@ -472,15 +476,15 @@ class Point:
 
 p1 = Point(1.0, 2.0)
 p2 = p1.translate(3.0, 4.0)
-print(p1)  # Point(x=1.0, y=2.0)  ← 元は変わらない
+print(p1)  # Point(x=1.0, y=2.0)  ← original unchanged
 print(p2)  # Point(x=4.0, y=6.0)
 # p1.x = 5.0  # FrozenInstanceError
 
-# frozen dataclass でコレクションを持つ場合
+# Using a frozen dataclass with collections
 @dataclass(frozen=True)
 class Polygon:
     name: str
-    vertices: Tuple[Point, ...]  # tupleは不変
+    vertices: Tuple[Point, ...]  # tuple is immutable
 
     def add_vertex(self, point: Point) -> "Polygon":
         return replace(self, vertices=self.vertices + (point,))
@@ -488,10 +492,10 @@ class Polygon:
     def vertex_count(self) -> int:
         return len(self.vertices)
 
-triangle = Polygon("三角形", (Point(0, 0), Point(1, 0), Point(0.5, 1)))
+triangle = Polygon("Triangle", (Point(0, 0), Point(1, 0), Point(0.5, 1)))
 # triangle.vertices = ()  # FrozenInstanceError
 
-# === 2. NamedTuple（軽量なイミュータブル型） ===
+# === 2. NamedTuple (lightweight immutable type) ===
 from typing import NamedTuple
 
 class Color(NamedTuple):
@@ -507,7 +511,7 @@ class Color(NamedTuple):
         return f"#{self.r:02x}{self.g:02x}{self.b:02x}"
 
     def blend(self, other: "Color", ratio: float = 0.5) -> "Color":
-        """2色を混合して新しい色を返す"""
+        """Blends two colors and returns a new color"""
         return Color(
             r=int(self.r * (1 - ratio) + other.r * ratio),
             g=int(self.g * (1 - ratio) + other.g * ratio),
@@ -520,14 +524,14 @@ semi_transparent = red.with_alpha(0.5)
 print(red)                # Color(r=255, g=0, b=0, a=1.0)
 print(semi_transparent)   # Color(r=255, g=0, b=0, a=0.5)
 
-# NamedTuple はハッシュ可能（dictのキーやsetの要素に使える）
-color_names = {Color(255, 0, 0): "赤", Color(0, 255, 0): "緑"}
+# NamedTuple is hashable (can be used as dict keys or set elements)
+color_names = {Color(255, 0, 0): "red", Color(0, 255, 0): "green"}
 
-# === 3. 不変辞書パターン ===
+# === 3. Immutable dictionary pattern ===
 from types import MappingProxyType
 
 def create_config(overrides: dict = None) -> MappingProxyType:
-    """変更不可な設定辞書を作成"""
+    """Creates a non-writable configuration dictionary"""
     defaults = {
         "debug": False,
         "log_level": "INFO",
@@ -542,7 +546,7 @@ config = create_config({"debug": True})
 print(config["debug"])    # True
 # config["debug"] = False  # TypeError: 'mappingproxy' object does not support item assignment
 
-# 不変な設定を更新するには新しいMappingProxyTypeを作る
+# To update an immutable config, create a new MappingProxyType
 def update_config(
     config: MappingProxyType, **updates
 ) -> MappingProxyType:
@@ -552,7 +556,7 @@ def update_config(
 
 new_config = update_config(config, debug=False, log_level="DEBUG")
 
-# === 4. Pydantic v2のイミュータブルモデル ===
+# === 4. Pydantic v2 immutable model ===
 from pydantic import BaseModel, ConfigDict, field_validator
 
 class UserModel(BaseModel):
@@ -561,13 +565,13 @@ class UserModel(BaseModel):
     id: str
     name: str
     email: str
-    tags: tuple[str, ...] = ()  # listではなくtupleで不変性を保証
+    tags: tuple[str, ...] = ()  # use tuple instead of list to ensure immutability
 
     @field_validator("email")
     @classmethod
     def validate_email(cls, v: str) -> str:
         if "@" not in v:
-            raise ValueError("有効なメールアドレスを指定してください")
+            raise ValueError("Please provide a valid email address")
         return v
 
     def update_name(self, new_name: str) -> "UserModel":
@@ -576,26 +580,26 @@ class UserModel(BaseModel):
     def add_tag(self, tag: str) -> "UserModel":
         return self.model_copy(update={"tags": self.tags + (tag,)})
 
-user = UserModel(id="1", name="田中", email="tanaka@example.com")
-updated = user.update_name("鈴木")
-print(user.name)     # "田中"  ← 元は変わらない
-print(updated.name)  # "鈴木"
+user = UserModel(id="1", name="Tanaka", email="tanaka@example.com")
+updated = user.update_name("Suzuki")
+print(user.name)     # "Tanaka"  ← original unchanged
+print(updated.name)  # "Suzuki"
 
-# === 5. __slots__ + frozen による最適化 ===
+# === 5. Optimization with __slots__ + frozen ===
 
 @dataclass(frozen=True, slots=True)
 class OptimizedPoint:
-    """slots=True でメモリ効率が向上（__dict__を持たない）"""
+    """slots=True improves memory efficiency (no __dict__)"""
     x: float
     y: float
     z: float = 0.0
 
-# slots=True により:
-# - メモリ使用量が約40%削減
-# - 属性アクセスが約10%高速化
-# - __dict__ がないため動的な属性追加が不可（不変性をさらに強化）
+# With slots=True:
+# - Memory usage reduced by ~40%
+# - Attribute access ~10% faster
+# - No __dict__ means no dynamic attribute addition (further enforces immutability)
 
-# === 6. イミュータブルなEnum ===
+# === 6. Immutable Enum ===
 from enum import Enum
 
 class OrderStatus(Enum):
@@ -606,7 +610,7 @@ class OrderStatus(Enum):
     CANCELLED = "cancelled"
 
     def can_transition_to(self, target: "OrderStatus") -> bool:
-        """状態遷移の妥当性を検証"""
+        """Validates a state transition"""
         valid_transitions = {
             OrderStatus.PENDING: {OrderStatus.CONFIRMED, OrderStatus.CANCELLED},
             OrderStatus.CONFIRMED: {OrderStatus.SHIPPED, OrderStatus.CANCELLED},
@@ -617,28 +621,28 @@ class OrderStatus(Enum):
         return target in valid_transitions.get(self, set())
 ```
 
-### 2.4 Rust（言語レベルでの不変性）
+### 2.4 Rust (Language-Level Immutability)
 
 ```rust
-// Rust: デフォルトがイミュータブル
-// Rustは「不変性がデフォルト」という設計哲学を持つ唯一の主流言語
+// Rust: Immutable by default
+// Rust is the only mainstream language with "immutability as default" as a design philosophy
 
-// === 1. 変数はデフォルトで不変 ===
+// === 1. Variables are immutable by default ===
 fn basic_immutability() {
     let x = 5;
-    // x = 6;  // コンパイルエラー: cannot assign twice to immutable variable
+    // x = 6;  // compile error: cannot assign twice to immutable variable
 
-    let mut y = 5;  // mut を明示的に付ける
+    let mut y = 5;  // explicitly add mut
     y = 6;          // OK
 
-    // シャドーイング: 再定義（再代入ではない）
-    let x = x + 1;  // 新しいxが古いxを隠す
-    let x = x * 2;  // さらに新しいx
-    // 型の変更もシャドーイングなら可能
+    // Shadowing: redefinition (not reassignment)
+    let x = x + 1;  // new x shadows old x
+    let x = x * 2;  // yet another new x
+    // Type changes are also possible with shadowing
     let x = x.to_string(); // i32 → String
 }
 
-// === 2. 構造体の不変性 ===
+// === 2. Struct immutability ===
 #[derive(Clone, Debug, PartialEq)]
 struct User {
     name: String,
@@ -651,7 +655,7 @@ impl User {
         Self { name, age, email }
     }
 
-    // Builder パターンで不変更新（所有権を消費して新しいインスタンスを返す）
+    // Builder pattern for immutable updates (consumes ownership and returns a new instance)
     fn with_name(self, name: String) -> Self {
         Self { name, ..self }
     }
@@ -667,50 +671,50 @@ impl User {
 
 fn usage() {
     let user = User::new("tanaka".into(), 30, "tanaka@example.com".into());
-    let updated = user.with_name("suzuki".into()); // userの所有権が移動
-    // println!("{:?}", user); // コンパイルエラー: value moved
+    let updated = user.with_name("suzuki".into()); // ownership of user is moved
+    // println!("{:?}", user); // compile error: value moved
     println!("{:?}", updated); // OK
 }
 
-// === 3. 所有権と借用による不変性の保証 ===
-fn print_user(user: &User) {       // 共有参照（読み取りのみ）
+// === 3. Immutability guaranteed by ownership and borrowing ===
+fn print_user(user: &User) {       // shared reference (read-only)
     println!("{:?}", user);
-    // user.age += 1; // コンパイルエラー: cannot assign to immutable borrow
+    // user.age += 1; // compile error: cannot assign to immutable borrow
 }
 
-fn update_age(user: &mut User) {   // 排他参照（変更可能）
+fn update_age(user: &mut User) {   // exclusive reference (mutable)
     user.age += 1;
 }
 
-// 借用のルール:
-// - 共有参照(&T)は同時に何個でも存在できる
-// - 排他参照(&mut T)は同時に1個だけ
-// - 共有参照と排他参照は同時に存在できない
-// → コンパイル時にデータ競合を完全に防止
+// Borrowing rules:
+// - Shared references (&T) can exist in any number simultaneously
+// - Exclusive references (&mut T) can only exist one at a time
+// - Shared and exclusive references cannot coexist
+// → Data races are completely prevented at compile time
 
-// === 4. 不変コレクション ===
+// === 4. Immutable collections ===
 fn immutable_collections() {
-    let numbers = vec![1, 2, 3, 4, 5]; // 不変（mutなし）
-    // numbers.push(6); // コンパイルエラー
+    let numbers = vec![1, 2, 3, 4, 5]; // immutable (no mut)
+    // numbers.push(6); // compile error
 
-    // 新しいコレクションを生成する関数型操作
+    // Functional operations that produce new collections
     let doubled: Vec<i32> = numbers.iter().map(|x| x * 2).collect();
     let even: Vec<&i32> = numbers.iter().filter(|x| *x % 2 == 0).collect();
 
-    // numbers はそのまま使える（iterは借用のみ）
+    // numbers is still usable (iter only borrows)
     println!("{:?}", numbers);  // [1, 2, 3, 4, 5]
     println!("{:?}", doubled);  // [2, 4, 6, 8, 10]
 }
 
-// === 5. Arc<T> によるスレッド安全な不変データ共有 ===
+// === 5. Thread-safe immutable data sharing with Arc<T> ===
 use std::sync::Arc;
 use std::thread;
 
 fn shared_immutable_data() {
-    let data = Arc::new(vec![1, 2, 3, 4, 5]); // 不変データを共有
+    let data = Arc::new(vec![1, 2, 3, 4, 5]); // share immutable data
 
     let handles: Vec<_> = (0..4).map(|i| {
-        let data = Arc::clone(&data); // 参照カウントを増やすだけ
+        let data = Arc::clone(&data); // only increments the reference count
         thread::spawn(move || {
             let sum: i32 = data.iter().sum();
             println!("Thread {}: sum = {}", i, sum);
@@ -720,62 +724,62 @@ fn shared_immutable_data() {
     for handle in handles {
         handle.join().unwrap();
     }
-    // ロック不要！不変データなのでデータ競合が起きない
+    // No locks needed! No data races because data is immutable
 }
 ```
 
 ### 2.5 Kotlin
 
 ```kotlin
-// Kotlin: val/var で不変性を明示
+// Kotlin: Explicit immutability with val/var
 
-// === 1. 基本的な不変性 ===
-val x = 5        // 不変（再代入不可）
-// x = 6         // コンパイルエラー
-var y = 5        // 可変（再代入可能）
+// === 1. Basic immutability ===
+val x = 5        // immutable (cannot be reassigned)
+// x = 6         // compile error
+var y = 5        // mutable (can be reassigned)
 y = 6            // OK
 
-// === 2. data class（不変設計推奨） ===
+// === 2. data class (immutable design recommended) ===
 data class User(
-    val id: String,          // valで不変
+    val id: String,          // val is immutable
     val name: String,
     val age: Int,
     val email: String
 ) {
     init {
-        require(age in 0..200) { "年齢は0〜200の範囲: $age" }
-        require(email.contains("@")) { "メールアドレスが不正: $email" }
+        require(age in 0..200) { "Age must be between 0 and 200: $age" }
+        require(email.contains("@")) { "Invalid email address: $email" }
     }
 }
 
-// copy メソッドで部分更新（自動生成）
-val user = User("1", "田中", 30, "tanaka@example.com")
-val updated = user.copy(name = "鈴木")
-println(user)    // User(id=1, name=田中, age=30, email=tanaka@example.com)
-println(updated) // User(id=1, name=鈴木, age=30, email=tanaka@example.com)
+// Partial update with auto-generated copy method
+val user = User("1", "Tanaka", 30, "tanaka@example.com")
+val updated = user.copy(name = "Suzuki")
+println(user)    // User(id=1, name=Tanaka, age=30, email=tanaka@example.com)
+println(updated) // User(id=1, name=Suzuki, age=30, email=tanaka@example.com)
 
-// === 3. 不変コレクション ===
-val immutableList = listOf(1, 2, 3)     // List<Int> （不変）
-val mutableList = mutableListOf(1, 2, 3) // MutableList<Int>（可変）
+// === 3. Immutable collections ===
+val immutableList = listOf(1, 2, 3)     // List<Int> (immutable)
+val mutableList = mutableListOf(1, 2, 3) // MutableList<Int> (mutable)
 
-// immutableList.add(4)  // コンパイルエラー: Listにはaddがない
+// immutableList.add(4)  // compile error: List has no add method
 mutableList.add(4)        // OK
 
-// 不変リストの「更新」: 新しいリストを返す
+// "Updating" an immutable list: returns a new list
 val newList = immutableList + 4         // [1, 2, 3, 4]
 val filtered = immutableList.filter { it > 1 } // [2, 3]
 val mapped = immutableList.map { it * 2 }      // [2, 4, 6]
 
-// 不変Map
+// Immutable Map
 val config = mapOf(
     "debug" to false,
     "timeout" to 30,
     "retries" to 3
 )
-// config["debug"] = true  // コンパイルエラー
-val newConfig = config + ("debug" to true) // 新しいMapを生成
+// config["debug"] = true  // compile error
+val newConfig = config + ("debug" to true) // creates a new Map
 
-// === 4. sealed class + data class で不変なドメインモデル ===
+// === 4. Immutable domain model with sealed class + data class ===
 sealed class PaymentResult {
     data class Success(
         val transactionId: String,
@@ -793,67 +797,67 @@ sealed class PaymentResult {
     ) : PaymentResult()
 }
 
-// パターンマッチ（when式）で安全に処理
+// Safe processing with pattern matching (when expression)
 fun handlePayment(result: PaymentResult): String = when (result) {
-    is PaymentResult.Success -> "決済成功: ${result.transactionId}"
-    is PaymentResult.Failure -> "決済失敗: ${result.message}"
-    is PaymentResult.Pending -> "処理中..."
-    // sealed class なので全ケースを網羅しないとコンパイル警告
+    is PaymentResult.Success -> "Payment successful: ${result.transactionId}"
+    is PaymentResult.Failure -> "Payment failed: ${result.message}"
+    is PaymentResult.Pending -> "Processing..."
+    // sealed class requires all cases to be covered, otherwise compile warning
 }
 
-// === 5. 不変な値オブジェクト ===
+// === 5. Immutable value objects ===
 @JvmInline
 value class Email(val value: String) {
     init {
-        require(value.contains("@")) { "無効なメールアドレス: $value" }
+        require(value.contains("@")) { "Invalid email address: $value" }
     }
 }
 
 @JvmInline
 value class UserId(val value: String) {
     init {
-        require(value.isNotBlank()) { "IDは空にできません" }
+        require(value.isNotBlank()) { "ID cannot be empty" }
     }
 }
 
-// value class はラッパーのオーバーヘッドがゼロ（コンパイル時に展開）
+// value class has zero wrapper overhead (expanded at compile time)
 val email = Email("user@example.com")
 val userId = UserId("user-123")
 ```
 
 ---
 
-## 3. パフォーマンスと最適化
+## 3. Performance and Optimization
 
-### 3.1 構造共有（Structural Sharing）
+### 3.1 Structural Sharing
 
 ```
-構造共有: 変更されていない部分を共有する
+Structural Sharing: share the parts that have not changed
 
-  元のツリー          nameを変更後のツリー
+  Original tree          Tree after changing name
   ──────────          ─────────────────
 
       root                  newRoot
      /    \                /    \
-    A      B            newA     B  ← 共有（コピーなし）
+    A      B            newA     B  ← shared (no copy)
    / \    / \           / \    / \
-  a1  a2 b1  b2      a1* a2 b1  b2  ← B以下は全て共有
+  a1  a2 b1  b2      a1* a2 b1  b2  ← all of B's subtree is shared
                        ↑
-                   変更された部分のみ新規作成
+                   only the changed part is newly created
 
-  メモリ効率: O(log n) の新規ノードで済む
-  変更検知: ルートの参照が異なれば変更あり → O(1)
+  Memory efficiency: O(log n) new nodes are sufficient
+  Change detection: if root references differ, there is a change → O(1)
 ```
 
-構造共有は永続データ構造（Persistent Data Structure）の核心技術である。名前に反して「永続化（ディスク保存）」とは無関係で、「変更前後の全バージョンが保持される」という意味である。Clojure、Scala、Haskellなどの関数型言語で広く使われている。
+Structural sharing is the core technology of persistent data structures. Despite the name, "persistent" has nothing to do with "persistence to disk" — it means "all versions before and after a change are retained." It is widely used in functional languages such as Clojure, Scala, and Haskell.
 
-### 3.2 永続データ構造の内部実装
+### 3.2 Internal Implementation of Persistent Data Structures
 
 ```
 Hash Array Mapped Trie (HAMT):
-Clojure/ScalaのPersistentVectorやPersistentHashMapの内部構造
+Internal structure of PersistentVector and PersistentHashMap in Clojure/Scala
 
-  32分岐のトライ木
+  32-way trie
   ─────────────
 
               root
@@ -862,58 +866,58 @@ Clojure/ScalaのPersistentVectorやPersistentHashMapの内部構造
       / | \
     [0] [1] ... [31]
 
-  配列サイズ: 1024要素
-  木の深さ: log32(1024) = 2段
-  1要素の変更に必要な新規ノード: 2個（ルート + 1リーフ）
+  Array size: 1024 elements
+  Tree depth: log32(1024) = 2 levels
+  New nodes required to change 1 element: 2 (root + 1 leaf)
 
-  操作の計算量:
+  Computational complexity:
   ┌──────────────┬──────────────────────────────┐
-  │ 操作          │ 計算量                        │
+  │ Operation    │ Complexity                    │
   ├──────────────┼──────────────────────────────┤
-  │ 参照（get）   │ O(log32 n) ≈ 実質O(1)         │
-  │ 更新（set）   │ O(log32 n) ≈ 実質O(1)         │
-  │ 追加（append） │ 償却 O(1)                     │
-  │ 変更検知      │ O(1) （参照比較）              │
+  │ Read (get)   │ O(log32 n) ≈ effectively O(1) │
+  │ Update (set) │ O(log32 n) ≈ effectively O(1) │
+  │ Append       │ amortized O(1)                │
+  │ Change detect│ O(1) (reference comparison)   │
   └──────────────┴──────────────────────────────┘
 
-  log32(100万) ≈ 4 → 100万要素でも4回のポインタ追跡で到達
+  log32(1,000,000) ≈ 4 → even with 1 million elements, 4 pointer hops to reach any element
 ```
 
-### 3.3 コピーオンライトとの比較
+### 3.3 Comparison with Copy-on-Write
 
-| 戦略 | メモリ効率 | CPU効率 | 実装複雑度 | 適用場面 |
+| Strategy | Memory Efficiency | CPU Efficiency | Implementation Complexity | Use Cases |
 |------|-----------|---------|-----------|---------|
-| 毎回フルコピー | 低 | 低 | 簡単 | 小さなデータ（<100要素） |
-| 構造共有 | 高 | 高 | 複雑 | 永続データ構造（Clojure等） |
-| コピーオンライト | 高 | 中 | 中 | OS/ランタイムレベル（Swift Array） |
-| Immer (JS) | 中 | 中 | 簡単 | Reactアプリの状態管理 |
-| 永続データ構造 | 高 | 高 | 非常に複雑 | 関数型言語のコア |
-| Freeze + 新規生成 | 低 | 低 | 簡単 | 小規模な設定データ |
+| Full copy every time | Low | Low | Simple | Small data (< 100 elements) |
+| Structural sharing | High | High | Complex | Persistent data structures (Clojure etc.) |
+| Copy-on-write | High | Medium | Medium | OS/runtime level (Swift Array) |
+| Immer (JS) | Medium | Medium | Simple | React app state management |
+| Persistent data structures | High | High | Very complex | Core of functional languages |
+| Freeze + new creation | Low | Low | Simple | Small-scale config data |
 
-### 3.4 パフォーマンスベンチマーク指標
+### 3.4 Performance Benchmark Metrics
 
 ```
-ベンチマーク: 10,000要素の配列操作（Node.js v20）
+Benchmark: Array operations on 10,000 elements (Node.js v20)
 
-操作              | ミュータブル | スプレッド  | Immer    | Immutable.js
+Operation         | Mutable    | Spread     | Immer    | Immutable.js
 ─────────────────|───────────|──────────|─────────|───────────
-1要素の追加        | 0.001ms   | 0.15ms   | 0.03ms  | 0.005ms
-1要素の更新        | 0.001ms   | 0.12ms   | 0.02ms  | 0.008ms
-深いネストの更新    | 0.001ms   | 0.30ms   | 0.05ms  | 0.010ms
-変更検知          | O(n)深い比較| O(1)参照  | O(1)参照 | O(1)参照
-メモリ使用量       | 1x        | ~2x      | ~1.2x   | ~1.1x
+Add 1 element     | 0.001ms   | 0.15ms   | 0.03ms  | 0.005ms
+Update 1 element  | 0.001ms   | 0.12ms   | 0.02ms  | 0.008ms
+Deep nested update| 0.001ms   | 0.30ms   | 0.05ms  | 0.010ms
+Change detection  | O(n) deep | O(1) ref  | O(1) ref | O(1) ref
+Memory usage      | 1x        | ~2x      | ~1.2x   | ~1.1x
 
-結論:
-- 個々の操作はミュータブルが最速だが、差は微小
-- 変更検知まで含めるとイミュータブルが有利
-- 100要素以下ではスプレッドで十分
-- 1000要素以上ではImmerやImmutable.jsを検討
+Conclusions:
+- Mutable is fastest per individual operation, but the difference is small
+- When change detection is included, immutable has an advantage
+- Spread is sufficient for 100 elements or fewer
+- Consider Immer or Immutable.js for 1000+ elements
 ```
 
-### 3.5 Immer.jsによる効率的な不変更新
+### 3.5 Efficient Immutable Updates with Immer.js
 
 ```typescript
-// Immer: ミュータブルな記法でイミュータブルな更新
+// Immer: immutable updates using mutable syntax
 import { produce, Draft } from "immer";
 
 interface AppState {
@@ -925,28 +929,28 @@ interface AppState {
   };
 }
 
-// produce で「ドラフト」に直接変更を加える
-// → Immerが自動的に不変な新しい状態を生成
+// Apply changes directly to a "draft" with produce
+// → Immer automatically generates a new immutable state
 const nextState = produce(currentState, (draft: Draft<AppState>) => {
   const user = draft.users.find((u) => u.id === "123");
   if (user) {
-    user.name = "新しい名前"; // 直接変更OK（ドラフト上）
+    user.name = "New Name"; // direct mutation is OK (on the draft)
   }
-  draft.filters.search = "検索ワード";
+  draft.filters.search = "search term";
 });
 
-// currentState は変更されていない（不変）
-// nextState は新しいオブジェクト
+// currentState is unchanged (immutable)
+// nextState is a new object
 console.log(currentState === nextState); // false
-console.log(currentState.users[1] === nextState.users[1]); // true（変更なし→共有）
+console.log(currentState.users[1] === nextState.users[1]); // true (unchanged → shared)
 
-// === Immerの内部メカニズム ===
-// 1. Proxyオブジェクトでドラフトをラップ
-// 2. プロパティアクセスをトラップして変更を記録
-// 3. 変更されたパスのみ新しいオブジェクトを生成
-// 4. 変更されていない部分は元のオブジェクトを共有（構造共有）
+// === Internal mechanism of Immer ===
+// 1. Wrap the draft with a Proxy object
+// 2. Trap property access to record changes
+// 3. Create new objects only for the changed paths
+// 4. Share the original objects for unchanged parts (structural sharing)
 
-// === React useReducer との組み合わせ ===
+// === Combining with React useReducer ===
 import { useImmerReducer } from "use-immer";
 
 type Action =
@@ -974,7 +978,7 @@ function reducer(draft: Draft<AppState>, action: Action): void {
   }
 }
 
-// コンポーネントでの使用
+// Usage in a component
 function UserList() {
   const [state, dispatch] = useImmerReducer(reducer, initialState);
 
@@ -994,13 +998,13 @@ function UserList() {
 
 ---
 
-## 4. マルチスレッド環境での恩恵
+## 4. Benefits in Multithreaded Environments
 
-### 4.1 可変データの並行処理の危険
+### 4.1 The Danger of Concurrent Access to Mutable Data
 
 ```
-スレッド1              共有可変データ           スレッド2
-─────────             ──────────────          ─────────
+Thread 1              Shared Mutable Data       Thread 2
+─────────             ──────────────────        ─────────
 
 read(balance)          balance = 1000         read(balance)
   → 1000                                       → 1000
@@ -1009,63 +1013,63 @@ balance -= 500         balance = ???           balance -= 300
   → 500                                        → 700
 
 write(balance)                                write(balance)
-  → balance = 500       ← レースコンディション   → balance = 700
+  → balance = 500       ← race condition       → balance = 700
 
-期待値: 200 (1000 - 500 - 300)
-実際値: 500 or 700（後にwriteした方が勝つ）
+Expected: 200 (1000 - 500 - 300)
+Actual: 500 or 700 (whichever thread writes last wins)
 ```
 
-このバグは非決定的で、特定の実行タイミングでのみ再現する。テストで見つけるのが非常に困難であり、本番環境で突然顕在化する。金融システムでは致命的な問題になりうる。
+This bug is non-deterministic and only reproduces under specific execution timings. It is extremely difficult to find in tests and can suddenly surface in production. In financial systems, this can be a fatal problem.
 
-### 4.2 不変データならロック不要
+### 4.2 No Locks Needed with Immutable Data
 
 ```
-スレッド1              不変データ              スレッド2
-─────────             ──────────             ─────────
+Thread 1              Immutable Data           Thread 2
+─────────             ──────────────           ─────────
 
 read(account)          account{balance:1000}  read(account)
-  → {balance:1000}     (変更されない)           → {balance:1000}
+  → {balance:1000}     (never changes)         → {balance:1000}
 
 new1 = withdraw(500)   account{balance:1000}  new2 = withdraw(300)
-  → {balance:500}      (元は不変)              → {balance:700}
+  → {balance:500}      (original immutable)    → {balance:700}
 
 CAS(account, new1)     ← Compare-And-Swap     CAS(account, new2)
-  → 成功                                       → 失敗→リトライ
+  → success                                    → fail → retry
 
                                               new3 = withdraw(300)
                                                 from account(500)
-                                              CAS → 成功
+                                              CAS → success
 
-最終結果: {balance: 200} ← 正しい！
+Final result: {balance: 200} ← correct!
 ```
 
-### 4.3 各言語のスレッド安全な不変データパターン
+### 4.3 Thread-Safe Immutable Data Patterns per Language
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│              スレッド安全な不変データパターン                    │
+│              Thread-Safe Immutable Data Patterns            │
 ├─────────┬──────────────────────────────────────────────────┤
-│ Java    │ final フィールド + 不変クラス                       │
-│         │ ConcurrentHashMap + compute で原子的更新            │
-│         │ AtomicReference<ImmutableState> + CAS              │
+│ Java    │ final fields + immutable class                   │
+│         │ ConcurrentHashMap + compute for atomic updates   │
+│         │ AtomicReference<ImmutableState> + CAS            │
 ├─────────┼──────────────────────────────────────────────────┤
-│ Rust    │ Arc<T> で不変データを共有                           │
-│         │ Arc<Mutex<T>> で可変データを排他制御                 │
-│         │ コンパイラがデータ競合を完全に防止                    │
+│ Rust    │ Arc<T> to share immutable data                   │
+│         │ Arc<Mutex<T>> for exclusive access to mutable data│
+│         │ Compiler fully prevents data races               │
 ├─────────┼──────────────────────────────────────────────────┤
-│ Kotlin  │ kotlinx.coroutines.flow で不変データの流れ          │
-│         │ StateFlow<ImmutableState> で状態共有                │
+│ Kotlin  │ kotlinx.coroutines.flow for immutable data flows │
+│         │ StateFlow<ImmutableState> for shared state       │
 ├─────────┼──────────────────────────────────────────────────┤
-│ TS/JS   │ シングルスレッド（Worker除く）なので問題なし          │
-│         │ SharedArrayBuffer を使う場合は Atomics API          │
+│ TS/JS   │ Single-threaded (excluding Workers), no issue    │
+│         │ Use Atomics API when using SharedArrayBuffer     │
 ├─────────┼──────────────────────────────────────────────────┤
-│ Python  │ GIL があるが、multiprocessing では不変データ推奨     │
-│         │ frozen dataclass + copy で安全に更新                │
+│ Python  │ Has GIL, but immutable data recommended for      │
+│         │ multiprocessing; frozen dataclass + copy safely  │
 └─────────┴──────────────────────────────────────────────────┘
 ```
 
 ```java
-// Java: AtomicReference + CAS による楽観的並行制御
+// Java: Optimistic concurrency control with AtomicReference + CAS
 import java.util.concurrent.atomic.AtomicReference;
 
 public class ImmutableAccountService {
@@ -1078,19 +1082,19 @@ public class ImmutableAccountService {
     public Account withdraw(int amount) {
         while (true) {
             Account current = accountRef.get();
-            Account updated = current.withdraw(amount); // 新しい不変オブジェクト
+            Account updated = current.withdraw(amount); // new immutable object
             if (accountRef.compareAndSet(current, updated)) {
-                return updated; // CAS成功
+                return updated; // CAS succeeded
             }
-            // CAS失敗 → 他のスレッドが先に変更した → リトライ
+            // CAS failed → another thread changed it first → retry
         }
     }
 }
 
-// Account は不変（record）
+// Account is immutable (record)
 public record Account(String id, int balance) {
     public Account withdraw(int amount) {
-        if (balance < amount) throw new IllegalStateException("残高不足");
+        if (balance < amount) throw new IllegalStateException("Insufficient balance");
         return new Account(id, balance - amount);
     }
 }
@@ -1098,33 +1102,33 @@ public record Account(String id, int balance) {
 
 ---
 
-## 5. 実践パターン
+## 5. Practical Patterns
 
-### 5.1 React状態管理とイミュータビリティ
+### 5.1 React State Management and Immutability
 
 ```typescript
-// Reactにおけるイミュータビリティの重要性
-// React は参照比較（===）で再レンダリングの要否を判定する
+// The importance of immutability in React
+// React uses reference comparison (===) to decide whether to re-render
 
-// === NG: ミュータブルな状態更新 ===
+// === BAD: Mutable state update ===
 function TodoListBad() {
   const [todos, setTodos] = useState<Todo[]>([]);
 
   const addTodo = (text: string) => {
-    // NG: 同じ配列を変更しても React は変更を検知しない
+    // BAD: Mutating the same array — React won't detect the change
     todos.push({ id: Date.now().toString(), text, done: false });
-    setTodos(todos); // 参照が同じなので再レンダリングされない！
+    setTodos(todos); // same reference, so no re-render!
   };
 
   const toggleTodo = (id: string) => {
-    // NG: 要素を直接変更
+    // BAD: Directly mutating an element
     const todo = todos.find((t) => t.id === id);
     if (todo) todo.done = !todo.done;
-    setTodos(todos); // 再レンダリングされない！
+    setTodos(todos); // no re-render!
   };
 }
 
-// === OK: イミュータブルな状態更新 ===
+// === GOOD: Immutable state update ===
 function TodoListGood() {
   const [todos, setTodos] = useState<Todo[]>([]);
 
@@ -1147,7 +1151,7 @@ function TodoListGood() {
     setTodos((prev) => prev.filter((todo) => todo.id !== id));
   };
 
-  // React.memo + 不変データ → 不要な再レンダリングを防止
+  // React.memo + immutable data → prevents unnecessary re-renders
   return (
     <ul>
       {todos.map((todo) => (
@@ -1171,7 +1175,7 @@ const MemoizedTodoItem = React.memo(function TodoItem({
   onToggle: (id: string) => void;
   onRemove: (id: string) => void;
 }) {
-  // todoオブジェクトの参照が変わった時だけ再レンダリング
+  // Re-renders only when the todo object reference changes
   return (
     <li>
       <span
@@ -1180,22 +1184,22 @@ const MemoizedTodoItem = React.memo(function TodoItem({
       >
         {todo.text}
       </span>
-      <button onClick={() => onRemove(todo.id)}>削除</button>
+      <button onClick={() => onRemove(todo.id)}>Delete</button>
     </li>
   );
 });
 ```
 
-### 5.2 イベントソーシングとの親和性
+### 5.2 Affinity with Event Sourcing
 
 ```python
-# イベントソーシング: 不変イベントの蓄積で状態を管理
+# Event sourcing: manage state by accumulating immutable events
 from dataclasses import dataclass, field
 from typing import Union
 from datetime import datetime
 from functools import reduce
 
-# === 不変イベント定義 ===
+# === Immutable event definitions ===
 
 @dataclass(frozen=True)
 class AccountCreated:
@@ -1225,11 +1229,11 @@ class AccountClosed:
 
 Event = Union[AccountCreated, MoneyDeposited, MoneyWithdrawn, AccountClosed]
 
-# === 不変な口座状態 ===
+# === Immutable account state ===
 
 @dataclass(frozen=True)
 class AccountState:
-    """不変な口座状態"""
+    """Immutable account state"""
     account_id: str
     owner: str
     balance: int
@@ -1238,7 +1242,7 @@ class AccountState:
 
     @staticmethod
     def apply(state: "AccountState | None", event: Event) -> "AccountState":
-        """イベントを適用して新しい状態を返す（純粋関数）"""
+        """Applies an event and returns the new state (pure function)"""
         match event:
             case AccountCreated(account_id, owner, _):
                 return AccountState(
@@ -1258,7 +1262,7 @@ class AccountState:
                 )
             case MoneyWithdrawn(_, amount, _, _):
                 if state.balance < amount:
-                    raise ValueError(f"残高不足: 残高{state.balance}, 出金{amount}")
+                    raise ValueError(f"Insufficient balance: balance={state.balance}, withdrawal={amount}")
                 return AccountState(
                     account_id=state.account_id,
                     owner=state.owner,
@@ -1275,64 +1279,64 @@ class AccountState:
                     transaction_count=state.transaction_count,
                 )
 
-# === イベントストア ===
+# === Event store ===
 
 class EventStore:
-    """不変イベントの保管庫"""
+    """Storage for immutable events"""
     def __init__(self):
-        self._events: tuple[Event, ...] = ()  # タプルで不変性を保証
+        self._events: tuple[Event, ...] = ()  # tuple ensures immutability
 
     def append(self, event: Event) -> "EventStore":
-        """新しいイベントを追加（元のストアは変更しない）"""
+        """Appends a new event (does not mutate the original store)"""
         new_store = EventStore()
         new_store._events = self._events + (event,)
         return new_store
 
     def replay(self) -> AccountState | None:
-        """全イベントを再生して現在の状態を復元"""
+        """Replays all events to restore the current state"""
         return reduce(AccountState.apply, self._events, None)
 
     def replay_at(self, timestamp: datetime) -> AccountState | None:
-        """指定時点までのイベントを再生（タイムトラベル）"""
+        """Replays events up to the specified point in time (time travel)"""
         events_until = tuple(
             e for e in self._events
             if e.timestamp <= timestamp
         )
         return reduce(AccountState.apply, events_until, None)
 
-# === 使用例 ===
+# === Usage example ===
 
 now = datetime.now()
 store = EventStore()
-store = store.append(AccountCreated("acc-1", "田中", now))
-store = store.append(MoneyDeposited("acc-1", 10000, now, "初回入金"))
-store = store.append(MoneyWithdrawn("acc-1", 3000, now, "食費"))
-store = store.append(MoneyDeposited("acc-1", 5000, now, "給与"))
+store = store.append(AccountCreated("acc-1", "Tanaka", now))
+store = store.append(MoneyDeposited("acc-1", 10000, now, "Initial deposit"))
+store = store.append(MoneyWithdrawn("acc-1", 3000, now, "Groceries"))
+store = store.append(MoneyDeposited("acc-1", 5000, now, "Salary"))
 
 state = store.replay()
 print(state)
-# AccountState(account_id='acc-1', owner='田中', balance=12000,
+# AccountState(account_id='acc-1', owner='Tanaka', balance=12000,
 #              is_active=True, transaction_count=3)
 ```
 
-### 5.3 値オブジェクト（Value Object）パターン
+### 5.3 Value Object Pattern
 
 ```python
-# DDD の値オブジェクト: イミュータビリティの代表的な活用先
+# DDD Value Objects: a representative use case for immutability
 from dataclasses import dataclass
 from typing import Self
 
 @dataclass(frozen=True, slots=True)
 class Money:
-    """金額を表す値オブジェクト"""
-    amount: int  # 最小単位（円）
+    """Value object representing an amount of money"""
+    amount: int  # smallest unit (e.g., yen)
     currency: str
 
     def __post_init__(self):
         if self.amount < 0:
-            raise ValueError(f"金額は0以上: {self.amount}")
+            raise ValueError(f"Amount must be >= 0: {self.amount}")
         if self.currency not in ("JPY", "USD", "EUR"):
-            raise ValueError(f"未対応の通貨: {self.currency}")
+            raise ValueError(f"Unsupported currency: {self.currency}")
 
     def add(self, other: "Money") -> "Money":
         self._assert_same_currency(other)
@@ -1341,7 +1345,7 @@ class Money:
     def subtract(self, other: "Money") -> "Money":
         self._assert_same_currency(other)
         if self.amount < other.amount:
-            raise ValueError("残高不足")
+            raise ValueError("Insufficient balance")
         return Money(self.amount - other.amount, self.currency)
 
     def multiply(self, factor: int) -> "Money":
@@ -1350,7 +1354,7 @@ class Money:
     def _assert_same_currency(self, other: "Money") -> None:
         if self.currency != other.currency:
             raise ValueError(
-                f"通貨不一致: {self.currency} vs {other.currency}"
+                f"Currency mismatch: {self.currency} vs {other.currency}"
             )
 
     def __str__(self) -> str:
@@ -1361,13 +1365,13 @@ class Money:
 
 @dataclass(frozen=True, slots=True)
 class DateRange:
-    """日付範囲を表す値オブジェクト"""
+    """Value object representing a date range"""
     start: date
     end: date
 
     def __post_init__(self):
         if self.start > self.end:
-            raise ValueError(f"開始日が終了日より後: {self.start} > {self.end}")
+            raise ValueError(f"Start date is after end date: {self.start} > {self.end}")
 
     def contains(self, d: date) -> bool:
         return self.start <= d <= self.end
@@ -1383,24 +1387,24 @@ class DateRange:
         return DateRange(self.start, self.end + timedelta(days=days))
 
 
-# 値オブジェクトの利点:
-# 1. 等値性: 同じ値なら同じオブジェクト（__eq__が自動生成）
-# 2. ハッシュ可能: dictのキーやsetの要素にできる（frozen=True）
-# 3. スレッド安全: 変更されないのでロック不要
-# 4. バリデーション: 不正な状態のオブジェクトが存在できない
+# Benefits of value objects:
+# 1. Equality: same value = same object (__eq__ is auto-generated)
+# 2. Hashable: can be used as dict keys or set elements (frozen=True)
+# 3. Thread-safe: no locks needed because they never change
+# 4. Validation: objects in invalid states cannot exist
 
 price_a = Money(1000, "JPY")
 price_b = Money(1000, "JPY")
-print(price_a == price_b)  # True（値の等価性）
-print(price_a is price_b)  # False（別のインスタンス）
+print(price_a == price_b)  # True (value equality)
+print(price_a is price_b)  # False (different instances)
 
-prices = {price_a: "商品A"}  # ハッシュ可能なのでdictキーに使える
+prices = {price_a: "Product A"}  # hashable so can be used as dict key
 ```
 
-### 5.4 Undo/Redo の実装
+### 5.4 Implementing Undo/Redo
 
 ```typescript
-// 不変データによるUndo/Redo（タイムトラベルデバッグの原理）
+// Undo/Redo with immutable data (the principle behind time-travel debugging)
 
 interface HistoryState<T> {
   readonly past: readonly T[];
@@ -1423,12 +1427,12 @@ function pushState<T>(
   return {
     past: [...history.past, history.present],
     present: newPresent,
-    future: [], // 新しい変更後はfutureをクリア
+    future: [], // clear future after new change
   };
 }
 
 function undo<T>(history: HistoryState<T>): HistoryState<T> {
-  if (history.past.length === 0) return history; // undoできない
+  if (history.past.length === 0) return history; // nothing to undo
 
   const previous = history.past[history.past.length - 1];
   const newPast = history.past.slice(0, -1);
@@ -1441,7 +1445,7 @@ function undo<T>(history: HistoryState<T>): HistoryState<T> {
 }
 
 function redo<T>(history: HistoryState<T>): HistoryState<T> {
-  if (history.future.length === 0) return history; // redoできない
+  if (history.future.length === 0) return history; // nothing to redo
 
   const next = history.future[0];
   const newFuture = history.future.slice(1);
@@ -1453,7 +1457,7 @@ function redo<T>(history: HistoryState<T>): HistoryState<T> {
   };
 }
 
-// 使用例: テキストエディタ
+// Usage example: text editor
 let editorHistory = createHistory("Hello");
 editorHistory = pushState(editorHistory, "Hello World");
 editorHistory = pushState(editorHistory, "Hello World!");
@@ -1472,46 +1476,46 @@ console.log(editorHistory.present); // "Hello World"
 
 ---
 
-## 6. 不変性の導入戦略
+## 6. Adoption Strategies for Immutability
 
-### 6.1 段階的導入ロードマップ
+### 6.1 Gradual Adoption Roadmap
 
 ```
-Phase 1: 値オブジェクトから（1〜2週間）
-──────────────────────────────────────
-  対象: Money, Email, DateRange, UserId 等
-  方法: frozen dataclass / record / value class
-  効果: バリデーション集約、ハッシュ可能
-
-Phase 2: ドメインモデルの不変化（2〜4週間）
+Phase 1: Start with Value Objects (1–2 weeks)
 ──────────────────────────────────────────
-  対象: User, Order, Product 等のエンティティ
-  方法: Wither パターン、copy メソッド
-  効果: 状態変更の明示化、テスト容易性向上
+  Targets: Money, Email, DateRange, UserId, etc.
+  Methods: frozen dataclass / record / value class
+  Effects: centralized validation, hashability
 
-Phase 3: コレクション操作の不変化（1〜2週間）
+Phase 2: Immutify Domain Models (2–4 weeks)
 ──────────────────────────────────────────
-  対象: リスト操作、マップ操作
-  方法: map/filter/reduce、スプレッド構文
-  効果: 副作用の除去、宣言的なコード
+  Targets: entities like User, Order, Product
+  Methods: Wither pattern, copy methods
+  Effects: explicit state changes, improved testability
 
-Phase 4: 状態管理の不変化（2〜4週間）
+Phase 3: Immutify Collection Operations (1–2 weeks)
+──────────────────────────────────────────
+  Targets: list and map operations
+  Methods: map/filter/reduce, spread syntax
+  Effects: eliminate side effects, declarative code
+
+Phase 4: Immutify State Management (2–4 weeks)
 ────────────────────────────────────
-  対象: アプリケーション状態、Redux/Zustand
-  方法: Immer, 永続データ構造
-  効果: タイムトラベルデバッグ、変更追跡
+  Targets: application state, Redux/Zustand
+  Methods: Immer, persistent data structures
+  Effects: time-travel debugging, change tracking
 
-Phase 5: Lint/型システムで強制（1週間）
+Phase 5: Enforce via Lint/Type System (1 week)
 ────────────────────────────────────────
-  対象: プロジェクト全体
-  方法: ESLint no-param-reassign, TypeScript readonly
-  効果: チーム全体での不変性文化の定着
+  Targets: the entire project
+  Methods: ESLint no-param-reassign, TypeScript readonly
+  Effects: immutability culture embedded across the team
 ```
 
-### 6.2 Lintルール設定
+### 6.2 Lint Rule Configuration
 
 ```json
-// .eslintrc.json: 不変性を強制するルール
+// .eslintrc.json: rules to enforce immutability
 {
   "rules": {
     "no-param-reassign": ["error", {
@@ -1531,7 +1535,7 @@ Phase 5: Lint/型システムで強制（1週間）
 ```
 
 ```yaml
-# .pre-commit-config.yaml: Pythonの不変性チェック
+# .pre-commit-config.yaml: immutability check for Python
 repos:
   - repo: local
     hooks:
@@ -1540,73 +1544,73 @@ repos:
         language: pygrep
         entry: 'def\s+\w+\(.*=\s*(\[\]|\{\}|set\(\))'
         types: [python]
-        # NG: def func(items=[]), def func(data={})
+        # BAD: def func(items=[]), def func(data={})
 ```
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### 7.1 アンチパターン：浅いコピーの罠
+### 7.1 Anti-Pattern: The Shallow Copy Trap
 
 ```python
-# NG: 浅いコピーでネストされたオブジェクトが共有される
-original = {"user": {"name": "田中", "scores": [90, 85]}}
-copied = original.copy()  # 浅いコピー
+# BAD: shallow copy shares nested objects
+original = {"user": {"name": "Tanaka", "scores": [90, 85]}}
+copied = original.copy()  # shallow copy
 
-copied["user"]["name"] = "鈴木"
-print(original["user"]["name"])  # "鈴木" ← 元も変わってしまう！
+copied["user"]["name"] = "Suzuki"
+print(original["user"]["name"])  # "Suzuki" ← original also changed!
 
 copied["user"]["scores"].append(95)
-print(original["user"]["scores"])  # [90, 85, 95] ← 元も変わる！
+print(original["user"]["scores"])  # [90, 85, 95] ← original also changed!
 
-# OK: 深いコピーまたは不変データ構造を使用
+# GOOD: use deep copy or immutable data structures
 import copy
 deep_copied = copy.deepcopy(original)
-deep_copied["user"]["name"] = "鈴木"
-print(original["user"]["name"])  # "田中" ← 元は変わらない
+deep_copied["user"]["name"] = "Suzuki"
+print(original["user"]["name"])  # "Tanaka" ← original unchanged
 
-# より良い: frozen dataclass で根本的に防止
+# Even better: prevent this at the root with frozen dataclass
 @dataclass(frozen=True)
 class User:
     name: str
-    scores: tuple[int, ...]  # tupleは不変（listではない）
+    scores: tuple[int, ...]  # tuple is immutable (not list)
 
     def add_score(self, score: int) -> "User":
         return replace(self, scores=self.scores + (score,))
 ```
 
-**問題点**: 浅いコピーはネストされた参照を共有するため、意図しない変更が伝播する。JavaScript のスプレッド構文 `{...obj}` も浅いコピーであり、同じ問題が発生する。深いコピーか不変データ構造で対処する。
+**Problem**: Shallow copies share nested references, so unintended changes propagate. JavaScript's spread syntax `{...obj}` is also a shallow copy with the same issue. Address this with deep copies or immutable data structures.
 
-### 7.2 アンチパターン：全てをイミュータブルにする
+### 7.2 Anti-Pattern: Forcing Everything to Be Immutable
 
 ```python
-# NG: パフォーマンスクリティカルな処理でも不変性を強制
+# BAD: forcing immutability even in performance-critical code
 def process_large_dataset_bad(data: tuple) -> tuple:
     result = data
     for i in range(len(data)):
-        # 毎回タプル全体をコピー → O(n^2) の計算量
+        # copies the entire tuple every time → O(n^2) complexity
         result = result[:i] + (transform(result[i]),) + result[i+1:]
     return result
 
-# 10,000要素で約50倍遅くなる
+# ~50x slower for 10,000 elements
 
-# OK: 内部処理は可変、外部インターフェースは不変
+# GOOD: mutable internally, immutable at the external interface
 def process_large_dataset_good(data: tuple) -> tuple:
-    # 内部ではリスト（可変）で効率的に処理
+    # use a list (mutable) internally for efficient processing
     work_list = list(data)
     for i in range(len(work_list)):
         work_list[i] = transform(work_list[i])
-    # 結果はタプル（不変）で返す
+    # return the result as a tuple (immutable)
     return tuple(work_list)
 ```
 
-**問題点**: 全てを不変にするとパフォーマンスが劣化する場合がある。「外部API（公開インターフェース）は不変、内部実装は可変でもよい」という境界を明確にする。
+**Problem**: Making everything immutable can degrade performance. Clearly define the boundary: "external API (public interface) is immutable; internal implementation can be mutable."
 
-### 7.3 アンチパターン：不変データの過度なネスト更新
+### 7.3 Anti-Pattern: Deeply Nested Immutable Updates
 
 ```typescript
-// NG: 深いネストの手動スプレッド更新
+// BAD: manually spreading deeply nested updates
 const nextState = {
   ...state,
   users: {
@@ -1620,14 +1624,14 @@ const nextState = {
     },
   },
 };
-// 読みにくく、バグが入りやすい
+// hard to read and prone to bugs
 
-// OK: Immer を使って読みやすく
+// GOOD: use Immer for readable updates
 const nextState = produce(state, (draft) => {
   draft.users[userId].address.city = newCity;
 });
 
-// OK: レンズ（lens）パターンで型安全に
+// GOOD: type-safe with the lens pattern
 import { pipe } from "fp-ts/function";
 import * as L from "monocle-ts/Lens";
 
@@ -1642,16 +1646,16 @@ const cityLens = pipe(
 const nextState = pipe(state, cityLens.set(newCity));
 ```
 
-**問題点**: スプレッド構文のネストは可読性が著しく低下する。Immerやレンズライブラリで宣言的に記述すべき。
+**Problem**: Deeply nested spread syntax severely degrades readability. Use Immer or a lens library to write it declaratively.
 
-### 7.4 アンチパターン：freeze の乱用
+### 7.4 Anti-Pattern: Overusing freeze
 
 ```javascript
-// NG: パフォーマンスホットパスでObject.freezeを使う
+// BAD: using Object.freeze in performance hot paths
 function processItems(items) {
   return items.map((item) => {
     const result = Object.freeze({
-      // 毎回freezeするとGCの負荷が増大
+      // freezing every time increases GC pressure
       ...item,
       processed: true,
     });
@@ -1659,8 +1663,8 @@ function processItems(items) {
   });
 }
 
-// OK: 型システム（TypeScript）で不変性を保証し、
-// Object.freezeは開発時の検証用に限定する
+// GOOD: use the type system (TypeScript) to guarantee immutability,
+// and limit Object.freeze to development-time validation
 function processItems(items: readonly Item[]): readonly ProcessedItem[] {
   return items.map((item) => ({
     ...item,
@@ -1668,33 +1672,33 @@ function processItems(items: readonly Item[]): readonly ProcessedItem[] {
   }));
 }
 
-// Object.freeze は開発時の検証に使う
+// Use Object.freeze for development-time validation
 if (process.env.NODE_ENV === "development") {
   deepFreeze(config);
 }
 ```
 
-**問題点**: `Object.freeze` は実行時コストがかかり、GCにも影響する。型システムでコンパイル時に不変性を保証する方が効率的である。
+**Problem**: `Object.freeze` has a runtime cost and affects the GC. It is more efficient to guarantee immutability at compile time via the type system.
 
 ---
 
-## 8. 実践演習
+## 8. Practice Exercises
 
-### 演習1（基礎）: 不変なユーザー管理
+### Exercise 1 (Basic): Immutable User Management
 
-**課題**: 以下の要件を満たす不変なユーザー管理モジュールを Python で実装してください。
+**Task**: Implement an immutable user management module in Python that satisfies the following requirements.
 
 ```python
-# 要件:
-# 1. User は frozen dataclass とする（id, name, email, role）
-# 2. UserRepository は不変なユーザーリスト（タプル）を管理する
-# 3. add_user, remove_user, update_user_email は全て新しいリポジトリを返す
-# 4. find_by_id, find_by_role を実装する
+# Requirements:
+# 1. User should be a frozen dataclass (id, name, email, role)
+# 2. UserRepository manages an immutable list of users (tuple)
+# 3. add_user, remove_user, update_user_email all return a new repository
+# 4. Implement find_by_id and find_by_role
 
-# ヒント: replaceとタプル操作を使う
+# Hint: use replace and tuple operations
 ```
 
-**期待される実装**:
+**Expected Implementation**:
 
 ```python
 from dataclasses import dataclass, replace
@@ -1709,13 +1713,13 @@ class User:
 
     def with_email(self, new_email: str) -> "User":
         if "@" not in new_email:
-            raise ValueError(f"無効なメールアドレス: {new_email}")
+            raise ValueError(f"Invalid email address: {new_email}")
         return replace(self, email=new_email)
 
     def with_role(self, new_role: str) -> "User":
         valid_roles = {"member", "admin", "moderator"}
         if new_role not in valid_roles:
-            raise ValueError(f"無効なロール: {new_role}")
+            raise ValueError(f"Invalid role: {new_role}")
         return replace(self, role=new_role)
 
 
@@ -1725,13 +1729,13 @@ class UserRepository:
 
     def add(self, user: User) -> "UserRepository":
         if self.find_by_id(user.id) is not None:
-            raise ValueError(f"ユーザーIDが重複: {user.id}")
+            raise ValueError(f"Duplicate user ID: {user.id}")
         return replace(self, users=self.users + (user,))
 
     def remove(self, user_id: str) -> "UserRepository":
         new_users = tuple(u for u in self.users if u.id != user_id)
         if len(new_users) == len(self.users):
-            raise ValueError(f"ユーザーが見つかりません: {user_id}")
+            raise ValueError(f"User not found: {user_id}")
         return replace(self, users=new_users)
 
     def update(self, user_id: str, updater) -> "UserRepository":
@@ -1751,48 +1755,48 @@ class UserRepository:
         return len(self.users)
 
 
-# テスト
+# Tests
 repo = UserRepository()
-repo = repo.add(User("1", "田中", "tanaka@example.com"))
-repo = repo.add(User("2", "鈴木", "suzuki@example.com", "admin"))
-repo = repo.add(User("3", "佐藤", "sato@example.com"))
+repo = repo.add(User("1", "Tanaka", "tanaka@example.com"))
+repo = repo.add(User("2", "Suzuki", "suzuki@example.com", "admin"))
+repo = repo.add(User("3", "Sato", "sato@example.com"))
 
 assert repo.count() == 3
-assert repo.find_by_id("1").name == "田中"
+assert repo.find_by_id("1").name == "Tanaka"
 assert len(repo.find_by_role("member")) == 2
 
-# メール更新
+# Email update
 repo = repo.update("1", lambda u: u.with_email("tanaka_new@example.com"))
 assert repo.find_by_id("1").email == "tanaka_new@example.com"
 
-# 削除
+# Remove
 repo = repo.remove("3")
 assert repo.count() == 2
-print("全テスト通過！")
+print("All tests passed!")
 ```
 
-**期待される出力**:
+**Expected Output**:
 ```
-全テスト通過！
+All tests passed!
 ```
 
 ---
 
-### 演習2（応用）: 不変なショッピングカート
+### Exercise 2 (Intermediate): Immutable Shopping Cart
 
-**課題**: TypeScript で不変なショッピングカートを実装してください。以下の操作を全てイミュータブルに行うこと。
+**Task**: Implement an immutable shopping cart in TypeScript. All operations must be performed immutably.
 
 ```typescript
-// 要件:
-// 1. CartItem, Cart は readonly プロパティのみ
-// 2. addItem: 既存商品なら数量を加算、新規なら追加
-// 3. removeItem: 数量を1減らし、0になったら削除
-// 4. applyCoupon: 割引率を適用
-// 5. calculateTotal: 合計金額を計算（税込み）
-// 6. toSummary: カートの概要をオブジェクトで返す
+// Requirements:
+// 1. CartItem and Cart have readonly properties only
+// 2. addItem: increment quantity if item exists, otherwise add it
+// 3. removeItem: decrement quantity by 1, and remove when it reaches 0
+// 4. applyCoupon: apply a discount rate
+// 5. calculateTotal: calculate total amount (tax-inclusive)
+// 6. toSummary: return a cart summary as an object
 ```
 
-**期待される実装**:
+**Expected Implementation**:
 
 ```typescript
 interface CartItem {
@@ -1807,7 +1811,7 @@ interface Cart {
   readonly couponRate: number; // 0.0 ~ 1.0
 }
 
-// === カート操作関数（全て純粋関数） ===
+// === Cart operation functions (all pure functions) ===
 
 function createCart(): Cart {
   return { items: [], couponRate: 0 };
@@ -1819,7 +1823,7 @@ function addItem(cart: Cart, product: Omit<CartItem, "quantity">): Cart {
   );
 
   if (existingIndex >= 0) {
-    // 既存商品: 数量を加算
+    // existing product: increment quantity
     const updatedItems = cart.items.map((item, i) =>
       i === existingIndex
         ? { ...item, quantity: item.quantity + 1 }
@@ -1828,7 +1832,7 @@ function addItem(cart: Cart, product: Omit<CartItem, "quantity">): Cart {
     return { ...cart, items: updatedItems };
   }
 
-  // 新規商品: 追加
+  // new product: add it
   return {
     ...cart,
     items: [...cart.items, { ...product, quantity: 1 }],
@@ -1844,14 +1848,14 @@ function removeItem(cart: Cart, productId: string): Cart {
   const item = cart.items[existingIndex];
 
   if (item.quantity <= 1) {
-    // 数量が1以下なら削除
+    // remove if quantity is 1 or less
     return {
       ...cart,
       items: cart.items.filter((_, i) => i !== existingIndex),
     };
   }
 
-  // 数量を1減らす
+  // decrement quantity by 1
   const updatedItems = cart.items.map((item, i) =>
     i === existingIndex
       ? { ...item, quantity: item.quantity - 1 }
@@ -1862,7 +1866,7 @@ function removeItem(cart: Cart, productId: string): Cart {
 
 function applyCoupon(cart: Cart, rate: number): Cart {
   if (rate < 0 || rate > 1) {
-    throw new Error(`無効な割引率: ${rate}`);
+    throw new Error(`Invalid discount rate: ${rate}`);
   }
   return { ...cart, couponRate: rate };
 }
@@ -1892,12 +1896,12 @@ function toSummary(cart: Cart) {
   };
 }
 
-// === テスト ===
+// === Tests ===
 let cart = createCart();
-cart = addItem(cart, { productId: "p1", name: "りんご", price: 200 });
-cart = addItem(cart, { productId: "p1", name: "りんご", price: 200 }); // 数量2に
-cart = addItem(cart, { productId: "p2", name: "みかん", price: 150 });
-cart = applyCoupon(cart, 0.1); // 10%割引
+cart = addItem(cart, { productId: "p1", name: "Apple", price: 200 });
+cart = addItem(cart, { productId: "p1", name: "Apple", price: 200 }); // quantity becomes 2
+cart = addItem(cart, { productId: "p2", name: "Orange", price: 150 });
+cart = applyCoupon(cart, 0.1); // 10% discount
 
 const summary = toSummary(cart);
 console.log(summary);
@@ -1911,28 +1915,28 @@ console.log(summary);
 // }
 ```
 
-**期待される出力**:
+**Expected Output**:
 ```
 { itemCount: 3, uniqueProducts: 2, subtotal: 550, discount: 55, tax: 49, total: 544 }
 ```
 
 ---
 
-### 演習3（発展）: 不変データによるタイムトラベルデバッグ
+### Exercise 3 (Advanced): Time-Travel Debugging with Immutable Data
 
-**課題**: Pythonで不変データを活用したタイムトラベルデバッグ機能を持つステートマシンを実装してください。
+**Task**: Implement a state machine with time-travel debugging capabilities using immutable data in Python.
 
 ```python
-# 要件:
-# 1. State は frozen dataclass
-# 2. StateMachine は全ての状態履歴を不変タプルとして保持
-# 3. dispatch(action) で新しい状態を生成
-# 4. undo() / redo() でタイムトラベル
-# 5. get_history() で全履歴を返す
-# 6. goto(index) で任意の時点にジャンプ
+# Requirements:
+# 1. State is a frozen dataclass
+# 2. StateMachine holds all state history as an immutable tuple
+# 3. dispatch(action) generates a new state
+# 4. undo() / redo() for time travel
+# 5. get_history() returns the full history
+# 6. goto(index) jumps to any point in time
 ```
 
-**期待される実装**:
+**Expected Implementation**:
 
 ```python
 from dataclasses import dataclass, replace, field
@@ -1943,22 +1947,22 @@ S = TypeVar("S")
 
 @dataclass(frozen=True)
 class AppState:
-    """アプリケーション状態（不変）"""
+    """Application state (immutable)"""
     counter: int = 0
     message: str = ""
     items: tuple[str, ...] = ()
     last_action: str = "INIT"
 
-# アクション定義
+# Action definition
 @dataclass(frozen=True)
 class Action:
     type: str
     payload: Any = None
     timestamp: datetime = field(default_factory=datetime.now)
 
-# 純粋なリデューサ
+# Pure reducer
 def reducer(state: AppState, action: Action) -> AppState:
-    """状態遷移関数（純粋）"""
+    """State transition function (pure)"""
     match action.type:
         case "INCREMENT":
             return replace(state, counter=state.counter + 1, last_action="INCREMENT")
@@ -1985,26 +1989,26 @@ def reducer(state: AppState, action: Action) -> AppState:
 
 @dataclass(frozen=True)
 class TimeTravelMachine:
-    """タイムトラベル可能なステートマシン"""
+    """State machine with time-travel capability"""
     past: tuple[AppState, ...] = ()
     present: AppState = field(default_factory=AppState)
     future: tuple[AppState, ...] = ()
     action_log: tuple[Action, ...] = ()
 
     def dispatch(self, action: Action) -> "TimeTravelMachine":
-        """アクションをディスパッチして新しい状態を返す"""
+        """Dispatches an action and returns a new state"""
         new_state = reducer(self.present, action)
         return TimeTravelMachine(
             past=self.past + (self.present,),
             present=new_state,
-            future=(),  # 新しいアクション後はfutureクリア
+            future=(),  # clear future after a new action
             action_log=self.action_log + (action,),
         )
 
     def undo(self) -> "TimeTravelMachine":
-        """1つ前の状態に戻る"""
+        """Go back to the previous state"""
         if not self.past:
-            return self  # undoできない
+            return self  # nothing to undo
         previous = self.past[-1]
         return TimeTravelMachine(
             past=self.past[:-1],
@@ -2014,9 +2018,9 @@ class TimeTravelMachine:
         )
 
     def redo(self) -> "TimeTravelMachine":
-        """1つ先の状態に進む"""
+        """Advance to the next state"""
         if not self.future:
-            return self  # redoできない
+            return self  # nothing to redo
         next_state = self.future[0]
         return TimeTravelMachine(
             past=self.past + (self.present,),
@@ -2026,10 +2030,10 @@ class TimeTravelMachine:
         )
 
     def goto(self, index: int) -> "TimeTravelMachine":
-        """任意の時点にジャンプ"""
+        """Jump to any point in time"""
         all_states = self.past + (self.present,) + self.future
         if index < 0 or index >= len(all_states):
-            raise IndexError(f"インデックス範囲外: {index}")
+            raise IndexError(f"Index out of range: {index}")
         return TimeTravelMachine(
             past=all_states[:index],
             present=all_states[index],
@@ -2038,7 +2042,7 @@ class TimeTravelMachine:
         )
 
     def get_history(self) -> list[dict]:
-        """全履歴を取得"""
+        """Get the full history"""
         all_states = self.past + (self.present,) + self.future
         current_index = len(self.past)
         return [
@@ -2059,150 +2063,150 @@ class TimeTravelMachine:
         return len(self.future) > 0
 
 
-# === テスト ===
+# === Tests ===
 
 machine = TimeTravelMachine()
 
-# アクションをディスパッチ
+# Dispatch actions
 machine = machine.dispatch(Action("INCREMENT"))
 machine = machine.dispatch(Action("INCREMENT"))
 machine = machine.dispatch(Action("SET_MESSAGE", "Hello"))
-machine = machine.dispatch(Action("ADD_ITEM", "りんご"))
-machine = machine.dispatch(Action("ADD_ITEM", "みかん"))
+machine = machine.dispatch(Action("ADD_ITEM", "Apple"))
+machine = machine.dispatch(Action("ADD_ITEM", "Orange"))
 
 assert machine.present.counter == 2
 assert machine.present.message == "Hello"
-assert machine.present.items == ("りんご", "みかん")
+assert machine.present.items == ("Apple", "Orange")
 
 # Undo
 machine = machine.undo()
-assert machine.present.items == ("りんご",)  # みかん追加前に戻る
+assert machine.present.items == ("Apple",)  # back to before Orange was added
 
 machine = machine.undo()
 assert machine.present.message == "Hello"
-assert machine.present.items == ()  # りんご追加前に戻る
+assert machine.present.items == ()  # back to before Apple was added
 
 # Redo
 machine = machine.redo()
-assert machine.present.items == ("りんご",)  # りんご追加後に進む
+assert machine.present.items == ("Apple",)  # forward to after Apple was added
 
 # Goto
 machine = machine.goto(0)
-assert machine.present.counter == 0  # 初期状態にジャンプ
+assert machine.present.counter == 0  # jump to initial state
 
 machine = machine.goto(2)
-assert machine.present.counter == 2  # 2回INCREMENT後にジャンプ
+assert machine.present.counter == 2  # jump to after 2 INCREMENTs
 
-# 履歴確認
+# Check history
 history = machine.get_history()
-assert len(history) == 6  # 初期 + 5アクション
+assert len(history) == 6  # initial + 5 actions
 assert history[2]["is_current"] == True
 
-print("全テスト通過！")
+print("All tests passed!")
 ```
 
-**期待される出力**:
+**Expected Output**:
 ```
-全テスト通過！
+All tests passed!
 ```
 
 ---
 
 ## 9. FAQ
 
-### Q1: イミュータビリティはパフォーマンスに悪影響か？
+### Q1: Does immutability negatively impact performance?
 
-**A**: 小〜中規模データでは影響は無視できる。大規模データでは構造共有（Persistent Data Structures）やImmer.jsのようなライブラリで効率的に処理できる。むしろ、変更検知がO(1)になるため、React等のUIフレームワークではパフォーマンス向上に寄与する。ボトルネックが確認された場合のみ、局所的に可変データを使う。実測なしに「パフォーマンスが悪い」と判断するのは早計であり、プロファイラで測定してから最適化すべきである。
+**A**: For small to medium-sized data, the impact is negligible. For large-scale data, it can be handled efficiently with structural sharing (Persistent Data Structures) or libraries like Immer.js. In fact, since change detection becomes O(1), it contributes to improved performance in UI frameworks such as React. Only use mutable data locally when a bottleneck has been confirmed. Judging that "performance is bad" without measurement is premature — always profile first, then optimize.
 
-### Q2: データベースとの連携でイミュータビリティは維持できるか？
+### Q2: Can immutability be maintained when integrating with a database?
 
-**A**: アプリケーション層でイミュータブルに扱い、永続化層（Repository/DAO）で変換するのが一般的。具体的には、DB から取得したデータを不変なドメインモデルに変換し、ビジネスロジックは不変データのみで処理し、永続化時に再度DBのフォーマットに変換する。イベントソーシングやCQRSパターンを採用すれば、データベース層でも不変性を活かせる。ORMの遅延ロードやダーティチェックとの相性は要注意で、ORMが期待する可変性と不変モデルの間で変換層が必要になる場合がある。
+**A**: The common approach is to handle data immutably at the application layer and convert at the persistence layer (Repository/DAO). Specifically: convert data retrieved from the DB to an immutable domain model, process all business logic using only immutable data, and then convert back to the DB format when persisting. Adopting event sourcing or CQRS patterns can leverage immutability even at the database layer. Be careful about compatibility with ORM features like lazy loading and dirty checking — a translation layer between the ORM's expected mutability and your immutable model may be necessary.
 
-### Q3: チームにイミュータビリティを導入するにはどうすればよいか？
+### Q3: How do I introduce immutability to a team?
 
-**A**: (1) まず値オブジェクト（Money、Date等）から始める、(2) 新規コードに `readonly`/`final`/`frozen` を適用、(3) Lintルールで可変操作を警告（`no-param-reassign` 等）、(4) コードレビューで不変パターンを推奨。段階的に広げることで抵抗なく導入できる。「既存コードを全部書き換える」のではなく、新規コードから適用し、修正のたびに周辺コードを不変化していく漸進的アプローチが効果的。
+**A**: (1) Start with value objects (Money, Date, etc.), (2) apply `readonly`/`final`/`frozen` to new code, (3) configure lint rules to warn on mutable operations (e.g., `no-param-reassign`), (4) promote immutable patterns in code reviews. A gradual rollout avoids resistance. Rather than "rewriting all existing code," apply it to new code first, and immutify the surrounding code each time you make a fix. This incremental approach is effective.
 
-### Q4: 不変データは本当にスレッド安全か？初期化中のオブジェクトは危険では？
+### Q4: Is immutable data truly thread-safe? Isn't an object during initialization dangerous?
 
-**A**: 正確に言うと、「完全に構築されたあとの不変オブジェクト」がスレッド安全である。Java では `final` フィールドの初期化は Java Memory Model で安全性が保証されている。ただし、コンストラクタ内で `this` を外部に公開すると、構築途中のオブジェクトが他のスレッドに見える危険がある。Rust では所有権システムがこの問題を完全に防ぐ。他の言語では「コンストラクタ内で this をリークしない」というルールを守る必要がある。
+**A**: More precisely, a "fully constructed immutable object" is thread-safe. In Java, the initialization of `final` fields is guaranteed to be safe by the Java Memory Model. However, if `this` is published externally from within the constructor, a partially constructed object can be visible to other threads. Rust's ownership system completely prevents this problem. In other languages, the rule "do not leak `this` from constructors" must be followed.
 
-### Q5: ORMやフレームワークが可変オブジェクトを要求する場合はどうするか？
+### Q5: What if an ORM or framework requires mutable objects?
 
-**A**: アダプタパターンを使って境界を明確にする。(1) ドメイン層: 不変データモデル（frozen dataclass/record）、(2) インフラ層: ORMが要求する可変モデル（通常のクラス）、(3) 変換層: 不変モデルとORMモデルの間の変換関数。Spring Data JPA の場合は `@Immutable` アノテーション、Django の場合は `model_to_frozen_dataclass` のような変換ユーティリティを作る。変換のコストはあるが、ドメインロジックの安全性と引き換えに十分な価値がある。
+**A**: Use the adapter pattern to clarify the boundary. (1) Domain layer: immutable data model (frozen dataclass/record), (2) Infrastructure layer: mutable model required by the ORM (regular class), (3) Translation layer: conversion functions between the immutable model and the ORM model. For Spring Data JPA, use the `@Immutable` annotation; for Django, create a conversion utility like `model_to_frozen_dataclass`. The conversion cost is worth it in exchange for the safety of your domain logic.
 
-### Q6: JavaScript の `const` とイミュータビリティの違いは？
+### Q6: What is the difference between JavaScript's `const` and immutability?
 
-**A**: `const` は変数の再代入を禁止するだけであり、オブジェクトのプロパティ変更は許容する。`const obj = {a: 1}; obj.a = 2;` は有効である。真のイミュータビリティを実現するには、`Object.freeze`（実行時）、TypeScript の `readonly`/`as const`（型レベル）、Immer（ライブラリ）のいずれかを使う必要がある。`const` は「変数束縛の不変性」であり、「値の不変性」とは異なるレベルの概念である。
+**A**: `const` only prevents variable reassignment; it still allows property changes on an object. `const obj = {a: 1}; obj.a = 2;` is valid. To achieve true immutability, you need one of the following: `Object.freeze` (runtime), TypeScript's `readonly`/`as const` (type level), or Immer (library). `const` is "immutability of the variable binding," which is a different level of concept from "immutability of the value."
 
-### Q7: イミュータブルなデータ構造はGCに負荷をかけないか？
+### Q7: Don't immutable data structures put pressure on the GC?
 
-**A**: 短命なオブジェクトを大量に生成するため、GCの負荷は増加する。ただし、世代別GC（JVM、V8）は短命オブジェクトの回収が非常に効率的であり、実測で問題にならないことが多い。構造共有を使えば新規生成するオブジェクト数を大幅に削減できる。Rust の場合はGCがないため、所有権システムによる確定的なメモリ解放でこの問題は存在しない。GCの負荷が問題になるのは、非常に高頻度（秒間数十万回）のオブジェクト生成が発生するゲームエンジンやリアルタイムシステムなどの特殊なケースに限られる。
+**A**: Generating a large number of short-lived objects does increase GC pressure. However, generational GC (JVM, V8) is very efficient at collecting short-lived objects, and this is often not a problem in practice. Using structural sharing can dramatically reduce the number of new objects created. In Rust, there is no GC, so this problem does not exist thanks to deterministic memory deallocation via the ownership system. GC pressure becoming an issue is limited to special cases such as game engines or real-time systems that generate objects at extremely high frequencies (hundreds of thousands per second).
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architectural design.
 
 ---
 
-## 10. まとめ
+## 10. Summary
 
-| カテゴリ | ポイント |
+| Category | Key Point |
 |---------|---------|
-| 原則 | デフォルトを不変に、可変は明示的に |
-| スレッド安全 | 不変データはロック不要で並行処理が安全 |
-| 予測可能性 | 値が変わらない → デバッグ・テストが容易 |
-| 変更検知 | 参照比較O(1)でUI更新の効率化 |
-| パフォーマンス | 構造共有/Immerで大規模データも効率的 |
-| 言語選択 | Rustはデフォルト不変、他言語はライブラリ/規約で対応 |
-| 導入戦略 | 値オブジェクトから段階的に、Lint支援で定着 |
-| アーキテクチャ | イベントソーシング・CQRS・Reduxと好相性 |
-| トレードオフ | 内部は可変OK、公開APIは不変がベストプラクティス |
+| Principle | Immutable by default; mutability is explicit |
+| Thread Safety | Immutable data needs no locks — concurrent processing is safe |
+| Predictability | Values don't change → easier to debug and test |
+| Change Detection | Reference comparison O(1) for efficient UI updates |
+| Performance | Structural sharing / Immer handles large-scale data efficiently |
+| Language Choice | Rust is immutable by default; other languages use libraries/conventions |
+| Adoption Strategy | Gradual rollout starting from value objects, reinforced by lint |
+| Architecture | Works well with Event Sourcing, CQRS, and Redux |
+| Tradeoff | Internal implementation can be mutable; public APIs should be immutable |
 
-| 言語 | 不変性サポート | 推奨パターン |
+| Language | Immutability Support | Recommended Pattern |
 |------|-------------|------------|
-| TypeScript | readonly, as const, DeepReadonly | スプレッド構文 + Immer |
-| Java | final, Record, List.of() | Record + Wither パターン |
+| TypeScript | readonly, as const, DeepReadonly | Spread syntax + Immer |
+| Java | final, Record, List.of() | Record + Wither pattern |
 | Python | frozen dataclass, NamedTuple | frozen dataclass + replace |
-| Rust | デフォルト不変、所有権システム | 言語機能そのまま |
+| Rust | Immutable by default, ownership system | Use language features directly |
 | Kotlin | val, data class, listOf() | data class + copy |
-| Scala | val, case class, 永続コレクション | 言語機能そのまま |
+| Scala | val, case class, persistent collections | Use language features directly |
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [01-composition-over-inheritance.md](./01-composition-over-inheritance.md) -- 継承より合成の原則
-- [02-functional-principles.md](./02-functional-principles.md) -- 関数型プログラミングの原則（純粋関数と不変性の深い関係）
-- [03-api-design.md](./03-api-design.md) -- API設計（不変なリクエスト/レスポンスモデル）
-- 00-principles/02-solid.md -- SOLID原則（特にOCPと不変性の関係）
-- [02-refactoring/00-code-smells.md](../02-refactoring/00-code-smells.md) -- コードの臭い（可変状態の乱用パターン）
-- `design-patterns-guide/docs/03-functional/` -- 関数型デザインパターン
-- `system-design-guide/docs/02-architecture/` -- アーキテクチャパターン（イベントソーシング・CQRS）
+- [01-composition-over-inheritance.md](./01-composition-over-inheritance.md) -- Composition over inheritance
+- [02-functional-principles.md](./02-functional-principles.md) -- Functional programming principles (the deep relationship between pure functions and immutability)
+- [03-api-design.md](./03-api-design.md) -- API design (immutable request/response models)
+- 00-principles/02-solid.md -- SOLID principles (especially the relationship between OCP and immutability)
+- [02-refactoring/00-code-smells.md](../02-refactoring/00-code-smells.md) -- Code smells (patterns of mutable state abuse)
+- `design-patterns-guide/docs/03-functional/` -- Functional design patterns
+- `system-design-guide/docs/02-architecture/` -- Architecture patterns (Event Sourcing, CQRS)
 
 ---
 
-## 参考文献
+## References
 
-1. Joshua Bloch, "Effective Java" 第3版 -- Item 17: Minimize mutability
+1. Joshua Bloch, "Effective Java" 3rd Edition -- Item 17: Minimize mutability
 2. Michael Feathers, "Working Effectively with Legacy Code" -- Immutability as a tool for safety
-3. Immer.js ドキュメント -- https://immerjs.github.io/immer/
+3. Immer.js Documentation -- https://immerjs.github.io/immer/
 4. Rust Book, "Understanding Ownership" -- https://doc.rust-lang.org/book/ch04-00-understanding-ownership.html
 5. Eric Evans, "Domain-Driven Design" -- Value Objects
-6. Rich Hickey, "The Value of Values" -- https://www.infoq.com/presentations/Value-Values/ (Clojure作者による不変性の講演)
-7. Chris Okasaki, "Purely Functional Data Structures" -- 永続データ構造の理論と実装
+6. Rich Hickey, "The Value of Values" -- https://www.infoq.com/presentations/Value-Values/ (a talk on immutability by the creator of Clojure)
+7. Chris Okasaki, "Purely Functional Data Structures" -- Theory and implementation of persistent data structures
 8. Gary Bernhardt, "Boundaries" -- https://www.destroyallsoftware.com/talks/boundaries (Functional Core / Imperative Shell)
 9. Martin Fowler, "ValueObject" -- https://martinfowler.com/bliki/ValueObject.html
 10. Kotlin Documentation, "Properties and Fields" -- https://kotlinlang.org/docs/properties.html
