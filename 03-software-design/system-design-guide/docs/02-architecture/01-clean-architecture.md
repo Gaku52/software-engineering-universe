@@ -1,119 +1,119 @@
-# クリーンアーキテクチャ
+# Clean Architecture
 
-> Robert C. Martin が提唱した依存性逆転の原則に基づくアーキテクチャパターンであり、ビジネスロジックをフレームワーク・DB・UI から独立させ、テスタブルで変更に強いシステムを構築する設計思想を解説する
-
----
-
-## この章で学ぶこと
-
-1. **同心円モデルと依存性ルール** — Entities、Use Cases、Interface Adapters、Frameworks の4層構造と内向きの依存方向を理解する
-2. **依存性逆転の実装** — インターフェースを用いた外部依存の抽象化と DI コンテナの活用方法を習得する
-3. **実プロジェクトへの適用** — ディレクトリ構成、レイヤー間のデータ変換、テスト戦略を実装できるようになる
-4. **類似アーキテクチャとの比較** — ヘキサゴナル、オニオン、従来型MVC との違いと使い分けを判断できるようになる
-5. **段階的導入と現実的なトレードオフ** — プロジェクト規模に応じた適用戦略を策定できるようになる
+> An architectural pattern based on the Dependency Inversion Principle proposed by Robert C. Martin. This guide explains the design philosophy of isolating business logic from frameworks, databases, and UIs to build testable and change-resistant systems.
 
 ---
 
-## 前提知識
+## What You Will Learn in This Chapter
 
-このガイドを読む前に、以下の知識を持っていることが望ましい。
+1. **Concentric Circle Model and the Dependency Rule** — Understand the four-layer structure of Entities, Use Cases, Interface Adapters, and Frameworks, and the inward direction of dependencies.
+2. **Implementing Dependency Inversion** — Learn how to abstract external dependencies using interfaces and how to leverage DI containers.
+3. **Applying to Real Projects** — Be able to implement directory structures, data transformations between layers, and testing strategies.
+4. **Comparison with Similar Architectures** — Be able to judge the differences and appropriate use cases of Hexagonal, Onion, and traditional MVC architectures.
+5. **Incremental Adoption and Realistic Trade-offs** — Be able to formulate an adoption strategy based on project scale.
 
-| トピック | 内容 | 参照リンク |
+---
+
+## Prerequisites
+
+Before reading this guide, it is desirable to have the following knowledge.
+
+| Topic | Content | Reference |
 |---------|------|-----------|
-| SOLID 原則 | 特に依存性逆転の原則 (DIP)、単一責任の原則 (SRP) | SOLID 原則 |
-| デザインパターン基礎 | Strategy、Observer、Repository パターン | デザインパターン |
-| Python 基礎 | dataclass、Protocol、型ヒントの理解 | - |
-| テストの基礎 | ユニットテスト、モック/スタブの概念 | テスト原則 |
+| SOLID Principles | Especially the Dependency Inversion Principle (DIP) and Single Responsibility Principle (SRP) | SOLID Principles |
+| Design Pattern Basics | Strategy, Observer, Repository patterns | Design Patterns |
+| Python Basics | Understanding of dataclass, Protocol, and type hints | - |
+| Testing Basics | Unit testing, concepts of mocks/stubs | Testing Principles |
 
 ---
 
-## 1. クリーンアーキテクチャの背景と哲学
+## 1. Background and Philosophy of Clean Architecture
 
-### 1.1 なぜクリーンアーキテクチャが生まれたか
+### 1.1 Why Clean Architecture Was Created
 
-ソフトウェア開発の歴史を振り返ると、多くのプロジェクトが「フレームワーク依存の泥沼」に陥ってきた。Rails アプリケーションのモデルが ActiveRecord に密結合してテストできない、Spring Boot のサービスクラスが HTTP リクエストオブジェクトに依存してバッチ処理から呼べない、Django のビューに全てのビジネスロジックが書かれてリファクタリングが不可能 — これらは全て **ビジネスロジックが外部技術詳細に依存している** という根本原因に起因する。
+Looking back at the history of software development, many projects have fallen into the "framework dependency swamp." Rails application models are tightly coupled to ActiveRecord and cannot be tested; Spring Boot service classes depend on HTTP request objects and cannot be called from batch processes; all business logic is written in Django views making refactoring impossible — all of these stem from the root cause that **business logic depends on external technical details**.
 
-Robert C. Martin（Uncle Bob）は2012年のブログ記事「The Clean Architecture」で、それまでに提案された複数のアーキテクチャパターンを統合する形で「クリーンアーキテクチャ」を提唱した。
+Robert C. Martin (Uncle Bob) proposed "Clean Architecture" in a 2012 blog post "The Clean Architecture," integrating multiple architectural patterns that had been proposed up to that point.
 
 ```
-クリーンアーキテクチャの系譜
+Lineage of Clean Architecture
 
   1979  MVC (Trygve Reenskaug)
-         ↓ UI分離の概念
+         ↓ Concept of UI separation
   1992  BCE (Ivar Jacobson)
          ↓ Boundary-Control-Entity
   2005  Hexagonal Architecture (Alistair Cockburn)
          ↓ Ports & Adapters
   2008  Onion Architecture (Jeffrey Palermo)
-         ↓ ドメイン中心の同心円
+         ↓ Domain-centric concentric circles
   2012  Clean Architecture (Robert C. Martin)
-         ↓ 上記を統合し体系化
-  2017  書籍「Clean Architecture」出版
+         ↓ Integration and systematization of the above
+  2017  Book "Clean Architecture" published
 ```
 
-### 1.2 根底にある原則
+### 1.2 The Underlying Principles
 
-クリーンアーキテクチャの核心は以下の3つの原則に集約される。
+The core of Clean Architecture can be summarized in three principles.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                 3つの核心原則                              │
+│                 Three Core Principles                    │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
-│  1. 依存性ルール (Dependency Rule)                       │
-│     → 外側から内側にのみ依存可能                          │
-│     → 内側のコードは外側の存在を一切知らない               │
+│  1. Dependency Rule                                     │
+│     → Dependencies can only flow from outer to inner    │
+│     → Inner code knows nothing about the outer layers   │
 │                                                         │
-│  2. 抽象化の壁 (Abstraction Boundary)                    │
-│     → レイヤー間はインターフェース（抽象）で通信            │
-│     → 具体的な実装詳細は注入される                        │
+│  2. Abstraction Boundary                                │
+│     → Layers communicate via interfaces (abstractions)  │
+│     → Concrete implementation details are injected      │
 │                                                         │
-│  3. フレームワーク非依存 (Framework Independence)         │
-│     → ビジネスロジックはフレームワークの存在を知らない      │
-│     → フレームワークはプラグインとして扱う                 │
+│  3. Framework Independence                              │
+│     → Business logic knows nothing about frameworks     │
+│     → Frameworks are treated as plugins                 │
 │                                                         │
 └─────────────────────────────────────────────────────────┘
 ```
 
-**WHY: なぜこの3原則が重要なのか？**
+**WHY: Why are these three principles important?**
 
-ソフトウェアの寿命は通常10年以上に及ぶが、Web フレームワーク、データベース、メッセージングシステムなどの外部技術は数年で世代交代する。ビジネスロジックが外部技術に依存していると、技術の入れ替えのたびにビジネスロジックまで書き直す必要が生じる。依存性を内向きに限定することで、**ビジネスロジックの安定性**と**外部技術の可換性**の両方を実現できる。
+Software typically has a lifespan of over 10 years, but external technologies such as web frameworks, databases, and messaging systems go through generational changes every few years. If business logic depends on external technology, the business logic must be rewritten every time the technology is replaced. By limiting dependencies to the inward direction, both **stability of business logic** and **replaceability of external technology** can be achieved.
 
-### 1.3 クリーンアーキテクチャが解決する問題
+### 1.3 Problems That Clean Architecture Solves
 
-従来型アーキテクチャで発生する典型的な問題と、クリーンアーキテクチャによる解決策を対比する。
+Contrasting typical problems that arise with traditional architectures against solutions provided by Clean Architecture.
 
 ```
-問題1: フレームワーク・ロックイン
-  従来型: Django Model にビジネスロジックを書く
-         → Django から FastAPI に移行できない（ロジックが Django に依存）
-  Clean:  Entity は純粋な Python クラス
-         → フレームワークを自由に切り替え可能
+Problem 1: Framework Lock-in
+  Traditional: Write business logic in Django Model
+               → Cannot migrate from Django to FastAPI (logic depends on Django)
+  Clean:       Entity is a pure Python class
+               → Frameworks can be freely switched
 
-問題2: テスト困難
-  従来型: Service クラスが直接 PostgreSQL に接続
-         → テスト実行に DB が必要（遅い、セットアップが面倒）
-  Clean:  UseCase は Repository Interface に依存
-         → Fake 実装を注入して DB なしでテスト可能（高速）
+Problem 2: Difficult Testing
+  Traditional: Service class directly connects to PostgreSQL
+               → DB required for test execution (slow, cumbersome to set up)
+  Clean:       UseCase depends on Repository Interface
+               → Can inject Fake implementation to test without DB (fast)
 
-問題3: 変更の影響範囲が広い
-  従来型: DB スキーマ変更 → API レスポンス形式も変わる
-         → フロントエンドも修正が必要
-  Clean:  DB スキーマ変更 → Repository 実装のみ変更
-         → UseCase / Entity / API は影響を受けない
+Problem 3: Wide Impact Range of Changes
+  Traditional: DB schema change → API response format also changes
+               → Frontend also needs modification
+  Clean:       DB schema change → Only Repository implementation changes
+               → UseCase / Entity / API are unaffected
 
-問題4: ビジネスロジックの分散
-  従来型: バリデーションが Controller / Service / Model に分散
-         → 「このルールはどこに書かれている？」が不明確
-  Clean:  ビジネスルールは Entity に集約
-         → 単一の場所で管理
+Problem 4: Dispersed Business Logic
+  Traditional: Validation scattered across Controller / Service / Model
+               → Unclear "where is this rule written?"
+  Clean:       Business rules consolidated in Entity
+               → Managed in a single place
 ```
 
 ---
 
-## 2. 同心円モデル
+## 2. Concentric Circle Model
 
-### 2.1 4層構造
+### 2.1 Four-Layer Structure
 
 ```
 +---------------------------------------------------------------+
@@ -133,179 +133,179 @@ Robert C. Martin（Uncle Bob）は2012年のブログ記事「The Clean Architec
 |   +-------------------------------------------------------+   |
 +---------------------------------------------------------------+
 
-  依存性ルール: 外側 → 内側 のみ依存可能
-  内側は外側の存在を知らない
+  Dependency Rule: Only outer → inner dependencies are allowed
+  Inner code does not know about the outer layers
 ```
 
-### 2.2 各層の詳細解説
+### 2.2 Detailed Explanation of Each Layer
 
-#### Entities（企業全体のビジネスルール）
+#### Entities (Enterprise-wide Business Rules)
 
-最内層に位置し、**企業全体で共有されるビジネスルール**を表現する。特定のアプリケーションに依存せず、同じ企業の別システムでも再利用可能な概念をモデル化する。
+Located in the innermost layer, these express **business rules shared across the entire enterprise**. They model concepts that are not dependent on a specific application and can be reused in other systems within the same enterprise.
 
 ```
-Entities 層の特性:
+Characteristics of the Entities layer:
   ┌────────────────────────────────────────────┐
-  │  ・フレームワークへの依存: ゼロ               │
-  │  ・外部ライブラリへの依存: 最小限             │
-  │  ・変更頻度: 最も低い                        │
-  │  ・テスト: 最も容易（純粋なユニットテスト）    │
-  │  ・具体例: Order, User, Product, Invoice     │
-  │  ・含まれるもの:                              │
-  │    - エンティティ                             │
-  │    - 値オブジェクト                           │
-  │    - ドメインイベント                         │
-  │    - ビジネスルール（バリデーション含む）       │
+  │  · Dependency on frameworks: Zero          │
+  │  · Dependency on external libraries: Minimal│
+  │  · Rate of change: Lowest                  │
+  │  · Testing: Easiest (pure unit tests)      │
+  │  · Examples: Order, User, Product, Invoice  │
+  │  · Contains:                               │
+  │    - Entities                              │
+  │    - Value Objects                         │
+  │    - Domain Events                         │
+  │    - Business rules (including validation) │
   └────────────────────────────────────────────┘
 ```
 
-#### Use Cases（アプリケーション固有のビジネスルール）
+#### Use Cases (Application-Specific Business Rules)
 
-**特定のアプリケーションに固有のビジネスルール**を実装する。「ユーザーが注文を作成する」「管理者が注文をキャンセルする」といった具体的なユースケースを表現する。
+Implements **business rules specific to a particular application**. Expresses concrete use cases such as "a user creates an order" or "an administrator cancels an order."
 
 ```
-Use Cases 層の特性:
+Characteristics of the Use Cases layer:
   ┌────────────────────────────────────────────┐
-  │  ・依存先: Entities のみ + Port Interface    │
-  │  ・変更頻度: 中程度                          │
-  │  ・テスト: Fake/Stub で容易                  │
-  │  ・具体例: CreateOrder, CancelOrder          │
-  │  ・含まれるもの:                              │
-  │    - ユースケースクラス                       │
-  │    - Input/Output DTO                       │
-  │    - Port（リポジトリインターフェース等）      │
-  │    - アプリケーション例外                     │
+  │  · Dependencies: Entities only + Port Interface│
+  │  · Rate of change: Moderate               │
+  │  · Testing: Easy with Fake/Stub           │
+  │  · Examples: CreateOrder, CancelOrder     │
+  │  · Contains:                              │
+  │    - Use case classes                     │
+  │    - Input/Output DTOs                    │
+  │    - Ports (repository interfaces, etc.)  │
+  │    - Application exceptions               │
   └────────────────────────────────────────────┘
 ```
 
-#### Interface Adapters（変換層）
+#### Interface Adapters (Transformation Layer)
 
-外部世界と内部世界の**データ形式を変換**する層。HTTP リクエストを UseCase の入力DTOに変換し、UseCase の出力DTOをHTTPレスポンスに変換する。データベースのレコードをエンティティに変換し、エンティティをデータベースのレコードに変換する。
+The layer that **transforms data formats** between the external world and the internal world. Converts HTTP requests to UseCase input DTOs, and UseCase output DTOs to HTTP responses. Converts database records to entities, and entities to database records.
 
 ```
-Interface Adapters 層の特性:
+Characteristics of the Interface Adapters layer:
   ┌────────────────────────────────────────────┐
-  │  ・依存先: Use Cases + Entities             │
-  │  ・変更頻度: 中〜高                          │
-  │  ・テスト: 統合テスト                        │
-  │  ・具体例:                                   │
-  │    - Controller（HTTP → UseCase Input）      │
-  │    - Presenter（UseCase Output → HTTP）      │
-  │    - Repository 実装（Entity ↔ DB Record）   │
-  │    - Gateway（Entity ↔ 外部API）             │
+  │  · Dependencies: Use Cases + Entities      │
+  │  · Rate of change: Moderate to High       │
+  │  · Testing: Integration tests             │
+  │  · Examples:                              │
+  │    - Controller (HTTP → UseCase Input)    │
+  │    - Presenter (UseCase Output → HTTP)    │
+  │    - Repository impl (Entity ↔ DB Record) │
+  │    - Gateway (Entity ↔ External API)      │
   └────────────────────────────────────────────┘
 ```
 
-#### Frameworks & Drivers（外部技術詳細）
+#### Frameworks & Drivers (External Technical Details)
 
-最外層。Web フレームワーク、データベースドライバ、外部API クライアントなどの**具体的な技術実装**がここに属する。
+The outermost layer. **Concrete technical implementations** such as web frameworks, database drivers, and external API clients belong here.
 
 ```
-Frameworks & Drivers 層の特性:
+Characteristics of the Frameworks & Drivers layer:
   ┌────────────────────────────────────────────┐
-  │  ・変更頻度: 最も高い                        │
-  │  ・テスト: E2E テスト                        │
-  │  ・具体例:                                   │
-  │    - Flask / FastAPI / Django               │
-  │    - PostgreSQL / MySQL / MongoDB           │
-  │    - Redis / RabbitMQ / Kafka               │
-  │    - AWS SDK / GCP Client                   │
-  │  ・役割: 技術詳細のプラグイン                 │
+  │  · Rate of change: Highest                │
+  │  · Testing: E2E tests                     │
+  │  · Examples:                              │
+  │    - Flask / FastAPI / Django             │
+  │    - PostgreSQL / MySQL / MongoDB         │
+  │    - Redis / RabbitMQ / Kafka             │
+  │    - AWS SDK / GCP Client                 │
+  │  · Role: Plugin for technical details     │
   └────────────────────────────────────────────┘
 ```
 
-### 2.3 依存性の方向と依存性逆転
+### 2.3 Direction of Dependencies and Dependency Inversion
 
 ```
-  Controller ──依存──> UseCase ──依存──> Entity
+  Controller ──depends──> UseCase ──depends──> Entity
        |                   |
-       |          UseCase は Repository の
-       |          「インターフェース」に依存
+       |          UseCase depends on the
+       |          "interface" of Repository
        |                   |
        |            <<interface>>
        |           IOrderRepository
        |                   ^
-       |                   |  実装 (implements)
+       |                   |  implements
        |                   |
   PostgresOrderRepository ─+
-  (Frameworks 層)
+  (Frameworks layer)
 
-  ★ UseCase は具体的な DB 実装を知らない
-  ★ DB を MongoDB に差し替えても UseCase は変更不要
-  ★ 依存性逆転 (DIP) により、制御の流れと依存の方向が逆転する
+  ★ UseCase does not know the concrete DB implementation
+  ★ Switching DB to MongoDB requires no changes to UseCase
+  ★ Dependency Inversion (DIP) reverses the direction of control flow and dependency
 ```
 
-**依存性逆転の内部メカニズム:**
+**Internal Mechanism of Dependency Inversion:**
 
-通常のプログラムでは、「呼び出し側が呼び出される側に依存する」のが自然だ。UseCase が PostgreSQL にデータを保存したい場合、素朴に書けば UseCase が PostgresOrderRepository に直接依存する。しかしこれでは UseCase が外側のレイヤーに依存してしまい、依存性ルールに違反する。
+In a normal program, it is natural for the "caller to depend on the callee." If a UseCase wants to save data to PostgreSQL, naively written code would have the UseCase directly depend on PostgresOrderRepository. However, this would make the UseCase depend on an outer layer, violating the Dependency Rule.
 
-依存性逆転は「間にインターフェースを挟む」ことでこの問題を解決する。UseCase は「何かを保存できるもの」という抽象（Protocol/Interface）に依存し、PostgresOrderRepository がそのインターフェースを実装する。制御の流れ（UseCase → PostgreSQL）と依存の方向（PostgresOrderRepository → Interface ← UseCase）が逆転する。
+Dependency Inversion solves this problem by "placing an interface in between." The UseCase depends on an abstraction (Protocol/Interface) of "something that can save things," and PostgresOrderRepository implements that interface. The direction of control flow (UseCase → PostgreSQL) and the direction of dependency (PostgresOrderRepository → Interface ← UseCase) are reversed.
 
 ```
-制御の流れ:
-  UseCase ────呼び出し────> PostgresOrderRepository ──────> PostgreSQL
-  （内側）                 （外側）
+Direction of control flow:
+  UseCase ────calls────> PostgresOrderRepository ──────> PostgreSQL
+  (inner)                (outer)
 
-依存の方向（依存性逆転後）:
-  UseCase ──依存──> IOrderRepository <──実装── PostgresOrderRepository
-  （内側）          （内側で定義）               （外側）
+Direction of dependency (after Dependency Inversion):
+  UseCase ──depends──> IOrderRepository <──implements── PostgresOrderRepository
+  (inner)              (defined in inner)                (outer)
 
-  ★ 制御の流れと依存の方向が逆転している
-  ★ UseCase は内側で定義されたインターフェースにのみ依存
+  ★ Control flow and dependency direction are reversed
+  ★ UseCase only depends on the interface defined in the inner layer
 ```
 
-### 2.4 データフロー
+### 2.4 Data Flow
 
 ```
 HTTP Request (JSON)
      │
      ▼
 [Controller]
-     │  (1) JSON → CreateOrderInput (DTO変換)
+     │  (1) JSON → CreateOrderInput (DTO conversion)
      ▼
 [CreateOrderUseCase]
-     │  (2) ビジネスロジック実行
-     │  (3) Repository Interface 経由でデータ操作
+     │  (2) Execute business logic
+     │  (3) Data operations via Repository Interface
      ▼
-[Repository 実装]
-     │  (4) Entity ↔ DB Model 変換
+[Repository implementation]
+     │  (4) Entity ↔ DB Model conversion
      ▼
 [Database]
 
-     ── 戻り ──
+     ── Return ──
 
 [CreateOrderUseCase]
-     │  (5) CreateOrderOutput (Output DTO) 生成
+     │  (5) Generate CreateOrderOutput (Output DTO)
      ▼
 [Presenter / Controller]
-     │  (6) Output DTO → JSON 変換
+     │  (6) Output DTO → JSON conversion
      ▼
 HTTP Response (JSON)
 ```
 
-### 2.5 境界を越えるデータ
+### 2.5 Data Crossing Boundaries
 
-**内側のレイヤーが外側のデータ構造を知ってはならない** という原則は、レイヤー間を通過するデータにも適用される。各境界ではデータ変換が必要になる。
+The principle that **inner layers must not know about the data structures of outer layers** also applies to data that passes between layers. Data transformation is required at each boundary.
 
 ```
-外部世界           Controller       UseCase          Entity
-                  (Adapter層)      (Application層)   (Domain層)
+External world      Controller       UseCase          Entity
+                  (Adapter layer)  (Application layer) (Domain layer)
 
-JSON Request  →  RequestDTO    →  InputDTO       →  Entity 操作
-                  (HTTP固有)       (アプリ固有)       (ドメイン)
+JSON Request  →  RequestDTO    →  InputDTO       →  Entity operation
+                  (HTTP-specific)  (App-specific)    (Domain)
 
-JSON Response ←  ResponseDTO   ←  OutputDTO      ←  Entity の状態
-                  (HTTP固有)       (アプリ固有)       (ドメイン)
+JSON Response ←  ResponseDTO   ←  OutputDTO      ←  Entity state
+                  (HTTP-specific)  (App-specific)    (Domain)
 
-各レイヤーは自分に最適なデータ構造を持つ
-変換コストはテスタビリティと変更容易性で回収される
+Each layer has its own optimal data structure
+The cost of conversion is recovered through testability and ease of change
 ```
 
 ---
 
-## 3. 各レイヤーの実装
+## 3. Implementation of Each Layer
 
-### 3.1 Entities（ドメインモデル）
+### 3.1 Entities (Domain Model)
 
 ```python
 # domain/entities/order.py
@@ -315,7 +315,7 @@ from enum import Enum
 from typing import List
 
 class OrderStatus(Enum):
-    """注文ステータス: 状態遷移のルールはエンティティが管理"""
+    """Order status: rules for state transitions are managed by the entity"""
     PENDING = "pending"
     CONFIRMED = "confirmed"
     SHIPPED = "shipped"
@@ -324,17 +324,17 @@ class OrderStatus(Enum):
 
 @dataclass(frozen=True)
 class OrderItem:
-    """注文明細: 値オブジェクトとして不変"""
+    """Order line item: immutable as a value object"""
     product_id: str
     name: str
-    price: int          # 円単位（最小通貨単位で扱い浮動小数点を回避）
+    price: int          # In yen units (use minimum currency unit to avoid floating point)
     quantity: int
 
     def __post_init__(self):
         if self.price < 0:
-            raise ValueError(f"価格は0以上: {self.price}")
+            raise ValueError(f"Price must be 0 or more: {self.price}")
         if self.quantity < 1:
-            raise ValueError(f"数量は1以上: {self.quantity}")
+            raise ValueError(f"Quantity must be 1 or more: {self.quantity}")
 
     @property
     def subtotal(self) -> int:
@@ -343,12 +343,12 @@ class OrderItem:
 @dataclass
 class Order:
     """
-    注文エンティティ: ビジネスルールを内包する集約ルート
+    Order entity: aggregate root encapsulating business rules
 
-    設計方針:
-    - 全てのビジネスルールはこのクラス内に閉じる
-    - 外部フレームワーク（DB, Web）への依存ゼロ
-    - 状態遷移のバリデーションを自身で管理
+    Design principles:
+    - All business rules are contained within this class
+    - Zero dependency on external frameworks (DB, Web)
+    - Validates state transitions internally
     """
     id: str
     user_id: str
@@ -357,66 +357,66 @@ class Order:
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
 
-    # --- ビジネスルール ---
+    # --- Business rules ---
 
     @property
     def total_amount(self) -> int:
-        """合計金額を計算"""
+        """Calculate total amount"""
         return sum(item.subtotal for item in self.items)
 
     @property
     def item_count(self) -> int:
-        """明細数を返す"""
+        """Return the number of line items"""
         return len(self.items)
 
     def confirm(self) -> None:
-        """注文を確定する"""
+        """Confirm the order"""
         if self.status != OrderStatus.PENDING:
             raise ValueError(
-                f"PENDING 状態でのみ確定可能（現在: {self.status.value}）"
+                f"Can only confirm from PENDING state (current: {self.status.value})"
             )
         if not self.items:
-            raise ValueError("注文アイテムが空です")
+            raise ValueError("Order items are empty")
         if self.total_amount <= 0:
-            raise ValueError("合計金額が0以下です")
+            raise ValueError("Total amount is 0 or less")
         self.status = OrderStatus.CONFIRMED
         self.updated_at = datetime.now()
 
     def ship(self) -> None:
-        """注文を出荷する"""
+        """Ship the order"""
         if self.status != OrderStatus.CONFIRMED:
             raise ValueError(
-                f"CONFIRMED 状態でのみ出荷可能（現在: {self.status.value}）"
+                f"Can only ship from CONFIRMED state (current: {self.status.value})"
             )
         self.status = OrderStatus.SHIPPED
         self.updated_at = datetime.now()
 
     def deliver(self) -> None:
-        """注文を配達完了にする"""
+        """Mark the order as delivered"""
         if self.status != OrderStatus.SHIPPED:
             raise ValueError(
-                f"SHIPPED 状態でのみ配達完了可能（現在: {self.status.value}）"
+                f"Can only deliver from SHIPPED state (current: {self.status.value})"
             )
         self.status = OrderStatus.DELIVERED
         self.updated_at = datetime.now()
 
     def cancel(self) -> None:
-        """注文をキャンセルする"""
+        """Cancel the order"""
         if self.status in (OrderStatus.SHIPPED, OrderStatus.DELIVERED,
                            OrderStatus.CANCELLED):
             raise ValueError(
-                f"出荷済み/配達済み/キャンセル済みの注文は取消不可"
+                f"Cannot cancel shipped/delivered/already-cancelled orders"
             )
         self.status = OrderStatus.CANCELLED
         self.updated_at = datetime.now()
 
-    # --- 状態遷移図 ---
+    # --- State transition diagram ---
     # PENDING → CONFIRMED → SHIPPED → DELIVERED
     #    ↓          ↓
     # CANCELLED  CANCELLED
 ```
 
-### 3.2 値オブジェクトの実装
+### 3.2 Implementing Value Objects
 
 ```python
 # domain/value_objects/money.py
@@ -425,42 +425,42 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class Money:
     """
-    金額を表す値オブジェクト
+    Value object representing a monetary amount
 
     WHY frozen=True?
-    - 値オブジェクトは不変であるべき（同じ「1000円」は常に同じ）
-    - 不変にすることで、意図しない状態変更を防ぐ
-    - ハッシュ可能になるため、dict のキーや set の要素として使える
+    - Value objects should be immutable (the same "1000 yen" is always the same)
+    - Immutability prevents unintended state changes
+    - Becomes hashable, so it can be used as a dict key or set element
     """
-    amount: int          # 最小通貨単位（日本円なら円）
+    amount: int          # Minimum currency unit (yen for Japanese yen)
     currency: str = "JPY"
 
     def __post_init__(self):
         if self.amount < 0:
-            raise ValueError(f"金額は0以上: {self.amount}")
+            raise ValueError(f"Amount must be 0 or more: {self.amount}")
         if not self.currency:
-            raise ValueError("通貨コードは必須")
+            raise ValueError("Currency code is required")
 
     def add(self, other: 'Money') -> 'Money':
-        """加算: 同一通貨のみ許可"""
+        """Addition: only allowed for the same currency"""
         self._assert_same_currency(other)
         return Money(amount=self.amount + other.amount, currency=self.currency)
 
     def subtract(self, other: 'Money') -> 'Money':
-        """減算: 同一通貨のみ許可"""
+        """Subtraction: only allowed for the same currency"""
         self._assert_same_currency(other)
         if self.amount < other.amount:
-            raise ValueError("残高不足")
+            raise ValueError("Insufficient balance")
         return Money(amount=self.amount - other.amount, currency=self.currency)
 
     def multiply(self, factor: int) -> 'Money':
-        """乗算"""
+        """Multiplication"""
         return Money(amount=self.amount * factor, currency=self.currency)
 
     def _assert_same_currency(self, other: 'Money') -> None:
         if self.currency != other.currency:
             raise ValueError(
-                f"通貨が異なります: {self.currency} vs {other.currency}"
+                f"Different currencies: {self.currency} vs {other.currency}"
             )
 
     def __str__(self) -> str:
@@ -475,13 +475,13 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Email:
-    """メールアドレスを表す値オブジェクト"""
+    """Value object representing an email address"""
     value: str
 
     def __post_init__(self):
         pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         if not re.match(pattern, self.value):
-            raise ValueError(f"無効なメールアドレス: {self.value}")
+            raise ValueError(f"Invalid email address: {self.value}")
 
     def domain(self) -> str:
         return self.value.split('@')[1]
@@ -490,7 +490,7 @@ class Email:
         return self.value
 ```
 
-### 3.3 Use Cases（アプリケーションロジック）
+### 3.3 Use Cases (Application Logic)
 
 ```python
 # application/use_cases/create_order.py
@@ -503,44 +503,44 @@ from typing import List, Protocol, Optional
 
 @dataclass(frozen=True)
 class OrderItemInput:
-    """注文明細の入力DTO"""
+    """Input DTO for order line item"""
     product_id: str
     quantity: int
 
 @dataclass(frozen=True)
 class CreateOrderInput:
-    """注文作成の入力DTO"""
+    """Input DTO for order creation"""
     user_id: str
     items: List[OrderItemInput]
 
 @dataclass(frozen=True)
 class CreateOrderOutput:
-    """注文作成の出力DTO"""
+    """Output DTO for order creation"""
     order_id: str
     total_amount: int
     item_count: int
     status: str
 
 # ========================================
-# Port (リポジトリインターフェース)
+# Port (Repository Interface)
 # ========================================
 
 class OrderRepository(Protocol):
-    """注文リポジトリのポート"""
+    """Port for order repository"""
     def save(self, order: 'Order') -> None: ...
     def find_by_id(self, order_id: str) -> Optional['Order']: ...
     def find_by_user_id(self, user_id: str) -> List['Order']: ...
 
 class ProductRepository(Protocol):
-    """商品リポジトリのポート"""
+    """Port for product repository"""
     def find_by_id(self, product_id: str) -> Optional['Product']: ...
 
 class EventPublisher(Protocol):
-    """イベント発行のポート"""
+    """Port for event publishing"""
     def publish(self, event_name: str, data: dict) -> None: ...
 
 class IdGenerator(Protocol):
-    """ID生成のポート"""
+    """Port for ID generation"""
     def generate(self) -> str: ...
 
 # ========================================
@@ -549,16 +549,16 @@ class IdGenerator(Protocol):
 
 class CreateOrderUseCase:
     """
-    注文作成ユースケース
+    Order creation use case
 
-    責務:
-    - 入力の検証（アプリケーションレベル）
-    - エンティティの生成・操作の調整
-    - リポジトリへの永続化指示
-    - イベントの発行
+    Responsibilities:
+    - Input validation (application level)
+    - Coordinating entity creation and operations
+    - Instructing persistence via repository
+    - Publishing events
 
-    注意: ビジネスルール自体は Entity が持つ。
-    UseCase はオーケストレーション（調整）に徹する。
+    Note: Business rules themselves are held by Entity.
+    UseCase focuses solely on orchestration.
     """
 
     def __init__(
@@ -574,11 +574,11 @@ class CreateOrderUseCase:
         self._id_gen = id_generator
 
     def execute(self, input_dto: CreateOrderInput) -> CreateOrderOutput:
-        # 1. 入力検証（アプリケーションレベル）
+        # 1. Input validation (application level)
         if not input_dto.items:
-            raise ValueError("注文アイテムが空です")
+            raise ValueError("Order items are empty")
 
-        # 2. 商品情報を取得して OrderItem を構築
+        # 2. Retrieve product information and build OrderItems
         order_items = []
         for item_input in input_dto.items:
             product = self._product_repo.find_by_id(item_input.product_id)
@@ -591,24 +591,24 @@ class CreateOrderUseCase:
                 quantity=item_input.quantity,
             ))
 
-        # 3. Order エンティティ生成
+        # 3. Create Order entity
         order = Order(
             id=self._id_gen.generate(),
             user_id=input_dto.user_id,
             items=order_items,
         )
 
-        # 4. 永続化
+        # 4. Persist
         self._order_repo.save(order)
 
-        # 5. イベント発行
+        # 5. Publish event
         self._events.publish('order.created', {
             'order_id': order.id,
             'user_id': order.user_id,
             'total_amount': order.total_amount,
         })
 
-        # 6. Output DTO を返却
+        # 6. Return Output DTO
         return CreateOrderOutput(
             order_id=order.id,
             total_amount=order.total_amount,
@@ -622,7 +622,7 @@ class CreateOrderUseCase:
 @dataclass(frozen=True)
 class CancelOrderInput:
     order_id: str
-    user_id: str       # 本人確認用
+    user_id: str       # For identity verification
     reason: str = ""
 
 @dataclass(frozen=True)
@@ -632,7 +632,7 @@ class CancelOrderOutput:
     cancelled_at: str
 
 class CancelOrderUseCase:
-    """注文キャンセルユースケース"""
+    """Order cancellation use case"""
 
     def __init__(
         self,
@@ -643,22 +643,22 @@ class CancelOrderUseCase:
         self._events = event_publisher
 
     def execute(self, input_dto: CancelOrderInput) -> CancelOrderOutput:
-        # 1. 注文を取得
+        # 1. Retrieve order
         order = self._order_repo.find_by_id(input_dto.order_id)
         if not order:
             raise OrderNotFoundError(input_dto.order_id)
 
-        # 2. 本人確認
+        # 2. Identity verification
         if order.user_id != input_dto.user_id:
-            raise PermissionDeniedError("他者の注文はキャンセルできません")
+            raise PermissionDeniedError("Cannot cancel another user's order")
 
-        # 3. キャンセル実行（ビジネスルールは Entity が検証）
+        # 3. Execute cancellation (Entity validates business rules)
         order.cancel()
 
-        # 4. 永続化
+        # 4. Persist
         self._order_repo.save(order)
 
-        # 5. イベント発行
+        # 5. Publish event
         self._events.publish('order.cancelled', {
             'order_id': order.id,
             'reason': input_dto.reason,
@@ -674,24 +674,24 @@ class CancelOrderUseCase:
 # application/exceptions.py
 
 class ApplicationError(Exception):
-    """アプリケーション層の基底例外"""
+    """Base exception for application layer"""
     pass
 
 class OrderNotFoundError(ApplicationError):
     def __init__(self, order_id: str):
-        super().__init__(f"注文が見つかりません: {order_id}")
+        super().__init__(f"Order not found: {order_id}")
         self.order_id = order_id
 
 class ProductNotFoundError(ApplicationError):
     def __init__(self, product_id: str):
-        super().__init__(f"商品が見つかりません: {product_id}")
+        super().__init__(f"Product not found: {product_id}")
         self.product_id = product_id
 
 class PermissionDeniedError(ApplicationError):
     pass
 ```
 
-### 3.4 Interface Adapters（Controller / Repository 実装）
+### 3.4 Interface Adapters (Controller / Repository Implementation)
 
 ```python
 # adapters/controllers/order_controller.py
@@ -702,20 +702,20 @@ app = Flask(__name__)
 @app.route('/orders', methods=['POST'])
 def create_order():
     """
-    HTTP リクエストを UseCase の入力に変換し、
-    UseCase の出力を HTTP レスポンスに変換する。
+    Converts an HTTP request to UseCase input,
+    and converts UseCase output to an HTTP response.
 
-    Controller の責務:
-    - HTTPリクエストのパース
-    - Input DTO への変換
-    - UseCase の呼び出し
-    - Output DTO から HTTP レスポンスへの変換
-    - エラーハンドリング（HTTP ステータスコードへの変換）
+    Controller responsibilities:
+    - Parsing HTTP requests
+    - Converting to Input DTO
+    - Calling the UseCase
+    - Converting Output DTO to HTTP response
+    - Error handling (converting to HTTP status codes)
     """
     try:
         body = request.get_json()
 
-        # HTTP → Input DTO 変換
+        # HTTP → Input DTO conversion
         input_dto = CreateOrderInput(
             user_id=body['user_id'],
             items=[
@@ -727,11 +727,11 @@ def create_order():
             ],
         )
 
-        # DI コンテナから UseCase を取得して実行
+        # Retrieve UseCase from DI container and execute
         use_case = container.resolve(CreateOrderUseCase)
         output = use_case.execute(input_dto)
 
-        # Output DTO → HTTP レスポンス変換
+        # Output DTO → HTTP response conversion
         return jsonify({
             'order_id': output.order_id,
             'total_amount': output.total_amount,
@@ -749,7 +749,7 @@ def create_order():
 
 @app.route('/orders/<order_id>', methods=['DELETE'])
 def cancel_order(order_id: str):
-    """注文キャンセルエンドポイント"""
+    """Order cancellation endpoint"""
     try:
         body = request.get_json()
         input_dto = CancelOrderInput(
@@ -778,34 +778,34 @@ from sqlalchemy.orm import Session
 
 class PostgresOrderRepository:
     """
-    OrderRepository インターフェースの PostgreSQL 実装
+    PostgreSQL implementation of the OrderRepository interface
 
-    責務:
-    - ドメインエンティティ ↔ DB モデルの変換
-    - SQLAlchemy を用いた永続化操作
+    Responsibilities:
+    - Conversion between domain entities and DB models
+    - Persistence operations using SQLAlchemy
 
-    重要: このクラスは Infrastructure 層に属するが、
-    OrderRepository インターフェース（Application 層）を実装する
+    Important: This class belongs to the Infrastructure layer, but
+    implements the OrderRepository interface (Application layer)
     """
 
     def __init__(self, session: Session):
         self._session = session
 
     def save(self, order: Order) -> None:
-        """エンティティをDBモデルに変換して保存"""
+        """Convert entity to DB model and save"""
         db_order = self._to_model(order)
         self._session.merge(db_order)
         self._session.commit()
 
     def find_by_id(self, order_id: str) -> Order | None:
-        """IDでDBモデルを検索し、エンティティに変換して返す"""
+        """Search DB model by ID, convert to entity and return"""
         db_order = self._session.query(OrderModel).get(order_id)
         if not db_order:
             return None
         return self._to_entity(db_order)
 
     def find_by_user_id(self, user_id: str) -> list[Order]:
-        """ユーザーIDで注文一覧を取得"""
+        """Retrieve list of orders by user ID"""
         db_orders = (
             self._session.query(OrderModel)
             .filter(OrderModel.user_id == user_id)
@@ -815,7 +815,7 @@ class PostgresOrderRepository:
         return [self._to_entity(o) for o in db_orders]
 
     def _to_model(self, order: Order) -> 'OrderModel':
-        """ドメインエンティティ → DB モデル"""
+        """Domain entity → DB model"""
         db_order = OrderModel(
             id=order.id,
             user_id=order.user_id,
@@ -836,7 +836,7 @@ class PostgresOrderRepository:
         return db_order
 
     def _to_entity(self, model: 'OrderModel') -> Order:
-        """DB モデル → ドメインエンティティ"""
+        """DB model → Domain entity"""
         return Order(
             id=model.id,
             user_id=model.user_id,
@@ -859,11 +859,11 @@ class PostgresOrderRepository:
 
 class InMemoryOrderRepository:
     """
-    テスト用のインメモリリポジトリ実装
+    In-memory repository implementation for testing
 
-    同じ OrderRepository インターフェースを実装するため、
-    UseCase のテストで PostgreSQL の代わりに使える。
-    これが依存性逆転の真価。
+    Because it implements the same OrderRepository interface,
+    it can be used in UseCase tests instead of PostgreSQL.
+    This is the true value of Dependency Inversion.
     """
 
     def __init__(self):
@@ -882,34 +882,34 @@ class InMemoryOrderRepository:
         ]
 ```
 
-### 3.5 DI コンテナの構成
+### 3.5 DI Container Configuration
 
 ```python
 # infrastructure/container.py
 """
-DI コンテナ: 依存関係の組み立てを一箇所に集約する
+DI Container: Consolidates dependency assembly in one place
 
-WHY DI コンテナ?
-- UseCase が「何を使うか」は UseCase 自身が定義（Protocol）
-- 「何で実装するか」は DI コンテナが決定
-- テスト時は Fake 実装を注入、本番は本物を注入
+WHY DI container?
+- What the UseCase "uses" is defined by the UseCase itself (Protocol)
+- "What implements it" is decided by the DI container
+- Inject Fake implementations for testing, real ones for production
 """
 
 from dependency_injector import containers, providers
 
 class Container(containers.DeclarativeContainer):
-    """アプリケーション全体の依存関係定義"""
+    """Dependency definitions for the entire application"""
 
-    # --- 設定 ---
+    # --- Configuration ---
     config = providers.Configuration()
 
-    # --- インフラストラクチャ ---
+    # --- Infrastructure ---
     db_session = providers.Singleton(
         create_session,
         database_url=config.database_url,
     )
 
-    # --- リポジトリ ---
+    # --- Repositories ---
     order_repository = providers.Factory(
         PostgresOrderRepository,
         session=db_session,
@@ -920,16 +920,16 @@ class Container(containers.DeclarativeContainer):
         session=db_session,
     )
 
-    # --- イベント ---
+    # --- Events ---
     event_publisher = providers.Singleton(
         KafkaEventPublisher,
         bootstrap_servers=config.kafka_servers,
     )
 
-    # --- ID生成 ---
+    # --- ID generation ---
     id_generator = providers.Singleton(UUIDGenerator)
 
-    # --- ユースケース ---
+    # --- Use cases ---
     create_order_use_case = providers.Factory(
         CreateOrderUseCase,
         order_repo=order_repository,
@@ -945,9 +945,9 @@ class Container(containers.DeclarativeContainer):
     )
 
 
-# テスト用コンテナ
+# Test container
 class TestContainer(containers.DeclarativeContainer):
-    """テスト用: 全ての外部依存を Fake に差し替え"""
+    """For testing: replace all external dependencies with Fakes"""
 
     order_repository = providers.Singleton(InMemoryOrderRepository)
     product_repository = providers.Singleton(FakeProductRepository)
@@ -963,16 +963,16 @@ class TestContainer(containers.DeclarativeContainer):
     )
 ```
 
-### 3.6 テスト（UseCase のユニットテスト）
+### 3.6 Testing (UseCase Unit Tests)
 
 ```python
 # tests/unit/test_create_order.py
 import pytest
 
-# === Fake 実装 ===
+# === Fake Implementations ===
 
 class FakeOrderRepository:
-    """テスト用: メモリ上で注文を管理"""
+    """For testing: manages orders in memory"""
     def __init__(self):
         self.saved: list[Order] = []
 
@@ -986,18 +986,18 @@ class FakeOrderRepository:
         return [o for o in self.saved if o.user_id == user_id]
 
 class FakeProductRepository:
-    """テスト用: 固定商品を返す"""
+    """For testing: returns fixed products"""
     def __init__(self, products: dict[str, 'Product'] | None = None):
         self._products = products or {
-            "prod-1": Product(id="prod-1", name="テスト商品A", price=1000),
-            "prod-2": Product(id="prod-2", name="テスト商品B", price=2500),
+            "prod-1": Product(id="prod-1", name="Test Product A", price=1000),
+            "prod-2": Product(id="prod-2", name="Test Product B", price=2500),
         }
 
     def find_by_id(self, product_id: str) -> 'Product | None':
         return self._products.get(product_id)
 
 class FakeEventPublisher:
-    """テスト用: イベントを記録"""
+    """For testing: records events"""
     def __init__(self):
         self.events: list[tuple[str, dict]] = []
 
@@ -1005,7 +1005,7 @@ class FakeEventPublisher:
         self.events.append((event_name, data))
 
 class SequentialIdGenerator:
-    """テスト用: 予測可能なID生成"""
+    """For testing: predictable ID generation"""
     def __init__(self, prefix: str = "order"):
         self._counter = 0
         self._prefix = prefix
@@ -1015,11 +1015,11 @@ class SequentialIdGenerator:
         return f"{self._prefix}-{self._counter}"
 
 
-# === テストケース ===
+# === Test Cases ===
 
 @pytest.fixture
 def dependencies():
-    """テスト用依存関係を構築"""
+    """Build test dependencies"""
     return {
         'order_repo': FakeOrderRepository(),
         'product_repo': FakeProductRepository(),
@@ -1029,7 +1029,7 @@ def dependencies():
 
 @pytest.fixture
 def use_case(dependencies):
-    """テスト対象のUseCaseを構築"""
+    """Build the UseCase under test"""
     return CreateOrderUseCase(
         order_repo=dependencies['order_repo'],
         product_repo=dependencies['product_repo'],
@@ -1039,10 +1039,10 @@ def use_case(dependencies):
 
 
 class TestCreateOrder:
-    """注文作成ユースケースのテスト"""
+    """Tests for the order creation use case"""
 
-    def test_正常系_注文が作成される(self, use_case, dependencies):
-        """商品が存在する場合、注文が正常に作成される"""
+    def test_happy_path_order_is_created(self, use_case, dependencies):
+        """When products exist, an order is created successfully"""
         result = use_case.execute(CreateOrderInput(
             user_id="user-1",
             items=[
@@ -1051,25 +1051,25 @@ class TestCreateOrder:
             ],
         ))
 
-        # Output DTO の検証
+        # Verify Output DTO
         assert result.order_id == "order-1"
         assert result.total_amount == 4500   # 1000*2 + 2500*1
         assert result.item_count == 2
         assert result.status == "pending"
 
-        # リポジトリに保存されたことを検証
+        # Verify saved to repository
         assert len(dependencies['order_repo'].saved) == 1
         saved_order = dependencies['order_repo'].saved[0]
         assert saved_order.user_id == "user-1"
 
-        # イベントが発行されたことを検証
+        # Verify event was published
         assert len(dependencies['event_pub'].events) == 1
         event_name, event_data = dependencies['event_pub'].events[0]
         assert event_name == "order.created"
         assert event_data['order_id'] == "order-1"
 
-    def test_異常系_存在しない商品(self, use_case):
-        """存在しない商品IDが含まれる場合、エラーになる"""
+    def test_error_case_nonexistent_product(self, use_case):
+        """When a nonexistent product ID is included, an error occurs"""
         with pytest.raises(ProductNotFoundError):
             use_case.execute(CreateOrderInput(
                 user_id="user-1",
@@ -1078,16 +1078,16 @@ class TestCreateOrder:
                 ],
             ))
 
-    def test_異常系_空のアイテムリスト(self, use_case):
-        """アイテムリストが空の場合、エラーになる"""
-        with pytest.raises(ValueError, match="注文アイテムが空"):
+    def test_error_case_empty_item_list(self, use_case):
+        """When the item list is empty, an error occurs"""
+        with pytest.raises(ValueError, match="Order items are empty"):
             use_case.execute(CreateOrderInput(
                 user_id="user-1",
                 items=[],
             ))
 
-    def test_正常系_複数の注文を作成(self, use_case, dependencies):
-        """連続して注文を作成した場合、それぞれ別IDが割り当てられる"""
+    def test_happy_path_create_multiple_orders(self, use_case, dependencies):
+        """When orders are created consecutively, each is assigned a different ID"""
         result1 = use_case.execute(CreateOrderInput(
             user_id="user-1",
             items=[OrderItemInput(product_id="prod-1", quantity=1)],
@@ -1105,7 +1105,7 @@ class TestCreateOrder:
 # tests/unit/test_order_entity.py
 
 class TestOrderEntity:
-    """Order エンティティのビジネスルールテスト"""
+    """Business rule tests for the Order entity"""
 
     def _make_order(self, **kwargs) -> Order:
         defaults = {
@@ -1114,7 +1114,7 @@ class TestOrderEntity:
             'items': [
                 OrderItem(
                     product_id='prod-1',
-                    name='テスト商品',
+                    name='Test Product',
                     price=1000,
                     quantity=2,
                 )
@@ -1123,81 +1123,81 @@ class TestOrderEntity:
         defaults.update(kwargs)
         return Order(**defaults)
 
-    def test_合計金額の計算(self):
+    def test_total_amount_calculation(self):
         order = self._make_order(items=[
             OrderItem(product_id='p1', name='A', price=1000, quantity=2),
             OrderItem(product_id='p2', name='B', price=500, quantity=3),
         ])
         assert order.total_amount == 3500   # 1000*2 + 500*3
 
-    def test_PENDING_から_CONFIRMED_への遷移(self):
+    def test_transition_from_PENDING_to_CONFIRMED(self):
         order = self._make_order()
         order.confirm()
         assert order.status == OrderStatus.CONFIRMED
 
-    def test_CONFIRMED_から_SHIPPED_への遷移(self):
+    def test_transition_from_CONFIRMED_to_SHIPPED(self):
         order = self._make_order()
         order.confirm()
         order.ship()
         assert order.status == OrderStatus.SHIPPED
 
-    def test_SHIPPED_状態でキャンセル不可(self):
+    def test_cannot_cancel_in_SHIPPED_state(self):
         order = self._make_order()
         order.confirm()
         order.ship()
-        with pytest.raises(ValueError, match="取消不可"):
+        with pytest.raises(ValueError, match="Cannot cancel"):
             order.cancel()
 
-    def test_空の注文は確定不可(self):
+    def test_empty_order_cannot_be_confirmed(self):
         order = self._make_order(items=[])
-        with pytest.raises(ValueError, match="注文アイテムが空"):
+        with pytest.raises(ValueError, match="Order items are empty"):
             order.confirm()
 ```
 
 ---
 
-## 4. ディレクトリ構成
+## 4. Directory Structure
 
-### 4.1 推奨ディレクトリ構成（Python）
+### 4.1 Recommended Directory Structure (Python)
 
 ```
 project/
-├── domain/                      # Entities（最内層）
+├── domain/                      # Entities (innermost layer)
 │   ├── __init__.py
 │   ├── entities/
 │   │   ├── __init__.py
-│   │   ├── order.py             # Order 集約ルート
-│   │   ├── product.py           # Product エンティティ
-│   │   └── user.py              # User エンティティ
+│   │   ├── order.py             # Order aggregate root
+│   │   ├── product.py           # Product entity
+│   │   └── user.py              # User entity
 │   ├── value_objects/
 │   │   ├── __init__.py
-│   │   ├── money.py             # Money 値オブジェクト
-│   │   ├── email.py             # Email 値オブジェクト
-│   │   └── address.py           # Address 値オブジェクト
+│   │   ├── money.py             # Money value object
+│   │   ├── email.py             # Email value object
+│   │   └── address.py           # Address value object
 │   ├── events/
 │   │   ├── __init__.py
-│   │   └── order_events.py      # OrderCreated, OrderCancelled 等
-│   └── exceptions.py            # ドメイン例外
+│   │   └── order_events.py      # OrderCreated, OrderCancelled, etc.
+│   └── exceptions.py            # Domain exceptions
 │
 ├── application/                 # Use Cases
 │   ├── __init__.py
 │   ├── use_cases/
 │   │   ├── __init__.py
-│   │   ├── create_order.py      # 注文作成ユースケース
-│   │   ├── cancel_order.py      # 注文キャンセルユースケース
-│   │   ├── get_order.py         # 注文取得ユースケース
-│   │   └── list_orders.py       # 注文一覧ユースケース
-│   ├── ports/                   # ポート（インターフェース定義）
+│   │   ├── create_order.py      # Order creation use case
+│   │   ├── cancel_order.py      # Order cancellation use case
+│   │   ├── get_order.py         # Order retrieval use case
+│   │   └── list_orders.py       # Order list use case
+│   ├── ports/                   # Ports (interface definitions)
 │   │   ├── __init__.py
 │   │   ├── order_repository.py  # OrderRepository Protocol
 │   │   ├── product_repository.py
 │   │   ├── event_publisher.py   # EventPublisher Protocol
 │   │   └── id_generator.py      # IdGenerator Protocol
-│   ├── dto/                     # データ転送オブジェクト
+│   ├── dto/                     # Data Transfer Objects
 │   │   ├── __init__.py
 │   │   ├── order_dto.py         # Input/Output DTO
 │   │   └── product_dto.py
-│   └── exceptions.py            # アプリケーション例外
+│   └── exceptions.py            # Application exceptions
 │
 ├── adapters/                    # Interface Adapters
 │   ├── __init__.py
@@ -1209,11 +1209,11 @@ project/
 │   │   ├── __init__.py
 │   │   ├── postgres_order_repository.py
 │   │   ├── postgres_product_repository.py
-│   │   └── inmemory_order_repository.py  # テスト用
-│   ├── presenters/              # UseCase Output → 表示形式
+│   │   └── inmemory_order_repository.py  # For testing
+│   ├── presenters/              # UseCase Output → Display format
 │   │   ├── __init__.py
 │   │   └── order_presenter.py
-│   └── gateways/                # Entity → 外部 API
+│   └── gateways/                # Entity → External API
 │       ├── __init__.py
 │       └── payment_gateway.py
 │
@@ -1221,38 +1221,38 @@ project/
 │   ├── __init__.py
 │   ├── db/
 │   │   ├── __init__.py
-│   │   ├── models.py            # SQLAlchemy モデル
-│   │   ├── connection.py        # DB接続設定
-│   │   └── migrations/          # Alembic マイグレーション
+│   │   ├── models.py            # SQLAlchemy models
+│   │   ├── connection.py        # DB connection configuration
+│   │   └── migrations/          # Alembic migrations
 │   ├── web/
 │   │   ├── __init__.py
-│   │   ├── flask_app.py         # Flask アプリケーション設定
-│   │   └── middleware.py        # ミドルウェア
+│   │   ├── flask_app.py         # Flask application configuration
+│   │   └── middleware.py        # Middleware
 │   ├── messaging/
 │   │   ├── __init__.py
-│   │   └── kafka_publisher.py   # Kafka イベント発行
-│   └── container.py             # DI コンテナ
+│   │   └── kafka_publisher.py   # Kafka event publishing
+│   └── container.py             # DI container
 │
 ├── tests/
-│   ├── unit/                    # Entity + UseCase テスト
+│   ├── unit/                    # Entity + UseCase tests
 │   │   ├── test_order_entity.py
 │   │   ├── test_create_order.py
 │   │   └── test_cancel_order.py
-│   ├── integration/             # Repository + DB テスト
+│   ├── integration/             # Repository + DB tests
 │   │   ├── test_postgres_order_repository.py
-│   │   └── conftest.py          # テスト用DB設定
-│   └── e2e/                     # API テスト
+│   │   └── conftest.py          # Test DB configuration
+│   └── e2e/                     # API tests
 │       ├── test_order_api.py
-│       └── conftest.py          # テスト用サーバー設定
+│       └── conftest.py          # Test server configuration
 │
 ├── config/
-│   ├── settings.py              # 環境別設定
-│   └── logging.py               # ログ設定
+│   ├── settings.py              # Environment-specific configuration
+│   └── logging.py               # Logging configuration
 │
-└── main.py                      # エントリポイント
+└── main.py                      # Entry point
 ```
 
-### 4.2 TypeScript プロジェクトの場合
+### 4.2 For TypeScript Projects
 
 ```
 src/
@@ -1293,56 +1293,56 @@ src/
     └── e2e/
 ```
 
-### 4.3 Go プロジェクトの場合
+### 4.3 For Go Projects
 
 ```
 internal/
 ├── domain/
-│   ├── order.go                 # Order 構造体 + ビジネスロジック
+│   ├── order.go                 # Order struct + business logic
 │   ├── product.go
-│   ├── money.go                 # 値オブジェクト
-│   └── events.go                # ドメインイベント
+│   ├── money.go                 # Value object
+│   └── events.go                # Domain events
 ├── application/
 │   ├── create_order.go          # UseCase
 │   ├── cancel_order.go
-│   └── ports.go                 # interface 定義
+│   └── ports.go                 # interface definitions
 ├── adapters/
 │   ├── http/
-│   │   └── order_handler.go     # HTTP ハンドラ
+│   │   └── order_handler.go     # HTTP handler
 │   └── postgres/
-│       └── order_repository.go  # PostgreSQL 実装
+│       └── order_repository.go  # PostgreSQL implementation
 ├── infrastructure/
-│   ├── server.go                # HTTP サーバー設定
-│   └── database.go              # DB 接続設定
+│   ├── server.go                # HTTP server configuration
+│   └── database.go              # DB connection configuration
 cmd/
 └── api/
-    └── main.go                  # エントリポイント
+    └── main.go                  # Entry point
 ```
 
 ---
 
-## 5. 高度なトピック
+## 5. Advanced Topics
 
-### 5.1 Presenter パターン
+### 5.1 Presenter Pattern
 
-Controller が UseCase の出力を直接 JSON に変換する単純なケースだけでなく、**Presenter パターン**を使うことで出力形式の変換ロジックを分離できる。
+Beyond the simple case where a Controller directly converts UseCase output to JSON, the **Presenter pattern** can be used to separate the output format conversion logic.
 
 ```python
 # adapters/presenters/order_presenter.py
 
 class OrderPresenter:
     """
-    UseCase の出力を様々な形式に変換する
+    Converts UseCase output to various formats
 
-    WHY Presenterを分離?
-    - 同じ UseCase の出力を JSON / HTML / CSV / gRPC など
-      異なる形式に変換する必要がある場合
-    - Controller が変換ロジックで肥大化するのを防ぐ
+    WHY separate the Presenter?
+    - When the same UseCase output needs to be converted
+      to different formats like JSON / HTML / CSV / gRPC
+    - Prevents Controllers from becoming bloated with conversion logic
     """
 
     @staticmethod
     def to_json(output: CreateOrderOutput) -> dict:
-        """API レスポンス用 JSON"""
+        """JSON for API response"""
         return {
             'order_id': output.order_id,
             'total_amount': output.total_amount,
@@ -1353,42 +1353,42 @@ class OrderPresenter:
 
     @staticmethod
     def to_csv_row(output: CreateOrderOutput) -> str:
-        """CSV エクスポート用"""
+        """For CSV export"""
         return (f"{output.order_id},{output.total_amount},"
                 f"{output.item_count},{output.status}")
 
     @staticmethod
     def to_notification(output: CreateOrderOutput) -> dict:
-        """通知メッセージ用"""
+        """For notification messages"""
         return {
-            'title': '注文が作成されました',
-            'body': (f'注文ID: {output.order_id} / '
-                     f'合計: ¥{output.total_amount:,}'),
+            'title': 'Your order has been created',
+            'body': (f'Order ID: {output.order_id} / '
+                     f'Total: ¥{output.total_amount:,}'),
         }
 ```
 
-### 5.2 CQRS との組み合わせ
+### 5.2 Combining with CQRS
 
-CQRS (Command Query Responsibility Segregation) は「書き込み」と「読み取り」を分離するパターンで、クリーンアーキテクチャと非常に相性がよい。
+CQRS (Command Query Responsibility Segregation) is a pattern that separates "writes" and "reads," and it pairs very well with Clean Architecture.
 
 ```
-クリーンアーキテクチャ + CQRS
+Clean Architecture + CQRS
 
-  Command (書き込み)                    Query (読み取り)
+  Command (Write)                       Query (Read)
   ┌──────────────────┐                ┌──────────────────┐
   │  CreateOrderInput │                │  GetOrderInput   │
   │        ↓          │                │        ↓          │
   │  CreateOrderUseCase│               │  GetOrderQuery   │
   │        ↓          │                │        ↓          │
   │  OrderRepository  │                │  OrderReadModel  │
-  │  (書き込み専用)    │                │  (読み取り専用)   │
+  │  (write-only)     │                │  (read-only)     │
   │        ↓          │                │        ↓          │
-  │  PostgreSQL       │──同期/非同期──>│  Elasticsearch   │
+  │  PostgreSQL       │──sync/async──>│  Elasticsearch   │
   └──────────────────┘                └──────────────────┘
 
-  Command 側: ドメインモデル経由でビジネスルールを適用
-  Query 側: パフォーマンス最適化されたRead Modelから直接取得
-  → 書き込みと読み取りを独立してスケーリング可能
+  Command side: Apply business rules via domain model
+  Query side: Retrieve directly from performance-optimized Read Model
+  → Writes and reads can be scaled independently
 ```
 
 ```python
@@ -1408,7 +1408,7 @@ class OrderDetailOutput:
     created_at: str
 
 class OrderReadRepository(Protocol):
-    """読み取り専用リポジトリ（CQRS の Query 側）"""
+    """Read-only repository (Query side of CQRS)"""
     def find_detail_by_id(
         self, order_id: str
     ) -> OrderDetailOutput | None: ...
@@ -1418,11 +1418,11 @@ class OrderReadRepository(Protocol):
 
 class GetOrderQuery:
     """
-    注文詳細取得クエリ
+    Order detail retrieval query
 
-    注意: Query はドメインモデルを経由せず、
-    Read Model から直接 DTO を返す。
-    ビジネスルールの適用は不要なため。
+    Note: Queries do not go through the domain model;
+    they return DTOs directly from the Read Model.
+    No application of business rules is required.
     """
 
     def __init__(self, read_repo: OrderReadRepository):
@@ -1435,18 +1435,18 @@ class GetOrderQuery:
         return result
 ```
 
-### 5.3 マイクロサービスでのクリーンアーキテクチャ
+### 5.3 Clean Architecture in Microservices
 
 ```
-マイクロサービス間の連携
+Coordination between microservices
 
-  [注文サービス]                    [在庫サービス]
+  [Order Service]                   [Inventory Service]
   ┌─────────────────┐              ┌─────────────────┐
   │ Domain           │              │ Domain           │
   │  Order Entity    │              │  Stock Entity    │
   ├─────────────────┤              ├─────────────────┤
   │ Application      │              │ Application      │
-  │  CreateOrder     │──イベント──>│  ReserveStock    │
+  │  CreateOrder     │──event────>│  ReserveStock    │
   ├─────────────────┤    (Kafka)   ├─────────────────┤
   │ Adapters         │              │ Adapters         │
   │  KafkaPublisher  │              │  KafkaConsumer   │
@@ -1455,16 +1455,16 @@ class GetOrderQuery:
   │  PostgreSQL      │              │  MongoDB         │
   └─────────────────┘              └─────────────────┘
 
-  各サービスが独立したクリーンアーキテクチャ構造を持つ
-  サービス間はイベント（ドメインイベント）で疎結合に連携
-  各サービスは独自のDB技術を選択可能（Polyglot Persistence）
+  Each service has an independent Clean Architecture structure
+  Services are loosely coupled via events (domain events)
+  Each service can choose its own DB technology (Polyglot Persistence)
 ```
 
 ```python
 # adapters/gateways/inventory_gateway.py
 
 class InventoryGateway(Protocol):
-    """在庫サービスとの連携ポート"""
+    """Port for coordination with the inventory service"""
     def check_availability(
         self, product_id: str, quantity: int
     ) -> bool: ...
@@ -1473,7 +1473,7 @@ class InventoryGateway(Protocol):
     ) -> str: ...
 
 class HttpInventoryGateway:
-    """在庫サービスの HTTP API クライアント実装"""
+    """HTTP API client implementation for the inventory service"""
 
     def __init__(self, base_url: str, http_client: 'HttpClient'):
         self._base_url = base_url
@@ -1496,24 +1496,24 @@ class HttpInventoryGateway:
         return response.json()['reservation_id']
 ```
 
-### 5.4 段階的導入戦略
+### 5.4 Incremental Adoption Strategy
 
-プロジェクトの規模に応じた3段階のアプローチを示す。
+A three-step approach based on project scale.
 
 ```
-Step 1: 最小構成（小規模プロジェクト / MVP）
+Step 1: Minimal configuration (small projects / MVP)
 ────────────────────────────────────────────
   domain/
-    entities/        ← ビジネスルールを持つエンティティ
+    entities/        ← Entities with business rules
   application/
-    use_cases/       ← ユースケース + Port定義
+    use_cases/       ← Use cases + Port definitions
   infrastructure/
-    everything_else/ ← Controller + Repository + DB + 全部
+    everything_else/ ← Controller + Repository + DB + everything else
 
-  レイヤー数: 3（Domain / Application / Infrastructure）
-  目的: 最低限の関心の分離を達成
+  Number of layers: 3 (Domain / Application / Infrastructure)
+  Goal: Achieve minimal separation of concerns
 
-Step 2: 標準構成（中規模プロジェクト）
+Step 2: Standard configuration (medium-scale projects)
 ────────────────────────────────────────────
   domain/
     entities/
@@ -1529,19 +1529,19 @@ Step 2: 標準構成（中規模プロジェクト）
     db/
     web/
 
-  レイヤー数: 4（完全な同心円モデル）
-  目的: テスタビリティと変更容易性の確保
+  Number of layers: 4 (complete concentric circle model)
+  Goal: Ensure testability and ease of change
 
-Step 3: 完全構成（大規模 / マイクロサービス）
+Step 3: Full configuration (large-scale / microservices)
 ────────────────────────────────────────────
-  上記 + CQRS + イベントソーシング + Saga
-  モジュール単位で Bounded Context を分離
-  各モジュールが独立したクリーンアーキテクチャ構造
+  Above + CQRS + Event Sourcing + Saga
+  Separate Bounded Contexts per module
+  Each module has an independent Clean Architecture structure
 ```
 
-### 5.5 TypeScript での実装例
+### 5.5 TypeScript Implementation Example
 
-Python 以外の言語での実装例として、TypeScript 版を示す。
+As an implementation example in a language other than Python, here is a TypeScript version.
 
 ```typescript
 // domain/entities/Order.ts
@@ -1560,8 +1560,8 @@ export class OrderItem {
     public readonly price: number,
     public readonly quantity: number,
   ) {
-    if (price < 0) throw new Error(`価格は0以上: ${price}`);
-    if (quantity < 1) throw new Error(`数量は1以上: ${quantity}`);
+    if (price < 0) throw new Error(`Price must be 0 or more: ${price}`);
+    if (quantity < 1) throw new Error(`Quantity must be 1 or more: ${quantity}`);
   }
 
   get subtotal(): number {
@@ -1586,17 +1586,17 @@ export class Order {
 
   confirm(): void {
     if (this._status !== OrderStatus.PENDING) {
-      throw new Error(`PENDING でのみ確定可能 (現在: ${this._status})`);
+      throw new Error(`Can only confirm from PENDING state (current: ${this._status})`);
     }
     if (this._items.length === 0) {
-      throw new Error("注文アイテムが空です");
+      throw new Error("Order items are empty");
     }
     this._status = OrderStatus.CONFIRMED;
   }
 
   cancel(): void {
     if ([OrderStatus.SHIPPED, OrderStatus.CANCELLED].includes(this._status)) {
-      throw new Error("出荷済み/キャンセル済みの注文は取消不可");
+      throw new Error("Cannot cancel shipped/already-cancelled orders");
     }
     this._status = OrderStatus.CANCELLED;
   }
@@ -1633,7 +1633,7 @@ export class CreateOrderUseCase {
     const orderItems: OrderItem[] = [];
     for (const item of input.items) {
       const product = await this.productRepo.findById(item.productId);
-      if (!product) throw new Error(`商品が見つかりません: ${item.productId}`);
+      if (!product) throw new Error(`Product not found: ${item.productId}`);
       orderItems.push(
         new OrderItem(product.id, product.name, product.price, item.quantity)
       );
@@ -1656,159 +1656,159 @@ export class CreateOrderUseCase {
 
 ---
 
-## 6. レイヤー比較表
+## 6. Layer Comparison Table
 
-### 6.1 各レイヤーの特性比較
+### 6.1 Characteristic Comparison of Each Layer
 
-| レイヤー | 責務 | 依存先 | 変更頻度 | テスト方法 | コード例 |
+| Layer | Responsibility | Dependencies | Rate of Change | Testing Method | Code Examples |
 |---------|------|--------|---------|-----------|---------|
-| Entities | ビジネスルール | なし（自己完結） | 最も低い | ユニットテスト | Order, Money |
-| Use Cases | アプリケーションロジック | Entities + Port Interface | 中程度 | ユニットテスト (Fake) | CreateOrderUseCase |
-| Adapters | データ形式の変換 | Use Cases + Entities | 中〜高 | 統合テスト | PostgresOrderRepository |
-| Frameworks | 技術詳細の実装 | 全レイヤー（最外層） | 最も高い | E2E テスト | Flask, SQLAlchemy |
+| Entities | Business rules | None (self-contained) | Lowest | Unit tests | Order, Money |
+| Use Cases | Application logic | Entities + Port Interface | Moderate | Unit tests (Fake) | CreateOrderUseCase |
+| Adapters | Data format conversion | Use Cases + Entities | Moderate to High | Integration tests | PostgresOrderRepository |
+| Frameworks | Technical detail implementation | All layers (outermost) | Highest | E2E tests | Flask, SQLAlchemy |
 
-### 6.2 類似アーキテクチャとの比較
+### 6.2 Comparison with Similar Architectures
 
-| 特性 | クリーンアーキテクチャ | ヘキサゴナル (Ports & Adapters) | オニオン | 従来型 3層 (MVC) |
+| Characteristic | Clean Architecture | Hexagonal (Ports & Adapters) | Onion | Traditional 3-tier (MVC) |
 |------|---------------------|-------------------------------|---------|-----------------|
-| 提唱者 | Robert C. Martin (2012) | Alistair Cockburn (2005) | Jeffrey Palermo (2008) | Trygve Reenskaug (1979) |
-| 中心概念 | 依存性の方向制御 | ポートとアダプター | ドメインモデル中心 | UI/Logic/Data の分離 |
-| レイヤー数 | 4（明確に定義） | 2（内側/外側） | 4（Domain/Service/Infra/UI） | 3（View/Controller/Model） |
-| 入出力の扱い | 同心円の外側に配置 | Primary/Secondary Port で明示 | 外層に配置 | Controller が直接処理 |
-| フレームワーク依存 | プラグインとして扱う | アダプタ経由 | 外層で吸収 | 密結合になりやすい |
-| テスタビリティ | 非常に高い | 高い | 高い | 中程度 |
-| 学習コスト | 高い | 中程度 | 中程度 | 低い |
-| 初期構築コスト | 高い | 中程度 | 中程度 | 低い |
-| 適合プロジェクト規模 | 中〜大規模 | 中規模以上 | 中規模以上 | 小〜中規模 |
+| Proponent | Robert C. Martin (2012) | Alistair Cockburn (2005) | Jeffrey Palermo (2008) | Trygve Reenskaug (1979) |
+| Core Concept | Controlling direction of dependencies | Ports and Adapters | Domain model centric | Separation of UI/Logic/Data |
+| Number of Layers | 4 (clearly defined) | 2 (inner/outer) | 4 (Domain/Service/Infra/UI) | 3 (View/Controller/Model) |
+| Handling I/O | Placed on the outer concentric circle | Explicitly via Primary/Secondary Port | Placed in outer layer | Controller handles directly |
+| Framework Dependency | Treated as plugin | Via adapter | Absorbed in outer layer | Tends toward tight coupling |
+| Testability | Very high | High | High | Moderate |
+| Learning Cost | High | Moderate | Moderate | Low |
+| Initial Build Cost | High | Moderate | Moderate | Low |
+| Suitable Project Scale | Medium to large | Medium scale and above | Medium scale and above | Small to medium |
 
-### 6.3 テスト戦略の比較
+### 6.3 Comparison of Testing Strategies
 
 ```
-テストピラミッドとクリーンアーキテクチャの対応
+Test pyramid and correspondence to Clean Architecture
 
           /\
-         /  \         E2E テスト（少数）
-        / E2E\        → Frameworks 層: 全レイヤー統合
+         /  \         E2E tests (few)
+        / E2E\        → Frameworks layer: all-layer integration
        /------\
-      /  統合   \      統合テスト（中程度）
-     / テスト    \     → Adapters 層: DB接続テスト等
+      /  Integ  \     Integration tests (moderate)
+     /  ration   \    → Adapters layer: DB connection tests, etc.
     /------------\
-   /  ユニット    \    ユニットテスト（多数）
-  /  テスト       \   → Entities + Use Cases: Fake で高速テスト
+   /   Unit      \    Unit tests (many)
+  /   Tests       \   → Entities + Use Cases: fast tests with Fakes
  /________________\
 
-テスト実行時間:
-  Entity テスト:   ~0.01秒/テスト（純粋な計算）
-  UseCase テスト:  ~0.05秒/テスト（Fake リポジトリ）
-  統合テスト:      ~0.5秒/テスト（DB接続あり）
-  E2E テスト:      ~2秒/テスト（HTTP + DB）
+Test execution time:
+  Entity tests:   ~0.01s/test (pure calculations)
+  UseCase tests:  ~0.05s/test (Fake repositories)
+  Integration:    ~0.5s/test  (with DB connection)
+  E2E tests:      ~2s/test    (HTTP + DB)
 ```
 
-### 6.4 各レイヤーで扱うデータ形式の比較
+### 6.4 Comparison of Data Formats Handled by Each Layer
 
-| レイヤー | 入力データ | 出力データ | 変換の責務者 |
+| Layer | Input Data | Output Data | Responsible for Conversion |
 |---------|-----------|-----------|------------|
-| Frameworks | JSON / HTML Form / gRPC | JSON / HTML / Protobuf | フレームワーク自身 |
+| Frameworks | JSON / HTML Form / gRPC | JSON / HTML / Protobuf | The framework itself |
 | Adapters (Controller) | Request DTO | Response DTO | Controller |
-| Use Cases | Input DTO | Output DTO | UseCase 自身 |
-| Entities | メソッド引数 | 戻り値 / プロパティ | Entity 自身 |
+| Use Cases | Input DTO | Output DTO | UseCase itself |
+| Entities | Method arguments | Return values / Properties | Entity itself |
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-patterns
 
-### アンチパターン 1: Entity がフレームワークに依存
+### Anti-pattern 1: Entity Depends on Framework
 
 ```python
-# NG: Entity が SQLAlchemy に依存
+# BAD: Entity depends on SQLAlchemy
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
 
-class Order(Base):           # ← フレームワークへの依存
+class Order(Base):           # ← Dependency on framework
     __tablename__ = 'orders'
     id = Column(Integer, primary_key=True)
     user_id = Column(String(50))
     status = Column(String(20))
-    # Entity と DB モデルが混在
-    # → DB 変更時にビジネスロジックに影響
-    # → ユニットテストに DB 接続が必要
+    # Entity and DB model are mixed
+    # → DB changes affect business logic
+    # → DB connection required for unit tests
 
-# OK: Entity は純粋な Python クラス
+# GOOD: Entity is a pure Python class
 @dataclass
 class Order:
     id: str
     user_id: str
     items: List[OrderItem]
     status: OrderStatus = OrderStatus.PENDING
-    # DB の知識は一切持たない
-    # → DB を変更しても Entity は不変
-    # → ユニットテストが即座に実行可能
+    # Has no knowledge of DB
+    # → Entity is unchanged even if DB changes
+    # → Unit tests can run immediately
 
     def confirm(self) -> None:
         if self.status != OrderStatus.PENDING:
-            raise ValueError("PENDING でのみ確定可能")
+            raise ValueError("Can only confirm from PENDING state")
         self.status = OrderStatus.CONFIRMED
 ```
 
-**WHY これが問題なのか？**
+**WHY is this a problem?**
 
-Entity が ORM に依存すると、(1) テスト時に DB 接続が必須になりテスト速度が低下する、(2) DB のスキーマ変更がビジネスロジックに影響する、(3) ORM の制約に合わせてドメインモデルを歪める必要が生じる。Django の Model で `full_clean()` に全てのバリデーションを押し込む設計は、まさにこのアンチパターンの典型例である。
+When an Entity depends on an ORM: (1) a DB connection becomes mandatory during testing, slowing down test speed; (2) DB schema changes affect business logic; (3) the domain model must be distorted to fit ORM constraints. Pushing all validation into `full_clean()` of a Django Model is a typical example of this anti-pattern.
 
-### アンチパターン 2: UseCase が HTTP リクエストに直接依存
+### Anti-pattern 2: UseCase Directly Depends on HTTP Request
 
 ```python
-# NG: UseCase が Flask の request に依存
+# BAD: UseCase depends on Flask's request
 from flask import request
 
 class CreateOrderUseCase:
     def execute(self):
-        user_id = request.json['user_id']  # ← Web フレームワーク依存
+        user_id = request.json['user_id']  # ← Web framework dependency
         items = request.json['items']
-        # → CLI からの呼び出し不可
-        # → バッチ処理からの呼び出し不可
-        # → テスト時に Flask のリクエストコンテキストが必要
+        # → Cannot be called from CLI
+        # → Cannot be called from batch processing
+        # → Flask request context required during testing
 
-# OK: DTO を介して完全に分離
+# GOOD: Completely separated via DTO
 class CreateOrderUseCase:
     def execute(self, input_dto: CreateOrderInput):
-        user_id = input_dto.user_id        # ← 純粋なデータクラス
-        # → HTTP, CLI, バッチ、テスト、どこからでも呼び出し可能
+        user_id = input_dto.user_id        # ← Pure data class
+        # → Can be called from HTTP, CLI, batch, tests — anywhere
 ```
 
-**WHY これが問題なのか？**
+**WHY is this a problem?**
 
-UseCase が HTTP リクエストに依存すると、同じビジネスロジックを CLI やバッチ処理、メッセージキューのコンシューマーから呼び出せなくなる。DTO を介することで、UseCase は入力元を一切知らずに済む。
+When a UseCase depends on HTTP requests, the same business logic cannot be called from CLI, batch processing, or message queue consumers. By using a DTO, the UseCase doesn't need to know anything about the input source.
 
-### アンチパターン 3: レイヤーを飛び越える依存
+### Anti-pattern 3: Skipping Layers in Dependencies
 
 ```python
-# NG: Controller が直接 Repository 実装を使用
+# BAD: Controller directly uses Repository implementation
 class OrderController:
     def __init__(self):
-        self._repo = PostgresOrderRepository()  # ← 具象クラスに直接依存
+        self._repo = PostgresOrderRepository()  # ← Direct dependency on concrete class
 
     def get_order(self, order_id):
-        # UseCase を経由せずに直接 DB にアクセス
+        # Accesses DB directly without going through UseCase
         return self._repo.find_by_id(order_id)
-        # → ビジネスルールがバイパスされる
-        # → テスト時に PostgreSQL が必要
+        # → Business rules are bypassed
+        # → PostgreSQL required during testing
 
-# OK: Controller → UseCase → Repository Interface の順序を守る
+# GOOD: Maintain the order Controller → UseCase → Repository Interface
 class OrderController:
     def __init__(self, get_order_use_case: GetOrderUseCase):
-        self._use_case = get_order_use_case  # ← UseCase に依存
+        self._use_case = get_order_use_case  # ← Depends on UseCase
 
     def get_order(self, order_id):
         return self._use_case.execute(GetOrderInput(order_id=order_id))
-        # → ビジネスルールが必ず適用される
-        # → テスト時は UseCase を Fake に差し替え可能
+        # → Business rules are always applied
+        # → UseCase can be replaced with Fake during testing
 ```
 
-### アンチパターン 4: UseCase の肥大化（God UseCase）
+### Anti-pattern 4: UseCase Bloat (God UseCase)
 
 ```python
-# NG: 1つの UseCase に多すぎる責務
+# BAD: Too many responsibilities in one UseCase
 class OrderUseCase:
     def create_order(self, ...): ...
     def cancel_order(self, ...): ...
@@ -1816,11 +1816,11 @@ class OrderUseCase:
     def get_order(self, ...): ...
     def list_orders(self, ...): ...
     def export_orders(self, ...): ...
-    # → 単一責任の原則に違反
-    # → テストが複雑化
-    # → 変更の影響範囲が広い
+    # → Violates Single Responsibility Principle
+    # → Tests become complex
+    # → Wide impact range of changes
 
-# OK: 1 UseCase = 1 操作
+# GOOD: 1 UseCase = 1 operation
 class CreateOrderUseCase:
     def execute(self, input_dto: CreateOrderInput) -> CreateOrderOutput:
         ...
@@ -1834,19 +1834,19 @@ class GetOrderQuery:
         ...
 ```
 
-### アンチパターン 5: DTO を使わずにエンティティを直接公開
+### Anti-pattern 5: Exposing Entities Directly Without DTOs
 
 ```python
-# NG: UseCase がエンティティを直接返す
+# BAD: UseCase returns entity directly
 class GetOrderUseCase:
     def execute(self, order_id: str) -> Order:
         order = self._order_repo.find_by_id(order_id)
-        return order    # ← Entity を直接返す
-        # → Controller が Entity のメソッドを呼べてしまう
-        # → Entity の内部構造変更が API レスポンスに影響
-        # → シリアライズが Entity の責務になってしまう
+        return order    # ← Returns Entity directly
+        # → Controller can call Entity methods
+        # → Entity internal structure changes affect API response
+        # → Serialization becomes the Entity's responsibility
 
-# OK: Output DTO を介して情報を公開
+# GOOD: Expose information via Output DTO
 class GetOrderUseCase:
     def execute(self, order_id: str) -> OrderDetailOutput:
         order = self._order_repo.find_by_id(order_id)
@@ -1855,29 +1855,29 @@ class GetOrderUseCase:
             status=order.status.value,
             total_amount=order.total_amount,
         )
-        # → Controller は DTO のフィールドしかアクセスできない
-        # → Entity の内部構造変更は DTO 変換で吸収
+        # → Controller can only access DTO fields
+        # → Entity internal structure changes are absorbed by DTO conversion
 ```
 
 ---
 
-## 8. 実践演習
+## 8. Practice Exercises
 
-### 演習1（基礎）: Entity のビジネスルール実装
+### Exercise 1 (Basic): Implementing Business Rules in an Entity
 
-**課題**: 以下の仕様を持つ `ShoppingCart` エンティティを実装せよ。
+**Task**: Implement a `ShoppingCart` entity with the following specifications.
 
 ```
-仕様:
-- カートにアイテムを追加できる（add_item）
-- 同じ商品は数量を加算する
-- カート内のアイテム数上限は20
-- 合計金額を計算できる（total_amount プロパティ）
-- カートをクリアできる（clear）
-- カート内のアイテム数を返せる（item_count プロパティ）
+Specifications:
+- Items can be added to the cart (add_item)
+- Quantity is added for the same product
+- Maximum number of items in the cart is 20
+- Total amount can be calculated (total_amount property)
+- Cart can be cleared (clear)
+- Number of items in the cart can be returned (item_count property)
 ```
 
-**期待される実装と出力**:
+**Expected implementation and output**:
 
 ```python
 from dataclasses import dataclass, field
@@ -1885,7 +1885,7 @@ from typing import List, Optional
 
 @dataclass(frozen=True)
 class CartItem:
-    """カートアイテム（値オブジェクト）"""
+    """Cart item (value object)"""
     product_id: str
     name: str
     price: int
@@ -1893,9 +1893,9 @@ class CartItem:
 
     def __post_init__(self):
         if self.price < 0:
-            raise ValueError(f"価格は0以上: {self.price}")
+            raise ValueError(f"Price must be 0 or more: {self.price}")
         if self.quantity < 1:
-            raise ValueError(f"数量は1以上: {self.quantity}")
+            raise ValueError(f"Quantity must be 1 or more: {self.quantity}")
 
     @property
     def subtotal(self) -> int:
@@ -1903,7 +1903,7 @@ class CartItem:
 
 @dataclass
 class ShoppingCart:
-    """ショッピングカート集約ルート"""
+    """Shopping cart aggregate root"""
     id: str
     user_id: str
     _items: List[CartItem] = field(default_factory=list)
@@ -1926,7 +1926,7 @@ class ShoppingCart:
         if existing:
             new_quantity = existing.quantity + item.quantity
             if self._total_quantity() - existing.quantity + new_quantity > self.MAX_ITEMS:
-                raise ValueError(f"カート上限({self.MAX_ITEMS})を超えます")
+                raise ValueError(f"Exceeds cart limit ({self.MAX_ITEMS})")
             idx = self._items.index(existing)
             self._items[idx] = CartItem(
                 product_id=existing.product_id,
@@ -1936,13 +1936,13 @@ class ShoppingCart:
             )
         else:
             if self._total_quantity() + item.quantity > self.MAX_ITEMS:
-                raise ValueError(f"カート上限({self.MAX_ITEMS})を超えます")
+                raise ValueError(f"Exceeds cart limit ({self.MAX_ITEMS})")
             self._items.append(item)
 
     def remove_item(self, product_id: str) -> None:
         existing = self._find_item(product_id)
         if not existing:
-            raise ValueError(f"商品がカートにありません: {product_id}")
+            raise ValueError(f"Product not in cart: {product_id}")
         self._items.remove(existing)
 
     def clear(self) -> None:
@@ -1957,36 +1957,36 @@ class ShoppingCart:
         return sum(i.quantity for i in self._items)
 
 
-# テスト実行
+# Test run
 cart = ShoppingCart(id="cart-1", user_id="user-1")
-cart.add_item(CartItem(product_id="p1", name="りんご", price=150, quantity=3))
-cart.add_item(CartItem(product_id="p2", name="みかん", price=100, quantity=5))
-print(f"アイテム数: {cart.item_count}")      # 出力: アイテム数: 8
-print(f"合計金額: ¥{cart.total_amount:,}")    # 出力: 合計金額: ¥950
+cart.add_item(CartItem(product_id="p1", name="Apple", price=150, quantity=3))
+cart.add_item(CartItem(product_id="p2", name="Orange", price=100, quantity=5))
+print(f"Item count: {cart.item_count}")      # Output: Item count: 8
+print(f"Total amount: ¥{cart.total_amount:,}")    # Output: Total amount: ¥950
 
-# 同じ商品を追加すると数量加算
-cart.add_item(CartItem(product_id="p1", name="りんご", price=150, quantity=2))
-print(f"アイテム数: {cart.item_count}")      # 出力: アイテム数: 10
-print(f"合計金額: ¥{cart.total_amount:,}")    # 出力: 合計金額: ¥1,250
+# Adding the same product accumulates quantity
+cart.add_item(CartItem(product_id="p1", name="Apple", price=150, quantity=2))
+print(f"Item count: {cart.item_count}")      # Output: Item count: 10
+print(f"Total amount: ¥{cart.total_amount:,}")    # Output: Total amount: ¥1,250
 
 cart.clear()
-print(f"クリア後: {cart.item_count}")        # 出力: クリア後: 0
+print(f"After clear: {cart.item_count}")        # Output: After clear: 0
 ```
 
-### 演習2（応用）: UseCase + テスト実装
+### Exercise 2 (Applied): UseCase + Test Implementation
 
-**課題**: 以下の `TransferMoneyUseCase`（送金ユースケース）を実装し、テストを書け。
+**Task**: Implement the `TransferMoneyUseCase` (money transfer use case) below and write tests.
 
 ```
-仕様:
-- 送金元アカウントの残高を減算
-- 送金先アカウントの残高を加算
-- 残高不足の場合はエラー
-- 送金完了後にイベントを発行
-- 同一アカウントへの送金はエラー
+Specifications:
+- Deduct balance from the source account
+- Add balance to the destination account
+- Error if insufficient balance
+- Publish event after transfer completion
+- Error if transferring to the same account
 ```
 
-**期待される実装と出力**:
+**Expected implementation and output**:
 
 ```python
 # --- Entity ---
@@ -1994,20 +1994,20 @@ print(f"クリア後: {cart.item_count}")        # 出力: クリア後: 0
 class Account:
     id: str
     owner_name: str
-    balance: int   # 円単位
+    balance: int   # In yen units
 
     def withdraw(self, amount: int) -> None:
         if amount <= 0:
-            raise ValueError("出金額は正の値")
+            raise ValueError("Withdrawal amount must be positive")
         if self.balance < amount:
             raise ValueError(
-                f"残高不足: 残高{self.balance}円 < 出金{amount}円"
+                f"Insufficient balance: balance {self.balance} yen < withdrawal {amount} yen"
             )
         self.balance -= amount
 
     def deposit(self, amount: int) -> None:
         if amount <= 0:
-            raise ValueError("入金額は正の値")
+            raise ValueError("Deposit amount must be positive")
         self.balance += amount
 
 # --- DTO ---
@@ -2040,20 +2040,20 @@ class TransferMoneyUseCase:
 
     def execute(self, input_dto: TransferInput) -> TransferOutput:
         if input_dto.from_account_id == input_dto.to_account_id:
-            raise ValueError("同一アカウントへの送金は不可")
+            raise ValueError("Cannot transfer to the same account")
         if input_dto.amount <= 0:
-            raise ValueError("送金額は正の値")
+            raise ValueError("Transfer amount must be positive")
 
         from_account = self._repo.find_by_id(input_dto.from_account_id)
         to_account = self._repo.find_by_id(input_dto.to_account_id)
 
         if not from_account:
             raise ValueError(
-                f"送金元が見つかりません: {input_dto.from_account_id}"
+                f"Source account not found: {input_dto.from_account_id}"
             )
         if not to_account:
             raise ValueError(
-                f"送金先が見つかりません: {input_dto.to_account_id}"
+                f"Destination account not found: {input_dto.to_account_id}"
             )
 
         from_account.withdraw(input_dto.amount)
@@ -2074,7 +2074,7 @@ class TransferMoneyUseCase:
             transferred_amount=input_dto.amount,
         )
 
-# --- テスト ---
+# --- Tests ---
 class FakeAccountRepository:
     def __init__(self):
         self._store: dict[str, Account] = {}
@@ -2088,10 +2088,10 @@ class FakeAccountRepository:
     def add(self, account: Account) -> None:
         self._store[account.id] = account
 
-def test_送金_正常系():
+def test_transfer_happy_path():
     repo = FakeAccountRepository()
-    repo.add(Account(id="A", owner_name="田中", balance=10000))
-    repo.add(Account(id="B", owner_name="鈴木", balance=5000))
+    repo.add(Account(id="A", owner_name="Tanaka", balance=10000))
+    repo.add(Account(id="B", owner_name="Suzuki", balance=5000))
     events = FakeEventPublisher()
 
     uc = TransferMoneyUseCase(repo, events)
@@ -2103,12 +2103,12 @@ def test_送金_正常系():
     assert result.to_balance == 8000      # 5000 + 3000
     assert result.transferred_amount == 3000
     assert events.events[0][0] == "money.transferred"
-    print("OK: 送金正常系テスト通過")
+    print("OK: Transfer happy path test passed")
 
-def test_送金_残高不足():
+def test_transfer_insufficient_balance():
     repo = FakeAccountRepository()
-    repo.add(Account(id="A", owner_name="田中", balance=1000))
-    repo.add(Account(id="B", owner_name="鈴木", balance=5000))
+    repo.add(Account(id="A", owner_name="Tanaka", balance=1000))
+    repo.add(Account(id="B", owner_name="Suzuki", balance=5000))
     events = FakeEventPublisher()
 
     uc = TransferMoneyUseCase(repo, events)
@@ -2116,31 +2116,31 @@ def test_送金_残高不足():
         uc.execute(TransferInput(
             from_account_id="A", to_account_id="B", amount=5000
         ))
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError as e:
-        assert "残高不足" in str(e)
-        print("OK: 残高不足テスト通過")
+        assert "Insufficient balance" in str(e)
+        print("OK: Insufficient balance test passed")
 
-test_送金_正常系()     # 出力: OK: 送金正常系テスト通過
-test_送金_残高不足()    # 出力: OK: 残高不足テスト通過
+test_transfer_happy_path()     # Output: OK: Transfer happy path test passed
+test_transfer_insufficient_balance()    # Output: OK: Insufficient balance test passed
 ```
 
-### 演習3（発展）: フレームワーク移行シミュレーション
+### Exercise 3 (Advanced): Framework Migration Simulation
 
-**課題**: Flask で実装された既存の注文 API を FastAPI に移行せよ。クリーンアーキテクチャに従っていれば、**変更するのは Controller（Adapter 層）と Web Framework（Infrastructure 層）のみ**であることを確認せよ。
+**Task**: Migrate an existing order API implemented in Flask to FastAPI. Verify that if Clean Architecture is followed, **only the Controller (Adapter layer) and Web Framework (Infrastructure layer) need to be changed**.
 
 ```
-目標:
-- domain/ と application/ は一切変更しない
-- adapters/controllers/ を FastAPI 用に書き換える
-- infrastructure/web/ を FastAPI 用に書き換える
-- テストが全て通ることを確認する
+Goals:
+- Make no changes to domain/ and application/
+- Rewrite adapters/controllers/ for FastAPI
+- Rewrite infrastructure/web/ for FastAPI
+- Verify that all tests pass
 ```
 
-**期待される実装**:
+**Expected implementation**:
 
 ```python
-# === Before: Flask (変更前) ===
+# === Before: Flask ===
 
 # adapters/controllers/order_controller_flask.py
 from flask import Flask, request, jsonify
@@ -2159,7 +2159,7 @@ def create_order():
     return jsonify(OrderPresenter.to_json(output)), 201
 
 
-# === After: FastAPI (変更後) ===
+# === After: FastAPI ===
 
 # adapters/controllers/order_controller_fastapi.py
 from fastapi import FastAPI, HTTPException
@@ -2168,12 +2168,12 @@ from pydantic import BaseModel
 app = FastAPI()
 
 class CreateOrderRequest(BaseModel):
-    """FastAPI のリクエストバリデーション"""
+    """FastAPI request validation"""
     user_id: str
     items: list[dict]
 
 class CreateOrderResponse(BaseModel):
-    """FastAPI のレスポンスシリアライゼーション"""
+    """FastAPI response serialization"""
     order_id: str
     total_amount: int
     item_count: int
@@ -2190,7 +2190,7 @@ async def create_order(req: CreateOrderRequest):
         items=[OrderItemInput(**i) for i in req.items],
     )
     try:
-        # UseCase は Flask 版と全く同じものを使う
+        # UseCase is exactly the same as in the Flask version
         use_case = container.resolve(CreateOrderUseCase)
         output = use_case.execute(input_dto)
         return CreateOrderResponse(
@@ -2205,44 +2205,44 @@ async def create_order(req: CreateOrderRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-# 変更ファイルの確認:
-# domain/              → 変更なし（0ファイル）
-# application/         → 変更なし（0ファイル）
-# adapters/controllers → order_controller.py のみ変更（1ファイル）
-# infrastructure/web/  → flask_app.py → fastapi_app.py（1ファイル）
-# tests/unit/          → 変更なし（Fake を使っているため）
-# tests/e2e/           → Flask テストクライアント → httpx に変更
+# Verification of changed files:
+# domain/              → No changes (0 files)
+# application/         → No changes (0 files)
+# adapters/controllers → Only order_controller.py changed (1 file)
+# infrastructure/web/  → flask_app.py → fastapi_app.py (1 file)
+# tests/unit/          → No changes (uses Fakes)
+# tests/e2e/           → Flask test client → changed to httpx
 
-# フレームワーク移行で変更したのは Adapter + Infrastructure のみ
-# ビジネスロジック（Entity + UseCase）は一切触れていない
-# → これがクリーンアーキテクチャの真価
+# Only Adapter + Infrastructure were changed for the framework migration
+# Business logic (Entity + UseCase) was never touched
+# → This is the true value of Clean Architecture
 ```
 
 ---
 
-## 9. 実装上の注意点とベストプラクティス
+## 9. Implementation Notes and Best Practices
 
-### 9.1 エラーハンドリング戦略
+### 9.1 Error Handling Strategy
 
-各レイヤーでのエラーの扱い方を統一することが重要である。
+It is important to standardize how errors are handled in each layer.
 
 ```python
-# ドメイン層: ドメイン例外
+# Domain layer: Domain exceptions
 class DomainError(Exception):
-    """ビジネスルール違反"""
+    """Business rule violation"""
     pass
 
 class InsufficientBalanceError(DomainError):
     pass
 
-# アプリケーション層: アプリケーション例外
+# Application layer: Application exceptions
 class ApplicationError(Exception):
     pass
 
 class OrderNotFoundError(ApplicationError):
     pass
 
-# Adapter 層: 例外を HTTP ステータスに変換
+# Adapter layer: Convert exceptions to HTTP status codes
 ERROR_STATUS_MAP = {
     DomainError: 422,          # Unprocessable Entity
     OrderNotFoundError: 404,    # Not Found
@@ -2256,21 +2256,21 @@ def handle_error(error):
     return jsonify({'error': str(error)}), status
 ```
 
-### 9.2 ログ戦略
+### 9.2 Logging Strategy
 
 ```python
-# NG: Entity や UseCase 内でロガーを直接使う
+# BAD: Directly using a logger inside Entity or UseCase
 import logging
 logger = logging.getLogger(__name__)
 
 class CreateOrderUseCase:
     def execute(self, input_dto):
-        logger.info("注文作成開始")  # ← ロギングフレームワークへの依存
+        logger.info("Starting order creation")  # ← Dependency on logging framework
         ...
 
-# OK: ログは Adapter 層またはデコレータで行う
+# GOOD: Logging is done in the Adapter layer or via a decorator
 class LoggingUseCaseDecorator:
-    """UseCase にログ機能を追加するデコレータ"""
+    """Decorator that adds logging functionality to a UseCase"""
 
     def __init__(self, use_case, logger):
         self._use_case = use_case
@@ -2278,25 +2278,25 @@ class LoggingUseCaseDecorator:
 
     def execute(self, input_dto):
         self._logger.info(
-            f"UseCase開始: {type(self._use_case).__name__}"
+            f"UseCase started: {type(self._use_case).__name__}"
         )
         try:
             result = self._use_case.execute(input_dto)
             self._logger.info(
-                f"UseCase成功: {type(self._use_case).__name__}"
+                f"UseCase succeeded: {type(self._use_case).__name__}"
             )
             return result
         except Exception as e:
             self._logger.error(
-                f"UseCase失敗: {type(self._use_case).__name__} - {e}"
+                f"UseCase failed: {type(self._use_case).__name__} - {e}"
             )
             raise
 ```
 
-### 9.3 トランザクション管理
+### 9.3 Transaction Management
 
 ```python
-# Unit of Work パターンでトランザクションを管理
+# Manage transactions with the Unit of Work pattern
 
 class UnitOfWork(Protocol):
     def __enter__(self) -> 'UnitOfWork': ...
@@ -2324,7 +2324,7 @@ class SQLAlchemyUnitOfWork:
         self._session.rollback()
 
 
-# UseCase でのトランザクション管理
+# Transaction management in UseCase
 class TransferMoneyUseCase:
     def __init__(self, account_repo, event_publisher, uow: UnitOfWork):
         self._repo = account_repo
@@ -2352,34 +2352,34 @@ class TransferMoneyUseCase:
 
 ## 10. FAQ
 
-### Q1. クリーンアーキテクチャは小規模プロジェクトでも必要か？
+### Q1. Is Clean Architecture necessary even for small-scale projects?
 
-**A.** 小規模・短期プロジェクトでは過剰設計になることが多い。判断基準は以下の通り。
+**A.** For small-scale or short-term projects, it often becomes over-engineering. The decision criteria are as follows.
 
 ```
-適用判断フローチャート:
+Application decision flowchart:
 
-  プロジェクトの寿命は1年以上？
-    ├── No → 従来型 MVC で十分
+  Will the project last more than 1 year?
+    ├── No → Traditional MVC is sufficient
     └── Yes
-         ビジネスルールは複雑？
-           ├── No → 簡易3層（Domain/Application/Infrastructure）
+         Are the business rules complex?
+           ├── No → Simple 3-tier (Domain/Application/Infrastructure)
            └── Yes
-                チームは3人以上？
-                  ├── No → 簡易3層 + Port 定義
-                  └── Yes → フルのクリーンアーキテクチャ
+                Is the team 3 or more people?
+                  ├── No → Simple 3-tier + Port definitions
+                  └── Yes → Full Clean Architecture
 ```
 
-レイヤー数を減らした「簡易版」を検討する。例えば Domain + Application + Infrastructure の3層に簡略化し、プロジェクトの成長に合わせて分離度を高める段階的アプローチが現実的。CRUD 中心の管理画面なら従来型 MVC で十分な場合もある。
+Consider a "simplified version" with fewer layers. For example, a pragmatic approach is to simplify to 3 layers — Domain + Application + Infrastructure — and incrementally increase separation as the project grows. For CRUD-centric admin screens, traditional MVC may be sufficient.
 
-### Q2. DTO とエンティティの変換が面倒だが省略できるか？
+### Q2. The DTO-to-entity conversion is tedious — can it be omitted?
 
-**A.** レイヤー間のデータ変換はクリーンアーキテクチャの**本質的なコスト**である。省略するとレイヤー間の結合度が上がり、変更時の影響範囲が拡大する。
+**A.** Data conversion between layers is an **essential cost** of Clean Architecture. Omitting it increases coupling between layers and expands the impact range of changes.
 
-ただし、変換コードの記述量は以下の方法で削減できる。
+However, the amount of conversion code can be reduced with the following methods.
 
 ```python
-# 方法1: dataclass の asdict() を活用
+# Method 1: Use dataclass's asdict()
 from dataclasses import asdict
 
 output = CreateOrderOutput(**{
@@ -2387,7 +2387,7 @@ output = CreateOrderOutput(**{
     if k in CreateOrderOutput.__dataclass_fields__
 })
 
-# 方法2: マッピング関数を共通化
+# Method 2: Share a mapping function
 def map_to_output(order: Order) -> CreateOrderOutput:
     return CreateOrderOutput(
         order_id=order.id,
@@ -2396,7 +2396,7 @@ def map_to_output(order: Order) -> CreateOrderOutput:
         status=order.status.value,
     )
 
-# 方法3: pydantic の model_validate (v2) を活用
+# Method 3: Use pydantic's model_validate (v2)
 class CreateOrderOutput(BaseModel):
     @classmethod
     def from_entity(cls, order: Order) -> 'CreateOrderOutput':
@@ -2408,14 +2408,14 @@ class CreateOrderOutput(BaseModel):
         )
 ```
 
-変換の価値は「テスト容易性」と「変更容易性」で回収される。プロジェクト初期は面倒に感じるが、6ヶ月後にフレームワーク移行やDB変更が発生した際に、その価値を実感する。
+The value of conversion is recovered through "testability" and "ease of change." It feels tedious at the beginning of a project, but 6 months later, when a framework migration or DB change occurs, you will experience its value firsthand.
 
-### Q3. DI コンテナは必須か？
+### Q3. Is a DI container mandatory?
 
-**A.** 必須ではないが推奨。小規模なら手動 DI（コンストラクタ注入）で十分。
+**A.** Not mandatory, but recommended. For small scale, manual DI (constructor injection) is sufficient.
 
 ```python
-# 手動 DI（小規模プロジェクト向け）
+# Manual DI (for small-scale projects)
 def create_order_use_case() -> CreateOrderUseCase:
     session = create_session()
     return CreateOrderUseCase(
@@ -2425,72 +2425,72 @@ def create_order_use_case() -> CreateOrderUseCase:
         id_generator=UUIDGenerator(),
     )
 
-# DI コンテナ（中〜大規模プロジェクト向け）
+# DI container (for medium to large-scale projects)
 # dependency-injector (Python), tsyringe (TypeScript)
-# → 依存関係の一元管理、環境切り替えが容易
+# → Centralized dependency management, easy environment switching
 ```
 
-プロジェクト規模が大きくなったら `dependency-injector` (Python) や `tsyringe` (TypeScript) などの DI コンテナで依存関係を一元管理すると、設定変更や環境切り替え（テスト用 Fake / 本番用実装）が容易になる。
+As the project grows larger, using a DI container like `dependency-injector` (Python) or `tsyringe` (TypeScript) to centrally manage dependencies makes configuration changes and environment switching (test Fakes / production implementations) easier.
 
-### Q4. Entity が複数の UseCase から呼ばれる場合の設計は？
+### Q4. How should you design things when an Entity is called from multiple UseCases?
 
-**A.** Entity は複数の UseCase から呼ばれることが自然である。Entity はビジネスルールの Single Source of Truth であり、同じルール（例: 「出荷済み注文はキャンセル不可」）は Entity に一度だけ実装すればよい。UseCase は Entity のメソッドを呼び出してオーケストレーションに徹する。
+**A.** It is natural for an Entity to be called from multiple UseCases. An Entity is the Single Source of Truth for business rules, and the same rule (e.g., "shipped orders cannot be cancelled") only needs to be implemented once in the Entity. UseCases call Entity methods and focus solely on orchestration.
 
 ```python
-# Entity は1つ、UseCase は複数
+# One Entity, multiple UseCases
 class Order:
     def cancel(self):
-        # キャンセルのビジネスルールは Entity に1箇所だけ
+        # Cancellation business rules are in Entity in just one place
         ...
 
-class UserCancelOrderUseCase:     # ユーザー起点のキャンセル
+class UserCancelOrderUseCase:     # Cancellation initiated by user
     def execute(self, ...):
         order.cancel()
 
-class AdminCancelOrderUseCase:    # 管理者起点のキャンセル（追加処理あり）
+class AdminCancelOrderUseCase:    # Cancellation initiated by admin (with additional processing)
     def execute(self, ...):
         order.cancel()
-        self._notify_user(order)  # 管理者キャンセル固有の処理
+        self._notify_user(order)  # Admin-cancellation-specific processing
 ```
 
-### Q5. クリーンアーキテクチャでパフォーマンスは犠牲にならないか？
+### Q5. Does Clean Architecture sacrifice performance?
 
-**A.** レイヤー間のデータ変換によるオーバーヘッドは存在するが、通常は無視できるレベル（DTO変換で数マイクロ秒）。パフォーマンスのボトルネックは DB クエリやネットワーク通信（数ミリ秒〜数百ミリ秒）であり、レイヤー間変換のコストは2〜3桁小さい。
+**A.** The overhead from data conversion between layers exists, but it is usually at a negligible level (a few microseconds for DTO conversion). Performance bottlenecks are DB queries and network communication (milliseconds to hundreds of milliseconds), and the cost of inter-layer conversion is 2 to 3 orders of magnitude smaller.
 
-ただし、大量データの一括処理（バッチインポート等）では、全データを Entity に変換するコストが累積する。そのような場合は CQRS の Query 側で直接 DB にアクセスする設計が妥当。
+However, for bulk processing of large amounts of data (batch imports, etc.), the cost of converting all data to Entities can accumulate. In such cases, a design that accesses the DB directly on the Query side of CQRS is appropriate.
 
-### Q6. クリーンアーキテクチャと DDD の関係は？
+### Q6. What is the relationship between Clean Architecture and DDD?
 
-**A.** クリーンアーキテクチャは**レイヤー構造**を定義し、DDD は**ドメインモデリングの手法**を提供する。両者は補完関係にある。
-
-```
-クリーンアーキテクチャ: 「依存性をどの方向に向けるか」を定義
-DDD:                  「Entities 層に何を実装するか」を定義
-
-クリーン + DDD の組み合わせ:
-  Entities 層 = DDD の集約、値オブジェクト、ドメインイベント
-  Use Cases 層 = DDD のアプリケーションサービス
-  Adapters 層 = DDD のリポジトリ実装
-```
-
-### Q7. 既存プロジェクトにクリーンアーキテクチャを導入するには？
-
-**A.** ビッグバンリライトは避け、段階的に導入する。推奨手順は以下の通り。
+**A.** Clean Architecture defines **layer structure**, and DDD provides **domain modeling techniques**. The two are complementary.
 
 ```
-Step 1: 新機能からクリーンアーキテクチャを適用
-  → 既存コードは触らず、新しいユースケースだけ Clean で書く
+Clean Architecture: Defines "in which direction dependencies should point"
+DDD:                Defines "what to implement in the Entities layer"
 
-Step 2: テストを追加しながら Entity を抽出
-  → 既存の Model / Service からビジネスルールを Entity に移動
+Clean + DDD combination:
+  Entities layer = DDD aggregates, value objects, domain events
+  Use Cases layer = DDD application services
+  Adapters layer = DDD repository implementations
+```
 
-Step 3: Repository Interface を導入
-  → 既存の DB アクセスコードを Repository 実装でラップ
+### Q7. How do you introduce Clean Architecture into an existing project?
 
-Step 4: Controller を UseCase 経由に変更
-  → API エンドポイントを1つずつ UseCase 経由に移行
+**A.** Avoid big-bang rewrites and introduce it incrementally. The recommended procedure is as follows.
 
-目安期間: 中規模プロジェクトで3〜6ヶ月
+```
+Step 1: Apply Clean Architecture to new features first
+  → Don't touch existing code; write only new use cases in Clean style
+
+Step 2: Extract Entities while adding tests
+  → Move business rules from existing Models/Services to Entities
+
+Step 3: Introduce Repository Interfaces
+  → Wrap existing DB access code with Repository implementations
+
+Step 4: Change Controllers to go through UseCases
+  → Migrate API endpoints to go through UseCases one by one
+
+Estimated time: 3 to 6 months for a medium-scale project
 ```
 
 ---
@@ -2498,53 +2498,51 @@ Step 4: Controller を UseCase 経由に変更
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and confirming how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently utilized in day-to-day development work. It becomes particularly important during code reviews and architectural design.
 
 ---
 
-## 11. まとめ
+## 11. Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| 依存性ルール | 外側から内側にのみ依存。内側は外側を知らない。これが最重要ルール |
-| Entities | ビジネスルールの核。フレームワーク非依存。変更頻度が最も低い |
-| Use Cases | アプリケーションロジック。Port（インターフェース）に依存。Entity の調整役 |
-| Adapters | DTO 変換、HTTP ↔ UseCase、DB ↔ Entity の橋渡し。技術詳細の吸収層 |
-| Frameworks | 技術詳細のプラグイン。最も変更頻度が高く、最も外側に位置する |
-| テスト戦略 | 内側のレイヤーほどユニットテストが容易。Fake 実装で DB 不要 |
-| DI | 依存性の組み立ては DI コンテナで一元管理。テスト/本番の切り替えが容易 |
-| トレードオフ | 初期コスト（DTO 変換、レイヤー構築）vs 長期的な保守性・テスト容易性 |
-| 段階的導入 | 小規模は3層、中規模は4層、大規模は CQRS 併用で段階的に適用 |
-| 類似パターン | ヘキサゴナル、オニオンとほぼ同等。従来型 MVC とは根本的に異なる |
+| Dependency Rule | Dependencies flow only from outer to inner. Inner knows nothing about outer. This is the most important rule. |
+| Entities | The core of business rules. Framework-independent. Lowest rate of change. |
+| Use Cases | Application logic. Depends on Ports (interfaces). Orchestrator of Entities. |
+| Adapters | DTO conversion; bridge between HTTP ↔ UseCase and DB ↔ Entity. Layer that absorbs technical details. |
+| Frameworks | Plugin for technical details. Highest rate of change; located at the outermost layer. |
+| Testing Strategy | The inner the layer, the easier unit testing is. No DB required with Fake implementations. |
+| DI | Dependency assembly is centrally managed by DI container. Easy switching between test/production. |
+| Trade-offs | Initial cost (DTO conversion, layer construction) vs. long-term maintainability and testability. |
+| Incremental Adoption | Apply with 3 layers for small scale, 4 layers for medium scale, combined with CQRS for large scale. |
+| Similar Patterns | Essentially equivalent to Hexagonal and Onion. Fundamentally different from traditional MVC. |
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [DDD（ドメイン駆動設計）](./02-ddd.md) — 集約と境界づけられたコンテキストによるドメインモデリング。クリーンアーキテクチャの Entities 層の設計手法
-- [イベント駆動アーキテクチャ](./03-event-driven.md) — Pub/Sub による疎結合な連携。マイクロサービスでの適用
-- テスト原則 — AAA・FIRST によるテスト設計。クリーンアーキテクチャのテスト戦略の基礎
-- SOLID 原則 — 依存性逆転の原則（DIP）の詳細。クリーンアーキテクチャの理論的基盤
-- Repository パターン — Port/Adapter の具体的な実装パターン
-- [システム設計の基礎](../00-fundamentals/) — スケーラビリティ、可用性など非機能要件の基礎
+- [DDD (Domain-Driven Design)](./02-ddd.md) — Domain modeling with aggregates and bounded contexts. Design techniques for the Entities layer in Clean Architecture.
+- [Event-Driven Architecture](./03-event-driven.md) — Loosely coupled coordination via Pub/Sub. Application in microservices.
+- Testing Principles — Test design with AAA and FIRST. Foundation of testing strategy in Clean Architecture.
+- SOLID Principles — Details on the Dependency Inversion Principle (DIP). Theoretical foundation of Clean Architecture.
+- Repository Pattern — Concrete implementation patterns for Port/Adapter.
+- [System Design Fundamentals](../00-fundamentals/) — Fundamentals of non-functional requirements such as scalability and availability.
 
 ---
 
-## 参考文献
+## References
 
-1. **Clean Architecture: A Craftsman's Guide to Software Structure and Design** — Robert C. Martin (Prentice Hall, 2017) — クリーンアーキテクチャの原典。同心円モデルと依存性ルールの詳細な解説
-2. **Hexagonal Architecture (Ports and Adapters)** — Alistair Cockburn — https://alistair.cockburn.us/hexagonal-architecture/ — クリーンアーキテクチャの原型となった Ports & Adapters パターン
-3. **Architecture Patterns with Python** — Harry Percival & Bob Gregory (O'Reilly, 2020) — Python でのクリーンアーキテクチャ実践。Repository パターン、Unit of Work の実装例
-4. **The Clean Architecture (Blog Post)** — Robert C. Martin (2012) — https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html — クリーンアーキテクチャの初出ブログ記事
-5. **Implementing Domain-Driven Design** — Vaughn Vernon (Addison-Wesley, 2013) — DDD とクリーンアーキテクチャの組み合わせ
-6. **Clean Code: A Handbook of Agile Software Craftsmanship** — Robert C. Martin (Prentice Hall, 2008) — クリーンアーキテクチャの前提となるクリーンコードの原則
+1. **Clean Architecture: A Craftsman's Guide to Software Structure and Design** — Robert C. Martin (Prentice Hall, 2017) — The original work on Clean Architecture. Detailed explanation of the concentric circle model and Dependency Rule.
+2. **Hexagonal Architecture (Ports and Adapters)** — Alistair Cockburn — https://alistair.cockburn.us/hexagonal-architecture/ — The Ports & Adapters pattern that became the prototype for Clean Architecture.
+3. **Architecture Patterns with Python** — Harry Percival & Bob Gregory (O'Reilly, 2020) — Clean Architecture in practice with Python. Implementation examples of Repository pattern and Unit of Work.
+4. **The Clean Architecture (Blog Post)** — Robert C. Martin (2012) — https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html — The original blog post where Clean Architecture was first introduced.
