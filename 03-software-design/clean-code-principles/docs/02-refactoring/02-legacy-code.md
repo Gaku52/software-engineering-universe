@@ -1,130 +1,130 @@
-# レガシーコード
+# Legacy Code
 
-> レガシーコードとは「テストのないコード」である（Michael Feathers）。何年も保守され、全体像を誰も把握していないコードベースと向き合い、安全に変更を加えるための体系的な技法を、依存性の切断・特性テスト・Strangler Fig パターンを通じて解説する。Feathers は『Working Effectively with Legacy Code』で「レガシーコードは恐怖の源である ── テストがなければ、変更するたびに何が壊れるか分からない」と述べた。本章では、恐怖を取り除き、レガシーコードを計画的に改善するための実践的な技法を深掘りする。
+> Legacy code is code without tests (Michael Feathers). This chapter explains systematic techniques for safely modifying codebases that have been maintained for years and whose overall picture no one fully grasps — covering dependency breaking, characterization tests, and the Strangler Fig pattern. Feathers wrote in *Working Effectively with Legacy Code*: "Legacy code is a source of fear — without tests, you never know what will break when you make a change." This chapter dives deep into practical techniques for removing that fear and improving legacy code in a planned, systematic way.
 
 ---
 
-## 前提知識
+## Prerequisites
 
-| 前提 | 参照先 |
+| Prerequisite | Reference |
 |------|--------|
-| コードスメルの分類 | [00-code-smells.md](./00-code-smells.md) |
-| リファクタリング技法 | [01-refactoring-techniques.md](./01-refactoring-techniques.md) |
-| テストの基礎（AAA、テストダブル） | [01-practices/04-testing-principles.md](../01-practices/04-testing-principles.md) |
-| クリーンコードの基本原則 | [00-principles/](../00-principles/) |
+| Code smell taxonomy | [00-code-smells.md](./00-code-smells.md) |
+| Refactoring techniques | [01-refactoring-techniques.md](./01-refactoring-techniques.md) |
+| Testing fundamentals (AAA, test doubles) | [01-practices/04-testing-principles.md](../01-practices/04-testing-principles.md) |
+| Clean code core principles | [00-principles/](../00-principles/) |
 
 ---
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **レガシーコードの定義と特徴** ── 「テストのないコード」としてのレガシーコードの本質と、変更リスクの定量評価方法を理解する
-2. **Seam（継ぎ目）の発見** ── コードを変更せずに振る舞いを差し替えられるポイントを特定する技法を習得する
-3. **特性テスト（Characterization Test）** ── 現在の振る舞いを記録し、リファクタリングの安全網を構築する方法を身につける
-4. **Sprout / Wrap パターン** ── 既存コードを変更せず、新機能を安全に追加する技法を習得する
-5. **Strangler Fig パターン** ── 大規模レガシーシステムの段階的な近代化戦略を設計できるようになる
+1. **Definition and characteristics of legacy code** — Understand the essence of legacy code as "code without tests" and how to quantitatively assess change risk
+2. **Finding Seams** — Master techniques for identifying points where behavior can be substituted without editing the code
+3. **Characterization Tests** — Learn how to document current behavior and build a safety net for refactoring
+4. **Sprout / Wrap patterns** — Master techniques for safely adding new features without modifying existing code
+5. **Strangler Fig pattern** — Learn how to design a phased modernization strategy for large-scale legacy systems
 
 ---
 
-## 1. レガシーコードの特徴と評価
+## 1. Legacy Code Characteristics and Assessment
 
-### 1.1 レガシーコードの定義
+### 1.1 Definition of Legacy Code
 
-Michael Feathers の定義が最も広く受け入れられている:
+Michael Feathers' definition is the most widely accepted:
 
 ```
-  レガシーコード = テストのないコード
+  Legacy code = code without tests
 
   ┌─────────────────────────────────────────────────────┐
-  │  なぜ「テストがない」ことが問題なのか？               │
+  │  Why is "no tests" a problem?                       │
   │                                                     │
-  │  テストがない                                        │
-  │    → 変更による影響を検証できない                    │
-  │    → 変更するのが怖い                               │
-  │    → 変更を避ける                                   │
-  │    → コードが腐敗していく                            │
-  │    → さらに変更が怖くなる                            │
-  │    → ★ 恐怖のスパイラル                             │
+  │  No tests                                           │
+  │    → Cannot verify the impact of changes            │
+  │    → Afraid to make changes                         │
+  │    → Avoid making changes                           │
+  │    → Code rots                                      │
+  │    → Even more afraid to change                     │
+  │    → ★ Spiral of fear                               │
   │                                                     │
-  │  テストがある                                        │
-  │    → 変更による影響を即座に検証できる                │
-  │    → 安心して変更できる                              │
-  │    → 積極的に改善できる                              │
-  │    → コードが健全に保たれる                          │
-  │    → ★ 改善のスパイラル                             │
+  │  Tests exist                                        │
+  │    → Can immediately verify the impact of changes   │
+  │    → Can change with confidence                     │
+  │    → Can actively improve                           │
+  │    → Code stays healthy                             │
+  │    → ★ Spiral of improvement                        │
   └─────────────────────────────────────────────────────┘
 ```
 
-### 1.2 典型的なレガシーコードの兆候
+### 1.2 Typical Signs of Legacy Code
 
 ```
-  レガシーコードの兆候チェックリスト
+  Legacy code symptom checklist
 
-  □ テストがない（またはほぼない）
-  □ ドキュメントが古いか存在しない
-  □ ビルドに15分以上かかる
-  □ 1ファイル5000行以上の God Class が存在
-  □ グローバル状態（static 変数、シングルトン）が多用されている
-  □ new で直接依存オブジェクトを生成している（DI されていない）
-  □ 「触ると壊れる」という暗黙の合意がある
-  □ 全体像を把握している人がチームにいない
-  □ 変更のたびに予想外の箇所でバグが発生する
-  □ 本番デプロイが恐怖のイベントである
+  □ No tests (or almost none)
+  □ Documentation is outdated or nonexistent
+  □ Build takes more than 15 minutes
+  □ God Class of 5,000+ lines exists in a single file
+  □ Global state (static variables, singletons) is heavily used
+  □ Dependencies are directly instantiated with new (no DI)
+  □ There is an unspoken agreement that "touching it breaks things"
+  □ No one on the team understands the big picture
+  □ Each change causes bugs in unexpected places
+  □ Production deployments are a fearful event
 
-  ┌─────────────────────────────────────┐
-  │  典型的なレガシーコードの構造       │
-  │                                     │
-  │  [God Class (5000行)]               │
-  │     |                               │
-  │     +-- static config (グローバル)  │
-  │     +-- static dbConn (グローバル)  │
-  │     +-- new DBConnection()  (直接) │
-  │     +-- new HttpClient()    (直接) │
-  │     +-- new EmailSender()   (直接) │
-  │                                     │
-  │  テスト: なし (またはほぼなし)       │
-  │  ドキュメント: 3年前のもの          │
-  │  ビルド: 15分                       │
-  └─────────────────────────────────────┘
+  ┌─────────────────────────────────────────────┐
+  │  Typical structure of legacy code           │
+  │                                             │
+  │  [God Class (5,000 lines)]                  │
+  │     |                                       │
+  │     +-- static config (global)              │
+  │     +-- static dbConn (global)              │
+  │     +-- new DBConnection()  (direct)        │
+  │     +-- new HttpClient()    (direct)        │
+  │     +-- new EmailSender()   (direct)        │
+  │                                             │
+  │  Tests: none (or almost none)               │
+  │  Documentation: 3 years old                 │
+  │  Build: 15 minutes                          │
+  └─────────────────────────────────────────────┘
 ```
 
-### 1.3 変更のリスクマトリクス
+### 1.3 Change Risk Matrix
 
-全てのレガシーコードを同等に扱う必要はない。変更頻度と複雑度のマトリクスで優先度を判断する。
+Not all legacy code needs to be treated equally. Use a matrix of change frequency vs. complexity to prioritize.
 
 ```
-            変更頻度が高い
+            High change frequency
                  |
    +-------------+-------------+
    |  Zone A:    |  Zone B:    |
-   |  低リスク・  |  高リスク・  |  ← 最優先改善
-   |  高頻度     |  高頻度     |
+   |  Low risk · |  High risk ·|  ← Highest priority for improvement
+   |  High freq  |  High freq  |
    |             |             |
-   |  監視のみ   |  テスト追加  |
-   |  問題なし   |  リファクタ  |
+   |  Monitor    |  Add tests  |
+   |  only. OK   |  Refactor   |
    +-------------+-------------+
    |  Zone C:    |  Zone D:    |
-   |  低リスク・  |  高リスク・  |  ← 触る必要が出るまで放置
-   |  低頻度     |  低頻度     |
+   |  Low risk · |  High risk ·|  ← Leave until you need to touch it
+   |  Low freq   |  Low freq   |
    |             |             |
-   |  放置可     |  次フェーズ  |
+   |  Leave      |  Next phase |
    +-------------+-------------+
                  |
-            変更頻度が低い
-   複雑度が低い ----+---- 複雑度が高い
+            Low change frequency
+   Low complexity ----+---- High complexity
 
-  ★ Zone B (高リスク・高頻度) から着手するのが最も効率的
+  ★ Starting with Zone B (high risk · high frequency) is most efficient
 ```
 
-### 1.4 依存関係の可視化
+### 1.4 Visualizing Dependencies
 
-**コード例1: 依存関係分析スクリプト（Python）**
+**Code Example 1: Dependency Analysis Script (Python)**
 
 ```python
 #!/usr/bin/env python3
 """
-レガシーコードの依存関係を可視化するスクリプト。
-各モジュールの依存数・被依存数を分析し、
-リファクタリングの優先度を判断する。
+Script to visualize dependencies in legacy code.
+Analyzes the number of dependencies and dependents for each module
+to determine refactoring priority.
 """
 import ast
 import sys
@@ -135,24 +135,24 @@ from collections import defaultdict
 
 @dataclass
 class ModuleDependency:
-    """モジュールの依存関係情報"""
+    """Module dependency information"""
     module: str
     imports: list[str] = field(default_factory=list)
     imported_by: list[str] = field(default_factory=list)
 
     @property
     def afferent_coupling(self) -> int:
-        """求心性結合度: このモジュールに依存しているモジュール数"""
+        """Afferent coupling: number of modules that depend on this module"""
         return len(self.imported_by)
 
     @property
     def efferent_coupling(self) -> int:
-        """遠心性結合度: このモジュールが依存しているモジュール数"""
+        """Efferent coupling: number of modules this module depends on"""
         return len(self.imports)
 
     @property
     def instability(self) -> float:
-        """不安定度: 0.0 (安定) ~ 1.0 (不安定)"""
+        """Instability: 0.0 (stable) ~ 1.0 (unstable)"""
         total = self.afferent_coupling + self.efferent_coupling
         if total == 0:
             return 0.0
@@ -160,7 +160,7 @@ class ModuleDependency:
 
 
 def analyze_dependencies(src_path: str) -> dict[str, ModuleDependency]:
-    """ソースコードの依存関係を分析"""
+    """Analyze dependencies in source code"""
     modules: dict[str, ModuleDependency] = {}
 
     for py_file in Path(src_path).rglob("*.py"):
@@ -180,7 +180,7 @@ def analyze_dependencies(src_path: str) -> dict[str, ModuleDependency]:
             module=module_name, imports=imports
         )
 
-    # 被依存関係を逆引き
+    # Build reverse dependency map
     for mod_name, mod_dep in modules.items():
         for imp in mod_dep.imports:
             if imp in modules:
@@ -190,11 +190,11 @@ def analyze_dependencies(src_path: str) -> dict[str, ModuleDependency]:
 
 
 def print_dependency_report(modules: dict[str, ModuleDependency]) -> None:
-    """依存関係レポートを出力"""
+    """Output dependency analysis report"""
     print("=" * 70)
-    print("  依存関係分析レポート")
+    print("  Dependency Analysis Report")
     print("=" * 70)
-    print(f"{'モジュール':<30} {'依存数':>6} {'被依存':>6} {'不安定度':>8}")
+    print(f"{'Module':<30} {'Deps':>6} {'Dependents':>10} {'Instability':>12}")
     print("-" * 70)
 
     sorted_modules = sorted(
@@ -203,14 +203,14 @@ def print_dependency_report(modules: dict[str, ModuleDependency]) -> None:
         reverse=True
     )
     for mod in sorted_modules[:20]:
-        stability = "安定" if mod.instability < 0.3 else (
-            "中間" if mod.instability < 0.7 else "不安定"
+        stability = "stable" if mod.instability < 0.3 else (
+            "medium" if mod.instability < 0.7 else "unstable"
         )
         print(f"{mod.module:<30} {mod.efferent_coupling:>6} "
-              f"{mod.afferent_coupling:>6} {mod.instability:>7.2f} ({stability})")
+              f"{mod.afferent_coupling:>10} {mod.instability:>11.2f} ({stability})")
 
-    # 循環依存の検出
-    print("\n--- 循環依存の検出 ---")
+    # Detect circular dependencies
+    print("\n--- Circular Dependency Detection ---")
     for mod_name, mod_dep in modules.items():
         for imp in mod_dep.imports:
             if imp in modules and mod_name in modules[imp].imports:
@@ -218,7 +218,7 @@ def print_dependency_report(modules: dict[str, ModuleDependency]) -> None:
 ```
 
 ```
-  変更対象の特定: 影響波及分析
+  Identifying change targets: impact propagation analysis
 
   [OrderProcessor]
        |
@@ -226,64 +226,64 @@ def print_dependency_report(modules: dict[str, ModuleDependency]) -> None:
        |                       |
        +-- depends on --> [InventoryChecker]
        |                       |
-       +-- depends on --> [DatabaseHelper] ← 静的メソッド (テスト困難)
+       +-- depends on --> [DatabaseHelper] ← static method (hard to test)
        |                       |
-       +-- depends on --> [EmailSender]    ← 外部サービス (テスト困難)
+       +-- depends on --> [EmailSender]    ← external service (hard to test)
 
-  安全に変更するための優先順位:
-  1. DatabaseHelper, EmailSender の依存を切断
-  2. OrderProcessor に特性テストを追加
-  3. 変更を加える
-  4. テストが通ることを確認
+  Priority for safe changes:
+  1. Break dependencies on DatabaseHelper and EmailSender
+  2. Add characterization tests to OrderProcessor
+  3. Make the change
+  4. Confirm tests pass
 ```
 
 ---
 
-## 2. Seam（継ぎ目）の発見
+## 2. Finding Seams
 
-### 2.1 Seam とは
+### 2.1 What Is a Seam?
 
-Seam とは、Michael Feathers が定義した概念で「コードを編集せずにプログラムの振る舞いを変更できるポイント」のこと。テスト時に依存をテストダブルに差し替えるために使う。
+A Seam is a concept defined by Michael Feathers: "a place where you can alter behavior in your program without editing in that place." Used during testing to substitute dependencies with test doubles.
 
-**コード例2: Seam の種類と適用（Python）**
+**Code Example 2: Types of Seams and Their Application (Python)**
 
 ```python
 # ────────────────────────────────────────
-# Seam がない状態: テスト不可能
+# No seam: not testable
 # ────────────────────────────────────────
 class OrderProcessor:
-    """依存を直接生成 → テスト時にDBやメールサーバが必要"""
+    """Directly instantiates dependencies → requires DB and mail server during tests"""
 
     def process(self, order):
-        # 静的メソッド → テスト時に差し替え不可
+        # Static method → cannot substitute during tests
         db = DatabaseHelper.get_connection()
         result = db.execute("SELECT stock FROM products ...", order.product_id)
 
         if result.stock < order.quantity:
             raise InsufficientStockError()
 
-        # 直接生成 → テスト時に差し替え不可
+        # Direct instantiation → cannot substitute during tests
         inventory = InventoryChecker()
         inventory.reserve(order.product_id, order.quantity)
 
-        # 静的メソッド → テスト時にメール送信が実行される
+        # Static method → email is actually sent during tests
         EmailSender.send(
             to=order.customer_email,
-            subject="注文確定",
-            body=f"注文 {order.id} が確定しました"
+            subject="Order Confirmed",
+            body=f"Order {order.id} has been confirmed"
         )
 
 
 # ────────────────────────────────────────
-# Object Seam: コンストラクタインジェクション
+# Object Seam: constructor injection
 # ────────────────────────────────────────
 class OrderProcessor:
-    """依存を注入 → テスト時にテストダブルに差し替え可能"""
+    """Injects dependencies → can be substituted with test doubles during tests"""
 
     def __init__(self, db_connection, inventory_checker, email_sender):
-        self._db = db_connection              # 注入 → Stub に差し替え可能
-        self._inventory = inventory_checker   # 注入 → Mock に差し替え可能
-        self._email = email_sender            # 注入 → Fake に差し替え可能
+        self._db = db_connection              # injected → can be replaced with Stub
+        self._inventory = inventory_checker   # injected → can be replaced with Mock
+        self._email = email_sender            # injected → can be replaced with Fake
 
     def process(self, order):
         result = self._db.execute("SELECT stock FROM products ...", order.product_id)
@@ -294,12 +294,12 @@ class OrderProcessor:
         self._inventory.reserve(order.product_id, order.quantity)
         self._email.send(
             to=order.customer_email,
-            subject="注文確定",
-            body=f"注文 {order.id} が確定しました"
+            subject="Order Confirmed",
+            body=f"Order {order.id} has been confirmed"
         )
 
 
-# テスト: テストダブルを注入
+# Test: inject test doubles
 def test_order_process_sends_email():
     fake_db = FakeDatabase(stock=10)
     mock_inventory = Mock()
@@ -312,77 +312,77 @@ def test_order_process_sends_email():
     mock_inventory.reserve.assert_called_once_with("P001", 2)
 ```
 
-### 2.2 Seam の種類
+### 2.2 Types of Seams
 
-| Seam の種類 | 仕組み | 適用場面 | 安全性 |
+| Seam Type | Mechanism | Use Case | Safety |
 |------------|--------|---------|:------:|
-| Object Seam | コンストラクタ/セッターインジェクション | 最も一般的。DI コンテナと相性良い | 高 |
-| Preprocessing Seam | マクロ/条件付きコンパイル | C/C++ レガシーコード | 低 |
-| Link Seam | リンク時にライブラリを差し替え | バイナリレベルの差し替え | 中 |
-| Subclass Seam | Extract & Override | テストクラスでオーバーライド | 中 |
+| Object Seam | Constructor/setter injection | Most common. Works well with DI containers | High |
+| Preprocessing Seam | Macros/conditional compilation | C/C++ legacy code | Low |
+| Link Seam | Replace library at link time | Binary-level substitution | Medium |
+| Subclass Seam | Extract & Override | Override in test subclass | Medium |
 
-### 2.3 Extract and Override（抽出とオーバーライド）
+### 2.3 Extract and Override
 
-最も安全に Seam を作る技法の1つ。テスト困難な部分をメソッドに抽出し、テスト用サブクラスでオーバーライドする。
+One of the safest techniques for creating a Seam. Extract the difficult-to-test portion into a method, then override it in a test subclass.
 
-**コード例3: Extract and Override（Python）**
+**Code Example 3: Extract and Override (Python)**
 
 ```python
 # ────────────────────────────────────────
-# Step 1: テスト困難な部分をメソッドに抽出
+# Step 1: Extract the hard-to-test portion into a method
 # ────────────────────────────────────────
 class OrderProcessor:
     def process(self, order):
         price = self._calculate_price(order)
-        self._save_to_database(order, price)    # 抽出したメソッド
-        self._send_notification(order)          # 抽出したメソッド
+        self._save_to_database(order, price)    # extracted method
+        self._send_notification(order)          # extracted method
         return price
 
     def _calculate_price(self, order):
-        """純粋な計算ロジック ── テスト可能"""
+        """Pure calculation logic — testable"""
         base_price = order.unit_price * order.quantity
         if order.quantity >= 10:
-            return int(base_price * 0.9)  # 10個以上で10%割引
+            return int(base_price * 0.9)  # 10% discount for 10+ items
         return base_price
 
     def _save_to_database(self, order, price):
-        """DB保存 ── テスト困難な外部依存"""
+        """DB save — hard-to-test external dependency"""
         db = DatabaseHelper.get_connection()
         db.execute("INSERT INTO orders VALUES (%s, %s)", order.id, price)
 
     def _send_notification(self, order):
-        """メール送信 ── テスト困難な外部依存"""
-        EmailSender.send(order.customer_email, "注文確定",
-                         f"合計: {order.total}円")
+        """Email send — hard-to-test external dependency"""
+        EmailSender.send(order.customer_email, "Order Confirmed",
+                         f"Total: {order.total}")
 
 
 # ────────────────────────────────────────
-# Step 2: テスト用サブクラスでオーバーライド
+# Step 2: Override in test subclass
 # ────────────────────────────────────────
 class TestableOrderProcessor(OrderProcessor):
-    """テスト用: DB とメールを差し替え"""
+    """For testing: replace DB and email"""
 
     def __init__(self):
         self.saved_orders: list[tuple] = []
         self.sent_emails: list[str] = []
 
     def _save_to_database(self, order, price):
-        """DB を使わず、保存内容を記録"""
+        """Record saved content without using DB"""
         self.saved_orders.append((order.id, price))
 
     def _send_notification(self, order):
-        """メール送信せず、送信先を記録"""
+        """Record recipient without sending email"""
         self.sent_emails.append(order.customer_email)
 
 
 # ────────────────────────────────────────
-# Step 3: テスト
+# Step 3: Test
 # ────────────────────────────────────────
 import pytest
 
 class TestOrderProcessor:
     def test_process_calculates_correct_price(self):
-        """ビジネスロジック（価格計算）のテスト"""
+        """Test business logic (price calculation)"""
         processor = TestableOrderProcessor()
         order = Order(id="O001", unit_price=1000, quantity=2,
                       customer_email="test@example.com")
@@ -392,7 +392,7 @@ class TestOrderProcessor:
         assert result == 2000
 
     def test_process_applies_bulk_discount(self):
-        """10個以上で10%割引のテスト"""
+        """Test 10% discount for 10 or more items"""
         processor = TestableOrderProcessor()
         order = Order(id="O002", unit_price=1000, quantity=10,
                       customer_email="test@example.com")
@@ -402,7 +402,7 @@ class TestOrderProcessor:
         assert result == 9000  # 10000 * 0.9
 
     def test_process_saves_to_database(self):
-        """DB保存が呼ばれることを確認"""
+        """Verify that DB save is called"""
         processor = TestableOrderProcessor()
         order = Order(id="O003", unit_price=500, quantity=3,
                       customer_email="test@example.com")
@@ -413,7 +413,7 @@ class TestOrderProcessor:
         assert processor.saved_orders[0] == ("O003", 1500)
 
     def test_process_sends_notification(self):
-        """メール送信が呼ばれることを確認"""
+        """Verify that email send is called"""
         processor = TestableOrderProcessor()
         order = Order(id="O004", unit_price=500, quantity=1,
                       customer_email="customer@example.com")
@@ -425,109 +425,112 @@ class TestOrderProcessor:
 
 ---
 
-## 3. 特性テスト (Characterization Test)
+## 3. Characterization Tests
 
-### 3.1 特性テストとは
+### 3.1 What Is a Characterization Test?
 
-特性テストは、現在の振る舞いを「記録」するテスト。「正しい」振る舞いではなく、「実際の」振る舞いをテストする。リファクタリング後も同じ値が返ることを保証するのが目的。
+A characterization test is a test that "records" the current behavior. It tests "actual" behavior, not "correct" behavior. Its purpose is to guarantee that the same values are returned after refactoring.
 
 ```
-  特性テストの考え方
+  The idea behind characterization tests
 
   ┌─────────────────────────────────────────┐
-  │  通常のテスト:                          │
-  │  「仕様に基づいて期待値を設定」          │
+  │  Normal test:                           │
+  │  "Set expected value based on spec"     │
   │  → assert calculate(100, 10) == 110    │
-  │  (仕様: 100 + 10% = 110)               │
+  │  (spec: 100 + 10% = 110)               │
   │                                         │
-  │  特性テスト:                            │
-  │  「実際に実行して結果を記録」            │
+  │  Characterization test:                 │
+  │  "Run it and record the actual result"  │
   │  → assert calculate(100, 10) == 108    │
-  │  (現実: なぜか108。バグかも? 仕様かも?)  │
+  │  (reality: 108 for some reason.         │
+  │   Bug? Spec? Unknown.)                  │
   │                                         │
-  │  ★ 特性テストでは「正しいか」は問わない │
-  │  ★ 「リファクタリング後も同じか」を保証 │
+  │  ★ Characterization tests don't ask    │
+  │    "is this correct?"                   │
+  │  ★ They guarantee "same result after   │
+  │    refactoring"                         │
   └─────────────────────────────────────────┘
 ```
 
-**コード例4: 特性テストの作成（Python）**
+**Code Example 4: Creating Characterization Tests (Python)**
 
 ```python
 # ────────────────────────────────────────
-# 特性テスト: 現在の振る舞いを「記録」する
+# Characterization test: "records" current behavior
 # ────────────────────────────────────────
 class TestLegacyPriceCalculatorCharacterization:
     """
-    特性テスト: LegacyPriceCalculator の現在の振る舞いを記録。
-    このテストが通る限り、リファクタリングは安全。
+    Characterization test: records current behavior of LegacyPriceCalculator.
+    As long as these tests pass, refactoring is safe.
     """
 
     def setup_method(self):
         self.calculator = LegacyPriceCalculator()
 
     def test_single_item_basic_price(self):
-        """単品の基本価格"""
+        """Basic price for a single item"""
         result = self.calculator.calculate(
             items=[{"price": 100, "qty": 1}]
         )
         assert result == 100
 
     def test_multiple_items_basic_price(self):
-        """複数品の基本価格（割引なし）"""
+        """Basic price for multiple items (no discount)"""
         result = self.calculator.calculate(
             items=[{"price": 100, "qty": 5}]
         )
         assert result == 500
 
     def test_bulk_discount_at_10(self):
-        """10個以上で割引が適用される"""
+        """Discount is applied for 10 or more items"""
         result = self.calculator.calculate(
             items=[{"price": 100, "qty": 10}]
         )
-        assert result == 900  # 10%割引? 仕様不明だが記録
+        assert result == 900  # 10% discount? Spec unknown but recorded
 
     def test_empty_items(self):
-        """空リストの場合"""
+        """When the list is empty"""
         result = self.calculator.calculate(items=[])
         assert result == 0
 
     def test_zero_price(self):
-        """価格0の商品"""
+        """Item with price 0"""
         result = self.calculator.calculate(
             items=[{"price": 0, "qty": 5}]
         )
         assert result == 0
 
     def test_negative_price_boundary(self):
-        """負の価格 ── バグの可能性あるが現状の振る舞いを記録"""
+        """Negative price — possibly a bug, but recording current behavior"""
         result = self.calculator.calculate(
             items=[{"price": -100, "qty": 1}]
         )
-        assert result == -100  # ★ バグかもしれないが、現状の記録が目的
+        assert result == -100  # ★ May be a bug, but the goal is to record current state
 
     def test_large_quantity(self):
-        """大量注文"""
+        """Large quantity order"""
         result = self.calculator.calculate(
             items=[{"price": 100, "qty": 1000}]
         )
-        assert result == 80000  # 20%割引? 仕様不明
+        assert result == 80000  # 20% discount? Spec unknown
 
 
 # ────────────────────────────────────────
-# 特性テストの自動生成（大量ケース）
+# Auto-generating characterization tests (large-scale cases)
 # ────────────────────────────────────────
 import json
 import itertools
 
 def generate_characterization_tests(output_path: str = "characterization_tests.json"):
     """
-    特性テストを自動生成して JSON に保存。
-    レガシーコードの振る舞いを網羅的に記録する。
+    Auto-generate characterization tests and save to JSON.
+    Comprehensively records the behavior of legacy code.
     """
     calculator = LegacyPriceCalculator()
     test_cases = []
 
-    # 境界値を含む入力の組み合わせを生成
+    # Generate input combinations including boundary values
     prices = [0, 1, 50, 100, 500, 999, 1000, 5000, 9999, 10000]
     quantities = [0, 1, 5, 9, 10, 11, 50, 100, 500, 1000]
 
@@ -551,13 +554,13 @@ def generate_characterization_tests(output_path: str = "characterization_tests.j
     with open(output_path, "w") as f:
         json.dump(test_cases, f, indent=2, ensure_ascii=False)
 
-    print(f"生成されたテストケース: {len(test_cases)}件")
-    print(f"保存先: {output_path}")
+    print(f"Generated test cases: {len(test_cases)}")
+    print(f"Saved to: {output_path}")
     return test_cases
 
 
 # ────────────────────────────────────────
-# 保存したケースを使ったパラメタライズテスト
+# Parameterized tests using saved cases
 # ────────────────────────────────────────
 def load_test_cases(path: str) -> list[dict]:
     with open(path) as f:
@@ -566,8 +569,8 @@ def load_test_cases(path: str) -> list[dict]:
 
 @pytest.mark.parametrize("case", load_test_cases("characterization_tests.json"))
 def test_refactored_matches_legacy(case):
-    """リファクタリング後のコードがレガシーと同じ結果を返すことを確認"""
-    calculator = RefactoredPriceCalculator()  # 新しい実装
+    """Verify that refactored code returns the same result as the legacy"""
+    calculator = RefactoredPriceCalculator()  # new implementation
 
     if case["error"]:
         with pytest.raises(Exception):
@@ -575,16 +578,16 @@ def test_refactored_matches_legacy(case):
     else:
         result = calculator.calculate(items=[case["input"]])
         assert result == case["expected"], (
-            f"入力: {case['input']}, "
-            f"期待: {case['expected']}, 実際: {result}"
+            f"Input: {case['input']}, "
+            f"Expected: {case['expected']}, Actual: {result}"
         )
 ```
 
-### 3.2 Golden Master テスト
+### 3.2 Golden Master Tests
 
-特性テストの発展形で、大量の入出力をファイルに保存し、リファクタリング後の出力と比較する。
+An advanced form of characterization tests that saves large numbers of inputs/outputs to a file and compares them against output after refactoring.
 
-**コード例5: Golden Master テスト（Python）**
+**Code Example 5: Golden Master Tests (Python)**
 
 ```python
 import hashlib
@@ -592,9 +595,9 @@ from pathlib import Path
 
 class GoldenMasterTest:
     """
-    Golden Master テスト:
-    レガシーシステムの出力をスナップショットとして保存し、
-    リファクタリング後も同じ出力が得られることを検証する。
+    Golden Master test:
+    Save legacy system output as a snapshot,
+    and verify the same output is produced after refactoring.
     """
     GOLDEN_DIR = Path("tests/golden_masters")
 
@@ -603,7 +606,7 @@ class GoldenMasterTest:
         self.GOLDEN_DIR.mkdir(parents=True, exist_ok=True)
 
     def capture(self, test_name: str, inputs: list[dict]) -> None:
-        """ゴールデンマスターを生成・保存"""
+        """Generate and save the golden master"""
         outputs = []
         for inp in inputs:
             try:
@@ -616,16 +619,16 @@ class GoldenMasterTest:
         with open(golden_path, "w") as f:
             json.dump(outputs, f, indent=2, ensure_ascii=False, default=str)
 
-        # チェックサムも保存
+        # Also save a checksum
         checksum = hashlib.sha256(
             json.dumps(outputs, sort_keys=True).encode()
         ).hexdigest()
         (self.GOLDEN_DIR / f"{test_name}.sha256").write_text(checksum)
 
-        print(f"ゴールデンマスター保存: {golden_path} ({len(outputs)} ケース)")
+        print(f"Golden master saved: {golden_path} ({len(outputs)} cases)")
 
     def verify(self, test_name: str) -> bool:
-        """現在の出力がゴールデンマスターと一致するか検証"""
+        """Verify that current output matches the golden master"""
         golden_path = self.GOLDEN_DIR / f"{test_name}.json"
         with open(golden_path) as f:
             golden = json.load(f)
@@ -649,59 +652,59 @@ class GoldenMasterTest:
                     })
 
         if mismatches:
-            print(f"不一致: {len(mismatches)} 件")
+            print(f"Mismatches: {len(mismatches)}")
             for m in mismatches[:5]:
                 print(f"  {m}")
             return False
 
-        print(f"OK: {len(golden)} ケース全て一致")
+        print(f"OK: all {len(golden)} cases match")
         return True
 ```
 
 ---
 
-## 4. Sprout / Wrap パターン
+## 4. Sprout / Wrap Patterns
 
-### 4.1 Sprout Method（芽生えメソッド）
+### 4.1 Sprout Method
 
-既存コードを変更せず、新しい機能を「芽生え」として新しいテスト済みメソッドに追加する。
+Add new functionality as a "sprout" — a new, tested method — without modifying existing code.
 
-**コード例6: Sprout Method（Python）**
+**Code Example 6: Sprout Method (Python)**
 
 ```python
 # ────────────────────────────────────────
-# 状況: 巨大な process() メソッドに「ロイヤルティ割引」を追加したい
-# しかし、process() にはテストがなく、構造が複雑で変更が怖い
+# Situation: want to add "loyalty discount" to a large process() method
+# However, process() has no tests and is structurally complex — scary to change
 # ────────────────────────────────────────
 
-# BEFORE: 変更したい巨大メソッド (テストなし)
+# BEFORE: large method we want to change (no tests)
 class OrderProcessor:
     def process(self, order):
-        # ... 200行の複雑な処理 (理解が難しい) ...
+        # ... 200 lines of complex processing (hard to understand) ...
         total = self._legacy_calculate(order)
-        # ... さらに100行の複雑な処理 ...
+        # ... 100 more lines of complex processing ...
         return total
 
 
-# AFTER: 新機能は新しいテスト済みメソッドとして「芽生え」させる
+# AFTER: new feature "sprouts" as a new, tested method
 class OrderProcessor:
     def process(self, order):
-        # ... 200行の複雑な処理 (変更なし) ...
+        # ... 200 lines of complex processing (unchanged) ...
         total = self._legacy_calculate(order)
 
-        # ★ Sprout: 新機能を独立したメソッドとして追加
+        # ★ Sprout: add new feature as an independent method
         discount = self._calculate_loyalty_discount(order, total)
         total = total - discount
 
-        # ... さらに100行の複雑な処理 (変更なし) ...
+        # ... 100 more lines of complex processing (unchanged) ...
         return total
 
     def _calculate_loyalty_discount(self, order, total: int) -> int:
         """
-        新機能: ロイヤルティ割引（テスト付き）
+        New feature: loyalty discount (with tests)
 
-        3年以上の顧客は5%割引、5年以上は10%割引。
-        ★ この新メソッドにはテストがある → 安全
+        Customers with 3+ years get 5% off, 5+ years get 10% off.
+        ★ This new method has tests → safe
         """
         years = order.customer.loyalty_years
         if years >= 5:
@@ -712,7 +715,7 @@ class OrderProcessor:
 
 
 # ────────────────────────────────────────
-# テスト: 新しい Sprout メソッドのみテスト
+# Tests: only test the new Sprout method
 # ────────────────────────────────────────
 class TestLoyaltyDiscount:
     def setup_method(self):
@@ -735,144 +738,144 @@ class TestLoyaltyDiscount:
         assert self.processor._calculate_loyalty_discount(order, 10000) == 1000
 ```
 
-### 4.2 Sprout Class（芽生えクラス）
+### 4.2 Sprout Class
 
-新機能がまとまった責任を持つ場合、メソッドではなくクラスとして追加する。
+When a new feature has a cohesive responsibility, add it as a class rather than a method.
 
-**コード例7: Sprout Class（Python）**
+**Code Example 7: Sprout Class (Python)**
 
 ```python
-# 新しい機能を独立したクラスとして追加
+# Add new functionality as an independent class
 class LoyaltyDiscountCalculator:
     """
-    ロイヤルティ割引計算 ── Sprout Class
-    完全にテスト済みの独立したクラス。
+    Loyalty discount calculation — Sprout Class
+    A fully tested, independent class.
     """
     TIERS = [
-        (10, Decimal("0.15")),  # 10年以上: 15%
-        (5, Decimal("0.10")),   # 5年以上: 10%
-        (3, Decimal("0.05")),   # 3年以上: 5%
+        (10, Decimal("0.15")),  # 10+ years: 15%
+        (5, Decimal("0.10")),   # 5+ years: 10%
+        (3, Decimal("0.05")),   # 3+ years: 5%
     ]
 
     def calculate(self, customer: Customer, amount: Decimal) -> Decimal:
-        """ロイヤルティ割引額を計算"""
+        """Calculate loyalty discount amount"""
         rate = self._get_discount_rate(customer.loyalty_years)
         return (amount * rate).quantize(Decimal("1"))
 
     def _get_discount_rate(self, years: int) -> Decimal:
-        """顧客の忠誠年数に基づく割引率"""
+        """Discount rate based on customer loyalty years"""
         for min_years, rate in self.TIERS:
             if years >= min_years:
                 return rate
         return Decimal("0")
 
 
-# 既存コードは最小限の変更で統合
+# Integrate into existing code with minimal changes
 class OrderProcessor:
     def __init__(self):
         self._loyalty_calculator = LoyaltyDiscountCalculator()  # Sprout
 
     def process(self, order):
-        # ... 既存の複雑な処理 (変更なし) ...
+        # ... existing complex processing (unchanged) ...
         total = self._legacy_calculate(order)
 
-        # Sprout Class の呼び出しを1行追加
+        # Add one line to call the Sprout Class
         discount = self._loyalty_calculator.calculate(order.customer, total)
         total -= discount
 
-        # ... 既存の複雑な処理 (変更なし) ...
+        # ... existing complex processing (unchanged) ...
         return total
 ```
 
-### 4.3 Wrap Method（ラップメソッド）
+### 4.3 Wrap Method
 
-既存メソッドをラップして前後に処理を追加する。既存のメソッド名を維持したまま、内部を新旧に分離する。
+Wrap an existing method to add processing before and after it. Separate the old and new logic internally while preserving the existing method name.
 
-**コード例8: Wrap Method（Python）**
+**Code Example 8: Wrap Method (Python)**
 
 ```python
-# BEFORE: 複雑なレポート生成ロジック (変更したくない)
+# BEFORE: complex report generation logic (do not want to change)
 class ReportGenerator:
     def generate(self, data):
-        # ... 複雑なレポート生成ロジック (200行) ...
+        # ... complex report generation logic (200 lines) ...
         return report
 
 
-# AFTER: 既存メソッドをラップ
+# AFTER: wrap the existing method
 class ReportGenerator:
     def generate(self, data):
-        """ラッパー: 前後処理を追加"""
-        self._log_generation_start(data)           # ← 新: ラップ (前処理)
-        self._validate_input(data)                 # ← 新: ラップ (前処理)
-        report = self._generate_legacy(data)       # ← 旧: リネーム
-        self._record_metrics(report)               # ← 新: ラップ (後処理)
-        self._log_generation_complete(report)       # ← 新: ラップ (後処理)
+        """Wrapper: add pre/post processing"""
+        self._log_generation_start(data)           # ← new: wrap (pre-processing)
+        self._validate_input(data)                 # ← new: wrap (pre-processing)
+        report = self._generate_legacy(data)       # ← old: renamed
+        self._record_metrics(report)               # ← new: wrap (post-processing)
+        self._log_generation_complete(report)       # ← new: wrap (post-processing)
         return report
 
     def _generate_legacy(self, data):
-        """元の複雑なロジック ── 変更なし"""
-        # ... 200行のレガシーコード ...
+        """Original complex logic — unchanged"""
+        # ... 200 lines of legacy code ...
         return report
 
     def _log_generation_start(self, data):
-        """新: レポート生成開始のログ"""
-        logger.info(f"レポート生成開始: {data.get('report_type')}")
+        """New: log report generation start"""
+        logger.info(f"Report generation started: {data.get('report_type')}")
 
     def _validate_input(self, data):
-        """新: 入力データの事前バリデーション"""
+        """New: pre-validation of input data"""
         if not data:
-            raise ValueError("データが空です")
+            raise ValueError("Data is empty")
         if 'report_type' not in data:
-            raise ValueError("report_type が指定されていません")
+            raise ValueError("report_type is not specified")
 
     def _record_metrics(self, report):
-        """新: メトリクス記録"""
+        """New: record metrics"""
         metrics.increment('reports_generated')
         metrics.histogram('report_size', len(str(report)))
 
     def _log_generation_complete(self, report):
-        """新: レポート生成完了のログ"""
-        logger.info(f"レポート生成完了: {len(str(report))} 文字")
+        """New: log report generation completion"""
+        logger.info(f"Report generation complete: {len(str(report))} characters")
 ```
 
 ---
 
-## 5. Strangler Fig パターン
+## 5. Strangler Fig Pattern
 
-### 5.1 概念
+### 5.1 Concept
 
-Strangler Fig（絞め殺しの木）パターンは、レガシーシステムを段階的に新システムに置き換える手法。Martin Fowler がオーストラリアの絞め殺しの木にちなんで命名した。
+The Strangler Fig pattern is a technique for incrementally replacing a legacy system with a new one. Martin Fowler named it after the strangler fig trees of Australia.
 
 ```
-  Strangler Fig パターンの4フェーズ
+  Strangler Fig Pattern: 4 Phases
 
-  Phase 1: ファサードを配置
+  Phase 1: Place a facade
   ┌──────┐    ┌─────────────┐    ┌─────────────────┐
   │Client│ -> │ Facade/Proxy│ -> │ Legacy System   │
   └──────┘    └─────────────┘    └─────────────────┘
 
-  Phase 2: 新機能を新システムに実装
-  ┌──────┐    ┌─────────┐  ┌──> │ Legacy System   │ (既存機能)
+  Phase 2: Implement new features in the new system
+  ┌──────┐    ┌─────────┐  ┌──> │ Legacy System   │ (existing features)
   │Client│ -> │ Facade  │──┤    └─────────────────┘
-  └──────┘    └─────────┘  └──> │ New System      │ (新機能)
+  └──────┘    └─────────┘  └──> │ New System      │ (new features)
                                 └─────────────────┘
 
-  Phase 3: 既存機能を段階的に移行
-  ┌──────┐    ┌─────────┐  ┌──> │ Legacy (残り)   │
-  │Client│ -> │ Facade  │──┤    └─────────────────┘
-  └──────┘    └─────────┘  └──> │ New System      │ (大部分)
-                                └─────────────────┘
+  Phase 3: Migrate existing features incrementally
+  ┌──────┐    ┌─────────┐  ┌──> │ Legacy (remainder)│
+  │Client│ -> │ Facade  │──┤    └───────────────────┘
+  └──────┘    └─────────┘  └──> │ New System        │ (most features)
+                                └───────────────────┘
 
-  Phase 4: レガシーを完全に置換
+  Phase 4: Completely replace legacy
   ┌──────┐    ┌─────────┐       ┌─────────────────┐
-  │Client│ -> │ Facade  │ ----> │ New System      │ (全機能)
+  │Client│ -> │ Facade  │ ----> │ New System      │ (all features)
   └──────┘    └─────────┘       └─────────────────┘
-                                Legacy は廃止
+                                Legacy is decommissioned
 ```
 
-### 5.2 Feature Flag によるルーティング
+### 5.2 Routing with Feature Flags
 
-**コード例9: Strangler Fig の実装（Python）**
+**Code Example 9: Strangler Fig Implementation (Python)**
 
 ```python
 from enum import Enum
@@ -880,7 +883,7 @@ from typing import Protocol
 
 
 class FeatureFlag(Enum):
-    """Feature Flag の一元管理"""
+    """Centralized management of feature flags"""
     NEW_ORDER_CREATION = "new_order_creation"
     NEW_ORDER_RETRIEVAL = "new_order_retrieval"
     NEW_PAYMENT_PROCESSING = "new_payment_processing"
@@ -888,18 +891,18 @@ class FeatureFlag(Enum):
 
 
 class FeatureFlagService:
-    """Feature Flag サービス ── 環境変数・DB・設定ファイルから取得"""
+    """Feature flag service — reads from environment variables, DB, or config files"""
 
     def __init__(self, config: dict[str, bool]):
         self._config = config
 
     def is_enabled(self, flag: FeatureFlag) -> bool:
-        """指定されたフラグが有効かどうかを返す"""
+        """Returns whether the specified flag is enabled"""
         return self._config.get(flag.value, False)
 
     @classmethod
     def from_env(cls) -> "FeatureFlagService":
-        """環境変数からフラグを読み込む"""
+        """Load flags from environment variables"""
         import os
         config = {}
         for flag in FeatureFlag:
@@ -910,7 +913,7 @@ class FeatureFlagService:
 
 
 class OrderService(Protocol):
-    """注文サービスのインターフェース"""
+    """Order service interface"""
     def create_order(self, order_data: dict) -> Order: ...
     def get_order(self, order_id: str) -> Order: ...
 
@@ -918,7 +921,7 @@ class OrderService(Protocol):
 class OrderFacade:
     """
     Strangler Fig Facade:
-    Feature Flag に基づいてレガシーと新システムをルーティング。
+    Routes between legacy and new system based on feature flags.
     """
 
     def __init__(self, legacy: OrderService, new: OrderService,
@@ -939,13 +942,13 @@ class OrderFacade:
 
 
 # ────────────────────────────────────────
-# 使用例: 段階的な移行
+# Usage example: phased migration
 # ────────────────────────────────────────
 
-# Phase 2: 新機能のみ新システムで処理
+# Phase 2: only new features handled by new system
 flags = FeatureFlagService({
-    "new_order_creation": True,     # 新システム
-    "new_order_retrieval": False,   # まだレガシー
+    "new_order_creation": True,     # new system
+    "new_order_retrieval": False,   # still legacy
     "new_payment_processing": False,
     "new_notification": False,
 })
@@ -956,23 +959,23 @@ facade = OrderFacade(
     flags=flags
 )
 
-# Phase 3: 既存機能も段階的に移行
+# Phase 3: migrate existing features incrementally
 flags = FeatureFlagService({
-    "new_order_creation": True,     # 移行済み
-    "new_order_retrieval": True,    # 移行済み ← 新たに有効化
+    "new_order_creation": True,     # migrated
+    "new_order_retrieval": True,    # newly enabled ← migrated
     "new_payment_processing": False,
     "new_notification": False,
 })
 ```
 
-### 5.3 Strangler Fig の安全なロールバック
+### 5.3 Safe Rollback with Strangler Fig
 
 ```python
-# ロールバック可能な Facade
+# Rollback-capable Facade
 class SafeOrderFacade:
     """
-    安全な Strangler Fig Facade:
-    新システムでエラーが発生した場合、自動的にレガシーにフォールバック。
+    Safe Strangler Fig Facade:
+    Automatically falls back to legacy if an error occurs in the new system.
     """
 
     def __init__(self, legacy, new, flags, metrics):
@@ -990,23 +993,23 @@ class SafeOrderFacade:
             except Exception as e:
                 self._metrics.increment("new_system.fallback")
                 logger.warning(
-                    f"新システムでエラー、レガシーにフォールバック: {e}"
+                    f"Error in new system, falling back to legacy: {e}"
                 )
-                # 自動フォールバック
+                # Automatic fallback
                 return self._legacy.create_order(order_data)
         return self._legacy.create_order(order_data)
 ```
 
-### 5.4 並行実行による検証
+### 5.4 Verification via Parallel Execution
 
-**コード例10: Shadow Mode / Dark Launch（Python）**
+**Code Example 10: Shadow Mode / Dark Launch (Python)**
 
 ```python
 class ParallelVerificationFacade:
     """
-    並行実行 Facade:
-    新旧両方のシステムで処理を実行し、結果を比較。
-    レスポンスはレガシーを返しつつ、不一致をログに記録。
+    Parallel execution Facade:
+    Process in both old and new systems and compare results.
+    Returns the legacy response while logging any discrepancies.
     """
 
     def __init__(self, legacy, new, comparator, metrics):
@@ -1016,256 +1019,257 @@ class ParallelVerificationFacade:
         self._metrics = metrics
 
     def create_order(self, order_data: dict) -> Order:
-        # レガシーの結果を取得（これが正式なレスポンス）
+        # Get legacy result (this is the official response)
         legacy_result = self._legacy.create_order(order_data)
 
-        # 新システムの結果を非同期で取得（Shadow Mode）
+        # Get new system result asynchronously (Shadow Mode)
         try:
             import concurrent.futures
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(self._new.create_order, order_data)
                 new_result = future.result(timeout=5)
 
-            # 結果を比較
+            # Compare results
             if self._comparator.are_equivalent(legacy_result, new_result):
                 self._metrics.increment("parallel.match")
             else:
                 self._metrics.increment("parallel.mismatch")
                 logger.warning(
-                    f"新旧の結果が不一致: "
+                    f"Mismatch between old and new results: "
                     f"legacy={legacy_result}, new={new_result}"
                 )
         except Exception as e:
             self._metrics.increment("parallel.new_system_error")
-            logger.error(f"新システムでエラー (Shadow Mode): {e}")
+            logger.error(f"Error in new system (Shadow Mode): {e}")
 
-        # ★ 常にレガシーの結果を返す
+        # ★ Always return the legacy result
         return legacy_result
 ```
 
 ---
 
-## 6. 段階的な近代化戦略
+## 6. Phased Modernization Strategy
 
-### 6.1 改善のロードマップ
+### 6.1 Improvement Roadmap
 
 ```
-  レガシーコード改善の5段階ロードマップ
+  5-Stage Roadmap for Legacy Code Improvement
 
-  Stage 1 (1-2週間): 可視化
-  ├── 依存関係の分析と可視化
-  ├── 変更頻度 x 複雑度のホットスポット分析
-  ├── テストカバレッジの現状把握
-  └── 技術的負債バックログの作成
+  Stage 1 (1-2 weeks): Visualization
+  ├── Analyze and visualize dependencies
+  ├── Hotspot analysis: change frequency x complexity
+  ├── Assess current test coverage
+  └── Create technical debt backlog
 
-  Stage 2 (2-4週間): 安全網の構築
-  ├── ホットスポットに特性テストを追加
-  ├── CI パイプラインの構築
-  ├── テストカバレッジのベースライン設定
-  └── デプロイの自動化
+  Stage 2 (2-4 weeks): Build a safety net
+  ├── Add characterization tests to hotspots
+  ├── Build CI pipeline
+  ├── Set test coverage baseline
+  └── Automate deployments
 
-  Stage 3 (継続的): 段階的リファクタリング
-  ├── Seam の発見と依存性注入の導入
-  ├── Extract Method / Extract Class で構造改善
-  ├── Sprout/Wrap で新機能を安全に追加
-  └── ボーイスカウトルールの実践
+  Stage 3 (ongoing): Incremental refactoring
+  ├── Find Seams and introduce dependency injection
+  ├── Improve structure with Extract Method / Extract Class
+  ├── Safely add new features with Sprout/Wrap
+  └── Practice the Boy Scout Rule
 
-  Stage 4 (四半期ごと): 大規模改善
-  ├── Strangler Fig で大きなモジュールを移行
-  ├── アーキテクチャの段階的な改善
-  └── フレームワーク/ライブラリの更新
+  Stage 4 (quarterly): Large-scale improvements
+  ├── Migrate large modules with Strangler Fig
+  ├── Gradually improve architecture
+  └── Update frameworks/libraries
 
-  Stage 5 (年次): 評価と計画
-  ├── 技術的負債の残高レビュー
-  ├── 改善のROI評価
-  └── 次年度の改善計画策定
+  Stage 5 (annually): Review and plan
+  ├── Review remaining technical debt
+  ├── Evaluate ROI of improvements
+  └── Draft next year's improvement plan
 ```
 
-### 6.2 Git を使ったコードの考古学
+### 6.2 Code Archaeology with Git
 
-**コード例11: レガシーコードの考古学スクリプト（Bash）**
+**Code Example 11: Legacy Code Archaeology Script (Bash)**
 
 ```bash
 #!/bin/bash
-# レガシーコードの考古学: Git 履歴から改善の優先度を分析
+# Legacy code archaeology: analyze improvement priority from Git history
 
-echo "=== レガシーコード考古学レポート ==="
+echo "=== Legacy Code Archaeology Report ==="
 
-# 1. 変更頻度が最も高いファイル（過去6ヶ月）
+# 1. Most frequently changed files (last 6 months)
 echo ""
-echo "--- 変更頻度 Top 20 (過去6ヶ月) ---"
+echo "--- Top 20 by change frequency (last 6 months) ---"
 git log --format=format: --name-only --since="6 months ago" \
   | sort | uniq -c | sort -rn | head -20
 
-# 2. 最も多くの開発者が触ったファイル（知識が分散）
+# 2. Files touched by the most developers (dispersed knowledge)
 echo ""
-echo "--- 最多開発者ファイル Top 10 ---"
+echo "--- Top 10 files by number of contributors ---"
 git log --format='%aN' --name-only --since="1 year ago" \
   | awk '/^$/{next} /^[^\/]/{author=$0; next} {print author, $0}' \
   | sort -u | awk '{print $NF}' | sort | uniq -c | sort -rn | head -10
 
-# 3. 最近変更されていないが大きなファイル（忘れられたレガシー）
+# 3. Large files that haven't been changed recently (forgotten legacy)
 echo ""
-echo "--- 大きいが最近変更されていないファイル ---"
+echo "--- Large files not recently modified ---"
 find src/ -name "*.py" -exec wc -l {} \; 2>/dev/null \
   | sort -rn | head -10
 
-# 4. TODO / FIXME / HACK の分布
+# 4. Distribution of TODO / FIXME / HACK
 echo ""
-echo "--- TODO/FIXME/HACK の数 ---"
+echo "--- Count of TODO/FIXME/HACK ---"
 grep -rn "TODO\|FIXME\|HACK\|XXX" src/ 2>/dev/null | wc -l
 
-# 5. バグ修正コミットが多いファイル
+# 5. Files with many bug-fix commits
 echo ""
-echo "--- バグ修正が多いファイル Top 10 ---"
+echo "--- Top 10 files with most bug fixes ---"
 git log --oneline --grep="fix\|bug\|hotfix" --name-only --since="1 year ago" \
   | grep -v "^[a-f0-9]" | sort | uniq -c | sort -rn | head -10
 ```
 
 ---
 
-## 7. 比較表
+## 7. Comparison Tables
 
-### 7.1 レガシーコード改善手法の比較
+### 7.1 Comparison of Legacy Code Improvement Techniques
 
-| 手法 | 適用場面 | リスク | コスト | 効果 |
+| Technique | Use Case | Risk | Cost | Effect |
 |------|---------|:------:|:------:|------|
-| 特性テスト追加 | リファクタリング前の安全網構築 | 低 | 低 | 回帰バグ防止 |
-| Sprout Method | 既存コードへの新機能追加 | 低 | 低 | レガシーへの影響最小化 |
-| Sprout Class | まとまった新機能の追加 | 低 | 低-中 | テスト可能な新コード |
-| Wrap Method | 既存機能の前後に処理追加 | 低 | 低 | ロギング・メトリクス追加 |
-| Extract & Override | テスト困難な依存の切断 | 中 | 中 | テスタビリティ向上 |
-| DI の導入 | 依存関係の明示化 | 中 | 中 | 長期的なテスタビリティ |
-| Strangler Fig | 大規模システム置換 | 中 | 高 | 根本的な近代化 |
-| ビッグバンリライト | 全面書き直し | 極高 | 極高 | 非推奨 |
+| Add characterization tests | Build safety net before refactoring | Low | Low | Prevents regression bugs |
+| Sprout Method | Adding new features to existing code | Low | Low | Minimizes impact on legacy |
+| Sprout Class | Adding a cohesive new feature | Low | Low–Medium | New testable code |
+| Wrap Method | Add processing before/after existing functionality | Low | Low | Add logging/metrics |
+| Extract & Override | Breaking hard-to-test dependencies | Medium | Medium | Improves testability |
+| Introduce DI | Make dependencies explicit | Medium | Medium | Long-term testability |
+| Strangler Fig | Replace large-scale systems | Medium | High | Fundamental modernization |
+| Big Bang Rewrite | Full rewrite | Extremely High | Extremely High | Not recommended |
 
-### 7.2 優先度判断マトリクス
+### 7.2 Priority Decision Matrix
 
-| 優先度 | アクション | 効果 | 目安期間 |
+| Priority | Action | Effect | Estimated Timeline |
 |:------:|-----------|------|---------|
-| 最優先 | 変更頻度の高いモジュールに特性テスト追加 | 回帰バグ防止 | 1-2週間 |
-| 高 | 依存性注入によるテスタビリティ向上 | テスト追加が容易に | 2-4週間 |
-| 中 | 新機能は Sprout/Wrap で追加 | レガシーへの影響最小化 | 継続的 |
-| 中 | CI/CD パイプラインの構築 | 品質の自動チェック | 1-2週間 |
-| 低 | 段階的な Strangler Fig 移行 | 長期的な技術的負債解消 | 数ヶ月-年 |
+| Highest | Add characterization tests to high-change-frequency modules | Prevents regression bugs | 1–2 weeks |
+| High | Improve testability via dependency injection | Makes adding tests easier | 2–4 weeks |
+| Medium | Add new features using Sprout/Wrap | Minimizes impact on legacy | Ongoing |
+| Medium | Build CI/CD pipeline | Automated quality checks | 1–2 weeks |
+| Low | Phased Strangler Fig migration | Resolves long-term technical debt | Months to years |
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-patterns
 
-### アンチパターン 1: ビッグバンリライト
-
-```
-  BAD: 「全部書き直そう」
-
-  「このレガシーコードはもう限界。1から書き直す。」
-    → 数ヶ月〜数年の開発期間
-    → その間、旧システムも並行保守が必要
-    → 新チームは旧システムの暗黙知を持たない
-    → 完成時にはビジネス要件が変わっている
-    → 旧システムの「奇妙な仕様」が実はビジネス上の理由がある
-    → Joel Spolsky: 「ソフトウェアでやってはいけない最悪のこと」
-
-  歴史的教訓:
-  - Netscape 6: 全面リライトに3年、市場シェアを失った
-  - Borland dBase → Quattro Pro: リライト中に市場が変化
-
-  GOOD: 段階的な移行
-
-  Phase 1: ファサード配置 (1週間)
-  Phase 2: 新機能は新システムに (継続的)
-  Phase 3: 既存機能を段階的に移行 (機能単位で数週間ずつ)
-  Phase 4: レガシー廃止
-
-  ★ 各段階でリリース可能
-  ★ ロールバック可能
-  ★ 新旧の並行運用で安全性確保
-  ★ ビジネス価値を継続的に提供
-```
-
-### アンチパターン 2: テストなしのリファクタリング
+### Anti-pattern 1: Big Bang Rewrite
 
 ```
-  BAD: テストなしで構造を変更
+  BAD: "Let's rewrite everything"
 
-  1. 「このコード汚いからリファクタリングしよう」
-  2. テストなしで構造を変更
-  3. 「見た目はきれいになった」
-  4. 1週間後: 本番で回帰バグ発生
-  5. 修正に追われ、さらにコードが複雑化
-  6. 「リファクタリングは危険」という誤った教訓
+  "This legacy code has reached its limit. Let's rewrite it from scratch."
+    → Months to years of development time
+    → During that time, the old system also needs parallel maintenance
+    → The new team doesn't have the tacit knowledge of the old system
+    → Business requirements have changed by the time it's done
+    → The "strange specs" in the old system often exist for business reasons
+    → Joel Spolsky: "The single worst thing you can do in software"
 
-  GOOD: テストファーストのリファクタリング
+  Historical lessons:
+  - Netscape 6: took 3 years for full rewrite, lost market share
+  - Borland dBase → Quattro Pro: market changed during rewrite
 
-  1. まず特性テストを書いて現状の振る舞いを記録
-  2. テストが通ることを確認 (GREEN)
-  3. 小さなステップでリファクタリング
-  4. 各ステップ後にテスト実行 (GREEN を維持)
-  5. テストが通り続けることを確認
-  6. コミット
-  7. 次のステップへ
+  GOOD: Phased migration
+
+  Phase 1: Place facade (1 week)
+  Phase 2: New features go into new system (ongoing)
+  Phase 3: Migrate existing features incrementally (a few weeks per feature)
+  Phase 4: Decommission legacy
+
+  ★ Releasable at each phase
+  ★ Rollback is possible
+  ★ Safety ensured by running old and new in parallel
+  ★ Continuously deliver business value
 ```
 
-### アンチパターン 3: 全てを一度にモダン化しようとする
+### Anti-pattern 2: Refactoring Without Tests
 
 ```
-  BAD: 「フレームワークも、ライブラリも、アーキテクチャも全部更新する」
+  BAD: Change structure without tests
+
+  1. "This code is messy, let's refactor it"
+  2. Change structure without tests
+  3. "It looks clean now"
+  4. One week later: regression bug in production
+  5. Scrambling to fix it, making code even more complex
+  6. Wrong lesson learned: "refactoring is dangerous"
+
+  GOOD: Test-first refactoring
+
+  1. First, write characterization tests to record current behavior
+  2. Confirm tests pass (GREEN)
+  3. Refactor in small steps
+  4. Run tests after each step (maintain GREEN)
+  5. Confirm tests continue to pass
+  6. Commit
+  7. Move to next step
+```
+
+### Anti-pattern 3: Trying to Modernize Everything at Once
+
+```
+  BAD: "Update the framework, libraries, and architecture all at once"
 
   Sprint 1: React 16 → 18, Express → Fastify,
-            MongoDB → PostgreSQL, モノリス → マイクロサービス
-  → 全てが壊れる
-  → デバッグが不可能（何が原因か特定できない）
-  → チームが疲弊
+            MongoDB → PostgreSQL, monolith → microservices
+  → Everything breaks
+  → Debugging is impossible (can't identify the cause)
+  → Team is exhausted
 
-  GOOD: 1つずつ段階的に
+  GOOD: One change at a time, incrementally
 
-  Sprint N:   React 16 → 18 (UI層のみ)
-  Sprint N+1: テストカバレッジを60% → 80%
-  Sprint N+2: Express → Fastify (API層のみ)
-  Sprint N+3: モノリスの一部をサービスとして切り出し
+  Sprint N:   React 16 → 18 (UI layer only)
+  Sprint N+1: Test coverage 60% → 80%
+  Sprint N+2: Express → Fastify (API layer only)
+  Sprint N+3: Extract part of monolith as a service
   ...
 
-  ★ 各ステップで「リリース可能」を維持
-  ★ 問題が出ても原因が特定しやすい
+  ★ Maintain "releasable" at each step
+  ★ If problems occur, the cause is easy to identify
 ```
 
-### アンチパターン 4: レガシーコードの「暗黙知」を無視する
+### Anti-pattern 4: Ignoring Tacit Knowledge in Legacy Code
 
 ```
-  BAD: 「この条件分岐は意味がないから削除しよう」
+  BAD: "This conditional has no meaning, let's delete it"
 
   if customer.region == "EU" and order.total > 150:
-      order.add_customs_declaration()  # なぜ 150? なぜ EU のみ?
+      order.add_customs_declaration()  # Why 150? Why EU only?
 
-  → 実はEU関税規則: 150ユーロ以上の輸入に関税申告が必要
-  → 削除すると法令違反に
+  → Actually EU customs regulation: customs declaration required
+    for imports over 150 euros
+  → Deleting it causes regulatory violation
 
-  GOOD: 特性テストで振る舞いを保存してから変更
+  GOOD: Save behavior with characterization tests before changing
 
-  1. まず特性テストで現在の振る舞いを記録
-  2. 「なぜこうなっているか」を調査（Git blame, 関係者ヒアリング）
-  3. ビジネス上の理由があれば、コメントで理由を記録
-  4. 不要と判断できたら、テストを更新してから削除
+  1. First record current behavior with characterization tests
+  2. Investigate "why is it like this?" (git blame, stakeholder interviews)
+  3. If there is a business reason, record it in a comment
+  4. If judged unnecessary, update the test first, then delete
 
-  # リファクタリング後:
+  # After refactoring:
   if order.requires_customs_declaration():
-      # EU関税規則: 150ユーロ超の輸入には申告が必要
+      # EU customs regulation: declaration required for imports over 150 euros
       # See: https://ec.europa.eu/taxation_customs/...
       order.add_customs_declaration()
 ```
 
 ---
 
-## 9. 演習問題
+## 9. Exercises
 
-### 演習1（基本）: Seam の発見
+### Exercise 1 (Basic): Finding a Seam
 
-以下のコードにテストを追加するために、Seam を作成せよ。
+Create a Seam in the following code so that tests can be added.
 
 ```python
 class NotificationService:
     def send_alert(self, user_id: str, message: str) -> bool:
-        # DB から直接ユーザー情報を取得
+        # Directly retrieve user info from DB
         import sqlite3
         conn = sqlite3.connect("/var/db/production.db")
         cursor = conn.execute(
@@ -1275,12 +1279,12 @@ class NotificationService:
         if not user:
             return False
 
-        # メール送信
+        # Send email
         import smtplib
         smtp = smtplib.SMTP("mail.production.com", 587)
         smtp.send_message(create_email(user[0], message))
 
-        # SMS送信
+        # Send SMS
         import requests
         requests.post("https://api.sms-provider.com/send",
                       json={"phone": user[1], "text": message})
@@ -1288,17 +1292,17 @@ class NotificationService:
         return True
 ```
 
-**期待される回答**: (1) Extract & Override: DB取得、メール送信、SMS送信をそれぞれ protected メソッドに抽出, (2) テスト用サブクラスでオーバーライド, または (3) コンストラクタインジェクションで `UserRepository`, `EmailSender`, `SmsSender` を注入可能にする。
+**Expected answer**: (1) Extract & Override: extract DB retrieval, email send, and SMS send into protected methods respectively, (2) override in a test subclass, or (3) make `UserRepository`, `EmailSender`, and `SmsSender` injectable via constructor injection.
 
 ---
 
-### 演習2（応用）: 特性テストの作成
+### Exercise 2 (Applied): Creating Characterization Tests
 
-以下のレガシー関数に対して、特性テストを少なくとも10ケース作成せよ。
+Create at least 10 characterization test cases for the following legacy function.
 
 ```python
 def calculate_shipping(weight, destination, is_member, order_total):
-    """配送料金計算（レガシー: 仕様書なし）"""
+    """Shipping cost calculation (legacy: no spec document)"""
     base = weight * 100
     if destination == "overseas":
         base *= 3
@@ -1311,182 +1315,182 @@ def calculate_shipping(weight, destination, is_member, order_total):
     return int(base)
 ```
 
-**期待される回答**: 通常国内配送、海外配送、会員割引、1万円以上無料、重量超過サーチャージ、組み合わせ条件（海外+会員+重量超過など）のケースを網羅的にテスト。
+**Expected answer**: Comprehensively test cases such as standard domestic shipping, overseas shipping, member discount, free shipping over 10,000, overweight surcharge, and combinations (overseas + member + overweight, etc.).
 
 ---
 
-### 演習3（上級）: Strangler Fig 移行計画
+### Exercise 3 (Advanced): Strangler Fig Migration Plan
 
-以下の状況で、6ヶ月間の Strangler Fig 移行計画を立案せよ。
-
-```
-レガシーシステムの状況:
-- PHP 5.6 のモノリシック Web アプリケーション
-- MySQL 5.5 データベース
-- テストなし（カバレッジ 0%）
-- 月間 PV: 100万
-- 主要機能: ユーザー管理、商品カタログ、注文処理、決済、レポート
-- 開発チーム: 5名
-- 1日のデプロイ: 0回（月次手動デプロイ）
-```
-
-**期待される回答（概要）**:
+Design a 6-month Strangler Fig migration plan for the following situation.
 
 ```
-Month 1: 可視化と安全網
-  - 依存関係分析
-  - CI/CD パイプライン構築
-  - ホットスポットに特性テスト追加
-  - Feature Flag 基盤の構築
+Legacy system situation:
+- PHP 5.6 monolithic web application
+- MySQL 5.5 database
+- No tests (0% coverage)
+- Monthly page views: 1 million
+- Core features: user management, product catalog, order processing, payment, reports
+- Development team: 5 people
+- Deployments per day: 0 (monthly manual deployment)
+```
 
-Month 2: ファサード配置
-  - API ゲートウェイ（Nginx reverse proxy）の配置
-  - 新 API サーバー（Python/FastAPI）のセットアップ
-  - 認証トークンの共有基盤
+**Expected answer (outline)**:
 
-Month 3-4: 段階的移行（優先度順）
-  - ユーザー管理 API を新システムに移行
-  - 商品カタログ API を新システムに移行
-  - Shadow Mode で結果を比較
+```
+Month 1: Visualization and safety net
+  - Dependency analysis
+  - Build CI/CD pipeline
+  - Add characterization tests to hotspots
+  - Build feature flag infrastructure
 
-Month 5-6: 核心機能の移行
-  - 注文処理を新システムに移行
-  - 決済を新システムに移行
-  - レポートは最後（変更頻度が低い）
+Month 2: Place facade
+  - Place API gateway (Nginx reverse proxy)
+  - Set up new API server (Python/FastAPI)
+  - Shared authentication token infrastructure
 
-★ 各月で「リリース可能」を維持
-★ 問題があれば Feature Flag でロールバック
+Month 3-4: Phased migration (in priority order)
+  - Migrate user management API to new system
+  - Migrate product catalog API to new system
+  - Compare results in Shadow Mode
+
+Month 5-6: Migrate core features
+  - Migrate order processing to new system
+  - Migrate payment to new system
+  - Reports last (low change frequency)
+
+★ Maintain "releasable" each month
+★ Roll back via Feature Flag if problems arise
 ```
 
 ---
 
 ## 10. FAQ
 
-### Q1. レガシーコードのどこから手をつけるべきか？
+### Q1. Where should I start with legacy code?
 
-**A.** 「変更頻度が高く、バグが多い箇所」から着手する。以下の手順で科学的にアプローチ:
+**A.** Start with "areas that change frequently and have many bugs." Use a scientific approach with these steps:
 
-1. **ホットスポット分析**: `git log` で変更頻度を分析し、`radon` で複雑度を測定。変更頻度 x 複雑度 のスコアが高いファイルが最優先。
-2. **バグ追跡**: バグチケットが多く紐づくモジュールを特定する。
-3. **チーム知識**: 「触るのが怖い」とチームメンバーが感じるモジュールをリストアップ。
-4. **全体を均一に改善しようとしない** ── ホットスポットに集中投資する。
+1. **Hotspot analysis**: Analyze change frequency with `git log` and measure complexity with `radon`. Files with a high change-frequency x complexity score get the highest priority.
+2. **Bug tracking**: Identify modules linked to many bug tickets.
+3. **Team knowledge**: List modules that team members feel are "scary to touch."
+4. **Don't try to improve everything uniformly** — invest concentrated effort in hotspots.
 
-### Q2. テストがないコードに安全にテストを追加するには？
+### Q2. How do I safely add tests to code that has none?
 
-**A.** 段階的なアプローチ:
+**A.** A phased approach:
 
-1. **特性テスト** で現在の振る舞いを記録する（正しいかは問わない）
-2. **Seam** を見つけて依存を切断する（Extract & Override が最も安全）
-3. 切断した依存を **テストダブル** に差し替えてユニットテストを書く
-4. 十分なテストが揃ったら **リファクタリング** を開始する
+1. Record current behavior with **characterization tests** (correctness doesn't matter)
+2. Find **Seams** and break dependencies (Extract & Override is safest)
+3. Replace broken dependencies with **test doubles** and write unit tests
+4. Once enough tests are in place, start **refactoring**
 
-最初から「正しい」テストを書く必要はない。現状の振る舞いの記録が最優先。
+You don't need to write "correct" tests from the start. Recording current behavior is the top priority.
 
-### Q3. レガシーコードの改善をチームに説得するには？
+### Q3. How do I convince a team to improve legacy code?
 
-**A.** ビジネス指標で語る。技術的な話は避け、以下のように伝える:
+**A.** Speak in business metrics. Avoid technical language and say things like:
 
-- 「このモジュールの変更に平均3日かかっており、年間60日の工数がかかっている」
-- 「過去6ヶ月で本番障害が5件発生し、顧客影響があった」
-- 「新メンバーのオンボーディングに2週間余計にかかっている」
-- 「改善に300万円投資すれば、翌年から年500万円のコスト削減になる」
+- "Changes to this module take an average of 3 days, costing 60 person-days per year"
+- "5 production incidents occurred over the past 6 months, impacting customers"
+- "Onboarding new team members takes 2 extra weeks"
+- "An investment of 3M JPY in improvements will save 5M JPY per year starting next year"
 
-技術的負債の利子を定量化し、改善によるROI（投資対効果）を示す。詳細は [技術的負債](./03-technical-debt.md) を参照。
+Quantify the interest on technical debt and show the ROI (return on investment) from improvement. See [Technical Debt](./03-technical-debt.md) for details.
 
-### Q4. Strangler Fig パターンで新旧のデータ整合性をどう保つか？
+### Q4. How do you maintain data consistency between old and new systems in the Strangler Fig pattern?
 
-**A.** 以下の戦略を組み合わせる:
+**A.** Combine the following strategies:
 
-1. **単一データベース**: 移行初期は新旧で同じDBを共有
-2. **Change Data Capture (CDC)**: 旧システムのDB変更を新システムに同期
-3. **Event Sourcing**: イベントを共通バスに発行し、新旧で消費
-4. **Shadow Mode**: 新システムの結果をログに記録し、レガシーとの差分を分析
+1. **Single database**: Share the same DB between old and new during early migration
+2. **Change Data Capture (CDC)**: Sync DB changes from old system to new system
+3. **Event Sourcing**: Publish events to a shared bus, consumed by both old and new
+4. **Shadow Mode**: Log new system results and analyze differences against legacy
 
-### Q5. レガシーコードの改善にどれくらいの時間を割くべきか？
+### Q5. How much time should be allocated to improving legacy code?
 
-**A.** Martin Fowler と Kent Beck の推奨:
+**A.** Recommendations from Martin Fowler and Kent Beck:
 
-- **日常**: ボーイスカウトルール（触ったファイルを少し改善: 工数の5-10%）
-- **スプリント**: 20% ルール（各スプリントの20%を改善に充てる）
-- **四半期**: 技術的負債スプリント（1スプリント分を集中改善に充てる）
+- **Daily**: Boy Scout Rule (make small improvements to files you touch: 5–10% of working time)
+- **Sprint**: 20% Rule (dedicate 20% of each sprint to improvement)
+- **Quarterly**: Technical debt sprint (dedicate a full sprint to focused improvement)
 
-重要なのは「改善を日常に組み込む」こと。改善を特別なイベントにすると、ビジネス要求に押し出されて実施されない。
+The key is to "make improvement part of daily work." If improvement is treated as a special event, it gets pushed out by business demands and never happens.
 
-### Q6. Extract & Override と DI のどちらを選ぶべきか？
+### Q6. Which should I choose: Extract & Override or DI?
 
-**A.** 状況による:
+**A.** It depends on the situation:
 
-| 観点 | Extract & Override | DI (依存性注入) |
+| Aspect | Extract & Override | DI (Dependency Injection) |
 |------|:-----------------:|:--------------:|
-| 変更の少なさ | 少ない | やや多い |
-| 長期的な設計 | 一時的な解決策 | 恒久的な改善 |
-| テスタビリティ | テスト用サブクラスが必要 | テストダブルを直接注入 |
-| 初期コスト | 低い | 中程度 |
-| 推奨場面 | まずテストを追加したい段階 | 本格的にリファクタリングする段階 |
+| Amount of change | Less | Somewhat more |
+| Long-term design | Temporary solution | Permanent improvement |
+| Testability | Test subclass required | Inject test doubles directly |
+| Initial cost | Low | Medium |
+| Recommended when | At the stage of first adding tests | At the stage of serious refactoring |
 
-一般的な進め方: まず Extract & Override でテストを追加し、その後 DI に移行する。
+General approach: first add tests with Extract & Override, then migrate to DI.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point in learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next steps.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this knowledge applied in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architectural design.
 
 ---
 
-## 11. まとめ
+## 11. Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| レガシーコードの定義 | テストのないコード（Michael Feathers） |
-| 最初のアクション | 特性テストで現在の振る舞いを記録 |
-| Seam の発見 | 依存性注入、Extract & Override でテスタビリティを確保 |
-| Sprout / Wrap | 既存コードを変更せず新機能を安全に追加 |
-| Strangler Fig | 大規模システムの段階的な置換 |
-| ビッグバンリライトの回避 | 段階的な移行で各ステップをリリース可能に |
-| 優先度の判断 | 変更頻度 x 複雑度のホットスポットから着手 |
-| データ整合性 | Shadow Mode + 並行実行で新旧の結果を比較検証 |
-| 文化の構築 | ボーイスカウトルール + 20%ルール + 四半期集中改善 |
+| Definition of legacy code | Code without tests (Michael Feathers) |
+| First action | Record current behavior with characterization tests |
+| Finding Seams | Ensure testability with dependency injection and Extract & Override |
+| Sprout / Wrap | Safely add new features without modifying existing code |
+| Strangler Fig | Phased replacement of large-scale systems |
+| Avoid Big Bang Rewrite | Phased migration keeps each step releasable |
+| Prioritization | Start with hotspots: high change frequency x high complexity |
+| Data consistency | Compare old vs. new results with Shadow Mode + parallel execution |
+| Building culture | Boy Scout Rule + 20% Rule + quarterly focused improvement |
 
-| 技法 | 安全性 | コスト | 効果 |
+| Technique | Safety | Cost | Effect |
 |------|:------:|:------:|------|
-| 特性テスト | 高 | 低 | リファクタリングの前提条件 |
-| Extract & Override | 中 | 低 | 最も安全な Seam 作成法 |
-| Sprout Method | 高 | 低 | 新機能の安全な追加 |
-| Wrap Method | 高 | 低 | 前後処理の追加 |
-| DI の導入 | 中 | 中 | 長期的なテスタビリティ |
-| Strangler Fig | 中 | 高 | 根本的な近代化 |
-| ビッグバンリライト | 極高 | 極高 | 非推奨 |
+| Characterization tests | High | Low | Prerequisite for refactoring |
+| Extract & Override | Medium | Low | Safest way to create a Seam |
+| Sprout Method | High | Low | Safely add new features |
+| Wrap Method | High | Low | Add pre/post processing |
+| Introduce DI | Medium | Medium | Long-term testability |
+| Strangler Fig | Medium | High | Fundamental modernization |
+| Big Bang Rewrite | Extremely High | Extremely High | Not recommended |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [技術的負債](./03-technical-debt.md) ── 負債の分類・可視化・返済戦略
-- [継続的改善](./04-continuous-improvement.md) ── CI/CD による品質の継続的向上
-- [テスト原則](../01-practices/04-testing-principles.md) ── テスト設計の基礎（AAA パターン、テストダブル）
-- [コードスメル](./00-code-smells.md) ── レガシーコードに潜むスメルの検出
-- [リファクタリング技法](./01-refactoring-techniques.md) ── Extract Method、Move Method 等の具体的手法
-- デザインパターン概要 ── Facade, Strategy 等のパターン
-- システム設計の基礎 ── アーキテクチャレベルの近代化
+- [Technical Debt](./03-technical-debt.md) — Classifying, visualizing, and paying down debt
+- [Continuous Improvement](./04-continuous-improvement.md) — Continuous quality improvement via CI/CD
+- [Testing Principles](../01-practices/04-testing-principles.md) — Foundations of test design (AAA pattern, test doubles)
+- [Code Smells](./00-code-smells.md) — Detecting smells lurking in legacy code
+- [Refactoring Techniques](./01-refactoring-techniques.md) — Concrete techniques: Extract Method, Move Method, etc.
+- Design Patterns Overview — Patterns such as Facade and Strategy
+- Systems Design Fundamentals — Architecture-level modernization
 
 ---
 
-## 参考文献
+## References
 
-1. **Michael Feathers** 『Working Effectively with Legacy Code』 Prentice Hall, 2004 ── レガシーコード改善の原典。Seam、Extract & Override、Characterization Test、Sprout/Wrap パターンの全てがここに記述されている。
-2. **Martin Fowler** 『Refactoring: Improving the Design of Existing Code』 Addison-Wesley, 2018 (2nd Ed.) ── リファクタリングカタログ。Extract Method、Move Method 等の基本技法。Strangler Fig パターンの命名者。
-3. **Marianne Bellotti** 『Kill It with Fire: Manage Aging Computer Systems (and Future Proof Modern Ones)』 No Starch Press, 2021 ── レガシーシステムの近代化戦略を組織論の観点から論じた良書。技術的な手法だけでなく、チームのモチベーションや組織文化の変革についても深く言及。
-4. **Sam Newman** 『Building Microservices』 O'Reilly, 2021 (2nd Ed.) ── モノリスからマイクロサービスへの段階的な移行戦略。Strangler Fig パターンの実践例が豊富。
-5. **Adam Tornhill** 『Your Code as a Crime Scene: Use Forensic Techniques to Arrest Defects, Bottlenecks, and Bad Design in Your Programs』 Pragmatic Bookshelf, 2015 ── Git 履歴を使ったコードの「犯罪現場調査」。ホットスポット分析、知識マップ、組織分析の手法を実践的に解説。
+1. **Michael Feathers** *Working Effectively with Legacy Code*, Prentice Hall, 2004 — The seminal work on legacy code improvement. Seams, Extract & Override, Characterization Tests, and Sprout/Wrap patterns are all described here.
+2. **Martin Fowler** *Refactoring: Improving the Design of Existing Code*, Addison-Wesley, 2018 (2nd Ed.) — Refactoring catalog. Core techniques such as Extract Method and Move Method. Fowler coined the term Strangler Fig pattern.
+3. **Marianne Bellotti** *Kill It with Fire: Manage Aging Computer Systems (and Future Proof Modern Ones)*, No Starch Press, 2021 — An excellent book that discusses legacy system modernization strategies from an organizational perspective. Addresses not just technical methods but also team motivation and organizational culture change.
+4. **Sam Newman** *Building Microservices*, O'Reilly, 2021 (2nd Ed.) — Phased migration strategy from monolith to microservices. Rich with practical examples of the Strangler Fig pattern.
+5. **Adam Tornhill** *Your Code as a Crime Scene: Use Forensic Techniques to Arrest Defects, Bottlenecks, and Bad Design in Your Programs*, Pragmatic Bookshelf, 2015 — A "crime scene investigation" of code using Git history. Practically explains hotspot analysis, knowledge maps, and organizational analysis techniques.
