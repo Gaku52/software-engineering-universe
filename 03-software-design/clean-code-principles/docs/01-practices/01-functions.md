@@ -1,53 +1,54 @@
-# 関数設計 ── 単一責任・引数・副作用
+# Function Design ── Single Responsibility, Arguments, and Side Effects
 
-> 関数はプログラムの基本構成要素である。小さく、1つのことだけを行い、名前が意図を伝える関数は、システム全体の可読性と保守性を決定づける。
-
----
-
-## この章で学ぶこと
-
-1. **関数の単一責任** ── 1つの関数が1つのことだけを行う設計を理解する
-2. **引数設計の原則** ── 引数の数・順序・型の最適化方法を身につける
-3. **副作用の管理** ── 予測可能で安全な関数を書くための技法を習得する
-4. **抽象レベルの統一** ── 関数内の処理を同じ抽象レベルに揃える技法を理解する
-5. **コマンド/クエリ分離** ── CQSの原則と実践的な適用方法を習得する
+> Functions are the fundamental building blocks of programs. Small functions that do one thing and communicate intent through their names determine the readability and maintainability of the entire system.
 
 ---
 
-## 前提知識
+## What You Will Learn
 
-このガイドを最大限に活用するには、以下の知識が必要です。
+1. **Single Responsibility of Functions** ── Understand how to design functions that do exactly one thing
+2. **Principles of Argument Design** ── Learn how to optimize the number, order, and types of arguments
+3. **Managing Side Effects** ── Master techniques for writing predictable and safe functions
+4. **Unified Abstraction Levels** ── Understand how to keep all operations within a function at the same level of abstraction
+5. **Command/Query Separation** ── Learn the CQS principle and how to apply it in practice
 
-| 前提知識 | 必要レベル | 参照先 |
+---
+
+## Prerequisites
+
+To get the most out of this guide, the following knowledge is required.
+
+| Prerequisite | Required Level | Reference |
 |---------|----------|--------|
-| 命名規則 | 読了推奨 | [命名規則](./00-naming.md) |
-| SOLID原則（特にSRP） | 基本を理解 | [SOLID原則](../00-principles/01-solid.md) |
-| クリーンコードの概要 | 読了推奨 | [クリーンコード概論](../00-principles/00-clean-code-overview.md) |
+| Naming conventions | Recommended to read first | [Naming Conventions](./00-naming.md) |
+| SOLID principles (especially SRP) | Understand the basics | [SOLID Principles](../00-principles/01-solid.md) |
+| Overview of clean code | Recommended to read first | [Clean Code Overview](../00-principles/00-clean-code-overview.md) |
 
 ---
 
-## 1. 関数の基本原則
+## 1. Basic Principles of Functions
 
-### 1.1 良い関数の5条件
+### 1.1 Five Conditions for a Good Function
 
 ```
 +-----------------------------------------------------------+
-|  良い関数の5条件                                          |
+|  Five Conditions for a Good Function                      |
 |  ─────────────────────────────────────                    |
-|  1. 小さい (Small)        → 20行以下が目安               |
-|  2. 1つのことだけ (Do One Thing)  → 抽象レベルを揃える    |
-|  3. 副作用がない/明示的 (No Hidden Side Effects)          |
-|  4. 引数は少なく (Few Arguments) → 理想は0〜2個          |
-|  5. コマンド/クエリ分離 (CQS) → 変更か取得かどちらか     |
+|  1. Small             → Aim for 20 lines or fewer         |
+|  2. Do One Thing      → Keep abstraction levels uniform   |
+|  3. No Hidden Side Effects (explicit if any)              |
+|  4. Few Arguments     → Ideally 0-2                       |
+|  5. Command/Query Separation (CQS) → Either mutate        |
+|     or query, not both                                    |
 +-----------------------------------------------------------+
 ```
 
-### 1.2 なぜ関数を小さくすべきか
+### 1.2 Why Functions Should Be Small
 
 ```
-  関数サイズと認知負荷の関係
+  Relationship Between Function Size and Cognitive Load
 
-  認知負荷
+  Cognitive Load
     ^
     |                              /
     |                          /
@@ -57,55 +58,55 @@
     |         __/
     |     __/
     |  __/
-    +──────────────────────────→ 関数の行数
+    +──────────────────────────→ Lines of code
     0    10    20    50   100   200+
 
-  ・〜10行: 一目で理解可能。テスト容易
-  ・〜20行: 許容範囲。スクロール不要
-  ・〜50行: 黄色信号。分割を検討
-  ・100行+: 赤信号。必ず分割
-  ・200行+: 緊急。God Function
+  · ~10 lines: Understandable at a glance. Easy to test
+  · ~20 lines: Acceptable. No scrolling needed
+  · ~50 lines: Yellow flag. Consider splitting
+  · 100+ lines: Red flag. Split without fail
+  · 200+ lines: Emergency. God Function
 ```
 
-| メトリクス | 目安 | 超過時のアクション |
+| Metric | Target | Action When Exceeded |
 |-----------|------|-----------------|
-| 行数 | 20行以下 | Extract Method |
-| 引数の数 | 2個以下 | 引数オブジェクト化 |
-| ネストの深さ | 2段以下 | ガード節、早期リターン |
-| 循環的複雑度 | 5以下 | 条件分岐の分離 |
-| 認知的複雑度 | 15以下 | 複雑なロジックの関数化 |
+| Lines of code | 20 or fewer | Extract Method |
+| Number of arguments | 2 or fewer | Introduce Parameter Object |
+| Nesting depth | 2 levels or fewer | Guard clauses, early return |
+| Cyclomatic complexity | 5 or fewer | Separate conditional branches |
+| Cognitive complexity | 15 or fewer | Extract complex logic into functions |
 
-### 1.3 抽象レベルの統一
+### 1.3 Unified Abstraction Levels
 
 ```
-  抽象レベルの一貫性
+  Consistency of Abstraction Levels
 
-  高い抽象 ┌──────────────────────────────────┐
-  レベル   │ processOrder()                    │
-           │   ├── validateOrder()             │
-           │   ├── calculateTotal()            │
-           │   ├── chargePayment()             │
-           │   └── sendConfirmation()          │
-           └──────────────────────────────────┘
-  低い抽象 ┌──────────────────────────────────┐
-  レベル   │ calculateTotal()                  │
-           │   ├── subtotal = sum(prices)      │
-           │   ├── tax = subtotal * rate       │
-           │   └── return subtotal + tax       │
-           └──────────────────────────────────┘
-  ※ 1つの関数内で抽象レベルを混在させない
+  High abstraction ┌──────────────────────────────────┐
+  level            │ processOrder()                    │
+                   │   ├── validateOrder()             │
+                   │   ├── calculateTotal()            │
+                   │   ├── chargePayment()             │
+                   │   └── sendConfirmation()          │
+                   └──────────────────────────────────┘
+  Low abstraction  ┌──────────────────────────────────┐
+  level            │ calculateTotal()                  │
+                   │   ├── subtotal = sum(prices)      │
+                   │   ├── tax = subtotal * rate       │
+                   │   └── return subtotal + tax       │
+                   └──────────────────────────────────┘
+  * Do not mix abstraction levels within a single function
 ```
 
-**コード例1: 抽象レベルの統一**
+**Code Example 1: Unified Abstraction Levels**
 
 ```python
-# === 悪い: 抽象レベルが混在 ===
+# === Bad: Mixed abstraction levels ===
 def process_order(order):
-    # 高レベル: バリデーション
+    # High level: validation
     if not order.is_valid():
         raise InvalidOrderError()
 
-    # 低レベル: 手動で合計計算（詳細が混在）
+    # Low level: manual total calculation (details mixed in)
     total = 0
     for item in order.items:
         price = item.unit_price * item.quantity
@@ -120,88 +121,88 @@ def process_order(order):
     tax = total * 0.10
     total_with_tax = total + tax
 
-    # 高レベル: 決済
+    # High level: payment
     charge_payment(order.customer, total_with_tax)
 
-# 問題点:
-# ・バリデーション（高レベル）と金額計算の詳細（低レベル）が混在
-# ・DB呼び出し（低レベル）が中に紛れ込んでいる
-# ・テストが困難（DB依存がインラインに存在）
+# Problems:
+# · Validation (high level) is mixed with calculation details (low level)
+# · DB calls (low level) are embedded inline
+# · Difficult to test (DB dependency exists inline)
 
 
-# === 良い: 各関数が同じ抽象レベル ===
+# === Good: Each function at the same abstraction level ===
 def process_order(order: Order) -> OrderResult:
-    """注文を処理する（高レベル）"""
+    """Process an order (high level)"""
     validate_order(order)
     total = calculate_total(order.items)
     payment_result = charge_payment(order.customer, total)
     return create_order_result(order, payment_result)
 
 def calculate_total(items: list[OrderItem]) -> Money:
-    """注文合計を計算する（中レベル）"""
+    """Calculate order total (mid level)"""
     subtotal = sum(calculate_item_price(item) for item in items)
     tax = calculate_tax(subtotal)
     return subtotal + tax
 
 def calculate_item_price(item: OrderItem) -> Money:
-    """個別商品の価格を計算する（低レベル）"""
+    """Calculate price for an individual item (low level)"""
     base_price = item.unit_price * item.quantity
     discount = get_discount_rate(item.discount_code)
     return base_price * (1 - discount)
 
-# 各関数:
-# ・1つの抽象レベルのみ
-# ・単独でテスト可能
-# ・名前から意図が読み取れる
+# Each function:
+# · Operates at a single abstraction level
+# · Can be tested independently
+# · Intent is clear from the name
 ```
 
-**コード例2: ステップダウンルール（新聞記事スタイル）**
+**Code Example 2: The Stepdown Rule (Newspaper Style)**
 
 ```python
-# 新聞記事のように: 概要 → 詳細 → さらに詳細
+# Like a newspaper article: overview → details → further details
 
-# === 1. 最上位（記事の見出し）===
+# === 1. Top level (article headline) ===
 def deploy_application(config: DeployConfig) -> DeployResult:
-    """アプリケーションをデプロイする"""
+    """Deploy the application"""
     validate_config(config)
     build_artifacts = build_application(config)
     test_results = run_tests(build_artifacts)
     ensure_tests_passed(test_results)
     return deploy_to_target(build_artifacts, config.target)
 
-# === 2. 中位（記事の段落）===
+# === 2. Mid level (article paragraphs) ===
 def build_application(config: DeployConfig) -> BuildArtifacts:
-    """アプリケーションをビルドする"""
+    """Build the application"""
     source = checkout_source(config.repository, config.branch)
     dependencies = install_dependencies(source)
     return compile_and_package(source, dependencies)
 
 def run_tests(artifacts: BuildArtifacts) -> TestResults:
-    """テストを実行する"""
+    """Run the tests"""
     unit_results = run_unit_tests(artifacts)
     integration_results = run_integration_tests(artifacts)
     return TestResults(unit=unit_results, integration=integration_results)
 
-# === 3. 最下位（記事の詳細）===
+# === 3. Low level (article details) ===
 def checkout_source(repo: str, branch: str) -> SourceCode:
-    """ソースコードをチェックアウトする"""
+    """Check out the source code"""
     return git.clone(repo, branch=branch)
 
 def install_dependencies(source: SourceCode) -> Dependencies:
-    """依存パッケージをインストールする"""
+    """Install dependency packages"""
     return package_manager.install(source.dependency_file)
 ```
 
 ---
 
-## 2. 引数設計
+## 2. Argument Design
 
-### 2.1 引数の数
+### 2.1 Number of Arguments
 
 ```
-  引数の数と理解しやすさ
+  Number of Arguments vs. Understandability
 
-  理解しやすさ
+  Understandability
     ^
     |  *****
     |       ****
@@ -209,20 +210,20 @@ def install_dependencies(source: SourceCode) -> Dependencies:
     |              **
     |                *
     |                 *
-    +--+--+--+--+--+--> 引数の数
+    +--+--+--+--+--+--> Number of arguments
        0  1  2  3  4  5+
 
-  0個 (niladic)  : 最高。Circle.area()
-  1個 (monadic)  : 良い。isValid(email)
-  2個 (dyadic)   : 許容。Point(x, y)
-  3個 (triadic)  : 要検討。引数オブジェクト化
-  4個+ (polyadic): リファクタリング必須
+  0 (niladic)  : Best. Circle.area()
+  1 (monadic)  : Good. isValid(email)
+  2 (dyadic)   : Acceptable. Point(x, y)
+  3 (triadic)  : Reconsider. Use a parameter object
+  4+ (polyadic): Refactoring required
 ```
 
-**コード例3: 引数オブジェクトパターン**
+**Code Example 3: Parameter Object Pattern**
 
 ```typescript
-// === 悪い: 引数が多すぎる ===
+// === Bad: Too many arguments ===
 function createUser(
   name: string,
   email: string,
@@ -235,10 +236,10 @@ function createUser(
   // ...
 }
 
-// 引数の順序を間違えやすい
-createUser("田中", "tanaka@example.com", 30, "東京都...", "090-...", "admin", "開発部");
+// Easy to get the argument order wrong
+createUser("Tanaka", "tanaka@example.com", 30, "Tokyo...", "090-...", "admin", "Engineering");
 
-// === 良い: 引数オブジェクトで構造化 ===
+// === Good: Structured with a parameter object ===
 interface CreateUserRequest {
   name: string;
   email: string;
@@ -253,63 +254,63 @@ function createUser(request: CreateUserRequest): User {
   // ...
 }
 
-// 名前付きフィールドで意図が明確
+// Intent is clear with named fields
 createUser({
-  name: "田中",
+  name: "Tanaka",
   email: "tanaka@example.com",
   age: 30,
-  address: "東京都...",
+  address: "Tokyo...",
   phone: "090-...",
   role: UserRole.ADMIN,
-  department: "開発部"
+  department: "Engineering"
 });
 ```
 
-**コード例4: フラグ引数の排除**
+**Code Example 4: Eliminating Flag Arguments**
 
 ```python
-# === 悪い: ブール引数で動作を切り替え（SRP違反の兆候）===
+# === Bad: Boolean argument switches behavior (sign of SRP violation) ===
 def create_report(data, is_pdf: bool):
     if is_pdf:
         return generate_pdf_report(data)
     else:
         return generate_html_report(data)
 
-# 呼び出し側: create_report(data, True) ← True が何を意味するか不明
+# Caller: create_report(data, True) ← it's unclear what True means
 
-# === 良い: 関数を分離 ===
+# === Good: Split into separate functions ===
 def create_pdf_report(data: ReportData) -> bytes:
     return generate_pdf(data)
 
 def create_html_report(data: ReportData) -> str:
     return generate_html(data)
 
-# === さらに良い: 戦略パターンで拡張性を確保 ===
+# === Even better: Use the Strategy pattern for extensibility ===
 class ReportGenerator(Protocol):
     def generate(self, data: ReportData) -> Report: ...
 
 class PdfReportGenerator:
     def generate(self, data: ReportData) -> PdfReport:
-        # PDF生成ロジック
+        # PDF generation logic
         pass
 
 class HtmlReportGenerator:
     def generate(self, data: ReportData) -> HtmlReport:
-        # HTML生成ロジック
+        # HTML generation logic
         pass
 
-# 使用
+# Usage
 generator = PdfReportGenerator()  # or HtmlReportGenerator()
 report = generator.generate(data)
 ```
 
-**コード例5: ビルダーパターンによる複雑な構築**
+**Code Example 5: Builder Pattern for Complex Construction**
 
 ```python
-# === 引数が多い場合: ビルダーパターン ===
+# === When there are many arguments: Builder pattern ===
 
 class QueryBuilder:
-    """複雑なクエリの段階的構築"""
+    """Incrementally build a complex query"""
     def __init__(self, table: str):
         self._table = table
         self._conditions: list[str] = []
@@ -352,7 +353,7 @@ class QueryBuilder:
             query += f" OFFSET {self._offset}"
         return query
 
-# 使用: 段階的に構築、最後に build()
+# Usage: build incrementally, then call build() at the end
 query = (
     QueryBuilder("users")
     .select("name", "email", "age")
@@ -367,97 +368,97 @@ query = (
 
 ---
 
-## 3. 副作用の管理
+## 3. Managing Side Effects
 
-### 3.1 隠れた副作用の排除
+### 3.1 Eliminating Hidden Side Effects
 
-**コード例6: 隠れた副作用の排除**
+**Code Example 6: Eliminating Hidden Side Effects**
 
 ```java
-// === 悪い: 名前からは読み取れない副作用がある ===
+// === Bad: Has side effects not apparent from the name ===
 public boolean checkPassword(String userName, String password) {
     User user = userRepository.findByName(userName);
     if (user == null) return false;
 
     if (user.getPassword().equals(encrypt(password))) {
-        Session.initialize();  // 隠れた副作用！パスワードチェックなのにセッションを初期化
+        Session.initialize();  // Hidden side effect! Initializes session during a password check
         return true;
     }
     return false;
 }
-// → 名前は "check"（確認）なのに、セッション初期化という副作用がある
-// → テストでも予期しないセッション状態が発生する
+// → The name says "check" but it has the side effect of initializing the session
+// → Tests produce unexpected session states
 
 
-// === 良い: 副作用を分離し、名前で意図を明示 ===
+// === Good: Side effects are separated and the name makes intent explicit ===
 public boolean isPasswordValid(String userName, String password) {
-    // 純粋な検証のみ。副作用なし
+    // Pure validation only. No side effects
     User user = userRepository.findByName(userName);
     if (user == null) return false;
     return user.getPassword().equals(encrypt(password));
 }
 
 public AuthResult authenticateAndCreateSession(String userName, String password) {
-    // 名前が副作用を明示している
+    // The name makes the side effect explicit
     if (!isPasswordValid(userName, password)) {
-        return AuthResult.failure("認証失敗");
+        return AuthResult.failure("Authentication failed");
     }
     Session session = sessionManager.createSession(userName);
     return AuthResult.success(session);
 }
 ```
 
-### 3.2 純粋関数と副作用のある関数の分離
+### 3.2 Separating Pure Functions from Functions with Side Effects
 
 ```python
-# === 純粋関数: 同じ入力に対して常に同じ出力。副作用なし ===
+# === Pure functions: always return the same output for the same input. No side effects ===
 
 def calculate_discount(price: float, discount_rate: float) -> float:
-    """価格に割引を適用する（純粋関数）"""
+    """Apply a discount to a price (pure function)"""
     return price * (1 - discount_rate)
 
 def validate_email(email: str) -> bool:
-    """メールアドレスの形式を検証する（純粋関数）"""
+    """Validate the format of an email address (pure function)"""
     import re
     return bool(re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email))
 
 def format_currency(amount: float, currency: str = 'JPY') -> str:
-    """金額をフォーマットする（純粋関数）"""
+    """Format a monetary amount (pure function)"""
     if currency == 'JPY':
         return f"¥{amount:,.0f}"
     return f"${amount:,.2f}"
 
-# 純粋関数の特徴:
-# ・テストが容易（モック不要）
-# ・並行実行が安全
-# ・キャッシュ可能（メモ化）
-# ・推論しやすい
+# Characteristics of pure functions:
+# · Easy to test (no mocks needed)
+# · Safe for concurrent execution
+# · Cacheable (memoizable)
+# · Easy to reason about
 
 
-# === 副作用のある関数: 明示的に分離 ===
+# === Functions with side effects: explicitly separated ===
 
 def save_order(order: Order, repository: OrderRepository) -> None:
-    """注文を保存する（副作用あり: DB書き込み）"""
+    """Save an order (side effect: DB write)"""
     repository.save(order)
 
 def send_notification(user_id: str, message: str, client: NotificationClient) -> None:
-    """通知を送信する（副作用あり: 外部API呼び出し）"""
+    """Send a notification (side effect: external API call)"""
     client.send(user_id, message)
 
 def log_event(event: str, logger: Logger) -> None:
-    """イベントをログに記録する（副作用あり: ファイル/ストリーム書き込み）"""
+    """Record an event to the log (side effect: file/stream write)"""
     logger.info(event)
 ```
 
-**コード例7: 関数型コアと命令型シェル**
+**Code Example 7: Functional Core and Imperative Shell**
 
 ```python
-# === Functional Core / Imperative Shell パターン ===
-# ビジネスロジック（純粋関数）と外部とのやり取り（副作用）を分離
+# === Functional Core / Imperative Shell pattern ===
+# Separates business logic (pure functions) from external interactions (side effects)
 
-# --- Functional Core: 純粋関数でビジネスロジック ---
+# --- Functional Core: business logic as pure functions ---
 class PricingRules:
-    """価格計算のルール（純粋関数の集合）"""
+    """Pricing calculation rules (a collection of pure functions)"""
 
     @staticmethod
     def calculate_subtotal(items: list[OrderItem]) -> Decimal:
@@ -484,9 +485,9 @@ class PricingRules:
         return base if base > Decimal('500') else Decimal('500')
 
 
-# --- Imperative Shell: 副作用を含む外部とのやり取り ---
+# --- Imperative Shell: external interactions with side effects ---
 class OrderService:
-    """注文サービス（命令型シェル）"""
+    """Order service (imperative shell)"""
 
     def __init__(
         self,
@@ -499,10 +500,10 @@ class OrderService:
         self.notification = notification
 
     def place_order(self, request: PlaceOrderRequest) -> OrderResult:
-        # 副作用: DBからデータ取得
+        # Side effect: fetch data from DB
         discount = self.discount_repo.find_by_code(request.discount_code)
 
-        # 純粋関数: ビジネスロジック
+        # Pure functions: business logic
         subtotal = PricingRules.calculate_subtotal(request.items)
         discounted = PricingRules.apply_discount(subtotal, discount)
         tax = PricingRules.calculate_tax(discounted, Decimal('0.10'))
@@ -511,105 +512,105 @@ class OrderService:
         )
         total = discounted + tax + shipping
 
-        # 副作用: DB保存
+        # Side effect: save to DB
         order = Order(items=request.items, total=total)
         self.order_repo.save(order)
 
-        # 副作用: 通知送信
+        # Side effect: send notification
         self.notification.send_order_confirmation(request.user_id, order.id)
 
         return OrderResult.success(order)
 ```
 
-### 3.3 コマンド/クエリ分離 (CQS)
+### 3.3 Command/Query Separation (CQS)
 
 ```
   ┌─────────────────────────────────────────────┐
   │  Command-Query Separation (CQS)             │
   ├──────────────┬──────────────────────────────┤
-  │ コマンド      │ 状態を変更する。戻り値なし   │
-  │ (Command)    │ void setName(String name)    │
+  │ Command      │ Mutates state. No return value│
+  │              │ void setName(String name)    │
   ├──────────────┼──────────────────────────────┤
-  │ クエリ        │ 値を返す。状態を変更しない   │
-  │ (Query)      │ String getName()             │
+  │ Query        │ Returns a value. No mutation  │
+  │              │ String getName()             │
   ├──────────────┼──────────────────────────────┤
-  │ 混在（避ける）│ 状態変更 + 値返却            │
+  │ Mixed (avoid)│ Mutation + return value       │
   │              │ int addAndGetCount(Item i)    │
   └──────────────┴──────────────────────────────┘
 ```
 
-**コード例8: CQSの適用**
+**Code Example 8: Applying CQS**
 
 ```python
-# === CQS違反: 1つのメソッドが変更と取得を同時に行う ===
+# === CQS violation: one method both mutates and queries ===
 class UserService:
     def update_and_get_user(self, user_id: str, name: str) -> User:
-        """ユーザーを更新して返す（コマンド+クエリ混在）"""
+        """Update a user and return them (command + query mixed)"""
         user = self.repo.find_by_id(user_id)
         user.name = name
         self.repo.save(user)
         return user
 
-# 問題点:
-# ・呼び出し側が副作用の存在に気づきにくい
-# ・テスト時に副作用の検証が複雑
-# ・キャッシュ不可能（副作用があるため）
+# Problems:
+# · The caller may not notice the side effect
+# · Verifying side effects in tests becomes complex
+# · Cannot be cached (has side effects)
 
 
-# === CQS準拠: コマンドとクエリを分離 ===
+# === CQS compliant: commands and queries are separated ===
 class UserService:
     def update_user_name(self, user_id: str, name: str) -> None:
-        """ユーザー名を更新する（コマンド: 状態変更のみ）"""
+        """Update a user's name (command: mutation only)"""
         user = self.repo.find_by_id(user_id)
         user.name = name
         self.repo.save(user)
 
     def get_user(self, user_id: str) -> User:
-        """ユーザーを取得する（クエリ: 副作用なし）"""
+        """Retrieve a user (query: no side effects)"""
         return self.repo.find_by_id(user_id)
 
-# 使用
-user_service.update_user_name("user-123", "新しい名前")
+# Usage
+user_service.update_user_name("user-123", "New Name")
 updated_user = user_service.get_user("user-123")
 ```
 
 ```python
-# CQS の例外: Stack.pop() のような古典的操作
+# CQS exception: classic operations like Stack.pop()
 
-# 厳密なCQS準拠
+# Strict CQS compliance
 class Stack:
     def peek(self) -> T:
-        """先頭要素を返す（クエリ: 状態変更なし）"""
+        """Return the top element (query: no state change)"""
         if self.is_empty():
             raise EmptyStackError()
         return self.items[-1]
 
     def remove_top(self) -> None:
-        """先頭要素を削除する（コマンド: 戻り値なし）"""
+        """Remove the top element (command: no return value)"""
         if self.is_empty():
             raise EmptyStackError()
         self.items.pop()
 
-# 注: pop() はCQS違反だが、実用上は広く受け入れられている
-# 厳密なCQS適用は場面に応じて判断する
+# Note: pop() violates CQS but is widely accepted in practice
+# Whether to apply strict CQS depends on the situation
 
-# CQS例外が許容される場面:
-# ・pop(): 要素を削除して返す（アトミック操作として有用）
-# ・next(): イテレータの進行と値取得
-# ・dequeue(): キューからの取り出し
-# → 原子性が重要な場合は CQS 違反も許容される
+# Cases where CQS exceptions are acceptable:
+# · pop(): removes and returns an element (useful as an atomic operation)
+# · next(): advances an iterator and retrieves a value
+# · dequeue(): removes from a queue
+# → CQS violations are acceptable when atomicity is important
 ```
 
 ---
 
-## 4. ガード節と早期リターン
+## 4. Guard Clauses and Early Return
 
-### 4.1 ネストを減らすテクニック
+### 4.1 Techniques to Reduce Nesting
 
-**コード例9: ガード節による可読性向上**
+**Code Example 9: Improving Readability with Guard Clauses**
 
 ```python
-# === 悪い: 深いネスト ===
+# === Bad: Deep nesting ===
 def process_payment(order):
     if order is not None:
         if order.is_valid():
@@ -634,9 +635,9 @@ def process_payment(order):
         return PaymentResult.null_order()
 
 
-# === 良い: ガード節で早期リターン ===
+# === Good: Early return with guard clauses ===
 def process_payment(order: Order) -> PaymentResult:
-    # ガード節: 異常系を先に処理
+    # Guard clauses: handle error cases first
     if order is None:
         return PaymentResult.null_order()
 
@@ -652,7 +653,7 @@ def process_payment(order: Order) -> PaymentResult:
     if not order.customer.has_sufficient_balance(order.total):
         return PaymentResult.insufficient_balance()
 
-    # Happy Path: 正常系は最下部
+    # Happy Path: normal flow at the bottom
     result = charge(order)
     if not result.success:
         return PaymentResult.failed(result.error)
@@ -660,31 +661,31 @@ def process_payment(order: Order) -> PaymentResult:
     send_confirmation(order)
     return result
 
-# メリット:
-# ・ネスト0段（最大1段）
-# ・異常系が先に排除されるので正常系に集中できる
-# ・新しい条件の追加が容易（ガード節を追加するだけ）
+# Benefits:
+# · Nesting depth is 0 (max 1 level)
+# · Error cases are eliminated first, so you can focus on the happy path
+# · Easy to add new conditions (just add a guard clause)
 ```
 
-| 手法 | 説明 | 効果 |
+| Technique | Description | Effect |
 |------|------|------|
-| ガード節 | 異常系を先に処理してリターン | ネスト削減 |
-| 早期リターン | 条件不成立時にすぐ返す | Happy Path の明確化 |
-| Fail Fast | 不正入力を即座に拒否 | バグの早期発見 |
+| Guard clauses | Handle error cases first and return early | Reduces nesting |
+| Early return | Return immediately when a condition is not met | Clarifies the Happy Path |
+| Fail Fast | Reject invalid input immediately | Catches bugs early |
 
-| ネスト深度 | 推奨度 | 対策 |
+| Nesting depth | Recommendation | Action |
 |-----------|--------|------|
-| 1〜2 | 良い | そのまま |
-| 3 | 注意 | ガード節やメソッド抽出を検討 |
-| 4+ | 要リファクタリング | 必ず分解する |
+| 1-2 | Good | Leave as is |
+| 3 | Caution | Consider guard clauses or method extraction |
+| 4+ | Refactoring required | Always decompose |
 
 ---
 
-## 5. 関数設計の高度なパターン
+## 5. Advanced Function Design Patterns
 
-### 5.1 高階関数による抽象化
+### 5.1 Abstraction with Higher-Order Functions
 
-**コード例10: 高階関数でパターンを抽象化**
+**Code Example 10: Abstracting Patterns with Higher-Order Functions**
 
 ```python
 from typing import TypeVar, Callable, Optional
@@ -693,7 +694,7 @@ import logging
 
 T = TypeVar('T')
 
-# === リトライパターンの抽象化 ===
+# === Abstracting the retry pattern ===
 def with_retry(
     operation: Callable[[], T],
     max_retries: int = 3,
@@ -701,7 +702,7 @@ def with_retry(
     backoff_factor: float = 2.0,
     on_retry: Optional[Callable[[int, Exception], None]] = None,
 ) -> T:
-    """リトライロジックを抽象化した高階関数"""
+    """A higher-order function that abstracts retry logic"""
     last_exception = None
     for attempt in range(max_retries + 1):
         try:
@@ -714,7 +715,7 @@ def with_retry(
                 time.sleep(delay_seconds * (backoff_factor ** attempt))
     raise last_exception
 
-# 使用: リトライの詳細を知らずに使える
+# Usage: usable without knowing retry details
 user = with_retry(
     lambda: api_client.fetch_user("user-123"),
     max_retries=3,
@@ -723,9 +724,9 @@ user = with_retry(
 )
 
 
-# === タイミング計測の抽象化（デコレータ） ===
+# === Abstracting timing measurement (decorator) ===
 def timed(func: Callable) -> Callable:
-    """関数の実行時間を計測するデコレータ"""
+    """A decorator that measures the execution time of a function"""
     def wrapper(*args, **kwargs):
         start = time.perf_counter()
         try:
@@ -740,12 +741,12 @@ def heavy_computation(data: list) -> float:
     return sum(x ** 2 for x in data)
 
 
-# === トランザクション境界の抽象化 ===
+# === Abstracting transaction boundaries ===
 def with_transaction(
     db: Database,
     operation: Callable[[Connection], T]
 ) -> T:
-    """トランザクション管理を抽象化"""
+    """Abstracts transaction management"""
     conn = db.get_connection()
     try:
         result = operation(conn)
@@ -757,7 +758,7 @@ def with_transaction(
     finally:
         conn.close()
 
-# 使用: トランザクション管理を意識せずにビジネスロジックに集中
+# Usage: focus on business logic without worrying about transaction management
 def transfer_money(from_id: str, to_id: str, amount: Decimal) -> None:
     def _transfer(conn: Connection) -> None:
         conn.execute("UPDATE accounts SET balance = balance - ? WHERE id = ?", [amount, from_id])
@@ -766,10 +767,10 @@ def transfer_money(from_id: str, to_id: str, amount: Decimal) -> None:
     with_transaction(db, _transfer)
 ```
 
-### 5.2 パイプライン処理
+### 5.2 Pipeline Processing
 
 ```python
-# === データ変換パイプライン ===
+# === Data transformation pipeline ===
 
 from functools import reduce
 from typing import TypeVar, Callable
@@ -777,18 +778,18 @@ from typing import TypeVar, Callable
 T = TypeVar('T')
 
 def pipe(*functions: Callable) -> Callable:
-    """関数を左から右に合成するパイプライン"""
+    """A pipeline that composes functions from left to right"""
     def pipeline(data):
         return reduce(lambda acc, fn: fn(acc), functions, data)
     return pipeline
 
-# 使用: 段階的なデータ変換
+# Usage: incremental data transformation
 process_users = pipe(
-    lambda users: [u for u in users if u.is_active],      # アクティブユーザーのみ
-    lambda users: [u for u in users if u.age >= 18],       # 成人のみ
-    lambda users: sorted(users, key=lambda u: u.name),     # 名前順ソート
-    lambda users: [u.to_summary() for u in users],         # サマリーに変換
-    lambda summaries: summaries[:100],                      # 上位100件
+    lambda users: [u for u in users if u.is_active],      # Active users only
+    lambda users: [u for u in users if u.age >= 18],       # Adults only
+    lambda users: sorted(users, key=lambda u: u.name),     # Sort by name
+    lambda users: [u.to_summary() for u in users],         # Convert to summary
+    lambda summaries: summaries[:100],                      # Top 100
 )
 
 result = process_users(all_users)
@@ -796,22 +797,22 @@ result = process_users(all_users)
 
 ---
 
-## 6. アンチパターン
+## 6. Anti-Patterns
 
-### アンチパターン1: God Function（巨大関数）
+### Anti-Pattern 1: God Function (Massive Function)
 
 ```python
-# NG: 1つの関数で全てを処理（200行超）
+# NG: One function handles everything (200+ lines)
 def process_everything(request):
-    # バリデーション (30行)
-    # データ変換 (40行)
-    # ビジネスロジック (60行)
-    # DB操作 (30行)
-    # 外部API呼び出し (20行)
-    # レスポンス生成 (20行)
+    # Validation (30 lines)
+    # Data transformation (40 lines)
+    # Business logic (60 lines)
+    # DB operations (30 lines)
+    # External API calls (20 lines)
+    # Response generation (20 lines)
     pass
 
-# OK: 責任ごとに関数を分割
+# OK: Split functions by responsibility
 def handle_request(request: Request) -> Response:
     validated = validate_request(request)
     domain_data = transform_to_domain(validated)
@@ -821,44 +822,44 @@ def handle_request(request: Request) -> Response:
     return create_response(persisted)
 ```
 
-### アンチパターン2: Output引数（出力パラメータ）
+### Anti-Pattern 2: Output Arguments (Out Parameters)
 
 ```java
-// NG: 引数を変更して結果を返す
+// NG: Modifying an argument to return a result
 void calculateTotal(Order order, Money result) {
     result.setAmount(order.getSubtotal() + order.getTax());
 }
 
-// OK: 戻り値で返す
+// OK: Return through the return value
 Money calculateTotal(Order order) {
     return order.getSubtotal().add(order.getTax());
 }
 ```
 
-### アンチパターン3: 隠れた時間的結合
+### Anti-Pattern 3: Hidden Temporal Coupling
 
 ```python
-# NG: メソッドの呼び出し順序が暗黙に重要
+# NG: The order of method calls is implicitly important
 class DataProcessor:
-    def initialize(self): ...   # 1. 先に呼ぶ必要がある
-    def load_data(self): ...    # 2. initialize の後に呼ぶ
-    def process(self): ...      # 3. load_data の後に呼ぶ
-    def save(self): ...         # 4. process の後に呼ぶ
+    def initialize(self): ...   # 1. Must be called first
+    def load_data(self): ...    # 2. Called after initialize
+    def process(self): ...      # 3. Called after load_data
+    def save(self): ...         # 4. Called after process
 
-# OK: 順序を強制する設計
+# OK: Design that enforces the order
 class DataProcessor:
     def run(self, input_path: str, output_path: str) -> None:
-        """全処理を1つのメソッドで順序保証"""
+        """All processing in one method with guaranteed order"""
         config = self._initialize()
         data = self._load_data(input_path, config)
         result = self._process(data)
         self._save(result, output_path)
 ```
 
-### アンチパターン4: フラグ引数による分岐
+### Anti-Pattern 4: Branching with Flag Arguments
 
 ```python
-# NG: ブール引数で関数内の振る舞いを切り替える
+# NG: A boolean argument switches behavior inside the function
 def render_page(content: str, is_admin: bool) -> str:
     if is_admin:
         header = render_admin_header()
@@ -868,7 +869,7 @@ def render_page(content: str, is_admin: bool) -> str:
         sidebar = render_user_sidebar()
     return f"{header}{sidebar}{content}"
 
-# OK: 役割ごとに関数を分割する
+# OK: Split functions by role
 def render_admin_page(content: str) -> str:
     header = render_admin_header()
     sidebar = render_admin_sidebar()
@@ -880,19 +881,19 @@ def render_user_page(content: str) -> str:
     return f"{header}{sidebar}{content}"
 ```
 
-**問題点**: フラグ引数は関数が2つの責任を持っている兆候。呼び出し側で `render_page(content, True)` と書くと、`True` が何を意味するのか即座には分からない。関数を分割するか、Strategy パターンを適用して、名前で意図を明確にする。
+**Problem**: A flag argument is a sign that a function has two responsibilities. Writing `render_page(content, True)` at the call site makes it unclear what `True` means at a glance. Split the function or apply the Strategy pattern to make the intent clear through the name.
 
 ---
 
-## 7. 演習問題
+## 7. Exercises
 
-### 演習1（基礎）: 関数の分割
+### Exercise 1 (Basic): Splitting Functions
 
-以下の巨大関数を、単一責任の関数群にリファクタリングしてください。
+Refactor the following massive function into a group of single-responsibility functions.
 
 ```python
 def register_user(data):
-    # バリデーション
+    # Validation
     if not data.get('email') or '@' not in data['email']:
         return {'error': 'Invalid email'}
     if not data.get('password') or len(data['password']) < 8:
@@ -900,7 +901,7 @@ def register_user(data):
     if not data.get('name') or len(data['name']) < 2:
         return {'error': 'Name too short'}
 
-    # ユーザー作成
+    # Create user
     import hashlib
     salt = os.urandom(32)
     hashed = hashlib.pbkdf2_hmac('sha256', data['password'].encode(), salt, 100000)
@@ -912,21 +913,21 @@ def register_user(data):
         'created_at': datetime.now()
     }
 
-    # DB保存
+    # Save to DB
     db.execute("INSERT INTO users ...", user)
 
-    # メール送信
+    # Send email
     smtp = smtplib.SMTP('smtp.example.com')
     smtp.sendmail('noreply@example.com', data['email'], f'Welcome {data["name"]}!')
 
     return {'success': True, 'user_id': user['id']}
 ```
 
-**期待される回答:**
+**Expected Answer:**
 
 ```python
 def register_user(request: RegisterUserRequest) -> RegisterResult:
-    """ユーザーを登録する（高レベル）"""
+    """Register a user (high level)"""
     validation_error = validate_registration(request)
     if validation_error:
         return RegisterResult.invalid(validation_error)
@@ -950,9 +951,9 @@ def create_user_entity(request: RegisterUserRequest) -> User:
     return User(name=request.name, email=request.email, password_hash=password_hash)
 ```
 
-### 演習2（応用）: CQS の適用
+### Exercise 2 (Applied): Applying CQS
 
-以下のCQS違反を修正してください。
+Fix the following CQS violations.
 
 ```python
 class ShoppingCart:
@@ -965,18 +966,18 @@ class ShoppingCart:
         return len(self.items) == 0
 ```
 
-**期待される回答:**
+**Expected Answer:**
 
 ```python
 class ShoppingCart:
-    # コマンド（状態変更）
+    # Commands (state mutation)
     def add_item(self, item: CartItem) -> None:
         self.items.append(item)
 
     def remove_item(self, item_id: str) -> None:
         self.items = [i for i in self.items if i.id != item_id]
 
-    # クエリ（値取得）
+    # Queries (value retrieval)
     def get_total(self) -> Decimal:
         return sum(i.price for i in self.items)
 
@@ -984,9 +985,9 @@ class ShoppingCart:
         return len(self.items) == 0
 ```
 
-### 演習3（発展）: Functional Core / Imperative Shell
+### Exercise 3 (Advanced): Functional Core / Imperative Shell
 
-以下のコードを Functional Core と Imperative Shell に分離してください。
+Separate the following code into a Functional Core and an Imperative Shell.
 
 ```python
 def process_order(order_id, discount_code):
@@ -1009,26 +1010,26 @@ def process_order(order_id, discount_code):
     return final
 ```
 
-**期待される回答:**
+**Expected Answer:**
 
 ```python
-# Functional Core（純粋関数）
+# Functional Core (pure functions)
 def calculate_order_total(items: list[Item], discount_rate: float, tax_rate: float) -> Decimal:
     subtotal = sum(item.price * item.quantity for item in items)
     discounted = subtotal * (1 - discount_rate)
     tax = discounted * tax_rate
     return discounted + tax
 
-# Imperative Shell（副作用あり）
+# Imperative Shell (with side effects)
 def process_order(order_id: str, discount_code: str) -> Decimal:
     order = db.get_order(order_id)
     discount = db.get_discount(discount_code)
     discount_rate = discount.rate if discount else 0.0
 
-    # 純粋関数でビジネスロジック
+    # Business logic via pure function
     final_total = calculate_order_total(order.items, discount_rate, TAX_RATE)
 
-    # 副作用
+    # Side effects
     db.update_order_total(order_id, final_total)
     email_service.send_receipt(order.customer_email, final_total)
 
@@ -1038,33 +1039,33 @@ def process_order(order_id: str, discount_code: str) -> Decimal:
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured configuration file | Check the path and format of the configuration file |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry handling |
+| Out of memory | Growing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Verify the executing user's permissions, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Read the error message**: Read the stack trace to identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with the minimum amount of code
+3. **Form a hypothesis**: List possible causes
+4. **Verify incrementally**: Use log output or a debugger to verify hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1072,102 +1073,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """A decorator that logs the inputs and outputs of a function"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Called: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return value: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception raised: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with a profiling tool
+2. **Check memory usage**: Look for memory leaks
+3. **Check for I/O waits**: Examine disk and network I/O status
+4. **Check concurrent connection count**: Monitor connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem Type | Diagnostic Tool | Action |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| High CPU load | cProfile, py-spy | Improve algorithms, parallelize |
+| Memory leak | tracemalloc, objgraph | Release references properly |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | Prioritize When | Can Compromise When |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin dashboards, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow           │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① What is the team size?                       │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to ②              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② How often do you deploy?                     │
+│    ├─ Weekly or less → Monolith + modular split  │
+│    └─ Daily / multiple times → Go to ③          │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ How independent are the teams?               │
+│    ├─ High → Microservices                      │
+│    └─ Medium → Modular monolith                 │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A faster short-term approach can become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can delay a project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified technology stack has a lower learning curve
+- Adopting diverse technologies allows using the right tool for the job, but increases operational cost
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction increases reusability but can make debugging harder
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Template for recording design decisions
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1177,17 +1178,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and the problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision made"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1195,7 +1196,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1203,15 +1204,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1219,53 +1220,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum required features
+- Automated tests only for the critical path
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't strive for perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Incrementally renovating a system that has been in operation for 10+ years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- If there are no existing tests, write Characterization Tests first
+- Use an API gateway to coexist old and new systems
+- Migrate data incrementally
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
+| Phase | Work | Estimated Duration | Risk |
 |---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| 1. Investigation | Analyze current state, understand dependencies | 2-4 weeks | Low |
+| 2. Foundation | Set up CI/CD, test environment | 4-6 weeks | Low |
+| 3. Begin migration | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core migration | Migrate core features | 6-12 months | High |
+| 5. Completion | Decommission old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Use Domain-Driven Design to clarify boundaries
+- Set ownership per team
+- Manage shared libraries using an Inner Source approach
+- Design API-first to minimize dependencies between teams
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1278,20 +1279,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Verify SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1300,7 +1301,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1321,104 +1322,106 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system where millisecond-level responses are required
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
+| Optimization Technique | Effect | Implementation Cost | Use Case |
 |-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy operations |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low-Medium | High | When CPU-bound |
 
 ---
 
-## チーム開発での活用
+## Collaboration in Team Development
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to verify in code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Are naming conventions consistent?
+- [ ] Is error handling appropriate?
+- [ ] Is test coverage sufficient?
+- [ ] Is there any performance impact?
+- [ ] Are there any security issues?
+- [ ] Has documentation been updated?
 
-### ナレッジ共有のベストプラクティス
+### Best Practices for Knowledge Sharing
 
-| 方法 | 頻度 | 対象 | 効果 |
+| Method | Frequency | Target | Effect |
 |------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talk | Weekly | Entire team | Horizontal knowledge transfer |
+| ADR (design records) | As needed | Future members | Transparency of decisions |
+| Retrospective | Every 2 weeks | Entire team | Continuous improvement |
+| Mob programming | Monthly | Important designs | Building consensus |
 
-### 技術的負債の管理
+### Managing Technical Debt
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
+        High Impact
           │
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │ Plan│ Act │
+    │ ned │ imm-│
+    │     │ edi-│
+    │     │ ate-│
+    │     │ ly  │
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │ Log │ Next│
+    │ only│ Spr-│
+    │     │ int │
     └─────┼─────┘
           │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        Low Impact
+    Low Frequency  High Frequency
 ```
 
 ---
 
-## セキュリティの考慮事項
+## Security Considerations
 
-### 一般的な脆弱性と対策
+### Common Vulnerabilities and Countermeasures
 
-| 脆弱性 | リスクレベル | 対策 | 検出方法 |
+| Vulnerability | Risk Level | Countermeasure | Detection Method |
 |--------|------------|------|---------|
-| インジェクション攻撃 | 高 | 入力値のバリデーション・パラメータ化クエリ | SAST/DAST |
-| 認証の不備 | 高 | 多要素認証・セッション管理の強化 | ペネトレーションテスト |
-| 機密データの露出 | 高 | 暗号化・アクセス制御 | セキュリティ監査 |
-| 設定の不備 | 中 | セキュリティヘッダー・最小権限の原則 | 構成スキャン |
-| ログの不足 | 中 | 構造化ログ・監査証跡 | ログ分析 |
+| Injection attacks | High | Input validation, parameterized queries | SAST/DAST |
+| Broken authentication | High | Multi-factor auth, stronger session management | Penetration testing |
+| Sensitive data exposure | High | Encryption, access control | Security audit |
+| Security misconfiguration | Medium | Security headers, principle of least privilege | Configuration scanning |
+| Insufficient logging | Medium | Structured logging, audit trails | Log analysis |
 
-### セキュアコーディングのベストプラクティス
+### Secure Coding Best Practices
 
 ```python
-# セキュアコーディング例
+# Secure coding example
 import hashlib
 import secrets
 import hmac
 from typing import Optional
 
 class SecurityUtils:
-    """セキュリティユーティリティ"""
+    """Security utilities"""
 
     @staticmethod
     def generate_token(length: int = 32) -> str:
-        """暗号学的に安全なトークン生成"""
+        """Generate a cryptographically secure token"""
         return secrets.token_urlsafe(length)
 
     @staticmethod
     def hash_password(password: str, salt: Optional[str] = None) -> tuple:
-        """パスワードのハッシュ化"""
+        """Hash a password"""
         if salt is None:
             salt = secrets.token_hex(16)
         hashed = hashlib.pbkdf2_hmac(
@@ -1431,70 +1434,70 @@ class SecurityUtils:
 
     @staticmethod
     def verify_password(password: str, hashed: str, salt: str) -> bool:
-        """パスワードの検証"""
+        """Verify a password"""
         new_hash, _ = SecurityUtils.hash_password(password, salt)
         return hmac.compare_digest(new_hash, hashed)
 
     @staticmethod
     def sanitize_input(value: str) -> str:
-        """入力値のサニタイズ"""
+        """Sanitize input values"""
         dangerous_chars = ['<', '>', '"', "'", '&', '\\']
         result = value
         for char in dangerous_chars:
             result = result.replace(char, '')
         return result.strip()
 
-# 使用例
+# Usage example
 token = SecurityUtils.generate_token()
 hashed, salt = SecurityUtils.hash_password("my_password")
 is_valid = SecurityUtils.verify_password("my_password", hashed, salt)
 ```
 
-### セキュリティチェックリスト
+### Security Checklist
 
-- [ ] 全ての入力値がバリデーションされている
-- [ ] 機密情報がログに出力されていない
-- [ ] HTTPS が強制されている
-- [ ] CORS ポリシーが適切に設定されている
-- [ ] 依存パッケージの脆弱性スキャンが実施されている
-- [ ] エラーメッセージに内部情報が含まれていない
+- [ ] All input values are validated
+- [ ] Sensitive information is not output to logs
+- [ ] HTTPS is enforced
+- [ ] CORS policy is configured appropriately
+- [ ] Vulnerability scanning of dependency packages has been performed
+- [ ] Error messages do not contain internal information
 ---
 
 ## 8. FAQ
 
-### Q1: 関数は何行以下にすべきか？
+### Q1: How many lines should a function be?
 
-Robert C. Martin は「4〜5行が理想」と述べているが、実践的には**20行以下**が目安。重要なのは行数ではなく「1つのことだけをしているか」。20行でも1つの責任なら問題なく、5行でも複数の責任が混在していればリファクタリング対象。
+Robert C. Martin says "4-5 lines is ideal," but in practice **20 lines or fewer** is the target. What matters is not the line count but whether it does "only one thing." A 20-line function with a single responsibility is fine; a 5-line function with multiple responsibilities is a refactoring target.
 
-### Q2: 引数にnullを渡すのは許容されるか？
+### Q2: Is it acceptable to pass null as an argument?
 
-原則として**null引数は避けるべき**。Optional型、デフォルト値、メソッドオーバーロードで代替する。null引数はNullPointerExceptionの温床であり、呼び出し側にnullチェックの責任を押し付ける。
+In principle, **null arguments should be avoided**. Use Optional types, default values, or method overloading instead. Null arguments are a breeding ground for NullPointerExceptions and push the responsibility for null checking onto the caller.
 
-### Q3: privateメソッドが増えすぎた場合はどうすべきか？
+### Q3: What should you do when there are too many private methods?
 
-privateメソッドが多いクラスは、**隠れたクラスが存在する兆候**。関連するprivateメソッド群を新しいクラスに抽出（Extract Class）することで、各クラスの凝集度が上がる。
+A class with many private methods is **a sign that a hidden class exists**. Extract the group of related private methods into a new class (Extract Class) to increase the cohesion of each class.
 
-### Q4: CQSを常に厳密に適用すべきか？
+### Q4: Should CQS always be applied strictly?
 
-CQSは原則であり、絶対的なルールではない。`pop()`, `next()`, `dequeue()` のように、原子性が重要な操作ではCQS違反も許容される。重要なのは**意図しない副作用を排除すること**であり、明示的に設計されたCQS違反は問題ない。
+CQS is a principle, not an absolute rule. Operations where atomicity is important, such as `pop()`, `next()`, and `dequeue()`, are acceptable CQS violations. What matters is **eliminating unintended side effects**; intentional CQS violations that are explicitly designed are not a problem.
 
-### Q5: 早期リターンはパフォーマンスに影響するか？
+### Q5: Does early return affect performance?
 
-現代のコンパイラ/インタープリタでは、早期リターンによるパフォーマンスへの影響は無視できる。可読性の向上のほうが遥かに重要。唯一注意すべきはリソース解放で、early returnの前に`try-finally`や`with`文でリソースを確実に解放する。
+With modern compilers/interpreters, the performance impact of early return is negligible. The improvement in readability is far more important. The one thing to be careful about is resource release — use `try-finally` or `with` statements before an early return to ensure resources are properly released.
 
-### Q6: ラムダ式と通常の関数のどちらを使うべきか？
+### Q6: When should you use lambda expressions vs. named functions?
 
-**1〜2行の単純な変換・フィルタにはラムダ式**、**3行以上のロジックや再利用する処理には名前付き関数**が適切である。ラムダ式は「何をするか」が即座に分かる場合に有効だが、複雑になるとデバッグしにくくなる。
+**Lambda expressions are appropriate for simple 1-2 line transformations or filters**, while **named functions are appropriate for logic that is 3+ lines or is reused**. Lambda expressions are effective when "what they do" is immediately clear, but they become hard to debug as they grow complex.
 
 ```python
-# OK: ラムダ式が適切（単純な変換）
+# OK: Lambda expression is appropriate (simple transformation)
 names = sorted(users, key=lambda u: u.last_name)
 active = filter(lambda u: u.is_active, users)
 
-# NG: ラムダ式が複雑すぎる
+# NG: Lambda expression is too complex
 result = map(lambda x: x.price * x.quantity * (1 - x.discount) if x.is_taxable else x.price * x.quantity, items)
 
-# OK: 名前付き関数に抽出
+# OK: Extract into a named function
 def calculate_item_total(item: Item) -> float:
     subtotal = item.price * item.quantity
     if item.is_taxable:
@@ -1504,26 +1507,26 @@ def calculate_item_total(item: Item) -> float:
 result = map(calculate_item_total, items)
 ```
 
-### Q7: 再帰関数はいつ使うべきか？
+### Q7: When should you use recursive functions?
 
-再帰はツリー構造の走査やフラクタル的な問題（分割統治法）に自然にフィットする。ただし以下の点に注意する。
+Recursion naturally fits tree structure traversal and fractal-style problems (divide and conquer). However, be mindful of the following:
 
-1. **スタックオーバーフロー**: 再帰の深さに上限がある（Python: デフォルト1000）
-2. **末尾再帰最適化**: 多くの言語では最適化されないため、ループに変換するほうが安全
-3. **可読性**: 再帰で書くと自然に読める問題（ディレクトリ走査、JSON解析等）には積極的に使う
+1. **Stack overflow**: Recursion depth has a limit (Python: default 1000)
+2. **Tail call optimization**: Not optimized in many languages, so converting to a loop is safer
+3. **Readability**: Use recursion actively for problems that read naturally as recursive (directory traversal, JSON parsing, etc.)
 
 ```python
-# 再帰が自然なケース: ディレクトリツリーの走査
+# A case where recursion is natural: traversing a directory tree
 def find_files(directory: Path, extension: str) -> list[Path]:
     found = []
     for entry in directory.iterdir():
         if entry.is_dir():
-            found.extend(find_files(entry, extension))  # 再帰
+            found.extend(find_files(entry, extension))  # Recursion
         elif entry.suffix == extension:
             found.append(entry)
     return found
 
-# 再帰が不適切なケース: 単純な集計（ループで十分）
+# A case where recursion is inappropriate: simple aggregation (a loop is sufficient)
 # NG
 def sum_recursive(numbers: list[int]) -> int:
     if not numbers:
@@ -1540,58 +1543,58 @@ def sum_iterative(numbers: list[int]) -> int:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and confirming its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional settings?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 原則 | ガイドライン | 違反の兆候 |
+| Principle | Guideline | Signs of Violation |
 |------|------------|-----------|
-| サイズ | 20行以下 | スクロールが必要 |
-| 責任 | 1つだけ | 「〜して〜して〜する」という説明 |
-| 引数 | 2個以下推奨 | 引数オブジェクト未使用で3個以上 |
-| 副作用 | なし/明示的 | 名前に表れない状態変更 |
-| 抽象レベル | 統一 | 高レベル操作と低レベル操作の混在 |
-| CQS | コマンドとクエリを分離 | 状態変更しつつ値を返す |
-| ネスト | 2段以下 | 深いif/forの入れ子 |
+| Size | 20 lines or fewer | Requires scrolling |
+| Responsibility | Only one | Descriptions like "does X, then Y, then Z" |
+| Arguments | 2 or fewer recommended | 3+ without a parameter object |
+| Side effects | None / explicit | State changes not reflected in the name |
+| Abstraction level | Unified | High-level and low-level operations mixed |
+| CQS | Separate commands and queries | Mutating state while returning a value |
+| Nesting | 2 levels or fewer | Deep nested if/for statements |
 
-| 設計パターン | 効果 | 適用場面 |
+| Design Pattern | Effect | Use Case |
 |------------|------|---------|
-| ガード節 | ネスト削減、異常系の明確化 | 複数の前提条件チェック |
-| 引数オブジェクト | 引数の削減、意味の明確化 | 引数が3個以上 |
-| 戦略パターン | フラグ引数の排除 | 条件による動作切替 |
-| 高階関数 | 共通パターンの抽象化 | リトライ、計測、トランザクション |
-| Functional Core | テスト容易性、推論容易性 | ビジネスロジック |
+| Guard clauses | Reduced nesting, clarified error cases | Multiple precondition checks |
+| Parameter object | Fewer arguments, clearer meaning | 3 or more arguments |
+| Strategy pattern | Eliminates flag arguments | Switching behavior based on conditions |
+| Higher-order functions | Abstraction of common patterns | Retry, measurement, transactions |
+| Functional Core | Testability, ease of reasoning | Business logic |
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [エラーハンドリング](./02-error-handling.md) ── 関数のエラー処理設計
-- [テスト原則](./04-testing-principles.md) ── テストしやすい関数の条件
-- [関数型原則](../03-practices-advanced/02-functional-principles.md) ── 純粋関数と参照透過性
-- [SOLID原則](../00-principles/01-solid.md) ── SRPと関数の単一責任
+- [Error Handling](./02-error-handling.md) ── Error handling design for functions
+- [Testing Principles](./04-testing-principles.md) ── Conditions for functions that are easy to test
+- [Functional Principles](../03-practices-advanced/02-functional-principles.md) ── Pure functions and referential transparency
+- [SOLID Principles](../00-principles/01-solid.md) ── SRP and single responsibility of functions
 
 ---
 
-## 参考文献
+## References
 
-1. **Robert C. Martin** 『Clean Code: A Handbook of Agile Software Craftsmanship』 Prentice Hall, 2008 (Chapter 3: Functions) ── 関数設計の基本原則
-2. **Bertrand Meyer** 『Object-Oriented Software Construction』 Prentice Hall, 1997 ── Command-Query Separation の提唱
-3. **Martin Fowler** 『Refactoring: Improving the Design of Existing Code』 Addison-Wesley, 2018 ── Extract Function, Introduce Parameter Object, Replace Flag Argument
-4. **Gary Bernhardt** "Boundaries" (talk, 2012) ── Functional Core / Imperative Shell パターン
-5. **Michael Feathers** 『Working Effectively with Legacy Code』 Prentice Hall, 2004 ── レガシーコードにおける関数の抽出技法
-6. **Thomas J. McCabe** "A Complexity Measure" IEEE Transactions on Software Engineering, 1976 ── 循環的複雑度の定義
-7. **G. Ann Campbell** "Cognitive Complexity" SonarSource, 2018 ── 認知的複雑度メトリクスの定義
-8. **Eric Normand** 『Grokking Simplicity: Taming complex software with functional thinking』 Manning, 2021 ── 純粋関数とアクションの分離
+1. **Robert C. Martin** *Clean Code: A Handbook of Agile Software Craftsmanship* Prentice Hall, 2008 (Chapter 3: Functions) ── Basic principles of function design
+2. **Bertrand Meyer** *Object-Oriented Software Construction* Prentice Hall, 1997 ── Proposal of Command-Query Separation
+3. **Martin Fowler** *Refactoring: Improving the Design of Existing Code* Addison-Wesley, 2018 ── Extract Function, Introduce Parameter Object, Replace Flag Argument
+4. **Gary Bernhardt** "Boundaries" (talk, 2012) ── Functional Core / Imperative Shell pattern
+5. **Michael Feathers** *Working Effectively with Legacy Code* Prentice Hall, 2004 ── Techniques for extracting functions from legacy code
+6. **Thomas J. McCabe** "A Complexity Measure" IEEE Transactions on Software Engineering, 1976 ── Definition of cyclomatic complexity
+7. **G. Ann Campbell** "Cognitive Complexity" SonarSource, 2018 ── Definition of the cognitive complexity metric
+8. **Eric Normand** *Grokking Simplicity: Taming complex software with functional thinking* Manning, 2021 ── Separating pure functions from actions
