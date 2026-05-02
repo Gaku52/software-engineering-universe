@@ -1,99 +1,99 @@
-# デメテルの法則 ── 最小知識の原則
+# Law of Demeter ── The Principle of Least Knowledge
 
-> デメテルの法則（Law of Demeter / LoD）は「直接の友人とだけ話せ」という設計原則である。オブジェクトが知るべき範囲を最小限に保つことで、結合度を下げ、変更に強いシステムを構築する。
-
----
-
-## この章で学ぶこと
-
-1. **デメテルの法則の定義と目的** ── 「ドットの連鎖を避けよ」の本質を理解する
-2. **違反パターンの検出** ── Train Wreck（列車事故）コードを見抜く目を養う
-3. **適用のバランス** ── 過度な適用を避け、適切な範囲で活用する判断力を身につける
-4. **実践的なリファクタリング手法** ── Tell, Don't Ask 原則との関係を理解し適用する
-5. **言語別の適用方法** ── OOP、関数型、データ指向での適用の違いを把握する
+> The Law of Demeter (LoD) is a design principle that says "only talk to your immediate friends." By keeping the scope of what an object needs to know to a minimum, it reduces coupling and builds systems that are resilient to change.
 
 ---
 
-## 前提知識
+## What You Will Learn in This Chapter
 
-このガイドを最大限に活用するには、以下の知識が必要です。
+1. **Definition and purpose of the Law of Demeter** ── Understand the essence of "avoid dot chain" code
+2. **Detecting violation patterns** ── Develop an eye for spotting Train Wreck code
+3. **Balancing application** ── Build judgment to apply it appropriately without over-applying it
+4. **Practical refactoring techniques** ── Understand and apply the relationship with the Tell, Don't Ask principle
+5. **Language-specific application** ── Grasp the differences in application across OOP, functional, and data-oriented styles
 
-| 前提知識 | 必要レベル | 参照先 |
+---
+
+## Prerequisites
+
+To get the most out of this guide, the following knowledge is required.
+
+| Prerequisite | Required Level | Reference |
 |---------|----------|--------|
-| 結合度と凝集度 | 基本を理解 | [結合度と凝集度](./03-coupling-cohesion.md) |
-| SOLID原則（特にSRP, ISP） | 基本を理解 | [SOLID原則](./01-solid.md) |
-| クリーンコードの概要 | 読了推奨 | [クリーンコード概論](./00-clean-code-overview.md) |
-| オブジェクト指向の基本 | クラス設計の経験あり | -- |
-| リファクタリングの基礎 | 概要を把握 | [コードスメル](../02-refactoring/00-code-smells.md) |
+| Coupling and Cohesion | Basic understanding | [Coupling and Cohesion](./03-coupling-cohesion.md) |
+| SOLID Principles (especially SRP, ISP) | Basic understanding | [SOLID Principles](./01-solid.md) |
+| Overview of Clean Code | Recommended to read | [Clean Code Overview](./00-clean-code-overview.md) |
+| Basics of Object-Oriented Programming | Experience with class design | -- |
+| Fundamentals of Refactoring | General understanding | [Code Smells](../02-refactoring/00-code-smells.md) |
 
 ---
 
-## 1. デメテルの法則とは
+## 1. What Is the Law of Demeter?
 
-### 1.1 歴史的背景
+### 1.1 Historical Background
 
-デメテルの法則は1987年にNortheastern UniversityのKarl Lieberherrらが「Demeter Project」の研究で提唱した。プロジェクト名はギリシャ神話の女神デメテル（農業と収穫の神）に由来する。「必要なもの（知識）だけを収穫せよ」という意味が込められている。
+The Law of Demeter was proposed in 1987 by Karl Lieberherr and colleagues at Northeastern University through their research on the "Demeter Project." The project name comes from Demeter, the goddess of agriculture and harvest in Greek mythology — carrying the meaning of "harvest only what you need (knowledge)."
 
-彼らの研究は、オブジェクト指向プログラムにおいて「メソッドが呼び出すオブジェクトの範囲を制限すること」で、プログラムの保守性が大幅に向上するという実証データに基づいている。
+Their research was based on empirical data showing that "restricting the range of objects a method may call" in object-oriented programs dramatically improves maintainability.
 
 ```
-  デメテルの法則が解決する問題
+  Problems the Law of Demeter solves
 
-  高結合コード（LoD違反）:
+  Tightly coupled code (LoD violation):
   ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
   │ Client   │───→│ Object A │───→│ Object B │───→│ Object C │
   └──────────┘    └──────────┘    └──────────┘    └──────────┘
   client.a.b.c.doSomething()
-  → Client は A, B, C すべての内部構造を知っている
-  → A, B, C のいずれかが変更されると Client が壊れる
+  → Client knows the internal structure of A, B, and C
+  → Any change to A, B, or C breaks Client
 
-  低結合コード（LoD準拠）:
+  Loosely coupled code (LoD compliant):
   ┌──────────┐    ┌──────────┐
-  │ Client   │───→│ Object A │  （A が内部で B, C を管理）
+  │ Client   │───→│ Object A │  (A manages B and C internally)
   └──────────┘    └──────────┘
   client.a.doSomething()
-  → Client は A の公開メソッドだけを知っている
-  → B, C の変更は Client に影響しない
+  → Client only knows A's public methods
+  → Changes to B and C do not affect Client
 ```
 
-### 1.2 正式な定義
+### 1.2 Formal Definition
 
 ```
 +-----------------------------------------------------------+
-|  デメテルの法則 (Law of Demeter, 1987)                    |
+|  Law of Demeter (1987)                                    |
 |  ─────────────────────────────────────────────────         |
-|  あるメソッド M 内で、M が呼び出してよいのは:             |
+|  Within a method M, M may only call methods of:           |
 |                                                           |
-|  1. M が属するオブジェクト自身のメソッド          (self)  |
-|  2. M の引数として渡されたオブジェクトのメソッド  (param) |
-|  3. M 内で生成されたオブジェクトのメソッド        (local) |
-|  4. M が属するオブジェクトのフィールドのメソッド   (field) |
+|  1. The object M belongs to                      (self)   |
+|  2. Objects passed as arguments to M             (param)  |
+|  3. Objects created locally within M             (local)  |
+|  4. Fields of the object M belongs to            (field)  |
 |                                                           |
-|  つまり「友人の友人」のメソッドを呼んではいけない          |
+|  In other words, do not call methods of a "friend's friend"|
 +-----------------------------------------------------------+
 ```
 
-**コード例1: 4つの許可されたメソッド呼び出し**
+**Code Example 1: Four Permitted Method Call Types**
 
 ```python
 class OrderProcessor:
     def __init__(self, validator: OrderValidator, logger: Logger):
-        self.validator = validator  # フィールド
-        self.logger = logger       # フィールド
+        self.validator = validator  # field
+        self.logger = logger       # field
 
     def process(self, order: Order) -> ProcessResult:
-        # ルール1: 自身のメソッド（self）
+        # Rule 1: own method (self)
         self._log_processing_start(order)
 
-        # ルール2: 引数のメソッド（param）
+        # Rule 2: method of an argument (param)
         if not order.is_valid():
             return ProcessResult.invalid()
 
-        # ルール3: ローカルで生成したオブジェクトのメソッド（local）
+        # Rule 3: method of a locally created object (local)
         receipt = Receipt.create(order)
         receipt.finalize()
 
-        # ルール4: フィールドのメソッド（field）
+        # Rule 4: method of a field (field)
         self.validator.validate(order)
         self.logger.info(f"Order {order.id} processed")
 
@@ -102,120 +102,120 @@ class OrderProcessor:
     def _log_processing_start(self, order: Order):
         self.logger.info(f"Processing order {order.id}")
 
-    # 以下は NG（友人の友人のメソッドを呼んでいる）
-    # order.customer.address.city.name  ← NG！
-    # self.validator.config.timeout      ← NG！
+    # The following is NOT OK (calling a method of a friend's friend)
+    # order.customer.address.city.name  <- NOT OK!
+    # self.validator.config.timeout      <- NOT OK!
 ```
 
-### 1.3 直感的な理解
+### 1.3 Intuitive Understanding
 
 ```
-  LoD違反: 友人の友人に直接話しかける
+  LoD violation: Talking directly to a friend's friend
 
-  自分 ──→ 友人 ──→ 友人の友人 ──→ そのまた友人
+  self ──→ friend ──→ friend's friend ──→ their friend
   obj.getA().getB().getC().doSomething()
        ↑       ↑       ↑
        OK     NG!     NG!
 
-  LoD準拠: 友人に頼む
+  LoD compliant: Ask your friend
 
-  自分 ──→ 友人
+  self ──→ friend
   obj.doSomethingThroughChain()
        ↑
-       OK (友人が内部で責任を持つ)
+       OK (the friend takes responsibility internally)
 ```
 
-**現実世界のアナロジー:**
+**Real-World Analogy:**
 
 ```
-  LoD違反（現実世界の例）:
-  あなたがピザを注文するとき...
+  LoD violation (real-world example):
+  When you order a pizza...
 
-  ✗ 店員の財布からクレジットカードの暗証番号を見て
-    決済システムに直接入力する
-    → 店員の内部（財布）を知りすぎている
+  ✗ Look at the PIN on the clerk's credit card in their wallet
+    and enter it directly into the payment system
+    → Knowing too much about the clerk's internals (wallet)
 
-  ✓ 店員にお金を渡して「ピザください」と言う
-    → 店員が内部的にどう処理するかは知らなくてよい
+  ✓ Hand the clerk money and say "One pizza, please"
+    → You don't need to know how the clerk handles it internally
 
 
-  LoD違反（コードの例）:
+  LoD violation (code example):
   order.getCustomer().getWallet().getCreditCard().charge(amount)
-  → 注文オブジェクトが顧客の財布の中身まで知っている
+  → The order object knows all the way into the customer's wallet
 
-  LoD準拠:
+  LoD compliant:
   order.charge(amount)
-  → 注文オブジェクトが内部的に処理を委譲する
+  → The order object delegates the processing internally
 ```
 
-### 1.4 なぜデメテルの法則が重要か
+### 1.4 Why the Law of Demeter Matters
 
-デメテルの法則が防ぐ問題を定量的に示す。
+Here is a quantitative illustration of the problems the Law of Demeter prevents.
 
-| 問題 | LoD違反時 | LoD準拠時 |
+| Problem | With LoD Violation | With LoD Compliance |
 |------|----------|----------|
-| 変更影響範囲 | チェーン上のどのクラスが変更されても壊れる（N箇所） | 直接の友人のインターフェースが変わった時だけ（1箇所） |
-| テスト準備コスト | チェーン上のすべてのオブジェクトをモック（N個） | 直接の友人のみモック（1個） |
-| 可読性 | 長いドット連鎖の意味を解読する必要がある | メソッド名から意図が読める |
-| NullPointerException | チェーンのどこでnullか特定困難 | 1段のみなのでデバッグ容易 |
+| Scope of change impact | Breaks whenever any class in the chain changes (N locations) | Only breaks when the direct friend's interface changes (1 location) |
+| Test setup cost | Must mock all objects in the chain (N mocks) | Only mock the direct friend (1 mock) |
+| Readability | Must decode the meaning of a long dot chain | Intent is readable from the method name |
+| NullPointerException | Hard to pinpoint where null is in the chain | Only one level deep, so easy to debug |
 
 ```
-  変更の波及効果の比較
+  Comparison of change propagation
 
-  LoD違反: customer.getAddress().getCity().getZipCode()
+  LoD violation: customer.getAddress().getCity().getZipCode()
   ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐
   │Customer│→│Address │→│ City   │→│ZipCode │
   └────────┘  └────────┘  └────────┘  └────────┘
-  ↑ City の構造変更が Client に波及（結合度: 高）
-  影響ファイル: Client + Customer + Address + City = 4
+  ↑ A change to City's structure propagates to Client (high coupling)
+  Affected files: Client + Customer + Address + City = 4
 
-  LoD準拠: customer.getShippingZipCode()
+  LoD compliant: customer.getShippingZipCode()
   ┌────────┐  ┌────────┐
-  │ Client │→│Customer│  （Customer が内部で管理）
+  │ Client │→│Customer│  (Customer manages internally)
   └────────┘  └────────┘
-  ↑ City の構造変更は Customer 内で吸収
-  影響ファイル: Customer のみ = 1
+  ↑ Changes to City's structure are absorbed within Customer
+  Affected files: Customer only = 1
 ```
 
 ---
 
-## 2. 違反パターンと改善
+## 2. Violation Patterns and Improvements
 
-### 2.1 Train Wreck（列車事故）コード
+### 2.1 Train Wreck Code
 
 ```
-  LoD違反のコード構造（ドット連鎖）
+  Code structure of a LoD violation (dot chain)
 
   customer.getAddress().getCity().getZipCode().format()
   ────────┬──────────┬─────────┬────────────┬────────
           │          │         │            │
-    1段目の │    2段目の│   3段目の │      4段目の│
-    取得     取得      取得       操作
+    Level 1   Level 2   Level 3    Level 4
+    retrieval  retrieval  retrieval  operation
 
-  → 4つのクラスの内部構造に依存している
-  → いずれかのクラスが変更されると呼び出し側が壊れる
+  → Depends on the internal structure of 4 classes
+  → If any class changes, the caller breaks
 ```
 
-**コード例2: Train Wreck の修正**
+**Code Example 2: Fixing a Train Wreck**
 
 ```python
-# === LoD違反: 深いドット連鎖 ===
+# === LoD violation: deep dot chain ===
 class OrderProcessor:
     def calculate_shipping(self, order):
-        # Order → Customer → Address → City → ZipCode と4段掘り下げ
+        # Drilling 4 levels: Order → Customer → Address → City → ZipCode
         zip_code = order.customer.address.city.zip_code
         if zip_code.startswith('100'):
-            return 500  # 都内は500円
+            return 500  # 500 yen within the city
         return 1000
 
 
-# === LoD準拠: 各オブジェクトが自分の責任範囲で応答 ===
+# === LoD compliant: each object responds within its own responsibility ===
 class Order:
     def __init__(self, customer: Customer):
         self.customer = customer
 
     def get_shipping_zip_code(self) -> str:
-        """配送先の郵便番号を返す（内部構造を隠蔽）"""
+        """Return the shipping zip code (hiding internal structure)"""
         return self.customer.get_zip_code()
 
 class Customer:
@@ -223,7 +223,7 @@ class Customer:
         self.address = address
 
     def get_zip_code(self) -> str:
-        """顧客の郵便番号を返す"""
+        """Return the customer's zip code"""
         return self.address.get_zip_code()
 
 class Address:
@@ -231,41 +231,41 @@ class Address:
         self.city = city
 
     def get_zip_code(self) -> str:
-        """住所の郵便番号を返す"""
+        """Return the address's zip code"""
         return self.city.zip_code
 
 class OrderProcessor:
     def calculate_shipping(self, order):
-        zip_code = order.get_shipping_zip_code()  # 1ドットで完結
+        zip_code = order.get_shipping_zip_code()  # Done with 1 dot
         if zip_code.startswith('100'):
             return 500
         return 1000
 ```
 
-**コード例3: コレクションの操作**
+**Code Example 3: Collection Operations**
 
 ```java
-// === LoD違反: 内部コレクションを外部に公開 ===
+// === LoD violation: exposing internal collection to the outside ===
 class Department {
     private List<Employee> employees;
 
     public List<Employee> getEmployees() {
-        return employees;  // 内部構造を暴露
+        return employees;  // Exposing internal structure
     }
 }
 
-// 呼び出し側が内部構造に依存
+// The caller depends on the internal structure
 int count = department.getEmployees().stream()
     .filter(e -> e.getSalary() > 500000)
     .count();
 
-// 問題点:
-// 1. Department が内部のデータ構造（List）を公開している
-// 2. 呼び出し側が Employee の salary フィールドを知っている
-// 3. フィルタリングロジックが呼び出し側に漏れている
+// Problems:
+// 1. Department exposes its internal data structure (List)
+// 2. The caller knows about Employee's salary field
+// 3. Filtering logic leaks into the caller
 
 
-// === LoD準拠: 問い合わせメソッドを提供 ===
+// === LoD compliant: provide query methods ===
 class Department {
     private List<Employee> employees;
 
@@ -286,31 +286,31 @@ class Department {
             .max(Comparator.comparingInt(Employee::getSalary));
     }
 
-    // 必要に応じて防御的コピーを返す
+    // Return a defensive copy if needed
     public List<Employee> getEmployeesSnapshot() {
         return List.copyOf(employees);
     }
 }
 
-// 呼び出し側はシンプル
+// The caller is simple
 int count = department.countEmployeesWithSalaryAbove(500000);
 ```
 
-**コード例4: 設定オブジェクトのアクセス**
+**Code Example 4: Accessing Configuration Objects**
 
 ```typescript
-// === LoD違反: 設定の深い階層に直接アクセス ===
+// === LoD violation: directly accessing deep config hierarchy ===
 function connectDatabase(config: AppConfig) {
   const host = config.database.connection.primary.host;
   const port = config.database.connection.primary.port;
   const timeout = config.database.connection.primary.timeoutMs;
   return new Database(`${host}:${port}`, { timeout });
 }
-// → config の内部構造に3段階依存
-// → database, connection, primary のいずれかの構造変更で壊れる
+// → 3 levels of dependency on config's internal structure
+// → Breaks if database, connection, or primary structure changes
 
 
-// === LoD準拠: 必要なデータだけを受け取る ===
+// === LoD compliant: receive only the necessary data ===
 interface DatabaseConnectionInfo {
   host: string;
   port: number;
@@ -323,15 +323,15 @@ function connectDatabase(connection: DatabaseConnectionInfo) {
   });
 }
 
-// 呼び出し側で必要な情報を抽出して渡す
-// config の構造変更は呼び出し側（1箇所）のみに影響
+// The caller extracts and passes only the required information
+// Config structure changes affect only the caller (1 location)
 const db = connectDatabase(config.getDatabaseConnection());
 ```
 
-**コード例5: null チェックの連鎖**
+**Code Example 5: Null Check Chains**
 
 ```python
-# === LoD違反 + null地獄 ===
+# === LoD violation + null hell ===
 def get_manager_email(employee):
     if employee is not None:
         dept = employee.department
@@ -342,68 +342,68 @@ def get_manager_email(employee):
                 if contact is not None:
                     return contact.email
     return "unknown@example.com"
-# → 4段のnullチェック = 4つのクラスの内部構造を知っている
-# → 追跡が困難、テスト組み合わせが 2^4 = 16パターン
+# → 4 levels of null checks = knowing the internal structure of 4 classes
+# → Hard to trace, test combinations are 2^4 = 16 patterns
 
 
-# === LoD準拠: 各オブジェクトが責任を持つ ===
+# === LoD compliant: each object takes responsibility ===
 class Employee:
     def get_manager_email(self) -> str:
-        """マネージャーのメールアドレスを取得（部門に委譲）"""
+        """Get the manager's email address (delegates to department)"""
         if self.department is None:
             return "unknown@example.com"
         return self.department.get_manager_email()
 
 class Department:
     def get_manager_email(self) -> str:
-        """マネージャーのメールを取得（マネージャーに委譲）"""
+        """Get manager's email (delegates to manager)"""
         if self.manager is None:
             return "unknown@example.com"
         return self.manager.get_email()
 
 class Manager:
     def get_email(self) -> str:
-        """メールアドレスを取得"""
+        """Get email address"""
         return self.contact.email if self.contact else "unknown@example.com"
 
-# 呼び出し: シンプルかつnull安全
+# Usage: simple and null-safe
 email = employee.get_manager_email()
-# → nullチェックは各クラスが自身の責任範囲で処理
-# → テストは各クラスごとに独立して記述可能
+# → Each class handles null checks within its own responsibility
+# → Tests can be written independently per class
 ```
 
-### 2.2 Tell, Don't Ask 原則との関係
+### 2.2 Relationship with the Tell, Don't Ask Principle
 
-デメテルの法則は「Tell, Don't Ask（命令せよ、質問するな）」原則と密接に関連する。
+The Law of Demeter is closely related to the "Tell, Don't Ask" principle.
 
 ```
-  Ask（質問する）→ LoD違反しやすい
+  Ask (querying) → prone to LoD violations
   ┌────────┐      ┌────────┐
   │ Caller │ ask →│ Object │
   └────┬───┘      └────────┘
-       │ 質問の結果を元に判断して...
+       │ Decides based on the result of the query...
        │
   ┌────▼───┐
-  │ 処理   │ ← 判断ロジックが呼び出し側に漏れる
+  │ Logic  │ ← Decision logic leaks into the caller
   └────────┘
 
-  Tell（命令する）→ LoD準拠しやすい
+  Tell (commanding) → promotes LoD compliance
   ┌────────┐       ┌────────┐
   │ Caller │ tell →│ Object │
   └────────┘       └────┬───┘
-                         │ 自分で判断して処理する
+                         │ Decides and processes on its own
                     ┌────▼───┐
-                    │ 処理   │ ← 判断ロジックがオブジェクト内に閉じる
+                    │ Logic  │ ← Decision logic stays inside the object
                     └────────┘
 ```
 
-**コード例6: Tell, Don't Ask の適用**
+**Code Example 6: Applying Tell, Don't Ask**
 
 ```python
-# === Ask パターン（LoD違反しやすい） ===
+# === Ask pattern (prone to LoD violations) ===
 class OrderProcessor:
     def process_discount(self, order: Order):
-        # 顧客の情報を「聞いて」自分で判断する
+        # "Asks" for customer info and makes the decision itself
         customer = order.customer
         if customer.membership_level == 'gold':
             if customer.total_purchases > 100000:
@@ -416,16 +416,16 @@ class OrderProcessor:
             discount = 0.0
 
         order.apply_discount(discount)
-        # → 割引ロジックが OrderProcessor に漏れている
-        # → Customer の membership_level の仕様変更で OrderProcessor が壊れる
+        # → Discount logic leaks into OrderProcessor
+        # → OrderProcessor breaks when Customer's membership_level spec changes
 
 
-# === Tell パターン（LoD準拠） ===
+# === Tell pattern (LoD compliant) ===
 class OrderProcessor:
     def process_discount(self, order: Order):
-        # 注文に「割引を計算して適用して」と命令する
+        # Tells the order to "calculate and apply the discount"
         order.apply_membership_discount()
-        # → OrderProcessor は割引の詳細を知らない
+        # → OrderProcessor doesn't know the details of the discount
 
 class Order:
     def apply_membership_discount(self):
@@ -434,23 +434,23 @@ class Order:
 
 class Customer:
     def calculate_discount(self) -> float:
-        """顧客自身が自分の割引率を知っている"""
+        """The customer itself knows its own discount rate"""
         if self.membership_level == 'gold':
             return 0.15 if self.total_purchases > 100000 else 0.10
         elif self.membership_level == 'silver':
             return 0.05
         return 0.0
-    # → 割引ロジックが Customer クラスに閉じている
-    # → 仕様変更は Customer のみに影響
+    # → Discount logic is encapsulated in the Customer class
+    # → Spec changes only affect Customer
 ```
 
-**コード例7: 複雑なビジネスロジックの委譲**
+**Code Example 7: Delegating Complex Business Logic**
 
 ```typescript
-// === LoD違反: 呼び出し側がすべての判断を行う ===
+// === LoD violation: the caller makes all decisions ===
 class ShippingService {
   calculateShippingCost(order: Order): number {
-    // 注文の内部構造を深く知りすぎている
+    // Knowing too much about the order's internal structure
     const weight = order.items.reduce(
       (sum, item) => sum + item.product.weight * item.quantity, 0
     );
@@ -459,10 +459,10 @@ class ShippingService {
               item.product.dimensions.height > 120
     );
     const address = order.customer.shippingAddress;
-    const isRemoteArea = address.prefecture === '沖縄' ||
-                         address.prefecture === '北海道';
+    const isRemoteArea = address.prefecture === 'Okinawa' ||
+                         address.prefecture === 'Hokkaido';
 
-    let cost = weight * 10; // 基本運賃
+    let cost = weight * 10; // base shipping rate
     if (isOversized) cost *= 1.5;
     if (isRemoteArea) cost += 500;
     if (order.customer.membershipLevel === 'premium') cost *= 0.8;
@@ -470,11 +470,11 @@ class ShippingService {
     return cost;
   }
 }
-// → ShippingService が Order, Item, Product, Dimensions,
-//   Customer, Address, MembershipLevel を知っている
+// → ShippingService knows about Order, Item, Product, Dimensions,
+//   Customer, Address, and MembershipLevel
 
 
-// === LoD準拠: 各オブジェクトに判断を委譲 ===
+// === LoD compliant: delegate decisions to each object ===
 class ShippingService {
   calculateShippingCost(order: Order): number {
     const shippingInfo = order.getShippingInfo();
@@ -489,7 +489,7 @@ class ShippingService {
   }
 }
 
-// Order が必要な情報をまとめて提供
+// Order provides the necessary information in aggregate
 class Order {
   getShippingInfo(): ShippingInfo {
     return {
@@ -511,7 +511,7 @@ class Order {
   }
 }
 
-// 各オブジェクトが自身の判断を担当
+// Each object handles its own decisions
 class OrderItem {
   getWeight(): number { return this.product.weight * this.quantity; }
   isOversized(): boolean { return this.product.isOversized(); }
@@ -526,29 +526,29 @@ class Product {
 
 ---
 
-## 3. 適用すべき場面と適用しない場面
+## 3. When to Apply and When Not to Apply
 
-### 3.1 適用判断マトリクス
+### 3.1 Application Decision Matrix
 
-| 適用すべき場面 | 理由 | 例 |
+| When to Apply | Reason | Example |
 |--------------|------|-----|
-| ドメインオブジェクト間のナビゲーション | 内部構造への依存を防ぐ | `order.customer.address.city` |
-| 外部API/ライブラリの利用 | 変更影響を局所化 | `lib.getConfig().getModule().getSetting()` |
-| レイヤー間の通信 | アーキテクチャ境界の維持 | Controller → Service → Repository |
-| テストコードの安定性 | モック対象を最小化 | テストで5段のモックチェーンは危険 |
+| Navigation between domain objects | Prevents dependency on internal structure | `order.customer.address.city` |
+| Using external APIs/libraries | Localizes impact of changes | `lib.getConfig().getModule().getSetting()` |
+| Communication between layers | Maintains architectural boundaries | Controller → Service → Repository |
+| Stability of test code | Minimizes mock targets | A 5-level mock chain in tests is dangerous |
 
-| 適用しない場面 | 理由 | 例 |
+| When Not to Apply | Reason | Example |
 |--------------|------|-----|
-| Fluent Interface / Builder | 同一オブジェクトの操作 | `builder.setName("x").setAge(20).build()` |
-| データ転送オブジェクト (DTO) | 構造が契約の一部 | `response.data.user.name` |
-| 内部DSL | ドット連鎖が表現力の源泉 | `select("name").from("users").where(...)` |
-| Stream/LINQ 操作 | 関数型のパイプライン | `list.filter(...).map(...).reduce(...)` |
-| Optional/Maybe チェーン | nullsafe なナビゲーション | `user?.address?.city?.name` |
+| Fluent Interface / Builder | Operations on the same object | `builder.setName("x").setAge(20).build()` |
+| Data Transfer Objects (DTO) | Structure is part of the contract | `response.data.user.name` |
+| Internal DSL | Dot chaining is the source of expressiveness | `select("name").from("users").where(...)` |
+| Stream/LINQ operations | Functional pipeline | `list.filter(...).map(...).reduce(...)` |
+| Optional/Maybe chains | Null-safe navigation | `user?.address?.city?.name` |
 
-**コード例8: Fluent Interface との区別**
+**Code Example 8: Distinguishing from Fluent Interface**
 
 ```python
-# これはLoD違反ではない！（Fluent Interface / メソッドチェーン）
+# This is NOT a LoD violation! (Fluent Interface / method chain)
 query = (
     QueryBuilder()
     .select("name", "email")
@@ -558,10 +558,10 @@ query = (
     .limit(10)
     .build()
 )
-# 各メソッドは同じオブジェクト（または同じ型）を返す
-# → 「友人の友人」ではなく「友人自身」に繰り返し話しかけている
+# Each method returns the same object (or same type)
+# → Not a "friend's friend" but repeatedly talking to the "same friend"
 
-# これもLoD違反ではない（Stream パイプライン）
+# This is also NOT a LoD violation (Stream pipeline)
 result = (
     users
     .stream()
@@ -570,106 +570,107 @@ result = (
     .sorted()
     .collect(to_list())
 )
-# データ変換のパイプラインであり、内部構造の探索ではない
+# This is a data transformation pipeline, not exploration of internal structure
 ```
 
-### 3.2 判断フローチャート
+### 3.2 Decision Flowchart
 
 ```
-  LoD適用の判断フロー
+  LoD Application Decision Flow
 
-  ドット連鎖がある
+  There is a dot chain
     │
     ▼
-  同一オブジェクトを返すか？ ─── Yes ──→ LoD違反ではない
-  (Fluent/Builder)                       (Fluent Interface)
+  Does it return the same object? ─── Yes ──→ Not a LoD violation
+  (Fluent/Builder)                            (Fluent Interface)
     │ No
     ▼
-  DTOの構造アクセスか？ ─── Yes ──→ LoD違反ではない
-                                    (DTOの構造は契約)
+  Is it accessing a DTO's structure? ─── Yes ──→ Not a LoD violation
+                                                 (DTO structure is a contract)
     │ No
     ▼
-  Stream/LINQ操作か？ ─── Yes ──→ LoD違反ではない
-                                   (関数型パイプライン)
+  Is it a Stream/LINQ operation? ─── Yes ──→ Not a LoD violation
+                                              (Functional pipeline)
     │ No
     ▼
-  ドメインオブジェクトの
-  内部構造を探索しているか？ ─── Yes ──→ LoD違反！
-    │ No                                 委譲メソッドを追加
+  Is it exploring the internal
+  structure of a domain object? ─── Yes ──→ LoD violation!
+    │ No                                      Add delegation methods
     ▼
-  問題なし
+  No problem
 ```
 
 ---
 
-## 4. デメテルの法則と関連原則
+## 4. The Law of Demeter and Related Principles
 
-### 4.1 結合度の7段階との関係
+### 4.1 Relationship to the 7 Levels of Coupling
 
-デメテルの法則違反は、結合度の分類では「内容結合」または「スタンプ結合」に相当する。
+A Law of Demeter violation corresponds to "content coupling" or "stamp coupling" in coupling classifications.
 
-| LoD状態 | 結合度レベル | 例 |
+| LoD State | Coupling Level | Example |
 |---------|------------|-----|
-| LoD違反（深いチェーン） | 内容結合に近い | `order.customer.address.city.zipCode` |
-| LoD違反（1段の内部アクセス） | スタンプ結合 | `order.customer.name` |
-| LoD準拠（委譲メソッド） | データ結合 | `order.getCustomerName()` |
-| LoD準拠（イベント駆動） | メッセージ結合 | `eventBus.publish(event)` |
+| LoD violation (deep chain) | Close to content coupling | `order.customer.address.city.zipCode` |
+| LoD violation (1-level internal access) | Stamp coupling | `order.customer.name` |
+| LoD compliant (delegation method) | Data coupling | `order.getCustomerName()` |
+| LoD compliant (event-driven) | Message coupling | `eventBus.publish(event)` |
 
-### 4.2 SOLID原則との関係
+### 4.2 Relationship to SOLID Principles
 
-| SOLID原則 | デメテルの法則との関連 |
+| SOLID Principle | Relationship to the Law of Demeter |
 |-----------|---------------------|
-| SRP | LoD準拠すると各クラスが自分の責任に関する判断を持つ |
-| OCP | 委譲メソッドにより内部構造の変更が外部に波及しない |
-| LSP | LoD準拠のインターフェースは置換可能性を高める |
-| ISP | LoD準拠は最小限のインターフェースを提供することに繋がる |
-| DIP | LoD準拠は抽象への依存を促進する |
+| SRP | LoD compliance causes each class to own the decisions about its own responsibilities |
+| OCP | Delegation methods prevent internal structure changes from propagating externally |
+| LSP | LoD-compliant interfaces improve substitutability |
+| ISP | LoD compliance leads to providing minimal interfaces |
+| DIP | LoD compliance promotes dependency on abstractions |
 
-### 4.3 情報隠蔽（Information Hiding）との関係
+### 4.3 Relationship to Information Hiding
 
-David Parnas（1972）が提唱した情報隠蔽の原則と、デメテルの法則は密接に関連する。
+The Law of Demeter is closely related to the information hiding principle proposed by David Parnas (1972).
 
 ```
-  情報隠蔽とデメテルの法則
+  Information Hiding and the Law of Demeter
 
-  情報隠蔽: モジュールの設計判断（内部構造）を外部から隠す
-  デメテルの法則: オブジェクトの内部構造をメソッド呼び出しで探索しない
+  Information Hiding: Hide design decisions (internal structure) of a module from the outside
+  Law of Demeter: Do not explore an object's internal structure through method calls
 
-  情報隠蔽が「何を隠すか」を定義し、
-  デメテルの法則が「どう隠すか」の具体的ルールを提供する
+  Information Hiding defines "what to hide,"
+  while the Law of Demeter provides the concrete rules for "how to hide it"
 
   ┌─────────────────────────────────────────────┐
-  │  情報隠蔽の原則（Parnas, 1972）              │
-  │  「変更されやすい設計判断をモジュール内に    │
-  │   隠蔽し、安定したインターフェースを提供する」│
+  │  Information Hiding Principle (Parnas, 1972) │
+  │  "Hide design decisions that are likely to   │
+  │   change within a module, and provide a      │
+  │   stable interface"                          │
   └──────────────────┬──────────────────────────┘
-                      │ 具体化
+                      │ Concretized as
                       ▼
   ┌─────────────────────────────────────────────┐
-  │  デメテルの法則（Lieberherr, 1987）          │
-  │  「メソッド内で呼び出してよいオブジェクトを  │
-  │   直接の友人に制限する」                      │
+  │  Law of Demeter (Lieberherr, 1987)          │
+  │  "Restrict the objects that may be called   │
+  │   within a method to direct friends"         │
   └─────────────────────────────────────────────┘
 ```
 
 ---
 
-## 5. 高度な適用パターン
+## 5. Advanced Application Patterns
 
-### 5.1 Wrapper/Facade による情報隠蔽
+### 5.1 Information Hiding via Wrapper/Facade
 
-**コード例9: サードパーティライブラリのラッピング**
+**Code Example 9: Wrapping a Third-Party Library**
 
 ```python
-# === LoD違反: サードパーティAPIの内部構造に依存 ===
+# === LoD violation: directly dependent on third-party API internals ===
 class PaymentProcessor:
     def __init__(self):
         self.stripe = stripe
 
     def charge(self, customer_id: str, amount: int):
-        # Stripe APIの内部構造に直接依存
+        # Directly dependent on Stripe API's internal structure
         customer = self.stripe.Customer.retrieve(customer_id)
-        default_source = customer.sources.data[0]  # 内部構造の探索
+        default_source = customer.sources.data[0]  # exploring internal structure
         charge = self.stripe.Charge.create(
             amount=amount,
             currency='jpy',
@@ -677,17 +678,17 @@ class PaymentProcessor:
             customer=customer.id,
         )
         return charge.status == 'succeeded'
-        # → Stripe API の構造変更で壊れる
+        # → Breaks when Stripe API structure changes
 
 
-# === LoD準拠: Adapterでラッピング ===
+# === LoD compliant: wrapped with an Adapter ===
 class StripePaymentAdapter:
-    """Stripe APIとの結合をこのクラスに閉じ込める"""
+    """Confines coupling to Stripe API within this class"""
     def __init__(self, api_key: str):
         stripe.api_key = api_key
 
     def charge_default_method(self, customer_id: str, amount: int) -> PaymentResult:
-        """顧客のデフォルト決済方法で課金する"""
+        """Charge the customer's default payment method"""
         try:
             intent = stripe.PaymentIntent.create(
                 amount=amount,
@@ -704,20 +705,20 @@ class StripePaymentAdapter:
 
 
 class PaymentProcessor:
-    """決済処理 - Stripeの内部構造を知らない"""
+    """Payment processing - does not know Stripe's internal structure"""
     def __init__(self, payment_gateway: PaymentGateway):
-        self.gateway = payment_gateway  # インターフェースに依存
+        self.gateway = payment_gateway  # depends on interface
 
     def charge(self, customer_id: str, amount: int) -> PaymentResult:
         return self.gateway.charge_default_method(customer_id, amount)
 ```
 
-### 5.2 コンテキストオブジェクトパターン
+### 5.2 Context Object Pattern
 
-**コード例10: 必要な情報をまとめて渡す**
+**Code Example 10: Passing Required Information in Aggregate**
 
 ```typescript
-// === LoD違反: 長いチェーンで情報を収集 ===
+// === LoD violation: gathering information through long chains ===
 function generateInvoice(order: Order): Invoice {
   const customerName = order.customer.profile.displayName;
   const billingAddress = order.customer.addresses.find(a => a.type === 'billing');
@@ -727,14 +728,14 @@ function generateInvoice(order: Order): Invoice {
     price: i.product.price * i.quantity,
     taxRate: i.product.category.taxRate,
   }));
-  // → order, customer, profile, addresses, taxInfo, items,
-  //   product, category すべてを知っている
+  // → Knows about order, customer, profile, addresses, taxInfo, items,
+  //   product, and category
 }
 
 
-// === LoD準拠: コンテキストオブジェクトで必要情報をまとめる ===
+// === LoD compliant: use a context object to aggregate required info ===
 
-// 請求書生成に必要な情報のみを集めた型
+// A type that only contains information needed for invoice generation
 interface InvoiceContext {
   customerName: string;
   billingAddress: Address;
@@ -748,7 +749,7 @@ interface InvoiceLineItem {
   taxRate: number;
 }
 
-// Order がコンテキストを構築する責任を持つ
+// Order is responsible for building the context
 class Order {
   toInvoiceContext(): InvoiceContext {
     return {
@@ -770,28 +771,28 @@ class OrderItem {
   }
 }
 
-// 請求書生成関数は InvoiceContext だけを知る
+// The invoice generation function only knows InvoiceContext
 function generateInvoice(context: InvoiceContext): Invoice {
-  // Order の内部構造を一切知らない
+  // Knows nothing about Order's internal structure
   return new Invoice(context);
 }
 
-// 使用
+// Usage
 const invoice = generateInvoice(order.toInvoiceContext());
 ```
 
 ---
 
-## 6. アンチパターン
+## 6. Anti-Patterns
 
-### アンチパターン1: Middle Man の過剰生成
+### Anti-Pattern 1: Over-creating Middle Men
 
 ```java
-// NG: LoD を過度に適用するとラッパーメソッドだらけになる
+// NG: Over-applying LoD leads to an explosion of wrapper methods
 class Customer {
     private Address address;
 
-    // 委譲メソッドが爆発的に増える
+    // Delegation methods multiply explosively
     public String getStreet() { return address.getStreet(); }
     public String getCity() { return address.getCity(); }
     public String getState() { return address.getState(); }
@@ -799,14 +800,14 @@ class Customer {
     public String getCountry() { return address.getCountry(); }
     public void setStreet(String s) { address.setStreet(s); }
     public void setCity(String c) { address.setCity(c); }
-    // ... 延々と続く → Middle Man コードスメル
+    // ... goes on and on → Middle Man code smell
 
-// OK: 意味のある抽象レベルで委譲する
+// OK: Delegate at a meaningful abstraction level
 class Customer {
     private Address address;
 
-    // 全フィールドを個別に委譲するのではなく、
-    // 意味のある操作を提供する
+    // Rather than delegating each field individually,
+    // provide meaningful operations
     public String getFormattedAddress() {
         return address.format();
     }
@@ -815,38 +816,38 @@ class Customer {
         return zone.includes(address);
     }
 
-    // Address 自体が必要な場合は、防御的コピーを返す
+    // If Address itself is needed, return a defensive copy
     public Address getAddressCopy() {
-        return new Address(address); // 不変コピー
+        return new Address(address); // immutable copy
     }
 }
 ```
 
-### アンチパターン2: Feature Envy の裏返し
+### Anti-Pattern 2: The Reverse of Feature Envy
 
 ```python
-# NG: LoD に従おうとして、無関係な責任を押し付ける
+# NG: Trying to comply with LoD by pushing unrelated responsibilities
 class Order:
     def format_customer_address_for_shipping_label(self) -> str:
-        # これは Order の責任ではない！
+        # This is NOT Order's responsibility!
         return f"{self.customer.name}\n{self.customer.address.full_address()}"
 
-# OK: 適切なオブジェクトに責任を持たせる
+# OK: Assign responsibility to the appropriate object
 class ShippingLabel:
-    """配送ラベルの生成を担当するクラス"""
+    """Class responsible for generating shipping labels"""
     def format(self, customer: Customer) -> str:
         return f"{customer.name}\n{customer.get_formatted_address()}"
 
-# 使用
+# Usage
 label = ShippingLabel()
 formatted = label.format(order.customer)
-# → Order は配送ラベルの知識を持たず、Customer へのアクセスのみ提供
+# → Order does not hold shipping label knowledge; it only provides access to Customer
 ```
 
-### アンチパターン3: 過度なラッピングによるパフォーマンス低下
+### Anti-Pattern 3: Performance Degradation from Excessive Wrapping
 
 ```python
-# NG: 不必要な委譲レイヤーが多すぎる
+# NG: Too many unnecessary delegation layers
 class WidgetA:
     def get_value(self):
         return self.widget_b.get_value()
@@ -862,40 +863,40 @@ class WidgetC:
 class WidgetD:
     def get_value(self):
         return self._actual_value
-# → 4段の委譲。LoD準拠だが設計が歪んでいる
+# → 4 levels of delegation. LoD-compliant but the design is distorted
 
-# OK: 設計を見直し、適切な粒度にする
-# 過度な委譲は「設計の歪み」のサイン
-# 本来の責任の所在を再考する
+# OK: Revisit the design and find the right granularity
+# Excessive delegation is a sign of "design distortion"
+# Reconsider where responsibilities truly belong
 ```
 
 ---
 
-## 7. 静的解析によるLoD違反の検出
+## 7. Detecting LoD Violations with Static Analysis
 
-### 7.1 メトリクスと検出ルール
+### 7.1 Metrics and Detection Rules
 
-| メトリクス | 説明 | しきい値 |
+| Metric | Description | Threshold |
 |-----------|------|---------|
-| ドットの連鎖数 | メソッドチェーンの段数 | 2段以上で警告 |
-| Message Chain (Martin Fowler) | コードスメルとしての検出 | 3段以上で要検討 |
-| Feature Envy | 他クラスのメソッドを過度に呼ぶ | 自クラス以上で警告 |
-| CBO (Coupling Between Objects) | 依存先クラス数 | 10以上で警告 |
+| Dot chain depth | Number of levels in a method chain | Warning at 2 or more |
+| Message Chain (Martin Fowler) | Detection as a code smell | Review at 3 or more |
+| Feature Envy | Excessive calls to another class's methods | Warning when exceeding own class calls |
+| CBO (Coupling Between Objects) | Number of dependent classes | Warning at 10 or more |
 
-### 7.2 Linter ルールの設定例
+### 7.2 Linter Rule Configuration Examples
 
 ```python
-# === Python: pylint でのLoD違反検出 ===
+# === Python: detecting LoD violations with pylint ===
 # .pylintrc
 # [DESIGN]
-# max-args=5              # 引数が多いとLoD違反の可能性
-# max-attributes=7        # フィールドが多いとLoD違反の可能性
+# max-args=5              # Many args may indicate LoD violation risk
+# max-attributes=7        # Many fields may indicate LoD violation risk
 
-# === カスタムルール: ドット連鎖の検出 ===
+# === Custom rule: detecting dot chains ===
 import ast
 
 class LoDChecker(ast.NodeVisitor):
-    """LoD違反の候補を検出するAST解析"""
+    """AST analysis to detect LoD violation candidates"""
     MAX_CHAIN_LENGTH = 2
 
     def visit_Attribute(self, node):
@@ -903,8 +904,8 @@ class LoDChecker(ast.NodeVisitor):
         if chain_length > self.MAX_CHAIN_LENGTH:
             print(
                 f"Line {node.lineno}: "
-                f"ドット連鎖が{chain_length}段 "
-                f"(しきい値: {self.MAX_CHAIN_LENGTH}段)"
+                f"dot chain depth {chain_length} "
+                f"(threshold: {self.MAX_CHAIN_LENGTH})"
             )
         self.generic_visit(node)
 
@@ -915,7 +916,7 @@ class LoDChecker(ast.NodeVisitor):
 ```
 
 ```typescript
-// === TypeScript: ESLint カスタムルール ===
+// === TypeScript: ESLint custom rule ===
 // eslint-plugin-demeter
 module.exports = {
   rules: {
@@ -932,7 +933,7 @@ module.exports = {
             if (depth > 2) {
               context.report({
                 node,
-                message: `ドット連鎖が${depth}段です。デメテルの法則に違反する可能性があります。`,
+                message: `Dot chain depth is ${depth}. This may violate the Law of Demeter.`,
               });
             }
           },
@@ -945,11 +946,11 @@ module.exports = {
 
 ---
 
-## 8. 演習問題
+## 8. Exercises
 
-### 演習1（基礎）: LoD違反の識別
+### Exercise 1 (Basic): Identifying LoD Violations
 
-以下のコードからLoD違反を見つけ、それぞれの理由を説明してください。
+Find the LoD violations in the following code and explain the reason for each.
 
 ```python
 class ReportGenerator:
@@ -978,29 +979,29 @@ class ReportGenerator:
         return formatted
 ```
 
-**期待される回答:**
+**Expected Answer:**
 
 ```
-(1) LoD違反: company → board → ceo → personal_info → full_name
-    4段のドット連鎖。company.getCeoName() に委譲すべき。
+(1) LoD violation: company → board → ceo → personal_info → full_name
+    4-level dot chain. Should delegate to company.getCeoName().
 
-(2) LoD違反: company.departments に直接アクセスし、
-    さらに各departmentの budget にアクセス。
-    company.getTotalBudget() に委譲すべき。
+(2) LoD violation: directly accesses company.departments,
+    then further accesses each department's budget.
+    Should delegate to company.getTotalBudget().
 
-(3) LoD準拠: report はローカルで生成したオブジェクト（ルール3）。
-    company.name は引数の直接のプロパティ（ルール2）。
+(3) LoD compliant: report is a locally created object (Rule 3).
+    company.name is a direct property of the argument (Rule 2).
 
-(4) LoD準拠: ReportFormatter はローカルで生成（ルール3）。
-    Fluent Interface なのでドット連鎖はOK。
+(4) LoD compliant: ReportFormatter is created locally (Rule 3).
+    It is a Fluent Interface, so dot chaining is OK.
 
-(5) LoD違反: company → departments[0] → employees[0] → salary
-    内部コレクションの内容に直接アクセス。
+(5) LoD violation: company → departments[0] → employees[0] → salary
+    Directly accessing the contents of an internal collection.
 ```
 
-### 演習2（応用）: Tell, Don't Ask でリファクタリング
+### Exercise 2 (Applied): Refactoring with Tell, Don't Ask
 
-以下の Ask パターンのコードを Tell パターンにリファクタリングしてください。
+Refactor the following Ask pattern code into the Tell pattern.
 
 ```typescript
 class NotificationSender {
@@ -1022,10 +1023,10 @@ class NotificationSender {
 }
 ```
 
-**期待される回答:**
+**Expected Answer:**
 
 ```typescript
-// Tell パターン: 各オブジェクトに判断を委譲
+// Tell pattern: delegate decisions to each object
 class NotificationSender {
   sendReminder(user: User) {
     user.sendNotification({
@@ -1072,12 +1073,12 @@ class User {
 }
 ```
 
-### 演習3（発展）: 設計判断の実践
+### Exercise 3 (Advanced): Practicing Design Decisions
 
-以下のシナリオで、デメテルの法則を適用すべきか判断し、理由を述べてください。
+For each scenario below, decide whether to apply the Law of Demeter and explain your reasoning.
 
 ```
-シナリオA: GraphQLのリゾルバ
+Scenario A: GraphQL resolver
 query {
   user(id: "123") {
     profile { displayName }
@@ -1087,66 +1088,66 @@ query {
   }
 }
 
-シナリオB: ORMのリレーション
+Scenario B: ORM relations
 user = User.find(123)
 orders = user.orders.where(status: "active").includes(:items)
 
-シナリオC: ドメインロジック
+Scenario C: Domain logic
 def calculate_bonus(employee):
     base_salary = employee.contract.compensation.base_salary
     department_budget = employee.department.budget_allocation.bonus_pool
     return min(base_salary * 0.1, department_budget / len(employee.department.members))
 ```
 
-**期待される回答:**
+**Expected Answer:**
 
 ```
-シナリオA: LoD適用しない
-→ GraphQLはクエリ言語であり、クライアントがデータの
-  構造を宣言的に指定する。これはLoD違反ではなく
-  APIの設計パターンとして適切。
+Scenario A: Do not apply LoD
+→ GraphQL is a query language where clients declaratively specify
+  the structure of data. This is not a LoD violation but
+  an appropriate API design pattern.
 
-シナリオB: LoD適用しない（条件付き）
-→ ORMのリレーションアクセスはDSLとして許容される。
-  ただし、ドメインロジック内でuser.orders.items.productの
-  ようなチェーンが出現したら、専用のクエリメソッドを提供すべき。
+Scenario B: Do not apply LoD (with conditions)
+→ ORM relation access is acceptable as a DSL.
+  However, if a chain like user.orders.items.product appears
+  inside domain logic, a dedicated query method should be provided.
 
-シナリオC: LoD適用する（違反あり）
-→ 3段のドット連鎖が2箇所。リファクタリング:
+Scenario C: Apply LoD (violation present)
+→ 3-level dot chains appear in 2 places. Refactoring:
   employee.get_base_salary() + employee.get_available_bonus_pool()
-  各オブジェクトが自身の責任範囲で値を提供する。
+  Each object provides its value within its own responsibility.
 ```
 
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Invalid configuration file | Check config file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check execution user permissions, review settings |
+| Data inconsistency | Race conditions in concurrent processing | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace to identify where the error occurs
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form a hypothesis**: List possible causes
+4. **Incremental verification**: Use log output and debugger to verify each hypothesis
+5. **Fix and regression test**: After fixing, run tests for related areas as well
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1154,102 +1155,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Called: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues when they arise:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check I/O wait**: Examine disk and network I/O status
+4. **Check concurrent connections**: Check the connection pool state
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem Type | Diagnostic Tool | Solution |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly releasing references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+Here are the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | When to Prioritize | When to Compromise |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin dashboards, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│              Architecture Selection Flow          │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. What is the team size?                      │
+│    ├─ Small (1-5) → Monolith                    │
+│    └─ Large (10+) → Go to 2                     │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. What is the deployment frequency?           │
+│    ├─ Weekly or less → Monolith + module split  │
+│    └─ Daily/multiple times → Go to 3            │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. How independent are the teams?              │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always come with trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A faster short-term approach can become technical debt in the long run
+- Conversely, over-engineering raises short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified technology stack lowers learning costs
+- Adopting diverse technologies allows best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction improves reusability but can make debugging harder
+- Low abstraction is intuitive but tends to produce code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1259,17 +1260,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision made"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1277,7 +1278,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1285,15 +1286,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1301,53 +1302,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Practical Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum required features
+- Automated tests only for the critical path
+- Introduce monitoring from early on
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't aim for perfection (YAGNI principle)
+- Gather user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually replacing a system that has been in operation for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- If there are no existing tests, write Characterization Tests first
+- Use an API gateway to run old and new systems side by side
+- Migrate data incrementally
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
+| Phase | Work | Estimated Duration | Risk |
 |---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| 1. Investigation | Current state analysis, understanding dependencies | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Migration start | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core migration | Migrate core features | 6-12 months | High |
+| 5. Completion | Retire old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers working on the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with Domain-Driven Design
+- Assign ownership per team
+- Manage shared libraries using an Inner Source approach
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1360,20 +1361,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1382,7 +1383,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage examples
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1403,204 +1404,204 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system requiring millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
+| Optimization Technique | Effect | Implementation Cost | Use Case |
 |-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low-Medium | High | CPU-bound cases |
 
 ---
 
-## チーム開発での活用
+## Team Development Practices
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to check in code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Is naming convention consistent?
+- [ ] Is error handling appropriate?
+- [ ] Is test coverage sufficient?
+- [ ] Is there any performance impact?
+- [ ] Are there any security issues?
+- [ ] Is documentation up to date?
 
-### ナレッジ共有のベストプラクティス
+### Best Practices for Knowledge Sharing
 
-| 方法 | 頻度 | 対象 | 効果 |
+| Method | Frequency | Audience | Effect |
 |------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talks | Weekly | Whole team | Horizontal knowledge sharing |
+| ADR (Design records) | Per decision | Future members | Transparency in decision-making |
+| Retrospectives | Every 2 weeks | Whole team | Continuous improvement |
+| Mob programming | Monthly | Key design | Building consensus |
 
-### 技術的負債の管理
+### Managing Technical Debt
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
+        High Impact
           │
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │Plan │Act  │
+    │ it  │imme-│
+    │     │diate│
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │Log  │Next │
+    │only │Sprint│
+    │     │     │
     └─────┼─────┘
           │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        Low Impact
+    Low Frequency  High Frequency
 ```
 ---
 
 ## 9. FAQ
 
-### Q1: DTOやデータクラスにもデメテルの法則を適用すべきか？
+### Q1: Should the Law of Demeter be applied to DTOs and data classes?
 
-DTOは「行動」を持たないデータの入れ物であり、その構造自体が契約の一部。DTO内部のフィールドにドットでアクセスするのはLoD違反とはみなさない。ただし、DTOを受け取る側のドメインロジックでは、必要なデータだけを引数で受け取る設計にすべき。
+DTOs are containers for data without "behavior," and their structure is part of the contract itself. Accessing fields inside a DTO with dots is not considered a LoD violation. However, the domain logic that receives a DTO should be designed to accept only the needed data as arguments.
 
 ```python
-# DTOのアクセスはOK
+# Accessing a DTO is OK
 user_dto = api_response.data.user
-name = user_dto.profile.display_name  # DTOなのでOK
+name = user_dto.profile.display_name  # OK because it's a DTO
 
-# ドメインロジックではDTOの構造に依存しない
-def greet_user(display_name: str) -> str:  # プリミティブ値で受け取る
+# Domain logic should not depend on the DTO's structure
+def greet_user(display_name: str) -> str:  # receive a primitive value
     return f"Hello, {display_name}!"
 
-greet_user(user_dto.profile.display_name)  # 呼び出し側でDTOを展開
+greet_user(user_dto.profile.display_name)  # expand the DTO at the call site
 ```
 
-### Q2: デメテルの法則に「法則」と名付けるのは大げさではないか？
+### Q2: Isn't calling the Law of Demeter a "law" an exaggeration?
 
-実際に多くの開発者が「法則」ではなく「ガイドライン」として扱っている。盲目的に従うのではなく、**結合度を下げる**という目的を理解した上で判断することが重要。
+In practice, many developers treat it as a "guideline" rather than a "law." Rather than following it blindly, what matters is understanding the goal of **reducing coupling** and making judgment calls accordingly.
 
-Robert C. Martinも「LoD は厳密なルールではなく、有用なヒューリスティック（経験則）だ」と述べている。重要なのはドット連鎖の数を数えることではなく、「このコードは他のオブジェクトの内部構造を知りすぎていないか？」を常に問うことである。
+Robert C. Martin has also said "LoD is not a strict rule, but a useful heuristic." The important thing is not counting the number of dots, but constantly asking, "Does this code know too much about other objects' internal structure?"
 
-### Q3: 関数型プログラミングではデメテルの法則はどう適用するか？
+### Q3: How is the Law of Demeter applied in functional programming?
 
-関数型では、パイプライン演算子やmap/filterチェーンがドット連鎖に見えるが、これらはデータ変換のパイプラインでありLoD違反ではない。関数型で重要なのは「関数が知るべき型を最小限にする」こと。パラメトリック多相（ジェネリクス）を活用して、関数が具体的な型に依存しない設計を心がける。
+In functional programming, pipeline operators and map/filter chains may look like dot chains, but they are data transformation pipelines and are not LoD violations. What matters in functional programming is "minimizing the types a function needs to know." Use parametric polymorphism (generics) to design functions that do not depend on concrete types.
 
 ```haskell
--- 関数型: パイプラインはLoD違反ではない
+-- Functional: pipelines are not LoD violations
 result = users
   |> filter isActive
   |> map getName
   |> sort
   |> take 10
--- 各関数はデータを変換するだけで、内部構造を探索していない
+-- Each function only transforms data; it does not explore internal structure
 
--- LoD違反に相当するもの
+-- The equivalent of a LoD violation
 getUserCity :: User -> String
 getUserCity user = city (address (profile user))
--- → User の内部構造（profile → address → city）を知りすぎている
+-- → Knows too much about User's internal structure (profile → address → city)
 
--- LoD準拠
+-- LoD compliant
 getUserCity :: User -> String
 getUserCity = getCity . getAddress . getProfile
--- → ただし、これは関数合成として許容される場合が多い
--- → 重要なのは、getUserCity が User モジュールから公開されること
+-- → However, this is often acceptable as function composition
+-- → The key is that getUserCity is exposed from the User module
 ```
 
-### Q4: マイクロサービスのAPI設計でもLoDは適用すべきか？
+### Q4: Should LoD also be applied in microservice API design?
 
-マイクロサービスでは、API設計にLoDの精神を適用すべきだが、実装方法は異なる。
+In microservices, the spirit of LoD should be applied to API design, though the implementation approach differs.
 
 ```
-良いAPI設計（LoD準拠の精神）:
+Good API design (spirit of LoD compliance):
 GET /orders/{id}/shipping-cost
-→ クライアントは注文の内部構造を知らずに配送費を取得
+→ The client gets the shipping cost without knowing the order's internal structure
 
-悪いAPI設計（LoD違反の精神）:
-GET /orders/{id} → customer_id を取得
-GET /customers/{customer_id} → address_id を取得
-GET /addresses/{address_id} → zip_code を取得
-→ クライアントが複数APIを順序依存で呼ぶ必要がある
+Bad API design (spirit of LoD violation):
+GET /orders/{id} → retrieve customer_id
+GET /customers/{customer_id} → retrieve address_id
+GET /addresses/{address_id} → retrieve zip_code
+→ The client must make multiple API calls in a specific order
 ```
 
-### Q5: LoDを導入する際の優先度は？
+### Q5: What is the recommended priority for introducing LoD?
 
-以下の順序で段階的に導入することを推奨する。
+The following staged introduction order is recommended:
 
-1. **サービス層のAPI境界**: 最も効果が高い。外部に公開するインターフェースを最小限にする
-2. **外部ライブラリとの結合**: Adapterパターンで隔離
-3. **ドメインオブジェクト間のナビゲーション**: Train Wreckを委譲メソッドに変換
-4. **テストコードの安定化**: モックチェーンの削減
-5. **レガシーコードの段階的改善**: 新規コードから適用し、変更のあったコードを順次改善
+1. **Service layer API boundaries**: Highest impact. Minimize the interfaces exposed externally
+2. **Coupling with external libraries**: Isolate with the Adapter pattern
+3. **Navigation between domain objects**: Convert Train Wrecks to delegation methods
+4. **Stabilizing test code**: Reduce mock chains
+5. **Incremental improvement of legacy code**: Apply to new code first, then improve changed code incrementally
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and confirming its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in day-to-day development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 内容 |
+| Item | Content |
 |------|------|
-| 核心 | 「直接の友人とだけ話せ」 |
-| 目的 | 結合度の低減、変更影響の局所化 |
-| 正式な定義 | メソッドM内で呼べるのは: self, param, local, field のメソッドのみ |
-| 違反の兆候 | ドット連鎖（Train Wreck）、深いnullチェック |
-| 改善方法 | 委譲メソッド、Tell Don't Ask、コンテキストオブジェクト、Adapter |
-| 適用しない場面 | Fluent Interface、DTO、Stream操作、内部DSL |
-| 過度な適用の弊害 | Middle Man、ラッパーメソッドの爆発 |
-| 関連原則 | Tell Don't Ask、情報隠蔽、SRP、DIP |
+| Core idea | "Only talk to your immediate friends" |
+| Purpose | Reduce coupling, localize impact of changes |
+| Formal definition | Within method M, only call methods of: self, param, local, field |
+| Signs of violation | Dot chains (Train Wreck), deep null checks |
+| Remedies | Delegation methods, Tell Don't Ask, context objects, Adapter |
+| When not to apply | Fluent Interface, DTOs, Stream operations, internal DSLs |
+| Risks of over-application | Middle Man, explosion of wrapper methods |
+| Related principles | Tell Don't Ask, Information Hiding, SRP, DIP |
 
-| 判断基準 | 質問 |
+| Criterion | Question |
 |---------|------|
-| LoD違反か？ | 「このコードは友人の友人の内部構造を知っているか？」 |
-| 改善すべきか？ | 「チェーン上のクラスが変更された時、このコードも壊れるか？」 |
-| 委譲すべきか？ | 「この判断ロジックは、どのオブジェクトの責任か？」 |
-| 過度な適用か？ | 「委譲メソッドが爆発的に増えていないか？」 |
+| Is it a LoD violation? | "Does this code know the internal structure of a friend's friend?" |
+| Should it be improved? | "When a class in the chain changes, will this code break?" |
+| Should it delegate? | "Which object is responsible for this decision logic?" |
+| Is it over-applied? | "Is there an explosive increase in delegation methods?" |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [結合度と凝集度](./03-coupling-cohesion.md) ── デメテルの法則が解決する問題の背景
-- [関数設計](../01-practices/01-functions.md) ── 引数設計でのLoD適用
-- [コードスメル](../02-refactoring/00-code-smells.md) ── Feature Envy、Middle Man との関係
-- リファクタリング技法 ── Extract Method、Move Method の手順
-- デザインパターン: Facade ── 結合度を下げるパターン
+- [Coupling and Cohesion](./03-coupling-cohesion.md) ── Background of the problems the Law of Demeter solves
+- [Function Design](../01-practices/01-functions.md) ── Applying LoD in argument design
+- [Code Smells](../02-refactoring/00-code-smells.md) ── Relationship with Feature Envy and Middle Man
+- Refactoring Techniques ── Steps for Extract Method and Move Method
+- Design Pattern: Facade ── A pattern for reducing coupling
 
 ---
 
-## 参考文献
+## References
 
-1. **Karl J. Lieberherr, Ian M. Holland** "Assuring Good Style for Object-Oriented Programs" IEEE Software, 1989 ── デメテルの法則の原論文
-2. **Robert C. Martin** 『Clean Code: A Handbook of Agile Software Craftsmanship』 Prentice Hall, 2008 (Chapter 6: Objects and Data Structures) ── Train Wreck の解説
-3. **Martin Fowler** 『Refactoring: Improving the Design of Existing Code』 Addison-Wesley, 2018 ── Middle Man smell、Feature Envy の改善手法
-4. **David Parnas** "On the criteria to be used in decomposing systems into modules" Communications of the ACM, 1972 ── 情報隠蔽の原則
-5. **Andrew Hunt, David Thomas** 『The Pragmatic Programmer: From Journeyman to Master』 Addison-Wesley, 1999 ── "Don't talk to strangers" の実践的解説
-6. **Karl Lieberherr** "Demeter Project" Northeastern University ── プロジェクトの公式ドキュメント
-7. **Pragmatic Dave Thomas** "Tell, Don't Ask" ── Tell Don't Ask 原則の解説
-8. **Eric Evans** 『Domain-Driven Design: Tackling Complexity in the Heart of Software』 Addison-Wesley, 2003 ── Bounded Context と情報隠蔽
+1. **Karl J. Lieberherr, Ian M. Holland** "Assuring Good Style for Object-Oriented Programs" IEEE Software, 1989 ── Original paper on the Law of Demeter
+2. **Robert C. Martin** *Clean Code: A Handbook of Agile Software Craftsmanship* Prentice Hall, 2008 (Chapter 6: Objects and Data Structures) ── Explanation of Train Wreck
+3. **Martin Fowler** *Refactoring: Improving the Design of Existing Code* Addison-Wesley, 2018 ── Remedies for Middle Man smell and Feature Envy
+4. **David Parnas** "On the criteria to be used in decomposing systems into modules" Communications of the ACM, 1972 ── The information hiding principle
+5. **Andrew Hunt, David Thomas** *The Pragmatic Programmer: From Journeyman to Master* Addison-Wesley, 1999 ── Practical explanation of "Don't talk to strangers"
+6. **Karl Lieberherr** "Demeter Project" Northeastern University ── Official project documentation
+7. **Pragmatic Dave Thomas** "Tell, Don't Ask" ── Explanation of the Tell Don't Ask principle
+8. **Eric Evans** *Domain-Driven Design: Tackling Complexity in the Heart of Software* Addison-Wesley, 2003 ── Bounded Context and information hiding
