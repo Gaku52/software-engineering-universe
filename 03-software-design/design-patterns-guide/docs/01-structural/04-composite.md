@@ -1,65 +1,61 @@
-# Composite パターン
+# Composite Pattern
 
-> オブジェクトを **ツリー構造** に構成し、個別オブジェクト（Leaf）とその集合（Composite）を同一インタフェースで扱えるようにする構造パターン。クライアントは再帰的なツリー構造全体を統一的に操作でき、個別要素か集合かを意識する必要がなくなる。
-
----
-
-## この章で学ぶこと
-
-1. Composite パターンの構造と再帰的構成の仕組み、GoF による設計意図を深く理解する
-2. ファイルシステム、UIツリー、組織図、メニュー構造、数式ツリーなど実践的な適用場面を習得する
-3. 透過性と安全性のトレードオフ、循環参照防止、パフォーマンス最適化の設計判断ができるようになる
+> A structural pattern that organizes objects into a **tree structure**, enabling individual objects (Leaf) and their collections (Composite) to be handled through a unified interface. Clients can uniformly operate on an entire recursive tree structure without needing to distinguish between individual elements and collections.
 
 ---
 
-## 前提知識
+## What You Will Learn in This Chapter
 
-このガイドを読む前に、以下の概念を理解しておくことを推奨します。
+1. Deeply understand the structure of the Composite pattern, the mechanism of recursive composition, and the GoF design intent
+2. Master practical application scenarios such as file systems, UI trees, organizational charts, menu structures, and expression trees
+3. Be able to make informed design decisions around the transparency-vs-safety tradeoff, circular reference prevention, and performance optimization
 
-| 前提知識 | 説明 | 参照リンク |
+---
+
+## Prerequisites
+
+Before reading this guide, it is recommended to understand the following concepts.
+
+| Prerequisite | Description | Reference |
 |---------|------|-----------|
-| インタフェースとポリモーフィズム | 共通のインタフェースを通じて異なる型を統一的に扱う概念 | [SOLID 原則](../../../clean-code-principles/docs/00-principles/01-solid.md) |
-| 再帰 | 関数やデータ構造が自分自身を参照する概念 | CS 基礎 |
-| ツリーデータ構造 | ノードとエッジで構成される階層的なデータ構造 | データ構造 |
-| 合成（Composition）と継承 | オブジェクトの組み立て方法の違い | [合成優先の原則](../../../clean-code-principles/docs/03-practices-advanced/01-composition-over-inheritance.md) |
+| Interfaces and Polymorphism | The concept of treating different types uniformly through a common interface | [SOLID Principles](../../../clean-code-principles/docs/00-principles/01-solid.md) |
+| Recursion | The concept of a function or data structure referencing itself | CS Fundamentals |
+| Tree Data Structures | A hierarchical data structure composed of nodes and edges | Data Structures |
+| Composition vs Inheritance | The difference between approaches to assembling objects | [Composition Over Inheritance](../../../clean-code-principles/docs/03-practices-advanced/01-composition-over-inheritance.md) |
 
 ---
 
-## 1. Composite パターンとは何か
+## 1. What Is the Composite Pattern?
 
-### 1.1 解決する問題
+### 1.1 The Problem It Solves
 
-ソフトウェア開発では「部分と全体」の関係を扱う場面が頻繁にある。例えば:
+Software development frequently involves dealing with "part-whole" relationships. For example:
 
-- ファイルとフォルダ（フォルダはファイルとサブフォルダを含む）
-- UIの基本要素とコンテナ（コンテナはボタンやテキストやサブコンテナを含む）
-- 組織の従業員と部門（部門は従業員やサブ部門を含む）
+- Files and folders (folders contain files and subfolders)
+- UI primitives and containers (containers hold buttons, text, and sub-containers)
+- Organizational employees and departments (departments contain employees and sub-departments)
 
-これらに共通するのは「**個別の要素と、要素のグループを同じように扱いたい**」という要求である。Composite パターンなしでは、クライアントコードが「これは Leaf か？ Composite か？」を常にチェックする必要があり、コードが複雑化する。
+What all of these have in common is the requirement to **treat individual elements and groups of elements in the same way**. Without the Composite pattern, client code must constantly check "is this a Leaf or a Composite?", leading to increased complexity.
 
-### 1.2 パターンの意図
+### 1.2 Intent of the Pattern
 
-GoF の定義:
+GoF definition:
 
 > Compose objects into tree structures to represent part-whole hierarchies. Composite lets clients treat individual objects and compositions of objects uniformly.
 
-日本語に訳すと:
+### 1.3 WHY: Why Is the Composite Pattern Needed?
 
-> オブジェクトをツリー構造に組み立てて部分-全体の階層を表現する。Composite パターンにより、クライアントは個々のオブジェクトとオブジェクトの合成物を統一的に扱うことができる。
+The fundamental reason is to **align the level of abstraction**.
 
-### 1.3 WHY: なぜ Composite パターンが必要なのか
-
-根本的な理由は **抽象化のレベルを揃える** ことにある。
-
-1. **クライアントコードの簡素化**: `if (isLeaf)` のような分岐が不要になり、再帰的に統一操作を適用できる
-2. **Open/Closed Principle の遵守**: 新しい Leaf 型や Composite 型を追加しても、既存のクライアントコードを変更する必要がない
-3. **再帰的構造の自然な表現**: ツリー構造を言語の型システムで直接表現でき、操作も自然に再帰的に定義できる
+1. **Simplification of client code**: Eliminates branches like `if (isLeaf)`, allowing recursive uniform operations to be applied
+2. **Adherence to the Open/Closed Principle**: Adding new Leaf or Composite types does not require changing existing client code
+3. **Natural expression of recursive structures**: Tree structures can be represented directly in the language's type system, and operations can be defined recursively in a natural way
 
 ---
 
-## 2. Composite の構造
+## 2. Structure of Composite
 
-### 2.1 クラス図
+### 2.1 Class Diagram
 
 ```
 +------------------+
@@ -77,22 +73,22 @@ GoF の定義:
 |  Leaf  | | Composite  |
 +--------+ +------------+
 |+operation| | -children[]|
-+--------+ | +operation()|  -- 子に委譲して再帰
++--------+ | +operation()|  -- delegates to children recursively
            | +add(c)     |
            | +remove(c)  |
            +------------+
 ```
 
-### 2.2 構成要素の役割
+### 2.2 Roles of Each Component
 
-| 構成要素 | 役割 | 例（ファイルシステム） |
+| Component | Role | Example (File System) |
 |---------|------|---------------------|
-| Component | 統一インタフェース | FileSystemNode |
-| Leaf | 子を持たない末端ノード | File |
-| Composite | 子を持つノード、操作を子に委譲 | Directory |
-| Client | Component を通じて操作 | アプリケーション |
+| Component | Unified interface | FileSystemNode |
+| Leaf | Terminal node with no children | File |
+| Composite | Node with children; delegates operations to children | Directory |
+| Client | Operates through Component | Application |
 
-### 2.3 ツリー構造の図解
+### 2.3 Illustration of Tree Structure
 
 ```
         Composite (root)
@@ -101,7 +97,7 @@ GoF の定義:
    /      \
 Leaf A   Leaf B
 
-operation() の呼び出し:
+Calling operation():
 root.operation()
   +-- composite.operation()
   |     +-- leafA.operation()
@@ -109,10 +105,10 @@ root.operation()
   +-- leafC.operation()
 ```
 
-### 2.4 再帰処理の詳細フロー
+### 2.4 Detailed Recursive Processing Flow
 
 ```
-getSize() の呼び出しスタック:
+Call stack for getSize():
 
 root.getSize()
   |
@@ -125,23 +121,23 @@ root.getSize()
   |
   return 8 + 1 = 9
 
-[コールスタックの深さ]
+[Call stack depth]
 depth 0: root.getSize()
 depth 1: components.getSize(), index.getSize()
 depth 2: Button.getSize(), Modal.getSize()
 
-時間計算量: O(N) — 全ノードを1回ずつ訪問
-空間計算量: O(D) — D はツリーの最大深さ（再帰スタック）
+Time complexity:  O(N) — visits each node exactly once
+Space complexity: O(D) — D is the maximum depth of the tree (recursion stack)
 ```
 
 ---
 
-## 3. コード例
+## 3. Code Examples
 
-### コード例 1: ファイルシステム（TypeScript）
+### Code Example 1: File System (TypeScript)
 
 ```typescript
-// file-system.ts — Composite パターンの典型例
+// file-system.ts — Classic example of the Composite pattern
 interface FileSystemNode {
   getName(): string;
   getSize(): number;
@@ -207,7 +203,7 @@ class Directory implements FileSystemNode {
   }
 }
 
-// --- 使用例 ---
+// --- Usage example ---
 const root = new Directory("src");
 const components = new Directory("components");
 components.add(new File("Button.tsx", 3, "tsx"));
@@ -219,7 +215,7 @@ root.add(utils);
 root.add(new File("index.ts", 1, "ts"));
 
 root.print();
-// 出力:
+// Output:
 // src/
 //   components/
 //     Button.tsx (3KB)
@@ -230,16 +226,16 @@ root.print();
 
 console.log(`Total size: ${root.getSize()}KB`); // 11
 
-// find で条件に合うノードを検索
+// Search for nodes matching a condition using find
 const largeFiles = root.find(node => node.getSize() > 3);
 console.log(largeFiles.map(f => f.getName()));
-// ["components", "Modal.tsx"] — Directory は合計サイズで評価される
+// ["components", "Modal.tsx"] — Directory is evaluated by its total size
 ```
 
-### コード例 2: UI コンポーネントツリー（TypeScript）
+### Code Example 2: UI Component Tree (TypeScript)
 
 ```typescript
-// ui-component.ts — UI のレンダリングツリー
+// ui-component.ts — UI rendering tree
 interface UIComponent {
   render(): string;
   getBoundingBox(): { width: number; height: number };
@@ -328,7 +324,7 @@ class Container implements UIComponent {
   }
 }
 
-// --- 使用例 ---
+// --- Usage example ---
 const page = new Container("page", "div")
   .add(new Container("header", "header", "horizontal")
     .add(new ImageElement("logo", "/logo.png", 100, 50))
@@ -346,10 +342,10 @@ const logo = page.findById("logo");
 console.log(logo !== null); // true
 ```
 
-### コード例 3: 価格計算 ── 商品とバンドル（TypeScript）
+### Code Example 3: Price Calculation — Products and Bundles (TypeScript)
 
 ```typescript
-// pricing.ts — ECサイトのバンドル商品の価格計算
+// pricing.ts — Price calculation for bundled products in an e-commerce site
 interface PriceItem {
   getPrice(): number;
   getDescription(): string;
@@ -412,7 +408,7 @@ class Bundle implements PriceItem {
   }
 }
 
-// --- 使用例 ---
+// --- Usage example ---
 const starterPack = new Bundle("Starter Pack", 0.1)
   .add(new Product("Mouse", 3000))
   .add(new Product("Keyboard", 8000))
@@ -431,40 +427,40 @@ console.log(starterPack.getItemCount()); // 4
 console.log(JSON.stringify(starterPack.toJSON(), null, 2));
 ```
 
-### コード例 4: Python ── 組織図
+### Code Example 4: Python — Organizational Chart
 
 ```python
-# organization.py — 組織構造の Composite パターン
+# organization.py — Composite pattern for organizational structure
 from abc import ABC, abstractmethod
 from typing import Iterator
 
 
 class OrganizationUnit(ABC):
-    """組織の構成単位（Component）"""
+    """A unit of organization (Component)"""
 
     @abstractmethod
     def get_salary_cost(self) -> float:
-        """人件費の合計を返す"""
+        """Returns the total personnel cost"""
         ...
 
     @abstractmethod
     def get_headcount(self) -> int:
-        """所属人数を返す"""
+        """Returns the number of members"""
         ...
 
     @abstractmethod
     def print_structure(self, indent: int = 0) -> None:
-        """組織構造を表示する"""
+        """Displays the organizational structure"""
         ...
 
     @abstractmethod
     def find_by_name(self, name: str) -> list["OrganizationUnit"]:
-        """名前で検索する"""
+        """Searches by name"""
         ...
 
 
 class Employee(OrganizationUnit):
-    """個人（Leaf）"""
+    """Individual person (Leaf)"""
 
     def __init__(self, name: str, role: str, salary: float):
         self.name = name
@@ -486,7 +482,7 @@ class Employee(OrganizationUnit):
 
 
 class Department(OrganizationUnit):
-    """部門（Composite）"""
+    """Department (Composite)"""
 
     def __init__(self, name: str):
         self.name = name
@@ -509,7 +505,7 @@ class Department(OrganizationUnit):
         prefix = " " * indent
         cost = self.get_salary_cost()
         count = self.get_headcount()
-        print(f"{prefix}[{self.name}] ({count}名, 人件費: {cost:,.0f})")
+        print(f"{prefix}[{self.name}] ({count} members, personnel cost: {cost:,.0f})")
         for m in self._members:
             m.print_structure(indent + 2)
 
@@ -525,7 +521,7 @@ class Department(OrganizationUnit):
         return iter(self._members)
 
 
-# --- 使用例 ---
+# --- Usage example ---
 eng = Department("Engineering")
 eng.add(Employee("Alice", "Tech Lead", 800_000))
 eng.add(Employee("Bob", "Senior Engineer", 700_000))
@@ -545,13 +541,13 @@ company.add(product)
 company.add(Employee("Grace", "CEO", 1_200_000))
 
 company.print_structure()
-# [Acme Corp] (7名, 人件費: 5,450,000)
-#   [Product] (6名, 人件費: 4,250,000)
-#     [Engineering] (3名, 人件費: 2,050,000)
+# [Acme Corp] (7 members, personnel cost: 5,450,000)
+#   [Product] (6 members, personnel cost: 4,250,000)
+#     [Engineering] (3 members, personnel cost: 2,050,000)
 #       - Alice (Tech Lead, 800,000)
 #       - Bob (Senior Engineer, 700,000)
 #       - Charlie (Engineer, 550,000)
-#     [Design] (2名, 人件費: 1,350,000)
+#     [Design] (2 members, personnel cost: 1,350,000)
 #       - Diana (Design Lead, 750,000)
 #       - Eve (Designer, 600,000)
 #     - Frank (Product Manager, 850,000)
@@ -566,10 +562,10 @@ for r in results:
 # Engineering, Bob, Charlie
 ```
 
-### コード例 5: 条件式ツリー（仕様パターン）
+### Code Example 5: Conditional Expression Tree (Specification Pattern)
 
 ```typescript
-// specification.ts — Composite + Specification パターン
+// specification.ts — Composite + Specification pattern
 interface Specification<T> {
   isSatisfiedBy(item: T): boolean;
   and(other: Specification<T>): Specification<T>;
@@ -631,7 +627,7 @@ class NotSpec<T> extends BaseSpec<T> {
   }
 }
 
-// --- Leaf Specification の例 ---
+// --- Example Leaf Specifications ---
 interface Product {
   name: string;
   price: number;
@@ -662,8 +658,8 @@ class IsNew extends BaseSpec<Product> {
   toString(): string { return `isNew`; }
 }
 
-// --- 使用例 ---
-// 「安くてかつ在庫あり」OR「新商品」
+// --- Usage example ---
+// "affordable AND in stock" OR "new product"
 const spec = new PriceBelow(1000)
   .and(new InStock())
   .or(new IsNew());
@@ -681,23 +677,23 @@ const products: Product[] = [
 const matching = products.filter(p => spec.isSatisfiedBy(p));
 console.log(matching.map(p => p.name));
 // ["A", "B", "D"]
-// A: 500 < 1000 かつ在庫あり -> true
-// B: 新商品 -> true
-// C: 800 < 1000 だが在庫なし、新商品でもない -> false
-// D: 200 < 1000 かつ在庫あり -> true
+// A: 500 < 1000 and in stock -> true
+// B: new product -> true
+// C: 800 < 1000 but not in stock, and not a new product -> false
+// D: 200 < 1000 and in stock -> true
 ```
 
-### コード例 6: 数式ツリー（AST）
+### Code Example 6: Expression Tree (AST)
 
 ```typescript
-// expression.ts — 数式の抽象構文木 (AST) を Composite で構築
+// expression.ts — Build an abstract syntax tree (AST) for mathematical expressions using Composite
 interface Expression {
   evaluate(): number;
   toString(): string;
   simplify(): Expression;
 }
 
-// Leaf: リテラル値
+// Leaf: literal value
 class NumberLiteral implements Expression {
   constructor(private value: number) {}
 
@@ -706,7 +702,7 @@ class NumberLiteral implements Expression {
   simplify(): Expression { return this; }
 }
 
-// Leaf: 変数参照
+// Leaf: variable reference
 class Variable implements Expression {
   constructor(
     private name: string,
@@ -723,7 +719,7 @@ class Variable implements Expression {
   simplify(): Expression { return this; }
 }
 
-// Composite: 二項演算
+// Composite: binary operation
 class BinaryOp implements Expression {
   constructor(
     private op: '+' | '-' | '*' | '/',
@@ -752,14 +748,14 @@ class BinaryOp implements Expression {
     const left = this.left.simplify();
     const right = this.right.simplify();
 
-    // 定数畳み込み: 両辺がリテラルなら計算結果に置換
+    // Constant folding: if both sides are literals, replace with the computed result
     if (left instanceof NumberLiteral && right instanceof NumberLiteral) {
       return new NumberLiteral(
         new BinaryOp(this.op, left, right).evaluate()
       );
     }
 
-    // x + 0 = x, x * 1 = x 等の簡略化
+    // Simplifications such as x + 0 = x, x * 1 = x
     if (this.op === '+' && right instanceof NumberLiteral && right.evaluate() === 0) {
       return left;
     }
@@ -774,7 +770,7 @@ class BinaryOp implements Expression {
   }
 }
 
-// Composite: 関数呼び出し
+// Composite: function call
 class FunctionCall implements Expression {
   constructor(
     private fnName: string,
@@ -802,7 +798,7 @@ class FunctionCall implements Expression {
   }
 }
 
-// --- 使用例: (x + 3) * max(y, 5) ---
+// --- Usage example: (x + 3) * max(y, 5) ---
 const env = new Map<string, number>([["x", 7], ["y", 2]]);
 
 const expr = new BinaryOp('*',
@@ -816,22 +812,22 @@ console.log(expr.toString());
 console.log(expr.evaluate());
 // (7 + 3) * max(2, 5) = 10 * 5 = 50
 
-// 簡略化のテスト
+// Test simplification
 const simpleExpr = new BinaryOp('+',
   new BinaryOp('*', new NumberLiteral(2), new NumberLiteral(3)),
   new NumberLiteral(0)
 );
 console.log(simpleExpr.simplify().toString());
-// "6" — 定数畳み込み + 0 の除去
+// "6" — constant folding + removal of + 0
 ```
 
-### コード例 7: メニュー構造
+### Code Example 7: Menu Structure
 
 ```typescript
-// menu.ts — レストランのメニュー（Composite パターン）
+// menu.ts — Restaurant menu (Composite pattern)
 interface MenuItem {
   getName(): string;
-  getPrice(): number | null; // カテゴリには価格がない
+  getPrice(): number | null; // categories have no price
   isVegetarian(): boolean;
   print(indent?: string): void;
 }
@@ -850,7 +846,7 @@ class Dish implements MenuItem {
 
   print(indent = ""): void {
     const veg = this.vegetarian ? " [V]" : "";
-    console.log(`${indent}${this.name}${veg} - ${this.price}円`);
+    console.log(`${indent}${this.name}${veg} - $${this.price}`);
     console.log(`${indent}  ${this.description}`);
   }
 }
@@ -868,7 +864,7 @@ class MenuCategory implements MenuItem {
   getName(): string { return this.name; }
 
   getPrice(): null {
-    return null; // カテゴリ自体に価格はない
+    return null; // the category itself has no price
   }
 
   isVegetarian(): boolean {
@@ -888,55 +884,55 @@ class MenuCategory implements MenuItem {
   }
 }
 
-// --- 使用例 ---
+// --- Usage example ---
 const menu = new MenuCategory("Grand Menu")
   .add(new MenuCategory("Appetizers")
-    .add(new Dish("Caesar Salad", 850, true, "ロメインレタス、パルメザン"))
-    .add(new Dish("Bruschetta", 600, true, "トマト、バジル、オリーブオイル"))
-    .add(new Dish("Carpaccio", 1200, false, "牛フィレ薄切り"))
+    .add(new Dish("Caesar Salad", 850, true, "Romaine lettuce, Parmesan"))
+    .add(new Dish("Bruschetta", 600, true, "Tomato, basil, olive oil"))
+    .add(new Dish("Carpaccio", 1200, false, "Thinly sliced beef tenderloin"))
   )
   .add(new MenuCategory("Main Courses")
-    .add(new Dish("Margherita Pizza", 1400, true, "モッツァレラ、バジル"))
-    .add(new Dish("Grilled Salmon", 1800, false, "ノルウェーサーモン"))
+    .add(new Dish("Margherita Pizza", 1400, true, "Mozzarella, basil"))
+    .add(new Dish("Grilled Salmon", 1800, false, "Norwegian salmon"))
   );
 
 menu.print();
 // === Grand Menu ===
 //   === Appetizers ===
-//     Caesar Salad [V] - 850円
-//       ロメインレタス、パルメザン
-//     Bruschetta [V] - 600円
-//       トマト、バジル、オリーブオイル
-//     Carpaccio - 1200円
-//       牛フィレ薄切り
+//     Caesar Salad [V] - $850
+//       Romaine lettuce, Parmesan
+//     Bruschetta [V] - $600
+//       Tomato, basil, olive oil
+//     Carpaccio - $1200
+//       Thinly sliced beef tenderloin
 //   === Main Courses ===
-//     Margherita Pizza [V] - 1400円
-//       モッツァレラ、バジル
-//     Grilled Salmon - 1800円
-//       ノルウェーサーモン
+//     Margherita Pizza [V] - $1400
+//       Mozzarella, basil
+//     Grilled Salmon - $1800
+//       Norwegian salmon
 ```
 
 ---
 
-## 4. 透過設計 vs 安全設計：深い考察
+## 4. Transparent Design vs. Safe Design: A Deep Dive
 
-Composite パターンの設計において、最も重要なトレードオフが「透過性（Transparency）」と「安全性（Safety）」の選択である。
+The most important tradeoff in designing the Composite pattern is the choice between "Transparency" and "Safety".
 
-### 4.1 透過設計（GoF 原書の提案）
+### 4.1 Transparent Design (Proposed in the Original GoF Book)
 
 ```typescript
-// 透過設計: Component に add/remove を定義
+// Transparent design: add/remove defined on Component
 interface Component {
   operation(): void;
-  add(child: Component): void;    // Leaf にも存在
-  remove(child: Component): void; // Leaf にも存在
+  add(child: Component): void;    // also exists on Leaf
+  remove(child: Component): void; // also exists on Leaf
   getChild(index: number): Component | null;
 }
 
 class Leaf implements Component {
   operation(): void { /* ... */ }
 
-  // Leaf では例外をスロー
+  // Throws an exception on Leaf
   add(child: Component): void {
     throw new Error("Leaf cannot have children");
   }
@@ -951,25 +947,25 @@ class Leaf implements Component {
 }
 ```
 
-**利点**: クライアントは Component 型だけを扱えば良い。Leaf か Composite かの判定が不要。
-**欠点**: Leaf に対して add() を呼ぶと実行時エラー。型安全性が低い。
+**Advantage**: The client only needs to work with the Component type. No need to determine whether something is a Leaf or Composite.
+**Disadvantage**: Calling add() on a Leaf causes a runtime error. Type safety is low.
 
-### 4.2 安全設計（現代の推奨）
+### 4.2 Safe Design (Modern Recommendation)
 
 ```typescript
-// 安全設計: add/remove は Composite のみに定義
+// Safe design: add/remove defined only on Composite
 interface Component {
   operation(): void;
 }
 
-// Composite を判定するユーティリティ
+// Utility to check whether a Component is a Composite
 function isComposite(c: Component): c is Composite {
   return 'add' in c && typeof (c as any).add === 'function';
 }
 
 class Leaf implements Component {
   operation(): void { /* ... */ }
-  // add/remove は存在しない
+  // add/remove do not exist
 }
 
 class Composite implements Component {
@@ -989,41 +985,41 @@ class Composite implements Component {
 }
 ```
 
-**利点**: 型安全。Leaf に対して add() を呼ぶことがコンパイル時に検出される。
-**欠点**: Composite 固有の操作を使うにはダウンキャストや型ガードが必要。
+**Advantage**: Type safe. Calling add() on a Leaf is detected at compile time.
+**Disadvantage**: A downcast or type guard is required to use Composite-specific operations.
 
-### 4.3 比較表
+### 4.3 Comparison Table
 
 ```
-透過設計 vs 安全設計の判断フロー:
+Decision flow for Transparent Design vs. Safe Design:
 
-             クライアントは add/remove を頻繁に使うか？
+             Does the client frequently use add/remove?
                     /              \
                   Yes               No
                   /                   \
-         透過設計を検討          安全設計を採用
+         Consider transparent design    Adopt safe design
                 |
-    型安全性は重要か？
+    Is type safety important?
           /        \
         Yes         No
         /             \
-   安全設計を採用    透過設計を採用
+   Adopt safe design   Adopt transparent design
 ```
 
-| 方式 | Leaf にも add/remove | 型安全性 | 透過性 | コンパイル時検出 |
+| Approach | add/remove on Leaf | Type Safety | Transparency | Compile-time Detection |
 |------|:---:|:---:|:---:|:---:|
-| 透過設計 | Yes（例外スロー） | 低い | 高い | 不可 |
-| 安全設計 | No（Composite のみ） | 高い | 低い | 可能 |
-| 推奨 | - | **安全設計** | - | - |
+| Transparent Design | Yes (throws exception) | Low | High | Not possible |
+| Safe Design | No (Composite only) | High | Low | Possible |
+| Recommended | - | **Safe Design** | - | - |
 
 ---
 
-## 5. 循環参照防止の実装
+## 5. Implementing Circular Reference Prevention
 
-Composite パターンで最も危険な問題が循環参照である。以下に堅牢な循環参照チェックの実装を示す。
+The most dangerous problem with the Composite pattern is circular references. Below is an implementation of robust circular reference checking.
 
 ```typescript
-// safe-composite.ts — 循環参照を防止する Composite
+// safe-composite.ts — Composite with circular reference prevention
 interface SafeComponent {
   getName(): string;
   getSize(): number;
@@ -1043,7 +1039,7 @@ class SafeComposite implements SafeComponent {
   }
 
   add(child: SafeComponent): this {
-    // 循環参照チェック
+    // Circular reference check
     if (child === this) {
       throw new Error(`Cannot add "${this.name}" to itself`);
     }
@@ -1054,7 +1050,7 @@ class SafeComposite implements SafeComponent {
           `Cannot add "${child.name}": it is an ancestor of "${this.name}"`
         );
       }
-      // 既存の親から切り離す
+      // Detach from existing parent
       if (child.parent) {
         child.parent.remove(child);
       }
@@ -1096,7 +1092,7 @@ class SafeComposite implements SafeComponent {
   }
 }
 
-// --- 使用例: 循環参照の検出 ---
+// --- Usage example: detecting circular references ---
 const a = new SafeComposite("A");
 const b = new SafeComposite("B");
 const c = new SafeComposite("C");
@@ -1121,12 +1117,12 @@ console.log(c.getPath()); // ["A", "B", "C"]
 
 ---
 
-## 6. パフォーマンス最適化：キャッシュ戦略
+## 6. Performance Optimization: Caching Strategy
 
-深いツリー構造で集計操作（getSize(), getCount() 等）を頻繁に呼び出す場合、毎回再帰的に計算するとパフォーマンスが問題になる。キャッシュを使って最適化する方法を示す。
+When aggregation operations (getSize(), getCount(), etc.) are called frequently on deep tree structures, computing them recursively each time can become a performance bottleneck. Below is a method for optimizing with caching.
 
 ```typescript
-// cached-composite.ts — キャッシュ付き Composite
+// cached-composite.ts — Composite with caching
 interface CachedComponent {
   getName(): string;
   getSize(): number;
@@ -1143,7 +1139,7 @@ class CachedDirectory implements CachedComponent {
 
   add(child: CachedComponent): this {
     this.children.push(child);
-    this.invalidateCache(); // キャッシュを無効化
+    this.invalidateCache(); // Invalidate cache
     return this;
   }
 
@@ -1161,36 +1157,36 @@ class CachedDirectory implements CachedComponent {
 
   invalidateCache(): void {
     this.sizeCache = null;
-    // 親のキャッシュも無効化する必要がある
-    // （親への参照を持つ場合）
+    // The parent's cache also needs to be invalidated
+    // (when a reference to the parent is held)
   }
 }
 
-// --- パフォーマンス比較 ---
-// キャッシュなし: getSize() を N 回呼ぶと O(N * M) — M はノード数
-// キャッシュあり: 初回は O(M)、以降は O(1)、変更時は O(D) — D は深さ
+// --- Performance comparison ---
+// Without cache: calling getSize() N times costs O(N * M) — M is the number of nodes
+// With cache: O(M) on first call, O(1) thereafter, O(D) on change — D is the depth
 ```
 
 ```
-キャッシュの無効化伝搬:
+Cache invalidation propagation:
 
-  変更されたノード     親に伝搬      ルートまで伝搬
+  Changed node       propagates to parent    propagates to root
        [D]  --------> [B]  -------> [root]
        cache=null      cache=null     cache=null
 
-  次に root.getSize() が呼ばれたとき:
-  root → B を再計算 → D を再計算
-  root → C は変更されていない場合、キャッシュからそのまま返す（差分更新）
+  When root.getSize() is called next:
+  root -> recomputes B -> recomputes D
+  root -> C has not changed, so it is returned from cache as-is (incremental update)
 ```
 
 ---
 
-## 7. Composite パターンと Visitor パターンの併用
+## 7. Combining Composite Pattern with Visitor Pattern
 
-Composite で構造を表現し、Visitor で操作を追加するのは GoF でも推奨される強力な組み合わせである。
+Using Composite to represent structure and Visitor to add operations is a powerful combination also recommended by GoF.
 
 ```typescript
-// visitor.ts — Composite + Visitor パターン
+// visitor.ts — Composite + Visitor pattern
 interface FileSystemVisitor {
   visitFile(file: VisitableFile): void;
   visitDirectory(dir: VisitableDirectory): void;
@@ -1228,7 +1224,7 @@ class VisitableDirectory implements VisitableNode {
   }
 }
 
-// --- 操作1: ファイルサイズ集計 ---
+// --- Operation 1: Aggregate file sizes ---
 class SizeCalculator implements FileSystemVisitor {
   totalSize = 0;
 
@@ -1237,11 +1233,11 @@ class SizeCalculator implements FileSystemVisitor {
   }
 
   visitDirectory(_dir: VisitableDirectory): void {
-    // ディレクトリ自体にはサイズなし
+    // The directory itself has no size
   }
 }
 
-// --- 操作2: 拡張子別ファイル一覧 ---
+// --- Operation 2: List files grouped by extension ---
 class ExtensionGrouper implements FileSystemVisitor {
   groups = new Map<string, string[]>();
 
@@ -1255,7 +1251,7 @@ class ExtensionGrouper implements FileSystemVisitor {
   visitDirectory(_dir: VisitableDirectory): void {}
 }
 
-// --- 操作3: 大きなファイルの検出 ---
+// --- Operation 3: Detect large files ---
 class LargeFileFinder implements FileSystemVisitor {
   largeFiles: { name: string; size: number }[] = [];
 
@@ -1270,46 +1266,46 @@ class LargeFileFinder implements FileSystemVisitor {
   visitDirectory(_dir: VisitableDirectory): void {}
 }
 
-// --- 使用例 ---
+// --- Usage example ---
 const root = new VisitableDirectory("project")
   .add(new VisitableDirectory("src")
     .add(new VisitableFile("app.ts", 10, "ts"))
     .add(new VisitableFile("style.css", 50, "css")))
   .add(new VisitableFile("README.md", 3, "md"));
 
-// 操作1: サイズ集計
+// Operation 1: Aggregate sizes
 const calc = new SizeCalculator();
 root.accept(calc);
 console.log(`Total: ${calc.totalSize}KB`); // 63
 
-// 操作2: 拡張子グルーピング
+// Operation 2: Group by extension
 const grouper = new ExtensionGrouper();
 root.accept(grouper);
 console.log(grouper.groups);
 // Map { 'ts' => ['app.ts'], 'css' => ['style.css'], 'md' => ['README.md'] }
 
-// 操作3: 大きなファイル検出
+// Operation 3: Find large files
 const finder = new LargeFileFinder(5);
 root.accept(finder);
 console.log(finder.largeFiles);
 // [{ name: 'app.ts', size: 10 }, { name: 'style.css', size: 50 }]
 ```
 
-**Visitor との併用の利点**:
-- ツリー構造のクラスを変更せずに新しい操作を追加できる
-- Single Responsibility Principle を満たす（構造と操作の分離）
-- 同じツリーに対して複数の操作を独立して定義できる
+**Benefits of combining with Visitor**:
+- New operations can be added without modifying the tree structure classes
+- Satisfies the Single Responsibility Principle (separation of structure and operations)
+- Multiple operations can be independently defined for the same tree
 
 ---
 
-## 8. 実世界での Composite パターン
+## 8. Composite Pattern in the Real World
 
-### 8.1 React の仮想 DOM
+### 8.1 React's Virtual DOM
 
-React のコンポーネントツリーは Composite パターンの典型例である。
+React's component tree is a classic example of the Composite pattern.
 
 ```
-ReactElement ツリー:
+ReactElement tree:
   <App>                    ← Composite
     <Header>               ← Composite
       <Logo />             ← Leaf
@@ -1323,7 +1319,7 @@ ReactElement ツリー:
     </Main>
   </App>
 
-render() の再帰的呼び出し:
+Recursive calls to render():
   App.render()
     -> Header.render()
       -> Logo.render()
@@ -1336,7 +1332,7 @@ render() の再帰的呼び出し:
 
 ### 8.2 DOM API
 
-ブラウザの DOM 自体が Composite パターンである。
+The browser's DOM itself is the Composite pattern.
 
 ```
 Node (Component)
@@ -1346,13 +1342,13 @@ Node (Component)
        +-- children: Node[]
        +-- appendChild()
        +-- removeChild()
-       +-- textContent    ← 再帰的に取得
-       +-- innerHTML      ← 再帰的に取得
+       +-- textContent    ← retrieved recursively
+       +-- innerHTML      ← retrieved recursively
 ```
 
-### 8.3 JSONパーサー
+### 8.3 JSON Parser
 
-JSON の値は Composite 構造である。
+JSON values have a Composite structure.
 
 ```
 JsonValue (Component)
@@ -1366,58 +1362,58 @@ JsonValue (Component)
 
 ---
 
-## 9. 比較表
+## 9. Comparison Tables
 
-### 比較表 1: Composite vs 通常のコレクション
+### Comparison Table 1: Composite vs. Ordinary Collections
 
-| 観点 | Composite | 配列/リスト |
+| Aspect | Composite | Array/List |
 |------|:---:|:---:|
-| ネスト | 再帰的（ツリー） | フラット |
-| 統一インタフェース | Yes | No |
-| 操作の委譲 | 自動（再帰） | 手動ループ |
-| 型安全性 | 高い | 要キャスト |
-| 適用場面 | 階層構造 | 均一なコレクション |
-| 柔軟性 | 高い（深さ任意） | 固定（1レベル） |
-| 実装コスト | 中 | 低い |
+| Nesting | Recursive (tree) | Flat |
+| Unified interface | Yes | No |
+| Operation delegation | Automatic (recursion) | Manual loop |
+| Type safety | High | Requires casting |
+| Use case | Hierarchical structures | Uniform collections |
+| Flexibility | High (arbitrary depth) | Fixed (1 level) |
+| Implementation cost | Medium | Low |
 
-### 比較表 2: 透過設計 vs 安全設計
+### Comparison Table 2: Transparent Design vs. Safe Design
 
-| 方式 | Leaf にも add/remove | 型安全性 | 透過性 | 実行時エラーリスク |
+| Approach | add/remove on Leaf | Type Safety | Transparency | Runtime Error Risk |
 |------|:---:|:---:|:---:|:---:|
-| 透過設計 | Yes（例外スロー） | 低い | 高い | 高い |
-| 安全設計 | No（Composite のみ） | 高い | 低い | 低い |
-| ハイブリッド | Optional メソッド | 中 | 中 | 中 |
-| 推奨 | - | **安全設計** | - | - |
+| Transparent Design | Yes (throws exception) | Low | High | High |
+| Safe Design | No (Composite only) | High | Low | Low |
+| Hybrid | Optional methods | Medium | Medium | Medium |
+| Recommended | - | **Safe Design** | - | - |
 
-### 比較表 3: 関連パターンとの比較
+### Comparison Table 3: Comparison with Related Patterns
 
-| パターン | 目的 | 構造 | 再帰 | 典型例 |
+| Pattern | Purpose | Structure | Recursive | Typical Example |
 |---------|------|------|:---:|-------|
-| **Composite** | 部分-全体の統一操作 | ツリー | Yes | ファイルシステム |
-| **Decorator** | 動的な機能追加 | チェーン | 可能 | ストリーム |
-| **Chain of Responsibility** | 処理の委譲チェーン | リスト | No | ミドルウェア |
-| **Iterator** | 走査の抽象化 | - | No | コレクション |
-| **Visitor** | 構造と操作の分離 | - | Yes | AST 処理 |
+| **Composite** | Uniform operations on part-whole | Tree | Yes | File system |
+| **Decorator** | Dynamic feature addition | Chain | Possible | Streams |
+| **Chain of Responsibility** | Chain of processing delegation | List | No | Middleware |
+| **Iterator** | Abstraction of traversal | - | No | Collections |
+| **Visitor** | Separation of structure and operations | - | Yes | AST processing |
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### アンチパターン 1: 循環参照の許容
+### Anti-Pattern 1: Allowing Circular References
 
 ```typescript
-// NG: 循環参照を防止していない
+// NG: no circular reference prevention
 class BadComposite {
   private children: BadComposite[] = [];
 
   add(child: BadComposite): void {
-    this.children.push(child); // 自分自身を追加できてしまう！
+    this.children.push(child); // can add itself as a child!
   }
 
   getSize(): number {
     let size = 1;
     for (const child of this.children) {
-      size += child.getSize(); // 循環参照があるとスタックオーバーフロー
+      size += child.getSize(); // stack overflow if circular reference exists
     }
     return size;
   }
@@ -1426,21 +1422,21 @@ class BadComposite {
 const a = new BadComposite();
 const b = new BadComposite();
 a.add(b);
-b.add(a); // 循環参照！
-// a.getSize() -> b.getSize() -> a.getSize() -> ... スタックオーバーフロー
+b.add(a); // circular reference!
+// a.getSize() -> b.getSize() -> a.getSize() -> ... stack overflow
 
-// OK: 循環参照チェック付き
+// OK: with circular reference check
 class GoodComposite {
   private children: GoodComposite[] = [];
   private parent: GoodComposite | null = null;
 
   add(child: GoodComposite): void {
-    // 自分自身のチェック
+    // Check for self-reference
     if (child === this) {
       throw new Error("Cannot add self as child");
     }
 
-    // 祖先チェック（child が自分の祖先でないことを確認）
+    // Ancestor check (ensure child is not an ancestor of this node)
     let current: GoodComposite | null = this;
     while (current !== null) {
       if (current === child) {
@@ -1449,7 +1445,7 @@ class GoodComposite {
       current = current.parent;
     }
 
-    // 既存の親から切り離す
+    // Detach from existing parent
     if (child.parent) {
       child.parent.children = child.parent.children.filter(c => c !== child);
     }
@@ -1468,41 +1464,41 @@ class GoodComposite {
 }
 ```
 
-### アンチパターン 2: Composite が Leaf 固有のロジックに依存
+### Anti-Pattern 2: Composite Depending on Leaf-Specific Logic
 
 ```typescript
-// NG: Composite が子の具象型を知っている
+// NG: Composite knows about the concrete types of its children
 class BadDirectory {
   private children: FileSystemNode[] = [];
 
   getSize(): number {
     return this.children.reduce((sum, c) => {
-      if (c instanceof File) {        // 型チェック！
-        return sum + c.getRawSize();   // Leaf 固有メソッド呼び出し
+      if (c instanceof File) {        // type check!
+        return sum + c.getRawSize();   // calling a Leaf-specific method
       }
       if (c instanceof Directory) {
         return sum + c.getSize();
       }
-      return sum; // 新しい型が来たら対応漏れ
+      return sum; // will miss new types
     }, 0);
   }
 }
 
-// OK: Component インタフェースの getSize() に統一
+// OK: unified through the Component interface's getSize()
 class GoodDirectory {
   private children: FileSystemNode[] = [];
 
   getSize(): number {
-    // 型チェックなし、インタフェースに委譲
+    // no type checks, delegating to the interface
     return this.children.reduce((sum, c) => sum + c.getSize(), 0);
   }
 }
 ```
 
-### アンチパターン 3: 不要な Composite パターンの適用
+### Anti-Pattern 3: Applying Composite Pattern Unnecessarily
 
 ```typescript
-// NG: フラットなリストに Composite を適用（過剰設計）
+// NG: applying Composite to a flat list (over-engineering)
 interface Task {
   getName(): string;
   getDuration(): number;
@@ -1524,28 +1520,28 @@ class TaskGroup implements Task {
   }
 }
 
-// もしネストする必要がないなら、単純な配列で十分:
+// If nesting is not needed, a simple array is sufficient:
 // const tasks: SimpleTask[] = [...];
 // const total = tasks.reduce((sum, t) => sum + t.getDuration(), 0);
 
-// OK: 実際にツリー構造が必要な場合のみ Composite を使う
-// 判断基準: ネストの深さが2以上になり得るか？
+// OK: use Composite only when a tree structure is actually needed
+// Decision criterion: can the nesting depth be 2 or more?
 ```
 
 ---
 
-## 11. 実践演習
+## 11. Practice Exercises
 
-### 演習 1: 基礎 ── ファイルシステムの実装
+### Exercise 1: Basic — Implementing a File System
 
-**課題**: 以下の要件を満たすファイルシステムを Composite パターンで実装せよ。
+**Task**: Implement a file system that satisfies the following requirements using the Composite pattern.
 
-1. `FileSystemNode` インタフェースに `getName()`, `getSize()`, `print()` メソッドを定義
-2. `File` クラス（Leaf）: 名前、サイズ、拡張子を保持
-3. `Directory` クラス（Composite）: 子ノードを保持、再帰的にサイズを計算
-4. ツリーの文字列表現を返す `toString()` メソッドを追加
+1. Define `getName()`, `getSize()`, and `print()` methods on the `FileSystemNode` interface
+2. `File` class (Leaf): holds name, size, and extension
+3. `Directory` class (Composite): holds child nodes, calculates size recursively
+4. Add a `toString()` method that returns a string representation of the tree
 
-**テストケース**:
+**Test case**:
 
 ```typescript
 const root = new Directory("project");
@@ -1562,7 +1558,7 @@ console.log(root.getSize()); // 35
 root.print();
 ```
 
-**期待される出力**:
+**Expected output**:
 
 ```
 project/
@@ -1576,18 +1572,18 @@ project/
 
 ---
 
-### 演習 2: 応用 ── 権限管理ツリー
+### Exercise 2: Applied — Permission Management Tree
 
-**課題**: 組織の権限管理システムを Composite パターンで実装せよ。
+**Task**: Implement an organizational permission management system using the Composite pattern.
 
-要件:
-1. `Permission` インタフェース: `hasPermission(action: string): boolean`
-2. `Role` クラス（Leaf）: 特定の権限セットを保持
-3. `RoleGroup` クラス（Composite）: 複数のロールを階層的に組み合わせ
-4. 子のいずれかが権限を持っていれば `true` を返す（OR 結合）
-5. 権限の一覧を取得する `getAllPermissions(): string[]` メソッド
+Requirements:
+1. `Permission` interface: `hasPermission(action: string): boolean`
+2. `Role` class (Leaf): holds a specific set of permissions
+3. `RoleGroup` class (Composite): hierarchically combines multiple roles
+4. Returns `true` if any child has the permission (OR combination)
+5. `getAllPermissions(): string[]` method to retrieve a list of all permissions
 
-**テストケース**:
+**Test case**:
 
 ```typescript
 const reader = new Role("reader", ["read", "list"]);
@@ -1609,26 +1605,26 @@ console.log(superAdmin.getAllPermissions());
 // ["read", "list", "write", "update", "delete", "manage"]
 ```
 
-**期待される出力**: 上記のコメント通り。
+**Expected output**: As shown in the comments above.
 
 ---
 
-### 演習 3: 発展 ── Visitor 付きの数式評価器
+### Exercise 3: Advanced — Expression Evaluator with Visitor
 
-**課題**: Composite パターンと Visitor パターンを組み合わせて、数式の抽象構文木（AST）を構築し、複数の操作を適用できる評価器を実装せよ。
+**Task**: Combine the Composite pattern with the Visitor pattern to build an abstract syntax tree (AST) for mathematical expressions and implement an evaluator that can apply multiple operations.
 
-要件:
-1. `Expression` インタフェース（Component）: `accept(visitor)` メソッド
-2. `NumberLiteral`, `Variable`（Leaf）
-3. `BinaryOp`, `UnaryOp`（Composite）
-4. Visitor 1: `Evaluator` — 式を評価して数値を返す
-5. Visitor 2: `PrettyPrinter` — 式を文字列に整形する
-6. Visitor 3: `Simplifier` — 式を簡略化する（0の加算、1の乗算の除去等）
+Requirements:
+1. `Expression` interface (Component): `accept(visitor)` method
+2. `NumberLiteral`, `Variable` (Leaf)
+3. `BinaryOp`, `UnaryOp` (Composite)
+4. Visitor 1: `Evaluator` — evaluates the expression and returns a number
+5. Visitor 2: `PrettyPrinter` — formats the expression as a string
+6. Visitor 3: `Simplifier` — simplifies the expression (removes addition of 0, multiplication by 1, etc.)
 
-**テストケース**:
+**Test case**:
 
 ```typescript
-// 式: (x + 0) * (1 * y)  →  簡略化後: x * y
+// Expression: (x + 0) * (1 * y)  →  after simplification: x * y
 const env = new Map([["x", 3], ["y", 7]]);
 
 const expr = new BinaryOp('*',
@@ -1652,84 +1648,84 @@ simplified.accept(printer2);
 console.log(printer2.getResult()); // "(x * y)"
 ```
 
-**期待される出力**: 上記のコメント通り。
+**Expected output**: As shown in the comments above.
 
 ---
 
 ## 12. FAQ
 
-### Q1: React の仮想 DOM は Composite パターンですか？
+### Q1: Is React's virtual DOM the Composite pattern?
 
-はい。React のコンポーネントツリーは Composite パターンの典型例です。各コンポーネントは `render()` を持ち、子コンポーネントに再帰的に処理を委譲します。JSX の `<Parent><Child /></Parent>` という構文は、Composite の add() に相当します。React 18 の Suspense や Server Components も、このツリー構造の上に構築されています。
+Yes. React's component tree is a classic example of the Composite pattern. Each component has a `render()` method and recursively delegates processing to child components. The JSX syntax `<Parent><Child /></Parent>` is equivalent to Composite's add(). React 18's Suspense and Server Components are also built on top of this tree structure.
 
-### Q2: Visitor パターンと Composite は併用できますか？
+### Q2: Can the Visitor pattern be combined with Composite?
 
-はい。Composite でツリー構造を表現し、Visitor で操作を追加するのは GoF でも推奨される組み合わせです。新しい操作を追加する際にツリーのクラスを変更する必要がなくなります。ただし、ツリーのノード型を頻繁に追加する場合は Visitor の `visit` メソッドも追加が必要になるため、変更の方向を考慮して選択してください。
+Yes. Using Composite to represent the tree structure and Visitor to add operations is a combination recommended by GoF. It eliminates the need to modify tree classes when adding new operations. However, if node types in the tree are frequently added, the Visitor's `visit` methods also need to be added, so consider the direction of change when making your choice.
 
-### Q3: 深いネストはパフォーマンス問題になりますか？
+### Q3: Can deep nesting cause performance problems?
 
-再帰の深さが数百レベルを超えるとスタックオーバーフローのリスクがあります。対策として:
-1. **反復（イテレーティブ）なトラバーサル**: 明示的なスタックを使って再帰をループに変換
-2. **末尾呼出し最適化**: 言語がサポートする場合（Scala の `@tailrec` 等）
-3. **遅延評価**: 必要なノードのみを展開する
-4. **キャッシュ**: 集計結果をキャッシュして再計算を避ける
+When the recursion depth exceeds several hundred levels, there is a risk of stack overflow. Countermeasures include:
+1. **Iterative traversal**: Convert recursion to a loop using an explicit stack
+2. **Tail call optimization**: When the language supports it (e.g., Scala's `@tailrec`)
+3. **Lazy evaluation**: Expand only the necessary nodes
+4. **Caching**: Cache aggregation results to avoid recomputation
 
-### Q4: Composite パターンで子ノードの順序は保証すべきですか？
+### Q4: Should the order of child nodes be guaranteed in the Composite pattern?
 
-用途によります。ファイルシステムでは名前順のソートが一般的です。UI ツリーではレイアウト順（描画順）が重要です。数式 AST では演算子の左右が意味を持ちます。一般的には、用途に応じてソート済みコレクション（`SortedSet`）や順序付きリスト（`ArrayList`）を使い分けます。
+It depends on the use case. For file systems, sorting by name is common. For UI trees, layout order (rendering order) is important. For expression ASTs, left and right operands of operators carry meaning. In general, choose between a sorted collection (`SortedSet`) or an ordered list (`ArrayList`) according to the use case.
 
-### Q5: Composite と Decorator の違いは何ですか？
+### Q5: What is the difference between Composite and Decorator?
 
-構造は似ていますが意図が異なります。Composite はツリー構造で「部分-全体」を表現し、子の集合に操作を委譲します。Decorator はチェーン構造で単一オブジェクトに機能を動的に追加します。Composite は「1対多」、Decorator は「1対1」の関係です。
+Although the structures are similar, the intent differs. Composite uses a tree structure to represent "part-whole" relationships and delegates operations to a collection of children. Decorator uses a chain structure to dynamically add functionality to a single object. Composite is a "one-to-many" relationship, while Decorator is "one-to-one".
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not only through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next steps.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world development?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 13. まとめ
+## 13. Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| 目的 | ツリー構造を統一インタフェースで操作 |
-| 構成 | Component（統一IF）, Leaf（末端）, Composite（集合） |
-| 再帰 | Composite が子に操作を委譲し、結果を集約 |
-| 典型例 | ファイルシステム、UI ツリー、組織図、数式 AST |
-| 透過 vs 安全 | 現代は安全設計（add/remove は Composite のみ）推奨 |
-| 循環参照 | 親参照と祖先チェックで防止 |
-| パフォーマンス | キャッシュで再帰的集計を最適化 |
-| Visitor 併用 | 構造を変えずに操作を追加する強力な組み合わせ |
+| Purpose | Operate on tree structures through a unified interface |
+| Components | Component (unified IF), Leaf (terminal), Composite (collection) |
+| Recursion | Composite delegates operations to children and aggregates results |
+| Typical Examples | File system, UI tree, org chart, expression AST |
+| Transparent vs. Safe | Modern practice recommends safe design (add/remove on Composite only) |
+| Circular References | Prevented via parent reference and ancestor checks |
+| Performance | Cache recursive aggregations for optimization |
+| With Visitor | Powerful combination for adding operations without changing structure |
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
-- [Iterator パターン](../02-behavioral/04-iterator.md) -- ツリー走査の抽象化
-- [Decorator パターン](./01-decorator.md) -- 動的な機能追加
-- [Visitor パターン](../02-behavioral/) -- Composite との併用
-- [合成優先の原則](../../../clean-code-principles/docs/03-practices-advanced/01-composition-over-inheritance.md) -- 継承より合成を選ぶ理由
-- [SOLID 原則](../../../clean-code-principles/docs/00-principles/01-solid.md) -- Open/Closed Principle
+- [Iterator Pattern](../02-behavioral/04-iterator.md) -- Abstracting tree traversal
+- [Decorator Pattern](./01-decorator.md) -- Dynamic feature addition
+- [Visitor Pattern](../02-behavioral/) -- Combining with Composite
+- [Composition Over Inheritance](../../../clean-code-principles/docs/03-practices-advanced/01-composition-over-inheritance.md) -- Why to prefer composition over inheritance
+- [SOLID Principles](../../../clean-code-principles/docs/00-principles/01-solid.md) -- Open/Closed Principle
 
 ---
 
-## 参考文献
+## References
 
-1. Gamma, E., Helm, R., Johnson, R., Vlissides, J. (1994). *Design Patterns: Elements of Reusable Object-Oriented Software*. Addison-Wesley. -- Composite パターンの原典。透過設計と安全設計のトレードオフについて詳しい。
-2. Freeman, E., Robson, E. (2020). *Head First Design Patterns* (2nd Edition). O'Reilly Media. -- 視覚的に Composite パターンを学べる。
-3. Refactoring.Guru -- Composite. https://refactoring.guru/design-patterns/composite -- 図解と多言語の実装例。
-4. Martin, R.C. (2008). *Clean Architecture: A Craftsman's Guide to Software Structure and Design*. Prentice Hall. -- SOLID 原則と Composite の関連。
-5. React Documentation -- Composition vs Inheritance. https://react.dev/learn/thinking-in-react -- React におけるコンポーネント合成の考え方。
+1. Gamma, E., Helm, R., Johnson, R., Vlissides, J. (1994). *Design Patterns: Elements of Reusable Object-Oriented Software*. Addison-Wesley. -- The original source of the Composite pattern. Provides detailed coverage of the tradeoff between transparent and safe design.
+2. Freeman, E., Robson, E. (2020). *Head First Design Patterns* (2nd Edition). O'Reilly Media. -- Learn the Composite pattern visually.
+3. Refactoring.Guru -- Composite. https://refactoring.guru/design-patterns/composite -- Diagrams and implementation examples in multiple languages.
+4. Martin, R.C. (2008). *Clean Architecture: A Craftsman's Guide to Software Structure and Design*. Prentice Hall. -- The relationship between SOLID principles and Composite.
+5. React Documentation -- Composition vs Inheritance. https://react.dev/learn/thinking-in-react -- The concept of component composition in React.
