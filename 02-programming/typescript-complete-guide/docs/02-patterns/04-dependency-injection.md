@@ -1,69 +1,69 @@
-# TypeScript DI（依存性注入）パターン完全ガイド
+# TypeScript DI (Dependency Injection) Patterns Complete Guide
 
-> inversify, tsyringe, NestJS を中心に、TypeScript で型安全な DI コンテナとインターフェースベースの疎結合設計を実現する
+> Centered around inversify, tsyringe, and NestJS — achieving type-safe DI containers and interface-based loosely coupled design in TypeScript
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **DI の基本原則** -- 依存性逆転の原則（DIP）と制御の逆転（IoC）を TypeScript で実践する方法
-2. **DI コンテナ** -- inversify / tsyringe / NestJS を使った自動解決、ライフサイクル管理、スコープ設定
-3. **テスタビリティ** -- DI によってテスト時にモックを簡単に差し替え、単体テストを高速化する技法
-4. **循環依存の検出と解決** -- 実践的なアプローチとツール
-5. **パフォーマンス最適化** -- プロダクション環境での実例とベンチマーク
-6. **関数型アプローチ** -- Reader Monad と Effect-ts による DI
+1. **DI Fundamentals** -- How to practice the Dependency Inversion Principle (DIP) and Inversion of Control (IoC) in TypeScript
+2. **DI Containers** -- Automatic resolution, lifecycle management, and scope configuration using inversify / tsyringe / NestJS
+3. **Testability** -- Techniques for easily swapping in mocks during testing and speeding up unit tests with DI
+4. **Detecting and Resolving Circular Dependencies** -- Practical approaches and tools
+5. **Performance Optimization** -- Real-world examples and benchmarks for production environments
+6. **Functional Approach** -- DI with Reader Monad and Effect-ts
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [TypeScript ブランド型（Branded Types）完全ガイド](./03-branded-types.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in [TypeScript Branded Types Complete Guide](./03-branded-types.md)
 
 ---
 
-## 目次
+## Table of Contents
 
-1. [DI の基本原則と SOLID-D](#1-di-の基本原則と-solid-d)
-2. [手動 DI（Pure DI）](#2-手動-dipure-di)
-3. [InversifyJS による DI](#3-inversifyjs-による-di)
-4. [tsyringe による軽量 DI](#4-tsyringe-による軽量-di)
-5. [NestJS の DI システム](#5-nestjs-の-di-システム)
-6. [DI コンテナなしの DI](#6-di-コンテナなしの-di)
-7. [テスト容易性とモック注入](#7-テスト容易性とモック注入)
-8. [循環依存の検出と解決](#8-循環依存の検出と解決)
-9. [パフォーマンス比較とプロダクション事例](#9-パフォーマンス比較とプロダクション事例)
-10. [アンチパターン](#10-アンチパターン)
-11. [エッジケース分析](#11-エッジケース分析)
-12. [演習問題](#12-演習問題)
+1. [DI Fundamentals and SOLID-D](#1-di-fundamentals-and-solid-d)
+2. [Manual DI (Pure DI)](#2-manual-dipure-di)
+3. [DI with InversifyJS](#3-di-with-inversifyjs)
+4. [Lightweight DI with tsyringe](#4-lightweight-di-with-tsyringe)
+5. [NestJS DI System](#5-nestjs-di-system)
+6. [DI Without a DI Container](#6-di-without-a-di-container)
+7. [Testability and Mock Injection](#7-testability-and-mock-injection)
+8. [Detecting and Resolving Circular Dependencies](#8-detecting-and-resolving-circular-dependencies)
+9. [Performance Comparison and Production Examples](#9-performance-comparison-and-production-examples)
+10. [Anti-Patterns](#10-anti-patterns)
+11. [Edge Case Analysis](#11-edge-case-analysis)
+12. [Exercises](#12-exercises)
 13. [FAQ](#13-faq)
-14. [参考文献](#14-参考文献)
+14. [References](#14-references)
 
 ---
 
-## 1. DI の基本原則と SOLID-D
+## 1. DI Fundamentals and SOLID-D
 
-### 1-1. 依存性逆転の原則（Dependency Inversion Principle）
+### 1-1. Dependency Inversion Principle
 
-SOLID 原則の "D" は、高レベルモジュール（ビジネスロジック）は低レベルモジュール（インフラ実装）に依存すべきではなく、両方とも抽象（インターフェース）に依存すべきという原則です。
+The "D" in SOLID states that high-level modules (business logic) should not depend on low-level modules (infrastructure implementations); both should depend on abstractions (interfaces).
 
 ```
-■ DIP 適用前（具象依存）
+■ Before DIP (concrete dependency)
 
   +------------+        +------------+
   | UserService|------->| PostgresDB |
   +------------+        +------------+
-  高レベル               低レベル
-  (ビジネスロジック)      (インフラ)
+  High-level             Low-level
+  (Business Logic)      (Infrastructure)
 
-  UserService が PostgresDB に直接依存
-  → DB を変更すると UserService も変更が必要
-  → テスト時に実際の DB が必要
+  UserService directly depends on PostgresDB
+  → Changing the DB requires changes to UserService
+  → Requires the actual DB during testing
 
-■ DIP 適用後（抽象依存）
+■ After DIP (abstract dependency)
 
   +------------+        +-----------+
-  | UserService|------->| IDatabase |  ← 抽象（インターフェース）
+  | UserService|------->| IDatabase |  ← Abstraction (interface)
   +------------+        +-----------+
                              ↑
                      +-------+--------+
@@ -71,45 +71,45 @@ SOLID 原則の "D" は、高レベルモジュール（ビジネスロジック
                +----------+    +----------+
                |PostgresDB|    | MockDB   |
                +----------+    +----------+
-               本番             テスト
+               Production       Testing
 
-  UserService は抽象に依存
-  → 実装の差し替えが容易
-  → テスト時にモックを注入可能
+  UserService depends on the abstraction
+  → Easy to swap implementations
+  → Can inject mocks during testing
 ```
 
-### 1-2. 制御の逆転（Inversion of Control）
+### 1-2. Inversion of Control
 
-従来の設計では、アプリケーションコードが依存オブジェクトを自分で生成（`new`）していました。IoC では、外部のコンテナやフレームワークが依存を生成し、アプリケーションに注入します。
+In traditional design, application code creates its own dependency objects (via `new`). With IoC, an external container or framework creates the dependencies and injects them into the application.
 
 ```typescript
-// 従来の設計（制御はアプリケーション側）
+// Traditional design (control on the application side)
 class UserService {
   private userRepo: IUserRepository;
 
   constructor() {
-    // 自分で依存を生成
+    // Creates its own dependency
     this.userRepo = new PostgresUserRepository();
   }
 }
 
-// IoC 適用後（制御はコンテナ側）
+// After applying IoC (control on the container side)
 class UserService {
   constructor(
-    private readonly userRepo: IUserRepository // コンテナが注入
+    private readonly userRepo: IUserRepository // injected by the container
   ) {}
 }
 
-// コンテナが UserService の依存を解決して注入
+// The container resolves and injects UserService's dependencies
 const userService = container.resolve(UserService);
 ```
 
-### 1-3. なぜ TypeScript で DI が重要か
+### 1-3. Why DI Matters in TypeScript
 
-TypeScript の型システムは、DI パターンと非常に相性が良いです。
+TypeScript's type system pairs very well with the DI pattern.
 
 ```typescript
-// TypeScript の型システムが依存を保証
+// TypeScript's type system guarantees dependencies
 interface IUserRepository {
   findById(id: string): Promise<User | null>;
   save(user: User): Promise<void>;
@@ -125,7 +125,7 @@ interface ILogger {
   error(message: string, error?: unknown): void;
 }
 
-// コンストラクタ注入（最も基本的な DI）
+// Constructor injection (the most basic form of DI)
 class UserService {
   constructor(
     private readonly userRepo: IUserRepository,
@@ -171,23 +171,23 @@ class UserService {
 }
 ```
 
-**TypeScript + DI のメリット:**
+**Benefits of TypeScript + DI:**
 
-1. **型安全性**: コンパイル時に依存の型が検証される
-2. **リファクタリング支援**: IDE がインターフェース変更を追跡
-3. **自動補完**: 依存のメソッドが自動補完される
-4. **ドキュメント性**: インターフェースが契約を明確化
+1. **Type safety**: Dependency types are verified at compile time
+2. **Refactoring support**: IDEs track interface changes
+3. **Auto-completion**: Dependency methods are auto-completed
+4. **Documentation**: Interfaces clearly define contracts
 
 ---
 
-## 2. 手動 DI（Pure DI）
+## 2. Manual DI (Pure DI)
 
-小規模プロジェクトや、ライブラリ依存を避けたい場合は、手動での依存注入が最もシンプルで型安全です。
+For small-scale projects or when you want to avoid library dependencies, manual dependency injection is the simplest and most type-safe approach.
 
-### 2-1. コンストラクタ注入
+### 2-1. Constructor Injection
 
 ```typescript
-// ドメイン層（型定義）
+// Domain layer (type definitions)
 interface User {
   id: string;
   name: string;
@@ -200,7 +200,7 @@ interface CreateUserDto {
   email: string;
 }
 
-// 抽象（インターフェース）
+// Abstractions (interfaces)
 interface IUserRepository {
   findById(id: string): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
@@ -218,12 +218,12 @@ interface ILogger {
   warn(message: string, meta?: Record<string, unknown>): void;
 }
 
-// 実装（インフラ層）
+// Implementations (infrastructure layer)
 class PostgresUserRepository implements IUserRepository {
   constructor(private readonly connectionString: string) {}
 
   async findById(id: string): Promise<User | null> {
-    // 実際の DB クエリ
+    // Actual DB query
     console.log(`SELECT * FROM users WHERE id = '${id}'`);
     return null;
   }
@@ -247,7 +247,7 @@ class SmtpEmailService implements IEmailService {
 
   async send(to: string, subject: string, body: string): Promise<void> {
     console.log(`Sending email to ${to}: ${subject}`);
-    // 実際の SMTP 送信
+    // Actual SMTP sending
   }
 }
 
@@ -265,7 +265,7 @@ class ConsoleLogger implements ILogger {
   }
 }
 
-// サービス層（ビジネスロジック）
+// Service layer (business logic)
 class UserService {
   constructor(
     private readonly userRepo: IUserRepository,
@@ -276,7 +276,7 @@ class UserService {
   async createUser(data: CreateUserDto): Promise<User> {
     this.logger.info("Creating user", { email: data.email });
 
-    // ビジネスルール: 重複チェック
+    // Business rule: duplicate check
     const existing = await this.userRepo.findByEmail(data.email);
     if (existing) {
       throw new Error(`User with email ${data.email} already exists`);
@@ -317,37 +317,37 @@ class UserService {
   }
 }
 
-// 手動でワイヤリング（Composition Root）
+// Manual wiring (Composition Root)
 function createApp() {
-  // 環境変数から設定を読み込み
+  // Load configuration from environment variables
   const databaseUrl = process.env.DATABASE_URL || "postgres://localhost/mydb";
   const smtpUrl = process.env.SMTP_URL || "smtp://localhost";
 
-  // インフラ層のインスタンス生成
+  // Create infrastructure layer instances
   const logger = new ConsoleLogger();
   const userRepo = new PostgresUserRepository(databaseUrl);
   const emailService = new SmtpEmailService(smtpUrl);
 
-  // サービス層のインスタンス生成（依存を注入）
+  // Create service layer instances (injecting dependencies)
   const userService = new UserService(userRepo, emailService, logger);
 
   return { userService };
 }
 
-// アプリケーションエントリポイント
+// Application entry point
 const app = createApp();
 
-// 使用例
+// Usage example
 app.userService.createUser({
   name: "Alice",
   email: "alice@example.com",
 });
 ```
 
-### 2-2. 関数注入（Function Injection）
+### 2-2. Function Injection
 
 ```typescript
-// 関数を依存として注入
+// Inject functions as dependencies
 type GenerateId = () => string;
 type GetCurrentTime = () => Date;
 
@@ -360,10 +360,10 @@ class OrderService {
 
   createOrder(userId: string, items: OrderItem[]): Order {
     const order: Order = {
-      id: this.generateId(), // 注入された関数を使用
+      id: this.generateId(), // Uses the injected function
       userId,
       items,
-      createdAt: this.getCurrentTime(), // 注入された関数を使用
+      createdAt: this.getCurrentTime(), // Uses the injected function
       status: "pending",
     };
 
@@ -372,25 +372,25 @@ class OrderService {
   }
 }
 
-// 本番環境
+// Production environment
 const orderService = new OrderService(
-  () => crypto.randomUUID(), // 実際の UUID 生成
-  () => new Date(), // 実際の現在時刻
+  () => crypto.randomUUID(), // Actual UUID generation
+  () => new Date(), // Actual current time
   new ConsoleLogger()
 );
 
-// テスト環境
+// Test environment
 const testOrderService = new OrderService(
-  () => "test-id-123", // 固定 ID
-  () => new Date("2024-01-01"), // 固定時刻
+  () => "test-id-123", // Fixed ID
+  () => new Date("2024-01-01"), // Fixed time
   new MockLogger()
 );
 ```
 
-### 2-3. ファクトリパターンとの組み合わせ
+### 2-3. Combining with the Factory Pattern
 
 ```typescript
-// ファクトリを依存として注入
+// Inject a factory as a dependency
 interface IUserRepositoryFactory {
   create(connectionString: string): IUserRepository;
 }
@@ -412,7 +412,7 @@ class MultiTenantUserService {
     tenantId: string,
     data: CreateUserDto
   ): Promise<User> {
-    // テナントごとに異なる DB 接続を使用
+    // Use a different DB connection per tenant
     const connectionString = `postgres://localhost/${tenantId}`;
     const userRepo = this.repoFactory.create(connectionString);
 
@@ -438,18 +438,18 @@ class MultiTenantUserService {
 
 ---
 
-## 3. InversifyJS による DI
+## 3. DI with InversifyJS
 
-InversifyJS は、TypeScript 向けの強力な DI コンテナで、デコレータベースの宣言的な依存管理を提供します。
+InversifyJS is a powerful DI container for TypeScript that provides decorator-based declarative dependency management.
 
-### 3-1. 基本セットアップ
+### 3-1. Basic Setup
 
 ```typescript
-// inversify は reflect-metadata が必要
+// inversify requires reflect-metadata
 import "reflect-metadata";
 import { Container, injectable, inject, interfaces } from "inversify";
 
-// シンボルでトークンを定義（文字列の衝突を防止）
+// Define tokens with Symbols (prevents string collisions)
 const TYPES = {
   UserRepository: Symbol.for("UserRepository"),
   OrderRepository: Symbol.for("OrderRepository"),
@@ -460,7 +460,7 @@ const TYPES = {
   OrderService: Symbol.for("OrderService"),
 } as const;
 
-// 実装クラスに @injectable デコレータ
+// Add @injectable decorator to implementation classes
 @injectable()
 class PostgresDatabase {
   constructor() {
@@ -540,7 +540,7 @@ class ConsoleLogger implements ILogger {
   }
 }
 
-// サービスクラスに @inject で依存を宣言
+// Declare dependencies with @inject on service classes
 @injectable()
 class UserService {
   constructor(
@@ -605,17 +605,17 @@ class OrderService {
 }
 ```
 
-### 3-2. コンテナ設定とスコープ
+### 3-2. Container Configuration and Scopes
 
 ```
-inversify コンテナの解決フロー:
+inversify container resolution flow:
 
   container.get(TYPES.UserService)
        |
        v
   +------------------+
-  | UserService の    |
-  | 依存を解析        |
+  | Analyze           |
+  | UserService deps  |
   +------------------+
        |
   +----+----+--------+
@@ -629,10 +629,10 @@ Database  (new)   (singleton)
 ```
 
 ```typescript
-// コンテナの設定
+// Container configuration
 const container = new Container();
 
-// シングルトンスコープ（アプリ全体で1つのインスタンス）
+// Singleton scope (one instance per application)
 container
   .bind<PostgresDatabase>(TYPES.Database)
   .to(PostgresDatabase)
@@ -653,41 +653,41 @@ container
   .to(PostgresOrderRepository)
   .inSingletonScope();
 
-// トランジェントスコープ（毎回新しいインスタンス）
+// Transient scope (new instance every time)
 container
   .bind<IEmailService>(TYPES.EmailService)
   .to(SmtpEmailService)
-  .inTransientScope(); // 毎回新規作成
+  .inTransientScope(); // Created anew each time
 
-// リクエストスコープ（リクエスト単位で1つのインスタンス）
+// Request scope (one instance per request)
 container
   .bind<UserService>(TYPES.UserService)
   .to(UserService)
-  .inRequestScope(); // リクエストごとに新規作成
+  .inRequestScope(); // Created anew per request
 
 container
   .bind<OrderService>(TYPES.OrderService)
   .to(OrderService);
 
-// 解決
+// Resolution
 const userService = container.get<UserService>(TYPES.UserService);
 const orderService = container.get<OrderService>(TYPES.OrderService);
 
-// 全ての依存が自動的に注入される
+// All dependencies are automatically injected
 await userService.createUser({
   name: "Bob",
   email: "bob@example.com",
 });
 ```
 
-### 3-3. モジュール分割
+### 3-3. Module Splitting
 
-大規模プロジェクトでは、コンテナのバインディングをモジュールに分割します。
+For large-scale projects, split container bindings into modules.
 
 ```typescript
 import { ContainerModule, interfaces } from "inversify";
 
-// インフラ層モジュール
+// Infrastructure layer module
 const infrastructureModule = new ContainerModule((bind: interfaces.Bind) => {
   bind<ILogger>(TYPES.Logger)
     .to(ConsoleLogger)
@@ -698,7 +698,7 @@ const infrastructureModule = new ContainerModule((bind: interfaces.Bind) => {
     .inSingletonScope();
 });
 
-// リポジトリ層モジュール
+// Repository layer module
 const repositoryModule = new ContainerModule((bind: interfaces.Bind) => {
   bind<IUserRepository>(TYPES.UserRepository)
     .to(PostgresUserRepository)
@@ -709,7 +709,7 @@ const repositoryModule = new ContainerModule((bind: interfaces.Bind) => {
     .inSingletonScope();
 });
 
-// サービス層モジュール
+// Service layer module
 const serviceModule = new ContainerModule((bind: interfaces.Bind) => {
   bind<IEmailService>(TYPES.EmailService)
     .to(SmtpEmailService)
@@ -722,7 +722,7 @@ const serviceModule = new ContainerModule((bind: interfaces.Bind) => {
     .to(OrderService);
 });
 
-// コンテナにモジュールをロード
+// Load modules into the container
 const container = new Container();
 container.load(
   infrastructureModule,
@@ -733,10 +733,10 @@ container.load(
 export { container };
 ```
 
-### 3-4. 条件付きバインディング
+### 3-4. Conditional Bindings
 
 ```typescript
-// 環境に応じて実装を切り替え
+// Switch implementations based on the environment
 const container = new Container();
 
 if (process.env.NODE_ENV === "production") {
@@ -756,7 +756,7 @@ if (process.env.NODE_ENV === "production") {
     .inSingletonScope();
 }
 
-// 名前付きバインディング
+// Named bindings
 container
   .bind<IUserRepository>(TYPES.UserRepository)
   .to(PostgresUserRepository)
@@ -767,7 +767,7 @@ container
   .to(MongoUserRepository)
   .whenTargetNamed("mongo");
 
-// 使用時に名前で指定
+// Specify by name at usage
 @injectable()
 class MultiDbService {
   constructor(
@@ -780,10 +780,10 @@ class MultiDbService {
 }
 ```
 
-### 3-5. ファクトリバインディング
+### 3-5. Factory Bindings
 
 ```typescript
-// ファクトリ関数でインスタンス生成をカスタマイズ
+// Customize instance creation with a factory function
 container
   .bind<IUserRepository>(TYPES.UserRepository)
   .toFactory<IUserRepository>((context: interfaces.Context) => {
@@ -793,7 +793,7 @@ container
     };
   });
 
-// 使用例
+// Usage example
 const userRepoFactory = container.get<(tenantId: string) => IUserRepository>(
   TYPES.UserRepository
 );
@@ -803,17 +803,17 @@ const tenant2Repo = userRepoFactory("tenant-2");
 
 ---
 
-## 4. tsyringe による軽量 DI
+## 4. Lightweight DI with tsyringe
 
-tsyringe は Microsoft が開発した軽量 DI コンテナで、inversify よりもシンプルな API を提供します。
+tsyringe is a lightweight DI container developed by Microsoft that offers a simpler API than inversify.
 
-### 4-1. 基本セットアップ
+### 4-1. Basic Setup
 
 ```typescript
 import "reflect-metadata";
 import { container, injectable, inject, singleton, scoped, Lifecycle } from "tsyringe";
 
-// tsyringe はクラストークンを直接使える
+// tsyringe allows using class tokens directly
 @singleton()
 class ConfigService {
   get(key: string): string {
@@ -857,7 +857,7 @@ class PostgresUserRepository implements IUserRepository {
   }
 }
 
-// インターフェーストークン（抽象の場合）
+// Interface token (for abstractions)
 const IEmailServiceToken = Symbol("IEmailService");
 
 @injectable()
@@ -870,7 +870,7 @@ class SmtpEmailService implements IEmailService {
   }
 }
 
-// トークンで登録
+// Register with a token
 container.register<IEmailService>(IEmailServiceToken, {
   useClass: SmtpEmailService,
 });
@@ -878,8 +878,8 @@ container.register<IEmailService>(IEmailServiceToken, {
 @injectable()
 class UserService {
   constructor(
-    private readonly userRepo: PostgresUserRepository, // クラス直接指定
-    @inject(IEmailServiceToken) private readonly emailService: IEmailService, // トークン指定
+    private readonly userRepo: PostgresUserRepository, // Direct class reference
+    @inject(IEmailServiceToken) private readonly emailService: IEmailService, // Token reference
     private readonly config: ConfigService
   ) {}
 
@@ -909,7 +909,7 @@ class UserService {
   }
 }
 
-// 解決
+// Resolution
 const userService = container.resolve(UserService);
 await userService.createUser({
   name: "Charlie",
@@ -917,18 +917,18 @@ await userService.createUser({
 });
 ```
 
-### 4-2. ライフサイクルとスコープ
+### 4-2. Lifecycle and Scopes
 
 ```typescript
 import { Lifecycle, scoped, injectable } from "tsyringe";
 
-// シングルトン（デフォルト）
+// Singleton (default)
 @singleton()
 class AppConfig {
   readonly version = "1.0.0";
 }
 
-// トランジェント（毎回新規作成）
+// Transient (new instance each time)
 @injectable()
 class RequestLogger {
   private readonly requestId = crypto.randomUUID();
@@ -938,13 +938,13 @@ class RequestLogger {
   }
 }
 
-// スコープ指定でライフサイクル制御
+// Lifecycle control with scope
 @scoped(Lifecycle.ContainerScoped)
 class RequestContext {
   constructor(public readonly requestId: string) {}
 }
 
-// 手動登録でライフサイクル指定
+// Specify lifecycle via manual registration
 container.register("DatabasePool", DatabaseConnection, {
   lifecycle: Lifecycle.Singleton,
 });
@@ -954,10 +954,10 @@ container.register("RequestHandler", RequestHandler, {
 });
 ```
 
-### 4-3. ファクトリとカスタムプロバイダ
+### 4-3. Factories and Custom Providers
 
 ```typescript
-// ファクトリ登録
+// Factory registration
 container.register("DatabaseConnection", {
   useFactory: (c) => {
     const config = c.resolve(ConfigService);
@@ -966,7 +966,7 @@ container.register("DatabaseConnection", {
   },
 });
 
-// 値の登録
+// Value registration
 container.register("API_KEY", {
   useValue: process.env.API_KEY,
 });
@@ -975,7 +975,7 @@ container.register("APP_VERSION", {
   useValue: "1.0.0",
 });
 
-// 使用例
+// Usage example
 @injectable()
 class ApiClient {
   constructor(@inject("API_KEY") private readonly apiKey: string) {}
@@ -986,17 +986,17 @@ class ApiClient {
 }
 ```
 
-### 4-4. 子コンテナ（リクエストスコープ）
+### 4-4. Child Containers (Request Scope)
 
 ```typescript
 import { container as rootContainer } from "tsyringe";
 
-// HTTP リクエストハンドラ
+// HTTP request handler
 async function handleRequest(req: Request, res: Response) {
-  // リクエストごとに子コンテナを作成
+  // Create a child container per request
   const requestContainer = rootContainer.createChildContainer();
 
-  // リクエスト固有の値を登録
+  // Register request-specific values
   requestContainer.register("RequestId", {
     useValue: crypto.randomUUID(),
   });
@@ -1005,10 +1005,10 @@ async function handleRequest(req: Request, res: Response) {
     useValue: req.headers["x-user-id"],
   });
 
-  // リクエストコンテナからサービスを解決
+  // Resolve services from the request container
   const userService = requestContainer.resolve(UserService);
 
-  // リクエスト処理
+  // Handle request
   const result = await userService.createUser({
     name: req.body.name,
     email: req.body.email,
@@ -1016,22 +1016,22 @@ async function handleRequest(req: Request, res: Response) {
 
   res.json(result);
 
-  // 子コンテナを破棄（リソース解放）
+  // Dispose child container (release resources)
   requestContainer.dispose();
 }
 ```
 
-### 4-5. 遅延注入（Lazy Injection）
+### 4-5. Lazy Injection
 
 ```typescript
 import { inject, delay, injectable } from "tsyringe";
 
-// 重い初期化処理を持つクラス
+// A class with heavy initialization
 @singleton()
 class HeavyService {
   constructor() {
     console.log("HeavyService initializing... (expensive)");
-    // 重い初期化処理
+    // Heavy initialization work
   }
 
   process(): string {
@@ -1042,7 +1042,7 @@ class HeavyService {
 @injectable()
 class OptimizedService {
   constructor(
-    // 遅延注入: 実際に使用するまで HeavyService は初期化されない
+    // Lazy injection: HeavyService is not initialized until actually used
     @inject(delay(() => HeavyService))
     private readonly heavyServiceFactory: () => HeavyService
   ) {
@@ -1052,31 +1052,31 @@ class OptimizedService {
   async doSomething() {
     console.log("Doing lightweight work...");
 
-    // 必要になったタイミングで初期化
+    // Initialize when needed
     const heavyService = this.heavyServiceFactory();
     return heavyService.process();
   }
 }
 
 const service = container.resolve(OptimizedService);
-// この時点では HeavyService はまだ初期化されていない
+// HeavyService has not been initialized at this point
 
 await service.doSomething();
-// ここで初めて HeavyService が初期化される
+// HeavyService is initialized here for the first time
 ```
 
 ---
 
-## 5. NestJS の DI システム
+## 5. NestJS DI System
 
-NestJS は、Angular ライクな DI システムを提供する TypeScript フレームワークです。
+NestJS is a TypeScript framework that provides an Angular-like DI system.
 
-### 5-1. Module / Provider / Inject の基本
+### 5-1. Module / Provider / Inject Basics
 
 ```typescript
 import { Module, Injectable, Inject } from "@nestjs/common";
 
-// Provider（DI で管理されるクラス）
+// Provider (a class managed by DI)
 @Injectable()
 class ConfigService {
   get(key: string): string {
@@ -1128,20 +1128,20 @@ class UserService {
   }
 }
 
-// Module（Provider をグループ化）
+// Module (groups Providers)
 @Module({
   providers: [ConfigService, DatabaseService, UserRepository, UserService],
-  exports: [UserService], // 他のモジュールから使えるようにエクスポート
+  exports: [UserService], // Export so other modules can use it
 })
 class UserModule {}
 ```
 
-### 5-2. カスタムプロバイダ
+### 5-2. Custom Providers
 
 ```typescript
 import { Module, Provider } from "@nestjs/common";
 
-// 値プロバイダ
+// Value provider
 const configProvider: Provider = {
   provide: "APP_CONFIG",
   useValue: {
@@ -1151,17 +1151,17 @@ const configProvider: Provider = {
   },
 };
 
-// ファクトリプロバイダ
+// Factory provider
 const databaseProvider: Provider = {
   provide: "DATABASE_CONNECTION",
   useFactory: (config: ConfigService) => {
     const url = config.get("DATABASE_URL");
     return new DatabaseConnection(url);
   },
-  inject: [ConfigService], // ファクトリの依存
+  inject: [ConfigService], // Factory dependencies
 };
 
-// クラスプロバイダ（エイリアス）
+// Class provider (alias)
 const loggerProvider: Provider = {
   provide: "ILogger",
   useClass: process.env.NODE_ENV === "production"
@@ -1169,7 +1169,7 @@ const loggerProvider: Provider = {
     : ConsoleLogger,
 };
 
-// 既存プロバイダ（エイリアス）
+// Existing provider (alias)
 const userRepoProvider: Provider = {
   provide: "IUserRepository",
   useExisting: UserRepository,
@@ -1187,7 +1187,7 @@ const userRepoProvider: Provider = {
 })
 class AppModule {}
 
-// 使用例
+// Usage example
 @Injectable()
 class SomeService {
   constructor(
@@ -1199,12 +1199,12 @@ class SomeService {
 }
 ```
 
-### 5-3. グローバルモジュールと動的モジュール
+### 5-3. Global Modules and Dynamic Modules
 
 ```typescript
 import { Module, Global, DynamicModule } from "@nestjs/common";
 
-// グローバルモジュール（全モジュールで使える）
+// Global module (available in all modules)
 @Global()
 @Module({
   providers: [ConfigService, LoggerService],
@@ -1212,7 +1212,7 @@ import { Module, Global, DynamicModule } from "@nestjs/common";
 })
 class CoreModule {}
 
-// 動的モジュール（設定に応じてプロバイダを変更）
+// Dynamic module (change providers based on configuration)
 @Module({})
 class DatabaseModule {
   static forRoot(options: DatabaseOptions): DynamicModule {
@@ -1252,7 +1252,7 @@ class DatabaseModule {
   }
 }
 
-// 使用例
+// Usage example
 @Module({
   imports: [
     CoreModule,
@@ -1267,14 +1267,14 @@ class DatabaseModule {
 class AppModule {}
 ```
 
-### 5-4. リクエストスコープとインジェクションスコープ
+### 5-4. Request Scope and Injection Scope
 
 ```typescript
 import { Injectable, Scope, Inject } from "@nestjs/common";
 import { REQUEST } from "@nestjs/core";
 import { Request } from "express";
 
-// リクエストスコープ（リクエストごとに新規作成）
+// Request scope (new instance per request)
 @Injectable({ scope: Scope.REQUEST })
 class RequestScopedService {
   constructor(
@@ -1288,7 +1288,7 @@ class RequestScopedService {
   }
 }
 
-// トランジェントスコープ（注入されるたびに新規作成）
+// Transient scope (new instance each time it is injected)
 @Injectable({ scope: Scope.TRANSIENT })
 class TransientService {
   private readonly instanceId = crypto.randomUUID();
@@ -1298,7 +1298,7 @@ class TransientService {
   }
 }
 
-// デフォルトスコープ（シングルトン）
+// Default scope (singleton)
 @Injectable() // scope: Scope.DEFAULT
 class SingletonService {
   private readonly createdAt = new Date();
@@ -1311,24 +1311,24 @@ class SingletonService {
 
 ---
 
-## 6. DI コンテナなしの DI
+## 6. DI Without a DI Container
 
-DI コンテナを使わずに、関数型プログラミングのパターンで依存注入を実現する方法もあります。
+You can also achieve dependency injection using functional programming patterns without a DI container.
 
-### 6-1. Reader Monad パターン
+### 6-1. Reader Monad Pattern
 
 ```typescript
-// Reader Monad: 依存を「環境」として伝播
+// Reader Monad: propagate dependencies as an "environment"
 type Reader<Env, A> = (env: Env) => A;
 
-// 依存の定義
+// Dependency definitions
 interface Dependencies {
   userRepo: IUserRepository;
   emailService: IEmailService;
   logger: ILogger;
 }
 
-// Reader Monad を返す関数
+// Functions returning a Reader Monad
 function createUser(data: CreateUserDto): Reader<Dependencies, Promise<User>> {
   return async (deps) => {
     deps.logger.info("Creating user", { email: data.email });
@@ -1375,14 +1375,14 @@ function deleteUser(id: string): Reader<Dependencies, Promise<void>> {
   };
 }
 
-// 使用例
+// Usage example
 const deps: Dependencies = {
   userRepo: new PostgresUserRepository("postgres://localhost/mydb"),
   emailService: new SmtpEmailService("smtp://localhost"),
   logger: new ConsoleLogger(),
 };
 
-// Reader を実行（依存を注入）
+// Execute the Reader (inject dependencies)
 const userReader = createUser({
   name: "David",
   email: "david@example.com",
@@ -1393,14 +1393,14 @@ const deleteReader = deleteUser(user.id);
 await deleteReader(deps);
 ```
 
-### 6-2. Effect-ts による DI
+### 6-2. DI with Effect-ts
 
-Effect-ts は、型安全な副作用管理と DI を提供するライブラリです。
+Effect-ts is a library providing type-safe side-effect management and DI.
 
 ```typescript
 import { Effect, Context, Layer } from "effect";
 
-// サービスの定義（Context を使う）
+// Service definitions (using Context)
 class UserRepository extends Context.Tag("UserRepository")<
   UserRepository,
   {
@@ -1424,7 +1424,7 @@ class Logger extends Context.Tag("Logger")<
   }
 >() {}
 
-// ビジネスロジック（Effect を返す）
+// Business logic (returns an Effect)
 function createUser(data: CreateUserDto) {
   return Effect.gen(function* (_) {
     const userRepo = yield* _(UserRepository);
@@ -1453,7 +1453,7 @@ function createUser(data: CreateUserDto) {
   });
 }
 
-// 実装の Layer（依存の実装を提供）
+// Implementation Layer (provides implementations for dependencies)
 const UserRepositoryLive = Layer.succeed(
   UserRepository,
   {
@@ -1493,14 +1493,14 @@ const LoggerLive = Layer.succeed(
   }
 );
 
-// Layer を合成
+// Compose Layers
 const AppLayer = Layer.mergeAll(
   UserRepositoryLive,
   EmailServiceLive,
   LoggerLive
 );
 
-// Effect を実行
+// Run the Effect
 const program = createUser({
   name: "Eve",
   email: "eve@example.com",
@@ -1510,13 +1510,13 @@ const runnable = Effect.provide(program, AppLayer);
 await Effect.runPromise(runnable);
 ```
 
-### 6-3. 関数合成による DI
+### 6-3. DI via Function Composition
 
 ```typescript
-// 高階関数で依存を注入
+// Inject dependencies using higher-order functions
 type WithDependencies<T> = (deps: Dependencies) => T;
 
-// 依存を持つ関数を合成
+// Compose functions that carry dependencies
 function compose<A, B, C>(
   f: (b: B) => C,
   g: (a: A) => B
@@ -1524,7 +1524,7 @@ function compose<A, B, C>(
   return (a) => f(g(a));
 }
 
-// 依存を持つ関数の合成
+// Compose functions with dependencies
 function composeWithDeps<A, B, C>(
   f: WithDependencies<(b: B) => Promise<C>>,
   g: WithDependencies<(a: A) => Promise<B>>
@@ -1537,7 +1537,7 @@ function composeWithDeps<A, B, C>(
   };
 }
 
-// 使用例
+// Usage example
 const validateUser: WithDependencies<(data: CreateUserDto) => Promise<CreateUserDto>> =
   (deps) => async (data) => {
     deps.logger.info("Validating user", { email: data.email });
@@ -1570,14 +1570,14 @@ const sendWelcomeEmail: WithDependencies<(user: User) => Promise<User>> =
     return user;
   };
 
-// 関数を合成
+// Compose the functions
 const createUserPipeline = (deps: Dependencies) =>
   compose(
     compose(sendWelcomeEmail(deps), persistUser(deps)),
     validateUser(deps)
   );
 
-// 実行
+// Execute
 const deps: Dependencies = {
   userRepo: new PostgresUserRepository("postgres://localhost/mydb"),
   emailService: new SmtpEmailService("smtp://localhost"),
@@ -1593,14 +1593,14 @@ const user = await pipeline({
 
 ---
 
-## 7. テスト容易性とモック注入
+## 7. Testability and Mock Injection
 
-DI の最大のメリットは、テスト時に依存を簡単にモックに置き換えられることです。
+The greatest benefit of DI is the ability to easily swap in mocks for dependencies during testing.
 
-### 7-1. 手動 DI でのモック注入
+### 7-1. Mock Injection with Manual DI
 
 ```typescript
-// モック実装
+// Mock implementations
 class MockUserRepository implements IUserRepository {
   private users = new Map<string, User>();
 
@@ -1623,7 +1623,7 @@ class MockUserRepository implements IUserRepository {
     this.users.delete(id);
   }
 
-  // テスト用ヘルパー
+  // Test helpers
   clear() {
     this.users.clear();
   }
@@ -1640,7 +1640,7 @@ class MockEmailService implements IEmailService {
     this.sentEmails.push({ to, subject, body });
   }
 
-  // テスト用ヘルパー
+  // Test helpers
   clear() {
     this.sentEmails = [];
   }
@@ -1676,7 +1676,7 @@ class MockLogger implements ILogger {
   }
 }
 
-// テストコード
+// Test code
 import { describe, it, expect, beforeEach } from "vitest";
 
 describe("UserService", () => {
@@ -1690,7 +1690,7 @@ describe("UserService", () => {
     mockEmailService = new MockEmailService();
     mockLogger = new MockLogger();
 
-    // モックを注入
+    // Inject mocks
     userService = new UserService(
       mockUserRepo,
       mockEmailService,
@@ -1706,7 +1706,7 @@ describe("UserService", () => {
 
     const user = await userService.createUser(userData);
 
-    // ユーザーが保存されたか確認
+    // Verify the user was saved
     expect(user.id).toBeDefined();
     expect(user.name).toBe("Test User");
     expect(user.email).toBe("test@example.com");
@@ -1714,18 +1714,18 @@ describe("UserService", () => {
     const savedUser = await mockUserRepo.findById(user.id);
     expect(savedUser).toEqual(user);
 
-    // メールが送信されたか確認
+    // Verify the email was sent
     expect(mockEmailService.sentEmails).toHaveLength(1);
     expect(mockEmailService.sentEmails[0].to).toBe("test@example.com");
     expect(mockEmailService.sentEmails[0].subject).toBe("Welcome!");
 
-    // ログが記録されたか確認
+    // Verify the logs were recorded
     expect(mockLogger.hasLog("info", "Creating user")).toBe(true);
     expect(mockLogger.hasLog("info", "User created")).toBe(true);
   });
 
   it("should throw error if user already exists", async () => {
-    // 既存ユーザーをセットアップ
+    // Set up an existing user
     const existingUser: User = {
       id: "existing-id",
       name: "Existing User",
@@ -1736,19 +1736,19 @@ describe("UserService", () => {
 
     const userData: CreateUserDto = {
       name: "New User",
-      email: "existing@example.com", // 同じメール
+      email: "existing@example.com", // Same email
     };
 
     await expect(userService.createUser(userData)).rejects.toThrow(
       "User with email existing@example.com already exists"
     );
 
-    // メールが送信されていないことを確認
+    // Verify no email was sent
     expect(mockEmailService.sentEmails).toHaveLength(0);
   });
 
   it("should delete user and send goodbye email", async () => {
-    // ユーザーを作成
+    // Create a user
     const user: User = {
       id: "test-id",
       name: "Test User",
@@ -1759,31 +1759,31 @@ describe("UserService", () => {
 
     await userService.deleteUser(user.id);
 
-    // ユーザーが削除されたか確認
+    // Verify the user was deleted
     const deletedUser = await mockUserRepo.findById(user.id);
     expect(deletedUser).toBeNull();
 
-    // メールが送信されたか確認
+    // Verify the email was sent
     expect(mockEmailService.sentEmails).toHaveLength(1);
     expect(mockEmailService.sentEmails[0].to).toBe("test@example.com");
     expect(mockEmailService.sentEmails[0].subject).toBe("Account Deleted");
 
-    // ログが記録されたか確認
+    // Verify the log was recorded
     expect(mockLogger.hasLog("info", "User deleted")).toBe(true);
   });
 });
 ```
 
-### 7-2. inversify でのモック注入
+### 7-2. Mock Injection with inversify
 
 ```typescript
 import { Container } from "inversify";
 
-// テスト用コンテナ
+// Test container
 function createTestContainer(): Container {
   const container = new Container();
 
-  // モックを登録
+  // Register mocks
   container
     .bind<IUserRepository>(TYPES.UserRepository)
     .toConstantValue(new MockUserRepository());
@@ -1803,7 +1803,7 @@ function createTestContainer(): Container {
   return container;
 }
 
-// テストコード
+// Test code
 describe("UserService with inversify", () => {
   let container: Container;
   let userService: UserService;
@@ -1829,7 +1829,7 @@ describe("UserService with inversify", () => {
 });
 ```
 
-### 7-3. tsyringe でのモック注入
+### 7-3. Mock Injection with tsyringe
 
 ```typescript
 import { container } from "tsyringe";
@@ -1840,10 +1840,10 @@ describe("UserService with tsyringe", () => {
   let mockEmailService: MockEmailService;
 
   beforeEach(() => {
-    // コンテナをリセット
+    // Reset the container
     container.clearInstances();
 
-    // モックを登録
+    // Register mocks
     mockUserRepo = new MockUserRepository();
     mockEmailService = new MockEmailService();
 
@@ -1869,17 +1869,17 @@ describe("UserService with tsyringe", () => {
 });
 ```
 
-### 7-4. テストダブルの種類
+### 7-4. Types of Test Doubles
 
 ```typescript
-// 1. Dummy（ダミー）: 引数を埋めるだけで使われない
+// 1. Dummy: only fills in an argument, never actually used
 class DummyLogger implements ILogger {
   info() {}
   error() {}
   warn() {}
 }
 
-// 2. Stub（スタブ）: 固定値を返す
+// 2. Stub: returns fixed values
 class StubUserRepository implements IUserRepository {
   async findById(id: string): Promise<User | null> {
     return {
@@ -1898,7 +1898,7 @@ class StubUserRepository implements IUserRepository {
   async delete(): Promise<void> {}
 }
 
-// 3. Spy（スパイ）: 呼び出しを記録
+// 3. Spy: records calls
 class SpyEmailService implements IEmailService {
   callCount = 0;
   lastCall?: { to: string; subject: string; body: string };
@@ -1909,7 +1909,7 @@ class SpyEmailService implements IEmailService {
   }
 }
 
-// 4. Mock（モック）: 期待値を検証
+// 4. Mock: verifies expectations
 class MockEmailService implements IEmailService {
   private expectedCalls: Array<{ to: string; subject: string }> = [];
   private actualCalls: Array<{ to: string; subject: string; body: string }> = [];
@@ -1931,7 +1931,7 @@ class MockEmailService implements IEmailService {
   }
 }
 
-// 5. Fake（フェイク）: 簡易実装
+// 5. Fake: simplified implementation
 class FakeUserRepository implements IUserRepository {
   private users = new Map<string, User>();
   private emailIndex = new Map<string, string>();
@@ -1962,14 +1962,14 @@ class FakeUserRepository implements IUserRepository {
 
 ---
 
-## 8. 循環依存の検出と解決
+## 8. Detecting and Resolving Circular Dependencies
 
-循環依存は、DI システムで最も厄介な問題の1つです。
+Circular dependencies are one of the most troublesome problems in DI systems.
 
-### 8-1. 循環依存の例
+### 8-1. Example of a Circular Dependency
 
 ```typescript
-// NG: 循環依存
+// NG: circular dependency
 @injectable()
 class UserService {
   constructor(
@@ -1989,17 +1989,17 @@ class OrderService {
 
   async getOrdersByUser(userId: string) {
     const user = await this.userService.getUser(userId);
-    // ... 注文を取得
+    // ... fetch orders
   }
 }
 
-// エラー: Circular dependency detected
+// Error: Circular dependency detected
 ```
 
-### 8-2. 循環依存の図解
+### 8-2. Diagram of a Circular Dependency
 
 ```
-循環依存の構造:
+Structure of a circular dependency:
 
   UserService
        |
@@ -2009,28 +2009,28 @@ class OrderService {
        |
        | depends on
        v
-  UserService  ← 循環！
+  UserService  ← Circular!
        |
        v
-  (無限ループ)
+  (infinite loop)
 
-解決策の種類:
+Types of solutions:
 
-1. インターフェース分離
+1. Interface segregation
    UserService → IOrderQuery (read-only)
    OrderService → IUserQuery (read-only)
 
-2. イベント駆動
+2. Event-driven
    UserService → Event Bus ← OrderService
 
-3. 中間サービス導入
+3. Introduce an intermediate service
    UserService → QueryService ← OrderService
 ```
 
-### 8-3. 解決策 1: インターフェース分離
+### 8-3. Solution 1: Interface Segregation
 
 ```typescript
-// 読み取り専用インターフェースを分離
+// Separate read-only interfaces
 interface IOrderQuery {
   getOrdersByUser(userId: string): Promise<Order[]>;
 }
@@ -2039,7 +2039,7 @@ interface IUserQuery {
   getUser(userId: string): Promise<User | null>;
 }
 
-// UserService は IOrderQuery のみに依存
+// UserService depends only on IOrderQuery
 @injectable()
 class UserService implements IUserQuery {
   constructor(
@@ -2060,7 +2060,7 @@ class UserService implements IUserQuery {
   }
 }
 
-// OrderService は IUserQuery のみに依存
+// OrderService depends only on IUserQuery
 @injectable()
 class OrderService implements IOrderQuery {
   constructor(
@@ -2076,17 +2076,17 @@ class OrderService implements IOrderQuery {
   }
 }
 
-// バインディング
+// Bindings
 container.bind<IUserQuery>(TYPES.UserQuery).to(UserService);
 container.bind<IOrderQuery>(TYPES.OrderQuery).to(OrderService);
 container.bind<UserService>(TYPES.UserService).to(UserService);
 container.bind<OrderService>(TYPES.OrderService).to(OrderService);
 ```
 
-### 8-4. 解決策 2: イベント駆動アーキテクチャ
+### 8-4. Solution 2: Event-Driven Architecture
 
 ```typescript
-// イベントバスで疎結合化
+// Decouple using an event bus
 interface DomainEvent {
   type: string;
   timestamp: Date;
@@ -2114,7 +2114,7 @@ class EventBus implements IEventBus {
   }
 }
 
-// UserService は EventBus にイベントを発行
+// UserService publishes events to the EventBus
 @injectable()
 class UserService {
   constructor(
@@ -2132,7 +2132,7 @@ class UserService {
 
     await this.userRepo.save(user);
 
-    // イベント発行（OrderService への直接依存なし）
+    // Publish event (no direct dependency on OrderService)
     await this.eventBus.publish({
       type: "UserCreated",
       timestamp: new Date(),
@@ -2143,17 +2143,17 @@ class UserService {
   }
 }
 
-// OrderService はイベントを購読
+// OrderService subscribes to events
 @injectable()
 class OrderService {
   constructor(
     @inject(TYPES.OrderRepository) private orderRepo: IOrderRepository,
     @inject(TYPES.EventBus) private eventBus: IEventBus
   ) {
-    // イベントハンドラを登録
+    // Register event handler
     this.eventBus.subscribe("UserCreated", async (event) => {
       console.log("User created, initializing order history", event.data);
-      // 注文履歴を初期化
+      // Initialize order history
     });
   }
 
@@ -2168,7 +2168,7 @@ class OrderService {
 
     await this.orderRepo.save(order);
 
-    // イベント発行
+    // Publish event
     await this.eventBus.publish({
       type: "OrderCreated",
       timestamp: new Date(),
@@ -2180,10 +2180,10 @@ class OrderService {
 }
 ```
 
-### 8-5. 解決策 3: 中間サービス導入
+### 8-5. Solution 3: Introduce an Intermediate Service
 
 ```typescript
-// クエリサービスを中間に配置
+// Place a query service in the middle
 @injectable()
 class QueryService {
   constructor(
@@ -2208,7 +2208,7 @@ class QueryService {
   }
 }
 
-// UserService は QueryService に依存
+// UserService depends on QueryService
 @injectable()
 class UserService {
   constructor(
@@ -2221,7 +2221,7 @@ class UserService {
   }
 }
 
-// OrderService も QueryService に依存
+// OrderService also depends on QueryService
 @injectable()
 class OrderService {
   constructor(
@@ -2235,10 +2235,10 @@ class OrderService {
 }
 ```
 
-### 8-6. 循環依存の検出ツール
+### 8-6. Circular Dependency Detection Tools
 
 ```typescript
-// 循環依存検出ユーティリティ
+// Circular dependency detection utility
 class CircularDependencyDetector {
   private graph = new Map<string, Set<string>>();
 
@@ -2264,7 +2264,7 @@ class CircularDependencyDetector {
         if (!visited.has(dep)) {
           dfs(dep, path);
         } else if (recursionStack.has(dep)) {
-          // 循環検出
+          // Cycle detected
           const cycleStart = path.indexOf(dep);
           cycles.push([...path.slice(cycleStart), dep]);
         }
@@ -2284,7 +2284,7 @@ class CircularDependencyDetector {
   }
 }
 
-// 使用例
+// Usage example
 const detector = new CircularDependencyDetector();
 detector.addDependency("UserService", "OrderService");
 detector.addDependency("OrderService", "UserService");
@@ -2300,14 +2300,14 @@ if (cycles.length > 0) {
 
 ---
 
-## 9. パフォーマンス比較とプロダクション事例
+## 9. Performance Comparison and Production Examples
 
-### 9-1. DI ライブラリのベンチマーク
+### 9-1. DI Library Benchmarks
 
 ```typescript
 import Benchmark from "benchmark";
 
-// ベンチマーク用のシンプルなサービス
+// Simple service for benchmarking
 @injectable()
 class SimpleService {
   getValue(): string {
@@ -2326,10 +2326,10 @@ class DependentService {
   }
 }
 
-// ベンチマークスイート
+// Benchmark suite
 const suite = new Benchmark.Suite();
 
-// 1. 手動 DI
+// 1. Manual DI
 suite.add("Manual DI", () => {
   const simple = new SimpleService();
   const dependent = new DependentService(simple);
@@ -2365,7 +2365,7 @@ suite.add("tsyringe (transient)", () => {
   service.execute();
 });
 
-// 結果を出力
+// Output results
 suite
   .on("cycle", (event: any) => {
     console.log(String(event.target));
@@ -2376,7 +2376,7 @@ suite
   .run({ async: true });
 ```
 
-**典型的なベンチマーク結果:**
+**Typical benchmark results:**
 
 ```
 Manual DI               x 10,000,000 ops/sec ±1.2%
@@ -2388,24 +2388,24 @@ tsyringe (singleton)    x  1,500,000 ops/sec ±1.3%
 Fastest is Manual DI
 ```
 
-### 9-2. パフォーマンス最適化のポイント
+### 9-2. Performance Optimization Points
 
 ```typescript
-// 1. シングルトンスコープを積極的に使う
+// 1. Aggressively use singleton scope
 container
   .bind<ILogger>(TYPES.Logger)
   .to(ConsoleLogger)
-  .inSingletonScope(); // ステートレスなサービスはシングルトン
+  .inSingletonScope(); // Stateless services should be singletons
 
-// 2. 遅延初期化
+// 2. Lazy initialization
 @injectable()
 class HeavyService {
   private data: any;
 
-  // コンストラクタでは重い処理をしない
+  // Do not perform heavy processing in the constructor
   constructor() {}
 
-  // 必要になった時に初期化
+  // Initialize when needed
   async initialize() {
     if (!this.data) {
       this.data = await loadHeavyData();
@@ -2418,7 +2418,7 @@ class HeavyService {
   }
 }
 
-// 3. ファクトリで条件分岐
+// 3. Conditional branching with factories
 container.bind(TYPES.UserRepository).toFactory((context) => {
   return (useCache: boolean) => {
     const db = context.container.get<Database>(TYPES.Database);
@@ -2432,8 +2432,8 @@ container.bind(TYPES.UserRepository).toFactory((context) => {
   };
 });
 
-// 4. プリロード
-// アプリ起動時に頻繁に使うサービスをプリロード
+// 4. Preloading
+// Preload frequently used services at application startup
 async function preloadServices(container: Container) {
   const criticalServices = [
     TYPES.Database,
@@ -2447,85 +2447,85 @@ async function preloadServices(container: Container) {
 }
 ```
 
-### 9-3. バンドルサイズの比較
+### 9-3. Bundle Size Comparison
 
 ```
-DI ライブラリのバンドルサイズ（minified + gzipped）:
+DI library bundle sizes (minified + gzipped):
 
 inversify         ~15 KB
   + reflect-metadata ~10 KB
-  = 合計 ~25 KB
+  = Total ~25 KB
 
 tsyringe          ~5 KB
   + reflect-metadata ~10 KB
-  = 合計 ~15 KB
+  = Total ~15 KB
 
-手動 DI           0 KB
+Manual DI         0 KB
 
 typed-inject      ~3 KB
-  (reflect-metadata 不要)
+  (no reflect-metadata needed)
 
 Effect-ts         ~50 KB
-  (DI + 副作用管理 + その他機能含む)
+  (includes DI + side-effect management + other features)
 ```
 
-### 9-4. プロダクション事例
+### 9-4. Production Examples
 
-#### 事例 1: E コマースプラットフォーム（inversify）
+#### Example 1: E-commerce Platform (inversify)
 
 ```typescript
-// 大規模 E コマースサイトでの inversify 使用例
-// サービス数: 100+、依存関係: 300+
+// inversify usage in a large-scale e-commerce site
+// Services: 100+, Dependencies: 300+
 
-// モジュール構成
+// Module structure
 const modules = [
-  // コア
+  // Core
   coreModule,          // Logger, Config, EventBus
-  databaseModule,      // DB 接続、トランザクション管理
-  cacheModule,         // Redis キャッシュ
+  databaseModule,      // DB connections, transaction management
+  cacheModule,         // Redis cache
 
-  // ドメイン
-  userModule,          // ユーザー管理
-  productModule,       // 商品管理
-  orderModule,         // 注文処理
-  paymentModule,       // 決済処理
-  inventoryModule,     // 在庫管理
-  shippingModule,      // 配送管理
+  // Domain
+  userModule,          // User management
+  productModule,       // Product management
+  orderModule,         // Order processing
+  paymentModule,       // Payment processing
+  inventoryModule,     // Inventory management
+  shippingModule,      // Shipping management
 
-  // インフラ
-  emailModule,         // メール送信
-  smsModule,           // SMS 送信
-  searchModule,        // 全文検索
-  analyticsModule,     // 分析
+  // Infrastructure
+  emailModule,         // Email sending
+  smsModule,           // SMS sending
+  searchModule,        // Full-text search
+  analyticsModule,     // Analytics
 ];
 
 const container = new Container();
 container.load(...modules);
 
-// パフォーマンス最適化
-// - 95% のサービスをシングルトンに
-// - リクエストスコープは認証情報のみ
-// - ファクトリパターンで動的生成を最小化
+// Performance optimizations
+// - 95% of services as singletons
+// - Request scope only for authentication info
+// - Minimize dynamic creation with factory pattern
 
-// 結果
-// - 平均レスポンスタイム: 50ms
-// - DI オーバーヘッド: <1ms
-// - メモリ使用量: 安定
+// Results
+// - Average response time: 50ms
+// - DI overhead: <1ms
+// - Memory usage: stable
 ```
 
-#### 事例 2: SaaS プラットフォーム（NestJS）
+#### Example 2: SaaS Platform (NestJS)
 
 ```typescript
-// マルチテナント SaaS での NestJS 使用例
-// テナント数: 1000+、月間リクエスト: 1億+
+// NestJS usage in a multi-tenant SaaS
+// Tenants: 1000+, Monthly requests: 100M+
 
 @Module({
   imports: [
-    // グローバルモジュール
+    // Global modules
     ConfigModule.forRoot({ isGlobal: true }),
     LoggerModule.forRoot({ isGlobal: true }),
 
-    // 機能モジュール
+    // Feature modules
     AuthModule,
     TenantModule,
     UserModule,
@@ -2533,7 +2533,7 @@ container.load(...modules);
     TaskModule,
     NotificationModule,
 
-    // インフラモジュール
+    // Infrastructure modules
     DatabaseModule.forRoot({
       type: "postgres",
       poolSize: 20,
@@ -2546,7 +2546,7 @@ container.load(...modules);
 })
 class AppModule {}
 
-// テナント分離のためのリクエストスコープ
+// Request scope for tenant isolation
 @Injectable({ scope: Scope.REQUEST })
 class TenantContext {
   constructor(@Inject(REQUEST) private request: Request) {}
@@ -2556,30 +2556,30 @@ class TenantContext {
   }
 
   getDatabaseConnection(): Connection {
-    // テナントごとに DB 接続を切り替え
+    // Switch DB connection per tenant
     const tenantId = this.getTenantId();
     return getConnectionForTenant(tenantId);
   }
 }
 
-// パフォーマンス最適化
-// - キャッシュレイヤーを積極活用
-// - DB 接続プーリング
-// - バックグラウンドジョブは別コンテナ
+// Performance optimizations
+// - Aggressive use of cache layer
+// - DB connection pooling
+// - Background jobs in a separate container
 
-// 結果
-// - 99パーセンタイルレスポンス: 100ms
-// - テナント分離完全実現
-// - スケーラビリティ確保
+// Results
+// - 99th percentile response: 100ms
+// - Full tenant isolation achieved
+// - Scalability ensured
 ```
 
-#### 事例 3: マイクロサービス（tsyringe）
+#### Example 3: Microservices (tsyringe)
 
 ```typescript
-// マイクロサービスアーキテクチャでの tsyringe 使用例
-// サービス数: 20、軽量・高速が要件
+// tsyringe usage in a microservices architecture
+// Services: 20, lightweight and fast requirements
 
-// 各マイクロサービスは最小限の依存
+// Each microservice has minimal dependencies
 @singleton()
 class ServiceConfig {
   readonly serviceName = process.env.SERVICE_NAME!;
@@ -2602,7 +2602,7 @@ class HealthCheckService {
   }
 }
 
-// 軽量・高速な起動
+// Lightweight, fast startup
 async function bootstrap() {
   const service = container.resolve(HealthCheckService);
 
@@ -2615,29 +2615,29 @@ async function bootstrap() {
   app.listen(service["config"].port);
 }
 
-// 結果
-// - 起動時間: <100ms
-// - メモリフットプリント: <50MB
-// - コンテナ化に最適
+// Results
+// - Startup time: <100ms
+// - Memory footprint: <50MB
+// - Well-suited for containerization
 ```
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### AP-1: サービスロケータ（アンチパターン）
+### AP-1: Service Locator (Anti-Pattern)
 
 ```typescript
-// NG: グローバルコンテナを直接参照（サービスロケータ）
+// NG: Directly referencing a global container (service locator)
 class UserService {
   getUser(id: string) {
-    // コンテナをグローバルに参照 → テスト困難、隠れた依存
+    // Referencing the container globally → hard to test, hidden dependencies
     const repo = globalContainer.resolve<IUserRepository>("UserRepo");
     return repo.findById(id);
   }
 }
 
-// OK: コンストラクタ注入
+// OK: Constructor injection
 class UserService {
   constructor(private readonly userRepo: IUserRepository) {}
 
@@ -2646,16 +2646,16 @@ class UserService {
   }
 }
 
-// なぜ NG か:
-// 1. テスト時にモックを注入できない
-// 2. 依存が隠蔽される（コンストラクタを見ても分からない）
-// 3. グローバル状態への依存が生まれる
+// Why it is NG:
+// 1. Cannot inject mocks during testing
+// 2. Dependencies are hidden (not visible from the constructor)
+// 3. Creates a dependency on global state
 ```
 
-### AP-2: 過剰な抽象化
+### AP-2: Over-Abstraction
 
 ```typescript
-// NG: 実装が1つしかないのにインターフェースを作る
+// NG: Creating an interface when there is only one implementation
 interface IStringUtils {
   capitalize(s: string): string;
   truncate(s: string, len: number): string;
@@ -2672,9 +2672,9 @@ class StringUtils implements IStringUtils {
   }
 }
 
-// ユーティリティ関数に DI は不要（純粋関数）
+// DI is not needed for utility functions (pure functions)
 
-// OK: 純粋関数として直接使う
+// OK: Use directly as pure functions
 export function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
@@ -2683,16 +2683,16 @@ export function truncate(s: string, len: number): string {
   return s.slice(0, len);
 }
 
-// DI すべきもの:
-// - 外部 I/O（DB、API、ファイル）
-// - 状態を持つもの（キャッシュ、セッション）
-// - テストで差し替えたいもの（メール送信、決済）
+// What should be injected via DI:
+// - External I/O (DB, API, files)
+// - Things with state (cache, session)
+// - Things you want to replace in tests (email sending, payments)
 ```
 
-### AP-3: 神クラス（God Class）
+### AP-3: God Class
 
 ```typescript
-// NG: 1つのクラスが多すぎる依存を持つ
+// NG: One class with too many dependencies
 @injectable()
 class GodService {
   constructor(
@@ -2707,13 +2707,13 @@ class GodService {
     private logger: ILogger,
     private cache: ICache,
     private eventBus: IEventBus,
-    // ... 依存が多すぎる！
+    // ... too many dependencies!
   ) {}
 
-  // あらゆる処理を1つのクラスで実行
+  // Handles all operations in one class
 }
 
-// OK: 責任を分割
+// OK: Split responsibilities
 @injectable()
 class UserService {
   constructor(
@@ -2732,14 +2732,14 @@ class OrderService {
   ) {}
 }
 
-// 目安: コンストラクタ引数は 3〜5 個まで
-// それ以上は責任が大きすぎる可能性
+// Rule of thumb: keep constructor arguments to 3-5
+// More than that may indicate too many responsibilities
 ```
 
-### AP-4: new キーワードの乱用
+### AP-4: Overusing new
 
 ```typescript
-// NG: DI を使いながら new で直接生成
+// NG: Using new directly while also using DI
 @injectable()
 class UserService {
   constructor(private userRepo: IUserRepository) {}
@@ -2754,7 +2754,7 @@ class UserService {
 
     await this.userRepo.save(user);
 
-    // new で直接生成 → テスト困難
+    // Creating directly with new → hard to test
     const emailService = new SmtpEmailService();
     await emailService.send(user.email, "Welcome!", "Hello");
 
@@ -2762,12 +2762,12 @@ class UserService {
   }
 }
 
-// OK: 全ての依存を注入
+// OK: Inject all dependencies
 @injectable()
 class UserService {
   constructor(
     private userRepo: IUserRepository,
-    private emailService: IEmailService // 注入
+    private emailService: IEmailService // injected
   ) {}
 
   async createUser(data: CreateUserDto) {
@@ -2788,14 +2788,14 @@ class UserService {
 
 ---
 
-## 11. エッジケース分析
+## 11. Edge Case Analysis
 
-### EC-1: オプショナル依存
+### EC-1: Optional Dependencies
 
 ```typescript
-// オプショナル依存の扱い方
+// Handling optional dependencies
 
-// inversify でのオプショナル依存
+// Optional dependency in inversify
 @injectable()
 class UserService {
   constructor(
@@ -2804,7 +2804,7 @@ class UserService {
   ) {}
 
   async getUser(id: string): Promise<User | null> {
-    // キャッシュがあれば使う
+    // Use cache if available
     if (this.cache) {
       const cached = await this.cache.get<User>(`user:${id}`);
       if (cached) return cached;
@@ -2820,7 +2820,7 @@ class UserService {
   }
 }
 
-// tsyringe でのオプショナル依存
+// Optional dependency in tsyringe
 const CacheToken = Symbol("Cache");
 
 @injectable()
@@ -2831,16 +2831,16 @@ class UserService {
   ) {}
 }
 
-// コンテナ設定（キャッシュは環境によって有無が変わる）
+// Container configuration (cache presence varies by environment)
 if (process.env.REDIS_URL) {
   container.register(CacheToken, { useClass: RedisCache });
 }
 
-// 手動 DI でのオプショナル依存
+// Optional dependency in manual DI
 class UserService {
   constructor(
     private userRepo: IUserRepository,
-    private cache?: ICache // オプショナルパラメータ
+    private cache?: ICache // optional parameter
   ) {}
 }
 
@@ -2850,12 +2850,12 @@ const userService = new UserService(
 );
 ```
 
-### EC-2: 動的プロバイダ選択
+### EC-2: Dynamic Provider Selection
 
 ```typescript
-// 実行時に実装を切り替える
+// Switch implementations at runtime
 
-// 戦略パターン + DI
+// Strategy pattern + DI
 interface IStorageStrategy {
   save(key: string, value: any): Promise<void>;
   load(key: string): Promise<any>;
@@ -2876,18 +2876,18 @@ class LocalStorageStrategy implements IStorageStrategy {
 @injectable()
 class S3StorageStrategy implements IStorageStrategy {
   async save(key: string, value: any): Promise<void> {
-    // S3 にアップロード
+    // Upload to S3
     console.log(`Uploading to S3: ${key}`);
   }
 
   async load(key: string): Promise<any> {
-    // S3 からダウンロード
+    // Download from S3
     console.log(`Downloading from S3: ${key}`);
     return null;
   }
 }
 
-// ファクトリで動的に選択
+// Dynamically select using a factory
 @injectable()
 class StorageService {
   constructor(
@@ -2905,7 +2905,7 @@ class StorageService {
   }
 }
 
-// コンテナ設定
+// Container configuration
 container
   .bind<(type: string) => IStorageStrategy>("StorageFactory")
   .toFactory((context) => {
@@ -2922,17 +2922,17 @@ container
   });
 ```
 
-### EC-3: 条件付きバインディング
+### EC-3: Conditional Bindings
 
 ```typescript
-// 環境やコンテキストに応じてバインディングを変更
+// Change bindings based on environment or context
 
-// inversify での条件付きバインディング
+// Conditional bindings in inversify
 container
   .bind<ILogger>(TYPES.Logger)
   .to(ConsoleLogger)
   .when((request: interfaces.Request) => {
-    // 開発環境では ConsoleLogger
+    // ConsoleLogger in development
     return process.env.NODE_ENV === "development";
   });
 
@@ -2940,11 +2940,11 @@ container
   .bind<ILogger>(TYPES.Logger)
   .to(CloudWatchLogger)
   .when((request: interfaces.Request) => {
-    // 本番環境では CloudWatchLogger
+    // CloudWatchLogger in production
     return process.env.NODE_ENV === "production";
   });
 
-// ターゲット名による条件分岐
+// Conditional branching by target name
 container
   .bind<IDatabase>(TYPES.Database)
   .to(PostgresDatabase)
@@ -2970,12 +2970,12 @@ class ReplicationService {
   }
 
   async read(id: string) {
-    // 読み取りはセカンダリから
+    // Read from secondary
     return this.secondaryDb.query("SELECT ...");
   }
 }
 
-// 親コンテキストによる条件分岐
+// Conditional branching by parent context
 container
   .bind<IUserRepository>(TYPES.UserRepository)
   .to(PostgresUserRepository)
@@ -2989,68 +2989,68 @@ container
 
 ---
 
-## 12. 演習問題
+## 12. Exercises
 
-### 演習 1: 基礎編 - 手動 DI でブログシステム
+### Exercise 1: Basic — Blog System with Manual DI
 
-**課題:**
-ブログシステムの以下のクラスを実装し、手動 DI でワイヤリングしてください。
+**Task:**
+Implement the following classes for a blog system and wire them up using manual DI.
 
-- `IPostRepository`: 記事の CRUD
-- `ICommentRepository`: コメントの CRUD
-- `ISearchService`: 全文検索
-- `PostService`: 記事の作成・公開・検索
-- `CommentService`: コメントの投稿・承認
+- `IPostRepository`: CRUD for posts
+- `ICommentRepository`: CRUD for comments
+- `ISearchService`: Full-text search
+- `PostService`: Create, publish, and search posts
+- `CommentService`: Submit and approve comments
 
-**要件:**
-- インターフェースを定義
-- 実装クラスを作成（モック実装で OK）
-- `createApp` 関数で依存を解決
-- テストでモックを注入
+**Requirements:**
+- Define interfaces
+- Create implementation classes (mock implementations are fine)
+- Resolve dependencies in a `createApp` function
+- Inject mocks in tests
 
 ```typescript
-// ここに実装
+// Implement here
 
 interface IPostRepository {
-  // TODO: メソッドを定義
+  // TODO: define methods
 }
 
 interface ICommentRepository {
-  // TODO: メソッドを定義
+  // TODO: define methods
 }
 
 interface ISearchService {
-  // TODO: メソッドを定義
+  // TODO: define methods
 }
 
 class PostService {
-  // TODO: 実装
+  // TODO: implement
 }
 
 class CommentService {
-  // TODO: 実装
+  // TODO: implement
 }
 
 function createApp() {
-  // TODO: ワイヤリング
+  // TODO: wiring
 }
 ```
 
-### 演習 2: 応用編 - inversify でマルチテナントシステム
+### Exercise 2: Applied — Multi-Tenant System with inversify
 
-**課題:**
-マルチテナント SaaS の DI システムを inversify で構築してください。
+**Task:**
+Build a DI system for a multi-tenant SaaS using inversify.
 
-- テナントごとに異なる DB 接続
-- テナント固有の設定
-- リクエストスコープでテナントコンテキストを管理
-- モジュール分割（コア、テナント、ビジネスロジック）
+- Different DB connections per tenant
+- Tenant-specific configuration
+- Manage tenant context in request scope
+- Module splitting (core, tenant, business logic)
 
 ```typescript
-// ここに実装
+// Implement here
 
 const TYPES = {
-  // TODO: トークンを定義
+  // TODO: define tokens
 };
 
 interface TenantContext {
@@ -3058,20 +3058,20 @@ interface TenantContext {
   databaseUrl: string;
 }
 
-// TODO: モジュールとバインディングを実装
+// TODO: implement modules and bindings
 ```
 
-### 演習 3: 発展編 - 循環依存の解決
+### Exercise 3: Advanced — Resolving Circular Dependencies
 
-**課題:**
-以下の循環依存を持つシステムを、3 つの異なる手法で解決してください。
+**Task:**
+Resolve the circular dependencies in the system below using 3 different approaches.
 
-1. インターフェース分離
-2. イベント駆動
-3. 中間サービス導入
+1. Interface segregation
+2. Event-driven
+3. Introduce an intermediate service
 
 ```typescript
-// 循環依存のあるコード
+// Code with circular dependencies
 class ArticleService {
   constructor(private commentService: CommentService) {}
 
@@ -3088,48 +3088,48 @@ class CommentService {
   async getCommentsByArticle(articleId: string) {
     const article = await this.articleService.getArticle(articleId);
     if (!article) throw new Error("Article not found");
-    // コメント取得
+    // Fetch comments
   }
 }
 
-// TODO: 3 つの手法で循環依存を解決
+// TODO: Resolve the circular dependency using 3 approaches
 ```
 
 ---
 
 ## 13. FAQ
 
-### Q1: inversify と tsyringe のどちらを選ぶべきですか？
+### Q1: Should I choose inversify or tsyringe?
 
-**回答:**
-プロジェクトの規模と要件に応じて選択します。
+**Answer:**
+Choose based on the scale and requirements of your project.
 
-**inversify を選ぶべきケース:**
-- 大規模プロジェクト（サービス 50+）
-- 複雑な依存関係（循環依存の回避、条件付きバインディング）
-- モジュール分割が必要
-- 詳細なスコープ制御が必要
-- チームが DI に精通している
+**When to choose inversify:**
+- Large-scale projects (50+ services)
+- Complex dependencies (avoiding circular dependencies, conditional bindings)
+- Need for module splitting
+- Need for detailed scope control
+- Team is experienced with DI
 
-**tsyringe を選ぶべきケース:**
-- 小〜中規模プロジェクト（サービス 10〜30）
-- シンプルな依存関係
-- バンドルサイズを小さくしたい
-- 学習コストを抑えたい
-- Microsoft エコシステムを使用（TypeScript, VS Code）
+**When to choose tsyringe:**
+- Small to medium-scale projects (10-30 services)
+- Simple dependencies
+- Want a smaller bundle size
+- Want to minimize learning cost
+- Using the Microsoft ecosystem (TypeScript, VS Code)
 
-**手動 DI を選ぶべきケース:**
-- 小規模プロジェクト（サービス <10）
-- 最高の型安全性が必要
-- デコレータを避けたい（TC39 Stage 3 対応）
-- ゼロ依存が望ましい
+**When to choose manual DI:**
+- Small-scale projects (<10 services)
+- Need the highest type safety
+- Want to avoid decorators (TC39 Stage 3 compliance)
+- Zero dependencies desired
 
-### Q2: Next.js や Remix で DI は使えますか?
+### Q2: Can DI be used with Next.js or Remix?
 
-**回答:**
-サーバーサイドでは使えますが、React コンポーネントとは別に管理する必要があります。
+**Answer:**
+It can be used on the server side, but must be managed separately from React components.
 
-**サーバーサイド（API Routes, Server Actions）:**
+**Server-side (API Routes, Server Actions):**
 ```typescript
 // app/api/users/route.ts
 import { container } from "@/lib/di-container";
@@ -3143,9 +3143,9 @@ export async function POST(req: Request) {
 }
 ```
 
-**React コンポーネント:**
+**React components:**
 ```typescript
-// React コンポーネントでは Context API を使う
+// Use the Context API in React components
 "use client";
 
 import { createContext, useContext } from "react";
@@ -3173,81 +3173,81 @@ export function useUserService() {
 }
 ```
 
-**推奨アプローチ:**
-- サーバーサイド: DI コンテナを使用
-- クライアントサイド: Context API + hooks
-- ハイブリッド: Server Components でサービスを使い、Client Components には props で渡す
+**Recommended approach:**
+- Server-side: Use a DI container
+- Client-side: Context API + hooks
+- Hybrid: Use services in Server Components and pass them to Client Components via props
 
-### Q3: DI はどの規模のプロジェクトから導入すべきですか?
+### Q3: From what project scale should DI be introduced?
 
-**回答:**
-以下の基準を目安にしてください。
+**Answer:**
+Use the following criteria as a guide.
 
-**DI 不要（手動のコンストラクタ注入で十分）:**
-- サービスクラス: 1〜5 個
-- 外部依存: 0〜2 個（DB、外部 API など）
-- 開発者: 1〜2 人
-- 例: 個人プロジェクト、プロトタイプ
+**DI not needed (manual constructor injection is sufficient):**
+- Service classes: 1-5
+- External dependencies: 0-2 (DB, external APIs, etc.)
+- Developers: 1-2
+- Examples: personal projects, prototypes
 
-**軽量 DI（tsyringe）を検討:**
-- サービスクラス: 5〜30 個
-- 外部依存: 3〜5 個
-- 開発者: 2〜5 人
-- 例: スタートアップの MVP、中小規模 SaaS
+**Consider lightweight DI (tsyringe):**
+- Service classes: 5-30
+- External dependencies: 3-5
+- Developers: 2-5
+- Examples: startup MVPs, small to medium-scale SaaS
 
-**フル機能 DI（inversify, NestJS）を検討:**
-- サービスクラス: 30+ 個
-- 外部依存: 5+ 個
-- 開発者: 5+ 人
-- 例: エンタープライズアプリ、大規模 SaaS
+**Consider full-featured DI (inversify, NestJS):**
+- Service classes: 30+
+- External dependencies: 5+
+- Developers: 5+
+- Examples: enterprise apps, large-scale SaaS
 
-**判断基準:**
-1. **テストの複雑さ**: モックの管理が手動で困難になったら DI 導入
-2. **依存関係の複雑さ**: グラフ構造が 3 層以上になったら DI 導入
-3. **チームサイズ**: 複数人で開発し、依存管理の統一が必要なら DI 導入
+**Decision criteria:**
+1. **Test complexity**: Introduce DI when managing mocks manually becomes difficult
+2. **Dependency complexity**: Introduce DI when the graph structure has 3+ layers
+3. **Team size**: Introduce DI when multiple people are developing and unified dependency management is needed
 
-### Q4: DI コンテナなしで DI を実現できますか?
+### Q4: Can DI be achieved without a DI container?
 
-**回答:**
-はい、関数型プログラミングのパターンで実現できます。
+**Answer:**
+Yes, it can be achieved using functional programming patterns.
 
-**Reader Monad パターン:**
+**Reader Monad pattern:**
 ```typescript
 type Reader<Env, A> = (env: Env) => A;
 
 function createUser(data: CreateUserDto): Reader<Dependencies, Promise<User>> {
   return async (deps) => {
-    // deps を使った処理
+    // Processing using deps
   };
 }
 
-// 依存を注入して実行
+// Execute by injecting dependencies
 const user = await createUser(userData)(dependencies);
 ```
 
-**メリット:**
-- ライブラリ不要
-- 完全な型安全性
-- 関数合成が容易
+**Benefits:**
+- No library required
+- Complete type safety
+- Easy function composition
 
-**デメリット:**
-- 学習コスト（関数型プログラミングの知識が必要）
-- ボイラープレート（毎回 `(deps)` を渡す）
-- IDE サポートが弱い
+**Drawbacks:**
+- Learning cost (requires knowledge of functional programming)
+- Boilerplate (passing `(deps)` every time)
+- Weaker IDE support
 
-**推奨ケース:**
-- 関数型プログラミングに精通したチーム
-- 最高の型安全性が必要
-- デコレータを避けたい
+**Recommended for:**
+- Teams proficient in functional programming
+- When highest type safety is required
+- When you want to avoid decorators
 
-### Q5: 循環依存を完全に防ぐ方法はありますか?
+### Q5: Is there a way to completely prevent circular dependencies?
 
-**回答:**
-アーキテクチャレベルでの対策が必要です。
+**Answer:**
+Architecture-level measures are required.
 
-**1. レイヤードアーキテクチャ:**
+**1. Layered architecture:**
 ```
-上位層は下位層に依存できるが、下位層は上位層に依存できない
+Upper layers can depend on lower layers, but lower layers cannot depend on upper layers
 
 Presentation Layer (Controllers)
          ↓
@@ -3258,9 +3258,9 @@ Domain Layer (Entities, Interfaces)
 Infrastructure Layer (Repositories)
 ```
 
-**2. 依存関係逆転の原則（DIP）:**
+**2. Dependency Inversion Principle (DIP):**
 ```typescript
-// 下位層（Infrastructure）は上位層（Domain）のインターフェースに依存
+// Lower layer (Infrastructure) depends on upper layer (Domain) interfaces
 
 // Domain Layer
 interface IUserRepository {
@@ -3269,26 +3269,26 @@ interface IUserRepository {
 
 // Infrastructure Layer
 class PostgresUserRepository implements IUserRepository {
-  // IUserRepository に依存（逆転）
+  // Depends on IUserRepository (inverted)
 }
 
 // Application Layer
 class UserService {
   constructor(private userRepo: IUserRepository) {
-    // インターフェースに依存
+    // Depends on the interface
   }
 }
 ```
 
-**3. イベント駆動アーキテクチャ:**
+**3. Event-driven architecture:**
 ```typescript
-// サービス間の直接依存を避け、イベントで疎結合化
+// Avoid direct dependencies between services, decouple via events
 
 class UserService {
   async createUser(data: CreateUserDto) {
     const user = await this.userRepo.save(data);
 
-    // 他のサービスに直接依存せず、イベントを発行
+    // Publish an event rather than directly depending on other services
     await this.eventBus.publish({
       type: "UserCreated",
       data: { userId: user.id },
@@ -3298,199 +3298,101 @@ class UserService {
 
 class OrderService {
   constructor(private eventBus: IEventBus) {
-    // イベントを購読
+    // Subscribe to events
     this.eventBus.subscribe("UserCreated", this.onUserCreated);
   }
 
   private async onUserCreated(event: DomainEvent) {
-    // ユーザー作成時の処理
+    // Processing when a user is created
   }
 }
 ```
 
-**4. 静的解析ツール:**
+**4. Static analysis tools:**
 ```bash
-# dependency-cruiser で循環依存を検出
+# Detect circular dependencies with dependency-cruiser
 npx depcruise --validate -- src/
 
-# madge で依存グラフを可視化
+# Visualize the dependency graph with madge
 npx madge --circular --extensions ts src/
 ```
 
-### Q6: DI を使うとパフォーマンスは低下しますか?
+### Q6: Does using DI degrade performance?
 
-**回答:**
-わずかなオーバーヘッドはありますが、実用上は問題になりません。
+**Answer:**
+There is a slight overhead, but it is not a practical concern.
 
-**ベンチマーク結果:**
-- 手動 DI: 10,000,000 ops/sec（基準）
-- tsyringe（シングルトン）: 1,500,000 ops/sec（6.7 倍遅い）
-- inversify（シングルトン）: 1,000,000 ops/sec（10 倍遅い）
+**Benchmark results:**
+- Manual DI: 10,000,000 ops/sec (baseline)
+- tsyringe (singleton): 1,500,000 ops/sec (6.7x slower)
+- inversify (singleton): 1,000,000 ops/sec (10x slower)
 
-**実際のアプリケーションでの影響:**
-- DI のオーバーヘッド: <1ms
-- DB クエリ: 10〜100ms
-- 外部 API: 100〜1000ms
+**Impact in actual applications:**
+- DI overhead: <1ms
+- DB queries: 10-100ms
+- External APIs: 100-1000ms
 
-→ ボトルネックは I/O であり、DI のオーバーヘッドは誤差範囲
+→ The bottleneck is I/O; DI overhead is within the margin of error
 
-**最適化のポイント:**
-1. **シングルトンスコープを使う**: トランジェントより 2〜3 倍高速
-2. **頻繁に使うサービスをプリロード**: 起動時に解決してキャッシュ
-3. **ファクトリを最小限に**: 動的生成はコスト高
-4. **バンドルサイズを意識**: クライアントサイドでは tsyringe や手動 DI
+**Optimization points:**
+1. **Use singleton scope**: 2-3x faster than transient
+2. **Preload frequently used services**: Resolve and cache at startup
+3. **Minimize factories**: Dynamic creation is costly
+4. **Be mindful of bundle size**: Use tsyringe or manual DI on the client side
 
 ---
 
-## 14. 参考文献
+## 14. References
 
-### 公式ドキュメント
+### Official Documentation
 
 1. **InversifyJS**
    https://inversify.io/
-   強力で軽量な IoC コンテナ。デコレータベースの DI を提供。
+   A powerful, lightweight IoC container. Provides decorator-based DI.
 
 2. **tsyringe**
    https://github.com/microsoft/tsyringe
-   Microsoft 製の軽量 DI コンテナ。シンプルな API が特徴。
+   A lightweight DI container by Microsoft. Known for its simple API.
 
 3. **NestJS - Dependency Injection**
    https://docs.nestjs.com/fundamentals/custom-providers
-   Angular ライクな DI システム。エンタープライズ向け。
+   An Angular-like DI system. Suited for enterprise use.
 
-### 書籍
+### Books
 
 4. **Clean Architecture** -- Robert C. Martin
-   依存性逆転の原則（DIP）と IoC の原典。アーキテクチャレベルでの依存管理を学べる。
+   The original source on the Dependency Inversion Principle (DIP) and IoC. Learn about architecture-level dependency management.
 
 5. **Dependency Injection Principles, Practices, and Patterns** -- Steven van Deursen, Mark Seemann
-   DI パターンの体系的な解説。.NET 中心だが TypeScript にも応用可能。
+   A systematic explanation of DI patterns. .NET-focused but applicable to TypeScript.
 
 6. **Domain-Driven Design** -- Eric Evans
-   ドメイン駆動設計における依存管理とレイヤードアーキテクチャ。
+   Dependency management and layered architecture in domain-driven design.
 
-### オンライン記事
+### Online Articles
 
 7. **TypeScript Decorators**
    https://www.typescriptlang.org/docs/handbook/decorators.html
-   TypeScript の公式ドキュメント。デコレータの基礎を学べる。
+   TypeScript official documentation. Learn the basics of decorators.
 
 8. **Dependency Injection in TypeScript** -- Alex Jover Morales
    https://www.thisdot.co/blog/dependency-injection-in-typescript
-   TypeScript での DI 実装の実践的なガイド。
+   A practical guide to implementing DI in TypeScript.
 
 9. **SOLID Principles in TypeScript**
    https://khalilstemmler.com/articles/solid-principles/solid-typescript/
-   SOLID 原則の TypeScript での実装例。
+   Examples of implementing SOLID principles in TypeScript.
 
-### ツールとライブラリ
+### Tools and Libraries
 
 10. **typed-inject**
     https://github.com/nicojs/typed-inject
-    型安全性を最優先した DI ライブラリ。reflect-metadata 不要。
+    A DI library that prioritizes type safety. No reflect-metadata needed.
 
 11. **Effect-ts**
     https://effect.website/
-    関数型プログラミングの手法で DI を実現。副作用管理も提供。
+    Achieves DI using functional programming techniques. Also provides side-effect management.
 
 12. **dependency-cruiser**
     https://github.com/sverweij/dependency-cruiser
-    依存関係の可視化と循環依存の検出ツール。
-
-### 関連ガイド
-
-13. **テスト** -- `../03-tooling/02-testing-typescript.md`
-    DI を活用したモックとテスト戦略
-
-14. **ビルダーパターン** -- `./01-builder-pattern.md`
-    DI と組み合わせたファクトリ設計
-
-15. **tRPC** -- `../04-ecosystem/02-trpc.md`
-    DI で構築したサービス層を tRPC で公開
-
----
-
-
-## FAQ
-
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
-
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
-
-### Q2: 初心者がよく陥る間違いは何ですか？
-
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
-
-### Q3: 実務ではどのように活用されていますか？
-
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-### DI の原則
-
-| 概念 | 要点 |
-|------|------|
-| DIP（依存性逆転の原則） | 高レベルモジュールは抽象に依存すべき |
-| IoC（制御の逆転） | フレームワーク/コンテナが依存を解決する |
-| コンストラクタ注入 | 最も推奨される DI の形 |
-
-### DI ライブラリ比較
-
-| 特性 | inversify | tsyringe | 手動DI | NestJS | Effect-ts |
-|------|-----------|----------|--------|--------|-----------|
-| 学習コスト | 中 | 低 | 最低 | 高 | 高 |
-| バンドルサイズ | 25KB | 15KB | 0KB | 50KB+ | 50KB |
-| 型安全性 | 中 | 中 | 最高 | 中 | 最高 |
-| 自動解決 | あり | あり | なし | あり | あり |
-| デコレータ | 必要 | 必要 | 不要 | 必要 | 不要 |
-| 適用規模 | 大 | 小〜中 | 小 | 大 | 中〜大 |
-
-### DI スコープ比較
-
-| スコープ | 寿命 | 用途 | メモリ使用量 |
-|---------|------|------|-------------|
-| Singleton | アプリ全体 | DB接続、Logger、Config | 低 |
-| Transient | 毎回新規 | ステートレスService | 中 |
-| Request | HTTPリクエスト単位 | リクエスト固有データ、認証情報 | 中 |
-| Session | ユーザーセッション | ユーザー固有状態 | 高 |
-
-### ベストプラクティス
-
-1. **コンストラクタ注入を優先**: 依存が明示的で、不変性を保証
-2. **インターフェースに依存**: 実装ではなく抽象に依存
-3. **シングルトンスコープを活用**: ステートレスなサービスはシングルトンに
-4. **循環依存を避ける**: レイヤードアーキテクチャ、イベント駆動で対策
-5. **テスト容易性を重視**: モック注入が簡単な設計を心がける
-6. **適切な粒度**: 1クラスの依存は 3〜5 個まで
-7. **サービスロケータを避ける**: グローバルコンテナへの直接参照は NG
-
-### プロダクション導入チェックリスト
-
-- [ ] プロジェクト規模に応じた DI ライブラリを選択
-- [ ] 依存関係グラフを可視化（madge, dependency-cruiser）
-- [ ] 循環依存の検出とリファクタリング
-- [ ] テストでのモック注入を実装
-- [ ] パフォーマンスベンチマーク（本番環境）
-- [ ] エラーハンドリング（依存解決失敗時）
-- [ ] ドキュメント整備（依存関係図、モジュール構成）
-- [ ] CI/CD に依存関係チェックを組み込み
-
----
-
-DI（依存性注入）は、TypeScript でスケーラブルで保守性の高いアプリケーションを構築するための基盤技術です。プロジェクトの規模と要件に応じて適切なアプローチを選択し、SOLID 原則に基づいた設計を心がけましょう。
-
----
-
-## 次に読むべきガイド
-
-- 同カテゴリの他のガイドを参照してください
-
----
-
-## 参考文献
-
-- [MDN Web Docs](https://developer.mozilla.org/) - Web技術のリファレンス
-- [Wikipedia](https://ja.wikipedia.org/) - 技術概念の概要
+    A tool for visualizing dependencies and detecting circular dependencies.

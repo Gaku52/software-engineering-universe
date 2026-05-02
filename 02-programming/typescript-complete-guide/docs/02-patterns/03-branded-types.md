@@ -1,79 +1,79 @@
-# TypeScript ブランド型（Branded Types）完全ガイド
+# TypeScript Branded Types: Complete Guide
 
-> ブランド型・公称型・opaque 型で、同じプリミティブ型の値を区別し、ID の取り違えや単位の混同をコンパイル時に防止する
+> Use branded types, nominal types, and opaque types to distinguish values of the same primitive type, preventing ID mix-ups and unit confusion at compile time
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **ブランド型の原理** -- 構造的型付けの限界と、擬似的な公称型を TypeScript で実現する方法
-2. **実装パターン** -- `__brand` フィールド、`unique symbol`、テンプレートリテラル型の 3 つのアプローチ
-3. **実践的な適用** -- ID の取り違え防止、単位付き数値、バリデーション済み値の追跡
-4. **高度なテクニック** -- Zod 統合、シリアライゼーション戦略、テスト手法
-5. **他言語との比較** -- Rust の newtype、Haskell の newtype、Flow の opaque types
+1. **Principles of branded types** -- The limitations of structural typing and how to achieve pseudo-nominal typing in TypeScript
+2. **Implementation patterns** -- Three approaches: `__brand` field, `unique symbol`, and template literal types
+3. **Practical applications** -- Preventing ID mix-ups, typed numeric units, tracking validated values
+4. **Advanced techniques** -- Zod integration, serialization strategies, testing methods
+5. **Comparison with other languages** -- Rust newtypes, Haskell newtypes, Flow opaque types
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [TypeScript 判別共用体パターン](./02-discriminated-unions.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [TypeScript Discriminated Union Patterns](./02-discriminated-unions.md)
 
 ---
 
-## 目次
+## Table of Contents
 
-1. [なぜブランド型が必要か](#1-なぜブランド型が必要か)
-2. [実装パターンの完全解説](#2-実装パターンの完全解説)
-3. [ファクトリ関数とバリデーション](#3-ファクトリ関数とバリデーション)
-4. [実践: ドメイン固有型](#4-実践-ドメイン固有型)
-5. [Zod によるランタイムバリデーション統合](#5-zod-によるランタイムバリデーション統合)
-6. [単位型と型安全な算術演算](#6-単位型と型安全な算術演算)
-7. [シリアライズとデシリアライズ](#7-シリアライズとデシリアライズ)
-8. [他のアプローチとの比較](#8-他のアプローチとの比較)
-9. [アンチパターンとエッジケース](#9-アンチパターンとエッジケース)
-10. [テスト戦略とデバッグ](#10-テスト戦略とデバッグ)
-11. [演習問題](#11-演習問題)
+1. [Why Branded Types Are Needed](#1-why-branded-types-are-needed)
+2. [Complete Explanation of Implementation Patterns](#2-complete-explanation-of-implementation-patterns)
+3. [Factory Functions and Validation](#3-factory-functions-and-validation)
+4. [In Practice: Domain-Specific Types](#4-in-practice-domain-specific-types)
+5. [Runtime Validation Integration with Zod](#5-runtime-validation-integration-with-zod)
+6. [Unit Types and Type-Safe Arithmetic](#6-unit-types-and-type-safe-arithmetic)
+7. [Serialization and Deserialization](#7-serialization-and-deserialization)
+8. [Comparison with Other Approaches](#8-comparison-with-other-approaches)
+9. [Anti-Patterns and Edge Cases](#9-anti-patterns-and-edge-cases)
+10. [Testing Strategies and Debugging](#10-testing-strategies-and-debugging)
+11. [Exercises](#11-exercises)
 12. [FAQ](#12-faq)
 
 ---
 
-## 1. なぜブランド型が必要か
+## 1. Why Branded Types Are Needed
 
-### 1-1. 構造的型付けの落とし穴
+### 1-1. The Pitfalls of Structural Typing
 
-TypeScript は**構造的型付け（Structural Typing）** を採用しています。これは、型の互換性が「名前」ではなく「構造」で決まることを意味します。
+TypeScript uses **structural typing**. This means that type compatibility is determined by "structure," not by "name."
 
 ```ascii
-構造的型付け（TypeScript のデフォルト）:
+Structural typing (TypeScript default):
 
   type UserId = string;
   type OrderId = string;
 
-  UserId と OrderId は同じ構造（string）
+  UserId and OrderId have the same structure (string)
        ↓
-  相互に代入可能!
+  Mutually assignable!
 
   function getUser(id: UserId): User { ... }
   const orderId: OrderId = "order-123";
-  getUser(orderId);  // エラーにならない!
+  getUser(orderId);  // No error!
 
-公称型（ブランド型で擬似的に実現）:
+Nominal typing (achieved pseudo-nominally via branded types):
 
   type UserId = string & { __brand: "UserId" };
   type OrderId = string & { __brand: "OrderId" };
 
-  UserId と OrderId は構造が異なる
+  UserId and OrderId have different structures
        ↓
-  相互に代入不可!
+  Cannot be mutually assigned!
 
-  getUser(orderId);  // コンパイルエラー!
+  getUser(orderId);  // Compile error!
 ```
 
-#### 問題のコード例
+#### Problematic Code Example
 
 ```typescript
-// 構造的型付けの問題
+// Problem with structural typing
 type UserId = string;
 type OrderId = string;
 type ProductId = string;
@@ -89,40 +89,40 @@ function getOrder(id: OrderId): void {
 const userId: UserId = "user-1";
 const orderId: OrderId = "order-1";
 
-// 全てコンパイルが通ってしまう
-getUser(orderId);    // バグ! OrderId を渡している
-getOrder(userId);    // バグ! UserId を渡している
+// All of these compile successfully
+getUser(orderId);    // Bug! Passing an OrderId
+getOrder(userId);    // Bug! Passing a UserId
 
-// 実行時に初めて問題が発覚
-// => "Fetching user with ID: order-1"  ← 間違った ID で検索
+// Problem only discovered at runtime
+// => "Fetching user with ID: order-1"  ← Searching with the wrong ID
 ```
 
-この問題は、型エイリアスが単なる「別名」であり、構造が同じなら互換性があるために発生します。
+This problem occurs because type aliases are merely "alternate names," and types with the same structure are compatible.
 
-### 1-2. 実世界での危険なシナリオ
+### 1-2. Dangerous Real-World Scenarios
 
-**シナリオ 1: 医療システムでの患者 ID と予約 ID の混同**
+**Scenario 1: Mixing patient IDs and appointment IDs in a medical system**
 
 ```typescript
 type PatientId = string;
 type AppointmentId = string;
 
 function cancelAppointment(appointmentId: AppointmentId): void {
-  // 予約をキャンセル
+  // Cancel appointment
 }
 
 function deletePatient(patientId: PatientId): void {
-  // 患者記録を削除（危険な操作）
+  // Delete patient record (dangerous operation)
 }
 
 const appointment: AppointmentId = "apt-789";
 const patient: PatientId = "patient-456";
 
-// 型チェックが通ってしまい、患者記録を誤って削除
-deletePatient(appointment); // コンパイルエラーにならない!
+// Type check passes, accidentally deleting patient record
+deletePatient(appointment); // No compile error!
 ```
 
-**シナリオ 2: 金融システムでの通貨の混同**
+**Scenario 2: Currency mix-up in a financial system**
 
 ```typescript
 type JPY = number;
@@ -133,31 +133,31 @@ function transferJPY(amount: JPY): void {
 }
 
 const usdAmount: USD = 100; // $100
-transferJPY(usdAmount); // ¥100 として処理されてしまう（為替レート無視）
+transferJPY(usdAmount); // Processed as ¥100 (exchange rate ignored)
 ```
 
-**シナリオ 3: 物理計算での単位の混同**
+**Scenario 3: Unit confusion in physical calculations**
 
-1999年、NASA の火星気候探査機は単位の混同（ヤード・ポンド法とメートル法）により約1.25億ドルの損失を出しました。型システムで防げる問題です。
+In 1999, NASA's Mars Climate Orbiter was lost due to unit confusion (imperial vs. metric), resulting in approximately $125 million in losses. This is a problem that can be prevented with a type system.
 
 ```typescript
 type Meters = number;
 type Feet = number;
 
 function calculateTrajectory(altitude: Meters): void {
-  // メートル単位で計算
+  // Calculation in meters
 }
 
 const altitudeInFeet: Feet = 3000;
-calculateTrajectory(altitudeInFeet); // フィート値をメートルとして処理
+calculateTrajectory(altitudeInFeet); // Feet value treated as meters
 ```
 
-### 1-3. ブランド型による解決
+### 1-3. Solution with Branded Types
 
-ブランド型を使うと、これらの問題をコンパイル時に検出できます。
+Using branded types, these problems can be detected at compile time.
 
 ```typescript
-// ブランド型の定義
+// Defining a branded type
 type Brand<T, BrandName extends string> = T & { readonly __brand: BrandName };
 
 type UserId = Brand<string, "UserId">;
@@ -171,7 +171,7 @@ function getOrder(id: OrderId): void {
   console.log(`Fetching order: ${id}`);
 }
 
-// コンストラクタ関数でブランドを付与
+// Use constructor functions to apply brands
 const userId = (id: string): UserId => id as UserId;
 const orderId = (id: string): OrderId => id as OrderId;
 
@@ -179,30 +179,30 @@ const uid = userId("user-123");
 const oid = orderId("order-456");
 
 getUser(uid);  // ✓ OK
-getUser(oid);  // ✗ コンパイルエラー!
+getUser(oid);  // ✗ Compile error!
 // Error: Argument of type 'OrderId' is not assignable to parameter of type 'UserId'.
 //   Type 'OrderId' is not assignable to type '{ readonly __brand: "UserId"; }'.
 ```
 
-### 1-4. 図解: 構造的型付け vs 公称型付け
+### 1-4. Diagram: Structural Typing vs. Nominal Typing
 
 ```mermaid
 graph TB
-    subgraph "構造的型付け（TypeScript デフォルト）"
+    subgraph "Structural Typing (TypeScript Default)"
         A1[type UserId = string]
         A2[type OrderId = string]
-        A3[同じ構造]
-        A4[相互に代入可能]
+        A3[Same structure]
+        A4[Mutually assignable]
         A1 --> A3
         A2 --> A3
         A3 --> A4
     end
 
-    subgraph "公称型付け（ブランド型で実現）"
+    subgraph "Nominal Typing (Achieved with Branded Types)"
         B1["type UserId = string & { __brand: 'UserId' }"]
         B2["type OrderId = string & { __brand: 'OrderId' }"]
-        B3[異なる構造]
-        B4[代入不可]
+        B3[Different structure]
+        B4[Cannot be assigned]
         B1 --> B3
         B2 --> B3
         B3 --> B4
@@ -211,26 +211,26 @@ graph TB
 
 ---
 
-## 2. 実装パターンの完全解説
+## 2. Complete Explanation of Implementation Patterns
 
-ブランド型には主に 3 つの実装パターンがあります。それぞれの特徴、メリット・デメリットを詳しく見ていきましょう。
+There are three main implementation patterns for branded types. Let's look at the characteristics, advantages, and disadvantages of each.
 
-### 2-1. `__brand` フィールドパターン（基本形）
+### 2-1. `__brand` Field Pattern (Basic Form)
 
-最もシンプルで一般的なパターンです。
+The simplest and most common pattern.
 
-#### 実装
+#### Implementation
 
 ```typescript
-// ジェネリック型の定義
+// Define the generic type
 type Brand<T, BrandName extends string> = T & { readonly __brand: BrandName };
 
-// ブランド型の定義
+// Define branded types
 type UserId = Brand<string, "UserId">;
 type OrderId = Brand<string, "OrderId">;
 type ProductId = Brand<string, "ProductId">;
 
-// コンストラクタ関数
+// Constructor functions
 function userId(id: string): UserId {
   return id as UserId;
 }
@@ -244,7 +244,7 @@ function productId(id: string): ProductId {
 }
 ```
 
-#### 使用例
+#### Usage Example
 
 ```typescript
 function getUser(id: UserId): void {
@@ -259,38 +259,38 @@ const uid = userId("user-123");
 const oid = orderId("order-456");
 
 getUser(uid);  // ✓ OK
-getUser(oid);  // ✗ コンパイルエラー!
+getUser(oid);  // ✗ Compile error!
 // Error: Type 'OrderId' is not assignable to type 'UserId'.
 //   Type 'OrderId' is not assignable to type '{ __brand: "UserId" }'.
 ```
 
-#### メリット
-- 実装が簡単で理解しやすい
-- ジェネリック型で再利用可能
-- ランタイムコストがゼロ（`as` は型アサーションのみ）
-- エラーメッセージが分かりやすい
+#### Advantages
+- Simple to implement and easy to understand
+- Reusable as a generic type
+- Zero runtime cost (`as` is type assertion only)
+- Clear error messages
 
-#### デメリット
-- `__brand` という名前が衝突する可能性（実際には稀）
-- 文字列リテラルが同じなら別の定義でも互換性がある
+#### Disadvantages
+- Possible name collision with `__brand` (rare in practice)
+- Different definitions with the same string literal become compatible
 
 ```typescript
-// 別ファイルで同じブランド名を使うと互換性が生まれる
+// Using the same brand name in different files creates compatibility
 type UserIdV1 = Brand<string, "UserId">;
 type UserIdV2 = Brand<string, "UserId">;
 
 const v1: UserIdV1 = "user-1" as UserIdV1;
-const v2: UserIdV2 = v1; // OK（意図しない互換性）
+const v2: UserIdV2 = v1; // OK (unintended compatibility)
 ```
 
-### 2-2. `unique symbol` パターン（より厳密）
+### 2-2. `unique symbol` Pattern (More Strict)
 
-`unique symbol` を使うと、完全にユニークなブランドを作成できます。
+Using `unique symbol` creates a completely unique brand.
 
-#### 実装
+#### Implementation
 
 ```typescript
-// unique symbol で完全にユニークなブランドを作成
+// Create completely unique brands with unique symbol
 declare const UserIdBrand: unique symbol;
 declare const OrderIdBrand: unique symbol;
 declare const ProductIdBrand: unique symbol;
@@ -299,7 +299,7 @@ type UserId = string & { readonly [UserIdBrand]: typeof UserIdBrand };
 type OrderId = string & { readonly [OrderIdBrand]: typeof OrderIdBrand };
 type ProductId = string & { readonly [ProductIdBrand]: typeof ProductIdBrand };
 
-// コンストラクタ関数
+// Constructor functions
 function userId(id: string): UserId {
   return id as UserId;
 }
@@ -313,7 +313,7 @@ function productId(id: string): ProductId {
 }
 ```
 
-#### 使用例
+#### Usage Example
 
 ```typescript
 const uid = userId("user-123");
@@ -324,47 +324,47 @@ function getUser(id: UserId): void {
 }
 
 getUser(uid); // ✓ OK
-getUser(oid); // ✗ コンパイルエラー!
+getUser(oid); // ✗ Compile error!
 ```
 
-#### メリット
-- **完全にユニーク**: `unique symbol` は宣言ごとに異なる型
-- 文字列の衝突を気にする必要がない
-- より強力な型安全性
+#### Advantages
+- **Completely unique**: Each `unique symbol` declaration has a different type
+- No need to worry about string name collisions
+- Stronger type safety
 
-#### デメリット
-- コードが少し複雑
-- ジェネリック化しにくい
-- エラーメッセージが少し読みにくい（symbol が表示される）
+#### Disadvantages
+- Code is slightly more complex
+- Harder to make generic
+- Error messages are slightly harder to read (symbol is displayed)
 
-#### unique symbol の特性
+#### Characteristics of unique symbol
 
 ```typescript
-// 別ファイルで同じ名前でも、unique symbol は異なる型
+// Even with the same name in different files, unique symbols are different types
 // file1.ts
 declare const UserIdBrand: unique symbol;
 type UserId = string & { readonly [UserIdBrand]: typeof UserIdBrand };
 
 // file2.ts
-declare const UserIdBrand: unique symbol; // 同じ名前でも別の型
+declare const UserIdBrand: unique symbol; // Same name, but a different type
 type UserId = string & { readonly [UserIdBrand]: typeof UserIdBrand };
 
-// file1 の UserId と file2 の UserId は互換性がない!
+// UserId in file1 and UserId in file2 are incompatible!
 ```
 
-### 2-3. テンプレートリテラル型パターン（パターンマッチング）
+### 2-3. Template Literal Type Pattern (Pattern Matching)
 
-TypeScript 4.1+ のテンプレートリテラル型を使った方法です。
+A method using template literal types from TypeScript 4.1+.
 
-#### 実装
+#### Implementation
 
 ```typescript
-// プレフィックスでブランドを識別
+// Identify brands by prefix
 type UserId = `user_${string}`;
 type OrderId = `order_${string}`;
 type ProductId = `product_${string}`;
 
-// コンストラクタ（バリデーション付き）
+// Constructor (with validation)
 function userId(id: string): UserId {
   if (!id.startsWith("user_")) {
     throw new Error("Invalid UserId format");
@@ -380,57 +380,57 @@ function orderId(id: string): OrderId {
 }
 ```
 
-#### 使用例
+#### Usage Example
 
 ```typescript
-const uid: UserId = "user_123"; // ✓ OK（リテラルが一致）
+const uid: UserId = "user_123"; // ✓ OK (literal matches)
 const oid: OrderId = "order_456"; // ✓ OK
 
-// const bad: UserId = "123"; // ✗ エラー（パターンが一致しない）
+// const bad: UserId = "123"; // ✗ Error (pattern doesn't match)
 
 function getUser(id: UserId): void {
   console.log(`User: ${id}`);
 }
 
 getUser(uid); // ✓ OK
-getUser(oid); // ✗ エラー
+getUser(oid); // ✗ Error
 ```
 
-#### メリット
-- パターンマッチングが型レベルで行われる
-- リテラル値でもある程度の型安全性
-- コードが自己文書化される（プレフィックスで意味が分かる）
+#### Advantages
+- Pattern matching is performed at the type level
+- Some type safety even with literal values
+- Code is self-documenting (prefix conveys meaning)
 
-#### デメリット
-- 柔軟性が低い（プレフィックスを強制される）
-- 既存のデータと互換性がない場合がある
-- ランタイムでもプレフィックスチェックが必要
+#### Disadvantages
+- Low flexibility (prefix is forced)
+- May be incompatible with existing data
+- Runtime prefix checks are still required
 
-### 2-4. 比較表: 実装パターンの選び方
+### 2-4. Comparison Table: Choosing an Implementation Pattern
 
-| パターン | 型安全性 | ランタイムコスト | 実装の簡潔さ | エラーメッセージ | 推奨シーン |
-|---------|---------|----------------|------------|---------------|-----------|
-| `__brand` フィールド | 高 | ゼロ | ★★★ | 明確 | 一般的な用途 |
-| `unique symbol` | 最高 | ゼロ | ★★☆ | やや複雑 | ライブラリ開発 |
-| テンプレートリテラル | 中 | 検証必要 | ★★★ | 明確 | ID にプレフィックスがある場合 |
+| Pattern | Type Safety | Runtime Cost | Implementation Simplicity | Error Messages | Recommended Use |
+|---------|-------------|--------------|---------------------------|----------------|-----------------|
+| `__brand` field | High | Zero | ★★★ | Clear | General use |
+| `unique symbol` | Highest | Zero | ★★☆ | Slightly complex | Library development |
+| Template literal | Medium | Validation required | ★★★ | Clear | When IDs have prefixes |
 
-### 2-5. ハイブリッドパターン（推奨）
+### 2-5. Hybrid Pattern (Recommended)
 
-実務では、`__brand` と `unique symbol` を組み合わせることもあります。
+In practice, combining `__brand` and `unique symbol` is also common.
 
 ```typescript
-// ジェネリック Brand 型
+// Generic Brand type
 type Brand<T, BrandName extends string> = T & { readonly __brand: BrandName };
 
-// 特定のブランドに unique symbol を使う
+// Use unique symbol for specific brands
 declare const EmailBrand: unique symbol;
 type Email = string & { readonly [EmailBrand]: typeof EmailBrand };
 
-// 一般的な ID は __brand パターン
+// Use __brand pattern for general IDs
 type UserId = Brand<string, "UserId">;
 type OrderId = Brand<string, "OrderId">;
 
-// Email だけ特別に厳密にしたい場合
+// When you want Email to be especially strict
 function email(value: string): Email {
   if (!value.includes("@")) {
     throw new Error("Invalid email");
@@ -441,18 +441,18 @@ function email(value: string): Email {
 
 ---
 
-## 3. ファクトリ関数とバリデーション
+## 3. Factory Functions and Validation
 
-ブランド型の真価は、**スマートコンストラクタ（Smart Constructor）** と組み合わせることで発揮されます。
+The true value of branded types is realized when combined with **Smart Constructors**.
 
-### 3-1. スマートコンストラクタとは
+### 3-1. What Are Smart Constructors?
 
-スマートコンストラクタは、バリデーションを行い、成功した場合のみブランド型を返す関数です。
+Smart constructors are functions that perform validation and return a branded type only upon success.
 
 ```ascii
-スマートコンストラクタのフロー:
+Smart Constructor Flow:
 
-  string (未検証)
+  string (unvalidated)
      |
      v
   +------------------+
@@ -461,17 +461,17 @@ function email(value: string): Email {
      |           |
      v           v
   Ok(Email)   Err("invalid")
-  (検証済み)   (拒否)
+  (validated)   (rejected)
      |
      v
   sendEmail(email: Email)
-  → 型が保証するので再検証不要
+  → No re-validation needed, type guarantees it
 ```
 
-### 3-2. Result 型との組み合わせ
+### 3-2. Combining with Result Type
 
 ```typescript
-// Result 型の定義
+// Result type definition
 type Result<T, E> =
   | { ok: true; value: T }
   | { ok: false; error: E };
@@ -493,12 +493,12 @@ function isErr<T, E>(result: Result<T, E>): result is { ok: false; error: E } {
 }
 ```
 
-### 3-3. バリデーション付きブランド型の実装
+### 3-3. Implementing Branded Types with Validation
 
 ```typescript
 type Brand<T, BrandName extends string> = T & { readonly __brand: BrandName };
 
-// ブランド型の定義
+// Branded type definitions
 type Email = Brand<string, "Email">;
 type NonEmptyString = Brand<string, "NonEmptyString">;
 type PositiveNumber = Brand<number, "PositiveNumber">;
@@ -506,7 +506,7 @@ type Percentage = Brand<number, "Percentage">; // 0-100
 type UUID = Brand<string, "UUID">;
 type URL = Brand<string, "URL">;
 
-// スマートコンストラクタ
+// Smart constructors
 function email(value: string): Result<Email, string> {
   const trimmed = value.trim();
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -564,7 +564,7 @@ function uuid(value: string): Result<UUID, string> {
 
 function url(value: string): Result<URL, string> {
   try {
-    new globalThis.URL(value); // URL コンストラクタで検証
+    new globalThis.URL(value); // Validate with URL constructor
     return Ok(value as URL);
   } catch {
     return Err(`Invalid URL: ${value}`);
@@ -572,7 +572,7 @@ function url(value: string): Result<URL, string> {
 }
 ```
 
-### 3-4. 使用例: ユーザー登録フォーム
+### 3-4. Usage Example: User Registration Form
 
 ```typescript
 interface UserRegistration {
@@ -604,7 +604,7 @@ function registerUser(
     return Err(errors);
   }
 
-  // ここに到達した時点で、全ての値が検証済み
+  // At this point, all values have been validated
   return Ok({
     email: emailResult.value,
     name: nameResult.value,
@@ -613,7 +613,7 @@ function registerUser(
   });
 }
 
-// 使用例
+// Usage example
 const result = registerUser(
   "alice@example.com",
   "Alice",
@@ -623,22 +623,22 @@ const result = registerUser(
 
 if (isOk(result)) {
   console.log("User registered:", result.value);
-  // result.value.email は Email 型（再検証不要）
+  // result.value.email is of type Email (no re-validation needed)
   sendWelcomeEmail(result.value.email);
 } else {
   console.error("Validation errors:", result.error);
 }
 
 function sendWelcomeEmail(to: Email): void {
-  // to は Email 型なので、有効なメールアドレスであることが保証されている
+  // to is of type Email, so a valid email address is guaranteed
   console.log(`Sending email to ${to}`);
 }
 ```
 
-### 3-5. 複数の検証ルールを持つブランド型
+### 3-5. Branded Types with Multiple Validation Rules
 
 ```typescript
-// 複雑なバリデーション: パスワード
+// Complex validation: Password
 type Password = Brand<string, "Password">;
 
 function password(value: string): Result<Password, string[]> {
@@ -671,7 +671,7 @@ function password(value: string): Result<Password, string[]> {
   return Ok(value as Password);
 }
 
-// 使用例
+// Usage example
 const pw1 = password("weak");
 console.log(pw1);
 // { ok: false, error: [ "Password must be at least 8 characters", ... ] }
@@ -683,30 +683,30 @@ console.log(pw2);
 
 ---
 
-## 4. 実践: ドメイン固有型
+## 4. In Practice: Domain-Specific Types
 
-実際のアプリケーションでブランド型を活用する例を見ていきます。
+Let's look at examples of leveraging branded types in real applications.
 
-### 4-1. E コマースシステムの型設計
+### 4-1. Type Design for an E-Commerce System
 
 ```typescript
-// ID 系のブランド型
+// ID-related branded types
 type UserId = Brand<string, "UserId">;
 type OrderId = Brand<string, "OrderId">;
 type ProductId = Brand<string, "ProductId">;
 type CartId = Brand<string, "CartId">;
 type PaymentId = Brand<string, "PaymentId">;
 
-// 金額系のブランド型
+// Currency-related branded types
 type JPY = Brand<number, "JPY">;
 type USD = Brand<number, "USD">;
 type Points = Brand<number, "Points">;
 
-// 数量系のブランド型
+// Quantity-related branded types
 type Quantity = Brand<number, "Quantity">;
 type Stock = Brand<number, "Stock">;
 
-// ドメインモデル
+// Domain models
 interface User {
   id: UserId;
   email: Email;
@@ -737,20 +737,20 @@ interface Order {
 }
 ```
 
-### 4-2. ビジネスロジックの実装
+### 4-2. Implementing Business Logic
 
 ```typescript
-// 在庫チェック
+// Stock check
 function hasEnoughStock(stock: Stock, quantity: Quantity): boolean {
   return (stock as number) >= (quantity as number);
 }
 
-// 小計計算
+// Subtotal calculation
 function calculateSubtotal(price: JPY, quantity: Quantity): JPY {
   return ((price as number) * (quantity as number)) as JPY;
 }
 
-// 合計計算
+// Total calculation
 function calculateTotal(items: OrderItem[]): JPY {
   const total = items.reduce((sum, item) => {
     return sum + calculateSubtotal(item.priceJPY, item.quantity);
@@ -758,7 +758,7 @@ function calculateTotal(items: OrderItem[]): JPY {
   return total as JPY;
 }
 
-// 注文作成
+// Create order
 function createOrder(
   orderId: OrderId,
   userId: UserId,
@@ -781,10 +781,10 @@ function createOrder(
 }
 ```
 
-### 4-3. リポジトリパターンとの統合
+### 4-3. Integration with the Repository Pattern
 
 ```typescript
-// リポジトリインターフェース
+// Repository interfaces
 interface UserRepository {
   findById(id: UserId): Promise<User | null>;
   save(user: User): Promise<void>;
@@ -801,7 +801,7 @@ interface OrderRepository {
   save(order: Order): Promise<void>;
 }
 
-// 実装例（メモリストレージ）
+// Implementation example (in-memory storage)
 class InMemoryUserRepository implements UserRepository {
   private users = new Map<UserId, User>();
 
@@ -814,7 +814,7 @@ class InMemoryUserRepository implements UserRepository {
   }
 }
 
-// ブランド型により、間違った ID を渡すとコンパイルエラー
+// Branded types cause a compile error when passing the wrong ID
 const userRepo = new InMemoryUserRepository();
 const productRepo = new InMemoryProductRepository();
 
@@ -822,14 +822,14 @@ const uid: UserId = "user-1" as UserId;
 const pid: ProductId = "product-1" as ProductId;
 
 await userRepo.findById(uid); // ✓ OK
-// await userRepo.findById(pid); // ✗ エラー! ProductId を UserId に渡せない
+// await userRepo.findById(pid); // ✗ Error! Cannot pass ProductId as UserId
 ```
 
-### 4-4. 図解: E コマースシステムのブランド型設計
+### 4-4. Diagram: Branded Type Design for E-Commerce System
 
 ```mermaid
 graph TD
-    subgraph "ID ブランド型"
+    subgraph "ID Branded Types"
         UserId
         OrderId
         ProductId
@@ -837,13 +837,13 @@ graph TD
         PaymentId
     end
 
-    subgraph "金額ブランド型"
+    subgraph "Currency Branded Types"
         JPY
         USD
         Points
     end
 
-    subgraph "数量ブランド型"
+    subgraph "Quantity Branded Types"
         Quantity
         Stock
     end
@@ -862,10 +862,10 @@ graph TD
     OrderItem -->|refers to| ProductId
 ```
 
-### 4-5. ユースケース層での活用
+### 4-5. Use in the Use Case Layer
 
 ```typescript
-// ユースケース: 商品をカートに追加
+// Use case: Add product to cart
 async function addToCart(
   userId: UserId,
   productId: ProductId,
@@ -873,29 +873,29 @@ async function addToCart(
   userRepo: UserRepository,
   productRepo: ProductRepository
 ): Promise<Result<void, string>> {
-  // ユーザーの取得
+  // Fetch user
   const user = await userRepo.findById(userId);
   if (!user) {
     return Err(`User not found: ${userId}`);
   }
 
-  // 商品の取得
+  // Fetch product
   const product = await productRepo.findById(productId);
   if (!product) {
     return Err(`Product not found: ${productId}`);
   }
 
-  // 在庫チェック
+  // Check stock
   if (!hasEnoughStock(product.stock, quantity)) {
     return Err(`Insufficient stock for product: ${productId}`);
   }
 
-  // カートに追加（省略）
+  // Add to cart (omitted)
 
   return Ok(undefined);
 }
 
-// 呼び出し側
+// Caller side
 const uid = "user-123" as UserId;
 const pid = "product-456" as ProductId;
 const qty = 2 as Quantity;
@@ -909,19 +909,19 @@ if (isErr(result)) {
 
 ---
 
-## 5. Zod によるランタイムバリデーション統合
+## 5. Runtime Validation Integration with Zod
 
-Zod は TypeScript 向けのスキーマバリデーションライブラリで、ブランド型のネイティブサポートがあります。
+Zod is a schema validation library for TypeScript that has native support for branded types.
 
-### 5-1. Zod の `.brand()` メソッド
+### 5-1. Zod's `.brand()` Method
 
 ```typescript
 import { z } from "zod";
 
-// Zod スキーマでブランド型を生成
+// Generate branded types with Zod schemas
 const UserIdSchema = z.string().uuid().brand<"UserId">();
 type UserId = z.infer<typeof UserIdSchema>;
-// 型: string & { __brand: "UserId" }
+// Type: string & { __brand: "UserId" }
 
 const EmailSchema = z.string().email().brand<"Email">();
 type Email = z.infer<typeof EmailSchema>;
@@ -933,17 +933,17 @@ const PercentageSchema = z.number().min(0).max(100).brand<"Percentage">();
 type Percentage = z.infer<typeof PercentageSchema>;
 ```
 
-### 5-2. パースとバリデーション
+### 5-2. Parsing and Validation
 
 ```typescript
-// パース成功時にブランドが付与される
+// Brand is applied when parsing succeeds
 const userId = UserIdSchema.parse("550e8400-e29b-41d4-a716-446655440000");
 // userId: UserId
 
 const email = EmailSchema.parse("alice@example.com");
 // email: Email
 
-// パース失敗時は例外
+// Exception thrown on parse failure
 try {
   const invalid = EmailSchema.parse("not-an-email");
 } catch (error) {
@@ -953,19 +953,19 @@ try {
   }
 }
 
-// safeParse で例外なしバリデーション
+// Validation without exceptions using safeParse
 const result = EmailSchema.safeParse("test@example.com");
 if (result.success) {
-  console.log(result.data); // Email 型
+  console.log(result.data); // Email type
 } else {
   console.error(result.error.errors);
 }
 ```
 
-### 5-3. 複雑なスキーマの定義
+### 5-3. Defining Complex Schemas
 
 ```typescript
-// ユーザー登録スキーマ
+// User registration schema
 const UserRegistrationSchema = z.object({
   email: EmailSchema,
   password: z.string()
@@ -991,7 +991,7 @@ type UserRegistration = z.infer<typeof UserRegistrationSchema>;
 //   age: Age
 // }
 
-// 使用例
+// Usage example
 const input = {
   email: "alice@example.com",
   password: "StrongPass123",
@@ -1008,10 +1008,10 @@ if (result.success) {
 }
 ```
 
-### 5-4. カスタムバリデーション
+### 5-4. Custom Validation
 
 ```typescript
-// カスタム検証ロジック付きブランド型
+// Branded type with custom validation logic
 const SlugSchema = z.string()
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Invalid slug format")
   .brand<"Slug">();
@@ -1024,46 +1024,46 @@ const PhoneNumberSchema = z.string()
 
 type PhoneNumber = z.infer<typeof PhoneNumberSchema>;
 
-// 使用例
+// Usage example
 const slug = SlugSchema.parse("my-blog-post"); // ✓ OK
 const phone = PhoneNumberSchema.parse("+819012345678"); // ✓ OK
 
-// SlugSchema.parse("My Blog Post"); // ✗ エラー（大文字とスペース）
+// SlugSchema.parse("My Blog Post"); // ✗ Error (uppercase and space)
 ```
 
-### 5-5. Zod ブランド型と手動ブランド型の相互運用
+### 5-5. Interoperability Between Zod Branded Types and Manual Branded Types
 
 ```typescript
-// 手動定義のブランド型
+// Manually defined branded type
 type Brand<T, B extends string> = T & { readonly __brand: B };
 type ManualUserId = Brand<string, "UserId">;
 
-// Zod 定義のブランド型
+// Zod defined branded type
 const ZodUserIdSchema = z.string().uuid().brand<"UserId">();
 type ZodUserId = z.infer<typeof ZodUserIdSchema>;
 
-// 互換性チェック
+// Compatibility check
 const manualId: ManualUserId = "uuid-here" as ManualUserId;
 const zodId: ZodUserId = ZodUserIdSchema.parse("550e8400-e29b-41d4-a716-446655440000");
 
-// 互換性がある（同じブランド名）
+// Compatible (same brand name)
 const compatible: ManualUserId = zodId; // ✓ OK
 const alsoCompatible: ZodUserId = manualId; // ✓ OK
 
-// ただし、Zod のパースを経由しないとランタイム検証がない
+// However, without Zod parsing there is no runtime validation
 function processUser(id: ManualUserId): void {
-  // id が本当に有効な UUID かは保証されない
+  // No guarantee that id is actually a valid UUID
 }
 
 function processUserSafe(id: ZodUserId): void {
-  // id は Zod の検証を通っているので UUID が保証されている
+  // id has passed Zod validation, so UUID is guaranteed
 }
 ```
 
-### 5-6. Zod トランスフォームとブランド型
+### 5-6. Zod Transforms and Branded Types
 
 ```typescript
-// 入力を正規化してからブランドを付与
+// Normalize input before applying the brand
 const NormalizedEmailSchema = z.string()
   .transform(val => val.toLowerCase().trim())
   .pipe(z.string().email().brand<"Email">());
@@ -1071,9 +1071,9 @@ const NormalizedEmailSchema = z.string()
 type NormalizedEmail = z.infer<typeof NormalizedEmailSchema>;
 
 const email1 = NormalizedEmailSchema.parse("  Alice@EXAMPLE.com  ");
-console.log(email1); // "alice@example.com" (NormalizedEmail 型)
+console.log(email1); // "alice@example.com" (NormalizedEmail type)
 
-// 日付文字列を Date オブジェクトに変換してブランド付与
+// Convert date string to Date object and apply brand
 const TimestampSchema = z.string()
   .datetime()
   .transform(val => new Date(val))
@@ -1085,35 +1085,35 @@ type Timestamp = z.infer<typeof TimestampSchema>;
 
 ---
 
-## 6. 単位型と型安全な算術演算
+## 6. Unit Types and Type-Safe Arithmetic
 
-物理量や通貨などの単位を型で表現することで、単位の混同を防ぎます。
+Representing physical quantities and currencies as types prevents unit confusion.
 
-### 6-1. 物理量のブランド型
+### 6-1. Branded Types for Physical Quantities
 
 ```typescript
-// 長さの単位
+// Length units
 type Meters = Brand<number, "Meters">;
 type Kilometers = Brand<number, "Kilometers">;
 type Miles = Brand<number, "Miles">;
 type Feet = Brand<number, "Feet">;
 
-// 時間の単位
+// Time units
 type Seconds = Brand<number, "Seconds">;
 type Minutes = Brand<number, "Minutes">;
 type Hours = Brand<number, "Hours">;
 
-// 速度の単位
+// Speed units
 type MetersPerSecond = Brand<number, "MetersPerSecond">;
 type KilometersPerHour = Brand<number, "KilometersPerHour">;
 type MilesPerHour = Brand<number, "MilesPerHour">;
 
-// 質量の単位
+// Mass units
 type Kilograms = Brand<number, "Kilograms">;
 type Grams = Brand<number, "Grams">;
 type Pounds = Brand<number, "Pounds">;
 
-// コンストラクタ
+// Constructors
 const meters = (v: number): Meters => v as Meters;
 const kilometers = (v: number): Kilometers => v as Kilometers;
 const miles = (v: number): Miles => v as Miles;
@@ -1121,10 +1121,10 @@ const seconds = (v: number): Seconds => v as Seconds;
 const kilograms = (v: number): Kilograms => v as Kilograms;
 ```
 
-### 6-2. 単位変換関数
+### 6-2. Unit Conversion Functions
 
 ```typescript
-// 長さの変換
+// Length conversions
 function kmToMeters(km: Kilometers): Meters {
   return ((km as number) * 1000) as Meters;
 }
@@ -1141,7 +1141,7 @@ function feetToMeters(ft: Feet): Meters {
   return ((ft as number) * 0.3048) as Meters;
 }
 
-// 時間の変換
+// Time conversions
 function minutesToSeconds(min: Minutes): Seconds {
   return ((min as number) * 60) as Seconds;
 }
@@ -1150,7 +1150,7 @@ function hoursToSeconds(hr: Hours): Seconds {
   return ((hr as number) * 3600) as Seconds;
 }
 
-// 質量の変換
+// Mass conversions
 function gramsToKilograms(g: Grams): Kilograms {
   return ((g as number) / 1000) as Kilograms;
 }
@@ -1160,20 +1160,20 @@ function poundsToKilograms(lb: Pounds): Kilograms {
 }
 ```
 
-### 6-3. 型安全な演算
+### 6-3. Type-Safe Calculations
 
 ```typescript
-// 速度 = 距離 / 時間
+// Speed = Distance / Time
 function calculateSpeed(distance: Meters, time: Seconds): MetersPerSecond {
   return ((distance as number) / (time as number)) as MetersPerSecond;
 }
 
-// 距離 = 速度 × 時間
+// Distance = Speed × Time
 function calculateDistance(speed: MetersPerSecond, time: Seconds): Meters {
   return ((speed as number) * (time as number)) as Meters;
 }
 
-// 運動エネルギー = 0.5 × 質量 × 速度^2
+// Kinetic Energy = 0.5 × mass × speed^2
 type Joules = Brand<number, "Joules">;
 
 function kineticEnergy(mass: Kilograms, speed: MetersPerSecond): Joules {
@@ -1182,7 +1182,7 @@ function kineticEnergy(mass: Kilograms, speed: MetersPerSecond): Joules {
   return (0.5 * m * v * v) as Joules;
 }
 
-// 使用例
+// Usage example
 const distance = meters(100);
 const time = seconds(10);
 const speed = calculateSpeed(distance, time);
@@ -1192,15 +1192,15 @@ const mass = kilograms(50);
 const energy = kineticEnergy(mass, speed);
 console.log(`Energy: ${energy} J`); // Energy: 2500 J
 
-// コンパイルエラー例
+// Compile error example
 const km = kilometers(5);
-// calculateSpeed(km, time); // ✗ エラー! Kilometers は Meters ではない
+// calculateSpeed(km, time); // ✗ Error! Kilometers is not Meters
 
-// 正しい使い方: 変換してから渡す
+// Correct usage: convert before passing
 const speedFromKm = calculateSpeed(kmToMeters(km), time);
 ```
 
-### 6-4. 通貨のブランド型と演算
+### 6-4. Currency Branded Types and Operations
 
 ```typescript
 type JPY = Brand<number, "JPY">;
@@ -1208,17 +1208,17 @@ type USD = Brand<number, "USD">;
 type EUR = Brand<number, "EUR">;
 type Points = Brand<number, "Points">;
 
-// 同一通貨同士の加算
+// Adding same-currency amounts
 function addMoney<T extends Brand<number, string>>(a: T, b: T): T {
   return ((a as number) + (b as number)) as T;
 }
 
-// 同一通貨同士の減算
+// Subtracting same-currency amounts
 function subtractMoney<T extends Brand<number, string>>(a: T, b: T): T {
   return ((a as number) - (b as number)) as T;
 }
 
-// スカラー倍
+// Scalar multiplication
 function multiplyMoney<T extends Brand<number, string>>(
   amount: T,
   factor: number
@@ -1226,7 +1226,7 @@ function multiplyMoney<T extends Brand<number, string>>(
   return ((amount as number) * factor) as T;
 }
 
-// 割り算（割合を求める）
+// Division (getting a ratio)
 function divideMoney<T extends Brand<number, string>>(
   dividend: T,
   divisor: T
@@ -1234,7 +1234,7 @@ function divideMoney<T extends Brand<number, string>>(
   return (dividend as number) / (divisor as number);
 }
 
-// 為替レート型
+// Exchange rate type
 type ExchangeRate<From extends string, To extends string> = Brand<
   number,
   `ExchangeRate_${From}_${To}`
@@ -1243,7 +1243,7 @@ type ExchangeRate<From extends string, To extends string> = Brand<
 type USD_to_JPY = ExchangeRate<"USD", "JPY">;
 type JPY_to_USD = ExchangeRate<"JPY", "USD">;
 
-// 通貨変換
+// Currency conversion
 function convertCurrency(
   amount: USD,
   rate: USD_to_JPY
@@ -1251,19 +1251,19 @@ function convertCurrency(
   return ((amount as number) * (rate as number)) as JPY;
 }
 
-// 使用例
+// Usage example
 const priceJPY1 = 1000 as JPY;
 const priceJPY2 = 2000 as JPY;
 const totalJPY = addMoney(priceJPY1, priceJPY2); // 3000 JPY
 
 const priceUSD = 10 as USD;
-// addMoney(priceJPY1, priceUSD); // ✗ エラー! JPY と USD は加算不可
+// addMoney(priceJPY1, priceUSD); // ✗ Error! Cannot add JPY and USD
 
-// 為替変換
+// Currency conversion
 const rate: USD_to_JPY = 150 as USD_to_JPY; // 1 USD = 150 JPY
 const converted = convertCurrency(priceUSD, rate); // 1500 JPY
 
-// 消費税計算
+// Consumption tax calculation
 function addTax(priceJPY: JPY, taxRate: Percentage): JPY {
   return multiplyMoney(priceJPY, 1 + (taxRate as number) / 100);
 }
@@ -1272,36 +1272,36 @@ const taxRate = 10 as Percentage; // 10%
 const priceWithTax = addTax(priceJPY1, taxRate); // 1100 JPY
 ```
 
-### 6-5. 図解: 単位型の演算規則
+### 6-5. Diagram: Arithmetic Rules for Unit Types
 
 ```mermaid
 graph LR
-    subgraph "同一単位の演算"
+    subgraph "Same-Unit Operations"
         A[Meters] -->|+| B[Meters]
         B --> C[Meters]
         D[JPY] -->|+| E[JPY]
         E --> F[JPY]
     end
 
-    subgraph "異なる単位の演算"
+    subgraph "Different-Unit Operations"
         G[Meters] -->|/| H[Seconds]
         H --> I[MetersPerSecond]
         J[USD] -->|×| K[ExchangeRate]
         K --> L[JPY]
     end
 
-    subgraph "禁止される演算"
+    subgraph "Forbidden Operations"
         M[Meters] -.x.-> N[Seconds]
         O[JPY] -.x.-> P[USD]
     end
 ```
 
-### 6-6. 複雑な物理計算の例
+### 6-6. Example of Complex Physical Calculations
 
 ```typescript
-// ニュートンの第二法則: F = ma
-type Newtons = Brand<number, "Newtons">; // 力の単位
-type MetersPerSecondSquared = Brand<number, "MetersPerSecondSquared">; // 加速度
+// Newton's Second Law: F = ma
+type Newtons = Brand<number, "Newtons">; // Unit of force
+type MetersPerSecondSquared = Brand<number, "MetersPerSecondSquared">; // Acceleration
 
 function calculateForce(
   mass: Kilograms,
@@ -1310,20 +1310,20 @@ function calculateForce(
   return ((mass as number) * (acceleration as number)) as Newtons;
 }
 
-// 重力加速度
+// Gravitational acceleration
 const g: MetersPerSecondSquared = 9.8 as MetersPerSecondSquared;
 
-// 物体の重量
+// Weight of an object
 function weight(mass: Kilograms): Newtons {
   return calculateForce(mass, g);
 }
 
-// 使用例
+// Usage example
 const objectMass = kilograms(10);
 const objectWeight = weight(objectMass);
 console.log(`Weight: ${objectWeight} N`); // Weight: 98 N
 
-// 仕事 = 力 × 距離
+// Work = Force × Distance
 function calculateWork(force: Newtons, distance: Meters): Joules {
   return ((force as number) * (distance as number)) as Joules;
 }
@@ -1336,11 +1336,11 @@ console.log(`Work: ${workDone} J`); // Work: 1000 J
 
 ---
 
-## 7. シリアライズとデシリアライズ
+## 7. Serialization and Deserialization
 
-ブランド型は型レベルの概念なので、JSON シリアライゼーションとの統合に注意が必要です。
+Since branded types are a type-level concept, care is needed when integrating with JSON serialization.
 
-### 7-1. JSON シリアライゼーション
+### 7-1. JSON Serialization
 
 ```typescript
 type UserId = Brand<string, "UserId">;
@@ -1358,18 +1358,18 @@ const user: User = {
   name: "Alice",
 };
 
-// JSON.stringify は通常通り動作
+// JSON.stringify works as normal
 const json = JSON.stringify(user);
 console.log(json);
 // {"id":"user-123","email":"alice@example.com","name":"Alice"}
 
-// ブランド情報は失われる（ランタイムには存在しないため）
+// Brand information is lost (because it doesn't exist at runtime)
 ```
 
-### 7-2. デシリアライゼーションとブランドの再付与
+### 7-2. Deserialization and Re-applying Brands
 
 ```typescript
-// パース後にバリデーション + ブランド付与が必要
+// After parsing, validation + brand application is needed
 function parseUser(json: string): Result<User, string> {
   let data: unknown;
 
@@ -1379,7 +1379,7 @@ function parseUser(json: string): Result<User, string> {
     return Err("Invalid JSON");
   }
 
-  // 構造チェック
+  // Structure check
   if (
     typeof data !== "object" ||
     data === null ||
@@ -1392,7 +1392,7 @@ function parseUser(json: string): Result<User, string> {
 
   const obj = data as { id: unknown; email: unknown; name: unknown };
 
-  // 各フィールドのバリデーション
+  // Validate each field
   if (typeof obj.id !== "string") {
     return Err("Invalid id type");
   }
@@ -1407,30 +1407,30 @@ function parseUser(json: string): Result<User, string> {
   }
 
   return Ok({
-    id: obj.id as UserId, // 検証済みなのでブランド付与
+    id: obj.id as UserId, // Validated, so brand can be applied
     email: emailResult.value,
     name: obj.name,
   });
 }
 
-// 使用例
+// Usage example
 const jsonString = '{"id":"user-456","email":"bob@example.com","name":"Bob"}';
 const userResult = parseUser(jsonString);
 
 if (isOk(userResult)) {
   console.log("Parsed user:", userResult.value);
-  // userResult.value.id は UserId 型
+  // userResult.value.id is of type UserId
 } else {
   console.error("Parse error:", userResult.error);
 }
 ```
 
-### 7-3. Zod を使った安全なデシリアライゼーション
+### 7-3. Safe Deserialization with Zod
 
 ```typescript
 import { z } from "zod";
 
-// ユーザースキーマ
+// User schema
 const UserSchema = z.object({
   id: z.string().brand<"UserId">(),
   email: z.string().email().brand<"Email">(),
@@ -1439,7 +1439,7 @@ const UserSchema = z.object({
 
 type User = z.infer<typeof UserSchema>;
 
-// JSON からのパース
+// Parsing from JSON
 function parseUserWithZod(json: string): Result<User, z.ZodError> {
   try {
     const data = JSON.parse(json);
@@ -1459,22 +1459,22 @@ function parseUserWithZod(json: string): Result<User, z.ZodError> {
   }
 }
 
-// 使用例
+// Usage example
 const jsonString = '{"id":"user-789","email":"charlie@example.com","name":"Charlie"}';
 const result = parseUserWithZod(jsonString);
 
 if (isOk(result)) {
   const user: User = result.data;
-  console.log(user.id); // UserId 型
+  console.log(user.id); // UserId type
 } else {
   console.error(result.error.flatten());
 }
 ```
 
-### 7-4. API レスポンスのデコーディングパターン
+### 7-4. API Response Decoding Pattern
 
 ```typescript
-// API レスポンスの型定義
+// API response type definition
 const OrderResponseSchema = z.object({
   id: z.string().uuid().brand<"OrderId">(),
   userId: z.string().uuid().brand<"UserId">(),
@@ -1490,7 +1490,7 @@ const OrderResponseSchema = z.object({
 
 type OrderResponse = z.infer<typeof OrderResponseSchema>;
 
-// API 呼び出し
+// API call
 async function fetchOrder(orderId: OrderId): Promise<Result<OrderResponse, string>> {
   try {
     const response = await fetch(`/api/orders/${orderId}`);
@@ -1512,23 +1512,23 @@ async function fetchOrder(orderId: OrderId): Promise<Result<OrderResponse, strin
   }
 }
 
-// 使用例
+// Usage example
 const orderId = "550e8400-e29b-41d4-a716-446655440000" as OrderId;
 const orderResult = await fetchOrder(orderId);
 
 if (isOk(orderResult)) {
   const order = orderResult.value;
   console.log(`Order total: ¥${order.totalJPY}`);
-  // order.totalJPY は JPY 型（ブランド付き）
+  // order.totalJPY is of type JPY (branded)
 }
 ```
 
-### 7-5. カスタム toJSON メソッド（必要に応じて）
+### 7-5. Custom toJSON Method (When Needed)
 
-通常、ブランド型は `toJSON` を必要としませんが、複雑なケースでは有用です。
+Branded types usually don't need `toJSON`, but it can be useful in complex cases.
 
 ```typescript
-// ブランド型をラップするクラス（高度な使い方）
+// Class wrapping a branded type (advanced usage)
 class BrandedValue<T, B extends string> {
   private readonly _brand!: B;
 
@@ -1549,7 +1549,7 @@ class BrandedValue<T, B extends string> {
   }
 }
 
-// 使用例
+// Usage example
 const emailValue = BrandedValue.from<string, "Email">(
   "test@example.com",
   (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
@@ -1563,12 +1563,12 @@ if (isOk(emailValue)) {
 
 ---
 
-## 8. 他のアプローチとの比較
+## 8. Comparison with Other Approaches
 
-### 8-1. ブランド型 vs class ラッパー
+### 8-1. Branded Types vs. Class Wrappers
 
 ```typescript
-// ブランド型アプローチ
+// Branded type approach
 type EmailBranded = Brand<string, "Email">;
 
 function emailBranded(value: string): Result<EmailBranded, string> {
@@ -1578,7 +1578,7 @@ function emailBranded(value: string): Result<EmailBranded, string> {
   return Ok(value as EmailBranded);
 }
 
-// class ラッパーアプローチ
+// Class wrapper approach
 class EmailClass {
   private constructor(private readonly value: string) {}
 
@@ -1598,39 +1598,39 @@ class EmailClass {
   }
 }
 
-// 比較
+// Comparison
 const branded = emailBranded("test@example.com");
 const classed = EmailClass.create("test@example.com");
 
-// ブランド型: string のメソッドをそのまま使える
+// Branded type: can use string methods directly
 if (isOk(branded)) {
   console.log(branded.value.toUpperCase()); // OK
   console.log(branded.value.length); // OK
 }
 
-// class ラッパー: メソッドを明示的に呼ぶ必要
+// Class wrapper: methods must be called explicitly
 if (isOk(classed)) {
-  // console.log(classed.value.toUpperCase()); // エラー（private）
+  // console.log(classed.value.toUpperCase()); // Error (private)
   console.log(classed.value.toString().toUpperCase()); // OK
 }
 ```
 
-#### 比較表
+#### Comparison Table
 
-| 項目 | ブランド型 | class ラッパー |
-|------|-----------|---------------|
-| ランタイムコスト | ゼロ | インスタンス生成 |
-| 型安全性 | 高 | 最高（instanceof 可能） |
-| 元の型のメソッド | そのまま使える | ラップが必要 |
-| JSON シリアライズ | そのまま | `toJSON` 必要 |
-| パターンマッチ | 不可 | `instanceof` 可能 |
-| コード量 | 少 | 多（メソッド定義が必要） |
-| 推奨ケース | 一般的な用途 | 複雑なビジネスロジック |
+| Item | Branded Type | Class Wrapper |
+|------|-------------|---------------|
+| Runtime cost | Zero | Instance creation |
+| Type safety | High | Highest (instanceof available) |
+| Original type methods | Usable directly | Wrapping required |
+| JSON serialization | Direct | `toJSON` required |
+| Pattern matching | Not available | `instanceof` available |
+| Code size | Small | Large (method definitions needed) |
+| Recommended for | General use | Complex business logic |
 
-### 8-2. ブランド型 vs enum
+### 8-2. Branded Types vs. Enums
 
 ```typescript
-// enum アプローチ
+// Enum approach
 enum UserRole {
   Admin = "admin",
   User = "user",
@@ -1651,7 +1651,7 @@ function processRole(role: UserRole): void {
   }
 }
 
-// ブランド型アプローチ（Union 型と組み合わせ）
+// Branded type approach (combined with Union type)
 type UserRole = "admin" | "user" | "guest";
 type ValidatedRole = Brand<UserRole, "ValidatedRole">;
 
@@ -1662,36 +1662,36 @@ function validatedRole(role: string): Result<ValidatedRole, string> {
   return Ok(role as ValidatedRole);
 }
 
-// enum の方が適している場合
-// - 値が固定されている
-// - switch 文で網羅性チェックが欲しい
-// - リバースマッピングが必要
+// When enum is more appropriate:
+// - Values are fixed
+// - Want exhaustiveness checking with switch
+// - Reverse mapping needed
 
-// ブランド型の方が適している場合
-// - 動的な値（ID、メールアドレス、URL など）
-// - バリデーションが複雑
-// - 外部データとの統合
+// When branded type is more appropriate:
+// - Dynamic values (IDs, email addresses, URLs, etc.)
+// - Complex validation
+// - Integration with external data
 ```
 
-### 8-3. Opaque 型との比較（Flow, Rust）
+### 8-3. Comparison with Opaque Types (Flow, Rust)
 
-#### Flow の opaque type
+#### Flow's opaque type
 
 ```javascript
-// Flow の opaque type
+// Flow's opaque type
 opaque type UserId = string;
 
 function userId(id: string): UserId {
-  return id; // キャスト不要
+  return id; // No cast needed
 }
 
-// 他のモジュールからは UserId の実装が見えない
+// The implementation of UserId is hidden from other modules
 ```
 
-#### Rust の newtype パターン
+#### Rust's newtype pattern
 
 ```rust
-// Rust の newtype
+// Rust's newtype
 struct UserId(String);
 
 impl UserId {
@@ -1700,78 +1700,78 @@ impl UserId {
     }
 }
 
-// 完全に別の型（構造的型付けではない）
+// Completely separate type (not structural typing)
 ```
 
-#### TypeScript のブランド型
+#### TypeScript's branded type
 
 ```typescript
-// TypeScript のブランド型（擬似 opaque）
+// TypeScript's branded type (pseudo-opaque)
 type UserId = Brand<string, "UserId">;
 
 function userId(id: string): UserId {
-  return id as UserId; // キャストが必要
+  return id as UserId; // Cast required
 }
 
-// 型レベルでのみ区別（ランタイムでは同じ）
+// Distinguished only at the type level (same at runtime)
 ```
 
-#### 比較表
+#### Comparison Table
 
-| 言語/機能 | 型付け | ランタイム区別 | キャスト | 型安全性 |
-|----------|--------|--------------|---------|---------|
-| Flow opaque | 公称 | なし | 不要 | 高 |
-| Rust newtype | 公称 | あり | 不要 | 最高 |
-| TypeScript ブランド | 構造的（擬似公称） | なし | 必要 | 高 |
-| Haskell newtype | 公称 | なし（最適化） | 不要 | 最高 |
+| Language/Feature | Typing | Runtime distinction | Cast | Type safety |
+|-----------------|--------|---------------------|------|-------------|
+| Flow opaque | Nominal | None | Not needed | High |
+| Rust newtype | Nominal | Yes | Not needed | Highest |
+| TypeScript branded | Structural (pseudo-nominal) | None | Required | High |
+| Haskell newtype | Nominal | None (optimized away) | Not needed | Highest |
 
-### 8-4. テンプレートリテラル型との比較
+### 8-4. Comparison with Template Literal Types
 
 ```typescript
-// テンプレートリテラル型
+// Template literal types
 type UserId = `user_${string}`;
 type OrderId = `order_${string}`;
 
 const uid: UserId = "user_123"; // OK
-// const bad: UserId = "123"; // エラー
+// const bad: UserId = "123"; // Error
 
-// ブランド型
+// Branded type
 type UserIdBranded = Brand<string, "UserId">;
 
-const uidBranded = "anything" as UserIdBranded; // OK（形式チェックなし）
+const uidBranded = "anything" as UserIdBranded; // OK (no format check)
 
-// テンプレートリテラル型のメリット
-// - リテラル値でも型チェックが効く
-// - パターンが明示的
+// Advantages of template literal types:
+// - Type checking works even with literal values
+// - Pattern is explicit
 
-// テンプレートリテラル型のデメリット
-// - フォーマットが固定される
-// - 既存データとの互換性がない場合がある
+// Disadvantages of template literal types:
+// - Format is fixed
+// - May be incompatible with existing data
 
-// ブランド型のメリット
-// - フォーマットに依存しない
-// - 柔軟なバリデーション
+// Advantages of branded types:
+// - Not dependent on format
+// - Flexible validation
 
-// ブランド型のデメリット
-// - リテラル値では型チェックが効かない
+// Disadvantages of branded types:
+// - Type checking doesn't work with literal values
 ```
 
 ---
 
-## 9. アンチパターンとエッジケース
+## 9. Anti-Patterns and Edge Cases
 
-### 9-1. アンチパターン 1: バリデーションなしでブランド付与
+### 9-1. Anti-Pattern 1: Applying a Brand Without Validation
 
 ```typescript
-// ❌ NG: バリデーションなしでブランド付与
+// ❌ NG: Applying brand without validation
 function unsafeEmail(input: string): Email {
-  return input as Email; // 不正な値もブランドが付く
+  return input as Email; // Invalid values also get the brand
 }
 
 const badEmail = unsafeEmail("not-an-email");
-sendEmail(badEmail); // 実行時エラーの可能性
+sendEmail(badEmail); // Possible runtime error
 
-// ✅ OK: スマートコンストラクタで検証
+// ✅ OK: Validate with smart constructor
 function safeEmail(input: string): Result<Email, string> {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input)) {
     return Err("Invalid email format");
@@ -1781,14 +1781,14 @@ function safeEmail(input: string): Result<Email, string> {
 
 const emailResult = safeEmail("test@example.com");
 if (isOk(emailResult)) {
-  sendEmail(emailResult.value); // 安全
+  sendEmail(emailResult.value); // Safe
 }
 ```
 
-### 9-2. アンチパターン 2: ブランド型を使いすぎる
+### 9-2. Anti-Pattern 2: Overusing Branded Types
 
 ```typescript
-// ❌ NG: 全てのプリミティブにブランドを付ける（過剰）
+// ❌ NG: Applying brands to all primitives (excessive)
 type FirstName = Brand<string, "FirstName">;
 type LastName = Brand<string, "LastName">;
 type MiddleName = Brand<string, "MiddleName">;
@@ -1799,7 +1799,7 @@ type ZipCode = Brand<string, "ZipCode">;
 type Country = Brand<string, "Country">;
 type PhoneNumber = Brand<string, "PhoneNumber">;
 type FaxNumber = Brand<string, "FaxNumber">;
-// ... 数十個のブランド型
+// ... dozens of branded types
 
 interface Address {
   street: Street;
@@ -1809,49 +1809,49 @@ interface Address {
   country: Country;
 }
 
-// ✅ OK: 取り違えが危険な場面のみブランド付与
+// ✅ OK: Only apply brands where mix-up is dangerous
 interface AddressBetter {
-  street: string; // 通常の string で十分
+  street: string; // Regular string is sufficient
   city: string;
   state: string;
-  zipCode: string; // または ZipCode（バリデーション必要な場合）
+  zipCode: string; // Or ZipCode (when validation is needed)
   country: string;
 }
 
-// ブランド型を使うべき場面:
-// - ID 系（UserId, OrderId, ProductId）: 取り違えが危険
-// - 単位系（Meters, Seconds, JPY）: 計算ミスが危険
-// - バリデーション済み値（Email, Url, NonEmpty）: 再検証を避けたい
+// When to use branded types:
+// - IDs (UserId, OrderId, ProductId): Mix-up is dangerous
+// - Units (Meters, Seconds, JPY): Calculation errors are dangerous
+// - Validated values (Email, Url, NonEmpty): Want to avoid re-validation
 ```
 
-#### ブランド型を使うべき判断基準
+#### Decision Criteria for Using Branded Types
 
 ```mermaid
 graph TD
-    A[この値にブランド型は必要か?] --> B{取り違えで深刻な<br/>バグが発生するか?}
-    B -->|Yes| C{バリデーションが<br/>複雑か?}
-    B -->|No| D[通常の型で十分]
-    C -->|Yes| E[ブランド型を使う]
-    C -->|No| F{型で単位を<br/>区別したいか?}
+    A[Is a branded type needed for this value?] --> B{Would a mix-up cause a serious bug?}
+    B -->|Yes| C{Is the validation complex?}
+    B -->|No| D[Regular type is sufficient]
+    C -->|Yes| E[Use branded type]
+    C -->|No| F{Do you want to distinguish units with types?}
     F -->|Yes| E
     F -->|No| D
 ```
 
-### 9-3. アンチパターン 3: ブランドの二重適用
+### 9-3. Anti-Pattern 3: Double Brand Application
 
 ```typescript
-// ❌ NG: ブランドを二重に適用
+// ❌ NG: Applying brand twice
 type Email = Brand<string, "Email">;
-type VerifiedEmail = Brand<Email, "Verified">; // Email はすでにブランド型
+type VerifiedEmail = Brand<Email, "Verified">; // Email is already a branded type
 
-// これは動作するが、複雑になりすぎる
+// This works but becomes overly complex
 // Brand<Brand<string, "Email">, "Verified">
 
-// ✅ OK: 別々のブランド型として定義
+// ✅ OK: Define as separate branded types
 type Email = Brand<string, "Email">;
 type VerifiedEmail = Brand<string, "VerifiedEmail">;
 
-// または、状態を型パラメータで表現
+// Or express state via type parameter
 type Email<State extends "unverified" | "verified" = "unverified"> =
   Brand<string, `Email_${State}`>;
 
@@ -1859,37 +1859,37 @@ type UnverifiedEmail = Email<"unverified">;
 type VerifiedEmailGood = Email<"verified">;
 ```
 
-### 9-4. エッジケース 1: 配列とブランド型
+### 9-4. Edge Case 1: Arrays and Branded Types
 
 ```typescript
 type UserId = Brand<string, "UserId">;
 
-// 配列のブランド型
+// Array of branded types
 const userIds: UserId[] = [
   "user-1" as UserId,
   "user-2" as UserId,
   "user-3" as UserId,
 ];
 
-// map で処理
+// Process with map
 const upperIds = userIds.map(id => id.toUpperCase()); // string[]
-// upperIds は UserId[] ではなく string[] になる
+// upperIds becomes string[], not UserId[]
 
-// ブランドを維持したい場合
+// If you want to preserve the brand
 const upperIdsKeepBrand = userIds.map(id => id.toUpperCase() as UserId);
-// ただし、バリデーションなしでブランド付与するのは危険
+// However, applying brand without validation is risky
 
-// より安全な方法
+// Safer approach
 function normalizeUserId(id: UserId): UserId {
   const normalized = id.trim().toLowerCase();
-  // 正規化後も有効な UserId であることを前提
+  // Assumes normalized value is still a valid UserId
   return normalized as UserId;
 }
 
 const normalizedIds = userIds.map(normalizeUserId); // UserId[]
 ```
 
-### 9-5. エッジケース 2: オブジェクトのキーとしてのブランド型
+### 9-5. Edge Case 2: Branded Types as Object Keys
 
 ```typescript
 type UserId = Brand<string, "UserId">;
@@ -1899,33 +1899,33 @@ interface UserData {
   email: string;
 }
 
-// ❌ ブランド型をキーに使うのは問題がある
+// ❌ Using branded types as keys is problematic
 const userMap: Record<UserId, UserData> = {};
 
 const uid = "user-1" as UserId;
 userMap[uid] = { name: "Alice", email: "alice@example.com" };
 
-// 問題: Record のキーは string にキャストされる
-const retrieved = userMap["user-1"]; // string で取得できてしまう
-// 型安全性が失われる
+// Problem: Record keys are cast to string
+const retrieved = userMap["user-1"]; // Can be retrieved with a plain string
+// Type safety is lost
 
-// ✅ OK: Map を使う
+// ✅ OK: Use Map
 const userMapGood = new Map<UserId, UserData>();
 userMapGood.set(uid, { name: "Alice", email: "alice@example.com" });
 
-// userMapGood.get("user-1"); // エラー! UserId が必要
+// userMapGood.get("user-1"); // Error! UserId is required
 const retrievedGood = userMapGood.get(uid); // OK
 ```
 
-### 9-6. エッジケース 3: JSON.parse と型アサーション
+### 9-6. Edge Case 3: JSON.parse and Type Assertions
 
 ```typescript
-// ❌ 危険: JSON.parse 直後にブランド型をアサート
+// ❌ Dangerous: Asserting branded type immediately after JSON.parse
 const jsonString = '{"id":"user-123","name":"Alice"}';
 const user = JSON.parse(jsonString) as { id: UserId; name: string };
-// user.id は UserId 型だが、検証されていない
+// user.id is of type UserId but not validated
 
-// ✅ 安全: Zod でパース
+// ✅ Safe: Parse with Zod
 const UserSchema = z.object({
   id: z.string().brand<"UserId">(),
   name: z.string(),
@@ -1933,22 +1933,22 @@ const UserSchema = z.object({
 
 const userResult = UserSchema.safeParse(JSON.parse(jsonString));
 if (userResult.success) {
-  const user = userResult.data; // 検証済み
+  const user = userResult.data; // Validated
 }
 ```
 
-### 9-7. エッジケース 4: 条件付き型とブランド型
+### 9-7. Edge Case 4: Conditional Types and Branded Types
 
 ```typescript
 type Brand<T, B extends string> = T & { readonly __brand: B };
 
-// 条件付き型でブランドを除去
+// Remove brand with conditional type
 type Unbrand<T> = T extends Brand<infer U, string> ? U : T;
 
 type UserId = Brand<string, "UserId">;
 type Plain = Unbrand<UserId>; // string
 
-// ユーティリティ型
+// Utility type
 type DeepUnbrand<T> = T extends Brand<infer U, string>
   ? U
   : T extends object
@@ -1964,17 +1964,17 @@ interface User {
 type PlainUser = DeepUnbrand<User>;
 // { id: string; email: string; age: number }
 
-// 使用例: API レスポンスをプレーン型に変換
+// Usage: Convert API response to plain type
 function serializeUser(user: User): PlainUser {
-  return user as PlainUser; // ブランドは型レベルのみなので安全
+  return user as PlainUser; // Safe since brand is type-level only
 }
 ```
 
 ---
 
-## 10. テスト戦略とデバッグ
+## 10. Testing Strategies and Debugging
 
-### 10-1. ブランド型のユニットテスト
+### 10-1. Unit Testing Branded Types
 
 ```typescript
 import { describe, it, expect } from "vitest";
@@ -2032,36 +2032,36 @@ describe("PositiveNumber branded type", () => {
 });
 ```
 
-### 10-2. 型レベルテスト
+### 10-2. Type-Level Testing
 
-TypeScript では、型の正しさを確認するために型レベルテストを書くことができます。
+In TypeScript, you can write type-level tests to verify type correctness.
 
 ```typescript
-// 型レベルテスト用のユーティリティ
+// Utilities for type-level tests
 type Expect<T extends true> = T;
 type Equal<A, B> = A extends B ? (B extends A ? true : false) : false;
 
-// ブランド型のテスト
+// Tests for branded types
 type UserId = Brand<string, "UserId">;
 type OrderId = Brand<string, "OrderId">;
 
-// UserId と OrderId は異なる型であることを確認
-type Test1 = Expect<Equal<UserId, OrderId>>; // false（期待通り）
+// Verify UserId and OrderId are different types
+type Test1 = Expect<Equal<UserId, OrderId>>; // false (as expected)
 
-// UserId は string を拡張していることを確認
+// Verify UserId extends string
 type Test2 = UserId extends string ? true : false; // true
 
-// string は UserId に代入できないことを確認
+// Verify string cannot be assigned to UserId
 type Test3 = string extends UserId ? true : false; // false
 
-// Unbrand が正しく動作することを確認
+// Verify Unbrand works correctly
 type Test4 = Expect<Equal<Unbrand<UserId>, string>>; // true
 
-// 型テストが失敗する例（コンパイルエラーになる）
-// type TestFail = Expect<Equal<UserId, string>>; // エラー
+// Example of a failing type test (becomes a compile error)
+// type TestFail = Expect<Equal<UserId, string>>; // Error
 ```
 
-### 10-3. プロパティベーステスト（fast-check）
+### 10-3. Property-Based Testing (fast-check)
 
 ```typescript
 import fc from "fast-check";
@@ -2124,10 +2124,10 @@ describe("PositiveNumber property-based tests", () => {
 });
 ```
 
-### 10-4. テストヘルパー関数
+### 10-4. Test Helper Functions
 
 ```typescript
-// テスト用のブランド型ファクトリ（バリデーションなし）
+// Branded type factory for tests (without validation)
 function unsafeUserId(id: string): UserId {
   return id as UserId;
 }
@@ -2136,7 +2136,7 @@ function unsafeEmail(email: string): Email {
   return email as Email;
 }
 
-// テストデータビルダー
+// Test data builder
 class UserBuilder {
   private id: UserId = unsafeUserId("user-default");
   private email: Email = unsafeEmail("default@example.com");
@@ -2166,7 +2166,7 @@ class UserBuilder {
   }
 }
 
-// 使用例
+// Usage example
 describe("User service", () => {
   it("creates user successfully", () => {
     const user = new UserBuilder()
@@ -2180,33 +2180,33 @@ describe("User service", () => {
 });
 ```
 
-### 10-5. デバッグのコツ
+### 10-5. Debugging Tips
 
-#### デバッグ 1: ブランド型の値を確認
+#### Debug 1: Inspecting Branded Type Values
 
 ```typescript
-// ブランド型は実行時には普通の値なので、普通にログ出力できる
+// Branded types are plain values at runtime, so they can be logged normally
 const uid: UserId = "user-123" as UserId;
 console.log(uid); // "user-123"
 console.log(typeof uid); // "string"
 
-// デバッガーでもプリミティブ値として表示される
-debugger; // uid は "user-123" と表示される
+// Also displayed as primitive values in debuggers
+debugger; // uid is displayed as "user-123"
 ```
 
-#### デバッグ 2: 型情報の確認
+#### Debug 2: Checking Type Information
 
 ```typescript
-// VSCode などで型情報を確認
+// Check type information in VSCode, etc.
 const uid: UserId = "user-123" as UserId;
-// uid にカーソルを合わせると: const uid: UserId
+// Hovering over uid shows: const uid: UserId
 
-// Unbrand して元の型を確認
+// Unbrand to see the underlying type
 const plain: Unbrand<UserId> = uid;
-// plain にカーソルを合わせると: const plain: string
+// Hovering over plain shows: const plain: string
 ```
 
-#### デバッグ 3: コンパイルエラーの解読
+#### Debug 3: Reading Compile Error Messages
 
 ```typescript
 type UserId = Brand<string, "UserId">;
@@ -2216,35 +2216,35 @@ function getUser(id: UserId): void {}
 
 const oid: OrderId = "order-1" as OrderId;
 getUser(oid);
-// エラーメッセージ:
+// Error message:
 // Argument of type 'OrderId' is not assignable to parameter of type 'UserId'.
 //   Type 'OrderId' is not assignable to type '{ readonly __brand: "UserId"; }'.
 //     Types of property '__brand' are incompatible.
 //       Type '"OrderId"' is not assignable to type '"UserId"'.
 
-// 解読:
-// 1. OrderId を UserId に割り当てようとしている
-// 2. __brand プロパティの値が異なる ("OrderId" vs "UserId")
-// 3. よって型が互換性がない
+// Reading the message:
+// 1. Trying to assign OrderId to UserId
+// 2. The value of the __brand property differs ("OrderId" vs "UserId")
+// 3. Therefore the types are incompatible
 ```
 
 ---
 
-## 11. 演習問題
+## 11. Exercises
 
-### 演習 1: 基礎（初級）
+### Exercise 1: Basics (Beginner)
 
-#### 問題 1-1: 基本的なブランド型の定義
+#### Problem 1-1: Defining Basic Branded Types
 
-次の要件を満たすブランド型を定義してください。
+Define branded types that meet the following requirements.
 
-1. `ProductId` 型を定義（string ベース）
-2. `Price` 型を定義（number ベース、非負）
-3. それぞれのスマートコンストラクタを実装
-4. 商品情報を表す `Product` インターフェースを定義
+1. Define `ProductId` type (string-based)
+2. Define `Price` type (number-based, non-negative)
+3. Implement a smart constructor for each
+4. Define a `Product` interface representing product information
 
 <details>
-<summary>解答例</summary>
+<summary>Example Solution</summary>
 
 ```typescript
 type Brand<T, B extends string> = T & { readonly __brand: B };
@@ -2274,7 +2274,7 @@ interface Product {
   price: Price;
 }
 
-// テスト
+// Test
 const pidResult = productId("prod-123");
 const priceResult = price(1000);
 
@@ -2290,25 +2290,25 @@ if (isOk(pidResult) && isOk(priceResult)) {
 
 </details>
 
-#### 問題 1-2: バリデーション付きブランド型
+#### Problem 1-2: Branded Types with Validation
 
-`PhoneNumber` ブランド型を定義し、以下のフォーマットを受け入れるスマートコンストラクタを実装してください。
+Define a `PhoneNumber` branded type and implement a smart constructor that accepts the following formats.
 
-- 国際電話番号フォーマット: `+81-90-1234-5678`
-- ハイフンは省略可能
-- 先頭の `+` は必須
+- International phone number format: `+81-90-1234-5678`
+- Hyphens are optional
+- Leading `+` is required
 
 <details>
-<summary>解答例</summary>
+<summary>Example Solution</summary>
 
 ```typescript
 type PhoneNumber = Brand<string, "PhoneNumber">;
 
 function phoneNumber(value: string): Result<PhoneNumber, string> {
-  // ハイフンを除去して正規化
+  // Normalize by removing hyphens
   const normalized = value.replace(/-/g, "");
 
-  // 国際電話番号フォーマット（+で始まり、1-15桁の数字）
+  // International phone number format (starts with + followed by 1-15 digits)
   const phoneRegex = /^\+[1-9]\d{1,14}$/;
 
   if (!phoneRegex.test(normalized)) {
@@ -2318,10 +2318,10 @@ function phoneNumber(value: string): Result<PhoneNumber, string> {
   return Ok(normalized as PhoneNumber);
 }
 
-// テスト
+// Test
 const phone1 = phoneNumber("+81-90-1234-5678");
 const phone2 = phoneNumber("+819012345678");
-const phone3 = phoneNumber("090-1234-5678"); // エラー（+なし）
+const phone3 = phoneNumber("090-1234-5678"); // Error (no +)
 
 console.log(phone1); // Ok("+819012345678")
 console.log(phone2); // Ok("+819012345678")
@@ -2330,18 +2330,18 @@ console.log(phone3); // Err("Invalid phone number format...")
 
 </details>
 
-### 演習 2: 応用（中級）
+### Exercise 2: Applied (Intermediate)
 
-#### 問題 2-1: 単位変換システム
+#### Problem 2-1: Unit Conversion System
 
-温度の単位変換システムを実装してください。
+Implement a temperature unit conversion system.
 
-1. `Celsius`, `Fahrenheit`, `Kelvin` のブランド型を定義
-2. 各単位間の変換関数を実装
-3. 絶対零度未満の温度を拒否するバリデーション
+1. Define branded types for `Celsius`, `Fahrenheit`, `Kelvin`
+2. Implement conversion functions between each unit
+3. Validate to reject temperatures below absolute zero
 
 <details>
-<summary>解答例</summary>
+<summary>Example Solution</summary>
 
 ```typescript
 type Celsius = Brand<number, "Celsius">;
@@ -2382,7 +2382,7 @@ function kelvin(value: number): Result<Kelvin, string> {
   return Ok(value as Kelvin);
 }
 
-// 変換関数
+// Conversion functions
 function celsiusToFahrenheit(c: Celsius): Fahrenheit {
   return ((c as number) * 9/5 + 32) as Fahrenheit;
 }
@@ -2407,30 +2407,30 @@ function kelvinToFahrenheit(k: Kelvin): Fahrenheit {
   return celsiusToFahrenheit(kelvinToCelsius(k));
 }
 
-// テスト
+// Test
 const waterBoiling = celsius(100);
 if (isOk(waterBoiling)) {
   console.log(`100°C = ${celsiusToFahrenheit(waterBoiling.value)}°F`);
   console.log(`100°C = ${celsiusToKelvin(waterBoiling.value)}K`);
 }
 
-const invalid = celsius(-300); // エラー
+const invalid = celsius(-300); // Error
 console.log(invalid);
 ```
 
 </details>
 
-#### 問題 2-2: 通貨計算システム
+#### Problem 2-2: Currency Calculation System
 
-複数通貨を扱うショッピングカートを実装してください。
+Implement a shopping cart that handles multiple currencies.
 
-1. `JPY`, `USD`, `EUR` のブランド型
-2. `Money<Currency>` ジェネリック型
-3. 同一通貨の加算・減算
-4. 為替レートを使った通貨変換
+1. Branded types for `JPY`, `USD`, `EUR`
+2. A `Money<Currency>` generic type
+3. Addition and subtraction of the same currency
+4. Currency conversion using exchange rates
 
 <details>
-<summary>解答例</summary>
+<summary>Example Solution</summary>
 
 ```typescript
 type JPY = Brand<number, "JPY">;
@@ -2443,24 +2443,24 @@ function jpy(amount: number): Result<JPY, string> {
   if (!Number.isFinite(amount) || amount < 0) {
     return Err("Invalid JPY amount");
   }
-  return Ok(Math.round(amount) as JPY); // 円は整数
+  return Ok(Math.round(amount) as JPY); // JPY is an integer
 }
 
 function usd(amount: number): Result<USD, string> {
   if (!Number.isFinite(amount) || amount < 0) {
     return Err("Invalid USD amount");
   }
-  return Ok(Math.round(amount * 100) / 100 as USD); // セント単位
+  return Ok(Math.round(amount * 100) / 100 as USD); // Cent units
 }
 
 function eur(amount: number): Result<EUR, string> {
   if (!Number.isFinite(amount) || amount < 0) {
     return Err("Invalid EUR amount");
   }
-  return Ok(Math.round(amount * 100) / 100 as EUR); // セント単位
+  return Ok(Math.round(amount * 100) / 100 as EUR); // Cent units
 }
 
-// 同一通貨の演算
+// Same-currency operations
 function addMoney<T extends Brand<number, string>>(a: T, b: T): T {
   return ((a as number) + (b as number)) as T;
 }
@@ -2473,7 +2473,7 @@ function subtractMoney<T extends Brand<number, string>>(a: T, b: T): Result<T, s
   return Ok(result as T);
 }
 
-// 為替レート
+// Exchange rates
 type ExchangeRate<From extends string, To extends string> = {
   from: From;
   to: To;
@@ -2494,7 +2494,7 @@ function convertEURtoJPY(amount: EUR, rate: EURtoJPY): JPY {
   return Math.round((amount as number) * rate.rate) as JPY;
 }
 
-// ショッピングカート
+// Shopping cart
 interface CartItem<T extends Brand<number, string>> {
   name: string;
   price: T;
@@ -2510,7 +2510,7 @@ function calculateTotal<T extends Brand<number, string>>(
   return total as T;
 }
 
-// 使用例
+// Usage example
 const jpyItems: CartItem<JPY>[] = [
   { name: "Book", price: 1000 as JPY, quantity: 2 },
   { name: "Pen", price: 200 as JPY, quantity: 5 },
@@ -2523,7 +2523,7 @@ const usdItems: CartItem<USD>[] = [
 
 const jpyTotal = calculateTotal(jpyItems); // 3000 JPY
 const usdTotal = calculateTotal(usdItems); // 1029.98 USD
-const usdTotalInJPY = convertUSDtoJPY(usdTotal, usdToJpyRate); // 約154497 JPY
+const usdTotalInJPY = convertUSDtoJPY(usdTotal, usdToJpyRate); // approx. 154497 JPY
 
 console.log(`JPY Total: ¥${jpyTotal}`);
 console.log(`USD Total: $${usdTotal}`);
@@ -2532,19 +2532,19 @@ console.log(`USD Total in JPY: ¥${usdTotalInJPY}`);
 
 </details>
 
-### 演習 3: 発展（上級）
+### Exercise 3: Advanced (Expert)
 
-#### 問題 3-1: タイムスタンプとタイムゾーン
+#### Problem 3-1: Timestamps and Timezones
 
-タイムゾーン付きのタイムスタンプ型を実装してください。
+Implement a timestamp type with timezone support.
 
-1. `Timestamp` ブランド型（Unix タイムスタンプ）
-2. タイムゾーン情報を含む `ZonedTimestamp`
-3. タイムゾーン間の変換
-4. フォーマット出力
+1. `Timestamp` branded type (Unix timestamp)
+2. `ZonedTimestamp` including timezone information
+3. Conversion between timezones
+4. Formatted output
 
 <details>
-<summary>解答例</summary>
+<summary>Example Solution</summary>
 
 ```typescript
 type Timestamp = Brand<number, "Timestamp">; // Unix timestamp (ms)
@@ -2592,8 +2592,8 @@ function convertTimezone(
   zts: ZonedTimestamp,
   targetTz: Timezone
 ): ZonedTimestamp {
-  // タイムスタンプ自体は UTC なので変換不要
-  // タイムゾーン情報のみ変更
+  // The timestamp itself is UTC, so no conversion needed
+  // Only the timezone information changes
   return { timestamp: zts.timestamp, timezone: targetTz };
 }
 
@@ -2605,7 +2605,7 @@ function formatZonedTimestamp(zts: ZonedTimestamp): string {
   return `${localTime.toISOString().slice(0, -1)} ${zts.timezone}`;
 }
 
-// 使用例
+// Usage example
 const currentTime = now();
 const jstTime = createZonedTimestamp(currentTime, "JST");
 const utcTime = convertTimezone(jstTime, "UTC");
@@ -2616,24 +2616,24 @@ console.log(formatZonedTimestamp(utcTime));
 
 </details>
 
-#### 問題 3-2: 階層的な ID システム
+#### Problem 3-2: Hierarchical ID System
 
-階層構造を持つ ID システムを実装してください（例: Organization > Team > User）。
+Implement an ID system with a hierarchical structure (e.g., Organization > Team > User).
 
-1. `OrganizationId`, `TeamId`, `UserId` のブランド型
-2. `ScopedId<Parent, Child>` ジェネリック型
-3. ID の階層関係を型で表現
-4. 階層を辿る関数
+1. Branded types for `OrganizationId`, `TeamId`, `UserId`
+2. A `ScopedId<Parent, Child>` generic type
+3. Express hierarchical relationships of IDs in types
+4. Functions to traverse the hierarchy
 
 <details>
-<summary>解答例</summary>
+<summary>Example Solution</summary>
 
 ```typescript
 type OrganizationId = Brand<string, "OrganizationId">;
 type TeamId = Brand<string, "TeamId">;
 type UserId = Brand<string, "UserId">;
 
-// スコープ付き ID
+// Scoped ID
 interface ScopedId<Parent, Child> {
   parent: Parent;
   child: Child;
@@ -2643,7 +2643,7 @@ type TeamInOrg = ScopedId<OrganizationId, TeamId>;
 type UserInTeam = ScopedId<TeamId, UserId>;
 type UserInOrg = ScopedId<OrganizationId, UserId>;
 
-// 完全修飾 ID（組織 > チーム > ユーザー）
+// Fully qualified ID (Organization > Team > User)
 interface FullyQualifiedUserId {
   organizationId: OrganizationId;
   teamId: TeamId;
@@ -2688,14 +2688,14 @@ function createFullyQualifiedUserId(
   };
 }
 
-// リポジトリインターフェース
+// Repository interface
 interface UserRepository {
   findUser(id: FullyQualifiedUserId): Promise<User | null>;
   findUsersInTeam(teamId: TeamInOrg): Promise<User[]>;
   findUsersInOrg(orgId: OrganizationId): Promise<User[]>;
 }
 
-// 使用例
+// Usage example
 const myOrg = orgId("org-acme");
 const engineeringTeam = teamId("team-engineering");
 const alice = userId("user-alice");
@@ -2711,10 +2711,10 @@ console.log(aliceFull);
 //   userId: "user-alice"
 // }
 
-// 型安全性: 間違った組み合わせはコンパイルエラー
+// Type safety: wrong combinations cause compile errors
 const salesTeam = teamId("team-sales");
 // createUserInTeam(salesTeam, alice); // OK
-// createTeamInOrg(engineeringTeam, alice); // エラー! TeamId を OrganizationId に渡せない
+// createTeamInOrg(engineeringTeam, alice); // Error! Cannot pass TeamId as OrganizationId
 ```
 
 </details>
@@ -2723,30 +2723,30 @@ const salesTeam = teamId("team-sales");
 
 ## 12. FAQ
 
-### Q1: ブランド型はランタイムにオーバーヘッドがありますか？
+### Q1: Do branded types have runtime overhead?
 
-**A:** ブランド型自体にはランタイムオーバーヘッドは**ありません**。
+**A:** Branded types themselves have **no** runtime overhead.
 
-- ブランド型は `T & { __brand: B }` という交差型ですが、`__brand` プロパティは `readonly` かつ実際には存在しません
-- コンパイル時に型チェックのみに使われ、JavaScript 出力には影響しません
-- `as` によるキャストは型アサーションであり、コンパイル後は完全に消えます
+- Branded types are intersection types like `T & { __brand: B }`, but the `__brand` property is `readonly` and doesn't actually exist
+- It is only used for type checking at compile time and does not affect JavaScript output
+- Casts with `as` are type assertions and completely disappear after compilation
 
 ```typescript
 // TypeScript
 type UserId = Brand<string, "UserId">;
 const id: UserId = "user-123" as UserId;
 
-// コンパイル後の JavaScript
-const id = "user-123"; // ブランド情報は消える
+// Compiled JavaScript
+const id = "user-123"; // Brand information is gone
 ```
 
-ただし、**スマートコンストラクタのバリデーションロジック**にはランタイムコストがあります。これはブランド型自体のコストではなく、バリデーションのコストです。
+However, **the validation logic in smart constructors** does have a runtime cost. This is not the cost of the branded type itself, but the cost of validation.
 
-### Q2: ブランド型の値を JSON にシリアライズできますか？
+### Q2: Can branded type values be serialized to JSON?
 
-**A:** はい、問題なくシリアライズできます。
+**A:** Yes, they can be serialized without any issues.
 
-ブランドは型レベルの概念なので、`JSON.stringify` は元のプリミティブ値をそのままシリアライズします。
+Since brands are a type-level concept, `JSON.stringify` serializes the underlying primitive value as-is.
 
 ```typescript
 const user: User = {
@@ -2759,35 +2759,35 @@ const json = JSON.stringify(user);
 // {"id":"user-123","email":"alice@example.com","name":"Alice"}
 ```
 
-**デシリアライズ時の注意:**
+**Note on deserialization:**
 
-JSON からパースした後は、ブランド情報が失われているため、スマートコンストラクタで再検証してブランドを付与する必要があります。
+After parsing from JSON, the brand information is lost, so you need to re-validate and apply the brand with a smart constructor.
 
 ```typescript
 const parsed = JSON.parse(json);
-const userResult = UserSchema.safeParse(parsed); // Zod で再検証
+const userResult = UserSchema.safeParse(parsed); // Re-validate with Zod
 ```
 
-### Q3: ライブラリの型とブランド型を組み合わせるには？
+### Q3: How do you combine library types with branded types?
 
-**A:** 外部ライブラリの関数にブランド型を渡す場合、状況に応じて以下の対応が必要です。
+**A:** When passing branded types to external library functions, you may need to handle the following depending on the situation.
 
-**パターン 1: そのまま渡せる場合**
+**Pattern 1: When it can be passed directly**
 
-多くの場合、ブランド型は元の型（例: `string`）を拡張しているので、そのまま渡せます。
+In most cases, branded types extend the original type (e.g., `string`), so they can be passed directly.
 
 ```typescript
 type UserId = Brand<string, "UserId">;
 const uid: UserId = "user-123" as UserId;
 
-// string を受け取る関数にそのまま渡せる
+// Can be passed directly to functions that accept string
 console.log(uid.toUpperCase()); // OK
 fetch(`/api/users/${uid}`); // OK
 ```
 
-**パターン 2: 明示的にアンブランドする場合**
+**Pattern 2: When explicit unbranding is needed**
 
-ライブラリが厳密な型チェックをしている場合、`Unbrand` で元の型に戻します。
+If a library performs strict type checks, use `Unbrand` to revert to the original type.
 
 ```typescript
 type Unbrand<T> = T extends Brand<infer U, string> ? U : T;
@@ -2795,7 +2795,7 @@ type Unbrand<T> = T extends Brand<infer U, string> ? U : T;
 const uid: UserId = "user-123" as UserId;
 const plain: string = uid as Unbrand<UserId>;
 
-// または unbrand ヘルパー関数
+// Or use an unbrand helper function
 function unbrand<T extends Brand<unknown, string>>(value: T): Unbrand<T> {
   return value as Unbrand<T>;
 }
@@ -2803,22 +2803,22 @@ function unbrand<T extends Brand<unknown, string>>(value: T): Unbrand<T> {
 const plainId = unbrand(uid);
 ```
 
-**パターン 3: 境界層パターン**
+**Pattern 3: Boundary layer pattern**
 
-ドメインロジック内ではブランド型を使い、外部 API との境界でブランドの付け外しを行います。
+Use branded types inside domain logic, and apply/remove brands at the boundary with external APIs.
 
 ```mermaid
 graph LR
-    A[外部 API] -->|string| B[境界層]
-    B -->|validate & brand| C[ドメインロジック]
+    A[External API] -->|string| B[Boundary Layer]
+    B -->|validate & brand| C[Domain Logic]
     C -->|UserId| C
     C -->|unbrand| B
     B -->|string| A
 ```
 
-### Q4: ブランド型と判別共用体を組み合わせることはできますか？
+### Q4: Can branded types be combined with discriminated unions?
 
-**A:** はい、可能です。非常に強力なパターンです。
+**A:** Yes, it is possible. This is a very powerful pattern.
 
 ```typescript
 type PendingOrderId = Brand<string, "PendingOrderId">;
@@ -2834,33 +2834,33 @@ function processOrder(order: Order): void {
   switch (order.status) {
     case "pending":
       console.log(`Pending order: ${order.id}`);
-      // order.id は PendingOrderId 型
+      // order.id is of type PendingOrderId
       break;
     case "paid":
       console.log(`Paid order: ${order.id}, Payment: ${order.paymentId}`);
-      // order.id は PaidOrderId 型
+      // order.id is of type PaidOrderId
       break;
     case "shipped":
       console.log(`Shipped order: ${order.id}, Tracking: ${order.trackingNumber}`);
-      // order.id は ShippedOrderId 型
+      // order.id is of type ShippedOrderId
       break;
   }
 }
 ```
 
-### Q5: ブランド型はパフォーマンスに影響しますか？
+### Q5: Do branded types affect performance?
 
-**A:** ほとんどの場合、影響は**ありません**。
+**A:** In most cases, the impact is **none**.
 
-- ブランド型は型アサーションのみで、ランタイムコストはゼロ
-- ただし、過度なバリデーションは影響する可能性があります
+- Branded types use only type assertions, with zero runtime cost
+- However, excessive validation may have an impact
 
 ```typescript
-// パフォーマンスに影響なし
+// No performance impact
 type UserId = Brand<string, "UserId">;
-const uid = "user-123" as UserId; // ゼロコスト
+const uid = "user-123" as UserId; // Zero cost
 
-// バリデーションのコストはある（ブランド型のコストではない）
+// Validation has a cost (not the branded type's cost)
 function email(value: string): Result<Email, string> {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
     return Err("Invalid email");
@@ -2869,88 +2869,88 @@ function email(value: string): Result<Email, string> {
 }
 ```
 
-**最適化のヒント:**
+**Optimization tips:**
 
-- 境界層（API 入力、ユーザー入力）でのみバリデーション
-- ドメイン内部では再検証しない（型が保証している）
-- ホットパスでは Zod より手動バリデーションを検討
+- Validate only at boundaries (API input, user input)
+- Do not re-validate inside the domain (the type guarantees it)
+- For hot paths, consider manual validation over Zod
 
-### Q6: unique symbol と __brand のどちらを使うべきですか？
+### Q6: Which should I use, unique symbol or __brand?
 
-**A:** 用途によって使い分けます。
+**A:** Choose based on the use case.
 
-| ケース | 推奨パターン | 理由 |
-|--------|------------|------|
-| 一般的な用途 | `__brand` | シンプルで十分 |
-| ライブラリ開発 | `unique symbol` | より厳密、衝突なし |
-| プロトタイプ | `__brand` | 実装が早い |
-| 大規模プロジェクト | `unique symbol` | 長期的な安全性 |
+| Case | Recommended Pattern | Reason |
+|------|---------------------|--------|
+| General use | `__brand` | Simple and sufficient |
+| Library development | `unique symbol` | More strict, no collisions |
+| Prototype | `__brand` | Faster to implement |
+| Large-scale projects | `unique symbol` | Long-term safety |
 
 ```typescript
-// 一般的な用途: __brand で十分
+// General use: __brand is sufficient
 type UserId = Brand<string, "UserId">;
 
-// ライブラリ開発: unique symbol でより厳密に
+// Library development: more strict with unique symbol
 declare const UserIdBrand: unique symbol;
 type UserId = string & { readonly [UserIdBrand]: typeof UserIdBrand };
 ```
 
-### Q7: ブランド型とテンプレートリテラル型の違いは？
+### Q7: What is the difference between branded types and template literal types?
 
-**A:** 異なる目的のツールです。
+**A:** They are tools for different purposes.
 
-**ブランド型:**
-- 任意の値に「ラベル」を付ける
-- バリデーションで保証
-- リテラル値では型チェックが効かない
+**Branded types:**
+- Attach a "label" to any value
+- Guaranteed by validation
+- Type checking doesn't work with literal values
 
 ```typescript
 type Email = Brand<string, "Email">;
-// const email: Email = "test@example.com"; // エラー
-const email = "test@example.com" as Email; // OK（as 必要）
+// const email: Email = "test@example.com"; // Error
+const email = "test@example.com" as Email; // OK (as required)
 ```
 
-**テンプレートリテラル型:**
-- パターンマッチングで型チェック
-- リテラル値でも型チェックが効く
-- フォーマットが固定される
+**Template literal types:**
+- Type checking via pattern matching
+- Type checking works even with literal values
+- Format is fixed
 
 ```typescript
 type Email = `${string}@${string}.${string}`;
-const email: Email = "test@example.com"; // OK（as 不要）
-// const bad: Email = "invalid"; // エラー
+const email: Email = "test@example.com"; // OK (no as needed)
+// const bad: Email = "invalid"; // Error
 ```
 
-**組み合わせも可能:**
+**Combining both is also possible:**
 
 ```typescript
 type UserId = Brand<`user_${string}`, "UserId">;
-// パターンとブランドの両方で保護
+// Protected by both pattern and brand
 ```
 
-### Q8: ブランド型は他のチームメンバーに理解してもらえますか？
+### Q8: Can branded types be understood by other team members?
 
-**A:** 適切にドキュメント化すれば問題ありません。
+**A:** With proper documentation, it is not a problem.
 
-**教育のポイント:**
+**Teaching points:**
 
-1. **なぜ必要か**を説明（ID 取り違えの例を示す）
-2. スマートコンストラクタのパターンを統一
-3. サンプルコードを提供
-4. ESLint ルールでアンチパターンを防止
+1. Explain **why it's needed** (show examples of ID mix-ups)
+2. Standardize the smart constructor pattern
+3. Provide sample code
+4. Use ESLint rules to prevent anti-patterns
 
 ```typescript
-// Good: チームで統一されたパターン
-// ✅ README に書く
-// ✅ テンプレートを用意
-// ✅ コードレビューで指導
+// Good: Standardized pattern across the team
+// ✅ Write in README
+// ✅ Prepare templates
+// ✅ Guide in code reviews
 
-// 統一されたスマートコンストラクタパターン
+// Unified smart constructor pattern
 function email(value: string): Result<Email, string> {
-  // 1. バリデーション
-  // 2. 正規化
-  // 3. ブランド付与
-  // 4. Result で返す
+  // 1. Validate
+  // 2. Normalize
+  // 3. Apply brand
+  // 4. Return as Result
 }
 ```
 
@@ -2959,107 +2959,40 @@ function email(value: string): Result<Email, string> {
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just from theory, but by actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world development?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## 13. まとめ表
-
-| 概念 | 要点 |
-|------|------|
-| ブランド型 | `T & { __brand: B }` で構造的に異なる型を作る |
-| 公称型 | TypeScript にはないが、ブランドで擬似的に実現 |
-| スマートコンストラクタ | バリデーション + ブランド付与を一箇所で行う |
-| 適用場面 | ID, 単位, 通貨, 検証済み文字列 |
-| ランタイムコスト | ブランド自体はゼロ、検証ロジックは別途 |
-| zod 統合 | `.brand()` メソッドで宣言的にブランド付与 |
-| シリアライズ | JSON は問題なし、デシリアライズ時に再検証 |
-| テスト | ユニットテスト + 型レベルテスト + プロパティベーステスト |
-| デバッグ | ブランドは型レベルのみ、ランタイムでは普通の値 |
-
-### ブランド型の実装方法比較
-
-| 方法 | 型安全性 | ランタイムコスト | 実装量 | zod統合 | 推奨度 |
-|------|---------|--------------|--------|---------|--------|
-| `__brand` フィールド | 高 | ゼロ | 少 | 不要 | ★★★★★ |
-| `unique symbol` | 最高 | ゼロ | 中 | 不要 | ★★★★☆ |
-| zod `.brand()` | 高 | 検証コスト | 最少 | 組込み | ★★★★★ |
-| class ラッパー | 最高 | ラップコスト | 多 | 別途必要 | ★★★☆☆ |
-| テンプレートリテラル | 中 | ゼロ | 少 | 不要 | ★★★☆☆ |
-
-### ブランド型 vs 他のアプローチ
-
-| 比較軸 | ブランド型 | class ラッパー | enum | テンプレートリテラル |
-|--------|-----------|-------------|------|------------------|
-| ランタイムコスト | ゼロ | インスタンス生成 | 小 | ゼロ |
-| 元のメソッド | 利用可能 | ラップ必要 | 不可 | 利用可能 |
-| JSON 互換性 | そのまま | `toJSON` 必要 | そのまま | そのまま |
-| パターンマッチ | 不可 | instanceof | switch | パターン |
-| バリデーション | スマートCtor | コンストラクタ | 定義済み | 正規表現 |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architectural design.
 
 ---
 
-## 14. 次に読むべきガイド
+## 13. Summary Table
 
-- [判別共用体](./02-discriminated-unions.md) -- ブランド型と判別共用体の組み合わせ
-- [Zod バリデーション](../04-ecosystem/00-zod-validation.md) -- zod の `.brand()` を使った実践パターン
-- [エラーハンドリング](./00-error-handling.md) -- スマートコンストラクタと Result 型
-- 関数型プログラミング -- 型駆動設計とブランド型
-- ドメイン駆動設計 -- ブランド型を使った値オブジェクトの実装
+| Concept | Key Point |
+|---------|-----------|
+| Branded type | Create structurally distinct types with `T & { __brand: B }` |
+| Nominal type | Not available in TypeScript, but achievable pseudo-nominally with brands |
+| Smart constructor | Perform validation + brand application in one place |
+| Use cases | IDs, units, currencies, validated strings |
+| Runtime cost | Zero for the brand itself; validation logic is separate |
+| Zod integration | Apply brands declaratively with the `.brand()` method |
+| Serialization | JSON is fine; re-validate when deserializing |
+| Testing | Unit tests + type-level tests + property-based tests |
+| Debugging | Brands are type-level only; plain values at runtime |
 
----
+### Comparison of Branded Type Implementation Methods
 
-## 15. 参考文献
-
-1. **Branding and Type-Tagging** -- TypeScript Deep Dive
-   https://basarat.gitbook.io/typescript/main-1/nominaltyping
-   ブランド型の基本的な概念と実装パターンを解説
-
-2. **Nominal Typing Techniques in TypeScript** -- Michal Zalecki
-   https://michalzalecki.com/nominal-typing-in-typescript/
-   unique symbol を使った高度なブランド型テクニック
-
-3. **Zod - Brand** -- Zod Documentation
-   https://zod.dev/?id=brand
-   Zod でのブランド型サポートの公式ドキュメント
-
-4. **Parse, don't validate** -- Alexis King
-   https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/
-   スマートコンストラクタの哲学的背景
-
-5. **Rust newtype pattern** -- The Rust Programming Language
-   https://doc.rust-lang.org/rust-by-example/generics/new_types.html
-   Rust での公称型パターン（TypeScript ブランド型の参考）
-
-6. **Flow Opaque Types** -- Flow Documentation
-   https://flow.org/en/docs/types/opaque-types/
-   Flow の opaque type（TypeScript ブランド型との比較に有用）
-
----
-
-**文字数: 約 42,000 字**
-
-このガイドでは、TypeScript のブランド型について、基礎から実践、高度なテクニックまで網羅的に解説しました。コード例、図解、比較表、演習問題を豊富に含めており、MIT 級の品質を目指しています。実際のプロジェクトでブランド型を活用する際の参考にしてください。
-
----
-
-## 次に読むべきガイド
-
-- [TypeScript DI（依存性注入）パターン完全ガイド](./04-dependency-injection.md) - 次のトピックへ進む
-
----
-
-## 参考文献
-
-- [MDN Web Docs](https://developer.mozilla.org/) - Web技術のリファレンス
-- [Wikipedia](https://ja.wikipedia.org/) - 技術概念の概要
+| Method | Type Safety | Runtime Cost | Code Size | Zod Integration | Recommendation |
+|--------|-------------|--------------|-----------|-----------------|----------------|
+| `__brand` field | High | Zero | Small | Not needed | ★★★★★ |
+| `unique symbol` | Highest | Zero | Medium | Not needed | ★★★★☆ |
+| Zod `.brand()` | High | Validation cost | Smallest | Built-in | ★★★★★ |
+| Class wrapper | Highest | Wrapping cost | Large | Needed separately | ★★★☆☆ |
+| Template literal | Medium | Zero | Small | Not needed | ★★★☆☆ |

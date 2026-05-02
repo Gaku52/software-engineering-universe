@@ -1,35 +1,35 @@
-# TypeScript 判別共用体パターン
+# TypeScript Discriminated Union Patterns
 
-> 判別共用体（Discriminated Unions）、Redux の型安全な Action 設計、網羅性チェックで堅牢な分岐処理を実現する
+> Achieve robust branching logic with Discriminated Unions, type-safe Action design for Redux, and exhaustiveness checks
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **判別共用体の基礎** -- リテラル型の判別子フィールドを使って、ユニオン型のメンバーを安全に絞り込む方法
-2. **網羅性チェック** -- `never` 型を活用し、switch 文で全ケースを処理していることをコンパイル時に保証する技法
-3. **Redux / useReducer での活用** -- Action 型を判別共用体で定義し、Reducer を型安全に記述するパターン
-4. **高度なパターン** -- ネスト、ジェネリクス、型レベルプログラミングとの組み合わせ
-5. **実務での設計パターン** -- ステートマシン、APIレスポンス、ドメインモデリングへの応用
-6. **パフォーマンスと最適化** -- 判別共用体のランタイム特性とメモリ効率
+1. **Discriminated Union Basics** -- How to safely narrow union type members using a literal-type discriminant field
+2. **Exhaustiveness Checks** -- Using the `never` type to guarantee at compile time that all cases are handled in a switch statement
+3. **Usage in Redux / useReducer** -- Defining Action types as discriminated unions and writing type-safe Reducers
+4. **Advanced Patterns** -- Combining nesting, generics, and type-level programming
+5. **Production Design Patterns** -- Applying discriminated unions to state machines, API responses, and domain modeling
+6. **Performance and Optimization** -- Runtime characteristics and memory efficiency of discriminated unions
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [TypeScript ビルダーパターン](./01-builder-pattern.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [TypeScript Builder Pattern](./01-builder-pattern.md)
 
 ---
 
-## 1. 判別共用体の基礎
+## 1. Discriminated Union Basics
 
-### 1-1. 構造
+### 1-1. Structure
 
 ```
-判別共用体の構成要素:
+Components of a Discriminated Union:
 
-  共通フィールド (判別子)
+  Common field (discriminant)
        |
        v
   +----------+     +----------+     +----------+
@@ -42,11 +42,11 @@
 
   Shape = Circle | Rect | Triangle
              \       |       /
-              判別子: type フィールド
+              Discriminant: type field
 ```
 
 ```typescript
-// 判別共用体の定義
+// Defining a discriminated union
 interface Circle {
   readonly type: "circle";
   readonly radius: number;
@@ -66,26 +66,26 @@ interface Triangle {
 
 type Shape = Circle | Rect | Triangle;
 
-// 判別子による型の絞り込み
+// Narrowing types via the discriminant
 function area(shape: Shape): number {
   switch (shape.type) {
     case "circle":
-      // shape は Circle に絞り込まれる
+      // shape is narrowed to Circle
       return Math.PI * shape.radius ** 2;
     case "rect":
-      // shape は Rect に絞り込まれる
+      // shape is narrowed to Rect
       return shape.width * shape.height;
     case "triangle":
-      // shape は Triangle に絞り込まれる
+      // shape is narrowed to Triangle
       return (shape.base * shape.height) / 2;
   }
 }
 ```
 
-### 1-2. コンストラクタ関数
+### 1-2. Constructor Functions
 
 ```typescript
-// スマートコンストラクタで安全に生成
+// Safely construct instances with smart constructors
 function circle(radius: number): Circle {
   if (radius <= 0) throw new Error("radius must be positive");
   return { type: "circle", radius };
@@ -99,7 +99,7 @@ function triangle(base: number, height: number): Triangle {
   return { type: "triangle", base, height };
 }
 
-// 使用例
+// Usage example
 const shapes: Shape[] = [
   circle(5),
   rect(10, 20),
@@ -109,46 +109,46 @@ const shapes: Shape[] = [
 const totalArea = shapes.reduce((sum, s) => sum + area(s), 0);
 ```
 
-### 1-3. 判別子の選択
+### 1-3. Choosing the Discriminant
 
-判別共用体の品質は判別子の設計に大きく依存します。
+The quality of a discriminated union depends heavily on the design of its discriminant.
 
 ```typescript
-// ─── 文字列リテラル（最も一般的） ───
+// ─── String literals (most common) ───
 type Event =
   | { type: "click"; x: number; y: number }
   | { type: "keypress"; key: string }
   | { type: "scroll"; offset: number };
 
-// ─── const enum（ランタイムコストゼロ、ただし制限あり） ───
+// ─── const enum (zero runtime cost, but with limitations) ───
 const enum ShapeKind {
   Circle = "circle",
   Rect = "rect",
   Triangle = "triangle",
 }
-// ※ isolatedModules モードでは使用不可
+// Note: cannot be used in isolatedModules mode
 
-// ─── ネストした判別子 ───
+// ─── Nested discriminant ───
 type ApiResult =
   | { status: "success"; data: unknown }
   | { status: "error"; error: { code: "network" | "auth" | "validation"; message: string } };
 
-// ─── 複数の判別子 ───
+// ─── Multiple discriminants ───
 type Message =
   | { channel: "email"; priority: "high"; subject: string; body: string }
   | { channel: "email"; priority: "low"; body: string }
   | { channel: "sms"; body: string }
   | { channel: "push"; title: string; body: string };
-// channel と priority の組み合わせで判別可能
+// Distinguishable by the combination of channel and priority
 ```
 
-### 1-4. if-else による絞り込み
+### 1-4. Narrowing with if-else
 
-switch 文だけでなく、if-else でも型の絞り込みが機能します。
+Type narrowing works with if-else statements as well as switch statements.
 
 ```typescript
 function describe(shape: Shape): string {
-  // if 文でも絞り込みが機能する
+  // Narrowing also works with if statements
   if (shape.type === "circle") {
     return `Circle with radius ${shape.radius}`;
   }
@@ -157,46 +157,46 @@ function describe(shape: Shape): string {
     return `Rectangle ${shape.width}x${shape.height}`;
   }
 
-  // ここでは shape は Triangle に絞り込まれている
+  // Here, shape is narrowed to Triangle
   return `Triangle with base ${shape.base} and height ${shape.height}`;
 }
 
-// 早期リターンパターン
+// Early return pattern
 function processShape(shape: Shape): number | null {
   if (shape.type !== "circle") {
-    return null; // Circle 以外は処理しない
+    return null; // Skip non-Circle shapes
   }
-  // ここでは shape は Circle に絞り込まれている
+  // Here, shape is narrowed to Circle
   return Math.PI * shape.radius ** 2;
 }
 ```
 
-### 1-5. 型の絞り込みと分割代入
+### 1-5. Type Narrowing and Destructuring
 
 ```typescript
-// 分割代入と組み合わせたパターン
+// Pattern combining narrowing with destructuring
 function formatShape(shape: Shape): string {
   switch (shape.type) {
     case "circle": {
-      const { radius } = shape; // Circle 型から分割代入
+      const { radius } = shape; // Destructure from Circle type
       return `○ r=${radius.toFixed(2)}`;
     }
     case "rect": {
-      const { width, height } = shape; // Rect 型から分割代入
+      const { width, height } = shape; // Destructure from Rect type
       return `□ ${width}×${height}`;
     }
     case "triangle": {
-      const { base, height } = shape; // Triangle 型から分割代入
+      const { base, height } = shape; // Destructure from Triangle type
       return `△ base=${base}, h=${height}`;
     }
   }
 }
 
-// 配列メソッドでの使用
+// Usage with array methods
 const circles = shapes.filter(
   (s): s is Circle => s.type === "circle"
 );
-// circles は Circle[] 型
+// circles has type Circle[]
 
 const areas = shapes.map((s) => {
   switch (s.type) {
@@ -209,26 +209,26 @@ const areas = shapes.map((s) => {
 
 ---
 
-## 2. 網羅性チェック
+## 2. Exhaustiveness Checks
 
-### 2-1. exhaustive check パターン
+### 2-1. The Exhaustive Check Pattern
 
 ```
-Switch 文の網羅性:
+Exhaustiveness in switch statements:
 
-  case "circle":  --> Circle を処理
-  case "rect":    --> Rect を処理
-  case "triangle" --> Triangle を処理
-  default:        --> shape は never 型
-                      (全ケースを処理済みの証明)
+  case "circle":  --> handles Circle
+  case "rect":    --> handles Rect
+  case "triangle" --> handles Triangle
+  default:        --> shape has type never
+                      (proof that all cases are handled)
 
-  もし新しい Shape を追加して case を書き忘れると:
-  default:        --> shape は新しい型
-                      never に代入不可 → コンパイルエラー!
+  If a new Shape is added and a case is forgotten:
+  default:        --> shape has the new type
+                      not assignable to never -> compile error!
 ```
 
 ```typescript
-// 網羅性チェック用ヘルパー
+// Helper for exhaustiveness checks
 function assertNever(value: never): never {
   throw new Error(`Unexpected value: ${JSON.stringify(value)}`);
 }
@@ -242,26 +242,26 @@ function area(shape: Shape): number {
     case "triangle":
       return (shape.base * shape.height) / 2;
     default:
-      // 全ケースを処理していれば shape は never 型
+      // If all cases are handled, shape has type never
       return assertNever(shape);
   }
 }
 
-// 新しい Shape を追加した場合:
+// When a new Shape is added:
 interface Pentagon {
   readonly type: "pentagon";
   readonly side: number;
 }
 type Shape = Circle | Rect | Triangle | Pentagon;
 
-// area() で case "pentagon" を追加し忘れると:
+// If you forget to add case "pentagon" in area():
 // Error: Argument of type 'Pentagon' is not assignable to parameter of type 'never'
 ```
 
-### 2-2. satisfies を使った網羅性チェック
+### 2-2. Exhaustiveness Check with satisfies
 
 ```typescript
-// オブジェクトマップによる網羅性チェック
+// Exhaustiveness check using an object map
 const areaCalculators = {
   circle: (s: Circle) => Math.PI * s.radius ** 2,
   rect: (s: Rect) => s.width * s.height,
@@ -272,19 +272,19 @@ function area(shape: Shape): number {
   return areaCalculatorsshape.type;
 }
 
-// Pentagon を追加すると、satisfies で
-// "pentagon" キーがないことがコンパイルエラーになる
+// Adding Pentagon causes a compile error from satisfies
+// because the "pentagon" key is missing
 ```
 
-### 2-3. 網羅性チェックのバリエーション
+### 2-3. Exhaustiveness Check Variations
 
 ```typescript
-// ─── 方法1: assertNever（最も一般的） ───
+// ─── Method 1: assertNever (most common) ───
 function assertNever(value: never): never {
   throw new Error(`Unexpected value: ${JSON.stringify(value)}`);
 }
 
-// ─── 方法2: 型注釈による暗黙的チェック ───
+// ─── Method 2: Implicit check via return type annotation ───
 function area(shape: Shape): number {
   switch (shape.type) {
     case "circle":
@@ -293,36 +293,36 @@ function area(shape: Shape): number {
       return shape.width * shape.height;
     case "triangle":
       return (shape.base * shape.height) / 2;
-    // case を忘れると、戻り値が undefined になる可能性があり
-    // 戻り値の型 number と矛盾してコンパイルエラー
+    // Forgetting a case could result in undefined being returned,
+    // which conflicts with the return type number -> compile error
   }
 }
 
-// ─── 方法3: satisfies Record（オブジェクトマップ） ───
+// ─── Method 3: satisfies Record (object map) ───
 const handlers = {
   circle: (s: Circle) => `Circle: r=${s.radius}`,
   rect: (s: Rect) => `Rect: ${s.width}x${s.height}`,
   triangle: (s: Triangle) => `Triangle: b=${s.base}, h=${s.height}`,
 } satisfies Record<Shape["type"], (s: any) => string>;
 
-// ─── 方法4: const assertion + 型チェック ───
+// ─── Method 4: const assertion + type check ───
 const SHAPE_TYPES = ["circle", "rect", "triangle"] as const;
 type ShapeType = (typeof SHAPE_TYPES)[number];
-// Shape["type"] が ShapeType と一致することを確認
+// Verify that Shape["type"] matches ShapeType
 type Check = ShapeType extends Shape["type"] ? true : false;
-// Check が true でなければ、SHAPE_TYPES に不足がある
+// If Check is not true, SHAPE_TYPES is missing entries
 
-// ─── 方法5: ESLint ルール ───
-// @typescript-eslint/switch-exhaustiveness-check を有効にすると
-// switch 文の網羅性を lint で検出できる
+// ─── Method 5: ESLint rule ───
+// Enabling @typescript-eslint/switch-exhaustiveness-check
+// allows detecting non-exhaustive switch statements via lint
 ```
 
-### 2-4. 条件付き網羅性チェック
+### 2-4. Conditional Exhaustiveness Checks
 
 ```typescript
-// 一部のケースだけを処理し、残りは共通処理にしたい場合
+// When you want to handle only some cases and apply common handling for the rest
 
-// パターン1: 明示的な共通処理
+// Pattern 1: Explicit common handling
 function getStatusColor(status: "active" | "inactive" | "pending" | "archived"): string {
   switch (status) {
     case "active":
@@ -331,13 +331,13 @@ function getStatusColor(status: "active" | "inactive" | "pending" | "archived"):
       return "yellow";
     case "inactive":
     case "archived":
-      return "gray"; // 複数ケースをまとめる
+      return "gray"; // Group multiple cases together
     default:
       return assertNever(status);
   }
 }
 
-// パターン2: 部分的な処理 + デフォルト
+// Pattern 2: Partial handling + default
 type LogLevel = "trace" | "debug" | "info" | "warn" | "error" | "fatal";
 
 function shouldAlert(level: LogLevel): boolean {
@@ -346,12 +346,12 @@ function shouldAlert(level: LogLevel): boolean {
     case "fatal":
       return true;
     default:
-      // 残りは false だが、網羅性チェックは行わない
+      // The rest are false; no exhaustiveness check performed
       return false;
   }
 }
 
-// パターン3: 型安全なデフォルト付き網羅性チェック
+// Pattern 3: Type-safe exhaustiveness check with default fallback
 function toHttpStatus(error: DomainError): number {
   switch (error.code) {
     case "VALIDATION_ERROR": return 400;
@@ -359,10 +359,10 @@ function toHttpStatus(error: DomainError): number {
     case "PERMISSION_DENIED": return 403;
     case "CONFLICT": return 409;
     default: {
-      // ここで error.code が never でないなら
-      // 新しいエラーコードが追加されている
+      // If error.code is not never here,
+      // a new error code has been added
       const _exhaustive: never = error;
-      // フォールバック: 500 を返す（型チェックは警告するがビルドは通る）
+      // Fallback: return 500 (type check warns but build passes)
       return 500;
     }
   }
@@ -371,9 +371,9 @@ function toHttpStatus(error: DomainError): number {
 
 ---
 
-## 3. Redux / useReducer での活用
+## 3. Usage in Redux / useReducer
 
-### 3-1. Action の型設計
+### 3-1. Designing Action Types
 
 ```
                    dispatch(action)
@@ -392,7 +392,7 @@ function toHttpStatus(error: DomainError): number {
 |    case "SET_FILTER":                              |
 |      action.payload  -> { filter: FilterType }      |
 |    default:                                        |
-|      assertNever(action)  -> 網羅性チェック          |
+|      assertNever(action)  -> exhaustiveness check  |
 |  }                                                 |
 +---------------------------------------------------+
 ```
@@ -410,7 +410,7 @@ interface Todo {
   readonly completed: boolean;
 }
 
-// Action -- 判別共用体
+// Action -- discriminated union
 type TodoAction =
   | { readonly type: "ADD_TODO"; readonly payload: { text: string } }
   | { readonly type: "TOGGLE_TODO"; readonly payload: { id: number } }
@@ -427,7 +427,7 @@ function todoReducer(state: TodoState, action: TodoAction): TodoState {
           ...state.todos,
           {
             id: Date.now(),
-            text: action.payload.text, // { text: string } に絞り込み
+            text: action.payload.text, // Narrowed to { text: string }
             completed: false,
           },
         ],
@@ -437,7 +437,7 @@ function todoReducer(state: TodoState, action: TodoAction): TodoState {
       return {
         ...state,
         todos: state.todos.map((todo) =>
-          todo.id === action.payload.id // { id: number } に絞り込み
+          todo.id === action.payload.id // Narrowed to { id: number }
             ? { ...todo, completed: !todo.completed }
             : todo
         ),
@@ -454,7 +454,7 @@ function todoReducer(state: TodoState, action: TodoAction): TodoState {
     case "SET_FILTER":
       return {
         ...state,
-        filter: action.payload.filter, // { filter: ... } に絞り込み
+        filter: action.payload.filter, // Narrowed to { filter: ... }
       };
 
     default:
@@ -463,10 +463,10 @@ function todoReducer(state: TodoState, action: TodoAction): TodoState {
 }
 ```
 
-### 3-2. Action Creator の型安全な定義
+### 3-2. Type-Safe Action Creator Definitions
 
 ```typescript
-// Action Creator 型を自動生成
+// Auto-generate Action Creator types
 type ActionCreator<A extends { type: string }> = {
   [T in A["type"]]: (
     payload: Extract<A, { type: T }> extends { payload: infer P }
@@ -475,7 +475,7 @@ type ActionCreator<A extends { type: string }> = {
   ) => Extract<A, { type: T }>;
 };
 
-// 実装
+// Implementation
 const todoActions: ActionCreator<TodoAction> = {
   ADD_TODO: (payload) => ({ type: "ADD_TODO", payload }),
   TOGGLE_TODO: (payload) => ({ type: "TOGGLE_TODO", payload }),
@@ -483,23 +483,23 @@ const todoActions: ActionCreator<TodoAction> = {
   SET_FILTER: (payload) => ({ type: "SET_FILTER", payload }),
 };
 
-// 使用例 -- payload の型が自動推論される
+// Usage -- payload type is automatically inferred
 const action = todoActions.ADD_TODO({ text: "Learn TypeScript" });
-// 型: { type: "ADD_TODO"; payload: { text: string } }
+// Type: { type: "ADD_TODO"; payload: { text: string } }
 ```
 
-### 3-3. React useReducer との統合
+### 3-3. Integration with React useReducer
 
 ```typescript
 import { useReducer, Dispatch } from "react";
 
-// 初期状態
+// Initial state
 const initialState: TodoState = {
   todos: [],
   filter: "all",
 };
 
-// カスタムフック
+// Custom hook
 function useTodos() {
   const [state, dispatch] = useReducer(todoReducer, initialState);
 
@@ -528,7 +528,7 @@ function useTodos() {
   return { state, filteredTodos, actions };
 }
 
-// コンポーネントでの使用
+// Usage in a component
 function TodoApp() {
   const { filteredTodos, actions } = useTodos();
 
@@ -562,10 +562,10 @@ function TodoApp() {
 }
 ```
 
-### 3-4. 複雑なステート管理（複数 Reducer の合成）
+### 3-4. Complex State Management (Composing Multiple Reducers)
 
 ```typescript
-// ─── 認証ステート ───
+// ─── Authentication state ───
 type AuthState =
   | { status: "anonymous" }
   | { status: "authenticating" }
@@ -597,8 +597,8 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
   }
 }
 
-// ─── ステート間の遷移制約 ───
-// 型レベルでの遷移制約（状態によって使えるアクションを制限）
+// ─── Transition constraints between states ───
+// Restrict available actions based on current state at the type level
 
 type AuthActionFor<S extends AuthState["status"]> =
   S extends "anonymous" ? Extract<AuthAction, { type: "LOGIN_START" }>
@@ -607,7 +607,7 @@ type AuthActionFor<S extends AuthState["status"]> =
   : S extends "error" ? Extract<AuthAction, { type: "LOGIN_START" | "LOGOUT" }>
   : never;
 
-// 型安全な dispatch
+// Type-safe dispatch
 function createAuthDispatch(
   state: AuthState,
   dispatch: Dispatch<AuthAction>
@@ -629,12 +629,12 @@ function createAuthDispatch(
 
 ---
 
-## 4. 高度なパターン
+## 4. Advanced Patterns
 
-### 4-1. ネストした判別共用体
+### 4-1. Nested Discriminated Unions
 
 ```typescript
-// API レスポンスの型
+// API response type
 type ApiResponse<T> =
   | { status: "loading" }
   | { status: "success"; data: T }
@@ -645,7 +645,7 @@ type ApiError =
   | { code: "AUTH"; message: string; retryable: false }
   | { code: "VALIDATION"; message: string; fields: string[] };
 
-// ネストした判別
+// Nested discrimination
 function handleResponse<T>(response: ApiResponse<T>): string {
   switch (response.status) {
     case "loading":
@@ -669,17 +669,17 @@ function handleResponse<T>(response: ApiResponse<T>): string {
 }
 ```
 
-### 4-2. 判別共用体とジェネリクスの組み合わせ
+### 4-2. Combining Discriminated Unions with Generics
 
 ```typescript
-// イベントシステム
+// Event system
 type AppEvent =
   | { kind: "user.created"; payload: { userId: string; name: string } }
   | { kind: "user.deleted"; payload: { userId: string } }
   | { kind: "order.placed"; payload: { orderId: string; total: number } }
   | { kind: "order.shipped"; payload: { orderId: string; trackingId: string } };
 
-// イベントハンドラーの型安全な登録
+// Type-safe event handler registration
 type EventHandler<E extends AppEvent["kind"]> = (
   payload: Extract<AppEvent, { kind: E }>["payload"]
 ) => void;
@@ -705,35 +705,35 @@ class EventBus {
   }
 }
 
-// 使用例
+// Usage example
 const bus = new EventBus();
 bus.on("user.created", (payload) => {
-  // payload は { userId: string; name: string } に推論
+  // payload is inferred as { userId: string; name: string }
   console.log(`User ${payload.name} created`);
 });
 
 bus.emit("order.placed", { orderId: "123", total: 9800 });
-// bus.emit("order.placed", { orderId: "123" }); // エラー: total が必要
+// bus.emit("order.placed", { orderId: "123" }); // Error: total is required
 ```
 
-### 4-3. 判別共用体の型レベル操作
+### 4-3. Type-Level Operations on Discriminated Unions
 
 ```typescript
-// ─── Extract: 特定のメンバーを抽出 ───
+// ─── Extract: pull out specific members ───
 type UserEvents = Extract<AppEvent, { kind: `user.${string}` }>;
 // => { kind: "user.created"; payload: ... } | { kind: "user.deleted"; payload: ... }
 
 type OrderEvents = Extract<AppEvent, { kind: `order.${string}` }>;
 // => { kind: "order.placed"; payload: ... } | { kind: "order.shipped"; payload: ... }
 
-// ─── Exclude: 特定のメンバーを除外 ───
+// ─── Exclude: remove specific members ───
 type NonUserEvents = Exclude<AppEvent, { kind: `user.${string}` }>;
 
-// ─── 判別子の値を取得 ───
+// ─── Get discriminant values ───
 type EventKind = AppEvent["kind"];
 // => "user.created" | "user.deleted" | "order.placed" | "order.shipped"
 
-// ─── ペイロードを取得するユーティリティ型 ───
+// ─── Utility type to get payload ───
 type PayloadOf<K extends AppEvent["kind"]> = Extract<
   AppEvent,
   { kind: K }
@@ -742,7 +742,7 @@ type PayloadOf<K extends AppEvent["kind"]> = Extract<
 type UserCreatedPayload = PayloadOf<"user.created">;
 // => { userId: string; name: string }
 
-// ─── イベントマップを生成 ───
+// ─── Generate an event map ───
 type EventMap = {
   [K in AppEvent["kind"]]: PayloadOf<K>;
 };
@@ -754,10 +754,10 @@ type EventMap = {
 // }
 ```
 
-### 4-4. タグ付きユニオンの自動生成
+### 4-4. Auto-Generating Tagged Unions
 
 ```typescript
-// ペイロードマップから判別共用体を自動生成
+// Auto-generate a discriminated union from a payload map
 type EventPayloads = {
   "user.created": { userId: string; name: string };
   "user.deleted": { userId: string };
@@ -767,7 +767,7 @@ type EventPayloads = {
   "payment.failed": { paymentId: string; reason: string };
 };
 
-// ペイロードマップから判別共用体を生成
+// Generate discriminated union from payload map
 type GeneratedEvent = {
   [K in keyof EventPayloads]: {
     kind: K;
@@ -776,7 +776,7 @@ type GeneratedEvent = {
   };
 }[keyof EventPayloads];
 
-// 型安全なイベント発行関数
+// Type-safe event creation function
 function createEvent<K extends keyof EventPayloads>(
   kind: K,
   payload: EventPayloads[K]
@@ -784,7 +784,7 @@ function createEvent<K extends keyof EventPayloads>(
   return { kind, payload, timestamp: new Date() } as any;
 }
 
-// Action マップから判別共用体を生成（Redux 用）
+// Generate discriminated union from action map (for Redux)
 type ActionPayloads = {
   INCREMENT: void;
   DECREMENT: void;
@@ -804,10 +804,10 @@ type GeneratedAction = {
 //   | { type: "RESET" }
 ```
 
-### 4-5. 再帰的判別共用体
+### 4-5. Recursive Discriminated Unions
 
 ```typescript
-// JSON のような再帰的なデータ構造
+// Recursive data structure like JSON
 type JsonValue =
   | { type: "null" }
   | { type: "boolean"; value: boolean }
@@ -839,7 +839,7 @@ function stringify(json: JsonValue): string {
   }
 }
 
-// AST（抽象構文木）の表現
+// AST (Abstract Syntax Tree) representation
 type Expression =
   | { kind: "number_literal"; value: number }
   | { kind: "string_literal"; value: string }
@@ -889,12 +889,12 @@ function evaluate(expr: Expression, env: Record<string, number>): number {
 
 ---
 
-## 5. 実務での設計パターン
+## 5. Production Design Patterns
 
-### 5-1. ステートマシンとしての判別共用体
+### 5-1. Discriminated Unions as State Machines
 
 ```typescript
-// ─── 注文ステートマシン ───
+// ─── Order state machine ───
 //
 //  Created -> Confirmed -> Processing -> Shipped -> Delivered
 //     |          |            |                        |
@@ -967,7 +967,7 @@ type OrderState =
       refundId: string;
     };
 
-// ステート遷移関数
+// State transition functions
 type OrderEvent =
   | { type: "CONFIRM"; paymentId: string }
   | { type: "START_PROCESSING" }
@@ -1063,7 +1063,7 @@ function transitionOrder(state: OrderState, event: OrderEvent): OrderState {
   }
 }
 
-// ステータスに応じた表示
+// Display based on status
 function getOrderStatusDisplay(state: OrderState): {
   label: string;
   color: string;
@@ -1072,43 +1072,43 @@ function getOrderStatusDisplay(state: OrderState): {
   switch (state.status) {
     case "created":
       return {
-        label: "注文作成済み",
+        label: "Order Created",
         color: "gray",
         actions: ["confirm", "cancel"],
       };
     case "confirmed":
       return {
-        label: "確認済み",
+        label: "Confirmed",
         color: "blue",
         actions: ["start_processing", "cancel"],
       };
     case "processing":
       return {
-        label: "処理中",
+        label: "Processing",
         color: "yellow",
         actions: ["ship", "cancel"],
       };
     case "shipped":
       return {
-        label: `配送中 (${state.trackingNumber})`,
+        label: `Shipped (${state.trackingNumber})`,
         color: "orange",
         actions: ["deliver"],
       };
     case "delivered":
       return {
-        label: "配達完了",
+        label: "Delivered",
         color: "green",
         actions: ["return"],
       };
     case "cancelled":
       return {
-        label: `キャンセル: ${state.reason}`,
+        label: `Cancelled: ${state.reason}`,
         color: "red",
         actions: [],
       };
     case "returned":
       return {
-        label: `返品: ${state.returnReason}`,
+        label: `Returned: ${state.returnReason}`,
         color: "purple",
         actions: [],
       };
@@ -1118,10 +1118,10 @@ function getOrderStatusDisplay(state: OrderState): {
 }
 ```
 
-### 5-2. フォーム状態の表現
+### 5-2. Representing Form State
 
 ```typescript
-// フォームフィールドの状態
+// Form field state
 type FieldState<T> =
   | { status: "pristine"; value: T }
   | { status: "dirty"; value: T; originalValue: T }
@@ -1129,7 +1129,7 @@ type FieldState<T> =
   | { status: "valid"; value: T }
   | { status: "invalid"; value: T; errors: string[] };
 
-// フォーム全体の状態
+// Overall form state
 type FormState<T extends Record<string, unknown>> = {
   fields: {
     [K in keyof T]: FieldState<T[K]>;
@@ -1141,7 +1141,7 @@ type FormState<T extends Record<string, unknown>> = {
     | { status: "error"; error: string };
 };
 
-// フォームアクション
+// Form actions
 type FormAction<T extends Record<string, unknown>> =
   | { type: "FIELD_CHANGE"; field: keyof T; value: T[keyof T] }
   | { type: "FIELD_BLUR"; field: keyof T }
@@ -1153,7 +1153,7 @@ type FormAction<T extends Record<string, unknown>> =
   | { type: "SUBMIT_ERROR"; error: string }
   | { type: "RESET" };
 
-// フォームの状態に応じたUI制御
+// UI control based on form state
 function isFormSubmittable<T extends Record<string, unknown>>(
   state: FormState<T>
 ): boolean {
@@ -1177,10 +1177,10 @@ function getFieldError<T extends Record<string, unknown>>(
 }
 ```
 
-### 5-3. ルーティングの型安全な表現
+### 5-3. Type-Safe Routing Representation
 
 ```typescript
-// 型安全なルーティング
+// Type-safe routing
 type Route =
   | { path: "/"; page: "home" }
   | { path: "/users"; page: "user-list"; query?: { page?: number; search?: string } }
@@ -1189,7 +1189,7 @@ type Route =
   | { path: "/settings"; page: "settings" }
   | { path: "/404"; page: "not-found" };
 
-// ルートに応じたコンポーネントの選択
+// Select page component based on route
 function getPageComponent(route: Route): string {
   switch (route.page) {
     case "home":
@@ -1209,7 +1209,7 @@ function getPageComponent(route: Route): string {
   }
 }
 
-// 型安全なリンク生成
+// Type-safe link generation
 type LinkParams<P extends Route["page"]> = Extract<Route, { page: P }>;
 
 function createLink<P extends Route["page"]>(
@@ -1229,16 +1229,16 @@ function createLink<P extends Route["page"]>(
   }
 }
 
-// 使用例
+// Usage examples
 const homeLink = createLink("home"); // "/"
 const userLink = createLink("user-detail", { id: "123" }); // "/users/123"
-// createLink("user-detail"); // エラー: params が必要
+// createLink("user-detail"); // Error: params is required
 ```
 
-### 5-4. WebSocket メッセージの型安全な処理
+### 5-4. Type-Safe WebSocket Message Handling
 
 ```typescript
-// WebSocket メッセージの判別共用体
+// Discriminated union for WebSocket messages
 type ClientMessage =
   | { type: "join_room"; roomId: string; userId: string }
   | { type: "leave_room"; roomId: string }
@@ -1256,7 +1256,7 @@ type ServerMessage =
   | { type: "pong" }
   | { type: "error"; code: string; message: string };
 
-// サーバーサイドのメッセージハンドラ
+// Server-side message handler
 class ChatServer {
   handleMessage(ws: WebSocket, message: ClientMessage): void {
     switch (message.type) {
@@ -1288,15 +1288,15 @@ class ChatServer {
   }
 
   private joinRoom(ws: WebSocket, roomId: string, userId: string): void {
-    // 部屋に参加する処理
+    // Logic to join a room
     const members = this.getRoomMembers(roomId);
     this.send(ws, { type: "room_joined", roomId, members });
   }
 
-  // ... その他のメソッド
+  // ... other methods
 }
 
-// クライアントサイドのメッセージハンドラ
+// Client-side message handler
 function handleServerMessage(message: ServerMessage): void {
   switch (message.type) {
     case "room_joined":
@@ -1308,22 +1308,22 @@ function handleServerMessage(message: ServerMessage): void {
     case "error":
       console.error(`Server error [${message.code}]: ${message.message}`);
       break;
-    // ... 他のケース
+    // ... other cases
   }
 }
 ```
 
-### 5-5. ツリー構造とVisitorパターン
+### 5-5. Tree Structures and the Visitor Pattern
 
 ```typescript
-// HTML-like なツリー構造
+// HTML-like tree structure
 type HtmlNode =
   | { type: "element"; tag: string; attributes: Record<string, string>; children: HtmlNode[] }
   | { type: "text"; content: string }
   | { type: "comment"; content: string }
   | { type: "doctype"; value: string };
 
-// Visitor パターン
+// Visitor pattern
 interface HtmlVisitor<T> {
   element(node: Extract<HtmlNode, { type: "element" }>, children: T[]): T;
   text(node: Extract<HtmlNode, { type: "text" }>): T;
@@ -1348,7 +1348,7 @@ function visitHtml<T>(node: HtmlNode, visitor: HtmlVisitor<T>): T {
   }
 }
 
-// HTML を文字列に変換する Visitor
+// Visitor that converts HTML to a string
 const htmlStringVisitor: HtmlVisitor<string> = {
   element(node, children) {
     const attrs = Object.entries(node.attributes)
@@ -1367,7 +1367,7 @@ const htmlStringVisitor: HtmlVisitor<string> = {
   },
 };
 
-// テキストだけを抽出する Visitor
+// Visitor that extracts text only
 const textExtractVisitor: HtmlVisitor<string> = {
   element(_, children) {
     return children.join(" ");
@@ -1383,7 +1383,7 @@ const textExtractVisitor: HtmlVisitor<string> = {
   },
 };
 
-// 使用例
+// Usage example
 const doc: HtmlNode = {
   type: "element",
   tag: "div",
@@ -1406,14 +1406,14 @@ const text = visitHtml(doc, textExtractVisitor);
 
 ---
 
-## 6. パフォーマンスと最適化
+## 6. Performance and Optimization
 
-### 6-1. switch vs if-else vs オブジェクトマップ
+### 6-1. switch vs if-else vs Object Map
 
 ```typescript
-// ─── ベンチマーク結果（概算） ───
+// ─── Benchmark results (approximate) ───
 
-// 方法1: switch 文 -- ~1-2ns/op
+// Method 1: switch statement -- ~1-2ns/op
 function areaSwitch(shape: Shape): number {
   switch (shape.type) {
     case "circle": return Math.PI * shape.radius ** 2;
@@ -1422,14 +1422,14 @@ function areaSwitch(shape: Shape): number {
   }
 }
 
-// 方法2: if-else -- ~1-3ns/op
+// Method 2: if-else -- ~1-3ns/op
 function areaIfElse(shape: Shape): number {
   if (shape.type === "circle") return Math.PI * shape.radius ** 2;
   if (shape.type === "rect") return shape.width * shape.height;
   return (shape.base * shape.height) / 2;
 }
 
-// 方法3: オブジェクトマップ -- ~3-5ns/op
+// Method 3: object map -- ~3-5ns/op
 const areaMap: Record<Shape["type"], (s: any) => number> = {
   circle: (s: Circle) => Math.PI * s.radius ** 2,
   rect: (s: Rect) => s.width * s.height,
@@ -1439,51 +1439,51 @@ function areaMapLookup(shape: Shape): number {
   return areaMapshape.type;
 }
 
-// 結論:
-// - 分岐が少ない（3-5個）: switch が最速かつ最も可読性が高い
-// - 分岐が多い（10+個）: オブジェクトマップが均一なパフォーマンス
-// - V8 エンジンは switch を最適化するため、多くの場合 switch が最速
+// Conclusion:
+// - Few branches (3-5): switch is fastest and most readable
+// - Many branches (10+): object map provides uniform performance
+// - V8 optimizes switch statements heavily, so switch is often fastest
 ```
 
-### 6-2. メモリ効率
+### 6-2. Memory Efficiency
 
 ```typescript
-// ─── コンストラクタ関数 vs オブジェクトリテラル ───
+// ─── Constructor functions vs object literals ───
 
-// 方法1: オブジェクトリテラル（推奨）
+// Method 1: Object literal (recommended)
 const circleObj: Circle = { type: "circle", radius: 5 };
-// 各オブジェクトが独立した hidden class を持つ可能性がある
+// Each object may have its own hidden class
 
-// 方法2: ファクトリ関数（V8 最適化に有利）
+// Method 2: Factory function (favorable for V8 optimization)
 function createCircle(radius: number): Circle {
   return { type: "circle", radius };
 }
-// 同じファクトリから生成されたオブジェクトは同じ hidden class を共有
+// Objects created from the same factory share the same hidden class
 
-// 方法3: クラス（最もV8に優しい）
+// Method 3: Class (most V8-friendly)
 class CircleImpl implements Circle {
   readonly type = "circle" as const;
   constructor(readonly radius: number) {}
 }
-// クラスインスタンスは常に同じ hidden class を持つ
+// Class instances always share the same hidden class
 
-// ─── 大量のオブジェクトを生成する場合の推奨 ───
-// 100,000個以上の判別共用体オブジェクトを生成する場合:
-// 1. ファクトリ関数を使用する
-// 2. プロパティの順序を一定にする
-// 3. readonly を使用する（V8が最適化しやすい）
+// ─── Recommendations when creating large numbers of objects ───
+// When creating 100,000+ discriminated union objects:
+// 1. Use factory functions
+// 2. Keep property order consistent
+// 3. Use readonly (easier for V8 to optimize)
 ```
 
-### 6-3. シリアライゼーションの効率
+### 6-3. Serialization Efficiency
 
 ```typescript
-// JSON シリアライゼーション時の判別子の扱い
+// Handling discriminants during JSON serialization
 
-// 方法1: そのまま JSON.stringify（推奨）
+// Method 1: JSON.stringify directly (recommended)
 const serialized = JSON.stringify(shape);
 // {"type":"circle","radius":5}
 
-// 方法2: 数値タグでサイズを削減（帯域幅重視の場合）
+// Method 2: Numeric tags to reduce size (when bandwidth matters)
 const TAG = { circle: 0, rect: 1, triangle: 2 } as const;
 type TaggedShape =
   | [typeof TAG.circle, number]           // [0, radius]
@@ -1506,92 +1506,92 @@ function fromTagged(tagged: TaggedShape): Shape {
   }
 }
 
-// サイズ比較:
-// JSON: {"type":"circle","radius":5}       = 30バイト
-// タグ: [0,5]                              = 5バイト
-// → 大量データの転送時に有効
+// Size comparison:
+// JSON: {"type":"circle","radius":5}       = 30 bytes
+// Tagged: [0,5]                            = 5 bytes
+// -> Effective for transferring large amounts of data
 ```
 
 ---
 
-## 比較表
+## Comparison Tables
 
-### 型の絞り込み手法の比較
+### Comparison of Type Narrowing Techniques
 
-| 手法 | 安全性 | パフォーマンス | 拡張性 | 網羅性チェック |
-|------|--------|-------------|--------|-------------|
-| 判別共用体 (switch) | 高 | 最高 | 高 | `never` で可能 |
-| instanceof | 中 | 高 | 低 | 不完全 |
-| in 演算子 | 低 | 高 | 低 | 不可 |
-| 型述語 (is) | 高 | 中 | 中 | 不可 |
-| zod discriminatedUnion | 最高 | 中 | 高 | ランタイムで可能 |
+| Technique | Safety | Performance | Extensibility | Exhaustiveness Check |
+|-----------|--------|-------------|---------------|----------------------|
+| Discriminated union (switch) | High | Best | High | Possible with `never` |
+| instanceof | Medium | High | Low | Incomplete |
+| in operator | Low | High | Low | Not possible |
+| Type predicate (is) | High | Medium | Medium | Not possible |
+| zod discriminatedUnion | Highest | Medium | High | Possible at runtime |
 
-### 判別子の選択肢
+### Discriminant Options
 
-| 判別子 | 例 | 利点 | 注意点 |
-|--------|-----|------|--------|
-| 文字列リテラル | `type: "circle"` | 最も一般的、可読性が高い | typo のリスク |
-| 数値リテラル | `kind: 0 \| 1 \| 2` | switch 最適化 | 可読性が低い |
-| enum | `Action.Add` | IDE 補完が優秀 | Tree-shaking 問題 |
-| const enum | `const enum` | ランタイムコストゼロ | isolatedModules 非対応 |
-| Symbol | `Symbol("circle")` | 一意性保証 | シリアライズ不可 |
+| Discriminant | Example | Advantages | Caveats |
+|--------------|---------|------------|---------|
+| String literal | `type: "circle"` | Most common, highly readable | Risk of typos |
+| Numeric literal | `kind: 0 \| 1 \| 2` | switch optimization | Lower readability |
+| enum | `Action.Add` | Excellent IDE completion | Tree-shaking issues |
+| const enum | `const enum` | Zero runtime cost | Incompatible with isolatedModules |
+| Symbol | `Symbol("circle")` | Uniqueness guaranteed | Cannot be serialized |
 
-### 網羅性チェック手法の比較
+### Comparison of Exhaustiveness Check Techniques
 
-| 手法 | 安全レベル | コード量 | 利用場面 |
-|------|----------|---------|---------|
-| assertNever | 最高 | 少 | switch の default |
-| satisfies Record | 最高 | 中 | オブジェクトマップ |
-| 戻り値型注釈 | 高 | 最少 | 暗黙的チェック |
-| ESLint ルール | 中 | 設定のみ | CI/CD での検出 |
-| 型テスト | 最高 | 多 | テストファイル内 |
+| Technique | Safety Level | Code Volume | Use Case |
+|-----------|-------------|-------------|----------|
+| assertNever | Highest | Low | switch default |
+| satisfies Record | Highest | Medium | Object maps |
+| Return type annotation | High | Minimal | Implicit check |
+| ESLint rule | Medium | Config only | Detection in CI/CD |
+| Type tests | Highest | High | Inside test files |
 
-### 判別共用体の適用場面
+### When to Use Discriminated Unions
 
-| 場面 | 具体例 | メリット |
-|------|--------|---------|
-| ステートマシン | 注文状態、認証状態、フォーム状態 | 不正な状態遷移をコンパイル時に防止 |
-| イベント駆動 | DOM イベント、WebSocket メッセージ | ハンドラの型安全性 |
-| API レスポンス | 成功/エラー/ローディング | 状態に応じたUI表示の型安全性 |
-| Redux Action | アクション定義と Reducer | payload の型推論 |
-| AST | コンパイラ、リンター、フォーマッター | ノード種別ごとの処理 |
-| データモデル | 支払い方法、通知チャネル | バリエーションの網羅性保証 |
+| Scenario | Example | Benefit |
+|----------|---------|---------|
+| State machines | Order status, auth state, form state | Prevent invalid transitions at compile time |
+| Event-driven | DOM events, WebSocket messages | Type safety in handlers |
+| API responses | Success/error/loading | Type-safe UI rendering based on state |
+| Redux Actions | Action definitions and Reducers | Payload type inference |
+| AST | Compilers, linters, formatters | Per-node-type processing |
+| Data models | Payment methods, notification channels | Exhaustiveness guarantee for variants |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### AP-1: 判別子のないユニオン型
+### AP-1: Union Types Without a Discriminant
 
 ```typescript
-// NG: 判別子がなく、絞り込みが困難
+// Bad: No discriminant makes narrowing difficult
 type Shape =
   | { radius: number }
   | { width: number; height: number }
-  | { base: number; height: number }; // height が重複!
+  | { base: number; height: number }; // height is duplicated!
 
 function area(shape: Shape): number {
   if ("radius" in shape) {
     return Math.PI * shape.radius ** 2;
   }
-  // width があるかないかでしか区別できない
+  // Can only distinguish by presence of width
   if ("width" in shape) {
     return shape.width * shape.height;
   }
-  return shape.base * shape.height; // 本当に Triangle?
+  return shape.base * shape.height; // Is this really Triangle?
 }
 
-// OK: 判別子を追加
+// Good: Add a discriminant
 type Shape =
   | { type: "circle"; radius: number }
   | { type: "rect"; width: number; height: number }
   | { type: "triangle"; base: number; height: number };
 ```
 
-### AP-2: default で握りつぶす
+### AP-2: Swallowing Cases with default
 
 ```typescript
-// NG: default で新しいケースを見逃す
+// Bad: New cases are silently missed with a catch-all default
 function describe(shape: Shape): string {
   switch (shape.type) {
     case "circle":
@@ -1599,11 +1599,11 @@ function describe(shape: Shape): string {
     case "rect":
       return "A rectangle";
     default:
-      return "Unknown shape"; // Triangle を見逃し、将来の型追加も見逃す
+      return "Unknown shape"; // Misses Triangle, and future additions too
   }
 }
 
-// OK: assertNever で網羅性を保証
+// Good: Use assertNever to guarantee exhaustiveness
 function describe(shape: Shape): string {
   switch (shape.type) {
     case "circle":
@@ -1613,20 +1613,20 @@ function describe(shape: Shape): string {
     case "triangle":
       return "A triangle";
     default:
-      return assertNever(shape); // 新しい型追加時にコンパイルエラー
+      return assertNever(shape); // Compile error when a new type is added
   }
 }
 ```
 
-### AP-3: 判別子を動的に設定する
+### AP-3: Setting the Discriminant Dynamically
 
 ```typescript
-// NG: 判別子が動的な値
+// Bad: Discriminant is a dynamic value
 function createShape(type: string, params: any): Shape {
-  return { type, ...params } as Shape; // 型安全性がゼロ
+  return { type, ...params } as Shape; // Zero type safety
 }
 
-// OK: スマートコンストラクタ
+// Good: Smart constructors
 function createCircle(radius: number): Circle {
   return { type: "circle", radius };
 }
@@ -1636,21 +1636,21 @@ function createRect(width: number, height: number): Rect {
 }
 ```
 
-### AP-4: 巨大な判別共用体を一箇所で処理
+### AP-4: Processing a Huge Discriminated Union in One Place
 
 ```typescript
-// NG: 50個のケースを持つ switch 文
+// Bad: A switch with 50 cases
 function handleEvent(event: AppEvent): void {
   switch (event.type) {
     case "type_1": /* ... */ break;
     case "type_2": /* ... */ break;
-    // ... 50個の case ...
+    // ... 50 cases ...
     case "type_50": /* ... */ break;
     default: assertNever(event);
   }
 }
 
-// OK: カテゴリごとに分割
+// Good: Split by category
 type UserEvent = Extract<AppEvent, { type: `user.${string}` }>;
 type OrderEvent = Extract<AppEvent, { type: `order.${string}` }>;
 type PaymentEvent = Extract<AppEvent, { type: `payment.${string}` }>;
@@ -1668,21 +1668,21 @@ function handleEvent(event: AppEvent): void {
 }
 
 function handleUserEvent(event: UserEvent): void {
-  // 5-10個のケースのみ
+  // Only 5-10 cases
 }
 ```
 
-### AP-5: 判別子の名前がプロジェクト内で不統一
+### AP-5: Inconsistent Discriminant Names Across the Project
 
 ```typescript
-// NG: ファイルによって判別子の名前がバラバラ
+// Bad: Different discriminant names across files
 type Shape = { type: "circle"; ... } | { type: "rect"; ... };
 type Event = { kind: "click"; ... } | { kind: "keypress"; ... };
 type Action = { tag: "add"; ... } | { tag: "remove"; ... };
 type Result = { _tag: "Ok"; ... } | { _tag: "Err"; ... };
 
-// OK: プロジェクト全体で統一
-// 方針: 判別子は "type" に統一
+// Good: Unified across the project
+// Policy: standardize discriminant on "type"
 type Shape = { type: "circle"; ... } | { type: "rect"; ... };
 type Event = { type: "click"; ... } | { type: "keypress"; ... };
 type Action = { type: "add"; ... } | { type: "remove"; ... };
@@ -1691,15 +1691,15 @@ type Result = { type: "ok"; ... } | { type: "err"; ... };
 
 ---
 
-## テスト戦略
+## Testing Strategy
 
-### 判別共用体のテスト
+### Testing Discriminated Unions
 
 ```typescript
 import { describe, it, expect } from "vitest";
 
 describe("Shape area calculation", () => {
-  // 各バリアントのテスト
+  // Test each variant
   it("should calculate circle area", () => {
     const shape: Shape = { type: "circle", radius: 5 };
     expect(area(shape)).toBeCloseTo(78.54, 1);
@@ -1715,17 +1715,17 @@ describe("Shape area calculation", () => {
     expect(area(shape)).toBe(24);
   });
 
-  // 型テスト（コンパイル時チェック）
+  // Type tests (compile-time checks)
   it("should have correct type narrowing", () => {
     const shape: Shape = { type: "circle", radius: 5 };
     if (shape.type === "circle") {
-      // TypeScript がここで shape を Circle に絞り込むことを確認
-      const _radius: number = shape.radius; // コンパイルエラーにならない
+      // Verify TypeScript narrows shape to Circle here
+      const _radius: number = shape.radius; // Should not cause a compile error
       expect(_radius).toBe(5);
     }
   });
 
-  // 網羅性テスト
+  // Exhaustiveness test
   it("should handle all shape types", () => {
     const allTypes: Shape["type"][] = ["circle", "rect", "triangle"];
     for (const type of allTypes) {
@@ -1735,25 +1735,25 @@ describe("Shape area calculation", () => {
   });
 });
 
-// コンパイル時の型テスト（tsd ライブラリ）
-// @ts-expect-error テスト
+// Compile-time type tests (using the tsd library)
+// @ts-expect-error test
 describe("Type-level tests", () => {
   it("should reject invalid discriminant", () => {
-    // @ts-expect-error: "invalid" は Shape["type"] に含まれない
+    // @ts-expect-error: "invalid" is not in Shape["type"]
     const shape: Shape = { type: "invalid", radius: 5 };
   });
 
   it("should not allow extra properties when narrowed", () => {
     const shape: Shape = { type: "circle", radius: 5 };
     if (shape.type === "circle") {
-      // @ts-expect-error: Circle に width は存在しない
+      // @ts-expect-error: width does not exist on Circle
       const _width = shape.width;
     }
   });
 });
 ```
 
-### ステートマシンのテスト
+### Testing State Machines
 
 ```typescript
 describe("Order state machine", () => {
@@ -1803,7 +1803,7 @@ describe("Order state machine", () => {
     for (const status of validCancelStates) {
       let order: OrderState = initialOrder;
 
-      // 目的の状態まで遷移
+      // Transition to the target state
       if (status === "confirmed" || status === "processing") {
         order = transitionOrder(order, { type: "CONFIRM", paymentId: "pay-1" });
       }
@@ -1825,33 +1825,33 @@ describe("Order state machine", () => {
 
 ## FAQ
 
-### Q1: 判別子は必ず `type` という名前にすべきですか？
+### Q1: Does the discriminant always have to be named `type`?
 
-いいえ。`type`, `kind`, `tag`, `status`, `_tag` など、プロジェクトで統一されていれば何でも構いません。ただし、同じコードベース内では判別子の名前を統一することを強く推奨します。Redux 系では `type` が慣例です。
+No. Names like `type`, `kind`, `tag`, `status`, or `_tag` are all fine as long as they are consistent within the project. However, it is strongly recommended to unify the discriminant name within the same codebase. The convention in Redux-style code is `type`.
 
-### Q2: 判別共用体は何個のメンバーまでスケールしますか？
+### Q2: How many members can a discriminated union scale to?
 
-TypeScript コンパイラは数百個のメンバーでも問題なく動作します。ただし、開発者の認知負荷を考えると、20〜30 個を超える場合はカテゴリごとにネストした判別共用体に分割することを検討してください。
+The TypeScript compiler handles even hundreds of members without issue. However, for developer cognitive load, consider splitting into nested discriminated unions by category when you exceed 20-30 members.
 
-### Q3: enum と判別共用体のどちらを使うべきですか？
+### Q3: Should I use enum or discriminated unions?
 
-判別共用体を推奨します。enum は Tree-shaking の問題があり、`const enum` は `isolatedModules` と相性が悪いです。判別共用体はリテラル型のみで構成され、ランタイムコストが最小で、TypeScript の型推論と最も相性が良い設計です。
+Discriminated unions are recommended. Enums have tree-shaking issues, and `const enum` is incompatible with `isolatedModules`. Discriminated unions are composed solely of literal types, have minimal runtime cost, and are most compatible with TypeScript's type inference.
 
-### Q4: 判別共用体と class の使い分けは？
+### Q4: When should I use discriminated unions vs classes?
 
-データの表現には判別共用体、振る舞いを含む場合は class が適しています。ただし、TypeScript では判別共用体 + 関数（Visitor パターン）の組み合わせが class 継承よりも型安全性が高いケースが多いです。OOPの「開放閉鎖原則」よりも「網羅性チェック」を重視するなら判別共用体を選びましょう。
+Use discriminated unions for data representation, and classes when behavior needs to be included. That said, in TypeScript the combination of discriminated union + functions (Visitor pattern) often offers higher type safety than class inheritance. If you value exhaustiveness checks over OOP's open-closed principle, choose discriminated unions.
 
-### Q5: 判別共用体をシリアライズ/デシリアライズする際の注意点は？
+### Q5: What should I be careful about when serializing/deserializing discriminated unions?
 
-JSON.stringify/parse は判別共用体と自然に互換性があります。ただし、Date や Map などの非プリミティブ型はシリアライズ時に情報が失われます。zod のスキーマで判別共用体を定義し、デシリアライズ時にバリデーションを行うのがベストプラクティスです。
+`JSON.stringify`/`parse` works naturally with discriminated unions. However, non-primitive types like `Date` or `Map` lose information during serialization. The best practice is to define your discriminated union using a zod schema and validate during deserialization.
 
-### Q6: 既存のコードベースに判別共用体を導入するには？
+### Q6: How can I introduce discriminated unions into an existing codebase?
 
-段階的な導入が可能です。(1) まず共通の判別子フィールドを追加する（`type` など）、(2) `instanceof` チェックを `switch` 文に置き換える、(3) `assertNever` を追加して網羅性を保証する、という手順で進めます。既存のクラス階層がある場合は、各クラスに `readonly type` プロパティを追加するだけで判別共用体として使えます。
+Incremental adoption is possible: (1) first add a common discriminant field (e.g., `type`), (2) replace `instanceof` checks with `switch` statements, (3) add `assertNever` to guarantee exhaustiveness. If you have an existing class hierarchy, adding a `readonly type` property to each class is enough to use it as a discriminated union.
 
-### Q7: 判別共用体と interface の extends は併用できますか？
+### Q7: Can discriminated unions and interface extends be used together?
 
-はい。共通のフィールドを base interface に定義し、各バリアントが extends できます。ただし、判別子フィールドは各バリアントで具体的なリテラル型に narrowing する必要があります。
+Yes. You can define shared fields in a base interface and have each variant extend it. However, the discriminant field must be narrowed to a specific literal type in each variant.
 
 ```typescript
 interface BaseShape {
@@ -1872,52 +1872,52 @@ interface Rect extends BaseShape {
 type Shape = Circle | Rect;
 ```
 
-### Q8: パフォーマンスが重要な場面で判別共用体は遅くなりませんか？
+### Q8: Do discriminated unions become slow in performance-critical scenarios?
 
-通常のアプリケーションでは気にする必要はありません。V8エンジンは switch 文を非常に効率的に最適化します。数千万回/秒の呼び出しが必要な超高頻度パスでは、数値タグ + 配列インデックスアクセスのほうが高速ですが、そのような最適化が必要になることは稀です。
-
----
-
-## まとめ表
-
-| 概念 | 要点 |
-|------|------|
-| 判別共用体 | 共通のリテラル型フィールドで型を判別するユニオン |
-| 判別子 | `type`, `kind` などの共通フィールド |
-| 型の絞り込み | switch/if でリテラル値をチェックすると型が絞られる |
-| 網羅性チェック | `default: assertNever(x)` で全ケース処理を保証 |
-| satisfies | オブジェクトマップで網羅性を型チェック |
-| ネスト | 判別共用体は入れ子にして複雑な分岐を表現可能 |
-| ステートマシン | 状態遷移を判別共用体で型安全にモデリング |
-| Visitor パターン | 再帰的な構造の処理を型安全に実装 |
-| イベント駆動 | イベントのペイロードを判別子で型安全に処理 |
-| 型レベル操作 | Extract/Exclude で判別共用体のサブセットを取得 |
+You do not need to worry about this in typical applications. The V8 engine optimizes switch statements very efficiently. For ultra-high-frequency paths requiring tens of millions of calls per second, numeric tags + array index access would be faster, but such optimization is rarely needed.
 
 ---
 
+## Summary Table
 
-## まとめ
-
-このガイドでは以下の重要なポイントを学びました:
-
-- 基本概念と原則の理解
-- 実践的な実装パターン
-- ベストプラクティスと注意点
-- 実務での活用方法
-
----
-
-## 次に読むべきガイド
-
-- [エラーハンドリング](./00-error-handling.md) -- 判別共用体を使った Result 型の実装
-- [ブランド型](./03-branded-types.md) -- 判別共用体とブランド型の組み合わせ
-- [ビルダーパターン](./01-builder-pattern.md) -- Step Builder の型安全性を支える判別共用体
-- [依存性注入](./04-dependency-injection.md) -- 判別共用体を使ったサービスの型安全な管理
-- [tRPC](../04-ecosystem/02-trpc.md) -- 判別共用体を活用した型安全 API
+| Concept | Key Point |
+|---------|-----------|
+| Discriminated union | A union where members are distinguished by a shared literal type field |
+| Discriminant | A shared field such as `type` or `kind` |
+| Type narrowing | Checking a literal value in switch/if narrows the type |
+| Exhaustiveness check | `default: assertNever(x)` guarantees all cases are handled |
+| satisfies | Checks exhaustiveness via type on an object map |
+| Nesting | Discriminated unions can be nested to represent complex branching |
+| State machine | Model state transitions in a type-safe way with discriminated unions |
+| Visitor pattern | Type-safe processing of recursive structures |
+| Event-driven | Handle event payloads type-safely using the discriminant |
+| Type-level operations | Use Extract/Exclude to get subsets of a discriminated union |
 
 ---
 
-## 参考文献
+
+## Summary
+
+In this guide, we covered the following key points:
+
+- Understanding basic concepts and principles
+- Practical implementation patterns
+- Best practices and pitfalls to avoid
+- How to apply these patterns in production
+
+---
+
+## Guides to Read Next
+
+- [Error Handling](./00-error-handling.md) -- Implementing the Result type using discriminated unions
+- [Branded Types](./03-branded-types.md) -- Combining discriminated unions with branded types
+- [Builder Pattern](./01-builder-pattern.md) -- Discriminated unions underpinning the type safety of Step Builder
+- [Dependency Injection](./04-dependency-injection.md) -- Type-safe service management using discriminated unions
+- [tRPC](../04-ecosystem/02-trpc.md) -- Type-safe APIs leveraging discriminated unions
+
+---
+
+## References
 
 1. **TypeScript Handbook - Narrowing**
    https://www.typescriptlang.org/docs/handbook/2/narrowing.html
