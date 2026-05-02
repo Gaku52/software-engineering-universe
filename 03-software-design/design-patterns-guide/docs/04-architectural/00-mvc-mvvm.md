@@ -1,80 +1,80 @@
-# MVC / MVVM — UI 設計パターン比較
+# MVC / MVVM — UI Design Pattern Comparison
 
-> MVC、MVP、MVVM の 3 つの UI アーキテクチャパターンを比較し、フレームワークやプラットフォームに応じた最適な選択を行うための実践ガイド。各パターンの歴史的背景、データフロー、テスト戦略、アンチパターンまで、実務で必要な全知識を網羅する。
+> A practical guide for comparing the three UI architecture patterns — MVC, MVP, and MVVM — and choosing the best fit for your framework and platform. Covers historical background, data flow, testing strategies, and anti-patterns — everything you need for real-world work.
 
 ---
 
-## 前提知識
+## Prerequisites
 
-| トピック | 必要レベル | 参照先 |
+| Topic | Required Level | Reference |
 |---------|-----------|--------|
-| オブジェクト指向プログラミング | 基礎（クラス、インターフェース） | [02-programming](../../../../02-programming/) |
-| TypeScript / JavaScript 基礎 | 中級（型、非同期処理） | [02-programming](../../../../02-programming/) |
-| HTML / CSS / DOM の基本 | 基礎 | [04-web-and-network](../../../../04-web-and-network/) |
-| デザインパターンの基本概念 | 基礎（Observer、Strategy） | ../01-creational/ |
-| クリーンコード原則 | 基礎（関心の分離、単一責任原則） | ../../clean-code-principles/ |
+| Object-Oriented Programming | Basics (classes, interfaces) | [02-programming](../../../../02-programming/) |
+| TypeScript / JavaScript Fundamentals | Intermediate (types, async) | [02-programming](../../../../02-programming/) |
+| HTML / CSS / DOM Basics | Basics | [04-web-and-network](../../../../04-web-and-network/) |
+| Core Design Pattern Concepts | Basics (Observer, Strategy) | ../01-creational/ |
+| Clean Code Principles | Basics (separation of concerns, SRP) | ../../clean-code-principles/ |
 
 ---
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **MVC（Model-View-Controller）** の構造と Web フレームワークでの実装、サーバーサイド・クライアントサイドでの違い
-2. **MVP（Model-View-Presenter）** の特徴と MVC からの改善点、テスト容易性の向上
-3. **MVVM（Model-View-ViewModel）** のデータバインディングとリアクティブ設計、現代フレームワークでの適用
-4. **各パターンの使い分け** — フレームワーク・プラットフォーム別の最適解と移行戦略
-5. **テスト戦略** — 各パターンにおけるユニットテスト・統合テストの書き方
+1. **MVC (Model-View-Controller)** — structure, implementation in web frameworks, and the differences between server-side and client-side usage
+2. **MVP (Model-View-Presenter)** — characteristics, improvements over MVC, and increased testability
+3. **MVVM (Model-View-ViewModel)** — data binding, reactive design, and application in modern frameworks
+4. **Choosing the right pattern** — optimal choices per framework and platform, and migration strategies
+5. **Testing strategies** — how to write unit and integration tests for each pattern
 
 ---
 
-## 1. UI アーキテクチャパターンの全体像
+## 1. Overview of UI Architecture Patterns
 
-### WHY: なぜ UI にアーキテクチャパターンが必要か
+### WHY: Why Do UI Patterns Matter?
 
-GUI アプリケーションは「表示」「入力処理」「ビジネスロジック」「データ永続化」が密結合しやすい。パターンなしで開発すると以下の問題が発生する:
+GUI applications tend to tightly couple "rendering", "input handling", "business logic", and "data persistence". Without patterns, the following problems arise:
 
-1. **テスト困難** — UI 描画なしにロジックを検証できない
-2. **変更の波及** — 画面変更がビジネスロジックに影響する
-3. **並行開発の阻害** — デザイナーと開発者が同一ファイルを編集する衝突
-4. **コード再利用不可** — Web とモバイルで同じロジックを共有できない
+1. **Hard to test** — logic cannot be verified without rendering the UI
+2. **Change propagation** — changes to screens affect business logic
+3. **Blocked parallel development** — designers and developers edit the same files
+4. **No code reuse** — the same logic cannot be shared between web and mobile
 
-これらの問題を解決するため、1979 年の Smalltalk MVC 以降、様々な UI アーキテクチャパターンが考案されてきた。
+To solve these problems, various UI architecture patterns have been devised since Smalltalk MVC in 1979.
 
-### 1.1 3 パターンの歴史的関係と進化
+### 1.1 Historical Relationships and Evolution of the Three Patterns
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                UI アーキテクチャパターンの進化                         │
+│                Evolution of UI Architecture Patterns                │
 │                                                                     │
-│  1979年 Smalltalk-80 (Trygve Reenskaug)                             │
+│  1979 Smalltalk-80 (Trygve Reenskaug)                               │
 │  ┌────────┐                                                         │
-│  │  MVC   │ ← オリジナル: デスクトップ GUI のための分離パターン        │
+│  │  MVC   │ ← Original: separation pattern for desktop GUIs        │
 │  └────┬───┘                                                         │
 │       │                                                             │
-│       ├─── 1996年 Taligent MVP ──────────────┐                      │
-│       │    Dolphin Smalltalk MVP              │                     │
-│       │                                       │                     │
-│  ┌────▼────┐                            ┌────▼─────┐                │
-│  │ Web MVC │ (2004 Rails)               │  MVVM    │ (2005 WPF)    │
-│  │ Server  │                            │ ViewModel│ John Gossman  │
-│  │ Side    │                            └──────────┘                │
+│       ├─── 1996 Taligent MVP ──────────────┐                        │
+│       │    Dolphin Smalltalk MVP            │                       │
+│       │                                     │                       │
+│  ┌────▼────┐                          ┌────▼─────┐                  │
+│  │ Web MVC │ (2004 Rails)             │  MVVM    │ (2005 WPF)      │
+│  │ Server  │                          │ ViewModel│ John Gossman    │
+│  │ Side    │                          └──────────┘                  │
 │  └────┬────┘                                                        │
 │       │                                                             │
 │  ┌────▼────────────────────────────────────────────┐                │
 │  │ Client-Side MV* (2010s)                         │                │
 │  │ Backbone.js → AngularJS → React → Vue → Svelte │                │
-│  │ → 実質的に MVVM + Flux/Redux ハイブリッド        │                │
+│  │ → effectively a MVVM + Flux/Redux hybrid        │                │
 │  └─────────────────────────────────────────────────┘                │
 │                                                                     │
-│  現代のフレームワーク:                                               │
+│  Modern Frameworks:                                                 │
 │  Rails/Django/Laravel → Server-Side MVC                             │
-│  React/Vue/Svelte    → MVVM に近い (Component-Based)               │
-│  SwiftUI/Compose     → MVVM (宣言的 UI)                            │
+│  React/Vue/Svelte    → Close to MVVM (Component-Based)             │
+│  SwiftUI/Compose     → MVVM (Declarative UI)                       │
 │  Android Views       → MVP → MVVM (Jetpack)                        │
-│  WPF / .NET MAUI     → MVVM (データバインディング発祥)              │
+│  WPF / .NET MAUI     → MVVM (origin of data binding)              │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 3 パターンのデータフロー比較
+### 1.2 Data Flow Comparison of the Three Patterns
 
 ```
 ┌────────────────── MVC ──────────────────┐
@@ -82,19 +82,19 @@ GUI アプリケーションは「表示」「入力処理」「ビジネスロ�
 │   User Action                           │
 │       │                                 │
 │       ▼                                 │
-│  ┌──────────┐    更新      ┌──────┐     │
+│  ┌──────────┐   Update    ┌──────┐      │
 │  │Controller│ ───────────→ │Model │     │
 │  └──────────┘              └──┬───┘     │
 │       │                      │          │
-│       │ View選択       通知  │          │
+│       │ Select View   Notify │          │
 │       ▼                      ▼          │
 │  ┌────────────────────────────┐         │
 │  │          View              │         │
 │  └────────────────────────────┘         │
 │                                         │
-│  特徴: Controller が「何を表示するか」   │
-│        を選択。View は Model を直接参照  │
-│        することもある（Observer）        │
+│  Key: Controller selects "what to       │
+│       show". View may reference Model   │
+│       directly (Observer).              │
 └─────────────────────────────────────────┘
 
 ┌────────────────── MVP ──────────────────┐
@@ -102,19 +102,19 @@ GUI アプリケーションは「表示」「入力処理」「ビジネスロ�
 │   User Action                           │
 │       │                                 │
 │       ▼                                 │
-│  ┌──────┐  イベント   ┌──────────┐      │
+│  ┌──────┐  Event      ┌──────────┐      │
 │  │ View │ ──────────→ │Presenter │      │
 │  └──────┘             └────┬─────┘      │
 │       ▲                    │            │
-│       │ UI更新       Model操作          │
+│       │ Update UI    Model op.          │
 │       │                    ▼            │
 │       │               ┌──────┐          │
 │       └────────────── │Model │          │
 │                       └──────┘          │
 │                                         │
-│  特徴: View と Presenter が 1:1 対応。   │
-│        Presenter が View の参照を持ち、  │
-│        明示的に UI を更新する            │
+│  Key: View and Presenter are 1:1.       │
+│       Presenter holds a View reference  │
+│       and explicitly updates the UI.    │
 └─────────────────────────────────────────┘
 
 ┌────────────────── MVVM ─────────────────┐
@@ -122,59 +122,59 @@ GUI アプリケーションは「表示」「入力処理」「ビジネスロ�
 │   User Action                           │
 │       │                                 │
 │       ▼                                 │
-│  ┌──────┐  Data      ┌──────────┐      │
+│  ┌──────┐  Data      ┌──────────┐       │
 │  │ View │←─Binding──→│ViewModel │      │
 │  └──────┘             └─────┬────┘      │
 │                             │           │
-│                       Model操作         │
+│                       Model op.         │
 │                             ▼           │
 │                       ┌──────┐          │
 │                       │Model │          │
 │                       └──────┘          │
 │                                         │
-│  特徴: ViewModel は View を知らない。    │
-│        データバインディングが双方向の    │
-│        同期を自動処理する（リアクティブ）│
+│  Key: ViewModel does not know View.     │
+│       Data binding automatically        │
+│       handles two-way sync (reactive).  │
 └─────────────────────────────────────────┘
 ```
 
-### 1.3 各パターンの責務マトリックス
+### 1.3 Responsibility Matrix for Each Pattern
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    責務の配置比較                                 │
+│               Responsibility Placement Comparison               │
 │                                                                 │
-│  責務              │  MVC           │  MVP          │  MVVM     │
-│  ─────────────────┼────────────────┼───────────────┼───────────│
-│  入力の受付       │  Controller    │  View         │  View     │
-│  入力の解釈       │  Controller    │  Presenter    │  ViewModel│
-│  ビジネスロジック │  Model         │  Model        │  Model    │
-│  表示データ変換   │  View/Controller│  Presenter   │  ViewModel│
-│  UI 描画          │  View          │  View         │  View     │
-│  UI 更新トリガー  │  Model(通知)   │  Presenter    │  Binding  │
-│  状態管理         │  Model         │  Presenter    │  ViewModel│
-│  View の参照      │  Controller持つ │  Presenter持つ│  なし     │
-│  テスト容易性     │  中            │  高           │  高       │
+│  Responsibility      │  MVC           │  MVP          │  MVVM  │
+│  ───────────────────┼────────────────┼───────────────┼────────│
+│  Accept input       │  Controller    │  View         │  View  │
+│  Interpret input    │  Controller    │  Presenter    │  VM    │
+│  Business logic     │  Model         │  Model        │  Model │
+│  Display data xform │  View/Controller│  Presenter   │  VM    │
+│  UI rendering       │  View          │  View         │  View  │
+│  UI update trigger  │  Model (notify)│  Presenter    │  Bind. │
+│  State management   │  Model         │  Presenter    │  VM    │
+│  View reference     │  Controller    │  Presenter    │  None  │
+│  Testability        │  Medium        │  High         │  High  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. MVC の実装
+## 2. Implementing MVC
 
-### WHY: なぜ MVC が Web サーバーサイドのデファクトになったか
+### WHY: Why Did MVC Become the Standard for Server-Side Web?
 
-MVC は HTTP のリクエスト/レスポンスモデルと自然に対応する:
-- **リクエスト** → Controller がルーティング
-- **ビジネスロジック** → Model で処理
-- **レスポンス** → View がHTML生成
+MVC maps naturally to HTTP's request/response model:
+- **Request** → Controller handles routing
+- **Business logic** → processed in the Model
+- **Response** → View generates HTML
 
-このシンプルな対応関係が Rails (2004)、Django (2005)、Laravel (2011) などのフレームワークに採用され、Web 開発のデファクトスタンダードとなった。
+This simple correspondence was adopted by frameworks like Rails (2004), Django (2005), and Laravel (2011), making it the de facto standard for web development.
 
-### 2.1 MVC の構造（Ruby on Rails の例）
+### 2.1 MVC Structure (Ruby on Rails Example)
 
 ```ruby
-# Model — ビジネスロジックとデータアクセス
+# Model — business logic and data access
 # app/models/user.rb
 class User < ApplicationRecord
   has_many :posts, dependent: :destroy
@@ -189,7 +189,7 @@ class User < ApplicationRecord
   scope :recent, -> { order(created_at: :desc).limit(10) }
   scope :with_posts, -> { includes(:posts).where.not(posts: { id: nil }) }
 
-  # ビジネスロジックは Model に置く
+  # Business logic belongs in the Model
   def full_name
     "#{first_name} #{last_name}"
   end
@@ -205,7 +205,7 @@ end
 ```
 
 ```ruby
-# Controller — リクエスト処理とレスポンス制御
+# Controller — request handling and response control
 # app/controllers/users_controller.rb
 class UsersController < ApplicationController
   before_action :authenticate_user!
@@ -214,7 +214,7 @@ class UsersController < ApplicationController
   def index
     @users = User.active.recent
     respond_to do |format|
-      format.html                    # View テンプレートを描画
+      format.html                    # Render View template
       format.json { render json: @users }
     end
   end
@@ -227,7 +227,7 @@ class UsersController < ApplicationController
     @user = User.new(user_params)
     if @user.save
       UserMailer.welcome(@user).deliver_later
-      redirect_to @user, notice: "ユーザーを作成しました"
+      redirect_to @user, notice: "User created successfully"
     else
       render :new, status: :unprocessable_entity
     end
@@ -235,7 +235,7 @@ class UsersController < ApplicationController
 
   def update
     if @user.update(user_params)
-      redirect_to @user, notice: "ユーザー情報を更新しました"
+      redirect_to @user, notice: "User updated successfully"
     else
       render :edit, status: :unprocessable_entity
     end
@@ -243,7 +243,7 @@ class UsersController < ApplicationController
 
   def destroy
     @user.deactivate!
-    redirect_to users_path, notice: "ユーザーを無効化しました"
+    redirect_to users_path, notice: "User deactivated"
   end
 
   private
@@ -259,14 +259,14 @@ end
 ```
 
 ```erb
-<!-- View — プレゼンテーション -->
+<!-- View — presentation -->
 <!-- app/views/users/index.html.erb -->
-<h1>ユーザー一覧</h1>
+<h1>User List</h1>
 
 <div class="search-bar">
   <%= form_tag users_path, method: :get do %>
-    <%= text_field_tag :q, params[:q], placeholder: "名前で検索..." %>
-    <%= submit_tag "検索" %>
+    <%= text_field_tag :q, params[:q], placeholder: "Search by name..." %>
+    <%= submit_tag "Search" %>
   <% end %>
 </div>
 
@@ -276,22 +276,22 @@ end
       <div class="user-card">
         <h2><%= user.full_name %></h2>
         <p class="email"><%= user.email %></p>
-        <p class="stats">投稿数: <%= user.posts.count %></p>
-        <%= link_to "詳細", user_path(user), class: "btn" %>
+        <p class="stats">Posts: <%= user.posts.count %></p>
+        <%= link_to "Details", user_path(user), class: "btn" %>
       </div>
     <% end %>
   </div>
   <%= paginate @users %>
 <% else %>
-  <p class="empty-state">ユーザーが見つかりませんでした</p>
+  <p class="empty-state">No users found</p>
 <% end %>
 ```
 
-### 2.2 MVC（Express + TypeScript）
+### 2.2 MVC (Express + TypeScript)
 
 ```typescript
 // ============================================================
-// Model — ビジネスロジックとデータアクセス
+// Model — business logic and data access
 // ============================================================
 interface User {
   id: string;
@@ -390,7 +390,7 @@ class UserModel {
 }
 
 // ============================================================
-// Controller — リクエスト処理とレスポンス制御
+// Controller — request handling and response control
 // ============================================================
 class UserController {
   constructor(private model: UserModel) {}
@@ -410,7 +410,7 @@ class UserController {
   async show(req: Request, res: Response): Promise<void> {
     const user = await this.model.findById(req.params.id);
     if (!user) {
-      res.status(404).render("errors/404", { message: "ユーザーが見つかりません" });
+      res.status(404).render("errors/404", { message: "User not found" });
       return;
     }
     res.render("users/show", { user });
@@ -418,20 +418,20 @@ class UserController {
 
   async create(req: Request, res: Response): Promise<void> {
     try {
-      // バリデーション
+      // Validation
       const { name, email, role } = req.body;
       if (!name || !email) {
         res.status(422).render("users/new", {
-          errors: ["名前とメールアドレスは必須です"],
+          errors: ["Name and email are required"],
         });
         return;
       }
 
-      // 重複チェック
+      // Duplicate check
       const existing = await this.model.findByEmail(email);
       if (existing) {
         res.status(422).render("users/new", {
-          errors: ["このメールアドレスは既に登録されています"],
+          errors: ["This email address is already registered"],
         });
         return;
       }
@@ -440,14 +440,14 @@ class UserController {
       res.redirect(`/users/${user.id}`);
     } catch (error) {
       res.status(500).render("errors/500", {
-        message: "ユーザー作成に失敗しました",
+        message: "Failed to create user",
       });
     }
   }
 }
 
 // ============================================================
-// Router (ルーティング定義)
+// Router (routing definition)
 // ============================================================
 const userModel = new UserModel(database);
 const userController = new UserController(userModel);
@@ -457,7 +457,7 @@ router.get("/users/:id", (req, res) => userController.show(req, res));
 router.post("/users", (req, res) => userController.create(req, res));
 ```
 
-### 2.3 MVC（Django / Python）
+### 2.3 MVC (Django / Python)
 
 ```python
 # ============================================================
@@ -468,12 +468,12 @@ from django.db import models
 from django.core.validators import MinValueValidator
 
 class User(models.Model):
-    """ユーザーモデル — ビジネスロジックをモデルに集約"""
+    """User model — consolidate business logic in the model"""
 
     class Role(models.TextChoices):
-        ADMIN = "admin", "管理者"
-        USER = "user", "一般ユーザー"
-        MODERATOR = "moderator", "モデレーター"
+        ADMIN = "admin", "Administrator"
+        USER = "user", "General User"
+        MODERATOR = "moderator", "Moderator"
 
     name = models.CharField(max_length=100)
     email = models.EmailField(unique=True)
@@ -492,20 +492,20 @@ class User(models.Model):
         return self.role == self.Role.ADMIN
 
     def deactivate(self):
-        """ユーザーを無効化（ソフトデリート）"""
+        """Deactivate user (soft delete)"""
         self.active = False
         self.save(update_fields=["active"])
 
 
 # ============================================================
-# View (Django では View が Controller の役割)
+# View (in Django, the View acts as the Controller)
 # ============================================================
 # views.py
 from django.views.generic import ListView, DetailView, CreateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 
 class UserListView(LoginRequiredMixin, ListView):
-    """ユーザー一覧表示"""
+    """Display user list"""
     model = User
     template_name = "users/list.html"
     context_object_name = "users"
@@ -520,7 +520,7 @@ class UserListView(LoginRequiredMixin, ListView):
 
 
 class UserDetailView(LoginRequiredMixin, DetailView):
-    """ユーザー詳細表示"""
+    """Display user detail"""
     model = User
     template_name = "users/detail.html"
     context_object_name = "user"
@@ -532,37 +532,37 @@ class UserDetailView(LoginRequiredMixin, DetailView):
 
 
 class UserCreateView(LoginRequiredMixin, CreateView):
-    """ユーザー作成"""
+    """Create user"""
     model = User
     template_name = "users/form.html"
     fields = ["name", "email", "role"]
     success_url = "/users/"
 
     def form_valid(self, form):
-        # 追加のビジネスロジック
+        # Additional business logic
         response = super().form_valid(form)
-        send_welcome_email.delay(self.object.id)  # 非同期タスク
+        send_welcome_email.delay(self.object.id)  # Async task
         return response
 ```
 
 ---
 
-## 3. MVP の実装
+## 3. Implementing MVP
 
-### WHY: なぜ MVP は MVC の改良版として生まれたか
+### WHY: Why Was MVP Born as an Improvement Over MVC?
 
-MVC の問題点は View が Model を直接参照できることにあった。これにより:
-1. View と Model の結合度が高くなる
-2. View のテストに Model のモックが必要
-3. プレゼンテーションロジックの置き場が曖昧
+The problem with MVC was that the View could directly reference the Model. This led to:
+1. High coupling between View and Model
+2. Mocking the Model is required to test the View
+3. Ambiguity about where to place presentation logic
 
-MVP は Presenter を「View と Model の唯一の仲介者」として配置し、これらの問題を解決した。
+MVP addressed these issues by placing the Presenter as the sole intermediary between View and Model.
 
-### 3.1 MVP（Android Kotlin — 従来の View システム）
+### 3.1 MVP (Android Kotlin — Traditional View System)
 
 ```kotlin
 // ============================================================
-// Contract — View と Presenter のインターフェースを定義
+// Contract — defines interfaces for View and Presenter
 // ============================================================
 interface UserListContract {
     interface View {
@@ -582,7 +582,7 @@ interface UserListContract {
 }
 
 // ============================================================
-// Model — データアクセスとビジネスロジック
+// Model — data access and business logic
 // ============================================================
 data class User(
     val id: String,
@@ -604,7 +604,7 @@ interface UserRepository {
 }
 
 // ============================================================
-// Presenter — ロジックの中心
+// Presenter — the core of the logic
 // ============================================================
 class UserListPresenter(
     private val view: UserListContract.View,
@@ -625,7 +625,7 @@ class UserListPresenter(
                 }
                 .onFailure { error ->
                     view.hideLoading()
-                    view.showError("ユーザーの読み込みに失敗しました: ${error.message}")
+                    view.showError("Failed to load users: ${error.message}")
                 }
         }
     }
@@ -656,7 +656,7 @@ class UserListPresenter(
 }
 
 // ============================================================
-// View (Activity) — 描画のみ
+// View (Activity) — rendering only
 // ============================================================
 class UserListActivity : AppCompatActivity(), UserListContract.View {
 
@@ -706,11 +706,11 @@ class UserListActivity : AppCompatActivity(), UserListContract.View {
 }
 ```
 
-### 3.2 MVP のテスト（Presenter のユニットテスト）
+### 3.2 MVP Testing (Presenter Unit Tests)
 
 ```kotlin
 // ============================================================
-// Presenter のテスト — View のモック
+// Presenter tests — mocking the View
 // ============================================================
 class UserListPresenterTest {
 
@@ -722,12 +722,12 @@ class UserListPresenterTest {
     fun setup() {
         view = mock()
         repository = mock()
-        // テスト用ディスパッチャーで同期実行
+        // Run synchronously with a test dispatcher
         presenter = UserListPresenter(view, repository, Dispatchers.Unconfined)
     }
 
     @Test
-    fun `loadUsers - 成功時にユーザーリストを表示する`() = runTest {
+    fun `loadUsers - shows user list on success`() = runTest {
         // Arrange
         val users = listOf(
             User("1", "Alice", "alice@example.com", true),
@@ -746,7 +746,7 @@ class UserListPresenterTest {
     }
 
     @Test
-    fun `loadUsers - 失敗時にエラーメッセージを表示する`() = runTest {
+    fun `loadUsers - shows error message on failure`() = runTest {
         // Arrange
         whenever(repository.getUsers()).thenReturn(
             Result.failure(IOException("Network error"))
@@ -758,12 +758,12 @@ class UserListPresenterTest {
         // Assert
         verify(view).showLoading()
         verify(view).hideLoading()
-        verify(view).showError(contains("ユーザーの読み込みに失敗しました"))
+        verify(view).showError(contains("Failed to load users"))
         verify(view, never()).showUsers(any())
     }
 
     @Test
-    fun `onUserClicked - 詳細画面に遷移する`() {
+    fun `onUserClicked - navigates to detail screen`() {
         // Act
         presenter.onUserClicked("user-123")
 
@@ -775,48 +775,48 @@ class UserListPresenterTest {
 
 ---
 
-## 4. MVVM の実装
+## 4. Implementing MVVM
 
-### WHY: なぜ MVVM が現代 UI のデファクトになったか
+### WHY: Why Did MVVM Become the Standard for Modern UI?
 
-MVP の問題点:
-1. Presenter が View の参照を持つため、ライフサイクル管理が複雑（Activity 再生成問題）
-2. View のメソッドを1つずつ呼ぶ手続き的なコードが冗長
-3. UI の状態が Presenter と View に分散する
+Problems with MVP:
+1. Presenter holds a reference to the View, making lifecycle management complex (Activity recreation problem)
+2. Procedural code calling View methods one by one is verbose
+3. UI state is split between Presenter and View
 
-MVVM はこれらを解決する:
-1. **ViewModel は View を知らない** — ライフサイクル問題なし
-2. **データバインディング** — 状態変更が自動的に UI に反映
-3. **状態の一元管理** — ViewModel が唯一の信頼できる状態源
+MVVM solves these:
+1. **ViewModel does not know the View** — no lifecycle issues
+2. **Data binding** — state changes are automatically reflected in the UI
+3. **Single source of truth** — ViewModel is the sole authoritative state source
 
-### 4.1 MVVM の構造（React + hooks）
+### 4.1 MVVM Structure (React + hooks)
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  React での MVVM マッピング                           │
+│  MVVM Mapping in React                               │
 │                                                      │
-│  Model      = API クライアント + ドメインロジック     │
+│  Model      = API client + domain logic              │
 │  ViewModel  = Custom Hooks (useState, useEffect)     │
-│  View       = JSX コンポーネント                      │
+│  View       = JSX components                         │
 │                                                      │
 │  ┌────────────┐    ┌──────────────┐    ┌──────────┐  │
 │  │ JSX (View) │←──→│ useUsers()   │───→│ API /    │  │
 │  │            │    │ (ViewModel)  │    │ Domain   │  │
-│  │ データ表示  │    │ 状態管理     │    │ (Model)  │  │
-│  │ イベント発火│    │ ロジック     │    │          │  │
+│  │ Render data│    │ State mgmt   │    │ (Model)  │  │
+│  │ Emit events│    │ Logic        │    │          │  │
 │  └────────────┘    └──────────────┘    └──────────┘  │
 │                                                      │
-│  なぜ Custom Hook = ViewModel なのか:                │
-│  1. UI とは独立したロジックの集約                     │
-│  2. 状態（state）とその操作（actions）を公開          │
-│  3. View を知らない（JSX への依存なし）               │
-│  4. テスト可能（renderHook でテスト）                 │
+│  Why Custom Hook = ViewModel:                        │
+│  1. Centralizes logic independent of UI              │
+│  2. Exposes state and actions                        │
+│  3. Does not know View (no JSX dependency)           │
+│  4. Testable (via renderHook)                        │
 └──────────────────────────────────────────────────────┘
 ```
 
 ```typescript
 // ============================================================
-// Model — API クライアントとドメインロジック
+// Model — API client and domain logic
 // ============================================================
 interface User {
   id: string;
@@ -831,7 +831,7 @@ interface CreateUserInput {
   email: string;
 }
 
-// API クライアント（Model 層）
+// API client (Model layer)
 class UserApiClient {
   private baseUrl: string;
 
@@ -880,7 +880,7 @@ class ApiError extends Error {
   }
 }
 
-// ドメインロジック（Model 層）
+// Domain logic (Model layer)
 function sortUsers(users: User[], sortBy: "name" | "createdAt"): User[] {
   return [...users].sort((a, b) => {
     if (sortBy === "name") return a.name.localeCompare(b.name);
@@ -921,7 +921,7 @@ function useUserList(apiClient: UserApiClient = new UserApiClient()) {
     page: 1,
   });
 
-  // データ取得
+  // Fetch data
   const loadUsers = useCallback(async () => {
     setState((prev) => ({ ...prev, loading: true, error: null }));
     try {
@@ -943,7 +943,7 @@ function useUserList(apiClient: UserApiClient = new UserApiClient()) {
     loadUsers();
   }, [loadUsers]);
 
-  // アクション
+  // Actions
   const setSearchQuery = useCallback((query: string) => {
     setState((prev) => ({ ...prev, searchQuery: query, page: 1 }));
   }, []);
@@ -980,7 +980,7 @@ function useUserList(apiClient: UserApiClient = new UserApiClient()) {
     [apiClient]
   );
 
-  // 算出プロパティ（ViewModel のロジック）
+  // Computed properties (ViewModel logic)
   const sortedUsers = useMemo(
     () => sortUsers(state.users, state.sortBy),
     [state.users, state.sortBy]
@@ -990,7 +990,7 @@ function useUserList(apiClient: UserApiClient = new UserApiClient()) {
   const hasPrevPage = state.page > 1;
 
   return {
-    // 状態
+    // State
     users: sortedUsers,
     total: state.total,
     loading: state.loading,
@@ -1000,7 +1000,7 @@ function useUserList(apiClient: UserApiClient = new UserApiClient()) {
     page: state.page,
     hasNextPage,
     hasPrevPage,
-    // アクション
+    // Actions
     setSearchQuery,
     setSortBy,
     setPage,
@@ -1011,7 +1011,7 @@ function useUserList(apiClient: UserApiClient = new UserApiClient()) {
 }
 
 // ============================================================
-// View — 純粋な表示コンポーネント
+// View — pure display component
 // ============================================================
 function UserListPage() {
   const {
@@ -1035,26 +1035,26 @@ function UserListPage() {
 
   return (
     <div className="user-list-page">
-      <h1>ユーザー一覧</h1>
+      <h1>User List</h1>
 
-      {/* 検索 + ソート */}
+      {/* Search + Sort */}
       <div className="controls">
         <SearchInput
           value={searchQuery}
           onChange={setSearchQuery}
-          placeholder="名前 or メールで検索"
+          placeholder="Search by name or email"
         />
         <SortSelect
           value={sortBy}
           onChange={setSortBy}
           options={[
-            { value: "createdAt", label: "登録日順" },
-            { value: "name", label: "名前順" },
+            { value: "createdAt", label: "Date registered" },
+            { value: "name", label: "Name" },
           ]}
         />
       </div>
 
-      {/* ユーザーリスト */}
+      {/* User list */}
       <ul className="user-list">
         {users.map((user) => (
           <UserCard
@@ -1065,7 +1065,7 @@ function UserListPage() {
         ))}
       </ul>
 
-      {/* ページネーション */}
+      {/* Pagination */}
       <Pagination
         page={page}
         onPrev={() => setPage(page - 1)}
@@ -1078,14 +1078,14 @@ function UserListPage() {
 }
 ```
 
-### 4.2 MVVM（SwiftUI）
+### 4.2 MVVM (SwiftUI)
 
 ```swift
 import SwiftUI
 import Combine
 
 // ============================================================
-// Model — データ構造とビジネスロジック
+// Model — data structures and business logic
 // ============================================================
 struct User: Identifiable, Codable, Equatable {
     let id: UUID
@@ -1101,7 +1101,7 @@ struct User: Identifiable, Codable, Equatable {
     var isAdmin: Bool { role == .admin }
 }
 
-// API クライアント（Model 層）
+// API client (Model layer)
 protocol UserServiceProtocol {
     func fetchUsers() async throws -> [User]
     func createUser(name: String, email: String) async throws -> User
@@ -1155,18 +1155,18 @@ enum APIError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidResponse: return "サーバーからの応答が不正です"
+        case .invalidResponse: return "Invalid response from server"
         case .networkError(let error): return error.localizedDescription
         }
     }
 }
 
 // ============================================================
-// ViewModel — UIの状態とロジック
+// ViewModel — UI state and logic
 // ============================================================
 @MainActor
 class UserListViewModel: ObservableObject {
-    // Published = データバインディング対象
+    // Published = data binding targets
     @Published var users: [User] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -1179,7 +1179,7 @@ class UserListViewModel: ObservableObject {
         self.service = service
     }
 
-    // 算出プロパティ — View が参照する表示用データ
+    // Computed properties — display data referenced by the View
     var filteredUsers: [User] {
         guard !searchText.isEmpty else { return users }
         return users.filter {
@@ -1190,12 +1190,12 @@ class UserListViewModel: ObservableObject {
 
     var userCount: String {
         let count = filteredUsers.count
-        return "\(count)件のユーザー"
+        return "\(count) user(s)"
     }
 
     var hasUsers: Bool { !filteredUsers.isEmpty }
 
-    // アクション
+    // Actions
     func loadUsers() async {
         isLoading = true
         errorMessage = nil
@@ -1212,7 +1212,7 @@ class UserListViewModel: ObservableObject {
             let newUser = try await service.createUser(name: name, email: email)
             users.insert(newUser, at: 0)
         } catch {
-            errorMessage = "ユーザーの追加に失敗しました: \(error.localizedDescription)"
+            errorMessage = "Failed to add user: \(error.localizedDescription)"
         }
     }
 
@@ -1223,14 +1223,14 @@ class UserListViewModel: ObservableObject {
                 try await service.deleteUser(id: user.id)
                 users.removeAll { $0.id == user.id }
             } catch {
-                errorMessage = "削除に失敗しました"
+                errorMessage = "Failed to delete user"
             }
         }
     }
 }
 
 // ============================================================
-// View — 宣言的 UI
+// View — declarative UI
 // ============================================================
 struct UserListView: View {
     @StateObject private var viewModel = UserListViewModel()
@@ -1239,10 +1239,10 @@ struct UserListView: View {
         NavigationStack {
             Group {
                 if viewModel.isLoading {
-                    ProgressView("読み込み中...")
+                    ProgressView("Loading...")
                 } else if let error = viewModel.errorMessage {
                     ContentUnavailableView(
-                        "エラー",
+                        "Error",
                         systemImage: "exclamationmark.triangle",
                         description: Text(error)
                     )
@@ -1252,11 +1252,11 @@ struct UserListView: View {
                     ContentUnavailableView.search
                 }
             }
-            .navigationTitle("ユーザー一覧")
-            .searchable(text: $viewModel.searchText, prompt: "名前 or メールで検索")
+            .navigationTitle("User List")
+            .searchable(text: $viewModel.searchText, prompt: "Search by name or email")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button("追加") { viewModel.showingAddSheet = true }
+                    Button("Add") { viewModel.showingAddSheet = true }
                 }
                 ToolbarItem(placement: .status) {
                     Text(viewModel.userCount)
@@ -1314,11 +1314,11 @@ struct UserRow: View {
 }
 ```
 
-### 4.3 MVVM（Vue 3 Composition API）
+### 4.3 MVVM (Vue 3 Composition API)
 
 ```typescript
 // ============================================================
-// Model — API クライアント
+// Model — API client
 // ============================================================
 // api/userApi.ts
 import type { User, CreateUserInput } from '@/types'
@@ -1356,7 +1356,7 @@ import { userApi } from '@/api/userApi'
 import type { User } from '@/types'
 
 export function useUserList() {
-  // リアクティブ状態
+  // Reactive state
   const users = ref<User[]>([])
   const total = ref(0)
   const loading = ref(false)
@@ -1364,7 +1364,7 @@ export function useUserList() {
   const searchQuery = ref('')
   const sortBy = ref<'name' | 'createdAt'>('createdAt')
 
-  // 算出プロパティ（リアクティブに自動更新）
+  // Computed properties (auto-updated reactively)
   const sortedUsers = computed(() => {
     return [...users.value].sort((a, b) => {
       if (sortBy.value === 'name') return a.name.localeCompare(b.name)
@@ -1374,7 +1374,7 @@ export function useUserList() {
 
   const isEmpty = computed(() => users.value.length === 0 && !loading.value)
 
-  // アクション
+  // Actions
   async function loadUsers() {
     loading.value = true
     error.value = null
@@ -1395,12 +1395,12 @@ export function useUserList() {
     total.value++
   }
 
-  // searchQuery の変更を監視して自動検索
+  // Watch searchQuery changes and auto-search
   watch(searchQuery, () => {
     loadUsers()
   }, { debounce: 300 } as any)
 
-  // 初期ロード
+  // Initial load
   loadUsers()
 
   return {
@@ -1417,7 +1417,7 @@ export function useUserList() {
 }
 
 // ============================================================
-// View — テンプレート
+// View — template
 // ============================================================
 // components/UserListPage.vue
 // <script setup lang="ts">
@@ -1430,15 +1430,15 @@ export function useUserList() {
 //
 // <template>
 //   <div class="user-list-page">
-//     <h1>ユーザー一覧</h1>
-//     <input v-model="searchQuery" placeholder="検索..." />
+//     <h1>User List</h1>
+//     <input v-model="searchQuery" placeholder="Search..." />
 //     <select v-model="sortBy">
-//       <option value="createdAt">登録日順</option>
-//       <option value="name">名前順</option>
+//       <option value="createdAt">Date registered</option>
+//       <option value="name">Name</option>
 //     </select>
-//     <div v-if="loading">読み込み中...</div>
+//     <div v-if="loading">Loading...</div>
 //     <div v-else-if="error">{{ error }}</div>
-//     <div v-else-if="isEmpty">ユーザーが見つかりません</div>
+//     <div v-else-if="isEmpty">No users found</div>
 //     <ul v-else>
 //       <li v-for="user in users" :key="user.id">
 //         {{ user.name }} ({{ user.email }})
@@ -1448,11 +1448,11 @@ export function useUserList() {
 // </template>
 ```
 
-### 4.4 MVVM のテスト（React Custom Hook のテスト）
+### 4.4 MVVM Testing (React Custom Hook Tests)
 
 ```typescript
 // ============================================================
-// ViewModel (Custom Hook) のテスト
+// ViewModel (Custom Hook) tests
 // ============================================================
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { useUserList } from "./useUserList";
@@ -1469,7 +1469,7 @@ describe("useUserList (ViewModel)", () => {
     jest.clearAllMocks();
   });
 
-  test("初期ロードでユーザー一覧を取得する", async () => {
+  test("fetches user list on initial load", async () => {
     const mockUsers = [
       { id: "1", name: "Alice", email: "alice@example.com", role: "user", createdAt: "2024-01-01" },
       { id: "2", name: "Bob", email: "bob@example.com", role: "admin", createdAt: "2024-01-02" },
@@ -1481,21 +1481,21 @@ describe("useUserList (ViewModel)", () => {
 
     const { result } = renderHook(() => useUserList(mockApiClient));
 
-    // 初期状態: ローディング中
+    // Initial state: loading
     expect(result.current.loading).toBe(true);
 
-    // データ取得完了を待つ
+    // Wait for data fetch to complete
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
     });
 
-    // 検証
+    // Assertions
     expect(result.current.users).toHaveLength(2);
     expect(result.current.total).toBe(2);
     expect(result.current.error).toBeNull();
   });
 
-  test("検索クエリを変更するとページがリセットされる", async () => {
+  test("resets page when search query changes", async () => {
     (mockApiClient.fetchAll as jest.Mock).mockResolvedValue({
       users: [],
       total: 0,
@@ -1507,13 +1507,13 @@ describe("useUserList (ViewModel)", () => {
       expect(result.current.loading).toBe(false);
     });
 
-    // ページを2に設定
+    // Set page to 2
     act(() => {
       result.current.setPage(2);
     });
     expect(result.current.page).toBe(2);
 
-    // 検索すると page が 1 にリセットされる
+    // Searching resets page to 1
     act(() => {
       result.current.setSearchQuery("Alice");
     });
@@ -1521,7 +1521,7 @@ describe("useUserList (ViewModel)", () => {
     expect(result.current.searchQuery).toBe("Alice");
   });
 
-  test("ユーザー追加で楽観的更新される", async () => {
+  test("optimistically updates when a user is added", async () => {
     const initialUsers = [
       { id: "1", name: "Alice", email: "alice@example.com", role: "user", createdAt: "2024-01-01" },
     ];
@@ -1545,17 +1545,17 @@ describe("useUserList (ViewModel)", () => {
       expect(result.current.loading).toBe(false);
     });
 
-    // ユーザー追加
+    // Add user
     await act(async () => {
       await result.current.addUser({ name: "Bob", email: "bob@example.com" });
     });
 
-    // 楽観的更新の検証
+    // Verify optimistic update
     expect(result.current.users).toHaveLength(2);
     expect(result.current.total).toBe(2);
   });
 
-  test("API エラー時にエラーメッセージが設定される", async () => {
+  test("sets error message on API error", async () => {
     (mockApiClient.fetchAll as jest.Mock).mockRejectedValue(
       new Error("Network error")
     );
@@ -1574,124 +1574,124 @@ describe("useUserList (ViewModel)", () => {
 
 ---
 
-## 5. パターンの選択基準
+## 5. Pattern Selection Criteria
 
-### 5.1 プラットフォーム / フレームワーク別の推奨
+### 5.1 Recommendations by Platform / Framework
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│          フレームワーク → パターン マッピング                  │
+│          Framework → Pattern Mapping                         │
 │                                                              │
-│  Web (サーバーサイド):                                       │
-│    Rails / Django / Laravel   → MVC (フレームワーク組み込み)  │
-│    Express / Fastify / Hono   → MVC (手動構成、薄い Controller)│
-│    Spring Boot                → MVC (@Controller, @Service)   │
-│    Go (net/http, Gin, Echo)   → MVC (ハンドラ + サービス)     │
+│  Web (Server-Side):                                          │
+│    Rails / Django / Laravel   → MVC (built into framework)   │
+│    Express / Fastify / Hono   → MVC (manual, thin Controller)│
+│    Spring Boot                → MVC (@Controller, @Service)  │
+│    Go (net/http, Gin, Echo)   → MVC (handler + service)      │
 │                                                              │
-│  Web (クライアントサイド):                                   │
+│  Web (Client-Side):                                          │
 │    React                      → MVVM (Custom Hooks = VM)     │
 │    Vue.js 3                   → MVVM (Composition API = VM)  │
 │    Angular                    → MVVM (Component + Service)   │
 │    Svelte                     → MVVM (Store = VM)            │
 │    Solid.js                   → MVVM (createSignal = VM)     │
 │                                                              │
-│  モバイル:                                                   │
+│  Mobile:                                                     │
 │    SwiftUI (iOS)              → MVVM (ObservableObject)      │
-│    UIKit (iOS, レガシー)       → MVC → MVP                    │
+│    UIKit (iOS, legacy)        → MVC → MVP                    │
 │    Jetpack Compose (Android)  → MVVM (StateFlow + ViewModel) │
-│    Android Views (レガシー)    → MVP → MVVM (LiveData)        │
+│    Android Views (legacy)     → MVP → MVVM (LiveData)        │
 │    Flutter                    → MVVM (Provider / Bloc / Riverpod)│
-│    React Native               → MVVM (hooks ベース)           │
+│    React Native               → MVVM (hooks-based)           │
 │                                                              │
-│  デスクトップ:                                               │
-│    WPF / .NET MAUI            → MVVM (発祥、INotifyPropertyChanged)│
+│  Desktop:                                                    │
+│    WPF / .NET MAUI            → MVVM (origin, INotifyPropertyChanged)│
 │    Electron + React           → MVVM                         │
 │    Tauri + Solid/Svelte       → MVVM                         │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 選定フローチャート
+### 5.2 Pattern Selection Flowchart
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│               パターン選定フローチャート                      │
+│               Pattern Selection Flowchart                  │
 │                                                            │
-│  Q1: サーバーサイド Web アプリ？                             │
-│    Yes → MVC（フレームワークの規約に従う）                   │
-│    No  → Q2 へ                                             │
+│  Q1: Server-side web app?                                  │
+│    Yes → MVC (follow framework conventions)                │
+│    No  → Q2                                                │
 │                                                            │
-│  Q2: リアクティブ UI / SPA / モバイル？                     │
-│    Yes → Q3 へ                                             │
-│    No  → MVC（シンプルなサーバーレンダリング）               │
+│  Q2: Reactive UI / SPA / Mobile?                           │
+│    Yes → Q3                                                │
+│    No  → MVC (simple server rendering)                     │
 │                                                            │
-│  Q3: フレームワークがデータバインディングをサポート？        │
-│    Yes → MVVM（React hooks, SwiftUI, Vue Composition等）   │
-│    No  → Q4 へ                                             │
+│  Q3: Does the framework support data binding?              │
+│    Yes → MVVM (React hooks, SwiftUI, Vue Composition, etc) │
+│    No  → Q4                                                │
 │                                                            │
-│  Q4: View のテスト容易性を最重視？                          │
-│    Yes → MVP（View インターフェース経由でテスト）            │
-│    No  → MVC（カスタム実装）                                │
+│  Q4: Is View testability the top priority?                 │
+│    Yes → MVP (test via View interface)                     │
+│    No  → MVC (custom implementation)                       │
 └────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 6. 比較表
+## 6. Comparison Tables
 
-### 6.1 MVC / MVP / MVVM パターン比較
+### 6.1 MVC / MVP / MVVM Pattern Comparison
 
-| 観点 | MVC | MVP | MVVM |
+| Aspect | MVC | MVP | MVVM |
 |------|-----|-----|------|
-| **View-Logic 結合** | Controller 経由 | Presenter 経由 | DataBinding |
-| **View の知識** | Controller が View を選択 | Presenter が View を更新 | ViewModel は View を知らない |
-| **テスト容易性** | 中（Controller テスト） | 高（Presenter テスト） | 高（ViewModel テスト） |
-| **データフロー** | 三角形（M<->V, C->M, C->V） | 直線（V<->P<->M） | 直線（V<->VM<->M） |
-| **状態管理** | Model に保持 | Presenter に保持 | ViewModel に保持 |
-| **View の役割** | 表示 + 一部ロジック | 表示のみ（Passive View） | 表示 + バインディング |
-| **複雑さ** | 低 | 中 | 中〜高 |
-| **学習コスト** | 低 | 中 | 中（リアクティブ理解必要） |
-| **ボイラープレート** | 少ない | 多い（Contract 定義） | 中（バインディング設定） |
-| **主な用途** | サーバーサイド Web | Android (旧), .NET WinForms | SPA, モバイル, WPF |
-| **代表フレームワーク** | Rails, Django, Laravel | Android Views | React, SwiftUI, WPF |
+| **View-Logic Coupling** | Via Controller | Via Presenter | DataBinding |
+| **View Knowledge** | Controller selects View | Presenter updates View | ViewModel does not know View |
+| **Testability** | Medium (Controller tests) | High (Presenter tests) | High (ViewModel tests) |
+| **Data Flow** | Triangle (M<->V, C->M, C->V) | Linear (V<->P<->M) | Linear (V<->VM<->M) |
+| **State Management** | Held in Model | Held in Presenter | Held in ViewModel |
+| **View Role** | Display + some logic | Display only (Passive View) | Display + binding |
+| **Complexity** | Low | Medium | Medium–High |
+| **Learning Curve** | Low | Medium | Medium (reactive concepts needed) |
+| **Boilerplate** | Low | High (Contract definitions) | Medium (binding setup) |
+| **Primary Use** | Server-side Web | Android (old), .NET WinForms | SPA, Mobile, WPF |
+| **Representative Frameworks** | Rails, Django, Laravel | Android Views | React, SwiftUI, WPF |
 
-### 6.2 フレームワーク実装比較
+### 6.2 Framework Implementation Comparison
 
-| フレームワーク | パターン | Model | ViewModel/Controller | View | バインディング |
+| Framework | Pattern | Model | ViewModel/Controller | View | Binding |
 |--------------|---------|-------|---------------------|------|--------------|
-| **Rails** | MVC | ActiveRecord | Controller | ERB/Slim | なし（テンプレート） |
-| **Django** | MVC (MTV) | ORM Model | View (=Controller) | Template | なし（テンプレート） |
-| **Spring Boot** | MVC | @Entity / @Service | @Controller | Thymeleaf | なし（テンプレート） |
-| **React** | MVVM 風 | API / Store | Custom Hooks | JSX | useState / useEffect |
+| **Rails** | MVC | ActiveRecord | Controller | ERB/Slim | None (template) |
+| **Django** | MVC (MTV) | ORM Model | View (=Controller) | Template | None (template) |
+| **Spring Boot** | MVC | @Entity / @Service | @Controller | Thymeleaf | None (template) |
+| **React** | MVVM-like | API / Store | Custom Hooks | JSX | useState / useEffect |
 | **Vue 3** | MVVM | API / Pinia | Composition API | Template | ref / reactive |
-| **Svelte** | MVVM | API / Store | $state rune | Template | 自動リアクティブ |
+| **Svelte** | MVVM | API / Store | $state rune | Template | Auto-reactive |
 | **Angular** | MVVM | Service / NgRx | Component class | Template | [(ngModel)] / Signal |
-| **SwiftUI** | MVVM | Service 層 | ObservableObject | View struct | @Published / @Binding |
+| **SwiftUI** | MVVM | Service layer | ObservableObject | View struct | @Published / @Binding |
 | **Jetpack Compose** | MVVM | Repository | ViewModel | @Composable | StateFlow / MutableState |
 | **WPF** | MVVM | Data Layer | ViewModel (INotifyPropertyChanged) | XAML | {Binding} |
-| **Flutter** | MVVM 風 | Repository | Provider/Bloc/Riverpod | Widget | ChangeNotifier / Stream |
+| **Flutter** | MVVM-like | Repository | Provider/Bloc/Riverpod | Widget | ChangeNotifier / Stream |
 
-### 6.3 テスト戦略比較
+### 6.3 Testing Strategy Comparison
 
-| パターン | ユニットテスト対象 | モック対象 | テストの書きやすさ | UI テスト必要度 |
+| Pattern | Unit Test Targets | Mock Targets | Ease of Testing | UI Test Necessity |
 |---------|------------------|-----------|-------------------|---------------|
-| **MVC** | Model, Controller | DB, 外部 API | 中 | 高（View ロジックあり） |
-| **MVP** | Model, Presenter | View (Interface), DB | 高 | 低（View はパッシブ） |
-| **MVVM** | Model, ViewModel | API Client | 高 | 低（VM に全ロジック） |
+| **MVC** | Model, Controller | DB, external API | Medium | High (View has logic) |
+| **MVP** | Model, Presenter | View (Interface), DB | High | Low (View is passive) |
+| **MVVM** | Model, ViewModel | API Client | High | Low (all logic in VM) |
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### 7.1 Fat Controller（MVC）
+### 7.1 Fat Controller (MVC)
 
 ```ruby
-# NG: Controller にビジネスロジックを詰め込む
+# BAD: Stuffing business logic into the Controller
 class OrdersController < ApplicationController
   def create
     user = User.find(params[:user_id])
     items = params[:items].map { |i| Product.find(i[:product_id]) }
 
-    # ビジネスロジックが Controller に...
+    # Business logic leaking into Controller...
     total = items.sum(&:price)
     tax = total * 0.10
     discount = user.vip? ? total * 0.05 : 0
@@ -1700,7 +1700,7 @@ class OrdersController < ApplicationController
     order = Order.create!(user: user, total: final_total, tax: tax)
     items.each { |item| order.order_items.create!(product: item) }
 
-    # 通知も Controller で...
+    # Notifications also in Controller...
     OrderMailer.confirmation(order).deliver_later
     SlackNotifier.new_order(order)
 
@@ -1708,7 +1708,7 @@ class OrdersController < ApplicationController
   end
 end
 
-# OK: Service Object に分離
+# GOOD: Extract into a Service Object
 # app/services/create_order_service.rb
 class CreateOrderService
   def initialize(user_id:, items:)
@@ -1749,7 +1749,7 @@ class CreateOrderService
   end
 end
 
-# Controller は薄く
+# Keep the Controller thin
 class OrdersController < ApplicationController
   def create
     result = CreateOrderService.new(
@@ -1766,55 +1766,55 @@ class OrdersController < ApplicationController
 end
 ```
 
-**なぜ NG か**: Controller はリクエストのルーティングとレスポンスの制御のみを担当すべき。ビジネスロジックを含むと、テストが困難になり、ロジックの再利用もできない。
+**Why it's bad**: The Controller should only handle request routing and response control. Including business logic makes it hard to test and prevents logic reuse.
 
-### 7.2 God ViewModel（MVVM）
+### 7.2 God ViewModel (MVVM)
 
 ```typescript
-// NG: 1つの ViewModel に全ロジックを詰め込む
+// BAD: Stuffing all logic into one ViewModel
 function useDashboardGodViewModel() {
-  // ユーザー管理
+  // User management
   const [users, setUsers] = useState([]);
   const [userSearch, setUserSearch] = useState("");
-  // 注文管理
+  // Order management
   const [orders, setOrders] = useState([]);
   const [orderFilter, setOrderFilter] = useState("all");
-  // 通知管理
+  // Notification management
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  // 設定管理
+  // Settings management
   const [settings, setSettings] = useState({});
   const [theme, setTheme] = useState("light");
-  // 分析ダッシュボード
+  // Analytics dashboard
   const [analytics, setAnalytics] = useState({});
   const [dateRange, setDateRange] = useState({ from: null, to: null });
-  // ... 200行以上のロジック
+  // ... 200+ lines of logic
 
-  return { /* 50+ のプロパティとメソッド */ };
+  return { /* 50+ properties and methods */ };
 }
 
-// OK: 責務ごとに ViewModel を分割
+// GOOD: Split ViewModel by responsibility
 function useUserList() {
   const [users, setUsers] = useState<User[]>([]);
   const [search, setSearch] = useState("");
-  // ユーザー一覧に関するロジックのみ（30行以内）
+  // Only user list logic (within 30 lines)
   return { users, search, setSearch, loadUsers, addUser };
 }
 
 function useOrderManagement() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [filter, setFilter] = useState<OrderFilter>("all");
-  // 注文管理に関するロジックのみ
+  // Only order management logic
   return { orders, filter, setFilter, loadOrders };
 }
 
 function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  // 通知に関するロジックのみ
+  // Only notification logic
   return { notifications, unreadCount, markAsRead };
 }
 
-// コンポーネントで必要なものだけ組み合わせ
+// Compose only what's needed in the component
 function DashboardPage() {
   const userList = useUserList();
   const orders = useOrderManagement();
@@ -1830,14 +1830,14 @@ function DashboardPage() {
 }
 ```
 
-**なぜ NG か**: ViewModel が肥大化すると、テストが困難になり、変更の影響範囲が読めなくなる。1つの ViewModel の目安は状態3-5個、メソッド5-8個以内。
+**Why it's bad**: A bloated ViewModel is hard to test and makes it impossible to predict the scope of changes. A good rule of thumb: no more than 3–5 state values and 5–8 methods per ViewModel.
 
-### 7.3 View にビジネスロジック（共通）
+### 7.3 Business Logic in the View (Common to All Patterns)
 
 ```typescript
-// NG: View コンポーネント内にビジネスロジック
+// BAD: Business logic inside the View component
 function OrderSummary({ order }: { order: Order }) {
-  // ビジネスロジックが View に混在
+  // Business logic mixed into View
   const subtotal = order.items.reduce((sum, item) => sum + item.price * item.qty, 0);
   const taxRate = order.country === "JP" ? 0.10 : order.country === "US" ? 0.08 : 0.20;
   const tax = subtotal * taxRate;
@@ -1851,16 +1851,16 @@ function OrderSummary({ order }: { order: Order }) {
 
   return (
     <div>
-      <p>小計: {subtotal.toLocaleString()}円</p>
-      <p>税: {tax.toLocaleString()}円</p>
-      <p>割引: -{discount.toLocaleString()}円</p>
-      <p>合計: {total.toLocaleString()}円</p>
-      {freeShipping && <p>送料無料</p>}
+      <p>Subtotal: {subtotal.toLocaleString()}</p>
+      <p>Tax: {tax.toLocaleString()}</p>
+      <p>Discount: -{discount.toLocaleString()}</p>
+      <p>Total: {total.toLocaleString()}</p>
+      {freeShipping && <p>Free shipping</p>}
     </div>
   );
 }
 
-// OK: ViewModel にビジネスロジックを移動
+// GOOD: Move business logic to ViewModel
 function useOrderSummary(order: Order) {
   return useMemo(() => {
     const calculator = new OrderCalculator(order);
@@ -1874,43 +1874,43 @@ function useOrderSummary(order: Order) {
   }, [order]);
 }
 
-// View は表示のみ
+// View handles display only
 function OrderSummary({ order }: { order: Order }) {
   const { subtotal, tax, discount, total, freeShipping } = useOrderSummary(order);
 
   return (
     <div>
-      <p>小計: {subtotal.toLocaleString()}円</p>
-      <p>税: {tax.toLocaleString()}円</p>
-      <p>割引: -{discount.toLocaleString()}円</p>
-      <p>合計: {total.toLocaleString()}円</p>
-      {freeShipping && <p>送料無料</p>}
+      <p>Subtotal: {subtotal.toLocaleString()}</p>
+      <p>Tax: {tax.toLocaleString()}</p>
+      <p>Discount: -{discount.toLocaleString()}</p>
+      <p>Total: {total.toLocaleString()}</p>
+      {freeShipping && <p>Free shipping</p>}
     </div>
   );
 }
 ```
 
-**なぜ NG か**: View にビジネスロジックがあると、(1) 同じ計算を複数の View で重複実装する、(2) ロジックのユニットテストに UI レンダリングが必要になる、(3) デザイナーがレイアウト変更時にロジックを壊すリスクがある。
+**Why it's bad**: Business logic in the View means (1) the same calculation is duplicated across multiple Views, (2) unit testing the logic requires UI rendering, and (3) designers risk breaking logic when changing layout.
 
-### 7.4 ViewModel から View の直接操作（MVVM 違反）
+### 7.4 Direct View Manipulation from ViewModel (MVVM Violation)
 
 ```typescript
-// NG: ViewModel が DOM を直接操作
+// BAD: ViewModel directly manipulates the DOM
 function useScrollToTop() {
   const scrollToTop = () => {
-    // ViewModel が View (DOM) を知っている！
+    // ViewModel knows about the View (DOM)!
     document.getElementById("scroll-container")?.scrollTo(0, 0);
-    document.title = "ページトップ";
+    document.title = "Page Top";
   };
   return { scrollToTop };
 }
 
-// OK: ViewModel は状態のみを公開し、View が副作用を実行
+// GOOD: ViewModel only exposes state; View handles side effects
 function useListViewModel() {
   const [shouldScrollToTop, setShouldScrollToTop] = useState(false);
 
   const resetList = () => {
-    // 状態のみを変更
+    // Change state only
     setShouldScrollToTop(true);
     setPage(1);
   };
@@ -1918,7 +1918,7 @@ function useListViewModel() {
   return { shouldScrollToTop, setShouldScrollToTop, resetList };
 }
 
-// View が副作用を実行
+// View executes side effects
 function ListView() {
   const { shouldScrollToTop, setShouldScrollToTop, resetList } = useListViewModel();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1934,24 +1934,24 @@ function ListView() {
 }
 ```
 
-**なぜ NG か**: MVVM の核心は「ViewModel が View を知らない」こと。ViewModel が DOM を操作すると、(1) ViewModel がブラウザ環境でしかテストできない、(2) React Native などへの移植ができない、(3) SSR でエラーになる。
+**Why it's bad**: The core of MVVM is that the ViewModel does not know the View. When the ViewModel manipulates the DOM, (1) the ViewModel can only be tested in a browser environment, (2) porting to React Native or similar is impossible, and (3) it causes errors in SSR.
 
 ---
 
-## 8. 実践演習
+## 8. Practice Exercises
 
-### 演習 1（基礎）: MVC の責務分離
+### Exercise 1 (Beginner): Separation of Concerns in MVC
 
-以下の「Fat Controller」を、適切に Model / Controller に責務を分離してリファクタリングせよ。
+Refactor the following "Fat Controller" to properly separate responsibilities between Model and Controller.
 
 ```typescript
-// リファクタリング対象
+// Target for refactoring
 class ProductController {
   async search(req: Request, res: Response) {
     const { query, minPrice, maxPrice, category } = req.query;
     const products = await db.query("SELECT * FROM products");
 
-    // フィルタリング（ビジネスロジック）
+    // Filtering (business logic)
     let filtered = products;
     if (query) {
       filtered = filtered.filter(p =>
@@ -1968,10 +1968,10 @@ class ProductController {
       filtered = filtered.filter(p => p.category === category);
     }
 
-    // ソート（ビジネスロジック）
+    // Sorting (business logic)
     filtered.sort((a, b) => b.salesCount - a.salesCount);
 
-    // ページネーション
+    // Pagination
     const page = Number(req.query.page) || 1;
     const perPage = 20;
     const start = (page - 1) * perPage;
@@ -1982,63 +1982,63 @@ class ProductController {
 }
 ```
 
-**期待する出力構造**:
-- `ProductModel` クラス: `search(criteria)`, `sortByPopularity()`, `paginate(page, perPage)` メソッド
-- `ProductController` クラス: 薄いリクエスト処理のみ（10行以内）
+**Expected output structure**:
+- `ProductModel` class: `search(criteria)`, `sortByPopularity()`, `paginate(page, perPage)` methods
+- `ProductController` class: thin request handling only (within 10 lines)
 
 ---
 
-### 演習 2（応用）: MVVM のテスト可能な設計
+### Exercise 2 (Intermediate): Testable MVVM Design
 
-TODO リストアプリの ViewModel を設計せよ。以下の要件を満たすこと:
+Design a ViewModel for a TODO list app that meets the following requirements:
 
-**要件**:
-1. TODO の追加・完了トグル・削除
-2. フィルタリング: All / Active / Completed
-3. 残りの未完了タスク数の表示
-4. 全完了トグル（全てのタスクを一括完了/未完了）
+**Requirements**:
+1. Add, toggle completion, and delete TODOs
+2. Filtering: All / Active / Completed
+3. Display the count of remaining incomplete tasks
+4. Toggle all (mark all tasks as complete/incomplete at once)
 
-**テスト**: 以下のテストケースが全てパスする ViewModel を実装せよ:
+**Tests**: Implement a ViewModel that passes all of the following test cases:
 
 ```typescript
 describe("useTodoList", () => {
-  test("TODO を追加できる", () => {
-    // addTodo("Buy milk") → todos の length が 1 増える
+  test("can add a TODO", () => {
+    // addTodo("Buy milk") → length of todos increases by 1
   });
 
-  test("空文字の TODO は追加できない", () => {
-    // addTodo("") → todos の length は変わらない
+  test("cannot add an empty TODO", () => {
+    // addTodo("") → length of todos does not change
   });
 
-  test("TODO の完了状態をトグルできる", () => {
-    // toggleTodo(id) → completed が反転
+  test("can toggle the completion state of a TODO", () => {
+    // toggleTodo(id) → completed is inverted
   });
 
-  test("フィルターで Active のみ表示できる", () => {
-    // filter = "active" → completed: false のみ
+  test("can display only Active items with filter", () => {
+    // filter = "active" → only completed: false
   });
 
-  test("残りの未完了タスク数が正しい", () => {
-    // 3個中1個完了 → remainingCount = 2
+  test("remaining incomplete task count is correct", () => {
+    // 1 of 3 completed → remainingCount = 2
   });
 
-  test("全完了トグルが動作する", () => {
-    // toggleAll() → 全て completed: true
-    // もう一度 toggleAll() → 全て completed: false
+  test("toggle all works correctly", () => {
+    // toggleAll() → all completed: true
+    // toggleAll() again → all completed: false
   });
 });
 ```
 
-**期待する出力**: `useTodoList()` Custom Hook の完全な実装とテストコード
+**Expected output**: Complete implementation of the `useTodoList()` Custom Hook and test code
 
 ---
 
-### 演習 3（発展）: パターン間の移行
+### Exercise 3 (Advanced): Migration Between Patterns
 
-既存の MVP 実装（Android Kotlin）を MVVM（Jetpack Compose）に移行せよ。以下の MVP コードを起点として:
+Migrate the following existing MVP implementation (Android Kotlin) to MVVM (Jetpack Compose), starting from this MVP code:
 
 ```kotlin
-// 既存 MVP コード
+// Existing MVP code
 interface WeatherContract {
     interface View {
         fun showTemperature(temp: String)
@@ -2054,56 +2054,56 @@ interface WeatherContract {
 }
 ```
 
-**移行要件**:
-1. `WeatherViewModel` (extends `ViewModel()`) として再設計
-2. `StateFlow` を使用した UI 状態管理
-3. `sealed class WeatherUiState` で状態を型安全に表現
-4. Compose UI の `@Composable` 関数として View を実装
-5. `FakeWeatherRepository` を使ったユニットテスト
+**Migration requirements**:
+1. Redesign as `WeatherViewModel` (extends `ViewModel()`)
+2. UI state management using `StateFlow`
+3. Type-safe state representation with `sealed class WeatherUiState`
+4. Implement the View as a `@Composable` function for Compose UI
+5. Unit tests using `FakeWeatherRepository`
 
-**期待する出力**:
+**Expected output**:
 - `WeatherUiState` sealed class
-- `WeatherViewModel` クラス
+- `WeatherViewModel` class
 - `WeatherScreen` Composable
-- `WeatherViewModelTest` テストクラス
+- `WeatherViewModelTest` test class
 
 ---
 
 ## 9. FAQ
 
-### Q1. React は MVC？ MVVM？
+### Q1. Is React MVC or MVVM?
 
-**A.** React 自体は「View ライブラリ」であり、特定のパターンを強制しない。ただし実際の運用では:
+**A.** React itself is a "View library" and does not enforce a specific pattern. However, in practice:
 
-- **Custom Hooks** = ViewModel（状態管理、ビジネスロジック）
-- **API クライアント / Store** = Model（データアクセス、ドメインロジック）
-- **JSX コンポーネント** = View（UI 描画）
+- **Custom Hooks** = ViewModel (state management, business logic)
+- **API client / Store** = Model (data access, domain logic)
+- **JSX components** = View (UI rendering)
 
-この構造は **MVVM に近い**。Facebook は当初「Flux（単方向データフロー）」を提唱したが、Hooks 登場後の開発スタイルは MVVM のデータバインディングに極めて近い。`useState` と `useEffect` の組み合わせが暗黙のバインディング機構として機能している。
+This structure is **close to MVVM**. Facebook initially advocated "Flux (unidirectional data flow)", but the development style after Hooks was introduced is very close to MVVM's data binding. The combination of `useState` and `useEffect` functions as an implicit binding mechanism.
 
-ただし注意点として、React の「状態更新 → 再レンダリング」は **単方向** であり、WPF のような **双方向** バインディングとは異なる。厳密には「単方向データバインディングの MVVM 変種」と言える。
+However, note that React's "state update → re-render" is **unidirectional**, unlike the **two-way** binding in WPF. Strictly speaking, it can be called a "unidirectional data binding MVVM variant."
 
-### Q2. サーバーサイドとクライアントサイドの MVC は同じもの？
+### Q2. Are server-side and client-side MVC the same thing?
 
-**A.** 名前は同じだが動作モデルが根本的に異なる:
+**A.** The name is the same, but the operating model is fundamentally different:
 
-| 比較軸 | サーバーサイド MVC | クライアントサイド MVC |
+| Aspect | Server-Side MVC | Client-Side MVC |
 |--------|-------------------|---------------------|
-| **ライフサイクル** | リクエスト/レスポンス単位（ステートレス） | アプリ起動〜終了（ステートフル） |
-| **状態の保持** | DB + セッション | メモリ内（リアクティブ） |
-| **View の更新** | HTML 全体を再生成 | DOM の差分更新 |
-| **ユーザー操作** | HTTP リクエスト | イベントハンドラ |
-| **Controller の寿命** | リクエスト処理中のみ | アプリ全体 |
+| **Lifecycle** | Per request/response (stateless) | App launch to close (stateful) |
+| **State persistence** | DB + session | In-memory (reactive) |
+| **View update** | Regenerates entire HTML | Partial DOM updates |
+| **User interaction** | HTTP requests | Event handlers |
+| **Controller lifetime** | Only during request processing | Entire app lifetime |
 
-サーバーサイドの Controller は「1リクエスト = 1インスタンス」で使い捨てだが、クライアントサイドの Controller/ViewModel は継続的に生存する。この違いにより、クライアントサイドでは MVC より **MVVM のほうが自然に適合する**。
+A server-side Controller is disposable — "1 request = 1 instance" — but a client-side Controller/ViewModel lives continuously. Due to this difference, **MVVM fits more naturally** than MVC on the client side.
 
-### Q3. MVVM の ViewModel が肥大化したらどうする？
+### Q3. What should I do when a MVVM ViewModel becomes too large?
 
-**A.** 3 つのアプローチがある:
+**A.** There are three approaches:
 
-1. **ViewModel の分割** — 画面の論理的なセクションごとに ViewModel を分ける
+1. **Split the ViewModel** — separate ViewModels for each logical section of the screen
    ```typescript
-   // 1つの画面に複数の ViewModel
+   // Multiple ViewModels for one screen
    function Dashboard() {
      const header = useHeaderViewModel();
      const userList = useUserListViewModel();
@@ -2111,64 +2111,64 @@ interface WeatherContract {
    }
    ```
 
-2. **UseCase / Interactor 層の導入** — ビジネスロジックを ViewModel から抽出
+2. **Introduce a UseCase / Interactor layer** — extract business logic out of the ViewModel
    ```typescript
-   // ViewModel は UseCase を呼ぶだけ
+   // ViewModel only calls UseCases
    function useOrderViewModel(createOrder: CreateOrderUseCase) {
      const submit = async (data) => {
        const result = await createOrder.execute(data);
-       // ViewModel はプレゼンテーションロジックのみ
+       // ViewModel handles presentation logic only
      };
    }
    ```
 
-3. **Composable ViewModel** — 小さな ViewModel を組み合わせて大きな画面を構成
+3. **Composable ViewModels** — compose small ViewModels to build large screens
    ```typescript
-   function usePagination() { /* ページネーションロジック */ }
-   function useSearch() { /* 検索ロジック */ }
-   function useSort() { /* ソートロジック */ }
+   function usePagination() { /* pagination logic */ }
+   function useSearch() { /* search logic */ }
+   function useSort() { /* sort logic */ }
 
-   // 合成
+   // Compose
    function useUserList() {
      const pagination = usePagination();
      const search = useSearch();
      const sort = useSort();
-     // 組み合わせて返す
+     // Combine and return
    }
    ```
 
-**目安**: ViewModel の状態が 5 個以上、メソッドが 8 個以上になったら分割を検討する。
+**Rule of thumb**: Consider splitting when a ViewModel has 5+ state values or 8+ methods.
 
-### Q4. MVC から MVVM に移行すべきタイミングは？
+### Q4. When should I migrate from MVC to MVVM?
 
-**A.** 以下の兆候が見られたら移行を検討する:
+**A.** Consider migrating when you see these signs:
 
-1. **Controller が肥大化** — 1つの Controller が 300行以上
-2. **テストが書けない** — UI をモックしないとテストできないロジックが増えた
-3. **リアクティブ要件** — リアルタイム更新、複雑な UI 状態遷移が必要
-4. **クロスプラットフォーム** — Web とモバイルでロジックを共有したい
+1. **Controller bloat** — a single Controller exceeds 300 lines
+2. **Untestable code** — more logic requires mocking the UI to test
+3. **Reactive requirements** — real-time updates or complex UI state transitions are needed
+4. **Cross-platform** — you want to share logic between web and mobile
 
-ただし「動いているサーバーサイド MVC」を無理に MVVM に移行する必要はない。フレームワークの規約に従うのが最善。
+That said, there is no need to forcibly migrate a "working server-side MVC." Following the framework's conventions is the best approach.
 
-### Q5. MVP と MVVM のどちらを選ぶべきか？
+### Q5. Should I choose MVP or MVVM?
 
-**A.** 現在（2024年以降）では、ほぼ全てのケースで **MVVM を選ぶべき**。理由:
+**A.** As of today (2024 and beyond), you should **choose MVVM in almost every case**. Reasons:
 
-1. 主要フレームワーク（React, SwiftUI, Compose, Vue, Angular）が全て MVVM 向け
-2. リアクティブプログラミングが主流になり、データバインディングが自然
-3. MVP の「View インターフェース + Presenter」は MVVM の「ViewModel + バインディング」より冗長
+1. All major frameworks (React, SwiftUI, Compose, Vue, Angular) are designed for MVVM
+2. Reactive programming has become mainstream, making data binding feel natural
+3. MVP's "View interface + Presenter" is more verbose than MVVM's "ViewModel + binding"
 
-**例外**: フレームワークなしで UI を構築する場合（カスタム描画エンジン等）は MVP が有効。
+**Exception**: MVP is valid when building a UI without a framework (e.g., custom rendering engines).
 
-### Q6. Clean Architecture と MVC/MVVM の関係は？
+### Q6. What is the relationship between Clean Architecture and MVC/MVVM?
 
-**A.** 直交する概念であり、組み合わせて使う:
+**A.** They are orthogonal concepts and are used together:
 
 ```
 ┌──────────────────────────────────────────────────┐
-│  Clean Architecture の層構造                      │
+│  Clean Architecture Layer Structure              │
 │                                                  │
-│  Presentation Layer ← ここに MVC/MVVM を適用     │
+│  Presentation Layer ← apply MVC/MVVM here        │
 │    ├── View (JSX / Template)                     │
 │    └── ViewModel / Controller                    │
 │                                                  │
@@ -2185,58 +2185,58 @@ interface WeatherContract {
 └──────────────────────────────────────────────────┘
 ```
 
-MVC/MVVM は **Presentation Layer のパターン**であり、Clean Architecture は **全レイヤーの依存関係ルール**を定義する。両者は補完関係にある。
+MVC/MVVM is a **Presentation Layer pattern**, while Clean Architecture defines **dependency rules across all layers**. The two are complementary.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping straight to advanced topics. We recommend fully understanding the core concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is applied frequently in day-to-day development. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 10. まとめ
+## 10. Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| **MVC** | サーバーサイド Web のデファクト。HTTP のリクエスト/レスポンスモデルと自然に対応。Controller は薄く保つ |
-| **MVP** | View と Presenter の明確な分離。テスト容易性が高いが、ボイラープレートが多い。レガシー Android で使用 |
-| **MVVM** | データバインディングによる宣言的 UI。SPA とモバイルのデファクト。ViewModel は View を知らない |
-| **選定基準** | フレームワークの推奨パターンに従うのが最善。迷ったら MVVM |
-| **共通原則** | 関心の分離、薄い Controller/ViewModel、テスト可能な設計 |
-| **テスト** | MVC: Controller テスト、MVP: Presenter テスト、MVVM: ViewModel テスト。いずれも View なしでテスト可能にする |
-| **進化の方向** | MVC(1979) → MVP(1990s) → MVVM(2005) → 宣言的UI(2019+)。View の受動化が一貫したトレンド |
-| **アンチパターン** | Fat Controller、God ViewModel、View にビジネスロジック、ViewModel の View 直接操作 |
+| **MVC** | De facto standard for server-side web. Maps naturally to HTTP request/response. Keep the Controller thin. |
+| **MVP** | Clear separation between View and Presenter. High testability but lots of boilerplate. Used in legacy Android. |
+| **MVVM** | Declarative UI via data binding. De facto for SPA and mobile. ViewModel does not know the View. |
+| **Selection criteria** | Follow the framework's recommended pattern. When in doubt, choose MVVM. |
+| **Common principles** | Separation of concerns, thin Controller/ViewModel, testable design. |
+| **Testing** | MVC: Controller tests. MVP: Presenter tests. MVVM: ViewModel tests. Make all testable without the View. |
+| **Direction of evolution** | MVC(1979) → MVP(1990s) → MVVM(2005) → Declarative UI(2019+). Passivation of the View is a consistent trend. |
+| **Anti-patterns** | Fat Controller, God ViewModel, business logic in View, ViewModel directly manipulating the View. |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [01-repository-pattern.md](./01-repository-pattern.md) — データアクセス層の抽象化（MVVM の Model 層設計）
-- [02-event-sourcing-cqrs.md](./02-event-sourcing-cqrs.md) — イベント駆動アーキテクチャ（CQRS の Command/Query 分離）
-- [../02-behavioral/](../02-behavioral/) — Observer パターン（MVVM のデータバインディングの基盤）
-- ../../clean-code-principles/ — 関心の分離、SOLID 原則
-- ../../system-design-guide/ — アーキテクチャ設計の全体像
+- [01-repository-pattern.md](./01-repository-pattern.md) — Abstracting the data access layer (Model layer design in MVVM)
+- [02-event-sourcing-cqrs.md](./02-event-sourcing-cqrs.md) — Event-driven architecture (Command/Query separation in CQRS)
+- [../02-behavioral/](../02-behavioral/) — Observer pattern (the foundation of MVVM's data binding)
+- ../../clean-code-principles/ — Separation of concerns, SOLID principles
+- ../../system-design-guide/ — Overall picture of architecture design
 
 ---
 
-## 参考文献
+## References
 
 1. **Trygve Reenskaug** — "The original MVC reports" (1979) — https://folk.universitetetioslo.no/trygver/themes/mvc/mvc-index.html
 2. **Martin Fowler** — "GUI Architectures" — https://martinfowler.com/eaaDev/uiArchs.html
 3. **Microsoft** — "The MVVM Pattern" — https://learn.microsoft.com/en-us/dotnet/architecture/maui/mvvm
 4. **Apple Developer Documentation** — "Model-View-ViewModel" — https://developer.apple.com/documentation/swiftui/model-data
 5. **Android Developers** — "Guide to app architecture" — https://developer.android.com/topic/architecture
-6. **Josh W. Comeau** — "The Wave of React" — Custom Hooks as ViewModel パターンの解説
-7. **Robert C. Martin** — "Clean Architecture" (2017) — Presentation Layer パターンと Clean Architecture の関係
+6. **Josh W. Comeau** — "The Wave of React" — Explanation of Custom Hooks as ViewModel pattern
+7. **Robert C. Martin** — "Clean Architecture" (2017) — Relationship between Presentation Layer patterns and Clean Architecture
