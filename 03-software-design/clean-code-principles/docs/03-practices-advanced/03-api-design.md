@@ -1,189 +1,189 @@
-# API設計
+# API Design
 
-> RESTful API・GraphQL・gRPC の設計原則を理解し、一貫性のある直感的なインターフェースを構築するための命名規則・バージョニング・エラーハンドリング・ページネーション・セキュリティ・テストの実践手法を解説する
+> Understand the design principles of RESTful APIs, GraphQL, and gRPC to build consistent, intuitive interfaces — covering naming conventions, versioning, error handling, pagination, security, and testing practices
 
 ---
 
-## 前提知識
+## Prerequisites
 
-| トピック | 内容 | 参照先 |
+| Topic | Content | Reference |
 |---------|------|--------|
-| HTTPプロトコルの基礎 | メソッド、ステータスコード、ヘッダー | ../../04-web-and-network/ |
-| クリーンコードの基本原則 | 命名規則・関数設計 | 00-naming-conventions.md |
-| エラーハンドリング | 例外処理の基本パターン | 03-error-handling.md |
-| テスト原則 | テストピラミッド・テスト設計 | [04-testing-principles.md](../01-practices/04-testing-principles.md) |
-| 関数型エラーハンドリング | Result/Either型 | [02-functional-principles.md](./02-functional-principles.md) |
+| HTTP Protocol Basics | Methods, status codes, headers | ../../04-web-and-network/ |
+| Clean Code Fundamentals | Naming conventions, function design | 00-naming-conventions.md |
+| Error Handling | Basic exception handling patterns | 03-error-handling.md |
+| Testing Principles | Test pyramid and test design | [04-testing-principles.md](../01-practices/04-testing-principles.md) |
+| Functional Error Handling | Result/Either types | [02-functional-principles.md](./02-functional-principles.md) |
 
 ---
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **RESTful API 設計原則** — リソース指向設計、HTTP メソッドの適切な使い分け、ステータスコード戦略を理解し適用できる
-2. **API の品質要素** — バージョニング、ページネーション、エラーレスポンス、レート制限の標準パターンを実装できる
-3. **API スタイルの比較と選定** — REST vs GraphQL vs gRPC の特性と、プロジェクト要件に応じた選定判断ができる
-4. **セキュリティと認証** — OAuth 2.0 / JWT / API Key の認証パターンを理解し、セキュアな API を設計できる
-5. **API テストとドキュメント** — OpenAPI による自動ドキュメント生成と、契約テストによる品質保証を実践できる
+1. **RESTful API Design Principles** — Understand and apply resource-oriented design, appropriate HTTP method usage, and status code strategies
+2. **API Quality Factors** — Implement standard patterns for versioning, pagination, error responses, and rate limiting
+3. **Comparing and Selecting API Styles** — Understand the characteristics of REST vs GraphQL vs gRPC and make informed selection decisions based on project requirements
+4. **Security and Authentication** — Understand OAuth 2.0 / JWT / API Key authentication patterns and design secure APIs
+5. **API Testing and Documentation** — Practice automated documentation generation with OpenAPI and quality assurance through contract testing
 
 ---
 
-## 1. RESTful API 設計原則
+## 1. RESTful API Design Principles
 
-### 1.1 リソース設計
-
-```
-URL 設計の原則
-
-  GOOD: 名詞（リソース）ベース
-    GET    /users              ← ユーザー一覧
-    GET    /users/123          ← 特定ユーザー
-    POST   /users              ← ユーザー作成
-    PUT    /users/123          ← ユーザー更新（全体）
-    PATCH  /users/123          ← ユーザー更新（部分）
-    DELETE /users/123          ← ユーザー削除
-
-  GOOD: ネストしたリソース
-    GET    /users/123/orders         ← ユーザー123の注文一覧
-    POST   /users/123/orders         ← ユーザー123の注文作成
-    GET    /users/123/orders/456     ← 特定の注文
-
-  BAD: 動詞ベース
-    POST   /createUser               ← RPC スタイル
-    GET    /getUserById?id=123       ← RPC スタイル
-    POST   /deleteUser/123           ← HTTP メソッドと矛盾
-```
+### 1.1 Resource Design
 
 ```
-リソース設計の判断フロー:
+URL Design Principles
 
-  1. リソースを名詞で命名する（複数形）
+  GOOD: Noun (resource) based
+    GET    /users              ← List users
+    GET    /users/123          ← Get specific user
+    POST   /users              ← Create user
+    PUT    /users/123          ← Update user (full)
+    PATCH  /users/123          ← Update user (partial)
+    DELETE /users/123          ← Delete user
+
+  GOOD: Nested resources
+    GET    /users/123/orders         ← List orders for user 123
+    POST   /users/123/orders         ← Create order for user 123
+    GET    /users/123/orders/456     ← Get specific order
+
+  BAD: Verb based
+    POST   /createUser               ← RPC style
+    GET    /getUserById?id=123       ← RPC style
+    POST   /deleteUser/123           ← Contradicts HTTP method semantics
+```
+
+```
+Resource Design Decision Flow:
+
+  1. Name resources with nouns (plural)
      /users, /orders, /products
 
-  2. 関係性をネストで表現する（2階層まで推奨）
+  2. Express relationships through nesting (up to 2 levels recommended)
      /users/123/orders
-     NG: /users/123/orders/456/items/789/reviews（深すぎる）
+     NG: /users/123/orders/456/items/789/reviews (too deep)
      OK: /orders/456/items  or  /reviews?item_id=789
 
-  3. リソースにならない操作は「動作リソース」として扱う
-     POST /orders/456/cancel    ← 注文キャンセル（動作）
-     POST /users/123/activate   ← ユーザー有効化
+  3. Non-resource actions are treated as "action resources"
+     POST /orders/456/cancel    ← Cancel order (action)
+     POST /users/123/activate   ← Activate user
 
-  4. 検索・フィルタはクエリパラメータ
+  4. Search and filtering via query parameters
      GET /products?category=electronics&min_price=1000&sort=price_asc
 
-  5. バルク操作
-     POST /users/bulk-create     ← 一括作成
-     PATCH /orders/bulk-update   ← 一括更新
+  5. Bulk operations
+     POST /users/bulk-create     ← Bulk create
+     PATCH /orders/bulk-update   ← Bulk update
 ```
 
-### 1.2 HTTP メソッドとステータスコード
+### 1.2 HTTP Methods and Status Codes
 
 ```
-HTTP メソッドの意味と安全性
+HTTP Method Semantics and Safety
 
-  メソッド    意味       べき等    安全    リクエストボディ
-  ─────────────────────────────────────────────────────
-  GET       取得        YES      YES     なし
-  HEAD      ヘッダ取得  YES      YES     なし
-  POST      作成        NO       NO      あり
-  PUT       全体更新    YES      NO      あり
-  PATCH     部分更新    YES      NO      あり
-  DELETE    削除        YES      NO      通常なし
-  OPTIONS   仕様確認    YES      YES     なし
+  Method    Meaning        Idempotent  Safe    Request Body
+  ─────────────────────────────────────────────────────────
+  GET       Retrieve       YES         YES     None
+  HEAD      Get headers    YES         YES     None
+  POST      Create         NO          NO      Yes
+  PUT       Full update    YES         NO      Yes
+  PATCH     Partial update YES         NO      Yes
+  DELETE    Delete         YES         NO      Usually none
+  OPTIONS   Check spec     YES         YES     None
 
-  安全: サーバーの状態を変更しない
-  べき等: 同じリクエストを何度送っても結果が同じ
-    例: DELETE /users/123 を2回送っても、
-        1回目: 削除成功(200)
-        2回目: 既に存在しない(404) ← 状態は同じ
+  Safe: Does not modify server state
+  Idempotent: Same result no matter how many times the request is sent
+    Example: Sending DELETE /users/123 twice:
+        1st time: Delete success (200)
+        2nd time: Already gone (404) ← State is the same
 ```
 
 ```
-レスポンスステータスコード
+Response Status Codes
 
-  2xx 成功
-  ├── 200 OK              - 取得・更新成功
-  ├── 201 Created         - 作成成功 (+ Location ヘッダー)
-  ├── 202 Accepted        - 非同期処理を受け付けた
-  └── 204 No Content      - 削除成功 (レスポンスボディなし)
+  2xx Success
+  ├── 200 OK              - Retrieve/update success
+  ├── 201 Created         - Create success (+ Location header)
+  ├── 202 Accepted        - Async operation accepted
+  └── 204 No Content      - Delete success (no response body)
 
-  3xx リダイレクト
-  ├── 301 Moved Permanently - リソースが恒久的に移動
-  └── 304 Not Modified      - キャッシュ有効（ETag一致）
+  3xx Redirect
+  ├── 301 Moved Permanently - Resource permanently moved
+  └── 304 Not Modified      - Cache valid (ETag match)
 
-  4xx クライアントエラー
-  ├── 400 Bad Request     - リクエストが不正
-  ├── 401 Unauthorized    - 認証失敗
-  ├── 403 Forbidden       - 認可失敗 (権限なし)
-  ├── 404 Not Found       - リソースなし
-  ├── 405 Method Not Allowed - 許可されていないメソッド
-  ├── 409 Conflict        - 競合 (重複作成など)
-  ├── 422 Unprocessable   - バリデーションエラー
-  └── 429 Too Many Req    - レート制限超過
+  4xx Client Error
+  ├── 400 Bad Request     - Malformed request
+  ├── 401 Unauthorized    - Authentication failed
+  ├── 403 Forbidden       - Authorization failed (insufficient permissions)
+  ├── 404 Not Found       - Resource not found
+  ├── 405 Method Not Allowed - Method not permitted
+  ├── 409 Conflict        - Conflict (e.g., duplicate creation)
+  ├── 422 Unprocessable   - Validation error
+  └── 429 Too Many Req    - Rate limit exceeded
 
-  5xx サーバーエラー
-  ├── 500 Internal Error  - サーバー内部エラー
-  ├── 502 Bad Gateway     - 上流サービスエラー
-  └── 503 Service Unavail - メンテナンス中
+  5xx Server Error
+  ├── 500 Internal Error  - Internal server error
+  ├── 502 Bad Gateway     - Upstream service error
+  └── 503 Service Unavail - Under maintenance
 ```
 
-### 1.3 ステータスコード選択のフローチャート
+### 1.3 Status Code Selection Flowchart
 
 ```
-リクエスト処理のステータスコード判断:
+Status Code Decision for Request Processing:
 
-  リクエスト受信
+  Request received
     │
-    ├── 認証は通ったか？
+    ├── Did authentication pass?
     │   └── NO → 401 Unauthorized
     │
-    ├── 認可は通ったか？
+    ├── Did authorization pass?
     │   └── NO → 403 Forbidden
     │
-    ├── リクエスト形式は正しいか？
+    ├── Is the request format valid?
     │   └── NO → 400 Bad Request
     │
-    ├── リソースは存在するか？
+    ├── Does the resource exist?
     │   └── NO → 404 Not Found
     │
-    ├── バリデーションは通ったか？
+    ├── Did validation pass?
     │   └── NO → 422 Unprocessable Entity
     │
-    ├── ビジネスルール上の競合はないか？
-    │   └── YES(競合あり) → 409 Conflict
+    ├── Are there any business rule conflicts?
+    │   └── YES (conflict) → 409 Conflict
     │
-    ├── 処理は成功したか？
-    │   ├── 作成 → 201 Created
-    │   ├── 削除 → 204 No Content
-    │   ├── 非同期 → 202 Accepted
-    │   └── その他 → 200 OK
+    ├── Did processing succeed?
+    │   ├── Create → 201 Created
+    │   ├── Delete → 204 No Content
+    │   ├── Async  → 202 Accepted
+    │   └── Other  → 200 OK
     │
-    └── サーバーエラー → 500 Internal Server Error
+    └── Server error → 500 Internal Server Error
 ```
 
 ---
 
-## 2. エラーレスポンス設計
+## 2. Error Response Design
 
-### 2.1 統一エラーフォーマット
+### 2.1 Unified Error Format
 
 ```python
-# 統一エラーレスポンス形式（RFC 7807 Problem Details準拠）
+# Unified error response format (compliant with RFC 7807 Problem Details)
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
 class ProblemDetail(BaseModel):
     """RFC 7807 Problem Details for HTTP APIs"""
-    type: str              # エラータイプのURI
-    title: str             # 人間が読めるエラータイトル
-    status: int            # HTTPステータスコード
-    detail: Optional[str]  # エラーの詳細説明
-    instance: Optional[str]  # エラーが発生したリクエストURI
-    errors: Optional[list[dict]] = None  # バリデーションエラー詳細
+    type: str              # URI for the error type
+    title: str             # Human-readable error title
+    status: int            # HTTP status code
+    detail: Optional[str]  # Detailed error description
+    instance: Optional[str]  # Request URI where the error occurred
+    errors: Optional[list[dict]] = None  # Validation error details
 
 app = FastAPI()
 
-# エラーハンドラー
+# Error handler
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
     return JSONResponse(
@@ -199,83 +199,83 @@ async def http_exception_handler(request, exc):
     )
 ```
 
-### 2.2 エラーレスポンスの実例
+### 2.2 Error Response Examples
 
 ```python
-# バリデーションエラー (422)
+# Validation error (422)
 {
     "type": "https://api.example.com/errors/validation_error",
     "title": "Validation Error",
     "status": 422,
-    "detail": "入力データに問題があります",
+    "detail": "There are problems with the input data",
     "instance": "/api/v1/users",
     "errors": [
-        {"field": "email", "message": "メールアドレスの形式が不正です", "code": "invalid_format"},
-        {"field": "age", "message": "年齢は0以上の整数で指定してください", "code": "out_of_range"}
+        {"field": "email", "message": "Invalid email address format", "code": "invalid_format"},
+        {"field": "age", "message": "Age must be a non-negative integer", "code": "out_of_range"}
     ]
 }
 
-# 認証エラー (401)
+# Authentication error (401)
 {
     "type": "https://api.example.com/errors/authentication_required",
     "title": "Authentication Required",
     "status": 401,
-    "detail": "このリソースへのアクセスには認証が必要です"
+    "detail": "Authentication is required to access this resource"
 }
 
-# レート制限 (429)
+# Rate limit (429)
 {
     "type": "https://api.example.com/errors/rate_limit_exceeded",
     "title": "Rate Limit Exceeded",
     "status": 429,
-    "detail": "リクエスト上限に達しました。60秒後に再試行してください",
+    "detail": "Request limit reached. Please retry after 60 seconds",
     "retry_after": 60
 }
 
-# ビジネスルール違反 (409)
+# Business rule violation (409)
 {
     "type": "https://api.example.com/errors/insufficient_stock",
     "title": "Insufficient Stock",
     "status": 409,
-    "detail": "商品「MacBook Pro」の在庫が不足しています（要求: 5, 在庫: 2）"
+    "detail": "Insufficient stock for product 'MacBook Pro' (requested: 5, available: 2)"
 }
 ```
 
-### 2.3 エラーコード体系の設計
+### 2.3 Error Code System Design
 
 ```
-エラーコード命名規則:
+Error Code Naming Convention:
 
-  {ドメイン}_{カテゴリ}_{詳細}
+  {domain}_{category}_{detail}
 
-  例:
-    AUTH_TOKEN_EXPIRED         - 認証トークン期限切れ
-    AUTH_INVALID_CREDENTIALS   - 認証情報不正
-    USER_NOT_FOUND            - ユーザー未発見
-    USER_EMAIL_DUPLICATE      - メールアドレス重複
-    ORDER_INSUFFICIENT_STOCK  - 在庫不足
-    ORDER_ALREADY_CANCELLED   - 既にキャンセル済み
-    PAYMENT_CARD_DECLINED     - カード決済拒否
-    RATE_LIMIT_EXCEEDED       - レート制限超過
+  Examples:
+    AUTH_TOKEN_EXPIRED         - Authentication token expired
+    AUTH_INVALID_CREDENTIALS   - Invalid credentials
+    USER_NOT_FOUND            - User not found
+    USER_EMAIL_DUPLICATE      - Duplicate email address
+    ORDER_INSUFFICIENT_STOCK  - Insufficient stock
+    ORDER_ALREADY_CANCELLED   - Already cancelled
+    PAYMENT_CARD_DECLINED     - Card payment declined
+    RATE_LIMIT_EXCEEDED       - Rate limit exceeded
 
-  利点:
-  ├── クライアントがエラーの種類をプログラムで判別可能
-  ├── エラー辞書の自動生成が可能
-  ├── i18n（多言語対応）のキーとして使用可能
-  └── ログ検索やアラート設定の条件として使用可能
+  Benefits:
+  ├── Clients can programmatically identify error types
+  ├── Error dictionaries can be auto-generated
+  ├── Can be used as keys for i18n (internationalization)
+  └── Can be used as conditions for log searches and alert configurations
 ```
 
 ---
 
-## 3. ページネーション
+## 3. Pagination
 
-### 3.1 カーソルベース vs オフセットベース
+### 3.1 Cursor-Based vs Offset-Based
 
 ```
-【オフセットベース】
+[Offset-Based]
   GET /users?page=3&per_page=20
 
-  レスポンス:
+  Response:
   {
     "data": [...],
     "pagination": {
@@ -286,13 +286,13 @@ async def http_exception_handler(request, exc):
     }
   }
 
-  メリット: シンプル、任意ページへのジャンプ
-  デメリット: 大量データで性能劣化 (OFFSET N)
+  Pros: Simple, can jump to any page
+  Cons: Performance degrades with large data sets (OFFSET N)
 
-【カーソルベース】
+[Cursor-Based]
   GET /users?cursor=eyJpZCI6MTAwfQ&limit=20
 
-  レスポンス:
+  Response:
   {
     "data": [...],
     "pagination": {
@@ -301,31 +301,31 @@ async def http_exception_handler(request, exc):
     }
   }
 
-  メリット: 大量データでも高速、一貫性
-  デメリット: 任意ページへのジャンプ不可
+  Pros: Fast even with large data sets, consistent results
+  Cons: Cannot jump to arbitrary pages
 ```
 
 ```
-ページネーション方式の選定基準:
+Pagination Method Selection Criteria:
 
-  要件                          推奨方式
+  Requirement                         Recommended Method
   ────────────────────────────────────────
-  管理画面の一覧 (<10万件)      オフセット
-  SNSタイムライン               カーソル
-  検索結果 (ページジャンプ必要)  オフセット
-  リアルタイムフィード          カーソル
-  データエクスポート            カーソル
-  ログ検索                      カーソル
-  ECサイト商品一覧              ハイブリッド*
+  Admin panel list (<100k records)    Offset
+  SNS timeline                        Cursor
+  Search results (page jump needed)   Offset
+  Real-time feed                      Cursor
+  Data export                         Cursor
+  Log search                          Cursor
+  E-commerce product list             Hybrid*
 
-  *ハイブリッド: 最初の数ページはオフセット、
-   深いページはカーソルに切り替え
+  *Hybrid: Use offset for the first few pages,
+   switch to cursor for deeper pages
 ```
 
-### 3.2 カーソルベースの実装
+### 3.2 Cursor-Based Implementation
 
 ```python
-# カーソルベースページネーション (FastAPI)
+# Cursor-based pagination (FastAPI)
 from fastapi import FastAPI, Query
 import base64, json
 
@@ -333,10 +333,10 @@ app = FastAPI()
 
 @app.get("/api/v1/users")
 async def list_users(
-    cursor: str = Query(None, description="ページネーションカーソル"),
-    limit: int = Query(20, ge=1, le=100, description="取得件数"),
+    cursor: str = Query(None, description="Pagination cursor"),
+    limit: int = Query(20, ge=1, le=100, description="Number of results to fetch"),
 ):
-    # カーソルのデコード
+    # Decode cursor
     if cursor:
         decoded = json.loads(base64.b64decode(cursor))
         last_id = decoded['id']
@@ -351,7 +351,7 @@ async def list_users(
     if has_next:
         users = users[:limit]
 
-    # 次のカーソル生成
+    # Generate next cursor
     next_cursor = None
     if has_next and users:
         next_cursor = base64.b64encode(
@@ -368,21 +368,21 @@ async def list_users(
     }
 ```
 
-### 3.3 複合ソートのカーソル
+### 3.3 Cursor with Compound Sort
 
 ```python
-# 複合条件でのカーソルベースページネーション
-# 例: created_at DESC, id DESC でソート
+# Cursor-based pagination with compound conditions
+# Example: sorted by created_at DESC, id DESC
 
 @app.get("/api/v1/orders")
 async def list_orders(
     cursor: str = Query(None),
     limit: int = Query(20, ge=1, le=100),
-    status: str = Query(None, description="ステータスフィルタ"),
+    status: str = Query(None, description="Status filter"),
 ):
     if cursor:
         decoded = json.loads(base64.b64decode(cursor))
-        # 複合カーソル: 同じ created_at の場合に id で一意に特定
+        # Compound cursor: uniquely identify by id when created_at values are equal
         query = """
             SELECT * FROM orders
             WHERE (created_at, id) < (%s, %s)
@@ -400,7 +400,7 @@ async def list_orders(
         """
         params = []
 
-    # ステータスフィルタの動的追加
+    # Dynamically add status filter
     if status:
         status_filter = "AND status = %s"
         params.append(status)
@@ -432,29 +432,29 @@ async def list_orders(
 
 ---
 
-## 4. バージョニング
+## 4. Versioning
 
-### 4.1 バージョニング戦略の比較
+### 4.1 Comparing Versioning Strategies
 
 ```
-バージョニング方式の比較:
+Versioning Method Comparison:
 
-  方式              例                          メリット              デメリット
+  Method              Example                         Pros                        Cons
   ──────────────────────────────────────────────────────────────────────────────
-  URLパス           /api/v1/users               最も明確、ルーティング容易  URL変更
-  クエリパラメータ   /api/users?version=1        URLパスはクリーン        見落とされやすい
-  ヘッダー          Accept: application/vnd.    URL変更なし             検証が難しい
-                    api.v1+json
-  コンテンツ        Accept: application/        柔軟性が高い            実装が複雑
-  ネゴシエーション   vnd.api+json; version=1
+  URL path            /api/v1/users                   Most explicit, easy routing  URL changes
+  Query parameter     /api/users?version=1            Clean URL path               Easy to overlook
+  Header              Accept: application/vnd.        No URL change               Hard to test
+                      api.v1+json
+  Content             Accept: application/            High flexibility            Complex to implement
+  negotiation         vnd.api+json; version=1
 
-  推奨: URLパスベース（最も広く採用、開発者が直感的に理解可能）
+  Recommended: URL path-based (most widely adopted, intuitively understood by developers)
 ```
 
-### 4.2 バージョニングの実装
+### 4.2 Versioning Implementation
 
 ```python
-# URL パスベース（最も一般的）
+# URL path based (most common)
 # GET /api/v1/users
 # GET /api/v2/users
 
@@ -465,13 +465,13 @@ v2_router = APIRouter(prefix="/api/v2")
 
 @v1_router.get("/users/{user_id}")
 async def get_user_v1(user_id: int):
-    """v1: name フィールドを返す"""
+    """v1: returns the name field"""
     user = await get_user(user_id)
     return {"id": user.id, "name": user.name, "email": user.email}
 
 @v2_router.get("/users/{user_id}")
 async def get_user_v2(user_id: int):
-    """v2: first_name / last_name に分離"""
+    """v2: split into first_name / last_name"""
     user = await get_user(user_id)
     return {
         "id": user.id,
@@ -481,19 +481,19 @@ async def get_user_v2(user_id: int):
     }
 ```
 
-### 4.3 バージョン廃止ポリシー
+### 4.3 Version Deprecation Policy
 
 ```
-API バージョン廃止のライフサイクル:
+API Version Deprecation Lifecycle:
 
-  v1 リリース ──── v2 リリース ──── v1 非推奨通知 ──── v1 廃止
-      │               │                │                │
-      │               │                │ Sunset ヘッダー │
-      │               │                │ 追加            │
-      └───── 運用 ─────┴── 移行期間 ────┴── 廃止 ────────┘
-                       (6-12ヶ月)
+  v1 release ──── v2 release ──── v1 deprecation notice ──── v1 sunset
+      │               │                │                          │
+      │               │                │ Sunset header            │
+      │               │                │ added                    │
+      └───── Live ─────┴── Migration period ────┴── Sunset ────────┘
+                       (6-12 months)
 
-  廃止通知の実装:
+  Deprecation notice implementation:
   ┌──────────────────────────────────────────────────┐
   │ HTTP/1.1 200 OK                                   │
   │ Sunset: Sat, 01 Mar 2026 00:00:00 GMT             │
@@ -502,35 +502,35 @@ API バージョン廃止のライフサイクル:
   │       rel="deprecation"                            │
   └──────────────────────────────────────────────────┘
 
-  クライアント対応:
-  1. Sunset ヘッダーを監視し、廃止前にマイグレーション
-  2. 非推奨 API の使用をログ/アラートで検出
-  3. SDK のバージョンアップで自動対応
+  Client actions:
+  1. Monitor the Sunset header and migrate before the deprecation date
+  2. Detect deprecated API usage via logs/alerts
+  3. Handle automatically by upgrading SDK version
 ```
 
 ---
 
-## 5. 認証と認可
+## 5. Authentication and Authorization
 
-### 5.1 認証パターンの比較
+### 5.1 Comparing Authentication Patterns
 
 ```
-認証方式の比較:
+Authentication Method Comparison:
 
-  方式          セキュリティ    実装コスト    最適用途
+  Method        Security    Implementation Cost    Best Use Case
   ──────────────────────────────────────────────────────
-  API Key       低             低           内部API、サーバー間通信
-  Basic Auth    低             最低          開発環境、内部ツール
-  Bearer Token  中             中           モバイルアプリ、SPA
+  API Key       Low         Low                    Internal APIs, server-to-server
+  Basic Auth    Low         Lowest                 Dev environments, internal tools
+  Bearer Token  Medium      Medium                 Mobile apps, SPAs
   (JWT)
-  OAuth 2.0     高             高           サードパーティ連携
-  mTLS          最高           最高          マイクロサービス間
+  OAuth 2.0     High        High                   Third-party integrations
+  mTLS          Highest     Highest                Between microservices
 ```
 
-### 5.2 JWT 認証の実装
+### 5.2 JWT Authentication Implementation
 
 ```python
-# FastAPI + JWT 認証
+# FastAPI + JWT authentication
 from fastapi import FastAPI, Depends, HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
@@ -539,12 +539,12 @@ from datetime import datetime, timedelta
 app = FastAPI()
 security = HTTPBearer()
 
-SECRET_KEY = "your-secret-key"  # 実際は環境変数から取得
+SECRET_KEY = "your-secret-key"  # In practice, load from environment variable
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 def create_access_token(user_id: str, roles: list[str]) -> str:
-    """アクセストークン生成"""
+    """Generate access token"""
     payload = {
         "sub": user_id,
         "roles": roles,
@@ -554,7 +554,7 @@ def create_access_token(user_id: str, roles: list[str]) -> str:
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)):
-    """トークン検証ミドルウェア"""
+    """Token verification middleware"""
     try:
         payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
@@ -562,84 +562,84 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
         raise HTTPException(status_code=401, detail={
             "code": "AUTH_TOKEN_EXPIRED",
             "title": "Token Expired",
-            "detail": "認証トークンの有効期限が切れています",
+            "detail": "The authentication token has expired",
         })
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail={
             "code": "AUTH_INVALID_TOKEN",
             "title": "Invalid Token",
-            "detail": "無効な認証トークンです",
+            "detail": "The authentication token is invalid",
         })
 
 def require_role(required_role: str):
-    """ロールベース認可"""
+    """Role-based authorization"""
     def role_checker(token: dict = Depends(verify_token)):
         if required_role not in token.get("roles", []):
             raise HTTPException(status_code=403, detail={
                 "code": "AUTH_INSUFFICIENT_PERMISSIONS",
                 "title": "Forbidden",
-                "detail": f"この操作には '{required_role}' ロールが必要です",
+                "detail": f"The '{required_role}' role is required for this operation",
             })
         return token
     return role_checker
 
-# 使用例
+# Usage examples
 @app.get("/api/v1/users")
 async def list_users(token: dict = Depends(verify_token)):
-    """認証必須エンドポイント"""
+    """Authentication-required endpoint"""
     return {"users": [...]}
 
 @app.delete("/api/v1/users/{user_id}")
 async def delete_user(user_id: str, token: dict = Depends(require_role("admin"))):
-    """admin ロール必須"""
+    """Requires admin role"""
     pass
 ```
 
-### 5.3 API セキュリティチェックリスト
+### 5.3 API Security Checklist
 
 ```
-API セキュリティの必須項目:
+API Security Essentials:
 
-  認証・認可
-  ├── [x] 全エンドポイントに認証を設定（公開APIは明示的に除外）
-  ├── [x] トークンの有効期限を短く設定（アクセス: 15-30分, リフレッシュ: 7-30日）
-  ├── [x] ロールベースアクセス制御（RBAC）を実装
-  └── [x] 認可チェックはリソース単位（自分のデータのみ操作可能）
+  Authentication & Authorization
+  ├── [x] Authentication configured for all endpoints (public APIs explicitly excluded)
+  ├── [x] Short token expiry (access: 15-30 min, refresh: 7-30 days)
+  ├── [x] Role-Based Access Control (RBAC) implemented
+  └── [x] Authorization checked at the resource level (users can only operate on their own data)
 
-  入力検証
-  ├── [x] 全入力をサーバーサイドでバリデーション
-  ├── [x] SQL インジェクション対策（パラメータバインド）
-  ├── [x] XSS 対策（出力エスケープ、Content-Type 明示）
-  └── [x] パスパラメータのバリデーション（../traversal 防止）
+  Input Validation
+  ├── [x] All input validated server-side
+  ├── [x] SQL injection prevention (parameterized queries)
+  ├── [x] XSS prevention (output escaping, explicit Content-Type)
+  └── [x] Path parameter validation (prevent ../traversal)
 
-  通信
-  ├── [x] HTTPS 強制（HSTS ヘッダー）
-  ├── [x] CORS 設定（許可オリジンを明示）
-  └── [x] レスポンスに不要な情報を含めない（Server ヘッダー除去）
+  Communication
+  ├── [x] HTTPS enforced (HSTS header)
+  ├── [x] CORS configured (allowed origins explicitly listed)
+  └── [x] No unnecessary information in responses (remove Server header)
 
-  レート制限
-  ├── [x] エンドポイント別のレート制限
-  ├── [x] 429 レスポンスに Retry-After ヘッダー
-  └── [x] 認証試行の回数制限（ブルートフォース対策）
+  Rate Limiting
+  ├── [x] Per-endpoint rate limiting
+  ├── [x] 429 responses include Retry-After header
+  └── [x] Limit authentication attempts (brute force protection)
 ```
 
 ---
 
-## 6. OpenAPI (Swagger) ドキュメント
+## 6. OpenAPI (Swagger) Documentation
 
-### 6.1 自動ドキュメント生成
+### 6.1 Automatic Documentation Generation
 
 ```python
-# FastAPI による自動ドキュメント生成
+# Automatic documentation generation with FastAPI
 from fastapi import FastAPI, Query, Path, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional
 from enum import Enum
 
 app = FastAPI(
-    title="注文管理API",
+    title="Order Management API",
     version="1.0.0",
-    description="ECサイトの注文管理を行うRESTful API",
+    description="RESTful API for managing orders on an e-commerce site",
 )
 
 class OrderStatus(str, Enum):
@@ -650,17 +650,17 @@ class OrderStatus(str, Enum):
     cancelled = "cancelled"
 
 class OrderItemCreate(BaseModel):
-    """注文アイテム"""
-    product_id: str = Field(..., description="商品ID", example="prod-456")
-    quantity: int = Field(..., ge=1, le=100, description="数量", example=2)
+    """Order item"""
+    product_id: str = Field(..., description="Product ID", example="prod-456")
+    quantity: int = Field(..., ge=1, le=100, description="Quantity", example=2)
 
 class OrderCreate(BaseModel):
-    """注文作成リクエスト"""
-    user_id: str = Field(..., description="ユーザーID", example="user-123")
+    """Order creation request"""
+    user_id: str = Field(..., description="User ID", example="user-123")
     items: list[OrderItemCreate] = Field(
-        ..., description="注文アイテム", min_length=1
+        ..., description="Order items", min_length=1
     )
-    note: Optional[str] = Field(None, max_length=500, description="備考")
+    note: Optional[str] = Field(None, max_length=500, description="Notes")
 
     model_config = {
         "json_schema_extra": {
@@ -671,45 +671,45 @@ class OrderCreate(BaseModel):
                         {"product_id": "prod-456", "quantity": 2},
                         {"product_id": "prod-789", "quantity": 1},
                     ],
-                    "note": "配達は午前中にお願いします",
+                    "note": "Please deliver in the morning",
                 }
             ]
         }
     }
 
 class OrderResponse(BaseModel):
-    """注文レスポンス"""
-    id: str = Field(..., description="注文ID")
-    status: OrderStatus = Field(..., description="注文ステータス")
-    total_amount: int = Field(..., description="合計金額（円）")
-    created_at: str = Field(..., description="作成日時 (ISO 8601)")
+    """Order response"""
+    id: str = Field(..., description="Order ID")
+    status: OrderStatus = Field(..., description="Order status")
+    total_amount: int = Field(..., description="Total amount (in cents)")
+    created_at: str = Field(..., description="Creation datetime (ISO 8601)")
 
 @app.post(
     "/api/v1/orders",
     response_model=OrderResponse,
     status_code=201,
-    summary="注文作成",
+    summary="Create order",
     tags=["Orders"],
     responses={
-        409: {"description": "在庫不足"},
-        422: {"description": "バリデーションエラー"},
+        409: {"description": "Insufficient stock"},
+        422: {"description": "Validation error"},
     },
 )
 async def create_order(order: OrderCreate):
-    """新しい注文を作成する。
+    """Create a new order.
 
-    - 注文アイテムは1件以上必須
-    - 在庫がない場合は 409 Conflict を返す
-    - 作成成功時は 201 Created + Location ヘッダーを返す
+    - At least one order item is required
+    - Returns 409 Conflict if out of stock
+    - Returns 201 Created + Location header on success
     """
     result = await order_service.create(order)
     return result
 ```
 
-### 6.2 契約テスト（Contract Testing）
+### 6.2 Contract Testing
 
 ```python
-# OpenAPI スキーマに基づく契約テスト
+# Contract testing based on OpenAPI schema
 import pytest
 from fastapi.testclient import TestClient
 from jsonschema import validate
@@ -717,10 +717,10 @@ from jsonschema import validate
 client = TestClient(app)
 
 class TestOrderAPI:
-    """注文API の契約テスト"""
+    """Contract tests for the Order API"""
 
     def test_create_order_returns_201(self):
-        """正常系: 注文作成は 201 を返す"""
+        """Happy path: order creation returns 201"""
         response = client.post("/api/v1/orders", json={
             "user_id": "user-123",
             "items": [{"product_id": "prod-456", "quantity": 2}],
@@ -732,7 +732,7 @@ class TestOrderAPI:
         assert data["status"] == "pending"
 
     def test_create_order_with_empty_items_returns_422(self):
-        """異常系: 空のアイテムは 422 を返す"""
+        """Error case: empty items returns 422"""
         response = client.post("/api/v1/orders", json={
             "user_id": "user-123",
             "items": [],
@@ -740,15 +740,15 @@ class TestOrderAPI:
         assert response.status_code == 422
 
     def test_create_order_without_auth_returns_401(self):
-        """異常系: 認証なしは 401 を返す"""
+        """Error case: no authentication returns 401"""
         response = client.post("/api/v1/orders", json={
             "user_id": "user-123",
             "items": [{"product_id": "prod-456", "quantity": 2}],
-        }, headers={})  # Authorization ヘッダーなし
+        }, headers={})  # No Authorization header
         assert response.status_code == 401
 
     def test_list_orders_pagination(self):
-        """ページネーション: next_cursor が返される"""
+        """Pagination: next_cursor is returned"""
         response = client.get("/api/v1/orders?limit=2")
         assert response.status_code == 200
         data = response.json()
@@ -757,7 +757,7 @@ class TestOrderAPI:
         assert "has_next" in data["pagination"]
 
     def test_response_matches_schema(self):
-        """レスポンスが OpenAPI スキーマに準拠している"""
+        """Response conforms to the OpenAPI schema"""
         expected_schema = {
             "type": "object",
             "required": ["id", "status", "total_amount", "created_at"],
@@ -777,25 +777,25 @@ class TestOrderAPI:
 
 ---
 
-## 7. レート制限
+## 7. Rate Limiting
 
-### 7.1 レート制限の設計
+### 7.1 Rate Limiting Design
 
 ```
-レート制限のアルゴリズム比較:
+Rate Limiting Algorithm Comparison:
 
-  アルゴリズム      特徴                  メリット            デメリット
+  Algorithm         Characteristics            Pros                   Cons
   ──────────────────────────────────────────────────────────────────
-  固定窓           時間窓ごとにカウント    実装簡単            窓の境界でバースト
-  スライディング窓  連続した時間窓         均一な制限          メモリ使用量大
-  トークンバケツ    一定速度でトークン充填  バースト許容        パラメータ調整難
-  リーキーバケツ    一定速度で処理         安定した出力        バースト不可
+  Fixed window      Count per time window      Simple to implement    Bursts at window boundaries
+  Sliding window    Continuous time window     Uniform limiting       High memory usage
+  Token bucket      Refill tokens at fixed rate  Allows bursts       Parameter tuning is tricky
+  Leaky bucket      Process at fixed rate      Stable output          No burst tolerance
 
-  推奨: トークンバケツ（バースト対応 + 実装の容易さのバランス）
+  Recommended: Token bucket (balance between burst support and ease of implementation)
 ```
 
 ```python
-# レート制限の実装例 (FastAPI + Redis)
+# Rate limiting implementation (FastAPI + Redis)
 import redis
 from fastapi import Request, HTTPException
 import time
@@ -803,27 +803,27 @@ import time
 redis_client = redis.Redis(host="localhost", port=6379, db=0)
 
 class RateLimiter:
-    """トークンバケツ方式のレート制限"""
+    """Token bucket rate limiter"""
 
     def __init__(self, rate: int, per: int):
         """
-        rate: 許可するリクエスト数
-        per: 時間窓（秒）
+        rate: number of allowed requests
+        per: time window (seconds)
         """
         self.rate = rate
         self.per = per
 
     async def check(self, key: str) -> tuple[bool, dict]:
-        """レート制限チェック"""
+        """Check rate limit"""
         now = time.time()
         pipe = redis_client.pipeline()
 
-        # スライディングウィンドウ
+        # Sliding window
         window_start = now - self.per
-        pipe.zremrangebyscore(key, 0, window_start)  # 古いエントリを削除
-        pipe.zadd(key, {str(now): now})               # 現在のリクエストを追加
-        pipe.zcard(key)                                # ウィンドウ内のリクエスト数
-        pipe.expire(key, self.per)                     # TTL設定
+        pipe.zremrangebyscore(key, 0, window_start)  # Remove old entries
+        pipe.zadd(key, {str(now): now})               # Add current request
+        pipe.zcard(key)                                # Count requests in window
+        pipe.expire(key, self.per)                     # Set TTL
         _, _, count, _ = pipe.execute()
 
         remaining = max(0, self.rate - count)
@@ -838,12 +838,12 @@ class RateLimiter:
             return False, headers
         return True, headers
 
-# ミドルウェアとして適用
-rate_limiter = RateLimiter(rate=100, per=60)  # 60秒に100リクエスト
+# Apply as middleware
+rate_limiter = RateLimiter(rate=100, per=60)  # 100 requests per 60 seconds
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
-    # クライアント識別（APIキー or IP）
+    # Identify client (API key or IP)
     client_id = request.headers.get("X-API-Key") or request.client.host
     key = f"rate_limit:{client_id}"
 
@@ -856,7 +856,7 @@ async def rate_limit_middleware(request: Request, call_next):
                 "type": "https://api.example.com/errors/rate_limit_exceeded",
                 "title": "Rate Limit Exceeded",
                 "status": 429,
-                "detail": f"{rate_limiter.per}秒間に{rate_limiter.rate}リクエストまで",
+                "detail": f"Up to {rate_limiter.rate} requests per {rate_limiter.per} seconds allowed",
             },
             headers=headers,
         )
@@ -869,33 +869,33 @@ async def rate_limit_middleware(request: Request, call_next):
 
 ---
 
-## 8. API スタイル比較
+## 8. API Style Comparison
 
 ### 8.1 REST vs GraphQL vs gRPC
 
-| 特性 | REST | GraphQL | gRPC |
+| Characteristic | REST | GraphQL | gRPC |
 |------|------|---------|------|
-| **プロトコル** | HTTP/1.1, HTTP/2 | HTTP (通常POST) | HTTP/2 |
-| **データ形式** | JSON | JSON | Protocol Buffers |
-| **型安全性** | OpenAPI で付加 | スキーマ内蔵 | .proto ファイル |
-| **オーバーフェッチ** | 発生しやすい | クライアントが必要なフィールドを指定 | 定義済みメッセージ |
-| **N+1 問題** | エンドポイント設計に依存 | DataLoader で解決 | ストリーミングで軽減 |
-| **キャッシュ** | HTTP キャッシュが自然 | 困難（POST のみ） | 独自実装 |
-| **学習コスト** | 低 | 中 | 高 |
-| **最適用途** | 公開API、CRUD中心 | 複雑なデータグラフ | マイクロサービス間通信 |
+| **Protocol** | HTTP/1.1, HTTP/2 | HTTP (typically POST) | HTTP/2 |
+| **Data Format** | JSON | JSON | Protocol Buffers |
+| **Type Safety** | Added via OpenAPI | Built-in schema | .proto files |
+| **Overfetching** | Tends to occur | Client specifies needed fields | Predefined messages |
+| **N+1 Problem** | Depends on endpoint design | Solved with DataLoader | Mitigated with streaming |
+| **Caching** | Natural HTTP caching | Difficult (POST only) | Custom implementation |
+| **Learning Curve** | Low | Medium | High |
+| **Best Use Case** | Public APIs, CRUD-centric | Complex data graphs | Microservice-to-microservice |
 
-| 判断基準 | REST | GraphQL | gRPC |
+| Decision Criteria | REST | GraphQL | gRPC |
 |---------|------|---------|------|
-| 公開 API | 最適 | 良い | 不向き |
-| モバイルアプリ | 良い | 最適 | 可能 |
-| マイクロサービス間 | 良い | 可能 | 最適 |
-| リアルタイム | WebSocket 追加 | Subscription | 双方向ストリーミング |
-| ファイルアップロード | multipart/form-data | 不向き | ストリーミング |
+| Public API | Best | Good | Not suitable |
+| Mobile app | Good | Best | Possible |
+| Microservice-to-microservice | Good | Possible | Best |
+| Real-time | Add WebSocket | Subscription | Bidirectional streaming |
+| File upload | multipart/form-data | Not suitable | Streaming |
 
-### 8.2 GraphQL の実装例
+### 8.2 GraphQL Implementation Example
 
 ```typescript
-// GraphQL スキーマ定義
+// GraphQL schema definition
 const typeDefs = `
   type User {
     id: ID!
@@ -968,7 +968,7 @@ const typeDefs = `
   }
 `;
 
-// リゾルバ（N+1問題をDataLoaderで解決）
+// Resolvers (solve N+1 problem with DataLoader)
 import DataLoader from "dataloader";
 
 const productLoader = new DataLoader<string, Product>(async (ids) => {
@@ -984,7 +984,7 @@ const resolvers = {
 };
 ```
 
-### 8.3 gRPC の定義例
+### 8.3 gRPC Definition Example
 
 ```protobuf
 // order_service.proto
@@ -993,16 +993,16 @@ syntax = "proto3";
 package order.v1;
 
 service OrderService {
-  // 単項RPC: 注文作成
+  // Unary RPC: create order
   rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
 
-  // 単項RPC: 注文取得
+  // Unary RPC: get order
   rpc GetOrder(GetOrderRequest) returns (Order);
 
-  // サーバーストリーミング: 注文ステータスの監視
+  // Server streaming: monitor order status
   rpc WatchOrderStatus(WatchOrderStatusRequest) returns (stream OrderStatusUpdate);
 
-  // クライアントストリーミング: バルク注文作成
+  // Client streaming: bulk order creation
   rpc BulkCreateOrders(stream CreateOrderRequest) returns (BulkCreateOrdersResponse);
 }
 
@@ -1038,48 +1038,48 @@ enum OrderStatus {
 
 ---
 
-## 9. API 設計のベストプラクティス
+## 9. API Design Best Practices
 
-### 9.1 命名規則
+### 9.1 Naming Conventions
 
 ```
-API 命名規則:
+API Naming Conventions:
 
-  URL パス:
-    ├── 小文字のみ使用
-    ├── 単語の区切りはハイフン（kebab-case）
-    ├── リソース名は複数形
-    └── 末尾のスラッシュなし
+  URL path:
+    ├── Lowercase only
+    ├── Hyphen-separated words (kebab-case)
+    ├── Resource names in plural
+    └── No trailing slash
 
     GOOD: /api/v1/order-items
     BAD:  /api/v1/orderItems
     BAD:  /api/v1/order_items/
 
-  クエリパラメータ:
-    ├── snake_case を推奨
-    └── 一般的なパラメータは統一
+  Query parameters:
+    ├── snake_case recommended
+    └── Common parameters unified
 
     GOOD: ?sort_by=created_at&order=desc
     BAD:  ?sortBy=createdAt&order=DESC
 
-  レスポンスボディ:
-    ├── camelCase (JavaScript クライアント向け)
-    ├── または snake_case (Python/Ruby クライアント向け)
-    └── プロジェクト内で統一
+  Response body:
+    ├── camelCase (for JavaScript clients)
+    ├── or snake_case (for Python/Ruby clients)
+    └── Consistent within the project
 
-  JSON フィールド命名:
-    ├── boolean: is_, has_, can_ プレフィックス
+  JSON field naming:
+    ├── boolean: is_, has_, can_ prefix
     │   "is_active": true, "has_orders": false
-    ├── 日時: ISO 8601 形式 + _at サフィックス
+    ├── datetime: ISO 8601 format + _at suffix
     │   "created_at": "2025-03-15T10:30:00Z"
-    └── ID: {リソース}_id
+    └── ID: {resource}_id
         "user_id": "usr-123", "order_id": "ord-456"
 ```
 
-### 9.2 HATEOAS（API のセルフドキュメント性）
+### 9.2 HATEOAS (API Self-Documentation)
 
 ```python
-# HATEOAS: レスポンスにナビゲーション用のリンクを含める
+# HATEOAS: include navigation links in responses
 {
     "data": {
         "id": "ord-123",
@@ -1094,22 +1094,22 @@ API 命名規則:
     }
 }
 
-# ステータスによって利用可能なアクションが変わる
-# status: "shipped" の場合 → cancel リンクは含まれない
-# status: "delivered" の場合 → return リンクが追加される
+# Available actions change depending on status
+# status: "shipped" → cancel link is not included
+# status: "delivered" → return link is added
 ```
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### 10.1 アンチパターン：HTTP メソッドの誤用
+### 10.1 Anti-Pattern: Misuse of HTTP Methods
 
 ```
 BAD:
-  POST /users/123/delete     ← DELETE を使うべき
-  GET  /users/create?name=A  ← GET は副作用なし
-  POST /users/123            ← 更新なら PUT/PATCH
+  POST /users/123/delete     ← Should use DELETE
+  GET  /users/create?name=A  ← GET should have no side effects
+  POST /users/123            ← Use PUT/PATCH for updates
 
 GOOD:
   DELETE /users/123
@@ -1117,17 +1117,17 @@ GOOD:
   PATCH  /users/123 (Body: {"name": "B"})
 ```
 
-**問題点**: HTTP メソッドのセマンティクスを無視すると、キャッシュ、ブラウザの戻るボタン、HTTPクライアントの自動リトライなどが正しく動作しない。GET リクエストで副作用があると、クローラーやプリフェッチにより意図しないデータ変更が起こりうる。
+**Problem**: Ignoring HTTP method semantics causes caching, browser back button behavior, and HTTP client auto-retry to malfunction. If GET requests have side effects, crawlers and prefetching can cause unintended data modifications.
 
-### 10.2 アンチパターン：レスポンス形式の不統一
+### 10.2 Anti-Pattern: Inconsistent Response Format
 
 ```json
-// BAD: エンドポイントごとに形式が異なる
+// BAD: different format for each endpoint
 // GET /users     → [{"id": 1, "name": "Alice"}]
 // GET /orders    → {"results": [{"id": 1}], "count": 10}
 // GET /products  → {"data": {"items": [...]}}
 
-// GOOD: 統一された Envelope 形式
+// GOOD: unified envelope format
 // GET /users
 {
   "data": [{"id": 1, "name": "Alice"}],
@@ -1140,42 +1140,42 @@ GOOD:
 }
 ```
 
-**問題点**: クライアント SDK の自動生成が困難になる。フロントエンドのレスポンスパース処理がエンドポイントごとに異なり、バグの温床となる。
+**Problem**: Automatic client SDK generation becomes difficult. Frontend response parsing logic differs per endpoint, becoming a source of bugs.
 
-### 10.3 アンチパターン：過度にネストした URL
+### 10.3 Anti-Pattern: Excessively Nested URLs
 
 ```
 BAD:
   GET /companies/123/departments/456/teams/789/members/012/tasks
 
-  問題:
-  - URL が長すぎて可読性が低い
-  - 中間リソースの ID が全て必要
-  - キャッシュの粒度が粗くなる
+  Problems:
+  - URL is too long and hard to read
+  - All intermediate resource IDs are required
+  - Cache granularity becomes coarse
 
 GOOD:
   GET /tasks?team_id=789
   GET /teams/789/members
   GET /members/012/tasks
 
-  原則: ネストは最大2階層まで
-  3階層以上が必要な場合はクエリパラメータでフィルタリング
+  Principle: Maximum 2 levels of nesting
+  If more than 3 levels are needed, use query parameter filtering
 ```
 
-**問題点**: 深いネストはクライアントに不要な親リソースの ID を強制する。大規模 API では URL の表現力よりも、クエリパラメータによるフィルタリングの柔軟性が重要。
+**Problem**: Deep nesting forces clients to provide IDs for all parent resources. In large APIs, the flexibility of query parameter filtering is more important than URL expressiveness.
 
-### 10.4 アンチパターン：内部構造の露出
+### 10.4 Anti-Pattern: Exposing Internal Structure
 
 ```python
-# BAD: DB のカラム名やテーブル構造がそのままレスポンスに漏れる
+# BAD: DB column names and table structure leak directly into response
 {
-    "user_tbl_id": 123,           # テーブル名が露出
-    "usr_pwd_hash": "abc123...",  # パスワードハッシュが露出
-    "created_ts": 1710489600,     # 内部タイムスタンプ形式
-    "is_del_flg": 0,              # 内部フラグ
+    "user_tbl_id": 123,           # Table name exposed
+    "usr_pwd_hash": "abc123...",  # Password hash exposed
+    "created_ts": 1710489600,     # Internal timestamp format
+    "is_del_flg": 0,              # Internal flag
 }
 
-# GOOD: API 用の DTO に変換してレスポンス
+# GOOD: Convert to API DTO before responding
 {
     "id": "usr-123",
     "name": "Alice",
@@ -1184,181 +1184,181 @@ GOOD:
 }
 ```
 
-**問題点**: 内部構造の露出はセキュリティリスク（攻撃者にスキーマ情報を与える）であり、DB スキーマの変更が API の破壊的変更に直結する。
+**Problem**: Exposing internal structure is a security risk (providing schema information to attackers) and means DB schema changes directly cause breaking API changes.
 
 ---
 
-## 11. 演習問題
+## 11. Exercises
 
-### 演習1（基礎）: REST API エンドポイント設計
+### Exercise 1 (Basic): REST API Endpoint Design
 
-**課題**: オンライン書店の API を設計せよ。以下のリソースと操作をカバーすること。
-
-```
-リソース: 書籍（books）、著者（authors）、レビュー（reviews）、ユーザー（users）
-
-操作:
-  1. 書籍の CRUD
-  2. 著者による書籍の検索
-  3. 書籍へのレビュー投稿・取得
-  4. ユーザーの注文履歴取得
-  5. 書籍の在庫確認
-```
-
-**期待される出力**:
+**Task**: Design an API for an online bookstore. Cover the following resources and operations.
 
 ```
-エンドポイント一覧（メソッド、URL、説明、ステータスコード）
+Resources: books, authors, reviews, users
+
+Operations:
+  1. CRUD for books
+  2. Search books by author
+  3. Post and retrieve reviews for books
+  4. Get user order history
+  5. Check book stock
 ```
 
-**模範解答**:
+**Expected output**:
 
 ```
-書籍:
-  GET    /api/v1/books                    200  書籍一覧（ページネーション）
-  GET    /api/v1/books?author_id=123      200  著者で絞り込み
-  GET    /api/v1/books/{id}               200  書籍詳細
-  POST   /api/v1/books                    201  書籍登録（admin）
-  PATCH  /api/v1/books/{id}               200  書籍更新（admin）
-  DELETE /api/v1/books/{id}               204  書籍削除（admin）
-  GET    /api/v1/books/{id}/stock         200  在庫確認
+List of endpoints (method, URL, description, status codes)
+```
 
-著者:
-  GET    /api/v1/authors                  200  著者一覧
-  GET    /api/v1/authors/{id}             200  著者詳細
-  GET    /api/v1/authors/{id}/books       200  著者の書籍一覧
+**Model answer**:
 
-レビュー:
-  GET    /api/v1/books/{id}/reviews       200  書籍のレビュー一覧
-  POST   /api/v1/books/{id}/reviews       201  レビュー投稿（認証必須）
-  PATCH  /api/v1/reviews/{id}             200  レビュー更新（自分のみ）
-  DELETE /api/v1/reviews/{id}             204  レビュー削除（自分 or admin）
+```
+Books:
+  GET    /api/v1/books                    200  List books (with pagination)
+  GET    /api/v1/books?author_id=123      200  Filter by author
+  GET    /api/v1/books/{id}               200  Book details
+  POST   /api/v1/books                    201  Register book (admin)
+  PATCH  /api/v1/books/{id}               200  Update book (admin)
+  DELETE /api/v1/books/{id}               204  Delete book (admin)
+  GET    /api/v1/books/{id}/stock         200  Check stock
 
-ユーザー:
-  GET    /api/v1/users/me                 200  自分の情報
-  GET    /api/v1/users/me/orders          200  注文履歴
-  GET    /api/v1/users/me/reviews         200  自分のレビュー一覧
+Authors:
+  GET    /api/v1/authors                  200  List authors
+  GET    /api/v1/authors/{id}             200  Author details
+  GET    /api/v1/authors/{id}/books       200  Books by author
+
+Reviews:
+  GET    /api/v1/books/{id}/reviews       200  List reviews for a book
+  POST   /api/v1/books/{id}/reviews       201  Post a review (authentication required)
+  PATCH  /api/v1/reviews/{id}             200  Update review (own only)
+  DELETE /api/v1/reviews/{id}             204  Delete review (own or admin)
+
+Users:
+  GET    /api/v1/users/me                 200  My profile
+  GET    /api/v1/users/me/orders          200  Order history
+  GET    /api/v1/users/me/reviews         200  My reviews
 ```
 
 ---
 
-### 演習2（応用）: エラーレスポンスの設計
+### Exercise 2 (Intermediate): Error Response Design
 
-**課題**: 以下のエラーシナリオに対して、RFC 7807 準拠のエラーレスポンスを設計せよ。
+**Task**: Design RFC 7807-compliant error responses for the following error scenarios.
 
 ```
-シナリオ:
-  1. 書籍の在庫不足で注文失敗
-  2. 同じ書籍に対する重複レビュー
-  3. 認証トークン期限切れ
-  4. リクエストボディのバリデーションエラー（複数フィールド）
+Scenarios:
+  1. Order fails due to insufficient book stock
+  2. Duplicate review for the same book
+  3. Authentication token expired
+  4. Request body validation errors (multiple fields)
 ```
 
-**期待される出力**:
+**Expected output**:
 
 ```json
-// 各シナリオごとの JSON レスポンス（status, type, title, detail, errors）
+// JSON response for each scenario (status, type, title, detail, errors)
 ```
 
-**模範解答**:
+**Model answer**:
 
 ```json
-// 1. 在庫不足 (409 Conflict)
+// 1. Insufficient stock (409 Conflict)
 {
   "type": "https://api.bookstore.com/errors/insufficient_stock",
   "title": "Insufficient Stock",
   "status": 409,
-  "detail": "書籍「Effective Java」の在庫が不足しています（要求: 3, 在庫: 1）",
+  "detail": "Insufficient stock for book 'Effective Java' (requested: 3, available: 1)",
   "instance": "/api/v1/orders"
 }
 
-// 2. 重複レビュー (409 Conflict)
+// 2. Duplicate review (409 Conflict)
 {
   "type": "https://api.bookstore.com/errors/duplicate_review",
   "title": "Duplicate Review",
   "status": 409,
-  "detail": "この書籍に対するレビューは既に投稿済みです",
+  "detail": "A review for this book has already been submitted",
   "instance": "/api/v1/books/book-123/reviews"
 }
 
-// 3. トークン期限切れ (401 Unauthorized)
+// 3. Token expired (401 Unauthorized)
 {
   "type": "https://api.bookstore.com/errors/token_expired",
   "title": "Token Expired",
   "status": 401,
-  "detail": "認証トークンの有効期限が切れています。再ログインしてください"
+  "detail": "The authentication token has expired. Please log in again"
 }
 
-// 4. バリデーションエラー (422 Unprocessable Entity)
+// 4. Validation error (422 Unprocessable Entity)
 {
   "type": "https://api.bookstore.com/errors/validation_error",
   "title": "Validation Error",
   "status": 422,
-  "detail": "入力データに2件の問題があります",
+  "detail": "There are 2 problems with the input data",
   "instance": "/api/v1/books",
   "errors": [
-    {"field": "title", "message": "タイトルは1〜200文字で入力してください", "code": "string_too_short"},
-    {"field": "price", "message": "価格は0以上の整数で入力してください", "code": "value_error"}
+    {"field": "title", "message": "Title must be between 1 and 200 characters", "code": "string_too_short"},
+    {"field": "price", "message": "Price must be a non-negative integer", "code": "value_error"}
   ]
 }
 ```
 
 ---
 
-### 演習3（発展）: API バージョン移行戦略の設計
+### Exercise 3 (Advanced): API Version Migration Strategy Design
 
-**課題**: 以下のシナリオで v1 → v2 の移行戦略を設計せよ。
+**Task**: Design a v1 to v2 migration strategy for the following scenario.
 
 ```
-変更内容:
+Changes:
   v1: GET /api/v1/users/{id} → {"id": 1, "name": "Alice Smith", "email": "..."}
   v2: GET /api/v2/users/{id} → {"id": 1, "first_name": "Alice", "last_name": "Smith", "email": "..."}
 
-条件:
-  - v1 のクライアントは50以上存在
-  - モバイルアプリは即時更新できない
-  - 移行期間は6ヶ月
+Constraints:
+  - More than 50 v1 clients exist
+  - Mobile apps cannot be updated immediately
+  - Migration period is 6 months
 ```
 
-**期待される出力**:
+**Expected output**:
 
 ```
-1. v2 のコード実装
-2. v1 の廃止スケジュール
-3. クライアントへの通知方法
-4. v1 の互換性維持レイヤー
+1. v2 code implementation
+2. v1 deprecation schedule
+3. Client notification method
+4. v1 compatibility layer
 ```
 
-**模範解答**:
+**Model answer**:
 
 ```python
-# 1. 内部は v2 のデータモデルに統一
+# 1. Internally unify to v2 data model
 class UserModel:
     id: int
     first_name: str
     last_name: str
     email: str
 
-# 2. v1 互換レイヤー（アダプター）
+# 2. v1 compatibility layer (adapter)
 @v1_router.get("/users/{user_id}")
 async def get_user_v1(user_id: int, response: Response):
     user = await user_service.get(user_id)
 
-    # 廃止通知ヘッダー
+    # Deprecation notice headers
     response.headers["Sunset"] = "Sat, 01 Sep 2026 00:00:00 GMT"
     response.headers["Deprecation"] = "true"
     response.headers["Link"] = (
         '<https://api.example.com/docs/v1-to-v2-migration>; rel="deprecation"'
     )
 
-    # v1 形式に変換
+    # Convert to v1 format
     return {
         "id": user.id,
-        "name": f"{user.first_name} {user.last_name}",  # 後方互換
+        "name": f"{user.first_name} {user.last_name}",  # backward compat
         "email": user.email,
     }
 
-# 3. v2 エンドポイント
+# 3. v2 endpoint
 @v2_router.get("/users/{user_id}")
 async def get_user_v2(user_id: int):
     user = await user_service.get(user_id)
@@ -1369,23 +1369,23 @@ async def get_user_v2(user_id: int):
         "email": user.email,
     }
 
-# 4. 廃止スケジュール
+# 4. Deprecation schedule
 """
-Month 1: v2 リリース + v1 Deprecation ヘッダー追加
-Month 2: クライアントにメール通知 + ドキュメントに移行ガイド掲載
-Month 3: v1 の使用状況をモニタリング（アクセスログ分析）
-Month 4: 使用率の高いクライアントに個別通知
-Month 5: v1 レスポンスに warning フィールド追加
-Month 6: v1 を 410 Gone にして廃止
+Month 1: Release v2 + add v1 Deprecation headers
+Month 2: Email notification to clients + publish migration guide in docs
+Month 3: Monitor v1 usage (access log analysis)
+Month 4: Individual notifications to high-usage clients
+Month 5: Add warning field to v1 responses
+Month 6: Change v1 to 410 Gone and sunset
 """
 
-# 5. v1 使用状況のモニタリング
+# 5. Monitor v1 usage
 @app.middleware("http")
 async def track_api_version(request: Request, call_next):
     if request.url.path.startswith("/api/v1/"):
         client_id = request.headers.get("X-API-Key", "unknown")
         logger.warning(f"Deprecated v1 API access: {client_id} -> {request.url.path}")
-        # メトリクスに記録
+        # Record in metrics
         metrics.increment("api.v1.deprecated_access", tags={"client": client_id})
     return await call_next(request)
 ```
@@ -1393,33 +1393,33 @@ async def track_api_version(request: Request, call_next):
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured settings file | Check the path and format of the settings file |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Growing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check execution user permissions, review configuration |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanism, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Review the error message**: Read the stack trace to pinpoint where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List all possible causes
+4. **Incremental verification**: Use logging and debuggers to validate hypotheses
+5. **Fix and regression test**: After fixing, run tests for related areas as well
 
 ```python
-# デバッグ用ユーティリティ
+# Debug utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1427,164 +1427,164 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check for I/O wait**: Review disk and network I/O status
+4. **Check concurrent connections**: Check connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem Type | Diagnostic Tool | Solution |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB slowness | EXPLAIN, slow query log | Indexes, query optimization |
 ---
 
 ## 12. FAQ
 
-### Q1. API のバージョニングはいつ行うべき？
+### Q1. When should I version an API?
 
-**A.** 後方互換性が壊れる変更が必要な場合にのみバージョンを上げる。フィールドの追加は後方互換なのでバージョン不要。フィールドの削除・名前変更・型の変更は非互換なのでバージョンアップ。旧バージョンは廃止日を設定し、6-12ヶ月の移行期間を設ける。Sunset ヘッダーで廃止予定日を通知する。
+**A.** Only bump the version when a change breaks backward compatibility. Adding a field is backward compatible and does not require a version bump. Removing a field, renaming a field, or changing a type is incompatible and requires a version bump. Set a deprecation date for old versions and provide a 6-12 month migration period. Use the Sunset header to announce the planned deprecation date.
 
-具体的な判断基準:
-- **バージョン不要（後方互換）**: フィールド追加、新エンドポイント追加、オプショナルパラメータ追加
-- **バージョン必要（非互換）**: フィールド削除/名前変更、型変更、必須パラメータ追加、レスポンス構造の変更、エラーコードの変更
+Specific decision criteria:
+- **No version needed (backward compatible)**: Adding a field, adding a new endpoint, adding an optional parameter
+- **Version required (incompatible)**: Deleting/renaming a field, changing a type, adding a required parameter, changing the response structure, changing error codes
 
-### Q2. ページネーションはオフセットとカーソルのどちらを使うべき？
+### Q2. Should I use offset or cursor pagination?
 
-**A.** データ量と要件で判断する。データが少なく（<10万件）ページジャンプが必要ならオフセット。大量データ・リアルタイム更新があるならカーソル。SNS のタイムライン、ログ検索などは常にカーソルベース。管理画面の一覧表示はオフセットで十分な場合が多い。
+**A.** Decide based on data volume and requirements. If data is small (<100k records) and page jumping is needed, use offset. If there is a large amount of data or real-time updates, use cursor. SNS timelines, log searches, etc. should always use cursor-based pagination. Offset is usually sufficient for admin panel list views.
 
-カーソルの注意点: ソート条件が変わるとカーソルが無効になるため、カーソルにソート条件を含めるか、ソート変更時は先頭から再取得する設計にする。
+Cursor caveat: If the sort condition changes, the cursor becomes invalid. Either include the sort condition in the cursor, or design the system to restart from the beginning when the sort changes.
 
-### Q3. REST と GraphQL を同一プロジェクトで併用してよいか？
+### Q3. Is it acceptable to use both REST and GraphQL in the same project?
 
-**A.** 併用は合理的な選択。公開 API は REST（キャッシュ、シンプルさ）、フロントエンド向け BFF は GraphQL（柔軟なデータ取得）という使い分けが一般的。ただし、チームの学習コストと運用コストを考慮し、小規模チームでは片方に統一する方が効率的。
+**A.** Using both is a rational choice. A common approach is to use REST for the public API (caching, simplicity) and GraphQL for the frontend BFF (flexible data fetching). However, considering team learning costs and operational overhead, small teams are often better off standardizing on one approach.
 
-### Q4. API のレスポンスに null を含めるべきか、フィールドを省略すべきか？
+### Q4. Should API responses include null or omit fields?
 
-**A.** 「null を含める」方が安全。フィールドの省略は「データがない」と「フィールドが存在しない」の区別がつかない。ただし、PATCH リクエストのボディでは「送信されたフィールドのみ更新」のため、省略とnullに意味の違いがある。
+**A.** Including null is safer. Omitting fields makes it impossible to distinguish between "data is absent" and "the field does not exist." However, for PATCH request bodies, there is a meaningful difference between omitting and null, since only fields that are sent should be updated.
 
 ```json
-// 推奨: null を明示
+// Recommended: explicitly include null
 {"name": "Alice", "nickname": null, "avatar_url": null}
 
-// 非推奨: フィールド省略（nickname があるのかないのか不明）
+// Not recommended: omit fields (unclear whether nickname exists)
 {"name": "Alice"}
 ```
 
-### Q5. API レスポンスの日時フォーマットは？
+### Q5. What datetime format should API responses use?
 
-**A.** ISO 8601 形式（UTC）を標準とする。`"2025-03-15T10:30:00Z"` のように、タイムゾーンは常に Z（UTC）で返す。クライアント側でローカルタイムゾーンに変換する。Unix タイムスタンプは避ける（可読性が低く、精度の解釈が曖昧）。
+**A.** Use ISO 8601 format (UTC) as the standard. Return timestamps as `"2025-03-15T10:30:00Z"` with the timezone always as Z (UTC). Let the client convert to the local timezone. Avoid Unix timestamps (low readability and ambiguous precision interpretation).
 
-### Q6. 大容量ファイルのアップロード API はどう設計するか？
+### Q6. How should I design an API for large file uploads?
 
-**A.** 以下の3段階アプローチを推奨する:
+**A.** The following 3-step approach is recommended:
 
-1. **アップロードURL取得**: `POST /api/v1/uploads` → 署名付きURL（presigned URL）を返す
-2. **直接アップロード**: クライアントが S3/GCS に直接アップロード（API サーバーを経由しない）
-3. **アップロード完了通知**: `POST /api/v1/uploads/{id}/complete` → サーバーがメタデータを保存
+1. **Get upload URL**: `POST /api/v1/uploads` → returns a presigned URL
+2. **Direct upload**: Client uploads directly to S3/GCS (bypassing the API server)
+3. **Upload completion notification**: `POST /api/v1/uploads/{id}/complete` → server saves metadata
 
-これにより API サーバーの帯域を消費せず、大容量ファイル（GB単位）にも対応できる。
+This avoids consuming API server bandwidth and supports large files (GB-scale).
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. It is recommended to thoroughly understand the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 13. まとめ
+## 13. Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| リソース設計 | 名詞ベースの URL、HTTP メソッドで操作を表現。ネスト2階層まで |
-| ステータスコード | 2xx/4xx/5xx を正確に使い分け。フローチャートで判断 |
-| エラーレスポンス | RFC 7807 準拠（type, title, status, detail, errors） |
-| ページネーション | 小規模はオフセット、大規模はカーソル |
-| バージョニング | URL パスベース、Sunset ヘッダーで廃止通知 |
-| 認証・認可 | JWT + RBAC、セキュリティチェックリスト準拠 |
-| レート制限 | トークンバケツ、X-RateLimit-* ヘッダー |
-| ドキュメント | OpenAPI (Swagger) で自動生成 + 契約テスト |
-| API スタイル選定 | 公開API=REST、BFF=GraphQL、内部通信=gRPC |
-| 命名規則 | URL=kebab-case、クエリ=snake_case、JSON=統一 |
+| Resource design | Noun-based URLs, HTTP methods express operations. Max 2 levels of nesting |
+| Status codes | Accurately distinguish 2xx/4xx/5xx. Use flowchart to decide |
+| Error responses | RFC 7807 compliant (type, title, status, detail, errors) |
+| Pagination | Offset for small scale, cursor for large scale |
+| Versioning | URL path-based, Sunset header for deprecation notice |
+| Auth & authz | JWT + RBAC, comply with security checklist |
+| Rate limiting | Token bucket, X-RateLimit-* headers |
+| Documentation | Auto-generate with OpenAPI (Swagger) + contract tests |
+| API style selection | Public API=REST, BFF=GraphQL, internal comms=gRPC |
+| Naming conventions | URL=kebab-case, query=snake_case, JSON=unified |
 
 ```
-API 設計の品質チェックフロー:
+API Design Quality Check Flow:
 
-  設計完了
+  Design complete
     │
-    ├── リソースとURLは直感的か？
-    ├── ステータスコードは正確か？
-    ├── エラーレスポンスは統一されているか？
-    ├── ページネーションは適切か？
-    ├── 認証・認可は全エンドポイントに設定されているか？
-    ├── レート制限は設定されているか？
-    ├── OpenAPI ドキュメントは最新か？
-    ├── 契約テストはパスするか？
-    └── 後方互換性は維持されているか？
+    ├── Are resources and URLs intuitive?
+    ├── Are status codes accurate?
+    ├── Are error responses unified?
+    ├── Is pagination appropriate?
+    ├── Is auth/authz configured for all endpoints?
+    ├── Is rate limiting configured?
+    ├── Is the OpenAPI documentation up to date?
+    ├── Do contract tests pass?
+    └── Is backward compatibility maintained?
 ```
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [04-code-review-checklist.md](./04-code-review-checklist.md) — コードレビューチェックリスト（API コードのレビュー観点）
-- [../01-practices/04-testing-principles.md](../01-practices/04-testing-principles.md) — テスト原則（API テストの設計）
-- [02-functional-principles.md](./02-functional-principles.md) — 関数型プログラミング原則（Result型によるAPIエラーハンドリング）
-- [../../../system-design-guide/docs/03-case-studies/03-rate-limiter.md](../../../system-design-guide/docs/03-case-studies/03-rate-limiter.md) — レートリミッター設計の詳細
-- ../../system-design-guide/docs/01-components/ — システム設計のコンポーネント（ロードバランサー、キャッシュ）
-- ../../design-patterns-guide/docs/04-architectural/ — アーキテクチャパターン（BFF、API Gateway）
-- ../../04-web-and-network/ — Web/ネットワーク基礎（HTTP、TLS、DNS）
+- [04-code-review-checklist.md](./04-code-review-checklist.md) — Code review checklist (API code review perspective)
+- [../01-practices/04-testing-principles.md](../01-practices/04-testing-principles.md) — Testing principles (API test design)
+- [02-functional-principles.md](./02-functional-principles.md) — Functional programming principles (API error handling with Result types)
+- [../../../system-design-guide/docs/03-case-studies/03-rate-limiter.md](../../../system-design-guide/docs/03-case-studies/03-rate-limiter.md) — Rate limiter design in depth
+- ../../system-design-guide/docs/01-components/ — System design components (load balancer, cache)
+- ../../design-patterns-guide/docs/04-architectural/ — Architectural patterns (BFF, API Gateway)
+- ../../04-web-and-network/ — Web/network fundamentals (HTTP, TLS, DNS)
 
 ---
 
-## 参考文献
+## References
 
-1. **RESTful Web APIs** — Leonard Richardson & Mike Amundsen (O'Reilly, 2013) — REST 設計の包括的ガイド
-2. **API Design Patterns** — JJ Geewax (Manning, 2021) — API 設計パターンのカタログ
-3. **Google API Design Guide** — https://cloud.google.com/apis/design — Google の API 設計基準
-4. **Microsoft REST API Guidelines** — https://github.com/microsoft/api-guidelines — Microsoft の REST API ガイドライン
-5. **RFC 7807: Problem Details for HTTP APIs** — https://www.rfc-editor.org/rfc/rfc7807 — エラーレスポンスの標準
-6. **Stripe API Reference** — https://stripe.com/docs/api — 優れた API 設計の実例
-7. **GitHub REST API** — https://docs.github.com/en/rest — 大規模 REST API の実例
-8. **GraphQL Official Documentation** — https://graphql.org/learn/ — GraphQL の公式ドキュメント
-9. **gRPC Official Documentation** — https://grpc.io/docs/ — gRPC の公式ドキュメント
-10. **OWASP API Security Top 10** — https://owasp.org/www-project-api-security/ — API セキュリティのベストプラクティス
+1. **RESTful Web APIs** — Leonard Richardson & Mike Amundsen (O'Reilly, 2013) — Comprehensive guide to REST design
+2. **API Design Patterns** — JJ Geewax (Manning, 2021) — Catalog of API design patterns
+3. **Google API Design Guide** — https://cloud.google.com/apis/design — Google's API design standards
+4. **Microsoft REST API Guidelines** — https://github.com/microsoft/api-guidelines — Microsoft's REST API guidelines
+5. **RFC 7807: Problem Details for HTTP APIs** — https://www.rfc-editor.org/rfc/rfc7807 — Standard for error responses
+6. **Stripe API Reference** — https://stripe.com/docs/api — Example of excellent API design
+7. **GitHub REST API** — https://docs.github.com/en/rest — Example of a large-scale REST API
+8. **GraphQL Official Documentation** — https://graphql.org/learn/ — Official GraphQL documentation
+9. **gRPC Official Documentation** — https://grpc.io/docs/ — Official gRPC documentation
+10. **OWASP API Security Top 10** — https://owasp.org/www-project-api-security/ — API security best practices
