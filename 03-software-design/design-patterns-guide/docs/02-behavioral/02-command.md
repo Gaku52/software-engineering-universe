@@ -1,55 +1,55 @@
-# Command パターン
+# Command Pattern
 
-> 操作をオブジェクトとしてカプセル化し、Undo/Redo、キューイング、マクロ記録、トランザクション制御を実現する行動パターン
-
----
-
-## この章で学ぶこと
-
-1. **Command パターンの基本構造と GoF の意図** -- コマンドオブジェクトによる操作のカプセル化、実行の遅延・記録・再生の仕組み
-2. **Undo/Redo の設計と実装** -- コマンド履歴を管理し、操作の取り消しとやり直しを実現する設計手法とその内部動作原理
-3. **マクロ・キューイング・トランザクション** -- 複数コマンドの合成、非同期実行キュー、ロールバック付きトランザクション実行
-4. **実プロダクトにおける Command** -- テキストエディタ、Redux、CQRS/Event Sourcing、ゲームリプレイなど現実の適用例
-5. **関数型アプローチとの統合** -- クロージャベース Command、TypeScript の型安全な Command バス
+> A behavioral pattern that encapsulates operations as objects, enabling Undo/Redo, queuing, macro recording, and transaction control
 
 ---
 
-## 前提知識
+## What You Will Learn in This Chapter
 
-| トピック | 必要な理解 | 参照リンク |
+1. **Basic structure and GoF intent of the Command pattern** -- encapsulating operations as command objects, mechanisms for deferred execution, recording, and replay
+2. **Designing and implementing Undo/Redo** -- design techniques for managing command history to enable operation reversal and redo, and how they work internally
+3. **Macros, queuing, and transactions** -- composing multiple commands, asynchronous execution queues, and transactional execution with rollback
+4. **Command in real products** -- practical applications such as text editors, Redux, CQRS/Event Sourcing, and game replays
+5. **Integration with functional approaches** -- closure-based Commands, type-safe Command buses in TypeScript
+
+---
+
+## Prerequisites
+
+| Topic | Required Understanding | Reference Link |
 |---------|-----------|-----------|
-| TypeScript の interface と class | インターフェースの定義と実装、ジェネリクスの基本 | 02-programming |
-| SOLID 原則（特に SRP・OCP） | 単一責任と開放閉鎖原則の理解 | clean-code-principles |
-| Observer パターン | イベント駆動の基本概念 | [00-observer.md](./00-observer.md) |
-| Strategy パターン | アルゴリズムの切り替え | [01-strategy.md](./01-strategy.md) |
-| Promise / async-await | 非同期処理の基本 | 02-programming |
+| TypeScript interfaces and classes | Defining and implementing interfaces, basics of generics | 02-programming |
+| SOLID principles (especially SRP and OCP) | Understanding single responsibility and open/closed principles | clean-code-principles |
+| Observer pattern | Basic concepts of event-driven design | [00-observer.md](./00-observer.md) |
+| Strategy pattern | Switching algorithms | [01-strategy.md](./01-strategy.md) |
+| Promise / async-await | Basics of asynchronous processing | 02-programming |
 
 ---
 
-## なぜ Command パターンが必要なのか
+## Why the Command Pattern Is Needed
 
-### 直接呼び出しの問題
+### Problems with Direct Invocation
 
-ボタンのクリックで「保存」を実行するUIを考えてみましょう。
+Consider a UI where clicking a button triggers a "save" operation.
 
 ```
-直接呼び出しの問題:
+Problems with direct invocation:
 
   ┌──────────┐     ┌──────────────┐
   │ Button   │────►│ Document     │
   │ onClick()│     │ save()       │
   └──────────┘     └──────────────┘
 
-  問題1: ボタンが Document を直接知っている（密結合）
-  問題2: キーボードショートカットでも同じ処理をしたい
-  問題3: Undo したいが、どうやって？
-  問題4: 操作を記録・再生したいが、仕組みがない
+  Problem 1: Button directly knows about Document (tight coupling)
+  Problem 2: Want the same operation triggered by keyboard shortcuts too
+  Problem 3: Want to Undo, but how?
+  Problem 4: Want to record and replay operations, but no mechanism exists
 ```
 
-### Command パターンによる解決
+### Solution with the Command Pattern
 
 ```
-Command パターンの解決:
+Command pattern solution:
 
   ┌──────────┐     ┌──────────────┐     ┌──────────────┐
   │ Button   │────►│  SaveCommand │────►│  Document    │
@@ -57,35 +57,35 @@ Command パターンの解決:
   └──────────┘     │  undo()      │     └──────────────┘
                    │  describe()  │
   ┌──────────┐     └──────────────┘
-  │Shortcut  │────►│ (同じCommand) │
+  │Shortcut  │────►│ (same Command) │
   │ Ctrl+S   │
   └──────────┘
 
-  利点:
-  ✓ Invoker は Command のみ知る（疎結合）
-  ✓ 同じ Command を複数の Invoker から使える
-  ✓ undo() で操作を元に戻せる
-  ✓ Command 履歴で操作ログを保持
-  ✓ Command をシリアライズして永続化できる
+  Benefits:
+  ✓ Invoker only knows about Command (loose coupling)
+  ✓ The same Command can be used from multiple Invokers
+  ✓ undo() allows reversing operations
+  ✓ Command history maintains an operation log
+  ✓ Commands can be serialized and persisted
 ```
 
-GoF の定義:
+GoF definition:
 
 > "Encapsulate a request as an object, thereby letting you parameterize clients with different requests, queue or log requests, and support undoable operations."
 >
 > -- Design Patterns: Elements of Reusable Object-Oriented Software (1994)
 
-Command パターンの本質は **「操作を第一級オブジェクト（first-class object）にする」** ことです。操作がオブジェクトになることで、操作を変数に代入し、配列に格納し、引数として渡し、シリアライズして保存し、ネットワーク越しに送信できるようになります。これは関数型プログラミングにおける「関数が第一級市民」の概念と通じるものです。
+The essence of the Command pattern is **"making operations first-class objects"**. When operations become objects, they can be assigned to variables, stored in arrays, passed as arguments, serialized and saved, and sent over a network. This resonates with the concept of "functions as first-class citizens" in functional programming.
 
 ---
 
-## 1. Command パターンの構造
+## 1. Structure of the Command Pattern
 
 ```
-Command パターンの構成要素（GoF）:
+Command pattern components (GoF):
 
   ┌──────────────┐
-  │    Client    │  コマンドを生成し、Receiver を設定
+  │    Client    │  Creates commands and sets the Receiver
   └──────┬───────┘
          │ creates
          ▼
@@ -110,51 +110,51 @@ Command パターンの構成要素（GoF）:
          │                   ▼              ▼
          │              ┌──────────────────────┐
          │              │     Receiver         │
-         │              │ (実際のビジネスロジック)  │
+         │              │ (actual business logic) │
          │              │                      │
          │              │ + action1()          │
          │              │ + action2()          │
          └─────────────►│                      │
-           直接呼ばない    └──────────────────────┘
+           not called directly └──────────────────────┘
 
   ┌──────────────┐
-  │   History    │  コマンド履歴の管理
-  │              │  Undo/Redo スタック
+  │   History    │  Manages command history
+  │              │  Undo/Redo stacks
   │ + push(cmd)  │
   │ + undo()     │
   │ + redo()     │
   └──────────────┘
 
-各役割:
-  Client   : ConcreteCommand を生成し Receiver を注入
-  Invoker  : Command の execute() を呼ぶ（何をするかは知らない）
-  Command  : execute/undo のインターフェースを定義
-  Receiver : 実際のビジネスロジックを持つ
-  History  : 実行済みコマンドの履歴を保持（Undo/Redo 用）
+Roles:
+  Client   : Creates ConcreteCommand and injects Receiver
+  Invoker  : Calls execute() on Command (does not know what it does)
+  Command  : Defines the execute/undo interface
+  Receiver : Holds the actual business logic
+  History  : Maintains history of executed commands (for Undo/Redo)
 ```
 
 ---
 
-## 2. 基本実装 -- テキストエディタ
+## 2. Basic Implementation -- Text Editor
 
-### コード例 1: 完全なテキストエディタ Command
+### Code Example 1: Complete Text Editor Command
 
 ```typescript
-// command.ts -- Command パターンの基本構造
+// command.ts -- Basic structure of the Command pattern
 
 // ============================
-// Command インターフェース
+// Command interface
 // ============================
 interface Command {
   execute(): void;
   undo(): void;
   describe(): string;
-  /** Undo 不可能な操作かどうかを示すフラグ */
+  /** Flag indicating whether this operation can be undone */
   readonly isUndoable: boolean;
 }
 
 // ============================
-// Receiver: テキストエディタ
+// Receiver: Text editor
 // ============================
 class TextEditor {
   private content: string = '';
@@ -216,7 +216,7 @@ class TextEditor {
 }
 
 // ============================
-// Concrete Command: テキスト挿入
+// Concrete Command: Insert text
 // ============================
 class InsertTextCommand implements Command {
   readonly isUndoable = true;
@@ -241,7 +241,7 @@ class InsertTextCommand implements Command {
 }
 
 // ============================
-// Concrete Command: テキスト削除
+// Concrete Command: Delete text
 // ============================
 class DeleteTextCommand implements Command {
   readonly isUndoable = true;
@@ -267,7 +267,7 @@ class DeleteTextCommand implements Command {
 }
 
 // ============================
-// Concrete Command: テキスト置換
+// Concrete Command: Replace text
 // ============================
 class ReplaceTextCommand implements Command {
   readonly isUndoable = true;
@@ -298,7 +298,7 @@ class ReplaceTextCommand implements Command {
 }
 
 // ============================
-// 使用例
+// Usage example
 // ============================
 const editor = new TextEditor();
 
@@ -323,15 +323,15 @@ console.log(editor.getContent()); // "Hello"
 
 ---
 
-## 3. Undo/Redo マネージャー
+## 3. Undo/Redo Manager
 
-### コード例 2: 高機能 Undo/Redo マネージャー
+### Code Example 2: Full-Featured Undo/Redo Manager
 
 ```typescript
-// undo-redo-manager.ts -- Undo/Redo の管理
+// undo-redo-manager.ts -- Managing Undo/Redo
 
 // ============================
-// イベント通知付き UndoRedoManager
+// UndoRedoManager with event notifications
 // ============================
 type HistoryEvent =
   | { type: 'execute'; command: Command }
@@ -353,23 +353,23 @@ class UndoRedoManager {
     this.maxHistory = maxHistory;
   }
 
-  /** コマンドを実行し、Undo スタックに追加 */
+  /** Execute a command and add it to the Undo stack */
   execute(command: Command): void {
     command.execute();
 
     if (this.batchLevel > 0) {
-      // バッチモード中はバッチに蓄積
+      // Accumulate in batch during batch mode
       this.batchCommands.push(command);
       return;
     }
 
     this.undoStack.push(command);
 
-    // 新しいコマンド実行時は Redo スタックをクリア
-    // (分岐した履歴は破棄される)
+    // Clear the Redo stack when a new command is executed
+    // (branched history is discarded)
     this.redoStack = [];
 
-    // 履歴の上限を超えたら古いものを削除
+    // Remove oldest entry if history exceeds the limit
     if (this.undoStack.length > this.maxHistory) {
       this.undoStack.shift();
     }
@@ -377,7 +377,7 @@ class UndoRedoManager {
     this.notify({ type: 'execute', command });
   }
 
-  /** 直前のコマンドを取り消す */
+  /** Undo the most recent command */
   undo(): boolean {
     const command = this.undoStack.pop();
     if (!command) return false;
@@ -388,7 +388,7 @@ class UndoRedoManager {
     return true;
   }
 
-  /** 取り消したコマンドをやり直す */
+  /** Redo an undone command */
   redo(): boolean {
     const command = this.redoStack.pop();
     if (!command) return false;
@@ -399,7 +399,7 @@ class UndoRedoManager {
     return true;
   }
 
-  /** バッチ操作の開始（複数操作を1つの Undo 単位にまとめる） */
+  /** Begin a batch operation (group multiple operations as one Undo unit) */
   beginBatch(): void {
     this.batchLevel++;
     if (this.batchLevel === 1) {
@@ -407,7 +407,7 @@ class UndoRedoManager {
     }
   }
 
-  /** バッチ操作の終了 */
+  /** End a batch operation */
   endBatch(description?: string): void {
     this.batchLevel--;
     if (this.batchLevel === 0 && this.batchCommands.length > 0) {
@@ -442,14 +442,14 @@ class UndoRedoManager {
     return this.redoStack.length;
   }
 
-  /** 全履歴をクリア */
+  /** Clear all history */
   clear(): void {
     this.undoStack = [];
     this.redoStack = [];
     this.notify({ type: 'clear' });
   }
 
-  /** 履歴変更のリスナーを追加 */
+  /** Add a listener for history changes */
   subscribe(listener: HistoryListener): () => void {
     this.listeners.push(listener);
     return () => {
@@ -465,12 +465,12 @@ class UndoRedoManager {
 }
 
 // ============================
-// 使用例
+// Usage example
 // ============================
 const editor2 = new TextEditor();
 const manager = new UndoRedoManager();
 
-// イベント監視
+// Monitor events
 manager.subscribe(event => {
   console.log(`[History] ${event.type}: ${
     event.type !== 'clear' ? event.command.describe() : 'all'
@@ -493,19 +493,19 @@ manager.redo();
 // [History] redo: Insert " World" at position 5
 console.log(editor2.getContent()); // "Hello World"
 
-// バッチ操作: 「検索と置換」を1つの Undo 単位に
+// Batch operation: combine "Find and Replace" into one Undo unit
 manager.beginBatch();
 manager.execute(new DeleteTextCommand(editor2, 0, 5));
 manager.execute(new InsertTextCommand(editor2, 0, 'Hi'));
 manager.endBatch('Replace "Hello" with "Hi"');
 
 console.log(editor2.getContent()); // "Hi World"
-manager.undo(); // バッチ全体が1回の Undo で元に戻る
+manager.undo(); // The entire batch is undone with one Undo
 console.log(editor2.getContent()); // "Hello World"
 ```
 
 ```
-Undo/Redo のスタック操作の詳細:
+Detailed Undo/Redo stack operations:
 
   execute("Hello")  execute(" World")   undo()           redo()
   ┌─────────┐      ┌─────────┐       ┌─────────┐      ┌─────────┐
@@ -517,38 +517,38 @@ Undo/Redo のスタック操作の詳細:
   │         │      │└───────┘│       │         │      │└───────┘│
   ├─────────┤      ├─────────┤       ├─────────┤      ├─────────┤
   │ Redo    │      │ Redo    │       │ Redo    │      │ Redo    │
-  │ (空)    │      │ (空)    │       │┌───────┐│      │ (空)    │
+  │ (empty) │      │ (empty) │       │┌───────┐│      │ (empty) │
   │         │      │         │       ││"World"││      │         │
   │         │      │         │       │└───────┘│      │         │
   └─────────┘      └─────────┘       └─────────┘      └─────────┘
 
-  ★ 重要: undo() 後に新しい execute() を行うと、
-    Redo スタックは全てクリアされる（分岐履歴は失われる）
+  ★ Important: If a new execute() is called after undo(),
+    the Redo stack is completely cleared (branched history is lost)
 
-  分岐が発生する場面:
+  When branching occurs:
   execute(A) → execute(B) → undo() → execute(C)
-                                      ↑ この時点で B は Redo 不可能に
+                                      ↑ At this point B can no longer be redone
 
   ┌──────┐    ┌──────┐    ┌──────┐    ┌──────┐
   │Undo: │    │Undo: │    │Undo: │    │Undo: │
   │  [A] │    │[A,B] │    │  [A] │    │[A,C] │
   │      │    │      │    │      │    │      │
   │Redo: │    │Redo: │    │Redo: │    │Redo: │
-  │  []  │    │  []  │    │  [B] │    │  []  │ ← B は消えた
+  │  []  │    │  []  │    │  [B] │    │  []  │ ← B is gone
   └──────┘    └──────┘    └──────┘    └──────┘
 ```
 
 ---
 
-## 4. マクロコマンド（Composite Command）
+## 4. Macro Command (Composite Command)
 
-### コード例 3: マクロの記録と再生
+### Code Example 3: Recording and Replaying Macros
 
 ```typescript
-// macro-command.ts -- 複数コマンドの合成（Composite パターンとの組合せ）
+// macro-command.ts -- Composing multiple commands (combination with Composite pattern)
 
 // ============================
-// MacroCommand: 複数コマンドを1つにまとめる
+// MacroCommand: Combines multiple commands into one
 // ============================
 class MacroCommand implements Command {
   readonly isUndoable = true;
@@ -572,7 +572,7 @@ class MacroCommand implements Command {
   }
 
   undo(): void {
-    // 逆順で Undo（LIFO: 最後に実行したものから戻す）
+    // Undo in reverse order (LIFO: revert from the last executed)
     for (let i = this.commands.length - 1; i >= 0; i--) {
       this.commands[i].undo();
     }
@@ -585,7 +585,7 @@ class MacroCommand implements Command {
 }
 
 // ============================
-// MacroRecorder: ユーザー操作の記録・再生
+// MacroRecorder: Record and replay user operations
 // ============================
 class MacroRecorder {
   private recording: boolean = false;
@@ -626,16 +626,16 @@ class MacroRecorder {
 }
 
 // ============================
-// 使用例: テキスト整形マクロ
+// Usage example: Text formatting macro
 // ============================
 const editorMacro = new TextEditor();
 const managerMacro = new UndoRedoManager();
 const recorder = new MacroRecorder();
 
-// マクロの記録開始
+// Start recording the macro
 recorder.startRecording();
 
-// 操作を記録しつつ実行
+// Execute operations while recording them
 const m1 = new InsertTextCommand(editorMacro, 0, '# ');
 recorder.recordCommand(m1);
 managerMacro.execute(m1);
@@ -646,40 +646,40 @@ const m2 = new InsertTextCommand(
 recorder.recordCommand(m2);
 managerMacro.execute(m2);
 
-// マクロを名前付きで保存
+// Save macro with a name
 const formatMacro = recorder.stopRecording('heading-format');
 
 console.log(editorMacro.getContent());
 // "# \n---\n"
 
-// マクロを別のテキストに再適用
-// ※ 新しい editor でコマンドを再生成する必要がある点に注意
+// Re-apply the macro to another text
+// Note: commands need to be recreated for a new editor
 ```
 
 ---
 
-## 5. 非同期コマンドキュー
+## 5. Asynchronous Command Queue
 
-### コード例 4: リトライ・ロールバック付き非同期キュー
+### Code Example 4: Async Queue with Retry and Rollback
 
 ```typescript
-// command-queue.ts -- 非同期コマンドの順序実行
+// command-queue.ts -- Sequential execution of async commands
 
 // ============================
-// AsyncCommand インターフェース
+// AsyncCommand interface
 // ============================
 interface AsyncCommand {
   execute(): Promise<void>;
   undo(): Promise<void>;
   describe(): string;
-  /** リトライ可能かどうか */
+  /** Whether the command can be retried */
   canRetry(): boolean;
-  /** 最大リトライ回数 */
+  /** Maximum number of retries */
   maxRetries: number;
 }
 
 // ============================
-// CommandQueue: 順序実行キュー
+// CommandQueue: Sequential execution queue
 // ============================
 type QueueEvent =
   | { type: 'enqueue'; command: AsyncCommand }
@@ -724,7 +724,7 @@ class CommandQueue {
       this.notify({ type: 'fail', command: entry.command, error: err });
 
       if (entry.command.canRetry() && entry.retries < entry.command.maxRetries) {
-        // リトライ: キューの先頭に戻す
+        // Retry: put back at the front of the queue
         entry.retries++;
         this.notify({
           type: 'retry',
@@ -733,7 +733,7 @@ class CommandQueue {
         });
         this.queue.unshift(entry);
       } else {
-        // 失敗時のロールバック
+        // Rollback on failure
         await this.rollback();
       }
     } finally {
@@ -755,11 +755,11 @@ class CommandQueue {
         this.notify({ type: 'rollback', command: cmd });
       } catch (err) {
         console.error(`Rollback failed for: ${cmd.describe()}`, err);
-        // 補償トランザクションのロールバック失敗は
-        // 人間の介入が必要な場面 → アラート
+        // A rollback failure in a compensating transaction
+        // requires human intervention → alert
       }
     }
-    // ロールバック後はキューも全てクリア
+    // Clear the entire queue after rollback
     this.queue = [];
   }
 
@@ -778,7 +778,7 @@ class CommandQueue {
 }
 
 // ============================
-// 使用例: API コール のトランザクション
+// Usage example: API call transaction
 // ============================
 class CreateUserCommand implements AsyncCommand {
   maxRetries = 2;
@@ -787,7 +787,7 @@ class CreateUserCommand implements AsyncCommand {
   constructor(private userData: { name: string; email: string }) {}
 
   async execute(): Promise<void> {
-    // API 呼び出し (シミュレーション)
+    // API call (simulation)
     console.log(`Creating user: ${this.userData.name}`);
     this.userId = `user_${Date.now()}`;
   }
@@ -810,7 +810,7 @@ class SendWelcomeEmailCommand implements AsyncCommand {
 
   async execute(): Promise<void> {
     console.log(`Sending welcome email to: ${this.email}`);
-    // ネットワークエラーのシミュレーション
+    // Simulate network error
     if (Math.random() < 0.3) {
       throw new Error('SMTP connection timeout');
     }
@@ -824,7 +824,7 @@ class SendWelcomeEmailCommand implements AsyncCommand {
   describe(): string { return `SendEmail(${this.email})`; }
 }
 
-// キューの使用
+// Using the queue
 const queue = new CommandQueue();
 
 queue.subscribe(event => {
@@ -849,12 +849,12 @@ queue.enqueueAll([
 
 ---
 
-## 6. Python での Command パターン
+## 6. Command Pattern in Python
 
-### コード例 5: Python Protocol ベースの Command
+### Code Example 5: Protocol-Based Command in Python
 
 ```python
-# command_python.py -- Python での Command パターン実装
+# command_python.py -- Command pattern implementation in Python
 from __future__ import annotations
 from typing import Protocol, runtime_checkable
 from dataclasses import dataclass, field
@@ -862,7 +862,7 @@ from datetime import datetime
 
 
 # ============================
-# Command プロトコル
+# Command protocol
 # ============================
 @runtime_checkable
 class Command(Protocol):
@@ -872,7 +872,7 @@ class Command(Protocol):
 
 
 # ============================
-# Receiver: スプレッドシート
+# Receiver: Spreadsheet
 # ============================
 class Spreadsheet:
     def __init__(self, rows: int = 100, cols: int = 26):
@@ -900,7 +900,7 @@ class Spreadsheet:
 
 
 # ============================
-# Concrete Command: セル値の設定
+# Concrete Command: Set cell value
 # ============================
 @dataclass
 class SetCellCommand:
@@ -926,7 +926,7 @@ class SetCellCommand:
 
 
 # ============================
-# Concrete Command: 範囲の一括クリア
+# Concrete Command: Clear a range in bulk
 # ============================
 @dataclass
 class ClearRangeCommand:
@@ -955,7 +955,7 @@ class ClearRangeCommand:
 
 
 # ============================
-# UndoRedoManager (Python 版)
+# UndoRedoManager (Python version)
 # ============================
 @dataclass
 class UndoRedoManager:
@@ -991,7 +991,7 @@ class UndoRedoManager:
 
 
 # ============================
-# 使用例
+# Usage example
 # ============================
 if __name__ == "__main__":
     sheet = Spreadsheet()
@@ -1007,11 +1007,11 @@ if __name__ == "__main__":
     print(f"A2={sheet.get_cell(1, 0)}, B2={sheet.get_cell(1, 1)}")
     # A2=Alice, B2=30
 
-    mgr.undo()  # B2 = 30 を取り消し
+    mgr.undo()  # Undo B2 = 30
     print(f"B2 after undo: {sheet.get_cell(1, 1)}")
     # B2 after undo: None
 
-    mgr.redo()  # B2 = 30 を復元
+    mgr.redo()  # Restore B2 = 30
     print(f"B2 after redo: {sheet.get_cell(1, 1)}")
     # B2 after redo: 30
 
@@ -1021,15 +1021,15 @@ if __name__ == "__main__":
 
 ---
 
-## 7. 関数型 Command -- クロージャベース
+## 7. Functional Command -- Closure-Based
 
-### コード例 6: クロージャと高階関数による Command
+### Code Example 6: Command Using Closures and Higher-Order Functions
 
 ```typescript
-// functional-command.ts -- 関数型アプローチの Command パターン
+// functional-command.ts -- Functional approach to the Command pattern
 
 // ============================
-// 関数型 Command の型定義
+// Type definition for functional Command
 // ============================
 interface FunctionalCommand {
   execute: () => void;
@@ -1038,7 +1038,7 @@ interface FunctionalCommand {
 }
 
 // ============================
-// Command ファクトリ
+// Command factories
 // ============================
 function createInsertCommand(
   editor: TextEditor,
@@ -1066,7 +1066,7 @@ function createDeleteCommand(
 }
 
 // ============================
-// 汎用 Command ファクトリ（任意の操作をコマンドに）
+// Generic Command factory (converts any operation into a command)
 // ============================
 function makeCommand(
   doFn: () => void,
@@ -1081,7 +1081,7 @@ function makeCommand(
 }
 
 // ============================
-// 関数型 UndoRedoManager
+// Functional UndoRedoManager
 // ============================
 function createUndoRedoManager() {
   const undoStack: FunctionalCommand[] = [];
@@ -1114,7 +1114,7 @@ function createUndoRedoManager() {
 }
 
 // ============================
-// 使用例: クラス不要の軽量 Command
+// Usage example: lightweight Command without classes
 // ============================
 const ed = new TextEditor();
 const mgr = createUndoRedoManager();
@@ -1126,7 +1126,7 @@ console.log(ed.getContent()); // "Hello World"
 mgr.undo();
 console.log(ed.getContent()); // "Hello"
 
-// 任意の操作もコマンドに変換可能
+// Any operation can be converted into a command
 let logBuffer: string[] = [];
 mgr.execute(makeCommand(
   () => logBuffer.push('entry'),
@@ -1137,20 +1137,20 @@ mgr.execute(makeCommand(
 
 ---
 
-## 8. 型安全な Command バス
+## 8. Type-Safe Command Bus
 
-### コード例 7: TypeScript のジェネリクスを活用した Command バス
+### Code Example 7: Command Bus Using TypeScript Generics
 
 ```typescript
-// command-bus.ts -- 型安全な Command ディスパッチ
+// command-bus.ts -- Type-safe Command dispatching
 
 // ============================
-// Command と Handler の型定義
+// Type definitions for Command and Handler
 // ============================
 interface TypedCommand<TName extends string, TPayload, TResult> {
   readonly type: TName;
   readonly payload: TPayload;
-  // TResult は型レベルの情報のみ（実行時に使用しない）
+  // TResult is type-level information only (not used at runtime)
   readonly __result?: TResult;
 }
 
@@ -1158,7 +1158,7 @@ type CommandHandler<C extends TypedCommand<string, unknown, unknown>> =
   (command: C) => C extends TypedCommand<string, unknown, infer R> ? R : never;
 
 // ============================
-// Command バス
+// Command bus
 // ============================
 class CommandBus {
   private handlers = new Map<string, CommandHandler<any>>();
@@ -1167,7 +1167,7 @@ class CommandBus {
     next: () => unknown
   ) => unknown> = [];
 
-  /** ハンドラの登録 */
+  /** Register a handler */
   register<C extends TypedCommand<string, unknown, unknown>>(
     type: C['type'],
     handler: CommandHandler<C>
@@ -1175,7 +1175,7 @@ class CommandBus {
     this.handlers.set(type, handler);
   }
 
-  /** ミドルウェアの追加（ロギング、認証等） */
+  /** Add middleware (logging, authentication, etc.) */
   use(
     middleware: (
       command: TypedCommand<string, unknown, unknown>,
@@ -1185,7 +1185,7 @@ class CommandBus {
     this.middleware.push(middleware);
   }
 
-  /** コマンドのディスパッチ */
+  /** Dispatch a command */
   dispatch<C extends TypedCommand<string, unknown, unknown>>(
     command: C
   ): C extends TypedCommand<string, unknown, infer R> ? R : never {
@@ -1194,7 +1194,7 @@ class CommandBus {
       throw new Error(`No handler registered for command: ${command.type}`);
     }
 
-    // ミドルウェアチェーンの構築
+    // Build the middleware chain
     const chain = this.middleware.reduceRight(
       (next, mw) => () => mw(command, next),
       () => handler(command)
@@ -1205,7 +1205,7 @@ class CommandBus {
 }
 
 // ============================
-// 具体的なコマンド定義
+// Concrete command definitions
 // ============================
 type CreateOrderCommand = TypedCommand<
   'CreateOrder',
@@ -1220,11 +1220,11 @@ type CancelOrderCommand = TypedCommand<
 >;
 
 // ============================
-// 使用例
+// Usage example
 // ============================
 const bus = new CommandBus();
 
-// ロギングミドルウェア
+// Logging middleware
 bus.use((command, next) => {
   console.log(`[CommandBus] Dispatching: ${command.type}`, command.payload);
   const start = performance.now();
@@ -1234,7 +1234,7 @@ bus.use((command, next) => {
   return result;
 });
 
-// ハンドラ登録
+// Register handlers
 bus.register<CreateOrderCommand>('CreateOrder', (cmd) => {
   console.log(`Creating order for user: ${cmd.payload.userId}`);
   return { orderId: `ORD-${Date.now()}` };
@@ -1245,213 +1245,213 @@ bus.register<CancelOrderCommand>('CancelOrder', (cmd) => {
   return { refundAmount: 1500 };
 });
 
-// ディスパッチ（型安全: 戻り値が自動推論される）
+// Dispatch (type-safe: return type is inferred automatically)
 const result = bus.dispatch<CreateOrderCommand>({
   type: 'CreateOrder',
   payload: { userId: 'u1', items: [{ sku: 'SKU-001', qty: 2 }] },
 });
-console.log(result.orderId); // 型安全: string
+console.log(result.orderId); // Type-safe: string
 ```
 
 ---
 
-## 9. 深掘り: Command パターンの内部設計判断
+## 9. Deep Dive: Internal Design Decisions of the Command Pattern
 
-### Undo 実装の3方式比較
+### Comparison of 3 Undo Implementation Approaches
 
 ```
-方式1: Command 履歴 (Command Pattern)
-  各コマンドが undo() を持ち、逆操作を実行
+Approach 1: Command History (Command Pattern)
+  Each command holds an undo() that executes the inverse operation
   ┌─────┐  ┌─────┐  ┌─────┐
-  │ C1  │→│ C2  │→│ C3  │  ← Undo スタック
+  │ C1  │→│ C2  │→│ C3  │  ← Undo stack
   │undo │  │undo │  │undo │
   └─────┘  └─────┘  └─────┘
-  メモリ: 差分のみ保持（省メモリ）
-  速度:   O(1) per undo
+  Memory: Only diffs are stored (memory-efficient)
+  Speed:  O(1) per undo
 
-方式2: Memento (スナップショット)
-  操作前の全状態を保存
+Approach 2: Memento (Snapshot)
+  Saves the entire state before each operation
   ┌───────┐  ┌───────┐  ┌───────┐
-  │State 0│  │State 1│  │State 2│  ← スナップショット
-  │(全体) │  │(全体) │  │(全体) │
+  │State 0│  │State 1│  │State 2│  ← Snapshots
+  │(full) │  │(full) │  │(full) │
   └───────┘  └───────┘  └───────┘
-  メモリ: 状態サイズ × 履歴数（大量消費）
-  速度:   O(1) per undo（スワップのみ）
+  Memory: State size × history count (heavy consumption)
+  Speed:  O(1) per undo (just swap)
 
-方式3: Event Sourcing
-  全イベントを記録し、再生で状態を再構築
+Approach 3: Event Sourcing
+  Records all events and rebuilds state by replaying them
   ┌─────┐  ┌─────┐  ┌─────┐
-  │ E1  │→│ E2  │→│ E3  │  ← イベントログ
-  │(追記)│  │(追記)│  │(追記)│
+  │ E1  │→│ E2  │→│ E3  │  ← Event log
+  │(append)│  │(append)│  │(append)│
   └─────┘  └─────┘  └─────┘
-  メモリ: イベントサイズ × 件数
-  速度:   O(N) per undo（先頭から再生）
-  ※スナップショットで高速化可能
+  Memory: Event size × count
+  Speed:  O(N) per undo (replay from the beginning)
+  ※ Can be optimized with snapshots
 ```
 
-| 比較項目 | Command 履歴 | Memento | Event Sourcing |
+| Comparison | Command History | Memento | Event Sourcing |
 |---------|-------------|---------|----------------|
-| メモリ使用 | 低い（差分のみ） | 高い（全状態 x N） | 中（イベント列） |
-| 実装の複雑さ | 中 | 低い | 高い |
-| 部分的 Undo | 困難 | 不可 | 可能 |
-| 永続化 | 容易 | 容易 | 容易 |
-| 監査証跡 | 操作ログとして利用可 | 不向き | 最適 |
-| デバッグ容易性 | 中 | 高い（状態を直接確認） | 高い（リプレイ可能） |
-| 適用場面 | エディタ、操作記録 | ゲームのセーブ | ドメインイベント記録 |
+| Memory usage | Low (diffs only) | High (full state x N) | Medium (event sequence) |
+| Implementation complexity | Medium | Low | High |
+| Partial Undo | Difficult | Not possible | Possible |
+| Persistence | Easy | Easy | Easy |
+| Audit trail | Usable as operation log | Not suitable | Optimal |
+| Debuggability | Medium | High (direct state inspection) | High (replayable) |
+| Use cases | Editors, operation recording | Game saves | Domain event recording |
 
-### Command の粒度設計
+### Designing Command Granularity
 
-Command の粒度（1つのコマンドがカバーする操作の範囲）は、ユーザー体験に直結する重要な設計判断です。
+Command granularity (the scope of operations a single command covers) is an important design decision that directly affects user experience.
 
 ```
-粒度が細かすぎる場合:
-  1文字ずつ Command → Undo が1文字ずつ戻る（UX が悪い）
-  "Hello" = 5 Commands → 5回 Undo して初めて消える
+When granularity is too fine:
+  One command per character → Undo reverts one character at a time (poor UX)
+  "Hello" = 5 Commands → requires 5 Undos to erase
 
-粒度が粗すぎる場合:
-  1ページ全体で1 Command → 小さな変更の Undo で大量の変更が消える
+When granularity is too coarse:
+  One command per entire page → Undoing a small change erases a large amount
 
-理想的な粒度:
+Ideal granularity:
   ┌────────────────────────────────────────────┐
-  │ ユーザーの「意図」に対応する単位             │
+  │ Units corresponding to the user's "intent" │
   │                                            │
-  │ 例: テキストエディタ                         │
-  │   - 単語の入力 → 1 Command                  │
-  │   - Backspace で単語削除 → 1 Command        │
-  │   - 検索と置換 → 1 Command（MacroCommand）  │
-  │   - 書式変更 → 1 Command                    │
+  │ Example: Text editor                       │
+  │   - Typing a word → 1 Command              │
+  │   - Deleting a word with Backspace → 1 Command │
+  │   - Find and replace → 1 Command (MacroCommand) │
+  │   - Formatting change → 1 Command          │
   │                                            │
-  │ 例: グラフィックエディタ                      │
-  │   - 図形の移動 → 1 Command                  │
-  │   - 複数選択して移動 → 1 Command             │
-  │   - 色変更 → 1 Command                      │
+  │ Example: Graphics editor                   │
+  │   - Moving a shape → 1 Command             │
+  │   - Multi-select and move → 1 Command      │
+  │   - Color change → 1 Command               │
   └────────────────────────────────────────────┘
 
-バッファリングによる粒度制御:
-  入力開始 → タイマー開始
-  入力中   → バッファに蓄積
-  500ms 無入力 or Enter → Command 確定
+Granularity control through buffering:
+  Start typing → start timer
+  While typing → accumulate in buffer
+  500ms of no input or Enter → finalize Command
 
   "H" "e" "l" "l" "o" [500ms] → InsertCommand("Hello")
 ```
 
 ---
 
-## 10. 実世界での Command パターン
+## 10. Command Pattern in the Real World
 
-### Redux / Flux アーキテクチャ
+### Redux / Flux Architecture
 
 ```
-Redux は Command パターンの変形:
+Redux is a variation of the Command pattern:
 
-  Action     = Command（type + payload で操作を記述）
-  Reducer    = execute()（状態を更新）
+  Action     = Command (describes an operation with type + payload)
+  Reducer    = execute() (updates state)
   Store      = Invoker + History
-  Middleware = Command の前後にフック
+  Middleware = hooks before/after Command
 
   dispatch({ type: 'ADD_TODO', payload: { text: '...' } })
   ↓
   [Middleware] → [Reducer] → [New State]
 
-  Redux DevTools = Undo/Redo マネージャー
-    - 全 Action の履歴を保持
-    - タイムトラベルデバッグ（任意の時点に戻る）
-    - Action のリプレイ
+  Redux DevTools = Undo/Redo manager
+    - Maintains history of all Actions
+    - Time-travel debugging (go back to any point)
+    - Action replay
 ```
 
-### Git の操作モデル
+### Git's Operation Model
 
 ```
-Git は Command パターンの具体例:
+Git is a concrete example of the Command pattern:
 
-  git commit   = execute()    新しいスナップショットを記録
-  git revert   = undo()       補償コミットで変更を打ち消す
-  git cherry-pick = コマンドの再適用
-  git reflog   = Command 履歴
+  git commit      = execute()     Records a new snapshot
+  git revert      = undo()        Negates changes with a compensating commit
+  git cherry-pick = re-applying a command
+  git reflog      = Command history
 
-  ※ git reset --hard は「Memento 方式」（状態を直接復元）
-  ※ git revert は「Command 方式」（逆操作を追加）
+  ※ git reset --hard uses the "Memento approach" (directly restores state)
+  ※ git revert uses the "Command approach" (adds the inverse operation)
 ```
 
-### ゲームのリプレイシステム
+### Game Replay Systems
 
 ```
-ゲームリプレイ = Command のシリアライズと再生:
+Game replay = Serializing and replaying Commands:
 
-  記録フェーズ:
+  Recording phase:
   Frame 1: [MoveCommand(player, {x:1, y:0})]
   Frame 2: [AttackCommand(player, target)]
   Frame 3: [MoveCommand(player, {x:0, y:1}), UseItemCommand(player, potion)]
   ...
 
-  再生フェーズ:
-  同じ初期状態 + 同じ Command 列 → 同じ結果（決定的実行）
+  Replay phase:
+  Same initial state + same Command sequence → same result (deterministic execution)
 
-  圧縮: 同種の連続コマンドをマージ
-  Frame 1-10: MoveCommand(player, {x:10, y:0})  ← 10フレーム分をまとめ
+  Compression: merge consecutive commands of the same type
+  Frame 1-10: MoveCommand(player, {x:10, y:0})  ← 10 frames combined
 ```
 
 ---
 
-## 11. 比較表
+## 11. Comparison Tables
 
-### Command vs 他のパターン
+### Command vs Other Patterns
 
-| 特性 | Command | Strategy | Observer | Memento |
+| Characteristic | Command | Strategy | Observer | Memento |
 |------|---------|----------|----------|---------|
-| 目的 | 操作のカプセル化 | アルゴリズムの切替 | 状態変化の通知 | 状態の保存・復元 |
-| Undo/Redo | 対応（逆操作） | 非対応 | 非対応 | 対応（スナップショット） |
-| 履歴管理 | 可能 | 不要 | 不要 | 可能 |
-| 遅延実行 | 可能 | 即座に実行 | イベント駆動 | 即座に保存 |
-| キューイング | 可能 | 不要 | 不要 | 不要 |
-| シリアライズ | 容易 | 困難 | 不要 | 容易 |
-| メモリ効率 | 高い（差分） | -- | -- | 低い（全状態） |
+| Purpose | Encapsulate operations | Switch algorithms | Notify state changes | Save/restore state |
+| Undo/Redo | Supported (inverse operation) | Not supported | Not supported | Supported (snapshot) |
+| History management | Possible | Not needed | Not needed | Possible |
+| Deferred execution | Possible | Executes immediately | Event-driven | Saves immediately |
+| Queuing | Possible | Not needed | Not needed | Not needed |
+| Serialization | Easy | Difficult | Not needed | Easy |
+| Memory efficiency | High (diffs) | -- | -- | Low (full state) |
 
-### Command の実装アプローチ比較
+### Comparison of Command Implementation Approaches
 
-| アプローチ | クラスベース | 関数型（クロージャ） | オブジェクトリテラル |
+| Approach | Class-based | Functional (closure) | Object literal |
 |-----------|-------------|-------------------|-------------------|
-| Undo | execute/undo メソッド | do/undo クロージャ | execute/undo プロパティ |
-| 型安全性 | インターフェースで強い | 型定義が必要 | 型定義が必要 |
-| シリアライズ | 容易（クラス名 + パラメータ） | 困難（クロージャは直列化不可） | 困難 |
-| テスタビリティ | モック容易 | 関数の差し替え容易 | 同左 |
-| ボイラープレート | 多い | 少ない | 少ない |
-| 適用場面 | 大規模、シリアライズ要 | 軽量、一時的 | 中規模 |
+| Undo | execute/undo methods | do/undo closures | execute/undo properties |
+| Type safety | Strong with interface | Requires type definitions | Requires type definitions |
+| Serialization | Easy (class name + params) | Difficult (closures cannot be serialized) | Difficult |
+| Testability | Easy to mock | Easy to swap functions | Same as left |
+| Boilerplate | More | Less | Less |
+| Use cases | Large-scale, requires serialization | Lightweight, temporary | Medium-scale |
 
-### Command パターンの導入判断
+### Decision Criteria for Introducing the Command Pattern
 
-| 判断基準 | Command パターンが有効 | 直接関数呼び出しで十分 |
+| Criterion | Command pattern is effective | Direct function call is sufficient |
 |---------|---------------------|---------------------|
-| Undo/Redo | 必要 | 不要 |
-| 操作のログ記録 | 必要（監査、デバッグ） | 不要 |
-| 遅延実行 / キューイング | 必要 | 不要 |
-| マクロ記録 | 必要 | 不要 |
-| シリアライズ / ネットワーク送信 | 必要 | 不要 |
-| 操作の種類 | 多い・増える予定 | 少ない・固定 |
+| Undo/Redo | Required | Not needed |
+| Operation logging | Required (audit, debugging) | Not needed |
+| Deferred execution / Queuing | Required | Not needed |
+| Macro recording | Required | Not needed |
+| Serialization / Network transmission | Required | Not needed |
+| Number of operation types | Many or expected to grow | Few and fixed |
 
 ---
 
-## 12. アンチパターン
+## 12. Anti-Patterns
 
-### アンチパターン 1: コマンドの粒度が不適切
+### Anti-Pattern 1: Inappropriate Command Granularity
 
 ```typescript
 // ============================
-// [NG] 1文字ごとにコマンドを生成
+// [NG] Creating a command for each character
 // ============================
-// Undo が1文字ずつ戻る、メモリも浪費
+// Undo reverts one character at a time, also wastes memory
 manager.execute(new InsertTextCommand(editor, 0, 'H'));
 manager.execute(new InsertTextCommand(editor, 1, 'e'));
 manager.execute(new InsertTextCommand(editor, 2, 'l'));
 manager.execute(new InsertTextCommand(editor, 3, 'l'));
 manager.execute(new InsertTextCommand(editor, 4, 'o'));
-// Undo 5回で "Hello" → "Hell" → "Hel" → "He" → "H" → ""
-// ユーザーの期待: Undo 1回で "Hello" が消える
+// Undo 5 times: "Hello" → "Hell" → "Hel" → "He" → "H" → ""
+// User expectation: 1 Undo removes "Hello"
 
 // ============================
-// [OK] 意味のある単位でコマンドを生成
+// [OK] Create commands at meaningful units
 // ============================
-// 入力をバッファリングし、一定時間の無入力でコマンドを確定
+// Buffer input and finalize the command after a period of inactivity
 class BufferedTextInput {
   private buffer: string = '';
   private bufferStart: number = 0;
@@ -1463,34 +1463,34 @@ class BufferedTextInput {
     private debounceMs: number = 500
   ) {}
 
-  /** 1文字入力のたびに呼ばれる */
+  /** Called on each character input */
   type(char: string): void {
     if (this.buffer === '') {
       this.bufferStart = this.editor.getCursorPosition();
     }
-    // エディタに直接挿入（Command 経由ではない）
+    // Insert directly into editor (not through a Command)
     this.editor.insertAt(this.editor.getCursorPosition(), char);
     this.buffer += char;
 
-    // デバウンス: 一定時間入力がなければ Command を確定
+    // Debounce: finalize Command after a period of no input
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => this.flush(), this.debounceMs);
   }
 
-  /** Enter キーや操作切り替え時にも呼ぶ */
+  /** Also called on Enter key or when switching operations */
   flush(): void {
     if (this.buffer) {
-      // ★ すでに editor には反映済みなので、
-      //    undo 用に逆操作を記録するだけの Command を作る
+      // ★ Already applied to editor,
+      //    so just create a Command to record the inverse for undo
       const text = this.buffer;
       const start = this.bufferStart;
       const cmd: Command = {
         isUndoable: true,
-        execute: () => { /* 既に反映済み */ },
+        execute: () => { /* already applied */ },
         undo: () => this.editor.deleteRange(start, start + text.length),
         describe: () => `Type "${text}"`,
       };
-      // execute() は呼ばず、履歴にだけ追加
+      // Do not call execute(); only add to history
       this.manager['undoStack'].push(cmd);
       this.buffer = '';
     }
@@ -1498,29 +1498,29 @@ class BufferedTextInput {
 }
 ```
 
-### アンチパターン 2: Undo 不可能なコマンドの放置
+### Anti-Pattern 2: Leaving Non-Undoable Commands Without Proper Declaration
 
 ```typescript
 // ============================
-// [NG] undo() が実装されていない（空のメソッド）
+// [NG] undo() is not implemented (empty method)
 // ============================
 class SendEmailCommand implements Command {
-  readonly isUndoable = true; // 嘘の宣言!
+  readonly isUndoable = true; // False declaration!
 
   execute(): void {
     emailService.send(this.email);
   }
 
   undo(): void {
-    // 何もしない...?? 送信済みメールは取り消せないのに
-    // isUndoable = true なので、ユーザーは Undo できると期待する
+    // Does nothing...?? A sent email cannot be unsent,
+    // but isUndoable = true makes the user expect undo to work
   }
 
   describe(): string { return `Send email to ${this.email}`; }
 }
 
 // ============================
-// [OK 方法1] 補償アクション (Compensating Action) を定義
+// [OK Option 1] Define a compensating action
 // ============================
 class SendEmailCommandV2 implements Command {
   readonly isUndoable = true;
@@ -1529,16 +1529,16 @@ class SendEmailCommandV2 implements Command {
   constructor(private email: string) {}
 
   execute(): void {
-    // 即座に送信せず、「送信予約」にする（5分後に実送信）
+    // Do not send immediately; schedule for sending (actual send after 5 minutes)
     this.sentId = emailService.schedule(this.email, { delayMinutes: 5 });
   }
 
   undo(): void {
     if (this.sentId) {
-      // 5分以内なら予約をキャンセル
+      // Cancel the scheduled send if within 5 minutes
       const cancelled = emailService.cancelScheduled(this.sentId);
       if (!cancelled) {
-        // 既に送信済みの場合は取り消しメールを送信
+        // If already sent, send a cancellation email
         emailService.sendCancellation(this.sentId);
       }
     }
@@ -1548,10 +1548,10 @@ class SendEmailCommandV2 implements Command {
 }
 
 // ============================
-// [OK 方法2] Undo 不可であることを明示的に宣言
+// [OK Option 2] Explicitly declare that Undo is not possible
 // ============================
 class IrreversibleSendEmailCommand implements Command {
-  readonly isUndoable = false; // 正直に宣言
+  readonly isUndoable = false; // Honest declaration
 
   constructor(private email: string) {}
 
@@ -1566,7 +1566,7 @@ class IrreversibleSendEmailCommand implements Command {
   describe(): string { return `Send email to ${this.email} (irreversible)`; }
 }
 
-// UndoRedoManager 側でも対応
+// Handle on the UndoRedoManager side as well
 class SafeUndoRedoManager extends UndoRedoManager {
   override undo(): boolean {
     const lastCmd = this['undoStack'][this['undoStack'].length - 1];
@@ -1579,17 +1579,17 @@ class SafeUndoRedoManager extends UndoRedoManager {
 }
 ```
 
-### アンチパターン 3: God Command（巨大コマンド）
+### Anti-Pattern 3: God Command (Oversized Command)
 
 ```typescript
 // ============================
-// [NG] 1つのコマンドに複数の責任を詰め込む
+// [NG] Cramming multiple responsibilities into one command
 // ============================
 class ProcessOrderCommand implements Command {
   readonly isUndoable = true;
 
   execute(): void {
-    // 1つの Command に全ビジネスロジックが...
+    // All business logic crammed into one Command...
     this.validateOrder();
     this.calculateTax();
     this.applyDiscount();
@@ -1600,14 +1600,14 @@ class ProcessOrderCommand implements Command {
   }
 
   undo(): void {
-    // 7つの逆操作を正しい順序で...
-    // テスト不可能、バグの温床
+    // 7 inverse operations in the correct order...
+    // Untestable, a breeding ground for bugs
   }
   // ...
 }
 
 // ============================
-// [OK] 単一責任の小さな Command に分割し、MacroCommand で合成
+// [OK] Split into small single-responsibility Commands and compose with MacroCommand
 // ============================
 const processOrder = new MacroCommand([
   new ValidateOrderCommand(order),
@@ -1619,29 +1619,29 @@ const processOrder = new MacroCommand([
   new NotifyWarehouseCommand(order),
 ], 'Process Order');
 
-// 利点:
-// - 各 Command が独立してテスト可能
-// - 途中で失敗した場合、実行済みの Command だけ undo
-// - 新しいステップの追加・削除が容易
-// - 各 Command の再利用が可能
+// Benefits:
+// - Each Command can be tested independently
+// - If a step fails, only the executed Commands are undone
+// - Adding or removing steps is easy
+// - Each Command can be reused
 ```
 
 ---
 
-## 13. 演習問題
+## 13. Exercises
 
-### 演習 1（基礎）: DrawingCanvas のコマンド実装
+### Exercise 1 (Basic): Implementing Commands for a DrawingCanvas
 
-以下の仕様を満たす描画キャンバスの Command を実装してください。
+Implement Commands for a drawing canvas that satisfy the following specification.
 
-**仕様:**
-- `DrawCircleCommand`: 円を描画（x, y, radius, color）
-- `DrawRectCommand`: 四角を描画（x, y, width, height, color）
-- `ClearCanvasCommand`: キャンバス全体をクリア
-- `UndoRedoManager` と組み合わせて Undo/Redo を実現
+**Specification:**
+- `DrawCircleCommand`: Draw a circle (x, y, radius, color)
+- `DrawRectCommand`: Draw a rectangle (x, y, width, height, color)
+- `ClearCanvasCommand`: Clear the entire canvas
+- Combine with `UndoRedoManager` to enable Undo/Redo
 
 ```typescript
-// ヒント: Canvas（Receiver）の定義
+// Hint: Definition of Canvas (Receiver)
 interface Shape {
   type: 'circle' | 'rect';
   id: string;
@@ -1658,7 +1658,7 @@ class DrawingCanvas {
 }
 ```
 
-**期待される出力:**
+**Expected output:**
 ```
 canvas.getShapes() → []
 execute(DrawCircleCommand(50, 50, 20, 'red'))
@@ -1675,18 +1675,18 @@ canvas.getShapes().length → 1
 
 ---
 
-### 演習 2（応用）: トランザクション付き API コマンドキュー
+### Exercise 2 (Applied): API Command Queue with Transactions
 
-以下の仕様を満たすトランザクション実行エンジンを実装してください。
+Implement a transaction execution engine that satisfies the following specification.
 
-**仕様:**
-- 複数の非同期 Command を順序実行
-- 途中で失敗した場合、実行済み Command を逆順で全て undo（ロールバック）
-- リトライ機能（最大3回）
-- 進捗イベントの通知（onProgress コールバック）
+**Specification:**
+- Execute multiple async Commands sequentially
+- If a failure occurs midway, undo all executed Commands in reverse order (rollback)
+- Retry functionality (up to 3 times)
+- Progress event notifications (onProgress callback)
 
 ```typescript
-// ヒント: インターフェース
+// Hint: Interface
 interface TransactionEngine {
   execute(commands: AsyncCommand[]): Promise<TransactionResult>;
 }
@@ -1699,13 +1699,13 @@ interface TransactionResult {
 }
 ```
 
-**期待される出力:**
+**Expected output:**
 ```
-正常系:
+Happy path:
   execute([CmdA, CmdB, CmdC])
   → { success: true, executedCount: 3 }
 
-異常系（CmdC で失敗、リトライも失敗）:
+Error case (CmdC fails, retries also fail):
   execute([CmdA, CmdB, CmdC])
   → Retrying CmdC (attempt 1/3)
   → Retrying CmdC (attempt 2/3)
@@ -1717,18 +1717,18 @@ interface TransactionResult {
 
 ---
 
-### 演習 3（発展）: シリアライズ可能な Command でリプレイシステムを構築
+### Exercise 3 (Advanced): Build a Replay System with Serializable Commands
 
-以下の仕様を満たすリプレイ（操作の記録・再生）システムを実装してください。
+Implement a replay (record and replay operations) system that satisfies the following specification.
 
-**仕様:**
-- Command を JSON にシリアライズ/デシリアライズ
-- タイムスタンプ付きで操作を記録
-- 記録した操作を別の Receiver に対して再生
-- 再生速度の制御（1x, 2x, 0.5x）
+**Specification:**
+- Serialize/deserialize Commands to/from JSON
+- Record operations with timestamps
+- Replay recorded operations against a different Receiver
+- Control replay speed (1x, 2x, 0.5x)
 
 ```typescript
-// ヒント: シリアライズ形式
+// Hint: Serialization format
 interface SerializedCommand {
   type: string;
   params: Record<string, unknown>;
@@ -1743,15 +1743,15 @@ interface ReplayEngine {
 }
 ```
 
-**期待される出力:**
+**Expected output:**
 ```
-記録:
+Recording:
   record(InsertCommand(0, "Hello"))     // t=0ms
   record(InsertCommand(5, " World"))    // t=500ms
   record(DeleteCommand(5, 11))          // t=1200ms
   serialize() → '[{"type":"insert","params":{"pos":0,"text":"Hello"},"timestamp":0},...]'
 
-再生 (speed=2x):
+Replay (speed=2x):
   t=0ms:   Insert "Hello"     → "Hello"
   t=250ms: Insert " World"    → "Hello World"
   t=600ms: Delete [5:11]      → "Hello"
@@ -1761,55 +1761,55 @@ interface ReplayEngine {
 
 ## 14. FAQ
 
-### Q1: Command パターンはどのような場面で使うべきですか？
+### Q1: In what situations should the Command pattern be used?
 
-主に次の5つの場面で有効です。
+It is effective primarily in the following five situations.
 
-1. **Undo/Redo**: テキストエディタ、グラフィックツール、スプレッドシート。ユーザーが操作を取り消せる必要がある場面。
-2. **操作のキューイング**: ジョブキュー、バッチ処理、ネットワーク不安定時のオフラインキュー。
-3. **操作のログ記録**: 監査証跡（誰がいつ何をしたか）、デバッグログ、コンプライアンス要件。
-4. **マクロ記録**: ユーザー操作の記録と再生、テスト自動化。
-5. **トランザクション**: 複数操作のアトミック実行（全て成功 or 全てロールバック）。
+1. **Undo/Redo**: Text editors, graphic tools, spreadsheets. Any situation where users need to reverse operations.
+2. **Operation queuing**: Job queues, batch processing, offline queues for unstable network conditions.
+3. **Operation logging**: Audit trails (who did what and when), debug logs, compliance requirements.
+4. **Macro recording**: Recording and replaying user operations, test automation.
+5. **Transactions**: Atomic execution of multiple operations (all succeed or all rollback).
 
-単純な関数呼び出し1回で済む場面ではオーバーエンジニアリングになります。「この操作を後から取り消す必要があるか？」「操作の履歴を残す必要があるか？」を判断基準にしてください。
+In situations where a single simple function call suffices, it becomes over-engineering. Use the criteria "Do I need to be able to cancel this operation later?" and "Do I need to keep a history of operations?" as your guide.
 
-### Q2: Command パターンと関数型プログラミングのクロージャは何が違いますか？
+### Q2: What is the difference between the Command pattern and closures in functional programming?
 
-クロージャも「操作をカプセル化」しますが、以下の点で Command パターンとは異なります。
+Closures also "encapsulate operations," but they differ from the Command pattern in the following ways.
 
-| 比較項目 | Command パターン | クロージャ |
+| Comparison | Command pattern | Closure |
 |---------|----------------|-----------|
-| undo | 明示的な undo() メソッド | 逆操作を別途用意する必要あり |
-| シリアライズ | 可能（クラス名 + パラメータ） | 不可能（クロージャは直列化できない） |
-| 検査可能性 | describe() で内容を確認可能 | 内部を外から見れない |
-| テスト | 独立してテスト可能 | テストしにくい |
+| Undo | Explicit undo() method | Inverse operation must be provided separately |
+| Serialization | Possible (class name + parameters) | Not possible (closures cannot be serialized) |
+| Inspectability | Content can be checked with describe() | Cannot see the internals from outside |
+| Testing | Can be tested independently | Harder to test |
 
-TypeScript では、クラスベースと関数型（クロージャ）のハイブリッドが実用的です。シリアライズが不要な軽量な場面ではクロージャで、永続化やネットワーク送信が必要な場面ではクラスベースを使います。
+In TypeScript, a hybrid of class-based and functional (closure) approaches is practical. Use closures for lightweight scenarios where serialization is not needed, and use class-based approaches when persistence or network transmission is required.
 
-### Q3: 大量のコマンド履歴によるメモリ消費をどう管理しますか？
+### Q3: How do you manage memory consumption from a large command history?
 
-4つの戦略があります。
+There are four strategies.
 
-1. **履歴の上限設定**: 最大100〜1000件に制限し、古いものから破棄。ほとんどのエディタはこの方式。
-2. **コマンドの圧縮（Coalescing）**: 連続する同種のコマンドをマージ。例: 連続入力の文字を1つの InsertCommand にまとめる。
-3. **チェックポイント**: 定期的に全状態をスナップショットし、それ以前の Command 履歴を破棄。undo はチェックポイントまでしか遡れないが、メモリは一定。
-4. **遅延読込（Lazy Loading）**: 古い履歴をディスクに退避し、必要時のみ読み込む。IndexedDB や SQLite に保存。
+1. **History limit**: Cap at 100–1000 entries and discard the oldest. Most editors use this approach.
+2. **Command coalescing**: Merge consecutive commands of the same type. For example, combine consecutive character inputs into a single InsertCommand.
+3. **Checkpoints**: Periodically take a snapshot of the full state and discard Command history before that point. Undo can only go back to the checkpoint, but memory stays constant.
+4. **Lazy loading**: Archive old history to disk and load only when needed. Store in IndexedDB or SQLite.
 
-### Q4: Command パターンと Event Sourcing の関係は？
+### Q4: What is the relationship between the Command pattern and Event Sourcing?
 
-Command パターンと Event Sourcing は密接に関連しますが、目的が異なります。
+The Command pattern and Event Sourcing are closely related but have different purposes.
 
-- **Command**: 「操作の意図」を表す。実行前のもので、拒否される可能性がある。
-- **Event**: 「起きた事実」を表す。実行後のもので、不変（immutable）。
+- **Command**: Represents the "intent of an operation." It exists before execution and can be rejected.
+- **Event**: Represents "what happened." It exists after execution and is immutable.
 
-Event Sourcing では、Command を受け取り、バリデーション後に Event を生成します。Event を再生すれば任意の時点の状態を復元できます。Command パターンの `execute()` が Event を発行し、`undo()` は補償 Event を発行するという設計が一般的です。
+In Event Sourcing, a Command is received, validated, and then an Event is generated. By replaying Events, the state at any point in time can be restored. A common design is for `execute()` in the Command pattern to emit an Event, and `undo()` to emit a compensating Event.
 
-### Q5: React / フロントエンドフレームワークで Command パターンをどう使いますか？
+### Q5: How do you use the Command pattern in React / frontend frameworks?
 
-React では以下のパターンが一般的です。
+In React, the following pattern is common.
 
 ```typescript
-// useUndoRedo カスタムフック
+// useUndoRedo custom hook
 function useUndoRedo<T>(initialState: T) {
   const [state, setState] = useState(initialState);
   const undoStack = useRef<T[]>([]);
@@ -1844,57 +1844,57 @@ function useUndoRedo<T>(initialState: T) {
 }
 ```
 
-Redux の `dispatch(action)` も Command パターンそのものです。Action が Command、Reducer が execute、Redux DevTools が UndoRedoManager に対応します。
+Redux's `dispatch(action)` is itself the Command pattern. Actions are Commands, Reducers are execute, and Redux DevTools corresponds to UndoRedoManager.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point to understand about this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not only through theory but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional development?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architectural design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |------|------|
-| Command パターンの本質 | 操作をオブジェクトとしてカプセル化し、第一級市民にする |
-| 4つの構成要素 | Client, Invoker, Command (interface), Receiver |
-| Undo/Redo | Undo スタックと Redo スタックで双方向の操作履歴を管理 |
-| MacroCommand | Composite パターンとの組合せ。複数コマンドを1つの Undo 単位に |
-| 非同期キュー | コマンドの順序実行、リトライ、ロールバック |
-| 粒度設計 | ユーザーの「意図」に対応する単位でコマンドを区切る |
-| 関数型アプローチ | クロージャによる軽量 Command。シリアライズ不要な場面で有効 |
-| Command バス | CQRS における Command の型安全なディスパッチ |
-| 導入判断 | Undo/ログ/キュー/マクロのいずれかが必要なら検討 |
+| Essence of the Command pattern | Encapsulate operations as objects and make them first-class citizens |
+| Four components | Client, Invoker, Command (interface), Receiver |
+| Undo/Redo | Manage bidirectional operation history with Undo and Redo stacks |
+| MacroCommand | Combination with Composite pattern. Groups multiple commands as one Undo unit |
+| Async queue | Sequential command execution, retry, and rollback |
+| Granularity design | Divide commands into units that correspond to the user's "intent" |
+| Functional approach | Lightweight Command using closures. Effective when serialization is not needed |
+| Command bus | Type-safe dispatching of Commands in CQRS |
+| Decision criteria | Consider adopting when Undo / logging / queuing / macro recording is needed |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [03-state.md](./03-state.md) -- State パターンと状態遷移（Command + State で状態付き操作管理）
-- [04-iterator.md](./04-iterator.md) -- Iterator パターンとジェネレータ（Command 履歴の走査に応用）
-- [00-observer.md](./00-observer.md) -- Observer パターン（Command 実行をイベントとして通知）
-- [../03-functional/00-monad.md](../03-functional/00-monad.md) -- モナドパターン（Either で Command の成功/失敗を型安全に）
-- Event Sourcing / CQRS -- Command パターンの大規模アーキテクチャへの発展
+- [03-state.md](./03-state.md) -- State pattern and state transitions (Command + State for stateful operation management)
+- [04-iterator.md](./04-iterator.md) -- Iterator pattern and generators (applied to traversing Command history)
+- [00-observer.md](./00-observer.md) -- Observer pattern (notifying Command execution as events)
+- [../03-functional/00-monad.md](../03-functional/00-monad.md) -- Monad pattern (type-safe success/failure of Commands with Either)
+- Event Sourcing / CQRS -- Evolving the Command pattern into large-scale architecture
 
 ---
 
-## 参考文献
+## References
 
-1. **Design Patterns: Elements of Reusable Object-Oriented Software** -- Gamma, Helm, Johnson, Vlissides (GoF, 1994) -- Command パターンの原典。Chapter 5, pp.233-242
-2. **Head First Design Patterns** -- Eric Freeman, Elisabeth Robson (O'Reilly, 2nd Edition, 2020) -- Command パターンの平易な解説と実践例
-3. **Refactoring.Guru - Command** -- https://refactoring.guru/design-patterns/command -- 図解と多言語実装例
-4. **Martin Fowler - Command Query Responsibility Segregation (CQRS)** -- https://martinfowler.com/bliki/CQRS.html -- Command パターンのアーキテクチャレベルへの発展
-5. **Redux Documentation** -- https://redux.js.org/ -- Command パターンの実践的な大規模適用例（Action = Command）
+1. **Design Patterns: Elements of Reusable Object-Oriented Software** -- Gamma, Helm, Johnson, Vlissides (GoF, 1994) -- The original source for the Command pattern. Chapter 5, pp.233-242
+2. **Head First Design Patterns** -- Eric Freeman, Elisabeth Robson (O'Reilly, 2nd Edition, 2020) -- Accessible explanation and practical examples of the Command pattern
+3. **Refactoring.Guru - Command** -- https://refactoring.guru/design-patterns/command -- Diagrams and multi-language implementation examples
+4. **Martin Fowler - Command Query Responsibility Segregation (CQRS)** -- https://martinfowler.com/bliki/CQRS.html -- Evolution of the Command pattern to the architectural level
+5. **Redux Documentation** -- https://redux.js.org/ -- Practical large-scale application of the Command pattern (Action = Command)
