@@ -1,57 +1,57 @@
-# Repository パターン — データアクセス抽象化
+# Repository Pattern — Data Access Abstraction
 
-> Repository パターンでデータアクセスロジックをビジネスロジックから完全に分離し、テスト容易性・保守性・データソースの切り替え可能性を実現するための実践ガイド。DDD における集約ルートとの関係、Unit of Work、Specification パターンとの組み合わせ、ORM 別の実装例まで網羅する。
+> A practical guide to completely separating data access logic from business logic using the Repository pattern, achieving testability, maintainability, and the ability to swap data sources. Covers the relationship with aggregate roots in DDD, combining with Unit of Work and Specification patterns, and concrete implementation examples for various ORMs.
 
 ---
 
-## 前提知識
+## Prerequisites
 
-| トピック | 必要レベル | 参照先 |
+| Topic | Required Level | Reference |
 |---------|-----------|--------|
-| オブジェクト指向プログラミング | 中級（インターフェース、抽象クラス、DI） | [02-programming](../../../../02-programming/) |
-| TypeScript / Python 基礎 | 中級（ジェネリクス、async/await） | [02-programming](../../../../02-programming/) |
-| SQL の基礎 | 基礎（SELECT, INSERT, JOIN） | [06-data-and-security](../../../../06-data-and-security/) |
-| SOLID 原則 | 基礎（依存性逆転原則 DIP） | ../../clean-code-principles/ |
-| MVC / MVVM の基礎 | 基礎 | [00-mvc-mvvm.md](./00-mvc-mvvm.md) |
+| Object-Oriented Programming | Intermediate (interfaces, abstract classes, DI) | [02-programming](../../../../02-programming/) |
+| TypeScript / Python basics | Intermediate (generics, async/await) | [02-programming](../../../../02-programming/) |
+| SQL basics | Foundational (SELECT, INSERT, JOIN) | [06-data-and-security](../../../../06-data-and-security/) |
+| SOLID principles | Foundational (Dependency Inversion Principle DIP) | ../../clean-code-principles/ |
+| MVC / MVVM basics | Foundational | [00-mvc-mvvm.md](./00-mvc-mvvm.md) |
 
 ---
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **Repository パターン** の目的と構造、ドメイン駆動設計（DDD）での位置付け
-2. **インターフェースと実装の分離** — 依存性逆転原則（DIP）に基づくテスト可能な設計
-3. **実装パターン** — Specific Repository、Generic Repository、Specification パターン
-4. **Unit of Work パターン** — 複数 Repository のトランザクション管理
-5. **ORM 別実装** — Prisma、SQLAlchemy、TypeORM、Drizzle での具体的実装
+1. **Repository pattern** — purpose, structure, and its role in Domain-Driven Design (DDD)
+2. **Separating interface from implementation** — testable design based on the Dependency Inversion Principle (DIP)
+3. **Implementation patterns** — Specific Repository, Generic Repository, Specification pattern
+4. **Unit of Work pattern** — transaction management across multiple Repositories
+5. **ORM-specific implementations** — concrete examples with Prisma, SQLAlchemy, TypeORM, and Drizzle
 
 ---
 
-## 1. Repository パターンの全体像
+## 1. Overview of the Repository Pattern
 
-### WHY: なぜ Repository パターンが必要か
+### WHY: Why Do We Need the Repository Pattern?
 
-データアクセスコードがビジネスロジックに混在すると、以下の問題が発生する:
+When data access code is mixed into business logic, the following problems arise:
 
-1. **テスト困難** — ビジネスロジックのテストにデータベース接続が必要
-2. **変更の波及** — DB スキーマ変更や ORM 変更が全てのサービスに影響
-3. **重複コード** — 同じクエリが複数箇所に散在
-4. **関心の分離違反** — 「何のデータが必要か」と「どうやって取得するか」が混在
+1. **Hard to test** — testing business logic requires a database connection
+2. **Cascading changes** — DB schema changes or ORM changes affect all services
+3. **Duplicate code** — the same queries are scattered across multiple places
+4. **Violation of separation of concerns** — "what data is needed" and "how to retrieve it" are intermixed
 
-Repository パターンはこれらを解決する:
+The Repository pattern solves these issues:
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  Repository なし（NG）                                │
+│  Without Repository (BAD)                             │
 │                                                      │
 │  ┌────────────────────────────────────┐              │
 │  │ UserService                        │              │
 │  │                                    │              │
 │  │ async createUser(data) {           │              │
-│  │   // SQL が直接埋め込まれている     │              │
+│  │   // SQL is embedded directly      │              │
 │  │   await db.query(                  │              │
 │  │     "INSERT INTO users ..."        │              │
 │  │   );                               │              │
-│  │   // ビジネスロジックと DB が混在   │              │
+│  │   // Business logic mixed with DB  │              │
 │  │   if (user.role === "admin") {     │              │
 │  │     await db.query(                │              │
 │  │       "INSERT INTO audit_log ..."  │              │
@@ -59,120 +59,121 @@ Repository パターンはこれらを解決する:
 │  │   }                                │              │
 │  │ }                                  │              │
 │  └────────────────────────────────────┘              │
-│  問題: テスト困難、DB 変更時に全箇所修正              │
+│  Problem: hard to test, must update all places on DB change │
 └──────────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────────┐
-│  Repository あり（OK）                                │
+│  With Repository (GOOD)                               │
 │                                                      │
 │  ┌──────────────┐     ┌──────────────────┐           │
 │  │ UserService  │ ──→ │ UserRepository   │(Interface)│
-│  │ (ビジネス    │     │  findById()      │           │
-│  │  ロジック)   │     │  save()          │           │
+│  │ (Business    │     │  findById()      │           │
+│  │  Logic)      │     │  save()          │           │
 │  └──────────────┘     │  findByEmail()   │           │
 │                       └────────┬─────────┘           │
-│         テスト時              │         本番時       │
+│        For tests              │      For production  │
 │    ┌──────────────┐  ┌───────▼─────────┐             │
 │    │ InMemory     │  │ PostgresUser    │             │
-│    │ Repository   │  │ Repository      │ (実装)      │
-│    └──────────────┘  │ (SQL はここだけ)  │             │
+│    │ Repository   │  │ Repository      │ (impl)      │
+│    └──────────────┘  │ (SQL only here)  │             │
 │                      └─────────────────┘             │
-│  利点: テスト容易、DB 変更は実装クラスのみ            │
+│  Benefits: easy to test, DB changes only affect impl class │
 └──────────────────────────────────────────────────────┘
 ```
 
-### 1.1 依存性逆転原則（DIP）との関係
+### 1.1 Relationship with the Dependency Inversion Principle (DIP)
 
 ```
 ┌───────────────────────────────────────────────────────────┐
-│  依存性逆転原則 (Dependency Inversion Principle)           │
+│  Dependency Inversion Principle (DIP)                     │
 │                                                           │
-│  NG: 上位モジュールが下位モジュールに直接依存               │
+│  BAD: Upper module directly depends on lower module       │
 │                                                           │
-│  UserService ──→ PostgresUserRepository ──→ PostgreSQL     │
-│  (上位)          (下位)                    (詳細)          │
+│  UserService ──→ PostgresUserRepository ──→ PostgreSQL    │
+│  (upper)         (lower)                   (detail)       │
 │                                                           │
-│  問題: PostgreSQL を MongoDB に変えると UserService も変更  │
+│  Problem: changing PostgreSQL to MongoDB also requires    │
+│           changing UserService                            │
 │                                                           │
 │  ─────────────────────────────────────────────────────── │
 │                                                           │
-│  OK: 上位モジュールが抽象（インターフェース）に依存         │
+│  GOOD: Upper module depends on abstraction (interface)    │
 │                                                           │
-│  UserService ──→ UserRepository (Interface)                │
-│  (上位)          (抽象)                                    │
+│  UserService ──→ UserRepository (Interface)               │
+│  (upper)         (abstraction)                            │
 │                       ▲                                   │
-│                       │ 実装                               │
-│                       │                                    │
-│              PostgresUserRepository ──→ PostgreSQL          │
-│              MongoUserRepository   ──→ MongoDB              │
-│              InMemoryUserRepository (テスト用)              │
+│                       │ implements                        │
+│                       │                                   │
+│              PostgresUserRepository ──→ PostgreSQL        │
+│              MongoUserRepository   ──→ MongoDB            │
+│              InMemoryUserRepository (for tests)           │
 │                                                           │
-│  利点: UserService は具体的な DB を知らない                 │
-│        DB 変更時は実装クラスを差し替えるだけ                │
+│  Benefit: UserService does not know the concrete DB       │
+│           Swapping the DB only requires changing the impl │
 └───────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 レイヤーアーキテクチャでの位置付け
+### 1.2 Position in Layered Architecture
 
 ```
 ┌──────────────────────────────────────────────────┐
 │  Presentation Layer (Controller / Handler)         │
-│  → HTTP リクエスト/レスポンスの処理                │
+│  → Handles HTTP requests/responses                │
 ├──────────────────────────────────────────────────┤
 │  Application Layer (Service / UseCase)             │
-│  → ユースケースの調整、トランザクション管理        │
-│  → Repository Interface を利用                    │
+│  → Orchestrates use cases, manages transactions   │
+│  → Uses Repository Interface                      │
 ├──────────────────────────────────────────────────┤
 │  Domain Layer (Entity / Value Object)              │
-│  → ビジネスルール、ドメインロジック                │
+│  → Business rules, domain logic                   │
 │  ┌─────────────────────────────────┐              │
-│  │ Repository Interface            │ ← ここに定義 │
-│  │ (ドメイン層に属する)            │              │
+│  │ Repository Interface            │ ← defined here │
+│  │ (belongs to domain layer)       │              │
 │  └─────────────────────────────────┘              │
 ├──────────────────────────────────────────────────┤
 │  Infrastructure Layer                              │
 │  ┌─────────────────────────────────┐              │
-│  │ Repository Implementation       │ ← ここに実装 │
-│  │ (PostgresUserRepository 等)     │              │
+│  │ Repository Implementation       │ ← implemented here │
+│  │ (PostgresUserRepository, etc.)  │              │
 │  └─────────────────────────────────┘              │
-│  → DB アクセス、外部 API 呼び出し                 │
+│  → DB access, external API calls                  │
 └──────────────────────────────────────────────────┘
 
-重要: Interface はドメイン層、Implementation はインフラ層
-      → 依存の方向が内側（ドメイン）に向かう
+Important: Interface belongs to the domain layer, Implementation to the infrastructure layer
+           → The direction of dependency points inward (toward the domain)
 ```
 
-### 1.3 DDD における集約（Aggregate）と Repository
+### 1.3 Aggregates and Repositories in DDD
 
 ```
 ┌───────────────────────────────────────────────────────────┐
-│  DDD の集約ルート (Aggregate Root) と Repository           │
+│  Aggregate Root and Repository in DDD                     │
 │                                                           │
-│  原則: Repository は「集約ルートごと」に1つ                │
+│  Principle: one Repository per Aggregate Root             │
 │                                                           │
-│  ┌─────────── Order 集約 ───────────┐                     │
-│  │  Order (集約ルート) ★              │                     │
-│  │    ├── OrderItem                  │                     │
-│  │    ├── OrderItem                  │                     │
-│  │    └── ShippingAddress            │                     │
-│  └───────────────────────────────────┘                     │
+│  ┌─────────── Order Aggregate ─────────┐                  │
+│  │  Order (Aggregate Root) ★            │                  │
+│  │    ├── OrderItem                    │                  │
+│  │    ├── OrderItem                    │                  │
+│  │    └── ShippingAddress              │                  │
+│  └─────────────────────────────────────┘                  │
 │           │                                               │
 │           ▼                                               │
 │  ┌────────────────────────────┐                           │
-│  │  OrderRepository           │  ← 集約ルート単位          │
+│  │  OrderRepository           │  ← per aggregate root    │
 │  │  findById(id): Order       │  ← Order + Items + Address│
-│  │  save(order): void         │  ← 一括保存               │
+│  │  save(order): void         │  ← saves as a whole      │
 │  └────────────────────────────┘                           │
 │                                                           │
-│  NG: OrderItemRepository は作らない                        │
-│      → OrderItem は Order 集約の一部であり、               │
-│        単独で取得・保存すべきでない                         │
+│  BAD: Do not create an OrderItemRepository                │
+│       → OrderItem is part of the Order aggregate and      │
+│         should not be retrieved or saved independently    │
 │                                                           │
-│  OK: Customer 集約は別の Repository                        │
-│  ┌─────────── Customer 集約 ──────────┐                    │
-│  │  Customer (集約ルート) ★            │                    │
-│  │    └── Address                     │                    │
-│  └────────────────────────────────────┘                    │
+│  GOOD: Customer aggregate has its own Repository          │
+│  ┌─────────── Customer Aggregate ──────┐                  │
+│  │  Customer (Aggregate Root) ★         │                  │
+│  │    └── Address                      │                  │
+│  └─────────────────────────────────────┘                  │
 │           │                                               │
 │           ▼                                               │
 │  ┌────────────────────────────┐                           │
@@ -183,9 +184,9 @@ Repository パターンはこれらを解決する:
 
 ---
 
-## 2. TypeScript での実装
+## 2. Implementation in TypeScript
 
-### 2.1 インターフェースと実装の分離（Prisma）
+### 2.1 Separating Interface from Implementation (Prisma)
 
 ```typescript
 // ============================================================
@@ -217,7 +218,7 @@ export interface PaginatedResult<T> {
   hasPrev: boolean;
 }
 
-// Repository Interface — ドメイン層で定義
+// Repository Interface — defined in the domain layer
 export interface UserRepository {
   findById(id: string): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
@@ -233,7 +234,7 @@ export interface UserRepository {
 
 ```typescript
 // ============================================================
-// Infrastructure Layer: PostgreSQL 実装（Prisma）
+// Infrastructure Layer: PostgreSQL implementation (Prisma)
 // infrastructure/repositories/PrismaUserRepository.ts
 // ============================================================
 
@@ -251,7 +252,7 @@ export class PrismaUserRepository implements UserRepository {
   async findById(id: string): Promise<User | null> {
     const row = await this.prisma.user.findUnique({
       where: { id },
-      include: { profile: true },  // 集約の関連エンティティも取得
+      include: { profile: true },  // also fetch related entities in the aggregate
     });
     return row ? this.toDomain(row) : null;
   }
@@ -268,7 +269,7 @@ export class PrismaUserRepository implements UserRepository {
     const perPage = options?.perPage ?? 20;
     const skip = (page - 1) * perPage;
 
-    // フィルター条件の構築
+    // Build filter conditions
     const where: Record<string, unknown> = {};
     if (options?.filter?.active !== undefined) {
       where.active = options.filter.active;
@@ -373,7 +374,7 @@ export class PrismaUserRepository implements UserRepository {
     return this.prisma.user.count({ where });
   }
 
-  // ドメインモデルへの変換
+  // Convert to domain model
   private toDomain(row: PrismaUser): User {
     return new User({
       id: row.id,
@@ -388,11 +389,11 @@ export class PrismaUserRepository implements UserRepository {
 }
 ```
 
-### 2.2 テスト用のインメモリ実装
+### 2.2 In-Memory Implementation for Testing
 
 ```typescript
 // ============================================================
-// Test: In-Memory 実装
+// Test: In-Memory implementation
 // tests/repositories/InMemoryUserRepository.ts
 // ============================================================
 
@@ -412,7 +413,7 @@ export class InMemoryUserRepository implements UserRepository {
   async findAll(options?: FindOptions): Promise<PaginatedResult<User>> {
     let all = [...this.users.values()];
 
-    // フィルタリング
+    // Filtering
     if (options?.filter?.active !== undefined) {
       all = all.filter((u) => u.active === options.filter!.active);
     }
@@ -425,7 +426,7 @@ export class InMemoryUserRepository implements UserRepository {
       );
     }
 
-    // ソート
+    // Sorting
     const sortBy = options?.sortBy ?? "createdAt";
     const sortOrder = options?.sortOrder ?? "desc";
     all.sort((a, b) => {
@@ -435,7 +436,7 @@ export class InMemoryUserRepository implements UserRepository {
       return sortOrder === "desc" ? -cmp : cmp;
     });
 
-    // ページネーション
+    // Pagination
     const page = options?.page ?? 1;
     const perPage = options?.perPage ?? 20;
     const start = (page - 1) * perPage;
@@ -485,7 +486,7 @@ export class InMemoryUserRepository implements UserRepository {
     return all.length;
   }
 
-  // テストヘルパー
+  // Test helpers
   clear(): void {
     this.users.clear();
   }
@@ -500,7 +501,7 @@ export class InMemoryUserRepository implements UserRepository {
 }
 ```
 
-### 2.3 Service 層での使用と DI
+### 2.3 Usage in the Service Layer and DI
 
 ```typescript
 // ============================================================
@@ -510,25 +511,25 @@ export class InMemoryUserRepository implements UserRepository {
 
 export class UserService {
   constructor(
-    private readonly userRepo: UserRepository,   // インターフェースに依存
+    private readonly userRepo: UserRepository,   // depends on the interface
     private readonly emailService: EmailService,
     private readonly eventBus: EventBus,
   ) {}
 
   async registerUser(name: string, email: string): Promise<User> {
-    // ビジネスルールの検証
+    // Validate business rules
     const existing = await this.userRepo.exists(email);
     if (existing) {
       throw new DuplicateEmailError(email);
     }
 
-    // ドメインオブジェクト生成
+    // Create domain object
     const user = User.create(name, email);
 
-    // 永続化
+    // Persist
     const saved = await this.userRepo.save(user);
 
-    // 副作用（ドメインイベント発行）
+    // Side effects (publish domain event)
     await this.eventBus.publish(new UserRegisteredEvent(saved));
     await this.emailService.sendWelcome(saved.email);
 
@@ -553,26 +554,26 @@ export class UserService {
 }
 
 // ============================================================
-// DI Container（tsyringe の例）
+// DI Container (tsyringe example)
 // ============================================================
 import { container } from "tsyringe";
 
-// 本番環境: PostgreSQL 実装を注入
+// Production environment: inject PostgreSQL implementation
 container.register<UserRepository>("UserRepository", {
   useClass: PrismaUserRepository,
 });
 
-// テスト環境: InMemory 実装を注入
+// Test environment: inject InMemory implementation
 container.register<UserRepository>("UserRepository", {
   useClass: InMemoryUserRepository,
 });
 ```
 
-### 2.4 Service のテスト
+### 2.4 Testing the Service
 
 ```typescript
 // ============================================================
-// テスト — InMemory Repository を使用
+// Tests — using InMemory Repository
 // ============================================================
 
 describe("UserService", () => {
@@ -589,40 +590,40 @@ describe("UserService", () => {
   });
 
   describe("registerUser", () => {
-    test("新規ユーザーを登録できる", async () => {
+    test("can register a new user", async () => {
       const user = await service.registerUser("Alice", "alice@example.com");
 
-      // ドメインの検証
+      // Validate domain properties
       expect(user.name).toBe("Alice");
       expect(user.email).toBe("alice@example.com");
       expect(user.active).toBe(true);
 
-      // 永続化の検証
+      // Validate persistence
       const found = await userRepo.findByEmail("alice@example.com");
       expect(found).not.toBeNull();
       expect(found!.id).toBe(user.id);
 
-      // 副作用の検証
+      // Validate side effects
       expect(emailService.sendWelcome).toHaveBeenCalledWith("alice@example.com");
       expect(eventBus.publish).toHaveBeenCalledWith(
         expect.objectContaining({ type: "UserRegistered" })
       );
     });
 
-    test("重複メールアドレスはエラー", async () => {
+    test("throws error for duplicate email address", async () => {
       await service.registerUser("Alice", "alice@example.com");
 
       await expect(
         service.registerUser("Bob", "alice@example.com")
       ).rejects.toThrow(DuplicateEmailError);
 
-      // 副作用が呼ばれないことを検証
+      // Validate that side effects were not called again
       expect(emailService.sendWelcome).toHaveBeenCalledTimes(1);
     });
   });
 
   describe("deactivateUser", () => {
-    test("ユーザーを無効化できる", async () => {
+    test("can deactivate a user", async () => {
       const user = await service.registerUser("Alice", "alice@example.com");
       await service.deactivateUser(user.id);
 
@@ -630,7 +631,7 @@ describe("UserService", () => {
       expect(found!.active).toBe(false);
     });
 
-    test("存在しないユーザーはエラー", async () => {
+    test("throws error for non-existent user", async () => {
       await expect(
         service.deactivateUser("non-existent-id")
       ).rejects.toThrow(UserNotFoundError);
@@ -638,7 +639,7 @@ describe("UserService", () => {
   });
 
   describe("getUserList", () => {
-    test("アクティブユーザーのみ返す", async () => {
+    test("returns only active users", async () => {
       const alice = await service.registerUser("Alice", "alice@example.com");
       await service.registerUser("Bob", "bob@example.com");
       await service.deactivateUser(alice.id);
@@ -653,9 +654,9 @@ describe("UserService", () => {
 
 ---
 
-## 3. Python での実装
+## 3. Implementation in Python
 
-### 3.1 Abstract Base Class による定義
+### 3.1 Definition Using Abstract Base Class
 
 ```python
 # ============================================================
@@ -686,7 +687,7 @@ class PaginatedResult:
 
     @property
     def total_pages(self) -> int:
-        return -(-self.total // self.per_page)  # 切り上げ除算
+        return -(-self.total // self.per_page)  # ceiling division
 
     @property
     def has_next(self) -> bool:
@@ -698,7 +699,7 @@ class PaginatedResult:
 
 
 class UserRepository(ABC):
-    """ユーザーリポジトリインターフェース（ドメイン層で定義）"""
+    """User repository interface (defined in the domain layer)"""
 
     @abstractmethod
     async def find_by_id(self, user_id: str) -> Optional[User]:
@@ -739,7 +740,7 @@ from infrastructure.models import UserModel
 
 
 class SQLAlchemyUserRepository(UserRepository):
-    """SQLAlchemy を使った PostgreSQL 実装"""
+    """PostgreSQL implementation using SQLAlchemy"""
 
     def __init__(self, session: AsyncSession):
         self._session = session
@@ -759,11 +760,11 @@ class SQLAlchemyUserRepository(UserRepository):
     async def find_all(self, options: Optional[FindOptions] = None) -> PaginatedResult:
         opts = options or FindOptions()
 
-        # 基本クエリ
+        # Base query
         stmt = select(UserModel)
         count_stmt = select(func.count()).select_from(UserModel)
 
-        # フィルター
+        # Filters
         if opts.active is not None:
             stmt = stmt.where(UserModel.active == opts.active)
             count_stmt = count_stmt.where(UserModel.active == opts.active)
@@ -771,17 +772,17 @@ class SQLAlchemyUserRepository(UserRepository):
             stmt = stmt.where(UserModel.role == opts.role)
             count_stmt = count_stmt.where(UserModel.role == opts.role)
 
-        # ソート
+        # Sorting
         sort_col = getattr(UserModel, opts.sort_by, UserModel.created_at)
         stmt = stmt.order_by(
             sort_col.desc() if opts.sort_order == "desc" else sort_col.asc()
         )
 
-        # ページネーション
+        # Pagination
         offset = (opts.page - 1) * opts.per_page
         stmt = stmt.offset(offset).limit(opts.per_page)
 
-        # 実行
+        # Execute
         result = await self._session.execute(stmt)
         count_result = await self._session.execute(count_stmt)
         rows = result.scalars().all()
@@ -832,7 +833,7 @@ class SQLAlchemyUserRepository(UserRepository):
 
 ```python
 # ============================================================
-# テスト用 InMemory 実装
+# InMemory implementation for testing
 # tests/repositories/in_memory_user_repository.py
 # ============================================================
 class InMemoryUserRepository(UserRepository):
@@ -851,13 +852,13 @@ class InMemoryUserRepository(UserRepository):
         opts = options or FindOptions()
         users = list(self._users.values())
 
-        # フィルター
+        # Filters
         if opts.active is not None:
             users = [u for u in users if u.active == opts.active]
         if opts.role:
             users = [u for u in users if u.role == opts.role]
 
-        # ページネーション
+        # Pagination
         total = len(users)
         start = (opts.page - 1) * opts.per_page
         data = users[start:start + opts.per_page]
@@ -882,38 +883,38 @@ class InMemoryUserRepository(UserRepository):
 
 ---
 
-## 4. Specification パターン
+## 4. Specification Pattern
 
-### WHY: なぜ Specification パターンが必要か
+### WHY: Why Do We Need the Specification Pattern?
 
-複雑な検索条件を Repository のメソッドとして追加し続けると、インターフェースが肥大化する:
+Continuously adding methods to the Repository for complex search conditions causes the interface to bloat:
 
 ```typescript
-// NG: 検索条件ごとにメソッドが増殖
+// BAD: methods multiply for each search condition
 interface UserRepository {
   findByName(name: string): Promise<User[]>;
   findByRole(role: string): Promise<User[]>;
   findByNameAndRole(name: string, role: string): Promise<User[]>;
   findActiveByRole(role: string): Promise<User[]>;
   findInactiveCreatedBefore(date: Date): Promise<User[]>;
-  // ... 無限に増える
+  // ... grows indefinitely
 }
 
-// OK: Specification パターンで条件をオブジェクト化
+// GOOD: Specification pattern turns conditions into objects
 interface UserRepository {
   findAll(spec?: Specification<User>): Promise<User[]>;
-  // 1つのメソッドで全ての検索条件に対応
+  // a single method handles all search conditions
 }
 ```
 
-### 4.1 Specification の実装
+### 4.1 Implementing the Specification
 
 ```typescript
 // ============================================================
-// Specification パターン
+// Specification Pattern
 // ============================================================
 
-// 基底 Specification
+// Base Specification
 interface Specification<T> {
   isSatisfiedBy(entity: T): boolean;
   toSQL(): { where: string; params: unknown[] };
@@ -992,7 +993,7 @@ class NotSpecification<T> extends BaseSpecification<T> {
   }
 }
 
-// 具体的な Specification
+// Concrete Specifications
 class ActiveUserSpec extends BaseSpecification<User> {
   isSatisfiedBy(user: User): boolean {
     return user.active;
@@ -1031,41 +1032,41 @@ class CreatedAfterSpec extends BaseSpecification<User> {
   }
 }
 
-// 使用例: 条件を組み合わせ
+// Usage example: combining conditions
 const activeAdmins = new ActiveUserSpec().and(new UserWithRoleSpec("admin"));
 const recentOrAdmin = new CreatedAfterSpec(lastMonth).or(new UserWithRoleSpec("admin"));
 
-// Repository での使用
+// Using with Repository
 const users = await userRepo.findAll(activeAdmins);
 ```
 
 ---
 
-## 5. Unit of Work パターンとの組み合わせ
+## 5. Combining with the Unit of Work Pattern
 
-### WHY: なぜ Unit of Work が必要か
+### WHY: Why Do We Need Unit of Work?
 
-複数の Repository にまたがる操作をアトミックに実行したい場合、各 Repository が独立にコミットすると不整合が生じる:
+When you want to execute operations spanning multiple Repositories atomically, having each Repository commit independently can cause inconsistencies:
 
 ```
-NG: 各 Repository が独立してコミット
-  OrderRepository.save(order)    → 成功（コミット済み）
-  UserRepository.updatePoints()  → 失敗（ロールバック）
-  → 注文は作成されたがポイントが付与されていない不整合
+BAD: each Repository commits independently
+  OrderRepository.save(order)    → succeeds (already committed)
+  UserRepository.updatePoints()  → fails (rolled back)
+  → order was created but points were never awarded — inconsistent state
 
-OK: Unit of Work で一括コミット
-  UnitOfWork 開始
-    OrderRepository.save(order)     → トランザクション内
-    UserRepository.updatePoints()   → トランザクション内
-  UnitOfWork.commit()               → 全ての変更を一括コミット
-  失敗時 → UnitOfWork.rollback()    → 全ての変更を一括ロールバック
+GOOD: batch commit with Unit of Work
+  UnitOfWork begins
+    OrderRepository.save(order)     → inside transaction
+    UserRepository.updatePoints()   → inside transaction
+  UnitOfWork.commit()               → commits all changes at once
+  On failure → UnitOfWork.rollback() → rolls back all changes at once
 ```
 
-### 5.1 Unit of Work の構造
+### 5.1 Unit of Work Structure
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│              Unit of Work パターン                     │
+│              Unit of Work Pattern                     │
 │                                                      │
 │  ┌──────────────────────────────────────┐            │
 │  │ UnitOfWork                           │            │
@@ -1078,20 +1079,20 @@ OK: Unit of Work で一括コミット
 │  │  └─────────────────┘                │            │
 │  │  ┌─────────────────┐                │            │
 │  │  │ Transaction     │                │            │
-│  │  │ (共有)          │                │            │
+│  │  │ (shared)        │                │            │
 │  │  └─────────────────┘                │            │
 │  │                                      │            │
-│  │  commit()   ← 全リポジトリの変更を   │            │
-│  │  rollback()   一括コミット/ロールバック│           │
+│  │  commit()   ← commits/rolls back all │            │
+│  │  rollback()   repository changes     │            │
 │  └──────────────────────────────────────┘            │
 └──────────────────────────────────────────────────────┘
 ```
 
-### 5.2 実装例
+### 5.2 Implementation Example
 
 ```typescript
 // ============================================================
-// Unit of Work インターフェース
+// Unit of Work interface
 // ============================================================
 interface UnitOfWork {
   readonly users: UserRepository;
@@ -1102,7 +1103,7 @@ interface UnitOfWork {
 }
 
 // ============================================================
-// Prisma 実装
+// Prisma implementation
 // ============================================================
 class PrismaUnitOfWork implements UnitOfWork {
   readonly users: UserRepository;
@@ -1115,7 +1116,7 @@ class PrismaUnitOfWork implements UnitOfWork {
     this.auditLogs = new PrismaAuditLogRepository(tx);
   }
 
-  // ファクトリメソッド: トランザクション内で実行
+  // Factory method: executes inside a transaction
   static async execute<T>(
     prisma: PrismaClient,
     fn: (uow: UnitOfWork) => Promise<T>
@@ -1127,17 +1128,17 @@ class PrismaUnitOfWork implements UnitOfWork {
   }
 
   async commit(): Promise<void> {
-    // Prisma $transaction は自動コミット
+    // Prisma $transaction auto-commits
   }
 
   async rollback(): Promise<void> {
-    // Prisma $transaction は例外時に自動ロールバック
+    // Prisma $transaction auto-rolls back on exception
     throw new Error("Transaction aborted");
   }
 }
 
 // ============================================================
-// Service での使用
+// Usage in Service
 // ============================================================
 class OrderService {
   constructor(
@@ -1147,30 +1148,30 @@ class OrderService {
 
   async placeOrder(userId: string, items: OrderItem[]): Promise<Order> {
     const result = await PrismaUnitOfWork.execute(this.prisma, async (uow) => {
-      // 1. ユーザー取得
+      // 1. Fetch user
       const user = await uow.users.findById(userId);
       if (!user) throw new UserNotFoundError(userId);
 
-      // 2. 注文作成（ドメインロジック）
+      // 2. Create order (domain logic)
       const order = Order.create(user, items);
 
-      // 3. 注文保存
+      // 3. Save order
       await uow.orders.save(order);
 
-      // 4. ユーザーのポイント更新
+      // 4. Update user points
       user.addPoints(order.calculatePoints());
       await uow.users.save(user);
 
-      // 5. 監査ログ記録
+      // 5. Record audit log
       await uow.auditLogs.append(
         AuditLog.create("ORDER_PLACED", userId, { orderId: order.id })
       );
 
       return order;
     });
-    // 全ての変更がトランザクション内で一括コミットされる
+    // All changes are committed together within the transaction
 
-    // トランザクション成功後にイベント発行
+    // Publish event after the transaction succeeds
     await this.eventBus.publish(new OrderPlacedEvent(result));
 
     return result;
@@ -1180,68 +1181,68 @@ class OrderService {
 
 ---
 
-## 6. 比較表
+## 6. Comparison Tables
 
-### 6.1 Repository パターンの実装方式比較
+### 6.1 Comparison of Repository Implementation Approaches
 
-| 方式 | 説明 | メリット | デメリット | 適する場面 |
+| Approach | Description | Pros | Cons | Best For |
 |------|------|---------|----------|----------|
-| **Specific Repository** | エンティティごとに固有メソッド | 明確な API、型安全、ドメイン表現力 | ボイラープレートが多い | DDD、中〜大規模 |
-| **Generic Repository** | 共通 CRUD を基底クラスに | コード量削減、統一的な API | 抽象化が過度になりがち | CRUD 中心、小〜中規模 |
-| **Specification Pattern** | クエリ条件をオブジェクト化 | 柔軟なクエリ構築、条件の再利用 | 学習コスト高、複雑 | 複雑な検索要件 |
-| **CQRS + Repository** | 読み取り/書き込みを分離 | パフォーマンス最適化 | 複雑度が増す | 読み書き比率が偏る |
+| **Specific Repository** | Custom methods per entity | Clear API, type-safe, expressive domain language | More boilerplate | DDD, medium to large scale |
+| **Generic Repository** | Common CRUD in base class | Less code, unified API | Can over-abstract | CRUD-centric, small to medium scale |
+| **Specification Pattern** | Query conditions as objects | Flexible query building, reusable conditions | High learning curve, complex | Complex search requirements |
+| **CQRS + Repository** | Separates reads from writes | Performance optimization | Increased complexity | Skewed read/write ratios |
 
-### 6.2 データアクセスパターン比較
+### 6.2 Comparison of Data Access Patterns
 
-| パターン | 抽象度 | テスト容易性 | 複雑度 | 学習コスト | 適用場面 |
+| Pattern | Abstraction | Testability | Complexity | Learning Curve | Use Case |
 |---------|--------|------------|--------|----------|---------|
-| **直接 SQL** | 低 | 低（DB 必要） | 低 | 低 | 小規模スクリプト |
-| **ORM のみ** | 中 | 中 | 低〜中 | 中 | 中小規模アプリ |
-| **Active Record** | 中 | 中 | 低 | 低 | Rails/Django |
-| **Repository** | 高 | 高 | 中 | 中〜高 | 中〜大規模アプリ |
-| **Repository + UoW** | 高 | 高 | 高 | 高 | 大規模, DDD |
-| **CQRS + ES** | 最高 | 高 | 最高 | 最高 | 複雑ドメイン |
+| **Direct SQL** | Low | Low (needs DB) | Low | Low | Small scripts |
+| **ORM only** | Medium | Medium | Low–Medium | Medium | Small to medium apps |
+| **Active Record** | Medium | Medium | Low | Low | Rails/Django |
+| **Repository** | High | High | Medium | Medium–High | Medium to large apps |
+| **Repository + UoW** | High | High | High | High | Large-scale, DDD |
+| **CQRS + ES** | Highest | High | Highest | Highest | Complex domains |
 
-### 6.3 ORM/ライブラリ別の Repository 実装の特徴
+### 6.3 Repository Implementation Characteristics by ORM/Library
 
-| ORM / Library | 言語 | Repository 実装のしやすさ | UoW サポート | 特記事項 |
+| ORM / Library | Language | Ease of Repository Implementation | UoW Support | Notes |
 |--------------|------|------------------------|-----------|---------|
-| **Prisma** | TypeScript | 高 | $transaction | 型安全、スキーマファースト |
-| **Drizzle** | TypeScript | 高 | transaction() | SQL に近い、軽量 |
-| **TypeORM** | TypeScript | 中 | QueryRunner | Repository パターン組み込み |
-| **SQLAlchemy** | Python | 高 | Session | 最も柔軟、UoW 組み込み |
-| **Django ORM** | Python | 中 | atomic() | Active Record 寄り |
-| **GORM** | Go | 中 | Transaction | シンプルだが型安全性は低い |
-| **Entity Framework** | C# | 高 | DbContext | UoW パターンが標準 |
+| **Prisma** | TypeScript | High | $transaction | Type-safe, schema-first |
+| **Drizzle** | TypeScript | High | transaction() | SQL-close, lightweight |
+| **TypeORM** | TypeScript | Medium | QueryRunner | Built-in Repository pattern |
+| **SQLAlchemy** | Python | High | Session | Most flexible, built-in UoW |
+| **Django ORM** | Python | Medium | atomic() | Leans toward Active Record |
+| **GORM** | Go | Medium | Transaction | Simple but lower type safety |
+| **Entity Framework** | C# | High | DbContext | UoW pattern is standard |
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### 7.1 Repository に ORM の型を漏洩させる
+### 7.1 Leaking ORM Types into the Repository
 
 ```typescript
-// NG: Repository のインターフェースに Prisma の型が漏洩
+// BAD: Prisma types leak into the Repository interface
 interface UserRepository {
   findMany(args: Prisma.UserFindManyArgs): Promise<PrismaUser[]>;
   //       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^    ^^^^^^^^^^^^^^^^^
-  //       インフラ層の型がドメイン層に漏洩
+  //       infrastructure-layer types leaked into domain layer
 }
 
-// OK: ドメイン層の型のみを使用
+// GOOD: use only domain-layer types
 interface UserRepository {
   findAll(options?: FindOptions): Promise<PaginatedResult<User>>;
   //                ^^^^^^^^^^^                            ^^^^
-  //                ドメイン層で定義した型のみ
+  //                only types defined in the domain layer
 }
 ```
 
-**なぜ NG か**: ORM を切り替える際（Prisma → Drizzle）にインターフェースも変更が必要になり、Repository パターンの「実装の差し替え可能性」が失われる。ドメイン層はインフラストラクチャの詳細を知るべきではない（DIP 違反）。
+**Why it's BAD**: When switching ORMs (e.g., Prisma to Drizzle), the interface itself must also change, destroying the Repository pattern's "swappable implementation" benefit. The domain layer should not know about infrastructure details (violates DIP).
 
-### 7.2 Generic Repository を万能と考える
+### 7.2 Treating the Generic Repository as a Silver Bullet
 
 ```typescript
-// NG: 全てのエンティティに同じ CRUD を提供
+// BAD: provides the same CRUD for all entities
 interface GenericRepository<T> {
   findById(id: string): Promise<T | null>;
   findAll(): Promise<T[]>;
@@ -1249,42 +1250,42 @@ interface GenericRepository<T> {
   delete(id: string): Promise<void>;
 }
 
-// 問題: ドメインルールを表現できない
-// 「ログは削除禁止」「設定は常に1つ」等
+// Problem: cannot express domain rules
+// e.g., "logs cannot be deleted", "settings always have exactly one record"
 
-// OK: ドメインの要件に合わせたインターフェース
+// GOOD: interface tailored to domain requirements
 interface AuditLogRepository {
-  append(log: AuditLog): Promise<void>;  // 追記のみ、削除不可
+  append(log: AuditLog): Promise<void>;  // append-only, no deletion
   findByDateRange(from: Date, to: Date): Promise<AuditLog[]>;
-  // delete() メソッドは意図的に存在しない
+  // delete() method is intentionally absent
 }
 
 interface AppSettingsRepository {
-  get(): Promise<AppSettings>;           // 常に1つ
+  get(): Promise<AppSettings>;           // always exactly one record
   update(settings: AppSettings): Promise<void>;
-  // findAll() や delete() は不要
+  // findAll() or delete() are not needed
 }
 
 interface OrderRepository {
-  findById(id: string): Promise<Order>;  // Order + OrderItems を含む
-  save(order: Order): Promise<void>;     // Order + OrderItems を一括保存
-  // save は集約全体を保存、個別の OrderItem の CRUD は提供しない
+  findById(id: string): Promise<Order>;  // includes Order + OrderItems
+  save(order: Order): Promise<void>;     // saves the entire Order + OrderItems at once
+  // save persists the whole aggregate; individual OrderItem CRUD is not provided
 }
 ```
 
-**なぜ NG か**: Generic Repository は「最小公約数」のインターフェースしか提供できず、ドメインの意図（「ログは不変」「集約は一括保存」等）を表現できない。Repository はドメインの言語（ユビキタス言語）で定義すべき。
+**Why it's BAD**: A Generic Repository can only provide the "least common denominator" interface and cannot express domain intent (e.g., "logs are immutable", "aggregates are saved as a whole"). Repositories should be defined in the language of the domain (ubiquitous language).
 
-### 7.3 Repository 内でビジネスロジックを実行する
+### 7.3 Executing Business Logic Inside the Repository
 
 ```typescript
-// NG: Repository がビジネスルールを知っている
+// BAD: Repository knows about business rules
 class PostgresUserRepository implements UserRepository {
   async save(user: User): Promise<User> {
-    // ビジネスルールの検証が Repository に混在
+    // Business rule validation mixed into the Repository
     if (!user.email.includes("@")) {
       throw new Error("Invalid email");
     }
-    // VIP判定のロジックが Repository に
+    // VIP determination logic inside the Repository
     if (user.purchaseTotal > 100000) {
       user.role = "vip";
     }
@@ -1292,9 +1293,9 @@ class PostgresUserRepository implements UserRepository {
   }
 }
 
-// OK: Repository は永続化のみ、ビジネスロジックはドメイン層
+// GOOD: Repository handles persistence only; business logic belongs in the domain layer
 class User {
-  // ビジネスルールはエンティティに
+  // Business rules belong on the entity
   updateEmail(newEmail: string): void {
     if (!newEmail.includes("@")) {
       throw new InvalidEmailError(newEmail);
@@ -1311,18 +1312,18 @@ class User {
 
 class PostgresUserRepository implements UserRepository {
   async save(user: User): Promise<User> {
-    // 永続化のみ。バリデーションやビジネスロジックは含まない
+    // Persistence only. No validation or business logic.
     return this.prisma.user.upsert(/* ... */);
   }
 }
 ```
 
-**なぜ NG か**: Repository の責務はデータの永続化と取得のみ。ビジネスロジックは Domain Entity や Domain Service に配置する。Repository にロジックがあると、InMemory 実装でテストする際にそのロジックが実行されず、テストの信頼性が下がる。
+**Why it's BAD**: The Repository's responsibility is solely to persist and retrieve data. Business logic belongs in Domain Entities or Domain Services. Logic inside the Repository will not execute when testing with an InMemory implementation, reducing test reliability.
 
-### 7.4 過度な抽象化（YAGNI 違反）
+### 7.4 Over-Abstraction (YAGNI Violation)
 
 ```typescript
-// NG: まだ1種類のDBしか使わないのに抽象化しすぎ
+// BAD: over-abstracted when only one DB type is in use
 interface IRepositoryFactory<T> {
   createRepository(type: "postgres" | "mongo" | "dynamodb"): IRepository<T>;
 }
@@ -1331,8 +1332,8 @@ interface IRepository<T> extends ICrudRepository<T>, ISearchRepository<T>, IAudi
   // ...
 }
 
-// OK: 必要になった時点で抽象化
-// 現時点では Prisma 直接使用で十分なら:
+// GOOD: abstract when the need actually arises
+// If using Prisma directly is sufficient for now:
 class UserRepository {
   constructor(private prisma: PrismaClient) {}
 
@@ -1340,38 +1341,38 @@ class UserRepository {
     // ...
   }
 }
-// テスト時にだけ InMemory に差し替えたい場合に Interface を導入
+// Introduce an Interface only when you need to swap in an InMemory version for tests
 ```
 
-**なぜ NG か**: 将来の「可能性」のために現在の複雑さを増やすのは YAGNI 違反。Repository パターンの導入自体も「テストの必要性」か「データソースの切り替え可能性」が明確になってからで十分。
+**Why it's BAD**: Adding present complexity for future "possibilities" violates YAGNI. Even the introduction of the Repository pattern itself is fine to defer until the need for testability or data source swapping becomes clear.
 
 ---
 
-## 8. 実践演習
+## 8. Practice Exercises
 
-### 演習 1（基礎）: Repository Interface の設計
+### Exercise 1 (Basic): Designing a Repository Interface
 
-ブログサービスの `PostRepository` インターフェースを設計せよ。
+Design a `PostRepository` interface for a blog service.
 
-**要件**:
-- 投稿の CRUD
-- タグによる検索
-- 著者による検索
-- 下書き/公開済みのフィルタリング
-- ページネーション
-- 人気順（いいね数）ソート
+**Requirements**:
+- CRUD for posts
+- Search by tag
+- Search by author
+- Filter by draft/published status
+- Pagination
+- Sort by popularity (number of likes)
 
-**制約**: DDD の集約を意識し、Post は Comment を含む集約とする（CommentRepository は作らない）
+**Constraint**: Be mindful of DDD aggregates; treat Post as an aggregate that includes Comments (do not create a CommentRepository)
 
-**期待する出力**:
-- `PostRepository` インターフェース（TypeScript）
-- 各メソッドの JSDoc コメント付き
+**Expected Output**:
+- `PostRepository` interface (TypeScript)
+- With JSDoc comments for each method
 
 ---
 
-### 演習 2（応用）: InMemory Repository + Service テスト
+### Exercise 2 (Applied): InMemory Repository + Service Tests
 
-以下の `BookingService` のテストを、`InMemoryRoomRepository` と `InMemoryBookingRepository` を実装して書け。
+Write tests for the following `BookingService` by implementing `InMemoryRoomRepository` and `InMemoryBookingRepository`.
 
 ```typescript
 class BookingService {
@@ -1394,100 +1395,100 @@ class BookingService {
 }
 ```
 
-**テストケース**:
-1. 正常予約
-2. 存在しない部屋
-3. 利用不可の部屋
-4. 二重予約
+**Test Cases**:
+1. Successful booking
+2. Room not found
+3. Room unavailable
+4. Double booking
 
-**期待する出力**: `InMemoryRoomRepository`、`InMemoryBookingRepository` の実装と4つのテストケース
+**Expected Output**: Implementation of `InMemoryRoomRepository` and `InMemoryBookingRepository`, plus four test cases
 
 ---
 
-### 演習 3（発展）: Unit of Work + Specification パターン
+### Exercise 3 (Advanced): Unit of Work + Specification Pattern
 
-EC サイトの注文処理を Unit of Work と Specification パターンで実装せよ。
+Implement the order processing for an e-commerce site using Unit of Work and the Specification pattern.
 
-**要件**:
-1. 注文作成時に在庫を減らす（OrderRepository + ProductRepository）
-2. 在庫不足の場合はロールバック
-3. 「在庫5個以下の商品」を Specification で検索
-4. トランザクション内で監査ログも記録
+**Requirements**:
+1. Reduce inventory when an order is created (OrderRepository + ProductRepository)
+2. Roll back if stock is insufficient
+3. Search for "products with 5 or fewer items in stock" using a Specification
+4. Also record an audit log within the transaction
 
-**期待する出力**:
+**Expected Output**:
 - `LowStockSpec` Specification
-- `PlaceOrderUseCase` (Unit of Work 使用)
-- テストコード
+- `PlaceOrderUseCase` (using Unit of Work)
+- Test code
 
 ---
 
 ## 9. FAQ
 
-### Q1. 小規模プロジェクトでも Repository パターンは必要？
+### Q1. Is the Repository pattern necessary even for small projects?
 
-**A.** 小規模（CRUD 中心、テーブル 5 個以下）では不要な場合が多い。ORM を直接使う方がシンプル。以下の条件に **2つ以上** 当てはまる場合に導入を検討:
+**A.** For small projects (CRUD-centric, 5 or fewer tables), it is often unnecessary. Using the ORM directly is simpler. Consider introducing it when **2 or more** of the following conditions apply:
 
-1. ユニットテストでデータベースを使いたくない
-2. 将来的に DB の変更可能性がある（PostgreSQL → DynamoDB 等）
-3. ドメインロジックが複雑でサービス層のテストが重要
-4. 複数のデータソースを組み合わせる（DB + 外部 API + キャッシュ）
-5. チームが大きく、データアクセス層の統一的なインターフェースが必要
+1. You do not want to use a database in unit tests
+2. There is a possibility of changing the DB in the future (e.g., PostgreSQL to DynamoDB)
+3. Domain logic is complex and testing the service layer is important
+4. Combining multiple data sources (DB + external API + cache)
+5. The team is large and a unified interface for the data access layer is needed
 
-スタートアップの初期段階では ORM 直接使用で始め、テストの必要性が出てきた時点で Repository を導入するのが現実的。
+In the early stages of a startup, it is practical to start by using the ORM directly and introduce the Repository once the need for testing becomes apparent.
 
-### Q2. Repository はテーブルごと？集約（Aggregate）ごと？
+### Q2. Should Repositories be per table or per aggregate?
 
-**A.** DDD を採用している場合は **「集約ルートごと」が正解**。例えば `Order` と `OrderItem` は別テーブルでも、`OrderRepository` で一括管理する。DDD でなければテーブルごとで問題ない。
+**A.** If you are following DDD, **"one per aggregate root" is the right answer**. For example, `Order` and `OrderItem` are in separate tables, but they are managed together through a single `OrderRepository`. Without DDD, per-table is fine.
 
 ```typescript
-// DDD: 集約ルート単位
+// DDD: per aggregate root
 interface OrderRepository {
   findById(id: string): Promise<Order>;
-  // ↑ Order + OrderItems + ShippingAddress を含む集約全体を返す
+  // ↑ returns the entire aggregate including Order + OrderItems + ShippingAddress
   save(order: Order): Promise<void>;
-  // ↑ Order + OrderItems + ShippingAddress を一括保存
+  // ↑ saves Order + OrderItems + ShippingAddress all at once
 }
 
-// 非DDD: テーブル単位
+// Non-DDD: per table
 interface OrderRepository {
-  findById(id: string): Promise<Order>;  // Order のみ
+  findById(id: string): Promise<Order>;  // Order only
 }
 interface OrderItemRepository {
   findByOrderId(orderId: string): Promise<OrderItem[]>;
 }
 ```
 
-集約単位の Repository のメリットは、ビジネスルール（「OrderItem の合計金額は Order の total と一致する」等）を集約内で一貫して保証できること。
+The benefit of aggregate-level Repositories is that business rules (e.g., "the sum of OrderItem amounts must match the Order total") can be enforced consistently within the aggregate.
 
-### Q3. Repository をテストする場合、DB を使うべき？モックすべき？
+### Q3. When testing the Repository, should I use a real DB or mocks?
 
-**A.** 両方必要。テストの種類に応じて使い分ける:
+**A.** Both are needed. Use them based on the type of test:
 
 ```
-テストピラミッド:
+Test Pyramid:
   ┌─────────────────┐
-  │    E2E テスト     │  ← 少数、本番相当の DB
+  │    E2E Tests     │  ← few tests, production-equivalent DB
   ├─────────────────┤
-  │   統合テスト      │  ← Repository 実装のテスト（TestContainers）
+  │ Integration Tests│  ← tests for Repository implementation (TestContainers)
   ├─────────────────┤
-  │ ユニットテスト    │  ← Service のテスト（InMemory Repository）
+  │   Unit Tests     │  ← tests for Services (InMemory Repository)
   └─────────────────┘
 ```
 
-| テスト種類 | Repository | 目的 |
+| Test Type | Repository | Purpose |
 |-----------|-----------|------|
-| **ユニットテスト** | InMemory 実装 | Service のビジネスロジック検証 |
-| **統合テスト** | 本物の DB（TestContainers） | SQL / ORM の正しさを検証 |
-| **E2E テスト** | 本物の DB | システム全体の動作検証 |
+| **Unit Tests** | InMemory implementation | Validate Service business logic |
+| **Integration Tests** | Real DB (TestContainers) | Validate SQL / ORM correctness |
+| **E2E Tests** | Real DB | Validate overall system behavior |
 
 ```typescript
-// 統合テスト: TestContainers で PostgreSQL を起動
+// Integration test: start PostgreSQL with TestContainers
 describe("PrismaUserRepository (Integration)", () => {
   let prisma: PrismaClient;
   let repo: PrismaUserRepository;
 
   beforeAll(async () => {
-    // Docker で PostgreSQL コンテナを起動
+    // Start a PostgreSQL container with Docker
     const container = await new PostgreSqlContainer().start();
     prisma = new PrismaClient({
       datasources: { db: { url: container.getConnectionUri() } },
@@ -1507,55 +1508,55 @@ describe("PrismaUserRepository (Integration)", () => {
 });
 ```
 
-### Q4. Active Record と Repository、どちらを使うべき？
+### Q4. Should I use Active Record or Repository?
 
-**A.** プロジェクトの規模とフレームワークによる:
+**A.** It depends on the project's scale and framework:
 
-| 基準 | Active Record | Repository |
+| Criteria | Active Record | Repository |
 |------|---------------|-----------|
-| **フレームワーク** | Rails, Django, Laravel | Express, Spring, 自前 |
-| **プロジェクト規模** | 小〜中 | 中〜大 |
-| **テスト要件** | 統合テスト中心 | ユニットテスト重視 |
-| **ドメインの複雑さ** | 低〜中 | 高 |
-| **チーム規模** | 小（1-5人） | 中〜大（5人以上） |
+| **Framework** | Rails, Django, Laravel | Express, Spring, custom |
+| **Project Scale** | Small to medium | Medium to large |
+| **Testing Requirements** | Integration test-centric | Unit test-focused |
+| **Domain Complexity** | Low to medium | High |
+| **Team Size** | Small (1–5 people) | Medium to large (5+ people) |
 
-Active Record（Rails の `User.find_by(email: ...)` 等）はフレームワークの規約に従うなら最もシンプル。Repository は DDD やクリーンアーキテクチャを採用する場合に適する。
+Active Record (e.g., Rails' `User.find_by(email: ...)`) is the simplest approach when following framework conventions. Repository is appropriate when adopting DDD or Clean Architecture.
 
-### Q5. Repository の返り値はドメインエンティティ？DTO？
+### Q5. Should Repository return domain entities or DTOs?
 
-**A.** **ドメインエンティティ** を返すのが正解。Repository はドメイン層のインターフェースであり、ドメインの言語（Entity, Value Object）で結果を返す。DTO（Data Transfer Object）への変換は Presentation 層（Controller / Serializer）の責務。
+**A.** Returning **domain entities** is correct. The Repository is a domain-layer interface and returns results in the domain's language (Entity, Value Object). Converting to DTOs (Data Transfer Objects) is the responsibility of the Presentation layer (Controller / Serializer).
 
 ```typescript
-// OK: ドメインエンティティを返す
+// GOOD: return domain entity
 interface UserRepository {
-  findById(id: string): Promise<User>;  // ← User はドメインエンティティ
+  findById(id: string): Promise<User>;  // ← User is a domain entity
 }
 
-// NG: DTO を返す
+// BAD: return DTO
 interface UserRepository {
-  findById(id: string): Promise<UserResponseDTO>;  // ← これは Controller の仕事
+  findById(id: string): Promise<UserResponseDTO>;  // ← this is the Controller's job
 }
 ```
 
-### Q6. Repository にキャッシュを組み込むべき？
+### Q6. Should you incorporate caching into the Repository?
 
-**A.** Repository をデコレーターパターンでラップするのが推奨。Repository インターフェースを変更せずにキャッシュ層を追加できる:
+**A.** It is recommended to wrap the Repository using the Decorator pattern. This allows you to add a cache layer without changing the Repository interface:
 
 ```typescript
-// キャッシュ付き Repository（Decorator パターン）
+// Repository with caching (Decorator pattern)
 class CachedUserRepository implements UserRepository {
   constructor(
-    private inner: UserRepository,  // 実際の DB Repository
-    private cache: CacheClient,     // Redis 等
-    private ttl: number = 300,      // 5分
+    private inner: UserRepository,  // the actual DB Repository
+    private cache: CacheClient,     // Redis, etc.
+    private ttl: number = 300,      // 5 minutes
   ) {}
 
   async findById(id: string): Promise<User | null> {
-    // 1. キャッシュ確認
+    // 1. Check cache
     const cached = await this.cache.get(`user:${id}`);
     if (cached) return JSON.parse(cached);
 
-    // 2. DB から取得
+    // 2. Fetch from DB
     const user = await this.inner.findById(id);
     if (user) {
       await this.cache.set(`user:${id}`, JSON.stringify(user), this.ttl);
@@ -1565,15 +1566,15 @@ class CachedUserRepository implements UserRepository {
 
   async save(user: User): Promise<User> {
     const saved = await this.inner.save(user);
-    // キャッシュ無効化
+    // Invalidate cache
     await this.cache.del(`user:${saved.id}`);
     return saved;
   }
 
-  // ... 他のメソッドも同様
+  // ... same for other methods
 }
 
-// DI 設定
+// DI setup
 const dbRepo = new PrismaUserRepository(prisma);
 const cachedRepo = new CachedUserRepository(dbRepo, redis);
 container.register<UserRepository>("UserRepository", { useValue: cachedRepo });
@@ -1584,51 +1585,51 @@ container.register<UserRepository>("UserRepository", { useValue: cachedRepo });
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not only through theory but by actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. It is recommended to thoroughly understand the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 10. まとめ
+## 10. Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| **Repository** | データアクセスの抽象化。ドメイン層にインターフェースを定義し、インフラ層で実装する |
-| **DIP** | 上位モジュール（Service）はインターフェース（Repository）に依存。具体実装は注入 |
-| **DDD の集約** | Repository は集約ルートごとに1つ。集約内のエンティティは Repository を通じてのみアクセス |
-| **テスト** | InMemory 実装でサービス層をユニットテスト。DB 実装は統合テスト（TestContainers） |
-| **Unit of Work** | 複数 Repository の変更を1トランザクションで管理。データの一貫性を保証 |
-| **Specification** | 検索条件をオブジェクト化。条件の組み合わせ（AND, OR, NOT）を型安全に表現 |
-| **注意点** | 過度な抽象化を避け、ドメインの要件に合ったインターフェースを設計。YAGNI を意識する |
-| **キャッシュ** | Decorator パターンで Repository をラップ。インターフェースを変更せずにキャッシュを追加 |
+| **Repository** | Abstracts data access. Define the interface in the domain layer and implement it in the infrastructure layer. |
+| **DIP** | Upper modules (Service) depend on interfaces (Repository). Concrete implementations are injected. |
+| **DDD Aggregates** | One Repository per aggregate root. Entities within an aggregate are accessed only through the Repository. |
+| **Testing** | Unit-test the service layer using an InMemory implementation. Test the DB implementation with integration tests (TestContainers). |
+| **Unit of Work** | Manages changes across multiple Repositories within a single transaction. Guarantees data consistency. |
+| **Specification** | Turns search conditions into objects. Combines conditions (AND, OR, NOT) in a type-safe manner. |
+| **Caution** | Avoid over-abstraction; design interfaces suited to domain requirements. Be mindful of YAGNI. |
+| **Caching** | Wrap the Repository with the Decorator pattern. Add caching without changing the interface. |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Reads
 
-- [00-mvc-mvvm.md](./00-mvc-mvvm.md) — UI 層のアーキテクチャパターン（Repository を使う側の設計）
-- [02-event-sourcing-cqrs.md](./02-event-sourcing-cqrs.md) — イベント駆動とコマンド/クエリ分離（CQRS での Repository）
-- ../../clean-code-principles/ — SOLID 原則、依存性逆転原則の詳細
-- [../02-behavioral/](../02-behavioral/) — Strategy パターン（Repository の実装切り替え）
-- ../../system-design-guide/ — データベーススケーリングとキャッシュ戦略
+- [00-mvc-mvvm.md](./00-mvc-mvvm.md) — UI layer architecture patterns (design on the side that uses Repository)
+- [02-event-sourcing-cqrs.md](./02-event-sourcing-cqrs.md) — Event-driven design and command/query separation (Repository in CQRS)
+- ../../clean-code-principles/ — SOLID principles, details on the Dependency Inversion Principle
+- [../02-behavioral/](../02-behavioral/) — Strategy pattern (swapping Repository implementations)
+- ../../system-design-guide/ — Database scaling and cache strategies
 
 ---
 
-## 参考文献
+## References
 
-1. **Martin Fowler** — "Patterns of Enterprise Application Architecture" — Repository パターンの原典 — https://martinfowler.com/eaaCatalog/repository.html
+1. **Martin Fowler** — "Patterns of Enterprise Application Architecture" — The original source for the Repository pattern — https://martinfowler.com/eaaCatalog/repository.html
 2. **Martin Fowler** — "Unit of Work" — https://martinfowler.com/eaaCatalog/unitOfWork.html
 3. **Eric Evans** — "Domain-Driven Design: Tackling Complexity in the Heart of Software" — Addison-Wesley, 2003
 4. **Microsoft** — "Implementing the Repository and Unit of Work Patterns" — https://learn.microsoft.com/en-us/aspnet/mvc/overview/older-versions/getting-started-with-ef-5-using-mvc-4/implementing-the-repository-and-unit-of-work-patterns-in-an-asp-net-mvc-application
-5. **Robert C. Martin** — "Clean Architecture" (2017) — 依存性逆転原則と Repository の位置付け
+5. **Robert C. Martin** — "Clean Architecture" (2017) — Dependency Inversion Principle and the role of Repository
 6. **Prisma Documentation** — "Repository pattern with Prisma" — https://www.prisma.io/docs/guides
-7. **Vaughn Vernon** — "Implementing Domain-Driven Design" (2013) — 集約と Repository の関係
+7. **Vaughn Vernon** — "Implementing Domain-Driven Design" (2013) — Relationship between aggregates and Repository
