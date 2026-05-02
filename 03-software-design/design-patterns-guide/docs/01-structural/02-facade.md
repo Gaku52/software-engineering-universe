@@ -1,40 +1,40 @@
-# Facade パターン
+# Facade Pattern
 
-> 複雑なサブシステム群に対する **統一された簡潔なインタフェース** を提供し、利用側の負担を軽減する構造パターン。
+> A structural pattern that provides a **unified, simplified interface** to a set of complex subsystems, reducing the burden on clients.
 
 ---
 
-## 前提知識
+## Prerequisites
 
-| トピック | 必要レベル | 参照先 |
+| Topic | Required Level | Reference |
 |---------|-----------|--------|
-| クラスとインタフェース | 基本 | TypeScript / Java / Python の OOP |
-| 依存性注入 (DI) | 基本 | [DI パターン](../../../system-design-guide/docs/02-architecture/01-clean-architecture.md) |
-| 単一責任原則 (SRP) | 基本 | SOLID 原則 |
-| モジュール設計 | 基本 | ES Modules / Python packages |
-| async/await | 基本 | JavaScript / Python の非同期処理 |
+| Classes and Interfaces | Basic | OOP in TypeScript / Java / Python |
+| Dependency Injection (DI) | Basic | [DI Pattern](../../../system-design-guide/docs/02-architecture/01-clean-architecture.md) |
+| Single Responsibility Principle (SRP) | Basic | SOLID Principles |
+| Module Design | Basic | ES Modules / Python packages |
+| async/await | Basic | Asynchronous processing in JavaScript / Python |
 
 ---
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. Facade パターンが解決する「サブシステム結合の爆発」問題と、その根本原因
-2. Facade の構造と 4 つの適用レベル（モジュール / サービス / アプリケーション / インフラ）
-3. Facade と Adapter / Mediator / Controller の明確な違い
-4. 5 言語（TypeScript, Python, Java, Go, Kotlin）での実装パターン
-5. God Facade / Leaky Facade / Rigid Facade の 3 大アンチパターンとその回避策
+1. The "subsystem coupling explosion" problem that the Facade pattern solves, and its root cause
+2. The structure of a Facade and 4 levels of application (module / service / application / infrastructure)
+3. Clear distinctions between Facade, Adapter, Mediator, and Controller
+4. Implementation patterns in 5 languages (TypeScript, Python, Java, Go, Kotlin)
+5. The 3 major anti-patterns — God Facade / Leaky Facade / Rigid Facade — and how to avoid them
 
 ---
 
-## 1. なぜ Facade が必要なのか（WHY）
+## 1. Why Facade Is Necessary (WHY)
 
-### 1.1 Facade なしの世界
+### 1.1 A World Without Facade
 
-複雑なシステムでは、クライアントが複数のサブシステムを直接操作しなければならない。
+In complex systems, clients must directly manipulate multiple subsystems.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  Facade なし: クライアントがサブシステムを直接操作        │
+│  Without Facade: Client directly operates subsystems     │
 │                                                          │
 │   Client A ──┬──▶ SubSystem1.init()                     │
 │              ├──▶ SubSystem2.configure()                 │
@@ -42,35 +42,36 @@
 │              ├──▶ SubSystem1.validate()                  │
 │              └──▶ SubSystem2.execute()                   │
 │                                                          │
-│   Client B ──┬──▶ SubSystem1.init()       ← 同じ手順を  │
-│              ├──▶ SubSystem2.configure()    繰り返す     │
+│   Client B ──┬──▶ SubSystem1.init()       ← same steps  │
+│              ├──▶ SubSystem2.configure()    repeated     │
 │              ├──▶ SubSystem3.connect()                   │
 │              ├──▶ SubSystem1.validate()                  │
 │              └──▶ SubSystem2.execute()                   │
 │                                                          │
-│   問題:                                                  │
-│   - クライアントがサブシステムの内部構造を知る必要がある  │
-│   - 操作手順の重複（DRY 違反）                           │
-│   - サブシステム変更時に全クライアントを修正              │
-│   - テストでモック対象が多すぎる                          │
+│   Problems:                                              │
+│   - Clients must know the internal structure of          │
+│     each subsystem                                       │
+│   - Duplicated operation sequences (DRY violation)       │
+│   - All clients must be updated when a subsystem changes │
+│   - Too many mock targets in tests                       │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 現実世界のアナロジー
+### 1.2 Real-World Analogy
 
-**ホテルのコンシェルジュ** を考えてみよう。宿泊客がレストラン予約、タクシー手配、観光チケット購入をそれぞれ自分で行う代わりに、コンシェルジュに「今晩のディナーと明日の観光を手配してください」と言えば、すべてを調整してくれる。
+Consider a **hotel concierge**. Instead of a guest making a restaurant reservation, booking a taxi, and purchasing sightseeing tickets themselves, they can simply tell the concierge "please arrange dinner tonight and tomorrow's sightseeing," and the concierge handles everything.
 
-- コンシェルジュ = **Facade**
-- レストラン、タクシー会社、チケット窓口 = **サブシステム**
-- 宿泊客 = **クライアント**
+- Concierge = **Facade**
+- Restaurant, taxi company, ticket office = **Subsystems**
+- Guest = **Client**
 
-宿泊客はレストランの予約システムの使い方を知らなくてもよい。しかし、自分で直接レストランに電話することも可能である（Facade はアクセスを遮断しない）。
+The guest does not need to know how the restaurant's reservation system works. However, they can still call the restaurant directly if they wish (the Facade does not block access).
 
-### 1.3 Facade ありの世界
+### 1.3 A World With Facade
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  Facade あり: クライアントは Facade だけを知る            │
+│  With Facade: Clients only need to know the Facade       │
 │                                                          │
 │   Client A ──▶ Facade.doOperation()                     │
 │                    │                                     │
@@ -82,34 +83,34 @@
 │                    ├──▶ SubSystem1.validate()            │
 │                    └──▶ SubSystem2.execute()             │
 │                                                          │
-│   利点:                                                  │
-│   - クライアントは内部を知る必要がない                    │
-│   - 手順の一元管理（DRY）                                │
-│   - サブシステム変更の影響が Facade に局所化              │
-│   - テストでは Facade のみモック可能                      │
+│   Benefits:                                              │
+│   - Clients do not need to know internal details         │
+│   - Centralized management of steps (DRY)                │
+│   - Impact of subsystem changes localized to the Facade  │
+│   - Only the Facade needs to be mocked in tests          │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.4 Facade パターンの本質
+### 1.4 The Essence of the Facade Pattern
 
-Facade の本質は「**情報隠蔽**」と「**手順のカプセル化**」である。
+The essence of a Facade is **information hiding** and **encapsulation of procedures**.
 
-1. **情報隠蔽**: クライアントはサブシステムの存在すら知らなくてよい
-2. **手順のカプセル化**: 定型的な操作手順を 1 メソッドに集約
-3. **疎結合**: クライアントとサブシステムの結合度を下げる
-4. **ショートカット**: 便利な入口を提供するが、直接アクセスを禁止しない
+1. **Information hiding**: Clients do not even need to know that subsystems exist
+2. **Encapsulation of procedures**: Aggregates routine operation sequences into a single method
+3. **Loose coupling**: Reduces the degree of coupling between clients and subsystems
+4. **Shortcut**: Provides a convenient entry point but does not prohibit direct access
 
-> **重要**: Facade は「壁」ではなく「門」である。高度なユースケースではサブシステムへの直接アクセスを許容すべきである。
+> **Important**: A Facade is a "gate," not a "wall." Direct access to subsystems should be permitted for advanced use cases.
 
 ---
 
-## 2. Facade の構造
+## 2. Facade Structure
 
-### 2.1 クラス図
+### 2.1 Class Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                      UML クラス図                        │
+│                      UML Class Diagram                   │
 │                                                         │
 │  ┌──────────┐         ┌──────────────────┐              │
 │  │  Client  │────────▶│     Facade       │              │
@@ -131,19 +132,20 @@ Facade の本質は「**情報隠蔽**」と「**手順のカプセル化**」�
 │              │ + a2()   ││ + b2()   ││ + c2()   │      │
 │              └──────────┘└──────────┘└──────────┘      │
 │                                                         │
-│  ポイント:                                              │
-│  - Client は Facade のみに依存                          │
-│  - Facade はサブシステム群を集約（has-a）                │
-│  - サブシステムは Facade の存在を知らない                │
-│  - サブシステムへの直接アクセスも可能（optional）        │
+│  Key points:                                            │
+│  - Client depends only on the Facade                    │
+│  - Facade aggregates subsystems (has-a)                 │
+│  - Subsystems are unaware of the Facade's existence     │
+│  - Direct access to subsystems is also possible         │
+│    (optional)                                           │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 シーケンス図
+### 2.2 Sequence Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    シーケンス図                           │
+│                    Sequence Diagram                      │
 │                                                         │
 │  Client        Facade         SubA    SubB    SubC      │
 │    │              │             │       │       │        │
@@ -165,56 +167,58 @@ Facade の本質は「**情報隠蔽**」と「**手順のカプセル化**」�
 │    │◀─────────────│             │       │       │        │
 │    │              │             │       │       │        │
 │                                                         │
-│  ポイント: Facade がオーケストレーションを担当            │
+│  Key point: The Facade is responsible for orchestration │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 2.3 Facade 適用の判断フロー
+### 2.3 Facade Application Decision Flow
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                  Facade 適用判断フロー                    │
+│              Facade Application Decision Flow            │
 │                                                         │
-│  サブシステムが複数ある？                                │
+│  Are there multiple subsystems?                         │
 │       │                                                 │
-│       ├── No ──▶ 不要（単一サブシステムなら直接呼ぶ）   │
-│       │                                                 │
-│       └── Yes                                           │
-│            │                                            │
-│  クライアントが複数のサブシステムを                      │
-│  直接操作している？                                      │
-│       │                                                 │
-│       ├── No ──▶ 不要（結合度が低い）                   │
+│       ├── No ──▶ Not needed (call directly if only      │
+│       │          one subsystem)                         │
 │       │                                                 │
 │       └── Yes                                           │
 │            │                                            │
-│  操作手順が定型的？                                      │
+│  Is the client directly operating multiple              │
+│  subsystems?                                            │
+│       │                                                 │
+│       ├── No ──▶ Not needed (low coupling)              │
+│       │                                                 │
+│       └── Yes                                           │
+│            │                                            │
+│  Are the operation steps routine/standard?              │
 │       │                  │                              │
 │       ├── Yes            └── No                         │
 │       │                      │                          │
 │       ▼                      ▼                          │
-│   Facade を導入         サブシステムを直接公開           │
-│   （手順を集約）        （柔軟性を重視）                 │
+│   Introduce Facade       Expose subsystems              │
+│   (aggregate steps)      directly (prioritize           │
+│                          flexibility)                   │
 │       │                                                 │
-│  1つの Facade に                                        │
-│  収まる規模？                                            │
+│  Does it fit within                                     │
+│  one Facade?                                            │
 │       │                  │                              │
 │       ├── Yes            └── No                         │
 │       │                      │                          │
 │       ▼                      ▼                          │
-│   単一 Facade           ドメイン別に                     │
-│                         Facade を分割                    │
+│   Single Facade          Split Facade                   │
+│                          by domain                      │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. コード例
+## 3. Code Examples
 
-### コード例 1: ホームシアター Facade（TypeScript）
+### Code Example 1: Home Theater Facade (TypeScript)
 
 ```typescript
-// === サブシステム群 ===
+// === Subsystems ===
 
 class Projector {
   on(): void { console.log("Projector: ON"); }
@@ -261,7 +265,7 @@ class HomeTheaterFacade {
     private screen: Screen,
   ) {}
 
-  /** 映画鑑賞モード: 6つのサブシステムを正しい順序で操作 */
+  /** Movie mode: operates 6 subsystems in the correct order */
   watchMovie(movie: string): void {
     console.log("=== Setting up movie mode ===");
     this.lights.dim(10);
@@ -277,7 +281,7 @@ class HomeTheaterFacade {
     console.log("=== Enjoy your movie! ===");
   }
 
-  /** 映画終了: 全サブシステムを正しい順序でシャットダウン */
+  /** End movie: shuts down all subsystems in the correct order */
   endMovie(): void {
     console.log("=== Shutting down ===");
     this.player.stop();
@@ -289,7 +293,7 @@ class HomeTheaterFacade {
     console.log("=== Done ===");
   }
 
-  /** 音楽モード: 映像不要、ステレオ音声 */
+  /** Music mode: no video needed, stereo audio */
   listenToMusic(): void {
     console.log("=== Setting up music mode ===");
     this.lights.dim(40);
@@ -299,7 +303,7 @@ class HomeTheaterFacade {
   }
 }
 
-// === 使用例 ===
+// === Usage ===
 
 const theater = new HomeTheaterFacade(
   new Projector(),
@@ -309,9 +313,9 @@ const theater = new HomeTheaterFacade(
   new Screen(),
 );
 
-// クライアントは 1 メソッドを呼ぶだけ
+// Client only needs to call 1 method
 theater.watchMovie("Inception");
-// 出力:
+// Output:
 // === Setting up movie mode ===
 // Lights: Dimmed to 10%
 // Screen: Lowered
@@ -328,14 +332,14 @@ theater.watchMovie("Inception");
 theater.endMovie();
 ```
 
-**ポイント**: 6 つのサブシステムの操作順序（ライト暗転 → スクリーン → プロジェクター → オーディオ → プレーヤー）をクライアントが知る必要がない。
+**Key point**: The client does not need to know the operation order of 6 subsystems (dim lights → screen → projector → audio → player).
 
 ---
 
-### コード例 2: デプロイメントパイプライン Facade（TypeScript）
+### Code Example 2: Deployment Pipeline Facade (TypeScript)
 
 ```typescript
-// === サブシステム群 ===
+// === Subsystems ===
 
 interface DeployResult {
   version: string;
@@ -407,30 +411,30 @@ class DeployFacade {
     private notify: NotifyService,
   ) {}
 
-  /** 本番リリース: 全ステップを自動実行 */
+  /** Production release: automatically executes all steps */
   async release(version: string): Promise<DeployResult> {
     try {
-      // 1. ソースコード取得
+      // 1. Fetch source code
       this.git.pull("main");
 
-      // 2. ビルドパイプライン
+      // 2. Build pipeline
       this.build.install();
       this.build.lint();
       this.build.test();
       const artifact = this.build.build();
 
-      // 3. デプロイ
+      // 3. Deploy
       const url = this.deploy.upload(artifact, "production");
       this.deploy.activate(version);
 
-      // 4. ヘルスチェック
+      // 4. Health check
       const healthy = this.deploy.healthCheck(url);
       if (!healthy) {
         this.deploy.rollback(version);
         throw new Error(`Health check failed for ${version}`);
       }
 
-      // 5. 完了処理
+      // 5. Completion handling
       this.git.tag(version);
       this.notify.sendSlack("#deploys", `v${version} deployed to ${url}`);
       this.notify.sendEmail("team@example.com", `Release v${version} complete`);
@@ -442,7 +446,7 @@ class DeployFacade {
     }
   }
 
-  /** ステージング環境へのデプロイ（テスト・通知なし） */
+  /** Deploy to staging environment (no tests or notifications) */
   async deployToStaging(branch: string): Promise<string> {
     this.git.pull(branch);
     this.build.install();
@@ -451,7 +455,7 @@ class DeployFacade {
   }
 }
 
-// === 使用例 ===
+// === Usage ===
 
 const pipeline = new DeployFacade(
   new GitService(),
@@ -463,11 +467,11 @@ const pipeline = new DeployFacade(
 await pipeline.release("1.2.0");
 ```
 
-**ポイント**: エラーハンドリングを含むオーケストレーション全体が Facade に集約されている。ステージング用の簡易メソッドも提供し、用途に応じて使い分けられる。
+**Key point**: The entire orchestration including error handling is consolidated in the Facade. A simplified method for staging is also provided for flexible use depending on purpose.
 
 ---
 
-### コード例 3: Python -- データ分析パイプライン Facade
+### Code Example 3: Python -- Data Analysis Pipeline Facade
 
 ```python
 from dataclasses import dataclass
@@ -477,13 +481,13 @@ import csv
 import io
 
 
-# === サブシステム群 ===
+# === Subsystems ===
 
 class DataLoader:
-    """様々な形式のデータを読み込む"""
+    """Loads data in various formats"""
     def load_csv(self, path: str) -> list[dict]:
         print(f"DataLoader: Loading CSV from {path}")
-        # 実際の実装では csv.DictReader を使用
+        # Use csv.DictReader in actual implementation
         return [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}]
 
     def load_json(self, path: str) -> list[dict]:
@@ -496,14 +500,14 @@ class DataLoader:
 
 
 class DataCleaner:
-    """データのクレンジング・正規化"""
+    """Data cleansing and normalization"""
     def remove_nulls(self, data: list[dict]) -> list[dict]:
         print(f"DataCleaner: Removing nulls from {len(data)} records")
         return [row for row in data if all(v is not None for v in row.values())]
 
     def normalize(self, data: list[dict], columns: list[str]) -> list[dict]:
         print(f"DataCleaner: Normalizing columns {columns}")
-        return data  # 実際は正規化処理
+        return data  # Actual normalization processing here
 
     def deduplicate(self, data: list[dict], key: str) -> list[dict]:
         print(f"DataCleaner: Deduplicating by {key}")
@@ -517,7 +521,7 @@ class DataCleaner:
 
 
 class DataAnalyzer:
-    """統計分析・集計"""
+    """Statistical analysis and aggregation"""
     def aggregate(self, data: list[dict], column: str) -> dict:
         print(f"DataAnalyzer: Aggregating column '{column}'")
         values = [row.get(column, 0) for row in data]
@@ -539,7 +543,7 @@ class DataAnalyzer:
 
 
 class ReportGenerator:
-    """レポート生成"""
+    """Report generation"""
     def generate_summary(self, stats: dict) -> str:
         print("ReportGenerator: Generating summary report")
         return json.dumps(stats, indent=2)
@@ -566,7 +570,7 @@ class AnalysisResult:
 
 
 class DataPipelineFacade:
-    """データ分析パイプラインの統一インタフェース"""
+    """Unified interface for the data analysis pipeline"""
 
     def __init__(
         self,
@@ -586,21 +590,21 @@ class DataPipelineFacade:
         target_column: str,
         dedup_key: str | None = None,
     ) -> AnalysisResult:
-        """CSV ファイルを読み込み、クレンジング・分析・レポート生成を一括実行"""
-        # 1. データ読み込み
+        """Loads a CSV file and executes cleansing, analysis, and report generation in one call"""
+        # 1. Load data
         data = self._loader.load_csv(path)
         raw_count = len(data)
 
-        # 2. クレンジング
+        # 2. Cleansing
         data = self._cleaner.remove_nulls(data)
         if dedup_key:
             data = self._cleaner.deduplicate(data, dedup_key)
         clean_count = len(data)
 
-        # 3. 分析
+        # 3. Analysis
         stats = self._analyzer.aggregate(data, target_column)
 
-        # 4. レポート生成
+        # 4. Report generation
         report = self._reporter.generate_summary(stats)
 
         return AnalysisResult(
@@ -611,12 +615,12 @@ class DataPipelineFacade:
         )
 
     def quick_summary(self, path: str, column: str) -> dict:
-        """クレンジングなしの簡易集計"""
+        """Simple aggregation without cleansing"""
         data = self._loader.load_csv(path)
         return self._analyzer.aggregate(data, column)
 
 
-# === 使用例 ===
+# === Usage ===
 
 pipeline = DataPipelineFacade(
     loader=DataLoader(),
@@ -628,7 +632,7 @@ pipeline = DataPipelineFacade(
 result = pipeline.analyze_csv("sales.csv", target_column="age", dedup_key="name")
 print(f"Raw: {result.raw_count}, Clean: {result.clean_count}")
 print(result.report)
-# 出力:
+# Output:
 # DataLoader: Loading CSV from sales.csv
 # DataCleaner: Removing nulls from 2 records
 # DataCleaner: Deduplicating by name
@@ -644,14 +648,14 @@ print(result.report)
 # }
 ```
 
-**ポイント**: 4 つのサブシステム（Loader, Cleaner, Analyzer, Reporter）の操作手順を `analyze_csv` に集約。簡易版 `quick_summary` も提供して、柔軟性と簡便性を両立している。
+**Key point**: The operation steps for 4 subsystems (Loader, Cleaner, Analyzer, Reporter) are consolidated in `analyze_csv`. A simplified `quick_summary` is also provided to balance flexibility and convenience.
 
 ---
 
-### コード例 4: Java -- メール送信 Facade
+### Code Example 4: Java -- Email Sending Facade
 
 ```java
-// === サブシステム群 ===
+// === Subsystems ===
 
 class SmtpClient {
     public void connect(String host, int port) {
@@ -689,7 +693,7 @@ class MimeBuilder {
 class TemplateEngine {
     public String render(String templateName, Map<String, Object> vars) {
         System.out.println("Template: Rendering " + templateName);
-        // 実際はテンプレートファイルを読み込み、変数を埋め込む
+        // In actual implementation, load template file and embed variables
         return "<html><body>Hello " + vars.getOrDefault("name", "User") + "</body></html>";
     }
 }
@@ -725,7 +729,7 @@ class EmailFacade {
         this.smtpPass = pass;
     }
 
-    /** テンプレートを使ったメール送信（最も一般的なユースケース） */
+    /** Send email using a template (most common use case) */
     public void sendTemplated(
         String from, String to,
         String templateName, Map<String, Object> vars
@@ -749,7 +753,7 @@ class EmailFacade {
         }
     }
 
-    /** プレーンテキストメールの簡易送信 */
+    /** Simple plain text email sending */
     public void sendPlain(String from, String to, String subject, String body) {
         if (!validator.validate(to)) {
             throw new IllegalArgumentException("Invalid email: " + to);
@@ -769,7 +773,7 @@ class EmailFacade {
     }
 }
 
-// === 使用例 ===
+// === Usage ===
 
 EmailFacade email = new EmailFacade("smtp.example.com", 587, "user", "pass");
 
@@ -779,7 +783,7 @@ email.sendTemplated(
     "welcome",
     Map.of("name", "Taro", "subject", "Welcome!")
 );
-// 出力:
+// Output:
 // Validator: user@example.com -> OK
 // Template: Rendering welcome
 // MIME: Building message (subject=Welcome!, attachments=0)
@@ -789,11 +793,11 @@ email.sendTemplated(
 // SMTP: Disconnected
 ```
 
-**ポイント**: SMTP 接続、MIME 構築、テンプレートレンダリング、アドレスバリデーションという 4 つの複雑なサブシステムを、`sendTemplated` と `sendPlain` の 2 メソッドに集約。
+**Key point**: The 4 complex subsystems — SMTP connection, MIME building, template rendering, and address validation — are consolidated into 2 methods: `sendTemplated` and `sendPlain`.
 
 ---
 
-### コード例 5: Go -- HTTP サーバー Facade
+### Code Example 5: Go -- HTTP Server Facade
 
 ```go
 package main
@@ -805,7 +809,7 @@ import (
     "time"
 )
 
-// === サブシステム群 ===
+// === Subsystems ===
 
 type Router struct {
     routes map[string]http.HandlerFunc
@@ -899,17 +903,17 @@ func NewServerFacade(addr string) *ServerFacade {
     }
 }
 
-// GET ルートを追加
+// Add a GET route
 func (s *ServerFacade) GET(path string, handler http.HandlerFunc) {
     s.router.AddRoute(path, handler)
 }
 
-// ミドルウェアを追加
+// Add middleware
 func (s *ServerFacade) Use(mw func(http.Handler) http.Handler) {
     s.middleware.Use(mw)
 }
 
-// サーバー起動（CORS・ミドルウェア・グレースフルシャットダウンを自動設定）
+// Start the server (automatically configures CORS, middleware, and graceful shutdown)
 func (s *ServerFacade) Start() error {
     var handler http.Handler = s.router
     handler = s.cors.Apply(handler)
@@ -919,12 +923,12 @@ func (s *ServerFacade) Start() error {
     return gs.Start()
 }
 
-// === 使用例 ===
+// === Usage ===
 
 func main() {
     app := NewServerFacade(":8080")
 
-    // ロギングミドルウェア
+    // Logging middleware
     app.Use(func(next http.Handler) http.Handler {
         return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
             log.Printf("%s %s", r.Method, r.URL.Path)
@@ -936,21 +940,21 @@ func main() {
         w.Write([]byte("OK"))
     })
 
-    // Router, Middleware, CORS, GracefulShutdown を意識せずに起動
+    // Start without being aware of Router, Middleware, CORS, or GracefulShutdown
     app.Start()
 }
 ```
 
-**ポイント**: Router, Middleware, CORS, GracefulShutdown という 4 つのサブシステムを `ServerFacade` が統合。`app.GET()` と `app.Start()` だけでサーバーが立ち上がる。Express.js の設計思想と同じ。
+**Key point**: `ServerFacade` integrates 4 subsystems — Router, Middleware, CORS, and GracefulShutdown. The server is up with just `app.GET()` and `app.Start()`. This is the same design philosophy as Express.js.
 
 ---
 
-### コード例 6: React -- カスタムフック as Facade（TypeScript）
+### Code Example 6: React -- Custom Hook as Facade (TypeScript)
 
 ```typescript
 import { useState, useEffect, useCallback, useMemo } from "react";
 
-// === サブシステム（個別の Hook） ===
+// === Subsystems (individual Hooks) ===
 
 function useCart() {
   const [items, setItems] = useState<CartItem[]>([]);
@@ -1047,20 +1051,20 @@ interface Address {
 }
 
 interface CheckoutState {
-  // カート
+  // Cart
   items: CartItem[];
   addItem: (item: CartItem) => void;
   removeItem: (id: string) => void;
-  // 金額
+  // Amounts
   subtotal: number;
   shippingCost: number;
   discount: number;
   total: number;
-  // アクション
+  // Actions
   applyCoupon: (code: string) => Promise<void>;
   setShippingAddress: (addr: Address) => Promise<void>;
   checkout: (paymentMethod: string) => Promise<void>;
-  // 状態
+  // State
   isProcessing: boolean;
   error: string | null;
   step: "cart" | "shipping" | "payment" | "complete";
@@ -1112,7 +1116,7 @@ function useCheckout(): CheckoutState {
   };
 }
 
-// === コンポーネントはシンプルに ===
+// === Components remain simple ===
 
 function CheckoutPage() {
   const {
@@ -1138,14 +1142,14 @@ function CheckoutPage() {
 }
 ```
 
-**ポイント**: `useCheckout` が Cart, Payment, Shipping, Coupon の 4 つの Hook を統合し、コンポーネントに対して統一された API を提供。コンポーネントは「支払い処理の内部構造」を知らなくてよい。
+**Key point**: `useCheckout` integrates 4 Hooks — Cart, Payment, Shipping, and Coupon — and provides a unified API to the component. The component does not need to know the "internal structure of the payment process."
 
 ---
 
-### コード例 7: Kotlin -- Android ネットワーク Facade
+### Code Example 7: Kotlin -- Android Network Facade
 
 ```kotlin
-// === サブシステム群 ===
+// === Subsystems ===
 
 class HttpClient {
     fun get(url: String, headers: Map<String, String> = emptyMap()): String {
@@ -1194,7 +1198,7 @@ class TokenManager {
 
 class CacheManager {
     private val cache = mutableMapOf<String, Pair<String, Long>>()
-    private val ttl = 60_000L // 1分
+    private val ttl = 60_000L // 1 minute
 
     fun get(key: String): String? {
         val entry = cache[key] ?: return null
@@ -1221,7 +1225,7 @@ class ApiClient(
     private val cache: CacheManager = CacheManager(),
     private val baseUrl: String = "https://api.example.com",
 ) {
-    /** 認証ヘッダー付き GET（キャッシュあり） */
+    /** GET with auth header (with cache) */
     fun <T> get(path: String, clazz: Class<T>, useCache: Boolean = true): T {
         val url = "$baseUrl$path"
 
@@ -1236,7 +1240,7 @@ class ApiClient(
         return json.parse(response, clazz)
     }
 
-    /** 認証ヘッダー付き POST */
+    /** POST with auth header */
     fun <T> post(path: String, body: Any, clazz: Class<T>): T {
         val url = "$baseUrl$path"
         val headers = mapOf("Authorization" to "Bearer ${auth.getToken()}")
@@ -1245,7 +1249,7 @@ class ApiClient(
         return json.parse(response, clazz)
     }
 
-    /** ログイン（トークン取得・保存） */
+    /** Login (fetch and store token) */
     fun login(username: String, password: String) {
         val body = json.toJson(mapOf("username" to username, "password" to password))
         val response = http.post("$baseUrl/auth/login", body)
@@ -1253,13 +1257,13 @@ class ApiClient(
         auth.setToken(result["token"] as? String ?: "dummy-token")
     }
 
-    /** ログアウト */
+    /** Logout */
     fun logout() {
         auth.clearToken()
     }
 }
 
-// === 使用例 ===
+// === Usage ===
 
 fun main() {
     val api = ApiClient()
@@ -1269,14 +1273,14 @@ fun main() {
 }
 ```
 
-**ポイント**: HTTP 通信、JSON パース、認証トークン管理、キャッシュという 4 つのサブシステムを `ApiClient` が統合。Android の Retrofit ライブラリはこの設計思想を発展させたもの。
+**Key point**: `ApiClient` integrates 4 subsystems — HTTP communication, JSON parsing, auth token management, and caching. The Retrofit library for Android is a further development of this design philosophy.
 
 ---
 
-### コード例 8: モジュール公開 API as Facade（TypeScript）
+### Code Example 8: Module Public API as Facade (TypeScript)
 
 ```typescript
-// === 内部モジュール群 ===
+// === Internal modules ===
 // internal/parser.ts
 class Parser {
   parse(source: string): ASTNode {
@@ -1317,7 +1321,7 @@ class Emitter {
   }
 }
 
-// === 型定義 ===
+// === Type definitions ===
 interface ASTNode {
   type: string;
   body: ASTNode[];
@@ -1348,8 +1352,8 @@ interface CompileResult {
 // === Facade (index.ts) ===
 
 /**
- * コンパイラの公開 API。
- * 内部の Parser, Validator, Optimizer, Transformer, Emitter を隠蔽する。
+ * The compiler's public API.
+ * Hides the internal Parser, Validator, Optimizer, Transformer, and Emitter.
  */
 export function compile(
   source: string,
@@ -1357,11 +1361,11 @@ export function compile(
 ): CompileResult {
   const { optimize = true, validate = true } = options;
 
-  // 1. パース
+  // 1. Parse
   const parser = new Parser();
   const ast = parser.parse(source);
 
-  // 2. バリデーション（オプション）
+  // 2. Validation (optional)
   if (validate) {
     const validator = new Validator();
     const result = validator.validate(ast);
@@ -1370,26 +1374,26 @@ export function compile(
     }
   }
 
-  // 3. 最適化（オプション）
+  // 3. Optimization (optional)
   let optimizedAst = ast;
   if (optimize) {
     const optimizer = new Optimizer();
     optimizedAst = optimizer.optimize(ast);
   }
 
-  // 4. 変換
+  // 4. Transform
   const transformer = new Transformer();
   const ir = transformer.transform(optimizedAst);
 
-  // 5. 出力
+  // 5. Emit output
   const emitter = new Emitter();
   const code = emitter.emit(ir);
 
   return { code, ast, errors: [] };
 }
 
-// === 使用例 ===
-// 利用側は内部を知る必要がない
+// === Usage ===
+// Consumers do not need to know the internals
 // import { compile } from "my-compiler";
 
 const result = compile("const x = 1 + 2;");
@@ -1398,11 +1402,11 @@ console.log(result.code);
 const resultNoOptimize = compile("const x = 1 + 2;", { optimize: false });
 ```
 
-**ポイント**: npm パッケージの `index.ts` は典型的な Facade。内部の 5 つのクラスを `compile` 関数 1 つに集約。TypeScript コンパイラ (`tsc`)、Babel、webpack も同じ設計。
+**Key point**: The `index.ts` of an npm package is a typical Facade. The internal 5 classes are consolidated into a single `compile` function. The TypeScript compiler (`tsc`), Babel, and webpack follow the same design.
 
 ---
 
-### コード例 9: Python -- Django/Flask 風 ORM Facade
+### Code Example 9: Python -- Django/Flask-style ORM Facade
 
 ```python
 from typing import Any, TypeVar, Generic
@@ -1410,10 +1414,10 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 
-# === サブシステム群 ===
+# === Subsystems ===
 
 class ConnectionPool:
-    """データベース接続プール"""
+    """Database connection pool"""
     _instance = None
 
     def __init__(self, dsn: str, pool_size: int = 5):
@@ -1430,10 +1434,10 @@ class ConnectionPool:
 
 
 class Connection:
-    """データベース接続"""
+    """Database connection"""
     def execute(self, sql: str, params: tuple = ()) -> list[dict]:
         print(f"Connection: {sql} params={params}")
-        return [{"id": 1}]  # ダミー結果
+        return [{"id": 1}]  # Dummy result
 
     def begin(self) -> None:
         print("Connection: BEGIN")
@@ -1446,7 +1450,7 @@ class Connection:
 
 
 class QueryBuilder:
-    """SQL クエリビルダー"""
+    """SQL query builder"""
     def __init__(self, table: str):
         self._table = table
         self._conditions: list[str] = []
@@ -1492,7 +1496,7 @@ class QueryBuilder:
 
 
 class Migrator:
-    """スキーママイグレーション"""
+    """Schema migration"""
     def create_table(self, name: str, columns: dict[str, str]) -> str:
         cols = ", ".join(f"{k} {v}" for k, v in columns.items())
         return f"CREATE TABLE IF NOT EXISTS {name} ({cols})"
@@ -1504,7 +1508,7 @@ T = TypeVar("T")
 
 
 class DatabaseFacade:
-    """データベース操作の統一インタフェース"""
+    """Unified interface for database operations"""
 
     def __init__(self, dsn: str):
         self._pool = ConnectionPool(dsn)
@@ -1517,7 +1521,7 @@ class DatabaseFacade:
         order_by: str | None = None,
         limit: int | None = None,
     ) -> list[dict]:
-        """条件検索（SELECT）"""
+        """Conditional search (SELECT)"""
         qb = QueryBuilder(table)
         if conditions:
             for col, val in conditions.items():
@@ -1537,7 +1541,7 @@ class DatabaseFacade:
             self._pool.release(conn)
 
     def insert(self, table: str, data: dict) -> dict:
-        """レコード挿入（INSERT）"""
+        """Insert record (INSERT)"""
         qb = QueryBuilder(table)
         sql, params = qb.build_insert(data)
         conn = self._pool.acquire()
@@ -1553,7 +1557,7 @@ class DatabaseFacade:
             self._pool.release(conn)
 
     def delete(self, table: str, conditions: dict[str, Any]) -> None:
-        """レコード削除（DELETE）"""
+        """Delete record (DELETE)"""
         qb = QueryBuilder(table)
         for col, val in conditions.items():
             qb.where(f"{col} = ?", val)
@@ -1570,7 +1574,7 @@ class DatabaseFacade:
             self._pool.release(conn)
 
     def migrate(self, table: str, columns: dict[str, str]) -> None:
-        """テーブル作成（マイグレーション）"""
+        """Create table (migration)"""
         sql = self._migrator.create_table(table, columns)
         conn = self._pool.acquire()
         try:
@@ -1579,11 +1583,11 @@ class DatabaseFacade:
             self._pool.release(conn)
 
 
-# === 使用例 ===
+# === Usage ===
 
 db = DatabaseFacade("postgresql://localhost:5432/mydb")
 
-# テーブル作成
+# Create table
 db.migrate("users", {
     "id": "SERIAL PRIMARY KEY",
     "name": "VARCHAR(100)",
@@ -1591,24 +1595,24 @@ db.migrate("users", {
     "created_at": "TIMESTAMP DEFAULT NOW()",
 })
 
-# レコード挿入
+# Insert record
 db.insert("users", {"name": "Alice", "email": "alice@example.com"})
 
-# 検索
+# Search
 users = db.find("users", conditions={"name": "Alice"}, order_by="-created_at", limit=10)
 
-# 削除
+# Delete
 db.delete("users", conditions={"id": 1})
 ```
 
-**ポイント**: ConnectionPool, QueryBuilder, Connection, Migrator の 4 つのサブシステムを `DatabaseFacade` が統合。Django ORM や SQLAlchemy の `Session` もこの設計。
+**Key point**: `DatabaseFacade` integrates 4 subsystems — ConnectionPool, QueryBuilder, Connection, and Migrator. Django ORM and SQLAlchemy's `Session` follow this design.
 
 ---
 
-### コード例 10: Facade + Strategy の組み合わせ（TypeScript）
+### Code Example 10: Facade + Strategy Combination (TypeScript)
 
 ```typescript
-// === Strategy インタフェース ===
+// === Strategy interface ===
 
 interface NotificationChannel {
   send(to: string, message: string): Promise<boolean>;
@@ -1642,7 +1646,7 @@ class SlackChannel implements NotificationChannel {
   }
 }
 
-// === サブシステム群 ===
+// === Subsystems ===
 
 class TemplateRenderer {
   render(template: string, vars: Record<string, string>): string {
@@ -1656,7 +1660,7 @@ class TemplateRenderer {
 
 class UserPreferences {
   getPreferredChannels(userId: string): string[] {
-    // 実際はDBから取得
+    // In practice, fetch from DB
     return ["email", "push"];
   }
 
@@ -1689,7 +1693,7 @@ interface NotifyOptions {
   template: string;
   vars: Record<string, string>;
   userId: string;
-  channels?: string[];  // 指定しなければユーザー設定を使用
+  channels?: string[];  // Uses user preferences if not specified
 }
 
 class NotificationFacade {
@@ -1704,21 +1708,21 @@ class NotificationFacade {
     this.channelMap = new Map(Object.entries(channels));
   }
 
-  /** 通知送信: テンプレート展開 → チャネル選択 → 送信 → ログ */
+  /** Send notification: template expansion → channel selection → send → log */
   async notify(options: NotifyOptions): Promise<void> {
     const { template, vars, userId } = options;
 
-    // 1. テンプレート展開
+    // 1. Expand template
     const message = this.renderer.render(template, vars);
 
-    // 2. チャネル決定（明示指定 or ユーザー設定）
+    // 2. Determine channels (explicit or user preferences)
     const channelNames = options.channels
       ?? this.preferences.getPreferredChannels(userId);
 
-    // 3. 連絡先取得
+    // 3. Fetch contact info
     const contacts = this.preferences.getContactInfo(userId);
 
-    // 4. 全チャネルに送信（並列）
+    // 4. Send to all channels (in parallel)
     const results = await Promise.allSettled(
       channelNames.map(async (name) => {
         const channel = this.channelMap.get(name);
@@ -1739,7 +1743,7 @@ class NotificationFacade {
     }
   }
 
-  /** 緊急通知: 全チャネルに送信 */
+  /** Emergency notification: send to all channels */
   async emergency(userId: string, message: string): Promise<void> {
     const allChannels = Array.from(this.channelMap.keys());
     await this.notify({
@@ -1751,7 +1755,7 @@ class NotificationFacade {
   }
 }
 
-// === 使用例 ===
+// === Usage ===
 
 const notifier = new NotificationFacade(
   new TemplateRenderer(),
@@ -1765,99 +1769,99 @@ const notifier = new NotificationFacade(
   },
 );
 
-// ユーザー設定に基づいて通知（email + push）
+// Notify based on user preferences (email + push)
 await notifier.notify({
   template: "Hello {{name}}, your order #{{orderId}} has shipped!",
   vars: { name: "Taro", orderId: "12345" },
   userId: "user-1",
 });
 
-// 緊急通知: 全チャネル
+// Emergency notification: all channels
 await notifier.emergency("user-1", "System maintenance in 30 minutes");
 ```
 
-**ポイント**: Facade（NotificationFacade）が Strategy（NotificationChannel）と組み合わされている。Facade がサブシステム群のオーケストレーションを担当し、Strategy が個々の送信チャネルの切り替えを担当する。
+**Key point**: The Facade (NotificationFacade) is combined with Strategy (NotificationChannel). The Facade handles orchestration of the subsystems, while Strategy handles switching between individual notification channels.
 
 ---
 
-## 4. 比較表
+## 4. Comparison Tables
 
-### 比較表 1: Facade vs Adapter vs Mediator vs Controller
+### Comparison Table 1: Facade vs Adapter vs Mediator vs Controller
 
-| 観点 | Facade | Adapter | Mediator | Controller |
+| Aspect | Facade | Adapter | Mediator | Controller |
 |------|--------|---------|----------|------------|
-| **目的** | 複雑さの隠蔽 | インタフェース変換 | オブジェクト間の調停 | リクエストのルーティング |
-| **対象数** | 多数のサブシステム | 1 つ | 多数のコンポーネント | 多数のサービス |
-| **方向** | 一方向（Client -> Sub） | 一方向 | 双方向 | 一方向 |
-| **新 IF 作成** | 簡素化された IF を作る | 既存 IF を変換 | 通信 IF を作る | エンドポイント IF を作る |
-| **サブシステムの認識** | 知らない | 知らない | 互いを知る | 知らない |
-| **状態管理** | なし（ステートレス） | なし | あり（コンポーネント状態） | あり（リクエスト状態） |
-| **例** | `compile(source)` | XMLParser -> JSON | ChatRoom | Express Router |
+| **Purpose** | Hide complexity | Interface conversion | Mediate between objects | Route requests |
+| **Target count** | Many subsystems | 1 | Many components | Many services |
+| **Direction** | One-way (Client -> Sub) | One-way | Bidirectional | One-way |
+| **Creates new IF** | Creates simplified IF | Converts existing IF | Creates communication IF | Creates endpoint IF |
+| **Subsystem awareness** | Unaware | Unaware | Know each other | Unaware |
+| **State management** | None (stateless) | None | Yes (component state) | Yes (request state) |
+| **Example** | `compile(source)` | XMLParser -> JSON | ChatRoom | Express Router |
 
-### 比較表 2: Facade のレベル別設計
+### Comparison Table 2: Facade Design by Level
 
-| レベル | 例 | 粒度 | スコープ |
+| Level | Example | Granularity | Scope |
 |--------|-----|------|---------|
-| **関数** | `compile(source)` | 最細粒度 | 1 ファイル内 |
-| **モジュール** | `index.ts` の re-export | 細粒度 | 1 パッケージ |
-| **クラス** | `UserFacade` | 中粒度 | 1 ドメイン |
-| **サービス** | API Gateway | 粗粒度 | 複数マイクロサービス |
-| **インフラ** | CDK/Terraform wrapper | 最粗粒度 | クラウドリソース群 |
+| **Function** | `compile(source)` | Finest | Within 1 file |
+| **Module** | `index.ts` re-export | Fine | 1 package |
+| **Class** | `UserFacade` | Medium | 1 domain |
+| **Service** | API Gateway | Coarse | Multiple microservices |
+| **Infrastructure** | CDK/Terraform wrapper | Coarsest | Cloud resources |
 
-### 比較表 3: Facade パターンの実装方式
+### Comparison Table 3: Facade Pattern Implementation Methods
 
-| 方式 | 言語/フレームワーク | 特徴 | 適用場面 |
+| Method | Language/Framework | Characteristics | When to Use |
 |------|---------------------|------|---------|
-| **クラス Facade** | Java, TypeScript, Kotlin | DI 可能、テストしやすい | サービス層 |
-| **関数 Facade** | TypeScript, Python, Go | シンプル、状態なし | ユーティリティ |
-| **モジュール Facade** | `index.ts`, `__init__.py` | re-export で公開 API 制御 | パッケージ公開 |
-| **カスタムフック** | React | Hook の合成 | UI 状態管理 |
-| **ゲートウェイ** | API Gateway, BFF | ネットワーク境界 | マイクロサービス |
-| **CLI ラッパー** | Makefile, npm scripts | コマンド集約 | 開発ワークフロー |
+| **Class Facade** | Java, TypeScript, Kotlin | DI-capable, easy to test | Service layer |
+| **Function Facade** | TypeScript, Python, Go | Simple, stateless | Utilities |
+| **Module Facade** | `index.ts`, `__init__.py` | Public API control via re-export | Package publishing |
+| **Custom Hook** | React | Hook composition | UI state management |
+| **Gateway** | API Gateway, BFF | Network boundary | Microservices |
+| **CLI Wrapper** | Makefile, npm scripts | Command aggregation | Development workflow |
 
 ---
 
-## 5. アンチパターン
+## 5. Anti-Patterns
 
-### アンチパターン 1: God Facade（肥大化 Facade）
+### Anti-Pattern 1: God Facade (Bloated Facade)
 
 ```typescript
-// NG: あらゆるドメインの操作を 1 つの Facade に詰め込む
+// BAD: Packing operations from every domain into a single Facade
 class AppFacade {
-  // ユーザー管理
+  // User management
   createUser(name: string): void { /* ... */ }
   deleteUser(id: string): void { /* ... */ }
   updateUserProfile(id: string, data: unknown): void { /* ... */ }
 
-  // 注文管理
+  // Order management
   createOrder(userId: string, items: unknown[]): void { /* ... */ }
   cancelOrder(orderId: string): void { /* ... */ }
   refundOrder(orderId: string): void { /* ... */ }
 
-  // 決済
+  // Payment
   processPayment(orderId: string, method: string): void { /* ... */ }
   verifyPayment(txId: string): void { /* ... */ }
 
-  // レポート
+  // Reports
   generateDailyReport(): void { /* ... */ }
   generateMonthlyReport(): void { /* ... */ }
 
-  // メール
+  // Email
   sendWelcomeEmail(userId: string): void { /* ... */ }
   sendOrderConfirmation(orderId: string): void { /* ... */ }
 
-  // ... 50 メソッド以上
+  // ... 50+ methods
 }
 
-// 問題:
-// 1. SRP 違反: 1 つのクラスに 5+ ドメインの責務
-// 2. 変更の影響範囲が広すぎる
-// 3. テストが困難（モック対象が多すぎる）
-// 4. Facade 自体が「複雑なサブシステム」になる
+// Problems:
+// 1. SRP violation: 5+ domain responsibilities in 1 class
+// 2. Scope of change impact is too wide
+// 3. Difficult to test (too many mock targets)
+// 4. The Facade itself becomes a "complex subsystem"
 ```
 
 ```typescript
-// OK: ドメインごとに Facade を分割
+// GOOD: Split Facade by domain
 
 class UserFacade {
   constructor(
@@ -1891,45 +1895,45 @@ class ReportFacade {
   monthly(): Report { /* ... */ }
 }
 
-// 各 Facade は 3-5 メソッド、明確な責務境界
+// Each Facade has 3-5 methods and clear responsibility boundaries
 ```
 
-**判断基準**: 1 つの Facade が **7 メソッド以上** になったら分割を検討する。
+**Decision criteria**: Consider splitting when a single Facade has **7 or more methods**.
 
 ---
 
-### アンチパターン 2: Leaky Facade（漏れのある Facade）
+### Anti-Pattern 2: Leaky Facade
 
 ```typescript
-// NG: Facade がサブシステムの内部詳細を露出している
+// BAD: Facade exposes internal details of subsystems
 class LeakyFacade {
   private db: Database;
   private cache: Redis;
 
-  // サブシステムの型がそのまま露出
+  // Subsystem type is directly exposed
   getDbConnection(): DatabaseConnection {
     return this.db.getConnection();
   }
 
-  // 内部のキャッシュキー規則がリークしている
+  // Internal cache key rules are leaking
   getCachedUser(userId: string): string | null {
-    return this.cache.get(`user:v2:${userId}`);  // キー形式がリーク
+    return this.cache.get(`user:v2:${userId}`);  // Key format leaks
   }
 
-  // SQL がそのまま露出
+  // SQL is directly exposed
   queryUsers(sql: string): User[] {
     return this.db.query(sql);
   }
 }
 
-// 問題:
-// 1. クライアントがサブシステムの内部を知る必要がある
-// 2. キャッシュキー形式の変更が全クライアントに影響
-// 3. SQL インジェクションのリスク
+// Problems:
+// 1. Clients need to know internals of subsystems
+// 2. Changes to cache key format affect all clients
+// 3. Risk of SQL injection
 ```
 
 ```typescript
-// OK: 内部詳細を完全に隠蔽
+// GOOD: Completely hide internal details
 
 class CleanFacade {
   constructor(
@@ -1937,13 +1941,13 @@ class CleanFacade {
     private cache: Redis,
   ) {}
 
-  // サブシステムの型を隠蔽し、ドメイン型を返す
+  // Hide subsystem types and return domain types
   async findUser(userId: string): Promise<User | null> {
-    // キャッシュ戦略は内部で管理
+    // Cache strategy is managed internally
     const cached = this.cache.get(`user:v2:${userId}`);
     if (cached) return JSON.parse(cached);
 
-    // SQL は内部で管理
+    // SQL is managed internally
     const user = await this.db.query(
       "SELECT * FROM users WHERE id = ?", [userId]
     );
@@ -1955,42 +1959,42 @@ class CleanFacade {
 }
 ```
 
-**判断基準**: Facade のメソッドシグネチャにサブシステム固有の型や規則が現れたら、抽象化が不十分。
+**Decision criteria**: If subsystem-specific types or rules appear in the Facade's method signatures, the abstraction is insufficient.
 
 ---
 
-### アンチパターン 3: Rigid Facade（硬直した Facade）
+### Anti-Pattern 3: Rigid Facade
 
 ```typescript
-// NG: サブシステムへの直接アクセスを完全に遮断
+// BAD: Completely blocking direct access to subsystems
 class RigidFacade {
-  // サブシステムをすべて private で隠蔽
+  // All subsystems hidden as private
   private emailService: EmailService;
   private smsService: SmsService;
   private pushService: PushService;
 
-  // 定型操作のみ提供
+  // Only provides standard operations
   notifyUser(userId: string, msg: string): void {
-    // 常に email + push で送信（変更不可）
+    // Always sends email + push (not changeable)
     this.emailService.send(userId, msg);
     this.pushService.send(userId, msg);
   }
 
-  // SMS だけ送りたい場合の手段がない
-  // カスタムチャネル組み合わせの手段がない
+  // No way to send only SMS
+  // No way to combine custom channels
 }
 
-// 問題:
-// 1. 高度なユースケースに対応できない
-// 2. 新しい要件のたびに Facade にメソッド追加が必要
-// 3. 結局 Facade を迂回するハックが生まれる
+// Problems:
+// 1. Cannot handle advanced use cases
+// 2. Every new requirement requires adding a method to the Facade
+// 3. Eventually leads to hacks that bypass the Facade
 ```
 
 ```typescript
-// OK: Facade は便利なショートカット、直接アクセスも許容
+// GOOD: Facade as a convenient shortcut, direct access also allowed
 
 class FlexibleFacade {
-  // サブシステムを公開（高度なユースケース用）
+  // Expose subsystems (for advanced use cases)
   readonly email: EmailService;
   readonly sms: SmsService;
   readonly push: PushService;
@@ -2005,28 +2009,28 @@ class FlexibleFacade {
     this.push = push;
   }
 
-  // 定型操作のショートカット
+  // Shortcut for standard operations
   notifyUser(userId: string, msg: string): void {
     this.email.send(userId, msg);
     this.push.send(userId, msg);
   }
 
-  // 高度なユースケースはサブシステムに直接アクセス
+  // Advanced use cases access subsystems directly
   // facade.sms.send(userId, urgentMsg);
 }
 ```
 
-**判断基準**: Facade は「壁」ではなく「門」。80% のユースケースをカバーし、残り 20% はサブシステム直接アクセスを許容する。
+**Decision criteria**: A Facade is a "gate," not a "wall." It should cover 80% of use cases and allow direct subsystem access for the remaining 20%.
 
 ---
 
-## 6. エッジケースと注意点
+## 6. Edge Cases and Considerations
 
-### 6.1 Facade のライフサイクル管理
+### 6.1 Facade Lifecycle Management
 
 ```typescript
-// Facade がサブシステムのリソースを管理する場合、
-// 適切なクリーンアップが必要
+// When a Facade manages resources of subsystems,
+// proper cleanup is necessary
 
 class ManagedFacade implements Disposable {
   private pool: ConnectionPool;
@@ -2037,7 +2041,7 @@ class ManagedFacade implements Disposable {
     this.cache = new CacheService();
   }
 
-  // ES2024+ Disposable パターン
+  // ES2024+ Disposable pattern
   [Symbol.dispose](): void {
     this.pool.close();
     this.cache.flush();
@@ -2045,26 +2049,26 @@ class ManagedFacade implements Disposable {
   }
 }
 
-// using で自動クリーンアップ
+// Automatic cleanup with using
 {
   using facade = new ManagedFacade();
-  // ... 使用
-} // 自動的に dispose される
+  // ... use
+} // Automatically disposed
 ```
 
-### 6.2 非同期 Facade のエラーハンドリング
+### 6.2 Error Handling in Async Facades
 
 ```typescript
 class AsyncFacade {
   async complexOperation(): Promise<Result> {
-    // 複数の非同期操作を順番に実行
-    // 途中で失敗した場合の補償処理（compensation）が重要
+    // Execute multiple async operations sequentially
+    // Compensation handling on failure is important
     const step1 = await this.serviceA.doSomething();
 
     try {
       const step2 = await this.serviceB.doSomething(step1);
     } catch (error) {
-      // step1 を元に戻す（補償トランザクション）
+      // Undo step1 (compensating transaction)
       await this.serviceA.undo(step1);
       throw error;
     }
@@ -2072,27 +2076,27 @@ class AsyncFacade {
 }
 ```
 
-### 6.3 Facade のバージョニング
+### 6.3 Facade Versioning
 
 ```typescript
-// API が進化する場合、古い Facade を残して新しい Facade を追加
+// When the API evolves, keep the old Facade and add a new one
 
 /** @deprecated Use CheckoutFacadeV2 */
 class CheckoutFacade {
-  checkout(cartId: string): void { /* 旧実装 */ }
+  checkout(cartId: string): void { /* old implementation */ }
 }
 
 class CheckoutFacadeV2 {
   checkout(cartId: string, options: CheckoutOptions): Promise<Receipt> {
-    /* 新実装 */
+    /* new implementation */
   }
 }
 ```
 
-### 6.4 テスト戦略
+### 6.4 Testing Strategy
 
 ```typescript
-// Facade のテスト: サブシステムをモックして統合テスト
+// Testing a Facade: integration test with mocked subsystems
 
 describe("DeployFacade", () => {
   it("should execute full deployment pipeline", async () => {
@@ -2113,7 +2117,7 @@ describe("DeployFacade", () => {
     const facade = new DeployFacade(git, build, deploy, notify);
     const result = await facade.release("1.0.0");
 
-    // 各サブシステムが正しい順序で呼ばれたか検証
+    // Verify each subsystem was called in the correct order
     expect(git.pull).toHaveBeenCalledWith("main");
     expect(build.build).toHaveBeenCalledAfter(build.test);
     expect(deploy.healthCheck).toHaveBeenCalled();
@@ -2125,68 +2129,71 @@ describe("DeployFacade", () => {
     const deploy = {
       upload: jest.fn().mockReturnValue("url"),
       activate: jest.fn(),
-      healthCheck: jest.fn().mockReturnValue(false),  // 失敗
+      healthCheck: jest.fn().mockReturnValue(false),  // Failure
       rollback: jest.fn(),
     };
-    // ... ロールバックが呼ばれることを検証
+    // ... verify that rollback is called
   });
 });
 ```
 
 ---
 
-## 7. トレードオフ分析
+## 7. Trade-off Analysis
 
-### 導入すべき場面
+### When to Introduce
 
-| 場面 | 理由 |
+| Situation | Reason |
 |------|------|
-| 3+ サブシステムを組み合わせる定型操作 | 手順の重複を排除 |
-| ライブラリ/フレームワークの公開 API | 内部を隠蔽し安定 API を提供 |
-| レガシーシステムのラッピング | 新 API で古い実装を隠蔽 |
-| マイクロサービスの BFF | 複数サービスを集約 |
-| テスト容易性の向上 | モック対象を Facade に集約 |
+| Routine operations combining 3+ subsystems | Eliminate duplicated steps |
+| Public API of a library/framework | Hide internals and provide a stable API |
+| Wrapping a legacy system | Hide old implementation with a new API |
+| BFF in microservices | Aggregate multiple services |
+| Improving testability | Consolidate mock targets to the Facade |
 
-### 導入すべきでない場面
+### When Not to Introduce
 
-| 場面 | 理由 |
+| Situation | Reason |
 |------|------|
-| サブシステムが 1 つだけ | Facade の付加価値がない |
-| クライアントがサブシステムの柔軟な組み合わせを必要とする | Facade が制約になる |
-| Facade のメソッド数が 10+ になりそう | God Facade のリスク |
-| パフォーマンスクリティカルなパス | 追加の間接層がオーバーヘッドになる |
+| Only one subsystem | No added value from a Facade |
+| Client needs flexible combinations of subsystems | Facade becomes a constraint |
+| Facade is likely to have 10+ methods | Risk of God Facade |
+| Performance-critical path | Additional indirection layer becomes overhead |
 
-### Facade のコスト
+### Cost of a Facade
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                 Facade のコスト分析                       │
+│                 Facade Cost Analysis                      │
 │                                                         │
-│  メリット                    デメリット                  │
+│  Benefits                    Drawbacks                  │
 │  ┌──────────────────────┐    ┌──────────────────────┐   │
-│  │ + クライアントの簡素化│    │ - 間接層の追加       │   │
-│  │ + DRY（手順の一元化） │    │ - God Facade のリスク│   │
-│  │ + 疎結合             │    │ - 柔軟性の低下       │   │
-│  │ + テスト容易性       │    │   （定型操作のみ）    │   │
-│  │ + 変更の局所化       │    │ - 全機能の再公開が   │   │
-│  │ + 学習コスト低下     │    │   必要になる場合     │   │
+│  │ + Simplified client  │    │ - Additional layer   │   │
+│  │ + DRY (centralized   │    │ - Risk of God Facade │   │
+│  │   steps)             │    │ - Reduced flexibility│   │
+│  │ + Loose coupling     │    │   (standard ops only)│   │
+│  │ + Testability        │    │ - May need to        │   │
+│  │ + Localized changes  │    │   re-expose all      │   │
+│  │ + Lower learning     │    │   features           │   │
+│  │   cost               │    │                      │   │
 │  └──────────────────────┘    └──────────────────────┘   │
 │                                                         │
-│  判断: サブシステムが 3+ あり、80%+ のユースケースが     │
-│  定型的であれば、Facade の導入は合理的。                  │
+│  Judgment: If there are 3+ subsystems and 80%+ of       │
+│  use cases are routine, introducing a Facade is          │
+│  reasonable.                                             │
 └──────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 8. 演習問題
+## 8. Exercises
 
-### 演習 1: 基本 -- ファイル変換 Facade（難易度: ★☆☆）
+### Exercise 1: Basic -- File Conversion Facade (Difficulty: ★☆☆)
 
-以下のサブシステムを使って、`FileConverterFacade` を実装してください。
+Implement `FileConverterFacade` using the following subsystems.
 
 ```typescript
-// 与えられたサブシステム
+// Given subsystems
 class FileReader {
   read(path: string): string {
     console.log(`Reading ${path}`);
@@ -2214,12 +2221,12 @@ class FileWriter {
   }
 }
 
-// TODO: FileConverterFacade を実装
-// - convertCsvToJson(inputPath, outputPath) メソッドを提供
-// - 4 つのサブシステムを正しい順序で使う
+// TODO: Implement FileConverterFacade
+// - Provide a convertCsvToJson(inputPath, outputPath) method
+// - Use the 4 subsystems in the correct order
 ```
 
-**期待される出力**:
+**Expected output**:
 
 ```
 Reading data.csv
@@ -2229,7 +2236,7 @@ Writing to data.json
 ```
 
 <details>
-<summary>解答例（クリックで展開）</summary>
+<summary>Answer (click to expand)</summary>
 
 ```typescript
 class FileConverterFacade {
@@ -2241,16 +2248,16 @@ class FileConverterFacade {
   ) {}
 
   convertCsvToJson(inputPath: string, outputPath: string): void {
-    // 1. ファイル読み込み
+    // 1. Read file
     const content = this.reader.read(inputPath);
 
-    // 2. CSV パース
+    // 2. Parse CSV
     const data = this.parser.parse(content);
 
-    // 3. JSON フォーマット
+    // 3. Format to JSON
     const json = this.formatter.format(data);
 
-    // 4. ファイル書き込み
+    // 4. Write file
     this.writer.write(outputPath, json);
   }
 }
@@ -2263,7 +2270,7 @@ const converter = new FileConverterFacade(
 );
 
 converter.convertCsvToJson("data.csv", "data.json");
-// 出力:
+// Output:
 // Reading data.csv
 // Parsing CSV
 // Formatting to JSON
@@ -2274,22 +2281,22 @@ converter.convertCsvToJson("data.csv", "data.json");
 
 ---
 
-### 演習 2: 応用 -- 決済処理 Facade（難易度: ★★☆）
+### Exercise 2: Applied -- Payment Processing Facade (Difficulty: ★★☆)
 
-以下の要件を満たす `PaymentFacade` を設計・実装してください。
+Design and implement a `PaymentFacade` that meets the following requirements.
 
-**要件**:
-1. `processPayment(orderId, amount, method)` メソッドを提供
-2. 以下の手順を実行: 在庫確認 -> 決済処理 -> 在庫減算 -> 領収書生成 -> メール送信
-3. 決済失敗時は在庫を元に戻す（補償トランザクション）
-4. 各サブシステムはインタフェースで定義し、DI で注入
+**Requirements**:
+1. Provide a `processPayment(orderId, amount, method)` method
+2. Execute the following steps: stock check → payment processing → stock deduction → receipt generation → email notification
+3. On payment failure, restore the stock (compensating transaction)
+4. Define each subsystem with an interface and inject via DI
 
 ```typescript
-// サブシステムのインタフェース
+// Subsystem interfaces
 interface InventoryService {
   check(orderId: string): boolean;
   reserve(orderId: string): void;
-  release(orderId: string): void;  // 補償用
+  release(orderId: string): void;  // For compensation
 }
 
 interface PaymentGateway {
@@ -2305,7 +2312,7 @@ interface EmailService {
 }
 ```
 
-**期待される出力（正常系）**:
+**Expected output (happy path)**:
 
 ```
 Inventory: Checking order-123
@@ -2316,7 +2323,7 @@ Email: Sent to customer
 Payment complete: TX-abc
 ```
 
-**期待される出力（決済失敗）**:
+**Expected output (payment failure)**:
 
 ```
 Inventory: Checking order-123
@@ -2328,7 +2335,7 @@ Error: Payment failed
 ```
 
 <details>
-<summary>解答例（クリックで展開）</summary>
+<summary>Answer (click to expand)</summary>
 
 ```typescript
 class PaymentFacade {
@@ -2345,28 +2352,28 @@ class PaymentFacade {
     method: string,
     customerEmail: string = "customer@example.com",
   ): Promise<string> {
-    // 1. 在庫確認
+    // 1. Stock check
     if (!this.inventory.check(orderId)) {
       throw new Error("Out of stock");
     }
 
-    // 2. 在庫予約
+    // 2. Reserve stock
     this.inventory.reserve(orderId);
 
-    // 3. 決済（失敗時は在庫を元に戻す）
+    // 3. Payment (restore stock on failure)
     let txId: string;
     try {
       txId = await this.payment.charge(amount, method);
     } catch (error) {
-      // 補償トランザクション: 在庫を元に戻す
+      // Compensating transaction: restore stock
       this.inventory.release(orderId);
       throw error;
     }
 
-    // 4. 領収書生成
+    // 4. Generate receipt
     const receiptText = this.receipt.generate(orderId, txId, amount);
 
-    // 5. メール送信
+    // 5. Send email
     this.email.send(
       customerEmail,
       `Order ${orderId} confirmed`,
@@ -2377,7 +2384,7 @@ class PaymentFacade {
   }
 }
 
-// === テスト用の実装 ===
+// === Test implementations ===
 
 class MockInventory implements InventoryService {
   check(orderId: string): boolean {
@@ -2417,7 +2424,7 @@ class MockEmailService implements EmailService {
   }
 }
 
-// 正常系
+// Happy path
 const facade = new PaymentFacade(
   new MockInventory(),
   new MockPaymentGateway(false),
@@ -2427,10 +2434,10 @@ const facade = new PaymentFacade(
 const txId = await facade.processPayment("order-123", 5000, "credit_card");
 console.log(`Payment complete: ${txId}`);
 
-// 異常系
+// Error path
 const facadeFail = new PaymentFacade(
   new MockInventory(),
-  new MockPaymentGateway(true),  // 決済失敗
+  new MockPaymentGateway(true),  // Payment failure
   new MockReceiptService(),
   new MockEmailService(),
 );
@@ -2445,32 +2452,32 @@ try {
 
 ---
 
-### 演習 3: 発展 -- Facade のリファクタリング（難易度: ★★★）
+### Exercise 3: Advanced -- Facade Refactoring (Difficulty: ★★★)
 
-以下の God Facade を、適切に分割してリファクタリングしてください。
+Refactor the following God Facade by splitting it appropriately.
 
-**要件**:
-1. God Facade を 3 つ以上の Facade に分割
-2. 各 Facade は SRP を守る（1 ドメインのみ担当）
-3. Facade 間で共通のサブシステムがある場合は DI で共有
-4. 元のクライアントコードが最小限の変更で動作すること
+**Requirements**:
+1. Split the God Facade into 3 or more Facades
+2. Each Facade must follow SRP (responsible for only 1 domain)
+3. If subsystems are shared between Facades, share them via DI
+4. The original client code should work with minimal changes
 
 ```typescript
-// 現状の God Facade（リファクタリング対象）
+// Current God Facade (target for refactoring)
 class ECommerceFacade {
-  // ユーザー系
+  // User-related
   registerUser(name: string, email: string): User { /* ... */ }
   loginUser(email: string, password: string): string { /* ... */ }
   updateProfile(userId: string, data: Partial<User>): void { /* ... */ }
   deleteUser(userId: string): void { /* ... */ }
 
-  // 商品系
+  // Product-related
   listProducts(category?: string): Product[] { /* ... */ }
   searchProducts(query: string): Product[] { /* ... */ }
   getProductDetail(productId: string): Product { /* ... */ }
   addProductReview(productId: string, review: Review): void { /* ... */ }
 
-  // 注文系
+  // Order-related
   createOrder(userId: string, items: CartItem[]): Order { /* ... */ }
   cancelOrder(orderId: string): void { /* ... */ }
   trackOrder(orderId: string): OrderStatus { /* ... */ }
@@ -2478,14 +2485,14 @@ class ECommerceFacade {
   processPayment(orderId: string, method: string): void { /* ... */ }
   generateInvoice(orderId: string): string { /* ... */ }
 
-  // 通知系
+  // Notification-related
   sendEmail(to: string, template: string, vars: object): void { /* ... */ }
   sendSms(to: string, message: string): void { /* ... */ }
   sendPushNotification(deviceId: string, message: string): void { /* ... */ }
 }
 ```
 
-**期待する分割結果の構造**:
+**Expected split structure**:
 
 ```
 Before: 1 God Facade (16 methods)
@@ -2497,10 +2504,10 @@ After:  4 Domain Facades (3-5 methods each)
 ```
 
 <details>
-<summary>解答例（クリックで展開）</summary>
+<summary>Answer (click to expand)</summary>
 
 ```typescript
-// === 共通サブシステム ===
+// === Shared subsystems ===
 
 interface EventBus {
   emit(event: string, data: unknown): void;
@@ -2510,7 +2517,7 @@ interface AuditLogger {
   log(action: string, userId: string, detail: string): void;
 }
 
-// === 分割された Facade 群 ===
+// === Split Facades ===
 
 class UserFacade {
   constructor(
@@ -2573,8 +2580,8 @@ class OrderFacade {
     private payment: PaymentGateway,
     private inventory: InventoryService,
     private invoicing: InvoiceService,
-    private events: EventBus,        // UserFacade と共有
-    private audit: AuditLogger,      // UserFacade と共有
+    private events: EventBus,        // Shared with UserFacade
+    private audit: AuditLogger,      // Shared with UserFacade
   ) {}
 
   create(userId: string, items: CartItem[]): Order {
@@ -2635,10 +2642,10 @@ class NotificationFacade {
   }
 }
 
-// === DI コンテナでの構成 ===
+// === Configuration in DI container ===
 
 function createFacades(container: DIContainer) {
-  // 共通サブシステム
+  // Shared subsystems
   const events = container.get(EventBus);
   const audit = container.get(AuditLogger);
 
@@ -2646,8 +2653,8 @@ function createFacades(container: DIContainer) {
     users: new UserFacade(
       container.get(UserRepository),
       container.get(AuthService),
-      events,  // 共有
-      audit,   // 共有
+      events,  // shared
+      audit,   // shared
     ),
     products: new ProductFacade(
       container.get(CatalogService),
@@ -2659,8 +2666,8 @@ function createFacades(container: DIContainer) {
       container.get(PaymentGateway),
       container.get(InventoryService),
       container.get(InvoiceService),
-      events,  // 共有
-      audit,   // 共有
+      events,  // shared
+      audit,   // shared
     ),
     notifications: new NotificationFacade(
       container.get(EmailService),
@@ -2671,9 +2678,9 @@ function createFacades(container: DIContainer) {
   };
 }
 
-// === 移行用のアダプター（後方互換性） ===
+// === Adapter for backward compatibility ===
 
-/** @deprecated 個別の Facade を使用してください */
+/** @deprecated Please use the individual Facades */
 class LegacyECommerceFacade {
   constructor(
     private users: UserFacade,
@@ -2682,14 +2689,14 @@ class LegacyECommerceFacade {
     private notifications: NotificationFacade,
   ) {}
 
-  // 旧 API を新 Facade に委譲
+  // Delegate old API to new Facades
   registerUser(name: string, email: string): User {
     return this.users.register(name, email);
   }
   createOrder(userId: string, items: CartItem[]): Order {
     return this.orders.create(userId, items);
   }
-  // ... 他のメソッドも同様に委譲
+  // ... delegate other methods similarly
 }
 ```
 
@@ -2699,65 +2706,65 @@ class LegacyECommerceFacade {
 
 ## 9. FAQ
 
-### Q1: Facade は API Gateway と同じですか？
+### Q1: Is a Facade the same as an API Gateway?
 
-概念は同じです。API Gateway はネットワーク境界で動作する Facade パターンの大規模適用と言えます。両者の違いは以下の通りです。
+Conceptually, yes. An API Gateway can be described as a large-scale application of the Facade pattern operating at the network boundary. The differences are as follows:
 
-| 観点 | Facade（コード内） | API Gateway |
+| Aspect | Facade (in code) | API Gateway |
 |------|---------------------|-------------|
-| スコープ | アプリケーション内 | ネットワーク境界 |
-| プロトコル | メソッド呼び出し | HTTP/gRPC |
-| 追加責務 | なし | 認証、レート制限、ロードバランシング |
-| 例 | `UserFacade` クラス | Kong, AWS API Gateway |
+| Scope | Within the application | Network boundary |
+| Protocol | Method calls | HTTP/gRPC |
+| Additional responsibilities | None | Authentication, rate limiting, load balancing |
+| Example | `UserFacade` class | Kong, AWS API Gateway |
 
-### Q2: Facade を使うとテストが難しくなりませんか？
+### Q2: Does using a Facade make testing harder?
 
-いいえ、むしろ容易になります。DI でサブシステムを注入する設計にすれば、テスト時にモックを注入できます。Facade がなければ、クライアントが直接操作する全サブシステムをモックする必要があり、テストがより複雑になります。
+No, it actually makes it easier. If subsystems are injected via DI, mocks can be injected during testing. Without a Facade, clients must mock all subsystems they directly operate, making tests more complex.
 
-### Q3: React のカスタムフックは Facade ですか？
+### Q3: Is a React custom hook a Facade?
 
-はい。複数の Hook（useState, useEffect, useReducer 等）や API 呼び出しを内部に隠蔽し、コンポーネントにシンプルな API を提供する点で、Facade パターンの一形態です。React 公式ドキュメントでも「カスタムフックで複雑さを隠蔽する」設計が推奨されています。
+Yes. In that it hides multiple Hooks (useState, useEffect, useReducer, etc.) and API calls internally and provides a simple API to the component, it is a form of the Facade pattern. The React official documentation also recommends the design of "hiding complexity with custom hooks."
 
-### Q4: Facade とサービス層（Service Layer）の違いは何ですか？
+### Q4: What is the difference between a Facade and a Service Layer?
 
-Facade は構造パターンで「既存のサブシステム群を簡素化する入口」を提供します。Service Layer はアーキテクチャパターンで「ビジネスロジックの実行層」を定義します。実際にはサービス層が Facade の役割を兼ねることが多いです。
+A Facade is a structural pattern that provides an "entry point that simplifies existing subsystems." A Service Layer is an architectural pattern that defines "the execution layer for business logic." In practice, the service layer often also serves as a Facade.
 
-| 観点 | Facade | Service Layer |
+| Aspect | Facade | Service Layer |
 |------|--------|---------------|
-| 目的 | 複雑さの隠蔽 | ビジネスロジックの集約 |
-| ロジック | 最小限（委譲のみ） | ビジネスルールを含む |
-| トランザクション | 通常なし | トランザクション境界 |
-| 再利用 | プレゼンテーション層から | 複数のプレゼンテーションから |
+| Purpose | Hide complexity | Aggregate business logic |
+| Logic | Minimal (delegation only) | Contains business rules |
+| Transactions | Typically none | Transaction boundaries |
+| Reuse | From the presentation layer | From multiple presentations |
 
-### Q5: Facade の中にビジネスロジックを入れてもよいですか？
+### Q5: Is it acceptable to put business logic inside a Facade?
 
-原則として入れるべきではありません。Facade は「薄いオーケストレーション層」であるべきです。ビジネスロジックはサブシステム（ドメインサービス）に配置し、Facade はそれらの呼び出し順序の管理に専念してください。
+In principle, no. A Facade should be a "thin orchestration layer." Business logic should be placed in the subsystems (domain services), and the Facade should focus on managing the order in which they are called.
 
 ```typescript
-// NG: Facade にビジネスロジック
+// BAD: Business logic in Facade
 class BadFacade {
   placeOrder(items: Item[]) {
     const total = items.reduce((sum, i) => sum + i.price * i.qty, 0);
     if (total > 10000) {
-      const discount = total * 0.1;  // ← ビジネスロジック
+      const discount = total * 0.1;  // ← business logic
       // ...
     }
   }
 }
 
-// OK: ビジネスロジックはサブシステムに
+// GOOD: Business logic in subsystems
 class GoodFacade {
   placeOrder(items: Item[]) {
-    const total = this.pricing.calculate(items);  // ← サブシステムに委譲
+    const total = this.pricing.calculate(items);  // ← delegate to subsystem
     const order = this.orders.create(items, total);
     this.notify.send(order);
   }
 }
 ```
 
-### Q6: Facade パターンはマイクロサービスでどう使われますか？
+### Q6: How is the Facade pattern used in microservices?
 
-マイクロサービスアーキテクチャでは、**BFF（Backend for Frontend）** が Facade パターンの典型例です。モバイルアプリ用 BFF は複数のマイクロサービス（User, Product, Order, Payment）を集約して、1 つの API エンドポイントでクライアントに必要なデータをまとめて返します。
+In microservice architecture, the **BFF (Backend for Frontend)** is a typical example of the Facade pattern. A mobile BFF aggregates multiple microservices (User, Product, Order, Payment) and returns all the data the client needs from a single API endpoint.
 
 ```
 Mobile App
@@ -2778,47 +2785,47 @@ Mobile App
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend solidly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is it used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| **目的** | 複雑なサブシステム群に統一された簡潔なインタフェースを提供 |
-| **本質** | 情報隠蔽 + 手順のカプセル化 + ショートカット |
-| **利点** | クライアントの簡素化、疎結合、DRY、テスト容易性 |
-| **適用レベル** | 関数 / モジュール / クラス / サービス / インフラ |
-| **アンチパターン** | God Facade / Leaky Facade / Rigid Facade |
-| **注意** | Facade は「壁」ではなく「門」。直接アクセスも許容する |
-| **テスト** | DI でサブシステムを注入し、モックでテスト |
-| **組み合わせ** | Strategy, Observer, Template Method と併用可能 |
+| **Purpose** | Provide a unified, simplified interface to a set of complex subsystems |
+| **Essence** | Information hiding + encapsulation of procedures + shortcut |
+| **Benefits** | Simplified client, loose coupling, DRY, testability |
+| **Application levels** | Function / module / class / service / infrastructure |
+| **Anti-patterns** | God Facade / Leaky Facade / Rigid Facade |
+| **Note** | A Facade is a "gate," not a "wall." Direct access should also be permitted |
+| **Testing** | Inject subsystems via DI and test with mocks |
+| **Combinations** | Can be used together with Strategy, Observer, Template Method |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Guides
 
-- [Proxy パターン](./03-proxy.md) -- アクセス制御の代理オブジェクト
-- [Adapter パターン](./00-adapter.md) -- インタフェース変換
-- [Decorator パターン](./01-decorator.md) -- 動的な機能追加
-- [Composite パターン](./04-composite.md) -- ツリー構造の統一操作
-- [Mediator パターン](../02-behavioral/00-observer.md) -- オブジェクト間の調停
-- [クリーンアーキテクチャ](../../../system-design-guide/docs/02-architecture/01-clean-architecture.md) -- 層構造設計
+- [Proxy Pattern](./03-proxy.md) -- Proxy object for access control
+- [Adapter Pattern](./00-adapter.md) -- Interface conversion
+- [Decorator Pattern](./01-decorator.md) -- Dynamic feature addition
+- [Composite Pattern](./04-composite.md) -- Unified operations on tree structures
+- [Mediator Pattern](../02-behavioral/00-observer.md) -- Mediation between objects
+- [Clean Architecture](../../../system-design-guide/docs/02-architecture/01-clean-architecture.md) -- Layered structure design
 
 ---
 
-## 参考文献
+## References
 
 1. Gamma, E. et al. (1994). *Design Patterns: Elements of Reusable Object-Oriented Software*. Addison-Wesley.
 2. Freeman, E. et al. (2004). *Head First Design Patterns*. O'Reilly Media.
