@@ -1,143 +1,143 @@
-# イベント駆動アーキテクチャ
+# Event-Driven Architecture
 
-> コンポーネント間の通信をイベント（事実の記録）を中心に設計するアーキテクチャパターンであり、Pub/Sub モデル・イベントソーシング・CQRS を活用して疎結合でスケーラブルなシステムを構築する手法を解説する
+> An architectural pattern that centers inter-component communication on events (records of facts), explaining how to build loosely coupled, scalable systems using Pub/Sub models, Event Sourcing, and CQRS
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **イベント駆動の基本モデル** — イベント通知・イベントキャリー・イベントソーシングの3パターンとその使い分け
-2. **Pub/Sub アーキテクチャ** — トピックベースのメッセージングによる疎結合な連携設計
-3. **CQRS とイベントソーシング** — コマンドとクエリの分離、イベントログからの状態再構築
-4. **Saga パターン** — 分散トランザクションの代替としての補償ベースの結果整合性
-5. **運用と監視** — イベント駆動システムの可観測性・リトライ・Dead Letter Queue の実践
+1. **Fundamental Event-Driven Models** — The three patterns of Event Notification, Event-Carried State Transfer, and Event Sourcing, and how to choose among them
+2. **Pub/Sub Architecture** — Loosely coupled integration design through topic-based messaging
+3. **CQRS and Event Sourcing** — Separating commands from queries, reconstructing state from event logs
+4. **Saga Pattern** — Compensation-based eventual consistency as an alternative to distributed transactions
+5. **Operations and Monitoring** — Practical observability, retries, and Dead Letter Queues for event-driven systems
 
 ---
 
-## 前提知識
+## Prerequisites
 
-| トピック | 必要レベル | 参考ガイド |
+| Topic | Required Level | Reference Guide |
 |---------|-----------|-----------|
-| メッセージキュー基礎 | Kafka / RabbitMQ の概念を理解 | [メッセージキュー](../01-components/02-message-queue.md) |
-| ドメインモデリング | エンティティ・集約・ドメインイベントの基礎 | [DDD](./02-ddd.md) |
-| クリーンアーキテクチャ | レイヤー構成と依存方向の理解 | [クリーンアーキテクチャ](./01-clean-architecture.md) |
-| データベース基礎 | RDB / NoSQL の読み書き特性 | データベース |
-| Python 中級 | dataclass, Protocol, async/await | Python ガイド |
+| Message Queue Basics | Understand Kafka / RabbitMQ concepts | [Message Queue](../01-components/02-message-queue.md) |
+| Domain Modeling | Basics of entities, aggregates, and domain events | [DDD](./02-ddd.md) |
+| Clean Architecture | Understanding layer structure and dependency direction | [Clean Architecture](./01-clean-architecture.md) |
+| Database Basics | Read/write characteristics of RDB / NoSQL | Database |
+| Intermediate Python | dataclass, Protocol, async/await | Python Guide |
 
 ---
 
-## 背景と哲学
+## Background and Philosophy
 
-### なぜイベント駆動が必要なのか
-
-```
-従来のモノリシック / 同期マイクロサービスの課題:
-
-  1. 密結合: Order → Inventory → Payment → Notification
-     → 1サービス障害で全体停止（カスケード障害）
-     → 新サービス追加時に既存サービスの変更が必要
-
-  2. スケーラビリティの壁:
-     → 読み込み 10,000 req/s だが書き込みは 100 req/s
-     → 同じモデルで両方を最適化できない
-
-  3. ドメイン知識の漏洩:
-     → Order Service が「在庫を引き当てろ」と命令
-     → Order は Inventory の内部を知っている（密結合）
-
-イベント駆動のパラダイムシフト:
-  「命令」ではなく「事実の通知」
-
-  Order Service: 「注文が確定した」(OrderPlaced) ← 事実を述べるだけ
-  Inventory Service: 「じゃあ在庫を引き当てよう」← 自律的に判断
-  Payment Service: 「じゃあ決済を開始しよう」← 自律的に判断
-  Email Service: 「じゃあ確認メールを送ろう」← 自律的に判断
-
-  → 各サービスが自律的に行動する。追加・削除が自由
-```
-
-### イベント駆動アーキテクチャの歴史
+### Why Event-Driven Architecture Is Needed
 
 ```
-1987: Kent Beck - Smalltalk のイベントシステム
+Problems with traditional monolithic / synchronous microservices:
+
+  1. Tight coupling: Order → Inventory → Payment → Notification
+     → One service failure stops everything (cascade failure)
+     → Adding a new service requires changes to existing services
+
+  2. Scalability wall:
+     → Read load: 10,000 req/s, but write load: 100 req/s
+     → Cannot optimize both with the same model
+
+  3. Domain knowledge leakage:
+     → Order Service commands "reserve inventory"
+     → Order knows the internals of Inventory (tight coupling)
+
+Paradigm shift with event-driven:
+  "Notification of facts" rather than "commands"
+
+  Order Service: "An order was placed" (OrderPlaced) ← simply states a fact
+  Inventory Service: "Then I'll reserve the inventory" ← decides autonomously
+  Payment Service: "Then I'll initiate payment" ← decides autonomously
+  Email Service: "Then I'll send a confirmation email" ← decides autonomously
+
+  → Each service acts autonomously. Adding/removing services is free
+```
+
+### History of Event-Driven Architecture
+
+```
+1987: Kent Beck - Event system in Smalltalk
 2003: Gregor Hohpe - Enterprise Integration Patterns
-2005: Martin Fowler - Event Sourcing パターンの体系化
-2006: Greg Young - CQRS の提唱
-2011: Apache Kafka 登場 - 大規模イベントストリーミング基盤
-2014: Reactive Manifesto - リアクティブシステムの4原則
-2017: Martin Kleppmann - DDIA でストリーム処理の理論体系化
-2020: Adam Bellemare - Event-Driven Microservices の実践ガイド
+2005: Martin Fowler - Systematization of Event Sourcing pattern
+2006: Greg Young - Proposal of CQRS
+2011: Apache Kafka released - Large-scale event streaming platform
+2014: Reactive Manifesto - Four principles of reactive systems
+2017: Martin Kleppmann - Theoretical framework for stream processing in DDIA
+2020: Adam Bellemare - Practical guide to Event-Driven Microservices
 
-核となる考え方:
-  「ソフトウェアの状態とは、これまでに起きたイベントの累積結果である」
+Core idea:
+  "The state of software is the cumulative result of all events that have occurred"
   — Greg Young
 ```
 
-### 4つの設計原則
+### Four Design Principles
 
 ```
-1. 事実の記録 (Facts, not Commands)
-   × "ReserveInventory" (命令)
-   ○ "OrderPlaced"      (事実の記録)
+1. Facts, not Commands
+   × "ReserveInventory" (command)
+   ○ "OrderPlaced"      (record of fact)
 
-2. 時間的分離 (Temporal Decoupling)
-   発信者と受信者が同時に稼働している必要がない
-   → メッセージキューがバッファリング
+2. Temporal Decoupling
+   Sender and receiver do not need to be running at the same time
+   → Message queue handles buffering
 
-3. 自律性 (Autonomy)
-   各サービスはイベントを受け取り、自律的に判断・行動する
-   → 他サービスの内部実装に依存しない
+3. Autonomy
+   Each service receives events and decides/acts autonomously
+   → Does not depend on the internal implementation of other services
 
-4. 結果整合性 (Eventual Consistency)
-   「全てのデータが常に整合する」から
-   「いずれ整合する」へのパラダイムシフト
-   → 強い整合性が必要な箇所を限定する設計
+4. Eventual Consistency
+   Paradigm shift from "all data is always consistent"
+   to "will eventually be consistent"
+   → Design that limits where strong consistency is required
 ```
 
 ---
 
-## 1. イベント駆動の3つのパターン
+## 1. Three Patterns of Event-Driven
 
-### 1.1 パターン概要
+### 1.1 Pattern Overview
 
 ```
-パターン1: Event Notification (イベント通知)
+Pattern 1: Event Notification
   Order Service --"OrderPlaced {id:123}"--> [Event Bus]
-  → Inventory Service: 「注文123が来たので在庫を確認しに行こう」
-  → 最小限の情報のみ。受信側がデータを取りに行く
+  → Inventory Service: "Order 123 arrived, let me check inventory"
+  → Minimum information only. Receiver fetches data as needed
 
-パターン2: Event-Carried State Transfer (状態運搬イベント)
+Pattern 2: Event-Carried State Transfer
   Order Service --"OrderPlaced {id:123, items:[...], address:{...}}"--> [Event Bus]
-  → Shipping Service: 「全情報が揃っているのでそのまま処理できる」
-  → 必要なデータを全て含む。受信側からの問い合わせ不要
+  → Shipping Service: "All information is available, can process directly"
+  → Contains all necessary data. No need for receiver to query back
 
-パターン3: Event Sourcing (イベントソーシング)
-  全ての状態変更をイベントとして記録
+Pattern 3: Event Sourcing
+  Records all state changes as events
   [OrderCreated] → [ItemAdded] → [ItemAdded] → [OrderPlaced] → [OrderShipped]
-  → 現在の状態 = 全イベントの再生結果
+  → Current state = result of replaying all events
 ```
 
-### 1.2 3パターンの詳細比較
+### 1.2 Detailed Comparison of the Three Patterns
 
 ```python
-# === パターン1: Event Notification ===
-# 最小限の情報のみ送信。受信者は必要に応じてデータを取得する
+# === Pattern 1: Event Notification ===
+# Sends only minimum information. Receiver fetches data when needed
 
 @dataclass(frozen=True)
 class OrderPlacedNotification(DomainEvent):
-    """通知イベント: IDのみ"""
+    """Notification event: ID only"""
     event_type: str = "order.placed"
     order_id: str = ""
-    # → 受信者は order_id で Order Service に問い合わせる
+    # → Receiver queries Order Service using order_id
 
-# メリット: イベントサイズが小さい、スキーマ変更の影響が少ない
-# デメリット: 受信者から発信者への依存が残る（データ取得のため）
+# Pros: Small event size, less impact from schema changes
+# Cons: Dependency from receiver back to sender remains (for data fetching)
 
 
-# === パターン2: Event-Carried State Transfer ===
-# 必要な情報を全て含む。受信者は発信者に問い合わせ不要
+# === Pattern 2: Event-Carried State Transfer ===
+# Contains all necessary information. Receiver does not need to query sender
 
 @dataclass(frozen=True)
 class OrderPlacedFull(DomainEvent):
-    """状態運搬イベント: 全データ含む"""
+    """State-carried event: contains all data"""
     event_type: str = "order.placed"
     order_id: str = ""
     customer_id: str = ""
@@ -148,12 +148,12 @@ class OrderPlacedFull(DomainEvent):
     total_amount: int = 0
     currency: str = "JPY"
 
-# メリット: 完全な疎結合、高パフォーマンス
-# デメリット: イベントサイズが大きい、スキーマ変更の影響が大きい
+# Pros: Complete loose coupling, high performance
+# Cons: Large event size, greater impact from schema changes
 
 
-# === パターン3: Event Sourcing ===
-# 状態変更を全てイベントとして記録し、再生で現在状態を復元
+# === Pattern 3: Event Sourcing ===
+# Records all state changes as events and restores current state by replay
 
 @dataclass(frozen=True)
 class OrderCreated(DomainEvent):
@@ -175,22 +175,22 @@ class OrderConfirmed(DomainEvent):
     order_id: str = ""
     confirmed_at: str = ""
 
-# メリット: 完全な監査証跡、任意時点の状態復元、デバッグ容易
-# デメリット: 実装複雑、イベントストアの管理、スナップショット必要
+# Pros: Complete audit trail, state restoration at any point, easy debugging
+# Cons: Complex implementation, event store management, snapshots required
 ```
 
-### 1.3 パターン選択の判断基準
+### 1.3 Decision Criteria for Pattern Selection
 
-| 判断基準 | Event Notification | Event-Carried State | Event Sourcing |
+| Criterion | Event Notification | Event-Carried State | Event Sourcing |
 |---------|:-----------------:|:------------------:|:--------------:|
-| 疎結合度 | 中（データ取得で依存） | 高（完全独立） | 高（イベントログ自律） |
-| イベントサイズ | 小 | 大 | 中（差分記録） |
-| スキーマ変更の影響 | 小 | 大 | 中 |
-| 監査証跡 | なし | なし | 完全 |
-| 適用場面 | 社内マイクロサービス | 外部システム連携 | 金融・医療・法規制 |
-| 実装複雑性 | 低 | 低 | 高 |
+| Loose Coupling | Medium (dependency via data fetch) | High (fully independent) | High (autonomous event log) |
+| Event Size | Small | Large | Medium (delta records) |
+| Impact of Schema Changes | Small | Large | Medium |
+| Audit Trail | None | None | Complete |
+| Use Cases | Internal microservices | External system integration | Finance, healthcare, regulation |
+| Implementation Complexity | Low | Low | High |
 
-### 1.4 Pub/Sub の全体構成
+### 1.4 Overall Pub/Sub Architecture
 
 ```
                           Event Bus (Kafka / SNS+SQS)
@@ -207,47 +207,47 @@ class OrderConfirmed(DomainEvent):
                   |Service  | |Service | | Service  |
                   +---------+ +--------+ +----------+
 
-  ★ Order Service は下流サービスの存在を知らない
-  ★ 新しい消費者を追加しても Order Service の変更不要
-  ★ 各 Consumer は独自のペースで処理（バックプレッシャー制御）
+  ★ Order Service does not know of downstream services
+  ★ Adding a new consumer requires no changes to Order Service
+  ★ Each Consumer processes at its own pace (backpressure control)
 ```
 
-### 1.5 同期 vs 非同期の詳細比較
+### 1.5 Detailed Comparison: Synchronous vs Asynchronous
 
 ```
-【同期 (REST/gRPC)】
+[Synchronous (REST/gRPC)]
   Order --> Inventory --> Payment --> Notification
    |            |            |            |
    |<-----------+<-----------+<-----------+
-   全体のレイテンシ = 各サービスの合計 (50ms + 200ms + 100ms = 350ms)
-   1つ障害 = 全体障害 (カスケード障害)
-   スケール = 最も遅いサービスがボトルネック
+   Total latency = sum of each service (50ms + 200ms + 100ms = 350ms)
+   One failure = full failure (cascade failure)
+   Scaling = slowest service is the bottleneck
 
-【非同期 (Event-Driven)】
-  Order --event--> [Bus] ---> Inventory (独立処理)
-                         ---> Payment   (独立処理)
-                         ---> Notification (独立処理)
-   Order は即座に応答可能 (レイテンシ = イベント発行の時間のみ ≈ 5ms)
-   1つ障害 = そのサービスのみ影響（リトライで回復）
-   スケール = 各サービスが独立してスケール
+[Asynchronous (Event-Driven)]
+  Order --event--> [Bus] ---> Inventory (processes independently)
+                         ---> Payment   (processes independently)
+                         ---> Notification (processes independently)
+   Order can respond immediately (latency = time to publish event only ≈ 5ms)
+   One failure = affects only that service (recovers via retry)
+   Scaling = each service scales independently
 
-【ハイブリッド（実践的な推奨構成）】
-  User → [API Gateway] → Order Service (同期レスポンス: "注文受付済み")
+[Hybrid (Recommended Practical Configuration)]
+  User → [API Gateway] → Order Service (synchronous response: "Order accepted")
                               |
                          [Event Bus]
                           /   |    \
                     Inventory Payment Email
-                    (非同期)  (非同期) (非同期)
+                    (async)  (async) (async)
 
-  → ユーザーには即座にレスポンスを返し、
-    後続処理は非同期で実行するのがベストプラクティス
+  → Return an immediate response to the user,
+    and execute downstream processing asynchronously — this is best practice
 ```
 
 ---
 
-## 2. Pub/Sub の実装
+## 2. Implementing Pub/Sub
 
-### 2.1 イベントの定義
+### 2.1 Defining Events
 
 ```python
 # domain/events/base.py
@@ -260,22 +260,22 @@ import json
 
 @dataclass(frozen=True)
 class DomainEvent:
-    """ドメインイベントの基底クラス
+    """Base class for domain events
 
-    全てのイベントは不変（frozen=True）。
-    一度発生したイベント（事実）は変更できないため。
+    All events are immutable (frozen=True).
+    Because an event (a fact) that has occurred cannot be changed.
     """
     event_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     occurred_at: datetime = field(
         default_factory=lambda: datetime.now(timezone.utc)
     )
     event_type: str = ""
-    # メタデータ: トレーシング用
-    correlation_id: str = ""  # リクエスト全体を追跡する ID
-    causation_id: str = ""    # このイベントの原因となったイベント/コマンドの ID
+    # Metadata: for tracing
+    correlation_id: str = ""  # ID for tracking the entire request
+    causation_id: str = ""    # ID of the event/command that caused this event
 
     def to_dict(self) -> dict:
-        """シリアライズ用の辞書変換"""
+        """Dictionary conversion for serialization"""
         result = {}
         for key, value in self.__dict__.items():
             if isinstance(value, datetime):
@@ -288,17 +288,17 @@ class DomainEvent:
 
     @property
     def aggregate_id(self) -> str:
-        """集約IDを返す。サブクラスでオーバーライド"""
+        """Returns aggregate ID. Override in subclass"""
         raise NotImplementedError
 
 
 @dataclass(frozen=True)
 class OrderPlaced(DomainEvent):
-    """注文確定イベント"""
+    """Order placed event"""
     event_type: str = "order.placed"
     order_id: str = ""
     customer_id: str = ""
-    items: tuple = ()          # frozen=True のため tuple を使用
+    items: tuple = ()          # Use tuple because frozen=True
     total_amount: int = 0
     currency: str = "JPY"
 
@@ -309,7 +309,7 @@ class OrderPlaced(DomainEvent):
 
 @dataclass(frozen=True)
 class OrderCancelled(DomainEvent):
-    """注文キャンセルイベント"""
+    """Order cancelled event"""
     event_type: str = "order.cancelled"
     order_id: str = ""
     reason: str = ""
@@ -322,7 +322,7 @@ class OrderCancelled(DomainEvent):
 
 @dataclass(frozen=True)
 class PaymentCompleted(DomainEvent):
-    """決済完了イベント"""
+    """Payment completed event"""
     event_type: str = "payment.completed"
     payment_id: str = ""
     order_id: str = ""
@@ -337,7 +337,7 @@ class PaymentCompleted(DomainEvent):
 
 @dataclass(frozen=True)
 class InventoryReserved(DomainEvent):
-    """在庫引当完了イベント"""
+    """Inventory reservation completed event"""
     event_type: str = "inventory.reserved"
     reservation_id: str = ""
     order_id: str = ""
@@ -348,14 +348,14 @@ class InventoryReserved(DomainEvent):
         return self.reservation_id
 ```
 
-### 2.2 イベントパブリッシャー（Protocol + Kafka 実装）
+### 2.2 Event Publisher (Protocol + Kafka Implementation)
 
 ```python
 # domain/ports/event_publisher.py
 from typing import Protocol
 
 class EventPublisher(Protocol):
-    """イベント発行のポート（インターフェース）"""
+    """Port (interface) for event publishing"""
     def publish(self, event: DomainEvent) -> None: ...
     def publish_batch(self, events: list[DomainEvent]) -> None: ...
 
@@ -369,12 +369,12 @@ logger = logging.getLogger(__name__)
 
 
 class KafkaEventPublisher:
-    """Kafka ベースのイベントパブリッシャー
+    """Kafka-based event publisher
 
-    設計判断:
-    - acks='all': 全レプリカへの書き込みを保証（耐久性）
-    - enable.idempotence=True: 重複メッセージ防止
-    - パーティションキー = aggregate_id: 同一集約のイベント順序保証
+    Design decisions:
+    - acks='all': Guarantees writes to all replicas (durability)
+    - enable.idempotence=True: Prevents duplicate messages
+    - Partition key = aggregate_id: Guarantees event ordering for same aggregate
     """
 
     def __init__(self, bootstrap_servers: str, schema_registry_url: str = ""):
@@ -389,14 +389,14 @@ class KafkaEventPublisher:
         self._schema_registry_url = schema_registry_url
 
     def publish(self, event: DomainEvent) -> None:
-        """単一イベントの発行"""
+        """Publish a single event"""
         topic = self._resolve_topic(event)
         key = event.aggregate_id.encode('utf-8')
         value = json.dumps(
             event.to_dict(), ensure_ascii=False, default=str
         ).encode('utf-8')
 
-        # ヘッダーにメタデータを付与（トレーシング用）
+        # Attach metadata to headers (for tracing)
         headers = [
             ('event_type', event.event_type.encode()),
             ('correlation_id', event.correlation_id.encode()),
@@ -412,7 +412,7 @@ class KafkaEventPublisher:
         )
         self._producer.flush()
         logger.info(
-            "イベント発行完了",
+            "Event published successfully",
             extra={
                 'event_type': event.event_type,
                 'event_id': event.event_id,
@@ -422,7 +422,7 @@ class KafkaEventPublisher:
         )
 
     def publish_batch(self, events: list[DomainEvent]) -> None:
-        """複数イベントのバッチ発行"""
+        """Batch publish multiple events"""
         for event in events:
             topic = self._resolve_topic(event)
             key = event.aggregate_id.encode('utf-8')
@@ -435,32 +435,32 @@ class KafkaEventPublisher:
                 value=value,
                 callback=self._delivery_report,
             )
-        # バッチ全体を一度にフラッシュ
+        # Flush the entire batch at once
         self._producer.flush()
-        logger.info(f"バッチイベント発行完了: {len(events)}件")
+        logger.info(f"Batch event publish completed: {len(events)} events")
 
     def _resolve_topic(self, event: DomainEvent) -> str:
-        """イベントタイプからトピック名を解決
+        """Resolve topic name from event type
 
-        例: "order.placed" → "domain-events.order"
-            "payment.completed" → "domain-events.payment"
+        Example: "order.placed" → "domain-events.order"
+                 "payment.completed" → "domain-events.payment"
         """
         domain = event.event_type.split('.')[0]
         return f"domain-events.{domain}"
 
     def _delivery_report(self, err, msg):
         if err:
-            logger.error(f"イベント配信失敗: {err}, topic={msg.topic()}")
-            raise RuntimeError(f"イベント配信失敗: {err}")
+            logger.error(f"Event delivery failed: {err}, topic={msg.topic()}")
+            raise RuntimeError(f"Event delivery failed: {err}")
         logger.debug(
-            f"配信成功: topic={msg.topic()}, "
+            f"Delivery successful: topic={msg.topic()}, "
             f"partition={msg.partition()}, offset={msg.offset()}"
         )
 
 
 # infrastructure/messaging/in_memory_publisher.py
 class InMemoryEventPublisher:
-    """テスト用のインメモリイベントパブリッシャー"""
+    """In-memory event publisher for testing"""
 
     def __init__(self):
         self.published_events: list[DomainEvent] = []
@@ -478,7 +478,7 @@ class InMemoryEventPublisher:
         self.published_events.clear()
 ```
 
-### 2.3 イベントコンシューマー（Kafka Consumer）
+### 2.3 Event Consumer (Kafka Consumer)
 
 ```python
 # infrastructure/messaging/kafka_consumer.py
@@ -491,12 +491,12 @@ logger = logging.getLogger(__name__)
 
 
 class KafkaEventConsumer:
-    """Kafka ベースのイベントコンシューマー
+    """Kafka-based event consumer
 
-    設計判断:
-    - enable.auto.commit=False: 処理完了後に手動コミット（at-least-once 保証）
-    - Consumer Group: 同一グループ内でパーティションが分配される
-    - 手動オフセット管理: 処理失敗時のリトライを制御
+    Design decisions:
+    - enable.auto.commit=False: Manual commit after processing (at-least-once guarantee)
+    - Consumer Group: Partitions are distributed among members of the same group
+    - Manual offset management: Controls retry on processing failure
     """
 
     def __init__(
@@ -509,8 +509,8 @@ class KafkaEventConsumer:
             'bootstrap.servers': bootstrap_servers,
             'group.id': group_id,
             'auto.offset.reset': 'earliest',
-            'enable.auto.commit': False,       # 手動コミット
-            'max.poll.interval.ms': 300000,    # 5分
+            'enable.auto.commit': False,       # Manual commit
+            'max.poll.interval.ms': 300000,    # 5 minutes
             'session.timeout.ms': 45000,
         })
         self._consumer.subscribe(topics)
@@ -520,14 +520,14 @@ class KafkaEventConsumer:
     def register_handler(
         self, event_type: str, handler: Callable[[dict], None]
     ) -> None:
-        """イベントタイプに対応するハンドラーを登録"""
+        """Register a handler for the given event type"""
         self._handlers[event_type] = handler
-        logger.info(f"ハンドラー登録: {event_type}")
+        logger.info(f"Handler registered: {event_type}")
 
     def start(self) -> None:
-        """コンシューマーループを開始"""
+        """Start the consumer loop"""
         self._running = True
-        logger.info("コンシューマー開始")
+        logger.info("Consumer started")
 
         while self._running:
             msg = self._consumer.poll(timeout=1.0)
@@ -536,7 +536,7 @@ class KafkaEventConsumer:
             if msg.error():
                 if msg.error().code() == KafkaError._PARTITION_EOF:
                     continue
-                logger.error(f"Consumer エラー: {msg.error()}")
+                logger.error(f"Consumer error: {msg.error()}")
                 continue
 
             try:
@@ -546,54 +546,54 @@ class KafkaEventConsumer:
                 handler = self._handlers.get(event_type)
                 if handler:
                     logger.info(
-                        f"イベント処理開始: {event_type}, "
+                        f"Event processing started: {event_type}, "
                         f"event_id={event_data.get('event_id')}"
                     )
                     handler(event_data)
 
-                    # 処理成功後にオフセットをコミット
+                    # Commit offset after successful processing
                     self._consumer.commit(message=msg)
-                    logger.info(f"イベント処理完了: {event_type}")
+                    logger.info(f"Event processing completed: {event_type}")
                 else:
-                    logger.warning(f"未登録のイベントタイプ: {event_type}")
+                    logger.warning(f"Unregistered event type: {event_type}")
                     self._consumer.commit(message=msg)
 
             except Exception as e:
                 logger.error(
-                    f"イベント処理失敗: {e}",
+                    f"Event processing failed: {e}",
                     extra={'raw_message': msg.value()},
                     exc_info=True,
                 )
-                # 処理失敗 → コミットしない → 再配信される
-                # Dead Letter Queue への転送を検討
+                # Processing failed → do not commit → will be redelivered
+                # Consider forwarding to Dead Letter Queue
                 self._handle_processing_failure(msg, e)
 
     def stop(self) -> None:
-        """コンシューマーを停止"""
+        """Stop the consumer"""
         self._running = False
         self._consumer.close()
-        logger.info("コンシューマー停止")
+        logger.info("Consumer stopped")
 
     def _handle_processing_failure(self, msg, error: Exception) -> None:
-        """処理失敗時のハンドリング（DLQ 転送等）"""
-        # リトライ回数をヘッダーから取得
+        """Handle processing failure (DLQ forwarding, etc.)"""
+        # Get retry count from headers
         headers = dict(msg.headers() or [])
         retry_count = int(headers.get(b'retry_count', b'0'))
 
         if retry_count >= 3:
             logger.error(
-                f"最大リトライ回数超過。DLQ に転送: "
+                f"Maximum retry count exceeded. Forwarding to DLQ: "
                 f"topic={msg.topic()}, offset={msg.offset()}"
             )
-            # DLQ トピックに転送（実装は省略）
+            # Forward to DLQ topic (implementation omitted)
             self._consumer.commit(message=msg)
         else:
             logger.warning(
-                f"リトライ予定 ({retry_count + 1}/3): {error}"
+                f"Scheduled for retry ({retry_count + 1}/3): {error}"
             )
 ```
 
-### 2.4 イベントハンドラー
+### 2.4 Event Handler
 
 ```python
 # application/handlers/inventory_handler.py
@@ -603,11 +603,11 @@ logger = logging.getLogger(__name__)
 
 
 class InventoryEventHandler:
-    """在庫サービスのイベントハンドラー
+    """Event handler for the inventory service
 
-    このハンドラーは Inventory Bounded Context 内に配置される。
-    Order サービスのドメインイベントを受信し、
-    在庫ドメインの操作（引当・解放）を自律的に行う。
+    This handler is placed within the Inventory Bounded Context.
+    It receives domain events from the Order service and
+    autonomously performs inventory domain operations (reservation/release).
     """
 
     def __init__(self, inventory_repo, stock_service, event_publisher):
@@ -616,18 +616,18 @@ class InventoryEventHandler:
         self._publisher = event_publisher
 
     def handle_order_placed(self, event_data: dict) -> None:
-        """注文確定イベントの処理: 在庫引当
+        """Process OrderPlaced event: Reserve inventory
 
-        冪等性の保証:
-        - reservation_id = order_id で重複チェック
-        - 既に引当済みの場合はスキップ
+        Idempotency guarantee:
+        - reservation_id = order_id for duplicate check
+        - Skip if already reserved
         """
         order_id = event_data['data']['order_id']
         items = event_data['data']['items']
 
-        # 冪等性チェック: 既に処理済みか確認
+        # Idempotency check: confirm if already processed
         if self._repo.reservation_exists(order_id):
-            logger.info(f"引当済みのためスキップ: order_id={order_id}")
+            logger.info(f"Already reserved, skipping: order_id={order_id}")
             return
 
         reserved_items = []
@@ -639,7 +639,7 @@ class InventoryEventHandler:
                     reservation_id=order_id,
                 )
                 if not success:
-                    # 在庫不足 → これまでの引当を全解放 + 補償イベント発行
+                    # Insufficient inventory → release all previous reservations + publish compensation event
                     self._rollback_reservations(reserved_items, order_id)
                     self._publisher.publish(InventoryInsufficientEvent(
                         order_id=order_id,
@@ -651,7 +651,7 @@ class InventoryEventHandler:
                     return
                 reserved_items.append(item)
 
-            # 全アイテム引当成功 → 成功イベント発行
+            # All items reserved successfully → publish success event
             self._publisher.publish(InventoryReserved(
                 reservation_id=order_id,
                 order_id=order_id,
@@ -662,23 +662,23 @@ class InventoryEventHandler:
                 correlation_id=event_data.get('correlation_id', ''),
                 causation_id=event_data.get('event_id', ''),
             ))
-            logger.info(f"在庫引当完了: order_id={order_id}")
+            logger.info(f"Inventory reservation completed: order_id={order_id}")
 
         except Exception as e:
-            logger.error(f"在庫引当エラー: {e}", exc_info=True)
+            logger.error(f"Inventory reservation error: {e}", exc_info=True)
             self._rollback_reservations(reserved_items, order_id)
             raise
 
     def handle_order_cancelled(self, event_data: dict) -> None:
-        """注文キャンセルイベントの処理: 在庫解放
+        """Process OrderCancelled event: Release inventory
 
-        冪等性の保証:
-        - 引当が存在しない場合は何もしない
+        Idempotency guarantee:
+        - Do nothing if reservation does not exist
         """
         order_id = event_data['data']['order_id']
 
         if not self._repo.reservation_exists(order_id):
-            logger.info(f"引当なしのためスキップ: order_id={order_id}")
+            logger.info(f"No reservation found, skipping: order_id={order_id}")
             return
 
         self._stock.release_reservation(reservation_id=order_id)
@@ -687,12 +687,12 @@ class InventoryEventHandler:
             correlation_id=event_data.get('correlation_id', ''),
             causation_id=event_data.get('event_id', ''),
         ))
-        logger.info(f"在庫解放完了: order_id={order_id}")
+        logger.info(f"Inventory release completed: order_id={order_id}")
 
     def _rollback_reservations(
         self, reserved_items: list[dict], order_id: str
     ) -> None:
-        """引当済みアイテムのロールバック"""
+        """Rollback already-reserved items"""
         for item in reversed(reserved_items):
             try:
                 self._stock.release(
@@ -701,38 +701,38 @@ class InventoryEventHandler:
                 )
             except Exception as e:
                 logger.error(
-                    f"ロールバック失敗: product_id={item['product_id']}, "
+                    f"Rollback failed: product_id={item['product_id']}, "
                     f"order_id={order_id}, error={e}"
                 )
-                # アラート送信（手動対応が必要）
+                # Send alert (manual intervention required)
 ```
 
-### 2.5 Outbox パターン（トランザクション保証）
+### 2.5 Outbox Pattern (Transaction Guarantee)
 
 ```python
 # infrastructure/outbox/outbox_publisher.py
 """
-Outbox パターン: イベント発行のトランザクション保証
+Outbox Pattern: Transaction guarantee for event publishing
 
-問題:
-  1. ドメインオブジェクトを DB に保存
-  2. イベントを Kafka に発行
-  → 1は成功したが2が失敗すると、データ不整合が発生
+Problem:
+  1. Save domain object to DB
+  2. Publish event to Kafka
+  → If step 1 succeeds but step 2 fails, data inconsistency occurs
 
-解決策: Outbox テーブル
-  1. ドメインオブジェクトと Outbox レコードを同一トランザクションで保存
-  2. 別プロセス（Outbox Relay）が Outbox テーブルからイベントを読み取り Kafka に発行
-  → トランザクションの原子性を活用
+Solution: Outbox table
+  1. Save domain object and Outbox record in the same transaction
+  2. A separate process (Outbox Relay) reads from the Outbox table and publishes to Kafka
+  → Leverages atomicity of transactions
 
   [DB Transaction]
   ┌─────────────────────────────────────┐
-  │  1. orders テーブルに INSERT          │
-  │  2. outbox テーブルに INSERT          │
-  │  → 両方成功 or 両方ロールバック        │
+  │  1. INSERT into orders table          │
+  │  2. INSERT into outbox table          │
+  │  → Both succeed or both rollback      │
   └─────────────────────────────────────┘
 
-  [Outbox Relay (別プロセス)]
-  outbox テーブル → Kafka に発行 → outbox レコードを published に更新
+  [Outbox Relay (separate process)]
+  outbox table → publish to Kafka → update outbox record to published
 """
 from sqlalchemy import Column, String, DateTime, Text, Boolean
 from sqlalchemy.orm import Session
@@ -742,7 +742,7 @@ import uuid
 
 
 class OutboxRecord(Base):
-    """Outbox テーブルのモデル"""
+    """Model for the Outbox table"""
     __tablename__ = 'outbox'
 
     id = Column(String(36), primary_key=True)
@@ -756,20 +756,20 @@ class OutboxRecord(Base):
 
 
 class OutboxEventPublisher:
-    """Outbox パターンによるイベント発行
+    """Event publishing via the Outbox pattern
 
-    ドメインオブジェクトの保存と同一トランザクションで
-    Outbox テーブルにイベントを書き込む
+    Writes events to the Outbox table within the same transaction
+    as saving the domain object
     """
 
     def __init__(self, session: Session):
         self._session = session
 
     def publish(self, event: DomainEvent) -> None:
-        """Outbox テーブルにイベントを記録
+        """Record event in the Outbox table
 
-        注意: このメソッドは呼び出し元のトランザクション内で実行される
-        （session.commit() は呼び出し元が行う）
+        Note: This method is executed within the caller's transaction
+        (session.commit() is called by the caller)
         """
         record = OutboxRecord(
             id=event.event_id,
@@ -781,7 +781,7 @@ class OutboxEventPublisher:
             published=False,
         )
         self._session.add(record)
-        # commit は呼び出し元のトランザクションに委ねる
+        # Commit is left to the caller's transaction
 
     def publish_batch(self, events: list[DomainEvent]) -> None:
         for event in events:
@@ -789,10 +789,10 @@ class OutboxEventPublisher:
 
 
 class OutboxRelay:
-    """Outbox Relay: 未発行イベントを Kafka に転送する
+    """Outbox Relay: Forwards unpublished events to Kafka
 
-    定期実行（例: 1秒間隔のポーリング）で
-    Outbox テーブルから未発行レコードを取得し Kafka に発行する
+    Runs on a regular schedule (e.g., polling every 1 second)
+    to fetch unpublished records from the Outbox table and publish to Kafka
     """
 
     def __init__(self, session: Session, kafka_publisher: KafkaEventPublisher):
@@ -800,7 +800,7 @@ class OutboxRelay:
         self._kafka = kafka_publisher
 
     def relay_pending_events(self, batch_size: int = 100) -> int:
-        """未発行イベントを Kafka に転送"""
+        """Forward unpublished events to Kafka"""
         records = (
             self._session.query(OutboxRecord)
             .filter_by(published=False)
@@ -813,55 +813,55 @@ class OutboxRelay:
         for record in records:
             try:
                 event_data = json.loads(record.payload)
-                # Kafka に発行
+                # Publish to Kafka
                 self._kafka._producer.produce(
                     topic=f"domain-events.{record.aggregate_type}",
                     key=record.aggregate_id.encode(),
                     value=record.payload.encode(),
                 )
-                # 発行済みに更新
+                # Mark as published
                 record.published = True
                 record.published_at = datetime.now(timezone.utc)
                 published_count += 1
             except Exception as e:
-                logger.error(f"Outbox relay 失敗: {record.id}, {e}")
+                logger.error(f"Outbox relay failed: {record.id}, {e}")
 
         self._kafka._producer.flush()
         self._session.commit()
 
         if published_count > 0:
-            logger.info(f"Outbox relay 完了: {published_count}件")
+            logger.info(f"Outbox relay completed: {published_count} events")
         return published_count
 ```
 
-### 2.6 Saga パターン（分散トランザクション）
+### 2.6 Saga Pattern (Distributed Transactions)
 
 ```python
 # application/sagas/order_saga.py
 """
-Saga パターン: 分散環境でのトランザクション管理
+Saga Pattern: Transaction management in distributed environments
 
-従来の ACID トランザクション:
+Traditional ACID transaction:
   BEGIN
-    1. 在庫引当
-    2. 決済処理
-    3. 配送手配
-  COMMIT  ← 全て成功 or 全てロールバック
+    1. Reserve inventory
+    2. Process payment
+    3. Arrange shipping
+  COMMIT  ← All succeed or all rollback
 
-分散環境の Saga:
-  1. 在庫引当 → 成功
-  2. 決済処理 → 失敗!
-  3. 在庫引当の補償（解放）を実行
+Distributed Saga:
+  1. Reserve inventory → success
+  2. Process payment → failure!
+  3. Execute compensation for inventory reservation (release)
 
-  各ステップは独立したトランザクション。
-  失敗時は完了済みステップの補償処理を逆順で実行。
+  Each step is an independent transaction.
+  On failure, execute compensation for completed steps in reverse order.
 
   ┌──────────────────────────────────────────────┐
-  │ 正常フロー:                                    │
+  │ Normal flow:                                   │
   │ reserve_inventory → process_payment →          │
   │ schedule_shipping → send_confirmation          │
   │                                                │
-  │ 失敗時の補償フロー (payment で失敗):             │
+  │ Compensation flow on failure (fails at payment): │
   │ reserve_inventory → process_payment(FAIL!)     │
   │                   ← release_inventory           │
   └──────────────────────────────────────────────┘
@@ -897,10 +897,10 @@ class SagaFailedError(Exception):
 
 
 class OrderPlacementSaga:
-    """注文確定の Saga: 複数サービスにまたがる処理を調整
+    """Saga for order placement: coordinates processing across multiple services
 
-    Orchestration パターン: Saga が全ステップを直接制御する
-    （Choreography パターンとの比較は後述）
+    Orchestration pattern: Saga directly controls all steps
+    (comparison with Choreography pattern described later)
     """
 
     STEPS = [
@@ -927,21 +927,21 @@ class OrderPlacementSaga:
         self._status = SagaStatus.STARTED
 
     def execute(self, order_id: str, order_data: dict) -> None:
-        """Saga の実行"""
+        """Execute the Saga"""
         saga_id = f"saga-{order_id}"
         self._saga_log.create(saga_id, order_id, "order_placement")
-        logger.info(f"Saga 開始: {saga_id}")
+        logger.info(f"Saga started: {saga_id}")
 
         for step in self.STEPS:
             try:
-                logger.info(f"Saga ステップ実行: {step.name}")
+                logger.info(f"Executing Saga step: {step.name}")
                 execute_func = getattr(self, step.execute_func)
                 execute_func(order_id, order_data)
                 step.status = "completed"
                 self._completed_steps.append(step)
                 self._saga_log.update_step(saga_id, step.name, "completed")
             except Exception as e:
-                logger.error(f"Saga 失敗 at {step.name}: {e}")
+                logger.error(f"Saga failed at {step.name}: {e}")
                 step.status = "failed"
                 self._saga_log.update_step(saga_id, step.name, "failed")
                 self._status = SagaStatus.COMPENSATING
@@ -951,15 +951,15 @@ class OrderPlacementSaga:
 
         self._status = SagaStatus.COMPLETED
         self._saga_log.complete(saga_id)
-        logger.info(f"Saga 完了: {saga_id}")
+        logger.info(f"Saga completed: {saga_id}")
 
     def _compensate(self, saga_id: str, order_id: str) -> None:
-        """完了済みステップの補償処理を逆順で実行
+        """Execute compensation for completed steps in reverse order
 
-        補償処理は「ベストエフォート」で実行する。
-        補償処理自体が失敗した場合はアラートを送信し、手動対応を要請する。
+        Compensation processing is executed on a "best effort" basis.
+        If the compensation itself fails, send an alert and request manual intervention.
         """
-        logger.warning(f"補償処理開始: {saga_id}")
+        logger.warning(f"Compensation started: {saga_id}")
         for step in reversed(self._completed_steps):
             if step.compensate_func == 'noop':
                 continue
@@ -970,15 +970,15 @@ class OrderPlacementSaga:
                 self._saga_log.update_step(
                     saga_id, step.name, "compensated"
                 )
-                logger.info(f"補償処理完了: {step.name}")
+                logger.info(f"Compensation completed: {step.name}")
             except Exception as e:
                 logger.critical(
-                    f"補償処理失敗（手動対応必要）: {step.name}, error={e}",
+                    f"Compensation failed (manual intervention required): {step.name}, error={e}",
                     exc_info=True,
                 )
-                # アラート送信: PagerDuty, Slack, etc.
+                # Send alert: PagerDuty, Slack, etc.
 
-    # === 各ステップの実装 ===
+    # === Implementation of each step ===
 
     def reserve_inventory(self, order_id: str, order_data: dict) -> None:
         self._inventory.reserve(order_id, order_data['items'])
@@ -1018,89 +1018,89 @@ class OrderPlacementSaga:
 ### 2.7 Choreography vs Orchestration
 
 ```
-=== Orchestration パターン（上記の Saga）===
+=== Orchestration Pattern (Saga above) ===
 
   [Saga Orchestrator]
        |
-       |---> Inventory Service: "在庫を引き当てて"
-       |<--- "完了"
+       |---> Inventory Service: "Reserve inventory"
+       |<--- "Done"
        |
-       |---> Payment Service: "決済して"
-       |<--- "完了"
+       |---> Payment Service: "Process payment"
+       |<--- "Done"
        |
-       |---> Shipping Service: "配送手配して"
-       |<--- "完了"
+       |---> Shipping Service: "Arrange shipping"
+       |<--- "Done"
 
-  メリット: フロー全体が1箇所で把握できる
-  デメリット: Orchestrator がSPOF、ロジックが集中
+  Pros: Entire flow can be understood in one place
+  Cons: Orchestrator is a SPOF, logic is centralized
 
 
-=== Choreography パターン ===
+=== Choreography Pattern ===
 
   Order Service --"OrderPlaced"--> [Event Bus]
        |
-       +---> Inventory Service: 在庫引当
+       +---> Inventory Service: reserves inventory
                  |
                  +--"InventoryReserved"--> [Event Bus]
                        |
-                       +---> Payment Service: 決済処理
+                       +---> Payment Service: processes payment
                                  |
                                  +--"PaymentCompleted"--> [Event Bus]
                                        |
-                                       +---> Shipping Service: 配送手配
+                                       +---> Shipping Service: arranges shipping
 
-  メリット: SPOF なし、各サービスが自律的
-  デメリット: フロー全体の把握が困難、デバッグが難しい
+  Pros: No SPOF, each service is autonomous
+  Cons: Difficult to understand the entire flow, hard to debug
 
 
-=== 選択基準 ===
+=== Selection Criteria ===
 
-  Orchestration を選ぶ場合:
-  - ステップが3つ以上で順序が重要
-  - 補償処理が複雑
-  - フロー全体の可視性が必要
+  Choose Orchestration when:
+  - 3 or more steps and order matters
+  - Compensation processing is complex
+  - Visibility of the entire flow is required
 
-  Choreography を選ぶ場合:
-  - ステップが2-3個でシンプル
-  - 各サービスの独立性を最大化したい
-  - 新しい消費者の追加が頻繁
+  Choose Choreography when:
+  - 2-3 steps and simple
+  - Maximize independence of each service
+  - New consumers are frequently added
 ```
 
 ---
 
 ## 3. CQRS (Command Query Responsibility Segregation)
 
-### 3.1 アーキテクチャ
+### 3.1 Architecture
 
 ```
-                        CQRS アーキテクチャ
+                        CQRS Architecture
 
   Command Side                              Query Side
-  (書き込み)                                (読み取り)
+  (Write)                                   (Read)
 
   [POST /orders]                           [GET /orders?user=123]
        |                                        |
   [Command Handler]                        [Query Handler]
        |                                        |
   [Domain Model]                           [Read Model]
-  (正規化された                             (非正規化された
-   ドメインエンティティ)                      ビュー/プロジェクション)
+  (normalized                              (denormalized
+   domain entities)                         views/projections)
        |                                        ^
   [Write DB]                               [Read DB]
   (PostgreSQL)                              (Elasticsearch / Redis)
        |                                        |
        +--- Domain Events --->  [Projector] ----+
-            (非同期で Read Model を更新)
+            (updates Read Model asynchronously)
 
-  ★ 書き込み: ドメインモデルの整合性を重視（正規化）
-  ★ 読み取り: クエリの効率を重視（非正規化、インデックス最適化）
-  ★ Projector: イベントを受信して Read Model を更新する
+  ★ Write: Prioritizes domain model consistency (normalized)
+  ★ Read: Prioritizes query efficiency (denormalized, index-optimized)
+  ★ Projector: Receives events and updates the Read Model
 ```
 
-### 3.2 CQRS の実装
+### 3.2 Implementing CQRS
 
 ```python
-# === Command Side: コマンドハンドラー ===
+# === Command Side: Command Handler ===
 
 # application/commands/place_order.py
 from dataclasses import dataclass
@@ -1108,7 +1108,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class PlaceOrderCommand:
-    """注文確定コマンド"""
+    """Order placement command"""
     customer_id: str
     items: list  # [{"product_id": "...", "quantity": 1}]
     shipping_address: str
@@ -1116,13 +1116,13 @@ class PlaceOrderCommand:
 
 
 class PlaceOrderCommandHandler:
-    """注文確定コマンドのハンドラー
+    """Handler for the order placement command
 
-    Command Handler の責務:
-    1. コマンドのバリデーション
-    2. ドメインモデルの操作
-    3. 永続化
-    4. ドメインイベントの発行
+    Command Handler responsibilities:
+    1. Validate the command
+    2. Operate on the domain model
+    3. Persist
+    4. Publish domain events
     """
 
     def __init__(self, order_repo, event_publisher, pricing_service):
@@ -1131,54 +1131,54 @@ class PlaceOrderCommandHandler:
         self._pricing = pricing_service
 
     def handle(self, command: PlaceOrderCommand) -> str:
-        # 1. ドメインモデルの生成
+        # 1. Create domain model
         order = Order.create(
             customer_id=command.customer_id,
             items=command.items,
             shipping_address=command.shipping_address,
         )
 
-        # 2. ビジネスルールの適用
+        # 2. Apply business rules
         total = self._pricing.calculate_total(order.items)
         order.set_total(total)
         order.confirm()
 
-        # 3. 永続化
+        # 3. Persist
         self._order_repo.save(order)
 
-        # 4. ドメインイベントの発行
+        # 4. Publish domain events
         for event in order.collect_events():
             self._event_publisher.publish(event)
 
         return order.id
 
 
-# === Query Side: クエリハンドラー ===
+# === Query Side: Query Handler ===
 
 # application/queries/get_order_summary.py
 @dataclass(frozen=True)
 class GetOrderSummaryQuery:
-    """注文サマリー取得クエリ"""
+    """Order summary retrieval query"""
     customer_id: str
     page: int = 1
     page_size: int = 20
 
 
 class GetOrderSummaryQueryHandler:
-    """注文サマリーのクエリハンドラー
+    """Query handler for order summaries
 
-    Query Handler の責務:
-    - Read Model（非正規化ビュー）から直接データを返す
-    - ドメインロジックは含まない
-    - パフォーマンス最適化に集中
+    Query Handler responsibilities:
+    - Return data directly from Read Model (denormalized view)
+    - Contains no domain logic
+    - Focused on performance optimization
     """
 
     def __init__(self, read_db):
         self._read_db = read_db
 
     def handle(self, query: GetOrderSummaryQuery) -> dict:
-        # Read Model は既に非正規化されているため、
-        # JOIN なしで高速にクエリ可能
+        # Read Model is already denormalized,
+        # so it can be queried quickly without JOINs
         results = self._read_db.find(
             collection='order_summaries',
             filter={'customer_id': query.customer_id},
@@ -1198,21 +1198,21 @@ class GetOrderSummaryQueryHandler:
         }
 ```
 
-### 3.3 Projector（Read Model の更新）
+### 3.3 Projector (Updating the Read Model)
 
 ```python
 # infrastructure/projectors/order_projector.py
 """
-Projector: ドメインイベントを受信して Read Model を更新する
+Projector: Receives domain events and updates the Read Model
 
-Write Side のイベント → Projector → Read Side の非正規化ビュー
+Write Side events → Projector → Denormalized view on Read Side
 
-  OrderPlaced イベント → OrderSummaryProjector
-  → order_summaries コレクションに以下を作成:
+  OrderPlaced event → OrderSummaryProjector
+  → Creates the following in order_summaries collection:
     {
       "order_id": "ORD-123",
       "customer_id": "USR-456",
-      "customer_name": "田中太郎",       ← 非正規化（JOIN 不要）
+      "customer_name": "John Doe",       ← denormalized (no JOIN needed)
       "status": "confirmed",
       "item_count": 3,
       "total_amount": 15000,
@@ -1225,17 +1225,17 @@ logger = logging.getLogger(__name__)
 
 
 class OrderSummaryProjector:
-    """注文サマリーの Read Model を管理する Projector"""
+    """Projector that manages the order summary Read Model"""
 
     def __init__(self, read_db, customer_repo):
         self._read_db = read_db
         self._customer_repo = customer_repo
 
     def handle_order_placed(self, event_data: dict) -> None:
-        """OrderPlaced イベント → Read Model 作成"""
+        """OrderPlaced event → Create Read Model"""
         data = event_data['data']
 
-        # 顧客情報を取得（非正規化のため）
+        # Fetch customer info (for denormalization)
         customer = self._customer_repo.find_by_id(data['customer_id'])
 
         summary = {
@@ -1257,10 +1257,10 @@ class OrderSummaryProjector:
             filter={'order_id': data['order_id']},
             document=summary,
         )
-        logger.info(f"Read Model 更新: order_id={data['order_id']}")
+        logger.info(f"Read Model updated: order_id={data['order_id']}")
 
     def handle_order_cancelled(self, event_data: dict) -> None:
-        """OrderCancelled イベント → Read Model 更新"""
+        """OrderCancelled event → Update Read Model"""
         data = event_data['data']
         self._read_db.update(
             collection='order_summaries',
@@ -1273,10 +1273,10 @@ class OrderSummaryProjector:
                 }
             },
         )
-        logger.info(f"Read Model 更新 (cancelled): order_id={data['order_id']}")
+        logger.info(f"Read Model updated (cancelled): order_id={data['order_id']}")
 
     def handle_payment_completed(self, event_data: dict) -> None:
-        """PaymentCompleted イベント → Read Model 更新"""
+        """PaymentCompleted event → Update Read Model"""
         data = event_data['data']
         self._read_db.update(
             collection='order_summaries',
@@ -1292,37 +1292,37 @@ class OrderSummaryProjector:
         )
 
     def rebuild_all(self) -> None:
-        """Read Model の全再構築
+        """Full rebuild of the Read Model
 
-        Event Sourcing の強力な利点:
-        イベントログから Read Model を任意に再構築できる
-        → スキーマ変更、バグ修正後の再構築が容易
+        A powerful advantage of Event Sourcing:
+        The Read Model can be arbitrarily rebuilt from the event log
+        → Easy to rebuild after schema changes or bug fixes
         """
-        logger.info("Read Model 全再構築開始")
+        logger.info("Full Read Model rebuild started")
         self._read_db.drop_collection('order_summaries')
-        # イベントストアから全イベントを再生
-        # （実装は EventStore.load_all_events() を使用）
-        logger.info("Read Model 全再構築完了")
+        # Replay all events from the event store
+        # (implementation uses EventStore.load_all_events())
+        logger.info("Full Read Model rebuild completed")
 ```
 
-### 3.4 イベントソーシングの実装
+### 3.4 Implementing Event Sourcing
 
 ```python
 # infrastructure/event_store.py
 """
-イベントストア: 全てのドメインイベントを時系列で永続化する
+Event Store: Persists all domain events in chronological order
 
-従来の CRUD:
+Traditional CRUD:
   UPDATE orders SET status = 'shipped' WHERE id = 123;
-  → 以前の状態は失われる
+  → Previous state is lost
 
-イベントソーシング:
+Event Sourcing:
   INSERT INTO events (aggregate_id, version, type, data) VALUES
     ('ORD-123', 1, 'OrderCreated',   '{"customer_id": "USR-456"}'),
     ('ORD-123', 2, 'ItemAdded',      '{"product_id": "PRD-789", "qty": 2}'),
     ('ORD-123', 3, 'OrderConfirmed', '{"confirmed_at": "..."}'),
     ('ORD-123', 4, 'OrderShipped',   '{"tracking_id": "..."}');
-  → 全ての履歴が保持される。任意時点の状態を復元可能
+  → All history is preserved. Can restore state at any point in time
 """
 from sqlalchemy import Column, String, Integer, DateTime, Text, func
 from sqlalchemy.orm import Session
@@ -1331,7 +1331,7 @@ import json
 
 
 class EventRecord(Base):
-    """イベントストアのテーブルモデル"""
+    """Table model for the event store"""
     __tablename__ = 'event_store'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -1348,23 +1348,23 @@ class EventRecord(Base):
     )
 
     __table_args__ = (
-        # 集約ID + バージョンでユニーク制約（楽観的ロック）
+        # Unique constraint on aggregate ID + version (optimistic locking)
         {'unique_together': ('aggregate_id', 'version')},
     )
 
 
 class ConcurrencyError(Exception):
-    """楽観的ロックの競合エラー"""
+    """Optimistic lock conflict error"""
     pass
 
 
 class EventStore:
-    """イベントストア: 全イベントを時系列で保存
+    """Event store: Saves all events in chronological order
 
-    設計判断:
-    - 追記のみ（UPDATE/DELETE 禁止）: イベントは不変の事実
-    - 楽観的ロック: version による競合検出
-    - 集約単位のストリーム: aggregate_id でグループ化
+    Design decisions:
+    - Append only (UPDATE/DELETE prohibited): Events are immutable facts
+    - Optimistic locking: Conflict detection via version
+    - Streams per aggregate: Grouped by aggregate_id
     """
 
     def __init__(self, session: Session):
@@ -1377,16 +1377,16 @@ class EventStore:
         events: list[DomainEvent],
         expected_version: int,
     ) -> None:
-        """イベントを追記（楽観的ロック付き）
+        """Append events (with optimistic locking)
 
         Args:
-            aggregate_id: 集約の ID
-            aggregate_type: 集約の型名
-            events: 追記するイベントのリスト
-            expected_version: 期待するバージョン（競合検出用）
+            aggregate_id: ID of the aggregate
+            aggregate_type: Type name of the aggregate
+            events: List of events to append
+            expected_version: Expected version (for conflict detection)
 
         Raises:
-            ConcurrencyError: バージョン競合時
+            ConcurrencyError: On version conflict
         """
         current_version = self._get_current_version(aggregate_id)
         if current_version != expected_version:
@@ -1413,7 +1413,7 @@ class EventStore:
         self._session.commit()
 
     def load(self, aggregate_id: str) -> list[dict]:
-        """集約の全イベントを取得"""
+        """Fetch all events for an aggregate"""
         records = (
             self._session.query(EventRecord)
             .filter_by(aggregate_id=aggregate_id)
@@ -1434,7 +1434,7 @@ class EventStore:
     def load_from_version(
         self, aggregate_id: str, from_version: int
     ) -> list[dict]:
-        """指定バージョン以降のイベントを取得（スナップショットとの組み合わせ用）"""
+        """Fetch events from a specified version (for use with snapshots)"""
         records = (
             self._session.query(EventRecord)
             .filter_by(aggregate_id=aggregate_id)
@@ -1462,15 +1462,15 @@ class EventStore:
 
 
 class SnapshotStore:
-    """スナップショットストア: 集約の状態を定期的にキャッシュ
+    """Snapshot store: Periodically caches aggregate state
 
-    イベントソーシングの課題:
-    - イベント数が増えると再生に時間がかかる
-    - 例: 注文に1000個のイベントがある場合、毎回全再生は非効率
+    Challenge with Event Sourcing:
+    - Replaying increases as the number of events grows
+    - Example: Replaying 1000 events for an order every time is inefficient
 
-    解決策: スナップショット
-    - N イベントごとに集約の状態をスナップショットとして保存
-    - 復元時: スナップショット + それ以降のイベント再生
+    Solution: Snapshots
+    - Save aggregate state as a snapshot every N events
+    - On restore: snapshot + replay events after the snapshot
     """
 
     def __init__(self, session: Session):
@@ -1479,7 +1479,7 @@ class SnapshotStore:
     def save_snapshot(
         self, aggregate_id: str, version: int, state: dict
     ) -> None:
-        """スナップショットを保存"""
+        """Save a snapshot"""
         self._session.execute(
             """
             INSERT INTO snapshots (aggregate_id, version, state, created_at)
@@ -1499,7 +1499,7 @@ class SnapshotStore:
         self._session.commit()
 
     def load_snapshot(self, aggregate_id: str) -> dict | None:
-        """最新のスナップショットを取得"""
+        """Fetch the latest snapshot"""
         result = self._session.execute(
             "SELECT version, state FROM snapshots WHERE aggregate_id = :agg_id",
             {'agg_id': aggregate_id},
@@ -1517,22 +1517,22 @@ class SnapshotStore:
 ```python
 # domain/models/order.py
 """
-Event Sourced Aggregate: イベントソーシングで管理される集約
+Event Sourced Aggregate: Aggregate managed by Event Sourcing
 
-従来の集約: 現在の状態を直接保持
-Event Sourced 集約: イベントを適用して状態を構築
+Traditional aggregate: Holds current state directly
+Event Sourced aggregate: Builds state by applying events
 
-状態の変更は必ずイベント経由:
+State changes always go through events:
   order.add_item(product, qty)
-    → ItemAddedToOrder イベントを生成
-    → イベントを自身に適用して状態更新
-    → 永続化時にイベントをイベントストアに追記
+    → Generates ItemAddedToOrder event
+    → Applies event to itself to update state
+    → On persistence, appends event to the event store
 """
 from dataclasses import dataclass, field
 
 
 class EventSourcedAggregate:
-    """イベントソーシング対応の集約基底クラス"""
+    """Base class for Event Sourcing-compatible aggregates"""
 
     def __init__(self):
         self._version: int = 0
@@ -1543,13 +1543,13 @@ class EventSourcedAggregate:
         return self._version
 
     def collect_events(self) -> list[DomainEvent]:
-        """未永続化のイベントを取得してクリア"""
+        """Fetch and clear unpersisted events"""
         events = self._pending_events.copy()
         self._pending_events.clear()
         return events
 
     def _apply_event(self, event: DomainEvent) -> None:
-        """イベントを適用して状態を更新（サブクラスで実装）"""
+        """Apply event to update state (implemented in subclass)"""
         handler_name = f"_on_{self._to_snake_case(type(event).__name__)}"
         handler = getattr(self, handler_name, None)
         if handler:
@@ -1557,12 +1557,12 @@ class EventSourcedAggregate:
         self._version += 1
 
     def _raise_event(self, event: DomainEvent) -> None:
-        """新しいイベントを発生させる"""
+        """Raise a new event"""
         self._apply_event(event)
         self._pending_events.append(event)
 
     def _load_from_history(self, events: list[DomainEvent]) -> None:
-        """イベント履歴から状態を復元"""
+        """Restore state from event history"""
         for event in events:
             self._apply_event(event)
 
@@ -1573,7 +1573,7 @@ class EventSourcedAggregate:
 
 
 class Order(EventSourcedAggregate):
-    """注文集約（Event Sourced）"""
+    """Order aggregate (Event Sourced)"""
 
     def __init__(self):
         super().__init__()
@@ -1588,7 +1588,7 @@ class Order(EventSourcedAggregate):
         self.shipped_at: str = ""
         self.cancelled_at: str = ""
 
-    # === コマンドメソッド（イベントを発生させる）===
+    # === Command methods (raise events) ===
 
     @classmethod
     def create(cls, order_id: str, customer_id: str) -> 'Order':
@@ -1603,9 +1603,9 @@ class Order(EventSourcedAggregate):
         self, product_id: str, quantity: int, unit_price: int
     ) -> None:
         if self.status != "created":
-            raise ValueError("確定済みの注文にはアイテムを追加できません")
+            raise ValueError("Cannot add items to a confirmed order")
         if quantity <= 0:
-            raise ValueError("数量は1以上である必要があります")
+            raise ValueError("Quantity must be at least 1")
 
         self._raise_event(ItemAddedToOrder(
             order_id=self.id,
@@ -1616,9 +1616,9 @@ class Order(EventSourcedAggregate):
 
     def confirm(self) -> None:
         if self.status != "created":
-            raise ValueError(f"状態 '{self.status}' から確定はできません")
+            raise ValueError(f"Cannot confirm from status '{self.status}'")
         if not self.items:
-            raise ValueError("アイテムが空の注文は確定できません")
+            raise ValueError("Cannot confirm an order with no items")
 
         self._raise_event(OrderConfirmed(
             order_id=self.id,
@@ -1627,7 +1627,7 @@ class Order(EventSourcedAggregate):
 
     def ship(self, tracking_id: str) -> None:
         if self.status != "confirmed":
-            raise ValueError(f"状態 '{self.status}' から出荷はできません")
+            raise ValueError(f"Cannot ship from status '{self.status}'")
 
         self._raise_event(OrderShipped(
             order_id=self.id,
@@ -1637,7 +1637,7 @@ class Order(EventSourcedAggregate):
 
     def cancel(self, reason: str, cancelled_by: str = "customer") -> None:
         if self.status in ("shipped", "cancelled"):
-            raise ValueError(f"状態 '{self.status}' からキャンセルはできません")
+            raise ValueError(f"Cannot cancel from status '{self.status}'")
 
         self._raise_event(OrderCancelled(
             order_id=self.id,
@@ -1645,7 +1645,7 @@ class Order(EventSourcedAggregate):
             cancelled_by=cancelled_by,
         ))
 
-    # === イベントハンドラー（状態を更新する）===
+    # === Event handlers (update state) ===
 
     def _on_order_created(self, event: OrderCreated) -> None:
         self.id = event.order_id
@@ -1674,11 +1674,11 @@ class Order(EventSourcedAggregate):
         self.status = "cancelled"
         self.cancelled_at = datetime.now(timezone.utc).isoformat()
 
-    # === リポジトリで使用 ===
+    # === Used by repository ===
 
     @classmethod
     def from_events(cls, events: list[DomainEvent]) -> 'Order':
-        """イベント履歴から集約を復元"""
+        """Restore aggregate from event history"""
         order = cls()
         order._load_from_history(events)
         return order
@@ -1686,9 +1686,9 @@ class Order(EventSourcedAggregate):
 
 ---
 
-## 4. テスト戦略
+## 4. Testing Strategy
 
-### 4.1 イベントハンドラーのテスト
+### 4.1 Testing Event Handlers
 
 ```python
 # tests/test_inventory_handler.py
@@ -1735,7 +1735,7 @@ class FakeStockService:
 
 
 class TestInventoryEventHandler:
-    """在庫イベントハンドラーのテスト"""
+    """Tests for the inventory event handler"""
 
     def setup_method(self):
         self.repo = FakeInventoryRepo()
@@ -1749,8 +1749,8 @@ class TestInventoryEventHandler:
             event_publisher=self.publisher,
         )
 
-    def test_在庫引当_正常(self):
-        """全アイテムの在庫が十分な場合、引当が成功する"""
+    def test_inventory_reservation_success(self):
+        """When all items are sufficiently in stock, reservation succeeds"""
         event_data = {
             'event_id': 'evt-001',
             'event_type': 'order.placed',
@@ -1766,15 +1766,15 @@ class TestInventoryEventHandler:
 
         self.handler.handle_order_placed(event_data)
 
-        # InventoryReserved イベントが発行される
+        # InventoryReserved event is published
         reserved_events = self.publisher.get_events_of_type(
             'inventory.reserved'
         )
         assert len(reserved_events) == 1
         assert reserved_events[0].order_id == 'ORD-123'
 
-    def test_在庫不足_補償イベント発行(self):
-        """在庫不足の場合、補償イベントが発行される"""
+    def test_insufficient_inventory_publishes_compensation_event(self):
+        """When inventory is insufficient, a compensation event is published"""
         event_data = {
             'event_id': 'evt-002',
             'event_type': 'order.placed',
@@ -1783,21 +1783,21 @@ class TestInventoryEventHandler:
                 'order_id': 'ORD-456',
                 'items': [
                     {'product_id': 'PRD-001', 'quantity': 1},
-                    {'product_id': 'PRD-999', 'quantity': 1},  # 在庫なし
+                    {'product_id': 'PRD-999', 'quantity': 1},  # out of stock
                 ],
             },
         }
 
         self.handler.handle_order_placed(event_data)
 
-        # 在庫不足イベントが発行される
+        # Insufficient inventory event is published
         insufficient_events = self.publisher.get_events_of_type(
             'inventory.insufficient'
         )
         assert len(insufficient_events) == 1
 
-    def test_冪等性_重複イベント無視(self):
-        """同じ order_id のイベントが2回来ても、1回だけ処理される"""
+    def test_idempotency_duplicate_event_ignored(self):
+        """Even if the same order_id event arrives twice, it is processed only once"""
         self.repo.add_reservation('ORD-789')
 
         event_data = {
@@ -1811,11 +1811,11 @@ class TestInventoryEventHandler:
 
         self.handler.handle_order_placed(event_data)
 
-        # 何もイベントが発行されない（スキップ）
+        # No events are published (skipped)
         assert len(self.publisher.published_events) == 0
 ```
 
-### 4.2 Event Sourced Aggregate のテスト
+### 4.2 Testing Event Sourced Aggregates
 
 ```python
 # tests/test_order_aggregate.py
@@ -1823,9 +1823,9 @@ import pytest
 
 
 class TestOrderAggregate:
-    """Event Sourced Order 集約のテスト"""
+    """Tests for the Event Sourced Order aggregate"""
 
-    def test_注文作成(self):
+    def test_order_creation(self):
         order = Order.create(order_id='ORD-001', customer_id='USR-001')
 
         assert order.id == 'ORD-001'
@@ -1837,7 +1837,7 @@ class TestOrderAggregate:
         assert len(events) == 1
         assert events[0].event_type == 'order.created'
 
-    def test_アイテム追加(self):
+    def test_add_item(self):
         order = Order.create(order_id='ORD-001', customer_id='USR-001')
         order.add_item('PRD-001', quantity=2, unit_price=1000)
         order.add_item('PRD-002', quantity=1, unit_price=2000)
@@ -1846,41 +1846,41 @@ class TestOrderAggregate:
         assert order.total_amount == 4000  # 2*1000 + 1*2000
         assert order.version == 3
 
-    def test_注文確定(self):
+    def test_order_confirmation(self):
         order = Order.create(order_id='ORD-001', customer_id='USR-001')
         order.add_item('PRD-001', quantity=1, unit_price=1000)
         order.confirm()
 
         assert order.status == 'confirmed'
 
-    def test_空の注文は確定できない(self):
+    def test_empty_order_cannot_be_confirmed(self):
         order = Order.create(order_id='ORD-001', customer_id='USR-001')
 
-        with pytest.raises(ValueError, match="アイテムが空"):
+        with pytest.raises(ValueError, match="no items"):
             order.confirm()
 
-    def test_出荷済み注文はキャンセルできない(self):
+    def test_shipped_order_cannot_be_cancelled(self):
         order = Order.create(order_id='ORD-001', customer_id='USR-001')
         order.add_item('PRD-001', quantity=1, unit_price=1000)
         order.confirm()
         order.ship(tracking_id='TRK-001')
 
-        with pytest.raises(ValueError, match="キャンセルはできません"):
-            order.cancel(reason="気が変わった")
+        with pytest.raises(ValueError, match="Cannot cancel"):
+            order.cancel(reason="Changed my mind")
 
-    def test_イベント履歴から復元(self):
-        """Event Sourcing の核心: イベント再生で状態を復元"""
-        # 1. 集約を操作してイベントを生成
+    def test_restore_from_event_history(self):
+        """Core of Event Sourcing: restore state by replaying events"""
+        # 1. Operate on aggregate to generate events
         original = Order.create(order_id='ORD-001', customer_id='USR-001')
         original.add_item('PRD-001', quantity=2, unit_price=1000)
         original.add_item('PRD-002', quantity=1, unit_price=2000)
         original.confirm()
         events = original.collect_events()
 
-        # 2. イベント履歴から集約を復元
+        # 2. Restore aggregate from event history
         restored = Order.from_events(events)
 
-        # 3. 復元した集約は元と同じ状態
+        # 3. Restored aggregate has the same state as the original
         assert restored.id == original.id
         assert restored.customer_id == original.customer_id
         assert restored.status == original.status
@@ -1889,7 +1889,7 @@ class TestOrderAggregate:
         assert restored.version == original.version
 ```
 
-### 4.3 Saga のテスト
+### 4.3 Testing Sagas
 
 ```python
 # tests/test_order_saga.py
@@ -1897,7 +1897,7 @@ import pytest
 
 
 class FakeService:
-    """テスト用のフェイクサービス"""
+    """Fake service for testing"""
     def __init__(self, should_fail: bool = False):
         self._should_fail = should_fail
         self.calls = []
@@ -1930,8 +1930,8 @@ class FakeSagaLogRepo:
 
 class TestOrderPlacementSaga:
 
-    def test_正常完了(self):
-        """全ステップが成功する場合"""
+    def test_successful_completion(self):
+        """When all steps succeed"""
         inventory = FakeService()
         payment = FakeService()
         shipping = FakeService()
@@ -1950,14 +1950,14 @@ class TestOrderPlacementSaga:
             'items': [{'product_id': 'PRD-001', 'quantity': 1}],
             'total_amount': 1000,
             'payment_method': 'credit_card',
-            'shipping_address': '東京都渋谷区...',
+            'shipping_address': '123 Main St, Tokyo',
             'customer_email': 'test@example.com',
         })
 
         assert saga._status == SagaStatus.COMPLETED
 
-    def test_決済失敗時の補償(self):
-        """決済が失敗した場合、在庫引当の補償が実行される"""
+    def test_compensation_on_payment_failure(self):
+        """When payment fails, compensation for inventory reservation is executed"""
         inventory = FakeService()
         payment = FakeService()
         payment.set_fail_method('charge')
@@ -1978,56 +1978,56 @@ class TestOrderPlacementSaga:
                 'items': [{'product_id': 'PRD-001', 'quantity': 1}],
                 'total_amount': 1000,
                 'payment_method': 'credit_card',
-                'shipping_address': '東京都渋谷区...',
+                'shipping_address': '123 Main St, Tokyo',
                 'customer_email': 'test@example.com',
             })
 
         assert exc_info.value.step_name == 'process_payment'
         assert saga._status == SagaStatus.FAILED
 
-        # 在庫の補償（解放）が呼ばれていることを確認
+        # Verify that inventory compensation (release) was called
         inventory_calls = [c[0] for c in inventory.calls]
         assert 'release_reservation' in inventory_calls
 ```
 
 ---
 
-## 5. 運用と監視
+## 5. Operations and Monitoring
 
 ### 5.1 Dead Letter Queue (DLQ)
 
 ```
-=== Dead Letter Queue の仕組み ===
+=== How Dead Letter Queue Works ===
 
-  通常フロー:
-  [Event Bus] → [Consumer] → 処理成功 → オフセットコミット
+  Normal flow:
+  [Event Bus] → [Consumer] → Processing success → Commit offset
 
-  DLQ フロー:
-  [Event Bus] → [Consumer] → 処理失敗 (3回リトライ)
+  DLQ flow:
+  [Event Bus] → [Consumer] → Processing failure (3 retries)
                                  ↓
                            [Dead Letter Queue]
                                  ↓
-                           [DLQ Consumer / 手動確認]
+                           [DLQ Consumer / manual review]
                                  ↓
-                           修正後に再処理 or 破棄
+                           Reprocess after fix, or discard
 
-  DLQ に入るケース:
-  - メッセージフォーマットの不正（デシリアライズ失敗）
-  - ビジネスルール違反（存在しない注文の更新）
-  - 一時的でない障害（外部 API の認証エラー等）
+  Cases that end up in DLQ:
+  - Invalid message format (deserialization failure)
+  - Business rule violation (updating a non-existent order)
+  - Non-transient failures (external API authentication error, etc.)
 
-  DLQ の監視項目:
-  - DLQ のメッセージ数（急増はシステム障害の兆候）
-  - DLQ 内のメッセージの滞留時間
-  - DLQ から再処理した成功率
+  DLQ monitoring items:
+  - Number of messages in DLQ (sudden increase indicates system failure)
+  - Dwell time of messages in DLQ
+  - Success rate of reprocessing from DLQ
 ```
 
-### 5.2 監視とトレーシング
+### 5.2 Monitoring and Tracing
 
 ```
-=== イベント駆動システムの可観測性 ===
+=== Observability in Event-Driven Systems ===
 
-  1. 分散トレーシング (OpenTelemetry)
+  1. Distributed Tracing (OpenTelemetry)
      ┌──────────────────────────────────────┐
      │ Trace ID: abc-123                     │
      │                                       │
@@ -2044,47 +2044,47 @@ class TestOrderPlacementSaga:
      │ Total: 278ms                              │
      └──────────────────────────────────────┘
 
-  2. メトリクス (Prometheus + Grafana)
-     - events_published_total (カウンター): 発行イベント数
-     - events_consumed_total (カウンター): 消費イベント数
-     - event_processing_duration_seconds (ヒストグラム): 処理時間
-     - consumer_lag (ゲージ): Consumer の遅延
-     - dlq_messages_total (カウンター): DLQ に入ったメッセージ数
+  2. Metrics (Prometheus + Grafana)
+     - events_published_total (counter): Number of events published
+     - events_consumed_total (counter): Number of events consumed
+     - event_processing_duration_seconds (histogram): Processing time
+     - consumer_lag (gauge): Consumer lag
+     - dlq_messages_total (counter): Number of messages that entered DLQ
 
-  3. アラート条件
-     - Consumer Lag > 10,000: Consumer が追いついていない
-     - DLQ 増加率 > 100/min: 大規模障害の兆候
-     - 処理時間 P99 > 5s: パフォーマンス劣化
-     - エラー率 > 5%: ハンドラーのバグ or 依存サービス障害
+  3. Alert conditions
+     - Consumer Lag > 10,000: Consumer is not keeping up
+     - DLQ growth rate > 100/min: Sign of large-scale failure
+     - P99 processing time > 5s: Performance degradation
+     - Error rate > 5%: Handler bug or dependent service failure
 ```
 
-### 5.3 冪等性の実装パターン
+### 5.3 Idempotency Implementation Patterns
 
 ```python
 # infrastructure/idempotency/idempotency_store.py
 """
-冪等性: 同じイベントを複数回処理しても結果が変わらないことを保証
+Idempotency: Guarantees that processing the same event multiple times yields the same result
 
-なぜ冪等性が必要か:
-  - at-least-once 配信: Kafka は「少なくとも1回」配信を保証
-  - Consumer 再起動時にオフセットが巻き戻る可能性
-  - ネットワーク障害によるリトライ
+Why idempotency is needed:
+  - at-least-once delivery: Kafka guarantees "at least once" delivery
+  - Offset may rewind on Consumer restart
+  - Retries due to network failures
 
-冪等性の実装方法:
-  1. event_id で処理済みチェック（推奨）
-  2. 自然キーによる重複排除（例: order_id + event_type）
-  3. 条件付き更新（例: WHERE version = expected_version）
+Idempotency implementation approaches:
+  1. Processed check using event_id (recommended)
+  2. Deduplication via natural key (e.g., order_id + event_type)
+  3. Conditional update (e.g., WHERE version = expected_version)
 """
 
 
 class IdempotencyStore:
-    """冪等性ストア: 処理済みイベントを記録"""
+    """Idempotency store: Records processed events"""
 
     def __init__(self, session):
         self._session = session
 
     def is_processed(self, event_id: str) -> bool:
-        """イベントが処理済みか確認"""
+        """Check if an event has been processed"""
         result = self._session.execute(
             "SELECT 1 FROM processed_events WHERE event_id = :event_id",
             {'event_id': event_id},
@@ -2092,7 +2092,7 @@ class IdempotencyStore:
         return result is not None
 
     def mark_processed(self, event_id: str, handler_name: str) -> None:
-        """イベントを処理済みとして記録"""
+        """Record an event as processed"""
         self._session.execute(
             """
             INSERT INTO processed_events (event_id, handler_name, processed_at)
@@ -2109,7 +2109,7 @@ class IdempotencyStore:
 
 
 def idempotent_handler(idempotency_store: IdempotencyStore):
-    """冪等性を保証するデコレーター"""
+    """Decorator that guarantees idempotency"""
     def decorator(func):
         def wrapper(event_data: dict) -> None:
             event_id = event_data.get('event_id', '')
@@ -2117,7 +2117,7 @@ def idempotent_handler(idempotency_store: IdempotencyStore):
 
             if idempotency_store.is_processed(event_id):
                 logger.info(
-                    f"処理済みイベントをスキップ: "
+                    f"Skipping already-processed event: "
                     f"event_id={event_id}, handler={handler_name}"
                 )
                 return
@@ -2130,116 +2130,116 @@ def idempotent_handler(idempotency_store: IdempotencyStore):
 
 ---
 
-## 6. 比較表
+## 6. Comparison Tables
 
-### 6.1 同期 vs 非同期
+### 6.1 Synchronous vs Asynchronous
 
-| 特性 | 同期 (REST/gRPC) | 非同期 (Event-Driven) |
+| Characteristic | Synchronous (REST/gRPC) | Asynchronous (Event-Driven) |
 |-----|:----------------:|:--------------------:|
-| 結合度 | 高（直接呼び出し） | 低（イベントバス経由） |
-| レイテンシ | 全サービスの合計 | 即座に応答可能 |
-| 耐障害性 | カスケード障害リスク | サービスごとに独立 |
-| データ整合性 | 強い整合性（可能） | 結果整合性 |
-| デバッグ | 容易（同期フロー） | 困難（非同期フロー追跡） |
-| スケーラビリティ | ボトルネック発生 | 独立スケール |
-| 学習コスト | 低 | 高 |
-| 運用コスト | 低 | 高（Kafka 等の運用） |
+| Coupling | High (direct calls) | Low (via event bus) |
+| Latency | Sum of all services | Can respond immediately |
+| Fault tolerance | Cascade failure risk | Independent per service |
+| Data consistency | Strong consistency (possible) | Eventual consistency |
+| Debugging | Easy (synchronous flow) | Difficult (async flow tracing) |
+| Scalability | Bottleneck occurs | Independent scaling |
+| Learning cost | Low | High |
+| Operational cost | Low | High (Kafka, etc. operation) |
 
-### 6.2 状態管理アプローチ
+### 6.2 State Management Approaches
 
-| アプローチ | 状態管理 | 監査ログ | 複雑性 | 適用場面 |
+| Approach | State Management | Audit Log | Complexity | Use Cases |
 |-----------|---------|---------|--------|---------|
-| CRUD | 最新状態のみ保持 | 別途実装が必要 | 低 | シンプルなアプリ |
-| CQRS | 読み書き分離 | 別途実装が必要 | 中 | 読み書きの負荷特性が異なる |
-| Event Sourcing | イベントログから再構築 | 自然に実現 | 高 | 完全な監査証跡が必要 |
-| CQRS + ES | イベントログ + Read Model | 自然に実現 | 最高 | 金融・医療・法規制 |
+| CRUD | Holds only latest state | Requires separate implementation | Low | Simple apps |
+| CQRS | Read/write separation | Requires separate implementation | Medium | Different load profiles for reads/writes |
+| Event Sourcing | Reconstructed from event log | Naturally achieved | High | Complete audit trail required |
+| CQRS + ES | Event log + Read Model | Naturally achieved | Highest | Finance, healthcare, regulation |
 
-### 6.3 メッセージブローカー比較
+### 6.3 Message Broker Comparison
 
-| 特性 | Apache Kafka | RabbitMQ | AWS SNS+SQS |
+| Characteristic | Apache Kafka | RabbitMQ | AWS SNS+SQS |
 |-----|:-----------:|:--------:|:-----------:|
-| スループット | 非常に高い（100万msg/s） | 高い（1万msg/s） | 高い（マネージド） |
-| メッセージ保持 | 設定期間保持（再読可） | 消費後削除 | SQS: 最大14日 |
-| 順序保証 | パーティション内保証 | キュー内保証 | FIFO SQS で保証 |
-| Consumer Group | ネイティブサポート | 手動設定 | SQS がキュー分離 |
-| 運用コスト | 高い（自前運用） | 中程度 | 低い（マネージド） |
-| 適用場面 | 大規模ストリーミング | タスクキュー | AWS エコシステム |
+| Throughput | Very high (1M msg/s) | High (10K msg/s) | High (managed) |
+| Message retention | Retained for configured period (replayable) | Deleted after consumption | SQS: up to 14 days |
+| Ordering guarantee | Within partition | Within queue | FIFO SQS guarantees it |
+| Consumer Group | Native support | Manual setup | SQS separates queues |
+| Operational cost | High (self-managed) | Moderate | Low (managed) |
+| Use cases | Large-scale streaming | Task queues | AWS ecosystem |
 
-### 6.4 Saga パターン比較
+### 6.4 Saga Pattern Comparison
 
-| 特性 | Orchestration | Choreography |
+| Characteristic | Orchestration | Choreography |
 |-----|:------------:|:------------:|
-| 制御の集中度 | 高い（Orchestrator） | 低い（分散） |
-| フロー可視性 | 高い | 低い |
-| SPOF リスク | あり（Orchestrator） | なし |
-| デバッグ容易性 | 高い | 低い |
-| サービス独立性 | 中程度 | 高い |
-| 適用場面 | 3ステップ以上の複雑なフロー | 2-3ステップのシンプルなフロー |
+| Centralization of control | High (Orchestrator) | Low (distributed) |
+| Flow visibility | High | Low |
+| SPOF risk | Yes (Orchestrator) | None |
+| Ease of debugging | High | Low |
+| Service independence | Moderate | High |
+| Use cases | Complex flows with 3+ steps | Simple flows with 2-3 steps |
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### アンチパターン 1: イベントを RPC の代替として使う
+### Anti-Pattern 1: Using Events as a Replacement for RPC
 
 ```
-WHY: イベントは「起きた事実」を伝えるもの。
-     「〜してくれ」という命令はイベントではなくコマンド。
-     イベントで同期的な応答を期待すると、疎結合の利点が失われる。
+WHY: Events convey "a fact that occurred".
+     "Please do X" is a command, not an event.
+     Expecting a synchronous response from an event eliminates the benefits of loose coupling.
 
-BAD: イベントで同期的なリクエスト/レスポンスを模倣
+BAD: Mimicking synchronous request/response with events
   Order Service --> "PleaseReserveInventory" --> Inventory Service
   Order Service <-- "InventoryReserved" <-- Inventory Service
-  → 命令形のイベント名。実質的に同期呼び出し
-  → Order Service が Inventory Service の応答を待っている
+  → Imperative event name. Effectively a synchronous call
+  → Order Service is waiting for a response from Inventory Service
 
-GOOD: イベントは「起きた事実」を伝える
+GOOD: Events convey "a fact that occurred"
   Order Service --> "OrderPlaced" --> [Event Bus]
-  → Inventory Service が独自に判断して在庫引当
-  → Order Service は結果を待たない
-  → 過去形のイベント名（OrderPlaced, PaymentCompleted）
+  → Inventory Service autonomously decides to reserve inventory
+  → Order Service does not wait for the result
+  → Past-tense event names (OrderPlaced, PaymentCompleted)
 ```
 
-### アンチパターン 2: 全てをイベント駆動にする
+### Anti-Pattern 2: Making Everything Event-Driven
 
 ```
-WHY: イベント駆動は万能ではない。
-     同期処理が適切な場面（認証、データ参照）に
-     イベントを使うと、不要な複雑性とレイテンシが発生する。
+WHY: Event-driven is not a silver bullet.
+     Using events for cases where synchronous processing is appropriate
+     (authentication, data retrieval) introduces unnecessary complexity and latency.
 
-BAD: ユーザー認証やデータ取得もイベント駆動
+BAD: User authentication and data fetching also go through event bus
   User --> "AuthenticateUser" --> [Event Bus] --> Auth Service
-  → ログインに数秒のレイテンシ
-  → 単純な GET リクエストにイベントバス経由
+  → Several seconds of latency for login
+  → Simple GET requests routed through event bus
 
-GOOD: 適材適所
-  - 同期 (REST/gRPC):
-    ユーザー認証、データ参照、リアルタイム応答が必要な処理
-  - 非同期 (Event):
-    注文処理、通知送信、データ同期、バッチ処理、
-    複数サービスへのファンアウト
+GOOD: The right tool for the right job
+  - Synchronous (REST/gRPC):
+    User authentication, data retrieval, processes requiring real-time response
+  - Asynchronous (Event):
+    Order processing, notification sending, data sync, batch processing,
+    fan-out to multiple services
 ```
 
-### アンチパターン 3: イベントにドメインロジックを含める
+### Anti-Pattern 3: Including Domain Logic in Events
 
 ```
-WHY: イベントは「何が起きたか」を記録するだけ。
-     「どう処理するか」はConsumer のドメインロジック。
-     イベントに処理ロジックを含めると、Consumer の自律性が失われる。
+WHY: Events only record "what happened".
+     "How to process it" is the consumer's domain logic.
+     Including processing logic in events removes the consumer's autonomy.
 
-BAD: イベントに処理指示を含める
+BAD: Including processing instructions in events
   {
     "event_type": "order.placed",
     "order_id": "ORD-123",
     "instructions": {
-      "inventory": "reserve PRD-001 x 2",     ← 処理指示
-      "payment": "charge 3000 JPY",            ← 処理指示
-      "shipping": "express delivery to ..."     ← 処理指示
+      "inventory": "reserve PRD-001 x 2",     ← processing instruction
+      "payment": "charge 3000 JPY",            ← processing instruction
+      "shipping": "express delivery to ..."     ← processing instruction
     }
   }
-  → 発信者が全ての Consumer の処理方法を知っている（密結合）
+  → The sender knows how every consumer should process (tight coupling)
 
-GOOD: イベントは事実のみ
+GOOD: Events contain only facts
   {
     "event_type": "order.placed",
     "order_id": "ORD-123",
@@ -2247,49 +2247,49 @@ GOOD: イベントは事実のみ
     "items": [{"product_id": "PRD-001", "quantity": 2}],
     "total_amount": 3000
   }
-  → 各 Consumer が自律的に処理方法を決定
+  → Each Consumer autonomously decides how to process
 ```
 
-### アンチパターン 4: Outbox パターンなしでのイベント発行
+### Anti-Pattern 4: Publishing Events Without the Outbox Pattern
 
 ```
-WHY: DB 保存とイベント発行を別々のトランザクションで行うと、
-     どちらかが失敗した場合にデータ不整合が発生する。
+WHY: Performing DB save and event publishing as separate transactions means
+     if either fails, data inconsistency occurs.
 
-BAD: 2つの独立した操作
+BAD: Two independent operations
   def place_order(order):
-      db.save(order)          # 1. DB に保存（成功）
-      kafka.publish(event)    # 2. Kafka に発行（失敗する可能性）
-      # → DB には保存されたが、イベントは発行されない
-      # → 下流サービスは注文を認識しない
+      db.save(order)          # 1. Save to DB (succeeds)
+      kafka.publish(event)    # 2. Publish to Kafka (may fail)
+      # → Saved to DB, but event is not published
+      # → Downstream services are unaware of the order
 
-GOOD: Outbox パターン
+GOOD: Outbox pattern
   def place_order(order):
       with db.transaction():
-          db.save(order)          # 1. 注文を保存
-          outbox.save(event)      # 2. Outbox にイベントを保存
-      # → 同一トランザクション内で原子的に保存
-      # → Outbox Relay が別プロセスで Kafka に転送
+          db.save(order)          # 1. Save order
+          outbox.save(event)      # 2. Save event to Outbox
+      # → Saved atomically within the same transaction
+      # → Outbox Relay transfers to Kafka in a separate process
 ```
 
-### アンチパターン 5: 冪等性を考慮しないハンドラー
+### Anti-Pattern 5: Handlers Without Idempotency Consideration
 
 ```
-WHY: at-least-once 配信では同じイベントが複数回届く可能性がある。
-     冪等性がないと、重複処理（二重課金、二重在庫引当）が発生する。
+WHY: With at-least-once delivery, the same event may arrive multiple times.
+     Without idempotency, duplicate processing (double billing, double inventory reservation) occurs.
 
-BAD: 冪等性なし
+BAD: No idempotency
   def handle_payment(event):
       payment_service.charge(
           order_id=event['order_id'],
           amount=event['total_amount'],
       )
-      # → 同じイベントが2回届くと、2回課金される
+      # → If the same event arrives twice, billing happens twice
 
-GOOD: 冪等性保証
+GOOD: Idempotency guarantee
   def handle_payment(event):
       if idempotency_store.is_processed(event['event_id']):
-          return  # 処理済みならスキップ
+          return  # Skip if already processed
 
       payment_service.charge(
           order_id=event['order_id'],
@@ -2300,170 +2300,170 @@ GOOD: 冪等性保証
 
 ---
 
-## 8. 演習問題
+## 8. Practice Exercises
 
-### 演習1: 基本 — イベント定義とパブリッシャー（30分）
+### Exercise 1: Basic — Event Definition and Publisher (30 minutes)
 
-**課題**: ECサイトの「商品レビュー投稿」のイベント駆動設計
+**Task**: Design an event-driven system for "product review submission" on an e-commerce site
 
-以下のイベントを定義し、パブリッシャーを実装せよ:
-1. `ReviewSubmitted`: レビュー投稿（review_id, product_id, user_id, rating, comment）
-2. `ReviewApproved`: レビュー承認（review_id, approved_by）
-3. `ReviewRejected`: レビュー却下（review_id, reason）
+Define the following events and implement a publisher:
+1. `ReviewSubmitted`: Review submitted (review_id, product_id, user_id, rating, comment)
+2. `ReviewApproved`: Review approved (review_id, approved_by)
+3. `ReviewRejected`: Review rejected (review_id, reason)
 
-イベントハンドラーとして以下を実装:
-- `ProductRatingUpdater`: ReviewApproved 受信時に商品の平均評価を更新
-- `NotificationHandler`: ReviewApproved 受信時に投稿者に通知
+Implement the following event handlers:
+- `ProductRatingUpdater`: Updates the product's average rating when ReviewApproved is received
+- `NotificationHandler`: Notifies the submitter when ReviewApproved is received
 
-**期待する出力**:
+**Expected output**:
 ```python
-# ReviewSubmitted イベントが発行される
+# ReviewSubmitted event is published
 publisher.publish(ReviewSubmitted(
     review_id="REV-001",
     product_id="PRD-001",
     user_id="USR-001",
     rating=5,
-    comment="素晴らしい商品です"
+    comment="Excellent product"
 ))
 
-# ProductRatingUpdater が平均評価を更新
-# → product PRD-001 の平均評価が 4.5 に更新
-# NotificationHandler が通知を送信
-# → user USR-001 に「レビューが承認されました」通知
+# ProductRatingUpdater updates the average rating
+# → product PRD-001 average rating updated to 4.5
+# NotificationHandler sends a notification
+# → user USR-001 receives "Your review has been approved" notification
 ```
 
-### 演習2: 応用 — Saga パターンの実装（60分）
+### Exercise 2: Applied — Implementing the Saga Pattern (60 minutes)
 
-**課題**: 旅行予約システムの Saga を実装せよ
+**Task**: Implement a Saga for a travel booking system
 
-ステップ:
-1. フライト予約（reserve_flight / cancel_flight）
-2. ホテル予約（reserve_hotel / cancel_hotel）
-3. レンタカー予約（reserve_car / cancel_car）
-4. 決済処理（charge_payment / refund_payment）
+Steps:
+1. Flight reservation (reserve_flight / cancel_flight)
+2. Hotel reservation (reserve_hotel / cancel_hotel)
+3. Car rental reservation (reserve_car / cancel_car)
+4. Payment processing (charge_payment / refund_payment)
 
-要件:
-- ホテル予約で失敗した場合、フライト予約の補償が実行されること
-- 各ステップの状態をログに記録すること
-- テストを3ケース以上書くこと
+Requirements:
+- If hotel reservation fails, compensation for flight reservation must be executed
+- Record the status of each step in the log
+- Write at least 3 test cases
 
-**期待する出力**:
+**Expected output**:
 ```python
-# 正常系
+# Happy path
 saga.execute("TRIP-001", trip_data)
-# → 全ステップ完了
+# → All steps completed
 
-# ホテル予約失敗時
+# Hotel reservation failure
 saga.execute("TRIP-002", trip_data)
 # → SagaFailedError: "Saga failed at step 'reserve_hotel': No rooms"
-# → フライト予約の補償（キャンセル）が実行済み
+# → Flight reservation compensation (cancellation) has been executed
 ```
 
-### 演習3: 発展 — Event Sourced 集約の実装（90分）
+### Exercise 3: Advanced — Implementing an Event Sourced Aggregate (90 minutes)
 
-**課題**: 銀行口座を Event Sourced Aggregate として実装せよ
+**Task**: Implement a bank account as an Event Sourced Aggregate
 
-イベント:
+Events:
 - `AccountOpened(account_id, owner_name, initial_balance)`
 - `MoneyDeposited(account_id, amount, description)`
 - `MoneyWithdrawn(account_id, amount, description)`
 - `AccountFrozen(account_id, reason)`
 - `AccountClosed(account_id)`
 
-ビジネスルール:
-- 残高がマイナスになる引き出しは拒否
-- 凍結中の口座は入出金不可
-- 閉鎖済みの口座は操作不可
-- 1日の引き出し上限は100万円
+Business rules:
+- Reject withdrawals that would make balance negative
+- Frozen accounts cannot deposit or withdraw
+- Closed accounts cannot be operated on
+- Daily withdrawal limit is 1,000,000 JPY
 
-テスト要件:
-- イベント履歴からの状態復元テスト
-- ビジネスルール違反の拒否テスト
-- スナップショットからの復元テスト
+Test requirements:
+- Test for state restoration from event history
+- Test for rejection of business rule violations
+- Test for restoration from snapshot
 
-**期待する出力**:
+**Expected output**:
 ```python
-# 口座を操作
-account = BankAccount.open("ACC-001", "田中太郎", 100000)
-account.deposit(50000, "給与振込")
-account.withdraw(30000, "ATM引き出し")
+# Operate on account
+account = BankAccount.open("ACC-001", "John Doe", 100000)
+account.deposit(50000, "Salary transfer")
+account.withdraw(30000, "ATM withdrawal")
 
 assert account.balance == 120000
 assert account.version == 3
 
-# イベント履歴から復元
+# Restore from event history
 events = account.collect_events()
 restored = BankAccount.from_events(events)
 assert restored.balance == 120000
 
-# ビジネスルール違反
-with pytest.raises(ValueError, match="残高不足"):
-    account.withdraw(200000, "大口引き出し")
+# Business rule violation
+with pytest.raises(ValueError, match="Insufficient balance"):
+    account.withdraw(200000, "Large withdrawal")
 
-# 凍結中は操作不可
-account.freeze("不正利用の疑い")
-with pytest.raises(ValueError, match="凍結中"):
-    account.deposit(10000, "振込")
+# Cannot operate while frozen
+account.freeze("Suspected fraudulent use")
+with pytest.raises(ValueError, match="frozen"):
+    account.deposit(10000, "Transfer")
 ```
 
 ---
 
 ## 9. FAQ
 
-### Q1. イベントの順序保証はどう実現する？
+### Q1. How do you guarantee event ordering?
 
-**A.** Kafka ではパーティションキーに集約IDを使うことで、同一集約のイベントは同一パーティション内で順序保証される。異なる集約間の順序は保証不要（各集約は独立しているため）。順序が必要な場合はイベントに `version` フィールドを含め、Consumer 側で順序検証を行う。
+**A.** In Kafka, by using the aggregate ID as the partition key, events for the same aggregate are guaranteed to be ordered within the same partition. Ordering across different aggregates is not required (since each aggregate is independent). When ordering is necessary, include a `version` field in events and perform ordering validation on the Consumer side.
 
 ```python
-# パーティションキーに aggregate_id を使用
+# Use aggregate_id as the partition key
 producer.produce(
     topic="domain-events.order",
-    key=order_id.encode(),  # ← パーティションキー
+    key=order_id.encode(),  # ← partition key
     value=event_payload,
 )
-# → 同じ order_id のイベントは必ず同じパーティションに入る
-# → パーティション内では FIFO（先入れ先出し）保証
+# → Events with the same order_id always go to the same partition
+# → FIFO (first-in, first-out) guarantee within a partition
 
-# Consumer 側の順序検証
+# Consumer-side ordering validation
 def handle_event(event_data):
     expected_version = get_last_processed_version(event_data['aggregate_id'])
     actual_version = event_data['version']
     if actual_version <= expected_version:
-        return  # 既に処理済み（冪等性）
+        return  # Already processed (idempotency)
     if actual_version > expected_version + 1:
-        raise OutOfOrderError("イベントが飛んでいる。再処理が必要")
+        raise OutOfOrderError("Event is out of order. Reprocessing required")
 ```
 
-### Q2. 結果整合性で「不整合な期間」はどう扱う？
+### Q2. How do you handle the "inconsistency window" in eventual consistency?
 
-**A.** UIレベルとビジネスレベルの両方で対処する。
+**A.** Address it at both the UI level and business level.
 
 ```
-UI レベルの対処:
-  1. 楽観的 UI: 「注文を受け付けました（処理中）」と即座に表示
-  2. ポーリング / WebSocket: バックグラウンドで最新状態を通知
-  3. 状態表示: "processing" → "confirmed" → "shipped" の遷移を表示
+UI-level handling:
+  1. Optimistic UI: Immediately display "Order accepted (processing)"
+  2. Polling / WebSocket: Notify of latest state in the background
+  3. Status display: Show transition "processing" → "confirmed" → "shipped"
 
-ビジネスレベルの対処:
-  1. SLA の定義: 「注文確定から在庫引当まで最大30秒」
-  2. タイムアウト: 指定時間内に処理完了しない場合はアラート
-  3. 補償処理: 不整合を検出したら自動 or 手動で修正
-  4. ドメインエキスパートとの合意: 「数秒〜数分の遅延は許容か？」
+Business-level handling:
+  1. Define SLA: "Inventory reservation within 30 seconds of order confirmation"
+  2. Timeout: Alert if processing does not complete within specified time
+  3. Compensation: Automatically or manually correct detected inconsistencies
+  4. Agreement with domain experts: "Is a delay of a few seconds to minutes acceptable?"
 
-実例（ECサイト）:
-  - 注文確定: 即座にレスポンス（「注文を受け付けました」）
-  - 在庫引当: 5秒以内（非同期）
-  - 決済処理: 10秒以内（非同期）
-  - 発送通知: 数分〜数時間（ビジネス上許容）
+Real-world example (e-commerce site):
+  - Order confirmation: Immediate response ("Order accepted")
+  - Inventory reservation: Within 5 seconds (asynchronous)
+  - Payment processing: Within 10 seconds (asynchronous)
+  - Shipping notification: Minutes to hours (acceptable by business)
 ```
 
-### Q3. イベントスキーマの変更（バージョニング）はどう管理する？
+### Q3. How do you manage event schema changes (versioning)?
 
-**A.** 以下の4つの戦略を組み合わせる:
+**A.** Combine the following four strategies:
 
 ```python
-# 戦略1: 後方互換を維持（推奨）
-# フィールド追加は OK、削除・型変更は NG
+# Strategy 1: Maintain backward compatibility (recommended)
+# Adding fields is OK, removing or changing types is NOT OK
 @dataclass(frozen=True)
 class OrderPlacedV1(DomainEvent):
     event_type: str = "order.placed"
@@ -2471,110 +2471,110 @@ class OrderPlacedV1(DomainEvent):
     total_amount: int = 0
 
 @dataclass(frozen=True)
-class OrderPlacedV2(DomainEvent):  # V1 との後方互換あり
+class OrderPlacedV2(DomainEvent):  # Backward compatible with V1
     event_type: str = "order.placed"
     order_id: str = ""
     total_amount: int = 0
-    currency: str = "JPY"     # ← 新規追加（デフォルト値あり）
-    discount_amount: int = 0  # ← 新規追加（デフォルト値あり）
+    currency: str = "JPY"     # ← Newly added (has default value)
+    discount_amount: int = 0  # ← Newly added (has default value)
 
-# 戦略2: バージョン付きイベントタイプ（破壊的変更が必要な場合）
+# Strategy 2: Versioned event types (when breaking changes are necessary)
 # "order.placed.v1" → "order.placed.v2"
 
-# 戦略3: アップキャスター（古いバージョンを新しいバージョンに変換）
+# Strategy 3: UpCaster (converts old versions to new versions)
 class EventUpCaster:
     def upcast(self, event_data: dict) -> dict:
         event_type = event_data.get('event_type', '')
         version = event_data.get('schema_version', 1)
 
         if event_type == 'order.placed' and version == 1:
-            # V1 → V2 への変換
-            event_data['currency'] = 'JPY'  # デフォルト値
+            # Convert V1 → V2
+            event_data['currency'] = 'JPY'  # default value
             event_data['discount_amount'] = 0
             event_data['schema_version'] = 2
         return event_data
 
-# 戦略4: Schema Registry（Confluent Schema Registry）
-# → スキーマの一元管理と互換性の自動チェック
+# Strategy 4: Schema Registry (Confluent Schema Registry)
+# → Centralized schema management and automatic compatibility checking
 ```
 
-### Q4. Kafka のパーティション数はどう決める？
+### Q4. How do you determine the number of Kafka partitions?
 
-**A.** Consumer の並列度とスループット要件から決定する。
-
-```
-基本方針:
-  パーティション数 >= Consumer インスタンス数
-
-  例: Consumer を 10 インスタンスで運用したい場合
-  → パーティション数 = 10 以上
-
-  スループット計算:
-  - 単一パーティションの書き込み: 約 10MB/s
-  - 目標スループット: 100MB/s
-  → パーティション数 = 100MB/s ÷ 10MB/s = 10
-
-注意点:
-  - パーティション数は増やせるが減らせない
-  - 過剰なパーティション数はメタデータのオーバーヘッド
-  - 推奨: 初期はトピックあたり 6-12 パーティション
-  - 大規模: 数百パーティションも可能（Kafka の限界は数千）
-```
-
-### Q5. イベント駆動とマイクロサービスの関係は？
-
-**A.** イベント駆動はマイクロサービス間の通信パターンの1つ。マイクロサービスが必須ではないが、相性が非常に良い。
+**A.** Determine based on Consumer parallelism and throughput requirements.
 
 ```
-モノリスでもイベント駆動は使える:
-  [モジュールA] --event--> [EventBus(in-process)] --> [モジュールB]
-  → モジュール間の疎結合を実現
-  → 将来のマイクロサービス化の布石
+Basic principle:
+  Number of partitions >= Number of Consumer instances
 
-マイクロサービス + イベント駆動:
+  Example: To run Consumer with 10 instances
+  → Number of partitions = 10 or more
+
+  Throughput calculation:
+  - Single partition write: approximately 10MB/s
+  - Target throughput: 100MB/s
+  → Number of partitions = 100MB/s ÷ 10MB/s = 10
+
+Notes:
+  - Partition count can be increased but not decreased
+  - Too many partitions causes metadata overhead
+  - Recommended: 6-12 partitions per topic initially
+  - At scale: hundreds of partitions are possible (Kafka limit is thousands)
+```
+
+### Q5. What is the relationship between event-driven and microservices?
+
+**A.** Event-driven is one communication pattern between microservices. Microservices are not required, but they are a very good fit together.
+
+```
+Event-driven can be used in a monolith too:
+  [Module A] --event--> [EventBus(in-process)] --> [Module B]
+  → Achieves loose coupling between modules
+  → Groundwork for future microservice migration
+
+Microservices + Event-Driven:
   [Service A] --event--> [Kafka] --> [Service B]
-  → サービス間の完全な疎結合
-  → 独立デプロイ、独立スケール
+  → Complete loose coupling between services
+  → Independent deployment, independent scaling
 
-マイクロサービスなしのイベント駆動:
-  - 社内ツールの通知システム
-  - バッチ処理のパイプライン
-  - IoT デバイスのデータ収集
+Event-driven without microservices:
+  - Internal notification systems
+  - Batch processing pipelines
+  - IoT device data collection
 ```
 
-### Q6. イベントソーシングの「イベント数が膨大になる問題」はどう対処する？
+### Q6. How do you handle the "massive number of events" problem in Event Sourcing?
 
-**A.** スナップショットとアーカイブの組み合わせで対処する。
+**A.** Handle it with a combination of snapshots and archiving.
 
 ```
-1. スナップショット（前述）:
-   - N イベントごとに集約の状態をスナップショット保存
-   - 復元時: スナップショット + それ以降のイベント再生
-   - 推奨: 100 イベントごとにスナップショット
+1. Snapshots (described earlier):
+   - Save aggregate state as a snapshot every N events
+   - On restore: snapshot + replay events after the snapshot
+   - Recommended: snapshot every 100 events
 
-2. アーカイブ:
-   - 古いイベントをコールドストレージ（S3 等）に移動
-   - スナップショット以前のイベントはアーカイブ対象
-   - 必要時にアーカイブから復元可能
+2. Archiving:
+   - Move old events to cold storage (S3, etc.)
+   - Events before the snapshot are candidates for archiving
+   - Can be restored from archive when needed
 
-3. Read Model の活用:
-   - 通常のクエリは Read Model（Projector が更新）を使用
-   - イベントストアは書き込みと監査用途に限定
-   - Read Model は非正規化されており高速
+3. Using the Read Model:
+   - Normal queries use the Read Model (updated by Projector)
+   - Event store is limited to write and audit use
+   - Read Model is denormalized and fast
 
-実例:
-  - 1集約あたり平均 50 イベント/年
-  - 100万集約 → 5,000万イベント/年
-  - スナップショット + 3年アーカイブで
-    アクティブなイベント数を管理可能な範囲に維持
+Real-world example:
+  - Average 50 events/year per aggregate
+  - 1 million aggregates → 50 million events/year
+  - With snapshots + 3-year archiving,
+    keep active event count within manageable range
 ```
 
-### Q7. テスト環境でのイベント駆動システムはどう構築する？
+### Q7. How do you build an event-driven system in a test environment?
 
-**A.** テスト用のインメモリ実装と Testcontainers を組み合わせる。
+**A.** Combine in-memory implementations for testing with Testcontainers.
 
 ```python
-# 単体テスト: インメモリ実装
+# Unit tests: in-memory implementation
 class TestOrderWorkflow:
     def setup_method(self):
         self.publisher = InMemoryEventPublisher()
@@ -2584,7 +2584,7 @@ class TestOrderWorkflow:
             event_publisher=self.publisher,
         )
 
-# 統合テスト: Testcontainers で Kafka を起動
+# Integration tests: Start Kafka with Testcontainers
 import testcontainers.kafka
 
 class TestKafkaIntegration:
@@ -2600,7 +2600,7 @@ class TestKafkaIntegration:
 
     def test_publish_and_consume(self):
         publisher = KafkaEventPublisher(self.bootstrap_servers)
-        # ... 統合テスト
+        # ... integration test
 ```
 
 ---
@@ -2608,56 +2608,56 @@ class TestKafkaIntegration:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just from theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architectural design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| イベント駆動の利点 | 疎結合、独立スケール、耐障害性 |
-| 3つのパターン | Event Notification / Event-Carried State Transfer / Event Sourcing |
-| Pub/Sub | プロデューサーとコンシューマーの完全な分離 |
-| CQRS | 読み書きの最適化を独立して行う |
-| Saga パターン | 分散トランザクションの代替（補償による結果整合性） |
-| Outbox パターン | DB 保存とイベント発行のトランザクション保証 |
-| 冪等性 | at-least-once 配信での重複処理防止 |
-| Projector | イベントから Read Model を構築・更新する |
-| スナップショット | イベントソーシングのパフォーマンス最適化 |
-| DLQ | 処理失敗イベントの隔離と再処理 |
-| トレードオフ | 結果整合性、デバッグの困難さ、運用の複雑性 |
+| Benefits of event-driven | Loose coupling, independent scaling, fault tolerance |
+| Three patterns | Event Notification / Event-Carried State Transfer / Event Sourcing |
+| Pub/Sub | Complete separation of producers and consumers |
+| CQRS | Independently optimize reads and writes |
+| Saga pattern | Alternative to distributed transactions (eventual consistency via compensation) |
+| Outbox pattern | Transaction guarantee for DB save and event publishing |
+| Idempotency | Prevents duplicate processing with at-least-once delivery |
+| Projector | Builds and updates Read Model from events |
+| Snapshot | Performance optimization for Event Sourcing |
+| DLQ | Isolation and reprocessing of failed events |
+| Trade-offs | Eventual consistency, debugging difficulty, operational complexity |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Guides
 
-- [メッセージキュー](../01-components/02-message-queue.md) — イベントバスの実装基盤（Kafka / RabbitMQ の詳細）
-- [DDD](./02-ddd.md) — ドメインイベントの設計元となるドメインモデリング
-- [クリーンアーキテクチャ](./01-clean-architecture.md) — イベントハンドラーの配置とレイヤー設計
-- [URL短縮サービス](../03-case-studies/00-url-shortener.md) — イベント駆動を使わないシンプルなシステム設計の例
-- [チャットシステム](../03-case-studies/01-chat-system.md) — WebSocket とイベント駆動の組み合わせ
-- [通知システム](../03-case-studies/02-notification-system.md) — Pub/Sub の典型的な適用例
+- [Message Queue](../01-components/02-message-queue.md) — Implementation foundation for the event bus (Kafka / RabbitMQ details)
+- [DDD](./02-ddd.md) — Domain modeling from which domain events are designed
+- [Clean Architecture](./01-clean-architecture.md) — Placement of event handlers and layer design
+- [URL Shortener](../03-case-studies/00-url-shortener.md) — Example of simple system design without event-driven
+- [Chat System](../03-case-studies/01-chat-system.md) — Combining WebSocket with event-driven
+- [Notification System](../03-case-studies/02-notification-system.md) — A typical application example of Pub/Sub
 
 ---
 
-## 参考文献
+## References
 
-1. **Building Event-Driven Microservices** — Adam Bellemare (O'Reilly, 2020) — イベント駆動マイクロサービスの包括的ガイド
-2. **Designing Data-Intensive Applications** — Martin Kleppmann (O'Reilly, 2017) — ストリーム処理とイベントソーシングの理論的基盤
-3. **Implementing Domain-Driven Design** — Vaughn Vernon (Addison-Wesley, 2013) — ドメインイベントと CQRS の実装パターン
-4. **Enterprise Integration Patterns** — Gregor Hohpe & Bobby Woolf (Addison-Wesley, 2003) — メッセージングパターンの古典
-5. **Reactive Messaging Patterns with the Actor Model** — Vaughn Vernon (Addison-Wesley, 2015) — リアクティブシステムとメッセージングの統合
-6. **Kafka: The Definitive Guide** — Neha Narkhede et al. (O'Reilly, 2021) — Apache Kafka の包括的リファレンス
-7. **Martin Fowler — Event Sourcing** — https://martinfowler.com/eaaDev/EventSourcing.html — Event Sourcing パターンの解説
-8. **Greg Young — CQRS Documents** — https://cqrs.files.wordpress.com/2010/11/cqrs_documents.pdf — CQRS の原典
+1. **Building Event-Driven Microservices** — Adam Bellemare (O'Reilly, 2020) — Comprehensive guide to event-driven microservices
+2. **Designing Data-Intensive Applications** — Martin Kleppmann (O'Reilly, 2017) — Theoretical foundation for stream processing and Event Sourcing
+3. **Implementing Domain-Driven Design** — Vaughn Vernon (Addison-Wesley, 2013) — Implementation patterns for domain events and CQRS
+4. **Enterprise Integration Patterns** — Gregor Hohpe & Bobby Woolf (Addison-Wesley, 2003) — Classic on messaging patterns
+5. **Reactive Messaging Patterns with the Actor Model** — Vaughn Vernon (Addison-Wesley, 2015) — Integration of reactive systems and messaging
+6. **Kafka: The Definitive Guide** — Neha Narkhede et al. (O'Reilly, 2021) — Comprehensive reference for Apache Kafka
+7. **Martin Fowler — Event Sourcing** — https://martinfowler.com/eaaDev/EventSourcing.html — Explanation of the Event Sourcing pattern
+8. **Greg Young — CQRS Documents** — https://cqrs.files.wordpress.com/2010/11/cqrs_documents.pdf — Original document on CQRS
