@@ -1,310 +1,310 @@
-# ドメイン駆動設計 (DDD)
+# Domain-Driven Design (DDD)
 
-> 複雑なビジネスドメインをソフトウェアに正確に反映するための設計手法であり、集約・境界づけられたコンテキスト・ユビキタス言語を軸に、ドメインエキスパートと開発者が共通理解のもとで堅牢なモデルを構築する方法論を解説する
-
----
-
-## この章で学ぶこと
-
-1. **戦略的設計** — 境界づけられたコンテキスト、コンテキストマッピング、ユビキタス言語の確立方法を理解する
-2. **戦術的設計** — エンティティ、値オブジェクト、集約、ドメインイベント、リポジトリの実装パターンを習得する
-3. **集約設計の原則** — 集約ルート、トランザクション境界、整合性の保証を実装できるようになる
-4. **ドメインサービスとアプリケーションサービスの使い分け** — ロジックの配置先を判断できるようになる
-5. **結果整合性と Saga パターン** — 集約間の連携を設計できるようになる
+> A design methodology for accurately reflecting complex business domains in software, explaining how domain experts and developers can build robust models through shared understanding using aggregates, bounded contexts, and ubiquitous language as core pillars
 
 ---
 
-## 前提知識
+## What You Will Learn in This Chapter
 
-| トピック | 内容 | 参照リンク |
+1. **Strategic Design** — Understand how to establish bounded contexts, context mapping, and ubiquitous language
+2. **Tactical Design** — Master implementation patterns for entities, value objects, aggregates, domain events, and repositories
+3. **Aggregate Design Principles** — Learn to implement aggregate roots, transaction boundaries, and consistency guarantees
+4. **Domain Services vs Application Services** — Develop judgment on where to place logic
+5. **Eventual Consistency and the Saga Pattern** — Learn to design coordination between aggregates
+
+---
+
+## Prerequisites
+
+| Topic | Content | Reference |
 |---------|------|-----------|
-| SOLID 原則 | 単一責任の原則、依存性逆転の原則 | SOLID 原則 |
-| クリーンアーキテクチャ | レイヤー構造、依存性ルール | [クリーンアーキテクチャ](./01-clean-architecture.md) |
-| Repository パターン | 永続化の抽象化 | デザインパターン |
-| Python 基礎 | dataclass、Protocol、型ヒント | - |
+| SOLID Principles | Single Responsibility Principle, Dependency Inversion Principle | SOLID Principles |
+| Clean Architecture | Layer structure, dependency rules | [Clean Architecture](./01-clean-architecture.md) |
+| Repository Pattern | Persistence abstraction | Design Patterns |
+| Python Basics | dataclass, Protocol, type hints | - |
 
 ---
 
-## 1. DDD の背景と哲学
+## 1. Background and Philosophy of DDD
 
-### 1.1 なぜ DDD が必要なのか
+### 1.1 Why DDD Is Needed
 
-ソフトウェア開発における最大の課題は、**技術的な複雑さ**ではなく**ドメイン（業務領域）の複雑さ**である。Eric Evans は2003年の著書「Domain-Driven Design」で、この本質的な複雑さに立ち向かうための体系的な手法を提唱した。
-
-```
-ソフトウェアプロジェクトの失敗原因
-
-  技術的問題（パフォーマンス、スケーラビリティ等）
-  ├── 解決策: 技術的知識、経験、ベストプラクティス
-  └── 対処しやすい（明確な指標がある）
-
-  ドメインの複雑さ（ビジネスルール、業務フロー等）
-  ├── 解決策: ドメイン駆動設計
-  └── 対処しにくい（暗黙知が多い、要件が変わる）
-       → DDD はここに焦点を当てる
-```
-
-**WHY: 従来のアプローチの限界**
-
-従来のソフトウェア開発では、ドメインの知識はドキュメント（要件定義書、ER図）に記述され、開発者はそれを「翻訳」してコードに落とし込んでいた。しかし、この「翻訳」の過程で情報が失われ、ドメインの複雑さがコードに正確に反映されないという問題が生じた。
-
-DDD の核心は、**ドメインの知識をコードそのものに表現する**ことである。ドメインエキスパートが使う言葉をそのままクラス名・メソッド名にし、ビジネスルールをエンティティに直接実装する。これにより「ドキュメントとコードの乖離」問題を根本的に解消する。
-
-### 1.2 DDD の全体像
+The greatest challenge in software development is not **technical complexity** but **domain (business area) complexity**. In his 2003 book "Domain-Driven Design," Eric Evans proposed a systematic approach to tackle this essential complexity.
 
 ```
-DDD の2つの柱
+Causes of Software Project Failure
 
-【戦略的設計 (Strategic Design)】
-  ─ 問題領域を分割し、チーム・システム境界を定義
-  ─ 境界づけられたコンテキスト (Bounded Context)
-  ─ コンテキストマップ（コンテキスト間の関係）
-  ─ ユビキタス言語（共通言語の確立）
-  ─ サブドメイン分類（コア/サポート/汎用）
+  Technical problems (performance, scalability, etc.)
+  ├── Solution: Technical knowledge, experience, best practices
+  └── Easier to address (clear metrics exist)
 
-【戦術的設計 (Tactical Design)】
-  ─ コンテキスト内部のモデリングパターン
-  ─ エンティティ / 値オブジェクト / 集約
-  ─ ドメインサービス / ドメインイベント
-  ─ リポジトリ / ファクトリ
-  ─ 仕様パターン (Specification)
+  Domain complexity (business rules, workflows, etc.)
+  ├── Solution: Domain-Driven Design
+  └── Harder to address (much tacit knowledge, requirements change)
+       → DDD focuses here
+```
+
+**WHY: Limitations of Traditional Approaches**
+
+In traditional software development, domain knowledge was written in documents (requirements specifications, ER diagrams), and developers "translated" these into code. However, information was lost in this "translation" process, leading to the problem where domain complexity was not accurately reflected in code.
+
+The essence of DDD is to **express domain knowledge in the code itself**. The terms that domain experts use become class names and method names directly, and business rules are implemented directly in entities. This fundamentally resolves the "gap between documentation and code" problem.
+
+### 1.2 Overview of DDD
+
+```
+The Two Pillars of DDD
+
+[Strategic Design]
+  ─ Divide the problem domain and define team/system boundaries
+  ─ Bounded Context
+  ─ Context Map (relationships between contexts)
+  ─ Ubiquitous Language (establishing a shared language)
+  ─ Subdomain classification (Core / Supporting / Generic)
+
+[Tactical Design]
+  ─ Modeling patterns inside a context
+  ─ Entity / Value Object / Aggregate
+  ─ Domain Service / Domain Event
+  ─ Repository / Factory
+  ─ Specification Pattern
 ```
 
 ```
-DDD の適用判断フロー
+DDD Adoption Decision Flow
 
-  ビジネスルールが複雑？
-    ├── No → CRUD + 従来型アーキテクチャで十分
+  Are business rules complex?
+    ├── No → CRUD + traditional architecture is sufficient
     └── Yes
-         ドメインエキスパートにアクセスできる？
-           ├── No → 戦術的パターンのみ部分採用
+         Can you access domain experts?
+           ├── No → Adopt only tactical patterns partially
            └── Yes
-                チーム規模は十分（3人以上）？
-                  ├── No → 戦略的設計は簡易化、戦術的設計に注力
-                  └── Yes → フル DDD を採用
+                Is the team large enough (3+ people)?
+                  ├── No → Simplify strategic design, focus on tactical design
+                  └── Yes → Adopt full DDD
 ```
 
 ---
 
-## 2. 戦略的設計
+## 2. Strategic Design
 
-### 2.1 境界づけられたコンテキスト (Bounded Context)
+### 2.1 Bounded Context
 
-境界づけられたコンテキストは、DDD において**最も重要な概念**である。同じ用語でもコンテキストによって意味が異なることを明示的に認め、各コンテキスト内でユビキタス言語を統一する。
+The bounded context is the **most important concept** in DDD. It explicitly acknowledges that the same term can have different meanings in different contexts, and unifies the ubiquitous language within each context.
 
 ```
-ECサイトのコンテキストマップ
+Context Map for an E-Commerce Site
 
   +--------------------+     +--------------------+     +--------------------+
-  |  注文コンテキスト    |     |  在庫コンテキスト    |     |  配送コンテキスト    |
+  |  Order Context      |     |  Inventory Context  |     |  Shipping Context   |
   |                    |     |                    |     |                    |
   | Order              |     | StockItem          |     | Shipment           |
   | OrderItem          |     | Warehouse          |     | DeliveryRoute      |
-  | Customer(注文者)    |     | Reservation        |     | Customer(届け先)    |
-  | 「確定する」= place |     | 「引当する」= reserve|     | 「発送する」= ship  |
+  | Customer(orderer)  |     | Reservation        |     | Customer(recipient) |
+  | "confirm" = place  |     | "allocate" = reserve|    | "send" = ship      |
   +--------+-----------+     +--------+-----------+     +--------+-----------+
            |                          |                          |
            | OrderPlaced              | StockReserved            |
-           | (ドメインイベント)         | (ドメインイベント)         |
+           | (domain event)           | (domain event)           |
            +--------> [Event Bus] <---+------------------------->+
 
-  ★ 同じ「Customer」でも各コンテキストで意味と属性が異なる
-     注文: 名前、連絡先、注文履歴
-     配送: 届け先住所、配達時間帯指定
-  ★ コンテキスト間はイベントで疎結合に連携
-  ★ 各コンテキストは独立してデプロイ・開発可能
+  ★ Even the same "Customer" has different meaning and attributes in each context
+     Order: name, contact info, order history
+     Shipping: delivery address, preferred delivery time slot
+  ★ Contexts communicate loosely via events
+  ★ Each context can be deployed and developed independently
 ```
 
-**WHY 同じ概念を複数のコンテキストに分けるのか？**
+**WHY split the same concept across multiple contexts?**
 
-1つの「Customer」クラスに全ての属性（注文情報、配送先情報、ポイント情報、問い合わせ履歴...）を持たせると、巨大で理解困難なクラスになる。さらに、注文チームの変更が配送チームに影響するなど、チーム間の依存関係が増大する。コンテキストを分割することで、各チームは自分のコンテキスト内の「Customer」だけに責任を持てばよい。
+If a single "Customer" class holds all attributes (order information, shipping address, points information, inquiry history...), it becomes a massive and incomprehensible class. Furthermore, changes by the order team affect the shipping team, increasing inter-team dependencies. By splitting contexts, each team only needs to be responsible for the "Customer" within their own context.
 
-### 2.2 コンテキストマップのパターン
+### 2.2 Context Map Patterns
 
 ```
-コンテキスト間の関係パターン
+Relationship Patterns Between Contexts
 
-1. Shared Kernel（共有カーネル）
-   ┌─────────┐   共有部分   ┌─────────┐
+1. Shared Kernel
+   ┌─────────┐   shared part   ┌─────────┐
    │ Context A├────┤ Shared ├────┤ Context B│
    └─────────┘   └────────┘   └─────────┘
-   → 2つのコンテキストが一部のモデルを共有
-   → 変更時は両チームの合意が必要
-   → 密結合になるため、使用は最小限に
+   → Two contexts share part of the model
+   → Changes require agreement from both teams
+   → Creates tight coupling, so use minimally
 
-2. Customer-Supplier（顧客-供給者）
+2. Customer-Supplier
    ┌──────────┐  API  ┌──────────┐
    │ Supplier  ├──────>│ Customer  │
-   │(供給者)   │       │(顧客)     │
+   │(upstream) │       │(downstream)│
    └──────────┘       └──────────┘
-   → 上流（Supplier）が下流（Customer）の要求を考慮
-   → 下流チームが上流チームに要件を伝える
+   → The upstream (Supplier) considers downstream (Customer) requirements
+   → The downstream team communicates requirements to the upstream team
 
-3. Conformist（準拠者）
+3. Conformist
    ┌──────────┐  API  ┌──────────┐
    │ Upstream  ├──────>│ Downstream│
-   │(変更不可) │       │(準拠する) │
+   │(immutable)│       │(conforms) │
    └──────────┘       └──────────┘
-   → 外部サービスのモデルにそのまま従う
-   → 変換コストを許容できない場合
+   → Follows the external service's model as-is
+   → When translation costs cannot be accepted
 
-4. Anti-Corruption Layer（腐敗防止層）
+4. Anti-Corruption Layer (ACL)
    ┌──────────┐  ACL  ┌──────────┐
-   │ External  ├──┤変換├──>│ Internal  │
+   │ External  ├──┤translate├──>│ Internal  │
    │ System    │  └──┘   │ Context  │
    └──────────┘          └──────────┘
-   → 外部システムのモデルを自コンテキストのモデルに変換
-   → レガシーシステムとの統合で特に重要
+   → Translates external system models into internal context models
+   → Especially important when integrating with legacy systems
 
-5. Published Language（公開言語）
-   → 共通のスキーマ（JSON Schema, Protobuf等）で通信
-   → イベント駆動アーキテクチャと相性が良い
+5. Published Language
+   → Communicate using a common schema (JSON Schema, Protobuf, etc.)
+   → Works well with event-driven architecture
 ```
 
-### 2.3 サブドメインの分類
+### 2.3 Subdomain Classification
 
 ```
-サブドメイン分類
+Subdomain Classification
 
   ┌─────────────────────────────────────────────────────┐
-  │  コアドメイン (Core Domain)                          │
-  │  ・ビジネスの競争優位性の源泉                        │
-  │  ・最も複雑、最も重要                               │
-  │  ・最高のチームを投入すべき領域                      │
-  │  ・例: EC での「レコメンデーション」「価格最適化」    │
+  │  Core Domain                                         │
+  │  · Source of business competitive advantage          │
+  │  · Most complex, most important                      │
+  │  · Where you should deploy your best team            │
+  │  · Examples: "Recommendations" and "Price Optimization" in e-commerce │
   ├─────────────────────────────────────────────────────┤
-  │  サポートドメイン (Supporting Subdomain)              │
-  │  ・コアを支える必要な機能                            │
-  │  ・ビジネス固有だがコアほど重要ではない               │
-  │  ・外部委託可能だが、カスタマイズは必要               │
-  │  ・例: EC での「在庫管理」「配送管理」               │
+  │  Supporting Subdomain                                │
+  │  · Necessary functionality that supports the core    │
+  │  · Business-specific but not as critical as core     │
+  │  · Can be outsourced but customization is needed     │
+  │  · Examples: "Inventory Management" and "Shipping Management" in e-commerce │
   ├─────────────────────────────────────────────────────┤
-  │  汎用ドメイン (Generic Subdomain)                    │
-  │  ・どの企業でも共通の機能                            │
-  │  ・既存ソリューション（SaaS、OSS）で代替可能         │
-  │  ・自社開発する意味がない領域                        │
-  │  ・例: 「認証」「メール送信」「ファイルストレージ」   │
+  │  Generic Subdomain                                   │
+  │  · Functionality common to any company               │
+  │  · Can be replaced with existing solutions (SaaS, OSS) │
+  │  · No reason to build in-house                       │
+  │  · Examples: "Authentication", "Email Sending", "File Storage" │
   └─────────────────────────────────────────────────────┘
 
-  投資配分の指針:
-    コアドメイン:    70% のリソース → DDD フル適用
-    サポートドメイン: 20% のリソース → DDD 戦術パターンのみ
-    汎用ドメイン:    10% のリソース → 既存ソリューション採用
+  Resource allocation guidelines:
+    Core Domain:       70% of resources → Full DDD applied
+    Supporting Domain: 20% of resources → DDD tactical patterns only
+    Generic Domain:    10% of resources → Use existing solutions
 ```
 
-### 2.4 ユビキタス言語
+### 2.4 Ubiquitous Language
 
 ```python
-# ユビキタス言語の例: ECサイトの注文コンテキスト
+# Example of ubiquitous language: Order context for an e-commerce site
 
-# NG: 技術者の言葉でモデリング
+# NG: Modeled in technical language
 class OrderData:
-    def update_status(self, new_status: int):  # ステータスが数値
+    def update_status(self, new_status: int):  # status is a number
         self.status_code = new_status
 
-# OK: ドメインエキスパートの言葉でモデリング
+# OK: Modeled in domain expert language
 class Order:
-    """注文（ちゅうもん）: 顧客が商品を購入する意思表示"""
+    """Order: The customer's expression of intent to purchase a product"""
 
     def place(self) -> None:
-        """注文を確定する（かくていする）"""
-        # ドメインエキスパートが「注文を確定する」と言う
-        # → メソッド名は place_order ではなく place
+        """Confirm the order"""
+        # Domain experts say "confirm the order"
+        # → Method name is place, not place_order
         ...
 
     def cancel(self) -> None:
-        """注文を取り消す（とりけす）"""
+        """Cancel the order"""
         ...
 
     def ship(self) -> None:
-        """注文を出荷する（しゅっかする）"""
+        """Ship the order"""
         ...
 
-# ユビキタス言語辞書（コンテキストごとに定義）
+# Ubiquitous language glossary (defined per context)
 """
-注文コンテキスト用語集:
-  注文 (Order):       顧客が商品を購入する意思表示
-  確定 (Place):       注文内容を確定し、処理を開始する行為
-  取り消し (Cancel):  確定前または確定後の注文を無効にする行為
-  明細 (OrderItem):   注文に含まれる個々の商品と数量の組
-  顧客 (Customer):    注文を行う主体（名前、連絡先を持つ）
+Order Context Glossary:
+  Order:      The customer's expression of intent to purchase a product
+  Place:      The act of confirming order contents and starting processing
+  Cancel:     The act of invalidating an order before or after it is placed
+  OrderItem:  The combination of an individual product and quantity included in an order
+  Customer:   The entity that places an order (has name and contact info)
 """
 ```
 
 ---
 
-## 3. 戦術パターンの実装
+## 3. Implementing Tactical Patterns
 
-### 3.1 集約の構造
+### 3.1 Aggregate Structure
 
 ```
-   集約 (Aggregate)
+   Aggregate
   +---------------------------------------------+
-  |  [Order] ← 集約ルート (Aggregate Root)       |
+  |  [Order] ← Aggregate Root                    |
   |     |                                        |
-  |     +-- OrderItem (値オブジェクト/エンティティ)|
+  |     +-- OrderItem (Value Object / Entity)    |
   |     +-- OrderItem                            |
-  |     +-- ShippingAddress (値オブジェクト)       |
-  |     +-- PaymentInfo (値オブジェクト)           |
+  |     +-- ShippingAddress (Value Object)       |
+  |     +-- PaymentInfo (Value Object)           |
   +---------------------------------------------+
 
-  ルール:
-  1. 外部から集約内部への直接アクセス禁止
-  2. 全ての操作は集約ルート経由
-  3. 1トランザクション = 1集約の変更
-  4. 集約間の参照は ID のみ
-  5. 集約は可能な限り小さく保つ
+  Rules:
+  1. No direct access from outside the aggregate to its internals
+  2. All operations go through the aggregate root
+  3. 1 transaction = 1 aggregate change
+  4. References between aggregates use ID only
+  5. Keep aggregates as small as possible
 ```
 
-**集約設計の判断基準:**
+**Criteria for aggregate design decisions:**
 
 ```
-集約の境界を決める質問:
+Questions to determine aggregate boundaries:
 
-  Q1: これらのオブジェクトは必ず一緒に変更されるか？
-    → Yes なら同じ集約内に
-    → No なら別の集約に
+  Q1: Must these objects always be changed together?
+    → Yes: place in the same aggregate
+    → No: place in separate aggregates
 
-  Q2: これらのオブジェクト間で強い整合性（即時一貫性）が必要か？
-    → Yes なら同じ集約内に
-    → No（結果整合性で十分）なら別の集約に
+  Q2: Is strong consistency (immediate consistency) required between these objects?
+    → Yes: place in the same aggregate
+    → No (eventual consistency is sufficient): place in separate aggregates
 
-  Q3: この集約は1つのトランザクションで更新できるサイズか？
+  Q3: Can this aggregate be updated in a single transaction?
     → Yes → OK
-    → No → 集約が大きすぎる、分割を検討
+    → No → The aggregate is too large; consider splitting
 ```
 
-### 3.2 値オブジェクト (Value Object)
+### 3.2 Value Object
 
 ```python
 # domain/value_objects/money.py
 from dataclasses import dataclass
 
-@dataclass(frozen=True)     # 不変 (Immutable)
+@dataclass(frozen=True)     # Immutable
 class Money:
     """
-    金額を表す値オブジェクト
+    Value object representing a monetary amount
 
-    値オブジェクトの特徴:
-    1. 不変 (Immutable): 一度作成したら変更不可
-    2. 値で等価判定: IDではなく全属性が同じなら同一
-    3. 副作用なし: 操作は新しいオブジェクトを返す
-    4. 自己検証: 生成時にバリデーション
+    Characteristics of value objects:
+    1. Immutable: Cannot be changed once created
+    2. Equality by value: Identical if all attributes are the same (not by ID)
+    3. No side effects: Operations return a new object
+    4. Self-validating: Validation at creation time
     """
-    amount: int              # 最小単位（円）
+    amount: int              # Smallest unit (yen)
     currency: str = "JPY"
 
     def __post_init__(self):
         if self.amount < 0:
-            raise ValueError(f"金額は0以上: {self.amount}")
+            raise ValueError(f"Amount must be 0 or more: {self.amount}")
         if not self.currency:
-            raise ValueError("通貨コードは必須")
+            raise ValueError("Currency code is required")
 
     def add(self, other: 'Money') -> 'Money':
-        """加算: 新しい Money を返す（元のオブジェクトは不変）"""
+        """Addition: returns a new Money (the original object is immutable)"""
         if self.currency != other.currency:
             raise ValueError(
-                f"通貨が異なります: {self.currency} vs {other.currency}"
+                f"Currencies differ: {self.currency} vs {other.currency}"
             )
         return Money(
             amount=self.amount + other.amount,
@@ -312,14 +312,14 @@ class Money:
         )
 
     def subtract(self, other: 'Money') -> 'Money':
-        """減算"""
+        """Subtraction"""
         if self.currency != other.currency:
             raise ValueError(
-                f"通貨が異なります: {self.currency} vs {other.currency}"
+                f"Currencies differ: {self.currency} vs {other.currency}"
             )
         if self.amount < other.amount:
             raise ValueError(
-                f"負の金額は不正: {self.amount} - {other.amount}"
+                f"Negative amount is invalid: {self.amount} - {other.amount}"
             )
         return Money(
             amount=self.amount - other.amount,
@@ -327,13 +327,13 @@ class Money:
         )
 
     def multiply(self, factor: int) -> 'Money':
-        """乗算"""
+        """Multiplication"""
         return Money(amount=self.amount * factor, currency=self.currency)
 
     def is_greater_than(self, other: 'Money') -> bool:
-        """比較"""
+        """Comparison"""
         if self.currency != other.currency:
-            raise ValueError("通貨が異なります")
+            raise ValueError("Currencies differ")
         return self.amount > other.amount
 
     def __str__(self) -> str:
@@ -345,7 +345,7 @@ class Money:
 # domain/value_objects/address.py
 @dataclass(frozen=True)
 class Address:
-    """住所を表す値オブジェクト"""
+    """Value object representing an address"""
     postal_code: str
     prefecture: str
     city: str
@@ -354,11 +354,11 @@ class Address:
 
     def __post_init__(self):
         if not self.postal_code or len(self.postal_code) != 7:
-            raise ValueError(f"郵便番号は7桁: {self.postal_code}")
+            raise ValueError(f"Postal code must be 7 digits: {self.postal_code}")
         if not self.prefecture:
-            raise ValueError("都道府県は必須")
+            raise ValueError("Prefecture is required")
         if not self.city:
-            raise ValueError("市区町村は必須")
+            raise ValueError("City is required")
 
     @property
     def full_address(self) -> str:
@@ -373,13 +373,13 @@ import re
 
 @dataclass(frozen=True)
 class EmailAddress:
-    """メールアドレスを表す値オブジェクト"""
+    """Value object representing an email address"""
     value: str
 
     def __post_init__(self):
         pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         if not re.match(pattern, self.value):
-            raise ValueError(f"無効なメールアドレス: {self.value}")
+            raise ValueError(f"Invalid email address: {self.value}")
 
     @property
     def domain(self) -> str:
@@ -396,26 +396,26 @@ class EmailAddress:
 # domain/value_objects/quantity.py
 @dataclass(frozen=True)
 class Quantity:
-    """数量を表す値オブジェクト"""
+    """Value object representing a quantity"""
     value: int
 
     def __post_init__(self):
         if self.value < 0:
-            raise ValueError(f"数量は0以上: {self.value}")
+            raise ValueError(f"Quantity must be 0 or more: {self.value}")
 
     def add(self, other: 'Quantity') -> 'Quantity':
         return Quantity(value=self.value + other.value)
 
     def subtract(self, other: 'Quantity') -> 'Quantity':
         if self.value < other.value:
-            raise ValueError("在庫不足")
+            raise ValueError("Insufficient stock")
         return Quantity(value=self.value - other.value)
 
     def is_zero(self) -> bool:
         return self.value == 0
 ```
 
-### 3.3 エンティティと集約ルート
+### 3.3 Entity and Aggregate Root
 
 ```python
 # domain/entities/order.py
@@ -437,45 +437,45 @@ class OrderStatus(Enum):
 @dataclass
 class OrderItem:
     """
-    注文明細エンティティ（集約内でのみ使用）
+    Order line item entity (used only within the aggregate)
 
-    注意: OrderItem は集約外から直接アクセスされない。
-    全ての操作は Order（集約ルート）経由で行う。
+    Note: OrderItem is not accessed directly from outside the aggregate.
+    All operations go through Order (the aggregate root).
     """
     id: str
-    product_id: str            # 他の集約への参照は ID のみ
+    product_id: str            # References to other aggregates use ID only
     product_name: str
     unit_price: Money
     quantity: int
 
     def __post_init__(self):
         if self.quantity < 1:
-            raise ValueError(f"数量は1以上: {self.quantity}")
+            raise ValueError(f"Quantity must be 1 or more: {self.quantity}")
 
     @property
     def subtotal(self) -> Money:
         return self.unit_price.multiply(self.quantity)
 
     def change_quantity(self, new_quantity: int) -> None:
-        """数量変更（集約ルート経由でのみ呼ばれる）"""
+        """Change quantity (only called via the aggregate root)"""
         if new_quantity < 1:
-            raise ValueError(f"数量は1以上: {new_quantity}")
+            raise ValueError(f"Quantity must be 1 or more: {new_quantity}")
         self.quantity = new_quantity
 
 
 @dataclass
 class Order:
     """
-    注文集約ルート
+    Order aggregate root
 
-    設計方針:
-    - 全てのビジネスルールはこのクラス内に閉じる
-    - 集約内部のオブジェクト（OrderItem）への操作は
-      必ずこのクラスのメソッド経由で行う
-    - ドメインイベントを生成して外部に変更を通知する
+    Design principles:
+    - All business rules are encapsulated within this class
+    - Operations on internal objects (OrderItem) must go
+      through this class's methods
+    - Generates domain events to notify external parties of changes
     """
     id: str
-    customer_id: str              # 他の集約への参照は ID のみ
+    customer_id: str              # References to other aggregates use ID only
     items: List[OrderItem] = field(default_factory=list)
     shipping_address: Optional[Address] = None
     status: OrderStatus = OrderStatus.DRAFT
@@ -483,15 +483,15 @@ class Order:
     updated_at: datetime = field(default_factory=datetime.now)
     _domain_events: List = field(default_factory=list, repr=False)
 
-    # --- ビジネスルール定数 ---
+    # --- Business rule constants ---
     MAX_ITEMS = 50
-    MIN_ORDER_AMOUNT = Money(100)   # 最低注文金額: 100円
+    MIN_ORDER_AMOUNT = Money(100)   # Minimum order amount: 100 yen
 
-    # --- 集約の不変条件 (Invariants) ---
+    # --- Aggregate invariants ---
 
     @property
     def total_amount(self) -> Money:
-        """合計金額を計算"""
+        """Calculate the total amount"""
         total = Money(0)
         for item in self.items:
             total = total.add(item.subtotal)
@@ -501,16 +501,16 @@ class Order:
     def item_count(self) -> int:
         return len(self.items)
 
-    # --- コマンド（状態を変更する操作）---
+    # --- Commands (operations that change state) ---
 
     def add_item(self, item: OrderItem) -> None:
-        """注文明細を追加する"""
+        """Add a line item to the order"""
         if self.status != OrderStatus.DRAFT:
-            raise ValueError("下書き状態でのみ明細追加可能")
+            raise ValueError("Line items can only be added in draft status")
         if len(self.items) >= self.MAX_ITEMS:
-            raise ValueError(f"1注文あたり最大{self.MAX_ITEMS}明細")
+            raise ValueError(f"Maximum {self.MAX_ITEMS} line items per order")
 
-        # 同一商品がある場合は数量を加算
+        # If the same product exists, add the quantity
         existing = self._find_item_by_product(item.product_id)
         if existing:
             existing.change_quantity(existing.quantity + item.quantity)
@@ -519,41 +519,41 @@ class Order:
         self.updated_at = datetime.now()
 
     def remove_item(self, product_id: str) -> None:
-        """注文明細を削除する"""
+        """Remove a line item from the order"""
         if self.status != OrderStatus.DRAFT:
-            raise ValueError("下書き状態でのみ明細削除可能")
+            raise ValueError("Line items can only be removed in draft status")
         existing = self._find_item_by_product(product_id)
         if not existing:
-            raise ValueError(f"該当する明細がありません: {product_id}")
+            raise ValueError(f"No matching line item found: {product_id}")
         self.items.remove(existing)
         self.updated_at = datetime.now()
 
     def set_shipping_address(self, address: Address) -> None:
-        """配送先住所を設定する"""
+        """Set the shipping address"""
         if self.status not in (OrderStatus.DRAFT, OrderStatus.PLACED):
-            raise ValueError("確定前または確定後にのみ住所変更可能")
+            raise ValueError("Address can only be changed before or after confirmation")
         self.shipping_address = address
         self.updated_at = datetime.now()
 
     def place(self) -> None:
-        """注文を確定する"""
+        """Confirm the order"""
         if self.status != OrderStatus.DRAFT:
             raise ValueError(
-                f"下書き状態でのみ確定可能（現在: {self.status.value}）"
+                f"Can only be confirmed in draft status (current: {self.status.value})"
             )
         if not self.items:
-            raise ValueError("明細が空の注文は確定できません")
+            raise ValueError("Cannot confirm an order with no line items")
         if not self.shipping_address:
-            raise ValueError("配送先住所が未設定です")
+            raise ValueError("Shipping address is not set")
         if not self.total_amount.is_greater_than(self.MIN_ORDER_AMOUNT):
             raise ValueError(
-                f"最低注文金額（{self.MIN_ORDER_AMOUNT}）に達していません"
+                f"Minimum order amount ({self.MIN_ORDER_AMOUNT}) has not been reached"
             )
 
         self.status = OrderStatus.PLACED
         self.updated_at = datetime.now()
 
-        # ドメインイベントを生成
+        # Generate domain event
         self._domain_events.append(OrderPlaced(
             order_id=self.id,
             customer_id=self.customer_id,
@@ -563,10 +563,10 @@ class Order:
         ))
 
     def pay(self, payment_id: str) -> None:
-        """注文を支払い済みにする"""
+        """Mark the order as paid"""
         if self.status != OrderStatus.PLACED:
             raise ValueError(
-                f"確定済み状態でのみ支払い可能（現在: {self.status.value}）"
+                f"Payment is only possible in placed status (current: {self.status.value})"
             )
         self.status = OrderStatus.PAID
         self.updated_at = datetime.now()
@@ -578,10 +578,10 @@ class Order:
         ))
 
     def ship(self, tracking_number: str) -> None:
-        """注文を出荷する"""
+        """Ship the order"""
         if self.status != OrderStatus.PAID:
             raise ValueError(
-                f"支払い済み状態でのみ出荷可能（現在: {self.status.value}）"
+                f"Shipping is only possible in paid status (current: {self.status.value})"
             )
         self.status = OrderStatus.SHIPPED
         self.updated_at = datetime.now()
@@ -592,11 +592,11 @@ class Order:
         ))
 
     def cancel(self) -> None:
-        """注文をキャンセルする"""
+        """Cancel the order"""
         cancellable = (OrderStatus.DRAFT, OrderStatus.PLACED, OrderStatus.PAID)
         if self.status not in cancellable:
             raise ValueError(
-                f"キャンセル不可（現在: {self.status.value}）"
+                f"Cannot cancel (current: {self.status.value})"
             )
         self.status = OrderStatus.CANCELLED
         self.updated_at = datetime.now()
@@ -605,33 +605,33 @@ class Order:
             occurred_at=datetime.now(),
         ))
 
-    # --- ドメインイベント管理 ---
+    # --- Domain event management ---
 
     def collect_events(self) -> List:
         """
-        ドメインイベントを回収する
+        Collect domain events
 
-        アプリケーションサービスが呼び出し、
-        回収したイベントをイベントバスに発行する。
+        Called by the application service,
+        which then publishes the collected events to the event bus.
         """
         events = list(self._domain_events)
         self._domain_events.clear()
         return events
 
-    # --- 内部ヘルパー ---
+    # --- Internal helpers ---
 
     def _find_item_by_product(self, product_id: str) -> Optional[OrderItem]:
         return next(
             (i for i in self.items if i.product_id == product_id), None
         )
 
-    # --- 状態遷移図 ---
+    # --- State transition diagram ---
     # DRAFT → PLACED → PAID → SHIPPED → DELIVERED
     #   ↓       ↓       ↓
     # CANCELLED CANCELLED CANCELLED
 ```
 
-### 3.4 ドメインイベント
+### 3.4 Domain Events
 
 ```python
 # domain/events/order_events.py
@@ -640,12 +640,12 @@ from datetime import datetime
 
 @dataclass(frozen=True)
 class DomainEvent:
-    """ドメインイベントの基底クラス"""
+    """Base class for domain events"""
     occurred_at: datetime
 
 @dataclass(frozen=True)
 class OrderPlaced(DomainEvent):
-    """注文確定イベント"""
+    """Order confirmed event"""
     order_id: str
     customer_id: str
     total_amount: int
@@ -653,60 +653,60 @@ class OrderPlaced(DomainEvent):
 
 @dataclass(frozen=True)
 class OrderPaid(DomainEvent):
-    """注文支払い完了イベント"""
+    """Order payment completed event"""
     order_id: str
     payment_id: str
     amount: int
 
 @dataclass(frozen=True)
 class OrderShipped(DomainEvent):
-    """注文出荷イベント"""
+    """Order shipped event"""
     order_id: str
     tracking_number: str
 
 @dataclass(frozen=True)
 class OrderCancelled(DomainEvent):
-    """注文キャンセルイベント"""
+    """Order cancelled event"""
     order_id: str
 ```
 
-**WHY ドメインイベントを使うのか？**
+**WHY use domain events?**
 
 ```
-ドメインイベントのメリット:
+Benefits of domain events:
 
-  1. 集約間の疎結合
-     注文確定 → 在庫引当 を直接呼び出すと結合度が上がる
-     注文確定 → OrderPlaced イベント発行 → 在庫サービスが購読
-     → 注文サービスは在庫サービスの存在を知らない
+  1. Loose coupling between aggregates
+     Directly calling inventory reservation from order confirmation raises coupling
+     Order confirmed → publish OrderPlaced event → inventory service subscribes
+     → The order service does not know the inventory service exists
 
-  2. 監査ログの自動生成
-     全てのイベントを記録すれば、何がいつ起きたかを追跡可能
-     イベントソーシングへの拡張も容易
+  2. Automatic audit log generation
+     Recording all events allows tracking what happened and when
+     Easy to extend to event sourcing
 
-  3. 副作用の分離
-     注文確定の「核心のロジック」と「通知メール送信」を分離
-     → テストが容易になる
+  3. Separation of side effects
+     Separates "core logic" of order confirmation from "notification email sending"
+     → Easier to test
 
-  4. 新機能追加の容易さ
-     「注文確定時にポイントを付与する」を追加する場合
-     → 既存コードを変更せず、新しいイベントハンドラを追加するだけ
+  4. Ease of adding new features
+     Adding "award points on order confirmation"
+     → No changes to existing code; just add a new event handler
 ```
 
-### 3.5 ドメインサービス
+### 3.5 Domain Services
 
 ```python
 # domain/services/pricing_service.py
 
 class PricingService:
     """
-    価格計算ドメインサービス
+    Pricing domain service
 
-    WHY ドメインサービス?
-    - 割引計算は単一のエンティティに属さない
-    - Order と Customer と CouponCode の情報を横断する
-    - エンティティのメソッドにするとどれかが肥大化する
-    → 複数の集約にまたがるロジックはドメインサービスに配置
+    WHY a domain service?
+    - Discount calculation does not belong to a single entity
+    - It crosses Order, Customer, and CouponCode information
+    - Putting it in an entity method would bloat one of them
+    → Logic spanning multiple aggregates belongs in a domain service
     """
 
     def calculate_discount(
@@ -715,10 +715,10 @@ class PricingService:
         customer_tier: str,
         coupon_code: str | None = None,
     ) -> Money:
-        """割引額を計算する"""
+        """Calculate the discount amount"""
         base_amount = order.total_amount
 
-        # 会員ランクに基づく割引
+        # Discount based on membership tier
         tier_discount_rate = {
             "gold": 0.10,
             "silver": 0.05,
@@ -728,12 +728,12 @@ class PricingService:
         rate = tier_discount_rate.get(customer_tier, 0.00)
         tier_discount = Money(int(base_amount.amount * rate))
 
-        # クーポン割引
+        # Coupon discount
         coupon_discount = Money(0)
         if coupon_code:
             coupon_discount = self._apply_coupon(coupon_code, base_amount)
 
-        # 割引の合計（上限: 注文金額の30%）
+        # Total discount (maximum: 30% of order amount)
         total_discount = tier_discount.add(coupon_discount)
         max_discount = Money(int(base_amount.amount * 0.30))
 
@@ -742,7 +742,7 @@ class PricingService:
         return total_discount
 
     def _apply_coupon(self, code: str, amount: Money) -> Money:
-        # 実際にはクーポンリポジトリから取得
+        # In practice, retrieved from the coupon repository
         coupon_values = {"SAVE500": Money(500), "SAVE1000": Money(1000)}
         return coupon_values.get(code, Money(0))
 
@@ -751,12 +751,12 @@ class PricingService:
 
 class MoneyTransferService:
     """
-    送金ドメインサービス
+    Money transfer domain service
 
-    WHY ドメインサービス?
-    - 送金は2つの Account 集約にまたがる操作
-    - Account.withdraw() と Account.deposit() をどの順序で
-      呼ぶかの調整は、どちらの Account にも属さない
+    WHY a domain service?
+    - A transfer is an operation that spans two Account aggregates
+    - The orchestration of calling Account.withdraw() and Account.deposit()
+      in the right order does not belong to either Account
     """
 
     def transfer(
@@ -766,25 +766,25 @@ class MoneyTransferService:
         amount: Money,
     ) -> None:
         if source.id == target.id:
-            raise ValueError("同一アカウントへの送金は不可")
+            raise ValueError("Cannot transfer to the same account")
         source.withdraw(amount)
         target.deposit(amount)
 ```
 
-### 3.6 リポジトリ
+### 3.6 Repository
 
 ```python
-# domain/repositories/order_repository.py (インターフェース)
+# domain/repositories/order_repository.py (interface)
 from typing import Protocol, Optional, List
 
 class OrderRepository(Protocol):
     """
-    注文リポジトリのインターフェース
+    Order repository interface
 
-    注意:
-    - リポジトリは集約単位で定義する
-    - OrderItem 用のリポジトリは作らない（集約ルート経由）
-    - インターフェースはドメイン層、実装はインフラ層に配置
+    Notes:
+    - Repositories are defined per aggregate
+    - Do not create a repository for OrderItem (go through the aggregate root)
+    - Interface lives in the domain layer, implementation in the infrastructure layer
     """
     def save(self, order: Order) -> None: ...
     def find_by_id(self, order_id: str) -> Optional[Order]: ...
@@ -792,11 +792,11 @@ class OrderRepository(Protocol):
     def next_id(self) -> str: ...
 
 
-# infrastructure/repositories/sqlalchemy_order_repository.py (実装)
+# infrastructure/repositories/sqlalchemy_order_repository.py (implementation)
 from sqlalchemy.orm import Session
 
 class SQLAlchemyOrderRepository:
-    """OrderRepository の SQLAlchemy 実装"""
+    """SQLAlchemy implementation of OrderRepository"""
 
     def __init__(self, session: Session):
         self._session = session
@@ -824,7 +824,7 @@ class SQLAlchemyOrderRepository:
         return str(uuid.uuid4())
 
     def _to_model(self, order: Order) -> 'OrderModel':
-        """ドメインエンティティ → DBモデル"""
+        """Domain entity → DB model"""
         return OrderModel(
             id=order.id,
             customer_id=order.customer_id,
@@ -849,7 +849,7 @@ class SQLAlchemyOrderRepository:
         )
 
     def _to_entity(self, model: 'OrderModel') -> Order:
-        """DBモデル → ドメインエンティティ"""
+        """DB model → domain entity"""
         shipping_address = None
         if model.shipping_postal_code:
             shipping_address = Address(
@@ -879,24 +879,24 @@ class SQLAlchemyOrderRepository:
         )
 ```
 
-### 3.7 アプリケーションサービス
+### 3.7 Application Service
 
 ```python
 # application/services/order_service.py
 
 class PlaceOrderService:
     """
-    注文確定アプリケーションサービス
+    Place order application service
 
-    アプリケーションサービスの責務:
-    - トランザクション管理
-    - リポジトリからの集約取得
-    - ドメインロジックの呼び出し（調整役）
-    - ドメインイベントの発行
-    - 例外のハンドリング
+    Responsibilities of an application service:
+    - Transaction management
+    - Retrieving aggregates from repositories
+    - Invoking domain logic (acting as an orchestrator)
+    - Publishing domain events
+    - Exception handling
 
-    注意: ビジネスルールはここに書かない！
-    ビジネスルールは Entity / ドメインサービスに配置する。
+    Note: Do NOT write business rules here!
+    Business rules belong in entities / domain services.
     """
 
     def __init__(
@@ -911,22 +911,22 @@ class PlaceOrderService:
 
     def execute(self, order_id: str) -> PlaceOrderOutput:
         with self._uow:
-            # 1. 集約を取得
+            # 1. Retrieve the aggregate
             order = self._order_repo.find_by_id(order_id)
             if not order:
                 raise OrderNotFoundError(order_id)
 
-            # 2. ドメインロジック実行（Entity に委譲）
+            # 2. Execute domain logic (delegated to the Entity)
             order.place()
 
-            # 3. 永続化
+            # 3. Persist
             self._order_repo.save(order)
 
-            # 4. ドメインイベント発行
+            # 4. Publish domain events
             for event in order.collect_events():
                 self._events.publish(event)
 
-            # 5. コミット
+            # 5. Commit
             self._uow.commit()
 
         return PlaceOrderOutput(
@@ -937,7 +937,7 @@ class PlaceOrderService:
 
 
 class CreateOrderService:
-    """注文作成アプリケーションサービス"""
+    """Create order application service"""
 
     def __init__(
         self,
@@ -953,7 +953,7 @@ class CreateOrderService:
         with self._uow:
             order_id = self._order_repo.next_id()
 
-            # 商品情報を取得して OrderItem を構築
+            # Retrieve product information and build OrderItems
             items = []
             for item_input in input_dto.items:
                 product = self._product_repo.find_by_id(item_input.product_id)
@@ -967,7 +967,7 @@ class CreateOrderService:
                     quantity=item_input.quantity,
                 ))
 
-            # 集約生成
+            # Create the aggregate
             order = Order(id=order_id, customer_id=input_dto.customer_id)
             for item in items:
                 order.add_item(item)
@@ -975,7 +975,7 @@ class CreateOrderService:
             if input_dto.shipping_address:
                 order.set_shipping_address(input_dto.shipping_address)
 
-            # 永続化
+            # Persist
             self._order_repo.save(order)
             self._uow.commit()
 
@@ -987,19 +987,19 @@ class CreateOrderService:
         )
 ```
 
-### 3.8 ファクトリパターン
+### 3.8 Factory Pattern
 
 ```python
 # domain/factories/order_factory.py
 
 class OrderFactory:
     """
-    注文ファクトリ
+    Order factory
 
-    WHY ファクトリ?
-    - 複雑な集約の生成ロジックをカプセル化
-    - 生成時の不変条件（バリデーション）を一箇所に集約
-    - テスト時にファクトリを差し替えることも可能
+    WHY a factory?
+    - Encapsulates complex aggregate creation logic
+    - Centralizes invariants (validation) at creation time
+    - Can be swapped out in tests
     """
 
     def __init__(self, id_generator: IdGenerator):
@@ -1011,7 +1011,7 @@ class OrderFactory:
         cart_items: List[CartItemDTO],
         shipping_address: Address,
     ) -> Order:
-        """ショッピングカートから注文を生成する"""
+        """Create an order from a shopping cart"""
         order_id = self._id_gen.generate()
         order = Order(
             id=order_id,
@@ -1038,15 +1038,15 @@ class OrderFactory:
         status: str,
         **kwargs,
     ) -> Order:
-        """永続化されたデータから集約を再構築する"""
-        # リポジトリの _to_entity で使用
+        """Reconstruct an aggregate from persisted data"""
+        # Used in the repository's _to_entity
         order = Order(
             id=id,
             customer_id=customer_id,
             status=OrderStatus(status),
             **kwargs,
         )
-        # 再構築時はバリデーションをスキップ
+        # Skip validation during reconstruction
         order.items = [
             OrderItem(**item_data) for item_data in items
         ]
@@ -1055,52 +1055,52 @@ class OrderFactory:
 
 ---
 
-## 4. 結果整合性と Saga パターン
+## 4. Eventual Consistency and the Saga Pattern
 
-### 4.1 結果整合性 (Eventual Consistency)
+### 4.1 Eventual Consistency
 
 ```
-集約間の整合性: 結果整合性が基本
+Consistency Between Aggregates: Eventual Consistency Is the Default
 
-  [注文コンテキスト]              [在庫コンテキスト]
+  [Order Context]                 [Inventory Context]
   ┌─────────────┐              ┌─────────────┐
-  │  Order 確定   │              │  Stock 引当   │
-  │  (即座に完了) │              │  (非同期)     │
+  │  Order placed │              │  Stock reserved│
+  │  (immediate)  │              │  (async)      │
   └──────┬──────┘              └──────┬──────┘
          │                            │
-         │  OrderPlaced イベント        │
+         │  OrderPlaced event          │
          └──────────────────────────>│
                                       │ StockReserved or
                                       │ StockReserveFailed
                                       └──────────────>...
 
-  強い整合性（同一トランザクション）:
-    → 集約内のオブジェクト間のみ
-    → Order と OrderItem は常に整合
+  Strong consistency (same transaction):
+    → Only between objects within an aggregate
+    → Order and OrderItem are always consistent
 
-  結果整合性（非同期イベント）:
-    → 集約間
-    → Order 確定と在庫引当は別トランザクション
-    → 一時的に不整合が生じるが、最終的に整合
+  Eventual consistency (async events):
+    → Between aggregates
+    → Order confirmation and stock reservation are separate transactions
+    → Temporarily inconsistent, but eventually consistent
 ```
 
-### 4.2 Saga パターン
+### 4.2 Saga Pattern
 
 ```python
 # application/sagas/order_saga.py
 
 class OrderSaga:
     """
-    注文 Saga: 複数の集約にまたがるビジネスプロセスを管理
+    Order Saga: manages a business process spanning multiple aggregates
 
-    フロー:
-    1. 注文確定 → OrderPlaced
-    2. 在庫引当 → StockReserved or StockReserveFailed
-    3. 決済処理 → PaymentCompleted or PaymentFailed
-    4. 出荷指示 → ShipmentCreated
+    Flow:
+    1. Order confirmed → OrderPlaced
+    2. Stock reserved → StockReserved or StockReserveFailed
+    3. Payment processed → PaymentCompleted or PaymentFailed
+    4. Shipment instructed → ShipmentCreated
 
-    いずれかのステップが失敗した場合、
-    それまでのステップを補償（ロールバック）する。
+    If any step fails,
+    the preceding steps are compensated (rolled back).
     """
 
     def __init__(
@@ -1116,36 +1116,36 @@ class OrderSaga:
         self._events = event_publisher
 
     def handle_order_placed(self, event: OrderPlaced) -> None:
-        """注文確定イベントを処理"""
+        """Handle the order placed event"""
         try:
-            # Step 1: 在庫引当
+            # Step 1: Reserve stock
             reservation_id = self._inventory.reserve(
                 order_id=event.order_id,
                 items=self._get_order_items(event.order_id),
             )
 
-            # Step 2: 決済処理
+            # Step 2: Process payment
             payment_id = self._payment.charge(
                 customer_id=event.customer_id,
                 amount=event.total_amount,
             )
 
-            # Step 3: 注文に支払い情報を記録
+            # Step 3: Record payment information on the order
             order = self._order_repo.find_by_id(event.order_id)
             order.pay(payment_id)
             self._order_repo.save(order)
 
         except InventoryError:
-            # 在庫引当失敗 → 注文キャンセル
-            self._cancel_order(event.order_id, "在庫不足")
+            # Stock reservation failed → cancel order
+            self._cancel_order(event.order_id, "Insufficient stock")
 
         except PaymentError:
-            # 決済失敗 → 在庫引当を解放してから注文キャンセル
+            # Payment failed → release stock reservation, then cancel order
             self._inventory.release(event.order_id)
-            self._cancel_order(event.order_id, "決済失敗")
+            self._cancel_order(event.order_id, "Payment failed")
 
     def _cancel_order(self, order_id: str, reason: str) -> None:
-        """注文を補償キャンセルする"""
+        """Compensating cancel of the order"""
         order = self._order_repo.find_by_id(order_id)
         if order:
             order.cancel()
@@ -1157,26 +1157,26 @@ class OrderSaga:
 ```
 
 ```
-Saga パターンの補償フロー:
+Saga Pattern Compensation Flow:
 
-  正常系:
-    注文確定 → 在庫引当 → 決済完了 → 出荷指示
+  Happy path:
+    Order confirmed → Stock reserved → Payment completed → Shipment instructed
 
-  在庫引当失敗:
-    注文確定 → 在庫引当(失敗) → 注文キャンセル(補償)
+  Stock reservation failed:
+    Order confirmed → Stock reserve (failed) → Order cancel (compensate)
 
-  決済失敗:
-    注文確定 → 在庫引当 → 決済(失敗)
-      → 在庫解放(補償) → 注文キャンセル(補償)
+  Payment failed:
+    Order confirmed → Stock reserved → Payment (failed)
+      → Stock release (compensate) → Order cancel (compensate)
 
-  出荷失敗:
-    注文確定 → 在庫引当 → 決済完了 → 出荷(失敗)
-      → 返金処理(補償) → 在庫解放(補償) → 注文キャンセル(補償)
+  Shipment failed:
+    Order confirmed → Stock reserved → Payment completed → Shipment (failed)
+      → Refund (compensate) → Stock release (compensate) → Order cancel (compensate)
 ```
 
 ---
 
-## 5. テスト
+## 5. Testing
 
 ```python
 # tests/unit/test_order.py
@@ -1184,13 +1184,13 @@ import pytest
 from datetime import datetime
 
 class TestOrder:
-    """Order 集約のテスト"""
+    """Tests for the Order aggregate"""
 
     def _make_item(self, **kwargs) -> OrderItem:
         defaults = {
             'id': 'item-1',
             'product_id': 'prod-1',
-            'product_name': 'テスト商品',
+            'product_name': 'Test Product',
             'unit_price': Money(1000),
             'quantity': 2,
         }
@@ -1205,7 +1205,7 @@ class TestOrder:
         defaults.update(kwargs)
         return Order(**defaults)
 
-    def test_明細追加で合計金額が計算される(self):
+    def test_total_amount_calculated_after_adding_items(self):
         order = self._make_order()
         order.add_item(self._make_item(
             unit_price=Money(1000), quantity=2
@@ -1216,30 +1216,30 @@ class TestOrder:
         ))
         assert order.total_amount == Money(3500)
 
-    def test_同一商品の追加で数量が加算される(self):
+    def test_adding_same_product_accumulates_quantity(self):
         order = self._make_order()
         order.add_item(self._make_item(quantity=2))
         order.add_item(self._make_item(quantity=3))
         assert len(order.items) == 1
         assert order.items[0].quantity == 5
 
-    def test_下書き以外の状態で明細追加不可(self):
+    def test_adding_item_fails_in_non_draft_status(self):
         order = self._make_order()
         order.add_item(self._make_item())
         order.set_shipping_address(Address(
-            postal_code='1000001', prefecture='東京都',
-            city='千代田区', street='丸の内1-1-1',
+            postal_code='1000001', prefecture='Tokyo',
+            city='Chiyoda', street='Marunouchi 1-1-1',
         ))
         order.place()
-        with pytest.raises(ValueError, match="下書き状態でのみ"):
+        with pytest.raises(ValueError, match="only in draft status"):
             order.add_item(self._make_item(product_id='prod-2'))
 
-    def test_注文確定でイベントが生成される(self):
+    def test_event_generated_on_order_placed(self):
         order = self._make_order()
         order.add_item(self._make_item())
         order.set_shipping_address(Address(
-            postal_code='1000001', prefecture='東京都',
-            city='千代田区', street='丸の内1-1-1',
+            postal_code='1000001', prefecture='Tokyo',
+            city='Chiyoda', street='Marunouchi 1-1-1',
         ))
         order.place()
 
@@ -1248,105 +1248,105 @@ class TestOrder:
         assert isinstance(events[0], OrderPlaced)
         assert events[0].order_id == 'order-1'
 
-    def test_出荷済みの注文はキャンセル不可(self):
+    def test_shipped_order_cannot_be_cancelled(self):
         order = self._make_order()
         order.add_item(self._make_item())
         order.set_shipping_address(Address(
-            postal_code='1000001', prefecture='東京都',
-            city='千代田区', street='丸の内1-1-1',
+            postal_code='1000001', prefecture='Tokyo',
+            city='Chiyoda', street='Marunouchi 1-1-1',
         ))
         order.place()
         order.pay("pay-1")
         order.ship("track-123")
-        with pytest.raises(ValueError, match="キャンセル不可"):
+        with pytest.raises(ValueError, match="Cannot cancel"):
             order.cancel()
 
 
 class TestMoney:
-    """Money 値オブジェクトのテスト"""
+    """Tests for the Money value object"""
 
-    def test_加算(self):
+    def test_addition(self):
         a = Money(1000)
         b = Money(500)
         assert a.add(b) == Money(1500)
 
-    def test_異なる通貨の加算はエラー(self):
+    def test_adding_different_currencies_raises_error(self):
         jpy = Money(1000, "JPY")
         usd = Money(500, "USD")
-        with pytest.raises(ValueError, match="通貨が異なります"):
+        with pytest.raises(ValueError, match="Currencies differ"):
             jpy.add(usd)
 
-    def test_不変性(self):
+    def test_immutability(self):
         a = Money(1000)
         b = a.add(Money(500))
-        assert a.amount == 1000   # 元のオブジェクトは変わらない
+        assert a.amount == 1000   # The original object is unchanged
         assert b.amount == 1500
 
-    def test_等価性(self):
+    def test_equality(self):
         a = Money(1000, "JPY")
         b = Money(1000, "JPY")
-        assert a == b             # 値で比較
+        assert a == b             # Compared by value
 
-    def test_負の金額はエラー(self):
-        with pytest.raises(ValueError, match="金額は0以上"):
+    def test_negative_amount_raises_error(self):
+        with pytest.raises(ValueError, match="Amount must be 0 or more"):
             Money(-100)
 ```
 
 ---
 
-## 6. 比較表
+## 6. Comparison Tables
 
-### 6.1 エンティティ vs 値オブジェクト
+### 6.1 Entity vs Value Object
 
-| 特性 | エンティティ | 値オブジェクト |
+| Characteristic | Entity | Value Object |
 |------|-----------|-------------|
-| 同一性 | ID で識別 | 値で識別 |
-| 可変性 | 可変 (Mutable) | 不変 (Immutable) |
-| ライフサイクル | 作成・変更・削除 | 生成のみ（変更は新規生成） |
-| 例 | Order, User, Product | Money, Address, Email |
-| 等価判定 | id が同じなら同一 | 全属性が同じなら同一 |
-| テスト | 状態遷移を検証 | 値の計算を検証 |
-| 永続化 | 独自テーブル/コレクション | 親エンティティに埋め込み |
+| Identity | Identified by ID | Identified by value |
+| Mutability | Mutable | Immutable |
+| Lifecycle | Create, change, delete | Creation only (changes create a new instance) |
+| Examples | Order, User, Product | Money, Address, Email |
+| Equality | Same if id is the same | Same if all attributes are the same |
+| Testing | Verify state transitions | Verify value calculations |
+| Persistence | Own table / collection | Embedded in parent entity |
 
-### 6.2 戦術パターンの一覧
+### 6.2 List of Tactical Patterns
 
-| パターン | 責務 | 配置層 | 使用例 |
+| Pattern | Responsibility | Layer | Usage Examples |
 |---------|------|-------|--------|
-| エンティティ | ビジネスルール + ID | ドメイン層 | Order, User |
-| 値オブジェクト | 不変の値表現 | ドメイン層 | Money, Address |
-| 集約 | トランザクション境界 | ドメイン層 | Order + OrderItems |
-| ドメインサービス | 複数集約にまたがるロジック | ドメイン層 | PricingService |
-| ドメインイベント | 集約間の非同期連携 | ドメイン層 | OrderPlaced |
-| リポジトリ | 集約の永続化・取得 | Interface=ドメイン、実装=インフラ | OrderRepository |
-| ファクトリ | 複雑な集約の生成 | ドメイン層 | OrderFactory |
-| アプリケーションサービス | ユースケースの調整 | アプリケーション層 | PlaceOrderService |
+| Entity | Business rules + ID | Domain layer | Order, User |
+| Value Object | Immutable value representation | Domain layer | Money, Address |
+| Aggregate | Transaction boundary | Domain layer | Order + OrderItems |
+| Domain Service | Logic spanning multiple aggregates | Domain layer | PricingService |
+| Domain Event | Async coordination between aggregates | Domain layer | OrderPlaced |
+| Repository | Persisting and retrieving aggregates | Interface=Domain, Implementation=Infrastructure | OrderRepository |
+| Factory | Creating complex aggregates | Domain layer | OrderFactory |
+| Application Service | Orchestrating use cases | Application layer | PlaceOrderService |
 
-### 6.3 アプリケーションサービス vs ドメインサービス
+### 6.3 Application Service vs Domain Service
 
-| 観点 | アプリケーションサービス | ドメインサービス |
+| Aspect | Application Service | Domain Service |
 |------|----------------------|----------------|
-| 配置層 | アプリケーション層 | ドメイン層 |
-| 責務 | ユースケースの調整 | 複数集約にまたがるビジネスロジック |
-| トランザクション管理 | 行う | 行わない |
-| 外部依存 | リポジトリ、イベント等に依存 | ドメイン層のみに依存 |
-| ビジネスルール | 含まない（Entity に委譲） | 含む（集約横断のルール） |
-| テスト | 統合テスト寄り | ユニットテスト |
-| 例 | PlaceOrderService | PricingService, TransferService |
+| Layer | Application layer | Domain layer |
+| Responsibility | Orchestrating use cases | Business logic spanning multiple aggregates |
+| Transaction management | Yes | No |
+| External dependencies | Depends on repositories, events, etc. | Depends only on domain layer |
+| Business rules | Not included (delegated to Entity) | Included (cross-aggregate rules) |
+| Testing | Closer to integration tests | Unit tests |
+| Examples | PlaceOrderService | PricingService, TransferService |
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### アンチパターン 1: 貧血ドメインモデル (Anemic Domain Model)
+### Anti-Pattern 1: Anemic Domain Model
 
 ```python
-# NG: エンティティにロジックがなく、サービスに全て集中
+# NG: Entity has no logic; everything is concentrated in the service
 @dataclass
 class Order:
     id: str
     status: str
     items: list
-    # ← ビジネスルールが一切ない単なるデータ入れ物
+    # ← Just a data container with no business rules
 
 class OrderService:
     def place_order(self, order):
@@ -1355,104 +1355,104 @@ class OrderService:
         if not order.items:
             raise ValueError("...")
         order.status = "placed"
-        # ← 本来 Order エンティティが持つべきロジック
-    # → Order の状態遷移ルールが Service に分散
-    # → 複数の Service が同じ Order を操作して矛盾が生じる
+        # ← Logic that should belong to the Order entity
+    # → State transition rules for Order are scattered across Services
+    # → Multiple Services manipulating the same Order can cause inconsistencies
 
-# OK: エンティティ自身がビジネスルールを持つ（リッチドメインモデル）
+# OK: Entity itself holds the business rules (Rich Domain Model)
 class Order:
     def place(self):
         if self.status != "draft":
-            raise ValueError("下書き状態でのみ確定可能")
+            raise ValueError("Can only be confirmed in draft status")
         if not self.items:
-            raise ValueError("明細が空の注文は確定できません")
+            raise ValueError("Cannot confirm an order with no line items")
         self.status = "placed"
-        # → ルールは Order に集約
-        # → どこから呼んでも同じルールが適用される
+        # → Rules are centralized in Order
+        # → The same rules are applied regardless of where it is called from
 ```
 
-**WHY これが問題なのか？**
+**WHY is this a problem?**
 
-貧血モデルでは、エンティティは単なる「データの入れ物」になり、ビジネスルールがサービスクラスに分散する。複数のサービスが同じエンティティを操作する場合、ルールの適用漏れや矛盾が生じやすい。Martin Fowler はこれを「ドメインモデルの最大のアンチパターン」と呼んでいる。
+In an anemic model, entities become mere "data containers" and business rules are scattered across service classes. When multiple services operate on the same entity, it is easy for rules to be missed or for contradictions to arise. Martin Fowler calls this "the worst anti-pattern for a domain model."
 
-### アンチパターン 2: 集約が大きすぎる
+### Anti-Pattern 2: Aggregate That Is Too Large
 
 ```
-NG: 1つの集約に全てを含める
-  Order (集約ルート)
-    ├── Customer (全属性)       ← 別の集約であるべき
-    ├── Product (全属性) x N    ← 別の集約であるべき
-    ├── PaymentHistory x N     ← 別の集約であるべき
-    └── ShippingLog x N        ← 別の集約であるべき
-  → 更新のたびに巨大オブジェクトをロード
-  → 同時更新で楽観的ロック競合が頻発
-  → テストが困難（大量のセットアップが必要）
+NG: Include everything in a single aggregate
+  Order (aggregate root)
+    ├── Customer (all attributes)       ← Should be a separate aggregate
+    ├── Product (all attributes) x N    ← Should be a separate aggregate
+    ├── PaymentHistory x N             ← Should be a separate aggregate
+    └── ShippingLog x N                ← Should be a separate aggregate
+  → Loading a huge object on every update
+  → Frequent optimistic lock conflicts on concurrent updates
+  → Difficult to test (requires a lot of setup)
 
-OK: 集約を小さく保ち、ID で参照
-  Order (集約ルート)
-    ├── customer_id: str           ← ID のみ
+OK: Keep aggregates small, reference by ID
+  Order (aggregate root)
+    ├── customer_id: str               ← ID only
     ├── OrderItem x N
-    │     └── product_id: str      ← ID のみ
-    └── shipping_address: Address  ← 値オブジェクト（埋め込み）
-  → 軽量で高速にロード
-  → 同時更新の競合が最小限
-  → テストが容易
+    │     └── product_id: str          ← ID only
+    └── shipping_address: Address      ← Value object (embedded)
+  → Lightweight and fast to load
+  → Minimal concurrent update conflicts
+  → Easy to test
 ```
 
-### アンチパターン 3: 全てをドメインイベントで処理
+### Anti-Pattern 3: Using Domain Events for Everything
 
 ```python
-# NG: 同一集約内の処理もイベント駆動にする
+# NG: Making even intra-aggregate processing event-driven
 class Order:
     def place(self):
         self.status = "placed"
-        # 合計金額の再計算をイベント経由で行う（過剰）
+        # Recalculating the total amount via an event (excessive)
         self._events.append(RecalculateTotal(self.id))
 
-# OK: 同一集約内の整合性は同期的に保つ
+# OK: Maintain consistency within the same aggregate synchronously
 class Order:
     def place(self):
         if self.total_amount.amount < 100:
-            raise ValueError("最低注文金額を満たしていません")
+            raise ValueError("Minimum order amount has not been reached")
         self.status = "placed"
-        # イベントは集約「外」への通知用
+        # Events are for notifying parties "outside" the aggregate
         self._domain_events.append(OrderPlaced(...))
 ```
 
-### アンチパターン 4: リポジトリで集約以外を返す
+### Anti-Pattern 4: Repository Returning Non-Aggregate-Root Objects
 
 ```python
-# NG: リポジトリが集約ルート以外を返す
+# NG: Repository returns something other than the aggregate root
 class OrderRepository:
     def find_item_by_id(self, item_id: str) -> OrderItem:
-        # OrderItem を直接返すと、集約の不変条件をバイパスできてしまう
+        # Returning OrderItem directly allows bypassing aggregate invariants
         ...
 
-# OK: リポジトリは常に集約ルートを返す
+# OK: Repository always returns the aggregate root
 class OrderRepository:
     def find_by_id(self, order_id: str) -> Order:
-        # Order（集約ルート）を返す
-        # OrderItem へのアクセスは Order 経由で行う
+        # Return Order (the aggregate root)
+        # Access to OrderItem goes through Order
         ...
 ```
 
 ---
 
-## 8. 実践演習
+## 8. Practical Exercises
 
-### 演習1（基礎）: 値オブジェクトの設計
+### Exercise 1 (Basic): Designing a Value Object
 
-**課題**: 日本の電話番号を表す値オブジェクト `PhoneNumber` を実装せよ。
+**Task**: Implement a value object `PhoneNumber` representing a Japanese phone number.
 
 ```
-仕様:
-- 形式: 数字のみ10〜11桁（ハイフン除去後）
-- 表示用メソッド: "090-1234-5678" 形式に整形
-- 値での等価判定
-- 不変
+Specification:
+- Format: 10-11 digits of numbers only (after removing hyphens)
+- Display method: format as "090-1234-5678"
+- Equality by value
+- Immutable
 ```
 
-**期待される実装と出力**:
+**Expected implementation and output**:
 
 ```python
 import re
@@ -1460,28 +1460,28 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class PhoneNumber:
-    """日本の電話番号を表す値オブジェクト"""
-    value: str   # ハイフンなしの数字文字列
+    """Value object representing a Japanese phone number"""
+    value: str   # Numeric string without hyphens
 
     def __post_init__(self):
-        # ハイフンを除去して正規化
+        # Normalize by removing hyphens
         cleaned = self.value.replace('-', '').replace(' ', '')
         if not cleaned.isdigit():
-            raise ValueError(f"数字以外が含まれています: {self.value}")
+            raise ValueError(f"Contains non-numeric characters: {self.value}")
         if len(cleaned) < 10 or len(cleaned) > 11:
-            raise ValueError(f"電話番号は10〜11桁: {cleaned} ({len(cleaned)}桁)")
-        # frozen=True でも __post_init__ で設定可能
+            raise ValueError(f"Phone number must be 10-11 digits: {cleaned} ({len(cleaned)} digits)")
+        # Can be set in __post_init__ even with frozen=True
         object.__setattr__(self, 'value', cleaned)
 
     @property
     def formatted(self) -> str:
-        """ハイフン付き表示形式"""
+        """Display format with hyphens"""
         v = self.value
         if len(v) == 11 and v.startswith('0'):
-            # 携帯電話: 090-1234-5678
+            # Mobile phone: 090-1234-5678
             return f"{v[:3]}-{v[3:7]}-{v[7:]}"
         elif len(v) == 10:
-            # 固定電話: 03-1234-5678
+            # Landline: 03-1234-5678
             return f"{v[:2]}-{v[2:6]}-{v[6:]}"
         return v
 
@@ -1489,68 +1489,68 @@ class PhoneNumber:
         return self.formatted
 
 
-# テスト
+# Test
 p1 = PhoneNumber("090-1234-5678")
 p2 = PhoneNumber("09012345678")
-print(p1.formatted)     # 出力: 090-1234-5678
-print(p1 == p2)          # 出力: True（値で比較）
-print(p1.value)          # 出力: 09012345678
+print(p1.formatted)     # Output: 090-1234-5678
+print(p1 == p2)          # Output: True (compared by value)
+print(p1.value)          # Output: 09012345678
 
 p3 = PhoneNumber("03-1234-5678")
-print(p3.formatted)     # 出力: 03-1234-5678
+print(p3.formatted)     # Output: 03-1234-5678
 
 try:
     PhoneNumber("123")
 except ValueError as e:
-    print(f"エラー: {e}")  # 出力: エラー: 電話番号は10〜11桁: 123 (3桁)
+    print(f"Error: {e}")  # Output: Error: Phone number must be 10-11 digits: 123 (3 digits)
 ```
 
-### 演習2（応用）: 集約の設計と実装
+### Exercise 2 (Intermediate): Designing and Implementing an Aggregate
 
-**課題**: 以下の仕様を持つ「在庫 (Stock)」集約を設計・実装せよ。
+**Task**: Design and implement a "Stock" aggregate with the following specifications.
 
 ```
-仕様:
-- 商品ID、現在在庫数、引当済み数を管理
-- 在庫の入荷（receive）: 在庫数を増加
-- 在庫の引当（reserve）: 引当済み数を増加（利用可能数以下であること）
-- 引当の解放（release）: 引当済み数を減少
-- 出荷（ship）: 引当済み数と在庫数を両方減少
-- 利用可能数 = 在庫数 - 引当済み数
+Specification:
+- Manage product ID, current stock count, and reserved count
+- Receive stock (receive): increase stock count
+- Reserve stock (reserve): increase reserved count (must not exceed available count)
+- Release reservation (release): decrease reserved count
+- Ship (ship): decrease both reserved count and stock count
+- Available count = stock count - reserved count
 ```
 
-**期待される実装と出力**:
+**Expected implementation and output**:
 
 ```python
 @dataclass
 class Stock:
-    """在庫集約ルート"""
+    """Stock aggregate root"""
     product_id: str
-    quantity: int = 0           # 現在在庫数
-    reserved: int = 0           # 引当済み数
+    quantity: int = 0           # Current stock count
+    reserved: int = 0           # Reserved count
     _domain_events: list = field(default_factory=list, repr=False)
 
     @property
     def available(self) -> int:
-        """利用可能数"""
+        """Available count"""
         return self.quantity - self.reserved
 
     def receive(self, amount: int) -> None:
-        """入荷: 在庫を増やす"""
+        """Receive stock: increase inventory"""
         if amount <= 0:
-            raise ValueError("入荷数は正の値")
+            raise ValueError("Receive amount must be positive")
         self.quantity += amount
         self._domain_events.append(StockReceived(
             product_id=self.product_id, amount=amount,
         ))
 
     def reserve(self, amount: int) -> str:
-        """引当: 利用可能数から確保する"""
+        """Reserve: secure from available count"""
         if amount <= 0:
-            raise ValueError("引当数は正の値")
+            raise ValueError("Reservation amount must be positive")
         if self.available < amount:
             raise ValueError(
-                f"在庫不足: 利用可能{self.available} < 要求{amount}"
+                f"Insufficient stock: available {self.available} < requested {amount}"
             )
         self.reserved += amount
         reservation_id = f"rsv-{self.product_id}-{self.reserved}"
@@ -1562,19 +1562,19 @@ class Stock:
         return reservation_id
 
     def release(self, amount: int) -> None:
-        """引当解放: 引当済みを戻す"""
+        """Release reservation: return reserved amount"""
         if amount <= 0:
-            raise ValueError("解放数は正の値")
+            raise ValueError("Release amount must be positive")
         if self.reserved < amount:
-            raise ValueError("解放数が引当済み数を超えています")
+            raise ValueError("Release amount exceeds reserved count")
         self.reserved -= amount
 
     def ship(self, amount: int) -> None:
-        """出荷: 引当済みから出荷する"""
+        """Ship: ship from reserved amount"""
         if amount <= 0:
-            raise ValueError("出荷数は正の値")
+            raise ValueError("Ship amount must be positive")
         if self.reserved < amount:
-            raise ValueError("出荷数が引当済み数を超えています")
+            raise ValueError("Ship amount exceeds reserved count")
         self.reserved -= amount
         self.quantity -= amount
 
@@ -1584,45 +1584,45 @@ class Stock:
         return events
 
 
-# テスト
+# Test
 stock = Stock(product_id="prod-1")
 stock.receive(100)
-print(f"在庫: {stock.quantity}, 利用可能: {stock.available}")
-# 出力: 在庫: 100, 利用可能: 100
+print(f"Stock: {stock.quantity}, Available: {stock.available}")
+# Output: Stock: 100, Available: 100
 
 rsv_id = stock.reserve(30)
-print(f"引当後 - 在庫: {stock.quantity}, 引当: {stock.reserved}, 利用可能: {stock.available}")
-# 出力: 引当後 - 在庫: 100, 引当: 30, 利用可能: 70
+print(f"After reservation - Stock: {stock.quantity}, Reserved: {stock.reserved}, Available: {stock.available}")
+# Output: After reservation - Stock: 100, Reserved: 30, Available: 70
 
 stock.ship(20)
-print(f"出荷後 - 在庫: {stock.quantity}, 引当: {stock.reserved}, 利用可能: {stock.available}")
-# 出力: 出荷後 - 在庫: 80, 引当: 10, 利用可能: 70
+print(f"After shipment - Stock: {stock.quantity}, Reserved: {stock.reserved}, Available: {stock.available}")
+# Output: After shipment - Stock: 80, Reserved: 10, Available: 70
 
 try:
     stock.reserve(80)
 except ValueError as e:
-    print(f"エラー: {e}")
-# 出力: エラー: 在庫不足: 利用可能70 < 要求80
+    print(f"Error: {e}")
+# Output: Error: Insufficient stock: available 70 < requested 80
 ```
 
-### 演習3（発展）: コンテキストマップと Anti-Corruption Layer
+### Exercise 3 (Advanced): Context Map and Anti-Corruption Layer
 
-**課題**: 外部の決済サービス (Stripe) との連携に Anti-Corruption Layer を実装せよ。
+**Task**: Implement an Anti-Corruption Layer for integration with an external payment service (Stripe).
 
 ```
-仕様:
-- 自ドメインの Payment エンティティと外部の Stripe API のモデルを変換
-- Stripe の payment_intent を自ドメインの概念にマッピング
-- 外部API の障害が自ドメインのモデルに影響しないこと
+Specification:
+- Translate between your domain's Payment entity and the external Stripe API model
+- Map Stripe's payment_intent to your domain's concepts
+- Ensure failures of the external API do not affect your domain model
 ```
 
-**期待される実装**:
+**Expected implementation**:
 
 ```python
-# 自ドメインのモデル
+# Your domain model
 @dataclass
 class Payment:
-    """決済エンティティ（自ドメイン）"""
+    """Payment entity (your domain)"""
     id: str
     order_id: str
     amount: Money
@@ -1630,7 +1630,7 @@ class Payment:
 
     def complete(self) -> None:
         if self.status != "pending":
-            raise ValueError(f"完了できません（現在: {self.status}）")
+            raise ValueError(f"Cannot complete (current: {self.status})")
         self.status = "completed"
 
     def fail(self, reason: str) -> None:
@@ -1638,28 +1638,28 @@ class Payment:
 
     def refund(self) -> None:
         if self.status != "completed":
-            raise ValueError("完了済みの決済のみ返金可能")
+            raise ValueError("Only completed payments can be refunded")
         self.status = "refunded"
 
 
-# Anti-Corruption Layer（外部モデル → 自ドメインモデルの変換）
+# Anti-Corruption Layer (external model → your domain model translation)
 class StripePaymentGateway:
     """
-    Stripe との連携を担う Anti-Corruption Layer
+    Anti-Corruption Layer for Stripe integration
 
-    責務:
-    - 自ドメインの概念と Stripe API の概念を変換
-    - Stripe 固有のエラーを自ドメインの例外に変換
-    - Stripe の API 仕様変更の影響を吸収
+    Responsibilities:
+    - Translate between your domain concepts and Stripe API concepts
+    - Convert Stripe-specific errors into your domain exceptions
+    - Absorb the impact of Stripe API specification changes
     """
 
     def __init__(self, stripe_client):
         self._client = stripe_client
 
     def charge(self, payment: Payment) -> str:
-        """決済を実行し、外部の payment_intent_id を返す"""
+        """Execute payment and return the external payment_intent_id"""
         try:
-            # Stripe API の呼び出し（外部モデル）
+            # Stripe API call (external model)
             intent = self._client.PaymentIntent.create(
                 amount=payment.amount.amount,
                 currency=payment.amount.currency.lower(),
@@ -1669,23 +1669,23 @@ class StripePaymentGateway:
                 },
             )
 
-            # Stripe のステータスを自ドメインのステータスに変換
+            # Translate Stripe status to your domain status
             if intent.status == 'succeeded':
                 payment.complete()
             elif intent.status in ('canceled', 'requires_payment_method'):
                 payment.fail(f"Stripe status: {intent.status}")
-            # 他のステータスは pending のまま
+            # Other statuses remain as pending
 
             return intent.id
 
         except self._client.error.CardError as e:
-            payment.fail(f"カードエラー: {e.user_message}")
+            payment.fail(f"Card error: {e.user_message}")
             raise PaymentDeclinedError(str(e))
         except self._client.error.StripeError as e:
-            raise PaymentGatewayError(f"決済サービスエラー: {e}")
+            raise PaymentGatewayError(f"Payment service error: {e}")
 
     def refund(self, payment_intent_id: str, amount: Money) -> str:
-        """返金を実行"""
+        """Execute a refund"""
         try:
             refund = self._client.Refund.create(
                 payment_intent=payment_intent_id,
@@ -1693,21 +1693,21 @@ class StripePaymentGateway:
             )
             return refund.id
         except self._client.error.StripeError as e:
-            raise PaymentGatewayError(f"返金エラー: {e}")
+            raise PaymentGatewayError(f"Refund error: {e}")
 
 
-# 自ドメインの例外（Stripe の例外とは独立）
+# Your domain exceptions (independent of Stripe exceptions)
 class PaymentDeclinedError(Exception):
-    """決済が拒否された"""
+    """Payment was declined"""
     pass
 
 class PaymentGatewayError(Exception):
-    """決済ゲートウェイの技術的エラー"""
+    """Technical error from the payment gateway"""
     pass
 
-# テスト用 Fake
+# Fake for testing
 class FakeStripeClient:
-    """テスト用の Stripe クライアント"""
+    """Stripe client for testing"""
     class PaymentIntent:
         @staticmethod
         def create(**kwargs):
@@ -1716,116 +1716,116 @@ class FakeStripeClient:
                 status = "succeeded"
             return Intent()
 
-# テスト
+# Test
 fake_stripe = FakeStripeClient()
 gateway = StripePaymentGateway(fake_stripe)
 payment = Payment(id="pay-1", order_id="order-1", amount=Money(5000))
 intent_id = gateway.charge(payment)
-print(f"決済完了: {intent_id}, ステータス: {payment.status}")
-# 出力: 決済完了: pi_test_123, ステータス: completed
+print(f"Payment completed: {intent_id}, status: {payment.status}")
+# Output: Payment completed: pi_test_123, status: completed
 ```
 
 ---
 
 ## 9. FAQ
 
-### Q1. DDD はいつ採用すべきか？
+### Q1. When should DDD be adopted?
 
-**A.** ドメインの複雑性が高いプロジェクトに適している。判断基準は以下の通り。
-
-```
-DDD 採用判断チェックリスト:
-
-  [x] ビジネスルールが複雑（単純な CRUD では表現しきれない）
-  [x] ドメインエキスパートが存在しアクセス可能
-  [x] プロジェクトの寿命が長い（1年以上）
-  [x] チームに DDD の知識を持つメンバーがいる（または学ぶ意欲がある）
-  [x] ビジネスの競争優位性がソフトウェアに依存している
-
-  上記の3つ以上に該当 → DDD の採用を推奨
-  1〜2つ → 戦術パターンのみ部分採用
-  0つ → CRUD + 従来型アーキテクチャで十分
-```
-
-### Q2. 集約間のデータ整合性はどう保つ？
-
-**A.** 結果整合性（Eventual Consistency）を基本とする。集約Aの変更でドメインイベントを発行し、集約Bがそのイベントを購読して非同期に自身を更新する。強い整合性が必要な場合は Saga パターンで補償トランザクションを実装する。「1トランザクション = 1集約」のルールを崩さないことが重要。
-
-### Q3. ユビキタス言語はどう確立するか？
-
-**A.** 以下の手順で段階的に確立する。
+**A.** It is suitable for projects with high domain complexity. The criteria are as follows.
 
 ```
-Step 1: ドメインエキスパートとの会話でキーワードを抽出
-Step 2: 用語辞書を作成（コンテキストごとに）
-Step 3: コード上のクラス名・メソッド名を用語辞書に合わせる
-Step 4: レビュー時に「この名前はドメインエキスパートが使うか？」を確認
-Step 5: 新しい概念が出たら辞書を更新し、コードも合わせる
+DDD Adoption Decision Checklist:
+
+  [x] Business rules are complex (cannot be expressed with simple CRUD)
+  [x] Domain experts exist and are accessible
+  [x] The project has a long lifespan (1 year or more)
+  [x] The team has members with DDD knowledge (or willingness to learn)
+  [x] Business competitive advantage depends on the software
+
+  3 or more of the above apply → Recommend adopting DDD
+  1-2 → Partially adopt tactical patterns only
+  0 → CRUD + traditional architecture is sufficient
 ```
 
-### Q4. DDD と CQRS の関係は？
+### Q2. How do you maintain data consistency between aggregates?
 
-**A.** DDD は「ドメインをどうモデリングするか」、CQRS は「読み書きをどう分離するか」を扱う。DDD の集約は書き込みに最適化されたモデルだが、読み取り（一覧表示、検索等）には非効率な場合がある。CQRS を併用することで、書き込み側は DDD のリッチドメインモデルを使い、読み取り側はパフォーマンスに最適化された Read Model を使う、という棲み分けが可能になる。
+**A.** Eventual Consistency is the default. When aggregate A changes, it publishes a domain event, and aggregate B subscribes to that event and updates itself asynchronously. When strong consistency is required, implement compensating transactions with the Saga pattern. It is important not to break the rule of "1 transaction = 1 aggregate."
 
-### Q5. イベントソーシングは必須か？
+### Q3. How do you establish ubiquitous language?
 
-**A.** 必須ではない。イベントソーシングは「全ての状態変更をイベントとして記録し、現在の状態はイベントの再生で導出する」パターン。DDD のドメインイベントとは別の概念。監査ログや時系列分析が重要な領域（金融、医療）では有用だが、複雑さも増すため慎重に判断すべき。まずはドメインイベントの発行から始め、必要に応じてイベントソーシングに発展させるのが現実的。
+**A.** Establish it step by step using the following procedure.
 
-### Q6. マイクロサービスと DDD の関係は？
+```
+Step 1: Extract key terms from conversations with domain experts
+Step 2: Create a glossary (per context)
+Step 3: Align class names and method names in code with the glossary
+Step 4: During reviews, confirm "Would a domain expert use this name?"
+Step 5: When new concepts emerge, update the glossary and align the code
+```
 
-**A.** DDD の境界づけられたコンテキストは、マイクロサービスの自然な境界を提供する。1つの Bounded Context = 1つのマイクロサービスとする設計が理想的。ただし、モノリスでも DDD は有効であり、マイクロサービスは DDD の前提ではない。
+### Q4. What is the relationship between DDD and CQRS?
+
+**A.** DDD deals with "how to model the domain," while CQRS deals with "how to separate reads and writes." DDD aggregates are models optimized for writing, but they can be inefficient for reads (list display, search, etc.). Using CQRS together enables a division of concerns where the write side uses DDD's rich domain model and the read side uses a Read Model optimized for performance.
+
+### Q5. Is event sourcing required?
+
+**A.** It is not required. Event sourcing is the pattern of "recording all state changes as events and deriving the current state by replaying those events." It is a separate concept from DDD domain events. It is useful in areas where audit logs and time-series analysis are important (finance, healthcare), but it also adds complexity, so the decision should be made carefully. It is practical to start with publishing domain events and evolve to event sourcing as needed.
+
+### Q6. What is the relationship between microservices and DDD?
+
+**A.** DDD's bounded contexts provide natural boundaries for microservices. A design where 1 Bounded Context = 1 Microservice is ideal. However, DDD is also effective in a monolith, and microservices are not a prerequisite for DDD.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important. Understanding deepens not just through theory but by actually writing code and confirming how it behaves.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and moving on to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It is particularly important during code reviews and architectural design.
 
 ---
 
-## 10. まとめ
+## 10. Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| 戦略的設計 | 境界づけられたコンテキストでドメインを分割。コンテキスト間はイベントで連携 |
-| 戦術的設計 | エンティティ・値オブジェクト・集約・ドメインイベントで複雑さをモデリング |
-| 集約設計 | 小さく保つ。1トランザクション = 1集約。集約間は ID 参照 |
-| ユビキタス言語 | ドメインエキスパートとコードで同じ言葉を使う |
-| 貧血モデル回避 | ビジネスロジックはエンティティに持たせ、サービスは調整役に徹する |
-| 結果整合性 | 集約間はドメインイベントによる非同期連携を基本とする |
-| ドメインサービス | 複数集約にまたがるロジックの受け皿。エンティティに属さないルール |
-| Saga パターン | 複数集約の長いトランザクションを補償トランザクションで管理 |
-| ACL | 外部システムのモデルを自ドメインのモデルに変換する防御層 |
-| サブドメイン | コア/サポート/汎用の分類でリソース配分を最適化 |
+| Strategic Design | Divide the domain using bounded contexts. Contexts coordinate via events |
+| Tactical Design | Model complexity using entities, value objects, aggregates, and domain events |
+| Aggregate Design | Keep small. 1 transaction = 1 aggregate. References between aggregates use ID |
+| Ubiquitous Language | Use the same language between domain experts and code |
+| Avoid Anemic Model | Place business logic in entities; services act only as orchestrators |
+| Eventual Consistency | Default to async coordination between aggregates via domain events |
+| Domain Service | Container for logic spanning multiple aggregates; rules that don't belong to an entity |
+| Saga Pattern | Manage long transactions across multiple aggregates with compensating transactions |
+| ACL | A defensive layer that translates external system models into your domain model |
+| Subdomain | Optimize resource allocation by classifying as Core / Supporting / Generic |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [クリーンアーキテクチャ](./01-clean-architecture.md) — DDD と組み合わせるレイヤーアーキテクチャ。Entities 層の構造化
-- [イベント駆動アーキテクチャ](./03-event-driven.md) — ドメインイベントを活用した疎結合設計。Saga パターンの実装基盤
-- API 設計 — 集約を公開する API の設計原則
-- Repository パターン — 集約の永続化パターン
-- [システム設計の基礎](../00-fundamentals/) — スケーラビリティと可用性の基礎
+- [Clean Architecture](./01-clean-architecture.md) — Layered architecture to combine with DDD. Structuring the Entities layer
+- [Event-Driven Architecture](./03-event-driven.md) — Loosely coupled design using domain events. Implementation foundation for the Saga pattern
+- API Design — Principles for designing APIs that expose aggregates
+- Repository Pattern — Persistence patterns for aggregates
+- [Fundamentals of System Design](../00-fundamentals/) — Fundamentals of scalability and availability
 
 ---
 
-## 参考文献
+## References
 
-1. **Domain-Driven Design: Tackling Complexity in the Heart of Software** — Eric Evans (Addison-Wesley, 2003) — DDD の原典。戦略的設計と戦術的設計の体系的解説
-2. **Implementing Domain-Driven Design** — Vaughn Vernon (Addison-Wesley, 2013) — DDD の実装パターン詳細。集約設計、リポジトリ実装の実践的ガイド
-3. **Domain-Driven Design Distilled** — Vaughn Vernon (Addison-Wesley, 2016) — DDD の簡潔な入門書。戦略的設計に焦点
-4. **Architecture Patterns with Python** — Harry Percival & Bob Gregory (O'Reilly, 2020) — Python での DDD 実践。Repository、Unit of Work の実装例
-5. **Patterns, Principles, and Practices of Domain-Driven Design** — Scott Millett & Nick Tune (Wrox, 2015) — DDD パターンの包括的カタログ
-6. **Event Storming** — Alberto Brandolini — https://www.eventstorming.com/ — ドメインイベントを発見するためのワークショップ手法
+1. **Domain-Driven Design: Tackling Complexity in the Heart of Software** — Eric Evans (Addison-Wesley, 2003) — The original DDD text. Systematic explanation of strategic and tactical design
+2. **Implementing Domain-Driven Design** — Vaughn Vernon (Addison-Wesley, 2013) — Detailed DDD implementation patterns. Practical guide to aggregate design and repository implementation
+3. **Domain-Driven Design Distilled** — Vaughn Vernon (Addison-Wesley, 2016) — A concise introduction to DDD. Focused on strategic design
+4. **Architecture Patterns with Python** — Harry Percival & Bob Gregory (O'Reilly, 2020) — DDD in practice with Python. Implementation examples of Repository and Unit of Work
+5. **Patterns, Principles, and Practices of Domain-Driven Design** — Scott Millett & Nick Tune (Wrox, 2015) — A comprehensive catalog of DDD patterns
+6. **Event Storming** — Alberto Brandolini — https://www.eventstorming.com/ — A workshop methodology for discovering domain events
