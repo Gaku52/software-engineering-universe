@@ -1,122 +1,122 @@
-# レートリミッター設計
+# Rate Limiter Design
 
-> APIやサービスへのリクエスト頻度を制御し、過負荷・不正利用・DDoS攻撃からシステムを保護するレートリミッターの設計原則とアルゴリズム、分散環境での実装手法を解説する。Token Bucket、Sliding Window 等の主要アルゴリズムを Redis + Lua スクリプトで実装し、多層防御アーキテクチャを構築する。
-
----
-
-## この章で学ぶこと
-
-1. **レートリミッティングの基本概念** — なぜ必要か、どこに配置するか、HTTP 429 の設計、レスポンスヘッダーの標準
-2. **主要アルゴリズムの仕組みと比較** — Token Bucket、Leaky Bucket、Fixed Window、Sliding Window Log、Sliding Window Counter の内部動作と使い分け
-3. **分散環境でのレートリミッター実装** — Redis + Lua スクリプトによるアトミック操作、レースコンディション対策、フェイルオーバー戦略
-4. **多層防御とプロダクション運用** — Edge / Gateway / Application 層の役割分担、監視、動的ルール変更、グレースフルデグラデーション
+> This guide explains the design principles, algorithms, and distributed implementation techniques for rate limiters that control request frequency to APIs and services, protecting systems from overload, abuse, and DDoS attacks. It covers implementing major algorithms such as Token Bucket and Sliding Window using Redis + Lua scripts, and building a multi-layered defense architecture.
 
 ---
 
-## 前提知識
+## What You Will Learn
 
-このガイドを読む前に、以下の知識があるとスムーズに理解できます。
+1. **Fundamentals of Rate Limiting** — Why it is needed, where to place it, HTTP 429 design, and response header standards
+2. **How Major Algorithms Work and How to Compare Them** — Internal mechanics and use cases for Token Bucket, Leaky Bucket, Fixed Window, Sliding Window Log, and Sliding Window Counter
+3. **Rate Limiter Implementation in Distributed Environments** — Atomic operations with Redis + Lua scripts, race condition mitigation, and failover strategies
+4. **Multi-Layered Defense and Production Operations** — Responsibilities of Edge / Gateway / Application layers, monitoring, dynamic rule changes, and graceful degradation
 
-| トピック | 参照先 |
+---
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will help you understand it more smoothly.
+
+| Topic | Reference |
 |---------|--------|
-| システム設計の基礎概念 | [システム設計概要](../00-fundamentals/00-system-design-overview.md) |
-| スケーラビリティの原則 | [スケーラビリティ](../00-fundamentals/01-scalability.md) |
-| 可用性と信頼性 | [信頼性](../00-fundamentals/02-reliability.md) |
-| キャッシング戦略 | [キャッシング](../01-components/01-caching.md) |
-| ロードバランサーの仕組み | [ロードバランサー](../01-components/00-load-balancer.md) |
-| CDN の基礎 | [CDN](../01-components/03-cdn.md) |
-| API 設計のベストプラクティス | API 設計 |
-| Proxy パターン | Proxy パターン |
+| Basic System Design Concepts | [System Design Overview](../00-fundamentals/00-system-design-overview.md) |
+| Scalability Principles | [Scalability](../00-fundamentals/01-scalability.md) |
+| Availability and Reliability | [Reliability](../00-fundamentals/02-reliability.md) |
+| Caching Strategies | [Caching](../01-components/01-caching.md) |
+| How Load Balancers Work | [Load Balancer](../01-components/00-load-balancer.md) |
+| CDN Basics | [CDN](../01-components/03-cdn.md) |
+| API Design Best Practices | API Design |
+| Proxy Pattern | Proxy Pattern |
 
 ---
 
-## 1. レートリミッターの全体設計
+## 1. Overall Rate Limiter Design
 
-### 1.1 なぜレートリミッターが必要か
-
-```
-レートリミッターが解決する問題:
-
-1. サービス保護 (Availability)
-   - 正当なトラフィック急増 (バイラルコンテンツ等) からバックエンドを保護
-   - カスケード障害の防止: 1つのサービスの過負荷が他に波及するのを防ぐ
-   - リソースの公平な配分
-
-2. セキュリティ (Security)
-   - DDoS 攻撃の軽減
-   - ブルートフォース攻撃の防止 (ログイン試行回数の制限)
-   - Web スクレイピングの抑制
-   - API キーの不正利用検知
-
-3. コスト管理 (Cost)
-   - クラウドリソースの過剰消費を防止
-   - サードパーティ API のコスト制御
-   - 従量課金サービスの予算管理
-
-4. ビジネスルール (Business Logic)
-   - 無料/有料プランの差別化 (API 呼び出し数制限)
-   - SLA の実装 (契約に基づくリクエスト数の保証)
-   - フェアユースポリシーの強制
-
-WHY: レートリミッターがないとどうなるか？
-  +-----------------+------------------------------------+
-  | シナリオ         | 結果                                |
-  +-----------------+------------------------------------+
-  | トラフィック急増  | サーバーダウン → 全ユーザーに影響     |
-  | DDoS 攻撃       | サービス停止 → SLA 違反              |
-  | バグのある Client | 無限ループで API 呼び出し → 高額請求  |
-  | スクレイピング   | DB 負荷増大 → レスポンス劣化          |
-  | プラン超過       | 無料ユーザーが有料相当の利用 → 損失    |
-  +-----------------+------------------------------------+
-```
-
-### 1.2 配置パターン
+### 1.1 Why Rate Limiters Are Needed
 
 ```
-レートリミッターの多層配置
+Problems solved by rate limiters:
+
+1. Service Protection (Availability)
+   - Protect backends from sudden legitimate traffic spikes (viral content, etc.)
+   - Prevent cascade failures: stop overload in one service from spreading to others
+   - Fair allocation of resources
+
+2. Security
+   - DDoS attack mitigation
+   - Brute-force attack prevention (limit login attempts)
+   - Web scraping suppression
+   - Detection of API key abuse
+
+3. Cost Management
+   - Prevent excessive cloud resource consumption
+   - Control costs for third-party APIs
+   - Budget management for pay-as-you-go services
+
+4. Business Rules (Business Logic)
+   - Differentiate free/paid plans (API call count limits)
+   - SLA implementation (guarantee request counts per contract)
+   - Enforcement of fair use policies
+
+WHY: What happens without a rate limiter?
+  +-----------------+------------------------------------+
+  | Scenario        | Result                             |
+  +-----------------+------------------------------------+
+  | Traffic spike   | Server down → affects all users    |
+  | DDoS attack     | Service outage → SLA violation     |
+  | Buggy client    | Infinite loop API calls → high bill|
+  | Scraping        | DB load spike → degraded response  |
+  | Plan overage    | Free users use paid-tier → losses  |
+  +-----------------+------------------------------------+
+```
+
+### 1.2 Placement Patterns
+
+```
+Multi-layer placement of rate limiters
 
   Client
     |
     v
   +---------------------------------------------+
   |  Layer 1: CDN / Edge (Cloudflare, AWS WAF)   |
-  |  ・IP 単位の粗い制限 (DDoS 防御)              |
-  |  ・地域別の制限                               |
-  |  ・Bot 検知                                   |
+  |  - Coarse IP-level limits (DDoS defense)     |
+  |  - Region-based restrictions                 |
+  |  - Bot detection                             |
   +---------------------------------------------+
     |
     v
   +---------------------------------------------+
   |  Layer 2: API Gateway (Kong, Envoy, Nginx)   |
-  |  ・API Key / Client ID 別の制限              |
-  |  ・エンドポイント別の制限                      |
-  |  ・プラン別の制限 (Free: 60/min, Pro: 1000/min)|
+  |  - Limits per API Key / Client ID            |
+  |  - Per-endpoint limits                       |
+  |  - Per-plan limits (Free: 60/min, Pro: 1000/min)|
   +---------------------------------------------+
     |
     v
   +---------------------------------------------+
-  |  Layer 3: Application (ミドルウェア)           |
-  |  ・ユーザー ID 別の制限                       |
-  |  ・機能固有の制限 (検索: 30/min, 投稿: 10/min) |
-  |  ・ビジネスルールに基づく制限                   |
+  |  Layer 3: Application (Middleware)           |
+  |  - Per-user ID limits                        |
+  |  - Feature-specific limits (search: 30/min, post: 10/min)|
+  |  - Business rule-based limits                |
   +---------------------------------------------+
     |
     v
   +---------------------------------------------+
-  |  Layer 4: Database / External Service         |
-  |  ・コネクションプール制限                      |
-  |  ・外部 API のレート制限遵守                    |
-  |  ・書き込みレートの制御                        |
+  |  Layer 4: Database / External Service        |
+  |  - Connection pool limits                    |
+  |  - Respecting external API rate limits       |
+  |  - Write rate control                        |
   +---------------------------------------------+
 
-  ★ 多層防御の原則: 外側で粗い制限、内側で細かい制限
-  ★ 各層が独立して動作し、1層の障害が全体に影響しない
+  ★ Multi-layered defense principle: coarse limits on the outside, fine limits on the inside
+  ★ Each layer operates independently; a failure in one layer does not affect the whole
 ```
 
-### 1.3 レスポンス設計
+### 1.3 Response Design
 
 ```
-HTTP 429 レスポンスの標準設計:
+Standard HTTP 429 response design:
 
 HTTP/1.1 429 Too Many Requests
 Content-Type: application/json
@@ -128,32 +128,32 @@ X-RateLimit-Reset: 1707638400
 {
   "error": {
     "code": "RATE_LIMIT_EXCEEDED",
-    "message": "リクエスト制限を超過しました。30秒後に再試行してください。",
+    "message": "Request limit exceeded. Please retry after 30 seconds.",
     "retry_after": 30,
     "limit": 100,
     "window": "1m"
   }
 }
 
-レスポンスヘッダーの標準:
+Response header standards:
 +------------------------+------------------------------------------+
-| ヘッダー                | 意味                                     |
+| Header                 | Meaning                                  |
 +------------------------+------------------------------------------+
-| X-RateLimit-Limit      | ウィンドウ内の最大リクエスト数               |
-| X-RateLimit-Remaining  | 残りリクエスト数                            |
-| X-RateLimit-Reset      | 制限がリセットされる Unix タイムスタンプ       |
-| Retry-After            | リトライまでの待ち時間 (秒)                  |
+| X-RateLimit-Limit      | Maximum number of requests in the window |
+| X-RateLimit-Remaining  | Remaining requests                       |
+| X-RateLimit-Reset      | Unix timestamp when the limit resets     |
+| Retry-After            | Wait time before retrying (seconds)      |
 +------------------------+------------------------------------------+
 
-★ 正常レスポンスにも X-RateLimit-* ヘッダーを含める
-  → クライアントが事前に制限状況を把握可能
-  → 429 になる前に自主的にスロットリング可能
+★ Include X-RateLimit-* headers in normal responses too
+  → Clients can check their limit status proactively
+  → Clients can self-throttle before hitting 429
 ```
 
-### 1.4 システム全体構成図
+### 1.4 System Architecture Diagram
 
 ```
-                 レートリミッター アーキテクチャ
+                 Rate Limiter Architecture
 
   Client
     |
@@ -163,13 +163,13 @@ X-RateLimit-Reset: 1707638400
     v
   [Rate Limiter Middleware]
     |
-    +---> [Redis Cluster] (カウンター/トークン管理)
+    +---> [Redis Cluster] (counter/token management)
     |         |
     |    [Key: "rate:user:123:api:/orders"]
     |    [Value: {count: 45, window_start: 1707638400}]
     |
-    |         +--> [Redis Sentinel] (高可用性)
-    |         +--> [Local Cache] (フォールバック)
+    |         +--> [Redis Sentinel] (high availability)
+    |         +--> [Local Cache] (fallback)
     |
     v
   [Application Server]
@@ -177,7 +177,7 @@ X-RateLimit-Reset: 1707638400
     v
   [Backend Services]
 
-  +---> [Rules DB] (動的ルール管理)
+  +---> [Rules DB] (dynamic rule management)
   |         |
   |    [API Key: "sk_abc" → Plan: "pro" → Limit: 1000/min]
   |    [Endpoint: "/api/search" → Limit: 30/min]
@@ -194,62 +194,62 @@ X-RateLimit-Reset: 1707638400
 
 ---
 
-## 2. アルゴリズム詳解
+## 2. Algorithm Deep Dive
 
 ### 2.1 Token Bucket
 
 ```
-Token Bucket アルゴリズム
+Token Bucket Algorithm
 
-  概念:
+  Concept:
   +--------------------------+
   |  Token Bucket            |
-  |                          |   ← トークンが一定レートで補充
-  |  [T] [T] [T] [T] [T]   |      (例: refill_rate = 10 tokens/sec)
+  |                          |   ← Tokens are refilled at a constant rate
+  |  [T] [T] [T] [T] [T]   |      (e.g., refill_rate = 10 tokens/sec)
   |  [T] [T] [T]            |
-  |  max_tokens = 10        |   ← バケット容量 = バースト許容量
+  |  max_tokens = 10        |   ← Bucket capacity = burst allowance
   +-----------+--------------+
               |
-        リクエスト到着
-        → トークンあり: 1トークン消費して処理
-        → トークンなし: 429 拒否
+        Request arrives
+        → Token available: consume 1 token and process
+        → No token: reject with 429
 
-  特性:
-  - バースト許容: max_tokens までの瞬間的な大量リクエストを許可
-  - 定常レート制御: refill_rate で長期的なレートを制御
-  - メモリ効率: O(1) (トークン数と最終補充時刻のみ保持)
+  Characteristics:
+  - Burst allowance: permits sudden bursts of requests up to max_tokens
+  - Steady rate control: controls long-term rate via refill_rate
+  - Memory efficient: O(1) (only stores token count and last refill time)
 
-  パラメータの意味:
+  Parameter meanings:
   +------------------+----------------------------------------+
-  | max_tokens = 100 | 瞬間的に100リクエストまで許容             |
-  | refill_rate = 10 | 定常状態で毎秒10リクエストまで許容         |
+  | max_tokens = 100 | Allow up to 100 requests instantaneously|
+  | refill_rate = 10 | Allow up to 10 requests/sec steady state|
   +------------------+----------------------------------------+
 
-  時系列での動作例:
-  t=0.0s: tokens=100 (初期値)
-  t=0.0s: 50 requests → tokens=50 (バースト消費)
+  Example timeline behavior:
+  t=0.0s: tokens=100 (initial value)
+  t=0.0s: 50 requests → tokens=50 (burst consumed)
   t=0.1s: refill +1 → tokens=51
-  t=0.5s: refill +4 → tokens=55 (0.1~0.5sで4トークン補充)
+  t=0.5s: refill +4 → tokens=55 (4 tokens refilled from 0.1~0.5s)
   t=1.0s: refill +5 → tokens=60
   ...
-  t=10.0s: tokens=100 (max に到達、それ以上は補充されない)
+  t=10.0s: tokens=100 (reaches max, no further refill beyond cap)
 
-  WHY Token Bucket が最も広く使われるか:
-  1. バーストと定常レートの両方を制御可能
-  2. パラメータが直感的 (max=バースト、rate=定常)
-  3. メモリ効率が良い (O(1))
-  4. 実装が比較的シンプル
-  → AWS API Gateway, Stripe, GitHub API で採用
+  WHY Token Bucket is the most widely used:
+  1. Controls both burst and steady rate
+  2. Parameters are intuitive (max=burst, rate=steady)
+  3. Memory efficient (O(1))
+  4. Relatively simple to implement
+  → Used by AWS API Gateway, Stripe, GitHub API
 ```
 
 ```python
-# コード例 1: Token Bucket 実装 (Redis + Lua Script)
+# Code Example 1: Token Bucket Implementation (Redis + Lua Script)
 import redis
 import time
 from typing import NamedTuple
 
 class RateLimitResult(NamedTuple):
-    """レート制限の判定結果"""
+    """Result of a rate limit decision"""
     allowed: bool
     remaining: int
     reset_at: float
@@ -257,16 +257,16 @@ class RateLimitResult(NamedTuple):
 
 class TokenBucketLimiter:
     """
-    Token Bucket レートリミッター。
+    Token Bucket rate limiter.
 
-    WHY Lua Script を使うのか:
-    1. アトミック操作: 複数の Redis コマンドを1回のラウンドトリップで実行
-    2. レースコンディション防止: 複数サーバーからの同時アクセスでも正確
-    3. パフォーマンス: ネットワークラウンドトリップを最小化
+    WHY use Lua Script:
+    1. Atomic operation: executes multiple Redis commands in a single round trip
+    2. Prevents race conditions: accurate even with concurrent access from multiple servers
+    3. Performance: minimizes network round trips
 
-    WHY Redis Hash を使うのか:
-    1. tokens と last_refill を1つのキーで管理 → アトミックに更新可能
-    2. TTL で自動クリーンアップ → メモリリーク防止
+    WHY use Redis Hash:
+    1. Manages tokens and last_refill under a single key → can be updated atomically
+    2. TTL enables automatic cleanup → prevents memory leaks
     """
 
     LUA_SCRIPT = """
@@ -275,25 +275,25 @@ class TokenBucketLimiter:
     local refill_rate = tonumber(ARGV[2])   -- tokens per second
     local now = tonumber(ARGV[3])
 
-    -- 現在の状態を取得
+    -- Get current state
     local data = redis.call('HMGET', key, 'tokens', 'last_refill')
     local tokens = tonumber(data[1]) or max_tokens
     local last_refill = tonumber(data[2]) or now
 
-    -- トークン補充 (経過時間に比例)
+    -- Refill tokens (proportional to elapsed time)
     local elapsed = math.max(0, now - last_refill)
     local new_tokens = math.min(max_tokens, tokens + elapsed * refill_rate)
 
     if new_tokens >= 1 then
-        -- トークン消費: 許可
+        -- Consume token: allow
         new_tokens = new_tokens - 1
         redis.call('HMSET', key, 'tokens', new_tokens, 'last_refill', now)
         redis.call('EXPIRE', key, math.ceil(max_tokens / refill_rate) * 2)
-        return {1, math.floor(new_tokens), 0}   -- {許可, 残りトークン, 待ち時間}
+        return {1, math.floor(new_tokens), 0}   -- {allowed, remaining tokens, wait time}
     else
-        -- トークン不足: 拒否
+        -- Insufficient tokens: reject
         local wait_time = (1 - new_tokens) / refill_rate
-        return {0, 0, math.ceil(wait_time)}      -- {拒否, 残り0, 待ち時間(秒)}
+        return {0, 0, math.ceil(wait_time)}      -- {rejected, remaining 0, wait time (sec)}
     end
     """
 
@@ -302,9 +302,9 @@ class TokenBucketLimiter:
                  refill_rate: float = 10.0):
         """
         Args:
-            redis_client: Redis クライアント
-            max_tokens: バケット容量 (バースト許容量)
-            refill_rate: 補充レート (tokens/sec)
+            redis_client: Redis client
+            max_tokens: Bucket capacity (burst allowance)
+            refill_rate: Refill rate (tokens/sec)
         """
         self._redis = redis_client
         self._max_tokens = max_tokens
@@ -313,13 +313,13 @@ class TokenBucketLimiter:
 
     def allow_request(self, key: str) -> RateLimitResult:
         """
-        リクエストを許可するか判定する。
+        Determine whether to allow a request.
 
         Args:
-            key: レートリミットキー (例: "user:123:/api/orders")
+            key: Rate limit key (e.g., "user:123:/api/orders")
 
         Returns:
-            RateLimitResult: 判定結果
+            RateLimitResult: Decision result
         """
         now = time.time()
         result = self._script(
@@ -337,11 +337,11 @@ class TokenBucketLimiter:
             limit=self._max_tokens,
         )
 
-# 使用例
+# Usage example
 limiter = TokenBucketLimiter(
     redis.Redis(host='localhost'),
-    max_tokens=100,    # バースト: 最大100リクエスト
-    refill_rate=10,    # 定常: 10 req/sec
+    max_tokens=100,    # Burst: up to 100 requests
+    refill_rate=10,    # Steady: 10 req/sec
 )
 
 result = limiter.allow_request("user:123:/api/orders")
@@ -360,47 +360,47 @@ if not result.allowed:
 ### 2.2 Sliding Window Log
 
 ```
-Sliding Window Log アルゴリズム
+Sliding Window Log Algorithm
 
-  概念:
-  各リクエストのタイムスタンプをログ (Sorted Set) に記録し、
-  ウィンドウ内のリクエスト数をカウントする。
+  Concept:
+  Records the timestamp of each request in a log (Sorted Set)
+  and counts the number of requests within the window.
 
-  時間軸:
+  Timeline:
   |----window (60s)----|
   |                    |
   t-60s              t (now)
   [req1][req2]...[reqN]
-  ← この範囲のリクエスト数をカウント
+  ← Count requests in this range
 
-  ウィンドウ外の古いリクエストは削除:
+  Old requests outside the window are removed:
   [old1][old2]|[req1][req2]...[reqN]|
-  ← 削除      ← カウント対象         ← now
+  ← Removed    ← Within count range  ← now
 
-  特性:
-  - 精度: 最高 (各リクエストの正確なタイムスタンプを保持)
-  - メモリ: O(N) (ウィンドウ内のリクエスト数に比例)
-  - 用途: 課金 API など正確なカウントが必要な場面
+  Characteristics:
+  - Accuracy: Highest (stores exact timestamp of each request)
+  - Memory: O(N) (proportional to number of requests in window)
+  - Use case: Situations requiring accurate counting, such as billing APIs
 
-  WHY Sorted Set を使うのか:
-  - ZREMRANGEBYSCORE: O(log N + M) でウィンドウ外を効率削除
-  - ZCARD: O(1) でカウント取得
-  - Redis のアトミック操作でレースコンディション防止
+  WHY use Sorted Set:
+  - ZREMRANGEBYSCORE: Efficiently removes out-of-window entries in O(log N + M)
+  - ZCARD: Gets count in O(1)
+  - Redis atomic operations prevent race conditions
 ```
 
 ```python
-# コード例 2: Sliding Window Log 実装
+# Code Example 2: Sliding Window Log Implementation
 class SlidingWindowLogLimiter:
     """
-    Sliding Window Log レートリミッター。
+    Sliding Window Log rate limiter.
 
-    正確な時間窓でのレート制限を提供する。
-    各リクエストのタイムスタンプを Redis Sorted Set に記録し、
-    ウィンドウ内のリクエスト数をカウントする。
+    Provides rate limiting with an accurate time window.
+    Records the timestamp of each request in a Redis Sorted Set
+    and counts the number of requests within the window.
 
-    トレードオフ:
-    - 長所: 最も正確なカウント、Fixed Window の境界問題なし
-    - 短所: メモリ使用量が O(N)、高トラフィックではコスト大
+    Trade-offs:
+    - Pros: Most accurate count, no boundary problem of Fixed Window
+    - Cons: O(N) memory usage, high cost under heavy traffic
     """
 
     LUA_SCRIPT = """
@@ -410,25 +410,25 @@ class SlidingWindowLogLimiter:
     local now = tonumber(ARGV[3])
     local request_id = ARGV[4]
 
-    -- ウィンドウ外の古いエントリを削除
+    -- Remove old entries outside the window
     redis.call('ZREMRANGEBYSCORE', key, 0, now - window_size)
 
-    -- 現在のカウント
+    -- Current count
     local count = redis.call('ZCARD', key)
 
     if count < max_requests then
-        -- リクエストを記録 (member はユニークにする)
+        -- Record request (member must be unique)
         redis.call('ZADD', key, now, request_id)
         redis.call('EXPIRE', key, window_size + 1)
-        return {1, max_requests - count - 1}   -- 許可, 残り
+        return {1, max_requests - count - 1}   -- allowed, remaining
     else
-        -- 制限超過: 最も古いリクエストの時刻を取得して待ち時間を計算
+        -- Limit exceeded: get oldest request time to calculate wait time
         local oldest = redis.call('ZRANGE', key, 0, 0, 'WITHSCORES')
         local retry_after = 0
         if #oldest > 0 then
             retry_after = math.ceil(tonumber(oldest[2]) + window_size - now)
         end
-        return {0, 0, retry_after}             -- 拒否, 残り0, 待ち時間
+        return {0, 0, retry_after}             -- rejected, remaining 0, wait time
     end
     """
 
@@ -463,44 +463,44 @@ class SlidingWindowLogLimiter:
 ### 2.3 Fixed Window Counter
 
 ```
-Fixed Window Counter アルゴリズム
+Fixed Window Counter Algorithm
 
-  概念:
-  時間を固定ウィンドウに分割し、各ウィンドウ内のカウントを管理する。
+  Concept:
+  Divides time into fixed windows and manages the count within each window.
 
   |--- Window 1 (10:00-10:01) ---|--- Window 2 (10:01-10:02) ---|
   |  [req][req][req]...[req]     |  [req][req]...               |
   |  count = 95                  |  count = 12                  |
   |  limit = 100                 |  limit = 100                 |
 
-  境界問題 (WHY Fixed Window は精度が低いか):
+  Boundary problem (WHY Fixed Window has low accuracy):
   |--- Window 1 ---|--- Window 2 ---|
   |         [90req]|[90req]         |
   |    last 30s    | first 30s     |
-  → 60秒のウィンドウで100件制限なのに、
-    30秒間に180件が通ってしまう (境界をまたぐ)
+  → The 60-second window has a 100-request limit, but
+    180 requests pass through in 30 seconds (crossing the boundary)
 
-  特性:
-  - 精度: 低 (境界問題あり)
-  - メモリ: O(1) (カウンターのみ)
-  - 速度: 最速 (INCR のみ)
-  - 用途: DDoS 防御など精度よりスピード重視の場面
+  Characteristics:
+  - Accuracy: Low (has boundary problem)
+  - Memory: O(1) (counter only)
+  - Speed: Fastest (INCR only)
+  - Use case: Situations where speed matters more than accuracy, such as DDoS defense
 ```
 
 ```python
-# コード例 3: Fixed Window Counter (最もシンプル)
+# Code Example 3: Fixed Window Counter (Simplest)
 class FixedWindowLimiter:
     """
-    Fixed Window Counter レートリミッター。
+    Fixed Window Counter rate limiter.
 
-    最もシンプルな実装。Redis の INCR + EXPIRE で実現。
-    境界問題があるため、精度が必要な場面には不向き。
+    The simplest implementation. Achieved with Redis INCR + EXPIRE.
+    Has a boundary problem, so not suitable for situations requiring accuracy.
 
-    WHY それでも使われるのか:
-    1. 実装が最もシンプル (Lua Script 不要)
-    2. メモリ効率が最良 (O(1))
-    3. 処理速度が最速
-    4. DDoS 防御など「大まかに制限できれば良い」ケースに最適
+    WHY it is still used:
+    1. Simplest implementation (no Lua Script needed)
+    2. Best memory efficiency (O(1))
+    3. Fastest processing speed
+    4. Ideal for cases where "rough limiting is sufficient" such as DDoS defense
     """
 
     def __init__(self, redis_client, max_requests: int = 100,
@@ -511,12 +511,12 @@ class FixedWindowLimiter:
 
     def allow_request(self, key: str) -> RateLimitResult:
         """
-        Fixed Window でリクエストを判定。
+        Determine request with Fixed Window.
 
-        キー設計: ratelimit:fw:{key}:{window_id}
+        Key design: ratelimit:fw:{key}:{window_id}
         window_id = int(now / window_seconds)
-        → ウィンドウが変わると新しいキーが使われる
-        → 古いキーは EXPIRE で自動削除
+        → A new key is used when the window changes
+        → Old keys are automatically deleted by EXPIRE
         """
         now = time.time()
         window_id = int(now) // self._window
@@ -524,7 +524,7 @@ class FixedWindowLimiter:
 
         pipe = self._redis.pipeline()
         pipe.incr(window_key)
-        pipe.expire(window_key, self._window + 1)  # +1秒マージン
+        pipe.expire(window_key, self._window + 1)  # +1 second margin
         count, _ = pipe.execute()
 
         allowed = count <= self._max
@@ -539,41 +539,41 @@ class FixedWindowLimiter:
         )
 ```
 
-### 2.4 Sliding Window Counter (ハイブリッド)
+### 2.4 Sliding Window Counter (Hybrid)
 
 ```
-Sliding Window Counter アルゴリズム
+Sliding Window Counter Algorithm
 
-  概念:
-  Fixed Window のシンプルさと Sliding Window の精度を両立する
-  ハイブリッドアルゴリズム。
+  Concept:
+  A hybrid algorithm that combines the simplicity of Fixed Window
+  with the accuracy of Sliding Window.
 
-  前のウィンドウと現在のウィンドウのカウントを加重平均する。
+  Uses a weighted average of the previous window and current window counts.
 
   |--- Previous Window ---|--- Current Window ---|
   |  count_prev = 80      |  count_curr = 30     |
-  |                       |      ^(now, 40%経過)  |
+  |                       |      ^(now, 40% elapsed)|
   |                       |                       |
 
-  推定カウント = count_prev * (1 - 経過率) + count_curr
-              = 80 * 0.6 + 30
-              = 48 + 30 = 78
+  Estimated count = count_prev * (1 - elapsed_ratio) + count_curr
+                  = 80 * 0.6 + 30
+                  = 48 + 30 = 78
 
-  精度: Fixed Window より大幅に改善、Sliding Window Log に近い
-  メモリ: O(1) (前ウィンドウと現ウィンドウの2つのカウンターのみ)
-  → 精度とメモリのバランスが最良
+  Accuracy: Significantly better than Fixed Window, close to Sliding Window Log
+  Memory: O(1) (only two counters: previous window and current window)
+  → Best balance of accuracy and memory efficiency
 ```
 
 ```python
-# コード例 4: Sliding Window Counter 実装
+# Code Example 4: Sliding Window Counter Implementation
 class SlidingWindowCounterLimiter:
     """
-    Sliding Window Counter (ハイブリッド方式)。
+    Sliding Window Counter (hybrid method).
 
-    Fixed Window の O(1) メモリ効率と、
-    Sliding Window の精度を両立する。
+    Combines O(1) memory efficiency of Fixed Window
+    with the accuracy of Sliding Window.
 
-    計算式:
+    Formula:
     estimated_count = prev_window_count * overlap_ratio + current_window_count
     overlap_ratio = 1 - (current_time - current_window_start) / window_size
     """
@@ -585,19 +585,19 @@ class SlidingWindowCounterLimiter:
     local window_size = tonumber(ARGV[2])
     local now = tonumber(ARGV[3])
 
-    -- 現在と前のウィンドウのカウントを取得
+    -- Get counts for current and previous windows
     local curr_count = tonumber(redis.call('GET', curr_key) or '0')
     local prev_count = tonumber(redis.call('GET', prev_key) or '0')
 
-    -- 現在のウィンドウ内の経過率
+    -- Elapsed ratio within the current window
     local window_start = math.floor(now / window_size) * window_size
     local elapsed_ratio = (now - window_start) / window_size
 
-    -- スライディングウィンドウの推定カウント
+    -- Sliding window estimated count
     local estimated = prev_count * (1 - elapsed_ratio) + curr_count
 
     if estimated < max_requests then
-        -- 許可: 現在のウィンドウのカウントをインクリメント
+        -- Allow: increment the current window count
         redis.call('INCR', curr_key)
         redis.call('EXPIRE', curr_key, window_size * 2)
         return {1, math.floor(max_requests - estimated - 1)}
@@ -640,75 +640,75 @@ class SlidingWindowCounterLimiter:
 ### 2.5 Leaky Bucket
 
 ```
-Leaky Bucket アルゴリズム
+Leaky Bucket Algorithm
 
-  概念:
-  水が一定レートで漏れるバケツ。
-  リクエストはバケツに入り、一定レートで処理される。
+  Concept:
+  A bucket that leaks water at a constant rate.
+  Requests enter the bucket and are processed at a constant rate.
 
   +------------------+
-  |  入力 (リクエスト) |   ← リクエストがバケツに入る
+  |  Input (requests)|   ← Requests enter the bucket
   +------------------+
   |                  |
-  |  [req3]          |   ← バケツ (キュー)
-  |  [req2]          |      容量 = burst_size
+  |  [req3]          |   ← Bucket (queue)
+  |  [req2]          |      capacity = burst_size
   |  [req1]          |
   +-------+----------+
           |
-          v (一定レート)  ← leak_rate で処理 (例: 10 req/sec)
-       [処理]
+          v (constant rate)  ← Processed at leak_rate (e.g., 10 req/sec)
+       [Process]
 
-  バケツが満杯 → 新しいリクエストは破棄 (429)
+  Bucket full → New requests are dropped (429)
 
-  Token Bucket との違い:
+  Difference from Token Bucket:
   +-------------------+--------------------+---------------------+
-  | 特性               | Token Bucket       | Leaky Bucket        |
+  | Characteristic    | Token Bucket       | Leaky Bucket        |
   +-------------------+--------------------+---------------------+
-  | バースト           | 許容 (max_tokens)   | 不許容 (均等化)      |
-  | 出力レート         | 可変 (バースト時)    | 一定 (leak_rate)     |
-  | メモリ             | O(1)               | O(N) (キュー)       |
-  | 用途               | API Gateway        | ストリーミング       |
+  | Burst             | Allowed (max_tokens)| Not allowed (smoothed)|
+  | Output rate       | Variable (burst)   | Constant (leak_rate) |
+  | Memory            | O(1)               | O(N) (queue)        |
+  | Use case          | API Gateway        | Streaming            |
   +-------------------+--------------------+---------------------+
 
-  WHY Leaky Bucket を選ぶケース:
-  - ストリーミング処理: 均等なレートが必要
-  - ネットワークトラフィック: バーストを平滑化したい
-  - バッチ処理: 後続サービスの負荷を均一にしたい
+  Cases where to choose Leaky Bucket:
+  - Streaming processing: requires uniform rate
+  - Network traffic: want to smooth out bursts
+  - Batch processing: want uniform load on downstream services
 ```
 
 ```python
-# コード例 5: Leaky Bucket 実装
+# Code Example 5: Leaky Bucket Implementation
 class LeakyBucketLimiter:
     """
-    Leaky Bucket レートリミッター。
+    Leaky Bucket rate limiter.
 
-    リクエストを均等なレートで処理する。
-    バーストを平滑化し、後続サービスへの負荷を均一にする。
+    Processes requests at a uniform rate.
+    Smooths out bursts and provides uniform load on downstream services.
     """
 
     LUA_SCRIPT = """
     local key = KEYS[1]
-    local burst_size = tonumber(ARGV[1])   -- バケツ容量
-    local leak_rate = tonumber(ARGV[2])     -- 処理レート (req/sec)
+    local burst_size = tonumber(ARGV[1])   -- bucket capacity
+    local leak_rate = tonumber(ARGV[2])     -- processing rate (req/sec)
     local now = tonumber(ARGV[3])
 
     local data = redis.call('HMGET', key, 'water_level', 'last_leak')
     local water_level = tonumber(data[1]) or 0
     local last_leak = tonumber(data[2]) or now
 
-    -- 漏れた水の計算 (時間経過分を減少)
+    -- Calculate leaked water (decrease by elapsed time)
     local elapsed = math.max(0, now - last_leak)
     local leaked = elapsed * leak_rate
     water_level = math.max(0, water_level - leaked)
 
     if water_level < burst_size then
-        -- バケツに空きあり: リクエストを受け入れ
+        -- Bucket has space: accept request
         water_level = water_level + 1
         redis.call('HMSET', key, 'water_level', water_level, 'last_leak', now)
         redis.call('EXPIRE', key, math.ceil(burst_size / leak_rate) * 2)
         return {1, math.floor(burst_size - water_level)}
     else
-        -- バケツ満杯: 拒否
+        -- Bucket full: reject
         local wait_time = (water_level - burst_size + 1) / leak_rate
         return {0, 0, math.ceil(wait_time)}
     end
@@ -742,12 +742,12 @@ class LeakyBucketLimiter:
 
 ---
 
-## 3. FastAPI / Flask ミドルウェア統合
+## 3. FastAPI / Flask Middleware Integration
 
-### 3.1 FastAPI ミドルウェア
+### 3.1 FastAPI Middleware
 
 ```python
-# コード例 6: FastAPI ミドルウェアとしての統合
+# Code Example 6: Integration as FastAPI Middleware
 from fastapi import FastAPI, Request, Response, HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 import json
@@ -756,20 +756,20 @@ import time
 app = FastAPI()
 
 class RateLimitConfig:
-    """エンドポイント別のレート制限設定"""
+    """Rate limit configuration per endpoint"""
 
-    # デフォルト設定
+    # Default configuration
     DEFAULT = {"max_requests": 100, "window_seconds": 60}
 
-    # エンドポイント別の設定
+    # Per-endpoint configuration
     ENDPOINT_RULES = {
         "/api/v1/search": {"max_requests": 30, "window_seconds": 60},
         "/api/v1/login": {"max_requests": 5, "window_seconds": 300},
         "/api/v1/signup": {"max_requests": 3, "window_seconds": 3600},
-        "/api/v1/health": None,  # None = 制限なし
+        "/api/v1/health": None,  # None = no limit
     }
 
-    # プラン別の設定
+    # Per-plan configuration
     PLAN_RULES = {
         "free": {"multiplier": 1.0},
         "starter": {"multiplier": 5.0},
@@ -779,16 +779,16 @@ class RateLimitConfig:
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """
-    FastAPI のレートリミッティングミドルウェア。
+    FastAPI rate limiting middleware.
 
-    キーの構築:
-    1. API Key がある場合: API Key + エンドポイント
-    2. 認証済みユーザー: User ID + エンドポイント
-    3. 未認証: IP アドレス + エンドポイント
+    Key construction:
+    1. If API Key is present: API Key + endpoint
+    2. Authenticated user: User ID + endpoint
+    3. Unauthenticated: IP address + endpoint
 
-    レスポンスヘッダー:
-    - 常に X-RateLimit-* ヘッダーを付与
-    - 429 の場合は Retry-After も付与
+    Response headers:
+    - Always attach X-RateLimit-* headers
+    - Also attach Retry-After for 429 responses
     """
 
     def __init__(self, app, limiter: TokenBucketLimiter,
@@ -798,18 +798,18 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.config = config or RateLimitConfig()
 
     async def dispatch(self, request: Request, call_next):
-        # ヘルスチェック等の除外パス
+        # Excluded paths such as health checks
         endpoint = request.url.path
         endpoint_rule = self.config.ENDPOINT_RULES.get(endpoint)
         if endpoint_rule is None and endpoint in self.config.ENDPOINT_RULES:
-            # 明示的に None が設定されている = 制限なし
+            # Explicitly set to None = no limit
             return await call_next(request)
 
-        # レートリミットキーの構築
+        # Build rate limit key
         client_id = self._extract_client_id(request)
         key = f"{client_id}:{endpoint}"
 
-        # 判定
+        # Evaluate
         result = self.limiter.allow_request(key)
 
         if not result.allowed:
@@ -818,7 +818,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 content=json.dumps({
                     "error": {
                         "code": "RATE_LIMIT_EXCEEDED",
-                        "message": f"リクエスト制限を超過しました。{retry_after}秒後に再試行してください。",
+                        "message": f"Request limit exceeded. Please retry after {retry_after} seconds.",
                         "retry_after": retry_after,
                     }
                 }),
@@ -832,27 +832,27 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 },
             )
 
-        # 正常レスポンスにもヘッダーを付与
+        # Attach headers to normal responses as well
         response = await call_next(request)
         response.headers["X-RateLimit-Limit"] = str(result.limit)
         response.headers["X-RateLimit-Remaining"] = str(result.remaining)
         return response
 
     def _extract_client_id(self, request: Request) -> str:
-        """リクエストからクライアント識別子を抽出"""
-        # 優先順位: API Key > User ID > IP
+        """Extract client identifier from request"""
+        # Priority: API Key > User ID > IP
         api_key = request.headers.get("X-API-Key")
         if api_key:
             return f"apikey:{api_key}"
 
         auth = request.headers.get("Authorization")
         if auth and auth.startswith("Bearer "):
-            # JWT から user_id を抽出 (簡略化)
+            # Extract user_id from JWT (simplified)
             user_id = extract_user_id_from_jwt(auth[7:])
             if user_id:
                 return f"user:{user_id}"
 
-        # フォールバック: IP アドレス
+        # Fallback: IP address
         client_ip = request.headers.get(
             "X-Forwarded-For", request.client.host
         )
@@ -861,10 +861,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 app.add_middleware(RateLimitMiddleware, limiter=limiter)
 ```
 
-### 3.2 デコレータベースの制限
+### 3.2 Decorator-Based Limiting
 
 ```python
-# コード例 7: デコレータベースのエンドポイント別レート制限
+# Code Example 7: Decorator-based per-endpoint rate limiting
 import functools
 from fastapi import APIRouter, Request, HTTPException
 
@@ -873,14 +873,14 @@ router = APIRouter()
 def rate_limit(max_requests: int, window_seconds: int,
                key_func=None):
     """
-    エンドポイント固有のレート制限デコレータ。
+    Endpoint-specific rate limit decorator.
 
-    使い方:
+    Usage:
     @rate_limit(max_requests=10, window_seconds=60)
     async def search(query: str):
         ...
 
-    key_func で制限キーをカスタマイズ:
+    Customize the limit key with key_func:
     @rate_limit(max_requests=5, window_seconds=300,
                 key_func=lambda req: req.client.host)
     async def login(credentials):
@@ -892,14 +892,14 @@ def rate_limit(max_requests: int, window_seconds: int,
             if request is None:
                 return await func(*args, **kwargs)
 
-            # キーの構築
+            # Build key
             if key_func:
                 key = key_func(request)
             else:
                 user_id = getattr(request.state, 'user_id', request.client.host)
                 key = f"{user_id}:{request.url.path}"
 
-            # 専用リミッターで判定
+            # Evaluate with dedicated limiter
             limiter = SlidingWindowCounterLimiter(
                 redis_client=get_redis(),
                 max_requests=max_requests,
@@ -923,85 +923,85 @@ def rate_limit(max_requests: int, window_seconds: int,
         return wrapper
     return decorator
 
-# 使用例
+# Usage examples
 @router.get("/api/v1/search")
 @rate_limit(max_requests=30, window_seconds=60)
 async def search_products(query: str, request: Request):
-    """検索 API: 1分あたり30リクエストに制限"""
+    """Search API: limited to 30 requests per minute"""
     return await perform_search(query)
 
 @router.post("/api/v1/auth/login")
 @rate_limit(
     max_requests=5,
     window_seconds=300,
-    key_func=lambda req: f"login:{req.client.host}",  # IP 別
+    key_func=lambda req: f"login:{req.client.host}",  # per IP
 )
 async def login(credentials: dict, request: Request):
-    """ログイン API: IP あたり5分で5回に制限 (ブルートフォース防止)"""
+    """Login API: limited to 5 times per 5 minutes per IP (brute-force prevention)"""
     return await authenticate(credentials)
 
 @router.post("/api/v1/emails/send")
 @rate_limit(max_requests=10, window_seconds=3600)
 async def send_email(email_data: dict, request: Request):
-    """メール送信 API: 1時間あたり10通に制限"""
+    """Email send API: limited to 10 emails per hour"""
     return await send_email_service(email_data)
 ```
 
 ---
 
-## 4. 分散環境での考慮事項
+## 4. Considerations for Distributed Environments
 
-### 4.1 レースコンディション
+### 4.1 Race Conditions
 
 ```
-レースコンディションの問題:
+Race condition problem:
 
   Server A                    Server B
      |                           |
   GET counter → 99              GET counter → 99
      |                           |
-  99 < 100 → 許可               99 < 100 → 許可
+  99 < 100 → allow              99 < 100 → allow
      |                           |
   SET counter = 100             SET counter = 100
      |                           |
-  → 実際は101リクエスト目が通ってしまう!
+  → The 101st request actually passes through!
 
-解決策 1: Lua スクリプト (推奨)
-  → 全ての操作がアトミックに実行される
-  → 本ガイドの全実装で採用
+Solution 1: Lua Script (recommended)
+  → All operations execute atomically
+  → Used in all implementations in this guide
 
-解決策 2: Redis WATCH + MULTI/EXEC
-  → Optimistic Lock
-  → 競合時はリトライが必要で複雑
+Solution 2: Redis WATCH + MULTI/EXEC
+  → Optimistic locking
+  → Requires retry on conflict, which is complex
 
-解決策 3: Redis SET NX + GET (CAS操作)
+Solution 3: Redis SET NX + GET (CAS operation)
   → Compare-and-Swap
-  → Lua より遅いがシンプル
+  → Slower than Lua but simpler
 
-  ★ 結論: Lua スクリプトが最も効率的で推奨
+  ★ Conclusion: Lua Script is the most efficient and recommended approach
 ```
 
-### 4.2 Redis 障害時のフォールバック
+### 4.2 Fallback on Redis Failure
 
 ```python
-# コード例 8: Redis 障害時のフォールバック戦略
+# Code Example 8: Fallback strategy on Redis failure
 import time
 from threading import Lock
 from collections import defaultdict
 
 class ResilientRateLimiter:
     """
-    Redis 障害に耐性のあるレートリミッター。
+    Rate limiter resilient to Redis failures.
 
-    フォールバック戦略:
-    1. Primary: Redis Cluster (高精度)
-    2. Secondary: ローカルメモリ (近似値)
-    3. Tertiary: フェイルオープン (制限なし)
+    Fallback strategy:
+    1. Primary: Redis Cluster (high accuracy)
+    2. Secondary: Local memory (approximate)
+    3. Tertiary: Fail-open (no limit)
 
-    WHY フェイルオープンを選ぶか:
-    - レートリミッターの障害でサービス停止は本末転倒
-    - 短時間のレート制限なしは許容可能
-    - 代わりにアラートを発報し、迅速に復旧を目指す
+    WHY choose fail-open:
+    - It defeats the purpose if the rate limiter's failure stops the whole service
+    - Temporarily relaxing limits until Redis recovers is acceptable
+    - Instead, trigger an alert and aim for quick recovery
     """
 
     def __init__(self, redis_limiter: TokenBucketLimiter,
@@ -1014,7 +1014,7 @@ class ResilientRateLimiter:
         self._last_health_check = 0
 
     def allow_request(self, key: str) -> RateLimitResult:
-        # Redis の健全性確認 (10秒ごと)
+        # Check Redis health (every 10 seconds)
         if not self._redis_healthy:
             if time.time() - self._last_health_check > 10:
                 self._check_redis_health()
@@ -1030,13 +1030,13 @@ class ResilientRateLimiter:
                 metrics.increment("rate_limiter.redis_error")
                 logger.error(f"Redis rate limiter failed: {e}")
 
-        # Secondary: ローカルメモリ (近似)
+        # Secondary: Local memory (approximate)
         try:
             return self._local_rate_limit(key)
         except Exception:
             pass
 
-        # Tertiary: フェイルオープン/クローズ
+        # Tertiary: Fail-open / fail-closed
         if self.fail_open:
             metrics.increment("rate_limiter.fail_open")
             return RateLimitResult(
@@ -1049,21 +1049,21 @@ class ResilientRateLimiter:
             )
 
     def _local_rate_limit(self, key: str) -> RateLimitResult:
-        """ローカルメモリによる近似的なレート制限"""
+        """Approximate rate limiting using local memory"""
         now = time.time()
         with self._lock:
             counter = self._local_counters[key]
 
-            # ウィンドウリセット
+            # Reset window
             if now > counter["reset"]:
                 counter["count"] = 0
-                counter["reset"] = now + 60  # 1分ウィンドウ
+                counter["reset"] = now + 60  # 1-minute window
 
             counter["count"] += 1
 
-            # ★ ローカルなのでサーバー台数分の誤差がある
-            # 例: 4台のサーバーで100/min 制限
-            #     → 各サーバーで25/min に設定
+            # ★ There is error proportional to number of servers due to local storage
+            # Example: 100/min limit across 4 servers
+            #     → Set to 25/min per server
             local_limit = 25  # max_requests / num_servers
             allowed = counter["count"] <= local_limit
 
@@ -1075,7 +1075,7 @@ class ResilientRateLimiter:
             )
 
     def _check_redis_health(self):
-        """Redis の健全性チェック"""
+        """Check Redis health"""
         try:
             self.redis_limiter._redis.ping()
             self._redis_healthy = True
@@ -1085,45 +1085,45 @@ class ResilientRateLimiter:
             self._last_health_check = time.time()
 ```
 
-### 4.3 動的ルール管理
+### 4.3 Dynamic Rule Management
 
 ```python
-# コード例 9: 動的ルール管理サービス
+# Code Example 9: Dynamic rule management service
 import json
 
 class RateLimitRuleService:
     """
-    レート制限ルールを動的に管理するサービス。
+    Service for dynamically managing rate limit rules.
 
-    ルールの優先順位:
-    1. ユーザー個別ルール (user:123 → 500/min)
-    2. プラン別ルール (plan:pro → 1000/min)
-    3. エンドポイント別ルール (/api/search → 30/min)
-    4. デフォルトルール (100/min)
+    Rule priority:
+    1. Per-user rules (user:123 → 500/min)
+    2. Per-plan rules (plan:pro → 1000/min)
+    3. Per-endpoint rules (/api/search → 30/min)
+    4. Default rules (100/min)
 
-    WHY 動的ルールが必要か:
-    - 特定ユーザーの一時的な制限緩和 (大量インポート等)
-    - プラン変更の即時反映
-    - インシデント対応での緊急制限
-    - A/B テストでの制限値の実験
+    WHY dynamic rules are needed:
+    - Temporarily relax limits for specific users (bulk imports, etc.)
+    - Immediate reflection of plan changes
+    - Emergency restrictions during incident response
+    - Experimenting with limit values in A/B tests
     """
 
     def __init__(self, redis_client, db):
         self.redis = redis_client
         self.db = db
-        self._cache_ttl = 300  # 5分キャッシュ
+        self._cache_ttl = 300  # 5-minute cache
 
     async def get_limit(self, client_id: str,
                          endpoint: str) -> dict:
-        """適用されるレート制限ルールを取得"""
+        """Get the applicable rate limit rule"""
 
-        # 1. キャッシュ確認
+        # 1. Check cache
         cache_key = f"rate_rule:{client_id}:{endpoint}"
         cached = await self.redis.get(cache_key)
         if cached:
             return json.loads(cached)
 
-        # 2. ユーザー個別ルール
+        # 2. Per-user rule
         user_rule = await self.db.fetch_one(
             "SELECT * FROM rate_limit_rules "
             "WHERE client_id = :cid AND endpoint = :ep AND is_active = TRUE",
@@ -1134,7 +1134,7 @@ class RateLimitRuleService:
             await self.redis.set(cache_key, json.dumps(rule), ex=self._cache_ttl)
             return rule
 
-        # 3. プラン別ルール
+        # 3. Per-plan rule
         plan = await self._get_user_plan(client_id)
         plan_rule = await self.db.fetch_one(
             "SELECT * FROM rate_limit_rules "
@@ -1146,7 +1146,7 @@ class RateLimitRuleService:
             await self.redis.set(cache_key, json.dumps(rule), ex=self._cache_ttl)
             return rule
 
-        # 4. デフォルトルール
+        # 4. Default rule
         default = {"max_requests": 100, "window_seconds": 60,
                     "algorithm": "token_bucket"}
         await self.redis.set(cache_key, json.dumps(default), ex=self._cache_ttl)
@@ -1156,7 +1156,7 @@ class RateLimitRuleService:
                                        endpoint: str,
                                        new_limit: dict,
                                        duration_hours: int = 24):
-        """一時的なルールオーバーライド (インシデント対応等)"""
+        """Temporary rule override (for incident response, etc.)"""
         await self.db.execute(
             "INSERT INTO rate_limit_overrides "
             "(client_id, endpoint, max_requests, window_seconds, expires_at) "
@@ -1169,7 +1169,7 @@ class RateLimitRuleService:
             },
         )
 
-        # キャッシュを即時無効化
+        # Immediately invalidate cache
         cache_key = f"rate_rule:{client_id}:{endpoint}"
         await self.redis.delete(cache_key)
 
@@ -1183,32 +1183,32 @@ class RateLimitRuleService:
 
 ---
 
-## 5. アルゴリズム比較表
+## 5. Algorithm Comparison Table
 
-### 5.1 技術的比較
+### 5.1 Technical Comparison
 
-| アルゴリズム | メモリ使用量 | 精度 | バースト許容 | 実装の複雑さ | レースコンディション |
+| Algorithm | Memory Usage | Accuracy | Burst Tolerance | Implementation Complexity | Race Condition |
 |------------|:----------:|:----:|:----------:|:----------:|:-----------------:|
-| Token Bucket | O(1) | 高 | 制御可能 | 中 | Lua で解決 |
-| Leaky Bucket | O(1) | 高 | なし (均等化) | 中 | Lua で解決 |
-| Fixed Window | O(1) | 低 (境界問題) | あり (境界で2倍) | 低 | Pipeline で十分 |
-| Sliding Window Log | O(N) | 最高 | なし | 高 | Lua で解決 |
-| Sliding Window Counter | O(1) | 中-高 | 軽微 | 中 | Lua で解決 |
+| Token Bucket | O(1) | High | Controllable | Medium | Solved with Lua |
+| Leaky Bucket | O(1) | High | None (smoothed) | Medium | Solved with Lua |
+| Fixed Window | O(1) | Low (boundary problem) | Yes (2x at boundary) | Low | Pipeline sufficient |
+| Sliding Window Log | O(N) | Highest | None | High | Solved with Lua |
+| Sliding Window Counter | O(1) | Medium-High | Minor | Medium | Solved with Lua |
 
-### 5.2 ユースケース別推奨
+### 5.2 Recommended by Use Case
 
-| ユースケース | 推奨アルゴリズム | 理由 |
+| Use Case | Recommended Algorithm | Reason |
 |------------|---------------|------|
-| API ゲートウェイ | Token Bucket | バースト許容 + 一定レートの両立 |
-| DDoS 防御 | Fixed Window | シンプルで高速、精度は二の次 |
-| 課金 API | Sliding Window Log | 正確なカウントが必要 |
-| ストリーミング | Leaky Bucket | 均等な処理レート維持 |
-| 一般的な API | Sliding Window Counter | 精度とメモリ効率のバランス |
-| ログイン (ブルートフォース防止) | Sliding Window Log | 正確なカウントで安全性確保 |
+| API Gateway | Token Bucket | Supports both burst tolerance and steady rate control |
+| DDoS Defense | Fixed Window | Simple and fast; accuracy is secondary |
+| Billing API | Sliding Window Log | Accurate counting required |
+| Streaming | Leaky Bucket | Maintains uniform processing rate |
+| General API | Sliding Window Counter | Balance of accuracy and memory efficiency |
+| Login (brute-force prevention) | Sliding Window Log | Accurate counting for security |
 
-### 5.3 パフォーマンス比較
+### 5.3 Performance Comparison
 
-| アルゴリズム | Redis 操作数 (Lua) | レイテンシ (p99) | メモリ/キー |
+| Algorithm | Redis Operations (Lua) | Latency (p99) | Memory/Key |
 |------------|:-----------------:|:---------------:|:----------:|
 | Token Bucket | 3 (HMGET + HMSET + EXPIRE) | < 1ms | ~100 bytes |
 | Fixed Window | 2 (INCR + EXPIRE) | < 0.5ms | ~50 bytes |
@@ -1218,15 +1218,15 @@ class RateLimitRuleService:
 
 ---
 
-## 6. アンチパターン
+## 6. Anti-Patterns
 
-### アンチパターン 1: レートリミットをアプリケーションメモリで管理
+### Anti-Pattern 1: Managing Rate Limits in Application Memory
 
 ```python
-# NG: 各サーバーのメモリでカウント管理
+# BAD: Managing counts in each server's memory
 class BadInMemoryLimiter:
     def __init__(self):
-        self.counters = {}  # ローカルメモリ
+        self.counters = {}  # Local memory
 
     def allow(self, key):
         count = self.counters.get(key, 0)
@@ -1235,36 +1235,36 @@ class BadInMemoryLimiter:
         self.counters[key] = count + 1
         return True
 
-# 問題:
+# Problems:
 #   Server A: user-123 = 50 requests
 #   Server B: user-123 = 50 requests
-#   → 合計100リクエストだが各サーバーは50と認識
-#   → 制限が全く効かない (N台のサーバーで N倍の制限)
+#   → Total is 100 but each server thinks it's 50
+#   → The limit has no effect (N times the limit with N servers)
 
-# さらに:
-#   - サーバー再起動でカウンターがリセットされる
-#   - メモリリークのリスク (キーの自動削除がない)
+# Also:
+#   - Counters reset when server restarts
+#   - Memory leak risk (no automatic key deletion)
 
 
-# OK: Redis で一元管理
+# GOOD: Centralized management with Redis
 class GoodRedisLimiter:
     def __init__(self, redis_client):
         self.redis = redis_client
 
     def allow(self, key):
-        # Redis で一元管理 → 全サーバーで共有
+        # Centralized in Redis → shared across all servers
         result = self.redis.eval(LUA_SCRIPT, 1, key, ...)
         return bool(result[0])
 
-# Redis クラスターの場合:
+# With Redis Cluster:
 #   Server A --count--> [Redis Cluster] <--count-- Server B
-#   → user-123 = 100 (正確な合計値)
+#   → user-123 = 100 (accurate total)
 ```
 
-### アンチパターン 2: 単一のレート制限ルールのみ
+### Anti-Pattern 2: Using a Single Rate Limit Rule Only
 
 ```python
-# NG: 全ユーザー・全エンドポイントに同一制限
+# BAD: Same limit for all users and all endpoints
 class BadSingleRuleLimiter:
     GLOBAL_LIMIT = 100  # req/min for everyone
 
@@ -1272,46 +1272,46 @@ class BadSingleRuleLimiter:
         count = self.redis.incr(f"rate:{key}")
         return count <= self.GLOBAL_LIMIT
 
-# 問題:
-# 1. 無料ユーザーと有料ユーザーが同じ制限 → 有料の価値がない
-# 2. /api/health (軽量) と /api/search (重量) が同じ制限
-# 3. DDoS 防御と通常制限が区別できない
+# Problems:
+# 1. Free and paid users share the same limit → no value in paid plan
+# 2. /api/health (lightweight) and /api/search (heavyweight) share the same limit
+# 3. DDoS defense and normal limits cannot be distinguished
 
 
-# OK: 多層・多次元のルール
+# GOOD: Multi-layered, multi-dimensional rules
 class GoodMultiLayerLimiter:
     RULES = {
-        # プラン別
+        # Per plan
         "plan:free":       {"default": 60, "search": 10},
         "plan:pro":        {"default": 1000, "search": 100},
         "plan:enterprise": {"default": 10000, "search": 1000},
 
-        # エンドポイント別
+        # Per endpoint
         "endpoint:/api/search":  {"limit": 30, "window": 60},
-        "endpoint:/api/health":  None,  # 制限なし
+        "endpoint:/api/health":  None,  # no limit
         "endpoint:/api/login":   {"limit": 5, "window": 300},
 
-        # グローバル (DDoS 防御)
+        # Global (DDoS defense)
         "global:ip": {"limit": 1000, "window": 60},
     }
 
     def allow(self, client_id, endpoint, plan):
-        # 1. グローバル IP 制限
+        # 1. Global IP limit
         if not self._check_ip_limit(client_id):
             return False
-        # 2. エンドポイント固有制限
+        # 2. Endpoint-specific limit
         if not self._check_endpoint_limit(client_id, endpoint):
             return False
-        # 3. プラン別制限
+        # 3. Per-plan limit
         if not self._check_plan_limit(client_id, plan, endpoint):
             return False
         return True
 ```
 
-### アンチパターン 3: Retry-After を返さない
+### Anti-Pattern 3: Not Returning Retry-After
 
 ```python
-# NG: 429 を返すだけで、いつリトライすべきか教えない
+# BAD: Returns 429 without telling the client when to retry
 @app.get("/api/data")
 async def bad_endpoint(request: Request):
     if not rate_limiter.allow(get_client_id(request)):
@@ -1319,12 +1319,12 @@ async def bad_endpoint(request: Request):
             content="Too Many Requests",
             status_code=429,
         )
-        # クライアントはいつリトライすればよいか不明
-        # → 即座にリトライしてさらに 429 を受ける
-        # → Thundering Herd 問題
+        # Client does not know when to retry
+        # → Retries immediately and receives more 429s
+        # → Thundering Herd problem
 
 
-# OK: 標準ヘッダーで制限状態を通知
+# GOOD: Notify limit status with standard headers
 @app.get("/api/data")
 async def good_endpoint(request: Request):
     result = rate_limiter.allow_request(get_client_id(request))
@@ -1335,7 +1335,7 @@ async def good_endpoint(request: Request):
             content=json.dumps({
                 "error": {
                     "code": "RATE_LIMIT_EXCEEDED",
-                    "message": f"{retry_after}秒後に再試行してください",
+                    "message": f"Please retry after {retry_after} seconds",
                     "retry_after": retry_after,
                 }
             }),
@@ -1353,19 +1353,19 @@ async def good_endpoint(request: Request):
     return response
 ```
 
-### アンチパターン 4: クライアント側でレート制限を無視
+### Anti-Pattern 4: Ignoring Rate Limits on the Client Side
 
 ```python
-# NG: クライアント側でリトライ制御なし
+# BAD: No retry control on the client side
 class BadClient:
     async def call_api(self, url):
-        for _ in range(100):  # 100回リトライ
+        for _ in range(100):  # Retry 100 times
             response = await http.get(url)
             if response.status == 200:
                 return response
-            # 429 でも即座にリトライ → サーバーに負荷
+            # Retries immediately on 429 → adds load to server
 
-# OK: Exponential Backoff + Jitter + Retry-After 遵守
+# GOOD: Exponential Backoff + Jitter + Respect Retry-After
 class GoodClient:
     async def call_api(self, url, max_retries=5):
         for attempt in range(max_retries):
@@ -1375,7 +1375,7 @@ class GoodClient:
                 return response
 
             if response.status == 429:
-                # Retry-After ヘッダーを尊重
+                # Respect the Retry-After header
                 retry_after = int(response.headers.get("Retry-After", 60))
 
                 # Exponential Backoff + Jitter
@@ -1399,21 +1399,21 @@ class GoodClient:
 
 ---
 
-## 7. 実践演習
+## 7. Practical Exercises
 
-### 演習 1（基礎）: 多層レートリミッターの設計
+### Exercise 1 (Basic): Design a Multi-Layered Rate Limiter
 
-**課題**: IP 層とユーザー層の2段階レート制限を実装してください。
+**Task**: Implement a two-stage rate limiter with an IP layer and a user layer.
 
 ```python
-# 要件:
-# 1. IP 単位: 1000 req/min (DDoS 防御)
-# 2. ユーザー単位: 100 req/min (通常利用)
-# 3. 未認証の場合は IP 制限のみ適用
-# 4. 両方の制限を通過した場合のみリクエストを許可
-# 5. レスポンスヘッダーにはより厳しい方の残り回数を表示
+# Requirements:
+# 1. Per IP: 1000 req/min (DDoS defense)
+# 2. Per user: 100 req/min (normal usage)
+# 3. For unauthenticated users, apply only the IP limit
+# 4. Allow requests only when they pass both limits
+# 5. Show the remaining count for the stricter limit in response headers
 
-# スケルトンコード:
+# Skeleton code:
 class TwoLayerRateLimiter:
     def __init__(self, redis_client):
         self.ip_limiter = FixedWindowLimiter(
@@ -1424,61 +1424,61 @@ class TwoLayerRateLimiter:
         )
 
     def check(self, ip: str, user_id: str = None) -> RateLimitResult:
-        # TODO: IP 制限チェック
-        # TODO: user_id があればユーザー制限チェック
-        # TODO: より厳しい方の結果を返す
+        # TODO: Check IP limit
+        # TODO: Check user limit if user_id is provided
+        # TODO: Return the result for the stricter limit
         pass
 ```
 
-**期待される出力**:
+**Expected output**:
 ```
-# 認証済みユーザー (IP: 192.168.1.1, User: user-123)
+# Authenticated user (IP: 192.168.1.1, User: user-123)
 IP layer:   allowed=True, remaining=955/1000
 User layer: allowed=True, remaining=85/100
-→ Result:   allowed=True, remaining=85 (より少ない方)
+→ Result:   allowed=True, remaining=85 (the smaller value)
 
-# 未認証ユーザー (IP: 10.0.0.1)
+# Unauthenticated user (IP: 10.0.0.1)
 IP layer:   allowed=True, remaining=990/1000
 User layer: (skip)
 → Result:   allowed=True, remaining=990
 
-# IP 制限超過 (DDoS)
+# IP limit exceeded (DDoS)
 IP layer:   allowed=False, remaining=0/1000
-→ Result:   allowed=False (ユーザー層チェックはスキップ)
+→ Result:   allowed=False (skip user layer check)
 ```
 
 ---
 
-### 演習 2（応用）: プラン別のレートリミッター
+### Exercise 2 (Intermediate): Plan-Based Rate Limiter
 
-**課題**: 料金プランに応じたレート制限を動的に適用するシステムを実装してください。
+**Task**: Implement a system that dynamically applies rate limits based on the pricing plan.
 
 ```python
-# 要件:
-# 1. Free プラン: 60 req/min, バースト不可
-# 2. Starter プラン: 300 req/min, バースト 50
-# 3. Pro プラン: 1000 req/min, バースト 200
-# 4. Enterprise プラン: カスタム制限
-# 5. プラン変更は即時反映
-# 6. API Key から自動でプランを判定
+# Requirements:
+# 1. Free plan: 60 req/min, no burst
+# 2. Starter plan: 300 req/min, burst 50
+# 3. Pro plan: 1000 req/min, burst 200
+# 4. Enterprise plan: custom limits
+# 5. Plan changes reflected immediately
+# 6. Automatically determine plan from API Key
 
-# スケルトンコード:
+# Skeleton code:
 class PlanBasedRateLimiter:
     PLAN_CONFIGS = {
         "free":       {"algorithm": "fixed_window", "max": 60, "window": 60},
         "starter":    {"algorithm": "token_bucket", "max": 300, "refill": 5.0},
         "pro":        {"algorithm": "token_bucket", "max": 1000, "refill": 16.7},
-        "enterprise": None,  # DB から取得
+        "enterprise": None,  # Retrieved from DB
     }
 
     async def check(self, api_key: str) -> RateLimitResult:
-        # TODO: API Key からプランを取得
-        # TODO: プランに対応するアルゴリズムを選択
-        # TODO: レート制限を適用
+        # TODO: Get plan from API Key
+        # TODO: Select the algorithm corresponding to the plan
+        # TODO: Apply rate limit
         pass
 ```
 
-**期待される出力**:
+**Expected output**:
 ```
 API Key: sk_free_abc123
 Plan: free
@@ -1493,49 +1493,49 @@ Algorithm: Token Bucket
 
 ---
 
-### 演習 3（発展）: 分散レートリミッターの障害耐性テスト
+### Exercise 3 (Advanced): Fault Tolerance Test for Distributed Rate Limiter
 
-**課題**: Redis 障害時のフォールバック動作を含む、完全なレートリミッターシステムを設計・実装してください。
+**Task**: Design and implement a complete rate limiter system including fallback behavior on Redis failure.
 
 ```python
-# 要件:
-# 1. 正常時: Redis Cluster でレート制限
-# 2. Redis 障害時: ローカルメモリでフォールバック
-# 3. フォールバック中のメトリクス収集
-# 4. Redis 復旧の自動検知と切り戻し
-# 5. 障害時のアラート発報
-# 6. 障害耐性のテストシナリオ
+# Requirements:
+# 1. Normal operation: rate limiting with Redis Cluster
+# 2. On Redis failure: fallback to local memory
+# 3. Metrics collection during fallback
+# 4. Automatic detection of Redis recovery and switchback
+# 5. Alert triggered during failure
+# 6. Test scenarios for fault tolerance
 
-# テストシナリオ:
+# Test scenarios:
 class RateLimiterResiliencyTest:
     """
-    テスト 1: Redis 正常動作
-      → 100 req/min の制限が正確に動作すること
+    Test 1: Redis normal operation
+      → 100 req/min limit works accurately
 
-    テスト 2: Redis 障害発生
-      → フォールバックに自動切替
-      → ローカルメモリで近似的な制限が動作
-      → alert が発報されること
+    Test 2: Redis failure occurs
+      → Automatically switches to fallback
+      → Approximate limiting works with local memory
+      → Alert is triggered
 
-    テスト 3: Redis 復旧
-      → 10秒以内に Redis に切り戻しされること
-      → ローカルカウンターがクリアされること
+    Test 3: Redis recovery
+      → Switches back to Redis within 10 seconds
+      → Local counters are cleared
 
-    テスト 4: ネットワーク分断 (Split Brain)
-      → 各サーバーが独立してレート制限を維持
-      → 全体としての精度は低下するが、サービスは継続
+    Test 4: Network partition (Split Brain)
+      → Each server maintains rate limits independently
+      → Overall accuracy decreases, but service continues
     """
 
     async def test_redis_failure_and_recovery(self):
-        # TODO: Redis を停止
-        # TODO: リクエストが通ることを確認 (フェイルオープン)
-        # TODO: ローカルフォールバックの動作確認
-        # TODO: Redis を復旧
-        # TODO: Redis に切り戻されることを確認
+        # TODO: Stop Redis
+        # TODO: Confirm requests pass through (fail-open)
+        # TODO: Confirm local fallback behavior
+        # TODO: Recover Redis
+        # TODO: Confirm switchback to Redis
         pass
 ```
 
-**期待される出力**:
+**Expected output**:
 ```
 [Test 1: Normal Operation]
   Request 1-100: allowed=True (via Redis)
@@ -1561,101 +1561,101 @@ class RateLimiterResiliencyTest:
 
 ## 8. FAQ
 
-### Q1. レートリミッターの配置はどこが最適か？
+### Q1. Where is the best place to put the rate limiter?
 
-**A.** 多層防御が理想です。
+**A.** Multi-layered defense is ideal.
 
-1. **CDN/Edge 層** (Cloudflare, AWS WAF): IP 単位の粗い制限。DDoS 防御が主目的。クラウドベンダーの処理能力を活用し、自前のインフラに到達する前に異常トラフィックを遮断する。
-2. **API Gateway 層** (Kong, Envoy, Nginx): API Key / プラン別の制限。認証済みクライアントの利用量を管理。ビジネスルールに基づく制限はここで実装。
-3. **Application 層** (ミドルウェア): 機能固有の制限。検索 API は30 req/min、投稿は10 req/min のようなきめ細かい制御。ビジネスロジックに密接な制限を実装。
+1. **CDN/Edge layer** (Cloudflare, AWS WAF): Coarse IP-level limits. Primary purpose is DDoS defense. Leverages cloud vendor processing capacity to block abnormal traffic before it reaches your own infrastructure.
+2. **API Gateway layer** (Kong, Envoy, Nginx): Limits per API Key / plan. Manages usage of authenticated clients. Business rule-based limits are implemented here.
+3. **Application layer** (middleware): Feature-specific limits. Fine-grained control such as 30 req/min for search APIs and 10 req/min for posting. Implements limits closely tied to business logic.
 
-全てを1箇所に集約すると単一障害点になるため、クリティカルな制限は複数層で冗長化する。
+Consolidating everything in one place creates a single point of failure, so critical limits should be redundant across multiple layers.
 
-### Q2. Redis がダウンしたらどうなる？
+### Q2. What happens when Redis goes down?
 
-**A.** フェイルオープン (制限なしで通す) かフェイルクローズ (全拒否) かのポリシーを事前に決めておきます。
+**A.** Decide in advance whether to fail-open (pass without limit) or fail-closed (reject all).
 
-- **フェイルオープン** (推奨): 一般的なケースではこちらを採用。レートリミッターの障害でサービス全体が止まるのは本末転倒。Redis 復旧まで一時的に制限を緩和し、ローカルメモリキャッシュ (Guava / Caffeine) をフォールバックに使う。
-- **フェイルクローズ**: セキュリティ重視の場面 (ログイン試行制限、決済 API) ではこちら。不正アクセスのリスクがサービス停止より大きい場合。
-- **ハイブリッド**: エンドポイントごとに戦略を切り替え。`/api/login` はフェイルクローズ、`/api/products` はフェイルオープン。
-- **Redis Cluster + Sentinel** で可用性を確保し、障害自体を極力発生させない。
+- **Fail-open** (recommended): Adopt this for general cases. It defeats the purpose if the entire service stops due to rate limiter failure. Temporarily relax limits until Redis recovers, and use local memory cache (Guava / Caffeine) as fallback.
+- **Fail-closed**: Use this for security-critical scenarios (login attempt limits, payment APIs). When the risk of unauthorized access outweighs the risk of service disruption.
+- **Hybrid**: Switch strategy per endpoint. `/api/login` uses fail-closed, `/api/products` uses fail-open.
+- Use **Redis Cluster + Sentinel** to ensure availability and minimize failures from occurring.
 
-### Q3. クライアント側でのレートリミット対応はどう実装する？
+### Q3. How do I implement rate limit handling on the client side?
 
-**A.** 以下の3つを組み合わせます。
+**A.** Combine the following three approaches.
 
-1. **予防的スロットリング**: レスポンスヘッダー `X-RateLimit-Remaining` を監視し、残量が少なくなったらリクエスト間隔を広げる。制限の 80% に達した時点でスロットリングを開始するのが一般的。
-2. **リアクティブリトライ**: 429 レスポンスを受けたら `Retry-After` ヘッダーの秒数だけ待って再試行する。ヘッダーがない場合は Exponential Backoff を使用。
-3. **Thundering Herd 対策**: Exponential Backoff + Jitter を実装し、多数のクライアントが同時にリトライする問題を防ぐ。`jitter = random.uniform(0, base_delay)` を追加するだけで大幅に改善する。
+1. **Proactive throttling**: Monitor the `X-RateLimit-Remaining` response header and widen request intervals when remaining quota is low. It is common to start throttling when reaching 80% of the limit.
+2. **Reactive retry**: On receiving a 429 response, wait the number of seconds specified in the `Retry-After` header before retrying. Use Exponential Backoff if the header is absent.
+3. **Thundering Herd mitigation**: Implement Exponential Backoff + Jitter to prevent many clients from retrying simultaneously. Simply adding `jitter = random.uniform(0, base_delay)` dramatically improves the situation.
 
-### Q4. マイクロサービス間のレートリミットはどう設計する？
+### Q4. How should I design rate limiting between microservices?
 
-**A.** サービスメッシュ (Istio, Envoy) を活用して、サービス間通信にもレート制限を適用します。
+**A.** Leverage a service mesh (Istio, Envoy) to apply rate limits to inter-service communication as well.
 
-- **サービス間トークン**: 各マイクロサービスに「呼び出しクォータ」を割り当て。Service A は Service B を 1000 req/min まで呼び出せる。
-- **Circuit Breaker との連携**: レート制限 + サーキットブレーカーを組み合わせ。レート制限超過が続く場合はサーキットを開いて呼び出し自体を停止。
-- **バックプレッシャー**: 下流サービスが過負荷の場合、上流に 429 を返して負荷を伝搬。Kafka のようなキューを挟んでバッファリングする方法もある。
+- **Service-to-service tokens**: Assign a "call quota" to each microservice. Service A can call Service B up to 1000 req/min.
+- **Integration with Circuit Breaker**: Combine rate limiting with circuit breakers. If rate limit excess continues, open the circuit to halt calls entirely.
+- **Backpressure**: When a downstream service is overloaded, return 429 to upstream to propagate the load. Using a queue like Kafka for buffering is another option.
 
-### Q5. レートリミッターのテストはどうする？
+### Q5. How do I test a rate limiter?
 
-**A.** 以下の観点でテストを行います。
+**A.** Test from the following perspectives.
 
-1. **ユニットテスト**: 各アルゴリズムの正確性。制限内のリクエストが通ること、制限超過で拒否されること。
-2. **タイミングテスト**: ウィンドウのリセット、トークンの補充が正確に動作すること。
-3. **同時実行テスト**: 複数スレッド/プロセスからの同時アクセスでレースコンディションが発生しないこと。
-4. **障害テスト**: Redis 障害時のフォールバック動作。復旧時の切り戻し。
-5. **負荷テスト**: 10万 req/sec でのパフォーマンス。Redis の CPU/メモリ使用量の確認。
+1. **Unit tests**: Accuracy of each algorithm. Requests within the limit should pass, and those exceeding the limit should be rejected.
+2. **Timing tests**: Window resets and token refills operate accurately.
+3. **Concurrency tests**: Concurrent access from multiple threads/processes does not cause race conditions.
+4. **Failure tests**: Fallback behavior on Redis failure. Switchback on recovery.
+5. **Load tests**: Performance at 100,000 req/sec. Check CPU/memory usage of Redis.
 
 ---
 
-## 9. 高度なトピック
+## 9. Advanced Topics
 
-### 9.1 分散レートリミッターの一貫性
+### 9.1 Consistency in Distributed Rate Limiters
 
 ```
-分散環境でのレート制限の課題:
+Challenges of rate limiting in a distributed environment:
 
-問題: 複数の Redis ノードに分散された場合の整合性
+Problem: Consistency when distributed across multiple Redis nodes
 
   [App Server 1] --> [Redis Node A] : user-123 = 50
   [App Server 2] --> [Redis Node B] : user-123 = 50
-  → 合計 100 だが、各ノードは 50 と認識
+  → Total is 100 but each node thinks it's 50
 
-解決策:
+Solutions:
 
-1. 単一 Redis ノード (推奨)
-   - ハッシュスロットで user-123 のキーは常に同じノードに配置
-   - Redis Cluster のキーベースルーティングを活用
-   - 注意: {user:123} のようにハッシュタグを使って
-     関連キーを同一ノードに配置する
+1. Single Redis node (recommended)
+   - Hash slots ensure user-123 keys always go to the same node
+   - Leverage Redis Cluster key-based routing
+   - Note: Use hash tags like {user:123} to place
+     related keys on the same node
 
-2. Gossip Protocol (近似)
-   - 各ノードがローカルカウントを持ち、定期的に同期
-   - 完全な精度は保証されないが、スケーラビリティに優れる
-   - Envoy のグローバルレートリミッターで採用
+2. Gossip Protocol (approximate)
+   - Each node holds a local count and syncs periodically
+   - Does not guarantee full accuracy but excels in scalability
+   - Used in Envoy's global rate limiter
 
 3. Central Coordinator
-   - 全てのリクエストを1つのコーディネーターが処理
-   - 精度は最高だが、単一障害点になる
+   - A single coordinator handles all requests
+   - Highest accuracy but becomes a single point of failure
 ```
 
-### 9.2 適応型レートリミッティング
+### 9.2 Adaptive Rate Limiting
 
 ```python
-# コード例 10: サーバー負荷に応じた動的レート制限
+# Code Example 10: Dynamic rate limiting based on server load
 class AdaptiveRateLimiter:
     """
-    サーバーの負荷状況に応じてレート制限を動的に調整する。
+    Dynamically adjusts rate limits based on server load.
 
-    WHY 適応型が必要か:
-    - 固定制限だと、サーバーに余裕がある時にリクエストを不要に拒否
-    - 負荷が高い時には固定制限では不十分な場合がある
-    - トラフィックパターンは時間帯によって大きく変動する
+    WHY adaptive rate limiting is needed:
+    - Fixed limits unnecessarily reject requests when the server has capacity
+    - Fixed limits may be insufficient when load is high
+    - Traffic patterns vary greatly by time of day
 
-    戦略:
-    - CPU 使用率 > 80% → 制限を厳しくする (50% に削減)
-    - CPU 使用率 > 90% → 最低限のみ許可 (20% に削減)
-    - CPU 使用率 < 50% → 制限を緩和 (150% に拡大)
+    Strategy:
+    - CPU usage > 80% → Tighten limits (reduce to 50%)
+    - CPU usage > 90% → Allow only minimum (reduce to 20%)
+    - CPU usage < 50% → Relax limits (expand to 150%)
     """
 
     def __init__(self, base_limiter, health_checker):
@@ -1664,7 +1664,7 @@ class AdaptiveRateLimiter:
         self._adjustment_factor = 1.0
 
     async def update_factor(self):
-        """定期的に (10秒ごと) 調整係数を更新"""
+        """Update adjustment factor periodically (every 10 seconds)"""
         health = await self.health_checker.get_metrics()
 
         cpu_usage = health["cpu_percent"]
@@ -1682,7 +1682,7 @@ class AdaptiveRateLimiter:
         metrics.gauge("rate_limit.adjustment_factor", self._adjustment_factor)
 
     def get_effective_limit(self, base_limit: int) -> int:
-        """調整後の制限値を返す"""
+        """Return the adjusted limit value"""
         return max(1, int(base_limit * self._adjustment_factor))
 ```
 
@@ -1691,86 +1691,86 @@ class AdaptiveRateLimiter:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in daily development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 10. まとめ
+## 10. Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| 目的 | 過負荷防止、不正利用対策、公平なリソース配分、ビジネスルール強制 |
-| 配置 | 多層防御 (Edge → Gateway → Application) |
-| Token Bucket | バースト許容 + 定常レート制御。最も汎用的。AWS, Stripe で採用 |
-| Sliding Window Counter | 精度と効率のバランス。一般 API に最適 |
-| Sliding Window Log | 最高精度。課金 API やセキュリティ重視に |
-| Fixed Window | 最もシンプル・高速。DDoS 防御に |
-| Leaky Bucket | 均等レート出力。ストリーミングに |
-| 分散環境 | Redis + Lua スクリプトでアトミックな操作 |
-| HTTP ヘッダー | X-RateLimit-*, Retry-After で制限状態を通知 |
-| フォールバック | Redis 障害時のフェイルオープン/クローズ + ローカルキャッシュ |
-| 動的ルール | DB + Redis キャッシュでプラン別・エンドポイント別ルール管理 |
-| 適応型 | サーバー負荷に応じて制限値を動的に調整 |
+| Purpose | Prevent overload, mitigate abuse, fair resource allocation, enforce business rules |
+| Placement | Multi-layered defense (Edge → Gateway → Application) |
+| Token Bucket | Burst tolerance + steady rate control. Most versatile. Used by AWS, Stripe |
+| Sliding Window Counter | Balance of accuracy and efficiency. Optimal for general APIs |
+| Sliding Window Log | Highest accuracy. For billing APIs and security-critical use |
+| Fixed Window | Simplest and fastest. For DDoS defense |
+| Leaky Bucket | Uniform rate output. For streaming |
+| Distributed env | Atomic operations with Redis + Lua scripts |
+| HTTP headers | Notify limit status with X-RateLimit-*, Retry-After |
+| Fallback | Fail-open/closed on Redis failure + local cache |
+| Dynamic rules | Per-plan / per-endpoint rule management with DB + Redis cache |
+| Adaptive | Dynamically adjust limit values based on server load |
 
 ---
 
-## 11. 設計面接での回答フレームワーク
+## 11. Design Interview Answer Framework
 
 ```
-レートリミッターの設計面接で聞かれるポイント:
+Key points asked in rate limiter design interviews:
 
-1. 要件の明確化 (5分)
-   - クライアント側 or サーバー側？ → サーバー側
-   - 制限の粒度は？ → IP / API Key / User ID
-   - 分散環境？ → はい、複数サーバー
-   - 精度の要件は？ → 近似で OK or 正確に
+1. Clarifying requirements (5 min)
+   - Client-side or server-side? → Server-side
+   - Granularity of limits? → IP / API Key / User ID
+   - Distributed environment? → Yes, multiple servers
+   - Accuracy requirements? → Approximate is OK or exact
 
-2. 高レベル設計 (10分)
-   - 多層配置 (Edge → Gateway → App)
-   - Redis でカウンター管理
+2. High-level design (10 min)
+   - Multi-layer placement (Edge → Gateway → App)
+   - Counter management with Redis
    - HTTP 429 + Retry-After
 
-3. アルゴリズム選択 (10分)
-   - Token Bucket (汎用) vs Sliding Window (高精度)
-   - トレードオフの説明
+3. Algorithm selection (10 min)
+   - Token Bucket (general-purpose) vs Sliding Window (high accuracy)
+   - Explaining trade-offs
 
-4. 詳細設計 (10分)
-   - Lua スクリプトでアトミック操作
-   - レースコンディション対策
-   - Redis 障害時のフォールバック
+4. Detailed design (10 min)
+   - Atomic operations with Lua scripts
+   - Race condition mitigation
+   - Fallback on Redis failure
 
-5. 運用 (5分)
-   - 動的ルール変更
-   - 監視とアラート
-   - 適応型レートリミッティング
+5. Operations (5 min)
+   - Dynamic rule changes
+   - Monitoring and alerting
+   - Adaptive rate limiting
 ```
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [検索エンジン設計](./04-search-engine.md) — 検索 API のレート制限設計
-- [通知システム設計](./02-notification-system.md) — 通知のレート制限
-- [CDN](../01-components/03-cdn.md) — エッジ層でのレート制限
-- [ロードバランサー](../01-components/00-load-balancer.md) — L4/L7 でのレート制限
-- API設計 — API のレスポンスヘッダー設計
-- Proxy パターン — レートリミッターを Proxy として実装
-- Strategy パターン — アルゴリズム切り替えの設計
-- [信頼性](../00-fundamentals/02-reliability.md) — フォールバック戦略の基礎
+- [Search Engine Design](./04-search-engine.md) — Rate limit design for search APIs
+- [Notification System Design](./02-notification-system.md) — Rate limiting for notifications
+- [CDN](../01-components/03-cdn.md) — Rate limiting at the edge layer
+- [Load Balancer](../01-components/00-load-balancer.md) — Rate limiting at L4/L7
+- API Design — Response header design for APIs
+- Proxy Pattern — Implementing a rate limiter as a Proxy
+- Strategy Pattern — Design for switching algorithms
+- [Reliability](../00-fundamentals/02-reliability.md) — Fundamentals of fallback strategies
 
 ---
 
-## 参考文献
+## References
 
 1. Xu, A. (2020). *System Design Interview: An Insider's Guide*. Chapter 4: Design a Rate Limiter. Byte Code LLC. https://www.systemdesigninterview.com/
 2. Kleppmann, M. (2017). *Designing Data-Intensive Applications*. O'Reilly Media. Chapter 8: The Trouble with Distributed Systems.
