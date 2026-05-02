@@ -1,68 +1,69 @@
-# Event Sourcing / CQRS — イベント駆動設計
+# Event Sourcing / CQRS — Event-Driven Design
 
-> Event Sourcing で状態の変化を不変のイベントログとして記録し、CQRS で読み取りと書き込みを分離することで、監査可能性・スケーラビリティ・ドメインの表現力を最大化するための実践ガイド。イベントストア設計、プロジェクション、スナップショット最適化、段階的導入戦略まで網羅する。
+> A practical guide to recording state changes as an immutable event log with Event Sourcing, and separating reads from writes with CQRS to maximize auditability, scalability, and domain expressiveness. Covers event store design, projections, snapshot optimization, and incremental adoption strategies.
 
 ---
 
-## 前提知識
+## Prerequisites
 
-| トピック | 必要レベル | 参照先 |
+| Topic | Required Level | Reference |
 |---------|-----------|--------|
-| TypeScript / JavaScript | 中級（ジェネリクス、async/await、discriminated union） | [02-programming](../../../../02-programming/) |
-| リレーショナルDB の基礎 | 基礎（INSERT, SELECT, トランザクション） | [06-data-and-security](../../../../06-data-and-security/) |
-| Repository パターン | 基礎 | [01-repository-pattern.md](./01-repository-pattern.md) |
-| DDD の基礎概念 | 基礎（集約、ドメインイベント） | ../../clean-code-principles/ |
-| メッセージキューの基礎 | 基礎（Pub/Sub モデル） | ../../system-design-guide/ |
+| TypeScript / JavaScript | Intermediate (generics, async/await, discriminated union) | [02-programming](../../../../02-programming/) |
+| Relational DB basics | Basics (INSERT, SELECT, transactions) | [06-data-and-security](../../../../06-data-and-security/) |
+| Repository pattern | Basics | [01-repository-pattern.md](./01-repository-pattern.md) |
+| DDD fundamentals | Basics (aggregates, domain events) | ../../clean-code-principles/ |
+| Message queue basics | Basics (Pub/Sub model) | ../../system-design-guide/ |
 
 ---
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **Event Sourcing** — 状態をイベントの履歴として保存するパターンの設計と実装
-2. **CQRS（Command Query Responsibility Segregation）** — 読み取りと書き込みの責務分離の4段階
-3. **Event Sourcing + CQRS** の組み合わせ — プロジェクション設計と結果整合性の管理
-4. **スナップショット最適化** — イベント再生コストを削減する戦略
-5. **段階的導入** — 既存 CRUD アプリからの移行パスとイベントスキーマのバージョニング
+1. **Event Sourcing** — Design and implementation of the pattern that stores state as a history of events
+2. **CQRS (Command Query Responsibility Segregation)** — Four levels of separating read and write responsibilities
+3. **Event Sourcing + CQRS** combined — Projection design and managing eventual consistency
+4. **Snapshot optimization** — Strategies to reduce event replay costs
+5. **Incremental adoption** — Migration paths from existing CRUD applications and event schema versioning
 
 ---
 
-## 1. 従来の CRUD vs Event Sourcing
+## 1. Traditional CRUD vs Event Sourcing
 
-### WHY: なぜ Event Sourcing が必要か
+### WHY: Why Event Sourcing Is Needed
 
-従来の CRUD はデータの「現在の状態」だけを保存する。これにより以下の問題が発生する:
+Traditional CRUD stores only the "current state" of data. This leads to the following problems:
 
-1. **監査証跡の欠如** — 「いつ」「誰が」「なぜ」変更したかが分からない
-2. **時系列分析不可** — 過去の任意時点の状態を再構築できない
-3. **ドメイン知識の損失** — 「価格を変更した」のか「割引を適用した」のか区別できない
-4. **同時更新の競合** — UPDATE は上書きのため、最後の書き込みが勝つ（Lost Update）
+1. **Lack of audit trail** — You cannot tell "when", "who", or "why" a change was made
+2. **No time-series analysis** — You cannot reconstruct the state at any arbitrary point in the past
+3. **Loss of domain knowledge** — You cannot distinguish between "the price was changed" and "a discount was applied"
+4. **Concurrent update conflicts** — UPDATE overwrites, so the last write wins (Lost Update)
 
-Event Sourcing はこれらを根本的に解決する。
+Event Sourcing fundamentally resolves all of these.
 
-### 1.1 根本的な違い
+### 1.1 The Fundamental Difference
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  従来の CRUD（状態保存）                              │
+│  Traditional CRUD (state storage)                    │
 │                                                      │
-│  orders テーブル:                                    │
+│  orders table:                                       │
 │  ┌──────┬────────┬────────┬───────────┐              │
 │  │ id   │ status │ total  │ updated_at│              │
 │  ├──────┼────────┼────────┼───────────┤              │
-│  │ O-01 │ shipped│ 15,000 │ 02-10     │ ← 現在の状態│
-│  └──────┴────────┴────────┴───────────┘   のみ保存  │
-│                                                      │
-│  問題: 「いつ」「なぜ」注文が変更されたか分からない   │
-│        注文が 12,000円 → 15,000円 に変わった理由は？  │
-│        ・商品追加？ ・価格変更？ ・送料追加？          │
+│  │ O-01 │ shipped│ 15,000 │ 02-10     │ ← Only the  │
+│  └──────┴────────┴────────┴───────────┘   current   │
+│                                            state     │
+│  Problem: Cannot tell "when" or "why" the order     │
+│           changed. Why did it go from 12,000 to      │
+│           15,000?                                    │
+│           ・Item added? ・Price change? ・Shipping?  │
 └──────────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────────┐
-│  Event Sourcing（イベント保存）                       │
+│  Event Sourcing (event storage)                      │
 │                                                      │
-│  events テーブル:                                    │
+│  events table:                                       │
 │  ┌────┬──────┬────────────────┬──────────┬───────┐   │
-│  │ #  │ 集約 │ イベント型      │ データ    │ 日時  │   │
+│  │ #  │ Agg  │ Event Type     │ Data     │ Time  │   │
 │  ├────┼──────┼────────────────┼──────────┼───────┤   │
 │  │ 1  │ O-01 │ OrderCreated   │ {items}  │ 02-08 │   │
 │  │ 2  │ O-01 │ ItemAdded      │ {item}   │ 02-08 │   │
@@ -70,15 +71,16 @@ Event Sourcing はこれらを根本的に解決する。
 │  │ 4  │ O-01 │ OrderShipped   │ {carrier}│ 02-10 │   │
 │  └────┴──────┴────────────────┴──────────┴───────┘   │
 │                                                      │
-│  利点: 全ての変更履歴が残る、任意時点の状態を再構築   │
-│        「なぜ 15,000円か」= Event 1+2 の合計           │
+│  Benefit: Full change history is preserved;          │
+│           reconstruct state at any point in time.    │
+│           "Why 15,000?" = sum of Event 1+2           │
 └──────────────────────────────────────────────────────┘
 ```
 
-### 1.2 Event Sourcing の状態復元
+### 1.2 State Reconstruction via Event Sourcing
 
 ```
-イベントの再生 (Replay) による状態復元:
+State reconstruction through event replay (Replay):
 
   Event 1: OrderCreated      → Order { status: "created", items: [], total: 0 }
       │
@@ -97,37 +99,38 @@ Event Sourcing はこれらを根本的に解決する。
       ▼
   Event 6: OrderShipped       → Order { status: "shipped", items: [A,B], total: 15000 }
 
-  ※ 2月9日時点の状態が必要 → Event 1-5 を再生すれば OK
-  ※ 「なぜ15,000円？」→ Event 2(5000) + Event 3(7000) + Event 4(3000)
+  * Need state as of Feb 9 → replay Events 1-5
+  * "Why 15,000?" → Event 2(5000) + Event 3(7000) + Event 4(3000)
 ```
 
-### 1.3 Event Sourcing の核心概念
+### 1.3 Core Concepts of Event Sourcing
 
 ```
 ┌───────────────────────────────────────────────────────────┐
-│  Event Sourcing の3つの核心                                │
+│  Three core principles of Event Sourcing                  │
 │                                                           │
-│  1. イベントは不変 (Immutable)                             │
+│  1. Events are Immutable                                  │
 │     ────────────────────────                               │
-│     一度記録されたイベントは決して変更・削除しない          │
-│     → 監査証跡の信頼性を保証                               │
+│     Events, once recorded, are never modified or deleted  │
+│     → Guarantees reliability of the audit trail           │
 │                                                           │
-│  2. イベントは追記のみ (Append-Only)                       │
+│  2. Events are Append-Only                                │
 │     ────────────────────────────                           │
-│     新しいイベントを末尾に追加するだけ                     │
-│     → ロック競合が少なく、書き込み性能が高い               │
+│     New events are simply appended to the end             │
+│     → Fewer lock conflicts, higher write performance      │
 │                                                           │
-│  3. 現在の状態はイベントの導出値 (Derived State)           │
+│  3. Current State is Derived State                        │
 │     ──────────────────────────────────                     │
-│     状態 = fold(初期状態, 全イベント, apply関数)           │
-│     → 同じイベント列からは常に同じ状態が再構築される       │
-│     → 関数型プログラミングの reduce と同じ概念             │
+│     state = fold(initialState, allEvents, applyFunction)  │
+│     → The same sequence of events always yields the       │
+│       same reconstructed state                            │
+│     → Same concept as reduce in functional programming    │
 └───────────────────────────────────────────────────────────┘
 
-数学的表現:
+Mathematical expression:
   state(t) = reduce(apply, initialState, events[0..t])
 
-TypeScript 風:
+In TypeScript:
   const currentState = events.reduce(
     (state, event) => applyEvent(state, event),
     initialState
@@ -136,16 +139,16 @@ TypeScript 風:
 
 ---
 
-## 2. Event Sourcing の実装
+## 2. Implementing Event Sourcing
 
-### 2.1 イベント定義（TypeScript）
+### 2.1 Event Definitions (TypeScript)
 
 ```typescript
 // ============================================================
-// Domain Events — 型安全なイベント定義
+// Domain Events — type-safe event definitions
 // ============================================================
 
-// 基底イベント型
+// Base event type
 interface DomainEvent {
   readonly eventId: string;
   readonly aggregateId: string;
@@ -155,13 +158,13 @@ interface DomainEvent {
   readonly metadata: Readonly<{
     timestamp: Date;
     version: number;
-    userId?: string;          // 誰がこの変更を行ったか
-    correlationId?: string;   // 関連する操作のID（分散トレーシング）
-    causationId?: string;     // このイベントの原因となったイベントID
+    userId?: string;          // Who made this change
+    correlationId?: string;   // ID of the related operation (distributed tracing)
+    causationId?: string;     // ID of the event that caused this event
   }>;
 }
 
-// 注文ドメインのイベント（Discriminated Union で型安全に）
+// Order domain events (type-safe with Discriminated Union)
 type OrderEvent =
   | OrderCreated
   | ItemAdded
@@ -245,11 +248,11 @@ interface OrderCancelled extends DomainEvent {
 }
 ```
 
-### 2.2 集約（Aggregate）の実装
+### 2.2 Aggregate Implementation
 
 ```typescript
 // ============================================================
-// Order Aggregate — イベントソーシング対応
+// Order Aggregate — Event Sourcing compatible
 // ============================================================
 
 interface OrderItem {
@@ -272,7 +275,7 @@ class Order {
   private _uncommittedEvents: OrderEvent[] = [];
 
   // ============================================
-  // クエリ（読み取り）
+  // Queries (reads)
   // ============================================
   get id(): string { return this._id; }
   get status(): OrderStatus { return this._status; }
@@ -282,12 +285,12 @@ class Order {
   get version(): number { return this._version; }
 
   // ============================================
-  // ファクトリ: イベントから状態を復元
+  // Factory: restore state from events
   // ============================================
   static fromEvents(events: OrderEvent[]): Order {
     const order = new Order();
     for (const event of events) {
-      order.applyEvent(event, false);  // 既存イベントは uncommitted に追加しない
+      order.applyEvent(event, false);  // Existing events are not added to uncommitted
     }
     return order;
   }
@@ -302,7 +305,7 @@ class Order {
     order._discountAmount = snapshot.discountAmount;
     order._version = snapshot.version;
 
-    // スナップショット以降のイベントを再生
+    // Replay events after the snapshot
     for (const event of newEvents) {
       order.applyEvent(event, false);
     }
@@ -310,7 +313,7 @@ class Order {
   }
 
   // ============================================
-  // コマンド（書き込み） — ビジネスルールの検証 + イベント発行
+  // Commands (writes) — business rule validation + event emission
   // ============================================
   static create(
     orderId: string,
@@ -319,12 +322,12 @@ class Order {
     shippingAddress: { street: string; city: string; postalCode: string },
     userId: string
   ): Order {
-    // ビジネスルールの検証
+    // Business rule validation
     if (items.length === 0) {
-      throw new DomainError("注文には1つ以上の商品が必要です");
+      throw new DomainError("An order must have at least one item");
     }
     if (items.some((i) => i.quantity <= 0)) {
-      throw new DomainError("商品数量は正の整数でなければなりません");
+      throw new DomainError("Item quantity must be a positive integer");
     }
 
     const order = new Order();
@@ -345,14 +348,14 @@ class Order {
   }
 
   addItem(item: OrderItem, userId: string): void {
-    // ビジネスルール: 支払い済みの注文には商品を追加できない
+    // Business rule: cannot add items to a paid order
     if (this._status !== "created") {
       throw new DomainError(
-        `状態 "${this._status}" の注文に商品を追加できません`
+        `Cannot add items to an order with status "${this._status}"`
       );
     }
     if (item.quantity <= 0) {
-      throw new DomainError("商品数量は正の整数でなければなりません");
+      throw new DomainError("Item quantity must be a positive integer");
     }
 
     this.raiseEvent({
@@ -369,14 +372,14 @@ class Order {
 
   removeItem(productId: string, quantity: number, reason: string, userId: string): void {
     if (this._status !== "created") {
-      throw new DomainError("支払い済みの注文から商品を削除できません");
+      throw new DomainError("Cannot remove items from a paid order");
     }
     const existingItem = this._items.find((i) => i.productId === productId);
     if (!existingItem) {
-      throw new DomainError(`商品 ${productId} は注文に含まれていません`);
+      throw new DomainError(`Item ${productId} is not in the order`);
     }
     if (existingItem.quantity < quantity) {
-      throw new DomainError("削除数量が注文数量を超えています");
+      throw new DomainError("Removal quantity exceeds ordered quantity");
     }
 
     this.raiseEvent({
@@ -388,10 +391,10 @@ class Order {
 
   applyDiscount(type: "percentage" | "fixed", value: number, reason: string, couponCode?: string, userId?: string): void {
     if (this._status !== "created") {
-      throw new DomainError("支払い済みの注文に割引を適用できません");
+      throw new DomainError("Cannot apply a discount to a paid order");
     }
     if (type === "percentage" && (value < 0 || value > 100)) {
-      throw new DomainError("割引率は 0-100% の範囲でなければなりません");
+      throw new DomainError("Discount percentage must be in the range 0-100%");
     }
 
     this.raiseEvent({
@@ -403,11 +406,11 @@ class Order {
 
   receivePayment(amount: number, method: PaymentReceived["data"]["paymentMethod"], txId: string, userId: string): void {
     if (this._status !== "created") {
-      throw new DomainError("この注文はすでに支払い済みです");
+      throw new DomainError("This order has already been paid");
     }
     if (amount < this.netAmount) {
       throw new DomainError(
-        `支払い金額 ${amount} が不足しています（必要額: ${this.netAmount}）`
+        `Payment amount ${amount} is insufficient (required: ${this.netAmount})`
       );
     }
 
@@ -420,7 +423,7 @@ class Order {
 
   ship(carrier: string, trackingNumber: string, estimatedDelivery: string, userId: string): void {
     if (this._status !== "paid") {
-      throw new DomainError("支払い済みの注文のみ発送できます");
+      throw new DomainError("Only paid orders can be shipped");
     }
 
     this.raiseEvent({
@@ -432,10 +435,10 @@ class Order {
 
   cancel(reason: string, userId: string): void {
     if (this._status === "shipped" || this._status === "delivered") {
-      throw new DomainError("発送済みの注文はキャンセルできません");
+      throw new DomainError("Shipped orders cannot be cancelled");
     }
     if (this._status === "cancelled") {
-      throw new DomainError("既にキャンセル済みです");
+      throw new DomainError("Order is already cancelled");
     }
 
     const refundAmount = this._status === "paid" ? this.netAmount : 0;
@@ -447,7 +450,7 @@ class Order {
   }
 
   // ============================================
-  // イベント適用（状態変更ロジック）— 純粋関数
+  // Event application (state mutation logic) — pure function
   // ============================================
   private applyEvent(event: OrderEvent, isNew: boolean = true): void {
     switch (event.eventType) {
@@ -518,7 +521,7 @@ class Order {
   }
 
   // ============================================
-  // イベント発行ヘルパー
+  // Event emission helper
   // ============================================
   private raiseEvent(
     eventData: Pick<OrderEvent, "eventType" | "aggregateId" | "data">,
@@ -576,11 +579,11 @@ class DomainError extends Error {
 }
 ```
 
-### 2.3 Event Store の実装
+### 2.3 Implementing the Event Store
 
 ```typescript
 // ============================================================
-// Event Store Interface（ドメイン層）
+// Event Store Interface (domain layer)
 // ============================================================
 interface EventStore {
   append(
@@ -601,7 +604,7 @@ interface EventStore {
 }
 
 // ============================================================
-// PostgreSQL 実装
+// PostgreSQL implementation
 // ============================================================
 class PostgresEventStore implements EventStore {
   constructor(private pool: Pool) {}
@@ -615,11 +618,11 @@ class PostgresEventStore implements EventStore {
     try {
       await client.query("BEGIN");
 
-      // 楽観的ロック: 現在のバージョンを確認
+      // Optimistic lock: check the current version
       const { rows } = await client.query(
         `SELECT COALESCE(MAX(version), 0) as current_version
          FROM events WHERE aggregate_id = $1
-         FOR UPDATE`,  // SELECT FOR UPDATE で排他ロック
+         FOR UPDATE`,  // SELECT FOR UPDATE for exclusive lock
         [aggregateId]
       );
       const currentVersion = rows[0].current_version;
@@ -631,7 +634,7 @@ class PostgresEventStore implements EventStore {
         );
       }
 
-      // イベントを追記（バッチ INSERT）
+      // Append events (batch INSERT)
       const values: unknown[] = [];
       const placeholders: string[] = [];
       let paramIndex = 1;
@@ -744,44 +747,44 @@ class ConcurrencyError extends Error {
 }
 ```
 
-### 2.4 Event Store のスキーマ
+### 2.4 Event Store Schema
 
 ```sql
 -- ============================================================
--- PostgreSQL: Event Store テーブル定義
+-- PostgreSQL: Event Store table definition
 -- ============================================================
 
 CREATE TABLE events (
-    -- 主キー
+    -- Primary key
     id              BIGSERIAL PRIMARY KEY,
 
-    -- イベント識別
+    -- Event identification
     event_id        UUID NOT NULL UNIQUE,
     aggregate_id    UUID NOT NULL,
     aggregate_type  VARCHAR(100) NOT NULL,
     event_type      VARCHAR(100) NOT NULL,
 
-    -- イベントデータ
+    -- Event data
     data            JSONB NOT NULL,
     metadata        JSONB NOT NULL,
 
-    -- バージョニング（楽観的ロック用）
+    -- Versioning (for optimistic locking)
     version         INTEGER NOT NULL,
 
-    -- タイムスタンプ
+    -- Timestamp
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-    -- 集約ごとのバージョンはユニーク
+    -- Version is unique per aggregate
     CONSTRAINT unique_aggregate_version
         UNIQUE (aggregate_id, version)
 );
 
--- インデックス
+-- Indexes
 CREATE INDEX idx_events_aggregate_id ON events (aggregate_id, version);
 CREATE INDEX idx_events_event_type ON events (event_type);
 CREATE INDEX idx_events_created_at ON events (created_at);
 
--- スナップショットテーブル
+-- Snapshots table
 CREATE TABLE snapshots (
     aggregate_id    UUID PRIMARY KEY,
     aggregate_type  VARCHAR(100) NOT NULL,
@@ -793,90 +796,90 @@ CREATE TABLE snapshots (
 
 ---
 
-## 3. CQRS の設計
+## 3. CQRS Design
 
-### WHY: なぜ CQRS が必要か
+### WHY: Why CQRS Is Needed
 
-読み取りと書き込みは根本的に異なる要件を持つ:
+Reads and writes have fundamentally different requirements:
 
 ```
 ┌───────────────────────────────────────────────────────┐
-│  読み取りと書き込みの非対称性                           │
+│  Asymmetry between reads and writes                   │
 │                                                       │
-│  書き込み (Command):                                  │
-│  ・ドメインモデルの一貫性が重要                        │
-│  ・ビジネスルールの検証が必要                          │
-│  ・トランザクション整合性                              │
-│  ・通常は1つの集約を操作                              │
-│  ・トラフィックの 10-20%                              │
+│  Write (Command):                                     │
+│  · Domain model consistency is critical               │
+│  · Business rule validation is required               │
+│  · Transactional consistency                          │
+│  · Usually operates on a single aggregate             │
+│  · 10-20% of traffic                                  │
 │                                                       │
-│  読み取り (Query):                                    │
-│  ・表示に最適化されたデータ形式が重要                  │
-│  ・複数の集約をJOINした情報が必要                      │
-│  ・キャッシュが効果的                                  │
-│  ・結果整合性で十分なことが多い                        │
-│  ・トラフィックの 80-90%                              │
+│  Read (Query):                                        │
+│  · Data format optimized for display is important     │
+│  · Requires JOINed data from multiple aggregates      │
+│  · Caching is effective                               │
+│  · Eventual consistency is often sufficient           │
+│  · 80-90% of traffic                                  │
 │                                                       │
-│  → 同じモデルで両方を最適化するのは困難                │
-│  → 分離すればそれぞれに最適な設計ができる              │
+│  → It is difficult to optimize both with one model    │
+│  → Separating them allows optimal design for each     │
 └───────────────────────────────────────────────────────┘
 ```
 
-### 3.1 CQRS の4段階
+### 3.1 Four Levels of CQRS
 
 ```
 ┌───────────────────────────────────────────────────────────┐
-│  CQRS の段階的導入                                         │
+│  Incremental CQRS adoption                                │
 │                                                           │
-│  Level 0: 従来型（分離なし）                               │
+│  Level 0: Traditional (no separation)                     │
 │  ┌──────────────┐                                         │
-│  │ 同一 Model   │ ← 読み書き両方に同じモデル               │
+│  │ Same Model   │ ← Same model for both reads and writes  │
 │  │ (User Entity)│                                         │
 │  └──────┬───────┘                                         │
 │         │                                                 │
 │  ┌──────▼───────┐                                         │
-│  │   同一 DB    │                                         │
+│  │   Same DB    │                                         │
 │  └──────────────┘                                         │
 │                                                           │
-│  Level 1: モデル分離（同一 DB）                             │
+│  Level 1: Model separation (same DB)                      │
 │  ┌──────────┐  ┌──────────┐                               │
-│  │ Write    │  │ Read     │ ← 異なるモデル                 │
+│  │ Write    │  │ Read     │ ← Different models             │
 │  │ Model    │  │ Model    │    (DTO / View Model)          │
 │  └────┬─────┘  └────┬─────┘                               │
 │       └──────┬──────┘                                     │
 │       ┌──────▼───────┐                                    │
-│       │   同一 DB    │                                    │
+│       │   Same DB    │                                    │
 │       └──────────────┘                                    │
 │                                                           │
-│  Level 2: DB 分離（同期更新）                              │
+│  Level 2: DB separation (synchronous update)              │
 │  ┌──────────┐           ┌──────────┐                      │
 │  │ Write    │           │ Read     │                      │
 │  │ Model    │           │ Model    │                      │
 │  └────┬─────┘           └────┬─────┘                      │
-│  ┌────▼─────┐  同期    ┌────▼─────┐                      │
+│  ┌────▼─────┐  sync    ┌────▼─────┐                      │
 │  │ Write DB │ ───────→ │ Read DB  │                      │
 │  └──────────┘          └──────────┘                      │
 │                                                           │
-│  Level 3: Event Sourcing + 非同期プロジェクション          │
+│  Level 3: Event Sourcing + async projections              │
 │  ┌──────────┐           ┌──────────┐                      │
 │  │ Command  │           │ Query    │                      │
 │  │ Handler  │           │ Handler  │                      │
 │  └────┬─────┘           └────┬─────┘                      │
 │  ┌────▼──────┐  Event  ┌────▼─────┐                      │
-│  │ Event     │ ──────→ │ Read DB  │ ← 非同期で最適化      │
-│  │ Store     │ Stream  │(Projection)│  された形に投影      │
-│  └───────────┘         └──────────┘                      │
+│  │ Event     │ ──────→ │ Read DB  │ ← Asynchronously      │
+│  │ Store     │ Stream  │(Projection)│  projected into an  │
+│  └───────────┘         └──────────┘  optimized format    │
 └───────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 Command と Query の分離
+### 3.2 Separating Commands and Queries
 
 ```typescript
 // ============================================================
-// Command Side（書き込み）
+// Command Side (writes)
 // ============================================================
 
-// Command 定義
+// Command definitions
 type OrderCommand =
   | CreateOrderCommand
   | AddItemCommand
@@ -917,12 +920,12 @@ class OrderCommandHandler {
         return this.handleCreateOrder(command);
       case "ShipOrder":
         return this.handleShipOrder(command);
-      // ... 他のコマンド
+      // ... other commands
     }
   }
 
   private async handleCreateOrder(cmd: CreateOrderCommand): Promise<void> {
-    // 新しい集約を作成
+    // Create a new aggregate
     const order = Order.create(
       cmd.orderId,
       cmd.customerId,
@@ -936,22 +939,22 @@ class OrderCommandHandler {
       cmd.userId
     );
 
-    // イベントを永続化
+    // Persist events
     const events = order.getUncommittedEvents();
     await this.eventStore.append(cmd.orderId, [...events], 0);
     order.clearUncommittedEvents();
 
-    // イベントを発行（プロジェクション更新のため）
+    // Publish events (to update projections)
     for (const event of events) {
       await this.eventBus.publish(event);
     }
   }
 
   private async handleShipOrder(cmd: ShipOrderCommand): Promise<void> {
-    // 集約を復元
+    // Restore the aggregate
     const order = await this.loadOrder(cmd.orderId);
 
-    // コマンド実行（ビジネスルール検証 + イベント発行）
+    // Execute the command (business rule validation + event emission)
     order.ship(
       cmd.carrier,
       cmd.trackingNumber,
@@ -959,7 +962,7 @@ class OrderCommandHandler {
       cmd.userId
     );
 
-    // イベントを永続化
+    // Persist events
     const newEvents = order.getUncommittedEvents();
     await this.eventStore.append(
       cmd.orderId,
@@ -968,14 +971,14 @@ class OrderCommandHandler {
     );
     order.clearUncommittedEvents();
 
-    // イベントを発行
+    // Publish events
     for (const event of newEvents) {
       await this.eventBus.publish(event);
     }
   }
 
   private async loadOrder(orderId: string): Promise<Order> {
-    // スナップショットがあれば使用
+    // Use snapshot if available
     const snapshot = await this.snapshotRepo.load(orderId);
     if (snapshot) {
       const newEvents = await this.eventStore.getEventsAfterVersion(
@@ -985,7 +988,7 @@ class OrderCommandHandler {
       return Order.fromSnapshot(snapshot.state as OrderSnapshot, newEvents as OrderEvent[]);
     }
 
-    // なければ全イベントから復元
+    // Otherwise, restore from all events
     const events = await this.eventStore.getEvents(orderId);
     if (events.length === 0) {
       throw new Error(`Order ${orderId} not found`);
@@ -997,16 +1000,16 @@ class OrderCommandHandler {
 
 ```typescript
 // ============================================================
-// Query Side（読み取り）
+// Query Side (reads)
 // ============================================================
 
-// Read Model (Projection) — 表示に最適化されたデータ構造
+// Read Model (Projection) — data structure optimized for display
 interface OrderSummaryView {
   orderId: string;
   customerName: string;
   customerEmail: string;
   status: string;
-  statusLabel: string;  // 表示用ラベル（「発送済み」等）
+  statusLabel: string;  // Display label (e.g. "Shipped")
   itemCount: number;
   totalAmount: number;
   discountAmount: number;
@@ -1034,7 +1037,7 @@ interface OrderDetailView extends OrderSummaryView {
   }>;
 }
 
-// Projector: イベントから Read Model を構築
+// Projector: builds the Read Model from events
 class OrderProjector {
   constructor(
     private readDb: ReadDatabase,
@@ -1062,7 +1065,7 @@ class OrderProjector {
   }
 
   private async onOrderCreated(event: OrderCreated): Promise<void> {
-    // 顧客情報を取得（Read Model は非正規化してOK）
+    // Fetch customer information (denormalization is fine in Read Model)
     const customer = await this.customerService.getById(event.data.customerId);
     const items = event.data.items;
     const totalAmount = items.reduce(
@@ -1074,7 +1077,7 @@ class OrderProjector {
       customerName: customer.name,
       customerEmail: customer.email,
       status: "created",
-      statusLabel: "注文受付",
+      statusLabel: "Order Received",
       itemCount: items.length,
       totalAmount,
       discountAmount: 0,
@@ -1102,7 +1105,7 @@ class OrderProjector {
   private async onPaymentReceived(event: PaymentReceived): Promise<void> {
     await this.readDb.update("order_summaries", event.aggregateId, {
       status: "paid",
-      statusLabel: "支払い完了",
+      statusLabel: "Payment Complete",
       lastUpdated: event.metadata.timestamp,
     });
   }
@@ -1110,7 +1113,7 @@ class OrderProjector {
   private async onOrderShipped(event: OrderShipped): Promise<void> {
     await this.readDb.update("order_summaries", event.aggregateId, {
       status: "shipped",
-      statusLabel: "発送済み",
+      statusLabel: "Shipped",
       trackingUrl: `https://tracking.example.com/${event.data.trackingNumber}`,
       lastUpdated: event.metadata.timestamp,
     });
@@ -1119,13 +1122,13 @@ class OrderProjector {
   private async onOrderCancelled(event: OrderCancelled): Promise<void> {
     await this.readDb.update("order_summaries", event.aggregateId, {
       status: "cancelled",
-      statusLabel: "キャンセル",
+      statusLabel: "Cancelled",
       lastUpdated: event.metadata.timestamp,
     });
   }
 }
 
-// Query Handler — Read Model に対する検索
+// Query Handler — queries against the Read Model
 class OrderQueryHandler {
   constructor(private readDb: ReadDatabase) {}
 
@@ -1175,40 +1178,40 @@ class OrderQueryHandler {
 
 ---
 
-## 4. スナップショット最適化
+## 4. Snapshot Optimization
 
-### 4.1 スナップショットの仕組み
+### 4.1 How Snapshots Work
 
 ```
-イベント数が増大すると再生コストが増加:
+As the number of events grows, replay cost increases:
 
   Without Snapshot:
   Event 1 → Event 2 → ... → Event 999 → Event 1000
   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  全1000イベントを再生（遅い）
+  Replay all 1000 events (slow)
 
-  With Snapshot (100イベントごと):
+  With Snapshot (every 100 events):
   [Snapshot @ Event 900] → Event 901 → ... → Event 1000
                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-                           100イベントのみ再生（速い）
+                           Only replay 100 events (fast)
 
   ┌──────────────────────────────────────────────────┐
-  │  スナップショット戦略                             │
+  │  Snapshot strategies                             │
   │                                                  │
-  │  保存タイミング:                                  │
-  │  - N イベントごと (例: 100件ごと)                 │
-  │  - 時間ベース (例: 1時間ごと)                     │
-  │  - 手動 (負荷が高い集約のみ)                      │
-  │  - イベント再生時間が閾値超過時                    │
+  │  When to save:                                   │
+  │  - Every N events (e.g. every 100)               │
+  │  - Time-based (e.g. every hour)                  │
+  │  - Manual (only for high-load aggregates)        │
+  │  - When event replay time exceeds a threshold    │
   │                                                  │
-  │  保存先:                                          │
-  │  - 同じ Event Store の別テーブル                   │
-  │  - Redis / Memcached (高速アクセス)               │
-  │  - S3 (大量データ、低頻度アクセス)                │
+  │  Where to save:                                  │
+  │  - Separate table in the same Event Store        │
+  │  - Redis / Memcached (fast access)               │
+  │  - S3 (large data, infrequent access)            │
   └──────────────────────────────────────────────────┘
 ```
 
-### 4.2 スナップショット実装
+### 4.2 Snapshot Implementation
 
 ```typescript
 // ============================================================
@@ -1256,7 +1259,7 @@ class PostgresSnapshotRepository implements SnapshotRepository {
 }
 
 // ============================================================
-// スナップショット対応の Order Repository
+// Snapshot-aware Order Repository
 // ============================================================
 class EventSourcedOrderRepository {
   constructor(
@@ -1291,7 +1294,7 @@ class EventSourcedOrderRepository {
     await this.eventStore.append(order.id, [...events], baseVersion);
     order.clearUncommittedEvents();
 
-    // スナップショット保存判定
+    // Decide whether to save a snapshot
     if (order.version % this.snapshotInterval === 0) {
       await this.snapshotRepo.save({
         aggregateId: order.id,
@@ -1306,18 +1309,18 @@ class EventSourcedOrderRepository {
 
 ---
 
-## 5. イベントスキーマのバージョニング
+## 5. Event Schema Versioning
 
-### WHY: なぜバージョニングが必要か
+### WHY: Why Versioning Is Needed
 
-イベントは不変（immutable）であるため、スキーマ変更時に既存イベントを書き換えることはできない。代わりに **Upcaster** パターンで古いバージョンのイベントを読み取り時に変換する。
+Because events are immutable, existing events cannot be rewritten when the schema changes. Instead, use the **Upcaster** pattern to transform old-version events at read time.
 
 ```typescript
 // ============================================================
-// イベントバージョニングと Upcaster
+// Event versioning and Upcaster
 // ============================================================
 
-// v1: 初期バージョン
+// v1: initial version
 interface OrderCreatedV1 {
   eventType: "OrderCreated";
   schemaVersion: 1;
@@ -1327,7 +1330,7 @@ interface OrderCreatedV1 {
   };
 }
 
-// v2: 通貨フィールドを追加
+// v2: added currency field
 interface OrderCreatedV2 {
   eventType: "OrderCreated";
   schemaVersion: 2;
@@ -1337,13 +1340,13 @@ interface OrderCreatedV2 {
       productId: string;
       quantity: number;
       price: number;
-      currency: string;  // 新規追加
+      currency: string;  // newly added
     }>;
-    currency: string;  // 新規追加
+    currency: string;  // newly added
   };
 }
 
-// v3: 配送先を追加
+// v3: added shipping address
 interface OrderCreatedV3 {
   eventType: "OrderCreated";
   schemaVersion: 3;
@@ -1356,7 +1359,7 @@ interface OrderCreatedV3 {
       currency: string;
     }>;
     currency: string;
-    shippingAddress: {  // 新規追加
+    shippingAddress: {  // newly added
       street: string;
       city: string;
       postalCode: string;
@@ -1393,16 +1396,16 @@ class EventUpcaster {
   }
 }
 
-// Upcaster の登録
+// Registering upcasters
 const upcaster = new EventUpcaster();
 
-// v1 → v2: currency フィールドを追加
+// v1 → v2: add currency field
 upcaster.register("OrderCreated", 1, (event: OrderCreatedV1): OrderCreatedV2 => ({
   ...event,
   schemaVersion: 2,
   data: {
     ...event.data,
-    currency: "JPY",  // デフォルト値
+    currency: "JPY",  // default value
     items: event.data.items.map((i) => ({
       ...i,
       currency: "JPY",
@@ -1410,15 +1413,15 @@ upcaster.register("OrderCreated", 1, (event: OrderCreatedV1): OrderCreatedV2 => 
   },
 }));
 
-// v2 → v3: shippingAddress を追加
+// v2 → v3: add shippingAddress
 upcaster.register("OrderCreated", 2, (event: OrderCreatedV2): OrderCreatedV3 => ({
   ...event,
   schemaVersion: 3,
   data: {
     ...event.data,
     shippingAddress: {
-      street: "不明",
-      city: "不明",
+      street: "Unknown",
+      city: "Unknown",
       postalCode: "000-0000",
       country: "JP",
     },
@@ -1428,107 +1431,107 @@ upcaster.register("OrderCreated", 2, (event: OrderCreatedV2): OrderCreatedV3 => 
 
 ---
 
-## 6. 比較表
+## 6. Comparison Tables
 
 ### 6.1 CRUD vs Event Sourcing
 
-| 観点 | 従来の CRUD | Event Sourcing |
+| Aspect | Traditional CRUD | Event Sourcing |
 |------|-----------|----------------|
-| **データモデル** | 現在の状態のみ | イベントの履歴（不変） |
-| **変更履歴** | 手動で監査テーブル作成 | 自動的に全履歴保持 |
-| **任意時点の復元** | 不可能（別途実装必要） | イベント再生で可能 |
-| **データ容量** | 少ない（現在の状態のみ） | 大きい（全イベント保存） |
-| **読み取り性能** | 高い（直接クエリ） | 低い（再生必要 → プロジェクションで解決） |
-| **書き込み性能** | 中（UPDATE + ロック） | 高い（追記のみ、ロック少ない） |
-| **スキーマ変更** | マイグレーションで対応 | Upcaster で旧バージョンを変換 |
-| **デバッグ** | 現在の状態のみ確認可能 | イベントログで原因追跡容易 |
-| **複雑性** | 低い | 高い |
-| **テスト** | DB モック必要 | イベントの入出力で検証可能 |
+| **Data model** | Current state only | Event history (immutable) |
+| **Change history** | Manual audit table required | Full history preserved automatically |
+| **Point-in-time recovery** | Not possible (requires separate implementation) | Possible via event replay |
+| **Storage volume** | Small (current state only) | Large (all events stored) |
+| **Read performance** | High (direct query) | Low (requires replay → solved with projections) |
+| **Write performance** | Medium (UPDATE + lock) | High (append-only, fewer locks) |
+| **Schema changes** | Handled via migration | Old versions converted with Upcaster |
+| **Debugging** | Only current state is visible | Event log makes root cause tracing easy |
+| **Complexity** | Low | High |
+| **Testing** | DB mock required | Verifiable with event input/output |
 
-### 6.2 CQRS 導入パターン比較
+### 6.2 CQRS Adoption Pattern Comparison
 
-| パターン | 説明 | 整合性 | 複雑度 | スケーラビリティ | ユースケース |
+| Pattern | Description | Consistency | Complexity | Scalability | Use Case |
 |---------|------|--------|--------|----------------|------------|
-| **Level 0: 分離なし** | 同一モデル、同一 DB | 即時整合 | 低 | 低 | 小規模 CRUD |
-| **Level 1: モデル分離** | 異なるモデル、同一 DB | 即時整合 | 低〜中 | 中 | 読み書きの最適化 |
-| **Level 2: DB 分離 + 同期** | Write DB → Read DB を同期更新 | ほぼ即時 | 中 | 中〜高 | 整合性重視 |
-| **Level 3: ES + 非同期** | Event Store + 非同期プロジェクション | 結果整合 | 高 | 最高 | 高スケーラビリティ |
+| **Level 0: No separation** | Same model, same DB | Immediate | Low | Low | Small-scale CRUD |
+| **Level 1: Model separation** | Different models, same DB | Immediate | Low–Medium | Medium | Read/write optimization |
+| **Level 2: DB separation + sync** | Write DB → Read DB sync update | Near-immediate | Medium | Medium–High | Consistency-focused |
+| **Level 3: ES + async** | Event Store + async projections | Eventual | High | Highest | High scalability |
 
-### 6.3 Event Store 実装の選択肢
+### 6.3 Event Store Implementation Options
 
-| 実装 | 特徴 | 適する規模 | 運用コスト |
+| Implementation | Characteristics | Suitable Scale | Operational Cost |
 |------|------|-----------|----------|
-| **PostgreSQL + JSONB** | 汎用的、既存インフラ活用 | 小〜中（〜数千万イベント） | 低 |
-| **EventStoreDB** | ES 専用、プロジェクションエンジン内蔵 | 中〜大 | 中 |
-| **Apache Kafka** | ストリーム処理、高スループット | 大（数十億イベント） | 高 |
-| **DynamoDB Streams** | AWS ネイティブ、サーバーレス | 中〜大 | 中（従量課金） |
-| **MongoDB + Change Streams** | ドキュメント指向、柔軟なスキーマ | 中 | 中 |
+| **PostgreSQL + JSONB** | General-purpose, leverages existing infrastructure | Small–Medium (~tens of millions of events) | Low |
+| **EventStoreDB** | ES-dedicated, built-in projection engine | Medium–Large | Medium |
+| **Apache Kafka** | Stream processing, high throughput | Large (billions of events) | High |
+| **DynamoDB Streams** | AWS-native, serverless | Medium–Large | Medium (pay-per-use) |
+| **MongoDB + Change Streams** | Document-oriented, flexible schema | Medium | Medium |
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### 7.1 全てのドメインに Event Sourcing を適用
+### 7.1 Applying Event Sourcing to All Domains
 
 ```
-NG: マスタデータ（商品カテゴリ、設定値）にも Event Sourcing
-    → 過度な複雑性、CRUD で十分な領域
+NG: Applying Event Sourcing to master data (product categories, configuration values)
+    → Excessive complexity; CRUD is sufficient for these areas
 
-OK: Event Sourcing の適用基準
+OK: Criteria for applying Event Sourcing
     ┌───────────────────────────────────────┐
-    │ Event Sourcing が適する:              │
-    │ ✓ 注文処理、金融取引                  │
-    │ ✓ 監査証跡が法的に必要               │
-    │ ✓ ビジネスイベントの分析が重要       │
-    │ ✓ 複雑な状態遷移がある               │
-    │ ✓ 取り消し/補償トランザクションが必要 │
+    │ Event Sourcing is appropriate for:   │
+    │ ✓ Order processing, financial txns   │
+    │ ✓ Audit trail legally required       │
+    │ ✓ Business event analysis is critical│
+    │ ✓ Complex state transitions exist    │
+    │ ✓ Undo/compensating txns needed      │
     │                                       │
-    │ CRUD で十分:                          │
-    │ ✗ ユーザープロフィール               │
-    │ ✗ マスタデータ管理                   │
-    │ ✗ 設定値管理                         │
-    │ ✗ CRUD が中心の管理画面              │
-    │ ✗ 単純な参照データ                   │
+    │ CRUD is sufficient for:              │
+    │ ✗ User profiles                      │
+    │ ✗ Master data management             │
+    │ ✗ Configuration management           │
+    │ ✗ Admin screens centered on CRUD     │
+    │ ✗ Simple reference data              │
     └───────────────────────────────────────┘
 ```
 
-**なぜ NG か**: Event Sourcing はイベント設計、Projector 実装、結果整合性の管理など大きなコストがかかる。ビジネス上の価値がないドメインに適用すると、複雑さだけが増す。
+**Why it's NG**: Event Sourcing carries significant costs — event design, Projector implementation, managing eventual consistency. Applying it to domains with no business value only adds complexity.
 
-### 7.2 イベントスキーマを頻繁に変更する
+### 7.2 Frequently Changing Event Schemas
 
 ```typescript
-// NG: 既存イベントの構造を直接変更
-// v1 のデータ: { amount: 1000 }
-// v2 のデータ: { amount: 1000, currency: "JPY" }
-// → 既存の v1 イベントを読み込むとクラッシュ
+// NG: Directly modifying the structure of existing events
+// v1 data: { amount: 1000 }
+// v2 data: { amount: 1000, currency: "JPY" }
+// → Reading v1 events will crash
 
-// OK: Upcaster でバージョン移行
+// OK: Migrate versions using an Upcaster
 function upcastOrderCreatedV1toV2(event: OrderCreatedV1): OrderCreatedV2 {
   return {
     ...event,
     schemaVersion: 2,
     data: {
       ...event.data,
-      currency: "JPY",  // デフォルト値を付与
+      currency: "JPY",  // assign default value
     },
   };
 }
 ```
 
-**なぜ NG か**: イベントは不変であり、既に保存されたデータの構造を変えることはできない。Upcaster を使って読み取り時に変換するのが正しいアプローチ。
+**Why it's NG**: Events are immutable — the structure of already-stored data cannot be changed. The correct approach is to use an Upcaster to transform them at read time.
 
-### 7.3 イベントにドメインの意図を含めない
+### 7.3 Not Encoding Domain Intent in Events
 
 ```typescript
-// NG: CRUD 風の汎用イベント
+// NG: Generic CRUD-style event
 interface OrderUpdated {
   eventType: "OrderUpdated";
   data: {
-    fields: Record<string, unknown>;  // 何が変わったか分からない
+    fields: Record<string, unknown>;  // unclear what changed
   };
 }
 
-// OK: ドメインの意図を表現するイベント
+// OK: Events that express domain intent
 interface DiscountApplied {
   eventType: "DiscountApplied";
   data: {
@@ -1538,40 +1541,40 @@ interface DiscountApplied {
     couponCode?: string;
   };
 }
-// 「なぜ金額が変わったか」が明確
+// "Why did the amount change?" is clearly expressed
 ```
 
-**なぜ NG か**: Event Sourcing の価値は「ドメインの歴史を記録すること」。汎用的な "Updated" イベントでは、CRUD と同じく「何が起こったか」しか分からず、「なぜ起こったか」が失われる。
+**Why it's NG**: The value of Event Sourcing is "recording the history of the domain." A generic "Updated" event, just like CRUD, only tells you "what happened" — the "why it happened" is lost.
 
-### 7.4 プロジェクションで副作用を実行する
+### 7.4 Executing Side Effects Inside Projections
 
 ```typescript
-// NG: Projector 内で外部 API を呼ぶ
+// NG: Calling external APIs inside a Projector
 class OrderProjector {
   async handle(event: OrderShipped) {
-    // Read Model の更新
+    // Update the Read Model
     await this.readDb.update(/* ... */);
 
-    // 副作用（NG！）
+    // Side effects (NG!)
     await this.emailService.sendShipmentNotification(event);
     await this.smsService.sendTrackingLink(event);
-    // → プロジェクションを再構築（Rebuild）するたびに
-    //   メールとSMSが再送信されてしまう！
+    // → Every time the projection is rebuilt (Rebuild),
+    //   emails and SMS will be re-sent!
   }
 }
 
-// OK: 副作用は別のイベントハンドラで
+// OK: Side effects in a separate event handler
 class OrderProjector {
   async handle(event: OrderShipped) {
-    // Read Model の更新のみ
+    // Only update the Read Model
     await this.readDb.update(/* ... */);
   }
 }
 
-// 通知は専用のハンドラで（べき等性を保証）
+// Notifications handled in a dedicated handler (with idempotency guarantee)
 class ShipmentNotificationHandler {
   async handle(event: OrderShipped) {
-    // べき等性チェック
+    // Idempotency check
     const alreadySent = await this.notificationLog.exists(event.eventId);
     if (alreadySent) return;
 
@@ -1581,93 +1584,93 @@ class ShipmentNotificationHandler {
 }
 ```
 
-**なぜ NG か**: プロジェクションは再構築（Rebuild）される可能性がある。副作用がプロジェクション内にあると、Rebuild のたびに副作用が再実行される。通知やメール送信は別のイベントハンドラに分離し、べき等性を保証する。
+**Why it's NG**: Projections may be rebuilt (Rebuild). If side effects are inside the projection, they will re-execute every time it is rebuilt. Notifications and emails should be separated into dedicated event handlers with idempotency guarantees.
 
 ---
 
-## 8. 実践演習
+## 8. Practical Exercises
 
-### 演習 1（基礎）: イベント定義と集約
+### Exercise 1 (Basic): Event Definition and Aggregate
 
-銀行口座（BankAccount）の集約を Event Sourcing で設計せよ。
+Design a BankAccount aggregate using Event Sourcing.
 
-**イベント**:
-- AccountOpened（口座開設）
-- MoneyDeposited（入金）
-- MoneyWithdrawn（出金）
-- AccountFrozen（口座凍結）
-- AccountClosed（口座解約）
+**Events**:
+- AccountOpened
+- MoneyDeposited
+- MoneyWithdrawn
+- AccountFrozen
+- AccountClosed
 
-**ビジネスルール**:
-- 残高がマイナスになる出金は不可
-- 凍結中の口座は入出金不可
-- 閉鎖済み口座は操作不可
+**Business rules**:
+- Withdrawals that would result in a negative balance are not allowed
+- Frozen accounts cannot perform deposits or withdrawals
+- Closed accounts cannot be operated on
 
-**期待する出力**: `BankAccount` 集約クラス（TypeScript）とテストコード
-
----
-
-### 演習 2（応用）: プロジェクションの設計
-
-演習 1 の銀行口座イベントから、以下の Read Model を構築する Projector を実装せよ。
-
-1. **AccountBalanceView** — 口座残高一覧（口座ID、名前、残高、状態）
-2. **TransactionHistoryView** — 取引履歴（日時、種別、金額、残高）
-3. **DailyReportView** — 日次レポート（日ごとの入金合計、出金合計、純増減）
-
-**期待する出力**: 3つの Projector クラスと Read Model 定義
+**Expected output**: `BankAccount` aggregate class (TypeScript) and test code
 
 ---
 
-### 演習 3（発展）: 段階的 CRUD → ES 移行
+### Exercise 2 (Applied): Projection Design
 
-既存の CRUD ベースの注文システムを、Strangler Fig パターンで段階的に Event Sourcing に移行する計画を立てよ。
+Using the bank account events from Exercise 1, implement Projectors that build the following Read Models.
 
-**現行システム**: orders テーブル（id, status, total, user_id, created_at, updated_at）
+1. **AccountBalanceView** — Account balance list (account ID, name, balance, status)
+2. **TransactionHistoryView** — Transaction history (timestamp, type, amount, balance)
+3. **DailyReportView** — Daily report (total deposits, total withdrawals, net change per day)
 
-**移行計画**:
-1. Phase 1: Dual Write（CRUD + イベント記録を並行）
-2. Phase 2: Read Model 構築（イベントからプロジェクション作成）
-3. Phase 3: 読み取りをプロジェクションに移行
-4. Phase 4: 書き込みを Event Sourcing に移行
-5. Phase 5: 旧テーブルの廃止
+**Expected output**: Three Projector classes and Read Model definitions
 
-**期待する出力**: 各フェーズの具体的なコード例（TypeScript）とリスク分析
+---
+
+### Exercise 3 (Advanced): Incremental CRUD → ES Migration
+
+Plan an incremental migration from an existing CRUD-based order system to Event Sourcing using the Strangler Fig pattern.
+
+**Current system**: orders table (id, status, total, user_id, created_at, updated_at)
+
+**Migration plan**:
+1. Phase 1: Dual Write (run CRUD and event recording in parallel)
+2. Phase 2: Build Read Model (create projections from events)
+3. Phase 3: Migrate reads to projections
+4. Phase 4: Migrate writes to Event Sourcing
+5. Phase 5: Retire the old table
+
+**Expected output**: Concrete code examples (TypeScript) for each phase and a risk analysis
 
 ---
 
 ## 9. FAQ
 
-### Q1. Event Sourcing のイベントが増え続けてストレージが心配
+### Q1. I'm worried about storage as Event Sourcing events keep growing
 
-**A.** 3 つの対策がある:
-1. **スナップショット** — N イベントごとに状態を保存し、古いイベントの再生を省略
-2. **アーカイブ** — 一定期間経過したイベントを S3/Glacier に移動（法的要件に注意）
-3. **パーティショニング** — 月別 / 年別でテーブルを分割し、検索性能を維持
+**A.** Three countermeasures are available:
+1. **Snapshots** — Save state every N events and skip replaying older events
+2. **Archiving** — Move events older than a certain period to S3/Glacier (note legal requirements)
+3. **Partitioning** — Split tables by month/year to maintain query performance
 
-実務では、数千万イベントでも PostgreSQL で問題なく運用できる。パーティショニングを適用すれば数億イベントも対応可能。1イベント平均 1KB として、1億イベント = 約 100GB であり、現代のストレージコストでは許容範囲。
+In practice, tens of millions of events run fine on PostgreSQL. With partitioning, hundreds of millions of events are manageable. At an average of 1KB per event, 100 million events is roughly 100GB — an acceptable range at modern storage costs.
 
-### Q2. CQRS で結果整合性になると UI はどう対応する？
+### Q2. How should the UI handle eventual consistency in CQRS?
 
-**A.** 3 つのパターンがある:
+**A.** Three patterns are available:
 
-1. **楽観的 UI** — コマンド成功後に UI をローカルで即座に更新
-2. **ポーリング** — コマンド後に短い間隔で Read Model を確認
-3. **WebSocket / SSE** — プロジェクション更新完了をリアルタイムに通知
+1. **Optimistic UI** — Immediately update the UI locally after a successful command
+2. **Polling** — Check the Read Model at short intervals after a command
+3. **WebSocket / SSE** — Notify in real-time when a projection update is complete
 
 ```typescript
-// 楽観的 UI の例（React）
+// Example of optimistic UI (React)
 async function submitOrder(orderData: CreateOrderInput) {
-  // 1. コマンド送信
+  // 1. Send command
   await api.post("/commands/create-order", orderData);
 
-  // 2. UI をローカルで即座に更新（Read Model 更新を待たない）
+  // 2. Immediately update the UI locally (without waiting for Read Model update)
   setOrders((prev) => [
     { ...orderData, status: "processing", id: tempId },
     ...prev,
   ]);
 
-  // 3. バックグラウンドで Read Model の反映を確認
+  // 3. Confirm Read Model reflection in the background
   const confirmed = await pollUntil(
     () => api.get(`/orders/${orderData.id}`),
     (res) => res.status !== 404,
@@ -1675,7 +1678,7 @@ async function submitOrder(orderData: CreateOrderInput) {
   );
 
   if (confirmed) {
-    // 楽観的更新を確定データで置換
+    // Replace optimistic update with confirmed data
     setOrders((prev) =>
       prev.map((o) => (o.id === tempId ? confirmed : o))
     );
@@ -1683,43 +1686,43 @@ async function submitOrder(orderData: CreateOrderInput) {
 }
 ```
 
-### Q3. Event Sourcing を既存の CRUD アプリに段階的に導入できる？
+### Q3. Can Event Sourcing be incrementally introduced into an existing CRUD application?
 
-**A.** 可能。Strangler Fig パターンと組み合わせた段階的アプローチが推奨される:
+**A.** Yes. An incremental approach combined with the Strangler Fig pattern is recommended:
 
-1. **Phase 1: Dual Write** — CRUD と並行してイベントテーブルに記録
-2. **Phase 2: Read Model 構築** — イベントからプロジェクションを作成し、読み取りクエリの一部を移行
-3. **Phase 3: 読み取り移行完了** — 全読み取りをプロジェクションに切り替え
-4. **Phase 4: 書き込み移行** — 集約単位で書き込みを Event Sourcing に移行
-5. **Phase 5: 旧テーブル廃止** — CRUD テーブルを削除
+1. **Phase 1: Dual Write** — Record events in parallel alongside CRUD
+2. **Phase 2: Build Read Model** — Create projections from events and migrate some read queries
+3. **Phase 3: Complete read migration** — Switch all reads to projections
+4. **Phase 4: Migrate writes** — Migrate writes to Event Sourcing per aggregate
+5. **Phase 5: Retire old tables** — Drop the CRUD tables
 
-各フェーズ間でシステムが正常動作することを確認し、問題があればロールバック可能な状態を維持する。全フェーズの完了には通常 3-6 ヶ月かかる。
+Verify that the system operates normally between each phase and maintain a rollback-capable state if issues arise. Completing all phases typically takes 3–6 months.
 
-### Q4. Event Sourcing のテストはどう書く？
+### Q4. How do you write tests for Event Sourcing?
 
-**A.** 「Given-When-Then」パターンが最も自然:
+**A.** The "Given-When-Then" pattern is the most natural:
 
 ```typescript
 describe("Order Aggregate", () => {
-  test("支払い済み注文に商品を追加するとエラー", () => {
-    // Given: 支払い済みの注文
+  test("adding an item to a paid order throws an error", () => {
+    // Given: a paid order
     const events: OrderEvent[] = [
       orderCreatedEvent({ items: [item1] }),
       paymentReceivedEvent({ amount: 5000 }),
     ];
     const order = Order.fromEvents(events);
 
-    // When + Then: 商品追加するとエラー
+    // When + Then: adding an item throws an error
     expect(() => {
       order.addItem(item2, "user-1");
-    }).toThrow('状態 "paid" の注文に商品を追加できません');
+    }).toThrow('Cannot add items to an order with status "paid"');
   });
 
-  test("注文作成で OrderCreated イベントが発行される", () => {
-    // When: 注文を作成
+  test("creating an order emits an OrderCreated event", () => {
+    // When: create an order
     const order = Order.create("order-1", "customer-1", [item1], address, "user-1");
 
-    // Then: 発行されたイベントを検証
+    // Then: verify the emitted events
     const events = order.getUncommittedEvents();
     expect(events).toHaveLength(1);
     expect(events[0].eventType).toBe("OrderCreated");
@@ -1728,66 +1731,66 @@ describe("Order Aggregate", () => {
 });
 ```
 
-### Q5. プロジェクションが壊れた場合の復旧方法は？
+### Q5. How do you recover if a projection breaks?
 
-**A.** イベントは不変であるため、プロジェクションはいつでも再構築（Rebuild）可能:
+**A.** Because events are immutable, projections can always be rebuilt (Rebuild):
 
-1. Read Model テーブルを TRUNCATE
-2. 全イベントを最初から再生してプロジェクションを再構築
-3. Read Model のスキーマを変更した場合も、同じ手順で新しい形式のデータを作成可能
+1. TRUNCATE the Read Model table
+2. Replay all events from the beginning to rebuild the projection
+3. When the Read Model schema changes, the same procedure creates data in the new format
 
-これが Event Sourcing の最大の利点の一つ。「データの変換ミス」があっても、Projector を修正して Rebuild すれば正しい状態に復旧できる。
+This is one of the greatest advantages of Event Sourcing. Even if there is a "data transformation mistake," fixing the Projector and running a Rebuild restores the correct state.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is paramount. Understanding deepens not just through theory, but by actually writing code and confirming how it behaves.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the core concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work, especially during code reviews and architectural design.
 
 ---
 
-## 10. まとめ
+## 10. Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| **Event Sourcing** | 状態の変化をイベントとして追記保存。完全な監査証跡、任意時点の復元が可能 |
-| **イベントの3原則** | 不変（Immutable）、追記のみ（Append-Only）、導出値（Derived State） |
-| **CQRS** | 読み取りと書き込みを分離。それぞれを独立にスケール・最適化 |
-| **プロジェクション** | イベントから最適化された Read Model を構築。壊れても再構築可能 |
-| **スナップショット** | イベント再生コストを削減する最適化手法。N イベントごとに状態保存 |
-| **バージョニング** | Upcaster パターンでイベントスキーマの進化に対応。既存イベントは不変 |
-| **適用基準** | 監査要件、複雑な状態遷移、高スケーラビリティが必要な場合に適用。CRUD で十分な領域には不要 |
-| **テスト** | Given-When-Then パターン。イベントの入出力で検証可能。DB 不要 |
+| **Event Sourcing** | Store state changes as append-only events. Full audit trail and point-in-time recovery are possible |
+| **Three principles of events** | Immutable, Append-Only, Derived State |
+| **CQRS** | Separate reads and writes. Scale and optimize each independently |
+| **Projections** | Build optimized Read Models from events. Can be rebuilt if broken |
+| **Snapshots** | Optimization technique to reduce event replay costs. Save state every N events |
+| **Versioning** | Handle event schema evolution with the Upcaster pattern. Existing events remain immutable |
+| **When to apply** | Apply when audit requirements, complex state transitions, or high scalability are needed. Not necessary for CRUD-sufficient areas |
+| **Testing** | Given-When-Then pattern. Verifiable with event input/output. No DB required |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [00-mvc-mvvm.md](./00-mvc-mvvm.md) — UI レイヤーのアーキテクチャパターン
-- [01-repository-pattern.md](./01-repository-pattern.md) — データアクセスの抽象化
-- ../../system-design-guide/ — メッセージキュー、分散システム設計
-- ../../clean-code-principles/ — DDD、SOLID 原則
-- [../02-behavioral/](../02-behavioral/) — Observer パターン（イベント駆動の基盤）
+- [00-mvc-mvvm.md](./00-mvc-mvvm.md) — UI layer architectural patterns
+- [01-repository-pattern.md](./01-repository-pattern.md) — Data access abstraction
+- ../../system-design-guide/ — Message queues, distributed system design
+- ../../clean-code-principles/ — DDD, SOLID principles
+- [../02-behavioral/](../02-behavioral/) — Observer pattern (foundation of event-driven design)
 
 ---
 
-## 参考文献
+## References
 
 1. **Martin Fowler** — "Event Sourcing" — https://martinfowler.com/eaaDev/EventSourcing.html
 2. **Martin Fowler** — "CQRS" — https://martinfowler.com/bliki/CQRS.html
 3. **Greg Young** — "CQRS and Event Sourcing" — https://cqrs.files.wordpress.com/2010/11/cqrs_documents.pdf
 4. **Microsoft** — "CQRS pattern" — https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs
-5. **Vaughn Vernon** — "Implementing Domain-Driven Design" (2013) — Event Sourcing と DDD の統合
+5. **Vaughn Vernon** — "Implementing Domain-Driven Design" (2013) — Integration of Event Sourcing and DDD
 6. **EventStoreDB Documentation** — https://www.eventstore.com/docs/
 7. **Adam Dymitruk** — "Event Modeling" — https://eventmodeling.org/
