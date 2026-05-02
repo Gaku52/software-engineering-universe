@@ -1,166 +1,166 @@
-# CAP定理
+# CAP Theorem
 
-> 分散システムにおける一貫性（Consistency）、可用性（Availability）、分断耐性（Partition Tolerance）のトレードオフを理解し、PACELC定理を含む拡張的知識と、クォーラム・結果整合性・コンフリクト解決の実装を通じて、実システムの設計判断に活かす。
-
----
-
-## この章で学ぶこと
-
-1. CAP定理の正確な定義と「3つから2つ選ぶ」の正しい解釈（よくある誤解の是正）
-2. CP/APシステムの具体的な動作の違い、クォーラムベースの一貫性制御の実装
-3. PACELC定理による拡張的な理解と、データの性質ごとに一貫性レベルを使い分ける設計判断
+> Understand the tradeoffs between Consistency, Availability, and Partition Tolerance in distributed systems, and build practical design judgment through extended knowledge including the PACELC theorem, and hands-on implementation of quorum, eventual consistency, and conflict resolution.
 
 ---
 
-## 前提知識
+## What You Will Learn
 
-| トピック | 内容 | 参照先 |
+1. The precise definition of the CAP theorem and the correct interpretation of "choose 2 of 3" (correcting common misconceptions)
+2. Concrete behavioral differences between CP and AP systems, and implementation of quorum-based consistency control
+3. Extended understanding through the PACELC theorem, and design decisions for selecting consistency levels based on data characteristics
+
+---
+
+## Prerequisites
+
+| Topic | Content | Reference |
 |---------|------|--------|
-| 信頼性 | 可用性、フォールトトレランスの基本概念 | [信頼性](./02-reliability.md) |
-| スケーラビリティ | 水平スケーリング、レプリケーションの概念 | [スケーラビリティ](./01-scalability.md) |
-| ネットワーク基礎 | TCP/IP、DNS、パケットロスの基本 | Web/ネットワーク基礎 |
-| Python 基礎 | dataclass、辞書操作、基本的なクラス設計 | プログラミング基礎 |
+| Reliability | Core concepts of availability and fault tolerance | [Reliability](./02-reliability.md) |
+| Scalability | Concepts of horizontal scaling and replication | [Scalability](./01-scalability.md) |
+| Network Basics | Fundamentals of TCP/IP, DNS, and packet loss | Web/Network Fundamentals |
+| Python Basics | dataclass, dictionary operations, basic class design | Programming Fundamentals |
 
 ---
 
-## 1. CAP定理とは
+## 1. What is the CAP Theorem?
 
-### 1.1 定義
+### 1.1 Definition
 
-2000年にEric Brewerが提唱し、2002年にGilbert & Lynchが証明した定理。分散システムでは以下の3特性を**同時に全て満たすことは不可能**であることを示す。
-
-```
-C — Consistency（一貫性）
-    全ノードが同一時刻に同じデータを返す
-    （ここでの一貫性は「線形化可能性 / Linearizability」を指す）
-    ACIDのCとは異なる概念であることに注意
-
-A — Availability（可用性）
-    障害が発生していないノードへの全てのリクエストが
-    （成功/失敗の）レスポンスを受け取る
-    ノード障害時にもレスポンスを返す
-
-P — Partition Tolerance（分断耐性）
-    ネットワーク分断（ノード間の通信断絶）が発生しても
-    システムが動作し続ける
-```
-
-### 1.2 WHY: なぜCAP定理を理解すべきか
-
-分散システムの設計では、一貫性と可用性のトレードオフが常に存在する。CAP定理を正しく理解していないと、以下のような問題が発生する。
+A theorem proposed by Eric Brewer in 2000 and formally proven by Gilbert & Lynch in 2002. It states that a distributed system **cannot simultaneously satisfy all three** of the following properties:
 
 ```
-よくある失敗:
+C — Consistency
+    All nodes return the same data at the same point in time
+    (Consistency here refers to "Linearizability")
+    Note: this is a different concept from the C in ACID
+
+A — Availability
+    Every request to a non-failing node receives
+    a (success or failure) response
+    Responses are returned even when node failures occur
+
+P — Partition Tolerance
+    The system continues to operate even when
+    a network partition (communication breakdown between nodes) occurs
+```
+
+### 1.2 WHY: Why Should You Understand the CAP Theorem?
+
+In distributed system design, there is always a tradeoff between consistency and availability. Without a correct understanding of the CAP theorem, the following problems arise:
+
+```
+Common failures:
 ─────────────────────────────────────────────
-1. 「全データに強い一貫性を適用」
-   → レイテンシが悪化し、可用性が低下
-   → ユーザー設定やログまで強い一貫性にする必要はない
+1. "Apply strong consistency to all data"
+   → Latency degrades and availability decreases
+   → User settings and logs do not need strong consistency
 
-2. 「全データに結果整合性を適用」
-   → 決済データで残高不整合が発生
-   → 二重引き落としなどの深刻な問題
+2. "Apply eventual consistency to all data"
+   → Balance inconsistencies occur in payment data
+   → Serious problems like double charges
 
-3. 「CAは実現可能」と誤解
-   → 分散システムでは分断は避けられない
-   → 分断発生時にシステムが完全停止
+3. Mistakenly believing "CA is achievable"
+   → Network partitions are unavoidable in distributed systems
+   → System completely halts when a partition occurs
 ─────────────────────────────────────────────
-正しいアプローチ: データの性質ごとに一貫性レベルを使い分ける
+Correct approach: Select consistency levels based on the nature of the data
 ```
 
-### ASCII図解1: CAP定理の三角形
+### ASCII Diagram 1: The CAP Triangle
 
 ```
-                    C (一貫性)
+                    C (Consistency)
                     /\
                    /  \
                   /    \
                  / CP   \
-                / 系統   \
+                / systems\
                /          \
               /   CA       \
-             /  (理論上     \
-            /    のみ)      \
+             /  (theoretical\
+            /    only)      \
            /                 \
           /        AP         \
-         /       系統          \
+         /       systems       \
         /________________________\
-      A (可用性)           P (分断耐性)
+      A (Availability)    P (Partition Tolerance)
 
-  ■ ネットワーク分断は避けられない
-    → 実質的な選択は CP か AP
+  ■ Network partitions are unavoidable
+    → The real choice is between CP and AP
 
-  CP: 分断時に一貫性を優先 → 一部リクエストを拒否
-  AP: 分断時に可用性を優先 → 古いデータを返す可能性
-  CA: 分断なし前提 → 単一ノード or 同一LAN内のみ
+  CP: Prioritizes consistency during partition → Rejects some requests
+  AP: Prioritizes availability during partition → May return stale data
+  CA: Assumes no partition → Only for single nodes or within the same LAN
 ```
 
-### 1.3 一貫性モデルの階層
+### 1.3 Consistency Model Hierarchy
 
-CAP定理の「C」は最も強い一貫性（線形化可能性）を指すが、現実には複数の一貫性レベルが存在する。
+The "C" in the CAP theorem refers to the strongest consistency (linearizability), but in practice multiple consistency levels exist:
 
 ```
-一貫性モデルの強さ（上ほど強い）:
+Strength of consistency models (strongest at the top):
 ─────────────────────────────────────────────
-  線形化可能性 (Linearizability) ← CAPの「C」
-    ↑ 全操作がリアルタイムの順序で一貫
-    │ 実装: Raft, Paxos, 2PC
+  Linearizability ← The "C" in CAP
+    ↑ All operations are consistent in real-time order
+    │ Implementation: Raft, Paxos, 2PC
     │
-  逐次一貫性 (Sequential Consistency)
-    ↑ 全ノードで同一の操作順序を観測
+  Sequential Consistency
+    ↑ All nodes observe the same operation order
     │
-  因果一貫性 (Causal Consistency)
-    ↑ 因果関係のある操作のみ順序保証
-    │ 実装: ベクタークロック
+  Causal Consistency
+    ↑ Order is guaranteed only for causally related operations
+    │ Implementation: Vector clocks
     │
   Read-your-writes Consistency
-    ↑ 自分の書き込みは即座に読める
-    │ 実装: Sticky Session, Primary Read
+    ↑ Your own writes are immediately readable
+    │ Implementation: Sticky Session, Primary Read
     │
-  結果整合性 (Eventual Consistency) ← APシステムの標準
-    ↓ いつかは一貫するが時間は不定
-    │ 実装: ゴシッププロトコル, CRDTs
+  Eventual Consistency ← Standard for AP systems
+    ↓ Eventually consistent but timing is non-deterministic
+    │ Implementation: Gossip protocol, CRDTs
 ─────────────────────────────────────────────
-  強い一貫性ほどレイテンシが増大する
+  Stronger consistency increases latency
 ```
 
 ---
 
-## 2. ネットワーク分断とは
+## 2. What are Network Partitions?
 
-### 2.1 分断の種類と発生原因
+### 2.1 Types and Causes of Partitions
 
 ```
-■ 完全分断（Full Partition）
+■ Full Partition
   [Node A] ──×── [Node B]
-  双方向の通信が完全に断絶
+  Bidirectional communication is completely severed
 
-■ 部分分断（Partial Partition）
+■ Partial Partition
   [Node A] ──×── [Node B]
        \              /
         \            /
-         [Node C]     ← CはAとBの両方と通信可能
-  CがブリッジとなりA-B間の通信を中継できる可能性
+         [Node C]     ← C can communicate with both A and B
+  C may act as a bridge and relay A-B communication
 
-■ 非対称分断（Asymmetric Partition）
-  [Node A] ──→── [Node B]  ← AからBへは送信可能
-  [Node A] ──×── [Node B]  ← BからAへは送信不可
+■ Asymmetric Partition
+  [Node A] ──→── [Node B]  ← A can send to B
+  [Node A] ──×── [Node B]  ← B cannot send to A
 
-発生原因:
-  - ネットワーク機器の故障（スイッチ、ルーター）
-  - ケーブル断線
-  - ファイアウォールの誤設定
-  - DNS障害
-  - クラウドプロバイダのAZ間接続障害
-  - GCによるSTW（Stop-The-World）で一時的にタイムアウト
+Causes:
+  - Network hardware failures (switches, routers)
+  - Cable disconnections
+  - Misconfigured firewalls
+  - DNS failures
+  - Inter-AZ connectivity failures from cloud providers
+  - GC Stop-The-World events causing temporary timeouts
 
-現実の統計:
-  Googleのデータ（2011年論文）:
-  → 年間平均5.47回のネットワーク分断が発生
-  → 分断の平均持続時間: 23分
-  → データセンター間の分断は避けられないという結論
+Real-world statistics:
+  Google data (2011 paper):
+  → Average 5.47 network partitions per year
+  → Average partition duration: 23 minutes
+  → Conclusion: partitions between data centers are unavoidable
 ```
 
-### コード例1: ネットワーク分断のシミュレーション
+### Code Example 1: Simulating Network Partitions
 
 ```python
 from dataclasses import dataclass, field
@@ -171,10 +171,10 @@ import time
 class Node:
     name: str
     data: dict
-    reachable: set  # 通信可能なノード名の集合
+    reachable: set  # set of reachable node names
 
 class DistributedStore:
-    """ネットワーク分断を再現する分散ストア"""
+    """A distributed store that simulates network partitions"""
 
     def __init__(self):
         self.nodes = {
@@ -184,7 +184,7 @@ class DistributedStore:
         }
 
     def partition(self, group_a: set, group_b: set):
-        """ネットワーク分断を発生させる"""
+        """Trigger a network partition"""
         print(f"[PARTITION] {group_a} <-X-> {group_b}")
         for name in group_a:
             self.nodes[name].reachable -= group_b
@@ -192,121 +192,122 @@ class DistributedStore:
             self.nodes[name].reachable -= group_a
 
     def heal(self):
-        """分断を解消する"""
+        """Resolve the partition"""
         all_names = set(self.nodes.keys())
         for name, node in self.nodes.items():
             node.reachable = all_names - {name}
-        print("[HEAL] ネットワーク分断を解消")
+        print("[HEAL] Network partition resolved")
 
     def write_cp(self, node_name: str, key: str, value: str) -> bool:
-        """CP方式: 過半数に書き込めなければ拒否（クォーラム）"""
+        """CP mode: reject write if quorum cannot be reached"""
         node = self.nodes[node_name]
-        reachable_count = 1 + len(node.reachable)  # 自分自身 + 到達可能ノード
+        reachable_count = 1 + len(node.reachable)  # self + reachable nodes
         quorum = len(self.nodes) // 2 + 1
 
         if reachable_count >= quorum:
-            # 過半数に到達可能 → 書き込み成功
+            # Quorum reachable → write succeeds
             node.data[key] = value
             for peer_name in node.reachable:
                 self.nodes[peer_name].data[key] = value
-            print(f"[CP] 書き込み成功 ({reachable_count}/{len(self.nodes)} >= quorum {quorum})")
+            print(f"[CP] Write succeeded ({reachable_count}/{len(self.nodes)} >= quorum {quorum})")
             return True
         else:
-            # 過半数に到達不可 → 書き込み拒否（一貫性を優先）
-            print(f"[CP] 書き込み拒否 ({reachable_count}/{len(self.nodes)} < quorum {quorum})")
+            # Quorum not reachable → reject write (prioritize consistency)
+            print(f"[CP] Write rejected ({reachable_count}/{len(self.nodes)} < quorum {quorum})")
             return False
 
     def write_ap(self, node_name: str, key: str, value: str) -> bool:
-        """AP方式: 到達可能なノードにのみ書き込み、常に成功"""
+        """AP mode: write to reachable nodes only, always succeeds"""
         node = self.nodes[node_name]
         node.data[key] = value
         for peer_name in node.reachable:
             self.nodes[peer_name].data[key] = value
         unreachable = set(self.nodes.keys()) - {node_name} - node.reachable
         if unreachable:
-            print(f"[AP] 書き込み成功（{unreachable} は古いデータのまま）")
+            print(f"[AP] Write succeeded ({unreachable} retains stale data)")
         else:
-            print(f"[AP] 書き込み成功（全ノード同期済み）")
+            print(f"[AP] Write succeeded (all nodes in sync)")
         return True
 
     def read_all(self, key: str) -> dict:
-        """全ノードのデータを表示"""
+        """Display data from all nodes"""
         result = {}
         for name, node in self.nodes.items():
             result[name] = node.data.get(key, "NOT_FOUND")
         return result
 
 
-# === デモ ===
-print("=== ネットワーク分断のシミュレーション ===\n")
+# === Demo ===
+print("=== Network Partition Simulation ===\n")
 
-# 初期状態
+# Initial state
 store = DistributedStore()
-print(f"初期状態: {store.read_all('key')}")
+print(f"Initial state: {store.read_all('key')}")
 
-# 分断を発生させる
+# Trigger a partition
 store.partition({"node1", "node2"}, {"node3"})
 
-print("\n--- CP方式 ---")
-store.write_cp("node1", "key", "value_v2")  # 成功 (2/3 >= 2)
-store.write_cp("node3", "key", "value_v3")  # 拒否 (1/3 < 2)
-print(f"データ状態: {store.read_all('key')}")
-# → node1,node2 = "value_v2", node3 = "value_v1"（拒否されたので古いまま）
+print("\n--- CP mode ---")
+store.write_cp("node1", "key", "value_v2")  # succeeds (2/3 >= 2)
+store.write_cp("node3", "key", "value_v3")  # rejected (1/3 < 2)
+print(f"Data state: {store.read_all('key')}")
+# → node1,node2 = "value_v2", node3 = "value_v1" (rejected, remains stale)
 
-print("\n--- AP方式 ---")
+print("\n--- AP mode ---")
 store2 = DistributedStore()
 store2.partition({"node1", "node2"}, {"node3"})
-store2.write_ap("node1", "key", "value_v2")  # 成功 (node3は古い)
-store2.write_ap("node3", "key", "value_v3")  # 成功 (node1,2とは異なる値)
-print(f"データ状態: {store2.read_all('key')}")
-# → node1,node2 = "value_v2", node3 = "value_v3" → 矛盾（コンフリクト）！
+store2.write_ap("node1", "key", "value_v2")  # succeeds (node3 is stale)
+store2.write_ap("node3", "key", "value_v3")  # succeeds (different value from node1,2)
+print(f"Data state: {store2.read_all('key')}")
+# → node1,node2 = "value_v2", node3 = "value_v3" → conflict!
 ```
 
 ---
 
-## 3. CPシステムとAPシステム
+## 3. CP Systems vs AP Systems
 
-### ASCII図解2: 分断時のCPとAPの動作
+### ASCII Diagram 2: CP and AP Behavior During Partitions
 
 ```
-■ CPシステム（一貫性優先）
+■ CP System (Consistency-first)
 
   Client A ──write "X=2"──→ Node1 ──sync──→ Node2
-                                    ×  (分断)
+                                    ×  (partition)
                                    Node3
 
   Client B ──read "X"──→ Node3
-  → エラー返却: "一貫性を保証できないため拒否"
+  → Returns error: "Rejected: cannot guarantee consistency"
 
-  メリット: 読み取りデータが常に正確
-  デメリット: 分断時に一部ノードが応答不能
-  代表: MongoDB, HBase, etcd, ZooKeeper
+  Benefit: Read data is always accurate
+  Drawback: Some nodes become unresponsive during partitions
+  Examples: MongoDB, HBase, etcd, ZooKeeper
 
-■ APシステム（可用性優先）
+■ AP System (Availability-first)
 
   Client A ──write "X=2"──→ Node1 ──sync──→ Node2
-                                    ×  (分断)
-                                   Node3 (X=1のまま)
+                                    ×  (partition)
+                                   Node3 (still X=1)
 
   Client B ──read "X"──→ Node3
-  → "X=1" を返す（古いデータだがレスポンスは返る）
-  → 分断解消後に Node3 を "X=2" に修復（結果整合性）
+  → Returns "X=1" (stale data, but a response is returned)
+  → After partition heals, Node3 is repaired to "X=2" (eventual consistency)
 
-  メリット: 常にレスポンスを返す（高可用性）
-  デメリット: 古いデータが返る可能性がある
-  代表: Cassandra, DynamoDB, CouchDB, Riak
+  Benefit: Always returns a response (high availability)
+  Drawback: May return stale data
+  Examples: Cassandra, DynamoDB, CouchDB, Riak
 ```
 
-### ASCII図解3: 分断時の判断フロー
+### ASCII Diagram 3: Decision Flow During a Partition
 
 ```
-分断が発生した場合の判断フロー:
+Decision flow when a network partition occurs:
 
-  ネットワーク分断検知
+  Network partition detected
         │
         ▼
   ┌─────────────────┐
-  │ 一貫性が必要か？ │
+  │ Is consistency  │
+  │ required?       │
   └────────┬────────┘
            │
      ┌─────┴─────┐
@@ -317,19 +318,20 @@ print(f"データ状態: {store2.read_all('key')}")
   ┌──────┐   ┌──────┐
   │  CP  │   │  AP  │
   │      │   │      │
-  │少数側の│   │全ノード│
-  │ノードは│   │が応答 │
-  │読み書き│   │可能   │
-  │を拒否  │   │      │
+  │Minority  │All   │
+  │side  │   │nodes │
+  │rejects   │respond│
+  │reads/    │      │
+  │writes│   │      │
   └──────┘   └──────┘
      │           │
      ▼           ▼
-  一貫した    古いデータの
-  データを    可能性あり
-  保証       （要:コンフリクト解決）
+  Consistent  Possible
+  data        stale data
+  guaranteed  (requires conflict resolution)
 ```
 
-### コード例2: 結果整合性（Eventual Consistency）の実装
+### Code Example 2: Implementing Eventual Consistency
 
 ```python
 import time
@@ -340,19 +342,20 @@ from typing import Optional, Dict, List
 
 @dataclass
 class VersionedEntry:
-    """バージョン付きデータエントリ"""
+    """A versioned data entry"""
     value: str
     vector_clock: Dict[str, int]
     timestamp: float
     node_id: str
 
 class EventuallyConsistentStore:
-    """結果整合性を持つAPストア（ゴシッププロトコルベース）
+    """An AP store with eventual consistency (gossip protocol based)
 
-    WHY ゴシッププロトコル:
-      全ノードに一斉ブロードキャストすると、ネットワーク負荷が O(N^2) になる。
-      ゴシッププロトコルでは各ノードがランダムに選んだ隣接ノードに情報を伝播
-      するため、O(N log N) ラウンドで全ノードに伝わる（疫学モデルに由来）。
+    WHY gossip protocol:
+      Broadcasting to all nodes at once results in O(N^2) network load.
+      With the gossip protocol, each node propagates information to randomly
+      chosen neighbors, so all nodes receive it within O(N log N) rounds
+      (derived from epidemiological models).
     """
 
     def __init__(self, node_id: str, peers: list = None):
@@ -363,7 +366,7 @@ class EventuallyConsistentStore:
         self.gossip_interval = 1.0
 
     def write(self, key: str, value: str):
-        """ローカルに書き込み、バックグラウンドで同期"""
+        """Write locally and sync in the background"""
         self.vector_clock[self.node_id] += 1
         entry = VersionedEntry(
             value=value,
@@ -376,40 +379,40 @@ class EventuallyConsistentStore:
               f"clock={dict(self.vector_clock)}")
 
     def read(self, key: str) -> Optional[str]:
-        """ローカルデータを即座に返す（古い可能性あり）"""
+        """Return local data immediately (may be stale)"""
         entry = self.data.get(key)
         if entry:
             return entry.value
         return None
 
     def merge(self, key: str, remote_entry: VersionedEntry):
-        """リモートデータとマージ（Last-Writer-Wins）
+        """Merge with remote data (Last-Writer-Wins)
 
         WHY LWW:
-          最も単純なコンフリクト解決戦略。タイムスタンプが新しい方を採用する。
-          問題点: 時計のずれ（clock skew）により不正確になる可能性がある。
-          代替: ベクタークロック比較、CRDTs、アプリケーション固有のマージロジック。
+          The simplest conflict resolution strategy. Adopts the entry with the
+          newer timestamp. Drawback: may be inaccurate due to clock skew.
+          Alternatives: vector clock comparison, CRDTs, application-specific merge logic.
         """
         local_entry = self.data.get(key)
         if local_entry is None:
             self.data[key] = remote_entry
             return
 
-        # ベクタークロックで因果関係を判定
+        # Determine causal relationship using vector clocks
         relation = self._compare_clocks(local_entry.vector_clock,
                                         remote_entry.vector_clock)
         if relation == "before":
-            # ローカルが古い → リモートで上書き
+            # Local is older → overwrite with remote
             self.data[key] = remote_entry
             print(f"[{self.node_id}] Merge: {key} updated to {remote_entry.value}")
         elif relation == "concurrent":
-            # 並行書き込み → LWW で解決
+            # Concurrent writes → resolve with LWW
             if remote_entry.timestamp > local_entry.timestamp:
                 self.data[key] = remote_entry
                 print(f"[{self.node_id}] Merge (LWW): {key} = {remote_entry.value}")
 
     def _compare_clocks(self, clock_a: dict, clock_b: dict) -> str:
-        """ベクタークロックの比較
+        """Compare vector clocks
 
         Returns: "before" | "after" | "concurrent"
         """
@@ -418,64 +421,64 @@ class EventuallyConsistentStore:
         b_lte_a = all(clock_b.get(k, 0) <= clock_a.get(k, 0) for k in all_keys)
 
         if a_lte_b and not b_lte_a:
-            return "before"   # A は B より前
+            return "before"   # A is before B
         elif b_lte_a and not a_lte_b:
-            return "after"    # A は B より後
+            return "after"    # A is after B
         else:
-            return "concurrent"  # 並行（因果関係なし）
+            return "concurrent"  # concurrent (no causal relationship)
 
     def gossip(self):
-        """ゴシッププロトコルで隣接ノードにデータを伝播"""
+        """Propagate data to neighboring nodes via gossip protocol"""
         for peer in self.peers:
             for key, entry in self.data.items():
                 peer.merge(key, entry)
 
 
-# === デモ ===
+# === Demo ===
 node_a = EventuallyConsistentStore("nodeA")
 node_b = EventuallyConsistentStore("nodeB")
 node_a.peers = [node_b]
 node_b.peers = [node_a]
 
-# 正常時: 書き込み → ゴシップで同期
+# Normal operation: write → sync via gossip
 node_a.write("user:1", "Alice")
 node_a.gossip()
 print(f"nodeB read: {node_b.read('user:1')}")  # → "Alice"
 
-# 分断時: 両ノードが独立に書き込み
-node_a.peers = []  # 分断シミュレーション
+# During partition: both nodes write independently
+node_a.peers = []  # Simulate partition
 node_b.peers = []
 node_a.write("user:1", "Alice_updated_by_A")
-time.sleep(0.01)  # わずかな時間差
+time.sleep(0.01)  # Small time difference
 node_b.write("user:1", "Alice_updated_by_B")
 
-# 分断解消 → ゴシップでマージ
+# Partition healed → merge via gossip
 node_a.peers = [node_b]
 node_b.peers = [node_a]
 node_a.gossip()
 node_b.gossip()
-# LWW により timestamp が新しい方が勝つ
+# LWW: the entry with the newer timestamp wins
 ```
 
-### コード例3: クォーラム読み書き
+### Code Example 3: Quorum Reads and Writes
 
 ```python
 import time
 from typing import Optional, List, Dict
 
 class QuorumStore:
-    """クォーラムベースの読み書き (Dynamo/Cassandra風)
+    """Quorum-based reads and writes (Dynamo/Cassandra style)
 
-    WHY クォーラム:
-      N個のレプリカに対して、W個の書き込み確認 + R個の読み込み確認を要求する。
-      W + R > N のとき、読み書きの「重なり」が保証され、
-      最新のデータを必ず読める（強い一貫性）。
+    WHY quorum:
+      For N replicas, require W write acknowledgments + R read acknowledgments.
+      When W + R > N, the "overlap" between reads and writes is guaranteed,
+      ensuring the latest data is always readable (strong consistency).
 
-    トレードオフ:
-      W=1, R=1 → 最速だが一貫性なし（結果整合性）
-      W=N, R=1 → 書き込みが遅いが読み取りが速い
-      W=1, R=N → 書き込みが速いが読み取りが遅い
-      W=⌊N/2⌋+1, R=⌊N/2⌋+1 → バランス（最も一般的）
+    Tradeoffs:
+      W=1, R=1 → Fastest but no consistency (eventual consistency)
+      W=N, R=1 → Slow writes but fast reads
+      W=1, R=N → Fast writes but slow reads
+      W=⌊N/2⌋+1, R=⌊N/2⌋+1 → Balanced (most common)
     """
 
     def __init__(self, n: int, w: int, r: int):
@@ -488,7 +491,7 @@ class QuorumStore:
         print(f"Strong consistency: W+R > N → {w}+{r} > {n} = {self.is_strong}")
 
     def write(self, key: str, value: str) -> bool:
-        """Wノードに書き込み成功で完了"""
+        """Complete when W nodes acknowledge the write"""
         version = time.time()
         success = 0
         for i, replica in enumerate(self.replicas):
@@ -498,12 +501,12 @@ class QuorumStore:
                 remaining = self.n - success
                 print(f"Write OK: {key}={value} "
                       f"(ack: {success}/{self.n}, async: {remaining})")
-                # 残りのレプリカは非同期で伝播
+                # Remaining replicas are propagated asynchronously
                 return True
         return False
 
     def read(self, key: str) -> Optional[str]:
-        """Rノードから読み込み、最新版を返す"""
+        """Read from R nodes and return the latest version"""
         responses = []
         for i, replica in enumerate(self.replicas):
             entry = replica.get(key)
@@ -515,29 +518,29 @@ class QuorumStore:
         if not responses:
             return None
 
-        # 最新のバージョンを返す（Read Repair の基礎）
+        # Return the latest version (foundation of Read Repair)
         latest = max(responses, key=lambda x: x["version"])
         return latest["value"]
 
     def read_repair(self, key: str):
-        """Read Repair: 読み取り時に古いレプリカを更新
+        """Read Repair: update stale replicas at read time
 
         WHY Read Repair:
-          クォーラム読み取りで最新値を取得した後、古い値を持つ
-          レプリカを最新値で更新する。これにより、結果整合性が
-          より速く収束する。Cassandraの重要な機能。
+          After fetching the latest value via quorum read, update
+          replicas that hold stale values with the latest. This causes
+          eventual consistency to converge faster. A key feature of Cassandra.
         """
-        # 全レプリカから読み取り
+        # Read from all replicas
         entries = [(i, r.get(key)) for i, r in enumerate(self.replicas)]
         valid = [(i, e) for i, e in entries if e is not None]
 
         if not valid:
             return
 
-        # 最新バージョンを特定
+        # Identify the latest version
         latest_idx, latest_entry = max(valid, key=lambda x: x[1]["version"])
 
-        # 古いレプリカを更新
+        # Update stale replicas
         for i, entry in valid:
             if entry["version"] < latest_entry["version"]:
                 self.replicas[i][key] = latest_entry
@@ -545,18 +548,18 @@ class QuorumStore:
                       f"{entry['value']} → {latest_entry['value']}")
 
 
-# === デモ ===
-print("=== 強い一貫性: W + R > N ===")
+# === Demo ===
+print("=== Strong consistency: W + R > N ===")
 strong = QuorumStore(n=3, w=2, r=2)  # 2+2 > 3 → True
 strong.write("x", "100")
 print(f"Read: {strong.read('x')}")
 
-print("\n=== 結果整合性: W + R <= N ===")
+print("\n=== Eventual consistency: W + R <= N ===")
 eventual = QuorumStore(n=3, w=1, r=1)  # 1+1 > 3 → False
 eventual.write("x", "200")
 print(f"Read: {eventual.read('x')}")
 
-print("\n=== 書き込み重視: W=1, R=N ===")
+print("\n=== Write-heavy: W=1, R=N ===")
 write_fast = QuorumStore(n=3, w=1, r=3)  # 1+3 > 3 → True
 write_fast.write("x", "300")
 print(f"Read: {write_fast.read('x')}")
@@ -564,61 +567,61 @@ print(f"Read: {write_fast.read('x')}")
 
 ---
 
-## 4. PACELC定理
+## 4. PACELC Theorem
 
-### 4.1 CAPの拡張
+### 4.1 Extension of CAP
 
-CAPは分断時のみのトレードオフだが、PAcELCは**分断がない通常時のトレードオフ**も扱う。
+CAP only addresses tradeoffs during partitions, but PACELC also covers **tradeoffs during normal operation when no partition exists**.
 
-### ASCII図解4: PACELC定理
+### ASCII Diagram 4: The PACELC Theorem
 
 ```
-  分断 (Partition) あり？
-  ├── YES → A (可用性) vs C (一貫性) を選ぶ
-  │         ├── PA: 可用性優先    (例: Cassandra, DynamoDB)
-  │         └── PC: 一貫性優先    (例: MongoDB, HBase)
+  Partition present?
+  ├── YES → Choose between A (Availability) vs C (Consistency)
+  │         ├── PA: Availability first    (e.g., Cassandra, DynamoDB)
+  │         └── PC: Consistency first     (e.g., MongoDB, HBase)
   │
-  └── NO (Else) → L (レイテンシ) vs C (一貫性) を選ぶ
-                   ├── EL: レイテンシ優先  (例: Cassandra, DynamoDB)
-                   └── EC: 一貫性優先     (例: MongoDB, HBase)
+  └── NO (Else) → Choose between L (Latency) vs C (Consistency)
+                   ├── EL: Latency first       (e.g., Cassandra, DynamoDB)
+                   └── EC: Consistency first   (e.g., MongoDB, HBase)
 
-  組み合わせ:
+  Combinations:
   ┌───────────────┬─────────────────────────────────┐
   │ PA/EL         │ Cassandra, DynamoDB, Riak       │
-  │               │ → 常にレイテンシ・可用性重視     │
+  │               │ → Always prioritizes latency/availability │
   ├───────────────┼─────────────────────────────────┤
   │ PC/EC         │ MongoDB, HBase, Spanner         │
-  │               │ → 常に一貫性重視                 │
+  │               │ → Always prioritizes consistency │
   ├───────────────┼─────────────────────────────────┤
-  │ PA/EC         │ 分断時は可用性、通常時は一貫性   │
+  │ PA/EC         │ Availability during partition, consistency otherwise │
   │               │ → Yahoo PNUTS                   │
   └───────────────┴─────────────────────────────────┘
 
-  WHY PACELC が重要:
-    CAP は「分断が発生した特殊な状況」のみを扱う。
-    しかし実際のシステムは分断がない時間の方が圧倒的に長い。
-    通常時の L vs C のトレードオフが、日常的な性能に直結する。
+  WHY PACELC matters:
+    CAP only covers the special situation when a partition occurs.
+    But in real systems, the vast majority of time has no partitions.
+    The L vs C tradeoff during normal operation directly impacts daily performance.
 ```
 
-### コード例4: 一貫性レベルの設定（Cassandra風）
+### Code Example 4: Configuring Consistency Levels (Cassandra-style)
 
 ```python
 from enum import Enum
 
 class ConsistencyLevel(Enum):
-    ONE = 1           # 1ノードの応答で完了（最速・最弱）
-    QUORUM = "quorum" # 過半数の応答で完了（バランス）
-    ALL = "all"       # 全ノードの応答で完了（最強・最遅）
-    LOCAL_QUORUM = "local_quorum"  # ローカルDC内の過半数
-    EACH_QUORUM = "each_quorum"    # 各DC内の過半数
+    ONE = 1           # Complete with 1 node response (fastest, weakest)
+    QUORUM = "quorum" # Complete with majority response (balanced)
+    ALL = "all"       # Complete with all node responses (strongest, slowest)
+    LOCAL_QUORUM = "local_quorum"  # Majority within the local DC
+    EACH_QUORUM = "each_quorum"    # Majority within each DC
 
 class CassandraClient:
-    """Cassandra の一貫性レベル分析ツール
+    """A tool for analyzing Cassandra consistency levels
 
-    WHY クエリごとに一貫性レベルを変えるのか:
-      Cassandra はAPシステムだが、クエリ単位で一貫性レベルを指定できる。
-      これにより、同じクラスタ内で「口座残高はQUORUM読み書き」
-      「アクセスログはONE書き込み」と使い分けられる。
+    WHY configure consistency levels per query:
+      Cassandra is an AP system, but consistency levels can be specified per query.
+      This allows the same cluster to use "QUORUM reads/writes for account balance"
+      and "ONE write for access logs."
     """
 
     def __init__(self, replication_factor: int = 3):
@@ -638,7 +641,7 @@ class CassandraClient:
 
     def is_strongly_consistent(self, write_cl: ConsistencyLevel,
                                 read_cl: ConsistencyLevel) -> bool:
-        """W + R > N なら強い一貫性"""
+        """Strong consistency if W + R > N"""
         w = self.required_responses(write_cl)
         r = self.required_responses(read_cl)
         return (w + r) > self.rf
@@ -647,23 +650,23 @@ class CassandraClient:
         w = self.required_responses(write_cl)
         r = self.required_responses(read_cl)
         strong = self.is_strongly_consistent(write_cl, read_cl)
-        latency = "低" if w == 1 and r == 1 else "中" if w + r <= self.rf + 1 else "高"
+        latency = "low" if w == 1 and r == 1 else "medium" if w + r <= self.rf + 1 else "high"
         print(f"W={write_cl.name}({w}) + R={read_cl.name}({r}) "
               f"{'>' if strong else '<='} N={self.rf} "
-              f"→ {'強い一貫性' if strong else '結果整合性'} "
-              f"(レイテンシ: {latency})")
+              f"→ {'strong consistency' if strong else 'eventual consistency'} "
+              f"(latency: {latency})")
 
     def recommend(self, use_case: str):
-        """ユースケースに応じた推奨設定"""
+        """Recommended settings per use case"""
         recommendations = {
             "balance": (ConsistencyLevel.QUORUM, ConsistencyLevel.QUORUM,
-                       "口座残高: 強い一貫性が必須"),
+                       "Account balance: strong consistency required"),
             "log": (ConsistencyLevel.ONE, ConsistencyLevel.ONE,
-                   "アクセスログ: レイテンシ重視、多少の損失は許容"),
+                   "Access log: prioritize latency, some loss is acceptable"),
             "session": (ConsistencyLevel.LOCAL_QUORUM, ConsistencyLevel.LOCAL_QUORUM,
-                       "セッション: DCローカルの一貫性で十分"),
+                       "Session: DC-local consistency is sufficient"),
             "config": (ConsistencyLevel.ALL, ConsistencyLevel.ONE,
-                      "設定データ: 全レプリカに確実に書き込み、読み取りは速く"),
+                      "Config data: write to all replicas reliably, read fast"),
         }
         if use_case in recommendations:
             w_cl, r_cl, description = recommendations[use_case]
@@ -671,26 +674,26 @@ class CassandraClient:
             self.analyze(w_cl, r_cl)
 
 
-# === デモ ===
+# === Demo ===
 client = CassandraClient(replication_factor=3)
 
-print("=== 一貫性レベルの分析 ===")
+print("=== Consistency Level Analysis ===")
 client.analyze(ConsistencyLevel.ONE, ConsistencyLevel.ONE)
-# W=ONE(1) + R=ONE(1) <= N=3 → 結果整合性 (レイテンシ: 低)
+# W=ONE(1) + R=ONE(1) <= N=3 → eventual consistency (latency: low)
 
 client.analyze(ConsistencyLevel.QUORUM, ConsistencyLevel.QUORUM)
-# W=QUORUM(2) + R=QUORUM(2) > N=3 → 強い一貫性 (レイテンシ: 中)
+# W=QUORUM(2) + R=QUORUM(2) > N=3 → strong consistency (latency: medium)
 
 client.analyze(ConsistencyLevel.ALL, ConsistencyLevel.ONE)
-# W=ALL(3) + R=ONE(1) > N=3 → 強い一貫性 (レイテンシ: 高)
+# W=ALL(3) + R=ONE(1) > N=3 → strong consistency (latency: high)
 
-print("\n=== ユースケース別推奨 ===")
+print("\n=== Recommendations by Use Case ===")
 client.recommend("balance")
 client.recommend("log")
 client.recommend("session")
 ```
 
-### コード例5: コンフリクト解決戦略
+### Code Example 5: Conflict Resolution Strategies
 
 ```python
 from dataclasses import dataclass
@@ -705,23 +708,23 @@ class VersionedValue:
     vector_clock: dict
 
 class ConflictResolver:
-    """分断解消後のコンフリクト解決戦略
+    """Conflict resolution strategies after partition healing
 
-    WHY 複数の解決戦略が必要か:
-      データの性質によって最適な解決方法が異なる。
-      - 価格データ → LWW（最新値が正しい）
-      - ショッピングカート → マージ（両方の追加を保持）
-      - カウンター → CRDTs（数学的にマージ可能な構造）
-      - 注文データ → アプリケーション固有のロジック
+    WHY multiple resolution strategies are needed:
+      The optimal resolution method differs by the nature of the data.
+      - Price data → LWW (latest value is correct)
+      - Shopping cart → Merge (retain additions from both sides)
+      - Counter → CRDTs (mathematically mergeable structure)
+      - Order data → Application-specific logic
     """
 
     @staticmethod
     def last_writer_wins(v1: VersionedValue, v2: VersionedValue) -> VersionedValue:
-        """LWW: タイムスタンプが新しい方を採用
+        """LWW: adopt the entry with the newer timestamp
 
-        メリット: シンプル、実装が容易
-        デメリット: 時計のずれに脆弱、データが静かに失われる
-        用途: セッション、キャッシュ、最終更新状態
+        Benefit: Simple and easy to implement
+        Drawback: Vulnerable to clock skew, data may be silently lost
+        Use cases: Sessions, caches, last-update state
         """
         winner = v1 if v1.timestamp > v2.timestamp else v2
         print(f"LWW: {winner.value} wins (from {winner.node_id})")
@@ -729,11 +732,11 @@ class ConflictResolver:
 
     @staticmethod
     def merge_values(v1: VersionedValue, v2: VersionedValue) -> VersionedValue:
-        """マージ: 両方の値を保持（ショッピングカート等で有用）
+        """Merge: retain both values (useful for shopping carts, etc.)
 
-        メリット: データの損失がない
-        デメリット: 削除操作の扱いが難しい（Tombstone が必要）
-        用途: ショッピングカート、タグ、お気に入りリスト
+        Benefit: No data loss
+        Drawback: Handling deletions is difficult (requires Tombstones)
+        Use cases: Shopping carts, tags, favorites lists
         """
         if isinstance(v1.value, set) and isinstance(v2.value, set):
             merged = v1.value | v2.value
@@ -743,9 +746,9 @@ class ConflictResolver:
 
     @staticmethod
     def higher_value_wins(v1: VersionedValue, v2: VersionedValue) -> VersionedValue:
-        """数値が大きい方を採用（カウンター等で有用）
+        """Adopt the larger numeric value (useful for counters, etc.)
 
-        用途: monotonically increasing カウンター（いいね数等）
+        Use cases: Monotonically increasing counters (e.g., likes count)
         """
         if isinstance(v1.value, (int, float)) and isinstance(v2.value, (int, float)):
             winner = v1 if v1.value >= v2.value else v2
@@ -756,14 +759,14 @@ class ConflictResolver:
     @staticmethod
     def application_level(v1: VersionedValue, v2: VersionedValue,
                           resolver: Callable) -> VersionedValue:
-        """アプリケーション固有のロジックで解決
+        """Resolve with application-specific logic
 
-        用途: 複雑なビジネスルール（注文状態の遷移等）
+        Use cases: Complex business rules (order state transitions, etc.)
         """
         return resolver(v1, v2)
 
 
-# === デモ ===
+# === Demo ===
 v1 = VersionedValue("price=100", 1000.001, "node1", {"node1": 1})
 v2 = VersionedValue("price=120", 1000.005, "node2", {"node2": 1})
 ConflictResolver.last_writer_wins(v1, v2)
@@ -780,7 +783,7 @@ ConflictResolver.higher_value_wins(counter1, counter2)
 # Higher wins: 45
 ```
 
-### コード例6: CRDTs（Conflict-free Replicated Data Types）
+### Code Example 6: CRDTs (Conflict-free Replicated Data Types)
 
 ```python
 from collections import defaultdict
@@ -789,14 +792,14 @@ class GCounter:
     """G-Counter (Grow-only Counter) - CRDT
 
     WHY CRDTs:
-      コンフリクト解決を「データ構造レベル」で保証する手法。
-      特別な調停ロジックなしに、任意の順序でマージしても
-      全ノードが同じ値に収束する（数学的に証明済み）。
+      A technique that guarantees conflict resolution at the "data structure level."
+      Merging in any order is guaranteed to converge all nodes to the same value
+      without any special arbitration logic (mathematically proven).
 
-    G-Counter の仕組み:
-      各ノードが自分のカウンターを持ち、インクリメントは
-      自分のカウンターのみ行う。合計は全ノードのカウンターの和。
-      マージは各ノードの max を取る → 順序に依存せず収束。
+    How G-Counter works:
+      Each node holds its own counter, and increments are only applied
+      to the local node's counter. The total is the sum of all nodes' counters.
+      Merging takes the max of each node → converges regardless of order.
     """
 
     def __init__(self, node_id: str):
@@ -804,15 +807,15 @@ class GCounter:
         self.counters: dict[str, int] = defaultdict(int)
 
     def increment(self, amount: int = 1):
-        """自分のカウンターのみインクリメント"""
+        """Increment only this node's counter"""
         self.counters[self.node_id] += amount
 
     def value(self) -> int:
-        """全ノードのカウンターの合計"""
+        """Sum of all nodes' counters"""
         return sum(self.counters.values())
 
     def merge(self, other: 'GCounter'):
-        """マージ: 各ノードの max を採用（順序に依存しない）"""
+        """Merge: adopt the max of each node (order-independent)"""
         all_keys = set(self.counters.keys()) | set(other.counters.keys())
         for key in all_keys:
             self.counters[key] = max(
@@ -827,13 +830,13 @@ class GCounter:
 class PNCounter:
     """PN-Counter (Positive-Negative Counter) - CRDT
 
-    G-Counter の拡張。増加用と減少用の2つのG-Counterを持つ。
-    値 = P.value() - N.value()
+    Extension of G-Counter. Uses two G-Counters: one for increments, one for decrements.
+    value = P.value() - N.value()
     """
 
     def __init__(self, node_id: str):
-        self.p = GCounter(node_id)  # 増加用
-        self.n = GCounter(node_id)  # 減少用
+        self.p = GCounter(node_id)  # for increments
+        self.n = GCounter(node_id)  # for decrements
 
     def increment(self, amount: int = 1):
         self.p.increment(amount)
@@ -849,148 +852,148 @@ class PNCounter:
         self.n.merge(other.n)
 
 
-# === デモ ===
-print("=== G-Counter (いいね数) ===")
+# === Demo ===
+print("=== G-Counter (likes count) ===")
 node_a = GCounter("A")
 node_b = GCounter("B")
 
-node_a.increment(3)  # Aで3回いいね
-node_b.increment(5)  # Bで5回いいね
+node_a.increment(3)  # 3 likes on A
+node_b.increment(5)  # 5 likes on B
 
-# 分断中 → 各ノードは独立にカウント
+# During partition → each node counts independently
 print(f"A: {node_a}")  # GCounter({'A': 3}, total=3)
 print(f"B: {node_b}")  # GCounter({'B': 5}, total=5)
 
-# 分断解消 → マージ
+# Partition healed → merge
 node_a.merge(node_b)
 node_b.merge(node_a)
 print(f"After merge A: {node_a}")  # GCounter({'A': 3, 'B': 5}, total=8)
 print(f"After merge B: {node_b}")  # GCounter({'A': 3, 'B': 5}, total=8)
-# → 順序に関わらず、両方が 8 に収束する
+# → Regardless of order, both converge to 8
 
-print("\n=== PN-Counter (在庫数) ===")
+print("\n=== PN-Counter (inventory count) ===")
 stock_a = PNCounter("A")
 stock_b = PNCounter("B")
 
-stock_a.increment(100)  # 100個入荷
-stock_a.decrement(3)    # 3個販売（Aで）
-stock_b.decrement(5)    # 5個販売（Bで）
+stock_a.increment(100)  # 100 units received
+stock_a.decrement(3)    # 3 units sold (on A)
+stock_b.decrement(5)    # 5 units sold (on B)
 
 stock_a.merge(stock_b)
 stock_b.merge(stock_a)
-print(f"在庫: {stock_a.value()}")  # 92 (100 - 3 - 5)
+print(f"Stock: {stock_a.value()}")  # 92 (100 - 3 - 5)
 ```
 
 ---
 
-## 5. 比較表
+## 5. Comparison Tables
 
-### 比較表1: 主要データベースのCAP分類
+### Comparison Table 1: CAP Classification of Major Databases
 
-| データベース | CAP分類 | PACELC | 一貫性モデル | ユースケース |
+| Database | CAP | PACELC | Consistency Model | Use Cases |
 |-------------|---------|--------|-------------|-------------|
-| PostgreSQL | CA (単一ノード) | PC/EC | 強い一貫性 | 一般Web、金融 |
-| MongoDB | CP | PC/EC | 強い一貫性 (Primary) | ドキュメントDB |
-| Cassandra | AP | PA/EL | 結果整合性 (設定可) | IoT、時系列 |
-| DynamoDB | AP | PA/EL | 結果整合性 (設定可) | EC、ゲーム |
-| Google Spanner | CP | PC/EC | 強い一貫性 | グローバル金融 |
-| Redis Cluster | AP | PA/EL | 結果整合性 | キャッシュ |
-| etcd | CP | PC/EC | 強い一貫性 (Raft) | 設定管理 |
-| CockroachDB | CP | PC/EC | 強い一貫性 | 分散SQL |
-| CouchDB | AP | PA/EL | 結果整合性 | オフライン同期 |
-| TiDB | CP | PC/EC | 強い一貫性 | HTAP |
+| PostgreSQL | CA (single node) | PC/EC | Strong consistency | General web, finance |
+| MongoDB | CP | PC/EC | Strong consistency (Primary) | Document DB |
+| Cassandra | AP | PA/EL | Eventual consistency (configurable) | IoT, time-series |
+| DynamoDB | AP | PA/EL | Eventual consistency (configurable) | E-commerce, gaming |
+| Google Spanner | CP | PC/EC | Strong consistency | Global finance |
+| Redis Cluster | AP | PA/EL | Eventual consistency | Cache |
+| etcd | CP | PC/EC | Strong consistency (Raft) | Config management |
+| CockroachDB | CP | PC/EC | Strong consistency | Distributed SQL |
+| CouchDB | AP | PA/EL | Eventual consistency | Offline sync |
+| TiDB | CP | PC/EC | Strong consistency | HTAP |
 
-### 比較表2: 一貫性モデルの比較
+### Comparison Table 2: Consistency Model Comparison
 
-| 一貫性モデル | 強さ | レイテンシ | 実装例 | 適するデータ |
+| Consistency Model | Strength | Latency | Implementation | Suitable Data |
 |-------------|------|-----------|--------|-------------|
-| 線形化可能性 | 最強 | 最高 | Raft, Paxos | 口座残高、ロック |
-| 逐次一貫性 | 強 | 高 | Zab (ZooKeeper) | 設定データ |
-| 因果一貫性 | 中 | 中 | ベクタークロック | メッセージング |
-| Read-your-writes | 中 | 中 | Sticky Session | ユーザープロフィール |
-| 結果整合性 | 弱 | 低 | ゴシッププロトコル | アクセスログ、メトリクス |
+| Linearizability | Strongest | Highest | Raft, Paxos | Account balance, locks |
+| Sequential Consistency | Strong | High | Zab (ZooKeeper) | Config data |
+| Causal Consistency | Medium | Medium | Vector clocks | Messaging |
+| Read-your-writes | Medium | Medium | Sticky Session | User profiles |
+| Eventual Consistency | Weak | Low | Gossip protocol | Access logs, metrics |
 
-### 比較表3: コンフリクト解決戦略の比較
+### Comparison Table 3: Conflict Resolution Strategy Comparison
 
-| 戦略 | メリット | デメリット | 用途 |
+| Strategy | Benefits | Drawbacks | Use Cases |
 |------|---------|-----------|------|
-| Last-Writer-Wins | シンプル | 時計のずれに脆弱、データ損失 | セッション、キャッシュ |
-| ベクタークロック | 因果関係を追跡 | ストレージオーバーヘッド | 汎用 |
-| CRDTs | 数学的に収束保証 | 実装できる操作に制限 | カウンター、セット |
-| マージ (Union) | データ損失なし | 削除が困難 | カート、タグ |
-| アプリケーション固有 | 最も柔軟 | 実装が複雑 | 注文状態、ゲーム |
+| Last-Writer-Wins | Simple | Vulnerable to clock skew, data loss | Sessions, caches |
+| Vector Clock | Tracks causal relationships | Storage overhead | General purpose |
+| CRDTs | Mathematically guaranteed convergence | Limited to supported operations | Counters, sets |
+| Merge (Union) | No data loss | Deletion is difficult | Carts, tags |
+| Application-specific | Most flexible | Complex to implement | Order state, gaming |
 
 ---
 
-## 6. アンチパターン
+## 6. Anti-Patterns
 
-### アンチパターン1: CAP定理の誤解「3つから2つ選ぶ」
+### Anti-Pattern 1: Misinterpreting CAP as "Choose 2 of 3"
 
 ```python
-# NG: 「CAを選ぶ」という誤った判断
+# Bad: The mistaken decision of "choosing CA"
 class BadDistributedSystem:
     """
-    誤解: 「うちはCAを選ぶ。一貫性と可用性を取って分断耐性は捨てる」
+    Misconception: "We choose CA. We take consistency and availability and drop partition tolerance."
 
-    問題:
-    1. 分散システムでネットワーク分断は避けられない
-    2. 分断耐性を「捨てる」ことはできない（物理的に不可避）
-    3. CAは「分散でないシステム」（単一ノード）にしか成立しない
+    Problems:
+    1. Network partitions are unavoidable in distributed systems
+    2. You cannot "drop" partition tolerance (physically unavoidable)
+    3. CA only holds for non-distributed systems (single node)
     """
     def __init__(self):
-        # 単一ノードなら CA は成立するが、それは分散システムではない
+        # CA holds for a single node, but that is not a distributed system
         self.single_db = "postgresql://single-server:5432/db"
 
-# OK: 正しい理解
+# Good: Correct understanding
 class GoodDistributedSystem:
     """
-    正しい理解:
-    1. P は選択肢ではなく前提条件（分断は必ず発生する）
-    2. 分断時: CP（一貫性優先）or AP（可用性優先）を選ぶ
-    3. さらに、通常時も L vs C のトレードオフが存在する（PACELC）
-    4. データの性質ごとに使い分けるのがベストプラクティス
+    Correct understanding:
+    1. P is not a choice but a premise (partitions will always occur)
+    2. During a partition: choose CP (consistency-first) or AP (availability-first)
+    3. Additionally, even without partitions, the L vs C tradeoff exists (PACELC)
+    4. Best practice is to select consistency levels based on data characteristics
     """
     def __init__(self):
-        self.balance_db = "mongodb://..."       # CP: 口座残高
-        self.session_cache = "cassandra://..."  # AP: セッション
-        self.log_store = "cassandra://..."      # AP: ログ
+        self.balance_db = "mongodb://..."       # CP: account balance
+        self.session_cache = "cassandra://..."  # AP: sessions
+        self.log_store = "cassandra://..."      # AP: logs
 ```
 
-### アンチパターン2: 全てに強い一貫性を要求する
+### Anti-Pattern 2: Demanding Strong Consistency for Everything
 
 ```python
-# NG: 金融システムだから全データを強い一貫性で管理
+# Bad: Managing all data with strong consistency because it's a financial system
 class BadFinancialSystem:
     def __init__(self):
-        # 全データに QUORUM 読み書き → レイテンシが全体的に悪化
+        # QUORUM reads/writes for all data → overall latency degrades
         self.consistency_level = "QUORUM"
 
     def get_balance(self, user_id):
-        # OK: 残高は強い一貫性が必要
+        # OK: balance requires strong consistency
         return self.read(f"balance:{user_id}", cl="QUORUM")
 
     def get_user_preferences(self, user_id):
-        # NG: ユーザー設定にまで QUORUM は不要
+        # Bad: QUORUM is unnecessary for user preferences
         return self.read(f"prefs:{user_id}", cl="QUORUM")
 
     def write_access_log(self, log_entry):
-        # NG: アクセスログにまで QUORUM は不要（レイテンシ悪化）
+        # Bad: QUORUM is unnecessary for access logs (degrades latency)
         return self.write("access_log", log_entry, cl="QUORUM")
 
 
-# OK: データの性質ごとに一貫性レベルを使い分け
+# Good: Select consistency levels based on data characteristics
 class GoodFinancialSystem:
     """
-    データ分類:
-    ┌──────────────┬───────────────────┐
-    │ データ        │ 一貫性レベル       │
-    ├──────────────┼───────────────────┤
-    │ 口座残高      │ 強い一貫性（必須） │
-    │ 取引履歴      │ 強い一貫性（必須） │
-    │ ユーザー設定  │ 結果整合性でOK    │
-    │ アクセスログ  │ 結果整合性でOK    │
-    │ レコメンド    │ 結果整合性でOK    │
-    └──────────────┴───────────────────┘
+    Data classification:
+    ┌──────────────────┬────────────────────────┐
+    │ Data             │ Consistency Level       │
+    ├──────────────────┼────────────────────────┤
+    │ Account balance  │ Strong consistency (required) │
+    │ Transaction history │ Strong consistency (required) │
+    │ User preferences │ Eventual consistency OK │
+    │ Access logs      │ Eventual consistency OK │
+    │ Recommendations  │ Eventual consistency OK │
+    └──────────────────┴────────────────────────┘
     """
     def get_balance(self, user_id):
         return self.read(f"balance:{user_id}", cl="QUORUM")
@@ -1002,189 +1005,189 @@ class GoodFinancialSystem:
         return self.write("access_log", log_entry, cl="ONE")
 ```
 
-### アンチパターン3: 結果整合性の「いつか」を放置する
+### Anti-Pattern 3: Ignoring the "Eventually" in Eventual Consistency
 
 ```
-NG:
-「結果整合性だからいつか一貫する」と言い、収束時間を監視しない
+Bad:
+Saying "it's eventual consistency, so it'll converge eventually" and not monitoring convergence time.
 
-問題:
-1. ユーザーがプロフィールを更新 → リロードしても反映されない
-2. 在庫を0にした → 他のリージョンでまだ注文できる
-3. 権限を剥奪 → 数分間はまだアクセスできる
+Problems:
+1. User updates profile → does not appear after reload
+2. Inventory set to 0 → orders still accepted in other regions
+3. Permissions revoked → access still granted for a few minutes
 
-OK:
-- 収束時間の SLO を設定（例: 95%のケースで 1秒以内に収束）
-- Read-your-writes 一貫性を実装（自分の更新は即反映）
-- 重要な操作には Sticky Session を使用
-- 楽観的UI更新（書き込み結果をクライアントで即表示）
+Good:
+- Set an SLO for convergence time (e.g., 95% of cases converge within 1 second)
+- Implement Read-your-writes consistency (your own updates reflect immediately)
+- Use Sticky Session for critical operations
+- Optimistic UI updates (immediately display write results on the client side)
 ```
 
 ---
 
-## 7. 実践演習
+## 7. Practice Exercises
 
-### 演習1（基礎）: クォーラムの計算
+### Exercise 1 (Basics): Calculating Quorums
 
-以下の構成でクォーラムを計算せよ。
-
-```
-問題:
-レプリカ数 N=5 のクラスタで以下の設定を分析せよ。
-
-1. W=3, R=3 → 強い一貫性か？ 最大何台のノード障害に耐えられるか？
-2. W=1, R=5 → 強い一貫性か？ 書き込みレイテンシはどう変わるか？
-3. W=4, R=2 → 強い一貫性か？ 書き込み可用性はどう変わるか？
-4. W=1, R=1 → 強い一貫性か？ どのような用途に適するか？
-5. 3台のノードが同時にダウンしても読み書き可能な W, R の組み合わせを求めよ。
-```
-
-**期待される出力:**
+Calculate the quorum for the following configurations.
 
 ```
-1. W=3, R=3: 3+3=6 > 5 → 強い一貫性
-   書き込み: 5-3=2台のノード障害に耐えられる
-   読み取り: 5-3=2台のノード障害に耐えられる
+Problem:
+Analyze the following settings for a cluster with N=5 replicas.
 
-2. W=1, R=5: 1+5=6 > 5 → 強い一貫性
-   書き込みは1台の応答で完了 → 超高速
-   読み取りは全5台必要 → 1台でもダウンすると読み取り不可
-   用途: Write-heavy ワークロード
-
-3. W=4, R=2: 4+2=6 > 5 → 強い一貫性
-   書き込みに4台必要 → 2台以上ダウンすると書き込み不可
-   読み取りは2台で十分 → Read-heavy 向き
-
-4. W=1, R=1: 1+1=2 ≤ 5 → 結果整合性
-   最速だが、古いデータを読む可能性あり
-   用途: ログ、メトリクス、キャッシュ
-
-5. 3台ダウン → 残り2台
-   W ≤ 2 かつ R ≤ 2 かつ W+R > 5
-   → 不可能（最大 W+R=4 ≤ 5）
-   → 3台同時ダウン時は強い一貫性を維持できない
-   → W=2, R=2 なら読み書き可能だが結果整合性
+1. W=3, R=3 → Is this strong consistency? How many node failures can be tolerated?
+2. W=1, R=5 → Is this strong consistency? How does write latency change?
+3. W=4, R=2 → Is this strong consistency? How does write availability change?
+4. W=1, R=1 → Is this strong consistency? What use cases is it suited for?
+5. Find W, R combinations that allow reads and writes even if 3 nodes fail simultaneously.
 ```
 
-### 演習2（応用）: コンフリクト検知と解決
+**Expected output:**
 
-以下のシナリオでコンフリクトを検知・解決するコードを実装せよ。
+```
+1. W=3, R=3: 3+3=6 > 5 → Strong consistency
+   Writes: can tolerate 5-3=2 node failures
+   Reads:  can tolerate 5-3=2 node failures
+
+2. W=1, R=5: 1+5=6 > 5 → Strong consistency
+   Write completes with 1 node → ultra-fast
+   Read requires all 5 nodes → unreadable if even 1 node is down
+   Use case: Write-heavy workloads
+
+3. W=4, R=2: 4+2=6 > 5 → Strong consistency
+   Write requires 4 nodes → write fails if 2+ nodes are down
+   Read needs only 2 nodes → suited for read-heavy
+
+4. W=1, R=1: 1+1=2 ≤ 5 → Eventual consistency
+   Fastest but may read stale data
+   Use cases: Logs, metrics, caches
+
+5. 3 nodes down → 2 remaining
+   W ≤ 2 and R ≤ 2 and W+R > 5
+   → Impossible (maximum W+R=4 ≤ 5)
+   → Strong consistency cannot be maintained when 3 nodes fail simultaneously
+   → W=2, R=2 allows reads/writes but only with eventual consistency
+```
+
+### Exercise 2 (Applied): Conflict Detection and Resolution
+
+Implement code to detect and resolve conflicts in the following scenario.
 
 ```python
 """
-シナリオ: ECサイトのショッピングカート
+Scenario: Shopping cart on an e-commerce site
 
-分断中に2つのノードで同じユーザーのカートが更新された:
-- Node A: ユーザーが「商品X」を追加、「商品Y」を削除
-- Node B: ユーザーが「商品Z」を追加
+During a partition, the same user's cart was updated on two nodes:
+- Node A: User added "Item X" and deleted "Item Y"
+- Node B: User added "Item Z"
 
-分断解消後にどうマージするか？
+How should the merge happen after the partition heals?
 
-要件:
-1. 追加された商品は全て保持する（Union）
-2. 削除された商品は正しく反映する（Tombstone）
-3. 数量変更はLWWで解決する
+Requirements:
+1. Retain all added items (Union)
+2. Correctly apply deleted items (Tombstone)
+3. Resolve quantity changes with LWW
 """
 
-# ここに実装する
+# Implement here
 ```
 
-**期待される出力:**
+**Expected output:**
 
 ```
-分断前カート: {'itemA': 2, 'itemB': 1}
-Node A のカート: {'itemA': 2, 'itemX': 1}  (itemB削除, itemX追加)
-Node B のカート: {'itemA': 2, 'itemB': 1, 'itemZ': 3}  (itemZ追加)
+Cart before partition: {'itemA': 2, 'itemB': 1}
+Node A cart: {'itemA': 2, 'itemX': 1}  (itemB deleted, itemX added)
+Node B cart: {'itemA': 2, 'itemB': 1, 'itemZ': 3}  (itemZ added)
 
-マージ結果: {'itemA': 2, 'itemX': 1, 'itemZ': 3}
-  - itemA: 両方に存在 → 保持
-  - itemB: Node A で削除 → 削除を優先
-  - itemX: Node A で追加 → 保持
-  - itemZ: Node B で追加 → 保持
+Merge result: {'itemA': 2, 'itemX': 1, 'itemZ': 3}
+  - itemA: exists in both → retain
+  - itemB: deleted on Node A → deletion takes priority
+  - itemX: added on Node A → retain
+  - itemZ: added on Node B → retain
 ```
 
-### 演習3（発展）: マルチリージョンデータベースの設計
+### Exercise 3 (Advanced): Designing a Multi-Region Database
 
-以下の要件を満たすデータベース構成を設計せよ。
-
-```
-要件:
-- リージョン: 東京、シンガポール、北米東部の3リージョン
-- ユーザー数: 各リージョン100万人、計300万人
-- データの種類:
-  a) ユーザー認証情報 → 強い一貫性が必要
-  b) ショッピングカート → 結果整合性で許容
-  c) 商品カタログ → 読み取り重視、更新は低頻度
-  d) 注文データ → 強い一貫性が必要
-  e) 推薦データ → 結果整合性で許容
-
-設計課題:
-1. 各データの種類に対して CP/AP のどちらを選択するか、理由と共に示せ
-2. 使用するデータベースの選定と理由
-3. リージョン間のレプリケーション方式
-4. 東京-シンガポール間の分断が発生した場合の動作を説明せよ
-5. 全体の可用性を推定せよ
-```
-
-**期待される出力（概要）:**
+Design a database configuration that satisfies the following requirements.
 
 ```
-1. データ種類別の CP/AP 選択:
-   a) 認証情報: CP（不正アクセス防止のため一貫性必須）
-   b) カート: AP（可用性重視、CRDTsでマージ）
-   c) カタログ: AP（レイテンシ優先、短TTLのキャッシュ）
-   d) 注文: CP（二重注文防止のため一貫性必須）
-   e) 推薦: AP（古い推薦でも問題なし）
+Requirements:
+- Regions: Tokyo, Singapore, US East — 3 regions
+- Users: 1 million per region, 3 million total
+- Data types:
+  a) User authentication → Strong consistency required
+  b) Shopping cart → Eventual consistency acceptable
+  c) Product catalog → Read-heavy, low update frequency
+  d) Order data → Strong consistency required
+  e) Recommendation data → Eventual consistency acceptable
 
-2. データベース選定:
-   a,d) CockroachDB or Google Spanner（マルチリージョンCP）
-   b,e) DynamoDB Global Tables（マルチリージョンAP）
-   c) ElastiCache + CDN（読み取り最適化）
+Design challenges:
+1. For each data type, indicate whether to choose CP or AP, along with the reasoning
+2. Select the database and explain why
+3. Replication method between regions
+4. Explain behavior when a partition occurs between Tokyo and Singapore
+5. Estimate overall availability
+```
 
-3. レプリケーション:
-   CP データ: 同期レプリケーション（Raft/Paxos）
-   AP データ: 非同期レプリケーション + CRDTs
+**Expected output (summary):**
 
-4. 分断時の動作:
-   CP: 少数側リージョンは書き込み拒否、多数側で継続
-   AP: 全リージョンで読み書き可能、分断解消後にマージ
+```
+1. CP/AP selection by data type:
+   a) Auth: CP (consistency required to prevent unauthorized access)
+   b) Cart: AP (availability-first, merge with CRDTs)
+   c) Catalog: AP (latency-first, short-TTL caching)
+   d) Orders: CP (consistency required to prevent double orders)
+   e) Recommendations: AP (stale recommendations are acceptable)
 
-5. 可用性推定:
-   CP部分: 99.99%（自動フェイルオーバー）
-   AP部分: 99.999%（全ノードが応答可能）
-   全体: min(99.99%, 99.999%) × 他コンポーネント
+2. Database selection:
+   a,d) CockroachDB or Google Spanner (multi-region CP)
+   b,e) DynamoDB Global Tables (multi-region AP)
+   c)   ElastiCache + CDN (read-optimized)
+
+3. Replication:
+   CP data: Synchronous replication (Raft/Paxos)
+   AP data: Asynchronous replication + CRDTs
+
+4. Behavior during partition:
+   CP: Minority-side regions reject writes, majority side continues
+   AP: All regions can read/write, merge after partition heals
+
+5. Availability estimate:
+   CP components: 99.99% (automatic failover)
+   AP components: 99.999% (all nodes can respond)
+   Overall: min(99.99%, 99.999%) × other components
 ```
 
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Configuration file issues | Verify configuration file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Growing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Verify execution user permissions, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read the stack trace and identify where the issue occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Incremental verification**: Use logging and debuggers to validate hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1192,102 +1195,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Called: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check for I/O waits**: Inspect disk and network I/O status
+4. **Check concurrent connections**: Review connection pool state
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem Type | Diagnostic Tools | Solution |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following table summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criteria | When to prioritize | When it can be compromised |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin dashboards, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-critical, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① What is the team size?                       │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to ②             │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② How often do you deploy?                     │
+│    ├─ Weekly or less → Monolith + module split  │
+│    └─ Daily / multiple times → Go to ③         │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ How independent are teams from each other?   │
+│    ├─ High → Microservices                      │
+│    └─ Medium → Modular monolith                 │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Tradeoff Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve tradeoffs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term cost**
+- The fast short-term approach can become technical debt in the long run
+- Conversely, over-engineering has high short-term cost and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has lower learning cost
+- Adopting diverse technologies allows best-fit choices but increases operational cost
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- High abstraction enables reuse but can make debugging difficult
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision recording template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1297,17 +1300,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and the problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision made"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1315,7 +1318,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1323,15 +1326,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1339,53 +1342,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum necessary features
+- Automated tests only for the critical path
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons learned:**
+- Don't strive for perfection (YAGNI principle)
+- Gather user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually renovating a system that has been in operation for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- Write Characterization Tests first if existing tests are absent
+- Coexist old and new systems behind an API gateway
+- Perform data migration incrementally
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
+| Phase | Work | Estimated Duration | Risk |
 |---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environments | 4-6 weeks | Low |
+| 3. Migration start | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core migration | Migrate core features | 6-12 months | High |
+| 5. Completion | Decommission old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers working on the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with domain-driven design
+- Assign ownership to each team
+- Manage shared libraries via Inner Source
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1398,20 +1401,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1420,7 +1423,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1441,101 +1444,101 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system where millisecond-level responses are required
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization points:**
+1. Cache strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
+| Optimization Technique | Effect | Implementation Cost | Applicable Scenarios |
 |-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy workloads |
+| DB optimization | High | High | Slow queries |
+| Code optimization | Low-Medium | High | CPU-bound cases |
 ---
 
 ## 8. FAQ
 
-### Q1: NoSQLは全てAPシステムですか？
+### Q1: Are all NoSQL databases AP systems?
 
-全くそうではない。MongoDBはCP（Primaryでの書き込みを保証し、分断時にPrimaryを失った側は書き込み不可）、HBaseもCP（ZooKeeperによるリーダー選出で一貫性を保証）である。一方CassandraやDynamoDBはAPだが、クエリごとに一貫性レベルを調整できる。「NoSQL = AP」は誤解であり、データモデル（KV/Document/Column/Graph）とCAP特性は独立した概念である。
+Not at all. MongoDB is CP (guarantees writes to the Primary; the side that loses its Primary during a partition cannot write), and HBase is also CP (ensures consistency via ZooKeeper-based leader election). Cassandra and DynamoDB, on the other hand, are AP but allow consistency level adjustments per query. "NoSQL = AP" is a misconception — the data model (KV/Document/Column/Graph) and CAP properties are independent concepts.
 
-### Q2: Google Spannerは「CAPを破った」のですか？
+### Q2: Did Google Spanner "break" the CAP theorem?
 
-Spannerは「事実上の CA」と言われることがあるが、厳密にはCPシステムである。Googleの専用ネットワーク（冗長な海底ケーブル等）により分断確率を極限まで下げ、TrueTime（原子時計+GPS）により低レイテンシで強い一貫性を実現している。CAP定理を破ったのではなく、Pの発生確率を工学的に極小化したと理解するのが正確である。一般企業が同じアプローチを取ることは現実的ではない。
+Spanner is sometimes described as "effectively CA," but strictly speaking it is a CP system. Google's dedicated network (redundant submarine cables, etc.) reduces the probability of partitions to an extreme minimum, and TrueTime (atomic clocks + GPS) enables strong consistency with low latency. The correct understanding is not that it broke the CAP theorem, but that it engineered the probability of P to near zero. A general-purpose company taking the same approach is not realistic.
 
-### Q3: 結果整合性で問題になるケースは？
+### Q3: What are problematic cases with eventual consistency?
 
-典型的な問題は「書き込み直後の読み込み」で古いデータが返るケースである。例えば、ユーザーがプロフィール画像を更新した直後にページをリロードすると古い画像が表示される。対策として (1) Read-your-writes一貫性（自分の書き込みは即座に反映）、(2) Sticky Session（同じノードにルーティング）、(3) クライアント側のOptimistic UI（書き込み結果を即座にUIに反映して後で同期）がある。
+The classic problem is reading stale data immediately after a write. For example, a user updates their profile picture and sees the old image after reloading the page. Solutions include: (1) Read-your-writes consistency (your own writes are reflected immediately), (2) Sticky Session (routing to the same node), (3) client-side Optimistic UI (immediately reflect write results in the UI and sync later).
 
-### Q4: CRDTsとは何ですか？どのような場面で使いますか？
+### Q4: What are CRDTs? When are they used?
 
-CRDTs（Conflict-free Replicated Data Types）は、コンフリクトが数学的に発生しないデータ構造である。任意の順序でマージしても全レプリカが同じ値に収束することが保証される。G-Counter（加算のみのカウンター）、PN-Counter（加減算可能なカウンター）、G-Set（追加のみのセット）、OR-Set（追加/削除可能なセット）などがある。Riak、Redis（CRDTs対応）、Figmaのリアルタイム共同編集で使われている。
+CRDTs (Conflict-free Replicated Data Types) are data structures where conflicts mathematically cannot occur. Merging in any order is guaranteed to converge all replicas to the same value. Examples include G-Counter (increment-only counter), PN-Counter (increment/decrement counter), G-Set (add-only set), and OR-Set (add/remove set). They are used in Riak, Redis (with CRDT support), and Figma's real-time collaborative editing.
 
-### Q5: 2PC（Two-Phase Commit）ではなく Saga を使うべきなのはなぜですか？
+### Q5: Why use Saga instead of 2PC (Two-Phase Commit)?
 
-2PCは分散トランザクションの古典的な手法だが、マイクロサービスでは問題がある。(1) コーディネーターがSPOFになる、(2) 参加者がロックを保持し続けるためスループットが低下、(3) コーディネーター障害時に参加者がブロックされる。Saga パターンは各サービスがローカルトランザクションを実行し、失敗時に補償トランザクションで巻き戻す方式で、ロックフリーかつ高可用性を実現する。ただし、結果整合性を受け入れる必要がある。
+2PC is a classic approach to distributed transactions, but it has problems in microservices: (1) the coordinator becomes a single point of failure (SPOF), (2) participants hold locks continuously, degrading throughput, (3) participants are blocked if the coordinator fails. The Saga pattern has each service execute a local transaction and roll back using a compensating transaction on failure, achieving lock-free, high-availability operation. However, eventual consistency must be accepted.
 
-### Q6: ベクタークロックとは何ですか？
+### Q6: What are vector clocks?
 
-ベクタークロックは分散システムでイベントの因果関係を追跡するための論理時計である。各ノードが「ノード名 → カウンター」のベクター（辞書）を保持し、イベント発生時に自分のカウンターをインクリメントする。2つのベクタークロックを比較することで、「AがBの前に発生した」「BがAの前に発生した」「AとBは並行（因果関係なし）」を判定できる。DynamoDBの内部実装で使われている。
+A vector clock is a logical clock for tracking causal relationships between events in a distributed system. Each node holds a vector (dictionary) of "node name → counter" and increments its own counter on each event. By comparing two vector clocks, you can determine whether "A happened before B," "B happened before A," or "A and B are concurrent (no causal relationship)." They are used internally by DynamoDB.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend fully understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| CAP定理 | C(一貫性)・A(可用性)・P(分断耐性)の3つを同時に満たせない |
-| Pは前提 | 分散システムで分断は避けられない。実質 CP or AP の二択 |
-| CPシステム | 分断時に一貫性優先。書き込み拒否の可能性。例: MongoDB, etcd |
-| APシステム | 分断時に可用性優先。古いデータを返す可能性。例: Cassandra |
-| PACELC | 通常時の L vs C のトレードオフも考慮する拡張定理 |
-| クォーラム | W+R > N で強い一貫性を実現。バランスの調整が可能 |
-| 結果整合性 | ゴシッププロトコル、Read Repair で収束を加速 |
-| CRDTs | コンフリクトフリーなデータ構造。カウンター、セット等 |
-| コンフリクト解決 | LWW、マージ、CRDTs、アプリケーション固有から選択 |
-| 設計指針 | データの性質ごとに一貫性レベルを使い分ける |
+| CAP Theorem | Cannot simultaneously satisfy C (Consistency), A (Availability), and P (Partition Tolerance) |
+| P is a premise | Partitions are unavoidable in distributed systems. The real choice is CP or AP |
+| CP systems | Prioritize consistency during partitions. May reject writes. Examples: MongoDB, etcd |
+| AP systems | Prioritize availability during partitions. May return stale data. Examples: Cassandra |
+| PACELC | Extended theorem that also considers L vs C tradeoff during normal operation |
+| Quorum | Achieve strong consistency with W+R > N. Allows balance tuning |
+| Eventual consistency | Accelerate convergence with gossip protocol and Read Repair |
+| CRDTs | Conflict-free data structures. Counters, sets, etc. |
+| Conflict resolution | Choose from LWW, merge, CRDTs, or application-specific logic |
+| Design principle | Select consistency levels based on the nature of the data |
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [DBスケーリング](../01-components/04-database-scaling.md) -- レプリケーションとシャーディングの実践
-- [メッセージキュー](../01-components/02-message-queue.md) -- 非同期処理と結果整合性
-- [モノリス vs マイクロサービス](../02-architecture/00-monolith-vs-microservices.md) -- 分散トランザクションと Saga パターン
-- [信頼性](./02-reliability.md) -- サーキットブレーカーとフォールトトレランス
-- デザインパターン -- アーキテクチャパターン
+- [DB Scaling](../01-components/04-database-scaling.md) -- Practical replication and sharding
+- [Message Queue](../01-components/02-message-queue.md) -- Async processing and eventual consistency
+- [Monolith vs Microservices](../02-architecture/00-monolith-vs-microservices.md) -- Distributed transactions and the Saga pattern
+- [Reliability](./02-reliability.md) -- Circuit breakers and fault tolerance
+- Design Patterns -- Architecture patterns
 
 ---
 
-## 参考文献
+## References
 
-1. Brewer, E. (2012). "CAP Twelve Years Later: How the 'Rules' Have Changed." *IEEE Computer*, 45(2), 23-29. -- CAP定理の提唱者による再解釈
-2. Gilbert, S. & Lynch, N. (2002). "Brewer's conjecture and the feasibility of consistent, available, partition-tolerant web services." *ACM SIGACT News*, 33(2), 51-59. -- CAP定理の形式的証明
-3. Abadi, D. (2012). "Consistency Tradeoffs in Modern Distributed Database System Design." *IEEE Computer*, 45(2), 37-42. -- PACELC定理の提唱
-4. Kleppmann, M. (2017). *Designing Data-Intensive Applications*, Chapter 9: Consistency and Consensus. O'Reilly Media. -- 一貫性モデルとコンセンサスアルゴリズムの解説
-5. Shapiro, M. et al. (2011). "Conflict-free Replicated Data Types." *SSS 2011*, Springer. -- CRDTsの原論文
+1. Brewer, E. (2012). "CAP Twelve Years Later: How the 'Rules' Have Changed." *IEEE Computer*, 45(2), 23-29. -- Reinterpretation by the CAP theorem's originator
+2. Gilbert, S. & Lynch, N. (2002). "Brewer's conjecture and the feasibility of consistent, available, partition-tolerant web services." *ACM SIGACT News*, 33(2), 51-59. -- Formal proof of the CAP theorem
+3. Abadi, D. (2012). "Consistency Tradeoffs in Modern Distributed Database System Design." *IEEE Computer*, 45(2), 37-42. -- Introduction of the PACELC theorem
+4. Kleppmann, M. (2017). *Designing Data-Intensive Applications*, Chapter 9: Consistency and Consensus. O'Reilly Media. -- Explanation of consistency models and consensus algorithms
+5. Shapiro, M. et al. (2011). "Conflict-free Replicated Data Types." *SSS 2011*, Springer. -- Original CRDTs paper
