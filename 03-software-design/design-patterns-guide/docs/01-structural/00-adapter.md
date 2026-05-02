@@ -1,71 +1,71 @@
-# Adapter パターン
+# Adapter Pattern
 
-> 互換性のないインタフェースを持つクラスを **ラッパー** で包み、クライアントが期待するインタフェースに変換する構造パターン。
+> A structural pattern that wraps a class with an incompatible interface in a **wrapper**, converting it to the interface the client expects.
 
 ---
 
-## 前提知識
+## Prerequisites
 
-| トピック | 必要レベル | 参照先 |
+| Topic | Required Level | Reference |
 |---------|-----------|--------|
-| オブジェクト指向プログラミング | 基礎 | OOP基礎 |
-| インタフェースと抽象クラス | 基礎 | インタフェース設計 |
-| 委譲（Delegation）と継承 | 理解 | 合成優先の原則 |
-| SOLID 原則（特に DIP, ISP） | 基礎 | SOLID |
-| TypeScript / Python の型システム | 基礎 | 各言語ガイド |
+| Object-Oriented Programming | Basic | OOP Basics |
+| Interfaces and Abstract Classes | Basic | Interface Design |
+| Delegation and Inheritance | Understanding | Composition Over Inheritance |
+| SOLID Principles (especially DIP, ISP) | Basic | SOLID |
+| TypeScript / Python Type System | Basic | Language Guides |
 
 ---
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. Adapter パターンの**目的**と、なぜインタフェース変換が必要なのか
-2. **オブジェクトアダプタ（委譲）** と **クラスアダプタ（継承）** の2つの形態と選択基準
-3. 既存ライブラリ・レガシーコード・外部APIとの統合における実践的なアダプタの活用
-4. **関数アダプタ（高階関数）** による軽量なインタフェース変換
-5. Adapter と Facade・Decorator・Proxy の違い、過剰適用の回避
+1. The **purpose** of the Adapter pattern and why interface conversion is necessary
+2. The two forms — **Object Adapter (delegation)** and **Class Adapter (inheritance)** — and criteria for choosing between them
+3. Practical use of adapters for integrating existing libraries, legacy code, and external APIs
+4. Lightweight interface conversion using **function adapters (higher-order functions)**
+5. Differences between Adapter and Facade, Decorator, and Proxy — and how to avoid over-application
 
 ---
 
-## なぜ Adapter パターンが必要なのか（WHY）
+## Why the Adapter Pattern Is Necessary (WHY)
 
-### 問題: インタフェースの不一致
+### Problem: Interface Mismatch
 
-現実のソフトウェア開発では、「使いたいクラスやライブラリがあるが、自分のコードが期待するインタフェースと合わない」という状況が頻繁に発生します。
-
-```
-[問題1: 外部ライブラリの統合]
-  あなたのアプリは DataParser インタフェースを使っている
-  だが、導入したい XML パーサーライブラリは全く別のメソッド名・引数を持つ
-  → ライブラリのソースコードは変更できない
-
-[問題2: レガシーコードとの共存]
-  新しいシステムは NewOrderService を使う設計
-  だが、旧システムの LegacyOrderService はメソッド名も引数も違う
-  → 旧システムを全面書き換えする余裕がない
-
-[問題3: サードパーティの切り替え]
-  決済処理に Stripe を使っていたが、PayPal も追加したい
-  各SDKのインタフェースは全く異なる
-  → ビジネスロジックを決済SDKに依存させたくない
-
-[問題4: テストの容易化]
-  外部サービスに依存するコードをテストしたい
-  モックに差し替えたいが、外部SDKのインタフェースは複雑すぎる
-  → テスタブルなインタフェースに変換したい
-```
-
-### 解決: Adapter によるインタフェース変換
+In real-world software development, you frequently encounter situations where "there is a class or library you want to use, but it doesn't match the interface your code expects."
 
 ```
-Before（直接依存 — 変更に弱い）:
+[Problem 1: Integrating an external library]
+  Your app uses the DataParser interface
+  But the XML parser library you want to adopt has completely different method names and arguments
+  → You cannot modify the library's source code
+
+[Problem 2: Coexisting with legacy code]
+  The new system is designed to use NewOrderService
+  But the legacy LegacyOrderService has different method names and arguments
+  → There is no time to fully rewrite the old system
+
+[Problem 3: Switching third-party providers]
+  You were using Stripe for payment processing, but want to add PayPal as well
+  Each SDK has a completely different interface
+  → You don't want business logic to depend on the payment SDK
+
+[Problem 4: Easing testing]
+  You want to test code that depends on an external service
+  You want to swap in a mock, but the external SDK's interface is too complex
+  → You want to convert it to a testable interface
+```
+
+### Solution: Interface Conversion via Adapter
+
+```
+Before (direct dependency — fragile to change):
 ┌──────────┐         ┌───────────────┐
 │  Client  │────────>│ LegacyXmlParser│
-│          │  直接依存 │ .parseXml()   │
+│          │  direct │ .parseXml()   │
 └──────────┘         └───────────────┘
-  ↑ Client が LegacyXmlParser の具象インタフェースに依存
-  ↑ ライブラリを変更すると Client も変更が必要
+  ↑ Client depends on the concrete interface of LegacyXmlParser
+  ↑ Changing the library also requires changing the Client
 
-After（Adapter を介在 — 変更に強い）:
+After (Adapter as intermediary — resilient to change):
 ┌──────────┐   uses    ┌──────────────┐  delegates  ┌───────────────┐
 │  Client  │──────────>│  Adapter     │────────────>│ LegacyXmlParser│
 │          │           │ .parse()     │             │ .parseXml()   │
@@ -78,21 +78,21 @@ After（Adapter を介在 — 変更に強い）:
 │  (interface) │
 │  .parse()    │
 └──────────────┘
-  ↑ Client は DataParser インタフェースのみに依存
-  ↑ ライブラリを変更しても Adapter だけ修正すれば OK
+  ↑ Client depends only on the DataParser interface
+  ↑ Even if the library changes, only the Adapter needs to be updated
 ```
 
-このパターンにより:
-- **既存コードを変更せず**に互換性のないコンポーネントを統合できる
-- クライアントが**具象クラスに依存しない**（依存性逆転の原則: DIP）
-- サードパーティライブラリの**差し替えが容易**
-- テストでモックに差し替えることが容易
+This pattern allows you to:
+- Integrate incompatible components **without modifying existing code**
+- Keep the client from **depending on concrete classes** (Dependency Inversion Principle: DIP)
+- Easily **swap out third-party libraries**
+- Easily substitute mocks during testing
 
 ---
 
-## 1. Adapter の構造
+## 1. Adapter Structure
 
-### オブジェクトアダプタ（委譲ベース） — 推奨
+### Object Adapter (Delegation-based) — Recommended
 
 ```
 +----------------+
@@ -119,7 +119,7 @@ Client ──uses──> Target(interface)
                  Adapter ──delegates──> Adaptee
 ```
 
-### クラスアダプタ（継承ベース） — 非推奨
+### Class Adapter (Inheritance-based) — Not Recommended
 
 ```
 +----------------+         +----------------+
@@ -136,13 +136,13 @@ Client ──uses──> Target(interface)
               |    Adapter     |
               +----------------+
               | + request() {  |
-              |   legacyOp()  }|  ← 自身の継承メソッドを呼ぶ
+              |   legacyOp()  }|  ← calls own inherited method
               +----------------+
 
-問題: 多重継承が必要（Java/TS では不可）、密結合
+Problem: Requires multiple inheritance (not possible in Java/TS), tight coupling
 ```
 
-### シーケンス図
+### Sequence Diagram
 
 ```
 Client          Adapter              Adaptee
@@ -152,40 +152,40 @@ Client          Adapter              Adaptee
   |                |                    |
   |                |<--result-----------|
   |                |                    |
-  |                |  [データ変換]       |
+  |                |  [data conversion] |
   |                |  convertResult()   |
   |                |                    |
-  |<--変換済result--|                    |
-  |                |                    |
+  |<--converted----|                    |
+  |    result      |                    |
 ```
 
 ---
 
-## 2. オブジェクトアダプタ vs クラスアダプタ
+## 2. Object Adapter vs Class Adapter
 
-### 詳細比較
+### Detailed Comparison
 
-| 観点 | オブジェクトアダプタ | クラスアダプタ |
+| Aspect | Object Adapter | Class Adapter |
 |------|:---:|:---:|
-| 実現方法 | **委譲（has-a）** | 継承（is-a） |
-| 複数 Adaptee 対応 | **Yes**（コンストラクタで注入） | No（単一継承） |
-| Adaptee のメソッド上書き | No（private のため） | Yes（protected にアクセス可） |
-| 言語制約 | **なし** | 多重継承が必要（Java/TS で不可） |
-| 結合度 | **低い** | 高い |
-| テスト容易性 | **高い**（モック注入可） | 低い |
-| 推奨度 | **高い** | 低い |
-| SOLID 準拠 | **DIP, ISP 準拠** | OCP 違反リスク |
+| Implementation | **Delegation (has-a)** | Inheritance (is-a) |
+| Multiple Adaptees | **Yes** (injected via constructor) | No (single inheritance) |
+| Overriding Adaptee methods | No (private access) | Yes (can access protected) |
+| Language restrictions | **None** | Requires multiple inheritance (not possible in Java/TS) |
+| Coupling | **Low** | High |
+| Testability | **High** (mock injection possible) | Low |
+| Recommendation | **High** | Low |
+| SOLID compliance | **DIP, ISP compliant** | Risk of OCP violation |
 
-**結論**: ほぼ全てのケースでオブジェクトアダプタを使うべきです。クラスアダプタは Adaptee の protected メソッドにアクセスする必要がある場合にのみ検討してください。
+**Conclusion**: You should use object adapters in almost all cases. Class adapters should only be considered when you need access to protected methods of the Adaptee.
 
 ---
 
-## 3. コード例
+## 3. Code Examples
 
-### コード例 1: 外部ライブラリの Adapter（基本形）
+### Code Example 1: External Library Adapter (Basic Form)
 
 ```typescript
-// === Adaptee: 既存の外部ライブラリ（変更不可）===
+// === Adaptee: Existing external library (cannot be modified) ===
 interface XmlDocument {
   root: string;
   format: string;
@@ -193,7 +193,7 @@ interface XmlDocument {
 
 class LegacyXmlParser {
   parseXml(xmlString: string): XmlDocument {
-    // XML をパースして独自形式で返す
+    // Parse XML and return in a proprietary format
     return { root: xmlString, format: "xml" };
   }
 
@@ -202,13 +202,13 @@ class LegacyXmlParser {
   }
 }
 
-// === Target: クライアントが期待するインタフェース ===
+// === Target: Interface expected by the client ===
 interface DataParser {
   parse(input: string): Record<string, unknown>;
   validate(input: string): boolean;
 }
 
-// === Adapter: インタフェースを変換 ===
+// === Adapter: Converts the interface ===
 class XmlParserAdapter implements DataParser {
   private legacyParser: LegacyXmlParser;
 
@@ -217,7 +217,7 @@ class XmlParserAdapter implements DataParser {
   }
 
   parse(input: string): Record<string, unknown> {
-    // Adaptee のメソッドを呼び、結果を変換
+    // Call the Adaptee's method and convert the result
     const xmlDoc = this.legacyParser.parseXml(input);
     return this.convertToRecord(xmlDoc);
   }
@@ -235,7 +235,7 @@ class XmlParserAdapter implements DataParser {
   }
 }
 
-// === Client: DataParser インタフェースだけを知っている ===
+// === Client: Only knows the DataParser interface ===
 function processData(parser: DataParser, input: string): void {
   if (parser.validate(input)) {
     const result = parser.parse(input);
@@ -245,20 +245,20 @@ function processData(parser: DataParser, input: string): void {
   }
 }
 
-// 使用: クライアントは Adapter を DataParser として受け取る
+// Usage: Client receives the Adapter as a DataParser
 const adapter = new XmlParserAdapter();
 processData(adapter, "<user>Taro</user>");
 // Parsed: { data: "<user>Taro</user>", format: "xml", parsedAt: "..." }
 ```
 
-**ポイント**: Client は `DataParser` インタフェースだけに依存し、`LegacyXmlParser` の存在を知りません。将来 JSON パーサーに切り替えても Client のコードは変更不要です。
+**Key point**: The Client depends only on the `DataParser` interface and has no knowledge of `LegacyXmlParser`. Even if you switch to a JSON parser in the future, the Client code requires no changes.
 
 ---
 
-### コード例 2: ログライブラリの統一 Adapter
+### Code Example 2: Unified Logger Adapter
 
 ```typescript
-// === Target: アプリ内の統一ログインタフェース ===
+// === Target: Unified logging interface used within the app ===
 interface AppLogger {
   debug(message: string, context?: Record<string, unknown>): void;
   info(message: string, context?: Record<string, unknown>): void;
@@ -319,7 +319,7 @@ class PinoAdapter implements AppLogger {
   }
 }
 
-// === Adaptee 3: Console（開発用） ===
+// === Adaptee 3: Console (for development) ===
 class ConsoleAdapter implements AppLogger {
   debug(message: string, context?: Record<string, unknown>): void {
     console.debug(`[DEBUG] ${message}`, context ?? "");
@@ -338,7 +338,7 @@ class ConsoleAdapter implements AppLogger {
   }
 }
 
-// === Factory で適切な Adapter を選択 ===
+// === Select the appropriate Adapter via Factory ===
 function createLogger(env: string): AppLogger {
   switch (env) {
     case "production":
@@ -350,7 +350,7 @@ function createLogger(env: string): AppLogger {
   }
 }
 
-// 使用: アプリケーションコードは AppLogger だけに依存
+// Usage: Application code depends only on AppLogger
 const logger: AppLogger = createLogger(process.env.NODE_ENV ?? "development");
 logger.info("Application started", { port: 3000 });
 logger.error("Database connection failed", new Error("ECONNREFUSED"), { host: "localhost" });
@@ -358,7 +358,7 @@ logger.error("Database connection failed", new Error("ECONNREFUSED"), { host: "l
 
 ---
 
-### コード例 3: Python — 決済ゲートウェイ Adapter
+### Code Example 3: Python — Payment Gateway Adapter
 
 ```python
 from abc import ABC, abstractmethod
@@ -374,7 +374,7 @@ class PaymentStatus(Enum):
 
 @dataclass
 class PaymentResult:
-    """統一された決済結果"""
+    """Unified payment result"""
     status: PaymentStatus
     transaction_id: str
     amount: float
@@ -382,7 +382,7 @@ class PaymentResult:
 
 
 class PaymentGateway(ABC):
-    """Target: 統一決済インタフェース"""
+    """Target: Unified payment interface"""
     @abstractmethod
     def charge(self, amount: float, currency: str, token: str) -> PaymentResult: ...
 
@@ -390,7 +390,7 @@ class PaymentGateway(ABC):
     def refund(self, transaction_id: str, amount: float) -> PaymentResult: ...
 
 
-# === Adaptee 1: Stripe SDK（変更不可）===
+# === Adaptee 1: Stripe SDK (cannot be modified) ===
 class StripeSDK:
     def create_charge(self, amount_cents: int, cur: str, source: str) -> dict:
         return {"id": "ch_123", "status": "succeeded", "amount": amount_cents}
@@ -400,13 +400,13 @@ class StripeSDK:
 
 
 class StripeAdapter(PaymentGateway):
-    """Stripe SDK を統一インタフェースに変換"""
+    """Converts Stripe SDK to the unified interface"""
 
     def __init__(self, sdk: StripeSDK):
         self._sdk = sdk
 
     def charge(self, amount: float, currency: str, token: str) -> PaymentResult:
-        cents = int(amount * 100)  # ドル → セント変換
+        cents = int(amount * 100)  # Convert dollars to cents
         result = self._sdk.create_charge(cents, currency, token)
         return PaymentResult(
             status=self._convert_status(result["status"]),
@@ -435,7 +435,7 @@ class StripeAdapter(PaymentGateway):
         return mapping.get(stripe_status, PaymentStatus.FAILED)
 
 
-# === Adaptee 2: PayPal SDK（変更不可）===
+# === Adaptee 2: PayPal SDK (cannot be modified) ===
 class PayPalSDK:
     def execute_payment(self, payment_data: dict) -> dict:
         return {"payment_id": "PAY-789", "state": "approved"}
@@ -445,7 +445,7 @@ class PayPalSDK:
 
 
 class PayPalAdapter(PaymentGateway):
-    """PayPal SDK を統一インタフェースに変換"""
+    """Converts PayPal SDK to the unified interface"""
 
     def __init__(self, sdk: PayPalSDK):
         self._sdk = sdk
@@ -485,9 +485,9 @@ class PayPalAdapter(PaymentGateway):
         return mapping.get(paypal_state, PaymentStatus.FAILED)
 
 
-# === 使用例 ===
+# === Usage example ===
 def process_order(gateway: PaymentGateway, amount: float) -> None:
-    """ビジネスロジックは PaymentGateway インタフェースだけに依存"""
+    """Business logic depends only on the PaymentGateway interface"""
     result = gateway.charge(amount, "USD", "tok_test")
     if result.status == PaymentStatus.SUCCESS:
         print(f"Payment successful: {result.transaction_id}")
@@ -495,28 +495,28 @@ def process_order(gateway: PaymentGateway, amount: float) -> None:
         print(f"Payment failed: {result.status}")
 
 
-# Stripe を使う場合
+# Using Stripe
 stripe_gateway = StripeAdapter(StripeSDK())
 process_order(stripe_gateway, 29.99)
 
-# PayPal に切り替える場合 — ビジネスロジックは変更不要
+# Switching to PayPal — no changes needed in business logic
 paypal_gateway = PayPalAdapter(PayPalSDK())
 process_order(paypal_gateway, 29.99)
 ```
 
 ---
 
-### コード例 4: DOM イベントと独自イベントシステムの橋渡し
+### Code Example 4: Bridging DOM Events and a Custom Event System
 
 ```typescript
-// === Target: アプリ内の統一イベントシステム ===
+// === Target: Unified event system used within the app ===
 interface AppEventEmitter {
-  on<T = unknown>(event: string, handler: (data: T) => void): () => void; // unsubscribe 関数を返す
+  on<T = unknown>(event: string, handler: (data: T) => void): () => void; // returns unsubscribe function
   emit<T = unknown>(event: string, data: T): void;
   off(event: string, handler: Function): void;
 }
 
-// === Adapter 1: DOM イベント → AppEventEmitter ===
+// === Adapter 1: DOM events → AppEventEmitter ===
 class DOMEventAdapter implements AppEventEmitter {
   private handlers = new Map<Function, EventListener>();
 
@@ -529,7 +529,7 @@ class DOMEventAdapter implements AppEventEmitter {
     this.handlers.set(handler, listener);
     this.element.addEventListener(event, listener);
 
-    // クリーンアップ関数を返す
+    // Return cleanup function
     return () => this.off(event, handler);
   }
 
@@ -603,23 +603,23 @@ class WebSocketEventAdapter implements AppEventEmitter {
   }
 }
 
-// 使用: クライアントコードは AppEventEmitter だけに依存
+// Usage: Client code depends only on AppEventEmitter
 function setupNotifications(emitter: AppEventEmitter): void {
   const unsubscribe = emitter.on<{ message: string }>("notification", (data) => {
     console.log("Notification:", data.message);
   });
 
-  // 後でクリーンアップ
+  // Clean up later
   // unsubscribe();
 }
 ```
 
 ---
 
-### コード例 5: 関数アダプタ（高階関数）
+### Code Example 5: Function Adapter (Higher-Order Functions)
 
 ```typescript
-// === コールバック形式 → Promise 形式のアダプタ ===
+// === Adapter: callback style → Promise style ===
 type NodeCallback<T> = (err: Error | null, result: T) => void;
 type CallbackFn<T> = (callback: NodeCallback<T>) => void;
 
@@ -635,7 +635,7 @@ function promisify(fn: Function): (...args: any[]) => Promise<any> {
     });
 }
 
-// === イテレータ → 配列のアダプタ ===
+// === Adapter: iterator → array ===
 function iteratorToArray<T>(iterator: Iterator<T>): T[] {
   const result: T[] = [];
   let next = iterator.next();
@@ -646,7 +646,7 @@ function iteratorToArray<T>(iterator: Iterator<T>): T[] {
   return result;
 }
 
-// === Observable → Promise のアダプタ ===
+// === Adapter: Observable → Promise ===
 function observableToPromise<T>(observable: { subscribe: Function }): Promise<T> {
   return new Promise((resolve, reject) => {
     let lastValue: T;
@@ -658,12 +658,12 @@ function observableToPromise<T>(observable: { subscribe: Function }): Promise<T>
   });
 }
 
-// === 引数の順序を変えるアダプタ ===
+// === Adapter: reverses argument order ===
 function flip<A, B, R>(fn: (a: A, b: B) => R): (b: B, a: A) => R {
   return (b, a) => fn(a, b);
 }
 
-// === 複数引数 → 単一オブジェクト引数のアダプタ ===
+// === Adapter: multiple arguments → single object argument ===
 type ParamsOf<F> = F extends (...args: infer P) => any ? P : never;
 
 function objectify<F extends (...args: any[]) => any>(
@@ -676,7 +676,7 @@ function objectify<F extends (...args: any[]) => any>(
   };
 }
 
-// 使用例
+// Usage example
 function createUser(name: string, age: number, email: string): { name: string; age: number; email: string } {
   return { name, age, email };
 }
@@ -685,17 +685,17 @@ const createUserFromObject = objectify(createUser, ["name", "age", "email"]);
 const user = createUserFromObject({ name: "Taro", age: 25, email: "taro@example.com" });
 ```
 
-**関数アダプタのメリット**:
-- クラスを定義する必要がない（軽量）
-- 関数型プログラミングと相性が良い
-- 単純な変換なら一行で済む
+**Benefits of function adapters**:
+- No need to define a class (lightweight)
+- Works well with functional programming
+- Simple conversions can be done in a single line
 
 ---
 
-### コード例 6: Java — ORM と DTO の Adapter
+### Code Example 6: Java — ORM and DTO Adapter
 
 ```java
-// === Target: アプリケーション層の DTO ===
+// === Target: Application layer DTO ===
 public record UserDTO(
     String id,
     String fullName,
@@ -703,7 +703,7 @@ public record UserDTO(
     LocalDateTime createdAt
 ) {}
 
-// === Adaptee 1: JPA Entity（データベース層）===
+// === Adaptee 1: JPA Entity (database layer) ===
 @Entity
 public class UserEntity {
     @Id private Long id;
@@ -720,7 +720,7 @@ public class UserEntity {
     public Timestamp getCreatedTimestamp() { return createdTimestamp; }
 }
 
-// === Adaptee 2: 外部 API レスポンス ===
+// === Adaptee 2: External API response ===
 public class ExternalUserResponse {
     private String user_id;
     private String display_name;
@@ -734,7 +734,7 @@ public class ExternalUserResponse {
     public String getRegisteredAt() { return registered_at; }
 }
 
-// === Adapter インタフェース ===
+// === Adapter interface ===
 public interface UserAdapter<T> {
     UserDTO toDTO(T source);
     T fromDTO(UserDTO dto);
@@ -763,7 +763,7 @@ public class JpaUserAdapter implements UserAdapter<UserEntity> {
     }
 }
 
-// === Adapter 2: 外部 API レスポンス → DTO ===
+// === Adapter 2: External API response → DTO ===
 public class ExternalUserAdapter implements UserAdapter<ExternalUserResponse> {
     @Override
     public UserDTO toDTO(ExternalUserResponse response) {
@@ -777,7 +777,7 @@ public class ExternalUserAdapter implements UserAdapter<ExternalUserResponse> {
 
     @Override
     public ExternalUserResponse fromDTO(UserDTO dto) {
-        // 逆変換は必要に応じて実装
+        // Implement reverse conversion as needed
         throw new UnsupportedOperationException("One-way adapter");
     }
 }
@@ -785,7 +785,7 @@ public class ExternalUserAdapter implements UserAdapter<ExternalUserResponse> {
 
 ---
 
-### コード例 7: Go — インタフェースベースの Adapter
+### Code Example 7: Go — Interface-based Adapter
 
 ```go
 package main
@@ -795,12 +795,12 @@ import (
     "strings"
 )
 
-// === Target: アプリケーションが使うインタフェース ===
+// === Target: Interface used by the application ===
 type MessageSender interface {
     Send(to string, subject string, body string) error
 }
 
-// === Adaptee 1: SMTP ライブラリ（レガシー）===
+// === Adaptee 1: SMTP library (legacy) ===
 type LegacySMTP struct{}
 
 func (s *LegacySMTP) SendMail(recipient string, headers map[string]string, content string) error {
@@ -849,17 +849,17 @@ func (a *SlackAdapter) Send(to string, subject string, body string) error {
     return a.slack.PostMessage(to, text)
 }
 
-// === 使用例 ===
+// === Usage example ===
 func notifyUser(sender MessageSender, to string) error {
     return sender.Send(to, "Welcome", "Hello, welcome to our service!")
 }
 
 func main() {
-    // SMTP で送信
+    // Send via SMTP
     smtpSender := NewSMTPAdapter(&LegacySMTP{})
     notifyUser(smtpSender, "user@example.com")
 
-    // Slack で送信（コードの変更不要）
+    // Send via Slack (no code changes needed)
     slackSender := NewSlackAdapter(&SlackWebhook{WebhookURL: "https://hooks.slack.com/xxx"})
     notifyUser(slackSender, "#general")
 }
@@ -867,10 +867,10 @@ func main() {
 
 ---
 
-### コード例 8: Kotlin — 拡張関数による軽量 Adapter
+### Code Example 8: Kotlin — Lightweight Adapter Using Extension Functions
 
 ```kotlin
-// === Adaptee: サードパーティの天気API ===
+// === Adaptee: Third-party weather API ===
 data class WeatherApiResponse(
     val temp_c: Double,
     val humidity_pct: Int,
@@ -878,7 +878,7 @@ data class WeatherApiResponse(
     val condition_code: Int
 )
 
-// === Target: アプリケーションのドメインモデル ===
+// === Target: Application domain model ===
 data class WeatherInfo(
     val temperatureCelsius: Double,
     val temperatureFahrenheit: Double,
@@ -887,7 +887,7 @@ data class WeatherInfo(
     val condition: String
 )
 
-// === Adapter: 拡張関数で変換 ===
+// === Adapter: Conversion via extension function ===
 fun WeatherApiResponse.toWeatherInfo(): WeatherInfo {
     return WeatherInfo(
         temperatureCelsius = this.temp_c,
@@ -907,7 +907,7 @@ private fun mapCondition(code: Int): String = when (code) {
     else -> "Unknown"
 }
 
-// === 使用例 ===
+// === Usage example ===
 fun displayWeather(info: WeatherInfo) {
     println("${info.temperatureCelsius}°C (${info.temperatureFahrenheit}°F)")
     println("Humidity: ${info.humidityPercent}%")
@@ -915,7 +915,7 @@ fun displayWeather(info: WeatherInfo) {
 }
 
 fun main() {
-    // API レスポンスを取得
+    // Fetch API response
     val apiResponse = WeatherApiResponse(
         temp_c = 22.5,
         humidity_pct = 65,
@@ -923,7 +923,7 @@ fun main() {
         condition_code = 2
     )
 
-    // 拡張関数で変換（Adapter）
+    // Convert using extension function (Adapter)
     val weatherInfo = apiResponse.toWeatherInfo()
     displayWeather(weatherInfo)
 }
@@ -931,11 +931,11 @@ fun main() {
 
 ---
 
-### コード例 9: Adapter + Strategy パターンの組み合わせ
+### Code Example 9: Combining Adapter + Strategy Patterns
 
 ```typescript
-// 複数の通知チャネルを Adapter で統一し、
-// Strategy パターンでチャネルを動的に切り替える
+// Multiple notification channels are unified via Adapter,
+// and the Strategy pattern is used to switch channels dynamically
 
 // === Target ===
 interface NotificationChannel {
@@ -960,7 +960,7 @@ class EmailAdapter implements NotificationChannel {
   getName(): string { return "email"; }
 
   private async resolveEmail(userId: string): Promise<string> {
-    return `${userId}@example.com`; // 実際はDB検索
+    return `${userId}@example.com`; // In practice, look up from DB
   }
 }
 
@@ -980,7 +980,7 @@ class SMSAdapter implements NotificationChannel {
   getName(): string { return "sms"; }
 
   private async resolvePhone(userId: string): Promise<string> {
-    return "+8190XXXXXXXX"; // 実際はDB検索
+    return "+8190XXXXXXXX"; // In practice, look up from DB
   }
 }
 
@@ -1000,11 +1000,11 @@ class PushNotificationAdapter implements NotificationChannel {
   getName(): string { return "push"; }
 
   private async resolveToken(userId: string): Promise<string> {
-    return "fcm-token-xxx"; // 実際はDB検索
+    return "fcm-token-xxx"; // In practice, look up from DB
   }
 }
 
-// === Strategy: 通知チャネルを動的に選択 ===
+// === Strategy: Dynamically select notification channel ===
 class NotificationService {
   private channels = new Map<string, NotificationChannel>();
 
@@ -1032,25 +1032,25 @@ class NotificationService {
   }
 }
 
-// 使用例
+// Usage example
 const service = new NotificationService();
 service.registerChannel(new EmailAdapter(smtpClient));
 service.registerChannel(new SMSAdapter(twilioClient));
 service.registerChannel(new PushNotificationAdapter(fcmClient));
 
-// ユーザー設定に応じてチャネルを選択
+// Select channel based on user preferences
 await service.notify("user-123", "Your order has shipped!", "email");
 await service.notifyAll("user-456", "System maintenance in 1 hour");
 ```
 
 ---
 
-### コード例 10: Two-Way Adapter（双方向アダプタ）
+### Code Example 10: Two-Way Adapter (Bidirectional Adapter)
 
 ```typescript
-// 2つの異なるシステム間でデータを相互変換する双方向アダプタ
+// A bidirectional adapter that converts data between two different systems
 
-// === System A: REST API 形式 ===
+// === System A: REST API format ===
 interface RestApiUser {
   id: string;
   first_name: string;
@@ -1059,7 +1059,7 @@ interface RestApiUser {
   created_at: string; // ISO 8601
 }
 
-// === System B: GraphQL 形式 ===
+// === System B: GraphQL format ===
 interface GraphQLUser {
   userId: string;
   fullName: string;
@@ -1099,7 +1099,7 @@ class UserFormatAdapter {
     };
   }
 
-  // バッチ変換
+  // Batch conversion
   restListToGraphQL(users: RestApiUser[]): GraphQLUser[] {
     return users.map(u => this.restToGraphQL(u));
   }
@@ -1109,7 +1109,7 @@ class UserFormatAdapter {
   }
 }
 
-// 使用例: マイクロサービス間のデータ同期
+// Usage example: Data synchronization between microservices
 const adapter = new UserFormatAdapter();
 
 const restUser: RestApiUser = {
@@ -1131,59 +1131,59 @@ console.log(backToRest.last_name);   // "Yamada"
 
 ---
 
-## 4. 比較表
+## 4. Comparison Tables
 
-### 比較表 1: Adapter vs Facade vs Decorator vs Proxy
+### Comparison Table 1: Adapter vs Facade vs Decorator vs Proxy
 
-| 観点 | Adapter | Facade | Decorator | Proxy |
+| Aspect | Adapter | Facade | Decorator | Proxy |
 |------|---------|--------|-----------|-------|
-| **目的** | インタフェース**変換** | 複雑さの**隠蔽** | 機能の**追加** | アクセスの**制御** |
-| **対象** | 1つのクラス/API | 複数のクラス群 | 1つのオブジェクト | 1つのオブジェクト |
-| **インタフェース** | **変換**する | **単純化**する | **同じまま** | **同じまま** |
-| **既存コード** | 変更不可 | 変更不要 | 変更不要 | 変更不要 |
-| **使用場面** | ライブラリ統合 | サブシステム公開 | ログ/キャッシュ追加 | 遅延/権限/キャッシュ |
-| **GoF 分類** | 構造 | 構造 | 構造 | 構造 |
+| **Purpose** | Interface **conversion** | **Hiding** complexity | **Adding** functionality | **Controlling** access |
+| **Target** | One class/API | Multiple classes | One object | One object |
+| **Interface** | **Converts** it | **Simplifies** it | **Stays the same** | **Stays the same** |
+| **Existing code** | Cannot be changed | No need to change | No need to change | No need to change |
+| **Use case** | Library integration | Exposing subsystems | Adding logging/caching | Lazy loading/authorization/caching |
+| **GoF category** | Structural | Structural | Structural | Structural |
 
 ```
-視覚的な違い:
+Visual differences:
 
-Adapter:   Client ──> [A→B変換] ──> Adaptee
-Facade:    Client ──> [簡易窓口] ──> SubSystem1 + SubSystem2 + SubSystem3
-Decorator: Client ──> [追加処理] ──> [追加処理] ──> Original
-Proxy:     Client ──> [アクセス制御] ──> RealSubject
+Adapter:   Client ──> [A→B conversion] ──> Adaptee
+Facade:    Client ──> [simplified interface] ──> SubSystem1 + SubSystem2 + SubSystem3
+Decorator: Client ──> [added behavior] ──> [added behavior] ──> Original
+Proxy:     Client ──> [access control] ──> RealSubject
 ```
 
-### 比較表 2: オブジェクトアダプタ vs クラスアダプタ（詳細）
+### Comparison Table 2: Object Adapter vs Class Adapter (Detailed)
 
-| 観点 | オブジェクトアダプタ | クラスアダプタ |
+| Aspect | Object Adapter | Class Adapter |
 |------|:---:|:---:|
-| 実現方法 | **委譲（has-a）** | 継承（is-a） |
-| 複数 Adaptee 対応 | **Yes** | No |
-| Adaptee のメソッド上書き | No | Yes |
-| 言語制約 | **なし** | 多重継承が必要 |
-| 結合度 | **低い** | 高い |
-| テスト容易性 | **高い** | 低い |
-| DI 対応 | **Yes** | No |
-| 推奨度 | **高い** | 低い |
-| SOLID 準拠 | **DIP/ISP準拠** | LSP/OCP違反リスク |
+| Implementation | **Delegation (has-a)** | Inheritance (is-a) |
+| Multiple Adaptees | **Yes** | No |
+| Overriding Adaptee methods | No | Yes |
+| Language restrictions | **None** | Requires multiple inheritance |
+| Coupling | **Low** | High |
+| Testability | **High** | Low |
+| DI support | **Yes** | No |
+| Recommendation | **High** | Low |
+| SOLID compliance | **DIP/ISP compliant** | Risk of LSP/OCP violation |
 
-### 比較表 3: Adapter の実装アプローチ比較
+### Comparison Table 3: Adapter Implementation Approach Comparison
 
-| アプローチ | 適用場面 | 複雑度 | 型安全性 | 再利用性 |
+| Approach | Use case | Complexity | Type safety | Reusability |
 |-----------|---------|:---:|:---:|:---:|
-| クラスアダプタ | 大規模な変換、状態管理あり | 中 | **高** | **高** |
-| 関数アダプタ | 単純な変換、状態なし | **低** | 中 | 中 |
-| 拡張関数（Kotlin） | データ変換、DTO マッピング | **低** | **高** | 中 |
-| ジェネリックアダプタ | 共通パターンの抽象化 | 高 | **高** | **最高** |
+| Class adapter | Large-scale conversion, stateful | Medium | **High** | **High** |
+| Function adapter | Simple conversion, stateless | **Low** | Medium | Medium |
+| Extension function (Kotlin) | Data conversion, DTO mapping | **Low** | **High** | Medium |
+| Generic adapter | Abstracting common patterns | High | **High** | **Highest** |
 
 ---
 
-## 5. アンチパターン
+## 5. Anti-patterns
 
-### アンチパターン 1: 薄すぎるアダプタ（不要な間接層）
+### Anti-pattern 1: Overly Thin Adapter (Unnecessary Indirection Layer)
 
 ```typescript
-// NG: 単にメソッド名を変えただけ、インタフェースが実質同じ
+// Bad: Only renaming a method — the interface is essentially the same
 interface Logger {
   log(message: string): void;
 }
@@ -1194,35 +1194,35 @@ class ConsoleLogger {
   }
 }
 
-// ← このアダプタは不要！ConsoleLogger が直接 Logger を implements すればよい
+// ← This adapter is unnecessary! ConsoleLogger can directly implement Logger
 class UselessAdapter implements Logger {
   constructor(private logger: ConsoleLogger) {}
   log(message: string): void {
-    this.logger.log(message);  // シグネチャが完全に同じ
+    this.logger.log(message);  // Signature is completely identical
   }
 }
 ```
 
 ```typescript
-// OK: ConsoleLogger に直接インタフェースを実装
+// Good: Implement the interface directly on ConsoleLogger
 class ConsoleLogger implements Logger {
   log(message: string): void {
     console.log(message);
   }
 }
 
-// または TypeScript では構造的部分型なので、
-// ConsoleLogger は Logger と互換性があればそのまま使える
+// Or, since TypeScript uses structural subtyping,
+// ConsoleLogger can be used directly if it is compatible with Logger
 ```
 
-**判断基準**: インタフェースが同じなら Adapter は不要です。Adapter は「変換が必要な場合」にのみ使うべきです。
+**Decision criterion**: If the interfaces are already the same, an Adapter is unnecessary. An Adapter should only be used "when conversion is needed."
 
 ---
 
-### アンチパターン 2: アダプタにビジネスロジックを追加
+### Anti-pattern 2: Adding Business Logic to the Adapter
 
 ```typescript
-// NG: Adapter が変換以上の責任を持つ
+// Bad: Adapter takes on more responsibility than just conversion
 class OrderAdapter implements NewOrderService {
   constructor(private legacyService: LegacyOrderService) {}
 
@@ -1230,7 +1230,7 @@ class OrderAdapter implements NewOrderService {
     const legacyData = this.convertData(data);
     const order = this.legacyService.createLegacyOrder(legacyData);
 
-    // ビジネスロジック — Adapter の責務ではない！
+    // Business logic — not the Adapter's responsibility!
     order.applyTax(this.calculateTax(order));
     order.validateInventory();
     this.sendNotification(order);
@@ -1242,19 +1242,19 @@ class OrderAdapter implements NewOrderService {
 ```
 
 ```typescript
-// OK: Adapter は変換のみ。ビジネスロジックはサービス層に配置
+// Good: Adapter handles conversion only. Business logic belongs in the service layer
 class OrderAdapter implements NewOrderService {
   constructor(private legacyService: LegacyOrderService) {}
 
   createOrder(data: NewOrderData): LegacyOrder {
-    // 変換のみ
+    // Conversion only
     const legacyData = this.convertToLegacyFormat(data);
     const result = this.legacyService.createLegacyOrder(legacyData);
     return this.convertToNewFormat(result);
   }
 }
 
-// ビジネスロジックはサービス層
+// Business logic belongs in the service layer
 class OrderService {
   constructor(
     private orderAdapter: NewOrderService,
@@ -1273,10 +1273,10 @@ class OrderService {
 
 ---
 
-### アンチパターン 3: God Adapter（万能アダプタ）
+### Anti-pattern 3: God Adapter (All-in-one Adapter)
 
 ```typescript
-// NG: 1つのアダプタが複数の異なるシステムを扱う
+// Bad: A single adapter handles multiple different systems
 class UniversalPaymentAdapter {
   constructor(
     private stripe: StripeSDK,
@@ -1297,12 +1297,12 @@ class UniversalPaymentAdapter {
         break;
     }
   }
-  // OCP 違反: 新しいプロバイダ追加のたびに switch を修正
+  // OCP violation: the switch must be modified every time a new provider is added
 }
 ```
 
 ```typescript
-// OK: プロバイダごとに個別の Adapter を作成
+// Good: Create individual Adapters per provider
 interface PaymentGateway {
   charge(amount: number, currency: string): Promise<PaymentResult>;
 }
@@ -1311,7 +1311,7 @@ class StripeAdapter implements PaymentGateway { /* ... */ }
 class PayPalAdapter implements PaymentGateway { /* ... */ }
 class SquareAdapter implements PaymentGateway { /* ... */ }
 
-// Factory で選択
+// Select via Factory
 class PaymentGatewayFactory {
   private adapters = new Map<string, PaymentGateway>();
 
@@ -1329,27 +1329,27 @@ class PaymentGatewayFactory {
 
 ---
 
-## 6. エッジケースと注意点
+## 6. Edge Cases and Considerations
 
-### エッジケース 1: 双方向変換でのデータロス
+### Edge Case 1: Data Loss in Bidirectional Conversion
 
 ```typescript
-// REST → GraphQL 変換時に情報が失われる場合がある
+// Information may be lost when converting REST → GraphQL
 interface DetailedRestUser {
   id: string;
   first_name: string;
-  middle_name: string;      // GraphQL 側にはこのフィールドがない
+  middle_name: string;      // This field does not exist on the GraphQL side
   last_name: string;
   email: string;
-  internal_notes: string;   // 変換先に該当フィールドがない
+  internal_notes: string;   // No corresponding field in the conversion target
 }
 
-// 対策1: 変換時に警告ログを出力
-// 対策2: 拡張フィールド（extras: Map）を用意
-// 対策3: 双方向変換のテストで roundtrip を検証
+// Mitigation 1: Output a warning log during conversion
+// Mitigation 2: Prepare an extension field (extras: Map)
+// Mitigation 3: Verify roundtrip in tests for bidirectional conversion
 ```
 
-### エッジケース 2: 非同期アダプタのエラーハンドリング
+### Edge Case 2: Error Handling in Async Adapters
 
 ```typescript
 class AsyncAdapter implements DataParser {
@@ -1360,7 +1360,7 @@ class AsyncAdapter implements DataParser {
       const result = await this.asyncParser.parseAsync(input);
       return this.convert(result);
     } catch (error) {
-      // Adaptee 固有のエラーを統一エラーに変換
+      // Convert Adaptee-specific errors to a unified error type
       if (error instanceof LegacyParseError) {
         throw new ParseError(error.message, error.line, error.column);
       }
@@ -1370,92 +1370,96 @@ class AsyncAdapter implements DataParser {
 }
 ```
 
-### エッジケース 3: アダプタのライフサイクル管理
+### Edge Case 3: Adapter Lifecycle Management
 
 ```typescript
-// Adaptee がリソースを持つ場合、cleanup が必要
+// When the Adaptee holds resources, cleanup is required
 class DatabaseAdapter implements DataStore {
   constructor(private connection: LegacyDBConnection) {}
 
   async get(key: string): Promise<string> { /* ... */ }
   async set(key: string, value: string): Promise<void> { /* ... */ }
 
-  // Adapter が Dispose パターンも実装する必要がある
+  // The Adapter must also implement the Dispose pattern
   async close(): Promise<void> {
     await this.connection.disconnect();
   }
 }
 
-// using 文（TC39 Stage 3）で自動クリーンアップ
+// Automatic cleanup using the using statement (TC39 Stage 3)
 // await using adapter = new DatabaseAdapter(connection);
 ```
 
 ---
 
-## 7. トレードオフ分析
+## 7. Trade-off Analysis
 
-### Adapter パターンを使うべき場面
+### When to Use the Adapter Pattern
 
 ```
-[使うべき場面] ✅
+[When to use] ✅
 ┌─────────────────────────────────────────────────────────┐
-│ 1. 外部ライブラリの統合                                   │
-│    変更できないサードパーティコードとの接続                 │
+│ 1. Integrating external libraries                        │
+│    Connecting to third-party code you cannot change      │
 │                                                          │
-│ 2. レガシーシステムの段階的移行                            │
-│    旧APIと新APIの橋渡し（Strangler Fig パターンと併用）    │
+│ 2. Gradual migration of legacy systems                   │
+│    Bridging old and new APIs (use with Strangler Fig)    │
 │                                                          │
-│ 3. テストの容易化                                         │
-│    外部依存を統一インタフェースに変換してモック可能にする    │
+│ 3. Easing testing                                        │
+│    Convert external dependencies to a unified interface  │
+│    to enable mocking                                     │
 │                                                          │
-│ 4. 複数プロバイダの統一                                    │
-│    決済、通知、ストレージ等の複数ベンダー対応              │
+│ 4. Unifying multiple providers                           │
+│    Supporting multiple vendors for payments, notifications│
+│    storage, etc.                                         │
 │                                                          │
-│ 5. データフォーマットの変換                                │
-│    REST/GraphQL/gRPC 間、DTO/Entity 間のマッピング        │
+│ 5. Data format conversion                                │
+│    Mapping between REST/GraphQL/gRPC, DTO/Entity, etc.  │
 └─────────────────────────────────────────────────────────┘
 
-[使うべきでない場面] ❌
+[When not to use] ❌
 ┌─────────────────────────────────────────────────────────┐
-│ 1. インタフェースが既に一致している                       │
-│    → 不要な間接層はコードの可読性を下げる                 │
+│ 1. Interfaces already match                              │
+│    → Unnecessary indirection reduces code readability    │
 │                                                          │
-│ 2. Adaptee を直接変更できる場合                           │
-│    → 直接インタフェースを修正する方がシンプル             │
+│ 2. When you can modify the Adaptee directly              │
+│    → Directly modifying the interface is simpler         │
 │                                                          │
-│ 3. 変換だけでなく大量のビジネスロジックが必要な場合       │
-│    → Adapter ではなく専用のサービス層を作る               │
+│ 3. When large amounts of business logic are needed       │
+│    beyond just conversion                                │
+│    → Create a dedicated service layer instead            │
 │                                                          │
-│ 4. パフォーマンスが最優先の場合                           │
-│    → 間接層のオーバーヘッドが問題になることがある          │
+│ 4. When performance is the top priority                  │
+│    → The overhead of the indirection layer can be an     │
+│       issue                                              │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### コスト分析
+### Cost Analysis
 
-| 項目 | Adapter あり | Adapter なし |
+| Item | With Adapter | Without Adapter |
 |------|:---:|:---:|
-| 初期実装コスト | 中（Adapter クラス作成） | **低** |
-| ライブラリ変更時のコスト | **低**（Adapter のみ修正） | 高（全呼び出し元を修正） |
-| テスト容易性 | **高** | 低 |
-| コードの複雑度 | やや増加 | **シンプル** |
-| 長期保守コスト | **低** | 高 |
+| Initial implementation cost | Medium (create Adapter class) | **Low** |
+| Cost when changing libraries | **Low** (modify Adapter only) | High (modify all call sites) |
+| Testability | **High** | Low |
+| Code complexity | Slightly increased | **Simple** |
+| Long-term maintenance cost | **Low** | High |
 
 ---
 
-## 8. 演習問題
+## 8. Exercises
 
-### 演習 1（基礎）: ファイルシステム Adapter
+### Exercise 1 (Basic): File System Adapter
 
-以下のインタフェースと既存クラスに対して Adapter を実装してください。
+Implement an Adapter for the following interface and existing class.
 
-**要件**:
-- `Storage` インタフェース: `read(key)`, `write(key, value)`, `delete(key)`, `exists(key)`
-- `LegacyFileSystem` クラス: `loadFile(path)`, `saveFile(path, content)`, `removeFile(path)`, `fileExists(path)`
-- メソッド名とパラメータ名の違いを吸収する Adapter を作成
+**Requirements**:
+- `Storage` interface: `read(key)`, `write(key, value)`, `delete(key)`, `exists(key)`
+- `LegacyFileSystem` class: `loadFile(path)`, `saveFile(path, content)`, `removeFile(path)`, `fileExists(path)`
+- Create an Adapter that bridges the differences in method names and parameter names
 
 ```typescript
-// テスト
+// Test
 const adapter: Storage = new FileSystemAdapter(new LegacyFileSystem("/data"));
 await adapter.write("config", '{"debug": true}');
 console.log(await adapter.exists("config"));   // true
@@ -1464,7 +1468,7 @@ await adapter.delete("config");
 console.log(await adapter.exists("config"));   // false
 ```
 
-**期待される出力**:
+**Expected output**:
 ```
 true
 {"debug": true}
@@ -1472,7 +1476,7 @@ false
 ```
 
 <details>
-<summary>解答例</summary>
+<summary>Sample answer</summary>
 
 ```typescript
 interface Storage {
@@ -1510,7 +1514,7 @@ class FileSystemAdapter implements Storage {
   constructor(private fs: LegacyFileSystem) {}
 
   private toPath(key: string): string {
-    return key; // 必要に応じてパス変換
+    return key; // Apply path conversion as needed
   }
 
   async read(key: string): Promise<string> {
@@ -1530,7 +1534,7 @@ class FileSystemAdapter implements Storage {
   }
 }
 
-// テスト
+// Test
 const adapter: Storage = new FileSystemAdapter(new LegacyFileSystem("/data"));
 await adapter.write("config", '{"debug": true}');
 console.log(await adapter.exists("config"));   // true
@@ -1542,17 +1546,17 @@ console.log(await adapter.exists("config"));   // false
 
 ---
 
-### 演習 2（応用）: マルチプロバイダ Adapter + Factory
+### Exercise 2 (Applied): Multi-provider Adapter + Factory
 
-複数のクラウドストレージプロバイダに対応する Adapter と Factory を実装してください。
+Implement Adapters and a Factory that support multiple cloud storage providers.
 
-**要件**:
-- `CloudStorage` インタフェース: `upload(key, data)`, `download(key)`, `delete(key)`, `list(prefix)`
-- AWS S3, Google Cloud Storage, Azure Blob Storage の3つの Adapter
-- `CloudStorageFactory` でプロバイダ名から Adapter を選択
+**Requirements**:
+- `CloudStorage` interface: `upload(key, data)`, `download(key)`, `delete(key)`, `list(prefix)`
+- Three Adapters for AWS S3, Google Cloud Storage, and Azure Blob Storage
+- `CloudStorageFactory` selects an Adapter based on provider name
 
 ```typescript
-// テスト
+// Test
 const factory = new CloudStorageFactory();
 factory.register("s3", new S3Adapter(s3Client));
 factory.register("gcs", new GCSAdapter(gcsClient));
@@ -1564,7 +1568,7 @@ console.log(files); // ["reports/2024.pdf"]
 ```
 
 <details>
-<summary>解答例</summary>
+<summary>Sample answer</summary>
 
 ```typescript
 interface CloudStorage {
@@ -1649,18 +1653,18 @@ class CloudStorageFactory {
 
 ---
 
-### 演習 3（上級）: 型安全なジェネリック Adapter フレームワーク
+### Exercise 3 (Advanced): Type-safe Generic Adapter Framework
 
-任意の2つのインタフェース間のマッピングを型安全に定義できるジェネリック Adapter フレームワークを実装してください。
+Implement a generic Adapter framework that allows you to define type-safe mappings between any two interfaces.
 
-**要件**:
-- フィールドマッピングを宣言的に定義
-- 変換関数をフィールドごとに指定可能
-- 双方向変換をサポート
-- TypeScript の型推論で変換結果の型が保証される
+**Requirements**:
+- Declaratively define field mappings
+- Allow specifying a conversion function per field
+- Support bidirectional conversion
+- TypeScript type inference guarantees the type of conversion results
 
 ```typescript
-// テスト
+// Test
 const userMapper = createMapper<RestUser, DomainUser>({
   id: (src) => src.user_id,
   name: (src) => `${src.first_name} ${src.last_name}`,
@@ -1682,7 +1686,7 @@ console.log(domainUser.email);     // "taro@example.com"
 console.log(domainUser.createdAt instanceof Date); // true
 ```
 
-**期待される出力**:
+**Expected output**:
 ```
 Taro Yamada
 taro@example.com
@@ -1690,26 +1694,26 @@ true
 ```
 
 <details>
-<summary>解答例</summary>
+<summary>Sample answer</summary>
 
 ```typescript
-// マッピング定義の型
+// Type for mapping definition
 type MappingConfig<Source, Target> = {
   [K in keyof Target]: (source: Source) => Target[K];
 };
 
-// リバースマッピングの型
+// Type for reverse mapping
 type ReverseMappingConfig<Source, Target> = {
   [K in keyof Source]: (target: Target) => Source[K];
 };
 
-// Mapper インタフェース
+// Mapper interface
 interface Mapper<Source, Target> {
   map(source: Source): Target;
   mapMany(sources: Source[]): Target[];
 }
 
-// 双方向 Mapper
+// Bidirectional Mapper
 interface BiMapper<A, B> {
   mapAtoB(a: A): B;
   mapBtoA(b: B): A;
@@ -1717,7 +1721,7 @@ interface BiMapper<A, B> {
   mapManyBtoA(bs: B[]): A[];
 }
 
-// Mapper 作成関数
+// Mapper factory function
 function createMapper<Source, Target>(
   config: MappingConfig<Source, Target>
 ): Mapper<Source, Target> {
@@ -1735,7 +1739,7 @@ function createMapper<Source, Target>(
   };
 }
 
-// 双方向 Mapper 作成関数
+// Bidirectional Mapper factory function
 function createBiMapper<A, B>(
   aToB: MappingConfig<A, B>,
   bToA: MappingConfig<B, A>
@@ -1751,7 +1755,7 @@ function createBiMapper<A, B>(
   };
 }
 
-// === 使用例 ===
+// === Usage example ===
 
 interface RestUser {
   user_id: string;
@@ -1794,32 +1798,32 @@ console.log(domainUser.createdAt instanceof Date); // true
 
 ## 9. FAQ
 
-### Q1: Adapter はレガシーコード以外でも使いますか？
+### Q1: Is the Adapter pattern used outside of legacy code?
 
-はい。Adapter は以下の場面で頻繁に使われます:
-- **外部 API**: REST/GraphQL/gRPC の各APIクライアントの統一
-- **サードパーティライブラリ**: ログ、決済、通知、ストレージ等のベンダー統一
-- **異なるチーム間のモジュール統合**: 内部API のインタフェース不一致の解消
-- **テスト**: 外部依存をモック可能なインタフェースに変換
-- **データ変換**: DTO/Entity/ViewModel 間のマッピング
+Yes. The Adapter is frequently used in the following situations:
+- **External APIs**: Unifying clients for REST/GraphQL/gRPC APIs
+- **Third-party libraries**: Unifying vendors for logging, payments, notifications, storage, etc.
+- **Module integration across different teams**: Resolving interface mismatches in internal APIs
+- **Testing**: Converting external dependencies to mockable interfaces
+- **Data transformation**: Mapping between DTO/Entity/ViewModel
 
-### Q2: TypeScript でアダプタを書くとき、クラスと関数のどちらが良いですか？
+### Q2: When writing an adapter in TypeScript, which is better — a class or a function?
 
-| 条件 | 推奨 |
+| Condition | Recommendation |
 |------|------|
-| 状態管理が不要 | **関数**（高階関数、ラッパー） |
-| 複数メソッドの変換 | **クラス** |
-| ライフサイクル管理が必要 | **クラス** |
-| DI コンテナで管理 | **クラス** |
-| 単純な型変換 | **関数**（`toXxx()` 関数） |
+| No state management needed | **Function** (higher-order function, wrapper) |
+| Converting multiple methods | **Class** |
+| Lifecycle management required | **Class** |
+| Managed by DI container | **Class** |
+| Simple type conversion | **Function** (`toXxx()` function) |
 
-### Q3: Adapter が多数になった場合の管理方法は？
+### Q3: How do you manage a large number of Adapters?
 
-1. **ディレクトリ構成**: `adapters/` ディレクトリに集約
-2. **命名規則**: `XxxAdapter` で統一
-3. **Factory パターン**: 適切な Adapter を自動選択
-4. **DI コンテナ**: インタフェースに対して Adapter を登録
-5. **テスト**: 各 Adapter の変換を単体テストで検証
+1. **Directory structure**: Consolidate in an `adapters/` directory
+2. **Naming conventions**: Use `XxxAdapter` consistently
+3. **Factory pattern**: Automatically select the appropriate Adapter
+4. **DI container**: Register Adapters against their interfaces
+5. **Testing**: Verify each Adapter's conversion with unit tests
 
 ```
 src/
@@ -1837,44 +1841,46 @@ src/
       gcs-adapter.ts
 ```
 
-### Q4: Adapter パターンと依存性逆転の原則（DIP）の関係は？
+### Q4: What is the relationship between the Adapter pattern and the Dependency Inversion Principle (DIP)?
 
-Adapter パターンは DIP の実践そのものです。
+The Adapter pattern is DIP in practice.
 
 ```
-DIP なし（高レベルモジュールが低レベルモジュールに依存）:
-OrderService ──直接依存──> StripeSDK
+Without DIP (high-level module depends on low-level module):
+OrderService ──direct dependency──> StripeSDK
 
-DIP あり（両方が抽象に依存）:
-OrderService ──依存──> PaymentGateway(interface)
-                           △
-                           |  implements
-                     StripeAdapter ──委譲──> StripeSDK
+With DIP (both depend on abstraction):
+OrderService ──depends on──> PaymentGateway(interface)
+                                 △
+                                 |  implements
+                           StripeAdapter ──delegates──> StripeSDK
 ```
 
-高レベルモジュール（OrderService）は抽象（PaymentGateway）にのみ依存し、具象実装（StripeSDK）の詳細を知りません。
+The high-level module (OrderService) depends only on the abstraction (PaymentGateway) and has no knowledge of the concrete implementation details (StripeSDK).
 
-### Q5: Adapter と Bridge パターンの違いは？
+### Q5: What is the difference between Adapter and Bridge pattern?
 
 | | Adapter | Bridge |
 |--|--|--|
-| 目的 | 既存のインタフェースを**事後的に**変換 | 抽象と実装を**事前に**分離 |
-| タイミング | 既存コードに対して適用 | 設計段階で適用 |
-| 変更対象 | Adaptee は変更しない | 実装側を自由に変更 |
-| 関係 | 1:1（1つのAdapteeに1つのAdapter） | 1:N（1つの抽象に複数の実装） |
+| Purpose | **Retroactively** converts an existing interface | **Proactively** separates abstraction from implementation |
+| Timing | Applied to existing code | Applied at the design stage |
+| Change target | Does not change the Adaptee | Implementation side can be freely changed |
+| Relationship | 1:1 (one Adapter per Adaptee) | 1:N (one abstraction, multiple implementations) |
 
-### Q6: マイクロサービス間の通信で Adapter はどう使いますか？
+### Q6: How is the Adapter used in inter-microservice communication?
 
-マイクロサービスでは各サービスが独自のデータフォーマットを持つことが多く、Adapter は Anti-Corruption Layer（腐敗防止層）として機能します:
+In microservices, each service often has its own data format, and the Adapter functions as an Anti-Corruption Layer (ACL):
 
 ```
 Service A                    ACL                    Service B
 ┌──────────┐    REST     ┌──────────────┐    gRPC   ┌──────────┐
 │          │ ──────────> │  Adapter     │ ────────> │          │
-│ Order    │             │ (format変換) │           │ Inventory│
-│ Service  │ <────────── │ (protocol変換)│ <──────── │ Service  │
-└──────────┘             └──────────────┘           └──────────┘
-  JSON format              変換レイヤー               Protobuf format
+│ Order    │             │ (format      │           │ Inventory│
+│ Service  │ <────────── │  conversion) │ <──────── │ Service  │
+└──────────┘             │ (protocol    │           └──────────┘
+  JSON format            │  conversion) │           Protobuf format
+                         └──────────────┘
+                           conversion layer
 ```
 
 ---
@@ -1882,46 +1888,46 @@ Service A                    ACL                    Service B
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| **目的** | 互換性のないインタフェースを変換して統合する |
-| **オブジェクトアダプタ** | 委譲ベース（has-a）、**推奨** |
-| **クラスアダプタ** | 継承ベース（is-a）、非推奨 |
-| **適用場面** | 外部ライブラリ、レガシー統合、マルチプロバイダ、テスト |
-| **責務** | **変換のみ** — ビジネスロジックは入れない |
-| **関連パターン** | Factory（Adapter選択）、Strategy（動的切替）、DIP（依存性逆転） |
-| **注意点** | 不要な間接層は避ける、変換は確実にテストする |
+| **Purpose** | Convert and integrate incompatible interfaces |
+| **Object Adapter** | Delegation-based (has-a), **recommended** |
+| **Class Adapter** | Inheritance-based (is-a), not recommended |
+| **Use cases** | External libraries, legacy integration, multi-provider, testing |
+| **Responsibility** | **Conversion only** — do not include business logic |
+| **Related patterns** | Factory (Adapter selection), Strategy (dynamic switching), DIP (dependency inversion) |
+| **Caution** | Avoid unnecessary indirection; always test conversions thoroughly |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [Decorator パターン](./01-decorator.md) — 動的な機能追加（Adapter と構造が似ているが目的が異なる）
-- [Facade パターン](./02-facade.md) — 複雑なサブシステムの単純化
-- [Proxy パターン](./03-proxy.md) — アクセス制御（Adapter と構造が似ている）
-- [Strategy パターン](../02-behavioral/01-strategy.md) — アルゴリズムの交換（Adapter と組み合わせて使う）
-- [Factory パターン](../00-creational/01-factory.md) — 適切な Adapter の選択に使う
-- Bridge パターン — 抽象と実装の分離（Adapter と目的が異なる）
+- [Decorator Pattern](./01-decorator.md) — Dynamic feature addition (similar structure to Adapter, but different purpose)
+- [Facade Pattern](./02-facade.md) — Simplifying complex subsystems
+- [Proxy Pattern](./03-proxy.md) — Access control (similar structure to Adapter)
+- [Strategy Pattern](../02-behavioral/01-strategy.md) — Algorithm replacement (used in combination with Adapter)
+- [Factory Pattern](../00-creational/01-factory.md) — Used to select the appropriate Adapter
+- Bridge Pattern — Separation of abstraction and implementation (different purpose from Adapter)
 
 ---
 
-## 参考文献
+## References
 
 1. Gamma, E. et al. (1994). *Design Patterns: Elements of Reusable Object-Oriented Software*. Addison-Wesley.
 2. Freeman, E. et al. (2004). *Head First Design Patterns*. O'Reilly Media.
