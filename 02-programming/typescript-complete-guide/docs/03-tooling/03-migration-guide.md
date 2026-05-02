@@ -1,70 +1,72 @@
-# JavaScript から TypeScript への移行ガイド
+# JavaScript to TypeScript Migration Guide
 
-> 既存 JS プロジェクトを段階的に TypeScript 化する実践的なロードマップと移行テクニック
+> A practical roadmap and migration techniques for incrementally introducing TypeScript into existing JS projects
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **段階的移行戦略** -- 全面書き換えではなく、ファイル単位で安全に TypeScript を導入する手順
-2. **tsconfig の段階的厳密化** -- `allowJs` から始めて `strict: true` に到達するまでの設定チェーンの管理
-3. **よくある移行パターン** -- 型定義の補完、any の排除、サードパーティ型の導入テクニック
-4. **大規模プロジェクトでの移行戦略** -- 1万行以上のプロジェクトでの実践的なアプローチ
-5. **移行後の品質維持** -- CI/CD での型チェック統合、チーム内の TypeScript 標準化
+1. **Incremental migration strategy** -- Steps to safely introduce TypeScript file by file, without a full rewrite
+2. **Gradual tsconfig strictness** -- Managing the configuration chain from `allowJs` to reaching `strict: true`
+3. **Common migration patterns** -- Techniques for filling in type definitions, eliminating `any`, and introducing third-party types
+4. **Migration strategy for large projects** -- A practical approach for projects with 10,000+ lines
+5. **Maintaining quality after migration** -- Integrating type checking in CI/CD and standardizing TypeScript across the team
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [TypeScript テスト完全ガイド](./02-testing-typescript.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [TypeScript Testing Complete Guide](./02-testing-typescript.md)
 
 ---
 
-## 1. 移行ロードマップ
+## 1. Migration Roadmap
 
-### 1-1. 全体フロー
+### 1-1. Overall Flow
 
 ```
-段階的移行の 5 フェーズ:
+5 Phases of Incremental Migration:
 
-Phase 1: 準備         Phase 2: 共存        Phase 3: 変換
+Phase 1: Preparation   Phase 2: Coexistence   Phase 3: Conversion
 +---------------+    +---------------+    +---------------+
-| tsconfig 導入  |    | .js + .ts     |    | 主要ファイルを  |
-| allowJs: true |    | 共存           |    | .ts に変換     |
-| strict: false |    | checkJs: true |    | any を除去     |
+| Introduce     |    | .js + .ts     |    | Convert main  |
+| tsconfig      |    | coexist       |    | files to .ts  |
+| allowJs: true |    | checkJs: true |    | Remove any    |
+| strict: false |    |               |    |               |
 +---------------+    +---------------+    +---------------+
        |                    |                    |
        v                    v                    v
-Phase 4: 厳密化        Phase 5: 完了
+Phase 4: Strictness    Phase 5: Complete
 +---------------+    +---------------+
-| strict: true  |    | 全ファイル .ts  |
-| 個別オプション |    | CI で型チェック |
-| を順次有効化   |    | JSDoc 除去     |
+| strict: true  |    | All files .ts |
+| Enable each   |    | Type check    |
+| option one by |    | in CI         |
+| one           |    | Remove JSDoc  |
 +---------------+    +---------------+
 
-期間の目安:
-  ~1,000行:   1-2日
-  ~10,000行:  1-2週間
-  ~100,000行: 1-3ヶ月
-  ~1,000,000行: 3-12ヶ月
+Estimated duration:
+  ~1,000 lines:     1-2 days
+  ~10,000 lines:    1-2 weeks
+  ~100,000 lines:   1-3 months
+  ~1,000,000 lines: 3-12 months
 ```
 
-### 1-2. Phase 1 -- 準備
+### 1-2. Phase 1 -- Preparation
 
 ```bash
-# TypeScript と関連ツールをインストール
+# Install TypeScript and related tools
 npm install -D typescript @types/node
 
-# フレームワークの型もインストール
+# Also install framework types
 npm install -D @types/express @types/cors @types/lodash
 
-# tsconfig.json を生成
+# Generate tsconfig.json
 npx tsc --init
 ```
 
 ```json
-// Phase 1 の tsconfig.json
+// Phase 1 tsconfig.json
 {
   "compilerOptions": {
     "target": "ES2022",
@@ -87,7 +89,7 @@ npx tsc --init
 ```
 
 ```json
-// package.json にスクリプト追加
+// Add scripts to package.json
 {
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -96,10 +98,10 @@ npx tsc --init
 }
 ```
 
-### 1-3. Phase 2 -- JS と TS の共存
+### 1-3. Phase 2 -- JS and TS Coexistence
 
 ```typescript
-// JSDoc で既存 JS ファイルに型をつける（ファイル変換前）
+// Add types to existing JS files with JSDoc (before converting the file)
 // src/utils.js
 
 /**
@@ -152,72 +154,72 @@ module.exports = { createUser, initApp, findItem, isString };
 ```
 
 ```json
-// Phase 2 の tsconfig.json 更新
+// Update Phase 2 tsconfig.json
 {
   "compilerOptions": {
     "allowJs": true,
-    "checkJs": true,  // JS ファイルも型チェック
+    "checkJs": true,  // Type-check JS files too
     "strict": false,
-    // JSDoc の型チェックエラーを段階的に表示
+    // Show JSDoc type check errors gradually
     "noImplicitAny": false
   }
 }
 ```
 
 ```
-JSDoc の型アノテーション一覧:
+JSDoc type annotation reference:
 
-  基本型:
-  @param {string} name           -- 文字列
-  @param {number} age            -- 数値
-  @param {boolean} active        -- 真偽値
+  Primitive types:
+  @param {string} name           -- string
+  @param {number} age            -- number
+  @param {boolean} active        -- boolean
   @param {Date} createdAt        -- Date
   @param {any} data              -- any
   @param {unknown} input         -- unknown
 
-  複合型:
-  @param {string | number} id    -- ユニオン型
-  @param {string[]} tags         -- 配列
-  @param {{ name: string }} user -- オブジェクト
+  Composite types:
+  @param {string | number} id    -- union type
+  @param {string[]} tags         -- array
+  @param {{ name: string }} user -- object
   @param {?string} name          -- nullable
   @param {string} [name]         -- optional
 
-  ジェネリクス:
+  Generics:
   @template T
   @param {T} value
   @returns {T}
 
-  型定義:
+  Type definitions:
   @typedef {Object} User
   @property {string} name
   @property {number} age
 
-  型ガード:
+  Type guards:
   @param {unknown} value
   @returns {value is string}
 ```
 
-### 1-4. Phase 3 -- ファイル変換
+### 1-4. Phase 3 -- File Conversion
 
 ```
-変換の手順（1ファイルにつき）:
+Conversion steps (per file):
 
-  1. .js → .ts にリネーム
-  2. require → import に変換
-  3. module.exports → export に変換
-  4. 型エラーを修正（暫定的に as any も許容）
-  5. テストが通ることを確認
-  6. コミット
+  1. Rename .js → .ts
+  2. Convert require → import
+  3. Convert module.exports → export
+  4. Fix type errors (temporarily allowing as any)
+  5. Verify tests pass
+  6. Commit
 
-  注意: 1ファイルごとにコミットすることで
-  問題が発生した場合にロールバックが容易
+  Note: Committing one file at a time makes
+  rollback easy if problems arise
 ```
 
-### 1-5. Phase 4 -- 厳密化
+### 1-5. Phase 4 -- Strictness
 
 ```json
-// 段階的に有効化
-// Step 1: 暗黙の any を検出
+// Enable gradually
+// Step 1: Detect implicit any
 {
   "compilerOptions": {
     "strict": false,
@@ -225,7 +227,7 @@ JSDoc の型アノテーション一覧:
   }
 }
 
-// Step 2: null チェックを追加
+// Step 2: Add null checks
 {
   "compilerOptions": {
     "strict": false,
@@ -234,7 +236,7 @@ JSDoc の型アノテーション一覧:
   }
 }
 
-// Step 3: 関数型の厳密化
+// Step 3: Stricter function types
 {
   "compilerOptions": {
     "strict": false,
@@ -245,14 +247,14 @@ JSDoc の型アノテーション一覧:
   }
 }
 
-// Step 4: 完全な strict
+// Step 4: Full strict
 {
   "compilerOptions": {
     "strict": true
   }
 }
 
-// Step 5: 追加の厳密性
+// Step 5: Additional strictness
 {
   "compilerOptions": {
     "strict": true,
@@ -264,10 +266,10 @@ JSDoc の型アノテーション一覧:
 }
 ```
 
-### 1-6. Phase 5 -- 完了と品質維持
+### 1-6. Phase 5 -- Completion and Quality Maintenance
 
 ```json
-// 最終的な tsconfig.json
+// Final tsconfig.json
 {
   "compilerOptions": {
     "target": "ES2022",
@@ -281,7 +283,7 @@ JSDoc の型アノテーション一覧:
     "noEmit": true,
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
-    // allowJs を false に（移行完了）
+    // Set allowJs to false (migration complete)
     "allowJs": false,
     "resolveJsonModule": true
   },
@@ -292,38 +294,38 @@ JSDoc の型アノテーション一覧:
 
 ---
 
-## 2. ファイル変換テクニック
+## 2. File Conversion Techniques
 
-### 2-1. 変換の優先順位
+### 2-1. Conversion Priority
 
 ```
-変換優先順位（依存の葉から始める）:
+Conversion priority (start from dependency leaves):
 
-  依存グラフ:
+  Dependency graph:
   index.ts ──→ routes.js ──→ controllers.js ──→ services.js
                                    |                |
                                    v                v
-                              models.js        utils.js ← まずここから
+                              models.js        utils.js ← start here
                                    |
                                    v
                               database.js
 
-  変換順序:
-  1. utils.js → utils.ts      (依存なし)
-  2. models.js → models.ts    (utils のみ依存)
+  Conversion order:
+  1. utils.js → utils.ts      (no dependencies)
+  2. models.js → models.ts    (depends only on utils)
   3. database.js → database.ts
   4. services.js → services.ts
   5. controllers.js → controllers.ts
   6. routes.js → routes.ts
   7. index.js → index.ts
 
-  理由:
-  - 依存の葉から変換すると、型エラーの連鎖が少ない
-  - 変換済みファイルから型情報が伝播する
-  - テストが段階的に通りやすい
+  Rationale:
+  - Starting from dependency leaves reduces cascading type errors
+  - Type information propagates from already-converted files
+  - Tests are more likely to pass incrementally
 ```
 
-### 2-2. 基本変換パターン
+### 2-2. Basic Conversion Pattern
 
 ```typescript
 // Before: src/user-service.js
@@ -373,7 +375,7 @@ module.exports = { UserService };
 // After: src/user-service.ts
 import { Database } from "./database";
 
-// まず型定義を作成
+// Define types first
 interface User {
   id: string;
   name: string;
@@ -443,7 +445,7 @@ class UserService {
 export { UserService, type User, type CreateUserDto, type UserRole };
 ```
 
-### 2-3. require → import の変換
+### 2-3. require → import Conversion
 
 ```typescript
 // Before (CommonJS)
@@ -455,7 +457,7 @@ const fs = require("fs").promises;
 
 // After (ESM)
 import express from "express";
-import { UserService } from "./user-service.js"; // NodeNext なら拡張子必要
+import { UserService } from "./user-service.js"; // Extension required for NodeNext
 import config from "./config.json" with { type: "json" };
 import path from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
@@ -472,7 +474,7 @@ export default app;
 
 // ──────────────────────────────────────
 
-// Before (条件付き require)
+// Before (conditional require)
 let sharp;
 try {
   sharp = require("sharp");
@@ -480,7 +482,7 @@ try {
   sharp = null;
 }
 
-// After (動的 import)
+// After (dynamic import)
 let sharp: typeof import("sharp") | null;
 try {
   sharp = await import("sharp");
@@ -497,7 +499,7 @@ const packagePath = require.resolve("my-package/package.json");
 const packagePath = import.meta.resolve("my-package/package.json");
 ```
 
-### 2-4. Express アプリケーションの変換例
+### 2-4. Express Application Conversion Example
 
 ```typescript
 // Before: app.js
@@ -558,13 +560,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// エラーレスポンスの型
+// Error response type
 interface ErrorResponse {
   error: string;
   details?: unknown;
 }
 
-// 型付きリクエストハンドラ
+// Typed request handlers
 app.get("/users", async (_req: Request, res: Response<User[] | ErrorResponse>) => {
   try {
     const users = await UserService.findAll();
@@ -614,7 +616,7 @@ app.post(
 export default app;
 ```
 
-### 2-5. React コンポーネントの変換
+### 2-5. React Component Conversion
 
 ```typescript
 // Before: UserCard.jsx
@@ -711,33 +713,33 @@ const UserCard: FC<UserCardProps> = ({ user, onEdit, onDelete }) => {
 };
 
 export default UserCard;
-// PropTypes は不要に → npm uninstall prop-types
+// PropTypes are no longer needed → npm uninstall prop-types
 ```
 
 ---
 
-## 3. any の段階的排除
+## 3. Gradual Elimination of `any`
 
-### 3-1. any のトリアージ
+### 3-1. `any` Triage
 
 ```
-any 排除の優先順位:
+Priority for eliminating any:
 
   +------------------+----------+-----------+-------------------+
-  | カテゴリ          | 危険度   | 対応      | 推定作業量        |
+  | Category         | Risk     | Action    | Estimated effort  |
   +------------------+----------+-----------+-------------------+
-  | API レスポンス    | 高       | zod 導入  | 中                |
-  | 関数パラメータ    | 高       | 型定義    | 小                |
-  | イベントハンドラ  | 中       | 型定義    | 小                |
-  | catch 変数       | 中       | unknown   | 小                |
-  | JSON.parse 結果  | 中       | zod       | 中                |
-  | サードパーティ    | 低       | @types/*  | 小〜中            |
-  | 一時的な TODO     | 低       | コメント  | 将来              |
+  | API responses    | High     | Use zod   | Medium            |
+  | Function params  | High     | Define    | Small             |
+  | Event handlers   | Medium   | Define    | Small             |
+  | catch variables  | Medium   | unknown   | Small             |
+  | JSON.parse result| Medium   | zod       | Medium            |
+  | Third-party      | Low      | @types/*  | Small~Medium      |
+  | Temporary TODOs  | Low      | Comment   | Future            |
   +------------------+----------+-----------+-------------------+
 ```
 
 ```typescript
-// Step 1: 明示的な any を unknown に置き換え
+// Step 1: Replace explicit any with unknown
 // Before
 function processData(data: any): any {
   return data.map((item: any) => item.name);
@@ -756,7 +758,7 @@ function processData(data: unknown): string[] {
   });
 }
 
-// Step 2: zod でバリデーション
+// Step 2: Validate with zod
 import { z } from "zod";
 
 const ItemSchema = z.object({ name: z.string() });
@@ -767,7 +769,7 @@ function processData(data: unknown): string[] {
   return parsed.map((item) => item.name);
 }
 
-// Step 3: JSON.parse の安全な処理
+// Step 3: Safe JSON.parse handling
 // Before
 function parseConfig(json: string): any {
   return JSON.parse(json);
@@ -787,24 +789,24 @@ function parseConfig(json: string): Config {
 }
 ```
 
-### 3-2. @types/* の導入
+### 3-2. Introducing `@types/*`
 
 ```bash
-# 型定義パッケージを検索・インストール
+# Search and install type definition packages
 npm install -D @types/express @types/lodash @types/cors @types/compression
 
-# 型定義が存在するか確認
+# Check if type definitions exist
 npm info @types/some-package
 
-# 複数パッケージを一括インストール
+# Install multiple packages at once
 npm install -D @types/express @types/cors @types/morgan @types/cookie-parser
 ```
 
 ```typescript
 // src/types/untyped-module.d.ts
-// 型定義がないサードパーティモジュール用
+// For third-party modules without type definitions
 
-// 最小限の型定義（一時的、段階的に充実させる）
+// Minimal type definitions (temporary, to be expanded incrementally)
 declare module "untyped-lib" {
   export function doSomething(input: string): Promise<unknown>;
   export interface Config {
@@ -813,7 +815,7 @@ declare module "untyped-lib" {
   }
 }
 
-// 型定義を段階的に充実させる
+// Gradually expand type definitions
 declare module "legacy-lib" {
   export interface Options {
     format: "json" | "csv" | "xml";
@@ -835,7 +837,7 @@ declare module "legacy-lib" {
   export default Parser;
 }
 
-// CSS / 画像モジュールの型定義（Vite / webpack 用）
+// Type definitions for CSS / image modules (for Vite / webpack)
 declare module "*.css" {
   const classes: Record<string, string>;
   export default classes;
@@ -857,7 +859,7 @@ declare module "*.png" {
   export default url;
 }
 
-// グローバル型の拡張
+// Global type augmentation
 declare global {
   interface Window {
     __APP_CONFIG__: {
@@ -876,15 +878,15 @@ declare global {
   }
 }
 
-export {}; // モジュールとして認識させるために必要
+export {}; // Required to be recognized as a module
 ```
 
-### 3-3. any を使わない型安全なユーティリティ
+### 3-3. Type-Safe Utilities Without `any`
 
 ```typescript
-// any を使わずに柔軟な型を定義するパターン
+// Patterns for defining flexible types without using any
 
-// 1. unknown + 型ガード
+// 1. unknown + type guards
 function isError(value: unknown): value is Error {
   return value instanceof Error;
 }
@@ -899,7 +901,7 @@ function getErrorMessage(error: unknown): string {
   return "Unknown error";
 }
 
-// 2. ジェネリクスで柔軟性を確保
+// 2. Generics for flexibility
 function safeJsonParse<T>(json: string, schema: z.ZodType<T>): T | null {
   try {
     const raw: unknown = JSON.parse(json);
@@ -909,14 +911,14 @@ function safeJsonParse<T>(json: string, schema: z.ZodType<T>): T | null {
   }
 }
 
-// 3. satisfies でオブジェクトの型チェック
+// 3. satisfies for object type checking
 const routes = {
   home: "/",
   about: "/about",
   user: "/users/:id",
 } satisfies Record<string, string>;
 
-// 4. Record<string, unknown> で動的オブジェクト
+// 4. Record<string, unknown> for dynamic objects
 function filterObject(
   obj: Record<string, unknown>,
   predicate: (key: string, value: unknown) => boolean
@@ -929,23 +931,23 @@ function filterObject(
 
 ---
 
-## 4. strict 化のロードマップ
+## 4. Strictness Roadmap
 
-### 4-1. noImplicitAny 対応パターン
+### 4-1. noImplicitAny Handling Patterns
 
 ```typescript
-// エラー: Parameter 'x' implicitly has an 'any' type
-// 対応パターン集
+// Error: Parameter 'x' implicitly has an 'any' type
+// Pattern collection for handling this
 
-// 1. コールバック引数
+// 1. Callback arguments
 // Before
 array.forEach(function (item) { /* ... */ });
 // After
 array.forEach(function (item: ItemType) { /* ... */ });
-// もしくはアロー関数（型推論が効く場合）
+// Or use arrow function (when type inference works)
 array.forEach((item) => { /* ... */ });
 
-// 2. オブジェクトの動的アクセス
+// 2. Dynamic object access
 // Before
 function getValue(obj, key) { return obj[key]; }
 // After
@@ -956,13 +958,13 @@ function getValue<T extends Record<string, unknown>>(
   return obj[key];
 }
 
-// 3. イベントハンドラ
+// 3. Event handlers
 // Before
 element.addEventListener("click", function (e) { /* ... */ });
-// After（DOM の型定義から自動推論）
+// After (auto-inferred from DOM type definitions)
 element.addEventListener("click", (e: MouseEvent) => { /* ... */ });
 
-// 4. デストラクチャリング
+// 4. Destructuring
 // Before
 function processResponse({ data, status }) { /* ... */ }
 // After
@@ -972,7 +974,7 @@ interface ApiResponse {
 }
 function processResponse({ data, status }: ApiResponse) { /* ... */ }
 
-// 5. 関数のオーバーロード
+// 5. Function overloads
 // Before
 function format(value) {
   if (typeof value === "number") return value.toFixed(2);
@@ -989,25 +991,25 @@ function format(value: unknown): string {
   return String(value);
 }
 
-// 6. reduce のアキュムレータ
+// 6. reduce accumulator
 // Before
 const total = items.reduce((sum, item) => sum + item.price, 0);
 // After
 const total = items.reduce<number>((sum, item) => sum + item.price, 0);
-// もしくは初期値から推論される場合はそのまま
+// Or rely on inference from the initial value
 ```
 
-### 4-2. strictNullChecks 対応パターン
+### 4-2. strictNullChecks Handling Patterns
 
 ```typescript
-// エラー: Object is possibly 'null'
-// 対応パターン集
+// Error: Object is possibly 'null'
+// Pattern collection for handling this
 
-// 1. 早期リターン（Guard Clause）
+// 1. Early return (Guard Clause)
 function getUser(id: string): User | null {
   const user = findById(id);
-  if (!user) return null; // または throw
-  // ここ以降 user は User 型
+  if (!user) return null; // or throw
+  // user is User type from here on
   return user;
 }
 
@@ -1015,25 +1017,25 @@ function getUser(id: string): User | null {
 const name = user?.name ?? "Unknown";
 const city = user?.address?.city ?? "N/A";
 
-// 3. 非 null アサーション（確実な場合のみ）
+// 3. Non-null assertion (only when certain)
 const element = document.getElementById("app")!;
-// ↑ element が null の可能性がある場合は使わない
+// ↑ Do not use if element could be null
 
-// 4. Map / Set の型安全なアクセス
+// 4. Type-safe Map / Set access
 const map = new Map<string, User>();
 const user = map.get("key"); // User | undefined
 if (user) {
   console.log(user.name); // OK
 }
 
-// 5. 配列の find
+// 5. Array find
 const found = users.find((u) => u.id === targetId);
 if (!found) {
   throw new Error(`User ${targetId} not found`);
 }
-// found は User 型
+// found is User type
 
-// 6. Promise の結果
+// 6. Promise result
 async function fetchUser(id: string): Promise<User | null> {
   const response = await fetch(`/api/users/${id}`);
   if (!response.ok) return null;
@@ -1043,35 +1045,36 @@ async function fetchUser(id: string): Promise<User | null> {
 
 ---
 
-## 5. 大規模プロジェクトでの移行戦略
+## 5. Migration Strategy for Large Projects
 
-### 5-1. モジュール境界での移行
+### 5-1. Migration at Module Boundaries
 
 ```
-大規模プロジェクトでは、モジュール境界で区切って移行する:
+In large projects, divide migration by module boundaries:
 
   +------------------+     +------------------+     +------------------+
   | Authentication   |     | User Management  |     | Order System     |
-  | (TypeScript化済) | --> | (移行中)          | --> | (JavaScript)     |
+  | (TypeScript done)| --> | (In migration)   | --> | (JavaScript)     |
   +------------------+     +------------------+     +------------------+
          |                        |                        |
          v                        v                        v
   +------------------+     +------------------+     +------------------+
-  | 型定義ファイル     |     | 部分的に型付き    |     | .d.ts で橋渡し   |
-  | 完全に型安全      |     | allowJs + checkJs |     | 将来移行         |
+  | Type definition  |     | Partially typed  |     | Bridged with     |
+  | files            |     | allowJs+checkJs  |     | .d.ts for future |
+  | Fully type-safe  |     |                  |     | migration        |
   +------------------+     +------------------+     +------------------+
 
-  ポイント:
-  1. ドメイン単位でモジュールを分割
-  2. モジュール間のインターフェースに .d.ts を定義
-  3. 高リスク/高頻度変更のモジュールから優先移行
-  4. 新機能は常に TypeScript で開発
+  Key points:
+  1. Divide modules by domain
+  2. Define .d.ts at inter-module interfaces
+  3. Prioritize high-risk / high-change-frequency modules
+  4. Always develop new features in TypeScript
 ```
 
-### 5-2. any カウンターの導入
+### 5-2. Introducing an `any` Counter
 
 ```typescript
-// scripts/count-any.ts -- any の数をカウントするスクリプト
+// scripts/count-any.ts -- Script to count occurrences of any
 import { Project } from "ts-morph";
 
 const project = new Project({
@@ -1085,9 +1088,9 @@ for (const sourceFile of project.getSourceFiles()) {
   const filePath = sourceFile.getFilePath();
   const text = sourceFile.getFullText();
 
-  // 明示的な any をカウント
+  // Count explicit any
   const anyCount = (text.match(/:\s*any\b/g) || []).length;
-  // as any をカウント
+  // Count as any
   const asAnyCount = (text.match(/as\s+any\b/g) || []).length;
 
   const total = anyCount + asAnyCount;
@@ -1117,7 +1120,7 @@ fileStats
 }
 ```
 
-### 5-3. 移行進捗の可視化
+### 5-3. Visualizing Migration Progress
 
 ```typescript
 // scripts/migration-status.ts
@@ -1166,12 +1169,12 @@ console.log(`\nProgress: [${"█".repeat(Math.floor(Number(percentage) / 5))}${"
 
 ---
 
-## 6. よくある移行パターン
+## 6. Common Migration Patterns
 
-### 6-1. コールバック地獄から async/await へ
+### 6-1. From Callback Hell to async/await
 
 ```typescript
-// Before: コールバック (JavaScript)
+// Before: callbacks (JavaScript)
 function getUser(id, callback) {
   db.query("SELECT * FROM users WHERE id = ?", [id], (err, rows) => {
     if (err) return callback(err);
@@ -1193,10 +1196,10 @@ async function getUser(id: string): Promise<User> {
 }
 ```
 
-### 6-2. 設定オブジェクトの型定義
+### 6-2. Type Definitions for Configuration Objects
 
 ```typescript
-// Before: 動的な設定オブジェクト
+// Before: dynamic configuration object
 const config = {
   database: {
     host: process.env.DB_HOST || "localhost",
@@ -1214,7 +1217,7 @@ const config = {
   },
 };
 
-// After: zod による型安全な設定
+// After: type-safe configuration with zod
 import { z } from "zod";
 
 const ConfigSchema = z.object({
@@ -1257,57 +1260,57 @@ export const config: Config = ConfigSchema.parse({
 
 ---
 
-## 比較表
+## Comparison Tables
 
-### 移行アプローチの比較
+### Migration Approach Comparison
 
-| アプローチ | 期間 | リスク | チーム影響 | 推奨プロジェクト規模 |
+| Approach | Duration | Risk | Team Impact | Recommended Project Size |
 |-----------|------|--------|-----------|-------------------|
-| ビッグバン（全ファイル一括変換） | 短 | 高 | 大 | 小（~50ファイル） |
-| 段階的移行（ファイル単位） | 長 | 低 | 小 | 中〜大 |
-| 新機能のみ TS | 最長 | 最低 | 最小 | 大（レガシー） |
-| 別ブランチで並行 | 中 | 中 | 中 | 中 |
-| モジュール境界で分割 | 中〜長 | 低 | 小 | 大（マイクロサービス） |
+| Big Bang (convert all files at once) | Short | High | Large | Small (~50 files) |
+| Incremental migration (file by file) | Long | Low | Small | Medium~Large |
+| New features only in TS | Longest | Lowest | Smallest | Large (legacy) |
+| Parallel on separate branch | Medium | Medium | Medium | Medium |
+| Split at module boundaries | Medium~Long | Low | Small | Large (microservices) |
 
-### any 排除ツールの比較
+### Comparison of `any` Elimination Tools
 
-| ツール | 用途 | 自動修正 | 精度 |
+| Tool | Purpose | Auto-fix | Accuracy |
 |--------|------|---------|------|
-| `tsc --strict` | 暗黙 any 検出 | なし | 高 |
-| `@typescript-eslint/no-explicit-any` | 明示 any 検出 | なし | 高 |
-| `ts-prune` | 未使用 export 検出 | なし | 中 |
-| zod | ランタイム型検証 | 型推論 | 最高 |
-| TypeStat | 自動型追加 | あり | 中 |
-| ts-morph | プログラム的な型操作 | あり | 高 |
+| `tsc --strict` | Detect implicit any | No | High |
+| `@typescript-eslint/no-explicit-any` | Detect explicit any | No | High |
+| `ts-prune` | Detect unused exports | No | Medium |
+| zod | Runtime type validation | Type inference | Highest |
+| TypeStat | Auto-add types | Yes | Medium |
+| ts-morph | Programmatic type manipulation | Yes | High |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### AP-1: 全ファイルを一括変換
+### AP-1: Converting All Files at Once
 
 ```bash
-# NG: 一括で .js → .ts にリネーム
+# Bad: Rename all .js → .ts at once
 find src -name "*.js" -exec bash -c 'mv "$0" "${0%.js}.ts"' {} \;
-# → 数百のコンパイルエラーが一度に発生し、対応不能に
+# → Hundreds of compile errors appear at once, becoming unmanageable
 
-# OK: 1ファイルずつ変換、各変換後にテスト
-# 1. utils.js → utils.ts (型エラー修正、テスト実行)
-# 2. models.js → models.ts (型エラー修正、テスト実行)
-# 3. ...（1日 3-5 ファイルのペースで）
+# Good: Convert one file at a time, run tests after each conversion
+# 1. utils.js → utils.ts (fix type errors, run tests)
+# 2. models.js → models.ts (fix type errors, run tests)
+# 3. ... (pace of 3-5 files per day)
 ```
 
-### AP-2: as any でエラーを黙らせる
+### AP-2: Silencing Errors with `as any`
 
 ```typescript
-// NG: as any で型エラーを握りつぶす
+// Bad: Suppress type errors with as any
 const result = someFunction(data as any) as any;
 
-// OK: TODO コメント付きで一時的に許容
+// Better: Temporarily allow with a TODO comment
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const result = someFunction(data as any); // TODO: #123 で型を修正
+const result = someFunction(data as any); // TODO: fix types in #123
 
-// さらに OK: 正しい型を定義
+// Best: Define the correct types
 interface InputData {
   name: string;
   values: number[];
@@ -1315,19 +1318,19 @@ interface InputData {
 const result = someFunction(data as InputData);
 ```
 
-### AP-3: 型定義ファイルを書きすぎる
+### AP-3: Writing Too Many Type Definition Files
 
 ```typescript
-// NG: 全てのサードパーティモジュールに詳細な .d.ts を書く
-// → 保守コストが膨大
+// Bad: Write detailed .d.ts for every third-party module
+// → Maintenance cost becomes enormous
 
-// OK: 段階的なアプローチ
-// Step 1: 最小限の型定義
+// Good: Incremental approach
+// Step 1: Minimal type definitions
 declare module "old-lib" {
   export function process(data: unknown): unknown;
 }
 
-// Step 2: 使用頻度の高い関数のみ型を充実
+// Step 2: Flesh out types for frequently used functions only
 declare module "old-lib" {
   export function process<T>(data: T): ProcessResult<T>;
   export interface ProcessResult<T> {
@@ -1336,113 +1339,113 @@ declare module "old-lib" {
   }
 }
 
-// Step 3: DefinitelyTyped に PR を出すことも検討
+// Step 3: Consider submitting a PR to DefinitelyTyped
 ```
 
-### AP-4: 移行中にリファクタリングも同時進行
+### AP-4: Refactoring While Migrating
 
 ```
-NG:
-  .js → .ts 変換 + ロジック変更 + リファクタリング
+Bad:
+  .js → .ts conversion + logic changes + refactoring
 
-  → 変更が多すぎてレビューが困難
-  → バグが入り込んでも原因特定が困難
-  → テストが壊れた時に何が原因かわからない
+  → Too many changes make review difficult
+  → Hard to identify the cause when bugs are introduced
+  → Hard to tell what caused test failures
 
-OK:
-  Step 1: .js → .ts（型のみ追加、ロジック変更なし）
-  Step 2: テスト確認、コミット
-  Step 3: リファクタリング（別のコミットで）
+Good:
+  Step 1: .js → .ts (add types only, no logic changes)
+  Step 2: Verify tests, commit
+  Step 3: Refactoring (in a separate commit)
 ```
 
 ---
 
-## 移行チェックリスト
+## Migration Checklist
 
 ```
-Phase 1 準備:
-  [ ] TypeScript インストール
-  [ ] tsconfig.json 作成 (allowJs: true, strict: false)
-  [ ] ビルドパイプラインに tsc --noEmit 追加
-  [ ] @types/* パッケージインストール
-  [ ] ESLint を typescript-eslint に設定
-  [ ] CI で型チェックを実行
+Phase 1 Preparation:
+  [ ] Install TypeScript
+  [ ] Create tsconfig.json (allowJs: true, strict: false)
+  [ ] Add tsc --noEmit to build pipeline
+  [ ] Install @types/* packages
+  [ ] Configure ESLint with typescript-eslint
+  [ ] Run type checking in CI
 
-Phase 2 共存:
-  [ ] checkJs: true 有効化
-  [ ] JSDoc で主要関数に型アノテーション
-  [ ] 共通の型定義ファイル (types/) 作成
-  [ ] 型なしサードパーティの .d.ts 作成
-  [ ] エディタの TypeScript 設定確認
+Phase 2 Coexistence:
+  [ ] Enable checkJs: true
+  [ ] Add type annotations to main functions with JSDoc
+  [ ] Create shared type definition files (types/)
+  [ ] Create .d.ts for untyped third-party libraries
+  [ ] Verify editor TypeScript configuration
 
-Phase 3 変換:
-  [ ] ユーティリティファイルから .ts 変換開始
-  [ ] require → import 変換
-  [ ] module.exports → export 変換
-  [ ] any を具体的な型に置換
-  [ ] テスト実行・CI で型チェック
-  [ ] 1ファイルずつコミット
+Phase 3 Conversion:
+  [ ] Start converting utility files to .ts
+  [ ] Convert require → import
+  [ ] Convert module.exports → export
+  [ ] Replace any with concrete types
+  [ ] Run tests and type check in CI
+  [ ] Commit one file at a time
 
-Phase 4 厳密化:
+Phase 4 Strictness:
   [ ] noImplicitAny: true
   [ ] strictNullChecks: true
   [ ] strictFunctionTypes: true
   [ ] strict: true
   [ ] noUncheckedIndexedAccess: true
 
-Phase 5 完了:
-  [ ] 全ファイル .ts 化
+Phase 5 Complete:
+  [ ] All files converted to .ts
   [ ] allowJs: false
-  [ ] checkJs 削除
-  [ ] JSDoc 型アノテーション除去
-  [ ] prop-types 削除（React）
-  [ ] CI で strict ビルドを必須に
-  [ ] any カウントが 0 であることを確認
-  [ ] チームの TypeScript コーディングガイドライン作成
+  [ ] Remove checkJs
+  [ ] Remove JSDoc type annotations
+  [ ] Remove prop-types (React)
+  [ ] Require strict build in CI
+  [ ] Confirm any count is 0
+  [ ] Create team TypeScript coding guidelines
 ```
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement appropriate error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1451,26 +1454,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1478,7 +1481,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1489,14 +1492,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1504,7 +1507,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1512,44 +1515,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1558,7 +1561,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1573,47 +1576,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithmic complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured config file | Check config file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout value, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access permissions | Check execution user permissions, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanism, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace and identify where it occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Validate incrementally**: Verify hypotheses using log output or a debugger
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debug utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1621,102 +1624,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input and output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check I/O waits**: Examine disk and network I/O status
+4. **Check concurrent connections**: Examine connection pool state
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem type | Diagnostic tool | Countermeasure |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | When to prioritize | When to compromise |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, speed to market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│          Architecture Selection Flowchart         │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  (1) What is the team size?                     │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → go to (2)            │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  (2) How often do you deploy?                   │
+│    ├─ Weekly or less → Monolith + module split  │
+│    └─ Daily / multiple times → go to (3)        │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  (3) How independent are the teams?             │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- A quick short-term approach can become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies enables best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- Higher abstraction improves reusability but can make debugging harder
+- Lower abstraction is more intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1726,17 +1729,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1744,7 +1747,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1752,15 +1755,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1769,66 +1772,66 @@ class ArchitectureDecisionRecord:
 
 ## FAQ
 
-### Q1: 移行にどのくらいの期間がかかりますか？
+### Q1: How long does migration take?
 
-規模によります。1万行程度なら 1〜2 週間、10 万行なら 1〜3 ヶ月が目安です。重要なのは「完全な移行」を待たずに、Phase 2（共存）の時点で既に型チェックの恩恵を受けられることです。移行は「終わり」がある作業ではなく、型の品質を継続的に改善するプロセスです。
+It depends on the scale. Around 1-2 weeks for ~10,000 lines, and 1-3 months for ~100,000 lines. The important thing is that you don't have to wait for a "complete migration" — you can already benefit from type checking at Phase 2 (coexistence). Migration is not a task with a definitive end, but a continuous process of improving type quality.
 
-### Q2: 既存のテストは動き続けますか？
+### Q2: Will existing tests continue to work?
 
-はい。`allowJs: true` の状態では既存の .js ファイルはそのまま動きます。ファイルを .ts に変換しても、テストランナーが TypeScript をサポートしていれば（Vitest, Jest + ts-jest など）テストは継続して動作します。
+Yes. With `allowJs: true`, existing .js files continue to work as-is. Even after converting files to .ts, tests will continue to work as long as the test runner supports TypeScript (Vitest, Jest + ts-jest, etc.).
 
-### Q3: チームメンバーが TypeScript を知らない場合はどうすべきですか？
+### Q3: What should I do if team members don't know TypeScript?
 
-Phase 2（JSDoc 型アノテーション）から始めることで、TypeScript の構文を学ばずに型の恩恵を受けられます。並行して TypeScript の基本を学ぶ学習時間を確保し、新機能の開発は TypeScript で行う方針にすると自然に習熟していきます。ペアプログラミングで知識を共有することも効果的です。
+Starting from Phase 2 (JSDoc type annotations) allows you to benefit from types without learning TypeScript syntax. At the same time, allocate learning time to study TypeScript basics, and adopt a policy of writing new features in TypeScript — proficiency will naturally develop. Pair programming is also effective for sharing knowledge.
 
-### Q4: 移行中に新機能の開発はどうすべきですか？
+### Q4: How should new feature development proceed during migration?
 
-新機能は最初から TypeScript で開発してください。新しいファイルは .ts で作成し、strict: true の設定で書きます。既存の JS ファイルとの連携は JSDoc や .d.ts ファイルで橋渡しします。これにより「新しいコードは常に型安全」という基準を維持できます。
+Develop new features in TypeScript from the start. Create new files as .ts and write them with `strict: true`. Bridge with existing JS files using JSDoc or .d.ts files. This maintains the standard that "new code is always type-safe."
 
-### Q5: monorepo の場合、どのパッケージから移行すべきですか？
+### Q5: In a monorepo, which package should be migrated first?
 
-1. 共有ライブラリ（shared パッケージ）から始める -- 他のパッケージに型情報が伝播する
-2. 次にバックエンド（型が最も重要な箇所）
-3. 最後にフロントエンド（PropTypes → TypeScript 型への移行が必要）
+1. Start with shared libraries (shared packages) -- type information propagates to other packages
+2. Then the backend (where types matter most)
+3. Finally the frontend (requires migrating PropTypes to TypeScript types)
 
 ---
 
-## まとめ表
+## Summary Table
 
-| 概念 | 要点 |
+| Concept | Key Point |
 |------|------|
-| 段階的移行 | ファイル単位で変換、依存の葉から開始 |
-| allowJs | JS と TS の共存を可能にする設定 |
-| checkJs | JS ファイルの型チェックを有効化 |
-| JSDoc 型 | .ts 変換前に JSDoc で型を追加 |
-| any 排除 | unknown + zod で段階的に型安全化 |
-| strict 化 | noImplicitAny → strictNullChecks → strict |
-| 移行進捗 | スクリプトで .ts/.js の比率を可視化 |
-| 新機能は TS | 移行中でも新しいコードは TypeScript で |
+| Incremental migration | Convert file by file, starting from dependency leaves |
+| allowJs | Setting that enables JS and TS to coexist |
+| checkJs | Enables type checking for JS files |
+| JSDoc types | Add types with JSDoc before converting to .ts |
+| Eliminating any | Gradually improve type safety with unknown + zod |
+| Strictness | noImplicitAny → strictNullChecks → strict |
+| Migration progress | Visualize .ts/.js ratio with a script |
+| New features in TS | Write new code in TypeScript even during migration |
 
 ---
 
 
-## まとめ
+## Summary
 
-このガイドでは以下の重要なポイントを学びました:
+This guide covered the following key points:
 
-- 基本概念と原則の理解
-- 実践的な実装パターン
-- ベストプラクティスと注意点
-- 実務での活用方法
-
----
-
-## 次に読むべきガイド
-
-- [tsconfig.json](./00-tsconfig.md) -- 移行各フェーズの推奨設定詳細
-- [ESLint + TypeScript](./04-eslint-typescript.md) -- 移行中の lint ルール設定
-- [Zod バリデーション](../04-ecosystem/00-zod-validation.md) -- any 排除の強力なツール
+- Understanding fundamental concepts and principles
+- Practical implementation patterns
+- Best practices and pitfalls
+- How to apply them in real-world work
 
 ---
 
-## 参考文献
+## Guides to Read Next
+
+- [tsconfig.json](./00-tsconfig.md) -- Recommended configuration details for each migration phase
+- [ESLint + TypeScript](./04-eslint-typescript.md) -- Lint rule configuration during migration
+- [Zod Validation](../04-ecosystem/00-zod-validation.md) -- A powerful tool for eliminating any
+
+---
+
+## References
 
 1. **TypeScript - Migrating from JavaScript**
    https://www.typescriptlang.org/docs/handbook/migrating-from-javascript.html
@@ -1836,8 +1839,8 @@ Phase 2（JSDoc 型アノテーション）から始めることで、TypeScript
 2. **Total TypeScript - Migrating to TypeScript**
    https://www.totaltypescript.com/tutorials/migrating-to-typescript
 
-3. **Airbnb の TypeScript 移行記** -- Brie Bunge, JSConf 2019
-   大規模 JS→TS 移行の実践レポート
+3. **Airbnb's TypeScript Migration Story** -- Brie Bunge, JSConf 2019
+   A practical report on large-scale JS→TS migration
 
-4. **ts-morph** -- TypeScript コードのプログラム的な操作
+4. **ts-morph** -- Programmatic manipulation of TypeScript code
    https://github.com/dsherret/ts-morph

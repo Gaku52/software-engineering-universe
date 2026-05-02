@@ -1,83 +1,83 @@
-# ESLint + TypeScript 完全ガイド
+# ESLint + TypeScript Complete Guide
 
-> typescript-eslint を使い、型情報を活用した高度な静的解析で TypeScript コードの品質を保つ
+> Use typescript-eslint to leverage type information for advanced static analysis and maintain TypeScript code quality
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **typescript-eslint のセットアップ** -- Flat Config 形式での設定、パーサー連携、推奨ルールセット
-2. **型情報を使うルール** -- `@typescript-eslint` の型チェック付きルールで、tsc では検出できない問題を発見する
-3. **プロジェクト別の設定** -- モノレポ、React、Node.js、ライブラリそれぞれの最適な lint 構成
-4. **パフォーマンス最適化** -- TIMING、キャッシュ、並列実行による高速化
-5. **カスタムルール作成** -- AST 操作と型情報アクセスによる独自ルールの実装
-6. **代替ツールとの比較** -- Biome、oxlint との機能・性能比較と移行検討
+1. **Setting up typescript-eslint** -- Configuration using Flat Config format, parser integration, and recommended rule sets
+2. **Type-aware rules** -- Use `@typescript-eslint` type-checked rules to detect issues that tsc cannot find
+3. **Per-project configuration** -- Optimal lint configurations for monorepos, React, Node.js, and libraries
+4. **Performance optimization** -- Speedup techniques using TIMING, caching, and parallel execution
+5. **Creating custom rules** -- Implementing custom rules using AST manipulation and type information access
+6. **Comparison with alternatives** -- Feature and performance comparison with Biome and oxlint, and migration considerations
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, the following knowledge will help deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [JavaScript から TypeScript への移行ガイド](./03-migration-guide.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [JavaScript to TypeScript Migration Guide](./03-migration-guide.md)
 
 ---
 
-## 目次
+## Table of Contents
 
-1. [ESLint + TypeScript のアーキテクチャ](#1-eslint--typescript-のアーキテクチャ)
-2. [セットアップと基本設定](#2-セットアップと基本設定)
-3. [推奨ルールセットの比較と選択](#3-推奨ルールセットの比較と選択)
-4. [型情報を使うルールの深堀り](#4-型情報を使うルールの深堀り)
-5. [カスタムルールの作成](#5-カスタムルールの作成)
-6. [Prettier との統合と競合解消](#6-prettier-との統合と競合解消)
-7. [プロジェクト別設定パターン](#7-プロジェクト別設定パターン)
-8. [モノレポでの設定共有](#8-モノレポでの設定共有)
-9. [CI/CD パイプライン統合](#9-cicd-パイプライン統合)
-10. [パフォーマンスチューニング](#10-パフォーマンスチューニング)
-11. [Biome/oxlint との比較と移行](#11-biomeoxlint-との比較と移行)
-12. [演習問題](#12-演習問題)
+1. [ESLint + TypeScript Architecture](#1-eslint--typescript-architecture)
+2. [Setup and Basic Configuration](#2-setup-and-basic-configuration)
+3. [Comparing and Selecting Recommended Rule Sets](#3-comparing-and-selecting-recommended-rule-sets)
+4. [Deep Dive into Type-Aware Rules](#4-deep-dive-into-type-aware-rules)
+5. [Creating Custom Rules](#5-creating-custom-rules)
+6. [Prettier Integration and Conflict Resolution](#6-prettier-integration-and-conflict-resolution)
+7. [Per-Project Configuration Patterns](#7-per-project-configuration-patterns)
+8. [Sharing Configuration in Monorepos](#8-sharing-configuration-in-monorepos)
+9. [CI/CD Pipeline Integration](#9-cicd-pipeline-integration)
+10. [Performance Tuning](#10-performance-tuning)
+11. [Comparison with Biome/oxlint and Migration](#11-comparison-with-biomeoxlint-and-migration)
+12. [Exercises](#12-exercises)
 13. [FAQ](#13-faq)
-14. [参考文献](#14-参考文献)
+14. [References](#14-references)
 
 ---
 
-## 1. ESLint + TypeScript のアーキテクチャ
+## 1. ESLint + TypeScript Architecture
 
-### 1-1. 全体構造
+### 1-1. Overall Structure
 
-ESLint は元々 JavaScript 専用のリンターですが、typescript-eslint プロジェクトによって TypeScript のサポートが実現されています。この統合は以下の3つのコンポーネントで構成されます。
+ESLint was originally a JavaScript-only linter, but the typescript-eslint project enables TypeScript support. This integration consists of three components.
 
 ```
-ESLint + TypeScript の処理フロー:
+ESLint + TypeScript Processing Flow:
 
-  .ts ファイル
+  .ts file
        |
        v
   +--------------------------+
-  | @typescript-eslint/parser|  TSC の AST を ESLint 形式に変換
+  | @typescript-eslint/parser|  Converts TSC AST to ESLint format
   +--------------------------+
        |
        v
   +--------------------------+
-  | ESLint ルールエンジン     |  ルールを適用
-  |  - @eslint/js            |  (JS 標準ルール)
-  |  - @typescript-eslint    |  (TS 専用ルール)
-  |  - 型情報ルール           |  (TSC の型チェッカー連携)
+  | ESLint Rule Engine       |  Applies rules
+  |  - @eslint/js            |  (JS standard rules)
+  |  - @typescript-eslint    |  (TS-specific rules)
+  |  - Type-aware rules      |  (TSC type checker integration)
   +--------------------------+
        |
        v
-  エラー / 警告 レポート
+  Error / Warning Report
 ```
 
-### 1-2. typescript-eslint のコアコンポーネント
+### 1-2. Core Components of typescript-eslint
 
-typescript-eslint は以下の主要パッケージで構成されています。
+typescript-eslint is composed of the following key packages.
 
 ```
-typescript-eslint エコシステム:
+typescript-eslint Ecosystem:
 
 ┌─────────────────────────────────────────┐
-│ typescript-eslint (umbrella package)    │  ← メタパッケージ
+│ typescript-eslint (umbrella package)    │  ← Meta package
 └─────────────────────────────────────────┘
               |
               v
@@ -95,24 +95,24 @@ typescript-eslint エコシステム:
     |                             v
     |                    ┌──────────────────┐
     |                    │ eslint-plugin    │
-    |                    │ (ルール集)        │
+    |                    │ (rule collection) │
     |                    └──────────────────┘
     |                             |
     v                             v
 ┌──────────────────┐      ┌────────────────┐
 │ TypeScript       │<---->│ Type Checker   │
-│ Compiler API     │      │ (型情報)        │
+│ Compiler API     │      │ (type info)    │
 └──────────────────┘      └────────────────┘
 ```
 
 #### @typescript-eslint/parser
 
-TypeScript のコードを ESLint が理解できる AST（Abstract Syntax Tree）に変換するパーサーです。TypeScript Compiler の AST を ESTree 互換の形式に変換します。
+A parser that converts TypeScript code into an AST (Abstract Syntax Tree) that ESLint can understand. It converts the TypeScript Compiler's AST into ESTree-compatible format.
 
 ```typescript
-// パーサーの役割
+// Role of the parser
 
-// TypeScript コード
+// TypeScript code
 const greeting: string = "Hello";
 
 // TypeScript Compiler AST (TSC)
@@ -122,7 +122,7 @@ const greeting: string = "Hello";
   type: { kind: SyntaxKind.StringKeyword }
 }
 
-// ESTree 形式 (ESLint が理解できる形式)
+// ESTree format (format that ESLint understands)
 {
   type: "VariableDeclaration",
   declarations: [{
@@ -134,64 +134,64 @@ const greeting: string = "Hello";
 
 #### @typescript-eslint/eslint-plugin
 
-TypeScript 専用のルール集を提供するプラグインです。300以上のルールが含まれており、型情報を活用するルールも多数あります。
+A plugin that provides TypeScript-specific rule collections. It includes over 300 rules, many of which leverage type information.
 
 ```typescript
-// プラグインが提供するルールの例
+// Examples of rules provided by the plugin
 {
   rules: {
-    "@typescript-eslint/no-explicit-any": "error",           // any 禁止
-    "@typescript-eslint/no-floating-promises": "error",      // Promise 放置検出
-    "@typescript-eslint/switch-exhaustiveness-check": "error" // switch 網羅性
+    "@typescript-eslint/no-explicit-any": "error",           // Prohibit any
+    "@typescript-eslint/no-floating-promises": "error",      // Detect unhandled Promises
+    "@typescript-eslint/switch-exhaustiveness-check": "error" // switch exhaustiveness
   }
 }
 ```
 
 #### typescript-eslint (umbrella package)
 
-v8 から導入されたメタパッケージで、parser と plugin を統合して簡単に使えるようにしています。
+A meta package introduced in v8 that integrates parser and plugin for easy use.
 
 ```typescript
-// v8 以降の推奨インストール
+// Recommended installation from v8 onwards
 npm install -D eslint typescript-eslint
 
-// v7 以前 (legacy)
+// Before v7 (legacy)
 npm install -D eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin
 ```
 
-### 1-3. 型情報の活用メカニズム
+### 1-3. Type Information Utilization Mechanism
 
-typescript-eslint の最大の特徴は、TypeScript Compiler の型チェッカーと連携して型情報を使ったルールを提供することです。
+The greatest feature of typescript-eslint is providing rules that use type information by integrating with the TypeScript Compiler's type checker.
 
 ```
-型情報を使うルールの仕組み:
+How type-aware rules work:
 
-  1. tsconfig.json を読み込む
+  1. Load tsconfig.json
        |
        v
-  2. TypeScript Compiler の型チェッカーを初期化
+  2. Initialize TypeScript Compiler's type checker
        |
        v
-  3. 各ファイルの型情報を取得
+  3. Retrieve type information for each file
        |
        v
-  4. ルールが型情報にアクセス
+  4. Rules access type information
        |
        v
-  5. 型に基づいた検証を実行
+  5. Execute type-based validation
 ```
 
 ```typescript
-// 型情報を使うルールの例
+// Example of a type-aware rule
 
-// no-floating-promises ルールの内部動作イメージ
+// Internal workings image of the no-floating-promises rule
 function checkNode(node: TSESTree.Node) {
-  // 1. ノードの型情報を取得
+  // 1. Get type information for the node
   const type = checker.getTypeAtLocation(node);
 
-  // 2. Promise 型かどうかをチェック
+  // 2. Check if it is a Promise type
   if (isPromiseType(type)) {
-    // 3. await または .catch() がついているかチェック
+    // 3. Check if await or .catch() is present
     if (!isHandled(node)) {
       context.report({
         node,
@@ -202,30 +202,30 @@ function checkNode(node: TSESTree.Node) {
 }
 ```
 
-この型情報ルールは、通常の静的解析では検出できない問題を見つけることができます。
+This type-aware rule can find problems that ordinary static analysis cannot detect.
 
 ```typescript
-// 型情報ルールで検出できる問題
+// Problems detectable by type-aware rules
 
-// 問題1: Promise の放置
+// Problem 1: Unhandled Promise
 async function fetchData() {
-  fetch("/api/data"); // ← no-floating-promises が警告
+  fetch("/api/data"); // <- no-floating-promises warns here
 }
 
-// 問題2: 型安全でない操作
+// Problem 2: Type-unsafe operation
 function process(value: unknown) {
-  value.method(); // ← no-unsafe-call が警告
+  value.method(); // <- no-unsafe-call warns here
 }
 
-// 問題3: async 関数の誤用
-[1, 2, 3].forEach(async (n) => { // ← no-misused-promises が警告
+// Problem 3: Misuse of async function
+[1, 2, 3].forEach(async (n) => { // <- no-misused-promises warns here
   await processNumber(n);
 });
 ```
 
-### 1-4. Flat Config アーキテクチャ
+### 1-4. Flat Config Architecture
 
-ESLint v9 から導入された Flat Config は、従来の `.eslintrc.*` 形式を置き換える新しい設定形式です。
+Flat Config, introduced in ESLint v9, is a new configuration format that replaces the traditional `.eslintrc.*` format.
 
 ```
 Legacy Config vs Flat Config:
@@ -239,60 +239,60 @@ Legacy (.eslintrc.json)          Flat (eslint.config.ts)
 │ env/globals       │            │   languageOptions │
 └───────────────────┘            └───────────────────┘
 
-  複雑                              シンプル
-  暗黙的                            明示的
-  設定の結合が不透明                配列のマージ
+  Complex                           Simple
+  Implicit                          Explicit
+  Opaque config merging             Array merging
 ```
 
-Flat Config の利点:
+Benefits of Flat Config:
 
-1. **TypeScript で記述可能** - 型安全な設定
-2. **明示的なインポート** - 依存関係が明確
-3. **シンプルな結合** - 配列のスプレッド演算子で結合
-4. **単一ファイル** - `.eslintignore` 不要
+1. **Can be written in TypeScript** - Type-safe configuration
+2. **Explicit imports** - Clear dependencies
+3. **Simple merging** - Merged with array spread operator
+4. **Single file** - No need for `.eslintignore`
 
 ```typescript
-// Flat Config の構造
+// Structure of Flat Config
 export default [
-  // 各要素は ConfigObject
+  // Each element is a ConfigObject
   {
-    files: ["**/*.ts"],           // 対象ファイル
-    languageOptions: { /* ... */ }, // パーサー設定
-    plugins: { /* ... */ },       // プラグイン
-    rules: { /* ... */ }          // ルール
+    files: ["**/*.ts"],           // Target files
+    languageOptions: { /* ... */ }, // Parser settings
+    plugins: { /* ... */ },       // Plugins
+    rules: { /* ... */ }          // Rules
   },
   {
-    ignores: ["dist/**"]          // 除外パターン
+    ignores: ["dist/**"]          // Exclude patterns
   }
 ];
 ```
 
 ---
 
-## 2. セットアップと基本設定
+## 2. Setup and Basic Configuration
 
-### 2-1. インストール
+### 2-1. Installation
 
 ```bash
-# 最小構成
+# Minimal configuration
 npm install -D eslint typescript-eslint
 
-# Prettier 連携を含む構成
+# Configuration including Prettier integration
 npm install -D eslint typescript-eslint eslint-config-prettier
 
-# React プロジェクト
+# React project
 npm install -D eslint typescript-eslint \
   eslint-plugin-react-hooks eslint-plugin-react-refresh
 
-# Node.js プロジェクト
+# Node.js project
 npm install -D eslint typescript-eslint \
   eslint-plugin-node eslint-plugin-security
 ```
 
-### 2-2. 基本設定ファイル
+### 2-2. Basic Configuration File
 
 ```typescript
-// eslint.config.ts (最小構成)
+// eslint.config.ts (minimal configuration)
 import eslint from "@eslint/js";
 import tseslint from "typescript-eslint";
 
@@ -303,7 +303,7 @@ export default tseslint.config(
 ```
 
 ```typescript
-// eslint.config.ts (型情報を使う構成)
+// eslint.config.ts (configuration using type information)
 import eslint from "@eslint/js";
 import tseslint from "typescript-eslint";
 
@@ -322,20 +322,20 @@ export default tseslint.config(
 ```
 
 ```typescript
-// eslint.config.ts (本格的な構成)
+// eslint.config.ts (full-featured configuration)
 import eslint from "@eslint/js";
 import tseslint from "typescript-eslint";
 import prettierConfig from "eslint-config-prettier";
 
 export default tseslint.config(
-  // 1. 基本ルール
+  // 1. Basic rules
   eslint.configs.recommended,
 
-  // 2. TypeScript ルール (strict + stylistic)
+  // 2. TypeScript rules (strict + stylistic)
   ...tseslint.configs.strictTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,
 
-  // 3. パーサー設定
+  // 3. Parser configuration
   {
     languageOptions: {
       parserOptions: {
@@ -345,30 +345,30 @@ export default tseslint.config(
     },
   },
 
-  // 4. カスタムルール
+  // 4. Custom rules
   {
     rules: {
-      // async 関連
+      // async-related
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-misused-promises": "error",
       "@typescript-eslint/await-thenable": "error",
       "@typescript-eslint/return-await": ["error", "in-try-catch"],
 
-      // 型安全性
+      // Type safety
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-unsafe-assignment": "error",
       "@typescript-eslint/no-unsafe-call": "error",
       "@typescript-eslint/no-unsafe-member-access": "error",
       "@typescript-eslint/no-unsafe-return": "error",
 
-      // インポート
+      // Imports
       "@typescript-eslint/consistent-type-imports": [
         "error",
         { prefer: "type-imports", fixable: "code" },
       ],
       "@typescript-eslint/no-import-type-side-effects": "error",
 
-      // 未使用変数
+      // Unused variables
       "@typescript-eslint/no-unused-vars": [
         "error",
         {
@@ -378,12 +378,12 @@ export default tseslint.config(
         },
       ],
 
-      // switch 網羅性
+      // switch exhaustiveness
       "@typescript-eslint/switch-exhaustiveness-check": "error",
     },
   },
 
-  // 5. テストファイル用の緩和
+  // 5. Relaxed rules for test files
   {
     files: ["**/*.test.ts", "**/*.spec.ts"],
     rules: {
@@ -393,7 +393,7 @@ export default tseslint.config(
     },
   },
 
-  // 6. 除外パターン
+  // 6. Exclude patterns
   {
     ignores: [
       "dist/",
@@ -405,37 +405,37 @@ export default tseslint.config(
     ],
   },
 
-  // 7. Prettier 連携
+  // 7. Prettier integration
   prettierConfig
 );
 ```
 
-### 2-3. package.json スクリプト設定
+### 2-3. package.json Script Configuration
 
 ```json
 {
   "scripts": {
-    // 基本
+    // Basic
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
 
-    // 型チェックと lint を同時実行
+    // Run type check and lint simultaneously
     "check": "tsc --noEmit && eslint src/",
 
-    // 並列実行 (npm-run-all 使用)
+    // Parallel execution (using npm-run-all)
     "check:parallel": "run-p typecheck lint",
     "typecheck": "tsc --noEmit",
 
-    // タイミング情報付き (パフォーマンス調査用)
+    // With timing info (for performance investigation)
     "lint:timing": "TIMING=1 eslint src/",
 
-    // キャッシュをクリア
+    // Clear cache
     "lint:clean": "eslint src/ --cache --cache-location .eslintcache",
 
-    // 変更ファイルのみ
+    // Changed files only
     "lint:changed": "eslint $(git diff --name-only --diff-filter=d HEAD -- '*.ts' '*.tsx')",
 
-    // CI 用 (警告もエラーとして扱う)
+    // For CI (treat warnings as errors)
     "lint:ci": "eslint src/ --max-warnings 0"
   },
   "devDependencies": {
@@ -446,14 +446,14 @@ export default tseslint.config(
 }
 ```
 
-### 2-4. IDE 統合
+### 2-4. IDE Integration
 
-#### VS Code 設定
+#### VS Code Settings
 
 ```json
 // .vscode/settings.json
 {
-  // ESLint 拡張機能の設定
+  // ESLint extension settings
   "eslint.enable": true,
   "eslint.validate": [
     "javascript",
@@ -462,36 +462,36 @@ export default tseslint.config(
     "typescriptreact"
   ],
 
-  // Flat Config を有効化
+  // Enable Flat Config
   "eslint.useFlatConfig": true,
 
-  // 保存時に自動修正
+  // Auto-fix on save
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "explicit"
   },
 
-  // Prettier との統合
+  // Prettier integration
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "[typescript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.formatOnSave": true
   },
 
-  // ESLint のワーキングディレクトリ
+  // ESLint working directory
   "eslint.workingDirectories": [
     { "mode": "auto" }
   ],
 
-  // パフォーマンス設定
+  // Performance settings
   "eslint.lintTask.options": "--cache",
 
-  // デバッグ用
-  "eslint.trace.server": "off" // 問題発生時は "verbose" に変更
+  // For debugging
+  "eslint.trace.server": "off" // Change to "verbose" when troubleshooting
 }
 ```
 
 ```json
-// .vscode/extensions.json (推奨拡張機能)
+// .vscode/extensions.json (recommended extensions)
 {
   "recommendations": [
     "dbaeumer.vscode-eslint",
@@ -500,7 +500,7 @@ export default tseslint.config(
 }
 ```
 
-#### WebStorm / IntelliJ IDEA 設定
+#### WebStorm / IntelliJ IDEA Settings
 
 ```
 Settings > Languages & Frameworks > JavaScript > Code Quality Tools > ESLint
@@ -510,10 +510,10 @@ Settings > Languages & Frameworks > JavaScript > Code Quality Tools > ESLint
 3. Configuration file: eslint.config.ts
 ```
 
-### 2-5. Git フック統合
+### 2-5. Git Hook Integration
 
 ```bash
-# husky + lint-staged のインストール
+# Install husky + lint-staged
 npm install -D husky lint-staged
 npx husky init
 ```
@@ -540,46 +540,46 @@ npm run lint-staged
 
 ---
 
-## 3. 推奨ルールセットの比較と選択
+## 3. Comparing and Selecting Recommended Rule Sets
 
-### 3-1. ルールセットの階層構造
+### 3-1. Hierarchy of Rule Sets
 
-typescript-eslint は複数のルールセットを提供しており、段階的に厳密度を高めることができます。
+typescript-eslint provides multiple rule sets, allowing you to incrementally increase strictness.
 
 ```
-ルールセットの階層:
+Rule set hierarchy:
 
   recommended
        |
-       +-- 基本的なバグ検出
-       +-- 型情報不要
-       +-- ルール数: ~50
+       +-- Basic bug detection
+       +-- No type information required
+       +-- Number of rules: ~50
        |
        v
   recommendedTypeChecked
        |
-       +-- recommended を含む
-       +-- 型情報を使うルール追加
-       +-- ルール数: ~70
+       +-- Includes recommended
+       +-- Adds type-aware rules
+       +-- Number of rules: ~70
        |
        v
   strictTypeChecked
        |
-       +-- recommendedTypeChecked を含む
-       +-- より厳格なルール追加
-       +-- ルール数: ~90
+       +-- Includes recommendedTypeChecked
+       +-- Adds stricter rules
+       +-- Number of rules: ~90
        |
        v
   strictTypeChecked + stylisticTypeChecked
        |
-       +-- strict を含む
-       +-- コードスタイル統一ルール追加
-       +-- ルール数: ~110
+       +-- Includes strict
+       +-- Adds code style consistency rules
+       +-- Number of rules: ~110
 ```
 
 ### 3-2. recommended
 
-基本的なバグ検出ルールのみを有効化します。型情報は不要です。
+Enables only basic bug detection rules. No type information required.
 
 ```typescript
 // eslint.config.ts
@@ -590,25 +590,25 @@ export default tseslint.config(
 );
 ```
 
-含まれる主なルール:
+Key rules included:
 
-- `@typescript-eslint/no-explicit-any` - any の使用を警告
-- `@typescript-eslint/no-unused-vars` - 未使用変数を検出
-- `@typescript-eslint/no-array-constructor` - Array コンストラクタの誤用を検出
-- `@typescript-eslint/ban-ts-comment` - @ts-ignore の使用を制限
+- `@typescript-eslint/no-explicit-any` - Warns about use of any
+- `@typescript-eslint/no-unused-vars` - Detects unused variables
+- `@typescript-eslint/no-array-constructor` - Detects misuse of Array constructor
+- `@typescript-eslint/ban-ts-comment` - Restricts use of @ts-ignore
 
-利点:
-- 高速 (型情報不要)
-- セットアップが簡単
-- 既存プロジェクトへの導入が容易
+Advantages:
+- Fast (no type information needed)
+- Easy to set up
+- Easy to introduce into existing projects
 
-欠点:
-- 型情報を使う高度なチェックができない
-- Promise の誤用などを検出できない
+Disadvantages:
+- Cannot perform advanced checks using type information
+- Cannot detect Promise misuse and similar issues
 
 ### 3-3. recommendedTypeChecked
 
-型情報を使うルールを追加します。
+Adds rules that use type information.
 
 ```typescript
 // eslint.config.ts
@@ -627,25 +627,25 @@ export default tseslint.config(
 );
 ```
 
-追加される主なルール:
+Key rules added:
 
-- `@typescript-eslint/no-floating-promises` - Promise の放置を検出
-- `@typescript-eslint/no-misused-promises` - async 関数の誤用を検出
-- `@typescript-eslint/await-thenable` - Promise でない値への await を検出
-- `@typescript-eslint/no-unnecessary-condition` - 不要な条件分岐を検出
+- `@typescript-eslint/no-floating-promises` - Detects unhandled Promises
+- `@typescript-eslint/no-misused-promises` - Detects misuse of async functions
+- `@typescript-eslint/await-thenable` - Detects await on non-Promise values
+- `@typescript-eslint/no-unnecessary-condition` - Detects unnecessary conditional branches
 
-利点:
-- tsc では検出できない問題を発見
-- 非同期処理のバグを防ぐ
-- 型安全性が大幅に向上
+Advantages:
+- Finds problems that tsc cannot detect
+- Prevents bugs in asynchronous processing
+- Greatly improves type safety
 
-欠点:
-- 型チェックのため実行速度が遅い
-- tsconfig.json の設定が必要
+Disadvantages:
+- Slower execution due to type checking
+- Requires tsconfig.json configuration
 
 ### 3-4. strictTypeChecked
 
-より厳格なルールセットです。
+A stricter rule set.
 
 ```typescript
 // eslint.config.ts
@@ -664,25 +664,25 @@ export default tseslint.config(
 );
 ```
 
-追加される主なルール:
+Key rules added:
 
-- `@typescript-eslint/no-confusing-void-expression` - void 式の誤用を検出
-- `@typescript-eslint/no-unnecessary-boolean-literal-compare` - 不要な真偽値比較を検出
-- `@typescript-eslint/prefer-reduce-type-parameter` - reduce の型パラメータ使用を推奨
-- `@typescript-eslint/restrict-template-expressions` - テンプレート文字列の型制限
+- `@typescript-eslint/no-confusing-void-expression` - Detects misuse of void expressions
+- `@typescript-eslint/no-unnecessary-boolean-literal-compare` - Detects unnecessary boolean comparisons
+- `@typescript-eslint/prefer-reduce-type-parameter` - Recommends using type parameters in reduce
+- `@typescript-eslint/restrict-template-expressions` - Type restrictions in template strings
 
-利点:
-- 最高レベルの型安全性
-- コードの一貫性が向上
-- ライブラリ開発に最適
+Advantages:
+- Highest level of type safety
+- Improved code consistency
+- Ideal for library development
 
-欠点:
-- 既存コードへの適用が困難
-- 一部のルールが厳しすぎる場合がある
+Disadvantages:
+- Difficult to apply to existing code
+- Some rules may be too strict
 
 ### 3-5. stylisticTypeChecked
 
-コードスタイルの統一ルールを追加します。
+Adds code style consistency rules.
 
 ```typescript
 // eslint.config.ts
@@ -702,42 +702,42 @@ export default tseslint.config(
 );
 ```
 
-追加される主なルール:
+Key rules added:
 
-- `@typescript-eslint/consistent-type-definitions` - type vs interface の統一
-- `@typescript-eslint/consistent-type-imports` - import type の使用を強制
-- `@typescript-eslint/prefer-function-type` - 関数型の統一
-- `@typescript-eslint/array-type` - 配列型表記の統一
+- `@typescript-eslint/consistent-type-definitions` - Enforces consistency between type and interface
+- `@typescript-eslint/consistent-type-imports` - Enforces use of import type
+- `@typescript-eslint/prefer-function-type` - Enforces consistent function types
+- `@typescript-eslint/array-type` - Enforces consistent array type notation
 
-### 3-6. ルールセット比較表
+### 3-6. Rule Set Comparison Table
 
-| ルールセット | ルール数 | 型情報 | 速度 | 厳密度 | 推奨シーン |
+| Rule Set | Number of Rules | Type Info | Speed | Strictness | Recommended Use Case |
 |-------------|---------|--------|------|--------|-----------|
-| recommended | ~50 | 不要 | 最速 | 低 | 初期導入、レガシーコード |
-| recommendedTypeChecked | ~70 | 必要 | 遅い | 中 | 一般的なプロジェクト |
-| strictTypeChecked | ~90 | 必要 | 遅い | 高 | ライブラリ、高品質要求 |
-| strict + stylistic | ~110 | 必要 | 遅い | 最高 | チーム開発、OSS |
+| recommended | ~50 | Not required | Fastest | Low | Initial introduction, legacy code |
+| recommendedTypeChecked | ~70 | Required | Slow | Medium | General projects |
+| strictTypeChecked | ~90 | Required | Slow | High | Libraries, high quality requirements |
+| strict + stylistic | ~110 | Required | Slow | Highest | Team development, OSS |
 
-### 3-7. プロジェクト別の推奨ルールセット
+### 3-7. Recommended Rule Sets by Project Type
 
 ```typescript
-// 新規プロジェクト: strictTypeChecked + stylisticTypeChecked
+// New projects: strictTypeChecked + stylisticTypeChecked
 export default tseslint.config(
   ...tseslint.configs.strictTypeChecked,
   ...tseslint.configs.stylisticTypeChecked
 );
 
-// 既存プロジェクト: recommendedTypeChecked からスタート
+// Existing projects: start from recommendedTypeChecked
 export default tseslint.config(
   ...tseslint.configs.recommendedTypeChecked
 );
 
-// レガシーコード: recommended のみ
+// Legacy code: recommended only
 export default tseslint.config(
   ...tseslint.configs.recommended
 );
 
-// ライブラリ: strictTypeChecked + 独自ルール
+// Libraries: strictTypeChecked + custom rules
 export default tseslint.config(
   ...tseslint.configs.strictTypeChecked,
   {
@@ -751,30 +751,30 @@ export default tseslint.config(
 
 ---
 
-## 4. 型情報を使うルールの深堀り
+## 4. Deep Dive into Type-Aware Rules
 
-型情報ルール（type-checked rules）は、typescript-eslint の最大の特徴です。TypeScript Compiler の型チェッカーと連携することで、通常の静的解析では検出できない問題を発見します。
+Type-aware rules (type-checked rules) are the greatest feature of typescript-eslint. By integrating with the TypeScript Compiler's type checker, they can detect problems that ordinary static analysis cannot find.
 
 ### 4-1. no-floating-promises
 
-Promise を await または .catch() せずに放置することを検出します。
+Detects Promises left without await or .catch().
 
 ```typescript
-// NG: Promise を放置
+// NG: Unhandled Promise
 async function fetchData(): Promise<void> {
   const response = await fetch("/api/data");
-  response.json(); // 警告: Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler
-  // ↑ この Promise は処理されず、エラーが握りつぶされる
+  response.json(); // Warning: Promises must be awaited, end with a call to .catch, or end with a call to .then with a rejection handler
+  // ↑ This Promise is not handled, and errors will be silently swallowed
 }
 
-// OK: await する
+// OK: use await
 async function fetchData(): Promise<void> {
   const response = await fetch("/api/data");
   const data = await response.json();
   console.log(data);
 }
 
-// OK: .catch() でエラーハンドリング
+// OK: handle errors with .catch()
 async function fetchData(): Promise<void> {
   const response = await fetch("/api/data");
   response.json().catch((err) => {
@@ -782,30 +782,30 @@ async function fetchData(): Promise<void> {
   });
 }
 
-// OK: void 演算子で意図的に無視
+// OK: intentionally ignore with void operator
 async function backgroundTask(): Promise<void> {
-  void someAsyncOperation(); // バックグラウンドで実行
+  void someAsyncOperation(); // execute in background
 }
 
-// NG: 変数に代入しても await しなければエラー
+// NG: even if assigned to a variable, error if not awaited
 async function fetchData(): Promise<void> {
-  const promise = fetch("/api/data"); // 警告
-  // promise を await していない
+  const promise = fetch("/api/data"); // Warning
+  // promise is not awaited
 }
 ```
 
-実際の問題例:
+Real-world example:
 
 ```typescript
-// 問題: データベース接続の切断を忘れる
+// Problem: forgetting to close a database connection
 class UserRepository {
   async save(user: User): Promise<void> {
     await db.insert(users).values(user);
-    db.close(); // 警告: db.close() は Promise を返すが await していない
+    db.close(); // Warning: db.close() returns a Promise but is not awaited
   }
 }
 
-// 修正
+// Fix
 class UserRepository {
   async save(user: User): Promise<void> {
     await db.insert(users).values(user);
@@ -816,43 +816,43 @@ class UserRepository {
 
 ### 4-2. no-misused-promises
 
-Promise を期待していない場所で使用することを検出します。
+Detects using Promises where they are not expected.
 
 ```typescript
-// NG: forEach のコールバックに async 関数
+// NG: async function as forEach callback
 const items = [1, 2, 3];
 items.forEach(async (item) => {
-  // 警告: Promise returned in function argument where a void return was expected
+  // Warning: Promise returned in function argument where a void return was expected
   await processItem(item);
 });
-// forEach は返り値の Promise を待たないため、エラーが握りつぶされる
+// forEach does not wait for the returned Promise, so errors are silently swallowed
 
-// OK: for...of で順次処理
+// OK: sequential processing with for...of
 for (const item of items) {
   await processItem(item);
 }
 
-// OK: Promise.all で並列処理
+// OK: parallel processing with Promise.all
 await Promise.all(items.map((item) => processItem(item)));
 
-// NG: 条件式に Promise
-if (fetchUser(id)) { // 警告: Expected non-Promise value in a boolean conditional
-  // Promise は常に truthy なので、この条件は常に true
+// NG: Promise in a conditional expression
+if (fetchUser(id)) { // Warning: Expected non-Promise value in a boolean conditional
+  // A Promise is always truthy, so this condition is always true
 }
 
-// OK: await してから条件判定
+// OK: await first, then evaluate condition
 const user = await fetchUser(id);
 if (user) {
   // ...
 }
 
-// NG: addEventListener に async 関数
+// NG: async function in addEventListener
 button.addEventListener("click", async () => {
-  // 警告: Promise-returning function provided to attribute where a void return was expected
+  // Warning: Promise-returning function provided to attribute where a void return was expected
   await handleClick();
 });
 
-// OK: エラーハンドリング付き
+// OK: with error handling
 button.addEventListener("click", () => {
   handleClick().catch((err) => {
     console.error("Click handler error:", err);
@@ -860,20 +860,20 @@ button.addEventListener("click", () => {
 });
 ```
 
-実際の問題例:
+Real-world example:
 
 ```typescript
-// 問題: Array.prototype.map の誤用
+// Problem: misuse of Array.prototype.map
 async function getUserNames(ids: string[]): Promise<string[]> {
-  // NG: map は Promise を待たない
+  // NG: map does not wait for Promises
   const names = ids.map(async (id) => {
     const user = await fetchUser(id);
     return user.name;
   });
-  return names; // 型エラー: Promise<string>[] を返している
+  return names; // Type error: returning Promise<string>[]
 }
 
-// 修正
+// Fix
 async function getUserNames(ids: string[]): Promise<string[]> {
   const names = await Promise.all(
     ids.map(async (id) => {
@@ -887,19 +887,19 @@ async function getUserNames(ids: string[]): Promise<string[]> {
 
 ### 4-3. await-thenable
 
-await が必要ない値に await を使用することを検出します。
+Detects using await on values that do not need it.
 
 ```typescript
-// NG: Promise でない値を await
+// NG: await on a non-Promise value
 function getUser(id: string): User {
   return database[id];
 }
 
 async function main() {
-  const user = await getUser("123"); // 警告: Unexpected await on a non-Promise value
+  const user = await getUser("123"); // Warning: Unexpected await on a non-Promise value
 }
 
-// OK: Promise を返す関数のみ await
+// OK: only await functions that return Promises
 async function getUser(id: string): Promise<User> {
   return fetch(`/api/users/${id}`).then((r) => r.json());
 }
@@ -908,47 +908,47 @@ async function main() {
   const user = await getUser("123");
 }
 
-// NG: 既に await された値を再度 await
+// NG: double await on already-awaited value
 async function fetchData(): Promise<Data> {
   const response = await fetch("/api/data");
-  const data = await await response.json(); // 警告: 二重 await
+  const data = await await response.json(); // Warning: double await
   return data;
 }
 ```
 
 ### 4-4. no-unnecessary-condition
 
-常に true または false になる条件式を検出します。
+Detects conditions that are always true or always false.
 
 ```typescript
-// NG: 常に true の条件
+// NG: condition that is always true
 function process(value: string) {
-  if (value !== undefined) { // 警告: Unnecessary conditional, value is always defined
-    // value は string 型なので undefined になることはない
+  if (value !== undefined) { // Warning: Unnecessary conditional, value is always defined
+    // value is of type string, so it can never be undefined
   }
 }
 
-// OK: Optional な値の条件チェック
+// OK: conditional check for optional value
 function process(value?: string) {
   if (value !== undefined) {
-    // value は string | undefined なので適切
+    // value is string | undefined, so this is appropriate
   }
 }
 
-// NG: 常に false の条件
+// NG: condition that is always false
 function check(num: number) {
-  if (num === "123") { // 警告: This comparison appears to be unintentional
-    // number と string は等価になることはない
+  if (num === "123") { // Warning: This comparison appears to be unintentional
+    // number and string can never be equal
   }
 }
 
-// NG: 不要な null チェック
+// NG: unnecessary null check
 function greet(name: string) {
-  return name ?? "Guest"; // 警告: Unnecessary nullish coalescing operator
-  // name は string 型なので null/undefined にならない
+  return name ?? "Guest"; // Warning: Unnecessary nullish coalescing operator
+  // name is of type string, so it can never be null/undefined
 }
 
-// OK: Optional な値への null チェック
+// OK: null check for optional value
 function greet(name?: string) {
   return name ?? "Guest";
 }
@@ -956,59 +956,59 @@ function greet(name?: string) {
 
 ### 4-5. switch-exhaustiveness-check
 
-switch 文でユニオン型の全ケースを網羅しているかチェックします。
+Checks whether all cases of a union type are covered in a switch statement.
 
 ```typescript
 // @typescript-eslint/switch-exhaustiveness-check: "error"
 
 type Status = "active" | "inactive" | "pending" | "archived";
 
-// NG: ケースが不足
+// NG: missing cases
 function getLabel(status: Status): string {
   switch (status) {
     case "active":
-      return "有効";
+      return "Active";
     case "inactive":
-      return "無効";
+      return "Inactive";
     case "pending":
-      return "保留中";
-    // 警告: Switch is not exhaustive. Missing case: "archived"
+      return "Pending";
+    // Warning: Switch is not exhaustive. Missing case: "archived"
   }
 }
 
-// OK: 全ケースを網羅
+// OK: all cases covered
 function getLabel(status: Status): string {
   switch (status) {
     case "active":
-      return "有効";
+      return "Active";
     case "inactive":
-      return "無効";
+      return "Inactive";
     case "pending":
-      return "保留中";
+      return "Pending";
     case "archived":
-      return "アーカイブ済み";
+      return "Archived";
   }
 }
 
-// OK: default で網羅
+// OK: covered with default
 function getLabel(status: Status): string {
   switch (status) {
     case "active":
-      return "有効";
+      return "Active";
     case "inactive":
-      return "無効";
+      return "Inactive";
     case "pending":
-      return "保留中";
+      return "Pending";
     default:
-      return "その他";
+      return "Other";
   }
 }
 ```
 
-型安全な exhaustive check パターン:
+Type-safe exhaustive check pattern:
 
 ```typescript
-// never 型を使った網羅性チェック
+// Exhaustiveness check using the never type
 function assertNever(value: never): never {
   throw new Error(`Unexpected value: ${value}`);
 }
@@ -1016,52 +1016,52 @@ function assertNever(value: never): never {
 function getLabel(status: Status): string {
   switch (status) {
     case "active":
-      return "有効";
+      return "Active";
     case "inactive":
-      return "無効";
+      return "Inactive";
     case "pending":
-      return "保留中";
+      return "Pending";
     default:
-      // Status に新しい値が追加されると、ここで型エラーが発生
+      // If a new value is added to Status, a type error occurs here
       return assertNever(status);
   }
 }
 ```
 
-### 4-6. no-unsafe-* ルール群
+### 4-6. no-unsafe-* Rule Group
 
-any 型の値に対する操作を制限します。
+Restricts operations on values of type any.
 
 ```typescript
 // no-unsafe-assignment
 function process(data: any) {
-  const value: string = data; // 警告: Unsafe assignment of an any value
+  const value: string = data; // Warning: Unsafe assignment of an any value
 }
 
 // no-unsafe-call
 function execute(fn: any) {
-  fn(); // 警告: Unsafe call of an any typed value
+  fn(); // Warning: Unsafe call of an any typed value
 }
 
 // no-unsafe-member-access
 function getValue(obj: any) {
-  return obj.value; // 警告: Unsafe member access .value on an any value
+  return obj.value; // Warning: Unsafe member access .value on an any value
 }
 
 // no-unsafe-return
 function getData(): string {
   const data: any = fetchData();
-  return data; // 警告: Unsafe return of an any typed value
+  return data; // Warning: Unsafe return of an any typed value
 }
 
-// OK: 型アサーションまたは型ガードを使用
+// OK: use type assertion or type guard
 function process(data: unknown) {
   if (typeof data === "string") {
     const value: string = data;
   }
 }
 
-// OK: Zod などのバリデーションライブラリを使用
+// OK: use a validation library like Zod
 import { z } from "zod";
 
 const UserSchema = z.object({
@@ -1070,78 +1070,78 @@ const UserSchema = z.object({
 });
 
 function process(data: unknown) {
-  const user = UserSchema.parse(data); // 型安全
+  const user = UserSchema.parse(data); // type-safe
   console.log(user.name);
 }
 ```
 
 ### 4-7. prefer-nullish-coalescing
 
-`||` の代わりに `??` を使うべき場合を検出します。
+Detects cases where `??` should be used instead of `||`.
 
 ```typescript
-// NG: || を使うと 0 や '' が falsy として扱われる
+// NG: using || treats 0 and '' as falsy
 function getCount(count: number | undefined): number {
-  return count || 0; // 警告: Prefer using nullish coalescing operator
-  // count が 0 の場合も 0 が返る (意図しない動作)
+  return count || 0; // Warning: Prefer using nullish coalescing operator
+  // Even if count is 0, 0 is returned (unintended behavior)
 }
 
-// OK: ?? を使う
+// OK: use ??
 function getCount(count: number | undefined): number {
   return count ?? 0;
-  // count が undefined の場合のみ 0 が返る
+  // 0 is returned only when count is undefined
 }
 
-// 実際の問題例
+// Real-world example
 interface Config {
   port?: number;
   debug?: boolean;
 }
 
-// NG: || を使うと意図しない動作
+// NG: using || causes unintended behavior
 function getConfig(config: Config) {
-  const port = config.port || 3000; // port: 0 が設定されても 3000 になる
-  const debug = config.debug || false; // debug: false が設定されても false になる (一見正しいが意図が不明確)
+  const port = config.port || 3000; // Even if port: 0 is set, it becomes 3000
+  const debug = config.debug || false; // Even if debug: false is set, it becomes false (looks correct but intent is unclear)
 }
 
-// OK: ?? を使う
+// OK: use ??
 function getConfig(config: Config) {
   const port = config.port ?? 3000;
   const debug = config.debug ?? false;
 }
 ```
 
-### 4-8. 型情報ルールのパフォーマンス影響
+### 4-8. Performance Impact of Type-Aware Rules
 
-型情報ルールは型チェックのため、実行時間が大幅に増加します。
+Type-aware rules significantly increase execution time due to type checking.
 
 ```
-ベンチマーク (10,000 行の TypeScript プロジェクト):
+Benchmark (TypeScript project with 10,000 lines):
 
-  recommended (型情報なし)
-    └─ 実行時間: 2.3 秒
+  recommended (without type information)
+    └─ Execution time: 2.3 seconds
 
-  recommendedTypeChecked (型情報あり)
-    └─ 実行時間: 12.8 秒 (5.6倍)
+  recommendedTypeChecked (with type information)
+    └─ Execution time: 12.8 seconds (5.6x)
 
-  strictTypeChecked (型情報あり)
-    └─ 実行時間: 15.4 秒 (6.7倍)
+  strictTypeChecked (with type information)
+    └─ Execution time: 15.4 seconds (6.7x)
 ```
 
-高速化の方法:
+Ways to speed up:
 
 ```typescript
-// 1. projectService を使用 (v8 以降)
+// 1. Use projectService (v8 onwards)
 {
   languageOptions: {
     parserOptions: {
-      projectService: true, // 従来の project より高速
+      projectService: true, // Faster than traditional project
       tsconfigRootDir: import.meta.dirname,
     },
   },
 }
 
-// 2. キャッシュを有効化
+// 2. Enable caching
 // package.json
 {
   "scripts": {
@@ -1149,7 +1149,7 @@ function getConfig(config: Config) {
   }
 }
 
-// 3. 変更ファイルのみ lint
+// 3. Lint only changed files
 {
   "scripts": {
     "lint:changed": "eslint $(git diff --name-only --diff-filter=d HEAD -- '*.ts')"
@@ -1159,11 +1159,11 @@ function getConfig(config: Config) {
 
 ---
 
-## 5. カスタムルールの作成
+## 5. Creating Custom Rules
 
-typescript-eslint では、AST 操作と型情報アクセスを使って独自のルールを作成できます。
+With typescript-eslint, you can create custom rules using AST manipulation and type information access.
 
-### 5-1. ルールの基本構造
+### 5-1. Basic Rule Structure
 
 ```typescript
 // my-rule.ts
@@ -1178,17 +1178,17 @@ export const myRule = createRule({
   meta: {
     type: "problem",
     docs: {
-      description: "ルールの説明",
+      description: "Rule description",
     },
     messages: {
-      errorMessage: "エラーメッセージ: {{value}}",
+      errorMessage: "Error message: {{value}}",
     },
     schema: [],
   },
   defaultOptions: [],
   create(context) {
     return {
-      // AST ノードに対するビジター関数
+      // Visitor function for AST nodes
       Identifier(node) {
         if (node.name === "badName") {
           context.report({
@@ -1205,9 +1205,9 @@ export const myRule = createRule({
 });
 ```
 
-### 5-2. 実例: no-console-log ルール
+### 5-2. Example: no-console-log Rule
 
-console.log を禁止し、代わりに logger を使用させるルール。
+A rule that prohibits console.log and requires use of logger instead.
 
 ```typescript
 // rules/no-console-log.ts
@@ -1223,10 +1223,10 @@ export const noConsoleLog = createRule({
   meta: {
     type: "suggestion",
     docs: {
-      description: "console.log を禁止し、logger.info を使用させる",
+      description: "Prohibit console.log and require use of logger.info",
     },
     messages: {
-      useLogger: "console.log の代わりに logger.info を使用してください",
+      useLogger: "Use logger.info instead of console.log",
     },
     fixable: "code",
     schema: [],
@@ -1235,7 +1235,7 @@ export const noConsoleLog = createRule({
   create(context) {
     return {
       MemberExpression(node: TSESTree.MemberExpression) {
-        // console.log をチェック
+        // Check for console.log
         if (
           node.object.type === "Identifier" &&
           node.object.name === "console" &&
@@ -1246,7 +1246,7 @@ export const noConsoleLog = createRule({
             node,
             messageId: "useLogger",
             fix(fixer) {
-              // 自動修正: console.log → logger.info
+              // Auto-fix: console.log → logger.info
               return fixer.replaceText(node, "logger.info");
             },
           });
@@ -1257,9 +1257,9 @@ export const noConsoleLog = createRule({
 });
 ```
 
-### 5-3. 型情報を使うルール: no-untyped-fetch
+### 5-3. Type-Aware Rule: no-untyped-fetch
 
-fetch の返り値を型アサーションせずに使用することを禁止するルール。
+A rule that prohibits using fetch return values without type assertions.
 
 ```typescript
 // rules/no-untyped-fetch.ts
@@ -1275,10 +1275,10 @@ export const noUntypedFetch = createRule({
   meta: {
     type: "problem",
     docs: {
-      description: "fetch の返り値は型アサーションまたはバリデーションが必要",
+      description: "fetch return values require type assertion or validation",
     },
     messages: {
-      untypedFetch: "fetch の返り値を型安全に扱ってください (Zod, as 等)",
+      untypedFetch: "Handle fetch return values in a type-safe way (Zod, as, etc.)",
     },
     schema: [],
   },
@@ -1294,13 +1294,13 @@ export const noUntypedFetch = createRule({
         const callee = node.argument.callee;
         if (callee.type !== "Identifier" || callee.name !== "fetch") return;
 
-        // 親ノードをチェック
+        // Check parent node
         const parent = node.parent;
 
-        // 型アサーションがあるかチェック
+        // Check if type assertion is present
         if (parent?.type === "TSAsExpression") return;
 
-        // 変数宣言の場合、型注釈があるかチェック
+        // If variable declaration, check if type annotation is present
         if (
           parent?.type === "VariableDeclarator" &&
           parent.id.type === "Identifier" &&
@@ -1319,24 +1319,24 @@ export const noUntypedFetch = createRule({
 });
 ```
 
-使用例:
+Usage example:
 
 ```typescript
-// NG: 型情報なし
+// NG: no type information
 const response = await fetch("/api/users");
 
-// OK: 型アサーション
+// OK: type assertion
 const response = await fetch("/api/users") as Response<User[]>;
 
-// OK: 型注釈付き変数宣言
+// OK: variable declaration with type annotation
 const response: Response<User[]> = await fetch("/api/users");
 
-// OK: Zod バリデーション
+// OK: Zod validation
 const response = await fetch("/api/users");
 const users = UserArraySchema.parse(await response.json());
 ```
 
-### 5-4. プラグインとして配布
+### 5-4. Distributing as a Plugin
 
 ```typescript
 // index.ts
@@ -1368,27 +1368,27 @@ export default [
 ];
 ```
 
-### 5-5. AST Explorer の活用
+### 5-5. Using AST Explorer
 
-ルール作成時は AST Explorer を使うと便利です。
+AST Explorer is useful when creating rules.
 
 ```
-AST Explorer の使い方:
+How to use AST Explorer:
 
-1. https://astexplorer.net/ にアクセス
-2. Parser: @typescript-eslint/parser を選択
-3. コードを入力
-4. AST 構造を確認
-5. ルールで使うノードタイプを特定
+1. Go to https://astexplorer.net/
+2. Select Parser: @typescript-eslint/parser
+3. Enter your code
+4. Check the AST structure
+5. Identify the node types to use in your rule
 ```
 
-例:
+Example:
 
 ```typescript
-// コード
+// Code
 const user = { name: "Alice" };
 
-// AST (抜粋)
+// AST (excerpt)
 {
   type: "VariableDeclaration",
   declarations: [{
@@ -1408,29 +1408,29 @@ const user = { name: "Alice" };
 
 ---
 
-## 6. Prettier との統合と競合解消
+## 6. Prettier Integration and Conflict Resolution
 
-### 6-1. 統合の基本
+### 6-1. Integration Basics
 
-ESLint はコード品質ルール、Prettier はコードフォーマッターという役割分担が基本です。
+The basic division of responsibility is: ESLint for code quality rules, Prettier for code formatting.
 
 ```
 ESLint vs Prettier:
 
 ESLint
-  ├─ 機能: コード品質チェック
-  ├─ 例: 未使用変数、型エラー、ロジックの問題
-  └─ 設定: eslint.config.ts
+  ├─ Function: Code quality checks
+  ├─ Examples: Unused variables, type errors, logic problems
+  └─ Config: eslint.config.ts
 
 Prettier
-  ├─ 機能: コードフォーマット
-  ├─ 例: インデント、改行、セミコロン
-  └─ 設定: .prettierrc
+  ├─ Function: Code formatting
+  ├─ Examples: Indentation, line breaks, semicolons
+  └─ Config: .prettierrc
 ```
 
 ### 6-2. eslint-config-prettier
 
-ESLint のフォーマットルールを無効化し、Prettier と競合しないようにします。
+Disables ESLint formatting rules to avoid conflicts with Prettier.
 
 ```bash
 npm install -D eslint-config-prettier
@@ -1446,7 +1446,7 @@ export default tseslint.config(
   eslint.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,
-  prettierConfig, // 最後に配置して競合ルールを無効化
+  prettierConfig, // place last to disable conflicting rules
   {
     languageOptions: {
       parserOptions: {
@@ -1458,7 +1458,7 @@ export default tseslint.config(
 );
 ```
 
-### 6-3. Prettier 設定
+### 6-3. Prettier Configuration
 
 ```json
 // .prettierrc
@@ -1482,25 +1482,25 @@ node_modules/
 *.min.js
 ```
 
-### 6-4. 実行順序
+### 6-4. Execution Order
 
 ```json
 // package.json
 {
   "scripts": {
-    // 1. Prettier でフォーマット
+    // 1. Format with Prettier
     "format": "prettier --write 'src/**/*.{ts,tsx}'",
 
-    // 2. ESLint でチェック
+    // 2. Check with ESLint
     "lint": "eslint src/",
 
-    // 3. まとめて実行
+    // 3. Run together
     "check": "npm run format && npm run lint"
   }
 }
 ```
 
-VS Code での統合:
+VS Code integration:
 
 ```json
 // .vscode/settings.json
@@ -1516,30 +1516,30 @@ VS Code での統合:
 }
 ```
 
-### 6-5. 競合する可能性のあるルール
+### 6-5. Rules That May Conflict
 
-eslint-config-prettier は以下のルールを無効化します:
+eslint-config-prettier disables the following rules:
 
 ```typescript
-// 無効化されるルール例
+// Examples of rules that are disabled
 
-// インデント
+// Indentation
 "@typescript-eslint/indent": "off",
 
-// 改行
+// Line breaks
 "@typescript-eslint/comma-dangle": "off",
 
-// セミコロン
+// Semicolons
 "@typescript-eslint/semi": "off",
 
-// クォート
+// Quotes
 "@typescript-eslint/quotes": "off",
 
-// スペース
+// Spaces
 "@typescript-eslint/space-before-function-paren": "off",
 ```
 
-手動で競合を解決する場合:
+When resolving conflicts manually:
 
 ```typescript
 // eslint.config.ts
@@ -1547,13 +1547,13 @@ export default tseslint.config(
   ...tseslint.configs.strictTypeChecked,
   {
     rules: {
-      // Prettier がフォーマットするルールをオフ
+      // Turn off rules that Prettier handles
       "@typescript-eslint/indent": "off",
       "@typescript-eslint/quotes": "off",
       "@typescript-eslint/semi": "off",
       "@typescript-eslint/comma-dangle": "off",
 
-      // 品質ルールは有効化
+      // Keep quality rules enabled
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-floating-promises": "error",
     },
@@ -1561,9 +1561,9 @@ export default tseslint.config(
 );
 ```
 
-### 6-6. dprint との統合
+### 6-6. Integration with dprint
 
-dprint は Prettier の高速代替です。
+dprint is a fast alternative to Prettier.
 
 ```bash
 npm install -D dprint
@@ -1595,9 +1595,9 @@ npm install -D dprint
 
 ---
 
-## 7. プロジェクト別設定パターン
+## 7. Per-Project Configuration Patterns
 
-### 7-1. React プロジェクト
+### 7-1. React Project
 
 ```typescript
 // eslint.config.ts (React + TypeScript)
@@ -1639,15 +1639,15 @@ export default tseslint.config(
         { allowConstantExport: true },
       ],
 
-      // React 設定
-      "react/react-in-jsx-scope": "off", // React 17+ では不要
-      "react/prop-types": "off", // TypeScript を使うので不要
+      // React settings
+      "react/react-in-jsx-scope": "off", // Not needed in React 17+
+      "react/prop-types": "off", // Not needed when using TypeScript
 
-      // Hooks ルール
+      // Hooks rules
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
 
-      // アクセシビリティ
+      // Accessibility
       ...jsxA11y.configs.recommended.rules,
     },
     settings: {
@@ -1659,7 +1659,7 @@ export default tseslint.config(
 );
 ```
 
-### 7-2. Next.js プロジェクト
+### 7-2. Next.js Project
 
 ```typescript
 // eslint.config.ts (Next.js)
@@ -1689,16 +1689,16 @@ export default tseslint.config(
     },
   },
   {
-    // App Router のサーバーコンポーネント
+    // App Router server components
     files: ["app/**/*.tsx"],
     rules: {
-      "react-hooks/rules-of-hooks": "off", // サーバーコンポーネントでは不要
+      "react-hooks/rules-of-hooks": "off", // Not needed for server components
     },
   }
 );
 ```
 
-### 7-3. Node.js / Express プロジェクト
+### 7-3. Node.js / Express Project
 
 ```typescript
 // eslint.config.ts (Node.js)
@@ -1717,7 +1717,7 @@ export default tseslint.config(
         tsconfigRootDir: import.meta.dirname,
       },
       globals: {
-        // Node.js グローバル変数
+        // Node.js global variables
         __dirname: "readonly",
         __filename: "readonly",
         process: "readonly",
@@ -1731,15 +1731,15 @@ export default tseslint.config(
       security: securityPlugin,
     },
     rules: {
-      // Node.js ルール
-      "node/no-unsupported-features/es-syntax": "off", // TypeScript で transpile するため
-      "node/no-missing-import": "off", // TypeScript の解決に任せる
+      // Node.js rules
+      "node/no-unsupported-features/es-syntax": "off", // Transpiled by TypeScript
+      "node/no-missing-import": "off", // Defer to TypeScript resolution
 
-      // セキュリティルール
+      // Security rules
       ...securityPlugin.configs.recommended.rules,
-      "security/detect-object-injection": "off", // 誤検知が多いため
+      "security/detect-object-injection": "off", // Too many false positives
 
-      // TypeScript 固有
+      // TypeScript specific
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-misused-promises": "error",
     },
@@ -1747,10 +1747,10 @@ export default tseslint.config(
 );
 ```
 
-### 7-4. ライブラリプロジェクト
+### 7-4. Library Project
 
 ```typescript
-// eslint.config.ts (ライブラリ)
+// eslint.config.ts (library)
 import eslint from "@eslint/js";
 import tseslint from "typescript-eslint";
 
@@ -1769,7 +1769,7 @@ export default tseslint.config(
   {
     files: ["src/**/*.ts"],
     rules: {
-      // 公開 API は全て型を明示
+      // All public APIs must have explicit types
       "@typescript-eslint/explicit-module-boundary-types": "error",
       "@typescript-eslint/explicit-function-return-type": [
         "error",
@@ -1779,21 +1779,21 @@ export default tseslint.config(
         },
       ],
 
-      // any を完全禁止
+      // Completely prohibit any
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-unsafe-assignment": "error",
       "@typescript-eslint/no-unsafe-call": "error",
       "@typescript-eslint/no-unsafe-member-access": "error",
       "@typescript-eslint/no-unsafe-return": "error",
 
-      // 一貫性のある型定義
+      // Consistent type definitions
       "@typescript-eslint/consistent-type-definitions": ["error", "interface"],
       "@typescript-eslint/consistent-type-imports": [
         "error",
         { prefer: "type-imports", fixable: "code" },
       ],
 
-      // 命名規則
+      // Naming conventions
       "@typescript-eslint/naming-convention": [
         "error",
         {
@@ -1813,14 +1813,14 @@ export default tseslint.config(
           format: ["PascalCase"],
           custom: {
             regex: "^I[A-Z]",
-            match: false, // I プレフィックス禁止
+            match: false, // Prohibit I prefix
           },
         },
       ],
     },
   },
   {
-    // テストファイルは緩和
+    // Relax rules for test files
     files: ["**/*.test.ts", "**/*.spec.ts"],
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
@@ -1832,30 +1832,30 @@ export default tseslint.config(
 
 ---
 
-## 8. モノレポでの設定共有
+## 8. Sharing Configuration in Monorepos
 
-### 8-1. モノレポ構成例
+### 8-1. Monorepo Structure Example
 
 ```
 monorepo/
-├── eslint.config.ts          ← ルート設定（共通ルール）
+├── eslint.config.ts          ← Root config (shared rules)
 ├── packages/
 │   ├── shared/
-│   │   ├── eslint.config.ts  ← ライブラリ固有ルール
+│   │   ├── eslint.config.ts  ← Library-specific rules
 │   │   ├── src/
 │   │   └── tsconfig.json
 │   ├── web/
-│   │   ├── eslint.config.ts  ← React 固有ルール
+│   │   ├── eslint.config.ts  ← React-specific rules
 │   │   ├── src/
 │   │   └── tsconfig.json
 │   └── api/
-│       ├── eslint.config.ts  ← Node.js 固有ルール
+│       ├── eslint.config.ts  ← Node.js-specific rules
 │       ├── src/
 │       └── tsconfig.json
 └── package.json
 ```
 
-### 8-2. ルート設定
+### 8-2. Root Configuration
 
 ```typescript
 // eslint.config.ts (root)
@@ -1878,7 +1878,7 @@ export default tseslint.config(
   },
   {
     rules: {
-      // モノレポ全体で適用するルール
+      // Rules applied across the entire monorepo
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/consistent-type-imports": [
@@ -1899,10 +1899,10 @@ export default tseslint.config(
 );
 ```
 
-### 8-3. パッケージ固有の設定
+### 8-3. Package-Specific Configuration
 
 ```typescript
-// packages/shared/eslint.config.ts (ライブラリ)
+// packages/shared/eslint.config.ts (library)
 import rootConfig from "../../eslint.config.ts";
 
 export default [
@@ -1910,7 +1910,7 @@ export default [
   {
     files: ["src/**/*.ts"],
     rules: {
-      // ライブラリは特に厳格
+      // Libraries are especially strict
       "@typescript-eslint/explicit-module-boundary-types": "error",
       "@typescript-eslint/explicit-function-return-type": "error",
     },
@@ -1956,14 +1956,14 @@ export default [
       node: nodePlugin,
     },
     rules: {
-      // Node.js 固有ルール
+      // Node.js specific rules
       "node/no-unsupported-features/es-syntax": "off",
     },
   },
 ];
 ```
 
-### 8-4. package.json スクリプト
+### 8-4. package.json Scripts
 
 ```json
 // package.json (root)
@@ -1990,7 +1990,7 @@ export default [
 }
 ```
 
-### 8-5. Turborepo との統合
+### 8-5. Integration with Turborepo
 
 ```json
 // turbo.json
@@ -2020,7 +2020,7 @@ export default [
 
 ---
 
-## 9. CI/CD パイプライン統合
+## 9. CI/CD Pipeline Integration
 
 ### 9-1. GitHub Actions
 
@@ -2055,7 +2055,7 @@ jobs:
       - name: ESLint
         run: npm run lint -- --max-warnings 0
 
-      # ESLint の結果を PR コメントに出力
+      # Output ESLint results as PR comments
       - uses: reviewdog/action-eslint@v1
         if: always()
         with:
@@ -2064,7 +2064,7 @@ jobs:
           eslint_flags: "src/"
 ```
 
-### 9-2. 変更ファイルのみ lint
+### 9-2. Lint Only Changed Files
 
 ```yaml
 # .github/workflows/lint-changed.yml
@@ -2080,7 +2080,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # 全履歴を取得
+          fetch-depth: 0 # Fetch full history
 
       - uses: actions/setup-node@v4
         with:
@@ -2104,7 +2104,7 @@ jobs:
           npx eslint ${{ steps.changed-files.outputs.all_changed_files }}
 ```
 
-### 9-3. キャッシュの活用
+### 9-3. Leveraging Caching
 
 ```yaml
 # .github/workflows/lint-with-cache.yml
@@ -2126,7 +2126,7 @@ jobs:
 
       - run: npm ci
 
-      # ESLint キャッシュを復元
+      # Restore ESLint cache
       - name: Restore ESLint cache
         uses: actions/cache@v4
         with:
@@ -2136,7 +2136,7 @@ jobs:
       - name: Lint
         run: npm run lint -- --cache --cache-location .eslintcache
 
-      # 型チェックキャッシュも活用
+      # Also leverage tsc cache
       - name: Restore tsc cache
         uses: actions/cache@v4
         with:
@@ -2147,7 +2147,7 @@ jobs:
         run: npm run typecheck
 ```
 
-### 9-4. 並列実行
+### 9-4. Parallel Execution
 
 ```yaml
 # .github/workflows/lint-parallel.yml
@@ -2160,7 +2160,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: [shared, web, api] # モノレポの各パッケージ
+        package: [shared, web, api] # Each package in the monorepo
 
     steps:
       - uses: actions/checkout@v4
@@ -2198,7 +2198,7 @@ lint:
       junit: eslint-report.xml
 ```
 
-### 9-6. エラーレポートの出力
+### 9-6. Outputting Error Reports
 
 ```json
 // package.json
@@ -2224,15 +2224,15 @@ lint:
 
 ---
 
-## 10. パフォーマンスチューニング
+## 10. Performance Tuning
 
-### 10-1. パフォーマンス計測
+### 10-1. Measuring Performance
 
 ```bash
-# TIMING 環境変数で各ルールの実行時間を計測
+# Measure execution time for each rule with the TIMING environment variable
 TIMING=1 eslint src/
 
-# 出力例:
+# Example output:
 Rule                                    | Time (ms) | Relative
 :---------------------------------------|----------:|--------:
 @typescript-eslint/no-floating-promises |  2456.234 |    32.1%
@@ -2250,12 +2250,12 @@ Rule                                    | Time (ms) | Relative
 }
 ```
 
-### 10-2. projectService の活用
+### 10-2. Leveraging projectService
 
-v8 から導入された projectService は、型情報ルールのパフォーマンスを大幅に改善します。
+projectService, introduced in v8, dramatically improves the performance of type-aware rules.
 
 ```typescript
-// 従来の設定 (遅い)
+// Traditional configuration (slow)
 {
   languageOptions: {
     parserOptions: {
@@ -2265,34 +2265,34 @@ v8 から導入された projectService は、型情報ルールのパフォー�
   },
 }
 
-// v8 の設定 (高速)
+// v8 configuration (fast)
 {
   languageOptions: {
     parserOptions: {
-      projectService: true, // TypeScript の Language Service を活用
+      projectService: true, // Leverages TypeScript Language Service
       tsconfigRootDir: import.meta.dirname,
     },
   },
 }
 ```
 
-projectService の仕組み:
+How projectService works:
 
 ```
-従来の project 指定:
-  1. tsconfig.json をパース
-  2. TypeScript Compiler を毎回初期化
-  3. 全ファイルを解析
-  → 遅い
+Traditional project specification:
+  1. Parse tsconfig.json
+  2. Initialize TypeScript Compiler each time
+  3. Analyze all files
+  → Slow
 
 projectService:
-  1. TypeScript Language Service を起動
-  2. インクリメンタル解析を活用
-  3. 変更ファイルのみ再解析
-  → 高速 (約2-5倍)
+  1. Launch TypeScript Language Service
+  2. Leverage incremental analysis
+  3. Re-analyze only changed files
+  → Fast (approximately 2-5x)
 ```
 
-### 10-3. キャッシュの活用
+### 10-3. Leveraging Caching
 
 ```json
 // package.json
@@ -2309,17 +2309,17 @@ projectService:
 .eslintcache
 ```
 
-キャッシュの効果:
+Effect of caching:
 
 ```
-初回実行: 15.3 秒
-2回目実行 (キャッシュあり): 1.2 秒 (12.8倍高速)
+First run: 15.3 seconds
+Second run (with cache): 1.2 seconds (12.8x faster)
 ```
 
-### 10-4. 並列実行
+### 10-4. Parallel Execution
 
 ```bash
-# eslint-parallel を使用
+# Use eslint-parallel
 npm install -D eslint-parallel
 ```
 
@@ -2332,17 +2332,17 @@ npm install -D eslint-parallel
 }
 ```
 
-並列実行の効果:
+Effect of parallel execution:
 
 ```
-シングルコア: 15.3 秒
-4コア並列: 4.8 秒 (3.2倍高速)
-8コア並列: 3.1 秒 (4.9倍高速)
+Single core: 15.3 seconds
+4-core parallel: 4.8 seconds (3.2x faster)
+8-core parallel: 3.1 seconds (4.9x faster)
 ```
 
-### 10-5. ルールの選択的無効化
+### 10-5. Selective Rule Disabling
 
-パフォーマンスが重要な場合、特定のルールを無効化します。
+When performance is critical, disable specific rules.
 
 ```typescript
 // eslint.config.ts
@@ -2350,11 +2350,11 @@ export default tseslint.config(
   ...tseslint.configs.recommendedTypeChecked,
   {
     rules: {
-      // 型情報ルールで特に遅いもの
-      "@typescript-eslint/no-unnecessary-condition": "off", // 遅い
-      "@typescript-eslint/strict-boolean-expressions": "off", // 遅い
+      // Particularly slow type-aware rules
+      "@typescript-eslint/no-unnecessary-condition": "off", // slow
+      "@typescript-eslint/strict-boolean-expressions": "off", // slow
 
-      // 必須のルールは残す
+      // Keep essential rules
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-misused-promises": "error",
     },
@@ -2362,7 +2362,7 @@ export default tseslint.config(
 );
 ```
 
-### 10-6. ファイル除外の最適化
+### 10-6. Optimizing File Exclusions
 
 ```typescript
 // eslint.config.ts
@@ -2375,14 +2375,14 @@ export default tseslint.config(
       "**/build/**",
       "**/coverage/**",
       "**/*.min.js",
-      "**/*.d.ts", // 型定義ファイルは除外
-      "**/generated/**", // 自動生成ファイルは除外
+      "**/*.d.ts", // Exclude type definition files
+      "**/generated/**", // Exclude auto-generated files
     ],
   }
 );
 ```
 
-### 10-7. CI での最適化
+### 10-7. CI Optimization
 
 ```yaml
 # .github/workflows/lint.yml
@@ -2391,76 +2391,76 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. シャローコピー（履歴不要）
+      # 1. Shallow copy (no history needed)
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      # 2. Node.js キャッシュ
+      # 2. Node.js cache
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
 
-      # 3. 依存関係キャッシュ
+      # 3. Dependency cache
       - name: Cache node_modules
         uses: actions/cache@v4
         with:
           path: node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
 
-      # 4. ESLint キャッシュ
+      # 4. ESLint cache
       - name: Cache ESLint
         uses: actions/cache@v4
         with:
           path: .eslintcache
           key: eslint-${{ runner.os }}-${{ hashFiles('**/eslint.config.ts') }}
 
-      # 5. 並列実行
+      # 5. Parallel execution
       - name: Lint
         run: eslint-parallel src/**/*.ts --cache
 ```
 
-### 10-8. パフォーマンスベンチマーク
+### 10-8. Performance Benchmarks
 
 ```
-プロジェクト規模: 10,000 行の TypeScript コード
+Project size: 10,000 lines of TypeScript code
 
-設定                                  | 実行時間
--------------------------------------|--------
-recommended (型情報なし)               | 2.3 秒
-recommendedTypeChecked               | 12.8 秒
-recommendedTypeChecked + projectService | 6.4 秒
-+ キャッシュ                          | 0.8 秒
-+ 並列実行 (4コア)                    | 2.1 秒
-+ 変更ファイルのみ                     | 0.3 秒
+Configuration                            | Execution Time
+-----------------------------------------|--------
+recommended (without type info)          | 2.3 seconds
+recommendedTypeChecked                   | 12.8 seconds
+recommendedTypeChecked + projectService  | 6.4 seconds
++ caching                                | 0.8 seconds
++ parallel execution (4 cores)           | 2.1 seconds
++ changed files only                     | 0.3 seconds
 ```
 
 ---
 
-## 11. Biome/oxlint との比較と移行
+## 11. Comparison with Biome/oxlint and Migration
 
-### 11-1. ツール比較表
+### 11-1. Tool Comparison Table
 
-| 機能 | ESLint + typescript-eslint | Biome | oxlint |
+| Feature | ESLint + typescript-eslint | Biome | oxlint |
 |------|---------------------------|-------|--------|
-| 対応言語 | JS, TS, JSX, TSX | JS, TS, JSX, TSX, JSON | JS, TS, JSX, TSX |
-| ルール数 | 300+ | 200+ | 350+ |
-| 型情報ルール | ✓ | ✗ | ✗ |
-| フォーマッター | Prettier 連携 | 内蔵 | ✗ |
-| 速度 | 遅い | 最速 (25-100倍) | 最速 (50-100倍) |
-| エコシステム | 最大 | 成長中 | 限定的 |
-| 設定ファイル | eslint.config.ts | biome.json | .oxlintrc.json |
-| 自動修正 | ✓ | ✓ | ✓ (一部) |
-| IDE 統合 | 完璧 | 良好 | 限定的 |
-| プラグイン | 豊富 | 少ない | なし |
+| Supported languages | JS, TS, JSX, TSX | JS, TS, JSX, TSX, JSON | JS, TS, JSX, TSX |
+| Number of rules | 300+ | 200+ | 350+ |
+| Type-aware rules | Yes | No | No |
+| Formatter | Prettier integration | Built-in | No |
+| Speed | Slow | Fastest (25-100x) | Fastest (50-100x) |
+| Ecosystem | Largest | Growing | Limited |
+| Config file | eslint.config.ts | biome.json | .oxlintrc.json |
+| Auto-fix | Yes | Yes | Yes (partial) |
+| IDE integration | Excellent | Good | Limited |
+| Plugins | Rich | Few | None |
 
-### 11-2. Biome の特徴
+### 11-2. Biome Features
 
-Biome は ESLint + Prettier を置き換える高速ツールです。
+Biome is a fast tool that replaces ESLint + Prettier.
 
 ```bash
-# インストール
+# Installation
 npm install -D @biomejs/biome
 ```
 
@@ -2506,25 +2506,25 @@ npm install -D @biomejs/biome
 }
 ```
 
-Biome の利点:
+Advantages of Biome:
 
-1. **圧倒的な速度** - Rust 実装で ESLint の 25-100 倍高速
-2. **オールインワン** - lint + format が統合
-3. **デフォルト設定が優秀** - 最小限の設定で使える
-4. **JSON サポート** - package.json などもフォーマット可能
+1. **Overwhelming speed** - Rust implementation, 25-100x faster than ESLint
+2. **All-in-one** - Integrated lint + format
+3. **Excellent defaults** - Usable with minimal configuration
+4. **JSON support** - Can also format package.json and similar files
 
-Biome の欠点:
+Disadvantages of Biome:
 
-1. **型情報ルールなし** - no-floating-promises 等が使えない
-2. **プラグインなし** - React Hooks などのプラグインが使えない
-3. **エコシステムが小さい** - カスタムルールが作りにくい
+1. **No type-aware rules** - Cannot use no-floating-promises, etc.
+2. **No plugins** - Cannot use React Hooks and other plugins
+3. **Small ecosystem** - Hard to create custom rules
 
-### 11-3. oxlint の特徴
+### 11-3. oxlint Features
 
-oxlint は Oxc プロジェクトの一部で、超高速なリンターです。
+oxlint is part of the Oxc project and is an ultra-fast linter.
 
 ```bash
-# インストール
+# Installation
 npm install -D oxlint
 ```
 
@@ -2547,26 +2547,26 @@ npm install -D oxlint
 }
 ```
 
-oxlint の利点:
+Advantages of oxlint:
 
-1. **最速** - Rust 実装で最も高速
-2. **ESLint 互換** - ESLint のルールを多数実装
-3. **型情報なしで動作** - 高速
+1. **Fastest** - Rust implementation, the fastest available
+2. **ESLint-compatible** - Implements many ESLint rules
+3. **Works without type information** - Fast
 
-oxlint の欠点:
+Disadvantages of oxlint:
 
-1. **型情報ルールなし** - typescript-eslint の主要機能が使えない
-2. **開発中** - まだ安定版ではない
-3. **プラグインなし** - 拡張性が低い
+1. **No type-aware rules** - Cannot use the main features of typescript-eslint
+2. **Under development** - Not yet stable
+3. **No plugins** - Limited extensibility
 
-### 11-4. 移行判断フローチャート
+### 11-4. Migration Decision Flowchart
 
 ```
-ESLint から移行すべきか？
+Should you migrate from ESLint?
 
 ┌─────────────────────────────┐
-│ 型情報ルールが必要？          │
-│ (no-floating-promises 等)   │
+│ Do you need type-aware rules?│
+│ (no-floating-promises, etc.) │
 └─────────────────────────────┘
           │
     ┌─────┴─────┐
@@ -2576,13 +2576,14 @@ ESLint から移行すべきか？
     v           v
 ┌─────┐   ┌────────────┐
 │ESLint│   │ Biome/oxlint│
-│継続  │   │ 移行検討    │
+│Stay  │   │ Consider   │
 └─────┘   └────────────┘
               │
               v
     ┌──────────────────┐
-    │ React Hooks 等の │
-    │ プラグインが必要？│
+    │ Do you need       │
+    │ React Hooks or   │
+    │ other plugins?   │
     └──────────────────┘
               │
         ┌─────┴─────┐
@@ -2592,13 +2593,13 @@ ESLint から移行すべきか？
         v           v
     ┌─────┐   ┌──────┐
     │ESLint│   │ Biome│
-    │継続  │   │ 推奨 │
+    │Stay  │   │Recommend│
     └─────┘   └──────┘
 ```
 
-### 11-5. ハイブリッド構成
+### 11-5. Hybrid Configuration
 
-型情報ルールのみ ESLint、それ以外は Biome を使う構成も可能です。
+It is also possible to use ESLint only for type-aware rules and Biome for everything else.
 
 ```json
 // package.json
@@ -2612,7 +2613,7 @@ ESLint から移行すべきか？
 ```
 
 ```typescript
-// eslint.config.ts (型情報ルールのみ)
+// eslint.config.ts (type-aware rules only)
 import tseslint from "typescript-eslint";
 
 export default tseslint.config({
@@ -2623,13 +2624,13 @@ export default tseslint.config({
     },
   },
   rules: {
-    // 型情報ルールのみ有効化
+    // Enable only type-aware rules
     "@typescript-eslint/no-floating-promises": "error",
     "@typescript-eslint/no-misused-promises": "error",
     "@typescript-eslint/await-thenable": "error",
     "@typescript-eslint/no-unnecessary-condition": "error",
 
-    // Biome でカバーされるルールは無効化
+    // Disable rules covered by Biome
     "@typescript-eslint/no-unused-vars": "off",
     "@typescript-eslint/no-explicit-any": "off",
   },
@@ -2654,52 +2655,52 @@ export default tseslint.config({
 }
 ```
 
-### 11-6. 移行事例
+### 11-6. Migration Case Studies
 
 ```
-プロジェクトA (Next.js アプリ)
+Project A (Next.js app)
   Before: ESLint + Prettier
-    └─ lint 時間: 45 秒
+    └─ lint time: 45 seconds
   After: Biome
-    └─ check 時間: 2 秒 (22.5倍高速)
-  トレードオフ: React Hooks の exhaustive-deps が使えなくなった
+    └─ check time: 2 seconds (22.5x faster)
+  Trade-off: Lost React Hooks exhaustive-deps
 
-プロジェクトB (Node.js API)
+Project B (Node.js API)
   Before: ESLint + typescript-eslint
-    └─ lint 時間: 28 秒
+    └─ lint time: 28 seconds
   After: ESLint (projectService) + Biome
-    └─ lint 時間: 8 秒 (3.5倍高速)
-  トレードオフ: なし (型情報ルールは ESLint で継続)
+    └─ lint time: 8 seconds (3.5x faster)
+  Trade-off: None (type-aware rules continue with ESLint)
 
-プロジェクトC (ライブラリ)
+Project C (library)
   Before: ESLint + typescript-eslint (strict)
-    └─ lint 時間: 12 秒
-  After: ESLint のまま
-  理由: 型情報ルールが必須、移行メリット小
+    └─ lint time: 12 seconds
+  After: Stayed with ESLint
+  Reason: Type-aware rules required, migration benefit small
 ```
 
 ---
 
-## 12. 演習問題
+## 12. Exercises
 
-### 演習 1: 基礎レベル
+### Exercise 1: Basic Level
 
-**課題**: 新規 TypeScript プロジェクトに ESLint を導入してください。
+**Task**: Introduce ESLint to a new TypeScript project.
 
-要件:
-1. typescript-eslint をインストール
-2. Flat Config 形式で設定ファイルを作成
-3. recommendedTypeChecked を使用
-4. テストファイルでは any を許可
+Requirements:
+1. Install typescript-eslint
+2. Create a configuration file in Flat Config format
+3. Use recommendedTypeChecked
+4. Allow any in test files
 
 <details>
-<summary>解答例</summary>
+<summary>Example solution</summary>
 
 ```bash
-# 1. インストール
+# 1. Install
 npm install -D eslint typescript-eslint
 
-# 2. 設定ファイル作成
+# 2. Create configuration file
 touch eslint.config.ts
 ```
 
@@ -2743,27 +2744,27 @@ export default tseslint.config(
 
 </details>
 
-### 演習 2: 応用レベル
+### Exercise 2: Intermediate Level
 
-**課題**: React プロジェクトに ESLint + Prettier を導入し、VS Code と統合してください。
+**Task**: Introduce ESLint + Prettier to a React project and integrate with VS Code.
 
-要件:
-1. ESLint + typescript-eslint + React プラグイン
-2. Prettier との統合
-3. VS Code で保存時に自動修正
-4. Git フック (husky + lint-staged)
+Requirements:
+1. ESLint + typescript-eslint + React plugins
+2. Prettier integration
+3. Auto-fix on save in VS Code
+4. Git hooks (husky + lint-staged)
 
 <details>
-<summary>解答例</summary>
+<summary>Example solution</summary>
 
 ```bash
-# 1. パッケージインストール
+# 1. Install packages
 npm install -D eslint typescript-eslint \
   eslint-plugin-react-hooks eslint-plugin-react-refresh \
   eslint-config-prettier prettier \
   husky lint-staged
 
-# 2. husky セットアップ
+# 2. Set up husky
 npx husky init
 ```
 
@@ -2855,17 +2856,17 @@ npm run lint-staged
 
 </details>
 
-### 演習 3: 発展レベル
+### Exercise 3: Advanced Level
 
-**課題**: カスタムルール `no-unhandled-fetch` を作成してください。
+**Task**: Create a custom rule `no-unhandled-fetch`.
 
-要件:
-1. fetch の呼び出しに try-catch がない場合に警告
-2. 型情報を使って Response 型をチェック
-3. 自動修正機能は不要
+Requirements:
+1. Warn when a fetch call is not wrapped in try-catch
+2. Use type information to check the Response type
+3. Auto-fix is not required
 
 <details>
-<summary>解答例</summary>
+<summary>Example solution</summary>
 
 ```typescript
 // rules/no-unhandled-fetch.ts
@@ -2881,10 +2882,10 @@ export const noUnhandledFetch = createRule({
   meta: {
     type: "problem",
     docs: {
-      description: "fetch は try-catch でエラーハンドリングが必要",
+      description: "fetch must be called with try-catch error handling",
     },
     messages: {
-      noTryCatch: "fetch は try-catch ブロック内で呼び出してください",
+      noTryCatch: "Call fetch inside a try-catch block",
     },
     schema: [],
   },
@@ -2903,12 +2904,12 @@ export const noUnhandledFetch = createRule({
 
     return {
       CallExpression(node: TSESTree.CallExpression) {
-        // fetch 呼び出しをチェック
+        // Check for fetch calls
         if (
           node.callee.type === "Identifier" &&
           node.callee.name === "fetch"
         ) {
-          // try-catch 内かチェック
+          // Check if inside try-catch
           if (!isInTryCatch(node)) {
             context.report({
               node,
@@ -2950,13 +2951,13 @@ export default [
 ```
 
 ```typescript
-// テスト
-// NG: try-catch なし
+// Test
+// NG: no try-catch
 async function getData() {
-  const response = await fetch("/api/data"); // 警告
+  const response = await fetch("/api/data"); // Warning
 }
 
-// OK: try-catch あり
+// OK: with try-catch
 async function getData() {
   try {
     const response = await fetch("/api/data");
@@ -2971,21 +2972,21 @@ async function getData() {
 
 ---
 
-## 13. エッジケース分析
+## 13. Edge Case Analysis
 
-### エッジケース 1: 動的 import と型情報
+### Edge Case 1: Dynamic Import and Type Information
 
 ```typescript
-// 問題: 動的 import の型情報が取得できない
+// Problem: Cannot retrieve type information for dynamic imports
 
-// NG: 型情報ルールが動的 import を解析できない
+// NG: Type-aware rules may not analyze dynamic imports
 async function loadModule(name: string) {
   const module = await import(`./modules/${name}`);
-  // no-unsafe-member-access が誤検知する可能性
+  // no-unsafe-member-access may produce false positives
   return module.default;
 }
 
-// 解決策1: 明示的な型アサーション
+// Solution 1: Explicit type assertion
 interface Module {
   default: SomeType;
 }
@@ -2995,7 +2996,7 @@ async function loadModule(name: string) {
   return module.default;
 }
 
-// 解決策2: ルールを部分的に無効化
+// Solution 2: Partially disable the rule
 async function loadModule(name: string) {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
   const module = await import(`./modules/${name}`);
@@ -3003,20 +3004,20 @@ async function loadModule(name: string) {
 }
 ```
 
-### エッジケース 2: ジェネリック関数と型推論
+### Edge Case 2: Generic Functions and Type Inference
 
 ```typescript
-// 問題: ジェネリック関数で型情報が不完全
+// Problem: Incomplete type information in generic functions
 
-// NG: no-unnecessary-condition が誤検知
+// NG: no-unnecessary-condition may produce false positives
 function process<T>(value: T | null): T {
-  if (value === null) { // 警告が出る場合がある
+  if (value === null) { // May produce a warning
     throw new Error("Value is null");
   }
   return value;
 }
 
-// 解決策: 型ガードを使う
+// Solution: Use a type guard
 function process<T>(value: T | null): T {
   if (!isNotNull(value)) {
     throw new Error("Value is null");
@@ -3031,32 +3032,32 @@ function isNotNull<T>(value: T | null): value is T {
 
 ---
 
-## 14. アンチパターン
+## 14. Anti-Patterns
 
-### アンチパターン 1: eslint-disable の乱用
+### Anti-Pattern 1: Overusing eslint-disable
 
 ```typescript
-// NG: 理由なく disable
+// NG: disable without reason
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 const data: any = response.body;
 
-// NG: ファイル全体を disable
+// NG: disable entire file
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-// OK: 理由を明記し、スコープを最小化
-// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- TODO: #456 で型定義を追加
+// OK: provide a reason and minimize scope
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- TODO: add type definition in #456
 const data: any = response.body;
 
-// さらに OK: 根本的に修正
+// Even better: fix the root cause
 import { z } from "zod";
 const ResponseSchema = z.object({ /* ... */ });
 const data = ResponseSchema.parse(response.body);
 ```
 
-### アンチパターン 2: 型情報ルールを全てオフ
+### Anti-Pattern 2: Disabling All Type-Aware Rules
 
 ```typescript
-// NG: パフォーマンスを理由に型情報ルールを全てオフ
+// NG: disable all type-aware rules citing performance
 {
   rules: {
     "@typescript-eslint/no-floating-promises": "off",
@@ -3065,11 +3066,11 @@ const data = ResponseSchema.parse(response.body);
   }
 }
 
-// OK: projectService で高速化し、ルールを有効化
+// OK: use projectService for speed and keep rules enabled
 {
   languageOptions: {
     parserOptions: {
-      projectService: true, // 高速化
+      projectService: true, // for speed
       tsconfigRootDir: import.meta.dirname,
     },
   },
@@ -3084,42 +3085,42 @@ const data = ResponseSchema.parse(response.body);
 
 ## 15. FAQ
 
-### Q1: Biome に移行すべきですか？
+### Q1: Should I migrate to Biome?
 
-**A**: プロジェクトの要件によります。
+**A**: It depends on your project's requirements.
 
-- **Biome が適している場合**:
-  - 型情報ルール（no-floating-promises 等）が不要
-  - React Hooks などのプラグインが不要
-  - lint + format の速度が最優先
-  - 新規プロジェクト
+- **When Biome is appropriate**:
+  - Type-aware rules (no-floating-promises, etc.) are not needed
+  - Plugins like React Hooks are not needed
+  - Speed of lint + format is the top priority
+  - New projects
 
-- **ESLint が適している場合**:
-  - 型情報ルールが必須（非同期処理が多い）
-  - React Hooks exhaustive-deps が必要
-  - カスタムルールやプラグインを多用
-  - 既存の大規模プロジェクト
+- **When ESLint is appropriate**:
+  - Type-aware rules are essential (lots of async processing)
+  - React Hooks exhaustive-deps is needed
+  - Heavy use of custom rules or plugins
+  - Existing large-scale projects
 
-**推奨**: 型情報ルールが必要なら ESLint、不要なら Biome を検討してください。
+**Recommendation**: If type-aware rules are needed, use ESLint. If not, consider Biome.
 
-### Q2: Flat Config と Legacy Config のどちらを使うべきですか？
+### Q2: Which should I use, Flat Config or Legacy Config?
 
-**A**: Flat Config (`eslint.config.ts`) を使ってください。
+**A**: Use Flat Config (`eslint.config.ts`).
 
-理由:
-1. ESLint v9 以降は Flat Config がデフォルト
-2. Legacy Config (`.eslintrc.*`) は ESLint v10 で削除予定
-3. typescript-eslint v8 も Flat Config を推奨
-4. TypeScript で型安全に設定を記述できる
-5. 設定の結合がシンプル（配列のスプレッド）
+Reasons:
+1. ESLint v9 and later use Flat Config as the default
+2. Legacy Config (`.eslintrc.*`) is scheduled for removal in ESLint v10
+3. typescript-eslint v8 also recommends Flat Config
+4. Can write type-safe configuration in TypeScript
+5. Simple config merging (array spread)
 
-Legacy Config は既存プロジェクトの互換性のためのみ使用してください。
+Use Legacy Config only for compatibility with existing projects.
 
-### Q3: CI での実行が遅い場合の対策は？
+### Q3: What should I do when CI execution is slow?
 
-**A**: 以下の最適化を実施してください。
+**A**: Implement the following optimizations.
 
-1. **projectService を使用** (v8 以降)
+1. **Use projectService** (v8 onwards)
 ```typescript
 {
   languageOptions: {
@@ -3131,7 +3132,7 @@ Legacy Config は既存プロジェクトの互換性のためのみ使用して
 }
 ```
 
-2. **キャッシュを有効化**
+2. **Enable caching**
 ```json
 {
   "scripts": {
@@ -3140,18 +3141,18 @@ Legacy Config は既存プロジェクトの互換性のためのみ使用して
 }
 ```
 
-3. **変更ファイルのみ lint**
+3. **Lint only changed files**
 ```bash
 eslint $(git diff --name-only --diff-filter=d HEAD -- '*.ts' '*.tsx')
 ```
 
-4. **並列実行**
+4. **Parallel execution**
 ```bash
 npm install -D eslint-parallel
 eslint-parallel src/**/*.ts
 ```
 
-5. **CI キャッシュの活用**
+5. **Leverage CI caching**
 ```yaml
 - uses: actions/cache@v4
   with:
@@ -3159,32 +3160,32 @@ eslint-parallel src/**/*.ts
     key: eslint-${{ hashFiles('**/eslint.config.ts') }}
 ```
 
-これらの組み合わせで、実行時間を 80-90% 削減できます。
+Combining these can reduce execution time by 80-90%.
 
-### Q4: モノレポでルールを共有する方法は？
+### Q4: How do I share rules in a monorepo?
 
-**A**: ルート設定をエクスポートし、各パッケージでインポートします。
+**A**: Export the root configuration and import it in each package.
 
 ```typescript
 // root/eslint.config.ts
-export default tseslint.config(/* 共通ルール */);
+export default tseslint.config(/* shared rules */);
 
 // packages/web/eslint.config.ts
 import rootConfig from "../../eslint.config.ts";
 
 export default [
   ...rootConfig,
-  { /* web 固有ルール */ }
+  { /* web-specific rules */ }
 ];
 ```
 
-詳細は「[モノレポでの設定共有](#8-モノレポでの設定共有)」を参照してください。
+See "[Sharing Configuration in Monorepos](#8-sharing-configuration-in-monorepos)" for details.
 
-### Q5: カスタムルールを作成するには？
+### Q5: How do I create a custom rule?
 
-**A**: `@typescript-eslint/utils` の `ESLintUtils.RuleCreator` を使用します。
+**A**: Use `ESLintUtils.RuleCreator` from `@typescript-eslint/utils`.
 
-基本構造:
+Basic structure:
 
 ```typescript
 import { ESLintUtils } from "@typescript-eslint/utils";
@@ -3195,24 +3196,24 @@ const createRule = ESLintUtils.RuleCreator(
 
 export const myRule = createRule({
   name: "my-rule",
-  meta: { /* メタデータ */ },
+  meta: { /* metadata */ },
   defaultOptions: [],
   create(context) {
     return {
-      // AST ノードに対するビジター
+      // Visitor for AST nodes
       Identifier(node) {
-        // ルールロジック
+        // Rule logic
       },
     };
   },
 });
 ```
 
-詳細は「[カスタムルールの作成](#5-カスタムルールの作成)」を参照してください。
+See "[Creating Custom Rules](#5-creating-custom-rules)" for details.
 
-### Q6: テストファイルで any を許可するには？
+### Q6: How do I allow any in test files?
 
-**A**: files パターンでテストファイルを指定し、ルールを無効化します。
+**A**: Specify test files with the files pattern and disable the rule.
 
 ```typescript
 // eslint.config.ts
@@ -3229,9 +3230,9 @@ export default tseslint.config(
 );
 ```
 
-### Q7: switch の網羅性チェックを有効にするには？
+### Q7: How do I enable switch exhaustiveness checking?
 
-**A**: `@typescript-eslint/switch-exhaustiveness-check` ルールを有効化します。
+**A**: Enable the `@typescript-eslint/switch-exhaustiveness-check` rule.
 
 ```typescript
 {
@@ -3241,99 +3242,99 @@ export default tseslint.config(
 }
 ```
 
-これにより、ユニオン型の全ケースを網羅していない switch 文で警告が出ます。
+This produces a warning for switch statements that do not cover all cases of a union type.
 
-詳細は「[switch-exhaustiveness-check](#4-5-switch-exhaustiveness-check)」を参照してください。
+See "[switch-exhaustiveness-check](#4-5-switch-exhaustiveness-check)" for details.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and moving on to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 16. まとめ表
+## 16. Summary Table
 
-| 概念 | 要点 |
+| Concept | Key Points |
 |------|------|
-| typescript-eslint | TypeScript 専用の ESLint パーサー + プラグイン |
-| Flat Config | `eslint.config.ts` 形式、ESLint v9 以降の標準 |
-| 型情報ルール | TypeScript Compiler の型チェッカーと連携した高度な検出 |
-| projectService | 型情報ルールのパフォーマンスを大幅改善（v8 以降） |
-| no-floating-promises | Promise の放置を検出 |
-| no-misused-promises | Promise を期待していない場所での使用を検出 |
-| switch-exhaustiveness-check | switch 文の網羅性をチェック |
-| Prettier 連携 | eslint-config-prettier で競合ルールを無効化 |
-| consistent-type-imports | `import type` の一貫した使用を強制 |
-| Biome | ESLint + Prettier の高速代替（型情報ルールなし） |
-| oxlint | 超高速リンター（型情報ルールなし、開発中） |
-| カスタムルール | ESLintUtils.RuleCreator で独自ルールを作成可能 |
+| typescript-eslint | TypeScript-specific ESLint parser + plugin |
+| Flat Config | `eslint.config.ts` format, standard from ESLint v9 onwards |
+| Type-aware rules | Advanced detection integrated with TypeScript Compiler's type checker |
+| projectService | Dramatically improves performance of type-aware rules (v8 onwards) |
+| no-floating-promises | Detects unhandled Promises |
+| no-misused-promises | Detects Promise usage where not expected |
+| switch-exhaustiveness-check | Checks exhaustiveness of switch statements |
+| Prettier integration | Use eslint-config-prettier to disable conflicting rules |
+| consistent-type-imports | Enforces consistent use of `import type` |
+| Biome | Fast alternative to ESLint + Prettier (no type-aware rules) |
+| oxlint | Ultra-fast linter (no type-aware rules, under development) |
+| Custom rules | Can create custom rules with ESLintUtils.RuleCreator |
 
 ---
 
-## 17. 次に読むべきガイド
+## 17. Next Guides to Read
 
-- **[tsconfig.json](./00-tsconfig.md)** -- ESLint と連携する TypeScript コンパイラ設定
-- **[テスト](./02-testing-typescript.md)** -- テストファイルの lint ルール設定
-- **[ビルドツール](./01-build-tools.md)** -- ビルドパイプラインへの lint 統合
-- **型システム** -- TypeScript の型システムの基礎
+- **[tsconfig.json](./00-tsconfig.md)** -- TypeScript compiler settings that integrate with ESLint
+- **[Testing](./02-testing-typescript.md)** -- Lint rule configuration for test files
+- **[Build Tools](./01-build-tools.md)** -- Integrating lint into the build pipeline
+- **Type System** -- Fundamentals of the TypeScript type system
 
 ---
 
-## 18. 参考文献
+## 18. References
 
 1. **typescript-eslint** -- The tooling that enables ESLint and Prettier to support TypeScript
    https://typescript-eslint.io/
-   公式ドキュメント。ルール一覧、設定例、マイグレーションガイドが充実。
+   Official documentation. Rich in rule listings, configuration examples, and migration guides.
 
 2. **ESLint Flat Config**
    https://eslint.org/docs/latest/use/configure/configuration-files
-   ESLint v9 の新しい設定形式の公式ドキュメント。
+   Official documentation for the new ESLint v9 configuration format.
 
 3. **Biome** -- One toolchain for your web project
    https://biomejs.dev/
-   ESLint + Prettier の高速代替ツール。Rust 実装で圧倒的な速度を誇る。
+   Fast alternative to ESLint + Prettier. Rust implementation boasting overwhelming speed.
 
 4. **Oxc** -- The JavaScript Oxidation Compiler
    https://oxc-project.github.io/
-   次世代の JavaScript ツールチェーン。oxlint を含む。
+   Next-generation JavaScript toolchain. Includes oxlint.
 
 5. **AST Explorer**
    https://astexplorer.net/
-   TypeScript の AST 構造を可視化するツール。カスタムルール作成時に便利。
+   Tool for visualizing TypeScript AST structure. Useful when creating custom rules.
 
 6. **typescript-eslint Performance**
    https://typescript-eslint.io/linting/troubleshooting/performance-troubleshooting
-   パフォーマンスチューニングの公式ガイド。
+   Official guide for performance tuning.
 
 7. **ESLint Rules Reference**
    https://eslint.org/docs/latest/rules/
-   ESLint の組み込みルール一覧。
+   List of ESLint built-in rules.
 
 8. **Prettier Documentation**
    https://prettier.io/docs/en/
-   Prettier の公式ドキュメント。設定オプションの詳細。
+   Official Prettier documentation. Details on configuration options.
 
 ---
 
-## 付録: チートシート
+## Appendix: Cheat Sheet
 
-### 基本設定
+### Basic Configuration
 
 ```typescript
-// 最小構成
+// Minimal configuration
 import eslint from "@eslint/js";
 import tseslint from "typescript-eslint";
 
@@ -3343,7 +3344,7 @@ export default tseslint.config(
 );
 ```
 
-### 型情報ルール有効化
+### Enabling Type-Aware Rules
 
 ```typescript
 export default tseslint.config(
@@ -3359,7 +3360,7 @@ export default tseslint.config(
 );
 ```
 
-### よく使うルール
+### Commonly Used Rules
 
 ```typescript
 {
@@ -3374,7 +3375,7 @@ export default tseslint.config(
 }
 ```
 
-### package.json スクリプト
+### package.json Scripts
 
 ```json
 {
@@ -3387,7 +3388,7 @@ export default tseslint.config(
 }
 ```
 
-### VS Code 設定
+### VS Code Settings
 
 ```json
 {
@@ -3397,22 +3398,3 @@ export default tseslint.config(
   }
 }
 ```
-
----
-
-**文字数**: 約 42,000 字
-
-このガイドは、ESLint + TypeScript の全体像から実践的な設定、パフォーマンス最適化、代替ツールとの比較まで、包括的にカバーしています。コード例、図解、比較表、演習問題を豊富に含み、MIT 級の品質を目指しました。
-
----
-
-## 次に読むべきガイド
-
-- 同カテゴリの他のガイドを参照してください
-
----
-
-## 参考文献
-
-- [MDN Web Docs](https://developer.mozilla.org/) - Web技術のリファレンス
-- [Wikipedia](https://ja.wikipedia.org/) - 技術概念の概要
