@@ -1,161 +1,161 @@
-# チャットシステム設計
+# Chat System Design
 
-> LINE / Slack / WhatsApp のようなリアルタイムチャットシステムをゼロから設計する。WebSocket 管理、メッセージ配信、オフライン対応、グループチャットの設計パターンを体系的に学ぶ。
-
----
-
-## この章で学ぶこと
-
-1. **リアルタイム通信基盤** — WebSocket 接続管理、プレゼンス管理、ハートビートの設計
-2. **メッセージ配信** — 1対1 チャット、グループチャット、メッセージ順序保証の仕組み
-3. **スケーラビリティと信頼性** — メッセージ永続化、オフライン配信、既読管理、プッシュ通知連携
-4. **セキュリティ** — エンドツーエンド暗号化、メッセージの完全性保証
-5. **運用設計** — 監視、障害対応、容量計画
+> Design a real-time chat system like LINE / Slack / WhatsApp from scratch. Systematically learn design patterns for WebSocket management, message delivery, offline handling, and group chat.
 
 ---
 
-## 前提知識
+## What You Will Learn
 
-| トピック | 必要レベル | 参考ガイド |
+1. **Real-Time Communication Foundation** — WebSocket connection management, presence management, and heartbeat design
+2. **Message Delivery** — One-to-one chat, group chat, and message ordering guarantees
+3. **Scalability and Reliability** — Message persistence, offline delivery, read receipt management, and push notification integration
+4. **Security** — End-to-end encryption and message integrity guarantees
+5. **Operational Design** — Monitoring, incident response, and capacity planning
+
+---
+
+## Prerequisites
+
+| Topic | Required Level | Reference Guide |
 |---------|-----------|-----------|
-| WebSocket プロトコル | HTTP アップグレード、双方向通信の基礎 | ネットワーク基礎 |
-| メッセージキュー | Kafka / RabbitMQ の概念 | [メッセージキュー](../01-components/02-message-queue.md) |
-| NoSQL データベース | Cassandra / DynamoDB の基本 | データベース |
-| キャッシュ設計 | Redis の基本操作 | キャッシュ |
-| イベント駆動設計 | Pub/Sub の概念 | [イベント駆動アーキテクチャ](../02-architecture/03-event-driven.md) |
+| WebSocket Protocol | HTTP upgrade, bidirectional communication basics | Network Fundamentals |
+| Message Queue | Kafka / RabbitMQ concepts | [Message Queue](../01-components/02-message-queue.md) |
+| NoSQL Database | Cassandra / DynamoDB basics | Database |
+| Cache Design | Basic Redis operations | Cache |
+| Event-Driven Design | Pub/Sub concepts | [Event-Driven Architecture](../02-architecture/03-event-driven.md) |
 
 ---
 
-## 背景
+## Background
 
-### なぜチャットシステムの設計は難しいのか
+### Why Is Chat System Design Difficult?
 
 ```
-チャットシステムの技術的課題:
+Technical challenges of chat systems:
 
-  1. リアルタイム性:
-     → メッセージの遅延が 100ms を超えるとユーザーが不満を感じる
-     → 数百万の同時接続を低レイテンシで処理する必要がある
+  1. Real-time responsiveness:
+     → Users feel dissatisfied when message latency exceeds 100ms
+     → Need to handle millions of concurrent connections with low latency
 
-  2. 信頼性:
-     → メッセージの喪失は絶対に許容できない
-     → 順序の逆転もUXを大きく損なう
-     → ネットワーク断裂時もメッセージを保証する
+  2. Reliability:
+     → Message loss is absolutely unacceptable
+     → Out-of-order delivery severely degrades UX
+     → Messages must be guaranteed even during network disconnections
 
-  3. スケーラビリティ:
-     → DAU 5,000万、同時接続 500万
-     → グループチャットのファンアウト（1メッセージ → 500人に配信）
-     → 書き込みと読み取りの両方が高スループット
+  3. Scalability:
+     → 50 million DAU, 5 million concurrent connections
+     → Group chat fan-out (1 message → delivered to 500 people)
+     → High throughput for both writes and reads
 
-  4. プレゼンス管理:
-     → 「オンライン/オフライン」の状態をリアルタイムで追跡
-     → 500万同時接続のプレゼンス情報を効率的に管理
+  4. Presence management:
+     → Track "online/offline" status in real time
+     → Efficiently manage presence information for 5 million concurrent connections
 
-面接での出題頻度が高い理由:
-  - WebSocket（リアルタイム通信）
-  - メッセージキュー（非同期処理）
-  - データベース設計（高書き込みスループット）
-  - キャッシュ設計（プレゼンス、既読）
-  - プッシュ通知（外部サービス連携）
-  → 1つの問題で多くの設計要素をカバーできる
+Why this is frequently asked in interviews:
+  - WebSocket (real-time communication)
+  - Message queue (asynchronous processing)
+  - Database design (high write throughput)
+  - Cache design (presence, read receipts)
+  - Push notifications (external service integration)
+  → A single problem covers many design elements
 ```
 
 ---
 
-## 1. 要件定義
+## 1. Requirements Definition
 
-### 1.1 機能要件
-
-```
-=== 必須機能 (Must Have) ===
-- 1対1 チャット（テキストメッセージ）
-- グループチャット（最大 500 人）
-- オンライン/オフラインのプレゼンス表示
-- メッセージの永続化と履歴表示
-- プッシュ通知（オフラインユーザー向け）
-
-=== 重要機能 (Should Have) ===
-- メッセージの既読管理（既読/未読、既読マーク）
-- 画像・ファイルの送受信
-- メッセージの検索
-- タイピングインジケーター
-
-=== 追加機能 (Nice to Have) ===
-- メッセージの編集・削除
-- スレッド/リプライ
-- リアクション（絵文字）
-- 音声/ビデオ通話（WebRTC）
-- エンドツーエンド暗号化（E2EE）
-```
-
-### 1.2 非機能要件
+### 1.1 Functional Requirements
 
 ```
-=== パフォーマンス ===
-- メッセージ配信レイテンシ: P99 < 200ms
-- メッセージ永続化: P99 < 100ms
-- プレゼンス更新: P99 < 500ms
+=== Must Have ===
+- One-to-one chat (text messages)
+- Group chat (up to 500 people)
+- Online/offline presence display
+- Message persistence and history display
+- Push notifications (for offline users)
 
-=== 可用性 ===
-- メッセージ配信: 99.99%
-- メッセージ喪失率: 0%（at-least-once 配信保証）
+=== Should Have ===
+- Message read receipt management (read/unread, read marks)
+- Image and file sending/receiving
+- Message search
+- Typing indicator
 
-=== スケーラビリティ ===
-- 同時 WebSocket 接続: 500万
-- メッセージ QPS: 50,000（ピーク）
-- 1日あたりメッセージ: 20億
+=== Nice to Have ===
+- Message editing and deletion
+- Threads / replies
+- Reactions (emoji)
+- Voice/video calls (WebRTC)
+- End-to-end encryption (E2EE)
 ```
 
-### 1.3 スケール見積もり
+### 1.2 Non-Functional Requirements
+
+```
+=== Performance ===
+- Message delivery latency: P99 < 200ms
+- Message persistence: P99 < 100ms
+- Presence updates: P99 < 500ms
+
+=== Availability ===
+- Message delivery: 99.99%
+- Message loss rate: 0% (at-least-once delivery guarantee)
+
+=== Scalability ===
+- Concurrent WebSocket connections: 5 million
+- Message QPS: 50,000 (peak)
+- Messages per day: 2 billion
+```
+
+### 1.3 Scale Estimation
 
 ```python
-# === チャットシステムのスケール見積もり ===
+# === Chat System Scale Estimation ===
 
-dau = 50_000_000                    # DAU: 5,000万
-messages_per_user_per_day = 40       # 1ユーザー平均 40メッセージ/日
-daily_messages = dau * messages_per_user_per_day  # 20億メッセージ/日
+dau = 50_000_000                    # DAU: 50 million
+messages_per_user_per_day = 40       # Average 40 messages per user per day
+daily_messages = dau * messages_per_user_per_day  # 2 billion messages per day
 
 # QPS
 message_qps = daily_messages / 86400           # ≈ 23,148 QPS
-message_qps_peak = message_qps * 2.5           # ≈ 57,870 QPS (ピーク)
+message_qps_peak = message_qps * 2.5           # ≈ 57,870 QPS (peak)
 
-# 同時接続
-concurrent_connections = dau * 0.10             # 500万同時接続 (DAU の 10%)
+# Concurrent connections
+concurrent_connections = dau * 0.10             # 5 million concurrent connections (10% of DAU)
 
-# ストレージ
-avg_message_size_bytes = 200                    # テキスト + メタデータ
-daily_storage_gb = (daily_messages * avg_message_size_bytes) / (1024**3)  # ≈ 373 GB/日
-yearly_storage_tb = daily_storage_gb * 365 / 1024  # ≈ 133 TB/年
+# Storage
+avg_message_size_bytes = 200                    # Text + metadata
+daily_storage_gb = (daily_messages * avg_message_size_bytes) / (1024**3)  # ≈ 373 GB/day
+yearly_storage_tb = daily_storage_gb * 365 / 1024  # ≈ 133 TB/year
 
-# 帯域幅
-# 1メッセージ送信 → 平均 2.5人に配信（1対1 + グループの平均）
+# Bandwidth
+# 1 message sent → delivered to an average of 2.5 people (average of 1-to-1 + group)
 fan_out_factor = 2.5
-delivery_qps = message_qps_peak * fan_out_factor  # ≈ 144,675 配信/秒
+delivery_qps = message_qps_peak * fan_out_factor  # ≈ 144,675 deliveries/sec
 bandwidth_mbps = (delivery_qps * avg_message_size_bytes * 8) / (1024**2)  # ≈ 22 Mbps
 
-# WebSocket メモリ
-# 1接続 ≈ 10KB (バッファ + メタデータ)
+# WebSocket memory
+# 1 connection ≈ 10KB (buffer + metadata)
 ws_memory_gb = (concurrent_connections * 10 * 1024) / (1024**3)  # ≈ 47 GB
-ws_servers = ws_memory_gb / 16  # 1サーバー 16GB で ≈ 3台（最低）
+ws_servers = ws_memory_gb / 16  # 16GB per server → ≈ 3 servers (minimum)
 
 print(f"""
-=== チャットシステム スケール見積もり ===
-メッセージ QPS:     {message_qps:,.0f} (ピーク: {message_qps_peak:,.0f})
-同時 WebSocket:     {concurrent_connections:,.0f}
-ストレージ:         {daily_storage_gb:.0f} GB/日, {yearly_storage_tb:.0f} TB/年
-配信スループット:    {delivery_qps:,.0f} 配信/秒
-WebSocket メモリ:    {ws_memory_gb:.0f} GB → 最低 {ws_servers:.0f} サーバー
+=== Chat System Scale Estimation ===
+Message QPS:          {message_qps:,.0f} (peak: {message_qps_peak:,.0f})
+Concurrent WebSocket: {concurrent_connections:,.0f}
+Storage:              {daily_storage_gb:.0f} GB/day, {yearly_storage_tb:.0f} TB/year
+Delivery throughput:  {delivery_qps:,.0f} deliveries/sec
+WebSocket memory:     {ws_memory_gb:.0f} GB → minimum {ws_servers:.0f} servers
 """)
 ```
 
 ---
 
-## 2. 高レベルアーキテクチャ
+## 2. High-Level Architecture
 
-### 2.1 全体構成
+### 2.1 Overall Structure
 
 ```
-                    チャットシステム全体構成
+                    Chat System Overall Structure
 
   ┌──────────┐                                    ┌──────────┐
   │ Client A │                                    │ Client B │
@@ -182,13 +182,14 @@ WebSocket メモリ:    {ws_memory_gb:.0f} GB → 最低 {ws_servers:.0f} サー
             v             v             v
      ┌──────────┐  ┌──────────┐  ┌──────────┐
      │ Kafka    │  │ Cassandra│  │ Redis    │
-     │ (メッセ  │  │ (メッセ  │  │ (接続    │
-     │  ージQ)  │  │  ージDB) │  │  マップ,  │
-     └──────────┘  └──────────┘  │  プレゼン │
-                                 │  ス,既読) │
+     │ (Message │  │ (Message │  │ (Connection│
+     │  Queue)  │  │  DB)     │  │  Map,    │
+     └──────────┘  └──────────┘  │  Presence,│
+                                 │  Read    │
+                                 │  Receipts)│
                                  └──────────┘
 
-  補助サービス:
+  Auxiliary Services:
   ┌──────────┐  ┌──────────┐  ┌──────────┐
   │ Push     │  │ File     │  │ Search   │
   │ Notif.   │  │ Upload   │  │ (Elastic │
@@ -197,27 +198,27 @@ WebSocket メモリ:    {ws_memory_gb:.0f} GB → 最低 {ws_servers:.0f} サー
   └──────────┘  └──────────┘  └──────────┘
 ```
 
-### 2.2 接続管理アーキテクチャ
+### 2.2 Connection Management Architecture
 
 ```
-=== WebSocket Gateway の役割 ===
+=== Roles of the WebSocket Gateway ===
 
-  1. WebSocket 接続の終端
+  1. WebSocket connection termination
      Client ←── WebSocket ──→ Gateway ←── gRPC/HTTP ──→ Message Service
 
-  2. 接続マップの管理 (Redis)
-     user_id → gateway_id のマッピングを保持
-     → どのユーザーがどの Gateway に接続しているかを追跡
+  2. Connection map management (Redis)
+     Maintains user_id → gateway_id mapping
+     → Tracks which user is connected to which Gateway
 
-  3. メッセージのルーティング
-     受信メッセージ → Message Service → 宛先の Gateway → 受信者の WebSocket
+  3. Message routing
+     Incoming message → Message Service → Destination Gateway → Recipient's WebSocket
 
-  4. ハートビート管理
-     30秒ごとに ping/pong で接続の生存確認
-     → タイムアウト → 切断 → プレゼンス更新
+  4. Heartbeat management
+     ping/pong every 30 seconds to verify connection liveness
+     → Timeout → Disconnect → Presence update
 
   ┌────────────────────────────────────────────────┐
-  │  Redis 接続マップ (Hash)                        │
+  │  Redis Connection Map (Hash)                   │
   │                                                 │
   │  ws:connections                                  │
   │    user_A → gw-001                              │
@@ -225,18 +226,18 @@ WebSocket メモリ:    {ws_memory_gb:.0f} GB → 最低 {ws_servers:.0f} サー
   │    user_C → gw-002                              │
   │    user_D → gw-002                              │
   │                                                 │
-  │  メッセージ配信フロー (User A → User C):          │
-  │  1. GW-1 がメッセージを受信                       │
-  │  2. Message Service がメッセージを永続化           │
-  │  3. Redis で User C の Gateway を検索 → GW-2     │
-  │  4. Redis Pub/Sub で GW-2 にメッセージを転送      │
-  │  5. GW-2 が User C の WebSocket に送信           │
+  │  Message delivery flow (User A → User C):       │
+  │  1. GW-1 receives the message                   │
+  │  2. Message Service persists the message        │
+  │  3. Look up User C's Gateway in Redis → GW-2   │
+  │  4. Forward message to GW-2 via Redis Pub/Sub  │
+  │  5. GW-2 sends to User C's WebSocket           │
   └────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. コア実装
+## 3. Core Implementation
 
 ### 3.1 WebSocket Gateway
 
@@ -255,65 +256,65 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 redis_client = aioredis.Redis(host="redis-host", port=6379)
 
-# このゲートウェイインスタンスの ID
+# ID of this gateway instance
 GATEWAY_ID = f"gw-{uuid.uuid4().hex[:8]}"
 
-# ローカル接続マップ (user_id -> WebSocket)
+# Local connection map (user_id -> WebSocket)
 local_connections: dict[str, WebSocket] = {}
 
-# ハートビート設定
-HEARTBEAT_INTERVAL = 30  # 秒
-HEARTBEAT_TIMEOUT = 90   # 秒（3回ミス = 切断とみなす）
-PRESENCE_TTL = 300       # 秒（プレゼンスの TTL）
+# Heartbeat settings
+HEARTBEAT_INTERVAL = 30  # seconds
+HEARTBEAT_TIMEOUT = 90   # seconds (3 missed = treated as disconnected)
+PRESENCE_TTL = 300       # seconds (presence TTL)
 
 
 @app.websocket("/ws/chat")
 async def websocket_endpoint(websocket: WebSocket, user_id: str, token: str):
-    """WebSocket エンドポイント
+    """WebSocket endpoint
 
-    接続フロー:
-    1. 認証（JWT トークン検証）
-    2. 接続登録（Redis + ローカルマップ）
-    3. プレゼンス更新（オンライン）
-    4. オフラインメッセージの配信
-    5. メッセージ送受信ループ
-    6. 切断処理
+    Connection flow:
+    1. Authentication (JWT token verification)
+    2. Connection registration (Redis + local map)
+    3. Presence update (online)
+    4. Deliver offline messages
+    5. Message send/receive loop
+    6. Disconnect handling
     """
-    # 1. 認証
+    # 1. Authentication
     if not await authenticate_ws(token, user_id):
         await websocket.close(code=4001, reason="Unauthorized")
         return
 
     await websocket.accept()
-    logger.info(f"WebSocket 接続: user_id={user_id}, gw={GATEWAY_ID}")
+    logger.info(f"WebSocket connected: user_id={user_id}, gw={GATEWAY_ID}")
 
-    # 2. 接続登録
+    # 2. Connection registration
     local_connections[user_id] = websocket
     await redis_client.hset("ws:connections", user_id, GATEWAY_ID)
 
-    # 3. プレゼンス更新
+    # 3. Presence update
     await redis_client.set(f"presence:{user_id}", "online", ex=PRESENCE_TTL)
     await broadcast_presence_change(user_id, "online")
 
-    # 4. オフラインメッセージの配信
+    # 4. Deliver offline messages
     await deliver_offline_messages(user_id, websocket)
 
-    # 5. ハートビートタスクを開始
+    # 5. Start heartbeat task
     heartbeat_task = asyncio.create_task(
         heartbeat_loop(user_id, websocket)
     )
 
     try:
-        # 6. メッセージ送受信ループ
+        # 6. Message send/receive loop
         while True:
             data = await websocket.receive_json()
             await handle_message(user_id, data)
     except WebSocketDisconnect:
-        logger.info(f"WebSocket 切断: user_id={user_id}")
+        logger.info(f"WebSocket disconnected: user_id={user_id}")
     except Exception as e:
-        logger.error(f"WebSocket エラー: user_id={user_id}, error={e}")
+        logger.error(f"WebSocket error: user_id={user_id}, error={e}")
     finally:
-        # 7. 切断処理
+        # 7. Disconnect handling
         heartbeat_task.cancel()
         local_connections.pop(user_id, None)
         await redis_client.hdel("ws:connections", user_id)
@@ -322,28 +323,28 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, token: str):
 
 
 async def heartbeat_loop(user_id: str, websocket: WebSocket):
-    """ハートビートループ: 定期的に ping を送信
+    """Heartbeat loop: periodically send ping
 
-    WebSocket の接続状態を確認し、プレゼンスの TTL を延長する
+    Verifies WebSocket connection state and extends presence TTL
     """
     try:
         while True:
             await asyncio.sleep(HEARTBEAT_INTERVAL)
             try:
                 await websocket.send_json({"type": "ping"})
-                # プレゼンス TTL を延長
+                # Extend presence TTL
                 await redis_client.set(
                     f"presence:{user_id}", "online", ex=PRESENCE_TTL
                 )
             except Exception:
-                logger.warning(f"ハートビート失敗: user_id={user_id}")
+                logger.warning(f"Heartbeat failed: user_id={user_id}")
                 break
     except asyncio.CancelledError:
         pass
 
 
 async def handle_message(sender_id: str, data: dict):
-    """受信メッセージをルーティングする"""
+    """Route received messages"""
     msg_type = data.get("type")
 
     if msg_type == "chat":
@@ -355,13 +356,13 @@ async def handle_message(sender_id: str, data: dict):
     elif msg_type == "read_receipt":
         await handle_read_receipt(sender_id, data)
     elif msg_type == "pong":
-        pass  # ハートビート応答
+        pass  # Heartbeat response
     else:
-        logger.warning(f"未知のメッセージタイプ: {msg_type}")
+        logger.warning(f"Unknown message type: {msg_type}")
 
 
 async def handle_chat_message(sender_id: str, data: dict):
-    """1対1 チャットメッセージの処理"""
+    """Handle one-to-one chat messages"""
     recipient_id = data["to"]
     message = {
         "id": str(uuid.uuid4()),
@@ -373,10 +374,10 @@ async def handle_chat_message(sender_id: str, data: dict):
         "type": "chat",
     }
 
-    # 1. メッセージを永続化（Kafka 経由で非同期）
+    # 1. Persist message (asynchronously via Kafka)
     await publish_to_kafka("messages", message)
 
-    # 2. 送信者に ACK を返す
+    # 2. Return ACK to sender
     sender_ws = local_connections.get(sender_id)
     if sender_ws:
         await sender_ws.send_json({
@@ -385,24 +386,24 @@ async def handle_chat_message(sender_id: str, data: dict):
             "status": "sent",
         })
 
-    # 3. 受信者に配信
+    # 3. Deliver to recipient
     await deliver_message(recipient_id, message)
 
 
 async def deliver_message(recipient_id: str, message: dict):
-    """メッセージを受信者に配信する
+    """Deliver a message to the recipient
 
-    配信フロー:
-    1. Redis で受信者の Gateway を検索
-    2. 同一 Gateway → 直接送信
-    3. 異なる Gateway → Redis Pub/Sub で転送
-    4. オフライン → プッシュ通知 + オフラインキュー
+    Delivery flow:
+    1. Look up the recipient's Gateway in Redis
+    2. Same Gateway → deliver directly
+    3. Different Gateway → forward via Redis Pub/Sub
+    4. Offline → push notification + offline queue
     """
     gateway_id = await redis_client.hget("ws:connections", recipient_id)
 
     if gateway_id is None:
-        # オフライン → プッシュ通知 + オフラインキュー
-        logger.info(f"オフライン配信: recipient={recipient_id}")
+        # Offline → push notification + offline queue
+        logger.info(f"Offline delivery: recipient={recipient_id}")
         await enqueue_offline_message(recipient_id, message)
         await send_push_notification(recipient_id, message)
         return
@@ -410,78 +411,78 @@ async def deliver_message(recipient_id: str, message: dict):
     gateway_id = gateway_id.decode()
 
     if gateway_id == GATEWAY_ID:
-        # 同じ Gateway → 直接送信
+        # Same Gateway → deliver directly
         ws = local_connections.get(recipient_id)
         if ws:
             try:
                 await ws.send_json(message)
-                logger.debug(f"直接配信: recipient={recipient_id}")
+                logger.debug(f"Direct delivery: recipient={recipient_id}")
             except Exception as e:
-                logger.error(f"配信失敗: recipient={recipient_id}, {e}")
+                logger.error(f"Delivery failed: recipient={recipient_id}, {e}")
                 await enqueue_offline_message(recipient_id, message)
         else:
             await enqueue_offline_message(recipient_id, message)
     else:
-        # 異なる Gateway → Redis Pub/Sub で転送
+        # Different Gateway → forward via Redis Pub/Sub
         channel = f"gw:{gateway_id}"
         await redis_client.publish(channel, json.dumps(message))
-        logger.debug(f"Pub/Sub 転送: recipient={recipient_id}, gw={gateway_id}")
+        logger.debug(f"Pub/Sub forwarding: recipient={recipient_id}, gw={gateway_id}")
 
 
 async def deliver_offline_messages(user_id: str, websocket: WebSocket):
-    """オフライン中に蓄積されたメッセージを配信"""
+    """Deliver messages accumulated while offline"""
     queue_key = f"offline:{user_id}"
     messages = await redis_client.lrange(queue_key, 0, -1)
 
     if messages:
-        logger.info(f"オフラインメッセージ配信: user={user_id}, count={len(messages)}")
+        logger.info(f"Delivering offline messages: user={user_id}, count={len(messages)}")
         for msg_data in messages:
             try:
                 message = json.loads(msg_data)
                 await websocket.send_json(message)
             except Exception as e:
-                logger.error(f"オフラインメッセージ配信失敗: {e}")
+                logger.error(f"Offline message delivery failed: {e}")
 
-        # 配信完了後にキューをクリア
+        # Clear queue after delivery
         await redis_client.delete(queue_key)
 
 
 async def enqueue_offline_message(user_id: str, message: dict):
-    """オフラインメッセージキューに追加"""
+    """Add message to the offline message queue"""
     queue_key = f"offline:{user_id}"
     await redis_client.rpush(queue_key, json.dumps(message))
-    # 最大 1000 メッセージを保持（古いものは切り捨て）
+    # Keep up to 1000 messages (truncate older ones)
     await redis_client.ltrim(queue_key, -1000, -1)
-    # 7日間保持
+    # Retain for 7 days
     await redis_client.expire(queue_key, 7 * 86400)
 
 
 async def broadcast_presence_change(user_id: str, status: str):
-    """プレゼンス変更を関連ユーザーに通知"""
-    # ユーザーの友達/チャット相手にプレゼンス変更を通知
-    # 実装省略: 友達リストを取得して各友達に通知
+    """Notify related users of a presence change"""
+    # Notify the user's friends/chat partners of the presence change
+    # Implementation omitted: retrieve friends list and notify each friend
     pass
 
 
 async def send_push_notification(user_id: str, message: dict):
-    """プッシュ通知を送信（APNS / FCM 経由）"""
-    # 実装省略: Push Notification Service に委譲
+    """Send push notification (via APNS / FCM)"""
+    # Implementation omitted: delegate to Push Notification Service
     pass
 
 
 async def publish_to_kafka(topic: str, message: dict):
-    """Kafka にメッセージを発行"""
-    # 実装省略: confluent_kafka の Producer を使用
+    """Publish message to Kafka"""
+    # Implementation omitted: use confluent_kafka Producer
     pass
 
 
 async def authenticate_ws(token: str, user_id: str) -> bool:
-    """WebSocket 接続の認証"""
-    # 実装省略: JWT トークンの検証
+    """Authenticate WebSocket connection"""
+    # Implementation omitted: verify JWT token
     return True
 ```
 
-### 3.2 グループチャットの配信
+### 3.2 Group Chat Delivery
 
 ```python
 # application/services/group_chat_service.py
@@ -494,12 +495,12 @@ logger = logging.getLogger(__name__)
 
 
 class GroupChatService:
-    """グループチャットの配信サービス
+    """Group chat delivery service
 
-    設計判断:
-    - 小グループ（<50人）: 書き込み時ファンアウト（即時配信）
-    - 大グループ（>500人）: 読み取り時ファンアウト（遅延許容）
-    - ハイブリッド: グループサイズに応じて自動切り替え
+    Design decisions:
+    - Small groups (<50 members): write-time fan-out (immediate delivery)
+    - Large groups (>500 members): read-time fan-out (latency acceptable)
+    - Hybrid: automatically switches based on group size
     """
 
     SMALL_GROUP_THRESHOLD = 50
@@ -518,7 +519,7 @@ class GroupChatService:
         content: str,
         content_type: str = "text",
     ):
-        """グループメッセージを全メンバーに配信する"""
+        """Deliver a group message to all members"""
         message = {
             "id": str(uuid.uuid4()),
             "from": sender_id,
@@ -529,21 +530,21 @@ class GroupChatService:
             "type": "group_chat",
         }
 
-        # 1. メッセージを永続化（Kafka 経由で非同期）
+        # 1. Persist message (asynchronously via Kafka)
         await self._kafka.send("group-messages", message)
 
-        # 2. 送信者に ACK を返す
+        # 2. Return ACK to sender
         await deliver_message(sender_id, {
             "type": "ack",
             "message_id": message["id"],
             "status": "sent",
         })
 
-        # 3. グループメンバーを取得
+        # 3. Get group members
         members = await self.get_group_members(group_id)
         group_size = len(members)
 
-        # 4. グループサイズに応じたファンアウト戦略
+        # 4. Fan-out strategy based on group size
         if group_size <= self.SMALL_GROUP_THRESHOLD:
             await self._fanout_push(sender_id, members, message)
         elif group_size <= self.LARGE_GROUP_THRESHOLD:
@@ -557,7 +558,7 @@ class GroupChatService:
         members: list[str],
         message: dict,
     ):
-        """書き込み時ファンアウト: 各メンバーに即時配信"""
+        """Write-time fan-out: immediately deliver to each member"""
         online_members = []
         offline_members = []
 
@@ -570,21 +571,21 @@ class GroupChatService:
             else:
                 offline_members.append(member_id)
 
-        # オンラインメンバーに即時配信
+        # Immediately deliver to online members
         delivery_tasks = [
             deliver_message(member_id, message)
             for member_id in online_members
         ]
         await asyncio.gather(*delivery_tasks, return_exceptions=True)
 
-        # オフラインメンバーにはプッシュ通知
+        # Send push notifications to offline members
         if offline_members:
             await self._push.batch_send(
                 user_ids=offline_members,
-                title=f"新着メッセージ ({message['group_id']})",
+                title=f"New message ({message['group_id']})",
                 body=message["content"][:100],
             )
-            # オフラインキューにも保存
+            # Also save to offline queue
             for member_id in offline_members:
                 await enqueue_offline_message(member_id, message)
 
@@ -594,8 +595,8 @@ class GroupChatService:
         members: list[str],
         message: dict,
     ):
-        """非同期ファンアウト: Kafka ワーカーで配信"""
-        # Kafka にファンアウトジョブを発行
+        """Asynchronous fan-out: deliver via Kafka worker"""
+        # Publish fan-out job to Kafka
         await self._kafka.send("fanout-jobs", {
             "type": "group_fanout",
             "sender_id": sender_id,
@@ -609,24 +610,24 @@ class GroupChatService:
         group_id: str,
         message: dict,
     ):
-        """読み取り時ファンアウト: メンバーがアクセス時に取得"""
-        # グループのタイムラインにメッセージを追加
+        """Read-time fan-out: members retrieve messages on access"""
+        # Add message to the group timeline
         await self._redis.zadd(
             f"group_timeline:{group_id}",
             {json.dumps(message): message["timestamp"]},
         )
-        # タイムラインのサイズ制限（最新 10,000 件）
+        # Limit timeline size (keep latest 10,000 entries)
         await self._redis.zremrangebyrank(
             f"group_timeline:{group_id}", 0, -10001
         )
 
     async def get_group_members(self, group_id: str) -> list[str]:
-        """グループメンバーリストを取得する（キャッシュ付き）"""
+        """Retrieve the group member list (with cache)"""
         cached = await self._redis.smembers(f"group:{group_id}:members")
         if cached:
             return [m.decode() for m in cached]
 
-        # DB からロードしてキャッシュ
+        # Load from DB and cache
         members = await self._db.fetch_all(
             "SELECT user_id FROM group_members WHERE group_id = :gid",
             {"gid": group_id}
@@ -640,25 +641,25 @@ class GroupChatService:
         return member_ids
 ```
 
-### 3.3 メッセージ順序保証
+### 3.3 Message Ordering Guarantee
 
 ```python
 # infrastructure/id_generator/snowflake.py
 """
-メッセージ ID の生成: Snowflake 方式
+Message ID generation: Snowflake approach
 
-要件:
-  1. グローバルにユニーク
-  2. 時系列順（ID の大小 = 時間の前後）
-  3. 分散環境で衝突なし
-  4. 高スループット（1マシンで 400万+ ID/秒）
+Requirements:
+  1. Globally unique
+  2. Chronologically ordered (ID magnitude = time order)
+  3. No collisions in distributed environments
+  4. High throughput (4M+ IDs/sec per machine)
 
-構造: 64bit
-  [1bit 符号][41bit タイムスタンプ][10bit マシンID][12bit シーケンス]
+Structure: 64bit
+  [1bit sign][41bit timestamp][10bit machine ID][12bit sequence]
 
-  タイムスタンプ: ミリ秒精度、約69年分
-  マシンID: 1024台まで
-  シーケンス: 1ミリ秒あたり 4096 ID
+  Timestamp: millisecond precision, ~69 years
+  Machine ID: up to 1024 machines
+  Sequence: 4096 IDs per millisecond
 """
 import time
 import threading
@@ -669,7 +670,7 @@ class MessageIdGenerator:
 
     def __init__(self, machine_id: int):
         if machine_id < 0 or machine_id >= 1024:
-            raise ValueError("machine_id は 0-1023 の範囲")
+            raise ValueError("machine_id must be in range 0-1023")
         self._machine_id = machine_id
         self._sequence = 0
         self._last_timestamp = -1
@@ -682,7 +683,7 @@ class MessageIdGenerator:
             if timestamp == self._last_timestamp:
                 self._sequence = (self._sequence + 1) & 0xFFF  # 12bit
                 if self._sequence == 0:
-                    # 同一ミリ秒でシーケンス上限 → 次のミリ秒まで待機
+                    # Sequence limit reached within same millisecond → wait for next millisecond
                     while timestamp <= self._last_timestamp:
                         timestamp = int(time.time() * 1000) - self.EPOCH
             else:
@@ -697,25 +698,25 @@ class MessageIdGenerator:
             )
 
     def extract_timestamp(self, message_id: int) -> int:
-        """メッセージ ID からタイムスタンプを抽出"""
+        """Extract timestamp from a message ID"""
         return (message_id >> 22) + self.EPOCH
 ```
 
-### 3.4 既読管理
+### 3.4 Read Receipt Management
 
 ```python
 # application/services/read_receipt_service.py
 """
-既読管理の設計判断:
+Read receipt design decisions:
 
-  方式1: 各メッセージに既読フラグ
-    → メッセージ数 × ユーザー数の既読レコード
-    → 20億メッセージ × 2人 = 40億レコード/日 → 非現実的
+  Option 1: Store a read flag per message
+    → Read records = number of messages × number of users
+    → 2 billion messages × 2 users = 4 billion records/day → impractical
 
-  方式2: 「最後に読んだメッセージ ID」のみ保持（採用）
-    → チャットルーム × ユーザー数のレコードのみ
-    → msg_id が Snowflake ID のため、大小比較で未読判定が可能
-    → ストレージ効率が圧倒的に良い
+  Option 2: Store only the "last read message ID" (adopted)
+    → Only records per chat room × users
+    → Since msg_id is a Snowflake ID, unread detection is possible via comparison
+    → Far more storage-efficient
 """
 import logging
 
@@ -723,11 +724,11 @@ logger = logging.getLogger(__name__)
 
 
 class ReadReceiptService:
-    """既読状態を効率的に管理する
+    """Efficiently manage read receipt state
 
-    各チャットルームで「最後に読んだメッセージ ID」のみを保持。
-    Snowflake ID の単調増加性を利用して、
-    last_read_msg_id 以降のメッセージ = 未読 と判定する。
+    For each chat room, only the "last read message ID" is stored.
+    Using the monotonically increasing property of Snowflake IDs,
+    messages after last_read_msg_id are treated as unread.
     """
 
     def __init__(self, redis_client, db):
@@ -740,15 +741,15 @@ class ReadReceiptService:
         chat_id: str,
         last_read_msg_id: str,
     ) -> None:
-        """指定メッセージまでを既読にする"""
+        """Mark messages as read up to the specified message"""
         key = f"read:{chat_id}:{user_id}"
         current = await self._redis.get(key)
 
-        # より新しいメッセージ ID の場合のみ更新（冪等性）
+        # Only update if the message ID is newer (idempotent)
         if current is None or last_read_msg_id > current.decode():
             await self._redis.set(key, last_read_msg_id)
 
-            # DB にも非同期で永続化（Redis 障害時の復旧用）
+            # Also persist to DB asynchronously (for recovery in case of Redis failure)
             await self._db.execute(
                 """
                 INSERT INTO read_receipts (user_id, chat_id, last_read_msg_id)
@@ -760,17 +761,17 @@ class ReadReceiptService:
                 {"uid": user_id, "cid": chat_id, "mid": last_read_msg_id}
             )
 
-            # 相手に既読通知を送信
+            # Send read receipt notification to the other party
             await self._notify_read_receipt(
                 chat_id, user_id, last_read_msg_id
             )
 
     async def get_unread_count(self, user_id: str, chat_id: str) -> int:
-        """未読メッセージ数を取得する"""
+        """Get the number of unread messages"""
         last_read = await self._redis.get(f"read:{chat_id}:{user_id}")
 
         if last_read is None:
-            # 全メッセージが未読
+            # All messages are unread
             return await self._count_all_messages(chat_id)
 
         return await self._count_messages_after(
@@ -780,7 +781,7 @@ class ReadReceiptService:
     async def get_unread_counts_batch(
         self, user_id: str, chat_ids: list[str]
     ) -> dict[str, int]:
-        """複数チャットの未読数を一括取得（チャット一覧画面用）"""
+        """Batch-retrieve unread counts for multiple chats (for the chat list screen)"""
         result = {}
         pipe = self._redis.pipeline()
         for chat_id in chat_ids:
@@ -799,8 +800,8 @@ class ReadReceiptService:
     async def _notify_read_receipt(
         self, chat_id: str, reader_id: str, last_read_msg_id: str
     ):
-        """既読通知を相手に送信"""
-        # チャットの相手ユーザーを取得
+        """Send read receipt notification to the other party"""
+        # Get the other participants in the chat
         participants = await self._redis.smembers(
             f"chat:{chat_id}:participants"
         )
@@ -815,7 +816,7 @@ class ReadReceiptService:
                 })
 
     async def _count_all_messages(self, chat_id: str) -> int:
-        """チャットの総メッセージ数"""
+        """Total number of messages in a chat"""
         result = await self._db.fetch_one(
             "SELECT COUNT(*) as cnt FROM messages WHERE chat_id = :cid",
             {"cid": chat_id}
@@ -825,7 +826,7 @@ class ReadReceiptService:
     async def _count_messages_after(
         self, chat_id: str, msg_id: str
     ) -> int:
-        """指定メッセージ以降のメッセージ数"""
+        """Number of messages after the specified message"""
         result = await self._db.fetch_one(
             "SELECT COUNT(*) as cnt FROM messages "
             "WHERE chat_id = :cid AND id > :mid",
@@ -834,27 +835,27 @@ class ReadReceiptService:
         return result["cnt"] if result else 0
 ```
 
-### 3.5 メッセージ永続化（Cassandra）
+### 3.5 Message Persistence (Cassandra)
 
 ```python
 # infrastructure/repositories/cassandra_message_repo.py
 """
-Cassandra をメッセージストアに選択した理由:
+Reasons for choosing Cassandra as the message store:
 
-  1. 書き込み最適化: LSM-tree ベースで高い書き込みスループット
-  2. 水平スケール: ノード追加で線形にスケール
-  3. 高可用性: レプリケーションファクター 3 で耐障害性
-  4. 時系列データに最適: パーティションキー + クラスタリングキー
+  1. Write optimization: High write throughput based on LSM-tree
+  2. Horizontal scaling: Scales linearly with node additions
+  3. High availability: Fault tolerance with replication factor 3
+  4. Optimized for time-series data: Partition key + clustering key
 
-  テーブル設計:
+  Table design:
   PRIMARY KEY ((chat_id), message_id)
-  → chat_id がパーティションキー（同一チャットのメッセージを同一ノードに配置）
-  → message_id がクラスタリングキー（Snowflake ID で時系列順にソート）
+  → chat_id is the partition key (collocates messages from the same chat on the same node)
+  → message_id is the clustering key (sorted chronologically by Snowflake ID)
 """
 
 
 class CassandraMessageRepository:
-    """Cassandra ベースのメッセージリポジトリ"""
+    """Cassandra-based message repository"""
 
     CREATE_TABLE = """
     CREATE TABLE IF NOT EXISTS messages (
@@ -875,7 +876,7 @@ class CassandraMessageRepository:
         self._session = session
 
     async def save_message(self, message: dict) -> None:
-        """メッセージを保存"""
+        """Save a message"""
         await self._session.execute_async(
             """
             INSERT INTO messages
@@ -897,10 +898,10 @@ class CassandraMessageRepository:
         before_id: int | None = None,
         limit: int = 50,
     ) -> list[dict]:
-        """メッセージ履歴を取得（ページネーション対応）
+        """Retrieve message history (with pagination support)
 
-        before_id: このメッセージ ID より前のメッセージを取得
-        limit: 取得件数（デフォルト50）
+        before_id: retrieve messages before this message ID
+        limit: number of messages to retrieve (default 50)
         """
         if before_id:
             rows = await self._session.execute_async(
@@ -925,7 +926,7 @@ class CassandraMessageRepository:
         return [dict(row) for row in rows]
 
     async def get_message_count(self, chat_id: str) -> int:
-        """メッセージ総数を取得（カウンターテーブル使用推奨）"""
+        """Get total message count (use of a counter table is recommended)"""
         rows = await self._session.execute_async(
             "SELECT COUNT(*) as cnt FROM messages WHERE chat_id = %s",
             (chat_id,)
@@ -935,9 +936,9 @@ class CassandraMessageRepository:
 
 ---
 
-## 4. テスト
+## 4. Testing
 
-### 4.1 WebSocket Gateway のテスト
+### 4.1 WebSocket Gateway Tests
 
 ```python
 # tests/test_websocket_gateway.py
@@ -997,15 +998,15 @@ class FakeWebSocket:
 
 
 class TestDeliverMessage:
-    """メッセージ配信のテスト"""
+    """Tests for message delivery"""
 
     @pytest.fixture
     def redis(self):
         return FakeRedis()
 
     @pytest.mark.asyncio
-    async def test_同一Gateway_直接配信(self, redis):
-        """受信者が同じ Gateway に接続している場合、直接配信"""
+    async def test_same_gateway_direct_delivery(self, redis):
+        """When the recipient is connected to the same Gateway, deliver directly"""
         ws = FakeWebSocket()
         local_connections["user_b"] = ws
         await redis.hset("ws:connections", "user_b", GATEWAY_ID)
@@ -1017,8 +1018,8 @@ class TestDeliverMessage:
         assert ws.sent_messages[0]["content"] == "Hello!"
 
     @pytest.mark.asyncio
-    async def test_別Gateway_PubSub転送(self, redis):
-        """受信者が別の Gateway に接続している場合、Pub/Sub で転送"""
+    async def test_different_gateway_pubsub_forwarding(self, redis):
+        """When the recipient is connected to a different Gateway, forward via Pub/Sub"""
         await redis.hset("ws:connections", "user_c", "gw-other")
 
         message = {"type": "chat", "content": "Hello!"}
@@ -1029,22 +1030,22 @@ class TestDeliverMessage:
         assert channel == "gw:gw-other"
 
     @pytest.mark.asyncio
-    async def test_オフライン_キュー保存(self, redis):
-        """受信者がオフラインの場合、キューに保存"""
-        # 接続マップにユーザーがいない = オフライン
+    async def test_offline_save_to_queue(self, redis):
+        """When the recipient is offline, save to queue"""
+        # User not in connection map = offline
         message = {"type": "chat", "content": "Hello!"}
         await deliver_message("user_offline", message)
 
-        # オフラインキューにメッセージが保存される
+        # Message should be saved to the offline queue
         queue = redis._data.get("offline:user_offline", [])
         assert len(queue) == 1
 
 
 class TestReadReceipt:
-    """既読管理のテスト"""
+    """Tests for read receipt management"""
 
     @pytest.mark.asyncio
-    async def test_既読マーク(self):
+    async def test_mark_read(self):
         redis = FakeRedis()
         db = AsyncMock()
         service = ReadReceiptService(redis, db)
@@ -1055,7 +1056,7 @@ class TestReadReceipt:
         assert last_read.decode() == "msg_100"
 
     @pytest.mark.asyncio
-    async def test_古いメッセージIDでは更新されない(self):
+    async def test_not_updated_with_older_message_id(self):
         redis = FakeRedis()
         db = AsyncMock()
         service = ReadReceiptService(redis, db)
@@ -1064,259 +1065,258 @@ class TestReadReceipt:
         await service.mark_read("user_a", "chat_001", "msg_050")
 
         last_read = await redis.get("read:chat_001:user_a")
-        assert last_read.decode() == "msg_100"  # 古い ID では更新されない
+        assert last_read.decode() == "msg_100"  # Not updated with older ID
 
 
 class TestMessageIdGenerator:
-    """Snowflake ID ジェネレーターのテスト"""
+    """Tests for the Snowflake ID generator"""
 
-    def test_ユニーク性(self):
+    def test_uniqueness(self):
         gen = MessageIdGenerator(machine_id=1)
         ids = [gen.generate() for _ in range(10000)]
-        assert len(set(ids)) == 10000  # 全てユニーク
+        assert len(set(ids)) == 10000  # All unique
 
-    def test_単調増加(self):
+    def test_monotonically_increasing(self):
         gen = MessageIdGenerator(machine_id=1)
         ids = [gen.generate() for _ in range(1000)]
-        assert ids == sorted(ids)  # 単調増加
+        assert ids == sorted(ids)  # Monotonically increasing
 
-    def test_異なるマシンIDでユニーク(self):
+    def test_unique_across_different_machine_ids(self):
         gen1 = MessageIdGenerator(machine_id=1)
         gen2 = MessageIdGenerator(machine_id=2)
         ids1 = {gen1.generate() for _ in range(1000)}
         ids2 = {gen2.generate() for _ in range(1000)}
-        assert len(ids1 & ids2) == 0  # 重複なし
+        assert len(ids1 & ids2) == 0  # No duplicates
 ```
 
 ---
 
-## 5. ファンアウト戦略の比較
+## 5. Fan-Out Strategy Comparison
 
-### 5.1 書き込み時 vs 読み取り時ファンアウト
+### 5.1 Write-Time vs. Read-Time Fan-Out
 
-| 観点 | 書き込み時ファンアウト (Push) | 読み取り時ファンアウト (Pull) |
+| Aspect | Write-Time Fan-Out (Push) | Read-Time Fan-Out (Pull) |
 |------|------------------------------|------------------------------|
-| 方式 | 送信時に全受信者のインボックスに書き込む | 受信者がアクセス時にメッセージを取得 |
-| 配信遅延 | 低い（即時配信） | 高い（取得時に集約が必要） |
-| 書き込みコスト | 高い（N人に書き込み） | 低い（1箇所に書き込み） |
-| 読み取りコスト | 低い（自分のインボックスを読むだけ） | 高い（複数ソースから集約） |
-| ストレージ | 高い（N倍のコピー） | 低い（1コピー） |
-| 適している場面 | 小〜中規模グループ（<50人） | 大規模チャンネル（>500人） |
+| Approach | Write to all recipients' inboxes at send time | Recipients retrieve messages on access |
+| Delivery latency | Low (immediate delivery) | High (aggregation needed at retrieval) |
+| Write cost | High (write to N users) | Low (write to one place) |
+| Read cost | Low (just read own inbox) | High (aggregate from multiple sources) |
+| Storage | High (N copies) | Low (1 copy) |
+| Best suited for | Small to medium groups (<50 people) | Large channels (>500 people) |
 
-### 5.2 ハイブリッドアプローチ
+### 5.2 Hybrid Approach
 
 ```
-=== グループサイズ別のファンアウト戦略 ===
+=== Fan-Out Strategy by Group Size ===
 
-小グループ (< 50人): 書き込み時ファンアウト (Push)
-  → 即時配信が重要、遅延が許容できない
-  → 50人 × 40メッセージ/日 = 2000 書き込み/日（許容範囲）
+Small group (< 50 people): Write-time fan-out (Push)
+  → Immediate delivery is critical, latency is unacceptable
+  → 50 people × 40 messages/day = 2000 writes/day (acceptable)
 
-中グループ (50-500人): 非同期ファンアウト
-  → Kafka ワーカーで非同期配信
-  → 送信者には即座に ACK を返す
-  → 配信遅延は数百ms（許容範囲）
+Medium group (50-500 people): Asynchronous fan-out
+  → Deliver asynchronously via Kafka worker
+  → Return ACK to sender immediately
+  → Delivery latency is a few hundred ms (acceptable)
 
-大チャンネル (> 500人): 読み取り時ファンアウト (Pull)
-  → 書き込みコストが膨大（500人 × 配信 = 膨大な書き込み）
-  → チャンネルのタイムラインに1回だけ書き込み
-  → メンバーはアクセス時にタイムラインを読む
+Large channel (> 500 people): Read-time fan-out (Pull)
+  → Write cost is enormous (500 people × delivery = massive writes)
+  → Write to the channel timeline only once
+  → Members read the timeline on access
 
-VIP ユーザー: 常に書き込み時ファンアウト
-  → 体験を最優先
-  → サービスレベルに応じた差別化
+VIP users: Always write-time fan-out
+  → Experience takes priority
+  → Differentiation based on service level
 ```
 
 ---
 
-## 6. 比較表
+## 6. Comparison Tables
 
-### 6.1 通信プロトコル
+### 6.1 Communication Protocols
 
-| プロトコル | 方向 | レイテンシ | オーバーヘッド | 適用場面 |
+| Protocol | Direction | Latency | Overhead | Use Case |
 |-----------|:----:|:---------:|:-----------:|---------|
-| WebSocket | 双方向 | 最低 | 低 | リアルタイムチャット（推奨） |
-| SSE (Server-Sent Events) | サーバー→クライアント | 低 | 中 | 通知・フィード更新 |
-| Long Polling | 擬似双方向 | 中 | 高 | WebSocket 非対応環境 |
-| HTTP Polling | 擬似双方向 | 高 | 最高 | レガシー環境のみ |
+| WebSocket | Bidirectional | Lowest | Low | Real-time chat (recommended) |
+| SSE (Server-Sent Events) | Server → Client | Low | Medium | Notifications, feed updates |
+| Long Polling | Pseudo-bidirectional | Medium | High | Fallback for non-WebSocket environments |
+| HTTP Polling | Pseudo-bidirectional | High | Highest | Legacy environments only |
 
-### 6.2 メッセージストア
+### 6.2 Message Stores
 
-| 特性 | Cassandra | DynamoDB | MongoDB |
+| Property | Cassandra | DynamoDB | MongoDB |
 |-----|:---------:|:--------:|:------:|
-| 書き込みスループット | 非常に高い | 高い | 中程度 |
-| 読み取りパターン | パーティションキー検索 | ハッシュキー検索 | 柔軟なクエリ |
-| スケーラビリティ | 自動（ノード追加） | 自動（マネージド） | 手動シャーディング |
-| 運用コスト | 高い（自前管理） | 低い（マネージド） | 中程度 |
-| 適用場面 | 超大規模チャット | AWS エコシステム | 中小規模 |
+| Write throughput | Very high | High | Moderate |
+| Read pattern | Partition key lookup | Hash key lookup | Flexible queries |
+| Scalability | Automatic (add nodes) | Automatic (managed) | Manual sharding |
+| Operational cost | High (self-managed) | Low (managed) | Moderate |
+| Best suited for | Very large-scale chat | AWS ecosystem | Small to medium scale |
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### アンチパターン 1: 全メッセージをポーリング
-
-```
-WHY: HTTP ポーリングでは大半のリクエストが空レスポンスとなり、
-     サーバーリソースと帯域を浪費する。
-
-NG:
-  クライアント: GET /messages?since=xxx (毎秒ポーリング)
-  → 50M DAU × 1 req/sec = 50M QPS (大半が無駄)
-  → レイテンシ: 最大1秒の遅延
-  → バッテリー消費が激しい
-
-OK: WebSocket で常時接続し、サーバーからプッシュする
-  → 接続数は多いが、無駄なリクエストが激減
-  → リアルタイム配信（遅延 < 100ms）
-  → ロングポーリングは WebSocket 非対応環境の代替
-```
-
-### アンチパターン 2: グループの全メンバーに同期配信
+### Anti-Pattern 1: Poll for All Messages
 
 ```
-WHY: 同期配信ではメンバー数に比例して遅延が増加し、
-     1人でもエラーがあると全体が遅延する。
+WHY: With HTTP polling, most requests return empty responses,
+     wasting server resources and bandwidth.
 
-NG:
-  500人グループに同期的に500回の WebSocket 送信を待つ
-  → 1配信 5ms × 500人 = 2.5秒のブロッキング
-  → 1人の接続エラーが全体を遅延させる
+BAD:
+  Client: GET /messages?since=xxx (polling every second)
+  → 50M DAU × 1 req/sec = 50M QPS (mostly wasteful)
+  → Latency: up to 1 second delay
+  → Heavy battery consumption
 
-OK: 非同期ファンアウト
-  1. メッセージを Kafka に発行（1回の書き込み）
-  2. ワーカーが非同期で各メンバーに配信
-  3. 送信者には即座に ACK を返す
-  4. 配信失敗はリトライキューで処理
+GOOD: Maintain persistent WebSocket connection, server pushes messages
+  → More connections, but drastically fewer wasted requests
+  → Real-time delivery (latency < 100ms)
+  → Long polling as a fallback for non-WebSocket environments
 ```
 
-### アンチパターン 3: 全メッセージの既読を個別記録
+### Anti-Pattern 2: Synchronously Deliver to All Group Members
 
 ```
-WHY: メッセージ数 × ユーザー数のレコードが必要となり、
-     ストレージと書き込みが爆発する。
+WHY: With synchronous delivery, latency grows proportionally to member count,
+     and a single error delays the entire delivery.
 
-NG:
-  20億メッセージ/日 × 2人 = 40億既読レコード/日
-  → ストレージが膨大
-  → 既読の書き込みがメッセージの書き込みより多い
+BAD:
+  Synchronously wait for 500 WebSocket sends to a 500-person group
+  → 5ms per delivery × 500 people = 2.5 seconds of blocking
+  → One connection error delays the entire group
 
-OK: 「最後に読んだメッセージ ID」のみ保持
-  → チャットルーム × ユーザー数 のレコードのみ
-  → Snowflake ID の大小比較で未読判定
+GOOD: Asynchronous fan-out
+  1. Publish message to Kafka (one write)
+  2. Worker delivers asynchronously to each member
+  3. Return ACK to sender immediately
+  4. Delivery failures handled via retry queue
 ```
 
-### アンチパターン 4: WebSocket 接続を単一サーバーで管理
+### Anti-Pattern 3: Record Read Receipts Per Message
 
 ```
-WHY: 単一サーバーでは同時接続数に限界があり、
-     そのサーバー障害で全ユーザーが切断される。
+WHY: Requires records per message × per user, causing storage and write explosion.
 
-NG:
-  500万接続 → 1台のサーバー → メモリ 47GB、CPU 過負荷
+BAD:
+  2 billion messages/day × 2 users = 4 billion read records/day
+  → Enormous storage
+  → More read writes than message writes
 
-OK: WebSocket Gateway をクラスタ化
-  → Redis で接続マップを管理（user_id → gateway_id）
-  → Gateway 間は Redis Pub/Sub でメッセージ転送
-  → Gateway 障害時はクライアントが別の Gateway に再接続
+GOOD: Store only the "last read message ID"
+  → Only records per chat room × users
+  → Determine unread by Snowflake ID comparison
 ```
 
-### アンチパターン 5: メッセージ順序をタイムスタンプで保証
+### Anti-Pattern 4: Manage WebSocket Connections on a Single Server
 
 ```
-WHY: 分散環境ではサーバー間の時計が微妙にずれるため、
-     タイムスタンプだけでは正確な順序を保証できない。
+WHY: A single server has a limit on concurrent connections,
+     and a failure disconnects all users.
 
-NG:
-  Server A のメッセージ: timestamp = 1000
-  Server B のメッセージ: timestamp = 999
-  → 実際には Server B が先だが、順序が逆転する
+BAD:
+  5 million connections → 1 server → 47GB memory, CPU overload
 
-OK: Snowflake ID で順序を保証
-  → タイムスタンプ + マシンID + シーケンス番号
-  → 同一マシン内ではシーケンス番号で厳密に順序保証
-  → 異なるマシン間でもミリ秒精度で概ね正しい順序
+GOOD: Cluster WebSocket Gateways
+  → Manage connection map in Redis (user_id → gateway_id)
+  → Transfer messages between Gateways via Redis Pub/Sub
+  → On Gateway failure, clients reconnect to another Gateway
+```
+
+### Anti-Pattern 5: Guarantee Message Order Using Timestamps
+
+```
+WHY: In distributed environments, server clocks can drift slightly,
+     so timestamps alone cannot guarantee accurate ordering.
+
+BAD:
+  Server A message: timestamp = 1000
+  Server B message: timestamp = 999
+  → Server B was actually first, but the order is reversed
+
+GOOD: Guarantee order with Snowflake IDs
+  → Timestamp + machine ID + sequence number
+  → Strict ordering within the same machine via sequence number
+  → Approximately correct ordering to millisecond precision across machines
 ```
 
 ---
 
-## 8. 演習問題
+## 8. Exercises
 
-### 演習1: 基本 -- WebSocket チャットサーバー（30分）
+### Exercise 1: Basic — WebSocket Chat Server (30 minutes)
 
-**課題**: 簡易版の WebSocket チャットサーバーを実装
+**Task**: Implement a simplified WebSocket chat server
 
-要件:
-1. WebSocket 接続のハンドリング
-2. 接続中のユーザーリスト管理
-3. メッセージのブロードキャスト（全ユーザーに送信）
-4. 切断時のクリーンアップ
+Requirements:
+1. Handle WebSocket connections
+2. Manage list of connected users
+3. Broadcast messages (send to all users)
+4. Cleanup on disconnect
 
-**期待する出力**:
+**Expected output**:
 ```python
-# User A が接続
-# User B が接続
-# User A がメッセージ送信 → User B に配信
-# User B が切断 → User A に通知
+# User A connects
+# User B connects
+# User A sends a message → delivered to User B
+# User B disconnects → User A is notified
 ```
 
-### 演習2: 応用 -- 既読管理の実装（60分）
+### Exercise 2: Intermediate — Read Receipt Implementation (60 minutes)
 
-**課題**: Snowflake ID ベースの既読管理システムを実装
+**Task**: Implement a Snowflake ID-based read receipt management system
 
-要件:
-1. ReadReceiptService の完全な実装
-2. 未読数の取得（単一チャット + バッチ取得）
-3. 既読通知の配信
-4. テストを5ケース以上
+Requirements:
+1. Complete implementation of ReadReceiptService
+2. Get unread count (single chat + batch retrieval)
+3. Deliver read receipt notifications
+4. 5 or more test cases
 
-**期待する出力**:
+**Expected output**:
 ```python
 service = ReadReceiptService(redis, db)
 
-# 既読マーク
+# Mark as read
 await service.mark_read("user_a", "chat_001", "msg_100")
 
-# 未読数の取得
+# Get unread count
 count = await service.get_unread_count("user_a", "chat_001")
-assert count == 0  # msg_100 まで既読
+assert count == 0  # Read up to msg_100
 
-# バッチ取得
+# Batch retrieval
 counts = await service.get_unread_counts_batch(
     "user_a", ["chat_001", "chat_002", "chat_003"]
 )
 ```
 
-### 演習3: 発展 -- グループチャットのファンアウト（90分）
+### Exercise 3: Advanced — Group Chat Fan-Out (90 minutes)
 
-**課題**: ハイブリッドファンアウト戦略を持つグループチャットサービスを実装
+**Task**: Implement a group chat service with a hybrid fan-out strategy
 
-要件:
-1. 小グループ（<50人）: 即時配信
-2. 中グループ（50-500人）: 非同期配信（Kafka 経由）
-3. 大チャンネル（>500人）: 読み取り時ファンアウト
-4. オフラインメンバーへのプッシュ通知
-5. 各戦略のパフォーマンステスト
+Requirements:
+1. Small groups (<50 people): immediate delivery
+2. Medium groups (50-500 people): asynchronous delivery (via Kafka)
+3. Large channels (>500 people): read-time fan-out
+4. Push notifications for offline members
+5. Performance tests for each strategy
 
-**期待する出力**:
+**Expected output**:
 ```python
-# 小グループ: 即時配信
+# Small group: immediate delivery
 await service.send_group_message("user_a", "small_group", "Hello!")
-# → 全メンバーに即座に配信される
+# → All members receive immediately
 
-# 大チャンネル: タイムラインに書き込み
+# Large channel: write to timeline
 await service.send_group_message("user_a", "large_channel", "Hello!")
-# → タイムラインに1回だけ書き込み
-# → メンバーはアクセス時に取得
+# → Written to timeline only once
+# → Members retrieve on access
 ```
 
 ---
 
 ## 9. FAQ
 
-### Q1: WebSocket 接続が切れた場合の再接続戦略は？
+### Q1: What is the reconnection strategy when a WebSocket connection is dropped?
 
-**A:** 指数バックオフ + ジッター付きの再接続を実装する。
+**A:** Implement reconnection with exponential backoff + jitter.
 
 ```python
 import random
@@ -1328,173 +1328,173 @@ async def reconnect_with_backoff(
     max_retries: int = 10,
     max_backoff: float = 30.0,
 ):
-    """指数バックオフ + ジッターによる再接続"""
+    """Reconnection with exponential backoff + jitter"""
     for attempt in range(max_retries):
         try:
             ws = await connect_websocket(websocket_url)
-            # 再接続成功 → 切断中のメッセージを同期
+            # Reconnection successful → sync missed messages
             await sync_missed_messages(ws, last_received_msg_id)
             return ws
         except ConnectionError:
-            # 指数バックオフ: 1, 2, 4, 8, 16, ... 秒
+            # Exponential backoff: 1, 2, 4, 8, 16, ... seconds
             backoff = min(2 ** attempt, max_backoff)
-            # ジッター: 0〜backoff の間でランダム（Thundering Herd 対策）
+            # Jitter: random between 0 and backoff (to avoid Thundering Herd)
             jitter = random.uniform(0, backoff)
             await asyncio.sleep(jitter)
 
-    raise ConnectionError("最大リトライ回数を超過")
+    raise ConnectionError("Maximum retry count exceeded")
 ```
 
-### Q2: メッセージの暗号化はどう実装しますか？
+### Q2: How do you implement message encryption?
 
-**A:** エンドツーエンド暗号化（E2EE）には Signal Protocol が業界標準。
-
-```
-Signal Protocol の概要:
-
-  鍵交換: X3DH (Extended Triple Diffie-Hellman)
-  → 初回メッセージ送信時に共有鍵を確立
-  → サーバーに秘密鍵を預けない
-
-  メッセージ暗号化: Double Ratchet Algorithm
-  → メッセージごとに新しい暗号鍵を生成
-  → 1つの鍵が漏洩しても過去・未来のメッセージは安全
-
-  サーバーの役割:
-  → 暗号化されたメッセージを中継するだけ
-  → サーバー運営者もメッセージを読めない
-
-  グループ E2EE:
-  → Sender Key プロトコル
-  → グループメンバー全員に共有鍵を配布
-  → メンバー変更時に鍵をローテーション
-
-  採用企業: WhatsApp, Signal, LINE（一部）
-```
-
-### Q3: メッセージの保存期間とストレージの管理方法は？
-
-**A:** 階層型ストレージを採用する。
+**A:** The Signal Protocol is the industry standard for end-to-end encryption (E2EE).
 
 ```
-ホットストレージ (30日): Cassandra / DynamoDB
-  → 最新メッセージへの高速アクセス
-  → 1日 373GB × 30日 = 11.2 TB
+Signal Protocol overview:
 
-ウォームストレージ (1年): 圧縮して S3 + メタデータ DB
-  → 古いメッセージの検索・表示
-  → 圧縮率 5:1 → 133TB/年 → 26.6 TB/年
+  Key exchange: X3DH (Extended Triple Diffie-Hellman)
+  → Establishes a shared key on the first message
+  → Private keys are not entrusted to the server
 
-コールドストレージ (5年+): S3 Glacier / アーカイブ
-  → 法的要件での保持
-  → アクセス頻度: ほぼゼロ
+  Message encryption: Double Ratchet Algorithm
+  → Generates a new encryption key for each message
+  → Even if one key is compromised, past and future messages remain safe
 
-メッセージ検索:
-  → Elasticsearch にインデックスを作成
-  → メッセージ本文の全文検索
-  → ホットストレージのメッセージのみインデックス（30日分）
+  Server's role:
+  → Only relays encrypted messages
+  → Even server operators cannot read messages
+
+  Group E2EE:
+  → Sender Key protocol
+  → Distribute a shared key to all group members
+  → Rotate keys when membership changes
+
+  Adopted by: WhatsApp, Signal, LINE (partially)
 ```
 
-### Q4: 数百万の同時 WebSocket 接続はどう管理する？
+### Q3: How do you manage message retention periods and storage?
 
-**A:** Gateway のクラスタ化と接続マップの分散管理。
-
-```
-1サーバーの同時接続数:
-  → C10K 問題の現代版: epoll/kqueue で 10万+ 接続/サーバー
-  → 1接続あたりメモリ: 約 10KB
-  → 16GB RAM のサーバーで約 100万接続
-
-500万接続の場合:
-  → WebSocket Gateway: 最低 5 サーバー（余裕を見て 10 サーバー）
-  → Redis: 接続マップ（500万エントリ ≈ 数百 MB）
-  → ロードバランサー: Sticky Session or IP Hash
-
-スケーリング戦略:
-  → Gateway はステートレス（接続状態は Redis に）
-  → 新しい Gateway を追加するだけでスケール
-  → Gateway 障害時は自動的に他の Gateway に再接続
-```
-
-### Q5: 面接での進め方は？
-
-**A:** 以下のフレームワークで回答する。
+**A:** Adopt a tiered storage strategy.
 
 ```
-Step 1: 要件確認 (3-5分)
-  → 1対1? グループ? 両方?
-  → 想定DAU、同時接続数
-  → メッセージのタイプ（テキスト? 画像? 動画?）
-  → E2EE は必要?
+Hot storage (30 days): Cassandra / DynamoDB
+  → Fast access to recent messages
+  → 373 GB/day × 30 days = 11.2 TB
 
-Step 2: 高レベル設計 (10-15分)
-  → アーキテクチャ図: Client → WS Gateway → Message Service → DB
-  → WebSocket の選択理由（vs ポーリング、SSE）
-  → Redis 接続マップの説明
+Warm storage (1 year): Compressed to S3 + metadata DB
+  → Search and display of older messages
+  → 5:1 compression ratio → 133 TB/year → 26.6 TB/year
 
-Step 3: 深掘り (15-20分)
-  → グループチャットのファンアウト戦略
-  → オフライン対応（キュー + プッシュ通知）
-  → 既読管理の効率的な実装
-  → メッセージ順序保証（Snowflake ID）
+Cold storage (5+ years): S3 Glacier / Archive
+  → Retention for legal requirements
+  → Access frequency: nearly zero
 
-Step 4: スケーラビリティ (5-10分)
-  → 500万同時接続の管理方法
-  → Gateway のスケーリング
-  → メッセージストア（Cassandra）の選択理由
+Message search:
+  → Create index in Elasticsearch
+  → Full-text search of message content
+  → Only index messages in hot storage (30 days)
 ```
 
-### Q6: タイピングインジケーターの実装は？
+### Q4: How do you manage millions of concurrent WebSocket connections?
 
-**A:** 頻度を制限した軽量な Pub/Sub で実装する。
+**A:** Cluster Gateways and distribute connection map management.
+
+```
+Concurrent connections per server:
+  → Modern version of the C10K problem: 100K+ connections/server with epoll/kqueue
+  → Memory per connection: ~10KB
+  → ~1 million connections on a 16GB RAM server
+
+For 5 million connections:
+  → WebSocket Gateway: minimum 5 servers (10 servers with buffer)
+  → Redis: connection map (5 million entries ≈ hundreds of MB)
+  → Load balancer: sticky session or IP hash
+
+Scaling strategy:
+  → Gateway is stateless (connection state stored in Redis)
+  → Scale by simply adding new Gateways
+  → On Gateway failure, clients automatically reconnect to another Gateway
+```
+
+### Q5: How should I approach this in an interview?
+
+**A:** Answer using the following framework.
+
+```
+Step 1: Clarify requirements (3-5 min)
+  → 1-to-1? Group? Both?
+  → Expected DAU, concurrent connections
+  → Message types (text? images? video?)
+  → Is E2EE required?
+
+Step 2: High-level design (10-15 min)
+  → Architecture diagram: Client → WS Gateway → Message Service → DB
+  → Reasoning for choosing WebSocket (vs. polling, SSE)
+  → Explain Redis connection map
+
+Step 3: Deep dive (15-20 min)
+  → Group chat fan-out strategy
+  → Offline handling (queue + push notifications)
+  → Efficient read receipt implementation
+  → Message ordering guarantee (Snowflake ID)
+
+Step 4: Scalability (5-10 min)
+  → How to manage 5 million concurrent connections
+  → Gateway scaling
+  → Reasoning for choosing Cassandra as message store
+```
+
+### Q6: How do you implement a typing indicator?
+
+**A:** Implement it with rate-limited, lightweight Pub/Sub.
 
 ```python
-# クライアント側: 入力中は3秒ごとに typing イベントを送信
-# サーバー側: typing イベントを受信者に転送
+# Client side: send a typing event every 3 seconds while typing
+# Server side: forward typing events to the recipient
 
 async def handle_typing_indicator(sender_id: str, data: dict):
-    """タイピングインジケーターの処理
+    """Handle typing indicator
 
-    設計判断:
-    - DB に保存しない（揮発性の高いデータ）
-    - レート制限: 3秒に1回まで
-    - TTL: 5秒後に自動的に消える
+    Design decisions:
+    - Not saved to DB (highly volatile data)
+    - Rate limit: at most once every 3 seconds
+    - TTL: automatically disappears after 5 seconds
     """
     recipient_id = data["to"]
     key = f"typing:{sender_id}:{recipient_id}"
 
-    # レート制限: 3秒に1回
+    # Rate limit: once every 3 seconds
     if await redis_client.exists(key):
         return
     await redis_client.set(key, "1", ex=3)
 
-    # 受信者に通知（永続化しない）
+    # Notify recipient (not persisted)
     await deliver_message(recipient_id, {
         "type": "typing",
         "from": sender_id,
-        "expires_in": 5000,  # 5秒後に消える
+        "expires_in": 5000,  # Disappears after 5 seconds
     })
 ```
 
-### Q7: メッセージの編集・削除はどう実装する？
+### Q7: How do you implement message editing and deletion?
 
-**A:** ソフトデリートと更新イベントで実装する。
+**A:** Implement using soft delete and update events.
 
 ```
-メッセージ編集:
-  1. DB のメッセージレコードを更新（edited_at を記録）
-  2. 相手に "message_edited" イベントを送信
-  3. クライアント側で表示を更新（「編集済み」マーク）
+Message editing:
+  1. Update the message record in DB (record edited_at)
+  2. Send a "message_edited" event to the other party
+  3. Client updates the display (shows "edited" mark)
 
-メッセージ削除:
-  1. DB のメッセージを論理削除（is_deleted = true）
-  2. content を "このメッセージは削除されました" に置換
-  3. 相手に "message_deleted" イベントを送信
+Message deletion:
+  1. Soft-delete the message in DB (is_deleted = true)
+  2. Replace content with "This message has been deleted"
+  3. Send a "message_deleted" event to the other party
 
-注意:
-  - E2EE 環境ではサーバーが元の内容を知らない
-  - 既に配信されたメッセージの「完全な削除」は不可能
-  - 「相手の端末からも削除」は相手の協力が必要（LINE の Unsend）
+Notes:
+  - In E2EE environments, the server does not know the original content
+  - "Complete deletion" of already-delivered messages is not possible
+  - "Delete from recipient's device too" requires recipient cooperation (like LINE's Unsend)
 ```
 
 ---
@@ -1502,50 +1502,50 @@ async def handle_typing_indicator(sender_id: str, data: dict):
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next steps.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development tasks. It is especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 設計要素 | 選択 | 理由 |
+| Design Element | Choice | Reason |
 |----------|------|------|
-| 通信プロトコル | WebSocket | リアルタイム双方向通信、低レイテンシ |
-| 接続管理 | Redis (接続マップ) | 高速ルックアップ、Gateway 間の橋渡し |
-| メッセージ ID | Snowflake ID | 時系列順序保証 + 分散生成 |
-| メッセージ DB | Cassandra | 書き込みスケーラビリティ、時系列最適化 |
-| メッセージキュー | Kafka | 非同期ファンアウト、at-least-once 保証 |
-| キャッシュ | Redis | プレゼンス、既読、メンバーリスト |
-| プッシュ通知 | APNS / FCM | オフラインユーザー対応 |
-| ファンアウト | ハイブリッド | グループサイズに応じた最適化 |
+| Communication protocol | WebSocket | Real-time bidirectional communication, low latency |
+| Connection management | Redis (connection map) | Fast lookup, bridges between Gateways |
+| Message ID | Snowflake ID | Chronological ordering guarantee + distributed generation |
+| Message DB | Cassandra | Write scalability, time-series optimization |
+| Message queue | Kafka | Asynchronous fan-out, at-least-once guarantee |
+| Cache | Redis | Presence, read receipts, member lists |
+| Push notifications | APNS / FCM | Offline user support |
+| Fan-out | Hybrid | Optimization based on group size |
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
-- [通知システム設計](./02-notification-system.md) — プッシュ通知の大規模配信設計
-- [URL 短縮サービス設計](./00-url-shortener.md) — シンプルなシステム設計の基本
-- [レート制限設計](./03-rate-limiter.md) — API 保護のためのレート制限
-- [イベント駆動アーキテクチャ](../02-architecture/03-event-driven.md) — Pub/Sub パターンの詳細
-- [メッセージキュー](../01-components/02-message-queue.md) — Kafka の詳細設計
+- [Notification System Design](./02-notification-system.md) — Large-scale push notification delivery design
+- [URL Shortener Design](./00-url-shortener.md) — Fundamentals of simple system design
+- [Rate Limiter Design](./03-rate-limiter.md) — Rate limiting for API protection
+- [Event-Driven Architecture](../02-architecture/03-event-driven.md) — Detailed Pub/Sub patterns
+- [Message Queue](../01-components/02-message-queue.md) — Detailed Kafka design
 
 ---
 
-## 参考文献
+## References
 
 1. **System Design Interview: An Insider's Guide** — Alex Xu (2020) — Chapter 12: Design a Chat System
-2. **The X3DH Key Agreement Protocol** — Marlinspike, M. & Perrin, T. (Signal Foundation, 2016) — E2EE の鍵交換プロトコル
-3. **Cassandra: A Decentralized Structured Storage System** — Lakshman, A. & Malik, P. (ACM SIGOPS, 2010) — 分散ストレージの設計
-4. **The WebSocket Protocol** — RFC 6455 (IETF, 2011) — WebSocket の仕様
-5. **Scaling WhatsApp** — https://highscalability.com/ — WhatsApp のスケーリング実践
-6. **Discord Engineering Blog** — https://discord.com/blog/how-discord-stores-billions-of-messages — 数十億メッセージの保存戦略
+2. **The X3DH Key Agreement Protocol** — Marlinspike, M. & Perrin, T. (Signal Foundation, 2016) — Key exchange protocol for E2EE
+3. **Cassandra: A Decentralized Structured Storage System** — Lakshman, A. & Malik, P. (ACM SIGOPS, 2010) — Distributed storage design
+4. **The WebSocket Protocol** — RFC 6455 (IETF, 2011) — WebSocket specification
+5. **Scaling WhatsApp** — https://highscalability.com/ — WhatsApp scaling in practice
+6. **Discord Engineering Blog** — https://discord.com/blog/how-discord-stores-billions-of-messages — Strategy for storing billions of messages
