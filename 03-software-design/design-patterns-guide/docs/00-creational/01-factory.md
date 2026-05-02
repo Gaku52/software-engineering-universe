@@ -1,46 +1,46 @@
-# Factory Method / Abstract Factory パターン
+# Factory Method / Abstract Factory Pattern
 
-> オブジェクト生成をサブクラスや専用ファクトリに **委譲** し、生成ロジックを利用側から分離する生成パターン。
-
----
-
-## この章で学ぶこと
-
-1. Factory Method と Abstract Factory の構造的な違い、および Simple Factory との使い分け（WHY）
-2. 生成ロジックの抽象化がもたらす柔軟性・テスト容易性・OCP 準拠の仕組み
-3. Registry パターンやDIとの組み合わせなど、実務での適用場面と過剰設計を避けるための判断基準
-4. 各言語（TypeScript / Python / Java / Go）での具体的な実装方法
-5. Factory パターンに伴うトレードオフとアンチパターンの回避方法
+> A creational pattern that **delegates** object creation to subclasses or dedicated factories, separating creation logic from the consuming code.
 
 ---
 
-## 前提知識
+## What You Will Learn in This Chapter
 
-このガイドを理解するために、以下の知識を事前に習得しておくことを推奨します。
+1. The structural differences between Factory Method, Abstract Factory, and Simple Factory, and when to use each (WHY)
+2. How abstracting creation logic provides flexibility, testability, and OCP compliance
+3. Practical application scenarios — including combining Registry pattern with DI — and criteria for avoiding over-engineering
+4. Concrete implementations in each language (TypeScript / Python / Java / Go)
+5. Tradeoffs and anti-pattern avoidance associated with the Factory pattern
 
-| トピック | 必要レベル | 参照リンク |
+---
+
+## Prerequisites
+
+It is recommended to acquire the following knowledge before working through this guide.
+
+| Topic | Required Level | Reference |
 |---------|-----------|-----------|
-| オブジェクト指向の基礎（継承、ポリモーフィズム、インタフェース） | 必須 | OOP基礎 |
-| SOLID原則（特にOCP、DIP） | 推奨 | [SOLID原則](../../../clean-code-principles/docs/00-principles/01-solid.md) |
-| Singleton パターン | 推奨 | [Singleton](./00-singleton.md) |
-| ジェネリクス / 型パラメータ | あると望ましい | TypeScript / Java のジェネリクス |
-| DI（依存性注入）の概念 | あると望ましい | [DIP](../../../clean-code-principles/docs/00-principles/01-solid.md) |
+| OOP fundamentals (inheritance, polymorphism, interfaces) | Required | OOP Basics |
+| SOLID principles (especially OCP, DIP) | Recommended | [SOLID Principles](../../../clean-code-principles/docs/00-principles/01-solid.md) |
+| Singleton pattern | Recommended | [Singleton](./00-singleton.md) |
+| Generics / type parameters | Nice to have | TypeScript / Java Generics |
+| DI (Dependency Injection) concept | Nice to have | [DIP](../../../clean-code-principles/docs/00-principles/01-solid.md) |
 
 ---
 
-## 1. Factory パターンの本質 -- なぜ生成を分離するのか
+## 1. The Essence of the Factory Pattern -- Why Separate Creation?
 
-### 1.1 解決する問題
+### 1.1 The Problem It Solves
 
-ソフトウェア開発で最も頻繁に直面する問題の1つが「**どのクラスをインスタンス化するかを、利用側が知りすぎている**」ことである。
+One of the most common problems in software development is that the **consuming code knows too much about which class to instantiate**.
 
 ```typescript
-// 問題のあるコード: 利用側が具象クラスを直接知っている
+// Problematic code: the consumer directly knows about concrete classes
 class OrderService {
   processPayment(order: Order): void {
     let processor;
 
-    // 利用側が「どのクラスを生成するか」を知っている
+    // The consumer decides "which class to instantiate"
     if (order.paymentMethod === "credit") {
       processor = new CreditCardProcessor(order.cardNumber, order.cvv);
     } else if (order.paymentMethod === "paypal") {
@@ -48,64 +48,66 @@ class OrderService {
     } else if (order.paymentMethod === "bank") {
       processor = new BankTransferProcessor(order.bankAccount);
     }
-    // 新しい支払い方法を追加するたびに、ここを変更する必要がある → OCP 違反
+    // Every time a new payment method is added, this must change → OCP violation
 
     processor.charge(order.amount);
   }
 }
 ```
 
-**WHY -- なぜこれが問題なのか?**
+**WHY -- Why is this a problem?**
 
 ```
-1. OCP（開放閉鎖原則）違反
-   新しい支払い方法の追加 → OrderService の変更が必要
-   → テストの再実行、レビュー、デプロイが必要
+1. OCP (Open/Closed Principle) violation
+   Adding a new payment method → requires changing OrderService
+   → Tests must be re-run, code must be reviewed, and redeployed
 
-2. SRP（単一責任原則）違反
-   OrderService は「注文処理」と「支払いプロセッサの選択」の2つの責任を持つ
+2. SRP (Single Responsibility Principle) violation
+   OrderService has two responsibilities: "order processing" and "payment processor selection"
 
-3. テスト困難
-   特定の支払いプロセッサをモックするために、
-   OrderService 内の条件分岐を意識する必要がある
+3. Difficult to test
+   To mock a specific payment processor,
+   you must be aware of the conditional branching inside OrderService
 
-4. 重複コード
-   別のサービスでも同じ条件分岐が発生する可能性がある
+4. Duplicate code
+   The same conditional branching may appear in other services
 ```
 
-Factory パターンはこの問題を「**生成の責任を専用のオブジェクトに委譲する**」ことで解決する。
+The Factory pattern resolves this by **delegating the responsibility of creation to a dedicated object**.
 
-### 1.2 Factory パターンの3つのバリエーション
+### 1.2 Three Variations of the Factory Pattern
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                Factory パターンの分類                         │
+│                Factory Pattern Taxonomy                       │
 ├─────────────┬───────────────────────────────────────────────┤
 │             │                                               │
-│  Simple     │  関数やクラスメソッドで条件分岐し生成           │
-│  Factory    │  GoF パターンではないが実務で最も多用           │
-│             │  例: createNotification("email")               │
+│  Simple     │  Creates objects via conditional branching    │
+│  Factory    │  in a function or class method                │
+│             │  Not a GoF pattern, but the most widely used  │
+│             │  e.g., createNotification("email")            │
 │             │                                               │
 ├─────────────┼───────────────────────────────────────────────┤
 │             │                                               │
-│  Factory    │  サブクラスが生成するプロダクトの型を決定       │
-│  Method     │  GoF パターン。テンプレートメソッドの生成版     │
-│             │  例: abstract createNotification(): Notification│
+│  Factory    │  Subclass decides the type of product created │
+│  Method     │  GoF pattern; the creational version of       │
+│             │  Template Method                              │
+│             │  e.g., abstract createNotification(): Notification│
 │             │                                               │
 ├─────────────┼───────────────────────────────────────────────┤
 │             │                                               │
-│  Abstract   │  関連するプロダクト群をまとめて生成             │
-│  Factory    │  GoF パターン。テーマ/プラットフォーム切替      │
-│             │  例: createButton() + createInput()             │
+│  Abstract   │  Creates a family of related products together│
+│  Factory    │  GoF pattern; theme/platform switching        │
+│             │  e.g., createButton() + createInput()         │
 │             │                                               │
 └─────────────┴───────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. Factory Method の構造
+## 2. Structure of Factory Method
 
-### 2.1 UML クラス図
+### 2.1 UML Class Diagram
 
 ```
 +-------------------+           +-------------------+
@@ -134,7 +136,7 @@ Factory パターンはこの問題を「**生成の責任を専用のオブジ�
 +-------------------+
 ```
 
-### 2.2 シーケンス図
+### 2.2 Sequence Diagram
 
 ```
 Client         ConcreteCreator         Product
@@ -156,23 +158,23 @@ Client         ConcreteCreator         Product
   |                  |                     |
 ```
 
-### 2.3 Factory Method の内部動作
+### 2.3 Internal Mechanics of Factory Method
 
 ```
-Factory Method の核心:
-「何を生成するか」は子クラスが決定し、
-「いつ・どのように使うか」は親クラスが決定する。
+The core of Factory Method:
+The child class decides "what to create",
+while the parent class decides "when and how to use it."
 
-Creator (親クラス):
+Creator (parent class):
 ┌──────────────────────────────────┐
 │ operation() {                    │
-│   const product = this.factory() │ ← 「何を」は子クラスに委譲
-│   product.prepare()              │ ← 「どのように使うか」は自分で定義
+│   const product = this.factory() │ ← "What" is delegated to the child class
+│   product.prepare()              │ ← "How to use it" is defined here
 │   product.use()                  │
 │   return product.result()        │
 │ }                                │
 │                                  │
-│ abstract factoryMethod(): Product│ ← 抽象メソッド
+│ abstract factoryMethod(): Product│ ← abstract method
 └──────────────────────────────────┘
          ^                ^
          |                |
@@ -185,9 +187,9 @@ Creator (親クラス):
 
 ---
 
-## 3. Abstract Factory の構造
+## 3. Structure of Abstract Factory
 
-### 3.1 UML クラス図
+### 3.1 UML Class Diagram
 
 ```
 +---------------------------+       +-------------+  +-------------+
@@ -206,34 +208,34 @@ Creator (親クラス):
                                   +-------------+  +-------------+
 ```
 
-### 3.2 Abstract Factory と Factory Method の関係
+### 3.2 Relationship Between Abstract Factory and Factory Method
 
 ```
-Abstract Factory は複数の Factory Method の集合体と見なせる:
+Abstract Factory can be viewed as a collection of multiple Factory Methods:
 
 AbstractFactory
 ├── createProductA()  ← Factory Method 1
 ├── createProductB()  ← Factory Method 2
 └── createProductC()  ← Factory Method 3
 
-各メソッドが「1つのプロダクトの生成」を担い、
-ファクトリ全体が「関連するプロダクト群の整合性」を保証する。
+Each method is responsible for creating one product,
+and the factory as a whole ensures consistency across the related product family.
 
-例: Material Design ファクトリ
+Example: Material Design factory
 ├── createButton()  → MaterialButton
 ├── createInput()   → MaterialInput
 └── createDialog()  → MaterialDialog
-  ↑ 全てが Material Design のスタイルで統一される
+  ↑ All are unified under the Material Design style
 ```
 
 ---
 
-## 4. コード例
+## 4. Code Examples
 
-### コード例 1: Factory Method（TypeScript）
+### Code Example 1: Factory Method (TypeScript)
 
 ```typescript
-// Product インタフェース
+// Product interface
 interface Notification {
   send(message: string): void;
   getType(): string;
@@ -276,12 +278,12 @@ class SmsNotification implements Notification {
   }
 }
 
-// Creator（抽象クラス）
+// Creator (abstract class)
 abstract class NotificationService {
-  // Factory Method: サブクラスが具体的な Notification を決定
+  // Factory Method: subclass determines the concrete Notification
   abstract createNotification(): Notification;
 
-  // Template Method: 通知の送信フロー
+  // Template Method: the notification sending flow
   notify(message: string): void {
     const notification = this.createNotification();
     console.log(`Sending via ${notification.getType()}...`);
@@ -311,25 +313,25 @@ class SlackService extends NotificationService {
   }
 }
 
-// 使用: Creator の型で扱えるため、具体的な通知手段に依存しない
+// Usage: handled via the Creator type, so there is no dependency on the concrete notification method
 function sendDeployNotification(service: NotificationService): void {
-  service.notify("デプロイ完了: v2.1.0");
+  service.notify("Deploy complete: v2.1.0");
 }
 
 sendDeployNotification(new SlackService("deployments"));
 // Sending via slack...
-// [Slack #deployments] デプロイ完了: v2.1.0
+// [Slack #deployments] Deploy complete: v2.1.0
 // Notification sent successfully.
 
 sendDeployNotification(new EmailService("admin@example.com"));
 // Sending via email...
-// [Email → admin@example.com] デプロイ完了: v2.1.0
+// [Email → admin@example.com] Deploy complete: v2.1.0
 // Notification sent successfully.
 ```
 
-### コード例 2: Simple Factory（関数ベース）
+### Code Example 2: Simple Factory (Function-Based)
 
-実務では GoF の Factory Method より、Simple Factory の方が圧倒的に多用される。
+In practice, Simple Factory is used far more often than the GoF Factory Method.
 
 ```typescript
 type NotificationType = "email" | "slack" | "sms";
@@ -341,7 +343,7 @@ interface NotificationConfig {
   phoneNumber?: string;
 }
 
-// Simple Factory 関数
+// Simple Factory function
 function createNotification(config: NotificationConfig): Notification {
   switch (config.type) {
     case "email":
@@ -354,13 +356,13 @@ function createNotification(config: NotificationConfig): Notification {
       if (!config.phoneNumber) throw new Error("SMS requires phoneNumber");
       return new SmsNotification(config.phoneNumber);
     default:
-      // TypeScript の exhaustive check
+      // TypeScript exhaustive check
       const _exhaustive: never = config.type;
       throw new Error(`Unknown notification type: ${_exhaustive}`);
   }
 }
 
-// 使用
+// Usage
 const emailNotif = createNotification({
   type: "email",
   recipient: "user@example.com"
@@ -374,26 +376,26 @@ const slackNotif = createNotification({
 slackNotif.send("Hello team!");
 ```
 
-**WHY -- Simple Factory と Factory Method の使い分け:**
+**WHY -- When to use Simple Factory vs Factory Method:**
 
 ```
-Simple Factory を選ぶ場合:
-- 条件分岐が単純（型名で分岐するだけ）
-- テンプレートメソッドパターンが不要
-- 生成ロジックを1箇所に集約したい
-- 関数型アプローチが好ましい
+Use Simple Factory when:
+- The conditional branching is simple (just switching on a type name)
+- Template Method pattern is not needed
+- You want to consolidate creation logic in one place
+- A functional approach is preferred
 
-Factory Method を選ぶ場合:
-- 生成するプロダクトに加えて、使用方法もカスタマイズしたい
-- テンプレートメソッドとの組み合わせが有効
-- フレームワーク設計で、拡張ポイントを提供したい
-- サブクラス化による段階的な機能追加が必要
+Use Factory Method when:
+- You want to customize not just the product created, but also how it is used
+- Combining with Template Method is effective
+- You are designing a framework and want to provide extension points
+- Incremental feature additions via subclassing are required
 ```
 
-### コード例 3: Abstract Factory（TypeScript）
+### Code Example 3: Abstract Factory (TypeScript)
 
 ```typescript
-// 抽象プロダクト
+// Abstract products
 interface Button {
   render(): string;
   onClick(handler: () => void): void;
@@ -411,7 +413,7 @@ interface Dialog {
   close(): void;
 }
 
-// 抽象ファクトリ
+// Abstract factory
 interface UIFactory {
   createButton(label: string): Button;
   createInput(placeholder: string): Input;
@@ -474,11 +476,11 @@ class IOSFactory implements UIFactory {
   createDialog(title: string) { return new IOSDialog(title); }
 }
 
-// 使用: ファクトリを差し替えるだけで UI 全体のテーマが変わる
+// Usage: swapping the factory changes the entire UI theme
 function buildLoginForm(factory: UIFactory): string {
-  const emailInput = factory.createInput("メールアドレス");
-  const passwordInput = factory.createInput("パスワード");
-  const submitButton = factory.createButton("ログイン");
+  const emailInput = factory.createInput("Email address");
+  const passwordInput = factory.createInput("Password");
+  const submitButton = factory.createButton("Login");
 
   return [
     emailInput.render(),
@@ -489,20 +491,20 @@ function buildLoginForm(factory: UIFactory): string {
 
 console.log("--- Material Design ---");
 console.log(buildLoginForm(new MaterialFactory()));
-// <md-input placeholder="メールアドレス" />
-// <md-input placeholder="パスワード" />
-// <md-button>ログイン</md-button>
+// <md-input placeholder="Email address" />
+// <md-input placeholder="Password" />
+// <md-button>Login</md-button>
 
 console.log("--- iOS Style ---");
 console.log(buildLoginForm(new IOSFactory()));
-// <ios-input placeholder="メールアドレス" />
-// <ios-input placeholder="パスワード" />
-// <ios-button>ログイン</ios-button>
+// <ios-input placeholder="Email address" />
+// <ios-input placeholder="Password" />
+// <ios-button>Login</ios-button>
 ```
 
-### コード例 4: Registry パターン（拡張可能 Factory）
+### Code Example 4: Registry Pattern (Extensible Factory)
 
-OCP（開放閉鎖原則）を完全に満たすFactory。新しい型の追加が既存コードの変更なしに行える。
+A Factory that fully satisfies OCP (Open/Closed Principle). New types can be added without modifying existing code.
 
 ```typescript
 type Creator<T> = (...args: any[]) => T;
@@ -510,7 +512,7 @@ type Creator<T> = (...args: any[]) => T;
 class NotificationRegistry {
   private static registry = new Map<string, Creator<Notification>>();
 
-  // 型を登録（各モジュールが自分で登録する）
+  // Register a type (each module registers itself)
   static register(type: string, creator: Creator<Notification>): void {
     if (this.registry.has(type)) {
       console.warn(`Overwriting existing creator for: ${type}`);
@@ -518,7 +520,7 @@ class NotificationRegistry {
     this.registry.set(type, creator);
   }
 
-  // 型からインスタンスを生成
+  // Create an instance from a type name
   static create(type: string, ...args: any[]): Notification {
     const creator = this.registry.get(type);
     if (!creator) {
@@ -530,13 +532,13 @@ class NotificationRegistry {
     return creator(...args);
   }
 
-  // 登録されている型の一覧
+  // List of registered types
   static getRegisteredTypes(): string[] {
     return Array.from(this.registry.keys());
   }
 }
 
-// 各モジュールが自分のプロダクトを登録
+// Each module registers its own product
 // email-notification.ts
 NotificationRegistry.register("email",
   (recipient: string) => new EmailNotification(recipient)
@@ -552,7 +554,7 @@ NotificationRegistry.register("sms",
   (phone: string) => new SmsNotification(phone)
 );
 
-// 新しい型の追加: 既存コードの変更は一切不要（OCP 準拠）
+// Adding a new type: no changes to existing code required (OCP compliant)
 // teams-notification.ts
 class TeamsNotification implements Notification {
   constructor(private webhook: string) {}
@@ -563,14 +565,14 @@ NotificationRegistry.register("teams",
   (webhook: string) => new TeamsNotification(webhook)
 );
 
-// 使用
+// Usage
 const notification = NotificationRegistry.create("teams", "https://webhook.url");
 notification.send("Teams notification!");
 console.log(NotificationRegistry.getRegisteredTypes());
 // ["email", "slack", "sms", "teams"]
 ```
 
-### コード例 5: Python -- Factory Method + ABC
+### Code Example 5: Python -- Factory Method + ABC
 
 ```python
 from abc import ABC, abstractmethod
@@ -579,21 +581,21 @@ import json
 import xml.etree.ElementTree as ET
 
 class Serializer(ABC):
-    """直列化の抽象クラス"""
+    """Abstract base class for serialization"""
 
     @abstractmethod
     def serialize(self, data: dict) -> str:
-        """データを文字列に変換する"""
+        """Convert data to a string"""
         ...
 
     @abstractmethod
     def deserialize(self, raw: str) -> dict:
-        """文字列からデータを復元する"""
+        """Restore data from a string"""
         ...
 
     @abstractmethod
     def content_type(self) -> str:
-        """MIME タイプを返す"""
+        """Return the MIME type"""
         ...
 
 class JsonSerializer(Serializer):
@@ -638,7 +640,7 @@ class CsvSerializer(Serializer):
 
 # Simple Factory
 def get_serializer(fmt: str) -> Serializer:
-    """フォーマット名から適切な Serializer を返す Factory"""
+    """Factory that returns the appropriate Serializer based on format name"""
     factories: dict[str, type[Serializer]] = {
         "json": JsonSerializer,
         "xml": XmlSerializer,
@@ -650,8 +652,8 @@ def get_serializer(fmt: str) -> Serializer:
         raise ValueError(f"Unknown format: '{fmt}'. Available: [{available}]")
     return cls()
 
-# 使用
-data = {"name": "太郎", "age": "30", "city": "東京"}
+# Usage
+data = {"name": "Taro", "age": "30", "city": "Tokyo"}
 
 for fmt in ["json", "xml", "csv"]:
     s = get_serializer(fmt)
@@ -662,7 +664,7 @@ for fmt in ["json", "xml", "csv"]:
     print(f"Restored: {restored}")
 ```
 
-### コード例 6: Java -- Parameterized Factory Method
+### Code Example 6: Java -- Parameterized Factory Method
 
 ```java
 public interface Shape {
@@ -722,21 +724,21 @@ public class ShapeFactory {
     }
 }
 
-// 使用
+// Usage
 Shape circle = ShapeFactory.create(ShapeType.CIRCLE, 5.0);
 Shape rect = ShapeFactory.create(ShapeType.RECTANGLE, 3.0, 4.0);
 System.out.println(circle.description()); // Circle(radius=5.00, area=78.54)
 System.out.println(rect.description());   // Rectangle(3.00 x 4.00, area=12.00)
 ```
 
-### コード例 7: Go -- インタフェースベースの Factory
+### Code Example 7: Go -- Interface-Based Factory
 
 ```go
 package main
 
 import "fmt"
 
-// Product インタフェース
+// Product interface
 type Logger interface {
     Log(message string)
     Level() string
@@ -768,7 +770,7 @@ func (l *CloudLogger) Log(message string) {
 }
 func (l *CloudLogger) Level() string { return "cloud" }
 
-// Factory 関数（Go ではファーストクラス関数を活用）
+// Factory function (Go leverages first-class functions)
 type LoggerFactory func() Logger
 
 // Registry
@@ -786,7 +788,7 @@ func CreateLogger(loggerType string) (Logger, error) {
     return factory(), nil
 }
 
-// 新しい型の登録
+// Register a new type
 func RegisterLogger(name string, factory LoggerFactory) {
     loggerFactories[name] = factory
 }
@@ -800,12 +802,12 @@ func main() {
 }
 ```
 
-### コード例 8: TypeScript -- 非同期 Factory
+### Code Example 8: TypeScript -- Async Factory
 
-実務では、Factory がDBやAPIから設定を読み込む必要がある場合がある。
+In practice, a Factory may need to load configuration from a database or API.
 
 ```typescript
-// 非同期 Factory パターン
+// Async Factory pattern
 interface DataSource {
   connect(): Promise<void>;
   query(sql: string): Promise<any[]>;
@@ -847,7 +849,7 @@ class MySQLDataSource implements DataSource {
   async disconnect(): Promise<void> {}
 }
 
-// 非同期 Factory: 生成 + 初期化を1ステップで行う
+// Async Factory: creation and initialization in a single step
 async function createDataSource(
   type: "postgres" | "mysql",
   config: Record<string, any>
@@ -869,12 +871,12 @@ async function createDataSource(
       throw new Error(`Unknown data source type: ${type}`);
   }
 
-  // Factory が初期化まで保証する
+  // The Factory guarantees initialization as well
   await ds.connect();
   return ds;
 }
 
-// 使用
+// Usage
 async function main() {
   const ds = await createDataSource("postgres", {
     connectionString: "postgresql://localhost:5432/mydb"
@@ -884,10 +886,10 @@ async function main() {
 }
 ```
 
-### コード例 9: Factory + Strategy の組み合わせ
+### Code Example 9: Combining Factory with Strategy
 
 ```typescript
-// バリデーション戦略を Factory で生成
+// Generating validation strategies with a Factory
 interface ValidationStrategy {
   validate(value: string): { valid: boolean; error?: string };
 }
@@ -930,7 +932,7 @@ function createValidator(type: string): ValidationStrategy {
   return factory();
 }
 
-// 使用: 設定駆動で動的にバリデータを選択
+// Usage: dynamically select a validator driven by configuration
 const formFields = [
   { name: "email", type: "email", value: "user@example.com" },
   { name: "phone", type: "phone", value: "090-1234-5678" },
@@ -947,10 +949,10 @@ for (const field of formFields) {
 // website: OK
 ```
 
-### コード例 10: Factory と DI の統合
+### Code Example 10: Integrating Factory with DI
 
 ```typescript
-// DI コンテナで Factory を管理する実務的なパターン
+// Practical pattern: managing Factory with a DI container
 interface IPaymentProcessor {
   charge(amount: number): Promise<{ success: boolean; transactionId: string }>;
   refund(transactionId: string): Promise<boolean>;
@@ -981,11 +983,11 @@ class PaymentFactory implements IPaymentFactory {
   }
 }
 
-// DI コンテナとの統合
+// Integration with the DI container
 // container.ts
 const container = new Container();
 
-// Factory 自体を Singleton スコープで登録
+// Register the Factory itself in Singleton scope
 container.bind<IPaymentFactory>(TYPES.PaymentFactory)
   .toDynamicValue(() => {
     const factory = new PaymentFactory();
@@ -996,7 +998,7 @@ container.bind<IPaymentFactory>(TYPES.PaymentFactory)
   })
   .inSingletonScope();
 
-// 使用側: Factory を注入してもらう
+// Consumer: has the Factory injected
 class OrderService {
   constructor(
     @inject(TYPES.PaymentFactory) private paymentFactory: IPaymentFactory
@@ -1014,100 +1016,100 @@ class OrderService {
 
 ---
 
-## 5. Factory の選択フロー
+## 5. Factory Selection Flowchart
 
 ```
-生成ロジックを分離したい？
+Do you want to separate the creation logic?
 │
-├── No → 直接 new で十分。Factory は過剰設計
+├── No → new directly is sufficient. Factory is over-engineering
 │
 └── Yes
     │
-    ├── 生成するプロダクトは1種類？
+    ├── Is there only one type of product to create?
     │   │
     │   ├── Yes
     │   │   │
-    │   │   ├── 型で分岐するだけ？
-    │   │   │   ├── Yes → Simple Factory（関数/静的メソッド）
-    │   │   │   └── No  → Factory Method（サブクラスにオーバーライド）
+    │   │   ├── Just branching on a type name?
+    │   │   │   ├── Yes → Simple Factory (function / static method)
+    │   │   │   └── No  → Factory Method (override in subclass)
     │   │   │
-    │   │   └── 実行時に型を動的に追加する必要がある？
-    │   │       ├── Yes → Registry パターン
-    │   │       └── No  → Simple Factory で十分
+    │   │   └── Do you need to add types dynamically at runtime?
+    │   │       ├── Yes → Registry pattern
+    │   │       └── No  → Simple Factory is sufficient
     │   │
-    │   └── No（関連するプロダクト群がある）
+    │   └── No (there is a family of related products)
     │       │
-    │       └── プロダクト群の整合性が重要？
+    │       └── Is consistency across the product family important?
     │           ├── Yes → Abstract Factory
-    │           └── No  → 個別の Factory Method で十分
+    │           └── No  → Individual Factory Methods are sufficient
     │
-    └── テスト時にプロダクトを差し替えたい？
-        ├── Yes → DI + Factory インタフェース
-        └── No  → Simple Factory で十分
+    └── Do you need to swap products during testing?
+        ├── Yes → DI + Factory interface
+        └── No  → Simple Factory is sufficient
 ```
 
 ---
 
-## 6. 比較表
+## 6. Comparison Tables
 
-### 比較表 1: Factory Method vs Abstract Factory vs Simple Factory
+### Comparison Table 1: Factory Method vs Abstract Factory vs Simple Factory
 
-| 観点 | Simple Factory | Factory Method | Abstract Factory |
+| Perspective | Simple Factory | Factory Method | Abstract Factory |
 |------|:---:|:---:|:---:|
-| GoF パターン | No | Yes | Yes |
-| 意図 | 条件分岐で生成を集約 | 生成をサブクラスに委譲 | 関連プロダクト群の生成 |
-| クラス数 | 最小 | 中 | 多い |
-| 拡張方法 | switch 文に追加 | Creator サブクラス追加 | Factory + Product 群追加 |
-| OCP 準拠 | No（switch 変更要） | Yes | Yes |
-| 使用場面 | 単純な分岐 | テンプレートメソッドと併用 | テーマ/プラットフォーム切替 |
-| 複雑度 | 低 | 中 | 高 |
-| テスト容易性 | 中 | 高 | 高 |
+| GoF Pattern | No | Yes | Yes |
+| Intent | Consolidate creation via branching | Delegate creation to subclass | Create a family of related products |
+| Number of Classes | Minimal | Medium | Many |
+| Extension Method | Add to switch statement | Add Creator subclass | Add Factory + Product family |
+| OCP Compliance | No (requires switch change) | Yes | Yes |
+| Use Case | Simple branching | Combined with Template Method | Theme/Platform switching |
+| Complexity | Low | Medium | High |
+| Testability | Medium | High | High |
 
-### 比較表 2: Factory vs その他の生成パターン
+### Comparison Table 2: Factory vs Other Creational Patterns
 
-| パターン | 目的 | 生成の自由度 | 複雑度 | 使用頻度 |
+| Pattern | Purpose | Creation Flexibility | Complexity | Usage Frequency |
 |---------|------|:---:|:---:|:---:|
-| Simple Factory | 条件分岐で生成 | 低 | 低 | 非常に高 |
-| Factory Method | サブクラスに委譲 | 中 | 中 | 高 |
-| Abstract Factory | ファミリー生成 | 高 | 高 | 中 |
-| Builder | 段階的構築 | 高 | 中 | 高 |
-| Prototype | クローンで生成 | 中 | 低 | 低 |
-| Singleton | 唯一インスタンス | N/A | 低 | 高 |
+| Simple Factory | Create via branching | Low | Low | Very High |
+| Factory Method | Delegate to subclass | Medium | Medium | High |
+| Abstract Factory | Create a family | High | High | Medium |
+| Builder | Stepwise construction | High | Medium | High |
+| Prototype | Create via cloning | Medium | Low | Low |
+| Singleton | Single instance | N/A | Low | High |
 
-### 比較表 3: Registry パターン vs DI コンテナ
+### Comparison Table 3: Registry Pattern vs DI Container
 
-| 観点 | Registry パターン | DI コンテナ |
+| Perspective | Registry Pattern | DI Container |
 |------|:---:|:---:|
-| 登録方法 | 手動 register() | 設定/アノテーション |
-| ライフタイム管理 | なし（毎回生成） | Singleton/Transient 等 |
-| 依存解決 | 自前 | 自動 |
-| テスト容易性 | 中 | 高 |
-| 学習コスト | 低 | 中~高 |
-| 導入コスト | 低 | 中 |
-| 推奨場面 | プラグイン登録 | アプリ全体の依存管理 |
+| Registration Method | Manual register() | Configuration / annotations |
+| Lifetime Management | None (created each time) | Singleton / Transient, etc. |
+| Dependency Resolution | Manual | Automatic |
+| Testability | Medium | High |
+| Learning Cost | Low | Medium~High |
+| Adoption Cost | Low | Medium |
+| Recommended Use Case | Plugin registration | App-wide dependency management |
 
 ---
 
-## 7. エッジケースと注意点
+## 7. Edge Cases and Caveats
 
-### 7.1 型安全性の確保
+### 7.1 Ensuring Type Safety
 
 ```typescript
-// 問題: string ベースの Factory は型安全でない
-const notif = createNotification("emal");  // typo! 実行時エラー
+// Problem: string-based Factory is not type-safe
+const notif = createNotification("emal");  // typo! Runtime error
 
-// 解決策 1: Union 型で制限
+// Solution 1: Restrict with union type
 type NotificationType = "email" | "slack" | "sms";
 function createNotification(type: NotificationType): Notification { ... }
 
-// 解決策 2: Enum（Java/TypeScript）
+// Solution 2: Enum (Java/TypeScript)
 enum NotificationType {
   Email = "email",
   Slack = "slack",
   Sms = "sms",
 }
 
-// 解決策 3: Discriminated Union（TypeScript）
+// Solution 3: Discriminated Union (TypeScript)
 type NotificationRequest =
   | { type: "email"; recipient: string }
   | { type: "slack"; channel: string }
@@ -1116,47 +1118,47 @@ type NotificationRequest =
 function createNotification(req: NotificationRequest): Notification {
   switch (req.type) {
     case "email":
-      return new EmailNotification(req.recipient);  // 型安全にアクセス
+      return new EmailNotification(req.recipient);  // type-safe access
     case "slack":
-      return new SlackNotification(req.channel);     // 型安全にアクセス
+      return new SlackNotification(req.channel);     // type-safe access
     case "sms":
-      return new SmsNotification(req.phoneNumber);   // 型安全にアクセス
+      return new SmsNotification(req.phoneNumber);   // type-safe access
   }
 }
 ```
 
-### 7.2 循環依存の回避
+### 7.2 Avoiding Circular Dependencies
 
 ```
-// 問題: Factory と Product が相互依存
-ProductA → Factory（生成に使う）
-Factory → ProductA（生成する）
+// Problem: Factory and Product are mutually dependent
+ProductA → Factory (used for creation)
+Factory → ProductA (creates it)
 
-// 解決策: インタフェースを中間層として導入
-ProductA → IFactory（インタフェースに依存）
-Factory → IProduct（インタフェースに依存）
-ConcreteFactory → ConcreteProduct（具象が具象を参照）
+// Solution: Introduce an interface as an intermediary layer
+ProductA → IFactory (depends on interface)
+Factory → IProduct (depends on interface)
+ConcreteFactory → ConcreteProduct (concrete references concrete)
 
-DIP（依存性逆転原則）を適用:
-  上位モジュール（利用側）→ インタフェース ← 下位モジュール（実装）
+Apply DIP (Dependency Inversion Principle):
+  High-level module (consumer) → Interface ← Low-level module (implementation)
 ```
 
-### 7.3 Factory のメモリリーク
+### 7.3 Memory Leaks in Factories
 
 ```typescript
-// 問題: Registry に登録されたオブジェクトが GC されない
+// Problem: objects registered in a Registry are never GC'd
 class HeavyRegistry {
   private static cache = new Map<string, LargeObject>();
 
   static getOrCreate(key: string): LargeObject {
     if (!this.cache.has(key)) {
-      this.cache.set(key, new LargeObject(key)); // 蓄積し続ける
+      this.cache.set(key, new LargeObject(key)); // accumulates indefinitely
     }
     return this.cache.get(key)!;
   }
 }
 
-// 解決策: WeakMap または LRU キャッシュを使用
+// Solution: use WeakMap or an LRU cache
 class SafeRegistry {
   private static cache = new LRUCache<string, LargeObject>({ max: 100 });
 
@@ -1173,33 +1175,33 @@ class SafeRegistry {
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン 1: 万能 Factory（God Factory）
+### Anti-Pattern 1: God Factory
 
 ```typescript
-// NG: あらゆる型を1つの Factory で処理
+// BAD: handling every type in a single Factory
 class UniversalFactory {
-  create(type: string): any {  // any は危険信号
+  create(type: string): any {  // any is a red flag
     if (type === "user") return new User();
     if (type === "order") return new Order();
     if (type === "product") return new Product();
     if (type === "payment") return new Payment();
     if (type === "notification") return new Notification();
     if (type === "report") return new Report();
-    // ... 50行の if-else
+    // ... 50 lines of if-else
     throw new Error(`Unknown type: ${type}`);
   }
 }
 ```
 
-**問題**:
-- OCP 違反: 新しい型追加のたびにこのクラスを変更する必要がある
-- SRP 違反: 無関係なドメインのオブジェクト生成が1クラスに集約
-- 型安全性がない: 戻り値が any
+**Problems**:
+- OCP violation: this class must be changed every time a new type is added
+- SRP violation: object creation for unrelated domains is consolidated in one class
+- No type safety: return type is any
 
 ```typescript
-// OK: ドメインごとに Factory を分割
+// GOOD: split Factory by domain
 class UserFactory {
   static create(type: UserType): User { ... }
 }
@@ -1213,12 +1215,12 @@ class NotificationFactory {
 }
 ```
 
-### アンチパターン 2: 不要な Abstract Factory
+### Anti-Pattern 2: Unnecessary Abstract Factory
 
 ```typescript
-// NG: プロダクトが1種類なのに Abstract Factory を使う
+// BAD: using Abstract Factory when there is only one type of product
 interface ShapeFactory {
-  createShape(): Shape;  // 1メソッドだけ → Abstract Factory は過剰
+  createShape(): Shape;  // only 1 method → Abstract Factory is overkill
 }
 
 class CircleFactory implements ShapeFactory {
@@ -1230,10 +1232,10 @@ class RectangleFactory implements ShapeFactory {
 }
 ```
 
-**問題**: Factory Method で十分な場面に過剰な抽象化を持ち込んでいる。
+**Problem**: Introduces excessive abstraction in a situation where Factory Method would suffice.
 
 ```typescript
-// OK: Simple Factory または Factory Method を使う
+// GOOD: use Simple Factory or Factory Method
 function createShape(type: "circle" | "rectangle"): Shape {
   switch (type) {
     case "circle": return new Circle();
@@ -1242,25 +1244,25 @@ function createShape(type: "circle" | "rectangle"): Shape {
 }
 ```
 
-**YAGNI 原則**: 複数プロダクトが実際に必要になるまで Abstract Factory にしない。
+**YAGNI Principle**: Do not promote to Abstract Factory until multiple products are actually needed.
 
-### アンチパターン 3: Factory 内でのビジネスロジック
+### Anti-Pattern 3: Business Logic Inside a Factory
 
 ```typescript
-// NG: Factory が生成以外の責任を持つ
+// BAD: Factory holds responsibilities beyond creation
 class OrderFactory {
   static create(items: CartItem[], coupon?: string): Order {
     const order = new Order(items);
 
-    // ビジネスロジック（Factory の責任ではない）
+    // Business logic (not the Factory's responsibility)
     if (coupon) {
-      const discount = this.validateCoupon(coupon);  // クーポン検証
-      order.applyDiscount(discount);                 // 割引適用
+      const discount = this.validateCoupon(coupon);  // coupon validation
+      order.applyDiscount(discount);                 // apply discount
     }
 
-    order.calculateTax();      // 税計算
-    order.calculateShipping(); // 送料計算
-    this.sendAnalytics(order); // 分析データ送信
+    order.calculateTax();      // tax calculation
+    order.calculateShipping(); // shipping calculation
+    this.sendAnalytics(order); // send analytics data
 
     return order;
   }
@@ -1268,10 +1270,10 @@ class OrderFactory {
 ```
 
 ```typescript
-// OK: Factory は生成のみ。ビジネスロジックはドメインサービスに委譲
+// GOOD: Factory only creates. Business logic is delegated to the domain service
 class OrderFactory {
   static create(items: CartItem[]): Order {
-    return new Order(items);  // 生成のみ
+    return new Order(items);  // creation only
   }
 }
 
@@ -1300,57 +1302,58 @@ class OrderService {
 
 ---
 
-## 9. トレードオフ分析
+## 9. Tradeoff Analysis
 
-### 9.1 Factory 導入の利点と欠点
+### 9.1 Benefits and Drawbacks of Introducing a Factory
 
 ```
-利点                              欠点
+Benefits                          Drawbacks
 +------------------------------+  +------------------------------+
-| 生成ロジックの集約            |  | クラス数の増加                |
-| OCP 準拠（拡張が容易）        |  | 間接層による複雑化            |
-| テスト時のモック差替え容易    |  | 過剰設計のリスク              |
-| 利用側の具象クラスへの非依存  |  | 単純な場合は YAGNI            |
-| コードの再利用性向上          |  | デバッグ時の追跡が煩雑        |
+| Centralized creation logic   |  | Increased number of classes  |
+| OCP compliant (easy to extend)|  | Added complexity from indirection |
+| Easy mock swapping in tests  |  | Risk of over-engineering      |
+| No dependency on concrete    |  | YAGNI in simple cases        |
+|   classes in consuming code  |  | More difficult to trace when |
+| Improved code reusability    |  |   debugging                  |
 +------------------------------+  +------------------------------+
 ```
 
-### 9.2 導入判断のガイドライン
+### 9.2 Guidelines for Deciding Whether to Introduce
 
 ```
-Factory を導入すべき場面:
-- new の呼び出しが3箇所以上に散らばっている
-- 生成ロジックに条件分岐がある
-- テストでモック差し替えが必要
-- プラグインシステムを構築する
-- 設定に基づいて動的にオブジェクトを選択する
+When to introduce a Factory:
+- new calls are scattered across 3 or more places
+- Creation logic contains conditional branching
+- Mock swapping is needed in tests
+- Building a plugin system
+- Dynamically selecting objects based on configuration
 
-Factory を導入すべきでない場面:
-- new が1-2箇所でしか呼ばれない
-- 生成対象が変わる見込みがない
-- 生成に条件分岐がない
-- 単純なデータオブジェクト（DTO）の生成
+When NOT to introduce a Factory:
+- new is only called in 1-2 places
+- The type to be created is not expected to change
+- There is no conditional branching in creation
+- Creating simple data objects (DTOs)
 ```
 
 ---
 
-## 10. 実践演習
+## 10. Practice Exercises
 
-### 演習 1: 基礎 -- Simple Factory の実装
+### Exercise 1: Basics -- Implementing a Simple Factory
 
-**課題**: ログフォーマッタの Simple Factory を実装してください。
+**Task**: Implement a Simple Factory for a log formatter.
 
-**要件**:
-- `ILogFormatter` インタフェースを定義（`format(level, message, timestamp)` メソッド）
-- JSON / Text / CSV の3つの具象フォーマッタを実装
-- `createFormatter(type)` Factory 関数を作成
-- 不明な型は適切なエラーメッセージで例外を投げる
+**Requirements**:
+- Define an `ILogFormatter` interface (with a `format(level, message, timestamp)` method)
+- Implement three concrete formatters: JSON, Text, and CSV
+- Create a `createFormatter(type)` Factory function
+- Throw an exception with an appropriate error message for unknown types
 
 ```typescript
-// === あなたの実装をここに書いてください ===
+// === Write your implementation here ===
 ```
 
-**期待される出力**:
+**Expected Output**:
 
 ```
 const jsonFmt = createFormatter("json");
@@ -1367,7 +1370,7 @@ console.log(csvFmt.format("warn", "Memory high", new Date()));
 ```
 
 <details>
-<summary>模範解答（クリックで展開）</summary>
+<summary>Reference Answer (click to expand)</summary>
 
 ```typescript
 interface ILogFormatter {
@@ -1415,22 +1418,22 @@ function createFormatter(type: FormatterType): ILogFormatter {
 
 </details>
 
-### 演習 2: 応用 -- Registry パターンの拡張
+### Exercise 2: Applied -- Extending the Registry Pattern
 
-**課題**: プラグインシステムとして機能する Registry パターンの Factory を実装してください。
+**Task**: Implement a Registry pattern Factory that functions as a plugin system.
 
-**要件**:
-- `PluginRegistry` クラスを実装
-- プラグインの登録（register）、生成（create）、一覧（list）、登録解除（unregister）をサポート
-- 重複登録時は警告を出す
-- 型安全性を確保（ジェネリクス使用）
-- 登録時にバリデーション関数を指定可能
+**Requirements**:
+- Implement a `PluginRegistry` class
+- Support plugin registration (register), creation (create), listing (list), and deregistration (unregister)
+- Emit a warning on duplicate registration
+- Ensure type safety (use generics)
+- Allow a validation function to be specified at registration time
 
 ```typescript
-// === あなたの実装をここに書いてください ===
+// === Write your implementation here ===
 ```
 
-**期待される出力**:
+**Expected Output**:
 
 ```
 const registry = new PluginRegistry<IPlugin>();
@@ -1447,7 +1450,7 @@ console.log(registry.list()); // ["analytics"]
 ```
 
 <details>
-<summary>模範解答（クリックで展開）</summary>
+<summary>Reference Answer (click to expand)</summary>
 
 ```typescript
 interface IPlugin {
@@ -1488,7 +1491,7 @@ class PluginRegistry<T extends IPlugin> {
 
     const plugin = factory();
 
-    // バリデーション実行
+    // Run validation
     const validator = this.validators.get(name);
     if (validator && !validator(plugin)) {
       throw new Error(`Plugin "${name}" failed validation`);
@@ -1519,22 +1522,22 @@ class PluginRegistry<T extends IPlugin> {
 
 </details>
 
-### 演習 3: 発展 -- Abstract Factory によるクロスプラットフォーム UI
+### Exercise 3: Advanced -- Cross-Platform UI with Abstract Factory
 
-**課題**: Web / Mobile / Desktop の3プラットフォームに対応する Abstract Factory を設計してください。
+**Task**: Design an Abstract Factory that supports three platforms: Web, Mobile, and Desktop.
 
-**要件**:
-- 各プラットフォームで Button、TextField、Checkbox の3つのUIコンポーネントを生成
-- 各コンポーネントは `render(): string` メソッドを持つ
-- プラットフォームの切り替えは Factory の差し替えのみで行う
-- テスト用の MockFactory も作成
-- Factory の生成自体を別の Factory（Factory of Factories）で管理
+**Requirements**:
+- Generate three UI components — Button, TextField, and Checkbox — for each platform
+- Each component has a `render(): string` method
+- Platform switching is done solely by swapping the Factory
+- Also create a MockFactory for testing
+- Manage factory creation itself with another Factory (Factory of Factories)
 
 ```typescript
-// === あなたの実装をここに書いてください ===
+// === Write your implementation here ===
 ```
 
-**期待される出力**:
+**Expected Output**:
 
 ```
 // Web Platform
@@ -1557,10 +1560,10 @@ const autoUI = buildForm(factory);
 ```
 
 <details>
-<summary>模範解答（クリックで展開）</summary>
+<summary>Reference Answer (click to expand)</summary>
 
 ```typescript
-// 抽象プロダクト
+// Abstract products
 interface IButton {
   render(): string;
 }
@@ -1571,14 +1574,14 @@ interface ICheckbox {
   render(): string;
 }
 
-// 抽象ファクトリ
+// Abstract factory
 interface IUIFactory {
   createButton(label: string): IButton;
   createTextField(placeholder: string): ITextField;
   createCheckbox(label: string): ICheckbox;
 }
 
-// Web 実装
+// Web implementation
 class WebButton implements IButton {
   constructor(private label: string) {}
   render() { return `<button class="web-btn">${this.label}</button>`; }
@@ -1597,7 +1600,7 @@ class WebUIFactory implements IUIFactory {
   createCheckbox(label: string) { return new WebCheckbox(label); }
 }
 
-// Mobile 実装
+// Mobile implementation
 class MobileButton implements IButton {
   constructor(private label: string) {}
   render() { return `<TouchableOpacity style="mobile">${this.label}</TouchableOpacity>`; }
@@ -1616,7 +1619,7 @@ class MobileUIFactory implements IUIFactory {
   createCheckbox(label: string) { return new MobileCheckbox(label); }
 }
 
-// Desktop 実装
+// Desktop implementation
 class DesktopButton implements IButton {
   constructor(private label: string) {}
   render() { return `<QButton text="${this.label}" />`; }
@@ -1652,7 +1655,7 @@ class UIFactoryProvider {
   }
 }
 
-// 利用コード（プラットフォーム非依存）
+// Consumer code (platform-agnostic)
 function buildForm(factory: IUIFactory): string {
   const nameField = factory.createTextField("Name");
   const agreeBox = factory.createCheckbox("I agree");
@@ -1668,74 +1671,74 @@ function buildForm(factory: IUIFactory): string {
 
 ## 11. FAQ
 
-### Q1: Simple Factory と Factory Method の違いは？
+### Q1: What is the difference between Simple Factory and Factory Method?
 
-Simple Factory は単なる関数やクラスメソッドで条件分岐し生成します。Factory Method はサブクラス化により生成をオーバーライドする GoF パターンです。多くの実務では Simple Factory で十分です。
+Simple Factory creates objects via conditional branching in a plain function or class method. Factory Method is a GoF pattern where creation is overridden through subclassing. In most real-world cases, Simple Factory is sufficient.
 
-| 観点 | Simple Factory | Factory Method |
+| Perspective | Simple Factory | Factory Method |
 |------|:---:|:---:|
-| パターン分類 | イディオム | GoF パターン |
-| 拡張方法 | switch 文の変更 | サブクラスの追加 |
-| OCP 準拠 | No | Yes |
-| 適用場面 | 単純な分岐 | フレームワーク拡張 |
+| Pattern Category | Idiom | GoF Pattern |
+| Extension Method | Modify switch statement | Add subclass |
+| OCP Compliance | No | Yes |
+| Use Case | Simple branching | Framework extension |
 
-### Q2: Factory を使うべき判断基準は？
+### Q2: What criteria should I use to decide whether to use a Factory?
 
-以下の3つの条件のいずれかに該当すれば Factory の導入を検討します:
+Consider introducing a Factory if any of the following three conditions apply:
 
-1. **`new` の呼び出し箇所が3箇所以上に散らばっている**: 生成ロジックの変更が複数箇所に影響する
-2. **生成ロジックに条件分岐がある**: どの型をインスタンス化するかの判断が必要
-3. **テストでモック差し替えが必要**: 具象クラスへの直接依存を解消する必要がある
+1. **`new` calls are scattered across 3 or more places**: Changes to creation logic affect multiple locations
+2. **Creation logic contains conditional branching**: A decision is needed about which type to instantiate
+3. **Mock swapping is needed in tests**: Direct dependency on concrete classes needs to be removed
 
-逆に、`new` が1-2箇所でしか使われず、条件分岐もなく、モックの必要もなければ、Factory は過剰設計です。
+Conversely, if `new` is only used in 1-2 places, there is no conditional branching, and mocking is not needed, a Factory is over-engineering.
 
-### Q3: DI コンテナがあれば Factory は不要ですか？
+### Q3: If I have a DI container, do I still need a Factory?
 
-DI コンテナは**起動時**に依存を解決しますが、**実行時**に動的に型を切り替える場合は Factory が必要です。両者は補完関係にあります。
+A DI container resolves dependencies at **startup time**, but a Factory is still needed when you need to dynamically switch types at **runtime**. The two are complementary.
 
 ```
-DI コンテナ: 起動時に決定（設定ベース）
+DI container: resolved at startup (configuration-based)
   container.bind<Logger>().to(ConsoleLogger)
-  → アプリケーション起動時に1度だけ解決
+  → resolved once when the application starts
 
-Factory: 実行時に決定（データベース）
+Factory: resolved at runtime (data-driven)
   factory.create(user.preferredNotificationType)
-  → リクエストごとに異なる型を生成
+  → a different type is created per request
 
-ベストプラクティス: DI コンテナで Factory 自体を管理する
+Best practice: manage the Factory itself with the DI container
   container.bind<INotificationFactory>()
     .to(NotificationFactory)
     .inSingletonScope();
 ```
 
-### Q4: Factory Method と Strategy パターンはどう使い分けるべきですか？
+### Q4: How should I choose between Factory Method and Strategy pattern?
 
 ```
 Factory Method:
-- 「何を生成するか」が関心事
-- サブクラスがプロダクトの型を決定
-- 生成されたオブジェクトをテンプレートメソッド内で使用
+- The concern is "what to create"
+- The subclass decides the type of product
+- The created object is used inside a Template Method
 
 Strategy:
-- 「どう振る舞うか」が関心事
-- 実行時にアルゴリズムを切り替え
-- コンポジション（委譲）で実現
+- The concern is "how to behave"
+- An algorithm is switched at runtime
+- Achieved through composition (delegation)
 
-併用:
-- Factory で Strategy オブジェクトを生成するのが一般的
-- Strategy が必要な場面では、まず Strategy を設計し、
-  その生成に Factory を使う
+Combined use:
+- It is common to use a Factory to generate Strategy objects
+- When a Strategy is needed, design the Strategy first,
+  then use a Factory for its creation
 ```
 
-### Q5: Abstract Factory でプロダクトを追加する場合の影響は？
+### Q5: What is the impact of adding a product to an Abstract Factory?
 
-Abstract Factory に新しいプロダクト（createNewProduct()）を追加すると、全ての具象ファクトリに影響します（インタフェースの変更）。これが Abstract Factory の最大の弱点です。
+Adding a new product (createNewProduct()) to an Abstract Factory affects all concrete factories (it changes the interface). This is the biggest weakness of Abstract Factory.
 
 ```
-解決策:
-1. インタフェース分離原則（ISP）を適用し、Factory を分割
-2. Default 実装を持つ抽象クラスを使用
-3. Generic Factory メソッド: create<T>(type: Class<T>): T
+Solutions:
+1. Apply the Interface Segregation Principle (ISP) and split the Factory
+2. Use an abstract class with a default implementation
+3. Generic Factory method: create<T>(type: Class<T>): T
 ```
 
 ---
@@ -1743,51 +1746,51 @@ Abstract Factory に新しいプロダクト（createNewProduct()）を追加す
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping straight to advanced topics. It is recommended to thoroughly understand the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architectural design.
 
 ---
 
-## 12. まとめ
+## 12. Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| Factory Method | 1プロダクトの生成をサブクラスに委譲。テンプレートメソッドと相性が良い |
-| Abstract Factory | 関連プロダクト群をまとめて生成。テーマ/プラットフォーム切替に最適 |
-| Simple Factory | 最も軽量。関数1つで実現。実務で最多 |
-| Registry | OCP 準拠の拡張可能 Factory。プラグインシステムに最適 |
-| 判断基準 | new の散在 / 条件分岐 / モック必要性 のいずれかで導入検討 |
-| 過剰設計の回避 | YAGNI 原則: 現在の要件に合った最小の Factory を選択 |
-| DI との関係 | DI コンテナと Factory は補完関係。DI で Factory を管理するのが最善 |
-| 最大の注意点 | Factory 内にビジネスロジックを入れない |
+| Factory Method | Delegates creation of one product to a subclass. Works well with Template Method |
+| Abstract Factory | Creates a family of related products together. Ideal for theme/platform switching |
+| Simple Factory | The most lightweight option. Realized with a single function. Most common in practice |
+| Registry | OCP-compliant extensible Factory. Ideal for plugin systems |
+| Decision Criteria | Consider introducing when: new calls are scattered / conditional branching exists / mocking is needed |
+| Avoiding Over-Engineering | YAGNI principle: choose the minimal Factory that fits the current requirements |
+| Relationship with DI | DI container and Factory are complementary. Best practice is to manage the Factory with DI |
+| Key Caution | Do not put business logic inside a Factory |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [Builder パターン](./02-builder.md) -- 複雑なオブジェクトの段階的構築。Factory が「何を」、Builder が「どのように」を担当
-- [Prototype パターン](./03-prototype.md) -- クローンによる生成。Factory の代替手法
-- [Singleton パターン](./00-singleton.md) -- Factory Registry の Singleton 管理
-- [Strategy パターン](../02-behavioral/01-strategy.md) -- アルゴリズムの交換。Factory + Strategy の併用
-- [Adapter パターン](../01-structural/00-adapter.md) -- 既存クラスの適合。Factory でAdapter を生成
-- [SOLID 原則](../../../clean-code-principles/docs/00-principles/01-solid.md) -- OCP、DIP の詳細
+- [Builder Pattern](./02-builder.md) -- Stepwise construction of complex objects. Factory handles "what", Builder handles "how"
+- [Prototype Pattern](./03-prototype.md) -- Creation via cloning. An alternative approach to Factory
+- [Singleton Pattern](./00-singleton.md) -- Singleton management of the Factory Registry
+- [Strategy Pattern](../02-behavioral/01-strategy.md) -- Swapping algorithms. Combining Factory + Strategy
+- [Adapter Pattern](../01-structural/00-adapter.md) -- Adapting existing classes. Using Factory to create Adapters
+- [SOLID Principles](../../../clean-code-principles/docs/00-principles/01-solid.md) -- Details of OCP and DIP
 
 ---
 
-## 参考文献
+## References
 
-1. Gamma, E. et al. (1994). *Design Patterns: Elements of Reusable Object-Oriented Software*. Addison-Wesley. -- Factory Method / Abstract Factory の原典
+1. Gamma, E. et al. (1994). *Design Patterns: Elements of Reusable Object-Oriented Software*. Addison-Wesley. -- The original source for Factory Method / Abstract Factory
 2. Freeman, E. et al. (2004). *Head First Design Patterns*. O'Reilly Media. Chapter 4: The Factory Pattern.
-3. Martin, R.C. (2017). *Clean Architecture*. Prentice Hall. -- SOLID原則と Factory の関係
+3. Martin, R.C. (2017). *Clean Architecture*. Prentice Hall. -- The relationship between SOLID principles and Factory
 4. Refactoring.Guru -- Factory Method. https://refactoring.guru/design-patterns/factory-method
 5. Refactoring.Guru -- Abstract Factory. https://refactoring.guru/design-patterns/abstract-factory
 6. Fowler, M. -- Plugin Pattern. https://martinfowler.com/eaaCatalog/plugin.html
