@@ -1,190 +1,190 @@
-# DBスケーリング
+# DB Scaling
 
-> データベースの負荷増大に対するスケーリング戦略として、レプリケーション・シャーディング・パーティショニングの設計原則と実装手法を、具体的なコード例とトレードオフ分析を通じて解説する
+> This chapter explains scaling strategies for handling increased database load, covering the design principles and implementation techniques for replication, sharding, and partitioning, with concrete code examples and trade-off analysis.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **垂直スケーリング vs 水平スケーリング** --- スケールアップの限界と水平分散の設計判断
-2. **レプリケーション戦略** --- マスター/レプリカ構成、読み書き分離、レプリケーションラグへの対処
-3. **シャーディングとパーティショニング** --- シャードキーの選定、データ分散アルゴリズム、ホットスポット回避
-4. **段階的スケーリング** --- 負荷レベルに応じた最適なスケーリング手法の選定
-5. **運用と監視** --- レプリケーションラグ監視、リシャーディング、バックアップ戦略
+1. **Vertical Scaling vs Horizontal Scaling** --- The limits of scaling up and design decisions for horizontal distribution
+2. **Replication Strategies** --- Primary/replica configuration, read/write splitting, and handling replication lag
+3. **Sharding and Partitioning** --- Shard key selection, data distribution algorithms, and hotspot avoidance
+4. **Incremental Scaling** --- Choosing the optimal scaling approach based on load level
+5. **Operations and Monitoring** --- Replication lag monitoring, resharding, and backup strategies
 
-## 前提知識
+## Prerequisites
 
-| トピック | 必要レベル | 参照先 |
+| Topic | Required Level | Reference |
 |---------|-----------|--------|
-| SQL 基礎 | 中級 | プログラミング基礎 |
-| トランザクション (ACID) | 基礎 | [CAP 定理](../00-fundamentals/03-cap-theorem.md) |
-| インデックス | 基礎 | データベース基礎 |
-| キャッシング | 基礎 | [キャッシング](./01-caching.md) |
+| SQL Basics | Intermediate | Programming Fundamentals |
+| Transactions (ACID) | Basic | [CAP Theorem](../00-fundamentals/03-cap-theorem.md) |
+| Indexes | Basic | Database Fundamentals |
+| Caching | Basic | [Caching](./01-caching.md) |
 
 ---
 
-## 0. WHY --- なぜ DB スケーリングが必要か
+## 0. WHY --- Why Is DB Scaling Necessary?
 
-### 0.1 単一 DB の限界
+### 0.1 Limits of a Single DB
 
 ```
-単一 PostgreSQL サーバーの現実的な限界:
+Practical limits of a single PostgreSQL server:
 
   ┌───────────────────────────────────────────┐
-  │  ハードウェア上限                          │
-  │  ├─ CPU: 128コアまで                      │
-  │  ├─ RAM: 2TB まで                         │
-  │  ├─ ストレージ IOPS: ~100,000             │
-  │  └─ ネットワーク: 25 Gbps                 │
+  │  Hardware Limits                          │
+  │  ├─ CPU: up to 128 cores                  │
+  │  ├─ RAM: up to 2TB                        │
+  │  ├─ Storage IOPS: ~100,000                │
+  │  └─ Network: 25 Gbps                      │
   │                                           │
-  │  性能限界 (チューニング済み):               │
-  │  ├─ 書き込み: ~50,000 TPS                 │
-  │  ├─ 読み取り: ~200,000 QPS                │
-  │  ├─ テーブルサイズ: ~10億行で性能劣化      │
-  │  └─ 同時接続: ~5,000                      │
+  │  Performance Limits (tuned):              │
+  │  ├─ Writes: ~50,000 TPS                   │
+  │  ├─ Reads: ~200,000 QPS                   │
+  │  ├─ Table size: degradation beyond ~1B rows│
+  │  └─ Concurrent connections: ~5,000        │
   │                                           │
-  │  単一障害点 (SPOF):                        │
-  │  ├─ サーバー故障 → 全サービス停止          │
-  │  └─ RTO: 数分〜数時間 (バックアップ復旧)   │
+  │  Single Point of Failure (SPOF):          │
+  │  ├─ Server failure → all services down    │
+  │  └─ RTO: minutes to hours (backup restore)│
   └───────────────────────────────────────────┘
 
-  月間 1億リクエスト超で性能問題が顕在化する目安
+  Performance issues typically become apparent beyond 100M requests/month
 ```
 
-### 0.2 スケーリングの定量的効果
+### 0.2 Quantitative Impact of Scaling
 
-| 指標 | 単一 DB | Read Replica x3 | シャーディング x4 |
+| Metric | Single DB | Read Replica x3 | Sharding x4 |
 |------|--------|-----------------|----------------|
-| 読み取り QPS | 200K | 800K | 800K |
-| 書き込み TPS | 50K | 50K (変わらず) | 200K |
-| データ容量 | ~10TB | ~10TB (同じ) | ~40TB |
-| 可用性 | 99.9% | 99.99% | 99.99% |
-| フェイルオーバー時間 | 数分 | 数秒 (自動) | 数秒 (シャード単位) |
-| 運用複雑度 | 低 | 中 | 高 |
+| Read QPS | 200K | 800K | 800K |
+| Write TPS | 50K | 50K (unchanged) | 200K |
+| Data Capacity | ~10TB | ~10TB (same) | ~40TB |
+| Availability | 99.9% | 99.99% | 99.99% |
+| Failover Time | Minutes | Seconds (automatic) | Seconds (per shard) |
+| Operational Complexity | Low | Medium | High |
 
 ---
 
-## 1. スケーリング戦略の全体像
+## 1. Overview of Scaling Strategies
 
-### 1.1 スケールアップ vs スケールアウト
+### 1.1 Scale Up vs Scale Out
 
 ```
-【スケールアップ (垂直)】
+[Scale Up (Vertical)]
   +--------+          +============+
   | DB     |   --->   || DB        ||
   | 4CPU   |          || 64CPU     ||
   | 16GB   |          || 512GB     ||
   +--------+          +============+
-  限界: ハードウェア上限、単一障害点、コスト非線形増大
-  利点: アプリケーション変更不要
+  Limits: hardware ceiling, single point of failure, non-linear cost increase
+  Advantage: no application changes required
 
-【スケールアウト (水平)】
+[Scale Out (Horizontal)]
   +--------+          +------+ +------+ +------+ +------+
   | DB     |   --->   | DB 1 | | DB 2 | | DB 3 | | DB 4 |
-  | 全データ|          | A-F  | | G-L  | | M-R  | | S-Z  |
-  +--------+          +------+ +------+ +------+ +------+
-  メリット: 理論上無限にスケール、耐障害性
-  デメリット: アプリケーション層の変更が必要
+  | All    |          | A-F  | | G-L  | | M-R  | | S-Z  |
+  | Data   |          +------+ +------+ +------+ +------+
+  Advantages: theoretically unlimited scale, fault tolerance
+  Disadvantages: requires changes to the application layer
 ```
 
-### 1.2 段階的スケーリングロードマップ
+### 1.2 Incremental Scaling Roadmap
 
 ```
-フェーズ 0: 最適化 (0円〜)
-  App --> [Primary DB + インデックス最適化 + クエリチューニング]
-  月間 ~100万リクエスト
-  ↓ 「まだ単一 DB で頑張れるか？」
+Phase 0: Optimization (free)
+  App --> [Primary DB + index optimization + query tuning]
+  ~1M requests/month
+  ↓ "Can we still manage with a single DB?"
 
-フェーズ 1: コネクションプーリング
+Phase 1: Connection Pooling
   App --> [PgBouncer] --> [Primary DB]
-  月間 ~500万リクエスト
-  ↓ 「読み取りが書き込みの 10倍以上か？」
+  ~5M requests/month
+  ↓ "Are reads more than 10x writes?"
 
-フェーズ 2: 読み書き分離 (Read Replica)
+Phase 2: Read/Write Splitting (Read Replica)
   App --> [Primary] (Write)
       --> [Replica 1] (Read)
       --> [Replica 2] (Read)
-  月間 ~3000万リクエスト
-  ↓ 「キャッシュで読み取り負荷を吸収できるか？」
+  ~30M requests/month
+  ↓ "Can caching absorb read load?"
 
-フェーズ 3: キャッシュ層追加
+Phase 3: Add Cache Layer
   App --> [Redis Cache] --> [Primary / Replicas]
-  月間 ~1億リクエスト
-  ↓ 「テーブルが大きすぎないか？」
+  ~100M requests/month
+  ↓ "Are tables too large?"
 
-フェーズ 4: パーティショニング
-  App --> [Primary (パーティションテーブル)]
-  月間 ~3億リクエスト
-  ↓ 「書き込みが単一 Primary の限界を超えたか？」
+Phase 4: Partitioning
+  App --> [Primary (partitioned tables)]
+  ~300M requests/month
+  ↓ "Has write load exceeded single Primary's limit?"
 
-フェーズ 5: シャーディング
+Phase 5: Sharding
   App --> [Router] --> [Shard 0] [Shard 1] [Shard 2] ...
-  月間 ~10億リクエスト以上
+  ~1B+ requests/month
 ```
 
-### 1.3 スケーリング判断のフローチャート
+### 1.3 Scaling Decision Flowchart
 
 ```
-DB 性能問題が発生
+DB performance issue occurs
   │
-  ├─ クエリが遅い？
-  │   └─ EXPLAIN ANALYZE → インデックス追加 / クエリ書き換え
+  ├─ Slow queries?
+  │   └─ EXPLAIN ANALYZE → add indexes / rewrite queries
   │
-  ├─ コネクション数が上限？
-  │   └─ PgBouncer / ProxySQL 導入
+  ├─ Connection count at limit?
+  │   └─ Introduce PgBouncer / ProxySQL
   │
-  ├─ 読み取り負荷が高い？
-  │   ├─ キャッシュで対応可能？ → Redis 導入
-  │   └─ キャッシュ不適 → Read Replica 追加
+  ├─ High read load?
+  │   ├─ Can caching handle it? → Introduce Redis
+  │   └─ Caching not suitable → Add Read Replica
   │
-  ├─ テーブルが巨大 (数億行)？
-  │   └─ パーティショニング (単一DB内で分割)
+  ├─ Huge tables (hundreds of millions of rows)?
+  │   └─ Partitioning (split within single DB)
   │
-  ├─ 書き込み負荷が高い？
-  │   ├─ バッチ/バルク化で対応可能？ → アプリ最適化
-  │   └─ 対応不可 → シャーディング
+  ├─ High write load?
+  │   ├─ Can batching/bulk operations help? → Optimize app
+  │   └─ Not possible → Sharding
   │
-  └─ ストレージ容量不足？
-      └─ パーティショニング + 古いデータのアーカイブ
+  └─ Insufficient storage?
+      └─ Partitioning + archive old data
 ```
 
 ---
 
-## 2. レプリケーション
+## 2. Replication
 
-### 2.1 マスター/レプリカ構成
+### 2.1 Primary/Replica Configuration
 
 ```
                       +------------------+
                       |   Primary (RW)   |
-                      |   (書き込み専用)   |
+                      |   (writes only)  |
                       +--------+---------+
                                |
-                   WAL / Binlog ストリーム
+                   WAL / Binlog stream
                      +---------|--------+
                      |         |        |
                +-----v--+ +---v----+ +-v-------+
                |Replica 1| |Replica2| |Replica 3|
                | (Read)  | | (Read) | |  (Read) |
                +---------+ +--------+ +---------+
-               | 同期/非同期レプリケーションの選択
+               | Choose between synchronous/asynchronous replication
                |
-               | 同期: データ損失ゼロ、レイテンシ増加
-               | 非同期: 高スループット、ラグ発生
-               | 半同期: 1台は同期、他は非同期 (推奨)
+               | Synchronous: zero data loss, increased latency
+               | Asynchronous: high throughput, lag occurs
+               | Semi-synchronous: 1 node sync, others async (recommended)
 ```
 
-### 2.2 レプリケーション方式の比較
+### 2.2 Comparison of Replication Modes
 
-| 方式 | データ損失 | 書き込みレイテンシ | スループット | ユースケース |
+| Mode | Data Loss | Write Latency | Throughput | Use Case |
 |------|----------|------------------|------------|------------|
-| 同期レプリケーション | なし | 高 (2-10ms追加) | 低 | 金融、決済 |
-| 非同期レプリケーション | あり (ラグ分) | なし | 高 | 一般的なWebアプリ |
-| 半同期レプリケーション | 最小 | 中 (1-5ms追加) | 中〜高 | 推奨デフォルト |
-| マルチマスター | 競合リスク | 変動 | 高 | グローバル分散 |
+| Synchronous Replication | None | High (+2-10ms) | Low | Finance, payments |
+| Asynchronous Replication | Possible (lag-based) | None | High | General web apps |
+| Semi-synchronous Replication | Minimal | Medium (+1-5ms) | Medium-High | Recommended default |
+| Multi-master | Conflict risk | Variable | High | Global distribution |
 
-### 2.3 読み書き分離の実装
+### 2.3 Implementing Read/Write Splitting
 
 ```python
-# SQLAlchemy での読み書き分離 (Python)
+# Read/write splitting with SQLAlchemy (Python)
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
 from contextlib import contextmanager
@@ -192,7 +192,7 @@ import random
 import time
 
 class ReadWriteSplitter:
-    """読み書き分離を管理するクラス"""
+    """Class that manages read/write splitting"""
 
     def __init__(
         self,
@@ -200,16 +200,16 @@ class ReadWriteSplitter:
         read_dsns: list[str],
         replication_lag_threshold: float = 5.0,
     ):
-        # 書き込み用 Primary
+        # Primary for writes
         self.write_engine = create_engine(
             write_dsn,
             pool_size=20,
             max_overflow=10,
-            pool_pre_ping=True,  # コネクション健全性チェック
-            pool_recycle=1800,   # 30分でコネクション再接続
+            pool_pre_ping=True,  # connection health check
+            pool_recycle=1800,   # reconnect every 30 minutes
         )
 
-        # 読み取り用 Replicas
+        # Replicas for reads
         self.read_engines = [
             create_engine(
                 dsn,
@@ -225,7 +225,7 @@ class ReadWriteSplitter:
 
     @contextmanager
     def write_session(self) -> Session:
-        """書き込み用セッション（常に Primary）"""
+        """Write session (always Primary)"""
         session = sessionmaker(bind=self.write_engine)()
         try:
             yield session
@@ -239,9 +239,9 @@ class ReadWriteSplitter:
     @contextmanager
     def read_session(self, entity_key: str = None) -> Session:
         """
-        読み取り用セッション
-        - 直近の書き込みがある場合は Primary から読む (Read-your-writes)
-        - それ以外は Replica からランダムに選択
+        Read session
+        - If there was a recent write, read from Primary (Read-your-writes)
+        - Otherwise, randomly select from a Replica
         """
         use_primary = False
 
@@ -261,16 +261,16 @@ class ReadWriteSplitter:
             session.close()
 
     def record_write(self, entity_key: str):
-        """書き込みを記録（Read-your-writes 用）"""
+        """Record a write (for Read-your-writes)"""
         self._recent_writes[entity_key] = time.time()
 
-        # 古い記録を定期的にクリーンアップ
+        # Periodically clean up old records
         cutoff = time.time() - self.replication_lag_threshold * 2
         self._recent_writes = {
             k: v for k, v in self._recent_writes.items() if v > cutoff
         }
 
-# 使用例
+# Usage example
 db = ReadWriteSplitter(
     write_dsn='postgresql://user:pass@primary:5432/myapp',
     read_dsns=[
@@ -281,25 +281,25 @@ db = ReadWriteSplitter(
     replication_lag_threshold=5.0,
 )
 
-# 書き込み
+# Write
 def create_order(user_id: str, items: list) -> dict:
     with db.write_session() as session:
         order = Order(user_id=user_id, items=items, status="pending")
         session.add(order)
-        session.flush()  # ID を取得
+        session.flush()  # get ID
         db.record_write(f"user:{user_id}")
         return {"order_id": order.id}
 
-# 読み取り (書き込み直後は Primary から読む)
+# Read (reads from Primary immediately after a write)
 def get_user_orders(user_id: str) -> list:
     with db.read_session(entity_key=f"user:{user_id}") as session:
         return session.query(Order).filter_by(user_id=user_id).all()
 ```
 
-### 2.4 レプリケーションラグの監視
+### 2.4 Monitoring Replication Lag
 
 ```python
-"""レプリケーションラグの監視と対策"""
+"""Monitoring and mitigating replication lag"""
 from dataclasses import dataclass
 from datetime import datetime
 import psycopg2
@@ -313,7 +313,7 @@ class ReplicationStatus:
     is_healthy: bool
 
 class ReplicationMonitor:
-    """PostgreSQL レプリケーションラグ監視"""
+    """PostgreSQL replication lag monitor"""
 
     LAG_WARNING_SECONDS = 5.0
     LAG_CRITICAL_SECONDS = 30.0
@@ -323,7 +323,7 @@ class ReplicationMonitor:
         self.replica_dsns = replica_dsns
 
     def check_primary_status(self) -> list[dict]:
-        """Primary からレプリカの状態を確認"""
+        """Check replica status from the Primary"""
         conn = psycopg2.connect(self.primary_dsn)
         try:
             with conn.cursor() as cur:
@@ -353,11 +353,11 @@ class ReplicationMonitor:
             conn.close()
 
     def check_replica_lag(self, replica_dsn: str) -> ReplicationStatus:
-        """Replica 側からラグを確認"""
+        """Check lag from the Replica side"""
         conn = psycopg2.connect(replica_dsn)
         try:
             with conn.cursor() as cur:
-                # レプリケーションラグを秒数で取得
+                # Get replication lag in seconds
                 cur.execute("""
                     SELECT
                         CASE
@@ -368,7 +368,7 @@ class ReplicationMonitor:
                 """)
                 lag_seconds = cur.fetchone()[0] or 0
 
-                # レプリケーションの状態
+                # Replication state
                 cur.execute("SELECT pg_is_in_recovery();")
                 is_replica = cur.fetchone()[0]
 
@@ -383,7 +383,7 @@ class ReplicationMonitor:
             conn.close()
 
     def get_all_replica_status(self) -> list[ReplicationStatus]:
-        """全レプリカのステータスを取得"""
+        """Get status of all replicas"""
         statuses = []
         for dsn in self.replica_dsns:
             try:
@@ -402,27 +402,27 @@ class ReplicationMonitor:
     def should_use_primary_for_reads(
         self, statuses: list[ReplicationStatus]
     ) -> bool:
-        """全レプリカがクリティカルラグの場合、Primary からの読み取りに切り替え"""
+        """Switch to reading from Primary when all replicas have critical lag"""
         healthy = [s for s in statuses if s.is_healthy]
         return len(healthy) == 0
 
-# Prometheus メトリクス公開用
+# For Prometheus metrics exposure:
 # pg_replication_lag_seconds{replica="replica-1"} 0.5
 # pg_replication_lag_seconds{replica="replica-2"} 1.2
 # pg_replication_lag_seconds{replica="replica-3"} 0.8
 ```
 
-### 2.5 コネクションプーリング
+### 2.5 Connection Pooling
 
 ```python
-"""PgBouncer / コネクションプーリングの設計"""
+"""PgBouncer / Connection pooling design"""
 from dataclasses import dataclass
 
 @dataclass
 class ConnectionPoolConfig:
-    """コネクションプール設計の指針"""
+    """Guidelines for connection pool design"""
 
-    # PgBouncer 設定例
+    # PgBouncer configuration example
     pgbouncer_config = """
     [databases]
     myapp_write = host=primary port=5432 dbname=myapp
@@ -433,45 +433,45 @@ class ConnectionPoolConfig:
     listen_addr = 0.0.0.0
     listen_port = 6432
 
-    # プーリングモード:
-    # session: セッション単位 (PREPARE 対応)
-    # transaction: トランザクション単位 (推奨、最もコネクション効率が良い)
-    # statement: ステートメント単位 (非推奨)
+    # Pooling modes:
+    # session: per-session (supports PREPARE)
+    # transaction: per-transaction (recommended, most efficient)
+    # statement: per-statement (not recommended)
     pool_mode = transaction
 
-    # コネクション数の設計:
-    # アプリ側: pool_size * app_instances = 最大クライアント接続数
-    # DB側: max_connections = PgBouncer の server_pool_size
-    max_client_conn = 1000        # アプリからの最大接続
-    default_pool_size = 50        # DB への同時接続数
-    reserve_pool_size = 10        # バースト用予備
-    reserve_pool_timeout = 3      # 予備プール使用前の待機秒数
+    # Connection count design:
+    # App side: pool_size * app_instances = max client connections
+    # DB side: max_connections = PgBouncer's server_pool_size
+    max_client_conn = 1000        # max connections from app
+    default_pool_size = 50        # concurrent connections to DB
+    reserve_pool_size = 10        # reserve for bursts
+    reserve_pool_timeout = 3      # seconds to wait before using reserve pool
 
-    # ヘルスチェック
+    # Health check
     server_check_query = select 1
     server_check_delay = 10
     server_connect_timeout = 5
     server_login_retry = 3
 
-    # タイムアウト
-    query_timeout = 30            # クエリタイムアウト
-    client_idle_timeout = 600     # アイドルクライアント切断
+    # Timeouts
+    query_timeout = 30            # query timeout
+    client_idle_timeout = 600     # disconnect idle clients
     """
 
-    # コネクション数の計算式
+    # Formula for calculating connection count
     @staticmethod
     def calculate_pool_size(
         app_instances: int,
         connections_per_instance: int,
         db_max_connections: int = 200,
     ) -> dict:
-        """最適なプールサイズを計算"""
+        """Calculate optimal pool size"""
         total_app_connections = app_instances * connections_per_instance
 
-        # PgBouncer の server_pool_size は DB の max_connections の 50-70%
+        # PgBouncer's server_pool_size should be 50-70% of DB's max_connections
         server_pool = int(db_max_connections * 0.6)
 
-        # 多重化率: アプリ接続 / DB 接続
+        # Multiplexing ratio: app connections / DB connections
         multiplexing_ratio = total_app_connections / server_pool
 
         return {
@@ -483,67 +483,67 @@ class ConnectionPoolConfig:
             'multiplexing_ratio': f"{multiplexing_ratio:.1f}x",
             'recommendation': (
                 'OK' if multiplexing_ratio < 20
-                else 'WARNING: 多重化率が高すぎる。DB接続数の増加を検討'
+                else 'WARNING: Multiplexing ratio too high. Consider increasing DB connections.'
             ),
         }
 
-# 例: 10 アプリインスタンス x 20 接続/インスタンス
+# Example: 10 app instances x 20 connections/instance
 result = ConnectionPoolConfig.calculate_pool_size(
     app_instances=10,
     connections_per_instance=20,
     db_max_connections=200,
 )
-# 結果:
+# Result:
 # total_app_connections: 200
 # pgbouncer_server_pool: 120
-# multiplexing_ratio: 1.7x (良好)
+# multiplexing_ratio: 1.7x (good)
 ```
 
 ---
 
-## 3. シャーディング
+## 3. Sharding
 
-### 3.1 シャーディング戦略の比較
+### 3.1 Comparison of Sharding Strategies
 
-| 戦略 | 説明 | メリット | デメリット | ユースケース |
+| Strategy | Description | Advantages | Disadvantages | Use Case |
 |------|------|---------|-----------|------------|
-| レンジベース | キーの範囲で分割 (A-F, G-L...) | シンプル、範囲クエリが容易 | データ偏り、ホットスポット | 時系列データ (月次パーティション) |
-| ハッシュベース | hash(key) % N で分割 | 均等分散 | 範囲クエリ不可、リシャーディング困難 | ユーザーデータ |
-| コンシステントハッシュ | ハッシュリング上で分割 | ノード追加時の移動データ最小 | 実装が複雑、負荷偏り可能 | 大規模分散システム |
-| ディレクトリベース | ルックアップテーブルで管理 | 柔軟なマッピング | テーブルがSPOF、追加レイテンシ | マルチテナント |
-| ジオベース | 地理的に分割 | 低レイテンシ | データ偏り | グローバルサービス |
+| Range-based | Split by key range (A-F, G-L...) | Simple, easy range queries | Data skew, hotspots | Time-series data (monthly partitions) |
+| Hash-based | Split by hash(key) % N | Even distribution | No range queries, resharding is difficult | User data |
+| Consistent hashing | Split on a hash ring | Minimal data movement on node add | Complex implementation, possible load skew | Large-scale distributed systems |
+| Directory-based | Managed via lookup table | Flexible mapping | Table is SPOF, added latency | Multi-tenant |
+| Geo-based | Split geographically | Low latency | Data skew | Global services |
 
-### 3.2 コンシステントハッシュの仕組み
+### 3.2 How Consistent Hashing Works
 
 ```
-          コンシステントハッシュリング
+          Consistent Hash Ring
 
               0 (= 2^32)
               |
        Shard C ●-------- ● Shard A
              /              \
            /     Key X →      \
-          |     (Shard A に配置)  |
+          |     (placed in Shard A) |
           |                      |
            \                  /
             \   ● Shard B   /
               +----●------+
                  Key Y →
-              (Shard B に配置)
+              (placed in Shard B)
 
-  仮想ノード: 各シャードを 100〜200 の仮想ノードに分割
-  → 物理ノード数が少なくてもハッシュ空間上で均等に分散
+  Virtual nodes: each shard is split into 100-200 virtual nodes
+  → Even with few physical nodes, they are evenly distributed across the hash space
 
-  ノード追加時: Shard D を追加
-  → Shard A から一部のキーのみ Shard D に移動
-  → 他のシャードは影響を受けない
-  → 移動データ量: 全体の 1/N (N = シャード数)
+  Adding a node: add Shard D
+  → Only some keys from Shard A move to Shard D
+  → Other shards are not affected
+  → Data moved: 1/N of total (N = number of shards)
 ```
 
-### 3.3 シャーディングの実装
+### 3.3 Implementing Sharding
 
 ```python
-# ハッシュベースシャーディング (Python)
+# Hash-based sharding (Python)
 import hashlib
 from typing import Dict, List, Optional
 from dataclasses import dataclass, field
@@ -558,7 +558,7 @@ class ShardConfig:
     replicas: list[str] = field(default_factory=list)
 
 class ShardRouter:
-    """シャードルーターの実装"""
+    """Shard router implementation"""
 
     def __init__(self, shard_configs: list[ShardConfig]):
         self.shards: dict[int, ShardConfig] = {}
@@ -580,7 +580,7 @@ class ShardRouter:
         self.shard_count = len(shard_configs)
 
     def get_shard_id(self, shard_key: str) -> int:
-        """シャードキーからシャード ID を決定"""
+        """Determine shard ID from shard key"""
         hash_value = int(hashlib.sha256(
             str(shard_key).encode()
         ).hexdigest(), 16)
@@ -588,7 +588,7 @@ class ShardRouter:
 
     @contextmanager
     def write_connection(self, shard_key: str):
-        """書き込み用コネクション (Primary)"""
+        """Write connection (Primary)"""
         shard_id = self.get_shard_id(shard_key)
         engine = self.engines[shard_id]
         conn = engine.connect()
@@ -599,7 +599,7 @@ class ShardRouter:
 
     @contextmanager
     def read_connection(self, shard_key: str):
-        """読み取り用コネクション (Replica 優先)"""
+        """Read connection (Replica preferred)"""
         shard_id = self.get_shard_id(shard_key)
         replicas = self.replica_engines[shard_id]
 
@@ -617,7 +617,7 @@ class ShardRouter:
     def execute_on_shard(
         self, shard_key: str, query: str, params: dict = None
     ) -> list:
-        """特定シャードでクエリ実行"""
+        """Execute query on a specific shard"""
         with self.write_connection(shard_key) as conn:
             result = conn.execute(text(query), params or {})
             return result.fetchall()
@@ -627,8 +627,8 @@ class ShardRouter:
         sort_key: str = None, limit: int = None,
     ) -> list:
         """
-        全シャードにクエリを実行して結果を集約 (Scatter-Gather)
-        注意: N個のシャードに並列クエリ → レイテンシは最遅シャードに依存
+        Execute query on all shards and aggregate results (Scatter-Gather)
+        Note: Parallel queries to N shards → latency depends on slowest shard
         """
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -640,7 +640,7 @@ class ShardRouter:
                 result = conn.execute(text(query), params or {})
                 return result.fetchall()
 
-        # 並列実行
+        # Parallel execution
         with ThreadPoolExecutor(max_workers=self.shard_count) as executor:
             futures = {
                 executor.submit(query_shard, sid): sid
@@ -654,7 +654,7 @@ class ShardRouter:
                 except Exception as e:
                     print(f"Shard {shard_id} query failed: {e}")
 
-        # ソートとリミット
+        # Sort and limit
         if sort_key:
             results.sort(key=lambda r: r[sort_key])
         if limit:
@@ -662,7 +662,7 @@ class ShardRouter:
 
         return results
 
-# 使用例
+# Usage example
 router = ShardRouter([
     ShardConfig(
         shard_id=0,
@@ -681,92 +681,92 @@ router = ShardRouter([
     ),
 ])
 
-# ユーザー ID をシャードキーとして使用
+# Use user ID as shard key
 user_id = 'user-12345'
-shard_id = router.get_shard_id(user_id)  # → 例: 1
+shard_id = router.get_shard_id(user_id)  # → e.g.: 1
 print(f"User {user_id} → Shard {shard_id}")
 ```
 
-### 3.4 シャードキー設計の原則
+### 3.4 Principles of Shard Key Design
 
 ```python
-"""シャードキー設計の判断フレームワーク"""
+"""Evaluation framework for shard key design"""
 from dataclasses import dataclass
 
 @dataclass
 class ShardKeyEvaluation:
-    """シャードキーの評価基準"""
+    """Evaluation criteria for shard keys"""
 
     key_name: str
-    cardinality: str       # "高" / "中" / "低"
-    distribution: str      # "均等" / "偏り" / "ホットスポット"
-    query_isolation: str   # "高" / "中" / "低"
-    join_locality: str     # "高" / "中" / "低"
-    verdict: str           # "推奨" / "条件付き" / "非推奨"
+    cardinality: str       # "High" / "Medium" / "Low"
+    distribution: str      # "Even" / "Skewed" / "Hotspot"
+    query_isolation: str   # "High" / "Medium" / "Low"
+    join_locality: str     # "High" / "Medium" / "Low"
+    verdict: str           # "Recommended" / "Conditional" / "Not Recommended"
 
 SHARD_KEY_EVALUATIONS = [
     ShardKeyEvaluation(
         key_name="user_id",
-        cardinality="高",
-        distribution="均等 (UUIDの場合)",
-        query_isolation="高 (ユーザー単位のクエリが多い場合)",
-        join_locality="高 (ユーザーのデータが同一シャード)",
-        verdict="推奨: 最も一般的で安全なシャードキー",
+        cardinality="High",
+        distribution="Even (when using UUID)",
+        query_isolation="High (when most queries are per-user)",
+        join_locality="High (user's data in same shard)",
+        verdict="Recommended: most common and safest shard key",
     ),
     ShardKeyEvaluation(
         key_name="tenant_id",
-        cardinality="中",
-        distribution="偏りやすい (大テナントの存在)",
-        query_isolation="高 (テナント単位の完全分離)",
-        join_locality="高",
-        verdict="推奨: マルチテナント SaaS の標準",
+        cardinality="Medium",
+        distribution="Prone to skew (large tenants exist)",
+        query_isolation="High (complete isolation per tenant)",
+        join_locality="High",
+        verdict="Recommended: standard for multi-tenant SaaS",
     ),
     ShardKeyEvaluation(
-        key_name="created_at (日時)",
-        cardinality="高",
-        distribution="ホットスポット (最新データに集中)",
-        query_isolation="高 (時間範囲クエリ)",
-        join_locality="低",
-        verdict="非推奨: 書き込みが最新シャードに集中",
+        key_name="created_at (datetime)",
+        cardinality="High",
+        distribution="Hotspot (concentrated on latest data)",
+        query_isolation="High (time range queries)",
+        join_locality="Low",
+        verdict="Not Recommended: writes concentrate on latest shard",
     ),
     ShardKeyEvaluation(
         key_name="auto_increment_id",
-        cardinality="高",
-        distribution="ホットスポット (最新IDに集中)",
-        query_isolation="低",
-        join_locality="低",
-        verdict="非推奨: 書き込みが最新シャードに集中",
+        cardinality="High",
+        distribution="Hotspot (concentrated on latest IDs)",
+        query_isolation="Low",
+        join_locality="Low",
+        verdict="Not Recommended: writes concentrate on latest shard",
     ),
     ShardKeyEvaluation(
         key_name="country_code",
-        cardinality="低 (~200)",
-        distribution="偏り (US/JP/CN に集中)",
-        query_isolation="高",
-        join_locality="高",
-        verdict="条件付き: 地理分散が目的なら有効",
+        cardinality="Low (~200)",
+        distribution="Skewed (concentrated in US/JP/CN)",
+        query_isolation="High",
+        join_locality="High",
+        verdict="Conditional: effective if geographic distribution is the goal",
     ),
     ShardKeyEvaluation(
         key_name="compound (user_id + order_date)",
-        cardinality="高",
-        distribution="均等",
-        query_isolation="高 (ユーザー+時間範囲クエリ)",
-        join_locality="中",
-        verdict="推奨: 複合キーで均等分散と範囲クエリを両立",
+        cardinality="High",
+        distribution="Even",
+        query_isolation="High (user + time range queries)",
+        join_locality="Medium",
+        verdict="Recommended: compound key balances even distribution and range queries",
     ),
 ]
 
-# シャードキー選定の原則:
-# 1. カーディナリティが高い (ユニーク値が多い)
-# 2. アクセスパターンに一致 (最頻クエリの WHERE 句に含まれる)
-# 3. 均等に分散される (ホットスポットを避ける)
-# 4. 関連データが同一シャードに配置される (JOIN の局所性)
-# 5. 将来のデータ増加でも偏りが生じない
+# Principles for shard key selection:
+# 1. High cardinality (many unique values)
+# 2. Matches access patterns (included in WHERE clause of most frequent queries)
+# 3. Distributes evenly (avoids hotspots)
+# 4. Related data is placed in the same shard (JOIN locality)
+# 5. No skew even as data grows in the future
 ```
 
-### 3.5 PostgreSQL テーブルパーティショニング
+### 3.5 PostgreSQL Table Partitioning
 
 ```sql
--- PostgreSQL: 範囲パーティショニング
+-- PostgreSQL: range partitioning
 CREATE TABLE orders (
     id          BIGSERIAL,
     user_id     BIGINT NOT NULL,
@@ -776,7 +776,7 @@ CREATE TABLE orders (
     PRIMARY KEY (id, created_at)
 ) PARTITION BY RANGE (created_at);
 
--- 月別パーティション (自動作成スクリプトで管理)
+-- Monthly partitions (managed by an auto-creation script)
 CREATE TABLE orders_2026_01 PARTITION OF orders
     FOR VALUES FROM ('2026-01-01') TO ('2026-02-01');
 CREATE TABLE orders_2026_02 PARTITION OF orders
@@ -784,18 +784,18 @@ CREATE TABLE orders_2026_02 PARTITION OF orders
 CREATE TABLE orders_2026_03 PARTITION OF orders
     FOR VALUES FROM ('2026-03-01') TO ('2026-04-01');
 
--- パーティションごとにインデックス (各パーティションに自動的に作成)
+-- Indexes per partition (automatically created for each partition)
 CREATE INDEX idx_orders_user_id ON orders (user_id);
 CREATE INDEX idx_orders_status ON orders (status);
 
--- クエリ: PostgreSQL が自動的に該当パーティションのみスキャン
+-- Query: PostgreSQL automatically scans only the relevant partition
 EXPLAIN ANALYZE
 SELECT * FROM orders
 WHERE created_at >= '2026-02-01' AND created_at < '2026-03-01'
   AND user_id = 12345;
--- → orders_2026_02 のみスキャン（パーティションプルーニング）
+-- → scans only orders_2026_02 (partition pruning)
 
--- ハッシュパーティショニング (均等分散)
+-- Hash partitioning (even distribution)
 CREATE TABLE user_events (
     id         BIGSERIAL,
     user_id    BIGINT NOT NULL,
@@ -814,7 +814,7 @@ CREATE TABLE user_events_2 PARTITION OF user_events
 CREATE TABLE user_events_3 PARTITION OF user_events
     FOR VALUES WITH (MODULUS 4, REMAINDER 3);
 
--- パーティション管理の自動化
+-- Automate partition management
 CREATE OR REPLACE FUNCTION create_monthly_partition()
 RETURNS void AS $$
 DECLARE
@@ -823,14 +823,14 @@ DECLARE
     start_date TEXT;
     end_date TEXT;
 BEGIN
-    -- 3ヶ月先まで事前作成
+    -- Pre-create up to 3 months ahead
     FOR i IN 0..3 LOOP
         partition_date := date_trunc('month', NOW()) + (i || ' months')::interval;
         partition_name := 'orders_' || to_char(partition_date, 'YYYY_MM');
         start_date := to_char(partition_date, 'YYYY-MM-DD');
         end_date := to_char(partition_date + '1 month'::interval, 'YYYY-MM-DD');
 
-        -- パーティションが存在しなければ作成
+        -- Create partition if it does not exist
         IF NOT EXISTS (
             SELECT 1 FROM pg_class WHERE relname = partition_name
         ) THEN
@@ -844,7 +844,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 古いパーティションのアーカイブ
+-- Archive old partitions
 CREATE OR REPLACE FUNCTION archive_old_partitions(retention_months INT)
 RETURNS void AS $$
 DECLARE
@@ -858,10 +858,10 @@ BEGIN
         WHERE tablename LIKE 'orders_____'
         AND tablename < 'orders_' || to_char(cutoff_date, 'YYYY_MM')
     LOOP
-        -- 1. S3 にエクスポート (pg_dump)
-        -- 2. パーティションをデタッチ
+        -- 1. Export to S3 (pg_dump)
+        -- 2. Detach the partition
         EXECUTE format('ALTER TABLE orders DETACH PARTITION %I', partition_name);
-        -- 3. テーブルを削除
+        -- 3. Drop the table
         EXECUTE format('DROP TABLE %I', partition_name);
         RAISE NOTICE 'Archived and dropped: %', partition_name;
     END LOOP;
@@ -871,57 +871,57 @@ $$ LANGUAGE plpgsql;
 
 ---
 
-## 4. リシャーディング
+## 4. Resharding
 
-### 4.1 リシャーディングの課題と戦略
+### 4.1 Resharding Challenges and Strategies
 
 ```
-リシャーディング: シャード数の変更 (例: 4 → 8 シャード)
+Resharding: changing the number of shards (e.g., 4 → 8 shards)
 
-  方法 1: ダウンタイムあり (最もシンプル)
+  Method 1: With downtime (simplest)
   ┌─────────────────────────────────────────────┐
-  │ 1. アプリケーションを停止                     │
-  │ 2. 全データを新しいシャード構成にコピー        │
-  │ 3. ルーティングを更新                         │
-  │ 4. アプリケーションを再起動                   │
-  │                                              │
-  │ 所要時間: データ量に依存 (数時間〜数日)        │
-  │ リスク: 低 (オフラインで安全に実行)            │
+  │ 1. Stop the application                     │
+  │ 2. Copy all data to the new shard layout    │
+  │ 3. Update routing                           │
+  │ 4. Restart the application                  │
+  │                                             │
+  │ Duration: depends on data volume (hours to days) │
+  │ Risk: Low (safe execution offline)          │
   └─────────────────────────────────────────────┘
 
-  方法 2: オンラインリシャーディング (ゼロダウンタイム)
+  Method 2: Online resharding (zero downtime)
   ┌─────────────────────────────────────────────┐
-  │ 1. 新シャードを追加                           │
-  │ 2. ダブルライト: 旧+新シャードに同時書き込み  │
-  │ 3. バックグラウンドで旧→新にデータ移行        │
-  │ 4. 整合性検証                                 │
-  │ 5. 読み取りを新シャードに切り替え              │
-  │ 6. 旧シャードの書き込みを停止                 │
-  │                                              │
-  │ 所要時間: 数日〜数週間                        │
-  │ リスク: 高 (データ整合性の維持が困難)          │
+  │ 1. Add new shards                           │
+  │ 2. Dual write: write to both old and new    │
+  │ 3. Migrate data from old to new in background│
+  │ 4. Verify consistency                       │
+  │ 5. Switch reads to new shards               │
+  │ 6. Stop writes to old shards                │
+  │                                             │
+  │ Duration: days to weeks                     │
+  │ Risk: High (difficult to maintain data consistency) │
   └─────────────────────────────────────────────┘
 
-  方法 3: Vitess / ProxySQL によるシャーディング管理
-  → DB ミドルウェアがリシャーディングを自動化
+  Method 3: Resharding management via Vitess / ProxySQL
+  → DB middleware automates resharding
 ```
 
-### 4.2 オンラインリシャーディングの実装
+### 4.2 Implementing Online Resharding
 
 ```python
-"""オンラインリシャーディング: ダブルライト方式"""
+"""Online resharding: dual-write approach"""
 import hashlib
 from enum import Enum
 
 class MigrationPhase(Enum):
-    DUAL_WRITE = "dual_write"      # 旧+新に同時書き込み
-    BACKFILL = "backfill"          # 旧→新にデータ移行
-    VERIFY = "verify"              # 整合性検証
-    CUTOVER = "cutover"            # 読み取りを新に切り替え
-    CLEANUP = "cleanup"            # 旧データの削除
+    DUAL_WRITE = "dual_write"      # write to both old and new
+    BACKFILL = "backfill"          # migrate data from old to new
+    VERIFY = "verify"              # verify consistency
+    CUTOVER = "cutover"            # switch reads to new
+    CLEANUP = "cleanup"            # delete old data
 
 class OnlineResharder:
-    """ゼロダウンタイム リシャーディング"""
+    """Zero-downtime resharding"""
 
     def __init__(
         self,
@@ -934,33 +934,33 @@ class OnlineResharder:
         self._migrated_keys: set = set()
 
     def write(self, shard_key: str, query: str, params: dict):
-        """フェーズに応じた書き込みルーティング"""
+        """Write routing based on current phase"""
         if self.phase == MigrationPhase.DUAL_WRITE:
-            # 旧と新の両方に書き込み
+            # Write to both old and new
             self.old_router.execute_on_shard(shard_key, query, params)
             self.new_router.execute_on_shard(shard_key, query, params)
         elif self.phase in (MigrationPhase.CUTOVER, MigrationPhase.CLEANUP):
-            # 新シャードのみに書き込み
+            # Write to new shards only
             self.new_router.execute_on_shard(shard_key, query, params)
         else:
             self.old_router.execute_on_shard(shard_key, query, params)
 
     def read(self, shard_key: str, query: str, params: dict):
-        """フェーズに応じた読み取りルーティング"""
+        """Read routing based on current phase"""
         if self.phase in (MigrationPhase.CUTOVER, MigrationPhase.CLEANUP):
             return self.new_router.execute_on_shard(shard_key, query, params)
         else:
             return self.old_router.execute_on_shard(shard_key, query, params)
 
     def backfill_batch(self, batch_keys: list[str]):
-        """バッチ単位でデータを移行"""
+        """Migrate data in batches"""
         for key in batch_keys:
             if key not in self._migrated_keys:
-                # 旧シャードからデータ読み取り
+                # Read data from old shard
                 data = self.old_router.execute_on_shard(
                     key, "SELECT * FROM users WHERE id = :id", {"id": key}
                 )
-                # 新シャードに書き込み
+                # Write to new shard
                 for row in data:
                     self.new_router.execute_on_shard(
                         key,
@@ -970,7 +970,7 @@ class OnlineResharder:
                 self._migrated_keys.add(key)
 
     def verify_consistency(self, sample_keys: list[str]) -> dict:
-        """旧と新のデータ整合性を検証"""
+        """Verify data consistency between old and new"""
         mismatches = []
         for key in sample_keys:
             old_data = self.old_router.execute_on_shard(
@@ -986,63 +986,63 @@ class OnlineResharder:
             'total_verified': len(sample_keys),
             'mismatches': len(mismatches),
             'consistency_rate': (len(sample_keys) - len(mismatches)) / len(sample_keys),
-            'mismatch_keys': mismatches[:10],  # 最初の10件
+            'mismatch_keys': mismatches[:10],  # first 10 entries
         }
 ```
 
 ---
 
-## 5. スケーリング手法の比較
+## 5. Comparison of Scaling Approaches
 
-### 比較表 1: 手法の特性比較
+### Comparison Table 1: Characteristics
 
-| 特性 | レプリケーション | パーティショニング | シャーディング |
+| Characteristic | Replication | Partitioning | Sharding |
 |------|:-------------:|:---------------:|:------------:|
-| 目的 | 読み取りスケール + 可用性 | 単一DB内のデータ管理 | 書き込みスケール |
-| データ分散 | 全データを複製 | 単一DB内でテーブル分割 | 異なるDBサーバーに分散 |
-| 書き込みスケール | 不可（単一Primary） | 限定的 | 可能 |
-| 読み取りスケール | 可能（Replica追加） | 可能（プルーニング） | 可能 |
-| 実装の複雑さ | 低 | 低〜中 | 高 |
-| クロスデータ結合 | 容易 | 容易 | 困難 |
-| 適用タイミング | 読み取り負荷 > 書き込み負荷 | 大テーブルの管理 | 書き込み負荷がDB上限超 |
+| Purpose | Read scaling + availability | Data management within single DB | Write scaling |
+| Data Distribution | All data replicated | Table split within single DB | Distributed across different DB servers |
+| Write Scaling | No (single Primary) | Limited | Yes |
+| Read Scaling | Yes (add Replicas) | Yes (pruning) | Yes |
+| Implementation Complexity | Low | Low-Medium | High |
+| Cross-data Joins | Easy | Easy | Difficult |
+| When to Apply | Read load > write load | Managing large tables | Write load exceeds single DB limit |
 
-### 比較表 2: 判断ポイント
+### Comparison Table 2: Decision Points
 
-| 判断ポイント | 推奨手法 | 理由 |
+| Decision Point | Recommended Approach | Reason |
 |-------------|---------|------|
-| 読み取り負荷が高い | Read Replica | 書き込みは1台で十分 |
-| テーブルが巨大 (数億行) | パーティショニング | 単一DB内で管理可能 |
-| 書き込みが秒間数万超 | シャーディング | Primary分散が必須 |
-| グローバル分散 | マルチリージョンレプリケーション | 地理的レイテンシ最適化 |
-| マルチテナント | テナント単位シャーディング | テナント間の完全分離 |
-| 時系列データの蓄積 | パーティショニング + アーカイブ | 古いデータの効率的管理 |
+| High read load | Read Replica | Single node sufficient for writes |
+| Huge tables (hundreds of millions of rows) | Partitioning | Manageable within single DB |
+| Writes exceed tens of thousands per second | Sharding | Primary distribution is required |
+| Global distribution | Multi-region replication | Geographic latency optimization |
+| Multi-tenant | Per-tenant sharding | Complete isolation between tenants |
+| Accumulating time-series data | Partitioning + archiving | Efficient management of old data |
 
-### 比較表 3: マネージドサービス比較
+### Comparison Table 3: Managed Services
 
-| 特性 | Amazon RDS | Amazon Aurora | Cloud Spanner | CockroachDB | Vitess |
+| Characteristic | Amazon RDS | Amazon Aurora | Cloud Spanner | CockroachDB | Vitess |
 |------|-----------|-------------|--------------|-------------|--------|
-| タイプ | マネージドRDB | クラウドネイティブRDB | NewSQL | NewSQL | シャーディングミドルウェア |
-| 自動スケール | 手動 (インスタンス変更) | ストレージ自動 | 自動 (ノード追加) | 自動 | 半自動 |
-| レプリケーション | 非同期/半同期 | 同期 (6-way) | 同期 (Paxos) | 同期 (Raft) | 非同期 |
-| シャーディング | 手動実装 | 不要 (Limitless) | 自動 | 自動 | 自動 |
-| 読み取りスケール | Replica追加 | 15 Replica | ノード追加 | ノード追加 | Replica追加 |
-| 書き込みスケール | なし (単一Primary) | 制限あり | リニア | リニア | シャード追加 |
-| グローバル分散 | マルチリージョンRead | Global Database | マルチリージョン | マルチリージョン | 手動 |
-| 互換性 | MySQL / PostgreSQL | MySQL / PostgreSQL 互換 | 独自 (SQL準拠) | PostgreSQL 互換 | MySQL |
-| コスト | $$ | $$$ | $$$$ | $$$ | $ (OSS) |
+| Type | Managed RDBMS | Cloud-native RDBMS | NewSQL | NewSQL | Sharding middleware |
+| Auto Scale | Manual (instance change) | Storage auto-scales | Automatic (add nodes) | Automatic | Semi-automatic |
+| Replication | Async/semi-sync | Synchronous (6-way) | Synchronous (Paxos) | Synchronous (Raft) | Asynchronous |
+| Sharding | Manual implementation | Not needed (Limitless) | Automatic | Automatic | Automatic |
+| Read Scaling | Add Replicas | 15 Replicas | Add nodes | Add nodes | Add Replicas |
+| Write Scaling | None (single Primary) | Limited | Linear | Linear | Add shards |
+| Global Distribution | Multi-region Read | Global Database | Multi-region | Multi-region | Manual |
+| Compatibility | MySQL / PostgreSQL | MySQL / PostgreSQL compatible | Proprietary (SQL-compliant) | PostgreSQL compatible | MySQL |
+| Cost | $$ | $$$ | $$$$ | $$$ | $ (OSS) |
 
 ---
 
-## 6. アンチパターン
+## 6. Anti-Patterns
 
-### アンチパターン 1: 早すぎるシャーディング
+### Anti-Pattern 1: Premature Sharding
 
 ```python
-# NG: ユーザー数1万人でシャーディング導入
+# BAD: Introducing sharding with only 10,000 users
 class PrematureSharding:
-    """早すぎるシャーディングの例"""
+    """Example of premature sharding"""
     def __init__(self):
-        # 1万人のユーザーに4シャード
+        # 4 shards for 10,000 users
         self.shards = [
             create_engine(f'postgresql://shard{i}:5432/myapp')
             for i in range(4)
@@ -1050,116 +1050,116 @@ class PrematureSharding:
 
     def get_user(self, user_id: str):
         shard_id = hash(user_id) % 4
-        # 問題: JOIN が必要なクエリがクロスシャードに
+        # Problem: queries requiring JOINs become cross-shard
         # SELECT u.*, o.* FROM users u JOIN orders o ON u.id = o.user_id
-        # → 2つのシャードにアクセスする必要がある
+        # → requires accessing 2 different shards
         pass
 
-# 問題点:
-# - 運用コスト 4倍 (バックアップ、監視、アップグレード)
-# - クロスシャードクエリの複雑性
-# - 単一DBで十分な規模 (1万ユーザー)
-# - リシャーディングが困難
+# Problems:
+# - 4x operational cost (backup, monitoring, upgrades)
+# - Complexity of cross-shard queries
+# - Scale of 10,000 users is sufficient for a single DB
+# - Resharding is difficult
 
-# OK: 段階的なスケーリング
+# GOOD: Gradual scaling
 class GradualScaling:
-    """段階的にスケーリングする正しいアプローチ"""
+    """Correct approach: scale incrementally"""
     def __init__(self, current_load: str):
         if current_load == "low":
-            # Step 1: インデックス最適化、クエリチューニング
+            # Step 1: index optimization, query tuning
             self.optimize_queries()
         elif current_load == "medium_read":
-            # Step 2: Read Replica による読み取り分散
+            # Step 2: distribute reads with Read Replicas
             self.add_read_replicas()
         elif current_load == "medium_write":
-            # Step 3: キャッシュ層 (Redis) の追加
+            # Step 3: add cache layer (Redis)
             self.add_cache_layer()
         elif current_load == "high":
-            # Step 4: テーブルパーティショニング
+            # Step 4: table partitioning
             self.add_partitioning()
         elif current_load == "extreme":
-            # Step 5: シャーディング（本当に必要になったら）
+            # Step 5: sharding (only when truly necessary)
             self.implement_sharding()
 ```
 
-### アンチパターン 2: 不適切なシャードキーの選定
+### Anti-Pattern 2: Poor Shard Key Selection
 
 ```python
-# NG: 作成日時をシャードキーに使用
+# BAD: Using creation timestamp as shard key
 class BadShardKey:
-    """ホットスポットが発生するシャードキー"""
+    """Shard key that causes hotspots"""
     def get_shard(self, created_at: datetime) -> int:
-        # 月別シャーディング
+        # Monthly sharding
         month = created_at.month
         return month % self.shard_count
 
-    # 問題:
-    # - 最新月のシャードに全ての書き込みが集中
-    # - 古いシャードはほとんどアクセスなし
-    # - リソースの無駄遣い
+    # Problems:
+    # - All writes concentrate on the current month's shard
+    # - Old shards receive almost no access
+    # - Wasted resources
 
-# NG: 自動インクリメント ID をシャードキーに使用
+# BAD: Using auto-increment ID as shard key
 class BadAutoIncrementShardKey:
     def get_shard(self, auto_id: int) -> int:
         return auto_id % self.shard_count
-    # 問題: 新規書き込みが常に同じシャードに集中
+    # Problem: new writes always concentrate on the same shard
 
-# OK: ユーザー ID / テナント ID をシャードキーに使用
+# GOOD: Using user ID / tenant ID as shard key
 class GoodShardKey:
-    """均等分散されるシャードキー"""
+    """Shard key with even distribution"""
     def get_shard(self, user_id: str) -> int:
-        # SHA-256 ハッシュで均等分散
+        # Even distribution with SHA-256 hash
         hash_val = int(hashlib.sha256(user_id.encode()).hexdigest(), 16)
         return hash_val % self.shard_count
 
-    # メリット:
-    # - アクセスが均等に分散
-    # - 同一ユーザーのデータが同じシャード (JOIN 可能)
-    # - UUIDならカーディナリティが高い
+    # Advantages:
+    # - Access is evenly distributed
+    # - Same user's data stays in the same shard (JOIN possible)
+    # - UUID provides high cardinality
 ```
 
-### アンチパターン 3: レプリケーションラグの無視
+### Anti-Pattern 3: Ignoring Replication Lag
 
 ```python
-# NG: 書き込み直後に Replica から読む
+# BAD: Reading from Replica immediately after writing
 class BadReadAfterWrite:
-    """書き込み直後のレプリカ読み取り"""
+    """Reading from Replica immediately after a write"""
     def update_and_read(self, user_id: str, new_name: str):
-        # Primary に書き込み
+        # Write to Primary
         with self.write_session() as session:
             user = session.query(User).get(user_id)
             user.name = new_name
             session.commit()
 
-        # 即座に Replica から読む → 古い名前が返る可能性！
+        # Immediately read from Replica → may return old name!
         with self.read_session() as session:
             user = session.query(User).get(user_id)
-            return user.name  # "古い名前" が返る可能性
+            return user.name  # may return "old name"
 
-# OK: Read-your-writes consistency を実装
+# GOOD: Implement Read-your-writes consistency
 class GoodReadAfterWrite:
-    """書き込み直後は Primary から読む"""
+    """Read from Primary immediately after writing"""
     def __init__(self):
         self._recent_writes: dict[str, float] = {}
 
     def update_and_read(self, user_id: str, new_name: str):
-        # Primary に書き込み
+        # Write to Primary
         with self.write_session() as session:
             user = session.query(User).get(user_id)
             user.name = new_name
             session.commit()
 
-        # 書き込みを記録
+        # Record the write
         self._recent_writes[f"user:{user_id}"] = time.time()
 
-        # 読み取り時に直近の書き込みをチェック
+        # Check for recent writes when reading
         last_write = self._recent_writes.get(f"user:{user_id}", 0)
-        use_primary = (time.time() - last_write) < 5.0  # 5秒以内
+        use_primary = (time.time() - last_write) < 5.0  # within 5 seconds
 
         if use_primary:
             with self.write_session() as session:
                 user = session.query(User).get(user_id)
-                return user.name  # 確実に最新値
+                return user.name  # guaranteed to be the latest value
         else:
             with self.read_session() as session:
                 user = session.query(User).get(user_id)
@@ -1168,44 +1168,44 @@ class GoodReadAfterWrite:
 
 ---
 
-## 7. 練習問題
+## 7. Exercises
 
-### 演習 1 (基礎): 読み書き分離の設計
+### Exercise 1 (Basic): Designing Read/Write Splitting
 
-以下の要件を満たす読み書き分離を設計せよ。
+Design a read/write splitting setup that meets the following requirements.
 
 ```
-要件:
-- Primary 1台、Replica 3台
-- 書き込み: Primary のみ
-- 読み取り: 通常は Replica、書き込み直後は Primary
-- Replica の健全性チェック (レプリケーションラグ 5秒以上は除外)
-- コネクションプーリング (アプリ20接続 → DB 50接続)
+Requirements:
+- 1 Primary, 3 Replicas
+- Writes: Primary only
+- Reads: normally from Replica, immediately after write from Primary
+- Replica health check (exclude if replication lag >= 5 seconds)
+- Connection pooling (app 20 connections → DB 50 connections)
 
-課題:
-1. ReadWriteSplitter クラスを設計せよ (get_write_session, get_read_session)
-2. レプリケーションラグが 5秒を超えた Replica を自動除外する仕組みを実装せよ
-3. 全 Replica が不健全な場合のフォールバック戦略を設計せよ
+Tasks:
+1. Design the ReadWriteSplitter class (get_write_session, get_read_session)
+2. Implement a mechanism to automatically exclude Replicas with lag > 5 seconds
+3. Design a fallback strategy when all Replicas are unhealthy
 ```
 
-**期待される出力:**
+**Expected Output:**
 
 ```python
-# ReadWriteSplitter クラスの実装:
-# - write_session(): Primary への接続を返す
+# ReadWriteSplitter class implementation:
+# - write_session(): returns connection to Primary
 # - read_session(entity_key):
-#     直近 5秒以内に entity_key で書き込みがあれば Primary
-#     そうでなければ健全な Replica からランダム選択
-# - health_check(): 各 Replica のラグを監視し、不健全なものを除外
-# - fallback: 全 Replica 不健全時は Primary から読み取り (負荷制限あり)
+#     if there was a write for entity_key within the last 5 seconds → Primary
+#     otherwise → randomly select from a healthy Replica
+# - health_check(): monitor lag for each Replica, exclude unhealthy ones
+# - fallback: when all Replicas are unhealthy, read from Primary (with rate limiting)
 ```
 
-### 演習 2 (応用): シャードキーの選定
+### Exercise 2 (Applied): Shard Key Selection
 
-以下のテーブル構造とクエリパターンから、最適なシャードキーを選定せよ。
+From the table structure and query patterns below, select the optimal shard key.
 
 ```sql
--- テーブル構造
+-- Table structure
 CREATE TABLE orders (
     id          UUID PRIMARY KEY,
     user_id     UUID NOT NULL,
@@ -1216,117 +1216,117 @@ CREATE TABLE orders (
     created_at  TIMESTAMP
 );
 
--- 主要クエリパターン (頻度順)
+-- Primary query patterns (ordered by frequency)
 -- 1. SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC LIMIT 20;  -- 60%
 -- 2. SELECT * FROM orders WHERE merchant_id = ? AND created_at >= ?;              -- 25%
 -- 3. SELECT SUM(amount) FROM orders WHERE country = ? AND created_at >= ?;        -- 10%
 -- 4. SELECT * FROM orders WHERE id = ?;                                           -- 5%
 ```
 
-**課題:**
-1. 各候補キー (user_id, merchant_id, country, id) を評価せよ
-2. 最適なシャードキーとその理由を述べよ
-3. 選定したキーで対応できないクエリへの対策を設計せよ
+**Tasks:**
+1. Evaluate each candidate key (user_id, merchant_id, country, id)
+2. State the optimal shard key and reasoning
+3. Design a strategy for queries that the selected key cannot handle efficiently
 
-### 演習 3 (上級): リシャーディング計画
+### Exercise 3 (Advanced): Resharding Plan
 
-4シャードから8シャードへのオンラインリシャーディングを計画せよ。
+Plan an online resharding from 4 shards to 8 shards.
 
 ```
-前提条件:
-- 現在 4 シャード (各 500GB, 合計 2TB)
-- シャードキー: user_id (SHA-256 ハッシュ % N)
-- 日次書き込み: 1億レコード
-- ダウンタイム: 0 (ゼロダウンタイム必須)
-- データ整合性: 100% 保証
+Preconditions:
+- Currently 4 shards (500GB each, 2TB total)
+- Shard key: user_id (SHA-256 hash % N)
+- Daily writes: 100M records
+- Downtime: 0 (zero downtime required)
+- Data consistency: 100% guaranteed
 
-設計項目:
-1. リシャーディング手順 (フェーズ分け)
-2. データ移行の並列度と所要時間の見積もり
-3. 整合性検証の方法
-4. ロールバック計画
-5. モニタリング項目
+Design items:
+1. Resharding procedure (broken into phases)
+2. Migration parallelism and estimated duration
+3. Consistency verification method
+4. Rollback plan
+5. Monitoring items
 ```
 
-**期待される出力:** 各フェーズの詳細手順、リスクと対策、所要時間の見積もり
+**Expected Output:** Detailed procedure for each phase, risks and mitigations, estimated duration
 
 ---
 
 ## 8. FAQ
 
-### Q1. シャーディングではトランザクションはどうなる？
+### Q1. What happens to transactions in sharding?
 
-**A.** 単一シャード内のトランザクションは通常通り ACID を保証できる。クロスシャードトランザクションには 2PC (Two-Phase Commit) や Saga パターンが必要だが、性能・複雑性のコストが高い。設計段階で「同一トランザクション内のデータは同一シャードに配置する」ことが最も重要な原則。例えばユーザーの注文データはユーザーIDでシャーディングし、ユーザーと注文が同じシャードに配置されるようにする。クロスシャードの集計は CQRS パターンで非同期に計算する方が現実的。
+**A.** Transactions within a single shard can guarantee ACID as usual. Cross-shard transactions require 2PC (Two-Phase Commit) or the Saga pattern, but the cost in performance and complexity is high. The most important principle is to design so that "data within the same transaction is placed in the same shard." For example, shard a user's order data by user ID so that users and orders are placed in the same shard. Cross-shard aggregations are more practical when computed asynchronously using the CQRS pattern.
 
-### Q2. レプリケーションラグはどの程度発生する？
+### Q2. How much replication lag typically occurs?
 
-**A.** 環境と設定に依存する。PostgreSQL のストリーミングレプリケーション (非同期) で通常 < 1秒、MySQL の半同期レプリケーションで < 100ms が目安。ただし、大量の書き込みバースト時やネットワーク遅延時には数秒〜数十秒に拡大する。監視は `pg_stat_replication` (PostgreSQL) や `SHOW SLAVE STATUS` (MySQL) で行い、閾値を超えたらアラートを発報する。書き込み直後の読み取り (Read-your-writes) が必要な場合は、一時的に Primary から読む戦略を実装する。
+**A.** It depends on the environment and configuration. With PostgreSQL streaming replication (asynchronous), the typical lag is < 1 second; with MySQL semi-synchronous replication, < 100ms. However, during large write bursts or network delays, it can expand to several seconds or tens of seconds. Monitor using `pg_stat_replication` (PostgreSQL) or `SHOW SLAVE STATUS` (MySQL) and fire alerts when thresholds are exceeded. When Read-your-writes consistency is required immediately after a write, implement a strategy to temporarily read from Primary.
 
-### Q3. パーティショニングとシャーディングの違いは？
+### Q3. What is the difference between partitioning and sharding?
 
-**A.** パーティショニングは**単一データベースサーバー内**でテーブルを論理的に分割する手法。PostgreSQL の `PARTITION BY RANGE/HASH/LIST` で実現し、アプリケーション側の変更は不要。パーティションプルーニングにより特定範囲のクエリが高速化する。一方、シャーディングは**複数の独立したデータベースサーバー**にデータを分散する手法。アプリケーション層でのルーティングが必要。パーティショニングは運用が簡単だが単一サーバーの制約内 (CPU/メモリ/ストレージ)、シャーディングはスケール上限がないが運用が複雑になる。
+**A.** Partitioning is a technique for logically splitting a table **within a single database server**. It is implemented using PostgreSQL's `PARTITION BY RANGE/HASH/LIST` and requires no application changes. Partition pruning accelerates queries for specific ranges. Sharding, on the other hand, is a technique for distributing data **across multiple independent database servers**. It requires routing at the application layer. Partitioning is easier to operate but is constrained by the single server (CPU/memory/storage), while sharding has no scaling limit but increases operational complexity.
 
-### Q4. NewSQL (Spanner, CockroachDB) は従来のシャーディングを不要にするか？
+### Q4. Do NewSQL databases (Spanner, CockroachDB) make traditional sharding unnecessary?
 
-**A.** 部分的に Yes。NewSQL はシャーディング・レプリケーション・分散トランザクションを自動化し、アプリケーション層でのシャードルーティングが不要。しかし、(1) コストが高い (Cloud Spanner は RDS の 3-5倍)、(2) レイテンシが高い (分散合意プロトコルのオーバーヘッド)、(3) エコシステムが限定的 (ORM/ツールの互換性)。単一リージョンで秒間 10万 TPS 未満なら PostgreSQL + Read Replica で十分。NewSQL は「グローバル分散 + 強整合性 + 書き込みスケール」の3つが全て必要な場合に検討する。
+**A.** Partially yes. NewSQL automates sharding, replication, and distributed transactions, eliminating the need for shard routing at the application layer. However: (1) costs are high (Cloud Spanner is 3-5x more expensive than RDS), (2) latency is higher (overhead of distributed consensus protocols), and (3) the ecosystem is limited (ORM/tool compatibility). For fewer than 100K TPS in a single region, PostgreSQL + Read Replica is sufficient. Consider NewSQL when all three of the following are required: "global distribution + strong consistency + write scaling."
 
-### Q5. コネクションプーリングは必須か？
+### Q5. Is connection pooling mandatory?
 
-**A.** 本番環境では必須。PostgreSQL はコネクションごとにプロセスを fork するため、500コネクション以上でメモリ消費とコンテキストスイッチが問題になる。PgBouncer (transaction mode) を導入することで、アプリケーション側の 1000 接続を DB 側の 50 接続に多重化できる。これにより (1) DB サーバーの負荷を 90% 削減、(2) コネクション確立のレイテンシを 10ms → < 1ms に短縮、(3) コネクションリークのリスクを軽減。MySQL では ProxySQL が同等の役割を果たす。
+**A.** Yes, in production environments. PostgreSQL forks a process per connection, so with 500+ connections, memory consumption and context switching become problematic. By introducing PgBouncer (transaction mode), 1000 application connections can be multiplexed into 50 DB connections. This (1) reduces DB server load by 90%, (2) reduces connection establishment latency from 10ms to < 1ms, and (3) mitigates connection leak risks. In MySQL, ProxySQL serves an equivalent role.
 
-### Q6. データベースのバックアップ戦略は？
+### Q6. What is the backup strategy for databases?
 
-**A.** 3-2-1 ルールを基本とする: 3コピー、2種類のメディア、1つはオフサイト。具体的には (1) **連続バックアップ (PITR)** --- WAL アーカイブを S3 に継続的に保存。任意の時点に復旧可能。RDS では自動化されている。(2) **日次フルバックアップ** --- pg_dump / mysqldump で論理バックアップ。整合性検証が容易。(3) **Replica からのバックアップ** --- Primary への負荷を避けるため、Replica からバックアップを取得。復旧テストを定期的 (月次) に実施し、RTO (復旧時間目標) と RPO (復旧ポイント目標) を確認する。シャーディング環境では各シャードのバックアップタイミングの整合性にも注意が必要。
+**A.** Use the 3-2-1 rule as a baseline: 3 copies, 2 types of media, 1 offsite. Specifically: (1) **Continuous backup (PITR)** --- archive WAL logs to S3 continuously, enabling recovery to any point in time; automated in RDS. (2) **Daily full backup** --- logical backup using pg_dump / mysqldump; easy consistency verification. (3) **Backup from Replica** --- take backups from a Replica to avoid load on Primary. Conduct regular (monthly) restore tests to verify RTO (Recovery Time Objective) and RPO (Recovery Point Objective). In a sharding environment, also pay attention to the consistency of backup timing across shards.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work, particularly during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| スケーリングの段階 | インデックス最適化 → プーリング → Replica → キャッシュ → パーティション → シャーディング |
-| レプリケーション | 読み取りスケールと高可用性。レプリケーションラグへの対策 (Read-your-writes) が必須 |
-| コネクションプーリング | PgBouncer (transaction mode) で接続数を 10-20倍に多重化 |
-| パーティショニング | 単一DB内で大テーブルを分割。プルーニングによるクエリ高速化。月次自動作成 |
-| シャーディング | 書き込みスケールの最終手段。シャードキー設計が成否を分ける |
-| シャードキー | アクセス均等分散 + 関連データの同一シャード配置 + 高カーディナリティが原則 |
-| リシャーディング | ゼロダウンタイムにはダブルライト + バックフィル方式。Vitess 等のツール活用 |
-| トランザクション | クロスシャードを避ける設計。必要なら Saga パターンまたは CQRS |
-| 監視 | レプリケーションラグ、コネクション数、クエリレイテンシ p99 を継続監視 |
+| Scaling stages | Index optimization → pooling → Replica → cache → partitioning → sharding |
+| Replication | Read scaling and high availability. Handling replication lag (Read-your-writes) is essential |
+| Connection pooling | Multiplex connections 10-20x with PgBouncer (transaction mode) |
+| Partitioning | Split large tables within a single DB. Query acceleration via pruning. Monthly auto-creation |
+| Sharding | Last resort for write scaling. Shard key design determines success or failure |
+| Shard key | Even access distribution + co-location of related data + high cardinality are the principles |
+| Resharding | Zero downtime requires dual-write + backfill approach. Use tools like Vitess |
+| Transactions | Design to avoid cross-shard operations. Use Saga pattern or CQRS if necessary |
+| Monitoring | Continuously monitor replication lag, connection count, and query latency p99 |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [キャッシング](./01-caching.md) --- DB 負荷軽減のためのキャッシュ戦略
-- [メッセージキュー](./02-message-queue.md) --- 非同期処理によるDB負荷軽減
-- [CDN](./03-cdn.md) --- 読み取り負荷をエッジにオフロード
-- [CAP 定理](../00-fundamentals/03-cap-theorem.md) --- 分散データベースの理論的基盤
-- [イベント駆動アーキテクチャ](../02-architecture/03-event-driven.md) --- CQRS とイベントソーシング
+- [Caching](./01-caching.md) --- Cache strategies to reduce DB load
+- [Message Queue](./02-message-queue.md) --- Reduce DB load through asynchronous processing
+- [CDN](./03-cdn.md) --- Offload read load to the edge
+- [CAP Theorem](../00-fundamentals/03-cap-theorem.md) --- Theoretical foundation of distributed databases
+- [Event-Driven Architecture](../02-architecture/03-event-driven.md) --- CQRS and event sourcing
 
 ---
 
-## 参考文献
+## References
 
-1. **Designing Data-Intensive Applications** --- Martin Kleppmann (O'Reilly, 2017) --- レプリケーション・パーティショニングの理論的基盤
-2. **Database Internals** --- Alex Petrov (O'Reilly, 2019) --- 分散データベースの内部構造と実装
-3. **High Performance MySQL, 4th Edition** --- Silvia Botros & Jeremy Tinley (O'Reilly, 2021) --- MySQL スケーリングの実践
+1. **Designing Data-Intensive Applications** --- Martin Kleppmann (O'Reilly, 2017) --- Theoretical foundation of replication and partitioning
+2. **Database Internals** --- Alex Petrov (O'Reilly, 2019) --- Internal structure and implementation of distributed databases
+3. **High Performance MySQL, 4th Edition** --- Silvia Botros & Jeremy Tinley (O'Reilly, 2021) --- Practical MySQL scaling
 4. **PostgreSQL Documentation: Table Partitioning** --- https://www.postgresql.org/docs/current/ddl-partitioning.html
-5. **Vitess Documentation** --- https://vitess.io/docs/ --- MySQL シャーディングミドルウェアの公式ドキュメント
+5. **Vitess Documentation** --- https://vitess.io/docs/ --- Official documentation for MySQL sharding middleware
