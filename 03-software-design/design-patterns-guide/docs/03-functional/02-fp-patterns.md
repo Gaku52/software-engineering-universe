@@ -1,80 +1,80 @@
-# 関数型パターン
+# Functional Patterns
 
-> カリー化、パイプライン、レンズなど、関数型プログラミングの実践的パターンを習得し、合成可能で保守性の高いコードを書く
+> Master practical functional programming patterns such as currying, pipelines, and lenses to write composable and maintainable code
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **関数合成の基本** — カリー化、部分適用、ポイントフリースタイルの仕組みと使い分け
-2. **パイプラインパターン** — データ変換チェーン、ミドルウェア合成、Railway Oriented Programming
-3. **不変データ操作** — レンズ、Prism、構造共有、Immer との比較
-4. **メモ化と最適化** — 計算キャッシュ、トランスデューサー、遅延評価
-5. **実務応用** — React/Redux での関数型パターン、テスト容易性の向上
+1. **Fundamentals of Function Composition** — How currying, partial application, and point-free style work, and when to use each
+2. **Pipeline Patterns** — Data transformation chains, middleware composition, Railway Oriented Programming
+3. **Immutable Data Manipulation** — Lenses, Prisms, structural sharing, and comparison with Immer
+4. **Memoization and Optimization** — Computation caching, transducers, lazy evaluation
+5. **Practical Applications** — Functional patterns in React/Redux, improving testability
 
 ---
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識を持っていることを推奨します。
+Before reading this guide, it is recommended that you have the following knowledge.
 
-| 前提知識 | 参照先 |
+| Prerequisite | Reference |
 |---|---|
-| TypeScript の基本（ジェネリクス、型推論） | [02-programming カテゴリ](../../../../02-programming/) |
-| 高階関数の概念（map, filter, reduce） | JavaScript/TypeScript の基本 |
-| 不変性（Immutability）の基本概念 | クリーンコードの原則 |
-| ファンクタとモナドの基礎 | [ファンクタ・アプリカティブ](./01-functor-applicative.md)、[モナド](./00-monad.md) |
+| TypeScript basics (generics, type inference) | [02-programming category](../../../../02-programming/) |
+| Higher-order function concepts (map, filter, reduce) | JavaScript/TypeScript basics |
+| Basic concept of Immutability | Clean code principles |
+| Basics of Functors and Monads | [Functor & Applicative](./01-functor-applicative.md), [Monad](./00-monad.md) |
 
 ---
 
-## 1. カリー化と部分適用
+## 1. Currying and Partial Application
 
-### 1.1 カリー化とは何か — WHY から理解する
+### 1.1 What Is Currying — Understanding the WHY
 
 ```
-カリー化と部分適用
-====================
+Currying and Partial Application
+==================================
 
-通常の関数:
+Regular function:
   add(a, b) = a + b
   add(3, 5)  --> 8
 
-カリー化:
+Currying:
   add = a => b => a + b
-  add(3)     --> b => 3 + b   (部分適用された関数)
+  add(3)     --> b => 3 + b   (partially applied function)
   add(3)(5)  --> 8
 
-部分適用:
-  add3 = add(3)    // 引数を1つ固定
+Partial Application:
+  add3 = add(3)    // fix one argument
   add3(5)  --> 8
   add3(10) --> 13
 
-利点: 関数の再利用と合成が容易になる
+Benefit: Makes function reuse and composition easier
 ```
 
-**WHY**: なぜカリー化が必要なのか？
+**WHY**: Why do we need currying?
 
-カリー化は一見すると不必要な複雑さに見えますが、以下の3つの重要な利点があります。
+Currying may appear to be unnecessary complexity at first glance, but it provides three important benefits:
 
-1. **関数の再利用**: 引数の一部を固定して特化した関数を作れる
-2. **関数合成**: 1引数関数のチェーンとして合成しやすい
-3. **遅延評価**: 全引数が揃うまで計算を遅延できる
+1. **Function reuse**: Fix some arguments to create specialized functions
+2. **Function composition**: Easier to compose as a chain of single-argument functions
+3. **Lazy evaluation**: Delay computation until all arguments are provided
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│  カリー化の動作イメージ                                 │
+│  How Currying Works                                    │
 │                                                        │
-│  通常の関数: f(a, b, c) → 結果                         │
-│  全引数を一度に渡す                                     │
+│  Regular function: f(a, b, c) → result                 │
+│  Pass all arguments at once                            │
 │                                                        │
-│  カリー化: f(a) → g(b) → h(c) → 結果                  │
-│  引数を1つずつ渡すと、次の関数が返る                    │
+│  Currying: f(a) → g(b) → h(c) → result                │
+│  Pass one argument at a time, each returns the next fn │
 │                                                        │
 │  multiply(2)(5)                                        │
 │       │    │                                           │
-│       │    └─ 最終引数 → 結果 10                       │
-│       └─ 最初の引数 → (b => 2 * b) 関数が返る         │
+│       │    └─ Final argument → result 10               │
+│       └─ First argument → returns function (b => 2 * b)│
 │                                                        │
-│  const double = multiply(2)  ← 部分適用で再利用可能    │
-│  const triple = multiply(3)  ← 別の特化関数も作れる    │
+│  const double = multiply(2)  ← Reusable via partial app│
+│  const triple = multiply(3)  ← Another specialized fn  │
 │                                                        │
 │  double(5)  → 10                                       │
 │  double(7)  → 14                                       │
@@ -82,24 +82,24 @@
 └────────────────────────────────────────────────────────┘
 ```
 
-### コード例 1: カリー化の実装と活用
+### Code Example 1: Implementing and Using Currying
 
 ```typescript
-// === 汎用カリー化関数 ===
+// === General-purpose currying functions ===
 
-// 2引数のカリー化
+// Curry for 2 arguments
 function curry<A, B, C>(fn: (a: A, b: B) => C): (a: A) => (b: B) => C {
   return (a: A) => (b: B) => fn(a, b);
 }
 
-// 3引数のカリー化
+// Curry for 3 arguments
 function curry3<A, B, C, D>(
   fn: (a: A, b: B, c: C) => D
 ): (a: A) => (b: B) => (c: C) => D {
   return (a: A) => (b: B) => (c: C) => fn(a, b, c);
 }
 
-// 任意引数のカリー化（JavaScript の動的な機能を活用）
+// Curry for arbitrary arguments (leveraging JavaScript's dynamic features)
 function curryN(fn: (...args: any[]) => any): (...args: any[]) => any {
   const arity = fn.length;
   return function curried(...args: any[]): any {
@@ -110,7 +110,7 @@ function curryN(fn: (...args: any[]) => any): (...args: any[]) => any {
   };
 }
 
-// === 実用例1: 数値計算 ===
+// === Practical Example 1: Numeric computation ===
 const multiply = curry((a: number, b: number) => a * b);
 const double = multiply(2);
 const triple = multiply(3);
@@ -119,7 +119,7 @@ console.log(double(5));  // 10
 console.log(triple(5));  // 15
 console.log(double(7));  // 14
 
-// === 実用例2: 文字列処理 ===
+// === Practical Example 2: String processing ===
 const prefix = curry((pre: string, str: string) => `${pre}${str}`);
 const addHttps = prefix("https://");
 const addApiPrefix = prefix("/api/v1");
@@ -127,7 +127,7 @@ const addApiPrefix = prefix("/api/v1");
 console.log(addHttps("example.com"));   // "https://example.com"
 console.log(addApiPrefix("/users"));     // "/api/v1/users"
 
-// === 実用例3: フィルタの部分適用 ===
+// === Practical Example 3: Partial application of filters ===
 const filterBy = curry3(
   <T>(key: keyof T, value: T[keyof T], items: T[]) =>
     items.filter(item => item[key] === value)
@@ -155,13 +155,13 @@ console.log(getPendingOrders(orders));
 // [{ id: 2, status: "pending", amount: 200 }]
 ```
 
-### コード例 2: Rust での部分適用
+### Code Example 2: Partial Application in Rust
 
 ```rust
-// Rust ではクロージャで部分適用を実現する
+// In Rust, partial application is achieved using closures
 
 fn main() {
-    // クロージャによる部分適用
+    // Partial application via closures
     let multiply = |a: i32| move |b: i32| a * b;
     let double = multiply(2);
     let triple = multiply(3);
@@ -169,7 +169,7 @@ fn main() {
     println!("double(5) = {}", double(5));  // 10
     println!("triple(5) = {}", triple(5));  // 15
 
-    // 実用例: 文字列フォーマット
+    // Practical example: string formatting
     let format_price = |currency: &str| {
         let currency = currency.to_string();
         move |amount: f64| format!("{}{:.2}", currency, amount)
@@ -181,13 +181,13 @@ fn main() {
     println!("{}", format_usd(19.99));  // $19.99
     println!("{}", format_yen(2000.0)); // ¥2000.00
 
-    // 実用例: バリデーション関数の生成
+    // Practical example: generating validation functions
     let min_length = |min: usize| {
         move |s: &str| -> Result<&str, String> {
             if s.len() >= min {
                 Ok(s)
             } else {
-                Err(format!("{}文字以上必要です（現在{}文字）", min, s.len()))
+                Err(format!("Must be at least {} characters (currently {} characters)", min, s.len()))
             }
         }
     };
@@ -195,46 +195,47 @@ fn main() {
     let validate_username = min_length(3);
     let validate_password = min_length(8);
 
-    println!("{:?}", validate_username("ab"));      // Err("3文字以上必要です（現在2文字）")
+    println!("{:?}", validate_username("ab"));      // Err("Must be at least 3 characters (currently 2 characters)")
     println!("{:?}", validate_username("alice"));    // Ok("alice")
-    println!("{:?}", validate_password("pass"));     // Err("8文字以上必要です（現在4文字）")
+    println!("{:?}", validate_password("pass"));     // Err("Must be at least 8 characters (currently 4 characters)")
     println!("{:?}", validate_password("password123")); // Ok("password123")
 }
 ```
 
-### 1.2 カリー化と部分適用の違い
+### 1.2 Difference Between Currying and Partial Application
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│  カリー化 vs 部分適用                                   │
+│  Currying vs Partial Application                       │
 │                                                        │
-│  ■ カリー化 (Currying):                                │
+│  ■ Currying:                                           │
 │    f(a, b, c) → f(a)(b)(c)                             │
-│    全引数を1つずつ受け取る関数に変換する                │
-│    元の関数の形を変える                                 │
+│    Transforms a function to accept one argument at a   │
+│    time; changes the shape of the original function    │
 │                                                        │
-│  ■ 部分適用 (Partial Application):                     │
-│    f(a, b, c) → g(b, c)   [a を固定]                   │
-│    一部の引数を固定した新しい関数を作る                 │
-│    元の関数を呼び出す際に一部の引数を事前に渡す         │
+│  ■ Partial Application:                                │
+│    f(a, b, c) → g(b, c)   [a is fixed]                 │
+│    Creates a new function with some arguments fixed;   │
+│    passes some arguments upfront when calling the      │
+│    original function                                   │
 │                                                        │
-│  ■ 関係:                                               │
-│    カリー化された関数に引数を1つ渡す                    │
-│    = 部分適用の一形態                                   │
+│  ■ Relationship:                                       │
+│    Passing one argument to a curried function          │
+│    = a form of partial application                     │
 │                                                        │
-│  ■ 実用上の違い:                                       │
-│    カリー化: 関数合成パイプラインで便利                 │
-│    部分適用: 設定値の注入で便利                         │
+│  ■ Practical difference:                               │
+│    Currying: useful in function composition pipelines  │
+│    Partial application: useful for injecting config    │
 └────────────────────────────────────────────────────────┘
 ```
 
 ```typescript
-// 部分適用（カリー化なし）
+// Partial application (without currying)
 function partial<A, B, C>(fn: (a: A, b: B) => C, a: A): (b: B) => C {
   return (b: B) => fn(a, b);
 }
 
-// bind による部分適用（JavaScript 標準）
+// Partial application via bind (JavaScript standard)
 function greet(greeting: string, name: string): string {
   return `${greeting}, ${name}!`;
 }
@@ -247,48 +248,48 @@ console.log(sayHi("Hanako"));   // "Hi, Hanako!"
 
 ---
 
-## 2. パイプラインパターン
+## 2. Pipeline Patterns
 
-### 2.1 パイプラインとは — WHY から理解する
+### 2.1 What Is a Pipeline — Understanding the WHY
 
 ```
-パイプラインの考え方
+The Pipeline Concept
 =====================
 
-データ --> [変換1] --> [変換2] --> [変換3] --> 結果
+Data --> [Transform1] --> [Transform2] --> [Transform3] --> Result
 
-Unix パイプ:
+Unix pipe:
   cat file | grep "error" | sort | uniq -c
 
-関数パイプライン:
+Function pipeline:
   pipe(getData, filter(isActive), map(toDTO), sortBy('name'))
 
-WHY: なぜパイプラインか？
-  1. 宣言的: 「何をするか」を順序通りに記述
-  2. 合成可能: 各ステップが独立、差し替え容易
-  3. テスト容易: 各変換関数を単独でテスト可能
-  4. 読みやすい: データの流れが左→右（上→下）で自然
+WHY: Why pipelines?
+  1. Declarative: describe "what to do" in order
+  2. Composable: each step is independent and swappable
+  3. Testable: each transformation function can be tested in isolation
+  4. Readable: data flows left→right (top→bottom) naturally
 ```
 
 ```
 ┌────────────────────────────────────────────────────────┐
 │  pipe vs compose                                       │
 │                                                        │
-│  pipe:    f → g → h   (左から右、データの流れ順)       │
-│  compose: h ∘ g ∘ f   (右から左、数学的な合成順)       │
+│  pipe:    f → g → h   (left to right, data flow order) │
+│  compose: h ∘ g ∘ f   (right to left, mathematical)    │
 │                                                        │
 │  pipe(f, g, h)(x)    = h(g(f(x)))                     │
 │  compose(h, g, f)(x) = h(g(f(x)))                     │
 │                                                        │
-│  実用上は pipe が読みやすい（データの流れが自然）       │
-│  数学的な議論では compose が使われる                    │
+│  In practice, pipe is more readable (natural data flow)│
+│  compose is used in mathematical discussions           │
 └────────────────────────────────────────────────────────┘
 ```
 
-### コード例 3: 型安全なパイプライン関数
+### Code Example 3: Type-Safe Pipeline Function
 
 ```typescript
-// === 型安全な pipe 関数（オーバーロード） ===
+// === Type-safe pipe function (with overloads) ===
 
 function pipe<A, B>(a: A, ab: (a: A) => B): B;
 function pipe<A, B, C>(a: A, ab: (a: A) => B, bc: (b: B) => C): C;
@@ -302,7 +303,7 @@ function pipe(initial: unknown, ...fns: Function[]): unknown {
   return fns.reduce((acc, fn) => fn(acc), initial);
 }
 
-// === 遅延パイプライン（関数を返す版） ===
+// === Lazy pipeline (returns a function) ===
 
 function pipeWith<A, B>(ab: (a: A) => B): (a: A) => B;
 function pipeWith<A, B, C>(
@@ -315,14 +316,14 @@ function pipeWith(...fns: Function[]): Function {
   return (initial: unknown) => fns.reduce((acc, fn) => fn(acc), initial);
 }
 
-// compose: 右から左
+// compose: right to left
 function compose<A, B, C>(
   bc: (b: B) => C, ab: (a: A) => B
 ): (a: A) => C {
   return (a: A) => bc(ab(a));
 }
 
-// === 実用例: ユーザーデータ変換パイプライン ===
+// === Practical example: user data transformation pipeline ===
 
 interface RawUser {
   first_name: string;
@@ -338,7 +339,7 @@ interface ProcessedUser {
   email: string;
 }
 
-// 各ステップを独立した純粋関数として定義
+// Define each step as an independent pure function
 const filterActive = (users: RawUser[]) =>
   users.filter(u => u.status === "active");
 
@@ -355,7 +356,7 @@ const toProcessedUser = (users: RawUser[]): ProcessedUser[] =>
 const sortByName = (users: ProcessedUser[]) =>
   [...users].sort((a, b) => a.fullName.localeCompare(b.fullName));
 
-// パイプラインとして合成
+// Compose as a pipeline
 const processUsers = pipeWith(
   filterActive,
   filterAdults,
@@ -363,7 +364,7 @@ const processUsers = pipeWith(
   sortByName,
 );
 
-// 使用
+// Usage
 const rawUsers: RawUser[] = [
   { first_name: "Taro", last_name: "Yamada", age: 25, status: "active", email: "TARO@example.com" },
   { first_name: "Hanako", last_name: "Suzuki", age: 16, status: "active", email: "hanako@example.com" },
@@ -379,10 +380,10 @@ console.log(result);
 // ]
 ```
 
-### コード例 4: ミドルウェア合成パターン
+### Code Example 4: Middleware Composition Pattern
 
 ```typescript
-// === Express/Koa スタイルのミドルウェア合成 ===
+// === Express/Koa-style middleware composition ===
 
 type Middleware<T> = (ctx: T, next: () => Promise<void>) => Promise<void>;
 
@@ -399,7 +400,7 @@ function composeMiddleware<T>(...middlewares: Middleware<T>[]): Middleware<T> {
   };
 }
 
-// ミドルウェアの定義
+// Middleware definitions
 interface Context {
   method: string;
   path: string;
@@ -420,7 +421,7 @@ const logger: Middleware<Context> = async (ctx, next) => {
 const auth: Middleware<Context> = async (ctx, next) => {
   const token = ctx.headers.authorization;
   if (!token) throw new Error("Unauthorized: No token provided");
-  // トークン検証（簡略化）
+  // Token validation (simplified)
   ctx.user = { id: "user-1", role: "admin" };
   await next();
 };
@@ -441,10 +442,10 @@ const handler: Middleware<Context> = async (ctx, next) => {
   await next();
 };
 
-// ミドルウェアの合成
+// Compose middleware
 const app = composeMiddleware(errorHandler, logger, auth, handler);
 
-// 使用
+// Usage
 const ctx: Context = {
   method: "GET",
   path: "/api/users",
@@ -459,28 +460,28 @@ console.log(ctx.response); // { status: 200, data: { message: "Hello!" } }
 
 ### 2.2 Railway Oriented Programming
 
-エラーハンドリングをパイプラインに組み込むパターンです。
+A pattern for incorporating error handling into pipelines.
 
 ```
 ┌────────────────────────────────────────────────────────┐
 │  Railway Oriented Programming                          │
 │                                                        │
-│  成功の線路:  ─────[処理1]─────[処理2]─────[処理3]──→  │
-│              ╲           ╲           ╲                  │
-│  失敗の線路:  ─────────────────────────────────────→    │
+│  Success track: ─────[Step1]─────[Step2]─────[Step3]──→│
+│                 ╲           ╲           ╲               │
+│  Failure track:  ─────────────────────────────────────→ │
 │                                                        │
-│  各処理で:                                              │
-│  - 成功 → 成功の線路を継続                              │
-│  - 失敗 → 失敗の線路に切り替え（以降の処理はスキップ） │
+│  At each step:                                         │
+│  - Success → continue on success track                 │
+│  - Failure → switch to failure track (skip remaining)  │
 │                                                        │
-│  Result<E, A> を使って型安全に実現                      │
+│  Achieved type-safely using Result<E, A>               │
 └────────────────────────────────────────────────────────┘
 ```
 
-### コード例 5: Railway Oriented Programming の実装
+### Code Example 5: Implementing Railway Oriented Programming
 
 ```typescript
-// === Result 型の実装 ===
+// === Result type implementation ===
 
 type Result<E, A> =
   | { tag: "Ok"; value: A }
@@ -489,12 +490,12 @@ type Result<E, A> =
 const ok = <E, A>(value: A): Result<E, A> => ({ tag: "Ok", value });
 const err = <E, A>(error: E): Result<E, A> => ({ tag: "Err", error });
 
-// map: 成功時のみ変換（ファンクタ）
+// map: transform only on success (functor)
 function mapR<E, A, B>(result: Result<E, A>, fn: (a: A) => B): Result<E, B> {
   return result.tag === "Ok" ? ok(fn(result.value)) : result;
 }
 
-// flatMap: 成功時のみ次の計算を実行（モナド）
+// flatMap: execute next computation only on success (monad)
 function flatMapR<E, A, B>(
   result: Result<E, A>,
   fn: (a: A) => Result<E, B>
@@ -502,7 +503,7 @@ function flatMapR<E, A, B>(
   return result.tag === "Ok" ? fn(result.value) : result;
 }
 
-// mapError: エラーの変換
+// mapError: transform the error
 function mapError<E1, E2, A>(
   result: Result<E1, A>,
   fn: (e: E1) => E2
@@ -510,7 +511,7 @@ function mapError<E1, E2, A>(
   return result.tag === "Err" ? err(fn(result.error)) : result;
 }
 
-// === Railway パイプライン ===
+// === Railway pipeline ===
 function railway<E, A, B>(
   ...fns: Array<(a: any) => Result<E, any>>
 ): (a: A) => Result<E, B> {
@@ -524,7 +525,7 @@ function railway<E, A, B>(
   };
 }
 
-// === 実用例: ユーザー登録パイプライン ===
+// === Practical example: user registration pipeline ===
 
 interface RegistrationInput {
   username: string;
@@ -557,22 +558,22 @@ type RegistrationError =
   | { type: "duplicate"; field: string }
   | { type: "database"; message: string };
 
-// 各ステップ
+// Each step
 function validateInput(input: RegistrationInput): Result<RegistrationError, ValidatedInput> {
   if (input.username.length < 3) {
-    return err({ type: "validation", message: "ユーザー名は3文字以上" });
+    return err({ type: "validation", message: "Username must be at least 3 characters" });
   }
   if (!input.email.includes("@")) {
-    return err({ type: "validation", message: "無効なメールアドレス" });
+    return err({ type: "validation", message: "Invalid email address" });
   }
   if (input.password.length < 8) {
-    return err({ type: "validation", message: "パスワードは8文字以上" });
+    return err({ type: "validation", message: "Password must be at least 8 characters" });
   }
   return ok(input);
 }
 
 function checkDuplicate(input: ValidatedInput): Result<RegistrationError, ValidatedInput> {
-  // DB チェック（簡略化）
+  // DB check (simplified)
   const existingUsers = ["admin", "root"];
   if (existingUsers.includes(input.username)) {
     return err({ type: "duplicate", field: "username" });
@@ -585,10 +586,10 @@ function hashPassword(input: ValidatedInput): Result<RegistrationError, HashedIn
     return ok({
       username: input.username,
       email: input.email,
-      passwordHash: `hashed_${input.password}`, // 実際にはbcryptを使用
+      passwordHash: `hashed_${input.password}`, // Use bcrypt in production
     });
   } catch {
-    return err({ type: "database", message: "ハッシュ化に失敗" });
+    return err({ type: "database", message: "Failed to hash password" });
   }
 }
 
@@ -600,11 +601,11 @@ function saveToDatabase(input: HashedInput): Result<RegistrationError, User> {
       createdAt: new Date(),
     });
   } catch {
-    return err({ type: "database", message: "保存に失敗" });
+    return err({ type: "database", message: "Failed to save" });
   }
 }
 
-// Railway パイプライン
+// Railway pipeline
 const registerUser = railway<RegistrationError, RegistrationInput, User>(
   validateInput,
   checkDuplicate,
@@ -612,7 +613,7 @@ const registerUser = railway<RegistrationError, RegistrationInput, User>(
   saveToDatabase,
 );
 
-// 使用例
+// Usage examples
 const result1 = registerUser({
   username: "taro",
   email: "taro@example.com",
@@ -625,68 +626,68 @@ const result2 = registerUser({
   email: "bad",
   password: "short",
 });
-console.log(result2); // { tag: "Err", error: { type: "validation", message: "ユーザー名は3文字以上" } }
+console.log(result2); // { tag: "Err", error: { type: "validation", message: "Username must be at least 3 characters" } }
 ```
 
 ---
 
-## 3. 不変データ操作（レンズ）
+## 3. Immutable Data Manipulation (Lenses)
 
-### 3.1 レンズとは — WHY から理解する
+### 3.1 What Is a Lens — Understanding the WHY
 
 ```
-レンズ: 不変データ構造の部分的な読み書き
-=========================================
+Lens: Partial read/write of immutable data structures
+======================================================
 
-深いネストのオブジェクト更新の問題:
+The problem with updating deeply nested objects:
 
-[NG] ミュータブルな直接更新
+[NG] Direct mutable update
   user.address.city = "Tokyo";
-  → 副作用、テスト困難、予測不可能な変更
+  → Side effects, difficult to test, unpredictable changes
 
-[NG] スプレッド地獄
+[NG] Spread hell
   { ...user, address: { ...user.address, city: "Tokyo" } }
-  → ネストが深くなるほど醜くなる
+  → Gets uglier as nesting deepens
 
-[OK] レンズで宣言的に更新
+[OK] Declarative update with lenses
   set(addressCityLens, "Tokyo", user)
-  → 合成可能、型安全、宣言的
+  → Composable, type-safe, declarative
 
-レンズの型:
+Lens type:
   Lens<S, A>
-    get: S -> A          (全体から部分を取得)
-    set: (A, S) -> S     (部分を更新して新しい全体を返す)
+    get: S -> A          (get a part from the whole)
+    set: (A, S) -> S     (update a part and return new whole)
 ```
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│  レンズの動作イメージ                                   │
+│  How Lenses Work                                       │
 │                                                        │
 │  ┌──────────────────┐                                  │
 │  │  User             │                                 │
 │  │  ├─ name: "Taro"  │                                 │
 │  │  └─ address       │ ← addressLens                   │
-│  │     ├─ city: "大阪"│ ← cityLens                     │
+│  │     ├─ city: "Osaka"│ ← cityLens                   │
 │  │     └─ zip: "530"  │                                │
 │  └──────────────────┘                                  │
 │                                                        │
 │  userCityLens = composeLens(addressLens, cityLens)     │
 │                                                        │
-│  get: user → "大阪"                                    │
-│  set("東京", user) → 新しいUser（city: "東京"）        │
-│  over(toUpperCase, user) → 新しいUser（city: "大阪"）  │
+│  get: user → "Osaka"                                   │
+│  set("Tokyo", user) → new User (city: "Tokyo")         │
+│  over(toUpperCase, user) → new User (city: "OSAKA")    │
 │                                                        │
-│  ポイント:                                              │
-│  - 元の user オブジェクトは変更されない（不変）         │
-│  - レンズは合成できる                                   │
-│  - 型安全（TypeScript の型推論が効く）                  │
+│  Key points:                                           │
+│  - Original user object is not changed (immutable)     │
+│  - Lenses can be composed                              │
+│  - Type-safe (TypeScript type inference works)         │
 └────────────────────────────────────────────────────────┘
 ```
 
-### コード例 6: レンズの完全実装
+### Code Example 6: Complete Lens Implementation
 
 ```typescript
-// === レンズの型と基本操作 ===
+// === Lens type and basic operations ===
 
 interface Lens<S, A> {
   get: (s: S) => A;
@@ -700,7 +701,7 @@ function lens<S, A>(
   return { get, set };
 }
 
-// レンズの合成
+// Lens composition
 function composeLens<S, A, B>(outer: Lens<S, A>, inner: Lens<A, B>): Lens<S, B> {
   return {
     get: (s: S) => inner.get(outer.get(s)),
@@ -708,22 +709,22 @@ function composeLens<S, A, B>(outer: Lens<S, A>, inner: Lens<A, B>): Lens<S, B> 
   };
 }
 
-// over: レンズを通して関数を適用
+// over: apply a function through a lens
 function over<S, A>(l: Lens<S, A>, fn: (a: A) => A, s: S): S {
   return l.set(fn(l.get(s)), s);
 }
 
-// view: レンズを通して値を取得（get のエイリアス）
+// view: get a value through a lens (alias for get)
 function view<S, A>(l: Lens<S, A>, s: S): A {
   return l.get(s);
 }
 
-// set: レンズを通して値を設定
+// set: set a value through a lens
 function setL<S, A>(l: Lens<S, A>, a: A, s: S): S {
   return l.set(a, s);
 }
 
-// === プロパティレンズの自動生成 ===
+// === Auto-generating property lenses ===
 function prop<S, K extends keyof S>(key: K): Lens<S, S[K]> {
   return lens(
     (s: S) => s[key],
@@ -731,7 +732,7 @@ function prop<S, K extends keyof S>(key: K): Lens<S, S[K]> {
   );
 }
 
-// === 使用例 ===
+// === Usage examples ===
 
 interface Address {
   city: string;
@@ -745,13 +746,13 @@ interface User {
   address: Address;
 }
 
-// プロパティレンズ
+// Property lenses
 const addressLens = prop<User, "address">("address");
 const cityLens = prop<Address, "city">("city");
 const nameLens = prop<User, "name">("name");
 const ageLens = prop<User, "age">("age");
 
-// レンズの合成
+// Lens composition
 const userCityLens = composeLens(addressLens, cityLens);
 
 const user: User = {
@@ -763,36 +764,36 @@ const user: User = {
 // get
 console.log(view(userCityLens, user)); // "Osaka"
 
-// set — 不変更新
+// set — immutable update
 const updated = setL(userCityLens, "Tokyo", user);
 console.log(updated);
 // { name: "Taro", age: 30, address: { city: "Tokyo", zip: "530-0001", country: "Japan" } }
-console.log(user.address.city); // "Osaka" — 元のオブジェクトは変更されない!
+console.log(user.address.city); // "Osaka" — original object is unchanged!
 
-// over — 関数適用
+// over — apply a function
 const uppercased = over(userCityLens, c => c.toUpperCase(), user);
 console.log(uppercased.address.city); // "OSAKA"
 
-// 複数の更新を合成
+// Compose multiple updates
 const birthday = (u: User): User => {
   const aged = over(ageLens, a => a + 1, u);
-  return over(nameLens, n => `${n} (${aged.age}歳)`, aged);
+  return over(nameLens, n => `${n} (age ${aged.age})`, aged);
 };
 
 console.log(birthday(user));
-// { name: "Taro (31歳)", age: 31, address: { ... } }
+// { name: "Taro (age 31)", age: 31, address: { ... } }
 ```
 
-### 3.2 レンズ vs Immer vs スプレッド構文
+### 3.2 Lens vs Immer vs Spread Syntax
 
-| 手法 | メリット | デメリット | 適用場面 |
+| Approach | Pros | Cons | Best For |
 |---|---|---|---|
-| **スプレッド構文** | 追加ライブラリ不要、直感的 | ネスト深い場合に冗長 | 浅いネスト（1-2段） |
-| **Immer** | ミュータブル風に書ける、構造共有 | ランタイムコスト | 中程度のネスト、Redux |
-| **レンズ** | 合成可能、型安全、再利用可能 | 学習コスト、初期セットアップ | 深いネスト、頻繁な更新 |
+| **Spread syntax** | No extra library needed, intuitive | Verbose for deep nesting | Shallow nesting (1-2 levels) |
+| **Immer** | Write like mutable code, structural sharing | Runtime cost | Moderate nesting, Redux |
+| **Lens** | Composable, type-safe, reusable | Learning curve, initial setup | Deep nesting, frequent updates |
 
 ```typescript
-// === 3つの手法の比較 ===
+// === Comparison of the three approaches ===
 
 const user = {
   name: "Taro",
@@ -805,25 +806,25 @@ const user = {
   },
 };
 
-// 1. スプレッド構文 — 読みにくい
+// 1. Spread syntax — hard to read
 const updated1 = {
   ...user,
   address: {
     ...user.address,
     location: {
       ...user.address.location,
-      lat: 35.68, // 東京の緯度
+      lat: 35.68, // latitude of Tokyo
     },
   },
 };
 
-// 2. Immer — 直感的だがランタイムコスト
+// 2. Immer — intuitive but with runtime cost
 import { produce } from "immer";
 const updated2 = produce(user, draft => {
   draft.address.location.lat = 35.68;
 });
 
-// 3. レンズ — 合成可能で再利用可能
+// 3. Lens — composable and reusable
 const locationLens = composeLens(
   prop<typeof user, "address">("address"),
   composeLens(
@@ -836,38 +837,38 @@ const updated3 = setL(locationLens, 35.68, user);
 
 ---
 
-## 4. メモ化と最適化
+## 4. Memoization and Optimization
 
-### 4.1 メモ化 — WHY から理解する
+### 4.1 Memoization — Understanding the WHY
 
-**WHY**: 純粋関数は同じ入力に対して常に同じ出力を返すため、計算結果をキャッシュして再利用できます。これがメモ化の基本原理です。
+**WHY**: Pure functions always return the same output for the same input, so you can cache and reuse computation results. This is the fundamental principle behind memoization.
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│  メモ化の動作                                           │
+│  How Memoization Works                                 │
 │                                                        │
-│  初回呼び出し:                                          │
-│  fibonacci(10) → 計算実行 → 結果 55 → キャッシュに保存 │
+│  First call:                                           │
+│  fibonacci(10) → compute → result 55 → store in cache  │
 │                                                        │
-│  2回目以降:                                             │
-│  fibonacci(10) → キャッシュヒット → 結果 55（瞬時）    │
+│  Subsequent calls:                                     │
+│  fibonacci(10) → cache hit → result 55 (instant)      │
 │                                                        │
-│  前提条件:                                              │
-│  - 純粋関数であること（副作用なし）                     │
-│  - 参照透過性があること（同じ入力→同じ出力）           │
-│  - 引数空間が有限または頻出パターンがあること           │
+│  Preconditions:                                        │
+│  - Must be a pure function (no side effects)           │
+│  - Must be referentially transparent (same in→same out)│
+│  - Argument space must be finite or have frequent reuse│
 │                                                        │
-│  注意:                                                  │
-│  - メモリ使用量とのトレードオフ                         │
-│  - LRU キャッシュでメモリ制限を設ける                   │
-│  - 引数がオブジェクトの場合はキー生成に注意             │
+│  Caution:                                              │
+│  - Trade-off with memory usage                         │
+│  - Use LRU cache to limit memory                       │
+│  - Be careful with key generation for object arguments │
 └────────────────────────────────────────────────────────┘
 ```
 
-### コード例 7: メモ化の実装
+### Code Example 7: Implementing Memoization
 
 ```typescript
-// === 汎用メモ化関数 ===
+// === General-purpose memoization function ===
 
 function memoize<Args extends unknown[], R>(
   fn: (...args: Args) => R,
@@ -883,14 +884,14 @@ function memoize<Args extends unknown[], R>(
     return result;
   };
 
-  // キャッシュの管理メソッドを追加
+  // Add cache management methods
   (memoized as any).cache = cache;
   (memoized as any).clear = () => cache.clear();
 
   return memoized;
 }
 
-// === LRU キャッシュ付きメモ化 ===
+// === Memoization with LRU cache ===
 
 function memoizeLRU<Args extends unknown[], R>(
   fn: (...args: Args) => R,
@@ -903,7 +904,7 @@ function memoizeLRU<Args extends unknown[], R>(
     const key = keyFn(...args);
     if (cache.has(key)) {
       const value = cache.get(key)!;
-      // LRU: アクセスしたら末尾に移動
+      // LRU: move to end on access
       cache.delete(key);
       cache.set(key, value);
       return value;
@@ -911,7 +912,7 @@ function memoizeLRU<Args extends unknown[], R>(
     const result = fn(...args);
     cache.set(key, result);
     if (cache.size > maxSize) {
-      // 最も古いエントリを削除
+      // Delete the oldest entry
       const oldest = cache.keys().next().value;
       if (oldest !== undefined) cache.delete(oldest);
     }
@@ -919,11 +920,11 @@ function memoizeLRU<Args extends unknown[], R>(
   };
 }
 
-// === TTL（有効期限）付きメモ化 ===
+// === Memoization with TTL (time-to-live) ===
 
 function memoizeTTL<Args extends unknown[], R>(
   fn: (...args: Args) => R,
-  ttlMs: number = 60000 // デフォルト1分
+  ttlMs: number = 60000 // default 1 minute
 ): (...args: Args) => R {
   const cache = new Map<string, { value: R; expiresAt: number }>();
 
@@ -942,44 +943,44 @@ function memoizeTTL<Args extends unknown[], R>(
   };
 }
 
-// === 使用例 ===
+// === Usage examples ===
 
-// 1. フィボナッチ数列
+// 1. Fibonacci sequence
 const fibonacci = memoize((n: number): number =>
   n <= 1 ? n : fibonacci(n - 1) + fibonacci(n - 2)
 );
 
-console.log(fibonacci(50)); // 12586269025 — 瞬時に計算
+console.log(fibonacci(50)); // 12586269025 — computed instantly
 
-// 2. 高コストなデータ変換
+// 2. Expensive data transformation
 const processLargeDataset = memoizeLRU(
   (data: string[], threshold: number): string[] => {
     console.log("Computing...");
     return data.filter(d => d.length > threshold).sort();
   },
-  50 // 最大50エントリをキャッシュ
+  50 // cache up to 50 entries
 );
 
 const data = ["apple", "banana", "cherry", "date"];
 processLargeDataset(data, 4); // Computing... → ["apple", "banana", "cherry"]
-processLargeDataset(data, 4); // キャッシュヒット → ["apple", "banana", "cherry"]
+processLargeDataset(data, 4); // cache hit → ["apple", "banana", "cherry"]
 
-// 3. API レスポンスのキャッシュ
+// 3. Caching API responses
 const fetchUserCached = memoizeTTL(
   async (userId: string) => {
     const res = await fetch(`/api/users/${userId}`);
     return res.json();
   },
-  30000 // 30秒キャッシュ
+  30000 // cache for 30 seconds
 );
 ```
 
-### コード例 8: Rust でのメモ化
+### Code Example 8: Memoization in Rust
 
 ```rust
 use std::collections::HashMap;
 
-// Rust でのメモ化（HashMap ベース）
+// Memoization in Rust (HashMap-based)
 struct Memoize<F, K, V>
 where
     F: Fn(K) -> V,
@@ -1014,7 +1015,7 @@ where
 }
 
 fn main() {
-    // フィボナッチのメモ化（HashMap使用）
+    // Memoized fibonacci (using HashMap)
     let mut fib_cache: HashMap<u64, u64> = HashMap::new();
 
     fn fib(n: u64, cache: &mut HashMap<u64, u64>) -> u64 {
@@ -1029,31 +1030,31 @@ fn main() {
     println!("fib(50) = {}", fib(50, &mut fib_cache));
     // fib(50) = 12586269025
 
-    // 文字列処理のメモ化
+    // Memoized string processing
     let mut processor = Memoize::new(|s: String| {
         println!("Processing: {}", s);
         s.chars().rev().collect::<String>()
     });
 
     println!("{}", processor.call("hello".to_string())); // Processing: hello → "olleh"
-    println!("{}", processor.call("hello".to_string())); // キャッシュヒット → "olleh"
+    println!("{}", processor.call("hello".to_string())); // cache hit → "olleh"
     println!("{}", processor.call("world".to_string())); // Processing: world → "dlrow"
 }
 ```
 
-### 4.2 トランスデューサー
+### 4.2 Transducers
 
 ```typescript
-// === トランスデューサー: 中間配列なしの変換合成 ===
+// === Transducers: composing transformations without intermediate arrays ===
 
-// 問題: 通常のチェーンは各ステップで中間配列を作る
+// Problem: ordinary chaining creates an intermediate array at each step
 const result1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-  .filter(x => x % 2 === 0)  // [2, 4, 6, 8, 10] — 中間配列1
-  .map(x => x * 10)           // [20, 40, 60, 80, 100] — 中間配列2
-  .filter(x => x > 30);       // [40, 60, 80, 100] — 中間配列3
-// 3回の配列走査、3つの中間配列
+  .filter(x => x % 2 === 0)  // [2, 4, 6, 8, 10] — intermediate array 1
+  .map(x => x * 10)           // [20, 40, 60, 80, 100] — intermediate array 2
+  .filter(x => x > 30);       // [40, 60, 80, 100] — intermediate array 3
+// 3 array traversals, 3 intermediate arrays
 
-// 解決: トランスデューサーは変換を合成し、1回の走査で処理
+// Solution: transducers compose transformations, processing in a single pass
 type Reducer<A, B> = (acc: B, value: A) => B;
 type Transducer<A, B> = <C>(reducer: Reducer<B, C>) => Reducer<A, C>;
 
@@ -1085,7 +1086,7 @@ function transduce<A, B, C>(
   return input.reduce(composed, initial);
 }
 
-// 使用例
+// Usage example
 const xform = composeT(
   filterT<number>(x => x % 2 === 0),
   composeT(
@@ -1102,21 +1103,21 @@ const result2 = transduce(
 );
 
 console.log(result2); // [40, 60, 80, 100]
-// 1回の走査、中間配列なし!
+// Single traversal, no intermediate arrays!
 ```
 
 ---
 
-## 5. 実務での関数型パターン
+## 5. Functional Patterns in Practice
 
-### 5.1 React/Redux での関数型パターン
+### 5.1 Functional Patterns in React/Redux
 
 ```typescript
-// === React Hooks と関数型パターン ===
+// === React Hooks and functional patterns ===
 
-// 1. useMemo — メモ化
+// 1. useMemo — memoization
 function ExpensiveComponent({ data, filter }: Props) {
-  // data や filter が変わらない限り再計算しない
+  // Does not recompute unless data or filter changes
   const processed = useMemo(
     () => data.filter(filter).sort(compareFn).map(toDisplayItem),
     [data, filter]
@@ -1125,13 +1126,13 @@ function ExpensiveComponent({ data, filter }: Props) {
   return <List items={processed} />;
 }
 
-// 2. useReducer — 状態遷移の関数型モデル
+// 2. useReducer — functional model of state transitions
 type Action =
   | { type: "ADD_ITEM"; payload: Item }
   | { type: "REMOVE_ITEM"; payload: string }
   | { type: "UPDATE_ITEM"; payload: { id: string; changes: Partial<Item> } };
 
-// Reducer は純粋関数: (State, Action) → State
+// Reducer is a pure function: (State, Action) → State
 function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "ADD_ITEM":
@@ -1153,7 +1154,7 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-// 3. カスタムフック — 関数の合成
+// 3. Custom hooks — function composition
 function useFilteredSortedData<T>(
   data: T[],
   filterFn: (item: T) => boolean,
@@ -1169,10 +1170,10 @@ function useFilteredSortedData<T>(
 }
 ```
 
-### コード例 9: Redux Toolkit と関数型パターン
+### Code Example 9: Redux Toolkit and Functional Patterns
 
 ```typescript
-// === Redux Toolkit（Immer ベース）===
+// === Redux Toolkit (Immer-based) ===
 
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
@@ -1185,7 +1186,7 @@ const todoSlice = createSlice({
   name: "todos",
   initialState: { items: [], filter: "all" } as TodoState,
   reducers: {
-    // Immer により、ミュータブル風に書いても不変更新される
+    // Immer allows mutable-style writing while keeping updates immutable
     addTodo: (state, action: PayloadAction<string>) => {
       state.items.push({
         id: Date.now().toString(),
@@ -1203,7 +1204,7 @@ const todoSlice = createSlice({
   },
 });
 
-// Selector — 純粋関数でデータを導出
+// Selector — derive data using pure functions
 const selectFilteredTodos = (state: RootState): Todo[] => {
   const { items, filter } = state.todos;
   switch (filter) {
@@ -1216,7 +1217,7 @@ const selectFilteredTodos = (state: RootState): Todo[] => {
   }
 };
 
-// メモ化されたセレクタ（reselect パターン）
+// Memoized selector (reselect pattern)
 import { createSelector } from "@reduxjs/toolkit";
 
 const selectTodos = (state: RootState) => state.todos.items;
@@ -1234,10 +1235,10 @@ const selectFilteredTodosMemoized = createSelector(
 );
 ```
 
-### コード例 10: fp-ts を使った関数型プログラミング
+### Code Example 10: Functional Programming with fp-ts
 
 ```typescript
-// === fp-ts: TypeScript の本格的な関数型ライブラリ ===
+// === fp-ts: a full-featured functional programming library for TypeScript ===
 
 import { pipe } from "fp-ts/function";
 import * as O from "fp-ts/Option";
@@ -1245,7 +1246,7 @@ import * as E from "fp-ts/Either";
 import * as A from "fp-ts/Array";
 import * as TE from "fp-ts/TaskEither";
 
-// 1. Option（Maybe）の使用
+// 1. Using Option (Maybe)
 const getUser = (id: string): O.Option<User> =>
   id === "1" ? O.some({ id: "1", name: "Taro", age: 30 }) : O.none;
 
@@ -1257,24 +1258,24 @@ const result1 = pipe(
 );
 console.log(result1); // "TARO"
 
-// 2. Either（Result）の使用
+// 2. Using Either (Result)
 const parseAge = (s: string): E.Either<string, number> => {
   const n = parseInt(s, 10);
-  return isNaN(n) ? E.left("無効な数値") : E.right(n);
+  return isNaN(n) ? E.left("Invalid number") : E.right(n);
 };
 
 const validateAge = (age: number): E.Either<string, number> =>
-  age >= 0 && age <= 150 ? E.right(age) : E.left("年齢の範囲外");
+  age >= 0 && age <= 150 ? E.right(age) : E.left("Age out of range");
 
 const result2 = pipe(
   parseAge("25"),
   E.flatMap(validateAge),
-  E.map(age => `年齢: ${age}歳`),
-  E.getOrElse(err => `エラー: ${err}`)
+  E.map(age => `Age: ${age}`),
+  E.getOrElse(err => `Error: ${err}`)
 );
-console.log(result2); // "年齢: 25歳"
+console.log(result2); // "Age: 25"
 
-// 3. 配列操作
+// 3. Array operations
 const users: User[] = [
   { id: "1", name: "Taro", age: 30 },
   { id: "2", name: "Hanako", age: 17 },
@@ -1289,7 +1290,7 @@ const adultNames = pipe(
 );
 console.log(adultNames); // ["Jiro", "Taro"]
 
-// 4. TaskEither（非同期 + エラーハンドリング）
+// 4. TaskEither (async + error handling)
 const fetchUser = (id: string): TE.TaskEither<Error, User> =>
   TE.tryCatch(
     () => fetch(`/api/users/${id}`).then(r => r.json()),
@@ -1302,7 +1303,7 @@ const fetchOrders = (userId: string): TE.TaskEither<Error, Order[]> =>
     (err) => new Error(`Failed to fetch orders: ${err}`)
   );
 
-// パイプラインで合成
+// Compose using a pipeline
 const getUserWithOrders = (userId: string) =>
   pipe(
     fetchUser(userId),
@@ -1317,122 +1318,122 @@ const getUserWithOrders = (userId: string) =>
 
 ---
 
-## 関数型パターン一覧比較表
+## Functional Pattern Comparison Table
 
-| パターン | 目的 | TypeScript での実現 | Rust での実現 | Haskell |
+| Pattern | Purpose | TypeScript Implementation | Rust Implementation | Haskell |
 |---|---|---|---|---|
-| **カリー化** | 部分適用で関数を再利用 | arrow function / curry() | クロージャ | デフォルト |
-| **パイプライン** | データ変換の宣言的記述 | pipe() 関数 | メソッドチェーン | `$` / `|>` |
-| **レンズ** | 不変データの部分更新 | 手動実装 / Ramda | なし（所有権で管理） | lens パッケージ |
-| **メモ化** | 計算結果のキャッシュ | Map / useMemo | HashMap | MVar / IORef |
-| **トランスデューサー** | 中間配列なしの変換合成 | reduce ベース | Iterator アダプタ | conduit |
-| **パターンマッチ** | データ構造の分解と分岐 | 型ガード / switch | match 式 | case / pattern |
-| **Railway** | エラーハンドリング | Result 型 | Result<T, E> | Either |
+| **Currying** | Reuse functions via partial application | arrow function / curry() | Closures | Default |
+| **Pipeline** | Declarative description of data transformation | pipe() function | Method chaining | `$` / `|>` |
+| **Lens** | Partial updates to immutable data | Manual / Ramda | None (managed via ownership) | lens package |
+| **Memoization** | Cache computation results | Map / useMemo | HashMap | MVar / IORef |
+| **Transducer** | Compose transformations without intermediate arrays | reduce-based | Iterator adapters | conduit |
+| **Pattern matching** | Destructure and branch on data structures | Type guards / switch | match expression | case / pattern |
+| **Railway** | Error handling pipeline | Result type | Result<T, E> | Either |
 
-### 関数型 vs 手続き型比較表
+### Functional vs Imperative Comparison Table
 
-| 側面 | 関数型 | 手続き型 |
+| Aspect | Functional | Imperative |
 |---|---|---|
-| **状態管理** | 不変データ + 新しい値を返す | ミュータブル変数を直接変更 |
-| **制御フロー** | 再帰、高階関数、パイプライン | ループ、条件分岐 |
-| **副作用** | 分離して管理（IO モナド等） | どこでも発生 |
-| **テスト容易性** | 高い（参照透過性、純粋関数） | 低い（状態依存、モック必要） |
-| **並行性** | 安全（共有状態なし） | 危険（競合状態） |
-| **デバッグ** | 値の追跡が容易 | 状態の追跡が困難 |
-| **パフォーマンス** | GC 依存、構造共有で改善 | 直接メモリ操作で高速 |
-| **学習コスト** | 高い（抽象概念が多い） | 低い（直感的） |
+| **State management** | Immutable data + return new values | Directly mutate mutable variables |
+| **Control flow** | Recursion, higher-order functions, pipelines | Loops, conditionals |
+| **Side effects** | Isolated and managed (IO monad, etc.) | Can occur anywhere |
+| **Testability** | High (referential transparency, pure functions) | Low (state-dependent, requires mocks) |
+| **Concurrency** | Safe (no shared state) | Dangerous (race conditions) |
+| **Debugging** | Easy to trace values | Difficult to trace state |
+| **Performance** | GC-dependent, improved with structural sharing | Fast via direct memory manipulation |
+| **Learning curve** | High (many abstract concepts) | Low (intuitive) |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### 1. 過度なポイントフリースタイル
+### 1. Excessive Point-Free Style
 
 ```typescript
-// [NG] 引数名を省略しすぎて可読性が著しく低下
+// [NG] Omitting argument names too aggressively, severely hurting readability
 const process = pipe(
   filter(propEq("active", true)),
   map(pick(["id", "name"])),
   sortBy(prop("name"))
 );
-// 何を処理しているか読み取りにくい
-// デバッグ時にどのステップで問題が起きたか追いにくい
+// Hard to tell what is being processed
+// Hard to debug which step caused an issue
 
-// [OK] 適度な命名で意図を明確にする
+// [OK] Use descriptive names to clarify intent
 const getActiveUserNames = (users: User[]) =>
   users
     .filter(u => u.active)
     .map(u => ({ id: u.id, name: u.name }))
     .sort((a, b) => a.name.localeCompare(b.name));
-// 引数名があるので何を処理しているか一目瞭然
+// Argument names make it immediately clear what is being processed
 ```
 
-### 2. 不適切なメモ化
+### 2. Inappropriate Memoization
 
 ```typescript
-// [NG] 副作用のある関数をメモ化
+// [NG] Memoizing a function with side effects
 const badMemo = memoize((url: string) => {
-  console.log(`Fetching: ${url}`);  // 副作用!
+  console.log(`Fetching: ${url}`);  // Side effect!
   return fetch(url).then(r => r.json());
 });
-// 2回目の呼び出しで console.log が実行されない → ログが不完全に
+// console.log won't run on the second call → incomplete logs
 
-// [NG] 引数空間が巨大な関数をメモ化
+// [NG] Memoizing a function with a huge argument space
 const badMemo2 = memoize((data: number[]) => {
   return data.reduce((a, b) => a + b, 0);
 });
-// 異なる配列が毎回渡される → キャッシュが効かずメモリだけ消費
+// Different arrays passed every time → cache never hits, only consumes memory
 
-// [OK] 純粋関数をメモ化 + LRU でメモリ制限
+// [OK] Memoize pure functions + limit memory with LRU
 const goodMemo = memoizeLRU(
   (n: number): number => {
-    // 重い計算（副作用なし）
+    // Expensive computation (no side effects)
     return fibonacci(n);
   },
-  1000 // 最大1000エントリ
+  1000 // up to 1000 entries
 );
 ```
 
-### 3. 不必要な不変性強制
+### 3. Unnecessary Immutability Enforcement
 
 ```typescript
-// [NG] ループ内で毎回新しい配列を作成（パフォーマンス問題）
+// [NG] Creating a new array on every iteration (performance issue)
 function buildLargeArray(n: number): number[] {
   let result: number[] = [];
   for (let i = 0; i < n; i++) {
-    result = [...result, i]; // O(n) のコピーが n 回 = O(n²)
+    result = [...result, i]; // O(n) copy repeated n times = O(n²)
   }
   return result;
 }
 
-// [OK] ローカルスコープ内ではミュータブルを許可し、結果を不変として返す
+// [OK] Allow mutation within local scope, return the result as immutable
 function buildLargeArrayGood(n: number): readonly number[] {
-  const result: number[] = []; // ローカルでミュータブル
+  const result: number[] = []; // mutable locally
   for (let i = 0; i < n; i++) {
-    result.push(i); // O(1) の push が n 回 = O(n)
+    result.push(i); // O(1) push repeated n times = O(n)
   }
-  return result; // 不変な readonly として返す
+  return result; // return as immutable readonly
 }
 ```
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1（基礎）: カリー化とパイプラインの実装
+### Exercise 1 (Beginner): Implement Currying and Pipelines
 
-**課題**: 以下の要件を満たす関数を実装してください。
+**Task**: Implement functions that satisfy the following requirements.
 
-1. `curry2` と `curry3` を実装する
-2. `pipe` 関数を実装する（2〜5ステップ）
-3. カリー化した関数をパイプラインで合成して、文字列変換パイプラインを作る
+1. Implement `curry2` and `curry3`
+2. Implement a `pipe` function (2–5 steps)
+3. Compose curried functions in a pipeline to build a string transformation pipeline
 
 ```typescript
-// TODO: curry2, curry3 を実装
+// TODO: implement curry2 and curry3
 
-// TODO: pipe を実装
+// TODO: implement pipe
 
-// テストケース
+// Test cases
 const trim = (s: string) => s.trim();
 const toLower = (s: string) => s.toLowerCase();
 const addPrefix = curry2((prefix: string, s: string) => `${prefix}${s}`);
@@ -1443,20 +1444,20 @@ console.log(normalizeEmail("  TARO@Example.COM  "));
 // "mailto:taro@example.com"
 ```
 
-**期待される出力**:
+**Expected output**:
 
 ```
 normalizeEmail("  TARO@Example.COM  ") = "mailto:taro@example.com"
 ```
 
-### 演習2（応用）: レンズによる不変データ更新
+### Exercise 2 (Intermediate): Immutable Data Updates with Lenses
 
-**課題**: レンズパターンを使って、ネストしたデータ構造の不変更新を実装してください。
+**Task**: Use the lens pattern to implement immutable updates for a nested data structure.
 
-要件:
-1. `lens`, `composeLens`, `over`, `prop` を実装する
-2. 以下のデータ構造に対して、レンズを使った操作を行う
-3. 元のオブジェクトが変更されていないことをテストで確認する
+Requirements:
+1. Implement `lens`, `composeLens`, `over`, and `prop`
+2. Perform lens-based operations on the following data structure
+3. Verify in tests that the original object has not been modified
 
 ```typescript
 interface Company {
@@ -1471,9 +1472,9 @@ interface Company {
   employees: number;
 }
 
-// TODO: レンズを実装
+// TODO: implement lenses
 
-// テストケース
+// Test cases
 const company: Company = {
   name: "TechCorp",
   ceo: {
@@ -1483,164 +1484,164 @@ const company: Company = {
   employees: 500,
 };
 
-// CEO の住所の都市名を更新
+// Update the CEO's city
 const updated = setL(ceoCityLens, "Osaka", company);
 console.log(updated.ceo.address.city); // "Osaka"
-console.log(company.ceo.address.city); // "Tokyo" ← 元は変更されていない
+console.log(company.ceo.address.city); // "Tokyo" ← original is unchanged
 ```
 
-**期待される出力**:
+**Expected output**:
 
 ```
-更新後: Osaka
-元データ: Tokyo（変更されていない）
-over で大文字化: TOKYO
+Updated: Osaka
+Original: Tokyo (unchanged)
+Uppercased via over: TOKYO
 ```
 
-### 演習3（発展）: Railway Oriented Programming の実装
+### Exercise 3 (Advanced): Implementing Railway Oriented Programming
 
-**課題**: Result 型と Railway パイプラインを実装し、EC サイトの注文処理フローを構築してください。
+**Task**: Implement the Result type and a Railway pipeline to build an order processing flow for an e-commerce site.
 
-要件:
-1. `Result<E, A>` 型と `ok`, `err`, `flatMapR` を実装
-2. 以下の処理ステップを Result を返す関数として実装:
-   - `validateOrder`: 注文内容の検証
-   - `checkStock`: 在庫確認
-   - `calculatePrice`: 価格計算（割引適用）
-   - `processPayment`: 支払い処理
-   - `createShipment`: 配送手配
-3. railway パイプラインで全ステップを合成
-4. 各ステップでのエラーが適切に伝播されることを確認
+Requirements:
+1. Implement the `Result<E, A>` type along with `ok`, `err`, and `flatMapR`
+2. Implement the following processing steps as functions returning Result:
+   - `validateOrder`: validate order contents
+   - `checkStock`: check inventory
+   - `calculatePrice`: calculate price (apply discounts)
+   - `processPayment`: handle payment
+   - `createShipment`: arrange shipping
+3. Compose all steps using a railway pipeline
+4. Verify that errors from each step propagate correctly
 
 ```typescript
-// TODO: Result 型と Railway パイプラインを実装
+// TODO: implement Result type and Railway pipeline
 
-// テストケース
+// Test cases
 const result1 = processOrder({
   items: [{ productId: "p1", quantity: 2 }],
   paymentMethod: "credit_card",
   shippingAddress: "Tokyo",
 });
-// 期待: Ok({ orderId: "...", status: "shipped", ... })
+// Expected: Ok({ orderId: "...", status: "shipped", ... })
 
 const result2 = processOrder({
   items: [],
   paymentMethod: "credit_card",
   shippingAddress: "Tokyo",
 });
-// 期待: Err({ step: "validation", message: "注文に商品が含まれていません" })
+// Expected: Err({ step: "validation", message: "Order contains no items" })
 ```
 
-**期待される出力**:
+**Expected output**:
 
 ```
-テスト1 (正常注文):
+Test 1 (valid order):
   Ok: { orderId: "order_...", status: "shipped", total: 5000 }
 
-テスト2 (空の注文):
-  Err: { step: "validation", message: "注文に商品が含まれていません" }
+Test 2 (empty order):
+  Err: { step: "validation", message: "Order contains no items" }
 
-テスト3 (在庫不足):
-  Err: { step: "stock", message: "商品 p99 の在庫が不足しています" }
+Test 3 (out of stock):
+  Err: { step: "stock", message: "Insufficient stock for product p99" }
 ```
 
 ---
 
 ## FAQ
 
-### Q1: カリー化は JavaScript/TypeScript で実用的ですか？
+### Q1: Is currying practical in JavaScript/TypeScript?
 
-**A**: 部分適用は非常に実用的ですが、フルカリー化は TypeScript の型推論と相性が悪い場合があります。実用的なアプローチとして:
+**A**: Partial application is very practical, but full currying can conflict with TypeScript's type inference in some cases. Practical approaches include:
 
-- `lodash/fp` や `ramda` の `curry` を使う
-- arrow function での手動部分適用: `const double = multiply(2);`
-- TypeScript 5.x 以降では const type parameter の改善により、カリー化の型推論が向上
+- Use `curry` from `lodash/fp` or `ramda`
+- Manual partial application with arrow functions: `const double = multiply(2);`
+- TypeScript 5.x and later improved type inference for currying via const type parameters
 
-ポイントは「必要な箇所だけ部分適用する」ことです。全ての関数をカリー化する必要はありません。
+The key is to "use partial application only where it's needed." There is no need to curry every function.
 
-### Q2: パイプライン演算子 (`|>`) は使えますか？
+### Q2: Can I use the pipeline operator (`|>`)?
 
-**A**: JavaScript の TC39 提案（Stage 2）として進行中ですが、2026年時点では標準化されていません。代替手段:
+**A**: It is progressing as a TC39 proposal (Stage 2) for JavaScript, but as of 2026 it has not been standardized. Alternatives include:
 
-1. `pipe()` ユーティリティ関数（fp-ts, ramda 等）
-2. メソッドチェーン（Array.map().filter() 等）
-3. Babel プラグインでの先行使用（本番環境では非推奨）
+1. `pipe()` utility functions (fp-ts, ramda, etc.)
+2. Method chaining (Array.map().filter(), etc.)
+3. Early adoption via Babel plugin (not recommended for production)
 
-### Q3: Immutable.js や Immer は必要ですか？
+### Q3: Do I need Immutable.js or Immer?
 
-**A**: プロジェクトの規模と複雑さに依存します:
+**A**: It depends on the scale and complexity of your project:
 
-- **小規模（浅いネスト）**: スプレッド構文で十分
-- **中規模（Redux 使用）**: Immer が推奨（Redux Toolkit に内蔵）
-- **大規模（深いネスト、頻繁な更新）**: レンズパターンまたは Immer
-- **Immutable.js**: 構造共有による効率的な不変データ。ただし plain JS との変換コストがある
+- **Small scale (shallow nesting)**: Spread syntax is sufficient
+- **Medium scale (using Redux)**: Immer is recommended (built into Redux Toolkit)
+- **Large scale (deep nesting, frequent updates)**: Lens pattern or Immer
+- **Immutable.js**: Efficient immutable data via structural sharing, but has conversion costs to/from plain JS
 
-### Q4: 関数型プログラミングはパフォーマンスが悪いのでは？
+### Q4: Doesn't functional programming have poor performance?
 
-**A**: 一般的なWebアプリケーションではパフォーマンスの差は無視できるレベルです。不変更新はオブジェクトのコピーコストがありますが、以下の最適化が可能です:
+**A**: In typical web applications, the performance difference is negligible. Immutable updates have object copy costs, but the following optimizations are possible:
 
-- **構造共有**: Immer や Immutable.js は変更されない部分を共有
-- **メモ化**: 再計算を避けて高速化
-- **遅延評価**: 必要になるまで計算を遅延
-- **トランスデューサー**: 中間配列の削減
+- **Structural sharing**: Immer and Immutable.js share unchanged parts
+- **Memoization**: Avoid recomputation for speed
+- **Lazy evaluation**: Delay computation until needed
+- **Transducers**: Reduce intermediate arrays
 
-パフォーマンスが本当に問題になるのは、大量データの繰り返し処理やリアルタイム処理の場合のみです。
+Performance only becomes a real concern for repeated processing of large data volumes or real-time processing scenarios.
 
-### Q5: 関数型パターンを段階的に導入するには？
+### Q5: How do I introduce functional patterns incrementally?
 
-**A**: 以下の順序で段階的に導入するのが効果的です:
+**A**: Introducing them in the following order is effective:
 
-1. **不変性**: `const` の使用、スプレッド構文、`Array.map/filter/reduce`
-2. **純粋関数**: 副作用のない関数を意識的に書く
-3. **パイプライン**: データ変換をパイプラインとして記述
-4. **Result/Option**: null チェックやエラーハンドリングの型安全化
-5. **レンズ/メモ化**: 必要に応じて高度なパターンを導入
+1. **Immutability**: Use `const`, spread syntax, `Array.map/filter/reduce`
+2. **Pure functions**: Consciously write functions without side effects
+3. **Pipelines**: Describe data transformations as pipelines
+4. **Result/Option**: Make null checks and error handling type-safe
+5. **Lenses/Memoization**: Introduce advanced patterns as needed
 
-一気に全てを導入する必要はありません。
+There is no need to introduce everything at once.
 
-### Q6: OOP と関数型プログラミングは共存できますか？
+### Q6: Can OOP and functional programming coexist?
 
-**A**: はい、多くの現代的な言語（TypeScript, Kotlin, Scala, Rust）は両方のパラダイムをサポートしています。実践的な指針:
+**A**: Yes, many modern languages (TypeScript, Kotlin, Scala, Rust) support both paradigms. Practical guidelines:
 
-- **データの変換**: 関数型（map, filter, pipe）
-- **状態のカプセル化**: OOP（クラス、モジュール）
-- **副作用の管理**: 関数型（純粋関数 + 副作用の分離）
-- **抽象化**: 両方（インターフェース + 高階関数）
+- **Data transformation**: functional (map, filter, pipe)
+- **State encapsulation**: OOP (classes, modules)
+- **Side effect management**: functional (pure functions + isolating side effects)
+- **Abstraction**: both (interfaces + higher-order functions)
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Topic | Key Points |
 |---|---|
-| カリー化 | 引数を1つずつ受け取る関数に変換。部分適用で再利用性向上 |
-| 部分適用 | 一部の引数を固定した新しい関数を生成。設定値の注入に便利 |
-| パイプライン | データ変換を宣言的に記述。可読性と保守性の向上 |
-| compose | 右から左への関数合成。数学的な合成順序 |
-| pipe | 左から右への関数合成。データの流れが自然 |
-| Railway | Result 型を使ったエラーハンドリングパイプライン |
-| レンズ | 不変データ構造の部分的な読み書きを合成可能に |
-| メモ化 | 純粋関数の計算結果をキャッシュ。再計算を回避 |
-| トランスデューサー | 中間配列なしの変換合成。メモリ効率と速度の改善 |
-| ミドルウェア | 関数合成による横断的関心事の分離 |
-| 実践指針 | 可読性とのバランスが重要。段階的導入がベスト |
+| Currying | Transform a function to accept one argument at a time. Improves reusability via partial application |
+| Partial application | Generate a new function with some arguments fixed. Useful for injecting configuration values |
+| Pipeline | Describe data transformations declaratively. Improves readability and maintainability |
+| compose | Function composition from right to left. Mathematical composition order |
+| pipe | Function composition from left to right. Natural data flow |
+| Railway | Error-handling pipeline using the Result type |
+| Lens | Enable composable partial read/write of immutable data structures |
+| Memoization | Cache results of pure functions. Avoid recomputation |
+| Transducer | Compose transformations without intermediate arrays. Improves memory efficiency and speed |
+| Middleware | Separation of cross-cutting concerns via function composition |
+| Practical guideline | Balance with readability is key. Incremental adoption is best |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [モナド](./00-monad.md) — 関数合成のより高度な抽象化
-- [ファンクタ・アプリカティブ](./01-functor-applicative.md) — map と ap の理論的基盤
-- クリーンコードの原則 — 読みやすいコードの基本
-- [ビヘイビアパターン](../02-behavioral/) — OOP パターンとの比較
-- [アーキテクチャパターン](../04-architectural/) — 大規模設計での関数型アプローチ
+- [Monad](./00-monad.md) — A more advanced abstraction for function composition
+- [Functor & Applicative](./01-functor-applicative.md) — Theoretical foundation of map and ap
+- Clean Code Principles — Basics of writing readable code
+- [Behavioral Patterns](../02-behavioral/) — Comparison with OOP patterns
+- [Architectural Patterns](../04-architectural/) — Functional approaches in large-scale design
 
 ---
 
-## 参考文献
+## References
 
-1. **Eric Elliott**: [Composing Software](https://medium.com/javascript-scene/composing-software-an-introduction-27b72500d6ea) — JavaScript での関数型プログラミングの実践的シリーズ
-2. **Brian Lonsdorf**: [Professor Frisby's Mostly Adequate Guide](https://mostly-adequate.gitbook.io/mostly-adequate-guide/) — 関数型プログラミングの入門ガイド（JavaScript ベース）
-3. **Ramda Documentation**: [Ramda](https://ramdajs.com/) — JavaScript の関数型ユーティリティライブラリ。カリー化とパイプラインの実践例が豊富
-4. **Giulio Canti**: [fp-ts](https://gcanti.github.io/fp-ts/) — TypeScript の本格的な関数型プログラミングライブラリ
-5. **Scott Wlaschin**: [Railway Oriented Programming](https://fsharpforfunandprofit.com/rop/) — エラーハンドリングの関数型アプローチ。F# だが概念は言語非依存
+1. **Eric Elliott**: [Composing Software](https://medium.com/javascript-scene/composing-software-an-introduction-27b72500d6ea) — A practical series on functional programming in JavaScript
+2. **Brian Lonsdorf**: [Professor Frisby's Mostly Adequate Guide](https://mostly-adequate.gitbook.io/mostly-adequate-guide/) — An introductory guide to functional programming (JavaScript-based)
+3. **Ramda Documentation**: [Ramda](https://ramdajs.com/) — A functional utility library for JavaScript. Rich in practical examples of currying and pipelines
+4. **Giulio Canti**: [fp-ts](https://gcanti.github.io/fp-ts/) — A full-featured functional programming library for TypeScript
+5. **Scott Wlaschin**: [Railway Oriented Programming](https://fsharpforfunandprofit.com/rop/) — A functional approach to error handling. Written in F# but the concepts are language-agnostic
