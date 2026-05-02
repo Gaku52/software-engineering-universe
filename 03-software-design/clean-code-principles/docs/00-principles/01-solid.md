@@ -1,122 +1,123 @@
-# SOLID原則 ── オブジェクト指向設計の5大原則
+# SOLID Principles — The Five Foundational Principles of Object-Oriented Design
 
-> SOLID原則は、変更に強く拡張しやすいソフトウェアを設計するための5つの基本原則である。Robert C. Martinが提唱し、Michael Feathersが頭文字をとって命名した。
-
----
-
-## この章で学ぶこと
-
-1. **SOLID各原則の意味と目的** ── SRP、OCP、LSP、ISP、DIPの本質を理解する
-2. **原則違反の兆候と影響** ── 違反が引き起こす設計上の問題を把握する
-3. **各原則の実践的な適用方法** ── 具体的なコード例で正しい設計を身につける
-4. **原則間の相互関係** ── 5つの原則がどのように連携し補完し合うかを理解する
-5. **適用の判断基準** ── 過度な適用を避け、実践的なバランス感覚を身につける
+> The SOLID principles are five fundamental principles for designing software that is resilient to change and easy to extend. They were advocated by Robert C. Martin and named as an acronym by Michael Feathers.
 
 ---
 
-## 前提知識
+## What You Will Learn in This Chapter
 
-| 前提知識 | 説明 | 参照リンク |
+1. **The meaning and purpose of each SOLID principle** — Understand the essence of SRP, OCP, LSP, ISP, and DIP
+2. **Signs and impact of principle violations** — Recognize the design problems that violations cause
+3. **Practical application methods for each principle** — Internalize correct design through concrete code examples
+4. **The interrelationships among principles** — Understand how the five principles work together and complement each other
+5. **Criteria for applying the principles** — Develop a practical sense of balance and avoid over-application
+
+---
+
+## Prerequisites
+
+| Prerequisite | Description | Reference |
 |---------|------|-----------|
-| オブジェクト指向プログラミング | クラス、継承、ポリモーフィズム、インターフェース | `../../02-programming/` |
-| クリーンコード概要 | コード品質の基本概念と測定指標 | [00-clean-code-overview.md](./00-clean-code-overview.md) |
-| 抽象化の概念 | 抽象クラス、インターフェース、依存関係 | `../../02-programming/` |
+| Object-Oriented Programming | Classes, inheritance, polymorphism, interfaces | `../../02-programming/` |
+| Clean Code Overview | Basic concepts and metrics for code quality | [00-clean-code-overview.md](./00-clean-code-overview.md) |
+| Abstraction Concepts | Abstract classes, interfaces, dependencies | `../../02-programming/` |
 
 ---
 
-## 1. SOLID原則の全体像
+## 1. Overview of SOLID Principles
 
-### 1.1 各原則の概要
-
-```
-+------------------------------------------------------------------+
-|                    SOLID 原則                                     |
-+------------------------------------------------------------------+
-| S - Single Responsibility Principle (単一責任の原則)              |
-|     → クラスを変更する理由は1つだけにせよ                         |
-+------------------------------------------------------------------+
-| O - Open/Closed Principle (開放/閉鎖の原則)                       |
-|     → 拡張に開き、修正に閉じよ                                   |
-+------------------------------------------------------------------+
-| L - Liskov Substitution Principle (リスコフの置換原則)            |
-|     → 子クラスは親クラスと置換可能であれ                          |
-+------------------------------------------------------------------+
-| I - Interface Segregation Principle (インターフェース分離の原則)  |
-|     → クライアントが使わないメソッドに依存させるな                |
-+------------------------------------------------------------------+
-| D - Dependency Inversion Principle (依存性逆転の原則)             |
-|     → 抽象に依存し、具象に依存するな                              |
-+------------------------------------------------------------------+
-```
-
-### 1.2 なぜSOLID原則が必要なのか ── WHYの深掘り
-
-ソフトウェアは「最初に動くものを作る」だけなら比較的簡単だが、「変更し続けられるものを作る」のが困難である。SOLID原則が解決する根本的な問題は、**変更の波及**である。
+### 1.1 Summary of Each Principle
 
 ```
-  変更の波及モデル
++------------------------------------------------------------------+
+|                    SOLID Principles                               |
++------------------------------------------------------------------+
+| S - Single Responsibility Principle (SRP)                        |
+|     → A class should have only one reason to change              |
++------------------------------------------------------------------+
+| O - Open/Closed Principle (OCP)                                  |
+|     → Open for extension, closed for modification                |
++------------------------------------------------------------------+
+| L - Liskov Substitution Principle (LSP)                          |
+|     → Subtypes must be substitutable for their base types        |
++------------------------------------------------------------------+
+| I - Interface Segregation Principle (ISP)                        |
+|     → Clients should not be forced to depend on methods they     |
+|       do not use                                                 |
++------------------------------------------------------------------+
+| D - Dependency Inversion Principle (DIP)                         |
+|     → Depend on abstractions, not on concretions                 |
++------------------------------------------------------------------+
+```
 
-  SOLID原則なし                    SOLID原則あり
+### 1.2 Why SOLID Principles Are Necessary — A Deep Dive into the WHY
+
+It is relatively easy to "build something that works at first," but difficult to "build something that can keep being changed." The fundamental problem that SOLID principles solve is the **ripple effect of change**.
+
+```
+  Change Propagation Model
+
+  Without SOLID                    With SOLID
   ┌──────────────────┐            ┌──────────────────┐
-  │    変更要求       │            │    変更要求       │
+  │  Change Request  │            │  Change Request  │
   │      │           │            │      │           │
   │      v           │            │      v           │
   │  ┌───────┐       │            │  ┌───────┐       │
   │  │ ClassA│       │            │  │ ClassA│       │
   │  └───┬───┘       │            │  └───────┘       │
-  │      │ 波及      │            │  (変更はここで完結)│
+  │      │ ripples   │            │  (change ends here)│
   │  ┌───┼───┐       │            │                  │
   │  v   v   v       │            │  ClassB, ClassC  │
-  │  B   C   D       │            │  → 影響なし      │
+  │  B   C   D       │            │  → unaffected    │
   │  │   │   │       │            │                  │
   │  v   v   v       │            │                  │
   │  E   F   G       │            │                  │
-  │  (6クラスに波及)  │            │  (1クラスのみ変更)│
+  │  (6 classes affected)│        │  (only 1 class changes)│
   └──────────────────┘            └──────────────────┘
 ```
 
-SOLID原則の各原則が解決する具体的な問題:
+Specific problems that each SOLID principle solves:
 
-| 原則 | 解決する問題 | 違反した場合の症状 |
+| Principle | Problem Solved | Symptoms of Violation |
 |------|------------|------------------|
-| SRP | 1つの変更が無関係な機能に影響する | 頻繁な予期しないバグ |
-| OCP | 新機能追加のたびに既存コードを修正する | if/switch分岐の増殖 |
-| LSP | 派生クラスが基底クラスの前提を破る | instanceof チェックの増加 |
-| ISP | 不要なメソッドへの依存を強制される | 空のメソッド実装 |
-| DIP | 具象クラスへの直接依存でテスト困難 | モック作成が不可能 |
+| SRP | A single change affects unrelated functionality | Frequent unexpected bugs |
+| OCP | Existing code must be modified every time a new feature is added | Proliferating if/switch branches |
+| LSP | Derived classes break the assumptions of base classes | Increasing instanceof checks |
+| ISP | Clients are forced to depend on methods they do not use | Empty method implementations |
+| DIP | Direct dependency on concrete classes makes testing difficult | Impossible to create mocks |
 
-### 1.3 SOLID原則の歴史的背景
+### 1.3 Historical Background of SOLID Principles
 
-SOLID原則の各原則は、それぞれ異なる時代に異なる研究者により提唱された。
+Each SOLID principle was proposed in a different era by different researchers.
 
 ```
-  タイムライン
+  Timeline
 
-  1988  Barbara Liskov  → LSP の原型論文
-  1994  Liskov & Wing   → LSP の正式定義
-  1996  Robert C. Martin → OCP, DIP を論文発表
-  1988  Bertrand Meyer  → OCP の先駆的記述（Object-Oriented Software Construction 初版）
-  2000  Robert C. Martin → SRP, ISP を体系化
-  2004  Michael Feathers → 5原則を "SOLID" と命名
-  2017  Robert C. Martin → Clean Architecture で SOLID を再定義
+  1988  Barbara Liskov  → Original LSP paper
+  1994  Liskov & Wing   → Formal definition of LSP
+  1996  Robert C. Martin → OCP, DIP published in papers
+  1988  Bertrand Meyer  → Pioneering description of OCP (Object-Oriented Software Construction, 1st ed.)
+  2000  Robert C. Martin → SRP, ISP systematized
+  2004  Michael Feathers → Named the 5 principles "SOLID"
+  2017  Robert C. Martin → Redefined SOLID in Clean Architecture
 ```
 
 ---
 
-## 2. S ── 単一責任の原則 (SRP)
+## 2. S — Single Responsibility Principle (SRP)
 
-### 2.1 定義
+### 2.1 Definition
 
-> 「クラスを変更する理由は、たった1つだけであるべきだ」── Robert C. Martin
+> "A class should have only one reason to change." — Robert C. Martin
 
-Robert C. Martin は後に定義を洗練させ、「変更理由」を「アクター」として再定義した:
+Robert C. Martin later refined this definition, redefining "reason to change" as "actor":
 
-> 「モジュールはたった1つのアクター（利害関係者）に対して責任を負うべきだ」── Clean Architecture (2017)
+> "A module should be responsible to one, and only one, actor (stakeholder)." — Clean Architecture (2017)
 
-この再定義により、「変更理由」の曖昧さが解消された。アクターとは、そのコードの変更を要求しうる人やグループのことである。
+This refinement resolved the ambiguity around "reason to change." An actor is a person or group that can request changes to that code.
 
 ```
-   変更理由が複数あるクラス        SRP適用後
+   Class with multiple reasons to change     After applying SRP
    ┌─────────────────┐      ┌──────────────┐
    │   Employee       │      │  Employee     │
    │  ─────────────   │      │  ──────────── │
@@ -124,10 +125,10 @@ Robert C. Martin は後に定義を洗練させ、「変更理由」を「アク
    │  generateReport()│      │  getDept()    │
    │  saveToDatabase() │     └──────────────┘
    └─────────────────┘      ┌──────────────┐
-    アクター: 3つ             │ PayCalculator │
-    ・CFO(給与計算ルール)     │  ──────────── │
-    ・COO(レポート形式)       │  calculate()  │
-    ・CTO(DB保存方法)         └──────────────┘
+    Actors: 3                │ PayCalculator │
+    · CFO (payroll rules)    │  ──────────── │
+    · COO (report format)    │  calculate()  │
+    · CTO (DB persistence)   └──────────────┘
                               ┌──────────────┐
                               │ ReportGenerator│
                               │  ──────────── │
@@ -138,31 +139,31 @@ Robert C. Martin は後に定義を洗練させ、「変更理由」を「アク
                               │  ──────────── │
                               │  save()       │
                               └──────────────┘
-                              アクター: 各1つ
+                              Actor: one each
 ```
 
-### 2.2 SRP違反の検出方法
+### 2.2 How to Detect SRP Violations
 
-SRP違反を検出するための実践的なチェックリスト:
+A practical checklist for detecting SRP violations:
 
 ```
-  SRP違反チェックリスト
+  SRP Violation Checklist
 
-  □ クラス名に「And」「Or」「Manager」「Handler」が含まれる
-  □ クラスの説明に「〜して、〜して、〜する」が必要
-  □ import文が10個以上ある
-  □ クラスが200行を超えている
-  □ テスト時に無関係なモック/スタブが必要
-  □ 異なるチーム/部門から変更要求が来る
-  □ 変更のたびに無関係なテストが壊れる
+  □ The class name contains "And", "Or", "Manager", or "Handler"
+  □ Explaining the class requires "...and then...and then..."
+  □ There are 10 or more import statements
+  □ The class exceeds 200 lines
+  □ Testing requires unrelated mocks/stubs
+  □ Change requests come from different teams/departments
+  □ Every change breaks unrelated tests
 ```
 
-### 2.3 コード例
+### 2.3 Code Examples
 
-**コード例1: SRP違反と改善 ── ユーザー管理**
+**Code Example 1: SRP Violation and Improvement — User Management**
 
 ```python
-# SRP違反: Userクラスが認証・永続化・通知すべてを担当
+# SRP violation: User class handles authentication, persistence, and notification
 class User:
     def __init__(self, name: str, email: str, password: str):
         self.name = name
@@ -170,28 +171,28 @@ class User:
         self.password = password
 
     def authenticate(self, password: str) -> bool:
-        """認証ロジック（セキュリティチームが管理）"""
+        """Authentication logic (managed by the security team)"""
         return bcrypt.check(self.password, password)
 
     def save(self) -> None:
-        """永続化ロジック（インフラチームが管理）"""
+        """Persistence logic (managed by the infrastructure team)"""
         db.execute("INSERT INTO users ...", self.name, self.email)
 
     def send_welcome_email(self) -> None:
-        """通知ロジック（マーケティングチームが管理）"""
-        smtp.send(self.email, "Welcome!", f"こんにちは {self.name}")
+        """Notification logic (managed by the marketing team)"""
+        smtp.send(self.email, "Welcome!", f"Hello {self.name}")
 
 
-# SRP適用: 各責任を専用クラスに分離
+# SRP applied: Separate each responsibility into a dedicated class
 class User:
-    """ユーザーのドメインモデル（データ表現のみ）"""
+    """Domain model for a user (data representation only)"""
     def __init__(self, name: str, email: str):
         self.name = name
         self.email = email
 
 
 class AuthenticationService:
-    """認証ロジックを担当（アクター: セキュリティチーム）"""
+    """Handles authentication logic (actor: security team)"""
     def __init__(self, credential_store: "CredentialStore"):
         self.credential_store = credential_store
 
@@ -201,7 +202,7 @@ class AuthenticationService:
 
 
 class UserRepository:
-    """ユーザーの永続化を担当（アクター: インフラチーム）"""
+    """Handles user persistence (actor: infrastructure team)"""
     def __init__(self, db: "Database"):
         self.db = db
 
@@ -214,21 +215,21 @@ class UserRepository:
 
 
 class NotificationService:
-    """通知送信を担当（アクター: マーケティングチーム）"""
+    """Handles sending notifications (actor: marketing team)"""
     def __init__(self, mailer: "Mailer"):
         self.mailer = mailer
 
     def send_welcome(self, user: User) -> None:
-        self.mailer.send(user.email, "Welcome!", f"こんにちは {user.name}")
+        self.mailer.send(user.email, "Welcome!", f"Hello {user.name}")
 ```
 
-**コード例2: SRP適用の実践 ── ログ解析**
+**Code Example 2: Applying SRP in Practice — Log Analysis**
 
 ```python
-# SRP違反: 1つのクラスがパース・フィルタ・集計・出力を担当
+# SRP violation: one class handles parsing, filtering, aggregation, and output
 class LogAnalyzer:
     def analyze(self, log_file: str) -> None:
-        # パース
+        # Parse
         entries = []
         with open(log_file) as f:
             for line in f:
@@ -239,21 +240,21 @@ class LogAnalyzer:
                     'message': ' '.join(parts[2:])
                 })
 
-        # フィルタ
+        # Filter
         errors = [e for e in entries if e['level'] == 'ERROR']
 
-        # 集計
+        # Aggregate
         counts = {}
         for error in errors:
             msg = error['message'][:50]
             counts[msg] = counts.get(msg, 0) + 1
 
-        # 出力
+        # Output
         for msg, count in sorted(counts.items(), key=lambda x: -x[1]):
             print(f"{count:5d} | {msg}")
 
 
-# SRP適用: 各責任を分離
+# SRP applied: separate each responsibility
 from dataclasses import dataclass
 from typing import Iterator
 
@@ -264,7 +265,7 @@ class LogEntry:
     message: str
 
 class LogParser:
-    """ログファイルのパースを担当"""
+    """Responsible for parsing log files"""
     def parse(self, log_file: str) -> list[LogEntry]:
         entries = []
         with open(log_file) as f:
@@ -281,14 +282,14 @@ class LogParser:
         )
 
 class LogFilter:
-    """ログエントリのフィルタリングを担当"""
+    """Responsible for filtering log entries"""
     def filter_by_level(
         self, entries: list[LogEntry], level: str
     ) -> list[LogEntry]:
         return [e for e in entries if e.level == level]
 
 class LogAggregator:
-    """ログの集計を担当"""
+    """Responsible for aggregating logs"""
     def count_by_message(
         self, entries: list[LogEntry], prefix_length: int = 50
     ) -> dict[str, int]:
@@ -299,7 +300,7 @@ class LogAggregator:
         return counts
 
 class LogReporter:
-    """集計結果の出力を担当"""
+    """Responsible for outputting aggregated results"""
     def print_summary(self, counts: dict[str, int]) -> None:
         for msg, count in sorted(counts.items(), key=lambda x: -x[1]):
             print(f"{count:5d} | {msg}")
@@ -307,39 +308,41 @@ class LogReporter:
 
 ---
 
-## 3. O ── 開放/閉鎖の原則 (OCP)
+## 3. O — Open/Closed Principle (OCP)
 
-### 3.1 定義
+### 3.1 Definition
 
-> 「ソフトウェアの構成要素は拡張に対して開かれ、修正に対して閉じていなければならない」── Bertrand Meyer
+> "Software entities should be open for extension, but closed for modification." — Bertrand Meyer
 
-この原則の本質は、**新しい振る舞いを追加する際に、既存のコードを変更しなくて済む設計**を作ることにある。
+The essence of this principle is to create designs where **new behavior can be added without modifying existing code**.
 
-### 3.2 OCPの実現手段
+### 3.2 How to Achieve OCP
 
-OCPを実現するための主要なパターンは3つある:
+There are three primary patterns for achieving OCP:
 
 ```
-  OCPの実現手段
+  Ways to Achieve OCP
 
   ┌─────────────────────────────────────────────────────┐
-  │ 1. ポリモーフィズム（最も一般的）                      │
-  │    → インターフェースを定義し、実装を差し替え可能にする │
+  │ 1. Polymorphism (most common)                        │
+  │    → Define interfaces and allow implementations     │
+  │      to be swapped                                  │
   │                                                     │
-  │ 2. ストラテジーパターン                                │
-  │    → アルゴリズムをオブジェクトとして注入する          │
+  │ 2. Strategy Pattern                                  │
+  │    → Inject algorithms as objects                   │
   │                                                     │
-  │ 3. テンプレートメソッドパターン                        │
-  │    → 骨格をベースクラスに定義し、詳細を派生で実装      │
+  │ 3. Template Method Pattern                           │
+  │    → Define the skeleton in a base class and        │
+  │      implement details in derived classes           │
   └─────────────────────────────────────────────────────┘
 ```
 
-### 3.3 コード例
+### 3.3 Code Examples
 
-**コード例3: OCP違反と改善 ── 図形の面積計算**
+**Code Example 3: OCP Violation and Improvement — Shape Area Calculation**
 
 ```typescript
-// OCP違反: 新しい図形を追加するたびにこのクラスを修正する必要がある
+// OCP violation: this class must be modified every time a new shape is added
 class AreaCalculator {
   calculate(shape: any): number {
     if (shape.type === 'circle') {
@@ -349,12 +352,12 @@ class AreaCalculator {
     } else if (shape.type === 'triangle') {
       return (shape.base * shape.height) / 2;
     }
-    // 新しい図形を追加するたびに if 分岐が増える...
+    // A new if branch is added every time a new shape is added...
     throw new Error(`Unknown shape: ${shape.type}`);
   }
 }
 
-// OCP適用: 新しい図形はクラス追加のみで対応（既存コード変更不要）
+// OCP applied: new shapes are handled by adding a class only (no changes to existing code)
 interface Shape {
   area(): number;
   perimeter(): number;
@@ -380,7 +383,7 @@ class Rectangle implements Shape {
   }
 }
 
-// 新しい図形の追加: 既存コードを一切変更しない
+// Adding a new shape: no changes to existing code whatsoever
 class Pentagon implements Shape {
   constructor(private side: number) {}
   area(): number {
@@ -393,7 +396,7 @@ class Pentagon implements Shape {
 
 class AreaCalculator {
   calculate(shape: Shape): number {
-    return shape.area();  // 多態性で処理を委譲
+    return shape.area();  // Delegate processing via polymorphism
   }
 
   calculateTotal(shapes: Shape[]): number {
@@ -402,7 +405,7 @@ class AreaCalculator {
 }
 ```
 
-**コード例4: OCP適用 ── 割引計算のストラテジーパターン**
+**Code Example 4: Applying OCP — Strategy Pattern for Discount Calculation**
 
 ```python
 from abc import ABC, abstractmethod
@@ -415,7 +418,7 @@ class Order:
     customer_type: str
     item_count: int
 
-# OCP違反: 新しい割引ルールの追加には既存コードの修正が必要
+# OCP violation: adding new discount rules requires modifying existing code
 class DiscountCalculatorBad:
     def calculate(self, order: Order) -> Decimal:
         if order.customer_type == 'vip':
@@ -424,20 +427,20 @@ class DiscountCalculatorBad:
             return order.subtotal * Decimal('0.10')
         elif order.customer_type == 'employee':
             return order.subtotal * Decimal('0.30')
-        # 新しい割引ルール追加のたびに elif が増える
+        # An elif is added every time a new discount rule is added
         return Decimal('0')
 
 
-# OCP適用: ストラテジーパターンで拡張可能に
+# OCP applied: extensible via strategy pattern
 class DiscountStrategy(ABC):
     @abstractmethod
     def calculate(self, order: Order) -> Decimal:
-        """割引額を計算する"""
+        """Calculate the discount amount"""
         pass
 
     @abstractmethod
     def is_applicable(self, order: Order) -> bool:
-        """この割引が適用可能か判定する"""
+        """Determine if this discount is applicable"""
         pass
 
 class VipDiscount(DiscountStrategy):
@@ -462,19 +465,19 @@ class EmployeeDiscount(DiscountStrategy):
     def is_applicable(self, order: Order) -> bool:
         return order.customer_type == 'employee'
 
-# 新しい割引を追加: SeasonalDiscount クラスを作るだけ
+# Adding a new discount: just create a SeasonalDiscount class
 class SeasonalDiscount(DiscountStrategy):
-    """季節限定割引（新規追加でも既存コード変更なし）"""
+    """Seasonal discount (adding this does not change existing code)"""
     def calculate(self, order: Order) -> Decimal:
         return order.subtotal * Decimal('0.15')
 
     def is_applicable(self, order: Order) -> bool:
         from datetime import date
         month = date.today().month
-        return month in (7, 8, 12)  # 夏と年末
+        return month in (7, 8, 12)  # Summer and year-end
 
 class DiscountCalculator:
-    """割引計算のオーケストレーター（修正に閉じている）"""
+    """Orchestrator for discount calculation (closed for modification)"""
     def __init__(self, strategies: list[DiscountStrategy]):
         self.strategies = strategies
 
@@ -486,54 +489,59 @@ class DiscountCalculator:
         ]
         return max(applicable, default=Decimal('0'))
 
-# 使用例: 戦略を注入
+# Usage: inject strategies
 calculator = DiscountCalculator([
     VipDiscount(),
     BulkDiscount(),
     EmployeeDiscount(),
-    SeasonalDiscount(),  # 新しい戦略を追加するだけ
+    SeasonalDiscount(),  # Just add the new strategy
 ])
 ```
 
 ---
 
-## 4. L ── リスコフの置換原則 (LSP)
+## 4. L — Liskov Substitution Principle (LSP)
 
-### 4.1 定義
+### 4.1 Definition
 
-> 「S が T の派生型であれば、プログラム中で T 型のオブジェクトを S 型のオブジェクトに置換しても、プログラムの性質は変わらない」── Barbara Liskov
+> "If S is a subtype of T, then objects of type T in a program may be replaced with objects of type S without altering any of the desirable properties of that program." — Barbara Liskov
 
-### 4.2 LSPの契約モデル
+### 4.2 The Contract Model of LSP
 
-LSP を正しく理解するには、「契約による設計（Design by Contract）」の概念が重要である。
+To correctly understand LSP, the concept of "Design by Contract" is essential.
 
 ```
-  契約モデル
+  Contract Model
 
-  基底クラスが定義する契約:
+  Contract defined by the base class:
   ┌───────────────────────────────────────┐
-  │  事前条件 (Precondition)              │
-  │  → メソッド呼び出し前に満たすべき条件  │
-  │  → 派生クラスは事前条件を強化できない  │
+  │  Precondition                         │
+  │  → Conditions that must hold before   │
+  │    a method call                      │
+  │  → Derived classes cannot strengthen  │
+  │    preconditions                      │
   │                                       │
-  │  事後条件 (Postcondition)              │
-  │  → メソッド呼び出し後に保証される条件  │
-  │  → 派生クラスは事後条件を弱化できない  │
+  │  Postcondition                        │
+  │  → Conditions guaranteed after a      │
+  │    method call                        │
+  │  → Derived classes cannot weaken      │
+  │    postconditions                     │
   │                                       │
-  │  不変条件 (Invariant)                  │
-  │  → オブジェクトが常に満たす条件        │
-  │  → 派生クラスも維持しなければならない  │
+  │  Invariant                            │
+  │  → Conditions the object must always  │
+  │    satisfy                            │
+  │  → Derived classes must also maintain │
   └───────────────────────────────────────┘
 
-  違反の例:
-  ・事前条件の強化: 基底は正の数を受け付けるが、派生は偶数のみ
-  ・事後条件の弱化: 基底は非nullを返すが、派生はnullを返す場合がある
-  ・不変条件の破壊: 基底はソート済みを保証するが、派生はしない
+  Examples of violations:
+  · Strengthened precondition: base accepts positive numbers, derived accepts only even numbers
+  · Weakened postcondition: base always returns non-null, derived may return null
+  · Broken invariant: base guarantees sorted order, derived does not
 ```
 
-### 4.3 コード例
+### 4.3 Code Examples
 
-**コード例5: LSP違反の典型例（Rectangle/Square問題）**
+**Code Example 5: Classic LSP Violation (Rectangle/Square Problem)**
 
 ```python
 class Rectangle:
@@ -561,7 +569,7 @@ class Rectangle:
         return self._width * self._height
 
 
-# LSP違反: Square は Rectangle の契約を破る
+# LSP violation: Square breaks the contract of Rectangle
 class Square(Rectangle):
     def __init__(self, side: int):
         super().__init__(side, side)
@@ -569,7 +577,7 @@ class Square(Rectangle):
     @Rectangle.width.setter
     def width(self, value: int):
         self._width = value
-        self._height = value  # 幅を変えると高さも変わる！
+        self._height = value  # Changing the width also changes the height!
 
     @Rectangle.height.setter
     def height(self, value: int):
@@ -577,14 +585,14 @@ class Square(Rectangle):
         self._height = value
 
 
-# この関数は Rectangle の契約を前提としている
+# This function assumes the contract of Rectangle
 def test_area(rect: Rectangle):
     rect.width = 5
     rect.height = 4
-    assert rect.area() == 20  # Square だと失敗！(5*5=25)
+    assert rect.area() == 20  # Fails with Square! (5*5=25)
 
 
-# LSP準拠: 共通インターフェースで設計
+# LSP-compliant: design with a common interface
 from abc import ABC, abstractmethod
 
 class Shape(ABC):
@@ -618,86 +626,86 @@ class Square(Shape):
         return 4 * self._side
 ```
 
-**コード例6: LSP違反の実践的な例 ── コレクション**
+**Code Example 6: Practical LSP Violation — Collections**
 
 ```java
-// LSP違反: ReadOnlyList が List の「追加可能」という契約を破る
+// LSP violation: ReadOnlyList breaks the "addable" contract of List
 class ReadOnlyList<T> extends ArrayList<T> {
     @Override
     public boolean add(T element) {
-        throw new UnsupportedOperationException("読み取り専用です");
+        throw new UnsupportedOperationException("Read-only list");
     }
 
     @Override
     public T remove(int index) {
-        throw new UnsupportedOperationException("読み取り専用です");
+        throw new UnsupportedOperationException("Read-only list");
     }
 }
 
-// List を受け取る関数は add() が使えることを前提としている
+// A function that accepts List assumes add() can be called
 void addDefaultItems(List<String> list) {
-    list.add("default1");  // ReadOnlyList だと実行時エラー！
+    list.add("default1");  // Runtime error with ReadOnlyList!
     list.add("default2");
 }
 
 
-// LSP準拠: 適切なインターフェースを使い分ける
-// Java の標準ライブラリは既にこの区別を提供している
+// LSP-compliant: use appropriate interfaces for each purpose
+// Java's standard library already provides this distinction
 void readItems(Iterable<String> items) {
-    // 読み取りのみ → Iterable で十分
+    // Read-only → Iterable is sufficient
     for (String item : items) {
         System.out.println(item);
     }
 }
 
 void modifyItems(List<String> items) {
-    // 変更が必要 → List を要求（ReadOnlyListは渡されない）
+    // Modification required → require List (ReadOnlyList won't be passed)
     items.add("new item");
 }
 ```
 
-### 4.4 LSP違反の検出パターン
+### 4.4 LSP Violation Detection Patterns
 
-| 検出パターン | 例 | 対処法 |
+| Detection Pattern | Example | Fix |
 |------------|-----|--------|
-| `instanceof` チェック | `if (shape instanceof Circle)` | ポリモーフィズムに置換 |
-| `UnsupportedOperationException` | `throw new UnsupportedOperationException()` | インターフェース分離（ISP） |
-| ダウンキャスト | `(Circle) shape` | 設計の見直し |
-| 条件分岐で型判定 | `if (type == "square")` | ストラテジーパターン |
-| 派生クラスで事前条件を強化 | 基底は正数、派生は正の偶数のみ | 契約の再設計 |
+| `instanceof` check | `if (shape instanceof Circle)` | Replace with polymorphism |
+| `UnsupportedOperationException` | `throw new UnsupportedOperationException()` | Interface segregation (ISP) |
+| Downcast | `(Circle) shape` | Revisit the design |
+| Type-based branching | `if (type == "square")` | Strategy pattern |
+| Strengthened precondition in derived class | Base accepts positive numbers, derived requires positive even numbers | Redesign the contract |
 
 ---
 
-## 5. I ── インターフェース分離の原則 (ISP)
+## 5. I — Interface Segregation Principle (ISP)
 
-### 5.1 定義
+### 5.1 Definition
 
-> 「クライアントは自分が利用しないメソッドに依存することを強制されるべきではない」── Robert C. Martin
+> "Clients should not be forced to depend upon interfaces that they do not use." — Robert C. Martin
 
-### 5.2 ISPの内部メカニズム
+### 5.2 The Internal Mechanism of ISP
 
-ISP が解決する問題は「不必要な再コンパイル」と「不必要な再デプロイ」である。クライアントが使わないメソッドを含むインターフェースに依存すると、そのメソッドの変更時にクライアントも影響を受ける。
+The problems ISP solves are "unnecessary recompilation" and "unnecessary redeployment." When a client depends on an interface that includes methods it does not use, the client is affected when those methods change.
 
 ```
-  ISP違反: 太ったインターフェースの問題
+  ISP violation: The problem with fat interfaces
 
   ┌───────────────┐
   │  FatInterface  │
   │  ─────────────│
-  │  methodA()     │ ← ClientA が使用
-  │  methodB()     │ ← ClientB が使用
-  │  methodC()     │ ← ClientC が使用
+  │  methodA()     │ ← Used by ClientA
+  │  methodB()     │ ← Used by ClientB
+  │  methodC()     │ ← Used by ClientC
   └───────┬───────┘
           │
      ┌────┼────┐
      v    v    v
   ClientA ClientB ClientC
 
-  methodB() の変更 → ClientA, ClientC も再コンパイル必要
-  （使っていないのに！）
+  A change to methodB() → ClientA and ClientC also need recompilation
+  (even though they don't use it!)
 
 
-  ISP適用: インターフェースを分離
+  ISP applied: segregate interfaces
 
   ┌──────────┐  ┌──────────┐  ┌──────────┐
   │ InterfaceA│  │InterfaceB│  │InterfaceC│
@@ -706,15 +714,15 @@ ISP が解決する問題は「不必要な再コンパイル」と「不必要�
        v              v              v
     ClientA       ClientB        ClientC
 
-  methodB() の変更 → ClientB のみ再コンパイル
+  A change to methodB() → only ClientB needs recompilation
 ```
 
-### 5.3 コード例
+### 5.3 Code Examples
 
-**コード例7: ISP違反と改善 ── Worker インターフェース**
+**Code Example 7: ISP Violation and Improvement — Worker Interface**
 
 ```java
-// ISP違反: 巨大なインターフェース
+// ISP violation: a bloated interface
 interface Worker {
     void work();
     void eat();
@@ -723,17 +731,17 @@ interface Worker {
     void writeReport();
 }
 
-// ロボットはeat/sleepできないが、実装を強制される
+// Robots cannot eat or sleep, but are forced to implement these
 class Robot implements Worker {
-    public void work() { /* 作業する */ }
-    public void eat() { throw new UnsupportedOperationException(); }   // LSP違反も!
+    public void work() { /* perform work */ }
+    public void eat() { throw new UnsupportedOperationException(); }   // Also an LSP violation!
     public void sleep() { throw new UnsupportedOperationException(); }
     public void attendMeeting() { throw new UnsupportedOperationException(); }
     public void writeReport() { throw new UnsupportedOperationException(); }
 }
 
 
-// ISP適用: 役割ごとにインターフェースを分離
+// ISP applied: segregate interfaces by role
 interface Workable {
     void work();
 }
@@ -751,32 +759,32 @@ interface Communicable {
     void writeReport();
 }
 
-// 人間: すべてを実装
+// Human: implements all
 class HumanWorker implements Workable, Feedable, Restable, Communicable {
-    public void work() { /* 作業する */ }
-    public void eat() { /* 食事する */ }
-    public void sleep() { /* 睡眠する */ }
-    public void attendMeeting() { /* 会議に出る */ }
-    public void writeReport() { /* レポートを書く */ }
+    public void work() { /* perform work */ }
+    public void eat() { /* eat a meal */ }
+    public void sleep() { /* sleep */ }
+    public void attendMeeting() { /* attend a meeting */ }
+    public void writeReport() { /* write a report */ }
 }
 
-// ロボット: 必要なものだけ実装
+// Robot: implements only what is needed
 class RobotWorker implements Workable {
-    public void work() { /* 作業する */ }
+    public void work() { /* perform work */ }
 }
 
-// AIアシスタント: 作業とコミュニケーション
+// AI assistant: work and communication
 class AiAssistant implements Workable, Communicable {
-    public void work() { /* 作業する */ }
-    public void attendMeeting() { /* 議事録を取る */ }
-    public void writeReport() { /* レポートを生成する */ }
+    public void work() { /* perform work */ }
+    public void attendMeeting() { /* take meeting minutes */ }
+    public void writeReport() { /* generate a report */ }
 }
 ```
 
-**コード例8: ISP適用 ── リポジトリインターフェース**
+**Code Example 8: Applying ISP — Repository Interfaces**
 
 ```typescript
-// ISP違反: 全CRUD操作を1つのインターフェースに
+// ISP violation: all CRUD operations in a single interface
 interface Repository<T> {
   findById(id: string): Promise<T | null>;
   findAll(): Promise<T[]>;
@@ -787,14 +795,14 @@ interface Repository<T> {
   executeRawQuery(sql: string): Promise<any>;
 }
 
-// 読み取り専用のレポートサービスでも全メソッドが見える
+// A read-only report service still sees all methods
 class ReportService {
   constructor(private repo: Repository<Order>) {}
-  // save, delete, executeRawQuery は使わないのに依存している
+  // save, delete, executeRawQuery are dependencies even though they are never used
 }
 
 
-// ISP適用: 用途別にインターフェースを分離
+// ISP applied: segregate interfaces by use case
 interface Readable<T> {
   findById(id: string): Promise<T | null>;
   findAll(): Promise<T[]>;
@@ -813,21 +821,21 @@ interface BulkOperable<T> {
   bulkInsert(entities: T[]): Promise<void>;
 }
 
-// 完全なCRUDリポジトリ
+// Full CRUD repository
 interface CrudRepository<T>
   extends Readable<T>, Writable<T>, Deletable {}
 
-// レポートサービスは読み取り専用インターフェースのみに依存
+// Report service depends only on the read-only interface
 class ReportService {
   constructor(private repo: Readable<Order>) {}
 
   async generateMonthlyReport(): Promise<Report> {
     const orders = await this.repo.findAll();
-    // ... レポート生成ロジック
+    // ... report generation logic
   }
 }
 
-// 管理画面は全機能を利用
+// Admin service uses all features
 class AdminService {
   constructor(private repo: CrudRepository<Order>) {}
 
@@ -839,56 +847,56 @@ class AdminService {
 
 ---
 
-## 6. D ── 依存性逆転の原則 (DIP)
+## 6. D — Dependency Inversion Principle (DIP)
 
-### 6.1 定義
+### 6.1 Definition
 
-> 「上位モジュールは下位モジュールに依存してはならない。両者とも抽象に依存すべきである」── Robert C. Martin
+> "High-level modules should not depend on low-level modules. Both should depend on abstractions." — Robert C. Martin
 
-> 「抽象は詳細に依存してはならない。詳細が抽象に依存すべきである」
+> "Abstractions should not depend on details. Details should depend on abstractions."
 
-### 6.2 DIPの内部メカニズム
+### 6.2 The Internal Mechanism of DIP
 
-DIP は「依存関係の方向を逆転させる」ことで、上位のビジネスロジックを下位のインフラ詳細から独立させる。
+DIP decouples high-level business logic from low-level infrastructure details by **inverting the direction of dependencies**.
 
 ```
-  DIP違反                        DIP適用
+  DIP violation                  DIP applied
   ┌──────────┐                  ┌──────────┐
   │ OrderSvc  │                 │ OrderSvc  │
   └─────┬─────┘                 └─────┬─────┘
-        │ 直接依存                     │ 抽象に依存
+        │ direct dependency           │ depends on abstraction
         v                             v
   ┌──────────┐              ┌────────────────┐
   │ MySQLRepo │              │ <<interface>>   │
   └──────────┘              │ OrderRepository │
-   具象に直接依存              └───────┬────────┘
-   → MySQLを変更すると              │ 実装
-     OrderSvcも影響           ┌─────┼─────┐
+   Depends on concretion     └───────┬────────┘
+   → Changing MySQL also          │ implemented by
+     affects OrderSvc        ┌─────┼─────┐
                               v     v     v
                          MySQL  Postgres InMemory
                           Repo   Repo    Repo
-   → どの実装に変えても OrderSvc は影響を受けない
+   → No matter which implementation is used, OrderSvc is unaffected
 ```
 
-### 6.3 コード例
+### 6.3 Code Examples
 
-**コード例9: DIP違反と改善 ── 通知システム**
+**Code Example 9: DIP Violation and Improvement — Notification System**
 
 ```python
-# DIP違反: 上位モジュールが具象クラスに直接依存
+# DIP violation: high-level module directly depends on concrete classes
 class OrderService:
     def __init__(self):
-        self.repository = MySQLOrderRepository()  # 具象への直接依存
-        self.notifier = EmailNotifier()            # 具象への直接依存
-        self.logger = FileLogger()                 # 具象への直接依存
+        self.repository = MySQLOrderRepository()  # Direct dependency on concretion
+        self.notifier = EmailNotifier()            # Direct dependency on concretion
+        self.logger = FileLogger()                 # Direct dependency on concretion
 
     def place_order(self, order: "Order") -> None:
         self.repository.save(order)
-        self.notifier.notify(order.customer, "注文を受け付けました")
-        self.logger.log(f"注文 {order.id} を処理しました")
+        self.notifier.notify(order.customer, "Your order has been received")
+        self.logger.log(f"Order {order.id} processed")
 
 
-# DIP適用: 抽象（インターフェース）に依存
+# DIP applied: depend on abstractions (interfaces)
 from abc import ABC, abstractmethod
 
 class OrderRepository(ABC):
@@ -912,7 +920,7 @@ class Logger(ABC):
 
 
 class OrderService:
-    """上位モジュール: 抽象にのみ依存"""
+    """High-level module: depends only on abstractions"""
     def __init__(
         self,
         repository: OrderRepository,
@@ -925,17 +933,17 @@ class OrderService:
 
     def place_order(self, order: "Order") -> None:
         self.repository.save(order)
-        self.notifier.notify(order.customer, "注文を受け付けました")
-        self.logger.log(f"注文 {order.id} を処理しました")
+        self.notifier.notify(order.customer, "Your order has been received")
+        self.logger.log(f"Order {order.id} processed")
 
 
-# 下位モジュール: 抽象を実装
+# Low-level modules: implement the abstractions
 class PostgreSQLOrderRepository(OrderRepository):
     def __init__(self, connection_string: str):
         self.connection_string = connection_string
 
     def save(self, order: "Order") -> None:
-        # PostgreSQL固有の実装
+        # PostgreSQL-specific implementation
         pass
 
     def find_by_id(self, order_id: str) -> "Order | None":
@@ -946,23 +954,23 @@ class SlackNotifier(Notifier):
         self.webhook_url = webhook_url
 
     def notify(self, recipient: str, message: str) -> None:
-        # Slack API を使った通知
+        # Notification via Slack API
         pass
 
 class CloudWatchLogger(Logger):
     def log(self, message: str) -> None:
-        # AWS CloudWatch への送信
+        # Send to AWS CloudWatch
         pass
 
 
-# 組み立て（Composition Root）
+# Assembly (Composition Root)
 service = OrderService(
     repository=PostgreSQLOrderRepository("postgresql://..."),
     notifier=SlackNotifier("https://hooks.slack.com/..."),
     logger=CloudWatchLogger()
 )
 
-# テスト時: モックを注入
+# During testing: inject mocks
 class MockRepository(OrderRepository):
     def __init__(self):
         self.saved_orders = []
@@ -980,12 +988,12 @@ test_service = OrderService(
 )
 ```
 
-**コード例10: DIP と依存性注入（DI）の関係**
+**Code Example 10: The Relationship Between DIP and Dependency Injection (DI)**
 
 ```typescript
-// DIP はアーキテクチャ原則、DI はそれを実現する実装手法
+// DIP is an architectural principle; DI is an implementation technique to achieve it
 
-// 1. コンストラクタインジェクション（最も推奨）
+// 1. Constructor injection (most recommended)
 class UserService {
   constructor(
     private readonly repository: UserRepository,
@@ -1002,7 +1010,7 @@ class UserService {
   }
 }
 
-// 2. セッターインジェクション（オプショナルな依存に）
+// 2. Setter injection (for optional dependencies)
 class ReportGenerator {
   private formatter: ReportFormatter = new DefaultFormatter();
 
@@ -1011,7 +1019,7 @@ class ReportGenerator {
   }
 }
 
-// 3. メソッドインジェクション（呼び出し毎に異なる依存）
+// 3. Method injection (for dependencies that vary per call)
 class DataProcessor {
   process(data: RawData, transformer: DataTransformer): ProcessedData {
     return transformer.transform(data);
@@ -1021,72 +1029,72 @@ class DataProcessor {
 
 ---
 
-## 7. SOLID原則の相互関係
+## 7. Interrelationships Among SOLID Principles
 
-### 7.1 関係図
+### 7.1 Relationship Diagram
 
 ```
   ┌──────────────────────────────────────────────────────┐
-  │              SOLID原則の相互関係                       │
+  │         Interrelationships Among SOLID Principles     │
   │                                                      │
-  │  ┌─────┐      前提条件      ┌─────┐                  │
-  │  │ LSP │ ─────────────────→ │ OCP │                  │
+  │  ┌─────┐    prerequisite     ┌─────┐                 │
+  │  │ LSP │ ─────────────────→ │ OCP │                 │
   │  └──┬──┘                    └──┬──┘                  │
   │     │                          │                      │
-  │     │ 型安全性                  │ 実現手段             │
+  │     │ type safety              │ means of realization │
   │     │                          │                      │
   │     v                          v                      │
-  │  ┌─────┐      IF版          ┌─────┐                  │
+  │  ┌─────┐    IF version      ┌─────┐                  │
   │  │ ISP │ ←──────────────── │ SRP │                  │
   │  └──┬──┘                    └─────┘                  │
   │     │                                                │
-  │     │ 依存の最小化                                    │
+  │     │ minimizing dependencies                        │
   │     v                                                │
   │  ┌─────┐                                             │
-  │  │ DIP │ ← OCP を実現するための手段                   │
+  │  │ DIP │ ← means of achieving OCP                   │
   │  └─────┘                                             │
   └──────────────────────────────────────────────────────┘
 ```
 
-### 7.2 関係の詳細
+### 7.2 Relationship Details
 
-| 原則 | 主な焦点 | 他の原則との関係 |
+| Principle | Main Focus | Relationship to Other Principles |
 |------|----------|------------------|
-| SRP | クラスの責任範囲 | ISPのクラス版。凝集度を高める |
-| OCP | 拡張の柔軟性 | DIPと組み合わせて多態性で実現。LSPが前提条件 |
-| LSP | 継承の正しさ | OCPの前提条件。型安全性を保証 |
-| ISP | インターフェースの粒度 | SRPのインターフェース版。DIPの依存を最小化 |
-| DIP | 依存の方向 | OCPを実現するための手段。ISPで依存を最小化 |
+| SRP | Scope of class responsibility | The class-level version of ISP. Increases cohesion |
+| OCP | Flexibility for extension | Achieved via polymorphism in combination with DIP. LSP is a prerequisite |
+| LSP | Correctness of inheritance | Prerequisite of OCP. Guarantees type safety |
+| ISP | Granularity of interfaces | The interface-level version of SRP. Minimizes dependencies for DIP |
+| DIP | Direction of dependencies | The means to achieve OCP. Dependencies minimized with ISP |
 
-### 7.3 実践での組み合わせ
+### 7.3 Combining Principles in Practice
 
 ```python
-# SOLID原則の組み合わせ例: 通知サービス
+# Example of combining SOLID principles: notification service
 
-# SRP: 通知送信の責任のみ
-# OCP: 新しい通知チャネルはクラス追加で対応
-# LSP: すべてのNotifierはsendメソッドの契約を守る
-# ISP: 同期/非同期を分離
-# DIP: 抽象に依存
+# SRP: responsible only for sending notifications
+# OCP: new notification channels are handled by adding a class
+# LSP: all Notifiers honor the contract of the send method
+# ISP: synchronous and asynchronous are separated
+# DIP: depends on abstractions
 
 from abc import ABC, abstractmethod
 
-# ISP: 同期通知と非同期通知を分離
+# ISP: separate synchronous and asynchronous notifications
 class SyncNotifier(ABC):
     @abstractmethod
     def send(self, recipient: str, message: str) -> bool:
-        """同期的にメッセージを送信し、成否を返す"""
+        """Send a message synchronously and return success/failure"""
         pass
 
 class AsyncNotifier(ABC):
     @abstractmethod
     async def send(self, recipient: str, message: str) -> str:
-        """非同期でメッセージを送信し、ジョブIDを返す"""
+        """Send a message asynchronously and return a job ID"""
         pass
 
-# LSP: 各実装はインターフェースの契約を完全に守る
+# LSP: each implementation fully honors the interface contract
 class EmailNotifier(SyncNotifier):
-    """SRP: メール送信のみを担当"""
+    """SRP: responsible only for sending email"""
     def __init__(self, smtp_config: dict):
         self.smtp = SmtpClient(smtp_config)
 
@@ -1098,7 +1106,7 @@ class EmailNotifier(SyncNotifier):
             return False
 
 class SlackNotifier(AsyncNotifier):
-    """SRP: Slack通知のみを担当"""
+    """SRP: responsible only for Slack notifications"""
     def __init__(self, webhook_url: str):
         self.webhook_url = webhook_url
 
@@ -1106,16 +1114,16 @@ class SlackNotifier(AsyncNotifier):
         response = await http_post(self.webhook_url, {"text": message})
         return response["job_id"]
 
-# OCP: 新しい通知チャネル追加時、既存コードを変更しない
+# OCP: adding a new notification channel does not change existing code
 class SmsNotifier(SyncNotifier):
-    """新規追加: SMS通知"""
+    """New addition: SMS notification"""
     def __init__(self, api_key: str):
         self.sms_client = SmsClient(api_key)
 
     def send(self, recipient: str, message: str) -> bool:
         return self.sms_client.send_sms(recipient, message)
 
-# DIP: NotificationService は抽象にのみ依存
+# DIP: NotificationService depends only on abstractions
 class NotificationService:
     def __init__(self, notifiers: list[SyncNotifier]):
         self.notifiers = notifiers
@@ -1130,93 +1138,93 @@ class NotificationService:
 
 ---
 
-## 8. 適用の判断基準
+## 8. Criteria for Applying the Principles
 
-### 8.1 適用すべき場面と避けるべき場面
+### 8.1 When to Apply and When to Avoid
 
-| 状況 | SOLID適用 | 過度な適用を避ける |
+| Situation | Apply SOLID | Avoid Over-application |
 |------|-----------|-------------------|
-| 頻繁に変更される箇所 | 積極的に適用 | -- |
-| 安定したユーティリティ | 最低限で十分 | 過度な抽象化はYAGNI違反 |
-| プロトタイプ/PoC | 後回しでよい | 設計に時間をかけすぎない |
-| チーム開発のコアロジック | 必須 | -- |
-| 1回限りのスクリプト | 不要 | オーバーエンジニアリング |
-| ライブラリ/フレームワーク | 必須 | 利用者の使いやすさも考慮 |
-| マイクロサービスの境界 | 必須（特にDIP） | サービス内部は適宜 |
+| Frequently changed areas | Apply proactively | -- |
+| Stable utility code | Minimal is sufficient | Excessive abstraction violates YAGNI |
+| Prototypes / PoC | Can be deferred | Don't over-invest in design |
+| Core logic in team development | Required | -- |
+| One-off scripts | Not needed | Over-engineering |
+| Libraries / Frameworks | Required | Also consider usability for consumers |
+| Microservice boundaries | Required (especially DIP) | Apply within services as appropriate |
 
-### 8.2 段階的適用のガイドライン
-
-```
-  SOLID原則の段階的適用フロー
-
-  Step 1: SRP から始める（最も直感的）
-  ├── 巨大クラスを見つけたら分割
-  └── 「この関数は何をするか1文で説明できるか？」
-
-  Step 2: DIP を適用（テスト容易性の向上）
-  ├── 外部サービス依存をインターフェースで抽象化
-  └── コンストラクタインジェクションを導入
-
-  Step 3: OCP を意識（変更が多い箇所）
-  ├── if/switch の増殖を発見したらポリモーフィズム化
-  └── ストラテジーパターンの適用
-
-  Step 4: ISP で微調整
-  ├── 太ったインターフェースを分離
-  └── クライアントごとに必要最小限のインターフェース
-
-  Step 5: LSP で品質保証
-  ├── 継承関係の正当性を検証
-  └── 契約テストの追加
-```
-
-### 8.3 過度な適用のコスト
+### 8.2 Guidelines for Incremental Application
 
 ```
-  SOLID適用のコスト-ベネフィット曲線
+  Incremental Application Flow for SOLID Principles
 
-  ベネフィット
+  Step 1: Start with SRP (most intuitive)
+  ├── Split large classes when you find them
+  └── "Can I explain what this function does in one sentence?"
+
+  Step 2: Apply DIP (improve testability)
+  ├── Abstract external service dependencies behind interfaces
+  └── Introduce constructor injection
+
+  Step 3: Be mindful of OCP (in areas with frequent changes)
+  ├── When you see proliferating if/switch, convert to polymorphism
+  └── Apply the strategy pattern
+
+  Step 4: Fine-tune with ISP
+  ├── Segregate bloated interfaces
+  └── Provide the minimum necessary interface for each client
+
+  Step 5: Quality assurance with LSP
+  ├── Validate the legitimacy of inheritance relationships
+  └── Add contract tests
+```
+
+### 8.3 The Cost of Over-application
+
+```
+  Cost-Benefit Curve of SOLID Application
+
+  Benefit
     ^
     |        *****
     |    ****     ***
     |  **             **
-    | *                 *         ← 適度な適用
+    | *                 *         ← moderate application
     |*                   *
-    |                     **      ← 過度な適用
-    +-------------------------> SOLID適用度
+    |                     **      ← over-application
+    +-------------------------> Degree of SOLID Application
     0%   25%   50%   75%  100%
 
-    0-50%: 適用するほどベネフィット増大
-    50-75%: ベネフィットは緩やかに増大
-    75-100%: 抽象化のオーバーヘッドがベネフィットを上回る
+    0-50%: Benefits increase as you apply more
+    50-75%: Benefits increase gradually
+    75-100%: Overhead of abstraction outweighs benefits
 ```
 
 ---
 
-## 9. SOLID原則と他のパラダイム
+## 9. SOLID Principles and Other Paradigms
 
-### 9.1 関数型プログラミングとSOLID
+### 9.1 Functional Programming and SOLID
 
-| SOLID原則 | 関数型での対応概念 | 説明 |
+| SOLID Principle | Functional Programming Equivalent | Description |
 |-----------|-----------------|------|
-| SRP | 純粋関数 | 各関数は1つの変換のみ |
-| OCP | 高階関数 | 関数を引数で受け取り動作を拡張 |
-| LSP | 参照透過性 | 同じ入力には常に同じ出力 |
-| ISP | 型クラス（Haskell） | 必要な振る舞いのみを要求 |
-| DIP | 関数の注入 | 具体的な関数ではなく関数型を受け取る |
+| SRP | Pure functions | Each function performs only one transformation |
+| OCP | Higher-order functions | Accept functions as arguments to extend behavior |
+| LSP | Referential transparency | Same input always produces the same output |
+| ISP | Type classes (Haskell) | Require only the behavior that is needed |
+| DIP | Function injection | Accept function types rather than specific functions |
 
 ```python
-# 関数型でのOCP: 高階関数による拡張
+# OCP in functional style: extension via higher-order functions
 from typing import Any, Callable
 
-# ソート戦略を関数として注入（OCP + DIP）
+# Inject a sort strategy as a function (OCP + DIP)
 def sort_users(
     users: list[dict],
     key_fn: Callable[[dict], Any] = lambda u: u['name']
 ) -> list[dict]:
     return sorted(users, key=key_fn)
 
-# 新しいソート基準の追加: 既存コード変更なし
+# Adding a new sort criterion: no changes to existing code
 by_age = lambda u: u['age']
 by_score_desc = lambda u: -u['score']
 
@@ -1226,12 +1234,12 @@ sort_users(users, key_fn=by_score_desc)
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### アンチパターン1: God Class（SRP違反の極致）
+### Anti-Pattern 1: God Class (the extreme of SRP violation)
 
 ```python
-# NG: 1つのクラスに全責任を詰め込む
+# BAD: cramming all responsibilities into a single class
 class Application:
     def authenticate_user(self): ...
     def process_payment(self): ...
@@ -1240,9 +1248,9 @@ class Application:
     def validate_input(self): ...
     def manage_cache(self): ...
     def handle_logging(self): ...
-    # 1000行以上のメソッドが続く...
+    # Methods continue for 1000+ lines...
 
-# OK: 責任ごとにクラスを分割
+# GOOD: split classes by responsibility
 class AuthService: ...
 class PaymentService: ...
 class ReportService: ...
@@ -1252,10 +1260,10 @@ class CacheManager: ...
 class Logger: ...
 ```
 
-### アンチパターン2: 過度な抽象化（SOLID原理主義）
+### Anti-Pattern 2: Excessive Abstraction (SOLID Fundamentalism)
 
 ```java
-// NG: 1メソッドのためにインターフェース + 実装 + ファクトリ + DI設定
+// BAD: interface + implementation + factory + DI config just for one method
 interface StringFormatter { String format(String s); }
 class UpperCaseFormatter implements StringFormatter {
     public String format(String s) { return s.toUpperCase(); }
@@ -1267,47 +1275,47 @@ class StringFormatterConfig {
     @Bean
     public StringFormatter formatter() { return new UpperCaseFormatter(); }
 }
-// 実際にはただの s.toUpperCase() で十分
+// In reality, s.toUpperCase() alone is sufficient
 
-// OK: 必要性が生じたら抽象化する
+// GOOD: abstract only when the need arises
 String formatted = input.toUpperCase();
 ```
 
-### アンチパターン3: Leaky Abstraction（抽象の漏洩）
+### Anti-Pattern 3: Leaky Abstraction
 
 ```python
-# NG: インターフェースがDBの詳細を漏洩
+# BAD: interface leaks DB-specific details
 class UserRepository(ABC):
     @abstractmethod
     def find_by_sql(self, sql: str) -> list[User]:
-        """SQLクエリでユーザーを検索する"""
-        pass  # SQL前提 → RDB以外の実装で困る
+        """Find users by SQL query"""
+        pass  # SQL-specific → problematic for non-RDBMS implementations
 
     @abstractmethod
     def set_connection_pool_size(self, size: int) -> None:
-        """接続プールサイズを設定する"""
-        pass  # 接続プール前提 → インメモリ実装で無意味
+        """Set the connection pool size"""
+        pass  # Connection pool-specific → meaningless for in-memory implementations
 
-# OK: ドメインの言葉でインターフェースを定義
+# GOOD: define the interface in the language of the domain
 class UserRepository(ABC):
     @abstractmethod
     def find_by_email(self, email: str) -> User | None:
-        """メールアドレスでユーザーを検索する"""
+        """Find a user by email address"""
         pass
 
     @abstractmethod
     def find_active_users(self, since: datetime) -> list[User]:
-        """指定日以降にアクティブなユーザーを検索する"""
+        """Find users who have been active since the given date"""
         pass
 ```
 
 ---
 
-## 11. 実践演習
+## 11. Practical Exercises
 
-### 演習1（基礎）: SRP違反の検出と修正
+### Exercise 1 (Basic): Detecting and Fixing SRP Violations
 
-以下のクラスからSRP違反を特定し、責任を分離せよ。
+Identify the SRP violations in the following class and separate its responsibilities.
 
 ```python
 class ReportManager:
@@ -1325,8 +1333,8 @@ class ReportManager:
 
     def format_as_html(self, report_data):
         html = "<html><body>"
-        html += f"<h1>売上レポート</h1>"
-        html += f"<p>合計: {report_data['total']}円</p>"
+        html += f"<h1>Sales Report</h1>"
+        html += f"<p>Total: {report_data['total']}</p>"
         html += "</body></html>"
         return html
 
@@ -1343,16 +1351,16 @@ class ReportManager:
         self.send_email(recipient, html)
 ```
 
-**期待される分析:**
+**Expected Analysis:**
 
-責任の分離:
-- **SalesDataRepository**: データ取得（アクター: DBA/インフラチーム）
-- **SalesCalculator**: 集計計算（アクター: 経理部門）
-- **HtmlReportFormatter**: HTML整形（アクター: デザインチーム）
-- **EmailSender**: メール送信（アクター: インフラチーム）
-- **ReportService**: オーケストレーション（責任を持たない調整役）
+Separation of responsibilities:
+- **SalesDataRepository**: Data retrieval (actor: DBA/infrastructure team)
+- **SalesCalculator**: Aggregation calculations (actor: accounting department)
+- **HtmlReportFormatter**: HTML formatting (actor: design team)
+- **EmailSender**: Email delivery (actor: infrastructure team)
+- **ReportService**: Orchestration (a coordinator with no business responsibility of its own)
 
-**期待される出力例:**
+**Expected Output:**
 
 ```python
 class SalesDataRepository:
@@ -1380,8 +1388,8 @@ class ReportFormatter(ABC):
 class HtmlReportFormatter(ReportFormatter):
     def format(self, report_data: dict) -> str:
         return f"""<html><body>
-        <h1>売上レポート</h1>
-        <p>合計: {report_data['total']}円</p>
+        <h1>Sales Report</h1>
+        <p>Total: {report_data['total']}</p>
         </body></html>"""
 
 class EmailSender:
@@ -1390,7 +1398,7 @@ class EmailSender:
         self.from_address = from_address
 
     def send(self, recipient: str, content: str) -> None:
-        # SMTP送信ロジック
+        # SMTP sending logic
         pass
 
 class ReportService:
@@ -1407,27 +1415,27 @@ class ReportService:
         self.sender.send(recipient, content)
 ```
 
-### 演習2（応用）: OCP を適用した拡張設計
+### Exercise 2 (Intermediate): Extension Design with OCP
 
-以下の決済処理クラスを、新しい決済方法の追加時に既存コードを変更しなくて済むように設計し直せ。
+Redesign the following payment processing class so that adding new payment methods does not require modifying existing code.
 
 ```python
 class PaymentProcessor:
     def process(self, payment_method: str, amount: float) -> bool:
         if payment_method == "credit_card":
-            # クレジットカード決済ロジック
+            # Credit card payment logic
             return self._process_credit_card(amount)
         elif payment_method == "bank_transfer":
-            # 銀行振込ロジック
+            # Bank transfer logic
             return self._process_bank_transfer(amount)
         elif payment_method == "paypal":
-            # PayPalロジック
+            # PayPal logic
             return self._process_paypal(amount)
         else:
-            raise ValueError(f"未対応の決済方法: {payment_method}")
+            raise ValueError(f"Unsupported payment method: {payment_method}")
 ```
 
-**期待される出力例:**
+**Expected Output:**
 
 ```python
 from abc import ABC, abstractmethod
@@ -1441,22 +1449,22 @@ class PaymentMethod(ABC):
 
 class CreditCardPayment(PaymentMethod):
     def process(self, amount: float) -> bool:
-        # クレジットカード決済ロジック
+        # Credit card payment logic
         return True
     def name(self) -> str:
         return "credit_card"
 
 class BankTransferPayment(PaymentMethod):
     def process(self, amount: float) -> bool:
-        # 銀行振込ロジック
+        # Bank transfer logic
         return True
     def name(self) -> str:
         return "bank_transfer"
 
-# 新しい決済方法の追加: 既存コード変更なし
+# Adding a new payment method: no changes to existing code
 class CryptoPayment(PaymentMethod):
     def process(self, amount: float) -> bool:
-        # 暗号通貨決済ロジック
+        # Cryptocurrency payment logic
         return True
     def name(self) -> str:
         return "crypto"
@@ -1470,132 +1478,132 @@ class PaymentProcessor:
 
     def process(self, method_name: str, amount: float) -> bool:
         if method_name not in self._methods:
-            raise ValueError(f"未対応の決済方法: {method_name}")
+            raise ValueError(f"Unsupported payment method: {method_name}")
         return self._methods[method_name].process(amount)
 ```
 
-### 演習3（発展）: SOLID原則を全面適用した設計
+### Exercise 3 (Advanced): Full Application of SOLID Principles
 
-以下の要件を、SOLID原則に準拠して設計・実装せよ。
+Design and implement the following requirements in compliance with all SOLID principles.
 
-**要件:** 図書館の書籍管理システム
-- 書籍の登録・検索・貸出・返却
-- 貸出通知（メール/SMS）
-- 延滞チェックと罰金計算
-- 複数のデータストア対応（DB/ファイル/インメモリ）
+**Requirements:** Library book management system
+- Register, search, check out, and return books
+- Checkout notifications (email/SMS)
+- Overdue checks and fine calculation
+- Support for multiple data stores (DB/file/in-memory)
 
-**期待される設計の概要:**
+**Expected Design Overview:**
 
 ```
-  SRP: 各クラスが単一の責任
-  ├── Book (ドメインモデル)
-  ├── BookRepository (永続化)
-  ├── LoanService (貸出ビジネスロジック)
-  ├── FineCalculator (罰金計算)
-  ├── NotificationService (通知送信)
-  └── LibraryFacade (オーケストレーション)
+  SRP: each class has a single responsibility
+  ├── Book (domain model)
+  ├── BookRepository (persistence)
+  ├── LoanService (lending business logic)
+  ├── FineCalculator (fine calculation)
+  ├── NotificationService (sending notifications)
+  └── LibraryFacade (orchestration)
 
-  OCP: 通知チャネルの追加にクラス追加のみ
-  DIP: LoanService → BookRepository(抽象) に依存
-  ISP: 検索用/管理用で別インターフェース
-  LSP: すべてのRepository実装が契約を守る
+  OCP: adding a notification channel requires only a new class
+  DIP: LoanService → depends on BookRepository (abstraction)
+  ISP: separate interfaces for read/admin operations
+  LSP: all Repository implementations honor their contracts
 ```
 
 ---
 
 ## 12. FAQ
 
-### Q1: SOLID原則はすべて同時に適用すべきか？
+### Q1: Should all SOLID principles be applied at the same time?
 
-すべてを一度に適用する必要はない。まずSRPから始め、変更が多い箇所にOCPとDIPを適用するのが実践的。プロジェクトの規模と変更頻度に応じて段階的に導入する。小規模なスクリプトやプロトタイプにSOLIDを完全適用するのはオーバーエンジニアリングである。
+There is no need to apply all of them at once. It is practical to start with SRP and then apply OCP and DIP in areas subject to frequent change. Introduce them incrementally based on the scale of the project and the frequency of change. Fully applying SOLID to small scripts or prototypes is over-engineering.
 
-### Q2: SOLIDは関数型プログラミングにも適用できるか？
+### Q2: Can SOLID be applied to functional programming?
 
-概念的には適用可能。SRPは「関数は1つのことをする」、OCPは「高階関数で拡張する」、DIPは「関数の注入」に対応する。ただし用語はOOP文脈で定義されたものなので、関数型では別の原則名（純粋性、合成可能性、参照透過性など）で語られることが多い。
+Conceptually, yes. SRP corresponds to "a function does one thing," OCP to "extend with higher-order functions," and DIP to "inject functions." However, since the terminology was defined in an OOP context, functional programming tends to use different principle names (purity, composability, referential transparency, etc.).
 
-### Q3: LSP違反をどうやって検出するか？
+### Q3: How do I detect LSP violations?
 
-以下のコードスメルが検出のヒント:
-- 派生クラスで `UnsupportedOperationException` をスローしている
-- `instanceof` / `typeof` チェックが増えている
-- 基底クラスの事前条件を強化、事後条件を弱化している
-- 「is-a」関係が成り立たない継承がある（正方形 is-a 長方形の問題）
+The following code smells are hints for detection:
+- A derived class is throwing `UnsupportedOperationException`
+- The number of `instanceof` / `typeof` checks is increasing
+- A derived class is strengthening preconditions or weakening postconditions of the base class
+- There is an inheritance relationship where "is-a" does not hold (the Square-is-a-Rectangle problem)
 
-自動検出の方法として、基底クラスのテストスイートを派生クラスに対しても実行する「契約テスト」がある。
+An automated detection method is "contract testing," where the base class's test suite is also run against the derived class.
 
-### Q4: DIPとDIコンテナは必須か？
+### Q4: Are DIP and a DI container mandatory?
 
-DIPは原則であり、DIコンテナはその実現手段の一つに過ぎない。コンストラクタインジェクションだけでもDIPは実現できる。DIコンテナが必要になるのは、依存グラフが複雑になった大規模アプリケーションの場合。小規模なプロジェクトではマニュアルDI（手動で依存を組み立てる）で十分。
+DIP is a principle; a DI container is just one way to achieve it. DIP can be achieved with constructor injection alone. A DI container becomes necessary in large-scale applications where the dependency graph becomes complex. For smaller projects, manual DI (assembling dependencies by hand) is sufficient.
 
-### Q5: SOLIDとマイクロサービスの関係は？
+### Q5: What is the relationship between SOLID and microservices?
 
-マイクロサービスアーキテクチャはSOLID原則の「サービスレベル」での適用と見ることができる:
-- **SRP**: 各サービスは1つのビジネスドメインに責任を持つ
-- **OCP**: 新機能は新サービスの追加で対応
-- **LSP**: サービスのAPIコントラクトを守る
-- **ISP**: 必要なAPIのみを公開する
-- **DIP**: サービス間はメッセージキュー等の抽象を介して通信
+A microservices architecture can be seen as the application of SOLID principles at the "service level":
+- **SRP**: Each service is responsible for one business domain
+- **OCP**: New features are handled by adding a new service
+- **LSP**: Honor the API contract of a service
+- **ISP**: Expose only the necessary APIs
+- **DIP**: Services communicate through abstractions such as message queues
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory but by actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 原則 | 一言で | 違反の兆候 | 改善手法 |
+| Principle | In One Phrase | Signs of Violation | Improvement Technique |
 |------|--------|-----------|---------|
-| SRP | 変更理由は1つ | 巨大クラス、頻繁な修正 | Extract Class |
-| OCP | 拡張で対応 | if/switch の増殖 | Strategy, Template Method |
-| LSP | 置換可能 | instanceof チェック | インターフェース再設計 |
-| ISP | 小さなIF | 空のメソッド実装 | Interface分割 |
-| DIP | 抽象に依存 | new の直接呼び出し | コンストラクタインジェクション |
+| SRP | One reason to change | Giant classes, frequent modifications | Extract Class |
+| OCP | Handle changes via extension | Proliferating if/switch | Strategy, Template Method |
+| LSP | Substitutable | instanceof checks | Redesign the interface |
+| ISP | Small interfaces | Empty method implementations | Interface segregation |
+| DIP | Depend on abstractions | Direct use of new | Constructor injection |
 
-### 各原則の適用優先度ガイド
+### Priority Guide for Applying Each Principle
 
-| 優先度 | 原則 | 理由 |
+| Priority | Principle | Reason |
 |--------|------|------|
-| 1（最初に） | SRP | 最も直感的で効果が大きい |
-| 2 | DIP | テスト容易性が劇的に向上 |
-| 3 | OCP | 変更の多い箇所で効果を発揮 |
-| 4 | ISP | DIPの効果を強化 |
-| 5 | LSP | 継承を使う場合に重要 |
+| 1 (first) | SRP | Most intuitive with the greatest impact |
+| 2 | DIP | Dramatically improves testability |
+| 3 | OCP | Effective in areas with many changes |
+| 4 | ISP | Reinforces the effect of DIP |
+| 5 | LSP | Important when using inheritance |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [DRY/KISS/YAGNI](./02-dry-kiss-yagni.md) ── 重複排除と単純化の原則
-- [結合度と凝集度](./03-coupling-cohesion.md) ── モジュール設計の基盤
-- [デメテルの法則](./04-law-of-demeter.md) ── 結合度を下げる具体的規則
-- [合成 vs 継承](../03-practices-advanced/01-composition-over-inheritance.md) ── LSPの先にある設計判断
-- デザインパターン: Creational ── OCPとDIPを実現するパターン
-- デザインパターン: Behavioral ── StrategyパターンなどOCP実現手段
-- システム設計: アーキテクチャ ── SOLIDのアーキテクチャレベル適用
+- [DRY/KISS/YAGNI](./02-dry-kiss-yagni.md) — Principles of deduplication and simplification
+- [Coupling and Cohesion](./03-coupling-cohesion.md) — The foundation of module design
+- [Law of Demeter](./04-law-of-demeter.md) — Concrete rules for reducing coupling
+- [Composition vs Inheritance](../03-practices-advanced/01-composition-over-inheritance.md) — Design decisions beyond LSP
+- Design Patterns: Creational — Patterns for achieving OCP and DIP
+- Design Patterns: Behavioral — OCP realization techniques such as the Strategy pattern
+- System Design: Architecture — Applying SOLID at the architectural level
 
 ---
 
-## 参考文献
+## References
 
-1. **Robert C. Martin** 『Agile Software Development: Principles, Patterns, and Practices』 Prentice Hall, 2002
-2. **Robert C. Martin** 『Clean Architecture: A Craftsman's Guide to Software Structure and Design』 Prentice Hall, 2017
+1. **Robert C. Martin** *Agile Software Development: Principles, Patterns, and Practices* Prentice Hall, 2002
+2. **Robert C. Martin** *Clean Architecture: A Craftsman's Guide to Software Structure and Design* Prentice Hall, 2017
 3. **Barbara Liskov, Jeannette Wing** "A Behavioral Notion of Subtyping" ACM Transactions on Programming Languages and Systems, 1994
-4. **Bertrand Meyer** 『Object-Oriented Software Construction』 Prentice Hall, 1997 (2nd Edition)
-5. **Martin Fowler** 『Refactoring: Improving the Design of Existing Code』 Addison-Wesley, 2018 (2nd Edition)
-6. **Sandi Metz** 『Practical Object-Oriented Design: An Agile Primer Using Ruby』 Addison-Wesley, 2018
-7. **Michael Feathers** 『Working Effectively with Legacy Code』 Prentice Hall, 2004
-8. **Mark Seemann** 『Dependency Injection: Principles, Practices, and Patterns』 Manning Publications, 2019
+4. **Bertrand Meyer** *Object-Oriented Software Construction* Prentice Hall, 1997 (2nd Edition)
+5. **Martin Fowler** *Refactoring: Improving the Design of Existing Code* Addison-Wesley, 2018 (2nd Edition)
+6. **Sandi Metz** *Practical Object-Oriented Design: An Agile Primer Using Ruby* Addison-Wesley, 2018
+7. **Michael Feathers** *Working Effectively with Legacy Code* Prentice Hall, 2004
+8. **Mark Seemann** *Dependency Injection: Principles, Practices, and Patterns* Manning Publications, 2019
