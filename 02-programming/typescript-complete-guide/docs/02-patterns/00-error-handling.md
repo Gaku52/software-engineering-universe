@@ -1,68 +1,68 @@
-# TypeScript エラーハンドリングパターン
+# TypeScript Error Handling Patterns
 
-> Result型、カスタムエラー階層、zodバリデーションを組み合わせた堅牢なエラー処理戦略
+> A robust error handling strategy combining the Result type, custom error hierarchies, and zod validation
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **Result型パターン** -- 例外を使わずに型安全にエラーを表現する方法
-2. **カスタムエラー階層** -- ドメイン固有のエラークラスを設計し、エラーの種別を型で判別する技法
-3. **zodによるバリデーション** -- ランタイムバリデーションと型推論を統合し、外部入力を安全に処理する方法
-4. **非同期エラーハンドリング** -- Promise と Result 型を組み合わせた非同期処理のエラー管理
-5. **エラーの集約と変換** -- 複数のエラーを集約し、レイヤー間でエラーを変換する技法
-6. **実務での統合パターン** -- Express/NestJS/tRPC でのエラーハンドリング統合
-7. **テスト戦略** -- エラーパスのテスト手法とベストプラクティス
+1. **Result type pattern** -- How to represent errors in a type-safe way without using exceptions
+2. **Custom error hierarchies** -- Techniques for designing domain-specific error classes and discriminating error kinds by type
+3. **Validation with zod** -- How to integrate runtime validation and type inference to safely process external input
+4. **Async error handling** -- Error management for asynchronous processing combining Promise and the Result type
+5. **Error aggregation and transformation** -- Techniques for aggregating multiple errors and transforming errors between layers
+6. **Integration patterns in production** -- Error handling integration in Express/NestJS/tRPC
+7. **Testing strategy** -- Methods for testing error paths and best practices
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. Result型パターン
+## 1. Result Type Pattern
 
-### 1-1. なぜ例外ではなく Result 型か
+### 1-1. Why Result Type Instead of Exceptions
 
 ```
 +----------------------------------+
-|        従来の例外フロー           |
+|        Traditional Exception Flow |
 +----------------------------------+
 |  function parse(input) {         |
-|    if (invalid) throw Error()  --+---> catch ブロックで
-|    return value                  |     型情報が消失
+|    if (invalid) throw Error()  --+---> Type information is
+|    return value                  |     lost in catch block
 |  }                               |
 +----------------------------------+
 
 +----------------------------------+
-|        Result 型フロー            |
+|        Result Type Flow           |
 +----------------------------------+
 |  function parse(input):          |
 |    Result<Value, ParseError>     |
-|    if (invalid) return Err(...)--+---> 型が保持される
-|    return Ok(value)              |     パターンマッチ可能
+|    if (invalid) return Err(...)--+---> Type is preserved
+|    return Ok(value)              |     Pattern matching possible
 |  }                               |
 +----------------------------------+
 ```
 
-例外ベースのエラーハンドリングには以下の根本的な問題があります。
+Exception-based error handling has the following fundamental problems.
 
-1. **型情報の消失**: `catch` ブロックの `error` は TypeScript 4.4 以降 `unknown` 型であり、どのような種類のエラーが発生しうるかをコンパイラが把握できません。
-2. **暗黙的な制御フロー**: 関数シグネチャを見ただけでは、その関数がどのような例外を throw するかがわかりません（Java の checked exception と異なり、TypeScript には throw 宣言がありません）。
-3. **コンポジションの困難さ**: 例外は関数合成を妨げます。`try-catch` のネストは可読性を著しく低下させます。
-4. **テストの複雑化**: 例外を throw する関数のテストは、`expect(() => fn()).toThrow()` のような間接的なアサーションが必要です。
+1. **Loss of type information**: The `error` in a `catch` block is of type `unknown` since TypeScript 4.4, so the compiler cannot track what kinds of errors can occur.
+2. **Implicit control flow**: You cannot tell from a function signature alone what exceptions that function might throw (unlike Java's checked exceptions, TypeScript has no throw declarations).
+3. **Difficulty of composition**: Exceptions impede function composition. Nested `try-catch` blocks severely reduce readability.
+4. **Test complexity**: Testing functions that throw exceptions requires indirect assertions like `expect(() => fn()).toThrow()`.
 
-Result 型はこれらの問題を解決し、**エラーを値として扱う**ことで型安全性と可読性を両立します。
+The Result type solves these problems and achieves both type safety and readability by **treating errors as values**.
 
 ```typescript
-// 例外ベース: 何が throw されるかわからない
+// Exception-based: unclear what is thrown
 function parseJSON(input: string): unknown {
-  return JSON.parse(input); // SyntaxError を throw する可能性
+  return JSON.parse(input); // might throw SyntaxError
 }
 
-// Result 型ベース: エラーが型シグネチャに現れる
+// Result type-based: errors appear in the type signature
 function parseJSON(input: string): Result<unknown, SyntaxError> {
   try {
     return Ok(JSON.parse(input));
@@ -72,10 +72,10 @@ function parseJSON(input: string): Result<unknown, SyntaxError> {
 }
 ```
 
-### 1-2. 基本の Result 型定義
+### 1-2. Basic Result Type Definition
 
 ```typescript
-// Result 型の定義
+// Result type definition
 type Result<T, E> = Ok<T> | Err<E>;
 
 interface Ok<T> {
@@ -88,7 +88,7 @@ interface Err<E> {
   readonly error: E;
 }
 
-// コンストラクタ関数
+// Constructor functions
 function Ok<T>(value: T): Ok<T> {
   return { _tag: "Ok", value };
 }
@@ -97,7 +97,7 @@ function Err<E>(error: E): Err<E> {
   return { _tag: "Err", error };
 }
 
-// 型ガード
+// Type guards
 function isOk<T, E>(result: Result<T, E>): result is Ok<T> {
   return result._tag === "Ok";
 }
@@ -107,10 +107,10 @@ function isErr<T, E>(result: Result<T, E>): result is Err<E> {
 }
 ```
 
-### 1-3. Result 型のユーティリティ
+### 1-3. Result Type Utilities
 
 ```typescript
-// map: 成功値を変換
+// map: transform the success value
 function map<T, U, E>(
   result: Result<T, E>,
   fn: (value: T) => U
@@ -118,7 +118,7 @@ function map<T, U, E>(
   return isOk(result) ? Ok(fn(result.value)) : result;
 }
 
-// flatMap (chain): 成功値から新しい Result を返す
+// flatMap (chain): return a new Result from the success value
 function flatMap<T, U, E>(
   result: Result<T, E>,
   fn: (value: T) => Result<U, E>
@@ -126,21 +126,21 @@ function flatMap<T, U, E>(
   return isOk(result) ? fn(result.value) : result;
 }
 
-// unwrapOr: エラー時にデフォルト値を返す
+// unwrapOr: return a default value on error
 function unwrapOr<T, E>(result: Result<T, E>, defaultValue: T): T {
   return isOk(result) ? result.value : defaultValue;
 }
 
-// 使用例
+// Usage example
 const parsed = parseAge("25");           // Result<number, ParseError>
 const doubled = map(parsed, (n) => n * 2); // Result<number, ParseError>
 const age = unwrapOr(doubled, 0);        // number
 ```
 
-### 1-4. 高度な Result ユーティリティ
+### 1-4. Advanced Result Utilities
 
 ```typescript
-// mapErr: エラーを変換する
+// mapErr: transform the error
 function mapErr<T, E, F>(
   result: Result<T, E>,
   fn: (error: E) => F
@@ -148,7 +148,7 @@ function mapErr<T, E, F>(
   return isErr(result) ? Err(fn(result.error)) : result;
 }
 
-// tap: 副作用を実行しつつ Result をそのまま返す
+// tap: execute a side effect while passing the Result through
 function tap<T, E>(
   result: Result<T, E>,
   fn: (value: T) => void
@@ -159,7 +159,7 @@ function tap<T, E>(
   return result;
 }
 
-// tapErr: エラー時に副作用を実行
+// tapErr: execute a side effect on error
 function tapErr<T, E>(
   result: Result<T, E>,
   fn: (error: E) => void
@@ -170,7 +170,7 @@ function tapErr<T, E>(
   return result;
 }
 
-// match: パターンマッチ
+// match: pattern matching
 function match<T, E, U>(
   result: Result<T, E>,
   handlers: {
@@ -181,7 +181,7 @@ function match<T, E, U>(
   return isOk(result) ? handlers.ok(result.value) : handlers.err(result.error);
 }
 
-// fromPromise: Promise を Result に変換
+// fromPromise: convert a Promise to a Result
 async function fromPromise<T, E = Error>(
   promise: Promise<T>,
   errorFn?: (error: unknown) => E
@@ -197,7 +197,7 @@ async function fromPromise<T, E = Error>(
   }
 }
 
-// fromThrowable: throw する関数を Result に変換
+// fromThrowable: convert a throwing function to a Result
 function fromThrowable<T, E = Error>(
   fn: () => T,
   errorFn?: (error: unknown) => E
@@ -212,7 +212,7 @@ function fromThrowable<T, E = Error>(
   }
 }
 
-// combine: 複数の Result をまとめる
+// combine: aggregate multiple Results
 function combine<T, E>(results: Result<T, E>[]): Result<T[], E> {
   const values: T[] = [];
   for (const result of results) {
@@ -224,7 +224,7 @@ function combine<T, E>(results: Result<T, E>[]): Result<T[], E> {
   return Ok(values);
 }
 
-// combineAll: 全エラーを収集する
+// combineAll: collect all errors
 function combineAll<T, E>(results: Result<T, E>[]): Result<T[], E[]> {
   const values: T[] = [];
   const errors: E[] = [];
@@ -240,7 +240,7 @@ function combineAll<T, E>(results: Result<T, E>[]): Result<T[], E[]> {
   return errors.length > 0 ? Err(errors) : Ok(values);
 }
 
-// 使用例: combine
+// Usage example: combine
 const validations = [
   validateName("John"),   // Result<string, ValidationError>
   validateEmail("a@b.c"), // Result<string, ValidationError>
@@ -251,9 +251,9 @@ const combined = combine(validations);
 // Result<(string | number)[], ValidationError>
 ```
 
-### 1-5. メソッドチェーン対応の Result クラス
+### 1-5. Method-Chaining Result Class
 
-プレーンオブジェクトの関数型スタイルだけでなく、メソッドチェーンスタイルも有用です。
+In addition to the functional style with plain objects, a method-chaining style is also useful.
 
 ```typescript
 class ResultClass<T, E> {
@@ -344,7 +344,7 @@ class ResultClass<T, E> {
   }
 }
 
-// 使用例: メソッドチェーン
+// Usage example: method chaining
 const result = ResultClass.ok<string, Error>("42")
   .map((s) => parseInt(s, 10))
   .flatMap((n) =>
@@ -360,12 +360,12 @@ const result = ResultClass.ok<string, Error>("42")
   });
 ```
 
-### 1-6. neverthrow を使った実装
+### 1-6. Implementation Using neverthrow
 
 ```typescript
 import { ok, err, Result, ResultAsync } from "neverthrow";
 
-// 基本的な使い方
+// Basic usage
 function divide(a: number, b: number): Result<number, Error> {
   if (b === 0) {
     return err(new Error("Division by zero"));
@@ -373,7 +373,7 @@ function divide(a: number, b: number): Result<number, Error> {
   return ok(a / b);
 }
 
-// ResultAsync: 非同期版 Result
+// ResultAsync: async version of Result
 function fetchUser(id: string): ResultAsync<User, ApiError> {
   return ResultAsync.fromPromise(
     fetch(`/api/users/${id}`).then((r) => r.json()),
@@ -381,7 +381,7 @@ function fetchUser(id: string): ResultAsync<User, ApiError> {
   );
 }
 
-// メソッドチェーンで処理を組み合わせ
+// Combine processing with method chaining
 const result = await fetchUser("123")
   .andThen((user) =>
     user.isActive
@@ -398,13 +398,13 @@ const result = await fetchUser("123")
     message: error.message,
   }));
 
-// match でパターンマッチ
+// Pattern matching with match
 result.match(
   (user) => console.log("User:", user),
   (error) => console.error("Error:", error)
 );
 
-// combine: 複数の Result を合成
+// combine: compose multiple Results
 const combinedResult = Result.combine([
   validateName(input.name),
   validateEmail(input.email),
@@ -412,7 +412,7 @@ const combinedResult = Result.combine([
 ]);
 // Result<[string, string, number], ValidationError>
 
-// combineWithAllErrors: 全てのエラーを収集
+// combineWithAllErrors: collect all errors
 const allErrors = Result.combineWithAllErrors([
   validateName(input.name),
   validateEmail(input.email),
@@ -421,10 +421,10 @@ const allErrors = Result.combineWithAllErrors([
 // Result<[string, string, number], ValidationError[]>
 ```
 
-### 1-7. pipe パターンによるチェーン
+### 1-7. Chaining with the pipe Pattern
 
 ```typescript
-// pipe 関数の定義
+// pipe function definition
 function pipe<A>(value: A): A;
 function pipe<A, B>(value: A, fn1: (a: A) => B): B;
 function pipe<A, B, C>(value: A, fn1: (a: A) => B, fn2: (b: B) => C): C;
@@ -438,7 +438,7 @@ function pipe(value: unknown, ...fns: Function[]): unknown {
   return fns.reduce((acc, fn) => fn(acc), value);
 }
 
-// Result 用の pipe 対応関数
+// pipe-compatible functions for Result
 const R = {
   map:
     <T, U, E>(fn: (value: T) => U) =>
@@ -468,7 +468,7 @@ const R = {
     },
 };
 
-// 使用例
+// Usage example
 const processedAge = pipe(
   parseAge("25"),
   R.map((n: number) => n + 1),
@@ -482,13 +482,13 @@ const processedAge = pipe(
 
 ---
 
-## 2. カスタムエラー階層
+## 2. Custom Error Hierarchies
 
-### 2-1. エラークラスの設計
+### 2-1. Error Class Design
 
 ```
 +---------------------+
-|     AppError        |  基底クラス
+|     AppError        |  Base class
 +---------------------+
          |
     +----+--------+----------+
@@ -499,12 +499,12 @@ const processedAge = pipe(
 +---------+ +---------+ +-----------+
     |
 +----------+
-|FieldError|  さらに特化
+|FieldError|  Further specialized
 +----------+
 ```
 
 ```typescript
-// 基底エラークラス
+// Base error class
 abstract class AppError extends Error {
   abstract readonly code: string;
   abstract readonly statusCode: number;
@@ -514,7 +514,7 @@ abstract class AppError extends Error {
     super(message);
     this.name = this.constructor.name;
     this.timestamp = new Date();
-    // プロトタイプチェーンの修正
+    // Fix prototype chain
     Object.setPrototypeOf(this, new.target.prototype);
   }
 
@@ -527,7 +527,7 @@ abstract class AppError extends Error {
   }
 }
 
-// 具体的なエラークラス
+// Concrete error classes
 class ValidationError extends AppError {
   readonly code = "VALIDATION_ERROR";
   readonly statusCode = 400;
@@ -562,12 +562,12 @@ class PermissionError extends AppError {
 }
 ```
 
-### 2-2. 拡張エラー階層の設計
+### 2-2. Extended Error Hierarchy Design
 
-実務のプロジェクトでは、より細かいエラー分類が必要になります。
+In production projects, finer-grained error classification is needed.
 
 ```typescript
-// ─── インフラストラクチャエラー ───
+// ─── Infrastructure Errors ───
 class InfraError extends AppError {
   readonly code = "INFRA_ERROR";
   readonly statusCode = 500;
@@ -618,7 +618,7 @@ class CacheError extends InfraError {
   }
 }
 
-// ─── ビジネスロジックエラー ───
+// ─── Business Logic Errors ───
 class BusinessError extends AppError {
   abstract readonly statusCode: number;
 
@@ -683,10 +683,10 @@ class ExpiredError extends BusinessError {
 }
 ```
 
-### 2-3. エラーコードのリテラル型による網羅性チェック
+### 2-3. Exhaustiveness Check with Literal Type Error Codes
 
 ```typescript
-// すべてのエラーコードをリテラル型のユニオンで定義
+// Define all error codes as a union of literal types
 type ErrorCode =
   | "VALIDATION_ERROR"
   | "NOT_FOUND"
@@ -699,7 +699,7 @@ type ErrorCode =
   | "EXTERNAL_API_ERROR"
   | "CACHE_ERROR";
 
-// ドメインエラーの判別共用体
+// Discriminated union of domain errors
 type DomainError =
   | ValidationError
   | NotFoundError
@@ -709,12 +709,12 @@ type DomainError =
   | InsufficientBalanceError
   | ExpiredError;
 
-// 網羅性チェック用のヘルパー
+// Helper for exhaustiveness check
 function assertNever(value: never): never {
   throw new Error(`Unexpected value: ${value}`);
 }
 
-// エラーコードでの分岐（網羅性チェック付き）
+// Branching by error code (with exhaustiveness check)
 function handleDomainError(error: DomainError): HttpResponse {
   switch (error.code) {
     case "VALIDATION_ERROR":
@@ -765,13 +765,13 @@ function handleDomainError(error: DomainError): HttpResponse {
         body: { code: error.code, message: error.message },
       };
     default:
-      // ここに到達する場合、DomainError に新しいケースが追加されている
+      // If this is reached, a new case has been added to DomainError
       return assertNever(error);
   }
 }
 ```
 
-### 2-4. Result 型とカスタムエラーの組み合わせ
+### 2-4. Combining Result Type with Custom Errors
 
 ```typescript
 type DomainError = ValidationError | NotFoundError | PermissionError;
@@ -791,12 +791,12 @@ async function updateUser(
   targetId: string,
   data: unknown
 ): Promise<DomainResult<User>> {
-  // 権限チェック
+  // Permission check
   if (requesterId !== targetId) {
     return Err(new PermissionError("update", "User"));
   }
 
-  // バリデーション
+  // Validation
   const validation = userSchema.safeParse(data);
   if (!validation.success) {
     return Err(
@@ -804,7 +804,7 @@ async function updateUser(
     );
   }
 
-  // 更新
+  // Update
   const result = await getUser(targetId);
   if (isErr(result)) return result;
 
@@ -813,31 +813,31 @@ async function updateUser(
 }
 ```
 
-### 2-5. エラーファクトリパターン
+### 2-5. Error Factory Pattern
 
-大規模プロジェクトでは、エラーの生成を集約するファクトリを用意すると便利です。
+In large-scale projects, it is useful to have a factory that centralizes error creation.
 
 ```typescript
-// エラーファクトリ
+// Error factory
 class AppErrors {
-  // ─── バリデーションエラー ───
+  // ─── Validation Errors ───
   static validation(fields: Record<string, string[]>): ValidationError {
     return new ValidationError("Validation failed", fields);
   }
 
   static requiredField(field: string): ValidationError {
     return new ValidationError(`${field} is required`, {
-      [field]: [`${field}は必須です`],
+      [field]: [`${field} is required`],
     });
   }
 
   static invalidFormat(field: string, expected: string): ValidationError {
     return new ValidationError(`${field} has invalid format`, {
-      [field]: [`${field}は${expected}の形式である必要があります`],
+      [field]: [`${field} must be in ${expected} format`],
     });
   }
 
-  // ─── 404 エラー ───
+  // ─── 404 Errors ───
   static notFound(resource: string, id: string): NotFoundError {
     return new NotFoundError(resource, id);
   }
@@ -850,12 +850,12 @@ class AppErrors {
     return new NotFoundError("Order", id);
   }
 
-  // ─── 権限エラー ───
+  // ─── Permission Errors ───
   static forbidden(action: string, resource: string): PermissionError {
     return new PermissionError(action, resource);
   }
 
-  // ─── コンフリクトエラー ───
+  // ─── Conflict Errors ───
   static duplicate(
     resource: string,
     field: string,
@@ -868,7 +868,7 @@ class AppErrors {
     return new ConflictError("User", "email", email);
   }
 
-  // ─── インフラエラー ───
+  // ─── Infrastructure Errors ───
   static database(message: string, cause?: unknown): DatabaseError {
     return new DatabaseError(message, undefined, cause);
   }
@@ -887,7 +887,7 @@ class AppErrors {
   }
 }
 
-// 使用例
+// Usage example
 function createUser(data: CreateUserInput): Promise<DomainResult<User>> {
   const existing = await db.users.findByEmail(data.email);
   if (existing) {
@@ -897,12 +897,12 @@ function createUser(data: CreateUserInput): Promise<DomainResult<User>> {
 }
 ```
 
-### 2-6. エラーのシリアライゼーションとデシリアライゼーション
+### 2-6. Error Serialization and Deserialization
 
-API レスポンスやログ出力のためのエラーシリアライゼーション。
+Error serialization for API responses and log output.
 
 ```typescript
-// エラーレスポンスの型
+// Error response type
 interface ErrorResponse {
   code: string;
   message: string;
@@ -911,7 +911,7 @@ interface ErrorResponse {
   details?: Record<string, unknown>;
 }
 
-// エラーシリアライザ
+// Error serializer
 class ErrorSerializer {
   static toResponse(error: AppError, requestId?: string): ErrorResponse {
     const base: ErrorResponse = {
@@ -921,7 +921,7 @@ class ErrorSerializer {
       requestId,
     };
 
-    // エラータイプに応じた詳細情報の追加
+    // Add details based on error type
     if (error instanceof ValidationError) {
       base.details = { fields: error.fields };
     } else if (error instanceof NotFoundError) {
@@ -937,7 +937,7 @@ class ErrorSerializer {
     return base;
   }
 
-  // ログ出力用（スタックトレース付き）
+  // For log output (with stack trace)
   static toLogEntry(error: AppError, context?: Record<string, unknown>) {
     return {
       level: error.statusCode >= 500 ? "error" : "warn",
@@ -952,7 +952,7 @@ class ErrorSerializer {
   }
 }
 
-// 構造化ログとの統合
+// Integration with structured logging
 import { Logger } from "pino";
 
 function logError(logger: Logger, error: AppError, context?: Record<string, unknown>) {
@@ -967,34 +967,34 @@ function logError(logger: Logger, error: AppError, context?: Record<string, unkn
 
 ---
 
-## 3. zod によるバリデーション
+## 3. Validation with zod
 
-### 3-1. スキーマ定義とエラー変換
+### 3-1. Schema Definition and Error Conversion
 
 ```typescript
 import { z } from "zod";
 
-// スキーマ定義
+// Schema definition
 const UserCreateSchema = z.object({
   name: z
     .string()
-    .min(1, "名前は必須です")
-    .max(100, "名前は100文字以内です"),
+    .min(1, "Name is required")
+    .max(100, "Name must be 100 characters or less"),
   email: z
     .string()
-    .email("有効なメールアドレスを入力してください"),
+    .email("Please enter a valid email address"),
   age: z
     .number()
-    .int("年齢は整数を指定してください")
-    .min(0, "年齢は0以上です")
-    .max(150, "年齢は150以下です"),
+    .int("Age must be an integer")
+    .min(0, "Age must be 0 or greater")
+    .max(150, "Age must be 150 or less"),
 });
 
-// 型を自動推論
+// Auto-infer type
 type UserCreate = z.infer<typeof UserCreateSchema>;
 // => { name: string; email: string; age: number }
 
-// zod → Result 型への変換
+// Convert zod to Result type
 function validate<T>(
   schema: z.ZodSchema<T>,
   data: unknown
@@ -1015,10 +1015,10 @@ function validate<T>(
 }
 ```
 
-### 3-2. 高度な zod パターン
+### 3-2. Advanced zod Patterns
 
 ```typescript
-// discriminatedUnion でリクエスト種別を判別
+// Discriminate request types with discriminatedUnion
 const PaymentSchema = z.discriminatedUnion("method", [
   z.object({
     method: z.literal("credit_card"),
@@ -1039,65 +1039,65 @@ const PaymentSchema = z.discriminatedUnion("method", [
 
 type Payment = z.infer<typeof PaymentSchema>;
 
-// transform でデータ整形
+// Shape data with transform
 const DateRangeSchema = z
   .object({
     start: z.coerce.date(),
     end: z.coerce.date(),
   })
   .refine((data) => data.start < data.end, {
-    message: "開始日は終了日より前でなければなりません",
+    message: "Start date must be before end date",
     path: ["start"],
   });
 ```
 
-### 3-3. 再利用可能なカスタムバリデータ
+### 3-3. Reusable Custom Validators
 
 ```typescript
-// ─── カスタムバリデータの定義 ───
+// ─── Custom Validator Definitions ───
 
-// 日本の電話番号
+// Japanese phone number
 const JapanesePhoneNumber = z
   .string()
   .regex(
     /^0[0-9]{1,4}-?[0-9]{1,4}-?[0-9]{4}$/,
-    "有効な日本の電話番号を入力してください"
+    "Please enter a valid Japanese phone number"
   )
   .transform((val) => val.replace(/-/g, ""));
 
-// 郵便番号
+// Postal code
 const JapanesePostalCode = z
   .string()
-  .regex(/^\d{3}-?\d{4}$/, "有効な郵便番号を入力してください（例: 123-4567）")
+  .regex(/^\d{3}-?\d{4}$/, "Please enter a valid postal code (e.g. 123-4567)")
   .transform((val) => val.replace(/-/, ""));
 
-// パスワード強度
+// Password strength
 const StrongPassword = z
   .string()
-  .min(8, "パスワードは8文字以上である必要があります")
-  .max(128, "パスワードは128文字以下である必要があります")
+  .min(8, "Password must be at least 8 characters")
+  .max(128, "Password must be 128 characters or less")
   .refine(
     (val) => /[A-Z]/.test(val),
-    "パスワードには大文字を1文字以上含める必要があります"
+    "Password must contain at least one uppercase letter"
   )
   .refine(
     (val) => /[a-z]/.test(val),
-    "パスワードには小文字を1文字以上含める必要があります"
+    "Password must contain at least one lowercase letter"
   )
   .refine(
     (val) => /[0-9]/.test(val),
-    "パスワードには数字を1文字以上含める必要があります"
+    "Password must contain at least one number"
   )
   .refine(
     (val) => /[!@#$%^&*(),.?":{}|<>]/.test(val),
-    "パスワードには記号を1文字以上含める必要があります"
+    "Password must contain at least one symbol"
   );
 
-// URL バリデータ（特定のドメインのみ許可）
+// URL validator (allow only specific domains)
 function urlWithDomain(...domains: string[]) {
   return z
     .string()
-    .url("有効なURLを入力してください")
+    .url("Please enter a valid URL")
     .refine(
       (val) => {
         try {
@@ -1109,34 +1109,34 @@ function urlWithDomain(...domains: string[]) {
           return false;
         }
       },
-      `許可されたドメイン: ${domains.join(", ")}`
+      `Allowed domains: ${domains.join(", ")}`
     );
 }
 
-// ISO 8601 日付文字列
+// ISO 8601 date string
 const ISODateString = z
   .string()
-  .datetime({ message: "ISO 8601形式の日付文字列を入力してください" })
+  .datetime({ message: "Please enter an ISO 8601 formatted date string" })
   .transform((val) => new Date(val));
 
-// 非負整数（ページネーション用）
+// Non-negative integer (for pagination)
 const PositiveInt = z.coerce
   .number()
-  .int("整数を指定してください")
-  .min(1, "1以上の値を指定してください");
+  .int("Please specify an integer")
+  .min(1, "Please specify a value of 1 or greater");
 
 const NonNegativeInt = z.coerce
   .number()
-  .int("整数を指定してください")
-  .min(0, "0以上の値を指定してください");
+  .int("Please specify an integer")
+  .min(0, "Please specify a value of 0 or greater");
 
-// ─── スキーマの組み合わせ例 ───
+// ─── Schema Combination Example ───
 
 const AddressSchema = z.object({
   postalCode: JapanesePostalCode,
-  prefecture: z.string().min(1, "都道府県は必須です"),
-  city: z.string().min(1, "市区町村は必須です"),
-  street: z.string().min(1, "番地は必須です"),
+  prefecture: z.string().min(1, "Prefecture is required"),
+  city: z.string().min(1, "City is required"),
+  street: z.string().min(1, "Street address is required"),
   building: z.string().optional(),
   phone: JapanesePhoneNumber.optional(),
 });
@@ -1151,58 +1151,58 @@ const UserRegistrationSchema = z
     profileUrl: urlWithDomain("github.com", "twitter.com").optional(),
   })
   .refine((data) => data.password === data.passwordConfirmation, {
-    message: "パスワードが一致しません",
+    message: "Passwords do not match",
     path: ["passwordConfirmation"],
   });
 
 type UserRegistration = z.infer<typeof UserRegistrationSchema>;
 ```
 
-### 3-4. zod のエラーメッセージのカスタマイズ
+### 3-4. Customizing zod Error Messages
 
 ```typescript
-// エラーマップによるグローバルなメッセージカスタマイズ
-const japaneseErrorMap: z.ZodErrorMap = (issue, ctx) => {
+// Global message customization via error map
+const englishErrorMap: z.ZodErrorMap = (issue, ctx) => {
   switch (issue.code) {
     case z.ZodIssueCode.invalid_type:
       if (issue.expected === "string") {
-        return { message: "文字列を入力してください" };
+        return { message: "Please enter a string" };
       }
       if (issue.expected === "number") {
-        return { message: "数値を入力してください" };
+        return { message: "Please enter a number" };
       }
-      return { message: `${issue.expected}型の値を入力してください` };
+      return { message: `Please enter a value of type ${issue.expected}` };
 
     case z.ZodIssueCode.too_small:
       if (issue.type === "string") {
-        return { message: `${issue.minimum}文字以上入力してください` };
+        return { message: `Please enter at least ${issue.minimum} characters` };
       }
       if (issue.type === "number") {
-        return { message: `${issue.minimum}以上の値を入力してください` };
+        return { message: `Please enter a value of ${issue.minimum} or greater` };
       }
       if (issue.type === "array") {
-        return { message: `${issue.minimum}個以上の要素が必要です` };
+        return { message: `At least ${issue.minimum} items are required` };
       }
       return { message: ctx.defaultError };
 
     case z.ZodIssueCode.too_big:
       if (issue.type === "string") {
-        return { message: `${issue.maximum}文字以内で入力してください` };
+        return { message: `Please enter ${issue.maximum} characters or fewer` };
       }
       if (issue.type === "number") {
-        return { message: `${issue.maximum}以下の値を入力してください` };
+        return { message: `Please enter a value of ${issue.maximum} or less` };
       }
       return { message: ctx.defaultError };
 
     case z.ZodIssueCode.invalid_string:
       if (issue.validation === "email") {
-        return { message: "有効なメールアドレスを入力してください" };
+        return { message: "Please enter a valid email address" };
       }
       if (issue.validation === "url") {
-        return { message: "有効なURLを入力してください" };
+        return { message: "Please enter a valid URL" };
       }
       if (issue.validation === "uuid") {
-        return { message: "有効なUUIDを入力してください" };
+        return { message: "Please enter a valid UUID" };
       }
       return { message: ctx.defaultError };
 
@@ -1211,10 +1211,10 @@ const japaneseErrorMap: z.ZodErrorMap = (issue, ctx) => {
   }
 };
 
-// グローバルに設定
-z.setErrorMap(japaneseErrorMap);
+// Set globally
+z.setErrorMap(englishErrorMap);
 
-// フォーム向けのエラーフォーマッタ
+// Error formatter for forms
 function formatZodErrorForForm(
   error: z.ZodError
 ): Record<string, string[]> {
@@ -1231,7 +1231,7 @@ function formatZodErrorForForm(
   return formatted;
 }
 
-// フラットなエラーメッセージリスト
+// Flat list of error messages
 function flattenZodErrors(error: z.ZodError): string[] {
   return error.issues.map((issue) => {
     const path = issue.path.join(".");
@@ -1240,10 +1240,10 @@ function flattenZodErrors(error: z.ZodError): string[] {
 }
 ```
 
-### 3-5. zod と API バリデーションの統合
+### 3-5. Integration of zod with API Validation
 
 ```typescript
-// Express ミドルウェアとしての zod バリデーション
+// zod validation as Express middleware
 import { Request, Response, NextFunction } from "express";
 
 function validateBody<T>(schema: z.ZodSchema<T>) {
@@ -1253,7 +1253,7 @@ function validateBody<T>(schema: z.ZodSchema<T>) {
       const errors = formatZodErrorForForm(result.error);
       return res.status(400).json({
         code: "VALIDATION_ERROR",
-        message: "入力データが不正です",
+        message: "Invalid input data",
         errors,
       });
     }
@@ -1269,11 +1269,11 @@ function validateQuery<T>(schema: z.ZodSchema<T>) {
       const errors = formatZodErrorForForm(result.error);
       return res.status(400).json({
         code: "VALIDATION_ERROR",
-        message: "クエリパラメータが不正です",
+        message: "Invalid query parameters",
         errors,
       });
     }
-    // 型安全なクエリパラメータ
+    // Type-safe query parameters
     (req as any).validatedQuery = result.data;
     next();
   };
@@ -1286,7 +1286,7 @@ function validateParams<T>(schema: z.ZodSchema<T>) {
       const errors = formatZodErrorForForm(result.error);
       return res.status(400).json({
         code: "VALIDATION_ERROR",
-        message: "パスパラメータが不正です",
+        message: "Invalid path parameters",
         errors,
       });
     }
@@ -1295,7 +1295,7 @@ function validateParams<T>(schema: z.ZodSchema<T>) {
   };
 }
 
-// 使用例
+// Usage example
 const PaginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -1304,7 +1304,7 @@ const PaginationSchema = z.object({
 });
 
 const UserIdSchema = z.object({
-  id: z.string().uuid("有効なユーザーIDを指定してください"),
+  id: z.string().uuid("Please specify a valid user ID"),
 });
 
 app.get(
@@ -1312,7 +1312,7 @@ app.get(
   validateQuery(PaginationSchema),
   async (req, res) => {
     const query = (req as any).validatedQuery;
-    // query は { page: number; limit: number; sort: string; order: string } 型
+    // query is of type { page: number; limit: number; sort: string; order: string }
     const users = await userService.list(query);
     res.json(users);
   }
@@ -1332,12 +1332,12 @@ app.get(
 );
 ```
 
-### 3-6. zod と環境変数バリデーション
+### 3-6. zod and Environment Variable Validation
 
 ```typescript
-// 環境変数スキーマ
+// Environment variable schema
 const EnvSchema = z.object({
-  // 必須
+  // Required
   NODE_ENV: z.enum(["development", "staging", "production"]),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   DATABASE_URL: z.string().url(),
@@ -1348,13 +1348,13 @@ const EnvSchema = z.object({
   REDIS_PASSWORD: z.string().optional(),
 
   // JWT
-  JWT_SECRET: z.string().min(32, "JWT_SECRETは32文字以上必要です"),
+  JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
   JWT_EXPIRES_IN: z
     .string()
-    .regex(/^\d+[smhd]$/, "例: 1h, 30m, 7d")
+    .regex(/^\d+[smhd]$/, "Example: 1h, 30m, 7d")
     .default("1h"),
 
-  // 外部API
+  // External API
   STRIPE_SECRET_KEY: z.string().startsWith("sk_"),
   STRIPE_WEBHOOK_SECRET: z.string().startsWith("whsec_"),
 
@@ -1364,14 +1364,14 @@ const EnvSchema = z.object({
   S3_BUCKET_NAME: z.string().min(1),
   S3_REGION: z.string().default("ap-northeast-1"),
 
-  // メール
+  // Email
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().optional(),
   SMTP_USER: z.string().optional(),
   SMTP_PASSWORD: z.string().optional(),
   FROM_EMAIL: z.string().email().optional(),
 
-  // ロギング
+  // Logging
   LOG_LEVEL: z
     .enum(["trace", "debug", "info", "warn", "error", "fatal"])
     .default("info"),
@@ -1379,7 +1379,7 @@ const EnvSchema = z.object({
 
 type Env = z.infer<typeof EnvSchema>;
 
-// 起動時にバリデーション
+// Validate at startup
 function loadEnv(): Env {
   const result = EnvSchema.safeParse(process.env);
 
@@ -1387,7 +1387,7 @@ function loadEnv(): Env {
     const errors = result.error.issues.map(
       (issue) => `  ${issue.path.join(".")}: ${issue.message}`
     );
-    console.error("❌ 環境変数の設定エラー:");
+    console.error("❌ Environment variable configuration error:");
     console.error(errors.join("\n"));
     process.exit(1);
   }
@@ -1395,23 +1395,23 @@ function loadEnv(): Env {
   return result.data;
 }
 
-// シングルトンとしてエクスポート
+// Export as singleton
 export const env = loadEnv();
 ```
 
 ---
 
-## 4. 非同期エラーハンドリング
+## 4. Async Error Handling
 
-### 4-1. Promise と Result の統合
+### 4-1. Integration of Promise and Result
 
 ```typescript
-// AsyncResult 型の定義
+// AsyncResult type definition
 type AsyncResult<T, E> = Promise<Result<T, E>>;
 
-// 非同期 Result ユーティリティ
+// Async Result utilities
 const AsyncR = {
-  // Promise<Result> の map
+  // map for Promise<Result>
   map: async <T, U, E>(
     asyncResult: AsyncResult<T, E>,
     fn: (value: T) => U
@@ -1420,7 +1420,7 @@ const AsyncR = {
     return isOk(result) ? Ok(fn(result.value)) : result;
   },
 
-  // Promise<Result> の flatMap
+  // flatMap for Promise<Result>
   flatMap: async <T, U, E>(
     asyncResult: AsyncResult<T, E>,
     fn: (value: T) => AsyncResult<U, E>
@@ -1429,7 +1429,7 @@ const AsyncR = {
     return isOk(result) ? fn(result.value) : result;
   },
 
-  // Promise を Result に変換
+  // Convert Promise to Result
   fromPromise: async <T, E>(
     promise: Promise<T>,
     errorMapper: (error: unknown) => E
@@ -1442,7 +1442,7 @@ const AsyncR = {
     }
   },
 
-  // 並列実行
+  // Parallel execution
   all: async <T, E>(
     results: AsyncResult<T, E>[]
   ): AsyncResult<T[], E> => {
@@ -1450,7 +1450,7 @@ const AsyncR = {
     return combine(resolved);
   },
 
-  // settled: すべての結果を返す（エラーも含む）
+  // settled: return all results (including errors)
   allSettled: async <T, E>(
     results: AsyncResult<T, E>[]
   ): Promise<Result<T, E>[]> => {
@@ -1458,34 +1458,34 @@ const AsyncR = {
   },
 };
 
-// 使用例: 非同期処理のチェーン
+// Usage example: chaining async operations
 async function processOrder(
   orderId: string,
   userId: string
 ): AsyncResult<OrderConfirmation, DomainError> {
-  // 1. ユーザー取得
+  // 1. Get user
   const userResult = await getUser(userId);
   if (isErr(userResult)) return userResult;
   const user = userResult.value;
 
-  // 2. 注文取得
+  // 2. Get order
   const orderResult = await getOrder(orderId);
   if (isErr(orderResult)) return orderResult;
   const order = orderResult.value;
 
-  // 3. 権限チェック
+  // 3. Permission check
   if (order.userId !== user.id) {
     return Err(new PermissionError("process", "Order"));
   }
 
-  // 4. 支払い処理
+  // 4. Process payment
   const paymentResult = await processPayment(order, user);
   if (isErr(paymentResult)) return paymentResult;
 
-  // 5. 確認メール送信
+  // 5. Send confirmation email
   const emailResult = await sendConfirmation(user.email, order);
   if (isErr(emailResult)) {
-    // メール送信失敗は致命的ではないのでログのみ
+    // Email send failure is not fatal, only log
     console.warn("Failed to send confirmation email:", emailResult.error);
   }
 
@@ -1498,12 +1498,12 @@ async function processOrder(
 }
 ```
 
-### 4-2. do記法風のパイプライン
+### 4-2. Do-Notation Style Pipeline
 
-early return が多くなる問題を解決する do 記法風のパターンです。
+A do-notation style pattern that solves the problem of too many early returns.
 
 ```typescript
-// ResultBuilder: do記法風のチェーン
+// ResultBuilder: do-notation style chain
 class ResultBuilder<E> {
   private steps: Map<string, unknown> = new Map();
 
@@ -1527,7 +1527,7 @@ class ResultBuilder<E> {
   }
 }
 
-// Do記法ヘルパー
+// Do-notation helper
 async function Do<T, E>(
   fn: (ctx: {
     bind: <V>(result: AsyncResult<V, E>) => Promise<V>;
@@ -1557,7 +1557,7 @@ async function Do<T, E>(
   }
 }
 
-// 使用例: Do記法で平坦化
+// Usage example: flatten with Do-notation
 async function processOrder(
   orderId: string,
   userId: string
@@ -1572,7 +1572,7 @@ async function processOrder(
 
     const payment = await bind(processPayment(order, user));
 
-    // メール送信は失敗しても続行
+    // Continue even if email send fails
     await sendConfirmation(user.email, order).catch(() => {});
 
     return Ok({
@@ -1585,7 +1585,7 @@ async function processOrder(
 }
 ```
 
-### 4-3. リトライパターン
+### 4-3. Retry Pattern
 
 ```typescript
 interface RetryOptions {
@@ -1618,7 +1618,7 @@ async function withRetry<T, E>(
       return lastResult;
     }
 
-    // リトライ可能なエラーかチェック
+    // Check if the error is retryable
     if (
       opts.retryableErrors &&
       !opts.retryableErrors(lastResult.error)
@@ -1626,9 +1626,9 @@ async function withRetry<T, E>(
       return lastResult;
     }
 
-    // 最後の試行ではリトライしない
+    // Do not retry on the last attempt
     if (attempt < opts.maxRetries) {
-      // ジッター付きの指数バックオフ
+      // Exponential backoff with jitter
       const jitter = Math.random() * delay * 0.1;
       await new Promise((resolve) =>
         setTimeout(resolve, Math.min(delay + jitter, opts.maxDelayMs))
@@ -1640,7 +1640,7 @@ async function withRetry<T, E>(
   return lastResult!;
 }
 
-// サーキットブレーカーパターン
+// Circuit breaker pattern
 class CircuitBreaker<T, E> {
   private failures = 0;
   private lastFailure: Date | null = null;
@@ -1657,7 +1657,7 @@ class CircuitBreaker<T, E> {
 
   async execute(): AsyncResult<T, E> {
     if (this.state === "open") {
-      // リセットタイムアウトが経過したかチェック
+      // Check if reset timeout has elapsed
       const now = new Date();
       if (
         this.lastFailure &&
@@ -1665,7 +1665,7 @@ class CircuitBreaker<T, E> {
       ) {
         this.state = "half-open";
       } else {
-        // フォールバックを返すか、エラーを返す
+        // Return fallback or error
         if (this.options.fallback) {
           return this.options.fallback();
         }
@@ -1694,12 +1694,12 @@ class CircuitBreaker<T, E> {
   }
 }
 
-// 使用例
+// Usage example
 const fetchUserWithRetry = (id: string) =>
   withRetry(() => fetchUser(id), {
     maxRetries: 3,
     retryableErrors: (error) => {
-      // ネットワークエラーのみリトライ
+      // Only retry on network errors
       return error instanceof ExternalApiError;
     },
   });
@@ -1714,7 +1714,7 @@ const userCircuitBreaker = new CircuitBreaker(
 );
 ```
 
-### 4-4. タイムアウトパターン
+### 4-4. Timeout Pattern
 
 ```typescript
 class TimeoutError extends AppError {
@@ -1744,7 +1744,7 @@ async function withTimeout<T, E>(
   return Promise.race([fn(), timeoutPromise]);
 }
 
-// AbortController を使ったキャンセル可能な処理
+// Cancellable processing using AbortController
 async function fetchWithAbort<T>(
   url: string,
   options: { timeoutMs: number }
@@ -1780,14 +1780,14 @@ async function fetchWithAbort<T>(
 
 ---
 
-## 5. エラーの集約と変換
+## 5. Error Aggregation and Transformation
 
-### 5-1. レイヤー間のエラー変換
+### 5-1. Error Transformation Between Layers
 
 ```
 +------------------+     +------------------+     +------------------+
-| プレゼンテーション |     | アプリケーション   |     | ドメイン          |
-|       層         |     |       層         |     |       層         |
+| Presentation     |     | Application      |     | Domain           |
+|       Layer      |     |       Layer      |     |       Layer      |
 +------------------+     +------------------+     +------------------+
 | HttpError        | <-- | ApplicationError | <-- | DomainError      |
 | - statusCode     |     | - DomainError    |     | - ValidationError|
@@ -1797,31 +1797,31 @@ async function fetchWithAbort<T>(
         ^                        ^                        ^
         |                        |                        |
 +------------------+     +------------------+     +------------------+
-| インフラ          |     | 外部サービス      |     | データベース      |
-|       層         |     |       層         |     |       層         |
+| Infrastructure   |     | External Service |     | Database         |
+|       Layer      |     |       Layer      |     |       Layer      |
 +------------------+     +------------------+     +------------------+
 | InfraError       |     | ExternalApiError |     | DatabaseError    |
 +------------------+     +------------------+     +------------------+
 ```
 
 ```typescript
-// ─── レイヤー間のエラー変換マッパー ───
+// ─── Error Transformation Mappers Between Layers ───
 
-// インフラエラー → ドメインエラー
+// Infra error → domain error
 function infraToDomainError(error: InfraError): DomainError {
   if (error instanceof DatabaseError) {
-    // ユニーク制約違反
+    // Unique constraint violation
     if (error.message.includes("unique constraint")) {
       return new ConflictError("Resource", "unknown", "unknown");
     }
-    // その他のDBエラーはNotFoundとして扱うか再throw
+    // Other DB errors treated as NotFound or re-thrown
     return new NotFoundError("Resource", "unknown");
   }
-  // キャッチオール
-  throw error; // インフラエラーはドメイン層で処理できない
+  // Catch-all
+  throw error; // Infra errors cannot be handled at the domain layer
 }
 
-// ドメインエラー → HTTPレスポンス
+// Domain error → HTTP response
 function domainToHttpResponse(error: DomainError): {
   status: number;
   body: ErrorResponse;
@@ -1832,7 +1832,7 @@ function domainToHttpResponse(error: DomainError): {
   };
 }
 
-// エラー変換パイプライン
+// Error transformation pipeline
 class ErrorTransformer {
   private transformers: Map<
     string,
@@ -1856,7 +1856,7 @@ class ErrorTransformer {
   }
 }
 
-// 使用例
+// Usage example
 const errorTransformer = new ErrorTransformer()
   .register("DATABASE_ERROR", (error: DatabaseError) => {
     if (error.message.includes("unique constraint")) {
@@ -1872,10 +1872,10 @@ const errorTransformer = new ErrorTransformer()
   });
 ```
 
-### 5-2. 複数バリデーションエラーの集約
+### 5-2. Aggregating Multiple Validation Errors
 
 ```typescript
-// バリデーションエラーを集約するコレクター
+// Collector for aggregating validation errors
 class ValidationCollector {
   private errors: Record<string, string[]> = {};
 
@@ -1922,14 +1922,14 @@ class ValidationCollector {
   }
 }
 
-// 使用例: ビジネスルールのバリデーション
+// Usage example: business rule validation
 async function validateOrder(
   order: OrderInput,
   user: User
 ): Result<OrderInput, ValidationError> {
   const collector = new ValidationCollector();
 
-  // zodスキーマの基本バリデーション
+  // Basic validation with zod schema
   const schemaResult = OrderSchema.safeParse(order);
   if (!schemaResult.success) {
     for (const issue of schemaResult.error.issues) {
@@ -1937,36 +1937,36 @@ async function validateOrder(
     }
   }
 
-  // ビジネスルールのバリデーション
+  // Business rule validation
   collector
     .addIf(
       order.items.length === 0,
       "items",
-      "注文には1つ以上の商品が必要です"
+      "An order must contain at least one item"
     )
     .addIf(
       order.items.length > 100,
       "items",
-      "一度に注文できる商品は100個までです"
+      "You can order up to 100 items at a time"
     )
     .addIf(
       !user.isVerified,
       "_root",
-      "メールアドレスの認証が完了していません"
+      "Email address verification has not been completed"
     )
     .addIf(
       user.isSuspended,
       "_root",
-      "アカウントが停止されています"
+      "Your account has been suspended"
     );
 
-  // 在庫チェック（非同期）
+  // Inventory check (async)
   for (const item of order.items) {
     const stock = await getStock(item.productId);
     if (!stock || stock.quantity < item.quantity) {
       collector.add(
         `items.${item.productId}`,
-        `在庫が不足しています（残り: ${stock?.quantity ?? 0}個）`
+        `Insufficient stock (remaining: ${stock?.quantity ?? 0})`
       );
     }
   }
@@ -1975,10 +1975,10 @@ async function validateOrder(
 }
 ```
 
-### 5-3. エラーの伝播と変換チェーン
+### 5-3. Error Propagation and Transformation Chain
 
 ```typescript
-// リポジトリ層: DB固有のエラーをドメインエラーに変換
+// Repository layer: convert DB-specific errors to domain errors
 class UserRepository {
   async findById(id: string): AsyncResult<User, NotFoundError | DatabaseError> {
     try {
@@ -2000,7 +2000,7 @@ class UserRepository {
       );
       return Ok(this.mapToUser(row));
     } catch (error: unknown) {
-      // PostgreSQL のユニーク制約違反
+      // PostgreSQL unique constraint violation
       if (
         error instanceof Error &&
         error.message.includes("unique_violation")
@@ -2022,7 +2022,7 @@ class UserRepository {
   }
 }
 
-// サービス層: リポジトリのエラーをアプリケーションエラーに変換
+// Service layer: convert repository errors to application errors
 class UserService {
   constructor(
     private readonly userRepo: UserRepository,
@@ -2032,18 +2032,18 @@ class UserService {
   async register(
     input: unknown
   ): AsyncResult<User, ValidationError | ConflictError | InfraError> {
-    // 1. バリデーション
+    // 1. Validation
     const validated = validate(UserRegistrationSchema, input);
     if (isErr(validated)) return validated;
 
-    // 2. ユーザー作成
+    // 2. Create user
     const created = await this.userRepo.create(validated.value);
     if (isErr(created)) return created;
 
-    // 3. ウェルカムメール（失敗しても続行）
+    // 3. Welcome email (continue on failure)
     const emailResult = await this.emailService.sendWelcome(created.value.email);
     if (isErr(emailResult)) {
-      // メール送信失敗はログに記録するが、ユーザー作成は成功とする
+      // Log the email send failure, but consider user creation a success
       console.warn("Welcome email failed:", emailResult.error);
     }
 
@@ -2051,7 +2051,7 @@ class UserService {
   }
 }
 
-// コントローラ層: サービスのエラーをHTTPレスポンスに変換
+// Controller layer: convert service errors to HTTP responses
 class UserController {
   constructor(private readonly userService: UserService) {}
 
@@ -2073,28 +2073,28 @@ class UserController {
 
 ---
 
-## 6. 実務での統合パターン
+## 6. Integration Patterns in Production
 
-### 6-1. Express でのグローバルエラーハンドリング
+### 6-1. Global Error Handling in Express
 
 ```typescript
 import express, { Request, Response, NextFunction, ErrorRequestHandler } from "express";
 
-// グローバルエラーハンドラ
+// Global error handler
 const globalErrorHandler: ErrorRequestHandler = (
   error: unknown,
   req: Request,
   res: Response,
   _next: NextFunction
 ) => {
-  // リクエストIDの取得
+  // Get request ID
   const requestId = req.headers["x-request-id"] as string | undefined;
 
-  // AppError のインスタンスかチェック
+  // Check if it is an AppError instance
   if (error instanceof AppError) {
     const response = ErrorSerializer.toResponse(error, requestId);
 
-    // 5xx エラーの場合はスタックトレースもログ
+    // For 5xx errors, also log the stack trace
     if (error.statusCode >= 500) {
       console.error("Internal error:", {
         ...response,
@@ -2107,7 +2107,7 @@ const globalErrorHandler: ErrorRequestHandler = (
     return;
   }
 
-  // 予期しないエラー
+  // Unexpected error
   console.error("Unexpected error:", error);
   res.status(500).json({
     code: "INTERNAL_ERROR",
@@ -2116,7 +2116,7 @@ const globalErrorHandler: ErrorRequestHandler = (
   });
 };
 
-// 非同期ルートハンドラのラッパー
+// Wrapper for async route handlers
 function asyncHandler(
   fn: (req: Request, res: Response, next: NextFunction) => Promise<void>
 ) {
@@ -2125,7 +2125,7 @@ function asyncHandler(
   };
 }
 
-// Result を使ったルートハンドラ
+// Route handler using Result
 function resultHandler<T>(
   fn: (req: Request) => AsyncResult<T, AppError>
 ) {
@@ -2142,11 +2142,11 @@ function resultHandler<T>(
   });
 }
 
-// アプリケーション設定
+// Application setup
 const app = express();
 app.use(express.json());
 
-// ルート定義
+// Route definitions
 app.post(
   "/api/users",
   resultHandler(async (req) => {
@@ -2161,11 +2161,11 @@ app.get(
   })
 );
 
-// グローバルエラーハンドラの登録（最後に）
+// Register global error handler (at the end)
 app.use(globalErrorHandler);
 ```
 
-### 6-2. NestJS でのエラーハンドリング
+### 6-2. Error Handling in NestJS
 
 ```typescript
 import {
@@ -2177,7 +2177,7 @@ import {
 } from "@nestjs/common";
 import { Response } from "express";
 
-// NestJS 用の例外フィルタ
+// Exception filter for NestJS
 @Catch()
 export class AppExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
@@ -2203,7 +2203,7 @@ export class AppExceptionFilter implements ExceptionFilter {
       return;
     }
 
-    // 予期しないエラー
+    // Unexpected error
     console.error("Unhandled exception:", exception);
     response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       code: "INTERNAL_ERROR",
@@ -2212,7 +2212,7 @@ export class AppExceptionFilter implements ExceptionFilter {
   }
 }
 
-// Result を返すサービスの NestJS インターセプタ
+// NestJS interceptor for services returning Result
 import {
   Injectable,
   NestInterceptor,
@@ -2230,7 +2230,7 @@ export class ResultInterceptor implements NestInterceptor {
           if (result._tag === "Err") {
             const error = result.error;
             if (error instanceof AppError) {
-              throw error; // AppExceptionFilter が処理
+              throw error; // Processed by AppExceptionFilter
             }
           }
           if (result._tag === "Ok") {
@@ -2243,7 +2243,7 @@ export class ResultInterceptor implements NestInterceptor {
   }
 }
 
-// コントローラでの使用
+// Usage in controller
 @Controller("users")
 @UseFilters(AppExceptionFilter)
 @UseInterceptors(ResultInterceptor)
@@ -2253,8 +2253,8 @@ export class UserController {
   @Post()
   async create(@Body() body: unknown) {
     return this.userService.register(body);
-    // Result<User, AppError> が返却される
-    // ResultInterceptor が Ok → value, Err → throw に変換
+    // Returns Result<User, AppError>
+    // ResultInterceptor converts Ok → value, Err → throw
   }
 
   @Get(":id")
@@ -2264,14 +2264,14 @@ export class UserController {
 }
 ```
 
-### 6-3. tRPC でのエラーハンドリング
+### 6-3. Error Handling in tRPC
 
 ```typescript
 import { initTRPC, TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 const t = initTRPC.context<Context>().create({
-  // zod のグローバルエラーフォーマッタ
+  // Global zod error formatter
   errorFormatter({ shape, error }) {
     return {
       ...shape,
@@ -2290,7 +2290,7 @@ const t = initTRPC.context<Context>().create({
   },
 });
 
-// Result を TRPCError に変換するヘルパー
+// Helper to convert Result to TRPCError
 function resultToTRPC<T>(result: Result<T, AppError>): T {
   if (isOk(result)) {
     return result.value;
@@ -2314,7 +2314,7 @@ function resultToTRPC<T>(result: Result<T, AppError>): T {
   });
 }
 
-// ルーター定義
+// Router definition
 const userRouter = t.router({
   create: t.procedure
     .input(UserCreateSchema)
@@ -2339,12 +2339,12 @@ const userRouter = t.router({
 });
 ```
 
-### 6-4. GraphQL でのエラーハンドリング
+### 6-4. Error Handling in GraphQL
 
 ```typescript
 import { GraphQLError } from "graphql";
 
-// Result を GraphQL レスポンスに変換
+// Convert Result to GraphQL response
 function resultToGraphQL<T>(
   result: Result<T, AppError>
 ): T {
@@ -2354,7 +2354,7 @@ function resultToGraphQL<T>(
 
   const error = result.error;
 
-  // GraphQL のエラーコード拡張
+  // GraphQL error code extension
   throw new GraphQLError(error.message, {
     extensions: {
       code: error.code,
@@ -2366,7 +2366,7 @@ function resultToGraphQL<T>(
   });
 }
 
-// Union 型によるエラー表現（GraphQL スタイル）
+// Error representation using Union types (GraphQL style)
 // GraphQL Schema:
 // union UserResult = User | ValidationErrorPayload | NotFoundErrorPayload
 
@@ -2426,9 +2426,9 @@ function domainResultToGraphQLUnion(
 
 ---
 
-## 7. テスト戦略
+## 7. Testing Strategy
 
-### 7-1. Result 型のテスト
+### 7-1. Testing the Result Type
 
 ```typescript
 import { describe, it, expect } from "vitest";
@@ -2477,7 +2477,7 @@ describe("Result utilities", () => {
   });
 });
 
-// カスタムマッチャー
+// Custom matchers
 expect.extend({
   toBeOk(received: Result<any, any>) {
     const pass = isOk(received);
@@ -2528,7 +2528,7 @@ expect.extend({
   },
 });
 
-// 型拡張
+// Type extension
 declare module "vitest" {
   interface Assertion<T = any> {
     toBeOk(): void;
@@ -2539,7 +2539,7 @@ declare module "vitest" {
 }
 ```
 
-### 7-2. サービス層のエラーテスト
+### 7-2. Testing Errors in the Service Layer
 
 ```typescript
 describe("UserService", () => {
@@ -2600,7 +2600,7 @@ describe("UserService", () => {
       );
 
       const result = await userService.register(validInput);
-      // メール送信失敗でもユーザー作成は成功
+      // User creation succeeds even if email send fails
       expect(result).toBeOk();
     });
 
@@ -2617,13 +2617,13 @@ describe("UserService", () => {
 });
 ```
 
-### 7-3. プロパティベーステスト
+### 7-3. Property-Based Testing
 
 ```typescript
 import * as fc from "fast-check";
 
 describe("Result laws", () => {
-  // Functor則: map(id) === id
+  // Functor law: map(id) === id
   it("should satisfy functor identity law", () => {
     fc.assert(
       fc.property(fc.integer(), (n) => {
@@ -2634,7 +2634,7 @@ describe("Result laws", () => {
     );
   });
 
-  // Functor則: map(f . g) === map(f) . map(g)
+  // Functor law: map(f . g) === map(f) . map(g)
   it("should satisfy functor composition law", () => {
     fc.assert(
       fc.property(fc.integer(), (n) => {
@@ -2650,7 +2650,7 @@ describe("Result laws", () => {
     );
   });
 
-  // Monad則: flatMap(Ok) === id
+  // Monad law: flatMap(Ok) === id
   it("should satisfy monad left identity", () => {
     fc.assert(
       fc.property(fc.integer(), (n) => {
@@ -2666,7 +2666,7 @@ describe("Result laws", () => {
   });
 });
 
-// バリデーションのプロパティテスト
+// Property tests for validation
 describe("Validation properties", () => {
   it("should accept any valid email", () => {
     fc.assert(
@@ -2691,7 +2691,7 @@ describe("Validation properties", () => {
 });
 ```
 
-### 7-4. E2E テストでのエラーレスポンス検証
+### 7-4. Verifying Error Responses in E2E Tests
 
 ```typescript
 import request from "supertest";
@@ -2712,7 +2712,7 @@ describe("POST /api/users", () => {
   });
 
   it("should return 409 for duplicate email", async () => {
-    // まずユーザーを作成
+    // First, create a user
     await request(app)
       .post("/api/users")
       .send({
@@ -2723,7 +2723,7 @@ describe("POST /api/users", () => {
       })
       .expect(201);
 
-    // 同じメールで再度作成
+    // Create again with the same email
     const response = await request(app)
       .post("/api/users")
       .send({
@@ -2749,39 +2749,39 @@ describe("POST /api/users", () => {
 
 ---
 
-## 8. パフォーマンス考慮事項
+## 8. Performance Considerations
 
-### 8-1. Result 型のオーバーヘッド
+### 8-1. Result Type Overhead
 
 ```typescript
-// ─── ベンチマーク: Result 型 vs 例外 ───
+// ─── Benchmark: Result Type vs Exceptions ───
 
-// 例外ベース
+// Exception-based
 function divideWithThrow(a: number, b: number): number {
   if (b === 0) throw new Error("Division by zero");
   return a / b;
 }
 
-// Result ベース
+// Result-based
 function divideWithResult(a: number, b: number): Result<number, string> {
   if (b === 0) return Err("Division by zero");
   return Ok(a / b);
 }
 
-// ベンチマーク結果（概算）:
-// 正常系:
-//   例外ベース:  ~5ns/op
-//   Result ベース: ~20ns/op (オブジェクト生成のオーバーヘッド)
+// Benchmark results (approximate):
+// Success path:
+//   Exception-based:  ~5ns/op
+//   Result-based: ~20ns/op (object creation overhead)
 //
-// エラー系:
-//   例外ベース:  ~10,000ns/op (スタックトレース生成が重い)
-//   Result ベース: ~20ns/op (一定)
+// Error path:
+//   Exception-based:  ~10,000ns/op (stack trace generation is expensive)
+//   Result-based: ~20ns/op (constant)
 //
-// 結論: エラーが頻繁に発生するパスでは Result 型が圧倒的に高速
+// Conclusion: Result type is overwhelmingly faster for paths where errors occur frequently
 
-// ─── パフォーマンス最適化のテクニック ───
+// ─── Performance Optimization Techniques ───
 
-// 1. シングルトン Err パターン（同じエラーを繰り返し返す場合）
+// 1. Singleton Err pattern (when returning the same error repeatedly)
 const DIVISION_BY_ZERO_ERR = Err("Division by zero") as Result<never, string>;
 
 function divideFast(a: number, b: number): Result<number, string> {
@@ -2789,7 +2789,7 @@ function divideFast(a: number, b: number): Result<number, string> {
   return Ok(a / b);
 }
 
-// 2. Error クラスのスタックトレース無効化
+// 2. Disable stack trace for Error class
 class LightweightError extends AppError {
   constructor(
     message: string,
@@ -2797,65 +2797,65 @@ class LightweightError extends AppError {
     public readonly statusCode: number
   ) {
     super(message);
-    // スタックトレースの生成をスキップ
-    // パフォーマンスは向上するが、デバッグ情報は失われる
+    // Skip stack trace generation
+    // Performance improves but debug information is lost
     this.stack = undefined;
   }
 }
 
-// 3. 遅延エラー生成
+// 3. Lazy error creation
 function divideWithLazy(a: number, b: number): Result<number, () => Error> {
   if (b === 0) return Err(() => new Error("Division by zero"));
   return Ok(a / b);
 }
-// エラーの詳細が必要な時だけ生成
+// Only create when error details are needed
 const result = divideWithLazy(1, 0);
 if (isErr(result)) {
-  const error = result.error(); // ここで初めて Error が生成される
+  const error = result.error(); // Error is created only here
   console.error(error.stack);
 }
 ```
 
-### 8-2. zod のパフォーマンス最適化
+### 8-2. zod Performance Optimization
 
 ```typescript
-// 1. スキーマの事前コンパイル
-// Bad: リクエストごとにスキーマを作成
+// 1. Pre-compile schemas
+// Bad: create schema per request
 app.post("/api/users", (req, res) => {
-  const schema = z.object({ name: z.string() }); // 毎回作成される
+  const schema = z.object({ name: z.string() }); // created every time
   schema.parse(req.body);
 });
 
-// Good: スキーマはモジュールレベルで定義
+// Good: define schema at module level
 const UserSchema = z.object({ name: z.string() });
 app.post("/api/users", (req, res) => {
-  UserSchema.parse(req.body); // 再利用される
+  UserSchema.parse(req.body); // reused
 });
 
-// 2. 大量データのバリデーション
-// Bad: 配列全体を一度にバリデーション
+// 2. Validating large amounts of data
+// Bad: validate entire array at once
 const LargeArraySchema = z.array(UserSchema);
 
-// Good: サイズ制限付き + ストリーム処理
+// Good: bounded with size limit + stream processing
 const BoundedArraySchema = z.array(UserSchema).max(1000);
 
-// 3. coerce は必要な場合のみ
-// Bad: 全フィールドに coerce
+// 3. Use coerce only when necessary
+// Bad: coerce for all fields
 const schema1 = z.object({
-  id: z.coerce.string(),   // 不要な変換
-  name: z.coerce.string(), // 不要な変換
-  age: z.coerce.number(),  // これは必要
+  id: z.coerce.string(),   // unnecessary conversion
+  name: z.coerce.string(), // unnecessary conversion
+  age: z.coerce.number(),  // this is necessary
 });
 
-// Good: 必要なフィールドのみ coerce
+// Good: coerce only for fields that need it
 const schema2 = z.object({
   id: z.string(),
   name: z.string(),
-  age: z.coerce.number(), // クエリパラメータからの変換に必要
+  age: z.coerce.number(), // necessary for conversion from query parameters
 });
 
-// 4. typia との比較（コンパイル時コード生成）
-// zodよりも10-100倍高速だが、ランタイムスキーマ操作はできない
+// 4. Comparison with typia (compile-time code generation)
+// 10-100x faster than zod but cannot do runtime schema manipulation
 import typia from "typia";
 
 interface UserInput {
@@ -2864,65 +2864,65 @@ interface UserInput {
   age: number & typia.tags.Minimum<0> & typia.tags.Maximum<150>;
 }
 
-// コンパイル時にバリデーションコードが生成される
+// Validation code is generated at compile time
 const validateUser = typia.createValidate<UserInput>();
 const result = validateUser(input);
 ```
 
 ---
 
-## 比較表
+## Comparison Tables
 
-### エラー処理戦略の比較
+### Error Handling Strategy Comparison
 
-| 戦略 | 型安全性 | コスト | 可読性 | 適用場面 |
+| Strategy | Type Safety | Cost | Readability | Use Case |
 |------|---------|--------|--------|---------|
-| try-catch | 低 (unknown) | 低 | 中 | 外部ライブラリ呼び出し |
-| Result 型 | 高 | 中 | 高 | ドメインロジック |
-| Either (fp-ts) | 高 | 高 | 中 | 関数型スタイル全体 |
-| zod safeParse | 高 | 低 | 高 | 入力バリデーション |
-| Effect-ts | 最高 | 高 | 低〜中 | 大規模エフェクト管理 |
+| try-catch | Low (unknown) | Low | Medium | Calling external libraries |
+| Result type | High | Medium | High | Domain logic |
+| Either (fp-ts) | High | High | Medium | Full functional style |
+| zod safeParse | High | Low | High | Input validation |
+| Effect-ts | Highest | High | Low-Medium | Large-scale effect management |
 
-### Result 型ライブラリ比較
+### Result Type Library Comparison
 
-| ライブラリ | バンドルサイズ | API スタイル | チェーン | パターンマッチ |
+| Library | Bundle Size | API Style | Chaining | Pattern Matching |
 |-----------|-------------|-------------|---------|--------------|
-| 自前実装 | 0 KB | 関数型 | 手動 | switch/if |
-| neverthrow | ~2 KB | メソッドチェーン | `.andThen()` | `.match()` |
-| ts-results | ~1 KB | Rust風 | `.map()` | `.match()` |
-| fp-ts Either | ~15 KB | 関数型(pipe) | `pipe()` | `fold()` |
-| effect/Either | ~50 KB+ | Effect風 | `Effect.map` | `Effect.match` |
+| Custom implementation | 0 KB | Functional | Manual | switch/if |
+| neverthrow | ~2 KB | Method chaining | `.andThen()` | `.match()` |
+| ts-results | ~1 KB | Rust-style | `.map()` | `.match()` |
+| fp-ts Either | ~15 KB | Functional (pipe) | `pipe()` | `fold()` |
+| effect/Either | ~50 KB+ | Effect-style | `Effect.map` | `Effect.match` |
 
-### バリデーションライブラリ比較
+### Validation Library Comparison
 
-| ライブラリ | バンドルサイズ | 速度 | 型推論 | スキーマ記述 | エコシステム |
+| Library | Bundle Size | Speed | Type Inference | Schema Description | Ecosystem |
 |-----------|-------------|------|--------|------------|------------|
-| zod | ~13 KB | 中 | 優秀 | メソッドチェーン | 豊富 |
-| yup | ~15 KB | 中 | 良好 | メソッドチェーン | 豊富 |
-| io-ts | ~8 KB | 中 | 優秀 | 関数型 | 中程度 |
-| typia | 0 KB (コンパイル時) | 最速 | 完全 | TypeScript型 | 少ない |
-| valibot | ~1 KB | 高速 | 優秀 | 関数型 | 成長中 |
-| arktype | ~6 KB | 高速 | 優秀 | テンプレートリテラル | 少ない |
+| zod | ~13 KB | Medium | Excellent | Method chaining | Rich |
+| yup | ~15 KB | Medium | Good | Method chaining | Rich |
+| io-ts | ~8 KB | Medium | Excellent | Functional | Moderate |
+| typia | 0 KB (compile-time) | Fastest | Complete | TypeScript types | Small |
+| valibot | ~1 KB | Fast | Excellent | Functional | Growing |
+| arktype | ~6 KB | Fast | Excellent | Template literals | Small |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### AP-1: catch で型情報を握りつぶす
+### AP-1: Swallowing Type Information in catch
 
 ```typescript
-// NG: error が unknown のまま処理
+// NG: process error while it is still unknown
 async function fetchUser(id: string): Promise<User> {
   try {
     return await api.get(`/users/${id}`);
   } catch (error) {
-    // error は unknown -- 型情報なし
-    console.log(error.message); // コンパイルエラーにならないが危険
-    throw error; // 呼び出し元も unknown
+    // error is unknown -- no type information
+    console.log(error.message); // does not cause a compile error but is dangerous
+    throw error; // caller also gets unknown
   }
 }
 
-// OK: Result 型で型を保持
+// OK: preserve type with Result type
 async function fetchUser(id: string): Promise<Result<User, ApiError>> {
   try {
     const user = await api.get(`/users/${id}`);
@@ -2933,23 +2933,23 @@ async function fetchUser(id: string): Promise<Result<User, ApiError>> {
 }
 ```
 
-### AP-2: エラーを文字列で判別する
+### AP-2: Discriminating Errors by String
 
 ```typescript
-// NG: 文字列比較は脆い
+// NG: string comparison is fragile
 try {
   await saveUser(data);
 } catch (e) {
-  if (e.message.includes("duplicate")) {  // タイポしても気づけない
+  if (e.message.includes("duplicate")) {  // typos go unnoticed
     // ...
   }
 }
 
-// OK: 型で判別
+// OK: discriminate by type
 const result = await saveUser(data);
 if (isErr(result)) {
   switch (result.error.code) {
-    case "VALIDATION_ERROR":   // リテラル型で補完が効く
+    case "VALIDATION_ERROR":   // literal type enables autocomplete
       handleValidation(result.error);
       break;
     case "NOT_FOUND":
@@ -2959,29 +2959,29 @@ if (isErr(result)) {
 }
 ```
 
-### AP-3: バリデーションなしで外部入力を信頼する
+### AP-3: Trusting External Input Without Validation
 
 ```typescript
-// NG: req.body をそのまま型アサーション
+// NG: type assertion of req.body as-is
 app.post("/users", (req, res) => {
-  const data = req.body as UserCreate; // 実行時チェックなし
-  db.users.create(data);              // 不正データが DB に入る
+  const data = req.body as UserCreate; // no runtime check
+  db.users.create(data);              // invalid data enters DB
 });
 
-// OK: zod で検証
+// OK: validate with zod
 app.post("/users", (req, res) => {
   const result = validate(UserCreateSchema, req.body);
   if (isErr(result)) {
     return res.status(400).json(result.error.toJSON());
   }
-  db.users.create(result.value); // 検証済みデータ
+  db.users.create(result.value); // validated data
 });
 ```
 
-### AP-4: 過剰な try-catch のネスト
+### AP-4: Excessive try-catch Nesting
 
 ```typescript
-// NG: ネストが深く可読性が低い
+// NG: deeply nested, low readability
 async function processOrder(orderId: string) {
   try {
     const order = await getOrder(orderId);
@@ -3002,7 +3002,7 @@ async function processOrder(orderId: string) {
   }
 }
 
-// OK: Result 型でフラットに
+// OK: flat with Result type
 async function processOrder(
   orderId: string
 ): AsyncResult<OrderConfirmation, DomainError> {
@@ -3012,26 +3012,26 @@ async function processOrder(
   const payment = await processPayment(order.value);
   if (isErr(payment)) return payment;
 
-  // メール送信は失敗しても続行
+  // Continue even if email send fails
   await sendReceipt(order.value, payment.value);
 
   return Ok({ orderId, paymentId: payment.value.id });
 }
 ```
 
-### AP-5: エラーの握りつぶし
+### AP-5: Swallowing Errors
 
 ```typescript
-// NG: エラーを完全に無視
+// NG: completely ignore errors
 async function fetchData() {
   try {
     return await api.get("/data");
   } catch {
-    return null; // 何が起きたか不明
+    return null; // unclear what happened
   }
 }
 
-// OK: エラーを適切に処理・変換
+// OK: properly handle and transform errors
 async function fetchData(): AsyncResult<Data, ApiError> {
   return AsyncR.fromPromise(
     api.get("/data"),
@@ -3040,68 +3040,68 @@ async function fetchData(): AsyncResult<Data, ApiError> {
 }
 ```
 
-### AP-6: unwrap の乱用
+### AP-6: Overusing unwrap
 
 ```typescript
-// NG: unwrap はパニックを起こす
-const user = (await getUser(id)).unwrap(); // エラー時に throw
+// NG: unwrap can panic
+const user = (await getUser(id)).unwrap(); // throws on error
 
-// OK: パターンマッチで安全に処理
+// OK: handle safely with pattern matching
 const result = await getUser(id);
 if (isErr(result)) {
   return handleError(result.error);
 }
 const user = result.value;
 
-// または unwrapOr でデフォルト値
+// Or use unwrapOr for a default value
 const user = unwrapOr(await getUser(id), defaultUser);
 ```
 
-### AP-7: 汎用的すぎるエラー型
+### AP-7: Overly Generic Error Types
 
 ```typescript
-// NG: 全てを Error クラスで表現
+// NG: represent everything with the Error class
 function createUser(data: unknown): Result<User, Error> {
-  // Error では何が起きたかわからない
+  // With Error, unclear what happened
 }
 
-// OK: 具体的なエラー型を使用
+// OK: use specific error types
 function createUser(
   data: unknown
 ): Result<User, ValidationError | ConflictError | DatabaseError> {
-  // 呼び出し元で適切にハンドリングできる
+  // Caller can handle appropriately
 }
 ```
 
 ---
 
-## エラー処理フロー全体像
+## Overall Error Handling Flow
 
 ```
-外部入力 (HTTP, File, ENV)
+External Input (HTTP, File, ENV)
     |
     v
 +------------------+
-| zod バリデーション |---Err---> 400 Bad Request
+| zod Validation   |---Err---> 400 Bad Request
 +------------------+
     | Ok
     v
 +------------------+
-| ドメインロジック   |---Err---> DomainError
+| Domain Logic     |---Err---> DomainError
 | (Result<T, E>)   |           |
 +------------------+           +---> NotFoundError    -> 404
     | Ok                       +---> PermissionError  -> 403
     v                          +---> ConflictError    -> 409
 +------------------+           +---> BusinessError    -> 422
-| 永続化 / 外部API  |---Err---> InfraError -> 500
-+------------------+           |
-    | Ok                       +---> DatabaseError    -> 500
-    v                          +---> ExternalApiError -> 502
- 成功レスポンス 200            +---> TimeoutError     -> 408
-                               +---> RateLimitError   -> 429
+| Persistence /    |---Err---> InfraError -> 500
+| External API     |           |
++------------------+           +---> DatabaseError    -> 500
+    | Ok                       +---> ExternalApiError -> 502
+    v                          +---> TimeoutError     -> 408
+ Success Response 200          +---> RateLimitError   -> 429
 ```
 
-### 詳細フロー: ユーザー登録
+### Detailed Flow: User Registration
 
 ```
 POST /api/users { name, email, password }
@@ -3109,38 +3109,38 @@ POST /api/users { name, email, password }
     v
 +------------------------------+
 | Express Middleware            |
-| - JSON パース                 |
-| - リクエストID付与            |
-| - レート制限チェック           |
+| - JSON parsing                |
+| - Assign request ID           |
+| - Rate limit check            |
 +------------------------------+
     |
     v
 +------------------------------+
 | Validation Layer              |
-| - zod スキーマバリデーション    |
-| - パスワード強度チェック        |
+| - zod schema validation       |
+| - Password strength check     |
 +------------------------------+
     |
     v (ValidationError → 400)
 +------------------------------+
 | Application Service           |
-| - 重複メールチェック           |
-| - ユーザー作成                 |
-| - ウェルカムメール送信          |
+| - Duplicate email check       |
+| - Create user                 |
+| - Send welcome email          |
 +------------------------------+
     |
     v (ConflictError → 409)
 +------------------------------+
 | Repository Layer              |
 | - SQL INSERT                  |
-| - ユニーク制約チェック          |
+| - Unique constraint check     |
 +------------------------------+
     |
     v (DatabaseError → 500)
 +------------------------------+
 | Email Service                 |
-| - SMTP 送信                   |
-| - 失敗時は warn ログのみ       |
+| - SMTP send                   |
+| - On failure: warn log only   |
 +------------------------------+
     |
     v
@@ -3149,35 +3149,35 @@ POST /api/users { name, email, password }
 
 ---
 
-## 設計ガイドライン
+## Design Guidelines
 
-### エラー設計のチェックリスト
+### Error Design Checklist
 
-| チェック項目 | 説明 |
+| Checklist Item | Description |
 |------------|------|
-| エラーコードが一意か | 同じコードが異なる意味で使われていないか |
-| エラーメッセージがユーザーフレンドリーか | 技術的な詳細は details に、メッセージは理解しやすく |
-| HTTP ステータスコードが適切か | 4xx と 5xx の使い分けが正しいか |
-| 機密情報が漏れていないか | スタックトレースやDB情報がクライアントに返されていないか |
-| ログレベルが適切か | 4xx は warn、5xx は error |
-| エラーがテスト可能か | エラーパスのテストが書きやすいか |
-| 網羅性チェックがあるか | 新しいエラーを追加した時にコンパイルエラーになるか |
-| リトライ可能性が明確か | クライアントがリトライすべきかどうかわかるか |
+| Are error codes unique? | Is the same code not used with different meanings? |
+| Are error messages user-friendly? | Technical details go in details; messages should be easy to understand |
+| Are HTTP status codes appropriate? | Is the distinction between 4xx and 5xx correct? |
+| Is sensitive information not leaking? | Are stack traces or DB information not being returned to the client? |
+| Is the log level appropriate? | 4xx as warn, 5xx as error |
+| Are errors testable? | Are error path tests easy to write? |
+| Is there an exhaustiveness check? | Does adding a new error cause a compile error? |
+| Is retryability clear? | Can the client tell whether to retry? |
 
-### レイヤー別エラー処理方針
+### Error Handling Policy by Layer
 
-| レイヤー | エラー処理方針 |
+| Layer | Error Handling Policy |
 |---------|--------------|
-| プレゼンテーション層 | エラーをHTTPレスポンスに変換、ログ出力 |
-| アプリケーション層 | ドメインエラーの集約、トランザクション管理 |
-| ドメイン層 | Result 型でビジネスルール違反を表現、throw 禁止 |
-| インフラ層 | 外部サービスの例外を Result 型に変換 |
-| 共通/横断 | グローバルエラーハンドラ、エラー監視 |
+| Presentation layer | Transform errors to HTTP responses, output logs |
+| Application layer | Aggregate domain errors, manage transactions |
+| Domain layer | Express business rule violations with Result type, no throwing |
+| Infrastructure layer | Convert external service exceptions to Result type |
+| Common/cross-cutting | Global error handler, error monitoring |
 
-### エラーメッセージの国際化
+### Internationalization of Error Messages
 
 ```typescript
-// エラーコードとメッセージの分離
+// Separate error codes from messages
 const ERROR_MESSAGES: Record<string, Record<ErrorCode, string>> = {
   ja: {
     VALIDATION_ERROR: "入力データが不正です",
@@ -3205,7 +3205,7 @@ const ERROR_MESSAGES: Record<string, Record<ErrorCode, string>> = {
   },
 };
 
-function getLocalizedMessage(code: ErrorCode, locale: string = "ja"): string {
+function getLocalizedMessage(code: ErrorCode, locale: string = "en"): string {
   return ERROR_MESSAGES[locale]?.[code] ?? ERROR_MESSAGES["en"][code] ?? code;
 }
 ```
@@ -3214,115 +3214,59 @@ function getLocalizedMessage(code: ErrorCode, locale: string = "ja"): string {
 
 ## FAQ
 
-### Q1: Result 型を使うと try-catch は完全に不要になりますか？
+### Q1: If I use the Result type, do I need try-catch at all?
 
-いいえ。外部ライブラリ（DB ドライバ、HTTP クライアントなど）は例外を throw するため、境界層（アダプター層）では try-catch が必要です。そこで例外を catch し、Result 型に変換する「境界パターン」を使います。ドメインロジック内部では Result 型のみを使い、throw を禁止するのがベストプラクティスです。
+No. External libraries (DB drivers, HTTP clients, etc.) throw exceptions, so try-catch is still needed at boundary layers (adapter layers). Use the "boundary pattern" to catch exceptions there and convert them to the Result type. Inside domain logic, only use the Result type and prohibit throwing — that is the best practice.
 
-### Q2: neverthrow と自前 Result 型のどちらを使うべきですか？
+### Q2: Should I use neverthrow or a custom Result type?
 
-小規模プロジェクトやライブラリでは自前実装で十分です。チームで統一したい場合やメソッドチェーン（`.andThen()`, `.map()`, `.match()`）を多用する場合は neverthrow が便利です。neverthrow は ~2KB と軽量で、TypeScript 専用に設計されています。
+A custom implementation is sufficient for small-scale projects or libraries. If you want team-wide consistency or use method chaining (`.andThen()`, `.map()`, `.match()`) heavily, neverthrow is convenient. neverthrow is ~2KB and designed specifically for TypeScript.
 
-### Q3: zod のパフォーマンスは問題になりませんか？
+### Q3: Does zod performance become a problem?
 
-通常の Web アプリケーションでは問題になりません。zod の検証は 1 リクエストあたりマイクロ秒〜ミリ秒単位です。ただし、大量データ（数万件の配列）を検証する場合は、`.parse()` の前にサイズチェックを入れるか、ストリーム処理を検討してください。パフォーマンスが問題になる場合は、typia（コンパイル時コード生成）や valibot（軽量バリデーション）も選択肢です。
+In typical web applications it is not a problem. zod validation takes microseconds to milliseconds per request. However, when validating large amounts of data (arrays of tens of thousands of items), consider adding a size check before `.parse()` or using stream processing. If performance is an issue, typia (compile-time code generation) or valibot (lightweight validation) are also options.
 
-### Q4: エラーのログ出力はどの層で行うべきですか？
+### Q4: In which layer should error logging be done?
 
-エラーのログ出力は原則としてアプリケーション層（コントローラーやハンドラー）で一括して行います。ドメインロジック内でログ出力すると、テスト時にノイズになるうえ、同じエラーが複数回ログに出力される問題が発生します。
+Error logging should in principle be done centrally at the application layer (controllers or handlers). Logging inside domain logic creates noise during testing and causes the same error to be logged multiple times.
 
-### Q5: Result 型を使う場合、Promise.reject は使わないべきですか？
+### Q5: If using the Result type, should Promise.reject not be used?
 
-はい。Result 型を使っている場合、`Promise.reject` は使わず `Promise<Result<T, E>>` を返すようにします。`Promise.reject` を使うと、呼び出し元で `try-catch` が必要になり、Result 型のメリットが失われます。ただし、ライブラリ層では `Promise.reject` が使われることもあるため、境界層で `fromPromise` を使って変換します。
+Correct. When using the Result type, avoid `Promise.reject` and return `Promise<Result<T, E>>`. Using `Promise.reject` requires try-catch at the call site, which loses the benefits of the Result type. However, libraries may use `Promise.reject`, so convert them at the boundary layer using `fromPromise`.
 
-### Q6: Effect-ts と neverthrow のどちらを選ぶべきですか？
+### Q6: Which should I choose, Effect-ts or neverthrow?
 
-neverthrow は Result 型に特化した軽量ライブラリで、既存のプロジェクトに段階的に導入できます。Effect-ts はより包括的なエフェクトシステムで、依存性注入、スケジューリング、並行処理なども含みます。新規プロジェクトで関数型プログラミングを全面的に採用するなら Effect-ts、既存プロジェクトのエラーハンドリング改善なら neverthrow がおすすめです。
+neverthrow is a lightweight library specialized for the Result type and can be incrementally adopted in existing projects. Effect-ts is a more comprehensive effect system that also includes dependency injection, scheduling, and concurrency. For a new project adopting functional programming across the board, choose Effect-ts; for improving error handling in an existing project, neverthrow is recommended.
 
-### Q7: フロントエンドでも Result 型を使うべきですか？
+### Q7: Should I use the Result type on the frontend as well?
 
-フロントエンドでも Result 型は有効ですが、使い方が異なります。API 呼び出しの結果を Result 型で表現し、コンポーネント内でパターンマッチすることで、エラー状態の表示を型安全に行えます。ただし、React のエラーバウンダリや Vue のエラーハンドリングなど、フレームワーク固有の仕組みとの統合も考慮する必要があります。
+The Result type is also effective on the frontend, but its usage differs. By representing API call results with the Result type and pattern-matching inside components, you can display error states in a type-safe manner. However, you also need to consider integration with framework-specific mechanisms such as React's Error Boundary or Vue's error handling.
 
-### Q8: Branded 型とバリデーションの関係は？
+### Q8: What is the relationship between Branded types and validation?
 
-Branded 型は「バリデーション済み」であることを型レベルで保証するパターンです。zod でバリデーションした後に Branded 型に変換することで、「このデータはバリデーション済みである」ことを型システムで表現できます。詳しくは [Branded Types パターン](./03-branded-types.md) を参照してください。
+Branded types are a pattern that guarantees at the type level that data has been "validated." By converting to a Branded type after validating with zod, you can express in the type system that "this data has been validated." See [Branded Types Pattern](./03-branded-types.md) for details.
 
-### Q9: マイクロサービス間のエラー伝播はどうすべきですか？
+### Q9: How should errors be propagated between microservices?
 
-マイクロサービス間では、エラーコードとメッセージを標準化したエラーレスポンス（RFC 7807 Problem Details など）で伝播します。受信側で外部サービスのエラーレスポンスを自サービスのエラー型に変換するアダプターを実装します。gRPC の場合は Status Code を使用し、REST API の場合は HTTP ステータスコード + エラーコードの組み合わせが一般的です。
+Between microservices, errors are propagated using a standardized error response (such as RFC 7807 Problem Details) with error codes and messages. Implement an adapter in the receiving service that converts the external service's error response to the service's own error type. For gRPC, use Status Codes; for REST APIs, a combination of HTTP status codes and error codes is standard.
 
-### Q10: テストで特定のエラーを期待する場合のベストプラクティスは？
+### Q10: What is the best practice when expecting a specific error in a test?
 
-Result 型を使っている場合、カスタムマッチャー（`toBeErrWith`）を定義して、エラーコードで検証するのがベストです。例外ベースの場合は `expect(fn).rejects.toThrow(SpecificError)` を使います。いずれの場合も、エラーメッセージの文字列比較ではなく、エラーの型やコードで検証してください。
+When using the Result type, the best approach is to define custom matchers (`toBeErrWith`) and validate by error code. For exception-based code, use `expect(fn).rejects.toThrow(SpecificError)`. In either case, validate by error type or code rather than string comparison of error messages.
 
 ---
 
-## まとめ表
+## Summary Table
 
-| 概念 | 要点 |
+| Concept | Key Points |
 |------|------|
-| Result 型 | `Ok<T> \| Err<E>` で成功/失敗を型安全に表現 |
-| カスタムエラー | `code` リテラル型で判別可能なエラー階層を設計 |
-| 境界パターン | try-catch は外部ライブラリとの境界のみで使用 |
-| zod バリデーション | `safeParse` + Result 変換で入力を安全に処理 |
-| 網羅性チェック | switch + `never` 型でエラーケースの漏れを防止 |
-| エラー変換 | 各層で適切なエラー型に変換しながら伝播 |
-| 非同期統合 | `AsyncResult<T, E>` で Promise と Result を統合 |
-| リトライ | 指数バックオフ + サーキットブレーカーで耐障害性向上 |
-| テスト戦略 | カスタムマッチャーでエラーパスを明確にテスト |
-| パフォーマンス | エラー頻度が高い場合、Result 型は例外より高速 |
-
----
-
-
-## まとめ
-
-このガイドでは以下の重要なポイントを学びました:
-
-- 基本概念と原則の理解
-- 実践的な実装パターン
-- ベストプラクティスと注意点
-- 実務での活用方法
-
----
-
-## 次に読むべきガイド
-
-- [判別共用体パターン](./02-discriminated-unions.md) -- Result 型の基盤となる判別共用体の詳細
-- [Branded Types パターン](./03-branded-types.md) -- バリデーション済みの値を型で保証する技法
-- [Zod バリデーション](../04-ecosystem/00-zod-validation.md) -- zod の全機能と高度なパターン
-- [Effect-ts](../04-ecosystem/03-effect-ts.md) -- より高度なエフェクトシステムによるエラー管理
-- [依存性注入](./04-dependency-injection.md) -- テスタビリティとエラーハンドリングの統合
-
----
-
-## 参考文献
-
-1. **neverthrow** -- Type-Safe Error Handling in TypeScript
-   https://github.com/supermacro/neverthrow
-
-2. **Zod Documentation** -- TypeScript-first schema validation
-   https://zod.dev/
-
-3. **Rust Error Handling** -- The Rust Programming Language, Chapter 9
-   https://doc.rust-lang.org/book/ch09-00-error-handling.html
-
-4. **Parse, don't validate** -- Alexis King (2019)
-   https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/
-
-5. **Effect-ts Documentation** -- TypeScript Effect System
-   https://effect.website/
-
-6. **RFC 7807** -- Problem Details for HTTP APIs
-   https://datatracker.ietf.org/doc/html/rfc7807
-
-7. **typia** -- Super-fast Runtime Validators
-   https://typia.io/
-
-8. **valibot** -- Modular and type-safe schema validation
-   https://valibot.dev/
-
-9. **Railway Oriented Programming** -- Scott Wlaschin
-   https://fsharpforfunandprofit.com/rop/
-
-10. **Functional Error Handling** -- Matt Pocock
-    https://www.mattpocock.com/
+| Result type | Type-safely represent success/failure with `Ok<T> \| Err<E>` |
+| Custom errors | Design a discriminable error hierarchy with `code` literal types |
+| Boundary pattern | Use try-catch only at boundaries with external libraries |
+| zod validation | Safely process input with `safeParse` + Result conversion |
+| Exhaustiveness check | Prevent missing error cases with switch + `never` type |
+| Error transformation | Propagate while converting to appropriate error types in each layer |
+| Async integration | Integrate Promise and Result with `AsyncResult<T, E>` |
+| Retry | Improve fault tolerance with exponential backoff + circuit breaker |
+| Testing strategy | Clearly test error paths with custom matchers |
+| Performance | For high error frequency paths, Result type is faster than exceptions |

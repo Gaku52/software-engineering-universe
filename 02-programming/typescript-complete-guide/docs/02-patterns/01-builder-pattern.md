@@ -1,35 +1,35 @@
-# TypeScript ビルダーパターン
+# TypeScript Builder Pattern
 
-> 型安全なビルダーパターンと Fluent API で、複雑なオブジェクト構築をコンパイル時に検証する
+> Verify complex object construction at compile time with type-safe builder patterns and Fluent APIs
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **クラシックビルダー** -- 段階的にオブジェクトを構築し、不完全な状態でのビルドをコンパイルエラーにする技法
-2. **Phantom Type ビルダー** -- ジェネリクスのフラグ型で「設定済み/未設定」を追跡する型レベルステートマシン
-3. **Fluent API 設計** -- メソッドチェーンの型推論を最大限活用し、IDE 補完と型安全性を両立する方法
-4. **Immutable ビルダー** -- 各ステップで新しいインスタンスを返し、構築途中の状態を安全に分岐させる技法
-5. **テストデータビルダー** -- テストコードの可読性を劇的に向上させるファクトリビルダーの実装
-6. **実務での応用** -- クエリビルダー、フォームビルダー、設定オブジェクトビルダーなどの実践的パターン
+1. **Classic Builder** -- Techniques for constructing objects step by step and turning incomplete-state builds into compile errors
+2. **Phantom Type Builder** -- A type-level state machine that tracks "set/unset" using generic flag types
+3. **Fluent API Design** -- Maximizing type inference in method chains to achieve both IDE completion and type safety
+4. **Immutable Builder** -- Techniques for returning a new instance at each step to safely branch mid-construction state
+5. **Test Data Builder** -- Implementing factory builders that dramatically improve test code readability
+6. **Real-World Applications** -- Practical patterns such as query builders, form builders, and configuration object builders
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [TypeScript エラーハンドリングパターン](./00-error-handling.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [TypeScript Error Handling Patterns](./00-error-handling.md)
 
 ---
 
-## 1. クラシックビルダーパターン
+## 1. Classic Builder Pattern
 
-### 1-1. 基本構造
+### 1-1. Basic Structure
 
 ```
 +-----------+     .setName()     +-------------+
 |  Builder  | -----------------> |   Builder   |
-| (空の状態) |                    | (name設定済) |
+| (empty)   |                    | (name set)  |
 +-----------+                    +-------------+
                                        |
                                   .setEmail()
@@ -37,7 +37,7 @@
                                        v
                                  +-------------+
                                  |   Builder   |
-                                 | (両方設定済) |
+                                 | (both set)  |
                                  +-------------+
                                        |
                                    .build()
@@ -45,12 +45,12 @@
                                        v
                                  +-------------+
                                  |   User      |
-                                 | (完成品)     |
+                                 | (final)     |
                                  +-------------+
 ```
 
 ```typescript
-// 構築対象
+// Target object
 interface HttpRequest {
   readonly method: "GET" | "POST" | "PUT" | "DELETE";
   readonly url: string;
@@ -59,7 +59,7 @@ interface HttpRequest {
   readonly timeout: number;
 }
 
-// ビルダー
+// Builder
 class HttpRequestBuilder {
   private method: HttpRequest["method"] = "GET";
   private url = "";
@@ -104,7 +104,7 @@ class HttpRequestBuilder {
   }
 }
 
-// 使用例
+// Usage example
 const request = new HttpRequestBuilder()
   .setMethod("POST")
   .setUrl("https://api.example.com/users")
@@ -114,20 +114,20 @@ const request = new HttpRequestBuilder()
   .build();
 ```
 
-### 1-2. 問題点 -- ランタイムエラー
+### 1-2. The Problem -- Runtime Errors
 
 ```typescript
-// URL を設定し忘れてもコンパイルは通る
+// Forgetting to set the URL still compiles fine
 const bad = new HttpRequestBuilder()
   .setMethod("POST")
-  .build(); // ランタイムエラー: "URL is required"
+  .build(); // Runtime error: "URL is required"
 ```
 
-クラシックビルダーの最大の問題は、必須フィールドの設定忘れがコンパイル時に検出できないことです。これを型システムで解決するのが次のセクションで紹介する Phantom Type ビルダーです。
+The biggest problem with the classic builder is that forgetting to set required fields cannot be detected at compile time. The Phantom Type builder introduced in the next section solves this using the type system.
 
-### 1-3. バリデーション付きクラシックビルダー
+### 1-3. Classic Builder with Validation
 
-ランタイムでの安全性を高めるため、Result 型と組み合わせたビルダーも実装できます。
+To improve runtime safety, you can also implement a builder combined with the Result type.
 
 ```typescript
 import { Result, Ok, Err } from "./result";
@@ -164,7 +164,7 @@ class ValidatedHttpRequestBuilder {
     return this;
   }
 
-  // build() が Result を返す
+  // build() returns a Result
   build(): Result<HttpRequest, BuildError[]> {
     const errors: BuildError[] = [];
 
@@ -203,7 +203,7 @@ interface BuildError {
   message: string;
 }
 
-// 使用例
+// Usage example
 const result = new ValidatedHttpRequestBuilder()
   .setMethod("POST")
   .setUrl("https://api.example.com")
@@ -219,37 +219,37 @@ if (isErr(result)) {
 
 ---
 
-## 2. Phantom Type ビルダー（型安全版）
+## 2. Phantom Type Builder (Type-Safe Version)
 
-### 2-1. フラグ型による状態追跡
+### 2-1. State Tracking with Flag Types
 
 ```
-型パラメータ: Builder<HasUrl, HasMethod>
+Type parameters: Builder<HasUrl, HasMethod>
 
-  Builder<false, false>  -- 初期状態
+  Builder<false, false>  -- Initial state
        |
    .url("...")
        |
        v
-  Builder<true, false>   -- URL 設定済み
+  Builder<true, false>   -- URL set
        |
    .method("POST")
        |
        v
-  Builder<true, true>    -- 全て設定済み
+  Builder<true, true>    -- All set
        |
-   .build()  <-- この型の時だけ呼べる
+   .build()  <-- Only callable in this type
        |
        v
     HttpRequest
 ```
 
 ```typescript
-// フラグ型
+// Flag types
 type True = true;
 type False = false;
 
-// Phantom Type ビルダー
+// Phantom Type builder
 class RequestBuilder<
   HasUrl extends boolean = false,
   HasMethod extends boolean = false
@@ -281,7 +281,7 @@ class RequestBuilder<
     return this;
   }
 
-  // build() は HasUrl=true かつ HasMethod=true の時のみ呼び出し可能
+  // build() is only callable when HasUrl=true and HasMethod=true
   build(this: RequestBuilder<True, True>): HttpRequest {
     return {
       method: this._method,
@@ -293,14 +293,14 @@ class RequestBuilder<
   }
 }
 
-// OK: 両方設定済み
+// OK: both fields set
 const req = new RequestBuilder()
   .url("https://api.example.com")
   .method("POST")
   .header("Authorization", "Bearer token")
-  .build(); // コンパイル OK
+  .build(); // Compiles OK
 
-// NG: URL 未設定 -- コンパイルエラー
+// NG: URL not set -- compile error
 const bad = new RequestBuilder()
   .method("POST")
   .build();
@@ -308,29 +308,29 @@ const bad = new RequestBuilder()
 //        is not assignable to method's 'this' of type 'RequestBuilder<true, true>'
 ```
 
-### 2-2. 多数の必須フィールドを追跡する Phantom Type
+### 2-2. Phantom Type for Tracking Many Required Fields
 
 ```typescript
-// フィールドごとの設定状態を追跡
+// Track set state per field
 interface BuilderState {
   hasUrl: boolean;
   hasMethod: boolean;
   hasAuth: boolean;
 }
 
-// デフォルト状態
+// Default state
 type EmptyState = {
   hasUrl: false;
   hasMethod: false;
   hasAuth: false;
 };
 
-// 状態を更新するユーティリティ型
+// Utility type to update state
 type SetField<S extends BuilderState, K extends keyof BuilderState> = {
   [P in keyof BuilderState]: P extends K ? true : S[P];
 };
 
-// すべてが true であることを確認する型
+// Type to confirm all fields are true
 type AllSet<S extends BuilderState> = S extends {
   hasUrl: true;
   hasMethod: true;
@@ -379,7 +379,7 @@ class AdvancedRequestBuilder<S extends BuilderState = EmptyState> {
     return this;
   }
 
-  // AllSet<S> が true の場合のみ build() を呼べる
+  // build() is only callable when AllSet<S> is true
   build(
     this: AdvancedRequestBuilder<{
       hasUrl: true;
@@ -400,26 +400,26 @@ class AdvancedRequestBuilder<S extends BuilderState = EmptyState> {
   }
 }
 
-// OK: 全フィールド設定済み
+// OK: all fields set
 const req1 = new AdvancedRequestBuilder()
   .url("https://api.example.com")
   .method("POST")
   .auth("my-token")
   .header("Content-Type", "application/json")
   .body(JSON.stringify({ data: "value" }))
-  .build(); // コンパイルOK
+  .build(); // Compiles OK
 
-// NG: auth 未設定
+// NG: auth not set
 const bad1 = new AdvancedRequestBuilder()
   .url("https://api.example.com")
   .method("POST")
-  .build(); // コンパイルエラー
+  .build(); // Compile error
 ```
 
-### 2-3. Step Builder（順序強制パターン）
+### 2-3. Step Builder (Order-Enforcement Pattern)
 
 ```typescript
-// 各ステップを別々のインターフェースで定義
+// Define each step as a separate interface
 interface NeedsUrl {
   url(url: string): NeedsMethod;
 }
@@ -469,23 +469,23 @@ function createRequest(): NeedsUrl {
   };
 }
 
-// 順序が強制される
+// Order is enforced
 const req = createRequest()
-  .url("https://api.example.com")    // 1. まず URL
-  .method("POST")                     // 2. 次に method
-  .header("Content-Type", "json")     // 3. 以降は自由
+  .url("https://api.example.com")    // 1. URL first
+  .method("POST")                     // 2. method next
+  .header("Content-Type", "json")     // 3. anything after is free
   .build();
 ```
 
-### 2-4. 条件付きメソッドの型制約
+### 2-4. Type Constraints for Conditional Methods
 
 ```typescript
-// HTTP メソッドに応じて body の有無を型で制御する
+// Control body presence with types based on the HTTP method
 interface GetBuilder {
   header(key: string, value: string): GetBuilder;
   query(params: Record<string, string>): GetBuilder;
   build(): HttpRequest;
-  // body() は存在しない -- GET リクエストにはボディなし
+  // body() does not exist -- GET requests have no body
 }
 
 interface PostBuilder {
@@ -567,14 +567,14 @@ function request(url: string): MethodSelector {
   };
 }
 
-// GET リクエスト: body() は呼べない
+// GET request: body() cannot be called
 const getReq = request("https://api.example.com/users")
   .get()
   .header("Accept", "application/json")
   .query({ page: "1", limit: "20" })
   .build();
 
-// POST リクエスト: json() が使える
+// POST request: json() is available
 const postReq = request("https://api.example.com/users")
   .post()
   .json({ name: "Alice", email: "alice@example.com" })
@@ -583,9 +583,9 @@ const postReq = request("https://api.example.com/users")
 
 ---
 
-## 3. Fluent API の型推論テクニック
+## 3. Type Inference Techniques for Fluent APIs
 
-### 3-1. Mapped Types で動的にメソッドを生成
+### 3-1. Generating Methods Dynamically with Mapped Types
 
 ```typescript
 type QueryBuilder<T extends Record<string, unknown>> = {
@@ -598,7 +598,7 @@ type QueryBuilder<T extends Record<string, unknown>> = {
   execute(): Promise<T[]>;
 };
 
-// 使用例の型
+// Example type for usage
 interface User {
   id: number;
   name: string;
@@ -606,7 +606,7 @@ interface User {
   age: number;
 }
 
-// QueryBuilder<User> は自動的に以下のメソッドを持つ:
+// QueryBuilder<User> automatically has the following methods:
 // - whereId(value: number)
 // - whereName(value: string)
 // - whereEmail(value: string)
@@ -616,10 +616,10 @@ interface User {
 // - execute(): Promise<User[]>
 ```
 
-### 3-2. Template Literal Types による SQL ビルダー
+### 3-2. SQL Builder Using Template Literal Types
 
 ```typescript
-// 型レベルで SELECT 文を構築
+// Build SELECT statements at the type level
 type SelectFields<T, Fields extends (keyof T)[]> = Pick<T, Fields[number]>;
 
 class TypedQueryBuilder<
@@ -652,32 +652,32 @@ class TypedQueryBuilder<
   }
 }
 
-// 使用例
+// Usage example
 const users = await new TypedQueryBuilder<User>()
   .select("name", "email")  // Selected = ["name", "email"]
   .where("age", ">", 18)
   .execute();
-// users の型: Pick<User, "name" | "email">[]
+// Type of users: Pick<User, "name" | "email">[]
 ```
 
-### 3-3. 条件付きメソッド表示（Conditional Types）
+### 3-3. Conditional Method Visibility (Conditional Types)
 
 ```typescript
-// 設定状態に応じてメソッドの可視性を制御
+// Control method visibility based on configuration state
 type ConditionalBuilder<
   T,
   State extends Record<string, boolean>
 > = {
-  // 常に利用可能なメソッド
+  // Always available methods
   reset(): ConditionalBuilder<T, Record<string, false>>;
 } & (State extends { hasSelect: true }
   ? {
-      // select 後のみ利用可能
+      // Available only after select
       where(condition: string): ConditionalBuilder<T, State & { hasWhere: true }>;
       orderBy(field: keyof T): ConditionalBuilder<T, State>;
     }
   : {
-      // select 前のみ利用可能
+      // Available only before select
       select(...fields: (keyof T)[]): ConditionalBuilder<T, State & { hasSelect: true }>;
     }) &
   (State extends { hasSelect: true }
@@ -686,16 +686,16 @@ type ConditionalBuilder<
       }
     : {});
 
-// このパターンにより:
-// 1. select() を呼ぶ前は where() が表示されない
-// 2. select() を呼んだ後は再度 select() が表示されない
-// 3. execute() は select() を呼んだ後のみ表示される
+// With this pattern:
+// 1. where() is not shown before calling select()
+// 2. select() is not shown again after it has been called
+// 3. execute() is only shown after calling select()
 ```
 
-### 3-4. Fluent API によるバリデーションルールビルダー
+### 3-4. Fluent API Validation Rule Builder
 
 ```typescript
-// バリデーションルールを型安全に構築する Fluent API
+// Fluent API for type-safe construction of validation rules
 type Validator<T> = {
   validate(value: unknown): Result<T, ValidationError[]>;
 };
@@ -710,7 +710,7 @@ class StringValidatorBuilder {
   min(length: number): this {
     this.rules.push({
       check: (v) => v.length >= length,
-      message: `${length}文字以上で入力してください`,
+      message: `Must be at least ${length} characters`,
     });
     return this;
   }
@@ -718,7 +718,7 @@ class StringValidatorBuilder {
   max(length: number): this {
     this.rules.push({
       check: (v) => v.length <= length,
-      message: `${length}文字以内で入力してください`,
+      message: `Must be no more than ${length} characters`,
     });
     return this;
   }
@@ -734,14 +734,14 @@ class StringValidatorBuilder {
   email(): this {
     return this.pattern(
       /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-      "有効なメールアドレスを入力してください"
+      "Please enter a valid email address"
     );
   }
 
   url(): this {
     return this.pattern(
       /^https?:\/\/[^\s]+$/,
-      "有効なURLを入力してください"
+      "Please enter a valid URL"
     );
   }
 
@@ -763,11 +763,11 @@ class StringValidatorBuilder {
       validate(value: unknown): Result<string, ValidationError[]> {
         if (value === undefined || value === null || value === "") {
           if (optional) return Ok("");
-          return Err([{ field: "", message: "この項目は必須です" }]);
+          return Err([{ field: "", message: "This field is required" }]);
         }
 
         if (typeof value !== "string") {
-          return Err([{ field: "", message: "文字列を入力してください" }]);
+          return Err([{ field: "", message: "Please enter a string" }]);
         }
 
         const errors: ValidationError[] = [];
@@ -783,7 +783,7 @@ class StringValidatorBuilder {
   }
 }
 
-// 使用例
+// Usage example
 const emailValidator = new StringValidatorBuilder()
   .min(1)
   .max(255)
@@ -793,10 +793,10 @@ const emailValidator = new StringValidatorBuilder()
 const result = emailValidator.validate("test@example.com");
 ```
 
-### 3-5. メソッドチェーンの型推論と IDE 体験
+### 3-5. Method Chain Type Inference and IDE Experience
 
 ```typescript
-// 設定オブジェクトの型安全なビルダー
+// Type-safe builder for configuration objects
 type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
 };
@@ -848,7 +848,7 @@ class ConfigBuilder {
   }
 
   build(): AppConfig {
-    // 必須フィールドの検証
+    // Validate required fields
     if (!this.config.server?.host) throw new Error("server.host is required");
     if (!this.config.server?.port) throw new Error("server.port is required");
     if (!this.config.database?.host) throw new Error("database.host is required");
@@ -909,7 +909,7 @@ class DatabaseConfigBuilder {
   }
 }
 
-// 使用例: ネストしたビルダー
+// Usage example: nested builders
 const config = new ConfigBuilder()
   .server((s) =>
     s
@@ -930,22 +930,22 @@ const config = new ConfigBuilder()
 
 ---
 
-## 4. Immutable ビルダー
+## 4. Immutable Builder
 
-### 4-1. 不変ビルダーの基本
+### 4-1. Basics of an Immutable Builder
 
-Mutable ビルダー（`this` を返す）は効率的ですが、途中の状態を保存して分岐させると予期しない結果になります。
+Mutable builders (returning `this`) are efficient, but saving an intermediate state and branching from it can produce unexpected results.
 
 ```typescript
-// Mutable ビルダーの問題
+// Problem with a mutable builder
 const baseBuilder = new HttpRequestBuilder()
   .setUrl("https://api.example.com");
 
-// 2つのリクエストを分岐して作成したいが...
+// Trying to branch and create two requests, but...
 const getRequest = baseBuilder.setMethod("GET").build();
-const postRequest = baseBuilder.setMethod("POST").build(); // GET が POST に上書きされる
+const postRequest = baseBuilder.setMethod("POST").build(); // GET is overwritten by POST
 
-// 解決: Immutable ビルダー
+// Solution: Immutable builder
 class ImmutableRequestBuilder<
   HasUrl extends boolean = false,
   HasMethod extends boolean = false
@@ -1025,22 +1025,22 @@ class ImmutableRequestBuilder<
   }
 }
 
-// 安全に分岐できる
+// Can safely branch
 const base = ImmutableRequestBuilder.create()
   .url("https://api.example.com")
   .header("Accept", "application/json");
 
-const getReq = base.method("GET").build();       // GET リクエスト
-const postReq = base.method("POST")              // POST リクエスト
+const getReq = base.method("GET").build();       // GET request
+const postReq = base.method("POST")              // POST request
   .body(JSON.stringify({ name: "Alice" }))
   .build();
-// base は変更されていない
+// base is unchanged
 ```
 
-### 4-2. Record-based Immutable ビルダー
+### 4-2. Record-Based Immutable Builder
 
 ```typescript
-// よりシンプルな不変ビルダーの実装
+// A simpler implementation of an immutable builder
 type RequiredKeys = "url" | "method";
 type BuilderConfig = {
   url?: string;
@@ -1087,7 +1087,7 @@ function createBuilder(config: BuilderConfig = {}) {
   return builder;
 }
 
-// 使用例
+// Usage example
 const req = createBuilder()
   .url("https://api.example.com")
   .method("POST")
@@ -1096,10 +1096,10 @@ const req = createBuilder()
   .build();
 ```
 
-### 4-3. ジェネリクスを使った汎用 Immutable ビルダー
+### 4-3. Generic Immutable Builder with Generics
 
 ```typescript
-// 汎用的な型安全 Immutable ビルダー
+// General-purpose type-safe immutable builder
 type Builder<
   Target,
   Required extends keyof Target,
@@ -1148,7 +1148,7 @@ function createTypedBuilder<
   return new Proxy({}, handler) as Builder<Target, Required>;
 }
 
-// 使用例
+// Usage example
 interface EmailMessage {
   to: string;
   from: string;
@@ -1164,20 +1164,20 @@ const emailBuilder = createTypedBuilder<EmailMessage, "to" | "from" | "subject" 
 
 ---
 
-## 5. テストデータビルダー
+## 5. Test Data Builder
 
-### 5-1. 基本的なテストデータビルダー
+### 5-1. Basic Test Data Builder
 
 ```
-テストデータ生成フロー:
+Test data generation flow:
 
   UserBuilder.create()
        |
-  .withDefaults()     <- 合理的なデフォルト値
+  .withDefaults()     <- Reasonable default values
        |
-  .withName("Alice")  <- テストに必要な値だけ上書き
+  .withName("Alice")  <- Override only values needed for the test
        |
-  .withPosts(3)       <- リレーション生成
+  .withPosts(3)       <- Generate relations
        |
   .build()
        |
@@ -1187,7 +1187,7 @@ const emailBuilder = createTypedBuilder<EmailMessage, "to" | "from" | "subject" 
 ```
 
 ```typescript
-// テストデータ用ビルダー
+// Builder for test data
 class UserBuilder {
   private data: User = {
     id: crypto.randomUUID(),
@@ -1233,7 +1233,7 @@ class UserBuilder {
   }
 }
 
-// テストでの使用
+// Usage in tests
 describe("UserService", () => {
   it("should allow admin to delete users", async () => {
     const admin = UserBuilder.create().withRole("admin").build();
@@ -1245,10 +1245,10 @@ describe("UserService", () => {
 });
 ```
 
-### 5-2. 関連エンティティ付きテストデータビルダー
+### 5-2. Test Data Builder with Related Entities
 
 ```typescript
-// ─── 各エンティティのビルダー ───
+// ─── Builders for each entity ───
 
 interface Post {
   id: string;
@@ -1358,7 +1358,7 @@ class CommentBuilder {
   }
 }
 
-// ─── シナリオビルダー: 複数のエンティティを一括生成 ───
+// ─── Scenario builder: generate multiple entities at once ───
 
 interface BlogScenario {
   users: User[];
@@ -1433,7 +1433,7 @@ class BlogScenarioBuilder {
   }
 }
 
-// テストでの使用
+// Usage in tests
 describe("Blog API", () => {
   it("should return published posts with comments", async () => {
     const scenario = BlogScenarioBuilder.create()
@@ -1455,12 +1455,12 @@ describe("Blog API", () => {
 });
 ```
 
-### 5-3. ファクトリ関数パターン（軽量テストデータ生成）
+### 5-3. Factory Function Pattern (Lightweight Test Data Generation)
 
 ```typescript
-// ビルダークラスを使わず、関数だけでテストデータを生成する軽量パターン
+// A lightweight pattern that generates test data using only functions, without builder classes
 
-// カウンタ付きファクトリ
+// Factory with a counter
 let userCounter = 0;
 function createTestUser(overrides: Partial<User> = {}): User {
   userCounter++;
@@ -1491,7 +1491,7 @@ function createTestPost(overrides: Partial<Post> = {}): Post {
   };
 }
 
-// 使用例
+// Usage example
 describe("PostService", () => {
   it("should publish a draft post", async () => {
     const author = createTestUser({ role: "admin" });
@@ -1502,7 +1502,7 @@ describe("PostService", () => {
   });
 });
 
-// ─── faker.js との統合 ───
+// ─── Integration with faker.js ───
 import { faker } from "@faker-js/faker";
 
 function createRealisticUser(overrides: Partial<User> = {}): User {
@@ -1535,10 +1535,10 @@ function createRealisticPost(overrides: Partial<Post> = {}): Post {
 }
 ```
 
-### 5-4. 型安全なテストデータビルダージェネリクス
+### 5-4. Type-Safe Test Data Builder Generics
 
 ```typescript
-// 任意のインターフェースに対応する汎用テストデータビルダー
+// General-purpose test data builder compatible with any interface
 type WithMethods<T> = {
   [K in keyof T as `with${Capitalize<string & K>}`]: (
     value: T[K]
@@ -1572,7 +1572,7 @@ function createTestDataBuilder<T extends Record<string, unknown>>(
   return new Proxy({}, handler) as WithMethods<T>;
 }
 
-// 使用例
+// Usage example
 const userBuilder = createTestDataBuilder<User>({
   id: "test-id",
   name: "Default User",
@@ -1592,12 +1592,12 @@ const user = userBuilder
 
 ---
 
-## 6. 実務での応用例
+## 6. Real-World Application Examples
 
-### 6-1. ORM スタイルのクエリビルダー
+### 6-1. ORM-Style Query Builder
 
 ```typescript
-// Prisma 風の型安全クエリビルダー
+// Prisma-style type-safe query builder
 interface WhereClause<T> {
   equals?: T;
   not?: T;
@@ -1670,7 +1670,7 @@ class TypeSafeQueryBuilder<T extends Record<string, unknown>> {
   }
 }
 
-// 使用例
+// Usage example
 interface Product {
   id: string;
   name: string;
@@ -1693,10 +1693,10 @@ const query = new TypeSafeQueryBuilder<Product>()
   .getArgs();
 ```
 
-### 6-2. フォームビルダー（React 統合）
+### 6-2. Form Builder (React Integration)
 
 ```typescript
-// React フォーム用の型安全ビルダー
+// Type-safe builder for React forms
 interface FormFieldConfig<T> {
   name: keyof T;
   label: string;
@@ -1734,7 +1734,7 @@ class FormBuilder<T extends Record<string, unknown>> {
       type: "email",
       validation: (v) => {
         if (typeof v === "string" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
-          return "有効なメールアドレスを入力してください";
+          return "Please enter a valid email address";
         }
         return undefined;
       },
@@ -1755,12 +1755,12 @@ class FormBuilder<T extends Record<string, unknown>> {
       type: "number",
       validation: (v) => {
         const num = Number(v);
-        if (isNaN(num)) return "数値を入力してください";
+        if (isNaN(num)) return "Please enter a number";
         if (options?.min !== undefined && num < options.min) {
-          return `${options.min}以上の値を入力してください`;
+          return `Please enter a value of ${options.min} or more`;
         }
         if (options?.max !== undefined && num > options.max) {
-          return `${options.max}以下の値を入力してください`;
+          return `Please enter a value of ${options.max} or less`;
         }
         return undefined;
       },
@@ -1788,7 +1788,7 @@ class FormBuilder<T extends Record<string, unknown>> {
   }
 }
 
-// 使用例
+// Usage example
 interface UserForm {
   name: string;
   email: string;
@@ -1797,12 +1797,12 @@ interface UserForm {
 }
 
 const formConfig = new FormBuilder<UserForm>()
-  .text("name", "名前", { required: true, placeholder: "山田太郎" })
-  .email("email", "メールアドレス")
-  .number("age", "年齢", { min: 0, max: 150 })
-  .select("role", "役割", [
-    { value: "user", label: "一般ユーザー" },
-    { value: "admin", label: "管理者" },
+  .text("name", "Name", { required: true, placeholder: "John Doe" })
+  .email("email", "Email Address")
+  .number("age", "Age", { min: 0, max: 150 })
+  .select("role", "Role", [
+    { value: "user", label: "General User" },
+    { value: "admin", label: "Administrator" },
   ])
   .onSubmit(async (data) => {
     await api.post("/users", data);
@@ -1810,7 +1810,7 @@ const formConfig = new FormBuilder<UserForm>()
   .build();
 ```
 
-### 6-3. メール送信ビルダー
+### 6-3. Email Sending Builder
 
 ```typescript
 interface EmailConfig {
@@ -1899,14 +1899,14 @@ class EmailBuilder<
     return this;
   }
 
-  // 全必須フィールドが設定済みの場合のみ build 可能
+  // build is only available when all required fields are set
   build(
     this: EmailBuilder<true, true, true, true>
   ): EmailConfig {
     return { ...this.config } as EmailConfig;
   }
 
-  // 送信まで一気に行う
+  // Send in one go
   async send(
     this: EmailBuilder<true, true, true, true>,
     transporter: EmailTransporter
@@ -1916,27 +1916,27 @@ class EmailBuilder<
   }
 }
 
-// 使用例
+// Usage example
 const email = new EmailBuilder()
   .to("alice@example.com", "bob@example.com")
   .from("noreply@myapp.com")
-  .subject("注文確認")
-  .html("<h1>ご注文ありがとうございます</h1><p>注文番号: #12345</p>")
+  .subject("Order Confirmation")
+  .html("<h1>Thank you for your order</h1><p>Order number: #12345</p>")
   .attach("invoice.pdf", invoiceBuffer, "application/pdf")
   .priority("high")
   .build();
 
-// 必須フィールドが不足: コンパイルエラー
+// Missing required fields: compile error
 const incomplete = new EmailBuilder()
   .to("alice@example.com")
-  .subject("テスト")
-  .build(); // Error: from と body が未設定
+  .subject("Test")
+  .build(); // Error: from and body are not set
 ```
 
-### 6-4. CLI コマンドビルダー
+### 6-4. CLI Command Builder
 
 ```typescript
-// CLI コマンドの型安全な構築
+// Type-safe construction of CLI commands
 interface CommandConfig {
   name: string;
   description: string;
@@ -2024,14 +2024,14 @@ class CommandBuilder {
   }
 }
 
-// 使用例
+// Usage example
 const deployCommand = new CommandBuilder()
   .name("deploy")
-  .description("アプリケーションをデプロイする")
-  .argument("environment", "デプロイ先の環境", { type: "string" })
-  .option("--force", "強制デプロイ", { short: "-f", type: "boolean", default: false })
-  .option("--tag", "デプロイするタグ", { short: "-t", type: "string" })
-  .option("--timeout", "タイムアウト（秒）", { type: "number", default: 300 })
+  .description("Deploy the application")
+  .argument("environment", "The target deployment environment", { type: "string" })
+  .option("--force", "Force deploy", { short: "-f", type: "boolean", default: false })
+  .option("--tag", "Tag to deploy", { short: "-t", type: "string" })
+  .option("--timeout", "Timeout (seconds)", { type: "number", default: 300 })
   .handler(async (args, options) => {
     console.log(`Deploying to ${args.environment}...`);
     if (options.force) console.log("Force mode enabled");
@@ -2039,10 +2039,10 @@ const deployCommand = new CommandBuilder()
   .build();
 ```
 
-### 6-5. パイプラインビルダー
+### 6-5. Pipeline Builder
 
 ```typescript
-// データ変換パイプラインの型安全な構築
+// Type-safe construction of data transformation pipelines
 type TransformFn<In, Out> = (input: In) => Out | Promise<Out>;
 
 class PipelineBuilder<TInput, TCurrent = TInput> {
@@ -2092,7 +2092,7 @@ class PipelineBuilder<TInput, TCurrent = TInput> {
   }
 }
 
-// 使用例
+// Usage example
 interface RawOrder {
   items: Array<{ productId: string; quantity: string; price: string }>;
   customerId: string;
@@ -2120,11 +2120,11 @@ const processOrder = PipelineBuilder.from<RawOrder>()
   }))
   .filter(
     (order) => order.items.length > 0,
-    "注文には1つ以上の商品が必要です"
+    "Order must contain at least one item"
   )
   .filter(
     (order) => order.items.every((i) => i.quantity > 0),
-    "数量は1以上である必要があります"
+    "Quantity must be 1 or more"
   )
   .pipe((order) => {
     const subtotal = order.items.reduce((sum, item) => sum + item.total, 0);
@@ -2139,7 +2139,7 @@ const processOrder = PipelineBuilder.from<RawOrder>()
   .tap((order) => console.log(`Order total: ${order.total}`))
   .build();
 
-// 実行
+// Execute
 const result = await processOrder({
   items: [
     { productId: "p1", quantity: "2", price: "1000" },
@@ -2151,51 +2151,51 @@ const result = await processOrder({
 
 ---
 
-## 比較表
+## Comparison Table
 
-### ビルダーパターンのバリエーション比較
+### Comparison of Builder Pattern Variations
 
-| パターン | 型安全性 | 実装コスト | 柔軟性 | 順序強制 | 分岐 |
-|---------|---------|-----------|--------|---------|------|
-| クラシックビルダー | 低 | 低 | 高 | なし | 不可 |
-| Phantom Type | 高 | 中 | 中 | なし | 不可 |
-| Step Builder | 最高 | 高 | 低 | あり | 不可 |
-| Immutable Builder | 高 | 中 | 高 | なし | 可能 |
-| 関数合成ビルダー | 高 | 中 | 高 | なし | 可能 |
-| Proxy ビルダー | 中 | 低 | 高 | なし | 可能 |
+| Pattern | Type Safety | Implementation Cost | Flexibility | Order Enforcement | Branching |
+|---------|-------------|---------------------|-------------|-------------------|-----------|
+| Classic Builder | Low | Low | High | None | Not possible |
+| Phantom Type | High | Medium | Medium | None | Not possible |
+| Step Builder | Highest | High | Low | Yes | Not possible |
+| Immutable Builder | High | Medium | High | None | Possible |
+| Functional Composition Builder | High | Medium | High | None | Possible |
+| Proxy Builder | Medium | Low | High | None | Possible |
 
-### ビルダー vs 他の生成パターン
+### Builder vs Other Creational Patterns
 
-| 比較軸 | ビルダー | ファクトリ | コンストラクタ | Object.assign |
-|--------|---------|-----------|-------------|---------------|
-| 引数の多さ | 多い場合に最適 | 少〜中 | 少〜中 | 中 |
-| 段階的構築 | 可能 | 不可 | 不可 | 不可 |
-| バリデーション | build() 時 | 生成時 | 即座 | なし |
-| IDE 補完 | 優秀 | 良好 | 普通 | 限定的 |
-| 不変性 | 保証可能 | 保証可能 | 設計次第 | 困難 |
-| テストデータ | 最適 | 良好 | 不向き | 可能 |
-| 可読性 | 高 | 中 | 低（引数多数時） | 中 |
+| Axis | Builder | Factory | Constructor | Object.assign |
+|------|---------|---------|-------------|---------------|
+| Number of arguments | Best for many | Few to medium | Few to medium | Medium |
+| Step-by-step construction | Possible | Not possible | Not possible | Not possible |
+| Validation | At build() | At creation | Immediately | None |
+| IDE completion | Excellent | Good | Normal | Limited |
+| Immutability | Guaranteeable | Guaranteeable | Design-dependent | Difficult |
+| Test data | Ideal | Good | Not suitable | Possible |
+| Readability | High | Medium | Low (with many args) | Medium |
 
-### 適用場面のガイドライン
+### Usage Guidelines
 
-| 場面 | 推奨パターン | 理由 |
-|------|------------|------|
-| HTTPリクエスト構築 | Step Builder | メソッドとURLは必須、順序も自然 |
-| テストデータ生成 | クラシック or ファクトリ関数 | デフォルト値が重要、型安全性は低くてもOK |
-| 設定オブジェクト | Phantom Type | 必須設定の検証が重要 |
-| クエリ構築 | Fluent API | メソッドチェーンが自然な DSL になる |
-| メール送信 | Phantom Type | to/from/subject は必須 |
-| CLI コマンド | クラシック | 柔軟性重視、必須項目は少ない |
-| パイプライン | 関数合成 | 型の変換を追跡する必要がある |
+| Scenario | Recommended Pattern | Reason |
+|----------|---------------------|--------|
+| HTTP request construction | Step Builder | Method and URL are required; order is natural |
+| Test data generation | Classic or factory function | Default values matter; lower type safety is acceptable |
+| Configuration objects | Phantom Type | Validating required settings is important |
+| Query construction | Fluent API | Method chaining naturally forms a DSL |
+| Email sending | Phantom Type | to/from/subject are required |
+| CLI commands | Classic | Flexibility is prioritized; few required fields |
+| Pipelines | Functional composition | Type transformations need to be tracked in a chain |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### AP-1: any を使った型逃げ
+### AP-1: Escaping Types with `any`
 
 ```typescript
-// NG: as any で型安全性を破壊
+// NG: Destroys type safety with as any
 class BadBuilder {
   private config: any = {};
 
@@ -2205,11 +2205,11 @@ class BadBuilder {
   }
 
   build(): HttpRequest {
-    return this.config as HttpRequest; // 検証なし
+    return this.config as HttpRequest; // No validation
   }
 }
 
-// OK: ジェネリクスで型を追跡
+// OK: Track types with generics
 class GoodBuilder<T extends Partial<HttpRequest> = {}> {
   constructor(private config: T) {}
 
@@ -2226,20 +2226,20 @@ class GoodBuilder<T extends Partial<HttpRequest> = {}> {
 }
 ```
 
-### AP-2: 可変状態の露出
+### AP-2: Exposing Mutable State
 
 ```typescript
-// NG: ビルダーの内部状態が外部から変更可能
+// NG: Internal builder state can be modified from outside
 class LeakyBuilder {
   headers: Record<string, string> = {}; // public!
 
   build(): HttpRequest {
     return { /* ... */ headers: this.headers, /* ... */ } as HttpRequest;
-    // build 後に headers を変更すると、構築済みオブジェクトも変わる
+    // If headers is modified after build, the already-constructed object also changes
   }
 }
 
-// OK: private + コピー
+// OK: private + copy
 class SafeBuilder {
   private headers: Record<string, string> = {};
 
@@ -2251,31 +2251,31 @@ class SafeBuilder {
   build(): HttpRequest {
     return {
       /* ... */
-      headers: { ...this.headers }, // スプレッドでコピー
+      headers: { ...this.headers }, // Return a copy using spread
       /* ... */
     } as HttpRequest;
   }
 }
 ```
 
-### AP-3: ビルダーの再利用による状態汚染
+### AP-3: State Pollution from Builder Reuse
 
 ```typescript
-// NG: Mutable ビルダーの再利用
+// NG: Reusing a mutable builder
 const builder = new HttpRequestBuilder()
   .setUrl("https://api.example.com");
 
 const req1 = builder.setMethod("GET").build();
 const req2 = builder.setMethod("POST").build();
-// req1.method が "POST" になっている可能性がある!
+// req1.method may have become "POST"!
 
-// OK: build 後にリセットする
+// OK: Reset state after build
 class ResettableBuilder {
-  // ... フィールド省略 ...
+  // ... fields omitted ...
 
   build(): HttpRequest {
     const result = { /* ... */ } as HttpRequest;
-    this.reset(); // build 後に状態をリセット
+    this.reset(); // Reset state after build
     return result;
   }
 
@@ -2288,13 +2288,13 @@ class ResettableBuilder {
   }
 }
 
-// より良い: Immutable ビルダーを使う（セクション4参照）
+// Better: use an immutable builder (see section 4)
 ```
 
-### AP-4: 過度に複雑なビルダー
+### AP-4: Overly Complex Builders
 
 ```typescript
-// NG: 単純なオブジェクトにビルダーは不要
+// NG: A builder is unnecessary for a simple object
 class PointBuilder {
   private x = 0;
   private y = 0;
@@ -2307,30 +2307,30 @@ class PointBuilder {
   }
 }
 
-// OK: 単純なオブジェクトは直接生成
+// OK: Create simple objects directly
 const point = { x: 10, y: 20 };
 
-// ビルダーを使うべき目安:
-// - フィールドが5つ以上
-// - 必須/任意の組み合わせが複雑
-// - 構築にバリデーションが必要
-// - テストデータの生成で頻繁に使う
+// When to use a builder:
+// - 5 or more fields
+// - Complex combinations of required and optional fields
+// - Construction requires validation
+// - Frequently used for generating test data
 ```
 
-### AP-5: build() 後のメソッド呼び出し
+### AP-5: Calling Methods After build()
 
 ```typescript
-// NG: build 後にメソッドを呼んでも意味がない
+// NG: Calling methods after build has no effect
 const builder = new HttpRequestBuilder();
 const request = builder.setUrl("https://example.com").build();
-builder.setMethod("POST"); // request には反映されない
+builder.setMethod("POST"); // Not reflected in request
 
-// OK: ビルダーの使い捨てを推奨するAPI設計
-// 方法1: build 後にビルダーを無効化
+// OK: Design the API to encourage single-use builders
+// Option 1: Invalidate the builder after build
 class OneTimeBuilder {
   private built = false;
 
-  // ... setter メソッド ...
+  // ... setter methods ...
 
   build(): HttpRequest {
     if (this.built) {
@@ -2341,7 +2341,7 @@ class OneTimeBuilder {
   }
 }
 
-// 方法2: static メソッドでファクトリスタイル
+// Option 2: Factory style with a static method
 const request2 = HttpRequestBuilder.create()
   .setUrl("https://example.com")
   .setMethod("POST")
@@ -2350,37 +2350,37 @@ const request2 = HttpRequestBuilder.create()
 
 ---
 
-## パフォーマンス考慮事項
+## Performance Considerations
 
-### Immutable vs Mutable ビルダーのパフォーマンス
+### Immutable vs Mutable Builder Performance
 
 ```typescript
-// ─── ベンチマーク比較 ───
+// ─── Benchmark Comparison ───
 
-// Mutable ビルダー: ~50ns/op
-// - オブジェクト生成は1回のみ
-// - 各メソッドはプロパティ代入のみ
+// Mutable builder: ~50ns/op
+// - Only one object is created
+// - Each method only assigns a property
 
-// Immutable ビルダー: ~200ns/op
-// - 各メソッドで新しいオブジェクトを生成
-// - スプレッド演算子によるコピーコスト
+// Immutable builder: ~200ns/op
+// - A new object is created in each method
+// - Copy cost from the spread operator
 
-// ─── 最適化のヒント ───
+// ─── Optimization Tips ───
 
-// 1. ビルダーの使用頻度が高い場合は Mutable を選択
-// 2. テストデータ生成では Immutable が安全
-// 3. ホットパスでは直接オブジェクトリテラルを使用
-// 4. Proxy ベースのビルダーは最も遅い（~1000ns/op）
+// 1. Choose Mutable if the builder is used frequently
+// 2. Immutable is safer for test data generation
+// 3. Use direct object literals in hot paths
+// 4. Proxy-based builders are the slowest (~1000ns/op)
 
-// ─── メモリ効率 ───
+// ─── Memory Efficiency ───
 
-// 大量のビルダーインスタンスを生成する場合:
-// - Mutable: 1インスタンスで複数のオブジェクトを生成可能
-// - Immutable: メソッドチェーンの長さ分のインスタンスが生成される
-//   （ただしGCで回収される）
+// When generating a large number of builder instances:
+// - Mutable: Can create multiple objects from a single instance
+// - Immutable: Creates one instance per step in the method chain
+//   (though they are collected by GC)
 
-// 実測値の参考:
-// 10,000回のビルド:
+// Reference benchmark values:
+// 10,000 builds:
 //   Mutable Builder: ~0.5ms
 //   Immutable Builder: ~2ms
 //   Proxy Builder: ~10ms
@@ -2391,82 +2391,82 @@ const request2 = HttpRequestBuilder.create()
 
 ## FAQ
 
-### Q1: ビルダーパターンとファクトリパターンの使い分けは？
+### Q1: When should I use a builder pattern vs a factory pattern?
 
-引数が 4 つ以上ある、または省略可能な引数が多い場合はビルダーが適しています。引数が少なく固定されている場合はファクトリで十分です。テストデータ生成はビルダーの最も効果的な適用場面です。
+A builder is appropriate when there are 4 or more arguments, or when there are many optional arguments. A factory is sufficient when arguments are few and fixed. Test data generation is the most effective use case for builders.
 
-### Q2: Phantom Type ビルダーはパフォーマンスに影響しますか？
+### Q2: Does the Phantom Type builder affect performance?
 
-型パラメータはコンパイル時にのみ存在し、JavaScript 出力には一切影響しません。`as unknown as` のキャストもランタイムコストゼロです。パフォーマンスの心配は不要です。
+Type parameters only exist at compile time and have absolutely no effect on the JavaScript output. The `as unknown as` casts also have zero runtime cost. There is no need to worry about performance.
 
-### Q3: Immutable ビルダーと Mutable ビルダーのどちらが良いですか？
+### Q3: Which is better, an Immutable builder or a Mutable builder?
 
-Immutable ビルダー（各メソッドで新しいインスタンスを返す）は安全ですがメモリ割り当てが増えます。Mutable ビルダー（this を返す）は効率的ですが、途中の状態を保存して分岐させる使い方ができません。一般的には Mutable で十分ですが、ビルダーを変数に保存して分岐させたい場合は Immutable を選択してください。
+An Immutable builder (returning a new instance in each method) is safe but increases memory allocation. A Mutable builder (returning `this`) is efficient but cannot be used to save an intermediate state and branch from it. In general, Mutable is sufficient, but choose Immutable when you want to save the builder to a variable and branch from it.
 
-### Q4: ビルダーパターンは関数型プログラミングと矛盾しませんか？
+### Q4: Does the builder pattern conflict with functional programming?
 
-Immutable ビルダーは各メソッドが新しいインスタンスを返すため、関数型プログラミングの原則と完全に一致します。実際、関数合成でパイプラインを構築するパターンはビルダーの関数型版といえます。ただし Mutable ビルダーは内部状態を変更するため、純粋関数型のスタイルには適しません。
+An Immutable builder is fully aligned with the principles of functional programming since each method returns a new instance. In fact, the pattern of building pipelines through function composition can be considered the functional equivalent of a builder. However, Mutable builders modify internal state and are therefore not suited for a purely functional style.
 
-### Q5: テストデータビルダーで faker.js を使うべきですか？
+### Q5: Should I use faker.js for test data builders?
 
-ランダムデータはテストの再現性を下げるため、基本的には固定値のデフォルトを使うことを推奨します。ただし、プロパティベーステスト（fast-check）やストレステストでは faker.js が有用です。通常のユニットテストでは `UserBuilder.create().withName("Alice")` のように意図が明確な固定値を使いましょう。
+Random data reduces test reproducibility, so it is generally recommended to use fixed default values. However, faker.js is useful for property-based tests (fast-check) and stress tests. For regular unit tests, use explicit fixed values like `UserBuilder.create().withName("Alice")` to make intent clear.
 
-### Q6: Step Builder のインターフェースが増えすぎる問題は？
+### Q6: How do I deal with too many interfaces in a Step Builder?
 
-必須フィールドが N 個ある場合、最大で N+1 個のインターフェースが必要です。これが多すぎる場合は、Phantom Type ビルダーを使って型パラメータで状態を追跡するか、必須フィールドをコンストラクタで受け取り、任意フィールドだけビルダーで設定する折衷案を検討してください。
+If there are N required fields, up to N+1 interfaces are needed. If this is too many, consider using a Phantom Type builder to track state with type parameters, or a hybrid approach where required fields are received in the constructor and only optional fields are set via the builder.
 
-### Q7: ネストしたオブジェクトのビルダーはどう設計すべきですか？
+### Q7: How should I design a builder for nested objects?
 
-親ビルダーにコールバック関数を受け取るメソッドを用意し、子ビルダーを引数として渡すパターンが効果的です。`.server((s) => s.host("localhost").port(3000))` のようなAPIになります。セクション3-5の ConfigBuilder を参照してください。
+An effective pattern is to have the parent builder provide a method that accepts a callback function and passes a child builder as the argument. This creates an API like `.server((s) => s.host("localhost").port(3000))`. Refer to the `ConfigBuilder` in section 3-5.
 
-### Q8: ビルダーパターンをどのようにテストすべきですか？
+### Q8: How should I test a builder pattern?
 
-ビルダー自体のテストでは、(1) 全フィールド設定時の正常な build、(2) 必須フィールド未設定時のエラー、(3) デフォルト値の確認、(4) メソッドチェーンの戻り値の型をテストします。Phantom Type ビルダーの場合はコンパイルエラーのテスト（`// @ts-expect-error` アノテーション）も重要です。
-
----
-
-## まとめ表
-
-| 概念 | 要点 |
-|------|------|
-| クラシックビルダー | 段階的構築だが型安全性は不十分 |
-| Phantom Type | ジェネリクスのフラグで設定状態を追跡 |
-| Step Builder | インターフェース分割で順序を強制 |
-| Fluent API | メソッドチェーンで直感的な DSL を構築 |
-| Immutable ビルダー | 各メソッドで新しいインスタンスを返し、分岐が安全 |
-| テストデータビルダー | `.create().withX().build()` でテストデータを生成 |
-| シナリオビルダー | 複数の関連エンティティを一括生成 |
-| パイプラインビルダー | データ変換の型を連鎖的に追跡 |
-| 不変コピー | `build()` ではスプレッドでコピーを返す |
-| Proxy ビルダー | 動的にメソッドを生成する汎用ビルダー |
+When testing the builder itself, verify: (1) a normal build with all fields set, (2) an error when a required field is not set, (3) confirmation of default values, and (4) the return types of method chains. For Phantom Type builders, testing compile errors (with the `// @ts-expect-error` annotation) is also important.
 
 ---
 
+## Summary Table
 
-## まとめ
-
-このガイドでは以下の重要なポイントを学びました:
-
-- 基本概念と原則の理解
-- 実践的な実装パターン
-- ベストプラクティスと注意点
-- 実務での活用方法
-
----
-
-## 次に読むべきガイド
-
-- [ブランド型](./03-branded-types.md) -- ビルダーで生成する値にブランドを付与する
-- [DI パターン](./04-dependency-injection.md) -- ビルダーと DI を組み合わせたファクトリ設計
-- [判別共用体](./02-discriminated-unions.md) -- Step Builder の型安全性を支える判別共用体
-- [エラーハンドリング](./00-error-handling.md) -- Result 型との統合パターン
+| Concept | Key Point |
+|---------|-----------|
+| Classic Builder | Step-by-step construction but insufficient type safety |
+| Phantom Type | Tracks set state using generic flags |
+| Step Builder | Enforces order by splitting into interfaces |
+| Fluent API | Builds an intuitive DSL with method chaining |
+| Immutable Builder | Returns a new instance in each method; safe branching |
+| Test Data Builder | Generate test data with `.create().withX().build()` |
+| Scenario Builder | Generate multiple related entities at once |
+| Pipeline Builder | Track types across a chain of data transformations |
+| Immutable Copy | Return a spread copy in `build()` |
+| Proxy Builder | A general-purpose builder that generates methods dynamically |
 
 ---
 
-## 参考文献
+
+## Summary
+
+This guide covered the following key points:
+
+- Understanding basic concepts and principles
+- Practical implementation patterns
+- Best practices and pitfalls
+- How to apply them in real-world work
+
+---
+
+## Guides to Read Next
+
+- [Branded Types](./03-branded-types.md) -- Adding brands to values produced by a builder
+- [DI Pattern](./04-dependency-injection.md) -- Factory design combining builders and DI
+- [Discriminated Unions](./02-discriminated-unions.md) -- Discriminated unions supporting the type safety of Step Builders
+- [Error Handling](./00-error-handling.md) -- Integration patterns with the Result type
+
+---
+
+## References
 
 1. **Design Patterns: Elements of Reusable Object-Oriented Software** -- Gamma et al. (GoF)
-   Builder パターンの原典
+   The original source for the Builder pattern
 
 2. **TypeScript Deep Dive - Phantom Types**
    https://basarat.gitbook.io/typescript/
@@ -2475,7 +2475,7 @@ Immutable ビルダーは各メソッドが新しいインスタンスを返す�
    https://martinfowler.com/bliki/FluentInterface.html
 
 4. **Effective TypeScript** -- Dan Vanderkam
-   型安全なビルダーパターンの解説
+   Explanation of type-safe builder patterns
 
 5. **The Builder Pattern in TypeScript** -- Marius Schulz
    https://mariusschulz.com/blog/tagged/typescript
