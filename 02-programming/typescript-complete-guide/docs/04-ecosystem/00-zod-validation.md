@@ -1,62 +1,62 @@
-# Zod バリデーション完全ガイド
+# Zod Validation Complete Guide
 
-> TypeScript ファーストのスキーマ定義ライブラリ Zod で、ランタイムバリデーションと型推論を統合する
+> Integrate runtime validation and type inference with Zod, a TypeScript-first schema definition library
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **スキーマ定義の基本** -- プリミティブ型からオブジェクト、配列、ユニオンまでの定義パターン
-2. **高度なバリデーション** -- transform, refine, pipe, discriminatedUnion による複雑なスキーマ設計
-3. **実践的な統合** -- フォームバリデーション、API リクエスト/レスポンス、環境変数検証への適用
-4. **エラーハンドリング** -- ZodError の解析、カスタムエラーメッセージ、国際化対応
-5. **パフォーマンスとベストプラクティス** -- スキーマ設計の指針、テスト、エコシステム連携
+1. **Schema Definition Basics** -- Definition patterns from primitive types to objects, arrays, and unions
+2. **Advanced Validation** -- Complex schema design using transform, refine, pipe, and discriminatedUnion
+3. **Practical Integration** -- Applying validation to forms, API requests/responses, and environment variable verification
+4. **Error Handling** -- Parsing ZodError, custom error messages, and internationalization support
+5. **Performance and Best Practices** -- Schema design guidelines, testing, and ecosystem integration
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. スキーマ定義の基本
+## 1. Schema Definition Basics
 
-### Zodとは何か
+### What is Zod?
 
-Zod は TypeScript ファーストのスキーマ宣言・バリデーションライブラリである。最大の特徴は、スキーマ定義から TypeScript の型を自動推論できること。これにより「型とバリデーションの二重定義」問題を解決し、Single Source of Truth（単一の情報源）を実現する。
+Zod is a TypeScript-first schema declaration and validation library. Its defining feature is the ability to automatically infer TypeScript types from schema definitions. This solves the "double definition problem" of types and validation, achieving a Single Source of Truth.
 
 ```
-Zod の核心的な価値:
+Core value of Zod:
 
-  従来のアプローチ（二重定義の問題）:
+  Traditional approach (double definition problem):
   ┌─────────────────────┐     ┌─────────────────────┐
-  │ TypeScript 型定義    │     │ バリデーション       │
+  │ TypeScript type def  │     │ Validation           │
   │ interface User {     │     │ function validate(x) │
   │   name: string;      │ ←→ │   if (!x.name) ...   │
   │   age: number;       │     │   if (!x.age) ...    │
   │ }                    │     │ }                    │
   └─────────────────────┘     └─────────────────────┘
-     手動同期が必要 → 乖離リスク
+     Manual sync required → Risk of divergence
 
-  Zod のアプローチ（Single Source of Truth）:
+  Zod approach (Single Source of Truth):
   ┌─────────────────────────────┐
   │ const UserSchema = z.object({│
   │   name: z.string(),          │
   │   age: z.number(),           │
   │ })                           │
   │                              │
-  │ type User = z.infer<...>     │ ← 型は自動推論
-  │ schema.parse(data)           │ ← バリデーション機能も内蔵
+  │ type User = z.infer<...>     │ ← Type is automatically inferred
+  │ schema.parse(data)           │ ← Validation functionality built in
   └─────────────────────────────┘
 ```
 
-### 1-1. プリミティブ型
+### 1-1. Primitive Types
 
 ```typescript
 import { z } from "zod";
 
-// プリミティブ
+// Primitives
 const stringSchema = z.string();
 const numberSchema = z.number();
 const boolSchema = z.boolean();
@@ -69,7 +69,7 @@ const anySchema = z.any();
 const unknownSchema = z.unknown();
 const neverSchema = z.never();
 
-// リテラル
+// Literals
 const literalSchema = z.literal("active");
 const numLiteral = z.literal(42);
 const boolLiteral = z.literal(true);
@@ -78,10 +78,10 @@ const boolLiteral = z.literal(true);
 const statusSchema = z.enum(["active", "inactive", "pending"]);
 type Status = z.infer<typeof statusSchema>; // "active" | "inactive" | "pending"
 
-// enum の値一覧を取得
+// Get list of enum values
 statusSchema.options; // ["active", "inactive", "pending"]
 
-// enum にない値を検証
+// Validate a value not in the enum
 statusSchema.safeParse("unknown"); // { success: false, ... }
 
 // native enum
@@ -94,21 +94,21 @@ enum Direction {
 const directionSchema = z.nativeEnum(Direction);
 type Dir = z.infer<typeof directionSchema>; // Direction
 
-// parse と safeParse
-const result = stringSchema.parse("hello");      // "hello" (失敗時は throw)
+// parse and safeParse
+const result = stringSchema.parse("hello");      // "hello" (throws on failure)
 const safe = stringSchema.safeParse(123);         // { success: false, error: ZodError }
 if (safe.success) {
-  console.log(safe.data); // 型: string
+  console.log(safe.data); // type: string
 }
 ```
 
-### 1-2. 文字列バリデーション
+### 1-2. String Validation
 
 ```typescript
 const emailSchema = z.string()
-  .email("有効なメールアドレスを入力してください")
-  .min(5, "5文字以上で入力してください")
-  .max(255, "255文字以内で入力してください");
+  .email("Please enter a valid email address")
+  .min(5, "Please enter at least 5 characters")
+  .max(255, "Please enter no more than 255 characters");
 
 const urlSchema = z.string().url();
 const uuidSchema = z.string().uuid();
@@ -122,114 +122,114 @@ const ipv4Schema = z.string().ip({ version: "v4" });
 const ipv6Schema = z.string().ip({ version: "v6" });
 const regexSchema = z.string().regex(/^[A-Z]{3}-\d{4}$/);
 
-// trim + toLowerCase をバリデーション前に適用
+// Apply trim + toLowerCase before validation
 const normalizedEmail = z.string()
   .trim()
   .toLowerCase()
   .email();
 
-// 文字列バリデーションの全メソッド
+// All string validation methods
 const fullStringValidation = z.string()
-  .min(1, "必須項目です")           // 最小文字数
-  .max(100, "100文字以内")          // 最大文字数
-  .length(10, "10文字ちょうど")     // 固定長
-  .startsWith("https://")           // 前方一致
-  .endsWith(".com")                 // 後方一致
-  .includes("example")              // 部分一致
-  .trim()                           // 前後の空白を除去
-  .toLowerCase()                    // 小文字変換
-  .toUpperCase();                   // 大文字変換
+  .min(1, "Required field")           // Minimum character count
+  .max(100, "Up to 100 characters")   // Maximum character count
+  .length(10, "Exactly 10 characters") // Fixed length
+  .startsWith("https://")              // Starts with
+  .endsWith(".com")                    // Ends with
+  .includes("example")                 // Contains
+  .trim()                              // Remove leading/trailing whitespace
+  .toLowerCase()                       // Convert to lowercase
+  .toUpperCase();                      // Convert to uppercase
 
-// 日本語対応の文字列バリデーション
+// Japanese name validation
 const japaneseNameSchema = z.string()
-  .min(1, "氏名を入力してください")
-  .max(50, "50文字以内で入力してください")
-  .regex(/^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}ー\s]+$/u, "日本語で入力してください");
+  .min(1, "Please enter your name")
+  .max(50, "Please enter no more than 50 characters")
+  .regex(/^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}ー\s]+$/u, "Please enter in Japanese");
 
 const phoneSchema = z.string()
-  .regex(/^0\d{1,4}-?\d{1,4}-?\d{4}$/, "有効な電話番号を入力してください");
+  .regex(/^0\d{1,4}-?\d{1,4}-?\d{4}$/, "Please enter a valid phone number");
 
 const postalCodeSchema = z.string()
-  .regex(/^\d{3}-?\d{4}$/, "有効な郵便番号を入力してください")
+  .regex(/^\d{3}-?\d{4}$/, "Please enter a valid postal code")
   .transform((val) => val.replace("-", "").replace(/(\d{3})(\d{4})/, "$1-$2"));
 ```
 
-### 1-3. 数値バリデーション
+### 1-3. Number Validation
 
 ```typescript
 const ageSchema = z.number()
-  .int("整数を入力してください")
-  .min(0, "0以上の値を入力してください")
-  .max(150, "150以下の値を入力してください");
+  .int("Please enter an integer")
+  .min(0, "Please enter a value of 0 or greater")
+  .max(150, "Please enter a value of 150 or less");
 
 const priceSchema = z.number()
-  .positive("正の値を入力してください")
-  .multipleOf(0.01); // 小数第2位まで
+  .positive("Please enter a positive value")
+  .multipleOf(0.01); // Up to 2 decimal places
 
 const percentSchema = z.number().min(0).max(100);
 
-// 数値バリデーションの全メソッド
+// All number validation methods
 const fullNumberValidation = z.number()
-  .int()              // 整数
-  .positive()         // 正の数 (> 0)
-  .nonnegative()      // 非負 (>= 0)
-  .negative()         // 負の数 (< 0)
-  .nonpositive()      // 非正 (<= 0)
-  .multipleOf(5)      // 5の倍数
-  .min(0)             // 最小値
-  .max(100)           // 最大値
-  .gt(0)              // より大きい (greater than)
-  .gte(0)             // 以上 (greater than or equal)
-  .lt(100)            // より小さい (less than)
-  .lte(100)           // 以下 (less than or equal)
-  .finite()           // 有限数（Infinity を除外）
-  .safe();            // Number.MIN_SAFE_INTEGER 〜 MAX_SAFE_INTEGER
+  .int()              // Integer
+  .positive()         // Positive number (> 0)
+  .nonnegative()      // Non-negative (>= 0)
+  .negative()         // Negative number (< 0)
+  .nonpositive()      // Non-positive (<= 0)
+  .multipleOf(5)      // Multiple of 5
+  .min(0)             // Minimum value
+  .max(100)           // Maximum value
+  .gt(0)              // Greater than
+  .gte(0)             // Greater than or equal
+  .lt(100)            // Less than
+  .lte(100)           // Less than or equal
+  .finite()           // Finite number (excludes Infinity)
+  .safe();            // Number.MIN_SAFE_INTEGER to MAX_SAFE_INTEGER
 
-// NaN のハンドリング
-const safeNumber = z.number().refine((n) => !Number.isNaN(n), "数値を入力してください");
+// NaN handling
+const safeNumber = z.number().refine((n) => !Number.isNaN(n), "Please enter a number");
 ```
 
-### 1-4. 日付バリデーション
+### 1-4. Date Validation
 
 ```typescript
 const dateSchema = z.date();
 
-// 日付の範囲チェック
-const futureDate = z.date().min(new Date(), "未来の日付を指定してください");
-const pastDate = z.date().max(new Date(), "過去の日付を指定してください");
+// Date range check
+const futureDate = z.date().min(new Date(), "Please specify a future date");
+const pastDate = z.date().max(new Date(), "Please specify a past date");
 
-// 文字列からDateに変換するスキーマ
+// Schema to convert string to Date
 const dateStringSchema = z.string()
   .datetime()
   .transform((val) => new Date(val));
 
-// coerce で自動変換
+// Auto-conversion with coerce
 const coerceDateSchema = z.coerce.date();
-coerceDateSchema.parse("2024-01-15"); // Date オブジェクト
-coerceDateSchema.parse(1705276800000); // Date オブジェクト（timestamp）
+coerceDateSchema.parse("2024-01-15"); // Date object
+coerceDateSchema.parse(1705276800000); // Date object (timestamp)
 ```
 
 ---
 
-## 2. オブジェクトと配列
+## 2. Objects and Arrays
 
-### 2-1. オブジェクトスキーマ
+### 2-1. Object Schema
 
 ```
-Zod オブジェクトスキーマと型推論:
+Zod object schema and type inference:
 
   z.object({                     type User = {
     name: z.string(),    ------>   name: string;
     age: z.number(),     ------>   age: number;
     email: z.string()    ------>   email: string;
-      .email(),                      // (検証ルールは型に影響しない)
+      .email(),                      // (validation rules don't affect types)
   })                             }
 
-  z.infer<typeof schema> で自動推論
+  Automatically inferred with z.infer<typeof schema>
 ```
 
 ```typescript
-// オブジェクトスキーマ
+// Object schema
 const UserSchema = z.object({
   name: z.string().min(1).max(100),
   email: z.string().email(),
@@ -244,41 +244,41 @@ type User = z.infer<typeof UserSchema>;
 //   name: string;
 //   email: string;
 //   age?: number | undefined;
-//   role: "user" | "admin";     // default があるので optional ではない
+//   role: "user" | "admin";     // not optional because of default
 //   tags: string[];
 //   metadata?: Record<string, unknown> | undefined;
 // }
 
-// 入力型と出力型が異なるスキーマ
+// Schema where input and output types differ
 type UserInput = z.input<typeof UserSchema>;
-// age? は number | undefined
-// role? は "user" | "admin" | undefined (default 適用前)
-// tags? は string[] | undefined
+// age? is number | undefined
+// role? is "user" | "admin" | undefined (before default is applied)
+// tags? is string[] | undefined
 
 type UserOutput = z.output<typeof UserSchema>;
-// role は "user" | "admin" (default 適用後)
-// tags は string[]
+// role is "user" | "admin" (after default is applied)
+// tags is string[]
 ```
 
-### z.input vs z.output vs z.infer の違い
+### Difference Between z.input, z.output, and z.infer
 
 ```
-  z.input<typeof Schema>     変換前の入力型（transform, default 適用前）
-  z.output<typeof Schema>    変換後の出力型（transform, default 適用後）
-  z.infer<typeof Schema>     z.output と同じ（エイリアス）
+  z.input<typeof Schema>     Input type before transformation (before transform, default applied)
+  z.output<typeof Schema>    Output type after transformation (after transform, default applied)
+  z.infer<typeof Schema>     Same as z.output (alias)
 
-  例: z.string().default("hello")
+  Example: z.string().default("hello")
     z.input  → string | undefined
     z.output → string
     z.infer  → string
 
-  例: z.string().transform(Number)
+  Example: z.string().transform(Number)
     z.input  → string
     z.output → number
     z.infer  → number
 ```
 
-### 2-2. オブジェクトの操作
+### 2-2. Object Operations
 
 ```typescript
 // pick / omit
@@ -293,10 +293,10 @@ const UserPublicSchema = UserSchema.omit({
 });
 
 // partial / required
-const UserUpdateSchema = UserSchema.partial(); // 全フィールド optional
-const UserStrictSchema = UserSchema.required(); // 全フィールド required
+const UserUpdateSchema = UserSchema.partial(); // all fields optional
+const UserStrictSchema = UserSchema.required(); // all fields required
 
-// deepPartial（ネストされたオブジェクトも全て optional）
+// deepPartial (all nested objects also become optional)
 const DeepPartialUser = UserSchema.deepPartial();
 
 // merge / extend
@@ -306,17 +306,17 @@ const UserWithIdSchema = UserSchema.extend({
   updatedAt: z.date(),
 });
 
-// 2つのスキーマを merge
+// Merge two schemas
 const PersonSchema = z.object({ name: z.string(), age: z.number() });
 const ContactSchema = z.object({ email: z.string(), phone: z.string() });
 const PersonContactSchema = PersonSchema.merge(ContactSchema);
 
 // passthrough / strict / strip
-const strictSchema = UserSchema.strict(); // 余分なフィールドでエラー
-const passthroughSchema = UserSchema.passthrough(); // 余分なフィールドを保持
-// デフォルト (strip): 余分なフィールドを除去
+const strictSchema = UserSchema.strict(); // Error on extra fields
+const passthroughSchema = UserSchema.passthrough(); // Retain extra fields
+// Default (strip): Remove extra fields
 
-// catchall: 未定義のキーのバリデーション
+// catchall: Validation for undefined keys
 const configSchema = z.object({
   host: z.string(),
   port: z.number(),
@@ -324,52 +324,52 @@ const configSchema = z.object({
 // { host: string; port: number; [key: string]: string }
 ```
 
-### 2-3. 配列とタプル
+### 2-3. Arrays and Tuples
 
 ```typescript
-// 配列
+// Array
 const tagsSchema = z.array(z.string()).min(1).max(10);
 const uniqueTags = z.array(z.string()).refine(
   (items) => new Set(items).size === items.length,
-  { message: "タグは重複できません" }
+  { message: "Tags cannot be duplicated" }
 );
 
-// nonempty: 少なくとも1要素ある配列
+// nonempty: array with at least one element
 const nonEmptyArray = z.array(z.number()).nonempty();
 type NonEmptyNumbers = z.infer<typeof nonEmptyArray>;
 // [number, ...number[]]
 
-// タプル
+// Tuple
 const coordinateSchema = z.tuple([z.number(), z.number()]);
 type Coordinate = z.infer<typeof coordinateSchema>; // [number, number]
 
-// 可変長タプル
+// Variadic tuple
 const argsSchema = z.tuple([z.string(), z.number()]).rest(z.boolean());
 type Args = z.infer<typeof argsSchema>; // [string, number, ...boolean[]]
 
-// record: 動的キーのオブジェクト
+// record: object with dynamic keys
 const scoresSchema = z.record(z.string(), z.number());
 type Scores = z.infer<typeof scoresSchema>; // Record<string, number>
 
-// キーにもバリデーションを適用
+// Apply validation to keys as well
 const envSchema = z.record(
-  z.string().regex(/^[A-Z_]+$/), // キーは大文字+アンダースコアのみ
+  z.string().regex(/^[A-Z_]+$/), // Keys are uppercase letters + underscores only
   z.string(),
 );
 
-// Map と Set
+// Map and Set
 const mapSchema = z.map(z.string(), z.number());
 const setSchema = z.set(z.string());
 type MyMap = z.infer<typeof mapSchema>; // Map<string, number>
 type MySet = z.infer<typeof setSchema>; // Set<string>
 ```
 
-### 2-4. Union と Intersection
+### 2-4. Union and Intersection
 
 ```typescript
 // union
 const stringOrNumber = z.union([z.string(), z.number()]);
-// 省略記法
+// Shorthand
 const stringOrNumber2 = z.string().or(z.number());
 
 // discriminatedUnion
@@ -400,7 +400,7 @@ const hasTimestamps = z.object({
   updatedAt: z.date(),
 });
 const entitySchema = z.intersection(hasId, hasTimestamps);
-// 省略記法
+// Shorthand
 const entitySchema2 = hasId.and(hasTimestamps);
 
 // nullable / optional / nullish
@@ -411,14 +411,14 @@ const nullishString = z.string().nullish();       // string | null | undefined
 
 ---
 
-## 3. 高度なパターン
+## 3. Advanced Patterns
 
-### 3-1. discriminatedUnion の詳細
+### 3-1. discriminatedUnion in Detail
 
 ```typescript
-// discriminatedUnion vs union の比較
-// discriminatedUnion は判別子で高速にバリデーション
-// union は各メンバーを順番に試行（遅い）
+// Comparison: discriminatedUnion vs union
+// discriminatedUnion validates quickly using the discriminant
+// union tries each member in order (slow)
 
 const ShapeSchema = z.discriminatedUnion("type", [
   z.object({
@@ -437,55 +437,55 @@ const ShapeSchema = z.discriminatedUnion("type", [
   }),
 ]);
 
-// エラーメッセージが的確
+// Error messages are precise
 ShapeSchema.safeParse({ type: "circle", radius: -1 });
-// → "radius must be positive" (circle スキーマ内でエラー)
+// → "radius must be positive" (error within the circle schema)
 
-// union だと全メンバーのエラーが列挙されて分かりにくい
+// With union, errors from all members are listed, making it hard to understand
 ```
 
-### 3-2. transform と pipe
+### 3-2. transform and pipe
 
 ```
-transform のフロー:
+transform flow:
 
-  入力値  -->  バリデーション  -->  変換  -->  出力値
-  "123"       z.string()          Number()     123
-              (string チェック)    (string→number)
+  Input  -->  Validation  -->  Transform  -->  Output
+  "123"       z.string()       Number()        123
+              (string check)   (string→number)
 
-pipe のフロー:
+pipe flow:
 
-  入力値  -->  前段スキーマ  -->  変換  -->  後段スキーマ  -->  出力値
-  "123"       z.string()         Number()     z.number()        123
-              (string チェック)   (変換)       .positive()
-                                              (number チェック)
+  Input  -->  First schema  -->  Transform  -->  Second schema  -->  Output
+  "123"       z.string()         Number()         z.number()          123
+              (string check)     (transform)      .positive()
+                                                 (number check)
 ```
 
 ```typescript
-// transform: バリデーション後に値を変換
+// transform: Transform value after validation
 const StringToNumberSchema = z.string()
   .transform((val) => Number(val))
-  .pipe(z.number().positive()); // 変換後の値をさらにバリデーション
+  .pipe(z.number().positive()); // Further validate the transformed value
 
 const result = StringToNumberSchema.parse("42"); // 42 (number)
 
-// 日付文字列をDateに変換
+// Convert date string to Date
 const DateStringSchema = z.string()
   .datetime()
   .transform((val) => new Date(val));
 
-// coerce: 暗黙的な型変換
+// coerce: Implicit type conversion
 const CoerceNumberSchema = z.coerce.number(); // Number(input)
 const CoerceDateSchema = z.coerce.date();     // new Date(input)
 const CoerceBoolSchema = z.coerce.boolean();  // Boolean(input)
 const CoerceStringSchema = z.coerce.string(); // String(input)
 const CoerceBigintSchema = z.coerce.bigint(); // BigInt(input)
 
-// 実践的なtransform例
+// Practical transform example
 const MoneySchema = z.object({
   amount: z.string()
-    .regex(/^\d+(\.\d{1,2})?$/, "金額の形式が不正です")
-    .transform((val) => Math.round(parseFloat(val) * 100)), // セント変換
+    .regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format")
+    .transform((val) => Math.round(parseFloat(val) * 100)), // Convert to cents
   currency: z.enum(["USD", "EUR", "JPY"]),
 });
 
@@ -495,7 +495,7 @@ type Money = z.infer<typeof MoneySchema>;
 MoneySchema.parse({ amount: "19.99", currency: "USD" });
 // { amount: 1999, currency: "USD" }
 
-// CSV行をオブジェクトに変換
+// Convert CSV row to object
 const CsvRowSchema = z.string()
   .transform((row) => row.split(","))
   .pipe(z.tuple([z.string(), z.string(), z.coerce.number()]))
@@ -505,30 +505,30 @@ CsvRowSchema.parse("Alice,alice@test.com,30");
 // { name: "Alice", email: "alice@test.com", age: 30 }
 ```
 
-### 3-3. refine と superRefine
+### 3-3. refine and superRefine
 
 ```typescript
-// refine: カスタムバリデーション
+// refine: Custom validation
 const PasswordSchema = z.string()
-  .min(8, "8文字以上")
-  .refine((val) => /[A-Z]/.test(val), "大文字を含めてください")
-  .refine((val) => /[a-z]/.test(val), "小文字を含めてください")
-  .refine((val) => /[0-9]/.test(val), "数字を含めてください")
-  .refine((val) => /[!@#$%^&*]/.test(val), "特殊文字を含めてください");
+  .min(8, "At least 8 characters")
+  .refine((val) => /[A-Z]/.test(val), "Must include uppercase letters")
+  .refine((val) => /[a-z]/.test(val), "Must include lowercase letters")
+  .refine((val) => /[0-9]/.test(val), "Must include numbers")
+  .refine((val) => /[!@#$%^&*]/.test(val), "Must include special characters");
 
-// refine に path を指定
+// Specify path in refine
 const DateRangeSchema = z.object({
   startDate: z.date(),
   endDate: z.date(),
 }).refine(
   (data) => data.endDate > data.startDate,
   {
-    message: "終了日は開始日より後にしてください",
-    path: ["endDate"], // エラーを endDate フィールドに紐付け
+    message: "End date must be after start date",
+    path: ["endDate"], // Associate error with endDate field
   }
 );
 
-// superRefine: 複数フィールドにまたがるバリデーション
+// superRefine: Validation spanning multiple fields
 const RegisterSchema = z.object({
   password: z.string().min(8),
   confirmPassword: z.string(),
@@ -538,7 +538,7 @@ const RegisterSchema = z.object({
   if (data.password !== data.confirmPassword) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "パスワードが一致しません",
+      message: "Passwords do not match",
       path: ["confirmPassword"],
     });
   }
@@ -546,13 +546,13 @@ const RegisterSchema = z.object({
   if (!data.acceptTerms) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "利用規約に同意してください",
+      message: "Please agree to the terms of service",
       path: ["acceptTerms"],
     });
   }
 });
 
-// superRefine で非同期バリデーション
+// Async validation with superRefine
 const UniqueEmailSchema = z.object({
   email: z.string().email(),
 }).superRefine(async (data, ctx) => {
@@ -560,22 +560,22 @@ const UniqueEmailSchema = z.object({
   if (exists) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "このメールアドレスは既に使用されています",
+      message: "This email address is already in use",
       path: ["email"],
     });
   }
 });
 
-// 非同期バリデーションは parseAsync / safeParseAsync で使用
+// Use parseAsync / safeParseAsync for async validation
 const result = await UniqueEmailSchema.safeParseAsync({
   email: "test@example.com",
 });
 ```
 
-### 3-4. 再帰型スキーマ
+### 3-4. Recursive Type Schemas
 
 ```typescript
-// 再帰的なツリー構造
+// Recursive tree structure
 type Category = {
   name: string;
   children: Category[];
@@ -588,7 +588,7 @@ const CategorySchema: z.ZodType<Category> = z.lazy(() =>
   })
 );
 
-// 再帰的なJSON型
+// Recursive JSON type
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
 const JsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
@@ -602,7 +602,7 @@ const JsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
   ])
 );
 
-// ネストの深さ制限付き再帰
+// Recursion with depth limit
 function createNestedSchema(maxDepth: number): z.ZodTypeAny {
   if (maxDepth <= 0) {
     return z.object({ name: z.string() });
@@ -613,13 +613,13 @@ function createNestedSchema(maxDepth: number): z.ZodTypeAny {
   });
 }
 
-const shallowTree = createNestedSchema(3); // 最大3階層
+const shallowTree = createNestedSchema(3); // Maximum 3 levels
 ```
 
-### 3-5. preprocess と preprocessor パターン
+### 3-5. preprocess and Preprocessor Patterns
 
 ```typescript
-// preprocess: バリデーション前にデータを前処理
+// preprocess: Pre-process data before validation
 const NumberFromString = z.preprocess(
   (val) => (typeof val === "string" ? Number(val) : val),
   z.number(),
@@ -628,23 +628,23 @@ const NumberFromString = z.preprocess(
 NumberFromString.parse("42"); // 42
 NumberFromString.parse(42);   // 42
 
-// フォームデータの前処理（空文字を undefined に変換）
+// Pre-process form data (convert empty strings to undefined)
 const FormFieldSchema = z.preprocess(
   (val) => (val === "" ? undefined : val),
   z.string().optional(),
 );
 
-// チェックボックスの値を boolean に変換
+// Convert checkbox value to boolean
 const CheckboxSchema = z.preprocess(
   (val) => val === "on" || val === "true" || val === true,
   z.boolean(),
 );
 ```
 
-### 3-6. ブランド型（Branded Types）
+### 3-6. Branded Types
 
 ```typescript
-// brand でブランド型を付与
+// Attach brand type with brand
 const UserIdSchema = z.string().uuid().brand<"UserId">();
 type UserId = z.infer<typeof UserIdSchema>;
 // string & { __brand: "UserId" }
@@ -653,7 +653,7 @@ const OrderIdSchema = z.string().uuid().brand<"OrderId">();
 type OrderId = z.infer<typeof OrderIdSchema>;
 
 function getUserById(id: UserId): Promise<User> {
-  // UserId型のみ受け入れる
+  // Only accepts UserId type
   return fetch(`/api/users/${id}`).then((r) => r.json());
 }
 
@@ -661,65 +661,65 @@ const userId = UserIdSchema.parse("550e8400-e29b-41d4-a716-446655440000");
 const orderId = OrderIdSchema.parse("550e8400-e29b-41d4-a716-446655440001");
 
 getUserById(userId);  // OK
-// getUserById(orderId); // エラー: OrderId は UserId に代入できない
-// getUserById("raw-string"); // エラー: string は UserId に代入できない
+// getUserById(orderId); // Error: OrderId cannot be assigned to UserId
+// getUserById("raw-string"); // Error: string cannot be assigned to UserId
 ```
 
 ---
 
-## 4. 実践的な統合
+## 4. Practical Integration
 
-### 4-1. 環境変数バリデーション
+### 4-1. Environment Variable Validation
 
 ```typescript
 // env.ts
 const EnvSchema = z.object({
-  // サーバー設定
+  // Server configuration
   NODE_ENV: z.enum(["development", "production", "test"]),
   PORT: z.coerce.number().default(3000),
   HOST: z.string().default("0.0.0.0"),
 
-  // データベース
+  // Database
   DATABASE_URL: z.string().url(),
   DATABASE_POOL_SIZE: z.coerce.number().int().min(1).max(50).default(10),
 
   // Redis
   REDIS_URL: z.string().url().optional(),
 
-  // 認証
+  // Authentication
   JWT_SECRET: z.string().min(32),
   JWT_EXPIRES_IN: z.string().default("7d"),
 
-  // 外部API
+  // External API
   API_KEY: z.string().min(32),
   API_BASE_URL: z.string().url(),
 
-  // ログ
+  // Logging
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
 
-  // メール
+  // Email
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().optional(),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
 }).superRefine((env, ctx) => {
-  // SMTP 設定は全部指定するか全部省略するか
+  // SMTP settings must all be specified or all omitted
   const smtpFields = [env.SMTP_HOST, env.SMTP_PORT, env.SMTP_USER, env.SMTP_PASS];
   const defined = smtpFields.filter((f) => f !== undefined).length;
   if (defined > 0 && defined < 4) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "SMTP設定は全て指定するか、全て省略してください",
+      message: "SMTP settings must all be specified or all omitted",
       path: ["SMTP_HOST"],
     });
   }
 });
 
-// アプリ起動時に検証
+// Validate on app startup
 function loadEnv() {
   const result = EnvSchema.safeParse(process.env);
   if (!result.success) {
-    console.error("環境変数の検証に失敗しました:");
+    console.error("Environment variable validation failed:");
     for (const issue of result.error.issues) {
       console.error(`  ${issue.path.join(".")}: ${issue.message}`);
     }
@@ -729,13 +729,13 @@ function loadEnv() {
 }
 
 export const env = loadEnv();
-// 型: { NODE_ENV: "development" | ..., PORT: number, ... }
+// type: { NODE_ENV: "development" | ..., PORT: number, ... }
 ```
 
-### 4-2. API レスポンスバリデーション
+### 4-2. API Response Validation
 
 ```typescript
-// 汎用的なAPIレスポンススキーマ
+// Generic API response schema
 const ApiSuccessSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
   z.object({
     success: z.literal(true),
@@ -768,7 +768,7 @@ const ApiResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
 
 const UserListResponseSchema = ApiResponseSchema(z.array(UserSchema));
 
-// 型安全なフェッチ関数
+// Type-safe fetch function
 async function fetchApi<T extends z.ZodTypeAny>(
   url: string,
   schema: T,
@@ -778,22 +778,22 @@ async function fetchApi<T extends z.ZodTypeAny>(
   return schema.parse(json);
 }
 
-// 使用例
+// Usage example
 const usersResponse = await fetchApi(
   "/api/users",
   ApiResponseSchema(z.array(UserSchema)),
 );
 
 if (usersResponse.success) {
-  // usersResponse.data の型は User[]
+  // usersResponse.data type is User[]
   console.log(usersResponse.data);
 } else {
-  // usersResponse.error の型
+  // usersResponse.error type
   console.error(usersResponse.error.message);
 }
 ```
 
-### 4-3. フォームバリデーション（React Hook Form + Zod）
+### 4-3. Form Validation (React Hook Form + Zod)
 
 ```typescript
 import { useForm } from "react-hook-form";
@@ -801,22 +801,22 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 const ContactFormSchema = z.object({
   name: z.string()
-    .min(1, "氏名を入力してください")
-    .max(100, "100文字以内で入力してください"),
+    .min(1, "Please enter your name")
+    .max(100, "Please enter no more than 100 characters"),
   email: z.string()
-    .min(1, "メールアドレスを入力してください")
-    .email("有効なメールアドレスを入力してください"),
+    .min(1, "Please enter your email address")
+    .email("Please enter a valid email address"),
   category: z.enum(["inquiry", "support", "feedback"], {
-    errorMap: () => ({ message: "カテゴリを選択してください" }),
+    errorMap: () => ({ message: "Please select a category" }),
   }),
   message: z.string()
-    .min(10, "10文字以上で入力してください")
-    .max(1000, "1000文字以内で入力してください"),
+    .min(10, "Please enter at least 10 characters")
+    .max(1000, "Please enter no more than 1000 characters"),
   attachments: z.array(z.instanceof(File))
-    .max(3, "ファイルは最大3つまでです")
+    .max(3, "You can attach up to 3 files")
     .refine(
       (files) => files.every((f) => f.size <= 5 * 1024 * 1024),
-      "各ファイルは5MB以下にしてください",
+      "Each file must be 5MB or less",
     )
     .optional(),
 });
@@ -836,7 +836,7 @@ function ContactFormComponent() {
   });
 
   const onSubmit = async (data: ContactForm) => {
-    // data は検証済みの ContactForm 型
+    // data is validated ContactForm type
     await submitForm(data);
   };
 
@@ -849,27 +849,27 @@ function ContactFormComponent() {
       {errors.email && <span>{errors.email.message}</span>}
 
       <select {...register("category")}>
-        <option value="inquiry">お問い合わせ</option>
-        <option value="support">サポート</option>
-        <option value="feedback">フィードバック</option>
+        <option value="inquiry">Inquiry</option>
+        <option value="support">Support</option>
+        <option value="feedback">Feedback</option>
       </select>
 
       <textarea {...register("message")} />
       {errors.message && <span>{errors.message.message}</span>}
 
-      <button type="submit" disabled={isSubmitting}>送信</button>
+      <button type="submit" disabled={isSubmitting}>Submit</button>
     </form>
   );
 }
 ```
 
-### 4-4. Express / Hono ミドルウェア
+### 4-4. Express / Hono Middleware
 
 ```typescript
 import { z } from "zod";
 import type { Request, Response, NextFunction } from "express";
 
-// 汎用バリデーションミドルウェア
+// Generic validation middleware
 function validate<T extends z.ZodTypeAny>(schema: T) {
   return (req: Request, res: Response, next: NextFunction) => {
     const result = schema.safeParse({
@@ -885,7 +885,7 @@ function validate<T extends z.ZodTypeAny>(schema: T) {
       });
     }
 
-    // 検証済みデータを req に格納
+    // Store validated data in req
     req.body = result.data.body;
     req.query = result.data.query;
     req.params = result.data.params;
@@ -893,7 +893,7 @@ function validate<T extends z.ZodTypeAny>(schema: T) {
   };
 }
 
-// ルート定義
+// Route definition
 const CreateUserSchema = z.object({
   body: z.object({
     name: z.string().min(1),
@@ -904,7 +904,7 @@ const CreateUserSchema = z.object({
 });
 
 app.post("/users", validate(CreateUserSchema), (req, res) => {
-  // req.body は { name: string; email: string } として型安全
+  // req.body is type-safe as { name: string; email: string }
   const user = createUser(req.body);
   res.json(user);
 });
@@ -912,9 +912,9 @@ app.post("/users", validate(CreateUserSchema), (req, res) => {
 
 ---
 
-## 5. エラーハンドリング
+## 5. Error Handling
 
-### 5-1. ZodError の構造
+### 5-1. ZodError Structure
 
 ```typescript
 const schema = z.object({
@@ -926,9 +926,9 @@ const schema = z.object({
 const result = schema.safeParse({ name: "", email: "invalid", age: -1 });
 
 if (!result.success) {
-  // result.error は ZodError インスタンス
+  // result.error is a ZodError instance
 
-  // issues: 個別のエラー配列
+  // issues: Array of individual errors
   console.log(result.error.issues);
   // [
   //   { code: "too_small", path: ["name"], message: "..." },
@@ -936,7 +936,7 @@ if (!result.success) {
   //   { code: "too_small", path: ["age"], message: "..." },
   // ]
 
-  // flatten: フィールドごとにエラーメッセージをまとめる
+  // flatten: Group error messages by field
   console.log(result.error.flatten());
   // {
   //   formErrors: [],
@@ -947,7 +947,7 @@ if (!result.success) {
   //   },
   // }
 
-  // format: ネストされた構造で取得
+  // format: Get as nested structure
   console.log(result.error.format());
   // {
   //   _errors: [],
@@ -958,28 +958,28 @@ if (!result.success) {
 }
 ```
 
-### 5-2. カスタムエラーメッセージ
+### 5-2. Custom Error Messages
 
 ```typescript
-// 各バリデーションにメッセージを指定
+// Specify messages for each validation
 const schema = z.string({
-  required_error: "必須項目です",
-  invalid_type_error: "文字列を入力してください",
-}).min(1, { message: "1文字以上入力してください" });
+  required_error: "This field is required",
+  invalid_type_error: "Please enter a string",
+}).min(1, { message: "Please enter at least 1 character" });
 
-// errorMap でグローバルにカスタマイズ
+// Customize globally with errorMap
 const customErrorMap: z.ZodErrorMap = (issue, ctx) => {
   if (issue.code === z.ZodIssueCode.invalid_type) {
     if (issue.expected === "string") {
-      return { message: "文字列を入力してください" };
+      return { message: "Please enter a string" };
     }
     if (issue.expected === "number") {
-      return { message: "数値を入力してください" };
+      return { message: "Please enter a number" };
     }
   }
   if (issue.code === z.ZodIssueCode.too_small) {
     if (issue.type === "string") {
-      return { message: `${issue.minimum}文字以上で入力してください` };
+      return { message: `Please enter at least ${issue.minimum} characters` };
     }
   }
   return { message: ctx.defaultError };
@@ -987,7 +987,7 @@ const customErrorMap: z.ZodErrorMap = (issue, ctx) => {
 
 z.setErrorMap(customErrorMap);
 
-// i18n対応のエラーマップ（zod-i18n-map）
+// i18n-compatible error map (zod-i18n-map)
 import { zodI18nMap } from "zod-i18n-map";
 import translation from "zod-i18n-map/locales/ja/zod.json";
 import i18next from "i18next";
@@ -998,62 +998,62 @@ i18next.init({
 });
 
 z.setErrorMap(zodI18nMap);
-// → エラーメッセージが自動的に日本語になる
+// → Error messages are automatically translated to Japanese
 ```
 
 ---
 
-## 比較表
+## Comparison Tables
 
-### バリデーションライブラリ比較
+### Validation Library Comparison
 
-| ライブラリ | サイズ | 型推論 | パフォーマンス | API スタイル | エコシステム |
-|-----------|--------|--------|-------------|-------------|------------|
-| zod | ~14KB | 最高 | 良好 | メソッドチェーン | 最大 |
-| yup | ~15KB | 中 | 良好 | メソッドチェーン | 大 |
-| joi | ~30KB | 低(@types) | 良好 | メソッドチェーン | 大(Node) |
-| superstruct | ~3KB | 高 | 良好 | 関数合成 | 小 |
-| valibot | ~1KB | 高 | 最高 | 関数合成 | 成長中 |
-| typia | 0KB(生成) | 最高 | 最高 | デコレータ | 小 |
-| arktype | ~5KB | 最高 | 最高 | 文字列DSL | 小 |
+| Library | Size | Type Inference | Performance | API Style | Ecosystem |
+|---------|------|----------------|-------------|-----------|-----------|
+| zod | ~14KB | Best | Good | Method chain | Largest |
+| yup | ~15KB | Medium | Good | Method chain | Large |
+| joi | ~30KB | Low(@types) | Good | Method chain | Large(Node) |
+| superstruct | ~3KB | High | Good | Function composition | Small |
+| valibot | ~1KB | High | Best | Function composition | Growing |
+| typia | 0KB(generated) | Best | Best | Decorator | Small |
+| arktype | ~5KB | Best | Best | String DSL | Small |
 
 ### parse vs safeParse
 
-| メソッド | 失敗時 | 戻り値型 | 用途 |
-|---------|--------|---------|------|
-| `.parse()` | ZodError throw | `T` | 信頼できる内部データ |
-| `.safeParse()` | `{ success: false }` | `SafeParseResult<T>` | ユーザー入力、API |
-| `.parseAsync()` | ZodError throw | `Promise<T>` | async refine 使用時 |
-| `.safeParseAsync()` | `{ success: false }` | `Promise<SafeParseResult<T>>` | async 安全版 |
+| Method | On Failure | Return Type | Use Case |
+|--------|------------|-------------|----------|
+| `.parse()` | ZodError throw | `T` | Trusted internal data |
+| `.safeParse()` | `{ success: false }` | `SafeParseResult<T>` | User input, API |
+| `.parseAsync()` | ZodError throw | `Promise<T>` | When using async refine |
+| `.safeParseAsync()` | `{ success: false }` | `Promise<SafeParseResult<T>>` | Async safe version |
 
-### Zod メソッドチートシート
+### Zod Method Cheat Sheet
 
-| カテゴリ | メソッド | 説明 |
-|---------|---------|------|
-| 変換 | `.transform()` | バリデーション後に値を変換 |
-| 変換 | `.pipe()` | 別のスキーマにパイプ |
-| 変換 | `.preprocess()` | バリデーション前に前処理 |
-| 変換 | `.coerce` | 暗黙的型変換 |
-| バリデーション | `.refine()` | カスタム検証 |
-| バリデーション | `.superRefine()` | 高度なカスタム検証 |
-| オプション | `.optional()` | `T \| undefined` |
-| オプション | `.nullable()` | `T \| null` |
-| オプション | `.nullish()` | `T \| null \| undefined` |
-| オプション | `.default()` | デフォルト値 |
-| オプション | `.catch()` | パース失敗時のフォールバック |
-| 型変換 | `.brand()` | ブランド型の付与 |
-| 型変換 | `.readonly()` | Readonly化 |
-| 取得 | `z.infer<>` | 出力型の取得 |
-| 取得 | `z.input<>` | 入力型の取得 |
+| Category | Method | Description |
+|----------|--------|-------------|
+| Transform | `.transform()` | Transform value after validation |
+| Transform | `.pipe()` | Pipe to another schema |
+| Transform | `.preprocess()` | Pre-process before validation |
+| Transform | `.coerce` | Implicit type conversion |
+| Validation | `.refine()` | Custom validation |
+| Validation | `.superRefine()` | Advanced custom validation |
+| Optional | `.optional()` | `T \| undefined` |
+| Optional | `.nullable()` | `T \| null` |
+| Optional | `.nullish()` | `T \| null \| undefined` |
+| Optional | `.default()` | Default value |
+| Optional | `.catch()` | Fallback on parse failure |
+| Type | `.brand()` | Attach brand type |
+| Type | `.readonly()` | Make Readonly |
+| Get | `z.infer<>` | Get output type |
+| Get | `z.input<>` | Get input type |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### AP-1: スキーマと型を二重定義する
+### AP-1: Double-defining schemas and types
 
 ```typescript
-// NG: 型とスキーマを別々に定義（同期が崩れるリスク）
+// NG: Defining types and schemas separately (risk of sync breaking)
 interface User {
   name: string;
   email: string;
@@ -1063,29 +1063,29 @@ interface User {
 const UserSchema = z.object({
   name: z.string(),
   email: z.string().email(),
-  age: z.number(), // interface と齟齬が生じやすい
+  age: z.number(), // Easy to diverge from interface
 });
 
-// OK: スキーマから型を推論
+// OK: Infer types from schema
 const UserSchema = z.object({
   name: z.string(),
   email: z.string().email(),
   age: z.number().int().min(0),
 });
 type User = z.infer<typeof UserSchema>;
-// 単一の情報源（Single Source of Truth）
+// Single Source of Truth
 ```
 
-### AP-2: parse を catch なしで使う
+### AP-2: Using parse without catch
 
 ```typescript
-// NG: parse の例外を処理しない
+// NG: Not handling parse exceptions
 app.post("/users", (req, res) => {
-  const data = UserSchema.parse(req.body); // ZodError が throw される可能性
+  const data = UserSchema.parse(req.body); // ZodError may be thrown
   // ...
 });
 
-// OK: safeParse で安全に処理
+// OK: Handle safely with safeParse
 app.post("/users", (req, res) => {
   const result = UserSchema.safeParse(req.body);
   if (!result.success) {
@@ -1093,21 +1093,21 @@ app.post("/users", (req, res) => {
       errors: result.error.flatten().fieldErrors,
     });
   }
-  const data = result.data; // 検証済み
+  const data = result.data; // Validated
 });
 ```
 
-### AP-3: バリデーションを集約しない
+### AP-3: Scattering validation logic
 
 ```typescript
-// NG: 各所でバラバラにバリデーション
+// NG: Validation scattered across the codebase
 function createUser(name: string, email: string) {
   if (!name) throw new Error("Name required");
   if (!email.includes("@")) throw new Error("Invalid email");
   // ...
 }
 
-// OK: スキーマでバリデーションを集約
+// OK: Consolidate validation with schema
 const CreateUserSchema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
@@ -1115,23 +1115,23 @@ const CreateUserSchema = z.object({
 
 function createUser(input: unknown) {
   const data = CreateUserSchema.parse(input);
-  // data は検証済み
+  // data is validated
 }
 ```
 
-### AP-4: coerce の濫用
+### AP-4: Overusing coerce
 
 ```typescript
-// NG: coerce を安易に使い暗黙変換に依存
+// NG: Relying on implicit conversion by using coerce carelessly
 const schema = z.object({
   count: z.coerce.number(),  // null → 0, undefined → NaN, "abc" → NaN
   active: z.coerce.boolean(), // 0 → false, "" → false, "false" → true!
 });
 
-// OK: 明示的に transform で変換
+// OK: Convert explicitly with transform
 const schema = z.object({
   count: z.string()
-    .regex(/^\d+$/, "数値を入力してください")
+    .regex(/^\d+$/, "Please enter a number")
     .transform(Number),
   active: z.enum(["true", "false"])
     .transform((val) => val === "true"),
@@ -1141,33 +1141,33 @@ const schema = z.object({
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|---------|
+| Initialization error | Configuration file issues | Check the path and format of configuration files |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access permissions | Check execution user permissions, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read the stack trace and identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Stepwise verification**: Verify hypotheses using log output and debuggers
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1175,102 +1175,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator to log function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps to diagnose performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check I/O waits**: Check the status of disk and network I/O
+4. **Check concurrent connections**: Check connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem Type | Diagnostic Tool | Solution |
+|-------------|-----------------|---------|
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | Prioritize When | Can Compromise When |
+|-----------|-----------------|---------------------|
+| Performance | Real-time processing, large-scale data | Admin dashboards, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, speed to market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing Architecture Patterns
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. What is the team size?                      │
+│    ├─ Small (1-5)   → Monolith                  │
+│    └─ Large (10+)   → Go to 2                   │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. How often do you deploy?                    │
+│    ├─ Weekly or less → Monolith + modules       │
+│    └─ Daily/multiple → Go to 3                  │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. How independent are the teams?              │
+│    ├─ High   → Microservices                    │
+│    └─ Medium → Modular monolith                 │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term costs**
+- Fast short-term approaches can become technical debt over time
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies enables the right tool for the job but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- High abstraction improves reusability but can make debugging more difficult
+- Low abstraction is intuitive but tends to produce code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1280,17 +1280,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and issues"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1298,7 +1298,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1306,15 +1306,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1322,53 +1322,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Practical Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum required functionality
+- Automated tests only for the critical path
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons learned:**
+- Don't pursue perfection (YAGNI principle)
+- Gather user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Legacy System Modernization
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually renovating a system that has been running for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Gradually migrate using the Strangler Fig pattern
+- Create Characterization Tests first if no existing tests exist
+- Coexist old and new systems with an API gateway
+- Migrate data gradually
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Work | Estimated Duration | Risk |
+|-------|------|--------------------|------|
+| 1. Investigation | Current state analysis, identifying dependencies | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Start migration | Gradually migrate peripheral functions | 3-6 months | Medium |
+| 4. Core migration | Migrate core functions | 6-12 months | High |
+| 5. Completion | Decommission old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with domain-driven design
+- Set ownership per team
+- Manage common libraries with Inner Source approach
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1381,20 +1381,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1403,7 +1403,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1424,88 +1424,89 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** System requiring millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging async processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization Technique | Effect | Implementation Cost | Application |
+|------------------------|--------|---------------------|-------------|
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low-Medium | High | CPU-bound cases |
 
 ---
 
-## チーム開発での活用
+## Team Development
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to check in code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Are naming conventions consistent?
+- [ ] Is error handling appropriate?
+- [ ] Is test coverage sufficient?
+- [ ] Is there any performance impact?
+- [ ] Are there any security issues?
+- [ ] Has documentation been updated?
 
-### ナレッジ共有のベストプラクティス
+### Knowledge Sharing Best Practices
 
-| 方法 | 頻度 | 対象 | 効果 |
-|------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Method | Frequency | Audience | Effect |
+|--------|-----------|----------|--------|
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talk | Weekly | Whole team | Horizontal knowledge sharing |
+| ADR (design records) | As needed | Future members | Transparent decision-making |
+| Retrospective | Every 2 weeks | Whole team | Continuous improvement |
+| Mob programming | Monthly | Important design | Consensus building |
 
-### 技術的負債の管理
+### Managing Technical Debt
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
+        High Impact
           │
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │Plan │Act  │
+    │ned  │ im- │
+    │resp │med- │
+    │onse │iate │
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │Log  │Next │
+    │only │Sprint│
+    │     │     │
     └─────┼─────┘
           │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        Low Impact
+    Low Frequency  High Frequency
 ```
 ---
 
 ## FAQ
 
-### Q1: zod と valibot のどちらを選ぶべきですか？
+### Q1: Should I choose zod or valibot?
 
-zod はエコシステムが最も充実しており、tRPC, React Hook Form, Prisma などとの連携プラグインが豊富です。valibot はバンドルサイズが圧倒的に小さく（Tree-shakable）、パフォーマンスも優れています。新規の小〜中規模プロジェクトでは valibot、エコシステムとの統合が重要な場合は zod を選択してください。
+zod has the richest ecosystem with abundant integration plugins for tRPC, React Hook Form, Prisma, and more. valibot has an overwhelmingly smaller bundle size (tree-shakable) and superior performance. For new small-to-medium projects, choose valibot; choose zod when ecosystem integration is important.
 
-### Q2: zod はサーバーサイドとクライアントサイドの両方で使えますか？
+### Q2: Can zod be used on both server-side and client-side?
 
-はい。zod は環境非依存で、Node.js, ブラウザ, Edge Runtime 全てで動作します。同じスキーマ定義をサーバーのリクエスト検証とクライアントのフォームバリデーションの両方で共有できるのが大きな利点です。
+Yes. zod is environment-agnostic and works on Node.js, browsers, and Edge Runtime alike. A major advantage is that you can share the same schema definition for both server-side request validation and client-side form validation.
 
-### Q3: 大量のデータを検証する場合のパフォーマンスは？
+### Q3: What about performance when validating large amounts of data?
 
-数千件程度の配列は問題ありません。数万件以上の場合は、事前にサイズチェックを入れるか、ストリーム処理を検討してください。コンパイル時にバリデーションコードを生成する typia を使えば、ランタイムのパフォーマンスが最大限になります。
+Arrays of a few thousand items are fine. For tens of thousands or more, consider adding a size check first or using stream processing. Using typia, which generates validation code at compile time, maximizes runtime performance.
 
-### Q4: Prisma のスキーマから Zod スキーマを自動生成できますか？
+### Q4: Can Zod schemas be auto-generated from a Prisma schema?
 
-はい。`zod-prisma-types` や `prisma-zod-generator` などのジェネレーターを使えば、Prisma スキーマから Zod スキーマを自動生成できます。
+Yes. You can use generators like `zod-prisma-types` or `prisma-zod-generator` to auto-generate Zod schemas from Prisma schemas.
 
 ```prisma
 // prisma/schema.prisma
@@ -1514,96 +1515,96 @@ generator zod {
 }
 ```
 
-### Q5: z.infer と z.input の違いは何ですか？
+### Q5: What is the difference between z.infer and z.input?
 
-`z.infer`（= `z.output`）はスキーマの出力型（transform/default 適用後）、`z.input` は入力型（transform/default 適用前）です。フォームの型定義には `z.input`、API レスポンスの型定義には `z.infer` を使うのが一般的です。
+`z.infer` (= `z.output`) is the output type of the schema (after transform/default is applied), while `z.input` is the input type (before transform/default is applied). It is common to use `z.input` for form type definitions and `z.infer` for API response type definitions.
 
-### Q6: エラーメッセージを国際化（i18n）するには？
+### Q6: How do I internationalize (i18n) error messages?
 
-`zod-i18n-map` ライブラリを使用すると、i18next と連携して自動的にエラーメッセージを翻訳できます。日本語を含む多言語がサポートされています。
-
----
-
-## まとめ表
-
-| 概念 | 要点 |
-|------|------|
-| z.infer | スキーマから TypeScript 型を自動推論 |
-| safeParse | 例外を投げずに検証結果を返す |
-| transform | バリデーション後に値を変換 |
-| pipe | 変換後のスキーマで再バリデーション |
-| discriminatedUnion | 判別子フィールドで型を分岐 |
-| refine / superRefine | カスタムバリデーションロジック |
-| brand | ブランド型の付与 |
-| coerce | 暗黙的な型変換 |
-| preprocess | バリデーション前の前処理 |
-| z.lazy | 再帰型スキーマの定義 |
+Using the `zod-i18n-map` library, you can automatically translate error messages in conjunction with i18next. Multiple languages including Japanese are supported.
 
 ---
 
-## 演習問題
+## Summary Table
 
-### 問題1: ユーザー登録フォームのスキーマ
+| Concept | Key Point |
+|---------|-----------|
+| z.infer | Automatically infer TypeScript types from schema |
+| safeParse | Returns validation result without throwing exceptions |
+| transform | Transform value after validation |
+| pipe | Re-validate with schema after transformation |
+| discriminatedUnion | Branch type with discriminant field |
+| refine / superRefine | Custom validation logic |
+| brand | Attach brand type |
+| coerce | Implicit type conversion |
+| preprocess | Pre-process before validation |
+| z.lazy | Define recursive type schemas |
 
-以下の要件を満たすユーザー登録フォームのスキーマを定義してください。
+---
 
-- 名前: 必須、1〜50文字
-- メール: 必須、有効なメールアドレス形式
-- パスワード: 8文字以上、大文字・小文字・数字・特殊文字を含む
-- パスワード確認: パスワードと一致
-- 年齢: オプション、0〜150の整数
-- 利用規約への同意: true でなければならない
+## Practice Problems
 
-### 問題2: APIレスポンスの汎用スキーマ
+### Problem 1: User Registration Form Schema
 
-以下の構造を持つ汎用的なAPIレスポンススキーマを定義してください。
+Define a schema for a user registration form that meets the following requirements.
 
-- 成功時: `{ success: true, data: T, meta?: { page, total } }`
-- 失敗時: `{ success: false, error: { code, message } }`
-- discriminatedUnion を使うこと
+- Name: required, 1-50 characters
+- Email: required, valid email format
+- Password: 8+ characters, must include uppercase, lowercase, numbers, and special characters
+- Password confirmation: must match password
+- Age: optional, integer between 0 and 150
+- Agreement to terms of service: must be true
 
-### 問題3: 環境変数バリデーション
+### Problem 2: Generic API Response Schema
 
-実際のプロジェクトを想定して、以下の環境変数を検証するスキーマを定義してください。
+Define a generic API response schema with the following structure.
+
+- On success: `{ success: true, data: T, meta?: { page, total } }`
+- On failure: `{ success: false, error: { code, message } }`
+- Must use discriminatedUnion
+
+### Problem 3: Environment Variable Validation
+
+Define a schema to validate the following environment variables for an actual project.
 
 - NODE_ENV: development / production / test
-- PORT: 数値（デフォルト 3000）
-- DATABASE_URL: URL形式
-- REDIS_URL: オプション、URL形式
-- JWT_SECRET: 32文字以上
-- ログレベル: debug / info / warn / error（デフォルト info）
+- PORT: number (default 3000)
+- DATABASE_URL: URL format
+- REDIS_URL: optional, URL format
+- JWT_SECRET: 32+ characters
+- Log level: debug / info / warn / error (default info)
 
-### 問題4: ネストされたフォームのバリデーション
+### Problem 4: Nested Form Validation
 
-住所情報を含むネストされたオブジェクトのスキーマを定義してください。都道府県は47都道府県の enum とし、郵便番号は `xxx-xxxx` 形式を検証すること。
+Define a schema for a nested object containing address information. The prefecture should be an enum of 47 prefectures, and postal codes should be validated in `xxx-xxxx` format.
 
-### 問題5: transform を使ったCSVパーサー
+### Problem 5: CSV Parser Using transform
 
-CSV文字列を受け取り、バリデーション後にオブジェクトの配列に変換するスキーマを定義してください。各行は `name,email,age` の形式とします。
-
----
-
-
-## まとめ
-
-このガイドでは以下の重要なポイントを学びました:
-
-- 基本概念と原則の理解
-- 実践的な実装パターン
-- ベストプラクティスと注意点
-- 実務での活用方法
+Define a schema that receives a CSV string, validates it, and converts it to an array of objects. Each row is in `name,email,age` format.
 
 ---
 
-## 次に読むべきガイド
 
-- [エラーハンドリング](../02-patterns/00-error-handling.md) -- zod と Result 型の統合
-- [tRPC](./02-trpc.md) -- zod をスキーマとして使う型安全 API
-- [ブランド型](../02-patterns/03-branded-types.md) -- zod の `.brand()` 活用
+## Summary
+
+In this guide, we covered the following key points:
+
+- Understanding basic concepts and principles
+- Practical implementation patterns
+- Best practices and considerations
+- How to apply in real-world scenarios
 
 ---
 
-## 参考文献
+## Next Guides to Read
+
+- [Error Handling](../02-patterns/00-error-handling.md) -- Integrating zod with Result types
+- [tRPC](./02-trpc.md) -- Type-safe API using zod as schema
+- [Branded Types](../02-patterns/03-branded-types.md) -- Using zod's `.brand()`
+
+---
+
+## References
 
 1. **Zod Documentation**
    https://zod.dev/
