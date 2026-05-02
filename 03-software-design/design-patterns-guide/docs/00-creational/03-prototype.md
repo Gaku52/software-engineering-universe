@@ -1,84 +1,84 @@
-# Prototype パターン
+# Prototype Pattern
 
-> 既存のオブジェクトを **クローン** して新しいオブジェクトを生成し、コンストラクタの再実行コストを回避する生成パターン。
+> A creational pattern that generates new objects by **cloning** existing ones, avoiding the cost of re-executing constructors.
 
 ---
 
-## 前提知識
+## Prerequisites
 
-| トピック | 必要レベル | 参照先 |
+| Topic | Required Level | Reference |
 |---------|-----------|--------|
-| オブジェクト指向プログラミング | 基礎 | OOP基礎 |
-| インタフェースと抽象クラス | 基礎 | インタフェース設計 |
-| 参照型とプリミティブ型の違い | 理解 | 各言語リファレンス |
-| Generics（ジェネリクス） | 基礎 | TypeScript Generics |
-| メモリモデル（スタック・ヒープ） | 理解 | CS基礎 |
+| Object-Oriented Programming | Basic | OOP Basics |
+| Interfaces and Abstract Classes | Basic | Interface Design |
+| Reference Types vs Primitive Types | Understanding | Language Reference |
+| Generics | Basic | TypeScript Generics |
+| Memory Model (Stack & Heap) | Understanding | CS Basics |
 
 ---
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. Prototype パターンの**目的**と、なぜコンストラクタではなくクローンで生成するのか
-2. **浅いコピー（Shallow Copy）** と **深いコピー（Deep Copy）** の違い・使い分け・実装上の罠
-3. 各言語でのクローン実装方法（TypeScript / Python / Java / Go / Kotlin）
-4. **Prototype Registry** パターンによるプロトタイプのカタログ管理
-5. クローンに伴うリスク・アンチパターンと適切な利用場面の判断基準
-
----
-
-## なぜ Prototype パターンが必要なのか（WHY）
-
-### 問題: コンストラクタ再実行のコストと制約
-
-オブジェクトの生成には、コンストラクタの実行が伴います。以下のようなケースでは、コンストラクタ経由の生成がボトルネックや設計上の制約になります。
-
-```
-[問題1: 生成コストが高い]
-  DB接続、外部API呼び出し、大量データの読み込みなどを
-  コンストラクタで行うオブジェクトを複数作る場合
-  → 毎回同じ初期化を繰り返すのは無駄
-
-[問題2: 実行時に型が決まる]
-  どのクラスのインスタンスを生成すべきか、
-  コンパイル時ではなく実行時に決まる場合
-  → new ConcreteClass() とハードコードできない
-
-[問題3: 複雑な初期状態の再現]
-  多数のプロパティを持つオブジェクトの「ある状態」を
-  別のオブジェクトにも再現したい場合
-  → コンストラクタ引数を全部渡すのは煩雑で脆い
-
-[問題4: フレームワーク/ライブラリの制約]
-  外部ライブラリが提供するオブジェクトの内部構造は
-  非公開だが、そのコピーが必要な場合
-  → private フィールドにはアクセスできない
-```
-
-### 解決: クローンによる生成
-
-Prototype パターンは「**既存の完成したオブジェクトをコピーして新しいオブジェクトを作る**」というアプローチです。
-
-```
-従来のアプローチ:
-  設計図（クラス） → new → オブジェクト → 初期化 → 設定 → 完成
-
-Prototype アプローチ:
-  完成済みオブジェクト → clone() → 独立した新オブジェクト
-                                     ↓
-                                   即座に使用可能
-```
-
-このパターンにより:
-- 初期化コストを**1回だけ**に限定できる
-- 実行時にオブジェクトの型を知らなくてもコピーできる
-- 複雑な状態を正確に再現できる
-- private フィールドも含めてコピーできる（同クラス内の clone() メソッドからアクセス可能）
+1. The **purpose** of the Prototype pattern and why objects are created by cloning rather than through constructors
+2. The difference between **Shallow Copy** and **Deep Copy** — when to use each and common implementation pitfalls
+3. Clone implementation in various languages (TypeScript / Python / Java / Go / Kotlin)
+4. Managing prototypes as a catalog using the **Prototype Registry** pattern
+5. Risks and anti-patterns associated with cloning, and criteria for deciding when to use this pattern
 
 ---
 
-## 1. Prototype の構造
+## Why the Prototype Pattern Is Needed (WHY)
 
-### クラス図
+### Problem: The Cost and Constraints of Re-running Constructors
+
+Creating an object involves executing its constructor. In the following scenarios, constructor-based creation becomes a bottleneck or a design constraint.
+
+```
+[Problem 1: High creation cost]
+  When creating multiple objects whose constructors perform
+  DB connections, external API calls, or bulk data loading
+  → Repeating the same initialization every time is wasteful
+
+[Problem 2: Type determined at runtime]
+  When the class of the instance to be created is determined
+  at runtime rather than at compile time
+  → Cannot hardcode new ConcreteClass()
+
+[Problem 3: Reproducing complex initial state]
+  When you want to replicate a "certain state" of an object
+  with many properties into another object
+  → Passing all constructor arguments is cumbersome and fragile
+
+[Problem 4: Framework/library constraints]
+  When the internal structure of an object provided by
+  an external library is private, but you need a copy of it
+  → Cannot access private fields
+```
+
+### Solution: Creation by Cloning
+
+The Prototype pattern takes the approach of "**creating a new object by copying an already-completed existing object**."
+
+```
+Traditional approach:
+  Blueprint (class) → new → object → initialize → configure → complete
+
+Prototype approach:
+  Completed object → clone() → independent new object
+                                  ↓
+                               Ready to use immediately
+```
+
+With this pattern:
+- Initialization cost can be limited to **just once**
+- Objects can be copied without knowing their type at runtime
+- Complex state can be reproduced accurately
+- Private fields can also be copied (accessible from the clone() method within the same class)
+
+---
+
+## 1. Structure of Prototype
+
+### Class Diagram
 
 ```
 +-------------------+
@@ -90,18 +90,18 @@ Prototype アプローチ:
         △
         |
 +-------------------+       clone()       +-------------------+
-| ConcretePrototype |───────────────────>>| コピーされた       |
-+-------------------+                     | オブジェクト       |
+| ConcretePrototype |───────────────────>>| Copied            |
++-------------------+                     | Object            |
 | - field1: T       |                     +-------------------+
 | - field2: U       |                     | - field1: T (copy)|
 | - nested: V       |                     | - field2: U (copy)|
 | + clone(): Self   |                     | - nested: V (???) |
 +-------------------+                     +-------------------+
                                               ↑
-                                     Shallow? Deep? が設計判断
+                                     Shallow? Deep? is the design decision
 ```
 
-### Prototype Registry 構造
+### Prototype Registry Structure
 
 ```
 +-------------------+          +-------------------+
@@ -121,7 +121,7 @@ Prototype アプローチ:
                    +----------+   +----------+   +----------+
 ```
 
-### シーケンス図
+### Sequence Diagram
 
 ```
 Client          Registry         Prototype(original)    Clone
@@ -131,39 +131,39 @@ Client          Registry         Prototype(original)    Clone
   |                |                    |--new(copy)------>|
   |                |                    |    (Deep Copy)   |
   |                |<---clone instance--|                  |
-  |<--返却---------|                    |                  |
+  |<--returned-----|                    |                  |
   |                                                       |
   |--modify()------------------------------------------------>|
   |                                     |                  |
-  |             (original は影響を受けない)                  |
+  |             (original is not affected)                  |
 ```
 
 ---
 
-## 2. 浅いコピー vs 深いコピー
+## 2. Shallow Copy vs Deep Copy
 
-### 概念図
+### Conceptual Diagram
 
 ```
-=== Shallow Copy（浅いコピー）===
+=== Shallow Copy ===
 
 ┌──────────────┐    clone    ┌──────────────┐
 │   Original   │ ──────────> │    Clone     │
-│ name: "A"    │             │ name: "A"    │  ← プリミティブはコピー
-│ age: 25      │             │ age: 25      │  ← プリミティブはコピー
+│ name: "A"    │             │ name: "A"    │  ← primitives are copied
+│ age: 25      │             │ age: 25      │  ← primitives are copied
 │ tags: ───────┼──┐          │ tags: ───────┼──┐
 │ addr: ───────┼──┼──┐       │ addr: ───────┼──┼──┐
 └──────────────┘  │  │       └──────────────┘  │  │
                   v  │                         v  │
-            ┌────────┐│                  同じ参照！ │
+            ┌────────┐│                  Same reference! │
             │["a","b"]│                            │
             └────────┘                             │
                   ┌────────────┐                   │
-                  │{city:"NYC"}│ <── 同じオブジェクト！
+                  │{city:"NYC"}│ <── Same object!
                   └────────────┘
 
 
-=== Deep Copy（深いコピー）===
+=== Deep Copy ===
 
 ┌──────────────┐    clone    ┌──────────────┐
 │   Original   │ ──────────> │    Clone     │
@@ -174,53 +174,53 @@ Client          Registry         Prototype(original)    Clone
 └──────────────┘  │  │       └──────────────┘  │  │
                   v  │                         v  │
             ┌────────┐│               ┌────────┐  │
-            │["a","b"]│               │["a","b"]│  │ ← 別の配列
+            │["a","b"]│               │["a","b"]│  │ ← separate array
             └────────┘                └────────┘  │
                   ┌────────────┐  ┌────────────┐  │
-                  │{city:"NYC"}│  │{city:"NYC"}│<─┘ ← 別のオブジェクト
+                  │{city:"NYC"}│  │{city:"NYC"}│<─┘ ← separate object
                   └────────────┘  └────────────┘
 ```
 
-### いつどちらを使うか
+### When to Use Which
 
 ```
-オブジェクトをコピーしたい
+Want to copy an object
         |
-  全フィールドがプリミティブ or イミュータブル？
+  Are all fields primitives or immutable?
   |                                            |
   Yes                                          No
   |                                            |
   v                                            v
-Shallow Copy で十分                      参照型フィールドあり
-（String, number, boolean,               |
- readonly, frozen）                  コピー後に変更する？
+Shallow Copy is sufficient             Has reference-type fields
+(String, number, boolean,               |
+ readonly, frozen)                  Will you modify after copying?
                                     |                    |
-                                    Yes                  No（読み取り専用）
+                                    Yes                  No (read-only)
                                     |                    |
                                     v                    v
-                                Deep Copy が必須      Shallow Copy + 注意
+                                Deep Copy required    Shallow Copy + caution
                                     |
                             +-------+--------+
                             |                |
-                      structuredClone    手動再帰コピー
-                      JSON.parse/stringify (循環参照、
-                      copy.deepcopy      特殊型対応)
+                      structuredClone    manual recursive copy
+                      JSON.parse/stringify (for circular refs,
+                      copy.deepcopy      special type handling)
 ```
 
 ---
 
-## 3. コード例
+## 3. Code Examples
 
-### コード例 1: TypeScript — 基本的な Prototype インタフェース
+### Code Example 1: TypeScript — Basic Prototype Interface
 
 ```typescript
-// Cloneable インタフェース
-// 自身と同じ型のオブジェクトを返す clone() メソッドを定義
+// Cloneable interface
+// Defines a clone() method that returns an object of the same type
 interface Cloneable<T> {
   clone(): T;
 }
 
-// Shape 基底クラス
+// Shape base class
 class Shape implements Cloneable<Shape> {
   constructor(
     public x: number,
@@ -229,7 +229,7 @@ class Shape implements Cloneable<Shape> {
   ) {}
 
   clone(): Shape {
-    // プリミティブのみなので Shallow Copy で十分
+    // Only primitives, so Shallow Copy is sufficient
     return new Shape(this.x, this.y, this.color);
   }
 
@@ -238,7 +238,7 @@ class Shape implements Cloneable<Shape> {
   }
 }
 
-// Circle: Shape を拡張
+// Circle: extends Shape
 class Circle extends Shape {
   constructor(
     x: number,
@@ -249,7 +249,7 @@ class Circle extends Shape {
     super(x, y, color);
   }
 
-  // 戻り値型を Circle に特化（共変戻り値型）
+  // Return type specialized to Circle (covariant return type)
   clone(): Circle {
     return new Circle(this.x, this.y, this.color, this.radius);
   }
@@ -259,7 +259,7 @@ class Circle extends Shape {
   }
 }
 
-// Rectangle: Shape を拡張
+// Rectangle: extends Shape
 class Rectangle extends Shape {
   constructor(
     x: number,
@@ -276,26 +276,26 @@ class Rectangle extends Shape {
   }
 }
 
-// 使用例
+// Usage example
 const original = new Circle(10, 20, "red", 50);
 const copy = original.clone();
 copy.color = "blue";
 copy.x = 100;
 
-console.log(original.toString()); // Circle(10, 20, red, r=50)  — 独立
-console.log(copy.toString());     // Circle(100, 20, blue, r=50) — 独立
-console.log(original !== copy);   // true — 別インスタンス
-console.log(copy instanceof Circle); // true — 型も保持
+console.log(original.toString()); // Circle(10, 20, red, r=50)  — independent
+console.log(copy.toString());     // Circle(100, 20, blue, r=50) — independent
+console.log(original !== copy);   // true — separate instances
+console.log(copy instanceof Circle); // true — type is preserved
 ```
 
-**ポイント**: clone() メソッド内でコンストラクタを呼ぶことで、型情報とフィールド値の両方を正確にコピーしています。サブクラスごとに clone() をオーバーライドすることで、共変戻り値型（covariant return type）を実現しています。
+**Key Points**: By calling the constructor inside the clone() method, both the type information and field values are accurately copied. Overriding clone() in each subclass achieves covariant return types.
 
 ---
 
-### コード例 2: Deep Copy（structuredClone と手動実装の比較）
+### Code Example 2: Deep Copy (Comparing structuredClone vs Manual Implementation)
 
 ```typescript
-// === Deep Copy が必要なケース: ネストされたオブジェクト ===
+// === Case where Deep Copy is needed: nested objects ===
 
 class Section {
   constructor(
@@ -308,7 +308,7 @@ class Section {
     return new Section(
       this.heading,
       this.content,
-      this.subsections.map(s => s.clone()) // 再帰的に Deep Copy
+      this.subsections.map(s => s.clone()) // recursively Deep Copy
     );
   }
 }
@@ -320,17 +320,17 @@ class Document implements Cloneable<Document> {
     public metadata: Map<string, string> = new Map()
   ) {}
 
-  // 方法1: 手動 Deep Copy（推奨: メソッド・型情報を完全に保持）
+  // Method 1: Manual Deep Copy (recommended: fully preserves methods and type info)
   clone(): Document {
     const clonedSections = this.sections.map(s => s.clone());
     const clonedMetadata = new Map(this.metadata);
     return new Document(this.title, clonedSections, clonedMetadata);
   }
 
-  // 方法2: structuredClone（メソッドが失われる点に注意）
+  // Method 2: structuredClone (note: methods are lost)
   cloneWithStructuredClone(): Document {
-    // 注意: structuredClone はプレーンデータのみコピー
-    // クラスメソッド、Map、Set のカスタム処理が失われる場合がある
+    // Note: structuredClone only copies plain data
+    // Class methods, Map, Set custom behavior may be lost
     const data = structuredClone({
       title: this.title,
       sections: this.sections.map(s => ({
@@ -349,9 +349,9 @@ class Document implements Cloneable<Document> {
     );
   }
 
-  // 方法3: JSON.parse/stringify（最もシンプルだが制約あり）
+  // Method 3: JSON.parse/stringify (simplest but has limitations)
   cloneWithJson(): Document {
-    // 制約: Date, Map, Set, undefined, 関数, 循環参照に非対応
+    // Limitations: does not support Date, Map, Set, undefined, functions, circular refs
     const plain = JSON.parse(JSON.stringify({
       title: this.title,
       sections: this.sections
@@ -365,7 +365,7 @@ class Document implements Cloneable<Document> {
   }
 }
 
-// 動作確認
+// Verification
 const doc = new Document("Report", [
   new Section("Intro", "Introduction text", [
     new Section("Background", "Background detail")
@@ -380,40 +380,40 @@ copy.sections[0].heading = "Changed Intro";
 copy.sections[0].subsections[0].content = "Modified";
 copy.metadata.set("version", "2.0");
 
-console.log(doc.sections[0].heading);                  // "Intro" — 独立
-console.log(doc.sections[0].subsections[0].content);   // "Background detail" — 独立
-console.log(doc.metadata.get("version"));              // "1.0" — 独立
+console.log(doc.sections[0].heading);                  // "Intro" — independent
+console.log(doc.sections[0].subsections[0].content);   // "Background detail" — independent
+console.log(doc.metadata.get("version"));              // "1.0" — independent
 ```
 
-**Deep Copy 手法の比較**:
+**Comparison of Deep Copy methods**:
 
-| 手法 | メソッド保持 | 循環参照 | Map/Set | Date | パフォーマンス |
+| Method | Preserves Methods | Circular Refs | Map/Set | Date | Performance |
 |------|:---:|:---:|:---:|:---:|:---:|
-| 手動 clone() | Yes | 対応可能 | Yes | Yes | 最速 |
-| structuredClone | No | Yes | Yes | Yes | 中速 |
-| JSON.parse/stringify | No | No | No | No | 遅い |
-| lodash.cloneDeep | No | Yes | Yes | Yes | 中速 |
+| Manual clone() | Yes | Supported | Yes | Yes | Fastest |
+| structuredClone | No | Yes | Yes | Yes | Medium |
+| JSON.parse/stringify | No | No | No | No | Slow |
+| lodash.cloneDeep | No | Yes | Yes | Yes | Medium |
 
 ---
 
-### コード例 3: Prototype Registry パターン
+### Code Example 3: Prototype Registry Pattern
 
 ```typescript
-// プロトタイプをキーで管理し、必要に応じてクローンを提供するレジストリ
+// Registry that manages prototypes by key and provides clones on demand
 class PrototypeRegistry<T extends Cloneable<T>> {
   private prototypes = new Map<string, T>();
 
-  // プロトタイプの登録
+  // Register a prototype
   register(key: string, prototype: T): void {
     this.prototypes.set(key, prototype);
   }
 
-  // 登録解除
+  // Unregister a prototype
   unregister(key: string): boolean {
     return this.prototypes.delete(key);
   }
 
-  // クローンの取得
+  // Get a clone
   create(key: string): T {
     const proto = this.prototypes.get(key);
     if (!proto) {
@@ -424,96 +424,96 @@ class PrototypeRegistry<T extends Cloneable<T>> {
     return proto.clone();
   }
 
-  // 登録済みキー一覧
+  // List registered keys
   keys(): string[] {
     return [...this.prototypes.keys()];
   }
 
-  // 登録済みかチェック
+  // Check if a key is registered
   has(key: string): boolean {
     return this.prototypes.has(key);
   }
 }
 
-// 使用例: 図形のプロトタイプレジストリ
+// Usage example: shape prototype registry
 const shapeRegistry = new PrototypeRegistry<Shape>();
 
-// デフォルトプロトタイプを登録
+// Register default prototypes
 shapeRegistry.register("small-red-circle", new Circle(0, 0, "red", 10));
 shapeRegistry.register("large-blue-circle", new Circle(0, 0, "blue", 100));
 shapeRegistry.register("standard-rect", new Rectangle(0, 0, "gray", 200, 100));
 
-// 使用: プロトタイプからクローン生成
+// Usage: generate clones from prototypes
 const c1 = shapeRegistry.create("small-red-circle");
 const c2 = shapeRegistry.create("small-red-circle");
 
-console.log(c1 !== c2);          // true — 別インスタンス
+console.log(c1 !== c2);          // true — separate instances
 console.log(c1.toString());      // Circle(0, 0, red, r=10)
 
-// カスタマイズ
+// Customization
 c1.x = 50;
 c1.y = 100;
 console.log(c1.toString());      // Circle(50, 100, red, r=10)
 ```
 
-**Registry パターンの利点**:
-- プロトタイプの**中央管理**: 全てのテンプレートが1箇所に集約
-- **実行時の動的登録**: 設定ファイルやAPIレスポンスからプロトタイプを登録可能
-- **クラス名の隠蔽**: クライアントは具象クラスを知る必要がない
-- **Factory との組み合わせ**: Factory パターンの内部実装として Prototype を使える
+**Benefits of the Registry pattern**:
+- **Centralized management** of prototypes: all templates in one place
+- **Dynamic registration at runtime**: prototypes can be registered from config files or API responses
+- **Hiding class names**: clients do not need to know concrete classes
+- **Combination with Factory**: Prototype can be used as the internal implementation of a Factory pattern
 
 ---
 
-### コード例 4: Python — copy モジュールと __copy__ / __deepcopy__
+### Code Example 4: Python — copy Module and __copy__ / __deepcopy__
 
 ```python
 import copy
 from dataclasses import dataclass, field
 from typing import Self
 
-# === 方法1: copy モジュールのデフォルト動作 ===
+# === Method 1: Default behavior of the copy module ===
 
 class GameState:
-    """ゲームの状態を管理するクラス"""
+    """Class that manages game state"""
     def __init__(self, level: int, inventory: list[str], stats: dict[str, int]):
         self.level = level
         self.inventory = inventory
         self.stats = stats
 
     def shallow_clone(self) -> "GameState":
-        """浅いコピー: inventory と stats は同じオブジェクトを参照"""
+        """Shallow copy: inventory and stats reference the same objects"""
         return copy.copy(self)
 
     def deep_clone(self) -> "GameState":
-        """深いコピー: 全てのネストされたオブジェクトも再帰的にコピー"""
+        """Deep copy: all nested objects are recursively copied"""
         return copy.deepcopy(self)
 
     def __repr__(self) -> str:
         return f"GameState(lv={self.level}, inv={self.inventory}, stats={self.stats})"
 
 
-# 動作確認
+# Verification
 state = GameState(5, ["sword", "shield"], {"hp": 100, "mp": 50})
 
-# 浅いコピーの罠
+# The pitfall of shallow copy
 shallow = state.shallow_clone()
 shallow.inventory.append("potion")
-print(state.inventory)    # ["sword", "shield", "potion"] ← 元も変わる！
+print(state.inventory)    # ["sword", "shield", "potion"] ← original changes too!
 print(shallow.inventory)  # ["sword", "shield", "potion"]
 
-# 深いコピーの安全性
+# Safety of deep copy
 state2 = GameState(5, ["sword", "shield"], {"hp": 100, "mp": 50})
 deep = state2.deep_clone()
 deep.inventory.append("potion")
 deep.stats["hp"] = 80
-print(state2.inventory)   # ["sword", "shield"] ← 独立
-print(state2.stats)       # {"hp": 100, "mp": 50} ← 独立
+print(state2.inventory)   # ["sword", "shield"] ← independent
+print(state2.stats)       # {"hp": 100, "mp": 50} ← independent
 
 
-# === 方法2: __copy__ / __deepcopy__ のカスタマイズ ===
+# === Method 2: Customizing __copy__ / __deepcopy__ ===
 
 class CachedResource:
-    """キャッシュ付きリソース: clone 時にキャッシュはリセットしたい"""
+    """Resource with cache: want to reset cache on clone"""
     def __init__(self, url: str, data: dict, cache: dict | None = None):
         self.url = url
         self.data = data
@@ -521,14 +521,14 @@ class CachedResource:
         self._fetch_count = 0
 
     def __copy__(self) -> "CachedResource":
-        """浅いコピーをカスタマイズ: キャッシュとカウンタをリセット"""
+        """Customize shallow copy: reset cache and counter"""
         new = CachedResource(self.url, self.data)
-        new._cache = {}  # キャッシュはリセット
+        new._cache = {}  # reset cache
         new._fetch_count = 0
         return new
 
     def __deepcopy__(self, memo: dict) -> "CachedResource":
-        """深いコピーをカスタマイズ: data は Deep Copy、キャッシュはリセット"""
+        """Customize deep copy: deep copy data, reset cache"""
         new = CachedResource(
             copy.deepcopy(self.url, memo),
             copy.deepcopy(self.data, memo)
@@ -540,36 +540,36 @@ class CachedResource:
 
 resource = CachedResource("https://api.example.com", {"key": "value"}, {"cached": True})
 cloned = copy.deepcopy(resource)
-print(cloned._cache)        # {} ← キャッシュがリセットされている
-print(cloned.data)           # {"key": "value"} ← データはコピーされている
-print(resource.data is cloned.data)  # False ← 独立したオブジェクト
+print(cloned._cache)        # {} ← cache has been reset
+print(cloned.data)           # {"key": "value"} ← data is copied
+print(resource.data is cloned.data)  # False ← independent objects
 
 
-# === 方法3: dataclass + カスタム clone ===
+# === Method 3: dataclass + custom clone ===
 
 @dataclass
 class Config:
-    """設定クラス（dataclass版）"""
+    """Configuration class (dataclass version)"""
     host: str
     port: int
     options: dict[str, str] = field(default_factory=dict)
 
     def clone(self) -> "Config":
-        """Deep Copy で独立したコピーを生成"""
+        """Generate an independent copy using Deep Copy"""
         return Config(
             host=self.host,
             port=self.port,
-            options=dict(self.options)  # dict の浅いコピー（値が str なので十分）
+            options=dict(self.options)  # shallow copy of dict (sufficient since values are str)
         )
 ```
 
 ---
 
-### コード例 5: Java — Cloneable と Copy Constructor
+### Code Example 5: Java — Cloneable and Copy Constructor
 
 ```java
-// === 方法1: Cloneable インタフェース ===
-// 注意: Java の Cloneable は設計上の問題が多く、現在は非推奨の傾向
+// === Method 1: Cloneable interface ===
+// Note: Java's Cloneable has many design issues and is now considered deprecated
 
 public class Spreadsheet implements Cloneable {
     private String name;
@@ -586,7 +586,7 @@ public class Spreadsheet implements Cloneable {
     public Spreadsheet clone() {
         try {
             Spreadsheet copy = (Spreadsheet) super.clone();
-            // Deep copy of cells（2次元リスト）
+            // Deep copy of cells (2D list)
             copy.cells = new ArrayList<>();
             for (List<String> row : this.cells) {
                 copy.cells.add(new ArrayList<>(row));
@@ -595,21 +595,21 @@ public class Spreadsheet implements Cloneable {
             copy.metadata = new HashMap<>(this.metadata);
             return copy;
         } catch (CloneNotSupportedException e) {
-            throw new AssertionError("Cloneable を実装しているので到達しない");
+            throw new AssertionError("Unreachable since Cloneable is implemented");
         }
     }
 }
 
 
-// === 方法2: Copy Constructor（推奨） ===
-// Effective Java で推奨されている方法
+// === Method 2: Copy Constructor (recommended) ===
+// Recommended approach from Effective Java
 
 public class SpreadsheetV2 {
     private final String name;
     private final List<List<String>> cells;
     private final Map<String, String> metadata;
 
-    // 通常のコンストラクタ
+    // Regular constructor
     public SpreadsheetV2(String name, List<List<String>> cells) {
         this.name = name;
         this.cells = cells;
@@ -626,14 +626,14 @@ public class SpreadsheetV2 {
         this.metadata = new HashMap<>(other.metadata);
     }
 
-    // Static Factory Method 形式
+    // Static Factory Method form
     public static SpreadsheetV2 copyOf(SpreadsheetV2 other) {
         return new SpreadsheetV2(other);
     }
 }
 
 
-// === 方法3: Serialization による Deep Copy ===
+// === Method 3: Deep Copy via Serialization ===
 import java.io.*;
 
 public class DeepCopyUtil {
@@ -655,50 +655,50 @@ public class DeepCopyUtil {
 }
 
 
-// 使用例
+// Usage example
 SpreadsheetV2 original = new SpreadsheetV2("Budget", List.of(
     new ArrayList<>(List.of("Item", "Cost")),
     new ArrayList<>(List.of("Server", "500"))
 ));
 
 SpreadsheetV2 copy = new SpreadsheetV2(original); // Copy Constructor
-// または
+// or
 SpreadsheetV2 copy2 = SpreadsheetV2.copyOf(original); // Static Factory
 ```
 
-**Java Cloneable の問題点（Effective Java より）**:
-1. `Cloneable` はメソッドを定義しないマーカーインタフェースだが、`Object.clone()` の動作を変える
-2. `clone()` の戻り値型は `Object`（キャストが必要）
-3. `CloneNotSupportedException` のチェック例外が煩雑
-4. `super.clone()` は Shallow Copy のみ
-5. final フィールドへの代入ができない
+**Issues with Java's Cloneable (from Effective Java)**:
+1. `Cloneable` is a marker interface with no methods, yet it changes the behavior of `Object.clone()`
+2. The return type of `clone()` is `Object` (casting is required)
+3. The checked exception `CloneNotSupportedException` is cumbersome
+4. `super.clone()` only performs a Shallow Copy
+5. Cannot assign to final fields
 
-**推奨**: Copy Constructor または Static Factory Method を使う
+**Recommendation**: Use a Copy Constructor or Static Factory Method
 
 ---
 
-### コード例 6: Go — インタフェースベースの Clone
+### Code Example 6: Go — Interface-Based Clone
 
 ```go
 package main
 
 import "fmt"
 
-// Cloneable インタフェース
+// Cloneable interface
 type Cloneable[T any] interface {
     Clone() T
 }
 
-// Shape 構造体
+// Shape struct
 type Shape struct {
     X, Y  int
     Color string
     Tags  []string
 }
 
-// Clone: Deep Copy を実装
+// Clone: implements Deep Copy
 func (s *Shape) Clone() *Shape {
-    // Tags スライスを新しくコピー
+    // Copy the Tags slice into a new one
     tagsCopy := make([]string, len(s.Tags))
     copy(tagsCopy, s.Tags)
 
@@ -710,13 +710,13 @@ func (s *Shape) Clone() *Shape {
     }
 }
 
-// Circle 構造体
+// Circle struct
 type Circle struct {
-    Shape  // 埋め込み
+    Shape  // embedded
     Radius float64
 }
 
-// Clone: 埋め込み構造体も含めて Deep Copy
+// Clone: Deep Copy including embedded struct
 func (c *Circle) Clone() *Circle {
     shapeCopy := c.Shape.Clone()
     return &Circle{
@@ -725,7 +725,7 @@ func (c *Circle) Clone() *Circle {
     }
 }
 
-// Document 構造体（ネストあり）
+// Document struct (with nesting)
 type Document struct {
     Title    string
     Sections []Section
@@ -738,7 +738,7 @@ type Section struct {
 }
 
 func (d *Document) Clone() *Document {
-    // Sections の Deep Copy
+    // Deep Copy of Sections
     sections := make([]Section, len(d.Sections))
     for i, s := range d.Sections {
         sections[i] = Section{
@@ -747,7 +747,7 @@ func (d *Document) Clone() *Document {
         }
     }
 
-    // Map の Deep Copy
+    // Deep Copy of Map
     meta := make(map[string]string, len(d.Meta))
     for k, v := range d.Meta {
         meta[k] = v
@@ -770,17 +770,17 @@ func main() {
     cloned.Color = "blue"
     cloned.Tags = append(cloned.Tags, "modified")
 
-    fmt.Println(original.Color, original.Tags) // red [important] — 独立
+    fmt.Println(original.Color, original.Tags) // red [important] — independent
     fmt.Println(cloned.Color, cloned.Tags)     // blue [important modified]
 }
 ```
 
 ---
 
-### コード例 7: Kotlin — data class の copy() と手動 Clone
+### Code Example 7: Kotlin — data class copy() and Manual Clone
 
 ```kotlin
-// === 方法1: data class の copy()（Shallow Copy）===
+// === Method 1: data class copy() (Shallow Copy) ===
 
 data class Address(
     val city: String,
@@ -790,8 +790,8 @@ data class Address(
 data class User(
     val name: String,
     val age: Int,
-    val address: Address,    // 参照型
-    val tags: MutableList<String>  // ミュータブルなコレクション
+    val address: Address,    // reference type
+    val tags: MutableList<String>  // mutable collection
 )
 
 fun main() {
@@ -802,37 +802,37 @@ fun main() {
         tags = mutableListOf("admin", "user")
     )
 
-    // data class の copy() は Shallow Copy
+    // data class copy() is a Shallow Copy
     val shallow = original.copy(name = "Jiro")
 
-    // Address は不変（val + data class）なので安全
-    println(original.address === shallow.address) // true（同じ参照だが不変なので問題なし）
+    // Address is immutable (val + data class), so this is safe
+    println(original.address === shallow.address) // true (same reference, but immutable so no problem)
 
-    // MutableList は浅いコピーなので危険！
+    // MutableList is a shallow copy — dangerous!
     shallow.tags.add("editor")
-    println(original.tags) // [admin, user, editor] ← 元も変わる！
+    println(original.tags) // [admin, user, editor] ← original changes too!
 }
 
 
-// === 方法2: Deep Copy を手動実装 ===
+// === Method 2: Manually implement Deep Copy ===
 
 data class UserV2(
     val name: String,
     val age: Int,
     val address: Address,
-    val tags: List<String>  // 不変リストにする（設計で解決）
+    val tags: List<String>  // use immutable list (solved by design)
 ) {
-    // Deep Copy メソッド
+    // Deep Copy method
     fun deepCopy(): UserV2 = UserV2(
         name = this.name,
         age = this.age,
-        address = this.address.copy(), // data class の copy() で OK（全フィールドが val String）
-        tags = this.tags.toList()      // 新しいリストを生成
+        address = this.address.copy(), // data class copy() is fine (all fields are val String)
+        tags = this.tags.toList()      // generate a new list
     )
 }
 
 
-// === 方法3: sealed interface + clone ===
+// === Method 3: sealed interface + clone ===
 
 sealed interface ShapeK {
     fun clone(): ShapeK
@@ -857,7 +857,7 @@ data class RectangleK(
     override fun clone(): RectangleK = this.copy()
 }
 
-// 使用例: 多態的なクローン
+// Usage example: polymorphic cloning
 fun duplicateShapes(shapes: List<ShapeK>): List<ShapeK> {
     return shapes.map { it.clone() }
 }
@@ -865,11 +865,11 @@ fun duplicateShapes(shapes: List<ShapeK>): List<ShapeK> {
 
 ---
 
-### コード例 8: Prototype + Factory パターンの組み合わせ
+### Code Example 8: Combining Prototype + Factory Patterns
 
 ```typescript
-// Prototype を内部的に使う Factory
-// クライアントにはファクトリインタフェースだけを公開
+// Factory that internally uses Prototype
+// Only the factory interface is exposed to the client
 
 interface Notification {
   title: string;
@@ -919,12 +919,12 @@ class SlackNotification implements Notification {
   }
 }
 
-// NotificationFactory: Prototype を内部で管理
+// NotificationFactory: manages Prototypes internally
 class NotificationFactory {
   private prototypes = new Map<string, Notification>();
 
   constructor() {
-    // デフォルトテンプレートを登録
+    // Register default templates
     this.prototypes.set("welcome-email", new EmailNotification(
       "Welcome!",
       "Welcome to our service.",
@@ -941,7 +941,7 @@ class NotificationFactory {
     ));
   }
 
-  // Factory メソッド: Prototype をクローンしてカスタマイズ
+  // Factory method: clone a Prototype and customize
   create(type: string, overrides?: Partial<Notification>): Notification {
     const proto = this.prototypes.get(type);
     if (!proto) throw new Error(`Unknown notification type: ${type}`);
@@ -953,13 +953,13 @@ class NotificationFactory {
     return notification;
   }
 
-  // 新しいテンプレートを動的に登録
+  // Dynamically register a new template
   registerTemplate(name: string, prototype: Notification): void {
     this.prototypes.set(name, prototype);
   }
 }
 
-// 使用例
+// Usage example
 const factory = new NotificationFactory();
 
 const welcome = factory.create("welcome-email", {
@@ -977,10 +977,10 @@ console.log(alert);   // SlackNotification with customized body
 
 ---
 
-### コード例 9: Undo/Redo のための状態クローン（Memento + Prototype）
+### Code Example 9: State Cloning for Undo/Redo (Memento + Prototype)
 
 ```typescript
-// エディタの状態をクローンして Undo/Redo スタックに保存
+// Clone editor state and save it to the Undo/Redo stack
 
 interface EditorState {
   content: string;
@@ -1015,13 +1015,13 @@ class TextEditor {
     this.state = new TextEditorState("", 0, []);
   }
 
-  // 状態変更前にクローンを保存
+  // Save a clone before modifying state
   private saveState(): void {
     this.undoStack.push(this.state.clone());
     if (this.undoStack.length > this.maxHistory) {
-      this.undoStack.shift(); // 古い履歴を削除
+      this.undoStack.shift(); // remove oldest history
     }
-    this.redoStack = []; // Redo スタックをクリア
+    this.redoStack = []; // clear Redo stack
   }
 
   type(text: string): void {
@@ -1053,7 +1053,7 @@ class TextEditor {
   }
 }
 
-// 使用例
+// Usage example
 const editor = new TextEditor();
 editor.type("Hello");
 editor.type(", World!");
@@ -1071,10 +1071,10 @@ console.log(editor.getContent()); // "Hello"
 
 ---
 
-### コード例 10: 循環参照を含むオブジェクトの Deep Copy
+### Code Example 10: Deep Copy of Objects with Circular References
 
 ```typescript
-// 循環参照がある場合の Deep Copy は特別な処理が必要
+// Deep Copy of objects with circular references requires special handling
 
 class TreeNode {
   children: TreeNode[] = [];
@@ -1087,19 +1087,19 @@ class TreeNode {
     this.children.push(child);
   }
 
-  // 循環参照対応の Deep Copy
-  // visited マップで既にクローン済みのノードを追跡
+  // Deep Copy with circular reference support
+  // Track already-cloned nodes with a visited map
   clone(visited = new Map<TreeNode, TreeNode>()): TreeNode {
-    // 既にクローン済みならそれを返す（循環参照の解決）
+    // If already cloned, return it (resolves circular reference)
     if (visited.has(this)) {
       return visited.get(this)!;
     }
 
-    // 新しいノードを作成し、visited に登録
+    // Create a new node and register it in visited
     const cloned = new TreeNode(this.name, this.value);
     visited.set(this, cloned);
 
-    // 子ノードを再帰的にクローン
+    // Recursively clone child nodes
     for (const child of this.children) {
       const clonedChild = child.clone(visited);
       clonedChild.parent = cloned;
@@ -1119,7 +1119,7 @@ class TreeNode {
   }
 }
 
-// 使用例
+// Usage example
 const root = new TreeNode("root", 0);
 const a = new TreeNode("A", 1);
 const b = new TreeNode("B", 2);
@@ -1141,63 +1141,63 @@ console.log(root.toString());
 
 console.log(clonedRoot.toString());
 // root(0)
-//   A-modified(999)  ← 独立
+//   A-modified(999)  ← independent
 //     C(3)
 //   B(2)
 
-// 親子関係の確認
+// Verify parent-child relationships
 console.log(clonedRoot.children[0].parent === clonedRoot); // true
-console.log(clonedRoot.children[0].parent === root);       // false（独立）
+console.log(clonedRoot.children[0].parent === root);       // false (independent)
 ```
 
 ---
 
-## 4. 比較表
+## 4. Comparison Tables
 
-### 比較表 1: Shallow Copy vs Deep Copy
+### Comparison Table 1: Shallow Copy vs Deep Copy
 
-| 観点 | Shallow Copy | Deep Copy |
+| Aspect | Shallow Copy | Deep Copy |
 |------|:---:|:---:|
-| コピー速度 | **高速**（O(n) フィールド数） | **低速**（O(N) 全ノード数） |
-| メモリ使用量 | **少ない**（参照共有） | **多い**（全て複製） |
-| 参照共有 | **する**（副作用リスク） | **しない**（完全独立） |
-| 安全性 | **低い**（変更が波及） | **高い**（完全独立） |
-| 実装難易度 | **低い** | **中〜高**（循環参照対応等） |
-| 不変データでの使用 | **安全**（変更しないため） | **不要**（コピー自体が無駄） |
-| 使用場面 | 不変データ、読み取り専用、パフォーマンス重視 | 可変データ、独立した変更が必要 |
+| Copy speed | **Fast** (O(n) field count) | **Slow** (O(N) total node count) |
+| Memory usage | **Less** (shared references) | **More** (everything duplicated) |
+| Reference sharing | **Yes** (side-effect risk) | **No** (fully independent) |
+| Safety | **Low** (changes propagate) | **High** (fully independent) |
+| Implementation difficulty | **Low** | **Medium to High** (circular ref handling, etc.) |
+| Use with immutable data | **Safe** (no modifications) | **Unnecessary** (copying itself is wasteful) |
+| Use cases | Immutable data, read-only, performance-critical | Mutable data, independent modifications needed |
 
-### 比較表 2: Prototype vs Factory vs Constructor vs Copy Constructor
+### Comparison Table 2: Prototype vs Factory vs Constructor vs Copy Constructor
 
-| 観点 | Prototype(clone) | Factory Method | Constructor | Copy Constructor |
+| Aspect | Prototype(clone) | Factory Method | Constructor | Copy Constructor |
 |------|:---:|:---:|:---:|:---:|
-| 生成コスト | 低い（コピー） | 中 | 高い（初期化） | 低い（コピー） |
-| 事前設定の保持 | **Yes** | 要設定 | No | **Yes** |
-| 動的な型決定 | **Yes** | **Yes** | No | No |
-| 型安全性 | 中 | 高 | 高 | 高 |
-| private フィールド | **アクセス可** | 要 getter | N/A | **アクセス可** |
-| 言語サポート | 全言語 | 全言語 | 全言語 | Java/C++/Kotlin |
-| 推奨度 | 中 | 高 | 基本 | 高（Java） |
+| Creation cost | Low (copy) | Medium | High (initialization) | Low (copy) |
+| Retains pre-configured state | **Yes** | Requires setup | No | **Yes** |
+| Dynamic type determination | **Yes** | **Yes** | No | No |
+| Type safety | Medium | High | High | High |
+| Private field access | **Accessible** | Requires getter | N/A | **Accessible** |
+| Language support | All languages | All languages | All languages | Java/C++/Kotlin |
+| Recommendation | Medium | High | Basic | High (Java) |
 
-### 比較表 3: 言語別クローン実装の比較
+### Comparison Table 3: Clone Implementation Comparison by Language
 
-| 言語 | 標準手法 | Deep Copy サポート | 推奨アプローチ |
+| Language | Standard Approach | Deep Copy Support | Recommended Approach |
 |------|---------|:---:|---------|
-| TypeScript | カスタム clone() | structuredClone | 手動 clone() + structuredClone 併用 |
-| Python | copy.copy/deepcopy | **組み込み** | copy.deepcopy + __deepcopy__ カスタマイズ |
-| Java | Cloneable.clone() | Serialization | **Copy Constructor**（Effective Java推奨） |
-| Go | 手動実装 | なし | 構造体ごとに Clone() メソッド |
-| Kotlin | data class copy() | なし | data class copy() + 不変設計 |
-| C# | ICloneable.Clone() | なし | 手動 Deep Copy + record 型 |
+| TypeScript | Custom clone() | structuredClone | Manual clone() + structuredClone combined |
+| Python | copy.copy/deepcopy | **Built-in** | copy.deepcopy + __deepcopy__ customization |
+| Java | Cloneable.clone() | Serialization | **Copy Constructor** (recommended by Effective Java) |
+| Go | Manual implementation | None | Clone() method per struct |
+| Kotlin | data class copy() | None | data class copy() + immutable design |
+| C# | ICloneable.Clone() | None | Manual Deep Copy + record types |
 | Rust | Clone trait | Clone derive | `#[derive(Clone)]` |
 
 ---
 
-## 5. アンチパターン
+## 5. Anti-Patterns
 
-### アンチパターン 1: Shallow Copy で可変オブジェクトを共有
+### Anti-Pattern 1: Sharing Mutable Objects with Shallow Copy
 
 ```typescript
-// NG: Shallow Copy で配列・オブジェクトを共有してしまう
+// NG: Shallow Copy shares arrays and objects
 class Config {
   constructor(
     public name: string,
@@ -1206,9 +1206,9 @@ class Config {
   ) {}
 
   clone(): Config {
-    // Object.assign は Shallow Copy！
+    // Object.assign is a Shallow Copy!
     return Object.assign(new Config("", [], {}), this);
-    // plugins と settings は同じ参照を共有
+    // plugins and settings share the same reference
   }
 }
 
@@ -1217,12 +1217,12 @@ const b = a.clone();
 b.plugins.push("cache");
 b.settings.debug = true;
 
-console.log(a.plugins);        // ["auth", "logger", "cache"] ← 意図しない変更！
-console.log(a.settings.debug); // true ← 意図しない変更！
+console.log(a.plugins);        // ["auth", "logger", "cache"] ← unintended modification!
+console.log(a.settings.debug); // true ← unintended modification!
 ```
 
 ```typescript
-// OK: 参照型フィールドを明示的に Deep Copy
+// OK: Explicitly Deep Copy reference-type fields
 class Config {
   constructor(
     public name: string,
@@ -1233,8 +1233,8 @@ class Config {
   clone(): Config {
     return new Config(
       this.name,
-      [...this.plugins],                    // 配列のスプレッドコピー
-      structuredClone(this.settings)        // ネストされたオブジェクトの Deep Copy
+      [...this.plugins],                    // spread copy of array
+      structuredClone(this.settings)        // Deep Copy of nested object
     );
   }
 }
@@ -1242,10 +1242,10 @@ class Config {
 
 ---
 
-### アンチパターン 2: clone() でコンストラクタの不変条件（invariant）を迂回
+### Anti-Pattern 2: Bypassing Constructor Invariants with clone()
 
 ```typescript
-// NG: clone() がバリデーションをスキップ
+// NG: clone() skips validation
 class PositiveNumber {
   private value: number;
 
@@ -1257,18 +1257,18 @@ class PositiveNumber {
   getValue(): number { return this.value; }
 
   clone(): PositiveNumber {
-    // Object.create でコンストラクタを迂回
+    // Bypass constructor with Object.create
     const copy = Object.create(PositiveNumber.prototype);
     copy.value = this.value;
     return copy;
-    // 問題: 将来 value を変更する setter が追加された場合、
-    // バリデーションなしでオブジェクトが作成される可能性
+    // Problem: if a setter that modifies value is added in the future,
+    // objects could be created without validation
   }
 }
 ```
 
 ```typescript
-// OK: コンストラクタ経由で不変条件を維持
+// OK: Maintain invariants by going through the constructor
 class PositiveNumber {
   private value: number;
 
@@ -1280,7 +1280,7 @@ class PositiveNumber {
   getValue(): number { return this.value; }
 
   clone(): PositiveNumber {
-    // コンストラクタを通すことでバリデーションが実行される
+    // Validation runs because the constructor is called
     return new PositiveNumber(this.value);
   }
 }
@@ -1288,26 +1288,26 @@ class PositiveNumber {
 
 ---
 
-### アンチパターン 3: clone() で一意識別子もコピーしてしまう
+### Anti-Pattern 3: Copying Unique Identifiers in clone()
 
 ```typescript
-// NG: ID もそのままコピー → 一意性が壊れる
+// NG: ID is also copied → uniqueness is broken
 class Entity {
   constructor(
-    public id: string,     // UUID — 一意であるべき
+    public id: string,     // UUID — should be unique
     public name: string,
     public data: unknown
   ) {}
 
   clone(): Entity {
     return new Entity(this.id, this.name, structuredClone(this.data));
-    // id が同じ → データベースで衝突！
+    // same id → collision in the database!
   }
 }
 ```
 
 ```typescript
-// OK: clone() で新しい ID を生成
+// OK: Generate a new ID in clone()
 import { randomUUID } from "crypto";
 
 class Entity {
@@ -1319,48 +1319,48 @@ class Entity {
 
   clone(): Entity {
     return new Entity(
-      randomUUID(),  // 新しい ID を生成
+      randomUUID(),  // generate a new ID
       this.name,
       structuredClone(this.data)
     );
   }
 
-  // 「どのフィールドをコピーし、どのフィールドを新規生成するか」を
-  // 明示的に設計することが重要
+  // It is important to explicitly design
+  // "which fields to copy, and which fields to regenerate"
 }
 ```
 
 ---
 
-## 6. エッジケースと注意点
+## 6. Edge Cases and Caveats
 
-### エッジケース 1: structuredClone の制約
+### Edge Case 1: Limitations of structuredClone
 
 ```typescript
-// structuredClone がコピーできないもの
+// Things structuredClone cannot copy
 class Example {
-  method(): void {}  // 関数 → コピーされない
+  method(): void {}  // function → not copied
 }
 
 const obj = {
-  fn: () => "hello",           // ❌ 関数
+  fn: () => "hello",           // ❌ function
   symbol: Symbol("id"),        // ❌ Symbol
-  dom: document.createElement("div"), // ❌ DOM ノード
-  error: new Error("test"),    // ✅ コピー可能
-  date: new Date(),            // ✅ コピー可能
-  regex: /test/gi,             // ✅ コピー可能
-  set: new Set([1, 2, 3]),     // ✅ コピー可能
-  arrayBuffer: new ArrayBuffer(8), // ✅ コピー可能
+  dom: document.createElement("div"), // ❌ DOM node
+  error: new Error("test"),    // ✅ can be copied
+  date: new Date(),            // ✅ can be copied
+  regex: /test/gi,             // ✅ can be copied
+  set: new Set([1, 2, 3]),     // ✅ can be copied
+  arrayBuffer: new ArrayBuffer(8), // ✅ can be copied
 };
 
-// クラスインスタンスの場合
+// For class instances
 const instance = new Example();
 const cloned = structuredClone(instance);
-console.log(typeof cloned.method); // "undefined" — メソッドが失われる！
-console.log(cloned instanceof Example); // false — 型情報も失われる！
+console.log(typeof cloned.method); // "undefined" — method is lost!
+console.log(cloned instanceof Example); // false — type info is also lost!
 ```
 
-### エッジケース 2: イベントリスナーやコールバックの扱い
+### Edge Case 2: Handling Event Listeners and Callbacks
 
 ```typescript
 class EventEmitterWidget {
@@ -1373,16 +1373,16 @@ class EventEmitterWidget {
     this.listeners.get(event)!.push(handler);
   }
 
-  // clone() でリスナーはどうするか？
-  // 選択肢1: リスナーもコピー → 同じハンドラが2つのオブジェクトで発火
-  // 選択肢2: リスナーをリセット → クローン後に再登録が必要
-  // 選択肢3: リスナーの浅いコピー → 同じ関数参照を共有（通常はOK）
+  // What to do with listeners in clone()?
+  // Option 1: Copy listeners too → same handler fires on two objects
+  // Option 2: Reset listeners → must re-register after cloning
+  // Option 3: Shallow copy listeners → shared function references (usually OK)
 
   clone(copyListeners = false): EventEmitterWidget {
     const cloned = new EventEmitterWidget();
     if (copyListeners) {
       for (const [event, handlers] of this.listeners) {
-        cloned.listeners.set(event, [...handlers]); // 浅いコピー
+        cloned.listeners.set(event, [...handlers]); // shallow copy
       }
     }
     return cloned;
@@ -1390,32 +1390,32 @@ class EventEmitterWidget {
 }
 ```
 
-### エッジケース 3: 循環参照の検出と処理
+### Edge Case 3: Detecting and Handling Circular References
 
 ```typescript
-// 循環参照があるとスタックオーバーフローを起こす
+// Circular references cause stack overflow
 const a: any = { name: "A" };
 const b: any = { name: "B", ref: a };
-a.ref = b; // 循環参照
+a.ref = b; // circular reference
 
-// NG: 無限再帰
+// NG: infinite recursion
 function naiveDeepCopy(obj: any): any {
   const copy: any = {};
   for (const key of Object.keys(obj)) {
     copy[key] = typeof obj[key] === "object"
-      ? naiveDeepCopy(obj[key]) // ← 無限ループ！
+      ? naiveDeepCopy(obj[key]) // ← infinite loop!
       : obj[key];
   }
   return copy;
 }
 
-// OK: visited マップで循環を検出
+// OK: detect cycles with a visited map
 function safeDeepCopy(obj: any, visited = new WeakMap()): any {
   if (obj === null || typeof obj !== "object") return obj;
-  if (visited.has(obj)) return visited.get(obj); // 既訪問なら返す
+  if (visited.has(obj)) return visited.get(obj); // return if already visited
 
   const copy: any = Array.isArray(obj) ? [] : {};
-  visited.set(obj, copy); // 先に登録（循環参照対策）
+  visited.set(obj, copy); // register early (circular reference guard)
 
   for (const key of Object.keys(obj)) {
     copy[key] = safeDeepCopy(obj[key], visited);
@@ -1423,104 +1423,110 @@ function safeDeepCopy(obj: any, visited = new WeakMap()): any {
   return copy;
 }
 
-// structuredClone は循環参照を自動で処理する
-const cloned = structuredClone(a); // OK！
-console.log(cloned.ref.ref === cloned); // true — 循環参照が正しく再現
+// structuredClone handles circular references automatically
+const cloned = structuredClone(a); // OK!
+console.log(cloned.ref.ref === cloned); // true — circular reference correctly reproduced
 ```
 
-### エッジケース 4: Prototype チェーンとシリアライゼーション
+### Edge Case 4: Prototype Chain and Serialization
 
 ```typescript
-// JSON.stringify/parse で失われるもの一覧
+// A list of things lost with JSON.stringify/parse
 const original = {
-  date: new Date("2024-01-01"),         // → 文字列になる
-  undefined: undefined,                  // → 消える
-  nan: NaN,                              // → null になる
-  infinity: Infinity,                    // → null になる
-  regex: /test/g,                        // → {} になる
-  set: new Set([1, 2]),                  // → {} になる
-  fn: () => "hello",                     // → 消える
-  symbol: Symbol("id"),                  // → 消える
+  date: new Date("2024-01-01"),         // → becomes a string
+  undefined: undefined,                  // → disappears
+  nan: NaN,                              // → becomes null
+  infinity: Infinity,                    // → becomes null
+  regex: /test/g,                        // → becomes {}
+  set: new Set([1, 2]),                  // → becomes {}
+  fn: () => "hello",                     // → disappears
+  symbol: Symbol("id"),                  // → disappears
   bigint: BigInt(42),                    // → TypeError!
 };
 ```
 
 ---
 
-## 7. トレードオフ分析
+## 7. Trade-off Analysis
 
-### Prototype パターンを使うべき場面
+### When to Use the Prototype Pattern
 
 ```
-✅ 使うべき場面:
+✅ When to use:
 ┌─────────────────────────────────────────────────┐
-│ 1. 初期化コストが高いオブジェクトを多数生成する   │
-│    例: DB接続設定、ML モデル設定、ゲームキャラ     │
+│ 1. Creating many objects with high init cost      │
+│    e.g.: DB connection config, ML model config,   │
+│          game characters                          │
 │                                                  │
-│ 2. 実行時に型が決まるオブジェクトのコピーが必要   │
-│    例: プラグインシステム、設定テンプレート       │
+│ 2. Copying objects whose type is determined       │
+│    at runtime                                     │
+│    e.g.: plugin systems, configuration templates │
 │                                                  │
-│ 3. オブジェクトの状態をスナップショットとして保存  │
-│    例: Undo/Redo、バージョン管理、テスト fixture  │
+│ 3. Saving object state as a snapshot             │
+│    e.g.: Undo/Redo, version control, test fixture│
 │                                                  │
-│ 4. プロトタイプレジストリでテンプレート管理       │
-│    例: UIコンポーネント、通知テンプレート         │
+│ 4. Template management via a prototype registry  │
+│    e.g.: UI components, notification templates   │
 │                                                  │
-│ 5. 外部ライブラリのオブジェクトのコピーが必要     │
-│    例: 非公開フィールドを含むオブジェクトの複製   │
+│ 5. Copying objects from external libraries       │
+│    e.g.: duplicating objects with private fields │
 └─────────────────────────────────────────────────┘
 
-❌ 使うべきでない場面:
+❌ When NOT to use:
 ┌─────────────────────────────────────────────────┐
-│ 1. 生成コストが低いオブジェクト                   │
-│    → new で十分。clone() の実装コストが上回る     │
+│ 1. Objects with low creation cost                │
+│    → new is sufficient; cost of implementing     │
+│      clone() outweighs the benefit               │
 │                                                  │
-│ 2. 不変データ構造を使っている場合                 │
-│    → 構造共有（structural sharing）が効率的       │
-│    例: Immutable.js, Immer                       │
+│ 2. When using immutable data structures          │
+│    → structural sharing is more efficient        │
+│    e.g.: Immutable.js, Immer                     │
 │                                                  │
-│ 3. 循環参照が複雑すぎるオブジェクトグラフ         │
-│    → Deep Copy の実装が困難、バグの温床           │
+│ 3. Object graphs with overly complex             │
+│    circular references                           │
+│    → Hard to implement Deep Copy, a source of    │
+│      bugs                                        │
 │                                                  │
-│ 4. クローン後にほとんどのフィールドを変更する     │
-│    → コンストラクタで直接生成した方が明確         │
+│ 4. Most fields are changed after cloning         │
+│    → Creating directly with a constructor is     │
+│      clearer                                     │
 └─────────────────────────────────────────────────┘
 ```
 
-### パフォーマンス特性
+### Performance Characteristics
 
 ```
-生成方式のパフォーマンス比較（概算）:
+Performance comparison of creation methods (approximate):
 
-方式              | 小オブジェクト | 大オブジェクト | ネストあり
-                  | (5 fields)     | (50 fields)    | (3 levels deep)
+Method            | Small object  | Large object  | With nesting
+                  | (5 fields)    | (50 fields)   | (3 levels deep)
 ─────────────────|────────────────|────────────────|────────────────
-new + 初期化      |     基準       |     基準       |     基準
-Shallow Clone     |    0.1x        |    0.1x        |    0.1x
-Deep Clone(手動)  |    0.3x        |    0.5x        |    0.8x
-structuredClone   |    2.0x        |    1.5x        |    1.2x
-JSON parse/strfy  |    5.0x        |    3.0x        |    2.5x
+new + init        |    baseline   |    baseline   |    baseline
+Shallow Clone     |    0.1x       |    0.1x       |    0.1x
+Deep Clone(manual)|    0.3x       |    0.5x       |    0.8x
+structuredClone   |    2.0x       |    1.5x       |    1.2x
+JSON parse/strfy  |    5.0x       |    3.0x       |    2.5x
 
-※ new + 初期化 に DB接続やAPI呼び出しが含まれる場合、
-  clone は圧倒的に高速（100x〜1000x以上の差）
+* When new + init includes DB connections or API calls,
+  clone is overwhelmingly faster (100x to 1000x or more)
 ```
 
 ---
 
-## 8. 演習問題
+## 8. Exercises
 
-### 演習 1（基礎）: Shape の Clone 実装
+### Exercise 1 (Basic): Implement Clone for Shape
 
-以下の要件を満たす Shape クラス階層を実装してください。
+Implement a Shape class hierarchy that meets the following requirements.
 
-**要件**:
-- `Shape` 基底クラスに `clone()` メソッドを定義
-- `Circle`、`Rectangle`、`Triangle` のサブクラスを作成
-- 各クラスの `clone()` が正しく Deep Copy を返すことを確認
-- `describe()` メソッドで図形の情報を文字列で返す
+**Requirements**:
+- Define a `clone()` method on the `Shape` base class
+- Create subclasses: `Circle`, `Rectangle`, `Triangle`
+- Verify that `clone()` in each class correctly returns a Deep Copy
+- Return shape information as a string via a `describe()` method
 
 ```typescript
-// テスト
+// Test
 const circle = new Circle(0, 0, "red", 25);
 const clonedCircle = circle.clone();
 clonedCircle.color = "blue";
@@ -1530,7 +1536,7 @@ console.log(clonedCircle.describe()); // "Circle(x=0, y=0, color=blue, r=25)"
 console.log(circle !== clonedCircle); // true
 ```
 
-**期待される出力**:
+**Expected output**:
 ```
 Circle(x=0, y=0, color=red, r=25)
 Circle(x=0, y=0, color=blue, r=25)
@@ -1538,7 +1544,7 @@ true
 ```
 
 <details>
-<summary>解答例</summary>
+<summary>Sample solution</summary>
 
 ```typescript
 interface Cloneable<T> {
@@ -1604,7 +1610,7 @@ class Triangle extends Shape {
   }
 }
 
-// テスト
+// Test
 const circle = new Circle(0, 0, "red", 25);
 const clonedCircle = circle.clone();
 clonedCircle.color = "blue";
@@ -1617,18 +1623,18 @@ console.log(circle !== clonedCircle); // true
 
 ---
 
-### 演習 2（応用）: Prototype Registry + Deep Copy
+### Exercise 2 (Applied): Prototype Registry + Deep Copy
 
-ゲームのキャラクターテンプレートを管理する Prototype Registry を実装してください。
+Implement a Prototype Registry to manage game character templates.
 
-**要件**:
-- `Character` クラス: name, hp, mp, skills(配列), equipment(オブジェクト)
-- `CharacterRegistry`: テンプレートの登録・クローン取得
-- Deep Copy であること（skills と equipment が独立）
-- クローン時に新しい ID を自動付与
+**Requirements**:
+- `Character` class: name, hp, mp, skills (array), equipment (object)
+- `CharacterRegistry`: register templates and retrieve clones
+- Must be a Deep Copy (skills and equipment are independent)
+- Automatically assign a new ID upon cloning
 
 ```typescript
-// テスト
+// Test
 const registry = new CharacterRegistry();
 
 registry.register("warrior", new Character(
@@ -1648,11 +1654,11 @@ console.log(player1.name);            // "Hero Taro"
 console.log(player2.name);            // "Hero Jiro"
 console.log(player1.id !== player2.id); // true
 console.log(player1.skills);          // ["slash", "block", "charge"]
-console.log(player2.skills);          // ["slash", "block"] ← 独立
-console.log(player2.equipment.weapon); // "sword" ← 独立
+console.log(player2.skills);          // ["slash", "block"] ← independent
+console.log(player2.equipment.weapon); // "sword" ← independent
 ```
 
-**期待される出力**:
+**Expected output**:
 ```
 Hero Taro
 Hero Jiro
@@ -1663,7 +1669,7 @@ sword
 ```
 
 <details>
-<summary>解答例</summary>
+<summary>Sample solution</summary>
 
 ```typescript
 import { randomUUID } from "crypto";
@@ -1690,10 +1696,10 @@ class Character implements Cloneable<Character> {
       this.name,
       this.hp,
       this.mp,
-      [...this.skills],          // 配列の Deep Copy
-      { ...this.equipment }      // オブジェクトの Shallow Copy（値が string なので十分）
+      [...this.skills],          // Deep Copy of array
+      { ...this.equipment }      // Shallow Copy of object (sufficient since values are strings)
     );
-    // id は new Character() 内で自動生成される
+    // id is automatically generated inside new Character()
     return cloned;
   }
 }
@@ -1722,7 +1728,7 @@ class CharacterRegistry {
   }
 }
 
-// テスト
+// Test
 const registry = new CharacterRegistry();
 
 registry.register("warrior", new Character(
@@ -1754,20 +1760,20 @@ console.log(player2.equipment.weapon);  // "sword"
 
 ---
 
-### 演習 3（上級）: 汎用 Deep Clone ユーティリティ
+### Exercise 3 (Advanced): General-Purpose Deep Clone Utility
 
-以下の全てのデータ型を正しく Deep Clone できる汎用ユーティリティ関数を実装してください。
+Implement a general-purpose utility function that can correctly Deep Clone all of the following data types.
 
-**要件**:
-- プリミティブ型（string, number, boolean, null, undefined）
+**Requirements**:
+- Primitive types (string, number, boolean, null, undefined)
 - Date, RegExp, Map, Set
-- 配列とプレーンオブジェクト
-- 循環参照の検出と正しい処理
-- `clone()` メソッドを持つオブジェクトはそれを優先使用
-- TypeScript の型安全な実装
+- Arrays and plain objects
+- Circular reference detection and correct handling
+- Objects with a `clone()` method should use it preferentially
+- Type-safe TypeScript implementation
 
 ```typescript
-// テスト
+// Test
 const original = {
   str: "hello",
   num: 42,
@@ -1778,7 +1784,7 @@ const original = {
   arr: [1, [2, [3]]],
   circular: null as any,
 };
-original.circular = original; // 循環参照
+original.circular = original; // circular reference
 
 const cloned = deepClone(original);
 
@@ -1787,11 +1793,11 @@ console.log(cloned.date !== original.date);   // true
 console.log(cloned.regex instanceof RegExp);  // true
 console.log(cloned.map.get("a")!.nested);     // true
 console.log(cloned.map.get("a") !== original.map.get("a")); // true
-console.log(cloned.circular === cloned);      // true（循環参照が正しく再現）
-console.log(cloned.circular !== original);    // true（独立）
+console.log(cloned.circular === cloned);      // true (circular reference correctly reproduced)
+console.log(cloned.circular !== original);    // true (independent)
 ```
 
-**期待される出力**:
+**Expected output**:
 ```
 true
 true
@@ -1803,20 +1809,20 @@ true
 ```
 
 <details>
-<summary>解答例</summary>
+<summary>Sample solution</summary>
 
 ```typescript
 function deepClone<T>(obj: T, visited = new WeakMap()): T {
-  // プリミティブと null/undefined はそのまま返す
+  // Return primitives and null/undefined as-is
   if (obj === null || obj === undefined) return obj;
   if (typeof obj !== "object" && typeof obj !== "function") return obj;
 
-  // 循環参照チェック
+  // Circular reference check
   if (visited.has(obj as any)) {
     return visited.get(obj as any);
   }
 
-  // clone() メソッドを持つオブジェクトはそれを使う
+  // Use clone() method if the object has one
   if (typeof (obj as any).clone === "function") {
     const cloned = (obj as any).clone();
     visited.set(obj as any, cloned);
@@ -1843,7 +1849,7 @@ function deepClone<T>(obj: T, visited = new WeakMap()): T {
   // Map
   if (obj instanceof Map) {
     result = new Map();
-    visited.set(obj as any, result); // 先に登録（循環参照対策）
+    visited.set(obj as any, result); // register early (circular reference guard)
     for (const [key, value] of obj) {
       result.set(deepClone(key, visited), deepClone(value, visited));
     }
@@ -1885,7 +1891,7 @@ function deepClone<T>(obj: T, visited = new WeakMap()): T {
     return result;
   }
 
-  // プレーンオブジェクト
+  // Plain object
   result = Object.create(Object.getPrototypeOf(obj));
   visited.set(obj as any, result);
 
@@ -1902,7 +1908,7 @@ function deepClone<T>(obj: T, visited = new WeakMap()): T {
   return result;
 }
 
-// テスト
+// Test
 const original = {
   str: "hello",
   num: 42,
@@ -1931,73 +1937,73 @@ console.log(cloned.circular !== original);    // true
 
 ## 9. FAQ
 
-### Q1: JavaScript の `structuredClone` はいつ使うべきですか？
+### Q1: When should I use JavaScript's `structuredClone`?
 
-DOM ノードや関数、Symbol を含まないプレーンなデータオブジェクトを深くコピーしたい場合に最適です。クラスインスタンスのメソッドやプロトタイプチェーンは失われるため、メソッドを持つオブジェクトにはカスタム `clone()` を実装してください。`structuredClone` は循環参照を自動で処理できる点が `JSON.parse(JSON.stringify(...))` より優れています。
+It is ideal when you want to deeply copy plain data objects that do not contain DOM nodes, functions, or Symbols. Since class instance methods and prototype chains are lost, implement a custom `clone()` for objects with methods. `structuredClone` is superior to `JSON.parse(JSON.stringify(...))` in that it automatically handles circular references.
 
-### Q2: Prototype パターンと JavaScript の prototype チェーンは同じですか？
+### Q2: Is the Prototype pattern the same as JavaScript's prototype chain?
 
-名前は似ていますが**全く別の概念**です。
+The names are similar, but they are **completely different concepts**.
 
-| | GoF Prototype パターン | JavaScript prototype チェーン |
+| | GoF Prototype Pattern | JavaScript prototype chain |
 |--|--|--|
-| 目的 | オブジェクトの**クローン生成** | プロパティの**委譲検索** |
-| 操作 | clone() で新しいオブジェクトを作る | `obj.prop` でプロトタイプを辿る |
-| 結果 | 独立したコピー | 共有された振る舞い |
+| Purpose | **Clone generation** of objects | **Delegated lookup** of properties |
+| Operation | Creates a new object with clone() | Traverses the prototype with `obj.prop` |
+| Result | Independent copy | Shared behavior |
 
-JavaScript の `Object.create()` は GoF Prototype パターンに近い概念ですが、プロパティのコピーではなくプロトタイプチェーンの設定を行う点が異なります。
+JavaScript's `Object.create()` is conceptually close to the GoF Prototype pattern, but differs in that it sets up the prototype chain rather than copying properties.
 
-### Q3: 不変データ構造（Immutable Data Structure）を使えば clone() は不要ですか？
+### Q3: If I use immutable data structures, is clone() unnecessary?
 
-多くの場合、不変データ構造を使えば明示的な `clone()` は不要になります。Immutable.js や Immer では、**構造共有（structural sharing）** により変更されていない部分の参照を共有するため、Deep Copy よりも遥かに効率的です。ただし、以下のケースでは依然として Prototype パターンが有用です:
-- 既存のミュータブルなクラスとの互換性が必要
-- 構造共有のオーバーヘッドが問題になる小さなオブジェクト
-- サードパーティライブラリのオブジェクトのコピー
+In many cases, using immutable data structures eliminates the need for explicit `clone()`. Libraries like Immutable.js and Immer use **structural sharing** to share references to unchanged parts, making it far more efficient than Deep Copy. However, the Prototype pattern is still useful in the following cases:
+- Compatibility with existing mutable classes is required
+- Small objects where structural sharing overhead is a concern
+- Copying objects from third-party libraries
 
-### Q4: Java の `Cloneable` はなぜ「壊れた」インタフェースと言われるのですか？
+### Q4: Why is Java's `Cloneable` called a "broken" interface?
 
-Josh Bloch（`java.util.Collection` の設計者）が Effective Java で詳細に指摘しています:
+Josh Bloch (designer of `java.util.Collection`) detailed this in Effective Java:
 
-1. **マーカーインタフェース**なのにメソッドがない: `clone()` は `Object` に定義されており、`Cloneable` にはない
-2. **protected**: `Object.clone()` は protected なので、外部から呼べない（public にオーバーライドが必要）
-3. **Shallow Copy のみ**: `super.clone()` は Shallow Copy しか行わない
-4. **final フィールド非互換**: `clone()` 後に final フィールドを再設定できない
-5. **例外が不適切**: `CloneNotSupportedException` はチェック例外だが、実際にはほぼ発生しない
+1. **Marker interface** with no methods: `clone()` is defined on `Object`, not `Cloneable`
+2. **protected**: `Object.clone()` is protected, so it cannot be called from outside (must override as public)
+3. **Shallow Copy only**: `super.clone()` only performs a Shallow Copy
+4. **Incompatible with final fields**: Cannot reassign final fields after `clone()`
+5. **Inappropriate exception**: `CloneNotSupportedException` is a checked exception but almost never actually thrown
 
-**結論**: Java では Copy Constructor か static factory method(`copyOf()`) を使うべきです。
+**Conclusion**: In Java, use a Copy Constructor or static factory method (`copyOf()`).
 
-### Q5: Prototype パターンと Flyweight パターンの関係は？
+### Q5: What is the relationship between the Prototype pattern and the Flyweight pattern?
 
 | | Prototype | Flyweight |
 |--|--|--|
-| 目的 | オブジェクトの**複製** | オブジェクトの**共有** |
-| メモリ | **増加**（コピー分） | **削減**（共有分） |
-| 独立性 | **完全に独立** | 内在状態を共有 |
+| Purpose | **Duplicating** objects | **Sharing** objects |
+| Memory | **Increases** (by copies) | **Decreases** (by sharing) |
+| Independence | **Fully independent** | Shares intrinsic state |
 
-両者は対照的ですが、組み合わせることもあります。例えば、Prototype でクローンしたオブジェクトの内部で Flyweight を使って重いデータ（テクスチャ、フォントなど）を共有する設計です。
+The two are contrasting, but can be combined. For example, objects cloned with Prototype may internally use Flyweight to share heavy data (textures, fonts, etc.).
 
-### Q6: テストでの Prototype パターンの活用方法は？
+### Q6: How is the Prototype pattern used in testing?
 
-テストでは「テストフィクスチャ（test fixture）」の作成に Prototype パターンが非常に有効です:
+In testing, the Prototype pattern is very useful for creating **test fixtures**:
 
 ```typescript
-// テストの基本フィクスチャをプロトタイプとして定義
+// Define base fixture as a prototype
 const baseUser = new User("test-user", "test@example.com", {
   role: "user",
   settings: { theme: "dark", notifications: true }
 });
 
-// 各テストケースでクローンしてカスタマイズ
+// Clone and customize for each test case
 test("admin can access settings", () => {
   const admin = baseUser.clone();
   admin.role = "admin";
-  // ... テスト
+  // ... test
 });
 
 test("user with notifications off", () => {
   const user = baseUser.clone();
   user.settings.notifications = false;
-  // ... テスト
+  // ... test
 });
 ```
 
@@ -2006,50 +2012,50 @@ test("user with notifications off", () => {
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just from theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| **目的** | 既存オブジェクトをクローンして新規生成（コンストラクタコストを回避） |
-| **Shallow Copy** | 高速だが参照型フィールドを共有する（不変データなら安全） |
-| **Deep Copy** | 完全独立だがコスト高（循環参照に注意） |
-| **Registry** | プロトタイプをカタログ管理し、キーでクローンを取得 |
-| **JS/TS 推奨** | 手動 clone() + structuredClone の併用 |
-| **Python 推奨** | copy.deepcopy + __deepcopy__ カスタマイズ |
-| **Java 推奨** | Copy Constructor（Cloneable は非推奨） |
-| **Go 推奨** | 構造体ごとに Clone() メソッドを実装 |
-| **Kotlin 推奨** | data class copy() + 不変設計 |
-| **最重要注意** | clone() でも不変条件を維持する、一意IDは再生成する |
-| **活用場面** | Undo/Redo、テストフィクスチャ、設定テンプレート、ゲーム状態保存 |
+| **Purpose** | Clone existing objects to create new ones (avoids constructor cost) |
+| **Shallow Copy** | Fast but shares reference-type fields (safe for immutable data) |
+| **Deep Copy** | Fully independent but costly (watch out for circular references) |
+| **Registry** | Catalog-manage prototypes and retrieve clones by key |
+| **JS/TS recommendation** | Combine manual clone() with structuredClone |
+| **Python recommendation** | copy.deepcopy + __deepcopy__ customization |
+| **Java recommendation** | Copy Constructor (Cloneable is deprecated) |
+| **Go recommendation** | Implement a Clone() method per struct |
+| **Kotlin recommendation** | data class copy() + immutable design |
+| **Most important caution** | Maintain invariants in clone(); regenerate unique IDs |
+| **Use cases** | Undo/Redo, test fixtures, config templates, game state saving |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [Singleton パターン](./00-singleton.md) — インスタンス数の制御と Prototype との対比
-- [Factory パターン](./01-factory.md) — オブジェクト生成の抽象化（Prototype と併用可能）
-- [Builder パターン](./02-builder.md) — 複雑なオブジェクトの段階的構築
-- [Decorator パターン](../01-structural/01-decorator.md) — 動的な機能追加
-- Memento パターン — 状態の保存と復元（Prototype と関連）
-- 不変性 — イミュータブルデータ構造
+- [Singleton Pattern](./00-singleton.md) — Controlling instance count and contrast with Prototype
+- [Factory Pattern](./01-factory.md) — Abstraction of object creation (can be used alongside Prototype)
+- [Builder Pattern](./02-builder.md) — Step-by-step construction of complex objects
+- [Decorator Pattern](../01-structural/01-decorator.md) — Dynamic feature addition
+- Memento Pattern — Saving and restoring state (related to Prototype)
+- Immutability — Immutable data structures
 
 ---
 
-## 参考文献
+## References
 
 1. Gamma, E. et al. (1994). *Design Patterns: Elements of Reusable Object-Oriented Software*. Addison-Wesley.
 2. Bloch, J. (2018). *Effective Java* (3rd ed.). Addison-Wesley. — Item 13: Override clone judiciously
