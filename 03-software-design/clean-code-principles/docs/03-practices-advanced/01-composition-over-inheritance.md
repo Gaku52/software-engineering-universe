@@ -1,67 +1,70 @@
-# 継承より合成の原則
+# Composition Over Inheritance
 
-> なぜ合成（コンポジション）が継承よりも柔軟で保守しやすいか。デザインパターンとの関係、言語別の実装手法、リファクタリング戦略を体系的に解説する。
-
----
-
-## この章で学ぶこと
-
-1. **継承の問題点と合成の優位性**を理論的に理解し、設計判断の根拠を説明できる
-2. **Strategy、Decorator、Delegate**など合成ベースのデザインパターンを実装できる
-3. **既存の継承階層を合成にリファクタリング**する手法を習得し、保守性を改善できる
-4. **言語ごとの合成の実装手法**（Python Mixin、TypeScript Mixin、Rust Trait、Go Interface）を使い分けられる
-5. **継承が適切な場面と不適切な場面**を正確に判断し、設計レビューで根拠を説明できる
+> Why composition is more flexible and maintainable than inheritance. A systematic explanation of its relationship to design patterns, language-specific implementation techniques, and refactoring strategies.
 
 ---
 
-## 前提知識
+## What You Will Learn
 
-このガイドを理解するには、以下の知識が必要です。
+1. Understand the **problems with inheritance and the advantages of composition** theoretically, and explain the rationale behind design decisions
+2. Implement **composition-based design patterns** such as Strategy, Decorator, and Delegate
+3. Learn how to **refactor existing inheritance hierarchies into composition** to improve maintainability
+4. Use **language-specific composition techniques** (Python Mixin, TypeScript Mixin, Rust Trait, Go Interface) appropriately
+5. Accurately judge **when inheritance is appropriate and when it is not**, and explain your reasoning in design reviews
 
-| 前提知識 | 参照先 |
+---
+
+## Prerequisites
+
+The following knowledge is required to understand this guide.
+
+| Prerequisite | Reference |
 |---------|-------|
-| オブジェクト指向の基本（クラス、継承、ポリモーフィズム） | 00-principles/02-solid.md |
-| SOLID原則（特にLSP、OCP、DIP） | 00-principles/02-solid.md |
-| インターフェースと抽象クラスの違い | `02-programming/` |
-| デザインパターンの基本概念 | `design-patterns-guide/docs/00-creational/` |
-| 依存性注入（DI）の基礎 | 01-practices/03-dependency-injection.md |
+| Basics of object-oriented programming (classes, inheritance, polymorphism) | 00-principles/02-solid.md |
+| SOLID principles (especially LSP, OCP, DIP) | 00-principles/02-solid.md |
+| Difference between interfaces and abstract classes | `02-programming/` |
+| Basic concepts of design patterns | `design-patterns-guide/docs/00-creational/` |
+| Fundamentals of dependency injection (DI) | 01-practices/03-dependency-injection.md |
 
 ---
 
-## 1. なぜ「継承より合成」なのか
+## 1. Why "Composition Over Inheritance"?
 
-### 1.1 継承の問題点
+### 1.1 Problems with Inheritance
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│              継承の5つの問題点                          │
+│              Five Problems with Inheritance            │
 ├──────────────────────────────────────────────────────┤
 │                                                      │
-│  1. 脆い基底クラス問題 (Fragile Base Class)           │
-│     基底クラスの変更が全子クラスに波及                  │
+│  1. Fragile Base Class Problem                       │
+│     Changes to the base class propagate to all       │
+│     subclasses                                       │
 │                                                      │
-│  2. ダイヤモンド問題 (Diamond Problem)                │
-│     多重継承で同名メソッドが衝突                       │
+│  2. Diamond Problem                                  │
+│     Methods with the same name conflict in           │
+│     multiple inheritance                             │
 │                                                      │
-│  3. 深い階層 → 理解困難                               │
-│     A → B → C → D → E... どこに何がある？             │
+│  3. Deep hierarchies → hard to understand            │
+│     A → B → C → D → E... where is what?             │
 │                                                      │
-│  4. is-a 関係の強制                                   │
-│     「正方形 is-a 長方形」は本当に成立するか？          │
+│  4. Forced is-a relationship                         │
+│     Is "Square is-a Rectangle" really valid?         │
 │                                                      │
-│  5. 単一継承の制限                                    │
-│     1つの軸でしか分類できない                          │
-│     (鳥 is-a 動物 だが、鳥 is-a 飛行体 でもある)       │
+│  5. Single inheritance limitations                   │
+│     Can only classify along one axis                 │
+│     (A bird is-a animal, but a bird is-a             │
+│      flying object too)                              │
 │                                                      │
 └──────────────────────────────────────────────────────┘
 ```
 
-### 1.2 脆い基底クラス問題の具体例
+### 1.2 Concrete Example of the Fragile Base Class Problem
 
 ```java
-// 脆い基底クラス問題の典型例（Effective Java Item 18より）
+// Classic example of the Fragile Base Class problem (from Effective Java Item 18)
 
-// 基底クラス: HashSetを継承して追加回数を記録するクラス
+// Base class: a class that extends HashSet to count the number of additions
 public class CountingHashSet<E> extends HashSet<E> {
     private int addCount = 0;
 
@@ -74,7 +77,7 @@ public class CountingHashSet<E> extends HashSet<E> {
     @Override
     public boolean addAll(Collection<? extends E> c) {
         addCount += c.size();
-        return super.addAll(c); // ← ここが問題！
+        return super.addAll(c); // ← This is the problem!
     }
 
     public int getAddCount() {
@@ -82,84 +85,84 @@ public class CountingHashSet<E> extends HashSet<E> {
     }
 }
 
-// 使用
+// Usage
 CountingHashSet<String> s = new CountingHashSet<>();
 s.addAll(List.of("A", "B", "C"));
-s.getAddCount(); // 期待: 3, 実際: 6！
+s.getAddCount(); // Expected: 3, Actual: 6!
 
-// なぜか？
-// HashSet.addAll() は内部で add() を呼ぶ。
-// CountingHashSet.addAll() で addCount += 3 した後、
-// super.addAll() が内部で add() を3回呼び、
-// それぞれで addCount++ されるため、合計6になる。
+// Why?
+// HashSet.addAll() calls add() internally.
+// After CountingHashSet.addAll() does addCount += 3,
+// super.addAll() calls add() 3 times internally,
+// each of which increments addCount++, totaling 6.
 //
-// しかもこれはHashSetの「実装の詳細」であり、
-// 仕様には記載されていない。
-// 将来のJavaバージョンで内部実装が変われば、
-// このコードは別のバグを生む可能性がある。
+// Moreover, this is an "implementation detail" of HashSet
+// and is not documented in the specification.
+// If the internal implementation changes in a future Java version,
+// this code may introduce a different bug.
 ```
 
-### 1.3 継承 vs 合成の比較
+### 1.3 Comparison: Inheritance vs. Composition
 
 ```
-継承 (is-a):                     合成 (has-a):
-─────────                       ─────────
+Inheritance (is-a):               Composition (has-a):
+─────────                         ─────────
 
-  Animal                         ┌─────────┐
-    │                            │ Duck    │
-    ├── Bird                     │         │
-    │    ├── Duck                │ swim: SwimBehavior
-    │    ├── Penguin             │ fly:  FlyBehavior
-    │    └── Eagle               │ sound: QuackBehavior
-    │                            └─────────┘
+  Animal                          ┌─────────┐
+    │                             │ Duck    │
+    ├── Bird                      │         │
+    │    ├── Duck                 │ swim: SwimBehavior
+    │    ├── Penguin              │ fly:  FlyBehavior
+    │    └── Eagle                │ sound: QuackBehavior
+    │                             └─────────┘
     └── Fish
-         └── FlyingFish          ← FlyingFishは？
-                                     Bird? Fish? 両方？
-                                     → 合成なら簡単に組合せ可能
+         └── FlyingFish           ← What about FlyingFish?
+                                      Bird? Fish? Both?
+                                      → Easily combined with composition
 ```
 
-| 比較軸 | 継承 | 合成 |
+| Comparison Axis | Inheritance | Composition |
 |--------|------|------|
-| 結合度 | 高い（親子密結合） | 低い（インターフェース経由） |
-| 柔軟性 | 低い（コンパイル時固定） | 高い（実行時変更可能） |
-| 再利用性 | 限定的（階層に依存） | 高い（任意に組合せ） |
-| テスト容易性 | 困難（親クラス依存） | 容易（モック可能） |
-| 理解しやすさ | 深い階層は困難 | フラットで明快 |
-| 多重分類 | 困難（単一継承の壁） | 容易（複数の振る舞いを持てる） |
-| 変更の影響範囲 | 大きい（全子クラスに波及） | 小さい（変更箇所に局所化） |
-| カプセル化 | 破壊される（protected公開） | 維持される（内部実装を隠蔽） |
+| Coupling | High (parent-child tight coupling) | Low (via interfaces) |
+| Flexibility | Low (fixed at compile time) | High (changeable at runtime) |
+| Reusability | Limited (depends on hierarchy) | High (freely combinable) |
+| Testability | Difficult (depends on parent class) | Easy (mockable) |
+| Understandability | Deep hierarchies are difficult | Flat and clear |
+| Multiple classification | Difficult (single inheritance barrier) | Easy (can have multiple behaviors) |
+| Scope of change impact | Large (propagates to all subclasses) | Small (localized to the change point) |
+| Encapsulation | Broken (protected exposure) | Maintained (internal implementation hidden) |
 
-### 1.4 リスコフの置換原則（LSP）と継承の限界
+### 1.4 Liskov Substitution Principle (LSP) and the Limits of Inheritance
 
 ```
-正方形-長方形問題: LSP違反の典型例
+Square-Rectangle Problem: A classic example of LSP violation
 
-  Rectangle (長方形)
+  Rectangle
     │
-    └── Square (正方形)
+    └── Square
 
-  長方形のコード:
+  Rectangle code:
     rect.setWidth(5)
     rect.setHeight(3)
-    assert rect.area() == 15  // 期待通り
+    assert rect.area() == 15  // Works as expected
 
-  正方形でも動くか？
-    square.setWidth(5)   // → 内部でheightも5に
-    square.setHeight(3)  // → 内部でwidthも3に
-    assert square.area() == 15  // 失敗！ area() = 9
+  Does it work with Square?
+    square.setWidth(5)   // → height is also set to 5 internally
+    square.setHeight(3)  // → width is also set to 3 internally
+    assert square.area() == 15  // Fails! area() = 9
 
-  問題: 正方形は長方形の「振る舞い」を継承できない
-  → is-a 関係が数学的には成立しても、プログラム上は成立しない
+  Problem: Square cannot inherit the "behavior" of Rectangle
+  → Even if the is-a relationship holds mathematically, it does not hold programmatically
 
-  合成による解決:
+  Solution with composition:
     Shape { dimensions: Dimensions }
-    Dimensions は Width×Height / Side など異なる実装
+    Dimensions has different implementations such as Width×Height / Side
 ```
 
 ```python
-# LSP違反の例と修正
+# Example of LSP violation and the fix
 
-# NG: 継承でLSP違反
+# NG: LSP violation with inheritance
 class Rectangle:
     def __init__(self, width: float, height: float):
         self._width = width
@@ -184,21 +187,21 @@ class Rectangle:
     def area(self) -> float:
         return self._width * self._height
 
-class Square(Rectangle):  # LSP違反！
+class Square(Rectangle):  # LSP violation!
     def __init__(self, side: float):
         super().__init__(side, side)
 
     @Rectangle.width.setter
     def width(self, value: float) -> None:
         self._width = value
-        self._height = value  # 幅を変えると高さも変わる
+        self._height = value  # Changing width also changes height
 
     @Rectangle.height.setter
     def height(self, value: float) -> None:
         self._width = value
         self._height = value
 
-# OK: 合成で解決
+# OK: Solved with composition
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
@@ -222,23 +225,23 @@ class Square(Shape):
     def area(self) -> float:
         return self.side ** 2
 
-# Shape のリストに対して area() を安全に呼べる
+# area() can be safely called on a list of Shape
 shapes: list[Shape] = [Rectangle(5, 3), Square(4)]
 total_area = sum(s.area() for s in shapes)  # 15 + 16 = 31
 ```
 
 ---
 
-## 2. 合成ベースのデザインパターン
+## 2. Composition-Based Design Patterns
 
-### 2.1 Strategy パターン
+### 2.1 Strategy Pattern
 
 ```python
-# Strategy パターン: 振る舞いを外部から注入
+# Strategy pattern: inject behavior from outside
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-# === 戦略インターフェース ===
+# === Strategy interface ===
 class SortStrategy(ABC):
     @abstractmethod
     def sort(self, data: list) -> list:
@@ -283,7 +286,7 @@ class MergeSort(SortStrategy):
         return "MergeSort"
 
 class InsertionSort(SortStrategy):
-    """小さなデータセットに最適"""
+    """Best suited for small datasets"""
     def sort(self, data: list) -> list:
         result = list(data)
         for i in range(1, len(result)):
@@ -298,18 +301,18 @@ class InsertionSort(SortStrategy):
     def name(self) -> str:
         return "InsertionSort"
 
-# === 合成: 戦略を持つクラス ===
+# === Composition: a class that holds a strategy ===
 @dataclass
 class DataProcessor:
-    sort_strategy: SortStrategy  # has-a（合成）
+    sort_strategy: SortStrategy  # has-a (composition)
 
     def process(self, data: list) -> list:
-        print(f"  使用アルゴリズム: {self.sort_strategy.name()}")
+        print(f"  Algorithm used: {self.sort_strategy.name()}")
         return self.sort_strategy.sort(data)
 
-# === 実行時に戦略を選択 ===
+# === Choose a strategy at runtime ===
 def choose_strategy(data_size: int) -> SortStrategy:
-    """データサイズに応じて最適な戦略を選択"""
+    """Select the optimal strategy based on data size"""
     if data_size < 50:
         return InsertionSort()
     elif data_size < 10000:
@@ -321,24 +324,24 @@ data = [3, 1, 4, 1, 5, 9, 2, 6]
 strategy = choose_strategy(len(data))
 processor = DataProcessor(sort_strategy=strategy)
 result = processor.process(data)
-print(f"  結果: {result}")
+print(f"  Result: {result}")
 
-# 戦略の切り替えも簡単
+# Switching strategies is also easy
 processor.sort_strategy = MergeSort()
 result2 = processor.process(data)
 ```
 
-### 2.2 Decorator パターン
+### 2.2 Decorator Pattern
 
 ```typescript
-// Decorator パターン: 機能を動的に追加
-// 継承ではなく合成で機能を積み重ねる
+// Decorator pattern: dynamically add functionality
+// Stack up features using composition, not inheritance
 
 interface Logger {
   log(message: string): void;
 }
 
-// === 基本実装 ===
+// === Base implementation ===
 class ConsoleLogger implements Logger {
   log(message: string): void {
     console.log(message);
@@ -354,9 +357,9 @@ class FileLogger implements Logger {
   }
 }
 
-// === デコレータ: タイムスタンプ追加 ===
+// === Decorator: add timestamp ===
 class TimestampDecorator implements Logger {
-  constructor(private inner: Logger) {} // 合成
+  constructor(private inner: Logger) {} // composition
 
   log(message: string): void {
     const timestamp = new Date().toISOString();
@@ -364,7 +367,7 @@ class TimestampDecorator implements Logger {
   }
 }
 
-// === デコレータ: ログレベル追加 ===
+// === Decorator: add log level ===
 class LevelDecorator implements Logger {
   constructor(
     private inner: Logger,
@@ -376,7 +379,7 @@ class LevelDecorator implements Logger {
   }
 }
 
-// === デコレータ: JSON形式変換 ===
+// === Decorator: convert to JSON format ===
 class JsonDecorator implements Logger {
   constructor(private inner: Logger) {}
 
@@ -389,7 +392,7 @@ class JsonDecorator implements Logger {
   }
 }
 
-// === デコレータ: フィルタリング ===
+// === Decorator: filtering ===
 class FilterDecorator implements Logger {
   constructor(
     private inner: Logger,
@@ -404,89 +407,89 @@ class FilterDecorator implements Logger {
   };
 
   log(message: string): void {
-    // ログレベルのフィルタリングロジック
+    // Log level filtering logic
     this.inner.log(message);
   }
 }
 
-// === 使用: デコレータを自由に組み合わせ ===
+// === Usage: freely combine decorators ===
 
-// 組み合わせ1: タイムスタンプ + レベル付きコンソールログ
+// Combination 1: Console log with timestamp + level
 const logger1 = new TimestampDecorator(
   new LevelDecorator(new ConsoleLogger(), "DEBUG")
 );
-logger1.log("テストメッセージ");
-// 出力: [2026-01-15T10:30:00.000Z] [DEBUG] テストメッセージ
+logger1.log("Test message");
+// Output: [2026-01-15T10:30:00.000Z] [DEBUG] Test message
 
-// 組み合わせ2: JSONフォーマットのファイルログ
+// Combination 2: JSON-formatted file log
 const logger2 = new JsonDecorator(new FileLogger("/var/log/app.log"));
-logger2.log("エラー発生");
+logger2.log("Error occurred");
 
-// 組み合わせ3: 本番環境用（タイムスタンプ + JSON）
+// Combination 3: For production (timestamp + JSON)
 const prodLogger = new TimestampDecorator(
   new JsonDecorator(new ConsoleLogger())
 );
 
-// ★ 重要: 継承でこれを実現しようとすると
+// ★ Important: Trying to achieve this with inheritance would require
 // ConsoleLogger, FileLogger × Timestamp, Level, Json, Filter
-// = 2 × 4 = 8 クラスが必要（さらに組み合わせで爆発）
-// 合成なら必要なデコレータを組み合わせるだけ
+// = 2 × 4 = 8 classes (and even more with combinations)
+// With composition, just combine the needed decorators
 ```
 
-### 2.3 委譲（Delegation）パターン
+### 2.3 Delegation Pattern
 
 ```java
-// 委譲パターン: 継承の代わりに内部オブジェクトに処理を委譲
+// Delegation pattern: delegate processing to an inner object instead of inheriting
 
-// === NG: 継承でStackを実装 ===
+// === NG: Implementing Stack with inheritance ===
 // public class Stack<T> extends ArrayList<T> {
-//     // ArrayListの全メソッドが公開されてしまう
-//     // add(index, element)でスタックの規約が破れる
-//     // sort() や set() など不要なメソッドも使える
+//     // All ArrayList methods become public
+//     // Stack invariants can be broken with add(index, element)
+//     // Unnecessary methods like sort() and set() also become available
 // }
 
-// === OK: 合成+委譲でStackを実装 ===
+// === OK: Implement Stack with composition + delegation ===
 public class Stack<T> {
     private final List<T> elements = new ArrayList<>(); // has-a
 
     public void push(T item) {
-        Objects.requireNonNull(item, "null は push できません");
-        elements.add(item);  // 委譲
+        Objects.requireNonNull(item, "Cannot push null");
+        elements.add(item);  // delegation
     }
 
     public T pop() {
         if (elements.isEmpty()) {
             throw new EmptyStackException();
         }
-        return elements.remove(elements.size() - 1);  // 委譲
+        return elements.remove(elements.size() - 1);  // delegation
     }
 
     public T peek() {
         if (elements.isEmpty()) {
             throw new EmptyStackException();
         }
-        return elements.get(elements.size() - 1);  // 委譲
+        return elements.get(elements.size() - 1);  // delegation
     }
 
     public boolean isEmpty() {
-        return elements.isEmpty();  // 委譲
+        return elements.isEmpty();  // delegation
     }
 
     public int size() {
-        return elements.size();  // 委譲
+        return elements.size();  // delegation
     }
 
-    // ArrayListのadd(index)やsort()は公開されない
-    // → スタックの不変条件が保証される
+    // ArrayList's add(index) and sort() are not exposed
+    // → The invariants of the stack are guaranteed
 }
 
-// === 実用例: ドメインオブジェクトのコレクション ===
+// === Practical example: a collection of domain objects ===
 public class OrderList {
     private final List<Order> orders = new ArrayList<>();
 
     public void place(Order order) {
         if (!order.isValid()) {
-            throw new IllegalArgumentException("不正な注文");
+            throw new IllegalArgumentException("Invalid order");
         }
         orders.add(order);
     }
@@ -494,7 +497,7 @@ public class OrderList {
     public List<Order> findByStatus(OrderStatus status) {
         return orders.stream()
             .filter(o -> o.getStatus() == status)
-            .toList(); // 不変リストを返す
+            .toList(); // returns an immutable list
     }
 
     public int totalAmount() {
@@ -503,20 +506,20 @@ public class OrderList {
             .sum();
     }
 
-    // List の remove(), set(), sort() は公開しない
-    // → ビジネスルールに沿った操作のみ許可
+    // List's remove(), set(), sort() are not exposed
+    // → Only operations consistent with business rules are allowed
 }
 ```
 
-### 2.4 合成による依存性注入（DI）
+### 2.4 Dependency Injection (DI) with Composition
 
 ```python
-# 合成 + DI: テスト容易で柔軟な設計
+# Composition + DI: a design that is easy to test and flexible
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Protocol
 
-# === ポートの定義（インターフェース） ===
+# === Port definitions (interfaces) ===
 class UserRepository(Protocol):
     def find_by_id(self, user_id: str) -> dict | None: ...
     def save(self, user: dict) -> None: ...
@@ -528,17 +531,17 @@ class Logger(Protocol):
     def info(self, message: str) -> None: ...
     def error(self, message: str) -> None: ...
 
-# === アダプタの実装 ===
+# === Adapter implementations ===
 class PostgresUserRepository:
     def __init__(self, connection_string: str):
         self.conn_str = connection_string
 
     def find_by_id(self, user_id: str) -> dict | None:
-        # 実際のDB操作
-        return {"id": user_id, "name": "テスト", "email": "test@example.com"}
+        # Actual DB operation
+        return {"id": user_id, "name": "Test", "email": "test@example.com"}
 
     def save(self, user: dict) -> None:
-        # 実際のDB操作
+        # Actual DB operation
         pass
 
 class SmtpEmailSender:
@@ -547,7 +550,7 @@ class SmtpEmailSender:
         self.port = port
 
     def send(self, to: str, subject: str, body: str) -> bool:
-        # 実際のメール送信
+        # Actual email sending
         return True
 
 class ConsoleLogger:
@@ -557,37 +560,37 @@ class ConsoleLogger:
     def error(self, message: str) -> None:
         print(f"[ERROR] {message}")
 
-# === サービス: 合成で依存を注入 ===
+# === Service: inject dependencies via composition ===
 @dataclass
 class UserService:
-    """ユーザーサービス（合成で依存を持つ）"""
+    """User service (holds dependencies via composition)"""
     repository: UserRepository    # has-a
     email_sender: EmailSender     # has-a
     logger: Logger                # has-a
 
     def register(self, name: str, email: str) -> dict:
-        self.logger.info(f"ユーザー登録開始: {name}")
+        self.logger.info(f"Starting user registration: {name}")
 
         user = {"id": f"user-{hash(email)}", "name": name, "email": email}
         self.repository.save(user)
 
         self.email_sender.send(
             to=email,
-            subject="登録完了",
-            body=f"{name}さん、登録ありがとうございます。"
+            subject="Registration Complete",
+            body=f"Thank you for registering, {name}."
         )
 
-        self.logger.info(f"ユーザー登録完了: {user['id']}")
+        self.logger.info(f"User registration complete: {user['id']}")
         return user
 
-# === 本番環境 ===
+# === Production environment ===
 prod_service = UserService(
     repository=PostgresUserRepository("postgresql://localhost/mydb"),
     email_sender=SmtpEmailSender("smtp.example.com", 587),
     logger=ConsoleLogger(),
 )
 
-# === テスト用: モックを注入 ===
+# === For testing: inject mocks ===
 class MockUserRepository:
     def __init__(self):
         self.saved_users = []
@@ -610,7 +613,7 @@ class NullLogger:
     def info(self, message: str) -> None: pass
     def error(self, message: str) -> None: pass
 
-# テスト
+# Test
 mock_repo = MockUserRepository()
 mock_email = MockEmailSender()
 test_service = UserService(
@@ -619,7 +622,7 @@ test_service = UserService(
     logger=NullLogger(),
 )
 
-user = test_service.register("田中", "tanaka@example.com")
+user = test_service.register("Tanaka", "tanaka@example.com")
 assert len(mock_repo.saved_users) == 1
 assert len(mock_email.sent_emails) == 1
 assert mock_email.sent_emails[0]["to"] == "tanaka@example.com"
@@ -627,40 +630,40 @@ assert mock_email.sent_emails[0]["to"] == "tanaka@example.com"
 
 ---
 
-## 3. 合成パターン一覧と比較
+## 3. Composition Pattern Reference and Comparison
 
-### 3.1 パターン比較表
+### 3.1 Pattern Comparison Table
 
-| パターン | 目的 | 構造 | 使用場面 |
+| Pattern | Purpose | Structure | Use Cases |
 |---------|------|------|---------|
-| Strategy | 振る舞いの切替 | コンテキスト has-a 戦略 | アルゴリズム選択 |
-| Decorator | 機能の動的追加 | デコレータ has-a コンポーネント | ミドルウェア、ログ |
-| Delegate | 実装の委譲 | ラッパー has-a 被委譲 | APIの制限公開 |
-| Observer | イベント通知 | サブジェクト has-a オブザーバ群 | イベント駆動 |
-| Composite | ツリー構造 | ノード has-a 子ノード群 | UI、ファイルシステム |
-| State | 状態遷移 | コンテキスト has-a 状態 | ステートマシン |
-| Bridge | 抽象と実装の分離 | 抽象 has-a 実装 | クロスプラットフォーム |
-| Adapter | インターフェース変換 | アダプタ has-a 被適応者 | レガシー統合 |
+| Strategy | Switch behavior | Context has-a strategy | Algorithm selection |
+| Decorator | Dynamically add features | Decorator has-a component | Middleware, logging |
+| Delegate | Delegate implementation | Wrapper has-a delegate | Restricted API exposure |
+| Observer | Event notification | Subject has-a observers | Event-driven |
+| Composite | Tree structure | Node has-a child nodes | UI, file systems |
+| State | State transitions | Context has-a state | State machines |
+| Bridge | Separate abstraction and implementation | Abstraction has-a implementation | Cross-platform |
+| Adapter | Interface conversion | Adapter has-a adaptee | Legacy integration |
 
-### 3.2 合成の実現手法比較
+### 3.2 Comparison of Composition Approaches
 
-| 手法 | 言語 | 特徴 | 適用場面 |
+| Approach | Language | Characteristics | Use Cases |
 |------|------|------|---------|
-| インターフェース + DI | Java, TypeScript | 最も型安全 | 大規模システム |
-| Protocol | Python | ダックタイピング | Python全般 |
-| Trait | Rust, Scala | ゼロコスト抽象 | パフォーマンス重視 |
-| Mixin | TypeScript, Python | 手軽に機能追加 | 小規模な機能追加 |
-| Higher-Order Function | 全言語 | 最も軽量 | 関数レベルの合成 |
-| Interface embedding | Go | 暗黙のインターフェース | Go全般 |
+| Interface + DI | Java, TypeScript | Most type-safe | Large-scale systems |
+| Protocol | Python | Duck typing | General Python |
+| Trait | Rust, Scala | Zero-cost abstraction | Performance-critical |
+| Mixin | TypeScript, Python | Easy feature addition | Small feature additions |
+| Higher-Order Function | All languages | Most lightweight | Function-level composition |
+| Interface embedding | Go | Implicit interfaces | General Go |
 
-### 3.3 Mixin/Trait パターン（多重合成）
+### 3.3 Mixin/Trait Pattern (Multiple Composition)
 
 ```typescript
-// TypeScript: Mixinで合成的に機能を追加
+// TypeScript: Add features compositionally with Mixins
 
 type Constructor<T = {}> = new (...args: any[]) => T;
 
-// === Mixin: シリアライズ機能 ===
+// === Mixin: Serialization feature ===
 function Serializable<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
     serialize(): string {
@@ -673,7 +676,7 @@ function Serializable<TBase extends Constructor>(Base: TBase) {
   };
 }
 
-// === Mixin: バリデーション機能 ===
+// === Mixin: Validation feature ===
 function Validatable<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
     private validationErrors: string[] = [];
@@ -693,7 +696,7 @@ function Validatable<TBase extends Constructor>(Base: TBase) {
   };
 }
 
-// === Mixin: 監査ログ機能 ===
+// === Mixin: Audit log feature ===
 function Auditable<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
     createdAt: Date = new Date();
@@ -713,7 +716,7 @@ function Auditable<TBase extends Constructor>(Base: TBase) {
   };
 }
 
-// === Mixin: イベント発行機能 ===
+// === Mixin: Event emitting feature ===
 function EventEmittable<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
     private listeners: Map<string, Function[]> = new Map();
@@ -730,12 +733,12 @@ function EventEmittable<TBase extends Constructor>(Base: TBase) {
   };
 }
 
-// === 基底クラス ===
+// === Base class ===
 class BaseEntity {
   constructor(public id: string) {}
 }
 
-// === 合成: 必要な機能を組み合わせる ===
+// === Composition: combine the needed features ===
 class User extends Auditable(
   Validatable(Serializable(EventEmittable(BaseEntity)))
 ) {
@@ -744,19 +747,19 @@ class User extends Auditable(
   }
 }
 
-const user = new User("1", "田中", "tanaka@example.com");
+const user = new User("1", "Tanaka", "tanaka@example.com");
 user.markCreated("admin");
-user.on("updated", () => console.log("ユーザーが更新されました"));
+user.on("updated", () => console.log("User was updated"));
 const json = user.serialize();
 console.log(user.validate());
 ```
 
-### 3.4 Rust Trait による合成
+### 3.4 Composition with Rust Traits
 
 ```rust
-// Rust: Traitによるゼロコスト合成
+// Rust: Zero-cost composition with Traits
 
-// Traitの定義（インターフェース相当）
+// Trait definitions (equivalent to interfaces)
 trait Drawable {
     fn draw(&self);
     fn bounding_box(&self) -> (f64, f64, f64, f64);
@@ -771,7 +774,7 @@ trait Serializable {
     fn deserialize(data: &str) -> Self where Self: Sized;
 }
 
-// 構造体がTraitを実装（継承ではなく合成的）
+// Struct implements Traits (compositional, not inheritance)
 struct Circle {
     x: f64,
     y: f64,
@@ -814,14 +817,14 @@ impl Serializable for Circle {
     }
 }
 
-// Trait境界で複数のTraitを要求（合成的な型制約）
+// Trait bounds require multiple Traits (compositional type constraints)
 fn save_drawable<T: Drawable + Serializable>(item: &T) {
     item.draw();
     let data = item.serialize();
     println!("Saved: {}", data);
 }
 
-// Trait Object で動的ディスパッチ（多態性）
+// Trait Objects for dynamic dispatch (polymorphism)
 fn draw_all(items: &[Box<dyn Drawable>]) {
     for item in items {
         item.draw();
@@ -829,12 +832,12 @@ fn draw_all(items: &[Box<dyn Drawable>]) {
 }
 ```
 
-### 3.5 Go Interface Embedding（合成的インターフェース）
+### 3.5 Go Interface Embedding (Compositional Interfaces)
 
 ```go
-// Go: 暗黙的インターフェースと構造体埋め込みによる合成
+// Go: Composition via implicit interfaces and struct embedding
 
-// 小さなインターフェースを定義
+// Define small interfaces
 type Reader interface {
     Read(p []byte) (n int, err error)
 }
@@ -847,7 +850,7 @@ type Closer interface {
     Close() error
 }
 
-// インターフェースの合成（埋め込み）
+// Interface composition (embedding)
 type ReadWriter interface {
     Reader
     Writer
@@ -859,7 +862,7 @@ type ReadWriteCloser interface {
     Closer
 }
 
-// 構造体の合成（埋め込み）
+// Struct composition (embedding)
 type Logger struct {
     prefix string
 }
@@ -877,10 +880,10 @@ func (v *Validator) Validate(data string) error {
     return nil
 }
 
-// 合成: 埋め込みで機能を組み合わせる
+// Composition: combine features via embedding
 type UserService struct {
-    Logger     // 埋め込み: UserService.Log() が使える
-    Validator  // 埋め込み: UserService.Validate() が使える
+    Logger     // Embedded: UserService.Log() is available
+    Validator  // Embedded: UserService.Validate() is available
     repo UserRepository
 }
 
@@ -904,32 +907,32 @@ func (s *UserService) Create(name string) error {
 
 ---
 
-## 4. 継承から合成へのリファクタリング
+## 4. Refactoring from Inheritance to Composition
 
-### 4.1 リファクタリング手順
+### 4.1 Refactoring Steps
 
 ```
-Step 1: 継承階層を分析
-──────────────────────
+Step 1: Analyze the inheritance hierarchy
+──────────────────────────────────────────
   Base
    ├── ChildA (override: methodX, methodY)
    ├── ChildB (override: methodX, methodZ)
    └── ChildC (override: methodY, methodZ)
 
-Step 2: 振る舞いの軸を特定
-──────────────────────────
-  methodX の振る舞い → BehaviorX インターフェース
-  methodY の振る舞い → BehaviorY インターフェース
-  methodZ の振る舞い → BehaviorZ インターフェース
+Step 2: Identify axes of behavior
+──────────────────────────────────────────
+  behavior of methodX → BehaviorX interface
+  behavior of methodY → BehaviorY interface
+  behavior of methodZ → BehaviorZ interface
 
-Step 3: インターフェースと実装を抽出
-──────────────────────────────────
+Step 3: Extract interfaces and implementations
+──────────────────────────────────────────────
   interface BehaviorX { doX(); }
   class BehaviorXImpl1 implements BehaviorX { ... }
   class BehaviorXImpl2 implements BehaviorX { ... }
 
-Step 4: 合成に書き換え
-─────────────────────
+Step 4: Rewrite with composition
+─────────────────────────────────
   class Entity:
       behaviorX: BehaviorX
       behaviorY: BehaviorY
@@ -939,42 +942,42 @@ Step 4: 合成に書き換え
   entityB = Entity(BehaviorXImpl1, default, BehaviorZImpl1)
   entityC = Entity(default, BehaviorYImpl1, BehaviorZImpl1)
 
-Step 5: ファクトリで構成を管理
-──────────────────────────────
-  EntityFactory.createTypeA() → 適切な組み合わせを返す
+Step 5: Manage configurations with factories
+──────────────────────────────────────────────
+  EntityFactory.createTypeA() → returns the appropriate combination
 ```
 
-### 4.2 具体例：通知システムのリファクタリング
+### 4.2 Concrete Example: Refactoring a Notification System
 
 ```python
-# Before: 継承ベースの通知システム（問題あり）
+# Before: Inheritance-based notification system (problematic)
 
 # class Notification:
 #     def send(self, message): ...
 #     def format(self, message): return message
 #
 # class EmailNotification(Notification):
-#     def send(self, message): ...    # メール送信
-#     def format(self, message): ...  # HTML形式
+#     def send(self, message): ...    # Send email
+#     def format(self, message): ...  # HTML format
 #
 # class SlackNotification(Notification):
-#     def send(self, message): ...    # Slack送信
-#     def format(self, message): ...  # Markdown形式
+#     def send(self, message): ...    # Send to Slack
+#     def format(self, message): ...  # Markdown format
 #
 # class UrgentEmailNotification(EmailNotification):
-#     def format(self, message): ...  # HTML + 赤文字
+#     def format(self, message): ...  # HTML + red text
 #
 # class UrgentSlackNotification(SlackNotification):
 #     def format(self, message): ...  # Markdown + :alert:
 #
-# → 配送方法 × フォーマット × 緊急度で組み合わせ爆発！
-# → 3配送 × 3フォーマット × 3緊急度 = 27クラスが必要
+# → Combinatorial explosion with delivery method × format × urgency!
+# → 3 deliveries × 3 formats × 3 urgency levels = 27 classes needed
 
-# After: 合成ベースのリファクタリング
+# After: Composition-based refactoring
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-# === 配送戦略 ===
+# === Delivery strategy ===
 class DeliveryChannel(ABC):
     @abstractmethod
     def deliver(self, formatted_message: str, recipient: str) -> bool:
@@ -1011,7 +1014,7 @@ class SMSChannel(DeliveryChannel):
     def channel_name(self) -> str:
         return "SMS"
 
-# === フォーマット戦略 ===
+# === Format strategy ===
 class Formatter(ABC):
     @abstractmethod
     def format(self, message: str) -> str:
@@ -1029,16 +1032,16 @@ class MarkdownFormatter(Formatter):
     def format(self, message: str) -> str:
         return f"**{message}**"
 
-# === 緊急度デコレータ（合成） ===
+# === Urgency decorator (composition) ===
 class UrgencyDecorator(Formatter):
-    def __init__(self, inner: Formatter, prefix: str = "[緊急]"):
+    def __init__(self, inner: Formatter, prefix: str = "[URGENT]"):
         self.inner = inner
         self.prefix = prefix
 
     def format(self, message: str) -> str:
         return self.inner.format(f"{self.prefix} {message}")
 
-# === 合成: 自由に組み合わせ可能 ===
+# === Composition: freely combinable ===
 @dataclass
 class NotificationService:
     channel: DeliveryChannel
@@ -1048,7 +1051,7 @@ class NotificationService:
         formatted = self.formatter.format(message)
         return self.channel.deliver(formatted, recipient)
 
-# 使用例: 3コンポーネント × 3組み合わせ = 合計6クラスで全組み合わせ対応
+# Usage: 3 components × 3 combinations = 6 classes cover all combinations
 normal_email = NotificationService(EmailChannel(), HTMLFormatter())
 urgent_slack = NotificationService(
     SlackChannel(),
@@ -1056,116 +1059,116 @@ urgent_slack = NotificationService(
 )
 urgent_sms = NotificationService(
     SMSChannel(),
-    UrgencyDecorator(PlainFormatter(), prefix="[至急]")
+    UrgencyDecorator(PlainFormatter(), prefix="[CRITICAL]")
 )
 
-normal_email.send("会議のお知らせ", "tanaka@example.com")
-urgent_slack.send("サーバーダウン", "#alerts")
-urgent_sms.send("緊急メンテナンス", "+81-90-XXXX-XXXX")
+normal_email.send("Meeting announcement", "tanaka@example.com")
+urgent_slack.send("Server down", "#alerts")
+urgent_sms.send("Emergency maintenance", "+1-555-XXXX-XXXX")
 ```
 
-### 4.3 段階的リファクタリングのガイドライン
+### 4.3 Guidelines for Incremental Refactoring
 
 ```
-リファクタリング判断フロー:
+Refactoring decision flow:
 
-  継承階層を発見
+  Discover an inheritance hierarchy
        │
        ▼
-  Q1: 階層は3段以内か？
-       │
-    Yes │ No
-       │  └──→ 合成にリファクタリング（優先度: 高）
-       ▼
-  Q2: 組み合わせ爆発が起きていないか？
-       │
-    No  │ Yes
-       │  └──→ Bridge/Strategyパターンに分解（優先度: 高）
-       ▼
-  Q3: 基底クラスの変更で子クラスが壊れたことがあるか？
-       │
-    No  │ Yes
-       │  └──→ 委譲パターンに書き換え（優先度: 中）
-       ▼
-  Q4: LSPを満たしているか？
+  Q1: Is the hierarchy 3 levels or fewer?
        │
     Yes │ No
-       │  └──→ インターフェース + 合成に変更（優先度: 中）
+       │  └──→ Refactor to composition (Priority: High)
        ▼
-  現状維持（継承が適切な場合）
+  Q2: Is there a combinatorial explosion?
+       │
+    No  │ Yes
+       │  └──→ Decompose with Bridge/Strategy pattern (Priority: High)
+       ▼
+  Q3: Has a change to the base class ever broken subclasses?
+       │
+    No  │ Yes
+       │  └──→ Rewrite with delegation pattern (Priority: Medium)
+       ▼
+  Q4: Does it satisfy LSP?
+       │
+    Yes │ No
+       │  └──→ Change to interface + composition (Priority: Medium)
+       ▼
+  Keep as-is (inheritance is appropriate)
 ```
 
 ---
 
-## 5. 継承が適切な場合
+## 5. When Inheritance Is Appropriate
 
-### 5.1 継承を使うべき場面
+### 5.1 Cases Where Inheritance Should Be Used
 
 ```
-継承が適切なケース:
-──────────────────
+Appropriate cases for inheritance:
+──────────────────────────────────
 
-1. 真の is-a 関係（リスコフの置換原則を満たす）
+1. A true is-a relationship (satisfies the Liskov Substitution Principle)
    - IOException is-a Exception ← OK
    - ArrayList is-a List ← OK
    - HttpServletRequest is-a ServletRequest ← OK
 
-2. フレームワークが継承を要求する場合
+2. When a framework requires inheritance
    - Android Activity / Fragment
    - Django View / ModelAdmin
-   - JUnit TestCase（レガシー）
+   - JUnit TestCase (legacy)
 
-3. テンプレートメソッドパターン
-   - アルゴリズムの骨格は固定、詳細をオーバーライド
-   - AbstractList の get(index) / size() のみオーバーライド
+3. Template Method pattern
+   - The algorithm skeleton is fixed; details are overridden
+   - Override only get(index) / size() in AbstractList
 
-4. 共通の状態と振る舞いが密接に関連する場合
-   - GUI ウィジェット階層（Button is-a Widget）
+4. When common state and behavior are closely related
+   - GUI widget hierarchy (Button is-a Widget)
 
-判断基準:
-  □ 子クラスは親クラスの完全な代替になるか？ (LSP)
-  □ 継承階層は3段以下か？
-  □ 将来の拡張で組み合わせ爆発が起きないか？
-  □ 親クラスの変更が子クラスを壊さないか？
-  □ 子クラスが親クラスの全メソッドを意味的に持つべきか？
+Decision criteria:
+  □ Can the subclass be a complete substitute for the parent class? (LSP)
+  □ Is the inheritance hierarchy 3 levels or fewer?
+  □ Will future extensions cause a combinatorial explosion?
+  □ Will changes to the parent class not break subclasses?
+  □ Should the subclass meaningfully have all methods of the parent class?
 
-  1つでも No → 合成を検討
+  If any answer is No → Consider composition
 ```
 
-### 5.2 テンプレートメソッドパターン（適切な継承の例）
+### 5.2 Template Method Pattern (An Example of Appropriate Inheritance)
 
 ```python
-# テンプレートメソッドパターン: 継承が適切な場面
+# Template Method pattern: a case where inheritance is appropriate
 
 from abc import ABC, abstractmethod
 
 class DataExporter(ABC):
-    """データエクスポートの骨格（テンプレートメソッド）"""
+    """Skeleton for data export (template method)"""
 
     def export(self, data: list[dict]) -> str:
-        """エクスポートの手順は固定（テンプレート）"""
-        # Step 1: ヘッダーを書く
+        """The export procedure is fixed (template)"""
+        # Step 1: Write header
         result = self.write_header()
-        # Step 2: 各レコードを書く
+        # Step 2: Write each record
         for record in data:
             result += self.write_record(record)
-        # Step 3: フッターを書く
+        # Step 3: Write footer
         result += self.write_footer()
         return result
 
     @abstractmethod
     def write_header(self) -> str:
-        """サブクラスでフォーマット固有のヘッダーを実装"""
+        """Subclasses implement format-specific headers"""
         pass
 
     @abstractmethod
     def write_record(self, record: dict) -> str:
-        """サブクラスでフォーマット固有のレコード出力を実装"""
+        """Subclasses implement format-specific record output"""
         pass
 
     @abstractmethod
     def write_footer(self) -> str:
-        """サブクラスでフォーマット固有のフッターを実装"""
+        """Subclasses implement format-specific footers"""
         pass
 
 class CsvExporter(DataExporter):
@@ -1195,10 +1198,10 @@ class JsonExporter(DataExporter):
     def write_footer(self) -> str:
         return "\n]"
 
-# 使用
+# Usage
 data = [
-    {"id": "1", "name": "田中", "email": "tanaka@example.com"},
-    {"id": "2", "name": "鈴木", "email": "suzuki@example.com"},
+    {"id": "1", "name": "Tanaka", "email": "tanaka@example.com"},
+    {"id": "2", "name": "Suzuki", "email": "suzuki@example.com"},
 ]
 
 csv_result = CsvExporter().export(data)
@@ -1209,12 +1212,12 @@ print(json_result)
 
 ---
 
-## 6. アンチパターン
+## 6. Anti-Patterns
 
-### 6.1 アンチパターン：ゴッド継承階層
+### 6.1 Anti-Pattern: God Inheritance Hierarchy
 
 ```
-NG: 過度に深い継承階層
+NG: Excessively deep inheritance hierarchy
   Component
    └── VisualComponent
         └── InteractiveComponent
@@ -1223,40 +1226,40 @@ NG: 過度に深い継承階層
                        └── TextInputComponent
                             └── SearchInputComponent
                                  └── AutoCompleteSearchInput
-                                      └── ... (まだ続く)
+                                      └── ... (continues further)
 
-問題:
-- 1つの変更が8段以上に波及
-- 「あの機能はどの階層にあるか」が不明
-- テスト時にモックすべき階層が多すぎる
-- 新しい種類の入力を追加するのに全階層を理解する必要がある
+Problems:
+- A single change propagates through 8+ levels
+- It is unclear "which level has which feature"
+- Too many levels need to be mocked during testing
+- Adding a new type of input requires understanding all levels
 
-OK: フラットな合成構造
+OK: Flat composition structure
   SearchInput:
-    - renderer: AutoCompleteRenderer  // 見た目
-    - validator: SearchValidator      // 検証
-    - formatter: SearchFormatter      // フォーマット
-    - behavior: SearchBehavior        // 振る舞い
-    - accessiblity: AriaProps         // アクセシビリティ
+    - renderer: AutoCompleteRenderer  // appearance
+    - validator: SearchValidator      // validation
+    - formatter: SearchFormatter      // formatting
+    - behavior: SearchBehavior        // behavior
+    - accessiblity: AriaProps         // accessibility
 ```
 
-### 6.2 アンチパターン：継承による横断的関心事の実装
+### 6.2 Anti-Pattern: Implementing Cross-Cutting Concerns with Inheritance
 
 ```java
-// NG: ログ機能を継承で追加
+// NG: Adding logging via inheritance
 class LoggableService extends BaseService {
     @Override
     public void execute() {
-        log("開始");
+        log("Start");
         super.execute();
-        log("終了");
+        log("End");
     }
 }
-// → 全サービスがLoggableServiceを継承？
-// → キャッシュも追加したい → CachingLoggableService？
-// → 認証も → AuthCachingLoggableService？ → 組み合わせ爆発
+// → Should all services extend LoggableService?
+// → Want to add caching too → CachingLoggableService?
+// → And auth → AuthCachingLoggableService? → Combinatorial explosion
 
-// OK: デコレータ/アスペクトで合成的に追加
+// OK: Add compositionally with decorator/aspect
 class LoggingDecorator implements Service {
     private final Service inner;
     private final Logger logger;
@@ -1268,12 +1271,12 @@ class LoggingDecorator implements Service {
 
     @Override
     public void execute() {
-        logger.info("開始: " + inner.getClass().getSimpleName());
+        logger.info("Start: " + inner.getClass().getSimpleName());
         try {
             inner.execute();
-            logger.info("完了");
+            logger.info("Complete");
         } catch (Exception e) {
-            logger.error("失敗: " + e.getMessage());
+            logger.error("Failed: " + e.getMessage());
             throw e;
         }
     }
@@ -1316,7 +1319,7 @@ class AuthDecorator implements Service {
     }
 }
 
-// 自由に組み合わせ
+// Freely composable
 Service service = new AuthDecorator(
     new LoggingDecorator(
         new CachingDecorator(
@@ -1329,10 +1332,10 @@ Service service = new AuthDecorator(
 );
 ```
 
-### 6.3 アンチパターン：不要な抽象基底クラス
+### 6.3 Anti-Pattern: Unnecessary Abstract Base Classes
 
 ```python
-# NG: 1つしか子クラスがないのに抽象クラスを作る
+# NG: Creating an abstract class when there is only one subclass
 class AbstractUserRepository(ABC):
     @abstractmethod
     def find_by_id(self, user_id: str) -> User: ...
@@ -1340,50 +1343,50 @@ class AbstractUserRepository(ABC):
     def save(self, user: User) -> None: ...
 
 class PostgresUserRepository(AbstractUserRepository):
-    # 唯一の実装
+    # The only implementation
     def find_by_id(self, user_id: str) -> User: ...
     def save(self, user: User) -> None: ...
 
-# → YAGNI（You Ain't Gonna Need It）違反
-# → 2つ目の実装が必要になった時に抽象化すればよい
+# → Violates YAGNI (You Ain't Gonna Need It)
+# → Abstract only when a second implementation is needed
 
-# OK: まずは具体クラスで十分
+# OK: A concrete class is sufficient to start
 class UserRepository:
     def find_by_id(self, user_id: str) -> User: ...
     def save(self, user: User) -> None: ...
 
-# Python では Protocol で後からインターフェースを定義できる
+# In Python, you can define an interface after the fact using Protocol
 # class UserRepositoryProtocol(Protocol):
 #     def find_by_id(self, user_id: str) -> User: ...
 #     def save(self, user: User) -> None: ...
-# → 既存のクラスを変更せずにインターフェースを満たせる
+# → Existing classes can satisfy the interface without modification
 ```
 
 ---
 
-## 7. 実践演習
+## 7. Practical Exercises
 
-### 演習1（基礎）: 決済システムの合成設計
+### Exercise 1 (Basic): Composition Design for a Payment System
 
-**課題**: 以下の要件を満たす決済システムをPythonで合成ベースに設計してください。
+**Task**: Design a payment system in Python using composition that satisfies the following requirements.
 
 ```python
-# 要件:
-# 1. 決済手段: CreditCard, BankTransfer, PayPay の3種
-# 2. 通知手段: Email, SMS の2種
-# 3. ログ: Console, File の2種
-# 4. PaymentService は決済手段・通知手段・ログを合成で受け取る
-# 5. process_payment(amount, user) メソッドを実装
-# 6. 全ての組み合わせをクラス爆発なしに実現する
+# Requirements:
+# 1. Payment methods: 3 types — CreditCard, BankTransfer, PayPay
+# 2. Notification methods: 2 types — Email, SMS
+# 3. Logging: 2 types — Console, File
+# 4. PaymentService receives payment method, notification method, and logger via composition
+# 5. Implement a process_payment(amount, user) method
+# 6. Realize all combinations without class explosion
 ```
 
-**期待される実装**:
+**Expected Implementation**:
 
 ```python
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-# === 決済手段インターフェース ===
+# === Payment method interface ===
 class PaymentMethod(ABC):
     @abstractmethod
     def charge(self, amount: int, user_id: str) -> bool:
@@ -1395,7 +1398,7 @@ class PaymentMethod(ABC):
 
 class CreditCard(PaymentMethod):
     def charge(self, amount: int, user_id: str) -> bool:
-        print(f"  クレジットカード決済: {amount}円 (user: {user_id})")
+        print(f"  Credit card payment: {amount} yen (user: {user_id})")
         return True
 
     def name(self) -> str:
@@ -1403,7 +1406,7 @@ class CreditCard(PaymentMethod):
 
 class BankTransfer(PaymentMethod):
     def charge(self, amount: int, user_id: str) -> bool:
-        print(f"  銀行振込: {amount}円 (user: {user_id})")
+        print(f"  Bank transfer: {amount} yen (user: {user_id})")
         return True
 
     def name(self) -> str:
@@ -1411,13 +1414,13 @@ class BankTransfer(PaymentMethod):
 
 class PayPay(PaymentMethod):
     def charge(self, amount: int, user_id: str) -> bool:
-        print(f"  PayPay決済: {amount}円 (user: {user_id})")
+        print(f"  PayPay payment: {amount} yen (user: {user_id})")
         return True
 
     def name(self) -> str:
         return "PayPay"
 
-# === 通知インターフェース ===
+# === Notification interface ===
 class Notifier(ABC):
     @abstractmethod
     def notify(self, user_id: str, message: str) -> None:
@@ -1425,13 +1428,13 @@ class Notifier(ABC):
 
 class EmailNotifier(Notifier):
     def notify(self, user_id: str, message: str) -> None:
-        print(f"  Email通知 -> {user_id}: {message}")
+        print(f"  Email notification -> {user_id}: {message}")
 
 class SMSNotifier(Notifier):
     def notify(self, user_id: str, message: str) -> None:
-        print(f"  SMS通知 -> {user_id}: {message}")
+        print(f"  SMS notification -> {user_id}: {message}")
 
-# === ログインターフェース ===
+# === Logger interface ===
 class PaymentLogger(ABC):
     @abstractmethod
     def log(self, message: str) -> None:
@@ -1448,7 +1451,7 @@ class FilePaymentLogger(PaymentLogger):
     def log(self, message: str) -> None:
         print(f"  [FILE:{self.path}] {message}")
 
-# === 合成: PaymentService ===
+# === Composition: PaymentService ===
 @dataclass
 class PaymentService:
     payment_method: PaymentMethod
@@ -1457,62 +1460,62 @@ class PaymentService:
 
     def process_payment(self, amount: int, user_id: str) -> bool:
         self.logger.log(
-            f"決済開始: {self.payment_method.name()} {amount}円 user={user_id}"
+            f"Payment start: {self.payment_method.name()} {amount} yen user={user_id}"
         )
         success = self.payment_method.charge(amount, user_id)
         if success:
-            self.notifier.notify(user_id, f"決済完了: {amount}円")
-            self.logger.log("決済成功")
+            self.notifier.notify(user_id, f"Payment complete: {amount} yen")
+            self.logger.log("Payment succeeded")
         else:
-            self.logger.log("決済失敗")
+            self.logger.log("Payment failed")
         return success
 
-# === テスト ===
-# 組み合わせ1: クレカ + Email + コンソールログ
+# === Test ===
+# Combination 1: Credit card + Email + Console log
 service1 = PaymentService(CreditCard(), EmailNotifier(), ConsolePaymentLogger())
 service1.process_payment(5000, "user-001")
 
 print()
 
-# 組み合わせ2: PayPay + SMS + ファイルログ
+# Combination 2: PayPay + SMS + File log
 service2 = PaymentService(PayPay(), SMSNotifier(), FilePaymentLogger())
 service2.process_payment(1200, "user-002")
 
-# 3手段 × 2通知 × 2ログ = 12通りの組み合わせが6クラスで実現
-print("\n全テスト通過！")
+# 3 methods × 2 notifications × 2 logs = 12 combinations achieved with 6 classes
+print("\nAll tests passed!")
 ```
 
-**期待される出力**:
+**Expected Output**:
 ```
-  [LOG] 決済開始: CreditCard 5000円 user=user-001
-  クレジットカード決済: 5000円 (user: user-001)
-  Email通知 -> user-001: 決済完了: 5000円
-  [LOG] 決済成功
+  [LOG] Payment start: CreditCard 5000 yen user=user-001
+  Credit card payment: 5000 yen (user: user-001)
+  Email notification -> user-001: Payment complete: 5000 yen
+  [LOG] Payment succeeded
 
-  [FILE:payment.log] 決済開始: PayPay 1200円 user=user-002
-  PayPay決済: 1200円 (user: user-002)
-  SMS通知 -> user-002: 決済完了: 1200円
-  [FILE:payment.log] 決済成功
+  [FILE:payment.log] Payment start: PayPay 1200 yen user=user-002
+  PayPay payment: 1200 yen (user: user-002)
+  SMS notification -> user-002: Payment complete: 1200 yen
+  [FILE:payment.log] Payment succeeded
 
-全テスト通過！
+All tests passed!
 ```
 
 ---
 
-### 演習2（応用）: ミドルウェアパイプラインの合成
+### Exercise 2 (Intermediate): Composing a Middleware Pipeline
 
-**課題**: TypeScriptでHTTPミドルウェアをデコレータパターンで合成するシステムを実装してください。
+**Task**: Implement a system in TypeScript that composes HTTP middleware using the Decorator pattern.
 
 ```typescript
-// 要件:
-// 1. Handler インターフェース: handle(request) => response
-// 2. LoggingMiddleware: リクエスト/レスポンスをログ出力
-// 3. AuthMiddleware: Authorizationヘッダーを検証
-// 4. RateLimitMiddleware: レート制限チェック
-// 5. ミドルウェアを任意の順序で組み合わせ可能
+// Requirements:
+// 1. Handler interface: handle(request) => response
+// 2. LoggingMiddleware: log requests/responses
+// 3. AuthMiddleware: validate the Authorization header
+// 4. RateLimitMiddleware: check rate limits
+// 5. Middleware can be composed in any order
 ```
 
-**期待される実装**:
+**Expected Implementation**:
 
 ```typescript
 interface Request {
@@ -1531,14 +1534,14 @@ interface Handler {
   handle(request: Request): Response;
 }
 
-// === 実際のハンドラ ===
+// === Actual handler ===
 class UserHandler implements Handler {
   handle(request: Request): Response {
-    return { status: 200, body: JSON.stringify({ user: "田中" }) };
+    return { status: 200, body: JSON.stringify({ user: "Tanaka" }) };
   }
 }
 
-// === ミドルウェア（デコレータ） ===
+// === Middleware (decorators) ===
 class LoggingMiddleware implements Handler {
   constructor(private inner: Handler) {}
 
@@ -1586,7 +1589,7 @@ class RateLimitMiddleware implements Handler {
   }
 }
 
-// === パイプライン構築 ===
+// === Build pipeline ===
 const validTokens = new Set(["Bearer token123"]);
 
 const pipeline = new LoggingMiddleware(
@@ -1596,7 +1599,7 @@ const pipeline = new LoggingMiddleware(
   )
 );
 
-// テスト1: 正常リクエスト
+// Test 1: Normal request
 const response1 = pipeline.handle({
   method: "GET",
   path: "/users/1",
@@ -1604,7 +1607,7 @@ const response1 = pipeline.handle({
 });
 console.log("Response:", response1);
 
-// テスト2: 認証失敗
+// Test 2: Authentication failure
 const response2 = pipeline.handle({
   method: "GET",
   path: "/users/1",
@@ -1613,11 +1616,11 @@ const response2 = pipeline.handle({
 console.log("Response:", response2);
 ```
 
-**期待される出力**:
+**Expected Output**:
 ```
 → GET /users/1
 ← 200
-Response: { status: 200, body: '{"user":"田中"}' }
+Response: { status: 200, body: '{"user":"Tanaka"}' }
 → GET /users/1
 ← 401
 Response: { status: 401, body: 'Unauthorized' }
@@ -1625,12 +1628,12 @@ Response: { status: 401, body: 'Unauthorized' }
 
 ---
 
-### 演習3（発展）: 継承から合成へのリファクタリング
+### Exercise 3 (Advanced): Refactoring from Inheritance to Composition
 
-**課題**: 以下の継承ベースのゲームキャラクターシステムを合成ベースにリファクタリングしてください。
+**Task**: Refactor the following inheritance-based game character system to use composition.
 
 ```python
-# Before: 継承ベース（問題あり）
+# Before: Inheritance-based (problematic)
 # class Character:
 #     def attack(self): return 10
 #     def defend(self): return 5
@@ -1641,51 +1644,51 @@ Response: { status: 401, body: 'Unauthorized' }
 #     def defend(self): return 15
 #
 # class Mage(Character):
-#     def attack(self): return 25  # 魔法攻撃
+#     def attack(self): return 25  # Magic attack
 #     def move(self): return "teleport"
 #
-# class FlyingWarrior(Warrior):  # ← 問題！飛行 + 戦士
+# class FlyingWarrior(Warrior):  # ← Problem! Flying + Warrior
 #     def move(self): return "fly"
 #
-# class FlyingMage(Mage):  # ← 飛行 + 魔法使い
+# class FlyingMage(Mage):  # ← Flying + Mage
 #     def move(self): return "fly"
 #
-# → 飛行 × 戦闘スタイル × 移動方法 で組み合わせ爆発
-
-# 要件:
-# 1. AttackStrategy, DefenseStrategy, MovementStrategy を定義
-# 2. Character は3つの戦略を合成で持つ
-# 3. 実行時に戦略を変更可能（パワーアップアイテム等）
-# 4. 新しい組み合わせをクラス追加なしに作成可能
+# → Combinatorial explosion: flying × combat style × movement
+#
+# Requirements:
+# 1. Define AttackStrategy, DefenseStrategy, MovementStrategy
+# 2. Character holds the 3 strategies via composition
+# 3. Strategies can be changed at runtime (e.g., power-up items)
+# 4. New combinations can be created without adding classes
 ```
 
-**期待される実装**:
+**Expected Implementation**:
 
 ```python
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, replace
 
-# === 攻撃戦略 ===
+# === Attack strategies ===
 class AttackStrategy(ABC):
     @abstractmethod
     def attack(self) -> tuple[int, str]:
-        """(ダメージ, 攻撃名)"""
+        """(damage, attack name)"""
         pass
 
 class SwordAttack(AttackStrategy):
     def attack(self) -> tuple[int, str]:
-        return (20, "剣で斬る")
+        return (20, "Sword slash")
 
 class MagicAttack(AttackStrategy):
     def attack(self) -> tuple[int, str]:
-        return (25, "ファイアボール")
+        return (25, "Fireball")
 
 class BowAttack(AttackStrategy):
     def attack(self) -> tuple[int, str]:
-        return (15, "矢を射る")
+        return (15, "Arrow shot")
 
 class DualWield(AttackStrategy):
-    """合成の合成: 二刀流"""
+    """Composition of compositions: dual wield"""
     def __init__(self, main: AttackStrategy, sub: AttackStrategy):
         self.main = main
         self.sub = sub
@@ -1695,45 +1698,45 @@ class DualWield(AttackStrategy):
         sub_dmg, sub_name = self.sub.attack()
         return (main_dmg + sub_dmg // 2, f"{main_name} + {sub_name}")
 
-# === 防御戦略 ===
+# === Defense strategies ===
 class DefenseStrategy(ABC):
     @abstractmethod
     def defend(self) -> tuple[int, str]:
-        """(防御力, 防御名)"""
+        """(defense power, defense name)"""
         pass
 
 class ShieldDefense(DefenseStrategy):
     def defend(self) -> tuple[int, str]:
-        return (15, "盾で防御")
+        return (15, "Shield block")
 
 class MagicBarrier(DefenseStrategy):
     def defend(self) -> tuple[int, str]:
-        return (20, "魔法障壁")
+        return (20, "Magic barrier")
 
 class DodgeDefense(DefenseStrategy):
     def defend(self) -> tuple[int, str]:
-        return (10, "回避")
+        return (10, "Dodge")
 
-# === 移動戦略 ===
+# === Movement strategies ===
 class MovementStrategy(ABC):
     @abstractmethod
     def move(self) -> tuple[int, str]:
-        """(速度, 移動名)"""
+        """(speed, movement name)"""
         pass
 
 class WalkMovement(MovementStrategy):
     def move(self) -> tuple[int, str]:
-        return (5, "歩く")
+        return (5, "Walk")
 
 class FlyMovement(MovementStrategy):
     def move(self) -> tuple[int, str]:
-        return (15, "飛行")
+        return (15, "Fly")
 
 class TeleportMovement(MovementStrategy):
     def move(self) -> tuple[int, str]:
-        return (100, "テレポート")
+        return (100, "Teleport")
 
-# === キャラクター: 合成で構成 ===
+# === Character: constructed via composition ===
 @dataclass
 class Character:
     name: str
@@ -1744,25 +1747,25 @@ class Character:
 
     def perform_attack(self) -> str:
         damage, attack_name = self.attack_strategy.attack()
-        return f"{self.name}: {attack_name} (ダメージ: {damage})"
+        return f"{self.name}: {attack_name} (Damage: {damage})"
 
     def perform_defense(self) -> str:
         defense, defense_name = self.defense_strategy.defend()
-        return f"{self.name}: {defense_name} (防御力: {defense})"
+        return f"{self.name}: {defense_name} (Defense: {defense})"
 
     def perform_move(self) -> str:
         speed, move_name = self.movement_strategy.move()
-        return f"{self.name}: {move_name} (速度: {speed})"
+        return f"{self.name}: {move_name} (Speed: {speed})"
 
     def equip_attack(self, strategy: AttackStrategy) -> None:
-        """実行時に攻撃戦略を変更"""
+        """Change attack strategy at runtime"""
         self.attack_strategy = strategy
 
     def equip_movement(self, strategy: MovementStrategy) -> None:
-        """実行時に移動戦略を変更"""
+        """Change movement strategy at runtime"""
         self.movement_strategy = strategy
 
-# === ファクトリ: 典型的な構成を提供 ===
+# === Factory: provides typical configurations ===
 class CharacterFactory:
     @staticmethod
     def create_warrior(name: str) -> Character:
@@ -1780,135 +1783,135 @@ class CharacterFactory:
     def create_flying_warrior(name: str) -> Character:
         return Character(name, SwordAttack(), ShieldDefense(), FlyMovement())
 
-# === テスト ===
-warrior = CharacterFactory.create_warrior("アーサー")
-mage = CharacterFactory.create_mage("マーリン")
-ranger = CharacterFactory.create_ranger("レゴラス")
+# === Tests ===
+warrior = CharacterFactory.create_warrior("Arthur")
+mage = CharacterFactory.create_mage("Merlin")
+ranger = CharacterFactory.create_ranger("Legolas")
 
-print(warrior.perform_attack())   # アーサー: 剣で斬る (ダメージ: 20)
-print(mage.perform_attack())      # マーリン: ファイアボール (ダメージ: 25)
-print(ranger.perform_move())      # レゴラス: 歩く (速度: 5)
+print(warrior.perform_attack())   # Arthur: Sword slash (Damage: 20)
+print(mage.perform_attack())      # Merlin: Fireball (Damage: 25)
+print(ranger.perform_move())      # Legolas: Walk (Speed: 5)
 
-# パワーアップ: 飛行能力を獲得！
+# Power-up: gained flying ability!
 warrior.equip_movement(FlyMovement())
-print(warrior.perform_move())     # アーサー: 飛行 (速度: 15)
+print(warrior.perform_move())     # Arthur: Fly (Speed: 15)
 
-# 二刀流に変更
+# Switch to dual wield
 warrior.equip_attack(DualWield(SwordAttack(), BowAttack()))
-print(warrior.perform_attack())   # アーサー: 剣で斬る + 矢を射る (ダメージ: 27)
+print(warrior.perform_attack())   # Arthur: Sword slash + Arrow shot (Damage: 27)
 
-# カスタムキャラ: 魔法剣士（クラス追加なし！）
+# Custom character: Magic Knight (no new class needed!)
 magic_knight = Character(
-    "セシル", MagicAttack(), ShieldDefense(), WalkMovement()
+    "Cecil", MagicAttack(), ShieldDefense(), WalkMovement()
 )
-print(magic_knight.perform_attack())  # セシル: ファイアボール (ダメージ: 25)
-print(magic_knight.perform_defense()) # セシル: 盾で防御 (防御力: 15)
+print(magic_knight.perform_attack())  # Cecil: Fireball (Damage: 25)
+print(magic_knight.perform_defense()) # Cecil: Shield block (Defense: 15)
 
-print("\n全テスト通過！")
+print("\nAll tests passed!")
 ```
 
-**期待される出力**:
+**Expected Output**:
 ```
-アーサー: 剣で斬る (ダメージ: 20)
-マーリン: ファイアボール (ダメージ: 25)
-レゴラス: 歩く (速度: 5)
-アーサー: 飛行 (速度: 15)
-アーサー: 剣で斬る + 矢を射る (ダメージ: 27)
-セシル: ファイアボール (ダメージ: 25)
-セシル: 盾で防御 (防御力: 15)
+Arthur: Sword slash (Damage: 20)
+Merlin: Fireball (Damage: 25)
+Legolas: Walk (Speed: 5)
+Arthur: Fly (Speed: 15)
+Arthur: Sword slash + Arrow shot (Damage: 27)
+Cecil: Fireball (Damage: 25)
+Cecil: Shield block (Defense: 15)
 
-全テスト通過！
+All tests passed!
 ```
 
 ---
 
 ## 8. FAQ
 
-### Q1: 合成だとコード量が増えないか？
+### Q1: Doesn't composition increase code volume?
 
-**A**: 短期的にはインターフェース定義やファクトリが増えるため、コード量は若干増える。しかし長期的には、機能追加時に既存コードの変更なしに新しい組み合わせが作れるため、総コード量は減少する。また、各コンポーネントが小さく独立しているため、理解・テスト・変更が容易になり、開発速度は向上する。継承で27クラス必要なところを合成なら9クラスで実現できるケースもある。
+**A**: In the short term, code volume increases slightly due to interface definitions and factories. However, in the long term, total code volume decreases because new combinations can be created without modifying existing code when adding features. Also, since each component is small and independent, understanding, testing, and changing code becomes easier, and development speed improves. There are cases where composition achieves the same result with 9 classes where inheritance would need 27.
 
-### Q2: 合成と依存性注入（DI）の関係は？
+### Q2: What is the relationship between composition and dependency injection (DI)?
 
-**A**: 合成と依存性注入は密接に関連する。合成は「何を組み合わせるか」の設計、DIは「どのように組み合わせを構成するか」の実装手法。DIコンテナ（Spring、Dagger等）は合成パターンの構成を自動化する。つまりDIは合成を実現するための強力なツール。合成を前提とした設計にDIを導入すると、テスト時のモック差し替えが容易になり、本番環境とテスト環境で異なるコンポーネントを注入できる。
+**A**: Composition and dependency injection are closely related. Composition is the design of "what to combine," and DI is the implementation technique of "how to configure the combination." DI containers (Spring, Dagger, etc.) automate the configuration of composition patterns. That is, DI is a powerful tool for realizing composition. When DI is introduced into a composition-based design, swapping in mocks during testing becomes easy, and different components can be injected in production and test environments.
 
-### Q3: TypeScript/JavaScriptではMixinとクラス継承のどちらを使うべきか？
+### Q3: In TypeScript/JavaScript, should I use Mixins or class inheritance?
 
-**A**: TypeScriptではインターフェース + 合成が推奨される。Mixinはクラス継承の制約を回避する手法だが、型安全性が弱まる場合がある。小規模な機能追加にはMixinが便利だが、大規模なシステムではインターフェースベースの合成+DIが保守しやすい。Reactのカスタムフック（useXxx）は関数レベルの合成パターンであり、クラスベースの合成より軽量で推奨される。
+**A**: In TypeScript, interface + composition is recommended. Mixins are a technique to work around the constraints of class inheritance, but type safety may be weakened in some cases. Mixins are convenient for small feature additions, but for large systems, interface-based composition + DI is more maintainable. React's custom hooks (useXxx) are a function-level composition pattern and are lighter and more recommended than class-based composition.
 
-### Q4: 合成を使うとパフォーマンスが低下しないか？
+### Q4: Doesn't using composition degrade performance?
 
-**A**: メソッド呼び出しが1段増える（委譲のコスト）ため、理論上はわずかなオーバーヘッドがある。しかしJITコンパイラによるインライン化やメソッドディスパッチの最適化により、実測で差が出ることはほぼない。Rustのtrait/genericsはゼロコスト抽象を実現し、コンパイル時に静的ディスパッチに変換される。パフォーマンスの懸念よりも、設計の柔軟性・保守性の向上の方がはるかに価値が大きい。
+**A**: There is theoretically a slight overhead because method calls go through one extra level (the cost of delegation). However, due to JIT compiler inlining and method dispatch optimizations, a difference is rarely seen in practice. Rust's traits/generics achieve zero-cost abstraction by converting to static dispatch at compile time. The benefits of improved design flexibility and maintainability far outweigh any performance concerns.
 
-### Q5: 既存の大規模な継承階層をどうリファクタリングすべきか？
+### Q5: How should I refactor an existing large inheritance hierarchy?
 
-**A**: 一度にすべてをリファクタリングしようとしないこと。(1) まず新しいコードから合成パターンを適用する。(2) バグ修正や機能追加のタイミングで周辺コードを段階的に書き換える。(3) リファクタリング対象は「変更頻度が高い」「テストが書きにくい」「組み合わせ爆発が起きている」箇所から優先する。Martin Fowlerの「Strangler Fig Pattern」（絞め殺しの木パターン）を参考に、古い継承を新しい合成で徐々に置き換えていく。
+**A**: Do not try to refactor everything at once. (1) Start by applying composition patterns in new code. (2) Gradually rewrite surrounding code at the time of bug fixes or feature additions. (3) Prioritize refactoring targets where "change frequency is high," "tests are hard to write," and "combinatorial explosion is occurring." Refer to Martin Fowler's Strangler Fig Pattern to gradually replace old inheritance with new composition.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and confirming its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in real-world development?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes particularly important during code reviews and architectural design.
 
 ---
 
-## 9. まとめ
+## 9. Summary
 
-| カテゴリ | ポイント |
+| Category | Key Points |
 |---------|---------|
-| 基本原則 | デフォルトは合成、継承はLSPを満たす場合のみ |
-| Strategy | 振る舞いの実行時切替が必要な場合 |
-| Decorator | 機能の動的追加・組み合わせに最適 |
-| Delegate | 内部実装を隠蔽しつつ機能を公開 |
-| Mixin/Trait | 横断的機能の付与（言語サポートがある場合） |
-| DI | 合成パターンの構成を自動化するツール |
-| リファクタリング | 振る舞いの軸を特定→インターフェース抽出→合成に置換 |
-| 継承の適用 | is-a関係が真に成立する場合、3段以下に制限 |
-| 組み合わせ爆発 | N×M問題はBridge/Strategyで分解 |
+| Basic principle | Default to composition; use inheritance only when LSP is satisfied |
+| Strategy | When runtime switching of behavior is needed |
+| Decorator | Best for dynamically adding and combining features |
+| Delegate | Expose functionality while hiding internal implementation |
+| Mixin/Trait | Adding cross-cutting features (when supported by the language) |
+| DI | A tool for automating the configuration of composition patterns |
+| Refactoring | Identify behavioral axes → extract interfaces → replace with composition |
+| Applying inheritance | Only when a true is-a relationship exists; limit to 3 levels |
+| Combinatorial explosion | Decompose N×M problems with Bridge/Strategy |
 
-| 判断基準 | 継承を選ぶ | 合成を選ぶ |
+| Decision Criteria | Choose Inheritance | Choose Composition |
 |---------|----------|----------|
-| 関係 | 真のis-a | has-a / can-do |
-| 拡張方向 | 1軸のみ | 複数軸の組み合わせ |
-| 変更頻度 | 低い（安定した階層） | 高い（要件変更が多い） |
-| テスト | 統合テスト中心 | ユニットテスト中心 |
-| 実行時変更 | 不要 | 必要 |
-| 階層の深さ | 3段以下 | フラット |
+| Relationship | True is-a | has-a / can-do |
+| Direction of extension | One axis only | Combinations of multiple axes |
+| Frequency of change | Low (stable hierarchy) | High (many requirement changes) |
+| Testing | Integration-test focused | Unit-test focused |
+| Runtime changes | Not needed | Needed |
+| Hierarchy depth | 3 levels or fewer | Flat |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [00-immutability.md](./00-immutability.md) -- イミュータビリティの原則（合成と不変データの組み合わせ）
-- [02-functional-principles.md](./02-functional-principles.md) -- 関数型プログラミングの原則（関数の合成）
-- [03-api-design.md](./03-api-design.md) -- API設計（合成的なミドルウェア設計）
-- 00-principles/02-solid.md -- SOLID原則（LSP、OCP、DIPと合成の関係）
-- 02-refactoring/01-refactoring-catalog.md -- リファクタリングカタログ
-- `design-patterns-guide/docs/01-structural/` -- 構造パターン（Decorator、Bridge、Composite等）
-- `design-patterns-guide/docs/02-behavioral/` -- 振る舞いパターン（Strategy、State、Observer等）
+- [00-immutability.md](./00-immutability.md) -- Immutability principles (combining composition with immutable data)
+- [02-functional-principles.md](./02-functional-principles.md) -- Functional programming principles (function composition)
+- [03-api-design.md](./03-api-design.md) -- API design (compositional middleware design)
+- 00-principles/02-solid.md -- SOLID principles (relationship between LSP, OCP, DIP and composition)
+- 02-refactoring/01-refactoring-catalog.md -- Refactoring catalog
+- `design-patterns-guide/docs/01-structural/` -- Structural patterns (Decorator, Bridge, Composite, etc.)
+- `design-patterns-guide/docs/02-behavioral/` -- Behavioral patterns (Strategy, State, Observer, etc.)
 
 ---
 
-## 参考文献
+## References
 
-1. Gamma et al., "Design Patterns: Elements of Reusable Object-Oriented Software" -- GoF パターンの原典
-2. Joshua Bloch, "Effective Java" 第3版 -- Item 18: Favor composition over inheritance
+1. Gamma et al., "Design Patterns: Elements of Reusable Object-Oriented Software" -- The original GoF patterns book
+2. Joshua Bloch, "Effective Java" 3rd edition -- Item 18: Favor composition over inheritance
 3. Robert C. Martin, "Agile Software Development: Principles, Patterns, and Practices" -- OCP, LSP
 4. Sandi Metz, "Practical Object-Oriented Design in Ruby" -- Composition chapter
-5. Martin Fowler, "Refactoring" 第2版 -- Replace Inheritance with Delegation
-6. Head First Design Patterns, 2nd Edition -- Strategy, Decorator パターンの詳解
+5. Martin Fowler, "Refactoring" 2nd edition -- Replace Inheritance with Delegation
+6. Head First Design Patterns, 2nd Edition -- Detailed explanation of Strategy, Decorator patterns
 7. Go Proverbs -- "Don't just check errors, handle them gracefully" / Composition over inheritance in Go
 8. Rust Book, "Traits: Defining Shared Behavior" -- https://doc.rust-lang.org/book/ch10-02-traits.html
-9. Sam Newman, "Building Microservices" -- サービスの合成とオーケストレーション
-10. Michael Feathers, "Working Effectively with Legacy Code" -- レガシーコードの段階的リファクタリング
+9. Sam Newman, "Building Microservices" -- Service composition and orchestration
+10. Michael Feathers, "Working Effectively with Legacy Code" -- Incremental refactoring of legacy code
