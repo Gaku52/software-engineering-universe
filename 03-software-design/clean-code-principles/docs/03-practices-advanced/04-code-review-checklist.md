@@ -1,359 +1,359 @@
-# コードレビューチェックリスト
+# Code Review Checklist
 
-> コードレビューは品質保証・知識共有・チーム学習の3つの役割を担う。主観に頼らず体系的なチェックリストに基づいて効率的かつ建設的なレビューを行うための観点・プロセス・コミュニケーション手法を解説する
+> Code review serves three roles: quality assurance, knowledge sharing, and team learning. This guide explains the perspectives, processes, and communication techniques for conducting efficient and constructive reviews based on a systematic checklist rather than subjective judgment.
 
 ---
 
-## 前提知識
+## Prerequisites
 
-| トピック | 内容 | 参照先 |
+| Topic | Content | Reference |
 |---------|------|--------|
-| クリーンコードの基本原則 | 命名規則・関数設計・コメントの書き方 | 00-naming-conventions.md |
-| SOLID原則 | 単一責任原則・依存性逆転 | 04-solid-principles.md |
-| テスト原則 | テストピラミッド・テストカバレッジ | [04-testing-principles.md](../01-practices/04-testing-principles.md) |
-| リファクタリング | コードの臭い・技術的負債 | [03-technical-debt.md](../02-refactoring/03-technical-debt.md) |
-| API設計 | REST API設計原則 | [03-api-design.md](./03-api-design.md) |
+| Clean Code Fundamentals | Naming conventions, function design, how to write comments | 00-naming-conventions.md |
+| SOLID Principles | Single Responsibility Principle, Dependency Inversion | 04-solid-principles.md |
+| Testing Principles | Test pyramid, test coverage | [04-testing-principles.md](../01-practices/04-testing-principles.md) |
+| Refactoring | Code smells, technical debt | [03-technical-debt.md](../02-refactoring/03-technical-debt.md) |
+| API Design | REST API design principles | [03-api-design.md](./03-api-design.md) |
 
 ---
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **レビューの観点体系** — 正確性、可読性、保守性、セキュリティ、パフォーマンスの5軸チェックを網羅的に実施できる
-2. **効率的なレビュープロセス** — PR サイズ制限、レスポンスタイム SLA、自動化との組み合わせで、レビューの効率と品質を両立できる
-3. **建設的なフィードバック** — コメントの種類分類、提案型レビュー、心理的安全性の確保で、チームの成長を促進できる
-4. **レビューの自動化戦略** — CI/CD パイプラインとの統合、静的解析ツールの活用で、人間の判断が必要な箇所に集中できる
-5. **組織レベルのレビュー文化** — CODEOWNERS、レビューメトリクス、知識共有の仕組みを構築し、持続可能なレビュー体制を確立できる
+1. **Review Perspective Framework** — Perform comprehensive checks across five axes: correctness, readability, maintainability, security, and performance
+2. **Efficient Review Process** — Balance review efficiency and quality through PR size limits, response time SLAs, and automation integration
+3. **Constructive Feedback** — Promote team growth through comment classification, suggestion-based reviews, and psychological safety
+4. **Review Automation Strategy** — Integrate with CI/CD pipelines and leverage static analysis tools to focus human judgment where it matters most
+5. **Organization-Level Review Culture** — Establish a sustainable review system using CODEOWNERS, review metrics, and knowledge-sharing mechanisms
 
 ---
 
-## 1. レビュー観点の5軸
+## 1. The Five Axes of Review
 
-### 1.1 チェックリスト全体構成
+### 1.1 Overall Checklist Structure
 
 ```
-コードレビュー 5軸チェック
+Code Review 5-Axis Check
 
   +-----------+
-  | 正確性     |  ← ロジックは正しいか？エッジケースは？
+  | Correctness|  <- Is the logic correct? Edge cases?
   +-----------+
        |
   +-----------+
-  | 可読性     |  ← 6ヶ月後の自分が理解できるか？
+  | Readability|  <- Can your future self understand this in 6 months?
   +-----------+
        |
   +-----------+
-  | 保守性     |  ← 変更が容易か？テストはあるか？
+  | Maintainability| <- Is it easy to change? Are there tests?
   +-----------+
        |
   +-----------+
-  | セキュリティ|  ← 入力検証は？認証・認可は？
+  | Security  |  <- Input validation? Authentication and authorization?
   +-----------+
        |
   +-----------+
-  | パフォーマンス| ← N+1問題は？メモリリークは？
+  | Performance| <- N+1 issues? Memory leaks?
   +-----------+
 ```
 
 ```
-レビューの優先度マトリクス:
+Review Priority Matrix:
 
-  高優先度 (マージブロッカー):
-  ├── バグ・ロジックエラー
-  ├── セキュリティ脆弱性
-  ├── データ損失の可能性
-  └── 本番環境への影響
+  High Priority (Merge Blockers):
+  ├── Bugs / Logic errors
+  ├── Security vulnerabilities
+  ├── Potential data loss
+  └── Impact on production environment
 
-  中優先度 (修正推奨):
-  ├── 設計・アーキテクチャの問題
-  ├── テスト不足
-  ├── パフォーマンス問題
-  └── エラーハンドリング不足
+  Medium Priority (Recommended to Fix):
+  ├── Design / Architecture issues
+  ├── Insufficient tests
+  ├── Performance issues
+  └── Insufficient error handling
 
-  低優先度 (改善提案):
-  ├── 命名の改善
-  ├── コードスタイル
-  ├── ドキュメント不足
-  └── リファクタリングの余地
+  Low Priority (Improvement Suggestions):
+  ├── Naming improvements
+  ├── Code style
+  ├── Insufficient documentation
+  └── Room for refactoring
 ```
 
-### 1.2 各軸の詳細チェックリスト
+### 1.2 Detailed Checklist for Each Axis
 
 ```python
-# ===== 正確性チェック =====
+# ===== Correctness Check =====
 correctness_checklist = [
-    "ビジネスロジックが要件と一致しているか",
-    "エッジケース（null、空配列、0、負数、最大値）が処理されているか",
-    "エラーハンドリングが適切か（例外の種類、リカバリー）",
-    "並行処理の問題はないか（レースコンディション、デッドロック）",
-    "トランザクション境界は正しいか",
-    "既存テストが通るか（回帰がないか）",
-    "整数オーバーフロー、浮動小数点の丸め誤差は考慮されているか",
-    "タイムゾーン・日付境界の処理は正しいか",
+    "Does the business logic match the requirements?",
+    "Are edge cases handled? (null, empty array, 0, negative numbers, max values)",
+    "Is error handling appropriate? (exception types, recovery)",
+    "Are there concurrency issues? (race conditions, deadlocks)",
+    "Are transaction boundaries correct?",
+    "Do existing tests pass? (no regressions)",
+    "Are integer overflow and floating-point rounding errors accounted for?",
+    "Is timezone and date boundary handling correct?",
 ]
 
-# ===== 可読性チェック =====
+# ===== Readability Check =====
 readability_checklist = [
-    "変数名・関数名が意図を明確に伝えているか",
-    "関数の長さは適切か（20行以内が目安）",
-    "ネストが深すぎないか（3段以内が目安）",
-    "コメントが「なぜ」を説明しているか（「何」はコードが語るべき）",
-    "一貫した命名規則に従っているか",
-    "不要なコメントやデッドコードがないか",
-    "認知負荷が高くないか（1つの関数で複数の抽象レベルを混在させていないか）",
-    "早期リターンパターンが使えるのに深いネストになっていないか",
+    "Do variable and function names clearly convey intent?",
+    "Is the function length appropriate? (aim for 20 lines or fewer)",
+    "Is nesting too deep? (aim for 3 levels or fewer)",
+    "Do comments explain 'why'? (code should explain 'what')",
+    "Is a consistent naming convention followed?",
+    "Are there unnecessary comments or dead code?",
+    "Is cognitive load low? (not mixing multiple abstraction levels in one function)",
+    "Is there deep nesting where early-return patterns could be used?",
 ]
 
-# ===== 保守性チェック =====
+# ===== Maintainability Check =====
 maintainability_checklist = [
-    "単一責任原則に従っているか（1クラス=1責務）",
-    "DRY原則：重複コードはないか",
-    "テストが追加されているか（新機能・バグ修正）",
-    "既存のアーキテクチャパターンに従っているか",
-    "依存関係の方向は正しいか（レイヤー違反がないか）",
-    "マジックナンバーが定数化されているか",
-    "将来の変更が予想される箇所に適切な抽象化があるか",
-    "設定値がハードコードされていないか（環境変数・設定ファイル）",
+    "Does it follow the Single Responsibility Principle? (1 class = 1 responsibility)",
+    "DRY principle: is there duplicate code?",
+    "Have tests been added? (new features, bug fixes)",
+    "Does it follow existing architectural patterns?",
+    "Are dependency directions correct? (no layer violations)",
+    "Are magic numbers extracted as constants?",
+    "Is there appropriate abstraction for areas likely to change in the future?",
+    "Are configuration values not hardcoded? (environment variables, config files)",
 ]
 
-# ===== セキュリティチェック =====
+# ===== Security Check =====
 security_checklist = [
-    "入力のバリデーション・サニタイズは適切か",
-    "SQLインジェクション対策（パラメータバインド）",
-    "XSS対策（出力エスケープ）",
-    "認証・認可チェックが漏れていないか",
-    "機密情報がログに出力されていないか",
-    "秘密鍵・トークンがコードにハードコードされていないか",
-    "CSRF対策は適切か",
-    "ファイルアップロードのサイズ制限・タイプチェックは適切か",
-    "レート制限は適切に設定されているか",
+    "Is input validation and sanitization appropriate?",
+    "SQL injection protection (parameter binding)",
+    "XSS protection (output escaping)",
+    "Are authentication and authorization checks complete?",
+    "Is sensitive information not being output to logs?",
+    "Are secret keys and tokens not hardcoded in the code?",
+    "Is CSRF protection appropriate?",
+    "Are file upload size limits and type checks appropriate?",
+    "Are rate limits configured appropriately?",
 ]
 
-# ===== パフォーマンスチェック =====
+# ===== Performance Check =====
 performance_checklist = [
-    "N+1 クエリ問題はないか",
-    "不要なデータの取得（SELECT *）はないか",
-    "ループ内でのDB/API呼び出しはないか",
-    "適切なインデックスが設定されているか",
-    "大量データ処理でメモリを圧迫しないか",
-    "キャッシュすべきデータをキャッシュしているか",
-    "不要な再レンダリング（React）がないか",
-    "非同期処理にすべき重い処理が同期で実行されていないか",
+    "Are there N+1 query issues?",
+    "Is there unnecessary data fetching? (SELECT *)",
+    "Are there DB/API calls inside loops?",
+    "Are appropriate indexes configured?",
+    "Will large data processing not exhaust memory?",
+    "Is data that should be cached being cached?",
+    "Are there unnecessary re-renders? (React)",
+    "Are heavy operations that should be async being run synchronously?",
 ]
 ```
 
-### 1.3 レビュー観点のチートシート
+### 1.3 Review Perspective Cheat Sheet
 
 ```
 ┌───────────────────────────────────────────────────────┐
-│          レビュー観点クイックリファレンス                    │
+│          Review Perspective Quick Reference            │
 ├───────────────────────────────────────────────────────┤
 │                                                       │
-│  変更が影響する箇所を特定:                               │
-│  ├── この関数を呼んでいる箇所は？ (影響範囲)              │
-│  ├── この変更が壊す可能性のあるテストは？                 │
-│  └── 関連するドキュメントの更新は必要か？                 │
+│  Identify areas affected by the change:               │
+│  ├── Where is this function called? (impact scope)    │
+│  ├── What tests might this change break?              │
+│  └── Is documentation update needed?                 │
 │                                                       │
-│  「自分ならどう書くか」ではなく確認すること:              │
-│  ├── 要件を満たしているか？                             │
-│  ├── エッジケースは処理されているか？                    │
-│  ├── テストは十分か？                                   │
-│  └── セキュリティリスクはないか？                        │
+│  Check these (not "how would I write it"):            │
+│  ├── Does it satisfy the requirements?                │
+│  ├── Are edge cases handled?                          │
+│  ├── Are tests sufficient?                            │
+│  └── Are there security risks?                        │
 │                                                       │
-│  見落としやすいポイント:                                 │
-│  ├── 削除されたコードの影響                              │
-│  ├── 設定ファイルの変更                                 │
-│  ├── DB マイグレーション（ロールバック可能か？）          │
-│  └── 環境変数・シークレットの追加                        │
+│  Easy-to-miss points:                                 │
+│  ├── Impact of deleted code                           │
+│  ├── Changes to configuration files                   │
+│  ├── DB migrations (can they be rolled back?)         │
+│  └── Addition of environment variables / secrets      │
 │                                                       │
 └───────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. レビューフローとルール
+## 2. Review Flow and Rules
 
-### 2.1 プロセス
+### 2.1 Process
 
 ```
-  PR 作成
+  Create PR
     |
     v
-  [自動チェック] ← CI: lint, test, coverage, security scan
+  [Automated Checks] <- CI: lint, test, coverage, security scan
     |
-    | 全パス
+    | All pass
     v
-  [セルフレビュー] ← 作者自身がまず確認
-    |
-    v
-  [レビュー依頼] ← 1-2名のレビュアーをアサイン
-    |
-    +---> レビュアー確認 (目標: 24時間以内)
+  [Self Review] <- Author confirms first
     |
     v
-  [フィードバック]
+  [Review Request] <- Assign 1-2 reviewers
     |
-    +---> Approve → マージ
+    +---> Reviewer check (target: within 24 hours)
     |
-    +---> Request Changes → 修正 → 再レビュー
+    v
+  [Feedback]
     |
-    +---> Comment → 議論 → 合意形成
+    +---> Approve -> Merge
+    |
+    +---> Request Changes -> Fix -> Re-review
+    |
+    +---> Comment -> Discussion -> Consensus
 ```
 
-### 2.2 セルフレビューの体系的手法
+### 2.2 Systematic Self-Review Method
 
 ```python
-# セルフレビューチェックリスト
-# PR 作成後、レビュー依頼前に作者自身が確認する
+# Self-review checklist
+# Author confirms this after creating the PR, before requesting a review
 
 self_review_checklist = {
-    "デバッグコード": [
-        "print / console.log / debugger が残っていないか",
-        "TODO / FIXME / HACK コメントが意図的か確認",
-        "テスト用のハードコード値が残っていないか",
+    "Debug code": [
+        "Are print / console.log / debugger statements left in?",
+        "Confirm TODO / FIXME / HACK comments are intentional",
+        "Are hardcoded values for testing left in?",
     ],
-    "差分の確認": [
-        "不要な変更（フォーマットのみの差分）が混ざっていないか",
-        "意図しないファイルが含まれていないか (.env, node_modules)",
-        "コミットメッセージは変更内容を正確に反映しているか",
+    "Diff confirmation": [
+        "Are unnecessary changes (formatting-only diffs) mixed in?",
+        "Are unintended files included? (.env, node_modules)",
+        "Do commit messages accurately reflect the changes?",
     ],
-    "テスト": [
-        "新機能にテストを追加したか",
-        "バグ修正に回帰テストを追加したか",
-        "テストが他のテストに依存していないか（独立性）",
+    "Tests": [
+        "Were tests added for new features?",
+        "Were regression tests added for bug fixes?",
+        "Are tests independent of each other? (independence)",
     ],
-    "ドキュメント": [
-        "公開 API の変更にドキュメント更新は必要か",
-        "README や CHANGELOG の更新は必要か",
-        "コメントが最新の実装と一致しているか",
+    "Documentation": [
+        "Does a change to a public API require a documentation update?",
+        "Are README or CHANGELOG updates needed?",
+        "Are comments consistent with the latest implementation?",
     ],
 }
 
-# 研究結果: セルフレビューで指摘事項の30-40%は事前に除去できる
+# Research finding: self-review can pre-emptively remove 30-40% of review items
 ```
 
-### 2.3 PR サイズガイドライン
+### 2.3 PR Size Guidelines
 
 ```
-PR サイズと品質の関係
+Relationship Between PR Size and Review Quality
 
-  変更行数    レビュー品質    推奨度    レビュー時間目安
-  ────────────────────────────────────────────────────
-  < 50行      非常に高い      最適      15分以内
-  50-200行    高い           推奨      30分以内
-  200-400行   中程度         許容      60分以内
-  400-800行   低い           分割推奨  60分以上
-  > 800行     非常に低い      分割必須  分割を依頼
+  Lines Changed  Review Quality  Recommendation  Estimated Review Time
+  ──────────────────────────────────────────────────────────────────────
+  < 50           Very high       Optimal         Under 15 min
+  50-200         High            Recommended     Under 30 min
+  200-400        Moderate        Acceptable      Under 60 min
+  400-800        Low             Split recommended  60+ min
+  > 800          Very low        Must split      Request split
 
-  研究結果 (SmartBear, Cisco):
-  - 200行以下のレビューで欠陥発見率が最大
-  - 400行を超えると「LGTM」と流す傾向が強まる
-  - 60分以上のレビューで集中力が低下
-  - 1回のレビューは最大60分、休憩を挟んで再開
+  Research findings (SmartBear, Cisco):
+  - Defect detection rate is highest for reviews under 200 lines
+  - Over 400 lines tends to result in "LGTM" rubber-stamping
+  - Concentration drops after 60 minutes of reviewing
+  - Max 60 minutes per review session; take a break before continuing
 ```
 
 ```
-大きな PR の分割戦略:
+Strategy for splitting large PRs:
 
-  1. レイヤー別分割
-     ├── PR 1: DB マイグレーション + モデル
-     ├── PR 2: ビジネスロジック + サービス層
-     └── PR 3: API エンドポイント + テスト
+  1. Split by layer
+     ├── PR 1: DB migration + model
+     ├── PR 2: Business logic + service layer
+     └── PR 3: API endpoints + tests
 
-  2. 機能別分割（Feature Flag 活用）
-     ├── PR 1: ユーザー登録 API
-     ├── PR 2: メール認証機能
-     └── PR 3: 管理画面 UI
+  2. Split by feature (using Feature Flags)
+     ├── PR 1: User registration API
+     ├── PR 2: Email verification feature
+     └── PR 3: Admin UI
 
-  3. リファクタリング + 機能追加の分離
-     ├── PR 1: 既存コードのリファクタリング（機能変更なし）
-     └── PR 2: 新機能の追加
+  3. Separate refactoring from feature addition
+     ├── PR 1: Refactor existing code (no functional change)
+     └── PR 2: Add new feature
 
-  原則: 各 PR が独立してマージ可能な単位にする
+  Principle: make each PR a unit that can be merged independently
 ```
 
-### 2.4 レスポンスタイム SLA
+### 2.4 Response Time SLA
 
 ```python
-# レビューの効率的な時間配分
+# Efficient time allocation for reviews
 review_time_guide = {
-    "small_pr":   {"lines": "< 100",   "time": "15分以内"},
-    "medium_pr":  {"lines": "100-300",  "time": "30分以内"},
-    "large_pr":   {"lines": "300-500",  "time": "60分以内"},
-    "too_large":  {"lines": "> 500",    "time": "分割を依頼"},
+    "small_pr":   {"lines": "< 100",   "time": "Within 15 min"},
+    "medium_pr":  {"lines": "100-300",  "time": "Within 30 min"},
+    "large_pr":   {"lines": "300-500",  "time": "Within 60 min"},
+    "too_large":  {"lines": "> 500",    "time": "Request split"},
 }
 
-# レスポンスタイム SLA
+# Response time SLA
 response_sla = {
-    "initial_review":  "24時間以内",    # 最初のレビュー
-    "re_review":       "8時間以内",     # 修正後の再レビュー
-    "urgent_hotfix":   "2時間以内",     # 緊急修正
-    "documentation":   "48時間以内",    # ドキュメントのみの変更
+    "initial_review":  "Within 24 hours",   # First review
+    "re_review":       "Within 8 hours",    # Re-review after fixes
+    "urgent_hotfix":   "Within 2 hours",    # Emergency fix
+    "documentation":   "Within 48 hours",   # Documentation-only changes
 }
 
-# レビュー効率を上げるための環境設定
+# Environment setup to improve review efficiency
 review_setup = {
-    "通知設定": "Slack/Teams に PR 通知を設定",
-    "時間ブロック": "毎日30分のレビュー専用時間を確保",
-    "バッチ処理": "小さな PR は2-3件まとめてレビュー",
-    "コンテキスト切替最小化": "深い作業の合間ではなく、切りの良いタイミングで",
+    "Notification settings": "Set up PR notifications in Slack/Teams",
+    "Time blocking": "Reserve 30 minutes daily for reviews",
+    "Batching": "Review 2-3 small PRs together",
+    "Minimize context switching": "Review at a natural stopping point, not during deep work",
 }
 ```
 
 ---
 
-## 3. コメントの分類と書き方
+## 3. Comment Classification and Writing Style
 
-### 3.1 コメントプレフィックス
+### 3.1 Comment Prefixes
 
 ```
-[MUST]     必ず修正が必要（マージブロッカー）
-[SHOULD]   できれば修正してほしい
-[NIT]      些細な指摘（修正任意）
-[QUESTION] 質問・確認事項
-[PRAISE]   良いコードへの称賛
-[FYI]      参考情報の共有
-[DISCUSS]  議論が必要な設計判断
+[MUST]     Fix is required (merge blocker)
+[SHOULD]   Please fix if possible
+[NIT]      Minor comment (fix is optional)
+[QUESTION] Question / item to confirm
+[PRAISE]   Praise for good code
+[FYI]      Sharing reference information
+[DISCUSS]  Design decision that requires discussion
 
-使用例:
-  [MUST] SQL インジェクションの脆弱性があります。
-         パラメータバインドを使用してください。
+Usage examples:
+  [MUST] There is a SQL injection vulnerability.
+         Please use parameter binding.
 
-  [SHOULD] この関数が40行あるので、バリデーション部分を
-           別メソッドに抽出すると可読性が向上します。
+  [SHOULD] This function is 40 lines. Extracting the validation part
+           into a separate method would improve readability.
 
-  [NIT] 変数名 `d` → `delivery_date` の方が意図が明確です。
+  [NIT] Variable name `d` -> `delivery_date` makes the intent clearer.
 
-  [PRAISE] このテストケースの境界値の網羅性が素晴らしいです。
+  [PRAISE] The coverage of boundary values in these test cases is excellent.
 
-  [QUESTION] このタイムアウト値(30秒)の根拠を教えてください。
-             外部API のSLAに基づいていますか？
+  [QUESTION] Could you explain the reasoning behind this timeout value (30s)?
+             Is it based on the external API's SLA?
 
-  [FYI] 似た処理が utils/date.ts にあるので、共通化できるかもしれません。
+  [FYI] There is similar logic in utils/date.ts, so it might be possible to consolidate.
 
-  [DISCUSS] この設計だと将来の拡張が難しそうです。
-            Strategy パターンの導入を検討しませんか？
+  [DISCUSS] This design seems like it could make future extensions difficult.
+            Would you consider introducing the Strategy pattern?
 ```
 
-### 3.2 提案型コメントの書き方
+### 3.2 How to Write Suggestion-Based Comments
 
 ```python
-# BAD: 否定だけのコメント
-# 「このコードは読みにくいです」
-# 「なんでこう書いたんですか？」
+# BAD: Comments that only negate
+# "This code is hard to read."
+# "Why did you write it this way?"
 
-# GOOD: 問題の特定 + 理由 + 具体的な改善案
+# GOOD: Identify the problem + reason + concrete improvement suggestion
 
-# ===== パターン1: Before/After で提示 =====
+# ===== Pattern 1: Present as Before/After =====
 
-# [SHOULD] ネストが深くなっています。
-# 早期リターンパターンに変更すると可読性が向上します：
+# [SHOULD] The nesting is getting deep.
+# Changing to an early-return pattern will improve readability:
 #
 # Before:
 def process(order):
     if order:
         if order.is_valid():
             if order.items:
-                # 処理...
+                # processing...
                 pass
 
 # Suggested:
@@ -364,52 +364,52 @@ def process(order):
         raise ValueError("Invalid order")
     if not order.items:
         raise ValueError("Empty items")
-    # 処理...
+    # processing...
 
-# ===== パターン2: 理由を添えて提案 =====
+# ===== Pattern 2: Suggest with reasoning =====
 
-# [SHOULD] このループ内で DB アクセスが発生しており、
-# N+1 問題になっています。
-# items が100件ある場合、100回のクエリが発行されます。
+# [SHOULD] There is a DB access happening inside this loop,
+# creating an N+1 problem.
+# If there are 100 items, 100 queries will be issued.
 #
-# 改善案: バッチクエリに変更
+# Suggestion: switch to a batch query
 # Before:
 for item in items:
-    product = db.get_product(item.product_id)  # N回クエリ
+    product = db.get_product(item.product_id)  # N queries
 
 # Suggested:
 product_ids = [item.product_id for item in items]
-products = db.get_products_by_ids(product_ids)  # 1回のクエリ
+products = db.get_products_by_ids(product_ids)  # 1 query
 product_map = {p.id: p for p in products}
 
-# ===== パターン3: トレードオフを示して議論を促す =====
+# ===== Pattern 3: Present tradeoffs to prompt discussion =====
 
-# [DISCUSS] ここでキャッシュを導入すべきか検討が必要です。
-# メリット: レスポンスが約10倍高速化（DB round-trip 削減）
-# デメリット: キャッシュ無効化の複雑さが増加
-# 現在のトラフィック量を考えると、今は不要かもしれません。
-# どう思いますか？
+# [DISCUSS] We need to consider whether to introduce caching here.
+# Pros: Response time approximately 10x faster (reduced DB round-trips)
+# Cons: Increased complexity of cache invalidation
+# Given the current traffic volume, it may not be necessary yet.
+# What do you think?
 ```
 
-### 3.3 GitHub Suggestion 機能の活用
+### 3.3 Using GitHub Suggestion Feature
 
 ```python
-# GitHub の Suggestion 構文で直接修正を提案
+# Propose fixes directly using GitHub's Suggestion syntax
 
-# レビューコメントで以下のように書く:
+# Write the following in a review comment:
 #
-# [NIT] 定数名は UPPER_SNAKE_CASE にしましょう。
+# [NIT] Constant names should use UPPER_SNAKE_CASE.
 #
 # ```suggestion
 # MAX_RETRY_COUNT = 3
 # TIMEOUT_SECONDS = 30
 # ```
 #
-# → 作者はワンクリックで適用可能
+# -> The author can apply it with one click
 
-# 複数行の提案も可能:
+# Multi-line suggestions are also possible:
 #
-# [SHOULD] 型ヒントを追加しましょう。
+# [SHOULD] Let's add type hints.
 #
 # ```suggestion
 # def calculate_total(
@@ -418,68 +418,68 @@ product_map = {p.id: p for p in products}
 # ) -> int:
 # ```
 
-# バッチ提案: 複数の suggestion をまとめて適用可能
-# → 小さな修正を1コミットにまとめられる
+# Batch suggestions: multiple suggestions can be applied together
+# -> Small fixes can be grouped into a single commit
 ```
 
-### 3.4 褒める文化の実践
+### 3.4 Practicing a Culture of Praise
 
 ```
-良いレビューは「指摘」だけでなく「称賛」を含む。
+Good reviews include not just "criticisms" but also "praise."
 
-  称賛すべきポイント:
-  ├── 読みやすい命名
-  ├── 巧みなテストケース設計
-  ├── エッジケースの適切な処理
-  ├── 既存コードの改善（ボーイスカウトルール）
-  ├── 良いドキュメント
-  └── パフォーマンスへの配慮
+  Points worth praising:
+  ├── Readable naming
+  ├── Clever test case design
+  ├── Appropriate handling of edge cases
+  ├── Improvement of existing code (Boy Scout Rule)
+  ├── Good documentation
+  └── Consideration for performance
 
-  称賛の例:
-  [PRAISE] このエラーハンドリングのパターン、とても参考になります。
-           他の箇所にも適用したいです。
+  Examples of praise:
+  [PRAISE] This error handling pattern is very instructive.
+           I'd like to apply it to other areas as well.
 
-  [PRAISE] テストケースの境界値テストが網羅的で素晴らしい。
-           特に0件の場合と上限値の場合を両方カバーしている点が良い。
+  [PRAISE] The boundary value tests are comprehensive.
+           Especially good that both the zero-item case and the upper limit are covered.
 
-  [PRAISE] この関数の分割方法が的確です。
-           各関数が単一責任で、テストも書きやすくなっています。
+  [PRAISE] The way this function is split is precise.
+           Each function has a single responsibility and is easy to test.
 
-  研究結果: 称賛を含むレビューは、指摘のみのレビューと比較して
-  修正の取り込み率が23%高い（Google Engineering Practices）
+  Research finding: reviews that include praise have a 23% higher fix adoption rate
+  compared to reviews with only criticisms (Google Engineering Practices)
 ```
 
 ---
 
-## 4. 自動化との組み合わせ
+## 4. Combining with Automation
 
-### 4.1 CI/CD パイプラインとの統合
+### 4.1 Integration with CI/CD Pipeline
 
 ```
-レビューの役割分担
+Division of Review Responsibilities
 
-  自動化 (CI) が担当:
-  ├── コードスタイル (Ruff, ESLint, Prettier)
-  ├── 型チェック (MyPy, TypeScript)
-  ├── テスト実行
-  ├── カバレッジ計測
-  ├── セキュリティスキャン (Bandit, Snyk, Trivy)
-  ├── 依存関係の脆弱性チェック
-  ├── ライセンス互換性チェック
-  └── コード複雑度チェック (cyclomatic complexity)
+  What automation (CI) handles:
+  ├── Code style (Ruff, ESLint, Prettier)
+  ├── Type checking (MyPy, TypeScript)
+  ├── Test execution
+  ├── Coverage measurement
+  ├── Security scanning (Bandit, Snyk, Trivy)
+  ├── Dependency vulnerability checks
+  ├── License compatibility checks
+  └── Code complexity checks (cyclomatic complexity)
 
-  人間が担当:
-  ├── ビジネスロジックの正確性
-  ├── 設計・アーキテクチャの妥当性
-  ├── 可読性と命名の適切さ
-  ├── テストケースの十分性（カバレッジだけでなく意味的な網羅性）
-  ├── コンテキスト依存の判断
-  └── 将来の拡張性・保守性の評価
+  What humans handle:
+  ├── Correctness of business logic
+  ├── Validity of design and architecture
+  ├── Readability and appropriateness of naming
+  ├── Sufficiency of test cases (semantic coverage, not just line coverage)
+  ├── Context-dependent judgment
+  └── Assessment of future extensibility and maintainability
 
-  ★ 自動化できることは自動化し、人間は高次の判断に集中
+  ★ Automate what can be automated; let humans focus on higher-order judgment
 ```
 
-### 4.2 CI 設定の実践例
+### 4.2 Practical CI Configuration Example
 
 ```yaml
 # .github/workflows/pr-checks.yml
@@ -497,7 +497,7 @@ jobs:
       - name: Lint Check
         run: |
           ruff check .        # Python
-          ruff format --check . # フォーマットチェック
+          ruff format --check . # Format check
 
   type-check:
     runs-on: ubuntu-latest
@@ -519,8 +519,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Security Scan
         run: |
-          bandit -r src/       # Python セキュリティ
-          pip-audit            # 依存関係の脆弱性
+          bandit -r src/       # Python security
+          pip-audit            # Dependency vulnerabilities
 
   pr-size:
     runs-on: ubuntu-latest
@@ -532,95 +532,95 @@ jobs:
         run: |
           CHANGED_LINES=$(git diff --stat origin/main...HEAD | tail -1 | awk '{print $4}')
           if [ "$CHANGED_LINES" -gt 400 ]; then
-            echo "::warning::PR が400行を超えています。分割を検討してください。"
+            echo "::warning::PR exceeds 400 lines. Consider splitting it."
           fi
 ```
 
-### 4.3 CODEOWNERS の設計
+### 4.3 CODEOWNERS Design
 
 ```
 # .github/CODEOWNERS
 
-# デフォルトレビュアー
+# Default reviewers
 * @team-leads
 
-# フロントエンド
+# Frontend
 /frontend/             @frontend-team
 /frontend/src/auth/    @security-team @frontend-team
 
-# バックエンド
+# Backend
 /backend/              @backend-team
 /backend/src/billing/  @billing-team @backend-team
 
-# インフラ
+# Infrastructure
 /infrastructure/       @sre-team
 /docker/              @sre-team
 /.github/             @devops-team
 
-# DB マイグレーション（必ず DBA がレビュー）
+# DB migrations (must always be reviewed by DBA)
 /backend/migrations/   @dba-team
 
-# セキュリティ関連（セキュリティチームの承認必須）
+# Security-related (security team approval required)
 **/auth/**            @security-team
 **/crypto/**          @security-team
 ```
 
 ```
-CODEOWNERS 設計のベストプラクティス:
+Best practices for CODEOWNERS design:
 
-  ├── 過度に細かく設定しない（レビュー待ちのボトルネック）
-  ├── チーム単位でアサイン（個人単位だと休暇時に滞留）
-  ├── セキュリティ・DB マイグレーションは専門チーム必須
-  ├── 定期的に見直し（チーム体制の変化に追従）
-  └── Optional reviewers も活用（知識共有目的のレビュー）
+  ├── Don't configure too granularly (creates bottlenecks in review wait time)
+  ├── Assign at team level (individual assignments cause delays during vacations)
+  ├── Security and DB migrations require a dedicated expert team
+  ├── Review periodically (keep up with team structure changes)
+  └── Also use optional reviewers (for knowledge-sharing reviews)
 ```
 
 ---
 
-## 5. レビューメトリクスと改善
+## 5. Review Metrics and Improvement
 
-### 5.1 追跡すべきメトリクス
+### 5.1 Metrics to Track
 
 ```
-レビュープロセスの健全性指標:
+Review Process Health Indicators:
 
-  速度メトリクス:
-  ├── Time to First Review: PR 作成からレビュー開始まで
-  │   目標: < 24時間、理想: < 4時間
-  ├── Review Cycle Time: PR 作成からマージまで
-  │   目標: < 48時間
-  └── Re-review Time: 修正後の再レビューまで
-      目標: < 8時間
+  Velocity Metrics:
+  ├── Time to First Review: from PR creation to review start
+  │   Target: < 24 hours, Ideal: < 4 hours
+  ├── Review Cycle Time: from PR creation to merge
+  │   Target: < 48 hours
+  └── Re-review Time: time to re-review after fix
+      Target: < 8 hours
 
-  品質メトリクス:
-  ├── Defect Escape Rate: レビューを通過したバグの割合
-  │   目標: < 5%
-  ├── Review Coverage: レビューを受けたPRの割合
-  │   目標: 100%（hotfix除く）
-  └── Comments per PR: PR あたりのコメント数
-      目安: 2-5件（0件は形式的、10+件はPRが大きすぎる）
+  Quality Metrics:
+  ├── Defect Escape Rate: percentage of bugs that passed review
+  │   Target: < 5%
+  ├── Review Coverage: percentage of PRs that received a review
+  │   Target: 100% (excluding hotfixes)
+  └── Comments per PR: number of comments per PR
+      Guideline: 2-5 (0 is rubber-stamping, 10+ means PR is too large)
 
-  チームメトリクス:
-  ├── Review Load Balance: レビュアーごとの負荷分散
-  ├── Knowledge Distribution: CODEOWNERS の偏り
-  └── PR Size Distribution: PRサイズの分布
+  Team Metrics:
+  ├── Review Load Balance: workload distribution across reviewers
+  ├── Knowledge Distribution: bias in CODEOWNERS
+  └── PR Size Distribution: distribution of PR sizes
 ```
 
-### 5.2 メトリクスの可視化
+### 5.2 Visualizing Metrics
 
 ```python
-# GitHub API を使ったレビューメトリクスの収集
+# Collecting review metrics using the GitHub API
 
 import requests
 from datetime import datetime, timedelta
 from collections import defaultdict
 
 def collect_review_metrics(repo: str, token: str, days: int = 30):
-    """過去N日間のレビューメトリクスを収集"""
+    """Collect review metrics for the past N days"""
     headers = {"Authorization": f"Bearer {token}"}
     since = (datetime.now() - timedelta(days=days)).isoformat()
 
-    # PRの取得
+    # Fetch PRs
     prs = requests.get(
         f"https://api.github.com/repos/{repo}/pulls",
         headers=headers,
@@ -637,7 +637,7 @@ def collect_review_metrics(repo: str, token: str, days: int = 30):
     }
 
     for pr in prs:
-        # PR作成日時
+        # PR creation timestamp
         created_at = datetime.fromisoformat(pr["created_at"].replace("Z", "+00:00"))
         merged_at = pr.get("merged_at")
 
@@ -646,7 +646,7 @@ def collect_review_metrics(repo: str, token: str, days: int = 30):
             cycle_time = (merged_at - created_at).total_seconds() / 3600
             metrics["avg_cycle_time"].append(cycle_time)
 
-        # レビューの取得
+        # Fetch reviews
         reviews = requests.get(
             pr["url"] + "/reviews",
             headers=headers,
@@ -663,14 +663,14 @@ def collect_review_metrics(repo: str, token: str, days: int = 30):
                 reviewer = review["user"]["login"]
                 metrics["reviewer_load"][reviewer] += 1
 
-        # コメント数
+        # Comment count
         comments = requests.get(pr["url"] + "/comments", headers=headers).json()
         metrics["avg_comments_per_pr"].append(len(comments))
 
-        # PR サイズ
+        # PR size
         metrics["pr_sizes"].append(pr.get("additions", 0) + pr.get("deletions", 0))
 
-    # 集計
+    # Aggregate
     return {
         "total_prs": metrics["total_prs"],
         "avg_time_to_first_review_hours": (
@@ -696,220 +696,220 @@ def collect_review_metrics(repo: str, token: str, days: int = 30):
 
 ---
 
-## 6. 特殊なレビュー対象
+## 6. Special Review Targets
 
-### 6.1 DB マイグレーションのレビュー
-
-```
-DB マイグレーション専用チェックリスト:
-
-  安全性:
-  ├── [x] ロールバック可能か？（down マイグレーション）
-  ├── [x] 大テーブルのロック時間は許容範囲か？
-  ├── [x] NOT NULL 制約の追加にデフォルト値はあるか？
-  ├── [x] インデックスの追加は CONCURRENTLY か？（PostgreSQL）
-  └── [x] データ移行のバッチサイズは適切か？
-
-  互換性:
-  ├── [x] 旧バージョンのコードと互換性があるか？（ローリングデプロイ）
-  ├── [x] カラム削除は2段階（まず読み取り停止 → 次回削除）か？
-  └── [x] 外部キー制約の追加はアプリケーション停止を伴わないか？
-
-  テスト:
-  ├── [x] ステージング環境で実行済みか？
-  ├── [x] 本番と同等のデータ量でテスト済みか？
-  └── [x] 実行時間を計測したか？
-```
-
-### 6.2 セキュリティクリティカルなコードのレビュー
+### 6.1 Reviewing DB Migrations
 
 ```
-セキュリティレビューの重点チェック:
+DB Migration Dedicated Checklist:
 
-  認証・認可:
-  ├── トークン検証ロジックは正しいか？
-  ├── 権限チェックの漏れはないか？（Broken Access Control）
-  ├── セッション管理は安全か？
-  └── パスワードハッシュアルゴリズムは適切か？（bcrypt, Argon2）
+  Safety:
+  ├── [x] Is it rollback-able? (down migration)
+  ├── [x] Is the lock duration acceptable for large tables?
+  ├── [x] Does adding a NOT NULL constraint have a default value?
+  ├── [x] Is index addition done with CONCURRENTLY? (PostgreSQL)
+  └── [x] Is the batch size for data migration appropriate?
 
-  データ保護:
-  ├── PII（個人情報）のマスキングは適切か？
-  ├── ログに機密情報が含まれていないか？
-  ├── 暗号化キーのローテーション対応はあるか？
-  └── データの最小権限の原則に従っているか？
+  Compatibility:
+  ├── [x] Is it compatible with older versions of the code? (rolling deploy)
+  ├── [x] Is column deletion done in 2 phases? (stop reads first -> delete next release)
+  └── [x] Does adding a foreign key constraint avoid application downtime?
 
-  入力検証:
-  ├── 全ての外部入力にバリデーションがあるか？
-  ├── ファイルパスのトラバーサル攻撃対策は？
-  ├── XML External Entity (XXE) 対策は？
-  └── Server-Side Request Forgery (SSRF) 対策は？
+  Testing:
+  ├── [x] Has it been run in a staging environment?
+  ├── [x] Has it been tested with equivalent production data volume?
+  └── [x] Has execution time been measured?
 ```
 
-### 6.3 パフォーマンスクリティカルなコードのレビュー
+### 6.2 Reviewing Security-Critical Code
 
 ```
-パフォーマンスレビューの重点チェック:
+Key Checks for Security Review:
 
-  データベース:
-  ├── EXPLAIN ANALYZE でクエリプランを確認したか？
-  ├── フルテーブルスキャンになっていないか？
-  ├── 不要な JOIN はないか？
-  └── バッチ処理のチャンクサイズは適切か？
+  Authentication and Authorization:
+  ├── Is the token validation logic correct?
+  ├── Are there missing permission checks? (Broken Access Control)
+  ├── Is session management secure?
+  └── Is the password hashing algorithm appropriate? (bcrypt, Argon2)
 
-  メモリ:
-  ├── 大量データの一括ロードをしていないか？
-  ├── ストリーム処理が可能な箇所をバッチで処理していないか？
-  ├── クロージャによるメモリリークはないか？
-  └── イベントリスナーの解除忘れはないか？
+  Data Protection:
+  ├── Is masking of PII (personally identifiable information) appropriate?
+  ├── Is sensitive information not included in logs?
+  ├── Is there support for encryption key rotation?
+  └── Does it follow the principle of least privilege for data?
 
-  ネットワーク:
-  ├── 不要な API コールはないか？
-  ├── レスポンスの gzip 圧縮は有効か？
-  ├── CDN を活用すべき静的リソースはあるか？
-  └── WebSocket vs ポーリングの選択は適切か？
+  Input Validation:
+  ├── Is there validation for all external inputs?
+  ├── Protection against file path traversal attacks?
+  ├── XML External Entity (XXE) protection?
+  └── Server-Side Request Forgery (SSRF) protection?
+```
+
+### 6.3 Reviewing Performance-Critical Code
+
+```
+Key Checks for Performance Review:
+
+  Database:
+  ├── Was the query plan confirmed with EXPLAIN ANALYZE?
+  ├── Is there a full table scan?
+  ├── Are there unnecessary JOINs?
+  └── Is the chunk size for batch processing appropriate?
+
+  Memory:
+  ├── Is large data being loaded all at once?
+  ├── Are areas that could use stream processing being batch-processed?
+  ├── Are there memory leaks from closures?
+  └── Are event listeners being removed properly?
+
+  Network:
+  ├── Are there unnecessary API calls?
+  ├── Is gzip compression for responses enabled?
+  ├── Are there static resources that should use a CDN?
+  └── Is the choice of WebSocket vs. polling appropriate?
 ```
 
 ---
 
-## 7. レビュー手法の比較
+## 7. Comparison of Review Methods
 
-| レビュー手法 | 対象 | コスト | 欠陥発見率 | 知識共有効果 |
+| Review Method | Target | Cost | Defect Detection Rate | Knowledge Sharing Effect |
 |------------|------|-------|:--------:|:----------:|
-| PR レビュー (非同期) | コード差分 | 低 | 中 | 中 |
-| ペアプログラミング | リアルタイム | 高 | 高 | 高 |
-| モブプログラミング | チーム全体 | 最高 | 最高 | 最高 |
-| 自動レビュー (CI) | 静的解析 | 最低 | 低 (パターン限定) | なし |
-| アーキテクチャレビュー | 設計文書 | 中 | 高 (設計レベル) | 高 |
+| PR Review (async) | Code diff | Low | Medium | Medium |
+| Pair Programming | Real-time | High | High | High |
+| Mob Programming | Whole team | Highest | Highest | Highest |
+| Automated Review (CI) | Static analysis | Lowest | Low (pattern-limited) | None |
+| Architecture Review | Design documents | Medium | High (design level) | High |
 
-| 観点 | 自動化可能 | 人間が必要 |
+| Perspective | Automatable | Requires Human |
 |------|:--------:|:--------:|
-| コードスタイル | 完全自動化 | -- |
-| 型安全性 | 完全自動化 | -- |
-| テスト通過 | 完全自動化 | -- |
-| ビジネスロジック | -- | 必須 |
-| 設計判断 | -- | 必須 |
-| 命名の適切さ | 部分自動化 | 必須 |
-| テストの十分性 | 部分自動化 | 必須 |
-| セキュリティ | 部分自動化 | 必須 |
+| Code style | Fully automatable | -- |
+| Type safety | Fully automatable | -- |
+| Test passing | Fully automatable | -- |
+| Business logic | -- | Required |
+| Design judgment | -- | Required |
+| Naming appropriateness | Partially automatable | Required |
+| Test sufficiency | Partially automatable | Required |
+| Security | Partially automatable | Required |
 
 ```
-レビュー手法の使い分け:
+Choosing review methods by situation:
 
-  コードの複雑度
-    │
-    ├── 低（バグ修正、小さな機能追加）
-    │   → 非同期 PR レビュー（1名）
-    │
-    ├── 中（中規模機能、APIの追加）
-    │   → 非同期 PR レビュー（2名）+ CI 自動チェック
-    │
-    ├── 高（アーキテクチャ変更、新サービス）
-    │   → アーキテクチャレビュー + ペアプログラミング + PR レビュー
-    │
-    └── 最高（セキュリティ、金融ロジック）
-        → 専門チームによるレビュー + モブプログラミング
+  Code complexity
+    |
+    ├── Low (bug fixes, small feature additions)
+    |   -> Async PR review (1 reviewer)
+    |
+    ├── Medium (medium-sized feature, adding an API)
+    |   -> Async PR review (2 reviewers) + CI automated checks
+    |
+    ├── High (architecture changes, new service)
+    |   -> Architecture review + pair programming + PR review
+    |
+    └── Highest (security, financial logic)
+        -> Review by specialist team + mob programming
 ```
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### 8.1 アンチパターン：人格攻撃になるレビュー
-
-```
-BAD:
-  「なんでこんな書き方するんですか？普通はこう書きます」
-  「このコードは素人レベルです」
-  「前にも言ったのに、なぜ直さないんですか？」
-  → 心理的安全性の崩壊、レビュー文化の衰退
-
-GOOD:
-  「[SHOULD] この部分、早期リターンパターンを使うと
-   ネストが減って可読性が上がります。以下のようにいかがでしょう？」
-  「[PRAISE] このエラーハンドリングの設計は参考になります」
-  「[FYI] この命名パターン、チームのコーディング規約にもある
-   ベストプラクティスです: [リンク]」
-  → コードに対するフィードバック、人に対する敬意
-```
-
-**根本原因**: レビューの目的が「問題の発見」ではなく「批判」になっている。レビュアーは「コードをより良くするために協力する」というマインドセットが必要。
-
-**対策**: (1) チームでレビューガイドラインを策定。(2) コメントプレフィックスの義務化。(3) レビュー研修の実施。(4) 1:1 でのフィードバック方法の見直し。
-
-### 8.2 アンチパターン：LGTM スタンプ
+### 8.1 Anti-Pattern: Reviews That Become Personal Attacks
 
 ```
 BAD:
-  「LGTM」(1分でレビュー完了、400行のPR)
-  → レビューの意味がない、品質保証にならない
+  "Why do you write it like this? The normal way is like this."
+  "This code is amateur-level."
+  "I told you before, why didn't you fix it?"
+  -> Collapse of psychological safety, deterioration of review culture
 
 GOOD:
-  - 最低1つは具体的なコメントを残す
-  - 良い点も指摘する ([PRAISE])
-  - PR が大きすぎる場合は分割を依頼する
-  - 理解できない箇所は [QUESTION] で質問する
-  - 変更の要約を自分の言葉で書く（理解の確認）
+  "[SHOULD] For this part, using an early-return pattern
+   would reduce nesting and improve readability. How about the following?"
+  "[PRAISE] This error handling design is very instructive."
+  "[FYI] This naming pattern is a best practice also in our team's
+   coding guidelines: [link]"
+  -> Feedback on the code, respect for the person
 ```
 
-**根本原因**: レビューの時間が確保されていない、レビューの価値が組織で認識されていない。
+**Root Cause**: The purpose of review has shifted from "finding problems" to "criticism." Reviewers need the mindset of "collaborating to make the code better."
 
-**対策**: (1) レビュー時間を業務時間として正式に確保。(2) レビューメトリクスの可視化。(3) レビューの最低基準を CODEOWNERS の approve 条件に設定。
+**Countermeasures**: (1) The team creates review guidelines together. (2) Make comment prefixes mandatory. (3) Conduct review training. (4) Re-examine feedback methods in 1:1s.
 
-### 8.3 アンチパターン：ゲートキーパー型レビュー
+### 8.2 Anti-Pattern: LGTM Rubber-Stamping
 
 ```
 BAD:
-  特定の個人がボトルネックになるレビュー体制
-  ├── シニアエンジニア1名が全PRをレビュー
-  ├── 承認まで3-5日待ち
-  └── チームの自律性が育たない
+  "LGTM" (review completed in 1 minute for a 400-line PR)
+  -> The review is meaningless and provides no quality assurance
 
 GOOD:
-  分散型レビュー体制
-  ├── レビュアーはチーム内でローテーション
-  ├── CODEOWNERS は「チーム」単位で設定
-  ├── ジュニアメンバーも積極的にレビュー参加（学習機会）
-  └── レビューガイドラインを明文化し、属人化を防ぐ
+  - Leave at least one specific comment
+  - Also point out good things ([PRAISE])
+  - If the PR is too large, request that it be split
+  - Ask [QUESTION] about anything not understood
+  - Write a summary of the changes in your own words (confirmation of understanding)
 ```
 
-**根本原因**: 「シニアでないとレビューできない」という思い込み。
+**Root Cause**: Time for reviews is not allocated; the value of reviews is not recognized within the organization.
 
-**対策**: (1) ジュニアのレビューをシニアが「レビューのレビュー」して育成。(2) ドメイン知識はペアレビューで共有。(3) 承認条件を「2名中1名がシニア」に緩和。
+**Countermeasures**: (1) Officially allocate review time as part of work hours. (2) Visualize review metrics. (3) Set a minimum standard for reviews as a condition for CODEOWNERS approval.
 
-### 8.4 アンチパターン：スタイル論争（Bike-shedding）
+### 8.3 Anti-Pattern: Gatekeeper-Style Review
 
 ```
 BAD:
-  PR コメントの80%が以下のような議論:
-  ├── タブ vs スペース
-  ├── セミコロンの有無
-  ├── 括弧の位置
-  └── インポートの順序
-
-  → 本質的な問題（バグ、設計、セキュリティ）が見落とされる
+  Review structure where a specific individual becomes a bottleneck
+  ├── A single senior engineer reviews all PRs
+  ├── 3-5 day wait for approval
+  └── Team autonomy does not grow
 
 GOOD:
-  ├── コードスタイルは Linter/Formatter で自動強制
+  Distributed review structure
+  ├── Reviewers rotate within the team
+  ├── CODEOWNERS is configured at the "team" level
+  ├── Junior members also actively participate in reviews (learning opportunity)
+  └── Review guidelines are written down to prevent knowledge concentration
+```
+
+**Root Cause**: The assumption that "only seniors can review."
+
+**Countermeasures**: (1) Senior engineers do "review of reviews" on junior reviews for mentoring. (2) Domain knowledge is shared through pair reviews. (3) Relax approval conditions to "1 of 2 reviewers is a senior."
+
+### 8.4 Anti-Pattern: Style Debates (Bike-shedding)
+
+```
+BAD:
+  80% of PR comments are debates like:
+  ├── Tabs vs. spaces
+  ├── Presence or absence of semicolons
+  ├── Bracket placement
+  └── Import order
+
+  -> Substantial issues (bugs, design, security) get overlooked
+
+GOOD:
+  ├── Enforce code style automatically with Linter/Formatter
   │   (Prettier, Black, Ruff, gofmt)
-  ├── スタイルガイドをドキュメント化（議論は初回のみ）
-  ├── CI が自動でフォーマットチェック
-  └── 人間はロジック・設計・セキュリティに集中
+  ├── Document the style guide (debate it only the first time)
+  ├── CI automatically checks formatting
+  └── Humans focus on logic, design, and security
 ```
 
-**根本原因**: 自動化可能な項目を人間がチェックしている。
+**Root Cause**: Humans are checking things that can be automated.
 
-**対策**: `.editorconfig`, `prettier`, `ruff` 等を CI に組み込み、フォーマット違反は自動で検出・修正。
+**Countermeasures**: Integrate `.editorconfig`, `prettier`, `ruff`, etc. into CI to automatically detect and fix formatting violations.
 
 ---
 
-## 9. 演習問題
+## 9. Practice Problems
 
-### 演習1（基礎）: コードレビューの実践
+### Exercise 1 (Basic): Code Review Practice
 
-**課題**: 以下の Python コードをレビューし、適切なプレフィックス付きのコメントを5つ以上作成せよ。
+**Task**: Review the following Python code and create 5 or more comments with appropriate prefixes.
 
 ```python
-# レビュー対象コード
+# Code to review
 import json
 import os
 
@@ -925,213 +925,213 @@ def get_users(db, role, page):
             data['email'] = u.email
             data['role'] = u.role
             data['created'] = str(u.created_at)
-            data['password_hash'] = u.password_hash  # フロントエンドが必要としている
+            data['password_hash'] = u.password_hash  # Frontend needs this
             result.append(data)
     return json.dumps(result)
 ```
 
-**期待される出力**:
+**Expected Output**:
 
 ```
-5つ以上のレビューコメント（プレフィックス付き）
+5 or more review comments (with prefixes)
 ```
 
-**模範解答**:
+**Model Answer**:
 
 ```
-[MUST] SQL インジェクションの脆弱性があります。
-  role パラメータがエスケープされずにクエリに直接埋め込まれています。
-  パラメータバインドを使用してください:
+[MUST] There is a SQL injection vulnerability.
+  The role parameter is embedded directly in the query without escaping.
+  Please use parameter binding:
   query = "SELECT * FROM users WHERE role = %s ORDER BY id LIMIT %s OFFSET %s"
   db.execute(query, (role, 20, page * 20))
 
-[MUST] password_hash がレスポンスに含まれています。
-  これはセキュリティ上の重大な問題です。
-  フロントエンドにパスワードハッシュを返す必要はありません。
-  必要なフィールドのみを含む DTO に変換してください。
+[MUST] password_hash is included in the response.
+  This is a serious security issue.
+  There is no reason to return the password hash to the frontend.
+  Convert to a DTO that contains only the necessary fields.
 
-[SHOULD] 関数が JSON 文字列を返しています。
-  通常、関数はデータ構造（list[dict]）を返し、
-  シリアライゼーションは呼び出し元（API層）に任せるべきです。
-  これにより、テストが容易になり、再利用性が上がります。
+[SHOULD] The function returns a JSON string.
+  Normally, functions should return data structures (list[dict]),
+  and serialization should be left to the caller (API layer).
+  This makes testing easier and improves reusability.
 
-[SHOULD] `u.active == True` は `u.active` と書けます。
-  また、フィルタリングは SQL 側で行う方が効率的です:
+[SHOULD] `u.active == True` can be written as `u.active`.
+  Also, it is more efficient to do the filtering on the SQL side:
   WHERE role = %s AND active = TRUE
 
-[SHOULD] ページネーションの定数 20 がハードコードされています。
-  PER_PAGE = 20 として定数化するか、引数にしてください。
+[SHOULD] The pagination constant 20 is hardcoded.
+  Extract as a constant PER_PAGE = 20, or make it a parameter.
 
-[NIT] 変数名 `u` は `user` の方が可読性が高いです。
+[NIT] Variable name `u` is more readable as `user`.
   for user in users:
 
-[NIT] 日時のフォーマットに str() を使うと実装依存の形式になります。
-  ISO 8601 形式を使用してください:
+[NIT] Using str() for datetime formatting produces an implementation-dependent format.
+  Use ISO 8601 format:
   data['created_at'] = u.created_at.isoformat()
 
-[QUESTION] このエンドポイントのページネーションですが、
-  オフセットベースで問題ないですか？
-  ユーザー数が多い場合、カーソルベースの方が効率的です。
+[QUESTION] Regarding pagination for this endpoint,
+  is offset-based pagination acceptable?
+  If there are many users, cursor-based pagination is more efficient.
 ```
 
 ---
 
-### 演習2（応用）: レビュープロセスの設計
+### Exercise 2 (Applied): Designing a Review Process
 
-**課題**: 以下のチーム構成でレビュープロセスを設計せよ。
-
-```
-チーム構成:
-  - テックリード 1名
-  - シニアエンジニア 2名
-  - ミドルエンジニア 3名
-  - ジュニアエンジニア 2名
-
-課題:
-  - テックリードがボトルネックになっている（全PRをレビュー）
-  - レビュー待ち時間が平均48時間
-  - ジュニアがレビューに参加していない
-  - コードスタイルの議論が多い
-```
-
-**期待される出力**:
+**Task**: Design a review process for the following team composition.
 
 ```
-1. レビュールール（CODEOWNERS、承認条件）
-2. 自動化の提案（CI 設定）
-3. レビュー文化の改善策
-4. メトリクス目標
+Team composition:
+  - 1 tech lead
+  - 2 senior engineers
+  - 3 mid-level engineers
+  - 2 junior engineers
+
+Issues:
+  - The tech lead is becoming a bottleneck (reviewing all PRs)
+  - Average review wait time is 48 hours
+  - Juniors are not participating in reviews
+  - Too many discussions about code style
 ```
 
-**模範解答**:
+**Expected Output**:
 
 ```
-1. レビュールール:
+1. Review rules (CODEOWNERS, approval conditions)
+2. Automation proposals (CI configuration)
+3. Review culture improvements
+4. Metrics targets
+```
+
+**Model Answer**:
+
+```
+1. Review rules:
 
   CODEOWNERS:
-    /src/           @backend-team  (チーム全員)
-    /src/billing/   @senior-team   (シニア以上必須)
-    /infrastructure/ @tech-lead    (テックリード必須)
+    /src/           @backend-team  (whole team)
+    /src/billing/   @senior-team   (senior or above required)
+    /infrastructure/ @tech-lead    (tech lead required)
     /migrations/    @tech-lead @senior-team
 
-  承認条件:
-    通常PR:  2名の承認（うち1名はシニア以上）
-    セキュリティ関連: テックリード + シニア
-    ドキュメントのみ: 1名の承認
-    hotfix: テックリード or シニアの1名承認
+  Approval conditions:
+    Normal PR:  2 approvals (at least 1 from senior or above)
+    Security-related: tech lead + senior
+    Documentation only: 1 approval
+    Hotfix: 1 approval from tech lead or senior
 
-  ジュニアの参加:
-    ジュニアは全PRに「任意レビュアー」として追加
-    承認権限はないが、コメント・質問は推奨
-    週1でシニアがジュニアのレビューコメントをフィードバック
+  Junior participation:
+    Juniors are added as "optional reviewers" on all PRs
+    No approval rights, but comments and questions are encouraged
+    Senior provides feedback on junior review comments weekly
 
-2. 自動化:
-    Prettier / Ruff を CI に導入 → スタイル論争を排除
-    PR サイズチェック（400行超で警告）
-    カバレッジ80%未満で警告
-    セキュリティスキャン自動実行
+2. Automation:
+    Introduce Prettier / Ruff in CI -> eliminate style debates
+    PR size check (warning for over 400 lines)
+    Warning for coverage below 80%
+    Automated security scanning
 
-3. レビュー文化:
-    毎日30分のレビュータイム確保（全員）
-    週1の「Good Review」共有会（5分）
-    レビューガイドラインの明文化
-    [PRAISE] コメントの奨励
+3. Review culture:
+    Everyone reserves 30 minutes daily for reviews
+    Weekly "Good Review" sharing session (5 minutes)
+    Written review guidelines
+    Encourage [PRAISE] comments
 
-4. メトリクス目標:
-    Time to First Review: < 8時間（現在48時間）
-    Review Cycle Time: < 24時間
-    レビュアーの負荷分散: 偏差20%以内
-    ジュニアのレビューコメント: 週3件以上
+4. Metrics targets:
+    Time to First Review: < 8 hours (currently 48 hours)
+    Review Cycle Time: < 24 hours
+    Reviewer load balance: within 20% deviation
+    Junior review comments: 3+ per week
 ```
 
 ---
 
-### 演習3（発展）: AI コードレビューツールの活用戦略
+### Exercise 3 (Advanced): AI Code Review Tool Adoption Strategy
 
-**課題**: AI コードレビューツール（GitHub Copilot、Coderabbit 等）をチームに導入する戦略を設計せよ。
-
-```
-条件:
-  - チームは10名
-  - 月間200 PR
-  - レビュー待ち時間を50%短縮したい
-  - AI による誤検出を最小限に抑えたい
-```
-
-**期待される出力**:
+**Task**: Design a strategy for introducing AI code review tools (GitHub Copilot, Coderabbit, etc.) to the team.
 
 ```
-1. AI ツールが担当すべき領域
-2. 人間が引き続き担当すべき領域
-3. 導入のフェーズ計画
-4. 品質検証の方法
+Conditions:
+  - Team of 10 people
+  - 200 PRs per month
+  - Want to reduce review wait time by 50%
+  - Want to minimize false positives from AI
 ```
 
-**模範解答**:
+**Expected Output**:
 
 ```
-1. AI ツールが担当する領域:
-   ├── コードスタイル・フォーマットの提案
-   ├── 一般的なバグパターンの検出
-   ├── 未使用変数・未処理例外の検出
-   ├── セキュリティパターンの基本チェック
-   ├── ドキュメント・コメントの提案
-   └── テストカバレッジの提案
+1. Areas AI tools should handle
+2. Areas humans should continue to handle
+3. Phased rollout plan
+4. Quality verification methods
+```
 
-2. 人間が担当する領域:
-   ├── ビジネスロジックの正確性（AI は要件を知らない）
-   ├── アーキテクチャ・設計の妥当性
-   ├── ドメイン固有の慣習・ルール
-   ├── パフォーマンスの実測に基づく判断
-   ├── AI の提案の最終承認
-   └── チームメンバーの育成・メンタリング
+**Model Answer**:
 
-3. 導入フェーズ:
-   Phase 1 (Month 1): AI をコメントのみモードで導入
-     → AI の提案精度を計測（適合率・再現率）
-   Phase 2 (Month 2): 高精度な項目のみ自動承認
-     → スタイル、未使用コード等の明確な問題
-   Phase 3 (Month 3): AI + 人間のハイブリッドフロー確立
-     → AI が初回レビュー → 人間がロジック・設計レビュー
+```
+1. Areas AI tools handle:
+   ├── Code style and formatting suggestions
+   ├── Detection of common bug patterns
+   ├── Detection of unused variables and unhandled exceptions
+   ├── Basic security pattern checks
+   ├── Documentation and comment suggestions
+   └── Test coverage suggestions
 
-4. 品質検証:
-   ├── AI の提案を人間が1ヶ月間追跡
-   ├── False Positive 率を計測（目標: < 10%）
-   ├── AI 導入前後のバグ数を比較
-   ├── レビュー待ち時間の変化を計測
-   └── チームの満足度アンケート
+2. Areas humans handle:
+   ├── Correctness of business logic (AI doesn't know the requirements)
+   ├── Validity of architecture and design
+   ├── Domain-specific conventions and rules
+   ├── Judgments based on actual performance measurements
+   ├── Final approval of AI suggestions
+   └── Mentoring and developing team members
+
+3. Rollout phases:
+   Phase 1 (Month 1): Introduce AI in comment-only mode
+     -> Measure AI suggestion accuracy (precision and recall)
+   Phase 2 (Month 2): Auto-approve only high-accuracy items
+     -> Clear issues like style and unused code
+   Phase 3 (Month 3): Establish hybrid flow of AI + human
+     -> AI does first review -> Humans review logic and design
+
+4. Quality verification:
+   ├── Track AI suggestions with human review for 1 month
+   ├── Measure false positive rate (target: < 10%)
+   ├── Compare bug counts before and after AI introduction
+   ├── Measure changes in review wait time
+   └── Team satisfaction survey
 ```
 
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured configuration file | Check path and format of configuration file |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access permissions | Check executing user permissions, review configuration |
+| Data inconsistency | Concurrent processing conflict | Introduce locking mechanism, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace and identify the location
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form a hypothesis**: List possible causes
+4. **Validate incrementally**: Use log output or a debugger to validate hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debug utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1139,102 +1139,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input and output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return value: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception raised: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps to diagnose when a performance issue occurs:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check for I/O waits**: Check the status of disk and network I/O
+4. **Check concurrent connections**: Check the state of the connection pool
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem Type | Diagnostic Tool | Countermeasure |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| High CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB slowness | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | Prioritize When | Can Compromise When |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed users |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│          Architecture Selection Flow             │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. What is the team size?                       │
+│    ├─ Small (1-5 people) -> Monolith             │
+│    └─ Large (10+ people) -> Go to 2              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. What is the deployment frequency?            │
+│    ├─ Weekly or less -> Monolith + module split  │
+│    └─ Daily / multiple times -> Go to 3          │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. How independent are teams from each other?   │
+│    ├─ High -> Microservices                      │
+│    └─ Moderate -> Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Tradeoff Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve tradeoffs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A fast short-term approach can become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can delay a project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified tech stack has lower learning costs
+- Adopting diverse technologies allows the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction increases reusability but can make debugging harder
+- Low abstraction is intuitive but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision recording template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1244,17 +1244,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and issue"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1262,7 +1262,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1270,15 +1270,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1286,53 +1286,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on minimum viable features
+- Automated tests for critical paths only
+- Introduce monitoring from early on
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't demand perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Legacy System Modernization
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually renewing a system that has been running for 10+ years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- If no existing tests, first create Characterization Tests
+- Coexist old and new systems with an API gateway
+- Perform data migration incrementally
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
+| Phase | Work | Estimated Duration | Risk |
 |---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Start migration | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core migration | Migrate core functionality | 6-12 months | High |
+| 5. Completion | Decommission old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries using Domain-Driven Design
+- Set ownership per team
+- Manage shared libraries with Inner Source model
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1345,20 +1345,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1367,7 +1367,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1388,104 +1388,105 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** Systems requiring millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging async processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
+| Optimization Technique | Effect | Implementation Cost | Use Case |
 |-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low-Medium | High | When CPU-bound |
 
 ---
 
-## チーム開発での活用
+## Usage in Team Development
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to check during code review related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Is naming consistent?
+- [ ] Is error handling appropriate?
+- [ ] Is test coverage sufficient?
+- [ ] Is there a performance impact?
+- [ ] Are there security issues?
+- [ ] Is documentation updated?
 
-### ナレッジ共有のベストプラクティス
+### Best Practices for Knowledge Sharing
 
-| 方法 | 頻度 | 対象 | 効果 |
+| Method | Frequency | Target | Effect |
 |------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talk | Weekly | Whole team | Horizontal knowledge sharing |
+| ADR (design records) | As needed | Future members | Decision transparency |
+| Retrospective | Every 2 weeks | Whole team | Continuous improvement |
+| Mob programming | Monthly | Important design | Building consensus |
 
-### 技術的負債の管理
+### Managing Technical Debt
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
-          │
+        High Impact
+          |
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │ Plan│Act  │
+    │ to  │imm- │
+    │ addr│edi- │
+    │ ess │ately│
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │ Just│ Next│
+    │ doc-│ Spr-│
+    │ ument│int  │
     └─────┼─────┘
-          │
-        影響度 低
-    発生頻度 低  発生頻度 高
+          |
+        Low Impact
+    Low Frequency  High Frequency
 ```
 
 ---
 
-## セキュリティの考慮事項
+## Security Considerations
 
-### 一般的な脆弱性と対策
+### Common Vulnerabilities and Countermeasures
 
-| 脆弱性 | リスクレベル | 対策 | 検出方法 |
+| Vulnerability | Risk Level | Countermeasure | Detection Method |
 |--------|------------|------|---------|
-| インジェクション攻撃 | 高 | 入力値のバリデーション・パラメータ化クエリ | SAST/DAST |
-| 認証の不備 | 高 | 多要素認証・セッション管理の強化 | ペネトレーションテスト |
-| 機密データの露出 | 高 | 暗号化・アクセス制御 | セキュリティ監査 |
-| 設定の不備 | 中 | セキュリティヘッダー・最小権限の原則 | 構成スキャン |
-| ログの不足 | 中 | 構造化ログ・監査証跡 | ログ分析 |
+| Injection attacks | High | Input validation, parameterized queries | SAST/DAST |
+| Broken authentication | High | Multi-factor auth, strengthened session management | Penetration testing |
+| Sensitive data exposure | High | Encryption, access control | Security audit |
+| Security misconfiguration | Medium | Security headers, least privilege principle | Configuration scan |
+| Insufficient logging | Medium | Structured logs, audit trail | Log analysis |
 
-### セキュアコーディングのベストプラクティス
+### Secure Coding Best Practices
 
 ```python
-# セキュアコーディング例
+# Secure coding example
 import hashlib
 import secrets
 import hmac
 from typing import Optional
 
 class SecurityUtils:
-    """セキュリティユーティリティ"""
+    """Security utilities"""
 
     @staticmethod
     def generate_token(length: int = 32) -> str:
-        """暗号学的に安全なトークン生成"""
+        """Generate a cryptographically secure token"""
         return secrets.token_urlsafe(length)
 
     @staticmethod
     def hash_password(password: str, salt: Optional[str] = None) -> tuple:
-        """パスワードのハッシュ化"""
+        """Hash a password"""
         if salt is None:
             salt = secrets.token_hex(16)
         hashed = hashlib.pbkdf2_hmac(
@@ -1498,50 +1499,50 @@ class SecurityUtils:
 
     @staticmethod
     def verify_password(password: str, hashed: str, salt: str) -> bool:
-        """パスワードの検証"""
+        """Verify a password"""
         new_hash, _ = SecurityUtils.hash_password(password, salt)
         return hmac.compare_digest(new_hash, hashed)
 
     @staticmethod
     def sanitize_input(value: str) -> str:
-        """入力値のサニタイズ"""
+        """Sanitize input values"""
         dangerous_chars = ['<', '>', '"', "'", '&', '\\']
         result = value
         for char in dangerous_chars:
             result = result.replace(char, '')
         return result.strip()
 
-# 使用例
+# Usage example
 token = SecurityUtils.generate_token()
 hashed, salt = SecurityUtils.hash_password("my_password")
 is_valid = SecurityUtils.verify_password("my_password", hashed, salt)
 ```
 
-### セキュリティチェックリスト
+### Security Checklist
 
-- [ ] 全ての入力値がバリデーションされている
-- [ ] 機密情報がログに出力されていない
-- [ ] HTTPS が強制されている
-- [ ] CORS ポリシーが適切に設定されている
-- [ ] 依存パッケージの脆弱性スキャンが実施されている
-- [ ] エラーメッセージに内部情報が含まれていない
+- [ ] All input values are validated
+- [ ] Sensitive information is not output to logs
+- [ ] HTTPS is enforced
+- [ ] CORS policy is properly configured
+- [ ] Vulnerability scan of dependency packages has been performed
+- [ ] Error messages do not contain internal information
 
 ---
 
-## マイグレーションガイド
+## Migration Guide
 
-### バージョンアップ時の注意点
+### Notes on Version Upgrades
 
-| バージョン | 主な変更点 | 移行作業 | 影響範囲 |
+| Version | Main Changes | Migration Work | Scope |
 |-----------|-----------|---------|---------|
-| v1.x → v2.x | API設計の刷新 | エンドポイント変更 | 全クライアント |
-| v2.x → v3.x | 認証方式の変更 | トークン形式更新 | 認証関連 |
-| v3.x → v4.x | データモデル変更 | マイグレーションスクリプト実行 | DB関連 |
+| v1.x -> v2.x | Redesigned API | Endpoint changes | All clients |
+| v2.x -> v3.x | Authentication method change | Token format update | Auth-related |
+| v3.x -> v4.x | Data model change | Run migration scripts | DB-related |
 
-### 段階的移行の手順
+### Steps for Incremental Migration
 
 ```python
-# マイグレーションスクリプトのテンプレート
+# Migration script template
 import json
 import logging
 from pathlib import Path
@@ -1551,7 +1552,7 @@ from typing import List, Dict, Callable
 logger = logging.getLogger(__name__)
 
 class MigrationRunner:
-    """段階的マイグレーション実行エンジン"""
+    """Incremental migration execution engine"""
 
     def __init__(self, migration_dir: str):
         self.migration_dir = Path(migration_dir)
@@ -1560,7 +1561,7 @@ class MigrationRunner:
 
     def register(self, version: str, description: str,
                  up: Callable, down: Callable):
-        """マイグレーションの登録"""
+        """Register a migration"""
         self.migrations.append({
             'version': version,
             'description': description,
@@ -1570,35 +1571,35 @@ class MigrationRunner:
         })
 
     def run_up(self, target_version: str = None):
-        """マイグレーションの実行（アップグレード）"""
+        """Run migrations (upgrade)"""
         for migration in self.migrations:
             if migration['version'] in self.completed:
                 continue
-            logger.info(f"実行中: {migration['version']} - "
+            logger.info(f"Running: {migration['version']} - "
                        f"{migration['description']}")
             try:
                 migration['up']()
                 self.completed.append(migration['version'])
-                logger.info(f"完了: {migration['version']}")
+                logger.info(f"Completed: {migration['version']}")
             except Exception as e:
-                logger.error(f"失敗: {migration['version']}: {e}")
+                logger.error(f"Failed: {migration['version']}: {e}")
                 raise
             if target_version and migration['version'] == target_version:
                 break
 
     def run_down(self, target_version: str):
-        """マイグレーションのロールバック"""
+        """Roll back migrations"""
         for migration in reversed(self.migrations):
             if migration['version'] not in self.completed:
                 continue
             if migration['version'] == target_version:
                 break
-            logger.info(f"ロールバック: {migration['version']}")
+            logger.info(f"Rolling back: {migration['version']}")
             migration['down']()
             self.completed.remove(migration['version'])
 
     def status(self) -> Dict:
-        """マイグレーション状態の確認"""
+        """Check migration status"""
         return {
             'total': len(self.migrations),
             'completed': len(self.completed),
@@ -1611,144 +1612,144 @@ class MigrationRunner:
         }
 ```
 
-### ロールバック計画
+### Rollback Plan
 
-移行作業には必ずロールバック計画を準備してください:
+Always prepare a rollback plan for migration work:
 
-1. **データのバックアップ**: 移行前に完全バックアップを取得
-2. **テスト環境での検証**: 本番と同等の環境で事前検証
-3. **段階的なロールアウト**: カナリアリリースで段階的に展開
-4. **監視の強化**: 移行中はメトリクスの監視間隔を短縮
-5. **判断基準の明確化**: ロールバックを判断する基準を事前に定義
+1. **Back up data**: Take a full backup before migration
+2. **Validate in test environment**: Pre-validate in an environment equivalent to production
+3. **Staged rollout**: Deploy incrementally with a canary release
+4. **Strengthen monitoring**: Shorten metric monitoring intervals during migration
+5. **Clarify decision criteria**: Define criteria for deciding to roll back in advance
 ---
 
 ## 10. FAQ
 
-### Q1. レビュアーは何人が適切か？
+### Q1. How many reviewers is appropriate?
 
-**A.** 1-2名が最適。3名以上になると「誰かが見てくれるだろう」効果（社会的手抜き / Diffusion of Responsibility）が発生する。重要な変更やアーキテクチャに関わる変更は2名、通常の変更は1名で十分。CODEOWNERS ファイルで自動アサインを設定し、ドメイン知識を持つ適切なレビュアーに振り分ける。
+**A.** 1-2 is optimal. With 3 or more, the "someone else will take care of it" effect occurs (social loafing / Diffusion of Responsibility). 2 reviewers for important changes or changes related to architecture, 1 is sufficient for routine changes. Use the CODEOWNERS file to set up automatic assignment so the right reviewers with domain knowledge are selected.
 
-### Q2. レビューで意見が対立した場合は？
+### Q2. What if opinions clash during a review?
 
-**A.** エスカレーションのルールを事前に決めておく:
+**A.** Decide on escalation rules in advance:
 
-1. **客観的根拠**で議論する（パフォーマンスベンチマーク、公式ドキュメント）
-2. **3コメント以上往復したらオフライン**（ビデオ通話）で直接話す
-3. チームの**コーディング規約に明記**して今後の基準にする
-4. 合意できない場合は**テックリードが最終判断**する
-5. **個人の好みの問題**は議論せず、チーム規約に任せる（タブ vs スペース等）
+1. Discuss based on **objective evidence** (performance benchmarks, official documentation)
+2. If **more than 3 comments go back and forth, go offline** (video call) to talk directly
+3. **Document in the team's coding guidelines** to set a future standard
+4. If no agreement is reached, **the tech lead makes the final decision**
+5. **Personal preference issues** are not debated; defer to team guidelines (tabs vs. spaces, etc.)
 
-### Q3. セルフレビューのポイントは？
+### Q3. What are the key points for self-review?
 
-**A.** PR 作成後、レビュー依頼前に自分で差分を確認する。チェックポイント: (1) デバッグ用コード（print, console.log）が残っていないか。(2) コミットメッセージは変更内容を正確に反映しているか。(3) 不要な変更（フォーマットのみの差分）が混ざっていないか。(4) テストを追加したか。セルフレビューで指摘事項の30%は事前に除去できる。
+**A.** After creating a PR, check the diff yourself before requesting a review. Checkpoints: (1) Is debug code (print, console.log) left in? (2) Do commit messages accurately reflect the changes? (3) Are unnecessary changes (formatting-only diffs) mixed in? (4) Have tests been added? Self-review can pre-emptively remove 30% of review items.
 
-### Q4. レビューの時間が足りないとき、何を優先すべきか？
+### Q4. When time is short for a review, what should be prioritized?
 
-**A.** 時間が限られている場合の優先順位:
+**A.** Priority order when time is limited:
 
-1. **セキュリティ**: 認証・認可、入力検証、機密情報の露出
-2. **正確性**: ビジネスロジックのバグ、エッジケース
-3. **テスト**: 新機能・バグ修正のテストカバレッジ
-4. **保守性**: 設計・アーキテクチャの問題
-5. **可読性**: 命名、コメント、コードスタイル
+1. **Security**: Authentication/authorization, input validation, sensitive data exposure
+2. **Correctness**: Business logic bugs, edge cases
+3. **Tests**: Test coverage for new features and bug fixes
+4. **Maintainability**: Design and architecture issues
+5. **Readability**: Naming, comments, code style
 
-時間がない場合、5は CI に任せ、1-3 に集中する。
+When time is short, leave 5 to CI and focus on 1-3.
 
-### Q5. ジュニアメンバーはどのようにレビューに参加すべきか？
+### Q5. How should junior members participate in reviews?
 
-**A.** ジュニアのレビュー参加は学習効果が非常に高い。推奨されるステップ:
+**A.** Junior participation in reviews has a very high learning effect. Recommended steps:
 
-1. **観察**: まずシニアのレビューコメントを読んで学ぶ
-2. **質問**: `[QUESTION]` プレフィックスで疑問点を聞く（恥ずかしがらない）
-3. **簡単な指摘**: 命名、コメント、フォーマットの `[NIT]` から始める
-4. **テストの確認**: テストケースの網羅性を確認する
-5. **徐々にロジックへ**: 理解できる範囲でロジックの正確性を確認
+1. **Observe**: First, read senior review comments to learn
+2. **Ask questions**: Use the `[QUESTION]` prefix to ask about things that are unclear (don't be shy)
+3. **Simple observations**: Start with `[NIT]` for naming, comments, and formatting
+4. **Check tests**: Check the coverage of test cases
+5. **Gradually move to logic**: Verify the correctness of logic within your area of understanding
 
-ジュニアのレビューコメントに対して、シニアが「良い観点」「もっとこう見るとよい」とフィードバックすることで、レビュースキルが向上する。
+When seniors provide feedback like "good point" or "here's a better way to look at it" on junior review comments, review skills improve.
 
-### Q6. レビューで「Approve」するタイミングは？
+### Q6. When is the right time to "Approve" in a review?
 
-**A.** 以下の3条件が全て満たされたとき:
+**A.** When all 3 of the following conditions are met:
 
-1. **MUST が全て解決**: マージブロッカーの指摘が全て修正された
-2. **SHOULD の合意**: 修正するか次回に回すか、作者との合意がある
-3. **理解**: 変更内容を自分が理解し、説明できる状態である
+1. **All MUSTs are resolved**: All merge-blocking comments have been addressed
+2. **Agreement on SHOULDs**: There is agreement with the author on whether to fix now or defer
+3. **Understanding**: You understand the changes and can explain them
 
-「完璧でなくてもよい」が原則。改善の余地があっても、現在のコードより良くなっていれば Approve してよい。完璧を求めるとマージが遅延し、チーム全体の生産性が下がる。
+"It doesn't have to be perfect" is the principle. Even if there is room for improvement, Approve if the code is better than it was. Demanding perfection delays merges and reduces overall team productivity.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory but by actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 11. まとめ
+## 11. Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| 5軸チェック | 正確性、可読性、保守性、セキュリティ、パフォーマンス |
-| PR サイズ | 200行以下が最適。400行超は分割必須 |
-| レスポンスタイム | 初回24時間以内、再レビュー8時間以内 |
-| コメント分類 | MUST / SHOULD / NIT / QUESTION / PRAISE / DISCUSS で明確化 |
-| 提案型フィードバック | 否定ではなく具体的な改善案を提示。Before/After で示す |
-| 自動化との分担 | スタイル・型・テストは CI、ロジック・設計は人間 |
-| CODEOWNERS | チーム単位で設定、ボトルネックを防ぐ |
-| 心理的安全性 | コードへのフィードバック、人への敬意。称賛を含める |
-| メトリクス | Time to First Review、Cycle Time、Defect Escape Rate |
-| セルフレビュー | レビュー依頼前に30%の問題を自分で除去 |
+| 5-axis check | Correctness, readability, maintainability, security, performance |
+| PR size | Under 200 lines is optimal. Splitting is required over 400 lines |
+| Response time | First review within 24 hours, re-review within 8 hours |
+| Comment classification | Clarify with MUST / SHOULD / NIT / QUESTION / PRAISE / DISCUSS |
+| Suggestion-based feedback | Present concrete improvements, not just negations. Show Before/After |
+| Division with automation | Style, types, tests -> CI; logic, design -> humans |
+| CODEOWNERS | Configure at team level, prevent bottlenecks |
+| Psychological safety | Feedback on code, respect for people. Include praise |
+| Metrics | Time to First Review, Cycle Time, Defect Escape Rate |
+| Self-review | Remove 30% of issues yourself before requesting review |
 
 ```
-レビュー文化の成熟度モデル:
+Review Culture Maturity Model:
 
-  Level 0: レビューなし（個人作業）
-      ↓
-  Level 1: 形式的レビュー（LGTM スタンプ）
-      ↓
-  Level 2: チェックリストベースのレビュー
-      ↓
-  Level 3: 建設的フィードバック + 自動化
-      ↓
-  Level 4: メトリクス駆動の継続的改善
-      ↓
-  Level 5: 知識共有文化としてのレビュー
+  Level 0: No review (individual work)
+      |
+  Level 1: Formal review (LGTM rubber-stamping)
+      |
+  Level 2: Checklist-based review
+      |
+  Level 3: Constructive feedback + automation
+      |
+  Level 4: Metrics-driven continuous improvement
+      |
+  Level 5: Review as a knowledge-sharing culture
 ```
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [03-api-design.md](./03-api-design.md) — API設計（レビュー対象となる API の設計原則）
-- [../01-practices/04-testing-principles.md](../01-practices/04-testing-principles.md) — テスト原則（テストコードのレビュー観点）
-- [../02-refactoring/03-technical-debt.md](../02-refactoring/03-technical-debt.md) — 技術的負債（レビューで負債の蓄積を防ぐ）
-- ../00-principles/00-naming-conventions.md — 命名規則（可読性レビューの基準）
-- ../00-principles/04-solid-principles.md — SOLID原則（設計レビューの基準）
-- [00-immutability.md](./00-immutability.md) — イミュータビリティ（コード品質の評価基準）
-- ../../design-patterns-guide/docs/04-architectural/ — アーキテクチャパターン（設計レビューの参照）
+- [03-api-design.md](./03-api-design.md) — API Design (design principles for APIs that are subject to review)
+- [../01-practices/04-testing-principles.md](../01-practices/04-testing-principles.md) — Testing Principles (review perspectives for test code)
+- [../02-refactoring/03-technical-debt.md](../02-refactoring/03-technical-debt.md) — Technical Debt (preventing debt accumulation through review)
+- ../00-principles/00-naming-conventions.md — Naming Conventions (criteria for readability reviews)
+- ../00-principles/04-solid-principles.md — SOLID Principles (criteria for design reviews)
+- [00-immutability.md](./00-immutability.md) — Immutability (evaluation criteria for code quality)
+- ../../design-patterns-guide/docs/04-architectural/ — Architectural Patterns (reference for design reviews)
 
 ---
 
-## 参考文献
+## References
 
-1. **Software Engineering at Google** — Titus Winters et al. (O'Reilly, 2020) — Google のコードレビュープラクティス
-2. **The Art of Readable Code** — Dustin Boswell & Trevor Foucher (O'Reilly, 2011) — 可読性の原則
-3. **Google Engineering Practices: Code Review** — https://google.github.io/eng-practices/review/ — Google のレビューガイドライン
-4. **SmartBear: Best Practices for Code Review** — https://smartbear.com/learn/code-review/best-practices-for-peer-code-review/ — レビューの定量的研究
-5. **Microsoft Research: Code Review Best Practices** — https://www.microsoft.com/en-us/research/publication/code-reviewing-in-the-trenches/ — Microsoft のレビュー研究
-6. **Conventional Comments** — https://conventionalcomments.org/ — コメントプレフィックスの標準
-7. **GitHub Pull Request Best Practices** — https://docs.github.com/en/pull-requests — PR の公式ガイド
-8. **OWASP Secure Code Review Guide** — https://owasp.org/www-project-code-review-guide/ — セキュリティレビューのガイド
-9. **Accelerate** — Nicole Forsgren et al. (IT Revolution, 2018) — DevOps メトリクスとレビューの関連
-10. **Amy Edmondson, "The Fearless Organization"** (Wiley, 2018) — 心理的安全性とチームパフォーマンス
+1. **Software Engineering at Google** — Titus Winters et al. (O'Reilly, 2020) — Google's code review practices
+2. **The Art of Readable Code** — Dustin Boswell & Trevor Foucher (O'Reilly, 2011) — Principles of readability
+3. **Google Engineering Practices: Code Review** — https://google.github.io/eng-practices/review/ — Google's review guidelines
+4. **SmartBear: Best Practices for Code Review** — https://smartbear.com/learn/code-review/best-practices-for-peer-code-review/ — Quantitative research on reviews
+5. **Microsoft Research: Code Review Best Practices** — https://www.microsoft.com/en-us/research/publication/code-reviewing-in-the-trenches/ — Microsoft's review research
+6. **Conventional Comments** — https://conventionalcomments.org/ — Standard for comment prefixes
+7. **GitHub Pull Request Best Practices** — https://docs.github.com/en/pull-requests — Official guide to PRs
+8. **OWASP Secure Code Review Guide** — https://owasp.org/www-project-code-review-guide/ — Guide to security reviews
+9. **Accelerate** — Nicole Forsgren et al. (IT Revolution, 2018) — DevOps metrics and their relationship to reviews
+10. **Amy Edmondson, "The Fearless Organization"** (Wiley, 2018) — Psychological safety and team performance
