@@ -1,51 +1,51 @@
-# ロードバランサー
+# Load Balancer
 
-> トラフィックを複数サーバーに分散させるロードバランサーの仕組みを理解し、L4/L7の違い、分散アルゴリズム、ヘルスチェック戦略を習得する。
+> Understand how load balancers distribute traffic across multiple servers, and learn the differences between L4/L7, distribution algorithms, and health check strategies.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. L4（トランスポート層）とL7（アプリケーション層）ロードバランサーの動作原理と使い分け
-2. 主要な負荷分散アルゴリズム（ラウンドロビン、重み付き、最小接続、コンシステントハッシング）の実装と特性
-3. ヘルスチェック（アクティブ/パッシブ）とフェイルオーバーの設計パターン
-4. グローバル負荷分散とマルチリージョン構成の設計
-5. gRPC/WebSocket などモダンプロトコルにおける負荷分散の注意点
+1. How L4 (Transport Layer) and L7 (Application Layer) load balancers work and when to use each
+2. Implementation and characteristics of major load balancing algorithms (Round Robin, Weighted, Least Connections, Consistent Hashing)
+3. Health check design patterns (Active/Passive) and failover
+4. Global load balancing and multi-region architecture design
+5. Load balancing considerations for modern protocols such as gRPC and WebSocket
 
 ---
 
-## 前提知識
+## Prerequisites
 
-| トピック | 内容 | 参照ガイド |
+| Topic | Content | Reference Guide |
 |---------|------|-----------|
-| TCP/IP基礎 | OSI参照モデル、TCP/UDPの違い | ネットワーク基礎 |
-| HTTP/HTTPS | HTTPメソッド、ステータスコード、TLS | Web基礎 |
-| スケーラビリティ | 水平・垂直スケーリングの概念 | [スケーラビリティ](../00-fundamentals/01-scalability.md) |
-| 可用性 | 冗長化、SPOF排除の基本概念 | [信頼性](../00-fundamentals/02-reliability.md) |
-| DNS | 名前解決の仕組み、レコードタイプ | ネットワーク基礎 |
+| TCP/IP Basics | OSI reference model, differences between TCP and UDP | Network Fundamentals |
+| HTTP/HTTPS | HTTP methods, status codes, TLS | Web Fundamentals |
+| Scalability | Concepts of horizontal and vertical scaling | [Scalability](../00-fundamentals/01-scalability.md) |
+| Availability | Redundancy, basics of eliminating SPOFs | [Reliability](../00-fundamentals/02-reliability.md) |
+| DNS | How name resolution works, record types | Network Fundamentals |
 
 ---
 
-## なぜロードバランサーを学ぶのか
+## Why Study Load Balancers
 
-ロードバランサーは現代の分散システムにおける**最も基本的なインフラコンポーネント**の一つである。あらゆる大規模Webサービスは、単一サーバーでは処理しきれないトラフィックに対応するためにロードバランサーを使用する。
+Load balancers are one of the **most fundamental infrastructure components** in modern distributed systems. Every large-scale web service uses load balancers to handle traffic that a single server cannot process on its own.
 
-**ビジネスインパクト:**
-- **可用性**: サーバー障害時に自動的にトラフィックを正常なサーバーに迂回（ゼロダウンタイム）
-- **スケーラビリティ**: バックエンドサーバーを追加するだけで処理能力を線形にスケール
-- **レイテンシ**: 最も負荷の低いサーバーにルーティングすることで応答時間を均一化
-- **セキュリティ**: バックエンドサーバーのIPアドレスを隠蔽し、DDoS攻撃の緩和に寄与
+**Business Impact:**
+- **Availability**: Automatically reroutes traffic to healthy servers when a server fails (zero downtime)
+- **Scalability**: Processing capacity scales linearly simply by adding backend servers
+- **Latency**: Equalizes response time by routing to the least loaded server
+- **Security**: Hides backend server IP addresses and helps mitigate DDoS attacks
 
-**具体例:**
-- Googleは毎秒数十万リクエストをグローバルLBで処理
-- Netflixは数千のマイクロサービスインスタンス間でトラフィックを分散
-- AWSのELB (Elastic Load Balancing) は全AWSサービスの基盤インフラ
+**Real-World Examples:**
+- Google processes hundreds of thousands of requests per second via its global LB
+- Netflix distributes traffic across thousands of microservice instances
+- AWS ELB (Elastic Load Balancing) is the foundational infrastructure for all AWS services
 
 ---
 
-## 1. ロードバランサーとは
+## 1. What Is a Load Balancer
 
-ロードバランサー（LB）は、クライアントからのリクエストを**複数のバックエンドサーバーに分散**させるコンポーネントである。目的は (1) スループットの向上、(2) 可用性の確保（1台故障しても継続）、(3) レイテンシの均一化、である。
+A load balancer (LB) is a component that **distributes requests from clients across multiple backend servers**. Its goals are: (1) improved throughput, (2) ensured availability (service continues even if one server fails), and (3) equalized latency.
 
-### ASCII図解1: ロードバランサーの基本配置
+### ASCII Diagram 1: Basic Load Balancer Placement
 
 ```
   Clients
@@ -56,106 +56,106 @@
     └──────┴──┬───┴──────┘
               │
      ┌────────▼────────┐
-     │  Load Balancer  │  ← 単一エントリーポイント
-     │  (VIP: 1.2.3.4) │     Virtual IP で公開
+     │  Load Balancer  │  ← Single entry point
+     │  (VIP: 1.2.3.4) │     Exposed via Virtual IP
      └──┬─────┬─────┬──┘
         │     │     │
    ┌────▼┐ ┌─▼───┐ ┌▼────┐
-   │ Srv │ │ Srv │ │ Srv │  ← バックエンドプール
+   │ Srv │ │ Srv │ │ Srv │  ← Backend pool
    │  1  │ │  2  │ │  3  │
    │:8080│ │:8080│ │:8080│
    └─────┘ └─────┘ └─────┘
 ```
 
-### ロードバランサーの主要機能
+### Key Functions of a Load Balancer
 
 ```
 ┌──────────────────────────────────────────────┐
-│           ロードバランサーの機能一覧            │
+│         Load Balancer Feature List           │
 ├──────────────────────────────────────────────┤
-│ 1. トラフィック分散   - リクエストを複数サーバーに振り分け │
-│ 2. ヘルスチェック     - 異常サーバーの自動検出・除外      │
-│ 3. SSL/TLS終端       - 暗号化/復号の一元管理           │
-│ 4. セッション永続化   - 同一クライアントの継続接続       │
-│ 5. レート制限        - 過剰リクエストの制御             │
-│ 6. コンテンツルーティング - URLパス/ヘッダーに基づく振り分け│
-│ 7. DDoS緩和         - 不正トラフィックのフィルタリング   │
-│ 8. 圧縮・キャッシュ   - レスポンスの最適化              │
+│ 1. Traffic Distribution  - Route requests to multiple servers      │
+│ 2. Health Checks         - Auto-detect and remove unhealthy servers │
+│ 3. SSL/TLS Termination   - Centralized encryption/decryption        │
+│ 4. Session Persistence   - Maintain continuous connections per client│
+│ 5. Rate Limiting         - Control excessive requests               │
+│ 6. Content Routing       - Route by URL path/header                 │
+│ 7. DDoS Mitigation       - Filter malicious traffic                 │
+│ 8. Compression & Caching - Optimize responses                       │
 └──────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. L4 vs L7 ロードバランサー
+## 2. L4 vs L7 Load Balancers
 
-### ASCII図解2: OSI参照モデルとLBの動作レイヤー
+### ASCII Diagram 2: OSI Reference Model and LB Operating Layers
 
 ```
   OSI Layer    L4 LB         L7 LB
   ─────────────────────────────────────
   7 Application              ✓ HTTP/HTTPS
-  6 Presentation             ✓ SSL終端
+  6 Presentation             ✓ SSL termination
   5 Session                  ✓ Cookie
   4 Transport   ✓ TCP/UDP
   3 Network     ✓ IP
   2 Data Link
   1 Physical
 
-  L4: IP + ポート番号のみで振り分け
-      → 高速、低レイテンシ、プロトコル非依存
+  L4: Routes based on IP + port number only
+      → Fast, low latency, protocol-agnostic
 
-  L7: HTTPヘッダー、URL、Cookieを解析して振り分け
-      → 柔軟、コンテンツベースルーティング、SSL終端
+  L7: Parses HTTP headers, URL, and Cookies to route
+      → Flexible, content-based routing, SSL termination
 ```
 
-### L4 ロードバランサーの動作フロー
+### L4 Load Balancer Traffic Flow
 
 ```
   Client (10.0.0.5:54321)
      │
-     │ SYN パケット (DST: VIP:443)
+     │ SYN packet (DST: VIP:443)
      ▼
   ┌────────────────────┐
   │  L4 Load Balancer  │
-  │  - IP/Port のみ参照 │
-  │  - ペイロード未解析  │
-  │  - NAT/DSR で転送   │
+  │  - Inspects IP/Port only │
+  │  - Does not parse payload│
+  │  - Forwards via NAT/DSR  │
   └─────────┬──────────┘
             │
      ┌──────┼──────┐
      │      │      │
      ▼      ▼      ▼
    Srv1   Srv2   Srv3
-   (TCP接続がそのまま確立)
+   (TCP connection established as-is)
 
-  転送方式:
+  Forwarding Methods:
   ┌─────────────────────────────────────────┐
   │ NAT (Network Address Translation)       │
-  │  - DST IP/Port を書き換えて転送         │
-  │  - レスポンスもLB経由（ボトルネック注意）  │
+  │  - Rewrites DST IP/Port and forwards    │
+  │  - Responses also go through LB (watch for bottleneck) │
   ├─────────────────────────────────────────┤
   │ DSR (Direct Server Return)              │
-  │  - レスポンスはLBを経由せず直接クライアントへ│
-  │  - 高スループット（動画配信等で有効）      │
+  │  - Responses go directly to client, bypassing LB │
+  │  - High throughput (useful for video delivery)   │
   ├─────────────────────────────────────────┤
   │ IP Tunneling (IPIP)                     │
-  │  - IPパケットをカプセル化してバックエンドに転送│
-  │  - DSRの亜種、リモートDCへの転送に有効    │
+  │  - Encapsulates IP packets and forwards to backend │
+  │  - Variant of DSR, useful for remote DC forwarding │
   └─────────────────────────────────────────┘
 ```
 
-### コード例1: L7ルーティングルール（Nginx風設定）
+### Code Example 1: L7 Routing Rules (Nginx-style Configuration)
 
 ```nginx
-# L7ロードバランサーの設定例
+# Example L7 load balancer configuration
 
-# バックエンドプールの定義
+# Define backend pools
 upstream api_servers {
-    least_conn;                    # 最小接続数アルゴリズム
-    server api1.internal:8080 weight=3;  # 高スペック
-    server api2.internal:8080 weight=1;  # 低スペック
+    least_conn;                    # Least connections algorithm
+    server api1.internal:8080 weight=3;  # High-spec server
+    server api2.internal:8080 weight=1;  # Low-spec server
     server api3.internal:8080 weight=1;
-    server api4.internal:8080 backup;    # バックアップ
+    server api4.internal:8080 backup;    # Backup server
 }
 
 upstream static_servers {
@@ -163,7 +163,7 @@ upstream static_servers {
     server static2.internal:80;
 }
 
-# gRPCバックエンドプール
+# gRPC backend pool
 upstream grpc_servers {
     least_conn;
     server grpc1.internal:50051;
@@ -171,16 +171,16 @@ upstream grpc_servers {
 }
 
 server {
-    listen 443 ssl http2;   # HTTP/2 有効化
+    listen 443 ssl http2;   # Enable HTTP/2
     server_name example.com;
 
-    # SSL終端（L7 LBの重要な役割）
+    # SSL termination (key role of L7 LB)
     ssl_certificate /etc/ssl/cert.pem;
     ssl_certificate_key /etc/ssl/key.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
 
-    # パスベースルーティング
+    # Path-based routing
     location /api/ {
         proxy_pass http://api_servers;
         proxy_set_header X-Real-IP $remote_addr;
@@ -188,7 +188,7 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header Host $host;
 
-        # タイムアウト設定
+        # Timeout settings
         proxy_connect_timeout 5s;
         proxy_read_timeout 30s;
         proxy_send_timeout 10s;
@@ -196,26 +196,26 @@ server {
 
     location /static/ {
         proxy_pass http://static_servers;
-        expires 30d;  # キャッシュヘッダー付与
+        expires 30d;  # Add cache headers
         add_header Cache-Control "public, immutable";
     }
 
-    # gRPCルーティング
+    # gRPC routing
     location /grpc/ {
         grpc_pass grpc://grpc_servers;
         grpc_set_header X-Real-IP $remote_addr;
     }
 
-    # WebSocket対応
+    # WebSocket support
     location /ws/ {
         proxy_pass http://api_servers;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
-        proxy_read_timeout 3600s;  # WebSocket用の長いタイムアウト
+        proxy_read_timeout 3600s;  # Long timeout for WebSocket
     }
 
-    # ヘッダーベースルーティング（カナリアリリース）
+    # Header-based routing (canary release)
     location /api/v2/ {
         if ($http_x_canary = "true") {
             proxy_pass http://canary_servers;
@@ -225,7 +225,7 @@ server {
 }
 ```
 
-### コード例2: L4ロードバランサーの実装（簡易版）
+### Code Example 2: L4 Load Balancer Implementation (Simplified)
 
 ```python
 import socket
@@ -237,7 +237,7 @@ from typing import Optional
 
 @dataclass
 class Backend:
-    """バックエンドサーバーの情報"""
+    """Backend server information"""
     host: str
     port: int
     healthy: bool = True
@@ -258,13 +258,13 @@ class Backend:
 
 
 class L4LoadBalancer:
-    """L4 (TCP) ロードバランサーの簡易実装
+    """Simple implementation of an L4 (TCP) load balancer
 
-    機能:
-    - ラウンドロビンによる負荷分散
-    - パッシブヘルスチェック（エラー率監視）
-    - コネクション数の追跡
-    - グレースフルシャットダウン
+    Features:
+    - Load distribution via round robin
+    - Passive health checks (error rate monitoring)
+    - Connection count tracking
+    - Graceful shutdown
     """
 
     def __init__(self, listen_port: int, backends: list[Backend],
@@ -278,7 +278,7 @@ class L4LoadBalancer:
         self._connection_count = 0
 
     def get_next_backend(self) -> Optional[Backend]:
-        """ラウンドロビンで次の正常なバックエンドを選択"""
+        """Select the next healthy backend via round robin"""
         with self._lock:
             healthy_backends = [b for b in self.backends if b.healthy]
             if not healthy_backends:
@@ -289,7 +289,7 @@ class L4LoadBalancer:
 
     def handle_connection(self, client_sock: socket.socket,
                          client_addr: tuple[str, int]):
-        """クライアント接続をバックエンドに転送"""
+        """Forward client connection to a backend"""
         backend = self.get_next_backend()
         if backend is None:
             print(f"[ERROR] No healthy backends available for {client_addr}")
@@ -303,10 +303,10 @@ class L4LoadBalancer:
 
         try:
             backend_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            backend_sock.settimeout(5.0)  # 接続タイムアウト
+            backend_sock.settimeout(5.0)  # Connection timeout
             backend_sock.connect(backend.address)
 
-            # 双方向プロキシ（TCP透過転送）
+            # Bidirectional proxy (transparent TCP forwarding)
             def forward(src, dst, label):
                 try:
                     while self._active:
@@ -338,7 +338,7 @@ class L4LoadBalancer:
         except (socket.error, OSError) as e:
             backend.total_errors += 1
             print(f"[ERROR] Backend {backend.host}:{backend.port}: {e}")
-            # パッシブヘルスチェック: エラー率が50%超で unhealthy
+            # Passive health check: mark unhealthy if error rate exceeds 50%
             if backend.error_rate > 0.5 and backend.total_requests >= 10:
                 backend.healthy = False
                 print(f"[HEALTH] {backend.host}:{backend.port} → UNHEALTHY "
@@ -348,7 +348,7 @@ class L4LoadBalancer:
             backend.active_connections -= 1
 
     def start(self):
-        """LBを起動してリクエストの待ち受けを開始"""
+        """Start the LB and begin listening for requests"""
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind(("0.0.0.0", self.listen_port))
@@ -382,7 +382,7 @@ class L4LoadBalancer:
             self._connection_count -= 1
 
     def get_stats(self) -> dict:
-        """現在の統計情報を取得"""
+        """Get current statistics"""
         return {
             "active_connections": self._connection_count,
             "backends": [
@@ -398,7 +398,7 @@ class L4LoadBalancer:
         }
 
 
-# 実行例
+# Example usage
 if __name__ == "__main__":
     backends = [
         Backend("server1.internal", 8080),
@@ -411,38 +411,38 @@ if __name__ == "__main__":
 
 ---
 
-## 3. 負荷分散アルゴリズム
+## 3. Load Balancing Algorithms
 
-### ASCII図解3: 各アルゴリズムの動作イメージ
+### ASCII Diagram 3: How Each Algorithm Works
 
 ```
-■ ラウンドロビン: 順番に1つずつ
+■ Round Robin: Distribute one at a time in order
   R1→S1, R2→S2, R3→S3, R4→S1, R5→S2, R6→S3 ...
 
-■ 重み付きラウンドロビン: サーバー性能に応じた比率
+■ Weighted Round Robin: Ratio based on server performance
   S1(weight=3): ●●●
   S2(weight=1): ●
   S3(weight=1): ●
   R1→S1, R2→S1, R3→S1, R4→S2, R5→S3, R6→S1 ...
 
-■ 最小接続数: アクティブ接続が最も少ないサーバーへ
-  S1: ■■■■ (4接続)
-  S2: ■■ (2接続)    ← 次のリクエストはここへ
-  S3: ■■■ (3接続)
+■ Least Connections: Route to server with fewest active connections
+  S1: ■■■■ (4 connections)
+  S2: ■■ (2 connections)    ← next request goes here
+  S3: ■■■ (3 connections)
 
-■ IPハッシュ: 同一クライアントIPは常に同じサーバーへ
+■ IP Hash: Same client IP always goes to the same server
   hash(10.0.0.1) % 3 = 0 → S1
   hash(10.0.0.2) % 3 = 2 → S3
-  hash(10.0.0.1) % 3 = 0 → S1 (同一)
+  hash(10.0.0.1) % 3 = 0 → S1 (same)
 
-■ コンシステントハッシュ: ハッシュリング上で最寄りノードへ
+■ Consistent Hashing: Route to nearest node on the hash ring
        S1
       / \
     /     \
-  S3 ─── S2   key → リング上の時計回り最寄りサーバー
+  S3 ─── S2   key → nearest server clockwise on the ring
 ```
 
-### コード例3: 主要アルゴリズムの実装
+### Code Example 3: Implementation of Major Algorithms
 
 ```python
 import hashlib
@@ -455,33 +455,33 @@ from typing import Optional
 
 @dataclass
 class Server:
-    """バックエンドサーバー"""
+    """Backend server"""
     name: str
     weight: int = 1
     active_connections: int = 0
-    response_time_ms: float = 0.0  # 平均応答時間
+    response_time_ms: float = 0.0  # Average response time
 
     def __repr__(self):
         return self.name
 
 
 class LoadBalancerAlgorithms:
-    """主要な負荷分散アルゴリズムの実装集"""
+    """Collection of major load balancing algorithm implementations"""
 
     def __init__(self, servers: list[Server]):
         self.servers = servers
         self.rr_index = 0
 
-    # 1. ラウンドロビン (Round Robin)
+    # 1. Round Robin
     def round_robin(self) -> Server:
-        """各サーバーに均等に振り分け。最もシンプル"""
+        """Distribute equally to each server. Simplest approach."""
         server = self.servers[self.rr_index % len(self.servers)]
         self.rr_index += 1
         return server
 
-    # 2. 重み付きラウンドロビン (Weighted Round Robin)
+    # 2. Weighted Round Robin
     def weighted_round_robin(self) -> Server:
-        """サーバーの性能差に応じた重み付き振り分け"""
+        """Weighted distribution based on server performance differences"""
         pool = []
         for server in self.servers:
             pool.extend([server] * server.weight)
@@ -489,45 +489,45 @@ class LoadBalancerAlgorithms:
         self.rr_index += 1
         return server
 
-    # 3. 最小接続数 (Least Connections)
+    # 3. Least Connections
     def least_connections(self) -> Server:
-        """アクティブ接続数が最も少ないサーバーを選択"""
+        """Select the server with the fewest active connections"""
         return min(self.servers, key=lambda s: s.active_connections)
 
-    # 4. 重み付き最小接続数 (Weighted Least Connections)
+    # 4. Weighted Least Connections
     def weighted_least_connections(self) -> Server:
-        """接続数 / weight が最小のサーバーを選択"""
+        """Select the server with the smallest connections / weight ratio"""
         return min(self.servers,
                    key=lambda s: s.active_connections / max(s.weight, 1))
 
-    # 5. IPハッシュ (IP Hash)
+    # 5. IP Hash
     def ip_hash(self, client_ip: str) -> Server:
-        """同一IPは常に同一サーバーへ（セッション固定）"""
+        """Same IP always routes to the same server (session affinity)"""
         hash_val = int(hashlib.md5(client_ip.encode()).hexdigest(), 16)
         return self.servers[hash_val % len(self.servers)]
 
-    # 6. 最小応答時間 (Least Response Time)
+    # 6. Least Response Time
     def least_response_time(self) -> Server:
-        """平均応答時間が最短のサーバーを選択"""
+        """Select the server with the shortest average response time"""
         return min(self.servers, key=lambda s: s.response_time_ms)
 
-    # 7. ランダム (Random)
+    # 7. Random
     def random_select(self) -> Server:
-        """ランダムに選択。大量サーバーでは統計的に均等に近づく"""
+        """Select randomly. Statistically approaches even distribution with many servers."""
         return random.choice(self.servers)
 
     # 8. Power of Two Choices (P2C)
     def power_of_two_choices(self) -> Server:
-        """ランダムに2台選び、接続数が少ない方を選択。
-        純粋なランダムより均等で、全探索より低コスト。
-        Nginx, Envoy で採用されている。"""
+        """Randomly pick two servers and select the one with fewer connections.
+        More balanced than pure random, less costly than full scan.
+        Used by Nginx and Envoy."""
         if len(self.servers) < 2:
             return self.servers[0]
         s1, s2 = random.sample(self.servers, 2)
         return s1 if s1.active_connections <= s2.active_connections else s2
 
 
-# === デモ実行 ===
+# === Demo ===
 servers = [
     Server("srv1", weight=3, active_connections=5, response_time_ms=10.0),
     Server("srv2", weight=1, active_connections=2, response_time_ms=25.0),
@@ -535,10 +535,10 @@ servers = [
 ]
 lb = LoadBalancerAlgorithms(servers)
 
-print("=== ラウンドロビン ===")
+print("=== Round Robin ===")
 for _ in range(6):
     print(f"  → {lb.round_robin()}")
-# 出力:
+# Output:
 #   → srv1
 #   → srv2
 #   → srv3
@@ -546,24 +546,24 @@ for _ in range(6):
 #   → srv2
 #   → srv3
 
-print("\n=== 重み付きラウンドロビン (srv1:3, srv2:1, srv3:1) ===")
+print("\n=== Weighted Round Robin (srv1:3, srv2:1, srv3:1) ===")
 lb.rr_index = 0
 for _ in range(5):
     print(f"  → {lb.weighted_round_robin()}")
-# 出力:
+# Output:
 #   → srv1
 #   → srv1
 #   → srv1
 #   → srv2
 #   → srv3
 
-print("\n=== 最小接続数 ===")
-print(f"  → {lb.least_connections()}")  # srv2 (2接続)
+print("\n=== Least Connections ===")
+print(f"  → {lb.least_connections()}")  # srv2 (2 connections)
 
-print("\n=== IPハッシュ ===")
+print("\n=== IP Hash ===")
 for ip in ["10.0.0.1", "10.0.0.2", "10.0.0.1"]:
     print(f"  {ip} → {lb.ip_hash(ip)}")
-# 10.0.0.1 → 同じサーバー（冪等）
+# 10.0.0.1 → same server (idempotent)
 
 print("\n=== Power of Two Choices ===")
 random.seed(42)
@@ -571,7 +571,7 @@ for _ in range(5):
     print(f"  → {lb.power_of_two_choices()}")
 ```
 
-### コード例4: コンシステントハッシング
+### Code Example 4: Consistent Hashing
 
 ```python
 import hashlib
@@ -580,30 +580,31 @@ from collections import Counter
 
 class ConsistentHash:
     """
-    コンシステントハッシング
-    サーバー追加/削除時に再配置されるキーを最小化
+    Consistent Hashing
+    Minimizes the number of keys remapped when servers are added/removed
 
-    仮想ノード: 物理サーバー1台に対して複数のハッシュ値を割り当て、
-    リング上の分布を均一化する。仮想ノード数が少ないと偏りが生じる。
+    Virtual nodes: Assign multiple hash values to each physical server
+    to achieve uniform distribution on the ring. Too few virtual nodes
+    leads to skew.
 
-    典型的な仮想ノード数:
-    - 50: 標準偏差 ~10% → 開発/テスト環境
-    - 150: 標準偏差 ~5% → 本番環境（推奨）
-    - 500: 標準偏差 ~2% → 高精度が必要な場合
+    Typical virtual node counts:
+    - 50: ~10% std dev → development/test environments
+    - 150: ~5% std dev → production (recommended)
+    - 500: ~2% std dev → when high precision is needed
     """
 
     def __init__(self, virtual_nodes: int = 150):
         self.virtual_nodes = virtual_nodes
-        self.ring: list[int] = []           # ソート済みハッシュ値
-        self.ring_map: dict[int, str] = {}  # ハッシュ値 → 実サーバー
+        self.ring: list[int] = []           # Sorted hash values
+        self.ring_map: dict[int, str] = {}  # hash value → real server
         self.servers: set[str] = set()
 
     def _hash(self, key: str) -> int:
-        """SHA-256ベースのハッシュ関数（MD5より均一な分布）"""
+        """SHA-256-based hash function (more uniform distribution than MD5)"""
         return int(hashlib.sha256(key.encode()).hexdigest(), 16)
 
     def add_server(self, server: str):
-        """サーバー追加: 仮想ノードをリングに配置"""
+        """Add server: place virtual nodes on the ring"""
         self.servers.add(server)
         for i in range(self.virtual_nodes):
             vnode_key = f"{server}#vn{i}"
@@ -615,7 +616,7 @@ class ConsistentHash:
               f"ring size: {len(self.ring)})")
 
     def remove_server(self, server: str):
-        """サーバー削除: 仮想ノードをリングから除去"""
+        """Remove server: remove virtual nodes from the ring"""
         self.servers.discard(server)
         self.ring = [h for h in self.ring
                      if self.ring_map.get(h) != server]
@@ -624,17 +625,17 @@ class ConsistentHash:
         print(f"[REMOVE] {server} (ring size: {len(self.ring)})")
 
     def get_server(self, key: str) -> str:
-        """キーに対応するサーバーを取得（時計回りの最寄り）"""
+        """Get the server corresponding to a key (nearest clockwise)"""
         if not self.ring:
             raise Exception("No servers available")
         h = self._hash(key)
         idx = bisect_right(self.ring, h)
         if idx == len(self.ring):
-            idx = 0  # リングの末端を超えたら先頭に戻る
+            idx = 0  # Wrap around to the beginning past the end of the ring
         return self.ring_map[self.ring[idx]]
 
     def get_replicas(self, key: str, count: int = 3) -> list[str]:
-        """レプリカ配置: 時計回りに異なるサーバーをN台取得"""
+        """Replica placement: get N distinct servers clockwise"""
         if not self.ring:
             raise Exception("No servers available")
         replicas = []
@@ -653,53 +654,53 @@ class ConsistentHash:
         return replicas
 
 
-# === デモ: サーバー追加/削除時の影響を検証 ===
+# === Demo: Verify impact of server addition/removal ===
 ch = ConsistentHash(virtual_nodes=100)
 for s in ["server-A", "server-B", "server-C"]:
     ch.add_server(s)
 
-# 1000キーの分布を確認
+# Check distribution of 1000 keys
 dist = Counter(ch.get_server(f"key-{i}") for i in range(1000))
-print(f"\n分布: {dict(dist)}")
-# 期待値: 各サーバー約333キー（±10%程度の偏差）
+print(f"\nDistribution: {dict(dist)}")
+# Expected: approximately 333 keys per server (±~10% variance)
 
-# サーバー追加時の影響（再配置率）
+# Impact of adding a server (remapping rate)
 before = {f"key-{i}": ch.get_server(f"key-{i}") for i in range(1000)}
 ch.add_server("server-D")
 after = {f"key-{i}": ch.get_server(f"key-{i}") for i in range(1000)}
 moved = sum(1 for k in before if before[k] != after[k])
-print(f"再配置されたキー: {moved}/1000 ({moved/10:.1f}%)")
-# 理論値: 1/4 = 25% (1000キー中約250キーが移動)
+print(f"Remapped keys: {moved}/1000 ({moved/10:.1f}%)")
+# Theoretical value: 1/4 = 25% (approximately 250 of 1000 keys move)
 
-# レプリカ配置
-print(f"\nレプリカ配置 (key-42): {ch.get_replicas('key-42', 3)}")
+# Replica placement
+print(f"\nReplica placement (key-42): {ch.get_replicas('key-42', 3)}")
 ```
 
 ---
 
-## 4. ヘルスチェック
+## 4. Health Checks
 
-### ASCII図解4: ヘルスチェックの種類
+### ASCII Diagram 4: Types of Health Checks
 
 ```
-■ アクティブヘルスチェック（LB → Backend）
+■ Active Health Check (LB → Backend)
 
   LB ──GET /health──→ Backend 1  → 200 OK  ✓ healthy
   LB ──GET /health──→ Backend 2  → 200 OK  ✓ healthy
   LB ──GET /health──→ Backend 3  → timeout ✗ unhealthy
                                       │
-                        3回連続失敗 → プールから除外
-                        2回連続成功 → プールに復帰
+                        3 consecutive failures → removed from pool
+                        2 consecutive successes → returned to pool
 
-■ パッシブヘルスチェック（実トラフィックで判定）
+■ Passive Health Check (evaluated from real traffic)
 
   Client ──req──→ LB ──→ Backend 3 → 502 Error
-                   │      (エラー率 > 50%)
+                   │      (error rate > 50%)
                    │           │
-                   │     自動的にプールから除外
-                   └──→ Backend 1 → 200 OK (リトライ)
+                   │     automatically removed from pool
+                   └──→ Backend 1 → 200 OK (retry)
 
-■ ディープヘルスチェック（依存関係含む）
+■ Deep Health Check (includes dependencies)
 
   LB ──GET /health/deep──→ Backend
                               │
@@ -707,12 +708,12 @@ print(f"\nレプリカ配置 (key-42): {ch.get_replicas('key-42', 3)}")
                     ▼         ▼          ▼
                   [DB OK]  [Redis OK]  [Kafka OK]
                               │
-                    全て OK → 200 {"status": "healthy"}
-                    一部NG → 503 {"status": "degraded",
+                    All OK → 200 {"status": "healthy"}
+                    Some NG → 503 {"status": "degraded",
                                   "redis": "unhealthy"}
 ```
 
-### コード例5: ヘルスチェック実装
+### Code Example 5: Health Check Implementation
 
 ```python
 import asyncio
@@ -725,8 +726,8 @@ from typing import Optional, Callable
 class ServerState(Enum):
     HEALTHY = "healthy"
     UNHEALTHY = "unhealthy"
-    DRAINING = "draining"    # 新規接続拒否、既存接続は完了待ち
-    DEGRADED = "degraded"    # 一部機能制限で稼働
+    DRAINING = "draining"    # Rejects new connections, waits for existing to complete
+    DEGRADED = "degraded"    # Operating with some functional limitations
 
 @dataclass
 class BackendServer:
@@ -753,13 +754,13 @@ class BackendServer:
 
 
 class HealthCheckManager:
-    """アクティブ + パッシブヘルスチェックの統合管理
+    """Integrated management of active + passive health checks
 
-    設計ポイント:
-    1. アクティブチェック: 定期的にヘルスエンドポイントを叩く
-    2. パッシブチェック: 実トラフィックのレスポンスコードで判定
-    3. ディープチェック: DB/Redis等の依存関係も含めた包括的チェック
-    4. 状態遷移: hysteresis（ヒステリシス）で頻繁な状態変更を防止
+    Design points:
+    1. Active check: periodically call health endpoint
+    2. Passive check: evaluate from real traffic response codes
+    3. Deep check: comprehensive check including DB/Redis dependencies
+    4. State transitions: use hysteresis to prevent frequent state changes
     """
 
     def __init__(self, servers: list[BackendServer],
@@ -777,7 +778,7 @@ class HealthCheckManager:
 
     async def active_check(self, server: BackendServer,
                            session: aiohttp.ClientSession):
-        """アクティブヘルスチェック"""
+        """Active health check"""
         start_time = time.time()
         try:
             async with session.get(
@@ -790,7 +791,7 @@ class HealthCheckManager:
 
                 if resp.status == 200:
                     body = await resp.json()
-                    # ディープチェック: 依存関係のステータスも確認
+                    # Deep check: also verify dependency statuses
                     if body.get("status") == "degraded":
                         self._transition(server, ServerState.DEGRADED,
                                         "Degraded dependencies")
@@ -807,7 +808,7 @@ class HealthCheckManager:
 
     def passive_check(self, server: BackendServer, status_code: int,
                      response_time_ms: float = 0.0):
-        """パッシブヘルスチェック（実リクエスト結果から判定）"""
+        """Passive health check (evaluated from real request results)"""
         server.total_requests += 1
         server.last_response_time_ms = response_time_ms
 
@@ -833,7 +834,7 @@ class HealthCheckManager:
 
     def _transition(self, server: BackendServer, new_state: ServerState,
                     reason: str):
-        """状態遷移とコールバック通知"""
+        """State transition and callback notification"""
         old_state = server.state
         if old_state == new_state:
             return
@@ -845,12 +846,12 @@ class HealthCheckManager:
             self.on_state_change(server, old_state, new_state, reason)
 
     def get_healthy_servers(self) -> list[BackendServer]:
-        """正常 or 縮退状態のサーバーを返す"""
+        """Return servers that are healthy or in degraded state"""
         return [s for s in self.servers
                 if s.state in (ServerState.HEALTHY, ServerState.DEGRADED)]
 
     def get_stats(self) -> list[dict]:
-        """全サーバーの統計情報"""
+        """Statistics for all servers"""
         return [
             {
                 "url": s.url,
@@ -864,7 +865,7 @@ class HealthCheckManager:
         ]
 
     async def run_periodic_checks(self):
-        """定期的なアクティブヘルスチェックを実行"""
+        """Run periodic active health checks"""
         async with aiohttp.ClientSession() as session:
             while True:
                 tasks = [self.active_check(server, session)
@@ -875,18 +876,18 @@ class HealthCheckManager:
 
 ---
 
-## 5. グローバル負荷分散
+## 5. Global Load Balancing
 
-### ASCII図解5: マルチリージョン構成
+### ASCII Diagram 5: Multi-Region Architecture
 
 ```
-  ユーザー (東京)              ユーザー (ロンドン)
+  User (Tokyo)                    User (London)
       │                            │
       ▼                            ▼
   ┌──────────────────────────────────────┐
   │         GeoDNS / Route 53           │
-  │   東京ユーザー → ap-northeast-1     │
-  │   欧州ユーザー → eu-west-1          │
+  │   Tokyo users → ap-northeast-1      │
+  │   European users → eu-west-1        │
   └──────────┬───────────────┬──────────┘
              │               │
     ┌────────▼───────┐ ┌────▼──────────┐
@@ -904,16 +905,16 @@ class HealthCheckManager:
     │  └───────┘     │ │ └───────┘   │
     └────────────────┘ └──────────────┘
 
-  3層構成:
-    Layer 1: GeoDNS (地理ベースルーティング)
-    Layer 2: L7 LB (コンテンツベースルーティング)
-    Layer 3: L4 LB (AZ間の高速転送)
+  3-Layer Architecture:
+    Layer 1: GeoDNS (geography-based routing)
+    Layer 2: L7 LB (content-based routing)
+    Layer 3: L4 LB (fast transfer between AZs)
 ```
 
-### コード例6: グローバルLB設定（AWS CDK）
+### Code Example 6: Global LB Configuration (AWS CDK)
 
 ```python
-# AWS CDKによるグローバルLB構成
+# Global LB configuration using AWS CDK
 from aws_cdk import (
     Stack, Duration,
     aws_elasticloadbalancingv2 as elbv2,
@@ -926,19 +927,19 @@ from constructs import Construct
 
 
 class GlobalLoadBalancerStack(Stack):
-    """グローバルLB構成のCDKスタック
+    """CDK stack for global LB configuration
 
-    構成:
-    1. AWS Global Accelerator (エニーキャスト)
-    2. 各リージョンにALB (L7 LB)
-    3. Auto Scaling Groupでバックエンド管理
-    4. Route 53ヘルスチェックでリージョンフェイルオーバー
+    Architecture:
+    1. AWS Global Accelerator (anycast)
+    2. ALB (L7 LB) in each region
+    3. Backend management with Auto Scaling Group
+    4. Region failover with Route 53 health checks
     """
 
     def __init__(self, scope: Construct, id: str, **kwargs):
         super().__init__(scope, id, **kwargs)
 
-        # 1. VPC とサブネット
+        # 1. VPC and subnets
         vpc = ec2.Vpc(self, "VPC",
             max_azs=3,
             nat_gateways=1,
@@ -951,7 +952,7 @@ class GlobalLoadBalancerStack(Stack):
             load_balancer_name="api-alb",
         )
 
-        # 3. ターゲットグループ（ヘルスチェック付き）
+        # 3. Target group (with health check)
         target_group = elbv2.ApplicationTargetGroup(self, "TG",
             vpc=vpc,
             port=8080,
@@ -968,14 +969,14 @@ class GlobalLoadBalancerStack(Stack):
             deregistration_delay=Duration.seconds(30),
         )
 
-        # 4. リスナー設定（HTTPS + パスベースルーティング）
+        # 4. Listener configuration (HTTPS + path-based routing)
         https_listener = alb.add_listener("HTTPS",
             port=443,
             certificates=[certificate],
             default_action=elbv2.ListenerAction.forward([target_group]),
         )
 
-        # パスベースルーティング
+        # Path-based routing
         https_listener.add_action("ApiV2",
             priority=10,
             conditions=[
@@ -984,7 +985,7 @@ class GlobalLoadBalancerStack(Stack):
             action=elbv2.ListenerAction.forward([v2_target_group]),
         )
 
-        # カナリアルーティング (10%のトラフィックを新バージョンへ)
+        # Canary routing (send 10% of traffic to new version)
         https_listener.add_action("Canary",
             priority=20,
             conditions=[
@@ -1011,122 +1012,122 @@ class GlobalLoadBalancerStack(Stack):
 
 ---
 
-## 6. 比較表
+## 6. Comparison Tables
 
-### 比較表1: L4 vs L7 ロードバランサー
+### Comparison Table 1: L4 vs L7 Load Balancers
 
-| 項目 | L4 (トランスポート層) | L7 (アプリケーション層) |
+| Item | L4 (Transport Layer) | L7 (Application Layer) |
 |------|---------------------|----------------------|
-| 解析対象 | IP + ポート | HTTP/HTTPS/gRPC ヘッダー |
-| SSL終端 | 不可（パススルー） | 可能 |
-| コンテンツルーティング | 不可 | URL、ヘッダー、Cookie で振り分け |
-| パフォーマンス | 高い（低オーバーヘッド） | 低い（ヘッダー解析コスト） |
-| WebSocket | パススルーで対応 | ネイティブ対応 |
-| gRPC | コネクション単位（偏りあり） | ストリーム単位（均等分散） |
-| セキュリティ | 限定的（IPベース） | WAF、レート制限、認証 |
-| 適するケース | TCP/UDP汎用、DB接続、高RPS | HTTP API、Webアプリ、マイクロサービス |
-| 製品例 | AWS NLB, HAProxy (TCP) | AWS ALB, Nginx, Envoy, Traefik |
+| Inspection Target | IP + port | HTTP/HTTPS/gRPC headers |
+| SSL Termination | Not possible (passthrough) | Possible |
+| Content Routing | Not possible | Route by URL, header, Cookie |
+| Performance | High (low overhead) | Lower (header parsing cost) |
+| WebSocket | Supported via passthrough | Native support |
+| gRPC | Per-connection (can be uneven) | Per-stream (even distribution) |
+| Security | Limited (IP-based) | WAF, rate limiting, authentication |
+| Suitable For | General TCP/UDP, DB connections, high RPS | HTTP API, web apps, microservices |
+| Products | AWS NLB, HAProxy (TCP) | AWS ALB, Nginx, Envoy, Traefik |
 
-### 比較表2: 負荷分散アルゴリズムの比較
+### Comparison Table 2: Load Balancing Algorithm Comparison
 
-| アルゴリズム | 均一性 | セッション維持 | 実装複雑度 | CPU負荷 | 適するケース |
+| Algorithm | Uniformity | Session Affinity | Implementation Complexity | CPU Load | Suitable For |
 |-------------|--------|--------------|-----------|---------|-------------|
-| ラウンドロビン | 高い | なし | 最低 | 最低 | 同性能サーバー群 |
-| 重み付きRR | 高い | なし | 低 | 低 | 異性能サーバー混在 |
-| 最小接続数 | 高い | なし | 中 | 低 | 処理時間が不均一 |
-| 重み付き最小接続 | 最高 | なし | 中 | 低 | 異性能 + 不均一処理 |
-| IPハッシュ | 中程度 | あり | 低 | 低 | セッション固定が必要 |
-| コンシステントハッシュ | 高い | あり | 高 | 中 | キャッシュ、スケール頻出 |
-| 最小応答時間 | 高い | なし | 中 | 中 | レイテンシ重視 |
-| P2C | 高い | なし | 低 | 低 | 大規模クラスタ (Envoy) |
-| ランダム | 中程度 | なし | 最低 | 最低 | 大量サーバー |
+| Round Robin | High | None | Lowest | Lowest | Homogeneous server pool |
+| Weighted RR | High | None | Low | Low | Mixed-performance servers |
+| Least Connections | High | None | Medium | Low | Uneven processing times |
+| Weighted Least Connections | Highest | None | Medium | Low | Mixed-perf + uneven processing |
+| IP Hash | Moderate | Yes | Low | Low | When session affinity is required |
+| Consistent Hash | High | Yes | High | Medium | Caching, frequent scaling |
+| Least Response Time | High | None | Medium | Medium | Latency-sensitive workloads |
+| P2C | High | None | Low | Low | Large clusters (Envoy) |
+| Random | Moderate | None | Lowest | Lowest | Large number of servers |
 
-### 比較表3: 主要ロードバランサー製品の比較
+### Comparison Table 3: Major Load Balancer Product Comparison
 
-| 製品 | タイプ | L4 | L7 | スループット | 運用モデル | 特徴 |
+| Product | Type | L4 | L7 | Throughput | Operations Model | Features |
 |------|--------|:---:|:---:|------------|-----------|------|
-| AWS ALB | マネージド | - | ✓ | 自動スケール | フルマネージド | HTTPルーティング、Lambda統合 |
-| AWS NLB | マネージド | ✓ | - | 数百万RPS | フルマネージド | 超低レイテンシ、静的IP |
-| Nginx | ソフトウェア | ✓ | ✓ | ~10万RPS/台 | セルフホスト | 設定柔軟、実績豊富 |
-| HAProxy | ソフトウェア | ✓ | ✓ | ~20万RPS/台 | セルフホスト | 高性能、詳細メトリクス |
-| Envoy | サイドカー | ✓ | ✓ | ~5万RPS/台 | Kubernetes | サービスメッシュ、gRPC対応 |
-| Traefik | ソフトウェア | ✓ | ✓ | ~5万RPS/台 | Kubernetes | 自動ディスカバリ、Let's Encrypt |
-| Cloudflare | CDN/LB | ✓ | ✓ | 無制限 | フルマネージド | グローバル、DDoS防御 |
+| AWS ALB | Managed | - | ✓ | Auto-scales | Fully managed | HTTP routing, Lambda integration |
+| AWS NLB | Managed | ✓ | - | Millions RPS | Fully managed | Ultra-low latency, static IP |
+| Nginx | Software | ✓ | ✓ | ~100K RPS/node | Self-hosted | Flexible config, proven track record |
+| HAProxy | Software | ✓ | ✓ | ~200K RPS/node | Self-hosted | High performance, detailed metrics |
+| Envoy | Sidecar | ✓ | ✓ | ~50K RPS/node | Kubernetes | Service mesh, gRPC support |
+| Traefik | Software | ✓ | ✓ | ~50K RPS/node | Kubernetes | Auto-discovery, Let's Encrypt |
+| Cloudflare | CDN/LB | ✓ | ✓ | Unlimited | Fully managed | Global, DDoS protection |
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### アンチパターン1: ロードバランサー自体がSPOF
+### Anti-Pattern 1: Load Balancer Itself as a SPOF
 
 ```python
-# NG: 単一LBで全トラフィックを処理
+# BAD: Single LB handles all traffic
 
 class SinglePointLB:
-    """単一のLBインスタンス → SPOFになる"""
+    """Single LB instance → becomes a SPOF"""
 
     def __init__(self, backends: list[str]):
         self.backends = backends
-        # LB自体が1台 → LBがダウンすると全サービス停止
+        # Only one LB → if the LB goes down, the entire service stops
 
     def route(self, request):
-        # このインスタンスが死んだら全リクエスト失敗
+        # If this instance dies, all requests fail
         backend = self.select_backend()
         return forward(request, backend)
 
 
-# OK: Active-Standby構成でLB自体を冗長化
+# GOOD: Redundant LB with Active-Standby configuration
 
 class RedundantLBCluster:
-    """VRRP/keepalived による Active-Standby 冗長化"""
+    """Active-Standby redundancy using VRRP/keepalived"""
 
     def __init__(self, backends: list[str],
                  vip: str = "10.0.0.100",
                  priority: int = 100):
         self.backends = backends
-        self.vip = vip          # 仮想IP（フローティングIP）
-        self.priority = priority # 優先度（高い方がActive）
+        self.vip = vip          # Virtual IP (floating IP)
+        self.priority = priority # Priority (higher = Active)
         self.is_active = False
 
     def configure_vrrp(self) -> dict:
-        """VRRP (Virtual Router Redundancy Protocol) 設定"""
+        """VRRP (Virtual Router Redundancy Protocol) configuration"""
         return {
             "vrrp_instance": {
                 "virtual_router_id": 51,
                 "priority": self.priority,     # Active: 200, Standby: 100
                 "virtual_ipaddress": [self.vip],
-                "advert_int": 1,               # 1秒ごとのハートビート
+                "advert_int": 1,               # Heartbeat every 1 second
                 "authentication": {
                     "auth_type": "PASS",
                     "auth_pass": "secret123",
                 },
-                # Active障害検知 → Standbyが自動昇格
+                # Active failure detected → Standby automatically promoted
                 "track_script": {
                     "check_lb": {
                         "script": "/usr/local/bin/check_lb_health.sh",
                         "interval": 2,
-                        "weight": -50,  # 失敗時にpriority-50で降格
+                        "weight": -50,  # Demote with priority-50 on failure
                     }
                 }
             }
         }
-        # Active LB がダウン → VIP が Standby に移動
-        # フェイルオーバー時間: 通常1-3秒
+        # Active LB goes down → VIP moves to Standby
+        # Failover time: typically 1-3 seconds
 
     def failover_to_standby(self):
-        """フェイルオーバーシミュレーション"""
+        """Failover simulation"""
         print(f"[FAILOVER] Active LB down → VIP {self.vip} moving to Standby")
         self.is_active = False
-        # Standby側の priority が相対的に高くなり VIP を取得
+        # Standby's priority becomes relatively higher, it acquires the VIP
 ```
 
-### アンチパターン2: スティッキーセッションへの過度な依存
+### Anti-Pattern 2: Over-Reliance on Sticky Sessions
 
 ```python
-# NG: 全リクエストをCookieで同一サーバーに固定
+# BAD: Pin all requests to the same server using Cookie
 
 class StickySessionLB:
-    """スティッキーセッション: 全てのリクエストを同一サーバーへ"""
+    """Sticky sessions: all requests go to the same server"""
 
     def __init__(self, backends: list[str]):
         self.backends = backends
@@ -1136,9 +1137,9 @@ class StickySessionLB:
         session_id = request.cookies.get("SESSION_ID")
         if session_id in self.session_map:
             backend = self.session_map[session_id]
-            # 問題1: バックエンドが落ちたらセッション消失
-            # 問題2: 人気ユーザーのサーバーに負荷集中
-            # 問題3: スケールアウト時に既存セッション移動不可
+            # Problem 1: Session is lost if the backend goes down
+            # Problem 2: Load concentrates on servers of popular users
+            # Problem 3: Cannot migrate existing sessions during scale-out
             return forward(request, backend)
         else:
             backend = self.select_backend()
@@ -1146,13 +1147,13 @@ class StickySessionLB:
             return forward(request, backend)
 
 
-# OK: セッションを外部ストアに保存してステートレス化
+# GOOD: Store sessions in an external store to make stateless
 
 import redis
 import json
 
 class StatelessLB:
-    """ステートレスLB + 外部セッションストア"""
+    """Stateless LB + external session store"""
 
     def __init__(self, backends: list[str],
                  session_store: redis.Redis):
@@ -1161,58 +1162,58 @@ class StatelessLB:
         self.rr_index = 0
 
     def route(self, request):
-        # セッションはRedisに保存 → どのサーバーでも読める
+        # Sessions stored in Redis → readable from any server
         session_id = request.cookies.get("SESSION_ID")
         if session_id:
             session_data = self.session_store.get(f"session:{session_id}")
             request.session = json.loads(session_data) if session_data else {}
 
-        # 任意のバックエンドにルーティング可能
+        # Can route to any backend
         backend = self.backends[self.rr_index % len(self.backends)]
         self.rr_index += 1
         return forward(request, backend)
 
-    # メリット:
-    # - サーバー障害時もセッション維持
-    # - 完全に均等な負荷分散
-    # - スケールアウトが自由自在
-    # - JWTトークンによるステートレス認証も選択肢
+    # Benefits:
+    # - Sessions persist even when a server fails
+    # - Perfectly even load distribution
+    # - Free to scale out at any time
+    # - Stateless JWT token authentication is also an option
 ```
 
-### アンチパターン3: ヘルスチェックなしのバックエンド追加
+### Anti-Pattern 3: Adding Backends Without Health Checks
 
 ```python
-# NG: ヘルスチェックなしでバックエンドプールに追加
+# BAD: Add to backend pool without health checks
 
 class UnsafeLB:
-    """ヘルスチェックなし → 異常サーバーにもトラフィック送信"""
+    """No health checks → sends traffic even to unhealthy servers"""
 
     def __init__(self, backends: list[str]):
         self.backends = backends
 
     def add_backend(self, backend: str):
-        # 問題: サーバーが起動途中でもトラフィック送信
-        # 問題: DB接続プール初期化前にリクエストが到着
+        # Problem: Traffic is sent even while server is starting up
+        # Problem: Requests arrive before DB connection pool is initialized
         self.backends.append(backend)
 
     def route(self, request):
         backend = random.choice(self.backends)
-        # 異常サーバーへのルーティングでエラー多発
+        # Routing to unhealthy servers causes many errors
         return forward(request, backend)
 
 
-# OK: ウォームアップ期間とヘルスチェック付き追加
+# GOOD: Add with warmup period and health checks
 
 from enum import Enum
 
 class BackendState(Enum):
-    WARMING = "warming"    # 起動中（ヘルスチェック待ち）
-    ACTIVE = "active"      # 正常（トラフィック受信可能）
-    DRAINING = "draining"  # 排出中（新規接続拒否）
-    REMOVED = "removed"    # 除外済み
+    WARMING = "warming"    # Starting up (waiting for health checks)
+    ACTIVE = "active"      # Healthy (ready to receive traffic)
+    DRAINING = "draining"  # Draining (no new connections)
+    REMOVED = "removed"    # Excluded
 
 class SafeLB:
-    """ヘルスチェック付きの安全なバックエンド管理"""
+    """Safe backend management with health checks"""
 
     def __init__(self, backends: list[str],
                  warmup_health_checks: int = 3,
@@ -1223,27 +1224,27 @@ class SafeLB:
         self._health_counts: dict[str, int] = {}
 
     def add_backend(self, backend: str):
-        """ウォームアップ期間を経てからトラフィック送信"""
+        """Send traffic only after warmup period"""
         self.backends[backend] = BackendState.WARMING
         self._health_counts[backend] = 0
         print(f"[ADD] {backend} → WARMING "
               f"(need {self.warmup_health_checks} health checks)")
 
     def on_health_check_pass(self, backend: str):
-        """ヘルスチェック成功時のコールバック"""
+        """Callback when health check passes"""
         if self.backends.get(backend) == BackendState.WARMING:
             self._health_counts[backend] = \
                 self._health_counts.get(backend, 0) + 1
             if self._health_counts[backend] >= self.warmup_health_checks:
                 self.backends[backend] = BackendState.ACTIVE
-                print(f"[ACTIVE] {backend} → トラフィック受信開始")
+                print(f"[ACTIVE] {backend} → now receiving traffic")
 
     def remove_backend(self, backend: str):
-        """グレースフルに排出してから除外"""
+        """Drain gracefully before removing"""
         self.backends[backend] = BackendState.DRAINING
-        print(f"[DRAIN] {backend} → 新規接続拒否, "
-              f"{self.drain_timeout_sec}秒後に除外")
-        # 既存接続の完了を待ってからREMOVEDに遷移
+        print(f"[DRAIN] {backend} → no new connections, "
+              f"will be removed after {self.drain_timeout_sec}s")
+        # Wait for existing connections to complete before transitioning to REMOVED
 
     def get_active_backends(self) -> list[str]:
         return [b for b, s in self.backends.items()
@@ -1252,14 +1253,14 @@ class SafeLB:
 
 ---
 
-## 8. 練習問題
+## 8. Practice Problems
 
-### 演習1（基礎）: 重み付きラウンドロビンの分布検証
+### Exercise 1 (Basic): Verify Weighted Round Robin Distribution
 
-**課題**: 4台のサーバーにそれぞれ weight 5, 3, 1, 1 を設定し、10,000リクエストを分配した場合の理論値と実測値を比較せよ。
+**Task**: Configure 4 servers with weights 5, 3, 1, and 1 respectively, distribute 10,000 requests, and compare the theoretical values with measured values.
 
 ```python
-# ヒント: LoadBalancerAlgorithms クラスを使用
+# Hint: Use the LoadBalancerAlgorithms class
 from collections import Counter
 
 servers = [
@@ -1275,28 +1276,28 @@ for _ in range(10000):
     server = lb.weighted_round_robin()
     results[server.name] += 1
 
-print("=== 実測分布 ===")
+print("=== Measured Distribution ===")
 for name, count in sorted(results.items()):
     print(f"  {name}: {count} ({count/100:.1f}%)")
 
-# 理論値: srv-A=50%, srv-B=30%, srv-C=10%, srv-D=10%
+# Theoretical values: srv-A=50%, srv-B=30%, srv-C=10%, srv-D=10%
 ```
 
-**期待される出力**:
+**Expected Output**:
 ```
-=== 実測分布 ===
+=== Measured Distribution ===
   srv-A: 5000 (50.0%)
   srv-B: 3000 (30.0%)
   srv-C: 1000 (10.0%)
   srv-D: 1000 (10.0%)
 ```
 
-### 演習2（応用）: コンシステントハッシングのノード追加/削除シミュレーション
+### Exercise 2 (Advanced): Consistent Hashing Node Addition/Removal Simulation
 
-**課題**: 5台のサーバーで運用中に1台追加・1台削除した場合のキー再配置率を計測し、仮想ノード数（50, 150, 500）ごとの分布偏差を比較せよ。
+**Task**: Measure the key remapping rate when adding 1 server and removing 1 server from a 5-server setup, and compare distribution variance for virtual node counts of 50, 150, and 500.
 
 ```python
-# ヒント: ConsistentHash クラスを使用
+# Hint: Use the ConsistentHash class
 import statistics
 
 for vnode_count in [50, 150, 500]:
@@ -1304,49 +1305,49 @@ for vnode_count in [50, 150, 500]:
     for i in range(5):
         ch.add_server(f"server-{i}")
 
-    # 10000キーの分布を計測
+    # Measure distribution of 10000 keys
     dist = Counter(ch.get_server(f"key-{i}") for i in range(10000))
     values = list(dist.values())
     mean = statistics.mean(values)
     stdev = statistics.stdev(values)
 
-    # サーバー追加時の再配置率
+    # Remapping rate when adding a server
     before = {f"key-{i}": ch.get_server(f"key-{i}") for i in range(10000)}
     ch.add_server("server-5")
     after = {f"key-{i}": ch.get_server(f"key-{i}") for i in range(10000)}
     moved = sum(1 for k in before if before[k] != after[k])
 
-    print(f"\n仮想ノード数: {vnode_count}")
-    print(f"  分布 (平均: {mean:.0f}, 標準偏差: {stdev:.0f}, "
+    print(f"\nVirtual nodes: {vnode_count}")
+    print(f"  Distribution (mean: {mean:.0f}, std dev: {stdev:.0f}, "
           f"CV: {stdev/mean*100:.1f}%)")
-    print(f"  再配置率: {moved/100:.1f}% (理論値: {100/6:.1f}%)")
+    print(f"  Remapping rate: {moved/100:.1f}% (theoretical: {100/6:.1f}%)")
 ```
 
-**期待される出力（概算）**:
+**Expected Output (approximate)**:
 ```
-仮想ノード数: 50
-  分布 (平均: 2000, 標準偏差: 200, CV: 10.0%)
-  再配置率: 17.5% (理論値: 16.7%)
+Virtual nodes: 50
+  Distribution (mean: 2000, std dev: 200, CV: 10.0%)
+  Remapping rate: 17.5% (theoretical: 16.7%)
 
-仮想ノード数: 150
-  分布 (平均: 2000, 標準偏差: 100, CV: 5.0%)
-  再配置率: 16.9% (理論値: 16.7%)
+Virtual nodes: 150
+  Distribution (mean: 2000, std dev: 100, CV: 5.0%)
+  Remapping rate: 16.9% (theoretical: 16.7%)
 
-仮想ノード数: 500
-  分布 (平均: 2000, 標準偏差: 40, CV: 2.0%)
-  再配置率: 16.7% (理論値: 16.7%)
+Virtual nodes: 500
+  Distribution (mean: 2000, std dev: 40, CV: 2.0%)
+  Remapping rate: 16.7% (theoretical: 16.7%)
 ```
 
-### 演習3（発展）: L7ロードバランサーの完全実装
+### Exercise 3 (Expert): Full L7 Load Balancer Implementation
 
-**課題**: 以下の機能を持つL7ロードバランサーを実装せよ。
-1. パスベースルーティング（`/api/*` と `/static/*` で異なるバックエンドプール）
-2. ヘルスチェック（10秒間隔、3回連続失敗で除外）
-3. リクエストレート制限（クライアントIPごとに100req/秒）
-4. リクエスト/レスポンスのログ出力
+**Task**: Implement an L7 load balancer with the following features.
+1. Path-based routing (`/api/*` and `/static/*` routed to different backend pools)
+2. Health checks (10-second interval, removed after 3 consecutive failures)
+3. Request rate limiting (100 req/sec per client IP)
+4. Request/response logging
 
 ```python
-# ヒント: aiohttp + asyncio で実装
+# Hint: Implement using aiohttp + asyncio
 import asyncio
 import aiohttp
 from aiohttp import web
@@ -1354,7 +1355,7 @@ from collections import defaultdict
 import time
 
 class L7LoadBalancer:
-    """L7 ロードバランサーの発展的実装"""
+    """Advanced L7 load balancer implementation"""
 
     def __init__(self):
         self.route_table: dict[str, list[BackendServer]] = {}
@@ -1363,13 +1364,13 @@ class L7LoadBalancer:
         self.rate_limit_rps = 100
 
     def add_route(self, prefix: str, backends: list[BackendServer]):
-        """パスプレフィックスに対するバックエンドプールを登録"""
+        """Register a backend pool for a path prefix"""
         self.route_table[prefix] = backends
 
     def check_rate_limit(self, client_ip: str) -> bool:
-        """トークンバケット方式のレート制限"""
+        """Token bucket-style rate limiting"""
         now = time.time()
-        # 過去1秒のリクエストタイムスタンプを保持
+        # Keep request timestamps from the past 1 second
         self.rate_limits[client_ip] = [
             t for t in self.rate_limits[client_ip]
             if now - t < 1.0
@@ -1380,30 +1381,30 @@ class L7LoadBalancer:
         return True
 
     def resolve_backend(self, path: str) -> Optional[BackendServer]:
-        """パスに基づいてバックエンドを選択"""
+        """Select a backend based on path"""
         for prefix, backends in self.route_table.items():
             if path.startswith(prefix):
                 healthy = [b for b in backends
                           if b.state == ServerState.HEALTHY]
                 if healthy:
-                    # 最小接続数で選択
+                    # Select using least connections
                     return min(healthy,
                               key=lambda b: b.active_connections)
         return None
 
     async def handle_request(self, request: web.Request) -> web.Response:
-        """リクエストハンドラ"""
+        """Request handler"""
         client_ip = request.remote
         start_time = time.time()
 
-        # レート制限チェック
+        # Rate limit check
         if not self.check_rate_limit(client_ip):
             return web.json_response(
                 {"error": "Rate limit exceeded"},
                 status=429
             )
 
-        # バックエンド解決
+        # Resolve backend
         backend = self.resolve_backend(request.path)
         if backend is None:
             return web.json_response(
@@ -1411,7 +1412,7 @@ class L7LoadBalancer:
                 status=503
             )
 
-        # リクエスト転送
+        # Forward request
         backend.active_connections += 1
         try:
             async with aiohttp.ClientSession() as session:
@@ -1448,75 +1449,75 @@ class L7LoadBalancer:
 
 ## 9. FAQ
 
-### Q1: グローバルサービスではどのようなLB構成にしますか？
+### Q1: What LB architecture is used for global services?
 
-3層構成が一般的: (1) DNS ベースの地理的分散（GeoDNS/Route 53）、(2) リージョンごとの L7 LB（ALB/Nginx）、(3) AZ ごとの L4 LB（NLB）。ユーザーに最も近いリージョンにルーティングし、リージョン内ではAZ間で分散する。CloudflareやAWS Global Acceleratorはエニーキャストを使い、BGPレベルで最寄りのPoP（Point of Presence）にルーティングする。AWS Global Acceleratorの場合、静的IPアドレスが2つ割り当てられ、世界中のエッジロケーションからユーザーに最寄りのリージョンへ低レイテンシで接続される。
+A 3-layer architecture is common: (1) DNS-based geographic distribution (GeoDNS/Route 53), (2) L7 LB per region (ALB/Nginx), (3) L4 LB per AZ (NLB). Traffic is routed to the region closest to the user, and within the region it is distributed across AZs. Cloudflare and AWS Global Accelerator use anycast to route to the nearest PoP (Point of Presence) at the BGP level. With AWS Global Accelerator, two static IP addresses are assigned, and users connect with low latency to the nearest region from edge locations worldwide.
 
-### Q2: LBのスループット限界はどの程度ですか？
+### Q2: What is the throughput limit of a load balancer?
 
-ソフトウェアLB（Nginx）は1台あたり数万〜数十万RPS、ハードウェアLB（F5 BIG-IP）は数百万RPSを処理できる。AWS ALBは自動スケーリングで理論上無制限だが、急激なトラフィック増にはウォームアップが必要（事前にAWSサポートに連絡してpre-warmingを依頼する）。NLBは数百万同時接続を処理可能で、レイテンシも数マイクロ秒レベル。ボトルネックになる場合はDNSラウンドロビンで複数LBに分散する。
+Software LBs (Nginx) can handle tens of thousands to hundreds of thousands of RPS per node; hardware LBs (F5 BIG-IP) can handle millions of RPS. AWS ALB auto-scales and is theoretically unlimited, but sudden traffic spikes (e.g., 0 → 1M RPS) may cause the LB itself to lag in scaling and result in 503 errors. To prevent this: (1) contact AWS Support in advance to request pre-warming, (2) ramp up traffic gradually, or (3) use NLB (which is statically scaled). If the LB becomes a bottleneck, use DNS round-robin to distribute across multiple LBs.
 
-### Q3: gRPCの負荷分散はHTTPと何が違いますか？
+### Q3: How does gRPC load balancing differ from HTTP?
 
-gRPCはHTTP/2を使うため、1つのTCPコネクション上に複数ストリームが多重化される。L4 LBだとコネクション単位の振り分けになり、1コネクションに全リクエストが流れるため偏る。gRPCにはL7 LB（Envoy、Linkerd）を使い、ストリーム単位で振り分ける必要がある。クライアントサイドLB（gRPC built-in の `round_robin` ポリシー）も選択肢となる。Kubernetes環境ではEnvoyベースのサービスメッシュ（Istio）がgRPC負荷分散のデファクトスタンダードとなっている。
+gRPC uses HTTP/2, which multiplexes multiple streams over a single TCP connection. With L4 LB, routing is per connection, meaning all requests flow through one connection, creating imbalance. gRPC requires an L7 LB (Envoy, Linkerd) to distribute at the stream level. Client-side LB (gRPC built-in `round_robin` policy) is also an option. In Kubernetes environments, Envoy-based service meshes (Istio) have become the de facto standard for gRPC load balancing.
 
-### Q4: ALBとNLBの使い分けはどうすべきですか？
+### Q4: How should I choose between ALB and NLB?
 
-AWS ALB（L7）は HTTPリクエストの内容に基づくルーティング（パスベース、ホストベース、ヘッダーベース）が必要な場合に使う。REST API、WebSocket、gRPCに適する。AWS NLB（L4）は 超低レイテンシ（数マイクロ秒）と高スループット（数百万RPS）が求められる場合に使う。TCP/UDPの汎用負荷分散、静的IPアドレスが必要な場合、DBプロキシとして使う場合に適する。両方を組み合わせることも可能で、NLBの背後にALBを配置する構成はmTLS（相互TLS認証）が必要な場合に使われる。
+Use AWS ALB (L7) when you need routing based on HTTP request content (path-based, host-based, header-based). It is suited for REST APIs, WebSocket, and gRPC. Use AWS NLB (L4) when you need ultra-low latency (microseconds) and high throughput (millions of RPS). It is suited for general TCP/UDP load balancing, when static IP addresses are needed, and when used as a DB proxy. The two can be combined — placing ALB behind NLB is used when mutual TLS (mTLS) authentication is required.
 
-### Q5: ロードバランサーのウォームアップとは何ですか？
+### Q5: What is load balancer warm-up?
 
-AWS ALBなどのマネージドLBは、トラフィック量に応じて内部的にスケーリングする。急激なトラフィック増（例: セール開始時に0→100万RPS）では、LB自体のスケーリングが間に合わず503エラーが発生する可能性がある。これを防ぐために、(1) 事前にAWSサポートに連絡してpre-warmingを依頼する、(2) 段階的にトラフィックを増やす（ランプアップ）、(3) NLBを使う（NLBは静的にスケール済み）、のいずれかで対応する。
+Managed LBs such as AWS ALB internally scale according to traffic volume. A sudden traffic surge (e.g., 0 → 1M RPS at the start of a sale) may result in 503 errors if the LB cannot scale fast enough. To prevent this: (1) contact AWS Support in advance to request pre-warming, (2) ramp up traffic gradually, or (3) use NLB (which is statically scaled).
 
-### Q6: サービスメッシュとLBの関係は？
+### Q6: What is the relationship between service meshes and LBs?
 
-サービスメッシュ（Istio/Envoy、Linkerd）は、マイクロサービス環境におけるサービス間通信の全てにサイドカープロキシとしてLB機能を提供する。各Podにサイドカーが注入され、サービスディスカバリ、負荷分散、リトライ、サーキットブレーカー、mTLS、メトリクス収集を透過的に行う。従来のLBが「入口」で一元管理するのに対し、サービスメッシュは「各ノード」で分散管理する。10サービス以下では従来のLBで十分だが、20+サービスでは可観測性とセキュリティの統一管理のためにサービスメッシュの導入を検討する。
+Service meshes (Istio/Envoy, Linkerd) provide LB functionality as a sidecar proxy for all service-to-service communication in microservices environments. A sidecar is injected into each Pod and transparently handles service discovery, load balancing, retries, circuit breaking, mTLS, and metrics collection. Whereas traditional LBs provide centralized management at the "entry point," service meshes provide distributed management at "each node." Traditional LBs are sufficient for 10 or fewer services, but for 20+ services, consider adopting a service mesh for unified observability and security management.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. It is recommended to thoroughly understand the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| LBの役割 | トラフィック分散、可用性確保、レイテンシ均一化、セキュリティ |
-| L4 vs L7 | L4は高速・汎用（TCP/UDP）、L7は柔軟・HTTP特化（ルーティング、SSL終端） |
-| 主要アルゴリズム | RR、重み付き、最小接続、P2C、コンシステントハッシュ |
-| ヘルスチェック | アクティブ（定期確認）+ パッシブ（実トラフィック判定）の併用が必須 |
-| LB自体の冗長化 | Active-Standby (VRRP)、DNS分散で SPOF を排除 |
-| グローバル構成 | GeoDNS → L7 LB → L4 LB の3層構成 |
-| gRPC対応 | L7 LB（Envoy等）でストリーム単位の振り分けが必要 |
-| サービスメッシュ | 20+サービスの大規模環境ではEnvoy/Istioベースの分散LBを検討 |
+| Role of LB | Traffic distribution, availability, latency equalization, security |
+| L4 vs L7 | L4 is fast and general-purpose (TCP/UDP); L7 is flexible and HTTP-specific (routing, SSL termination) |
+| Key Algorithms | RR, weighted, least connections, P2C, consistent hash |
+| Health Checks | Active (periodic polling) + passive (real traffic evaluation) must be used together |
+| LB Redundancy | Eliminate SPOF with Active-Standby (VRRP) and DNS distribution |
+| Global Architecture | 3-layer: GeoDNS → L7 LB → L4 LB |
+| gRPC Support | L7 LB (e.g., Envoy) required for stream-level distribution |
+| Service Mesh | For large-scale environments with 20+ services, consider Envoy/Istio-based distributed LB |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [キャッシュ](./01-caching.md) -- LBの背後に配置するキャッシュレイヤー
-- [CDN](./03-cdn.md) -- グローバルな静的コンテンツ配信とエッジLB
-- [スケーラビリティ](../00-fundamentals/01-scalability.md) -- LBを活用した水平スケーリング
-- [信頼性](../00-fundamentals/02-reliability.md) -- サーキットブレーカーやリトライとLBの連携
-- [メッセージキュー](./02-message-queue.md) -- 非同期処理によるバックエンド負荷の平準化
+- [Caching](./01-caching.md) -- Cache layer placed behind the LB
+- [CDN](./03-cdn.md) -- Global static content delivery and edge LB
+- [Scalability](../00-fundamentals/01-scalability.md) -- Horizontal scaling using LBs
+- [Reliability](../00-fundamentals/02-reliability.md) -- Circuit breakers, retries, and LB integration
+- [Message Queue](./02-message-queue.md) -- Smoothing backend load with asynchronous processing
 
 ---
 
-## 参考文献
+## References
 
 1. Karger, D. et al. (1997). "Consistent Hashing and Random Trees." *STOC '97*.
 2. Mitzenmacher, M. (2001). "The Power of Two Choices in Randomized Load Balancing." *IEEE Transactions on Parallel and Distributed Systems*.
