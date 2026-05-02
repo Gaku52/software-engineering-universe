@@ -1,119 +1,120 @@
 # CDN (Content Delivery Network)
 
-> 世界中に分散配置されたエッジサーバーを活用し、ユーザーに最も近い拠点からコンテンツを配信することでレイテンシを最小化し、オリジンサーバーの負荷を軽減する技術を、CloudFront・Cloudflare・Fastly の比較を通じて解説する
+> This chapter explains how to minimize latency and reduce origin server load by leveraging edge servers distributed worldwide, delivering content from the closest location to the user — with comparisons of CloudFront, Cloudflare, and Fastly.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **CDN の基本原理** --- エッジキャッシュ、オリジンシールド、POP (Point of Presence) の仕組みと、レイテンシ削減のメカニズム
-2. **主要 CDN サービスの比較** --- Amazon CloudFront、Cloudflare、Fastly の特性と選定基準
-3. **キャッシュ戦略と無効化** --- Cache-Control ヘッダー、キャッシュキー設計、パージ戦略の実践
-4. **エッジコンピューティング** --- CDN エッジでのコード実行によるオリジン負荷の削減手法
-5. **セキュリティと可用性** --- DDoS 防御、WAF、TLS 終端、オリジン保護の設計
+1. **CDN Fundamentals** --- How edge caching, origin shields, and POPs (Points of Presence) work, and the mechanisms behind latency reduction
+2. **Comparison of Major CDN Services** --- Characteristics and selection criteria for Amazon CloudFront, Cloudflare, and Fastly
+3. **Cache Strategies and Invalidation** --- Practical approaches to Cache-Control headers, cache key design, and purge strategies
+4. **Edge Computing** --- Techniques for reducing origin load by executing code at CDN edges
+5. **Security and Availability** --- Design for DDoS protection, WAF, TLS termination, and origin protection
 
-## 前提知識
+## Prerequisites
 
-| トピック | 必要レベル | 参照先 |
+| Topic | Required Level | Reference |
 |---------|-----------|--------|
-| HTTP プロトコル | 基礎 | Web 基礎 |
-| キャッシング | 基礎 | [キャッシング](./01-caching.md) |
-| ロードバランサー | 基礎 | [ロードバランサー](./00-load-balancer.md) |
-| DNS | 基礎 | Web 基礎 |
+| HTTP Protocol | Basic | Web Fundamentals |
+| Caching | Basic | [Caching](./01-caching.md) |
+| Load Balancer | Basic | [Load Balancer](./00-load-balancer.md) |
+| DNS | Basic | Web Fundamentals |
 
 ---
 
-## 0. WHY --- なぜ CDN が必要か
+## 0. WHY --- Why CDN Is Necessary
 
-### 0.1 CDN なしの課題
-
-```
-ユーザー (東京) --------> オリジン (バージニア)
-   RTT: 180ms             処理: 50ms
-
-合計レスポンス時間: 180ms (RTT) + 50ms (処理) + 180ms (RTT) = 410ms
-TLS ハンドシェイクを含めると: ~600ms
-
---- CDN 導入後 ---
-
-ユーザー (東京) --> CDN Edge (東京)
-   RTT: 5ms       キャッシュ HIT
-
-合計レスポンス時間: 5ms (RTT) + 0ms (処理) + 5ms (RTT) = 10ms
-→ 60倍の高速化
-```
-
-### 0.2 CDN がもたらす価値
+### 0.1 Problems Without CDN
 
 ```
-              CDN の 4つの価値
+User (Tokyo) --------> Origin (Virginia)
+   RTT: 180ms             Processing: 50ms
+
+Total response time: 180ms (RTT) + 50ms (processing) + 180ms (RTT) = 410ms
+Including TLS handshake: ~600ms
+
+--- After CDN ---
+
+User (Tokyo) --> CDN Edge (Tokyo)
+   RTT: 5ms       Cache HIT
+
+Total response time: 5ms (RTT) + 0ms (processing) + 5ms (RTT) = 10ms
+→ 60x speedup
+```
+
+### 0.2 Value Delivered by CDN
+
+```
+              4 Values of CDN
 
  ┌──────────────────────────────────────────────┐
  │                                              │
- │  1. レイテンシ削減                             │
- │     └─ 地理的に近いエッジから配信              │
- │        例: 180ms → 5ms (97%削減)              │
+ │  1. Latency Reduction                        │
+ │     └─ Served from geographically closer     │
+ │        edge nodes                            │
+ │        e.g.: 180ms → 5ms (97% reduction)    │
  │                                              │
- │  2. オリジン負荷軽減                           │
- │     └─ キャッシュヒットによりリクエスト到達を   │
- │        85-99% 削減                            │
+ │  2. Origin Load Reduction                    │
+ │     └─ Cache hits reduce requests reaching   │
+ │        origin by 85-99%                      │
  │                                              │
- │  3. 可用性向上                                │
- │     └─ オリジン障害時もキャッシュから配信       │
- │        (stale-if-error)                      │
+ │  3. Improved Availability                    │
+ │     └─ Even when origin fails, serves from   │
+ │        cache (stale-if-error)                │
  │                                              │
- │  4. セキュリティ                              │
- │     └─ DDoS 吸収、WAF、TLS 終端              │
- │        エッジで攻撃を遮断                     │
+ │  4. Security                                 │
+ │     └─ DDoS absorption, WAF, TLS termination │
+ │        Attacks blocked at the edge           │
  │                                              │
  └──────────────────────────────────────────────┘
 ```
 
-### 0.3 定量的な効果
+### 0.3 Quantitative Impact
 
-| 指標 | CDN なし | CDN あり | 改善率 |
+| Metric | Without CDN | With CDN | Improvement |
 |------|---------|---------|--------|
 | TTFB (Time to First Byte) | 400-800ms | 10-50ms | 90-98% |
-| ページロード時間 (3G) | 8-15s | 2-5s | 60-75% |
-| オリジンサーバー負荷 | 100% | 5-20% | 80-95% |
-| 帯域コスト | $10,000/月 | $2,000/月 | 80% |
-| 可用性 (SLA) | 99.9% | 99.99% | 10x 改善 |
-| DDoS 耐性 | 数 Gbps | 数 Tbps | 1000x |
+| Page Load Time (3G) | 8-15s | 2-5s | 60-75% |
+| Origin Server Load | 100% | 5-20% | 80-95% |
+| Bandwidth Cost | $10,000/month | $2,000/month | 80% |
+| Availability (SLA) | 99.9% | 99.99% | 10x improvement |
+| DDoS Resilience | Several Gbps | Several Tbps | 1000x |
 
 ---
 
-## 1. CDN の基本アーキテクチャ
+## 1. CDN Basic Architecture
 
-### 1.1 リクエストフロー
+### 1.1 Request Flow
 
 ```
-ユーザー (東京)                    CDN Edge (東京 POP)           オリジンサーバー (us-east-1)
+User (Tokyo)                    CDN Edge (Tokyo POP)          Origin Server (us-east-1)
      |                                  |                              |
-     |--- DNS 解決 ------------------>  |                              |
-     |<-- CDN Edge の IP アドレス -----  |                              |
+     |--- DNS resolution ------------>  |                              |
+     |<-- CDN Edge IP address --------  |                              |
      |                                  |                              |
      |--- GET /img/hero.jpg ---------->|                              |
-     |                                  |-- キャッシュ確認              |
-     |                                  |   HIT? --> 即座にレスポンス   |
+     |                                  |-- Cache check                |
+     |                                  |   HIT? --> Respond immediately|
      |                                  |   MISS? ----GET /img/hero.jpg-->|
-     |                                  |<--------- 200 OK + データ ---|
-     |                                  |-- キャッシュ保存              |
-     |<--------- 200 OK + データ -------|                              |
+     |                                  |<--------- 200 OK + data -----|
+     |                                  |-- Store in cache             |
+     |<--------- 200 OK + data ---------|                              |
      |   (X-Cache: Miss from CDN)       |                              |
      |                                  |                              |
      |--- GET /img/hero.jpg ---------->|                              |
-     |<--------- 200 OK (Cache HIT) ---|  (オリジンへ問い合わせなし)    |
+     |<--------- 200 OK (Cache HIT) ---|  (No request to origin)      |
      |   (X-Cache: Hit from CDN)        |                              |
      |   (Age: 120)                     |                              |
 ```
 
-### 1.2 グローバル POP 配置と Anycast
+### 1.2 Global POP Placement and Anycast
 
 ```
-                        CDN グローバルネットワーク
+                        CDN Global Network
 
-   北米                   ヨーロッパ                アジア太平洋
+   North America           Europe                 Asia-Pacific
   +-------+              +-------+              +-------+
   | POP   |              | POP   |              | POP   |
-  | NYC   |              | LDN   |              | TYO   |  <-- ユーザー最寄り
+  | NYC   |              | LDN   |              | TYO   |  <-- Nearest to user
   +-------+              +-------+              +-------+
   | POP   |              | POP   |              | POP   |
   | SFO   |              | FRA   |              | SIN   |
@@ -122,186 +123,186 @@ TLS ハンドシェイクを含めると: ~600ms
   | IAD   |              | AMS   |              | SYD   |
   +-------+              +-------+              +-------+
        \                    |                    /
-        +------- Origin Shield (中間キャッシュ) --+
+        +------- Origin Shield (intermediate cache) --+
                           |
                    +-------------+
                    |   Origin    |
                    |   Server    |
                    +-------------+
 
-  Anycast ルーティング:
-  全 POP が同一 IP アドレスを広告
-  → BGP により最短経路の POP に自動ルーティング
-  → DNS ベースよりも高速・正確な最寄り POP 選択
+  Anycast routing:
+  All POPs advertise the same IP address
+  → BGP automatically routes to the nearest POP
+  → Faster and more accurate nearest-POP selection than DNS-based methods
 ```
 
-### 1.3 キャッシュ階層と Origin Shield
+### 1.3 Cache Hierarchy and Origin Shield
 
 ```
-レイヤー 1: ブラウザキャッシュ     (RTT = 0ms)
+Layer 1: Browser cache          (RTT = 0ms)
     ↓ MISS
-レイヤー 2: CDN Edge (POP)       (RTT = 1-20ms)
+Layer 2: CDN Edge (POP)        (RTT = 1-20ms)
     ↓ MISS
-レイヤー 3: Origin Shield         (RTT = 20-50ms)
+Layer 3: Origin Shield          (RTT = 20-50ms)
     ↓ MISS
-レイヤー 4: Origin Server         (RTT = 50-300ms)
+Layer 4: Origin Server          (RTT = 50-300ms)
 
-  キャッシュヒット率の目標:
-  - 静的アセット: 95%+ (L2 で HIT)
-  - 動的コンテンツ: 60-80% (短TTL + Stale-While-Revalidate)
-  - API レスポンス: 30-60% (キャッシュキー設計が鍵)
+  Cache hit rate targets:
+  - Static assets: 95%+ (HIT at L2)
+  - Dynamic content: 60-80% (short TTL + Stale-While-Revalidate)
+  - API responses: 30-60% (cache key design is key)
 
-  Origin Shield の効果:
+  Effect of Origin Shield:
   ┌─────────────────────────────────────────────────────┐
   │                                                     │
-  │  Origin Shield なし:                                │
+  │  Without Origin Shield:                             │
   │    POP_TYO ─┐                                      │
-  │    POP_SIN ─┼─→ Origin  (3 リクエスト到達)          │
+  │    POP_SIN ─┼─→ Origin  (3 requests reach origin)  │
   │    POP_SYD ─┘                                      │
   │                                                     │
-  │  Origin Shield あり:                                │
+  │  With Origin Shield:                                │
   │    POP_TYO ─┐                                      │
-  │    POP_SIN ─┼─→ Shield ──→ Origin  (1 リクエスト)   │
-  │    POP_SYD ─┘    (集約)                             │
+  │    POP_SIN ─┼─→ Shield ──→ Origin  (1 request)     │
+  │    POP_SYD ─┘    (aggregated)                       │
   │                                                     │
-  │  → オリジンへのリクエスト数を 60-90% 削減            │
+  │  → Reduces requests to origin by 60-90%             │
   └─────────────────────────────────────────────────────┘
 ```
 
-### 1.4 CDN の DNS 解決プロセス
+### 1.4 CDN DNS Resolution Process
 
 ```python
-"""CDN の DNS 解決フローの解説"""
+"""Explanation of the CDN DNS resolution flow"""
 
-# 1. ユーザーが cdn.example.com にアクセス
-# 2. DNS 解決の流れ:
+# 1. User accesses cdn.example.com
+# 2. DNS resolution flow:
 
 #   cdn.example.com
 #     → CNAME: d123.cloudfront.net
-#       → Anycast IP: 13.224.x.x (最寄り POP の IP)
+#       → Anycast IP: 13.224.x.x (IP of the nearest POP)
 
-# GeoDNS を使う場合 (Cloudflare):
+# When using GeoDNS (Cloudflare):
 #   cdn.example.com
 #     → Anycast IP: 104.16.x.x
-#     → BGP ルーティングで最寄り POP に到達
+#     → BGP routing reaches the nearest POP
 
-# 3. DNS TTL の設計
+# 3. DNS TTL design
 dns_config = {
     "cdn.example.com": {
         "type": "CNAME",
         "value": "d123456.cloudfront.net",
-        "ttl": 300,  # 5分: CDN 切り替えに対応できる短さ
+        "ttl": 300,  # 5 minutes: short enough to accommodate CDN switching
     },
-    # A/AAAA レコード (Cloudflare Anycast)
+    # A/AAAA records (Cloudflare Anycast)
     "api.example.com": {
         "type": "A",
         "value": "104.16.132.229",  # Anycast IP
         "ttl": 300,
-        "proxied": True,  # Cloudflare プロキシ有効
+        "proxied": True,  # Cloudflare proxy enabled
     }
 }
 ```
 
 ---
 
-## 2. Cache-Control の設計
+## 2. Cache-Control Design
 
-### 2.1 ヘッダー指示子一覧
+### 2.1 Header Directives Reference
 
-| 指示子 | 意味 | 使用例 |
+| Directive | Meaning | Example Usage |
 |--------|------|--------|
-| `public` | CDN・ブラウザ両方でキャッシュ可 | 静的アセット |
-| `private` | ブラウザのみキャッシュ可 | ユーザー固有コンテンツ |
-| `no-cache` | 毎回オリジンに検証（ETag/Last-Modified） | 最新性が重要な API |
-| `no-store` | 一切キャッシュ禁止 | 個人情報、決済ページ |
-| `max-age=N` | N秒間キャッシュ有効 | 一般的な TTL 制御 |
-| `s-maxage=N` | CDN 用の max-age（ブラウザは max-age を使う） | CDN とブラウザで TTL を分離 |
-| `stale-while-revalidate=N` | 期限切れ後 N 秒間は古いキャッシュを返しつつ裏で更新 | 高可用性 API |
-| `stale-if-error=N` | オリジンエラー時に N 秒間は古いキャッシュを返す | 可用性重視 |
-| `immutable` | コンテンツは変更されない（再検証不要） | ハッシュ付きアセット |
-| `must-revalidate` | 期限切れ後は必ずオリジンに検証 | HTML ページ |
-| `no-transform` | CDN/プロキシによる変換を禁止 | 画像最適化を防止 |
+| `public` | Cacheable by both CDN and browser | Static assets |
+| `private` | Only cacheable by browser | User-specific content |
+| `no-cache` | Validate with origin on every request (ETag/Last-Modified) | APIs where freshness is critical |
+| `no-store` | No caching at all | Personal data, payment pages |
+| `max-age=N` | Cache valid for N seconds | General TTL control |
+| `s-maxage=N` | max-age for CDN (browser uses max-age) | Separate TTL for CDN and browser |
+| `stale-while-revalidate=N` | Serve stale cache for N seconds after expiry while updating in background | High-availability APIs |
+| `stale-if-error=N` | Serve stale cache for N seconds when origin errors | Availability-critical scenarios |
+| `immutable` | Content will not change (no revalidation needed) | Hashed assets |
+| `must-revalidate` | Must validate with origin after expiry | HTML pages |
+| `no-transform` | Prohibit transformation by CDN/proxy | Prevent automatic image optimization |
 
-### 2.2 Cache-Control 決定フローチャート
+### 2.2 Cache-Control Decision Flowchart
 
 ```
-コンテンツの種類は？
+What type of content is it?
   │
-  ├─ 個人情報・決済関連 ──→ private, no-store
+  ├─ Personal data / payment related ──→ private, no-store
   │
-  ├─ ユーザー固有の動的コンテンツ ──→ private, max-age=0, must-revalidate
+  ├─ User-specific dynamic content ──→ private, max-age=0, must-revalidate
   │
-  ├─ 共有動的コンテンツ (API)
+  ├─ Shared dynamic content (API)
   │   │
-  │   ├─ リアルタイム性が必要 ──→ public, s-maxage=5, stale-while-revalidate=30
-  │   └─ 数分の遅延許容 ──→ public, s-maxage=300, stale-while-revalidate=600
+  │   ├─ Real-time freshness required ──→ public, s-maxage=5, stale-while-revalidate=30
+  │   └─ Tolerates a few minutes delay ──→ public, s-maxage=300, stale-while-revalidate=600
   │
-  ├─ HTML ページ ──→ public, s-maxage=60, max-age=0, must-revalidate
+  ├─ HTML pages ──→ public, s-maxage=60, max-age=0, must-revalidate
   │
-  └─ 静的アセット
+  └─ Static assets
       │
-      ├─ ハッシュ付き (main.a1b2c3.js) ──→ public, max-age=31536000, immutable
-      └─ ハッシュなし (logo.png) ──→ public, max-age=86400
+      ├─ With hash (main.a1b2c3.js) ──→ public, max-age=31536000, immutable
+      └─ Without hash (logo.png) ──→ public, max-age=86400
 ```
 
-### 2.3 アセット種別ごとの設定例
+### 2.3 Configuration Examples by Asset Type
 
 ```nginx
-# Nginx での Cache-Control 設定例
+# Cache-Control configuration examples in Nginx
 
-# ハッシュ付き静的アセット（CSS/JS）: 1年キャッシュ + immutable
+# Hashed static assets (CSS/JS): 1-year cache + immutable
 location ~* \.(?:css|js)$ {
-    # ファイル名にハッシュ: main.a1b2c3.js
+    # File name includes hash: main.a1b2c3.js
     add_header Cache-Control "public, max-age=31536000, immutable";
     add_header X-Content-Type-Options "nosniff";
-    # Brotli / Gzip 圧縮 (事前圧縮ファイルがある場合)
+    # Brotli / Gzip compression (when pre-compressed files are available)
     gzip_static on;
     brotli_static on;
 }
 
-# 画像: 30日キャッシュ + WebP/AVIF 自動変換
+# Images: 30-day cache + automatic WebP/AVIF conversion
 location ~* \.(?:jpg|jpeg|png|gif|webp|avif|svg)$ {
     add_header Cache-Control "public, max-age=2592000";
-    add_header Vary "Accept";  # Accept ヘッダーでコンテンツネゴシエーション
+    add_header Vary "Accept";  # Content negotiation via Accept header
 }
 
-# フォント: 1年キャッシュ + CORS
+# Fonts: 1-year cache + CORS
 location ~* \.(?:woff2?|ttf|otf|eot)$ {
     add_header Cache-Control "public, max-age=31536000, immutable";
     add_header Access-Control-Allow-Origin "*";
 }
 
-# HTML: CDN 60秒、ブラウザはキャッシュなし
+# HTML: CDN 60 seconds, no browser cache
 location ~* \.html$ {
     add_header Cache-Control "public, s-maxage=60, max-age=0, must-revalidate";
-    # オリジン障害時は5分間古いキャッシュを返す
+    # Serve stale cache for 5 minutes on origin failure
     add_header Cache-Control "stale-if-error=300" always;
 }
 
-# API レスポンス: CDN 10秒 + stale-while-revalidate
+# API responses: CDN 10 seconds + stale-while-revalidate
 location /api/ {
     add_header Cache-Control "public, s-maxage=10, stale-while-revalidate=60, stale-if-error=300";
     add_header Vary "Accept-Encoding, Authorization";
 }
 
-# 個人情報: キャッシュ禁止
+# Personal data: no caching
 location /api/user/profile {
     add_header Cache-Control "private, no-store";
-    add_header Pragma "no-cache";  # HTTP/1.0 互換
+    add_header Pragma "no-cache";  # HTTP/1.0 compatibility
 }
 ```
 
-### 2.4 ETag と条件付きリクエスト
+### 2.4 ETag and Conditional Requests
 
 ```python
-"""ETag を使った条件付きリクエストの実装"""
+"""Implementation of conditional requests using ETag"""
 import hashlib
 from fastapi import FastAPI, Request, Response
 
 app = FastAPI()
 
 def generate_etag(content: bytes) -> str:
-    """コンテンツから ETag を生成"""
+    """Generate an ETag from content"""
     return f'"{hashlib.sha256(content).hexdigest()[:16]}"'
 
 @app.get("/api/products/{product_id}")
@@ -310,10 +311,10 @@ async def get_product(product_id: str, request: Request):
     content = json.dumps(product).encode()
     etag = generate_etag(content)
 
-    # クライアントの If-None-Match をチェック
+    # Check the client's If-None-Match
     if_none_match = request.headers.get("If-None-Match")
     if if_none_match == etag:
-        # コンテンツ未変更 → 304 を返す (帯域節約)
+        # Content unchanged → return 304 (saves bandwidth)
         return Response(status_code=304, headers={
             "ETag": etag,
             "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60",
@@ -329,29 +330,29 @@ async def get_product(product_id: str, request: Request):
         }
     )
 
-# リクエスト・レスポンスフロー:
+# Request / response flow:
 #
-# 1回目: GET /api/products/123
+# 1st request: GET /api/products/123
 #   → 200 OK + ETag: "a1b2c3d4e5f6g7h8"
 #
-# 2回目: GET /api/products/123
-#        If-None-Match: "a1b2c3d4e5f6g7h8"
-#   → 304 Not Modified (ボディなし、帯域を節約)
+# 2nd request: GET /api/products/123
+#              If-None-Match: "a1b2c3d4e5f6g7h8"
+#   → 304 Not Modified (no body, saves bandwidth)
 #
-# CDN の動作:
-#   CDN キャッシュ期限切れ → オリジンに条件付きリクエスト
-#   → 304 → CDN キャッシュを更新して TTL リセット
-#   → オリジンのデータ転送量を大幅削減
+# CDN behavior:
+#   CDN cache expired → conditional request to origin
+#   → 304 → CDN updates cache and resets TTL
+#   → Significantly reduces data transfer to origin
 ```
 
 ---
 
-## 3. Amazon CloudFront の設定
+## 3. Amazon CloudFront Configuration
 
-### 3.1 ディストリビューション作成
+### 3.1 Creating a Distribution
 
 ```python
-# CloudFront ディストリビューション作成 (boto3)
+# Creating a CloudFront distribution (boto3)
 import boto3
 
 cf = boto3.client('cloudfront')
@@ -362,7 +363,7 @@ distribution_config = {
         'Quantity': 2,
         'Items': [
             {
-                # S3 オリジン (静的アセット)
+                # S3 origin (static assets)
                 'Id': 'S3-static-assets',
                 'DomainName': 'my-static-assets.s3.amazonaws.com',
                 'S3OriginConfig': {
@@ -371,11 +372,11 @@ distribution_config = {
                 },
                 'OriginShield': {
                     'Enabled': True,
-                    'OriginShieldRegion': 'ap-northeast-1',  # 東京
+                    'OriginShieldRegion': 'ap-northeast-1',  # Tokyo
                 },
             },
             {
-                # ALB オリジン (動的 API)
+                # ALB origin (dynamic API)
                 'Id': 'ALB-api',
                 'DomainName': 'api-internal.example.com',
                 'CustomOriginConfig': {
@@ -385,7 +386,7 @@ distribution_config = {
                     'OriginSslProtocols': {
                         'Quantity': 1, 'Items': ['TLSv1.2']
                     },
-                    'OriginKeepaliveTimeout': 60,  # Keep-Alive 秒数
+                    'OriginKeepaliveTimeout': 60,  # Keep-Alive duration in seconds
                     'OriginReadTimeout': 30,
                 },
             },
@@ -395,7 +396,7 @@ distribution_config = {
         'TargetOriginId': 'S3-static-assets',
         'ViewerProtocolPolicy': 'redirect-to-https',
         'CachePolicyId': '658327ea-f89d-4fab-a63d-7e88639e58f6',
-        'Compress': True,              # Brotli/Gzip 自動圧縮
+        'Compress': True,              # Automatic Brotli/Gzip compression
         'AllowedMethods': {'Quantity': 2, 'Items': ['GET', 'HEAD']},
     },
     'CacheBehaviors': {
@@ -421,8 +422,8 @@ distribution_config = {
         }],
     },
     'Enabled': True,
-    'PriceClass': 'PriceClass_200',    # 北米・欧州・アジア
-    'HttpVersion': 'http2and3',        # HTTP/2 + HTTP/3 (QUIC) 有効化
+    'PriceClass': 'PriceClass_200',    # North America, Europe, Asia
+    'HttpVersion': 'http2and3',        # Enable HTTP/2 + HTTP/3 (QUIC)
     'Comment': 'Production distribution with S3 + ALB origins',
 }
 
@@ -431,27 +432,27 @@ print(f"Distribution ID: {response['Distribution']['Id']}")
 print(f"Domain: {response['Distribution']['DomainName']}")
 ```
 
-### 3.2 CloudFront Functions (軽量エッジ処理)
+### 3.2 CloudFront Functions (Lightweight Edge Processing)
 
 ```javascript
-// CloudFront Functions: URL リライト + セキュリティヘッダー追加
-// 実行環境: JavaScript (ES 5.1), 最大実行時間: 1ms, 最大メモリ: 2MB
+// CloudFront Functions: URL rewriting + security header injection
+// Runtime: JavaScript (ES 5.1), max execution time: 1ms, max memory: 2MB
 
 function handler(event) {
     var request = event.request;
     var uri = request.uri;
 
-    // 1. SPA のフォールバック: /app/* → /app/index.html
+    // 1. SPA fallback: /app/* → /app/index.html
     if (uri.startsWith('/app/') && !uri.includes('.')) {
         request.uri = '/app/index.html';
     }
 
-    // 2. 拡張子がない場合は .html を追加
+    // 2. Append .html if no extension present
     if (!uri.includes('.') && uri !== '/') {
         request.uri = uri + '/index.html';
     }
 
-    // 3. セキュリティヘッダーの追加 (レスポンスイベントの場合)
+    // 3. Add security headers (for response events)
     if (event.response) {
         var response = event.response;
         response.headers['strict-transport-security'] = {
@@ -477,21 +478,21 @@ function handler(event) {
 }
 ```
 
-### 3.3 Lambda@Edge (高度なエッジ処理)
+### 3.3 Lambda@Edge (Advanced Edge Processing)
 
 ```python
-# Lambda@Edge: A/B テスト + 画像最適化ルーティング
-# 実行環境: Node.js / Python, 最大実行時間: 5s (viewer) / 30s (origin)
+# Lambda@Edge: A/B testing + image optimization routing
+# Runtime: Node.js / Python, max execution time: 5s (viewer) / 30s (origin)
 
 import json
 import hashlib
 
 def viewer_request_handler(event, context):
-    """ビューワーリクエスト: A/B テスト振り分け"""
+    """Viewer request: A/B test distribution"""
     request = event['Records'][0]['cf']['request']
     headers = request['headers']
 
-    # Cookie から A/B テストグループを判定
+    # Determine A/B test group from cookies
     cookies = headers.get('cookie', [{}])[0].get('value', '')
     ab_group = None
 
@@ -501,25 +502,25 @@ def viewer_request_handler(event, context):
             ab_group = cookie.split('=')[1]
             break
 
-    # 未割り当てならハッシュベースで振り分け
+    # Assign group based on hash if not yet assigned
     if not ab_group:
         client_ip = event['Records'][0]['cf']['request']['clientIp']
         hash_val = int(hashlib.md5(client_ip.encode()).hexdigest(), 16)
         ab_group = 'A' if hash_val % 100 < 50 else 'B'
 
-    # カスタムヘッダーでオリジンに伝達
+    # Pass group to origin via custom header
     request['headers']['x-ab-group'] = [{'key': 'X-AB-Group', 'value': ab_group}]
 
     return request
 
 def origin_response_handler(event, context):
-    """オリジンレスポンス: A/B グループ Cookie を設定"""
+    """Origin response: set A/B group cookie"""
     response = event['Records'][0]['cf']['response']
     request = event['Records'][0]['cf']['request']
 
     ab_group = request['headers'].get('x-ab-group', [{}])[0].get('value', 'A')
 
-    # Set-Cookie で A/B グループを永続化
+    # Persist A/B group via Set-Cookie
     response['headers']['set-cookie'] = [{
         'key': 'Set-Cookie',
         'value': f'ab_group={ab_group}; Path=/; Max-Age=604800; SameSite=Lax'
@@ -528,44 +529,44 @@ def origin_response_handler(event, context):
     return response
 ```
 
-### 3.4 キャッシュ無効化
+### 3.4 Cache Invalidation
 
 ```bash
-# CloudFront キャッシュ無効化（パージ）
-# 注意: 1,000パス/月まで無料、超過は $0.005/パス
+# CloudFront cache invalidation (purge)
+# Note: Up to 1,000 paths/month free; additional paths cost $0.005 each
 
-# 特定パスのパージ
+# Purge specific paths
 aws cloudfront create-invalidation \
   --distribution-id E1234567890 \
   --paths "/index.html" "/api/*"
 
-# 全キャッシュのパージ (緊急時のみ)
+# Purge all cache (emergency only)
 aws cloudfront create-invalidation \
   --distribution-id E1234567890 \
   --paths "/*"
 
-# パージ状況の確認
+# Check invalidation status
 aws cloudfront get-invalidation \
   --distribution-id E1234567890 \
   --id I1234567890
 ```
 
 ```python
-# Python でのキャッシュバスティング実装
+# Cache busting implementation in Python
 import boto3
 import hashlib
 import json
 from datetime import datetime
 
 class CDNInvalidator:
-    """CloudFront キャッシュ無効化マネージャー"""
+    """CloudFront cache invalidation manager"""
 
     def __init__(self, distribution_id: str):
         self.cf = boto3.client('cloudfront')
         self.distribution_id = distribution_id
 
     def invalidate_paths(self, paths: list[str]) -> str:
-        """指定パスのキャッシュを無効化"""
+        """Invalidate cache for the specified paths"""
         caller_ref = f"inv-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
         response = self.cf.create_invalidation(
@@ -584,7 +585,7 @@ class CDNInvalidator:
         return invalidation_id
 
     def wait_for_invalidation(self, invalidation_id: str):
-        """無効化完了まで待機"""
+        """Wait until invalidation is complete"""
         waiter = self.cf.get_waiter('invalidation_completed')
         print(f"Waiting for invalidation {invalidation_id}...")
         waiter.wait(
@@ -598,10 +599,10 @@ class CDNInvalidator:
         self, s3_bucket: str, local_dir: str, html_files: list[str]
     ):
         """
-        キャッシュバスティングを含むデプロイ:
-        1. ハッシュ付きアセットをアップロード (パージ不要)
-        2. HTML ファイルをアップロード (短 TTL)
-        3. HTML のみパージ
+        Deployment with cache busting:
+        1. Upload hashed assets (no purge needed)
+        2. Upload HTML files (short TTL)
+        3. Purge HTML files only
         """
         s3 = boto3.client('s3')
         html_paths = []
@@ -618,15 +619,15 @@ class CDNInvalidator:
             )
             html_paths.append(f"/{html_file}")
 
-        # HTML のみパージ (ハッシュ付きアセットはパージ不要)
+        # Purge HTML only (hashed assets do not need purging)
         if html_paths:
             inv_id = self.invalidate_paths(html_paths)
             self.wait_for_invalidation(inv_id)
 
-# 使用例
+# Usage example
 invalidator = CDNInvalidator("E1234567890")
 
-# デプロイ
+# Deploy
 invalidator.deploy_with_cache_busting(
     s3_bucket="my-static-assets",
     local_dir="./dist",
@@ -636,39 +637,39 @@ invalidator.deploy_with_cache_busting(
 
 ---
 
-## 4. Cloudflare の設定
+## 4. Cloudflare Configuration
 
-### 4.1 Cloudflare Workers によるエッジコンピューティング
+### 4.1 Edge Computing with Cloudflare Workers
 
 ```javascript
-// Cloudflare Workers: エッジでの API レスポンスキャッシュ
-// V8 isolate ベース: 起動時間 < 1ms, CPU 50ms/リクエスト
+// Cloudflare Workers: API response caching at the edge
+// V8 isolate-based: startup time < 1ms, CPU 50ms/request
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const cache = caches.default;
 
-    // GET リクエストのみキャッシュ
+    // Cache only GET requests
     if (request.method !== 'GET') {
       return fetch(request);
     }
 
-    // 1. キャッシュチェック
+    // 1. Cache check
     const cacheKey = new Request(url.toString(), request);
     let response = await cache.match(cacheKey);
 
     if (response) {
-      // Cache HIT: ヘッダーを追加して返却
+      // Cache HIT: add header and return
       const newResponse = new Response(response.body, response);
       newResponse.headers.set('X-Cache-Status', 'HIT');
       return newResponse;
     }
 
-    // 2. オリジンからフェッチ
+    // 2. Fetch from origin
     response = await fetch(request);
 
-    // 3. 成功レスポンスのみキャッシュ
+    // 3. Cache successful responses only
     if (response.ok) {
       const cacheResponse = new Response(response.body, response);
       cacheResponse.headers.set(
@@ -676,7 +677,7 @@ export default {
       );
       cacheResponse.headers.set('X-Cache-Status', 'MISS');
 
-      // 非同期でキャッシュ書き込み（レスポンスを遅延させない）
+      // Write to cache asynchronously (does not delay the response)
       const ctx = { waitUntil: (p) => p };
       ctx.waitUntil(cache.put(cacheKey, cacheResponse.clone()));
 
@@ -688,35 +689,35 @@ export default {
 };
 ```
 
-### 4.2 Cloudflare Workers: 地理情報ベースルーティング
+### 4.2 Cloudflare Workers: Geo-Based Routing
 
 ```javascript
-// Cloudflare Workers: 地理情報に基づくオリジン選択
+// Cloudflare Workers: origin selection based on geographic information
 export default {
   async fetch(request, env) {
-    const cf = request.cf;  // Cloudflare のリクエストメタデータ
+    const cf = request.cf;  // Cloudflare request metadata
 
-    // 地理情報の取得
+    // Retrieve geographic information
     const country = cf.country;       // "JP"
     const continent = cf.continent;   // "AS"
     const city = cf.city;             // "Tokyo"
     const latitude = cf.latitude;
     const longitude = cf.longitude;
-    const asn = cf.asn;               // ISP の AS 番号
+    const asn = cf.asn;               // ISP AS number
 
-    // 大陸ごとに最寄りのオリジンサーバーを選択
+    // Select the nearest origin server per continent
     const origins = {
-      'AS': 'https://api-ap.example.com',    // アジア
-      'NA': 'https://api-us.example.com',    // 北米
-      'EU': 'https://api-eu.example.com',    // ヨーロッパ
-      'SA': 'https://api-us.example.com',    // 南米 → 北米にフォールバック
-      'AF': 'https://api-eu.example.com',    // アフリカ → 欧州にフォールバック
-      'OC': 'https://api-ap.example.com',    // オセアニア → アジアにフォールバック
+      'AS': 'https://api-ap.example.com',    // Asia
+      'NA': 'https://api-us.example.com',    // North America
+      'EU': 'https://api-eu.example.com',    // Europe
+      'SA': 'https://api-us.example.com',    // South America → fallback to North America
+      'AF': 'https://api-eu.example.com',    // Africa → fallback to Europe
+      'OC': 'https://api-ap.example.com',    // Oceania → fallback to Asia
     };
 
     const originUrl = origins[continent] || origins['NA'];
 
-    // オリジンにリクエスト転送
+    // Forward request to origin
     const url = new URL(request.url);
     const originRequest = new Request(
       `${originUrl}${url.pathname}${url.search}`,
@@ -725,7 +726,7 @@ export default {
 
     const response = await fetch(originRequest);
 
-    // レスポンスにルーティング情報を追加 (デバッグ用)
+    // Add routing info to response (for debugging)
     const newResponse = new Response(response.body, response);
     newResponse.headers.set('X-Origin-Region', continent);
     newResponse.headers.set('X-Client-Country', country);
@@ -735,17 +736,17 @@ export default {
 };
 ```
 
-### 4.3 Cloudflare Workers KV: エッジデータストア
+### 4.3 Cloudflare Workers KV: Edge Data Store
 
 ```javascript
-// Workers KV を使ったエッジでの設定管理
-// KV: 結果整合性、読み取り最適化 (60秒以内に伝播)
+// Configuration management at the edge using Workers KV
+// KV: eventual consistency, optimized for reads (propagates within 60 seconds)
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // 機能フラグの取得 (エッジで即座にレスポンス)
+    // Retrieve feature flags (respond immediately at the edge)
     if (url.pathname === '/api/feature-flags') {
       const flags = await env.FEATURE_FLAGS.get('current', { type: 'json' });
       return new Response(JSON.stringify(flags), {
@@ -756,12 +757,12 @@ export default {
       });
     }
 
-    // レートリミット (エッジで実装)
+    // Rate limiting (implemented at the edge)
     if (url.pathname.startsWith('/api/')) {
       const clientIp = request.headers.get('CF-Connecting-IP');
       const rateLimitKey = `ratelimit:${clientIp}`;
 
-      // 現在のリクエスト数を取得
+      // Get current request count
       const current = parseInt(await env.RATE_LIMITS.get(rateLimitKey) || '0');
 
       if (current >= 100) {  // 100 req/min
@@ -775,7 +776,7 @@ export default {
         });
       }
 
-      // カウントを更新 (TTL: 60秒)
+      // Update count (TTL: 60 seconds)
       await env.RATE_LIMITS.put(rateLimitKey, String(current + 1), {
         expirationTtl: 60
       });
@@ -788,44 +789,44 @@ export default {
 
 ---
 
-## 5. キャッシュキー設計
+## 5. Cache Key Design
 
-### 5.1 キャッシュキーの構成要素
+### 5.1 Components of a Cache Key
 
 ```
-キャッシュキー = URL + Vary ヘッダーで指定された要素
+Cache Key = URL + elements specified by Vary header
 
-デフォルトキー:  scheme + host + path + query string
-例: https://example.com/api/products?page=1&sort=price
+Default key:  scheme + host + path + query string
+Example: https://example.com/api/products?page=1&sort=price
 
-カスタムキー要素:
-  - ヘッダー: Accept-Encoding, Accept-Language
-  - Cookie: session_id, ab_group
-  - デバイス: Mobile / Desktop
-  - 地域: 国コード
+Custom key elements:
+  - Headers: Accept-Encoding, Accept-Language
+  - Cookies: session_id, ab_group
+  - Device: Mobile / Desktop
+  - Region: country code
 ```
 
-### 5.2 キャッシュキー最適化の実装
+### 5.2 Cache Key Optimization Implementation
 
 ```python
-"""キャッシュキー設計のベストプラクティス"""
+"""Best practices for cache key design"""
 from urllib.parse import urlparse, parse_qs, urlencode
 
 class CacheKeyBuilder:
-    """CDN キャッシュキーの設計と正規化"""
+    """CDN cache key design and normalization"""
 
-    # キャッシュに影響しないパラメータ (除外対象)
+    # Parameters that do not affect caching (to be excluded)
     EXCLUDED_PARAMS = {
         'utm_source', 'utm_medium', 'utm_campaign', 'utm_term',
-        'utm_content',    # UTM トラッキングパラメータ
-        'fbclid',         # Facebook クリック ID
-        'gclid',          # Google クリック ID
+        'utm_content',    # UTM tracking parameters
+        'fbclid',         # Facebook click ID
+        'gclid',          # Google click ID
         '_ga',            # Google Analytics
-        'ref', 'source',  # リファラルパラメータ
-        '_t', 'timestamp', 'nocache',  # キャッシュバスティング
+        'ref', 'source',  # Referral parameters
+        '_t', 'timestamp', 'nocache',  # Cache busting
     }
 
-    # キャッシュキーに含めるパラメータ (ホワイトリスト方式)
+    # Parameters to include in cache keys (whitelist approach)
     INCLUDED_PARAMS = {
         '/api/products': {'page', 'sort', 'category', 'limit'},
         '/api/search': {'q', 'page', 'sort', 'filters'},
@@ -833,17 +834,17 @@ class CacheKeyBuilder:
 
     @classmethod
     def normalize_cache_key(cls, url: str) -> str:
-        """URL を正規化してキャッシュキーを生成"""
+        """Normalize URL to generate a cache key"""
         parsed = urlparse(url)
         params = parse_qs(parsed.query, keep_blank_values=True)
 
-        # 方法1: 除外リスト方式
+        # Method 1: Exclusion list approach
         filtered_params = {
             k: v for k, v in params.items()
             if k.lower() not in cls.EXCLUDED_PARAMS
         }
 
-        # パラメータをソートして正規化
+        # Sort parameters for normalization
         sorted_params = urlencode(
             sorted(filtered_params.items()), doseq=True
         )
@@ -853,7 +854,7 @@ class CacheKeyBuilder:
 
     @classmethod
     def normalize_with_whitelist(cls, url: str, path: str) -> str:
-        """ホワイトリスト方式でキャッシュキーを生成"""
+        """Generate cache key using whitelist approach"""
         parsed = urlparse(url)
         params = parse_qs(parsed.query, keep_blank_values=True)
 
@@ -867,7 +868,7 @@ class CacheKeyBuilder:
         )
         return f"{parsed.path}?{sorted_params}" if sorted_params else parsed.path
 
-# テスト
+# Test
 urls = [
     "https://example.com/api/products?page=1&sort=price&utm_source=google",
     "https://example.com/api/products?utm_source=twitter&page=1&sort=price",
@@ -880,27 +881,27 @@ for url in urls:
     print(f"Cache Key: {normalized}")
     print()
 
-# 出力:
-# 3つのURLが全て同じキャッシュキーに正規化される:
+# Output:
+# All 3 URLs are normalized to the same cache key:
 # https://example.com/api/products?page=1&sort=price
 ```
 
-### 5.3 Vary ヘッダーの設計
+### 5.3 Vary Header Design
 
 ```python
-"""Vary ヘッダーによるキャッシュバリエーション管理"""
+"""Cache variation management via Vary header"""
 from fastapi import FastAPI, Request, Response
 
 app = FastAPI()
 
 @app.get("/api/products")
 async def get_products(request: Request):
-    """デバイス・言語に応じたレスポンスバリエーション"""
-    # Accept-Language からロケール判定
+    """Response variations based on device and language"""
+    # Determine locale from Accept-Language
     lang = request.headers.get("Accept-Language", "en")
     locale = "ja" if "ja" in lang else "en"
 
-    # User-Agent からデバイス判定
+    # Determine device from User-Agent
     ua = request.headers.get("User-Agent", "")
     is_mobile = "Mobile" in ua
 
@@ -911,80 +912,80 @@ async def get_products(request: Request):
         headers={
             "Content-Type": "application/json",
             "Cache-Control": "public, s-maxage=300",
-            # Vary: CDN に「これらのヘッダーが異なれば別キャッシュ」と指示
+            # Vary: instructs CDN to treat responses as separate caches if these headers differ
             "Vary": "Accept-Language, Accept-Encoding",
-            # 注意: Vary: User-Agent は絶対に使わない！
-            # → 無数のバリエーションが生成されキャッシュが効かなくなる
-            # 代わりにCDN のデバイス検出機能を利用
+            # Warning: Never use Vary: User-Agent!
+            # → Generates countless variations and defeats caching
+            # Use the CDN's built-in device detection instead
         }
     )
 
-# Vary ヘッダーの効果:
+# How Vary header works:
 #
-# Vary: Accept-Encoding の場合:
-#   GET /api/products (Accept-Encoding: gzip)  → キャッシュ A (gzip版)
-#   GET /api/products (Accept-Encoding: br)    → キャッシュ B (brotli版)
-#   GET /api/products (Accept-Encoding: なし)   → キャッシュ C (非圧縮版)
+# With Vary: Accept-Encoding:
+#   GET /api/products (Accept-Encoding: gzip)  → Cache A (gzip version)
+#   GET /api/products (Accept-Encoding: br)    → Cache B (brotli version)
+#   GET /api/products (Accept-Encoding: none)  → Cache C (uncompressed version)
 #
-# Vary: Accept-Language の場合:
-#   GET /api/products (Accept-Language: ja)     → キャッシュ D (日本語版)
-#   GET /api/products (Accept-Language: en)     → キャッシュ E (英語版)
+# With Vary: Accept-Language:
+#   GET /api/products (Accept-Language: ja)    → Cache D (Japanese version)
+#   GET /api/products (Accept-Language: en)    → Cache E (English version)
 ```
 
 ---
 
-## 6. 主要 CDN サービス比較
+## 6. Comparison of Major CDN Services
 
-### 比較表 1: 機能比較
+### Comparison Table 1: Feature Comparison
 
-| 特性 | CloudFront | Cloudflare | Fastly |
+| Feature | CloudFront | Cloudflare | Fastly |
 |-----|-----------|------------|--------|
-| **POP 数** | 450+ | 300+ | 90+ |
-| **エッジコンピューティング** | Lambda@Edge / CloudFront Functions | Workers (V8 isolate) | Compute@Edge (Wasm) |
-| **無料枠** | 1TB/月 (12ヶ月) | 無制限帯域（Free プラン） | なし |
-| **キャッシュパージ速度** | 数秒 ~ 数十秒 | < 30ms (Instant Purge) | < 150ms |
-| **DDoS 防御** | AWS Shield Standard (無料) | 標準搭載（全プラン） | Shield |
-| **WAF** | AWS WAF (別料金) | 標準搭載 (Pro 以上) | Next-Gen WAF |
-| **HTTP/3 (QUIC)** | 対応 | 対応 | 対応 |
-| **WebSocket** | 対応 | 対応 | 対応 |
-| **画像最適化** | 非対応 (Lambda@Edge で実装) | Polish / Image Resizing | Image Optimizer |
-| **ログ** | S3 / Kinesis | Logpush | Real-time log streaming |
-| **価格モデル** | 従量課金 (リクエスト + 帯域) | プラン + 従量課金 | 従量課金 |
-| **最適用途** | AWS エコシステム統合 | 汎用・セキュリティ重視 | 高速パージ・API キャッシュ |
+| **POP Count** | 450+ | 300+ | 90+ |
+| **Edge Computing** | Lambda@Edge / CloudFront Functions | Workers (V8 isolate) | Compute@Edge (Wasm) |
+| **Free Tier** | 1TB/month (12 months) | Unlimited bandwidth (Free plan) | None |
+| **Cache Purge Speed** | Seconds to tens of seconds | < 30ms (Instant Purge) | < 150ms |
+| **DDoS Protection** | AWS Shield Standard (free) | Built-in (all plans) | Shield |
+| **WAF** | AWS WAF (additional cost) | Built-in (Pro and above) | Next-Gen WAF |
+| **HTTP/3 (QUIC)** | Supported | Supported | Supported |
+| **WebSocket** | Supported | Supported | Supported |
+| **Image Optimization** | Not supported (implement via Lambda@Edge) | Polish / Image Resizing | Image Optimizer |
+| **Logging** | S3 / Kinesis | Logpush | Real-time log streaming |
+| **Pricing Model** | Pay-per-use (requests + bandwidth) | Plan + pay-per-use | Pay-per-use |
+| **Best For** | AWS ecosystem integration | General-purpose / security-focused | Fast purge / API caching |
 
-### 比較表 2: ユースケース別選定ガイド
+### Comparison Table 2: Use Case Selection Guide
 
-| ユースケース | 推奨 CDN | 理由 |
+| Use Case | Recommended CDN | Reason |
 |------------|---------|------|
-| AWS S3/ALB との統合 | CloudFront | IAM ベースのアクセス制御、OAI/OAC |
-| 即時キャッシュパージが必要 | Cloudflare / Fastly | < 150ms で全 POP パージ |
-| 無料で始めたい | Cloudflare | Free プラン: 無制限帯域 + DDoS 防御 |
-| エッジでの JS 実行 | Cloudflare | Workers: < 1ms 起動、50ms CPU/req |
-| 動的 API のキャッシュ | Fastly | Surrogate-Key でタグベースパージ |
-| グローバル映像配信 | CloudFront | MediaStore + CloudFront の統合 |
-| マルチクラウド環境 | Cloudflare / Fastly | クラウド非依存 |
-| エッジでの Wasm 実行 | Fastly | Compute@Edge: Rust/Go/JS 対応 |
+| Integration with AWS S3/ALB | CloudFront | IAM-based access control, OAI/OAC |
+| Immediate cache purge required | Cloudflare / Fastly | < 150ms purge across all POPs |
+| Start for free | Cloudflare | Free plan: unlimited bandwidth + DDoS protection |
+| JS execution at the edge | Cloudflare | Workers: < 1ms startup, 50ms CPU/req |
+| Dynamic API caching | Fastly | Tag-based purge with Surrogate-Key |
+| Global video delivery | CloudFront | MediaStore + CloudFront integration |
+| Multi-cloud environment | Cloudflare / Fastly | Cloud-agnostic |
+| Wasm execution at the edge | Fastly | Compute@Edge: supports Rust/Go/JS |
 
-### 比較表 3: コスト比較 (月間 10TB 配信)
+### Comparison Table 3: Cost Comparison (10TB/month delivery)
 
-| コスト項目 | CloudFront | Cloudflare Pro | Fastly |
+| Cost Item | CloudFront | Cloudflare Pro | Fastly |
 |-----------|-----------|---------------|--------|
-| 基本料金 | $0 | $20/月 | $50/月 |
-| 帯域 (10TB, 北米) | ~$850 | $0 (無制限) | ~$800 |
-| HTTPS リクエスト (1億) | ~$100 | $0 (含む) | ~$75 |
-| キャッシュパージ | $0 (1000/月無料) | $0 (含む) | $0 (含む) |
-| WAF | ~$5/ルール | $0 (含む) | 別料金 |
-| **合計 (概算)** | **~$950** | **~$20** | **~$925** |
-| **備考** | AWS 統合の価値 | コスパ最強 | パージ速度の価値 |
+| Base fee | $0 | $20/month | $50/month |
+| Bandwidth (10TB, North America) | ~$850 | $0 (unlimited) | ~$800 |
+| HTTPS requests (100M) | ~$100 | $0 (included) | ~$75 |
+| Cache purge | $0 (1000/month free) | $0 (included) | $0 (included) |
+| WAF | ~$5/rule | $0 (included) | Separate cost |
+| **Total (estimate)** | **~$950** | **~$20** | **~$925** |
+| **Notes** | Value of AWS integration | Best cost-performance | Value of purge speed |
 
 ---
 
-## 7. 高度なトピック
+## 7. Advanced Topics
 
-### 7.1 Surrogate-Key (タグベースパージ)
+### 7.1 Surrogate-Key (Tag-Based Purge)
 
 ```python
-"""Fastly の Surrogate-Key を使ったタグベースキャッシュパージ"""
+"""Tag-based cache purging using Fastly's Surrogate-Key"""
 from fastapi import FastAPI, Response
 
 app = FastAPI()
@@ -998,8 +999,8 @@ async def get_product(product_id: str):
         headers={
             "Content-Type": "application/json",
             "Cache-Control": "public, s-maxage=3600",
-            # Surrogate-Key: 複数のタグを設定
-            # → タグ単位でパージ可能
+            # Surrogate-Key: assign multiple tags
+            # → enables purging by tag
             "Surrogate-Key": f"product-{product_id} "
                              f"category-{product['category']} "
                              f"all-products",
@@ -1019,28 +1020,28 @@ async def get_category(category_id: str):
         }
     )
 
-# パージの例:
-# 1. 特定商品を更新した場合:
+# Purge examples:
+# 1. When a specific product is updated:
 #    POST /service/{id}/purge/product-123
-#    → product-123 のキャッシュのみパージ
+#    → Purge only the cache for product-123
 #
-# 2. カテゴリ全体を更新した場合:
+# 2. When an entire category is updated:
 #    POST /service/{id}/purge/category-electronics
-#    → electronics カテゴリの全商品 + カテゴリ一覧をパージ
+#    → Purge all products in the electronics category + category listing
 #
-# 3. 全商品をパージ:
+# 3. Purge all products:
 #    POST /service/{id}/purge/all-products
 #
-# メリット:
-# - URL ベースのパージより柔軟
-# - ワイルドカード不要で正確なパージが可能
-# - 関連コンテンツを一括パージ
+# Benefits:
+# - More flexible than URL-based purging
+# - Precise purging without wildcards
+# - Batch purge of related content
 ```
 
-### 7.2 画像最適化 CDN パイプライン
+### 7.2 Image Optimization CDN Pipeline
 
 ```python
-"""CDN エッジでの画像最適化パイプライン"""
+"""Image optimization pipeline at CDN edge"""
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
@@ -1061,13 +1062,13 @@ class ImageTransform:
 
 class ImageOptimizationCDN:
     """
-    CDN エッジでの画像最適化設計
+    Image optimization design at CDN edge
 
-    URL パターン: /images/{transforms}/{original_path}
-    例: /images/w_800,h_600,q_80,f_webp/photos/hero.jpg
+    URL pattern: /images/{transforms}/{original_path}
+    Example: /images/w_800,h_600,q_80,f_webp/photos/hero.jpg
     """
 
-    # レスポンシブ画像のプリセット
+    # Responsive image presets
     PRESETS = {
         'thumbnail': ImageTransform(width=150, height=150, quality=60),
         'card':      ImageTransform(width=400, height=300, quality=75),
@@ -1077,7 +1078,7 @@ class ImageOptimizationCDN:
 
     @staticmethod
     def generate_srcset(image_path: str, widths: list[int]) -> str:
-        """レスポンシブ画像の srcset を生成"""
+        """Generate srcset for responsive images"""
         srcset_entries = []
         for w in widths:
             url = f"/images/w_{w},f_auto/{image_path}"
@@ -1086,19 +1087,19 @@ class ImageOptimizationCDN:
 
     @staticmethod
     def generate_picture_tag(image_path: str) -> str:
-        """<picture> タグを生成 (AVIF > WebP > JPEG フォールバック)"""
+        """Generate <picture> tag (AVIF > WebP > JPEG fallback)"""
         return f"""<picture>
-  <!-- AVIF (最高圧縮率) -->
+  <!-- AVIF (best compression) -->
   <source
     type="image/avif"
     srcset="{ImageOptimizationCDN.generate_srcset(image_path, [400, 800, 1200])}"
     sizes="(max-width: 768px) 100vw, 50vw" />
-  <!-- WebP (広いブラウザ対応) -->
+  <!-- WebP (broad browser support) -->
   <source
     type="image/webp"
     srcset="{ImageOptimizationCDN.generate_srcset(image_path, [400, 800, 1200])}"
     sizes="(max-width: 768px) 100vw, 50vw" />
-  <!-- JPEG フォールバック -->
+  <!-- JPEG fallback -->
   <img
     src="/images/w_800,f_jpeg/{image_path}"
     loading="lazy"
@@ -1106,19 +1107,19 @@ class ImageOptimizationCDN:
     alt="" />
 </picture>"""
 
-# Cloudflare Workers での画像最適化リクエスト例:
+# Example of image optimization request in Cloudflare Workers:
 #
 # export default {
 #   async fetch(request) {
 #     const url = new URL(request.url);
 #     const accept = request.headers.get('Accept') || '';
 #
-#     // ブラウザの対応フォーマットを判定
+#     // Determine format supported by browser
 #     let format = 'jpeg';
 #     if (accept.includes('image/avif')) format = 'avif';
 #     else if (accept.includes('image/webp')) format = 'webp';
 #
-#     // Cloudflare Image Resizing を利用
+#     // Use Cloudflare Image Resizing
 #     return fetch(url.toString(), {
 #       cf: {
 #         image: {
@@ -1134,18 +1135,18 @@ class ImageOptimizationCDN:
 # };
 ```
 
-### 7.3 CDN とセキュリティ
+### 7.3 CDN and Security
 
 ```python
-"""CDN セキュリティ設計: DDoS 防御 + WAF + Bot 管理"""
+"""CDN security design: DDoS protection + WAF + Bot management"""
 from dataclasses import dataclass, field
 from typing import Optional
 
 @dataclass
 class CDNSecurityConfig:
-    """CDN セキュリティ設定の設計"""
+    """CDN security configuration design"""
 
-    # 1. TLS / SSL 設定
+    # 1. TLS / SSL configuration
     tls_config: dict = field(default_factory=lambda: {
         'min_version': 'TLSv1.2',
         'preferred_ciphers': [
@@ -1154,19 +1155,19 @@ class CDNSecurityConfig:
         ],
         'hsts': {
             'enabled': True,
-            'max_age': 63072000,  # 2年
+            'max_age': 63072000,  # 2 years
             'include_subdomains': True,
             'preload': True,
         },
         'ocsp_stapling': True,
     })
 
-    # 2. WAF ルール
+    # 2. WAF rules
     waf_rules: dict = field(default_factory=lambda: {
         'managed_rules': [
-            'OWASP Top 10',           # SQL Injection, XSS 等
-            'Known Bad Inputs',        # 既知の攻撃パターン
-            'Bot Management',          # 悪質ボット検出
+            'OWASP Top 10',           # SQL Injection, XSS, etc.
+            'Known Bad Inputs',        # Known attack patterns
+            'Bot Management',          # Malicious bot detection
         ],
         'custom_rules': [
             {
@@ -1183,50 +1184,50 @@ class CDNSecurityConfig:
         ],
     })
 
-    # 3. オリジン保護
+    # 3. Origin protection
     origin_protection: dict = field(default_factory=lambda: {
-        # オリジンは CDN からのリクエストのみ受け付ける
+        # Origin only accepts requests from CDN
         'allowed_ips': 'CDN IP ranges only',
         'origin_secret_header': {
             'name': 'X-Origin-Verify',
-            'value': 'shared-secret-value',  # CDN → Origin の認証
+            'value': 'shared-secret-value',  # CDN → Origin authentication
         },
         # CloudFront: OAC (Origin Access Control)
         'oac_enabled': True,
     })
 
-    # 4. DDoS 防御レイヤー
+    # 4. DDoS protection layers
     ddos_protection: dict = field(default_factory=lambda: {
         'layer_3_4': {
-            'provider': 'CDN built-in',  # TCP/UDP フラッド
+            'provider': 'CDN built-in',  # TCP/UDP flood
             'capacity': '100+ Tbps',
         },
         'layer_7': {
-            'rate_limiting': True,        # HTTP フラッド
-            'challenge_page': True,       # JS チャレンジ
-            'geo_blocking': ['KP', 'IR'], # 特定国のブロック
+            'rate_limiting': True,        # HTTP flood
+            'challenge_page': True,       # JS challenge
+            'geo_blocking': ['KP', 'IR'], # Block specific countries
         },
     })
 
-# オリジン保護の実装例 (Nginx)
+# Origin protection implementation example (Nginx)
 NGINX_ORIGIN_PROTECTION = """
-# CDN の IP レンジのみ許可
+# Allow only CDN IP ranges
 # CloudFront IP ranges: https://d7uri8nf7uskq.cloudfront.net/tools/list-cloudfront-ips
 geo $is_cdn {
     default         0;
     13.224.0.0/14   1;  # CloudFront
     52.84.0.0/15    1;  # CloudFront
     99.84.0.0/16    1;  # CloudFront
-    # ... (全レンジを記載)
+    # ... (include all ranges)
 }
 
 server {
-    # CDN 以外からのアクセスを拒否
+    # Deny access from non-CDN sources
     if ($is_cdn = 0) {
         return 403;
     }
 
-    # CDN からのシークレットヘッダーを検証
+    # Verify the secret header from CDN
     if ($http_x_origin_verify != "shared-secret-value") {
         return 403;
     }
@@ -1234,79 +1235,79 @@ server {
 """
 ```
 
-### 7.4 CDN モニタリングと可観測性
+### 7.4 CDN Monitoring and Observability
 
 ```python
-"""CDN パフォーマンスモニタリング"""
+"""CDN performance monitoring"""
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
 @dataclass
 class CDNMetrics:
-    """CDN モニタリングで追跡すべきメトリクス"""
+    """Metrics to track in CDN monitoring"""
 
-    # キャッシュ効率
-    cache_hit_ratio: float       # 目標: 静的 95%+, 動的 60%+
+    # Cache efficiency
+    cache_hit_ratio: float       # Target: static 95%+, dynamic 60%+
     cache_miss_ratio: float
-    cache_expired_ratio: float   # TTL 切れの割合
+    cache_expired_ratio: float   # Ratio of TTL-expired cache
 
-    # パフォーマンス
-    ttfb_p50_ms: float           # 目標: < 50ms
-    ttfb_p95_ms: float           # 目標: < 200ms
-    ttfb_p99_ms: float           # 目標: < 500ms
+    # Performance
+    ttfb_p50_ms: float           # Target: < 50ms
+    ttfb_p95_ms: float           # Target: < 200ms
+    ttfb_p99_ms: float           # Target: < 500ms
     total_latency_ms: float
 
-    # オリジン健全性
-    origin_request_count: int    # 目標: 全リクエストの 5-20%
-    origin_error_rate: float     # 目標: < 0.1%
+    # Origin health
+    origin_request_count: int    # Target: 5-20% of total requests
+    origin_error_rate: float     # Target: < 0.1%
     origin_response_time_ms: float
 
-    # 帯域・コスト
+    # Bandwidth / cost
     bandwidth_gb: float
     request_count: int
     cost_usd: float
 
-    # エラー
-    http_4xx_rate: float         # 目標: < 1%
-    http_5xx_rate: float         # 目標: < 0.01%
+    # Errors
+    http_4xx_rate: float         # Target: < 1%
+    http_5xx_rate: float         # Target: < 0.01%
 
 class CDNMonitor:
-    """CDN メトリクスの収集と分析"""
+    """CDN metrics collection and analysis"""
 
-    # アラート閾値
+    # Alert thresholds
     ALERT_THRESHOLDS = {
-        'cache_hit_ratio_low': 0.80,       # 80% 未満で警告
-        'origin_error_rate_high': 0.01,     # 1% 以上で警告
-        'ttfb_p95_high_ms': 200,            # 200ms 以上で警告
-        'http_5xx_rate_high': 0.001,        # 0.1% 以上で緊急
+        'cache_hit_ratio_low': 0.80,       # Warning below 80%
+        'origin_error_rate_high': 0.01,     # Warning at 1% or above
+        'ttfb_p95_high_ms': 200,            # Warning at 200ms or above
+        'http_5xx_rate_high': 0.001,        # Critical at 0.1% or above
     }
 
     @staticmethod
     def analyze_cache_efficiency(metrics: CDNMetrics) -> dict:
-        """キャッシュ効率の分析とアドバイス"""
+        """Analyze cache efficiency and provide recommendations"""
         analysis = {'status': 'healthy', 'recommendations': []}
 
         if metrics.cache_hit_ratio < 0.80:
             analysis['status'] = 'degraded'
             analysis['recommendations'].append(
-                "キャッシュヒット率が低い。"
-                "以下を確認: (1) TTL が短すぎないか、"
-                "(2) Vary ヘッダーが過剰でないか、"
-                "(3) クエリパラメータがキャッシュキーに不要に含まれていないか"
+                "Cache hit ratio is low. "
+                "Check the following: (1) Is the TTL too short? "
+                "(2) Are there too many Vary headers? "
+                "(3) Are unnecessary query parameters included in the cache key?"
             )
 
         if metrics.cache_expired_ratio > 0.30:
             analysis['recommendations'].append(
-                "キャッシュ期限切れが多い。TTL の延長または "
-                "stale-while-revalidate の導入を検討"
+                "Too many expired caches. Consider extending TTL or "
+                "introducing stale-while-revalidate."
             )
 
         if metrics.origin_error_rate > 0.01:
             analysis['status'] = 'critical'
             analysis['recommendations'].append(
-                "オリジンエラー率が高い。"
-                "stale-if-error ヘッダーの設定でユーザー影響を軽減"
+                "Origin error rate is high. "
+                "Mitigate user impact by configuring the stale-if-error header."
             )
 
         return analysis
@@ -1317,7 +1318,7 @@ class CDNMonitor:
         cache_hit_ratio: float,
         avg_origin_cost_per_request: float = 0.00001,
     ) -> dict:
-        """CDN によるコスト削減効果を計算"""
+        """Calculate cost savings achieved by CDN"""
         requests_served_by_cache = int(total_requests * cache_hit_ratio)
         requests_to_origin = total_requests - requests_served_by_cache
         origin_cost = requests_to_origin * avg_origin_cost_per_request
@@ -1335,10 +1336,10 @@ class CDNMonitor:
 
 ---
 
-## 8. S3 + CloudFront の CDK 構成
+## 8. S3 + CloudFront CDK Configuration
 
 ```python
-# AWS CDK v2: CloudFront + S3 + WAF の本番構成
+# AWS CDK v2: Production setup with CloudFront + S3 + WAF
 from aws_cdk import (
     Stack, Duration, RemovalPolicy,
     aws_s3 as s3,
@@ -1355,23 +1356,23 @@ class CDNStack(Stack):
     def __init__(self, scope: Construct, id: str, **kwargs):
         super().__init__(scope, id, **kwargs)
 
-        # 1. S3 バケット (静的アセット)
+        # 1. S3 bucket (static assets)
         bucket = s3.Bucket(
             self, "StaticAssets",
             removal_policy=RemovalPolicy.RETAIN,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             encryption=s3.BucketEncryption.S3_MANAGED,
-            versioned=True,  # バージョニング有効
+            versioned=True,  # Enable versioning
         )
 
-        # 2. ACM 証明書 (us-east-1 で作成が必須)
+        # 2. ACM certificate (must be created in us-east-1)
         certificate = acm.Certificate(
             self, "Certificate",
             domain_name="cdn.example.com",
             validation=acm.CertificateValidation.from_dns(),
         )
 
-        # 3. キャッシュポリシー
+        # 3. Cache policy
         cache_policy = cloudfront.CachePolicy(
             self, "CachePolicy",
             cache_policy_name="OptimizedCaching",
@@ -1382,14 +1383,14 @@ class CDNStack(Stack):
                 "Accept-Encoding", "Accept-Language"
             ),
             query_string_behavior=cloudfront.CacheQueryStringBehavior.allow_list(
-                "page", "sort", "category"  # 必要なパラメータのみ
+                "page", "sort", "category"  # Only necessary parameters
             ),
             cookie_behavior=cloudfront.CacheCookieBehavior.none(),
             enable_accept_encoding_gzip=True,
             enable_accept_encoding_brotli=True,
         )
 
-        # 4. CloudFront ディストリビューション
+        # 4. CloudFront distribution
         distribution = cloudfront.Distribution(
             self, "Distribution",
             default_behavior=cloudfront.BehaviorOptions(
@@ -1410,13 +1411,13 @@ class CDNStack(Stack):
                 cloudfront.ErrorResponse(
                     http_status=404,
                     response_http_status=200,
-                    response_page_path="/index.html",  # SPA フォールバック
+                    response_page_path="/index.html",  # SPA fallback
                     ttl=Duration.seconds(10),
                 ),
             ],
         )
 
-        # 5. Route 53 レコード
+        # 5. Route 53 record
         zone = route53.HostedZone.from_lookup(
             self, "Zone", domain_name="example.com"
         )
@@ -1432,32 +1433,32 @@ class CDNStack(Stack):
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### アンチパターン 1: 全てのレスポンスに同一 TTL を適用
+### Anti-Pattern 1: Applying the Same TTL to All Responses
 
 ```python
-# NG: 全 URL に一律の Cache-Control
+# Bad: Uniform Cache-Control for all URLs
 class BadCacheMiddleware:
-    """全てのレスポンスに同じ TTL を適用"""
+    """Applies the same TTL to all responses"""
     async def __call__(self, request, call_next):
         response = await call_next(request)
-        # 全てに 1日キャッシュ
+        # Cache everything for 1 day
         response.headers["Cache-Control"] = "public, max-age=86400"
         return response
 
-# 問題:
-# - index.html を更新しても24時間反映されない
-# - API レスポンスが古いまま返される
-# - 個人情報が CDN にキャッシュされるリスク
-# - ハッシュ付き JS は1日で無駄に再取得
+# Problems:
+# - index.html updates won't be reflected for 24 hours
+# - API responses are returned stale
+# - Risk of personal data being cached by CDN
+# - Hashed JS files are unnecessarily re-fetched every day
 
-# OK: アセット種別ごとに TTL を最適化
+# Good: Optimize TTL per asset type
 class GoodCacheMiddleware:
-    """アセット種別に応じた Cache-Control 設定"""
+    """Set Cache-Control based on asset type"""
 
     CACHE_RULES = [
-        # (パスパターン, Cache-Control)
+        # (path pattern, Cache-Control)
         (r'^/api/user/', 'private, no-store'),
         (r'^/api/', 'public, s-maxage=10, stale-while-revalidate=60, stale-if-error=300'),
         (r'\.[a-f0-9]{8,}\.(js|css)$', 'public, max-age=31536000, immutable'),
@@ -1474,137 +1475,137 @@ class GoodCacheMiddleware:
                 response.headers["Cache-Control"] = cache_control
                 break
         else:
-            # デフォルト: キャッシュなし (安全側に倒す)
+            # Default: no cache (fail safe)
             response.headers["Cache-Control"] = "private, no-cache"
 
         return response
 ```
 
-### アンチパターン 2: キャッシュキーに不要な要素を含める
+### Anti-Pattern 2: Including Unnecessary Elements in Cache Keys
 
 ```python
-# NG: Vary: User-Agent でキャッシュキーを生成
+# Bad: Generating cache keys with Vary: User-Agent
 class BadVaryConfig:
-    """Vary: User-Agent を使う"""
+    """Uses Vary: User-Agent"""
     def get_response_headers(self):
         return {
             "Cache-Control": "public, s-maxage=300",
-            "Vary": "User-Agent",  # 数千種類の UA → 数千のキャッシュバリエーション
+            "Vary": "User-Agent",  # Thousands of UAs → thousands of cache variations
         }
-    # 結果: キャッシュヒット率が 5% 以下に低下
+    # Result: Cache hit rate drops below 5%
 
-# NG: クエリパラメータ全てをキャッシュキーに含める
-# /products?utm_source=google&utm_medium=cpc → キャッシュ MISS
-# /products?utm_source=twitter              → キャッシュ MISS
-# /products                                 → キャッシュ MISS
-# → 同じコンテンツなのに3つの別キャッシュエントリ
+# Bad: Including all query parameters in cache key
+# /products?utm_source=google&utm_medium=cpc → Cache MISS
+# /products?utm_source=twitter              → Cache MISS
+# /products                                 → Cache MISS
+# → 3 separate cache entries for the same content
 
-# OK: 必要なパラメータのみキャッシュキーに含める
+# Good: Include only necessary parameters in cache key
 class GoodVaryConfig:
-    """デバイス判定は CDN の機能を利用"""
+    """Use CDN's built-in device detection instead of Vary: User-Agent"""
     def get_response_headers(self, request):
         return {
             "Cache-Control": "public, s-maxage=300",
             "Vary": "Accept-Encoding, Accept-Language",
-            # デバイス判定: CDN のヘッダーを利用
+            # Device detection: use CDN headers instead
             # CloudFront: CloudFront-Is-Mobile-Viewer
             # Cloudflare: CF-Device-Type
         }
 
     def configure_cache_policy(self):
-        """CloudFront キャッシュポリシーで UTM パラメータを除外"""
+        """Exclude UTM parameters from CloudFront cache policy"""
         return {
             'QueryStringBehavior': 'whitelist',
             'QueryStrings': ['page', 'sort', 'category', 'q'],
-            # utm_*, fbclid, gclid は自動的に除外
+            # utm_*, fbclid, gclid are automatically excluded
         }
 ```
 
-### アンチパターン 3: CDN パージに依存したデプロイ
+### Anti-Pattern 3: Relying on CDN Purge for Deployments
 
 ```python
-# NG: デプロイのたびに全キャッシュをパージ
+# Bad: Purging all cache on every deployment
 class BadDeployment:
-    """デプロイ時に /* をパージ"""
+    """Purges /* on every deployment"""
     def deploy(self):
-        # 1. ファイルをアップロード
+        # 1. Upload files
         upload_files()
 
-        # 2. 全キャッシュをパージ
+        # 2. Purge all cache
         invalidate_all("/*")
 
-        # 問題:
-        # - パージ完了まで数秒〜数十秒のラグ
-        # - パージ中に古いHTMLが新しいJSを参照 → エラー
-        # - 全POPで一貫性が保たれない瞬間がある
-        # - パージ費用が発生 (CloudFront: 1000パス/月超で課金)
+        # Problems:
+        # - Several seconds to tens of seconds of lag until purge completes
+        # - During purge, old HTML may reference new JS → errors
+        # - Consistency across all POPs is not guaranteed at a single moment
+        # - Purge costs apply (CloudFront: charged beyond 1000 paths/month)
 
-# OK: キャッシュバスティングでパージを不要にする
+# Good: Eliminate the need for purging with cache busting
 class GoodDeployment:
-    """ハッシュ付きファイル名でパージ不要のデプロイ"""
+    """Deployment without purging using hashed file names"""
     def deploy(self):
-        # 1. アセットはハッシュ付きファイル名 (パージ不要)
-        #    main.js → main.a1b2c3d4.js (新ファイル = 新キャッシュ)
+        # 1. Assets with hashed file names (no purge needed)
+        #    main.js → main.a1b2c3d4.js (new file = new cache entry)
         upload_hashed_assets()
 
-        # 2. HTML だけ短 TTL (s-maxage=60) で自然更新
+        # 2. HTML with short TTL (s-maxage=60) for natural refresh
         upload_html(cache_control="s-maxage=60, must-revalidate")
 
-        # 3. 緊急時のみ HTML をパージ
+        # 3. Purge HTML only in emergencies
         invalidate_paths(["/index.html"])
 
-        # メリット:
-        # - 一貫性の問題なし (HTMLが新JSを参照する時点でJSは既にCDNにある)
-        # - パージコスト最小 (HTMLのみ)
-        # - 古いバージョンへのロールバックも即座 (HTMLのパスを戻すだけ)
+        # Benefits:
+        # - No consistency issues (new JS is already in CDN when HTML references it)
+        # - Minimal purge cost (HTML only)
+        # - Instant rollback to previous version (just revert HTML path)
 ```
 
 ---
 
-## 10. 練習問題
+## 10. Practice Exercises
 
-### 演習 1 (基礎): Cache-Control ヘッダーの設計
+### Exercise 1 (Basic): Cache-Control Header Design
 
-以下の各コンテンツに最適な `Cache-Control` ヘッダーを設計せよ。
+Design the optimal `Cache-Control` header for each of the following content types.
 
 ```
-1. ハッシュ付き JavaScript: main.a1b2c3.js
-2. HTML ページ: /index.html
-3. ユーザープロフィール API: /api/user/profile
-4. 商品一覧 API: /api/products?page=1
-5. ユーザーアバター画像: /images/avatar/user-123.jpg
-6. フォントファイル: /fonts/noto-sans.woff2
-7. リアルタイム株価 API: /api/stocks/AAPL
+1. Hashed JavaScript: main.a1b2c3.js
+2. HTML page: /index.html
+3. User profile API: /api/user/profile
+4. Product list API: /api/products?page=1
+5. User avatar image: /images/avatar/user-123.jpg
+6. Font file: /fonts/noto-sans.woff2
+7. Real-time stock price API: /api/stocks/AAPL
 ```
 
-**期待される出力例:**
+**Expected output:**
 
 ```
 1. public, max-age=31536000, immutable
-   理由: ハッシュが変われば新URL → 1年キャッシュ安全
+   Reason: New URL when hash changes → 1-year cache is safe
 
 2. public, s-maxage=60, max-age=0, must-revalidate
-   理由: CDN 60秒キャッシュ、ブラウザは毎回確認
+   Reason: CDN caches for 60 seconds; browser validates every time
 
 3. private, no-store
-   理由: 個人情報、CDN にキャッシュ禁止
+   Reason: Personal data; must not be cached by CDN
 
 4. public, s-maxage=300, stale-while-revalidate=600
-   理由: 共有コンテンツ、5分キャッシュ + バックグラウンド更新
+   Reason: Shared content; 5-minute cache + background refresh
 
 5. public, max-age=86400, stale-while-revalidate=604800
-   理由: アバター変更頻度低、1日キャッシュ + 1週間 SWR
+   Reason: Avatars change infrequently; 1-day cache + 1-week SWR
 
 6. public, max-age=31536000, immutable
-   理由: フォントは不変、CORS ヘッダーも必要
+   Reason: Fonts are immutable; CORS headers also required
 
 7. public, s-maxage=5, stale-while-revalidate=10, stale-if-error=60
-   理由: 鮮度重要だが、エラー時は古いデータでも可
+   Reason: Freshness is critical, but stale data is acceptable on error
 ```
 
-### 演習 2 (応用): CDN キャッシュキー最適化
+### Exercise 2 (Applied): CDN Cache Key Optimization
 
-以下のアクセスログを分析し、キャッシュヒット率を改善するための施策を提案せよ。
+Analyze the following access logs and propose measures to improve the cache hit rate.
 
 ```python
 access_logs = [
@@ -1619,137 +1620,137 @@ access_logs = [
     {"url": "/images/hero.jpg?v=2", "cache": "MISS"},
 ]
 
-# 課題:
-# 1. 現在のキャッシュヒット率を計算せよ
-# 2. 各 MISS の原因を特定せよ
-# 3. キャッシュヒット率を改善する施策を3つ以上提案せよ
-# 4. 改善後の期待キャッシュヒット率を見積もれ
+# Tasks:
+# 1. Calculate the current cache hit rate
+# 2. Identify the cause of each MISS
+# 3. Propose at least 3 measures to improve the cache hit rate
+# 4. Estimate the expected cache hit rate after improvements
 ```
 
-**期待される出力:**
+**Expected output:**
 
 ```
-1. 現在のキャッシュヒット率: 0% (9 MISS / 9 リクエスト)
+1. Current cache hit rate: 0% (9 MISS / 9 requests)
 
-2. 原因分析:
-   - /products: UTM パラメータがキャッシュキーに含まれている (4 MISS → 1 で済む)
-   - /api/user/profile: Vary: User-Agent が設定されている (キャッシュ不可)
-   - /images/hero.jpg: クエリパラメータ ?v= が不要なバリエーションを生成
+2. Root cause analysis:
+   - /products: UTM parameters are included in cache key (4 MISS → could be 1)
+   - /api/user/profile: Vary: User-Agent is set (cannot be cached)
+   - /images/hero.jpg: Query parameter ?v= creates unnecessary variations
 
-3. 改善施策:
-   a. CDN キャッシュポリシーで utm_*, fbclid パラメータを除外
-   b. Vary: User-Agent を削除し、CDN のデバイス検出機能を利用
-   c. 画像のバージョニングをファイル名ハッシュ方式に変更
+3. Improvement measures:
+   a. Exclude utm_*, fbclid parameters from CDN cache policy
+   b. Remove Vary: User-Agent and use CDN's built-in device detection
+   c. Switch image versioning to file name hash approach
 
-4. 改善後の期待キャッシュヒット率:
-   - /products: 4リクエスト → 1 MISS + 3 HIT (75%)
-   - /api/user/profile: Vary 修正で 2リクエスト → 1 MISS + 1 HIT (50%)
-   - /images/hero.jpg: 3リクエスト → 1 MISS + 2 HIT (67%)
-   - 全体: 9リクエスト → 3 MISS + 6 HIT (67%)
+4. Expected cache hit rate after improvements:
+   - /products: 4 requests → 1 MISS + 3 HIT (75%)
+   - /api/user/profile: With Vary fix, 2 requests → 1 MISS + 1 HIT (50%)
+   - /images/hero.jpg: 3 requests → 1 MISS + 2 HIT (67%)
+   - Overall: 9 requests → 3 MISS + 6 HIT (67%)
 ```
 
-### 演習 3 (上級): マルチオリジン CDN アーキテクチャ設計
+### Exercise 3 (Advanced): Multi-Origin CDN Architecture Design
 
-以下の要件を満たす CDN 構成を設計せよ。
+Design a CDN configuration that meets the following requirements.
 
 ```
-要件:
-- SPA フロントエンド (React) を S3 から配信
-- REST API を ALB 経由のバックエンドから配信
-- 画像を S3 から配信 (エッジでリサイズ・フォーマット変換)
-- WebSocket 接続をサポート
-- 全世界のユーザーにサービス提供 (主要地域: 日本、北米、欧州)
-- 99.99% 可用性目標
+Requirements:
+- Serve SPA frontend (React) from S3
+- Serve REST API from backend via ALB
+- Serve images from S3 (with edge resizing and format conversion)
+- Support WebSocket connections
+- Serve users worldwide (primary regions: Japan, North America, Europe)
+- 99.99% availability target
 
-設計項目:
-1. オリジン構成 (複数オリジンの設計)
-2. キャッシュポリシー (パスパターンごと)
-3. エッジ処理 (CloudFront Functions / Lambda@Edge の使い分け)
-4. セキュリティ (WAF ルール、オリジン保護)
-5. モニタリング (主要メトリクス、アラート閾値)
-6. 障害時のフェイルオーバー戦略
+Design items:
+1. Origin configuration (multi-origin design)
+2. Cache policy (per path pattern)
+3. Edge processing (deciding between CloudFront Functions and Lambda@Edge)
+4. Security (WAF rules, origin protection)
+5. Monitoring (key metrics, alert thresholds)
+6. Failover strategy during outages
 ```
 
-**期待される出力:** 各項目について具体的な設定とその理由を含む設計書 (500 文字以上)
+**Expected output:** A design document for each item with specific configuration and reasoning (500 characters or more)
 
 ---
 
 ## 11. FAQ
 
-### Q1. 動的コンテンツにも CDN は有効か？
+### Q1. Is CDN effective for dynamic content?
 
-**A.** 有効である。CDN は動的コンテンツにも4つの恩恵がある。(1) **TCP/TLS ハンドシェイクの高速化** --- エッジとオリジン間のコネクション再利用 (Keep-Alive) により、ユーザーがオリジンと直接通信するよりも速い。(2) **短 TTL + `stale-while-revalidate`** --- `s-maxage=5, stale-while-revalidate=30` のように設定すれば、5秒間はキャッシュから返し、裏でオリジンを更新。リクエストの 90% 以上がキャッシュヒットになり得る。(3) **エッジコンピューティング** --- CloudFront Functions / Cloudflare Workers でオリジンへのリクエスト自体を削減。認証トークンの検証やレートリミットをエッジで実行。(4) **接続の最適化** --- CDN のバックボーンネットワークは公衆インターネットより最適化されており、オリジンへの通信自体が高速。
+**A.** Yes, it is. CDN provides four benefits for dynamic content as well. (1) **Faster TCP/TLS handshake** --- Connection reuse (Keep-Alive) between edge and origin is faster than direct communication between user and origin. (2) **Short TTL + `stale-while-revalidate`** --- A setting like `s-maxage=5, stale-while-revalidate=30` serves from cache for 5 seconds while updating from origin in the background, allowing over 90% of requests to be cache hits. (3) **Edge computing** --- Reduce requests to origin itself via CloudFront Functions / Cloudflare Workers. Auth token validation and rate limiting can be handled at the edge. (4) **Connection optimization** --- CDN backbone networks are more optimized than the public internet, making communication to the origin faster overall.
 
-### Q2. キャッシュの無効化（パージ）はどう管理すべきか？
+### Q2. How should cache invalidation (purge) be managed?
 
-**A.** パージに頼る設計は避け、「キャッシュバスティング」を基本とする。静的アセットにはコンテンツハッシュをファイル名に含め（`app.abc123.js`）、HTML から参照するパスを更新する。これにより新しいファイル名 = 新しいキャッシュエントリとなり、パージ不要。HTML 自体は短 TTL (s-maxage=60) で自然に更新する。API レスポンスのキャッシュには Fastly の Surrogate-Key のようなタグベースパージが効果的。緊急時のみワイルドカードパージ（`/api/*`）を使うが、全キャッシュパージ (`/*`) は最終手段とする。
+**A.** Avoid designing around purges and adopt "cache busting" as the baseline. Include a content hash in static asset file names (e.g., `app.abc123.js`) and update the path referenced in HTML. This makes a new file name equal to a new cache entry, eliminating the need for purging. HTML itself is naturally updated with a short TTL (s-maxage=60). For API response caches, tag-based purging such as Fastly's Surrogate-Key is effective. Reserve wildcard purges (`/api/*`) for emergencies, and treat full cache purges (`/*`) as a last resort.
 
-### Q3. CDN とオリジンの通信を最適化するには？
+### Q3. How can communication between CDN and origin be optimized?
 
-**A.** (1) **Origin Shield** を有効化し、複数 POP からオリジンへの重複リクエストを集約する。Origin Shield をオリジンに最も近いリージョンに配置することで、オリジンへのリクエスト数を 60-90% 削減できる。(2) **Keep-Alive / HTTP/2** でコネクション数を最適化する。CDN とオリジン間の永続的接続により、TLS ハンドシェイクのコストを削減。(3) **Gzip / Brotli 圧縮** をオリジンまたはエッジで有効化する。テキストベースのコンテンツで 60-80% の帯域削減。(4) **ETag / Last-Modified** による条件付きリクエスト（304 Not Modified）でデータ転送を削減する。CDN キャッシュ期限切れ後もオリジンのデータが変わっていなければ 304 が返り、帯域を節約。
+**A.** (1) Enable **Origin Shield** to aggregate duplicate requests from multiple POPs to the origin. Placing the Origin Shield in the region closest to the origin can reduce the number of requests to origin by 60-90%. (2) Optimize connection count with **Keep-Alive / HTTP/2**. Persistent connections between CDN and origin reduce TLS handshake overhead. (3) Enable **Gzip / Brotli compression** at the origin or edge. Reduces bandwidth by 60-80% for text-based content. (4) Use **ETag / Last-Modified** for conditional requests (304 Not Modified) to reduce data transfer. Even after CDN cache expiry, if origin data has not changed, a 304 is returned, saving bandwidth.
 
-### Q4. マルチ CDN 構成はどういう場合に必要か？
+### Q4. When is a multi-CDN setup necessary?
 
-**A.** 以下のケースでマルチ CDN を検討する: (1) **可用性要件が 99.99% 以上** --- 単一 CDN の障害リスクを軽減。DNS レベル (Route 53 / NS1) でフェイルオーバー。(2) **地域ごとの最適化** --- アジアでは Cloudflare、北米では CloudFront のように地域ごとに最適な CDN を選択。(3) **コスト最適化** --- トラフィック量が月間 100TB 以上の場合、CDN 間で価格交渉の材料になる。(4) **ベンダーロックイン回避** --- 特定 CDN に依存しない設計。ただし、マルチ CDN は運用複雑性が高く、キャッシュ効率も低下するため、月間 100TB 未満であれば単一 CDN で十分なことが多い。
+**A.** Consider multi-CDN in the following cases: (1) **Availability requirement of 99.99% or above** --- Mitigate the risk of a single CDN failure. Failover via DNS (Route 53 / NS1). (2) **Per-region optimization** --- Select the best CDN per region, such as Cloudflare for Asia and CloudFront for North America. (3) **Cost optimization** --- When monthly traffic exceeds 100TB, it becomes leverage for negotiating pricing between CDNs. (4) **Avoiding vendor lock-in** --- Design that is not dependent on a specific CDN. However, multi-CDN increases operational complexity and reduces cache efficiency, so a single CDN is often sufficient for under 100TB/month.
 
-### Q5. HTTP/3 (QUIC) は CDN でどのような効果があるか？
+### Q5. What is the effect of HTTP/3 (QUIC) in CDN?
 
-**A.** HTTP/3 は UDP ベースの QUIC プロトコルを使用し、以下の効果がある: (1) **0-RTT 接続** --- 再訪問時の TLS ハンドシェイクを省略。初回接続でも 1-RTT で完了（HTTP/2 は 2-3 RTT）。(2) **Head-of-Line Blocking の解消** --- HTTP/2 では 1 つのパケットロスが全ストリームをブロックするが、HTTP/3 では影響を受けたストリームのみ。モバイル回線で特に効果的。(3) **コネクションマイグレーション** --- Wi-Fi ↔ セルラー切り替え時にコネクションを維持。現在の主要 CDN (CloudFront, Cloudflare, Fastly) は全て HTTP/3 に対応しており、クライアント側のブラウザも Chrome/Firefox/Safari で対応済み。有効化は CDN 設定で `HttpVersion: http2and3` を指定するだけ。
+**A.** HTTP/3 uses the UDP-based QUIC protocol and delivers the following benefits: (1) **0-RTT connections** --- TLS handshake is skipped on repeat visits. Even on the first connection, it completes in 1-RTT (HTTP/2 requires 2-3 RTT). (2) **Eliminates Head-of-Line Blocking** --- In HTTP/2, a single packet loss blocks all streams, but in HTTP/3 only the affected stream is impacted. Particularly effective on mobile networks. (3) **Connection migration** --- Maintains connections when switching between Wi-Fi and cellular. All major CDNs (CloudFront, Cloudflare, Fastly) support HTTP/3, and client-side browsers (Chrome/Firefox/Safari) are also compatible. Enabling it is as simple as specifying `HttpVersion: http2and3` in CDN settings.
 
-### Q6. CDN の費用を最適化するには？
+### Q6. How can CDN costs be optimized?
 
-**A.** (1) **キャッシュヒット率の最大化** --- ヒット率 1% の改善がオリジンコスト数%削減に直結。キャッシュキーの正規化、適切な TTL 設計、Origin Shield の有効化が鍵。(2) **圧縮の活用** --- Brotli 圧縮で帯域を 60-80% 削減。多くの CDN は自動圧縮機能を提供。(3) **PriceClass の最適化** --- CloudFront では PriceClass_100 (北米+欧州のみ) や PriceClass_200 (+ アジア) で不要な POP を除外。(4) **リザーブドキャパシティ** --- CloudFront Savings Plan (最大 30% 割引) や Cloudflare の年間契約。(5) **画像最適化** --- WebP/AVIF 変換で画像サイズを 30-50% 削減。(6) **不要なリクエストの削減** --- ブラウザキャッシュの max-age を適切に設定し、CDN へのリクエスト自体を減らす。
+**A.** (1) **Maximize cache hit rate** --- A 1% improvement in hit rate directly reduces origin costs by several percent. The key factors are cache key normalization, proper TTL design, and enabling Origin Shield. (2) **Leverage compression** --- Brotli compression reduces bandwidth by 60-80%. Most CDNs provide automatic compression. (3) **Optimize PriceClass** --- In CloudFront, exclude unnecessary POPs with PriceClass_100 (North America + Europe only) or PriceClass_200 (+ Asia). (4) **Reserved capacity** --- CloudFront Savings Plan (up to 30% discount) or Cloudflare annual contracts. (5) **Image optimization** --- WebP/AVIF conversion reduces image size by 30-50%. (6) **Reduce unnecessary requests** --- Set browser cache max-age appropriately to reduce requests to CDN in the first place.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced material. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| CDN の役割 | エッジキャッシュによるレイテンシ削減、オリジン負荷軽減、DDoS 防御 |
-| キャッシュ戦略 | アセット種別ごとに TTL を最適化。immutable / stale-while-revalidate 活用 |
-| キャッシュバスティング | ファイル名にハッシュを含め、パージ依存を回避 |
-| キャッシュキー設計 | UTM/トラッキングパラメータを除外、Vary ヘッダーは最小限に |
-| CloudFront | AWS エコシステムとのネイティブ統合。Lambda@Edge / Functions でエッジ処理 |
-| Cloudflare | 無料帯域、即時パージ、Workers による軽量エッジコンピューティング |
-| Fastly | Surrogate-Key によるタグベースパージ、Compute@Edge (Wasm) |
-| Origin Shield | 中間キャッシュ層によるオリジンへのリクエスト集約 (60-90% 削減) |
-| セキュリティ | HTTPS 強制、WAF、DDoS 防御、オリジン保護を CDN レイヤーで実装 |
-| モニタリング | キャッシュヒット率、TTFB p95、オリジンエラー率を継続監視 |
+| Role of CDN | Latency reduction via edge caching, origin load relief, DDoS protection |
+| Cache strategy | Optimize TTL per asset type. Leverage immutable / stale-while-revalidate |
+| Cache busting | Include hash in file names to avoid relying on purges |
+| Cache key design | Exclude UTM/tracking parameters; keep Vary headers minimal |
+| CloudFront | Native integration with AWS ecosystem. Edge processing via Lambda@Edge / Functions |
+| Cloudflare | Free bandwidth, instant purge, lightweight edge computing via Workers |
+| Fastly | Tag-based purge with Surrogate-Key, Compute@Edge (Wasm) |
+| Origin Shield | Aggregate requests to origin via intermediate cache layer (60-90% reduction) |
+| Security | Enforce HTTPS, WAF, DDoS protection, origin protection at the CDN layer |
+| Monitoring | Continuously monitor cache hit rate, TTFB p95, and origin error rate |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [ロードバランサー](./00-load-balancer.md) --- CDN の背後にあるトラフィック分散
-- [キャッシング](./01-caching.md) --- アプリケーション層のキャッシュ戦略との連携
-- [DBスケーリング](./04-database-scaling.md) --- データ層のスケーリング戦略
-- [メッセージキュー](./02-message-queue.md) --- 非同期メッセージング基盤
-- [信頼性](../00-fundamentals/02-reliability.md) --- 可用性 SLA と障害対策の全体設計
+- [Load Balancer](./00-load-balancer.md) --- Traffic distribution behind CDN
+- [Caching](./01-caching.md) --- Integration with application-layer caching strategies
+- [DB Scaling](./04-database-scaling.md) --- Scaling strategies at the data layer
+- [Message Queue](./02-message-queue.md) --- Asynchronous messaging infrastructure
+- [Reliability](../00-fundamentals/02-reliability.md) --- Overall design for availability SLA and failure mitigation
 
 ---
 
-## 参考文献
+## References
 
-1. **Web Performance in Action** --- Jeremy Wagner (Manning, 2017) --- CDN とキャッシュ戦略の実践ガイド
+1. **Web Performance in Action** --- Jeremy Wagner (Manning, 2017) --- Practical guide to CDN and caching strategies
 2. **Amazon CloudFront Developer Guide** --- AWS Documentation --- https://docs.aws.amazon.com/cloudfront/
-3. **Cloudflare Learning Center** --- https://www.cloudflare.com/learning/ --- CDN の基礎から高度な活用まで
+3. **Cloudflare Learning Center** --- https://www.cloudflare.com/learning/ --- From CDN basics to advanced usage
 4. **HTTP Caching (MDN Web Docs)** --- https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching
-5. **High Performance Browser Networking** --- Ilya Grigorik (O'Reilly, 2013) --- https://hpbn.co/ --- HTTP/2, QUIC, CDN の深い解説
+5. **High Performance Browser Networking** --- Ilya Grigorik (O'Reilly, 2013) --- https://hpbn.co/ --- In-depth coverage of HTTP/2, QUIC, and CDN
