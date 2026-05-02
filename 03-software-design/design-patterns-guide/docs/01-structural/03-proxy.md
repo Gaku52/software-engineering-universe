@@ -1,121 +1,121 @@
-# Proxy パターン
+# Proxy Pattern
 
-> 別のオブジェクトへの **アクセスを制御する代理オブジェクト** を提供し、遅延初期化・アクセス制御・キャッシュなどの横断的関心事を実装する構造パターン。
+> A structural pattern that provides a **surrogate object to control access** to another object, implementing cross-cutting concerns such as lazy initialization, access control, and caching.
 
 ---
 
-## 前提知識
+## Prerequisites
 
-| トピック | 必要レベル | 参照先 |
+| Topic | Required Level | Reference |
 |---------|-----------|--------|
-| インタフェースと多態性 | 基本 | TypeScript / Java / Python の OOP |
-| 依存性注入 (DI) | 基本 | [クリーンアーキテクチャ](../../../system-design-guide/docs/02-architecture/01-clean-architecture.md) |
-| 非同期プログラミング | 基本 | Promise / async-await |
-| Decorator パターン | 推奨 | [Decorator パターン](./01-decorator.md) |
-| ES6 Proxy / Reflect | 推奨 | MDN Web Docs |
+| Interfaces and polymorphism | Basic | TypeScript / Java / Python OOP |
+| Dependency Injection (DI) | Basic | [Clean Architecture](../../../system-design-guide/docs/02-architecture/01-clean-architecture.md) |
+| Asynchronous programming | Basic | Promise / async-await |
+| Decorator pattern | Recommended | [Decorator Pattern](./01-decorator.md) |
+| ES6 Proxy / Reflect | Recommended | MDN Web Docs |
 
 ---
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. Proxy パターンが解決する「アクセス制御」問題と、その 5 つの分類（Virtual / Protection / Cache / Remote / Logging）
-2. GoF Proxy パターンと JavaScript ES6 Proxy の関係および本質的な違い
-3. Proxy と Decorator の明確な使い分け基準
-4. 5 言語（TypeScript, Python, Java, Go, Kotlin）での実装パターン
-5. Proxy チェーン、動的 Proxy 生成、Smart Reference の高度なテクニック
+1. The "access control" problem that the Proxy pattern solves, and its 5 classifications (Virtual / Protection / Cache / Remote / Logging)
+2. The relationship and essential differences between the GoF Proxy pattern and JavaScript ES6 Proxy
+3. Clear criteria for choosing between Proxy and Decorator
+4. Implementation patterns in 5 languages (TypeScript, Python, Java, Go, Kotlin)
+5. Advanced techniques: Proxy chains, dynamic Proxy generation, and Smart References
 
 ---
 
-## 1. なぜ Proxy が必要なのか（WHY）
+## 1. Why Is Proxy Necessary? (WHY)
 
-### 1.1 Proxy なしの世界
+### 1.1 A World Without Proxy
 
-あるオブジェクトを使うとき、以下のような横断的関心事が生じる。
+When using an object, the following cross-cutting concerns arise.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  Proxy なし: 横断的関心事がクライアントに散らばる         │
+│  Without Proxy: cross-cutting concerns scattered in client │
 │                                                          │
 │  Client A:                                               │
-│    if (!user.isAdmin) throw "Access denied";  ← 認証     │
-│    const cached = cache.get(key);              ← キャッシュ│
+│    if (!user.isAdmin) throw "Access denied";  ← auth     │
+│    const cached = cache.get(key);              ← cache   │
 │    if (!cached) {                                        │
-│      const data = service.getData();           ← 本来の処理│
-│      cache.set(key, data);                     ← キャッシュ│
+│      const data = service.getData();           ← business logic │
+│      cache.set(key, data);                     ← cache   │
 │    }                                                     │
-│    logger.log("getData called");               ← ログ    │
+│    logger.log("getData called");               ← log     │
 │                                                          │
 │  Client B:                                               │
-│    if (!user.isAdmin) throw "Access denied";  ← 同じ認証 │
-│    const cached = cache.get(key);              ← 同じ     │
-│    if (!cached) {                              キャッシュ  │
+│    if (!user.isAdmin) throw "Access denied";  ← same auth │
+│    const cached = cache.get(key);              ← same    │
+│    if (!cached) {                              cache      │
 │      const data = service.getData();                     │
 │      cache.set(key, data);                               │
 │    }                                                     │
-│    logger.log("getData called");               ← 同じログ │
+│    logger.log("getData called");               ← same log │
 │                                                          │
-│  問題:                                                   │
-│  - 認証・キャッシュ・ログが全クライアントに重複           │
-│  - ビジネスロジックと横断的関心事が混在                   │
-│  - テストで横断的関心事を分離できない                     │
-│  - 新しい横断的関心事の追加に全クライアントの修正が必要   │
+│  Problems:                                               │
+│  - Auth, cache, and log are duplicated across all clients │
+│  - Business logic and cross-cutting concerns are mixed   │
+│  - Cross-cutting concerns cannot be isolated in tests    │
+│  - Adding a new concern requires modifying all clients   │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 現実世界のアナロジー
+### 1.2 Real-World Analogy
 
-**銀行のATM** を考えてみよう。ATM は銀行口座（RealSubject）への代理（Proxy）である。
+Think of a **bank ATM**. The ATM is a proxy for the bank account (RealSubject).
 
-- 本人確認（暗証番号） = **Protection Proxy**
-- 残高キャッシュ（毎回DBに問い合わせない） = **Cache Proxy**
-- 取引記録（通帳記帳） = **Logging Proxy**
-- リモートの銀行システムへの接続 = **Remote Proxy**
+- Identity verification (PIN) = **Protection Proxy**
+- Balance caching (no DB query every time) = **Cache Proxy**
+- Transaction recording (passbook entry) = **Logging Proxy**
+- Connection to the remote banking system = **Remote Proxy**
 
-ATM を通じて口座にアクセスするが、ATM と口座は同じ「取引」インタフェースを持つ。クライアント（利用者）は ATM を通じても、窓口で直接でも、同じ操作ができる。
+Customers access their accounts through the ATM, and both the ATM and the account share the same "transaction" interface. The client (customer) can perform the same operations whether through the ATM or directly at the counter.
 
-### 1.3 Proxy ありの世界
+### 1.3 A World With Proxy
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  Proxy あり: 横断的関心事が Proxy に集約                  │
+│  With Proxy: cross-cutting concerns consolidated in Proxy │
 │                                                          │
 │  Client A ──▶ Proxy.getData()                            │
 │  Client B ──▶ Proxy.getData()                            │
 │                    │                                     │
-│                    ├── 認証チェック（Protection）         │
-│                    ├── キャッシュ確認（Cache）            │
-│                    ├── service.getData()（委譲）          │
-│                    ├── キャッシュ保存（Cache）            │
-│                    └── ログ記録（Logging）                │
+│                    ├── Auth check (Protection)           │
+│                    ├── Cache lookup (Cache)              │
+│                    ├── service.getData() (delegation)    │
+│                    ├── Cache store (Cache)               │
+│                    └── Log record (Logging)              │
 │                                                          │
-│  利点:                                                   │
-│  - 横断的関心事の一元管理                                 │
-│  - クライアントは本来の処理にだけ集中                     │
-│  - Proxy は RealSubject と同じインタフェース              │
-│  - クライアントは Proxy の存在を意識しない（透過的）      │
+│  Benefits:                                               │
+│  - Centralized management of cross-cutting concerns      │
+│  - Clients focus only on the core logic                  │
+│  - Proxy shares the same interface as RealSubject        │
+│  - Proxy is transparent to the client                    │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.4 Proxy パターンの本質
+### 1.4 The Essence of the Proxy Pattern
 
-Proxy の本質は「**同じインタフェースを持つ代理オブジェクトを通じてアクセスを制御する**」ことである。
+The essence of Proxy is **"controlling access through a surrogate object with the same interface"**.
 
-1. **同一インタフェース**: Proxy と RealSubject は同じインタフェースを実装
-2. **透過性**: クライアントは Proxy と RealSubject を区別できない
-3. **アクセス制御**: 遅延初期化、認証、キャッシュ、ログなどの横断的関心事を挿入
-4. **ライフサイクル管理**: Proxy が RealSubject の生成・破棄を管理できる
+1. **Same interface**: Proxy and RealSubject implement the same interface
+2. **Transparency**: Clients cannot distinguish between Proxy and RealSubject
+3. **Access control**: Insert cross-cutting concerns such as lazy initialization, auth, caching, and logging
+4. **Lifecycle management**: Proxy can manage the creation and destruction of RealSubject
 
-> **Proxy vs Decorator の本質的な違い**: Proxy は「アクセスの制御」、Decorator は「機能の追加」が目的。Proxy は RealSubject のライフサイクルを管理するが、Decorator は外部から渡されたオブジェクトを装飾する。
+> **The essential difference between Proxy and Decorator**: Proxy's purpose is "access control"; Decorator's purpose is "adding functionality". Proxy manages the lifecycle of RealSubject, while Decorator decorates an externally provided object.
 
 ---
 
-## 2. Proxy の構造
+## 2. Proxy Structure
 
-### 2.1 クラス図
+### 2.1 Class Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                      UML クラス図                        │
+│                      UML Class Diagram                   │
 │                                                         │
 │            ┌──────────────────┐                          │
 │            │    <<interface>> │                          │
@@ -132,9 +132,9 @@ Proxy の本質は「**同じインタフェースを持つ代理オブジェク
 │  │ - real: Subject  │──│ + request()     │             │
 │  │ + request()      │  │                 │             │
 │  │  {               │  └─────────────────┘             │
-│  │   // 前処理      │                                  │
+│  │   // pre-process │                                  │
 │  │   real.request() │                                  │
-│  │   // 後処理      │                                  │
+│  │   // post-process│                                  │
 │  │  }               │                                  │
 │  └──────────────────┘                                  │
 │                                                         │
@@ -142,63 +142,63 @@ Proxy の本質は「**同じインタフェースを持つ代理オブジェク
 │  │  Client  │──────▶ Subject (Proxy or RealSubject)    │
 │  └──────────┘                                          │
 │                                                         │
-│  ポイント:                                              │
-│  - Client は Subject インタフェースにのみ依存           │
-│  - Proxy は RealSubject への参照を内部に持つ            │
-│  - Proxy が RealSubject のライフサイクルを管理可能      │
+│  Key points:                                            │
+│  - Client depends only on the Subject interface         │
+│  - Proxy holds a reference to RealSubject internally    │
+│  - Proxy can manage the lifecycle of RealSubject        │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 Proxy の種類と分類
+### 2.2 Types and Classifications of Proxy
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                   Proxy の分類体系                        │
+│                   Proxy Classification System             │
 │                                                          │
 │  ┌──────────────┬───────────────────────────────────┐   │
-│  │ Virtual      │ 重いオブジェクトの遅延初期化       │   │
-│  │ Proxy        │ 例: 画像、DB接続、大量データ       │   │
-│  │              │ 目的: パフォーマンス最適化          │   │
+│  │ Virtual      │ Lazy initialization of heavy objects│  │
+│  │ Proxy        │ e.g. images, DB connections, large data││
+│  │              │ Purpose: performance optimization    │  │
 │  ├──────────────┼───────────────────────────────────┤   │
-│  │ Protection   │ アクセス権限のチェック              │   │
-│  │ Proxy        │ 例: RBAC、認証・認可ガード         │   │
-│  │              │ 目的: セキュリティ                  │   │
+│  │ Protection   │ Access permission checks           │   │
+│  │ Proxy        │ e.g. RBAC, authentication/authz   │   │
+│  │              │ Purpose: security                  │   │
 │  ├──────────────┼───────────────────────────────────┤   │
-│  │ Cache        │ 結果のキャッシュ（メモ化）         │   │
-│  │ Proxy        │ 例: API応答、DB結果、計算結果      │   │
-│  │              │ 目的: パフォーマンス最適化          │   │
+│  │ Cache        │ Result caching (memoization)       │   │
+│  │ Proxy        │ e.g. API responses, DB results     │   │
+│  │              │ Purpose: performance optimization  │   │
 │  ├──────────────┼───────────────────────────────────┤   │
-│  │ Remote       │ リモートオブジェクトのローカル代理 │   │
-│  │ Proxy        │ 例: RPC, gRPC, GraphQL スタブ      │   │
-│  │              │ 目的: 分散システムの透過性          │   │
+│  │ Remote       │ Local proxy for a remote object    │   │
+│  │ Proxy        │ e.g. RPC, gRPC, GraphQL stubs      │   │
+│  │              │ Purpose: transparency in distributed systems│
 │  ├──────────────┼───────────────────────────────────┤   │
-│  │ Logging      │ 操作の記録・監査・メトリクス       │   │
-│  │ Proxy        │ 例: メソッド呼び出しトレース       │   │
-│  │              │ 目的: 可観測性                      │   │
+│  │ Logging      │ Operation recording/audit/metrics  │   │
+│  │ Proxy        │ e.g. method call tracing           │   │
+│  │              │ Purpose: observability             │   │
 │  ├──────────────┼───────────────────────────────────┤   │
-│  │ Smart        │ 追加のハウスキーピング処理         │   │
-│  │ Reference    │ 例: 参照カウント、変更通知         │   │
-│  │              │ 目的: リソース管理                  │   │
+│  │ Smart        │ Additional housekeeping processing │   │
+│  │ Reference    │ e.g. reference counting, change notification│
+│  │              │ Purpose: resource management       │   │
 │  └──────────────┴───────────────────────────────────┘   │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 2.3 シーケンス図（Virtual Proxy）
+### 2.3 Sequence Diagram (Virtual Proxy)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                シーケンス図: Virtual Proxy                │
+│                Sequence Diagram: Virtual Proxy            │
 │                                                         │
 │  Client        Proxy          RealSubject               │
 │    │             │                                      │
 │    │ new Proxy() │                                      │
-│    │────────────▶│  (RealSubject はまだ生成されない)     │
+│    │────────────▶│  (RealSubject is not yet created)    │
 │    │             │                                      │
 │    │ request()   │                                      │
 │    │────────────▶│                                      │
 │    │             │ [real == null?]                       │
 │    │             │── Yes ──▶ new RealSubject()           │
-│    │             │           (ここで初めて生成)          │
+│    │             │           (created here for the first time) │
 │    │             │                  │                    │
 │    │             │ real.request()   │                    │
 │    │             │─────────────────▶│                    │
@@ -207,7 +207,7 @@ Proxy の本質は「**同じインタフェースを持つ代理オブジェク
 │    │  result     │                  │                    │
 │    │◀────────────│                  │                    │
 │    │             │                                      │
-│    │ request()   │  (2回目: すでに生成済み)             │
+│    │ request()   │  (2nd call: already created)         │
 │    │────────────▶│                                      │
 │    │             │ [real != null]                        │
 │    │             │ real.request()   │                    │
@@ -221,12 +221,12 @@ Proxy の本質は「**同じインタフェースを持つ代理オブジェク
 
 ---
 
-## 3. コード例
+## 3. Code Examples
 
-### コード例 1: Virtual Proxy -- 遅延初期化（TypeScript）
+### Code Example 1: Virtual Proxy -- Lazy Initialization (TypeScript)
 
 ```typescript
-// === Subject インタフェース ===
+// === Subject Interface ===
 
 interface Image {
   display(): void;
@@ -240,10 +240,10 @@ class HighResImage implements Image {
   private data: Uint8Array;
 
   constructor(private filename: string) {
-    // 重い処理: ファイルを読み込む（コンストラクタで実行）
+    // Heavy operation: read file (executed in constructor)
     console.log(`[HighResImage] Loading ${filename} from disk...`);
     console.log(`[HighResImage] Decoding image data...`);
-    this.data = new Uint8Array(10_000_000); // 10MB のバッファ
+    this.data = new Uint8Array(10_000_000); // 10MB buffer
     console.log(`[HighResImage] ${filename} loaded (${this.data.length} bytes)`);
   }
 
@@ -266,7 +266,7 @@ class ImageProxy implements Image {
   private real: HighResImage | null = null;
 
   constructor(private filename: string) {
-    // Proxy の生成は軽量（ファイル読み込みは行わない）
+    // Proxy creation is lightweight (no file loading)
     console.log(`[ImageProxy] Created proxy for ${filename}`);
   }
 
@@ -287,12 +287,12 @@ class ImageProxy implements Image {
   }
 
   getFilename(): string {
-    // ファイル名はProxyが知っているので、RealSubjectを生成する必要がない
+    // The proxy already knows the filename, so no need to create RealSubject
     return this.filename;
   }
 }
 
-// === 使用例 ===
+// === Usage Example ===
 
 console.log("=== Creating image gallery ===");
 const gallery: Image[] = [
@@ -303,29 +303,29 @@ const gallery: Image[] = [
   new ImageProxy("photo5.jpg"),
 ];
 console.log(`Gallery has ${gallery.length} images`);
-// 出力: 5 つの Proxy が作られるだけ。画像データは未ロード。
+// Output: only 5 Proxies are created. Image data is not loaded yet.
 
 console.log("\n=== User scrolls to image 2 ===");
 gallery[1].display();
-// 出力: photo2.jpg のみロードされる
+// Output: only photo2.jpg is loaded
 
 console.log("\n=== User scrolls to image 2 again ===");
 gallery[1].display();
-// 出力: すでにロード済みなので即座に表示
+// Output: already loaded, so displays immediately
 
 console.log("\n=== Getting filename (no loading needed) ===");
 console.log(gallery[3].getFilename());
-// 出力: photo4.jpg（ロードなしで返せる）
+// Output: photo4.jpg (can be returned without loading)
 ```
 
-**ポイント**: 5 枚の画像のうち、実際にロードされるのはユーザーが表示した画像だけ。`getFilename()` はロードなしで返せるメソッドの例。
+**Key point**: Of the 5 images, only the ones the user views are actually loaded. `getFilename()` is an example of a method that can return without triggering a load.
 
 ---
 
-### コード例 2: Protection Proxy -- RBAC アクセス制御（TypeScript）
+### Code Example 2: Protection Proxy -- RBAC Access Control (TypeScript)
 
 ```typescript
-// === Subject インタフェース ===
+// === Subject Interface ===
 
 interface AdminService {
   listUsers(): User[];
@@ -375,7 +375,7 @@ class RealAdminService implements AdminService {
 
 type Role = User["role"];
 
-// メソッドごとの必要ロールを定義
+// Declare the required roles per method
 const REQUIRED_ROLES: Record<keyof AdminService, Role[]> = {
   listUsers: ["viewer", "editor", "admin", "superadmin"],
   deleteUser: ["admin", "superadmin"],
@@ -409,7 +409,7 @@ class AdminProxy implements AdminService {
 
   deleteUser(userId: string): void {
     this.checkAccess("deleteUser");
-    // 追加チェック: 自分自身は削除できない
+    // Additional check: cannot delete yourself
     if (userId === this.currentUser.id) {
       throw new Error("Cannot delete yourself");
     }
@@ -427,32 +427,32 @@ class AdminProxy implements AdminService {
   }
 }
 
-// === 使用例 ===
+// === Usage Example ===
 
 const realService = new RealAdminService();
 
-// Admin ユーザー
+// Admin user
 const admin: User = { id: "1", name: "Alice", role: "admin" };
 const adminProxy = new AdminProxy(realService, admin);
 adminProxy.listUsers();       // OK
 adminProxy.deleteUser("2");   // OK
 // adminProxy.resetDatabase(); // Error: requires superadmin
 
-// Viewer ユーザー
+// Viewer user
 const viewer: User = { id: "2", name: "Bob", role: "viewer" };
 const viewerProxy = new AdminProxy(realService, viewer);
 viewerProxy.listUsers();      // OK
 // viewerProxy.deleteUser("1"); // Error: requires admin or superadmin
 ```
 
-**ポイント**: `REQUIRED_ROLES` テーブルでメソッドごとの必要ロールを宣言的に定義。新しいメソッド追加時もテーブルに 1 行追加するだけ。
+**Key point**: The `REQUIRED_ROLES` table declaratively defines the required role per method. When adding a new method, just add one row to the table.
 
 ---
 
-### コード例 3: Cache Proxy -- TTL + LRU キャッシュ（TypeScript）
+### Code Example 3: Cache Proxy -- TTL + LRU Cache (TypeScript)
 
 ```typescript
-// === Subject インタフェース ===
+// === Subject Interface ===
 
 interface ApiClient {
   fetchUser(id: string): Promise<User>;
@@ -476,7 +476,7 @@ interface Post {
 class RealApiClient implements ApiClient {
   async fetchUser(id: string): Promise<User> {
     console.log(`[API] GET /users/${id} (network request)`);
-    // 実際はHTTPリクエスト
+    // In practice, this would be an HTTP request
     await new Promise(r => setTimeout(r, 100));
     return { id, name: `User-${id}`, email: `user${id}@example.com` };
   }
@@ -490,7 +490,7 @@ class RealApiClient implements ApiClient {
   }
 }
 
-// === LRU キャッシュ実装 ===
+// === LRU Cache Implementation ===
 
 class LRUCache<T> {
   private cache = new Map<string, { data: T; expiry: number }>();
@@ -510,7 +510,7 @@ class LRUCache<T> {
       return undefined;
     }
 
-    // LRU: アクセスされたエントリを末尾に移動
+    // LRU: move accessed entry to the end
     this.cache.delete(key);
     this.cache.set(key, entry);
     console.log(`[Cache] HIT: ${key}`);
@@ -518,7 +518,7 @@ class LRUCache<T> {
   }
 
   set(key: string, data: T): void {
-    // 容量超過時は最も古いエントリを削除
+    // When capacity is exceeded, delete the oldest entry
     if (this.cache.size >= this.maxSize) {
       const oldestKey = this.cache.keys().next().value;
       if (oldestKey) {
@@ -579,35 +579,35 @@ class CachingApiProxy implements ApiClient {
     return posts;
   }
 
-  /** キャッシュを手動で無効化 */
+  /** Manually invalidate the cache */
   invalidateUser(id: string): void {
     this.cache.invalidate(`user:${id}`);
   }
 }
 
-// === 使用例 ===
+// === Usage Example ===
 
 const api: ApiClient = new CachingApiProxy(new RealApiClient(), 50, 30_000);
 
-// 1回目: キャッシュなし → ネットワークリクエスト
+// 1st call: no cache → network request
 const user1 = await api.fetchUser("42");
-// 出力: [Cache] key not found
-// 出力: [API] GET /users/42 (network request)
-// 出力: [Cache] STORED: user:42
+// Output: [Cache] key not found
+// Output: [API] GET /users/42 (network request)
+// Output: [Cache] STORED: user:42
 
-// 2回目: キャッシュヒット → ネットワークリクエストなし
+// 2nd call: cache hit → no network request
 const user2 = await api.fetchUser("42");
-// 出力: [Cache] HIT: user:42
+// Output: [Cache] HIT: user:42
 ```
 
-**ポイント**: LRU（Least Recently Used）とTTL（Time To Live）を組み合わせたキャッシュ Proxy。`invalidateUser` で明示的なキャッシュ無効化も可能。
+**Key point**: A cache Proxy combining LRU (Least Recently Used) and TTL (Time To Live). `invalidateUser` allows explicit cache invalidation.
 
 ---
 
-### コード例 4: ES6 Proxy -- メタプログラミング（TypeScript）
+### Code Example 4: ES6 Proxy -- Metaprogramming (TypeScript)
 
 ```typescript
-// === ES6 Proxy を使ったバリデーション ===
+// === Validation using ES6 Proxy ===
 
 interface UserData {
   name: string;
@@ -666,7 +666,7 @@ function createValidatedUser(initial: UserData): UserData {
   });
 }
 
-// === 使用例 ===
+// === Usage Example ===
 
 const user = createValidatedUser({ name: "Taro", age: 30, email: "taro@example.com" });
 
@@ -681,10 +681,10 @@ console.log(user.name);  // "Hanako"
 
 ---
 
-### コード例 5: ES6 Proxy -- リアクティブ変更検知（TypeScript）
+### Code Example 5: ES6 Proxy -- Reactive Change Detection (TypeScript)
 
 ```typescript
-// === Vue.js 風のリアクティブシステム ===
+// === Vue.js-style reactive system ===
 
 type Listener = () => void;
 
@@ -702,7 +702,7 @@ function reactive<T extends object>(target: T, onChange: Listener): T {
 
     get(obj: T, prop: string | symbol): unknown {
       const value = (obj as Record<string | symbol, unknown>)[prop];
-      // ネストされたオブジェクトも再帰的にリアクティブ化
+      // Recursively make nested objects reactive as well
       if (value && typeof value === "object" && !Array.isArray(value)) {
         return reactive(value as object, onChange);
       }
@@ -713,7 +713,7 @@ function reactive<T extends object>(target: T, onChange: Listener): T {
   return new Proxy(target, handler);
 }
 
-// === 使用例 ===
+// === Usage Example ===
 
 interface AppState {
   count: number;
@@ -741,28 +741,28 @@ const state = reactive<AppState>(
 );
 
 state.count = 1;
-// 出力: [Reactive] count: 0 -> 1
-// 出力: [App] Re-render #1
+// Output: [Reactive] count: 0 -> 1
+// Output: [App] Re-render #1
 
 state.user.name = "Hanako";
-// 出力: [Reactive] name: Taro -> Hanako
-// 出力: [App] Re-render #2
+// Output: [Reactive] name: Taro -> Hanako
+// Output: [App] Re-render #2
 
 state.user.settings.theme = "dark";
-// 出力: [Reactive] theme: light -> dark
-// 出力: [App] Re-render #3
+// Output: [Reactive] theme: light -> dark
+// Output: [App] Re-render #3
 
-state.count = 1; // 同じ値 → 変更なし → 再レンダリングなし
+state.count = 1; // same value → no change → no re-render
 ```
 
-**ポイント**: Vue.js 3 のリアクティブシステムはこの ES6 Proxy ベースの設計。プロパティアクセスをトラップしてネストされたオブジェクトも再帰的にリアクティブ化する。
+**Key point**: Vue.js 3's reactive system is based on this ES6 Proxy design. It traps property access and recursively makes nested objects reactive.
 
 ---
 
-### コード例 6: Logging Proxy -- メソッド呼び出しの自動トレース（TypeScript）
+### Code Example 6: Logging Proxy -- Automatic Method Call Tracing (TypeScript)
 
 ```typescript
-// === 汎用 Logging Proxy ファクトリ ===
+// === Generic Logging Proxy factory ===
 
 interface LogEntry {
   method: string;
@@ -813,7 +813,7 @@ function createLoggingProxy<T extends object>(
         try {
           const result = (value as Function).apply(obj, args);
 
-          // Promise を検知して非同期もトレース
+          // Detect Promise and trace async methods too
           if (result instanceof Promise) {
             return result
               .then((resolved: unknown) => {
@@ -845,7 +845,7 @@ function createLoggingProxy<T extends object>(
   });
 }
 
-// === 使用例 ===
+// === Usage Example ===
 
 class UserRepository {
   findById(id: string): User | null {
@@ -867,23 +867,23 @@ const repo = createLoggingProxy(new UserRepository(), {
 });
 
 repo.findById("42");
-// 出力: [UserRepo] findById("42") -> {"id":"42","name":"User-42",...} [0ms]
+// Output: [UserRepo] findById("42") -> {"id":"42","name":"User-42",...} [0ms]
 
 await repo.save({ id: "1", name: "New", email: "new@example.com" });
-// 出力: [UserRepo] save({"id":"1",...}) [51ms]
+// Output: [UserRepo] save({"id":"1",...}) [51ms]
 
 try {
   repo.delete("1");
 } catch (e) {
-  // 出力: [UserRepo] delete("1") ERROR: Not implemented [0ms]
+  // Output: [UserRepo] delete("1") ERROR: Not implemented [0ms]
 }
 ```
 
-**ポイント**: ES6 Proxy を使って、任意のオブジェクトに対して自動的にログ Proxy を生成。同期・非同期メソッドの両方に対応し、実行時間も計測する。
+**Key point**: Uses ES6 Proxy to automatically generate a logging Proxy for any object. Supports both synchronous and asynchronous methods, and measures execution time.
 
 ---
 
-### コード例 7: Python -- 動的 Proxy（`__getattr__`）
+### Code Example 7: Python -- Dynamic Proxy (`__getattr__`)
 
 ```python
 from abc import ABC, abstractmethod
@@ -904,7 +904,7 @@ class Database(ABC):
 
 class PostgresDatabase(Database):
     def query(self, sql: str) -> list[dict]:
-        time.sleep(0.05)  # ネットワーク遅延のシミュレーション
+        time.sleep(0.05)  # Simulate network latency
         print(f"[Postgres] Executing query: {sql}")
         return [{"id": 1, "name": "Taro"}]
 
@@ -917,7 +917,7 @@ class PostgresDatabase(Database):
 # === Logging Proxy ===
 
 class LoggingProxy:
-    """__getattr__ を使った汎用 Logging Proxy"""
+    """Generic Logging Proxy using __getattr__"""
 
     def __init__(self, target: Any, name: str = ""):
         self._target = target
@@ -954,7 +954,7 @@ class LoggingProxy:
 # === Cache Proxy ===
 
 class CachingProxy:
-    """TTL 付きキャッシュ Proxy"""
+    """Cache Proxy with TTL"""
 
     def __init__(self, target: Any, ttl: float = 60.0):
         self._target = target
@@ -971,7 +971,7 @@ class CachingProxy:
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             key = f"{attr}:{args!r}:{kwargs!r}"
 
-            # キャッシュチェック
+            # Cache check
             if key in self._cache:
                 result, expiry = self._cache[key]
                 if time.time() < expiry:
@@ -989,33 +989,33 @@ class CachingProxy:
         return wrapper
 
 
-# === Proxy チェーン ===
+# === Proxy Chain ===
 
 db: Database = PostgresDatabase()
-db = CachingProxy(db, ttl=30.0)   # キャッシュ層
-db = LoggingProxy(db, "DB")        # ログ層
+db = CachingProxy(db, ttl=30.0)   # cache layer
+db = LoggingProxy(db, "DB")        # logging layer
 
-# 1回目: キャッシュミス → DB アクセス
+# 1st call: cache miss → DB access
 result = db.query("SELECT * FROM users")
-# 出力:
+# Output:
 # [DB] query('SELECT * FROM users')
 # [Cache] MISS: query:('SELECT * FROM users',):{}
 # [Postgres] Executing query: SELECT * FROM users
 # [DB] query -> [{'id': 1, 'name': 'Taro'}] [52.3ms]
 
-# 2回目: キャッシュヒット
+# 2nd call: cache hit
 result = db.query("SELECT * FROM users")
-# 出力:
+# Output:
 # [DB] query('SELECT * FROM users')
 # [Cache] HIT: query:('SELECT * FROM users',):{}
 # [DB] query -> [{'id': 1, 'name': 'Taro'}] [0.1ms]
 ```
 
-**ポイント**: Python の `__getattr__` を使うと、GoF Proxy パターンをインタフェースなしで実装できる。CachingProxy と LoggingProxy のチェーンで、Decorator パターン的な合成も可能。
+**Key point**: Using Python's `__getattr__`, the GoF Proxy pattern can be implemented without interfaces. Chaining CachingProxy and LoggingProxy also enables Decorator-style composition.
 
 ---
 
-### コード例 8: Java -- 動的 Proxy（java.lang.reflect.Proxy）
+### Code Example 8: Java -- Dynamic Proxy (java.lang.reflect.Proxy)
 
 ```java
 import java.lang.reflect.InvocationHandler;
@@ -1023,7 +1023,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.*;
 
-// === Subject インタフェース ===
+// === Subject Interface ===
 
 interface UserService {
     User findById(String id);
@@ -1057,7 +1057,7 @@ class UserServiceImpl implements UserService {
     }
 }
 
-// === 動的 Proxy (InvocationHandler) ===
+// === Dynamic Proxy (InvocationHandler) ===
 
 class LoggingHandler implements InvocationHandler {
     private final Object target;
@@ -1097,7 +1097,7 @@ class CachingHandler implements InvocationHandler {
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        // void メソッドはキャッシュしない
+        // Do not cache void methods
         if (method.getReturnType() == void.class) {
             return method.invoke(target, args);
         }
@@ -1115,7 +1115,7 @@ class CachingHandler implements InvocationHandler {
     }
 }
 
-// === 動的 Proxy ファクトリ ===
+// === Dynamic Proxy Factory ===
 
 class ProxyFactory {
     @SuppressWarnings("unchecked")
@@ -1137,13 +1137,13 @@ class ProxyFactory {
     }
 }
 
-// === 使用例 ===
+// === Usage Example ===
 
 public class Main {
     public static void main(String[] args) {
         UserService real = new UserServiceImpl();
 
-        // キャッシュ + ログの Proxy チェーン
+        // Proxy chain: cache + logging
         UserService cached = ProxyFactory.createCachingProxy(real, UserService.class);
         UserService logged = ProxyFactory.createLoggingProxy(cached, UserService.class);
 
@@ -1161,11 +1161,11 @@ public class Main {
 }
 ```
 
-**ポイント**: Java の `java.lang.reflect.Proxy` を使うと、インタフェースに対して動的に Proxy を生成できる。Spring AOP やHibernate の遅延ロードも同じ仕組み。
+**Key point**: Java's `java.lang.reflect.Proxy` allows dynamic Proxy generation against interfaces. Spring AOP and Hibernate's lazy loading use the same mechanism.
 
 ---
 
-### コード例 9: Go -- インタフェースベース Proxy
+### Code Example 9: Go -- Interface-Based Proxy
 
 ```go
 package main
@@ -1177,7 +1177,7 @@ import (
     "time"
 )
 
-// === Subject インタフェース ===
+// === Subject Interface ===
 
 type Storage interface {
     Get(ctx context.Context, key string) (string, error)
@@ -1199,7 +1199,7 @@ func NewRedisStorage() *RedisStorage {
 func (r *RedisStorage) Get(ctx context.Context, key string) (string, error) {
     r.mu.RLock()
     defer r.mu.RUnlock()
-    time.Sleep(10 * time.Millisecond) // ネットワーク遅延
+    time.Sleep(10 * time.Millisecond) // network latency
     val, ok := r.data[key]
     if !ok {
         return "", fmt.Errorf("key not found: %s", key)
@@ -1372,12 +1372,12 @@ func (cb *CircuitBreakerStorage) Delete(ctx context.Context, key string) error {
     return err
 }
 
-// === 使用例 ===
+// === Usage Example ===
 
 func main() {
     ctx := context.Background()
 
-    // Proxy チェーン: Redis -> CircuitBreaker -> Logging
+    // Proxy chain: Redis -> CircuitBreaker -> Logging
     var storage Storage = NewRedisStorage()
     storage = NewCircuitBreakerStorage(storage, 3, 30*time.Second)
     storage = NewLoggingStorage(storage)
@@ -1387,17 +1387,17 @@ func main() {
 }
 ```
 
-**ポイント**: Go のインタフェースは暗黙的実装のため、Proxy パターンが自然に実装できる。CircuitBreaker を Proxy として実装し、Logging Proxy とチェーンしている。
+**Key point**: Go's implicit interface implementation makes the Proxy pattern feel natural. The CircuitBreaker is implemented as a Proxy and chained with the Logging Proxy.
 
 ---
 
-### コード例 10: Kotlin -- Property Delegation as Proxy
+### Code Example 10: Kotlin -- Property Delegation as Proxy
 
 ```kotlin
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
-// === Kotlin の Property Delegation は Proxy パターン ===
+// === Kotlin Property Delegation is the Proxy Pattern ===
 
 class LoggedProperty<T>(
     private var value: T,
@@ -1459,14 +1459,14 @@ class LazyProxy<T>(
     }
 }
 
-// === 使用例 ===
+// === Usage Example ===
 
 class UserProfile {
     var name: String by LoggedProperty("", "name")
     var age: Int by ValidatedProperty(0, { it in 0..150 }, "Age must be 0-150")
     var email: String by ValidatedProperty("", { "@" in it }, "Invalid email")
 
-    // 重いリソースの遅延読み込み
+    // Lazy loading of a heavy resource
     var avatar: ByteArray by LazyProxy {
         println("[LazyProxy] Loading avatar from storage...")
         ByteArray(1_000_000) // 1MB
@@ -1489,7 +1489,7 @@ fun main() {
     profile.email = "taro@example.com" // OK
     // profile.email = "invalid" // IllegalArgumentException
 
-    // avatar はアクセスするまでロードされない
+    // avatar is not loaded until accessed
     println("Profile created, avatar not loaded yet")
     val size = profile.avatar.size
     // [LazyProxy] Creating avatar
@@ -1498,72 +1498,72 @@ fun main() {
 }
 ```
 
-**ポイント**: Kotlin の `by` キーワード（Property Delegation）は Proxy パターンのネイティブサポート。`LoggedProperty`, `ValidatedProperty`, `LazyProxy` はすべて Proxy として機能する。
+**Key point**: Kotlin's `by` keyword (Property Delegation) is native support for the Proxy pattern. `LoggedProperty`, `ValidatedProperty`, and `LazyProxy` all function as Proxies.
 
 ---
 
-## 4. 比較表
+## 4. Comparison Tables
 
-### 比較表 1: Proxy vs Decorator vs Adapter
+### Comparison Table 1: Proxy vs Decorator vs Adapter
 
-| 観点 | Proxy | Decorator | Adapter |
+| Aspect | Proxy | Decorator | Adapter |
 |------|-------|-----------|---------|
-| **目的** | アクセス制御 | 機能追加 | インタフェース変換 |
-| **インタフェース** | 同一 | 同一 | 異なる |
-| **ライフサイクル管理** | する（遅延生成等） | しない | しない |
-| **クライアントの認識** | 透過的 | 透過的 | 意図的 |
-| **典型的な責務** | 認証、キャッシュ、遅延 | ログ、圧縮、暗号化 | API 変換 |
-| **RealSubject の生成** | Proxy が管理可能 | 外部から渡される | 外部から渡される |
-| **構造** | 1:1 | N:1（スタック） | 1:1 |
+| **Purpose** | Access control | Adding functionality | Interface conversion |
+| **Interface** | Same | Same | Different |
+| **Lifecycle management** | Yes (lazy creation, etc.) | No | No |
+| **Client awareness** | Transparent | Transparent | Intentional |
+| **Typical responsibilities** | Auth, caching, lazy loading | Logging, compression, encryption | API conversion |
+| **RealSubject creation** | Can be managed by Proxy | Passed from outside | Passed from outside |
+| **Structure** | 1:1 | N:1 (stack) | 1:1 |
 
-### 比較表 2: Proxy の種類と適用場面
+### Comparison Table 2: Proxy Types and Use Cases
 
-| 種類 | ユースケース | パフォーマンス影響 | 複雑度 | 実装コスト |
+| Type | Use Case | Performance Impact | Complexity | Implementation Cost |
 |------|-------------|:-:|:-:|:-:|
-| **Virtual** | 重いリソースの遅延読み込み | 初回のみ遅延 | 低 | 低 |
-| **Protection** | RBAC / 認証・認可ガード | 微小 | 中 | 中 |
-| **Cache** | API/DB 結果のメモ化 | 大幅に改善 | 高 | 高 |
-| **Remote** | RPC/gRPC 呼び出し | ネットワーク依存 | 高 | 高 |
-| **Logging** | 監査ログ・メトリクス | 微小 | 低 | 低 |
-| **Smart Ref** | 参照カウント・変更通知 | 微小 | 中 | 中 |
+| **Virtual** | Lazy loading of heavy resources | Delay on first access only | Low | Low |
+| **Protection** | RBAC / authentication guard | Minimal | Medium | Medium |
+| **Cache** | Memoization of API/DB results | Significant improvement | High | High |
+| **Remote** | RPC/gRPC calls | Network-dependent | High | High |
+| **Logging** | Audit logs / metrics | Minimal | Low | Low |
+| **Smart Ref** | Reference counting / change notification | Minimal | Medium | Medium |
 
-### 比較表 3: GoF Proxy vs ES6 Proxy
+### Comparison Table 3: GoF Proxy vs ES6 Proxy
 
-| 観点 | GoF Proxy（クラスベース） | ES6 Proxy（メタプログラミング） |
+| Aspect | GoF Proxy (class-based) | ES6 Proxy (metaprogramming) |
 |------|--------------------------|-------------------------------|
-| **実装方式** | 同一インタフェースを実装 | Handler オブジェクトでトラップ |
-| **対象** | メソッド呼び出し | プロパティアクセス、代入、削除、列挙等 |
-| **型安全性** | 高い（インタフェース準拠） | 低い（any に近い） |
-| **トラップ対象** | メソッドのみ | 13 種のトラップ（get, set, has, etc.） |
-| **用途** | 設計パターン | メタプログラミング、リアクティブ |
-| **パフォーマンス** | 良好 | プロパティアクセスごとにオーバーヘッド |
-| **例** | `ImageProxy implements Image` | `new Proxy(target, handler)` |
+| **Implementation** | Implements the same interface | Intercepts via handler object traps |
+| **Target** | Method calls | Property access, assignment, deletion, enumeration, etc. |
+| **Type safety** | High (interface-compliant) | Low (close to any) |
+| **Trap targets** | Methods only | 13 types of traps (get, set, has, etc.) |
+| **Use case** | Design patterns | Metaprogramming, reactive systems |
+| **Performance** | Good | Overhead per property access |
+| **Example** | `ImageProxy implements Image` | `new Proxy(target, handler)` |
 
 ---
 
-## 5. アンチパターン
+## 5. Anti-Patterns
 
-### アンチパターン 1: Proxy と RealSubject の密結合
+### Anti-Pattern 1: Tight Coupling Between Proxy and RealSubject
 
 ```typescript
-// NG: Proxy が具象クラスに直接依存し、new で生成
+// BAD: Proxy directly depends on a concrete class and instantiates it with new
 class BadProxy {
-  private real = new SpecificDatabaseService("localhost", 5432); // 直接 new
+  private real = new SpecificDatabaseService("localhost", 5432); // direct new
 
   query(sql: string): Result {
     console.log("Logging:", sql);
-    return this.real.query(sql); // インタフェースなし
+    return this.real.query(sql); // no interface
   }
 }
 
-// 問題:
-// 1. SpecificDatabaseService を差し替えられない
-// 2. テストでモックに差し替えられない
-// 3. Proxy が RealSubject のコンストラクタ引数を知る必要がある
+// Problems:
+// 1. Cannot swap out SpecificDatabaseService
+// 2. Cannot replace with a mock in tests
+// 3. Proxy must know the constructor arguments of RealSubject
 ```
 
 ```typescript
-// OK: インタフェース経由で依存し、DI で注入
+// GOOD: Depend via interface, inject with DI
 
 interface DatabaseService {
   query(sql: string): Result;
@@ -1578,53 +1578,53 @@ class LoggingProxy implements DatabaseService {
   }
 }
 
-// テスト
+// Testing
 const mockDb: DatabaseService = { query: jest.fn() };
 const proxy = new LoggingProxy(mockDb);
 ```
 
-**判断基準**: Proxy 内で `new RealSubject()` があったら密結合の警告サイン（Virtual Proxy は例外）。
+**Guideline**: If there is a `new RealSubject()` inside a Proxy, it is a warning sign of tight coupling (Virtual Proxy is an exception).
 
 ---
 
-### アンチパターン 2: God Proxy（1つの Proxy に複数の責務）
+### Anti-Pattern 2: God Proxy (Multiple Responsibilities in One Proxy)
 
 ```typescript
-// NG: キャッシュ + 認証 + ログ + レート制限を 1 つの Proxy で
+// BAD: One Proxy handles cache + auth + logging + rate limiting
 class GodProxy implements Service {
   private cache = new Map();
   private requestCount = 0;
 
   doSomething(args: unknown): Result {
-    // 認証チェック
+    // Auth check
     if (!this.currentUser.isAdmin) throw new Error("Access denied");
 
-    // レート制限
+    // Rate limiting
     this.requestCount++;
     if (this.requestCount > 100) throw new Error("Rate limited");
 
-    // キャッシュ
+    // Caching
     const key = JSON.stringify(args);
     if (this.cache.has(key)) return this.cache.get(key);
 
-    // ログ
+    // Logging
     console.log(`[${new Date().toISOString()}] doSomething called`);
 
-    // 実行
+    // Execution
     const result = this.real.doSomething(args);
     this.cache.set(key, result);
     return result;
   }
 }
 
-// 問題:
-// 1. SRP 違反: 4 つの責務が混在
-// 2. テストが困難（すべての責務をテストする必要がある）
-// 3. 責務の組み合わせを変更できない
+// Problems:
+// 1. SRP violation: 4 responsibilities mixed together
+// 2. Hard to test (all responsibilities must be tested together)
+// 3. Cannot change the combination of responsibilities
 ```
 
 ```typescript
-// OK: 責務ごとに Proxy を分離し、チェーンする
+// GOOD: Separate Proxies per responsibility, then chain them
 
 class AuthProxy implements Service {
   constructor(private real: Service, private user: User) {}
@@ -1663,7 +1663,7 @@ class LogProxy implements Service {
   }
 }
 
-// チェーン: Auth -> RateLimit -> Cache -> Log -> Real
+// Chain: Auth -> RateLimit -> Cache -> Log -> Real
 const service: Service =
   new AuthProxy(
     new RateLimitProxy(
@@ -1676,65 +1676,65 @@ const service: Service =
   );
 ```
 
-**判断基準**: 1 Proxy = 1 責務。複数の責務があればチェーンで合成する。
+**Guideline**: 1 Proxy = 1 responsibility. If there are multiple responsibilities, compose them with a chain.
 
 ---
 
-### アンチパターン 3: 不必要な Proxy（YAGNI 違反）
+### Anti-Pattern 3: Unnecessary Proxy (YAGNI Violation)
 
 ```typescript
-// NG: 何の付加価値もない Proxy
+// BAD: A Proxy that provides no added value
 class UselessProxy implements Service {
   constructor(private real: Service) {}
 
   doSomething(args: unknown): Result {
-    return this.real.doSomething(args); // ただの委譲
+    return this.real.doSomething(args); // pure delegation
   }
 }
 
-// 問題:
-// 1. 間接層の追加による複雑さだけが増える
-// 2. デバッグ時のスタックトレースが深くなる
-// 3. パフォーマンスオーバーヘッド（わずかだが不要）
+// Problems:
+// 1. Only adds indirection complexity
+// 2. Deeper stack traces during debugging
+// 3. Performance overhead (minor but unnecessary)
 ```
 
-**判断基準**: Proxy を導入する前に「何を制御するのか」を明確にする。制御すべきものがなければ Proxy は不要。
+**Guideline**: Before introducing a Proxy, clarify "what is being controlled." If there is nothing to control, a Proxy is unnecessary.
 
 ---
 
-## 6. エッジケースと注意点
+## 6. Edge Cases and Caveats
 
-### 6.1 ES6 Proxy のパフォーマンス
+### 6.1 ES6 Proxy Performance
 
 ```typescript
-// ES6 Proxy はプロパティアクセスごとにトラップが呼ばれるため、
-// ホットパスでの使用に注意
+// ES6 Proxy traps are called on every property access,
+// so be careful when using them in hot paths
 
-// NG: ホットループ内で ES6 Proxy
+// BAD: ES6 Proxy inside a hot loop
 const proxied = new Proxy(array, handler);
 for (let i = 0; i < 1_000_000; i++) {
-  proxied[i]; // 毎回 get トラップが呼ばれる
+  proxied[i]; // get trap is called every iteration
 }
 
-// OK: ホットパスでは直接アクセス、Proxy は外部API向け
+// GOOD: Direct access in hot paths, Proxy only for external APIs
 const raw = array;
 for (let i = 0; i < 1_000_000; i++) {
-  raw[i]; // 直接アクセス
+  raw[i]; // direct access
 }
 ```
 
-### 6.2 Proxy の透過性とデバッグ
+### 6.2 Proxy Transparency and Debugging
 
 ```typescript
-// ES6 Proxy は typeof, instanceof で RealSubject と区別できない
+// ES6 Proxy is indistinguishable from RealSubject with typeof, instanceof
 const target = { x: 1 };
 const proxy = new Proxy(target, {});
 
-console.log(typeof proxy);           // "object" (target と同じ)
+console.log(typeof proxy);           // "object" (same as target)
 console.log(proxy instanceof Object); // true
-console.log(proxy === target);        // false (参照は異なる)
+console.log(proxy === target);        // false (different reference)
 
-// デバッグ時は Proxy であることを示すメタデータを追加すると便利
+// Adding metadata to indicate it is a Proxy helps during debugging
 const debugProxy = new Proxy(target, {
   get(obj, prop) {
     if (prop === Symbol.for("isProxy")) return true;
@@ -1743,47 +1743,47 @@ const debugProxy = new Proxy(target, {
 });
 ```
 
-### 6.3 キャッシュ Proxy の Invalidation 戦略
+### 6.3 Cache Proxy Invalidation Strategies
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│          キャッシュ Invalidation 戦略の選択               │
+│          Cache Invalidation Strategy Selection            │
 │                                                          │
 │  ┌─────────────┬─────────────────────────────────────┐  │
-│  │ TTL         │ 一定時間後に自動失効                 │  │
-│  │             │ 簡単だが鮮度に制約                    │  │
+│  │ TTL         │ Automatically expires after a set time│ │
+│  │             │ Simple but freshness is limited       │  │
 │  ├─────────────┼─────────────────────────────────────┤  │
-│  │ Event-based │ データ変更イベントで明示的に無効化   │  │
-│  │             │ 正確だが実装が複雑                    │  │
+│  │ Event-based │ Explicitly invalidated on data change │ │
+│  │             │ Accurate but complex to implement     │  │
 │  ├─────────────┼─────────────────────────────────────┤  │
-│  │ LRU         │ 容量超過時に最古のエントリを削除     │  │
-│  │             │ メモリ制約に有効                      │  │
+│  │ LRU         │ Evicts oldest entry when capacity full│ │
+│  │             │ Effective for memory constraints      │  │
 │  ├─────────────┼─────────────────────────────────────┤  │
-│  │ Write-through│ 書き込み時にキャッシュも更新        │  │
-│  │             │ 一貫性は高いが書き込みが遅い          │  │
+│  │ Write-through│ Updates cache on every write        │  │
+│  │             │ High consistency but slow writes      │  │
 │  ├─────────────┼─────────────────────────────────────┤  │
-│  │ Stale-while │ 期限切れでも古い値を返しつつ         │  │
-│  │ -revalidate │ バックグラウンドで更新               │  │
-│  │             │ 可用性が高い                          │  │
+│  │ Stale-while │ Returns stale value while             │  │
+│  │ -revalidate │ updating in the background           │  │
+│  │             │ High availability                    │  │
 │  └─────────────┴─────────────────────────────────────┘  │
 │                                                          │
-│  推奨: 最初は TTL + LRU のシンプルな組み合わせから始め、 │
-│  必要に応じて Event-based を追加する。                    │
+│  Recommendation: Start with a simple TTL + LRU           │
+│  combination, then add Event-based if needed.            │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 6.4 スレッドセーフな Proxy
+### 6.4 Thread-Safe Proxy
 
 ```typescript
-// ブラウザでは問題ないが、Node.js Worker Threads や
-// マルチスレッド環境ではキャッシュ Proxy にロックが必要
+// Not an issue in browsers, but cache Proxies in
+// Node.js Worker Threads or multithreaded environments require locking
 
 class ThreadSafeCacheProxy implements Service {
   private cache = new Map();
   private locks = new Map<string, Promise<void>>();
 
   async doSomething(key: string): Promise<Result> {
-    // 同じキーに対する同時リクエストを防ぐ
+    // Prevent concurrent requests for the same key
     if (this.locks.has(key)) {
       await this.locks.get(key);
       const cached = this.cache.get(key);
@@ -1807,56 +1807,57 @@ class ThreadSafeCacheProxy implements Service {
 
 ---
 
-## 7. トレードオフ分析
+## 7. Trade-off Analysis
 
-### 導入すべき場面
+### When to Use
 
-| 場面 | 推奨 Proxy 種類 | 理由 |
+| Situation | Recommended Proxy Type | Reason |
 |------|----------------|------|
-| 画像ギャラリー（大量の画像） | Virtual | メモリ節約、初期化コスト削減 |
-| マルチテナント API | Protection | テナントごとのアクセス制御 |
-| 外部 API 呼び出し | Cache + Logging | コスト削減、デバッグ容易性 |
-| マイクロサービス間通信 | Remote + Circuit Breaker | 障害伝搬の防止 |
-| 監査要件のあるシステム | Logging | コンプライアンス対応 |
+| Image gallery (many images) | Virtual | Memory savings, reduced initialization cost |
+| Multi-tenant API | Protection | Per-tenant access control |
+| External API calls | Cache + Logging | Cost reduction, debuggability |
+| Microservice communication | Remote + Circuit Breaker | Prevent failure propagation |
+| Systems with audit requirements | Logging | Compliance support |
 
-### 導入すべきでない場面
+### When Not to Use
 
-| 場面 | 理由 |
+| Situation | Reason |
 |------|------|
-| 単純な直接呼び出しで十分 | YAGNI: 不要な間接層 |
-| ホットパスの内部処理 | パフォーマンスオーバーヘッド |
-| 横断的関心事がない | Proxy の付加価値がない |
-| AOP フレームワークが利用可能 | Proxy を手動実装する必要がない |
+| Simple direct call is sufficient | YAGNI: unnecessary indirection |
+| Inner processing in a hot path | Performance overhead |
+| No cross-cutting concerns | Proxy adds no value |
+| AOP framework is available | No need to manually implement Proxy |
 
-### Proxy のコスト
+### The Cost of Proxy
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                 Proxy のコスト分析                        │
+│                 Proxy Cost Analysis                       │
 │                                                          │
-│  メリット                    デメリット                   │
+│  Benefits                    Drawbacks                   │
 │  ┌──────────────────────┐    ┌──────────────────────┐    │
-│  │ + 横断的関心事の分離  │    │ - 間接層の追加       │    │
-│  │ + OCP 準拠           │    │ - デバッグの複雑化   │    │
-│  │ + 遅延初期化         │    │ - God Proxy のリスク │    │
-│  │ + テスト容易性       │    │ - ES6 Proxy の       │    │
-│  │ + 透過的             │    │   パフォーマンス     │    │
-│  │ + 組み合わせ可能     │    │ - キャッシュの       │    │
-│  │   （チェーン）       │    │   一貫性管理         │    │
+│  │ + Separation of cross-│   │ - Added indirection  │    │
+│  │   cutting concerns   │    │ - More complex debug │    │
+│  │ + OCP compliance     │    │ - God Proxy risk     │    │
+│  │ + Lazy initialization│    │ - ES6 Proxy          │    │
+│  │ + Testability        │    │   performance        │    │
+│  │ + Transparent        │    │ - Cache consistency  │    │
+│  │ + Composable         │    │   management         │    │
+│  │   (chainable)        │    │                      │    │
 │  └──────────────────────┘    └──────────────────────┘    │
 │                                                          │
-│  判断: 横断的関心事（認証、キャッシュ、ログ）が           │
-│  ビジネスロジックに混入している場合に Proxy を検討する。  │
+│  Guideline: Consider Proxy when cross-cutting concerns   │
+│  (auth, caching, logging) are mixed into business logic. │
 └──────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 8. 演習問題
+## 8. Exercises
 
-### 演習 1: 基本 -- Virtual Proxy（難易度: ★☆☆）
+### Exercise 1: Basic -- Virtual Proxy (Difficulty: ★☆☆)
 
-以下の `ExpensiveReport` クラスに対する Virtual Proxy を実装してください。
+Implement a Virtual Proxy for the following `ExpensiveReport` class.
 
 ```typescript
 interface Report {
@@ -1868,7 +1869,7 @@ class ExpensiveReport implements Report {
   private data: string;
 
   constructor(private title: string) {
-    // 重い初期化処理（DB クエリ、集計処理等）
+    // Heavy initialization (DB queries, aggregation, etc.)
     console.log(`[Report] Generating "${title}" (takes 3 seconds)...`);
     this.data = `Report data for "${title}" with 10000 rows`;
   }
@@ -1882,12 +1883,12 @@ class ExpensiveReport implements Report {
   }
 }
 
-// TODO: ReportProxy を実装
-// - getTitle() は RealSubject を生成せずに返す
-// - generate() は初回アクセス時のみ RealSubject を生成
+// TODO: Implement ReportProxy
+// - getTitle() returns without creating the RealSubject
+// - generate() creates the RealSubject only on first access
 ```
 
-**期待される出力**:
+**Expected output**:
 
 ```
 Creating 3 report proxies...
@@ -1902,7 +1903,7 @@ Report data for "Monthly Sales" with 10000 rows
 ```
 
 <details>
-<summary>解答例（クリックで展開）</summary>
+<summary>Sample Solution (click to expand)</summary>
 
 ```typescript
 class ReportProxy implements Report {
@@ -1913,7 +1914,7 @@ class ReportProxy implements Report {
   }
 
   getTitle(): string {
-    // タイトルは Proxy が知っているので RealSubject 不要
+    // Title is known by Proxy, so no RealSubject needed
     return this.title;
   }
 
@@ -1925,7 +1926,7 @@ class ReportProxy implements Report {
   }
 }
 
-// テスト
+// Test
 console.log("Creating 3 report proxies...");
 const reports: Report[] = [
   new ReportProxy("Monthly Sales"),
@@ -1947,15 +1948,15 @@ console.log(reports[0].generate());
 
 ---
 
-### 演習 2: 応用 -- Protection + Logging Proxy チェーン（難易度: ★★☆）
+### Exercise 2: Applied -- Protection + Logging Proxy Chain (Difficulty: ★★☆)
 
-以下の要件を満たす Proxy チェーンを実装してください。
+Implement a Proxy chain that satisfies the following requirements.
 
-**要件**:
-1. `FileService` インタフェースに対して、Protection Proxy と Logging Proxy を作成
-2. Protection Proxy: `"admin"` ロール以外は `delete` を禁止
-3. Logging Proxy: 全メソッド呼び出しを `[LOG]` プレフィックスで記録
-4. チェーン順序: Client -> Logging -> Protection -> RealSubject
+**Requirements**:
+1. Create a Protection Proxy and a Logging Proxy for the `FileService` interface
+2. Protection Proxy: forbid `delete` for any role other than `"admin"`
+3. Logging Proxy: log all method calls with a `[LOG]` prefix
+4. Chain order: Client -> Logging -> Protection -> RealSubject
 
 ```typescript
 interface FileService {
@@ -1970,7 +1971,7 @@ interface User {
 }
 ```
 
-**期待される出力（admin ユーザー）**:
+**Expected output (admin user)**:
 
 ```
 [LOG] read("/data/file.txt")
@@ -1980,7 +1981,7 @@ interface User {
 [File] Deleting /data/old.txt
 ```
 
-**期待される出力（viewer ユーザー）**:
+**Expected output (viewer user)**:
 
 ```
 [LOG] read("/data/file.txt")
@@ -1991,7 +1992,7 @@ Error: Access denied
 ```
 
 <details>
-<summary>解答例（クリックで展開）</summary>
+<summary>Sample Solution (click to expand)</summary>
 
 ```typescript
 class RealFileService implements FileService {
@@ -2014,7 +2015,7 @@ class ProtectionProxy implements FileService {
   ) {}
 
   read(path: string): string {
-    return this.real.read(path); // 全ロール許可
+    return this.real.read(path); // all roles allowed
   }
 
   write(path: string, content: string): void {
@@ -2054,7 +2055,7 @@ class LoggingProxy implements FileService {
   }
 }
 
-// チェーン構築
+// Build chain
 function createFileService(user: User): FileService {
   const real = new RealFileService();
   const protected_ = new ProtectionProxy(real, user);
@@ -2062,12 +2063,12 @@ function createFileService(user: User): FileService {
   return logged;
 }
 
-// Admin テスト
+// Admin test
 const adminFs = createFileService({ name: "Alice", role: "admin" });
 adminFs.read("/data/file.txt");
 adminFs.delete("/data/old.txt");
 
-// Viewer テスト
+// Viewer test
 const viewerFs = createFileService({ name: "Bob", role: "viewer" });
 viewerFs.read("/data/file.txt");
 try {
@@ -2081,17 +2082,17 @@ try {
 
 ---
 
-### 演習 3: 発展 -- 汎用 Proxy ファクトリ（難易度: ★★★）
+### Exercise 3: Advanced -- Generic Proxy Factory (Difficulty: ★★★)
 
-ES6 Proxy を使って、任意のオブジェクトに対して以下の機能を自動付加する汎用ファクトリを実装してください。
+Using ES6 Proxy, implement a generic factory that automatically adds the following features to any object.
 
-**要件**:
-1. `createSmartProxy<T>(target, options)` ファクトリ関数
-2. `options.cache`: true の場合、同じ引数のメソッド呼び出し結果をキャッシュ
-3. `options.log`: true の場合、メソッド呼び出しをログ出力
-4. `options.readonly`: true の場合、プロパティの set と delete を禁止
-5. `options.onAccess`: プロパティアクセス時のコールバック
-6. 同期・非同期メソッドの両方に対応
+**Requirements**:
+1. `createSmartProxy<T>(target, options)` factory function
+2. `options.cache`: if true, cache method call results for the same arguments
+3. `options.log`: if true, log method calls
+4. `options.readonly`: if true, forbid property `set` and `delete`
+5. `options.onAccess`: callback on property access
+6. Support both synchronous and asynchronous methods
 
 ```typescript
 interface SmartProxyOptions {
@@ -2105,11 +2106,11 @@ function createSmartProxy<T extends object>(
   target: T,
   options: SmartProxyOptions,
 ): T {
-  // TODO: 実装
+  // TODO: implement
 }
 ```
 
-**期待される出力**:
+**Expected output**:
 
 ```typescript
 const obj = createSmartProxy(
@@ -2124,7 +2125,7 @@ obj.greet("World");
 // [Log] greet("World") -> "Hello, World!" [0ms]
 // "Hello, World!"
 
-obj.greet("World"); // 2回目: キャッシュヒット
+obj.greet("World"); // 2nd call: cache hit
 // [Cache] HIT: greet:["World"]
 // "Hello, World!"
 
@@ -2132,7 +2133,7 @@ obj.value = 100; // Error: Cannot modify readonly proxy
 ```
 
 <details>
-<summary>解答例（クリックで展開）</summary>
+<summary>Sample Solution (click to expand)</summary>
 
 ```typescript
 function createSmartProxy<T extends object>(
@@ -2145,19 +2146,19 @@ function createSmartProxy<T extends object>(
     get(obj, prop, receiver) {
       const value = Reflect.get(obj, prop, receiver);
 
-      // onAccess コールバック
+      // onAccess callback
       if (options.onAccess && typeof prop === "string") {
         options.onAccess(prop);
       }
 
-      // メソッドでなければそのまま返す
+      // Return non-methods as-is
       if (typeof value !== "function") return value;
 
-      // メソッドをラップ
+      // Wrap method
       return function (this: unknown, ...args: unknown[]) {
         const methodName = String(prop);
 
-        // キャッシュチェック
+        // Cache check
         if (options.cache) {
           const key = `${methodName}:${JSON.stringify(args)}`;
           if (cache.has(key)) {
@@ -2166,11 +2167,11 @@ function createSmartProxy<T extends object>(
           }
         }
 
-        // 実行
+        // Execute
         const start = performance.now();
         const result = (value as Function).apply(obj, args);
 
-        // Promise の場合
+        // If Promise
         if (result instanceof Promise) {
           return result.then((resolved: unknown) => {
             const elapsed = Math.round(performance.now() - start);
@@ -2184,7 +2185,7 @@ function createSmartProxy<T extends object>(
           });
         }
 
-        // 同期の場合
+        // Synchronous case
         const elapsed = Math.round(performance.now() - start);
         if (options.log) {
           console.log(`[Log] ${methodName}(${args.map(a => JSON.stringify(a)).join(", ")}) -> ${JSON.stringify(result)} [${elapsed}ms]`);
@@ -2212,7 +2213,7 @@ function createSmartProxy<T extends object>(
   });
 }
 
-// テスト
+// Test
 const calculator = createSmartProxy(
   {
     add(a: number, b: number) { return a + b; },
@@ -2229,7 +2230,7 @@ console.log(calculator.add(1, 2));
 // [Log] add(1, 2) -> 3 [0ms]
 // 3
 
-console.log(calculator.add(1, 2)); // キャッシュヒット
+console.log(calculator.add(1, 2)); // cache hit
 // [Cache] HIT: add:[1,2]
 // 3
 
@@ -2250,92 +2251,92 @@ try {
 
 ## 9. FAQ
 
-### Q1: JavaScript の Proxy オブジェクトは GoF の Proxy パターンと同じですか？
+### Q1: Is the JavaScript Proxy object the same as the GoF Proxy pattern?
 
-本質は同じですが、抽象度が異なります。GoF Proxy はクラスベースで「同じインタフェースを持つ代理クラス」を作ります。ES6 Proxy はメタプログラミングの仕組みで、13 種のトラップ（get, set, has, deleteProperty, apply, construct 等）を通じてあらゆるオブジェクト操作をインターセプトできます。GoF Proxy の全パターン（Virtual, Protection, Cache, Logging）を ES6 Proxy で実装できますが、逆は成り立ちません（ES6 Proxy のプロパティトラップは GoF にはない概念）。
+The essence is the same, but the level of abstraction differs. The GoF Proxy creates a "proxy class with the same interface" in a class-based approach. ES6 Proxy is a metaprogramming mechanism that can intercept any object operation through 13 types of traps (get, set, has, deleteProperty, apply, construct, etc.). All GoF Proxy patterns (Virtual, Protection, Cache, Logging) can be implemented with ES6 Proxy, but not vice versa (ES6 Proxy's property traps are concepts not found in GoF).
 
-### Q2: Proxy はパフォーマンスに影響しますか？
+### Q2: Does Proxy affect performance?
 
-Proxy 層の処理内容に依存します。GoF スタイルのクラス Proxy は単純な委譲なのでオーバーヘッドはほぼゼロです。ES6 Proxy の handler はプロパティアクセスごとに呼ばれるため、ホットパス（1 秒に 100 万回以上のアクセス）では注意が必要です。V8 エンジンのベンチマークでは、ES6 Proxy 経由のプロパティアクセスは直接アクセスの 5-10 倍遅くなることがあります。
+It depends on what the Proxy layer does. A GoF-style class Proxy with simple delegation has virtually zero overhead. ES6 Proxy handlers are called on every property access, so caution is needed in hot paths (more than 1 million accesses per second). V8 engine benchmarks show that property access via ES6 Proxy can be 5-10x slower than direct access.
 
-### Q3: キャッシュ Proxy の Invalidation はどうすべきですか？
+### Q3: How should cache Proxy invalidation be handled?
 
-「キャッシュの無効化はコンピュータサイエンスで最も難しい問題の 1 つ」と言われます。以下の順序で段階的に導入してください。
+"Cache invalidation is one of the hardest problems in computer science." Introduce it incrementally in the following order:
 
-1. **TTL（時間ベース）**: 最もシンプル。60 秒後に自動失効
-2. **TTL + LRU**: メモリ制約があれば LRU を追加
-3. **Event-based**: データ更新イベントで明示的に無効化（必要になったら）
-4. **Stale-while-revalidate**: 高可用性が必要な場合
+1. **TTL (time-based)**: Simplest. Automatically expires after 60 seconds
+2. **TTL + LRU**: Add LRU if there are memory constraints
+3. **Event-based**: Explicitly invalidate on data update events (when needed)
+4. **Stale-while-revalidate**: When high availability is required
 
-### Q4: Proxy と AOP（アスペクト指向プログラミング）の関係は？
+### Q4: What is the relationship between Proxy and AOP (Aspect-Oriented Programming)?
 
-AOP のウィービング（横断的関心事の織り込み）を手動で実装したものが Proxy パターンです。Spring AOP や AspectJ は Proxy パターンを内部で使用しています。フレームワークが AOP をサポートしていれば、手動 Proxy は不要です。
+Proxy pattern is a manual implementation of AOP weaving (the weaving-in of cross-cutting concerns). Spring AOP and AspectJ use the Proxy pattern internally. If your framework supports AOP, manual Proxy is unnecessary.
 
-### Q5: React の Suspense は Virtual Proxy ですか？
+### Q5: Is React's Suspense a Virtual Proxy?
 
-はい、概念的に Virtual Proxy の一形態です。`React.lazy()` はコンポーネントの遅延ロードを行い、ロード完了まで Suspense フォールバックを表示します。これは Virtual Proxy の「必要になるまで RealSubject を生成しない」という特性と同じです。
+Yes, conceptually it is a form of Virtual Proxy. `React.lazy()` lazily loads components and shows the Suspense fallback until loading is complete. This is the same characteristic as Virtual Proxy's "don't create RealSubject until needed."
 
-### Q6: Proxy チェーンの順序はどう決めるべきですか？
+### Q6: How should the order of a Proxy chain be decided?
 
-外側から順に評価されることを意識して、以下の順序を推奨します。
+Keeping in mind that chains are evaluated from the outermost layer, the following order is recommended:
 
 ```
 Client
-  -> Logging（全アクセスを記録）
-    -> Rate Limiting（早い段階で制限）
-      -> Authentication（認証チェック）
-        -> Caching（キャッシュで高速化）
+  -> Logging (record all accesses)
+    -> Rate Limiting (restrict early)
+      -> Authentication (auth check)
+        -> Caching (speed up with cache)
           -> RealSubject
 ```
 
-理由: ログは全リクエストを記録したいので最外層、レート制限は早い段階で弾きたいので認証の前、キャッシュは認証済みリクエストのみ対象にしたいので最内層。
+Reason: Logging should be at the outermost layer to record all requests. Rate limiting should come before auth to reject early. Caching should be innermost to target only authenticated requests.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point to keep in mind when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world development?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| **目的** | オブジェクトへのアクセスを制御する代理オブジェクト |
-| **本質** | 同一インタフェース + 透過的なアクセス制御 |
-| **主な種類** | Virtual, Protection, Cache, Remote, Logging, Smart Reference |
-| **GoF vs ES6** | GoF はクラスベース、ES6 はメタプログラミング |
-| **利点** | 横断的関心事の分離、遅延初期化、OCP 準拠 |
-| **チェーン** | 1 Proxy = 1 責務、チェーンで合成 |
-| **注意** | ES6 Proxy のパフォーマンス、キャッシュ Invalidation |
-| **テスト** | DI で RealSubject を注入、モックに差し替え可能 |
+| **Purpose** | A surrogate object that controls access to another object |
+| **Essence** | Same interface + transparent access control |
+| **Main Types** | Virtual, Protection, Cache, Remote, Logging, Smart Reference |
+| **GoF vs ES6** | GoF is class-based, ES6 is metaprogramming |
+| **Benefits** | Separation of cross-cutting concerns, lazy initialization, OCP compliance |
+| **Chaining** | 1 Proxy = 1 responsibility, compose with chains |
+| **Caveats** | ES6 Proxy performance, cache invalidation |
+| **Testing** | Inject RealSubject via DI, replaceable with mocks |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [Decorator パターン](./01-decorator.md) -- 動的な機能追加（Proxy との違いを理解）
-- [Facade パターン](./02-facade.md) -- サブシステムの簡素化
-- [Adapter パターン](./00-adapter.md) -- インタフェース変換
-- [Composite パターン](./04-composite.md) -- ツリー構造の統一操作
-- [Observer パターン](../02-behavioral/00-observer.md) -- リアクティブな変更通知
-- [キャッシュ戦略](../../../system-design-guide/docs/01-components/01-caching.md) -- システムレベルのキャッシュ設計
+- [Decorator Pattern](./01-decorator.md) -- Dynamic feature addition (understand the difference from Proxy)
+- [Facade Pattern](./02-facade.md) -- Simplifying subsystems
+- [Adapter Pattern](./00-adapter.md) -- Interface conversion
+- [Composite Pattern](./04-composite.md) -- Unified operations on tree structures
+- [Observer Pattern](../02-behavioral/00-observer.md) -- Reactive change notification
+- [Caching Strategy](../../../system-design-guide/docs/01-components/01-caching.md) -- System-level cache design
 
 ---
 
-## 参考文献
+## References
 
 1. Gamma, E. et al. (1994). *Design Patterns: Elements of Reusable Object-Oriented Software*. Addison-Wesley.
 2. MDN Web Docs -- Proxy. https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy
