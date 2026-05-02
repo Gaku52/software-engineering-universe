@@ -1,204 +1,209 @@
-# 技術的負債
+# Technical Debt
 
-> 技術的負債（Technical Debt）とは、短期的な利益のために品質を犠牲にすることで将来の開発コストが増加する現象である。Ward Cunningham が1992年に OOPSLA で提唱したこのメタファーは、ソフトウェア開発における品質とスピードのトレードオフを金融の「借金」になぞらえたものであり、意思決定者・開発者双方が共通言語として使える強力な概念である。本ガイドでは、負債の分類・可視化・定量化・計画的返済戦略を体系的に解説し、負債を「管理可能な投資」として扱うためのフレームワークを提供する
+> Technical debt refers to the phenomenon where future development costs increase due to sacrificing quality for short-term gain. This metaphor, introduced by Ward Cunningham at OOPSLA in 1992, likens the quality-speed tradeoff in software development to financial "debt," providing a powerful concept that both decision-makers and developers can use as a common language. This guide systematically explains debt classification, visualization, quantification, and planned repayment strategies, providing a framework for treating debt as a "manageable investment."
 
-## 前提知識
+## Prerequisites
 
-| トピック | 必要レベル | 参照ガイド |
+| Topic | Required Level | Reference Guide |
 |---------|----------|-----------|
-| クリーンコード原則 | 基礎 | 原則と命名 |
-| コードスメル | 基礎 | [コードスメル](./00-code-smells.md) |
-| リファクタリング技法 | 基礎 | [リファクタリング技法](./01-refactoring-techniques.md) |
-| レガシーコード | 推奨 | [レガシーコード](./02-legacy-code.md) |
-| テスト原則 | 推奨 | [テスト原則](../01-practices/04-testing-principles.md) |
+| Clean Code Principles | Basic | Principles and Naming |
+| Code Smells | Basic | [Code Smells](./00-code-smells.md) |
+| Refactoring Techniques | Basic | [Refactoring Techniques](./01-refactoring-techniques.md) |
+| Legacy Code | Recommended | [Legacy Code](./02-legacy-code.md) |
+| Testing Principles | Recommended | [Testing Principles](../01-practices/04-testing-principles.md) |
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **技術的負債の本質と分類** -- Ward Cunningham の原義、Martin Fowler の4象限モデル、Steve McConnell の分類法を統合的に理解する
-2. **負債の可視化と定量化** -- メトリクス収集、ホットスポット分析、コスト算出によって「見えない負債」を数値化する手法
-3. **経営層への説明技法** -- 金融メタファーを活用し、投資対効果（ROI）として負債返済を提案する方法
-4. **段階的返済戦略** -- ボーイスカウトルール、20%ルール、負債スプリント、Strangler Fig パターンの使い分け
-5. **負債管理の組織文化** -- 負債を「悪」として隠すのではなく、透明に管理し戦略的に活用するチーム文化の構築
+1. **The Nature and Classification of Technical Debt** -- Integrated understanding of Ward Cunningham's original meaning, Martin Fowler's four-quadrant model, and Steve McConnell's classification
+2. **Visualizing and Quantifying Debt** -- Techniques for quantifying "invisible debt" through metrics collection, hotspot analysis, and cost calculation
+3. **Explaining to Management** -- Using financial metaphors to propose debt repayment as return on investment (ROI)
+4. **Incremental Repayment Strategies** -- Appropriate use of the Boy Scout Rule, 20% Rule, Debt Sprint, and Strangler Fig pattern
+5. **Organizational Culture for Debt Management** -- Building a team culture that manages debt transparently and uses it strategically, rather than hiding it as something "bad"
 
 ---
 
-## 1. 技術的負債の本質
+## 1. The Nature of Technical Debt
 
-### 1.1 Ward Cunningham の原義
+### 1.1 Ward Cunningham's Original Meaning
 
-Ward Cunningham が1992年に述べた原文を正確に理解することが重要である:
+It is important to accurately understand the original statement Ward Cunningham made in 1992:
 
 ```
-「初回のコード出荷は借金をすることに似ている。少額の借金は、書き直しで
-速やかに返済される限り、開発を加速させる。危険なのは、借金が返済されない
-場合だ。未熟なコードに費やされるすべてのminute が、その借金の利子として
-カウントされる。」
+"Shipping first-time code is like going into debt. A little debt speeds
+development so long as it is paid back promptly with a rewrite. The danger
+occurs when the debt is not repaid. Every minute spent on not-quite-right
+code counts as interest on that debt."
 -- Ward Cunningham, OOPSLA 1992
 ```
 
-重要なのは、Cunningham が「意図的に品質を下げること」を負債と呼んだのではなく、「現時点の理解で書いたコードが、後の学びによって不適切になる」ことを負債と呼んだ点である。
+The key point is that Cunningham did not call "intentionally lowering quality" debt, but rather called it debt when "code written with the current understanding becomes inappropriate due to later learning."
 
 ```
-  Cunningham の原義              よくある誤解
+  Cunningham's Original Meaning       Common Misconception
   ┌─────────────────────┐      ┌─────────────────────┐
-  │ 学習による知見の蓄積  │      │ 手抜きや雑なコード   │
-  │ → 以前の設計が最適   │      │ → テスト省略、       │
-  │   でなくなる         │      │   コピペ、ハック     │
-  │ → リファクタリングで │      │ → 「負債だから       │
-  │   返済する           │      │   仕方ない」         │
+  │ Accumulation of      │      │ Sloppy or careless  │
+  │ insights through     │      │ code                │
+  │ learning             │      │ → Skipping tests,   │
+  │ → Previous design    │      │   copy-paste, hacks │
+  │   becomes suboptimal │      │ → "It's debt so     │
+  │ → Repay through      │      │   can't be helped"  │
+  │   refactoring        │      │                     │
   └─────────────────────┘      └─────────────────────┘
 ```
 
-### 1.2 Martin Fowler の4象限モデル
+### 1.2 Martin Fowler's Four-Quadrant Model
 
-Martin Fowler は技術的負債を2つの軸で4象限に分類した:
+Martin Fowler classified technical debt into four quadrants along two axes:
 
 ```
-                    意図的 (Deliberate)
+                    Deliberate
                          |
     ┌────────────────────┼────────────────────┐
-    │ 慎重 × 意図的       │ 無謀 × 意図的       │
+    │ Prudent × Deliberate│ Reckless × Deliberate│
     │                    │                    │
-    │ 「今はこの設計で    │ 「テスト書く時間が  │
-    │  リリースし、次の   │  ないから省略」     │
-    │  スプリントで改善」 │                    │
-    │                    │ 「動けばいい」      │
-    │ [戦略的負債]        │ [怠惰な負債]        │
-    │ 返済計画あり        │ 返済計画なし        │
+    │ "Release with this  │ "No time to write  │
+    │  design now, and   │  tests, skip them" │
+    │  improve next      │                    │
+    │  sprint"           │ "As long as it     │
+    │                    │  works"            │
+    │ [Strategic Debt]   │ [Lazy Debt]        │
+    │ Has repayment plan │ No repayment plan  │
     ├────────────────────┼────────────────────┤
-    │ 慎重 × 無意識的     │ 無謀 × 無意識的     │
+    │ Prudent × Inadvertent│ Reckless × Inadvertent│
     │                    │                    │
-    │ 「今ならもっと良い  │ 「レイヤー化って何？」│
-    │  設計ができた」     │ 「SOLID？聞いたこと │
-    │ (学習後に発見)      │  ない」             │
+    │ "I could design    │ "What's layering?" │
+    │  this better now"  │ "SOLID? Never      │
+    │ (discovered after  │  heard of it"      │
+    │  learning)         │                    │
     │                    │                    │
-    │ [発見的負債]        │ [無知な負債]         │
-    │ 学習の証            │ スキル不足           │
+    │ [Discovery Debt]   │ [Ignorant Debt]    │
+    │ Evidence of learning│ Lack of skill     │
     └────────────────────┼────────────────────┘
                          |
-                    無意識的 (Inadvertent)
+                    Inadvertent
 
-    慎重 (Prudent) ──────┼────── 無謀 (Reckless)
+    Prudent ──────────────┼────── Reckless
 ```
 
-### 1.3 Steve McConnell の分類
+### 1.3 Steve McConnell's Classification
 
-Steve McConnell はさらに実務的な分類を提唱した:
-
-```
-技術的負債の分類 (McConnell)
-
-1. 意図的な負債 (Intentional Debt)
-   ├── 短期的: 「デモまでにMVPを出す。来週リファクタリング」
-   ├── 長期的: 「このアーキテクチャで3年は持つ。その後再設計」
-   └── 戦略的: 「市場投入を優先し、品質は段階的に向上」
-
-2. 非意図的な負債 (Unintentional Debt)
-   ├── 設計負債: 設計判断が後から不適切と判明
-   ├── コード負債: 知識不足による低品質コード
-   └── ビット腐敗: 時間経過による依存関係の陳腐化
-
-3. 環境的な負債 (Environmental Debt)
-   ├── プラットフォーム: OS・ランタイムのEOL
-   ├── フレームワーク: メジャーバージョンの乖離
-   └── ツールチェーン: ビルド・デプロイツールの陳腐化
-```
-
-### 1.4 負債の「利子」メカニズム
+Steve McConnell proposed a more practical classification:
 
 ```
-技術的負債のライフサイクル
+Technical Debt Classification (McConnell)
+
+1. Intentional Debt
+   ├── Short-term: "Get MVP out before demo. Refactor next week"
+   ├── Long-term: "This architecture will last 3 years. Redesign after"
+   └── Strategic: "Prioritize time-to-market, improve quality incrementally"
+
+2. Unintentional Debt
+   ├── Design Debt: Design decisions later found to be inappropriate
+   ├── Code Debt: Low-quality code due to lack of knowledge
+   └── Bit Rot: Dependency staleness over time
+
+3. Environmental Debt
+   ├── Platform: OS/runtime EOL
+   ├── Framework: Lagging behind major versions
+   └── Toolchain: Build/deploy tool staleness
+```
+
+### 1.4 The "Interest" Mechanism of Debt
+
+```
+Technical Debt Lifecycle
 
   ┌──────────────┐
-  │ 負債の発生     │  コード品質の妥協、設計上のショートカット
+  │ Debt Incurred │  Code quality compromises, design shortcuts
   └──────┬───────┘
          v
   ┌──────────────┐
-  │ 元本 (Principal)│  = 品質が低いコード自体
+  │ Principal    │  = The low-quality code itself
   └──────┬───────┘
-         v  時間経過 + コードベースの成長
+         v  Time passes + codebase grows
   ┌──────────────┐
-  │ 利子 (Interest) │  = 負債が存在することで発生する追加コスト
+  │ Interest     │  = Additional costs incurred because the debt exists
   └──────┬───────┘
          │
     ┌────┼────┬────────┬────────┐
     v    v    v        v        v
-  バグ  機能追加  理解    オンボー  セキュリ
-  修正  に3倍    に2倍   ディング  ティ
-  に2倍  の時間   の時間  に+2週間  リスク
-  の時間
+  Bug   Feature  Under-  On-      Security
+  fixes  dev     standing boarding  risk
+  take   takes   takes   +2 weeks
+  2x     3x      2x
+  time   time    time
 
-  返済しないと利子が複利 (compound interest) で膨らむ
+  Without repayment, interest grows with compound interest
   ┌─────────────────────────────────────────────┐
   │                        ****                  │
   │                     ***                      │
-  │ コスト            ***                         │
+  │ Cost              ***                         │
   │                 **                            │
-  │               **         ← 複利で膨張する利子  │
+  │               **         ← Interest compounds │
   │             **                                │
   │           **                                  │
   │         **                                    │
   │       *                                       │
-  │     *     ← 元本（初期の品質妥協）              │
+  │     *     ← Principal (initial quality tradeoff)│
   │   *                                           │
   │ *                                             │
   └─────────────────────────────────────────────┘
-    T0    T1    T2    T3    T4    T5  → 時間
+    T0    T1    T2    T3    T4    T5  → Time
 ```
 
 ---
 
-## 2. 負債の具体例マッピング
+## 2. Concrete Debt Examples Mapping
 
-### 2.1 レイヤー別の技術的負債
+### 2.1 Technical Debt by Layer
 
 ```
-技術的負債マップ
+Technical Debt Map
 
   ┌─────────────────────────────────────────────┐
-  │  ソースコード層                               │
-  │  ├── 重複コード (DRY 違反)                    │
-  │  ├── 長大なメソッド/クラス (God Object)        │
-  │  ├── 不明瞭な命名                            │
-  │  ├── ハードコードされた値 (マジックナンバー)    │
-  │  ├── 不適切な抽象化 (過剰/不足)               │
-  │  └── 型安全性の欠如                           │
+  │  Source Code Layer                           │
+  │  ├── Duplicated code (DRY violations)        │
+  │  ├── Long methods/classes (God Object)       │
+  │  ├── Unclear naming                          │
+  │  ├── Hardcoded values (magic numbers)        │
+  │  ├── Inappropriate abstraction (over/under)  │
+  │  └── Lack of type safety                     │
   ├─────────────────────────────────────────────┤
-  │  アーキテクチャ層                              │
-  │  ├── 循環依存                                │
-  │  ├── レイヤー違反 (UI → DB 直接参照)           │
-  │  ├── モノリスの肥大化                         │
-  │  ├── 不適切なデータモデル                      │
-  │  ├── API の一貫性欠如                         │
-  │  └── コンポーネント境界の曖昧さ                │
+  │  Architecture Layer                          │
+  │  ├── Circular dependencies                   │
+  │  ├── Layer violations (UI → DB direct access)│
+  │  ├── Monolith bloat                          │
+  │  ├── Inappropriate data model                │
+  │  ├── Lack of API consistency                 │
+  │  └── Vague component boundaries              │
   ├─────────────────────────────────────────────┤
-  │  テスト層                                     │
-  │  ├── テストカバレッジの不足                    │
-  │  ├── Flaky テスト (不安定テスト)               │
-  │  ├── テスト実行速度の遅さ                      │
-  │  ├── 統合テスト偏重 (Ice Cream Cone)          │
-  │  └── テストの可読性・保守性の低さ              │
+  │  Test Layer                                  │
+  │  ├── Insufficient test coverage              │
+  │  ├── Flaky tests (unstable tests)            │
+  │  ├── Slow test execution                     │
+  │  ├── Integration test overload (Ice Cream Cone)│
+  │  └── Poor test readability/maintainability   │
   ├─────────────────────────────────────────────┤
-  │  インフラ/運用層                               │
-  │  ├── 手動デプロイ                             │
-  │  ├── 監視・アラートの不足                      │
-  │  ├── 古いライブラリ/フレームワーク              │
-  │  ├── ドキュメントの陳腐化                      │
-  │  ├── 環境差異 (dev ≠ staging ≠ prod)          │
-  │  └── シークレット管理の不備                    │
+  │  Infrastructure/Operations Layer             │
+  │  ├── Manual deployments                      │
+  │  ├── Insufficient monitoring/alerting        │
+  │  ├── Outdated libraries/frameworks           │
+  │  ├── Stale documentation                     │
+  │  ├── Environment discrepancies (dev ≠ staging ≠ prod)│
+  │  └── Poor secrets management                 │
   ├─────────────────────────────────────────────┤
-  │  プロセス層                                   │
-  │  ├── コードレビューの形骸化                    │
-  │  ├── リリースプロセスの属人化                   │
-  │  ├── ナレッジの暗黙知化                        │
-  │  └── インシデント対応の未整備                   │
+  │  Process Layer                               │
+  │  ├── Formalistic code reviews                │
+  │  ├── Key-person dependency in release process│
+  │  ├── Tacit knowledge silos                   │
+  │  └── Unprepared incident response            │
   └─────────────────────────────────────────────┘
 ```
 
-### 2.2 負債の深刻度レベル
+### 2.2 Debt Severity Levels
 
 ```python
-"""技術的負債の深刻度分類"""
+"""Technical debt severity classification"""
 from enum import IntEnum
 from dataclasses import dataclass, field
 from typing import Optional
@@ -206,12 +211,12 @@ from datetime import datetime, timedelta
 
 
 class DebtSeverity(IntEnum):
-    """負債の深刻度レベル"""
-    TRIVIAL = 1    # 見た目の問題: 命名、フォーマット
-    MINOR = 2      # 小さな設計問題: 重複コード、長いメソッド
-    MAJOR = 3      # 重要な設計問題: 循環依存、レイヤー違反
-    CRITICAL = 4   # 深刻な構造問題: セキュリティ脆弱性、データ不整合
-    BLOCKER = 5    # 致命的: 本番障害リスク、スケーラビリティ限界
+    """Debt severity levels"""
+    TRIVIAL = 1    # Cosmetic issues: naming, formatting
+    MINOR = 2      # Small design issues: duplicate code, long methods
+    MAJOR = 3      # Significant design issues: circular deps, layer violations
+    CRITICAL = 4   # Serious structural issues: security vulnerabilities, data inconsistency
+    BLOCKER = 5    # Fatal: production failure risk, scalability limits
 
 
 class DebtCategory(str):
@@ -224,37 +229,37 @@ class DebtCategory(str):
 
 @dataclass
 class TechnicalDebtItem:
-    """技術的負債の個別アイテム"""
+    """Individual technical debt item"""
     id: str
     title: str
     description: str
     category: str
     severity: DebtSeverity
 
-    # 影響度メトリクス
-    impact_score: int          # ビジネスへの影響 (1-5)
-    fix_effort_days: float     # 修正にかかる推定日数
-    affected_frequency: int    # 影響を受ける頻度 (1-5, 5=毎日)
-    risk_score: int            # リスク (1-5)
+    # Impact metrics
+    impact_score: int          # Business impact (1-5)
+    fix_effort_days: float     # Estimated days to fix
+    affected_frequency: int    # How often it is encountered (1-5, 5=daily)
+    risk_score: int            # Risk (1-5)
 
-    # 追跡情報
+    # Tracking information
     discovered_date: datetime = field(default_factory=datetime.now)
     reporter: str = ""
     assigned_to: Optional[str] = None
     target_sprint: Optional[str] = None
     status: str = "open"  # open, in_progress, resolved, wont_fix
 
-    # 関連ファイル
+    # Related files
     affected_files: list[str] = field(default_factory=list)
     related_tickets: list[str] = field(default_factory=list)
 
     @property
     def priority_score(self) -> float:
-        """優先度スコア: 高いほど先に返済すべき
+        """Priority score: higher means should be repaid sooner
 
-        計算式: (impact * frequency * risk) / effort
-        - 影響が大きく、頻繁に発生し、リスクが高い負債を優先
-        - 修正工数が小さい負債を優先 (Quick Win)
+        Formula: (impact * frequency * risk) / effort
+        - Prioritize debt with high impact, high frequency, high risk
+        - Prioritize debt with low fix effort (Quick Win)
         """
         return (
             self.impact_score * self.affected_frequency * self.risk_score
@@ -262,26 +267,26 @@ class TechnicalDebtItem:
 
     @property
     def annual_interest_cost(self) -> float:
-        """年間利子コスト（概算、人日単位）
+        """Annual interest cost (rough estimate, in person-days)
 
-        利子 = 影響度 × 頻度 × 0.1日（1回あたりのオーバーヘッド）× 250営業日/年
+        Interest = impact * frequency * 0.1 days (overhead per occurrence) * 250 working days/year
         """
         overhead_per_occurrence = 0.1 * self.impact_score
-        occurrences_per_year = self.affected_frequency * 50  # 週5日 × 50週
+        occurrences_per_year = self.affected_frequency * 50  # 5 days/week * 50 weeks
         return overhead_per_occurrence * occurrences_per_year
 
     @property
     def roi(self) -> float:
-        """投資対効果: 年間利子削減額 / 修正工数
+        """Return on investment: annual interest savings / fix effort
 
-        ROI > 1: 1年以内に投資回収
-        ROI > 3: 四半期以内に回収（高優先）
+        ROI > 1: Recovers investment within 1 year
+        ROI > 3: Recovers within a quarter (high priority)
         """
         return self.annual_interest_cost / max(self.fix_effort_days, 0.5)
 
     @property
     def debt_age_days(self) -> int:
-        """負債の経過日数"""
+        """Number of days since debt was discovered"""
         return (datetime.now() - self.discovered_date).days
 
     def __str__(self) -> str:
@@ -298,12 +303,12 @@ class TechnicalDebtItem:
 
 ---
 
-## 3. 負債の可視化と定量化
+## 3. Visualizing and Quantifying Debt
 
-### 3.1 メトリクス収集
+### 3.1 Metrics Collection
 
 ```python
-"""技術的負債メトリクス収集フレームワーク"""
+"""Technical debt metrics collection framework"""
 import subprocess
 import json
 from pathlib import Path
@@ -313,55 +318,55 @@ from datetime import datetime
 
 @dataclass
 class DebtMetrics:
-    """収集された負債メトリクス"""
-    # コード品質
+    """Collected debt metrics"""
+    # Code quality
     avg_complexity: float = 0.0
     max_complexity: float = 0.0
-    high_complexity_count: int = 0       # CC > 10 の関数数
-    very_high_complexity_count: int = 0  # CC > 20 の関数数
+    high_complexity_count: int = 0       # Number of functions with CC > 10
+    very_high_complexity_count: int = 0  # Number of functions with CC > 20
 
-    # 重複
+    # Duplication
     duplication_percentage: float = 0.0
     duplicate_blocks: int = 0
 
-    # 依存関係
+    # Dependencies
     outdated_dependencies: int = 0
-    critical_updates: int = 0            # メジャーバージョン遅れ
+    critical_updates: int = 0            # Major version behind
     known_vulnerabilities: int = 0
 
-    # テスト
+    # Tests
     test_coverage: float = 0.0
     flaky_test_count: int = 0
     test_execution_time_sec: float = 0.0
 
-    # 保守性
+    # Maintainability
     todo_count: int = 0                  # TODO/FIXME/HACK
-    large_files_count: int = 0           # 500行超のファイル数
-    large_functions_count: int = 0       # 50行超の関数数
+    large_files_count: int = 0           # Files with more than 500 lines
+    large_functions_count: int = 0       # Functions with more than 50 lines
 
-    # 全体スコア
+    # Overall score
     timestamp: str = ""
 
     @property
     def debt_score(self) -> int:
-        """技術的負債スコア (0-100, 低いほど健全)
+        """Technical debt score (0-100, lower is healthier)
 
-        各カテゴリのスコアを重み付きで集計:
-        - コード品質: 30%
-        - テスト: 25%
-        - 依存関係: 20%
-        - 保守性: 25%
+        Weighted aggregation of each category's score:
+        - Code quality: 30%
+        - Tests: 25%
+        - Dependencies: 20%
+        - Maintainability: 25%
         """
-        # コード品質スコア (0-30)
+        # Code quality score (0-30)
         complexity_score = min(self.avg_complexity / 15 * 30, 30)
 
-        # テストスコア (0-25)
+        # Test score (0-25)
         coverage_penalty = max(0, (80 - self.test_coverage)) / 80 * 25
 
-        # 依存関係スコア (0-20)
+        # Dependency score (0-20)
         dep_score = min((self.outdated_dependencies + self.known_vulnerabilities * 3) / 20 * 20, 20)
 
-        # 保守性スコア (0-25)
+        # Maintainability score (0-25)
         maintainability = min(
             (self.todo_count / 50 + self.large_files_count / 10 +
              self.duplication_percentage / 10) / 3 * 25, 25
@@ -383,11 +388,11 @@ class DebtMetrics:
 
 
 def collect_debt_metrics(repo_path: str) -> DebtMetrics:
-    """リポジトリの技術的負債指標を収集"""
+    """Collect technical debt indicators for a repository"""
     metrics = DebtMetrics(timestamp=datetime.now().isoformat())
     repo = Path(repo_path)
 
-    # 1. コード複雑度 (Cyclomatic Complexity) -- radon
+    # 1. Code complexity (Cyclomatic Complexity) -- radon
     try:
         result = subprocess.run(
             ["radon", "cc", str(repo / "src"), "-a", "-j"],
@@ -395,7 +400,7 @@ def collect_debt_metrics(repo_path: str) -> DebtMetrics:
         )
         if result.returncode == 0:
             cc_data = json.loads(result.stdout)
-            # radon の出力形式に応じてパース
+            # Parse according to radon's output format
             complexities = []
             for filepath, functions in cc_data.items():
                 if isinstance(functions, list):
@@ -410,7 +415,7 @@ def collect_debt_metrics(repo_path: str) -> DebtMetrics:
     except (subprocess.TimeoutExpired, FileNotFoundError, json.JSONDecodeError):
         pass
 
-    # 2. コード重複率 -- jscpd
+    # 2. Code duplication rate -- jscpd
     try:
         result = subprocess.run(
             ["jscpd", str(repo / "src"), "--reporters", "json",
@@ -426,7 +431,7 @@ def collect_debt_metrics(repo_path: str) -> DebtMetrics:
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
 
-    # 3. 依存関係の古さ -- pip
+    # 3. Dependency staleness -- pip
     try:
         result = subprocess.run(
             ["pip", "list", "--outdated", "--format=json"],
@@ -442,7 +447,7 @@ def collect_debt_metrics(repo_path: str) -> DebtMetrics:
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
 
-    # 4. セキュリティ脆弱性 -- safety
+    # 4. Security vulnerabilities -- safety
     try:
         result = subprocess.run(
             ["safety", "check", "--json"],
@@ -454,7 +459,7 @@ def collect_debt_metrics(repo_path: str) -> DebtMetrics:
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
 
-    # 5. TODO/FIXME/HACK の数
+    # 5. Count of TODO/FIXME/HACK
     try:
         result = subprocess.run(
             ["grep", "-r", "-c", "-E", "TODO|FIXME|HACK|XXX", str(repo / "src")],
@@ -468,7 +473,7 @@ def collect_debt_metrics(repo_path: str) -> DebtMetrics:
     except (subprocess.TimeoutExpired, ValueError):
         pass
 
-    # 6. 大きなファイル/関数の検出
+    # 6. Detection of large files/functions
     try:
         for py_file in (repo / "src").rglob("*.py"):
             lines = py_file.read_text().split("\n")
@@ -481,7 +486,7 @@ def collect_debt_metrics(repo_path: str) -> DebtMetrics:
 
 
 def _is_major_version_behind(current: str, latest: str) -> bool:
-    """メジャーバージョンが異なるかチェック"""
+    """Check if the major version differs"""
     try:
         current_major = int(current.split(".")[0])
         latest_major = int(latest.split(".")[0])
@@ -490,13 +495,13 @@ def _is_major_version_behind(current: str, latest: str) -> bool:
         return False
 ```
 
-### 3.2 ダッシュボード表示
+### 3.2 Dashboard Display
 
 ```python
-"""技術的負債ダッシュボード"""
+"""Technical debt dashboard"""
 
 def print_debt_dashboard(metrics: DebtMetrics) -> None:
-    """テキストベースの負債ダッシュボードを表示"""
+    """Display a text-based debt dashboard"""
 
     def status_icon(value: float, good: float, warn: float, higher_is_better: bool = False) -> str:
         if higher_is_better:
@@ -510,38 +515,38 @@ def print_debt_dashboard(metrics: DebtMetrics) -> None:
 
     width = 64
     print("=" * width)
-    print("  技術的負債ダッシュボード".center(width))
+    print("  Technical Debt Dashboard".center(width))
     print(f"  {metrics.timestamp}".center(width))
     print("=" * width)
 
-    print("\n  [コード品質]")
-    print(f"    平均複雑度 (CC):     {metrics.avg_complexity:6.1f}  "
+    print("\n  [Code Quality]")
+    print(f"    Avg Complexity (CC):     {metrics.avg_complexity:6.1f}  "
           f"{status_icon(metrics.avg_complexity, 5, 10)}")
-    print(f"    最大複雑度 (CC):     {metrics.max_complexity:6.1f}  "
+    print(f"    Max Complexity (CC):     {metrics.max_complexity:6.1f}  "
           f"{status_icon(metrics.max_complexity, 15, 25)}")
-    print(f"    高複雑度関数 (>10):  {metrics.high_complexity_count:6d}  件")
-    print(f"    超高複雑度 (>20):    {metrics.very_high_complexity_count:6d}  件")
+    print(f"    High Complexity (>10):   {metrics.high_complexity_count:6d}  items")
+    print(f"    Very High CC (>20):      {metrics.very_high_complexity_count:6d}  items")
 
-    print("\n  [コード重複]")
-    print(f"    重複率:              {metrics.duplication_percentage:6.1f}% "
+    print("\n  [Code Duplication]")
+    print(f"    Duplication Rate:        {metrics.duplication_percentage:6.1f}% "
           f"{status_icon(metrics.duplication_percentage, 3, 10)}")
-    print(f"    重複ブロック数:      {metrics.duplicate_blocks:6d}  件")
+    print(f"    Duplicate Blocks:        {metrics.duplicate_blocks:6d}  items")
 
-    print("\n  [テスト]")
-    print(f"    カバレッジ:          {metrics.test_coverage:6.1f}% "
+    print("\n  [Tests]")
+    print(f"    Coverage:                {metrics.test_coverage:6.1f}% "
           f"{status_icon(metrics.test_coverage, 80, 60, higher_is_better=True)}")
-    print(f"    Flaky テスト:        {metrics.flaky_test_count:6d}  件")
-    print(f"    実行時間:            {metrics.test_execution_time_sec:6.1f}  秒")
+    print(f"    Flaky Tests:             {metrics.flaky_test_count:6d}  items")
+    print(f"    Execution Time:          {metrics.test_execution_time_sec:6.1f}  sec")
 
-    print("\n  [依存関係]")
-    print(f"    古い依存:            {metrics.outdated_dependencies:6d}  件")
-    print(f"    メジャー遅れ:        {metrics.critical_updates:6d}  件")
-    print(f"    既知脆弱性:          {metrics.known_vulnerabilities:6d}  件 "
+    print("\n  [Dependencies]")
+    print(f"    Outdated:                {metrics.outdated_dependencies:6d}  items")
+    print(f"    Major Version Behind:    {metrics.critical_updates:6d}  items")
+    print(f"    Known Vulnerabilities:   {metrics.known_vulnerabilities:6d}  items "
           f"{status_icon(metrics.known_vulnerabilities, 0, 3)}")
 
-    print("\n  [保守性]")
-    print(f"    TODO/FIXME/HACK:     {metrics.todo_count:6d}  件")
-    print(f"    巨大ファイル (>500L):{metrics.large_files_count:6d}  件")
+    print("\n  [Maintainability]")
+    print(f"    TODO/FIXME/HACK:         {metrics.todo_count:6d}  items")
+    print(f"    Large Files (>500L):     {metrics.large_files_count:6d}  items")
 
     print("\n" + "-" * width)
     score = metrics.debt_score
@@ -550,27 +555,27 @@ def print_debt_dashboard(metrics: DebtMetrics) -> None:
     filled = int(score / 100 * bar_length)
     bar = "#" * filled + "-" * (bar_length - filled)
 
-    print(f"  負債スコア: [{bar}] {score}/100")
-    print(f"  健全性:     {health}")
+    print(f"  Debt Score: [{bar}] {score}/100")
+    print(f"  Health:     {health}")
 
     if health == "HEALTHY":
-        print("  --> 健全な状態。現在の品質維持プラクティスを継続")
+        print("  --> Healthy. Continue current quality maintenance practices")
     elif health == "CAUTION":
-        print("  --> 要注意。計画的な返済を開始し、悪化を防止")
+        print("  --> Caution. Start planned repayment and prevent further deterioration")
     elif health == "WARNING":
-        print("  --> 警告。開発速度に影響が出始めている。早急な対策を推奨")
+        print("  --> Warning. Development speed starting to be impacted. Prompt action recommended")
     else:
-        print("  --> 危険。開発速度に深刻な影響。負債スプリントの実施を推奨")
+        print("  --> Critical. Severe impact on development speed. Debt sprint recommended")
 
     print("=" * width)
 ```
 
-### 3.3 ホットスポット分析
+### 3.3 Hotspot Analysis
 
-ホットスポットとは「変更頻度が高く、かつ複雑度が高い」コードのことである。Adam Tornhill の Code as a Crime Scene のアプローチに基づく:
+A hotspot is code that has "high change frequency and high complexity." Based on Adam Tornhill's Code as a Crime Scene approach:
 
 ```python
-"""ホットスポット分析: 変更頻度 x 複雑度でリファクタリング優先箇所を特定"""
+"""Hotspot analysis: identify refactoring priorities by change frequency x complexity"""
 import subprocess
 import json
 from collections import Counter
@@ -580,19 +585,19 @@ from pathlib import Path
 
 @dataclass
 class Hotspot:
-    """変更頻度と複雑度のホットスポット"""
+    """Hotspot by change frequency and complexity"""
     filepath: str
-    change_count: int       # git log での変更回数
-    complexity: float       # 平均循環的複雑度
-    lines_of_code: int      # 行数
-    bug_fix_count: int      # バグ修正での変更回数
+    change_count: int       # Number of changes in git log
+    complexity: float       # Average cyclomatic complexity
+    lines_of_code: int      # Line count
+    bug_fix_count: int      # Number of changes in bug fixes
 
     @property
     def hotspot_score(self) -> float:
-        """ホットスポットスコア
+        """Hotspot score
 
-        高い変更頻度 × 高い複雑度 = 高リスク
-        バグ修正が多いファイルはさらに重み付け
+        High change frequency × High complexity = High risk
+        Files with many bug fixes are weighted further
         """
         bug_weight = 1.0 + (self.bug_fix_count / max(self.change_count, 1))
         return self.change_count * self.complexity * bug_weight
@@ -611,9 +616,9 @@ def analyze_hotspots(
     since: str = "6 months ago",
     top_n: int = 20
 ) -> list[Hotspot]:
-    """Git履歴と複雑度からホットスポットを分析"""
+    """Analyze hotspots from Git history and complexity"""
 
-    # 1. 変更頻度の収集 (git log)
+    # 1. Collect change frequency (git log)
     result = subprocess.run(
         ["git", "log", "--since", since, "--name-only",
          "--pretty=format:", "--diff-filter=M"],
@@ -624,7 +629,7 @@ def analyze_hotspots(
         if line.strip() and line.strip().endswith(".py")
     )
 
-    # 2. バグ修正での変更回数
+    # 2. Number of changes in bug fixes
     result = subprocess.run(
         ["git", "log", "--since", since, "--name-only",
          "--pretty=format:", "--grep=fix", "--grep=bug", "-i"],
@@ -635,7 +640,7 @@ def analyze_hotspots(
         if line.strip() and line.strip().endswith(".py")
     )
 
-    # 3. 複雑度の収集 (radon)
+    # 3. Collect complexity (radon)
     hotspots = []
     for filepath, change_count in file_changes.most_common(top_n * 2):
         full_path = Path(repo_path) / filepath
@@ -666,15 +671,15 @@ def analyze_hotspots(
         except (subprocess.TimeoutExpired, json.JSONDecodeError, FileNotFoundError):
             continue
 
-    # スコア順にソート
+    # Sort by score
     hotspots.sort(key=lambda h: h.hotspot_score, reverse=True)
     return hotspots[:top_n]
 
 
 def print_hotspot_report(hotspots: list[Hotspot]) -> None:
-    """ホットスポットレポートを表示"""
+    """Display hotspot report"""
     print("=" * 80)
-    print("  ホットスポット分析レポート")
+    print("  Hotspot Analysis Report")
     print("=" * 80)
     print(f"  {'Rank':<5} {'File':<35} {'Changes':<8} {'CC':<6} {'Bugs':<5} {'Risk':<10}")
     print("-" * 80)
@@ -689,62 +694,62 @@ def print_hotspot_report(hotspots: list[Hotspot]) -> None:
     print("-" * 80)
     critical = sum(1 for h in hotspots if h.risk_level == "CRITICAL")
     high = sum(1 for h in hotspots if h.risk_level == "HIGH")
-    print(f"  CRITICAL: {critical} ファイル  /  HIGH: {high} ファイル")
+    print(f"  CRITICAL: {critical} files  /  HIGH: {high} files")
     print("=" * 80)
 ```
 
 ```
-ホットスポット可視化 (変更頻度 vs 複雑度)
+Hotspot Visualization (Change Frequency vs Complexity)
 
-  複雑度 (CC)
-  高  |                                 [payment.py]  ← 最優先
-      |                        [order.py]
-      |              [user_service.py]
-      |
-  中  |     [auth.py]
-      |                   [email.py]
-      |
-      |  [config.py]                    [report.py]
-  低  |     [utils.py]      [models.py]
-      |
-      +------------------------------------------------
-      低            中              高
-                    変更頻度
+  Complexity (CC)
+  High |                                 [payment.py]  ← Top priority
+       |                        [order.py]
+       |              [user_service.py]
+       |
+  Mid  |     [auth.py]
+       |                   [email.py]
+       |
+       |  [config.py]                    [report.py]
+  Low  |     [utils.py]      [models.py]
+       |
+       +------------------------------------------------
+       Low            Mid              High
+                    Change Frequency
 
-  右上 = ホットスポット（頻繁に変更 + 複雑 = 高リスク）
-  左下 = 安全地帯（変更少ない + シンプル = 低リスク）
-  右下 = 要監視（頻繁に変更だが複雑度は低い）
-  左上 = 潜在リスク（複雑だが変更は少ない）
+  Top-right = Hotspot (frequent changes + complex = high risk)
+  Bottom-left = Safe zone (few changes + simple = low risk)
+  Bottom-right = Monitor (frequent changes but low complexity)
+  Top-left = Latent risk (complex but few changes)
 ```
 
-### 3.4 コスト算出テンプレート
+### 3.4 Cost Calculation Template
 
 ```python
-"""技術的負債のビジネスコスト算出"""
+"""Business cost calculation for technical debt"""
 from dataclasses import dataclass
 
 
 @dataclass
 class DebtCostEstimation:
-    """技術的負債のコスト見積もり"""
+    """Technical debt cost estimate"""
 
-    # チーム情報
+    # Team information
     team_size: int = 8
-    developer_hourly_rate: int = 5000  # 円/時間
+    developer_hourly_rate: int = 5000  # currency/hour
     working_hours_per_week: int = 40
     working_weeks_per_year: int = 50
 
-    # 負債によるオーバーヘッド (時間/週/人)
-    bug_fix_overhead: float = 1.0        # バグ修正の追加時間
-    feature_dev_overhead: float = 1.5    # 機能追加の複雑性コスト
-    onboarding_overhead: float = 0.5     # オンボーディングコスト（チーム平均）
-    manual_process_overhead: float = 0.75 # 手動テスト・デプロイ
-    incident_overhead: float = 0.25      # インシデント対応の追加時間
-    context_switching: float = 0.5       # 技術的問題によるコンテキストスイッチ
+    # Overhead due to debt (hours/week/person)
+    bug_fix_overhead: float = 1.0        # Additional time for bug fixes
+    feature_dev_overhead: float = 1.5    # Complexity cost for feature development
+    onboarding_overhead: float = 0.5     # Onboarding cost (team average)
+    manual_process_overhead: float = 0.75 # Manual testing/deployment
+    incident_overhead: float = 0.25      # Additional time for incident response
+    context_switching: float = 0.5       # Context switching due to technical issues
 
     @property
     def weekly_overhead_per_person(self) -> float:
-        """1人あたり週間オーバーヘッド（時間）"""
+        """Weekly overhead per person (hours)"""
         return (
             self.bug_fix_overhead +
             self.feature_dev_overhead +
@@ -756,17 +761,17 @@ class DebtCostEstimation:
 
     @property
     def weekly_overhead_total(self) -> float:
-        """チーム全体の週間オーバーヘッド（時間）"""
+        """Total weekly overhead for the entire team (hours)"""
         return self.weekly_overhead_per_person * self.team_size
 
     @property
     def productivity_loss_percentage(self) -> float:
-        """生産性損失率（%）"""
+        """Productivity loss rate (%)"""
         return (self.weekly_overhead_per_person / self.working_hours_per_week) * 100
 
     @property
     def annual_cost(self) -> int:
-        """年間コスト（円）"""
+        """Annual cost"""
         return int(
             self.weekly_overhead_total *
             self.developer_hourly_rate *
@@ -774,46 +779,46 @@ class DebtCostEstimation:
         )
 
     def print_report(self) -> None:
-        """コストレポートを出力"""
+        """Output cost report"""
         print("=" * 60)
-        print("  技術的負債コストレポート")
+        print("  Technical Debt Cost Report")
         print("=" * 60)
-        print(f"\n  チーム構成: {self.team_size}名")
-        print(f"  時間単価:  {self.developer_hourly_rate:,}円/時間")
+        print(f"\n  Team Size:   {self.team_size} people")
+        print(f"  Hourly Rate: {self.developer_hourly_rate:,}/hour")
 
-        print(f"\n  --- 週間オーバーヘッド (1人あたり) ---")
+        print(f"\n  --- Weekly Overhead (per person) ---")
         items = [
-            ("バグ修正の追加時間", self.bug_fix_overhead),
-            ("機能追加の複雑性コスト", self.feature_dev_overhead),
-            ("オンボーディングコスト", self.onboarding_overhead),
-            ("手動プロセス", self.manual_process_overhead),
-            ("インシデント対応", self.incident_overhead),
-            ("コンテキストスイッチ", self.context_switching),
+            ("Additional bug fix time", self.bug_fix_overhead),
+            ("Feature complexity cost", self.feature_dev_overhead),
+            ("Onboarding cost", self.onboarding_overhead),
+            ("Manual processes", self.manual_process_overhead),
+            ("Incident response", self.incident_overhead),
+            ("Context switching", self.context_switching),
         ]
         for name, hours in items:
-            print(f"    {name:<24s} {hours:5.2f} 時間/週")
+            print(f"    {name:<28s} {hours:5.2f} hours/week")
 
         print(f"    {'─' * 36}")
-        print(f"    {'合計':<24s} {self.weekly_overhead_per_person:5.2f} 時間/週/人")
+        print(f"    {'Total':<28s} {self.weekly_overhead_per_person:5.2f} hours/week/person")
 
-        print(f"\n  --- 影響サマリ ---")
-        print(f"    チーム週間オーバーヘッド: {self.weekly_overhead_total:,.0f} 時間/週")
-        print(f"    生産性損失率:            {self.productivity_loss_percentage:.1f}%")
-        print(f"    週間コスト:              {int(self.weekly_overhead_total * self.developer_hourly_rate):>12,} 円")
-        print(f"    月間コスト:              {int(self.weekly_overhead_total * self.developer_hourly_rate * 4):>12,} 円")
-        print(f"    年間コスト:              {self.annual_cost:>12,} 円")
+        print(f"\n  --- Impact Summary ---")
+        print(f"    Team Weekly Overhead:     {self.weekly_overhead_total:,.0f} hours/week")
+        print(f"    Productivity Loss:        {self.productivity_loss_percentage:.1f}%")
+        print(f"    Weekly Cost:              {int(self.weekly_overhead_total * self.developer_hourly_rate):>12,}")
+        print(f"    Monthly Cost:             {int(self.weekly_overhead_total * self.developer_hourly_rate * 4):>12,}")
+        print(f"    Annual Cost:              {self.annual_cost:>12,}")
 
-        print(f"\n  --- 投資対効果 (例) ---")
-        investment = self.annual_cost * 0.3  # 年間コストの30%を投資
-        savings = self.annual_cost * 0.5     # 50%の改善を見込む
-        print(f"    投資額 (30%の工数投入):  {int(investment):>12,} 円")
-        print(f"    期待削減額 (50%改善):    {int(savings):>12,} 円")
-        print(f"    純利益:                  {int(savings - investment):>12,} 円")
-        print(f"    ROI:                     {(savings - investment) / investment * 100:>11.0f}%")
+        print(f"\n  --- Return on Investment (example) ---")
+        investment = self.annual_cost * 0.3  # Invest 30% of annual cost
+        savings = self.annual_cost * 0.5     # Expect 50% improvement
+        print(f"    Investment (30% effort):  {int(investment):>12,}")
+        print(f"    Expected savings (50%):   {int(savings):>12,}")
+        print(f"    Net gain:                 {int(savings - investment):>12,}")
+        print(f"    ROI:                      {(savings - investment) / investment * 100:>11.0f}%")
         print("=" * 60)
 
 
-# 使用例
+# Usage example
 cost = DebtCostEstimation(
     team_size=8,
     developer_hourly_rate=5000,
@@ -826,61 +831,64 @@ cost = DebtCostEstimation(
 )
 cost.print_report()
 
-# 出力例:
-# チーム週間オーバーヘッド: 36.0 時間/週
-# 生産性損失率:            11.3%
-# 年間コスト:          9,000,000 円
-# ROI:                          67%
+# Sample output:
+# Team Weekly Overhead: 36.0 hours/week
+# Productivity Loss:    11.3%
+# Annual Cost:          9,000,000
+# ROI:                         67%
 ```
 
 ---
 
-## 4. 経営層への説明技法
+## 4. Explaining to Management
 
-### 4.1 金融メタファーの活用
+### 4.1 Using the Financial Metaphor
 
-経営層やステークホルダーに技術的負債を説明する際は、金融の借金メタファーを一貫して使う:
+When explaining technical debt to management and stakeholders, consistently use the financial debt metaphor:
 
 ```
-経営層向け説明テンプレート
+Explanation Template for Management
 
 ┌─────────────────────────────────────────────────────┐
-│  「技術的負債」= ソフトウェアの住宅ローン             │
+│  "Technical Debt" = Software Mortgage                │
 │                                                     │
-│  ● 元本: 品質が低いコード（建物の欠陥）              │
-│  ● 利子: 開発速度の低下（毎月の追加修繕費）          │
-│  ● 破産: 新機能が追加できない状態（建て直し必要）    │
+│  ● Principal: Low-quality code (building defects)   │
+│  ● Interest: Slower development (extra monthly      │
+│              maintenance costs)                     │
+│  ● Bankruptcy: Unable to add new features           │
+│                (needs complete rebuild)             │
 │                                                     │
-│  現状:                                              │
-│    年間利子 = 約 900万円                             │
-│    (開発者 8名 × 4.5時間/週 × 50週 × 5,000円/時)    │
+│  Current status:                                    │
+│    Annual interest = approx. 9,000,000              │
+│    (8 devs × 4.5 hrs/week × 50 weeks × 5,000/hr)   │
 │                                                     │
-│  提案:                                              │
-│    投資額 = 270万円 (3ヶ月 × 開発時間の20%)         │
-│    期待効果 = 利子を50%削減 → 年450万円のコスト削減  │
-│    回収期間 = 約7ヶ月                                │
+│  Proposal:                                          │
+│    Investment = 2,700,000 (20% of dev time × 3 mo) │
+│    Expected: reduce interest by 50%                 │
+│    → Annual cost reduction of 4,500,000             │
+│    Payback period = approx. 7 months                │
 │                                                     │
-│  放置した場合:                                       │
-│    利子は複利で年20-30%増加                          │
-│    2年後の年間利子 = 約1,400万円                     │
-│    新機能の開発速度は現在の60%に低下                  │
+│  If ignored:                                        │
+│    Interest grows 20-30% annually (compound)        │
+│    Annual interest after 2 years = approx. 14M      │
+│    New feature development speed drops to 60%       │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 4.2 可視化グラフ
+### 4.2 Visualization Graphs
 
 ```
-  開発速度の推移 (新機能に使える時間の割合)
+  Development Velocity Trend (% of time available for new features)
 
   100% |***
        | * **
    80% |    * *
        |      * *
    60% |        * *
-       |          * *      ← 負債を放置した場合
+       |          * *      ← If debt is left unaddressed
    40% |            * *
        |              * *
-   20% |                **   ← 「利子の支払いだけで精一杯」
+   20% |                **   ← "Barely keeping up with interest payments"
        |                  **
     0% +----+----+----+----+----+----+
        Y0   Y1   Y2   Y3   Y4   Y5
@@ -890,83 +898,84 @@ cost.print_report()
   100% |***
        | * **
    80% |    * *
-       |      * **          ← 負債を計画的に返済
+       |      * **          ← With planned debt repayment
    70% |         * *  * * * * * *
        |           **
-   60% |                    ← 一時的に速度低下（返済投資）
+   60% |                    ← Temporary slowdown (repayment investment)
        |
        +----+----+----+----+----+----+
        Y0   Y1   Y2   Y3   Y4   Y5
 ```
 
-### 4.3 エレベーターピッチ
+### 4.3 Elevator Pitch
 
 ```
-30秒で伝える技術的負債の説明:
+30-second explanation of technical debt:
 
-「私たちは毎月、目に見えない『利子』を払っています。
- 開発チームの 11% の時間が、過去の品質妥協のせいで
- 本来不要な作業に費やされています。
+"We are paying invisible 'interest' every month.
+ 11% of the development team's time is spent on
+ work that wouldn't be necessary if not for past
+ quality compromises.
 
- 年間で約900万円に相当します。
+ That amounts to roughly 9,000,000 per year.
 
- 開発時間の20%を3ヶ月間投資することで、
- この利子を半減できます。
+ By investing 20% of development time for 3 months,
+ we can cut this interest in half.
 
- 7ヶ月で投資を回収し、
- その後は年間450万円のコスト削減が持続します。」
+ We recover the investment in 7 months,
+ and then save 4,500,000 per year on an ongoing basis."
 ```
 
 ---
 
-## 5. 返済戦略
+## 5. Repayment Strategies
 
-### 5.1 戦略の全体像
+### 5.1 Overview of Strategies
 
 ```
-返済戦略のピラミッド
+Repayment Strategy Pyramid
 
                  ┌───────────┐
-                 │ Strangler │  4-6ヶ月
-                 │   Fig     │  根本的な置換
+                 │ Strangler │  4-6 months
+                 │   Fig     │  Fundamental replacement
                  ├───────────┤
-                 │  技術的    │  四半期ごと
-                 │  負債      │  集中的な返済
-                 │  スプリント │
+                 │  Technical │  Quarterly
+                 │  Debt      │  Intensive repayment
+                 │  Sprint    │
                  ├───────────┤
-                 │  20% ルール │  毎スプリント
-                 │  (Sprint内  │  計画的な返済
-                 │   の20%)    │
+                 │  20% Rule  │  Every sprint
+                 │  (20% of  │  Planned repayment
+                 │   sprint)  │
                  ├───────────┤
-                 │   ボーイスカウト     │  毎日
-                 │   ルール            │  小さな改善
+                 │   Boy Scout         │  Daily
+                 │   Rule              │  Small improvements
                  └─────────────────────┘
 
-  下から上に向かって:
-  - コストが増加
-  - 効果が増加
-  - リスクが増加
-  - 頻度が減少
+  From bottom to top:
+  - Cost increases
+  - Effect increases
+  - Risk increases
+  - Frequency decreases
 ```
 
-### 5.2 ボーイスカウトルール
+### 5.2 Boy Scout Rule
 
 ```python
-"""ボーイスカウトルール: コードを見つけた時より少しきれいにして去る"""
+"""Boy Scout Rule: leave the code a little cleaner than you found it"""
 
-# === 例1: 変数名の改善 ===
+# === Example 1: Improving variable names ===
 
-# Before (見つけた時の状態)
+# Before (state when found)
 def calc(d, r):
     return d * r * 0.01
 
-# After (少しきれいにして去る)
+# After (leave it a little cleaner)
 def calculate_discount(price: float, rate_percent: float) -> float:
-    """割引額を計算する"""
+    """Calculate discount amount"""
     return price * rate_percent * 0.01
 
 
-# === 例2: マジックナンバーの除去 ===
+# === Example 2: Removing magic numbers ===
 
 # Before
 if user.login_attempts > 5:
@@ -979,62 +988,66 @@ if user.login_attempts > MAX_LOGIN_ATTEMPTS:
     lock_account(user)
 
 
-# === 例3: 不要なコメントの削除と型ヒント追加 ===
+# === Example 3: Remove unnecessary comments and add type hints ===
 
 # Before
-# ユーザーを取得する
+# Get user
 def get_user(id):
-    # DBから取得
+    # Get from DB
     user = db.query(User).filter(User.id == id).first()
-    return user  # ユーザーを返す
+    return user  # Return user
 
 # After
 def get_user(user_id: int) -> User | None:
     return db.query(User).filter(User.id == user_id).first()
 ```
 
-ボーイスカウトルールのガイドライン:
+Boy Scout Rule guidelines:
 
 ```
-ボーイスカウトルールの適用範囲
+Boy Scout Rule Scope
 
-  OK (適用すべき)              NG (スコープ外)
+  OK (should apply)             NG (out of scope)
   ┌──────────────────┐        ┌──────────────────┐
-  │ ● 変数名の改善     │        │ ● アーキテクチャ   │
-  │ ● 型ヒント追加     │        │   の変更           │
-  │ ● 不要コメント削除  │        │ ● 大規模な         │
-  │ ● マジックナンバー  │        │   リファクタリング  │
-  │   の定数化         │        │ ● API の変更       │
-  │ ● import の整理    │        │ ● データモデルの    │
-  │ ● 小さな関数抽出   │        │   変更             │
+  │ ● Improve variable│        │ ● Architecture   │
+  │   names           │        │   changes        │
+  │ ● Add type hints  │        │ ● Large-scale    │
+  │ ● Remove redundant│        │   refactoring    │
+  │   comments        │        │ ● API changes    │
+  │ ● Extract magic   │        │ ● Data model     │
+  │   numbers to      │        │   changes        │
+  │   constants       │        │                  │
+  │ ● Organize imports│        │                  │
+  │ ● Extract small   │        │                  │
+  │   functions       │        │                  │
   └──────────────────┘        └──────────────────┘
 
-  判断基準: 5分以内で完了し、
-  動作を変えないリファクタリングか？
-  → Yes: ボーイスカウトルール適用
-  → No:  負債バックログに起票
+  Decision criteria: Does it complete within 5 minutes
+  and is it a refactoring that doesn't change behavior?
+  → Yes: Apply Boy Scout Rule
+  → No:  File in debt backlog
 ```
 
-### 5.3 20%ルール
+### 5.3 20% Rule
 
 ```python
-"""20%ルール: 各スプリントの20%を技術的負債返済に充てる"""
+"""20% Rule: allocate 20% of each sprint to technical debt repayment"""
 
 @dataclass
 class SprintCapacity:
-    """スプリントのキャパシティ管理"""
+    """Sprint capacity management"""
     total_story_points: int
     team_size: int
-    sprint_days: int = 10  # 2週間スプリント
+    sprint_days: int = 10  # 2-week sprint
 
     @property
     def feature_capacity(self) -> int:
-        """新機能に使えるポイント (80%)"""
+        """Points available for new features (80%)"""
         return int(self.total_story_points * 0.80)
 
     @property
     def debt_capacity(self) -> int:
-        """負債返済に使えるポイント (20%)"""
+        """Points available for debt repayment (20%)"""
         return int(self.total_story_points * 0.20)
 
     def plan_sprint(
@@ -1042,8 +1055,8 @@ class SprintCapacity:
         feature_backlog: list[dict],
         debt_backlog: list[TechnicalDebtItem]
     ) -> dict:
-        """スプリント計画"""
-        # 新機能を80%枠内で選択
+        """Sprint planning"""
+        # Select new features within the 80% budget
         selected_features = []
         remaining_feature_points = self.feature_capacity
         for feature in feature_backlog:
@@ -1051,12 +1064,12 @@ class SprintCapacity:
                 selected_features.append(feature)
                 remaining_feature_points -= feature["points"]
 
-        # 負債を20%枠内で選択（優先度順）
+        # Select debt within the 20% budget (by priority)
         selected_debt = []
         remaining_debt_points = self.debt_capacity
         sorted_debt = sorted(debt_backlog, key=lambda d: d.priority_score, reverse=True)
         for debt in sorted_debt:
-            estimated_points = int(debt.fix_effort_days * 2)  # 1日 ≈ 2SP
+            estimated_points = int(debt.fix_effort_days * 2)  # 1 day ≈ 2 SP
             if estimated_points <= remaining_debt_points:
                 selected_debt.append(debt)
                 remaining_debt_points -= estimated_points
@@ -1070,7 +1083,7 @@ class SprintCapacity:
 ```
 
 ```
-20%ルールのスプリント配分
+Sprint allocation with the 20% Rule
 
   Sprint 1        Sprint 2        Sprint 3
   ┌────────────┐  ┌────────────┐  ┌────────────┐
@@ -1079,47 +1092,47 @@ class SprintCapacity:
   │            │  │            │  │            │
   │   (80%)    │  │   (80%)    │  │   (80%)    │
   ├────────────┤  ├────────────┤  ├────────────┤
-  │ Debt: テスト│  │ Debt: 依存 │  │ Debt: API  │
-  │ カバレッジ  │  │ 更新       │  │ 統合       │
+  │ Debt: Test │  │ Debt: Dep  │  │ Debt: API  │
+  │ coverage   │  │ updates    │  │ integration│
   │   (20%)    │  │   (20%)    │  │   (20%)    │
   └────────────┘  └────────────┘  └────────────┘
 
-  例外: 緊急リリース時
-  Sprint N (緊急)   Sprint N+1 (帳尻合わせ)
+  Exception: urgent releases
+  Sprint N (urgent)   Sprint N+1 (catch up)
   ┌────────────┐    ┌────────────┐
-  │ 緊急機能    │    │ Feature G  │
-  │            │    │            │
+  │ Urgent     │    │ Feature G  │
+  │ feature    │    │            │
   │  (100%)    │    │   (60%)    │
   │            │    ├────────────┤
-  │            │    │ Debt返済   │
-  │ 負債0%     │    │   (40%)    │
+  │            │    │ Debt repay │
+  │ 0% debt    │    │   (40%)    │
   └────────────┘    └────────────┘
 ```
 
-### 5.4 技術的負債スプリント
+### 5.4 Technical Debt Sprint
 
 ```python
-"""技術的負債スプリント: 四半期に1回の集中返済"""
+"""Technical Debt Sprint: intensive repayment once per quarter"""
 
 @dataclass
 class DebtSprint:
-    """技術的負債スプリントの計画と実行"""
+    """Planning and execution of a technical debt sprint"""
     quarter: str              # "2024-Q2"
-    duration_days: int = 10   # 2週間
+    duration_days: int = 10   # 2 weeks
     team_size: int = 8
 
     def plan(self, debt_backlog: list[TechnicalDebtItem]) -> dict:
-        """負債スプリントの計画
+        """Plan the debt sprint
 
-        選定基準:
-        1. ROI が最も高い負債を優先
-        2. 相互依存する負債をグループ化
-        3. チームのスキルセットと負債の種類をマッチング
+        Selection criteria:
+        1. Prioritize debt with the highest ROI
+        2. Group interdependent debt items
+        3. Match team skill sets to debt types
         """
-        # ROI 順にソート
+        # Sort by ROI
         sorted_debt = sorted(debt_backlog, key=lambda d: d.roi, reverse=True)
 
-        # キャパシティ計算 (チーム × 日数)
+        # Capacity calculation (team × days)
         total_capacity_days = self.team_size * self.duration_days
 
         selected = []
@@ -1130,7 +1143,7 @@ class DebtSprint:
                 selected.append(debt)
                 remaining_capacity -= debt.fix_effort_days
 
-        # 期待効果の算出
+        # Calculate expected impact
         total_annual_savings = sum(d.annual_interest_cost for d in selected)
         total_investment = sum(d.fix_effort_days for d in selected)
 
@@ -1144,65 +1157,65 @@ class DebtSprint:
         }
 
     def execute_checklist(self) -> list[str]:
-        """負債スプリント実施チェックリスト"""
+        """Debt sprint execution checklist"""
         return [
-            "[ ] Sprint Goal を明確に定義（測定可能な指標で）",
-            "[ ] Before メトリクスを収集（複雑度、カバレッジ、重複率）",
-            "[ ] 各負債アイテムに担当者をアサイン",
-            "[ ] 各変更に対するテストを先に書く",
-            "[ ] 小さなPRに分割（1PR = 1改善）",
-            "[ ] デイリースタンドアップで進捗共有",
-            "[ ] After メトリクスを収集",
-            "[ ] Before/After の比較レポートを作成",
-            "[ ] 振り返り（レトロスペクティブ）を実施",
-            "[ ] 残った負債を次回に繰り越し",
+            "[ ] Define Sprint Goal clearly (with measurable metrics)",
+            "[ ] Collect Before metrics (complexity, coverage, duplication)",
+            "[ ] Assign owners to each debt item",
+            "[ ] Write tests for each change first",
+            "[ ] Split into small PRs (1 PR = 1 improvement)",
+            "[ ] Share progress in daily standups",
+            "[ ] Collect After metrics",
+            "[ ] Create Before/After comparison report",
+            "[ ] Hold retrospective",
+            "[ ] Roll over remaining debt to next sprint",
         ]
 ```
 
-### 5.5 負債バックログ管理
+### 5.5 Debt Backlog Management
 
 ```python
-"""技術的負債バックログの管理"""
+"""Technical debt backlog management"""
 from datetime import datetime
 from typing import Optional
 
 
 class TechnicalDebtBacklog:
-    """技術的負債バックログの管理クラス"""
+    """Technical debt backlog management class"""
 
     def __init__(self):
         self._items: list[TechnicalDebtItem] = []
 
     def add(self, item: TechnicalDebtItem) -> None:
-        """負債アイテムを追加"""
+        """Add a debt item"""
         self._items.append(item)
 
     def get_by_priority(self, top_n: int = 10) -> list[TechnicalDebtItem]:
-        """優先度順に取得"""
+        """Get items sorted by priority"""
         open_items = [i for i in self._items if i.status == "open"]
         return sorted(open_items, key=lambda i: i.priority_score, reverse=True)[:top_n]
 
     def get_by_roi(self, top_n: int = 10) -> list[TechnicalDebtItem]:
-        """ROI順に取得（Quick Win 発見用）"""
+        """Get items sorted by ROI (for finding Quick Wins)"""
         open_items = [i for i in self._items if i.status == "open"]
         return sorted(open_items, key=lambda i: i.roi, reverse=True)[:top_n]
 
     def get_quick_wins(self, max_effort_days: float = 1.0) -> list[TechnicalDebtItem]:
-        """Quick Win: 少ない工数で高い効果が得られる負債"""
+        """Quick Win: debt that yields high impact with low effort"""
         return [
             i for i in self._items
             if i.status == "open" and i.fix_effort_days <= max_effort_days
         ]
 
     def get_stale_items(self, days: int = 90) -> list[TechnicalDebtItem]:
-        """長期間放置されている負債"""
+        """Debt that has been left unaddressed for a long time"""
         return [
             i for i in self._items
             if i.status == "open" and i.debt_age_days > days
         ]
 
     def summary(self) -> dict:
-        """バックログのサマリ"""
+        """Backlog summary"""
         open_items = [i for i in self._items if i.status == "open"]
         resolved = [i for i in self._items if i.status == "resolved"]
 
@@ -1236,31 +1249,31 @@ class TechnicalDebtBacklog:
         }
 
     def print_summary(self) -> None:
-        """バックログサマリを表示"""
+        """Display backlog summary"""
         s = self.summary()
         print("=" * 50)
-        print("  技術的負債バックログ サマリ")
+        print("  Technical Debt Backlog Summary")
         print("=" * 50)
-        print(f"  未対応: {s['total_open']} 件  /  解決済: {s['total_resolved']} 件")
-        print(f"  合計修正工数: {s['total_effort_days']:.0f} 人日")
-        print(f"  年間利子: {s['total_annual_interest_days']:.0f} 人日")
-        print(f"  平均経過日数: {s['avg_age_days']:.0f} 日")
+        print(f"  Open: {s['total_open']}  /  Resolved: {s['total_resolved']}")
+        print(f"  Total fix effort: {s['total_effort_days']:.0f} person-days")
+        print(f"  Annual interest: {s['total_annual_interest_days']:.0f} person-days")
+        print(f"  Average age: {s['avg_age_days']:.0f} days")
 
-        print(f"\n  [カテゴリ別]")
+        print(f"\n  [By Category]")
         for cat, data in s["by_category"].items():
-            print(f"    {cat:<20s} {data['count']:3d} 件  ({data['effort']:.0f} 人日)")
+            print(f"    {cat:<20s} {data['count']:3d} items  ({data['effort']:.0f} person-days)")
 
-        print(f"\n  [深刻度別]")
+        print(f"\n  [By Severity]")
         for sev, count in sorted(s["by_severity"].items()):
-            print(f"    {sev:<12s} {count:3d} 件")
+            print(f"    {sev:<12s} {count:3d} items")
         print("=" * 50)
 ```
 
 ---
 
-## 6. CI/CD との統合
+## 6. CI/CD Integration
 
-### 6.1 GitHub Actions で負債トレンド追跡
+### 6.1 Tracking Debt Trends with GitHub Actions
 
 ```yaml
 # .github/workflows/debt-tracking.yml
@@ -1268,7 +1281,7 @@ name: Technical Debt Tracking
 
 on:
   schedule:
-    - cron: '0 9 * * 1'  # 毎週月曜9時
+    - cron: '0 9 * * 1'  # Every Monday at 9am
   workflow_dispatch:
 
 jobs:
@@ -1277,7 +1290,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 全履歴を取得
+          fetch-depth: 0  # Fetch full history
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -1314,13 +1327,13 @@ jobs:
         with:
           payload: |
             {
-              "text": "技術的負債アラート: 品質メトリクスが閾値を超えました",
+              "text": "Technical Debt Alert: Quality metrics exceeded threshold",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "詳細: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    "text": "Details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                   }
                 }
               ]
@@ -1329,7 +1342,7 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 ```
 
-### 6.2 PR での負債チェック
+### 6.2 Debt Check on PR
 
 ```yaml
 # .github/workflows/debt-check-pr.yml
@@ -1347,19 +1360,19 @@ jobs:
 
       - name: Check complexity of changed files
         run: |
-          # 変更されたPythonファイルの複雑度チェック
+          # Check complexity of changed Python files
           git diff --name-only origin/main...HEAD -- '*.py' | while read file; do
             if [ -f "$file" ]; then
-              radon cc "$file" -n C -s  # Cランク以上を表示
+              radon cc "$file" -n C -s  # Show rank C and above
             fi
           done
 
       - name: Check for new TODOs
         run: |
-          # 新しく追加された TODO/FIXME をチェック
+          # Check for newly added TODO/FIXME
           new_todos=$(git diff origin/main...HEAD | grep '^+' | grep -cE 'TODO|FIXME|HACK|XXX' || true)
           if [ "$new_todos" -gt 0 ]; then
-            echo "::warning::${new_todos} 件の新しい TODO/FIXME が追加されています"
+            echo "::warning::${new_todos} new TODO/FIXME items have been added"
           fi
 
       - name: Coverage check
@@ -1369,302 +1382,302 @@ jobs:
 
 ---
 
-## 7. 比較表
+## 7. Comparison Tables
 
-### 7.1 返済戦略比較
+### 7.1 Repayment Strategy Comparison
 
-| 戦略 | コスト | 効果範囲 | リスク | 効果発現 | 適用場面 | 推奨頻度 |
+| Strategy | Cost | Scope | Risk | Time to Effect | When to Apply | Frequency |
 |------|:------:|:--------:|:------:|:--------:|---------|:--------:|
-| ボーイスカウトルール | 最小 | 局所的 | 最小 | 即時 | 日常の小さな改善 | 毎日 |
-| 20%ルール | 低 | 中程度 | 低 | 2-4週 | 計画的な品質向上 | 毎スプリント |
-| 技術的負債スプリント | 中 | 広範 | 中 | 2-4週 | 蓄積した負債の集中返済 | 四半期 |
-| Strangler Fig | 高 | 根本的 | 中-高 | 3-6ヶ月 | レガシーシステムの段階置換 | 年1-2回 |
-| フルリライト | 最高 | 根本的 | 最高 | 6-18ヶ月 | 最終手段（非推奨） | 極稀 |
+| Boy Scout Rule | Minimal | Local | Minimal | Immediate | Daily small improvements | Daily |
+| 20% Rule | Low | Moderate | Low | 2-4 weeks | Planned quality improvement | Every sprint |
+| Technical Debt Sprint | Medium | Broad | Medium | 2-4 weeks | Intensive repayment of accumulated debt | Quarterly |
+| Strangler Fig | High | Fundamental | Medium-High | 3-6 months | Incremental replacement of legacy systems | 1-2x per year |
+| Full Rewrite | Maximum | Fundamental | Maximum | 6-18 months | Last resort (not recommended) | Very rarely |
 
-### 7.2 健全性指標
+### 7.2 Health Indicators
 
-| 指標 | 健全 (Green) | 要注意 (Yellow) | 危険 (Red) | 測定ツール |
+| Metric | Healthy (Green) | Caution (Yellow) | Danger (Red) | Measurement Tool |
 |------|:-----------:|:--------------:|:----------:|-----------|
-| テストカバレッジ | > 80% | 50-80% | < 50% | coverage.py, Istanbul |
-| コード重複率 | < 3% | 3-10% | > 10% | jscpd, SonarQube |
-| 平均複雑度 (CC) | < 5 | 5-10 | > 10 | radon, ESLint |
-| 古い依存関係 | < 5% | 5-20% | > 20% | pip list --outdated |
-| デプロイ頻度 | 日次以上 | 週次 | 月次以下 | DORA metrics |
-| リードタイム | < 1日 | 1-7日 | > 7日 | DORA metrics |
-| 既知脆弱性 | 0件 | 1-5件 | > 5件 | Safety, Snyk, Trivy |
-| TODO/FIXME 密度 | < 1/1000行 | 1-5/1000行 | > 5/1000行 | grep, SonarQube |
+| Test coverage | > 80% | 50-80% | < 50% | coverage.py, Istanbul |
+| Code duplication | < 3% | 3-10% | > 10% | jscpd, SonarQube |
+| Average complexity (CC) | < 5 | 5-10 | > 10 | radon, ESLint |
+| Outdated dependencies | < 5% | 5-20% | > 20% | pip list --outdated |
+| Deploy frequency | Daily or more | Weekly | Monthly or less | DORA metrics |
+| Lead time | < 1 day | 1-7 days | > 7 days | DORA metrics |
+| Known vulnerabilities | 0 | 1-5 | > 5 | Safety, Snyk, Trivy |
+| TODO/FIXME density | < 1/1000 lines | 1-5/1000 lines | > 5/1000 lines | grep, SonarQube |
 
-### 7.3 負債の4象限別対策
+### 7.3 Countermeasures by Debt Quadrant
 
-| 象限 | 例 | 対策 | 予防策 |
+| Quadrant | Example | Countermeasure | Prevention |
 |------|-----|------|--------|
-| 慎重 x 意図的 | MVP 優先の設計妥協 | 返済計画を負債発生時に起票 | 受入条件に「返済Sprint」を含める |
-| 無謀 x 意図的 | テスト省略「時間がない」 | 20%ルールで段階的にテスト追加 | Definition of Done にテスト必須 |
-| 慎重 x 無意識的 | 学習後に気づく設計不備 | 定期的なアーキテクチャレビュー | 継続的学習の文化、勉強会 |
-| 無謀 x 無意識的 | スキル不足による低品質 | ペアプログラミング、コードレビュー | オンボーディング充実、メンタリング |
+| Prudent × Deliberate | Design compromise to prioritize MVP | File repayment plan when debt is incurred | Include "Repayment Sprint" in acceptance criteria |
+| Reckless × Deliberate | Skip tests "no time" | Incrementally add tests with 20% Rule | Require tests in Definition of Done |
+| Prudent × Inadvertent | Design flaw discovered after learning | Regular architecture reviews | Culture of continuous learning, study groups |
+| Reckless × Inadvertent | Low quality due to skill shortage | Pair programming, code reviews | Solid onboarding, mentoring |
 
 ---
 
-## 8. 演習問題
+## 8. Practice Exercises
 
-### 演習 1: 負債の分類と優先度付け（基礎）
+### Exercise 1: Classify and Prioritize Debt (Basic)
 
-以下の技術的負債アイテムを4象限に分類し、優先度スコアを計算せよ。
-
-```
-負債リスト:
-A. 「リリース期限に間に合わせるため、入力バリデーションを省略した」
-B. 「Reactのクラスコンポーネントで書いたが、今ならHooksで書き直す」
-C. 「チームにテスト経験者がおらず、ユニットテストが書かれていない」
-D. 「AWS Lambda のランタイムが Python 3.8（EOL済み）のまま」
-E. 「DBアクセスをControllerから直接行っている（レイヤー違反）」
-F. 「デモ用にハードコードした管理者パスワードがまだコードに残っている」
-
-各アイテムについて:
-1. 4象限での分類
-2. DebtSeverity の割り当て
-3. impact, fix_effort_days, frequency, risk の見積もり
-4. priority_score と ROI の計算
-5. 推奨する返済戦略
-```
-
-**期待される回答例（アイテムA）:**
+Classify the following technical debt items into the four quadrants and calculate priority scores.
 
 ```
-A. 入力バリデーション省略
-  象限: 無謀 × 意図的（「時間がない」という理由で品質を犠牲に）
-  Severity: CRITICAL (セキュリティリスクを含む)
-  impact=5, fix_effort=2.0日, frequency=5, risk=5
+Debt List:
+A. "Skipped input validation to meet the release deadline"
+B. "Written with React class components, but would use Hooks today"
+C. "Team had no test experience, no unit tests were written"
+D. "AWS Lambda runtime still on Python 3.8 (EOL)"
+E. "DB access directly from Controller (layer violation)"
+F. "Admin password hardcoded for demo still remains in code"
+
+For each item:
+1. Classification in the four quadrants
+2. Assign DebtSeverity
+3. Estimate impact, fix_effort_days, frequency, risk
+4. Calculate priority_score and ROI
+5. Recommended repayment strategy
+```
+
+**Expected answer example (Item A):**
+
+```
+A. Skipped input validation
+  Quadrant: Reckless × Deliberate (quality sacrificed "due to time pressure")
+  Severity: CRITICAL (includes security risk)
+  impact=5, fix_effort=2.0 days, frequency=5, risk=5
   priority_score = (5 × 5 × 5) / 2.0 = 62.5
-  ROI = 年間利子25人日 / 2人日 = 12.5
-  戦略: 即時対応（セキュリティリスクのため20%ルールを待たない）
+  ROI = 25 person-days annual interest / 2 person-days = 12.5
+  Strategy: Immediate action (don't wait for 20% Rule due to security risk)
 ```
 
-### 演習 2: コスト試算と経営層プレゼン（応用）
+### Exercise 2: Cost Estimation and Management Presentation (Applied)
 
-以下のチーム状況から、技術的負債のコストを算出し、経営層向けのプレゼン資料（1ページ）を作成せよ。
-
-```
-チーム状況:
-- チーム規模: 6名
-- 開発者時間単価: 6,000円/時間
-- テストカバレッジ: 45%
-- 平均複雑度: 12.3
-- コード重複率: 8%
-- 古い依存関係: 15件
-- 手動デプロイ（所要時間: 2時間/回、頻度: 週2回）
-- バグ修正に平均8時間（業界平均の2倍）
-- 新メンバーのオンボーディング: 6週間（業界平均の2倍）
-
-課題:
-1. DebtCostEstimation を使ってコストを算出
-2. 30秒エレベーターピッチを作成
-3. 3段階の返済計画（3ヶ月 / 6ヶ月 / 12ヶ月）を提案
-4. 各段階の投資額と期待ROIを算出
-```
-
-**期待される出力の骨子:**
+Based on the following team situation, calculate the cost of technical debt and create a one-page presentation for management.
 
 ```
-年間コスト ≈ 1,560万円
-生産性損失率 ≈ 16.7%
-3ヶ月計画: CI/CD + テスト基盤 → 投資 300万円、年間削減 500万円
-6ヶ月計画: + リファクタリング → 追加投資 200万円、追加削減 300万円
-12ヶ月計画: + アーキテクチャ改善 → 追加投資 400万円、追加削減 400万円
+Team situation:
+- Team size: 6 people
+- Developer hourly rate: 6,000/hour
+- Test coverage: 45%
+- Average complexity: 12.3
+- Code duplication rate: 8%
+- Outdated dependencies: 15
+- Manual deployment (time required: 2 hours/deployment, frequency: 2x/week)
+- Average bug fix time: 8 hours (2x industry average)
+- New member onboarding: 6 weeks (2x industry average)
+
+Tasks:
+1. Use DebtCostEstimation to calculate costs
+2. Create a 30-second elevator pitch
+3. Propose a 3-phase repayment plan (3 months / 6 months / 12 months)
+4. Calculate investment and expected ROI for each phase
 ```
 
-### 演習 3: ホットスポット分析と返済計画（発展）
-
-実際のGitリポジトリに対してホットスポット分析を実施し、四半期の負債返済計画を策定せよ。
+**Expected output skeleton:**
 
 ```
-手順:
-1. 自分のプロジェクト（またはOSSリポジトリ）でホットスポット分析を実行
-2. 上位10ファイルのホットスポットを特定
-3. 各ファイルの負債種類を分類（コード/アーキテクチャ/テスト/インフラ）
-4. TechnicalDebtItem として登録
-5. 四半期の負債スプリント計画を作成:
-   - Sprint 1 (Week 1-2): Quick Win の返済
-   - Sprint 2 (Week 3-4): High Priority の返済
-   - Sprint 3-6: 20%ルールでの継続返済
-6. Before/After のメトリクス目標を設定
-7. 経営層への報告資料を作成
+Annual cost ≈ 15,600,000
+Productivity loss ≈ 16.7%
+3-month plan: CI/CD + test infrastructure → Investment 3,000,000, Annual savings 5,000,000
+6-month plan: + Refactoring → Additional investment 2,000,000, Additional savings 3,000,000
+12-month plan: + Architecture improvement → Additional investment 4,000,000, Additional savings 4,000,000
+```
 
-評価基準:
-- ホットスポット分析の正確性
-- 優先度付けの合理性
-- 計画の実現可能性
-- メトリクスの具体性
-- 経営層向け説明の説得力
+### Exercise 3: Hotspot Analysis and Repayment Planning (Advanced)
+
+Perform hotspot analysis on an actual Git repository and develop a quarterly debt repayment plan.
+
+```
+Steps:
+1. Run hotspot analysis on your own project (or an OSS repository)
+2. Identify hotspots in the top 10 files
+3. Classify each file's debt type (code/architecture/test/infrastructure)
+4. Register as TechnicalDebtItem entries
+5. Create a quarterly debt sprint plan:
+   - Sprint 1 (Week 1-2): Repay Quick Wins
+   - Sprint 2 (Week 3-4): Repay High Priority items
+   - Sprint 3-6: Continued repayment with 20% Rule
+6. Set Before/After metric targets
+7. Create a management report
+
+Evaluation criteria:
+- Accuracy of hotspot analysis
+- Rationality of prioritization
+- Feasibility of the plan
+- Specificity of metrics
+- Persuasiveness of management explanation
 ```
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-patterns
 
-### アンチパターン 1: 「後で直す」の無限延期
-
-```
-NG パターン:
-  Sprint 1: 「時間がないから後で直す」→ TODO コメント追加
-  Sprint 2: 「今回も時間がない」→ TODO が増殖
-  Sprint 3: 「新機能の方が優先」→ TODO の山
-  Sprint 6: 「もう誰も全体像がわからない」→ 手遅れ
-  Sprint 10: 「フルリライトするしかない」→ 莫大なコスト
-
-  原因: 負債が「見えない」ため、優先度が常に新機能の下になる
-
-OK パターン:
-  Sprint 1: TODO コメント → 即座に負債バックログに起票
-  Sprint 2: 20%枠で最も ROI の高い負債を返済
-  Sprint 3: 負債ダッシュボードでスコアを確認
-  Sprint 4: 負債スコアが改善 → チームのモチベーション向上
-
-  原因: 負債を「可視化」し、返済を「計画」に組み込む
-```
-
-### アンチパターン 2: 全負債の同時返済
+### Anti-pattern 1: Infinite Deferral of "Fix It Later"
 
 ```
-NG パターン:
-  「今月は技術的負債一掃月間だ！」
-  → チーム全員が別々の負債に取り組む
-  → 各改善が中途半端に終わる
-  → 新機能開発が1ヶ月完全停止
-  → ビジネス側からの信頼を失う
-  → 「次は技術的負債月間はやらない」と言われる
+Bad Pattern:
+  Sprint 1: "No time, fix later" → Add TODO comment
+  Sprint 2: "No time again" → TODOs multiply
+  Sprint 3: "New features are higher priority" → Mountain of TODOs
+  Sprint 6: "No one understands the full picture anymore" → Too late
+  Sprint 10: "Full rewrite is the only option" → Enormous cost
 
-OK パターン:
-  「今四半期は上位3件の負債を完了させる」
-  Sprint N:   テストカバレッジ 60% → 80% (チーム全員で集中)
-  Sprint N+1: CI/CD パイプライン構築 (2名がリード)
-  Sprint N+2: 手動デプロイの自動化 (インフラ担当)
-  → 各スプリントで具体的な成果を出す
-  → ビジネス側にも改善効果を報告
+  Cause: Debt is "invisible," so priority is always below new features
+
+Good Pattern:
+  Sprint 1: TODO comment → Immediately file in debt backlog
+  Sprint 2: Repay highest-ROI debt in the 20% slot
+  Sprint 3: Check score on debt dashboard
+  Sprint 4: Debt score improves → Team morale goes up
+
+  Cause: "Visualize" debt and "plan" repayment into the schedule
 ```
 
-### アンチパターン 3: 負債スコアのゲーム化
+### Anti-pattern 2: Repaying All Debt Simultaneously
 
 ```
-NG パターン:
-  「SonarQubeのスコアを A にすることが目標」
-  → 意味のない微細な修正に時間を費やす
-  → 本質的な構造問題は放置（スコアに反映されにくい）
-  → スコアは改善したが、開発速度は変わらない
+Bad Pattern:
+  "This month is Technical Debt Elimination Month!"
+  → All team members tackle different debt items
+  → Each improvement ends up half-done
+  → New feature development completely stops for a month
+  → Lose trust from the business side
+  → "Let's never do a technical debt month again"
 
-  = Goodhart's Law: メトリクスが目標になると指標としての価値を失う
-
-OK パターン:
-  「開発者体験（Developer Experience）の改善が目標」
-  → メトリクスは「手段」であり「目的」ではない
-  → 「ビルド時間が5分から1分に短縮」= 実感のある改善
-  → 「新メンバーのオンボーディングが6週→3週」= ビジネス価値のある改善
-  → メトリクスは改善の「検証」に使う
+Good Pattern:
+  "This quarter, we complete the top 3 debt items"
+  Sprint N:   Test coverage 60% → 80% (whole team focuses)
+  Sprint N+1: Build CI/CD pipeline (2 leads)
+  Sprint N+2: Automate manual deployments (infrastructure team)
+  → Deliver concrete results each sprint
+  → Report improvement impact to business side
 ```
 
-### アンチパターン 4: 負債の発生を全面禁止
+### Anti-pattern 3: Gamifying the Debt Score
 
 ```
-NG パターン:
-  「技術的負債は一切作らないルール！」
-  → すべてのコードが「完璧」でないとマージできない
-  → 開発速度が極端に低下
-  → ビジネスチャンスを逃す
-  → 開発者のモチベーション低下
+Bad Pattern:
+  "Goal is to get SonarQube score to A"
+  → Time spent on meaningless trivial fixes
+  → Fundamental structural issues ignored (hard to reflect in score)
+  → Score improved, but development speed unchanged
 
-OK パターン:
-  「意図的な負債は戦略的に許可する」
-  1. MVP リリースのため、一時的に設計を妥協 → OK（計画的）
-  2. 負債発生時にバックログ起票を義務化
-  3. 返済計画（いつ、誰が、どうやって）を記載
-  4. 3スプリント以内に返済しない場合、自動エスカレーション
+  = Goodhart's Law: When a metric becomes a target, it ceases to be a good metric
 
-  ポイント: 「負債ゼロ」を目指すのではなく
-           「負債を管理可能な範囲内に保つ」ことが目標
+Good Pattern:
+  "Goal is to improve Developer Experience"
+  → Metrics are a "means," not an "end"
+  → "Build time reduced from 5 minutes to 1 minute" = tangible improvement
+  → "New member onboarding from 6 weeks to 3 weeks" = business value improvement
+  → Use metrics for "verification" of improvement
+```
+
+### Anti-pattern 4: Completely Prohibiting Debt
+
+```
+Bad Pattern:
+  "Rule: absolutely no technical debt!"
+  → All code must be "perfect" before merging
+  → Development speed drops dramatically
+  → Miss business opportunities
+  → Developer morale drops
+
+Good Pattern:
+  "Allow intentional debt strategically"
+  1. Temporarily compromise design for MVP release → OK (planned)
+  2. Mandate filing in backlog when debt is incurred
+  3. Record repayment plan (when, who, how)
+  4. Auto-escalation if not repaid within 3 sprints
+
+  Key point: The goal is not "zero debt"
+             but "keeping debt within manageable limits"
 ```
 
 ---
 
 ## 10. FAQ
 
-### Q1. 技術的負債を経営層にどう説明する？
+### Q1. How do I explain technical debt to management?
 
-**A.** 金融メタファーを一貫して使う。「技術的負債は住宅ローンのようなもの。毎月の利子（追加開発コスト）を払い続けている。現在、年間推定900万円の利子を払っている。270万円を投資して元本を返済すれば、翌年から年450万円のコスト削減になる」。重要なのは、(1) 具体的な数値（開発速度の低下率、バグ修正にかかる時間）を示すこと、(2) 放置した場合のコスト増加（複利）を示すこと、(3) 投資対効果（ROI）として提案すること。セクション4の「エレベーターピッチ」テンプレートを活用するとよい。
+**A.** Consistently use the financial metaphor. "Technical debt is like a mortgage. We keep paying monthly interest (additional development costs). Currently, we are paying an estimated 9,000,000 in interest per year. By investing 2,700,000 to repay the principal, we get a 4,500,000 cost reduction starting next year." The key points are: (1) show specific numbers (rate of development slowdown, time spent on bug fixes), (2) show the cost increase if ignored (compound interest), and (3) present it as a return on investment (ROI). Use the "Elevator Pitch" template in Section 4.
 
-### Q2. 技術的負債をゼロにすべきか？
+### Q2. Should technical debt be reduced to zero?
 
-**A.** ゼロにする必要はなく、ゼロにすべきでもない。住宅ローン同様、「適切な量の負債」は戦略的に有用である。重要なのは3つの条件: (1) 負債が可視化されていること（ダッシュボード、バックログ）、(2) 利子が制御可能な範囲内であること（生産性損失率 < 15%）、(3) 返済計画が存在すること（20%ルール、四半期スプリント）。新規事業の初期フェーズでは意図的に負債を抱えて速度を優先し、PMF（Product Market Fit）が確認できたら計画的に返済するのが合理的である。
+**A.** It doesn't need to be zero, and it shouldn't be. Like a mortgage, "the right amount of debt" can be strategically useful. What matters are three conditions: (1) debt is visible (dashboard, backlog), (2) interest is within a controllable range (productivity loss < 15%), and (3) a repayment plan exists (20% Rule, quarterly sprint). In the early stages of a new business, it's rational to intentionally incur debt to prioritize speed, and then repay it systematically once product-market fit (PMF) is confirmed.
 
-### Q3. 技術的負債とビジネス要求のバランスはどう取る？
+### Q3. How do I balance technical debt with business demands?
 
-**A.** 「20%ルール」が最も広く使われているプラクティスである。スプリント容量の20%を常に技術的負債に確保する。これにより新機能開発を80%維持しつつ、負債が複利で膨らむのを防ぐ。緊急のビジネス要求時は一時的に100%を新機能に充てるが、次のスプリントで40%を負債返済に充てて帳尻を合わせる。重要なのは「負債返済はオプションではなく、Definition of Done の一部である」というチーム合意を形成すること。
+**A.** The most widely used practice is the "20% Rule." Always reserve 20% of sprint capacity for technical debt. This maintains 80% for new feature development while preventing debt from compounding. For urgent business demands, temporarily put 100% into new features, but then dedicate 40% of the next sprint to debt repayment to balance out. The key is forming a team consensus that "debt repayment is not optional, but part of the Definition of Done."
 
-### Q4. SonarQube などのツールで技術的負債を「日数」で表示しているが、どう解釈すべき？
+### Q4. Tools like SonarQube show technical debt in "days." How should I interpret that?
 
-**A.** SonarQube の「Technical Debt」は主にコードスメルの修正時間の合計であり、アーキテクチャ負債やテスト負債は含まれない。従って、SonarQube の数値は「負債の一部」であり「全体像」ではない。推奨するアプローチは、SonarQube をコード品質の1指標として使いつつ、本ガイドの DebtMetrics のような多面的なメトリクス収集を組み合わせること。また、SonarQube の「日数」は修正工数の見積もりであり、利子（放置コスト）は含まれていない点にも注意が必要。
+**A.** SonarQube's "Technical Debt" is mainly the total time to fix code smells, and does not include architectural debt or test debt. Therefore, SonarQube's numbers are "part of the debt," not "the full picture." The recommended approach is to use SonarQube as one indicator of code quality, combined with multidimensional metrics collection like the DebtMetrics in this guide. Also note that SonarQube's "days" is an estimate of fix effort and does not include interest (the cost of leaving it unaddressed).
 
-### Q5. レガシーシステムの負債が膨大すぎてどこから手をつけていいかわからない
+### Q5. The debt in a legacy system is so enormous I don't know where to start
 
-**A.** 以下の3ステップで着手する: (1) ホットスポット分析（セクション3.3）で「変更頻度が高く複雑度も高い」ファイルを特定する。上位5-10ファイルに集中する。(2) Quick Win を先に実施する。1日以内で完了し、ROI が高い負債（テスト追加、定数化、命名改善）を片付ける。成功体験がチームのモチベーションを高める。(3) Strangler Fig パターン（[レガシーコード](./02-legacy-code.md)を参照）で段階的にモジュールを置換する。全体を一度に改善しようとしないことが最も重要である。
+**A.** Tackle it with these 3 steps: (1) Use hotspot analysis (Section 3.3) to identify files with "high change frequency and high complexity." Focus on the top 5-10 files. (2) Implement Quick Wins first. Address debt that can be completed within one day and has a high ROI (adding tests, extracting constants, improving naming). Success stories raise team morale. (3) Use the Strangler Fig pattern (see [Legacy Code](./02-legacy-code.md)) to incrementally replace modules. The most important thing is to not try to improve everything at once.
 
-### Q6. 技術的負債の「利子率」はどう見積もるのが正確か？
+### Q6. How do I accurately estimate the "interest rate" of technical debt?
 
-**A.** 正確な見積もりは困難だが、以下の proxy メトリクスが有用: (1) 変更リードタイム -- 同規模の変更が以前より何倍時間がかかるか。(2) バグ密度の推移 -- 新規コード1000行あたりのバグ数の増加率。(3) オンボーディング期間の変化 -- 新メンバーが独立して作業できるまでの期間。(4) デプロイ失敗率の推移。これらの指標が悪化傾向にあれば、利子が増加していると判断できる。3-6ヶ月単位でトレンドを追跡し、悪化が見られたら返済を強化する。
+**A.** Accurate estimation is difficult, but the following proxy metrics are useful: (1) Change lead time -- how many times longer does a change of similar size take compared to before. (2) Bug density trends -- rate of increase in bugs per 1000 lines of new code. (3) Changes in onboarding period -- how long it takes for a new member to work independently. (4) Deployment failure rate trends. If these indicators are trending worse, it means interest is increasing. Track trends in 3-6 month intervals and strengthen repayment if deterioration is observed.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Rather than theory alone, understanding deepens through actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend firmly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in actual practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| 技術的負債の定義 | 品質を犠牲にして発生する将来の追加コスト（Ward Cunningham, 1992） |
-| 4象限モデル | 意図的/無意識的 x 慎重/無謀で分類（Martin Fowler） |
-| 利子の概念 | 返済しないと複利で膨らみ、開発速度が持続的に低下する |
-| 可視化 | メトリクス収集（複雑度・カバレッジ・重複・依存）、ダッシュボード、ホットスポット分析 |
-| コスト算出 | 年間利子を金額で定量化し、ROI として返済を提案する |
-| ボーイスカウトルール | 5分以内で完了する小さな改善を毎日実施 |
-| 20%ルール | スプリント容量の20%を負債返済に常時確保 |
-| 負債スプリント | 四半期に1回、ROI 上位の負債を集中返済 |
-| 優先度付け | impact x frequency x risk / effort で算出、ROI も考慮 |
-| アンチパターン | 無限延期、全負債同時返済、スコアのゲーム化、負債の全面禁止 |
+| Definition of technical debt | Future additional costs incurred by sacrificing quality (Ward Cunningham, 1992) |
+| Four-quadrant model | Classified by deliberate/inadvertent × prudent/reckless (Martin Fowler) |
+| Interest concept | Without repayment, compounds and continuously slows development speed |
+| Visualization | Metrics collection (complexity, coverage, duplication, dependencies), dashboard, hotspot analysis |
+| Cost calculation | Quantify annual interest as a monetary amount and propose repayment as ROI |
+| Boy Scout Rule | Implement small improvements completable within 5 minutes daily |
+| 20% Rule | Always reserve 20% of sprint capacity for debt repayment |
+| Debt Sprint | Once per quarter, intensively repay the highest-ROI debt items |
+| Prioritization | Calculated by impact × frequency × risk / effort; also consider ROI |
+| Anti-patterns | Infinite deferral, repaying all debt at once, gamifying scores, prohibiting all debt |
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [レガシーコード](./02-legacy-code.md) -- Strangler Fig パターンなど、レガシーコードへの安全な変更技法
-- [継続的改善](./04-continuous-improvement.md) -- CI/CD パイプラインと品質メトリクスの自動化
-- [コードスメル](./00-code-smells.md) -- 負債の兆候を早期発見するためのスメルカタログ
-- [リファクタリング技法](./01-refactoring-techniques.md) -- 負債返済の具体的な手段
-- [テスト原則](../01-practices/04-testing-principles.md) -- テスト負債の解消と品質基盤の構築
-- [コードレビューチェックリスト](../03-practices-advanced/04-code-review-checklist.md) -- レビューによる負債発生の予防
-- [エラーハンドリング](../01-practices/02-error-handling.md) -- 堅牢なエラー処理による障害リスクの低減
+- [Legacy Code](./02-legacy-code.md) -- Safe techniques for modifying legacy code, including the Strangler Fig pattern
+- [Continuous Improvement](./04-continuous-improvement.md) -- Automating CI/CD pipelines and quality metrics
+- [Code Smells](./00-code-smells.md) -- A smell catalog for early detection of debt symptoms
+- [Refactoring Techniques](./01-refactoring-techniques.md) -- Concrete methods for repaying debt
+- [Testing Principles](../01-practices/04-testing-principles.md) -- Resolving test debt and building a quality foundation
+- [Code Review Checklist](../03-practices-advanced/04-code-review-checklist.md) -- Preventing debt from accumulating through reviews
+- [Error Handling](../01-practices/02-error-handling.md) -- Reducing failure risk through robust error handling
 
 ---
 
-## 参考文献
+## References
 
-1. **Managing Technical Debt** -- Philippe Kruchten, Robert Nord, Ipek Ozkaya (Addison-Wesley, 2019) -- SEI/CMU による技術的負債の学術的・実践的フレームワーク。負債の分類・測定・管理のための体系的アプローチを提供
-2. **Refactoring: Improving the Design of Existing Code, 2nd Edition** -- Martin Fowler (Addison-Wesley, 2018) -- コード品質改善のためのリファクタリングカタログ。負債返済の具体的手法として必読
-3. **Technical Debt Quadrant** -- Martin Fowler (Blog, 2009) -- https://martinfowler.com/bliki/TechnicalDebtQuadrant.html -- 4象限モデルの原典
-4. **Software Design X-Rays** -- Adam Tornhill (Pragmatic Programmers, 2018) -- Git 履歴を使ったホットスポット分析（Code as a Crime Scene）の実践ガイド。変更頻度 x 複雑度によるリファクタリング優先順位付けの手法
-5. **Accelerate: The Science of Lean Software and DevOps** -- Nicole Forsgren, Jez Humble, Gene Kim (IT Revolution, 2018) -- DORA メトリクスと組織パフォーマンスの研究結果。技術的負債の放置が開発速度に与える影響のエビデンス
-6. **A Mess is not a Technical Debt** -- Robert C. Martin (Blog, 2009) -- Uncle Bob による「乱雑なコード」と「技術的負債」の区別に関する重要な議論
-7. **The Financial Implications of Technical Debt** -- Steve McConnell (2007) -- 意図的/非意図的な負債の分類と、負債管理のビジネスフレームワーク
+1. **Managing Technical Debt** -- Philippe Kruchten, Robert Nord, Ipek Ozkaya (Addison-Wesley, 2019) -- SEI/CMU academic and practical framework for technical debt. Provides a systematic approach to debt classification, measurement, and management
+2. **Refactoring: Improving the Design of Existing Code, 2nd Edition** -- Martin Fowler (Addison-Wesley, 2018) -- Refactoring catalog for improving code quality. Essential reading as a concrete method for debt repayment
+3. **Technical Debt Quadrant** -- Martin Fowler (Blog, 2009) -- https://martinfowler.com/bliki/TechnicalDebtQuadrant.html -- Original source of the four-quadrant model
+4. **Software Design X-Rays** -- Adam Tornhill (Pragmatic Programmers, 2018) -- Practical guide to hotspot analysis using Git history (Code as a Crime Scene). Technique for prioritizing refactoring by change frequency × complexity
+5. **Accelerate: The Science of Lean Software and DevOps** -- Nicole Forsgren, Jez Humble, Gene Kim (IT Revolution, 2018) -- DORA metrics and organizational performance research. Evidence of the impact of ignoring technical debt on development speed
+6. **A Mess is not a Technical Debt** -- Robert C. Martin (Blog, 2009) -- An important discussion by Uncle Bob on distinguishing "messy code" from "technical debt"
+7. **The Financial Implications of Technical Debt** -- Steve McConnell (2007) -- Classification of intentional/unintentional debt and a business framework for debt management
