@@ -1,39 +1,39 @@
-# Decorator パターン
+# Decorator Pattern
 
-> オブジェクトに **動的に** 新しい機能を追加するための構造パターン。サブクラス化の代替として合成（コンポジション）を用い、機能の自由な組み合わせを実現する。
+> A structural pattern for **dynamically** adding new functionality to objects. It uses composition instead of subclassing to enable flexible combinations of features.
 
 ---
 
-## 前提知識
+## Prerequisites
 
-| トピック | 必要レベル | 参照先 |
+| Topic | Required Level | Reference |
 |---------|-----------|--------|
-| オブジェクト指向プログラミング | 基礎 | OOP基礎 |
-| インタフェースと抽象クラス | 基礎 | インタフェース設計 |
-| 合成（Composition）と委譲 | 理解 | 合成優先の原則 |
-| 開放閉鎖原則（OCP） | 理解 | SOLID |
-| TypeScript / Python のデコレータ構文 | 基礎 | 各言語ガイド |
+| Object-Oriented Programming | Basic | OOP Basics |
+| Interfaces and Abstract Classes | Basic | Interface Design |
+| Composition and Delegation | Understanding | Composition Over Inheritance |
+| Open/Closed Principle (OCP) | Understanding | SOLID |
+| TypeScript / Python decorator syntax | Basic | Language-specific guides |
 
 ---
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. Decorator パターンの**目的**と、なぜ継承ではなく合成で機能拡張するのか
-2. デコレータの**積み重ね（チェーン）** の仕組みと実行順序
-3. GoF の Decorator パターンと言語組み込みのデコレータ構文（TypeScript/Python）の関係
-4. HTTP クライアント・ストリーム処理・React HOC など実践的な活用パターン
-5. デコレータの過剰な積み重ねやインタフェース外依存などのアンチパターン
+1. The **purpose** of the Decorator pattern and why composition is used instead of inheritance for feature extension
+2. The mechanism and execution order of **decorator chaining (stacking)**
+3. The relationship between the GoF Decorator pattern and language-built-in decorator syntax (TypeScript/Python)
+4. Practical usage patterns such as HTTP clients, stream processing, and React HOCs
+5. Anti-patterns such as excessive decorator stacking and dependencies on methods outside the interface
 
 ---
 
-## なぜ Decorator パターンが必要なのか（WHY）
+## Why the Decorator Pattern Is Needed (WHY)
 
-### 問題: 継承による機能追加のクラス爆発
+### Problem: Class Explosion When Adding Features via Inheritance
 
-機能の組み合わせを全て継承で表現すると、クラスの数が爆発的に増加します。
+If you represent every combination of features using inheritance, the number of classes grows exponentially.
 
 ```
-[継承で機能追加する場合 — クラス爆発]
+[When adding features via inheritance — class explosion]
 
                      DataSource
                     /    |     \
@@ -43,10 +43,10 @@
           |
   CompressedEncryptedFileDS
 
-3つの機能の全組み合わせ → 2^3 = 8 クラスが必要
-N個の機能なら 2^N クラスが必要！
+All combinations of 3 features → 2^3 = 8 classes needed
+With N features, 2^N classes are needed!
 
-[Decorator で機能追加する場合 — 線形]
+[When adding features via Decorator — linear]
 
   DataSource (interface)
       △
@@ -60,48 +60,48 @@ N個の機能なら 2^N クラスが必要！
       |─── CompressionDecorator
       |─── LoggingDecorator
 
-3つの機能 → 3+1 = 4 クラスで全組み合わせをカバー
-N個の機能なら N+1 クラスで済む！
+3 features → 3+1 = 4 classes cover all combinations
+With N features, only N+1 classes are needed!
 ```
 
-### Decorator の本質: 入れ子構造による機能合成
+### The Essence of Decorator: Feature Composition via Nesting
 
 ```
-Client の呼び出し:
+Client call:
   source.write("Hello")
 
-実行時のオブジェクト構造:
+Runtime object structure:
 ┌───────────────────────────┐
-│    LoggingDecorator       │  ← ログ出力
+│    LoggingDecorator       │  ← Logging output
 │  ┌───────────────────┐    │
-│  │ CompressionDeco   │    │  ← 圧縮
+│  │ CompressionDeco   │    │  ← Compression
 │  │  ┌─────────────┐  │    │
-│  │  │ EncryptDeco │  │    │  ← 暗号化
+│  │  │ EncryptDeco │  │    │  ← Encryption
 │  │  │  ┌───────┐  │  │    │
-│  │  │  │FileDS │  │  │    │  ← 実処理
+│  │  │  │FileDS │  │  │    │  ← Actual processing
 │  │  │  └───────┘  │  │    │
 │  │  └─────────────┘  │    │
 │  └───────────────────┘    │
 └───────────────────────────┘
 
-write("Hello") の実行順序:
+Execution order for write("Hello"):
   Logging.write()
     → Compression.write()
       → Encryption.write()
-        → FileDS.write()  ← 実際のファイル書き込み
+        → FileDS.write()  ← Actual file write
 ```
 
-このパターンにより:
-- **開放閉鎖原則（OCP）**: 既存コードを変更せずに機能を追加
-- **単一責任原則（SRP）**: 各デコレータが1つの責務だけを担う
-- **実行時の柔軟性**: 機能の組み合わせと順序を実行時に変更可能
-- **テスト容易性**: 各デコレータを個別にテスト可能
+This pattern enables:
+- **Open/Closed Principle (OCP)**: Add features without modifying existing code
+- **Single Responsibility Principle (SRP)**: Each decorator has only one responsibility
+- **Runtime flexibility**: Feature combinations and ordering can be changed at runtime
+- **Testability**: Each decorator can be tested independently
 
 ---
 
-## 1. Decorator の構造
+## 1. Decorator Structure
 
-### クラス図
+### Class Diagram
 
 ```
 +------------------+
@@ -129,37 +129,37 @@ write("Hello") の実行順序:
        +-------------+  +-------------+
        | + operation |  | + operation |
        |  {          |  |  {          |
-       |   // 前処理 |  |   // 前処理 |
+       |   // pre    |  |   // pre    |
        |   super     |  |   super     |
        |   .operation|  |   .operation|
-       |   // 後処理 |  |   // 後処理 |
+       |   // post   |  |   // post   |
        |  }          |  |  }          |
        +-------------+  +-------------+
 ```
 
-### シーケンス図
+### Sequence Diagram
 
 ```
 Client    DecoratorA      DecoratorB      ConcreteComponent
   |           |                |                |
   |--op()---->|                |                |
-  |           |--前処理A       |                |
+  |           |--pre-process A |                |
   |           |--op()--------->|                |
-  |           |                |--前処理B       |
+  |           |                |--pre-process B |
   |           |                |--op()--------->|
-  |           |                |                |--実処理
+  |           |                |                |--actual processing
   |           |                |                |
   |           |                |<--result-------|
-  |           |                |--後処理B       |
+  |           |                |--post-process B|
   |           |<--result-------|                |
-  |           |--後処理A       |                |
+  |           |--post-process A|                |
   |<--result--|                |                |
 ```
 
-### Decorator チェーンの構築
+### Building a Decorator Chain
 
 ```
-// 構築方法1: コンストラクタのネスト
+// Approach 1: Nested constructors
 const source = new LoggingDecorator(
   new CompressionDecorator(
     new EncryptionDecorator(
@@ -168,7 +168,7 @@ const source = new LoggingDecorator(
   )
 );
 
-// 構築方法2: Builder パターンとの組み合わせ
+// Approach 2: Combining with the Builder pattern
 const source = DataSourceBuilder
   .from(new FileDataSource("data.txt"))
   .withEncryption()
@@ -176,7 +176,7 @@ const source = DataSourceBuilder
   .withLogging()
   .build();
 
-// 構築方法3: 関数パイプライン
+// Approach 3: Function pipeline
 const source = pipe(
   new FileDataSource("data.txt"),
   withEncryption,
@@ -187,12 +187,12 @@ const source = pipe(
 
 ---
 
-## 2. コード例
+## 2. Code Examples
 
-### コード例 1: データソース Decorator（基本形）
+### Code Example 1: Data Source Decorator (Basic Form)
 
 ```typescript
-// === Component インタフェース ===
+// === Component Interface ===
 interface DataSource {
   read(): string;
   write(data: string): void;
@@ -215,7 +215,7 @@ class FileDataSource implements DataSource {
   }
 }
 
-// === BaseDecorator（オプション: 共通の委譲ロジック）===
+// === BaseDecorator (optional: common delegation logic) ===
 abstract class DataSourceDecorator implements DataSource {
   constructor(protected wrapped: DataSource) {}
 
@@ -228,7 +228,7 @@ abstract class DataSourceDecorator implements DataSource {
   }
 }
 
-// === ConcreteDecorator 1: 暗号化 ===
+// === ConcreteDecorator 1: Encryption ===
 class EncryptionDecorator extends DataSourceDecorator {
   read(): string {
     const data = super.read();
@@ -252,7 +252,7 @@ class EncryptionDecorator extends DataSourceDecorator {
   }
 }
 
-// === ConcreteDecorator 2: 圧縮 ===
+// === ConcreteDecorator 2: Compression ===
 class CompressionDecorator extends DataSourceDecorator {
   read(): string {
     const data = super.read();
@@ -276,7 +276,7 @@ class CompressionDecorator extends DataSourceDecorator {
   }
 }
 
-// === ConcreteDecorator 3: ログ ===
+// === ConcreteDecorator 3: Logging ===
 class LoggingDecorator extends DataSourceDecorator {
   read(): string {
     console.log("[LOG] read() called");
@@ -294,7 +294,7 @@ class LoggingDecorator extends DataSourceDecorator {
   }
 }
 
-// === 使用例: デコレータの積み重ね ===
+// === Usage: Stacking decorators ===
 const source: DataSource = new LoggingDecorator(
   new CompressionDecorator(
     new EncryptionDecorator(
@@ -320,7 +320,7 @@ const data = source.read();
 
 ---
 
-### コード例 2: HTTP クライアント Decorator
+### Code Example 2: HTTP Client Decorator
 
 ```typescript
 // === Component ===
@@ -334,7 +334,7 @@ class FetchClient implements HttpClient {
   }
 }
 
-// === Decorator 1: リトライ ===
+// === Decorator 1: Retry ===
 class RetryDecorator implements HttpClient {
   constructor(
     private client: HttpClient,
@@ -362,7 +362,7 @@ class RetryDecorator implements HttpClient {
   }
 }
 
-// === Decorator 2: タイムアウト ===
+// === Decorator 2: Timeout ===
 class TimeoutDecorator implements HttpClient {
   constructor(private client: HttpClient, private timeoutMs = 5000) {}
 
@@ -381,7 +381,7 @@ class TimeoutDecorator implements HttpClient {
   }
 }
 
-// === Decorator 3: ロギング ===
+// === Decorator 3: Logging ===
 class LoggingHttpDecorator implements HttpClient {
   constructor(private client: HttpClient) {}
 
@@ -401,7 +401,7 @@ class LoggingHttpDecorator implements HttpClient {
   }
 }
 
-// === Decorator 4: 認証ヘッダー追加 ===
+// === Decorator 4: Add auth header ===
 class AuthDecorator implements HttpClient {
   constructor(
     private client: HttpClient,
@@ -416,7 +416,7 @@ class AuthDecorator implements HttpClient {
   }
 }
 
-// === Decorator 5: サーキットブレーカー ===
+// === Decorator 5: Circuit Breaker ===
 class CircuitBreakerDecorator implements HttpClient {
   private failures = 0;
   private lastFailure = 0;
@@ -462,7 +462,7 @@ class CircuitBreakerDecorator implements HttpClient {
   }
 }
 
-// === 組み立て ===
+// === Assembly ===
 const httpClient: HttpClient = new LoggingHttpDecorator(
   new CircuitBreakerDecorator(
     new RetryDecorator(
@@ -478,18 +478,18 @@ const httpClient: HttpClient = new LoggingHttpDecorator(
   )
 );
 
-// 実行順: Logging → CircuitBreaker → Retry → Timeout → Auth → Fetch
+// Execution order: Logging → CircuitBreaker → Retry → Timeout → Auth → Fetch
 ```
 
 ---
 
-### コード例 3: TypeScript TC39 デコレータ構文（Stage 3）
+### Code Example 3: TypeScript TC39 Decorator Syntax (Stage 3)
 
 ```typescript
 // TC39 Stage 3 Decorators (TypeScript 5+)
-// GoF の Decorator パターンとは異なるが、動機は共通
+// Different from the GoF Decorator pattern, but shares the same motivation
 
-// === メソッドデコレータ: ログ出力 ===
+// === Method decorator: Logging ===
 function logged(
   target: any,
   context: ClassMethodDecoratorContext
@@ -503,7 +503,7 @@ function logged(
   };
 }
 
-// === メソッドデコレータ: パフォーマンス計測 ===
+// === Method decorator: Performance measurement ===
 function timed(
   target: any,
   context: ClassMethodDecoratorContext
@@ -518,7 +518,7 @@ function timed(
   };
 }
 
-// === メソッドデコレータ: メモ化 ===
+// === Method decorator: Memoization ===
 function memoize(
   target: any,
   context: ClassMethodDecoratorContext
@@ -533,14 +533,14 @@ function memoize(
   };
 }
 
-// === メソッドデコレータ: バリデーション ===
+// === Method decorator: Validation ===
 function validate(schema: Record<string, (v: any) => boolean>) {
   return function (
     target: any,
     context: ClassMethodDecoratorContext
   ) {
     return function (this: any, ...args: any[]) {
-      // 最初の引数がオブジェクトの場合バリデーション
+      // Validate if first argument is an object
       const input = args[0];
       if (typeof input === "object" && input !== null) {
         for (const [key, validator] of Object.entries(schema)) {
@@ -554,7 +554,7 @@ function validate(schema: Record<string, (v: any) => boolean>) {
   };
 }
 
-// === 使用例 ===
+// === Usage ===
 class Calculator {
   @logged
   @timed
@@ -582,7 +582,7 @@ class UserService {
 
 ---
 
-### コード例 4: Python デコレータ（関数デコレータ + クラスデコレータ）
+### Code Example 4: Python Decorators (Function Decorators + Class Decorators)
 
 ```python
 import functools
@@ -593,9 +593,9 @@ from typing import Callable, TypeVar, ParamSpec
 P = ParamSpec("P")
 R = TypeVar("R")
 
-# === 関数デコレータ: リトライ ===
+# === Function decorator: Retry ===
 def retry(max_retries: int = 3, delay: float = 1.0, exceptions: tuple = (Exception,)):
-    """指定回数までリトライするデコレータ"""
+    """Decorator that retries up to the specified number of times"""
     def decorator(func: Callable[P, R]) -> Callable[P, R]:
         @functools.wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
@@ -617,9 +617,9 @@ def retry(max_retries: int = 3, delay: float = 1.0, exceptions: tuple = (Excepti
     return decorator
 
 
-# === 関数デコレータ: 実行時間計測 ===
+# === Function decorator: Execution time measurement ===
 def timed(func: Callable[P, R]) -> Callable[P, R]:
-    """実行時間を計測するデコレータ"""
+    """Decorator that measures execution time"""
     @functools.wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         start = time.perf_counter()
@@ -630,9 +630,9 @@ def timed(func: Callable[P, R]) -> Callable[P, R]:
     return wrapper
 
 
-# === 関数デコレータ: キャッシュ（TTL付き）===
+# === Function decorator: Cache with TTL ===
 def cache_with_ttl(ttl_seconds: float = 60.0):
-    """TTL付きキャッシュデコレータ"""
+    """Cache decorator with TTL"""
     def decorator(func: Callable[P, R]) -> Callable[P, R]:
         _cache: dict[str, tuple[R, float]] = {}
 
@@ -650,9 +650,9 @@ def cache_with_ttl(ttl_seconds: float = 60.0):
     return decorator
 
 
-# === 関数デコレータ: 入力バリデーション ===
+# === Function decorator: Input validation ===
 def validate_args(**validators: Callable):
-    """引数のバリデーションデコレータ"""
+    """Argument validation decorator"""
     def decorator(func: Callable[P, R]) -> Callable[P, R]:
         @functools.wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
@@ -673,11 +673,11 @@ def validate_args(**validators: Callable):
     return decorator
 
 
-# === 使用例 ===
+# === Usage ===
 @retry(max_retries=3, delay=0.5, exceptions=(ConnectionError, TimeoutError))
 @timed
 def fetch_data(url: str) -> dict:
-    """外部APIからデータを取得"""
+    """Fetch data from an external API"""
     import urllib.request
     response = urllib.request.urlopen(url)
     return {"status": response.status}
@@ -685,7 +685,7 @@ def fetch_data(url: str) -> dict:
 
 @cache_with_ttl(ttl_seconds=300)
 def get_config(key: str) -> str:
-    """設定値を取得（キャッシュ付き）"""
+    """Retrieve a configuration value (with cache)"""
     return f"value_for_{key}"
 
 
@@ -697,9 +697,9 @@ def create_user(name: str, age: int) -> dict:
     return {"name": name, "age": age}
 
 
-# クラスデコレータ: Singleton
+# Class decorator: Singleton
 def singleton(cls):
-    """シングルトンにするクラスデコレータ"""
+    """Class decorator that makes a class a singleton"""
     instances: dict = {}
 
     @functools.wraps(cls)
@@ -720,12 +720,12 @@ class DatabaseConnection:
 
 ---
 
-### コード例 5: React Higher-Order Component（HOC）as Decorator
+### Code Example 5: React Higher-Order Component (HOC) as Decorator
 
 ```typescript
 import React, { ComponentType, useEffect, useState } from "react";
 
-// === HOC 1: ローディング状態の追加 ===
+// === HOC 1: Adding loading state ===
 function withLoading<P extends object>(
   WrappedComponent: ComponentType<P>
 ): ComponentType<P & { isLoading?: boolean }> {
@@ -738,7 +738,7 @@ function withLoading<P extends object>(
   };
 }
 
-// === HOC 2: 認証ガード ===
+// === HOC 2: Auth guard ===
 function withAuth<P extends object>(
   WrappedComponent: ComponentType<P>
 ): ComponentType<P> {
@@ -751,7 +751,7 @@ function withAuth<P extends object>(
   };
 }
 
-// === HOC 3: エラーバウンダリ ===
+// === HOC 3: Error boundary ===
 function withErrorBoundary<P extends object>(
   WrappedComponent: ComponentType<P>,
   FallbackComponent: ComponentType<{ error: Error }>
@@ -772,7 +772,7 @@ function withErrorBoundary<P extends object>(
   };
 }
 
-// === HOC 4: パフォーマンストラッキング ===
+// === HOC 4: Performance tracking ===
 function withPerformanceTracking<P extends object>(
   WrappedComponent: ComponentType<P>,
   componentName: string
@@ -789,12 +789,12 @@ function withPerformanceTracking<P extends object>(
   };
 }
 
-// === 積み重ね ===
+// === Stacking ===
 const UserList: React.FC<{ users: User[] }> = ({ users }) => (
   <ul>{users.map(u => <li key={u.id}>{u.name}</li>)}</ul>
 );
 
-// デコレータの積み重ね（外側から内側へ適用）
+// Stacking decorators (applied from outer to inner)
 const EnhancedUserList = withErrorBoundary(
   withAuth(
     withLoading(
@@ -804,13 +804,13 @@ const EnhancedUserList = withErrorBoundary(
   ErrorFallback
 );
 
-// 現代の React では Hooks が主流だが、
-// HOC は条件付きレンダリングや Provider ラッピングでは依然有効
+// In modern React, Hooks are mainstream, but
+// HOCs remain valid for conditional rendering and Provider wrapping
 ```
 
 ---
 
-### コード例 6: Go — ミドルウェアパターン（Decorator の変形）
+### Code Example 6: Go — Middleware Pattern (Variant of Decorator)
 
 ```go
 package main
@@ -822,10 +822,10 @@ import (
     "time"
 )
 
-// === Middleware 型（Decorator の Go イディオム）===
+// === Middleware type (Go idiom for Decorator) ===
 type Middleware func(http.Handler) http.Handler
 
-// === Middleware 1: ロギング ===
+// === Middleware 1: Logging ===
 func LoggingMiddleware(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         start := time.Now()
@@ -835,7 +835,7 @@ func LoggingMiddleware(next http.Handler) http.Handler {
     })
 }
 
-// === Middleware 2: 認証 ===
+// === Middleware 2: Authentication ===
 func AuthMiddleware(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         token := r.Header.Get("Authorization")
@@ -847,7 +847,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
     })
 }
 
-// === Middleware 3: リカバリ ===
+// === Middleware 3: Recovery ===
 func RecoveryMiddleware(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         defer func() {
@@ -860,22 +860,22 @@ func RecoveryMiddleware(next http.Handler) http.Handler {
     })
 }
 
-// === Middleware チェーン ===
+// === Middleware chain ===
 func Chain(handler http.Handler, middlewares ...Middleware) http.Handler {
-    // 逆順に適用（最初に指定したミドルウェアが最外側）
+    // Apply in reverse order (first specified middleware is outermost)
     for i := len(middlewares) - 1; i >= 0; i-- {
         handler = middlewaresi
     }
     return handler
 }
 
-// === 使用例 ===
+// === Usage ===
 func main() {
     handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         fmt.Fprintln(w, "Hello, World!")
     })
 
-    // デコレータの積み重ね
+    // Stacking decorators
     enhanced := Chain(handler,
         RecoveryMiddleware,
         LoggingMiddleware,
@@ -889,18 +889,18 @@ func main() {
 
 ---
 
-### コード例 7: Java — I/O Streams（標準ライブラリの Decorator）
+### Code Example 7: Java — I/O Streams (Decorator in the Standard Library)
 
 ```java
 import java.io.*;
 
-// Java の I/O ストリームは Decorator パターンの典型例
+// Java's I/O streams are a classic example of the Decorator pattern
 
 public class JavaIODecoratorExample {
 
-    // === 読み込みの Decorator チェーン ===
+    // === Read Decorator chain ===
     public static void readExample() throws IOException {
-        // InputStream 階層:
+        // InputStream hierarchy:
         //   BufferedInputStream(Decorator)
         //     → DataInputStream(Decorator)
         //       → FileInputStream(ConcreteComponent)
@@ -914,9 +914,9 @@ public class JavaIODecoratorExample {
         }
     }
 
-    // === 書き込みの Decorator チェーン ===
+    // === Write Decorator chain ===
     public static void writeExample() throws IOException {
-        // OutputStream 階層:
+        // OutputStream hierarchy:
         //   BufferedOutputStream(Decorator)
         //     → GZIPOutputStream(Decorator)
         //       → FileOutputStream(ConcreteComponent)
@@ -928,7 +928,7 @@ public class JavaIODecoratorExample {
         }
     }
 
-    // === カスタム Decorator ===
+    // === Custom Decorator ===
     static class CountingInputStream extends FilterInputStream {
         private long bytesRead = 0;
 
@@ -959,10 +959,10 @@ public class JavaIODecoratorExample {
 
 ---
 
-### コード例 8: Kotlin — 拡張関数とデコレータ
+### Code Example 8: Kotlin — Extension Functions and Decorator
 
 ```kotlin
-// Kotlin のデリゲーションパターンで Decorator を実装
+// Implementing Decorator with Kotlin's delegation pattern
 
 interface Logger {
     fun log(level: String, message: String)
@@ -976,7 +976,7 @@ class ConsoleLogger : Logger {
     override fun close() {}
 }
 
-// Kotlin の by キーワードによるデリゲーション
+// Delegation via Kotlin's by keyword
 class TimestampLogger(private val inner: Logger) : Logger by inner {
     override fun log(level: String, message: String) {
         val timestamp = java.time.LocalDateTime.now()
@@ -997,29 +997,29 @@ class FilterLogger(
     }
 }
 
-// 積み重ね
+// Stacking
 fun main() {
     val logger: Logger = FilterLogger(
         TimestampLogger(ConsoleLogger()),
         "INFO"
     )
 
-    logger.log("DEBUG", "This will be filtered")  // 出力なし
-    logger.log("INFO", "Application started")      // 出力あり
-    logger.log("ERROR", "Something went wrong")    // 出力あり
+    logger.log("DEBUG", "This will be filtered")  // No output
+    logger.log("INFO", "Application started")      // Output
+    logger.log("ERROR", "Something went wrong")    // Output
 }
 ```
 
 ---
 
-### コード例 9: 関数合成による軽量 Decorator
+### Code Example 9: Lightweight Decorator via Function Composition
 
 ```typescript
-// クラスを使わず、関数合成でデコレータを実現
+// Achieving decorators via function composition without classes
 
 type AsyncFn<T> = (...args: any[]) => Promise<T>;
 
-// === Decorator Factory 関数 ===
+// === Decorator Factory functions ===
 function withRetry<T>(fn: AsyncFn<T>, maxRetries = 3): AsyncFn<T> {
   return async (...args) => {
     for (let i = 0; i <= maxRetries; i++) {
@@ -1058,7 +1058,7 @@ function withLogging<T>(fn: AsyncFn<T>, name: string): AsyncFn<T> {
   };
 }
 
-// === pipe ユーティリティ ===
+// === pipe utility ===
 function pipe<T>(
   fn: AsyncFn<T>,
   ...decorators: Array<(fn: AsyncFn<T>) => AsyncFn<T>>
@@ -1066,13 +1066,13 @@ function pipe<T>(
   return decorators.reduce((acc, decorator) => decorator(acc), fn);
 }
 
-// === 使用例 ===
+// === Usage ===
 async function fetchUser(id: string): Promise<{ name: string }> {
   const res = await fetch(`/api/users/${id}`);
   return res.json();
 }
 
-// 関数合成でデコレータを積み重ね
+// Stacking decorators via function composition
 const enhancedFetchUser = pipe(
   fetchUser,
   fn => withTimeout(fn, 5000),
@@ -1085,7 +1085,7 @@ const user = await enhancedFetchUser("123");
 
 ---
 
-### コード例 10: Node.js Stream Transform（実践的 Decorator）
+### Code Example 10: Node.js Stream Transform (Practical Decorator)
 
 ```typescript
 import { Transform, TransformCallback, Readable, pipeline } from "stream";
@@ -1093,7 +1093,7 @@ import { promisify } from "util";
 
 const pipelineAsync = promisify(pipeline);
 
-// === Transform 1: JSON パース ===
+// === Transform 1: JSON parsing ===
 class JsonParseTransform extends Transform {
   constructor() {
     super({ objectMode: true });
@@ -1110,7 +1110,7 @@ class JsonParseTransform extends Transform {
   }
 }
 
-// === Transform 2: フィルタリング ===
+// === Transform 2: Filtering ===
 class FilterTransform extends Transform {
   constructor(private predicate: (item: any) => boolean) {
     super({ objectMode: true });
@@ -1124,7 +1124,7 @@ class FilterTransform extends Transform {
   }
 }
 
-// === Transform 3: マッピング ===
+// === Transform 3: Mapping ===
 class MapTransform extends Transform {
   constructor(private mapper: (item: any) => any) {
     super({ objectMode: true });
@@ -1140,7 +1140,7 @@ class MapTransform extends Transform {
   }
 }
 
-// === Transform 4: バッチ集約 ===
+// === Transform 4: Batch aggregation ===
 class BatchTransform extends Transform {
   private buffer: any[] = [];
 
@@ -1165,70 +1165,70 @@ class BatchTransform extends Transform {
   }
 }
 
-// === パイプラインでデコレータをチェーン ===
+// === Chaining decorators with a pipeline ===
 async function processLogs(): Promise<void> {
   await pipelineAsync(
-    Readable.from(logLines),           // ソース
-    new JsonParseTransform(),           // JSON パース（Decorator 1）
-    new FilterTransform(                // フィルタ（Decorator 2）
+    Readable.from(logLines),           // Source
+    new JsonParseTransform(),           // JSON parsing (Decorator 1)
+    new FilterTransform(                // Filtering (Decorator 2)
       log => log.level === "error"
     ),
-    new MapTransform(                   // 変換（Decorator 3）
+    new MapTransform(                   // Transformation (Decorator 3)
       log => ({ message: log.message, timestamp: log.ts })
     ),
-    new BatchTransform(100),            // バッチ（Decorator 4）
-    createWriteStream("errors.jsonl")   // 出力先
+    new BatchTransform(100),            // Batching (Decorator 4)
+    createWriteStream("errors.jsonl")   // Output destination
   );
 }
 ```
 
 ---
 
-## 3. 比較表
+## 3. Comparison Tables
 
-### 比較表 1: Decorator vs 継承
+### Comparison Table 1: Decorator vs Inheritance
 
-| 観点 | Decorator（合成） | 継承 |
+| Aspect | Decorator (Composition) | Inheritance |
 |------|:---:|:---:|
-| 機能追加タイミング | **実行時（動的）** | コンパイル時（静的） |
-| 組み合わせ | **自由に積み重ね可能** | クラス爆発 |
-| 既存コード変更 | **不要** | サブクラス追加 |
-| OCP 準拠 | **Yes** | 部分的 |
-| SRP 準拠 | **Yes**（1デコレータ=1責務） | 違反しやすい |
-| デバッグ | スタックトレースが深い | **直感的** |
-| パフォーマンス | 間接呼び出しコスト | **直接呼び出し** |
-| 型安全性 | **インタフェースで保証** | 継承階層で保証 |
+| When features are added | **Runtime (dynamic)** | Compile time (static) |
+| Combinations | **Freely stackable** | Class explosion |
+| Modifying existing code | **Not required** | Subclass must be added |
+| OCP compliance | **Yes** | Partial |
+| SRP compliance | **Yes** (1 decorator = 1 responsibility) | Easily violated |
+| Debugging | Stack traces are deep | **Intuitive** |
+| Performance | Indirect call overhead | **Direct calls** |
+| Type safety | **Guaranteed by interface** | Guaranteed by inheritance hierarchy |
 
-### 比較表 2: GoF Decorator vs 言語デコレータ構文
+### Comparison Table 2: GoF Decorator vs Language Decorator Syntax
 
-| 観点 | GoF Decorator パターン | TypeScript/Python デコレータ |
+| Aspect | GoF Decorator Pattern | TypeScript/Python Decorators |
 |------|:---:|:---:|
-| **適用対象** | オブジェクト（インスタンス） | クラス/メソッド/プロパティ |
-| **適用タイミング** | **実行時**（動的） | **定義時**（静的） |
-| **インタフェース維持** | **明示的に保証** | 暗黙的 |
-| **積み重ね** | コンストラクタのネスト | `@` 構文の積み重ね |
-| **主な用途** | 機能のラッピング | メタプログラミング、AOP |
-| **状態管理** | デコレータがフィールドを持てる | クロージャで保持 |
-| **テスト** | 個別にテスト可能 | 関数単位でテスト |
+| **Target** | Objects (instances) | Classes/methods/properties |
+| **When applied** | **Runtime** (dynamic) | **Definition time** (static) |
+| **Interface preservation** | **Explicitly guaranteed** | Implicit |
+| **Stacking** | Nested constructors | `@` syntax stacking |
+| **Primary use** | Feature wrapping | Metaprogramming, AOP |
+| **State management** | Decorator can hold fields | Held via closure |
+| **Testing** | Each testable individually | Testable per function |
 
-### 比較表 3: Decorator vs Proxy vs Adapter
+### Comparison Table 3: Decorator vs Proxy vs Adapter
 
-| 観点 | Decorator | Proxy | Adapter |
+| Aspect | Decorator | Proxy | Adapter |
 |------|:---:|:---:|:---:|
-| **目的** | 機能**追加** | アクセス**制御** | インタフェース**変換** |
-| **インタフェース** | **同じ** | **同じ** | **変換** |
-| **積み重ね** | **可能** | 通常1層 | 通常1層 |
-| **RealSubject管理** | 外部から受け取る | **自身で管理** | 外部から受け取る |
-| **OCP** | **準拠** | 準拠 | 準拠 |
+| **Purpose** | Feature **addition** | Access **control** | Interface **conversion** |
+| **Interface** | **Same** | **Same** | **Converted** |
+| **Stacking** | **Possible** | Usually 1 layer | Usually 1 layer |
+| **RealSubject management** | Received from outside | **Managed internally** | Received from outside |
+| **OCP** | **Compliant** | Compliant | Compliant |
 
 ---
 
-## 4. アンチパターン
+## 4. Anti-Patterns
 
-### アンチパターン 1: デコレータの過剰な積み重ね
+### Anti-Pattern 1: Excessive Decorator Stacking
 
 ```typescript
-// NG: 5層以上のデコレータ → デバッグ困難
+// NG: 5+ layers of decorators → hard to debug
 const client = new MetricsDecorator(
   new CircuitBreakerDecorator(
     new RetryDecorator(
@@ -1244,11 +1244,11 @@ const client = new MetricsDecorator(
     )
   )
 );
-// 7層のネスト → スタックトレースが非常に深い
+// 7 layers of nesting → very deep stack traces
 ```
 
 ```typescript
-// OK: ミドルウェアパターンやパイプラインで宣言的に構成
+// OK: Declare configuration using middleware pattern or pipeline
 const client = createHttpClient({
   middlewares: [
     metrics(),
@@ -1264,15 +1264,15 @@ const client = createHttpClient({
 
 ---
 
-### アンチパターン 2: デコレータがインタフェース外のメソッドに依存
+### Anti-Pattern 2: Decorator Depending on Methods Outside the Interface
 
 ```typescript
-// NG: Component インタフェースにない getFilename() にキャストしてアクセス
+// NG: Accessing getFilename() by casting to a type not in the Component interface
 class BadCachingDecorator implements DataSource {
   constructor(private wrapped: DataSource) {}
 
   read(): string {
-    // 具象クラスに依存 → Decorator パターンの利点が失われる
+    // Depends on concrete class → loses the benefits of the Decorator pattern
     const name = (this.wrapped as FileDataSource).getFilename();
     const cached = this.cache.get(name);
     if (cached) return cached;
@@ -1286,7 +1286,7 @@ class BadCachingDecorator implements DataSource {
 ```
 
 ```typescript
-// OK: Component インタフェースのみに依存
+// OK: Depend only on the Component interface
 class GoodCachingDecorator implements DataSource {
   private cachedData: string | null = null;
 
@@ -1299,7 +1299,7 @@ class GoodCachingDecorator implements DataSource {
   }
 
   write(data: string): void {
-    this.cachedData = null; // キャッシュ無効化
+    this.cachedData = null; // Invalidate cache
     this.wrapped.write(data);
   }
 }
@@ -1307,31 +1307,31 @@ class GoodCachingDecorator implements DataSource {
 
 ---
 
-### アンチパターン 3: デコレータ順序の暗黙的な依存
+### Anti-Pattern 3: Implicit Order Dependencies Between Decorators
 
 ```typescript
-// NG: デコレータの順序を間違えると壊れる
-// 暗号化してから圧縮すると、暗号化データは圧縮効率が悪い
+// NG: Wrong decorator order causes breakage
+// Compressing after encryption yields poor compression efficiency
 
-// 悪い順序（暗号化 → 圧縮: 圧縮効率が悪い）
+// Bad order (encrypt → compress: poor compression)
 const bad = new CompressionDecorator(
   new EncryptionDecorator(new FileDataSource("data.txt"))
 );
 
-// 良い順序（圧縮 → 暗号化: 圧縮効率が良い）
+// Good order (compress → encrypt: better compression)
 const good = new EncryptionDecorator(
   new CompressionDecorator(new FileDataSource("data.txt"))
 );
 ```
 
 ```typescript
-// OK: Builder パターンで順序を制御し、ドキュメント化する
+// OK: Control order with the Builder pattern and document it
 class DataSourceBuilder {
   private decorators: Array<(ds: DataSource) => DataSource> = [];
 
   constructor(private base: DataSource) {}
 
-  // 圧縮 → 暗号化の順序を Builder が保証
+  // Builder guarantees the order: compress → encrypt
   withCompressionAndEncryption(): this {
     this.decorators.push(ds => new CompressionDecorator(ds));
     this.decorators.push(ds => new EncryptionDecorator(ds));
@@ -1354,12 +1354,12 @@ class DataSourceBuilder {
 
 ---
 
-## 5. エッジケースと注意点
+## 5. Edge Cases and Caveats
 
-### エッジケース 1: デコレータ内での例外処理
+### Edge Case 1: Exception Handling Inside a Decorator
 
 ```typescript
-// デコレータが例外を握りつぶすと、デバッグが困難になる
+// Swallowing exceptions in a decorator makes debugging very difficult
 class SafeDecorator implements DataSource {
   constructor(private wrapped: DataSource) {}
 
@@ -1367,10 +1367,10 @@ class SafeDecorator implements DataSource {
     try {
       return this.wrapped.read();
     } catch (error) {
-      // NG: 例外を握りつぶして空文字を返す
+      // NG: Swallow the exception and return an empty string
       // return "";
 
-      // OK: ログを出力してから再 throw
+      // OK: Log the error and re-throw
       console.error("Read failed:", error);
       throw error;
     }
@@ -1382,34 +1382,34 @@ class SafeDecorator implements DataSource {
 }
 ```
 
-### エッジケース 2: デコレータの等価性とアイデンティティ
+### Edge Case 2: Decorator Equality and Identity
 
 ```typescript
 const base = new FileDataSource("data.txt");
 const decorated = new LoggingDecorator(base);
 
-// デコレータは元のオブジェクトとは別のインスタンス
+// The decorator is a separate instance from the original object
 console.log(decorated === base);           // false
 console.log(decorated instanceof FileDataSource); // false
 
-// Set や Map のキーとして使う場合に注意
+// Be careful when using as keys in Set or Map
 const set = new Set<DataSource>();
 set.add(base);
 set.add(decorated);
-console.log(set.size); // 2（同じ base を指すが別オブジェクト）
+console.log(set.size); // 2 (points to same base but different objects)
 ```
 
-### エッジケース 3: 非同期デコレータの順序保証
+### Edge Case 3: Ordering Guarantees in Async Decorators
 
 ```typescript
-// 非同期デコレータでは、前後処理の順序に注意
+// Be careful about the order of pre/post processing in async decorators
 class AsyncLoggingDecorator implements AsyncDataSource {
   constructor(private wrapped: AsyncDataSource) {}
 
   async read(): Promise<string> {
     console.log("Before read");
     const result = await this.wrapped.read();
-    console.log("After read"); // await の後なので確実に後処理
+    console.log("After read"); // After await, so post-processing is guaranteed
     return result;
   }
 }
@@ -1417,56 +1417,59 @@ class AsyncLoggingDecorator implements AsyncDataSource {
 
 ---
 
-## 6. トレードオフ分析
+## 6. Trade-off Analysis
 
 ```
-[使うべき場面] ✅
+[When to use] ✅
 ┌─────────────────────────────────────────────────┐
-│ 1. 機能の自由な組み合わせが必要                   │
-│    例: ストリーム処理、HTTP ミドルウェア           │
+│ 1. Need free combinations of features            │
+│    e.g., stream processing, HTTP middleware      │
 │                                                  │
-│ 2. 既存コードを変更せずに機能追加したい           │
-│    例: サードパーティライブラリの拡張             │
+│ 2. Want to add features without changing         │
+│    existing code                                 │
+│    e.g., extending third-party libraries         │
 │                                                  │
-│ 3. 横断的関心事の分離                             │
-│    例: ログ、キャッシュ、認証、リトライ           │
+│ 3. Separation of cross-cutting concerns          │
+│    e.g., logging, caching, auth, retry           │
 │                                                  │
-│ 4. 実行時に機能の ON/OFF を切り替えたい           │
-│    例: フィーチャーフラグ、設定ベースの切替       │
+│ 4. Want to toggle features ON/OFF at runtime     │
+│    e.g., feature flags, config-based switching   │
 └─────────────────────────────────────────────────┘
 
-[使うべきでない場面] ❌
+[When not to use] ❌
 ┌─────────────────────────────────────────────────┐
-│ 1. 機能の組み合わせが固定的                       │
-│    → 継承やメソッドの直接追加の方がシンプル       │
+│ 1. Feature combinations are fixed                │
+│    → Inheritance or direct method addition       │
+│      is simpler                                  │
 │                                                  │
-│ 2. デコレータの順序が重要で間違えやすい           │
-│    → 順序を強制する仕組み（Builder等）が必要     │
+│ 2. Decorator order is critical and error-prone   │
+│    → Need a mechanism to enforce order           │
+│      (e.g., Builder)                             │
 │                                                  │
-│ 3. パフォーマンスが最重要                         │
-│    → 間接呼び出しのオーバーヘッドが問題          │
+│ 3. Performance is the top priority               │
+│    → Indirect call overhead is a concern         │
 │                                                  │
-│ 4. チーム全員がパターンを理解していない           │
-│    → 可読性が低下する                            │
+│ 4. Not all team members understand the pattern   │
+│    → Readability may decrease                    │
 └─────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 7. 演習問題
+## 7. Exercises
 
-### 演習 1（基礎）: テキスト変換 Decorator
+### Exercise 1 (Basic): Text Transformation Decorator
 
-`TextProcessor` インタフェースに対して3つのデコレータを実装してください。
+Implement three decorators for the `TextProcessor` interface.
 
-**要件**:
+**Requirements**:
 - `TextProcessor`: `process(text: string): string`
-- `UpperCaseDecorator`: 全て大文字に変換
-- `TrimDecorator`: 前後の空白を除去
-- `CensorDecorator`: 指定した単語を `***` に置換
+- `UpperCaseDecorator`: Convert all characters to uppercase
+- `TrimDecorator`: Remove leading and trailing whitespace
+- `CensorDecorator`: Replace specified words with `***`
 
 ```typescript
-// テスト
+// Test
 const processor: TextProcessor = new CensorDecorator(
   new TrimDecorator(
     new UpperCaseDecorator(
@@ -1480,10 +1483,10 @@ console.log(processor.process("  Hello bad World  "));
 // "HELLO *** WORLD"
 ```
 
-**期待される出力**: `HELLO *** WORLD`
+**Expected output**: `HELLO *** WORLD`
 
 <details>
-<summary>解答例</summary>
+<summary>Sample Solution</summary>
 
 ```typescript
 interface TextProcessor {
@@ -1531,19 +1534,19 @@ console.log(processor.process("  Hello bad World  ")); // "HELLO *** WORLD"
 
 ---
 
-### 演習 2（応用）: HTTP クライアント Decorator チェーン
+### Exercise 2 (Applied): HTTP Client Decorator Chain
 
-以下のデコレータを組み合わせて堅牢な HTTP クライアントを構築してください。
+Build a robust HTTP client by combining the following decorators.
 
-**要件**:
-- `HttpClient` インタフェース: `get(url): Promise<Response>`
-- `RetryDecorator`: 指数バックオフでリトライ
-- `CacheDecorator`: TTL 付きキャッシュ
-- `LoggingDecorator`: リクエスト/レスポンスログ
-- 適切な順序で積み重ねること
+**Requirements**:
+- `HttpClient` interface: `get(url): Promise<Response>`
+- `RetryDecorator`: Retry with exponential backoff
+- `CacheDecorator`: Cache with TTL
+- `LoggingDecorator`: Request/response logging
+- Stack them in the appropriate order
 
 <details>
-<summary>解答例</summary>
+<summary>Sample Solution</summary>
 
 ```typescript
 interface HttpClient {
@@ -1606,18 +1609,18 @@ const client = new LoggingDecorator(
 
 ---
 
-### 演習 3（上級）: 型安全な Decorator Builder
+### Exercise 3 (Advanced): Type-Safe Decorator Builder
 
-デコレータの積み重ねを型安全に構築できる Builder を実装してください。
+Implement a Builder that can construct a stack of decorators in a type-safe manner.
 
-**要件**:
-- `DecoratorBuilder<T>` クラス
-- `wrap(decorator)` メソッドでデコレータを追加
-- `build()` で最終的なデコレートされたオブジェクトを返す
-- TypeScript の型推論で、build() の戻り値型が正しく推論される
+**Requirements**:
+- `DecoratorBuilder<T>` class
+- `wrap(decorator)` method to add a decorator
+- `build()` returns the final decorated object
+- TypeScript type inference correctly infers the return type of `build()`
 
 <details>
-<summary>解答例</summary>
+<summary>Sample Solution</summary>
 
 ```typescript
 class DecoratorBuilder<T> {
@@ -1642,7 +1645,7 @@ class DecoratorBuilder<T> {
   }
 }
 
-// 使用例
+// Usage
 const source = DecoratorBuilder.from<DataSource>(new FileDataSource("data.txt"))
   .wrap(ds => new EncryptionDecorator(ds))
   .wrap(ds => new CompressionDecorator(ds))
@@ -1655,93 +1658,93 @@ const source = DecoratorBuilder.from<DataSource>(new FileDataSource("data.txt"))
 
 ## 8. FAQ
 
-### Q1: Decorator と Proxy の違いは何ですか？
+### Q1: What is the difference between Decorator and Proxy?
 
-構造は同じ（wrapped オブジェクトに委譲）ですが、**意図が異なります**:
-- **Decorator**: 機能を**追加**する（ログ、圧縮、暗号化）
-- **Proxy**: アクセスを**制御**する（遅延初期化、権限チェック、キャッシュ）
+The structure is the same (delegation to a wrapped object), but **the intent differs**:
+- **Decorator**: **Adds** functionality (logging, compression, encryption)
+- **Proxy**: **Controls** access (lazy initialization, permission checks, caching)
 
-実用上は区別が曖昧になることもあります。キャッシュは「機能追加」とも「アクセス制御」とも解釈できます。
+In practice, the distinction can become blurry. Caching can be interpreted as either "adding functionality" or "controlling access."
 
-### Q2: TypeScript のデコレータ構文は GoF の Decorator パターンですか？
+### Q2: Is TypeScript's decorator syntax the same as the GoF Decorator pattern?
 
-厳密には異なります。GoF Decorator はオブジェクトレベルの合成パターンで、実行時に動的に適用します。TypeScript/Python のデコレータ構文はクラス/メソッド定義へのメタプログラミングで、定義時に静的に適用されます。ただし「既存の振る舞いを非侵入的に拡張する」という動機は共通しています。
+Strictly speaking, they are different. The GoF Decorator is an object-level composition pattern applied dynamically at runtime. TypeScript/Python decorator syntax is metaprogramming applied to class/method definitions statically at definition time. However, they share the common motivation of "extending existing behavior non-invasively."
 
-### Q3: React Hooks が登場して HOC（Decorator）は不要になりましたか？
+### Q3: Now that React Hooks exist, are HOCs (Decorators) obsolete?
 
-多くのユースケースで Hooks が HOC を置き換えましたが、以下では HOC が依然有効です:
-- **条件付きレンダリング**: 認証ガード（未認証ならリダイレクト）
-- **Provider ラッピング**: テーマ、国際化などのコンテキスト提供
-- **エラーバウンダリ**: クラスコンポーネントのライフサイクルが必要
-- **クロスカッティング**: 複数コンポーネントへの一括適用
+Hooks have replaced HOCs in many use cases, but HOCs remain effective in the following:
+- **Conditional rendering**: Auth guards (redirect if unauthenticated)
+- **Provider wrapping**: Providing contexts such as themes, internationalization
+- **Error boundaries**: Requires class component lifecycle methods
+- **Cross-cutting concerns**: Bulk application to multiple components
 
-### Q4: デコレータの積み重ね順序はどう決めるべきですか？
+### Q4: How should I decide the stacking order of decorators?
 
-一般的な原則:
-1. **外側**: 横断的関心事（ログ、メトリクス）
-2. **中間**: 回復力（リトライ、サーキットブレーカー、タイムアウト）
-3. **内側**: ビジネス寄りの処理（認証、バリデーション）
-4. **最内側**: ConcreteComponent
+General principles:
+1. **Outermost**: Cross-cutting concerns (logging, metrics)
+2. **Middle**: Resilience (retry, circuit breaker, timeout)
+3. **Inner**: Business-related processing (authentication, validation)
+4. **Innermost**: ConcreteComponent
 
-### Q5: Decorator パターンとミドルウェアパターンの関係は？
+### Q5: What is the relationship between the Decorator pattern and the middleware pattern?
 
-ミドルウェアパターンは Decorator パターンの宣言的な変形です。Express.js、Koa、Go の net/http など、多くの Web フレームワークがミドルウェアパターンを採用しています。本質は同じですが、ミドルウェアは配列ベースの設定が可能で、動的な追加・削除が容易です。
+The middleware pattern is a declarative variant of the Decorator pattern. Many web frameworks such as Express.js, Koa, and Go's net/http adopt the middleware pattern. The essence is the same, but middleware allows array-based configuration and makes dynamic addition and removal easier.
 
-### Q6: Java の I/O ストリームが Decorator パターンの代表例とされるのはなぜですか？
+### Q6: Why are Java's I/O streams considered a classic example of the Decorator pattern?
 
-Java の `java.io` パッケージは GoF Decorator パターンの最も有名な実装例です:
+Java's `java.io` package is the most well-known implementation of the GoF Decorator pattern:
 - `InputStream`/`OutputStream` = Component
 - `FileInputStream`/`FileOutputStream` = ConcreteComponent
 - `FilterInputStream`/`FilterOutputStream` = BaseDecorator
 - `BufferedInputStream`, `DataInputStream`, `GZIPInputStream` = ConcreteDecorator
 
-機能を自由に組み合わせられる一方で、ネストが深くなるという Decorator パターンのトレードオフも体現しています。
+It embodies both the benefit of freely combining features and the trade-off of deep nesting characteristic of the Decorator pattern.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world development?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architectural design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| **目的** | 動的に機能を追加する（継承の代替） |
-| **手段** | 合成（has-a）でラッピング、同一インタフェースを維持 |
-| **利点** | 柔軟な組み合わせ、OCP/SRP 準拠、実行時の動的構成 |
-| **欠点** | 多層化でデバッグ困難、順序依存の可能性 |
-| **GoF vs 言語** | GoF = オブジェクトレベル、TS/Python = メソッド/クラスレベル |
-| **実装バリエーション** | クラス、関数合成、HOC、ミドルウェア、Stream Transform |
-| **注意** | 過剰な積み重ね回避、インタフェース外依存禁止、順序の明文化 |
+| **Purpose** | Add features dynamically (alternative to inheritance) |
+| **Approach** | Wrapping via composition (has-a), maintaining the same interface |
+| **Benefits** | Flexible combinations, OCP/SRP compliance, dynamic runtime configuration |
+| **Drawbacks** | Difficult debugging with many layers, potential order dependencies |
+| **GoF vs Language** | GoF = object level, TS/Python = method/class level |
+| **Implementation variants** | Classes, function composition, HOC, middleware, Stream Transform |
+| **Cautions** | Avoid excessive stacking, no out-of-interface dependencies, document ordering |
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
-- [Proxy パターン](./03-proxy.md) — アクセス制御（Decorator と構造が同じだが目的が異なる）
-- [Adapter パターン](./00-adapter.md) — インタフェース変換
-- [Strategy パターン](../02-behavioral/01-strategy.md) — アルゴリズムの交換
-- [Composite パターン](./04-composite.md) — ツリー構造
-- 合成優先の原則 — 継承より合成
-- Chain of Responsibility — 処理チェーン
+- [Proxy Pattern](./03-proxy.md) — Access control (same structure as Decorator but different purpose)
+- [Adapter Pattern](./00-adapter.md) — Interface conversion
+- [Strategy Pattern](../02-behavioral/01-strategy.md) — Algorithm swapping
+- [Composite Pattern](./04-composite.md) — Tree structures
+- Composition Over Inheritance — Prefer composition over inheritance
+- Chain of Responsibility — Processing chains
 
 ---
 
-## 参考文献
+## References
 
 1. Gamma, E. et al. (1994). *Design Patterns: Elements of Reusable Object-Oriented Software*. Addison-Wesley.
 2. Freeman, E. et al. (2004). *Head First Design Patterns*. O'Reilly Media. — Chapter 3: Decorator Pattern
