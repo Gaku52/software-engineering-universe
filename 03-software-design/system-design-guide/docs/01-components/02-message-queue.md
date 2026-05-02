@@ -1,173 +1,174 @@
-# メッセージキュー
+# Message Queue
 
-> 分散システムにおける非同期メッセージングの基盤技術であり、コンポーネント間の疎結合・スケーラビリティ・耐障害性を実現する中核パターンを、Kafka・RabbitMQ・SQS の実装比較を通じて解説する
+> A foundational technology for asynchronous messaging in distributed systems; explains core patterns for achieving loose coupling, scalability, and fault tolerance between components through a comparative look at Kafka, RabbitMQ, and SQS implementations
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **メッセージキューの基本概念** -- Producer/Consumer モデル、キューとトピックの違い、配信保証（At-most-once / At-least-once / Exactly-once）
-2. **主要プロダクトの比較と選定** -- Apache Kafka、RabbitMQ、Amazon SQS のアーキテクチャ・性能特性・適材適所
-3. **実践的な設計パターン** -- Dead Letter Queue、バックプレッシャー、べき等処理、順序保証の実装手法
-4. **運用とモニタリング** -- Consumer Lag 監視、キュー深度アラート、パフォーマンスチューニング
-5. **障害対応パターン** -- メッセージ再処理、ポイズンメッセージ対策、グレースフルシャットダウン
+1. **Fundamental Concepts of Message Queues** -- Producer/Consumer model, the difference between queues and topics, delivery guarantees (At-most-once / At-least-once / Exactly-once)
+2. **Comparing and Selecting Major Products** -- Architecture, performance characteristics, and appropriate use cases for Apache Kafka, RabbitMQ, and Amazon SQS
+3. **Practical Design Patterns** -- Dead Letter Queue, backpressure, idempotent processing, and techniques for guaranteeing message ordering
+4. **Operations and Monitoring** -- Consumer Lag monitoring, queue depth alerts, performance tuning
+5. **Failure Response Patterns** -- Message reprocessing, poison message handling, graceful shutdown
 
 ---
 
-## 前提知識
+## Prerequisites
 
-| トピック | 内容 | 参照ガイド |
+| Topic | Content | Reference Guide |
 |---------|------|-----------|
-| 分散システム基礎 | CAP定理、結果整合性 | [CAP定理](../00-fundamentals/03-cap-theorem.md) |
-| 信頼性パターン | リトライ、サーキットブレーカー | [信頼性](../00-fundamentals/02-reliability.md) |
-| スケーラビリティ | 水平スケーリングの概念 | [スケーラビリティ](../00-fundamentals/01-scalability.md) |
-| データベース基礎 | トランザクション、ACID特性 | DB基礎 |
-| ネットワーク基礎 | TCP/IP、HTTP、非同期通信 | ネットワーク基礎 |
+| Distributed Systems Basics | CAP theorem, eventual consistency | [CAP Theorem](../00-fundamentals/03-cap-theorem.md) |
+| Reliability Patterns | Retry, circuit breaker | [Reliability](../00-fundamentals/02-reliability.md) |
+| Scalability | Concept of horizontal scaling | [Scalability](../00-fundamentals/01-scalability.md) |
+| Database Basics | Transactions, ACID properties | DB Basics |
+| Network Basics | TCP/IP, HTTP, asynchronous communication | Network Basics |
 
 ---
 
-## なぜメッセージキューを学ぶのか
+## Why Learn Message Queues
 
-メッセージキューは**マイクロサービスアーキテクチャの接着剤**であり、現代の分散システムにおいて不可欠なインフラコンポーネントである。
+Message queues are the **glue of microservice architectures** and are an indispensable infrastructure component in modern distributed systems.
 
-**同期 vs 非同期の本質的な違い:**
+**The essential difference between synchronous and asynchronous:**
 ```
-同期呼び出し（HTTP直接通信）:
+Synchronous call (direct HTTP communication):
   OrderService --HTTP POST--> PaymentService --wait--> response
-  問題: PaymentService がダウン → OrderService もエラー（カスケード障害）
-  問題: PaymentService が遅い → OrderService も遅い（レイテンシ結合）
+  Problem: PaymentService goes down → OrderService also errors (cascade failure)
+  Problem: PaymentService is slow → OrderService is also slow (latency coupling)
 
-非同期メッセージング:
+Asynchronous messaging:
   OrderService --publish--> [Message Queue] ... PaymentService --consume-->
-  利点: PaymentService がダウンしても OrderService は正常動作
-  利点: キューがバッファとなり負荷を平準化
+  Benefit: OrderService operates normally even if PaymentService goes down
+  Benefit: Queue acts as buffer to level out load
 ```
 
-**ビジネスインパクト:**
-- **耐障害性**: 下流サービスの障害がシステム全体に波及しない
-- **スケーラビリティ**: Consumer を追加するだけで処理能力を線形にスケール
-- **負荷平準化**: トラフィックスパイクをキューで吸収し、一定速度で処理
-- **疎結合**: サービス間の依存関係を最小化し、独立した開発・デプロイを実現
+**Business Impact:**
+- **Fault Tolerance**: Downstream service failures do not cascade to the entire system
+- **Scalability**: Processing capacity scales linearly by simply adding Consumers
+- **Load Leveling**: Queue absorbs traffic spikes and processes at a steady rate
+- **Loose Coupling**: Minimizes dependencies between services, enabling independent development and deployment
 
-**具体例:**
-- LinkedIn: Kafka で毎秒数百万イベントを処理（アクティビティストリーム）
-- Uber: Kafka でリアルタイムの位置情報・需要予測データをストリーミング
-- Slack: RabbitMQ でメッセージ配信の信頼性を確保
+**Real-world examples:**
+- LinkedIn: Processes millions of events per second with Kafka (activity streams)
+- Uber: Streams real-time location and demand forecast data with Kafka
+- Slack: Ensures message delivery reliability with RabbitMQ
 
 ---
 
-## 1. メッセージキューの基本アーキテクチャ
+## 1. Basic Message Queue Architecture
 
-### 1.1 全体構成図
+### 1.1 Overall Architecture Diagram
 
 ```
 +------------+     +------------------+     +-------------+
 |  Producer  |---->|  Message Broker  |---->|  Consumer   |
-|  (送信側)  |     |  (キュー/トピック) |     |  (受信側)   |
+|  (sender)  |     |  (queue/topic)   |     |  (receiver) |
 +------------+     +------------------+     +-------------+
       |                    |                       |
       |   Publish          |   Store & Forward     |   Subscribe/Poll
       +--------------------+-----------------------+
 
-  同期呼び出し:  A --req--> B --res--> A  (A は B の応答を待つ)
-  非同期キュー:  A --msg--> [Queue] ... B --poll--> [Queue]
-                (A は B の処理完了を待たない)
+  Synchronous call:  A --req--> B --res--> A  (A waits for B's response)
+  Async queue:       A --msg--> [Queue] ... B --poll--> [Queue]
+                     (A does not wait for B to finish processing)
 ```
 
 ### 1.2 Point-to-Point vs Pub/Sub
 
 ```
-【Point-to-Point (Queue)】
+[Point-to-Point (Queue)]
 
   Producer A --+
                +--> [ Queue ] --> Consumer X
-  Producer B --+     (1メッセージ = 1消費者のみ)
+  Producer B --+     (1 message = consumed by 1 consumer only)
 
-【Pub/Sub (Topic)】
+[Pub/Sub (Topic)]
 
   Producer ---> [ Topic ] --+--> Consumer Group A (Consumer A1, A2)
                             |
                             +--> Consumer Group B (Consumer B1, B2)
-              (1メッセージ = 全購読グループに配信)
+              (1 message = delivered to all subscribed groups)
 ```
 
-### 1.3 メッセージのライフサイクル
+### 1.3 Message Lifecycle
 
 ```
   Producer                Broker                Consumer
      |                      |                      |
      |--- 1. Publish ------>|                      |
-     |<-- 1a. Ack(受領) ----|                      |
-     |                      |-- 2. Persist(永続化) |
+     |<-- 1a. Ack(receipt) -|                      |
+     |                      |-- 2. Persist         |
      |                      |                      |
      |                      |<-- 3. Poll/Push -----|
      |                      |--- 4. Deliver ------>|
      |                      |                      |-- 5. Process
-     |                      |<-- 6. Ack(処理完了) -|
+     |                      |<-- 6. Ack(done) -----|
      |                      |-- 7. Mark Done ----->|
      |                      |                      |
 ```
 
-### ASCII図解: メッセージキューのユースケースマップ
+### ASCII Diagram: Message Queue Use Case Map
 
 ```
 ┌─────────────────────────────────────────────────┐
-│          メッセージキューのユースケース             │
+│          Message Queue Use Cases                │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ■ タスクキュー (Work Queue)                     │
-│    画像リサイズ、PDF生成、メール送信             │
-│    → 重い処理をバックグラウンドに委譲            │
+│  ■ Task Queue (Work Queue)                      │
+│    Image resizing, PDF generation, email send   │
+│    → Delegate heavy processing to background    │
 │                                                 │
-│  ■ イベント駆動 (Event-Driven)                   │
-│    注文作成→在庫更新→通知送信→分析記録         │
-│    → サービス間の疎結合な連携                    │
+│  ■ Event-Driven                                 │
+│    Order created→inventory update→notify→log    │
+│    → Loosely coupled integration between        │
+│      services                                   │
 │                                                 │
-│  ■ ストリーミング (Stream Processing)            │
-│    ログ集約、クリックストリーム、IoTデータ       │
-│    → 大量データのリアルタイム処理                │
+│  ■ Streaming (Stream Processing)                │
+│    Log aggregation, clickstream, IoT data       │
+│    → Real-time processing of large data volumes │
 │                                                 │
-│  ■ CQRS / イベントソーシング                     │
-│    書き込みと読み取りの分離                      │
-│    → スケーラブルなデータアーキテクチャ           │
+│  ■ CQRS / Event Sourcing                        │
+│    Separation of reads and writes               │
+│    → Scalable data architecture                 │
 │                                                 │
-│  ■ 負荷平準化 (Load Leveling)                    │
-│    セールのスパイクトラフィック吸収              │
-│    → Consumer の処理能力に合わせた平準化         │
+│  ■ Load Leveling                                │
+│    Absorbing sale traffic spikes                │
+│    → Leveling to match Consumer capacity        │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. 配信保証モデル
+## 2. Delivery Guarantee Models
 
-| 保証レベル | 説明 | メッセージ損失 | 重複配信 | 代表的ユースケース |
+| Guarantee Level | Description | Message Loss | Duplicate Delivery | Typical Use Cases |
 |-----------|------|:------------:|:-------:|-----------------|
-| At-most-once | 最大1回配信。再送なし | あり得る | なし | ログ収集、メトリクス送信 |
-| At-least-once | 最低1回配信。Ack失敗で再送 | なし | あり得る | 注文処理、メール送信 |
-| Exactly-once | 正確に1回配信 | なし | なし | 決済処理、在庫更新 |
+| At-most-once | Delivered at most once. No retransmission | Possible | None | Log collection, metrics reporting |
+| At-least-once | Delivered at least once. Resent on Ack failure | None | Possible | Order processing, email sending |
+| Exactly-once | Delivered exactly once | None | None | Payment processing, inventory updates |
 
-### 配信保証の実装コスト
+### Implementation Cost of Delivery Guarantees
 
 ```
   At-most-once         At-least-once        Exactly-once
   ┌──────────┐         ┌──────────┐         ┌──────────┐
-  │ fire &   │         │ Ack +    │         │ トランザクション│
-  │ forget   │         │ retry    │         │ + べき等  │
+  │ fire &   │         │ Ack +    │         │ transaction│
+  │ forget   │         │ retry    │         │ + idempotent│
   └──────────┘         └──────────┘         └──────────┘
-  コスト: 低            コスト: 中            コスト: 高
-  レイテンシ: 最低      レイテンシ: 低        レイテンシ: 高
+  Cost: Low            Cost: Medium         Cost: High
+  Latency: Lowest      Latency: Low         Latency: High
 
-  Exactly-once の実現方法:
+  How to achieve Exactly-once:
   1. Kafka Transactions (acks=all + enable.idempotence + transactional.id)
-  2. Outbox パターン (DB トランザクション + CDC)
-  3. Consumer 側べき等処理 (At-least-once + 重複排除)
+  2. Outbox pattern (DB transaction + CDC)
+  3. Idempotent Consumer-side processing (At-least-once + deduplication)
 ```
 
 ---
 
 ## 3. Apache Kafka
 
-### 3.1 アーキテクチャ
+### 3.1 Architecture
 
 ```
 Kafka Cluster
@@ -192,7 +193,7 @@ Kafka Cluster
                    +----------------------------+
 ```
 
-### 3.2 Producer の実装
+### 3.2 Producer Implementation
 
 ```python
 # Kafka Producer (Python - confluent-kafka)
@@ -202,41 +203,41 @@ import time
 
 conf = {
     'bootstrap.servers': 'broker1:9092,broker2:9092,broker3:9092',
-    'acks': 'all',                    # 全ISRレプリカの書き込み確認
+    'acks': 'all',                    # Confirm writes to all ISR replicas
     'retries': 5,
     'retry.backoff.ms': 100,
-    'enable.idempotence': True,       # べき等プロデューサー（重複防止）
-    'compression.type': 'snappy',     # 圧縮でスループット向上
-    'linger.ms': 5,                   # バッチ化のための待機時間
-    'batch.size': 32768,              # バッチサイズ (32KB)
-    'max.in.flight.requests.per.connection': 5,  # べき等有効時は最大5
+    'enable.idempotence': True,       # Idempotent producer (prevents duplicates)
+    'compression.type': 'snappy',     # Compression improves throughput
+    'linger.ms': 5,                   # Wait time for batching
+    'batch.size': 32768,              # Batch size (32KB)
+    'max.in.flight.requests.per.connection': 5,  # Max 5 when idempotence is enabled
 }
 
 producer = Producer(conf)
 
 def delivery_report(err, msg):
     if err:
-        print(f"配信失敗: {err}")
+        print(f"Delivery failed: {err}")
     else:
-        print(f"配信成功: topic={msg.topic()} "
+        print(f"Delivery succeeded: topic={msg.topic()} "
               f"partition={msg.partition()} offset={msg.offset()}")
 
-# メッセージ送信
+# Send messages
 for i in range(1000):
     order = {"order_id": i, "user_id": i % 100, "amount": 1000 + i,
              "timestamp": time.time()}
     producer.produce(
         topic='order-events',
-        key=str(order['user_id']).encode('utf-8'),   # 同一ユーザーは同一パーティション
+        key=str(order['user_id']).encode('utf-8'),   # Same user goes to same partition
         value=json.dumps(order).encode('utf-8'),
         callback=delivery_report,
     )
-    producer.poll(0)  # コールバック処理
+    producer.poll(0)  # Process callbacks
 
-producer.flush()  # 全メッセージの送信完了を待機
+producer.flush()  # Wait for all messages to be sent
 ```
 
-### 3.3 Consumer の実装
+### 3.3 Consumer Implementation
 
 ```python
 # Kafka Consumer (Python - confluent-kafka)
@@ -246,12 +247,12 @@ import json
 conf = {
     'bootstrap.servers': 'broker1:9092',
     'group.id': 'order-processing-group',
-    'auto.offset.reset': 'earliest',       # 初回は最古から読む
-    'enable.auto.commit': False,           # 手動コミットで確実な処理
-    'max.poll.interval.ms': 300000,        # 処理タイムアウト 5分
+    'auto.offset.reset': 'earliest',       # Start from oldest on first read
+    'enable.auto.commit': False,           # Manual commit for reliable processing
+    'max.poll.interval.ms': 300000,        # Processing timeout: 5 minutes
     'session.timeout.ms': 45000,
-    'fetch.min.bytes': 1024,               # 最低1KBでフェッチ（バッチ効率化）
-    'fetch.max.wait.ms': 500,              # 最大500ms待機
+    'fetch.min.bytes': 1024,               # Fetch at least 1KB (improves batch efficiency)
+    'fetch.max.wait.ms': 500,              # Wait up to 500ms
 }
 
 consumer = Consumer(conf)
@@ -268,22 +269,22 @@ try:
             raise Exception(f"Consumer error: {msg.error()}")
 
         order = json.loads(msg.value().decode('utf-8'))
-        print(f"受信: partition={msg.partition()} "
+        print(f"Received: partition={msg.partition()} "
               f"offset={msg.offset()} order_id={order['order_id']}")
 
-        # ビジネスロジック実行
+        # Execute business logic
         process_order(order)
 
-        # 処理完了後に手動コミット
+        # Manual commit after processing completes
         consumer.commit(asynchronous=False)
 finally:
     consumer.close()
 ```
 
-### 3.4 Kafka Streams による Stream Processing
+### 3.4 Stream Processing with Kafka Streams
 
 ```python
-# Kafka を使ったリアルタイム集計の概念的実装
+# Conceptual implementation of real-time aggregation using Kafka
 import json
 import time
 from collections import defaultdict
@@ -292,7 +293,7 @@ from typing import Callable, Optional
 
 @dataclass
 class WindowedCounter:
-    """タンブリングウィンドウによるリアルタイム集計"""
+    """Real-time aggregation using tumbling windows"""
     window_size_sec: int = 60
     windows: dict = field(default_factory=lambda: defaultdict(lambda: defaultdict(int)))
 
@@ -308,19 +309,19 @@ class WindowedCounter:
         return dict(self.windows.get(window_start, {}))
 
     def cleanup_old_windows(self, retain_count: int = 10):
-        """古いウィンドウを削除してメモリ節約"""
+        """Delete old windows to save memory"""
         sorted_windows = sorted(self.windows.keys())
         for w in sorted_windows[:-retain_count]:
             del self.windows[w]
 
 
 class StreamProcessor:
-    """Kafka Consumer ベースのストリーム処理フレームワーク
+    """Stream processing framework based on Kafka Consumer
 
-    機能:
-    1. リアルタイムイベント集計（ウィンドウ関数）
-    2. イベントフィルタリング / 変換
-    3. 出力トピックへの書き込み
+    Features:
+    1. Real-time event aggregation (window functions)
+    2. Event filtering / transformation
+    3. Writing to output topics
     """
 
     def __init__(self, consumer, producer,
@@ -334,15 +335,15 @@ class StreamProcessor:
         self.transformers: list[Callable] = []
 
     def add_filter(self, predicate: Callable):
-        """イベントフィルタを追加"""
+        """Add an event filter"""
         self.filters.append(predicate)
 
     def add_transformer(self, transform: Callable):
-        """イベント変換を追加"""
+        """Add an event transformer"""
         self.transformers.append(transform)
 
     def process(self):
-        """メインの処理ループ"""
+        """Main processing loop"""
         self.consumer.subscribe([self.input_topic])
 
         while True:
@@ -354,19 +355,19 @@ class StreamProcessor:
 
             event = json.loads(msg.value().decode('utf-8'))
 
-            # フィルタリング
+            # Filtering
             if not all(f(event) for f in self.filters):
                 self.consumer.commit(asynchronous=False)
                 continue
 
-            # 変換
+            # Transformation
             for transform in self.transformers:
                 event = transform(event)
 
-            # 集計
+            # Aggregation
             self.counter.add(event.get("category", "unknown"))
 
-            # 出力
+            # Output
             self.producer.produce(
                 topic=self.output_topic,
                 key=event.get("key", "").encode('utf-8'),
@@ -375,7 +376,7 @@ class StreamProcessor:
             self.consumer.commit(asynchronous=False)
 
 
-# 使用例: 注文イベントから高額注文のみをフィルタリングして集計
+# Example usage: filter only high-value orders from order events and aggregate
 processor = StreamProcessor(consumer, producer,
                            "order-events", "high-value-orders")
 processor.add_filter(lambda e: e.get("amount", 0) > 10000)
@@ -387,7 +388,7 @@ processor.add_transformer(lambda e: {**e, "flagged": True})
 
 ## 4. RabbitMQ
 
-### 4.1 Exchange/Queue モデル
+### 4.1 Exchange/Queue Model
 
 ```
                    Exchange (routing)
@@ -403,10 +404,10 @@ processor.add_transformer(lambda e: {**e, "flagged": True})
 
   Exchange Types:
   ┌──────────┬─────────────────────────────────────────┐
-  │ direct   │ routing_key が完全一致するキューに配信   │
-  │ topic    │ ワイルドカードパターンマッチ (*.*, #)   │
-  │ fanout   │ バインドされた全キューに配信（ブロードキャスト）│
-  │ headers  │ メッセージヘッダーに基づくルーティング   │
+  │ direct   │ Deliver to queues with exact routing_key match   │
+  │ topic    │ Wildcard pattern matching (*.*, #)               │
+  │ fanout   │ Deliver to all bound queues (broadcast)          │
+  │ headers  │ Routing based on message headers                 │
   └──────────┴─────────────────────────────────────────┘
 ```
 
@@ -428,34 +429,34 @@ connection = pika.BlockingConnection(
 )
 channel = connection.channel()
 
-# Exchange と Queue を宣言
+# Declare Exchange and Queue
 channel.exchange_declare(exchange='order_exchange',
                         exchange_type='topic', durable=True)
 channel.queue_declare(queue='order_processing', durable=True, arguments={
-    'x-dead-letter-exchange': 'dlx_exchange',        # DLQ 設定
+    'x-dead-letter-exchange': 'dlx_exchange',        # DLQ configuration
     'x-dead-letter-routing-key': 'order.failed',
-    'x-message-ttl': 86400000,                        # TTL: 24時間
-    'x-max-length': 100000,                           # キュー最大長
-    'x-overflow': 'reject-publish',                   # 溢れ時に拒否
+    'x-message-ttl': 86400000,                        # TTL: 24 hours
+    'x-max-length': 100000,                           # Maximum queue length
+    'x-overflow': 'reject-publish',                   # Reject on overflow
 })
 channel.queue_bind(exchange='order_exchange', queue='order_processing',
                    routing_key='order.created')
 
-# メッセージ送信
+# Send message
 message = json.dumps({"order_id": 123, "amount": 5000, "currency": "JPY"})
 channel.basic_publish(
     exchange='order_exchange',
     routing_key='order.created',
     body=message,
     properties=pika.BasicProperties(
-        delivery_mode=2,                  # メッセージ永続化
+        delivery_mode=2,                  # Persist message
         content_type='application/json',
         message_id=str(uuid.uuid4()),
         timestamp=int(time.time()),
         headers={'retry_count': 0},
     ),
 )
-print(f"送信完了: {message}")
+print(f"Sent: {message}")
 connection.close()
 ```
 
@@ -468,25 +469,25 @@ import traceback
 connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
 channel = connection.channel()
 channel.queue_declare(queue='order_processing', durable=True)
-channel.basic_qos(prefetch_count=10)    # 同時処理数を制御
+channel.basic_qos(prefetch_count=10)    # Control number of concurrent processes
 
 MAX_RETRIES = 3
 
 def callback(ch, method, properties, body):
     order = json.loads(body)
     retry_count = (properties.headers or {}).get('retry_count', 0)
-    print(f"処理開始: order_id={order['order_id']} (retry={retry_count})")
+    print(f"Processing started: order_id={order['order_id']} (retry={retry_count})")
 
     try:
         process_order(order)
-        ch.basic_ack(delivery_tag=method.delivery_tag)        # 成功 → Ack
-        print(f"処理完了: order_id={order['order_id']}")
+        ch.basic_ack(delivery_tag=method.delivery_tag)        # Success → Ack
+        print(f"Processing complete: order_id={order['order_id']}")
     except Exception as e:
-        print(f"処理失敗: {e}")
+        print(f"Processing failed: {e}")
         traceback.print_exc()
 
         if retry_count < MAX_RETRIES:
-            # リトライ: 同じキューに再投入（retry_count をインクリメント）
+            # Retry: re-enqueue to same queue (increment retry_count)
             ch.basic_publish(
                 exchange='',
                 routing_key='order_processing',
@@ -497,16 +498,16 @@ def callback(ch, method, properties, body):
                 ),
             )
             ch.basic_ack(delivery_tag=method.delivery_tag)
-            print(f"リトライ予約: order_id={order['order_id']} "
+            print(f"Retry scheduled: order_id={order['order_id']} "
                   f"retry={retry_count + 1}")
         else:
-            # リトライ上限超過 → DLQ へ
+            # Max retries exceeded → send to DLQ
             ch.basic_nack(delivery_tag=method.delivery_tag,
                           requeue=False)
-            print(f"DLQ送信: order_id={order['order_id']} (max retries exceeded)")
+            print(f"Sent to DLQ: order_id={order['order_id']} (max retries exceeded)")
 
 channel.basic_consume(queue='order_processing', on_message_callback=callback)
-print("Consumer 起動完了。メッセージ待機中...")
+print("Consumer started. Waiting for messages...")
 channel.start_consuming()
 ```
 
@@ -532,23 +533,23 @@ response = sqs.send_message(
         'EventType': {'DataType': 'String', 'StringValue': 'OrderCreated'},
         'Priority': {'DataType': 'Number', 'StringValue': '1'},
     },
-    MessageDeduplicationId=str(uuid.uuid4()),  # FIFO: 5分間の重複排除
-    MessageGroupId='user-group-42',            # FIFO: 同グループ内で順序保証
+    MessageDeduplicationId=str(uuid.uuid4()),  # FIFO: 5-minute deduplication window
+    MessageGroupId='user-group-42',            # FIFO: ordering guaranteed within group
 )
-print(f"送信完了 MessageId: {response['MessageId']}")
+print(f"Sent MessageId: {response['MessageId']}")
 
-# --- Consumer (ロングポーリング) ---
+# --- Consumer (long polling) ---
 while True:
     response = sqs.receive_message(
         QueueUrl=QUEUE_URL,
-        MaxNumberOfMessages=10,         # 最大10件一括取得
-        WaitTimeSeconds=20,             # ロングポーリング（20秒待機）
-        VisibilityTimeout=120,          # 処理中の非表示期間
+        MaxNumberOfMessages=10,         # Retrieve up to 10 messages at once
+        WaitTimeSeconds=20,             # Long polling (wait up to 20 seconds)
+        VisibilityTimeout=120,          # Invisibility period during processing
         MessageAttributeNames=['All'],
     )
     for message in response.get('Messages', []):
         body = json.loads(message['Body'])
-        print(f"処理中: order_id={body['order_id']}")
+        print(f"Processing: order_id={body['order_id']}")
 
         try:
             process_order(body)
@@ -556,82 +557,82 @@ while True:
                 QueueUrl=QUEUE_URL,
                 ReceiptHandle=message['ReceiptHandle'],
             )
-            print(f"処理完了・削除: order_id={body['order_id']}")
+            print(f"Processing complete, deleted: order_id={body['order_id']}")
         except Exception as e:
-            # VisibilityTimeout 後に自動的にキューに戻る
-            print(f"処理失敗: {e} → VisibilityTimeout後に再配信")
+            # Automatically returned to queue after VisibilityTimeout
+            print(f"Processing failed: {e} → Will be redelivered after VisibilityTimeout")
 
     if not response.get('Messages'):
-        time.sleep(1)  # メッセージなし → 短い待機
+        time.sleep(1)  # No messages → short wait
 ```
 
 ---
 
-## 6. 主要プロダクト比較表
+## 6. Major Product Comparison
 
-### 比較表1: 機能比較
+### Comparison Table 1: Feature Comparison
 
-| 特性 | Apache Kafka | RabbitMQ | Amazon SQS |
+| Characteristic | Apache Kafka | RabbitMQ | Amazon SQS |
 |-----|-------------|----------|------------|
-| **モデル** | 分散コミットログ (Pull) | メッセージブローカー (Push/Pull) | マネージドキュー (Pull) |
-| **スループット** | 数百万 msg/sec | 数万 msg/sec | 数千 msg/sec (標準) |
-| **メッセージ保持** | 設定期間保持（再読可能） | 消費後削除 | 最大14日保持 |
-| **順序保証** | パーティション内で保証 | キュー内で保証 | FIFO キューで保証 |
-| **配信保証** | At-least-once / Exactly-once | At-least-once | At-least-once / FIFO で Exactly-once |
-| **遅延メッセージ** | 非対応（外部実装が必要） | 対応（TTL + DLX） | 対応（最大15分） |
-| **運用コスト** | 高（KRaft/ZooKeeper管理） | 中（Erlang VM管理） | 低（フルマネージド） |
-| **最適用途** | ストリーミング、ログ集約、CQRS | タスクキュー、RPC、複雑なルーティング | サーバーレス連携、シンプルなキュー |
+| **Model** | Distributed commit log (Pull) | Message broker (Push/Pull) | Managed queue (Pull) |
+| **Throughput** | Millions of msg/sec | Tens of thousands of msg/sec | Thousands of msg/sec (standard) |
+| **Message Retention** | Retained for configured period (re-readable) | Deleted after consumption | Retained up to 14 days |
+| **Ordering Guarantee** | Guaranteed within partition | Guaranteed within queue | Guaranteed with FIFO queue |
+| **Delivery Guarantee** | At-least-once / Exactly-once | At-least-once | At-least-once / Exactly-once with FIFO |
+| **Delayed Messages** | Not supported (requires external implementation) | Supported (TTL + DLX) | Supported (up to 15 minutes) |
+| **Operational Cost** | High (KRaft/ZooKeeper management) | Medium (Erlang VM management) | Low (fully managed) |
+| **Best For** | Streaming, log aggregation, CQRS | Task queues, RPC, complex routing | Serverless integration, simple queues |
 
-### 比較表2: 選定フローチャート
+### Comparison Table 2: Selection Flowchart
 
-| 判断基準 | Kafka を選ぶ | RabbitMQ を選ぶ | SQS を選ぶ |
+| Decision Criteria | Choose Kafka | Choose RabbitMQ | Choose SQS |
 |---------|------------|----------------|-----------|
-| メッセージの再読が必要 | YES | -- | -- |
-| 秒間100万メッセージ超 | YES | -- | -- |
-| 複雑なルーティングルール | -- | YES | -- |
-| リクエスト/レスポンス型 RPC | -- | YES | -- |
-| AWS ネイティブで運用最小化 | -- | -- | YES |
-| Lambda との統合 | -- | -- | YES |
-| イベントソーシング | YES | -- | -- |
-| 優先度付きキュー | -- | YES | -- |
-| ストリーム処理（集計、結合） | YES | -- | -- |
-| 即座に始めたい（学習コスト低） | -- | -- | YES |
+| Need to re-read messages | YES | -- | -- |
+| Over 1 million messages/sec | YES | -- | -- |
+| Complex routing rules | -- | YES | -- |
+| Request/response RPC pattern | -- | YES | -- |
+| AWS-native with minimal operations | -- | -- | YES |
+| Lambda integration | -- | -- | YES |
+| Event sourcing | YES | -- | -- |
+| Priority queues | -- | YES | -- |
+| Stream processing (aggregation, joins) | YES | -- | -- |
+| Get started immediately (low learning curve) | -- | -- | YES |
 
-### 比較表3: 非機能要件の比較
+### Comparison Table 3: Non-Functional Requirements
 
-| 項目 | Kafka | RabbitMQ | SQS |
+| Item | Kafka | RabbitMQ | SQS |
 |------|-------|----------|-----|
-| レイテンシ (P99) | 5-15ms | 1-5ms | 20-50ms |
-| 最大メッセージサイズ | 1MB (デフォルト) | 128MB | 256KB (S3で拡張可) |
-| Consumer並列度上限 | パーティション数 | 無制限 | 無制限 |
-| クラスタ最小構成 | 3ノード | 3ノード (Quorum) | N/A (マネージド) |
-| 暗号化 | TLS + SASL | TLS + AMQP認証 | KMS + IAM |
-| 監視 | JMX, Prometheus | Prometheus, Management UI | CloudWatch |
+| Latency (P99) | 5-15ms | 1-5ms | 20-50ms |
+| Max Message Size | 1MB (default) | 128MB | 256KB (extendable via S3) |
+| Max Consumer Parallelism | Number of partitions | Unlimited | Unlimited |
+| Minimum Cluster Size | 3 nodes | 3 nodes (Quorum) | N/A (managed) |
+| Encryption | TLS + SASL | TLS + AMQP auth | KMS + IAM |
+| Monitoring | JMX, Prometheus | Prometheus, Management UI | CloudWatch |
 
 ---
 
-## 7. 設計パターン
+## 7. Design Patterns
 
 ### 7.1 Dead Letter Queue (DLQ)
 
 ```
-                          処理成功
+                          Processing success
   [Main Queue] --------> Consumer ------> Done (Ack)
        |                     |
-       |               処理失敗 (N回リトライ後)
+       |               Processing failed (after N retries)
        |                     |
        v                     v
   [Retry Queue]         [Dead Letter Queue]
-  (遅延再配信)                |
-       |                     +--> 監視アラート通知
-       +---> [Main Queue]   +--> 管理画面で確認
-                             +--> 手動再処理 or 補正
+  (delayed redelivery)        |
+       |                     +--> Monitoring alert notification
+       +---> [Main Queue]   +--> View in admin dashboard
+                             +--> Manual reprocessing or correction
 ```
 
-### 7.2 べき等処理パターン
+### 7.2 Idempotent Processing Pattern
 
 ```python
-# べき等 Consumer の実装例
+# Example implementation of an idempotent Consumer
 import redis
 import hashlib
 import json
@@ -639,45 +640,45 @@ import json
 redis_client = redis.Redis(host='localhost', port=6379, db=0)
 
 class IdempotentConsumer:
-    """同じメッセージを何度受信しても結果が変わらないことを保証する
+    """Ensures the result does not change no matter how many times the same message is received
 
-    実装方式:
-    1. メッセージIDベース: message_id で重複チェック
-    2. ビジネスキーベース: entity_id + version で重複チェック
-    3. ハッシュベース: メッセージ内容のハッシュで重複チェック
+    Implementation approaches:
+    1. Message ID-based: duplicate check by message_id
+    2. Business key-based: duplicate check by entity_id + version
+    3. Hash-based: duplicate check by hash of message content
     """
 
     def __init__(self, redis_client: redis.Redis,
                  dedup_ttl: int = 86400 * 7):
         self.redis = redis_client
-        self.dedup_ttl = dedup_ttl  # 重複チェックの保持期間
+        self.dedup_ttl = dedup_ttl  # Retention period for duplicate checks
 
     def process(self, message: dict) -> bool:
-        """べき等にメッセージを処理する
+        """Process a message idempotently
 
         Returns:
-            True: 処理成功（新規メッセージ）
-            False: スキップ（処理済みメッセージ）
+            True: Processing succeeded (new message)
+            False: Skipped (already-processed message)
         """
         message_id = message.get('message_id')
         if not message_id:
-            # message_id がない場合はコンテンツハッシュを使用
+            # Use content hash if message_id is absent
             content = json.dumps(message, sort_keys=True)
             message_id = hashlib.sha256(content.encode()).hexdigest()
 
         idempotency_key = f"processed:{message_id}"
 
-        # SETNX (Set if Not eXists) で排他制御
+        # Exclusive control via SETNX (Set if Not eXists)
         if not self.redis.set(idempotency_key, 'processing',
                               nx=True, ex=self.dedup_ttl):
-            print(f"[SKIP] 処理済み or 処理中: {message_id}")
+            print(f"[SKIP] Already processed or in progress: {message_id}")
             return False
 
         try:
-            # ビジネスロジック実行
+            # Execute business logic
             result = self._execute_business_logic(message)
 
-            # 処理完了マーク
+            # Mark as complete
             self.redis.set(idempotency_key, json.dumps({
                 'status': 'completed',
                 'result': result,
@@ -686,67 +687,67 @@ class IdempotentConsumer:
             return True
 
         except Exception as e:
-            # 失敗時はキーを削除してリトライ可能にする
+            # Delete key on failure to allow retry
             self.redis.delete(idempotency_key)
             raise
 
     def _execute_business_logic(self, message: dict):
-        """ビジネスロジック（サブクラスでオーバーライド）"""
+        """Business logic (override in subclass)"""
         raise NotImplementedError
 
 
 class OrderConsumer(IdempotentConsumer):
-    """注文処理の具体的な Consumer"""
+    """Concrete Consumer for order processing"""
 
     def _execute_business_logic(self, message: dict):
         order_id = message['order_id']
         amount = message['amount']
-        print(f"[PROCESS] 注文処理: order_id={order_id}, amount={amount}")
-        # DB更新、外部API呼び出し等
+        print(f"[PROCESS] Processing order: order_id={order_id}, amount={amount}")
+        # DB update, external API call, etc.
         return {"order_id": order_id, "status": "confirmed"}
 
 
-# 使用例
+# Usage example
 consumer = OrderConsumer(redis_client)
 messages = [
     {"message_id": "msg-001", "order_id": 123, "amount": 5000},
-    {"message_id": "msg-001", "order_id": 123, "amount": 5000},  # 重複
+    {"message_id": "msg-001", "order_id": 123, "amount": 5000},  # Duplicate
     {"message_id": "msg-002", "order_id": 456, "amount": 8000},
 ]
 
 for msg in messages:
     result = consumer.process(msg)
     print(f"  → processed={result}")
-# [PROCESS] 注文処理: order_id=123, amount=5000
+# [PROCESS] Processing order: order_id=123, amount=5000
 #   → processed=True
-# [SKIP] 処理済み or 処理中: msg-001
+# [SKIP] Already processed or in progress: msg-001
 #   → processed=False
-# [PROCESS] 注文処理: order_id=456, amount=8000
+# [PROCESS] Processing order: order_id=456, amount=8000
 #   → processed=True
 ```
 
-### 7.3 Outbox パターン
+### 7.3 Outbox Pattern
 
 ```python
-# Outbox パターン: DB トランザクションとメッセージ発行の原子性を保証
+# Outbox pattern: guarantees atomicity of DB updates and message publishing
 
 class OutboxPattern:
-    """Outbox パターンの実装
+    """Implementation of the Outbox pattern
 
-    問題: DB更新とメッセージ発行の2つの操作を原子的に行えない
-    → DB更新成功 + メッセージ発行失敗 = 不整合
+    Problem: Cannot atomically perform two operations—DB update and message publish
+    → DB update succeeds + message publish fails = inconsistency
 
-    解決: DB トランザクション内で outbox テーブルにも書き込み、
-    別プロセスが outbox を読んでメッセージブローカーに発行する
+    Solution: Also write to the outbox table within the DB transaction;
+    a separate process reads the outbox and publishes to the message broker
 
     DB Transaction:
-      1. orders テーブルに INSERT
-      2. outbox テーブルに INSERT (同一トランザクション)
+      1. INSERT into the orders table
+      2. INSERT into the outbox table (same transaction)
 
-    Outbox Relay (別プロセス):
-      1. outbox テーブルをポーリング
-      2. 未送信メッセージをブローカーに発行
-      3. 送信済みマークを付与
+    Outbox Relay (separate process):
+      1. Poll the outbox table
+      2. Publish unsent messages to the broker
+      3. Mark them as sent
     """
 
     def __init__(self, db_session, producer):
@@ -754,14 +755,14 @@ class OutboxPattern:
         self.producer = producer
 
     def create_order(self, order_data: dict):
-        """注文作成 + イベント発行（原子的）"""
+        """Create order + publish event (atomically)"""
         with self.db.begin():
-            # 1. 注文を保存
+            # 1. Save the order
             order = Order(**order_data)
             self.db.add(order)
-            self.db.flush()  # IDを取得
+            self.db.flush()  # Get the ID
 
-            # 2. Outboxに書き込み（同一トランザクション）
+            # 2. Write to Outbox (same transaction)
             outbox_event = OutboxEvent(
                 aggregate_type='Order',
                 aggregate_id=str(order.id),
@@ -775,10 +776,10 @@ class OutboxPattern:
                 status='PENDING',
             )
             self.db.add(outbox_event)
-            # トランザクション完了 → 両方が原子的にコミット
+            # Transaction completes → both are committed atomically
 
     def relay_outbox_events(self, batch_size: int = 100):
-        """Outbox テーブルの未送信イベントをブローカーに発行"""
+        """Publish unsent events from the Outbox table to the broker"""
         pending_events = self.db.query(OutboxEvent)\
             .filter_by(status='PENDING')\
             .order_by(OutboxEvent.created_at)\
@@ -803,27 +804,27 @@ class OutboxPattern:
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン 1: キューを巨大データストアとして使う
+### Anti-Pattern 1: Using the Queue as a Massive Data Store
 
 ```python
-# NG: 大きなペイロードをキューに直接格納
+# BAD: Storing large payloads directly in the queue
 
 class BadProducer:
     def send_invoice(self, order_id: int, pdf_data: bytes, images: list[bytes]):
         message = {
             "order_id": order_id,
             "pdf_invoice": base64.b64encode(pdf_data).decode(),  # 10MB
-            "images": [base64.b64encode(img).decode() for img in images],  # 数MB
+            "images": [base64.b64encode(img).decode() for img in images],  # Several MB
         }
-        # 問題: ブローカーのメモリ/ディスクを圧迫
-        # 問題: ネットワーク帯域を浪費
-        # 問題: Consumer のデシリアライズが遅い
+        # Problem: Puts pressure on broker memory/disk
+        # Problem: Wastes network bandwidth
+        # Problem: Consumer deserialization is slow
         self.producer.send("invoices", json.dumps(message).encode())
 
 
-# OK: Claim-Check パターン（参照のみキューに格納）
+# GOOD: Claim-Check pattern (store only a reference in the queue)
 
 import boto3
 
@@ -833,7 +834,7 @@ class GoodProducer:
         self.s3 = s3_client
 
     def send_invoice(self, order_id: int, pdf_data: bytes, images: list[bytes]):
-        # Step 1: 大きなデータは S3 に保存
+        # Step 1: Store large data in S3
         pdf_key = f"invoices/{order_id}/invoice.pdf"
         self.s3.put_object(Bucket='my-bucket', Key=pdf_key, Body=pdf_data)
 
@@ -843,43 +844,43 @@ class GoodProducer:
             self.s3.put_object(Bucket='my-bucket', Key=key, Body=img)
             image_keys.append(key)
 
-        # Step 2: 軽量な参照のみキューに格納
+        # Step 2: Store only a lightweight reference in the queue
         message = {
             "order_id": order_id,
             "invoice_s3_key": pdf_key,
             "image_s3_keys": image_keys,
         }
         self.producer.send("invoices", json.dumps(message).encode())
-        # メッセージサイズ: 数百バイト（vs 数十MB）
+        # Message size: a few hundred bytes (vs tens of MB)
 ```
 
-### アンチパターン 2: 配信保証を考慮しない設計
+### Anti-Pattern 2: Design That Ignores Delivery Guarantees
 
 ```python
-# NG: Auto-Ack で fire-and-forget
+# BAD: fire-and-forget with Auto-Ack
 
 def bad_consumer():
     channel.basic_consume(
         queue='payment_queue',
-        auto_ack=True,  # 問題: 受信した瞬間にAck
+        auto_ack=True,  # Problem: Ack sent the moment message is received
         on_message_callback=process_payment
     )
-    # Consumer がクラッシュ → メッセージ消失 → 決済データ欠損
+    # Consumer crashes → message lost → payment data missing
 
 
-# OK: 手動 Ack + DLQ + べき等処理
+# GOOD: Manual Ack + DLQ + idempotent processing
 
 def good_consumer():
-    channel.basic_qos(prefetch_count=5)  # 同時処理数を制限
+    channel.basic_qos(prefetch_count=5)  # Limit concurrent processing count
     channel.basic_consume(
         queue='payment_queue',
-        auto_ack=False,  # 手動Ack
+        auto_ack=False,  # Manual Ack
         on_message_callback=safe_process_payment
     )
 
 def safe_process_payment(ch, method, properties, body):
     try:
-        # べき等処理（重複を安全にスキップ）
+        # Idempotent processing (safely skip duplicates)
         payment = json.loads(body)
         if is_already_processed(payment['payment_id']):
             ch.basic_ack(delivery_tag=method.delivery_tag)
@@ -889,25 +890,25 @@ def safe_process_payment(ch, method, properties, body):
         mark_as_processed(payment['payment_id'])
         ch.basic_ack(delivery_tag=method.delivery_tag)
     except Exception:
-        # 失敗 → DLQ へ（requeue=False で無限ループ防止）
+        # Failure → send to DLQ (requeue=False prevents infinite loop)
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 ```
 
-### アンチパターン 3: Consumer の処理速度を考慮しないスケーリング
+### Anti-Pattern 3: Scaling Without Considering Consumer Processing Speed
 
 ```python
-# NG: Consumer 1台で大量メッセージを処理
+# BAD: Processing a large volume of messages with a single Consumer
 
 class UnscalableConsumer:
     """Producer 1000 msg/sec vs Consumer 100 msg/sec
-    → キューが無限に溜まり続け、遅延が際限なく増大"""
+    → Queue grows infinitely, delay increases without bound"""
     pass
 
 
-# OK: オートスケーリング + バックプレッシャー
+# GOOD: Auto-scaling + backpressure
 
 class ScalableConsumerManager:
-    """キュー深度に基づくオートスケーリング"""
+    """Auto-scaling based on queue depth"""
 
     def __init__(self, queue_name: str,
                  target_lag: int = 1000,
@@ -920,9 +921,9 @@ class ScalableConsumerManager:
         self.current_consumers = min_consumers
 
     def check_and_scale(self, current_lag: int):
-        """キュー深度に基づいてConsumer数を調整"""
+        """Adjust the number of Consumers based on queue depth"""
         if current_lag > self.target_lag * 2:
-            # スケールアウト
+            # Scale out
             desired = min(
                 self.current_consumers * 2,
                 self.max_consumers
@@ -931,7 +932,7 @@ class ScalableConsumerManager:
             print(f"[SCALE OUT] {self.current_consumers} → {desired} "
                   f"(lag={current_lag})")
         elif current_lag < self.target_lag * 0.2:
-            # スケールイン
+            # Scale in
             desired = max(
                 self.current_consumers // 2,
                 self.min_consumers
@@ -942,25 +943,25 @@ class ScalableConsumerManager:
 
     def _scale_to(self, count: int):
         self.current_consumers = count
-        # 実際にはKubernetes HPA, ECS Service等で実装
+        # In practice, implemented via Kubernetes HPA, ECS Service, etc.
 ```
 
 ---
 
-## 9. 練習問題
+## 9. Practice Exercises
 
-### 演習1（基礎）: べき等 Consumer の重複排除テスト
+### Exercise 1 (Basic): Deduplication Test for an Idempotent Consumer
 
-**課題**: IdempotentConsumer を使い、10件のメッセージ（うち3件が重複）を処理し、実際に処理されたメッセージ数と重複スキップ数を計測せよ。
+**Task**: Using `IdempotentConsumer`, process 10 messages (3 of which are duplicates) and measure the number of messages actually processed versus those skipped as duplicates.
 
 ```python
-# ヒント: IdempotentConsumer クラスを使用
+# Hint: Use the IdempotentConsumer class
 consumer = OrderConsumer(redis.Redis())
 messages = [
     {"message_id": f"msg-{i}", "order_id": i, "amount": 1000 * i}
     for i in range(7)
 ]
-# 重複を追加
+# Add duplicates
 messages.extend([
     {"message_id": "msg-0", "order_id": 0, "amount": 0},
     {"message_id": "msg-3", "order_id": 3, "amount": 3000},
@@ -969,17 +970,17 @@ messages.extend([
 
 processed = sum(1 for msg in messages if consumer.process(msg))
 skipped = len(messages) - processed
-print(f"処理: {processed}, スキップ: {skipped}")
+print(f"Processed: {processed}, Skipped: {skipped}")
 ```
 
-**期待される出力**:
+**Expected output**:
 ```
-処理: 7, スキップ: 3
+Processed: 7, Skipped: 3
 ```
 
-### 演習2（応用）: DLQ 付きリトライフローの実装
+### Exercise 2 (Intermediate): Implementing a Retry Flow with DLQ
 
-**課題**: メッセージ処理が30%の確率で失敗する環境で、最大3回リトライ後にDLQに送るConsumerを実装し、100メッセージの処理結果（成功/DLQ送信）を集計せよ。
+**Task**: In an environment where message processing fails 30% of the time, implement a Consumer that sends messages to the DLQ after a maximum of 3 retries, and aggregate the results (success/DLQ) for 100 messages.
 
 ```python
 import random
@@ -1003,65 +1004,65 @@ consumer = RetryableConsumer(max_retries=3, failure_rate=0.3)
 random.seed(42)
 for i in range(100):
     consumer.process_with_retry({"id": i})
-print(f"成功: {consumer.success_count}, DLQ: {consumer.dlq_count}")
+print(f"Success: {consumer.success_count}, DLQ: {consumer.dlq_count}")
 ```
 
-**期待される出力（概算）**:
+**Expected output (approximate)**:
 ```
-成功: ~99, DLQ: ~1
-(30%失敗率で4回試行: 失敗確率 = 0.3^4 = 0.81% → 100件中約1件がDLQ)
+Success: ~99, DLQ: ~1
+(4 attempts at 30% failure rate: failure probability = 0.3^4 = 0.81% → ~1 in 100 goes to DLQ)
 ```
 
-### 演習3（発展）: Outbox パターンの完全実装
+### Exercise 3 (Advanced): Full Implementation of the Outbox Pattern
 
-**課題**: SQLAlchemy + Kafka を使い、注文作成とイベント発行の原子性を保証する Outbox パターンを実装せよ。以下の要件を満たすこと。
+**Task**: Using SQLAlchemy + Kafka, implement the Outbox pattern that guarantees atomicity between order creation and event publishing. The implementation must satisfy the following requirements:
 
-1. 注文テーブルと Outbox テーブルを同一トランザクションで更新
-2. Outbox Relay プロセスが未送信イベントをポーリングして Kafka に発行
-3. 送信済みイベントの定期クリーンアップ
+1. Update the order table and Outbox table in the same transaction
+2. An Outbox Relay process polls for unsent events and publishes them to Kafka
+3. Periodic cleanup of sent events
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1070,26 +1071,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1097,7 +1098,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1108,14 +1109,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1123,7 +1124,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1131,44 +1132,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1177,7 +1178,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1192,47 +1193,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured config file | Verify config file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Data volume increase | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check executing user permissions, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read the stack trace to identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Formulate hypotheses**: List possible causes
+4. **Verify incrementally**: Use log output or a debugger to validate hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debug utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1240,121 +1241,121 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs the input and output of a function"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Called: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return value: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception raised: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps to diagnose performance issues when they arise:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check I/O wait**: Check disk and network I/O status
+4. **Check concurrent connections**: Check connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
+| Type of Issue | Diagnostic Tool | Countermeasure |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| High CPU load | cProfile, py-spy | Improve algorithms, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB slowness | EXPLAIN, slow query log | Indexes, query optimization |
 ---
 
 ## 10. FAQ
 
-### Q1. Kafka と RabbitMQ のどちらを選ぶべき？
+### Q1. Which should I choose: Kafka or RabbitMQ?
 
-ユースケースで判断する。大量データのストリーミング処理（ログ集約、イベントソーシング、リアルタイム分析パイプライン）なら **Kafka**。タスクキュー、RPC パターン、複雑なルーティング（優先度キュー、トピックベースフィルタリング）が必要なら **RabbitMQ**。迷ったら「メッセージの再読が必要か」で判断する。再読が必要なら Kafka 一択。
+Decide based on use case. If you need streaming of large data volumes (log aggregation, event sourcing, real-time analytics pipelines), choose **Kafka**. If you need task queues, RPC patterns, or complex routing (priority queues, topic-based filtering), choose **RabbitMQ**. When in doubt, ask "do I need to re-read messages?" If yes, Kafka is the only choice.
 
-### Q2. Consumer がダウンした場合、メッセージはどうなる？
+### Q2. What happens to messages if a Consumer goes down?
 
-ブローカーがメッセージを保持し、Consumer 復旧後に再配信する。**Kafka** はオフセットベースで Consumer が自分のペースで読み進めるため、ダウンタイム中のメッセージは保持期間内なら失われない。**RabbitMQ** は Ack タイムアウト後にキューに戻す。**SQS** は Visibility Timeout 後に再度取得可能になる。いずれも Consumer 側のべき等処理が重複配信への対策として必須。
+The broker retains messages and redelivers them after the Consumer recovers. **Kafka** uses an offset-based model where Consumers read at their own pace, so messages during downtime are not lost as long as they are within the retention period. **RabbitMQ** returns messages to the queue after an Ack timeout. **SQS** makes messages available again after the Visibility Timeout expires. In all cases, idempotent processing on the Consumer side is essential as a countermeasure against duplicate delivery.
 
-### Q3. メッセージの順序保証はどの粒度まで可能？
+### Q3. To what granularity can message ordering be guaranteed?
 
-完全なグローバル順序保証はスケーラビリティとトレードオフになる。**Kafka** はパーティションキーで同一パーティションに送れば順序保証される（パーティション間は不保証）。**SQS FIFO** は MessageGroupId 単位で順序保証（グループ間は並列処理）。**RabbitMQ** は単一キュー・単一 Consumer で FIFO 保証。設計時に「どのエンティティ単位で順序が必要か」を明確にし、そのキー（ユーザー ID、注文 ID など）をパーティションキーに使うのが定石。
+A complete global ordering guarantee involves a trade-off with scalability. **Kafka** guarantees ordering within a partition when the same partition key is used (no guarantee across partitions). **SQS FIFO** guarantees ordering within a MessageGroupId (parallel processing across groups). **RabbitMQ** guarantees FIFO with a single queue and single Consumer. The standard approach is to clarify "at what entity granularity is ordering needed?" during design and use that key (user ID, order ID, etc.) as the partition key.
 
-### Q4. Kafka の Consumer Group とは何か？
+### Q4. What is a Kafka Consumer Group?
 
-同じ group.id を持つ Consumer の集合体。トピックの各パーティションは、グループ内の1つの Consumer にのみ割り当てられる。これにより、Consumer を追加するだけで水平スケールでき、パーティション数 = 最大並列度となる。異なる Consumer Group は同じメッセージを独立して消費できるため、Pub/Sub モデルが実現される。Consumer がグループに参加/離脱すると**リバランス**が発生し、パーティションの再割り当てが行われる。
+A set of Consumers with the same group.id. Each partition of a topic is assigned to exactly one Consumer within a group. This allows horizontal scaling simply by adding Consumers, and the number of partitions equals the maximum parallelism. Different Consumer Groups can consume the same messages independently, which enables the Pub/Sub model. When a Consumer joins or leaves a group, a **rebalance** occurs and partitions are reassigned.
 
-### Q5. Consumer Lag をどう監視・対処すべきか？
+### Q5. How should Consumer Lag be monitored and addressed?
 
-Consumer Lag（= 最新オフセット - Consumer の現在オフセット）はメッセージ処理の遅延を示す重要指標。**監視**: Kafka の `kafka-consumer-groups.sh --describe` コマンド、またはBurrow/Prometheus Exporterで継続監視。**アラート閾値**: Lag > 10,000 で警告、Lag > 100,000 で緊急。**対処**: (1) Consumer 数を増やす（パーティション数以下）、(2) Consumer のバッチサイズを最適化、(3) 処理ロジックの高速化（DBバッチ書き込み等）、(4) パーティション数の増加（ただし増加のみ可能、削減不可）。
+Consumer Lag (= latest offset - Consumer's current offset) is a key metric indicating message processing delay. **Monitoring**: Use Kafka's `kafka-consumer-groups.sh --describe` command, or continuously monitor with Burrow/Prometheus Exporter. **Alert thresholds**: Warning at Lag > 10,000; emergency at Lag > 100,000. **Actions**: (1) Increase number of Consumers (up to partition count), (2) Optimize Consumer batch size, (3) Speed up processing logic (e.g., DB batch writes), (4) Increase partition count (can only be increased, not decreased).
 
-### Q6. Exactly-once は本当に実現可能か？
+### Q6. Is Exactly-once truly achievable?
 
-理論的には分散システムで完全な Exactly-once は不可能だが、**実用的な Exactly-once** は以下の方法で実現できる。(1) **Kafka Transactions**: Producer と Consumer を同一トランザクション内で処理（Kafka Streams で利用）。(2) **Outbox パターン**: DB トランザクション + CDC で原子的にイベント発行。(3) **Consumer 側べき等処理**: At-least-once + 重複排除（最も一般的で推奨される方法）。特にマイクロサービスでは方式(3)が最も実用的で、メッセージIDをDBのユニーク制約で管理する方法がシンプルかつ確実。
+Theoretically, complete Exactly-once is impossible in distributed systems, but **practical Exactly-once** can be achieved through the following methods. (1) **Kafka Transactions**: Process Producer and Consumer within the same transaction (used in Kafka Streams). (2) **Outbox pattern**: Atomically publish events via DB transaction + CDC. (3) **Idempotent Consumer-side processing**: At-least-once + deduplication (most common and recommended approach). Especially in microservices, approach (3) is the most practical, and managing message IDs with a DB unique constraint is a simple and reliable method.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and confirming how it behaves.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and moving on to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| メッセージキューの役割 | コンポーネント間の疎結合、非同期処理、負荷平準化、耐障害性 |
-| 配信保証 | At-most-once / At-least-once / Exactly-once を要件で選択 |
-| Kafka | 高スループット・ストリーミング向け。パーティション分散。再読可能 |
-| RabbitMQ | 柔軟なルーティング・タスクキュー向け。Exchange/Binding モデル |
-| SQS | フルマネージド・サーバーレス連携。運用コスト最小 |
-| DLQ | 処理失敗メッセージの隔離と後続対応に必須 |
-| べき等処理 | At-least-once では重複配信を前提とした設計が必須 |
-| Outbox パターン | DB更新とメッセージ発行の原子性を保証する標準手法 |
-| ペイロード設計 | 大きなデータは外部ストレージに保存し参照のみキューに載せる |
-| Consumer Lag | 最重要監視指標。オートスケーリングで自動対応 |
+| Role of Message Queues | Loose coupling between components, async processing, load leveling, fault tolerance |
+| Delivery Guarantee | Choose At-most-once / At-least-once / Exactly-once based on requirements |
+| Kafka | High throughput, suited for streaming. Partition-based distribution. Re-readable |
+| RabbitMQ | Suited for flexible routing and task queues. Exchange/Binding model |
+| SQS | Fully managed, serverless integration. Minimal operational cost |
+| DLQ | Essential for isolating failed messages and handling them downstream |
+| Idempotent Processing | At-least-once requires design that assumes duplicate delivery |
+| Outbox Pattern | Standard approach to guarantee atomicity of DB updates and message publishing |
+| Payload Design | Store large data in external storage; put only a reference in the queue |
+| Consumer Lag | The most important monitoring metric. Handled automatically via auto-scaling |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [CDN](./03-cdn.md) -- コンテンツ配信ネットワークによるレイテンシ最適化
-- [DBスケーリング](./04-database-scaling.md) -- データ層のシャーディングとレプリケーション
-- [イベント駆動アーキテクチャ](../02-architecture/03-event-driven.md) -- メッセージキューを活用した Pub/Sub 設計
-- [キャッシュ](./01-caching.md) -- メッセージキューと併用するキャッシュ更新戦略
-- [信頼性](../00-fundamentals/02-reliability.md) -- リトライ、サーキットブレーカーとの連携
+- [CDN](./03-cdn.md) -- Latency optimization via Content Delivery Networks
+- [DB Scaling](./04-database-scaling.md) -- Sharding and replication at the data layer
+- [Event-Driven Architecture](../02-architecture/03-event-driven.md) -- Pub/Sub design leveraging message queues
+- [Caching](./01-caching.md) -- Cache update strategies used in conjunction with message queues
+- [Reliability](../00-fundamentals/02-reliability.md) -- Integration with retry and circuit breaker patterns
 
 ---
 
-## 参考文献
+## References
 
-1. **Designing Data-Intensive Applications** -- Martin Kleppmann (O'Reilly, 2017) -- 分散メッセージングの理論と実践の定番書
-2. **Kafka: The Definitive Guide, 2nd Edition** -- Gwen Shapira et al. (O'Reilly, 2021) -- Kafka の包括的リファレンス
-3. **RabbitMQ in Depth** -- Gavin M. Roy (Manning, 2017) -- RabbitMQ の内部アーキテクチャと運用パターン
+1. **Designing Data-Intensive Applications** -- Martin Kleppmann (O'Reilly, 2017) -- The definitive book on theory and practice of distributed messaging
+2. **Kafka: The Definitive Guide, 2nd Edition** -- Gwen Shapira et al. (O'Reilly, 2021) -- Comprehensive reference for Kafka
+3. **RabbitMQ in Depth** -- Gavin M. Roy (Manning, 2017) -- RabbitMQ internal architecture and operational patterns
 4. **Amazon SQS Developer Guide** -- AWS Documentation -- https://docs.aws.amazon.com/sqs/
-5. **Enterprise Integration Patterns** -- Gregor Hohpe & Bobby Woolf (Addison-Wesley, 2003) -- メッセージングパターンの古典
+5. **Enterprise Integration Patterns** -- Gregor Hohpe & Bobby Woolf (Addison-Wesley, 2003) -- Classic reference for messaging patterns
