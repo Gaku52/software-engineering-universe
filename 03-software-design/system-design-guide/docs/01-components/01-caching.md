@@ -1,131 +1,131 @@
-# キャッシュ
+# Caching
 
-> 頻繁にアクセスされるデータを高速ストレージに保持し、レイテンシ削減とスループット向上を実現するキャッシュ戦略を習得する。
+> Master caching strategies that keep frequently accessed data in fast storage, reducing latency and improving throughput.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. キャッシュの階層（ブラウザ、CDN、アプリケーション、データベース）と各層の役割
-2. キャッシュパターン（Cache-Aside、Write-Through、Write-Behind、Read-Through）の動作と使い分け
-3. キャッシュの無効化戦略（TTL、イベント駆動、バージョニング、タグベース）と一貫性の維持方法
-4. キャッシュスタンピード（Thundering Herd）対策の実装手法
-5. Redis の実践的なデータ構造活用とクラスタ運用
+1. Cache hierarchy (browser, CDN, application, database) and the role of each layer
+2. Cache patterns (Cache-Aside, Write-Through, Write-Behind, Read-Through) — how they work and when to use each
+3. Cache invalidation strategies (TTL, event-driven, versioning, tag-based) and how to maintain consistency
+4. How to implement protection against cache stampedes (Thundering Herd)
+5. Practical use of Redis data structures and cluster operations
 
 ---
 
-## 前提知識
+## Prerequisites
 
-| トピック | 内容 | 参照ガイド |
+| Topic | Description | Reference Guide |
 |---------|------|-----------|
-| ハッシュテーブル | O(1)ルックアップの仕組み | データ構造基礎 |
-| HTTP ヘッダー | Cache-Control、ETag、Last-Modified | Web基礎 |
-| ロードバランサー | トラフィック分散の基本 | [ロードバランサー](./00-load-balancer.md) |
-| データベース基礎 | RDB/NoSQL の読み書き性能特性 | DB基礎 |
-| 分散システム基礎 | 一貫性モデル、ネットワーク遅延 | [CAP定理](../00-fundamentals/03-cap-theorem.md) |
+| Hash tables | How O(1) lookup works | Data Structures Basics |
+| HTTP headers | Cache-Control, ETag, Last-Modified | Web Basics |
+| Load balancers | Basics of traffic distribution | [Load Balancer](./00-load-balancer.md) |
+| Database basics | Read/write performance characteristics of RDB/NoSQL | DB Basics |
+| Distributed systems basics | Consistency models, network latency | [CAP Theorem](../00-fundamentals/03-cap-theorem.md) |
 
 ---
 
-## なぜキャッシュを学ぶのか
+## Why Learn Caching?
 
-キャッシュは**システム性能を劇的に改善する最もコスト効率の良い手段**である。適切なキャッシュ戦略により、データベースの負荷を90%以上削減し、レスポンスタイムを数十分の一に短縮できる。
+Caching is **the most cost-effective way to dramatically improve system performance**. A well-designed caching strategy can reduce database load by over 90% and cut response times by an order of magnitude.
 
-**数値で見るキャッシュの効果:**
-- メモリアクセス: ~100ns vs ディスクI/O: ~10ms → **100,000倍の速度差**
-- Redis の読み取り: ~0.1ms vs MySQL の読み取り: ~5-50ms → **50-500倍の改善**
-- キャッシュヒット率 95% の場合、DB負荷は元の 1/20 に削減
+**Caching impact by the numbers:**
+- Memory access: ~100ns vs disk I/O: ~10ms → **100,000x speed difference**
+- Redis read: ~0.1ms vs MySQL read: ~5-50ms → **50-500x improvement**
+- With a 95% cache hit rate, DB load is reduced to 1/20 of the original
 
-**実世界の事例:**
-- Facebook: Memcached クラスタで毎秒数十億リクエストをキャッシュヒット（NSDI '13論文）
-- Twitter: タイムラインをRedisにキャッシュし、レイテンシを数百msから数msに短縮
-- Amazon: ページ表示100ms遅延で売上1%減少（キャッシュによる高速化の経済的価値）
+**Real-world examples:**
+- Facebook: Memcached cluster caches billions of requests per second (NSDI '13 paper)
+- Twitter: Timeline cached in Redis, reducing latency from hundreds of milliseconds to a few milliseconds
+- Amazon: A 100ms delay in page load causes a 1% drop in revenue (the economic value of caching-driven speed)
 
 ---
 
-## 1. キャッシュの階層
+## 1. Cache Hierarchy
 
-### ASCII図解1: キャッシュの多層構造
+### Diagram 1: Multi-Layer Cache Structure
 
 ```
   Client
     │
     ▼
-  ┌─────────────────┐  Hit率: 30-50%
+  ┌─────────────────┐  Hit rate: 30-50%
   │ Browser Cache   │  ← Cache-Control, ETag
   └────────┬────────┘
            │ miss
-  ┌────────▼────────┐  Hit率: 70-90%
-  │ CDN (Edge)      │  ← 静的ファイル、APIレスポンス
+  ┌────────▼────────┐  Hit rate: 70-90%
+  │ CDN (Edge)      │  ← Static files, API responses
   └────────┬────────┘
            │ miss
   ┌────────▼────────┐
   │ Load Balancer   │
   └────────┬────────┘
            │
-  ┌────────▼────────┐  Hit率: 80-99%
+  ┌────────▼────────┐  Hit rate: 80-99%
   │ App Cache       │  ← Redis / Memcached
   │ (in-memory)     │
   └────────┬────────┘
            │ miss
-  ┌────────▼────────┐  Hit率: 95-99%
-  │ DB Query Cache  │  ← MySQL Query Cache等
+  ┌────────▼────────┐  Hit rate: 95-99%
+  │ DB Query Cache  │  ← MySQL Query Cache, etc.
   └────────┬────────┘
            │ miss
   ┌────────▼────────┐
-  │ Database        │  ← ディスクI/O
+  │ Database        │  ← Disk I/O
   └─────────────────┘
 
-  各層でキャッシュヒットすると、
-  下位層へのアクセスを回避できる
+  A cache hit at any layer avoids
+  access to all layers below it
 ```
 
-### 多層キャッシュの累積効果
+### Cumulative Effect of Multi-Layer Caching
 
 ```
-リクエスト 1000件 が到着した場合の各層通過量:
+For 1000 incoming requests, the number passing through each layer:
 
-  Browser Cache (Hit 40%)  → 600件通過
-  CDN (Hit 60%)            → 240件通過
-  App Cache (Hit 90%)      → 24件通過
-  DB Query Cache (Hit 80%) → 約5件通過
+  Browser Cache (Hit 40%)  → 600 pass through
+  CDN (Hit 60%)            → 240 pass through
+  App Cache (Hit 90%)      → 24 pass through
+  DB Query Cache (Hit 80%) → ~5 pass through
 
-  結果: 1000件中 995件がキャッシュヒット
-  DB アクセスは 0.5% (5件) のみ
+  Result: 995 out of 1000 are cache hits
+  Only 0.5% (5 requests) reach the DB
 
-  累積キャッシュヒット率の計算:
+  Cumulative cache hit rate calculation:
   1 - (1-0.4) × (1-0.6) × (1-0.9) × (1-0.8) = 1 - 0.0048 = 99.52%
 ```
 
 ---
 
-## 2. キャッシュパターン
+## 2. Cache Patterns
 
-### ASCII図解2: 4つの主要パターン
+### Diagram 2: The Four Major Patterns
 
 ```
 ■ Cache-Aside (Lazy Loading)
   App ──read──→ Cache ──hit──→ return
                   │miss
                   ▼
-               Database ──→ Cache に書き込み ──→ return
+               Database ──→ write to Cache ──→ return
 
 ■ Read-Through
   App ──read──→ Cache ──hit──→ return
                   │miss
-                  │ (Cache自身がDBから取得)
+                  │ (Cache itself fetches from DB)
                   ▼
-               Database ──→ Cache に自動保存 ──→ return
+               Database ──→ auto-save to Cache ──→ return
 
 ■ Write-Through
-  App ──write──→ Cache ──同期書き込み──→ Database
+  App ──write──→ Cache ──synchronous write──→ Database
                   │
-                  └──→ return (両方完了後)
+                  └──→ return (after both complete)
 
 ■ Write-Behind (Write-Back)
-  App ──write──→ Cache ──→ return (即座に応答)
+  App ──write──→ Cache ──→ return (immediate response)
                   │
-                  └──非同期──→ Database (バッチで後から書き込み)
+                  └──async──→ Database (written later in batch)
 ```
 
-### コード例1: Cache-Aside パターン
+### Code Example 1: Cache-Aside Pattern
 
 ```python
 import redis
@@ -139,7 +139,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class CacheStats:
-    """キャッシュ統計情報"""
+    """Cache statistics"""
     hits: int = 0
     misses: int = 0
     errors: int = 0
@@ -155,20 +155,20 @@ class CacheStats:
 
 
 class CacheAsideRepository:
-    """Cache-Aside (Lazy Loading) パターン
+    """Cache-Aside (Lazy Loading) pattern
 
-    動作:
-    1. 読み込み時: まずキャッシュを確認、ミスならDBから取得してキャッシュ保存
-    2. 書き込み時: DBを更新してからキャッシュを無効化
+    How it works:
+    1. On read: check cache first; on miss, fetch from DB and store in cache
+    2. On write: update DB, then invalidate the cache
 
-    メリット:
-    - 最も汎用的。アプリケーション側でキャッシュ制御が可能
-    - 読み込みが多いワークロードに最適
-    - キャッシュ障害時もDBから直接読める（フォールバック）
+    Pros:
+    - Most versatile. The application controls cache behavior
+    - Optimal for read-heavy workloads
+    - Falls back to DB directly if cache fails
 
-    デメリット:
-    - 初回アクセスは必ずキャッシュミス（Cold Start問題）
-    - キャッシュとDBの一貫性は保証されない（TTLによる最終的一貫性）
+    Cons:
+    - First access always results in a cache miss (Cold Start problem)
+    - Consistency between cache and DB is not guaranteed (eventual consistency via TTL)
     """
 
     def __init__(self, redis_client: redis.Redis, db_client,
@@ -180,13 +180,13 @@ class CacheAsideRepository:
         self.stats = CacheStats()
 
     def _cache_key(self, entity: str, id: str) -> str:
-        """一貫したキャッシュキー命名規則"""
+        """Consistent cache key naming convention"""
         return f"{self.prefix}{entity}:{id}"
 
     def get_user(self, user_id: str) -> Optional[dict]:
         cache_key = self._cache_key("user", user_id)
 
-        # Step 1: キャッシュを確認
+        # Step 1: Check cache
         try:
             cached = self.cache.get(cache_key)
             if cached:
@@ -196,22 +196,22 @@ class CacheAsideRepository:
         except redis.RedisError as e:
             self.stats.errors += 1
             logger.warning(f"[CACHE ERROR] {cache_key}: {e}")
-            # キャッシュ障害時はDBフォールバック
+            # Fall back to DB on cache failure
 
-        # Step 2: キャッシュミス → DBから取得
+        # Step 2: Cache miss → fetch from DB
         self.stats.misses += 1
         logger.debug(f"[CACHE MISS] {cache_key}")
         user = self.db.find_user(user_id)
         if user is None:
-            # ネガティブキャッシュ: 存在しないデータも短TTLでキャッシュ
-            # → DB穿刺攻撃（Cache Penetration）防止
+            # Negative caching: cache non-existent data with a short TTL
+            # → Prevents Cache Penetration attacks
             try:
                 self.cache.setex(cache_key, 60, json.dumps(None))
             except redis.RedisError:
                 pass
             return None
 
-        # Step 3: キャッシュに書き込み（TTL付き）
+        # Step 3: Write to cache (with TTL)
         try:
             self.cache.setex(cache_key, self.ttl, json.dumps(user))
         except redis.RedisError as e:
@@ -219,22 +219,22 @@ class CacheAsideRepository:
         return user
 
     def update_user(self, user_id: str, data: dict):
-        """更新時はDBを更新してからキャッシュを無効化"""
+        """On update: update DB first, then invalidate cache"""
         cache_key = self._cache_key("user", user_id)
 
-        # Step 1: DB を更新
+        # Step 1: Update DB
         self.db.update_user(user_id, data)
 
-        # Step 2: キャッシュを無効化（削除）
+        # Step 2: Invalidate (delete) cache
         try:
             self.cache.delete(cache_key)
             logger.info(f"[CACHE INVALIDATE] {cache_key}")
         except redis.RedisError as e:
             logger.error(f"[CACHE DELETE ERROR] {cache_key}: {e}")
-            # 削除失敗時はTTLで自然に期限切れになるのを待つ
+            # If deletion fails, wait for TTL to naturally expire it
 
     def bulk_warmup(self, user_ids: list[str]):
-        """キャッシュウォームアップ: 頻出データを事前にロード"""
+        """Cache warmup: pre-load frequently accessed data"""
         pipe = self.cache.pipeline()
         users = self.db.find_users_batch(user_ids)
         for user in users:
@@ -244,19 +244,19 @@ class CacheAsideRepository:
         logger.info(f"[WARMUP] {len(users)} users pre-cached")
 ```
 
-### コード例2: Write-Through パターン
+### Code Example 2: Write-Through Pattern
 
 ```python
 class WriteThroughRepository:
-    """Write-Through パターン: 書き込み時にキャッシュとDBを同期更新
+    """Write-Through pattern: synchronously updates both cache and DB on write
 
-    メリット:
-    - キャッシュとDBの一貫性が高い
-    - 読み込み時は常にキャッシュヒット（書き込みで最新データがキャッシュ済み）
+    Pros:
+    - High consistency between cache and DB
+    - Reads always hit the cache (latest data is already cached after each write)
 
-    デメリット:
-    - 書き込みレイテンシが増加（DB + キャッシュの2箇所に書く）
-    - 読まれないデータもキャッシュに書かれる（メモリ浪費の可能性）
+    Cons:
+    - Increased write latency (writes to both DB and cache)
+    - Data that is never read still gets written to cache (potential memory waste)
     """
 
     def __init__(self, redis_client: redis.Redis, db_client,
@@ -277,19 +277,19 @@ class WriteThroughRepository:
         return user
 
     def update_user(self, user_id: str, data: dict):
-        """DBとキャッシュを同時に更新（同期）"""
+        """Update both DB and cache simultaneously (synchronous)"""
         cache_key = f"user:{user_id}"
 
-        # Step 1: DB を更新
+        # Step 1: Update DB
         self.db.update_user(user_id, data)
 
-        # Step 2: キャッシュも更新（削除ではなく上書き）
+        # Step 2: Update cache (overwrite, not delete)
         updated_user = self.db.find_user(user_id)
         self.cache.setex(cache_key, self.ttl, json.dumps(updated_user))
         logger.info(f"[WRITE-THROUGH] {cache_key} updated in both DB and cache")
 
     def create_user(self, user_data: dict) -> str:
-        """作成時もキャッシュに同期書き込み"""
+        """Write to cache synchronously on creation as well"""
         user_id = self.db.create_user(user_data)
         cache_key = f"user:{user_id}"
         user_data["id"] = user_id
@@ -298,7 +298,7 @@ class WriteThroughRepository:
         return user_id
 ```
 
-### コード例3: Write-Behind パターン
+### Code Example 3: Write-Behind Pattern
 
 ```python
 import queue
@@ -306,20 +306,20 @@ import threading
 import time
 
 class WriteBehindRepository:
-    """Write-Behind (Write-Back) パターン: 非同期でDBに書き込み
+    """Write-Behind (Write-Back) pattern: writes to DB asynchronously
 
-    メリット:
-    - 書き込みレイテンシが最小（キャッシュへの書き込みのみで応答）
-    - バッチ処理でDB書き込みを効率化
+    Pros:
+    - Minimum write latency (responds after writing to cache only)
+    - Efficient DB writes through batching
 
-    デメリット:
-    - キャッシュ障害時にデータ損失リスク（まだDBに反映されていないデータ）
-    - 実装が複雑（バックグラウンドライター、リトライ、デッドレターキュー）
+    Cons:
+    - Risk of data loss on cache failure (data not yet persisted to DB)
+    - Complex implementation (background writer, retry, dead-letter queue)
 
-    ユースケース:
-    - アクセスカウンター、ページビュー数
-    - 位置情報の頻繁な更新
-    - IoT デバイスからのテレメトリデータ
+    Use cases:
+    - Access counters, page view counts
+    - Frequent location updates
+    - Telemetry data from IoT devices
     """
 
     def __init__(self, redis_client: redis.Redis, db_client,
@@ -334,19 +334,19 @@ class WriteBehindRepository:
         self._start_background_writer()
 
     def update_user(self, user_id: str, data: dict):
-        """キャッシュに書き込み、非同期でDBに反映"""
+        """Write to cache immediately, propagate to DB asynchronously"""
         cache_key = f"user:{user_id}"
 
-        # Step 1: キャッシュに即座に書き込み
+        # Step 1: Write to cache immediately
         self.cache.set(cache_key, json.dumps(data))
 
-        # Step 2: キューに追加（後でバッチ処理）
+        # Step 2: Enqueue for later batch processing
         self.write_queue.put(("update_user", user_id, data))
         logger.debug(f"[WRITE-BEHIND] {cache_key} cached, queued for DB write "
                      f"(queue size: {self.write_queue.qsize()})")
 
     def _start_background_writer(self):
-        """バックグラウンドスレッドでキューをバッチ処理"""
+        """Process queue in batch using a background thread"""
         def writer():
             while True:
                 batch = []
@@ -367,7 +367,7 @@ class WriteBehindRepository:
                     f"(interval={self.flush_interval}s, batch={self.batch_size})")
 
     def _flush_batch(self, batch: list):
-        """バッチでDBに書き込み"""
+        """Write batch to DB"""
         logger.info(f"[FLUSH] Writing {len(batch)} items to DB")
         success = 0
         for op, user_id, data in batch:
@@ -377,7 +377,7 @@ class WriteBehindRepository:
             except Exception as e:
                 self._failed_count += 1
                 logger.error(f"[FLUSH ERROR] Failed to write {user_id}: {e}")
-                # 失敗時はキューに戻す（リトライ）
+                # On failure, re-enqueue for retry
                 self.write_queue.put((op, user_id, data))
 
         self._total_flushed += success
@@ -394,29 +394,29 @@ class WriteBehindRepository:
 
 ---
 
-## 3. キャッシュの無効化
+## 3. Cache Invalidation
 
-### ASCII図解3: キャッシュ無効化の戦略フロー
+### Diagram 3: Cache Invalidation Strategy Flow
 
 ```
-  データ更新イベント
+  Data update event
        │
-       ├─── TTL方式 ────→ 自然に期限切れ（受動的）
-       │                   適用: 厳密な一貫性不要
+       ├─── TTL ────────→ Expires naturally (passive)
+       │                   Use when: strict consistency not required
        │
-       ├─── イベント駆動 ─→ DB変更 → キャッシュ削除（能動的）
-       │                   適用: リアルタイム一貫性
+       ├─── Event-driven ─→ DB change → delete cache (active)
+       │                   Use when: real-time consistency needed
        │
-       ├─── バージョニング → version番号で有効性判定
-       │                   適用: 競合回避
+       ├─── Versioning ──→ Validate by version number
+       │                   Use when: avoiding race conditions
        │
-       └─── タグベース ──→ タグに紐づく全キーを一括削除
-                           適用: 関連データのグループ無効化
+       └─── Tag-based ───→ Bulk-delete all keys tied to a tag
+                           Use when: group invalidation of related data
 
-  推奨: TTL（ベースライン）+ イベント駆動（即時反映）の併用
+  Recommendation: combine TTL (baseline) + event-driven (immediate)
 ```
 
-### コード例4: キャッシュ無効化戦略
+### Code Example 4: Cache Invalidation Strategies
 
 ```python
 import time
@@ -424,27 +424,27 @@ import hashlib
 from typing import Optional
 
 class CacheInvalidation:
-    """キャッシュ無効化の各戦略"""
+    """Various cache invalidation strategies"""
 
     def __init__(self, redis_client: redis.Redis):
         self.cache = redis_client
 
-    # 1. TTL（Time To Live）
+    # 1. TTL (Time To Live)
     def set_with_ttl(self, key: str, value: str, ttl: int = 300):
-        """一定時間で自動的に期限切れ
+        """Automatically expires after a fixed duration
 
-        用途別の推奨TTL:
-        - セッション:   1800秒 (30分)
-        - ユーザー情報: 300-900秒 (5-15分)
-        - 設定データ:   3600-86400秒 (1-24時間)
-        - 静的データ:   3600-604800秒 (1時間-7日)
-        - 検索結果:     60-300秒 (1-5分)
+        Recommended TTL by use case:
+        - Session:        1800s (30 minutes)
+        - User info:      300-900s (5-15 minutes)
+        - Config data:    3600-86400s (1-24 hours)
+        - Static data:    3600-604800s (1 hour - 7 days)
+        - Search results: 60-300s (1-5 minutes)
         """
         self.cache.setex(key, ttl, value)
 
-    # 2. イベント駆動無効化
+    # 2. Event-driven invalidation
     def on_data_changed(self, entity_type: str, entity_id: str):
-        """データ変更イベントで関連キャッシュを無効化"""
+        """Invalidate related caches on a data change event"""
         patterns = [
             f"{entity_type}:{entity_id}",
             f"{entity_type}:list:*",
@@ -459,13 +459,13 @@ class CacheInvalidation:
         logger.info(f"[INVALIDATE] {entity_type}:{entity_id} "
                     f"→ {count} related caches cleared")
 
-    # 3. バージョニング
+    # 3. Versioning
     def get_with_version(self, key: str, current_version: int) -> Optional[str]:
-        """バージョン番号でキャッシュの有効性を判定"""
+        """Validate cache freshness using a version number"""
         cached = self.cache.hgetall(f"v:{key}")
         if cached and int(cached.get(b"version", 0)) >= current_version:
             return cached[b"data"]
-        return None  # 古いバージョン → キャッシュミス扱い
+        return None  # Stale version → treat as cache miss
 
     def set_with_version(self, key: str, value: str, version: int):
         self.cache.hset(f"v:{key}", mapping={
@@ -473,22 +473,22 @@ class CacheInvalidation:
             "version": version
         })
 
-    # 4. キャッシュタグ（グループ無効化）
+    # 4. Cache tags (group invalidation)
     def set_with_tags(self, key: str, value: str, tags: list[str],
                      ttl: int = 300):
-        """タグを付与し、タグ単位で一括無効化"""
+        """Attach tags to a key for bulk invalidation by tag"""
         pipe = self.cache.pipeline()
         pipe.setex(key, ttl, value)
         for tag in tags:
             pipe.sadd(f"tag:{tag}", key)
-            pipe.expire(f"tag:{tag}", ttl + 3600)  # タグは少し長めに保持
+            pipe.expire(f"tag:{tag}", ttl + 3600)  # Keep tag a bit longer
         pipe.execute()
 
     def invalidate_tag(self, tag: str):
-        """タグに紐づく全キャッシュを無効化
+        """Invalidate all caches associated with a tag
 
-        例: "user:123" タグで、そのユーザーの
-        プロフィール、注文一覧、推薦結果を一括無効化
+        Example: tag "user:123" bulk-invalidates
+        that user's profile, order list, and recommendations
         """
         keys = self.cache.smembers(f"tag:{tag}")
         if keys:
@@ -499,12 +499,12 @@ class CacheInvalidation:
             pipe.execute()
             logger.info(f"[TAG INVALIDATE] {tag}: {len(keys)} keys cleared")
 
-    # 5. CDC (Change Data Capture) 連携
+    # 5. CDC (Change Data Capture) integration
     def setup_cdc_invalidation(self, debezium_event: dict):
-        """DBの変更ログ（CDC）からキャッシュを自動無効化
+        """Automatically invalidate cache from DB change log (CDC)
 
-        Debezium等のCDCツールと連携し、
-        DB変更を検知してキャッシュを即座に無効化する
+        Integrates with CDC tools like Debezium to
+        detect DB changes and immediately invalidate cache
         """
         table = debezium_event["source"]["table"]
         op = debezium_event["op"]  # c=create, u=update, d=delete
@@ -516,22 +516,22 @@ class CacheInvalidation:
             logger.info(f"[CDC] {table}:{entity_id} op={op} → cache invalidated")
 ```
 
-### コード例5: キャッシュスタンピード対策
+### Code Example 5: Cache Stampede Protection
 
 ```python
 import threading
 import random
 
 class ThunderingHerdProtection:
-    """キャッシュスタンピード（Thundering Herd）対策
+    """Cache stampede (Thundering Herd) protection
 
-    問題: 人気キーのTTL期限切れ → 同時に数千リクエストがDBアクセス
-    → DB過負荷 → カスケード障害
+    Problem: A popular key's TTL expires → thousands of requests hit DB simultaneously
+    → DB overload → cascading failure
 
-    対策3つ:
-    1. ロック方式: 1リクエストだけDBアクセス、他はロック待ち
-    2. ソフトTTL: 期限前にバックグラウンドで先行更新
-    3. 確率的早期再計算: TTL切れ前にランダムに再計算
+    Three mitigation strategies:
+    1. Lock: Only one request accesses DB; others wait for the lock
+    2. Soft TTL: Proactively refresh in the background before hard expiry
+    3. Probabilistic early recomputation: Randomly recompute before TTL expires
     """
 
     def __init__(self, redis_client: redis.Redis):
@@ -539,56 +539,56 @@ class ThunderingHerdProtection:
 
     def get_with_lock(self, key: str, ttl: int, fetch_func,
                      lock_timeout: int = 10):
-        """方式1: ロックを使って1リクエストだけがDBアクセス"""
-        # Step 1: キャッシュ確認
+        """Strategy 1: Use a lock so only one request accesses DB"""
+        # Step 1: Check cache
         cached = self.cache.get(key)
         if cached:
             return json.loads(cached)
 
-        # Step 2: ロック取得を試みる
+        # Step 2: Try to acquire lock
         lock_key = f"lock:{key}"
         acquired = self.cache.set(lock_key, "1", nx=True, ex=lock_timeout)
 
         if acquired:
             try:
-                # Step 3: ロック取得成功 → DBから取得してキャッシュ更新
+                # Step 3: Lock acquired → fetch from DB and update cache
                 value = fetch_func()
                 self.cache.setex(key, ttl, json.dumps(value))
                 return value
             finally:
                 self.cache.delete(lock_key)
         else:
-            # Step 4: ロック取得失敗 → 短時間待ってリトライ
+            # Step 4: Lock not acquired → wait briefly and retry
             for _ in range(5):
                 time.sleep(0.1)
                 cached = self.cache.get(key)
                 if cached:
                     return json.loads(cached)
-            # まだなければ自分でフェッチ（フォールバック）
+            # Still nothing → fetch directly as fallback
             return fetch_func()
 
     def get_with_early_expiry(self, key: str, ttl: int,
                               soft_ttl: int, fetch_func):
-        """方式2: ソフトTTL（期限前にバックグラウンドで先行更新）
+        """Strategy 2: Soft TTL (proactively refresh in background before expiry)
 
-        例: TTL=300秒, soft_ttl=240秒
-        → 240秒でソフト期限切れ → 古いデータを返しつつ裏で更新
-        → 300秒までにはハードTTLで完全期限切れ
+        Example: TTL=300s, soft_ttl=240s
+        → Soft expiry at 240s → return stale data while refreshing in background
+        → Hard TTL at 300s causes full expiry
         """
         data = self.cache.hgetall(f"soft:{key}")
         if data:
             expires_at = float(data.get(b"expires_at", 0))
             if time.time() < expires_at:
                 return json.loads(data[b"value"])
-            # ソフト期限切れ → バックグラウンドで更新
+            # Soft expiry → refresh in background
             threading.Thread(
                 target=self._refresh,
                 args=(key, ttl, soft_ttl, fetch_func),
                 daemon=True
             ).start()
-            return json.loads(data[b"value"])  # 古いデータを返す
+            return json.loads(data[b"value"])  # Return stale data
 
-        # 完全な期限切れ → 同期で取得
+        # Fully expired → fetch synchronously
         return self._refresh(key, ttl, soft_ttl, fetch_func)
 
     def _refresh(self, key, ttl, soft_ttl, fetch_func):
@@ -602,16 +602,16 @@ class ThunderingHerdProtection:
 
     def get_with_probabilistic_expiry(self, key: str, ttl: int,
                                        fetch_func, beta: float = 1.0):
-        """方式3: 確率的早期再計算 (Probabilistic Early Recomputation)
+        """Strategy 3: Probabilistic Early Recomputation
 
-        XFetch アルゴリズム (Vattani et al. 2015):
-        TTL残り時間が少なくなるにつれ、再計算確率が増加
-        → 1リクエストだけが自然にDBアクセスし、スタンピード回避
+        XFetch algorithm (Vattani et al. 2015):
+        Recomputation probability increases as remaining TTL decreases
+        → One request naturally accesses DB without a stampede
 
-        判定式: -beta * compute_time * ln(random()) > remaining_ttl
-        → remaining_ttl が小さくなるほど再計算されやすくなる
+        Decision rule: -beta * compute_time * ln(random()) > remaining_ttl
+        → The shorter the remaining TTL, the more likely recomputation occurs
 
-        beta: 再計算の積極性（大きいほど早めに再計算）
+        beta: aggressiveness of recomputation (higher = recomputes earlier)
         """
         import math
 
@@ -623,15 +623,15 @@ class ThunderingHerdProtection:
             compute_time = data.get("compute_time", 1.0)
 
             if remaining > 0:
-                # XFetch確率判定（原論文準拠）:
-                # -beta * compute_time * ln(random()) が残TTLを超えたら再計算
+                # XFetch probabilistic check (per the original paper):
+                # Recompute if -beta * compute_time * ln(random()) exceeds remaining TTL
                 xfetch_value = -beta * compute_time * math.log(random.random())
                 if xfetch_value <= remaining:
                     return data["value"]
-                # 確率的に再計算をトリガー
+                # Probabilistically trigger recomputation
                 logger.debug(f"[XFETCH] Probabilistic recompute for {key}")
 
-        # 再計算
+        # Recompute
         start = time.time()
         value = fetch_func()
         compute_time = time.time() - start
@@ -646,26 +646,26 @@ class ThunderingHerdProtection:
 
 ---
 
-## 4. Redis の実践的な使い方
+## 4. Practical Redis Usage
 
-### ASCII図解4: Redis のデータ構造と用途
+### Diagram 4: Redis Data Structures and Use Cases
 
 ```
   ┌──────────────────────────────────────────────────┐
-  │               Redis データ構造                     │
+  │               Redis Data Structures               │
   ├──────────┬───────────────────────────────────────┤
-  │ String   │ セッション、単純キャッシュ、カウンター   │
-  │ Hash     │ ユーザープロフィール、設定              │
-  │ List     │ タイムライン、キュー                   │
-  │ Set      │ タグ、ユニーク訪問者                   │
-  │ SortedSet│ ランキング、レート制限                  │
-  │ Stream   │ イベントログ、メッセージング             │
-  │ HyperLogLog│ ユニークカウント（近似）             │
-  │ Bitmap   │ 日次アクティブユーザー                  │
+  │ String   │ Sessions, simple cache, counters       │
+  │ Hash     │ User profiles, configuration           │
+  │ List     │ Timelines, queues                      │
+  │ Set      │ Tags, unique visitors                  │
+  │ SortedSet│ Rankings, rate limiting                │
+  │ Stream   │ Event logs, messaging                  │
+  │ HyperLogLog│ Unique counts (approximate)         │
+  │ Bitmap   │ Daily active users                     │
   └──────────┴───────────────────────────────────────┘
 ```
 
-### コード例6: Redis データ構造の活用例
+### Code Example 6: Redis Data Structure Usage Patterns
 
 ```python
 import redis
@@ -674,95 +674,95 @@ import time
 from datetime import datetime
 
 class RedisPatterns:
-    """Redis データ構造の実践的な活用パターン"""
+    """Practical usage patterns for Redis data structures"""
 
     def __init__(self, client: redis.Redis):
         self.r = client
 
-    # --- 1. Sorted Set: リアルタイムランキング ---
+    # --- 1. Sorted Set: Real-time leaderboard ---
     def update_leaderboard(self, game_id: str, user_id: str, score: int):
-        """ランキングの更新（O(log N)）"""
+        """Update leaderboard ranking (O(log N))"""
         key = f"leaderboard:{game_id}"
         self.r.zadd(key, {user_id: score})
 
     def get_top_players(self, game_id: str, count: int = 10) -> list:
-        """上位N位を取得（O(log N + M)）"""
+        """Retrieve top N players (O(log N + M))"""
         key = f"leaderboard:{game_id}"
         return self.r.zrevrange(key, 0, count - 1, withscores=True)
 
     def get_rank(self, game_id: str, user_id: str) -> Optional[int]:
-        """特定ユーザーの順位を取得（O(log N)）"""
+        """Get a specific user's rank (O(log N))"""
         key = f"leaderboard:{game_id}"
         rank = self.r.zrevrank(key, user_id)
         return rank + 1 if rank is not None else None
 
-    # --- 2. Sorted Set: スライディングウィンドウレート制限 ---
+    # --- 2. Sorted Set: Sliding window rate limiting ---
     def check_rate_limit(self, user_id: str, max_requests: int = 100,
                          window_sec: int = 60) -> bool:
-        """スライディングウィンドウによるレート制限"""
+        """Rate limiting using a sliding window"""
         key = f"ratelimit:{user_id}"
         now = time.time()
         pipe = self.r.pipeline()
 
-        # 古いエントリを削除
+        # Remove old entries
         pipe.zremrangebyscore(key, 0, now - window_sec)
-        # 現在のリクエストを追加
+        # Add current request
         pipe.zadd(key, {f"{now}:{id(now)}": now})
-        # ウィンドウ内のリクエスト数を取得
+        # Get request count within the window
         pipe.zcard(key)
-        # TTL設定
+        # Set TTL
         pipe.expire(key, window_sec)
 
         results = pipe.execute()
         request_count = results[2]
 
         if request_count > max_requests:
-            return False  # レート制限超過
+            return False  # Rate limit exceeded
         return True
 
-    # --- 3. HyperLogLog: ユニーク訪問者カウント ---
+    # --- 3. HyperLogLog: Unique visitor count ---
     def track_unique_visitor(self, page: str, visitor_id: str):
-        """ユニーク訪問者を近似カウント（メモリ効率: ~12KB/キー）"""
+        """Approximate unique visitor count (memory efficient: ~12KB/key)"""
         today = datetime.now().strftime("%Y-%m-%d")
         key = f"uv:{page}:{today}"
         self.r.pfadd(key, visitor_id)
-        self.r.expire(key, 86400 * 7)  # 7日間保持
+        self.r.expire(key, 86400 * 7)  # Retain for 7 days
 
     def get_unique_visitors(self, page: str, date: str) -> int:
-        """ユニーク訪問者数を取得（誤差率 ~0.81%）"""
+        """Get unique visitor count (error rate ~0.81%)"""
         key = f"uv:{page}:{date}"
         return self.r.pfcount(key)
 
-    # --- 4. Bitmap: 日次アクティブユーザー ---
+    # --- 4. Bitmap: Daily active users ---
     def mark_active(self, user_id: int):
-        """ユーザーをアクティブとしてマーク（1ビット/ユーザー）"""
+        """Mark a user as active (1 bit/user)"""
         today = datetime.now().strftime("%Y-%m-%d")
         key = f"dau:{today}"
         self.r.setbit(key, user_id, 1)
-        self.r.expire(key, 86400 * 30)  # 30日間保持
+        self.r.expire(key, 86400 * 30)  # Retain for 30 days
 
     def get_dau(self, date: str) -> int:
-        """日次アクティブユーザー数を取得"""
+        """Get daily active user count"""
         key = f"dau:{date}"
         return self.r.bitcount(key)
 
     def get_retention(self, date1: str, date2: str) -> int:
-        """2日間の両方でアクティブなユーザー数（リテンション分析）"""
+        """Count users active on both days (retention analysis)"""
         result_key = f"retention:{date1}:{date2}"
         self.r.bitop("AND", result_key, f"dau:{date1}", f"dau:{date2}")
         count = self.r.bitcount(result_key)
         self.r.delete(result_key)
         return count
 
-    # --- 5. Pub/Sub: キャッシュ無効化の分散通知 ---
+    # --- 5. Pub/Sub: Distributed cache invalidation notifications ---
     def publish_invalidation(self, entity_type: str, entity_id: str):
-        """キャッシュ無効化イベントを全インスタンスに通知"""
+        """Broadcast cache invalidation event to all instances"""
         channel = f"cache:invalidate:{entity_type}"
         message = json.dumps({"entity_id": entity_id, "timestamp": time.time()})
         self.r.publish(channel, message)
 
     def subscribe_invalidation(self, entity_type: str, callback):
-        """キャッシュ無効化イベントを購読"""
+        """Subscribe to cache invalidation events"""
         pubsub = self.r.pubsub()
         pubsub.subscribe(f"cache:invalidate:{entity_type}")
         for message in pubsub.listen():
@@ -771,11 +771,11 @@ class RedisPatterns:
                 callback(data)
 
 
-# === デモ実行 ===
+# === Demo ===
 r = redis.Redis(host='localhost', port=6379, db=0)
 patterns = RedisPatterns(r)
 
-# ランキング
+# Leaderboard
 patterns.update_leaderboard("game1", "alice", 1500)
 patterns.update_leaderboard("game1", "bob", 2100)
 patterns.update_leaderboard("game1", "charlie", 1800)
@@ -783,139 +783,139 @@ top = patterns.get_top_players("game1", 3)
 print(f"Top 3: {top}")
 # [(b'bob', 2100.0), (b'charlie', 1800.0), (b'alice', 1500.0)]
 
-# レート制限
+# Rate limiting
 allowed = patterns.check_rate_limit("user:42", max_requests=5, window_sec=10)
 print(f"Rate limit allowed: {allowed}")
 
-# ユニーク訪問者
+# Unique visitors
 patterns.track_unique_visitor("/home", "visitor-1")
 patterns.track_unique_visitor("/home", "visitor-2")
-patterns.track_unique_visitor("/home", "visitor-1")  # 重複
+patterns.track_unique_visitor("/home", "visitor-1")  # Duplicate
 count = patterns.get_unique_visitors("/home", datetime.now().strftime("%Y-%m-%d"))
 print(f"Unique visitors: {count}")  # 2
 ```
 
 ---
 
-## 5. 比較表
+## 5. Comparison Tables
 
-### 比較表1: キャッシュパターンの比較
+### Table 1: Cache Pattern Comparison
 
-| パターン | 読み込み性能 | 書き込み性能 | 一貫性 | データ損失リスク | 実装複雑度 | 適するケース |
+| Pattern | Read Performance | Write Performance | Consistency | Data Loss Risk | Implementation Complexity | Best For |
 |---------|------------|------------|--------|---------------|-----------|-------------|
-| Cache-Aside | 高い（ヒット時） | 中（DB直書き） | 中（TTLで許容） | 低い | 低 | 読み込み多、汎用 |
-| Read-Through | 高い | 中 | 中 | 低い | 中 | キャッシュ層で抽象化 |
-| Write-Through | 高い | 低い（同期2書き） | 高い | 低い | 中 | 一貫性重要 |
-| Write-Behind | 高い | 最高（非同期） | 低い | 高い（障害時） | 高 | 書き込み多 |
+| Cache-Aside | High (on hit) | Medium (direct DB write) | Medium (TTL-based) | Low | Low | Read-heavy, general purpose |
+| Read-Through | High | Medium | Medium | Low | Medium | Abstracted cache layer |
+| Write-Through | High | Low (2 sync writes) | High | Low | Medium | Consistency-critical |
+| Write-Behind | High | Highest (async) | Low | High (on failure) | High | Write-heavy |
 
-### 比較表2: Redis vs Memcached
+### Table 2: Redis vs Memcached
 
-| 項目 | Redis | Memcached |
+| Feature | Redis | Memcached |
 |------|-------|-----------|
-| データ構造 | 豊富（String, Hash, List, Set, SortedSet等） | String のみ |
-| 永続化 | RDB / AOF | なし |
-| クラスタリング | Redis Cluster（自動シャーディング） | クライアント側で実装 |
-| Pub/Sub | あり | なし |
-| スクリプト | Lua スクリプト | なし |
-| メモリ効率 | 中程度（構造体オーバーヘッド） | 高い（シンプル） |
-| マルチスレッド | Redis 7.0+ でI/Oスレッド | マルチスレッド |
-| トランザクション | MULTI/EXEC, Lua | CAS (Check And Set) |
-| レイテンシ | ~0.1ms (単一ノード) | ~0.1ms |
-| 最大値サイズ | 512MB | 1MB（デフォルト） |
-| 適するケース | 多機能キャッシュ、セッション、ランキング | 単純な高速キャッシュ |
+| Data structures | Rich (String, Hash, List, Set, SortedSet, etc.) | String only |
+| Persistence | RDB / AOF | None |
+| Clustering | Redis Cluster (automatic sharding) | Client-side implementation |
+| Pub/Sub | Yes | No |
+| Scripting | Lua scripts | No |
+| Memory efficiency | Moderate (struct overhead) | High (simple) |
+| Multithreading | I/O threads in Redis 7.0+ | Multithreaded |
+| Transactions | MULTI/EXEC, Lua | CAS (Check And Set) |
+| Latency | ~0.1ms (single node) | ~0.1ms |
+| Max value size | 512MB | 1MB (default) |
+| Best for | Feature-rich cache, sessions, rankings | Simple high-speed cache |
 
-### 比較表3: キャッシュ無効化戦略の比較
+### Table 3: Cache Invalidation Strategy Comparison
 
-| 戦略 | 即時性 | 実装コスト | 一貫性保証 | スケーラビリティ | 適するケース |
+| Strategy | Immediacy | Implementation Cost | Consistency Guarantee | Scalability | Best For |
 |------|--------|-----------|-----------|----------------|-------------|
-| TTL | 低い（期限待ち） | 最低 | 最終的一貫性 | 高い | 大半のユースケース |
-| イベント駆動 | 高い（即座） | 中 | ほぼリアルタイム | 中 | リアルタイム反映が必要 |
-| バージョニング | 高い | 中 | 強い | 高い | 競合が多い環境 |
-| タグベース | 高い | 中 | グループ単位 | 中 | 関連データの一括無効化 |
-| CDC | 高い（DB変更検知） | 高 | DB主導の一貫性 | 高い | マイクロサービス、大規模 |
+| TTL | Low (wait for expiry) | Lowest | Eventual consistency | High | Most use cases |
+| Event-driven | High (immediate) | Medium | Near real-time | Medium | Real-time consistency required |
+| Versioning | High | Medium | Strong | High | High-contention environments |
+| Tag-based | High | Medium | Group-level | Medium | Bulk invalidation of related data |
+| CDC | High (detects DB change) | High | DB-driven consistency | High | Microservices, large-scale systems |
 
 ---
 
-## 6. アンチパターン
+## 6. Anti-Patterns
 
-### アンチパターン1: キャッシュを唯一のデータソースにする
+### Anti-Pattern 1: Using Cache as the Only Data Source
 
 ```python
-# NG: キャッシュのみにデータを保存
+# BAD: Storing data only in cache
 
 class CacheOnlyStore:
-    """キャッシュを唯一のデータストアとして使用"""
+    """Using cache as the sole data store"""
 
     def __init__(self, redis_client: redis.Redis):
         self.cache = redis_client
 
     def save_order(self, order_id: str, data: dict):
-        # DBに保存しない！
+        # Not saving to DB!
         self.cache.set(f"order:{order_id}", json.dumps(data))
-        # 問題:
-        # - Redis再起動でデータ消失
-        # - maxmemory到達でLRU削除 → データ消失
-        # - 複雑なクエリが不可能（JOIN、集計等）
-        # - バックアップ・リカバリが困難
+        # Problems:
+        # - Data lost on Redis restart
+        # - LRU eviction on maxmemory → data loss
+        # - Complex queries impossible (JOIN, aggregation, etc.)
+        # - Backup and recovery are difficult
 
     def get_order(self, order_id: str) -> Optional[dict]:
         cached = self.cache.get(f"order:{order_id}")
         if not cached:
-            return None  # データが消失している可能性
+            return None  # Data may have been lost
         return json.loads(cached)
 
 
-# OK: キャッシュは高速レイヤー、DBがSource of Truth
+# GOOD: Cache as a fast layer; DB is the source of truth
 
 class CacheWithDbStore:
-    """キャッシュ + DB の正しい構成"""
+    """Correct configuration with cache + DB"""
 
     def __init__(self, redis_client: redis.Redis, db_client):
         self.cache = redis_client
         self.db = db_client
 
     def save_order(self, order_id: str, data: dict):
-        # DB が Source of Truth
+        # DB is the source of truth
         self.db.save_order(order_id, data)
-        # キャッシュは高速アクセス用の「揮発性レイヤー」
+        # Cache is a volatile fast-access layer
         self.cache.setex(f"order:{order_id}", 3600, json.dumps(data))
 
     def get_order(self, order_id: str) -> Optional[dict]:
-        # キャッシュ → DB のフォールバック
+        # Cache → DB fallback
         cached = self.cache.get(f"order:{order_id}")
         if cached:
             return json.loads(cached)
-        # キャッシュミス → DBから取得して再キャッシュ
+        # Cache miss → fetch from DB and re-cache
         order = self.db.find_order(order_id)
         if order:
             self.cache.setex(f"order:{order_id}", 3600, json.dumps(order))
         return order
 ```
 
-### アンチパターン2: TTLなしの無期限キャッシュ
+### Anti-Pattern 2: Indefinite Cache with No TTL
 
 ```python
-# NG: TTLなしでキャッシュ
+# BAD: Caching without TTL
 
 class NoTTLCache:
     def save(self, key: str, data: dict):
         self.cache.set(key, json.dumps(data))
-        # 問題:
-        # - メモリリーク（使われないデータが蓄積）
-        # - データの鮮度が保証されない
-        # - 手動で無効化しない限り古いデータが残り続ける
+        # Problems:
+        # - Memory leak (unused data accumulates)
+        # - No guarantee of data freshness
+        # - Stale data persists unless manually invalidated
 
 
-# OK: 用途に応じた適切なTTL設定
+# GOOD: Set appropriate TTL based on use case
 
 class ProperTTLCache:
-    # 用途別のTTL定数
-    TTL_SESSION = 1800       # 30分: セッション
-    TTL_USER_PROFILE = 300   # 5分: ユーザー情報
-    TTL_CONFIG = 3600        # 1時間: 設定データ
-    TTL_STATIC = 86400       # 1日: 静的データ
-    TTL_SEARCH = 60          # 1分: 検索結果
-    TTL_NEGATIVE = 60        # 1分: ネガティブキャッシュ
+    # TTL constants by use case
+    TTL_SESSION = 1800       # 30 min: sessions
+    TTL_USER_PROFILE = 300   # 5 min: user info
+    TTL_CONFIG = 3600        # 1 hour: config data
+    TTL_STATIC = 86400       # 1 day: static data
+    TTL_SEARCH = 60          # 1 min: search results
+    TTL_NEGATIVE = 60        # 1 min: negative cache
 
     def save(self, key: str, data: dict, ttl_category: str = "default"):
         ttl_map = {
@@ -931,38 +931,38 @@ class ProperTTLCache:
         self.cache.setex(key, ttl, json.dumps(data))
 
     def save_negative(self, key: str):
-        """ネガティブキャッシュ: 存在しないデータの短期キャッシュ
-        → Cache Penetration（キャッシュ穿刺攻撃）防止"""
+        """Negative cache: short-term cache for non-existent data
+        → Prevents Cache Penetration attacks"""
         self.cache.setex(key, self.TTL_NEGATIVE, json.dumps(None))
 ```
 
-### アンチパターン3: キャッシュキーの設計ミス
+### Anti-Pattern 3: Poor Cache Key Design
 
 ```python
-# NG: 曖昧なキャッシュキー
+# BAD: Ambiguous cache keys
 
 class BadCacheKeys:
     def get_data(self, user_id: str, page: int):
-        # 問題1: user_id だけでキーを構成 → ページネーションが効かない
-        key = f"user:{user_id}"  # page情報が抜けている！
+        # Problem 1: Key based on user_id alone → pagination doesn't work
+        key = f"user:{user_id}"  # page info missing!
 
-        # 問題2: クエリパラメータ全部をキーに含む
+        # Problem 2: Including all query parameters in the key
         key = f"search:{query}&page={page}&utm_source={utm}"
-        # utm_source はキャッシュに関係ない → 不要なキャッシュミス
+        # utm_source is irrelevant to caching → unnecessary cache misses
 
-        # 問題3: キーにオブジェクト全体を含む
+        # Problem 3: Including entire objects in the key
         key = f"result:{json.dumps(complex_filter)}"
-        # キーが長すぎてRedisのメモリを浪費
+        # Key too long → wastes Redis memory
 
 
-# OK: 構造化されたキャッシュキー設計
+# GOOD: Structured cache key design
 
 class GoodCacheKeys:
-    """キャッシュキーの設計規則:
-    1. プレフィックス: エンティティタイプ
-    2. 識別子: エンティティID
-    3. サフィックス: バリエーション（ページ、言語等）
-    4. 不要なパラメータは除外
+    """Cache key design rules:
+    1. Prefix: entity type
+    2. Identifier: entity ID
+    3. Suffix: variation (page, locale, etc.)
+    4. Exclude irrelevant parameters
     """
 
     def user_profile_key(self, user_id: str) -> str:
@@ -972,28 +972,28 @@ class GoodCacheKeys:
         return f"user:orders:{user_id}:p{page}"
 
     def search_key(self, query: str, page: int, filters: dict) -> str:
-        # フィルタを正規化してハッシュ化
+        # Normalize and hash the filters
         filter_hash = hashlib.md5(
             json.dumps(filters, sort_keys=True).encode()
         ).hexdigest()[:8]
         return f"search:{query}:p{page}:f{filter_hash}"
 
-    def product_key(self, product_id: str, locale: str = "ja") -> str:
+    def product_key(self, product_id: str, locale: str = "en") -> str:
         return f"product:{product_id}:{locale}"
 ```
 
 ---
 
-## 7. 練習問題
+## 7. Exercises
 
-### 演習1（基礎）: Cache-Aside パターンの実装と統計
+### Exercise 1 (Basic): Implement Cache-Aside Pattern with Statistics
 
-**課題**: CacheAsideRepository を使い、100回のランダムアクセス（ユーザー数10人）を実行して、キャッシュヒット率を計測せよ。
+**Task**: Use `CacheAsideRepository` to perform 100 random accesses across 10 users and measure the cache hit rate.
 
 ```python
 import random
 
-# シンプルなインメモリDB（テスト用）
+# Simple in-memory DB (for testing)
 class MockDB:
     def __init__(self):
         self.users = {f"user-{i}": {"id": f"user-{i}", "name": f"User {i}"}
@@ -1002,7 +1002,7 @@ class MockDB:
     def find_user(self, user_id):
         return self.users.get(user_id)
 
-# テスト実行
+# Run test
 db = MockDB()
 r = redis.Redis()
 repo = CacheAsideRepository(r, db, ttl=60)
@@ -1014,13 +1014,13 @@ for _ in range(100):
 print(f"Stats: {repo.stats}")
 ```
 
-**期待される出力**:
+**Expected output**:
 ```
 Stats: CacheStats(hits=90, misses=10, hit_rate=90.0%)
 ```
 
 <details>
-<summary>模範解答（クリックで展開）</summary>
+<summary>Reference Answer (click to expand)</summary>
 
 ```python
 import random
@@ -1043,7 +1043,7 @@ r.flushdb()
 
 repo = CacheAsideRepository(r, db, ttl=60, prefix="test:")
 
-# 100回ランダムアクセス
+# 100 random accesses
 for _ in range(100):
     user_id = f"user-{random.randint(0, 9)}"
     user = repo.get_user(user_id)
@@ -1051,20 +1051,20 @@ for _ in range(100):
 
 print(f"Stats: {repo.stats}")
 print(f"DB call count: {db.call_count}")
-# 初回アクセスで10ユーザー分のミスが発生し、残りの90回はキャッシュヒット
-# ヒット率は約90%になる
+# The first access for each of the 10 users is a miss; the remaining 90 are hits
+# Hit rate is approximately 90%
 ```
 
-**ポイント:**
-- ユーザー10人に対して100回アクセスするため、初回の10回がミス、残り90回がヒット
-- ヒット率 = 90/100 = 90%
-- DB呼び出し回数はキャッシュミス回数と一致する（10回）
+**Key points:**
+- With 100 accesses across 10 users, the first 10 are misses and the remaining 90 are hits
+- Hit rate = 90/100 = 90%
+- DB call count equals the number of cache misses (10)
 
 </details>
 
-### 演習2（応用）: キャッシュスタンピード対策の比較
+### Exercise 2 (Intermediate): Compare Cache Stampede Mitigation Strategies
 
-**課題**: ロック方式とソフトTTL方式の両方で、10スレッドが同時にキャッシュミスした場合のDB呼び出し回数を比較せよ。
+**Task**: Using both the lock strategy and the soft TTL strategy, compare the number of DB calls when 10 threads simultaneously encounter a cache miss.
 
 ```python
 import threading
@@ -1077,10 +1077,10 @@ def slow_db_fetch():
     global db_call_count
     with lock:
         db_call_count += 1
-    time.sleep(0.1)  # DB遅延をシミュレート
+    time.sleep(0.1)  # Simulate DB latency
     return {"data": "value"}
 
-# ロック方式テスト
+# Lock strategy test
 r = redis.Redis()
 r.flushdb()
 protection = ThunderingHerdProtection(r)
@@ -1095,12 +1095,12 @@ for _ in range(10):
 for t in threads:
     t.join()
 
-print(f"ロック方式: DB呼び出し回数 = {db_call_count}")
-# 期待: 1-2回（ほとんどのスレッドがロック待ち）
+print(f"Lock strategy: DB call count = {db_call_count}")
+# Expected: 1-2 calls (most threads wait for the lock)
 ```
 
 <details>
-<summary>模範解答（クリックで展開）</summary>
+<summary>Reference Answer (click to expand)</summary>
 
 ```python
 import threading
@@ -1120,14 +1120,14 @@ def make_slow_fetch(counter_name):
                 db_call_count_lock += 1
             else:
                 db_call_count_soft += 1
-        time.sleep(0.1)  # DB遅延をシミュレート
+        time.sleep(0.1)  # Simulate DB latency
         return {"data": "value"}
     return slow_db_fetch
 
 r = redis.Redis()
 protection = ThunderingHerdProtection(r)
 
-# --- テスト1: ロック方式 ---
+# --- Test 1: Lock strategy ---
 r.flushdb()
 db_call_count_lock = 0
 threads = []
@@ -1140,10 +1140,10 @@ for _ in range(10):
     t.start()
 for t in threads:
     t.join()
-print(f"ロック方式: DB呼び出し回数 = {db_call_count_lock}")
-# 期待: 1-2回
+print(f"Lock strategy: DB call count = {db_call_count_lock}")
+# Expected: 1-2 calls
 
-# --- テスト2: ソフトTTL方式 ---
+# --- Test 2: Soft TTL strategy ---
 r.flushdb()
 db_call_count_soft = 0
 threads = []
@@ -1156,27 +1156,27 @@ for _ in range(10):
     t.start()
 for t in threads:
     t.join()
-print(f"ソフトTTL方式: DB呼び出し回数 = {db_call_count_soft}")
-# 期待: 初回キャッシュミスのため全スレッドが殺到する可能性あり
-# ソフトTTLは「期限前の先行更新」に強く、完全なコールドスタートには弱い
+print(f"Soft TTL strategy: DB call count = {db_call_count_soft}")
+# Expected: All threads may storm DB on a cold start
+# Soft TTL is effective for pre-expiry refresh, but weak against a full cold start
 ```
 
-**ポイント:**
-- ロック方式: 最初のスレッドがロックを取得しDBアクセス。他のスレッドはロック待ち後にキャッシュから取得。DB呼び出しは1-2回
-- ソフトTTL方式: コールドスタート（完全な期限切れ）では全スレッドが同期的にDBアクセスする可能性がある。ソフトTTLは「期限前」の先行更新に効果的であり、完全な初回ミスにはロック方式が適している
+**Key points:**
+- Lock strategy: The first thread acquires the lock and accesses DB; others wait for the lock and then read from cache. DB is called 1-2 times.
+- Soft TTL strategy: On a full cold start, all threads may access DB synchronously. Soft TTL is effective for refreshing before expiry; the lock strategy is better for initial cold misses.
 
 </details>
 
-### 演習3（発展）: 多層キャッシュシステムの設計
+### Exercise 3 (Advanced): Design a Multi-Layer Cache System
 
-**課題**: ローカルキャッシュ（インプロセス）→ 分散キャッシュ（Redis）→ DB の3層キャッシュを実装し、各層のヒット率と平均レイテンシを計測せよ。
+**Task**: Implement a 3-layer cache (local/in-process → distributed/Redis → DB) and measure the hit rate and average latency for each layer.
 
 ```python
 import time
 from collections import OrderedDict
 
 class LRUCache:
-    """インプロセスLRUキャッシュ（ローカルキャッシュ層）"""
+    """In-process LRU cache (local cache layer)"""
 
     def __init__(self, max_size: int = 100):
         self.cache = OrderedDict()
@@ -1196,7 +1196,7 @@ class LRUCache:
 
 
 class MultiLayerCache:
-    """3層キャッシュ: Local → Redis → DB"""
+    """3-layer cache: Local → Redis → DB"""
 
     def __init__(self, local_cache: LRUCache,
                  redis_client: redis.Redis, db_client):
@@ -1206,7 +1206,7 @@ class MultiLayerCache:
         self.stats = {"l1_hits": 0, "l2_hits": 0, "db_hits": 0}
 
     def get(self, key: str):
-        # Layer 1: ローカルキャッシュ (~0.001ms)
+        # Layer 1: Local cache (~0.001ms)
         value = self.local.get(key)
         if value is not None:
             self.stats["l1_hits"] += 1
@@ -1216,7 +1216,7 @@ class MultiLayerCache:
         cached = self.redis.get(key)
         if cached:
             value = json.loads(cached)
-            self.local.set(key, value)  # L1にも保存
+            self.local.set(key, value)  # Also store in L1
             self.stats["l2_hits"] += 1
             return value
 
@@ -1230,7 +1230,7 @@ class MultiLayerCache:
 ```
 
 <details>
-<summary>模範解答（クリックで展開）</summary>
+<summary>Reference Answer (click to expand)</summary>
 
 ```python
 import time
@@ -1241,7 +1241,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 
 class LRUCache:
-    """インプロセスLRUキャッシュ（L1層）"""
+    """In-process LRU cache (L1 layer)"""
 
     def __init__(self, max_size: int = 100, ttl: int = 30):
         self.cache: OrderedDict = OrderedDict()
@@ -1251,7 +1251,7 @@ class LRUCache:
 
     def get(self, key: str):
         if key in self.cache:
-            # TTLチェック
+            # TTL check
             if time.time() > self.expiry.get(key, 0):
                 del self.cache[key]
                 del self.expiry[key]
@@ -1270,7 +1270,7 @@ class LRUCache:
 
 
 class MockDB:
-    """テスト用インメモリDB"""
+    """In-memory DB for testing"""
 
     def __init__(self, latency: float = 0.01):
         self.data = {f"item-{i}": {"id": f"item-{i}", "value": i * 100}
@@ -1278,12 +1278,12 @@ class MockDB:
         self.latency = latency
 
     def find(self, key: str):
-        time.sleep(self.latency)  # DB遅延シミュレート
+        time.sleep(self.latency)  # Simulate DB latency
         return self.data.get(key)
 
 
 class MultiLayerCache:
-    """3層キャッシュ: L1(Local) → L2(Redis) → L3(DB)"""
+    """3-layer cache: L1(Local) → L2(Redis) → L3(DB)"""
 
     def __init__(self, local_cache: LRUCache,
                  redis_client: redis.Redis, db_client,
@@ -1298,7 +1298,7 @@ class MultiLayerCache:
     def get(self, key: str):
         start = time.time()
 
-        # Layer 1: ローカルキャッシュ
+        # Layer 1: Local cache
         value = self.local.get(key)
         if value is not None:
             self.stats["l1_hits"] += 1
@@ -1345,28 +1345,28 @@ class MultiLayerCache:
         return "\n".join(lines)
 
 
-# === テスト実行 ===
+# === Run test ===
 r = redis.Redis()
 r.flushdb()
 db = MockDB(latency=0.01)
 local = LRUCache(max_size=20, ttl=30)
 cache = MultiLayerCache(local, r, db, redis_ttl=300)
 
-# 500回のアクセス（10種類のキーにZipf風の偏りを持たせる）
+# 500 accesses with Zipf-like skew across 10 keys
 keys = [f"item-{i}" for i in range(10)]
 for _ in range(500):
-    # 人気キーほどアクセスされる
+    # Popular keys are accessed more frequently
     idx = min(int(random.paretovariate(1.5)), len(keys) - 1)
     cache.get(keys[idx])
 
 print(cache.report())
 ```
 
-**ポイント:**
-- L1（ローカル）のヒット率が最も高くなる（同一プロセス内のホットデータ）
-- L2（Redis）はL1ミスの受け皿で、別プロセスからのウォームアップ済みデータもヒットする
-- DB到達率は全体の数%以下に抑えられるのが理想
-- Zipf分布に近い偏りを持たせることで、実際のアクセスパターンをシミュレートする
+**Key points:**
+- L1 (local) typically achieves the highest hit rate (hot data within the same process)
+- L2 (Redis) catches L1 misses and also serves data warmed up by other processes
+- Ideally, fewer than a few percent of requests should reach the DB
+- Using a Zipf-like distribution simulates realistic access patterns
 
 </details>
 
@@ -1374,76 +1374,76 @@ print(cache.report())
 
 ## 8. FAQ
 
-### Q1: キャッシュヒット率はどの程度を目指すべきですか？
+### Q1: What cache hit rate should I aim for?
 
-一般的に80%以上が目標、90%以上で良好、95%以上で優秀とされる。ヒット率が低い場合は (1) TTLが短すぎる、(2) キャッシュキーの設計が細かすぎる、(3) データのアクセスパターンが分散している（ロングテール）、のいずれかを疑う。Pareto の法則（80/20ルール）により、20%のデータが80%のアクセスを占めることが多く、この上位データをキャッシュするだけで大幅な改善が見込める。ヒット率の監視は `redis-cli INFO stats` の `keyspace_hits` / `keyspace_misses` で確認できる。
+A rate above 80% is the general target; above 90% is good; above 95% is excellent. If the hit rate is low, consider whether (1) the TTL is too short, (2) cache keys are too granular, or (3) access patterns are highly distributed (long-tail). The Pareto principle (80/20 rule) often applies — 20% of data accounts for 80% of accesses — so caching just the top-access data can yield significant improvement. Monitor hit rates with `keyspace_hits` / `keyspace_misses` from `redis-cli INFO stats`.
 
-### Q2: キャッシュとDBのデータが不整合になったらどうしますか？
+### Q2: What should I do when cache and DB data become inconsistent?
 
-不整合の原因は (1) 更新時のキャッシュ無効化漏れ、(2) Race Condition（同時更新）、(3) ネットワーク障害によるキャッシュ更新失敗。対策は TTL を適切に設定して自然治癒を待つ「最終手段」と、変更イベント（CDC: Change Data Capture）でキャッシュを更新する「能動的手段」の併用が効果的。不整合が致命的なデータ（残高等）はキャッシュしないか、Write-Through で同期更新する。二重書き込み問題（DB成功→キャッシュ失敗）は、更新時にキャッシュを「削除」し、次の読み込みで自然に再キャッシュする方式が最もシンプルで確実。
+Common causes of inconsistency: (1) a missed cache invalidation on update, (2) race conditions (concurrent updates), (3) failed cache updates due to network failures. The recommended approach combines TTL-based "eventual self-healing" as a last resort with "active" CDC (Change Data Capture)-driven cache updates. For data where inconsistency is critical (e.g., account balances), either do not cache it or use Write-Through for synchronous updates. The simplest and most reliable solution to the dual-write problem (DB succeeds → cache update fails) is to **delete** the cache on update, so it is naturally re-cached on the next read.
 
-### Q3: Redis のメモリが不足したらどうなりますか？
+### Q3: What happens when Redis runs out of memory?
 
-Redis の `maxmemory-policy` 設定で動作が決まる。`volatile-lru`（TTL付きキーをLRUで削除）、`allkeys-lru`（全キーをLRUで削除）、`noeviction`（書き込みエラーを返す）が代表的。キャッシュ用途では `allkeys-lru` が推奨。メモリ使用量の監視と、不要なキーの定期的なクリーンアップも重要。Redis Cluster でノードを追加してメモリを拡張することも可能である。メモリ使用量は `INFO memory` の `used_memory_human` で確認する。
+Behavior is determined by the `maxmemory-policy` setting. Common options: `volatile-lru` (evict TTL-keyed entries by LRU), `allkeys-lru` (evict any key by LRU), `noeviction` (return write errors). For caching use cases, `allkeys-lru` is recommended. Monitoring memory usage and periodically cleaning up stale keys is also important. Redis Cluster allows adding nodes to expand memory. Monitor usage with `used_memory_human` from `INFO memory`.
 
-### Q4: Cache Penetration（キャッシュ穿刺）とCache Breakdown の違いは？
+### Q4: What is the difference between Cache Penetration and Cache Breakdown?
 
-**Cache Penetration**: 存在しないデータへのリクエストが大量に来る場合。キャッシュもDBもミスし、毎回DBにアクセスする。対策はネガティブキャッシュ（null値を短TTLでキャッシュ）とブルームフィルター（存在しないキーを事前にフィルタリング）。**Cache Breakdown**: 人気キーのTTLが切れた瞬間に大量リクエストが殺到する場合。これがキャッシュスタンピード（Thundering Herd）問題。対策はロック、ソフトTTL、確率的早期再計算。
+**Cache Penetration**: Large volumes of requests for data that does not exist. Both cache and DB miss every time, resulting in constant DB access. Mitigations: negative caching (cache null values with a short TTL) and Bloom filters (pre-filter non-existent keys). **Cache Breakdown**: A large number of requests flood in the instant a popular key's TTL expires. This is the cache stampede (Thundering Herd) problem. Mitigations: locks, soft TTL, and probabilistic early recomputation.
 
-### Q5: ローカルキャッシュと分散キャッシュの使い分けは？
+### Q5: When should I use local cache vs. distributed cache?
 
-**ローカルキャッシュ**（Guava Cache, Caffeine等）: プロセス内メモリで超高速（~ns）。サーバー間で共有されないため、一貫性の保証は困難。設定データ、マスタデータ等の変更頻度が低いデータに適する。**分散キャッシュ**（Redis, Memcached）: ネットワーク越しでアクセス（~0.1-1ms）。全サーバーから同一データを参照でき一貫性が高い。セッション、ユーザーデータ等に適する。両方を多層キャッシュとして組み合わせるのが最も効果的。
+**Local cache** (Guava Cache, Caffeine, etc.): In-process memory, extremely fast (~ns). Not shared across servers, so consistency is hard to guarantee. Suitable for low-change-frequency data such as config and master data. **Distributed cache** (Redis, Memcached): Access over the network (~0.1-1ms). All servers share the same data, offering higher consistency. Suitable for sessions, user data, etc. Combining both as a multi-layer cache is the most effective approach.
 
-### Q6: Redis Cluster と Redis Sentinel の違いは？
+### Q6: What is the difference between Redis Cluster and Redis Sentinel?
 
-**Redis Sentinel**: マスター/レプリカ構成の高可用性ソリューション。マスター障害時に自動フェイルオーバーでレプリカを昇格する。データは分散されず、単一マスターにメモリ上限がある。**Redis Cluster**: 自動シャーディングによる水平スケーリング。データを16384スロットに分散し、複数マスターノードで分担する。単一ノードのメモリ上限を超えるデータ量を扱える。10GB以下ならSentinel、それ以上ならClusterが目安。
+**Redis Sentinel**: A high-availability solution for master/replica configurations. Automatically promotes a replica when the master fails. Data is not distributed, so a single master's memory is the ceiling. **Redis Cluster**: Horizontal scaling through automatic sharding. Data is distributed across 16,384 slots handled by multiple master nodes, allowing data volumes beyond a single node's memory limit. A rough guideline: use Sentinel for under 10GB; use Cluster for larger amounts.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Rather than theory alone, writing actual code and observing behavior will deepen your understanding.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping straight to advanced topics. We recommend thoroughly understanding the foundational concepts covered in this guide before moving on to the next steps.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this topic applied in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in day-to-day development work, particularly during code reviews and architectural design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| キャッシュの目的 | レイテンシ削減、スループット向上、DB負荷軽減 |
-| 多層キャッシュ | ブラウザ → CDN → App Cache → DB Cache |
-| Cache-Aside | 最も一般的。読み込み時にキャッシュ、ミスでDB |
-| Write-Through | 一貫性重視。DB+キャッシュを同期更新 |
-| Write-Behind | 書き込み性能重視。非同期でDB反映（データ損失リスクあり） |
-| 無効化戦略 | TTL（ベースライン）+ イベント駆動（即時反映）の併用 |
-| スタンピード対策 | ロック、ソフトTTL、確率的早期再計算の3方式 |
-| Redis活用 | SortedSet(ランキング)、HyperLogLog(UV)、Bitmap(DAU) |
-| キーの設計 | エンティティタイプ:ID:バリエーションの構造化命名規則 |
+| Purpose of caching | Reduce latency, increase throughput, reduce DB load |
+| Multi-layer caching | Browser → CDN → App Cache → DB Cache |
+| Cache-Aside | Most common. Cache on read; fall back to DB on miss |
+| Write-Through | Consistency-first. Synchronously update both DB and cache |
+| Write-Behind | Write-performance-first. Async DB propagation (risk of data loss) |
+| Invalidation strategy | Combine TTL (baseline) + event-driven (immediate) |
+| Stampede protection | Three strategies: lock, soft TTL, probabilistic early recomputation |
+| Redis usage | SortedSet (rankings), HyperLogLog (UV), Bitmap (DAU) |
+| Key design | Structured naming: entity-type:ID:variation |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [CDN](./03-cdn.md) -- エッジキャッシュによるグローバル配信
-- [メッセージキュー](./02-message-queue.md) -- 非同期処理と組み合わせたキャッシュ更新
-- [DBスケーリング](./04-database-scaling.md) -- キャッシュと併用するDB最適化
-- [ロードバランサー](./00-load-balancer.md) -- LBの背後のキャッシュ配置
-- [信頼性](../00-fundamentals/02-reliability.md) -- キャッシュ障害時のフォールバック戦略
+- [CDN](./03-cdn.md) -- Global delivery via edge caching
+- [Message Queue](./02-message-queue.md) -- Cache updates combined with async processing
+- [DB Scaling](./04-database-scaling.md) -- DB optimization used alongside caching
+- [Load Balancer](./00-load-balancer.md) -- Cache placement behind a load balancer
+- [Reliability](../00-fundamentals/02-reliability.md) -- Fallback strategies when cache fails
 
 ---
 
-## 参考文献
+## References
 
 1. Fitzpatrick, B. (2004). "Distributed Caching with Memcached." *Linux Journal*.
 2. Redis Documentation -- https://redis.io/documentation
