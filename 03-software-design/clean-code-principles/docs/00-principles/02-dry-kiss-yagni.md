@@ -1,126 +1,127 @@
-# DRY / KISS / YAGNI ── 重複排除・単純化・不要機能の排除
+# DRY / KISS / YAGNI ── Eliminating Duplication, Simplicity, and Avoiding Unnecessary Features
 
-> ソフトウェア開発における3つの基本原則。DRYは知識の重複を排除し、KISSは複雑さを避け、YAGNIは不要な先行実装を防ぐ。この3原則の適切なバランスが、保守しやすいコードを生む。
-
----
-
-## この章で学ぶこと
-
-1. **DRY原則の正しい理解** ── 単なるコード重複排除ではなく「知識の一元化」を理解する
-2. **KISSの実践方法** ── シンプルさを保ちながら要件を満たす設計を身につける
-3. **YAGNIの判断基準** ── 先行投資すべきケースと不要なケースを見極める
-4. **3原則の相互関係と矛盾** ── 原則が衝突する場面での優先順位判断を習得する
-5. **Rule of Three の実践** ── 重複排除のタイミングを判断する経験則を学ぶ
+> Three fundamental principles of software development. DRY eliminates knowledge duplication, KISS avoids complexity, and YAGNI prevents premature implementation. The right balance of these three principles produces maintainable code.
 
 ---
 
-## 前提知識
+## What You Will Learn in This Chapter
 
-| 前提知識 | 説明 | 参照リンク |
+1. **Understanding DRY Correctly** ── Learn that DRY is about "centralizing knowledge," not just eliminating code duplication
+2. **How to Practice KISS** ── Acquire design skills that meet requirements while keeping things simple
+3. **Criteria for YAGNI** ── Learn to distinguish cases where upfront investment is justified from those where it is not
+4. **Interactions and Tensions Among the Three Principles** ── Learn how to prioritize when principles conflict
+5. **Practicing the Rule of Three** ── Learn the heuristic for deciding when to eliminate duplication
+
+---
+
+## Prerequisites
+
+| Prerequisite | Description | Reference |
 |---------|------|-----------|
-| クリーンコード概要 | コード品質の基本概念 | [00-clean-code-overview.md](./00-clean-code-overview.md) |
-| リファクタリング基礎 | コードの構造変更手法 | [リファクタリング技法](../02-refactoring/01-refactoring-techniques.md) |
-| 関数の基本 | 関数定義、引数、戻り値 | [関数設計](../01-practices/01-functions.md) |
+| Clean Code Overview | Basic concepts of code quality | [00-clean-code-overview.md](./00-clean-code-overview.md) |
+| Refactoring Basics | Techniques for restructuring code | [Refactoring Techniques](../02-refactoring/01-refactoring-techniques.md) |
+| Function Basics | Function definitions, arguments, return values | [Function Design](../01-practices/01-functions.md) |
 
 ---
 
 ## 1. DRY ── Don't Repeat Yourself
 
-### 1.1 定義と本質
+### 1.1 Definition and Essence
 
 ```
 +-----------------------------------------------------------+
 |  DRY (Don't Repeat Yourself)                              |
 |  ─────────────────────────────────────────────────         |
-|  「すべての知識はシステム内で唯一の、                      |
-|    曖昧でない、権威のある表現を持たなければならない」      |
+|  "Every piece of knowledge must have a single,            |
+|   unambiguous, authoritative representation               |
+|   within a system"                                        |
 |                    ── Andrew Hunt & David Thomas           |
-|                       『The Pragmatic Programmer』         |
+|                       "The Pragmatic Programmer"          |
 +-----------------------------------------------------------+
 ```
 
-**重要な注意点:** DRYは「コードの文字列的な重複排除」ではなく、**「知識の一元化」**である。この区別を誤ると、かえってコードの品質が悪化する。
+**Important note:** DRY is about **"centralizing knowledge,"** not "textually eliminating code duplication." Misunderstanding this distinction can actually worsen code quality.
 
-### 1.2 DRYの対象 ── 何が「重複」なのか
+### 1.2 What DRY Targets ── What Counts as "Duplication"
 
 ```
-     DRYが適用される「知識」の種類
+     Types of "knowledge" to which DRY applies
      ┌──────────────────────────────┐
-     │  ビジネスロジック             │  例: 税計算ルール
+     │  Business logic              │  e.g., tax calculation rules
      ├──────────────────────────────┤
-     │  データスキーマ               │  例: ユーザー定義
+     │  Data schema                 │  e.g., user definition
      ├──────────────────────────────┤
-     │  設定値                       │  例: API エンドポイント
+     │  Configuration values        │  e.g., API endpoints
      ├──────────────────────────────┤
-     │  アルゴリズム                 │  例: ソート手順
+     │  Algorithms                  │  e.g., sorting procedures
      ├──────────────────────────────┤
-     │  バリデーションルール         │  例: メール形式チェック
+     │  Validation rules            │  e.g., email format check
      ├──────────────────────────────┤
-     │  データベーススキーマ         │  例: テーブル定義
+     │  Database schema             │  e.g., table definitions
      ├──────────────────────────────┤
-     │  APIコントラクト             │  例: リクエスト/レスポンス形式
+     │  API contracts               │  e.g., request/response format
      └──────────────────────────────┘
-     ※ コードの見た目が同じでも、
-       表現している「知識」が異なれば重複ではない
+     * Even if code looks the same,
+       if it expresses different "knowledge," it is not duplication
 ```
 
-### 1.3 WHY ── なぜDRYが重要なのか
+### 1.3 WHY ── Why DRY Matters
 
-DRY違反の根本的な問題は、**変更漏れ**（Shotgun Surgery）である。
+The fundamental problem with DRY violations is **missed changes** (Shotgun Surgery).
 
 ```
-  DRY違反時の変更コスト
+  Cost of changes when DRY is violated
 
-  「消費税率を10%から12%に変更する」
+  "Change the consumption tax rate from 10% to 12%"
 
-  DRY準拠:                      DRY違反:
+  DRY compliant:                DRY violation:
   ┌──────────────┐              ┌──────────────┐
   │ TaxCalculator │              │ InvoiceService│ ← 10% → 12%
   │ TAX_RATE=0.10│              │ tax = x*0.10  │
-  │ → 0.12に変更 │              ├──────────────┤
-  │ (1箇所のみ)  │              │ CartService   │ ← 10% → 12%
-  └──────────────┘              │ tax = x*0.10  │
-                                ├──────────────┤
-  変更箇所: 1                    │ ReportService │ ← 10% → 12%
-  変更漏れリスク: 0%             │ tax = x*0.10  │
-                                ├──────────────┤
+  │ → change to  │              ├──────────────┤
+  │   0.12       │              │ CartService   │ ← 10% → 12%
+  │ (1 place)    │              │ tax = x*0.10  │
+  └──────────────┘              ├──────────────┤
+                                │ ReportService │ ← 10% → 12%
+  Change locations: 1           │ tax = x*0.10  │
+  Risk of missed change: 0%     ├──────────────┤
                                 │ API Response  │ ← 10% → 12%
                                 │ tax_rate: 0.10│
                                 └──────────────┘
-                                変更箇所: 4
-                                変更漏れリスク: 高い
+                                Change locations: 4
+                                Risk of missed change: High
 ```
 
-### 1.4 コード例
+### 1.4 Code Examples
 
-**コード例1: 真のDRY違反 ── 同じ知識が複数箇所にある**
+**Code Example 1: True DRY violation ── same knowledge exists in multiple places**
 
 ```python
-# DRY違反: 税計算ロジックが2箇所に存在
+# DRY violation: tax calculation logic exists in 2 places
 class InvoiceService:
     def calculate_total(self, subtotal: float) -> float:
-        tax = subtotal * 0.10  # 消費税10%
+        tax = subtotal * 0.10  # 10% consumption tax
         return subtotal + tax
 
 class CartService:
     def calculate_total(self, subtotal: float) -> float:
-        tax = subtotal * 0.10  # 消費税10% ← 同じ知識の重複！
+        tax = subtotal * 0.10  # 10% consumption tax ← same knowledge duplicated!
         return subtotal + tax
 
 
-# DRY適用: 税計算の知識を一元化
+# DRY applied: centralize the tax calculation knowledge
 class TaxCalculator:
-    """税計算の唯一の権威ある情報源"""
+    """The single authoritative source for tax calculation"""
     TAX_RATE = 0.10
 
     @classmethod
     def calculate_tax(cls, amount: float) -> float:
-        """税額を計算する"""
+        """Calculate tax amount"""
         return amount * cls.TAX_RATE
 
     @classmethod
     def calculate_total_with_tax(cls, subtotal: float) -> float:
-        """税込み合計を計算する"""
+        """Calculate total including tax"""
         return subtotal + cls.calculate_tax(subtotal)
 
 
@@ -133,33 +134,33 @@ class CartService:
         return TaxCalculator.calculate_total_with_tax(subtotal)
 ```
 
-**コード例2: DRY違反ではないケース ── 偶然の類似**
+**Code Example 2: Not a DRY violation ── coincidental similarity**
 
 ```python
-# これはDRY違反ではない！
-# 見た目は似ているが、異なる「知識」を表現している
+# This is NOT a DRY violation!
+# They look similar, but express different "knowledge"
 
 def validate_username(name: str) -> bool:
-    """ユーザー名は3文字以上20文字以下（ユーザー名のビジネスルール）"""
+    """Username must be between 3 and 20 characters (username business rule)"""
     return 3 <= len(name) <= 20
 
 def validate_product_name(name: str) -> bool:
-    """商品名は3文字以上20文字以下（商品名のビジネスルール）"""
+    """Product name must be between 3 and 20 characters (product name business rule)"""
     return 3 <= len(name) <= 20
 
-# 無理に共通化するとこうなる（悪い例）:
+# Forcing them into a common function produces this (bad example):
 def validate_name_length(name: str, min_len: int = 3, max_len: int = 20) -> bool:
     return min_len <= len(name) <= max_len
 
-# 問題: ユーザー名ルールが変わっても商品名ルールは変わらない
-# 例: 「ユーザー名は5文字以上に変更」→ 商品名まで影響する
-# これは「偶然の一致」であり、別の「知識」
+# Problem: if the username rule changes, it should not affect the product name rule
+# e.g., "Change minimum username length to 5" → product names are affected too
+# This is "coincidental similarity," not the same "knowledge"
 ```
 
-**コード例3: DRYの適用パターン ── 定数の一元化**
+**Code Example 3: DRY application pattern ── centralizing constants**
 
 ```typescript
-// DRY違反: 同じ値がコードの各所に散在
+// DRY violation: the same value is scattered throughout the code
 class UserValidator {
   validate(email: string): boolean {
     return /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/.test(email);
@@ -172,14 +173,14 @@ class RegistrationForm {
   }
 }
 
-// DRY適用: 正規表現を1箇所で定義
+// DRY applied: define the regex in one place
 const EMAIL_PATTERN = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
 
 function isValidEmail(email: string): boolean {
   return EMAIL_PATTERN.test(email);
 }
 
-// すべての箇所がこの関数を使う
+// All places use this function
 class UserValidator {
   validate(email: string): boolean {
     return isValidEmail(email);
@@ -187,31 +188,31 @@ class UserValidator {
 }
 ```
 
-**コード例4: DRYの適用 ── テンプレートメソッドパターン**
+**Code Example 4: DRY application ── Template Method pattern**
 
 ```python
 from abc import ABC, abstractmethod
 from datetime import datetime
 
-# DRY違反: レポート生成の共通フローが各クラスに重複
+# DRY violation: the common report generation flow is duplicated in each class
 class SalesReport:
     def generate(self, data):
-        header = f"=== 売上レポート ===\n日付: {datetime.now()}\n"
+        header = f"=== Sales Report ===\nDate: {datetime.now()}\n"
         body = self._format_sales(data)
-        footer = f"\n--- 以上 ---\n"
+        footer = f"\n--- End ---\n"
         return header + body + footer
 
 class InventoryReport:
     def generate(self, data):
-        header = f"=== 在庫レポート ===\n日付: {datetime.now()}\n"
+        header = f"=== Inventory Report ===\nDate: {datetime.now()}\n"
         body = self._format_inventory(data)
-        footer = f"\n--- 以上 ---\n"
+        footer = f"\n--- End ---\n"
         return header + body + footer
 
 
-# DRY適用: テンプレートメソッドパターン
+# DRY applied: Template Method pattern
 class BaseReport(ABC):
-    """レポート生成の共通フローを定義"""
+    """Defines the common flow for report generation"""
 
     def generate(self, data) -> str:
         header = self._build_header()
@@ -220,10 +221,10 @@ class BaseReport(ABC):
         return header + body + footer
 
     def _build_header(self) -> str:
-        return f"=== {self.title} ===\n日付: {datetime.now()}\n"
+        return f"=== {self.title} ===\nDate: {datetime.now()}\n"
 
     def _build_footer(self) -> str:
-        return f"\n--- 以上 ---\n"
+        return f"\n--- End ---\n"
 
     @property
     @abstractmethod
@@ -237,58 +238,59 @@ class BaseReport(ABC):
 class SalesReport(BaseReport):
     @property
     def title(self) -> str:
-        return "売上レポート"
+        return "Sales Report"
 
     def _build_body(self, data) -> str:
-        return "\n".join(f"  {item['name']}: {item['amount']}円" for item in data)
+        return "\n".join(f"  {item['name']}: {item['amount']}" for item in data)
 
 class InventoryReport(BaseReport):
     @property
     def title(self) -> str:
-        return "在庫レポート"
+        return "Inventory Report"
 
     def _build_body(self, data) -> str:
-        return "\n".join(f"  {item['name']}: {item['stock']}個" for item in data)
+        return "\n".join(f"  {item['name']}: {item['stock']} units" for item in data)
 ```
 
-### 1.5 Rule of Three（三度目の法則）
+### 1.5 Rule of Three
 
-DRY化のタイミングを判断する経験則として、「Rule of Three」がある。
+The "Rule of Three" is a practical heuristic for deciding when to apply DRY.
 
 ```
   Rule of Three
 
-  1回目の重複 → そのまま（偶然の一致かもしれない）
-  2回目の重複 → メモしておく（まだ様子見）
-  3回目の重複 → 共通化する（パターンが確立された）
+  1st duplication → Leave it (might be a coincidence)
+  2nd duplication → Note it (wait and see)
+  3rd duplication → Consolidate it (the pattern is established)
 
-  理由:
-  ・1-2回では共通化の正しい抽象が見えない
-  ・3回になれば共通パターンが明確になる
-  ・早すぎる共通化は間違った抽象を生む
+  Reasons:
+  · With 1-2 occurrences, the right abstraction is not yet clear
+  · By the 3rd occurrence, the common pattern becomes obvious
+  · Premature consolidation leads to wrong abstractions
 ```
 
-### 1.6 DRY違反の種類と対処法
+### 1.6 Types of DRY Violations and How to Address Them
 
 ```
-  コード重複の分類
+  Classification of code duplication
 
   ┌─────────────────────────────────────────────────┐
-  │  Type 1: 完全なクローン                          │
-  │  → コピペされた同一コード                        │
-  │  → 対処: 関数/メソッド抽出                       │
+  │  Type 1: Exact clone                             │
+  │  → Identical code that was copy-pasted           │
+  │  → Fix: Extract function/method                  │
   ├─────────────────────────────────────────────────┤
-  │  Type 2: パラメータ化されたクローン              │
-  │  → 定数やリテラルだけが異なるコード              │
-  │  → 対処: パラメータ化して共通関数に              │
+  │  Type 2: Parameterized clone                     │
+  │  → Code differing only in constants or literals  │
+  │  → Fix: Parameterize into a shared function      │
   ├─────────────────────────────────────────────────┤
-  │  Type 3: 構造的なクローン                        │
-  │  → 一部の文が追加/削除/変更されたコード          │
-  │  → 対処: テンプレートメソッド or ストラテジー    │
+  │  Type 3: Structural clone                        │
+  │  → Code with some statements added/removed/      │
+  │    changed                                       │
+  │  → Fix: Template Method or Strategy pattern      │
   ├─────────────────────────────────────────────────┤
-  │  Type 4: 意味的なクローン                        │
-  │  → 異なるコードだが同じ結果を生む                │
-  │  → 対処: 最もシンプルな実装に統一                │
+  │  Type 4: Semantic clone                          │
+  │  → Different code that produces the same result  │
+  │  → Fix: Unify to the simplest implementation     │
   └─────────────────────────────────────────────────┘
 ```
 
@@ -296,59 +298,61 @@ DRY化のタイミングを判断する経験則として、「Rule of Three」�
 
 ## 2. KISS ── Keep It Simple, Stupid
 
-### 2.1 定義
+### 2.1 Definition
 
 ```
 +-----------------------------------------------------------+
 |  KISS (Keep It Simple, Stupid)                            |
 |  ─────────────────────────────────────────────────         |
-|  「シンプルさは最高の洗練である」── Leonardo da Vinci     |
-|  「必要十分な最もシンプルな解法を選べ」                    |
+|  "Simplicity is the ultimate sophistication"               |
+|                                    ── Leonardo da Vinci   |
+|  "Choose the simplest solution that is sufficient"         |
 |                                                           |
-|  類似原則:                                                |
-|  ・Occam's Razor: 「必要以上に仮定を増やすな」           |
-|  ・UNIX哲学: 「一つのことをうまくやる」                   |
-|  ・Einstein: 「できるだけ単純に。でも単純すぎないように」  |
+|  Related principles:                                      |
+|  · Occam's Razor: "Do not multiply assumptions beyond     |
+|    necessity"                                             |
+|  · UNIX philosophy: "Do one thing and do it well"         |
+|  · Einstein: "As simple as possible, but no simpler"      |
 +-----------------------------------------------------------+
 ```
 
-### 2.2 WHY ── なぜシンプルさが重要なのか
+### 2.2 WHY ── Why Simplicity Matters
 
 ```
-  複雑さのコストモデル
+  Cost model of complexity
 
-  コスト
+  Cost
     ^
     |                        ####
     |                   #####
-    |              #####         ← 複雑なコードの保守コスト
+    |              #####         ← Maintenance cost of complex code
     |         #####
     |    #####
     |####
     |
-    |  ****************************  ← シンプルなコードの保守コスト
+    |  ****************************  ← Maintenance cost of simple code
     |****
-    +------------------------------------> 時間
-    初期  1月  3月  6月  1年  2年
+    +------------------------------------> Time
+    Start  1mo  3mo  6mo  1yr  2yr
 ```
 
-### 2.3 シンプルさの測定基準
+### 2.3 Metrics for Measuring Simplicity
 
-| 指標 | 測定方法 | 目安 |
+| Metric | How to Measure | Target |
 |------|---------|------|
-| サイクロマティック複雑度 | 分岐数を計測 | 関数あたり10以下 |
-| 認知的複雑度 | ネスト深度を加味 | 関数あたり15以下 |
-| 関数の行数 | 物理行を計測 | 20行以下 |
-| 引数の数 | パラメータ数を計測 | 3個以下 |
-| 抽象化の段数 | 呼び出し階層の深さ | 3段以下 |
-| import文の数 | 依存モジュール数 | 10個以下 |
+| Cyclomatic complexity | Count branches | 10 or fewer per function |
+| Cognitive complexity | Weighted by nesting depth | 15 or fewer per function |
+| Lines per function | Count physical lines | 20 or fewer |
+| Number of arguments | Count parameters | 3 or fewer |
+| Levels of abstraction | Depth of call hierarchy | 3 or fewer levels |
+| Number of imports | Count dependency modules | 10 or fewer |
 
-### 2.4 コード例
+### 2.4 Code Examples
 
-**コード例5: 過度に複雑な実装 vs シンプルな実装**
+**Code Example 5: Overly complex implementation vs. simple implementation**
 
 ```javascript
-// KISS違反: 過度に複雑なバリデーション
+// KISS violation: overly complex validation
 class UserValidator {
   constructor() {
     this.validationChain = new ValidationChainBuilder()
@@ -357,7 +361,7 @@ class UserValidator {
       .addValidator(new RegexValidator(/^[a-zA-Z0-9_]+$/))
       .addValidator(new BlacklistValidator(BANNED_WORDS))
       .setErrorHandler(new ValidationErrorAggregator())
-      .setLocalizationProvider(new I18nValidationMessages('ja'))
+      .setLocalizationProvider(new I18nValidationMessages('en'))
       .build();
   }
 
@@ -368,25 +372,25 @@ class UserValidator {
   }
 }
 
-// KISS適用: シンプルで十分
+// KISS applied: simple and sufficient
 function validateUsername(username) {
   if (!username || username.length === 0) {
-    return { valid: false, error: 'ユーザー名は必須です' };
+    return { valid: false, error: 'Username is required' };
   }
   if (username.length > 100) {
-    return { valid: false, error: 'ユーザー名は100文字以内です' };
+    return { valid: false, error: 'Username must be 100 characters or fewer' };
   }
   if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-    return { valid: false, error: '英数字とアンダースコアのみ使用できます' };
+    return { valid: false, error: 'Only alphanumeric characters and underscores are allowed' };
   }
   return { valid: true, error: null };
 }
 ```
 
-**コード例6: シンプルなデータ変換**
+**Code Example 6: Simple data transformation**
 
 ```python
-# KISS違反: 過度にジェネリックな変換パイプライン
+# KISS violation: overly generic transformation pipeline
 class DataTransformPipeline:
     def __init__(self):
         self.transformers = []
@@ -408,16 +412,16 @@ pipeline.add_transformer(RemoveSpecialCharsTransformer())
 result = pipeline.execute(user_input)
 
 
-# KISS適用: 直接的で明快
+# KISS applied: direct and clear
 def normalize_input(text: str) -> str:
-    """入力テキストを正規化する"""
+    """Normalize input text"""
     return text.strip().lower().replace('-', '').replace('.', '')
 ```
 
-**コード例7: KISS適用 ── 設定管理**
+**Code Example 7: KISS applied ── configuration management**
 
 ```python
-# KISS違反: 多層の抽象化を持つ設定管理
+# KISS violation: configuration management with multiple layers of abstraction
 class ConfigurationManager:
     def __init__(self):
         self._providers = []
@@ -442,13 +446,13 @@ class ConfigurationManager:
         return default
 
 
-# KISS適用: 必要十分なシンプルさ
+# KISS applied: necessary and sufficient simplicity
 import os
 from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class AppConfig:
-    """アプリケーション設定（イミュータブル）"""
+    """Application configuration (immutable)"""
     database_url: str
     api_key: str
     debug: bool = False
@@ -456,7 +460,7 @@ class AppConfig:
 
     @classmethod
     def from_env(cls) -> "AppConfig":
-        """環境変数から設定を読み込む"""
+        """Load configuration from environment variables"""
         return cls(
             database_url=os.environ["DATABASE_URL"],
             api_key=os.environ["API_KEY"],
@@ -467,60 +471,60 @@ class AppConfig:
 
 ### 2.5 Simplicity vs Simplistic
 
-| Simplicity（良い単純さ） | Simplistic（悪い単純さ） |
+| Simplicity (good simplicity) | Simplistic (bad simplicity) |
 |------------------------|------------------------|
-| 複雑な問題を明快に解決 | 問題を無視して単純化 |
-| 適切な抽象化で整理 | 必要な抽象化を省略 |
-| エッジケースを考慮 | エッジケースを無視 |
-| エラーハンドリング適切 | エラーハンドリング不足 |
-| テスト可能な構造 | テスト不可能な構造 |
+| Solves complex problems clearly | Simplifies by ignoring the problem |
+| Organizes with appropriate abstraction | Omits necessary abstraction |
+| Accounts for edge cases | Ignores edge cases |
+| Appropriate error handling | Insufficient error handling |
+| Testable structure | Untestable structure |
 
 ---
 
 ## 3. YAGNI ── You Aren't Gonna Need It
 
-### 3.1 定義
+### 3.1 Definition
 
 ```
 +-----------------------------------------------------------+
 |  YAGNI (You Aren't Gonna Need It)                         |
 |  ─────────────────────────────────────────────────         |
-|  「実際に必要になるまで、その機能を実装するな」            |
-|                    ── Ron Jeffries (XP共同創始者)          |
+|  "Do not implement a feature until you actually need it"   |
+|                    ── Ron Jeffries (co-founder of XP)      |
 |                                                           |
-|  「今必要でない機能に費やすコスト:                         |
-|    実装コスト + テストコスト + 保守コスト                  |
-|    + 読解コスト + 結局使わないリスク                       |
-|    + 実際のニーズとのズレリスク」                         |
+|  "Costs of implementing features you don't need yet:      |
+|    implementation cost + testing cost + maintenance cost   |
+|    + reading cost + risk of never being used               |
+|    + risk of misalignment with actual needs"               |
 +-----------------------------------------------------------+
 ```
 
-### 3.2 WHY ── 不要な先行実装のコスト
+### 3.2 WHY ── The Cost of Unnecessary Upfront Implementation
 
 ```
-  YAGNI違反の実際のコスト
+  Real costs of YAGNI violations
 
-  機能A: 今必要 → 実装 → 使われる → コスト回収
+  Feature A: needed now → implement → used → cost recovered
 
-  機能B: 将来必要かも → 実装 → 結局使われない
-    ├── 実装コスト: 3日
-    ├── テスト作成: 1日
-    ├── レビュー: 0.5日
-    ├── ドキュメント: 0.5日
-    ├── 保守コスト: 0.5日/月 x 12ヶ月 = 6日
-    └── 合計: 11日分の工数が無駄に
+  Feature B: might be needed later → implement → never used
+    ├── Implementation cost: 3 days
+    ├── Test creation: 1 day
+    ├── Review: 0.5 day
+    ├── Documentation: 0.5 day
+    ├── Maintenance cost: 0.5 day/month x 12 months = 6 days
+    └── Total: 11 days of effort wasted
 
-  機能C: 将来必要かも → 実装 → 実際のニーズと異なる
-    ├── 上記の11日 + リファクタリング: 5日
-    └── 合計: 16日分の工数が無駄に
+  Feature C: might be needed later → implement → doesn't match actual needs
+    ├── The above 11 days + refactoring: 5 days
+    └── Total: 16 days of effort wasted
 ```
 
-### 3.3 コード例
+### 3.3 Code Examples
 
-**コード例8: 過度な先行実装 vs 必要十分な実装**
+**Code Example 8: Excessive upfront implementation vs. necessary and sufficient implementation**
 
 ```typescript
-// YAGNI違反: 現時点で不要な拡張ポイントを大量に用意
+// YAGNI violation: many extension points provided that are not currently needed
 interface LogTransport {
   send(entry: LogEntry): Promise<void>;
 }
@@ -539,11 +543,11 @@ class Logger {
   private flushInterval: number;
   private retryPolicy: RetryPolicy;
   private encryptionProvider?: EncryptionProvider;
-  // 実際に使うのはコンソール出力だけなのに...
+  // When all we actually use is console output...
 }
 
 
-// YAGNI適用: 今必要なものだけ実装
+// YAGNI applied: implement only what is needed now
 enum LogLevel { DEBUG = 0, INFO = 1, WARN = 2, ERROR = 3 }
 
 class Logger {
@@ -566,17 +570,17 @@ class Logger {
       console.warn(`[WARN] ${new Date().toISOString()} ${message}`);
     }
   }
-  // ファイル出力が必要になったら、その時に拡張する
+  // When file output is needed, extend it at that point
 }
 ```
 
-**コード例9: YAGNI適用 ── APIレスポンス**
+**Code Example 9: YAGNI applied ── API response**
 
 ```python
 import json
 from dataclasses import dataclass
 
-# YAGNI違反: あらゆるフォーマットに先行対応
+# YAGNI violation: upfront support for every format
 class ApiResponse:
     def __init__(self, data, status=200):
         self.data = data
@@ -593,7 +597,7 @@ class ApiResponse:
         return self._formatters[format_type].format(self.data)
 
 
-# YAGNI適用: 今はJSONのみ
+# YAGNI applied: JSON only for now
 @dataclass
 class ApiResponse:
     data: dict
@@ -604,103 +608,106 @@ class ApiResponse:
             'status': self.status,
             'data': self.data
         }, ensure_ascii=False)
-# XMLやCSVが必要になったらその時に追加する
+# Add XML or CSV when they become necessary
 ```
 
-### 3.4 YAGNIの例外 ── 先行投資すべきケース
+### 3.4 Exceptions to YAGNI ── Cases Where Upfront Investment Is Justified
 
-| 先行投資が正当なケース | 理由 |
+| Cases where upfront investment is justified | Reason |
 |---------------------|------|
-| セキュリティ対策 | 後から追加は困難。最初から組み込む |
-| データベーススキーマ設計 | マイグレーションコストが高い |
-| APIの公開インターフェース | 後方互換性の維持が必要 |
-| ロギング基盤 | 後から追加すると全コードに影響 |
-| テスト基盤 | テスト可能な設計は最初から |
-| i18n（国際化）基盤 | 文字列のハードコードは後から修正困難 |
+| Security measures | Difficult to add later; must be built in from the start |
+| Database schema design | Migration costs are high |
+| Public API interfaces | Backward compatibility must be maintained |
+| Logging infrastructure | Adding it later affects all code |
+| Test infrastructure | Testable design must be established from the start |
+| i18n (internationalization) infrastructure | Hard-coded strings are difficult to fix later |
 
 ---
 
-## 4. 3原則の相互関係と矛盾
+## 4. Interactions and Tensions Among the Three Principles
 
-### 4.1 相互関係図
+### 4.1 Relationship Diagram
 
 ```
           DRY                KISS               YAGNI
-     「重複するな」     「シンプルに」      「今不要なら作るな」
+     "Don't repeat"    "Keep it simple"   "Don't build what
+                                           you don't need"
           |                  |                   |
           +--------+---------+--------+----------+
                    |                  |
-           矛盾が発生する場面       調和する場面
+           Where tension arises     Where they align
                    |                  |
-      DRY追求 → 過度な抽象化    3原則すべてが
-      → KISS違反になりうる      同じ方向を向く場面:
-                                「シンプルに、重複なく、
-      KISS追求 → 重複を許容      必要なものだけ」
-      → DRY違反になりうる
+      Pursuing DRY → over-            All three point in
+      abstraction                     the same direction:
+      → may violate KISS              "Simple, no duplication,
+                                       only what's needed"
+      Pursuing KISS → tolerating
+      duplication
+      → may violate DRY
 
-      DRY追求 → 将来の再利用を
-      見越した抽象化
-      → YAGNI違反になりうる
+      Pursuing DRY → abstraction
+      anticipating future reuse
+      → may violate YAGNI
 ```
 
-### 4.2 矛盾の解決ガイド
+### 4.2 Guide to Resolving Tensions
 
-| 状況 | 優先すべき原則 | 理由 |
+| Situation | Principle to prioritize | Reason |
 |------|---------------|------|
-| 2箇所の重複、変更頻度低い | KISS > DRY | 抽象化コストに見合わない |
-| 3箇所以上の重複 | DRY > KISS | 変更漏れのリスクが高い |
-| 将来の拡張のための抽象化 | YAGNI > OCP | 不確実な未来に投資しない |
-| ビジネスルールの重複 | DRY > YAGNI | ルール変更時の一貫性が重要 |
-| 小規模スクリプトの重複 | KISS > DRY | 抽象化よりもコピペが明快 |
-| テストコードの重複 | KISS > DRY | テストの可読性を優先 |
-| セキュリティ関連の機能 | 安全側に倒す | YAGNIは安全性に適用しない |
+| 2 instances of duplication, low change frequency | KISS > DRY | Abstraction cost is not worth it |
+| 3 or more instances of duplication | DRY > KISS | High risk of missed changes |
+| Abstraction for future extension | YAGNI > OCP | Do not invest in an uncertain future |
+| Duplication of business rules | DRY > YAGNI | Consistency on rule changes is critical |
+| Duplication in small scripts | KISS > DRY | Copy-paste is clearer than abstraction |
+| Duplication in test code | KISS > DRY | Prioritize readability of tests |
+| Security-related features | Err on the side of safety | YAGNI does not apply to safety |
 
-### 4.3 判断フローチャート
+### 4.3 Decision Flowchart
 
 ```
-  3原則の判断フロー
+  Decision flow for the three principles
 
-  重複を発見
+  Duplication found
   │
-  ├── 同じ「知識」を表現しているか？
-  │   ├── No → 放置（偶然の一致）
-  │   └── Yes → 何箇所の重複か？
-  │       ├── 2箇所 → 変更頻度は？
-  │       │   ├── 高い → DRY化する
-  │       │   └── 低い → Rule of Three（3箇所目を待つ）
-  │       └── 3箇所以上 → DRY化する
+  ├── Does it express the same "knowledge"?
+  │   ├── No → Leave it (coincidental similarity)
+  │   └── Yes → How many locations?
+  │       ├── 2 locations → How often does it change?
+  │       │   ├── Often → Apply DRY
+  │       │   └── Rarely → Rule of Three (wait for a 3rd occurrence)
+  │       └── 3 or more → Apply DRY
   │
-  ├── DRY化の方法を検討
-  │   ├── シンプルに関数/定数に抽出可能？
-  │   │   └── Yes → 抽出する（KISS準拠）
-  │   └── 複雑な抽象化が必要？
-  │       ├── 今の要件で必要？ → 実装する
-  │       └── 将来の要件のため？ → YAGNI（今は見送り）
+  ├── Consider how to apply DRY
+  │   ├── Can it be simply extracted to a function/constant?
+  │   │   └── Yes → Extract it (KISS compliant)
+  │   └── Does it require complex abstraction?
+  │       ├── Needed for current requirements? → Implement it
+  │       └── For future requirements? → YAGNI (defer for now)
 ```
 
 ---
 
-## 5. 実践的な判断フロー
+## 5. Practical Decision Flow
 
-| 判断ポイント | 質問 | Yes → | No → |
+| Decision point | Question | Yes → | No → |
 |-------------|------|-------|------|
-| 重複発見 | 同じ「知識」か？ | DRY化を検討 | 放置（偶然の一致） |
-| DRY化検討 | 3箇所以上？ | 共通化する | 2箇所ならRule of Three |
-| 共通化方法 | シンプルに抽出可能？ | 関数/定数に抽出 | 設計パターン適用を検討 |
-| 新機能要求 | 今スプリントで必要？ | 実装する | YAGNI（後回し） |
-| 実装方法 | 最もシンプルな方法で動く？ | その方法で実装 | さらにシンプルにできないか検討 |
-| 抽象化検討 | 具体的なユースケースが3つ以上？ | 抽象化する | 具体的な実装のまま |
+| Duplication found | Is it the same "knowledge"? | Consider DRY | Leave it (coincidental similarity) |
+| DRY consideration | 3 or more instances? | Consolidate | Rule of Three if only 2 |
+| Consolidation method | Can it be extracted simply? | Extract to function/constant | Consider design patterns |
+| New feature request | Needed in this sprint? | Implement it | YAGNI (defer) |
+| Implementation approach | Does it work with the simplest method? | Use that method | Consider if it can be made simpler |
+| Abstraction consideration | 3 or more concrete use cases? | Abstract it | Keep as concrete implementation |
 
 ---
 
-## 6. レイヤー間のDRY
+## 6. DRY Across Layers
 
-### 6.1 フロントエンド/バックエンド間の重複
+### 6.1 Duplication Between Frontend and Backend
 
 ```python
-# レイヤー間DRY違反: バリデーションルールが分散
+# Cross-layer DRY violation: validation rules scattered across layers
 
-# 改善: 単一の定義から各層のルールを生成
+# Improvement: generate rules for each layer from a single definition
 AGE_MIN = 0
 AGE_MAX = 150
 
@@ -708,7 +715,7 @@ def validate_age(age: int) -> bool:
     return AGE_MIN <= age <= AGE_MAX
 
 def get_age_schema() -> dict:
-    """JSON Schemaとしてフロントエンドと共有"""
+    """Share with frontend as JSON Schema"""
     return {
         "type": "integer",
         "minimum": AGE_MIN,
@@ -716,65 +723,65 @@ def get_age_schema() -> dict:
     }
 
 def get_age_constraint_sql() -> str:
-    """DB制約として共有"""
+    """Share as DB constraint"""
     return f"CHECK (age >= {AGE_MIN} AND age <= {AGE_MAX})"
 ```
 
-### 6.2 マイクロサービス間のDRY
+### 6.2 DRY in Microservices
 
 ```
-  マイクロサービスでのDRY判断
+  DRY decisions in microservices
 
-  サービス間の共有:
+  Sharing between services:
   ┌─────────────────────────────────────────────────┐
-  │ 共有すべきもの           │ 共有すべきでないもの   │
+  │ Should be shared         │ Should NOT be shared  │
   ├─────────────────────────┼─────────────────────┤
-  │ APIコントラクト(OpenAPI) │ ビジネスロジック      │
-  │ イベントスキーマ         │ データベーススキーマ   │
-  │ 認証トークン形式         │ 内部実装詳細          │
-  │ 共通ドメイン型          │ ユーティリティ関数    │
+  │ API contracts (OpenAPI)  │ Business logic        │
+  │ Event schemas            │ Database schemas      │
+  │ Auth token format        │ Internal impl details │
+  │ Common domain types      │ Utility functions     │
   └─────────────────────────┴─────────────────────┘
 
-  原則: サービスの独立性 > DRY
-  → 多少の重複は許容し、独立デプロイ可能性を維持
+  Principle: Service independence > DRY
+  → Tolerate some duplication; maintain independent deployability
 ```
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-patterns
 
-### アンチパターン1: WET（Write Everything Twice）コード
+### Anti-pattern 1: WET (Write Everything Twice) Code
 
 ```python
-# NG: 同じバリデーションロジックが微妙に異なるパターンで存在
+# Bad: the same validation logic exists in subtly different forms
 def validate_email_frontend(email):
     pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
     return bool(re.match(pattern, email))
 
 def validate_email_backend(email):
     pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
-    return bool(re.match(pattern, email))  # 微妙に違う！
+    return bool(re.match(pattern, email))  # Subtly different!
 
-# OK: 単一の定義
+# Good: single definition
 EMAIL_PATTERN = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
 
 def validate_email(email: str) -> bool:
-    """メールアドレスの形式を検証する（唯一の正規表現定義）"""
+    """Validate email address format (single regex definition)"""
     return bool(re.match(EMAIL_PATTERN, email))
 ```
 
-### アンチパターン2: Speculative Generality（投機的汎用性）
+### Anti-pattern 2: Speculative Generality
 
 ```java
-// NG: 使われないフレームワークを先に作る
+// Bad: building a framework that is not used
 public interface DataExporter<T, F extends ExportFormat, C extends ExportConfig> {
     ExportResult<T> export(Collection<T> data, F format, C config);
     void registerPlugin(ExportPlugin<T> plugin);
     void setMiddleware(ExportMiddleware<T>... middlewares);
 }
-// 実際に必要なのは「CSVでユーザー一覧を出力する」だけ
+// All that is actually needed is "output a user list as CSV"
 
-// OK: 必要最小限
+// Good: minimum necessary
 public class UserCsvExporter {
     public String export(List<User> users) {
         StringBuilder csv = new StringBuilder("name,email\n");
@@ -786,10 +793,10 @@ public class UserCsvExporter {
 }
 ```
 
-### アンチパターン3: DRY原理主義（Wrong Abstraction）
+### Anti-pattern 3: DRY Fundamentalism (Wrong Abstraction)
 
 ```python
-# NG: 異なるコンテキストの偶然の類似を無理に共通化
+# Bad: forcibly consolidating coincidental similarities from different contexts
 class GenericProcessor:
     def process(self, type: str, data: dict) -> dict:
         if type == 'user_registration':
@@ -802,7 +809,7 @@ class GenericProcessor:
             self._notify(data['recipients'], 'campaign')
         return result
 
-# OK: 各コンテキストは独立
+# Good: each context is independent
 class UserRegistrationService:
     def register(self, user_data: dict) -> User:
         self.validator.validate(user_data)
@@ -818,18 +825,17 @@ class EmailCampaignService:
         return campaign
 ```
 
-Sandi Metz の名言:
+Sandi Metz's famous quote:
 
-> 「間違った抽象化よりも重複のほうがマシである」
-> ("Duplication is far cheaper than the wrong abstraction")
+> "Duplication is far cheaper than the wrong abstraction"
 
 ---
 
-## 8. 実践演習
+## 8. Practice Exercises
 
-### 演習1（基礎）: DRY違反の検出と修正
+### Exercise 1 (Basic): Detecting and Fixing DRY Violations
 
-以下のコードからDRY違反を特定し、適切に共通化せよ。
+Identify the DRY violations in the code below and consolidate them appropriately.
 
 ```python
 class OrderService:
@@ -860,14 +866,14 @@ class OrderService:
         return base + tax
 ```
 
-**期待される出力例:**
+**Expected output example:**
 
 ```python
 TAX_RATE = 0.10
 EXPRESS_SURCHARGE_RATE = 0.50
 
 def _calculate_base_shipping(weight: float) -> float:
-    """重量に基づく基本送料を計算する"""
+    """Calculate the base shipping cost based on weight"""
     if weight <= 1.0:
         return 500.0
     elif weight <= 5.0:
@@ -891,11 +897,11 @@ class OrderService:
         return _apply_tax(base_with_surcharge)
 ```
 
-### 演習2（応用）: DRY vs KISS の判断
+### Exercise 2 (Intermediate): Judging DRY vs KISS
 
-以下の2パターンのうちどちらが適切か判断し理由を述べよ。
+Determine which of the following two patterns is more appropriate and explain why.
 
-**パターンA（DRY重視）:**
+**Pattern A (DRY-focused):**
 ```python
 def format_entity(entity: dict, entity_type: str) -> str:
     template = TEMPLATES[entity_type]
@@ -907,32 +913,32 @@ def format_entity(entity: dict, entity_type: str) -> str:
     return result
 ```
 
-**パターンB（KISS重視）:**
+**Pattern B (KISS-focused):**
 ```python
 def format_user(user: dict) -> str:
-    return f"名前: {user.get('name', 'N/A')}\nメール: {user.get('email', 'N/A')}"
+    return f"Name: {user.get('name', 'N/A')}\nEmail: {user.get('email', 'N/A')}"
 
 def format_product(product: dict) -> str:
-    return f"商品名: {product.get('name', 'N/A')}\n価格: {product.get('price', 'N/A')}円"
+    return f"Product: {product.get('name', 'N/A')}\nPrice: {product.get('price', 'N/A')}"
 ```
 
-**期待される分析:** パターンBが適切。各フォーマットは異なる「知識」を表現しており、偶然の構造的類似。パターンAはテンプレート設定の管理が複雑化し、KISS違反。
+**Expected analysis:** Pattern B is more appropriate. Each format expresses different "knowledge" and is only coincidentally similar in structure. Pattern A complicates the management of template configuration, violating KISS.
 
-### 演習3（発展）: 3原則のバランス設計
+### Exercise 3 (Advanced): Designing a Balance of the Three Principles
 
-ECサイトの商品検索機能を設計せよ。
+Design a product search feature for an e-commerce site.
 
-現在の要件: 商品名の部分一致検索のみ
-将来の可能性: カテゴリ絞り込み、価格範囲、ソート、ページネーション
+Current requirement: partial-match search by product name only
+Future possibilities: category filtering, price range, sorting, pagination
 
-**期待される出力例:**
+**Expected output example:**
 
 ```python
 from dataclasses import dataclass
 
 @dataclass
 class SearchQuery:
-    """検索パラメータ（現在は名前のみ、将来フィールド追加可能）"""
+    """Search parameters (currently name only; fields can be added in the future)"""
     name: str
 
 class ProductRepository:
@@ -951,41 +957,41 @@ class ProductSearchService:
         return self.repository.search(query)
 ```
 
-設計判断の根拠:
-- **YAGNI**: 今はname検索のみ実装。ページネーション等は後回し
-- **DIP**: リポジトリ層を分離（テスト容易性確保）
-- **KISS**: SearchQueryは将来フィールド追加可能だが今はシンプル
+Design rationale:
+- **YAGNI**: Only name search is implemented now. Pagination etc. are deferred.
+- **DIP**: Repository layer is separated (ensures testability).
+- **KISS**: SearchQuery can have fields added in the future, but is simple for now.
 
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured config file | Check config file path and format |
+| Timeout | Network latency / resource shortage | Adjust timeout value, add retry logic |
+| Out of memory | Increase in data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check executing user's permissions, review settings |
+| Data inconsistency | Concurrency conflict | Introduce locking, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace to identify where it occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Verify incrementally**: Use log output or a debugger to verify hypotheses
+5. **Fix and run regression tests**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -993,102 +999,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Diagnostic steps when a performance issue occurs:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with a profiling tool
+2. **Check memory usage**: Look for memory leaks
+3. **Check for I/O wait**: Check disk and network I/O conditions
+4. **Check concurrent connections**: Check the state of the connection pool
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem type | Diagnostic tool | Countermeasure |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Index, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes decision criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | When to prioritize | When it can be compromised |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│          Architecture Selection Flow             │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. Team size?                                   │
+│    ├─ Small (1-5 people) → Monolith              │
+│    └─ Large (10+ people) → Go to 2              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. Deployment frequency?                        │
+│    ├─ Weekly or less → Monolith + module split   │
+│    └─ Daily / multiple times → Go to 3          │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. Independence between teams?                  │
+│    ├─ High → Microservices                       │
+│    └─ Medium → Modular monolith                  │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- A faster short-term approach can become technical debt in the long run
+- Conversely, over-engineering has high short-term cost and can delay a project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified tech stack has low learning costs
+- Diverse technology adoption allows the right tool for the job, but increases operational cost
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- Higher abstraction improves reusability but can make debugging harder
+- Lower abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision recording template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1098,17 +1104,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1116,7 +1122,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1124,15 +1130,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1140,53 +1146,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum necessary features
+- Automated tests only for the critical path
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons learned:**
+- Don't pursue perfection (YAGNI principle)
+- Obtain user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually refreshing a system that has been in operation for 10 or more years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- If there are no existing tests, create Characterization Tests first
+- Coexist old and new systems via an API gateway
+- Perform data migration incrementally
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
+| Phase | Work | Estimated Duration | Risk |
 |---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| 1. Investigation | Current state analysis, understanding dependencies | 2-4 weeks | Low |
+| 2. Foundation | Build CI/CD, test environment | 4-6 weeks | Low |
+| 3. Migration starts | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core migration | Migrate core features | 6-12 months | High |
+| 5. Completion | Decommission old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50 or more engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with domain-driven design
+- Assign ownership per team
+- Manage shared libraries using an Inner Source approach
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1199,20 +1205,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1221,7 +1227,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1242,104 +1248,103 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system where millisecond-level response times are required
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
+| Optimization technique | Effect | Implementation cost | Applicable situation |
 |-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | Processing with heavy I/O wait |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low-Medium | High | When CPU-bound |
 
 ---
 
-## チーム開発での活用
+## Team Development Usage
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to check in code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Are naming conventions consistent?
+- [ ] Is error handling appropriate?
+- [ ] Is test coverage sufficient?
+- [ ] Is there any performance impact?
+- [ ] Are there any security issues?
+- [ ] Has the documentation been updated?
 
-### ナレッジ共有のベストプラクティス
+### Best Practices for Knowledge Sharing
 
-| 方法 | 頻度 | 対象 | 効果 |
+| Method | Frequency | Audience | Effect |
 |------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talks | Weekly | Entire team | Horizontal knowledge sharing |
+| ADR (design records) | Each decision | Future members | Transparency of decisions |
+| Retrospectives | Every 2 weeks | Entire team | Continuous improvement |
+| Mob programming | Monthly | Critical design | Building consensus |
 
-### 技術的負債の管理
+### Managing Technical Debt
 
 ```
-優先度マトリクス:
+Priority matrix:
 
-        影響度 高
+        High impact
           │
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │ Plan│ Fix  │
+    │ it  │ now  │
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │ Log │ Next │
+    │ it  │Sprint│
+    │     │      │
     └─────┼─────┘
           │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        Low impact
+    Low frequency  High frequency
 ```
 
 ---
 
-## セキュリティの考慮事項
+## Security Considerations
 
-### 一般的な脆弱性と対策
+### Common Vulnerabilities and Countermeasures
 
-| 脆弱性 | リスクレベル | 対策 | 検出方法 |
+| Vulnerability | Risk level | Countermeasure | Detection method |
 |--------|------------|------|---------|
-| インジェクション攻撃 | 高 | 入力値のバリデーション・パラメータ化クエリ | SAST/DAST |
-| 認証の不備 | 高 | 多要素認証・セッション管理の強化 | ペネトレーションテスト |
-| 機密データの露出 | 高 | 暗号化・アクセス制御 | セキュリティ監査 |
-| 設定の不備 | 中 | セキュリティヘッダー・最小権限の原則 | 構成スキャン |
-| ログの不足 | 中 | 構造化ログ・監査証跡 | ログ分析 |
+| Injection attacks | High | Input validation, parameterized queries | SAST/DAST |
+| Authentication failures | High | Multi-factor authentication, stronger session management | Penetration testing |
+| Sensitive data exposure | High | Encryption, access control | Security audit |
+| Security misconfiguration | Medium | Security headers, principle of least privilege | Configuration scanning |
+| Insufficient logging | Medium | Structured logging, audit trail | Log analysis |
 
-### セキュアコーディングのベストプラクティス
+### Secure Coding Best Practices
 
 ```python
-# セキュアコーディング例
+# Secure coding example
 import hashlib
 import secrets
 import hmac
 from typing import Optional
 
 class SecurityUtils:
-    """セキュリティユーティリティ"""
+    """Security utilities"""
 
     @staticmethod
     def generate_token(length: int = 32) -> str:
-        """暗号学的に安全なトークン生成"""
+        """Generate a cryptographically secure token"""
         return secrets.token_urlsafe(length)
 
     @staticmethod
     def hash_password(password: str, salt: Optional[str] = None) -> tuple:
-        """パスワードのハッシュ化"""
+        """Hash a password"""
         if salt is None:
             salt = secrets.token_hex(16)
         hashed = hashlib.pbkdf2_hmac(
@@ -1352,50 +1357,50 @@ class SecurityUtils:
 
     @staticmethod
     def verify_password(password: str, hashed: str, salt: str) -> bool:
-        """パスワードの検証"""
+        """Verify a password"""
         new_hash, _ = SecurityUtils.hash_password(password, salt)
         return hmac.compare_digest(new_hash, hashed)
 
     @staticmethod
     def sanitize_input(value: str) -> str:
-        """入力値のサニタイズ"""
+        """Sanitize input value"""
         dangerous_chars = ['<', '>', '"', "'", '&', '\\']
         result = value
         for char in dangerous_chars:
             result = result.replace(char, '')
         return result.strip()
 
-# 使用例
+# Usage example
 token = SecurityUtils.generate_token()
 hashed, salt = SecurityUtils.hash_password("my_password")
 is_valid = SecurityUtils.verify_password("my_password", hashed, salt)
 ```
 
-### セキュリティチェックリスト
+### Security Checklist
 
-- [ ] 全ての入力値がバリデーションされている
-- [ ] 機密情報がログに出力されていない
-- [ ] HTTPS が強制されている
-- [ ] CORS ポリシーが適切に設定されている
-- [ ] 依存パッケージの脆弱性スキャンが実施されている
-- [ ] エラーメッセージに内部情報が含まれていない
+- [ ] All input values are validated
+- [ ] Sensitive information is not output to logs
+- [ ] HTTPS is enforced
+- [ ] CORS policy is configured appropriately
+- [ ] Vulnerability scanning of dependency packages is performed
+- [ ] Error messages do not contain internal information
 
 ---
 
-## マイグレーションガイド
+## Migration Guide
 
-### バージョンアップ時の注意点
+### Notes on Version Upgrades
 
-| バージョン | 主な変更点 | 移行作業 | 影響範囲 |
+| Version | Main changes | Migration work | Scope of impact |
 |-----------|-----------|---------|---------|
-| v1.x → v2.x | API設計の刷新 | エンドポイント変更 | 全クライアント |
-| v2.x → v3.x | 認証方式の変更 | トークン形式更新 | 認証関連 |
-| v3.x → v4.x | データモデル変更 | マイグレーションスクリプト実行 | DB関連 |
+| v1.x → v2.x | API design overhaul | Endpoint changes | All clients |
+| v2.x → v3.x | Authentication method change | Token format update | Auth-related |
+| v3.x → v4.x | Data model change | Run migration scripts | DB-related |
 
-### 段階的移行の手順
+### Incremental Migration Steps
 
 ```python
-# マイグレーションスクリプトのテンプレート
+# Migration script template
 import json
 import logging
 from pathlib import Path
@@ -1405,7 +1410,7 @@ from typing import List, Dict, Callable
 logger = logging.getLogger(__name__)
 
 class MigrationRunner:
-    """段階的マイグレーション実行エンジン"""
+    """Incremental migration execution engine"""
 
     def __init__(self, migration_dir: str):
         self.migration_dir = Path(migration_dir)
@@ -1414,7 +1419,7 @@ class MigrationRunner:
 
     def register(self, version: str, description: str,
                  up: Callable, down: Callable):
-        """マイグレーションの登録"""
+        """Register a migration"""
         self.migrations.append({
             'version': version,
             'description': description,
@@ -1424,35 +1429,35 @@ class MigrationRunner:
         })
 
     def run_up(self, target_version: str = None):
-        """マイグレーションの実行（アップグレード）"""
+        """Run migrations (upgrade)"""
         for migration in self.migrations:
             if migration['version'] in self.completed:
                 continue
-            logger.info(f"実行中: {migration['version']} - "
+            logger.info(f"Running: {migration['version']} - "
                        f"{migration['description']}")
             try:
                 migration['up']()
                 self.completed.append(migration['version'])
-                logger.info(f"完了: {migration['version']}")
+                logger.info(f"Completed: {migration['version']}")
             except Exception as e:
-                logger.error(f"失敗: {migration['version']}: {e}")
+                logger.error(f"Failed: {migration['version']}: {e}")
                 raise
             if target_version and migration['version'] == target_version:
                 break
 
     def run_down(self, target_version: str):
-        """マイグレーションのロールバック"""
+        """Roll back migrations"""
         for migration in reversed(self.migrations):
             if migration['version'] not in self.completed:
                 continue
             if migration['version'] == target_version:
                 break
-            logger.info(f"ロールバック: {migration['version']}")
+            logger.info(f"Rolling back: {migration['version']}")
             migration['down']()
             self.completed.remove(migration['version'])
 
     def status(self) -> Dict:
-        """マイグレーション状態の確認"""
+        """Check migration status"""
         return {
             'total': len(self.migrations),
             'completed': len(self.completed),
@@ -1465,67 +1470,67 @@ class MigrationRunner:
         }
 ```
 
-### ロールバック計画
+### Rollback Plan
 
-移行作業には必ずロールバック計画を準備してください:
+Always prepare a rollback plan for migration work:
 
-1. **データのバックアップ**: 移行前に完全バックアップを取得
-2. **テスト環境での検証**: 本番と同等の環境で事前検証
-3. **段階的なロールアウト**: カナリアリリースで段階的に展開
-4. **監視の強化**: 移行中はメトリクスの監視間隔を短縮
-5. **判断基準の明確化**: ロールバックを判断する基準を事前に定義
+1. **Back up your data**: Take a full backup before migration
+2. **Validate in a test environment**: Verify in advance in an environment equivalent to production
+3. **Incremental rollout**: Deploy incrementally with a canary release
+4. **Enhanced monitoring**: Shorten the monitoring interval during migration
+5. **Define rollback criteria**: Define the criteria for deciding to roll back in advance
 ---
 
 ## 9. FAQ
 
-### Q1: DRYを徹底すると、かえってコードが複雑にならないか？
+### Q1: Does strictly following DRY end up making the code more complex?
 
-その通り。DRYは「知識の重複排除」であり「コードの文字列的な重複排除」ではない。異なるコンテキストの偶然の類似を無理に共通化すると、不自然な結合が生まれKISS違反になる。**Rule of Three**（3回目の重複で共通化）が実践的なガイドライン。
+That is correct. DRY is about "eliminating knowledge duplication," not "textually eliminating code duplication." Forcibly consolidating coincidental similarities from different contexts creates unnatural coupling and leads to KISS violations. The **Rule of Three** (consolidate on the third duplication) is a practical guideline.
 
-### Q2: YAGNIに従うと、後から大きな設計変更が必要にならないか？
+### Q2: If you follow YAGNI, won't you end up needing large design changes later?
 
-YAGNI は「設計を考えるな」ではなく「実装を先延ばしにせよ」。クリーンな設計（低結合・高凝集）を保っていれば、後からの拡張は容易。不要な先行実装は、実際のニーズとずれた設計を固定化するリスクがある。
+YAGNI does not mean "don't think about design"; it means "defer implementation." If you maintain a clean design (low coupling, high cohesion), extending things later is easy. Unnecessary upfront implementation carries the risk of locking in a design that diverges from actual needs.
 
-### Q3: KISSの「シンプル」は主観的ではないか？
+### Q3: Isn't "simple" in KISS subjective?
 
-ある程度は主観的だが、客観的指標がある: サイクロマティック複雑度、認知的複雑度、依存関係の数、抽象化の段数、「関数名だけで動作が予想できるか」テスト。
+To some extent, but objective metrics exist: cyclomatic complexity, cognitive complexity, number of dependencies, levels of abstraction, and the "can I predict what this function does from its name alone?" test.
 
-### Q4: テストコードにもDRYを適用すべきか？
+### Q4: Should DRY be applied to test code as well?
 
-テストコードでは**DRYよりもKISS（可読性）を優先**。テストは仕様書として読まれるため自己完結的であるべき。ただしテストデータ生成やモック設定は共通化してよい。
+In test code, **prioritize KISS (readability) over DRY**. Tests should be self-contained because they are read as specifications. However, test data generation and mock setup can be consolidated.
 
-### Q5: マイクロサービスでのDRYはどう考えるべきか？
+### Q5: How should DRY be approached in microservices?
 
-サービスの独立性 > DRY。サービス間の共有ライブラリはカップリングを生む。多少の重複を許容し、独立デプロイ可能性を維持する。
+Service independence > DRY. Shared libraries between services create coupling. Tolerate some duplication and maintain independent deployability.
 
-### Q6: 3原則が互いに矛盾する場合、どのように優先順位を決めるべきか？
+### Q6: When the three principles conflict with each other, how should priority be determined?
 
-3原則が矛盾するケースは実務では頻繁に発生する。一般的な優先順位は以下の通り。
+Cases where the three principles conflict occur frequently in practice. The general priority order is as follows.
 
-1. **KISS > DRY**: 共通化によってコードが複雑になるなら、多少の重複を許容する。Sandi Metz の「間違った抽象化よりも重複のほうがマシ」が判断基準。
-2. **YAGNI > DRY**: 将来の重複を予測して先に抽象化を作るのは避ける。実際に3回目の重複が発生してから共通化する。
-3. **KISS > YAGNI**: シンプルさの維持と将来の拡張性が矛盾する場合は稀だが、「拡張ポイントを設けること自体がシンプルさを損なう」場合は拡張ポイントを作らない。
+1. **KISS > DRY**: If consolidation makes the code more complex, tolerate some duplication. Sandi Metz's "Duplication is far cheaper than the wrong abstraction" is the guiding standard.
+2. **YAGNI > DRY**: Avoid creating abstractions upfront by anticipating future duplication. Consolidate only after the third actual duplication occurs.
+3. **KISS > YAGNI**: Cases where maintaining simplicity and future extensibility conflict are rare, but if "adding an extension point itself compromises simplicity," don't add the extension point.
 
-ただし、これらは機械的に適用するルールではない。最終的な判断基準は「**6ヶ月後にこのコードを読む開発者が、最も短時間で理解・変更できるのはどの選択か**」である。
+However, these are not mechanical rules to apply blindly. The ultimate decision criterion is: **"Which choice allows a developer reading this code 6 months from now to understand and modify it in the shortest time?"**
 
 ```
-  判断フローチャート:
+  Decision flowchart:
 
-  重複を発見
+  Duplication found
     │
-    ├─ 3回以上出現しているか？ ─No─→ そのまま放置（YAGNI）
-    │
-   Yes
-    │
-    ├─ 同じ「知識」を表現しているか？ ─No─→ 偶然の一致、別々に保つ（KISS）
+    ├─ Has it appeared 3 or more times? ─No─→ Leave it as-is (YAGNI)
     │
    Yes
     │
-    ├─ シンプルに共通化できるか？ ─No─→ 共通化を見送る（KISS > DRY）
+    ├─ Does it express the same "knowledge"? ─No─→ Coincidental similarity, keep separate (KISS)
     │
    Yes
     │
-    └─→ 共通化する（DRY適用）
+    ├─ Can it be consolidated simply? ─No─→ Skip consolidation (KISS > DRY)
+    │
+   Yes
+    │
+    └─→ Consolidate (apply DRY)
 ```
 
 ---
@@ -1533,59 +1538,59 @@ YAGNI は「設計を考えるな」ではなく「実装を先延ばしにせ�
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not only through theory but by actually writing code and confirming its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 原則 | 一言 | 適用のコツ | 行き過ぎの兆候 |
+| Principle | One-liner | Application tips | Signs of going too far |
 |------|------|-----------|---------------|
-| DRY | 知識を一元化 | Rule of Three | 不自然な抽象化 |
-| KISS | シンプルに保つ | 最も直接的な方法を選ぶ | 機能不足 |
-| YAGNI | 今必要なものだけ | 要件駆動で実装 | 拡張困難な設計 |
+| DRY | Centralize knowledge | Rule of Three | Unnatural abstractions |
+| KISS | Keep it simple | Choose the most direct approach | Insufficient functionality |
+| YAGNI | Only what's needed now | Implement requirement-driven | Design that is hard to extend |
 
-### 3原則の適用チェックリスト
+### Three-Principle Application Checklist
 
-| チェック項目 | 原則 |
+| Checklist item | Principle |
 |------------|------|
-| この重複は同じ「知識」を表現しているか？ | DRY |
-| 共通化は最もシンプルな方法で実現できるか？ | KISS |
-| この抽象化は今のユースケースで必要か？ | YAGNI |
-| 3箇所以上で使われる共通パターンか？ | Rule of Three |
-| この設計変更で可読性は向上するか？ | KISS |
-| 将来の要件ではなく今の要件に基づいているか？ | YAGNI |
+| Does this duplication express the same "knowledge"? | DRY |
+| Can consolidation be achieved in the simplest way? | KISS |
+| Is this abstraction necessary for the current use case? | YAGNI |
+| Is it a common pattern used in 3 or more places? | Rule of Three |
+| Does this design change improve readability? | KISS |
+| Is it based on current requirements, not future ones? | YAGNI |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [結合度と凝集度](./03-coupling-cohesion.md) ── DRYとKISSを支えるモジュール設計原則
-- [SOLID原則](./01-solid.md) ── 特にOCPとDRYの関係
-- [関数設計](../01-practices/01-functions.md) ── KISS原則を関数レベルで実践する
-- [リファクタリング技法](../02-refactoring/01-refactoring-techniques.md) ── DRY化のための具体的技法
-- [コードスメル](../02-refactoring/00-code-smells.md) ── 重複やコードの複雑さの検出
-- デザインパターン: Behavioral ── StrategyやTemplateMethodによるDRY化
+- [Coupling and Cohesion](./03-coupling-cohesion.md) ── Module design principles that underpin DRY and KISS
+- [SOLID Principles](./01-solid.md) ── Especially the relationship between OCP and DRY
+- [Function Design](../01-practices/01-functions.md) ── Practicing the KISS principle at the function level
+- [Refactoring Techniques](../02-refactoring/01-refactoring-techniques.md) ── Concrete techniques for applying DRY
+- [Code Smells](../02-refactoring/00-code-smells.md) ── Detecting duplication and code complexity
+- Design Patterns: Behavioral ── DRY via Strategy and Template Method
 
 ---
 
-## 参考文献
+## References
 
-1. **Andrew Hunt, David Thomas** 『The Pragmatic Programmer: Your Journey to Mastery』 Addison-Wesley, 2019 (20th Anniversary Edition)
-2. **Kent Beck** 『Extreme Programming Explained: Embrace Change』 Addison-Wesley, 2004 (2nd Edition)
-3. **Sandi Metz** 『Practical Object-Oriented Design: An Agile Primer Using Ruby』 Addison-Wesley, 2018 (2nd Edition)
-4. **John Ousterhout** 『A Philosophy of Software Design』 Yaknyam Press, 2018
-5. **Sandi Metz** "The Wrong Abstraction" (blog post, 2016) ── DRYの過剰適用に関する重要な議論
-6. **Martin Fowler** 『Refactoring: Improving the Design of Existing Code』 Addison-Wesley, 2018
-7. **Ron Jeffries** "You're NOT Gonna Need It!" (XP Magazine, 1998) ── YAGNIの原典
-8. **Donald Knuth** "Structured Programming with go to Statements" Computing Surveys, 1974 ── 「早すぎる最適化」の原典
+1. **Andrew Hunt, David Thomas** *The Pragmatic Programmer: Your Journey to Mastery* Addison-Wesley, 2019 (20th Anniversary Edition)
+2. **Kent Beck** *Extreme Programming Explained: Embrace Change* Addison-Wesley, 2004 (2nd Edition)
+3. **Sandi Metz** *Practical Object-Oriented Design: An Agile Primer Using Ruby* Addison-Wesley, 2018 (2nd Edition)
+4. **John Ousterhout** *A Philosophy of Software Design* Yaknyam Press, 2018
+5. **Sandi Metz** "The Wrong Abstraction" (blog post, 2016) ── An important discussion on over-applying DRY
+6. **Martin Fowler** *Refactoring: Improving the Design of Existing Code* Addison-Wesley, 2018
+7. **Ron Jeffries** "You're NOT Gonna Need It!" (XP Magazine, 1998) ── The original source of YAGNI
+8. **Donald Knuth** "Structured Programming with go to Statements" Computing Surveys, 1974 ── The original source of "premature optimization"
