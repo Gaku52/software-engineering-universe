@@ -1,84 +1,80 @@
-# Strategy パターン
+# Strategy Pattern
 
-> アルゴリズムのファミリーを定義し、それぞれを **カプセル化** して交換可能にする振る舞いパターン。実行時にアルゴリズムを切り替えられ、条件分岐の爆発を防止してOpen/Closed Principle を遵守する。
-
----
-
-## この章で学ぶこと
-
-1. Strategy パターンの構造と、条件分岐の排除によるOCP準拠の設計手法を理解する
-2. DI（依存性注入）との関係、関数型アプローチでの実現方法、Registry パターンとの組み合わせを習得する
-3. Strategy の過剰適用を避ける判断基準と、Template Method/State パターンとの使い分けを身につける
+> A behavioral pattern that defines a family of algorithms, **encapsulates** each one, and makes them interchangeable. Algorithms can be switched at runtime, preventing conditional branch explosion and adhering to the Open/Closed Principle.
 
 ---
 
-## 前提知識
+## What You Will Learn
 
-このガイドを読む前に、以下の概念を理解しておくことを推奨します。
+1. Understand the structure of the Strategy pattern and how to design OCP-compliant systems by eliminating conditional branches
+2. Learn the relationship with DI (Dependency Injection), how to implement it with a functional approach, and how to combine it with the Registry pattern
+3. Develop judgment criteria to avoid over-applying Strategy, and learn when to use Template Method or State patterns instead
 
-| 前提知識 | 説明 | 参照リンク |
+---
+
+## Prerequisites
+
+Before reading this guide, it is recommended to understand the following concepts.
+
+| Prerequisite | Description | Reference |
 |---------|------|-----------|
-| SOLID 原則（特にOCP） | 拡張に開き、修正に閉じる原則 | [SOLID 原則](../../../clean-code-principles/docs/00-principles/01-solid.md) |
-| インタフェースとポリモーフィズム | 異なる実装を統一的に扱う概念 | [クリーンコード](../../../clean-code-principles/docs/00-principles/) |
-| 依存性注入（DI） | 外部から依存オブジェクトを注入する手法 | [DI/IoC](../../../clean-code-principles/docs/01-practices/) |
-| 関数（第一級オブジェクト） | 関数を値として扱い、引数や返り値にする概念 | [関数型パターン](../03-functional/02-fp-patterns.md) |
+| SOLID Principles (especially OCP) | The principle of being open for extension and closed for modification | [SOLID Principles](../../../clean-code-principles/docs/00-principles/01-solid.md) |
+| Interfaces and Polymorphism | The concept of treating different implementations uniformly | [Clean Code](../../../clean-code-principles/docs/00-principles/) |
+| Dependency Injection (DI) | The technique of injecting dependency objects from outside | [DI/IoC](../../../clean-code-principles/docs/01-practices/) |
+| Functions (First-Class Objects) | The concept of treating functions as values, passing them as arguments or return values | [Functional Patterns](../03-functional/02-fp-patterns.md) |
 
 ---
 
-## 1. Strategy パターンとは何か
+## 1. What Is the Strategy Pattern?
 
-### 1.1 解決する問題
+### 1.1 The Problem It Solves
 
-ソフトウェアでは、同じ種類の処理に複数のアルゴリズムが存在する場面が多い。
+In software, there are many situations where multiple algorithms exist for the same type of processing.
 
-- 料金計算: 通常/プレミアム/学生/シニア
-- ソート: 名前順/日付順/価格順/関連度順
-- 認証: パスワード/OAuth/SAML/APIキー
-- 圧縮: gzip/zstd/lz4/brotli
+- Pricing calculation: regular / premium / student / senior
+- Sorting: by name / by date / by price / by relevance
+- Authentication: password / OAuth / SAML / API key
+- Compression: gzip / zstd / lz4 / brotli
 
-これらを `if/else` や `switch` で分岐すると、アルゴリズムが増えるたびに条件分岐が肥大化し、既存コードの変更が必要になる（OCP 違反）。
+When these are branched with `if/else` or `switch`, the conditional logic bloats every time an algorithm is added, requiring changes to existing code (an OCP violation).
 
 ```
-BEFORE（条件分岐の肥大化）:
+BEFORE (bloated conditional branches):
 function calculate(type, price) {
   if (type === "regular") return price;
   else if (type === "premium") return price * 0.9;
   else if (type === "student") return price * 0.7;
   else if (type === "senior") return price * 0.8;
-  else if (type === "vip") return price * 0.6;    // 追加1
-  else if (type === "family") return price * 0.75; // 追加2
-  // ... 新しい種類のたびにこの関数を修正 -> OCP 違反
+  else if (type === "vip") return price * 0.6;    // addition 1
+  else if (type === "family") return price * 0.75; // addition 2
+  // ... this function must be modified for every new type -> OCP violation
 }
 
-AFTER（Strategy パターン）:
+AFTER (Strategy pattern):
 strategies.get(type).calculate(price);
-// 新しい型は register するだけ -> OCP 準拠
+// new types only need to be registered -> OCP compliant
 ```
 
-### 1.2 パターンの意図
+### 1.2 Intent of the Pattern
 
-GoF の定義:
+GoF definition:
 
 > Define a family of algorithms, encapsulate each one, and make them interchangeable. Strategy lets the algorithm vary independently from clients that use it.
 
-日本語訳:
+### 1.3 WHY: Why Is the Strategy Pattern Needed?
 
-> アルゴリズムのファミリーを定義し、それぞれをカプセル化して交換可能にする。Strategy パターンにより、アルゴリズムをクライアントから独立して変更できる。
+The fundamental reason is to **separate the selection of an algorithm from its execution**.
 
-### 1.3 WHY: なぜ Strategy パターンが必要なのか
-
-根本的な理由は **アルゴリズムの選択と実行を分離する** ことにある。
-
-1. **Open/Closed Principle**: 新しいアルゴリズムの追加が既存コードの変更なしに行える
-2. **Single Responsibility Principle**: 各アルゴリズムが独立したクラス/関数として存在し、個別にテスト可能
-3. **実行時の切り替え**: 同じ Context で異なるアルゴリズムを動的に切り替えられる
-4. **テスタビリティ**: Strategy をモック/スタブに差し替えることでテストが容易
+1. **Open/Closed Principle**: New algorithms can be added without modifying existing code
+2. **Single Responsibility Principle**: Each algorithm exists as an independent class/function and can be tested individually
+3. **Runtime switching**: Different algorithms can be dynamically switched within the same Context
+4. **Testability**: Tests become easy by replacing Strategy with mocks/stubs
 
 ---
 
-## 2. Strategy の構造
+## 2. Structure of Strategy
 
-### 2.1 クラス図
+### 2.1 Class Diagram
 
 ```
 +-------------+       +-------------------+
@@ -97,16 +93,16 @@ GoF の定義:
                +------------+  +------------+
 ```
 
-### 2.2 構成要素の役割
+### 2.2 Roles of Each Component
 
-| 構成要素 | 役割 | 責務 |
+| Component | Role | Responsibility |
 |---------|------|------|
-| Strategy (Interface) | アルゴリズムの共通契約 | メソッドシグネチャを定義 |
-| ConcreteStrategy | 具体的なアルゴリズム実装 | Strategy インタフェースに従って実装 |
-| Context | Strategy を使用する側 | Strategy の参照を保持し、委譲する |
-| Client | Context と Strategy を組み立て | 具体的な Strategy を Context に注入 |
+| Strategy (Interface) | Common contract for algorithms | Defines method signatures |
+| ConcreteStrategy | Concrete algorithm implementation | Implements according to the Strategy interface |
+| Context | The consumer of Strategy | Holds a reference to Strategy and delegates to it |
+| Client | Assembles Context and Strategy | Injects a concrete Strategy into Context |
 
-### 2.3 処理シーケンス
+### 2.3 Processing Sequence
 
 ```
 Client            Context              Strategy
@@ -129,12 +125,12 @@ Client            Context              Strategy
 
 ---
 
-## 3. コード例
+## 3. Code Examples
 
-### コード例 1: 料金計算 Strategy（TypeScript）
+### Code Example 1: Pricing Strategy (TypeScript)
 
 ```typescript
-// pricing-strategy.ts — Strategy パターンの基本形
+// pricing-strategy.ts — Basic form of the Strategy pattern
 interface PricingStrategy {
   readonly name: string;
   calculate(basePrice: number): number;
@@ -147,41 +143,41 @@ class RegularPricing implements PricingStrategy {
     return basePrice;
   }
   getDescription(): string {
-    return "通常価格（割引なし）";
+    return "Regular price (no discount)";
   }
 }
 
 class PremiumPricing implements PricingStrategy {
   readonly name = "premium";
   calculate(basePrice: number): number {
-    return Math.round(basePrice * 0.9); // 10%割引
+    return Math.round(basePrice * 0.9); // 10% discount
   }
   getDescription(): string {
-    return "プレミアム会員価格（10%OFF）";
+    return "Premium member price (10% OFF)";
   }
 }
 
 class StudentPricing implements PricingStrategy {
   readonly name = "student";
   calculate(basePrice: number): number {
-    return Math.round(basePrice * 0.7); // 30%割引
+    return Math.round(basePrice * 0.7); // 30% discount
   }
   getDescription(): string {
-    return "学生価格（30%OFF）";
+    return "Student price (30% OFF)";
   }
 }
 
 class SeniorPricing implements PricingStrategy {
   readonly name = "senior";
   calculate(basePrice: number): number {
-    return Math.round(basePrice * 0.8); // 20%割引
+    return Math.round(basePrice * 0.8); // 20% discount
   }
   getDescription(): string {
-    return "シニア価格（20%OFF）";
+    return "Senior price (20% OFF)";
   }
 }
 
-// Context: ショッピングカート
+// Context: Shopping cart
 class ShoppingCart {
   private items: { name: string; price: number; quantity: number }[] = [];
   private pricingStrategy: PricingStrategy;
@@ -211,7 +207,7 @@ class ShoppingCart {
   }
 }
 
-// --- 使用例: 実行時に戦略を切り替え ---
+// --- Usage: switch strategy at runtime ---
 const cart = new ShoppingCart();
 cart.addItem("TypeScript Book", 3000);
 cart.addItem("Design Patterns Book", 4000);
@@ -220,7 +216,7 @@ console.log(cart.checkout());
 // { subtotal: 7000, discount: 0, total: 7000, strategy: "regular" }
 
 cart.setPricingStrategy(new StudentPricing());
-// "Pricing changed to: 学生価格（30%OFF）"
+// "Pricing changed to: Student price (30% OFF)"
 
 console.log(cart.checkout());
 // { subtotal: 7000, discount: 2100, total: 4900, strategy: "student" }
@@ -230,10 +226,10 @@ console.log(cart.checkout());
 // { subtotal: 7000, discount: 700, total: 6300, strategy: "premium" }
 ```
 
-### コード例 2: 関数型 Strategy（TypeScript）
+### Code Example 2: Functional Strategy (TypeScript)
 
 ```typescript
-// functional-strategy.ts — クラスを使わず関数で Strategy を実現
+// functional-strategy.ts — Implementing Strategy with functions instead of classes
 interface User {
   name: string;
   age: number;
@@ -242,7 +238,7 @@ interface User {
   score: number;
 }
 
-// Strategy を関数型で定義
+// Define Strategy as a function type
 type SortStrategy<T> = (a: T, b: T) => number;
 
 const byName: SortStrategy<User> = (a, b) =>
@@ -257,7 +253,7 @@ const byCreatedDesc: SortStrategy<User> = (a, b) =>
 const byScore: SortStrategy<User> = (a, b) =>
   b.score - a.score;
 
-// 合成: 複数のソート条件を組み合わせる
+// Composition: combine multiple sort criteria
 function composeStrategies<T>(...strategies: SortStrategy<T>[]): SortStrategy<T> {
   return (a, b) => {
     for (const strategy of strategies) {
@@ -268,44 +264,44 @@ function composeStrategies<T>(...strategies: SortStrategy<T>[]): SortStrategy<T>
   };
 }
 
-// 反転: 降順にする
+// Reversal: sort in descending order
 function reverse<T>(strategy: SortStrategy<T>): SortStrategy<T> {
   return (a, b) => -strategy(a, b);
 }
 
-// Context 関数
+// Context function
 function sortUsers(users: User[], strategy: SortStrategy<User>): User[] {
   return [...users].sort(strategy);
 }
 
-// --- 使用例 ---
+// --- Usage ---
 const users: User[] = [
   { name: "Charlie", age: 30, email: "c@test.com", createdAt: new Date("2024-01"), score: 85 },
   { name: "Alice", age: 25, email: "a@test.com", createdAt: new Date("2024-03"), score: 92 },
   { name: "Bob", age: 30, email: "b@test.com", createdAt: new Date("2024-02"), score: 88 },
 ];
 
-// 単一ソート
+// Single sort
 console.log(sortUsers(users, byName).map(u => u.name));
 // ["Alice", "Bob", "Charlie"]
 
 console.log(sortUsers(users, byScore).map(u => u.name));
 // ["Alice", "Bob", "Charlie"]
 
-// 合成ソート: 年齢順 -> 名前順（同じ年齢の場合）
+// Composed sort: by age -> by name (when age is equal)
 const byAgeThenName = composeStrategies(byAge, byName);
 console.log(sortUsers(users, byAgeThenName).map(u => u.name));
 // ["Alice", "Bob", "Charlie"]
 
-// 反転: 名前の逆順
+// Reversed: reverse alphabetical by name
 console.log(sortUsers(users, reverse(byName)).map(u => u.name));
 // ["Charlie", "Bob", "Alice"]
 ```
 
-### コード例 3: バリデーション Strategy（TypeScript）
+### Code Example 3: Validation Strategy (TypeScript)
 
 ```typescript
-// validation-strategy.ts — フォームバリデーション
+// validation-strategy.ts — Form validation
 interface ValidationResult {
   valid: boolean;
   errors: string[];
@@ -375,7 +371,7 @@ class PhoneValidation implements ValidationStrategy {
   }
 }
 
-// Context: フォームフィールド
+// Context: form field
 class FormField {
   private strategies: ValidationStrategy[] = [];
 
@@ -396,7 +392,7 @@ class FormField {
   }
 }
 
-// --- 使用例 ---
+// --- Usage ---
 const emailField = new FormField("email", new EmailValidation());
 console.log(emailField.validate("test@example.com"));
 // { valid: true, errors: [] }
@@ -415,17 +411,17 @@ console.log(passwordField.validate("MyP@ssw0rd!!"));
 // { valid: true, errors: [] }
 ```
 
-### コード例 4: Python ── Protocol ベースの Strategy
+### Code Example 4: Python — Protocol-Based Strategy
 
 ```python
-# compression_strategy.py — Python Protocol による Strategy
+# compression_strategy.py — Strategy using Python Protocol
 from typing import Protocol
 import gzip
 import time
 
 
 class CompressionStrategy(Protocol):
-    """圧縮戦略のプロトコル（インタフェース）"""
+    """Protocol (interface) for compression strategies"""
     @property
     def name(self) -> str: ...
     def compress(self, data: bytes) -> bytes: ...
@@ -453,7 +449,7 @@ class NoCompression:
 
 
 class FileProcessor:
-    """Context: ファイル処理器"""
+    """Context: file processor"""
     def __init__(self, compression: CompressionStrategy):
         self._compression = compression
 
@@ -484,8 +480,8 @@ class FileProcessor:
         return self._compression.decompress(compressed)
 
 
-# --- 使用例 ---
-data = b"Hello " * 1000  # 6000 bytes の繰り返しデータ
+# --- Usage ---
+data = b"Hello " * 1000  # 6000 bytes of repeated data
 
 processor = FileProcessor(GzipCompression())
 result = processor.save(data, "/tmp/data.gz")
@@ -498,7 +494,7 @@ print(result)
 # {"original_size": 6000, "compressed_size": 6000, "ratio": "100.0%", ...}
 ```
 
-### コード例 5: Strategy の動的選択（Registry パターン）
+### Code Example 5: Dynamic Strategy Selection (Registry Pattern)
 
 ```typescript
 // strategy-registry.ts — Registry + Strategy
@@ -516,7 +512,7 @@ class StrategyRegistry<T> {
     const strategy = this.strategies.get(name);
     if (strategy) return strategy;
 
-    // デフォルト戦略があれば返す
+    // Return the default strategy if one exists
     if (this.defaultKey) {
       return this.strategies.get(this.defaultKey)!;
     }
@@ -533,30 +529,30 @@ class StrategyRegistry<T> {
   }
 }
 
-// --- 料金計算の Registry ---
+// --- Pricing Registry ---
 const pricingRegistry = new StrategyRegistry<PricingStrategy>();
 pricingRegistry
-  .register("regular", new RegularPricing(), true) // デフォルト
+  .register("regular", new RegularPricing(), true) // default
   .register("premium", new PremiumPricing())
   .register("student", new StudentPricing())
   .register("senior", new SeniorPricing());
 
-// APIリクエストから動的に選択
+// Dynamically select from an API request
 function handleCheckout(req: { membershipType: string; items: any[] }) {
   const strategy = pricingRegistry.get(req.membershipType);
   const cart = new ShoppingCart(strategy);
   // ...
 }
 
-// 利用可能な戦略の一覧
+// List of available strategies
 console.log(pricingRegistry.getAvailableNames());
 // ["regular", "premium", "student", "senior"]
 ```
 
-### コード例 6: HTTP リトライ Strategy
+### Code Example 6: HTTP Retry Strategy
 
 ```typescript
-// retry-strategy.ts — リトライアルゴリズムの Strategy
+// retry-strategy.ts — Strategy for retry algorithms
 interface RetryStrategy {
   readonly name: string;
   getDelay(attempt: number, baseDelay: number): number;
@@ -591,7 +587,7 @@ class ExponentialWithJitter implements RetryStrategy {
     return Math.floor(jitter);
   }
   shouldRetry(attempt: number, maxAttempts: number, error: Error): boolean {
-    // 4xx エラーはリトライしない（クライアントエラー）
+    // Do not retry on 4xx errors (client errors)
     if ('statusCode' in error && (error as any).statusCode >= 400 && (error as any).statusCode < 500) {
       return false;
     }
@@ -599,7 +595,7 @@ class ExponentialWithJitter implements RetryStrategy {
   }
 }
 
-// Context: HTTP クライアント
+// Context: HTTP client
 class ResilientHttpClient {
   constructor(
     private retryStrategy: RetryStrategy,
@@ -633,18 +629,18 @@ class ResilientHttpClient {
   }
 }
 
-// --- 使用例 ---
-// 開発環境: リニアリトライ（予測しやすい）
+// --- Usage ---
+// Development environment: linear retry (predictable)
 const devClient = new ResilientHttpClient(new LinearRetry(), 3, 500);
 
-// 本番環境: 指数バックオフ + ジッター（サーバー負荷分散）
+// Production environment: exponential backoff + jitter (distribute server load)
 const prodClient = new ResilientHttpClient(new ExponentialWithJitter(), 5, 1000);
 ```
 
-### コード例 7: ロギング Strategy
+### Code Example 7: Logging Strategy
 
 ```typescript
-// logging-strategy.ts — ログ出力先の Strategy
+// logging-strategy.ts — Strategy for log output destinations
 interface LogEntry {
   level: 'debug' | 'info' | 'warn' | 'error';
   message: string;
@@ -730,12 +726,12 @@ class Logger {
   }
 }
 
-// --- 使用例 ---
-// 開発環境: コンソールのみ
+// --- Usage ---
+// Development environment: console only
 const devLogger = new Logger(new ConsoleLogging());
 devLogger.info("Server started", { port: 3000 });
 
-// 本番環境: コンソール + JSON ファイル
+// Production environment: console + JSON file
 const prodLogger = new Logger(new MultiLogging([
   new ConsoleLogging(),
   new JsonFileLogging("/var/log/app.jsonl"),
@@ -745,95 +741,95 @@ prodLogger.error("Database connection failed", { host: "db.example.com" });
 
 ---
 
-## 4. if/else の排除
+## 4. Eliminating if/else
 
-Strategy パターンの最も実践的な価値は、条件分岐の排除である。
+The most practical value of the Strategy pattern is the elimination of conditional branches.
 
 ```
-BEFORE (条件分岐の肥大化):
+BEFORE (bloated conditional branches):
 
   function calculate(type: string, price: number): number {
     if (type === "regular") return price;
     else if (type === "premium") return price * 0.9;
     else if (type === "student") return price * 0.7;
     else if (type === "senior") return price * 0.8;
-    // ... 追加のたびにこの関数を変更 -> OCP 違反
+    // ... this function must be changed for every new type -> OCP violation
   }
 
-  問題:
-  1. 関数の肥大化
-  2. テストの組み合わせ爆発
-  3. 新しい型の追加で既存コードを変更
+  Problems:
+  1. Function grows bloated
+  2. Combinatorial explosion of test cases
+  3. Adding a new type requires modifying existing code
 
-AFTER (Strategy パターン):
+AFTER (Strategy pattern):
 
-  // 各戦略は独立したクラス/関数
+  // Each strategy is an independent class/function
   strategies.get(type).calculate(price);
 
-  利点:
-  1. 各戦略が独立してテスト可能
-  2. 新しい戦略は register するだけ
-  3. 既存のコードは変更不要
+  Benefits:
+  1. Each strategy can be tested independently
+  2. New strategies only need to be registered
+  3. Existing code requires no changes
 
-判断フロー:
-  条件分岐は3つ以上か？ ----No----> if/else で十分
+Decision flow:
+  Are there 3 or more conditional branches? ----No----> if/else is sufficient
     |
    Yes
     |
-  将来の追加が見込まれるか？ --No----> switch + enum で可読性確保
+  Are future additions expected? --No----> switch + enum for readability
     |
    Yes
     |
-  Strategy パターンを導入
+  Introduce the Strategy pattern
 ```
 
 ---
 
-## 5. 比較表
+## 5. Comparison Tables
 
-### 比較表 1: Strategy vs State vs Command vs Template Method
+### Comparison Table 1: Strategy vs State vs Command vs Template Method
 
-| 観点 | Strategy | State | Command | Template Method |
+| Aspect | Strategy | State | Command | Template Method |
 |------|:---:|:---:|:---:|:---:|
-| 目的 | アルゴリズム交換 | 状態依存の振る舞い | 操作のカプセル化 | アルゴリズムの骨格定義 |
-| 交換タイミング | クライアントが決定 | 内部状態で自動遷移 | キュー/履歴に保存 | コンパイル時 |
-| 関係 | has-a（委譲） | has-a（委譲） | has-a（委譲） | is-a（継承） |
-| 柔軟性 | 高い（実行時交換） | 中 | 高い | 低い（継承で固定） |
-| Undo | なし | なし | あり | なし |
-| 典型的な数 | 少数〜中 | 有限個の状態 | 多数のコマンド | 1つの骨格 |
-| テスト | 個別にテスト容易 | 状態ごとにテスト | コマンドごとにテスト | サブクラスごとにテスト |
+| Purpose | Algorithm exchange | State-dependent behavior | Encapsulation of operations | Define the skeleton of an algorithm |
+| Switching timing | Decided by client | Auto-transition based on internal state | Saved in queue/history | At compile time |
+| Relationship | has-a (delegation) | has-a (delegation) | has-a (delegation) | is-a (inheritance) |
+| Flexibility | High (runtime switching) | Medium | High | Low (fixed by inheritance) |
+| Undo | None | None | Supported | None |
+| Typical count | Few to moderate | Finite number of states | Many commands | One skeleton |
+| Testing | Easy to test individually | Test per state | Test per command | Test per subclass |
 
-### 比較表 2: クラス Strategy vs 関数 Strategy
+### Comparison Table 2: Class Strategy vs Function Strategy
 
-| 観点 | クラスベース | 関数ベース |
+| Aspect | Class-Based | Function-Based |
 |------|:---:|:---:|
-| 状態保持 | フィールドで可能 | クロージャで可能 |
-| 設定パラメータ | コンストラクタで注入 | 高階関数で注入 |
-| テスト | インスタンス化して実行 | 直接呼び出し |
-| コード量 | 多い（class, implements） | 少ない（関数リテラル） |
-| 型安全性 | 高い（インタフェース強制） | 中（型エイリアスに依存） |
-| DI フレームワーク | 対応しやすい | 対応にくい場合あり |
-| 適用場面 | 複雑な戦略、状態を持つ | 単純な変換、ソート |
+| State retention | Possible via fields | Possible via closures |
+| Configuration parameters | Injected via constructor | Injected via higher-order functions |
+| Testing | Instantiate and run | Call directly |
+| Code volume | More (class, implements) | Less (function literals) |
+| Type safety | High (interface enforced) | Medium (depends on type aliases) |
+| DI framework compatibility | Easy to integrate | May be harder in some cases |
+| Use cases | Complex strategies with state | Simple transforms, sorting |
 
-### 比較表 3: Strategy の適用判断
+### Comparison Table 3: Decision Criteria for Applying Strategy
 
-| 状況 | 推奨アプローチ | 理由 |
+| Situation | Recommended Approach | Reason |
 |------|-------------|------|
-| バリエーションが2つ | 三項演算子/if-else | Strategy は過剰設計 |
-| バリエーションが3〜5 | switch/enum または Strategy | 将来の追加を考慮して判断 |
-| バリエーションが6以上 | Strategy + Registry | 条件分岐の管理が困難 |
-| 実行時に切り替え必要 | Strategy | 主目的に合致 |
-| アルゴリズムが複雑 | クラス Strategy | 状態とロジックのカプセル化 |
-| アルゴリズムが単純 | 関数 Strategy | 軽量で十分 |
+| 2 variations | Ternary/if-else | Strategy is over-engineering |
+| 3–5 variations | switch/enum or Strategy | Decide based on expected future additions |
+| 6+ variations | Strategy + Registry | Conditional branches become hard to manage |
+| Runtime switching required | Strategy | Matches the primary purpose |
+| Complex algorithm | Class Strategy | Encapsulates state and logic |
+| Simple algorithm | Function Strategy | Lightweight and sufficient |
 
 ---
 
-## 6. アンチパターン
+## 6. Anti-Patterns
 
-### アンチパターン 1: 戦略が2つしかないのに Strategy パターン
+### Anti-Pattern 1: Using Strategy Pattern for Only Two Strategies
 
 ```typescript
-// NG: 過剰設計（YAGNI 違反）
+// BAD: Over-engineering (YAGNI violation)
 interface GreetingStrategy {
   greet(name: string): string;
 }
@@ -844,65 +840,65 @@ class CasualGreeting implements GreetingStrategy {
   greet(name: string) { return `Hi ${name}`; }
 }
 
-// このためだけにインタフェース + 2クラスは過剰
-// 三項演算子で十分:
+// An interface + 2 classes just for this is excessive
+// A ternary operator is sufficient:
 
-// OK: シンプルに書く
+// OK: Write it simply
 const greet = (name: string, formal: boolean) =>
   formal ? `Dear ${name}` : `Hi ${name}`;
 ```
 
-**改善**: バリエーションが3つ以上、または将来の追加が見込まれる場合にのみ Strategy パターンを導入する。YAGNI（You Aren't Gonna Need It）の原則を忘れない。
+**Improvement**: Introduce the Strategy pattern only when there are 3 or more variations, or when future additions are expected. Never forget the YAGNI (You Aren't Gonna Need It) principle.
 
-### アンチパターン 2: Context が Strategy の内部を知っている
+### Anti-Pattern 2: Context Knows the Internals of Strategy
 
 ```typescript
-// NG: Context が Strategy の具象型をチェック
+// BAD: Context checks the concrete type of Strategy
 class Context {
   execute(): void {
     if (this.strategy instanceof StrategyA) {
-      // StrategyA 固有の前処理
+      // Pre-processing specific to StrategyA
       this.prepareForA();
     }
     if (this.strategy instanceof StrategyB) {
-      // StrategyB 固有の前処理
+      // Pre-processing specific to StrategyB
       this.prepareForB();
     }
     this.strategy.execute();
   }
 }
-// 問題: Strategy を追加するたびに Context も変更が必要 -> OCP 違反
+// Problem: Context must also change every time a Strategy is added -> OCP violation
 
-// OK: Context は Strategy インタフェースのみに依存
+// OK: Context depends only on the Strategy interface
 class Context {
   execute(): void {
-    // 前処理は Strategy 内部に閉じ込める
+    // Pre-processing is encapsulated inside Strategy
     this.strategy.execute();
   }
 }
 
-// Strategy 側で前処理を含める
+// Strategy includes its own pre-processing
 class StrategyA implements Strategy {
   execute(): void {
-    this.prepare(); // 固有の前処理
-    this.doWork();  // 本処理
+    this.prepare(); // Strategy-specific pre-processing
+    this.doWork();  // Main processing
   }
 }
 ```
 
-### アンチパターン 3: Strategy の粒度が不適切
+### Anti-Pattern 3: Inappropriate Granularity of Strategy
 
 ```typescript
-// NG: 1つの Strategy に複数の無関係な責務
+// BAD: A single Strategy has multiple unrelated responsibilities
 interface AllInOneStrategy {
   calculatePrice(price: number): number;
   formatOutput(data: any): string;
   validateInput(input: string): boolean;
   sendNotification(message: string): void;
 }
-// 問題: 料金計算を変えたいだけなのに、全てのメソッドを実装する必要がある
+// Problem: Even if you only want to change pricing, you must implement all methods
 
-// OK: 責務ごとに Strategy を分割
+// OK: Split Strategy by responsibility
 interface PricingStrategy {
   calculate(price: number): number;
 }
@@ -915,7 +911,7 @@ interface ValidationStrategy {
   validate(input: string): ValidationResult;
 }
 
-// Context は必要な Strategy だけを使う
+// Context uses only the Strategy it needs
 class OrderService {
   constructor(
     private pricing: PricingStrategy,
@@ -924,31 +920,31 @@ class OrderService {
 }
 ```
 
-### アンチパターン 4: Strategy の切り替えがスレッドセーフでない
+### Anti-Pattern 4: Strategy Switching Is Not Thread-Safe
 
 ```typescript
-// NG: マルチスレッド環境で Strategy の切り替えが競合する
+// BAD: Strategy switching causes race conditions in multi-threaded environments
 class PaymentProcessor {
   private strategy: PaymentStrategy;
 
   setStrategy(strategy: PaymentStrategy): void {
-    this.strategy = strategy; // スレッドAが書き換え中にスレッドBが読む可能性
+    this.strategy = strategy; // Thread B may read while Thread A is writing
   }
 
   process(order: Order): PaymentResult {
-    return this.strategy.process(order); // どのStrategyが使われるか不定
+    return this.strategy.process(order); // Which Strategy is used is non-deterministic
   }
 }
 
-// OK: Strategy を引数で渡すか、イミュータブルなContextを使う
+// OK: Pass Strategy as an argument, or use an immutable Context
 class PaymentProcessor {
-  // 方法1: Strategyを引数として受け取る（状態を持たない）
+  // Option 1: Receive Strategy as an argument (stateless)
   process(order: Order, strategy: PaymentStrategy): PaymentResult {
     return strategy.process(order);
   }
 }
 
-// 方法2: イミュータブルなContext（Strategyの変更時は新インスタンスを生成）
+// Option 2: Immutable Context (create a new instance when Strategy changes)
 class PaymentProcessor {
   constructor(private readonly strategy: PaymentStrategy) {}
 
@@ -962,22 +958,22 @@ class PaymentProcessor {
 }
 ```
 
-**改善**: マルチスレッド環境では、(1) Strategy を引数で渡す、(2) Context をイミュータブルにする、(3) スレッドローカルストレージを使う、のいずれかで安全性を確保する。
+**Improvement**: In multi-threaded environments, ensure safety by (1) passing Strategy as an argument, (2) making Context immutable, or (3) using thread-local storage.
 
 ---
 
-## 7. 実践演習
+## 7. Practice Exercises
 
-### 演習 1: 基礎 ── テキスト変換 Strategy
+### Exercise 1: Basic — Text Transformation Strategy
 
-**課題**: テキスト変換を Strategy パターンで実装せよ。
+**Task**: Implement text transformation using the Strategy pattern.
 
-要件:
-1. `TextTransformer` インタフェース: `transform(text: string): string`
-2. 具体 Strategy: `UpperCase`, `LowerCase`, `CamelCase`, `SnakeCase`, `KebabCase`
-3. `TextProcessor` Context: Strategy を使ってテキストを変換
+Requirements:
+1. `TextTransformer` interface: `transform(text: string): string`
+2. Concrete strategies: `UpperCase`, `LowerCase`, `CamelCase`, `SnakeCase`, `KebabCase`
+3. `TextProcessor` Context: transforms text using a Strategy
 
-**テストケース**:
+**Test Cases**:
 
 ```typescript
 const processor = new TextProcessor(new UpperCase());
@@ -993,22 +989,22 @@ processor.setStrategy(new KebabCase());
 console.log(processor.process("hello world")); // "hello-world"
 ```
 
-**期待される出力**: 上記コメントの通り。
+**Expected Output**: As shown in the comments above.
 
 ---
 
-### 演習 2: 応用 ── 動的 Strategy Registry
+### Exercise 2: Applied — Dynamic Strategy Registry
 
-**課題**: Strategy Registry を実装し、設定ファイルやAPIパラメータから動的に Strategy を選択できるシステムを構築せよ。
+**Task**: Implement a Strategy Registry and build a system that can dynamically select a Strategy from a configuration file or API parameters.
 
-要件:
-1. `StrategyRegistry<T>` クラス: Strategy の登録と取得
-2. デフォルト Strategy のサポート
-3. 利用可能な Strategy の一覧取得
-4. 実行時の Strategy 追加（プラグイン対応）
-5. Shipping（送料計算）の具体例で実装
+Requirements:
+1. `StrategyRegistry<T>` class: registration and retrieval of strategies
+2. Support for a default Strategy
+3. Retrieve a list of available strategies
+4. Add strategies at runtime (plugin support)
+5. Implement a concrete example for Shipping (shipping cost calculation)
 
-**テストケース**:
+**Test Cases**:
 
 ```typescript
 const registry = new StrategyRegistry<ShippingStrategy>();
@@ -1021,29 +1017,29 @@ console.log(registry.getAvailableNames());
 // ["standard", "express", "same-day"]
 
 const strategy = registry.get("express");
-console.log(strategy.calculate(1000, 2.5)); // 送料計算
+console.log(strategy.calculate(1000, 2.5)); // shipping cost calculation
 
-// 未登録の名前 -> デフォルト戦略
+// Unregistered name -> default strategy
 const fallback = registry.get("unknown");
 console.log(fallback === registry.get("standard")); // true
 ```
 
-**期待される出力**: 上記コメントの通り。
+**Expected Output**: As shown in the comments above.
 
 ---
 
-### 演習 3: 発展 ── 合成可能な Strategy パイプライン
+### Exercise 3: Advanced — Composable Strategy Pipeline
 
-**課題**: 複数の Strategy を組み合わせて、パイプライン的に処理を適用できるフレームワークを構築せよ。
+**Task**: Build a framework that combines multiple strategies and applies processing in a pipeline fashion.
 
-要件:
-1. `TransformPipeline<T>` クラス: 複数の変換 Strategy をチェーン
-2. `addStep(strategy)`: パイプラインにステップを追加
-3. `execute(input)`: パイプラインを順次実行
-4. `addConditional(predicate, strategy)`: 条件付き Strategy の適用
-5. 画像処理のパイプラインで具体例を実装
+Requirements:
+1. `TransformPipeline<T>` class: chain multiple transformation strategies
+2. `addStep(strategy)`: add a step to the pipeline
+3. `execute(input)`: execute the pipeline sequentially
+4. `addConditional(predicate, strategy)`: apply a strategy conditionally
+5. Implement a concrete example with an image processing pipeline
 
-**テストケース**:
+**Test Cases**:
 
 ```typescript
 interface ImageData {
@@ -1068,38 +1064,38 @@ console.log(result);
 // { width: 800, height: 600, format: 'jpg', quality: 85 }
 ```
 
-**期待される出力**: 上記コメントの通り。
+**Expected Output**: As shown in the comments above.
 
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured configuration file | Check the path and format of the configuration file |
+| Timeout | Network delay / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increase in data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check the executing user's permissions, review settings |
+| Data inconsistency | Race conditions in concurrent processing | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace and identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form a hypothesis**: List possible causes
+4. **Incremental verification**: Use log output or a debugger to verify hypotheses
+5. **Fix and regression test**: After fixing, run tests for related areas as well
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1107,102 +1103,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs the input and output of a function"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Calling: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return value: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception raised: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check for I/O waits**: Check the status of disk and network I/O
+4. **Check concurrent connections**: Check the state of the connection pool
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem Type | Diagnostic Tool | Countermeasure |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Asynchronous I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | When to prioritize | When to compromise |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. What is the team size?                      │
+│    ├─ Small (1-5 people) -> Monolith            │
+│    └─ Large (10+ people) -> Go to 2             │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. How often do you deploy?                    │
+│    ├─ Once a week or less -> Monolith + modules │
+│    └─ Daily / multiple times -> Go to 3         │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. How independent are the teams?              │
+│    ├─ High -> Microservices                     │
+│    └─ Moderate -> Modular monolith              │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Analyzing Trade-offs
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- A faster short-term approach can become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies allows using the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction offers high reusability but can make debugging difficult
+- Low abstraction is intuitive but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Template for recording design decisions
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1212,17 +1208,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision made"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1230,7 +1226,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1238,15 +1234,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1254,53 +1250,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum necessary features
+- Automated tests only for critical paths
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons learned:**
+- Don't strive for perfection (YAGNI principle)
+- Gather user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually renewing a system that has been in operation for more than 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- Create Characterization Tests first if no existing tests exist
+- Coexist old and new systems via an API gateway
+- Perform data migration in stages
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
+| Phase | Work Content | Estimated Duration | Risk |
 |---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| 1. Investigation | Current state analysis, mapping dependencies | 2–4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4–6 weeks | Low |
+| 3. Migration start | Migrate peripheral features first | 3–6 months | Medium |
+| 4. Core migration | Migrate core features | 6–12 months | High |
+| 5. Completion | Decommission old system | 2–4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with Domain-Driven Design
+- Assign ownership per team
+- Manage shared libraries using Inner Source
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1313,20 +1309,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1335,7 +1331,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1356,67 +1352,67 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** Systems where millisecond-level response times are required
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
+| Optimization Technique | Effect | Implementation Cost | Use Case |
 |-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Asynchronous processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | Slow queries |
+| Code optimization | Low–Medium | High | CPU-bound cases |
 ---
 
 ## 8. FAQ
 
-### Q1: Strategy と DI は同じですか？
+### Q1: Is Strategy the same as DI?
 
-DI（依存性注入）は依存の注入メカニズム、Strategy はアルゴリズム交換のパターンです。DI は Strategy を実現する手段として使えますが、Strategy は DI なしでも実装可能です。DI コンテナ（InversifyJS, tsyringe 等）を使うと、設定ファイルから Strategy を自動的に注入できて便利ですが、必須ではありません。
+DI (Dependency Injection) is a mechanism for injecting dependencies, while Strategy is a pattern for exchanging algorithms. DI can be used as a means to implement Strategy, but Strategy can be implemented without DI. Using a DI container (InversifyJS, tsyringe, etc.) allows strategies to be automatically injected from a configuration file, which is convenient but not required.
 
-### Q2: JavaScript では関数を渡すだけで Strategy は実現できますか？
+### Q2: In JavaScript, can Strategy be implemented simply by passing a function?
 
-はい。コールバック関数は Strategy パターンの軽量な実装です。`Array.sort(compareFn)` が典型例です。ただし、複雑な状態を持つ戦略やパラメータ設定が必要な戦略にはクラスが適しています。「関数1つで済むならクラスは不要、設定やテストの都合でクラスが必要なら使う」が実用的な判断基準です。
+Yes. Callback functions are a lightweight implementation of the Strategy pattern. `Array.sort(compareFn)` is a typical example. However, classes are more appropriate for strategies that hold complex state or require parameter configuration. A practical rule of thumb: "if a single function is enough, no class is needed; use a class if it is needed for configuration or testing purposes."
 
-### Q3: Strategy と Template Method の違いは？
+### Q3: What is the difference between Strategy and Template Method?
 
-Strategy は委譲（has-a）でアルゴリズム全体を交換します。Template Method は継承（is-a）でアルゴリズムの一部をオーバーライドします。Strategy の方が柔軟性が高く、現代のプログラミングでは推奨されます。GoF 自身も「委譲を継承より優先せよ」と述べています。
+Strategy exchanges the entire algorithm through delegation (has-a). Template Method overrides part of an algorithm through inheritance (is-a). Strategy is more flexible and is preferred in modern programming. The GoF themselves state "favor delegation over inheritance."
 
-### Q4: Strategy をいつ導入すべきですか？
+### Q4: When should I introduce Strategy?
 
-以下の条件を満たす場合に導入を検討してください: (1) 同じ処理に3つ以上のバリエーションがある、(2) 将来新しいバリエーションの追加が見込まれる、(3) 実行時にアルゴリズムを切り替える必要がある、(4) アルゴリズムのテストを個別に行いたい。逆に、バリエーションが2つで将来の追加もないなら if-else で十分です。
+Consider introducing it when the following conditions are met: (1) there are 3 or more variations of the same processing, (2) future additions of new variations are expected, (3) the algorithm needs to be switched at runtime, (4) you want to test algorithms individually. Conversely, if there are only 2 variations with no expected additions, if-else is sufficient.
 
-### Q5: Strategy とポリモーフィズムの関係は？
+### Q5: What is the relationship between Strategy and polymorphism?
 
-Strategy パターンはポリモーフィズムの応用です。共通のインタフェースを通じて異なる実装を統一的に扱うという点で、ポリモーフィズムそのものです。OOP ではインタフェース/抽象クラスで、関数型では関数型（type alias）で実現します。
+The Strategy pattern is an application of polymorphism. Treating different implementations uniformly through a common interface is polymorphism itself. In OOP it is achieved with interfaces/abstract classes; in functional programming with function types (type aliases).
 
-### Q6: Strategy パターンのテストはどう書くべきか？
+### Q6: How should tests for the Strategy pattern be written?
 
-テストは3つの層に分けて書くのが効果的です。
+It is effective to write tests in three layers.
 
-1. **各 Strategy の単体テスト**: Strategy ごとに入力と期待出力を検証する。Strategy は独立したクラス/関数なのでモック不要でテストしやすい。
-2. **Context のテスト**: モック Strategy を注入して、Context が Strategy を正しく呼び出しているかを検証する。ここでは Strategy の実装詳細には踏み込まない。
-3. **統合テスト**: 実際の Strategy と Context を組み合わせて、エンドツーエンドの動作を確認する。
+1. **Unit tests for each Strategy**: Verify input and expected output for each Strategy. Since strategies are independent classes/functions, they are easy to test without mocks.
+2. **Tests for Context**: Inject a mock Strategy and verify that Context is calling Strategy correctly. Do not go into the implementation details of Strategy here.
+3. **Integration tests**: Combine actual strategies with Context and verify end-to-end behavior.
 
 ```typescript
-// 1. Strategy の単体テスト
+// 1. Unit test for Strategy
 describe('ExpressShipping', () => {
-  it('5kg以下の荷物に速達料金を適用する', () => {
+  it('applies express shipping rate for packages under 5kg', () => {
     const strategy = new ExpressShipping();
-    expect(strategy.calculate(1000, 3.0)).toBe(1800); // 基本料 + 速達加算
+    expect(strategy.calculate(1000, 3.0)).toBe(1800); // base rate + express surcharge
   });
 });
 
-// 2. Context のテスト（モック使用）
+// 2. Context test (using mock)
 describe('ShippingCalculator', () => {
-  it('設定された Strategy に計算を委譲する', () => {
+  it('delegates calculation to the configured Strategy', () => {
     const mockStrategy: ShippingStrategy = {
       calculate: jest.fn().mockReturnValue(500),
     };
@@ -1427,73 +1423,73 @@ describe('ShippingCalculator', () => {
   });
 });
 
-// 3. 統合テスト
+// 3. Integration test
 describe('ShippingCalculator + StandardShipping', () => {
-  it('実際の送料計算が正しい', () => {
+  it('calculates actual shipping costs correctly', () => {
     const calculator = new ShippingCalculator(new StandardShipping());
     expect(calculator.calculateShipping(1000, 2.0)).toBe(600);
   });
 });
 ```
 
-### Q7: Strategy パターンとデコレータパターンの使い分けは？
+### Q7: How do you choose between Strategy and the Decorator pattern?
 
-Strategy は「アルゴリズムの交換」、デコレータは「機能の追加・装飾」が目的です。Strategy ではある時点で1つの戦略が選択されて実行されますが、デコレータは複数のラッパーを重ねて機能を拡張します。
+Strategy's purpose is "algorithm exchange," while Decorator's purpose is "adding/decorating functionality." With Strategy, one strategy is selected and executed at a given point in time, whereas Decorator stacks multiple wrappers to extend functionality.
 
-判断基準:
-- 「A **または** B を実行する」→ Strategy（排他的選択）
-- 「A **に加えて** B も実行する」→ Decorator（累積的追加）
+Decision criteria:
+- "Execute A **or** B" -> Strategy (exclusive selection)
+- "Execute A **and also** B" -> Decorator (cumulative addition)
 
-実務では両者を組み合わせることも多く、例えばログ出力 Strategy をキャッシュ Decorator で包むといった設計が有効です。
+In practice, both are often combined; for example, wrapping a logging Strategy with a caching Decorator is an effective design.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just from theory but by actually writing code and confirming its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes particularly important during code reviews and architectural design.
 
 ---
 
-## 9. まとめ
+## 9. Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| 目的 | アルゴリズムをカプセル化して交換可能にする |
-| OCP | 新しい戦略を追加しても既存コード変更不要 |
-| 実装方式 | クラスベース（状態あり）/ 関数ベース（軽量） |
-| Registry | 動的選択と拡張性を両立する補助パターン |
-| 関数型 | 関数を渡すだけでも実現可能（Array.sort等） |
-| 判断基準 | 3+バリエーション or 将来の拡張が見込まれる場合に導入 |
-| 注意 | Context は Strategy の具象型を知らない設計にする |
-| 粒度 | 1つの Strategy に1つの責務（ISP の遵守） |
+| Purpose | Encapsulate algorithms to make them interchangeable |
+| OCP | Adding new strategies requires no changes to existing code |
+| Implementation style | Class-based (with state) / Function-based (lightweight) |
+| Registry | A supplementary pattern that balances dynamic selection and extensibility |
+| Functional | Can be implemented simply by passing functions (e.g., Array.sort) |
+| Decision criteria | Introduce when there are 3+ variations or future expansion is expected |
+| Caution | Design Context so it does not know the concrete type of Strategy |
+| Granularity | One responsibility per Strategy (adherence to ISP) |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [Command パターン](./02-command.md) -- 操作のカプセル化と Undo/Redo
-- [State パターン](./03-state.md) -- 状態遷移の管理
-- [Observer パターン](./00-observer.md) -- イベント駆動設計
-- [SOLID 原則](../../../clean-code-principles/docs/00-principles/01-solid.md) -- OCP の詳細
-- [関数型パターン](../03-functional/02-fp-patterns.md) -- 関数合成とパイプライン
+- [Command Pattern](./02-command.md) -- Encapsulation of operations and Undo/Redo
+- [State Pattern](./03-state.md) -- Managing state transitions
+- [Observer Pattern](./00-observer.md) -- Event-driven design
+- [SOLID Principles](../../../clean-code-principles/docs/00-principles/01-solid.md) -- Details on OCP
+- [Functional Patterns](../03-functional/02-fp-patterns.md) -- Function composition and pipelines
 
 ---
 
-## 参考文献
+## References
 
-1. Gamma, E., Helm, R., Johnson, R., Vlissides, J. (1994). *Design Patterns: Elements of Reusable Object-Oriented Software*. Addison-Wesley. -- Strategy パターンの原典。
-2. Freeman, E., Robson, E. (2020). *Head First Design Patterns* (2nd Edition). O'Reilly Media. -- Strategy パターンを最初に扱い、設計原則との関連を丁寧に解説。
-3. Refactoring.Guru -- Strategy. https://refactoring.guru/design-patterns/strategy -- 図解と多言語実装例。
-4. Martin, R.C. (2003). *Agile Software Development: Principles, Patterns, and Practices*. Prentice Hall. -- OCP と Strategy の関係。
-5. Fowler, M. (1999). *Refactoring: Improving the Design of Existing Code*. Addison-Wesley. -- 「条件分岐をポリモーフィズムに置き換える」リファクタリング。
+1. Gamma, E., Helm, R., Johnson, R., Vlissides, J. (1994). *Design Patterns: Elements of Reusable Object-Oriented Software*. Addison-Wesley. -- The original source for the Strategy pattern.
+2. Freeman, E., Robson, E. (2020). *Head First Design Patterns* (2nd Edition). O'Reilly Media. -- Covers the Strategy pattern first and carefully explains its relationship with design principles.
+3. Refactoring.Guru -- Strategy. https://refactoring.guru/design-patterns/strategy -- Illustrated guide with multi-language implementation examples.
+4. Martin, R.C. (2003). *Agile Software Development: Principles, Patterns, and Practices*. Prentice Hall. -- The relationship between OCP and Strategy.
+5. Fowler, M. (1999). *Refactoring: Improving the Design of Existing Code*. Addison-Wesley. -- The "Replace Conditional with Polymorphism" refactoring.
