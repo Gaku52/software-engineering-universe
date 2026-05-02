@@ -1,207 +1,213 @@
-# リファクタリング技法 ── Extract Method、Move、その他の基本技法
+# Refactoring Techniques — Extract Method, Move, and Other Fundamental Techniques
 
-> リファクタリングとは、外部から見たプログラムの振る舞いを変えずに、内部構造を改善する規律あるプロセスである。小さなステップを積み重ね、テストで安全性を確認しながら進める。Martin Fowler は『Refactoring』第2版で60以上の技法を体系化したが、本章では実務で最も頻繁に使われる主要技法を、安全な適用手順・コード例・IDE支援・判断基準とともに深掘りする。
+> Refactoring is a disciplined process of improving the internal structure of code without changing its external behavior. It proceeds in small steps, verifying safety with tests at each stage. Martin Fowler systematized over 60 techniques in the second edition of *Refactoring*, but this chapter takes a deep dive into the most frequently used techniques in practice, along with safe application procedures, code examples, IDE support, and decision criteria.
 
 ---
 
-## 前提知識
+## Prerequisites
 
-| 前提 | 参照先 |
+| Prerequisite | Reference |
 |------|--------|
-| コードスメルの分類 | [00-code-smells.md](./00-code-smells.md) |
-| テストの基礎（AAA パターン、テストダブル） | [01-practices/04-testing-principles.md](../01-practices/04-testing-principles.md) |
-| クリーンコードの基本原則 | [00-principles/](../00-principles/) |
-| 命名と関数設計 | 01-practices/01-naming.md, 01-practices/02-functions.md |
+| Code smell classification | [00-code-smells.md](./00-code-smells.md) |
+| Testing fundamentals (AAA pattern, test doubles) | [01-practices/04-testing-principles.md](../01-practices/04-testing-principles.md) |
+| Core clean code principles | [00-principles/](../00-principles/) |
+| Naming and function design | 01-practices/01-naming.md, 01-practices/02-functions.md |
 
 ---
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **リファクタリングの5つの鉄則** ── 安全なリファクタリングの前提条件と進め方を理解する
-2. **主要な10+の技法** ── Extract Method、Move Method、Rename、Replace Conditional 等を手順付きで習得する
-3. **技法の選択基準** ── コードスメルから適切な技法を選ぶ判断フレームワークを身につける
-4. **IDE によるリファクタリング支援** ── IntelliJ IDEA、VS Code、PyCharm の自動リファクタリング機能を使いこなす
-5. **安全なリファクタリングワークフロー** ── テスト→変更→テスト→コミットのサイクルを実践できるようになる
+1. **The 5 iron rules of refactoring** — Understand the prerequisites and approach for safe refactoring
+2. **10+ key techniques** — Learn Extract Method, Move Method, Rename, Replace Conditional, and more with step-by-step procedures
+3. **Technique selection criteria** — Develop a decision framework for choosing the right technique based on code smells
+4. **IDE-assisted refactoring** — Master the automated refactoring features of IntelliJ IDEA, VS Code, and PyCharm
+5. **Safe refactoring workflow** — Learn to practice the test → change → test → commit cycle
 
 ---
 
-## 1. リファクタリングの基本原則
+## 1. Core Principles of Refactoring
 
-### 1.1 5つの鉄則
+### 1.1 The 5 Iron Rules
 
 ```
 +-------------------------------------------------------------------+
-|  リファクタリングの5つの鉄則                                        |
+|  The 5 Iron Rules of Refactoring                                   |
 |  ───────────────────────────────────────────                       |
-|  1. 振る舞いを変えない（外部仕様は不変）                            |
-|  2. テストを先に書く/確認する（安全網の確保）                       |
-|  3. 小さなステップで進める（1回の変更は1種類の改善のみ）            |
-|  4. 頻繁にコミットする（いつでも直前の状態に戻れるように）          |
-|  5. リファクタリングと機能追加を同時にしない（2つの帽子の原則）     |
+|  1. Do not change behavior (external specification is immutable)   |
+|  2. Write/verify tests first (establish a safety net)             |
+|  3. Proceed in small steps (one change = one type of improvement) |
+|  4. Commit frequently (so you can always revert to a known state) |
+|  5. Never refactor and add features simultaneously (Two Hats)     |
 +-------------------------------------------------------------------+
 
-Martin Fowler の「2つの帽子」比喩:
-- 帽子A: 機能追加 → テストを追加し、新しい振る舞いを実装
-- 帽子B: リファクタリング → 構造を改善するが、テストは変更しない
-- ★ 同時に両方の帽子をかぶってはいけない
+Martin Fowler's "Two Hats" metaphor:
+- Hat A: Feature addition → Add tests, implement new behavior
+- Hat B: Refactoring → Improve structure without changing tests
+- ★ Never wear both hats at the same time
 ```
 
-### 1.2 リファクタリングの安全なサイクル
+### 1.2 The Safe Refactoring Cycle
 
 ```
-  リファクタリングのマイクロサイクル
+  Refactoring Micro-Cycle
 
   ┌──────────────┐
-  │ 1. テスト実行 │     全て通過していることを確認
-  │   (GREEN)    │     → 通過しなければ先にバグ修正
+  │ 1. Run tests  │     Confirm all tests pass
+  │   (GREEN)    │     → Fix any bugs before proceeding
   └──────┬───────┘
          v
   ┌──────────────┐
-  │ 2. 小さな変更 │     1つの技法を1ステップだけ適用
-  │   (1 step)   │     例: メソッド名の変更のみ
+  │ 2. Small     │     Apply one technique, one step at a time
+  │   change     │     e.g., rename a method only
+  │   (1 step)   │
   └──────┬───────┘
          v
-  ┌──────────────┐      失敗 → 変更を取り消す (git checkout)
-  │ 3. テスト実行 │──────→ 何が壊れたか確認 → 修正して再試行
+  ┌──────────────┐      Failure → Undo change (git checkout)
+  │ 3. Run tests  │──────→ Identify what broke → Fix and retry
   │              │
   └──────┬───────┘
-    成功  v
+    Pass  v
   ┌──────────────┐
-  │ 4. コミット   │     「リファクタリング: XXXを改善」
-  └──────┬───────┘     → いつでもこの時点に戻れる
+  │ 4. Commit    │     "refactor: improve XXX"
+  └──────┬───────┘     → Can always return to this point
          v
   ┌──────────────┐
-  │ 5. 次の変更へ │──→ ステップ1に戻る
+  │ 5. Next      │──→ Back to step 1
+  │   change     │
   └──────────────┘
 
-  ★ 1サイクルの所要時間: 2-10分が理想
-  ★ サイクルが長くなるほどリスクが高まる
+  ★ Ideal cycle duration: 2–10 minutes
+  ★ The longer the cycle, the higher the risk
 ```
 
-### 1.3 リファクタリングのタイミング
+### 1.3 When to Refactor
 
 ```
-  いつリファクタリングすべきか？
+  When should you refactor?
 
   ┌─────────────────────────────────────────────────┐
-  │  Rule of Three (3回ルール)                       │
+  │  Rule of Three                                   │
   │  ─────────────────────                          │
-  │  1回目: そのまま書く                             │
-  │  2回目: 重複に気づくが、まだ我慢する             │
-  │  3回目: リファクタリングする                      │
+  │  1st time: Just write it                        │
+  │  2nd time: Notice duplication, but hold back    │
+  │  3rd time: Refactor                             │
   └─────────────────────────────────────────────────┘
 
-  効果的なタイミング:
+  Effective timing:
   ┌───────────────────┬───────────────────────────────┐
-  │ タイミング         │ 理由                          │
+  │ Timing            │ Reason                        │
   ├───────────────────┼───────────────────────────────┤
-  │ 機能追加の前       │ 変更しやすい構造に整える       │
-  │ バグ修正の後       │ 根本原因の設計問題を解消       │
-  │ コードレビュー時   │ レビュー指摘への対応として     │
-  │ 理解のため         │ コードを読む過程で構造を改善   │
+  │ Before adding     │ Prepare a structure easier    │
+  │ features          │ to change                     │
+  │ After fixing bugs │ Resolve underlying design     │
+  │                   │ problems                      │
+  │ During code review│ As a response to review       │
+  │                   │ feedback                      │
+  │ For understanding │ Improve structure while       │
+  │                   │ reading the code              │
   └───────────────────┴───────────────────────────────┘
 
-  リファクタリングすべきでないタイミング:
-  - デッドライン直前
-  - テストが不十分な状態
-  - 大規模な機能開発の最中
-  - パフォーマンスが問題になっている場合（まず計測）
+  When NOT to refactor:
+  - Just before a deadline
+  - When tests are insufficient
+  - In the middle of a large feature development
+  - When performance is an issue (measure first)
 ```
 
 ---
 
-## 2. 主要なリファクタリング技法
+## 2. Key Refactoring Techniques
 
-### 2.1 Extract Method（メソッドの抽出）
+### 2.1 Extract Method
 
-**用途**: Long Method を分割し、各部分に意図を表す名前を与える。最も頻繁に使用される基本技法。
+**Purpose**: Split a Long Method and give each part a name that expresses its intent. The most frequently used fundamental technique.
 
-**安全な手順**:
-1. 抽出したいコードブロックを特定する
-2. 新しいメソッドを作成し、意図を表す名前を付ける
-3. 元のコードを新しいメソッドの呼び出しに置き換える
-4. 必要な変数をパラメータとして渡す
-5. テストを実行して振る舞いが変わっていないことを確認する
+**Safe procedure**:
+1. Identify the code block to extract
+2. Create a new method and give it an intent-expressing name
+3. Replace the original code with a call to the new method
+4. Pass necessary variables as parameters
+5. Run tests to confirm behavior has not changed
 
-**コード例1: Extract Method（Python）**
+**Code Example 1: Extract Method (Python)**
 
 ```python
-# Before: 長いメソッドに複数の関心が混在
+# Before: A long method mixing multiple concerns
 class Order:
     def print_invoice(self):
-        print("========== 請求書 ==========")
-        print(f"顧客: {self.customer.name}")
-        print(f"日付: {self.date}")
+        print("========== Invoice ==========")
+        print(f"Customer: {self.customer.name}")
+        print(f"Date: {self.date}")
         print()
 
-        # 明細の出力
+        # Print line items
         total = 0
         for item in self.items:
             line_total = item.price * item.quantity
             total += line_total
             print(f"  {item.name}: {item.price} x {item.quantity} = {line_total}")
 
-        # 合計の計算と出力
+        # Calculate and print totals
         tax = total * 0.10
         grand_total = total + tax
         print()
-        print(f"小計: {total}")
-        print(f"消費税(10%): {tax}")
-        print(f"合計: {grand_total}")
+        print(f"Subtotal: {total}")
+        print(f"Tax (10%): {tax}")
+        print(f"Total: {grand_total}")
         print("============================")
 
 
-# After: 意図ごとにメソッドを抽出
+# After: Extract a method for each intent
 class Order:
     def print_invoice(self):
-        """請求書の出力 ── 高レベルの流れが一目で分かる"""
+        """Print invoice — the high-level flow is clear at a glance"""
         self._print_header()
         self._print_line_items()
         self._print_totals()
 
     def _print_header(self):
-        """ヘッダー部分の出力"""
-        print("========== 請求書 ==========")
-        print(f"顧客: {self.customer.name}")
-        print(f"日付: {self.date}")
+        """Print the header section"""
+        print("========== Invoice ==========")
+        print(f"Customer: {self.customer.name}")
+        print(f"Date: {self.date}")
         print()
 
     def _print_line_items(self):
-        """明細の出力"""
+        """Print line items"""
         for item in self.items:
             line_total = item.price * item.quantity
             print(f"  {item.name}: {item.price} x {item.quantity} = {line_total}")
 
     def _print_totals(self):
-        """合計部分の出力"""
+        """Print the totals section"""
         subtotal = self.calculate_subtotal()
         tax = subtotal * Decimal("0.10")
         print()
-        print(f"小計: {subtotal}")
-        print(f"消費税(10%): {tax}")
-        print(f"合計: {subtotal + tax}")
+        print(f"Subtotal: {subtotal}")
+        print(f"Tax (10%): {tax}")
+        print(f"Total: {subtotal + tax}")
         print("============================")
 
     def calculate_subtotal(self) -> Decimal:
-        """小計の計算 ── 他のメソッドからも再利用可能"""
+        """Calculate subtotal — reusable from other methods"""
         return sum(item.price * item.quantity for item in self.items)
 ```
 
-**コード例2: Extract Method ── 変数の取り扱い（Python）**
+**Code Example 2: Extract Method — Handling Local Variables (Python)**
 
 ```python
-# Before: ローカル変数が多く、抽出が難しいケース
+# Before: Many local variables make extraction difficult
 def generate_report(orders: list[Order], start_date: date, end_date: date) -> str:
-    # フィルタリング
+    # Filtering
     filtered = [o for o in orders
                 if start_date <= o.date <= end_date]
 
-    # 集計
+    # Aggregation
     total_revenue = sum(o.total for o in filtered)
     total_orders = len(filtered)
     avg_order_value = total_revenue / total_orders if total_orders > 0 else 0
 
-    # 上位商品の集計
+    # Aggregate top products
     product_counts = {}
     for order in filtered:
         for item in order.items:
@@ -212,25 +218,25 @@ def generate_report(orders: list[Order], start_date: date, end_date: date) -> st
         product_counts.items(), key=lambda x: x[1], reverse=True
     )[:10]
 
-    # レポート文字列の生成
+    # Generate report string
     lines = [
-        f"=== レポート ({start_date} ~ {end_date}) ===",
-        f"総売上: {total_revenue:,.0f}円",
-        f"注文数: {total_orders}件",
-        f"平均注文額: {avg_order_value:,.0f}円",
+        f"=== Report ({start_date} ~ {end_date}) ===",
+        f"Total Revenue: {total_revenue:,.0f}",
+        f"Orders: {total_orders}",
+        f"Average Order Value: {avg_order_value:,.0f}",
         "",
-        "--- 上位商品 ---",
+        "--- Top Products ---",
     ]
     for name, count in top_products:
-        lines.append(f"  {name}: {count}個")
+        lines.append(f"  {name}: {count}")
 
     return "\n".join(lines)
 
 
-# After: 各段階を独立したメソッドに抽出
+# After: Extract each stage into an independent method
 @dataclass
 class ReportStatistics:
-    """レポートの集計結果を保持するデータクラス"""
+    """Data class holding aggregated report results"""
     total_revenue: Decimal
     total_orders: int
     avg_order_value: Decimal
@@ -240,18 +246,18 @@ class ReportStatistics:
 class ReportGenerator:
     def generate(self, orders: list[Order],
                  start_date: date, end_date: date) -> str:
-        """レポート生成のオーケストレーション"""
+        """Orchestrate report generation"""
         filtered = self._filter_by_date(orders, start_date, end_date)
         stats = self._calculate_statistics(filtered)
         return self._format_report(stats, start_date, end_date)
 
     def _filter_by_date(self, orders: list[Order],
                         start: date, end: date) -> list[Order]:
-        """期間でフィルタリング"""
+        """Filter by date range"""
         return [o for o in orders if start <= o.date <= end]
 
     def _calculate_statistics(self, orders: list[Order]) -> ReportStatistics:
-        """注文リストから統計情報を計算"""
+        """Calculate statistics from an order list"""
         total_revenue = sum(o.total for o in orders)
         total_orders = len(orders)
         avg = total_revenue / total_orders if total_orders > 0 else Decimal("0")
@@ -259,7 +265,7 @@ class ReportGenerator:
         return ReportStatistics(total_revenue, total_orders, avg, top_products)
 
     def _aggregate_products(self, orders: list[Order]) -> list[tuple[str, int]]:
-        """商品ごとの販売数を集計"""
+        """Aggregate sales quantities by product"""
         counts: dict[str, int] = {}
         for order in orders:
             for item in order.items:
@@ -268,42 +274,42 @@ class ReportGenerator:
 
     def _format_report(self, stats: ReportStatistics,
                        start: date, end: date) -> str:
-        """統計情報をレポート文字列に整形"""
+        """Format statistics into a report string"""
         lines = [
-            f"=== レポート ({start} ~ {end}) ===",
-            f"総売上: {stats.total_revenue:,.0f}円",
-            f"注文数: {stats.total_orders}件",
-            f"平均注文額: {stats.avg_order_value:,.0f}円",
+            f"=== Report ({start} ~ {end}) ===",
+            f"Total Revenue: {stats.total_revenue:,.0f}",
+            f"Orders: {stats.total_orders}",
+            f"Average Order Value: {stats.avg_order_value:,.0f}",
             "",
-            "--- 上位商品 ---",
+            "--- Top Products ---",
         ]
         for name, count in stats.top_products:
-            lines.append(f"  {name}: {count}個")
+            lines.append(f"  {name}: {count}")
         return "\n".join(lines)
 ```
 
-### 2.2 Move Method / Move Field（メソッド・フィールドの移動）
+### 2.2 Move Method / Move Field
 
-**用途**: Feature Envy（他クラスのデータを過度に使用するメソッド）を解消する。メソッドをそのデータを持つクラスに移動する。
+**Purpose**: Eliminate Feature Envy (methods that excessively use data from another class). Move the method to the class that owns the data.
 
-**安全な手順**:
-1. 移動先クラスに同じメソッドのコピーを作成する
-2. 移動先で正しく動作するようにパラメータを調整する
-3. 元のメソッドを移動先のメソッドへの委譲に変更する
-4. テストを実行する
-5. 元のメソッドの全ての呼び出し元を移動先に変更する
-6. 元のメソッドを削除する
-7. テストを実行する
+**Safe procedure**:
+1. Create a copy of the method in the destination class
+2. Adjust parameters so it works correctly in the destination
+3. Change the original method to delegate to the destination method
+4. Run tests
+5. Update all callers of the original method to use the destination
+6. Delete the original method
+7. Run tests
 
-**コード例3: Move Method（Java）**
+**Code Example 3: Move Method (Java)**
 
 ```java
-// Before: calculateDiscount() は Order のデータを使っている (Feature Envy)
+// Before: calculateDiscount() uses Order's data (Feature Envy)
 class Customer {
     private Address address;
     private List<Order> orders;
 
-    // この計算は Order の責任であるべき
+    // This calculation should be Order's responsibility
     public double calculateOrderDiscount(Order order) {
         double total = order.getTotal();
         int itemCount = order.getItems().size();
@@ -314,9 +320,9 @@ class Customer {
         return 0;
     }
 
-    // この計算も Order の内部データに依存
+    // This calculation also depends on Order's internal data
     public String formatOrderSummary(Order order) {
-        return String.format("注文 #%s: %d品目, 合計 %.0f円",
+        return String.format("Order #%s: %d items, Total %.0f",
             order.getId(),
             order.getItems().size(),
             order.getTotal());
@@ -324,7 +330,7 @@ class Customer {
 }
 
 
-// After: メソッドを Order に移動
+// After: Move the methods to Order
 class Order {
     private String id;
     private List<OrderItem> items;
@@ -338,7 +344,7 @@ class Order {
     }
 
     public String formatSummary() {
-        return String.format("注文 #%s: %d品目, 合計 %.0f円",
+        return String.format("Order #%s: %d items, Total %.0f",
             this.id, this.items.size(), this.total);
     }
 
@@ -347,22 +353,22 @@ class Order {
     }
 }
 
-// Customer は Order のメソッドを呼ぶだけ
+// Customer simply delegates to Order's methods
 class Customer {
     public double getOrderDiscount(Order order) {
-        return order.calculateDiscount();  // 委譲
+        return order.calculateDiscount();  // delegation
     }
 }
 ```
 
-### 2.3 Rename（名前の変更）
+### 2.3 Rename
 
-**用途**: 不明確な名前を意図が伝わる名前に改善する。最も安全で効果の高い技法の1つ。
+**Purpose**: Replace unclear names with names that convey intent. One of the safest and highest-impact techniques.
 
-**コード例4: Rename ── 段階的な改善（TypeScript）**
+**Code Example 4: Rename — Incremental Improvement (TypeScript)**
 
 ```typescript
-// Before: 意味不明な名前
+// Before: Meaningless names
 class Mgr {
   proc(d: any[]): any[] {
     return d.filter(i => i.s === 1).map(i => ({ ...i, t: Date.now() }));
@@ -378,10 +384,10 @@ class Mgr {
 }
 
 
-// After: 意図が明確な名前
+// After: Names that clearly express intent
 class ActiveUserProcessor {
   /**
-   * アクティブなユーザーをフィルタリングし、処理タイムスタンプを付与する。
+   * Filter active users and attach a processing timestamp.
    */
   filterAndTimestamp(users: User[]): TimestampedUser[] {
     return users
@@ -393,14 +399,14 @@ class ActiveUserProcessor {
   }
 
   /**
-   * 表示名が有効な長さであるかを検証する。
+   * Validate that a display name is within the allowed length.
    */
   isValidDisplayName(name: string): boolean {
     return name.length > 0 && name.length <= 100;
   }
 
   /**
-   * 販売利益を計算する: 単価 x 数量 - 割引額
+   * Calculate sales profit: unit price x quantity - discount
    */
   calculateProfit(unitPrice: number, quantity: number, discount: number): number {
     return unitPrice * quantity - discount;
@@ -408,22 +414,22 @@ class ActiveUserProcessor {
 }
 ```
 
-### 2.4 Replace Conditional with Polymorphism（条件分岐のポリモーフィズム置換）
+### 2.4 Replace Conditional with Polymorphism
 
-**用途**: Switch Statements スメルを解消する。型による分岐を各サブクラスのメソッドオーバーライドに置き換える。
+**Purpose**: Eliminate the Switch Statements smell. Replace type-based branching with method overrides in each subclass.
 
-**安全な手順**:
-1. 分岐条件の各ケースに対応するサブクラスを作成する
-2. 基底クラスに抽象メソッドを定義する
-3. 各サブクラスでメソッドを実装する
-4. ファクトリメソッドまたはファクトリクラスを作成する
-5. 元の条件分岐をポリモーフィック呼び出しに置き換える
-6. テストを実行する
+**Safe procedure**:
+1. Create a subclass for each case in the conditional
+2. Define an abstract method in the base class
+3. Implement the method in each subclass
+4. Create a factory method or factory class
+5. Replace the original conditional with a polymorphic call
+6. Run tests
 
-**コード例5: Replace Conditional with Polymorphism（Python）**
+**Code Example 5: Replace Conditional with Polymorphism (Python)**
 
 ```python
-# Before: 型による条件分岐が複数メソッドに散在
+# Before: Type-based conditionals scattered across multiple methods
 class Employee:
     def __init__(self, employee_type: str, **kwargs):
         self.type = employee_type
@@ -441,7 +447,7 @@ class Employee:
         elif self.type == 'contractor':
             return self.daily_rate * self.days_worked
         elif self.type == 'intern':
-            return Decimal("0")  # 無給インターン
+            return Decimal("0")  # unpaid intern
         else:
             raise ValueError(f"Unknown type: {self.type}")
 
@@ -459,41 +465,41 @@ class Employee:
 
     def get_title(self) -> str:
         if self.type == 'full_time':
-            return "正社員"
+            return "Full-Time"
         elif self.type == 'part_time':
-            return "パートタイム"
+            return "Part-Time"
         elif self.type == 'contractor':
-            return "業務委託"
+            return "Contractor"
         elif self.type == 'intern':
-            return "インターン"
+            return "Intern"
         else:
-            return "不明"
+            return "Unknown"
 
 
-# After: ポリモーフィズムで各型が自分の振る舞いを持つ
+# After: Each type owns its own behavior via polymorphism
 from abc import ABC, abstractmethod
 from decimal import Decimal
 
 class Employee(ABC):
-    """従業員の基底クラス"""
+    """Base class for employees"""
 
     def __init__(self, name: str):
         self.name = name
 
     @abstractmethod
     def calculate_pay(self) -> Decimal:
-        """給与を計算する"""
+        """Calculate pay"""
 
     @abstractmethod
     def calculate_benefits(self) -> Decimal:
-        """福利厚生費を計算する"""
+        """Calculate benefits cost"""
 
     @abstractmethod
     def get_title(self) -> str:
-        """職種名を返す"""
+        """Return job title"""
 
     def total_cost(self) -> Decimal:
-        """会社の総コスト = 給与 + 福利厚生"""
+        """Total company cost = pay + benefits"""
         return self.calculate_pay() + self.calculate_benefits()
 
 
@@ -509,7 +515,7 @@ class FullTimeEmployee(Employee):
         return self.salary * Decimal("0.2")
 
     def get_title(self) -> str:
-        return "正社員"
+        return "Full-Time"
 
 
 class PartTimeEmployee(Employee):
@@ -525,7 +531,7 @@ class PartTimeEmployee(Employee):
         return self.calculate_pay() * Decimal("0.05")
 
     def get_title(self) -> str:
-        return "パートタイム"
+        return "Part-Time"
 
 
 class Contractor(Employee):
@@ -538,10 +544,10 @@ class Contractor(Employee):
         return self.daily_rate * self.days_worked
 
     def calculate_benefits(self) -> Decimal:
-        return Decimal("0")  # 福利厚生なし
+        return Decimal("0")  # No benefits
 
     def get_title(self) -> str:
-        return "業務委託"
+        return "Contractor"
 
 
 class Intern(Employee):
@@ -556,12 +562,12 @@ class Intern(Employee):
         return Decimal("0")
 
     def get_title(self) -> str:
-        return "インターン"
+        return "Intern"
 
 
-# ファクトリ関数: 旧コードとの互換性を維持
+# Factory function: maintain compatibility with old code
 def create_employee(employee_type: str, name: str, **kwargs) -> Employee:
-    """型文字列からEmployeeを生成するファクトリ"""
+    """Factory that creates an Employee from a type string"""
     factories = {
         'full_time': lambda: FullTimeEmployee(name, Decimal(str(kwargs['salary']))),
         'part_time': lambda: PartTimeEmployee(
@@ -576,14 +582,14 @@ def create_employee(employee_type: str, name: str, **kwargs) -> Employee:
     return factory()
 ```
 
-### 2.5 Introduce Parameter Object（パラメータオブジェクトの導入）
+### 2.5 Introduce Parameter Object
 
-**用途**: Data Clumps（同じパラメータ群の繰り返し）や Long Parameter List を解消する。
+**Purpose**: Eliminate Data Clumps (repeated groups of the same parameters) and Long Parameter Lists.
 
-**コード例6: Introduce Parameter Object（TypeScript）**
+**Code Example 6: Introduce Parameter Object (TypeScript)**
 
 ```typescript
-// Before: 関連するパラメータの群れが繰り返し登場
+// Before: A cluster of related parameters repeating across functions
 function searchProducts(
   query: string,
   minPrice: number,
@@ -611,7 +617,7 @@ function exportProducts(
 ): Buffer { /* ... */ }
 
 
-// After: パラメータオブジェクトに集約
+// After: Consolidated into parameter objects
 interface ProductSearchCriteria {
   query: string;
   priceRange: PriceRange;
@@ -623,8 +629,8 @@ class PriceRange {
     readonly min: number,
     readonly max: number
   ) {
-    if (min < 0) throw new Error("最小価格は0以上");
-    if (max < min) throw new Error("最大価格は最小価格以上");
+    if (min < 0) throw new Error("Minimum price must be 0 or greater");
+    if (max < min) throw new Error("Maximum price must be greater than or equal to minimum");
   }
 
   contains(price: number): boolean {
@@ -663,58 +669,58 @@ function exportProducts(
 ): Buffer { /* ... */ }
 ```
 
-### 2.6 Inline Method（メソッドのインライン化）
+### 2.6 Inline Method
 
-**用途**: 不要な間接参照を排除する。メソッドの本体が名前と同じくらい明確な場合に適用する。Extract Method の逆操作。
+**Purpose**: Remove unnecessary indirection. Apply when the method body is as clear as its name. The inverse of Extract Method.
 
-**コード例7: Inline Method（Python）**
+**Code Example 7: Inline Method (Python)**
 
 ```python
-# Before: 過度に細分化されたメソッド
+# Before: Overly fragmented methods
 class OrderValidator:
     def validate(self, order):
         if not self._has_items(order):
-            raise ValidationError("商品なし")
+            raise ValidationError("No items")
         if not self._has_customer(order):
-            raise ValidationError("顧客なし")
+            raise ValidationError("No customer")
         if not self._is_positive_total(order):
-            raise ValidationError("合計が不正")
+            raise ValidationError("Invalid total")
 
     def _has_items(self, order) -> bool:
-        return len(order.items) > 0        # メソッド名と本体が同じ意味
+        return len(order.items) > 0        # Method name and body mean the same thing
 
     def _has_customer(self, order) -> bool:
-        return order.customer is not None   # メソッド名と本体が同じ意味
+        return order.customer is not None   # Method name and body mean the same thing
 
     def _is_positive_total(self, order) -> bool:
-        return order.total > 0             # メソッド名と本体が同じ意味
+        return order.total > 0             # Method name and body mean the same thing
 
 
-# After: 不要な間接参照を排除
+# After: Remove unnecessary indirection
 class OrderValidator:
     def validate(self, order):
-        """注文の基本バリデーション"""
+        """Basic order validation"""
         if not order.items:
-            raise ValidationError("商品が選択されていません")
+            raise ValidationError("No items have been selected")
         if order.customer is None:
-            raise ValidationError("顧客情報がありません")
+            raise ValidationError("No customer information")
         if order.total <= 0:
-            raise ValidationError("合計金額が不正です")
+            raise ValidationError("Total amount is invalid")
 
-# ★ インライン化の判断基準:
-#   - メソッドの本体がメソッド名と同じくらい明確
-#   - メソッドが1箇所からしか呼ばれていない
-#   - メソッドがただの委譲で、追加のロジックがない
+# ★ Criteria for inlining:
+#   - The method body is as clear as its name
+#   - The method is only called from one place
+#   - The method is pure delegation with no additional logic
 ```
 
-### 2.7 Extract Class（クラスの抽出）
+### 2.7 Extract Class
 
-**用途**: God Class を責任ごとに分割する。クラスが2つ以上の明確に異なる責任を持つ場合に適用。
+**Purpose**: Split a God Class by responsibility. Apply when a class has two or more clearly distinct responsibilities.
 
-**コード例8: Extract Class（Python）**
+**Code Example 8: Extract Class (Python)**
 
 ```python
-# Before: User クラスが認証と住所の両方の責任を持つ
+# Before: The User class holds both authentication and address responsibilities
 class User:
     def __init__(self, name, email, password_hash,
                  street, city, zip_code, country,
@@ -743,38 +749,38 @@ class User:
                 self.is_locked = True
 
     def format_address(self) -> str:
-        return f"〒{self.zip_code} {self.city}{self.street}"
+        return f"{self.zip_code} {self.city} {self.street}"
 
     def is_domestic(self) -> bool:
-        return self.country == "日本"
+        return self.country == "US"
 
     def calculate_shipping(self) -> Decimal:
         if self.is_domestic():
-            return Decimal("500")
-        return Decimal("2000")
+            return Decimal("5.00")
+        return Decimal("20.00")
 
 
-# After: 責任ごとにクラスを分離
+# After: Separate classes by responsibility
 @dataclass(frozen=True)
 class Address:
-    """住所 ── 値オブジェクト"""
+    """Address — value object"""
     street: str
     city: str
     zip_code: str
     country: str
 
     def format(self) -> str:
-        return f"〒{self.zip_code} {self.city}{self.street}"
+        return f"{self.zip_code} {self.city} {self.street}"
 
     def is_domestic(self) -> bool:
-        return self.country == "日本"
+        return self.country == "US"
 
     def calculate_shipping(self) -> Decimal:
-        return Decimal("500") if self.is_domestic() else Decimal("2000")
+        return Decimal("5.00") if self.is_domestic() else Decimal("20.00")
 
 
 class LoginSecurity:
-    """認証セキュリティ ── ログイン試行の管理"""
+    """Authentication security — manages login attempts"""
     MAX_ATTEMPTS = 5
 
     def __init__(self, password_hash: bytes):
@@ -801,7 +807,7 @@ class LoginSecurity:
 
 
 class User:
-    """ユーザー ── 住所と認証を組み合わせる"""
+    """User — combines address and authentication"""
     def __init__(self, name: str, email: str,
                  address: Address, security: LoginSecurity):
         self.name = name
@@ -810,14 +816,14 @@ class User:
         self.security = security
 ```
 
-### 2.8 Replace Temp with Query（一時変数のクエリ置換）
+### 2.8 Replace Temp with Query
 
-**用途**: 一時変数を問い合わせメソッドに置き換える。計算結果を他のメソッドからも利用可能にする。
+**Purpose**: Replace temporary variables with query methods. Makes computed results available to other methods as well.
 
-**コード例9: Replace Temp with Query（Python）**
+**Code Example 9: Replace Temp with Query (Python)**
 
 ```python
-# Before: 一時変数で中間結果を保持
+# Before: Holding intermediate results in temporary variables
 class ShoppingCart:
     def checkout_summary(self) -> str:
         subtotal = sum(item.price * item.quantity for item in self.items)
@@ -825,73 +831,73 @@ class ShoppingCart:
         tax = (subtotal - discount) * Decimal("0.10")
         total = subtotal - discount + tax
 
-        return (f"小計: {subtotal}, 割引: {discount}, "
-                f"税: {tax}, 合計: {total}")
+        return (f"Subtotal: {subtotal}, Discount: {discount}, "
+                f"Tax: {tax}, Total: {total}")
 
 
-# After: 一時変数をメソッドに変換
+# After: Convert temporary variables to methods
 class ShoppingCart:
     @property
     def subtotal(self) -> Decimal:
-        """商品合計"""
+        """Item total"""
         return sum(item.price * item.quantity for item in self.items)
 
     @property
     def discount(self) -> Decimal:
-        """割引額: 1万円以上で10%"""
+        """Discount amount: 10% off for orders over 10,000"""
         return self.subtotal * Decimal("0.1") if self.subtotal > 10000 else Decimal("0")
 
     @property
     def tax(self) -> Decimal:
-        """消費税"""
+        """Consumption tax"""
         return (self.subtotal - self.discount) * Decimal("0.10")
 
     @property
     def total(self) -> Decimal:
-        """支払い合計"""
+        """Total payable"""
         return self.subtotal - self.discount + self.tax
 
     def checkout_summary(self) -> str:
-        return (f"小計: {self.subtotal}, 割引: {self.discount}, "
-                f"税: {self.tax}, 合計: {self.total}")
+        return (f"Subtotal: {self.subtotal}, Discount: {self.discount}, "
+                f"Tax: {self.tax}, Total: {self.total}")
 
-    # ★ 他のメソッドからも self.total 等を利用可能に
+    # ★ self.total and others are now reusable from other methods
     def can_apply_coupon(self, min_amount: Decimal) -> bool:
         return self.subtotal >= min_amount
 ```
 
-### 2.9 Decompose Conditional（条件分岐の分解）
+### 2.9 Decompose Conditional
 
-**用途**: 複雑な条件式を意図が明確なメソッドに分解する。
+**Purpose**: Break down complex conditional expressions into methods with clear intent.
 
-**コード例10: Decompose Conditional（Python）**
+**Code Example 10: Decompose Conditional (Python)**
 
 ```python
-# Before: 複雑な条件式
+# Before: Complex conditional expressions
 def calculate_charge(date: date, quantity: int, rate: Decimal) -> Decimal:
     if (date.month >= 6 and date.month <= 9) or \
        (date.weekday() >= 5) or \
        (date in get_holidays(date.year)):
-        # 夏季・週末・祝日料金
+        # Peak season / weekend / holiday rate
         charge = quantity * rate * Decimal("1.5")
         if quantity > 100:
             charge *= Decimal("0.9")
     else:
-        # 通常料金
+        # Regular rate
         charge = quantity * rate
         if quantity > 200:
             charge *= Decimal("0.95")
     return charge
 
 
-# After: 条件と各ブランチを意図が明確なメソッドに分解
+# After: Decompose the condition and each branch into methods with clear intent
 def calculate_charge(date: date, quantity: int, rate: Decimal) -> Decimal:
     if is_peak_season(date):
         return calculate_peak_charge(quantity, rate)
     return calculate_regular_charge(quantity, rate)
 
 def is_peak_season(date: date) -> bool:
-    """繁忙期: 夏季 or 週末 or 祝日"""
+    """Peak season: summer, weekend, or holiday"""
     return is_summer(date) or is_weekend(date) or is_holiday(date)
 
 def is_summer(date: date) -> bool:
@@ -904,63 +910,63 @@ def is_holiday(date: date) -> bool:
     return date in get_holidays(date.year)
 
 def calculate_peak_charge(quantity: int, rate: Decimal) -> Decimal:
-    """繁忙期料金: 1.5倍、100個超で10%割引"""
+    """Peak season rate: 1.5x, 10% discount for over 100 units"""
     charge = quantity * rate * Decimal("1.5")
     if quantity > 100:
         charge *= Decimal("0.9")
     return charge
 
 def calculate_regular_charge(quantity: int, rate: Decimal) -> Decimal:
-    """通常料金: 200個超で5%割引"""
+    """Regular rate: 5% discount for over 200 units"""
     charge = quantity * rate
     if quantity > 200:
         charge *= Decimal("0.95")
     return charge
 ```
 
-### 2.10 Pull Up Method / Push Down Method（メソッドの引き上げ / 押し下げ）
+### 2.10 Pull Up Method / Push Down Method
 
-**用途**: 継承階層内でメソッドを適切なレベルに移動する。重複コードの排除や、特殊なロジックの分離に使用。
+**Purpose**: Move methods to the appropriate level within an inheritance hierarchy. Used to eliminate duplicate code or isolate specialized logic.
 
-**コード例11: Pull Up Method（Java）**
+**Code Example 11: Pull Up Method (Java)**
 
 ```java
-// Before: 同じメソッドが複数のサブクラスに重複
+// Before: The same method duplicated across multiple subclasses
 class SavingsAccount extends Account {
     public double calculateInterest() {
-        return this.balance * this.interestRate / 12;  // 重複
+        return this.balance * this.interestRate / 12;  // duplicate
     }
 }
 
 class CheckingAccount extends Account {
     public double calculateInterest() {
-        return this.balance * this.interestRate / 12;  // 重複
+        return this.balance * this.interestRate / 12;  // duplicate
     }
 }
 
 class MoneyMarketAccount extends Account {
     public double calculateInterest() {
-        return this.balance * this.interestRate / 12;  // 重複
+        return this.balance * this.interestRate / 12;  // duplicate
     }
 }
 
 
-// After: 共通メソッドを親クラスに引き上げ
+// After: Pull the common method up to the parent class
 abstract class Account {
     protected double balance;
     protected double interestRate;
 
-    // Pull Up: 共通の計算を親クラスに
+    // Pull Up: move common calculation to parent class
     public double calculateInterest() {
         return this.balance * this.interestRate / 12;
     }
 }
 
-// 特殊な計算が必要なサブクラスのみオーバーライド
+// Only subclasses that need special logic override it
 class HighYieldAccount extends Account {
     @Override
     public double calculateInterest() {
-        // 特殊なロジック: 段階金利
+        // Special logic: tiered interest rate
         if (this.balance > 1_000_000) {
             return this.balance * (this.interestRate * 1.5) / 12;
         }
@@ -971,179 +977,183 @@ class HighYieldAccount extends Account {
 
 ---
 
-## 3. IDE によるリファクタリング支援
+## 3. IDE-Assisted Refactoring
 
-### 3.1 IDE の自動リファクタリング機能比較
+### 3.1 Comparison of IDE Automated Refactoring Features
 
-| 技法 | IntelliJ IDEA | VS Code | PyCharm | Eclipse |
+| Technique | IntelliJ IDEA | VS Code | PyCharm | Eclipse |
 |------|:------------:|:-------:|:-------:|:-------:|
 | Extract Method | Ctrl+Alt+M | Ctrl+Shift+R | Ctrl+Alt+M | Alt+Shift+M |
 | Rename | Shift+F6 | F2 | Shift+F6 | Alt+Shift+R |
-| Move | F6 | ― | F6 | Alt+Shift+V |
-| Inline | Ctrl+Alt+N | ― | Ctrl+Alt+N | Alt+Shift+I |
-| Extract Variable | Ctrl+Alt+V | ― | Ctrl+Alt+V | Alt+Shift+L |
-| Extract Parameter | Ctrl+Alt+P | ― | Ctrl+Alt+P | ― |
-| Change Signature | Ctrl+F6 | ― | Ctrl+F6 | Alt+Shift+C |
-| Safe Delete | Alt+Del | ― | Alt+Del | ― |
+| Move | F6 | — | F6 | Alt+Shift+V |
+| Inline | Ctrl+Alt+N | — | Ctrl+Alt+N | Alt+Shift+I |
+| Extract Variable | Ctrl+Alt+V | — | Ctrl+Alt+V | Alt+Shift+L |
+| Extract Parameter | Ctrl+Alt+P | — | Ctrl+Alt+P | — |
+| Change Signature | Ctrl+F6 | — | Ctrl+F6 | Alt+Shift+C |
+| Safe Delete | Alt+Del | — | Alt+Del | — |
 
-### 3.2 IDE リファクタリングの使い方
+### 3.2 How to Use IDE Refactoring
 
 ```
-  IntelliJ IDEA / PyCharm でのリファクタリング手順
+  Refactoring procedure in IntelliJ IDEA / PyCharm
 
   1. Extract Method:
-     a. 抽出したいコードブロックを選択
+     a. Select the code block to extract
      b. Ctrl+Alt+M (Mac: Cmd+Option+M)
-     c. メソッド名を入力
-     d. パラメータと戻り値を確認
-     e. Enter で確定
-     → IDE が自動的に変数の受け渡しを処理
+     c. Enter the method name
+     d. Review parameters and return value
+     e. Press Enter to confirm
+     → IDE automatically handles variable passing
 
   2. Rename:
-     a. 変更したいシンボルにカーソルを置く
+     a. Place cursor on the symbol to change
      b. Shift+F6
-     c. 新しい名前を入力
-     d. Enter で確定
-     → 全ての参照箇所（テスト含む）が自動更新
+     c. Enter the new name
+     d. Press Enter to confirm
+     → All references (including tests) are automatically updated
 
   3. Move:
-     a. 移動したいメソッド/クラスにカーソルを置く
+     a. Place cursor on the method/class to move
      b. F6
-     c. 移動先のクラス/パッケージを選択
-     d. Enter で確定
-     → インポート文も自動調整
+     c. Select the destination class/package
+     d. Press Enter to confirm
+     → Import statements are also adjusted automatically
 
-  ★ IDE の自動リファクタリングは「コンパイラレベルの正確さ」で
-    全ての参照を更新する。手動よりも安全。
+  ★ IDE automated refactoring updates all references with
+    "compiler-level accuracy" — safer than manual changes.
 ```
 
 ---
 
-## 4. リファクタリング技法の選択ガイド
+## 4. Technique Selection Guide
 
-### 4.1 スメルから技法へのフローチャート
+### 4.1 Flowchart from Smell to Technique
 
 ```
-  コードスメルからリファクタリング技法への選択フロー
+  Selection flow from code smell to refactoring technique
 
-  スメルを発見
+  Smell detected
       |
       v
-  メソッドが長い？ ──Yes──> Extract Method
-      |
-      No
-      v
-  メソッドが間違った ──Yes──> Move Method
-  クラスにある？
+  Long method? ──Yes──> Extract Method
       |
       No
       v
-  同じパラメータが ──Yes──> Introduce Parameter Object
-  繰り返される？                 または Extract Class
+  Method in wrong ──Yes──> Move Method
+  class?
       |
       No
       v
-  型による条件分岐？ ──Yes──> Replace Conditional
-      |                        with Polymorphism
-      No
-      v
-  名前が不明確？ ──Yes──> Rename
+  Same parameters ──Yes──> Introduce Parameter Object
+  repeating?                   or Extract Class
       |
       No
       v
-  不要な間接参照？ ──Yes──> Inline Method
+  Type-based ──Yes──> Replace Conditional
+  conditionals?                with Polymorphism
       |
       No
       v
-  クラスが大きすぎる？ ──Yes──> Extract Class
+  Unclear names? ──Yes──> Rename
       |
       No
       v
-  条件式が複雑？ ──Yes──> Decompose Conditional
+  Unnecessary ──Yes──> Inline Method
+  indirection?
       |
       No
       v
-  一時変数が多い？ ──Yes──> Replace Temp with Query
+  Class too large? ──Yes──> Extract Class
+      |
+      No
+      v
+  Complex ──Yes──> Decompose Conditional
+  conditionals?
+      |
+      No
+      v
+  Too many ──Yes──> Replace Temp with Query
+  temp variables?
 ```
 
-### 4.2 技法の選択比較表
+### 4.2 Technique Selection Comparison Table
 
-| スメル | 第一選択の技法 | 代替技法 | 効果 |
+| Smell | Primary Technique | Alternative | Effect |
 |--------|------------|---------|------|
-| Long Method | Extract Method | Decompose Conditional | 可読性向上、再利用性 |
-| Feature Envy | Move Method/Field | Extract Class | 凝集度向上 |
-| Data Clumps | Introduce Parameter Object | Extract Class | パラメータ削減 |
-| Switch Statements | Replace Conditional with Polymorphism | Strategy パターン | 拡張性向上 (OCP) |
-| 不明確な名前 | Rename | ― | 可読性向上 |
-| 重複コード | Extract Method + Pull Up Method | Template Method パターン | DRY 化 |
-| God Class | Extract Class | Facade パターン | SRP 達成 |
-| 不要な間接参照 | Inline Method | Inline Class | 簡潔化 |
-| Shotgun Surgery | Move Method + Inline Class | ― | 変更の局所化 |
-| 複雑な条件式 | Decompose Conditional | Replace Conditional with Polymorphism | 可読性向上 |
+| Long Method | Extract Method | Decompose Conditional | Improved readability, reusability |
+| Feature Envy | Move Method/Field | Extract Class | Improved cohesion |
+| Data Clumps | Introduce Parameter Object | Extract Class | Reduced parameter count |
+| Switch Statements | Replace Conditional with Polymorphism | Strategy pattern | Improved extensibility (OCP) |
+| Unclear names | Rename | — | Improved readability |
+| Duplicate code | Extract Method + Pull Up Method | Template Method pattern | DRY compliance |
+| God Class | Extract Class | Facade pattern | SRP achieved |
+| Unnecessary indirection | Inline Method | Inline Class | Simplification |
+| Shotgun Surgery | Move Method + Inline Class | — | Localized changes |
+| Complex conditionals | Decompose Conditional | Replace Conditional with Polymorphism | Improved readability |
 
-### 4.3 リファクタリングの安全性レベル
+### 4.3 Safety Levels of Refactoring Techniques
 
-| 安全性 | 技法 | 理由 |
+| Safety | Technique | Reason |
 |:------:|------|------|
-| 高 | Rename | IDE が全参照を自動更新。意味を変えない |
-| 高 | Extract Method | 振る舞いを変えず構造のみ変更。IDE 支援あり |
-| 高 | Inline Method | Extract Method の逆。IDE 支援あり |
-| 中 | Move Method | 参照元の更新が必要。IDE が大部分を自動化 |
-| 中 | Replace Temp with Query | 副作用がある場合は注意 |
-| 中 | Introduce Parameter Object | 呼び出し元の変更が広範に及ぶ可能性 |
-| 中 | Extract Class | 依存関係の整理が必要 |
-| 低 | Replace Conditional with Polymorphism | 設計の大幅な変更。十分なテストが必須 |
-| 低 | Pull Up / Push Down | 継承階層の変更。テストの再構成が必要 |
+| High | Rename | IDE auto-updates all references. Does not change meaning |
+| High | Extract Method | Changes structure only without changing behavior. IDE-supported |
+| High | Inline Method | Inverse of Extract Method. IDE-supported |
+| Medium | Move Method | Requires updating callers. IDE automates most of it |
+| Medium | Replace Temp with Query | Be careful if side effects are present |
+| Medium | Introduce Parameter Object | Changes to callers can be widespread |
+| Medium | Extract Class | Requires organizing dependencies |
+| Low | Replace Conditional with Polymorphism | Major design change. Thorough tests are essential |
+| Low | Pull Up / Push Down | Changes inheritance hierarchy. Tests may need restructuring |
 
 ---
 
-## 5. 実践的なリファクタリングワークフロー
+## 5. Practical Refactoring Workflow
 
-### 5.1 マイクロリファクタリングセッション（15分）
+### 5.1 Micro-Refactoring Session (15 minutes)
 
-**コード例12: 実際のリファクタリング手順（Git 操作付き）**
+**Code Example 12: Actual Refactoring Steps (with Git operations)**
 
 ```bash
-# Step 1: 現在のテスト状態を確認
+# Step 1: Check current test status
 $ pytest tests/ -q
 42 passed in 3.2s
 
-# Step 2: リファクタリング開始のコミット
-$ git stash  # 作業中の変更を退避（もしあれば）
+# Step 2: Stash any work in progress before starting refactoring
+$ git stash  # stash in-progress changes (if any)
 
-# Step 3: Extract Method を適用
-# (IDE でコードを選択 → Ctrl+Alt+M → メソッド名入力)
+# Step 3: Apply Extract Method
+# (Select code in IDE → Ctrl+Alt+M → Enter method name)
 
-# Step 4: テスト実行
+# Step 4: Run tests
 $ pytest tests/ -q
-42 passed in 3.1s  # OK: テスト数が変わっていない
+42 passed in 3.1s  # OK: test count is unchanged
 
-# Step 5: コミット
-$ git add -p  # 変更を確認しながらステージング
+# Step 5: Commit
+$ git add -p  # stage changes while reviewing them
 $ git commit -m "refactor: extract _calculate_discount from process_order"
 
-# Step 6: 次の変更（Rename）
-# (IDE でシンボルにカーソル → Shift+F6 → 新名前入力)
+# Step 6: Next change (Rename)
+# (Place cursor on symbol in IDE → Shift+F6 → Enter new name)
 
-# Step 7: テスト実行
+# Step 7: Run tests
 $ pytest tests/ -q
 42 passed in 3.1s  # OK
 
-# Step 8: コミット
+# Step 8: Commit
 $ git commit -am "refactor: rename 'calc' to 'calculate_monthly_revenue'"
 
-# Step 9: 次の変更（Move Method）...
-# 以降、同じサイクルを繰り返す
+# Step 9: Next change (Move Method)...
+# Repeat the same cycle from here
 ```
 
-### 5.2 リファクタリングのコミットメッセージ規約
+### 5.2 Commit Message Conventions for Refactoring
 
 ```
-  推奨するコミットメッセージのフォーマット
+  Recommended commit message format
 
-  refactor: <技法名> <対象> from <元の場所>
+  refactor: <technique name> <target> from <original location>
 
-  例:
+  Examples:
   refactor: extract calculate_discount from process_order
   refactor: move format_address from User to Address
   refactor: rename 'proc' to 'process_payment'
@@ -1151,138 +1161,138 @@ $ git commit -am "refactor: rename 'calc' to 'calculate_monthly_revenue'"
   refactor: inline get_is_valid into validate
   refactor: introduce OrderCriteria parameter object
 
-  ★ 「refactor:」プレフィックスにより、機能変更との区別が明確になる
-  ★ git log --grep="refactor:" でリファクタリング履歴を一覧できる
+  ★ The "refactor:" prefix clearly distinguishes from feature changes
+  ★ Run git log --grep="refactor:" to list refactoring history
 ```
 
 ---
 
-## 6. アンチパターン
+## 6. Anti-Patterns
 
-### アンチパターン1: テストなしのリファクタリング
-
-```
-  BAD: テストなしで構造を変更
-
-  「このコードの構造が気に入らない」
-    → テストを書かずにリファクタリング開始
-    → 「動いてるように見える」
-    → 1週間後に本番でバグ発覚
-    → どの変更がバグを引き起こしたか不明
-    → デバッグに数日かかる
-
-  GOOD: テストで安全網を確保してからリファクタリング
-
-  1. まずテストを書く（または既存テストを確認）
-  2. テストが GREEN であることを確認
-  3. 小さな変更を1つ適用
-  4. テストが GREEN であることを確認
-  5. コミット
-  6. 次の変更へ
-
-  ★ テストがない場合は、まず特性テスト（Characterization Test）を書く
-  → 詳細は [レガシーコード](./02-legacy-code.md) を参照
-```
-
-### アンチパターン2: Big Bang リファクタリング
+### Anti-Pattern 1: Refactoring Without Tests
 
 ```
-  BAD: 「全部一度に書き直そう！」
+  BAD: Changing structure without tests
 
-  「週末でこのモジュール全体をリファクタリングする」
-    → 500行の差分が1つの PR に
-    → レビュアーが理解不能
-    → マージコンフリクト多発
-    → テストが壊れても原因が特定困難
-    → 結局 revert
+  "I don't like the structure of this code"
+    → Start refactoring without writing tests
+    → "Looks like it works"
+    → Bug found in production a week later
+    → No idea which change caused the bug
+    → Takes days to debug
 
-  GOOD: Strangler Fig パターンで段階的に移行
+  GOOD: Establish a safety net with tests before refactoring
 
-  PR #1: [Extract Class] Address を User から分離 (差分: 40行)
-  PR #2: [Move Method] format_address を Address に移動 (差分: 20行)
-  PR #3: [Rename] User.addr を User.address に (差分: 15行)
-  PR #4: [Inline] 不要になった User.get_city を削除 (差分: 10行)
+  1. Write tests first (or verify existing ones)
+  2. Confirm tests are GREEN
+  3. Apply one small change
+  4. Confirm tests are GREEN
+  5. Commit
+  6. Move to the next change
 
-  各 PR は:
-  - 300行以下の差分
-  - レビュー可能なサイズ
-  - テストが常に通る
-  - 独立してマージ/リバート可能
+  ★ If there are no tests, first write Characterization Tests
+  → See [Legacy Code](./02-legacy-code.md) for details
 ```
 
-### アンチパターン3: リファクタリングと機能追加の同時実行
+### Anti-Pattern 2: Big Bang Refactoring
 
 ```
-  BAD: 「ついでに機能も追加しよう」
+  BAD: "Let's rewrite everything at once!"
 
-  コミットメッセージ: "refactor user service and add email verification"
-    → 構造変更と機能追加が混在
-    → バグが出たとき、原因がリファクタリングか新機能か不明
-    → revert すると新機能も失われる
+  "I'll refactor this entire module over the weekend"
+    → 500 lines of diff in one PR
+    → Reviewers cannot understand it
+    → Merge conflicts everywhere
+    → When tests break, hard to identify the cause
+    → End up reverting
 
-  GOOD: 2つの帽子を分ける
+  GOOD: Incremental migration using the Strangler Fig pattern
 
-  Phase 1: リファクタリング
+  PR #1: [Extract Class] Separate Address from User (diff: 40 lines)
+  PR #2: [Move Method] Move format_address to Address (diff: 20 lines)
+  PR #3: [Rename] User.addr to User.address (diff: 15 lines)
+  PR #4: [Inline] Remove now-unnecessary User.get_city (diff: 10 lines)
+
+  Each PR:
+  - Less than 300 lines of diff
+  - A reviewable size
+  - Tests always pass
+  - Can be merged/reverted independently
+```
+
+### Anti-Pattern 3: Mixing Refactoring with Feature Addition
+
+```
+  BAD: "While I'm here, let me add a feature too"
+
+  Commit message: "refactor user service and add email verification"
+    → Structural changes and feature additions are mixed together
+    → When a bug appears, unclear if it's from refactoring or new feature
+    → Reverting also loses the new feature
+
+  GOOD: Separate the two hats
+
+  Phase 1: Refactoring
     PR: "refactor: extract EmailValidator from UserService"
-    → テストは変更しない（振る舞いが変わらないから）
+    → Do not change tests (because behavior hasn't changed)
 
-  Phase 2: 機能追加
+  Phase 2: Feature addition
     PR: "feat: add email verification on registration"
-    → テストを追加する（新しい振る舞いだから）
+    → Add tests (because it's new behavior)
 
-  ★ Martin Fowler の「2つの帽子」原則を厳守
+  ★ Strictly follow Martin Fowler's "Two Hats" principle
 ```
 
-### アンチパターン4: 過度な抽象化リファクタリング
+### Anti-Pattern 4: Over-Abstracting Refactoring
 
 ```
-  BAD: 「将来の拡張のために抽象化しよう」
+  BAD: "Let's abstract for future extensibility"
 
   class Serializer(ABC): ...
-  class JsonSerializer(Serializer): ...    # ← 唯一の実装
-  class SerializerFactory: ...             # ← 1パターンのみ
-  class SerializerStrategy: ...            # ← 不要な中間層
+  class JsonSerializer(Serializer): ...    # ← only implementation
+  class SerializerFactory: ...             # ← only one pattern
+  class SerializerStrategy: ...            # ← unnecessary intermediate layer
 
-  → 3クラスと2インターフェースが1つの JSON 変換のために存在
-  → 「抽象化の地獄」: コードを追うのに5ファイルのジャンプが必要
+  → 3 classes and 2 interfaces exist for a single JSON conversion
+  → "Abstraction hell": following the code requires jumping across 5 files
 
-  GOOD: 必要になるまで抽象化しない (YAGNI)
+  GOOD: Don't abstract until you need to (YAGNI)
 
   class JsonSerializer:
       def serialize(self, data): ...
       def deserialize(self, text): ...
 
-  → 将来 XML が必要になったら、そのときに抽象化を導入
-  → "Rule of Three": 3回目のパターン出現まで待つ
+  → Introduce the abstraction when XML is actually needed
+  → "Rule of Three": wait until the pattern appears a third time
 ```
 
 ---
 
-## 7. 演習問題
+## 7. Exercises
 
-### 演習1（基本）: Extract Method の適用
+### Exercise 1 (Basic): Applying Extract Method
 
-以下のコードから適切なメソッドを抽出し、可読性を向上させよ。
+Extract appropriate methods from the following code to improve readability.
 
 ```python
-# 問題コード
+# Problem code
 def process_user_registration(data: dict) -> dict:
-    # バリデーション
+    # Validation
     errors = []
     if not data.get('name') or len(data['name']) < 2:
-        errors.append("名前は2文字以上必須")
+        errors.append("Name must be at least 2 characters")
     if not data.get('email') or '@' not in data['email']:
-        errors.append("有効なメールアドレスが必要")
+        errors.append("A valid email address is required")
     if not data.get('password') or len(data['password']) < 8:
-        errors.append("パスワードは8文字以上必須")
+        errors.append("Password must be at least 8 characters")
     if data.get('password') and not any(c.isupper() for c in data['password']):
-        errors.append("パスワードに大文字を含める必要")
+        errors.append("Password must contain at least one uppercase letter")
     if data.get('password') and not any(c.isdigit() for c in data['password']):
-        errors.append("パスワードに数字を含める必要")
+        errors.append("Password must contain at least one digit")
     if errors:
         return {"success": False, "errors": errors}
 
-    # ユーザー作成
+    # Create user
     import hashlib
     salt = os.urandom(32)
     password_hash = hashlib.pbkdf2_hmac(
@@ -1296,240 +1306,240 @@ def process_user_registration(data: dict) -> dict:
         "created_at": datetime.now().isoformat(),
     }
 
-    # DB保存
+    # Save to DB
     db.execute("INSERT INTO users ...", user)
 
-    # 歓迎メール送信
+    # Send welcome email
     email_body = f"""
-    {user['name']} 様
-    ご登録ありがとうございます。
+    Dear {user['name']},
+    Thank you for registering.
     """
-    send_email(user['email'], "ようこそ", email_body)
+    send_email(user['email'], "Welcome", email_body)
 
     return {"success": True, "user_id": user.get('id')}
 ```
 
-**期待される回答**: 4つのメソッドに分離: `validate_registration`, `create_user_record`, `save_user`, `send_welcome_email`。メインメソッドは各メソッドの呼び出しのみ。
+**Expected answer**: Split into 4 methods: `validate_registration`, `create_user_record`, `save_user`, `send_welcome_email`. The main method only calls each method.
 
 ---
 
-### 演習2（応用）: Move Method + Replace Conditional
+### Exercise 2 (Intermediate): Move Method + Replace Conditional
 
-以下のコードで Feature Envy と Switch Statements を解消せよ。
+Eliminate Feature Envy and Switch Statements from the following code.
 
 ```python
 class ShippingCalculator:
     def calculate(self, order) -> Decimal:
-        # Feature Envy: order の内部データに過度に依存
+        # Feature Envy: excessively depends on order's internal data
         weight = sum(item.weight * item.quantity for item in order.items)
         destination = order.customer.address.country
 
-        # Switch Statements: 配送方法による分岐
+        # Switch Statements: branching by shipping method
         if order.shipping_method == "standard":
-            if destination == "日本":
-                return Decimal("500") if weight < 5 else Decimal("1000")
+            if destination == "US":
+                return Decimal("5.00") if weight < 5 else Decimal("10.00")
             else:
-                return Decimal("2000") if weight < 5 else Decimal("4000")
+                return Decimal("20.00") if weight < 5 else Decimal("40.00")
         elif order.shipping_method == "express":
-            if destination == "日本":
-                return Decimal("1200") if weight < 5 else Decimal("2000")
+            if destination == "US":
+                return Decimal("12.00") if weight < 5 else Decimal("20.00")
             else:
-                return Decimal("5000") if weight < 5 else Decimal("8000")
+                return Decimal("50.00") if weight < 5 else Decimal("80.00")
         elif order.shipping_method == "overnight":
-            if destination == "日本":
-                return Decimal("2500")
+            if destination == "US":
+                return Decimal("25.00")
             else:
-                return Decimal("10000")
+                return Decimal("100.00")
 ```
 
-**期待される回答**: (1) `Order.total_weight()` メソッドの追加, (2) `ShippingMethod` 基底クラス + `StandardShipping`, `ExpressShipping`, `OvernightShipping` サブクラスの作成, (3) 各サブクラスに `calculate(weight, destination)` メソッドを実装。
+**Expected answer**: (1) Add `Order.total_weight()` method, (2) Create `ShippingMethod` base class + `StandardShipping`, `ExpressShipping`, `OvernightShipping` subclasses, (3) Implement `calculate(weight, destination)` method in each subclass.
 
 ---
 
-### 演習3（上級）: レガシーコードのリファクタリング計画
+### Exercise 3 (Advanced): Refactoring Plan for Legacy Code
 
-以下のコードについて、テスト→リファクタリング→テストの安全なサイクルを設計せよ。各ステップのコミットメッセージも含めること。
+Design a safe test → refactor → test cycle for the following code. Include commit messages for each step.
 
 ```python
 class ReportEngine:
-    """500行のモノリシックなレポート生成エンジン"""
+    """Monolithic report generation engine, 500 lines"""
     def generate(self, report_type, data, format_type,
                  start_date, end_date, filters, sort_by,
                  include_charts, email_to, save_path):
-        # Step 1: データフィルタリング (50行)
-        # Step 2: 集計計算 (80行)
-        # Step 3: チャート生成 (60行, include_charts の場合のみ)
-        # Step 4: フォーマット変換 (100行, format_type による分岐)
-        # Step 5: メール送信 (30行, email_to の場合のみ)
-        # Step 6: ファイル保存 (30行, save_path の場合のみ)
+        # Step 1: Data filtering (50 lines)
+        # Step 2: Aggregate calculations (80 lines)
+        # Step 3: Chart generation (60 lines, only if include_charts)
+        # Step 4: Format conversion (100 lines, branching by format_type)
+        # Step 5: Send email (30 lines, only if email_to)
+        # Step 6: Save file (30 lines, only if save_path)
         ...
 ```
 
-**期待される回答（概要）**:
+**Expected answer (overview)**:
 
 ```
-リファクタリング計画 (10 PR, 推定3スプリント):
+Refactoring plan (10 PRs, estimated 3 sprints):
 
 PR #1: test: add characterization tests for ReportEngine
-  - 既存の振る舞いを記録するテストを追加
-  コミット: "test: add characterization tests for generate()"
+  - Add tests that record existing behavior
+  Commit: "test: add characterization tests for generate()"
 
 PR #2: refactor: introduce ReportRequest parameter object
-  - 11パラメータを ReportRequest に集約
-  コミット: "refactor: introduce ReportRequest parameter object"
+  - Consolidate 11 parameters into ReportRequest
+  Commit: "refactor: introduce ReportRequest parameter object"
 
 PR #3: refactor: extract _filter_data from generate
-  コミット: "refactor: extract _filter_data from generate"
+  Commit: "refactor: extract _filter_data from generate"
 
 PR #4: refactor: extract _calculate_aggregates from generate
-  コミット: "refactor: extract _calculate_aggregates from generate"
+  Commit: "refactor: extract _calculate_aggregates from generate"
 
 PR #5: refactor: extract ChartGenerator class
-  コミット: "refactor: extract ChartGenerator from ReportEngine"
+  Commit: "refactor: extract ChartGenerator from ReportEngine"
 
 PR #6: refactor: replace format_type conditional with polymorphism
-  - ReportFormatter 基底 + HtmlFormatter, PdfFormatter, CsvFormatter
-  コミット: "refactor: replace conditional with polymorphism for formatters"
+  - ReportFormatter base + HtmlFormatter, PdfFormatter, CsvFormatter
+  Commit: "refactor: replace conditional with polymorphism for formatters"
 
 PR #7: refactor: extract EmailNotifier class
-  コミット: "refactor: extract EmailNotifier from ReportEngine"
+  Commit: "refactor: extract EmailNotifier from ReportEngine"
 
 PR #8: refactor: extract FileExporter class
-  コミット: "refactor: extract FileExporter from ReportEngine"
+  Commit: "refactor: extract FileExporter from ReportEngine"
 
-PR #9: refactor: ReportEngine を orchestrator に変換
-  - generate() は各コンポーネントの呼び出しのみに
-  コミット: "refactor: simplify ReportEngine to orchestrator"
+PR #9: refactor: convert ReportEngine to orchestrator
+  - generate() only calls each component
+  Commit: "refactor: simplify ReportEngine to orchestrator"
 
 PR #10: refactor: rename and cleanup
-  コミット: "refactor: final cleanup and documentation"
+  Commit: "refactor: final cleanup and documentation"
 ```
 
 ---
 
 ## 8. FAQ
 
-### Q1: リファクタリングのタイミングはいつが最適か？
+### Q1: When is the best time to refactor?
 
-**Rule of Three**: 同じパターンが3回現れたらリファクタリング。また、以下のタイミングが効果的:
-- **機能追加の前**: 変更しやすくする準備として（「まず庭を整えてから種をまく」）
-- **バグ修正の後**: 根本原因の設計問題を解消（「穴を塞いだら壁を補強する」）
-- **コードレビュー時**: レビュー指摘への対応として
-- **理解のため**: コードを読む過程で構造を改善し、理解を深める
+**Rule of Three**: Refactor when the same pattern appears 3 times. The following timing is also effective:
+- **Before adding features**: As preparation to make changes easier ("tidy the garden before planting seeds")
+- **After fixing bugs**: To resolve underlying design problems ("reinforce the wall after patching the hole")
+- **During code review**: As a response to review feedback
+- **For understanding**: Improve structure while reading code, deepening comprehension
 
-### Q2: リファクタリングの成果をどう測定するか？
+### Q2: How do you measure the results of refactoring?
 
-定量的指標:
-- **サイクロマティック複雑度の減少**: `radon cc` で測定
-- **テストカバレッジの向上**: `pytest --cov` で測定
-- **コード重複率の低下**: `jscpd` で測定
-- **変更に要する時間の短縮**: DORA メトリクスの Lead Time で測定
-- **プルリクエストのサイズ縮小**: 1 PR の平均差分行数
-- **バグ発生率の低下**: 変更あたりのバグ報告数
+Quantitative metrics:
+- **Decrease in cyclomatic complexity**: Measured with `radon cc`
+- **Increase in test coverage**: Measured with `pytest --cov`
+- **Decrease in code duplication**: Measured with `jscpd`
+- **Reduction in time required for changes**: Measured with DORA metrics Lead Time
+- **Reduction in pull request size**: Average diff lines per PR
+- **Decrease in bug occurrence rate**: Bug reports per change
 
-### Q3: マネジメントにリファクタリングの必要性をどう説明するか？
+### Q3: How do you explain the need for refactoring to management?
 
-「リファクタリング」という言葉は避け、以下のように伝える:
-- 「新機能の追加速度を維持するための構造改善」
-- 「バグ発生率を下げるための予防的保守」
-- 「開発チームの生産性投資」
+Avoid the word "refactoring" and instead say:
+- "Structural improvements to maintain the speed of adding new features"
+- "Preventive maintenance to reduce bug occurrence rates"
+- "Investment in development team productivity"
 
-数値で示す: 変更あたりのバグ率、機能追加にかかる時間の推移。「このモジュールの変更に平均3日かかっており、リファクタリングにより1日に短縮できる見込み」のように具体的なROIを示す。
+Back it up with numbers: bug rate per change, trends in time to add features. Show a concrete ROI like "Changes to this module currently take an average of 3 days; refactoring is expected to reduce this to 1 day."
 
-### Q4: リファクタリング中にバグを見つけた場合はどうするか？
+### Q4: What should you do if you find a bug during refactoring?
 
-**リファクタリングとバグ修正を混ぜない**。以下の手順で対処:
+**Do not mix refactoring with bug fixing.** Follow this procedure:
 
-1. リファクタリングの現在の変更をコミット（または stash）
-2. バグ修正用のブランチを作成
-3. バグを修正し、テストを追加
-4. バグ修正をコミット・マージ
-5. リファクタリングブランチに戻り、バグ修正をマージ
-6. リファクタリングを再開
+1. Commit the current refactoring changes (or stash them)
+2. Create a branch for the bug fix
+3. Fix the bug and add a test
+4. Commit and merge the bug fix
+5. Return to the refactoring branch and merge in the bug fix
+6. Resume refactoring
 
-### Q5: 大規模なリファクタリングをどう進めるか？
+### Q5: How do you proceed with large-scale refactoring?
 
-**Strangler Fig パターン**を適用する:
-1. 旧コードと新コードの間に **Facade（ファサード）** を配置
-2. 新しいコードを **テスト付き** で追加
-3. Facade のルーティングを段階的に新コードに切り替え
-4. 旧コードが不要になったら削除
+Apply the **Strangler Fig pattern**:
+1. Place a **Facade** between the old code and the new code
+2. Add new code **with tests**
+3. Gradually switch the Facade's routing to the new code
+4. Delete the old code when it is no longer needed
 
-詳細は [レガシーコード](./02-legacy-code.md) の Strangler Fig パターンの章を参照。
+See the Strangler Fig pattern chapter in [Legacy Code](./02-legacy-code.md) for details.
 
-### Q6: リファクタリングとパフォーマンス最適化の違いは？
+### Q6: What is the difference between refactoring and performance optimization?
 
-| 観点 | リファクタリング | パフォーマンス最適化 |
+| Aspect | Refactoring | Performance Optimization |
 |------|--------------|-----------------|
-| 目的 | 可読性・保守性の向上 | 実行速度・リソース効率の向上 |
-| 振る舞い | 変えない | 変えない（はず） |
-| 可読性 | 向上する | 低下することがある |
-| タイミング | コードを理解する過程で | プロファイリングの結果に基づき |
-| 優先順位 | まずリファクタリング | 次にパフォーマンス最適化 |
+| Purpose | Improve readability and maintainability | Improve execution speed and resource efficiency |
+| Behavior | Does not change | Does not change (in theory) |
+| Readability | Improves | May decrease |
+| Timing | While understanding the code | Based on profiling results |
+| Priority | Refactor first | Then optimize performance |
 
-Donald Knuth の名言: 「早まった最適化は諸悪の根源である」。まず readable なコードを書き、プロファイリングでボトルネックを特定してから最適化する。
+Donald Knuth's famous quote: "Premature optimization is the root of all evil." First write readable code, then identify bottlenecks with profiling before optimizing.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend fully understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work, particularly during code reviews and architectural design.
 
 ---
 
-## 9. まとめ
+## 9. Summary
 
-| 技法 | 用途 | 安全性 | IDE支援 |
+| Technique | Purpose | Safety | IDE Support |
 |------|------|:------:|:------:|
-| Extract Method | 長い関数の分割 | 高 | 可 |
-| Move Method | 責任の移動（Feature Envy 解消） | 中 | 可 |
-| Rename | 名前の改善 | 高 | 可 |
-| Replace Conditional with Polymorphism | 分岐の排除 | 低 | 部分的 |
-| Introduce Parameter Object | 引数の整理 | 中 | 部分的 |
-| Inline Method | 不要な間接参照の排除 | 高 | 可 |
-| Extract Class | God Class の分割 | 中 | 部分的 |
-| Replace Temp with Query | 一時変数の排除 | 中 | 不可 |
-| Decompose Conditional | 条件式の分解 | 高 | 不可 |
-| Pull Up / Push Down | 継承階層の整理 | 低 | 可 |
+| Extract Method | Split long functions | High | Yes |
+| Move Method | Move responsibility (resolve Feature Envy) | Medium | Yes |
+| Rename | Improve names | High | Yes |
+| Replace Conditional with Polymorphism | Eliminate branching | Low | Partial |
+| Introduce Parameter Object | Organize arguments | Medium | Partial |
+| Inline Method | Remove unnecessary indirection | High | Yes |
+| Extract Class | Split God Class | Medium | Partial |
+| Replace Temp with Query | Eliminate temp variables | Medium | No |
+| Decompose Conditional | Decompose conditionals | High | No |
+| Pull Up / Push Down | Organize inheritance hierarchy | Low | Yes |
 
-| 原則 | 内容 |
+| Principle | Content |
 |------|------|
-| 振る舞い不変 | 外部から見た動作は変えない |
-| テスト先行 | テストが GREEN でないならリファクタリングしない |
-| 小さなステップ | 1回の変更は1種類の改善のみ |
-| 頻繁なコミット | いつでも直前の安全な状態に戻れるように |
-| 2つの帽子 | リファクタリングと機能追加を同時にしない |
-| Rule of Three | 3回目のパターン出現でリファクタリング |
+| Behavior invariance | Do not change externally visible behavior |
+| Tests first | Do not refactor unless tests are GREEN |
+| Small steps | One change = one type of improvement |
+| Frequent commits | Always be able to return to the last safe state |
+| Two hats | Do not refactor and add features simultaneously |
+| Rule of Three | Refactor when a pattern appears for the third time |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [コードスメル](./00-code-smells.md) ── リファクタリングのトリガーとなるスメル分類
-- [レガシーコード](./02-legacy-code.md) ── テストがないコードのリファクタリング（Seam, Characterization Test）
-- [技術的負債](./03-technical-debt.md) ── リファクタリングの投資対効果の定量化
-- [継続的改善](./04-continuous-improvement.md) ── リファクタリングを日常に組み込む CI/CD
-- [テスト原則](../01-practices/04-testing-principles.md) ── リファクタリングの安全網としてのテスト設計
-- デザインパターン概要 ── スメル解消のためのパターン適用
-- 関数設計 ── Extract Method 後の関数設計指針
+- [Code Smells](./00-code-smells.md) — Smell classification that triggers refactoring
+- [Legacy Code](./02-legacy-code.md) — Refactoring code without tests (Seam, Characterization Test)
+- [Technical Debt](./03-technical-debt.md) — Quantifying the ROI of refactoring
+- [Continuous Improvement](./04-continuous-improvement.md) — Integrating refactoring into daily CI/CD
+- [Testing Principles](../01-practices/04-testing-principles.md) — Test design as a safety net for refactoring
+- Design Patterns Overview — Applying patterns to resolve smells
+- Function Design — Function design guidelines after Extract Method
 
 ---
 
-## 参考文献
+## References
 
-1. **Martin Fowler** 『Refactoring: Improving the Design of Existing Code』 Addison-Wesley, 2018 (2nd Edition) ── リファクタリングの決定版。60以上の技法をカタログ化。JavaScript ベースのコード例で、第1版(1999, Java)から大幅に刷新。
-2. **Joshua Kerievsky** 『Refactoring to Patterns』 Addison-Wesley, 2004 ── リファクタリングとデザインパターンの橋渡し。スメルからパターンへの段階的な変換手順を示す。
-3. **Michael Feathers** 『Working Effectively with Legacy Code』 Prentice Hall, 2004 ── テストのないコードに対する安全なリファクタリング技法。Seam、Extract & Override、Characterization Test の原典。
-4. **Kent Beck** 『Implementation Patterns』 Addison-Wesley, 2007 ── コードレベルの設計判断。命名、メソッド分割、状態管理のパターンを体系化。
-5. **Sandi Metz** 『99 Bottles of OOP』 (2nd Edition, 2018) ── ポリモーフィズムへのリファクタリングを段階的に進める実践例。Open-Closed Principle の体得に最適。
+1. **Martin Fowler** *Refactoring: Improving the Design of Existing Code*, Addison-Wesley, 2018 (2nd Edition) — The definitive work on refactoring. Catalogs 60+ techniques. Based on JavaScript code examples, a major overhaul from the 1st edition (1999, Java).
+2. **Joshua Kerievsky** *Refactoring to Patterns*, Addison-Wesley, 2004 — Bridges refactoring and design patterns. Shows step-by-step transformation procedures from smells to patterns.
+3. **Michael Feathers** *Working Effectively with Legacy Code*, Prentice Hall, 2004 — Safe refactoring techniques for code without tests. The origin of Seams, Extract & Override, and Characterization Tests.
+4. **Kent Beck** *Implementation Patterns*, Addison-Wesley, 2007 — Design decisions at the code level. Systematizes patterns for naming, method decomposition, and state management.
+5. **Sandi Metz** *99 Bottles of OOP* (2nd Edition, 2018) — A practical example of incrementally refactoring toward polymorphism. Ideal for internalizing the Open-Closed Principle.
