@@ -1,113 +1,113 @@
-# Effect-ts 完全ガイド
+# Effect-ts Complete Guide
 
-> TypeScript のためのエフェクトシステム -- 依存性注入、エラー処理、並行処理を型レベルで管理する次世代フレームワーク
+> An effect system for TypeScript -- a next-generation framework for managing dependency injection, error handling, and concurrency at the type level
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **Effect の基本概念** -- `Effect<A, E, R>` 型の意味、基本的なパイプライン構築、実行方法
-2. **エラー管理とサービス** -- 型付きエラー、Layer による DI、Resource 管理のパターン
-3. **並行処理とストリーム** -- Fiber、Schedule、Stream を使った高度な非同期処理パターン
-4. **プロダクション導入** -- 実践的な設計パターン、テスト戦略、パフォーマンス最適化
+1. **Core Concepts of Effect** -- the meaning of the `Effect<A, E, R>` type, building basic pipelines, and how to run effects
+2. **Error Management and Services** -- typed errors, DI via Layer, and Resource management patterns
+3. **Concurrency and Streams** -- advanced async patterns using Fiber, Schedule, and Stream
+4. **Production Adoption** -- practical design patterns, testing strategies, and performance optimization
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [tRPC 完全ガイド](./02-trpc.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [tRPC Complete Guide](./02-trpc.md)
 
 ---
 
-## 目次
+## Table of Contents
 
-1. [Effect-ts の設計思想](#1-effect-tsの設計思想)
-2. [Effect<A, E, R> 型の基本](#2-effecta-e-r-型の基本)
-3. [パイプラインとコンビネータ](#3-パイプラインとコンビネータ)
-4. [型安全なエラーハンドリング](#4-型安全なエラーハンドリング)
-5. [依存性注入 (Layer, Context, Service)](#5-依存性注入-layer-context-service)
-6. [並行処理 (Fiber, Queue, Ref)](#6-並行処理-fiber-queue-ref)
-7. [スケジューリングとリトライ](#7-スケジューリングとリトライ)
-8. [Schema によるバリデーション](#8-schema-によるバリデーション)
-9. [ストリーム処理 (Stream, Sink, Channel)](#9-ストリーム処理-stream-sink-channel)
-10. [プロダクション導入事例](#10-プロダクション導入事例)
-11. [fp-ts / Zod との比較](#11-fp-ts--zod-との比較)
-12. [演習問題](#12-演習問題)
-13. [アンチパターン](#13-アンチパターン)
-14. [エッジケース分析](#14-エッジケース分析)
+1. [Design Philosophy of Effect-ts](#1-design-philosophy-of-effect-ts)
+2. [Basics of the Effect<A, E, R> Type](#2-basics-of-the-effecta-e-r-type)
+3. [Pipelines and Combinators](#3-pipelines-and-combinators)
+4. [Type-Safe Error Handling](#4-type-safe-error-handling)
+5. [Dependency Injection (Layer, Context, Service)](#5-dependency-injection-layer-context-service)
+6. [Concurrency (Fiber, Queue, Ref)](#6-concurrency-fiber-queue-ref)
+7. [Scheduling and Retry](#7-scheduling-and-retry)
+8. [Validation with Schema](#8-validation-with-schema)
+9. [Stream Processing (Stream, Sink, Channel)](#9-stream-processing-stream-sink-channel)
+10. [Production Use Cases](#10-production-use-cases)
+11. [Comparison with fp-ts / Zod](#11-comparison-with-fp-ts--zod)
+12. [Exercises](#12-exercises)
+13. [Anti-patterns](#13-anti-patterns)
+14. [Edge Case Analysis](#14-edge-case-analysis)
 15. [FAQ](#15-faq)
 
 ---
 
-## 1. Effect-ts の設計思想
+## 1. Design Philosophy of Effect-ts
 
-### 1-1. エフェクトシステムとは何か
+### 1-1. What Is an Effect System?
 
-Effect-ts は **エフェクトシステム** (Effect System) を TypeScript に導入するフレームワークです。エフェクトシステムとは、プログラムの「副作用」を型として明示的に扱う仕組みです。
+Effect-ts is a framework that introduces an **effect system** (Effect System) to TypeScript. An effect system is a mechanism for explicitly treating program "side effects" as types.
 
 ```
-従来の TypeScript:
+Traditional TypeScript:
 
   function fetchUser(id: string): Promise<User>
 
-  問題点:
-  - どんなエラーが起こるか不明
-  - どんな依存が必要か不明
-  - 失敗時の処理が型に現れない
+  Problems:
+  - Unknown what errors can occur
+  - Unknown what dependencies are required
+  - Failure handling is not reflected in the type
 
 Effect-ts:
 
   function fetchUser(id: string): Effect<User, NotFoundError | DbError, UserRepo & Logger>
 
-  メリット:
-  - 成功時の型: User
-  - 失敗時の型: NotFoundError | DbError
-  - 必要な依存: UserRepo & Logger
-  - 全てが型として追跡される
+  Benefits:
+  - Success type: User
+  - Failure type: NotFoundError | DbError
+  - Required dependencies: UserRepo & Logger
+  - Everything is tracked as types
 ```
 
-### 1-2. 設計思想の3本柱
+### 1-2. Three Pillars of Design Philosophy
 
 ```mermaid
 graph TD
-    A[Effect-ts 設計思想] --> B[型安全性]
-    A --> C[合成可能性]
-    A --> D[観測可能性]
+    A[Effect-ts Design Philosophy] --> B[Type Safety]
+    A --> C[Composability]
+    A --> D[Observability]
 
-    B --> B1[エラー型の追跡]
-    B --> B2[依存の追跡]
-    B --> B3[リソースの安全性]
+    B --> B1[Error type tracking]
+    B --> B2[Dependency tracking]
+    B --> B3[Resource safety]
 
-    C --> C1[パイプライン構築]
-    C --> C2[Layer の合成]
-    C --> C3[モジュラー設計]
+    C --> C1[Pipeline construction]
+    C --> C2[Layer composition]
+    C --> C3[Modular design]
 
-    D --> D1[トレーシング]
-    D --> D2[メトリクス]
-    D --> D3[構造化ログ]
+    D --> D1[Tracing]
+    D --> D2[Metrics]
+    D --> D3[Structured logging]
 ```
 
-#### (1) 型安全性 (Type Safety)
+#### (1) Type Safety
 
-全ての副作用（エラー、依存、リソース）を型として表現します。
+All side effects (errors, dependencies, resources) are expressed as types.
 
 ```typescript
 import { Effect } from "effect";
 
-// コンパイル時にエラー型が追跡される
+// Error types are tracked at compile time
 const program: Effect.Effect<number, DivisionByZeroError> =
   divide(10, 0);
 
-// エラーを処理しないとコンパイルエラー
+// Compile error if the error is not handled
 const safe: Effect.Effect<number, never> = program.pipe(
   Effect.catchAll(() => Effect.succeed(0))
 );
 ```
 
-#### (2) 合成可能性 (Composability)
+#### (2) Composability
 
-小さな Effect を組み合わせて大きな Effect を作ります。
+Small Effects are combined to build larger Effects.
 
 ```typescript
 const saveUser = (user: User) =>
@@ -117,12 +117,12 @@ const saveUser = (user: User) =>
     yield* sendEmail(user.email);  // Effect<void, EmailError, EmailService>
     yield* logEvent("user.created"); // Effect<void, never, Logger>
   });
-// 型: Effect<void, ValidationError | DbError | EmailError, Validator & Database & EmailService & Logger>
+// Type: Effect<void, ValidationError | DbError | EmailError, Validator & Database & EmailService & Logger>
 ```
 
-#### (3) 観測可能性 (Observability)
+#### (3) Observability
 
-実行時のトレーシング、メトリクス、ログが組み込まれています。
+Runtime tracing, metrics, and logging are built in.
 
 ```typescript
 const program = fetchUser("123").pipe(
@@ -132,53 +132,53 @@ const program = fetchUser("123").pipe(
 );
 ```
 
-### 1-3. なぜ Effect-ts が必要か
+### 1-3. Why Is Effect-ts Needed?
 
-| 課題 | 従来のアプローチ | Effect-ts の解決策 |
-|------|-----------------|-------------------|
-| エラー型の追跡 | try-catch (型情報なし) | `Effect<A, E, R>` の E パラメータ |
-| 依存性注入 | コンストラクタ注入/DI コンテナ | Layer による宣言的 DI |
-| リトライ/タイムアウト | 手動実装/ライブラリごとに異なる | Schedule による統一的な仕組み |
-| リソース管理 | try-finally / AsyncDisposable | Scope による自動管理 |
-| 並行処理 | Promise.all / 手動制御 | Fiber による構造化並行性 |
-| テスタビリティ | モック/スタブの手動管理 | Layer の差し替えによる容易なテスト |
+| Problem | Traditional Approach | Effect-ts Solution |
+|---------|---------------------|-------------------|
+| Error type tracking | try-catch (no type info) | `E` parameter of `Effect<A, E, R>` |
+| Dependency injection | Constructor injection / DI containers | Declarative DI via Layer |
+| Retry / timeout | Manual implementation / varies per library | Unified mechanism via Schedule |
+| Resource management | try-finally / AsyncDisposable | Automatic management via Scope |
+| Concurrency | Promise.all / manual control | Structured concurrency via Fiber |
+| Testability | Manual mock/stub management | Easy testing via Layer substitution |
 
 ---
 
-## 2. Effect<A, E, R> 型の基本
+## 2. Basics of the Effect<A, E, R> Type
 
-### 2-1. 3つの型パラメータの意味
+### 2-1. Meaning of the Three Type Parameters
 
 ```
-Effect<A, E, R> の3つの型パラメータ:
+The three type parameters of Effect<A, E, R>:
 
   Effect<A, E, R>
           |  |  |
-          |  |  +--- R: Requirements (必要な依存)
-          |  +------ E: Error (起こりうるエラーの型)
-          +--------- A: Success (成功時の値の型)
+          |  |  +--- R: Requirements (required dependencies)
+          |  +------ E: Error (type of possible errors)
+          +--------- A: Success (type of the value on success)
 
-  具体例:
+  Example:
   Effect<User, NotFoundError | DbError, UserRepo & Logger>
 
-  意味:
-  - 成功すると User を返す
-  - NotFoundError または DbError が発生しうる
-  - 実行には UserRepo と Logger が必要
+  Meaning:
+  - Returns User on success
+  - NotFoundError or DbError may occur
+  - Requires UserRepo and Logger to run
 ```
 
 ```typescript
 import { Effect } from "effect";
 
-// (1) 成功する Effect: Effect<A, never, never>
+// (1) Succeeding Effect: Effect<A, never, never>
 const succeed: Effect.Effect<number> = Effect.succeed(42);
-//   型パラメータ: A=number, E=never (エラーなし), R=never (依存なし)
+//   Type parameters: A=number, E=never (no error), R=never (no dependency)
 
-// (2) 失敗する Effect: Effect<never, E, never>
+// (2) Failing Effect: Effect<never, E, never>
 const fail: Effect.Effect<never, Error> = Effect.fail(new Error("boom"));
-//   型パラメータ: A=never (成功しない), E=Error, R=never
+//   Type parameters: A=never (never succeeds), E=Error, R=never
 
-// (3) 依存が必要な Effect: Effect<A, E, R>
+// (3) Effect requiring a dependency: Effect<A, E, R>
 interface Database {
   readonly query: (sql: string) => Promise<unknown>;
 }
@@ -186,40 +186,40 @@ interface Database {
 const queryDb: Effect.Effect<string, DbError, Database> =
   Effect.gen(function* () {
     const db = yield* Effect.context<Database>();
-    // Database に依存している
+    // depends on Database
     return "result";
   });
 ```
 
-### 2-2. Effect の作成方法
+### 2-2. Ways to Create an Effect
 
-#### (1) 値から作成
+#### (1) Creating from Values
 
 ```typescript
 import { Effect } from "effect";
 
-// 成功値
+// Success value
 const a = Effect.succeed(42);
 // Effect<number, never, never>
 
-// 失敗値
+// Failure value
 const b = Effect.fail("error");
 // Effect<never, string, never>
 
-// 遅延評価
+// Lazy evaluation
 const c = Effect.sync(() => {
   console.log("evaluated!");
   return 100;
 });
 // Effect<number, never, never>
-// 実行されるまで console.log は呼ばれない
+// console.log is not called until executed
 
 // void (Unit)
 const d = Effect.void;
 // Effect<void, never, never>
 ```
 
-#### (2) Promise から作成
+#### (2) Creating from a Promise
 
 ```typescript
 import { Effect } from "effect";
@@ -230,7 +230,7 @@ const e = Effect.tryPromise(() =>
 );
 // Effect<any, UnknownException, never>
 
-// エラーを変換
+// Transform the error
 class FetchError {
   readonly _tag = "FetchError";
   constructor(readonly cause: unknown) {}
@@ -243,19 +243,19 @@ const f = Effect.tryPromise({
 // Effect<any, FetchError, never>
 ```
 
-#### (3) 同期例外を捕捉
+#### (3) Catching Synchronous Exceptions
 
 ```typescript
 import { Effect } from "effect";
 
-// try: 例外を投げる可能性がある関数
+// try: a function that may throw an exception
 const g = Effect.try(() => {
-  const data = JSON.parse('{"invalid"}'); // SyntaxError が投げられる
+  const data = JSON.parse('{"invalid"}'); // throws SyntaxError
   return data;
 });
 // Effect<unknown, UnknownException, never>
 
-// catch でエラーを変換
+// Transform the error with catch
 class ParseError {
   readonly _tag = "ParseError";
   constructor(readonly input: string, readonly cause: unknown) {}
@@ -268,22 +268,22 @@ const h = Effect.try({
 // Effect<unknown, ParseError, never>
 ```
 
-### 2-3. Effect の実行
+### 2-3. Running an Effect
 
 ```typescript
 import { Effect } from "effect";
 
 const program = Effect.succeed(42);
 
-// (1) runSync: 同期的に実行（エラーは例外として投げられる）
+// (1) runSync: run synchronously (errors are thrown as exceptions)
 const result1 = Effect.runSync(program);
 // 42
 
-// (2) runPromise: Promise として実行
+// (2) runPromise: run as a Promise
 const result2 = await Effect.runPromise(program);
 // 42
 
-// (3) runPromiseExit: Exit 型で実行（エラーも安全に取得）
+// (3) runPromiseExit: run as Exit type (safely retrieves errors too)
 const exit = await Effect.runPromiseExit(program);
 if (exit._tag === "Success") {
   console.log(exit.value); // 42
@@ -291,29 +291,29 @@ if (exit._tag === "Success") {
   console.error(exit.cause);
 }
 
-// (4) runFork: Fiber として実行（バックグラウンド）
+// (4) runFork: run as a Fiber (background)
 const fiber = Effect.runFork(program);
 const result3 = await fiber.await();
 ```
 
-### 2-4. Effect の実行関数比較表
+### 2-4. Comparison Table of Effect Runner Functions
 
-| 関数 | 戻り値 | エラー時 | 用途 | 注意点 |
-|------|--------|---------|------|--------|
-| `runSync` | `A` | throw | 同期 Effect の実行 | 非同期 Effect には使えない |
-| `runPromise` | `Promise<A>` | reject | 非同期 Effect の実行 | エラーが reject される |
-| `runPromiseExit` | `Promise<Exit<A, E>>` | 安全 | エラーハンドリング必須 | 最も安全 |
-| `runFork` | `RuntimeFiber<A, E>` | Fiber に格納 | バックグラウンド実行 | await で結果取得 |
-| `runCallback` | `void` | コールバック | イベントドリブン | レガシーコードとの統合 |
+| Function | Return Value | On Error | Use Case | Notes |
+|----------|-------------|---------|----------|-------|
+| `runSync` | `A` | throw | Run synchronous Effects | Cannot be used for async Effects |
+| `runPromise` | `Promise<A>` | reject | Run async Effects | Errors are rejected |
+| `runPromiseExit` | `Promise<Exit<A, E>>` | safe | Required error handling | Safest option |
+| `runFork` | `RuntimeFiber<A, E>` | stored in Fiber | Background execution | Get result with await |
+| `runCallback` | `void` | callback | Event-driven | Integration with legacy code |
 
 ---
 
-## 3. パイプラインとコンビネータ
+## 3. Pipelines and Combinators
 
-### 3-1. pipe によるパイプライン構築
+### 3-1. Building Pipelines with pipe
 
 ```
-Effect パイプライン:
+Effect pipeline:
 
   Effect.succeed(42)
        |
@@ -321,10 +321,10 @@ Effect パイプライン:
        |
   .pipe(Effect.flatMap(n => ...))      → Effect<string, Error>
        |
-  .pipe(Effect.catchTag("NotFound",    → エラーを回復
+  .pipe(Effect.catchTag("NotFound",    → recover from error
         () => Effect.succeed("default")))
        |
-  .pipe(Effect.tap(v =>                → 副作用（値は変わらない）
+  .pipe(Effect.tap(v =>                → side effect (value unchanged)
         Effect.log(`value: ${v}`)))
        |
   Effect.runPromise(...)               → Promise<string>
@@ -333,7 +333,7 @@ Effect パイプライン:
 ```typescript
 import { Effect, pipe } from "effect";
 
-// pipe 関数を使ったパイプライン
+// Pipeline using the pipe function
 const program = pipe(
   Effect.succeed(10),
   Effect.map((n) => n * 2),           // 20
@@ -347,7 +347,7 @@ const program = pipe(
   )
 );
 
-// メソッドチェーンスタイル（同じ意味）
+// Method chaining style (same meaning)
 const program2 = Effect.succeed(10).pipe(
   Effect.map((n) => n * 2),
   Effect.flatMap((n) =>
@@ -358,14 +358,14 @@ const program2 = Effect.succeed(10).pipe(
   Effect.tap((value) => Effect.log(`Result: ${value}`))
 );
 
-// 実行
+// Execute
 const result = await Effect.runPromise(program);
 // "Large: 20"
 ```
 
-### 3-2. 主要なコンビネータ
+### 3-2. Key Combinators
 
-#### (1) map: 値の変換
+#### (1) map: Transform a Value
 
 ```typescript
 import { Effect } from "effect";
@@ -375,10 +375,10 @@ const program = Effect.succeed(42).pipe(
   Effect.map((n) => `Result: ${n}`)
 );
 // Effect<string, never, never>
-// 実行結果: "Result: 84"
+// Result: "Result: 84"
 ```
 
-#### (2) flatMap: Effect を返す変換
+#### (2) flatMap: Transform Returning an Effect
 
 ```typescript
 import { Effect } from "effect";
@@ -390,25 +390,25 @@ const divide = (a: number, b: number): Effect.Effect<number, string> =>
 
 const program = Effect.succeed(10).pipe(
   Effect.flatMap((n) => divide(n, 2)),  // 5
-  Effect.flatMap((n) => divide(n, 0))   // エラー
+  Effect.flatMap((n) => divide(n, 0))   // error
 );
 // Effect<number, string, never>
 ```
 
-#### (3) tap: 副作用の挿入（値は変わらない）
+#### (3) tap: Insert a Side Effect (value unchanged)
 
 ```typescript
 import { Effect } from "effect";
 
 const program = Effect.succeed(42).pipe(
-  Effect.tap((n) => Effect.log(`Value is ${n}`)), // ログを出すが値は変わらない
+  Effect.tap((n) => Effect.log(`Value is ${n}`)), // logs but value is unchanged
   Effect.map((n) => n * 2)
 );
 // Effect<number, never, never>
-// 実行結果: 84 (ログ: "Value is 42")
+// Result: 84 (log: "Value is 42")
 ```
 
-#### (4) zipWith: 2つの Effect を合成
+#### (4) zipWith: Combine Two Effects
 
 ```typescript
 import { Effect } from "effect";
@@ -418,10 +418,10 @@ const b = Effect.succeed(20);
 
 const sum = Effect.zipWith(a, b, (x, y) => x + y);
 // Effect<number, never, never>
-// 実行結果: 30
+// Result: 30
 ```
 
-#### (5) filterOrFail: 条件を満たさない場合は失敗
+#### (5) filterOrFail: Fail If Condition Is Not Met
 
 ```typescript
 import { Effect } from "effect";
@@ -433,17 +433,17 @@ const program = Effect.succeed(42).pipe(
   )
 );
 // Effect<number, Error, never>
-// 実行するとエラー
+// Results in an error when run
 ```
 
-### 3-3. Effect.gen による Generator 構文
+### 3-3. Generator Syntax with Effect.gen
 
-`Effect.gen` を使うと、`yield*` で Effect の値を取り出し、同期的なスタイルで書けます。
+Using `Effect.gen`, you can extract Effect values with `yield*` and write in a synchronous style.
 
 ```typescript
 import { Effect } from "effect";
 
-// pipe スタイル
+// pipe style
 const program1 = pipe(
   Effect.succeed(10),
   Effect.flatMap((a) =>
@@ -454,7 +454,7 @@ const program1 = pipe(
   )
 );
 
-// Effect.gen スタイル（同じ意味）
+// Effect.gen style (same meaning)
 const program2 = Effect.gen(function* () {
   const a = yield* Effect.succeed(10);
   const b = yield* Effect.succeed(20);
@@ -462,7 +462,7 @@ const program2 = Effect.gen(function* () {
 });
 ```
 
-#### Effect.gen の詳細な例
+#### Detailed Example of Effect.gen
 
 ```typescript
 import { Effect, Data } from "effect";
@@ -492,25 +492,25 @@ const fetchPosts = (userId: string): Effect.Effect<string[]> =>
 const fetchComments = (userId: string): Effect.Effect<string[]> =>
   Effect.succeed([`comment1-${userId}`]);
 
-// Effect.gen で同期的に書く
+// Write synchronously with Effect.gen
 const program = Effect.gen(function* () {
-  // yield* で Effect の値を取り出す
+  // Extract the value of an Effect with yield*
   const user = yield* findUser("123");
 
-  // 通常の if 文が使える
+  // Regular if statements can be used
   if (user.role !== "ADMIN") {
     yield* Effect.fail(
       new PermissionError({ action: "delete" })
     );
   }
 
-  // 並列実行
+  // Parallel execution
   const [posts, comments] = yield* Effect.all(
     [fetchPosts(user.id), fetchComments(user.id)],
     { concurrency: 2 }
   );
 
-  // ログ
+  // Logging
   yield* Effect.log(`User ${user.name} has ${posts.length} posts`);
 
   return { user, posts, comments };
@@ -519,16 +519,16 @@ const program = Effect.gen(function* () {
 
 ---
 
-## 4. 型安全なエラーハンドリング
+## 4. Type-Safe Error Handling
 
-### 4-1. 型付きエラーの定義
+### 4-1. Defining Typed Errors
 
-Effect-ts では、エラーを **判別可能な型** として定義します。
+In Effect-ts, errors are defined as **discriminated types**.
 
 ```typescript
 import { Data } from "effect";
 
-// Data.TaggedError を使うと _tag フィールドが自動的に追加される
+// Using Data.TaggedError automatically adds the _tag field
 class NotFoundError extends Data.TaggedError("NotFoundError")<{
   readonly resource: string;
   readonly id: string;
@@ -548,7 +548,7 @@ class NetworkError extends Data.TaggedError("NetworkError")<{
   readonly statusCode: number;
 }> {}
 
-// 使用例
+// Usage example
 const error1 = new NotFoundError({ resource: "User", id: "123" });
 console.log(error1._tag); // "NotFoundError"
 
@@ -559,7 +559,7 @@ const error2 = new ValidationError({
 console.log(error2._tag); // "ValidationError"
 ```
 
-### 4-2. エラーを返す Effect
+### 4-2. Effects That Return Errors
 
 ```typescript
 import { Effect, pipe, Data } from "effect";
@@ -582,20 +582,20 @@ interface Database {
   findById: (id: string) => Promise<User | null>;
 }
 
-// エラーを返す Effect
+// Effect that returns errors
 function findUser(
   id: string
 ): Effect.Effect<User, NotFoundError | DatabaseError, Database> {
   return Effect.gen(function* () {
     const db = yield* Effect.context<Database>();
 
-    // Promise を Effect に変換
+    // Convert Promise to Effect
     const user = yield* Effect.tryPromise({
       try: () => db.findById(id),
       catch: (cause) => new DatabaseError({ cause }),
     });
 
-    // null の場合は NotFoundError
+    // NotFoundError if null
     if (user === null) {
       yield* Effect.fail(new NotFoundError({ resource: "User", id }));
     }
@@ -603,12 +603,12 @@ function findUser(
     return user;
   });
 }
-// 型: Effect<User, NotFoundError | DatabaseError, Database>
+// Type: Effect<User, NotFoundError | DatabaseError, Database>
 ```
 
-### 4-3. エラーハンドリングのパターン
+### 4-3. Error Handling Patterns
 
-#### (1) catchAll: 全てのエラーを処理
+#### (1) catchAll: Handle All Errors
 
 ```typescript
 import { Effect } from "effect";
@@ -616,13 +616,13 @@ import { Effect } from "effect";
 const program = findUser("123").pipe(
   Effect.catchAll((error) => {
     console.error("Error:", error);
-    return Effect.succeed(null); // デフォルト値を返す
+    return Effect.succeed(null); // return a default value
   })
 );
-// 型: Effect<User | null, never, Database>
+// Type: Effect<User | null, never, Database>
 ```
 
-#### (2) catchTag: 特定のエラータグだけ処理
+#### (2) catchTag: Handle Only a Specific Error Tag
 
 ```typescript
 import { Effect } from "effect";
@@ -631,12 +631,12 @@ const userOrDefault = findUser("123").pipe(
   Effect.catchTag("NotFoundError", (error) =>
     Effect.succeed({ id: error.id, name: "Guest" } as User)
   )
-  // DatabaseError はそのまま伝播
+  // DatabaseError propagates as-is
 );
-// 型: Effect<User, DatabaseError, Database>
+// Type: Effect<User, DatabaseError, Database>
 ```
 
-#### (3) catchTags: 複数のエラータグを処理
+#### (3) catchTags: Handle Multiple Error Tags
 
 ```typescript
 import { Effect } from "effect";
@@ -651,10 +651,10 @@ const resilient = findUser("123").pipe(
     },
   })
 );
-// 型: Effect<User, Error, Database>
+// Type: Effect<User, Error, Database>
 ```
 
-#### (4) catchSome: 条件付きエラーハンドリング
+#### (4) catchSome: Conditional Error Handling
 
 ```typescript
 import { Effect, Option } from "effect";
@@ -664,40 +664,40 @@ const program = findUser("123").pipe(
     if (error._tag === "NotFoundError" && error.id === "123") {
       return Option.some(Effect.succeed({ id: "123", name: "Default" } as User));
     }
-    return Option.none(); // エラーを伝播
+    return Option.none(); // propagate the error
   })
 );
 ```
 
-#### (5) orElse: 失敗時に別の Effect を試す
+#### (5) orElse: Try Another Effect on Failure
 
 ```typescript
 import { Effect } from "effect";
 
 const program = findUser("123").pipe(
-  Effect.orElse(() => findUser("456")), // 失敗したら別のユーザーを探す
+  Effect.orElse(() => findUser("456")), // try another user on failure
   Effect.orElse(() => Effect.succeed({ id: "default", name: "Guest" } as User))
 );
 ```
 
-### 4-4. エラーハンドリング比較表
+### 4-4. Error Handling Comparison Table
 
-| パターン | 使用例 | エラー型の変化 |
-|---------|--------|---------------|
-| `catchAll` | 全てのエラーを処理 | `Effect<A, E, R>` → `Effect<A \| B, never, R>` |
-| `catchTag` | 特定のタグのみ処理 | `Effect<A, E1 \| E2, R>` → `Effect<A, E2, R>` |
-| `catchTags` | 複数タグを処理 | `Effect<A, E1 \| E2 \| E3, R>` → `Effect<A, E3, R>` |
-| `catchSome` | 条件付き処理 | `Effect<A, E, R>` → `Effect<A, E, R>` (一部のみ処理) |
-| `orElse` | 別の Effect にフォールバック | `Effect<A, E, R>` → `Effect<A, E2, R>` |
+| Pattern | Usage | Change in Error Type |
+|---------|-------|---------------------|
+| `catchAll` | Handle all errors | `Effect<A, E, R>` → `Effect<A \| B, never, R>` |
+| `catchTag` | Handle only a specific tag | `Effect<A, E1 \| E2, R>` → `Effect<A, E2, R>` |
+| `catchTags` | Handle multiple tags | `Effect<A, E1 \| E2 \| E3, R>` → `Effect<A, E3, R>` |
+| `catchSome` | Conditional handling | `Effect<A, E, R>` → `Effect<A, E, R>` (handles only some) |
+| `orElse` | Fall back to another Effect | `Effect<A, E, R>` → `Effect<A, E2, R>` |
 
 ---
 
-## 5. 依存性注入 (Layer, Context, Service)
+## 5. Dependency Injection (Layer, Context, Service)
 
-### 5-1. サービスの定義
+### 5-1. Defining Services
 
 ```
-Layer アーキテクチャ:
+Layer architecture:
 
   +---------------------+
   | Application Layer   |  Effect<A, E, UserRepo & Logger>
@@ -711,19 +711,19 @@ Layer アーキテクチャ:
        |           |
        v           v
   +----------+ +---------+
-  | UserRepo | | Logger  |  具体的な実装
+  | UserRepo | | Logger  |  Concrete implementations
   +----------+ +---------+
        |
        v
   +----------+
-  | Database |  さらに下位の依存
+  | Database |  Lower-level dependency
   +----------+
 ```
 
 ```typescript
 import { Effect, Context, Layer, Data } from "effect";
 
-// エラー定義
+// Error definitions
 class DatabaseError extends Data.TaggedError("DatabaseError")<{
   readonly cause: unknown;
 }> {}
@@ -739,7 +739,7 @@ interface User {
   createdAt: Date;
 }
 
-// サービスインターフェースの定義
+// Define service interfaces
 class UserRepository extends Context.Tag("UserRepository")<
   UserRepository,
   {
@@ -769,7 +769,7 @@ class Logger extends Context.Tag("Logger")<
 >() {}
 ```
 
-### 5-2. サービスの使用
+### 5-2. Using Services
 
 ```typescript
 import { Effect } from "effect";
@@ -783,7 +783,7 @@ interface CreateUserDto {
   email: string;
 }
 
-// サービスを使う関数
+// Function that uses services
 function createUser(
   data: CreateUserDto
 ): Effect.Effect<
@@ -792,20 +792,20 @@ function createUser(
   UserRepository & EmailService & Logger
 > {
   return Effect.gen(function* () {
-    // サービスを取得
+    // Retrieve services
     const userRepo = yield* UserRepository;
     const emailService = yield* EmailService;
     const logger = yield* Logger;
 
-    // バリデーション
+    // Validation
     if (!data.email.includes("@")) {
       yield* Effect.fail(new ValidationError({ message: "Invalid email" }));
     }
 
-    // ログ
+    // Logging
     yield* logger.info(`Creating user: ${data.email}`);
 
-    // ユーザー作成
+    // Create user
     const user: User = {
       id: crypto.randomUUID(),
       name: data.name,
@@ -813,13 +813,13 @@ function createUser(
       createdAt: new Date(),
     };
 
-    // DB に保存
+    // Save to DB
     yield* userRepo.save(user);
 
-    // メール送信
+    // Send email
     yield* emailService.send(user.email, "Welcome!", `Hello ${user.name}`);
 
-    // ログ
+    // Logging
     yield* logger.info(`User created: ${user.id}`);
 
     return user;
@@ -827,19 +827,19 @@ function createUser(
 }
 ```
 
-### 5-3. Layer の実装
+### 5-3. Implementing Layers
 
 ```typescript
 import { Effect, Layer } from "effect";
 
-// (1) Logger の実装
+// (1) Logger implementation
 const ConsoleLoggerLive = Layer.succeed(Logger, {
   info: (message) => Effect.log(`[INFO] ${message}`),
   error: (message, cause) =>
     Effect.logError(`[ERROR] ${message}`, cause),
 });
 
-// (2) EmailService の実装
+// (2) EmailService implementation
 const ConsoleEmailServiceLive = Layer.succeed(EmailService, {
   send: (to, subject, body) =>
     Effect.sync(() => {
@@ -848,7 +848,7 @@ const ConsoleEmailServiceLive = Layer.succeed(EmailService, {
     }),
 });
 
-// (3) UserRepository の実装（他のサービスに依存）
+// (3) UserRepository implementation (depends on other services)
 const InMemoryUserRepoLive = Layer.effect(
   UserRepository,
   Effect.gen(function* () {
@@ -874,28 +874,28 @@ const InMemoryUserRepoLive = Layer.effect(
   })
 );
 
-// Layer の合成
+// Layer composition
 const AppLayerLive = Layer.mergeAll(
   ConsoleLoggerLive,
   ConsoleEmailServiceLive,
   InMemoryUserRepoLive.pipe(
-    Layer.provide(ConsoleLoggerLive) // UserRepo は Logger に依存
+    Layer.provide(ConsoleLoggerLive) // UserRepo depends on Logger
   )
 );
 
-// 実行
+// Execute
 const program = createUser({ name: "Alice", email: "alice@example.com" });
 const result = await Effect.runPromise(
   program.pipe(Effect.provide(AppLayerLive))
 );
 ```
 
-### 5-4. テスト用 Layer
+### 5-4. Test Layer
 
 ```typescript
 import { Layer } from "effect";
 
-// テスト用の Mock Layer
+// Mock Layer for testing
 const MockUserRepoLive = Layer.succeed(UserRepository, {
   findById: (id) =>
     Effect.succeed({
@@ -909,7 +909,7 @@ const MockUserRepoLive = Layer.succeed(UserRepository, {
 });
 
 const MockEmailServiceLive = Layer.succeed(EmailService, {
-  send: () => Effect.void, // メール送信しない
+  send: () => Effect.void, // does not send email
 });
 
 const TestLayerLive = Layer.mergeAll(
@@ -918,7 +918,7 @@ const TestLayerLive = Layer.mergeAll(
   MockUserRepoLive.pipe(Layer.provide(ConsoleLoggerLive))
 );
 
-// テストでは TestLayer を使用
+// Use TestLayer in tests
 const testResult = await Effect.runPromise(
   createUser({ name: "Bob", email: "bob@test.com" }).pipe(
     Effect.provide(TestLayerLive)
@@ -926,7 +926,7 @@ const testResult = await Effect.runPromise(
 );
 ```
 
-### 5-5. Layer の合成パターン
+### 5-5. Layer Composition Patterns
 
 ```mermaid
 graph TD
@@ -943,17 +943,17 @@ graph TD
     style E fill:#87CEEB
 ```
 
-| パターン | メソッド | 説明 |
-|---------|---------|------|
-| 並列合成 | `Layer.mergeAll(a, b, c)` | 複数の Layer を並列に合成 |
-| 依存提供 | `layer.pipe(Layer.provide(dep))` | Layer に依存を注入 |
-| 条件分岐 | 環境変数で分岐 | 本番/テストで異なる Layer を使用 |
+| Pattern | Method | Description |
+|---------|--------|-------------|
+| Parallel composition | `Layer.mergeAll(a, b, c)` | Compose multiple Layers in parallel |
+| Provide dependency | `layer.pipe(Layer.provide(dep))` | Inject dependency into a Layer |
+| Conditional branching | Branch by environment variable | Use different Layers for production/test |
 
 ---
 
-## 6. 並行処理 (Fiber, Queue, Ref)
+## 6. Concurrency (Fiber, Queue, Ref)
 
-### 6-1. 基本的な並行パターン
+### 6-1. Basic Concurrency Patterns
 
 ```typescript
 import { Effect } from "effect";
@@ -961,28 +961,28 @@ import { Effect } from "effect";
 const fetchUser = (id: string): Effect.Effect<User> =>
   Effect.succeed({ id, name: `User ${id}`, email: `${id}@example.com`, createdAt: new Date() });
 
-// (1) 並列実行（制限なし）
+// (1) Parallel execution (unbounded)
 const allUsers = Effect.all(
   [fetchUser("1"), fetchUser("2"), fetchUser("3")],
   { concurrency: "unbounded" }
 );
-// 型: Effect<[User, User, User], never, never>
+// Type: Effect<[User, User, User], never, never>
 
-// (2) 制限付き並列実行
+// (2) Bounded parallel execution
 const urls = ["url1", "url2", "url3", "url4", "url5"];
 const limited = Effect.all(
   urls.map((url) => Effect.succeed(url)),
-  { concurrency: 2 } // 最大2並列
+  { concurrency: 2 } // max 2 concurrent
 );
 
-// (3) 最初に成功した結果を使用
+// (3) Use the first successful result
 const fastest = Effect.raceAll([
   Effect.succeed("CDN1"),
   Effect.succeed("CDN2"),
   Effect.succeed("CDN3"),
 ]);
 
-// (4) forEach: 配列の各要素に Effect を適用
+// (4) forEach: apply an Effect to each element of an array
 const userIds = ["1", "2", "3", "4", "5"];
 const results = Effect.forEach(
   userIds,
@@ -991,14 +991,14 @@ const results = Effect.forEach(
 );
 ```
 
-### 6-2. Fiber による並行処理
+### 6-2. Concurrency with Fiber
 
 ```typescript
 import { Effect, Fiber } from "effect";
 
-// Fiber: 軽量スレッドのようなもの
+// Fiber: like a lightweight thread
 const program = Effect.gen(function* () {
-  // バックグラウンドで実行
+  // Run in background
   const fiber1 = yield* Effect.fork(
     Effect.gen(function* () {
       yield* Effect.sleep("1 second");
@@ -1013,10 +1013,10 @@ const program = Effect.gen(function* () {
     })
   );
 
-  // 他の処理
+  // Do other work
   yield* Effect.log("Doing other work...");
 
-  // Fiber の結果を待つ
+  // Wait for Fiber results
   const result1 = yield* Fiber.join(fiber1);
   const result2 = yield* Fiber.join(fiber2);
 
@@ -1024,7 +1024,7 @@ const program = Effect.gen(function* () {
 });
 ```
 
-### 6-3. Fiber の制御
+### 6-3. Fiber Control
 
 ```typescript
 import { Effect, Fiber } from "effect";
@@ -1037,13 +1037,13 @@ const program = Effect.gen(function* () {
     })
   );
 
-  // 500ms 待つ
+  // Wait 500ms
   yield* Effect.sleep("500 millis");
 
-  // Fiber を中断
+  // Interrupt the Fiber
   yield* Fiber.interrupt(fiber);
 
-  // 中断されたかチェック
+  // Check if interrupted
   const result = yield* Fiber.await(fiber);
   if (result._tag === "Failure") {
     yield* Effect.log("Fiber was interrupted");
@@ -1051,26 +1051,26 @@ const program = Effect.gen(function* () {
 });
 ```
 
-### 6-4. Ref: 共有可変状態
+### 6-4. Ref: Shared Mutable State
 
 ```typescript
 import { Effect, Ref } from "effect";
 
 const program = Effect.gen(function* () {
-  // Ref の作成
+  // Create a Ref
   const counter = yield* Ref.make(0);
 
-  // 値を取得
+  // Get the value
   const value1 = yield* Ref.get(counter);
   console.log(value1); // 0
 
-  // 値を設定
+  // Set the value
   yield* Ref.set(counter, 10);
 
-  // 値を更新
+  // Update the value
   yield* Ref.update(counter, (n) => n + 5);
 
-  // アトミックな更新と取得
+  // Atomic update and get
   const oldValue = yield* Ref.getAndUpdate(counter, (n) => n * 2);
   console.log(oldValue); // 15
 
@@ -1079,16 +1079,16 @@ const program = Effect.gen(function* () {
 });
 ```
 
-### 6-5. Queue: 並行キュー
+### 6-5. Queue: Concurrent Queue
 
 ```typescript
 import { Effect, Queue } from "effect";
 
 const program = Effect.gen(function* () {
-  // キューの作成（容量100）
+  // Create a queue (capacity 100)
   const queue = yield* Queue.bounded<string>(100);
 
-  // プロデューサー
+  // Producer
   const producer = Effect.gen(function* () {
     for (let i = 0; i < 10; i++) {
       yield* Queue.offer(queue, `Item ${i}`);
@@ -1096,7 +1096,7 @@ const program = Effect.gen(function* () {
     }
   });
 
-  // コンシューマー
+  // Consumer
   const consumer = Effect.gen(function* () {
     for (let i = 0; i < 10; i++) {
       const item = yield* Queue.take(queue);
@@ -1104,49 +1104,49 @@ const program = Effect.gen(function* () {
     }
   });
 
-  // 並列実行
+  // Run in parallel
   yield* Effect.all([producer, consumer], { concurrency: 2 });
 });
 ```
 
-### 6-6. 並行処理パターン比較表
+### 6-6. Concurrency Pattern Comparison Table
 
-| パターン | 用途 | コード例 |
-|---------|------|---------|
-| `Effect.all` | 複数の Effect を並列実行 | `Effect.all([a, b, c], { concurrency: 3 })` |
-| `Effect.race` | 最初に完了した Effect を使用 | `Effect.race(a, b)` |
-| `Effect.fork` | バックグラウンドで実行 | `yield* Effect.fork(longTask)` |
-| `Fiber.join` | Fiber の結果を待つ | `yield* Fiber.join(fiber)` |
-| `Ref` | 共有可変状態 | `yield* Ref.update(counter, n => n + 1)` |
-| `Queue` | プロデューサー/コンシューマー | `yield* Queue.offer(queue, item)` |
+| Pattern | Use Case | Code Example |
+|---------|----------|-------------|
+| `Effect.all` | Run multiple Effects in parallel | `Effect.all([a, b, c], { concurrency: 3 })` |
+| `Effect.race` | Use the first completed Effect | `Effect.race(a, b)` |
+| `Effect.fork` | Run in background | `yield* Effect.fork(longTask)` |
+| `Fiber.join` | Wait for a Fiber result | `yield* Fiber.join(fiber)` |
+| `Ref` | Shared mutable state | `yield* Ref.update(counter, n => n + 1)` |
+| `Queue` | Producer / consumer | `yield* Queue.offer(queue, item)` |
 
 ---
 
-## 7. スケジューリングとリトライ
+## 7. Scheduling and Retry
 
-### 7-1. Schedule の基本
+### 7-1. Schedule Basics
 
 ```typescript
 import { Effect, Schedule } from "effect";
 
-// (1) 固定間隔
+// (1) Fixed interval
 const everySecond = Schedule.fixed("1 second");
 
-// (2) 指数バックオフ
+// (2) Exponential backoff
 const exponential = Schedule.exponential("100 millis");
 // 100ms, 200ms, 400ms, 800ms, ...
 
-// (3) 回数制限
-const maxRetries = Schedule.recurs(5); // 最大5回
+// (3) Limit number of repetitions
+const maxRetries = Schedule.recurs(5); // up to 5 times
 
-// (4) 合成
+// (4) Composition
 const policy = Schedule.exponential("100 millis").pipe(
   Schedule.compose(Schedule.recurs(5)),
-  Schedule.jittered // ランダムなジッターを追加
+  Schedule.jittered // add random jitter
 );
 ```
 
-### 7-2. リトライ戦略
+### 7-2. Retry Strategies
 
 ```typescript
 import { Effect, Schedule } from "effect";
@@ -1156,14 +1156,14 @@ class NetworkError extends Data.TaggedError("NetworkError")<{
 }> {}
 
 const fetchData = (url: string): Effect.Effect<string, NetworkError> =>
-  Effect.fail(new NetworkError({ url })); // 常に失敗する例
+  Effect.fail(new NetworkError({ url })); // always fails in this example
 
-// (1) 基本的なリトライ
+// (1) Basic retry
 const retried = fetchData("https://api.example.com").pipe(
-  Effect.retry(Schedule.recurs(3)) // 最大3回リトライ
+  Effect.retry(Schedule.recurs(3)) // retry up to 3 times
 );
 
-// (2) 指数バックオフでリトライ
+// (2) Retry with exponential backoff
 const retryPolicy = Schedule.exponential("100 millis").pipe(
   Schedule.compose(Schedule.recurs(5)),
   Schedule.jittered
@@ -1173,12 +1173,12 @@ const resilient = fetchData("https://api.example.com").pipe(
   Effect.retry(retryPolicy)
 );
 
-// (3) タイムアウト付き
+// (3) With timeout
 const withTimeout = fetchData("https://api.example.com").pipe(
   Effect.timeout("5 seconds")
 );
 
-// (4) リトライ + タイムアウト
+// (4) Retry + timeout
 const robust = fetchData("https://api.example.com").pipe(
   Effect.timeout("3 seconds"),
   Effect.retry(
@@ -1189,7 +1189,7 @@ const robust = fetchData("https://api.example.com").pipe(
 );
 ```
 
-### 7-3. 条件付きリトライ
+### 7-3. Conditional Retry
 
 ```typescript
 import { Effect, Schedule } from "effect";
@@ -1205,7 +1205,7 @@ class PermanentError extends Data.TaggedError("PermanentError")<{
 const task: Effect.Effect<string, TransientError | PermanentError> =
   Effect.fail(new TransientError({ cause: "Network issue" }));
 
-// TransientError のみリトライ
+// Retry only for TransientError
 const selective = task.pipe(
   Effect.retry({
     schedule: Schedule.recurs(3),
@@ -1214,17 +1214,17 @@ const selective = task.pipe(
 );
 ```
 
-### 7-4. repeat: 繰り返し実行
+### 7-4. repeat: Repeated Execution
 
 ```typescript
 import { Effect, Schedule } from "effect";
 
-// (1) 10回繰り返す
+// (1) Repeat 10 times
 const repeated = Effect.log("Hello").pipe(
   Effect.repeat(Schedule.recurs(10))
 );
 
-// (2) 1秒ごとに無限に繰り返す
+// (2) Repeat indefinitely every 1 second
 const polling = Effect.gen(function* () {
   const data = yield* fetchData("https://api.example.com/status");
   yield* Effect.log(`Status: ${data}`);
@@ -1232,45 +1232,45 @@ const polling = Effect.gen(function* () {
   Effect.repeat(Schedule.fixed("1 second"))
 );
 
-// (3) 条件を満たすまで繰り返す
+// (3) Repeat until a condition is met
 const untilCondition = Effect.sync(() => Math.random()).pipe(
   Effect.repeat({
     schedule: Schedule.spaced("100 millis"),
-    until: (value) => value > 0.9, // 0.9 以上になるまで
+    until: (value) => value > 0.9, // until value exceeds 0.9
   })
 );
 ```
 
-### 7-5. Schedule パターン比較表
+### 7-5. Schedule Pattern Comparison Table
 
-| Schedule | 説明 | 用途 |
-|----------|------|------|
-| `fixed(duration)` | 固定間隔 | 定期実行、ポーリング |
-| `exponential(base)` | 指数バックオフ | リトライ、レート制限回避 |
-| `recurs(n)` | n回まで | リトライ回数制限 |
-| `spaced(duration)` | 固定間隔 + 初回即座 | ポーリング |
-| `jittered` | ランダムなジッター追加 | サンダリングハード問題の回避 |
+| Schedule | Description | Use Case |
+|----------|-------------|----------|
+| `fixed(duration)` | Fixed interval | Periodic execution, polling |
+| `exponential(base)` | Exponential backoff | Retry, rate limit avoidance |
+| `recurs(n)` | Up to n times | Retry count limit |
+| `spaced(duration)` | Fixed interval + immediate first run | Polling |
+| `jittered` | Add random jitter | Avoid thundering herd problem |
 
 ---
 
-## 8. Schema によるバリデーション
+## 8. Validation with Schema
 
-Effect-ts は `@effect/schema` (現在は `effect` パッケージに統合) による強力なバリデーション機能を提供します。
+Effect-ts provides powerful validation via `@effect/schema` (now integrated into the `effect` package).
 
-### 8-1. Schema の基本
+### 8-1. Schema Basics
 
 ```typescript
 import { Schema } from "effect";
 
-// (1) プリミティブ型
+// (1) Primitive types
 const StringSchema = Schema.String;
 const NumberSchema = Schema.Number;
 const BooleanSchema = Schema.Boolean;
 
-// (2) リテラル型
+// (2) Literal type
 const RoleSchema = Schema.Literal("ADMIN", "USER", "GUEST");
 
-// (3) オブジェクト
+// (3) Object
 const UserSchema = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
@@ -1279,10 +1279,10 @@ const UserSchema = Schema.Struct({
   role: RoleSchema,
 });
 
-// (4) 配列
+// (4) Array
 const UsersSchema = Schema.Array(UserSchema);
 
-// (5) オプショナル
+// (5) Optional
 const UserWithOptionalAgeSchema = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
@@ -1292,7 +1292,7 @@ const UserWithOptionalAgeSchema = Schema.Struct({
 });
 ```
 
-### 8-2. バリデーション実行
+### 8-2. Running Validation
 
 ```typescript
 import { Schema, Effect } from "effect";
@@ -1304,7 +1304,7 @@ const UserSchema = Schema.Struct({
   age: Schema.Number.pipe(Schema.greaterThanOrEqualTo(0)),
 });
 
-// unknown → User の変換
+// unknown → User conversion
 const parse = Schema.decodeUnknown(UserSchema);
 
 const validData = {
@@ -1315,11 +1315,11 @@ const validData = {
 };
 
 const program = Effect.gen(function* () {
-  // バリデーション成功
+  // Validation success
   const user = yield* parse(validData);
   console.log(user); // { id: "123", name: "Alice", ... }
 
-  // バリデーション失敗
+  // Validation failure
   const invalidData = { id: "456", name: "Bob", email: "invalid", age: -5 };
   const result = yield* Effect.either(parse(invalidData));
 
@@ -1329,12 +1329,12 @@ const program = Effect.gen(function* () {
 });
 ```
 
-### 8-3. カスタムバリデーション
+### 8-3. Custom Validation
 
 ```typescript
 import { Schema } from "effect";
 
-// (1) カスタム制約
+// (1) Custom constraint
 const PositiveNumber = Schema.Number.pipe(
   Schema.filter((n) => n > 0, { message: () => "Must be positive" })
 );
@@ -1350,7 +1350,7 @@ const TrimmedString = Schema.String.pipe(
   )
 );
 
-// (3) カスタム型
+// (3) Custom type
 const EmailSchema = Schema.String.pipe(
   Schema.pattern(/^[^\s@]+@[^\s@]+\.[^\s@]+$/),
   Schema.brand("Email")
@@ -1358,7 +1358,7 @@ const EmailSchema = Schema.String.pipe(
 
 type Email = Schema.Schema.Type<typeof EmailSchema>;
 
-// (4) 複雑なバリデーション
+// (4) Complex validation
 const PasswordSchema = Schema.String.pipe(
   Schema.minLength(8),
   Schema.filter(
@@ -1368,7 +1368,7 @@ const PasswordSchema = Schema.String.pipe(
 );
 ```
 
-### 8-4. API リクエストのバリデーション
+### 8-4. Validating API Requests
 
 ```typescript
 import { Schema, Effect, Data } from "effect";
@@ -1402,45 +1402,45 @@ const validateRequest = (
   );
 };
 
-// 使用例
+// Usage example
 const handleRequest = (body: unknown) =>
   Effect.gen(function* () {
     const request = yield* validateRequest(body);
 
-    // request は型安全に使える
+    // request can be used in a type-safe way
     const user = yield* createUser(request);
 
     return user;
   });
 ```
 
-### 8-5. Schema vs Zod 比較表
+### 8-5. Schema vs Zod Comparison Table
 
-| 特性 | @effect/schema | Zod |
-|------|---------------|-----|
-| Effect 統合 | ネイティブ | 手動変換が必要 |
-| エラー型 | Effect エラーとして追跡 | ZodError (例外) |
-| パフォーマンス | 最適化されたデコード | 標準的 |
-| Transform | 双方向 (encode/decode) | 一方向のみ |
-| バンドルサイズ | Effect に含まれる | ~8KB |
+| Feature | @effect/schema | Zod |
+|---------|---------------|-----|
+| Effect integration | Native | Manual conversion required |
+| Error type | Tracked as Effect error | ZodError (exception) |
+| Performance | Optimized decode | Standard |
+| Transform | Bidirectional (encode/decode) | One-direction only |
+| Bundle size | Included in Effect | ~8KB |
 
 ---
 
-## 9. ストリーム処理 (Stream, Sink, Channel)
+## 9. Stream Processing (Stream, Sink, Channel)
 
-### 9-1. Stream の基本
+### 9-1. Stream Basics
 
 ```typescript
 import { Stream, Effect } from "effect";
 
-// (1) Stream の作成
+// (1) Creating a Stream
 const stream1 = Stream.make(1, 2, 3, 4, 5);
 
 const stream2 = Stream.range(1, 10); // 1, 2, ..., 9
 
 const stream3 = Stream.fromIterable([1, 2, 3]);
 
-// (2) Stream の操作
+// (2) Stream operations
 const doubled = stream1.pipe(
   Stream.map((n) => n * 2)
 );
@@ -1449,7 +1449,7 @@ const filtered = stream1.pipe(
   Stream.filter((n) => n % 2 === 0)
 );
 
-// (3) Stream の実行
+// (3) Running a Stream
 const program = Stream.runCollect(doubled);
 // Effect<Chunk<number>, never, never>
 
@@ -1457,12 +1457,12 @@ const result = await Effect.runPromise(program);
 // Chunk([2, 4, 6, 8, 10])
 ```
 
-### 9-2. 非同期ストリーム
+### 9-2. Async Streams
 
 ```typescript
 import { Stream, Effect, Schedule } from "effect";
 
-// (1) Effect から Stream を作成
+// (1) Create a Stream from an Effect
 const fetchStream = Stream.repeatEffect(
   Effect.gen(function* () {
     const response = yield* Effect.tryPromise({
@@ -1477,13 +1477,13 @@ const fetchStream = Stream.repeatEffect(
   })
 );
 
-// (2) 定期実行
+// (2) Periodic execution
 const pollingStream = Stream.repeatEffectWithSchedule(
   Effect.sync(() => new Date().toISOString()),
   Schedule.fixed("1 second")
 );
 
-// (3) ファイルの行ごと処理
+// (3) Process a file line by line
 const fileStream = Stream.fromIterable(["line1", "line2", "line3"]);
 
 const processed = fileStream.pipe(
@@ -1492,7 +1492,7 @@ const processed = fileStream.pipe(
 );
 ```
 
-### 9-3. Stream の合成
+### 9-3. Stream Composition
 
 ```typescript
 import { Stream, Effect } from "effect";
@@ -1500,13 +1500,13 @@ import { Stream, Effect } from "effect";
 const stream1 = Stream.make(1, 2, 3);
 const stream2 = Stream.make(4, 5, 6);
 
-// (1) 連結
+// (1) Concatenation
 const concatenated = Stream.concat(stream1, stream2);
 // 1, 2, 3, 4, 5, 6
 
 // (2) Merge
 const merged = Stream.merge(stream1, stream2);
-// 順序は保証されない
+// order is not guaranteed
 
 // (3) Zip
 const zipped = Stream.zip(stream1, stream2);
@@ -1519,32 +1519,32 @@ const flattened = stream1.pipe(
 // 1, 10, 2, 20, 3, 30
 ```
 
-### 9-4. Sink: Stream の終端処理
+### 9-4. Sink: Terminal Processing for Streams
 
 ```typescript
 import { Stream, Sink, Effect } from "effect";
 
 const stream = Stream.make(1, 2, 3, 4, 5);
 
-// (1) 合計
+// (1) Sum
 const sum = Stream.run(stream, Sink.sum);
 // Effect<number, never, never> → 15
 
-// (2) 配列に収集
+// (2) Collect into array
 const collect = Stream.run(stream, Sink.collectAll());
 // Effect<Chunk<number>, never, never>
 
-// (3) 最初のn個
+// (3) First n elements
 const takeFirst = Stream.run(stream, Sink.take(3));
 // Effect<Chunk<number>, never, never> → [1, 2, 3]
 
-// (4) カスタム Sink
+// (4) Custom Sink
 const customSink = Sink.foldLeft(0, (acc, n: number) => acc + n * 2);
 const result = Stream.run(stream, customSink);
 // 2 + 4 + 6 + 8 + 10 = 30
 ```
 
-### 9-5. 実践例: ログファイルのストリーム処理
+### 9-5. Practical Example: Stream Processing a Log File
 
 ```typescript
 import { Stream, Effect, pipe } from "effect";
@@ -1573,11 +1573,11 @@ const processLogFile = (lines: string[]) =>
     Stream.fromIterable(lines),
     Stream.mapEffect((line) => parseLogLine(line)),
     Stream.filter((entry) => entry.level === "ERROR"),
-    Stream.take(100), // 最初の100件のエラーのみ
+    Stream.take(100), // only the first 100 errors
     Stream.runCollect
   );
 
-// 使用例
+// Usage example
 const lines = [
   "2024-01-01T00:00:00Z | INFO | Server started",
   "2024-01-01T00:01:00Z | ERROR | Connection failed",
@@ -1588,28 +1588,28 @@ const program = processLogFile(lines);
 const errors = await Effect.runPromise(program);
 ```
 
-### 9-6. Stream パターン比較表
+### 9-6. Stream Pattern Comparison Table
 
-| パターン | 用途 | コード例 |
-|---------|------|---------|
-| `Stream.make` | 静的ストリーム作成 | `Stream.make(1, 2, 3)` |
-| `Stream.repeatEffect` | Effect を繰り返す | `Stream.repeatEffect(fetchData)` |
-| `Stream.map` | 要素の変換 | `stream.pipe(Stream.map(n => n * 2))` |
-| `Stream.filter` | 要素のフィルタ | `stream.pipe(Stream.filter(n => n > 0))` |
-| `Stream.flatMap` | ネストしたストリームの平坦化 | `stream.pipe(Stream.flatMap(n => ...))` |
-| `Stream.take` | 最初のn個 | `stream.pipe(Stream.take(10))` |
+| Pattern | Use Case | Code Example |
+|---------|----------|-------------|
+| `Stream.make` | Create a static stream | `Stream.make(1, 2, 3)` |
+| `Stream.repeatEffect` | Repeat an Effect | `Stream.repeatEffect(fetchData)` |
+| `Stream.map` | Transform elements | `stream.pipe(Stream.map(n => n * 2))` |
+| `Stream.filter` | Filter elements | `stream.pipe(Stream.filter(n => n > 0))` |
+| `Stream.flatMap` | Flatten nested streams | `stream.pipe(Stream.flatMap(n => ...))` |
+| `Stream.take` | First n elements | `stream.pipe(Stream.take(10))` |
 
 ---
 
-## 10. プロダクション導入事例
+## 10. Production Use Cases
 
-### 10-1. API サーバーの例
+### 10-1. Example API Server
 
 ```typescript
 import { Effect, Layer, Context, Data } from "effect";
 import { Schema } from "effect";
 
-// エラー定義
+// Error definitions
 class ValidationError extends Data.TaggedError("ValidationError")<{
   readonly errors: ReadonlyArray<string>;
 }> {}
@@ -1623,7 +1623,7 @@ class NotFoundError extends Data.TaggedError("NotFoundError")<{
   readonly id: string;
 }> {}
 
-// スキーマ定義
+// Schema definitions
 const UserSchema = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
@@ -1639,7 +1639,7 @@ const CreateUserRequestSchema = Schema.Struct({
 type User = Schema.Schema.Type<typeof UserSchema>;
 type CreateUserRequest = Schema.Schema.Type<typeof CreateUserRequestSchema>;
 
-// サービス定義
+// Service definitions
 class Database extends Context.Tag("Database")<
   Database,
   {
@@ -1655,7 +1655,7 @@ class Logger extends Context.Tag("Logger")<
   }
 >() {}
 
-// ビジネスロジック
+// Business logic
 const createUser = (
   request: CreateUserRequest
 ): Effect.Effect<User, ValidationError | DatabaseError, Database & Logger> =>
@@ -1700,12 +1700,12 @@ const getUser = (
     return result[0];
   });
 
-// Layer 実装
+// Layer implementations
 const PostgresDatabaseLive = Layer.succeed(Database, {
   query: (sql, params) =>
     Effect.tryPromise({
       try: async () => {
-        // 実際の PostgreSQL クライアントを使用
+        // Use an actual PostgreSQL client
         // const result = await pool.query(sql, params);
         // return result.rows;
         return [] as any;
@@ -1724,7 +1724,7 @@ const AppLayerLive = Layer.mergeAll(
   ConsoleLoggerLive
 );
 
-// Express との統合例
+// Example integration with Express
 import express from "express";
 
 const app = express();
@@ -1732,12 +1732,12 @@ app.use(express.json());
 
 app.post("/users", async (req, res) => {
   const program = Effect.gen(function* () {
-    // リクエストのバリデーション
+    // Validate the request
     const request = yield* Schema.decodeUnknown(CreateUserRequestSchema)(req.body).pipe(
       Effect.mapError((error) => new ValidationError({ errors: [String(error)] }))
     );
 
-    // ユーザー作成
+    // Create user
     const user = yield* createUser(request);
 
     return user;
@@ -1751,7 +1751,7 @@ app.post("/users", async (req, res) => {
     res.status(201).json(exit.value);
   } else {
     const error = exit.cause;
-    // エラーハンドリング
+    // Error handling
     if (error._tag === "Fail" && error.error._tag === "ValidationError") {
       res.status(400).json({ errors: error.error.errors });
     } else {
@@ -1780,7 +1780,7 @@ app.get("/users/:id", async (req, res) => {
 });
 ```
 
-### 10-2. バッチ処理の例
+### 10-2. Batch Processing Example
 
 ```typescript
 import { Effect, Stream, Schedule } from "effect";
@@ -1810,10 +1810,10 @@ const batchProcessor = (jobs: Job[]) =>
         Effect.timeout("5 seconds")
       )
     ),
-    Stream.runDrain // 全て実行
+    Stream.runDrain // run everything
   );
 
-// 使用例
+// Usage example
 const jobs: Job[] = [
   { id: "job1", data: {} },
   { id: "job2", data: {} },
@@ -1826,12 +1826,12 @@ await Effect.runPromise(program);
 
 ---
 
-## 11. fp-ts / Zod との比較
+## 11. Comparison with fp-ts / Zod
 
 ### 11-1. Effect-ts vs fp-ts
 
 ```typescript
-// fp-ts スタイル
+// fp-ts style
 import * as E from "fp-ts/Either";
 import * as TE from "fp-ts/TaskEither";
 import { pipe } from "fp-ts/function";
@@ -1849,7 +1849,7 @@ const findUserFp = (id: string): TE.TaskEither<Error, User> =>
     )
   );
 
-// Effect-ts スタイル
+// Effect-ts style
 import { Effect } from "effect";
 
 const findUserEffect = (id: string): Effect.Effect<User, NotFoundError | DatabaseError, Database> =>
@@ -1866,53 +1866,53 @@ const findUserEffect = (id: string): Effect.Effect<User, NotFoundError | Databas
   });
 ```
 
-### 11-2. 比較表
+### 11-2. Comparison Table
 
-| 特性 | Effect-ts | fp-ts | 素のTS | neverthrow | Zod |
-|------|-----------|-------|--------|-----------|-----|
-| エラー型追跡 | 自動 | 手動 (Either/TaskEither) | なし | 手動 (Result) | 例外 |
-| DI | Layer | Reader/ReaderTaskEither | 手動/DI ライブラリ | なし | なし |
-| 並行処理 | Fiber | Task | Promise | Promise | - |
-| リトライ | Schedule | 手動 | 手動 | 手動 | - |
-| リソース管理 | Scope | Bracket | try-finally | try-finally | - |
-| バリデーション | @effect/schema | io-ts | 手動 | 手動 | Zod |
-| バンドルサイズ | ~50KB+ | ~15KB | 0KB | ~2KB | ~8KB |
-| 学習コスト | 高 | 高 | 最低 | 低 | 低 |
-| エコシステム | 統合的 | モジュラー | - | 最小限 | バリデーション特化 |
+| Feature | Effect-ts | fp-ts | Plain TS | neverthrow | Zod |
+|---------|-----------|-------|----------|-----------|-----|
+| Error type tracking | Automatic | Manual (Either/TaskEither) | None | Manual (Result) | Exception |
+| DI | Layer | Reader/ReaderTaskEither | Manual/DI library | None | None |
+| Concurrency | Fiber | Task | Promise | Promise | - |
+| Retry | Schedule | Manual | Manual | Manual | - |
+| Resource management | Scope | Bracket | try-finally | try-finally | - |
+| Validation | @effect/schema | io-ts | Manual | Manual | Zod |
+| Bundle size | ~50KB+ | ~15KB | 0KB | ~2KB | ~8KB |
+| Learning cost | High | High | Minimal | Low | Low |
+| Ecosystem | Integrated | Modular | - | Minimal | Validation-focused |
 
-### 11-3. どれを選ぶべきか
+### 11-3. Which One Should You Choose?
 
 ```mermaid
 graph TD
-    A[プロジェクト要件] --> B{チーム経験}
-    B -->|FP 経験あり| C{プロジェクト規模}
-    B -->|FP 未経験| D[素のTS / neverthrow]
+    A[Project Requirements] --> B{Team Experience}
+    B -->|FP experience| C{Project Scale}
+    B -->|No FP experience| D[Plain TS / neverthrow]
 
-    C -->|大規模| E{フルスタック機能が必要?}
-    C -->|小〜中規模| F[fp-ts]
+    C -->|Large scale| E{Full-stack features needed?}
+    C -->|Small to medium| F[fp-ts]
 
-    E -->|はい| G[Effect-ts]
-    E -->|いいえ| F
+    E -->|Yes| G[Effect-ts]
+    E -->|No| F
 
     style G fill:#90EE90
     style F fill:#87CEEB
     style D fill:#FFB6C1
 ```
 
-| 選択肢 | 推奨ケース |
-|-------|----------|
-| Effect-ts | 大規模プロジェクト、複雑なエラーハンドリング、DI が必要、チームが FP に精通 |
-| fp-ts | モジュラーな FP、既存エコシステムとの統合、バンドルサイズ重視 |
-| neverthrow | シンプルなエラーハンドリング、学習コスト最小限、小規模プロジェクト |
-| 素のTS | FP 不要、従来のスタイル、最小限の依存 |
+| Choice | Recommended When |
+|--------|-----------------|
+| Effect-ts | Large-scale projects, complex error handling, DI needed, team proficient in FP |
+| fp-ts | Modular FP, integration with existing ecosystem, bundle size is a concern |
+| neverthrow | Simple error handling, minimal learning cost, small projects |
+| Plain TS | No FP needed, traditional style, minimal dependencies |
 
 ---
 
-## 12. 演習問題
+## 12. Exercises
 
-### 演習 1: 基礎レベル
+### Exercise 1: Beginner Level
 
-**問題**: Effect-ts を使って、ユーザー情報を取得し、存在しない場合はデフォルト値を返す関数を実装してください。
+**Problem**: Using Effect-ts, implement a function that retrieves user information and returns a default value if the user does not exist.
 
 ```typescript
 import { Effect, Data } from "effect";
@@ -1926,21 +1926,21 @@ interface User {
   name: string;
 }
 
-// この関数を実装してください
+// Implement this function
 const getUser = (id: string): Effect.Effect<User, NotFoundError> => {
-  // ヒント: id === "123" の場合のみユーザーが存在
-  // TODO: 実装
+  // Hint: user exists only when id === "123"
+  // TODO: implement
   return Effect.succeed({ id: "123", name: "Alice" });
 };
 
 const getUserOrDefault = (id: string): Effect.Effect<User, never> => {
-  // TODO: NotFoundError をキャッチしてデフォルトユーザーを返す
+  // TODO: catch NotFoundError and return a default user
   return getUser(id);
 };
 ```
 
 <details>
-<summary>解答例</summary>
+<summary>Sample Answer</summary>
 
 ```typescript
 const getUser = (id: string): Effect.Effect<User, NotFoundError> => {
@@ -1962,14 +1962,14 @@ const getUserOrDefault = (id: string): Effect.Effect<User, never> => {
 
 </details>
 
-### 演習 2: 応用レベル
+### Exercise 2: Intermediate Level
 
-**問題**: Layer を使って、Logger と Database の依存性注入を実装してください。
+**Problem**: Using Layer, implement dependency injection for Logger and Database.
 
 ```typescript
 import { Effect, Context, Layer } from "effect";
 
-// サービス定義
+// Service definitions
 class Logger extends Context.Tag("Logger")<
   Logger,
   {
@@ -1984,12 +1984,12 @@ class Database extends Context.Tag("Database")<
   }
 >() {}
 
-// TODO: ConsoleLogger の Layer を実装
+// TODO: implement ConsoleLogger Layer
 const ConsoleLoggerLive = Layer.succeed(Logger, {
   log: (message) => Effect.sync(() => console.log(message)),
 });
 
-// TODO: InMemoryDatabase の Layer を実装（Logger に依存）
+// TODO: implement InMemoryDatabase Layer (depends on Logger)
 const InMemoryDatabaseLive = Layer.effect(
   Database,
   Effect.gen(function* () {
@@ -2006,13 +2006,13 @@ const InMemoryDatabaseLive = Layer.effect(
   })
 );
 
-// TODO: AppLayer を作成
+// TODO: create AppLayer
 const AppLayerLive = Layer.mergeAll(
   ConsoleLoggerLive,
   InMemoryDatabaseLive.pipe(Layer.provide(ConsoleLoggerLive))
 );
 
-// テスト
+// Test
 const program = Effect.gen(function* () {
   const db = yield* Database;
   yield* db.save("Hello, World!");
@@ -2021,9 +2021,9 @@ const program = Effect.gen(function* () {
 Effect.runPromise(program.pipe(Effect.provide(AppLayerLive)));
 ```
 
-### 演習 3: 発展レベル
+### Exercise 3: Advanced Level
 
-**問題**: Stream を使って、ログファイルから ERROR レベルのエントリだけを抽出し、最新10件を取得する関数を実装してください。
+**Problem**: Using Stream, implement a function that extracts only ERROR level entries from a log file and retrieves the latest 10.
 
 ```typescript
 import { Stream, Effect, pipe } from "effect";
@@ -2047,22 +2047,22 @@ const parseLogLine = (line: string): Effect.Effect<LogEntry, Error> =>
     catch: (error) => new Error(`Parse failed: ${error}`),
   });
 
-// TODO: この関数を実装
+// TODO: implement this function
 const extractRecentErrors = (
   lines: string[]
 ): Effect.Effect<ReadonlyArray<LogEntry>, Error> => {
-  // ヒント:
-  // 1. Stream.fromIterable でストリーム作成
-  // 2. Stream.mapEffect で各行をパース
-  // 3. Stream.filter で ERROR のみ抽出
-  // 4. Stream.take で最新10件
-  // 5. Stream.runCollect で配列に変換
+  // Hints:
+  // 1. Create a stream with Stream.fromIterable
+  // 2. Parse each line with Stream.mapEffect
+  // 3. Filter ERROR only with Stream.filter
+  // 4. Take the latest 10 with Stream.take
+  // 5. Convert to array with Stream.runCollect
   return Effect.succeed([]);
 };
 ```
 
 <details>
-<summary>解答例</summary>
+<summary>Sample Answer</summary>
 
 ```typescript
 const extractRecentErrors = (
@@ -2083,18 +2083,18 @@ const extractRecentErrors = (
 
 ---
 
-## 13. アンチパターン
+## 13. Anti-patterns
 
-### AP-1: Effect と Promise を混在させる
+### AP-1: Mixing Effect and Promise
 
 ```typescript
-// NG: Effect 内で直接 await
+// NG: using await directly inside an Effect
 const program = Effect.gen(function* () {
-  const data = await fetch("/api"); // NG: await は使えない
+  const data = await fetch("/api"); // NG: cannot use await
   return data;
 });
 
-// OK: tryPromise で Promise を Effect に変換
+// OK: convert Promise to Effect with tryPromise
 const program = Effect.gen(function* () {
   const data = yield* Effect.tryPromise({
     try: () => fetch("/api").then((r) => r.json()),
@@ -2104,41 +2104,41 @@ const program = Effect.gen(function* () {
 });
 ```
 
-**理由**: `Effect.gen` 内では `yield*` を使う必要があります。`await` を使うと型が崩れます。
+**Reason**: Inside `Effect.gen`, you must use `yield*`. Using `await` breaks the types.
 
-### AP-2: 全てを Effect で書こうとする
+### AP-2: Wrapping Everything in Effect
 
 ```typescript
-// NG: 純粋関数まで Effect にする
+// NG: wrapping pure functions in Effect unnecessarily
 const add = (a: number, b: number) =>
-  Effect.succeed(a + b); // 不要な Effect ラッピング
+  Effect.succeed(a + b); // unnecessary Effect wrapping
 
-// OK: 副作用のない関数はそのまま
+// OK: leave side-effect-free functions as-is
 const add = (a: number, b: number): number => a + b;
 
-// Effect にすべきもの:
-// - I/O（DB, HTTP, ファイル）
-// - 失敗しうる操作
-// - 依存を注入したい操作
-// - リトライ/タイムアウトが必要な操作
+// What should be wrapped in Effect:
+// - I/O (DB, HTTP, files)
+// - Operations that can fail
+// - Operations that need injected dependencies
+// - Operations that need retry/timeout
 ```
 
-**理由**: 純粋関数を Effect でラップするのは過剰です。副作用がある処理のみ Effect にしましょう。
+**Reason**: Wrapping pure functions in Effect is excessive. Only wrap operations with side effects.
 
-### AP-3: エラー型を never にする
+### AP-3: Using never for Error Types
 
 ```typescript
-// NG: エラーが起こりうるのに never
+// NG: using never when errors can occur
 const fetchData = (url: string): Effect.Effect<string, never> =>
   Effect.tryPromise({
     try: () => fetch(url).then((r) => r.text()),
     catch: () => {
-      // エラーを握りつぶす
+      // swallowing the error
       return "";
     },
   });
 
-// OK: エラー型を明示
+// OK: explicitly declare the error type
 class FetchError extends Data.TaggedError("FetchError")<{
   readonly url: string;
   readonly cause: unknown;
@@ -2151,17 +2151,17 @@ const fetchData = (url: string): Effect.Effect<string, FetchError> =>
   });
 ```
 
-**理由**: エラーを握りつぶすと、型システムの恩恵が受けられません。エラーは明示的に型として表現しましょう。
+**Reason**: Swallowing errors means you lose the benefits of the type system. Always express errors explicitly as types.
 
-### AP-4: Layer を使わず直接依存を渡す
+### AP-4: Passing Dependencies Directly Without Layer
 
 ```typescript
-// NG: 依存を直接渡す
+// NG: passing dependencies directly
 const createUser = (data: CreateUserDto, db: Database, logger: Logger) => {
   // ...
 };
 
-// OK: Layer で依存性注入
+// OK: inject dependencies via Layer
 const createUser = (
   data: CreateUserDto
 ): Effect.Effect<User, ValidationError | DatabaseError, Database & Logger> => {
@@ -2173,13 +2173,13 @@ const createUser = (
 };
 ```
 
-**理由**: Layer を使うことで、テスト時に簡単にモックと差し替えられます。
+**Reason**: Using Layer allows you to easily substitute mocks during testing.
 
 ---
 
-## 14. エッジケース分析
+## 14. Edge Case Analysis
 
-### エッジケース 1: Fiber の中断タイミング
+### Edge Case 1: Fiber Interruption Timing
 
 ```typescript
 import { Effect, Fiber } from "effect";
@@ -2189,25 +2189,25 @@ const program = Effect.gen(function* () {
     Effect.gen(function* () {
       yield* Effect.log("Start");
       yield* Effect.sleep("1 second");
-      yield* Effect.log("Middle"); // ここまで到達しない
+      yield* Effect.log("Middle"); // never reached
       yield* Effect.sleep("1 second");
       yield* Effect.log("End");
     })
   );
 
-  // 500ms 後に中断
+  // Interrupt after 500ms
   yield* Effect.sleep("500 millis");
   yield* Fiber.interrupt(fiber);
 
   yield* Effect.log("Fiber interrupted");
 });
 
-// 出力:
+// Output:
 // Start
 // Fiber interrupted
 ```
 
-**注意点**: Fiber を中断すると、実行中の Effect は即座に停止します。リソースのクリーンアップが必要な場合は `Effect.ensuring` や `Effect.acquireRelease` を使います。
+**Note**: When a Fiber is interrupted, the running Effect stops immediately. If resource cleanup is needed, use `Effect.ensuring` or `Effect.acquireRelease`.
 
 ```typescript
 const safeProgram = Effect.gen(function* () {
@@ -2225,36 +2225,36 @@ const safeProgram = Effect.gen(function* () {
   yield* Fiber.interrupt(fiber);
 });
 
-// 出力:
+// Output:
 // Acquire resource
-// Release resource (中断されてもリリースされる)
+// Release resource (released even upon interruption)
 ```
 
-### エッジケース 2: Schedule の初回実行タイミング
+### Edge Case 2: Schedule First Execution Timing
 
 ```typescript
 import { Effect, Schedule } from "effect";
 
-// fixed: 最初に遅延してから実行
+// fixed: waits before the first execution
 const fixed = Effect.log("Hello").pipe(
   Effect.repeat(Schedule.fixed("1 second"))
 );
 
-// spaced: すぐに実行してから遅延
+// spaced: executes immediately then waits
 const spaced = Effect.log("Hello").pipe(
   Effect.repeat(Schedule.spaced("1 second"))
 );
 
-// fixed の場合:
-// (1秒待つ) → Hello → (1秒待つ) → Hello → ...
+// fixed:
+// (wait 1 second) → Hello → (wait 1 second) → Hello → ...
 
-// spaced の場合:
-// Hello → (1秒待つ) → Hello → (1秒待つ) → ...
+// spaced:
+// Hello → (wait 1 second) → Hello → (wait 1 second) → ...
 ```
 
-**注意点**: `fixed` と `spaced` は初回実行タイミングが異なります。ポーリングには `spaced` が適しています。
+**Note**: `fixed` and `spaced` differ in when the first execution happens. For polling, `spaced` is more appropriate.
 
-### エッジケース 3: Schema のデフォルト値
+### Edge Case 3: Schema Default Values
 
 ```typescript
 import { Schema } from "effect";
@@ -2270,77 +2270,77 @@ const UserSchema = Schema.Struct({
 
 const parse = Schema.decodeUnknown(UserSchema);
 
-// age が undefined でも成功
+// Succeeds even if age is undefined
 const result1 = await Effect.runPromise(
   parse({ id: "123", name: "Alice" })
 );
 // { id: "123", name: "Alice", age: undefined, role: "USER" }
 
-// role が指定されている場合
+// When role is specified
 const result2 = await Effect.runPromise(
   parse({ id: "456", name: "Bob", role: "ADMIN" })
 );
 // { id: "456", name: "Bob", age: undefined, role: "ADMIN" }
 ```
 
-**注意点**: `optional` と `withDefault` を組み合わせると、値がない場合にデフォルト値が使われます。
+**Note**: Combining `optional` with `withDefault` uses the default value when no value is provided.
 
 ---
 
 ## 15. FAQ
 
-### Q1: Effect-ts は本番プロジェクトで使えるレベルですか?
+### Q1: Is Effect-ts production-ready?
 
-**A**: はい。Effect-ts は 2024 年に v3 (stable) がリリースされ、商用プロジェクトでの採用実績も増えています。以下のような企業/プロジェクトで使用されています。
+**A**: Yes. Effect-ts released v3 (stable) in 2024, and adoption in commercial projects is growing. It is used at the following companies/projects:
 
-- **Vercel**: 社内ツールで採用
-- **複数のスタートアップ**: バックエンド API サーバー
-- **オープンソースプロジェクト**: CLI ツール、データパイプライン
+- **Vercel**: adopted for internal tooling
+- **Multiple startups**: backend API servers
+- **Open source projects**: CLI tools, data pipelines
 
-ただし、学習コストが高いため、チーム全員が関数型プログラミングの基礎を理解している必要があります。
+However, the learning cost is high, so the entire team needs to understand the basics of functional programming.
 
-### Q2: Effect-ts を部分的に導入できますか?
+### Q2: Can Effect-ts be adopted incrementally?
 
-**A**: はい。既存プロジェクトの特定のモジュール（エラーハンドリングが複雑な部分、リトライが必要な部分）のみに Effect を導入できます。境界で `Effect.runPromise` を使って通常の Promise に変換すれば、既存のコードとシームレスに統合できます。
+**A**: Yes. You can introduce Effect only into specific modules of an existing project (those with complex error handling or retry requirements). By using `Effect.runPromise` at the boundary to convert to a regular Promise, you can integrate seamlessly with existing code.
 
 ```typescript
-// Effect を使う部分
+// The part using Effect
 const effectProgram = Effect.gen(function* () {
-  // 複雑なエラーハンドリング
+  // Complex error handling
   const data = yield* fetchWithRetry(url);
   return data;
 });
 
-// 既存のコードから呼び出す
+// Call from existing code
 async function legacyFunction() {
   const result = await Effect.runPromise(effectProgram);
-  // result を通常の値として使える
+  // result can be used as a normal value
 }
 ```
 
-### Q3: Effect-ts のバンドルサイズは問題になりませんか?
+### Q3: Is Effect-ts bundle size a concern?
 
-**A**: バックエンドでは問題ありません。フロントエンドでは、Effect のコアだけで **~50KB** (gzip 後 ~15KB) 程度です。Tree-shaking が効くため、使用する機能によってサイズは変わります。
+**A**: For the backend, it is not a concern. For the frontend, Effect core alone is about **~50KB** (~15KB gzipped). Tree-shaking applies, so the size varies depending on which features you use.
 
-- **バックエンド**: サイズは気にしなくて良い
-- **フロントエンド**: 本当に必要な箇所のみ使用することを推奨（エラーハンドリング、DI など）
+- **Backend**: no need to worry about size
+- **Frontend**: recommended to use only where truly needed (error handling, DI, etc.)
 
-### Q4: Effect.gen と pipe はどちらを使うべきですか?
+### Q4: Should I use Effect.gen or pipe?
 
-**A**: ケースバイケースです。
+**A**: It depends on the case.
 
-- **Effect.gen**: 複雑な制御フロー（if/for/try-catch のような構造）が必要な場合
-- **pipe**: シンプルなパイプライン、関数合成
+- **Effect.gen**: when complex control flow (structures like if/for/try-catch) is needed
+- **pipe**: for simple pipelines and function composition
 
 ```typescript
-// シンプル → pipe が読みやすい
+// Simple → pipe is more readable
 const simple = pipe(
   Effect.succeed(10),
   Effect.map((n) => n * 2),
   Effect.flatMap((n) => divide(n, 2))
 );
 
-// 複雑 → Effect.gen が読みやすい
+// Complex → Effect.gen is more readable
 const complex = Effect.gen(function* () {
   const user = yield* findUser(id);
 
@@ -2357,158 +2357,158 @@ const complex = Effect.gen(function* () {
 });
 ```
 
-### Q5: Effect-ts は fp-ts の後継ですか?
+### Q5: Is Effect-ts the successor to fp-ts?
 
-**A**: 直接の後継ではありませんが、関連性はあります。
+**A**: It is not a direct successor, but there is a relationship.
 
-- **fp-ts**: モジュラーな FP ライブラリ（Either, Option, Task など）
-- **Effect-ts**: 統合的なエフェクトシステム（エラー、依存、リソース、並行処理を全て扱う）
+- **fp-ts**: a modular FP library (Either, Option, Task, etc.)
+- **Effect-ts**: an integrated effect system (handles errors, dependencies, resources, and concurrency all in one)
 
-fp-ts の作者である **Giulio Canti** 氏も Effect-ts プロジェクトに関与しており、思想的なつながりはあります。ただし、Effect-ts は fp-ts よりも高レベルで統合的なソリューションです。
+**Giulio Canti**, the author of fp-ts, is also involved in the Effect-ts project, so there is a philosophical connection. However, Effect-ts is a higher-level, more integrated solution than fp-ts.
 
-### Q6: TypeScript 5.x は必須ですか?
+### Q6: Is TypeScript 5.x required?
 
-**A**: Effect-ts v3 は **TypeScript 5.0 以降** を推奨します。特に以下の機能を活用しています。
+**A**: Effect-ts v3 recommends **TypeScript 5.0 or later**. It makes use of the following features in particular:
 
 - `const` type parameters
 - Better type inference
 - Improved error messages
 
-TypeScript 4.x でも動作しますが、型推論が一部弱くなる場合があります。
+It works with TypeScript 4.x as well, but type inference may be weaker in some cases.
 
 ---
 
-## まとめ表
+## Summary Table
 
-| 概念 | 要点 |
-|------|------|
-| **Effect<A, E, R>** | 成功型 (A) / エラー型 (E) / 依存型 (R) の3つを追跡 |
-| **pipe / Effect.gen** | パイプライン / generator の2つの構築スタイル |
-| **Layer** | 依存性注入の仕組み、テスト時に差し替え可能 |
-| **TaggedError** | 判別可能なエラー型、catchTag で特定エラーのみ処理 |
-| **Schedule** | リトライ、繰り返し、ジッター等を宣言的に記述 |
-| **Fiber** | 軽量な並行処理プリミティブ、中断可能 |
-| **Stream** | 無限データを扱える遅延評価ストリーム |
-| **Schema** | バリデーション + 変換を統合的に扱う |
+| Concept | Key Points |
+|---------|-----------|
+| **Effect<A, E, R>** | Tracks three things: success type (A) / error type (E) / dependency type (R) |
+| **pipe / Effect.gen** | Two construction styles: pipeline / generator |
+| **Layer** | Mechanism for dependency injection, substitutable in tests |
+| **TaggedError** | Discriminated error type, catchTag handles specific errors only |
+| **Schedule** | Declaratively describe retry, repetition, jitter, etc. |
+| **Fiber** | Lightweight concurrency primitive, interruptible |
+| **Stream** | Lazily-evaluated stream capable of handling infinite data |
+| **Schema** | Integrated handling of validation and transformation |
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Understanding deepens not just through theory but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping straight to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world development?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-このガイドでは以下の重要なポイントを学びました:
-
-- 基本概念と原則の理解
-- 実践的な実装パターン
-- ベストプラクティスと注意点
-- 実務での活用方法
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architectural design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [エラーハンドリング](../02-patterns/00-error-handling.md) -- Effect-ts のエラー処理と従来の Result 型の比較
-- [DI パターン](../02-patterns/04-dependency-injection.md) -- Effect の Layer と従来の DI の比較
-- [判別共用体](../02-patterns/02-discriminated-unions.md) -- TaggedError の基盤となる判別共用体
-- 非同期処理 -- Effect による非同期処理パターン
+In this guide, we covered the following key points:
+
+- Understanding basic concepts and principles
+- Practical implementation patterns
+- Best practices and caveats
+- How to apply this in real-world development
 
 ---
 
-## 参考文献
+## Guides to Read Next
+
+- [Error Handling](../02-patterns/00-error-handling.md) -- Comparison of Effect-ts error handling and traditional Result types
+- [DI Patterns](../02-patterns/04-dependency-injection.md) -- Comparison of Effect's Layer and traditional DI
+- [Discriminated Unions](../02-patterns/02-discriminated-unions.md) -- Discriminated unions underlying TaggedError
+- Async Processing -- Async processing patterns with Effect
+
+---
+
+## References
 
 1. **Effect Documentation**
    https://effect.website/docs/introduction
-   公式ドキュメント。チュートリアルから高度な機能まで網羅。
+   Official documentation. Covers everything from tutorials to advanced features.
 
 2. **Effect GitHub Repository**
    https://github.com/Effect-TS/effect
-   ソースコード、Issue、ディスカッション。
+   Source code, issues, and discussions.
 
 3. **Michael Arnaldi - Why Effect?**
    https://www.youtube.com/watch?v=zrNr3JVUc8I
-   Effect-ts の設計思想とモチベーション（動画）。
+   Design philosophy and motivation behind Effect-ts (video).
 
 4. **Effect Workshop by Ethan Niser**
    https://github.com/ethanniser/effect-workshop
-   実践的なワークショップ教材。
+   Practical workshop materials.
 
 5. **Effect Discord Community**
    https://discord.gg/effect-ts
-   活発なコミュニティ、質問や議論が可能。
+   Active community for questions and discussions.
 
 ---
 
-## 付録: よく使う Effect 関数一覧
+## Appendix: Commonly Used Effect Functions
 
-### 作成
+### Creation
 
-| 関数 | 説明 |
-|------|------|
-| `Effect.succeed(value)` | 成功する Effect を作成 |
-| `Effect.fail(error)` | 失敗する Effect を作成 |
-| `Effect.sync(() => value)` | 遅延評価される Effect |
-| `Effect.tryPromise({ try, catch })` | Promise を Effect に変換 |
-| `Effect.try({ try, catch })` | 例外を Effect に変換 |
-| `Effect.gen(function* () { ... })` | Generator 構文で Effect 構築 |
+| Function | Description |
+|----------|-------------|
+| `Effect.succeed(value)` | Create a succeeding Effect |
+| `Effect.fail(error)` | Create a failing Effect |
+| `Effect.sync(() => value)` | Lazily evaluated Effect |
+| `Effect.tryPromise({ try, catch })` | Convert a Promise to an Effect |
+| `Effect.try({ try, catch })` | Convert an exception to an Effect |
+| `Effect.gen(function* () { ... })` | Build an Effect using generator syntax |
 
-### 変換
+### Transformation
 
-| 関数 | 説明 |
-|------|------|
-| `Effect.map(f)` | 成功値を変換 |
-| `Effect.flatMap(f)` | Effect を返す変換 |
-| `Effect.tap(f)` | 副作用を挿入（値は変わらない） |
-| `Effect.mapError(f)` | エラー値を変換 |
-| `Effect.filterOrFail(predicate, error)` | 条件を満たさない場合は失敗 |
+| Function | Description |
+|----------|-------------|
+| `Effect.map(f)` | Transform the success value |
+| `Effect.flatMap(f)` | Transform returning an Effect |
+| `Effect.tap(f)` | Insert a side effect (value unchanged) |
+| `Effect.mapError(f)` | Transform the error value |
+| `Effect.filterOrFail(predicate, error)` | Fail if condition is not met |
 
-### エラーハンドリング
+### Error Handling
 
-| 関数 | 説明 |
-|------|------|
-| `Effect.catchAll(f)` | 全てのエラーを処理 |
-| `Effect.catchTag(tag, f)` | 特定タグのエラーを処理 |
-| `Effect.catchTags({ tag1: f1, tag2: f2 })` | 複数タグを処理 |
-| `Effect.orElse(f)` | 失敗時に別の Effect を試す |
-| `Effect.retry(schedule)` | Schedule に従ってリトライ |
+| Function | Description |
+|----------|-------------|
+| `Effect.catchAll(f)` | Handle all errors |
+| `Effect.catchTag(tag, f)` | Handle a specific error tag |
+| `Effect.catchTags({ tag1: f1, tag2: f2 })` | Handle multiple tags |
+| `Effect.orElse(f)` | Try another Effect on failure |
+| `Effect.retry(schedule)` | Retry according to a Schedule |
 
-### 並行処理
+### Concurrency
 
-| 関数 | 説明 |
-|------|------|
-| `Effect.all([a, b, c], { concurrency })` | 複数を並列実行 |
-| `Effect.race(a, b)` | 最初に完了した方を採用 |
-| `Effect.fork(effect)` | Fiber として実行 |
-| `Fiber.join(fiber)` | Fiber の結果を待つ |
-| `Fiber.interrupt(fiber)` | Fiber を中断 |
+| Function | Description |
+|----------|-------------|
+| `Effect.all([a, b, c], { concurrency })` | Run multiple in parallel |
+| `Effect.race(a, b)` | Use whichever completes first |
+| `Effect.fork(effect)` | Run as a Fiber |
+| `Fiber.join(fiber)` | Wait for a Fiber result |
+| `Fiber.interrupt(fiber)` | Interrupt a Fiber |
 
-### 実行
+### Execution
 
-| 関数 | 説明 |
-|------|------|
-| `Effect.runSync(effect)` | 同期実行 |
-| `Effect.runPromise(effect)` | Promise として実行 |
-| `Effect.runPromiseExit(effect)` | Exit 型で実行 |
-| `Effect.runFork(effect)` | Fiber として実行 |
+| Function | Description |
+|----------|-------------|
+| `Effect.runSync(effect)` | Synchronous execution |
+| `Effect.runPromise(effect)` | Run as a Promise |
+| `Effect.runPromiseExit(effect)` | Run as Exit type |
+| `Effect.runFork(effect)` | Run as a Fiber |
 
 ---
 
-**執筆日**: 2025-01-XX
-**文字数**: 約 42,000 字
+**Written**: 2025-01-XX
+**Length**: approx. 42,000 characters
 
-この完全ガイドでは、Effect-ts の基本から応用、プロダクション導入までを網羅しました。演習問題やアンチパターン、エッジケースを通じて、実践的な知識を身につけることができます。Effect-ts は学習コストが高いですが、型安全性と合成可能性による恩恵は非常に大きいです。段階的に導入して、プロジェクトに適用してみてください。
+This complete guide covers Effect-ts from the basics to advanced usage and production adoption. Through exercises, anti-patterns, and edge cases, you can build practical knowledge. Effect-ts has a high learning cost, but the benefits of type safety and composability are substantial. Introduce it incrementally and apply it to your projects.

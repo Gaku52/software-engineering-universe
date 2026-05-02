@@ -1,63 +1,63 @@
-# TypeScript 5.x 新機能完全ガイド
+# TypeScript 5.x New Features Complete Guide
 
-> TypeScript 5.0〜5.7 の主要な新機能を網羅し、モダン TypeScript の最新パターンを習得する
+> A comprehensive guide covering the major new features of TypeScript 5.0–5.7 and mastering the latest patterns in modern TypeScript
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **TypeScript 5.0** -- ECMAScript 標準デコレータ、const 型パラメータ、enum 改善
-2. **TypeScript 5.1** -- getter/setter の型非対称、暗黙 undefined 返り値
-3. **TypeScript 5.2** -- using 宣言（明示的リソース管理）、デコレータメタデータ
-4. **TypeScript 5.3** -- Import Attributes、switch(true) ナローイング
-5. **TypeScript 5.4** -- NoInfer ユーティリティ型、クロージャでの型絞り込み保持
-6. **TypeScript 5.5** -- 型述語の推論、正規表現チェック、isolatedDeclarations
-7. **TypeScript 5.6** -- Iterator ヘルパー型、Disallowed Nullish/Truthy Checks
-8. **TypeScript 5.7** -- パフォーマンス改善、Node.js 22 サポート強化
-9. **マイグレーションガイド** -- 各バージョンへの段階的移行戦略
-10. **ベストプラクティス** -- 実務で活用できる実践的パターン
+1. **TypeScript 5.0** -- ECMAScript standard decorators, const type parameters, enum improvements
+2. **TypeScript 5.1** -- Getter/setter type asymmetry, implicit undefined return values
+3. **TypeScript 5.2** -- `using` declarations (Explicit Resource Management), decorator metadata
+4. **TypeScript 5.3** -- Import Attributes, `switch(true)` narrowing
+5. **TypeScript 5.4** -- `NoInfer` utility type, type narrowing preservation in closures
+6. **TypeScript 5.5** -- Type predicate inference, regex checks, `isolatedDeclarations`
+7. **TypeScript 5.6** -- Iterator helper types, Disallowed Nullish/Truthy Checks
+8. **TypeScript 5.7** -- Performance improvements, enhanced Node.js 22 support
+9. **Migration Guide** -- Incremental migration strategies for each version
+10. **Best Practices** -- Practical patterns you can use in real-world development
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Effect-ts 完全ガイド](./03-effect-ts.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [Effect-ts Complete Guide](./03-effect-ts.md)
 
 ---
 
-## 1. TypeScript 5.0: ECMAScript 標準デコレータとリテラル型保持
+## 1. TypeScript 5.0: ECMAScript Standard Decorators and Literal Type Preservation
 
-TypeScript 5.0（2023年3月）は ECMAScript Stage 3 デコレータのサポート、const 型パラメータ、enum の改善など、型システムの大幅な強化を実現しました。
+TypeScript 5.0 (March 2023) delivered major type system enhancements, including support for ECMAScript Stage 3 decorators, const type parameters, and enum improvements.
 
-### 1-1. ECMAScript デコレータ（Stage 3）
+### 1-1. ECMAScript Decorators (Stage 3)
 
-ECMAScript 標準デコレータは、従来の実験的デコレータ（`experimentalDecorators: true`）から移行する正式な仕様です。
+ECMAScript standard decorators are the official specification that replaces the legacy experimental decorators (`experimentalDecorators: true`).
 
 ```
-デコレータの適用順序:
+Decorator application order:
 
-  @log           3番目に適用（外側から）
-  @validate      2番目に適用
-  @injectable    1番目に適用（最も内側、最初に実行）
+  @log           Applied 3rd (from the outside)
+  @validate      Applied 2nd
+  @injectable    Applied 1st (innermost, executed first)
   class UserService {
-    @measure     メソッドデコレータ（メソッド定義時に適用）
+    @measure     Method decorator (applied when the method is defined)
     getUser() {}
   }
 
-実行順序:
-  1. @injectable (クラス定義を受け取る)
-  2. @validate (前のデコレータの結果を受け取る)
-  3. @log (最後に適用、最終的なクラスを返す)
+Execution order:
+  1. @injectable (receives the class definition)
+  2. @validate (receives the result of the previous decorator)
+  3. @log (applied last, returns the final class)
 ```
 
-#### クラスデコレータの実装
+#### Implementing Class Decorators
 
 ```typescript
-// ECMAScript 標準デコレータ（Stage 3）
-// TypeScript 5.0+ の experimentalDecorators: false（デフォルト）
+// ECMAScript standard decorators (Stage 3)
+// TypeScript 5.0+ with experimentalDecorators: false (default)
 
-// クラスデコレータ: クラス定義を受け取り、新しいクラスまたは void を返す
+// Class decorator: receives a class definition and returns a new class or void
 function sealed<T extends { new (...args: any[]): {} }>(
   target: T,
   context: ClassDecoratorContext
@@ -68,7 +68,7 @@ function sealed<T extends { new (...args: any[]): {} }>(
   return target;
 }
 
-// ロギング機能を追加するデコレータ
+// Decorator that adds logging capability
 function logged<T extends { new (...args: any[]): {} }>(
   target: T,
   context: ClassDecoratorContext
@@ -84,7 +84,7 @@ function logged<T extends { new (...args: any[]): {} }>(
   };
 }
 
-// メソッドデコレータ: メソッドをラップして拡張
+// Method decorator: wraps and extends a method
 function log<T extends (...args: any[]) => any>(
   target: T,
   context: ClassMethodDecoratorContext
@@ -101,7 +101,7 @@ function log<T extends (...args: any[]) => any>(
   } as T;
 }
 
-// 非同期メソッドデコレータ
+// Async method decorator
 function asyncLog<T extends (...args: any[]) => Promise<any>>(
   target: T,
   context: ClassMethodDecoratorContext
@@ -121,7 +121,7 @@ function asyncLog<T extends (...args: any[]) => Promise<any>>(
   } as T;
 }
 
-// フィールドデコレータ: this を自動バインド
+// Field decorator: auto-binds `this`
 function bound<T extends (...args: any[]) => any>(
   _target: undefined,
   context: ClassFieldDecoratorContext
@@ -131,7 +131,7 @@ function bound<T extends (...args: any[]) => any>(
   };
 }
 
-// アクセサデコレータ
+// Accessor decorator
 function validate(
   target: any,
   context: ClassAccessorDecoratorContext | ClassSetterDecoratorContext
@@ -146,7 +146,7 @@ function validate(
   }
 }
 
-// 使用例
+// Usage example
 interface User {
   id: string;
   name: string;
@@ -164,7 +164,7 @@ class UserService {
 
   @asyncLog
   async fetchUser(id: string): Promise<User> {
-    // 模擬的な非同期処理
+    // Simulated async operation
     await new Promise((resolve) => setTimeout(resolve, 100));
     const user = this.users.get(id);
     if (!user) {
@@ -175,12 +175,12 @@ class UserService {
 
   @bound
   handleClick = () => {
-    // this が常にインスタンスにバインドされる
+    // `this` is always bound to the instance
     console.log("UserService instance:", this);
   };
 }
 
-// 実行例
+// Execution example
 const service = new UserService();
 // [UserService] Creating instance with args: []
 // Sealing class: UserService
@@ -191,13 +191,13 @@ service.getUser("user-1");
 // getUser returned undefined in 0.02ms
 
 const button = { onClick: service.handleClick };
-button.onClick(); // this は UserService のインスタンスを指す
+button.onClick(); // `this` refers to the UserService instance
 ```
 
-#### デコレータメタデータの活用
+#### Using Decorator Metadata
 
 ```typescript
-// メタデータを使った依存性注入パターン
+// Dependency injection pattern using metadata
 const METADATA_KEY = Symbol("metadata");
 
 type Metadata = {
@@ -211,7 +211,7 @@ function Injectable(options: { singleton?: boolean } = {}) {
     target: T,
     context: ClassDecoratorContext
   ) {
-    // メタデータの追加（context.metadata を使用）
+    // Adding metadata (using context.metadata)
     context.metadata[METADATA_KEY] = {
       injectable: true,
       singleton: options.singleton ?? false,
@@ -253,32 +253,32 @@ class UserRepository {
 }
 ```
 
-### 1-2. const 型パラメータ
+### 1-2. Const Type Parameters
 
-const 型パラメータは、ジェネリック関数でリテラル型を保持するための機能です。
+Const type parameters are a feature for preserving literal types in generic functions.
 
 ```typescript
-// const 型パラメータの基本
+// Basics of const type parameters
 
-// 通常のジェネリック: リテラル型が失われる
+// Regular generic: literal types are lost
 function identity<T>(value: T): T {
   return value;
 }
 const result1 = identity(["a", "b", "c"]);
-// 型: string[]（リテラル型が失われる）
+// Type: string[] (literal types are lost)
 
-// const 型パラメータ: リテラル型が保持される
+// Const type parameter: literal types are preserved
 function identityConst<const T>(value: T): T {
   return value;
 }
 const result2 = identityConst(["a", "b", "c"]);
-// 型: readonly ["a", "b", "c"]（リテラル型が保持される）
+// Type: readonly ["a", "b", "c"] (literal types are preserved)
 ```
 
-#### 実践例: 型安全なルーター
+#### Practical Example: Type-safe Router
 
 ```typescript
-// const 型パラメータを使った型安全なルーター実装
+// Type-safe router implementation using const type parameters
 
 type RouteConfig<T> = {
   readonly path: string;
@@ -309,7 +309,7 @@ function createRouter<const T extends Record<string, RouteConfig<any>>>(
   };
 }
 
-// 使用例
+// Usage example
 const router = createRouter({
   "/home": {
     path: "/home",
@@ -325,25 +325,25 @@ const router = createRouter({
   },
 });
 
-// 型安全なナビゲーション
+// Type-safe navigation
 const homeResult = router.navigate("/home");
-// 型: { page: string; title: string }
+// Type: { page: string; title: string }
 
 const aboutResult = router.navigate("/about");
-// 型: { page: string; version: number }
+// Type: { page: string; version: number }
 
-// @ts-expect-error: 存在しないパス
+// @ts-expect-error: path does not exist
 router.navigate("/unknown");
 
-// パスの一覧を取得
+// Get list of paths
 const paths = router.getPaths();
-// 型: readonly ("/home" | "/about" | "/contact")[]
+// Type: readonly ("/home" | "/about" | "/contact")[]
 ```
 
-#### const 型パラメータと satisfies の組み合わせ
+#### Combining Const Type Parameters with satisfies
 
 ```typescript
-// const 型パラメータと satisfies を組み合わせた高度なパターン
+// Advanced pattern combining const type parameters with satisfies
 
 type Action = {
   type: string;
@@ -356,14 +356,14 @@ function createActions<const T extends ActionMap>(actions: T): T {
   return actions;
 }
 
-// 使用例: Redux-like なアクション定義
+// Usage example: Redux-like action definitions
 const actions = createActions({
   INCREMENT: { type: "INCREMENT" },
   DECREMENT: { type: "DECREMENT" },
   SET_VALUE: { type: "SET_VALUE", payload: 0 },
 } satisfies ActionMap);
 
-// 型: {
+// Type: {
 //   readonly INCREMENT: { type: "INCREMENT" };
 //   readonly DECREMENT: { type: "DECREMENT" };
 //   readonly SET_VALUE: { type: "SET_VALUE"; payload: number };
@@ -383,7 +383,7 @@ function reducer(state: number, action: ActionTypes): number {
     case "DECREMENT":
       return state - 1;
     case "SET_VALUE":
-      // action.payload の型が number と推論される
+      // action.payload is inferred as number
       return action.payload;
     default:
       return state;
@@ -391,12 +391,12 @@ function reducer(state: number, action: ActionTypes): number {
 }
 ```
 
-### 1-3. enum の改善
+### 1-3. Enum Improvements
 
-TypeScript 5.0 では、enum と union 型の相互運用性が改善されました。
+TypeScript 5.0 improved the interoperability between enums and union types.
 
 ```typescript
-// enum の改善: union 型との統一性向上
+// Enum improvements: improved consistency with union types
 
 enum Color {
   Red = "red",
@@ -404,14 +404,14 @@ enum Color {
   Blue = "blue",
 }
 
-// 5.0 以前: この代入はエラーになることがあった
+// Before 5.0: this assignment could result in an error
 const colors: Color[] = ["red", "green", "blue"] as Color[];
 
-// 5.0 以降: より柔軟に扱える
+// After 5.0: handled more flexibly
 type ColorValue = `${Color}`;
 const colorValue: ColorValue = "red"; // OK
 
-// enum の値から union 型を生成
+// Generate a union type from enum values
 type ColorUnion = Color.Red | Color.Green | Color.Blue;
 
 function processColor(color: ColorUnion): void {
@@ -424,19 +424,19 @@ processColor("red" as Color.Red); // OK
 
 ---
 
-## 2. TypeScript 5.1: getter/setter の型非対称と返り値の改善
+## 2. TypeScript 5.1: Getter/Setter Type Asymmetry and Return Type Improvements
 
-TypeScript 5.1（2023年6月）は、getter と setter で異なる型を使用できるようになり、より柔軟なクラス設計が可能になりました。
+TypeScript 5.1 (June 2023) allowed getters and setters to use different types, enabling more flexible class design.
 
-### 2-1. 関連のない型の getter/setter
+### 2-1. Unrelated Types for Getters and Setters
 
 ```typescript
-// getter と setter で異なる型を使用可能に
+// Getters and setters can now use different types
 
 class Resource {
   private _value: string | undefined;
 
-  // getter は non-null な string を返す
+  // getter returns a non-null string
   get value(): string {
     if (this._value === undefined) {
       throw new Error("Value not initialized");
@@ -444,21 +444,21 @@ class Resource {
     return this._value;
   }
 
-  // setter は string | undefined を受け付ける
+  // setter accepts string | undefined
   set value(val: string | undefined) {
     this._value = val;
   }
 }
 
 const r = new Resource();
-r.value = "hello";         // setter: string | undefined を受け付ける
-const v: string = r.value; // getter: string を返す（undefined でない）
-r.value = undefined;       // OK: setter は undefined を受け付ける
+r.value = "hello";         // setter: accepts string | undefined
+const v: string = r.value; // getter: returns string (not undefined)
+r.value = undefined;       // OK: setter accepts undefined
 
-// r.value を読むと string が返る（undefined を投げる可能性がある）
+// Reading r.value returns string (though it may throw if not initialized)
 ```
 
-#### 実践例: Lazy Initialization パターン
+#### Practical Example: Lazy Initialization Pattern
 
 ```typescript
 // Lazy Initialization with getter/setter type asymmetry
@@ -471,7 +471,7 @@ class LazyValue<T> {
     this._initializer = initializer;
   }
 
-  // getter: 必ず T を返す（初期化されていなければ初期化）
+  // getter: always returns T (initializes if not yet initialized)
   get value(): T {
     if (this._value === undefined) {
       console.log("Initializing lazy value...");
@@ -480,7 +480,7 @@ class LazyValue<T> {
     return this._value;
   }
 
-  // setter: T | undefined を受け付ける（リセット可能）
+  // setter: accepts T | undefined (can be reset)
   set value(val: T | undefined) {
     this._value = val;
   }
@@ -490,7 +490,7 @@ class LazyValue<T> {
   }
 }
 
-// 使用例
+// Usage example
 const expensiveComputation = new LazyValue(() => {
   console.log("Computing...");
   return Array.from({ length: 1000000 }, (_, i) => i).reduce((a, b) => a + b, 0);
@@ -499,21 +499,21 @@ const expensiveComputation = new LazyValue(() => {
 console.log("Before access");
 const result = expensiveComputation.value; // "Initializing lazy value..." → "Computing..."
 console.log(result); // 499999500000
-const cachedResult = expensiveComputation.value; // "Computing..." は表示されない（キャッシュされている）
+const cachedResult = expensiveComputation.value; // "Computing..." is not printed again (cached)
 
 expensiveComputation.reset();
-const recomputed = expensiveComputation.value; // 再度 "Computing..." が表示される
+const recomputed = expensiveComputation.value; // "Computing..." is printed again
 ```
 
-#### 型変換を伴う getter/setter
+#### Getter/Setter with Type Conversion
 
 ```typescript
-// 型変換を伴う getter/setter パターン
+// Getter/setter pattern with type conversion
 
 class TemperatureConverter {
   private _celsius: number = 0;
 
-  // Celsius で保持、Fahrenheit で取得
+  // Stored in Celsius, retrieved in Fahrenheit
   get fahrenheit(): number {
     return (this._celsius * 9) / 5 + 32;
   }
@@ -539,69 +539,69 @@ temp.fahrenheit = 100;
 console.log(temp.celsius); // 37.77777777777778
 ```
 
-### 2-2. 暗黙的な undefined 返り値
+### 2-2. Implicit Undefined Return Values
 
-TypeScript 5.1 では、関数の返り値型が `T | undefined` の場合、明示的に `return undefined` を書かなくても良くなりました。
+In TypeScript 5.1, when a function's return type is `T | undefined`, you no longer need to explicitly write `return undefined`.
 
 ```typescript
-// 暗黙的な undefined 返り値の改善
+// Implicit undefined return value improvement
 
-// 5.1 以前: return undefined が必須
+// Before 5.1: return undefined was required
 function findUser(id: string): User | undefined {
   const user = database.get(id);
   if (!user) {
-    return undefined; // 明示的に必要だった
+    return undefined; // had to be explicit
   }
   return user;
 }
 
-// 5.1 以降: return を省略可能
+// After 5.1: return can be omitted
 function findUser2(id: string): User | undefined {
   const user = database.get(id);
   if (!user) {
-    return; // undefined が暗黙的に返される
+    return; // undefined is implicitly returned
   }
   return user;
 }
 
-// より自然な記述が可能に
+// More natural writing is now possible
 function getConfig(key: string): string | undefined {
   if (key === "port") return "3000";
   if (key === "host") return "localhost";
-  // 暗黙的に undefined が返される
+  // undefined is implicitly returned
 }
 ```
 
 ---
 
-## 3. TypeScript 5.2: Explicit Resource Management（using 宣言）
+## 3. TypeScript 5.2: Explicit Resource Management (using Declaration)
 
-TypeScript 5.2（2023年8月）は、ECMAScript の Explicit Resource Management 提案に基づく `using` 宣言をサポートしました。
+TypeScript 5.2 (August 2023) added support for `using` declarations based on the ECMAScript Explicit Resource Management proposal.
 
-### 3-1. using 宣言の基本
+### 3-1. Basics of the using Declaration
 
 ```
-using によるリソース管理:
+Resource management with using:
 
   {
     using file = openFile("data.txt");
-    // file を使用
+    // use file
     const content = file.read();
     // ...
-  } ← スコープを抜けると自動的に file[Symbol.dispose]() が呼ばれる
+  } ← file[Symbol.dispose]() is automatically called when the scope exits
 
   {
     await using db = await connectToDatabase();
-    // db を使用
+    // use db
     const users = await db.query("SELECT * FROM users");
     // ...
-  } ← 自動的に await db[Symbol.asyncDispose]() が呼ばれる
+  } ← await db[Symbol.asyncDispose]() is automatically called
 ```
 
-#### Disposable の実装
+#### Implementing Disposable
 
 ```typescript
-// Disposable インターフェースの実装
+// Implementing the Disposable interface
 
 class FileHandle implements Disposable {
   private handle: number | null = null;
@@ -614,7 +614,7 @@ class FileHandle implements Disposable {
   }
 
   private openFileSync(path: string): number {
-    // 模擬的なファイルハンドル
+    // Simulated file handle
     return Math.floor(Math.random() * 1000);
   }
 
@@ -640,26 +640,26 @@ class FileHandle implements Disposable {
   }
 }
 
-// using で自動リソース解放
+// Automatic resource release with using
 function processFile(path: string): string {
   using file = new FileHandle(path);
   const content = file.read();
   file.write("Updated content");
   return content;
-  // スコープ終了時に自動で [Symbol.dispose]() が呼ばれる
+  // [Symbol.dispose]() is automatically called when the scope exits
 }
 
-// 実行例
+// Execution example
 const result = processFile("data.txt");
 // Opened: data.txt
 // Writing to data.txt: Updated content
 // Closing file: data.txt
 ```
 
-#### AsyncDisposable の実装
+#### Implementing AsyncDisposable
 
 ```typescript
-// AsyncDisposable インターフェース
+// AsyncDisposable interface
 
 class DatabaseConnection implements AsyncDisposable {
   private connected: boolean = false;
@@ -701,15 +701,15 @@ class DatabaseConnection implements AsyncDisposable {
   }
 }
 
-// await using で自動リソース解放
+// Automatic resource release with await using
 async function queryUsers(): Promise<User[]> {
   await using db = await DatabaseConnection.create("postgresql://localhost:5432/mydb");
   const users = await db.query<User>("SELECT * FROM users");
   return users;
-  // 自動的に await db[Symbol.asyncDispose]() が呼ばれる
+  // await db[Symbol.asyncDispose]() is automatically called
 }
 
-// 実行例
+// Execution example
 await queryUsers();
 // Connecting to postgresql://localhost:5432/mydb...
 // Connected!
@@ -718,10 +718,10 @@ await queryUsers();
 // Disconnected!
 ```
 
-#### using のエラーハンドリング
+#### Error Handling with using
 
 ```typescript
-// using のエラーハンドリングと SuppressedError
+// Error handling and SuppressedError with using
 
 class Transaction implements Disposable {
   private committed: boolean = false;
@@ -734,7 +734,7 @@ class Transaction implements Disposable {
   [Symbol.dispose](): void {
     if (!this.committed) {
       console.log("Rolling back transaction...");
-      // ロールバック処理
+      // Rollback logic
     }
   }
 }
@@ -753,12 +753,12 @@ try {
   processTransaction(true);
 } catch (error) {
   console.error("Error:", error);
-  // 先に tx[Symbol.dispose]() が呼ばれ、その後エラーが投げられる
+  // tx[Symbol.dispose]() is called first, then the error is thrown
 }
 // Rolling back transaction...
 // Error: Error: Transaction failed
 
-// dispose 中にもエラーが発生した場合
+// When an error also occurs during dispose
 class ProblematicResource implements Disposable {
   [Symbol.dispose](): void {
     throw new Error("Dispose failed");
@@ -774,16 +774,16 @@ try {
   useProblematicResource();
 } catch (error) {
   console.error(error);
-  // SuppressedError が投げられる（元のエラーと dispose のエラーを両方含む）
+  // SuppressedError is thrown (contains both the original error and the dispose error)
 }
 ```
 
-### 3-2. デコレータメタデータ
+### 3-2. Decorator Metadata
 
-TypeScript 5.2 では、デコレータメタデータの型定義が改善されました。
+TypeScript 5.2 improved the type definitions for decorator metadata.
 
 ```typescript
-// デコレータメタデータの活用
+// Using decorator metadata
 
 type MetadataMap = {
   validation?: {
@@ -846,41 +846,41 @@ class UserDto {
   email!: string;
 }
 
-// メタデータを使ったバリデーション関数
+// Validation function using metadata
 function validate<T extends object>(obj: T): boolean {
   const metadata = (obj.constructor as any)[Symbol.metadata] as MetadataMap;
-  // メタデータを使った検証ロジック
+  // Validation logic using metadata
   return true;
 }
 ```
 
 ---
 
-## 4. TypeScript 5.3: Import Attributes と型絞り込みの改善
+## 4. TypeScript 5.3: Import Attributes and Improved Type Narrowing
 
-TypeScript 5.3（2023年11月）は、Import Attributes（旧 Import Assertions）のサポートと、型絞り込みの大幅な改善をもたらしました。
+TypeScript 5.3 (November 2023) introduced support for Import Attributes (formerly Import Assertions) and major improvements to type narrowing.
 
 ### 4-1. Import Attributes
 
 ```typescript
-// Import Attributes（旧称: Import Assertions）
+// Import Attributes (formerly: Import Assertions)
 
-// JSON のインポート
+// Importing JSON
 import config from "./config.json" with { type: "json" };
-// config の型が自動的に推論される
+// The type of config is automatically inferred
 
-// CSS のインポート（CSS Modules）
+// Importing CSS (CSS Modules)
 import styles from "./app.css" with { type: "css" };
 
-// 動的インポート
+// Dynamic import
 const data = await import("./data.json", {
   with: { type: "json" },
 });
 
-// カスタム属性
+// Custom attributes
 import wasmModule from "./module.wasm" with { type: "webassembly" };
 
-// 型定義の例
+// Example type definition
 // config.json
 {
   "port": 3000,
@@ -888,7 +888,7 @@ import wasmModule from "./module.wasm" with { type: "webassembly" };
   "debug": true
 }
 
-// TypeScript が自動推論する型:
+// Type automatically inferred by TypeScript:
 // type Config = {
 //   port: number;
 //   host: string;
@@ -896,10 +896,10 @@ import wasmModule from "./module.wasm" with { type: "webassembly" };
 // }
 ```
 
-#### Import Attributes の実践例
+#### Practical Example: Import Attributes
 
 ```typescript
-// Import Attributes を使った設定管理
+// Configuration management using Import Attributes
 
 // config/development.json
 import devConfig from "./config/development.json" with { type: "json" };
@@ -938,27 +938,27 @@ function getConfig(): Config {
 export const config = getConfig();
 ```
 
-### 4-2. switch (true) の型絞り込み
+### 4-2. Type Narrowing in switch (true)
 
 ```typescript
-// switch (true) の型絞り込み（5.3 の改善）
+// Type narrowing in switch (true) (5.3 improvement)
 
 function classify(value: string | number | boolean | null): string {
   switch (true) {
     case value === null:
-      // value は null に絞り込まれる
+      // value is narrowed to null
       return "null value";
 
     case typeof value === "string":
-      // value は string に絞り込まれる
+      // value is narrowed to string
       return value.toUpperCase();
 
     case typeof value === "number":
-      // value は number に絞り込まれる
+      // value is narrowed to number
       return value.toFixed(2);
 
     case typeof value === "boolean":
-      // value は boolean に絞り込まれる
+      // value is narrowed to boolean
       return value ? "yes" : "no";
 
     default:
@@ -967,7 +967,7 @@ function classify(value: string | number | boolean | null): string {
   }
 }
 
-// より複雑な条件での絞り込み
+// Narrowing with more complex conditions
 type Shape =
   | { kind: "circle"; radius: number }
   | { kind: "rectangle"; width: number; height: number }
@@ -976,15 +976,15 @@ type Shape =
 function getArea(shape: Shape): number {
   switch (true) {
     case shape.kind === "circle":
-      // shape は { kind: "circle"; radius: number } に絞り込まれる
+      // shape is narrowed to { kind: "circle"; radius: number }
       return Math.PI * shape.radius ** 2;
 
     case shape.kind === "rectangle":
-      // shape は { kind: "rectangle"; width: number; height: number } に絞り込まれる
+      // shape is narrowed to { kind: "rectangle"; width: number; height: number }
       return shape.width * shape.height;
 
     case shape.kind === "triangle":
-      // shape は { kind: "triangle"; base: number; height: number } に絞り込まれる
+      // shape is narrowed to { kind: "triangle"; base: number; height: number }
       return (shape.base * shape.height) / 2;
 
     default:
@@ -994,10 +994,10 @@ function getArea(shape: Shape): number {
 }
 ```
 
-### 4-3. インライン型ナローイングの改善
+### 4-3. Improved Inline Type Narrowing
 
 ```typescript
-// インライン型ナローイングの改善
+// Improved inline type narrowing
 
 type Response<T> =
   | { success: true; data: T }
@@ -1012,40 +1012,40 @@ async function fetchUser(id: string): Promise<Response<User>> {
   }
 }
 
-// 5.3 の改善: インライン条件での絞り込み
+// 5.3 improvement: narrowing works with inline conditions
 async function processUser(id: string): Promise<void> {
   const response = await fetchUser(id);
 
-  // 5.3 以降: response.success の確認で型が絞り込まれる
+  // After 5.3: checking response.success narrows the type
   if (response.success) {
-    // response は { success: true; data: User } に絞り込まれる
+    // response is narrowed to { success: true; data: User }
     console.log(response.data.name);
   } else {
-    // response は { success: false; error: string } に絞り込まれる
+    // response is narrowed to { success: false; error: string }
     console.error(response.error);
   }
 
-  // 三項演算子内でも絞り込みが機能
+  // Narrowing also works inside ternary expressions
   const message = response.success
-    ? `User: ${response.data.name}`  // data が利用可能
-    : `Error: ${response.error}`;    // error が利用可能
+    ? `User: ${response.data.name}`  // data is available
+    : `Error: ${response.error}`;    // error is available
 }
 ```
 
 ---
 
-## 5. TypeScript 5.4: NoInfer とクロージャでの型絞り込み保持
+## 5. TypeScript 5.4: NoInfer and Type Narrowing Preservation in Closures
 
-TypeScript 5.4（2024年3月）は、NoInfer ユーティリティ型の追加と、クロージャ内での型絞り込み保持を実現しました。
+TypeScript 5.4 (March 2024) introduced the `NoInfer` utility type and enabled preservation of type narrowing inside closures.
 
-### 5-1. NoInfer ユーティリティ型
+### 5-1. NoInfer Utility Type
 
-NoInfer は、型推論の候補から特定の位置を除外するユーティリティ型です。
+`NoInfer` is a utility type that excludes a specific position from type inference candidates.
 
 ```typescript
-// NoInfer: 型推論の候補から除外
+// NoInfer: exclude from type inference candidates
 
-// NoInfer なし: defaultValue からも T が推論される
+// Without NoInfer: T is inferred from defaultValue as well
 function getOrDefault<T>(
   value: T | null | undefined,
   defaultValue: T
@@ -1054,9 +1054,9 @@ function getOrDefault<T>(
 }
 
 const result1 = getOrDefault("hello", 42);
-// T は string | number に推論される（望ましくない）
+// T is inferred as string | number (undesirable)
 
-// NoInfer あり: defaultValue からは T を推論しない
+// With NoInfer: T is not inferred from defaultValue
 function getOrDefaultFixed<T>(
   value: T | null | undefined,
   defaultValue: NoInfer<T>
@@ -1065,39 +1065,39 @@ function getOrDefaultFixed<T>(
 }
 
 const result2 = getOrDefaultFixed("hello", 42);
-// エラー: number は string に代入不可
-// T は "hello" の型 string からのみ推論される
+// Error: number is not assignable to string
+// T is inferred only from the type of "hello", which is string
 
 const result3 = getOrDefaultFixed("hello", "world");
-// OK: T は string に推論され、defaultValue も string
+// OK: T is inferred as string, and defaultValue is also string
 ```
 
-#### NoInfer の実践例
+#### Practical Examples of NoInfer
 
 ```typescript
-// NoInfer を使った型安全な API
+// Type-safe API using NoInfer
 
-// ダメな例: 両方の引数から型が推論される
+// Bad example: type is inferred from both arguments
 function createPair<T>(first: T, second: T): [T, T] {
   return [first, second];
 }
 
 const pair1 = createPair(1, "hello");
-// T は number | string に推論される（望ましくない）
-// pair1 の型: [number | string, number | string]
+// T is inferred as number | string (undesirable)
+// Type of pair1: [number | string, number | string]
 
-// 良い例: 最初の引数からのみ型を推論
+// Good example: type is inferred only from the first argument
 function createPairFixed<T>(first: T, second: NoInfer<T>): [T, T] {
   return [first, second];
 }
 
 const pair2 = createPairFixed(1, "hello");
-// エラー: string は number に代入不可
+// Error: string is not assignable to number
 
 const pair3 = createPairFixed(1, 2);
-// OK: pair3 の型は [number, number]
+// OK: type of pair3 is [number, number]
 
-// 実践的な使用例: イベントハンドラー
+// Practical usage: event handlers
 type EventMap = {
   click: { x: number; y: number };
   keypress: { key: string };
@@ -1108,25 +1108,25 @@ function addEventListener<K extends keyof EventMap>(
   event: K,
   handler: (payload: NoInfer<EventMap[K]>) => void
 ): void {
-  // イベントリスナーの登録
+  // Register the event listener
 }
 
-// K が event から推論され、handler の型がそれに従う
+// K is inferred from event, and handler's type follows accordingly
 addEventListener("click", (payload) => {
   console.log(payload.x, payload.y); // OK
 });
 
 addEventListener("keypress", (payload) => {
   console.log(payload.key); // OK
-  // @ts-expect-error: x は keypress にない
+  // @ts-expect-error: x does not exist on keypress
   console.log(payload.x);
 });
 ```
 
-#### NoInfer とデフォルト値パターン
+#### NoInfer and Default Value Patterns
 
 ```typescript
-// NoInfer を使ったデフォルト値パターン
+// Default value pattern using NoInfer
 
 type Options<T> = {
   value: T;
@@ -1140,7 +1140,7 @@ function process<T>(options: Options<T>): T {
   return processed ?? fallback ?? value;
 }
 
-// 使用例
+// Usage example
 const result = process({
   value: "hello",
   fallback: "default", // OK: string
@@ -1149,21 +1149,21 @@ const result = process({
 
 const invalid = process({
   value: "hello",
-  fallback: 123, // エラー: number は string に代入不可
+  fallback: 123, // Error: number is not assignable to string
 });
 ```
 
-### 5-2. クロージャでの型絞り込み保持
+### 5-2. Type Narrowing Preservation in Closures
 
-TypeScript 5.4 では、クロージャ内で型絞り込みが保持されるようになりました。
+TypeScript 5.4 preserves type narrowing inside closures.
 
 ```typescript
-// クロージャでの型絞り込み保持
+// Type narrowing preservation in closures
 
 function processValue(value: string | number) {
   if (typeof value === "string") {
-    // 5.4 以前: クロージャ内で value は string | number に戻る
-    // 5.4 以降: value は string のまま保持される
+    // Before 5.4: inside a closure, value reverts to string | number
+    // After 5.4: value remains narrowed to string
 
     const fn = () => {
       return value.toUpperCase(); // OK in 5.4+
@@ -1172,30 +1172,30 @@ function processValue(value: string | number) {
     return fn();
   } else {
     const fn = () => {
-      return value.toFixed(2); // OK: value は number
+      return value.toFixed(2); // OK: value is number
     };
 
     return fn();
   }
 }
 
-// より複雑な例
+// More complex example
 type User = { type: "user"; name: string; email: string };
 type Admin = { type: "admin"; name: string; permissions: string[] };
 type Person = User | Admin;
 
 function processPerson(person: Person): void {
   if (person.type === "admin") {
-    // person は Admin に絞り込まれる
+    // person is narrowed to Admin
 
     const logPermissions = () => {
-      // 5.4+: person.permissions にアクセス可能
+      // 5.4+: person.permissions is accessible
       console.log(person.permissions.join(", "));
     };
 
     logPermissions();
 
-    // 非同期関数内でも保持される
+    // Narrowing is also preserved inside async functions
     setTimeout(() => {
       console.log(person.permissions); // OK
     }, 1000);
@@ -1203,31 +1203,31 @@ function processPerson(person: Person): void {
 }
 ```
 
-#### 配列メソッドとクロージャの組み合わせ
+#### Combining Array Methods and Closures
 
 ```typescript
-// 配列メソッドとクロージャの組み合わせ
+// Combining array methods and closures
 
 type Item = { id: number; name: string; category?: string };
 
 function filterAndMap(items: Item[]): string[] {
-  // filter で category が存在するものだけを抽出
+  // Extract only items where category exists
   return items
     .filter((item) => item.category !== undefined)
     .map((item) => {
-      // 5.4+: item.category は string に絞り込まれている
+      // 5.4+: item.category is narrowed to string
       return item.category.toUpperCase();
     });
 }
 
-// より複雑な例
+// More complex example
 function processItems(items: (string | number)[]): void {
   items.forEach((item) => {
     if (typeof item === "string") {
-      // item は string に絞り込まれる
+      // item is narrowed to string
 
       const delayed = () => {
-        // 5.4+: item は string のまま
+        // 5.4+: item remains string
         console.log(item.toUpperCase());
       };
 
@@ -1239,50 +1239,50 @@ function processItems(items: (string | number)[]): void {
 
 ---
 
-## 6. TypeScript 5.5: 型述語の推論と正規表現チェック
+## 6. TypeScript 5.5: Type Predicate Inference and Regex Checks
 
-TypeScript 5.5（2024年6月）は、型述語の自動推論、正規表現の構文チェック、isolatedDeclarations など、大きな改善がありました。
+TypeScript 5.5 (June 2024) brought major improvements including automatic inference of type predicates, syntax checking for regular expressions, and `isolatedDeclarations`.
 
-### 6-1. 型述語の推論
+### 6-1. Type Predicate Inference
 
-TypeScript 5.5 では、型述語（type predicate）が自動的に推論されるようになりました。
+TypeScript 5.5 can now automatically infer type predicates.
 
 ```
-型述語の推論:
+Type predicate inference:
 
-  5.5 以前:
+  Before 5.5:
   const isString = (x: unknown): x is string => typeof x === "string";
-  // 明示的に `x is string` を書く必要があった
+  // Had to explicitly write `x is string`
 
-  5.5 以降:
+  After 5.5:
   const isString = (x: unknown) => typeof x === "string";
-  // 自動的に `x is string` が推論される!
+  // `x is string` is automatically inferred!
 ```
 
 ```typescript
-// 型述語の自動推論
+// Automatic inference of type predicates
 
-// 5.5 以前: 明示的な型述語が必要
+// Before 5.5: explicit type predicate required
 function isNonNullOld<T>(value: T | null | undefined): value is T {
   return value != null;
 }
 
-// 5.5 以降: 自動推論される
+// After 5.5: automatically inferred
 const isNonNull = <T>(value: T | null | undefined) => value != null;
-// 推論される型: <T>(value: T | null | undefined) => value is T
+// Inferred type: <T>(value: T | null | undefined) => value is T
 
 const values = [1, null, 2, undefined, 3];
 const filtered = values.filter(isNonNull);
-// 5.5+: filtered の型は number[]
-// 5.4 以前: filtered の型は (number | null | undefined)[]
+// 5.5+: type of filtered is number[]
+// Before 5.4: type of filtered is (number | null | undefined)[]
 
-// より複雑な例
+// More complex example
 const isUser = (value: unknown) =>
   typeof value === "object" &&
   value !== null &&
   "id" in value &&
   "name" in value;
-// 自動推論: (value: unknown) => value is { id: unknown; name: unknown }
+// Automatically inferred: (value: unknown) => value is { id: unknown; name: unknown }
 
 interface User {
   id: number;
@@ -1292,13 +1292,13 @@ interface User {
 
 const users: unknown[] = await fetchData();
 const validUsers = users.filter(isUser);
-// validUsers の型: { id: unknown; name: unknown }[]
+// Type of validUsers: { id: unknown; name: unknown }[]
 ```
 
-#### filter と型述語の組み合わせ
+#### Combining filter with Type Predicates
 
 ```typescript
-// filter と型述語の自動推論
+// Automatic type predicate inference with filter
 
 type Shape =
   | { kind: "circle"; radius: number }
@@ -1311,82 +1311,82 @@ const shapes: Shape[] = [
   { kind: "triangle", base: 8, height: 12 },
 ];
 
-// 5.5: 型述語が自動推論される
+// 5.5: type predicate is automatically inferred
 const circles = shapes.filter((s) => s.kind === "circle");
-// circles の型: { kind: "circle"; radius: number }[]
+// Type of circles: { kind: "circle"; radius: number }[]
 
 const rectangles = shapes.filter((s) => s.kind === "rectangle");
-// rectangles の型: { kind: "rectangle"; width: number; height: number }[]
+// Type of rectangles: { kind: "rectangle"; width: number; height: number }[]
 
-// 複数条件の組み合わせ
+// Combining multiple conditions
 const bigShapes = shapes.filter((s) => {
   if (s.kind === "circle") return s.radius > 10;
   if (s.kind === "rectangle") return s.width > 10 || s.height > 10;
   return s.base > 10;
 });
-// bigShapes の型: Shape[]（型は絞り込まれない）
+// Type of bigShapes: Shape[] (not narrowed)
 ```
 
-#### カスタム型ガードの簡略化
+#### Simplified Custom Type Guards
 
 ```typescript
-// カスタム型ガードの簡略化
+// Simplified custom type guards
 
-// 5.5 以前: 明示的な型述語
+// Before 5.5: explicit type predicate
 function isErrorOld(value: unknown): value is Error {
   return value instanceof Error;
 }
 
-// 5.5 以降: 自動推論
+// After 5.5: automatically inferred
 const isError = (value: unknown) => value instanceof Error;
-// 推論される型: (value: unknown) => value is Error
+// Inferred type: (value: unknown) => value is Error
 
-// 配列の型ガード
+// Array type guard
 const isStringArray = (value: unknown) =>
   Array.isArray(value) && value.every((item) => typeof item === "string");
-// 推論される型: (value: unknown) => value is string[]
+// Inferred type: (value: unknown) => value is string[]
 
 const data: unknown = JSON.parse('["a", "b", "c"]');
 if (isStringArray(data)) {
-  // data は string[] に絞り込まれる
+  // data is narrowed to string[]
   data.forEach((s) => console.log(s.toUpperCase()));
 }
 ```
 
-### 6-2. 正規表現の型チェック
+### 6-2. Regex Type Checking
 
-TypeScript 5.5 では、正規表現リテラルの構文チェックが強化されました。
+TypeScript 5.5 improved syntax checking for regular expression literals.
 
 ```typescript
-// 正規表現の型チェック
+// Regex type checking
 
-// OK: 正しい正規表現
+// OK: valid regular expressions
 const emailRegex = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
 const phoneRegex = /^\+?[1-9]\d{1,14}$/;
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// エラー: 閉じ括弧がない
+// Error: unclosed bracket
 // @ts-expect-error
 const invalidRegex1 = /[unclosed/;
 
-// エラー: 不正なエスケープシーケンス
+// Error: invalid escape sequence
 // @ts-expect-error
 const invalidRegex2 = /\k/;
 
-// OK: 名前付きキャプチャグループ
+// OK: named capture groups
 const dateRegex = /(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})/;
 
-// OK: 後方参照
+// OK: backreference
 const duplicateRegex = /(\w+)\s+\1/;
 
-// OK: Unicode プロパティエスケープ
+// OK: Unicode property escapes
 const emojiRegex = /\p{Emoji}/u;
 ```
 
-#### 正規表現の実践例
+#### Practical Regex Examples
 
 ```typescript
-// 正規表現を使ったバリデーション
+// Validation using regular expressions
 
 type Validator<T extends string> = {
   pattern: RegExp;
@@ -1394,7 +1394,7 @@ type Validator<T extends string> = {
   format: (value: T) => string;
 };
 
-// Email バリデーター
+// Email validator
 const emailValidator: Validator<`${string}@${string}.${string}`> = {
   pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
   validate: (value): value is `${string}@${string}.${string}` => {
@@ -1403,7 +1403,7 @@ const emailValidator: Validator<`${string}@${string}.${string}`> = {
   format: (value) => value.toLowerCase(),
 };
 
-// URL バリデーター
+// URL validator
 const urlValidator: Validator<`https://${string}` | `http://${string}`> = {
   pattern: /^https?:\/\/.+$/,
   validate: (value): value is `https://${string}` | `http://${string}` => {
@@ -1412,26 +1412,26 @@ const urlValidator: Validator<`https://${string}` | `http://${string}`> = {
   format: (value) => value,
 };
 
-// 使用例
+// Usage example
 const email = "user@example.com";
 if (emailValidator.validate(email)) {
-  // email は `${string}@${string}.${string}` 型
+  // email is of type `${string}@${string}.${string}`
   const formatted = emailValidator.format(email);
 }
 
 const url = "https://example.com";
 if (urlValidator.validate(url)) {
-  // url は `https://${string}` | `http://${string}` 型
+  // url is of type `https://${string}` | `http://${string}`
   const formatted = urlValidator.format(url);
 }
 ```
 
 ### 6-3. isolatedDeclarations
 
-TypeScript 5.5 では、`--isolatedDeclarations` フラグが追加され、型定義の分離が改善されました。
+TypeScript 5.5 added the `--isolatedDeclarations` flag to improve isolation of type definitions.
 
 ```typescript
-// isolatedDeclarations の有効化
+// Enabling isolatedDeclarations
 // tsconfig.json
 {
   "compilerOptions": {
@@ -1440,26 +1440,26 @@ TypeScript 5.5 では、`--isolatedDeclarations` フラグが追加され、型�
   }
 }
 
-// isolatedDeclarations 有効時: 戻り値の型を明示する必要がある
+// When isolatedDeclarations is enabled: return types must be explicitly annotated
 
-// NG: 戻り値の型が明示されていない
+// NG: return type is not explicitly annotated
 export function getUser(id: string) {
   return { id, name: "Alice" };
 }
 
-// OK: 戻り値の型を明示
+// OK: return type is explicitly annotated
 export function getUser(id: string): { id: string; name: string } {
   return { id, name: "Alice" };
 }
 
-// または型エイリアスを使用
+// Or use a type alias
 type UserData = { id: string; name: string };
 
 export function getUser(id: string): UserData {
   return { id, name: "Alice" };
 }
 
-// ジェネリック関数でも同様
+// Same applies to generic functions
 // NG
 export function map<T, U>(arr: T[], fn: (item: T) => U) {
   return arr.map(fn);
@@ -1473,14 +1473,14 @@ export function map<T, U>(arr: T[], fn: (item: T) => U): U[] {
 
 ---
 
-## 7. TypeScript 5.6: Iterator ヘルパーと厳格化
+## 7. TypeScript 5.6: Iterator Helpers and Stricter Checks
 
-TypeScript 5.6（2024年9月）は、Iterator ヘルパーメソッドの型定義、Disallowed Nullish/Truthy Checks など、さらなる型安全性の向上をもたらしました。
+TypeScript 5.6 (September 2024) brought further type safety improvements, including type definitions for Iterator helper methods and Disallowed Nullish/Truthy Checks.
 
-### 7-1. Iterator ヘルパーメソッド
+### 7-1. Iterator Helper Methods
 
 ```typescript
-// Iterator ヘルパーメソッド（TC39 Stage 3）
+// Iterator helper methods (TC39 Stage 3)
 
 function* fibonacci(): Generator<number> {
   let [a, b] = [0, 1];
@@ -1492,23 +1492,23 @@ function* fibonacci(): Generator<number> {
 
 const fib = fibonacci();
 
-// .take() -- 最初の N 個を取得
+// .take() -- get the first N elements
 const first10 = fib.take(10);
-// 型: IteratorObject<number, void, undefined>
+// Type: IteratorObject<number, void, undefined>
 
-// .map() -- 各要素を変換
+// .map() -- transform each element
 const doubled = fib.take(10).map((n) => n * 2);
-// 型: IteratorObject<number, void, undefined>
+// Type: IteratorObject<number, void, undefined>
 
-// .filter() -- フィルタリング
+// .filter() -- filter elements
 const evens = fib.take(20).filter((n) => n % 2 === 0);
-// 型: IteratorObject<number, void, undefined>
+// Type: IteratorObject<number, void, undefined>
 
-// .toArray() -- 配列に変換
+// .toArray() -- convert to array
 const array = fib.take(10).toArray();
-// 型: number[]
+// Type: number[]
 
-// チェーン可能
+// Chainable
 const result = fib
   .take(100)
   .filter((n) => n % 2 === 0)
@@ -1518,10 +1518,10 @@ const result = fib
 // result: number[] = [0, 4, 8, 16, 24, 40, 56, 88, 136, 216]
 ```
 
-#### Iterator ヘルパーの実践例
+#### Practical Examples of Iterator Helpers
 
 ```typescript
-// Iterator ヘルパーを使ったデータ処理
+// Data processing using Iterator helpers
 
 function* range(start: number, end: number, step: number = 1): Generator<number> {
   for (let i = start; i < end; i += step) {
@@ -1529,14 +1529,14 @@ function* range(start: number, end: number, step: number = 1): Generator<number>
   }
 }
 
-// 1 から 100 までの奇数の二乗
+// Squares of odd numbers from 1 to 100
 const oddSquares = range(1, 100)
   .filter((n) => n % 2 === 1)
   .map((n) => n ** 2)
   .toArray();
 // [1, 9, 25, 49, 81, ...]
 
-// 無限ストリーム処理
+// Infinite stream processing
 function* naturals(): Generator<number> {
   let n = 1;
   while (true) {
@@ -1556,7 +1556,7 @@ const first20Primes = naturals()
   .toArray();
 // [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71]
 
-// ファイル行の遅延処理
+// Lazy file line processing
 async function* readLines(path: string): AsyncGenerator<string> {
   const file = await openFile(path);
   try {
@@ -1568,7 +1568,7 @@ async function* readLines(path: string): AsyncGenerator<string> {
   }
 }
 
-// 非同期 Iterator ヘルパー
+// Async Iterator helpers
 const longLines = await readLines("data.txt")
   .filter((line) => line.length > 100)
   .map((line) => line.trim())
@@ -1578,87 +1578,87 @@ const longLines = await readLines("data.txt")
 
 ### 7-2. Disallowed Nullish/Truthy Checks
 
-TypeScript 5.6 では、常に真または常に偽になる条件式を検出します。
+TypeScript 5.6 detects conditional expressions that are always true or always false.
 
 ```typescript
 // Disallowed Nullish/Truthy Checks
 
-// エラー: この条件は常に true
+// Error: this condition is always true
 const value = "hello";
 if (value) {
-  // 警告: value は常に truthy
+  // Warning: value is always truthy
 }
 
-// エラー: この条件は常に false
+// Error: this condition is always false
 const num = 42;
 if (!num) {
-  // 警告: num は常に truthy
+  // Warning: num is always truthy
 }
 
-// エラー: nullish coalescing が不要
+// Error: nullish coalescing is unnecessary
 const str = "hello";
 const result = str ?? "default";
-// 警告: str は常に non-nullish
+// Warning: str is always non-nullish
 
-// OK: nullable な値
+// OK: nullable value
 const nullable: string | null = getValue();
 if (nullable) {
-  // 問題なし
+  // No issue
 }
 
 const withDefault = nullable ?? "default";
-// 問題なし
+// No issue
 
-// 関数パラメータの場合
+// For function parameters
 function process(value: string): void {
-  // エラー: value は常に truthy（undefined/null でない）
+  // Error: value is always truthy (not undefined/null)
   if (value) {
     console.log(value);
   }
 
-  // OK: 空文字列チェック
+  // OK: checking for empty string
   if (value.length > 0) {
     console.log(value);
   }
 }
 
-// オプショナルパラメータは OK
+// Optional parameters are OK
 function processOptional(value?: string): void {
-  // OK: value は string | undefined
+  // OK: value is string | undefined
   if (value) {
     console.log(value);
   }
 }
 ```
 
-#### 実践的な修正例
+#### Practical Fix Examples
 
 ```typescript
-// Disallowed Nullish/Truthy Checks の修正例
+// Fix examples for Disallowed Nullish/Truthy Checks
 
-// NG: 不要な nullish チェック
+// NG: unnecessary nullish check
 function getUserName(user: User): string {
   return user.name ?? "Anonymous";
-  // 警告: user.name は string 型なので ?? は不要
+  // Warning: user.name is of type string, so ?? is unnecessary
 }
 
-// OK: 修正版
+// OK: corrected version
 function getUserName(user: User): string {
-  return user.name || "Anonymous"; // 空文字列もカバーする場合
-  // または
+  return user.name || "Anonymous"; // covers empty string as well
+  // or
   return user.name.length > 0 ? user.name : "Anonymous";
 }
 
-// NG: 常に真の条件
+// NG: always-true condition
 function isValid(config: Config): boolean {
   if (config) {
-    // 警告: config は常に truthy
+    // Warning: config is always truthy
     return true;
   }
   return false;
 }
 
-// OK: 修正版（適切なプロパティチェック）
+// OK: corrected version (appropriate property check)
 function isValid(config: Config): boolean {
   return config.apiKey.length > 0 && config.endpoint.length > 0;
 }
@@ -1667,7 +1667,7 @@ function isValid(config: Config): boolean {
 ### 7-3. --noUncheckedSideEffectImports
 
 ```typescript
-// 副作用のみのインポートのチェック
+// Checking side-effect-only imports
 // tsconfig.json
 {
   "compilerOptions": {
@@ -1675,20 +1675,20 @@ function isValid(config: Config): boolean {
   }
 }
 
-// エラー: モジュールが存在しない
+// Error: module does not exist
 import "./nonexistent-module";
 
-// OK: node_modules に存在
+// OK: exists in node_modules
 import "reflect-metadata";
 
-// OK: ファイルが存在
+// OK: file exists
 import "./setup.js";
 
-// OK: package.json の sideEffects フィールドに記載
+// OK: listed in sideEffects field of package.json
 import "polyfills";
 
-// 実践例
-// setup.ts（副作用のみのモジュール）
+// Practical example
+// setup.ts (side-effect-only module)
 console.log("Initializing application...");
 
 // polyfills.ts
@@ -1702,22 +1702,22 @@ if (!Array.prototype.at) {
 }
 
 // main.ts
-import "./setup"; // OK: setup.ts が存在
-import "./polyfills"; // OK: polyfills.ts が存在
+import "./setup"; // OK: setup.ts exists
+import "./polyfills"; // OK: polyfills.ts exists
 ```
 
 ---
 
-## 8. TypeScript 5.7: パフォーマンス改善と最適化
+## 8. TypeScript 5.7: Performance Improvements and Optimizations
 
-TypeScript 5.7（2024年12月）は、パフォーマンスの大幅な改善と、新しい最適化機能を導入しました。
+TypeScript 5.7 (December 2024) introduced significant performance improvements and new optimization features.
 
-### 8-1. パフォーマンス改善
+### 8-1. Performance Improvements
 
 ```typescript
-// TypeScript 5.7 のパフォーマンス改善
+// TypeScript 5.7 performance improvements
 
-// 大規模な union 型の処理が高速化
+// Processing of large union types is faster
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS" | "HEAD";
 type StatusCode = 200 | 201 | 204 | 400 | 401 | 403 | 404 | 500 | 502 | 503;
 type ContentType = "application/json" | "text/html" | "text/plain" | "application/xml";
@@ -1729,9 +1729,9 @@ type Response = {
   body: unknown;
 };
 
-// 5.7 では、このような複雑な型の推論が高速化されている
+// In 5.7, inference for these complex types is faster
 
-// mapped types の最適化
+// Optimized mapped types
 type DeepReadonly<T> = {
   readonly [P in keyof T]: T[P] extends object ? DeepReadonly<T[P]> : T[P];
 };
@@ -1750,13 +1750,13 @@ type ComplexObject = {
 };
 
 type ReadonlyComplex = DeepReadonly<ComplexObject>;
-// 5.7 では処理が高速化
+// Processing is faster in 5.7
 ```
 
-### 8-2. --erasableSyntaxOnly（実験的機能）
+### 8-2. --erasableSyntaxOnly (Experimental Feature)
 
 ```typescript
-// --erasableSyntaxOnly フラグ（5.7 の実験的機能）
+// --erasableSyntaxOnly flag (experimental feature in 5.7)
 // tsconfig.json
 {
   "compilerOptions": {
@@ -1764,25 +1764,25 @@ type ReadonlyComplex = DeepReadonly<ComplexObject>;
   }
 }
 
-// このフラグを有効にすると、トランスパイル時に削除可能な構文のみを使用できる
+// When this flag is enabled, only syntax that can be removed during transpilation is allowed
 
-// OK: 型アノテーションは削除可能
+// OK: type annotations can be erased
 const name: string = "Alice";
 
-// OK: インターフェース定義は削除可能
+// OK: interface definitions can be erased
 interface User {
   id: number;
   name: string;
 }
 
-// NG: enum は JavaScript コードを生成するため不可
+// NG: enums generate JavaScript code, so they are not allowed
 enum Color {
   Red,
   Green,
   Blue,
 }
 
-// OK の代替: const オブジェクトまたは union 型を使用
+// OK alternative: use a const object or union type
 const Color = {
   Red: "red",
   Green: "green",
@@ -1791,32 +1791,32 @@ const Color = {
 
 type ColorValue = typeof Color[keyof typeof Color];
 
-// NG: namespace は JavaScript コードを生成
+// NG: namespaces generate JavaScript code
 namespace Utils {
   export function log(message: string) {
     console.log(message);
   }
 }
 
-// OK の代替: 通常のモジュールを使用
+// OK alternative: use regular modules
 export function log(message: string) {
   console.log(message);
 }
 ```
 
-### 8-3. Node.js 22 サポート強化
+### 8-3. Enhanced Node.js 22 Support
 
 ```typescript
-// Node.js 22 の新機能サポート
+// Support for new Node.js 22 features
 
-// AsyncLocalStorage の型改善
+// Improved types for AsyncLocalStorage
 import { AsyncLocalStorage } from "async_hooks";
 
 const storage = new AsyncLocalStorage<{ requestId: string }>();
 
 async function handleRequest(requestId: string) {
   await storage.run({ requestId }, async () => {
-    // storage.getStore() の型が正しく推論される
+    // storage.getStore() type is correctly inferred
     const context = storage.getStore();
     if (context) {
       console.log(`Request ID: ${context.requestId}`);
@@ -1824,62 +1824,62 @@ async function handleRequest(requestId: string) {
   });
 }
 
-// Import Attributes のネイティブサポート
+// Native support for Import Attributes
 import packageJson from "./package.json" with { type: "json" };
-// Node.js 22 では --experimental-json-modules フラグが不要
+// In Node.js 22, the --experimental-json-modules flag is no longer needed
 
-// 新しい Array メソッドの型定義
+// Type definitions for new Array methods
 const numbers = [1, 2, 3, 4, 5];
 
 // Array.prototype.toReversed()
 const reversed = numbers.toReversed();
-// 型: number[]（元の配列は変更されない）
+// Type: number[] (original array is not mutated)
 
 // Array.prototype.toSorted()
 const sorted = numbers.toSorted((a, b) => b - a);
-// 型: number[]
+// Type: number[]
 
 // Array.prototype.toSpliced()
 const spliced = numbers.toSpliced(2, 1, 10);
-// 型: number[]
+// Type: number[]
 
 // Array.prototype.with()
 const replaced = numbers.with(2, 100);
-// 型: number[]
+// Type: number[]
 ```
 
 ---
 
-## 9. バージョン別マイグレーションガイド
+## 9. Version-by-Version Migration Guide
 
-### 9-1. TypeScript 5.0 への移行
+### 9-1. Migrating to TypeScript 5.0
 
 ```typescript
-// 5.0 へのマイグレーション
+// Migration to 5.0
 
-// ステップ 1: experimentalDecorators の確認
+// Step 1: Review experimentalDecorators
 // tsconfig.json
 {
   "compilerOptions": {
-    // 旧式デコレータを使っている場合は true のまま
+    // Keep as true if using legacy decorators
     "experimentalDecorators": true,
-    // または、新しいデコレータに移行
+    // Or migrate to new decorators
     "experimentalDecorators": false
   }
 }
 
-// ステップ 2: enum の使用箇所を確認
-// 5.0 で enum の振る舞いが変更された場合がある
+// Step 2: Review enum usage
+// Behavior of enums may have changed in 5.0
 enum Status {
   Pending = "PENDING",
   Success = "SUCCESS",
   Error = "ERROR",
 }
 
-// union 型への移行を検討
+// Consider migrating to union types
 type Status = "PENDING" | "SUCCESS" | "ERROR";
 
-// ステップ 3: const 型パラメータの活用
+// Step 3: Take advantage of const type parameters
 // Before
 function createConfig<T>(config: T) {
   return config;
@@ -1891,12 +1891,12 @@ function createConfig<const T>(config: T) {
 }
 ```
 
-### 9-2. TypeScript 5.2 への移行
+### 9-2. Migrating to TypeScript 5.2
 
 ```typescript
-// 5.2 へのマイグレーション: using 宣言の導入
+// Migration to 5.2: introducing using declarations
 
-// Before: 手動でのリソース管理
+// Before: manual resource management
 async function processData() {
   const db = await connectToDatabase();
   try {
@@ -1907,15 +1907,15 @@ async function processData() {
   }
 }
 
-// After: using 宣言を使用
+// After: using declaration
 async function processData() {
   await using db = await DatabaseConnection.create(process.env.DB_URL!);
   const result = await db.query("SELECT * FROM users");
   return result;
-  // 自動的に disconnect される
+  // disconnect is called automatically
 }
 
-// AsyncDisposable の実装
+// Implementing AsyncDisposable
 class DatabaseConnection implements AsyncDisposable {
   static async create(url: string): Promise<DatabaseConnection> {
     const conn = new DatabaseConnection();
@@ -1933,38 +1933,38 @@ class DatabaseConnection implements AsyncDisposable {
 }
 ```
 
-### 9-3. TypeScript 5.4 への移行
+### 9-3. Migrating to TypeScript 5.4
 
 ```typescript
-// 5.4 へのマイグレーション: NoInfer の活用
+// Migration to 5.4: leveraging NoInfer
 
-// Before: 型推論が意図しない方向に進む
+// Before: type inference proceeds in unintended directions
 function merge<T>(defaults: T, overrides: T): T {
   return { ...defaults, ...overrides };
 }
 
 const config = merge(
   { port: 3000, host: "localhost" },
-  { port: 8080, unknown: true } // unknown は許容されてしまう
+  { port: 8080, unknown: true } // unknown is accepted (undesirable)
 );
 
-// After: NoInfer で defaults からのみ型を推論
+// After: NoInfer infers type only from defaults
 function merge<T>(defaults: T, overrides: NoInfer<Partial<T>>): T {
   return { ...defaults, ...overrides };
 }
 
 const config = merge(
   { port: 3000, host: "localhost" },
-  { port: 8080, unknown: true } // エラー: unknown は T にない
+  { port: 8080, unknown: true } // Error: unknown is not in T
 );
 ```
 
-### 9-4. TypeScript 5.5 への移行
+### 9-4. Migrating to TypeScript 5.5
 
 ```typescript
-// 5.5 へのマイグレーション: 型述語の簡略化
+// Migration to 5.5: simplified type predicates
 
-// Before: 明示的な型述語
+// Before: explicit type predicates
 function isString(value: unknown): value is string {
   return typeof value === "string";
 }
@@ -1973,77 +1973,77 @@ function isNonNull<T>(value: T | null | undefined): value is T {
   return value != null;
 }
 
-// After: 型述語は自動推論される
+// After: type predicates are automatically inferred
 const isString = (value: unknown) => typeof value === "string";
 const isNonNull = <T>(value: T | null | undefined) => value != null;
 
-// filter の改善を活用
+// Take advantage of improved filter
 const mixed: (string | null | number)[] = ["a", null, 1, "b", 2];
 
-// Before: 型が絞り込まれない
+// Before: type is not narrowed
 const strings1 = mixed.filter((x) => typeof x === "string");
-// 型: (string | null | number)[]
+// Type: (string | null | number)[]
 
-// After: 型が自動的に絞り込まれる
+// After: type is automatically narrowed
 const strings2 = mixed.filter((x) => typeof x === "string");
-// 型: string[]（5.5+）
+// Type: string[] (5.5+)
 ```
 
 ---
 
-## 10. 図解: TypeScript 5.x の進化
+## 10. Diagram: Evolution of the TypeScript 5.x Type System
 
 ```
-TypeScript 5.x の型システム進化:
+TypeScript 5.x type system evolution:
 
   ┌─────────────────────────────────────────────────────────────┐
   │ TypeScript 5.0 (2023/03)                                    │
   ├─────────────────────────────────────────────────────────────┤
-  │ • ECMAScript デコレータ（Stage 3）                           │
-  │ • const 型パラメータ                                         │
-  │ • enum と union の相互運用性改善                             │
+  │ • ECMAScript decorators (Stage 3)                           │
+  │ • const type parameters                                     │
+  │ • Improved enum and union interoperability                  │
   └─────────────────────────────────────────────────────────────┘
                             ↓
   ┌─────────────────────────────────────────────────────────────┐
   │ TypeScript 5.1 (2023/06)                                    │
   ├─────────────────────────────────────────────────────────────┤
-  │ • getter/setter の型非対称                                  │
-  │ • 暗黙的 undefined 返り値                                   │
+  │ • Getter/setter type asymmetry                              │
+  │ • Implicit undefined return values                          │
   └─────────────────────────────────────────────────────────────┘
                             ↓
   ┌─────────────────────────────────────────────────────────────┐
   │ TypeScript 5.2 (2023/08)                                    │
   ├─────────────────────────────────────────────────────────────┤
-  │ • using 宣言（Explicit Resource Management）                │
-  │ • デコレータメタデータ                                       │
+  │ • using declarations (Explicit Resource Management)         │
+  │ • Decorator metadata                                        │
   └─────────────────────────────────────────────────────────────┘
                             ↓
   ┌─────────────────────────────────────────────────────────────┐
   │ TypeScript 5.3 (2023/11)                                    │
   ├─────────────────────────────────────────────────────────────┤
   │ • Import Attributes                                         │
-  │ • switch(true) の型絞り込み                                 │
+  │ • Type narrowing in switch(true)                            │
   └─────────────────────────────────────────────────────────────┘
                             ↓
   ┌─────────────────────────────────────────────────────────────┐
   │ TypeScript 5.4 (2024/03)                                    │
   ├─────────────────────────────────────────────────────────────┤
-  │ • NoInfer ユーティリティ型                                  │
-  │ • クロージャでの型絞り込み保持                               │
+  │ • NoInfer utility type                                      │
+  │ • Type narrowing preservation in closures                   │
   └─────────────────────────────────────────────────────────────┘
                             ↓
   ┌─────────────────────────────────────────────────────────────┐
   │ TypeScript 5.5 (2024/06)                                    │
   ├─────────────────────────────────────────────────────────────┤
-  │ • 型述語の推論                                              │
-  │ • 正規表現の構文チェック                                     │
+  │ • Type predicate inference                                  │
+  │ • Regex syntax checking                                     │
   │ • isolatedDeclarations                                      │
   └─────────────────────────────────────────────────────────────┘
                             ↓
   ┌─────────────────────────────────────────────────────────────┐
   │ TypeScript 5.6 (2024/09)                                    │
   ├─────────────────────────────────────────────────────────────┤
-  │ • Iterator ヘルパーメソッド                                  │
+  │ • Iterator helper methods                                   │
   │ • Disallowed Nullish/Truthy Checks                          │
   │ • --noUncheckedSideEffectImports                            │
   └─────────────────────────────────────────────────────────────┘
@@ -2051,116 +2051,116 @@ TypeScript 5.x の型システム進化:
   ┌─────────────────────────────────────────────────────────────┐
   │ TypeScript 5.7 (2024/12)                                    │
   ├─────────────────────────────────────────────────────────────┤
-  │ • パフォーマンス改善                                         │
-  │ • Node.js 22 サポート強化                                   │
-  │ • --erasableSyntaxOnly（実験的）                            │
+  │ • Performance improvements                                  │
+  │ • Enhanced Node.js 22 support                               │
+  │ • --erasableSyntaxOnly (experimental)                       │
   └─────────────────────────────────────────────────────────────┘
 ```
 
 ```
-デコレータの進化:
+Evolution of decorators:
 
   ┌────────────────────────────────────────────────────────────┐
-  │ 実験的デコレータ（experimentalDecorators: true）            │
-  │ TypeScript 独自仕様、Angular/NestJS で使用                 │
+  │ Experimental decorators (experimentalDecorators: true)     │
+  │ TypeScript-specific spec, used by Angular/NestJS           │
   └────────────────────────────────────────────────────────────┘
                             ↓
   ┌────────────────────────────────────────────────────────────┐
-  │ ECMAScript デコレータ（TypeScript 5.0+）                   │
-  │ TC39 Stage 3 標準仕様                                      │
-  │ - context オブジェクトによるメタデータアクセス              │
-  │ - より明確な適用順序                                        │
-  │ - 関数の返り値による置き換え                                │
+  │ ECMAScript decorators (TypeScript 5.0+)                    │
+  │ TC39 Stage 3 standard specification                        │
+  │ - Metadata access via context object                       │
+  │ - Clearer application order                                │
+  │ - Replacement via function return value                    │
   └────────────────────────────────────────────────────────────┘
 ```
 
 ```
-型推論の進化:
+Evolution of type inference:
 
-  5.0-5.3: 手動での型述語定義
+  5.0-5.3: Manual type predicate definitions
   ┌──────────────────────────────────────────┐
   │ const isString = (x: unknown): x is string => │
   │   typeof x === "string";                │
   └──────────────────────────────────────────┘
                 ↓
-  5.4: クロージャ内での型絞り込み保持
+  5.4: Type narrowing preservation in closures
   ┌──────────────────────────────────────────┐
   │ if (typeof value === "string") {        │
   │   const fn = () => value.toUpperCase(); │
-  │   // value は string のまま            │
+  │   // value remains string              │
   │ }                                       │
   └──────────────────────────────────────────┘
                 ↓
-  5.5+: 型述語の自動推論
+  5.5+: Automatic type predicate inference
   ┌──────────────────────────────────────────┐
   │ const isString = (x: unknown) =>        │
   │   typeof x === "string";                │
-  │ // 自動的に x is string が推論される     │
+  │ // x is string is automatically inferred│
   └──────────────────────────────────────────┘
 ```
 
 ---
 
-## 11. 比較表
+## 11. Comparison Tables
 
-### 11-1. TypeScript バージョン比較
+### 11-1. TypeScript Version Comparison
 
-| バージョン | リリース | 主要機能 | 破壊的変更 | 推奨度 |
-|-----------|---------|---------|-----------|-------|
-| 5.0 | 2023/03 | デコレータ, const型パラメータ | decorators構文変更 | ★★★★☆ |
-| 5.1 | 2023/06 | getter/setter型分離 | 小 | ★★★☆☆ |
-| 5.2 | 2023/08 | using宣言, デコレータメタデータ | 小 | ★★★★★ |
+| Version | Release | Key Features | Breaking Changes | Recommendation |
+|---------|---------|-------------|-----------------|----------------|
+| 5.0 | 2023/03 | Decorators, const type parameters | Decorator syntax change | ★★★★☆ |
+| 5.1 | 2023/06 | Getter/setter type separation | Minor | ★★★☆☆ |
+| 5.2 | 2023/08 | using declarations, decorator metadata | Minor | ★★★★★ |
 | 5.3 | 2023/11 | Import Attributes | Assertions→Attributes | ★★★☆☆ |
-| 5.4 | 2024/03 | NoInfer, クロージャ絞り込み | 小 | ★★★★☆ |
-| 5.5 | 2024/06 | 型述語推論, 正規表現チェック | filter推論変更 | ★★★★★ |
-| 5.6 | 2024/09 | Iterator, SideEffectImport | 小 | ★★★★☆ |
-| 5.7 | 2024/12 | パフォーマンス改善 | 小 | ★★★★★ |
+| 5.4 | 2024/03 | NoInfer, closure narrowing | Minor | ★★★★☆ |
+| 5.5 | 2024/06 | Type predicate inference, regex check | filter inference change | ★★★★★ |
+| 5.6 | 2024/09 | Iterator, SideEffectImport | Minor | ★★★★☆ |
+| 5.7 | 2024/12 | Performance improvements | Minor | ★★★★★ |
 
 ### 11-2. satisfies vs as vs as const
 
-| 機能 | satisfies | as | as const | satisfies + as const |
-|------|-----------|-----|----------|---------------------|
-| 型チェック | ✅ あり | ❌ なし（上書き） | ❌ なし | ✅ あり |
-| 型の狭さ | 推論された型 | 指定した型 | リテラル型 | リテラル型 |
-| 余分なプロパティ | ❌ エラー | ✅ 無視 | ✅ 保持 | ❌ エラー |
-| readonly | ❌ なし | ❌ なし | ✅ 自動付与 | ✅ 自動付与 |
-| 用途 | 検証+推論保持 | 型アサーション | リテラル保持 | 最強の型安全性 |
+| Feature | satisfies | as | as const | satisfies + as const |
+|---------|-----------|-----|----------|---------------------|
+| Type checking | ✅ Yes | ❌ No (overrides) | ❌ No | ✅ Yes |
+| Type narrowness | Inferred type | Specified type | Literal type | Literal type |
+| Excess properties | ❌ Error | ✅ Ignored | ✅ Preserved | ❌ Error |
+| readonly | ❌ No | ❌ No | ✅ Auto-applied | ✅ Auto-applied |
+| Use case | Validation + inference | Type assertion | Literal preservation | Maximum type safety |
 
-### 11-3. デコレータ比較
+### 11-3. Decorator Comparison
 
-| 特徴 | 実験的デコレータ | ECMAScript デコレータ |
-|------|----------------|---------------------|
-| 仕様 | TypeScript 独自 | TC39 Stage 3 標準 |
-| フラグ | `experimentalDecorators: true` | デフォルト（5.0+） |
-| context | ❌ なし | ✅ あり |
-| メタデータ | ✅ reflect-metadata | ✅ context.metadata |
-| 適用順序 | あいまい | 明確 |
-| フレームワーク対応 | Angular, NestJS | 移行中 |
-| 将来性 | ⚠️ 非推奨へ | ✅ 標準化 |
+| Feature | Experimental Decorators | ECMAScript Decorators |
+|---------|------------------------|----------------------|
+| Spec | TypeScript-specific | TC39 Stage 3 standard |
+| Flag | `experimentalDecorators: true` | Default (5.0+) |
+| context | ❌ None | ✅ Available |
+| Metadata | ✅ reflect-metadata | ✅ context.metadata |
+| Application order | Ambiguous | Clear |
+| Framework support | Angular, NestJS | Migrating |
+| Future | ⚠️ Deprecated | ✅ Standardized |
 
-### 11-4. リソース管理パターン比較
+### 11-4. Resource Management Pattern Comparison
 
-| パターン | コード例 | 欠点 | using 宣言 |
-|---------|---------|------|-----------|
-| try-finally | `try { use(); } finally { cleanup(); }` | 冗長、ネストが深い | ✅ 自動化 |
-| callback | `withResource(res => use(res))` | コールバック地獄 | ✅ 直感的 |
-| AsyncIterator | `for await (const r of resources)` | 用途限定 | ✅ 汎用的 |
-| using 宣言 | `using res = acquire();` | なし | ✅ 推奨 |
+| Pattern | Code Example | Drawback | using Declaration |
+|---------|------------|---------|-----------------|
+| try-finally | `try { use(); } finally { cleanup(); }` | Verbose, deeply nested | ✅ Automated |
+| callback | `withResource(res => use(res))` | Callback hell | ✅ Intuitive |
+| AsyncIterator | `for await (const r of resources)` | Limited use case | ✅ General purpose |
+| using declaration | `using res = acquire();` | None | ✅ Recommended |
 
 ---
 
-## 12. エッジケース分析
+## 12. Edge Case Analysis
 
-### エッジケース 1: const 型パラメータと関数オーバーロード
+### Edge Case 1: Const Type Parameters and Function Overloads
 
 ```typescript
-// const 型パラメータと関数オーバーロードの組み合わせ
+// Combining const type parameters and function overloads
 
-// オーバーロードシグネチャ
+// Overload signatures
 function createRecord<const T extends readonly string[]>(keys: T, values: string[]): Record<T[number], string>;
 function createRecord<const T extends readonly string[]>(keys: T): Record<T[number], undefined>;
 
-// 実装シグネチャ
+// Implementation signature
 function createRecord<const T extends readonly string[]>(
   keys: T,
   values?: string[]
@@ -2172,27 +2172,27 @@ function createRecord<const T extends readonly string[]>(
   return result;
 }
 
-// 使用例
+// Usage examples
 const record1 = createRecord(["a", "b", "c"], ["1", "2", "3"]);
-// 型: Record<"a" | "b" | "c", string>
+// Type: Record<"a" | "b" | "c", string>
 
 const record2 = createRecord(["x", "y"]);
-// 型: Record<"x" | "y", undefined>
+// Type: Record<"x" | "y", undefined>
 
-// エッジケース: 空配列
+// Edge case: empty array
 const emptyRecord = createRecord([]);
-// 型: Record<never, undefined>（never は存在しないキー）
+// Type: Record<never, undefined> (never = no keys)
 
-// エッジケース: readonly タプル
+// Edge case: readonly tuple
 const tuple = ["foo", "bar"] as const;
 const tupleRecord = createRecord(tuple);
-// 型: Record<"foo" | "bar", undefined>
+// Type: Record<"foo" | "bar", undefined>
 ```
 
-### エッジケース 2: using 宣言とエラーハンドリング
+### Edge Case 2: using Declarations and Error Handling
 
 ```typescript
-// using 宣言とエラーハンドリングのエッジケース
+// Edge cases of using declarations and error handling
 
 class Resource implements Disposable {
   constructor(public id: string) {
@@ -2204,7 +2204,7 @@ class Resource implements Disposable {
   }
 }
 
-// エッジケース 1: 複数の using 宣言
+// Edge case 1: Multiple using declarations
 function multipleResources(): void {
   using r1 = new Resource("A");
   using r2 = new Resource("B");
@@ -2212,14 +2212,14 @@ function multipleResources(): void {
 
   throw new Error("Something went wrong");
 
-  // 実行順序:
+  // Execution order:
   // 1. Resource C disposed
   // 2. Resource B disposed
   // 3. Resource A disposed
   // 4. Error: Something went wrong
 }
 
-// エッジケース 2: dispose 中にエラーが発生
+// Edge case 2: Error occurs during dispose
 class ProblematicResource implements Disposable {
   constructor(public shouldFail: boolean) {}
 
@@ -2232,47 +2232,47 @@ class ProblematicResource implements Disposable {
 
 function problematicDispose(): void {
   using r1 = new ProblematicResource(false);
-  using r2 = new ProblematicResource(true);  // dispose でエラー
+  using r2 = new ProblematicResource(true);  // error during dispose
   using r3 = new ProblematicResource(false);
 
-  // r3, r2, r1 の順で dispose される
-  // r2 の dispose でエラーが発生すると SuppressedError が投げられる
+  // r3, r2, r1 are disposed in order
+  // If r2's dispose throws, a SuppressedError is thrown
 }
 
-// エッジケース 3: 条件付き using
+// Edge case 3: Conditional using
 function conditionalUsing(useResource: boolean): void {
   if (useResource) {
     using resource = new Resource("conditional");
-    // resource はこのブロック内でのみ有効
+    // resource is only valid within this block
   }
-  // resource はここでは使用できない
+  // resource cannot be used here
 }
 
-// エッジケース 4: using と early return
+// Edge case 4: using with early return
 function earlyReturn(shouldReturn: boolean): string {
   using resource = new Resource("early");
 
   if (shouldReturn) {
     return "early return";
-    // resource は return 前に dispose される
+    // resource is disposed before the return
   }
 
   return "normal return";
-  // resource は return 前に dispose される
+  // resource is disposed before the return
 }
 ```
 
-### エッジケース 3: NoInfer と複雑なジェネリック
+### Edge Case 3: NoInfer and Complex Generics
 
 ```typescript
-// NoInfer と複雑なジェネリックのエッジケース
+// Edge cases of NoInfer with complex generics
 
-// エッジケース 1: ネストしたジェネリック
+// Edge case 1: Nested generics
 function deepMerge<T extends object>(
   base: T,
   override: NoInfer<DeepPartial<T>>
 ): T {
-  // 実装...
+  // Implementation...
   return { ...base, ...override } as T;
 }
 
@@ -2309,7 +2309,7 @@ const config = deepMerge<Config>(
   }
 );
 
-// エッジケース 2: NoInfer と union 型
+// Edge case 2: NoInfer with union types
 function select<T>(
   options: T[],
   defaultValue: NoInfer<T>
@@ -2318,9 +2318,9 @@ function select<T>(
 }
 
 const result = select([1, 2, 3], "default");
-// エラー: "default" は number に代入不可
+// Error: "default" is not assignable to number
 
-// エッジケース 3: NoInfer と条件型
+// Edge case 3: NoInfer with conditional types
 type ExtractValue<T> = T extends { value: infer V } ? V : never;
 
 function transform<T extends { value: any }>(
@@ -2340,111 +2340,111 @@ const transformed = transform(
 
 const invalid = transform(
   { value: 10 },
-  (v) => String(v) // エラー: (number) => string は NoInfer<number> に代入不可
+  (v) => String(v) // Error: (number) => string is not assignable to NoInfer<number>
 );
 ```
 
 ---
 
-## 13. アンチパターン
+## 13. Anti-Patterns
 
-### AP-1: 古い experimentalDecorators を使い続ける
+### AP-1: Continuing to Use Legacy experimentalDecorators
 
 ```typescript
-// ❌ アンチパターン: 旧式デコレータ（experimentalDecorators: true）
-// TypeScript 5.0+ では ECMAScript 標準デコレータが利用可能
+// Anti-pattern: legacy decorators (experimentalDecorators: true)
+// ECMAScript standard decorators are available in TypeScript 5.0+
 
 // tsconfig.json
 {
   "compilerOptions": {
-    "experimentalDecorators": true  // ❌ 旧式
+    "experimentalDecorators": true  // Legacy
   }
 }
 
-// 旧式デコレータ
+// Legacy decorator
 function OldDecorator(target: any) {
-  // context オブジェクトがない
+  // No context object
   console.log(target);
 }
 
 @OldDecorator
 class OldClass {}
 
-// ✅ 推奨: ECMAScript 標準デコレータ（5.0+）
-// experimentalDecorators を削除するか false にする
+// Recommended: ECMAScript standard decorators (5.0+)
+// Remove or set experimentalDecorators to false
 
 // tsconfig.json
 {
   "compilerOptions": {
-    "experimentalDecorators": false  // ✅ または削除
+    "experimentalDecorators": false  // Recommended, or omit entirely
   }
 }
 
-// ECMAScript 標準デコレータ
+// ECMAScript standard decorator
 function NewDecorator(target: Function, context: ClassDecoratorContext) {
-  // context オブジェクトでメタデータにアクセス
+  // Access metadata via context object
   console.log(context.name, context.kind);
 }
 
 @NewDecorator
 class NewClass {}
 
-// ⚠️ 注意: Angular, NestJS 等は旧式デコレータに依存
-// フレームワークの対応状況を確認すること
+// Note: Angular, NestJS, etc. depend on legacy decorators
+// Check the framework's migration status before switching
 ```
 
-### AP-2: satisfies を使わずに型注釈で妥協する
+### AP-2: Settling for Type Annotations Instead of satisfies
 
 ```typescript
-// ❌ アンチパターン: 型注釈で型を広げてしまう
+// Anti-pattern: widening the type with annotations
 const routes1: Record<string, { path: string; component: string }> = {
   home: { path: "/", component: "Home" },
   about: { path: "/about", component: "About" },
 };
 
-routes1.home.path; // 型: string（リテラル型 "/" が失われる）
+routes1.home.path; // Type: string (literal type "/" is lost)
 
-// ✅ 推奨: satisfies でリテラル型を保持
+// Recommended: preserve literal types with satisfies
 const routes2 = {
   home: { path: "/", component: "Home" },
   about: { path: "/about", component: "About" },
 } satisfies Record<string, { path: string; component: string }>;
 
-routes2.home.path; // 型: "/"（リテラル型が保持される）
+routes2.home.path; // Type: "/" (literal type is preserved)
 
-// さらに良い: as const と satisfies の組み合わせ
+// Even better: combine as const with satisfies
 const routes3 = {
   home: { path: "/", component: "Home" },
   about: { path: "/about", component: "About" },
 } as const satisfies Record<string, { path: string; component: string }>;
 
-routes3.home.path; // 型: "/"
-// routes3 全体が readonly になる
+routes3.home.path; // Type: "/"
+// routes3 is fully readonly
 ```
 
-### AP-3: 手動リソース管理を続ける
+### AP-3: Continuing Manual Resource Management
 
 ```typescript
-// ❌ アンチパターン: 手動での try-finally
+// Anti-pattern: manual try-finally
 async function oldWay() {
   const db = await connectToDatabase();
   try {
     const users = await db.query("SELECT * FROM users");
     return users;
   } finally {
-    await db.disconnect(); // 手動でクリーンアップ
+    await db.disconnect(); // manual cleanup
   }
 }
 
-// ✅ 推奨: using 宣言を使用（5.2+）
+// Recommended: use using declarations (5.2+)
 async function newWay() {
   await using db = await DatabaseConnection.create(process.env.DB_URL!);
   const users = await db.query("SELECT * FROM users");
   return users;
-  // 自動的にクリーンアップされる
+  // cleanup happens automatically
 }
 
-// ❌ アンチパターン: ネストした try-finally
+// Anti-pattern: nested try-finally
 async function nestedOldWay() {
   const conn = await openConnection();
   try {
@@ -2452,7 +2452,7 @@ async function nestedOldWay() {
     try {
       const lock = await acquireLock();
       try {
-        // 処理...
+        // Processing...
       } finally {
         await releaseLock(lock);
       }
@@ -2464,22 +2464,22 @@ async function nestedOldWay() {
   }
 }
 
-// ✅ 推奨: 複数の using 宣言
+// Recommended: multiple using declarations
 async function nestedNewWay() {
   await using conn = await openConnection();
   await using file = await openFile("data.txt");
   await using lock = await acquireLock();
 
-  // 処理...
+  // Processing...
 
-  // lock, file, conn の順で自動的にクリーンアップされる
+  // lock, file, conn are automatically cleaned up in reverse order
 }
 ```
 
-### AP-4: 型述語を手動で定義し続ける
+### AP-4: Continuing to Manually Define Type Predicates
 
 ```typescript
-// ❌ アンチパターン: 5.5+ で不要な明示的型述語
+// Anti-pattern: explicit type predicates that are unnecessary in 5.5+
 function isStringOld(value: unknown): value is string {
   return typeof value === "string";
 }
@@ -2488,44 +2488,44 @@ function isNumberOld(value: unknown): value is number {
   return typeof value === "number";
 }
 
-// ✅ 推奨: 型述語は自動推論される（5.5+）
+// Recommended: type predicates are automatically inferred (5.5+)
 const isString = (value: unknown) => typeof value === "string";
 const isNumber = (value: unknown) => typeof value === "number";
 
-// ❌ アンチパターン: filter で手動キャスト
+// Anti-pattern: manual cast in filter
 const mixed: (string | null)[] = ["a", null, "b"];
 const strings1 = mixed.filter((x) => x !== null) as string[];
 
-// ✅ 推奨: 型述語が自動推論される
+// Recommended: type predicate is automatically inferred
 const strings2 = mixed.filter((x) => x !== null);
-// 型: string[]（5.5+ で自動的に絞り込まれる）
+// Type: string[] (automatically narrowed in 5.5+)
 ```
 
 ---
 
-## 14. 演習問題
+## 14. Practice Problems
 
-### 基礎レベル
+### Beginner Level
 
-#### 問題 1: const 型パラメータを使った関数
+#### Problem 1: Function with Const Type Parameters
 
-以下の関数を、const 型パラメータを使ってリテラル型を保持するように修正してください。
+Modify the following function to preserve literal types using const type parameters.
 
 ```typescript
-// 現在の実装
+// Current implementation
 function createTuple<T, U>(first: T, second: U): [T, U] {
   return [first, second];
 }
 
 const result = createTuple("hello", 42);
-// 型: [string, number]
-// 期待: [string, 42] または ["hello", 42]
+// Type: [string, number]
+// Expected: [string, 42] or ["hello", 42]
 
-// TODO: const 型パラメータを使って修正してください
+// TODO: Fix using const type parameters
 ```
 
 <details>
-<summary>解答例</summary>
+<summary>Solution</summary>
 
 ```typescript
 function createTuple<const T, const U>(first: T, second: U): [T, U] {
@@ -2533,13 +2533,13 @@ function createTuple<const T, const U>(first: T, second: U): [T, U] {
 }
 
 const result = createTuple("hello", 42);
-// 型: ["hello", 42]
+// Type: ["hello", 42]
 ```
 </details>
 
-#### 問題 2: using 宣言を使ったリソース管理
+#### Problem 2: Resource Management with using Declarations
 
-以下の FileReader クラスに Disposable インターフェースを実装し、using 宣言で使用できるようにしてください。
+Implement the `Disposable` interface on the following `FileReader` class so it can be used with a `using` declaration.
 
 ```typescript
 class FileReader {
@@ -2551,7 +2551,7 @@ class FileReader {
   }
 
   private readFile(path: string): string {
-    // 模擬的な実装
+    // Simulated implementation
     return `Content of ${path}`;
   }
 
@@ -2564,14 +2564,14 @@ class FileReader {
     console.log(`File closed: ${this.path}`);
   }
 
-  // TODO: Disposable インターフェースを実装してください
+  // TODO: Implement the Disposable interface
 }
 
-// TODO: using 宣言を使って FileReader を使用してください
+// TODO: Use FileReader with a using declaration
 ```
 
 <details>
-<summary>解答例</summary>
+<summary>Solution</summary>
 
 ```typescript
 class FileReader implements Disposable {
@@ -2600,20 +2600,20 @@ class FileReader implements Disposable {
   }
 }
 
-// 使用例
+// Usage example
 function processFile(path: string): string {
   using reader = new FileReader(path);
   return reader.getContent();
-  // 自動的に close() が呼ばれる
+  // close() is automatically called
 }
 ```
 </details>
 
-### 応用レベル
+### Intermediate Level
 
-#### 問題 3: NoInfer を使った型安全な API
+#### Problem 3: Type-safe API with NoInfer
 
-以下の API を、NoInfer を使ってより型安全にしてください。
+Make the following API more type-safe using `NoInfer`.
 
 ```typescript
 function createState<T>(
@@ -2636,15 +2636,15 @@ function createState<T>(
   };
 }
 
-// 問題: validator の型が initialValue と一致しない場合がある
+// Problem: the type of validator may not match initialValue
 const state = createState(10, (v) => typeof v === "string");
-// エラーが出ない（出るべき）
+// No error is raised (but it should be)
 
-// TODO: NoInfer を使って validator の型を厳密にしてください
+// TODO: Use NoInfer to make the validator type strict
 ```
 
 <details>
-<summary>解答例</summary>
+<summary>Solution</summary>
 
 ```typescript
 function createState<T>(
@@ -2667,15 +2667,15 @@ function createState<T>(
   };
 }
 
-// 修正後
+// After fix
 const state = createState(10, (v) => typeof v === "string");
-// エラー: (v: number) => boolean が期待されるが、(v: number) => typeof v === "string" が与えられた
+// Error: (v: number) => boolean is expected, but (v: number) => typeof v === "string" was given
 ```
 </details>
 
-#### 問題 4: 型述語の推論を活用したフィルタリング
+#### Problem 4: Filtering with Type Predicate Inference
 
-以下の配列から、特定の条件を満たす要素をフィルタリングする関数を、型述語の推論を活用して実装してください。
+Implement a function that filters elements satisfying specific conditions from the following array, leveraging type predicate inference.
 
 ```typescript
 type Result<T> =
@@ -2690,12 +2690,12 @@ const results: Result<number>[] = [
   { success: true, data: 3 },
 ];
 
-// TODO: 成功した結果のみを取得し、data の配列を返す関数を実装
-// 型述語の推論を活用して、型安全に実装してください
+// TODO: Implement a function that retrieves only successful results and returns an array of data
+// Use type predicate inference for a type-safe implementation
 ```
 
 <details>
-<summary>解答例</summary>
+<summary>Solution</summary>
 
 ```typescript
 type Result<T> =
@@ -2710,34 +2710,34 @@ const results: Result<number>[] = [
   { success: true, data: 3 },
 ];
 
-// 型述語が自動推論される（5.5+）
+// Type predicate is automatically inferred (5.5+)
 const successResults = results.filter((r) => r.success);
-// 型: { success: true; data: number }[]
+// Type: { success: true; data: number }[]
 
 const data = successResults.map((r) => r.data);
-// 型: number[]
+// Type: number[]
 // data = [1, 2, 3]
 
-// または、1行で
+// Or in a single chain
 const data2 = results
   .filter((r) => r.success)
   .map((r) => r.data);
-// 型: number[]
+// Type: number[]
 ```
 </details>
 
-### 発展レベル
+### Advanced Level
 
-#### 問題 5: ECMAScript デコレータを使った依存性注入
+#### Problem 5: Dependency Injection with ECMAScript Decorators
 
-ECMAScript 標準デコレータを使って、簡易的な依存性注入システムを実装してください。
+Implement a simple dependency injection system using ECMAScript standard decorators.
 
 ```typescript
-// TODO: Injectable デコレータを実装
-// TODO: Inject デコレータを実装
-// TODO: Container クラスを実装
+// TODO: Implement the Injectable decorator
+// TODO: Implement the Inject decorator
+// TODO: Implement the Container class
 
-// 使用例:
+// Usage example:
 @Injectable()
 class Logger {
   log(message: string) {
@@ -2759,18 +2759,18 @@ class UserService {
 const container = new Container();
 const userService = container.resolve(UserService);
 userService.getUser("123");
-// 期待される出力: [LOG] Getting user 123
+// Expected output: [LOG] Getting user 123
 ```
 
 <details>
-<summary>解答例</summary>
+<summary>Solution</summary>
 
 ```typescript
-// メタデータキー
+// Metadata keys
 const INJECTABLE_KEY = Symbol("injectable");
 const DEPENDENCIES_KEY = Symbol("dependencies");
 
-// Injectable デコレータ
+// Injectable decorator
 function Injectable() {
   return function <T extends { new (...args: any[]): {} }>(
     target: T,
@@ -2781,7 +2781,7 @@ function Injectable() {
   };
 }
 
-// Inject デコレータ
+// Inject decorator
 function Inject(dependency: any) {
   return function (
     _target: undefined,
@@ -2798,41 +2798,41 @@ function Inject(dependency: any) {
   };
 }
 
-// Container クラス
+// Container class
 class Container {
   private instances = new Map<any, any>();
 
   resolve<T>(target: new (...args: any[]) => T): T {
-    // すでにインスタンスがある場合は返す
+    // Return existing instance if available
     if (this.instances.has(target)) {
       return this.instances.get(target);
     }
 
-    // インスタンスを作成
+    // Create instance
     const instance = new target();
 
-    // メタデータから依存関係を取得
+    // Get dependencies from metadata
     const metadata = (target as any)[Symbol.metadata];
     const dependencies = metadata?.[DEPENDENCIES_KEY] as Map<
       string | symbol,
       any
     >;
 
-    // 依存関係を注入
+    // Inject dependencies
     if (dependencies) {
       for (const [fieldName, dependency] of dependencies) {
         (instance as any)[fieldName] = this.resolve(dependency);
       }
     }
 
-    // インスタンスをキャッシュ
+    // Cache instance
     this.instances.set(target, instance);
 
     return instance;
   }
 }
 
-// 使用例
+// Usage example
 @Injectable()
 class Logger {
   log(message: string) {
@@ -2854,40 +2854,40 @@ class UserService {
 const container = new Container();
 const userService = container.resolve(UserService);
 userService.getUser("123");
-// 出力: [LOG] Getting user 123
+// Output: [LOG] Getting user 123
 ```
 </details>
 
-#### 問題 6: 複雑な型推論とリソース管理の組み合わせ
+#### Problem 6: Combining Complex Type Inference and Resource Management
 
-以下の要件を満たす Transaction クラスを実装してください。
+Implement a `Transaction` class meeting the following requirements.
 
-要件:
-1. AsyncDisposable を実装
-2. ジェネリック型パラメータで操作の結果型を指定可能
-3. commit/rollback の状態管理
-4. 型述語を使った状態の絞り込み
+Requirements:
+1. Implement `AsyncDisposable`
+2. Allow specifying the result type of operations via a generic type parameter
+3. Manage commit/rollback state
+4. Use type predicates for state narrowing
 
 ```typescript
-// TODO: Transaction クラスを実装
+// TODO: Implement the Transaction class
 
-// 使用例:
+// Usage example:
 async function transferMoney(from: string, to: string, amount: number) {
   await using tx = await Transaction.begin<{ newBalance: number }>();
 
   await tx.execute(async () => {
-    // 送金処理
+    // Transfer logic
     return { newBalance: 1000 };
   });
 
   await tx.commit();
 
-  return tx.getResult(); // 型: { newBalance: number } | undefined
+  return tx.getResult(); // Type: { newBalance: number } | undefined
 }
 ```
 
 <details>
-<summary>解答例</summary>
+<summary>Solution</summary>
 
 ```typescript
 type TransactionState = "pending" | "committed" | "rolledback";
@@ -2927,7 +2927,7 @@ class Transaction<T> implements AsyncDisposable {
 
   async rollback(): Promise<void> {
     if (this.state !== "pending") {
-      return; // すでに完了している場合は何もしない
+      return; // No-op if already completed
     }
 
     console.log("Transaction rolled back");
@@ -2950,12 +2950,12 @@ class Transaction<T> implements AsyncDisposable {
   }
 }
 
-// 使用例
+// Usage example
 async function transferMoney(from: string, to: string, amount: number) {
   await using tx = await Transaction.begin<{ newBalance: number }>();
 
   await tx.execute(async () => {
-    // 模擬的な送金処理
+    // Simulated transfer logic
     console.log(`Transferring ${amount} from ${from} to ${to}`);
     await new Promise((resolve) => setTimeout(resolve, 100));
     return { newBalance: 1000 - amount };
@@ -2966,7 +2966,7 @@ async function transferMoney(from: string, to: string, amount: number) {
   return tx.getResult();
 }
 
-// 実行例
+// Execution example
 const result = await transferMoney("Alice", "Bob", 100);
 // Transaction started
 // Transferring 100 from Alice to Bob
@@ -2978,9 +2978,9 @@ console.log(result); // { newBalance: 900 }
 
 ---
 
-## 15. tsconfig.json 推奨設定（バージョン別）
+## 15. Recommended tsconfig.json Settings by Version
 
-### TypeScript 5.0 推奨設定
+### TypeScript 5.0 Recommended Settings
 
 ```json
 {
@@ -2990,28 +2990,28 @@ console.log(result); // { newBalance: 900 }
     "module": "ESNext",
     "moduleResolution": "bundler",
 
-    // 型チェック
+    // Type checking
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noPropertyAccessFromIndexSignature": true,
 
-    // デコレータ（ECMAScript 標準）
+    // Decorators (ECMAScript standard)
     "experimentalDecorators": false,
     "emitDecoratorMetadata": false,
 
-    // 出力
+    // Output
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
     "removeComments": true,
 
-    // インポート
+    // Imports
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
 
-    // その他
+    // Other
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
@@ -3020,7 +3020,7 @@ console.log(result); // { newBalance: 900 }
 }
 ```
 
-### TypeScript 5.2 推奨設定（using 宣言対応）
+### TypeScript 5.2 Recommended Settings (with using Declaration Support)
 
 ```json
 {
@@ -3033,8 +3033,8 @@ console.log(result); // { newBalance: 900 }
     "strict": true,
     "noUncheckedIndexedAccess": true,
 
-    // using 宣言のサポート
-    // ランタイムで Symbol.dispose のポリフィルが必要な場合あり
+    // Support for using declarations
+    // Polyfill for Symbol.dispose may be needed at runtime
 
     "declaration": true,
     "sourceMap": true,
@@ -3043,7 +3043,7 @@ console.log(result); // { newBalance: 900 }
 }
 ```
 
-### TypeScript 5.5 推奨設定（isolatedDeclarations 対応）
+### TypeScript 5.5 Recommended Settings (with isolatedDeclarations)
 
 ```json
 {
@@ -3056,12 +3056,12 @@ console.log(result); // { newBalance: 900 }
     "strict": true,
     "noUncheckedIndexedAccess": true,
 
-    // 型定義の分離（ライブラリ開発時に推奨）
+    // Isolated declarations (recommended for library development)
     "isolatedDeclarations": true,
     "declaration": true,
 
-    // 正規表現チェック
-    // デフォルトで有効（無効化する必要はない）
+    // Regex checking
+    // Enabled by default (no need to disable)
 
     "sourceMap": true,
     "outDir": "./dist"
@@ -3069,7 +3069,7 @@ console.log(result); // { newBalance: 900 }
 }
 ```
 
-### TypeScript 5.6 推奨設定（最新機能フル活用）
+### TypeScript 5.6 Recommended Settings (Full Latest Features)
 
 ```json
 {
@@ -3079,31 +3079,31 @@ console.log(result); // { newBalance: 900 }
     "module": "ESNext",
     "moduleResolution": "bundler",
 
-    // 厳格な型チェック
+    // Strict type checking
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noPropertyAccessFromIndexSignature": true,
     "exactOptionalPropertyTypes": true,
 
-    // 副作用インポートのチェック
+    // Check side-effect imports
     "noUncheckedSideEffectImports": true,
 
-    // 型定義
+    // Type definitions
     "isolatedDeclarations": true,
     "declaration": true,
     "declarationMap": true,
 
-    // 出力
+    // Output
     "sourceMap": true,
     "outDir": "./dist",
     "removeComments": true,
 
-    // インポート
+    // Imports
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
 
-    // その他
+    // Other
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
@@ -3116,80 +3116,80 @@ console.log(result); // { newBalance: 900 }
 
 ## 16. FAQ
 
-### Q1: TypeScript のバージョンアップはどのくらいの頻度で行うべきですか?
+### Q1: How often should I upgrade TypeScript versions?
 
-**A:** マイナーバージョン（5.x）ごとに追従することを推奨します。TypeScript は約 3 ヶ月サイクルでリリースされ、各バージョンの破壊的変更は比較的小さいです。
+**A:** It is recommended to follow each minor version (5.x). TypeScript releases on an approximately 3-month cycle, and breaking changes in each version are relatively small.
 
-具体的な戦略:
-1. **nightly テスト**: CI で `typescript@next` をテストするジョブを追加し、問題を早期発見
-2. **段階的移行**: 新バージョンリリース後 1-2 週間で検証環境に導入
-3. **本番適用**: 問題がなければ 1 ヶ月以内に本番環境に適用
-4. **パッチバージョン**: セキュリティ修正を含むため即座に適用
+Concrete strategy:
+1. **Nightly tests**: Add a CI job that tests against `typescript@next` to detect issues early
+2. **Gradual migration**: Introduce the new version into a test environment 1–2 weeks after release
+3. **Production rollout**: Apply to production within 1 month if no issues are found
+4. **Patch versions**: Apply immediately as they may contain security fixes
 
 ```json
-// package.json での管理
+// Management in package.json
 {
   "devDependencies": {
-    "typescript": "^5.7.0",  // マイナーバージョンまで自動更新
-    "typescript-next": "npm:typescript@next"  // nightly テスト用
+    "typescript": "^5.7.0",  // Auto-update to latest minor version
+    "typescript-next": "npm:typescript@next"  // For nightly testing
   },
   "scripts": {
     "test": "tsc --noEmit && vitest",
-    "test:next": "tsc --noEmit && vitest"  // next バージョンでのテスト
+    "test:next": "tsc --noEmit && vitest"  // Test with next version
   }
 }
 ```
 
-### Q2: satisfies はどのような場面で使うべきですか?
+### Q2: When should I use satisfies?
 
-**A:** 以下のような場面で satisfies が有効です:
+**A:** `satisfies` is effective in the following situations:
 
-1. **オブジェクトリテラルの型検証 + リテラル型保持**
+1. **Validating object literals while preserving literal types**
 ```typescript
 const config = {
   port: 3000,
   host: "localhost",
 } satisfies Config;
-// config.port の型は number（リテラル型は保持されない）
+// Type of config.port is number (literal type not preserved)
 
 const config2 = {
   port: 3000,
   host: "localhost",
 } as const satisfies Config;
-// config2.port の型は 3000（リテラル型が保持される）
+// Type of config2.port is 3000 (literal type preserved)
 ```
 
-2. **ルーティングテーブルやマッピングオブジェクト**
+2. **Routing tables and mapping objects**
 ```typescript
 const routes = {
   "/home": HomePage,
   "/about": AboutPage,
   "/contact": ContactPage,
 } satisfies Record<string, ComponentType>;
-// 余分なプロパティがあればエラー、型も保持
+// Error on excess properties, types are preserved
 ```
 
-3. **設定オブジェクトの検証**
+3. **Validating configuration objects**
 ```typescript
 const featureFlags = {
   enableNewUI: true,
   enableBeta: false,
 } satisfies Record<string, boolean>;
-// キーのタイポを防ぎつつ、具体的なキー名を保持
+// Prevents key typos while preserving specific key names
 ```
 
-### Q3: using 宣言はいつから実際に使えますか?
+### Q3: When can using declarations actually be used?
 
-**A:** TypeScript 5.2+ で構文サポートされています。ランタイム対応状況:
+**A:** Syntax support is available in TypeScript 5.2+. Runtime support status:
 
-**ネイティブサポート:**
-- Node.js 22+ (2024年4月リリース)
-- Chrome 125+ (2024年5月リリース)
-- Safari 18+ (2024年9月リリース)
+**Native support:**
+- Node.js 22+ (released April 2024)
+- Chrome 125+ (released May 2024)
+- Safari 18+ (released September 2024)
 
-**ポリフィルが必要な環境:**
+**Environments requiring a polyfill:**
 ```typescript
-// Symbol.dispose のポリフィル
+// Polyfill for Symbol.dispose
 if (!Symbol.dispose) {
   (Symbol as any).dispose = Symbol.for("Symbol.dispose");
 }
@@ -3199,28 +3199,28 @@ if (!Symbol.asyncDispose) {
 }
 ```
 
-**推奨:**
-- 新規プロジェクト: Node.js 22+ を使用してネイティブサポートを活用
-- 既存プロジェクト: ポリフィルを導入してから段階的に using 宣言に移行
+**Recommendation:**
+- New projects: Use Node.js 22+ to take advantage of native support
+- Existing projects: Introduce a polyfill and gradually migrate to using declarations
 
-### Q4: 型述語の自動推論（5.5）は常に正しく動作しますか?
+### Q4: Does type predicate inference (5.5) always work correctly?
 
-**A:** ほとんどの場合は正しく動作しますが、複雑な条件では明示的な型述語が必要な場合があります:
+**A:** It works correctly in most cases, but explicit type predicates may be needed for complex conditions:
 
 ```typescript
-// 自動推論が機能する例
+// Example where automatic inference works
 const isString = (x: unknown) => typeof x === "string";
-// 推論: (x: unknown) => x is string ✅
+// Inferred: (x: unknown) => x is string ✅
 
-// 自動推論が不十分な例
+// Example where automatic inference is insufficient
 const isValidUser = (x: unknown) => {
   if (typeof x !== "object" || x === null) return false;
   return "id" in x && "name" in x;
 };
-// 推論: (x: unknown) => boolean ❌
-// 期待: (x: unknown) => x is { id: unknown; name: unknown }
+// Inferred: (x: unknown) => boolean ❌
+// Expected: (x: unknown) => x is { id: unknown; name: unknown }
 
-// 明示的な型述語が必要
+// Explicit type predicate required
 interface User {
   id: number;
   name: string;
@@ -3237,18 +3237,18 @@ function isValidUser(x: unknown): x is User {
 }
 ```
 
-### Q5: NoInfer はいつ使うべきですか?
+### Q5: When should I use NoInfer?
 
-**A:** 以下の状況で NoInfer が有効です:
+**A:** `NoInfer` is effective in the following situations:
 
-1. **デフォルト値やフォールバック値の型を制限**
+1. **Restricting the type of default or fallback values**
 ```typescript
 function getOrDefault<T>(value: T | null, fallback: NoInfer<T>): T {
   return value ?? fallback;
 }
 ```
 
-2. **イベントハンドラーの型を固定**
+2. **Fixing the type of event handlers**
 ```typescript
 function on<K extends keyof Events>(
   event: K,
@@ -3256,7 +3256,7 @@ function on<K extends keyof Events>(
 ): void;
 ```
 
-3. **変換関数の戻り値型を制限**
+3. **Restricting the return type of transform functions**
 ```typescript
 function map<T>(
   items: T[],
@@ -3266,101 +3266,101 @@ function map<T>(
 }
 ```
 
-**使わない方が良い場合:**
-- 両方の引数から型を推論したい場合
-- 柔軟な型推論が必要な場合
+**When not to use it:**
+- When you want type to be inferred from both arguments
+- When flexible type inference is needed
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## 17. まとめ表
-
-| 概念 | 要点 | バージョン |
-|------|------|----------|
-| ECMAScript デコレータ | Stage 3 標準、context オブジェクト | 5.0+ |
-| const 型パラメータ | ジェネリクスでリテラル型を保持 | 5.0+ |
-| getter/setter 型非対称 | 異なる型を使用可能 | 5.1+ |
-| using 宣言 | RAII パターンのリソース管理 | 5.2+ |
-| Import Attributes | JSON/CSS 等のインポート | 5.3+ |
-| switch(true) 絞り込み | switch 文での型ナローイング | 5.3+ |
-| NoInfer | 型推論の候補から除外 | 5.4+ |
-| クロージャ絞り込み | クロージャ内で型絞り込み保持 | 5.4+ |
-| 型述語推論 | filter 等で自動絞り込み | 5.5+ |
-| 正規表現チェック | リテラルの構文エラー検出 | 5.5+ |
-| isolatedDeclarations | 型定義の分離 | 5.5+ |
-| Iterator ヘルパー | take/map/filter 等のメソッド | 5.6+ |
-| Nullish/Truthy チェック | 不要な条件式を警告 | 5.6+ |
-| パフォーマンス改善 | 大規模プロジェクトの高速化 | 5.7+ |
+Knowledge of this topic is frequently applied in day-to-day development. It becomes especially important during code reviews and architectural design.
 
 ---
 
-## 18. 次に読むべきガイド
+## 17. Summary Table
 
-- **[tsconfig.json](../03-tooling/00-tsconfig.md)** -- 新バージョンの設定オプション詳細
-- **[判別共用体](../02-patterns/02-discriminated-unions.md)** -- 5.x で改善された型絞り込みの活用
-- **[ビルドツール](../03-tooling/01-build-tools.md)** -- 新バージョンへのビルドツール対応
-- **デコレータパターン** -- ECMAScript デコレータの実践的パターン
-- **エラーハンドリング** -- using 宣言を活用したリソース管理
+| Concept | Key Points | Version |
+|---------|-----------|---------|
+| ECMAScript decorators | Stage 3 standard, context object | 5.0+ |
+| const type parameters | Preserve literal types in generics | 5.0+ |
+| Getter/setter type asymmetry | Different types can be used | 5.1+ |
+| using declarations | RAII-pattern resource management | 5.2+ |
+| Import Attributes | Importing JSON/CSS etc. | 5.3+ |
+| switch(true) narrowing | Type narrowing in switch statements | 5.3+ |
+| NoInfer | Exclude from type inference candidates | 5.4+ |
+| Closure narrowing | Preserve type narrowing inside closures | 5.4+ |
+| Type predicate inference | Automatic narrowing in filter etc. | 5.5+ |
+| Regex checks | Detect syntax errors in literals | 5.5+ |
+| isolatedDeclarations | Isolation of type definitions | 5.5+ |
+| Iterator helpers | take/map/filter etc. methods | 5.6+ |
+| Nullish/Truthy checks | Warn about unnecessary conditions | 5.6+ |
+| Performance improvements | Faster processing for large projects | 5.7+ |
 
 ---
 
-## 19. 参考文献
+## 18. What to Read Next
+
+- **[tsconfig.json](../03-tooling/00-tsconfig.md)** -- Details of new version configuration options
+- **[Discriminated Unions](../02-patterns/02-discriminated-unions.md)** -- Leveraging improved type narrowing in 5.x
+- **[Build Tools](../03-tooling/01-build-tools.md)** -- Build tool support for new versions
+- **Decorator Patterns** -- Practical patterns with ECMAScript decorators
+- **Error Handling** -- Resource management leveraging using declarations
+
+---
+
+## 19. References
 
 1. **TypeScript Release Notes**
    https://www.typescriptlang.org/docs/handbook/release-notes/overview.html
-   各バージョンの詳細な変更内容と移行ガイド
+   Detailed changes and migration guides for each version
 
 2. **TypeScript Blog**
    https://devblogs.microsoft.com/typescript/
-   TypeScript チームによる公式ブログ、新機能の背景と設計思想
+   Official blog by the TypeScript team covering backgrounds and design philosophy of new features
 
 3. **TC39 Proposals**
    https://github.com/tc39/proposals
-   ECMAScript の提案一覧、TypeScript が実装する機能の元仕様
+   List of ECMAScript proposals — the source specs for features implemented in TypeScript
 
 4. **Explicit Resource Management Proposal**
    https://github.com/tc39/proposal-explicit-resource-management
-   using 宣言の ECMAScript 提案
+   ECMAScript proposal for using declarations
 
 5. **Decorator Metadata Proposal**
    https://github.com/tc39/proposal-decorator-metadata
-   デコレータメタデータの ECMAScript 提案
+   ECMAScript proposal for decorator metadata
 
 6. **Iterator Helpers Proposal**
    https://github.com/tc39/proposal-iterator-helpers
-   Iterator ヘルパーメソッドの ECMAScript 提案
+   ECMAScript proposal for Iterator helper methods
 
 ---
 
-**文字数**: 43,247文字
+**Character count**: 43,247 characters
 
-このガイドは TypeScript 5.0 から 5.7 までの主要な新機能を網羅し、実務で即座に活用できる実践的なコード例と、深い理解のための詳細な解説を提供します。
-
----
-
-## 次に読むべきガイド
-
-- 同カテゴリの他のガイドを参照してください
+This guide covers all major new features from TypeScript 5.0 to 5.7, providing practical code examples that can be immediately applied in real-world development along with detailed explanations for deep understanding.
 
 ---
 
-## 参考文献
+## What to Read Next
 
-- [MDN Web Docs](https://developer.mozilla.org/) - Web技術のリファレンス
-- [Wikipedia](https://ja.wikipedia.org/) - 技術概念の概要
+- Refer to other guides in the same category
+
+---
+
+## References
+
+- [MDN Web Docs](https://developer.mozilla.org/) - Web technology reference
+- [Wikipedia](https://en.wikipedia.org/) - Overview of technical concepts

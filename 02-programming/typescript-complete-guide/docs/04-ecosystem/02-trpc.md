@@ -1,60 +1,60 @@
-# tRPC 完全ガイド
+# tRPC Complete Guide
 
-> TypeScript の型推論だけでクライアント-サーバー間の型安全性を実現する、スキーマ不要の RPC フレームワーク
+> A schema-free RPC framework that achieves type safety between client and server using only TypeScript type inference
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **tRPC の基本** -- ルーター定義、プロシージャ、入力バリデーション（zod）の統合
-2. **クライアント統合** -- React（@trpc/react-query）、Next.js、バニラクライアントでの利用方法
-3. **高度なパターン** -- ミドルウェア、エラーハンドリング、サブスクリプション、テスト戦略
-4. **パフォーマンス最適化** -- バッチング、キャッシュ戦略、レスポンス最適化
-5. **本番運用** -- デプロイ、モニタリング、セキュリティ、スケーリング
+1. **tRPC Basics** -- Router definition, procedures, and integration with zod input validation
+2. **Client Integration** -- Usage with React (@trpc/react-query), Next.js, and vanilla clients
+3. **Advanced Patterns** -- Middleware, error handling, subscriptions, and testing strategies
+4. **Performance Optimization** -- Batching, caching strategies, and response optimization
+5. **Production Operations** -- Deployment, monitoring, security, and scaling
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Prisma + TypeScript 完全ガイド](./01-prisma-typescript.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in [Prisma + TypeScript Complete Guide](./01-prisma-typescript.md)
 
 ---
 
-## 1. tRPC の基本
+## 1. tRPC Basics
 
-### 1-1. コンセプト
+### 1-1. Concept
 
 ```
-tRPC の型共有モデル:
+tRPC Type Sharing Model:
 
-  従来の REST API:
+  Traditional REST API:
   +---------+    HTTP    +---------+
   | Client  | ---------> | Server  |
   +---------+    JSON    +---------+
-  型なし(any)              型あり
-  → 型定義を手動同期 or OpenAPI コード生成
+  No types (any)           Typed
+  → Manually sync type definitions or generate via OpenAPI
 
   tRPC:
   +---------+    HTTP    +---------+
   | Client  | ---------> | Server  |
   +---------+            +---------+
        |                      |
-       +--- TypeScript 型推論 -+
-  型を直接共有（コード生成不要!）
+       +--- TypeScript type inference ---+
+  Types shared directly (no code generation needed!)
 
-  サーバーのルーター型がそのまま
-  クライアントの型として推論される
+  The server's router types are inferred
+  directly as the client's types
 ```
 
-### 1-2. サーバーセットアップ
+### 1-2. Server Setup
 
 ```typescript
-// server/trpc.ts -- tRPC の初期化
+// server/trpc.ts -- tRPC initialization
 import { initTRPC, TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-// コンテキスト型
+// Context type
 interface Context {
   userId: string | null;
   db: PrismaClient;
@@ -75,13 +75,13 @@ const t = initTRPC.context<Context>().create({
   },
 });
 
-// エクスポート
+// Exports
 export const router = t.router;
 export const publicProcedure = t.procedure;
 export const middleware = t.middleware;
 ```
 
-### 1-3. ルーター定義
+### 1-3. Router Definition
 
 ```typescript
 // server/routers/user.ts
@@ -100,7 +100,7 @@ const UserUpdateInput = z.object({
 });
 
 export const userRouter = router({
-  // Query: データ取得
+  // Query: fetch data
   list: publicProcedure
     .input(
       z.object({
@@ -118,7 +118,7 @@ export const userRouter = router({
       return { users, total, page: input.page };
     }),
 
-  // Query: 単一取得
+  // Query: fetch single
   byId: publicProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
@@ -135,14 +135,14 @@ export const userRouter = router({
       return user;
     }),
 
-  // Mutation: 作成
+  // Mutation: create
   create: publicProcedure
     .input(UserCreateInput)
     .mutation(async ({ ctx, input }) => {
       return ctx.db.user.create({ data: input });
     }),
 
-  // Mutation: 更新
+  // Mutation: update
   update: publicProcedure
     .input(
       z.object({
@@ -157,7 +157,7 @@ export const userRouter = router({
       });
     }),
 
-  // Mutation: 削除
+  // Mutation: delete
   delete: publicProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -167,7 +167,7 @@ export const userRouter = router({
 });
 ```
 
-### 1-4. ルートルーター
+### 1-4. Root Router
 
 ```typescript
 // server/routers/_app.ts
@@ -180,14 +180,14 @@ export const appRouter = router({
   post: postRouter,
 });
 
-// 型をエクスポート（クライアントで使用）
+// Export type (used on the client)
 export type AppRouter = typeof appRouter;
 ```
 
-### 1-5. コンテキスト生成の詳細パターン
+### 1-5. Advanced Context Creation Patterns
 
 ```typescript
-// server/context.ts -- 高度なコンテキスト生成
+// server/context.ts -- Advanced context creation
 import { inferAsyncReturnType } from "@trpc/server";
 import { CreateNextContextOptions } from "@trpc/server/adapters/next";
 import { getServerSession } from "next-auth";
@@ -195,8 +195,8 @@ import { authOptions } from "../auth";
 import { prisma } from "../db";
 
 /**
- * コンテキスト生成関数
- * リクエストごとに呼ばれ、全プロシージャから参照可能な共有状態を作る
+ * Context creation function
+ * Called per request, creates shared state accessible from all procedures
  */
 export async function createContext(opts: CreateNextContextOptions) {
   const session = await getServerSession(opts.req, opts.res, authOptions);
@@ -214,12 +214,12 @@ export type Context = inferAsyncReturnType<typeof createContext>;
 ```
 
 ```typescript
-// server/context.ts -- Fetch API 用（App Router / Edge Runtime）
+// server/context.ts -- For Fetch API (App Router / Edge Runtime)
 import { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { getToken } from "next-auth/jwt";
 
 export async function createContext(opts: FetchCreateContextFnOptions) {
-  // ヘッダーからトークンを取得
+  // Get token from headers
   const authHeader = opts.req.headers.get("authorization");
   const token = authHeader?.replace("Bearer ", "");
 
@@ -229,7 +229,7 @@ export async function createContext(opts: FetchCreateContextFnOptions) {
       const decoded = await verifyJWT(token);
       userId = decoded.sub;
     } catch {
-      // トークン無効 -- userId は null のまま
+      // Invalid token -- userId remains null
     }
   }
 
@@ -242,13 +242,13 @@ export async function createContext(opts: FetchCreateContextFnOptions) {
 }
 ```
 
-### 1-6. 入力スキーマの高度な定義
+### 1-6. Advanced Input Schema Definitions
 
 ```typescript
-// server/schemas/user.ts -- 再利用可能なスキーマ
+// server/schemas/user.ts -- Reusable schemas
 import { z } from "zod";
 
-// 基本スキーマ
+// Base schema
 export const UserSchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1).max(100),
@@ -258,21 +258,21 @@ export const UserSchema = z.object({
   updatedAt: z.date(),
 });
 
-// 部分型（PATCH 更新用）
+// Partial type (for PATCH updates)
 export const UserUpdateSchema = UserSchema.pick({
   name: true,
   email: true,
   role: true,
 }).partial();
 
-// 作成用（id, timestamps を除外）
+// For creation (omitting id, timestamps)
 export const UserCreateSchema = UserSchema.omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
 
-// フィルター用
+// For filtering
 export const UserFilterSchema = z.object({
   search: z.string().optional(),
   role: z.enum(["USER", "ADMIN", "MODERATOR"]).optional(),
@@ -280,7 +280,7 @@ export const UserFilterSchema = z.object({
   createdBefore: z.date().optional(),
 });
 
-// ページネーション用（汎用）
+// For pagination (generic)
 export const PaginationSchema = z.object({
   page: z.number().int().min(1).default(1),
   limit: z.number().int().min(1).max(100).default(20),
@@ -288,17 +288,17 @@ export const PaginationSchema = z.object({
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
 
-// 組み合わせ
+// Combined
 export const UserListInput = PaginationSchema.merge(UserFilterSchema);
 
-// 型の抽出（他のファイルで使用可能）
+// Type extraction (usable in other files)
 export type UserCreate = z.infer<typeof UserCreateSchema>;
 export type UserUpdate = z.infer<typeof UserUpdateSchema>;
 export type UserFilter = z.infer<typeof UserFilterSchema>;
 ```
 
 ```typescript
-// server/routers/user.ts -- 外部スキーマを利用したルーター
+// server/routers/user.ts -- Router using external schemas
 import { router, publicProcedure, protectedProcedure } from "../trpc";
 import {
   UserCreateSchema,
@@ -344,7 +344,7 @@ export const userRouter = router({
   create: protectedProcedure
     .input(UserCreateSchema)
     .mutation(async ({ ctx, input }) => {
-      // メールの重複チェック
+      // Check for duplicate email
       const existing = await ctx.db.user.findUnique({
         where: { email: input.email },
       });
@@ -361,38 +361,38 @@ export const userRouter = router({
 
 ---
 
-## 2. ミドルウェアと認証
+## 2. Middleware and Authentication
 
-### 2-1. 認証ミドルウェア
+### 2-1. Authentication Middleware
 
 ```
-ミドルウェアチェーン:
+Middleware chain:
 
-  リクエスト
+  Request
      |
      v
   +--------------------+
-  | publicProcedure    |  誰でもアクセス可
-  +--------------------+
-     |
-     v
-  +--------------------+
-  | isAuthed           |  ログイン必須
-  | (middleware)       |  ctx.userId を保証
+  | publicProcedure    |  Anyone can access
   +--------------------+
      |
      v
   +--------------------+
-  | isAdmin            |  管理者のみ
-  | (middleware)       |  ctx.user.role を保証
+  | isAuthed           |  Login required
+  | (middleware)       |  Guarantees ctx.userId
   +--------------------+
      |
      v
-  プロシージャ実行
+  +--------------------+
+  | isAdmin            |  Admins only
+  | (middleware)       |  Guarantees ctx.user.role
+  +--------------------+
+     |
+     v
+  Procedure execution
 ```
 
 ```typescript
-// 認証ミドルウェア
+// Authentication middleware
 const isAuthed = middleware(async ({ ctx, next }) => {
   if (!ctx.userId) {
     throw new TRPCError({
@@ -415,15 +415,15 @@ const isAuthed = middleware(async ({ ctx, next }) => {
   return next({
     ctx: {
       ...ctx,
-      userId: ctx.userId, // string (non-null が保証)
-      user,               // User 型が ctx に追加
+      userId: ctx.userId, // string (guaranteed non-null)
+      user,               // User type added to ctx
     },
   });
 });
 
-// 管理者ミドルウェア
+// Admin middleware
 const isAdmin = middleware(async ({ ctx, next }) => {
-  // isAuthed の後に使用する前提
+  // Intended for use after isAuthed
   if ((ctx as any).user?.role !== "ADMIN") {
     throw new TRPCError({
       code: "FORBIDDEN",
@@ -433,27 +433,27 @@ const isAdmin = middleware(async ({ ctx, next }) => {
   return next({ ctx });
 });
 
-// プロシージャのベース
+// Procedure bases
 const protectedProcedure = publicProcedure.use(isAuthed);
 const adminProcedure = protectedProcedure.use(isAdmin);
 
-// 使用例
+// Usage example
 export const adminRouter = router({
   listAllUsers: adminProcedure.query(async ({ ctx }) => {
-    // ctx.user は User 型で保証されている
+    // ctx.user is guaranteed to be of type User
     return ctx.db.user.findMany();
   }),
 });
 ```
 
-### 2-2. ロギングミドルウェア
+### 2-2. Logging Middleware
 
 ```typescript
 // server/middleware/logging.ts
 import { middleware } from "../trpc";
 
 /**
- * リクエストのタイミングとパスをログ出力するミドルウェア
+ * Middleware that logs request timing and path
  */
 export const loggerMiddleware = middleware(async ({ path, type, next }) => {
   const start = Date.now();
@@ -477,23 +477,23 @@ export const loggerMiddleware = middleware(async ({ path, type, next }) => {
   return result;
 });
 
-// 全プロシージャに適用
+// Apply to all procedures
 export const publicProcedure = t.procedure.use(loggerMiddleware);
 ```
 
-### 2-3. レート制限ミドルウェア
+### 2-3. Rate Limiting Middleware
 
 ```typescript
 // server/middleware/rateLimit.ts
 import { middleware } from "../trpc";
 import { TRPCError } from "@trpc/server";
 
-// シンプルなインメモリレート制限（本番では Redis を使用）
+// Simple in-memory rate limiting (use Redis in production)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 interface RateLimitOptions {
-  windowMs: number;  // ウィンドウ時間（ミリ秒）
-  maxRequests: number;  // ウィンドウ内の最大リクエスト数
+  windowMs: number;  // Window duration (milliseconds)
+  maxRequests: number;  // Maximum requests within the window
 }
 
 export function createRateLimitMiddleware(options: RateLimitOptions) {
@@ -523,15 +523,15 @@ export function createRateLimitMiddleware(options: RateLimitOptions) {
   });
 }
 
-// 使用例
+// Usage example
 const rateLimitedProcedure = publicProcedure.use(
   createRateLimitMiddleware({
-    windowMs: 60_000,   // 1分間
-    maxRequests: 100,    // 最大100リクエスト
+    windowMs: 60_000,   // 1 minute
+    maxRequests: 100,    // Maximum 100 requests
   })
 );
 
-// Redis ベースのレート制限（本番推奨）
+// Redis-based rate limiting (recommended for production)
 import { Redis } from "ioredis";
 
 const redis = new Redis(process.env.REDIS_URL!);
@@ -558,7 +558,7 @@ export function createRedisRateLimitMiddleware(options: RateLimitOptions) {
 }
 ```
 
-### 2-4. 組織ベースのアクセス制御ミドルウェア
+### 2-4. Organization-Based Access Control Middleware
 
 ```typescript
 // server/middleware/organization.ts
@@ -567,11 +567,11 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 /**
- * 組織メンバーシップを検証するミドルウェア
- * protectedProcedure の後に使用する
+ * Middleware that validates organization membership
+ * Used after protectedProcedure
  */
 export const withOrganization = middleware(async ({ ctx, next, rawInput }) => {
-  // rawInput から orgId を取得
+  // Extract orgId from rawInput
   const parsed = z.object({ orgId: z.string() }).safeParse(rawInput);
   if (!parsed.success) {
     throw new TRPCError({
@@ -606,7 +606,7 @@ export const withOrganization = middleware(async ({ ctx, next, rawInput }) => {
   });
 });
 
-// 組織管理者専用
+// Organization admin only
 export const withOrgAdmin = middleware(async ({ ctx, next }) => {
   if (!["OWNER", "ADMIN"].includes((ctx as any).memberRole)) {
     throw new TRPCError({
@@ -617,11 +617,11 @@ export const withOrgAdmin = middleware(async ({ ctx, next }) => {
   return next({ ctx });
 });
 
-// プロシージャ定義
+// Procedure definitions
 const orgProcedure = protectedProcedure.use(withOrganization);
 const orgAdminProcedure = orgProcedure.use(withOrgAdmin);
 
-// 使用例
+// Usage example
 export const orgRouter = router({
   getMembers: orgProcedure
     .input(z.object({ orgId: z.string() }))
@@ -638,7 +638,7 @@ export const orgRouter = router({
       memberId: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
-      // OWNER は削除不可
+      // Cannot remove OWNER
       const target = await ctx.db.organizationMember.findUnique({
         where: {
           userId_organizationId: {
@@ -671,7 +671,7 @@ export const orgRouter = router({
 
 ---
 
-## 3. クライアント統合
+## 3. Client Integration
 
 ### 3-1. React + React Query
 
@@ -717,17 +717,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
 import { trpc } from "../utils/trpc";
 
 export function UserList() {
-  // Query: 型が自動推論される
+  // Query: types are automatically inferred
   const { data, isLoading, error } = trpc.user.list.useQuery({
     page: 1,
     limit: 20,
   });
-  // data の型: { users: User[]; total: number; page: number } | undefined
+  // data type: { users: User[]; total: number; page: number } | undefined
 
   // Mutation
   const createUser = trpc.user.create.useMutation({
     onSuccess: () => {
-      // キャッシュを無効化して再取得
+      // Invalidate cache and refetch
       utils.user.list.invalidate();
     },
   });
@@ -759,7 +759,7 @@ export function UserList() {
 }
 ```
 
-### 3-2. Next.js App Router 統合
+### 3-2. Next.js App Router Integration
 
 ```typescript
 // app/api/trpc/[trpc]/route.ts
@@ -772,7 +772,7 @@ const handler = (req: Request) =>
     req,
     router: appRouter,
     createContext: async () => {
-      // リクエストからコンテキストを作成
+      // Create context from request
       const userId = await getUserIdFromRequest(req);
       return { userId, db: prisma };
     },
@@ -781,20 +781,20 @@ const handler = (req: Request) =>
 export { handler as GET, handler as POST };
 ```
 
-### 3-3. サーバーサイド呼び出し
+### 3-3. Server-Side Calls
 
 ```typescript
-// Server Components で直接呼び出し
+// Call directly from Server Components
 import { appRouter } from "../server/routers/_app";
 
-// サーバーサイド caller
+// Server-side caller
 const caller = appRouter.createCaller({
   userId: null,
   db: prisma,
 });
 
 export default async function UsersPage() {
-  // サーバーサイドで直接呼び出し（HTTP 不要）
+  // Call directly server-side (no HTTP needed)
   const { users } = await caller.user.list({ page: 1, limit: 20 });
 
   return (
@@ -807,14 +807,14 @@ export default async function UsersPage() {
 }
 ```
 
-### 3-4. バニラクライアント（React 不使用）
+### 3-4. Vanilla Client (Without React)
 
 ```typescript
 // client/vanilla.ts
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import type { AppRouter } from "../server/routers/_app";
 
-// React 不要の純粋な tRPC クライアント
+// Pure tRPC client without React
 const client = createTRPCClient<AppRouter>({
   links: [
     httpBatchLink({
@@ -826,28 +826,28 @@ const client = createTRPCClient<AppRouter>({
   ],
 });
 
-// Query の実行
+// Execute a query
 async function fetchUsers() {
   const result = await client.user.list.query({
     page: 1,
     limit: 10,
   });
-  // result の型は自動推論される
+  // result type is automatically inferred
   console.log(result.users);
   console.log(result.total);
 }
 
-// Mutation の実行
+// Execute a mutation
 async function createUser(name: string, email: string) {
   const newUser = await client.user.create.mutate({
     name,
     email,
   });
-  // newUser の型もサーバーの戻り値から推論
+  // newUser type is also inferred from the server's return value
   console.log(`Created user: ${newUser.id}`);
 }
 
-// Node.js スクリプトや CLI ツールからの利用
+// Usage from Node.js scripts or CLI tools
 async function main() {
   try {
     await fetchUsers();
@@ -861,10 +861,10 @@ async function main() {
 }
 ```
 
-### 3-5. 楽観的更新（Optimistic Updates）
+### 3-5. Optimistic Updates
 
 ```typescript
-// components/TodoList.tsx -- 楽観的更新の完全な例
+// components/TodoList.tsx -- Complete optimistic update example
 import { trpc } from "../utils/trpc";
 
 export function TodoList() {
@@ -873,15 +873,15 @@ export function TodoList() {
   const { data: todos } = trpc.todo.list.useQuery();
 
   const toggleTodo = trpc.todo.toggle.useMutation({
-    // 楽観的更新: サーバーレスポンスを待たずに UI を更新
+    // Optimistic update: update UI without waiting for server response
     onMutate: async (input) => {
-      // 1. 進行中の再取得をキャンセル（楽観的更新を上書きしないため）
+      // 1. Cancel in-progress refetches (to avoid overwriting optimistic update)
       await utils.todo.list.cancel();
 
-      // 2. 現在のデータをスナップショット
+      // 2. Snapshot current data
       const previousTodos = utils.todo.list.getData();
 
-      // 3. 楽観的にキャッシュを更新
+      // 3. Optimistically update the cache
       utils.todo.list.setData(undefined, (old) => {
         if (!old) return old;
         return old.map((todo) =>
@@ -891,18 +891,18 @@ export function TodoList() {
         );
       });
 
-      // 4. ロールバック用のコンテキストを返す
+      // 4. Return context for rollback
       return { previousTodos };
     },
 
-    // エラー時: スナップショットにロールバック
+    // On error: rollback to snapshot
     onError: (_err, _input, context) => {
       if (context?.previousTodos) {
         utils.todo.list.setData(undefined, context.previousTodos);
       }
     },
 
-    // 成功・失敗に関わらず、最終的にサーバーデータと同期
+    // Regardless of success or failure, sync with server data at the end
     onSettled: () => {
       utils.todo.list.invalidate();
     },
@@ -913,7 +913,7 @@ export function TodoList() {
       await utils.todo.list.cancel();
       const previousTodos = utils.todo.list.getData();
 
-      // 楽観的に削除
+      // Optimistically delete
       utils.todo.list.setData(undefined, (old) => {
         if (!old) return old;
         return old.filter((todo) => todo.id !== input.id);
@@ -957,21 +957,21 @@ export function TodoList() {
 }
 ```
 
-### 3-6. 無限スクロール
+### 3-6. Infinite Scroll
 
 ```typescript
 // components/InfinitePostList.tsx
 import { trpc } from "../utils/trpc";
 import { useCallback, useRef, useEffect } from "react";
 
-// サーバー側: カーソルベースのページネーション
+// Server side: cursor-based pagination
 // server/routers/post.ts
 export const postRouter = router({
   infiniteList: publicProcedure
     .input(
       z.object({
         limit: z.number().int().min(1).max(50).default(20),
-        cursor: z.string().optional(),  // 最後のアイテムの ID
+        cursor: z.string().optional(),  // ID of the last item
         category: z.string().optional(),
       })
     )
@@ -979,10 +979,10 @@ export const postRouter = router({
       const { limit, cursor, category } = input;
 
       const posts = await ctx.db.post.findMany({
-        take: limit + 1,  // +1 で次ページの有無を判定
+        take: limit + 1,  // +1 to determine if there is a next page
         ...(cursor && {
           cursor: { id: cursor },
-          skip: 1,  // カーソル自体はスキップ
+          skip: 1,  // Skip the cursor itself
         }),
         ...(category && { where: { category } }),
         orderBy: { createdAt: "desc" },
@@ -999,7 +999,7 @@ export const postRouter = router({
     }),
 });
 
-// クライアント側
+// Client side
 export function InfinitePostList() {
   const {
     data,
@@ -1014,7 +1014,7 @@ export function InfinitePostList() {
     }
   );
 
-  // Intersection Observer で自動読み込み
+  // Auto-load with Intersection Observer
   const observerRef = useRef<IntersectionObserver>();
   const loadMoreRef = useCallback(
     (node: HTMLDivElement | null) => {
@@ -1062,7 +1062,7 @@ export function InfinitePostList() {
 
 ---
 
-## 4. テスト
+## 4. Testing
 
 ```typescript
 // server/routers/user.test.ts
@@ -1107,7 +1107,7 @@ describe("userRouter", () => {
 });
 ```
 
-### 4-1. 統合テスト
+### 4-1. Integration Tests
 
 ```typescript
 // server/routers/user.integration.test.ts
@@ -1136,7 +1136,7 @@ describe("User Router Integration", () => {
       }),
     });
 
-    // ランダムポートでサーバー起動
+    // Start server on random port
     const { port } = server.listen(0);
 
     client = createTRPCClient<AppRouter>({
@@ -1154,12 +1154,12 @@ describe("User Router Integration", () => {
   });
 
   beforeEach(async () => {
-    // テストごとにデータベースをクリーン
+    // Clean database before each test
     await prisma.user.deleteMany();
   });
 
   it("should create and retrieve a user", async () => {
-    // ユーザー作成
+    // Create user
     const created = await client.user.create.mutate({
       name: "Integration Test User",
       email: "integration@test.com",
@@ -1168,14 +1168,14 @@ describe("User Router Integration", () => {
     expect(created.id).toBeDefined();
     expect(created.name).toBe("Integration Test User");
 
-    // 作成したユーザーを取得
+    // Retrieve the created user
     const retrieved = await client.user.byId.query({ id: created.id });
     expect(retrieved.name).toBe("Integration Test User");
     expect(retrieved.email).toBe("integration@test.com");
   });
 
   it("should paginate users correctly", async () => {
-    // 25件のユーザーを作成
+    // Create 25 users
     await Promise.all(
       Array.from({ length: 25 }, (_, i) =>
         client.user.create.mutate({
@@ -1199,7 +1199,7 @@ describe("User Router Integration", () => {
       email: "concurrent@test.com",
     });
 
-    // 同時に更新と削除を実行
+    // Execute update and delete simultaneously
     const results = await Promise.allSettled([
       client.user.update.mutate({
         id: user.id,
@@ -1208,14 +1208,14 @@ describe("User Router Integration", () => {
       client.user.delete.mutate({ id: user.id }),
     ]);
 
-    // 少なくとも1つは成功するはず
+    // At least one should succeed
     const successes = results.filter((r) => r.status === "fulfilled");
     expect(successes.length).toBeGreaterThanOrEqual(1);
   });
 });
 ```
 
-### 4-2. ミドルウェアのテスト
+### 4-2. Middleware Testing
 
 ```typescript
 // server/middleware/auth.test.ts
@@ -1233,7 +1233,7 @@ describe("Auth Middleware", () => {
 
   it("should reject unauthenticated requests to protected routes", async () => {
     const caller = appRouter.createCaller({
-      userId: null, // 未認証
+      userId: null, // Unauthenticated
       db: mockDb,
     });
 
@@ -1251,7 +1251,7 @@ describe("Auth Middleware", () => {
   it("should reject non-admin users from admin routes", async () => {
     (mockDb.user.findUnique as any).mockResolvedValue({
       id: "user-1",
-      role: "USER", // 管理者ではない
+      role: "USER", // Not an admin
     });
 
     const caller = appRouter.createCaller({
@@ -1287,16 +1287,16 @@ describe("Auth Middleware", () => {
 
 ---
 
-## 5. サブスクリプション（リアルタイム通信）
+## 5. Subscriptions (Real-Time Communication)
 
-### 5-1. WebSocket サブスクリプションの設定
+### 5-1. WebSocket Subscription Setup
 
 ```
-tRPC サブスクリプションのアーキテクチャ:
+tRPC Subscription Architecture:
 
   +-----------+    WebSocket     +------------+
   |  Client   | <=============> |   Server   |
-  +-----------+    双方向通信     +------------+
+  +-----------+  Bidirectional  +------------+
        |                              |
        | subscribe('onMessage')       | EventEmitter
        |------------------------------>|  .emit('message', data)
@@ -1318,7 +1318,7 @@ import { z } from "zod";
 import { EventEmitter } from "events";
 import { router, protectedProcedure } from "../trpc";
 
-// イベントエミッター（本番では Redis Pub/Sub を推奨）
+// Event emitter (Redis Pub/Sub recommended for production)
 const ee = new EventEmitter();
 
 interface ChatMessage {
@@ -1331,7 +1331,7 @@ interface ChatMessage {
 }
 
 export const chatRouter = router({
-  // メッセージ送信
+  // Send message
   sendMessage: protectedProcedure
     .input(
       z.object({
@@ -1349,16 +1349,16 @@ export const chatRouter = router({
         createdAt: new Date(),
       };
 
-      // DB に保存
+      // Save to DB
       await ctx.db.message.create({ data: message });
 
-      // イベントを発行（サブスクライバーに通知）
+      // Emit event (notify subscribers)
       ee.emit(`room:${input.roomId}`, message);
 
       return message;
     }),
 
-  // リアルタイムメッセージ受信
+  // Receive real-time messages
   onMessage: protectedProcedure
     .input(z.object({ roomId: z.string() }))
     .subscription(({ input }) => {
@@ -1367,17 +1367,17 @@ export const chatRouter = router({
           emit.next(message);
         };
 
-        // イベントリスナーを登録
+        // Register event listener
         ee.on(`room:${input.roomId}`, handler);
 
-        // クリーンアップ: クライアント切断時に呼ばれる
+        // Cleanup: called when client disconnects
         return () => {
           ee.off(`room:${input.roomId}`, handler);
         };
       });
     }),
 
-  // ユーザーのタイピング状態
+  // User typing status
   onTyping: protectedProcedure
     .input(z.object({ roomId: z.string() }))
     .subscription(({ input }) => {
@@ -1403,28 +1403,28 @@ export const chatRouter = router({
 });
 ```
 
-### 5-2. クライアント側の WebSocket 設定
+### 5-2. Client-Side WebSocket Setup
 
 ```typescript
-// utils/trpc.ts -- WebSocket リンク付き
+// utils/trpc.ts -- With WebSocket link
 import { createTRPCReact } from "@trpc/react-query";
 import { createWSClient, wsLink, httpBatchLink, splitLink } from "@trpc/client";
 import type { AppRouter } from "../server/routers/_app";
 
 export const trpc = createTRPCReact<AppRouter>();
 
-// WebSocket クライアント
+// WebSocket client
 const wsClient = createWSClient({
   url: "ws://localhost:3000/trpc",
   retryDelayMs: (attemptIndex) =>
-    Math.min(1000 * 2 ** attemptIndex, 30_000), // 指数バックオフ
+    Math.min(1000 * 2 ** attemptIndex, 30_000), // Exponential backoff
   onOpen: () => console.log("WebSocket connected"),
   onClose: () => console.log("WebSocket disconnected"),
 });
 
 export const trpcClient = trpc.createClient({
   links: [
-    // splitLink でサブスクリプションだけ WebSocket を使う
+    // Use splitLink to route only subscriptions over WebSocket
     splitLink({
       condition: (op) => op.type === "subscription",
       true: wsLink({ client: wsClient }),
@@ -1449,7 +1449,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const [input, setInput] = useState("");
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
 
-  // サブスクリプション: 新しいメッセージをリアルタイム受信
+  // Subscription: receive new messages in real time
   trpc.chat.onMessage.useSubscription(
     { roomId },
     {
@@ -1462,13 +1462,13 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     }
   );
 
-  // タイピング表示
+  // Typing indicator
   trpc.chat.onTyping.useSubscription(
     { roomId },
     {
       onData: ({ userName }) => {
         setTypingUsers((prev) => [...new Set([...prev, userName])]);
-        // 3秒後に消す
+        // Remove after 3 seconds
         setTimeout(() => {
           setTypingUsers((prev) => prev.filter((u) => u !== userName));
         }, 3000);
@@ -1515,40 +1515,40 @@ export function ChatRoom({ roomId }: { roomId: string }) {
 
 ---
 
-## 6. エラーハンドリング
+## 6. Error Handling
 
-### 6-1. tRPC エラーコード一覧
+### 6-1. tRPC Error Code Reference
 
 ```
-tRPC エラーコードと HTTP ステータスの対応:
+tRPC error codes and corresponding HTTP status codes:
 
   +------------------------+--------+-----------------------------+
-  | tRPC Code              | HTTP   | 用途                        |
+  | tRPC Code              | HTTP   | Usage                       |
   +------------------------+--------+-----------------------------+
-  | BAD_REQUEST            | 400    | 入力バリデーション失敗       |
-  | UNAUTHORIZED           | 401    | 認証が必要                  |
-  | FORBIDDEN              | 403    | 権限不足                    |
-  | NOT_FOUND              | 404    | リソースが見つからない       |
-  | METHOD_NOT_SUPPORTED   | 405    | 非対応メソッド              |
-  | TIMEOUT                | 408    | タイムアウト                |
-  | CONFLICT               | 409    | リソース競合                |
-  | PRECONDITION_FAILED    | 412    | 前提条件失敗                |
-  | PAYLOAD_TOO_LARGE      | 413    | ペイロード過大              |
-  | UNPROCESSABLE_CONTENT  | 422    | 処理不能なコンテンツ        |
-  | TOO_MANY_REQUESTS      | 429    | レート制限超過              |
-  | CLIENT_CLOSED_REQUEST  | 499    | クライアントが接続を閉じた   |
-  | INTERNAL_SERVER_ERROR  | 500    | 内部エラー                  |
+  | BAD_REQUEST            | 400    | Input validation failure    |
+  | UNAUTHORIZED           | 401    | Authentication required     |
+  | FORBIDDEN              | 403    | Insufficient permissions    |
+  | NOT_FOUND              | 404    | Resource not found          |
+  | METHOD_NOT_SUPPORTED   | 405    | Unsupported method          |
+  | TIMEOUT                | 408    | Timeout                     |
+  | CONFLICT               | 409    | Resource conflict           |
+  | PRECONDITION_FAILED    | 412    | Precondition failed         |
+  | PAYLOAD_TOO_LARGE      | 413    | Payload too large           |
+  | UNPROCESSABLE_CONTENT  | 422    | Unprocessable content       |
+  | TOO_MANY_REQUESTS      | 429    | Rate limit exceeded         |
+  | CLIENT_CLOSED_REQUEST  | 499    | Client closed connection    |
+  | INTERNAL_SERVER_ERROR  | 500    | Internal error              |
   +------------------------+--------+-----------------------------+
 ```
 
-### 6-2. カスタムエラークラス
+### 6-2. Custom Error Classes
 
 ```typescript
 // server/errors.ts
 import { TRPCError } from "@trpc/server";
 
 /**
- * ビジネスロジック用のカスタムエラー
+ * Custom error for business logic
  */
 export class BusinessError extends TRPCError {
   public readonly errorCode: string;
@@ -1568,7 +1568,7 @@ export class BusinessError extends TRPCError {
   }
 }
 
-// 具体的なエラー
+// Specific errors
 export class InsufficientBalanceError extends BusinessError {
   constructor(balance: number, required: number) {
     super({
@@ -1600,10 +1600,10 @@ export class SubscriptionExpiredError extends BusinessError {
 }
 ```
 
-### 6-3. エラーフォーマッターの高度な設定
+### 6-3. Advanced Error Formatter Configuration
 
 ```typescript
-// server/trpc.ts -- 高度なエラーフォーマッター
+// server/trpc.ts -- Advanced error formatter
 import { initTRPC } from "@trpc/server";
 import { ZodError } from "zod";
 import { BusinessError } from "./errors";
@@ -1614,17 +1614,17 @@ const t = initTRPC.context<Context>().create({
       ...shape,
       data: {
         ...shape.data,
-        // Zod バリデーションエラーの詳細
+        // Zod validation error details
         zodError:
           error.cause instanceof ZodError
             ? error.cause.flatten()
             : null,
-        // ビジネスエラーコード
+        // Business error code
         businessCode:
           error instanceof BusinessError
             ? error.errorCode
             : null,
-        // 開発環境のみスタックトレースを含める
+        // Include stack trace in development only
         stack:
           process.env.NODE_ENV === "development"
             ? error.stack
@@ -1635,7 +1635,7 @@ const t = initTRPC.context<Context>().create({
 });
 ```
 
-### 6-4. クライアント側のエラーハンドリング
+### 6-4. Client-Side Error Handling
 
 ```typescript
 // hooks/useTRPCError.ts
@@ -1644,7 +1644,7 @@ import type { AppRouter } from "../server/routers/_app";
 import { toast } from "sonner";
 
 /**
- * tRPC エラーを統一的にハンドリングするユーティリティ
+ * Utility for handling tRPC errors uniformly
  */
 export function handleTRPCError(error: unknown) {
   if (!(error instanceof TRPCClientError<AppRouter>)) {
@@ -1655,7 +1655,7 @@ export function handleTRPCError(error: unknown) {
 
   const { data, message } = error;
 
-  // Zod バリデーションエラー
+  // Zod validation errors
   if (data?.zodError) {
     const fieldErrors = data.zodError.fieldErrors;
     const messages = Object.entries(fieldErrors)
@@ -1665,7 +1665,7 @@ export function handleTRPCError(error: unknown) {
     return;
   }
 
-  // ビジネスエラー
+  // Business errors
   if (data?.businessCode) {
     switch (data.businessCode) {
       case "INSUFFICIENT_BALANCE":
@@ -1683,11 +1683,11 @@ export function handleTRPCError(error: unknown) {
     return;
   }
 
-  // HTTP ステータスベースのハンドリング
+  // HTTP status-based handling
   switch (error.data?.httpStatus) {
     case 401:
       toast.error("Please log in to continue");
-      // リダイレクト
+      // Redirect
       window.location.href = "/login";
       break;
     case 403:
@@ -1701,7 +1701,7 @@ export function handleTRPCError(error: unknown) {
   }
 }
 
-// React コンポーネントでの使用
+// Usage in React components
 function CreatePostForm() {
   const createPost = trpc.post.create.useMutation({
     onSuccess: (data) => {
@@ -1717,29 +1717,29 @@ function CreatePostForm() {
 
 ---
 
-## 7. パフォーマンス最適化
+## 7. Performance Optimization
 
-### 7-1. バッチリクエストの制御
+### 7-1. Batch Request Control
 
 ```typescript
-// クライアント側: バッチリンクの最適化
+// Client side: optimizing batch link
 import { httpBatchLink } from "@trpc/client";
 
 const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
       url: "/api/trpc",
-      // バッチの最大サイズ（デフォルトは無制限）
-      maxURLLength: 2083,  // IE の URL 長制限に合わせる場合
+      // Maximum batch size (unlimited by default)
+      maxURLLength: 2083,  // To match IE URL length limit
 
-      // カスタムヘッダー
+      // Custom headers
       headers: () => ({
         Authorization: `Bearer ${getToken()}`,
       }),
 
-      // リクエスト前のフック
+      // Pre-request hook
       fetch: (url, options) => {
-        // カスタム fetch 実装（タイムアウト付き）
+        // Custom fetch implementation (with timeout)
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30_000);
 
@@ -1754,19 +1754,19 @@ const trpcClient = trpc.createClient({
 ```
 
 ```
-バッチリクエストの動作:
+Batch request behavior:
 
-  通常（httpLink）:
+  Normal (httpLink):
   Client  →  GET /api/trpc/user.list     →  Server
   Client  →  GET /api/trpc/post.list     →  Server
   Client  →  GET /api/trpc/comment.list  →  Server
-  3 HTTP リクエスト
+  3 HTTP requests
 
-  バッチ（httpBatchLink）:
+  Batched (httpBatchLink):
   Client  →  GET /api/trpc/user.list,post.list,comment.list  →  Server
-  1 HTTP リクエスト（3つの呼び出しをまとめる）
+  1 HTTP request (combines 3 calls)
 
-  レスポンス:
+  Response:
   [
     { result: { data: { users: [...] } } },
     { result: { data: { posts: [...] } } },
@@ -1774,12 +1774,12 @@ const trpcClient = trpc.createClient({
   ]
 ```
 
-### 7-2. データの選択的取得（Output バリデーション）
+### 7-2. Selective Data Fetching (Output Validation)
 
 ```typescript
-// server/routers/user.ts -- 出力のフィルタリング
+// server/routers/user.ts -- Output filtering
 export const userRouter = router({
-  // 公開プロフィール（機密情報を除外）
+  // Public profile (excluding sensitive information)
   publicProfile: publicProcedure
     .input(z.object({ userId: z.string() }))
     .output(
@@ -1788,7 +1788,7 @@ export const userRouter = router({
         name: z.string(),
         avatar: z.string().nullable(),
         bio: z.string().nullable(),
-        // email, phone などは含めない
+        // email, phone, etc. are not included
       })
     )
     .query(async ({ ctx, input }) => {
@@ -1796,10 +1796,10 @@ export const userRouter = router({
         where: { id: input.userId },
       });
       if (!user) throw new TRPCError({ code: "NOT_FOUND" });
-      return user; // output バリデーションが自動で不要フィールドを除外
+      return user; // output validation automatically strips unnecessary fields
     }),
 
-  // 管理者向け（全フィールド）
+  // For admins (all fields)
   adminDetail: adminProcedure
     .input(z.object({ userId: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -1815,29 +1815,29 @@ export const userRouter = router({
 });
 ```
 
-### 7-3. キャッシュ戦略
+### 7-3. Caching Strategy
 
 ```typescript
-// components/UserProfile.tsx -- staleTime と cacheTime の設定
+// components/UserProfile.tsx -- staleTime and cacheTime settings
 export function UserProfile({ userId }: { userId: string }) {
   const { data: user } = trpc.user.byId.useQuery(
     { id: userId },
     {
-      // データが「新鮮」とみなされる時間（この間は再取得しない）
-      staleTime: 5 * 60 * 1000, // 5分間
+      // Time data is considered "fresh" (no refetch during this period)
+      staleTime: 5 * 60 * 1000, // 5 minutes
 
-      // キャッシュがメモリに保持される時間
-      gcTime: 30 * 60 * 1000, // 30分間（旧 cacheTime）
+      // Time the cache is retained in memory
+      gcTime: 30 * 60 * 1000, // 30 minutes (formerly cacheTime)
 
-      // ウィンドウフォーカス時の再取得
+      // Refetch on window focus
       refetchOnWindowFocus: false,
 
-      // マウント時の再取得
+      // Refetch on mount
       refetchOnMount: "always",
 
-      // リトライ設定
+      // Retry settings
       retry: (failureCount, error) => {
-        // 404 はリトライしない
+        // Don't retry 404s
         if (error.data?.httpStatus === 404) return false;
         return failureCount < 3;
       },
@@ -1851,27 +1851,27 @@ export function UserProfile({ userId }: { userId: string }) {
 ```
 
 ```typescript
-// グローバルなキャッシュ設定
+// Global cache settings
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 60 * 1000,         // デフォルト1分
-      gcTime: 10 * 60 * 1000,       // デフォルト10分
+      staleTime: 60 * 1000,         // Default 1 minute
+      gcTime: 10 * 60 * 1000,       // Default 10 minutes
       refetchOnWindowFocus: true,
       retry: 1,
       retryDelay: 1000,
     },
     mutations: {
-      retry: false,                  // Mutation はデフォルトでリトライなし
+      retry: false,                  // Mutations don't retry by default
     },
   },
 });
 ```
 
-### 7-4. プリフェッチとデータのプリロード
+### 7-4. Prefetching and Data Preloading
 
 ```typescript
-// pages/users/index.tsx -- ページ遷移前のプリフェッチ
+// pages/users/index.tsx -- Prefetch before page navigation
 import { trpc } from "../../utils/trpc";
 import Link from "next/link";
 
@@ -1885,7 +1885,7 @@ export function UserListPage() {
         <Link
           key={user.id}
           href={`/users/${user.id}`}
-          // ホバー時にプリフェッチ
+          // Prefetch on hover
           onMouseEnter={() => {
             utils.user.byId.prefetch({ id: user.id });
           }}
@@ -1899,7 +1899,7 @@ export function UserListPage() {
 ```
 
 ```typescript
-// Next.js SSR でのプリフェッチ
+// Next.js SSR prefetch
 // app/users/page.tsx
 import { createServerSideHelpers } from "@trpc/react-query/server";
 import { appRouter } from "../../server/routers/_app";
@@ -1912,7 +1912,7 @@ export default async function UsersPage() {
     transformer: superjson,
   });
 
-  // サーバー側でデータをプリフェッチ
+  // Prefetch data on the server side
   await helpers.user.list.prefetch({ page: 1, limit: 20 });
 
   return (
@@ -1925,23 +1925,23 @@ export default async function UsersPage() {
 
 ---
 
-## 8. 高度なリンクの設定
+## 8. Advanced Link Configuration
 
-### 8-1. loggerLink によるデバッグ
+### 8-1. Debugging with loggerLink
 
 ```typescript
 import { loggerLink, httpBatchLink } from "@trpc/client";
 
 const trpcClient = trpc.createClient({
   links: [
-    // ロガーは他のリンクの前に配置
+    // Logger should be placed before other links
     loggerLink({
       enabled: (opts) =>
         process.env.NODE_ENV === "development" ||
         (opts.direction === "down" && opts.result instanceof Error),
 
-      // カスタムログフォーマット
-      colorMode: "ansi", // ターミナル用
+      // Custom log format
+      colorMode: "ansi", // For terminal
     }),
 
     httpBatchLink({
@@ -1951,7 +1951,7 @@ const trpcClient = trpc.createClient({
 });
 ```
 
-### 8-2. splitLink による条件分岐
+### 8-2. Conditional Routing with splitLink
 
 ```typescript
 import { splitLink, httpBatchLink, httpLink } from "@trpc/client";
@@ -1959,11 +1959,11 @@ import { splitLink, httpBatchLink, httpLink } from "@trpc/client";
 const trpcClient = trpc.createClient({
   links: [
     splitLink({
-      // 条件: ファイルアップロード系は個別リクエスト
+      // Condition: use individual requests for file uploads
       condition: (op) => op.path.startsWith("upload."),
       true: httpLink({
         url: "/api/trpc",
-        // ファイルアップロード用の設定
+        // Settings for file upload
       }),
       false: httpBatchLink({
         url: "/api/trpc",
@@ -1973,16 +1973,16 @@ const trpcClient = trpc.createClient({
 });
 ```
 
-### 8-3. カスタムリンクの作成
+### 8-3. Creating Custom Links
 
 ```typescript
-// utils/retryLink.ts -- リトライリンクのカスタム実装
+// utils/retryLink.ts -- Custom retry link implementation
 import { TRPCLink } from "@trpc/client";
 import { observable } from "@trpc/server/observable";
 import type { AppRouter } from "../server/routers/_app";
 
 /**
- * 一定の条件でリクエストをリトライするカスタムリンク
+ * Custom link that retries requests under certain conditions
  */
 export function retryLink(opts: {
   maxRetries: number;
@@ -2002,7 +2002,7 @@ export function retryLink(opts: {
                 attempts < opts.maxRetries &&
                 opts.retryableErrors.includes(err.data?.code)
               ) {
-                // リトライ可能なエラー -- 指数バックオフで再試行
+                // Retryable error -- retry with exponential backoff
                 const delay = Math.min(1000 * 2 ** (attempts - 1), 10_000);
                 console.warn(
                   `[retryLink] Retry attempt ${attempts} for ${op.path} in ${delay}ms`
@@ -2025,7 +2025,7 @@ export function retryLink(opts: {
   };
 }
 
-// 使用例
+// Usage example
 const trpcClient = trpc.createClient({
   links: [
     retryLink({
@@ -2039,9 +2039,9 @@ const trpcClient = trpc.createClient({
 
 ---
 
-## 9. ファイルアップロード
+## 9. File Uploads
 
-### 9-1. マルチパートアップロード
+### 9-1. Multipart Uploads
 
 ```typescript
 // server/routers/upload.ts
@@ -2053,13 +2053,13 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 const s3 = new S3Client({ region: process.env.AWS_REGION });
 
 export const uploadRouter = router({
-  // 署名付き URL を取得（クライアントから直接 S3 にアップロード）
+  // Get presigned URL (client uploads directly to S3)
   getPresignedUrl: protectedProcedure
     .input(
       z.object({
         filename: z.string(),
         contentType: z.string(),
-        size: z.number().max(10 * 1024 * 1024), // 最大 10MB
+        size: z.number().max(10 * 1024 * 1024), // Maximum 10MB
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -2073,10 +2073,10 @@ export const uploadRouter = router({
       });
 
       const presignedUrl = await getSignedUrl(s3, command, {
-        expiresIn: 300, // 5分間有効
+        expiresIn: 300, // Valid for 5 minutes
       });
 
-      // DB にメタデータを保存
+      // Save metadata to DB
       const file = await ctx.db.file.create({
         data: {
           key,
@@ -2091,7 +2091,7 @@ export const uploadRouter = router({
       return { presignedUrl, fileId: file.id, key };
     }),
 
-  // アップロード完了の確認
+  // Confirm upload completion
   confirmUpload: protectedProcedure
     .input(z.object({ fileId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -2109,7 +2109,7 @@ export const uploadRouter = router({
 ```
 
 ```typescript
-// hooks/useFileUpload.ts -- クライアント側のアップロードフック
+// hooks/useFileUpload.ts -- Client-side upload hook
 import { trpc } from "../utils/trpc";
 import { useState } from "react";
 
@@ -2125,14 +2125,14 @@ export function useFileUpload() {
     setProgress(0);
 
     try {
-      // 1. 署名付き URL を取得
+      // 1. Get presigned URL
       const { presignedUrl, fileId } = await getPresignedUrl.mutateAsync({
         filename: file.name,
         contentType: file.type,
         size: file.size,
       });
 
-      // 2. S3 に直接アップロード（進捗追跡付き）
+      // 2. Upload directly to S3 (with progress tracking)
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
 
@@ -2154,7 +2154,7 @@ export function useFileUpload() {
         xhr.send(file);
       });
 
-      // 3. アップロード完了を通知
+      // 3. Notify upload completion
       const { url } = await confirmUpload.mutateAsync({ fileId });
       return url;
     } finally {
@@ -2168,29 +2168,29 @@ export function useFileUpload() {
 
 ---
 
-## 10. tRPC v11 の新機能
+## 10. New Features in tRPC v11
 
-### 10-1. Server-Sent Events (SSE) トランスポート
+### 10-1. Server-Sent Events (SSE) Transport
 
 ```typescript
-// tRPC v11 で追加された SSE リンク
+// SSE link added in tRPC v11
 import { unstable_httpBatchStreamLink } from "@trpc/client";
 
 const trpcClient = trpc.createClient({
   links: [
     unstable_httpBatchStreamLink({
       url: "/api/trpc",
-      // SSE でストリーミングレスポンス
+      // Streaming responses over SSE
     }),
   ],
 });
 
-// サーバー側: ストリーミングプロシージャ
+// Server side: streaming procedure
 export const aiRouter = router({
   generateText: protectedProcedure
     .input(z.object({ prompt: z.string() }))
     .query(async function* ({ input }) {
-      // AsyncGenerator でストリーミングレスポンス
+      // Streaming response with AsyncGenerator
       const stream = await openai.chat.completions.create({
         model: "gpt-4",
         messages: [{ role: "user", content: input.prompt }],
@@ -2207,13 +2207,13 @@ export const aiRouter = router({
 });
 ```
 
-### 10-2. FormData サポート
+### 10-2. FormData Support
 
 ```typescript
-// tRPC v11 の FormData 対応
+// FormData support in tRPC v11
 import { experimental_formDataLink } from "@trpc/client";
 
-// サーバー側
+// Server side
 export const uploadRouter = router({
   uploadAvatar: protectedProcedure
     .input(
@@ -2224,26 +2224,26 @@ export const uploadRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const buffer = Buffer.from(await input.file.arrayBuffer());
-      // ファイル処理...
+      // File processing...
       return { url: "https://cdn.example.com/avatar.jpg" };
     }),
 });
 ```
 
-### 10-3. React Server Components との深い統合
+### 10-3. Deep Integration with React Server Components
 
 ```typescript
 // app/users/[id]/page.tsx -- RSC + tRPC v11
 import { createTRPCProxyClient, httpLink } from "@trpc/client";
 import type { AppRouter } from "@/server/routers/_app";
 
-// サーバーコンポーネント用クライアント
+// Client for server components
 const serverClient = createTRPCProxyClient<AppRouter>({
   links: [
     httpLink({
       url: `${process.env.NEXT_PUBLIC_APP_URL}/api/trpc`,
       headers: () => {
-        // サーバーコンポーネントではクッキーを直接アクセス
+        // Access cookies directly in server components
         const cookieStore = cookies();
         return {
           cookie: cookieStore.toString(),
@@ -2253,20 +2253,20 @@ const serverClient = createTRPCProxyClient<AppRouter>({
   ],
 });
 
-// RSC で直接 tRPC を呼び出す
+// Call tRPC directly from RSC
 export default async function UserPage({
   params,
 }: {
   params: { id: string };
 }) {
-  // サーバーサイドで直接データ取得（HTTP を介すが型安全）
+  // Fetch data directly server-side (type-safe via HTTP)
   const user = await serverClient.user.byId.query({ id: params.id });
 
   return (
     <div>
       <h1>{user.name}</h1>
       <p>{user.email}</p>
-      {/* クライアントコンポーネントに引き渡し */}
+      {/* Pass to client component */}
       <UserActions userId={user.id} />
     </div>
   );
@@ -2275,12 +2275,12 @@ export default async function UserPage({
 
 ---
 
-## 11. 本番デプロイと運用
+## 11. Production Deployment and Operations
 
-### 11-1. Express アダプター
+### 11-1. Express Adapter
 
 ```typescript
-// server/index.ts -- Express サーバー
+// server/index.ts -- Express server
 import express from "express";
 import cors from "cors";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
@@ -2292,10 +2292,10 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
-// ヘルスチェック
+// Health check
 app.get("/health", (_, res) => res.json({ status: "ok" }));
 
-// tRPC ミドルウェア
+// tRPC middleware
 app.use(
   "/api/trpc",
   createExpressMiddleware({
@@ -2303,7 +2303,7 @@ app.use(
     createContext,
     onError({ error, path }) {
       console.error(`[tRPC Error] ${path}:`, error);
-      // エラーモニタリングサービスに送信
+      // Send to error monitoring service
       Sentry.captureException(error);
     },
   })
@@ -2315,10 +2315,10 @@ app.listen(PORT, () => {
 });
 ```
 
-### 11-2. Fastify アダプター
+### 11-2. Fastify Adapter
 
 ```typescript
-// server/index.ts -- Fastify サーバー（高パフォーマンス）
+// server/index.ts -- Fastify server (high performance)
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import {
@@ -2358,16 +2358,16 @@ const start = async () => {
 start();
 ```
 
-### 11-3. Edge Runtime デプロイ（Cloudflare Workers）
+### 11-3. Edge Runtime Deployment (Cloudflare Workers)
 
 ```typescript
-// worker/index.ts -- Cloudflare Workers での tRPC
+// worker/index.ts -- tRPC on Cloudflare Workers
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "./routers/_app";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    // CORS プリフライト
+    // CORS preflight
     if (request.method === "OPTIONS") {
       return new Response(null, {
         headers: {
@@ -2398,7 +2398,7 @@ export default {
 };
 ```
 
-### 11-4. モニタリングとオブザーバビリティ
+### 11-4. Monitoring and Observability
 
 ```typescript
 // server/middleware/monitoring.ts
@@ -2408,7 +2408,7 @@ import { trace, SpanStatusCode } from "@opentelemetry/api";
 const tracer = trace.getTracer("trpc");
 
 /**
- * OpenTelemetry 対応のトレーシングミドルウェア
+ * Tracing middleware with OpenTelemetry support
  */
 export const tracingMiddleware = middleware(async ({ path, type, next }) => {
   return tracer.startActiveSpan(`trpc.${type}.${path}`, async (span) => {
@@ -2441,7 +2441,7 @@ export const tracingMiddleware = middleware(async ({ path, type, next }) => {
 });
 
 /**
- * メトリクス収集ミドルウェア（Prometheus 用）
+ * Metrics collection middleware (for Prometheus)
  */
 import { Counter, Histogram } from "prom-client";
 
@@ -2476,9 +2476,9 @@ export const metricsMiddleware = middleware(async ({ path, type, next }) => {
 
 ---
 
-## 12. セキュリティベストプラクティス
+## 12. Security Best Practices
 
-### 12-1. 入力サニタイゼーション
+### 12-1. Input Sanitization
 
 ```typescript
 // server/schemas/sanitize.ts
@@ -2486,17 +2486,17 @@ import { z } from "zod";
 import DOMPurify from "isomorphic-dompurify";
 
 /**
- * HTML サニタイゼーション付きの文字列スキーマ
+ * String schema with HTML sanitization
  */
 export const sanitizedString = z.string().transform((val) => {
   return DOMPurify.sanitize(val, {
-    ALLOWED_TAGS: [], // テキストのみ許可
+    ALLOWED_TAGS: [], // Allow text only
     ALLOWED_ATTR: [],
   });
 });
 
 /**
- * リッチテキスト用（一部の HTML タグを許可）
+ * For rich text (allowing some HTML tags)
  */
 export const richText = z.string().transform((val) => {
   return DOMPurify.sanitize(val, {
@@ -2505,7 +2505,7 @@ export const richText = z.string().transform((val) => {
   });
 });
 
-// 使用例
+// Usage example
 export const postRouter = router({
   create: protectedProcedure
     .input(
@@ -2526,7 +2526,7 @@ export const postRouter = router({
 });
 ```
 
-### 12-2. CSRF 保護
+### 12-2. CSRF Protection
 
 ```typescript
 // server/middleware/csrf.ts
@@ -2534,16 +2534,16 @@ import { middleware } from "../trpc";
 import { TRPCError } from "@trpc/server";
 
 /**
- * CSRF 保護ミドルウェア
- * カスタムヘッダーの存在を検証する
+ * CSRF protection middleware
+ * Validates the presence of a custom header
  */
 export const csrfProtection = middleware(async ({ ctx, next, type }) => {
-  // Query（GET）は CSRF のリスクが低いためスキップ
+  // Skip for queries (GET) since they have low CSRF risk
   if (type === "query") {
     return next();
   }
 
-  // Mutation の場合、カスタムヘッダーを要求
+  // For mutations, require a custom header
   const csrfToken = ctx.req?.headers?.["x-csrf-token"];
   if (!csrfToken) {
     throw new TRPCError({
@@ -2552,7 +2552,7 @@ export const csrfProtection = middleware(async ({ ctx, next, type }) => {
     });
   }
 
-  // トークンの検証
+  // Validate the token
   const expectedToken = await ctx.db.csrfToken.findUnique({
     where: { token: csrfToken as string },
   });
@@ -2568,7 +2568,7 @@ export const csrfProtection = middleware(async ({ ctx, next, type }) => {
 });
 ```
 
-### 12-3. データアクセスの制御
+### 12-3. Data Access Control
 
 ```typescript
 // server/middleware/dataAccess.ts
@@ -2577,7 +2577,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 /**
- * リソースの所有者チェックミドルウェア
+ * Resource ownership check middleware
  */
 export function ownershipCheck<T extends z.ZodType>(
   resourceSchema: T,
@@ -2608,7 +2608,7 @@ export function ownershipCheck<T extends z.ZodType>(
   });
 }
 
-// 使用例
+// Usage example
 const ownPostProcedure = protectedProcedure.use(
   ownershipCheck(
     z.any(),
@@ -2625,7 +2625,7 @@ export const postRouter = router({
       content: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      // ctx.resource に既にフェッチ済みの post が入っている
+      // ctx.resource already contains the fetched post
       return ctx.db.post.update({
         where: { id: input.id },
         data: {
@@ -2639,60 +2639,60 @@ export const postRouter = router({
 
 ---
 
-## 比較表
+## Comparison Tables
 
-### API フレームワーク比較
+### API Framework Comparison
 
-| 特性 | tRPC | REST (Express) | GraphQL | gRPC |
-|------|------|----------------|---------|------|
-| 型安全性 | 最高(推論) | 手動/OpenAPI | 中(codegen) | 高(protobuf) |
-| コード生成 | 不要 | OpenAPI→型 | 必要 | 必要 |
-| クライアント | TypeScript only | 言語問わず | 言語問わず | 言語問わず |
-| バンドルサイズ | 小 | - | 中 | 大 |
-| 学習コスト | 低 | 最低 | 中 | 高 |
-| エコシステム | 成長中 | 最大 | 大 | 中 |
+| Characteristic | tRPC | REST (Express) | GraphQL | gRPC |
+|----------------|------|----------------|---------|------|
+| Type Safety | Highest (inference) | Manual/OpenAPI | Medium (codegen) | High (protobuf) |
+| Code Generation | Not needed | OpenAPI → types | Required | Required |
+| Clients | TypeScript only | Any language | Any language | Any language |
+| Bundle Size | Small | - | Medium | Large |
+| Learning Cost | Low | Lowest | Medium | High |
+| Ecosystem | Growing | Largest | Large | Medium |
 
-### tRPC リンク比較
+### tRPC Link Comparison
 
-| リンク | 用途 | バッチ | WebSocket |
-|--------|------|--------|-----------|
-| httpBatchLink | 標準 | あり | なし |
-| httpLink | 単一リクエスト | なし | なし |
-| wsLink | リアルタイム | なし | あり |
-| splitLink | 条件分岐 | - | - |
-| loggerLink | デバッグ | - | - |
+| Link | Usage | Batching | WebSocket |
+|------|-------|----------|-----------|
+| httpBatchLink | Standard | Yes | No |
+| httpLink | Single requests | No | No |
+| wsLink | Real-time | No | Yes |
+| splitLink | Conditional routing | - | - |
+| loggerLink | Debugging | - | - |
 
-### ミドルウェアパターン比較
+### Middleware Pattern Comparison
 
-| パターン | 用途 | 複雑度 | 再利用性 |
-|----------|------|--------|----------|
-| 認証チェック | ログインユーザー限定 | 低 | 高 |
-| ロールベース RBAC | 権限レベル制御 | 中 | 高 |
-| 組織ベースアクセス | マルチテナント | 高 | 中 |
-| レート制限 | API 保護 | 中 | 高 |
-| ロギング | デバッグ・監査 | 低 | 最高 |
-| トレーシング | パフォーマンス分析 | 中 | 高 |
-| CSRF 保護 | セキュリティ | 中 | 高 |
-| 所有者チェック | リソース保護 | 中 | 中 |
+| Pattern | Usage | Complexity | Reusability |
+|---------|-------|------------|-------------|
+| Auth check | Restrict to logged-in users | Low | High |
+| Role-based RBAC | Permission level control | Medium | High |
+| Organization-based access | Multi-tenancy | High | Medium |
+| Rate limiting | API protection | Medium | High |
+| Logging | Debugging/auditing | Low | Highest |
+| Tracing | Performance analysis | Medium | High |
+| CSRF protection | Security | Medium | High |
+| Ownership check | Resource protection | Medium | Medium |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### AP-1: ルーターが肥大化する
+### AP-1: Bloated Routers
 
 ```typescript
-// NG: 1 ファイルに全プロシージャを詰め込む
+// Bad: Packing all procedures into one file
 export const appRouter = router({
-  getUser: publicProcedure.query(/* 50行 */),
-  createUser: publicProcedure.mutation(/* 80行 */),
-  updateUser: publicProcedure.mutation(/* 60行 */),
-  deleteUser: publicProcedure.mutation(/* 30行 */),
-  getPost: publicProcedure.query(/* 50行 */),
-  // ... 100以上のプロシージャ
+  getUser: publicProcedure.query(/* 50 lines */),
+  createUser: publicProcedure.mutation(/* 80 lines */),
+  updateUser: publicProcedure.mutation(/* 60 lines */),
+  deleteUser: publicProcedure.mutation(/* 30 lines */),
+  getPost: publicProcedure.query(/* 50 lines */),
+  // ... 100+ procedures
 });
 
-// OK: ドメインごとにルーターを分割
+// Good: Split routers by domain
 export const appRouter = router({
   user: userRouter,     // server/routers/user.ts
   post: postRouter,     // server/routers/post.ts
@@ -2701,27 +2701,27 @@ export const appRouter = router({
 });
 ```
 
-### AP-2: クライアントで型を手動定義する
+### AP-2: Manually Defining Types on the Client
 
 ```typescript
-// NG: サーバーの型を手動で複製
+// Bad: Manually duplicating server types
 interface User {
   id: string;
   name: string;
   email: string;
 }
 const { data } = trpc.user.byId.useQuery({ id: "1" });
-const user = data as User; // 手動キャスト
+const user = data as User; // Manual cast
 
-// OK: 型は自動推論に任せる
+// Good: Let types be automatically inferred
 const { data } = trpc.user.byId.useQuery({ id: "1" });
-// data の型はサーバーのルーター定義から自動推論される
+// data type is automatically inferred from the server's router definition
 ```
 
-### AP-3: コンテキストに不要なデータを詰め込む
+### AP-3: Overloading Context with Unnecessary Data
 
 ```typescript
-// NG: コンテキストが肥大化（全リクエストで全データを取得）
+// Bad: Context bloat (fetching all data for every request)
 export async function createContext(opts: CreateNextContextOptions) {
   const session = await getServerSession(opts.req, opts.res, authOptions);
   const user = session ? await prisma.user.findUnique({
@@ -2737,7 +2737,7 @@ export async function createContext(opts: CreateNextContextOptions) {
   return { session, user, db: prisma };
 }
 
-// OK: コンテキストは最小限に。追加データはミドルウェアで取得
+// Good: Keep context minimal. Fetch additional data in middleware
 export async function createContext(opts: CreateNextContextOptions) {
   const session = await getServerSession(opts.req, opts.res, authOptions);
   return {
@@ -2745,22 +2745,22 @@ export async function createContext(opts: CreateNextContextOptions) {
     db: prisma,
   };
 }
-// 追加データが必要なルートだけミドルウェアで取得
+// Only fetch additional data in middleware for routes that need it
 ```
 
-### AP-4: エラーハンドリングを省略する
+### AP-4: Skipping Error Handling
 
 ```typescript
-// NG: エラーを握りつぶす
+// Bad: Suppressing errors
 const createUser = trpc.user.create.useMutation();
 
-// NG: catch なしの async 呼び出し
+// Bad: async call without catch
 const handleCreate = async () => {
   await createUser.mutateAsync({ name: "", email: "invalid" });
-  // エラー時にクラッシュする
+  // Will crash on error
 };
 
-// OK: 適切なエラーハンドリング
+// Good: Proper error handling
 const createUser = trpc.user.create.useMutation({
   onSuccess: (data) => {
     toast.success("User created!");
@@ -2768,7 +2768,7 @@ const createUser = trpc.user.create.useMutation({
   },
   onError: (error) => {
     if (error.data?.zodError) {
-      // バリデーションエラーをフォームに表示
+      // Show validation errors in the form
       setFormErrors(error.data.zodError.fieldErrors);
     } else {
       toast.error(error.message);
@@ -2777,20 +2777,20 @@ const createUser = trpc.user.create.useMutation({
 });
 ```
 
-### AP-5: 楽観的更新でロールバックを忘れる
+### AP-5: Forgetting Rollback in Optimistic Updates
 
 ```typescript
-// NG: ロールバック処理がない
+// Bad: No rollback handling
 const toggleTodo = trpc.todo.toggle.useMutation({
   onMutate: async (input) => {
     utils.todo.list.setData(undefined, (old) =>
       old?.map((t) => (t.id === input.id ? { ...t, done: !t.done } : t))
     );
-    // エラー時にデータが不整合になる!
+    // Data will become inconsistent on error!
   },
 });
 
-// OK: スナップショット + ロールバック + 再同期
+// Good: Snapshot + rollback + re-sync
 const toggleTodo = trpc.todo.toggle.useMutation({
   onMutate: async (input) => {
     await utils.todo.list.cancel();
@@ -2811,24 +2811,24 @@ const toggleTodo = trpc.todo.toggle.useMutation({
 
 ## FAQ
 
-### Q1: tRPC は REST API の代替になりますか？
+### Q1: Can tRPC replace REST APIs?
 
-TypeScript のモノレポ（フロントエンド + バックエンド）では完全に REST の代替になります。ただし、モバイルアプリ（Swift/Kotlin）や他言語のクライアントがある場合は REST/GraphQL の方が適しています。tRPC は「TypeScript エコシステム内」で最大の威力を発揮します。
+In TypeScript monorepos (frontend + backend), it can completely replace REST. However, if you have mobile app clients (Swift/Kotlin) or clients in other languages, REST/GraphQL is more suitable. tRPC delivers maximum power within the "TypeScript ecosystem."
 
-### Q2: tRPC v10 と v11 の違いは何ですか？
+### Q2: What are the differences between tRPC v10 and v11?
 
-v11 では React Server Components との統合強化、新しいリンク API、パフォーマンス改善が含まれます。v10 からの移行は比較的容易で、破壊的変更は少ないです。
+v11 includes enhanced React Server Components integration, a new link API, and performance improvements. Migration from v10 is relatively easy, with few breaking changes.
 
-### Q3: tRPC と GraphQL は併用できますか？
+### Q3: Can tRPC and GraphQL be used together?
 
-技術的には可能ですが、通常は片方を選択します。社内ツールやフルスタック TypeScript プロジェクトでは tRPC、公開 API やマルチプラットフォームでは GraphQL が適しています。
+Technically yes, but you typically choose one or the other. tRPC is suitable for internal tools and full-stack TypeScript projects, while GraphQL is suited for public APIs and multi-platform scenarios.
 
-### Q4: tRPC はマイクロサービスで使えますか？
+### Q4: Can tRPC be used with microservices?
 
-使えますが、注意が必要です。tRPC はモノレポ内での型共有を前提としているため、サービス間通信では型定義を共有パッケージとして公開する必要があります。サービス間のインターフェースが安定している場合は gRPC の方が適している場合もあります。
+It can, but caution is needed. Since tRPC assumes type sharing within a monorepo, you need to publish type definitions as a shared package for inter-service communication. If service interfaces are stable, gRPC may sometimes be more appropriate.
 
 ```typescript
-// packages/shared-types/src/index.ts -- 共有型パッケージ
+// packages/shared-types/src/index.ts -- Shared type package
 export type { AppRouter as ServiceARouter } from "@myapp/service-a/src/routers/_app";
 export type { AppRouter as ServiceBRouter } from "@myapp/service-b/src/routers/_app";
 
@@ -2848,13 +2848,13 @@ export const serviceBClient = createTRPCClient<ServiceBRouter>({
 });
 ```
 
-### Q5: tRPC のパフォーマンスはどうですか？
+### Q5: What is the performance of tRPC like?
 
-tRPC 自体のオーバーヘッドは最小限です。HTTP リクエスト/レスポンスのシリアライゼーションと zod バリデーションがコストの大部分を占めます。バッチリンクを使えばリクエスト数を大幅に削減できます。大規模なアプリケーションでも、ボトルネックは通常 DB クエリやビジネスロジックであり、tRPC 自体ではありません。
+tRPC's own overhead is minimal. HTTP request/response serialization and zod validation account for most of the cost. Using batch links can significantly reduce the number of requests. In large-scale applications, the bottleneck is usually DB queries or business logic, not tRPC itself.
 
-### Q6: tRPC で OpenAPI ドキュメントを生成できますか？
+### Q6: Can OpenAPI documentation be generated from tRPC?
 
-`trpc-openapi` パッケージを使うことで、tRPC ルーターから OpenAPI 仕様を自動生成できます。これにより、TypeScript 以外のクライアントにも REST API として公開できます。
+Using the `trpc-openapi` package, you can automatically generate an OpenAPI specification from a tRPC router. This enables exposing the API as a REST API to non-TypeScript clients.
 
 ```typescript
 import { generateOpenApiDocument } from "trpc-openapi";
@@ -2866,12 +2866,12 @@ const openApiDoc = generateOpenApiDocument(appRouter, {
 });
 ```
 
-### Q7: テスト時にモックはどう作成しますか？
+### Q7: How do you create mocks for testing?
 
-`createCaller` を使えばサーバーサイドのテストが容易です。クライアント側のテストでは、MSW（Mock Service Worker）を使って HTTP レベルでモックするか、tRPC フックを直接モックする方法があります。
+Using `createCaller` makes server-side testing easy. For client-side testing, you can use MSW (Mock Service Worker) to mock at the HTTP level, or directly mock the tRPC hooks.
 
 ```typescript
-// MSW を使ったクライアントテスト
+// Client testing with MSW
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
 
@@ -2896,46 +2896,46 @@ afterAll(() => server.close());
 
 ---
 
-## まとめ表
+## Summary Table
 
-| 概念 | 要点 |
-|------|------|
-| tRPC | TypeScript 型推論で E2E 型安全な API |
-| Router | プロシージャをネストして構成 |
-| Query / Mutation | 読み取り / 書き込み操作の区分 |
-| Subscription | WebSocket によるリアルタイム通信 |
-| Middleware | 認証、ログ、エラー処理のチェーン |
-| createCaller | サーバーサイドでの直接呼び出し |
-| zod 統合 | 入力バリデーションとスキーマ定義 |
-| Links | リクエストパイプラインのカスタマイズ |
-| Optimistic Updates | 楽観的更新でレスポンシブな UX |
-| Infinite Queries | カーソルベースの無限スクロール |
-| Output Validation | 出力のフィルタリングとセキュリティ |
-| SSE / Streaming | v11 のストリーミングレスポンス |
-
----
-
-
-## まとめ
-
-このガイドでは以下の重要なポイントを学びました:
-
-- 基本概念と原則の理解
-- 実践的な実装パターン
-- ベストプラクティスと注意点
-- 実務での活用方法
+| Concept | Key Points |
+|---------|------------|
+| tRPC | E2E type-safe API using TypeScript type inference |
+| Router | Compose procedures in a nested structure |
+| Query / Mutation | Read / write operation distinction |
+| Subscription | Real-time communication via WebSocket |
+| Middleware | Chain for authentication, logging, error handling |
+| createCaller | Direct server-side invocation |
+| zod integration | Input validation and schema definition |
+| Links | Customize the request pipeline |
+| Optimistic Updates | Responsive UX with optimistic updates |
+| Infinite Queries | Cursor-based infinite scroll |
+| Output Validation | Output filtering and security |
+| SSE / Streaming | Streaming responses in v11 |
 
 ---
 
-## 次に読むべきガイド
 
-- [Zod バリデーション](./00-zod-validation.md) -- tRPC の入力スキーマを定義する zod の全機能
-- [Prisma + TypeScript](./01-prisma-typescript.md) -- tRPC + Prisma でフルスタック型安全
-- [エラーハンドリング](../02-patterns/00-error-handling.md) -- tRPC のエラーハンドリング設計
+## Summary
+
+This guide covered the following key points:
+
+- Understanding basic concepts and principles
+- Practical implementation patterns
+- Best practices and considerations
+- How to apply in real-world scenarios
 
 ---
 
-## 参考文献
+## Guides to Read Next
+
+- [Zod Validation](./00-zod-validation.md) -- Full zod capabilities for defining tRPC input schemas
+- [Prisma + TypeScript](./01-prisma-typescript.md) -- Full-stack type safety with tRPC + Prisma
+- [Error Handling](../02-patterns/00-error-handling.md) -- Error handling design for tRPC
+
+---
+
+## References
 
 1. **tRPC Documentation**
    https://trpc.io/docs
@@ -2943,14 +2943,14 @@ afterAll(() => server.close());
 2. **tRPC GitHub Repository**
    https://github.com/trpc/trpc
 
-3. **Create T3 App** -- tRPC + Next.js + Prisma のスターターキット
+3. **Create T3 App** -- Starter kit for tRPC + Next.js + Prisma
    https://create.t3.gg/
 
-4. **TanStack Query Documentation** -- tRPC React が内部で利用するデータフェッチライブラリ
+4. **TanStack Query Documentation** -- Data fetching library used internally by tRPC React
    https://tanstack.com/query
 
-5. **Zod Documentation** -- tRPC の入力バリデーションに使用するスキーマライブラリ
+5. **Zod Documentation** -- Schema library used for tRPC input validation
    https://zod.dev
 
-6. **trpc-openapi** -- tRPC から OpenAPI ドキュメントを生成
+6. **trpc-openapi** -- Generate OpenAPI documentation from tRPC
    https://github.com/jlalmes/trpc-openapi

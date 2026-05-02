@@ -1,53 +1,53 @@
-# Prisma + TypeScript 完全ガイド
+# Prisma + TypeScript Complete Guide
 
-> Prisma ORM で TypeScript の型安全性を最大限に活かし、データベース操作を堅牢に行う
+> Maximize TypeScript's type safety with Prisma ORM for robust database operations
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **Prisma の基本** -- スキーマ定義、マイグレーション、CRUD 操作の型安全な記述
-2. **高度なクエリパターン** -- リレーション、トランザクション、生SQLの型安全な扱い
-3. **実践的な設計** -- リポジトリパターン、テスト戦略、パフォーマンスチューニング
-4. **運用とスケーリング** -- コネクションプーリング、Edge Runtime 対応、監視・ログ
+1. **Prisma Basics** -- Schema definition, migrations, and type-safe CRUD operations
+2. **Advanced Query Patterns** -- Type-safe handling of relations, transactions, and raw SQL
+3. **Practical Design** -- Repository pattern, testing strategies, and performance tuning
+4. **Operations and Scaling** -- Connection pooling, Edge Runtime support, monitoring and logging
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Zod バリデーション完全ガイド](./00-zod-validation.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Zod Validation Complete Guide](./00-zod-validation.md)
 
 ---
 
-## 1. Prisma の基本
+## 1. Prisma Basics
 
-### 1-1. セットアップ
+### 1-1. Setup
 
 ```bash
-# インストール
+# Install
 npm install prisma --save-dev
 npm install @prisma/client
 
-# 初期化
+# Initialize
 npx prisma init --datasource-provider postgresql
 ```
 
 ```
-Prisma のアーキテクチャ:
+Prisma Architecture:
 
   schema.prisma          npx prisma generate
-  (スキーマ定義)  ─────────────────────────>  @prisma/client
-       |                                       (型付きクライアント)
-       |                                            |
-  npx prisma migrate                                |
-       |                                            |
-       v                                            v
-  データベース  <──── SQL クエリ ──── PrismaClient
-  (PostgreSQL等)                     (ランタイム)
+  (schema definition) ─────────────────────────>  @prisma/client
+       |                                           (typed client)
+       |                                                |
+  npx prisma migrate                                    |
+       |                                                |
+       v                                                v
+  Database  <──── SQL queries ──── PrismaClient
+  (PostgreSQL, etc.)                (runtime)
 ```
 
-Prisma は 3 つの主要コンポーネントで構成される。
+Prisma consists of 3 main components.
 
 ```
 ┌──────────────────────────────────────────────────┐
@@ -58,10 +58,11 @@ Prisma は 3 つの主要コンポーネントで構成される。
 │  │   Prisma     │  │   Prisma     │  │  Prisma  ││
 │  │   Schema     │  │   Client     │  │  Studio  ││
 │  │              │  │              │  │          ││
-│  │ .prisma      │  │ @prisma/     │  │ GUI ツール││
-│  │ ファイルで   │  │ client で    │  │ データ   ││
-│  │ モデル定義   │  │ 型安全な     │  │ 閲覧/編集││
-│  │              │  │ DB アクセス  │  │          ││
+│  │ Define       │  │ Type-safe    │  │ GUI tool ││
+│  │ models in    │  │ DB access    │  │ for data ││
+│  │ .prisma      │  │ via          │  │ view/    ││
+│  │ files        │  │ @prisma/     │  │ edit     ││
+│  │              │  │ client       │  │          ││
 │  └──────┬───────┘  └──────┬───────┘  └──────────┘│
 │         │                 │                       │
 │         │  npx prisma     │                       │
@@ -72,15 +73,15 @@ Prisma は 3 つの主要コンポーネントで構成される。
 │  │   Prisma     │  │   Prisma     │               │
 │  │   Migrate    │  │   Accelerate │               │
 │  │              │  │              │               │
-│  │ スキーマ     │  │ コネクション │               │
-│  │ 差分から     │  │ プーリング + │               │
-│  │ SQL 自動生成 │  │ グローバル   │               │
-│  │              │  │ キャッシュ   │               │
+│  │ Auto-        │  │ Connection   │               │
+│  │ generate     │  │ pooling +    │               │
+│  │ SQL from     │  │ global       │               │
+│  │ schema diff  │  │ cache        │               │
 │  └──────────────┘  └──────────────┘               │
 └──────────────────────────────────────────────────┘
 ```
 
-### 1-2. スキーマ定義
+### 1-2. Schema Definition
 
 ```prisma
 // prisma/schema.prisma
@@ -177,30 +178,30 @@ enum Role {
 }
 ```
 
-#### スキーマ設計のベストプラクティス
+#### Schema Design Best Practices
 
-| 項目 | 推奨 | 理由 |
+| Item | Recommendation | Reason |
 |------|------|------|
-| ID 型 | `uuid()` or `cuid()` | 連番は推測可能、分散システムで衝突リスク |
-| タイムスタンプ | `createdAt` + `updatedAt` | 監査証跡、デバッグに必須 |
-| テーブル名 | `@@map("snake_case")` | DB 慣習に合わせつつモデル名は PascalCase |
-| インデックス | 検索条件に `@@index` | クエリパフォーマンスに直結 |
-| 複合ユニーク | `@@unique([fieldA, fieldB])` | ビジネスルールの制約を DB レベルで保証 |
-| onDelete | 明示指定 | `Cascade` / `SetNull` / `Restrict` を意図的に選択 |
-| enum | Prisma enum | DB の enum と対応、型安全性を確保 |
+| ID type | `uuid()` or `cuid()` | Sequential IDs are guessable; risk of collision in distributed systems |
+| Timestamps | `createdAt` + `updatedAt` | Essential for audit trails and debugging |
+| Table names | `@@map("snake_case")` | Follow DB conventions while keeping model names in PascalCase |
+| Indexes | `@@index` for search conditions | Directly impacts query performance |
+| Composite unique | `@@unique([fieldA, fieldB])` | Enforce business rules as DB-level constraints |
+| onDelete | Explicitly specified | Intentionally choose `Cascade` / `SetNull` / `Restrict` |
+| enum | Prisma enum | Maps to DB enum, ensures type safety |
 
-#### リレーション設計パターン
+#### Relation Design Patterns
 
 ```
-リレーションの種類:
+Relation Types:
 
-  1対1 (One-to-One)
+  One-to-One
   ┌──────┐     ┌─────────┐
   │ User │────>│ Profile  │
   └──────┘     └─────────┘
-  userId: @unique で保証
+  Enforced by userId: @unique
 
-  1対多 (One-to-Many)
+  One-to-Many
   ┌──────┐     ┌──────┐
   │ User │────>│ Post │
   │      │────>│ Post │
@@ -208,70 +209,70 @@ enum Role {
   └──────┘     └──────┘
   posts Post[]  ←→  author User
 
-  多対多 (Many-to-Many)
+  Many-to-Many
   ┌──────┐     ┌──────────┐
   │ Post │<──>>│ Category │
   │      │<──>>│ Category │
   └──────┘     └──────────┘
-  暗黙的な中間テーブル _CategoryToPost が自動生成
+  Implicit join table _CategoryToPost is auto-generated
 
-  自己参照 (Self-Relation)
+  Self-Relation
   ┌──────────┐
   │ Comment  │
   │  parent ─┼──┐
   │  replies ─┼──┘
   └──────────┘
-  parentId で親コメントを参照
+  parentId references the parent comment
 ```
 
-### 1-3. マイグレーション
+### 1-3. Migrations
 
 ```bash
-# マイグレーション作成 + 適用
+# Create and apply migration
 npx prisma migrate dev --name init
 
-# 本番環境への適用
+# Apply to production
 npx prisma migrate deploy
 
-# スキーマの同期（開発用、マイグレーションなし）
+# Sync schema (development, no migration file)
 npx prisma db push
 
-# クライアント再生成
+# Regenerate client
 npx prisma generate
 
-# GUI でデータ確認
+# Inspect data via GUI
 npx prisma studio
 
-# マイグレーションのリセット（開発環境のみ）
+# Reset migrations (development only)
 npx prisma migrate reset
 
-# マイグレーションの差分を確認（適用せず SQL だけ表示）
+# Check migration diff (show SQL without applying)
 npx prisma migrate diff --from-schema-datamodel prisma/schema.prisma --to-schema-datasource prisma/schema.prisma
 ```
 
-#### マイグレーション戦略の比較
+#### Migration Strategy Comparison
 
-| 状況 | コマンド | 用途 |
+| Situation | Command | Purpose |
 |------|---------|------|
-| 開発中の変更 | `prisma migrate dev` | マイグレーションファイルを生成し即適用 |
-| プロトタイピング | `prisma db push` | マイグレーション不要で即反映 |
-| CI/CD | `prisma migrate deploy` | 既存マイグレーションを順序通り適用 |
-| 型だけ再生成 | `prisma generate` | DB に触れずクライアントコード再生成 |
-| 全リセット | `prisma migrate reset` | 全マイグレーション再適用（データ削除） |
+| Development changes | `prisma migrate dev` | Generate migration file and apply immediately |
+| Prototyping | `prisma db push` | Reflect changes instantly without migration files |
+| CI/CD | `prisma migrate deploy` | Apply existing migrations in order |
+| Regenerate types only | `prisma generate` | Regenerate client code without touching DB |
+| Full reset | `prisma migrate reset` | Re-apply all migrations (deletes data) |
 
-#### マイグレーションのよくある落とし穴
+#### Common Migration Pitfalls
 
 ```typescript
-// 問題: 本番 DB にカラム追加でデフォルト値がない
-// → NOT NULL 制約違反で既存レコードが更新できない
+// Problem: Adding a column to production DB without a default value
+// → Existing records cannot be updated due to NOT NULL constraint violation
 
-// 解決: 段階的マイグレーション
-// Step 1: NULL 許可でカラム追加
+// Solution: Staged migration
+// Step 1: Add column as nullable
 model User {
-  displayName String? // まず nullable で追加
+  displayName String? // Add as nullable first
 }
 
-// Step 2: 既存データをバックフィル
+// Step 2: Backfill existing data
 // prisma/migrations/xxx_backfill_display_name.ts
 import { PrismaClient } from "@prisma/client";
 
@@ -292,16 +293,16 @@ async function backfill() {
 
 backfill();
 
-// Step 3: NOT NULL 制約を追加
+// Step 3: Add NOT NULL constraint
 model User {
-  displayName String @default("") // NOT NULL に変更
+  displayName String @default("") // Change to NOT NULL
 }
 ```
 
-### 1-4. PrismaClient の初期化パターン
+### 1-4. PrismaClient Initialization Patterns
 
 ```typescript
-// lib/prisma.ts -- シングルトンパターン（推奨）
+// lib/prisma.ts -- Singleton pattern (recommended)
 import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as {
@@ -323,17 +324,18 @@ if (process.env.NODE_ENV !== "production") {
 ```
 
 ```typescript
-// なぜシングルトンが必要か？
+// Why is a singleton necessary?
 // ─────────────────────────────────────────────
-// Next.js の開発モードではホットリロードのたびにモジュールが
-// 再評価される。new PrismaClient() が毎回実行されると、
-// コネクションプールが増え続け、最終的に DB の接続上限に達する。
+// In Next.js development mode, modules are re-evaluated on every
+// hot reload. If new PrismaClient() runs each time,
+// the connection pool grows indefinitely and eventually
+// hits the DB's connection limit.
 //
-// globalThis にキャッシュすることで、ホットリロードをまたいで
-// 同一インスタンスを再利用できる。
+// By caching on globalThis, we reuse the same instance
+// across hot reloads.
 ```
 
-#### ログ設定の詳細
+#### Log Configuration Details
 
 ```typescript
 const prisma = new PrismaClient({
@@ -345,13 +347,13 @@ const prisma = new PrismaClient({
   ],
 });
 
-// クエリログをカスタムロガーに送る
+// Send query logs to a custom logger
 prisma.$on("query", (e) => {
   console.log(`[Prisma Query] ${e.query}`);
   console.log(`  Params: ${e.params}`);
   console.log(`  Duration: ${e.duration}ms`);
 
-  // スロークエリ検出
+  // Detect slow queries
   if (e.duration > 1000) {
     console.warn(`[SLOW QUERY] ${e.duration}ms: ${e.query}`);
   }
@@ -360,9 +362,9 @@ prisma.$on("query", (e) => {
 
 ---
 
-## 2. 型安全な CRUD 操作
+## 2. Type-Safe CRUD Operations
 
-### 2-1. 基本的な CRUD
+### 2-1. Basic CRUD
 
 ```typescript
 import { PrismaClient, Prisma } from "@prisma/client";
@@ -374,33 +376,33 @@ const user = await prisma.user.create({
   data: {
     email: "alice@example.com",
     name: "Alice",
-    role: "ADMIN", // enum のリテラル型で補完が効く
+    role: "ADMIN", // Autocomplete works with enum literal types
   },
 });
-// 型: User
+// Type: User
 
-// createMany で一括作成
+// Bulk create with createMany
 const result = await prisma.user.createMany({
   data: [
     { email: "bob@example.com", name: "Bob" },
     { email: "carol@example.com", name: "Carol" },
     { email: "dave@example.com", name: "Dave" },
   ],
-  skipDuplicates: true, // 重複をスキップ
+  skipDuplicates: true, // Skip duplicates
 });
-// 型: Prisma.BatchPayload { count: number }
+// Type: Prisma.BatchPayload { count: number }
 
 // ────────── Read ──────────
 const found = await prisma.user.findUnique({
   where: { email: "alice@example.com" },
 });
-// 型: User | null
+// Type: User | null
 
-// findUniqueOrThrow: 見つからない場合は例外
+// findUniqueOrThrow: throws if not found
 const mustExist = await prisma.user.findUniqueOrThrow({
   where: { email: "alice@example.com" },
 });
-// 型: User（null なし）
+// Type: User (no null)
 
 const users = await prisma.user.findMany({
   where: {
@@ -411,23 +413,23 @@ const users = await prisma.user.findMany({
   take: 10,
   skip: 0,
 });
-// 型: User[]
+// Type: User[]
 
-// findFirst: 最初の1件を取得
+// findFirst: retrieve the first matching record
 const firstAdmin = await prisma.user.findFirst({
   where: { role: "ADMIN" },
   orderBy: { createdAt: "asc" },
 });
-// 型: User | null
+// Type: User | null
 
 // ────────── Update ──────────
 const updated = await prisma.user.update({
   where: { id: user.id },
   data: { name: "Alice Smith" },
 });
-// 型: User
+// Type: User
 
-// upsert: 存在すれば更新、なければ作成
+// upsert: update if exists, create otherwise
 const upserted = await prisma.user.upsert({
   where: { email: "alice@example.com" },
   update: { name: "Alice Updated" },
@@ -437,19 +439,19 @@ const upserted = await prisma.user.upsert({
   },
 });
 
-// updateMany: 条件に一致する全レコードを更新
+// updateMany: update all matching records
 const bulkUpdate = await prisma.user.updateMany({
   where: { role: "USER" },
   data: { role: "MODERATOR" },
 });
-// 型: Prisma.BatchPayload
+// Type: Prisma.BatchPayload
 
 // ────────── Delete ──────────
 const deleted = await prisma.user.delete({
   where: { id: user.id },
 });
 
-// deleteMany: 条件に一致する全レコードを削除
+// deleteMany: delete all matching records
 const bulkDelete = await prisma.post.deleteMany({
   where: {
     published: false,
@@ -465,14 +467,14 @@ const stats = await prisma.post.aggregate({
   _min: { viewCount: true },
   where: { published: true },
 });
-// 型: {
+// Type: {
 //   _count: { _all: number };
 //   _avg: { viewCount: number | null };
 //   _max: { viewCount: number | null };
 //   _min: { viewCount: number | null };
 // }
 
-// groupBy: グループ集計
+// groupBy: group aggregation
 const postsByRole = await prisma.user.groupBy({
   by: ["role"],
   _count: { _all: true },
@@ -487,24 +489,24 @@ const postsByRole = await prisma.user.groupBy({
 });
 ```
 
-### 2-2. フィルタリング演算子
+### 2-2. Filtering Operators
 
 ```typescript
-// Prisma の Where 条件は非常に表現力が高い
+// Prisma's Where conditions are highly expressive
 
-// 文字列フィルタ
+// String filters
 const search = await prisma.user.findMany({
   where: {
     name: {
       contains: "ali",   // LIKE '%ali%'
       startsWith: "A",   // LIKE 'A%'
       endsWith: "ce",    // LIKE '%ce'
-      mode: "insensitive", // 大文字小文字を無視（PostgreSQL）
+      mode: "insensitive", // Case-insensitive (PostgreSQL)
     },
   },
 });
 
-// 数値フィルタ
+// Numeric filters
 const popular = await prisma.post.findMany({
   where: {
     viewCount: {
@@ -517,15 +519,15 @@ const popular = await prisma.post.findMany({
   },
 });
 
-// リストフィルタ
+// List filters
 const adminsOrMods = await prisma.user.findMany({
   where: {
     role: { in: ["ADMIN", "MODERATOR"] },
-    // role: { notIn: ["USER"] }, // 逆条件
+    // role: { notIn: ["USER"] }, // Inverse condition
   },
 });
 
-// 論理演算子
+// Logical operators
 const complex = await prisma.user.findMany({
   where: {
     OR: [
@@ -543,11 +545,11 @@ const complex = await prisma.user.findMany({
   },
 });
 
-// リレーション条件（some / every / none）
+// Relation conditions (some / every / none)
 const usersWithPublishedPosts = await prisma.user.findMany({
   where: {
     posts: {
-      some: { published: true },  // 少なくとも1件の公開記事がある
+      some: { published: true },  // Has at least one published post
     },
   },
 });
@@ -555,7 +557,7 @@ const usersWithPublishedPosts = await prisma.user.findMany({
 const usersWithAllPublished = await prisma.user.findMany({
   where: {
     posts: {
-      every: { published: true }, // 全記事が公開済み
+      every: { published: true }, // All posts are published
     },
   },
 });
@@ -563,38 +565,38 @@ const usersWithAllPublished = await prisma.user.findMany({
 const usersWithNoPosts = await prisma.user.findMany({
   where: {
     posts: {
-      none: {}, // 記事が1件もない
+      none: {}, // Has no posts at all
     },
   },
 });
 ```
 
-### 2-3. リレーションの取得
+### 2-3. Fetching Relations
 
 ```
-select と include の違い:
+Difference between select and include:
 
-  include: 既存フィールド + リレーション
+  include: existing fields + relations
   +------------------+
   | id               |
   | email            |
-  | name             |  ← 全フィールド保持
+  | name             |  ← all fields preserved
   | role             |
-  | posts: Post[]    |  ← リレーション追加
+  | posts: Post[]    |  ← relation added
   +------------------+
 
-  select: 指定フィールドのみ
+  select: only specified fields
   +------------------+
-  | name             |  ← 指定フィールドのみ
+  | name             |  ← only specified fields
   | email            |
-  | posts: { title } |  ← リレーションも選択可
+  | posts: { title } |  ← relations can also be selected
   +------------------+
 
-  注意: select と include は同時に使えない（トップレベル）
+  Note: select and include cannot be used together at the top level
 ```
 
 ```typescript
-// include でリレーション取得
+// Fetch relations with include
 const userWithPosts = await prisma.user.findUnique({
   where: { id: "user-1" },
   include: {
@@ -603,7 +605,7 @@ const userWithPosts = await prisma.user.findUnique({
       orderBy: { createdAt: "desc" },
       take: 5,
       include: {
-        categories: true,   // ネストしたリレーション
+        categories: true,   // Nested relation
         _count: {
           select: { comments: true },
         },
@@ -612,7 +614,7 @@ const userWithPosts = await prisma.user.findUnique({
     profile: true,
   },
 });
-// 型: (User & {
+// Type: (User & {
 //   posts: (Post & {
 //     categories: Category[];
 //     _count: { comments: number };
@@ -620,7 +622,7 @@ const userWithPosts = await prisma.user.findUnique({
 //   profile: Profile | null;
 // }) | null
 
-// select で必要なフィールドのみ
+// Fetch only required fields with select
 const userSummary = await prisma.user.findUnique({
   where: { id: "user-1" },
   select: {
@@ -638,7 +640,7 @@ const userSummary = await prisma.user.findUnique({
     },
   },
 });
-// 型: {
+// Type: {
 //   name: string;
 //   email: string;
 //   posts: { title: string; createdAt: Date }[];
@@ -646,10 +648,10 @@ const userSummary = await prisma.user.findUnique({
 // } | null
 ```
 
-### 2-4. ネストした作成・更新
+### 2-4. Nested Create and Update
 
 ```typescript
-// ユーザーと関連データを一括作成
+// Create user and related data in one operation
 const newUser = await prisma.user.create({
   data: {
     email: "bob@example.com",
@@ -685,7 +687,7 @@ const newUser = await prisma.user.create({
   },
 });
 
-// connectOrCreate: 既存があれば接続、なければ作成
+// connectOrCreate: connect if exists, create otherwise
 const post = await prisma.post.create({
   data: {
     title: "TypeScript Tips",
@@ -705,7 +707,7 @@ const post = await prisma.post.create({
   },
 });
 
-// ネストした更新
+// Nested update
 const updatedUser = await prisma.user.update({
   where: { id: "user-1" },
   data: {
@@ -729,14 +731,14 @@ const updatedUser = await prisma.user.update({
 });
 ```
 
-### 2-5. Prisma の型ユーティリティ
+### 2-5. Prisma Type Utilities
 
 ```typescript
 import { Prisma } from "@prisma/client";
 
-// ───── 生成された型を活用 ─────
+// ───── Leverage generated types ─────
 
-// モデルの入力型
+// Model input types
 type UserCreateInput = Prisma.UserCreateInput;
 // { email: string; name: string; role?: Role; ... }
 
@@ -746,7 +748,7 @@ type UserWhereInput = Prisma.UserWhereInput;
 type UserOrderByInput = Prisma.UserOrderByWithRelationInput;
 // { id?: SortOrder; email?: SortOrder; ... }
 
-// select / include に基づく戻り値型の推論
+// Infer return types based on select / include
 type UserWithPosts = Prisma.UserGetPayload<{
   include: { posts: true; profile: true };
 }>;
@@ -757,19 +759,18 @@ type UserSummary = Prisma.UserGetPayload<{
 }>;
 // { id: string; name: string; email: string }
 
-// ───── バリデーターとの統合 ─────
+// ───── Integration with validators ─────
 
-// Prisma の型から zod スキーマを生成するユーティリティ
+// Define a zod schema based on Prisma's UserCreateInput
 import { z } from "zod";
 
-// Prisma の UserCreateInput を参考に zod スキーマを定義
 const userCreateSchema = z.object({
   email: z.string().email(),
   name: z.string().min(1).max(100),
   role: z.enum(["USER", "ADMIN", "MODERATOR"]).optional(),
 }) satisfies z.ZodType<Omit<Prisma.UserCreateInput, "posts" | "profile">>;
 
-// Prisma.validator を使った型安全なクエリオブジェクト
+// Type-safe query objects using Prisma.validator
 const userWithPostsQuery = Prisma.validator<Prisma.UserFindManyArgs>()({
   where: { role: "ADMIN" },
   include: {
@@ -780,25 +781,25 @@ const userWithPostsQuery = Prisma.validator<Prisma.UserFindManyArgs>()({
   },
 });
 
-// この定義を再利用可能にする
+// Make this definition reusable
 async function getAdminUsers() {
   return prisma.user.findMany(userWithPostsQuery);
 }
 
-// 戻り値型も自動推論される
+// Return type is also automatically inferred
 type AdminUsersResult = Prisma.PromiseReturnType<typeof getAdminUsers>;
 ```
 
 ---
 
-## 3. 高度なクエリパターン
+## 3. Advanced Query Patterns
 
-### 3-1. トランザクション
+### 3-1. Transactions
 
 ```typescript
-// ───── 方法1: インタラクティブトランザクション（推奨） ─────
+// ───── Method 1: Interactive Transaction (recommended) ─────
 const transfer = await prisma.$transaction(async (tx) => {
-  // tx は PrismaClient と同じ API だがトランザクション内
+  // tx has the same API as PrismaClient but runs within a transaction
   const sender = await tx.user.update({
     where: { id: senderId },
     data: { balance: { decrement: amount } },
@@ -806,7 +807,7 @@ const transfer = await prisma.$transaction(async (tx) => {
 
   if (sender.balance < 0) {
     throw new Error("Insufficient balance");
-    // → トランザクション全体がロールバック
+    // → Entire transaction is rolled back
   }
 
   const receiver = await tx.user.update({
@@ -814,7 +815,7 @@ const transfer = await prisma.$transaction(async (tx) => {
     data: { balance: { increment: amount } },
   });
 
-  // 転送ログを記録
+  // Record transfer log
   await tx.transferLog.create({
     data: {
       senderId,
@@ -826,21 +827,21 @@ const transfer = await prisma.$transaction(async (tx) => {
 
   return { sender, receiver };
 }, {
-  timeout: 5000,                    // タイムアウト
-  maxWait: 2000,                    // トランザクション取得の最大待機時間
-  isolationLevel: "Serializable",   // 分離レベル
+  timeout: 5000,                    // Timeout
+  maxWait: 2000,                    // Max wait time to acquire transaction
+  isolationLevel: "Serializable",   // Isolation level
 });
 
-// ───── 方法2: バッチトランザクション ─────
-// 複数操作を配列で渡す（全て成功 or 全てロールバック）
+// ───── Method 2: Batch Transaction ─────
+// Pass multiple operations as an array (all succeed or all roll back)
 const [user, post, comment] = await prisma.$transaction([
   prisma.user.create({ data: { email: "x@x.com", name: "X" } }),
   prisma.post.create({ data: { title: "P", authorId: "..." } }),
   prisma.comment.create({ data: { content: "C", postId: "...", authorId: "..." } }),
 ]);
-// 戻り値は配列（各操作の結果）
+// Return value is an array (result of each operation)
 
-// ───── 方法3: 楽観的ロックパターン ─────
+// ───── Method 3: Optimistic Lock Pattern ─────
 async function updateWithOptimisticLock(
   postId: string,
   expectedVersion: number,
@@ -849,7 +850,7 @@ async function updateWithOptimisticLock(
   const result = await prisma.post.updateMany({
     where: {
       id: postId,
-      version: expectedVersion, // バージョン番号をチェック
+      version: expectedVersion, // Check version number
     },
     data: {
       title: newTitle,
@@ -865,29 +866,29 @@ async function updateWithOptimisticLock(
 }
 ```
 
-#### トランザクション分離レベルの比較
+#### Transaction Isolation Level Comparison
 
 ```
-分離レベルと並行性の問題:
+Isolation levels and concurrency issues:
 
   ┌────────────────────┬──────────┬──────────────┬─────────────┐
-  │ 分離レベル          │ Dirty    │ Non-repeatable│ Phantom    │
+  │ Isolation Level    │ Dirty    │ Non-repeatable│ Phantom    │
   │                    │ Read     │ Read          │ Read       │
   ├────────────────────┼──────────┼──────────────┼─────────────┤
-  │ ReadUncommitted    │ あり     │ あり          │ あり        │
-  │ ReadCommitted      │ なし     │ あり          │ あり        │
-  │ RepeatableRead     │ なし     │ なし          │ あり        │
-  │ Serializable       │ なし     │ なし          │ なし        │
+  │ ReadUncommitted    │ Yes      │ Yes           │ Yes         │
+  │ ReadCommitted      │ No       │ Yes           │ Yes         │
+  │ RepeatableRead     │ No       │ No            │ Yes         │
+  │ Serializable       │ No       │ No            │ No          │
   └────────────────────┴──────────┴──────────────┴─────────────┘
 
-  上に行くほどパフォーマンスが良い
-  下に行くほど整合性が高い
+  Higher = better performance
+  Lower = stronger consistency
 ```
 
 ### 3-2. Prisma Client Extensions
 
 ```typescript
-// ───── カスタムメソッドの追加 ─────
+// ───── Adding custom methods ─────
 const xprisma = prisma.$extends({
   model: {
     user: {
@@ -933,21 +934,21 @@ const xprisma = prisma.$extends({
     },
   },
 
-  // クエリに対するミドルウェア的な拡張
+  // Middleware-like extensions for queries
   query: {
     user: {
-      // 全ての findMany にソフトデリート条件を自動追加
+      // Automatically add soft delete condition to all findMany
       async findMany({ model, operation, args, query }) {
         args.where = { ...args.where, deletedAt: null };
         return query(args);
       },
-      // findUnique にも適用
+      // Also apply to findUnique
       async findUnique({ args, query }) {
         args.where = { ...args.where, deletedAt: null } as any;
         return query(args);
       },
     },
-    // 全モデル共通のクエリログ
+    // Query logging common to all models
     $allModels: {
       async $allOperations({ model, operation, args, query }) {
         const start = performance.now();
@@ -959,7 +960,7 @@ const xprisma = prisma.$extends({
     },
   },
 
-  // 結果に対する変換
+  // Transform results
   result: {
     user: {
       fullName: {
@@ -972,19 +973,19 @@ const xprisma = prisma.$extends({
   },
 });
 
-// 拡張メソッドの使用
+// Using extended methods
 const user = await xprisma.user.findByEmail("alice@example.com");
 const exists = await xprisma.user.exists("user-123");
 await xprisma.post.publish("post-456");
 ```
 
-### 3-3. 型安全な生 SQL
+### 3-3. Type-Safe Raw SQL
 
 ```typescript
-// Prisma の型付き SQL（Prisma 5.x+）
+// Prisma's typed SQL (Prisma 5.x+)
 import { Prisma } from "@prisma/client";
 
-// ───── $queryRaw: SELECT クエリ ─────
+// ───── $queryRaw: SELECT queries ─────
 interface UserPostCount {
   id: string;
   name: string;
@@ -1002,7 +1003,7 @@ const users = await prisma.$queryRaw<UserPostCount[]>`
   ORDER BY post_count DESC
 `;
 
-// 注意: bigint は JSON シリアライズできないため変換が必要
+// Note: bigint cannot be JSON serialized, so conversion is needed
 const serializable = users.map((u) => ({
   ...u,
   post_count: Number(u.post_count),
@@ -1014,9 +1015,9 @@ const affectedRows = await prisma.$executeRaw`
   SET "viewCount" = "viewCount" + 1
   WHERE id = ${postId}
 `;
-// 型: number（影響を受けた行数）
+// Type: number (number of affected rows)
 
-// ───── Prisma.sql で安全にクエリを組み立てる ─────
+// ───── Safely build queries with Prisma.sql ─────
 function buildSearchQuery(
   searchTerm: string,
   role?: string,
@@ -1040,24 +1041,24 @@ function buildSearchQuery(
   `;
 }
 
-// ───── TypedSQL（Prisma 5.9+）─────
-// prisma/sql/getUserStats.sql を作成:
+// ───── TypedSQL (Prisma 5.9+) ─────
+// Create prisma/sql/getUserStats.sql:
 // SELECT u.id, u.name, COUNT(p.id) as "postCount"
 // FROM users u LEFT JOIN posts p ON u.id = p."authorId"
 // WHERE u.role = $1
 // GROUP BY u.id
 
-// npx prisma generate --sql で型生成
+// Generate types with npx prisma generate --sql
 import { getUserStats } from "@prisma/client/sql";
 
 const stats = await prisma.$queryRawTyped(getUserStats("ADMIN"));
-// 型: { id: string; name: string; postCount: number }[]
+// Type: { id: string; name: string; postCount: number }[]
 ```
 
-### 3-4. ページネーション
+### 3-4. Pagination
 
 ```typescript
-// ───── オフセットベース（伝統的） ─────
+// ───── Offset-based (traditional) ─────
 async function getPaginatedUsers(page: number, pageSize: number) {
   const [users, total] = await prisma.$transaction([
     prisma.user.findMany({
@@ -1081,17 +1082,17 @@ async function getPaginatedUsers(page: number, pageSize: number) {
   };
 }
 
-// ───── カーソルベース（大量データ向け、推奨） ─────
+// ───── Cursor-based (for large datasets, recommended) ─────
 async function getCursorPaginatedPosts(
   cursor?: string,
   take: number = 20
 ) {
   const posts = await prisma.post.findMany({
-    take: take + 1, // 1件余分に取得して hasNext を判定
+    take: take + 1, // Fetch one extra to determine hasNext
     ...(cursor
       ? {
           cursor: { id: cursor },
-          skip: 1, // カーソル自体をスキップ
+          skip: 1, // Skip the cursor itself
         }
       : {}),
     orderBy: { createdAt: "desc" },
@@ -1116,34 +1117,34 @@ async function getCursorPaginatedPosts(
 ```
 
 ```
-ページネーション方式の比較:
+Pagination method comparison:
 
-  オフセットベース:
+  Offset-based:
   ┌────────────────────────────────────────────┐
   │ Page 1    │ Page 2    │ Page 3    │ ...    │
   │ skip=0    │ skip=20   │ skip=40   │        │
   │ take=20   │ take=20   │ take=20   │        │
   └────────────────────────────────────────────┘
-  ✅ ページ番号でジャンプ可能
-  ❌ 大量データで遅くなる（OFFSET が大きいほど遅い）
-  ❌ データ挿入/削除時にページずれが発生
+  ✅ Can jump to a specific page number
+  ❌ Slows down with large datasets (larger OFFSET = slower)
+  ❌ Page shift occurs when data is inserted/deleted
 
-  カーソルベース:
+  Cursor-based:
   ┌────────────┐  cursor  ┌────────────┐  cursor  ┌──────┐
   │ Chunk 1    │───────>  │ Chunk 2    │───────>  │ ...  │
   │ after: null│          │ after: id20│          │      │
   └────────────┘          └────────────┘          └──────┘
-  ✅ 大量データでも一定の速度
-  ✅ データ変更の影響を受けにくい
-  ❌ ページ番号ジャンプ不可
-  ❌ 実装がやや複雑
+  ✅ Consistent speed even with large datasets
+  ✅ Less affected by data changes
+  ❌ Cannot jump to a specific page number
+  ❌ Slightly more complex implementation
 ```
 
-### 3-5. フルテキスト検索
+### 3-5. Full-Text Search
 
 ```typescript
-// PostgreSQL のフルテキスト検索（Prisma 4.x+）
-// schema.prisma に preview feature を追加:
+// PostgreSQL full-text search (Prisma 4.x+)
+// Add preview feature to schema.prisma:
 // generator client {
 //   provider        = "prisma-client-js"
 //   previewFeatures = ["fullTextSearch", "fullTextIndex"]
@@ -1151,9 +1152,9 @@ async function getCursorPaginatedPosts(
 
 const results = await prisma.post.findMany({
   where: {
-    // PostgreSQL のテキスト検索演算子
+    // PostgreSQL text search operators
     title: { search: "TypeScript & Prisma" },
-    content: { search: "型安全 | ORM" },
+    content: { search: "type-safe | ORM" },
   },
   orderBy: {
     _relevance: {
@@ -1167,16 +1168,16 @@ const results = await prisma.post.findMany({
 
 ---
 
-## 4. リポジトリパターン
+## 4. Repository Pattern
 
 ```
-リポジトリパターン:
+Repository Pattern:
 
   Controller / Service
        |
        v
   +-------------------+
-  | IUserRepository   |  ← インターフェース
+  | IUserRepository   |  ← Interface
   +-------------------+
        |            |
        v            v
@@ -1184,13 +1185,13 @@ const results = await prisma.post.findMany({
   |PrismaUser |  |MockUser   |
   |Repository |  |Repository |
   +-----------+  +-----------+
-  (本番)         (テスト)
+  (production)   (testing)
 ```
 
-### 4-1. 汎用リポジトリインターフェース
+### 4-1. Generic Repository Interface
 
 ```typescript
-// 汎用のリポジトリインターフェース
+// Generic repository interface
 interface PaginationParams {
   page: number;
   pageSize: number;
@@ -1216,10 +1217,10 @@ interface IRepository<T, CreateInput, UpdateInput> {
 }
 ```
 
-### 4-2. User リポジトリの実装
+### 4-2. User Repository Implementation
 
 ```typescript
-// インターフェース
+// Interface
 interface IUserRepository extends IRepository<User, CreateUserDto, UpdateUserDto> {
   findByEmail(email: string): Promise<User | null>;
   findByRole(role: Role): Promise<User[]>;
@@ -1235,7 +1236,7 @@ type CreateUserDto = {
 
 type UpdateUserDto = Partial<CreateUserDto>;
 
-// Prisma 実装
+// Prisma implementation
 class PrismaUserRepository implements IUserRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -1311,7 +1312,7 @@ class PrismaUserRepository implements IUserRepository {
   }
 }
 
-// モック実装（テスト用）
+// Mock implementation (for testing)
 class InMemoryUserRepository implements IUserRepository {
   private users: User[] = [];
 
@@ -1385,7 +1386,7 @@ class InMemoryUserRepository implements IUserRepository {
     return this.users.some((u) => u.email === email);
   }
 
-  // テスト用ヘルパー
+  // Test helpers
   clear(): void {
     this.users = [];
   }
@@ -1396,7 +1397,7 @@ class InMemoryUserRepository implements IUserRepository {
 }
 ```
 
-### 4-3. サービス層での使用
+### 4-3. Usage in the Service Layer
 
 ```typescript
 class UserService {
@@ -1407,16 +1408,16 @@ class UserService {
   ) {}
 
   async registerUser(data: CreateUserDto): Promise<User> {
-    // ビジネスルールのバリデーション
+    // Business rule validation
     const existing = await this.userRepo.existsByEmail(data.email);
     if (existing) {
       throw new ConflictError(`Email ${data.email} is already registered`);
     }
 
-    // ユーザー作成
+    // Create user
     const user = await this.userRepo.create(data);
 
-    // ウェルカムメール送信
+    // Send welcome email
     await this.emailService.send(
       user.email,
       "Welcome!",
@@ -1439,12 +1440,12 @@ class UserService {
 
 ---
 
-## 5. テスト戦略
+## 5. Testing Strategy
 
-### 5-1. テスト環境構築
+### 5-1. Test Environment Setup
 
 ```typescript
-// test/setup.ts -- テスト用 Prisma クライアント
+// test/setup.ts -- Prisma client for testing
 import { PrismaClient } from "@prisma/client";
 import { execSync } from "child_process";
 
@@ -1454,9 +1455,9 @@ const TEST_DATABASE_URL =
 
 let prisma: PrismaClient;
 
-// テスト全体の前処理
+// Pre-processing for the entire test suite
 beforeAll(async () => {
-  // テスト用 DB のマイグレーション
+  // Run migrations on the test DB
   execSync("npx prisma migrate deploy", {
     env: {
       ...process.env,
@@ -1471,9 +1472,9 @@ beforeAll(async () => {
   await prisma.$connect();
 });
 
-// 各テストの前処理（テーブルクリーンアップ）
+// Pre-processing for each test (clean up tables)
 beforeEach(async () => {
-  // テーブルの削除順序はリレーションに注意
+  // Note the deletion order respects relations
   await prisma.$transaction([
     prisma.comment.deleteMany(),
     prisma.post.deleteMany(),
@@ -1504,10 +1505,10 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: test_db
     tmpfs:
-      - /var/lib/postgresql/data  # メモリ上で高速化
+      - /var/lib/postgresql/data  # Run in memory for speed
 ```
 
-### 5-2. インテグレーションテスト
+### 5-2. Integration Tests
 
 ```typescript
 import { describe, it, expect, beforeEach } from "vitest";
@@ -1557,16 +1558,16 @@ describe("User CRUD Integration Tests", () => {
       },
     });
 
-    // ユーザー削除前の投稿数
+    // Post count before user deletion
     const beforeCount = await prisma.post.count({
       where: { authorId: user.id },
     });
     expect(beforeCount).toBe(2);
 
-    // ユーザー削除（Cascade が設定されている場合）
+    // Delete user (when Cascade is configured)
     await prisma.user.delete({ where: { id: user.id } });
 
-    // 投稿も削除されていることを確認
+    // Confirm posts are also deleted
     const afterCount = await prisma.post.count({
       where: { authorId: user.id },
     });
@@ -1574,7 +1575,7 @@ describe("User CRUD Integration Tests", () => {
   });
 
   it("should correctly paginate results", async () => {
-    // 15件のテストデータ作成
+    // Create 15 test records
     await prisma.user.createMany({
       data: Array.from({ length: 15 }, (_, i) => ({
         email: `user${i}@example.com`,
@@ -1582,7 +1583,7 @@ describe("User CRUD Integration Tests", () => {
       })),
     });
 
-    // ページ1（10件）
+    // Page 1 (10 records)
     const page1 = await prisma.user.findMany({
       take: 10,
       skip: 0,
@@ -1590,7 +1591,7 @@ describe("User CRUD Integration Tests", () => {
     });
     expect(page1).toHaveLength(10);
 
-    // ページ2（5件）
+    // Page 2 (5 records)
     const page2 = await prisma.user.findMany({
       take: 10,
       skip: 10,
@@ -1601,7 +1602,7 @@ describe("User CRUD Integration Tests", () => {
 });
 ```
 
-### 5-3. リポジトリのユニットテスト
+### 5-3. Repository Unit Tests
 
 ```typescript
 import { describe, it, expect, beforeEach } from "vitest";
@@ -1628,11 +1629,11 @@ describe("UserService with InMemoryRepository", () => {
     expect(user.email).toBe("new@example.com");
     expect(user.name).toBe("New User");
 
-    // メールが送信されたことを確認
+    // Confirm email was sent
     expect(emailService.sentEmails).toHaveLength(1);
     expect(emailService.sentEmails[0].to).toBe("new@example.com");
 
-    // ログが記録されたことを確認
+    // Confirm log was recorded
     expect(logger.infoMessages).toHaveLength(1);
   });
 
@@ -1649,7 +1650,7 @@ describe("UserService with InMemoryRepository", () => {
       })
     ).rejects.toThrow(ConflictError);
 
-    // メールは1回だけ送信されている
+    // Email should have been sent only once
     expect(emailService.sentEmails).toHaveLength(1);
   });
 
@@ -1670,7 +1671,7 @@ describe("UserService with InMemoryRepository", () => {
   });
 });
 
-// モック実装
+// Mock implementations
 class MockEmailService implements IEmailService {
   sentEmails: { to: string; subject: string; body: string }[] = [];
 
@@ -1694,29 +1695,29 @@ class MockLogger implements ILogger {
 
 ---
 
-## 6. パフォーマンス最適化
+## 6. Performance Optimization
 
-### 6-1. N+1 問題の検出と解決
+### 6-1. Detecting and Solving N+1 Problems
 
 ```typescript
-// ───── NG: ループ内でクエリ（N+1 問題） ─────
+// ───── NG: Queries inside a loop (N+1 problem) ─────
 const users = await prisma.user.findMany();
 for (const user of users) {
   const posts = await prisma.post.findMany({
     where: { authorId: user.id },
   });
-  // 1 + N 回のクエリが発行される
+  // 1 + N queries are issued
 }
 
-// ───── OK: include で一括取得 ─────
+// ───── OK: Fetch all at once with include ─────
 const usersWithPosts = await prisma.user.findMany({
   include: {
     posts: true,
   },
 });
-// 2回のクエリ（users + posts）で完了
+// Completed with 2 queries (users + posts)
 
-// ───── OK: 事前に全投稿を取得してマッピング ─────
+// ───── OK: Pre-fetch all posts and map them ─────
 const users = await prisma.user.findMany();
 const posts = await prisma.post.findMany({
   where: { authorId: { in: users.map((u) => u.id) } },
@@ -1734,14 +1735,14 @@ const result = users.map((user) => ({
 }));
 ```
 
-### 6-2. select による必要フィールドの絞り込み
+### 6-2. Narrowing Required Fields with select
 
 ```typescript
-// NG: 全フィールド取得（不要なデータも含む）
+// NG: Fetch all fields (includes unnecessary data)
 const users = await prisma.user.findMany();
-// → id, email, name, role, createdAt, updatedAt 全て取得
+// → id, email, name, role, createdAt, updatedAt all retrieved
 
-// OK: 必要なフィールドだけ取得
+// OK: Fetch only required fields
 const users = await prisma.user.findMany({
   select: {
     id: true,
@@ -1749,13 +1750,13 @@ const users = await prisma.user.findMany({
     email: true,
   },
 });
-// → 3フィールドのみ。DBからの転送量が減り、メモリ消費も低い
+// → Only 3 fields. Reduces data transfer from DB and memory usage
 ```
 
-### 6-3. インデックス戦略
+### 6-3. Index Strategy
 
 ```prisma
-// 頻繁に使われるクエリに合わせたインデックス設計
+// Index design aligned with frequently used queries
 
 model Post {
   id        String   @id @default(uuid())
@@ -1765,13 +1766,13 @@ model Post {
   authorId  String
   createdAt DateTime @default(now())
 
-  // 単一カラムインデックス
+  // Single-column index
   @@index([authorId])
 
-  // 複合インデックス（公開記事を新しい順に取得するクエリ用）
+  // Composite index (for fetching published posts in descending order)
   @@index([published, createdAt(sort: Desc)])
 
-  // カバリングインデックス（クエリに必要な全カラムを含む）
+  // Covering index (includes all columns needed by the query)
   @@index([authorId, published, createdAt])
 
   @@map("posts")
@@ -1779,22 +1780,22 @@ model Post {
 
 model User {
   id    String @id @default(uuid())
-  email String @unique  // unique はインデックスを兼ねる
+  email String @unique  // unique also serves as an index
   name  String
 
-  // 部分インデックス（PostgreSQL）
-  // schema.prisma では直接サポートされないため、
-  // マイグレーション SQL で手動追加:
+  // Partial index (PostgreSQL)
+  // Not directly supported in schema.prisma,
+  // so add manually in migration SQL:
   // CREATE INDEX idx_active_users ON users (email) WHERE deleted_at IS NULL;
 
   @@map("users")
 }
 ```
 
-### 6-4. コネクションプーリング
+### 6-4. Connection Pooling
 
 ```typescript
-// PrismaClient のコネクション設定
+// PrismaClient connection configuration
 const prisma = new PrismaClient({
   datasources: {
     db: {
@@ -1803,48 +1804,49 @@ const prisma = new PrismaClient({
   },
 });
 
-// DATABASE_URL でプーリングパラメータを指定
+// Specify pooling parameters in DATABASE_URL
 // postgresql://user:pass@host:5432/db?connection_limit=10&pool_timeout=30
 ```
 
 ```
-コネクションプーリングのアーキテクチャ:
+Connection pooling architecture:
 
-  サーバーレス環境での課題:
+  Challenge in serverless environments:
   ┌─────────┐  ┌─────────┐  ┌─────────┐
-  │ Lambda  │  │ Lambda  │  │ Lambda  │  × N インスタンス
+  │ Lambda  │  │ Lambda  │  │ Lambda  │  × N instances
   │ Instance│  │ Instance│  │ Instance│
   └────┬────┘  └────┬────┘  └────┬────┘
        │           │            │
        v           v            v
   ┌────────────────────────────────────┐
   │          PostgreSQL                │
-  │   max_connections = 100            │ ← すぐ枯渇！
+  │   max_connections = 100            │ ← Exhausted quickly!
   └────────────────────────────────────┘
 
-  Prisma Accelerate / PgBouncer で解決:
+  Solved with Prisma Accelerate / PgBouncer:
   ┌─────────┐  ┌─────────┐  ┌─────────┐
   │ Lambda  │  │ Lambda  │  │ Lambda  │
   └────┬────┘  └────┬────┘  └────┬────┘
        │           │            │
        v           v            v
   ┌────────────────────────────────────┐
-  │     Connection Pooler              │  ← プール管理
+  │     Connection Pooler              │  ← Pool management
   │  (Prisma Accelerate / PgBouncer)   │
   └──────────────┬─────────────────────┘
                  │
                  v
   ┌────────────────────────────────────┐
   │          PostgreSQL                │
-  │   少数の接続で多数のクライアントを処理│
+  │  Handle many clients with few      │
+  │  connections                       │
   └────────────────────────────────────┘
 ```
 
 ```typescript
-// Prisma Accelerate の設定
+// Prisma Accelerate configuration
 // .env
 // DATABASE_URL="prisma://accelerate.prisma-data.net/?api_key=..."
-// DIRECT_URL="postgresql://user:pass@host:5432/db"  // マイグレーション用
+// DIRECT_URL="postgresql://user:pass@host:5432/db"  // For migrations
 
 // schema.prisma
 // datasource db {
@@ -1853,19 +1855,19 @@ const prisma = new PrismaClient({
 //   directUrl = env("DIRECT_URL")
 // }
 
-// Accelerate のキャッシュ機能
+// Accelerate caching feature
 const users = await prisma.user.findMany({
   cacheStrategy: {
-    ttl: 60,      // 60秒キャッシュ
-    swr: 120,     // Stale While Revalidate: 120秒
+    ttl: 60,      // Cache for 60 seconds
+    swr: 120,     // Stale While Revalidate: 120 seconds
   },
 });
 ```
 
-### 6-5. バッチ処理
+### 6-5. Batch Processing
 
 ```typescript
-// 大量データの処理はバッチ分割で
+// Split large data processing into batches
 async function processAllUsers(batchSize: number = 100) {
   let cursor: string | undefined;
   let processedCount = 0;
@@ -1881,7 +1883,7 @@ async function processAllUsers(batchSize: number = 100) {
 
     if (users.length === 0) break;
 
-    // バッチ処理
+    // Batch processing
     await Promise.all(
       users.map(async (user) => {
         await processUser(user);
@@ -1897,7 +1899,7 @@ async function processAllUsers(batchSize: number = 100) {
   return processedCount;
 }
 
-// createMany で一括挿入
+// Bulk insert with createMany
 async function bulkInsertUsers(users: CreateUserDto[]) {
   const CHUNK_SIZE = 1000;
   let totalInserted = 0;
@@ -1917,18 +1919,18 @@ async function bulkInsertUsers(users: CreateUserDto[]) {
 
 ---
 
-## 7. 実践的な設計パターン
+## 7. Practical Design Patterns
 
-### 7-1. ソフトデリート
+### 7-1. Soft Delete
 
 ```typescript
-// schema.prisma にソフトデリート用カラムを追加
+// Add soft delete column to schema.prisma
 // model User {
 //   ...
 //   deletedAt DateTime?
 // }
 
-// Client Extension でソフトデリートを透過的に処理
+// Handle soft delete transparently with Client Extension
 const prismaWithSoftDelete = prisma.$extends({
   query: {
     user: {
@@ -1941,11 +1943,11 @@ const prismaWithSoftDelete = prisma.$extends({
         return query(args);
       },
       async findUnique({ args, query }) {
-        // findUnique は where の制約が厳しいので注意
+        // Note: findUnique has strict where constraints
         return query(args);
       },
       async delete({ args }) {
-        // 物理削除を論理削除に変換
+        // Convert physical delete to logical delete
         return prisma.user.update({
           where: args.where,
           data: { deletedAt: new Date() },
@@ -1961,11 +1963,11 @@ const prismaWithSoftDelete = prisma.$extends({
   },
   model: {
     user: {
-      // 完全な物理削除（管理者用）
+      // Full physical delete (for admins)
       async hardDelete(id: string) {
         return prisma.user.delete({ where: { id } });
       },
-      // 復元
+      // Restore
       async restore(id: string) {
         return prisma.user.update({
           where: { id },
@@ -1977,10 +1979,10 @@ const prismaWithSoftDelete = prisma.$extends({
 });
 ```
 
-### 7-2. 監査ログ（Audit Trail）
+### 7-2. Audit Trail
 
 ```typescript
-// 変更履歴を自動記録する Extension
+// Extension to automatically record change history
 const prismaWithAudit = prisma.$extends({
   query: {
     $allModels: {
@@ -1992,14 +1994,14 @@ const prismaWithAudit = prisma.$extends({
             action: "CREATE",
             recordId: (result as any).id,
             newData: JSON.stringify(result),
-            userId: getCurrentUserId(), // コンテキストから取得
+            userId: getCurrentUserId(), // Retrieved from context
             timestamp: new Date(),
           },
         });
         return result;
       },
       async update({ model, args, query }) {
-        // 変更前のデータを取得
+        // Fetch data before change
         const before = await (prisma as any)[model].findUnique({
           where: args.where,
         });
@@ -2039,10 +2041,10 @@ const prismaWithAudit = prisma.$extends({
 });
 ```
 
-### 7-3. マルチテナント
+### 7-3. Multi-Tenancy
 
 ```typescript
-// テナント ID を全クエリに自動付与
+// Automatically attach tenant ID to all queries
 
 function createTenantPrisma(tenantId: string) {
   return prisma.$extends({
@@ -2073,7 +2075,7 @@ function createTenantPrisma(tenantId: string) {
   });
 }
 
-// 使用例（ミドルウェアで設定）
+// Usage example (configured in middleware)
 app.use((req, res, next) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   req.prisma = createTenantPrisma(tenantId);
@@ -2083,74 +2085,74 @@ app.use((req, res, next) => {
 
 ---
 
-## 比較表
+## Comparison Tables
 
-### ORM / クエリビルダー比較
+### ORM / Query Builder Comparison
 
-| 特性 | Prisma | Drizzle | TypeORM | Kysely |
+| Feature | Prisma | Drizzle | TypeORM | Kysely |
 |------|--------|---------|---------|--------|
-| 型安全性 | 最高(生成) | 最高(推論) | 中(デコレータ) | 高(推論) |
-| スキーマ定義 | .prisma | TypeScript | デコレータ | TypeScript |
-| マイグレーション | 組込み | drizzle-kit | 組込み | 別途 |
-| 生SQL | $queryRaw | sql`` | query() | sql`` |
-| バンドルサイズ | 大(Engine) | 小 | 大 | 小 |
-| 学習コスト | 低 | 低 | 中 | 中 |
-| Edge Runtime | 対応(Accelerate) | 対応 | 非対応 | 対応 |
-| リレーション | 宣言的 | 宣言的/SQL | デコレータ | JOIN手動 |
-| トランザクション | Interactive TX | SQL直接 | QueryRunner | SQL直接 |
-| 公式GUI | Prisma Studio | Drizzle Studio | なし | なし |
+| Type safety | Highest (generated) | Highest (inferred) | Medium (decorators) | High (inferred) |
+| Schema definition | .prisma | TypeScript | Decorators | TypeScript |
+| Migrations | Built-in | drizzle-kit | Built-in | Separate |
+| Raw SQL | $queryRaw | sql`` | query() | sql`` |
+| Bundle size | Large (Engine) | Small | Large | Small |
+| Learning cost | Low | Low | Medium | Medium |
+| Edge Runtime | Supported (Accelerate) | Supported | Not supported | Supported |
+| Relations | Declarative | Declarative/SQL | Decorators | Manual JOIN |
+| Transactions | Interactive TX | Direct SQL | QueryRunner | Direct SQL |
+| Official GUI | Prisma Studio | Drizzle Studio | None | None |
 
-### Prisma のクエリ手法比較
+### Prisma Query Method Comparison
 
-| 手法 | 型安全性 | 柔軟性 | パフォーマンス | 用途 |
+| Method | Type safety | Flexibility | Performance | Use case |
 |------|---------|--------|-------------|------|
-| findMany / findUnique | 最高 | 中 | 良好 | 標準CRUD |
-| include / select | 最高 | 中 | 要注意(N+1) | リレーション |
-| $queryRaw | 中 | 最高 | 最高 | 複雑なクエリ |
-| TypedSQL | 高 | 最高 | 最高 | SQL ファイル管理 |
-| $transaction | 最高 | 高 | 良好 | 複数操作 |
-| Client Extensions | 最高 | 高 | 良好 | カスタムロジック |
-| Accelerate + cache | 最高 | 中 | 最高 | 読み取り頻度高 |
+| findMany / findUnique | Highest | Medium | Good | Standard CRUD |
+| include / select | Highest | Medium | Caution (N+1) | Relations |
+| $queryRaw | Medium | Highest | Highest | Complex queries |
+| TypedSQL | High | Highest | Highest | SQL file management |
+| $transaction | Highest | High | Good | Multiple operations |
+| Client Extensions | Highest | High | Good | Custom logic |
+| Accelerate + cache | Highest | Medium | Highest | High read frequency |
 
-### データベースプロバイダー対応
+### Database Provider Support
 
-| 機能 | PostgreSQL | MySQL | SQLite | MongoDB | SQL Server |
+| Feature | PostgreSQL | MySQL | SQLite | MongoDB | SQL Server |
 |------|-----------|-------|--------|---------|------------|
-| フルテキスト検索 | あり | あり | なし | なし | なし |
-| JSON フィルタ | あり | あり | なし | あり | あり |
-| enum | あり | あり | なし | なし | なし |
-| 配列型 | あり | なし | なし | あり | なし |
-| インタラクティブTX | あり | あり | あり | あり | あり |
+| Full-text search | Yes | Yes | No | No | No |
+| JSON filter | Yes | Yes | No | Yes | Yes |
+| enum | Yes | Yes | No | No | No |
+| Array type | Yes | No | No | Yes | No |
+| Interactive TX | Yes | Yes | Yes | Yes | Yes |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### AP-1: N+1 問題を放置する
+### AP-1: Ignoring N+1 Problems
 
 ```typescript
-// NG: ループ内でクエリ（N+1 問題）
+// NG: Queries inside a loop (N+1 problem)
 const users = await prisma.user.findMany();
 for (const user of users) {
   const posts = await prisma.post.findMany({
     where: { authorId: user.id },
   });
-  // 1 + N 回のクエリが発行される
+  // 1 + N queries are issued
 }
 
-// OK: include で一括取得
+// OK: Fetch all at once with include
 const users = await prisma.user.findMany({
   include: {
     posts: true,
   },
 });
-// 2回のクエリ（users + posts）で完了
+// Completed with 2 queries (users + posts)
 ```
 
-### AP-2: PrismaClient をリクエスト毎に生成
+### AP-2: Creating PrismaClient per Request
 
 ```typescript
-// NG: 毎回新しいインスタンス（接続プール枯渇）
+// NG: New instance every time (connection pool exhaustion)
 app.get("/users", async (req, res) => {
   const prisma = new PrismaClient();
   const users = await prisma.user.findMany();
@@ -2158,7 +2160,7 @@ app.get("/users", async (req, res) => {
   res.json(users);
 });
 
-// OK: シングルトンで共有
+// OK: Share via singleton
 // lib/prisma.ts
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -2170,10 +2172,10 @@ if (process.env.NODE_ENV !== "production") {
 export { prisma };
 ```
 
-### AP-3: include のネストが深すぎる
+### AP-3: Too Many Levels of include Nesting
 
 ```typescript
-// NG: 4段階以上のネスト（パフォーマンス悪化）
+// NG: 4+ levels of nesting (performance degradation)
 const user = await prisma.user.findUnique({
   where: { id },
   include: {
@@ -2183,7 +2185,7 @@ const user = await prisma.user.findUnique({
           include: {
             author: {
               include: {
-                profile: true,  // 4段階ネスト
+                profile: true,  // 4-level nesting
               },
             },
           },
@@ -2193,7 +2195,7 @@ const user = await prisma.user.findUnique({
   },
 });
 
-// OK: 必要なデータだけ取得して別途組み立て
+// OK: Fetch only necessary data and assemble separately
 const user = await prisma.user.findUnique({
   where: { id },
   include: {
@@ -2204,7 +2206,7 @@ const user = await prisma.user.findUnique({
   },
 });
 
-// 必要に応じて追加クエリ
+// Additional query as needed
 const postIds = user?.posts.map((p) => p.id) ?? [];
 const comments = await prisma.comment.findMany({
   where: { postId: { in: postIds } },
@@ -2213,151 +2215,151 @@ const comments = await prisma.comment.findMany({
 });
 ```
 
-### AP-4: マイグレーションファイルを手動編集する
+### AP-4: Manually Editing Migration Files
 
 ```typescript
-// NG: 生成されたマイグレーション SQL を直接書き換える
-// → prisma migrate dev が差分を正しく検出できなくなる
+// NG: Directly editing generated migration SQL
+// → prisma migrate dev can no longer correctly detect diffs
 
-// OK: カスタム SQL が必要な場合は空のマイグレーションを作成
+// OK: Create an empty migration for custom SQL
 // npx prisma migrate dev --create-only --name add_custom_index
-// → 生成されたファイルに SQL を追加してから
-// npx prisma migrate dev で適用
+// → Add SQL to the generated file, then
+// npx prisma migrate dev to apply
 ```
 
-### AP-5: $queryRaw でユーザー入力を直接埋め込む
+### AP-5: Embedding User Input Directly in $queryRaw
 
 ```typescript
-// NG: SQL インジェクションの危険
+// NG: SQL injection risk
 const users = await prisma.$queryRaw`
   SELECT * FROM users WHERE name = '${userInput}'
 `;
 
-// OK: テンプレートリテラルのプレースホルダを使う
+// OK: Use template literal placeholders
 const users = await prisma.$queryRaw`
   SELECT * FROM users WHERE name = ${userInput}
 `;
-// Prisma が自動的にパラメータ化してくれる
+// Prisma automatically parameterizes this
 ```
 
 ---
 
 ## FAQ
 
-### Q1: Prisma と Drizzle のどちらを選ぶべきですか？
+### Q1: Should I choose Prisma or Drizzle?
 
-Prisma はスキーマファーストの設計が直感的で、Studio、マイグレーション、型生成が一体化しています。Drizzle はより軽量で SQL に近く、Edge Runtime との相性が良いです。チームの SQL 習熟度が高ければ Drizzle、ORM の抽象化を好むなら Prisma が適しています。
+Prisma's schema-first design is intuitive, and Studio, migrations, and type generation are all integrated. Drizzle is lighter and closer to SQL, with better compatibility for Edge Runtime. If your team has strong SQL expertise, Drizzle is a good fit; if you prefer ORM abstraction, Prisma is the better choice.
 
-大規模チームでは Prisma のスキーマが「Single Source of Truth」として機能し、バックエンドとフロントエンドの共通言語になる点が大きなメリットです。一方で、複雑なクエリが多い場合は Drizzle の SQL ライクな記法の方が自然に感じるでしょう。
+For large teams, Prisma's schema functioning as a "Single Source of Truth" and serving as a common language between backend and frontend is a significant advantage. On the other hand, if you have many complex queries, Drizzle's SQL-like syntax may feel more natural.
 
-### Q2: Prisma のパフォーマンスが遅い場合の対策は？
+### Q2: What can I do if Prisma performance is slow?
 
-以下の対策を順番に検討してください:
+Consider the following measures in order:
 
-1. `select` で必要なフィールドのみ取得
-2. `include` のネストを最小化（3段階以内）
-3. 適切なインデックスの追加（`@@index`）
-4. N+1 問題の検出と解消（`prisma.$on("query")` でログ確認）
-5. `$queryRaw` による複雑なクエリの最適化
-6. Prisma Accelerate（コネクションプーリング + キャッシュ）の導入
-7. 読み取りレプリカの活用（read replica 設定）
+1. Use `select` to fetch only required fields
+2. Minimize `include` nesting (within 3 levels)
+3. Add appropriate indexes (`@@index`)
+4. Detect and resolve N+1 problems (check logs with `prisma.$on("query")`)
+5. Optimize complex queries with `$queryRaw`
+6. Introduce Prisma Accelerate (connection pooling + cache)
+7. Utilize read replicas (read replica configuration)
 
-### Q3: テストではどうやって DB をモックしますか？
+### Q3: How do I mock the DB in tests?
 
-テスト用 DB（Docker の PostgreSQL）を使ったインテグレーションテストが最も信頼性が高いです。単体テストではリポジトリインターフェースのモック実装を DI で注入します。`prisma-mock` ライブラリもありますが、実 DB テストを推奨します。
+Integration tests using a test DB (Docker PostgreSQL) are the most reliable. For unit tests, inject a mock implementation of the repository interface via DI. The `prisma-mock` library also exists, but real DB tests are recommended.
 
-テストの種類と使い分け:
-- **ユニットテスト**: InMemoryRepository を使い、ビジネスロジックのみテスト
-- **インテグレーションテスト**: Docker DB で Prisma Client を実際に使う
-- **E2E テスト**: API エンドポイント経由で DB まで含めてテスト
+Test types and when to use them:
+- **Unit tests**: Use InMemoryRepository to test only business logic
+- **Integration tests**: Use Prisma Client with Docker DB
+- **E2E tests**: Test through API endpoints all the way to the DB
 
-### Q4: Prisma を Edge Runtime（Vercel Edge Functions, Cloudflare Workers）で使えますか？
+### Q4: Can Prisma be used with Edge Runtime (Vercel Edge Functions, Cloudflare Workers)?
 
-Prisma Accelerate を使うことで Edge Runtime に対応できます。通常の Prisma Client は Node.js のネイティブバイナリに依存するため Edge では動作しませんが、Accelerate はHTTP 経由で接続するため、任意のランタイムで利用可能です。
+Using Prisma Accelerate enables Edge Runtime support. The standard Prisma Client depends on Node.js native binaries and cannot run on Edge, but Accelerate connects via HTTP, making it usable in any runtime.
 
 ```typescript
-// Edge Runtime での使用
+// Usage in Edge Runtime
 import { PrismaClient } from "@prisma/client/edge";
 import { withAccelerate } from "@prisma/extension-accelerate";
 
 const prisma = new PrismaClient().$extends(withAccelerate());
 ```
 
-### Q5: スキーマ変更時にダウンタイムを避けるには？
+### Q5: How can I avoid downtime when changing the schema?
 
-段階的マイグレーション戦略を使います:
+Use a staged migration strategy:
 
-1. **拡張フェーズ**: 新カラムを nullable で追加、古いコードとの互換性を維持
-2. **移行フェーズ**: 新旧両方のカラムに書き込み、バックフィルを実行
-3. **収縮フェーズ**: 古いカラムへの書き込みを停止、NOT NULL 制約を追加
-4. **クリーンアップ**: 古いカラムを削除
+1. **Expand phase**: Add new columns as nullable, maintain compatibility with old code
+2. **Migration phase**: Write to both old and new columns, run backfill
+3. **Contract phase**: Stop writing to old columns, add NOT NULL constraints
+4. **Cleanup**: Remove old columns
 
 ---
 
-## まとめ表
+## Summary Table
 
-| 概念 | 要点 |
+| Concept | Key Point |
 |------|------|
-| schema.prisma | データモデルの Single Source of Truth |
-| prisma generate | スキーマから型付きクライアントを自動生成 |
-| include / select | リレーションの型安全な取得 |
-| $transaction | 複数操作のアトミック実行 |
-| Client Extensions | カスタムメソッドの型安全な追加 |
-| リポジトリパターン | DI でテスタビリティを確保 |
-| Prisma Accelerate | コネクションプーリングとキャッシュ |
-| TypedSQL | SQL ファイルから型安全なクエリを生成 |
-| ソフトデリート | Extension で透過的に実装 |
-| 楽観的ロック | version カラムで並行更新を検出 |
+| schema.prisma | Single Source of Truth for data models |
+| prisma generate | Auto-generate typed client from schema |
+| include / select | Type-safe fetching of relations |
+| $transaction | Atomic execution of multiple operations |
+| Client Extensions | Type-safe addition of custom methods |
+| Repository pattern | Ensure testability via DI |
+| Prisma Accelerate | Connection pooling and caching |
+| TypedSQL | Generate type-safe queries from SQL files |
+| Soft delete | Implement transparently with Extensions |
+| Optimistic lock | Detect concurrent updates with version column |
 
 ---
 
-## 演習問題
+## Practice Exercises
 
-### 演習1: スキーマ設計
+### Exercise 1: Schema Design
 
-以下の要件を満たす Prisma スキーマを設計してください。
+Design a Prisma schema that meets the following requirements.
 
-- EC サイトの商品カタログシステム
-- 商品（Product）は複数のカテゴリに属する（多対多）
-- 商品には複数の SKU（バリエーション: サイズ、色など）がある（1対多）
-- ユーザーは商品をお気に入りに追加できる（多対多）
-- 商品レビュー（1対多、ユーザーと商品の両方にリレーション）
-- 適切なインデックスと enum を含めること
+- An e-commerce product catalog system
+- Products belong to multiple categories (many-to-many)
+- Products have multiple SKUs (variations: size, color, etc.) (one-to-many)
+- Users can add products to favorites (many-to-many)
+- Product reviews (one-to-many, relations to both user and product)
+- Include appropriate indexes and enums
 
-### 演習2: 型安全なクエリ
+### Exercise 2: Type-Safe Queries
 
-Prisma.validator と Prisma.UserGetPayload を使って、以下の再利用可能なクエリ型を定義してください。
+Using `Prisma.validator` and `Prisma.UserGetPayload`, define the following reusable query types.
 
-1. ユーザーのダッシュボード用データ（プロフィール + 最新5件の投稿 + 未読通知数）
-2. 管理者用ユーザー一覧（全フィールド + 投稿数 + コメント数）
-3. 公開記事の詳細ページ用データ（著者名 + カテゴリ + コメント上位10件）
+1. User dashboard data (profile + latest 5 posts + unread notification count)
+2. Admin user list (all fields + post count + comment count)
+3. Published article detail page data (author name + categories + top 10 comments)
 
-### 演習3: リポジトリパターンの実装
+### Exercise 3: Repository Pattern Implementation
 
-以下の仕様でリポジトリを実装してください。
+Implement a repository according to the following specifications.
 
-- `IPostRepository` インターフェースを設計
-- `PrismaPostRepository` と `InMemoryPostRepository` の両方を実装
-- 検索（タイトル/内容のテキスト検索）、フィルタ（カテゴリ、公開状態）、ソート（日付、閲覧数）をサポート
-- カーソルベースのページネーションを含む
+- Design the `IPostRepository` interface
+- Implement both `PrismaPostRepository` and `InMemoryPostRepository`
+- Support search (text search by title/content), filter (category, published status), and sort (by date, view count)
+- Include cursor-based pagination
 
-### 演習4: トランザクション
+### Exercise 4: Transactions
 
-以下のビジネスロジックをトランザクションで実装してください。
+Implement the following business logic using a transaction.
 
-- ユーザーが記事を「購入」する処理
-- ユーザーの残高を確認し、記事の価格を差し引く
-- 購入記録をログテーブルに挿入
-- 著者の収益カラムを更新
-- いずれかの操作が失敗したら全体をロールバック
-- 楽観的ロックで並行購入を防止
+- Process for a user to "purchase" an article
+- Check the user's balance and deduct the article's price
+- Insert a purchase record into a log table
+- Update the author's earnings column
+- Roll back entirely if any operation fails
+- Prevent concurrent purchases with optimistic locking
 
-### 演習5: パフォーマンスチューニング
+### Exercise 5: Performance Tuning
 
-以下のコードのパフォーマンス問題を特定し、改善してください。
+Identify performance issues in the following code and improve it.
 
 ```typescript
-// このコードにはパフォーマンス問題がいくつあるか？
+// How many performance problems does this code have?
 async function getPopularAuthors() {
   const users = await prisma.user.findMany();
 
@@ -2390,42 +2392,42 @@ async function getPopularAuthors() {
 }
 ```
 
-ヒント: N+1 問題、不要なデータ取得、集計のアプローチ、ページネーション欠如に注目してください。
+Hint: Focus on N+1 problems, unnecessary data fetching, aggregation approach, and lack of pagination.
 
-### 演習6: ソフトデリートの Extension
+### Exercise 6: Soft Delete Extension
 
-Prisma Client Extension を使って、以下の機能を持つソフトデリートシステムを実装してください。
+Implement a soft delete system with the following features using a Prisma Client Extension.
 
-- 全モデル共通（`$allModels`）で動作する
-- `delete` / `deleteMany` を論理削除に変換
-- `findMany` / `findFirst` / `findUnique` で削除済みレコードを自動除外
-- `restore(id)` メソッドで復元可能
-- `hardDelete(id)` メソッドで物理削除可能
-- 削除から30日経過したレコードを自動物理削除するバッチ処理
-
----
-
-
-## まとめ
-
-このガイドでは以下の重要なポイントを学びました:
-
-- 基本概念と原則の理解
-- 実践的な実装パターン
-- ベストプラクティスと注意点
-- 実務での活用方法
+- Works across all models (`$allModels`)
+- Convert `delete` / `deleteMany` to logical delete
+- Automatically exclude deleted records in `findMany` / `findFirst` / `findUnique`
+- Restorable with a `restore(id)` method
+- Physically deletable with a `hardDelete(id)` method
+- Batch process to automatically physically delete records that have been deleted for more than 30 days
 
 ---
 
-## 次に読むべきガイド
 
-- [tRPC](./02-trpc.md) -- Prisma + tRPC で型安全なフルスタック開発
-- [Zod バリデーション](./00-zod-validation.md) -- Prisma スキーマと zod の連携
-- [DI パターン](../02-patterns/04-dependency-injection.md) -- リポジトリの DI 設計
+## Summary
+
+In this guide, we covered the following key points:
+
+- Understanding of basic concepts and principles
+- Practical implementation patterns
+- Best practices and important notes
+- How to apply these in real-world work
 
 ---
 
-## 参考文献
+## Next Guides to Read
+
+- [tRPC](./02-trpc.md) -- Type-safe full-stack development with Prisma + tRPC
+- [Zod Validation](./00-zod-validation.md) -- Integration between Prisma schema and zod
+- [DI Pattern](../02-patterns/04-dependency-injection.md) -- DI design for repositories
+
+---
+
+## References
 
 1. **Prisma Documentation**
    https://www.prisma.io/docs
