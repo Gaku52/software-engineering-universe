@@ -1,42 +1,42 @@
-# モナド (Monad)
+# Monad
 
-> Maybe/Either、IO、Promise などのモナドパターンを理解し、副作用を制御しつつ合成可能なデータフローを構築する
+> Understand monad patterns such as Maybe/Either, IO, and Promise to build composable data flows while controlling side effects
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **モナドの本質** --- bind (flatMap) による計算の連鎖と、コンテキスト内での値の変換がなぜ必要か
-2. **実用的なモナド** --- Maybe/Option、Either/Result、Promise/Future、IO、List、Reader の具体的実装と活用
-3. **モナド則** --- 3つの法則（左単位元・右単位元・結合則）の意味と検証方法
-4. **鉄道指向プログラミング** --- Either/Result を用いたエラーハンドリングパイプラインの設計
-5. **モナド合成** --- モナドトランスフォーマー、do 記法、async/await との関係
+1. **The essence of monads** --- Why chaining computations via bind (flatMap) and transforming values within a context is necessary
+2. **Practical monads** --- Concrete implementations and usage of Maybe/Option, Either/Result, Promise/Future, IO, List, and Reader
+3. **Monad laws** --- The meaning and verification of the three laws (left identity, right identity, associativity)
+4. **Railway-oriented programming** --- Designing error-handling pipelines using Either/Result
+5. **Monad composition** --- Monad transformers, do-notation, and their relationship with async/await
 
 ---
 
-## 前提知識
+## Prerequisites
 
-| トピック | 必要レベル | 参照先 |
+| Topic | Required Level | Reference |
 |---|---|---|
-| TypeScript ジェネリクス | クラス・関数のジェネリクス定義 | [TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/2/generics.html) |
-| 高階関数 | map, filter, reduce の理解 | [関数型パターン](./02-fp-patterns.md) |
-| Promise/async-await | 非同期処理の基礎 | [MDN Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) |
-| 代数的データ型 | Union 型、判別共用体 | [TypeScript Union Types](https://www.typescriptlang.org/docs/handbook/2/narrowing.html) |
-| ファンクタの概念 | map の意味 | [ファンクタ・アプリカティブ](./01-functor-applicative.md) |
+| TypeScript generics | Defining generics for classes and functions | [TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/2/generics.html) |
+| Higher-order functions | Understanding map, filter, reduce | [Functional Patterns](./02-fp-patterns.md) |
+| Promise/async-await | Basics of asynchronous processing | [MDN Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) |
+| Algebraic data types | Union types, discriminated unions | [TypeScript Union Types](https://www.typescriptlang.org/docs/handbook/2/narrowing.html) |
+| Functor concept | Meaning of map | [Functor and Applicative](./01-functor-applicative.md) |
 
 ---
 
-## WHY --- なぜモナドが必要か
+## WHY --- Why Are Monads Necessary?
 
-### 問題: 副作用と分岐の爆発
+### Problem: Explosion of Side Effects and Branches
 
-実際のプログラムでは、あらゆる操作が「失敗するかもしれない」「値がないかもしれない」「非同期かもしれない」というコンテキストを伴う。これらを愚直に扱うと、null チェック・エラーハンドリング・コールバックのネストが爆発する。
+In real programs, every operation comes with a context: "this might fail," "this value might not exist," or "this might be asynchronous." Handling these naively leads to an explosion of null checks, error handling, and nested callbacks.
 
 ```
-問題: コンテキスト付き計算の連鎖
+Problem: Chaining computations with context
 ====================================
 
-[素朴な実装 --- ネストの爆発]
+[Naive implementation --- explosion of nesting]
 
-  getUser(id) ──→ null チェック ──→ getAddress(user) ──→ null チェック ──→ getCity(addr)
+  getUser(id) ──→ null check ──→ getAddress(user) ──→ null check ──→ getCity(addr)
                     |                                      |
                     v                                      v
                   return default                        return default
@@ -46,100 +46,98 @@
                       v                                    v
                     handleError                          handleError
 
-  // ネスト地獄
+  // Nesting hell
   if (user != null) {
     if (user.address != null) {
       if (user.address.city != null) {
-        // ようやく本来のロジック
+        // Finally, the actual logic
       }
     }
   }
 
-[モナドによる解決 --- フラットな合成]
+[Solution with monads --- flat composition]
 
   Maybe.of(user)
     .flatMap(u => Maybe.fromNullable(u.address))
     .flatMap(a => Maybe.fromNullable(a.city))
     .getOrElse("Unknown")
 
-  // 各ステップで「失敗したら自動スキップ」
-  // ネストなし。直線的。合成可能。
+  // Each step automatically skips if "failed"
+  // No nesting. Linear. Composable.
 ```
 
-### 解決: コンテキスト内での合成可能な計算
+### Solution: Composable Computation Within a Context
 
-モナドは **コンテキスト(文脈)付きの値** に対する **合成可能な計算の連鎖** を提供する抽象化である。
+A monad is an abstraction that provides **composable chains of computation** over **values with context**.
 
-- **Maybe/Option**: 「値がないかもしれない」コンテキスト。null ならスキップ
-- **Either/Result**: 「失敗するかもしれない」コンテキスト。エラーならスキップ
-- **Promise/Future**: 「まだ完了していない」コンテキスト。完了後に次を実行
-- **IO**: 「副作用がある」コンテキスト。実行を遅延して合成
-- **List/Array**: 「複数の値がある」コンテキスト。各要素に適用してフラットに
-- **Reader**: 「環境に依存する」コンテキスト。依存を引き回す
+- **Maybe/Option**: The context of "a value might not exist." Skip if null
+- **Either/Result**: The context of "this might fail." Skip if there is an error
+- **Promise/Future**: The context of "not yet complete." Execute next after completion
+- **IO**: The context of "has side effects." Defer execution and compose
+- **List/Array**: The context of "multiple values." Apply to each element and flatten
+- **Reader**: The context of "depends on an environment." Thread dependencies implicitly
 
-すべてのモナドは同じインターフェース (`unit` + `bind`) を持ち、同じ法則に従う。この統一性により、異なるコンテキストの計算を同じパターンで扱える。
+All monads share the same interface (`unit` + `bind`) and follow the same laws. This uniformity allows computations from different contexts to be handled with the same pattern.
 
 ---
 
-## モナドの定義
+## Definition of a Monad
 
-Philip Wadler (1992) "Monads for functional programming" より:
+From Philip Wadler (1992) "Monads for functional programming":
 
 > A monad is a triple (M, unit, bind) where M is a type constructor, unit lifts a value into the monadic context, and bind sequences computations within the context.
 
-日本語訳: モナドは三つ組 (M, unit, bind) であり、M は型コンストラクタ、unit は値をモナドコンテキストに持ち上げ、bind はコンテキスト内で計算を連鎖させる。
-
 ```
-モナドの構成要素
+Components of a Monad
 ==================
 
-  型コンストラクタ M:
-    通常の型 T を「コンテキスト付きの型」M<T> に変換する
+  Type constructor M:
+    Converts a normal type T into a "contextual type" M<T>
 
   unit (return, of, pure):
     T  --->  M<T>
-    値をコンテキストに入れる。副作用なし。
+    Places a value into the context. No side effects.
 
   bind (flatMap, >>=, then, and_then):
     M<T>  --->  (T -> M<U>)  --->  M<U>
-    コンテキスト内の値を取り出し、次の計算に渡し、結果をフラットにする。
+    Extracts the value from the context, passes it to the next computation, and flattens the result.
 
-  ※ map との違い:
-    map  : M<T> -> (T ->   U ) -> M<U>    (値を変換)
-    bind : M<T> -> (T -> M<U>) -> M<U>    (コンテキストを変換)
+  * Difference from map:
+    map  : M<T> -> (T ->   U ) -> M<U>    (transforms the value)
+    bind : M<T> -> (T -> M<U>) -> M<U>    (transforms the context)
 
-  map は bind + unit で定義できる:
+  map can be defined in terms of bind + unit:
     m.map(f) === m.bind(x => unit(f(x)))
 
-モナド則 (Monad Laws)
+Monad Laws
 =======================
 
-  1. 左単位元 (Left Identity):
+  1. Left Identity:
      unit(a).bind(f) === f(a)
-     「値をコンテキストに入れてから bind」= 「直接関数に渡す」
+     "bind after putting a value into context" = "pass directly to the function"
 
-  2. 右単位元 (Right Identity):
+  2. Right Identity:
      m.bind(unit) === m
-     「コンテキストの値を取り出して unit で戻す」= 「何もしない」
+     "extract the value from context and put it back with unit" = "do nothing"
 
-  3. 結合則 (Associativity):
+  3. Associativity:
      m.bind(f).bind(g) === m.bind(x => f(x).bind(g))
-     「左から順に bind」= 「入れ子にして bind」
+     "bind left to right" = "bind with nesting"
 
-  図解:
-    値 a  --[unit]--> M<a>  --[bind(f)]--> M<b>  --[bind(g)]--> M<c>
+  Diagram:
+    value a  --[unit]--> M<a>  --[bind(f)]--> M<b>  --[bind(g)]--> M<c>
 
-  これらの法則により、モナドは合成の順序に依存しない
-  一貫した振る舞いを保証する。
+  These laws guarantee that monads behave consistently
+  regardless of the order of composition.
 ```
 
 ---
 
-## コード例 1: Maybe/Option モナド --- 完全実装
+## Code Example 1: Maybe/Option Monad --- Full Implementation
 
 ```typescript
 // =============================================================
-// Maybe モナド: null 安全な計算の連鎖
+// Maybe Monad: Chaining null-safe computations
 // =============================================================
 
 class Maybe<T> {
@@ -173,7 +171,7 @@ class Maybe<T> {
     return maybeFn.flatMap(fn => this.map(fn));
   }
 
-  // --- ユーティリティ ---
+  // --- Utilities ---
   getOrElse(defaultValue: T): T {
     return this.value ?? defaultValue;
   }
@@ -196,12 +194,12 @@ class Maybe<T> {
     return this.value != null;
   }
 
-  // パターンマッチ
+  // Pattern matching
   match<U>(patterns: { just: (value: T) => U; nothing: () => U }): U {
     return this.value != null ? patterns.just(this.value) : patterns.nothing();
   }
 
-  // デバッグ用 (副作用を挿入しつつチェーンを維持)
+  // For debugging (insert side effect while maintaining the chain)
   tap(fn: (value: T) => void): Maybe<T> {
     if (this.value != null) fn(this.value);
     return this;
@@ -213,26 +211,26 @@ class Maybe<T> {
 }
 
 // =============================================================
-// モナド則の検証
+// Verification of Monad Laws
 // =============================================================
 const f = (x: number) => Maybe.of(x * 2);
 const g = (x: number) => (x > 0 ? Maybe.of(x + 1) : Maybe.nothing<number>());
 
-// 左単位元: unit(a).bind(f) === f(a)
+// Left Identity: unit(a).bind(f) === f(a)
 console.log(Maybe.of(5).flatMap(f).toString());  // Just(10)
 console.log(f(5).toString());                     // Just(10)
 
-// 右単位元: m.bind(unit) === m
+// Right Identity: m.bind(unit) === m
 console.log(Maybe.of(5).flatMap(Maybe.of).toString());  // Just(5)
 console.log(Maybe.of(5).toString());                     // Just(5)
 
-// 結合則: m.bind(f).bind(g) === m.bind(x => f(x).bind(g))
+// Associativity: m.bind(f).bind(g) === m.bind(x => f(x).bind(g))
 const m = Maybe.of(3);
 console.log(m.flatMap(f).flatMap(g).toString());              // Just(7)
 console.log(m.flatMap(x => f(x).flatMap(g)).toString());      // Just(7)
 
 // =============================================================
-// 実践的な使用例: ネストされたオブジェクトの安全な探索
+// Practical usage: Safe traversal of nested objects
 // =============================================================
 interface Company {
   name: string;
@@ -253,7 +251,7 @@ function getCeoCity(company: Company | null): string {
     .getOrElse("Unknown");
 }
 
-// テスト
+// Tests
 const company1: Company = {
   name: "Acme",
   ceo: { name: "Alice", address: { city: "Tokyo", country: "JP" } }
@@ -262,12 +260,12 @@ const company2: Company = { name: "Beta" };
 const company3: Company = { name: "Gamma", ceo: { name: "Bob" } };
 
 console.log(getCeoCity(company1));  // "Tokyo"
-console.log(getCeoCity(company2));  // "Unknown" (ceo なし)
-console.log(getCeoCity(company3));  // "Unknown" (address なし)
-console.log(getCeoCity(null));      // "Unknown" (company なし)
+console.log(getCeoCity(company2));  // "Unknown" (no ceo)
+console.log(getCeoCity(company3));  // "Unknown" (no address)
+console.log(getCeoCity(null));      // "Unknown" (no company)
 
 // =============================================================
-// Maybe + 配列: 安全な検索
+// Maybe + Array: Safe search
 // =============================================================
 function findFirst<T>(
   items: T[],
@@ -289,7 +287,7 @@ const products: Product[] = [
   { id: 3, name: "Doohickey", discount: 0.25 },
 ];
 
-// 割引価格を安全に計算
+// Safely calculate the discounted price
 function getDiscountedPrice(
   products: Product[],
   productId: number,
@@ -301,24 +299,24 @@ function getDiscountedPrice(
 }
 
 console.log(getDiscountedPrice(products, 1, 100).toString());  // Just(90)
-console.log(getDiscountedPrice(products, 2, 100).toString());  // Nothing (割引なし)
-console.log(getDiscountedPrice(products, 9, 100).toString());  // Nothing (商品なし)
+console.log(getDiscountedPrice(products, 2, 100).toString());  // Nothing (no discount)
+console.log(getDiscountedPrice(products, 9, 100).toString());  // Nothing (no product)
 ```
 
 ---
 
-## コード例 2: Either/Result モナド --- 鉄道指向プログラミング
+## Code Example 2: Either/Result Monad --- Railway-Oriented Programming
 
 ```typescript
 // =============================================================
-// Either モナド: 型安全なエラーハンドリング
+// Either Monad: Type-safe error handling
 // =============================================================
 
 type Either<L, R> =
   | { readonly tag: "Left"; readonly value: L }
   | { readonly tag: "Right"; readonly value: R };
 
-// --- コンストラクタ ---
+// --- Constructors ---
 const Left = <L, R = never>(value: L): Either<L, R> => ({
   tag: "Left",
   value,
@@ -328,7 +326,7 @@ const Right = <R, L = never>(value: R): Either<L, R> => ({
   value,
 });
 
-// --- モナド操作 (関数スタイル) ---
+// --- Monad operations (functional style) ---
 const EitherM = {
   // unit
   of<R>(value: R): Either<never, R> {
@@ -348,12 +346,12 @@ const EitherM = {
     return either.tag === "Right" ? fn(either.value) : either;
   },
 
-  // mapLeft: エラー側を変換
+  // mapLeft: transform the error side
   mapLeft<L, R, U>(either: Either<L, R>, fn: (l: L) => U): Either<U, R> {
     return either.tag === "Left" ? Left(fn(either.value)) : either;
   },
 
-  // bimap: 両側を変換
+  // bimap: transform both sides
   bimap<L, R, U, V>(
     either: Either<L, R>,
     leftFn: (l: L) => U,
@@ -364,7 +362,7 @@ const EitherM = {
       : Right(rightFn(either.value));
   },
 
-  // fold (パターンマッチ)
+  // fold (pattern matching)
   fold<L, R, U>(
     either: Either<L, R>,
     onLeft: (l: L) => U,
@@ -375,7 +373,7 @@ const EitherM = {
       : onRight(either.value);
   },
 
-  // tryCatch: 例外を Either に変換
+  // tryCatch: convert exceptions to Either
   tryCatch<R>(fn: () => R): Either<Error, R> {
     try {
       return Right(fn());
@@ -384,7 +382,7 @@ const EitherM = {
     }
   },
 
-  // fromNullable: null/undefined を Left に変換
+  // fromNullable: convert null/undefined to Left
   fromNullable<L, R>(
     value: R | null | undefined,
     error: L
@@ -392,7 +390,7 @@ const EitherM = {
     return value == null ? Left(error) : Right(value);
   },
 
-  // 複数の Either を結合 (すべて Right なら成功)
+  // Combine multiple Eithers (succeeds only if all are Right)
   sequence<L, R>(eithers: Either<L, R>[]): Either<L, R[]> {
     const results: R[] = [];
     for (const either of eithers) {
@@ -404,10 +402,10 @@ const EitherM = {
 };
 
 // =============================================================
-// 鉄道指向プログラミング: バリデーションパイプライン
+// Railway-oriented programming: Validation pipeline
 // =============================================================
 
-// 構造化エラー型
+// Structured error type
 interface ValidationError {
   field: string;
   message: string;
@@ -420,7 +418,7 @@ const vError = (
   code: string
 ): ValidationError => ({ field, message, code });
 
-// 各バリデーション関数は Either を返す
+// Each validation function returns an Either
 function validateEmail(
   email: string
 ): Either<ValidationError, string> {
@@ -470,7 +468,7 @@ function validateUsername(
   return Right(name);
 }
 
-// --- 鉄道: 最初のエラーで停止 ---
+// --- Railway: stop at first error ---
 interface RegistrationInput {
   username: string;
   email: string;
@@ -488,7 +486,7 @@ interface ValidatedUser {
 function validateRegistration(
   input: RegistrationInput
 ): Either<ValidationError, ValidatedUser> {
-  // 各ステップが Left を返した時点でパイプライン全体が Left になる
+  // The entire pipeline becomes Left when any step returns Left
   const username = validateUsername(input.username);
   const email = EitherM.flatMap(username, () => validateEmail(input.email));
   const password = EitherM.flatMap(email, () => validatePassword(input.password));
@@ -502,7 +500,7 @@ function validateRegistration(
   }));
 }
 
-// テスト
+// Tests
 const good = validateRegistration({
   username: "alice",
   email: "alice@example.com",
@@ -521,7 +519,7 @@ const bad = validateRegistration({
 console.log(bad);
 // { tag: "Left", value: { field: "username", message: "Min 3 chars", code: "USERNAME_TOO_SHORT" } }
 
-// --- 鉄道: すべてのエラーを収集 (Validation モナド) ---
+// --- Railway: collect all errors (Validation monad) ---
 function validateAllErrors(
   input: RegistrationInput
 ): Either<ValidationError[], ValidatedUser> {
@@ -566,11 +564,11 @@ console.log(allBad);
 
 ---
 
-## コード例 3: Result モナド --- TypeScript 型安全実装
+## Code Example 3: Result Monad --- TypeScript Type-Safe Implementation
 
 ```typescript
 // =============================================================
-// Result<T, E>: Rust スタイルの型安全エラーハンドリング
+// Result<T, E>: Rust-style type-safe error handling
 // =============================================================
 
 class Result<T, E> {
@@ -632,7 +630,7 @@ class Result<T, E> {
       : Result.err(this._error as E);
   }
 
-  // --- 値の取得 ---
+  // --- Value extraction ---
   unwrap(): T {
     if (!this._ok) throw new Error("Called unwrap on Err");
     return this._value as T;
@@ -651,14 +649,14 @@ class Result<T, E> {
     return this._error as E;
   }
 
-  // --- パターンマッチ ---
+  // --- Pattern matching ---
   match<U>(patterns: { ok: (value: T) => U; err: (error: E) => U }): U {
     return this._ok
       ? patterns.ok(this._value as T)
       : patterns.err(this._error as E);
   }
 
-  // --- 合成 ---
+  // --- Composition ---
   and<U>(other: Result<U, E>): Result<U, E> {
     return this._ok ? other : Result.err(this._error as E);
   }
@@ -667,7 +665,7 @@ class Result<T, E> {
     return this._ok ? this : other;
   }
 
-  // --- 変換 ---
+  // --- Conversion ---
   toMaybe(): Maybe<T> {
     return this._ok ? Maybe.of(this._value as T) : Maybe.nothing();
   }
@@ -680,7 +678,7 @@ class Result<T, E> {
 }
 
 // =============================================================
-// 実践例: JSON パース -> バリデーション -> ビジネスロジック
+// Practical example: JSON parse -> validation -> business logic
 // =============================================================
 
 interface Config {
@@ -725,14 +723,14 @@ function normalizeConfig(config: Config): Result<Config, string> {
   return Result.ok(config);
 }
 
-// flatMap の連鎖 = 鉄道指向パイプライン
+// Chaining flatMap = railway-oriented pipeline
 function loadConfig(raw: string): Result<Config, string> {
   return parseJson(raw)
     .flatMap(validateConfig)
     .flatMap(normalizeConfig);
 }
 
-// テスト
+// Tests
 console.log(loadConfig('{"host":"localhost","port":8080,"maxRetries":3}').toString());
 // Ok({"host":"127.0.0.1","port":8080,"maxRetries":3})
 
@@ -748,15 +746,15 @@ console.log(loadConfig('{"host":"example.com","port":99999,"maxRetries":3}').toS
 
 ---
 
-## コード例 4: IO モナドと Promise
+## Code Example 4: IO Monad and Promise
 
 ```typescript
 // =============================================================
-// IO モナド: 副作用の遅延実行と合成
+// IO Monad: Deferred execution and composition of side effects
 // =============================================================
 
-// IO は「副作用を持つ計算」を値として扱う
-// 実行されるまで副作用は発生しない (参照透過性の維持)
+// IO treats "computations with side effects" as values
+// Side effects do not occur until execution (preserving referential transparency)
 class IO<T> {
   constructor(private readonly effect: () => T) {}
 
@@ -775,17 +773,17 @@ class IO<T> {
     return new IO(() => fn(this.effect()).run());
   }
 
-  // 副作用を実行
+  // Execute the side effect
   run(): T {
     return this.effect();
   }
 
-  // 2つの IO を順次実行
+  // Run two IOs sequentially
   andThen<U>(next: IO<U>): IO<U> {
     return this.flatMap(() => next);
   }
 
-  // デバッグ用
+  // For debugging
   tap(fn: (value: T) => void): IO<T> {
     return new IO(() => {
       const result = this.effect();
@@ -795,13 +793,13 @@ class IO<T> {
   }
 }
 
-// --- IO ユーティリティ ---
+// --- IO utilities ---
 const ConsoleIO = {
   log(message: string): IO<void> {
     return new IO(() => console.log(message));
   },
   readLine(prompt: string): IO<string> {
-    // 実際の readline 実装は省略
+    // Actual readline implementation is omitted
     return new IO(() => {
       console.log(prompt);
       return "simulated-input";
@@ -816,10 +814,10 @@ const ConsoleIO = {
 };
 
 // =============================================================
-// IO の合成: プログラム全体を純粋に記述
+// IO composition: Describe an entire program purely
 // =============================================================
 
-// このプログラム定義自体は純粋 (副作用なし)
+// This program definition itself is pure (no side effects)
 const greetProgram: IO<void> = ConsoleIO.currentTime()
   .map(date => date.toISOString())
   .flatMap(time =>
@@ -827,21 +825,21 @@ const greetProgram: IO<void> = ConsoleIO.currentTime()
       .andThen(ConsoleIO.log(`[${time}] Welcome to IO Monad`))
   );
 
-// run() を呼ぶまで何も起きない
-// greetProgram.run();  // 実行時にのみ副作用が発生
+// Nothing happens until run() is called
+// greetProgram.run();  // Side effects only occur at execution time
 
 // =============================================================
-// 比較: IO vs 直接副作用
+// Comparison: IO vs direct side effects
 // =============================================================
 
-// [NG] 直接副作用 --- テスト困難
+// [NG] Direct side effects --- hard to test
 function greetDirect(): void {
-  const time = new Date().toISOString();  // 副作用: 現在時刻
-  console.log(`[${time}] Hello!`);        // 副作用: コンソール出力
-  console.log(`[${time}] Welcome`);       // 副作用: コンソール出力
+  const time = new Date().toISOString();  // side effect: current time
+  console.log(`[${time}] Hello!`);        // side effect: console output
+  console.log(`[${time}] Welcome`);       // side effect: console output
 }
 
-// [OK] IO モナド --- テスト可能
+// [OK] IO monad --- testable
 function greetIO(
   getTime: () => IO<Date>,
   log: (msg: string) => IO<void>
@@ -854,7 +852,7 @@ function greetIO(
     );
 }
 
-// テスト時: モック IO を注入
+// During testing: inject mock IOs
 const logs: string[] = [];
 const mockGetTime = () => IO.of(new Date("2025-01-01T00:00:00Z"));
 const mockLog = (msg: string) => new IO(() => { logs.push(msg); });
@@ -864,15 +862,15 @@ console.log(logs);
 // ["[2025-01-01T00:00:00.000Z] Hello!", "[2025-01-01T00:00:00.000Z] Welcome"]
 
 // =============================================================
-// Promise = 非同期 IO モナド
-// async/await = do 記法の糖衣構文
+// Promise = asynchronous IO monad
+// async/await = syntactic sugar for do-notation
 // =============================================================
 
-// Promise のモナド的性質
+// Monadic nature of Promise
 // then = flatMap (bind)
 // Promise.resolve = unit
 
-// [モナディックスタイル (then チェーン)]
+// [Monadic style (then chain)]
 function fetchUserOrdersChain(userId: string): Promise<OrderSummary> {
   return fetchUser(userId)                                // Promise<User>
     .then(user => fetchOrders(user.id))                   // flatMap: User -> Promise<Order[]>
@@ -884,11 +882,11 @@ function fetchUserOrdersChain(userId: string): Promise<OrderSummary> {
     }));
 }
 
-// [do 記法スタイル (async/await)]
+// [do-notation style (async/await)]
 async function fetchUserOrdersAwait(userId: string): Promise<OrderSummary> {
   const user = await fetchUser(userId);                    // bind
   const orders = await fetchOrders(user.id);               // bind
-  const activeOrders = orders.filter(o => o.active);       // 純粋計算
+  const activeOrders = orders.filter(o => o.active);       // pure computation
 
   return {                                                 // unit (return)
     userId,
@@ -897,7 +895,7 @@ async function fetchUserOrdersAwait(userId: string): Promise<OrderSummary> {
   };
 }
 
-// 型定義 (上記コード用)
+// Type definitions (for the code above)
 interface OrderSummary {
   userId: string;
   totalOrders: number;
@@ -910,18 +908,18 @@ declare function fetchOrders(userId: string): Promise<Array<{ active: boolean; a
 
 ---
 
-## コード例 5: List モナドと Reader モナド
+## Code Example 5: List Monad and Reader Monad
 
 ```typescript
 // =============================================================
-// List モナド: 非決定性計算
-// flatMap = 各要素に関数を適用してフラットに
+// List Monad: Non-deterministic computation
+// flatMap = apply a function to each element and flatten
 // =============================================================
 
-// Array は実は List モナド
-// Array.prototype.flatMap が bind に相当
+// Array is actually a List monad
+// Array.prototype.flatMap corresponds to bind
 
-// 例: チェスのナイトの移動
+// Example: chess knight moves
 type Position = [number, number];
 
 function knightMoves([x, y]: Position): Position[] {
@@ -934,17 +932,17 @@ function knightMoves([x, y]: Position): Position[] {
     .filter(([nx, ny]) => nx >= 1 && nx <= 8 && ny >= 1 && ny <= 8);
 }
 
-// 3手後に到達可能なすべての位置 (List モナドの flatMap)
+// All positions reachable in 3 moves (flatMap of List monad)
 function knightReachableIn3(start: Position): Position[] {
   return [start]
-    .flatMap(knightMoves)   // 1手目: すべての可能な位置
-    .flatMap(knightMoves)   // 2手目: さらにすべての可能な位置
-    .flatMap(knightMoves);  // 3手目: さらに
+    .flatMap(knightMoves)   // Move 1: all possible positions
+    .flatMap(knightMoves)   // Move 2: all further possible positions
+    .flatMap(knightMoves);  // Move 3: further
 }
 
-console.log(`(1,1) から3手で到達可能: ${knightReachableIn3([1, 1]).length} 通り`);
+console.log(`Reachable from (1,1) in 3 moves: ${knightReachableIn3([1, 1]).length} positions`);
 
-// List Comprehension としての flatMap
+// flatMap as List Comprehension
 // Haskell: [(x, y) | x <- [1..3], y <- [1..3], x /= y]
 // Python:  [(x, y) for x in range(1,4) for y in range(1,4) if x != y]
 const pairs = [1, 2, 3]
@@ -953,11 +951,11 @@ const pairs = [1, 2, 3]
 console.log(pairs); // [[1,2],[1,3],[2,1],[2,3],[3,1],[3,2]]
 
 // =============================================================
-// Reader モナド: 依存性注入
+// Reader Monad: Dependency injection
 // =============================================================
 
-// Reader<E, A> は E -> A の関数をラップしたモナド
-// 環境 E を暗黙的に引き回す
+// Reader<E, A> is a monad that wraps a function E -> A
+// Threads environment E implicitly
 class Reader<E, A> {
   constructor(public readonly run: (env: E) => A) {}
 
@@ -965,12 +963,12 @@ class Reader<E, A> {
     return new Reader(() => value);
   }
 
-  // 環境そのものを取得
+  // Retrieve the environment itself
   static ask<E>(): Reader<E, E> {
     return new Reader(env => env);
   }
 
-  // 環境の一部を取得
+  // Retrieve part of the environment
   static asks<E, A>(fn: (env: E) => A): Reader<E, A> {
     return new Reader(fn);
   }
@@ -984,7 +982,7 @@ class Reader<E, A> {
   }
 }
 
-// 実践例: 設定と DB 接続を引き回す
+// Practical example: threading config and DB connection
 interface AppEnv {
   db: { query: (sql: string) => string[] };
   config: { maxResults: number; locale: string };
@@ -1000,7 +998,7 @@ const getMaxResults: Reader<AppEnv, number> =
 const getLocale: Reader<AppEnv, string> =
   Reader.asks((env: AppEnv) => env.config.locale);
 
-// flatMap で Reader を合成 --- 環境は暗黙的に引き回される
+// Compose Readers with flatMap --- environment is threaded implicitly
 const getUserReport: Reader<AppEnv, string> = getUsers
   .flatMap(users =>
     getMaxResults.flatMap(max =>
@@ -1011,7 +1009,7 @@ const getUserReport: Reader<AppEnv, string> = getUsers
     )
   );
 
-// 実行: 環境を一箇所で注入
+// Execution: inject the environment in one place
 const env: AppEnv = {
   db: { query: () => ["Alice", "Bob", "Charlie", "Dave", "Eve"] },
   config: { maxResults: 3, locale: "ja-JP" },
@@ -1021,7 +1019,7 @@ const env: AppEnv = {
 console.log(getUserReport.run(env));
 // "[ja-JP] Found 3 users (max: 3)"
 
-// テスト: モック環境で実行
+// Testing: run with a mock environment
 const testEnv: AppEnv = {
   db: { query: () => ["TestUser"] },
   config: { maxResults: 10, locale: "en-US" },
@@ -1034,14 +1032,15 @@ console.log(getUserReport.run(testEnv));
 
 ---
 
-## コード例 6: Python でのモナドパターン
+## Code Example 6: Monad Patterns in Python
 
 ```python
 """
-Python でのモナド実装
+Monad implementation in Python
 =====================
-Python は静的型が弱いため、Haskell や TypeScript ほど厳密な
-モナド実装は一般的でないが、同じ概念は dataclass + Protocol で表現できる。
+Python's weak static typing means strict monad implementations
+like those in Haskell or TypeScript are less common, but the same
+concepts can be expressed with dataclass + Protocol.
 """
 
 from __future__ import annotations
@@ -1054,11 +1053,11 @@ U = TypeVar("U")
 E = TypeVar("E")
 
 # =============================================================
-# Maybe モナド
+# Maybe monad
 # =============================================================
 
 class Maybe(ABC, Generic[T]):
-    """Maybe モナド: 値がないかもしれない計算"""
+    """Maybe monad: computation that might not have a value"""
 
     @staticmethod
     def of(value: T) -> "Just[T]":
@@ -1125,7 +1124,7 @@ class Nothing(Maybe[T]):
         return "Nothing()"
 
 
-# 使用例
+# Usage examples
 def safe_div(a: float, b: float) -> Maybe[float]:
     if b == 0:
         return Nothing()
@@ -1136,7 +1135,7 @@ def safe_sqrt(x: float) -> Maybe[float]:
         return Nothing()
     return Just(x ** 0.5)
 
-# flatMap の連鎖
+# Chaining flatMap
 result = (
     safe_div(100, 4)          # Just(25.0)
     .flat_map(safe_sqrt)      # Just(5.0)
@@ -1146,18 +1145,18 @@ print(result)  # Just(10.0)
 
 result_err = (
     safe_div(100, 0)          # Nothing()
-    .flat_map(safe_sqrt)      # Nothing() (スキップ)
-    .map(lambda x: x * 2)    # Nothing() (スキップ)
+    .flat_map(safe_sqrt)      # Nothing() (skipped)
+    .map(lambda x: x * 2)    # Nothing() (skipped)
 )
 print(result_err)  # Nothing()
 
 
 # =============================================================
-# Result モナド
+# Result monad
 # =============================================================
 
 class Result(ABC, Generic[T, E]):
-    """Result モナド: 成功か失敗かの計算"""
+    """Result monad: computation that is either success or failure"""
 
     @staticmethod
     def ok(value: T) -> "Ok[T, E]":
@@ -1236,7 +1235,7 @@ class Err(Result[T, E]):
         return f"Err({self._error!r})"
 
 
-# 実践例: ファイル処理パイプライン
+# Practical example: file processing pipeline
 import json
 
 def read_file(path: str) -> Result[str, str]:
@@ -1259,7 +1258,7 @@ def extract_field(data: dict, field: str) -> Result[object, str]:
         return Err(f"Missing field: {field}")
     return Ok(data[field])
 
-# 鉄道指向パイプライン
+# Railway-oriented pipeline
 def get_config_value(path: str, field: str) -> Result[object, str]:
     return (
         read_file(path)
@@ -1267,19 +1266,19 @@ def get_config_value(path: str, field: str) -> Result[object, str]:
         .flat_map(lambda data: extract_field(data, field))
     )
 
-# テスト
+# Test
 # result = get_config_value("config.json", "database_url")
 # print(result)
 
 
 # =============================================================
-# Python 特有: コンテキストマネージャもモナド的
+# Python-specific: context managers are also monadic
 # =============================================================
 from contextlib import contextmanager
 
 @contextmanager
 def managed_connection(url: str):
-    """コンテキストマネージャ = Resource モナドの一種"""
+    """Context manager = a kind of Resource monad"""
     conn = f"Connection({url})"
     print(f"Opening {conn}")
     try:
@@ -1287,21 +1286,21 @@ def managed_connection(url: str):
     finally:
         print(f"Closing {conn}")
 
-# with 文 = do 記法の糖衣構文
+# with statement = syntactic sugar for do-notation
 # with managed_connection("db://localhost") as conn:
 #     print(f"Using {conn}")
 ```
 
 ---
 
-## コード例 7: モナド合成とモナドトランスフォーマー
+## Code Example 7: Monad Composition and Monad Transformers
 
 ```typescript
 // =============================================================
-// モナド合成: 複数のモナドを組み合わせる実践パターン
+// Monad composition: Practical patterns for combining multiple monads
 // =============================================================
 
-// --- 基本型定義 ---
+// --- Base type definitions ---
 type Result<T, E = Error> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly error: E };
@@ -1309,8 +1308,8 @@ type Result<T, E = Error> =
 const Ok = <T>(value: T): Result<T, never> => ({ ok: true, value });
 const Err = <E>(error: E): Result<never, E> => ({ ok: false, error });
 
-// --- ResultT<Promise>: Promise + Result のモナドトランスフォーマー ---
-// 「非同期で、失敗するかもしれない計算」を合成可能にする
+// --- ResultT<Promise>: monad transformer for Promise + Result ---
+// Makes "asynchronous computation that might fail" composable
 
 class AsyncResult<T, E = Error> {
   constructor(private readonly promise: Promise<Result<T, E>>) {}
@@ -1324,7 +1323,7 @@ class AsyncResult<T, E = Error> {
     return new AsyncResult(Promise.resolve(Err(error)));
   }
 
-  // Promise<T> を安全にラップ
+  // Safely wrap Promise<T>
   static fromPromise<T>(promise: Promise<T>): AsyncResult<T, Error> {
     return new AsyncResult(
       promise
@@ -1359,7 +1358,7 @@ class AsyncResult<T, E = Error> {
     );
   }
 
-  // --- ユーティリティ ---
+  // --- Utilities ---
   async toPromise(): Promise<Result<T, E>> {
     return this.promise;
   }
@@ -1369,7 +1368,7 @@ class AsyncResult<T, E = Error> {
     return result.ok ? result.value : defaultValue;
   }
 
-  // タイムアウト付き
+  // With timeout
   withTimeout(ms: number): AsyncResult<T, E | Error> {
     const timeout = new Promise<Result<T, E | Error>>(resolve =>
       setTimeout(() => resolve(Err(new Error(`Timeout: ${ms}ms`))), ms)
@@ -1377,7 +1376,7 @@ class AsyncResult<T, E = Error> {
     return new AsyncResult(Promise.race([this.promise as Promise<Result<T, E | Error>>, timeout]));
   }
 
-  // リトライ
+  // Retry
   retry(times: number, delayMs: number = 0): AsyncResult<T, E> {
     return new AsyncResult(
       this.promise.then(async result => {
@@ -1392,7 +1391,7 @@ class AsyncResult<T, E = Error> {
 }
 
 // =============================================================
-// 実践例: API クライアント
+// Practical example: API client
 // =============================================================
 
 interface User {
@@ -1413,7 +1412,7 @@ interface Project {
   budget: number;
 }
 
-// API 関数 (各呼び出しは非同期 + 失敗可能)
+// API functions (each call is async + can fail)
 function fetchUserById(id: string): AsyncResult<User, string> {
   return AsyncResult.fromPromise(
     fetch(`/api/users/${id}`).then(r => {
@@ -1441,7 +1440,7 @@ function fetchProjectById(id: string): AsyncResult<Project, string> {
   ).mapErr(e => `Failed to fetch project: ${e.message}`);
 }
 
-// flatMap の連鎖: エラーは自動的に伝播
+// Chain of flatMap: errors propagate automatically
 async function getUserTeamBudget(userId: string): Promise<Result<number, string>> {
   return fetchUserById(userId)
     .flatMap(user => fetchTeamById(user.teamId))
@@ -1458,17 +1457,17 @@ async function getUserTeamBudget(userId: string): Promise<Result<number, string>
 }
 
 // =============================================================
-// do 記法スタイル: ジェネレータベースの合成
+// do-notation style: generator-based composition
 // =============================================================
 
-// ジェネレータを使った「do 記法」の疑似実装
+// Pseudo-implementation of "do-notation" using generators
 function* doResult<T>(): Generator<Result<any, any>, T, any> {
-  // ジェネレータ内で yield で Result を「束縛」
-  // Left/Err が返った時点でジェネレータを中断
+  // Inside the generator, yield "binds" a Result
+  // The generator is interrupted when Left/Err is returned
   return undefined as T;
 }
 
-// 実用的な do 記法 (runDo)
+// Practical do-notation (runDo)
 function runDo<T, E>(
   gen: () => Generator<Result<T, E>, T, T>
 ): Result<T, E> {
@@ -1478,7 +1477,7 @@ function runDo<T, E>(
   while (!next.done) {
     const result = next.value;
     if (!result.ok) {
-      return result;  // エラーならジェネレータを中断
+      return result;  // Interrupt the generator on error
     }
     next = iterator.next(result.value);
   }
@@ -1486,7 +1485,7 @@ function runDo<T, E>(
   return Ok(next.value);
 }
 
-// do 記法での使用例
+// Usage with do-notation
 function processOrder(orderId: string): Result<string, string> {
   return runDo(function* () {
     const parsed = yield parseOrderId(orderId);         // bind
@@ -1496,13 +1495,13 @@ function processOrder(orderId: string): Result<string, string> {
   });
 }
 
-// 型定義用ダミー
+// Dummy type declarations
 declare function parseOrderId(id: string): Result<number, string>;
 declare function findOrder(id: number): Result<{ id: number; total: number }, string>;
 declare function validateOrder(order: { id: number; total: number }): Result<{ id: number; total: number }, string>;
 
 // =============================================================
-// MaybeT: Maybe + Promise のトランスフォーマー
+// MaybeT: Transformer for Maybe + Promise
 // =============================================================
 
 class MaybeAsync<T> {
@@ -1549,7 +1548,7 @@ class MaybeAsync<T> {
   }
 }
 
-// 使用例: 非同期 + null の両方を扱う
+// Usage example: handling both async and null
 async function findUserAvatar(userId: string): Promise<string> {
   return MaybeAsync.fromPromise(fetchUserMaybe(userId))
     .flatMap(user =>
@@ -1565,77 +1564,77 @@ declare function fetchProfileMaybe(id: string): Promise<{ avatarUrl: string } | 
 
 ---
 
-## 深掘り 1: モナドの階層 --- Functor, Applicative, Monad
+## Deep Dive 1: Monad Hierarchy --- Functor, Applicative, Monad
 
 ```
-型クラスの階層 (Haskell の型クラス体系)
+Type class hierarchy (Haskell's type class system)
 =========================================
 
   Functor          map:    (a -> b)   -> F a -> F b
-    |               「箱の中の値を変換」
+    |               "transform the value inside the box"
     v
   Applicative      apply:  F (a -> b) -> F a -> F b
-    |               「箱の中の関数を、箱の中の値に適用」
+    |               "apply a function inside a box to a value inside a box"
     v
   Monad            bind:   (a -> M b) -> M a -> M b
-                    「箱の中の値を取り出し、新しい箱を作る関数に渡す」
+                    "extract the value from the box and pass it to a function that creates a new box"
 
-Functor < Applicative < Monad の関係:
-  - すべてのモナドはアプリカティブ
-  - すべてのアプリカティブはファンクタ
-  - モナドが最も強力 (前のステップの結果に基づいて次の計算を決定できる)
+Relationship: Functor < Applicative < Monad
+  - Every monad is an applicative
+  - Every applicative is a functor
+  - Monads are the most powerful (can choose the next computation based on the previous result)
 
-Applicative vs Monad の違い:
-  Applicative: 計算の構造が静的 (事前に決まる)
+Difference between Applicative and Monad:
+  Applicative: computation structure is static (determined in advance)
     liftA2 (+) (Just 3) (Just 5) --> Just 8
-    すべての計算が独立して実行される
+    All computations are executed independently
 
-  Monad: 計算の構造が動的 (前の結果に依存)
+  Monad: computation structure is dynamic (depends on previous result)
     Just 3 >>= (\x -> if x > 0 then Just (x + 1) else Nothing)
-    前のステップの結果を見て、次の計算を選べる
+    Can choose the next computation by looking at the result of the previous step
 
-TypeScript での対応:
-  Functor     → Array.map, Promise.then (値を返す場合)
-  Applicative → Promise.all (独立した計算を並列実行)
-  Monad       → Array.flatMap, Promise.then (Promise を返す場合)
+Correspondence in TypeScript:
+  Functor     → Array.map, Promise.then (when returning a value)
+  Applicative → Promise.all (run independent computations in parallel)
+  Monad       → Array.flatMap, Promise.then (when returning a Promise)
 ```
 
-| 抽象化 | 操作 | 「できること」 | TypeScript での例 |
+| Abstraction | Operation | "What it can do" | TypeScript example |
 |---|---|---|---|
-| **Functor** | `map` | 箱の中の値を変換 | `[1,2,3].map(x => x*2)` |
-| **Applicative** | `apply` / `liftA2` | 独立した箱同士を結合 | `Promise.all([p1, p2])` |
-| **Monad** | `flatMap` / `bind` | 前の結果に基づく次の計算 | `promise.then(x => fetch(x.url))` |
+| **Functor** | `map` | Transform the value in the box | `[1,2,3].map(x => x*2)` |
+| **Applicative** | `apply` / `liftA2` | Combine independent boxes | `Promise.all([p1, p2])` |
+| **Monad** | `flatMap` / `bind` | Choose the next computation based on the previous result | `promise.then(x => fetch(x.url))` |
 
-**使い分けの指針**:
+**Decision guide**:
 
-- 各計算が **独立** しているなら **Applicative** で十分 (並列実行可能)
-- 前の計算の **結果** に基づいて次の計算を **選択** する必要があるなら **Monad** が必要
+- If each computation is **independent**, **Applicative** is sufficient (can run in parallel)
+- If you need to **choose** the next computation based on the **result** of the previous one, **Monad** is required
 
 ```typescript
-// Applicative: 独立した計算 → 並列実行可能
+// Applicative: independent computations → can run in parallel
 const [user, products, settings] = await Promise.all([
   fetchUser(id),
   fetchProducts(),
   fetchSettings(),
 ]);
 
-// Monad: 依存のある計算 → 逐次実行
-const user = await fetchUser(id);              // 1. ユーザー取得
-const team = await fetchTeam(user.teamId);     // 2. チーム取得 (user に依存)
-const projects = await fetchProjects(team.id); // 3. プロジェクト取得 (team に依存)
+// Monad: dependent computations → sequential execution
+const user = await fetchUser(id);              // 1. Fetch user
+const team = await fetchTeam(user.teamId);     // 2. Fetch team (depends on user)
+const projects = await fetchProjects(team.id); // 3. Fetch projects (depends on team)
 ```
 
 ---
 
-## 深掘り 2: 実世界のモナドパターン
+## Deep Dive 2: Real-World Monad Patterns
 
-### 2.1 Redux / useReducer: State モナドの具現化
+### 2.1 Redux / useReducer: Realization of the State Monad
 
 ```typescript
-// Redux の dispatch チェーンは State モナドの bind に相当
+// Redux's dispatch chain corresponds to the bind of the State monad
 // state -> action -> newState
 
-// React の useReducer: State モナドを UI に統合
+// React's useReducer: integrating the State monad into UI
 type State = { count: number; history: number[] };
 type Action =
   | { type: "increment" }
@@ -1659,50 +1658,50 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-// State モナドの型:  State s a = s -> (a, s)
-// reducer の型:      State -> Action -> State
-// dispatch の型:     Action -> void (状態は暗黙的に管理)
+// Type of State monad:  State s a = s -> (a, s)
+// Type of reducer:      State -> Action -> State
+// Type of dispatch:     Action -> void (state is managed implicitly)
 ```
 
-### 2.2 Express/Koa ミドルウェア: Reader + Writer + IO モナドの合成
+### 2.2 Express/Koa Middleware: Composition of Reader + Writer + IO Monads
 
 ```typescript
-// ミドルウェアは「環境(req/res) + ログ + 副作用」のモナド合成
-// Reader: req/res コンテキストを読み取る
-// Writer: ヘッダーやログを蓄積
-// IO: レスポンス送信、DB アクセスなどの副作用
+// Middleware is a monad composition of "environment (req/res) + logging + side effects"
+// Reader: reads req/res context
+// Writer: accumulates headers and logs
+// IO: side effects like sending responses, DB access, etc.
 
-// Koa の ctx.state は Reader + State の合成
-// next() は Continuation モナドの bind に相当
+// Koa's ctx.state is a composition of Reader + State
+// next() corresponds to bind in the Continuation monad
 ```
 
-### 2.3 RxJS Observable: List + IO + Promise の合成モナド
+### 2.3 RxJS Observable: Combined Monad of List + IO + Promise
 
 ```typescript
-// Observable は以下のモナドの合成と見なせる:
-// - List: 複数の値 (時間軸上に分散)
-// - IO: 副作用 (subscribe するまで実行されない = lazy)
-// - Promise: 非同期 (時間的に遅延)
+// Observable can be seen as a composition of the following monads:
+// - List: multiple values (spread across the time axis)
+// - IO: side effects (not executed until subscribe = lazy)
+// - Promise: asynchronous (delayed in time)
 
-// pipe = モナド合成のパイプライン
-// switchMap/mergeMap/concatMap = flatMap のバリエーション
-//   switchMap: 新しい値が来たら前の subscription をキャンセル
-//   mergeMap:  並行して実行
-//   concatMap: 順次実行 (待ち行列)
+// pipe = monad composition pipeline
+// switchMap/mergeMap/concatMap = variations of flatMap
+//   switchMap: cancel the previous subscription when a new value arrives
+//   mergeMap:  execute concurrently
+//   concatMap: execute sequentially (queue)
 ```
 
 ---
 
-## 深掘り 3: Rust の ? 演算子 --- モナドの最良の糖衣構文
+## Deep Dive 3: Rust's ? Operator --- The Best Syntactic Sugar for Monads
 
 ```rust
-// Rust の ? 演算子は Result/Option の flatMap (and_then) の糖衣構文
-// Haskell の do 記法、JavaScript の async/await と同じ役割
+// Rust's ? operator is syntactic sugar for Result/Option's flatMap (and_then)
+// It serves the same role as Haskell's do-notation and JavaScript's async/await
 
 use std::fs;
 use std::num::ParseIntError;
 
-// --- エラー型の定義 ---
+// --- Error type definition ---
 #[derive(Debug)]
 enum AppError {
     Io(std::io::Error),
@@ -1722,10 +1721,10 @@ impl From<ParseIntError> for AppError {
     }
 }
 
-// --- ? 演算子を使ったフラットなエラーハンドリング ---
+// --- Flat error handling using the ? operator ---
 fn read_config(path: &str) -> Result<Config, AppError> {
-    let content = fs::read_to_string(path)?;          // Io エラーを自動変換
-    let port: u16 = content.trim().parse()?;          // Parse エラーを自動変換
+    let content = fs::read_to_string(path)?;          // Automatically convert Io error
+    let port: u16 = content.trim().parse()?;          // Automatically convert Parse error
 
     if port < 1024 {
         return Err(AppError::Validation(
@@ -1736,7 +1735,7 @@ fn read_config(path: &str) -> Result<Config, AppError> {
     Ok(Config { port })
 }
 
-// --- ? 演算子なしの等価コード (flatMap の手動展開) ---
+// --- Equivalent code without the ? operator (manual expansion of flatMap) ---
 fn read_config_verbose(path: &str) -> Result<Config, AppError> {
     let content = match fs::read_to_string(path) {
         Ok(c) => c,
@@ -1761,7 +1760,7 @@ struct Config {
     port: u16,
 }
 
-// --- Option の ? 演算子 ---
+// --- ? operator with Option ---
 struct User {
     address: Option<Address>,
 }
@@ -1771,78 +1770,78 @@ struct Address {
 }
 
 fn get_city(user: &Option<User>) -> Option<&str> {
-    // ? は None なら早期リターン
+    // ? returns early if None
     let user = user.as_ref()?;
     let address = user.address.as_ref()?;
     let city = address.city.as_deref()?;
     Some(city)
 }
 
-// --- and_then チェーンスタイル ---
+// --- and_then chain style ---
 fn get_city_chain(user: &Option<User>) -> Option<&str> {
     user.as_ref()
         .and_then(|u| u.address.as_ref())
         .and_then(|a| a.city.as_deref())
 }
 
-// --- Iterator + Result の組み合わせ ---
+// --- Combining Iterator + Result ---
 fn parse_numbers(inputs: &[&str]) -> Result<Vec<i64>, ParseIntError> {
     inputs.iter()
         .map(|s| s.parse::<i64>())   // Iterator<Item = Result<i64, _>>
-        .collect()                     // Result<Vec<i64>, _> に自動変換!
+        .collect()                     // Automatically converted to Result<Vec<i64>, _>!
 }
 
-// collect() は Iterator<Item = Result<T, E>> -> Result<Vec<T>, E> に対応
-// これも モナドの traverse/sequence の実現
+// collect() handles Iterator<Item = Result<T, E>> -> Result<Vec<T>, E>
+// This is also a realization of monad's traverse/sequence
 ```
 
 ---
 
-## モナド比較表
+## Monad Comparison Table
 
-### 主要モナド一覧
+### Overview of Major Monads
 
-| モナド | コンテキスト | unit | bind の動作 | 言語での対応 |
+| Monad | Context | unit | bind behavior | Language counterpart |
 |---|---|---|---|---|
-| **Maybe/Option** | 値の有無 | `Some(x)` | None ならスキップ | Rust: `Option`, TS: `?.`, Python: `Optional` |
-| **Either/Result** | 成功/失敗 | `Right(x)` / `Ok(x)` | Left/Err ならスキップ | Rust: `Result`, Go: `error`, TS: `Promise.catch` |
-| **Promise/Future** | 非同期 | `Promise.resolve(x)` | 完了後に次を実行 | JS: `Promise`, Rust: `Future`, Python: `asyncio` |
-| **IO** | 副作用 | `IO.of(x)` | 実行を遅延して合成 | Haskell: `IO`, Effect-TS: `Effect` |
-| **List/Array** | 複数の値 | `[x]` | 各要素に適用・結合 | JS: `Array.flatMap`, Python: リスト内包表記 |
-| **Reader** | 依存注入 | `Reader.of(x)` | 環境を暗黙的に引き回す | DI コンテナ, React Context |
-| **Writer** | ログ蓄積 | `Writer.of(x)` | 値＋ログを伝搬 | ミドルウェアのログ蓄積 |
-| **State** | 状態管理 | `State.of(x)` | 状態を引き回す | Redux, useReducer |
+| **Maybe/Option** | Presence of value | `Some(x)` | Skip if None | Rust: `Option`, TS: `?.`, Python: `Optional` |
+| **Either/Result** | Success/failure | `Right(x)` / `Ok(x)` | Skip if Left/Err | Rust: `Result`, Go: `error`, TS: `Promise.catch` |
+| **Promise/Future** | Asynchronous | `Promise.resolve(x)` | Execute next after completion | JS: `Promise`, Rust: `Future`, Python: `asyncio` |
+| **IO** | Side effects | `IO.of(x)` | Defer execution and compose | Haskell: `IO`, Effect-TS: `Effect` |
+| **List/Array** | Multiple values | `[x]` | Apply to each element and combine | JS: `Array.flatMap`, Python: list comprehension |
+| **Reader** | Dependency injection | `Reader.of(x)` | Thread environment implicitly | DI containers, React Context |
+| **Writer** | Log accumulation | `Writer.of(x)` | Propagate value + log | Middleware log accumulation |
+| **State** | State management | `State.of(x)` | Thread state through computations | Redux, useReducer |
 
-### 言語ごとの糖衣構文対応
+### Syntactic Sugar by Language
 
-| 概念 | Haskell | Rust | TypeScript | Python |
+| Concept | Haskell | Rust | TypeScript | Python |
 |---|---|---|---|---|
 | Maybe bind | `>>=` / `do` | `?` / `and_then()` | `?.` / `flatMap` | `or None` / `if x is not None` |
-| Either bind | `>>=` / `do` | `?` / `and_then()` | `then` / `catch` | 例外 / `try/except` |
-| do 記法 | `do { x <- m; ... }` | `let x = m?;` | `const x = await m;` | `x = await m` |
-| for 内包表記 | `[f x | x <- xs]` | `xs.iter().map(f)` | `xs.flatMap(f)` | `[f(x) for x in xs]` |
-| 型制約 | 型クラス `Monad m =>` | トレイト `impl Monad` | インターフェース | Protocol / ABC |
+| Either bind | `>>=` / `do` | `?` / `and_then()` | `then` / `catch` | exceptions / `try/except` |
+| do-notation | `do { x <- m; ... }` | `let x = m?;` | `const x = await m;` | `x = await m` |
+| for comprehension | `[f x | x <- xs]` | `xs.iter().map(f)` | `xs.flatMap(f)` | `[f(x) for x in xs]` |
+| type constraint | type class `Monad m =>` | trait `impl Monad` | interface | Protocol / ABC |
 
-### 糖衣構文の対応関係
+### Correspondence of Syntactic Sugar
 
-| モナド操作 | Haskell do 記法 | Rust ? 演算子 | JS async/await |
+| Monad operation | Haskell do-notation | Rust ? operator | JS async/await |
 |---|---|---|---|
 | bind | `x <- action` | `let x = action?;` | `const x = await action;` |
 | return | `return x` | `Ok(x)` | `return x` |
 | sequence | `action1 >> action2` | `action1?; action2?;` | `await a1; await a2;` |
-| 失敗 | `fail "msg"` | `Err(e)?` | `throw new Error()` |
+| failure | `fail "msg"` | `Err(e)?` | `throw new Error()` |
 
 ---
 
-## アンチパターン
+## Anti-patterns
 
-### 1. モナドの過剰使用 --- 言語ネイティブ機能の無視
+### 1. Overuse of Monads --- Ignoring Native Language Features
 
-**問題**: すべてに自作 Maybe/Either を適用し、チームに馴染みのないライブラリ依存を増やす。TypeScript では Optional Chaining (`?.`) と Nullish Coalescing (`??`) で十分なケースが多い。
+**Problem**: Applying custom Maybe/Either to everything increases unfamiliar library dependencies for the team. In TypeScript, Optional Chaining (`?.`) and Nullish Coalescing (`??`) are often sufficient.
 
 ```typescript
 // =============================================================
-// [NG] 自作 Maybe で不必要に複雑化
+// [NG] Unnecessarily complex with custom Maybe
 // =============================================================
 function getUserCityBad(user: User | null): string {
   return Maybe.fromNullable(user)
@@ -1852,49 +1851,49 @@ function getUserCityBad(user: User | null): string {
 }
 
 // =============================================================
-// [OK] TypeScript のネイティブ機能で十分
+// [OK] Native TypeScript features are sufficient
 // =============================================================
 function getUserCityGood(user: User | null): string {
   return user?.address?.city ?? "Unknown";
 }
 
 // =============================================================
-// [OK] ただし、複雑なロジックが絡む場合は Maybe が有効
+// [OK] However, Maybe is effective when complex logic is involved
 // =============================================================
 function getDiscountedPrice(user: User | null): Maybe<number> {
   return Maybe.fromNullable(user)
-    .flatMap(u => findMembership(u.id))        // DB 検索 (nullable)
-    .filter(m => m.isActive)                    // 条件フィルタ
-    .flatMap(m => calculateDiscount(m.tier))    // ビジネスロジック (失敗可能)
+    .flatMap(u => findMembership(u.id))        // DB lookup (nullable)
+    .filter(m => m.isActive)                    // conditional filter
+    .flatMap(m => calculateDiscount(m.tier))    // business logic (can fail)
     .map(discount => basePrice * (1 - discount));
 }
-// Optional Chaining だけではこの分岐を表現しきれない
+// Optional chaining alone cannot express this branching
 
-// 判断基準:
-// - 単純な null チェックの連鎖 → ?. と ?? を使う
-// - 条件分岐 + ビジネスロジック + 失敗可能性 → Maybe/Result を使う
+// Decision criteria:
+// - Simple null check chain → use ?. and ??
+// - Conditional branches + business logic + possibility of failure → use Maybe/Result
 ```
 
-### 2. 安易な unwrap --- モナドの安全性の破壊
+### 2. Careless Unwrapping --- Destroying Monad Safety
 
-**問題**: `Option.unwrap()` や `Result.unwrap()` を安易に使うと、実行時パニック/例外が発生する。モナドが提供する型安全性が完全に台無しになる。
+**Problem**: Careless use of `Option.unwrap()` or `Result.unwrap()` causes runtime panics/exceptions. The type safety provided by monads is completely undermined.
 
 ```rust
 // =============================================================
-// [NG] unwrap の乱用
+// [NG] Abuse of unwrap
 // =============================================================
 fn process_bad(input: &str) -> String {
-    let value = input.parse::<i32>().unwrap();     // パニック!
-    let item = find_item(value).unwrap();          // パニック!
-    let result = validate(item).unwrap();          // パニック!
+    let value = input.parse::<i32>().unwrap();     // panic!
+    let item = find_item(value).unwrap();          // panic!
+    let result = validate(item).unwrap();          // panic!
     format!("Done: {}", result)
 }
 
 // =============================================================
-// [OK] unwrap の代替手段を使う
+// [OK] Use alternatives to unwrap
 // =============================================================
 
-// 方法1: ? 演算子 (推奨)
+// Method 1: ? operator (recommended)
 fn process_good(input: &str) -> Result<String, AppError> {
     let value = input.parse::<i32>()?;
     let item = find_item(value)?;
@@ -1902,7 +1901,7 @@ fn process_good(input: &str) -> Result<String, AppError> {
     Ok(format!("Done: {}", result))
 }
 
-// 方法2: パターンマッチ
+// Method 2: Pattern matching
 fn process_match(input: &str) -> String {
     match input.parse::<i32>() {
         Ok(value) => match find_item(value) {
@@ -1913,15 +1912,15 @@ fn process_match(input: &str) -> String {
     }
 }
 
-// 方法3: unwrap_or / unwrap_or_else (デフォルト値がある場合)
+// Method 3: unwrap_or / unwrap_or_else (when a default value is available)
 fn process_default(input: &str) -> String {
     let value = input.parse::<i32>().unwrap_or(0);
     let item = find_item(value).unwrap_or_default();
     format!("Result: {}", item)
 }
 
-// 方法4: expect (unwrap よりましだが、本番コードでは避ける)
-// デバッグ情報を付与できるが、パニックは発生する
+// Method 4: expect (better than unwrap, but avoid in production code)
+// Can attach debug information, but still panics
 fn process_expect(input: &str) -> i32 {
     input.parse::<i32>()
         .expect(&format!("Failed to parse '{}' as i32", input))
@@ -1929,24 +1928,24 @@ fn process_expect(input: &str) -> i32 {
 ```
 
 ```typescript
-// TypeScript でも同様
+// Same applies in TypeScript
 // =============================================================
-// [NG] 型ガードなしでのアクセス
+// [NG] Access without type guard
 // =============================================================
 const result = validateUser(input);
-console.log(result.value.name);  // result が Left/Err なら runtime error
+console.log(result.value.name);  // runtime error if result is Left/Err
 
 // =============================================================
-// [OK] 型を尊重したアクセス
+// [OK] Type-respecting access
 // =============================================================
 const result = validateUser(input);
 if (result.tag === "Right") {
-  console.log(result.value.name);  // 型安全
+  console.log(result.value.name);  // type-safe
 } else {
-  console.error(result.value);     // エラーハンドリング
+  console.error(result.value);     // error handling
 }
 
-// [OK] fold/match でパターンマッチ
+// [OK] Pattern matching with fold/match
 EitherM.fold(
   result,
   error => console.error(`Validation failed: ${error}`),
@@ -1954,34 +1953,34 @@ EitherM.fold(
 );
 ```
 
-### 3. モナドの混在 --- Either と例外の混在
+### 3. Mixing Monads --- Mixing Either with Exceptions
 
-**問題**: Either/Result を使ったエラーハンドリングと、従来の try/catch を無秩序に混在させると、エラーの流れが追跡不能になる。
+**Problem**: Randomly mixing Either/Result-based error handling with traditional try/catch makes error flow impossible to track.
 
 ```typescript
 // =============================================================
-// [NG] Either と例外の混在
+// [NG] Mixing Either and exceptions
 // =============================================================
 function processBad(input: string): Either<string, Output> {
-  const parsed = parseInput(input);  // Either を返す
+  const parsed = parseInput(input);  // returns Either
   if (parsed.tag === "Left") return parsed;
 
-  // ここで突然 throw! Either のパイプラインが壊れる
+  // Suddenly throws here! The Either pipeline is broken
   const data = JSON.parse(parsed.value.raw);  // throws!
 
-  const validated = validateData(data);  // Either を返す
+  const validated = validateData(data);  // returns Either
   if (validated.tag === "Left") return validated;
 
   return Right(transform(validated.value));
 }
 
-// 呼び出し側: Either だけケアしても JSON.parse の例外を見落とす
+// Caller: even if you handle Either, you miss the JSON.parse exception
 
 // =============================================================
-// [OK] エラーハンドリング戦略を統一
+// [OK] Unify the error handling strategy
 // =============================================================
 
-// 方法1: すべて Either に統一 (推奨)
+// Method 1: Unify everything as Either (recommended)
 function processGood(input: string): Either<string, Output> {
   return flatMap(parseInput(input), parsed =>
     flatMap(EitherM.tryCatch(() => JSON.parse(parsed.raw))
@@ -1993,7 +1992,7 @@ function processGood(input: string): Either<string, Output> {
   );
 }
 
-// 方法2: 境界で変換 (外部ライブラリとの接合点)
+// Method 2: Convert at boundaries (integration points with external libraries)
 function safeJsonParse(raw: string): Either<string, unknown> {
   return EitherM.tryCatch(() => JSON.parse(raw))
     .mapLeft(e => `JSON parse error: ${e.message}`);
@@ -2006,10 +2005,10 @@ function processAlsoGood(input: string): Either<string, Output> {
   return map(validated, transform);
 }
 
-// 原則:
-// - プロジェクト内部: Either/Result で統一
-// - 外部ライブラリの境界: tryCatch で Either に変換
-// - 決して Either のパイプライン内部で throw しない
+// Principles:
+// - Inside the project: unify with Either/Result
+// - At external library boundaries: convert to Either with tryCatch
+// - Never throw inside an Either pipeline
 
 declare function parseInput(input: string): Either<string, { raw: string }>;
 declare function validateData(data: unknown): Either<string, { valid: true }>;
@@ -2019,11 +2018,11 @@ type Output = { result: string };
 
 ---
 
-## 演習問題
+## Exercises
 
-### 演習 1: Maybe モナドの活用 (基礎)
+### Exercise 1: Using the Maybe Monad (Basic)
 
-以下の型定義に対し、Maybe モナドを使って安全にネストされたデータにアクセスする関数を実装してください。
+For the following type definitions, implement functions to safely access nested data using the Maybe monad.
 
 ```typescript
 interface Department {
@@ -2037,18 +2036,18 @@ interface Department {
   };
 }
 
-// 実装してください
+// Please implement
 function getManagerEmail(dept: Department | null): string {
-  // Maybe を使って dept?.manager?.contact?.email を安全に取得
-  // 見つからない場合は "N/A" を返す
+  // Use Maybe to safely retrieve dept?.manager?.contact?.email
+  // Return "N/A" if not found
 }
 
 function getManagerPhone(dept: Department | null): Maybe<string> {
-  // Maybe を返す版。呼び出し側で処理を選択できるようにする
+  // Version that returns Maybe. Allows the caller to choose how to handle it
 }
 ```
 
-**期待される出力**:
+**Expected output**:
 ```
 getManagerEmail({ name: "Engineering", manager: { name: "Alice", contact: { email: "alice@co.com" } } })
 // => "alice@co.com"
@@ -2066,34 +2065,34 @@ getManagerPhone({ name: "HR", manager: { name: "Bob" } })
 // => Nothing()
 ```
 
-### 演習 2: Result で鉄道指向バリデーション (応用)
+### Exercise 2: Railway-Oriented Validation with Result (Intermediate)
 
-ユーザー入力のバリデーションパイプラインを Result モナドで構築してください。
+Build a validation pipeline for user input using the Result monad.
 
 ```typescript
 interface OrderInput {
-  productId: string;   // 数値文字列であること
-  quantity: string;    // 1-100 の整数文字列であること
-  couponCode?: string; // 存在する場合は "DISCOUNT-" で始まること
+  productId: string;   // must be a numeric string
+  quantity: string;    // must be an integer string from 1-100
+  couponCode?: string; // if present, must start with "DISCOUNT-"
 }
 
 interface ValidatedOrder {
   productId: number;
   quantity: number;
   couponCode: string | null;
-  discountRate: number;  // クーポンがあれば 0.1、なければ 0
+  discountRate: number;  // 0.1 if coupon exists, 0 otherwise
 }
 
-// 各バリデーション関数を実装してください
+// Please implement each validation function
 function validateProductId(raw: string): Result<number, string> { /* ... */ }
 function validateQuantity(raw: string): Result<number, string> { /* ... */ }
 function validateCoupon(code?: string): Result<string | null, string> { /* ... */ }
 
-// 鉄道指向で連鎖させてください
+// Chain them in railway-oriented style
 function validateOrder(input: OrderInput): Result<ValidatedOrder, string> { /* ... */ }
 ```
 
-**期待される出力**:
+**Expected output**:
 ```
 validateOrder({ productId: "42", quantity: "5" })
 // => Ok({ productId: 42, quantity: 5, couponCode: null, discountRate: 0 })
@@ -2111,26 +2110,26 @@ validateOrder({ productId: "42", quantity: "5", couponCode: "INVALID" })
 // => Err("coupon must start with DISCOUNT-")
 ```
 
-### 演習 3: AsyncResult モナドトランスフォーマー (発展)
+### Exercise 3: AsyncResult Monad Transformer (Advanced)
 
-以下の仕様を満たす `AsyncResult` ベースの API クライアントを実装してください。
+Implement an API client based on `AsyncResult` that meets the following specifications.
 
 ```typescript
-// 要件:
-// 1. 各 API 呼び出しは AsyncResult<T, AppError> を返す
-// 2. ネットワークエラー、404、バリデーションエラーを構造化エラー型で表現
-// 3. flatMap でパイプラインを構築
-// 4. タイムアウト (3秒) とリトライ (最大2回) をサポート
-// 5. 最終結果を Result<T, AppError> として返す
+// Requirements:
+// 1. Each API call returns AsyncResult<T, AppError>
+// 2. Network errors, 404s, and validation errors are expressed as structured error types
+// 3. Build a pipeline with flatMap
+// 4. Support timeout (3 seconds) and retry (up to 2 times)
+// 5. Return the final result as Result<T, AppError>
 
 type AppError =
   | { type: "network"; message: string }
   | { type: "notFound"; resource: string; id: string }
   | { type: "validation"; errors: string[] };
 
-// 実装してください
+// Please implement
 class ApiClient {
-  // ユーザー取得 → チーム取得 → メンバー一覧取得 のパイプライン
+  // Pipeline: fetch user → fetch team → fetch member list
   async getTeamMembers(userId: string): Promise<Result<TeamMember[], AppError>> {
     return fetchUser(userId)
       .flatMap(user => fetchTeam(user.teamId))
@@ -2142,17 +2141,17 @@ class ApiClient {
 }
 ```
 
-**期待される出力**:
+**Expected output**:
 ```
-// 正常系
+// Success case
 await client.getTeamMembers("user-1")
 // => { ok: true, value: [{ id: "m1", name: "Alice" }, { id: "m2", name: "Bob" }] }
 
-// ユーザーが見つからない
+// User not found
 await client.getTeamMembers("nonexistent")
 // => { ok: false, error: { type: "notFound", resource: "user", id: "nonexistent" } }
 
-// タイムアウト (3秒後にリトライ2回後)
+// Timeout (after 3 seconds, 2 retries)
 await client.getTeamMembers("slow-user")
 // => { ok: false, error: { type: "network", message: "Timeout: 3000ms" } }
 ```
@@ -2161,110 +2160,110 @@ await client.getTeamMembers("slow-user")
 
 ## FAQ
 
-### Q1: モナドは実際の開発で役に立ちますか？
+### Q1: Are monads useful in real-world development?
 
-**A**: はい。ただし「モナド」という名前を意識する必要はありません。以下はすべてモナドパターンの実例です。
+**A**: Yes. However, you do not need to be aware of the name "monad." The following are all real examples of the monad pattern.
 
-| 日常的なコード | モナドとしての正体 |
+| Everyday code | Its identity as a monad |
 |---|---|
-| `array.flatMap(fn)` | List モナドの bind |
-| `promise.then(fn)` | IO モナドの bind |
-| `async/await` | do 記法の糖衣構文 |
-| `result?` (Rust) | Either モナドの bind |
-| `user?.address?.city` | Maybe モナドの bind (部分的) |
-| `ctx.state` (Koa) | Reader モナドの ask |
+| `array.flatMap(fn)` | bind of the List monad |
+| `promise.then(fn)` | bind of the IO monad |
+| `async/await` | syntactic sugar for do-notation |
+| `result?` (Rust) | bind of the Either monad |
+| `user?.address?.city` | bind of the Maybe monad (partial) |
+| `ctx.state` (Koa) | ask of the Reader monad |
 
-モナドの価値は「既に使っている概念に理論的基盤を与える」ことにある。理論を知ることで、新しいコンテキスト(例: 非同期ストリーム)にも同じパターンを適用できるようになる。
+The value of monads is in "giving a theoretical foundation to concepts you already use." Knowing the theory allows you to apply the same patterns to new contexts (e.g., asynchronous streams).
 
-### Q2: Haskell を学ばないとモナドは理解できませんか？
+### Q2: Do I need to learn Haskell to understand monads?
 
-**A**: いいえ。モナドの概念は言語非依存です。TypeScript や Rust で `flatMap` / `and_then` のパターンを実践すれば十分理解できます。Haskell は型クラスでモナドを最も体系的に表現しますが、実用的な理解には不要です。むしろ、Haskell の抽象的な表現から入ると「モナドは難しい」という誤解が生まれやすい。「Promise の then はモナドの bind である」という具体例から入るのが効果的です。
+**A**: No. The concept of monads is language-independent. You can fully understand them by practicing the `flatMap` / `and_then` patterns in TypeScript or Rust. While Haskell expresses monads most systematically through type classes, this is not necessary for practical understanding. In fact, starting from Haskell's abstract notation tends to create the misconception that "monads are difficult." It is more effective to start from concrete examples like "Promise's then is the bind of a monad."
 
-### Q3: モナドトランスフォーマーとは何ですか？
+### Q3: What are monad transformers?
 
-**A**: 複数のモナドを重ねて使う仕組みです。例えば `MaybeT (Either Error)` は「失敗するかもしれない計算で、さらに None の可能性がある」を表現します。
+**A**: They are a mechanism for stacking multiple monads. For example, `MaybeT (Either Error)` represents "a computation that might fail, with an additional possibility of None."
 
-実用的には以下が身近なモナドトランスフォーマーです。
+Practically, the following are familiar monad transformers.
 
-| 組み合わせ | TypeScript での表現 | 用途 |
+| Combination | TypeScript representation | Use case |
 |---|---|---|
-| Promise + Result | `Promise<Result<T, E>>` | 非同期 + エラーハンドリング |
-| Promise + Maybe | `Promise<T \| null>` | 非同期 + 値の有無 |
-| Array + Maybe | `(T \| null)[]` → `T[]` (filter) | コレクション + 欠損値 |
+| Promise + Result | `Promise<Result<T, E>>` | Async + error handling |
+| Promise + Maybe | `Promise<T \| null>` | Async + optional value |
+| Array + Maybe | `(T \| null)[]` → `T[]` (filter) | Collection + missing values |
 
-コード例 7 の `AsyncResult` クラスがこの概念の TypeScript 実装です。
+The `AsyncResult` class in Code Example 7 is a TypeScript implementation of this concept.
 
-### Q4: Either/Result と try/catch のどちらを使うべきですか？
+### Q4: Which should I use: Either/Result or try/catch?
 
-**A**: プロジェクトの方針を統一することが最も重要です。以下が判断基準です。
+**A**: The most important thing is to unify the strategy within a project. Here are the decision criteria.
 
-| 基準 | Either/Result が有利 | try/catch が有利 |
+| Criterion | Either/Result is better | try/catch is better |
 |---|---|---|
-| エラーの型安全性 | 呼び出し側がエラー型を認識 | 型情報が失われる (any/unknown) |
-| エラーの網羅性チェック | 判別共用体でコンパイル時チェック | ランタイムまで不明 |
-| パフォーマンス | 値の生成のみ | スタックトレース生成のコスト |
-| エコシステム | Rust, Haskell, Scala で主流 | Java, Python, JS/TS で主流 |
-| 学習コスト | チームに概念の理解が必要 | 多くの開発者に馴染みがある |
-| 回復不能エラー | 不向き (OOM, stack overflow) | 適切 (finally で cleanup) |
+| Error type safety | Caller recognizes error types | Type information is lost (any/unknown) |
+| Exhaustiveness check | Compile-time check with discriminated unions | Unknown until runtime |
+| Performance | Only creates values | Cost of generating stack traces |
+| Ecosystem | Mainstream in Rust, Haskell, Scala | Mainstream in Java, Python, JS/TS |
+| Learning cost | Team needs to understand the concept | Familiar to most developers |
+| Unrecoverable errors | Not suitable (OOM, stack overflow) | Appropriate (cleanup with finally) |
 
-**推奨**: TypeScript では「関数の戻り値として Result を使い、外部ライブラリの境界で tryCatch を使って Result に変換する」のがバランスが良い。
+**Recommendation**: In TypeScript, a balanced approach is "use Result as function return values, and use tryCatch at external library boundaries to convert to Result."
 
-### Q5: なぜ flatMap であって map ではだめなのですか？
+### Q5: Why flatMap and not map?
 
-**A**: `map` は `M<M<T>>` というネストを生むが、`flatMap` は `M<T>` にフラット化する。これが「モナド」が「ファンクタ」より強力な理由です。
+**A**: `map` produces a nested `M<M<T>>`, but `flatMap` flattens it to `M<T>`. This is why "monads" are more powerful than "functors."
 
 ```typescript
-// map だと二重にラップされる
+// map produces double wrapping
 const result: Maybe<Maybe<string>> =
   Maybe.of(user).map(u => Maybe.fromNullable(u.name));
-// Maybe<Maybe<string>> ← 使いにくい!
+// Maybe<Maybe<string>> ← hard to use!
 
-// flatMap なら自動的にフラットになる
+// flatMap automatically flattens
 const result: Maybe<string> =
   Maybe.of(user).flatMap(u => Maybe.fromNullable(u.name));
-// Maybe<string> ← 直接使える
+// Maybe<string> ← can be used directly
 
-// Promise も同様
-// then は map と flatMap を兼ねるが、内部で自動フラット化している
+// Same with Promise
+// then combines both map and flatMap, but internally auto-flattens
 Promise.resolve(userId)
-  .then(id => fetchUser(id))  // fetchUser は Promise を返す
-  // .then が map なら: Promise<Promise<User>> (二重ラップ)
-  // .then が flatMap だから: Promise<User> (フラット)
+  .then(id => fetchUser(id))  // fetchUser returns a Promise
+  // If .then were map: Promise<Promise<User>> (double wrapped)
+  // Because .then is flatMap: Promise<User> (flat)
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Point |
 |---|---|
-| モナドの本質 | `unit` と `bind (flatMap)` によるコンテキスト付き計算の合成 |
-| モナド則 | 左単位元・右単位元・結合則の3つを満たすこと |
-| Maybe/Option | null 安全性。値がないかもしれない計算の連鎖。`?.` の一般化 |
-| Either/Result | 型安全なエラーハンドリング。鉄道指向プログラミング |
-| Promise/Future | 非同期処理。`async/await` は do 記法の糖衣構文 |
-| IO | 副作用の分離。純粋関数と副作用の境界を明確化。テスト容易性 |
-| List | 非決定性計算。`flatMap` で複数の可能性を探索 |
-| Reader | 依存性注入。環境を暗黙的に引き回す |
-| モナドトランスフォーマー | 複数モナドの合成。`AsyncResult = Promise + Result` |
-| 階層 | Functor < Applicative < Monad。独立計算なら Applicative で十分 |
-| 実践指針 | 言語のネイティブ機能を優先。エラー戦略を統一。unwrap を避ける |
+| Essence of monads | Composition of contextual computation via `unit` and `bind (flatMap)` |
+| Monad laws | Must satisfy three laws: left identity, right identity, associativity |
+| Maybe/Option | Null safety. Chain computations that might not have a value. A generalization of `?.` |
+| Either/Result | Type-safe error handling. Railway-oriented programming |
+| Promise/Future | Asynchronous processing. `async/await` is syntactic sugar for do-notation |
+| IO | Isolation of side effects. Clearly separate pure functions and side effects. Testability |
+| List | Non-deterministic computation. Explore multiple possibilities with `flatMap` |
+| Reader | Dependency injection. Thread environment implicitly |
+| Monad transformers | Composition of multiple monads. `AsyncResult = Promise + Result` |
+| Hierarchy | Functor < Applicative < Monad. Applicative is sufficient for independent computations |
+| Practical guidelines | Prioritize native language features. Unify error strategy. Avoid unwrap |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [ファンクタ・アプリカティブ](./01-functor-applicative.md) --- モナドの前提となる抽象化。map と apply の理解
-- [関数型パターン](./02-fp-patterns.md) --- カリー化、パイプライン、合成とモナドの組み合わせ
-- [Strategy パターン](../02-behavioral/01-strategy.md) --- 関数を値として扱うパターン (高階関数の OOP 版)
-- [Iterator パターン](../02-behavioral/04-iterator.md) --- List モナドの OOP 実装。遅延評価との関係
+- [Functor and Applicative](./01-functor-applicative.md) --- Abstractions that are prerequisites for monads. Understanding map and apply
+- [Functional Patterns](./02-fp-patterns.md) --- Combining currying, pipelines, composition with monads
+- [Strategy Pattern](../02-behavioral/01-strategy.md) --- Treating functions as values (the OOP version of higher-order functions)
+- [Iterator Pattern](../02-behavioral/04-iterator.md) --- OOP implementation of the List monad. Relationship with lazy evaluation
 
 ---
 
-## 参考文献
+## References
 
-1. **Philip Wadler** (1992): [Monads for functional programming](https://homepages.inf.ed.ac.uk/wadler/papers/marktoberdorf/baastad.pdf) --- モナドの理論的基盤を確立した論文
-2. **Bartosz Milewski**: [Category Theory for Programmers](https://bartoszmilewski.com/2014/10/28/category-theory-for-programmers-the-preface/) --- 圏論とモナドの理論的解説
-3. **Scott Wlaschin**: [Railway Oriented Programming](https://fsharpforfunandprofit.com/rop/) --- Either モナドの実践的解説 (鉄道指向プログラミング)
-4. **Rust by Example**: [Error Handling](https://doc.rust-lang.org/rust-by-example/error.html) --- Result モナドと ? 演算子の実践ガイド
-5. **Giulio Canti**: [fp-ts](https://gcanti.github.io/fp-ts/) --- TypeScript の関数型プログラミングライブラリ (モナドの実装例)
+1. **Philip Wadler** (1992): [Monads for functional programming](https://homepages.inf.ed.ac.uk/wadler/papers/marktoberdorf/baastad.pdf) --- Paper that established the theoretical foundation of monads
+2. **Bartosz Milewski**: [Category Theory for Programmers](https://bartoszmilewski.com/2014/10/28/category-theory-for-programmers-the-preface/) --- Theoretical explanation of category theory and monads
+3. **Scott Wlaschin**: [Railway Oriented Programming](https://fsharpforfunandprofit.com/rop/) --- Practical explanation of the Either monad (railway-oriented programming)
+4. **Rust by Example**: [Error Handling](https://doc.rust-lang.org/rust-by-example/error.html) --- Practical guide to the Result monad and the ? operator
+5. **Giulio Canti**: [fp-ts](https://gcanti.github.io/fp-ts/) --- Functional programming library for TypeScript (monad implementation examples)
