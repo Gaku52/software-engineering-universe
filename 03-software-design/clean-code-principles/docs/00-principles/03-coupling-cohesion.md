@@ -1,123 +1,121 @@
-# 結合度と凝集度 ── モジュール設計の基盤原則
+# Coupling and Cohesion — The Foundational Principles of Module Design
 
-> 優れたモジュール設計は「低結合・高凝集」に集約される。結合度はモジュール間の依存関係の強さ、凝集度はモジュール内の要素の関連性の強さを示す。この2つの指標を意識することで、変更に強く理解しやすいシステムが構築できる。
-
----
-
-## この章で学ぶこと
-
-1. **結合度の7段階** ── 内容結合からデータ結合まで、依存関係の種類と危険度を理解する
-2. **凝集度の7段階** ── 偶発的凝集から機能的凝集まで、モジュール内のまとまり方を理解する
-3. **低結合・高凝集を達成する設計技法** ── 具体的なリファクタリング手法を身につける
-4. **結合度・凝集度の定量的測定方法** ── 静的解析ツールによるメトリクス計測を習得する
-5. **アーキテクチャレベルでの適用** ── マイクロサービス、モジュラーモノリスにおける適用方法を理解する
+> Good module design comes down to "low coupling, high cohesion." Coupling measures the strength of dependencies between modules; cohesion measures how strongly the elements within a module are related. By keeping these two metrics in mind, you can build systems that are resilient to change and easy to understand.
 
 ---
 
-## 前提知識
+## What You Will Learn in This Chapter
 
-このガイドを最大限に活用するには、以下の知識が必要です。
+1. **The 7 Levels of Coupling** — Understand the types and risks of dependencies, from content coupling to data coupling
+2. **The 7 Levels of Cohesion** — Understand how elements are organized within a module, from coincidental cohesion to functional cohesion
+3. **Design Techniques for Achieving Low Coupling and High Cohesion** — Learn concrete refactoring methods
+4. **Quantitative Measurement of Coupling and Cohesion** — Master metric measurement using static analysis tools
+5. **Application at the Architecture Level** — Understand how to apply these principles in microservices and modular monoliths
 
-| 前提知識 | 必要レベル | 参照先 |
+---
+
+## Prerequisites
+
+To get the most out of this guide, you should have the following knowledge.
+
+| Prerequisite | Required Level | Reference |
 |---------|----------|--------|
-| SOLID原則（特にSRP, DIP） | 基本を理解 | [SOLID原則](./01-solid.md) |
-| クリーンコードの概要 | 読了推奨 | [クリーンコード概論](./00-clean-code-overview.md) |
-| DRY/KISS/YAGNI | 基本を理解 | [DRY/KISS/YAGNI](./02-dry-kiss-yagni.md) |
-| オブジェクト指向の基本 | 実務経験あり | -- |
-| デザインパターンの基礎 | 概要を把握 | デザインパターン概論 |
+| SOLID Principles (especially SRP, DIP) | Basic understanding | [SOLID Principles](./01-solid.md) |
+| Overview of Clean Code | Recommended reading | [Clean Code Overview](./00-clean-code-overview.md) |
+| DRY/KISS/YAGNI | Basic understanding | [DRY/KISS/YAGNI](./02-dry-kiss-yagni.md) |
+| Object-Oriented Basics | Practical experience | -- |
+| Design Pattern Fundamentals | General awareness | Design Patterns Overview |
 
 ---
 
-## 1. 結合度（Coupling）── モジュール間の依存の強さ
+## 1. Coupling — The Strength of Dependencies Between Modules
 
-### 1.1 なぜ結合度を理解すべきか
+### 1.1 Why You Should Understand Coupling
 
-結合度（Coupling）の概念は1974年にLarry ConstantineとEdward Yourdonによって提唱された。彼らの研究は「ソフトウェアの保守コストの50-80%は、変更の波及効果の管理に費やされている」という実証データに基づいている。
+The concept of coupling was proposed in 1974 by Larry Constantine and Edward Yourdon. Their research was grounded in empirical data showing that "50–80% of software maintenance costs are spent managing the ripple effects of changes."
 
 ```
-  変更コストのモデル（Constantine-Yourdon, 1979）
+  Cost of Change Model (Constantine-Yourdon, 1979)
 
-  変更コスト = 直接コスト + 波及コスト + テストコスト
+  Cost of Change = Direct Cost + Ripple Cost + Test Cost
 
   ┌─────────────────────────────────────────────────────┐
-  │  高結合のシステム                                      │
+  │  Highly Coupled System                               │
   │                                                       │
-  │  直接コスト : ████ (20%)                              │
-  │  波及コスト : ████████████████████ (55%)              │
-  │  テストコスト: █████████ (25%)                         │
+  │  Direct Cost : ████ (20%)                             │
+  │  Ripple Cost : ████████████████████ (55%)             │
+  │  Test Cost   : █████████ (25%)                        │
   │                                                       │
-  │  → 実際の変更は全体の2割。残りは波及と検証            │
+  │  → Only 20% is actual change. The rest is ripple and verification │
   └─────────────────────────────────────────────────────┘
 
   ┌─────────────────────────────────────────────────────┐
-  │  低結合のシステム                                      │
+  │  Loosely Coupled System                              │
   │                                                       │
-  │  直接コスト : ████████████ (50%)                      │
-  │  波及コスト : ████ (15%)                              │
-  │  テストコスト: ████████ (35%)                          │
+  │  Direct Cost : ████████████ (50%)                     │
+  │  Ripple Cost : ████ (15%)                             │
+  │  Test Cost   : ████████ (35%)                         │
   │                                                       │
-  │  → 変更の影響範囲が局所的で、テストも限定的           │
+  │  → Change impact is local, and testing is limited    │
   └─────────────────────────────────────────────────────┘
 ```
 
-結合度を理解する本質的な理由は以下の3点である。
+There are three essential reasons to understand coupling:
 
-1. **変更の局所化**: 低結合なシステムでは、1箇所の変更が他に波及しにくい
-2. **テスト容易性**: モジュールを単独でテストできる（モック不要、または最小限）
-3. **チーム並行開発**: 独立したモジュールなら、チームが並行して開発可能
+1. **Localizing changes**: In a loosely coupled system, a change in one place is unlikely to ripple to others
+2. **Testability**: Modules can be tested in isolation (no mocks needed, or minimal ones)
+3. **Parallel team development**: Independent modules allow teams to develop in parallel
 
-実際のプロジェクトでの影響を定量化すると以下のようになる。
+Quantifying the impact in real projects looks like this:
 
-| 結合度レベル | 1変更あたりの影響ファイル数 | リグレッションバグ率 | ビルド時間（差分） |
+| Coupling Level | Files Affected per Change | Regression Bug Rate | Build Time (incremental) |
 |------------|------------------------|-------------------|-----------------|
-| 高結合 | 10-50ファイル | 15-30% | 全ビルド必須 |
-| 中結合 | 3-10ファイル | 5-15% | 部分ビルド可能 |
-| 低結合 | 1-3ファイル | 1-5% | モジュール単位 |
+| High coupling | 10–50 files | 15–30% | Full build required |
+| Medium coupling | 3–10 files | 5–15% | Partial build possible |
+| Low coupling | 1–3 files | 1–5% | Module-level build |
 
-### 1.2 結合度の7段階
+### 1.2 The 7 Levels of Coupling
 
-Constantine-Yourdonの分類に基づく結合度の7段階を、危険度の高い順に解説する。
+Based on the Constantine-Yourdon classification, here are the 7 levels of coupling, ordered from most to least dangerous.
 
 ```
-  危険度: 高 ←────────────────────────────────────────────→ 低
+  Risk: High ←────────────────────────────────────────────→ Low
 
   ┌───────┬────────┬────────┬────────┬────────┬────────┬───────┐
-  │ 内容   │ 共通    │ 外部    │ 制御    │ スタンプ│ データ  │ メッセージ│
-  │ 結合   │ 結合    │ 結合    │ 結合    │ 結合    │ 結合    │ 結合    │
   │Content│Common  │External│Control │Stamp   │Data    │Message│
   │       │        │        │        │        │        │       │
-  │他の内部│グローバル│外部の   │フラグで │データ   │必要な  │メッセージ│
-  │を直接 │変数を  │フォーマ │動作を  │構造体を│プリミティ│のみで  │
-  │参照   │共有    │ットを  │切替    │丸ごと  │ブ値を  │通信    │
-  │       │        │共有    │        │渡す    │渡す    │        │
+  │Direct │Shares  │Shares  │Switches│Passes  │Passes  │Commu- │
+  │access │global  │external│behavior│entire  │only    │nicates│
+  │to     │variable│format  │with    │data    │needed  │via    │
+  │internals│      │        │flags   │structure│values │message│
   └───────┴────────┴────────┴────────┴────────┴────────┴───────┘
-   絶対避ける 避ける   最小化   最小限に  許容     目指す   理想
+   Never   Avoid   Minimize  Minimize Tolerate Target   Ideal
 ```
 
-**各段階の詳細定義:**
+**Detailed Definitions of Each Level:**
 
-| 段階 | 名称 | 定義 | 具体例 | 危険度 |
+| Level | Name | Definition | Example | Risk |
 |------|------|------|--------|--------|
-| 1 | 内容結合 (Content) | 他モジュールの内部実装（private変数、内部コード）に直接アクセス | `obj._private_field` にアクセス | 最高 |
-| 2 | 共通結合 (Common) | 複数モジュールがグローバル変数/共有状態を読み書き | グローバル設定オブジェクトの共有 | 高 |
-| 3 | 外部結合 (External) | 外部のデータフォーマット、通信プロトコル、デバイスインターフェースを共有 | 共通のCSVフォーマット、共有DBスキーマ | 中-高 |
-| 4 | 制御結合 (Control) | フラグや制御値で相手の動作を切り替える | `process(data, is_pdf=True)` | 中 |
-| 5 | スタンプ結合 (Stamp) | 必要以上のデータを含むデータ構造を丸ごと渡す | 関数が `User` オブジェクト全体を受け取るが `name` のみ使用 | 低-中 |
-| 6 | データ結合 (Data) | 必要最小限のプリミティブ値のみ受け渡し | `calculate(subtotal, tax_rate)` | 低 |
-| 7 | メッセージ結合 (Message) | メッセージ（イベント）のみで通信し、相手の存在を知らない | EventBus経由のイベント通知 | 最低 |
+| 1 | Content Coupling | Directly accesses another module's internal implementation (private variables, internal code) | Accessing `obj._private_field` | Highest |
+| 2 | Common Coupling | Multiple modules read/write to a global variable or shared state | Sharing a global config object | High |
+| 3 | External Coupling | Shares an external data format, communication protocol, or device interface | Common CSV format, shared DB schema | Medium-High |
+| 4 | Control Coupling | Uses a flag or control value to switch another module's behavior | `process(data, is_pdf=True)` | Medium |
+| 5 | Stamp Coupling | Passes a data structure containing more data than needed | A function receives the entire `User` object but only uses `name` | Low-Medium |
+| 6 | Data Coupling | Only the minimum necessary primitive values are passed | `calculate(subtotal, tax_rate)` | Low |
+| 7 | Message Coupling | Communicates only via messages (events) without knowing the recipient exists | Event notification via EventBus | Lowest |
 
-**コード例1: 結合度の7段階別コード**
+**Code Example 1: Code at Each of the 7 Coupling Levels**
 
 ```python
-# === 1. 内容結合（最悪）: 他モジュールの内部実装に依存 ===
+# === 1. Content Coupling (Worst): Depends on another module's internal implementation ===
 class OrderProcessor:
     def process(self, cart):
-        # Cart の private 実装を直接操作
+        # Directly manipulates Cart's private implementation
         cart._items[0]._price = cart._items[0]._price * 0.9
-        cart._total_cache = None  # キャッシュを手動リセット
-        # → Cart の内部実装が変わると即座に壊れる
+        cart._total_cache = None  # Manually reset the cache
+        # → Breaks immediately if Cart's internal implementation changes
 
-# === 2. 共通結合（悪い）: グローバル変数を共有 ===
+# === 2. Common Coupling (Bad): Sharing global variables ===
 GLOBAL_CONFIG = {}
 
 class ServiceA:
@@ -127,25 +125,25 @@ class ServiceA:
 
 class ServiceB:
     def do_work(self):
-        # ServiceA の副作用に依存
+        # Depends on ServiceA's side effects
         if GLOBAL_CONFIG.get('last_run'):
             pass
-        # → ServiceA の実装変更が ServiceB に影響
+        # → Changes to ServiceA's implementation affect ServiceB
 
-# === 3. 外部結合（注意）: 外部フォーマットを共有 ===
+# === 3. External Coupling (Caution): Sharing external formats ===
 class CsvExporter:
     def export(self, data):
-        # 共通CSVフォーマット: "id,name,price\n" に依存
+        # Depends on common CSV format: "id,name,price\n"
         return ",".join([str(data['id']), data['name'], str(data['price'])])
 
 class CsvImporter:
     def import_data(self, csv_line):
-        # 同じCSVフォーマットに依存
+        # Depends on the same CSV format
         parts = csv_line.split(",")
         return {'id': int(parts[0]), 'name': parts[1], 'price': float(parts[2])}
-    # → フォーマット変更時に両方修正が必要
+    # → Both need to be updated when the format changes
 
-# === 4. 制御結合（要注意）: フラグで動作を切り替え ===
+# === 4. Control Coupling (Watch out): Switching behavior with flags ===
 class ReportGenerator:
     def generate(self, data, format_type: str):
         if format_type == 'pdf':
@@ -154,22 +152,22 @@ class ReportGenerator:
             return self._generate_csv(data)
         elif format_type == 'excel':
             return self._generate_excel(data)
-    # → 呼び出し側が内部の分岐ロジックを知っている
+    # → The caller knows about the internal branching logic
 
-# === 5. スタンプ結合（許容）: データ構造を丸ごと渡す ===
+# === 5. Stamp Coupling (Tolerable): Passing the entire data structure ===
 class EmailSender:
     def send_welcome(self, user: User):
-        # User オブジェクト全体を受け取るが name と email のみ使用
+        # Receives the entire User object but only uses name and email
         send_email(to=user.email, subject=f"Welcome {user.name}")
-    # → User の構造変更が影響する可能性
+    # → Changes to User's structure may have an impact
 
-# === 6. データ結合（理想）: 必要なプリミティブ値のみ受け渡し ===
+# === 6. Data Coupling (Ideal): Passing only the necessary primitive values ===
 class TaxCalculator:
     def calculate(self, subtotal: float, tax_rate: float) -> float:
         return subtotal * tax_rate
-    # → 引数はプリミティブ値のみ。他の型に依存しない
+    # → Arguments are primitive values only. No dependency on other types
 
-# === 7. メッセージ結合（最理想）: メッセージのみで通信 ===
+# === 7. Message Coupling (Most Ideal): Communicating only via messages ===
 class OrderService:
     def __init__(self, event_bus: EventBus):
         self.event_bus = event_bus
@@ -177,82 +175,82 @@ class OrderService:
     def place_order(self, order):
         order.confirm()
         self.event_bus.publish('order_placed', {'order_id': order.id})
-    # → 受信者の存在すら知らない
+    # → Doesn't even know the recipient exists
 ```
 
-### 1.3 結合度を下げるテクニック
+### 1.3 Techniques for Reducing Coupling
 
 ```
-  直接依存                     間接依存（抽象を介する）
+  Direct Dependency               Indirect Dependency (via abstraction)
 
   ┌───────┐                   ┌───────┐
   │ ModuleA │                  │ ModuleA │
   └───┬───┘                   └───┬───┘
-      │ import & new               │ 抽象に依存
+      │ import & new               │ depends on abstraction
       v                           v
   ┌───────┐               ┌─────────────┐
   │ ModuleB │               │ <<interface>>│
   └───────┘               │  IModuleB    │
                             └──────┬──────┘
-                                   │ 実装
+                                   │ implements
                                    v
                             ┌───────────┐
                             │ ModuleBImpl│
                             └───────────┘
 ```
 
-**テクニック一覧:**
+**List of Techniques:**
 
-| テクニック | 効果 | 適用場面 | コスト |
+| Technique | Effect | When to Apply | Cost |
 |-----------|------|---------|--------|
-| 依存性注入 (DI) | 具象クラスへの依存を排除 | サービス間の依存 | 低 |
-| インターフェース抽出 | 実装の詳細を隠蔽 | モジュール境界 | 低-中 |
-| イベント駆動 | 送信者と受信者を完全に分離 | 非同期処理、通知 | 中 |
-| Facade パターン | 複雑なサブシステムへの依存を1点に集約 | レイヤー間の通信 | 低 |
-| Adapter パターン | 外部ライブラリへの依存を隔離 | サードパーティ連携 | 低-中 |
-| メッセージキュー | サービス間を物理的に分離 | マイクロサービス | 高 |
+| Dependency Injection (DI) | Eliminates dependency on concrete classes | Dependencies between services | Low |
+| Interface extraction | Hides implementation details | Module boundaries | Low-Medium |
+| Event-driven | Fully decouples sender from receiver | Async processing, notifications | Medium |
+| Facade pattern | Consolidates dependencies on complex subsystems to a single point | Communication between layers | Low |
+| Adapter pattern | Isolates dependency on external libraries | Third-party integrations | Low-Medium |
+| Message queue | Physically separates services | Microservices | High |
 
-**コード例2: イベント駆動による疎結合化**
+**Code Example 2: Decoupling via Event-Driven Architecture**
 
 ```python
 from typing import Callable, Any
 from dataclasses import dataclass, field
 from datetime import datetime
 
-# === Before: 強結合 ===
-# OrderService が直接 InventoryService、NotificationService、AnalyticsService を呼ぶ
+# === Before: Tight Coupling ===
+# OrderService directly calls InventoryService, NotificationService, and AnalyticsService
 
 class OrderServiceTightlyCoupled:
     def __init__(self):
-        self.inventory = InventoryService()     # 具象クラスに直接依存
-        self.notification = NotificationService() # 具象クラスに直接依存
-        self.analytics = AnalyticsService()     # 具象クラスに直接依存
+        self.inventory = InventoryService()     # Direct dependency on concrete class
+        self.notification = NotificationService() # Direct dependency on concrete class
+        self.analytics = AnalyticsService()     # Direct dependency on concrete class
 
     def place_order(self, order):
         self.inventory.reduce_stock(order.items)
         self.notification.send_confirmation(order)
         self.analytics.track_purchase(order)
-        # → 新しい処理を追加するたびにこのクラスを修正する必要がある（OCP違反）
-        # → 各サービスのテスト時にすべての依存を用意する必要がある
+        # → This class must be modified every time new processing is added (OCP violation)
+        # → All dependencies must be set up when testing each service
 
 
-# === After: イベント駆動で疎結合 ===
+# === After: Loosely coupled via event-driven architecture ===
 
 @dataclass
 class DomainEvent:
-    """ドメインイベントの基底クラス"""
+    """Base class for domain events"""
     occurred_at: datetime = field(default_factory=datetime.now)
 
 @dataclass
 class OrderPlacedEvent(DomainEvent):
-    """注文確定イベント"""
+    """Order confirmed event"""
     order_id: str = ""
     customer_id: str = ""
     items: list = field(default_factory=list)
     total_amount: float = 0.0
 
 class EventBus:
-    """シンプルなインメモリイベントバス"""
+    """Simple in-memory event bus"""
     def __init__(self):
         self._handlers: dict[type, list[Callable]] = {}
 
@@ -269,13 +267,13 @@ class EventBus:
             handlers.remove(handler)
 
 class OrderService:
-    """注文サービス - イベントの発行のみを責任に持つ"""
+    """Order service - responsible only for publishing events"""
     def __init__(self, event_bus: EventBus):
         self.event_bus = event_bus
 
     def place_order(self, order) -> None:
         order.confirm()
-        # 他のサービスの存在を知らない
+        # Does not know about the existence of other services
         self.event_bus.publish(OrderPlacedEvent(
             order_id=order.id,
             customer_id=order.customer_id,
@@ -283,7 +281,7 @@ class OrderService:
             total_amount=order.total_amount
         ))
 
-# 各ハンドラは独立して登録・テスト可能
+# Each handler can be registered and tested independently
 class InventoryHandler:
     def handle_order_placed(self, event: OrderPlacedEvent) -> None:
         for item in event.items:
@@ -297,61 +295,61 @@ class AnalyticsHandler:
     def handle_order_placed(self, event: OrderPlacedEvent) -> None:
         self.track_purchase(event.order_id, event.total_amount)
 
-# 組み立て（Composition Root）
+# Assembly (Composition Root)
 event_bus = EventBus()
 event_bus.subscribe(OrderPlacedEvent, InventoryHandler().handle_order_placed)
 event_bus.subscribe(OrderPlacedEvent, NotificationHandler().handle_order_placed)
 event_bus.subscribe(OrderPlacedEvent, AnalyticsHandler().handle_order_placed)
 
-# 新しいハンドラを追加しても OrderService は変更不要（OCP準拠）
+# Adding a new handler does not require modifying OrderService (OCP compliant)
 # event_bus.subscribe(OrderPlacedEvent, LoyaltyPointHandler().handle_order_placed)
 ```
 
-**コード例3: Dependency Injection による疎結合化**
+**Code Example 3: Decoupling via Dependency Injection**
 
 ```python
 from abc import ABC, abstractmethod
 from typing import Protocol
 
-# === インターフェース（抽象）を定義 ===
+# === Define interfaces (abstractions) ===
 
 class PaymentGateway(Protocol):
-    """決済ゲートウェイのインターフェース"""
+    """Payment gateway interface"""
     def charge(self, amount: float, currency: str) -> PaymentResult: ...
 
 class NotificationService(Protocol):
-    """通知サービスのインターフェース"""
+    """Notification service interface"""
     def send(self, recipient: str, message: str) -> None: ...
 
 class OrderRepository(Protocol):
-    """注文リポジトリのインターフェース"""
+    """Order repository interface"""
     def save(self, order: Order) -> None: ...
     def find_by_id(self, order_id: str) -> Order | None: ...
 
 
-# === 具象クラスの実装 ===
+# === Concrete class implementations ===
 
 class StripePaymentGateway:
-    """Stripe による決済実装"""
+    """Payment implementation using Stripe"""
     def __init__(self, api_key: str):
         self.api_key = api_key
 
     def charge(self, amount: float, currency: str) -> PaymentResult:
-        # Stripe API を呼び出す
+        # Call the Stripe API
         response = stripe.Charge.create(amount=int(amount * 100), currency=currency)
         return PaymentResult(success=True, transaction_id=response.id)
 
 class EmailNotificationService:
-    """メールによる通知実装"""
+    """Notification implementation via email"""
     def __init__(self, smtp_config: SmtpConfig):
         self.smtp = smtp_config
 
     def send(self, recipient: str, message: str) -> None:
-        # SMTP経由でメール送信
+        # Send email via SMTP
         send_email(to=recipient, body=message, config=self.smtp)
 
 class PostgresOrderRepository:
-    """PostgreSQL による注文永続化"""
+    """Order persistence using PostgreSQL"""
     def __init__(self, connection_pool):
         self.pool = connection_pool
 
@@ -365,10 +363,10 @@ class PostgresOrderRepository:
             return Order.from_dict(row) if row else None
 
 
-# === サービスは抽象にのみ依存 ===
+# === Service depends only on abstractions ===
 
 class OrderService:
-    """注文サービス - 具象クラスを一切知らない"""
+    """Order service - has no knowledge of any concrete classes"""
     def __init__(
         self,
         repository: OrderRepository,
@@ -387,12 +385,12 @@ class OrderService:
         self.repository.save(order)
         self.notification.send(
             order.customer_email,
-            f"ご注文 {order.id} を承りました"
+            f"Your order {order.id} has been received"
         )
         return OrderResult.success(order.id)
 
 
-# === テスト時: モックを注入 ===
+# === In tests: inject mocks ===
 
 class MockPaymentGateway:
     def __init__(self, should_succeed: bool = True):
@@ -412,7 +410,7 @@ class MockNotificationService:
     def send(self, recipient: str, message: str) -> None:
         self.sent_messages.append((recipient, message))
 
-# テスト
+# Test
 def test_place_order_success():
     mock_payment = MockPaymentGateway(should_succeed=True)
     mock_notification = MockNotificationService()
@@ -426,20 +424,20 @@ def test_place_order_success():
     assert len(mock_notification.sent_messages) == 1
 ```
 
-### 1.4 結合度の定量的測定
+### 1.4 Quantitative Measurement of Coupling
 
-結合度は主観的な判断だけでなく、静的解析ツールで定量的に測定できる。
+Coupling can be measured quantitatively using static analysis tools, not just subjective judgment.
 
-| メトリクス | 定義 | 理想値 | ツール |
+| Metric | Definition | Ideal Value | Tools |
 |-----------|------|--------|--------|
-| CBO (Coupling Between Objects) | あるクラスが依存する他クラスの数 | 10以下 | SonarQube, JDepend |
-| Ca (Afferent Coupling) | そのモジュールに依存している外部モジュール数 | -- | NDepend, Structure101 |
-| Ce (Efferent Coupling) | そのモジュールが依存している外部モジュール数 | -- | NDepend, Structure101 |
-| Instability = Ce / (Ca + Ce) | 不安定度。1に近いほど不安定 | 安定/不安定を設計的に決定 | NDepend |
+| CBO (Coupling Between Objects) | Number of other classes a given class depends on | 10 or fewer | SonarQube, JDepend |
+| Ca (Afferent Coupling) | Number of external modules that depend on this module | -- | NDepend, Structure101 |
+| Ce (Efferent Coupling) | Number of external modules this module depends on | -- | NDepend, Structure101 |
+| Instability = Ce / (Ca + Ce) | Instability. Closer to 1 means more unstable | Determined by design intent (stable vs. unstable) | NDepend |
 
 ```python
-# CBO（Coupling Between Objects）の計測例
-# 以下のクラスのCBOを数える
+# Example of measuring CBO (Coupling Between Objects)
+# Count the CBO of the following class
 
 class OrderService:                  # CBO = 5
     def __init__(
@@ -453,10 +451,10 @@ class OrderService:                  # CBO = 5
 
     def place_order(self, order: Order) -> OrderResult:  # 5. Order, 6. OrderResult
         pass
-    # → CBO = 6（依存先クラス数）
-    # → 10以下なので許容範囲
+    # → CBO = 6 (number of dependency classes)
+    # → Within acceptable range because it is 10 or fewer
 
-# CBOが高すぎるクラスの例
+# Example of a class with CBO that is too high
 class GodService:                    # CBO = 15+
     def __init__(
         self,
@@ -467,125 +465,124 @@ class GodService:                    # CBO = 15+
         config, event_bus, scheduler              # 3
     ):
         pass
-    # → CBO = 15: リファクタリング対象
+    # → CBO = 15: candidate for refactoring
 ```
 
-**Instability（不安定度）の設計活用:**
+**Using Instability in Design:**
 
 ```
-  安定依存の原則 (Stable Dependencies Principle)
+  Stable Dependencies Principle (SDP)
 
-  不安定なモジュールは安定したモジュールに依存すべきで、
-  その逆はあってはならない。
+  Unstable modules should depend on stable modules,
+  not the other way around.
 
   Instability = Ce / (Ca + Ce)
 
-  安定（I=0）                     不安定（I=1）
+  Stable (I=0)                    Unstable (I=1)
   ┌───────────┐                  ┌───────────┐
-  │ 抽象層     │ ←── 依存 ──── │ UI層       │
+  │ Abstract  │ ←── depends on ──│ UI Layer  │
   │ Ca=10,Ce=0│                  │ Ca=0,Ce=5 │
   │ I = 0.0   │                  │ I = 1.0   │
   └───────────┘                  └───────────┘
-  変更されにくい                   自由に変更可能
-  （多くに依存されている）          （何にも依存されていない）
+  Unlikely to change              Free to change
+  (many things depend on it)     (nothing depends on it)
 
-  ✗ 安定モジュールが不安定モジュールに依存 → 危険
-  ✓ 不安定モジュールが安定モジュールに依存 → 安全
+  ✗ Stable module depends on an unstable module → Dangerous
+  ✓ Unstable module depends on a stable module → Safe
 ```
 
 ---
 
-## 2. 凝集度（Cohesion）── モジュール内の要素の関連性
+## 2. Cohesion — The Relatedness of Elements Within a Module
 
-### 2.1 なぜ凝集度を理解すべきか
+### 2.1 Why You Should Understand Cohesion
 
-凝集度が低いモジュールは以下の問題を引き起こす。
+A module with low cohesion causes the following problems:
 
-1. **変更理由の多さ**: 無関係な要素が集まっているため、様々な理由で変更される（SRP違反）
-2. **理解コストの増大**: モジュールの目的が不明確で、読み解くのに時間がかかる
-3. **再利用性の低下**: 不要な依存まで持ち込むため、他のプロジェクトで再利用しにくい
-4. **テスト困難**: 何をテストすべきかが不明確で、テストケースが膨大になる
+1. **Many reasons to change**: Unrelated elements are grouped together, causing changes for a variety of reasons (SRP violation)
+2. **Increased understanding cost**: The purpose of the module is unclear, taking time to read and understand
+3. **Reduced reusability**: It brings in unnecessary dependencies, making it hard to reuse in other projects
+4. **Difficult to test**: It is unclear what to test, leading to an enormous number of test cases
 
 ```
-  凝集度と保守性の関係（実証研究: Bieman & Kang, 1995）
+  Relationship Between Cohesion and Maintainability (Empirical study: Bieman & Kang, 1995)
 
-  保守性
-  (理解容易性)
+  Maintainability
+  (Understandability)
     ^
-    |                                    ★ 機能的凝集
-    |                              ★ 逐次的凝集
-    |                        ★ 通信的凝集
-    |                  ★ 手続き的凝集
-    |            ★ 時間的凝集
-    |      ★ 論理的凝集
-    |★ 偶発的凝集
-    +──────────────────────────────────→ 凝集度
-    低                                  高
+    |                                    ★ Functional Cohesion
+    |                              ★ Sequential Cohesion
+    |                        ★ Communicational Cohesion
+    |                  ★ Procedural Cohesion
+    |            ★ Temporal Cohesion
+    |      ★ Logical Cohesion
+    |★ Coincidental Cohesion
+    +──────────────────────────────────→ Cohesion
+    Low                                 High
 ```
 
-### 2.2 凝集度の7段階
+### 2.2 The 7 Levels of Cohesion
 
 ```
-  品質: 低 ←──────────────────────────────────────────→ 高
+  Quality: Low ←──────────────────────────────────────────→ High
 
   ┌──────┬──────┬──────┬──────┬──────┬──────┬──────┐
-  │偶発的 │論理的 │時間的 │手続き │通信的 │逐次的 │機能的 │
   │Coinci│Logical│Tempor│Proced│Commun│Sequen│Functi│
   │dental │      │al    │ural  │icatio│tial  │onal  │
   │      │      │      │      │nal   │      │      │
-  │無関係 │似た種 │同時に │特定の │同じデ │前の出 │1つの │
-  │な要素 │類を集 │実行す │順序で │ータを │力が次 │明確な │
-  │の寄せ │めた  │るだけ │実行  │操作  │の入力 │責任  │
-  │集め  │だけ  │      │      │      │      │      │
+  │Unrela│Groups│Groups│Execut│Operat│Output│Single│
+  │ted   │simila│by    │ed in │on    │of one│clear │
+  │elemen│r type│timing│order │same  │feeds │respon│
+  │ts    │only  │only  │      │data  │next  │sibili│
   └──────┴──────┴──────┴──────┴──────┴──────┴──────┘
-  避ける   避ける  注意   許容   良い   良い   最高
+  Avoid   Avoid  Caution Tolerate Good   Good   Best
 ```
 
-**各段階の詳細定義と具体例:**
+**Detailed Definitions and Examples of Each Level:**
 
-| 段階 | 名称 | 定義 | 見分け方 |
+| Level | Name | Definition | How to Identify |
 |------|------|------|---------|
-| 1 | 偶発的凝集 | 無関係な要素を1つにまとめただけ | クラス名が `Util`, `Manager`, `Helper` |
-| 2 | 論理的凝集 | 論理的に似た種類を集めただけ | 引数やフラグで処理を切り替え |
-| 3 | 時間的凝集 | 同じタイミングで実行する処理をまとめた | `initialize()`, `cleanup()` |
-| 4 | 手続き的凝集 | 特定の実行順序で処理する | 順序を変えると壊れるが、データは共有しない |
-| 5 | 通信的凝集 | 同じデータを操作する処理をまとめた | 全メソッドが同じフィールドを使う |
-| 6 | 逐次的凝集 | 前の処理の出力が次の処理の入力になる | パイプライン処理 |
-| 7 | 機能的凝集 | 1つの明確で単一の責任を持つ | 「このクラスは何をする？」に1文で答えられる |
+| 1 | Coincidental Cohesion | Groups unrelated elements into one | Class name is `Util`, `Manager`, `Helper` |
+| 2 | Logical Cohesion | Groups logically similar categories together | Switches processing based on arguments or flags |
+| 3 | Temporal Cohesion | Groups processing that executes at the same time | `initialize()`, `cleanup()` |
+| 4 | Procedural Cohesion | Processes in a specific execution order | Breaks if order is changed, but data is not shared |
+| 5 | Communicational Cohesion | Groups processing that operates on the same data | All methods use the same fields |
+| 6 | Sequential Cohesion | The output of one step becomes the input of the next | Pipeline processing |
+| 7 | Functional Cohesion | Has one clear, single responsibility | The question "What does this class do?" can be answered in one sentence |
 
-**コード例4: 凝集度の段階別コード**
+**Code Example 4: Code at Each Level of Cohesion**
 
 ```java
-// === 1. 偶発的凝集（最低）: 無関係な機能の寄せ集め ===
+// === 1. Coincidental Cohesion (Worst): A grab-bag of unrelated functions ===
 class Utilities {
-    public static String formatDate(Date d) { /* 日付処理 */ }
-    public static double calculateTax(double amount) { /* 税計算 */ }
-    public static void sendEmail(String to, String body) { /* メール送信 */ }
-    public static Image resizeImage(Image img, int w, int h) { /* 画像処理 */ }
-    // → 日付、税、メール、画像に何の関係もない
+    public static String formatDate(Date d) { /* date processing */ }
+    public static double calculateTax(double amount) { /* tax calculation */ }
+    public static void sendEmail(String to, String body) { /* email sending */ }
+    public static Image resizeImage(Image img, int w, int h) { /* image processing */ }
+    // → Date, tax, email, and images have no relationship to each other
 }
 
-// === 2. 論理的凝集（低い）: 似た種類を集めただけ ===
+// === 2. Logical Cohesion (Low): Just grouped by similar type ===
 class InputHandler {
-    public void handleMouseInput(MouseEvent e) { /* マウス処理 */ }
-    public void handleKeyboardInput(KeyEvent e) { /* キーボード処理 */ }
-    public void handleTouchInput(TouchEvent e) { /* タッチ処理 */ }
-    public void handleGamepadInput(GamepadEvent e) { /* ゲームパッド処理 */ }
-    // → 「入力」という論理的カテゴリで集めただけ。各処理は独立
+    public void handleMouseInput(MouseEvent e) { /* mouse processing */ }
+    public void handleKeyboardInput(KeyEvent e) { /* keyboard processing */ }
+    public void handleTouchInput(TouchEvent e) { /* touch processing */ }
+    public void handleGamepadInput(GamepadEvent e) { /* gamepad processing */ }
+    // → Just grouped by the logical category "input." Each handler is independent.
 }
 
-// === 3. 時間的凝集（中程度）: 同じタイミングで実行するだけ ===
+// === 3. Temporal Cohesion (Moderate): Just grouped by when they run ===
 class AppInitializer {
     public void initialize() {
-        loadConfig();       // 設定読み込み
-        initDatabase();     // DB初期化
-        startWebServer();   // Webサーバー起動
-        registerShutdownHook(); // シャットダウンフック登録
+        loadConfig();       // Load configuration
+        initDatabase();     // Initialize DB
+        startWebServer();   // Start web server
+        registerShutdownHook(); // Register shutdown hook
     }
-    // → 「アプリ起動時」というタイミングで集めただけ
+    // → Just grouped by the timing "at app startup"
 }
 
-// === 4. 手続き的凝集: 特定の順序で実行 ===
+// === 4. Procedural Cohesion: Execute in a specific order ===
 class FileProcessor {
     public void process(String path) {
         openFile(path);
@@ -593,30 +590,30 @@ class FileProcessor {
         parseBody();
         closeFile();
     }
-    // → 順序は決まっているが、open/read/parse/closeは概念的に異なる
+    // → Order is fixed, but open/read/parse/close are conceptually different
 }
 
-// === 5. 通信的凝集: 同じデータを操作 ===
+// === 5. Communicational Cohesion: Operate on the same data ===
 class EmployeeReport {
     private List<Employee> employees;
 
-    public double calculateAverageSalary() { /* employees を使う */ }
-    public Employee findHighestPaid() { /* employees を使う */ }
-    public List<Employee> filterByDepartment(String dept) { /* employees を使う */ }
-    // → 全メソッドが employees フィールドを操作
+    public double calculateAverageSalary() { /* uses employees */ }
+    public Employee findHighestPaid() { /* uses employees */ }
+    public List<Employee> filterByDepartment(String dept) { /* uses employees */ }
+    // → All methods operate on the employees field
 }
 
-// === 6. 逐次的凝集: パイプライン処理 ===
+// === 6. Sequential Cohesion: Pipeline processing ===
 class DataPipeline {
     public Report generate(RawData raw) {
-        CleanedData cleaned = clean(raw);       // 生データ → 洗浄データ
-        AnalyzedData analyzed = analyze(cleaned); // 洗浄データ → 分析データ
-        return format(analyzed);                  // 分析データ → レポート
+        CleanedData cleaned = clean(raw);       // Raw data → Cleaned data
+        AnalyzedData analyzed = analyze(cleaned); // Cleaned data → Analyzed data
+        return format(analyzed);                  // Analyzed data → Report
     }
-    // → 各ステップの出力が次のステップの入力
+    // → The output of each step is the input of the next
 }
 
-// === 7. 機能的凝集（最高）: 1つの明確な責任 ===
+// === 7. Functional Cohesion (Best): One clear responsibility ===
 class PasswordHasher {
     private final int saltLength;
     private final int iterations;
@@ -637,89 +634,89 @@ class PasswordHasher {
         return constantTimeEquals(rehashed, hashedPassword);
     }
 
-    private byte[] generateSalt() { /* ソルト生成 */ }
-    private byte[] extractSalt(String hash) { /* ソルト抽出 */ }
-    private String pbkdf2(String password, byte[] salt, int iterations) { /* ハッシュ計算 */ }
-    // → 「パスワードのハッシュ化」という1つの責任のみ
+    private byte[] generateSalt() { /* generate salt */ }
+    private byte[] extractSalt(String hash) { /* extract salt */ }
+    private String pbkdf2(String password, byte[] salt, int iterations) { /* hash calculation */ }
+    // → Only one responsibility: "hashing passwords"
 }
 ```
 
-### 2.3 凝集度の定量的測定: LCOM
+### 2.3 Quantitative Measurement of Cohesion: LCOM
 
-**LCOM (Lack of Cohesion in Methods)** はクラスの凝集度を定量的に測定するメトリクスである。
+**LCOM (Lack of Cohesion in Methods)** is a metric that quantitatively measures the cohesion of a class.
 
 ```
-  LCOM の計算方法（Henderson-Sellers版 LCOM*）
+  How to Calculate LCOM (Henderson-Sellers version: LCOM*)
 
   LCOM* = (m - (1/f) * Σsum(mf)) / (m - 1)
 
-  m  = メソッド数
-  f  = フィールド数
-  mf = 各フィールドにアクセスするメソッド数の合計
+  m  = Number of methods
+  f  = Number of fields
+  mf = Sum of the number of methods accessing each field
 
-  LCOM* の範囲: 0 ～ 1
-  0 = 完全に凝集（全メソッドが全フィールドを使う）
-  1 = 完全に非凝集（各メソッドが異なるフィールドを使う）
+  Range of LCOM*: 0 to 1
+  0 = Perfectly cohesive (all methods use all fields)
+  1 = Perfectly non-cohesive (each method uses different fields)
 ```
 
 ```python
-# LCOM の計算例
+# Example of LCOM calculation
 
 class HighCohesion:
-    """LCOM = 低い（凝集度が高い）"""
+    """LCOM = Low (high cohesion)"""
     def __init__(self, x, y):
-        self.x = x  # フィールド1
-        self.y = y  # フィールド2
+        self.x = x  # Field 1
+        self.y = y  # Field 2
 
     def distance_from_origin(self):
-        return (self.x**2 + self.y**2) ** 0.5  # x, y 両方使用
+        return (self.x**2 + self.y**2) ** 0.5  # Uses both x and y
 
     def move(self, dx, dy):
-        self.x += dx  # x 使用
-        self.y += dy  # y 使用
+        self.x += dx  # Uses x
+        self.y += dy  # Uses y
 
     def __str__(self):
-        return f"({self.x}, {self.y})"  # x, y 両方使用
+        return f"({self.x}, {self.y})"  # Uses both x and y
 
     # m=3, f=2
-    # x: 3メソッドがアクセス, y: 3メソッドがアクセス
+    # x: accessed by 3 methods, y: accessed by 3 methods
     # LCOM* = (3 - (1/2) * (3+3)) / (3-1) = (3 - 3) / 2 = 0
-    # → LCOM = 0: 完全に凝集
+    # → LCOM = 0: Perfectly cohesive
 
 
 class LowCohesion:
-    """LCOM = 高い（凝集度が低い）"""
+    """LCOM = High (low cohesion)"""
     def __init__(self):
-        self.user_name = ""     # フィールド1
-        self.order_total = 0.0  # フィールド2
-        self.log_level = "INFO" # フィールド3
+        self.user_name = ""     # Field 1
+        self.order_total = 0.0  # Field 2
+        self.log_level = "INFO" # Field 3
 
     def get_user_name(self):
-        return self.user_name       # user_name のみ使用
+        return self.user_name       # Uses only user_name
 
     def calculate_total(self):
-        return self.order_total * 1.1  # order_total のみ使用
+        return self.order_total * 1.1  # Uses only order_total
 
     def set_log_level(self, level):
-        self.log_level = level      # log_level のみ使用
+        self.log_level = level      # Uses only log_level
 
     # m=3, f=3
     # user_name: 1, order_total: 1, log_level: 1
     # LCOM* = (3 - (1/3) * (1+1+1)) / (3-1) = (3 - 1) / 2 = 1.0
-    # → LCOM = 1.0: 完全に非凝集 → 3つの独立したクラスに分割すべき
+    # → LCOM = 1.0: Perfectly non-cohesive → Should be split into 3 independent classes
 ```
 
 ---
 
-## 3. 低結合・高凝集の実現パターン
+## 3. Patterns for Achieving Low Coupling and High Cohesion
 
-### 3.1 Facade パターンで結合度を管理
+### 3.1 Managing Coupling with the Facade Pattern
 
-**コード例5: Facade パターン**
+**Code Example 5: Facade Pattern**
 
 ```typescript
 // ============================================================
-// Before: 高結合 - クライアントが複数のサブシステムに直接依存
+// Before: Tight coupling - the client directly depends on multiple subsystems
 // ============================================================
 class OrderPage {
   placeOrder(cart: Cart) {
@@ -729,9 +726,9 @@ class OrderPage {
     const notification = new EmailService();
     const loyalty = new LoyaltyPointService();
 
-    // 5つのサブシステムに直接依存（CBO = 5）
+    // Directly depends on 5 subsystems (CBO = 5)
     const available = inventory.check(cart.items);
-    if (!available) throw new Error('在庫不足');
+    if (!available) throw new Error('Out of stock');
 
     const total = shipping.calculate(cart);
     const paymentResult = payment.charge(cart.customer, total);
@@ -741,10 +738,10 @@ class OrderPage {
 }
 
 // ============================================================
-// After: Facade で結合を集約
+// After: Consolidate coupling with a Facade
 // ============================================================
 
-// Facade は内部のサブシステムを隠蔽する
+// The Facade hides the internal subsystems
 class OrderFacade {
   constructor(
     private inventory: InventorySystem,
@@ -755,7 +752,7 @@ class OrderFacade {
   ) {}
 
   placeOrder(cart: Cart): OrderResult {
-    // 内部の協調ロジックを Facade が管理
+    // The Facade manages internal coordination logic
     if (!this.inventory.check(cart.items)) {
       return OrderResult.outOfStock();
     }
@@ -767,7 +764,7 @@ class OrderFacade {
       return OrderResult.paymentFailed(paymentResult.error);
     }
 
-    // 非クリティカルな処理は失敗しても注文は成功とする
+    // Non-critical processing: order is considered successful even if these fail
     this.trySendConfirmation(cart.customer.email);
     this.tryAddLoyaltyPoints(cart.customer.id, total);
 
@@ -778,7 +775,7 @@ class OrderFacade {
     try {
       this.notification.sendConfirmation(email);
     } catch (e) {
-      console.warn('確認メール送信失敗', e);
+      console.warn('Failed to send confirmation email', e);
     }
   }
 
@@ -786,12 +783,12 @@ class OrderFacade {
     try {
       this.loyalty.addPoints(customerId, Math.floor(total / 100));
     } catch (e) {
-      console.warn('ポイント付与失敗', e);
+      console.warn('Failed to add loyalty points', e);
     }
   }
 }
 
-// クライアントは Facade だけに依存（CBO = 1）
+// The client depends only on the Facade (CBO = 1)
 class OrderPage {
   constructor(private orderFacade: OrderFacade) {}
 
@@ -801,47 +798,47 @@ class OrderPage {
 }
 ```
 
-### 3.2 パッケージ構造で凝集度を表現
+### 3.2 Expressing Cohesion Through Package Structure
 
-**コード例6: ドメイン基準のパッケージ構成**
+**Code Example 6: Domain-Based Package Organization**
 
 ```
 # ============================================================
-# Before: 低凝集なパッケージ構成（技術レイヤー基準）
+# Before: Low cohesion package organization (organized by technical layer)
 # ============================================================
-# 1つの変更が複数ディレクトリに波及する
-# 例: User の新フィールド追加 → 3ディレクトリを修正
+# A single change ripples across multiple directories
+# Example: Adding a new field to User → modify 3 directories
 
 src/
-  controllers/           # 全ドメインのControllerが混在
+  controllers/           # Controllers for all domains mixed together
     UserController.ts
     OrderController.ts
     ProductController.ts
-  services/              # 全ドメインのServiceが混在
+  services/              # Services for all domains mixed together
     UserService.ts
     OrderService.ts
     ProductService.ts
-  repositories/          # 全ドメインのRepositoryが混在
+  repositories/          # Repositories for all domains mixed together
     UserRepository.ts
     OrderRepository.ts
     ProductRepository.ts
 
 # ============================================================
-# After: 高凝集なパッケージ構成（ドメイン基準）
+# After: High cohesion package organization (organized by domain)
 # ============================================================
-# 1つの変更は1つのディレクトリ内で完結する
-# 例: User の新フィールド追加 → user/ 内だけを修正
+# A single change is contained within a single directory
+# Example: Adding a new field to User → modify only within user/
 
 src/
-  user/                  # User ドメインの全要素が集約
+  user/                  # All elements of the User domain are consolidated
     UserController.ts
     UserService.ts
     UserRepository.ts
     User.ts
     UserValidator.ts
     user.test.ts
-    index.ts             # 公開APIのみエクスポート
-  order/                 # Order ドメインの全要素が集約
+    index.ts             # Exports only the public API
+  order/                 # All elements of the Order domain are consolidated
     OrderController.ts
     OrderService.ts
     OrderRepository.ts
@@ -849,56 +846,56 @@ src/
     OrderValidator.ts
     order.test.ts
     index.ts
-  product/               # Product ドメインの全要素が集約
+  product/               # All elements of the Product domain are consolidated
     ProductController.ts
     ProductService.ts
     ProductRepository.ts
     Product.ts
     product.test.ts
     index.ts
-  shared/                # 共有ユーティリティ（最小限に）
+  shared/                # Shared utilities (keep to a minimum)
     types.ts
     errors.ts
     logger.ts
 ```
 
-### 3.3 Adapter パターンで外部結合を隔離
+### 3.3 Isolating External Coupling with the Adapter Pattern
 
-**コード例7: 外部ライブラリの変更影響を局所化**
+**Code Example 7: Localizing the Impact of External Library Changes**
 
 ```python
 from abc import ABC, abstractmethod
 from typing import Any
 
-# === インターフェース: アプリケーションが期待する契約 ===
+# === Interface: the contract expected by the application ===
 
 class FileStorage(ABC):
-    """ファイルストレージのインターフェース"""
+    """File storage interface"""
     @abstractmethod
     def upload(self, key: str, data: bytes) -> str:
-        """ファイルをアップロードし、URLを返す"""
+        """Upload a file and return its URL"""
         pass
 
     @abstractmethod
     def download(self, key: str) -> bytes:
-        """ファイルをダウンロードする"""
+        """Download a file"""
         pass
 
     @abstractmethod
     def delete(self, key: str) -> None:
-        """ファイルを削除する"""
+        """Delete a file"""
         pass
 
     @abstractmethod
     def exists(self, key: str) -> bool:
-        """ファイルが存在するか確認する"""
+        """Check if a file exists"""
         pass
 
 
-# === Adapter: AWS S3 の実装 ===
+# === Adapter: AWS S3 implementation ===
 
 class S3FileStorage(FileStorage):
-    """AWS S3 による実装"""
+    """Implementation using AWS S3"""
     def __init__(self, bucket_name: str, region: str):
         import boto3
         self.s3 = boto3.client('s3', region_name=region)
@@ -923,10 +920,10 @@ class S3FileStorage(FileStorage):
             return False
 
 
-# === Adapter: ローカルファイルシステムの実装（開発用） ===
+# === Adapter: Local filesystem implementation (for development) ===
 
 class LocalFileStorage(FileStorage):
-    """ローカルファイルシステムによる実装（開発・テスト用）"""
+    """Implementation using the local filesystem (for development and testing)"""
     def __init__(self, base_dir: str):
         self.base_dir = Path(base_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
@@ -947,10 +944,10 @@ class LocalFileStorage(FileStorage):
         return (self.base_dir / key).exists()
 
 
-# === サービス: ストレージの実装を知らない ===
+# === Service: has no knowledge of the storage implementation ===
 
 class DocumentService:
-    """ドキュメントサービス - FileStorage インターフェースにのみ依存"""
+    """Document service - depends only on the FileStorage interface"""
     def __init__(self, storage: FileStorage):
         self.storage = storage
 
@@ -962,124 +959,124 @@ class DocumentService:
         key = f"documents/{name}"
         return self.storage.download(key)
 
-# 使用例
-# 本番: DocumentService(S3FileStorage("my-bucket", "ap-northeast-1"))
-# 開発: DocumentService(LocalFileStorage("/tmp/dev-storage"))
-# テスト: DocumentService(InMemoryFileStorage())
+# Usage examples
+# Production: DocumentService(S3FileStorage("my-bucket", "ap-northeast-1"))
+# Development: DocumentService(LocalFileStorage("/tmp/dev-storage"))
+# Testing: DocumentService(InMemoryFileStorage())
 ```
 
 ---
 
-## 4. 結合度と凝集度の関係
+## 4. The Relationship Between Coupling and Cohesion
 
-### 4.1 2軸の組み合わせ
+### 4.1 Combining the Two Axes
 
-| 組み合わせ | 低結合 | 高結合 |
+| Combination | Low Coupling | High Coupling |
 |-----------|--------|--------|
-| **高凝集** | **理想的**。独立した明確なモジュール。変更が局所的で、テストが容易 | 責任は明確だが依存が多い。DIやイベント駆動で改善可能 |
-| **低凝集** | 依存は少ないがモジュールの意味が不明。分割・統合で改善 | **最悪**。スパゲッティコード。全面的リファクタリングが必要 |
+| **High Cohesion** | **Ideal.** Independent, clear modules. Changes are localized and testing is easy. | Responsibility is clear but dependencies are many. Can be improved with DI or event-driven approaches. |
+| **Low Cohesion** | Few dependencies but the module's purpose is unclear. Improve by splitting or merging. | **Worst.** Spaghetti code. Requires a complete refactoring. |
 
 ```
-                 結合度
-          低い ←────────→ 高い
+                 Coupling
+          Low ←────────→ High
          ┌──────┬──────┐
-  凝  高 │  ★   │  △   │
-  集  い │ 理想  │ DI等 │
-  度     │      │で改善 │
-         ├──────┼──────┤
-     低  │  △   │  ✗   │
-     い  │ 分割 │スパゲ │
-         │で改善 │ッティ│
-         └──────┴──────┘
+  Cohe High│  ★   │  △   │
+  sion     │ Ideal │ DI   │
+           │      │improve│
+           ├──────┼──────┤
+       Low │  △   │  ✗   │
+           │Split │Spaghe│
+           │improve│tti  │
+           └──────┴──────┘
 ```
 
-### 4.2 改善アプローチの選択
+### 4.2 Selecting an Improvement Approach
 
-| 改善アプローチ | 対象 | 具体的手法 | 優先度 |
+| Improvement Approach | Target | Specific Method | Priority |
 |--------------|------|-----------|--------|
-| 結合度を下げる | モジュール間 | DI、インターフェース、イベント駆動、Adapter | 高 |
-| 凝集度を上げる | モジュール内 | Extract Class、Move Method、Inline Class | 高 |
-| 両方同時に改善 | アーキテクチャ | ドメイン駆動設計（DDD）、モジュラーモノリス | 中 |
-| パッケージ再構成 | ディレクトリ | 機能凝集のパッケージ構成に移行 | 中 |
-| API境界の定義 | モジュール公開面 | Public API を最小限にし、内部を隠蔽 | 高 |
+| Reduce coupling | Between modules | DI, interfaces, event-driven, Adapter | High |
+| Increase cohesion | Within a module | Extract Class, Move Method, Inline Class | High |
+| Improve both at once | Architecture | Domain-Driven Design (DDD), modular monolith | Medium |
+| Restructure packages | Directories | Migrate to a functionally cohesive package structure | Medium |
+| Define API boundaries | Module public surface | Minimize public API, hide internals | High |
 
-### 4.3 アーキテクチャパターン別の結合度・凝集度
+### 4.3 Coupling and Cohesion by Architecture Pattern
 
 ```
-  アーキテクチャパターンと結合度・凝集度の関係
+  Architecture Patterns and Their Coupling/Cohesion Characteristics
 
-  ┌─────────────────┬───────┬───────┬─────────────────┐
-  │ パターン         │ 結合度 │ 凝集度 │ 特徴             │
-  ├─────────────────┼───────┼───────┼─────────────────┤
-  │ モノリス         │ 高    │ 低    │ 単一デプロイ      │
-  │ (レイヤード)     │       │       │ 変更影響: 大      │
-  ├─────────────────┼───────┼───────┼─────────────────┤
-  │ モジュラーモノリス│ 低-中 │ 高    │ 単一デプロイ      │
-  │                 │       │       │ モジュール境界明確 │
-  ├─────────────────┼───────┼───────┼─────────────────┤
-  │ マイクロサービス  │ 低    │ 高    │ 独立デプロイ      │
-  │                 │       │       │ 運用コスト: 高    │
-  ├─────────────────┼───────┼───────┼─────────────────┤
-  │ イベント駆動     │ 最低  │ 高    │ 非同期通信        │
-  │                 │       │       │ デバッグ困難      │
-  └─────────────────┴───────┴───────┴─────────────────┘
+  ┌─────────────────┬───────────┬───────────┬─────────────────┐
+  │ Pattern          │ Coupling  │ Cohesion  │ Characteristics  │
+  ├─────────────────┼───────────┼───────────┼─────────────────┤
+  │ Monolith         │ High      │ Low       │ Single deploy    │
+  │ (Layered)        │           │           │ Change impact: Large │
+  ├─────────────────┼───────────┼───────────┼─────────────────┤
+  │ Modular Monolith │ Low-Med   │ High      │ Single deploy    │
+  │                  │           │           │ Clear module boundaries │
+  ├─────────────────┼───────────┼───────────┼─────────────────┤
+  │ Microservices    │ Low       │ High      │ Independent deploy │
+  │                  │           │           │ Operational cost: High │
+  ├─────────────────┼───────────┼───────────┼─────────────────┤
+  │ Event-Driven     │ Lowest    │ High      │ Async communication │
+  │                  │           │           │ Debugging: Difficult │
+  └─────────────────┴───────────┴───────────┴─────────────────┘
 ```
 
-**コード例8: モジュラーモノリスの境界設計**
+**Code Example 8: Boundary Design in a Modular Monolith**
 
 ```python
-# === モジュラーモノリス: 明確な境界を持つモジュール設計 ===
+# === Modular Monolith: Module design with clear boundaries ===
 
-# --- モジュールの公開API（index.py / __init__.py） ---
+# --- Module's public API (index.py / __init__.py) ---
 
 # user_module/__init__.py
-"""User モジュールの公開API"""
+"""Public API for the User module"""
 from .service import UserService
 from .models import User, UserProfile
 from .events import UserCreatedEvent, UserDeletedEvent
 
-# 内部クラスはエクスポートしない
-# UserRepository, UserValidator, UserMapper は内部実装
+# Internal classes are not exported
+# UserRepository, UserValidator, UserMapper are internal implementations
 
 __all__ = ['UserService', 'User', 'UserProfile', 'UserCreatedEvent', 'UserDeletedEvent']
 
 
-# --- モジュール間の通信: 公開APIのみ使用 ---
+# --- Communication between modules: use only the public API ---
 
 # order_module/service.py
 class OrderService:
-    def __init__(self, user_service: UserService):  # 公開APIのみに依存
+    def __init__(self, user_service: UserService):  # Depends only on the public API
         self.user_service = user_service
 
     def create_order(self, user_id: str, items: list) -> Order:
-        # UserModule の公開APIのみ使用（内部実装にはアクセスしない）
+        # Uses only the UserModule's public API (does not access internal implementation)
         user = self.user_service.get_user(user_id)
         if not user:
             raise UserNotFoundError(user_id)
         return Order(user_id=user.id, items=items)
 
 
-# --- モジュール間のルール ---
-# 1. 他モジュールの内部クラスを直接 import しない
-# 2. 他モジュールのDBテーブルに直接アクセスしない
-# 3. モジュール間通信はイベントまたは公開APIのみ
-# 4. 共有データは共有カーネル（shared kernel）に配置
+# --- Rules for inter-module communication ---
+# 1. Do not directly import internal classes from other modules
+# 2. Do not directly access another module's DB tables
+# 3. Inter-module communication only via events or public APIs
+# 4. Shared data is placed in the shared kernel
 ```
 
 ---
 
-## 5. 実践的なリファクタリング手順
+## 5. Practical Refactoring Procedure
 
-### 5.1 低凝集クラスの分割手順
+### 5.1 Procedure for Splitting a Low-Cohesion Class
 
 ```
-  God Class の分割プロセス
+  God Class Splitting Process
 
-  Step 1: 責任の識別
+  Step 1: Identify responsibilities
   ┌─────────────────────────────────────────────┐
   │  God Class (ApplicationManager)             │
   │  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐      │
-  │  │ 認証  │ │ 決済  │ │ 通知  │ │ 在庫  │      │
+  │  │ Auth  │ │Payment│ │Notify│ │Invent│      │
   │  └──────┘ └──────┘ └──────┘ └──────┘      │
   └─────────────────────────────────────────────┘
 
@@ -1088,59 +1085,59 @@ class OrderService:
   │ AuthService│ │PayService │ │ NotifySvc │ │InventSvc │
   └──────────┘ └──────────┘ └──────────┘ └──────────┘
 
-  Step 3: インターフェースで結合度を管理
+  Step 3: Manage coupling with interfaces
   ┌──────────┐     ┌──────────────┐     ┌──────────┐
   │ AuthService│ ──→ │ <<interface>> │ ←── │PayService │
   └──────────┘     │  IPayment    │     └──────────┘
                     └──────────────┘
 ```
 
-**コード例9: God Class のリファクタリング**
+**Code Example 9: Refactoring a God Class**
 
 ```python
-# === Before: God Class（低凝集、高結合）===
+# === Before: God Class (low cohesion, high coupling) ===
 
 class ApplicationManager:
-    """すべての機能を持つ巨大クラス"""
+    """A massive class with all functionality"""
     def __init__(self):
         self.db = Database()
         self.smtp = SmtpClient()
         self.cache = RedisCache()
 
-    # 認証系
+    # Authentication
     def authenticate_user(self, username, password): ...
     def reset_password(self, email): ...
     def generate_token(self, user_id): ...
     def validate_token(self, token): ...
 
-    # 注文系
+    # Order processing
     def create_order(self, user_id, items): ...
     def cancel_order(self, order_id): ...
     def calculate_shipping(self, order_id): ...
 
-    # 通知系
+    # Notifications
     def send_email(self, to, subject, body): ...
     def send_sms(self, phone, message): ...
     def send_push_notification(self, device_id, message): ...
 
-    # 在庫系
+    # Inventory
     def check_inventory(self, product_id): ...
     def update_stock(self, product_id, quantity): ...
     def reorder_if_low(self, product_id): ...
 
-    # レポート系
+    # Reporting
     def generate_sales_report(self, period): ...
     def generate_inventory_report(self): ...
 
-    # → LCOM は 1.0 に近い（各メソッドグループが異なるフィールドを使用）
-    # → CBO は 20+ （大量の外部依存）
-    # → 変更理由が 5+ （認証、注文、通知、在庫、レポート）
+    # → LCOM is close to 1.0 (each method group uses different fields)
+    # → CBO is 20+ (massive external dependencies)
+    # → 5+ reasons to change (auth, orders, notifications, inventory, reports)
 
 
-# === After: 責任ごとに分割（高凝集、低結合）===
+# === After: Split by responsibility (high cohesion, low coupling) ===
 
 class AuthService:
-    """認証のみを担当（機能的凝集）"""
+    """Responsible only for authentication (functional cohesion)"""
     def __init__(self, user_repo: UserRepository, token_provider: TokenProvider):
         self.user_repo = user_repo
         self.token_provider = token_provider
@@ -1150,14 +1147,14 @@ class AuthService:
         if user and user.verify_password(password):
             token = self.token_provider.generate(user.id)
             return AuthResult.success(token)
-        return AuthResult.failure("認証失敗")
+        return AuthResult.failure("Authentication failed")
 
     def validate_token(self, token: str) -> TokenClaims | None:
         return self.token_provider.validate(token)
 
 
 class OrderService:
-    """注文処理のみを担当（機能的凝集）"""
+    """Responsible only for order processing (functional cohesion)"""
     def __init__(
         self,
         order_repo: OrderRepository,
@@ -1180,7 +1177,7 @@ class OrderService:
 
 
 class NotificationService:
-    """通知のみを担当（機能的凝集）"""
+    """Responsible only for notifications (functional cohesion)"""
     def __init__(self, channels: list[NotificationChannel]):
         self.channels = channels
 
@@ -1190,7 +1187,7 @@ class NotificationService:
 
 
 class InventoryService:
-    """在庫管理のみを担当（機能的凝集）"""
+    """Responsible only for inventory management (functional cohesion)"""
     def __init__(self, inventory_repo: InventoryRepository, event_bus: EventBus):
         self.repo = inventory_repo
         self.event_bus = event_bus
@@ -1206,83 +1203,83 @@ class InventoryService:
             self.event_bus.publish(LowStockEvent(product_id=product_id))
 ```
 
-### 5.2 高結合の解消手順
+### 5.2 Procedure for Resolving High Coupling
 
 ```
-  高結合の解消フローチャート
+  Flowchart for Resolving High Coupling
 
-  開始
+  Start
     │
     ▼
-  依存グラフを描く
+  Draw the dependency graph
     │
     ▼
-  循環依存はあるか？ ─── Yes ──→ 共通インターフェース抽出
-    │ No                          またはイベント駆動化
+  Are there circular dependencies? ─── Yes ──→ Extract a common interface
+    │ No                                        or use event-driven architecture
     ▼
-  直接 new しているか？ ─── Yes ──→ DI コンテナ導入
+  Is `new` called directly? ─── Yes ──→ Introduce a DI container
     │ No
     ▼
-  具象クラスに依存？ ─── Yes ──→ インターフェース抽出
+  Depending on a concrete class? ─── Yes ──→ Extract an interface
     │ No
     ▼
-  外部ライブラリに直接依存？ ─── Yes ──→ Adapter パターン
+  Directly depending on an external library? ─── Yes ──→ Adapter pattern
     │ No
     ▼
-  グローバル状態を共有？ ─── Yes ──→ 引数渡しに変更
+  Sharing global state? ─── Yes ──→ Change to argument passing
     │ No
     ▼
-  現在の結合度は適切
+  Current coupling level is appropriate
 ```
 
 ---
 
-## 6. マイクロサービスにおける結合度・凝集度
+## 6. Coupling and Cohesion in Microservices
 
-### 6.1 マイクロサービスの結合度問題
+### 6.1 Coupling Problems in Microservices
 
-マイクロサービスにすれば自動的に低結合になるわけではない。以下の表は分散システム特有の結合度問題を示す。
+Adopting microservices does not automatically result in low coupling. The following table shows coupling problems specific to distributed systems.
 
-| 結合の種類 | 説明 | 解決策 |
+| Type of Coupling | Description | Solution |
 |-----------|------|--------|
-| 共有データベース結合 | 複数サービスが同じDBテーブルを参照 | サービスごとにDBを分離 |
-| 同期API結合 | サービスAがサービスBのAPIを同期的に呼ぶ | 非同期メッセージングに変更 |
-| 共有ライブラリ結合 | 共通ライブラリのバージョンアップで全サービス再デプロイ | 契約テスト、独立バージョニング |
-| 時間的結合 | サービスAが利用可能でないとサービスBが動けない | サーキットブレーカー、フォールバック |
-| デプロイ結合 | サービスを一緒にデプロイしないと動かない | 独立デプロイ可能な設計に |
+| Shared database coupling | Multiple services reference the same DB table | Separate DB per service |
+| Synchronous API coupling | Service A calls Service B's API synchronously | Switch to asynchronous messaging |
+| Shared library coupling | A shared library upgrade requires redeployment of all services | Contract testing, independent versioning |
+| Temporal coupling | Service B cannot function if Service A is unavailable | Circuit breaker, fallback |
+| Deployment coupling | Services must be deployed together to work | Design for independent deployment |
 
-**コード例10: マイクロサービスの結合度管理**
+**Code Example 10: Managing Coupling in Microservices**
 
 ```python
-# === 悪い: 同期的なサービス間呼び出しチェーン ===
+# === Bad: Synchronous inter-service call chain ===
 
 class OrderApiHandler:
-    """注文API - 同期的に3つのサービスを呼ぶ"""
+    """Order API - synchronously calls 3 services"""
     async def create_order(self, request):
-        # 1. ユーザーサービスに問い合わせ（同期）
+        # 1. Query the user service (synchronous)
         user = await self.http_client.get(f"http://user-service/users/{request.user_id}")
-        # → user-service がダウンすると注文不可
+        # → If user-service is down, orders cannot be placed
 
-        # 2. 在庫サービスに問い合わせ（同期）
+        # 2. Query the inventory service (synchronous)
         stock = await self.http_client.get(
             f"http://inventory-service/stock/{request.product_id}"
         )
-        # → inventory-service がダウンすると注文不可
+        # → If inventory-service is down, orders cannot be placed
 
-        # 3. 決済サービスに問い合わせ（同期）
+        # 3. Query the payment service (synchronous)
         payment = await self.http_client.post(
             "http://payment-service/charge",
             json={"amount": request.total}
         )
-        # → payment-service がダウンすると注文不可
+        # → If payment-service is down, orders cannot be placed
 
-        # 3つのサービスすべてが利用可能でないと動かない（時間的結合）
+        # All 3 services must be available (temporal coupling)
 
 
-# === 良い: 非同期イベントとサーキットブレーカー ===
+# === Good: Async events and circuit breaker ===
 
 class OrderApiHandler:
-    """注文API - 非同期イベント駆動"""
+    """Order API - async event-driven"""
     def __init__(
         self,
         order_repo: OrderRepository,
@@ -1296,7 +1293,7 @@ class OrderApiHandler:
         self.user_cache = user_cache
 
     async def create_order(self, request) -> OrderResult:
-        # ユーザー情報はキャッシュから取得（user-service がダウンしても動く）
+        # Get user info from cache (works even if user-service is down)
         user = self.user_cache.get(request.user_id)
         if not user:
             user = await self.cb.call(
@@ -1304,11 +1301,11 @@ class OrderApiHandler:
             )
             self.user_cache.set(request.user_id, user)
 
-        # 注文を「保留」状態で保存（ローカルDBのみ）
+        # Save the order in 'PENDING' state (local DB only)
         order = Order(user_id=user.id, items=request.items, status='PENDING')
         self.order_repo.save(order)
 
-        # 非同期イベントを発行（他のサービスが独立して処理）
+        # Publish an async event (other services process it independently)
         await self.mq.publish('order.created', {
             'order_id': order.id,
             'items': [item.to_dict() for item in request.items],
@@ -1316,17 +1313,17 @@ class OrderApiHandler:
         })
 
         return OrderResult.pending(order.id)
-        # → 他のサービスがダウンしても注文の受付自体は可能
+        # → Even if other services are down, order acceptance itself is possible
 ```
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### アンチパターン1: God Module（低凝集の極致）
+### Anti-Pattern 1: God Module (The Epitome of Low Cohesion)
 
 ```python
-# NG: 1つのモジュールがシステム全体の機能を持つ
+# BAD: One module holds the functionality of the entire system
 class ApplicationManager:
     def authenticate_user(self, ...): ...
     def process_payment(self, ...): ...
@@ -1335,46 +1332,46 @@ class ApplicationManager:
     def update_inventory(self, ...): ...
     def calculate_shipping(self, ...): ...
     def manage_cache(self, ...): ...
-    # 全ドメインの知識がここに集中
-    # LCOM ≈ 1.0（各メソッドグループが異なるフィールドを使用）
-    # CBO ≥ 20（大量の外部依存）
+    # Knowledge of all domains is concentrated here
+    # LCOM ≈ 1.0 (each method group uses different fields)
+    # CBO ≥ 20 (massive external dependencies)
 
-# OK: ドメインごとにサービスを分割
+# GOOD: Split services by domain
 class AuthService:
-    """認証のみ"""
+    """Authentication only"""
     def authenticate(self, username, password): ...
     def validate_token(self, token): ...
 
 class PaymentService:
-    """決済のみ"""
+    """Payment only"""
     def charge(self, amount, payment_method): ...
     def refund(self, transaction_id): ...
 
 class NotificationService:
-    """通知のみ"""
+    """Notifications only"""
     def send_email(self, to, template, data): ...
     def send_push(self, device_id, message): ...
 ```
 
-### アンチパターン2: Shotgun Surgery（高結合の結果）
+### Anti-Pattern 2: Shotgun Surgery (Result of High Coupling)
 
 ```python
-# NG: 1つの変更が多数のファイルに波及する
-# 「消費税率を8%→10%に変更」で修正が必要なファイル:
+# BAD: One change ripples across many files
+# Files that need to be modified when "changing the consumption tax rate from 8% to 10%":
 #
-# - cart.py (税計算)
-# - invoice.py (請求書の税額)
-# - receipt.py (領収書の税額)
-# - report.py (レポートの税表示)
-# - api.py (APIレスポンスの税額)
-# - frontend/cart.js (フロントの税表示)
-# → 税率がDRY化されていない証拠
-# → 1箇所の変更が6ファイルに波及 = Shotgun Surgery
+# - cart.py (tax calculation)
+# - invoice.py (tax amount on invoices)
+# - receipt.py (tax amount on receipts)
+# - report.py (tax display in reports)
+# - api.py (tax amount in API responses)
+# - frontend/cart.js (tax display on the frontend)
+# → Evidence that the tax rate is not DRY
+# → A single change ripples to 6 files = Shotgun Surgery
 
-# OK: 税計算を1箇所に集約
+# GOOD: Consolidate tax calculation in one place
 class TaxCalculator:
-    """税計算の単一責任"""
-    TAX_RATE = Decimal('0.10')  # 税率は1箇所で管理
+    """Single responsibility for tax calculation"""
+    TAX_RATE = Decimal('0.10')  # Tax rate managed in one place
 
     @classmethod
     def calculate(cls, subtotal: Decimal) -> TaxResult:
@@ -1385,14 +1382,14 @@ class TaxCalculator:
     def get_display_rate(cls) -> str:
         return f"{cls.TAX_RATE * 100}%"
 
-# 全モジュールが TaxCalculator を使用
-# 税率変更時は TaxCalculator.TAX_RATE の1箇所のみ修正
+# All modules use TaxCalculator
+# When the tax rate changes, only TaxCalculator.TAX_RATE needs to be updated
 ```
 
-### アンチパターン3: 隠れた結合（Hidden Coupling）
+### Anti-Pattern 3: Hidden Coupling
 
 ```python
-# NG: 暗黙の実行順序依存
+# BAD: Implicit execution order dependency
 class DataProcessor:
     def __init__(self):
         self.data = None
@@ -1402,29 +1399,29 @@ class DataProcessor:
         self.data = read_file(path)
 
     def process(self):
-        # load() が先に呼ばれていることを暗黙に仮定
-        self.processed = transform(self.data)  # data が None だとエラー
+        # Implicitly assumes load() was called first
+        self.processed = transform(self.data)  # Error if data is None
 
     def save(self, path):
-        # process() が先に呼ばれていることを暗黙に仮定
-        write_file(path, self.processed)  # processed が None だとエラー
+        # Implicitly assumes process() was called first
+        write_file(path, self.processed)  # Error if processed is None
 
-# 呼び出し側が正しい順序を知っている必要がある（時間的結合）
+# The caller must know the correct order (temporal coupling)
 processor = DataProcessor()
 processor.load("input.csv")
 processor.process()
 processor.save("output.csv")
 
-# OK: メソッドチェーンまたは単一メソッドで順序を保証
+# GOOD: Guarantee order with method chaining or a single method
 class DataProcessor:
     @staticmethod
     def process_file(input_path: str, output_path: str) -> None:
-        """ファイル処理の全手順を1メソッドで実行"""
+        """Executes all steps of file processing in a single method"""
         data = read_file(input_path)
         processed = transform(data)
         write_file(output_path, processed)
 
-# または不変オブジェクトのパイプライン
+# Or a pipeline of immutable objects
 class DataProcessor:
     @staticmethod
     def load(path: str) -> RawData:
@@ -1438,7 +1435,7 @@ class DataProcessor:
     def save(data: ProcessedData, path: str) -> None:
         write_file(path, data.content)
 
-# 型システムが順序を強制
+# The type system enforces the order
 raw = DataProcessor.load("input.csv")
 processed = DataProcessor.process(raw)
 DataProcessor.save(processed, "output.csv")
@@ -1446,19 +1443,19 @@ DataProcessor.save(processed, "output.csv")
 
 ---
 
-## 8. 演習問題
+## 8. Exercises
 
-### 演習1（基礎）: 結合度と凝集度の識別
+### Exercise 1 (Basic): Identifying Coupling and Cohesion
 
-以下のコードの結合度・凝集度を評価し、問題点を特定してください。
+Evaluate the coupling and cohesion of the following code and identify the problems.
 
 ```python
-# 評価対象
+# Code to evaluate
 config = {"db_host": "localhost", "db_port": 5432, "api_key": "secret"}
 
 class AppService:
     def get_user(self, user_id):
-        host = config["db_host"]  # グローバル変数に依存
+        host = config["db_host"]  # Depends on a global variable
         conn = connect(host, config["db_port"])
         return conn.query(f"SELECT * FROM users WHERE id = {user_id}")
 
@@ -1473,29 +1470,29 @@ class AppService:
         return img.resize((width, height))
 ```
 
-**期待される回答:**
+**Expected Answer:**
 
 ```
-結合度の評価:
-- 共通結合: グローバル変数 config に依存（Bad）
-- 内容結合に近い: SQL文を直接構築（DB構造に依存）
-- 外部結合: SMTP サーバーのアドレスをハードコード
+Coupling Evaluation:
+- Common Coupling: Depends on the global variable `config` (Bad)
+- Near Content Coupling: Constructs SQL directly (depends on DB structure)
+- External Coupling: Hardcodes the SMTP server address
 
-凝集度の評価:
-- 偶発的凝集: DB操作、メール送信、画像処理が1クラスに混在
-- LCOM ≈ 1.0（各メソッドが異なるリソースを使用）
+Cohesion Evaluation:
+- Coincidental Cohesion: DB operations, email sending, and image processing are mixed in one class
+- LCOM ≈ 1.0 (each method uses different resources)
 
-改善案:
-1. UserRepository（DB操作専用）
-2. EmailService（メール送信専用）
-3. ImageProcessor（画像処理専用）
-4. 各クラスにDIで依存を注入
-5. グローバル変数 config は設定クラスとして注入
+Improvement Plan:
+1. UserRepository (dedicated to DB operations)
+2. EmailService (dedicated to email sending)
+3. ImageProcessor (dedicated to image processing)
+4. Inject dependencies into each class via DI
+5. The global variable `config` should be injected as a configuration class
 ```
 
-### 演習2（応用）: Facade パターンで結合度を改善
+### Exercise 2 (Applied): Improving Coupling with the Facade Pattern
 
-以下の高結合なコードをFacadeパターンでリファクタリングしてください。
+Refactor the following tightly coupled code using the Facade pattern.
 
 ```typescript
 class CheckoutPage {
@@ -1506,7 +1503,7 @@ class CheckoutPage {
       method: 'POST', body: JSON.stringify(cart.items)
     }).then(r => r.json());
 
-    if (!inventory.available) throw new Error('在庫不足');
+    if (!inventory.available) throw new Error('Out of stock');
 
     const tax = cart.subtotal * 0.1;
     const shipping = cart.items.length > 3 ? 0 : 500;
@@ -1527,10 +1524,10 @@ class CheckoutPage {
 }
 ```
 
-**期待される回答:**
+**Expected Answer:**
 
 ```typescript
-// CheckoutFacade: 内部の複雑さを隠蔽
+// CheckoutFacade: hides internal complexity
 class CheckoutFacade {
   constructor(
     private cartService: CartService,
@@ -1550,16 +1547,16 @@ class CheckoutFacade {
     const pricing = this.pricingService.calculate(cart);
     const payment = await this.paymentService.charge(user, pricing.total);
 
-    // 非クリティカル: 失敗しても注文は成功
+    // Non-critical: order is considered successful even if notification fails
     await this.notificationService
       .sendOrderConfirmation(user.email, pricing)
-      .catch(err => console.warn('通知失敗', err));
+      .catch(err => console.warn('Notification failed', err));
 
     return { orderId: payment.orderId, total: pricing.total };
   }
 }
 
-// CheckoutPage は Facade だけに依存
+// CheckoutPage depends only on the Facade
 class CheckoutPage {
   constructor(private checkout: CheckoutFacade) {}
 
@@ -1569,9 +1566,9 @@ class CheckoutPage {
 }
 ```
 
-### 演習3（発展）: LCOM の計算と改善
+### Exercise 3 (Advanced): Calculating LCOM and Improving Cohesion
 
-以下のクラスのLCOM（Henderson-Sellers版）を計算し、凝集度を改善するリファクタリングを行ってください。
+Calculate the LCOM (Henderson-Sellers version) for the following class, and refactor it to improve cohesion.
 
 ```python
 class ReportManager:
@@ -1605,29 +1602,29 @@ class ReportManager:
         return sum(i.price * i.quantity for i in self.inventory_data)
 ```
 
-**期待される回答:**
+**Expected Answer:**
 
 ```
-LCOM* 計算:
-- メソッド数 (m) = 8
-- フィールド数 (f) = 3
-- sales_data: add_sale, get_total_sales, get_top_seller → 3メソッド
-- employee_data: add_employee, get_average_salary → 2メソッド
-- inventory_data: add_inventory_item, get_low_stock_items, get_inventory_value → 3メソッド
+LCOM* Calculation:
+- Number of methods (m) = 8
+- Number of fields (f) = 3
+- sales_data: add_sale, get_total_sales, get_top_seller → 3 methods
+- employee_data: add_employee, get_average_salary → 2 methods
+- inventory_data: add_inventory_item, get_low_stock_items, get_inventory_value → 3 methods
 
 LCOM* = (8 - (1/3) * (3+2+3)) / (8-1)
        = (8 - 2.67) / 7
        = 5.33 / 7
        = 0.76
 
-LCOM* = 0.76 → 凝集度が低い（1.0に近い）
+LCOM* = 0.76 → Low cohesion (close to 1.0)
 
-改善: 3つのクラスに分割
+Improvement: Split into 3 classes
 ```
 
 ```python
 class SalesReport:
-    """売上レポート（機能的凝集）"""
+    """Sales report (functional cohesion)"""
     def __init__(self):
         self.sales_data: list[Sale] = []
 
@@ -1639,10 +1636,10 @@ class SalesReport:
 
     def get_top_seller(self) -> Sale:
         return max(self.sales_data, key=lambda s: s.amount)
-    # LCOM* = (3 - (1/1) * 3) / (3-1) = 0 / 2 = 0 ★完全凝集
+    # LCOM* = (3 - (1/1) * 3) / (3-1) = 0 / 2 = 0 ★Perfectly cohesive
 
 class EmployeeReport:
-    """従業員レポート（機能的凝集）"""
+    """Employee report (functional cohesion)"""
     def __init__(self):
         self.employee_data: list[Employee] = []
 
@@ -1653,10 +1650,10 @@ class EmployeeReport:
         if not self.employee_data:
             return 0.0
         return sum(e.salary for e in self.employee_data) / len(self.employee_data)
-    # LCOM* = (2 - (1/1) * 2) / (2-1) = 0 / 1 = 0 ★完全凝集
+    # LCOM* = (2 - (1/1) * 2) / (2-1) = 0 / 1 = 0 ★Perfectly cohesive
 
 class InventoryReport:
-    """在庫レポート（機能的凝集）"""
+    """Inventory report (functional cohesion)"""
     def __init__(self):
         self.inventory_data: list[InventoryItem] = []
 
@@ -1668,111 +1665,111 @@ class InventoryReport:
 
     def get_total_value(self) -> float:
         return sum(i.price * i.quantity for i in self.inventory_data)
-    # LCOM* = (3 - (1/1) * 3) / (3-1) = 0 / 2 = 0 ★完全凝集
+    # LCOM* = (3 - (1/1) * 3) / (3-1) = 0 / 2 = 0 ★Perfectly cohesive
 ```
 
 ---
 
 ## 9. FAQ
 
-### Q1: 結合度ゼロは目指すべきか？
+### Q1: Should we aim for zero coupling?
 
-結合度ゼロは不可能であり、目指すべきでもない。モジュール間の通信がなければシステムは機能しない。目指すのは**必要最小限の、明示的な結合**。暗黙の依存（グローバル変数、隠れた副作用）を排除し、明示的なインターフェースを通じた依存に置き換えることが重要。
+Zero coupling is impossible and should not be the goal. A system cannot function without communication between modules. The goal is **the minimum necessary, explicit coupling**. The key is to eliminate implicit dependencies (global variables, hidden side effects) and replace them with dependencies through explicit interfaces.
 
-理想は「安定した抽象への依存」であり、具体的には以下を目指す。
-- 具象クラスではなくインターフェースに依存する
-- 広い公開APIではなく最小限のインターフェースに依存する
-- 同期呼び出しではなく非同期イベントで通信する（適切な場面で）
+The ideal is "dependency on stable abstractions," specifically aiming for the following:
+- Depend on interfaces rather than concrete classes
+- Depend on minimal interfaces rather than broad public APIs
+- Communicate via asynchronous events rather than synchronous calls (where appropriate)
 
-### Q2: マイクロサービスにすれば自動的に低結合になるか？
+### Q2: Does adopting microservices automatically result in low coupling?
 
-ならない。分散システムでもサービス間の結合は存在する。共有データベース、同期的なAPI呼び出しチェーン、共有ライブラリによる結合は、モノリス以上に管理が困難になる場合がある（「分散モノリス」と呼ばれる）。
+No. Coupling between services exists in distributed systems too. Shared databases, chains of synchronous API calls, and coupling through shared libraries can be even more difficult to manage than in a monolith (this is called a "distributed monolith").
 
-マイクロサービスの恩恵を受けるには、以下が必須。
-- 各サービスが独自のデータストアを持つ
-- サービス間の通信を非同期メッセージングにする
-- 契約テスト（Contract Testing）でAPI互換性を保証する
-- サーキットブレーカーで障害伝播を防ぐ
+To benefit from microservices, the following are essential:
+- Each service has its own data store
+- Inter-service communication uses asynchronous messaging
+- Contract Testing ensures API compatibility
+- Circuit breakers prevent failure propagation
 
-### Q3: ユーティリティクラスは凝集度が低いので作るべきではないか？
+### Q3: Should utility classes be avoided because they have low cohesion?
 
-「何でも入りのUtils」は避けるべきだが、**明確なテーマを持ったユーティリティ**（例: `StringUtils`, `DateUtils`）は論理的凝集であり実用上許容される。ただし、ドメインロジックがユーティリティに漏れていないか定期的に検証する。
+"Catch-all Utils" should be avoided, but **utilities with a clear theme** (e.g., `StringUtils`, `DateUtils`) represent logical cohesion and are practically acceptable. However, regularly verify that domain logic is not leaking into utilities.
 
-判断基準:
-- `Utils` / `Helper` / `Manager` は名前がレッドフラグ
-- `StringFormatter`, `DateParser`, `PathNormalizer` は許容範囲
-- ユーティリティに入れたメソッドが特定のドメインの知識を必要とするなら、そのドメインクラスに移動すべき
+Decision criteria:
+- `Utils` / `Helper` / `Manager` are red flags in names
+- `StringFormatter`, `DateParser`, `PathNormalizer` are within acceptable range
+- If a method in a utility requires knowledge specific to a domain, it should be moved to that domain class
 
-### Q4: テストコードの結合度・凝集度も気にすべきか？
+### Q4: Should we also care about coupling and cohesion in test code?
 
-テストコードは本番コードとは異なる判断基準がある。テストの「3A (Arrange-Act-Assert)」パターンに従い、1テストが1つの振る舞いを検証していれば（機能的凝集）、テスト自体の凝集度は問題ない。
+Test code has different criteria than production code. If tests follow the "3A (Arrange-Act-Assert)" pattern and each test verifies one behavior (functional cohesion), the cohesion of the test itself is not a problem.
 
-ただし、テストヘルパーやフィクスチャが神クラスになることは避ける。テストユーティリティも適切に分割する。
+However, avoid test helpers and fixtures becoming god classes. Test utilities should also be split appropriately.
 
-### Q5: LCOM のしきい値はいくつにすべきか？
+### Q5: What should the LCOM threshold be?
 
-一般的なガイドライン:
-- LCOM* = 0.0 ~ 0.3: 凝集度が高い（問題なし）
-- LCOM* = 0.3 ~ 0.6: 注意が必要（分割を検討）
-- LCOM* = 0.6 ~ 1.0: 凝集度が低い（分割推奨）
+General guidelines:
+- LCOM* = 0.0 ~ 0.3: High cohesion (no problem)
+- LCOM* = 0.3 ~ 0.6: Needs attention (consider splitting)
+- LCOM* = 0.6 ~ 1.0: Low cohesion (splitting recommended)
 
-ただし、LCOM はあくまで指標の1つ。クラスの責任が明確で変更理由が1つなら、数値が高くても問題ない場合がある。数値と設計意図を総合的に判断する。
+However, LCOM is just one indicator. If a class's responsibility is clear and it has only one reason to change, a high number may not be a problem. Make a holistic judgment combining the metric with design intent.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and confirming how it behaves.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in everyday development work. It is especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 指標 | 目標 | 達成手段 | 測定方法 | しきい値 |
+| Metric | Goal | How to Achieve | How to Measure | Threshold |
 |------|------|---------|---------|---------|
-| 結合度 | 低く保つ | DI、IF、イベント、Adapter | CBO、Ca/Ce、Instability | CBO ≤ 10 |
-| 凝集度 | 高く保つ | SRP、Extract Class | LCOM（凝集度メトリクス） | LCOM* ≤ 0.3 |
-| バランス | 低結合+高凝集 | ドメイン駆動設計 | 変更影響範囲の分析 | -- |
-| パッケージ | ドメイン基準 | 機能凝集のパッケージ構成 | 変更が1パッケージ内で完結 | -- |
+| Coupling | Keep low | DI, interfaces, events, Adapter | CBO, Ca/Ce, Instability | CBO ≤ 10 |
+| Cohesion | Keep high | SRP, Extract Class | LCOM (cohesion metric) | LCOM* ≤ 0.3 |
+| Balance | Low coupling + High cohesion | Domain-Driven Design | Analysis of change impact scope | -- |
+| Packages | Domain-based | Functionally cohesive package structure | Changes are contained within one package | -- |
 
-| 改善シグナル | 疑うべき問題 | 確認方法 |
+| Improvement Signal | Problem to Suspect | How to Check |
 |------------|------------|---------|
-| 1変更で多数ファイル修正 | Shotgun Surgery (高結合) | 変更履歴分析 |
-| クラスが500行超 | God Class (低凝集) | 行数カウント |
-| テストでモック10個以上 | 高結合 | テストコード確認 |
-| `Utils` / `Helper` の肥大化 | 低凝集 | クラス名チェック |
-| 循環依存の発生 | 設計レベルの問題 | 依存グラフ分析 |
+| Many files modified for one change | Shotgun Surgery (high coupling) | Change history analysis |
+| Class exceeds 500 lines | God Class (low cohesion) | Line count |
+| 10+ mocks in tests | High coupling | Test code review |
+| Bloated `Utils` / `Helper` | Low cohesion | Class name check |
+| Circular dependencies | Architecture-level problem | Dependency graph analysis |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [デメテルの法則](./04-law-of-demeter.md) ── 結合度を下げるための具体的規則
-- [SOLID原則](./01-solid.md) ── 特にSRPとDIPが結合度・凝集度に直結
-- [合成 vs 継承](../03-practices-advanced/01-composition-over-inheritance.md) ── 結合度に影響する設計判断
-- [コードスメル](../02-refactoring/00-code-smells.md) ── God Class、Shotgun Surgery の詳細
-- リファクタリング技法 ── Extract Class、Move Method の手順
+- [Law of Demeter](./04-law-of-demeter.md) — A specific rule for reducing coupling
+- [SOLID Principles](./01-solid.md) — Especially SRP and DIP, which directly relate to coupling and cohesion
+- [Composition vs Inheritance](../03-practices-advanced/01-composition-over-inheritance.md) — Design decisions that affect coupling
+- [Code Smells](../02-refactoring/00-code-smells.md) — Details on God Class and Shotgun Surgery
+- Refactoring Techniques — Steps for Extract Class and Move Method
 
 ---
 
-## 参考文献
+## References
 
-1. **Larry Constantine, Edward Yourdon** 『Structured Design: Fundamentals of a Discipline of Computer Program and Systems Design』 Yourdon Press, 1979 ── 結合度・凝集度の原典
-2. **Glenford J. Myers** 『Composite/Structured Design』 Van Nostrand Reinhold, 1978 ── 構造化設計の古典
-3. **Robert C. Martin** 『Clean Architecture: A Craftsman's Guide to Software Structure and Design』 Prentice Hall, 2017 ── 安定依存の原則（SDP）、安定抽象の原則（SAP）
-4. **Eric Evans** 『Domain-Driven Design: Tackling Complexity in the Heart of Software』 Addison-Wesley, 2003 ── Bounded Context とモジュール設計
-5. **Sam Newman** 『Building Microservices: Designing Fine-Grained Systems』 O'Reilly Media, 2021 (2nd Edition) ── マイクロサービスの結合度管理
-6. **Brian Henderson-Sellers** "Software Metrics" Prentice Hall, 1996 ── LCOM* メトリクスの定義
-7. **J.M. Bieman, B.K. Kang** "Cohesion and Reuse in an Object-Oriented System" Proceedings of the 1995 Symposium on Software Reusability, 1995 ── 凝集度と再利用性の実証研究
-8. **Martin Fowler** 『Refactoring: Improving the Design of Existing Code』 Addison-Wesley, 2018 ── Feature Envy、Shotgun Surgery、God Class のリファクタリング
+1. **Larry Constantine, Edward Yourdon** *Structured Design: Fundamentals of a Discipline of Computer Program and Systems Design*, Yourdon Press, 1979 — The original source on coupling and cohesion
+2. **Glenford J. Myers** *Composite/Structured Design*, Van Nostrand Reinhold, 1978 — A classic on structured design
+3. **Robert C. Martin** *Clean Architecture: A Craftsman's Guide to Software Structure and Design*, Prentice Hall, 2017 — Stable Dependencies Principle (SDP), Stable Abstractions Principle (SAP)
+4. **Eric Evans** *Domain-Driven Design: Tackling Complexity in the Heart of Software*, Addison-Wesley, 2003 — Bounded Context and module design
+5. **Sam Newman** *Building Microservices: Designing Fine-Grained Systems*, O'Reilly Media, 2021 (2nd Edition) — Coupling management in microservices
+6. **Brian Henderson-Sellers** *Software Metrics*, Prentice Hall, 1996 — Definition of the LCOM* metric
+7. **J.M. Bieman, B.K. Kang** "Cohesion and Reuse in an Object-Oriented System" *Proceedings of the 1995 Symposium on Software Reusability*, 1995 — Empirical study on cohesion and reusability
+8. **Martin Fowler** *Refactoring: Improving the Design of Existing Code*, Addison-Wesley, 2018 — Refactoring of Feature Envy, Shotgun Surgery, and God Class
