@@ -1,377 +1,376 @@
-# 検索エンジン設計
+# Search Engine Design
 
-> 大規模データセットに対する全文検索システムの設計原則を、転置インデックス・ランキングアルゴリズム・分散アーキテクチャ・Elasticsearch の実装を通じて解説し、検索品質とパフォーマンスを両立させるアーキテクチャを構築する
-
----
-
-## この章で学ぶこと
-
-1. **検索エンジンの基本原理** -- 転置インデックスの内部構造、トークナイズ処理、TF-IDF/BM25 ランキングの数学的背景と直感的理解
-2. **システムアーキテクチャ** -- インデックス構築パイプライン、クエリ処理フロー、分散検索の Scatter-Gather パターン、レプリケーション戦略
-3. **Elasticsearch を用いた実装** -- マッピング設計、日本語形態素解析、クエリ最適化、オートコンプリート、集計
-4. **検索品質の改善手法** -- 同義語辞書、Function Score Query、Learning to Rank、A/Bテスト
-5. **運用と監視** -- クラスタ管理、インデックスライフサイクル、パフォーマンスチューニング、障害対応
+> This guide explains the design principles of full-text search systems for large-scale datasets, covering inverted indexes, ranking algorithms, distributed architectures, and Elasticsearch implementation — building an architecture that balances search quality with performance.
 
 ---
 
-## 前提知識
+## What You Will Learn in This Chapter
 
-この章を理解するために、以下の知識を事前に身につけておくことを推奨する。
+1. **Fundamentals of search engines** -- The internal structure of inverted indexes, tokenization, and the mathematical background and intuition behind TF-IDF/BM25 ranking
+2. **System architecture** -- Index construction pipelines, query processing flows, the Scatter-Gather pattern for distributed search, and replication strategies
+3. **Implementation with Elasticsearch** -- Mapping design, Japanese morphological analysis, query optimization, autocomplete, and aggregations
+4. **Search quality improvement techniques** -- Synonym dictionaries, Function Score Query, Learning to Rank, and A/B testing
+5. **Operations and monitoring** -- Cluster management, index lifecycle, performance tuning, and incident response
 
-| 前提知識 | 参照先 |
+---
+
+## Prerequisites
+
+It is recommended to have the following knowledge before reading this chapter.
+
+| Prerequisite | Reference |
 |---------|--------|
-| システム設計の基本概念(スケーラビリティ、可用性) | [スケーラビリティ](../00-fundamentals/01-scalability.md) |
-| CAP 定理と分散システムのトレードオフ | [CAP 定理](../00-fundamentals/03-cap-theorem.md) |
-| メッセージキューの基礎(Kafka など) | [メッセージキュー](../01-components/02-message-queue.md) |
-| データベーススケーリングの基本 | [DB スケーリング](../01-components/04-database-scaling.md) |
-| キャッシュ戦略 | [キャッシング](../01-components/01-caching.md) |
-| Observer パターン(イベント駆動の理解) | [Observer パターン](../../../design-patterns-guide/docs/02-behavioral/00-observer.md) |
+| Basic system design concepts (scalability, availability) | [Scalability](../00-fundamentals/01-scalability.md) |
+| CAP theorem and distributed system trade-offs | [CAP Theorem](../00-fundamentals/03-cap-theorem.md) |
+| Message queue basics (Kafka, etc.) | [Message Queue](../01-components/02-message-queue.md) |
+| Database scaling fundamentals | [DB Scaling](../01-components/04-database-scaling.md) |
+| Caching strategies | [Caching](../01-components/01-caching.md) |
+| Observer pattern (understanding event-driven systems) | [Observer Pattern](../../../design-patterns-guide/docs/02-behavioral/00-observer.md) |
 
 ---
 
-## 1. 検索エンジンの基本原理
+## 1. Fundamentals of Search Engines
 
-### 1.1 なぜ検索エンジンが必要なのか (WHY)
+### 1.1 Why Search Engines Are Necessary (WHY)
 
-リレーショナルデータベースの `LIKE '%keyword%'` クエリは、テーブルのフルスキャンを引き起こす。100万行のテーブルで `LIKE` 検索を実行すると数秒から数十秒かかり、1億行になるとタイムアウトする。B-Tree インデックスは前方一致(`LIKE 'keyword%'`)にしか効かず、中間一致・後方一致には無力である。
+A `LIKE '%keyword%'` query against a relational database triggers a full table scan. Running a `LIKE` search on a table with one million rows takes several seconds to tens of seconds; with one hundred million rows it times out. B-Tree indexes only help with prefix matches (`LIKE 'keyword%'`) and are useless for infix or suffix matches.
 
-さらに、自然言語の検索には以下の課題がある:
+Natural language search also presents the following challenges:
 
-- **形態素解析**: 「東京タワーの観光ガイド」を「東京」「タワー」「観光」「ガイド」に分割する必要がある
-- **表記揺れ**: 「パソコン」「PC」「コンピュータ」を同一視する必要がある
-- **ランキング**: 検索結果を関連性順に並べる必要がある
-- **スケール**: 数十億ドキュメントに対してミリ秒単位で応答する必要がある
+- **Morphological analysis**: "Tokyo Tower sightseeing guide" must be split into individual meaningful tokens
+- **Spelling variations**: "PC", "personal computer", and "computer" need to be treated as equivalent
+- **Ranking**: Search results must be sorted by relevance
+- **Scale**: Responses must be returned in milliseconds for billions of documents
 
-これらの課題を解決するのが、専用の検索エンジンである。検索エンジンは転置インデックスという特殊なデータ構造を使い、テキストの全文検索を O(1) に近い計算量で実現する。
+A dedicated search engine solves these challenges. A search engine uses a specialized data structure called an inverted index to achieve full-text search with near O(1) complexity.
 
 ```
-なぜ専用検索エンジンが必要か:
+Why a dedicated search engine is necessary:
 
-  問題: RDB の LIKE 検索
+  Problem: LIKE search in RDB
   +--------------------------------------------------+
   | SELECT * FROM products                            |
-  | WHERE name LIKE '%東京%'                           |
+  | WHERE name LIKE '%Tokyo%'                         |
   |                                                    |
-  | 実行計画: Full Table Scan                           |
-  | 100万行 → 2-5秒                                    |
-  | 1億行  → タイムアウト                               |
-  | 形態素解析: なし                                     |
-  | ランキング: なし                                     |
-  | 同義語: 非対応                                      |
+  | Execution plan: Full Table Scan                   |
+  | 1M rows → 2-5 seconds                            |
+  | 100M rows → timeout                              |
+  | Morphological analysis: none                      |
+  | Ranking: none                                     |
+  | Synonyms: not supported                           |
   +--------------------------------------------------+
-         ↓ 解決策
+         ↓ Solution
   +--------------------------------------------------+
-  | Elasticsearch (転置インデックス)                     |
+  | Elasticsearch (Inverted Index)                    |
   |                                                    |
-  | 100万ドキュメント → 10-50ms                         |
-  | 1億ドキュメント   → 50-200ms                        |
-  | 形態素解析: kuromoji (日本語対応)                     |
-  | ランキング: BM25 + カスタムスコアリング               |
-  | 同義語: synonym filter 対応                         |
+  | 1M documents → 10-50ms                           |
+  | 100M documents → 50-200ms                        |
+  | Morphological analysis: kuromoji (Japanese)       |
+  | Ranking: BM25 + custom scoring                   |
+  | Synonyms: synonym filter supported               |
   +--------------------------------------------------+
 ```
 
-### 1.2 転置インデックスの内部構造
+### 1.2 Internal Structure of the Inverted Index
 
-転置インデックス (Inverted Index) は、検索エンジンの核となるデータ構造である。「語 (Term) → その語を含む文書リスト (Posting List)」のマッピングを保持する。これは書籍の「索引 (Index)」と同じ発想だ。書籍の索引では「キーワード → ページ番号」のマッピングがあり、目的のキーワードが書かれたページをすぐに見つけられる。
-
-```
-文書 (Document):
-  Doc1: "東京の天気は晴れです"
-  Doc2: "大阪の天気は雨です"
-  Doc3: "東京タワーの観光ガイド"
-
-Step 1: トークナイズ (形態素解析)
-  Doc1 → ["東京", "の", "天気", "は", "晴れ", "です"]
-  Doc2 → ["大阪", "の", "天気", "は", "雨", "です"]
-  Doc3 → ["東京", "タワー", "の", "観光", "ガイド"]
-
-Step 2: フィルタリング (ストップワード除去)
-  Doc1 → ["東京", "天気", "晴れ"]
-  Doc2 → ["大阪", "天気", "雨"]
-  Doc3 → ["東京", "タワー", "観光", "ガイド"]
-
-Step 3: 転置インデックス構築
-  +----------+--------------------------------------------+
-  | Term     | Posting List                               |
-  |          | (DocID, TermFreq, [Positions])             |
-  +----------+--------------------------------------------+
-  | "東京"   | [(Doc1, 1, [0]), (Doc3, 1, [0])]           |
-  | "天気"   | [(Doc1, 1, [1]), (Doc2, 1, [1])]           |
-  | "晴れ"   | [(Doc1, 1, [2])]                           |
-  | "大阪"   | [(Doc2, 1, [0])]                           |
-  | "雨"     | [(Doc2, 1, [2])]                           |
-  | "タワー" | [(Doc3, 1, [1])]                           |
-  | "観光"   | [(Doc3, 1, [2])]                           |
-  | "ガイド" | [(Doc3, 1, [3])]                           |
-  +----------+--------------------------------------------+
-
-Step 4: 検索実行 "東京 天気"
-  "東京" → {Doc1, Doc3}
-  "天気" → {Doc1, Doc2}
-  AND 演算: {Doc1, Doc3} ∩ {Doc1, Doc2} = {Doc1}
-  OR  演算: {Doc1, Doc3} ∪ {Doc1, Doc2} = {Doc1, Doc2, Doc3}
-```
-
-#### なぜ転置インデックスが高速なのか
-
-転置インデックスの検索は、ハッシュマップのルックアップと同様に O(1) に近い計算量で実行される。具体的には以下のステップで動作する:
-
-1. **Term Dictionary**: 全ての語をソート済みで保持し、二分探索で O(log N) で検索
-2. **Posting List**: 見つかった語に対応する文書 ID リストを取得 (O(1))
-3. **Boolean 演算**: 複数の Posting List をマージ (ソート済みリストのマージで O(M+N))
-
-Lucene (Elasticsearch の内部エンジン) では、Term Dictionary に FST (Finite State Transducer) というデータ構造を使い、メモリ効率を高めながら高速な前方一致検索を実現している。
+The inverted index is the core data structure of a search engine. It holds a mapping from "term → list of documents containing that term (posting list)". This is the same concept as a book index. In a book index, there is a mapping of "keyword → page number", allowing you to immediately find pages that mention a keyword.
 
 ```
-転置インデックスの内部データ構造 (Lucene):
+Documents:
+  Doc1: "The weather in Tokyo is sunny"
+  Doc2: "The weather in Osaka is rainy"
+  Doc3: "Sightseeing guide for Tokyo Tower"
+
+Step 1: Tokenize (morphological analysis)
+  Doc1 → ["weather", "Tokyo", "sunny"]
+  Doc2 → ["weather", "Osaka", "rainy"]
+  Doc3 → ["Tokyo", "Tower", "sightseeing", "guide"]
+
+Step 2: Filtering (stop word removal)
+  Doc1 → ["Tokyo", "weather", "sunny"]
+  Doc2 → ["Osaka", "weather", "rainy"]
+  Doc3 → ["Tokyo", "Tower", "sightseeing", "guide"]
+
+Step 3: Build inverted index
+  +------------+--------------------------------------------+
+  | Term       | Posting List                               |
+  |            | (DocID, TermFreq, [Positions])             |
+  +------------+--------------------------------------------+
+  | "Tokyo"    | [(Doc1, 1, [0]), (Doc3, 1, [0])]           |
+  | "weather"  | [(Doc1, 1, [1]), (Doc2, 1, [1])]           |
+  | "sunny"    | [(Doc1, 1, [2])]                           |
+  | "Osaka"    | [(Doc2, 1, [0])]                           |
+  | "rainy"    | [(Doc2, 1, [2])]                           |
+  | "Tower"    | [(Doc3, 1, [1])]                           |
+  | "sightseeing" | [(Doc3, 1, [2])]                        |
+  | "guide"    | [(Doc3, 1, [3])]                           |
+  +------------+--------------------------------------------+
+
+Step 4: Execute search "Tokyo weather"
+  "Tokyo"   → {Doc1, Doc3}
+  "weather" → {Doc1, Doc2}
+  AND operation: {Doc1, Doc3} ∩ {Doc1, Doc2} = {Doc1}
+  OR  operation: {Doc1, Doc3} ∪ {Doc1, Doc2} = {Doc1, Doc2, Doc3}
+```
+
+#### Why the Inverted Index Is Fast
+
+Searching an inverted index runs in near O(1) complexity, similar to a hashmap lookup. It works in the following specific steps:
+
+1. **Term Dictionary**: Holds all terms in sorted order; searched in O(log N) with binary search
+2. **Posting List**: Retrieves the document ID list corresponding to the found term (O(1))
+3. **Boolean operations**: Merges multiple posting lists (O(M+N) with sorted list merge)
+
+Lucene (the internal engine of Elasticsearch) uses a data structure called FST (Finite State Transducer) for the Term Dictionary, achieving fast prefix search while keeping memory usage efficient.
+
+```
+Internal data structure of the inverted index (Lucene):
 
   +-- Term Dictionary (FST: Finite State Transducer) --+
-  | メモリ上に配置、前方一致で高速検索                      |
+  | Placed in memory, fast prefix search                |
   |                                                      |
-  | "大阪" → Block 0x3A (ディスク上の位置)                 |
-  | "東京" → Block 0x1F                                   |
-  | "天気" → Block 0x2B                                   |
-  | ...                                                   |
+  | "Osaka"     → Block 0x3A (position on disk)         |
+  | "Tokyo"     → Block 0x1F                            |
+  | "weather"   → Block 0x2B                            |
+  | ...                                                  |
   +------------------------------------------------------+
             |
             v
   +-- Term Index (Skip List) ----+
-  | Term → Posting List の位置    |
+  | Term → position of Posting List |
   +------------------------------+
             |
             v
   +-- Posting List (.doc file) --+
-  | DocID のソート済みリスト       |
-  | 差分符号化で圧縮               |
+  | Sorted list of DocIDs         |
+  | Compressed with delta coding  |
   | [1, 3, 7, 15, 20, ...]       |
-  | → 差分: [1, 2, 4, 8, 5, ...] |
-  | → VByte 符号化でさらに圧縮    |
+  | → Deltas: [1, 2, 4, 8, 5, ...]|
+  | → Further compressed with VByte encoding |
   +------------------------------+
             |
             v
   +-- Position (.pos file) ------+
-  | 各 Doc 内での出現位置          |
-  | フレーズ検索に使用             |
+  | Occurrence positions within each Doc |
+  | Used for phrase search        |
   +------------------------------+
             |
             v
   +-- Stored Fields (.fdt) ------+
-  | 元の文書の内容(圧縮保存)       |
-  | ハイライト表示に使用            |
+  | Original document content (compressed) |
+  | Used for highlight display    |
   +------------------------------+
 ```
 
-### 1.3 検索パイプライン
+### 1.3 Search Pipeline
 
-検索エンジンには「書き込みパス (Write Path)」と「読み取りパス (Read Path)」の2つの処理フローがある。
+A search engine has two processing flows: the "Write Path (index construction)" and the "Read Path (query processing)".
 
 ```
-===================== Write Path (インデックス構築) =====================
+===================== Write Path (Index Construction) =====================
 
   Raw Data ──→ [Crawler / Ingest API]
                      │
                      v
-              [Text Extraction]       PDF/HTML/JSON からテキスト抽出
+              [Text Extraction]       Extract text from PDF/HTML/JSON
                      │
                      v
-              [Character Filter]      HTML タグ除去、全角半角変換
+              [Character Filter]      Remove HTML tags, normalize width
                      │
                      v
-              [Tokenizer]             形態素解析 (kuromoji)
-                     │                "東京の天気" → ["東京","の","天気"]
+              [Tokenizer]             Morphological analysis (kuromoji)
+                     │                "Tokyo weather" → ["Tokyo","weather"]
                      v
-              [Token Filter]          ストップワード除去、基本形変換
-                     │                同義語展開、小文字化
+              [Token Filter]          Stop word removal, base form conversion
+                     │                Synonym expansion, lowercasing
                      v
-              [Inverted Index]        転置インデックスに書き込み
+              [Inverted Index]        Write to inverted index
                      │
                      v
-              [Segment]               Lucene セグメントとしてディスク保存
-                                      ※ immutable (一度書いたら変更不可)
+              [Segment]               Save to disk as Lucene segment
+                                      ※ immutable (cannot be modified once written)
 
-===================== Read Path (クエリ処理) ============================
+===================== Read Path (Query Processing) ============================
 
-  Query "東京 天気" ──→ [Query Parser]     クエリ構文解析
+  Query "Tokyo weather" ──→ [Query Parser]     Parse query syntax
                               │
                               v
-                        [Analyzer]          Write Path と同じトークナイズ
-                              │             + 検索時フィルタ (同義語展開)
+                        [Analyzer]          Same tokenization as Write Path
+                              │             + search-time filters (synonym expansion)
                               v
-                        [Index Lookup]      転置インデックスを参照
+                        [Index Lookup]      Look up inverted index
                               │
                               v
-                        [Scoring (BM25)]    各文書のスコア計算
+                        [Scoring (BM25)]    Calculate score for each document
                               │
                               v
-                        [Collector]         Top-K 文書を収集 (優先度キュー)
+                        [Collector]         Collect Top-K documents (priority queue)
                               │
                               v
-                        [Post Filter]       フィルタ条件適用 (price, category)
+                        [Post Filter]       Apply filter conditions (price, category)
                               │
                               v
-                        [Highlight]         マッチ箇所のハイライト生成
+                        [Highlight]         Generate highlight for matched sections
                               │
                               v
-                        [Response]          JSON レスポンス構築
+                        [Response]          Build JSON response
 ```
 
-#### Write Path と Read Path の一貫性が重要な理由
+#### Why Consistency Between Write Path and Read Path Matters
 
-Write Path と Read Path で**同じ Analyzer** を使わないと、検索が正しく動作しない。例えば、Write Path で「東京タワー」を「東京」「タワー」に分割しているのに、Read Path で「東京タワー」を1つのトークンとして検索すると、転置インデックスにマッチしない。
+If the Write Path and Read Path do not use the **same Analyzer**, search will not work correctly. For example, if the Write Path splits "Tokyo Tower" into "Tokyo" and "Tower", but the Read Path searches for "Tokyo Tower" as a single token, it will not match in the inverted index.
 
-ただし、**同義語展開は検索時のみ**に行うのがベストプラクティスである。インデックス時に同義語を展開すると、同義語辞書を更新するたびに全文書の再インデックスが必要になるためだ。
+However, **synonym expansion should only be performed at search time** as best practice. Expanding synonyms at index time requires re-indexing all documents every time the synonym dictionary is updated.
 
-### 1.4 ランキング: TF-IDF と BM25
+### 1.4 Ranking: TF-IDF and BM25
 
 #### TF-IDF (Term Frequency - Inverse Document Frequency)
 
-TF-IDF は情報検索の古典的なランキング手法で、直感的には「その文書の中でよく出てくるが、他の文書ではあまり出てこない語ほど重要」という考え方に基づく。
+TF-IDF is a classical information retrieval ranking method. Intuitively, it is based on the idea that "a term that appears frequently in a document but rarely in other documents is more important".
 
 ```
-TF-IDF の計算:
+TF-IDF calculation:
 
-  TF(t, d) = 文書 d 内での語 t の出現回数 / 文書 d の総語数
+  TF(t, d) = number of occurrences of term t in document d / total number of terms in document d
 
-  IDF(t) = log(全文書数 / 語 t を含む文書数)
+  IDF(t) = log(total number of documents / number of documents containing term t)
 
   TF-IDF(t, d) = TF(t, d) × IDF(t)
 
-  例: 全100文書、Doc1 (100語) に "東京" が5回出現、
-      "東京" は10文書に出現
+  Example: 100 total documents, "Tokyo" appears 5 times in Doc1 (100 terms),
+      "Tokyo" appears in 10 documents
 
-  TF("東京", Doc1) = 5 / 100 = 0.05
-  IDF("東京")      = log(100 / 10) = log(10) ≈ 2.30
-  TF-IDF           = 0.05 × 2.30 = 0.115
+  TF("Tokyo", Doc1) = 5 / 100 = 0.05
+  IDF("Tokyo")      = log(100 / 10) = log(10) ≈ 2.30
+  TF-IDF            = 0.05 × 2.30 = 0.115
 
-  "の" (全文書に出現する語) の場合:
-  IDF("の") = log(100 / 100) = log(1) = 0
-  TF-IDF    = 0.05 × 0 = 0  (助詞は重要度ゼロ)
+  For "the" (a term that appears in all documents):
+  IDF("the") = log(100 / 100) = log(1) = 0
+  TF-IDF     = 0.05 × 0 = 0  (function words have zero importance)
 ```
 
-#### TF-IDF の問題点
+#### Problems with TF-IDF
 
-TF-IDF には2つの大きな問題がある:
+TF-IDF has two major problems:
 
-1. **TF の飽和がない**: 語が10回出現する文書と100回出現する文書で、スコアが10倍になる。しかし実際には、ある語が10回出現すればその文書がその語に関連していることは十分に示されており、100回出現しても関連度が10倍になるわけではない
-2. **文書長の正規化が不十分**: 長い文書は自然と語の出現回数が多くなるため、短い文書より不当に高いスコアを得てしまう
+1. **No TF saturation**: A document where a term appears 10 times scores 10 times higher than one where it appears once. In reality, if a term appears 10 times it sufficiently indicates relevance; appearing 100 times does not mean it is 10 times more relevant.
+2. **Insufficient document length normalization**: Longer documents naturally have more term occurrences, so they unfairly score higher than shorter documents.
 
 #### BM25 (Best Matching 25)
 
-BM25 は TF-IDF の問題を解決した改良版で、Elasticsearch のデフォルトランキングアルゴリズムである。
+BM25 is an improved version of TF-IDF that addresses its problems, and is the default ranking algorithm in Elasticsearch.
 
 ```
-BM25 スコア計算:
+BM25 score calculation:
 
   score(D, Q) = Σ [ IDF(qi) × f(qi,D) × (k1 + 1)                    ]
                     [         ─────────────────────────────────────────]
                     [         f(qi,D) + k1 × (1 - b + b × |D| / avgdl)]
 
-  各要素の意味:
+  Meaning of each element:
   ┌──────────────┬────────────────────────────────────────────────┐
-  │ 変数          │ 意味                                           │
+  │ Variable     │ Meaning                                        │
   ├──────────────┼────────────────────────────────────────────────┤
-  │ Q            │ 検索クエリ (複数の語 q1, q2, ... の集合)         │
-  │ D            │ スコアを計算する対象の文書                        │
-  │ qi           │ クエリ内の i 番目の語                            │
-  │ f(qi, D)     │ 文書 D 内での語 qi の出現頻度 (Term Frequency)   │
-  │ |D|          │ 文書 D の長さ (語数)                             │
-  │ avgdl        │ 全文書の平均長 (Average Document Length)         │
-  │ k1 (= 1.2)  │ TF の飽和パラメータ (大きいほど飽和が遅い)        │
-  │ b (= 0.75)  │ 文書長の正規化パラメータ (0で無効、1で完全正規化)  │
-  │ IDF(qi)      │ 逆文書頻度 (珍しい語ほど大きい)                  │
+  │ Q            │ Search query (set of terms q1, q2, ...)        │
+  │ D            │ Document to score                              │
+  │ qi           │ The i-th term in the query                     │
+  │ f(qi, D)     │ Frequency of term qi in document D (Term Frequency) │
+  │ |D|          │ Length of document D (number of terms)         │
+  │ avgdl        │ Average document length across all documents   │
+  │ k1 (= 1.2)  │ TF saturation parameter (higher = slower saturation) │
+  │ b (= 0.75)  │ Document length normalization parameter (0=off, 1=full) │
+  │ IDF(qi)      │ Inverse document frequency (higher for rarer terms) │
   └──────────────┴────────────────────────────────────────────────┘
 
-  BM25 の IDF 計算 (Lucene 実装):
+  IDF calculation in BM25 (Lucene implementation):
   IDF(qi) = log(1 + (N - n(qi) + 0.5) / (n(qi) + 0.5))
-    N:      全文書数
-    n(qi):  語 qi を含む文書数
+    N:      total number of documents
+    n(qi):  number of documents containing term qi
 
-  BM25 が TF-IDF より優れている点:
+  Advantages of BM25 over TF-IDF:
   ┌─────────────────────┬──────────────┬──────────────────────┐
-  │ 特性                 │ TF-IDF       │ BM25                 │
+  │ Property            │ TF-IDF       │ BM25                 │
   ├─────────────────────┼──────────────┼──────────────────────┤
-  │ TF の飽和            │ なし (線形)   │ あり (k1 で制御)      │
-  │ 文書長の正規化        │ 不十分       │ b パラメータで制御     │
-  │ 高頻度語の抑制        │ 弱い         │ 飽和により自然に抑制   │
-  │ パラメータ調整        │ なし         │ k1, b で調整可能      │
+  │ TF saturation       │ None (linear) │ Yes (controlled by k1) │
+  │ Document length normalization │ Insufficient │ Controlled by b parameter │
+  │ Suppression of high-frequency terms │ Weak │ Naturally suppressed by saturation │
+  │ Parameter tuning    │ None         │ Adjustable via k1, b  │
   └─────────────────────┴──────────────┴──────────────────────┘
 ```
 
-#### BM25 の TF 飽和の直感的理解
+#### Intuitive Understanding of TF Saturation in BM25
 
 ```
-TF 飽和のグラフ (k1=1.2):
+TF saturation graph (k1=1.2):
 
-  スコア寄与
+  Score contribution
   ^
-  |                                    -------- TF-IDF (線形)
+  |                                    -------- TF-IDF (linear)
   |                               ----/
   |                          ----/
   |                     ----/
-  |     -------========---------- BM25 (飽和あり)
+  |     -------========---------- BM25 (with saturation)
   |   -/  ----/
   | -/ --/
   |/ /
-  +----------------------------------------→ 出現回数
+  +----------------------------------------→ occurrence count
   0   1   2   3   5   10  20  50
 
-  TF-IDF: 出現回数に比例してスコアが増加し続ける
-  BM25:   数回の出現でスコアはほぼ飽和する
-         → "東京" が10回出ても100回出てもスコアはほぼ同じ
-         → より自然なランキングを実現
+  TF-IDF: score keeps increasing proportionally to occurrence count
+  BM25:   score nearly saturates after a few occurrences
+         → Score is nearly the same whether "Tokyo" appears 10 or 100 times
+         → Achieves more natural ranking
 ```
 
-### 1.5 形態素解析と日本語処理
+### 1.5 Morphological Analysis and Japanese Text Processing
 
-日本語の検索エンジンにおいて、最も重要な要素の一つが形態素解析 (Morphological Analysis) である。英語は空白で単語が区切られているが、日本語には空白区切りがないため、文を単語に分割する処理が必要になる。
+In a Japanese search engine, one of the most important elements is morphological analysis. In English, words are separated by spaces. Japanese has no space delimiters, so a process to split text into individual words is required.
 
 ```
-日本語テキストのトークナイズ比較:
+Comparison of Japanese text tokenization methods:
 
-  入力: "東京スカイツリーの展望台"
+  Input: "Tokyo Skytree observation deck"
 
   ┌─────────────────────┬─────────────────────────────────────┐
-  │ 手法                 │ 結果                                │
+  │ Method              │ Result                              │
   ├─────────────────────┼─────────────────────────────────────┤
-  │ N-gram (bigram)      │ ["東京", "京ス", "スカ", "カイ",     │
-  │                      │  "イツ", "ツリ", "リー", "ーの",     │
-  │                      │  "の展", "展望", "望台"]             │
-  │                      │ → 再現率は高いが適合率が低い          │
-  │                      │ → "京ス" でも検索にヒットしてしまう   │
+  │ N-gram (bigram)     │ Many overlapping 2-character tokens │
+  │                     │ → High recall but low precision     │
+  │                     │ → Spurious character combinations   │
+  │                     │   also match in search              │
   ├─────────────────────┼─────────────────────────────────────┤
-  │ kuromoji (形態素解析) │ ["東京", "スカイツリー", "展望台"]    │
-  │                      │ → 意味のある単位で分割               │
-  │                      │ → 適合率が高い                       │
+  │ kuromoji (morphological analysis) │ ["Tokyo", "Skytree", "observation deck"] │
+  │                     │ → Split into meaningful units       │
+  │                     │ → High precision                    │
   ├─────────────────────┼─────────────────────────────────────┤
-  │ kuromoji + ユーザー辞書│ ["東京スカイツリー", "展望台"]       │
-  │                      │ → 固有名詞を1トークンとして認識      │
-  │                      │ → 検索精度がさらに向上               │
+  │ kuromoji + user dictionary │ ["Tokyo Skytree", "observation deck"] │
+  │                     │ → Recognizes proper nouns as a single token │
+  │                     │ → Further improved search accuracy  │
   └─────────────────────┴─────────────────────────────────────┘
 
-  N-gram vs 形態素解析のトレードオフ:
+  Trade-offs between N-gram and morphological analysis:
   ┌──────────────┬──────────────────┬──────────────────────┐
-  │ 指標          │ N-gram           │ 形態素解析            │
+  │ Metric       │ N-gram           │ Morphological analysis │
   ├──────────────┼──────────────────┼──────────────────────┤
-  │ 再現率        │ 高 (漏れが少ない) │ 中 (辞書にない語は漏れ)│
-  │ 適合率        │ 低 (ノイズが多い) │ 高 (意味単位で一致)    │
-  │ インデックスサイズ│ 大             │ 小                    │
-  │ 辞書依存      │ なし             │ あり                   │
-  │ 新語対応      │ 自動             │ 辞書更新が必要         │
-  │ 検索速度      │ 遅い (候補が多い) │ 速い                   │
+  │ Recall       │ High (few misses) │ Medium (misses terms not in dictionary) │
+  │ Precision    │ Low (noisy)       │ High (matches on meaning units) │
+  │ Index size   │ Large             │ Small                 │
+  │ Dictionary dependency │ None   │ Yes                   │
+  │ New word support │ Automatic    │ Requires dictionary update │
+  │ Search speed │ Slow (many candidates) │ Fast             │
   └──────────────┴──────────────────┴──────────────────────┘
 ```
 
 ---
 
-## 2. システムアーキテクチャ
+## 2. System Architecture
 
-### 2.1 全体アーキテクチャ
+### 2.1 Overall Architecture
 
-大規模検索システムの全体像を示す。データの取り込みからユーザーへの結果返却まで、複数のコンポーネントが協調して動作する。
+The following shows the overall picture of a large-scale search system. Multiple components work in coordination, from data ingestion to returning results to users.
 
 ```
-             大規模検索エンジン 全体アーキテクチャ
+             Large-Scale Search Engine — Overall Architecture
 
   ┌──────────────────────────────────────────────────────────────┐
   │                        Client Layer                          │
@@ -380,7 +379,7 @@ TF 飽和のグラフ (k1=1.2):
              │
   ┌──────────v───────────────────────────────────────────────────┐
   │                        Gateway Layer                         │
-  │  [CDN (静的コンテンツ)]  [API Gateway]  [Rate Limiter]        │
+  │  [CDN (static content)]  [API Gateway]  [Rate Limiter]       │
   │                              │                               │
   │                    [Authentication]                           │
   │                    [Query Rewriting]                          │
@@ -399,10 +398,10 @@ TF 飽和のグラフ (k1=1.2):
   ┌──────────────────────v──────────────────────────────────────-┐
   │              Elasticsearch Cluster                           │
   │                                                              │
-  │  [Master Node x3]   選出・クラスタ管理                        │
-  │  [Data Node x6]     インデックス保持・検索実行                 │
-  │  [Coordinator x2]   クエリルーティング・結果マージ              │
-  │  [Ingest Node x2]   ドキュメント前処理パイプライン             │
+  │  [Master Node x3]   Election & cluster management            │
+  │  [Data Node x6]     Hold indexes & execute searches          │
+  │  [Coordinator x2]   Query routing & result merging           │
+  │  [Ingest Node x2]   Document preprocessing pipeline         │
   └──────────────────────────────────────────────────────────────┘
                          │
   ┌──────────────────────v──────────────────────────────────────-┐
@@ -410,24 +409,24 @@ TF 飽和のグラフ (k1=1.2):
   │                                                              │
   │  [Source DB] → [CDC (Debezium)] → [Kafka] → [Index Worker]  │
   │  [Crawler]  → [Content Parser] → [Enrichment] → [ES Bulk]  │
-  │  [File Store] → [Tika (抽出)] → [Kafka] → [Index Worker]   │
+  │  [File Store] → [Tika (extract)] → [Kafka] → [Index Worker] │
   └──────────────────────────────────────────────────────────────┘
                          │
   ┌──────────────────────v──────────────────────────────────────-┐
   │              Monitoring & Analytics                          │
   │                                                              │
-  │  [Prometheus/Grafana]  クラスタメトリクス                      │
-  │  [Search Analytics]    クエリログ・CTR 分析                    │
-  │  [Alerting]            異常検知・アラート                      │
+  │  [Prometheus/Grafana]  Cluster metrics                       │
+  │  [Search Analytics]    Query logs & CTR analysis             │
+  │  [Alerting]            Anomaly detection & alerts            │
   └──────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 分散検索の Scatter-Gather パターン
+### 2.2 Scatter-Gather Pattern for Distributed Search
 
-Elasticsearch はデータをシャード (Shard) に分割し、複数ノードに分散配置する。検索時はすべてのシャードに並列でクエリを投げ (Scatter)、結果をマージする (Gather)。
+Elasticsearch splits data into shards and distributes them across multiple nodes. At search time, it sends queries to all shards in parallel (Scatter) and merges the results (Gather).
 
 ```
-                  Scatter-Gather パターンの詳細
+                  Scatter-Gather Pattern in Detail
 
   Client
     │
@@ -436,75 +435,75 @@ Elasticsearch はデータをシャード (Shard) に分割し、複数ノード
     │
     ├── Phase 1: Query Phase (Scatter)
     │   │
-    │   ├──→ [Shard 0, Node A] ── BM25計算 ──→ (DocID, Score) Top-K
-    │   ├──→ [Shard 1, Node B] ── BM25計算 ──→ (DocID, Score) Top-K
-    │   ├──→ [Shard 2, Node C] ── BM25計算 ──→ (DocID, Score) Top-K
-    │   ├──→ [Shard 3, Node A] ── BM25計算 ──→ (DocID, Score) Top-K
-    │   └──→ [Shard 4, Node B] ── BM25計算 ──→ (DocID, Score) Top-K
+    │   ├──→ [Shard 0, Node A] ── BM25 scoring ──→ (DocID, Score) Top-K
+    │   ├──→ [Shard 1, Node B] ── BM25 scoring ──→ (DocID, Score) Top-K
+    │   ├──→ [Shard 2, Node C] ── BM25 scoring ──→ (DocID, Score) Top-K
+    │   ├──→ [Shard 3, Node A] ── BM25 scoring ──→ (DocID, Score) Top-K
+    │   └──→ [Shard 4, Node B] ── BM25 scoring ──→ (DocID, Score) Top-K
     │
     ├── Phase 2: Merge (Gather)
     │   │
-    │   └── 全シャードの Top-K を Score でソート
-    │       → Global Top-K を決定
-    │       → 例: Top-10 を取得するなら、各シャードが Top-10 を返し、
-    │         Coordinator が 50件中 Top-10 を選ぶ
+    │   └── Sort Top-K from all shards by Score
+    │       → Determine Global Top-K
+    │       → Example: to get Top-10, each shard returns Top-10,
+    │         Coordinator selects Top-10 from 50 candidates
     │
     └── Phase 3: Fetch Phase
         │
-        ├──→ [Shard 0] ── DocID 3,7 の _source を取得
-        ├──→ [Shard 2] ── DocID 15 の _source を取得
-        └──→ [Shard 4] ── DocID 42,88 の _source を取得
+        ├──→ [Shard 0] ── Fetch _source for DocID 3, 7
+        ├──→ [Shard 2] ── Fetch _source for DocID 15
+        └──→ [Shard 4] ── Fetch _source for DocID 42, 88
 
-        → 文書本文、ハイライト、集計結果を返却
+        → Return document body, highlights, and aggregation results
 
-  ※ Query Phase は DocID + Score のみを返すため軽量
-  ※ Fetch Phase で実際の文書内容を取得する (2段階方式)
+  ※ Query Phase returns only DocID + Score, so it is lightweight
+  ※ Fetch Phase retrieves actual document content (two-phase approach)
 ```
 
-#### シャーディング戦略
+#### Sharding Strategy
 
 ```
-シャーディングの設計指針:
+Sharding design guidelines:
 
   ┌──────────────────────┬────────────────────────────────────┐
-  │ 考慮事項              │ ガイドライン                        │
+  │ Consideration        │ Guideline                          │
   ├──────────────────────┼────────────────────────────────────┤
-  │ シャードサイズ         │ 10-50 GB / シャード (推奨)          │
-  │ シャード数の上限       │ ヒープ 1GB あたり 20 シャード以下    │
-  │ シャード数の決定       │ データ総量 ÷ 目標シャードサイズ      │
-  │ 例: 500GB データ      │ 500 ÷ 30 ≈ 17 シャード             │
+  │ Shard size           │ 10-50 GB / shard (recommended)     │
+  │ Max shard count      │ No more than 20 shards per 1GB heap │
+  │ Determining shard count │ Total data size ÷ target shard size │
+  │ Example: 500GB data  │ 500 ÷ 30 ≈ 17 shards              │
   ├──────────────────────┼────────────────────────────────────┤
-  │ レプリカ数            │ 最低 1 (可用性確保)                  │
-  │                      │ 読み取り負荷が高い場合は 2-3          │
+  │ Replica count        │ At least 1 (for availability)      │
+  │                      │ 2-3 for high read loads            │
   ├──────────────────────┼────────────────────────────────────┤
-  │ ルーティング          │ デフォルト: hash(_id) % num_shards  │
-  │                      │ カスタム: user_id ベースルーティング  │
+  │ Routing              │ Default: hash(_id) % num_shards    │
+  │                      │ Custom: user_id-based routing      │
   └──────────────────────┴────────────────────────────────────┘
 
-  時系列インデックスのパターン (ログ、イベント):
+  Time-series index pattern (logs, events):
 
   logs-2024.01.01  (hot:  SSD, 1 primary + 1 replica)
   logs-2024.01.02  (hot:  SSD, 1 primary + 1 replica)
   ...
-  logs-2023.12.01  (warm: HDD, 1 primary + 1 replica, force-merge済)
+  logs-2023.12.01  (warm: HDD, 1 primary + 1 replica, force-merged)
   logs-2023.11.01  (cold: S3, searchable snapshot)
 
-  → ILM (Index Lifecycle Management) で自動管理
-  → hot → warm → cold → delete のライフサイクル
+  → Managed automatically with ILM (Index Lifecycle Management)
+  → hot → warm → cold → delete lifecycle
 ```
 
-### 2.3 インデックス更新パイプライン
+### 2.3 Index Update Pipeline
 
-プライマリデータストア (RDB) と検索インデックス (Elasticsearch) の同期は、CDC (Change Data Capture) パターンで実現する。
+Synchronizing the primary data store (RDB) with the search index (Elasticsearch) is achieved with the CDC (Change Data Capture) pattern.
 
 ```
-  CDC + Kafka パイプラインの詳細
+  CDC + Kafka Pipeline in Detail
 
   ┌──────────┐    CDC (WAL)    ┌──────────┐    Consumer    ┌────────────┐
   │ PostgreSQL│───────────────→│  Kafka    │──────────────→│Index Worker│
   │           │  Debezium      │  Topic    │               │            │
   │ products  │  Connector     │"product-  │  Consumer     │ Transform  │
-  │ テーブル   │               │ updates"  │  Group        │ Enrich     │
+  │ table     │               │ updates"  │  Group        │ Enrich     │
   └──────────┘                └──────────┘               │ Validate   │
                                                           │ Bulk Index │
                                                           └─────┬──────┘
@@ -514,98 +513,98 @@ Elasticsearch はデータをシャード (Shard) に分割し、複数ノード
                                                           │  Cluster   │
                                                           └────────────┘
 
-  CDC イベントの構造:
+  Structure of a CDC event:
   {
     "op": "u",              // c=create, u=update, d=delete
-    "before": {...},        // 変更前の行データ
-    "after": {              // 変更後の行データ
+    "before": {...},        // row data before change
+    "after": {              // row data after change
       "id": 12345,
-      "name": "商品A 改訂版",
+      "name": "Product A revised",
       "price": 2980,
       "updated_at": "2024-01-15T10:30:00Z"
     },
     "source": {
       "table": "products",
-      "lsn": 123456789      // WAL のログシーケンス番号
+      "lsn": 123456789      // WAL log sequence number
     }
   }
 
-  Index Worker の処理フロー:
-  1. Kafka からイベントを消費 (バッチ: 100-500件ずつ)
-  2. op に応じて処理を分岐:
-     - "c" / "u": ドキュメントを変換 → ES に upsert
-     - "d": ES からドキュメントを削除
-  3. エンリッチメント: カテゴリ名の解決、画像URL の変換等
-  4. バリデーション: 必須フィールドのチェック
-  5. Bulk API で ES に一括書き込み
-  6. offset をコミット
+  Index Worker processing flow:
+  1. Consume events from Kafka (batches of 100-500)
+  2. Branch based on op:
+     - "c" / "u": transform document → upsert to ES
+     - "d": delete document from ES
+  3. Enrichment: resolve category names, transform image URLs, etc.
+  4. Validation: check required fields
+  5. Bulk write to ES using Bulk API
+  6. Commit offset
 
-  遅延: DB更新 → ES反映まで 通常 1-5秒
-  スループット: 1ワーカーで 5,000-10,000 docs/sec
+  Latency: typically 1-5 seconds from DB update to ES reflection
+  Throughput: 5,000-10,000 docs/sec per worker
 ```
 
-### 2.4 キャッシュ戦略
+### 2.4 Caching Strategy
 
-検索システムでは、頻出クエリのキャッシュが性能に大きく影響する。
+In a search system, caching frequent queries has a major impact on performance.
 
 ```
-検索キャッシュの多層構造:
+Multi-layer cache structure for search:
 
   Layer 1: CDN / Edge Cache
   ┌─────────────────────────────────────────┐
-  │ 静的な検索結果ページ (SEO 用)             │
-  │ TTL: 5-15分                              │
-  │ Hit率: 10-20% (検索クエリの多様性が高い)   │
+  │ Static search result pages (for SEO)    │
+  │ TTL: 5-15 minutes                       │
+  │ Hit rate: 10-20% (high query diversity) │
   └─────────────────────────────────────────┘
 
   Layer 2: Application Cache (Redis)
   ┌─────────────────────────────────────────┐
-  │ クエリ結果のキャッシュ                     │
-  │ Key: hash(query + filters + page)        │
-  │ TTL: 1-5分                               │
-  │ Hit率: 30-50% (人気クエリは繰り返される)   │
-  │ 無効化: インデックス更新時に関連キャッシュを│
-  │        パージ                             │
+  │ Cache of query results                  │
+  │ Key: hash(query + filters + page)       │
+  │ TTL: 1-5 minutes                        │
+  │ Hit rate: 30-50% (popular queries recur)│
+  │ Invalidation: purge related cache       │
+  │               on index update           │
   └─────────────────────────────────────────┘
 
   Layer 3: Elasticsearch Request Cache
   ┌─────────────────────────────────────────┐
-  │ シャードレベルの結果キャッシュ              │
-  │ filter 句の結果をキャッシュ                │
-  │ シャードの refresh で自動無効化            │
-  │ Hit率: 高 (同一フィルタ条件が多い場合)     │
+  │ Shard-level result cache                │
+  │ Caches results of filter clauses        │
+  │ Automatically invalidated on shard refresh │
+  │ Hit rate: high (when same filter conditions repeat) │
   └─────────────────────────────────────────┘
 
   Layer 4: Elasticsearch Field Data Cache
   ┌─────────────────────────────────────────┐
-  │ ソート・集計に使うフィールドデータ          │
-  │ doc_values で事前構築 (推奨)              │
-  │ ヒープメモリ上に展開                      │
+  │ Field data used for sorting and aggregations │
+  │ Pre-built with doc_values (recommended) │
+  │ Expanded in heap memory                 │
   └─────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. Elasticsearch 実装
+## 3. Elasticsearch Implementation
 
-### 3.1 インデックスマッピング設計
+### 3.1 Index Mapping Design
 
 ```python
-# コード例 1: Elasticsearch インデックス設定 (Python - elasticsearch-py)
+# Code Example 1: Elasticsearch index settings (Python - elasticsearch-py)
 from elasticsearch import Elasticsearch
 
 es = Elasticsearch(['http://localhost:9200'])
 
-# 日本語検索用のインデックス設定
+# Index settings for Japanese search
 index_settings = {
     "settings": {
         "number_of_shards": 3,
         "number_of_replicas": 1,
-        "refresh_interval": "1s",    # インデックス更新間隔
+        "refresh_interval": "1s",    # Index update interval
         "analysis": {
             "char_filter": {
                 "normalize_filter": {
-                    "type": "icu_normalizer",      # Unicode 正規化
+                    "type": "icu_normalizer",      # Unicode normalization
                     "name": "nfkc_cf",
                 }
             },
@@ -615,11 +614,11 @@ index_settings = {
                     "char_filter": ["normalize_filter"],
                     "tokenizer": "kuromoji_tokenizer",
                     "filter": [
-                        "kuromoji_baseform",      # 活用形 → 基本形 (走った→走る)
-                        "kuromoji_part_of_speech", # 助詞・助動詞の除去
-                        "cjk_width",              # 全角半角統一
-                        "ja_stop",                # 日本語ストップワード
-                        "lowercase",              # 英字小文字化
+                        "kuromoji_baseform",      # Inflected form → base form (ran→run)
+                        "kuromoji_part_of_speech", # Remove particles and auxiliary verbs
+                        "cjk_width",              # Normalize full-width/half-width
+                        "ja_stop",                # Japanese stop words
+                        "lowercase",              # Lowercase English letters
                     ]
                 },
                 "ja_search_analyzer": {
@@ -632,7 +631,7 @@ index_settings = {
                         "cjk_width",
                         "ja_stop",
                         "lowercase",
-                        "synonym_filter",          # 検索時のみ同義語展開
+                        "synonym_filter",          # Synonym expansion at search time only
                     ]
                 },
                 "ja_ngram_analyzer": {
@@ -654,9 +653,9 @@ index_settings = {
                 "synonym_filter": {
                     "type": "synonym",
                     "synonyms": [
-                        "PC, パソコン, コンピュータ",
-                        "スマホ, スマートフォン, 携帯電話",
-                        "テレビ, TV, ティーヴィー",
+                        "PC, personal computer, computer",
+                        "smartphone, mobile phone, cellphone",
+                        "television, TV",
                     ]
                 }
             }
@@ -669,8 +668,8 @@ index_settings = {
                 "analyzer": "ja_analyzer",
                 "search_analyzer": "ja_search_analyzer",
                 "fields": {
-                    "keyword": {"type": "keyword"},  # 完全一致・ソート・集計用
-                    "ngram": {                        # 部分一致検索用
+                    "keyword": {"type": "keyword"},  # For exact match, sorting, aggregation
+                    "ngram": {                        # For partial match search
                         "type": "text",
                         "analyzer": "ja_ngram_analyzer"
                     }
@@ -682,54 +681,54 @@ index_settings = {
                 "search_analyzer": "ja_search_analyzer",
             },
             "category": {
-                "type": "keyword",               # フィルタ・集計用
+                "type": "keyword",               # For filtering and aggregation
             },
             "tags": {
-                "type": "keyword",               # 複数タグ
+                "type": "keyword",               # Multiple tags
             },
             "price": {
-                "type": "integer",               # 範囲フィルタ用
+                "type": "integer",               # For range filtering
             },
             "rating": {
-                "type": "float",                 # ソート・ブースト用
+                "type": "float",                 # For sorting and boosting
             },
             "review_count": {
-                "type": "integer",               # 人気度スコアリング用
+                "type": "integer",               # For popularity scoring
             },
             "created_at": {
-                "type": "date",                  # 時系列フィルタ用
+                "type": "date",                  # For time-based filtering
             },
             "updated_at": {
                 "type": "date",
             },
             "location": {
-                "type": "geo_point",             # 地理検索用
+                "type": "geo_point",             # For geo search
             },
             "suggest": {
-                "type": "completion",            # オートコンプリート用
+                "type": "completion",            # For autocomplete
                 "analyzer": "ja_analyzer",
             },
             "metadata": {
                 "type": "object",
-                "enabled": False,                # インデックスしない (保存のみ)
+                "enabled": False,                # Not indexed (stored only)
             }
         }
     }
 }
 
-# インデックス作成 (エイリアス経由)
+# Create index (via alias)
 index_name = "products_v1"
 alias_name = "products"
 
 es.indices.create(index=index_name, body=index_settings)
 es.indices.put_alias(index=index_name, name=alias_name)
-print(f"インデックス '{index_name}' を作成し、エイリアス '{alias_name}' を設定しました")
+print(f"Created index '{index_name}' and set alias '{alias_name}'")
 ```
 
-### 3.2 検索クエリの実装
+### 3.2 Implementing Search Queries
 
 ```python
-# コード例 2: 複合検索クエリ (商品検索API)
+# Code Example 2: Compound search query (product search API)
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
@@ -746,42 +745,42 @@ def search_products(
     size: int = 20,
 ) -> Dict[str, Any]:
     """
-    商品の全文検索を実行する。
+    Execute full-text search for products.
 
     Args:
-        query: 検索キーワード
-        category: カテゴリフィルタ
-        tags: タグフィルタ (AND 条件)
-        min_price: 最低価格
-        max_price: 最高価格
-        min_rating: 最低レーティング
-        sort_by: ソート順 ("relevance", "price_asc", "price_desc",
+        query: Search keyword
+        category: Category filter
+        tags: Tag filter (AND condition)
+        min_price: Minimum price
+        max_price: Maximum price
+        min_rating: Minimum rating
+        sort_by: Sort order ("relevance", "price_asc", "price_desc",
                  "rating", "newest")
-        page: ページ番号 (1-indexed)
-        size: 1ページあたりの件数
+        page: Page number (1-indexed)
+        size: Number of items per page
 
     Returns:
-        検索結果 (ヒット件数、商品リスト、ファセット情報)
+        Search results (hit count, product list, facet information)
     """
-    # --- must 句: 全文検索 ---
+    # --- must clause: full-text search ---
     must_clauses = []
     if query:
         must_clauses.append({
             "multi_match": {
                 "query": query,
                 "fields": [
-                    "title^3",          # タイトルは3倍ブースト
-                    "title.ngram^0.5",  # N-gram は低ブースト
+                    "title^3",          # Title boosted 3x
+                    "title.ngram^0.5",  # N-gram with low boost
                     "description",
                     "tags^2",
                 ],
                 "type": "best_fields",
-                "fuzziness": "AUTO",    # タイポ許容 (3-5文字→1編集距離)
+                "fuzziness": "AUTO",    # Allow typos (1 edit distance for 3-5 chars)
                 "minimum_should_match": "75%",
             }
         })
 
-    # --- filter 句: 絞り込み (スコアに影響しない) ---
+    # --- filter clause: narrowing down (does not affect score) ---
     filter_clauses = []
     if category:
         filter_clauses.append({"term": {"category": category}})
@@ -798,7 +797,7 @@ def search_products(
     if min_rating is not None:
         filter_clauses.append({"range": {"rating": {"gte": min_rating}}})
 
-    # --- ソート順の決定 ---
+    # --- Determine sort order ---
     sort_options = {
         "relevance": [{"_score": "desc"}, {"rating": "desc"}],
         "price_asc": [{"price": "asc"}, {"_score": "desc"}],
@@ -808,7 +807,7 @@ def search_products(
     }
     sort = sort_options.get(sort_by, sort_options["relevance"])
 
-    # --- クエリ本体の構築 ---
+    # --- Build query body ---
     body = {
         "query": {
             "bool": {
@@ -818,7 +817,7 @@ def search_products(
         },
         "highlight": {
             "fields": {
-                "title": {"number_of_fragments": 0},  # 全文返却
+                "title": {"number_of_fragments": 0},  # Return full text
                 "description": {
                     "fragment_size": 150,
                     "number_of_fragments": 3,
@@ -838,10 +837,10 @@ def search_products(
                 "range": {
                     "field": "price",
                     "ranges": [
-                        {"key": "~1000円", "to": 1000},
-                        {"key": "1000~5000円", "from": 1000, "to": 5000},
-                        {"key": "5000~10000円", "from": 5000, "to": 10000},
-                        {"key": "10000円~", "from": 10000},
+                        {"key": "Under $10", "to": 10},
+                        {"key": "$10-$50", "from": 10, "to": 50},
+                        {"key": "$50-$100", "from": 50, "to": 100},
+                        {"key": "$100+", "from": 100},
                     ]
                 }
             },
@@ -856,13 +855,13 @@ def search_products(
         "size": size,
         "sort": sort,
         "_source": {
-            "excludes": ["suggest", "metadata"]  # 不要フィールド除外
+            "excludes": ["suggest", "metadata"]  # Exclude unnecessary fields
         },
     }
 
     result = es.search(index="products", body=body)
 
-    # --- レスポンスの整形 ---
+    # --- Format response ---
     return {
         "total": result["hits"]["total"]["value"],
         "page": page,
@@ -895,21 +894,21 @@ def search_products(
     }
 ```
 
-### 3.3 オートコンプリート (Completion Suggester)
+### 3.3 Autocomplete (Completion Suggester)
 
 ```python
-# コード例 3: サジェスト (オートコンプリート)
+# Code Example 3: Suggestions (autocomplete)
 def autocomplete(prefix: str, size: int = 5, category: str = None) -> list:
     """
-    入力中のキーワードに対してサジェスト候補を返す。
+    Return suggestion candidates for the text being typed.
 
     Args:
-        prefix: ユーザーの入力文字列
-        size: 返すサジェスト数
-        category: カテゴリで絞り込む場合
+        prefix: User's input string
+        size: Number of suggestions to return
+        category: Filter by category if specified
 
     Returns:
-        サジェスト候補のリスト
+        List of suggestion candidates
     """
     contexts = {}
     if category:
@@ -923,8 +922,8 @@ def autocomplete(prefix: str, size: int = 5, category: str = None) -> list:
                     "field": "suggest",
                     "size": size,
                     "fuzzy": {
-                        "fuzziness": 1,       # 1文字のタイポを許容
-                        "transpositions": True, # 文字の入れ替えを許容
+                        "fuzziness": 1,       # Allow 1-character typo
+                        "transpositions": True, # Allow character transpositions
                     },
                     "contexts": contexts if contexts else None,
                     "skip_duplicates": True,
@@ -949,20 +948,20 @@ def autocomplete(prefix: str, size: int = 5, category: str = None) -> list:
     ]
 
 
-# サジェストデータのインデックス時の設定
+# Settings when indexing suggest data
 def build_suggest_input(product: dict) -> dict:
-    """サジェスト用の入力データを構築する"""
+    """Build input data for suggestions"""
     inputs = [product["name"]]
 
-    # 読み仮名があれば追加 (ローマ字入力対応)
+    # Add reading (kana) if available (for romanized input support)
     if product.get("name_kana"):
         inputs.append(product["name_kana"])
 
-    # ブランド名
+    # Brand name
     if product.get("brand"):
         inputs.append(product["brand"])
 
-    # キーワード
+    # Keywords
     inputs.extend(product.get("keywords", []))
 
     return {
@@ -974,10 +973,10 @@ def build_suggest_input(product: dict) -> dict:
     }
 ```
 
-### 3.4 バルクインデキシング
+### 3.4 Bulk Indexing
 
 ```python
-# コード例 4: バルクインデキシングとエラーハンドリング
+# Code Example 4: Bulk indexing and error handling
 from elasticsearch.helpers import bulk, BulkIndexError
 from datetime import datetime
 import logging
@@ -987,17 +986,17 @@ logger = logging.getLogger(__name__)
 
 def index_products(products: list, chunk_size: int = 500) -> dict:
     """
-    商品リストを一括でインデックスする。
+    Index a list of products in bulk.
 
     Args:
-        products: 商品データのリスト
-        chunk_size: 1回のバルクリクエストで送る件数
+        products: List of product data
+        chunk_size: Number of items to send per bulk request
 
     Returns:
-        成功件数とエラー件数
+        Success count and error count
     """
     def generate_actions(products):
-        """バルクアクション生成のジェネレータ"""
+        """Generator for bulk actions"""
         for product in products:
             yield {
                 "_index": "products",
@@ -1023,49 +1022,49 @@ def index_products(products: list, chunk_size: int = 500) -> dict:
             generate_actions(products),
             chunk_size=chunk_size,
             request_timeout=120,
-            raise_on_error=False,     # エラーでも処理を続行
+            raise_on_error=False,     # Continue processing even on error
             raise_on_exception=False,
-            max_retries=3,            # リトライ回数
-            initial_backoff=1,        # リトライ間隔(秒)
+            max_retries=3,            # Number of retries
+            initial_backoff=1,        # Retry interval (seconds)
             max_backoff=60,
         )
         if errors:
-            logger.error(f"バルクインデックスエラー: {len(errors)} 件")
-            for error in errors[:5]:  # 最初の5件のみログ
+            logger.error(f"Bulk index errors: {len(errors)} items")
+            for error in errors[:5]:  # Log first 5 only
                 logger.error(f"  {error}")
-        logger.info(f"インデックス完了: 成功={success}, エラー={len(errors)}")
+        logger.info(f"Indexing complete: success={success}, errors={len(errors)}")
         return {"success": success, "errors": len(errors)}
 
     except BulkIndexError as e:
-        logger.exception(f"バルクインデックス致命的エラー: {e}")
+        logger.exception(f"Bulk index fatal error: {e}")
         raise
 
 
 def reindex_with_zero_downtime(new_settings: dict,
                                 alias: str = "products") -> str:
     """
-    ダウンタイムなしでインデックスを再構築する。
+    Rebuild index without downtime.
 
     Args:
-        new_settings: 新しいインデックス設定
-        alias: エイリアス名
+        new_settings: New index settings
+        alias: Alias name
 
     Returns:
-        新しいインデックス名
+        New index name
     """
-    # Step 1: 現在のインデックス名を取得
+    # Step 1: Get current index name
     current_indices = list(es.indices.get_alias(name=alias).keys())
     current_index = current_indices[0] if current_indices else None
 
-    # Step 2: 新しいインデックス名を生成
+    # Step 2: Generate new index name
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     new_index = f"{alias}_v_{timestamp}"
 
-    # Step 3: 新しいインデックスを作成
+    # Step 3: Create new index
     es.indices.create(index=new_index, body=new_settings)
-    logger.info(f"新インデックス '{new_index}' を作成しました")
+    logger.info(f"Created new index '{new_index}'")
 
-    # Step 4: リインデックス
+    # Step 4: Reindex
     es.reindex(
         body={
             "source": {"index": current_index},
@@ -1074,27 +1073,27 @@ def reindex_with_zero_downtime(new_settings: dict,
         wait_for_completion=True,
         request_timeout=3600,
     )
-    logger.info(f"リインデックス完了: {current_index} → {new_index}")
+    logger.info(f"Reindex complete: {current_index} → {new_index}")
 
-    # Step 5: エイリアスを切り替え (アトミック操作)
+    # Step 5: Switch alias (atomic operation)
     es.indices.update_aliases(body={
         "actions": [
             {"remove": {"index": current_index, "alias": alias}},
             {"add": {"index": new_index, "alias": alias}},
         ]
     })
-    logger.info(f"エイリアス '{alias}' を '{new_index}' に切り替えました")
+    logger.info(f"Switched alias '{alias}' to '{new_index}'")
 
-    # Step 6: 旧インデックスを削除 (任意)
+    # Step 6: Delete old index (optional)
     # es.indices.delete(index=current_index)
 
     return new_index
 ```
 
-### 3.5 Function Score Query (スコアカスタマイズ)
+### 3.5 Function Score Query (Score Customization)
 
 ```python
-# コード例 5: Function Score Query による高度なランキング
+# Code Example 5: Advanced ranking with Function Score Query
 def search_with_custom_scoring(
     query: str,
     user_location: tuple = None,   # (lat, lon)
@@ -1104,21 +1103,21 @@ def search_with_custom_scoring(
     size: int = 20,
 ) -> dict:
     """
-    BM25 スコアにビジネスロジックを組み合わせた検索。
+    Search combining BM25 score with business logic.
 
-    スコア = BM25 × popularity_boost × freshness_boost × distance_decay
+    score = BM25 × popularity_boost × freshness_boost × distance_decay
 
     Args:
-        query: 検索キーワード
-        user_location: ユーザーの位置情報 (緯度, 経度)
-        boost_new: 新しい商品をブーストするか
-        boost_popular: 人気商品をブーストするか
-        page: ページ番号
-        size: 件数
+        query: Search keyword
+        user_location: User's location (latitude, longitude)
+        boost_new: Whether to boost new products
+        boost_popular: Whether to boost popular products
+        page: Page number
+        size: Number of items
     """
     functions = []
 
-    # --- 人気度ブースト ---
+    # --- Popularity boost ---
     if boost_popular:
         functions.append({
             "field_value_factor": {
@@ -1134,26 +1133,26 @@ def search_with_custom_scoring(
                 "field": "rating",
                 "modifier": "none",
                 "factor": 1,
-                "missing": 3.0,         # レビューなしは3.0扱い
+                "missing": 3.0,         # Treat items with no reviews as 3.0
             },
             "weight": 1.5,
         })
 
-    # --- 新着ブースト (直近30日を優遇) ---
+    # --- Freshness boost (favor items from the last 30 days) ---
     if boost_new:
         functions.append({
             "gauss": {
                 "created_at": {
                     "origin": "now",
-                    "scale": "30d",     # 30日で半減
-                    "offset": "7d",     # 7日以内は減衰なし
+                    "scale": "30d",     # Halves at 30 days
+                    "offset": "7d",     # No decay within 7 days
                     "decay": 0.5,
                 }
             },
             "weight": 1.2,
         })
 
-    # --- 距離ブースト (近い店舗を優遇) ---
+    # --- Distance boost (favor nearby stores) ---
     if user_location:
         functions.append({
             "gauss": {
@@ -1162,8 +1161,8 @@ def search_with_custom_scoring(
                         "lat": user_location[0],
                         "lon": user_location[1],
                     },
-                    "scale": "5km",     # 5km で半減
-                    "offset": "1km",    # 1km 以内は減衰なし
+                    "scale": "5km",     # Halves at 5km
+                    "offset": "1km",    # No decay within 1km
                     "decay": 0.5,
                 }
             },
@@ -1182,9 +1181,9 @@ def search_with_custom_scoring(
                     }
                 },
                 "functions": functions,
-                "score_mode": "multiply",   # 各関数の結果を掛け算
-                "boost_mode": "multiply",   # BM25 と掛け算
-                "max_boost": 10,            # ブースト上限
+                "score_mode": "multiply",   # Multiply results of each function
+                "boost_mode": "multiply",   # Multiply with BM25
+                "max_boost": 10,            # Maximum boost cap
             }
         },
         "from": (page - 1) * size,
@@ -1194,10 +1193,10 @@ def search_with_custom_scoring(
     return es.search(index="products", body=body)
 ```
 
-### 3.6 検索ログの収集と分析
+### 3.6 Search Log Collection and Analysis
 
 ```python
-# コード例 6: 検索ログの収集と分析クエリ
+# Code Example 6: Search log collection and analysis queries
 import json
 from datetime import datetime
 
@@ -1209,7 +1208,7 @@ def log_search_event(
     clicked_ids: list = None,
     response_time_ms: int = 0,
 ):
-    """検索イベントをログインデックスに記録する"""
+    """Record a search event to the log index"""
     event = {
         "query": query,
         "user_id": user_id,
@@ -1224,8 +1223,8 @@ def log_search_event(
 
 def analyze_zero_result_queries(days: int = 7) -> list:
     """
-    ゼロ件ヒットのクエリを分析する。
-    → 同義語辞書の追加候補を発見するのに有用。
+    Analyze queries that returned zero results.
+    → Useful for discovering candidates to add to the synonym dictionary.
     """
     body = {
         "query": {
@@ -1256,8 +1255,8 @@ def analyze_zero_result_queries(days: int = 7) -> list:
 
 def calculate_ctr(days: int = 7) -> list:
     """
-    クエリごとの CTR (Click Through Rate) を計算する。
-    → ランキング改善の指標として使用。
+    Calculate CTR (Click Through Rate) per query.
+    → Used as a metric for ranking improvement.
     """
     body = {
         "query": {
@@ -1300,10 +1299,10 @@ def calculate_ctr(days: int = 7) -> list:
     ]
 ```
 
-### 3.7 Kafka Consumer による非同期インデックス更新
+### 3.7 Asynchronous Index Updates via Kafka Consumer
 
 ```python
-# コード例 7: Kafka Consumer (CDC → Elasticsearch)
+# Code Example 7: Kafka Consumer (CDC → Elasticsearch)
 from confluent_kafka import Consumer, KafkaError
 import json
 import signal
@@ -1312,7 +1311,7 @@ import sys
 
 class SearchIndexConsumer:
     """
-    Kafka から CDC イベントを消費し、Elasticsearch を更新する。
+    Consumes CDC events from Kafka and updates Elasticsearch.
     """
 
     def __init__(self, kafka_config: dict, es_client, batch_size: int = 100):
@@ -1329,13 +1328,13 @@ class SearchIndexConsumer:
         self.running = False
 
     def start(self, topics: list):
-        """Consumer ループを開始する"""
+        """Start the consumer loop"""
         self.consumer.subscribe(topics)
 
         while self.running:
             msg = self.consumer.poll(timeout=1.0)
             if msg is None:
-                # タイムアウト: バッファに溜まったものをフラッシュ
+                # Timeout: flush whatever has accumulated in the buffer
                 if self.buffer:
                     self._flush_buffer()
                 continue
@@ -1344,27 +1343,27 @@ class SearchIndexConsumer:
                 if msg.error().code() == KafkaError._PARTITION_EOF:
                     continue
                 else:
-                    print(f"Kafka エラー: {msg.error()}")
+                    print(f"Kafka error: {msg.error()}")
                     continue
 
-            # メッセージを処理
+            # Process message
             event = json.loads(msg.value().decode("utf-8"))
             action = self._build_action(event)
             if action:
                 self.buffer.append(action)
 
-            # バッチサイズに達したらフラッシュ
+            # Flush when batch size is reached
             if len(self.buffer) >= self.batch_size:
                 self._flush_buffer()
                 self.consumer.commit()
 
-        # 終了前にバッファをフラッシュ
+        # Flush buffer before exiting
         if self.buffer:
             self._flush_buffer()
         self.consumer.close()
 
     def _build_action(self, event: dict) -> dict:
-        """CDC イベントからバルクアクションを構築する"""
+        """Build a bulk action from a CDC event"""
         op = event.get("op")
 
         if op in ("c", "u", "r"):  # create, update, read (snapshot)
@@ -1392,7 +1391,7 @@ class SearchIndexConsumer:
         return None
 
     def _flush_buffer(self):
-        """バッファの内容を Elasticsearch に一括書き込み"""
+        """Bulk write buffer contents to Elasticsearch"""
         if not self.buffer:
             return
 
@@ -1404,15 +1403,15 @@ class SearchIndexConsumer:
                 raise_on_error=False,
             )
             if errors:
-                print(f"バルクエラー: {len(errors)} 件")
-            print(f"フラッシュ完了: {success} 件処理")
+                print(f"Bulk errors: {len(errors)} items")
+            print(f"Flush complete: {success} items processed")
         except Exception as e:
-            print(f"バルク書き込みエラー: {e}")
+            print(f"Bulk write error: {e}")
         finally:
             self.buffer = []
 
 
-# 使用例
+# Usage example
 if __name__ == "__main__":
     kafka_config = {
         "bootstrap.servers": "kafka:9092",
@@ -1427,109 +1426,109 @@ if __name__ == "__main__":
 
 ---
 
-## 4. 検索品質の改善手法
+## 4. Search Quality Improvement Techniques
 
-### 4.1 検索品質の評価指標
+### 4.1 Metrics for Evaluating Search Quality
 
-検索品質を客観的に評価するための主要な指標を理解する。
+Understanding the main metrics for objectively evaluating search quality.
 
 ```
-検索品質の評価指標:
+Search quality evaluation metrics:
 
   ┌────────────────┬──────────────────────────────────────────────┐
-  │ 指標            │ 説明                                         │
+  │ Metric         │ Description                                  │
   ├────────────────┼──────────────────────────────────────────────┤
-  │ Precision@K     │ 上位K件中の関連文書の割合                      │
-  │                │ = (K件中の関連文書数) / K                      │
-  │                │ 例: Top-10中7件が関連 → P@10 = 0.7            │
+  │ Precision@K    │ Ratio of relevant documents in top K results  │
+  │                │ = (number of relevant docs in K) / K          │
+  │                │ Example: 7 out of Top-10 are relevant → P@10 = 0.7 │
   ├────────────────┼──────────────────────────────────────────────┤
-  │ Recall@K       │ 全関連文書中、上位K件に含まれる割合             │
-  │                │ = (K件中の関連文書数) / (全関連文書数)          │
+  │ Recall@K       │ Ratio of all relevant docs found in top K     │
+  │                │ = (number of relevant docs in K) / (total relevant docs) │
   ├────────────────┼──────────────────────────────────────────────┤
   │ MRR            │ Mean Reciprocal Rank                         │
-  │ (平均逆順位)    │ = 1/N × Σ(1/rank_i)                         │
-  │                │ 最初の関連文書の順位を重視                      │
-  │                │ 例: 3番目に関連文書 → RR = 1/3               │
+  │                │ = 1/N × Σ(1/rank_i)                         │
+  │                │ Emphasizes the rank of the first relevant document │
+  │                │ Example: relevant doc at rank 3 → RR = 1/3   │
   ├────────────────┼──────────────────────────────────────────────┤
   │ nDCG           │ Normalized Discounted Cumulative Gain        │
-  │                │ 順位が下がるほど割引される累積ゲイン             │
-  │                │ 多段階の関連度判定に対応                        │
-  │                │ nDCG@10 >= 0.7 が一般的な目標                 │
+  │                │ Cumulative gain discounted by rank position   │
+  │                │ Supports multi-level relevance judgments      │
+  │                │ nDCG@10 >= 0.7 is a common target            │
   ├────────────────┼──────────────────────────────────────────────┤
   │ CTR            │ Click Through Rate                           │
-  │ (クリック率)    │ = クリックされた検索数 / 総検索数               │
-  │                │ オンライン指標、30-60% が健全               │
+  │                │ = searches with clicks / total searches       │
+  │                │ Online metric; 30-60% is healthy             │
   ├────────────────┼──────────────────────────────────────────────┤
-  │ Zero Result    │ 0件ヒットの検索クエリの割合                    │
-  │ Rate           │ < 5% が目標                                  │
+  │ Zero Result    │ Ratio of search queries returning 0 results   │
+  │ Rate           │ < 5% is the target                           │
   └────────────────┴──────────────────────────────────────────────┘
 ```
 
-### 4.2 クエリ書き換え (Query Rewriting)
+### 4.2 Query Rewriting
 
-ユーザーが入力したクエリをそのまま検索エンジンに渡すのではなく、前処理を行うことで検索品質を大幅に改善できる。
+Rather than passing the user's query directly to the search engine, preprocessing it can significantly improve search quality.
 
 ```python
-# コード例 8: クエリ書き換えパイプライン
+# Code Example 8: Query rewriting pipeline
 import re
 from typing import List, Tuple
 
 
 class QueryRewriter:
-    """検索クエリの前処理と書き換えを行う"""
+    """Preprocesses and rewrites search queries"""
 
     def __init__(self):
         self.spelling_corrections = {
-            "あいふぉん": "iPhone",
-            "ぐーぐる": "Google",
-            "あまぞん": "Amazon",
+            "gogle": "Google",
+            "amazn": "Amazon",
+            "microsft": "Microsoft",
         }
         self.query_expansions = {
-            "ノートPC": ["ノートPC", "ノートパソコン", "ラップトップ"],
-            "イヤホン": ["イヤホン", "イヤフォン", "ヘッドホン"],
+            "laptop": ["laptop", "notebook computer", "notebook PC"],
+            "earphones": ["earphones", "earbuds", "headphones"],
         }
         self.stop_patterns = [
-            r"を?\s*探して(い?ます|ください)?",
-            r"が?\s*欲しい(です)?",
-            r"おすすめ",
+            r"I('m|'m)?\s*(looking|searching)\s*(for)?",
+            r"(I\s*)?(want|need|would like)\s*(a|an|the)?",
+            r"best\s+",
         ]
 
     def rewrite(self, query: str) -> dict:
         """
-        クエリを分析し、書き換えた結果を返す。
+        Analyze the query and return the rewritten result.
 
         Returns:
             {
-                "original": 元のクエリ,
-                "rewritten": 書き換え後のクエリ,
-                "expansions": 展開されたクエリ,
-                "corrections": 修正内容,
+                "original": original query,
+                "rewritten": rewritten query,
+                "expansions": expanded queries,
+                "corrections": list of corrections made,
             }
         """
         corrections = []
         rewritten = query.strip()
 
-        # Step 1: 自然言語パターンの除去
+        # Step 1: Remove natural language patterns
         for pattern in self.stop_patterns:
-            cleaned = re.sub(pattern, "", rewritten).strip()
+            cleaned = re.sub(pattern, "", rewritten, flags=re.IGNORECASE).strip()
             if cleaned != rewritten:
                 corrections.append(
-                    f"パターン除去: '{rewritten}' → '{cleaned}'"
+                    f"Pattern removed: '{rewritten}' → '{cleaned}'"
                 )
                 rewritten = cleaned
 
-        # Step 2: スペル修正
+        # Step 2: Spelling correction
         for wrong, correct in self.spelling_corrections.items():
             if wrong in rewritten.lower():
                 rewritten = rewritten.replace(wrong, correct)
-                corrections.append(f"スペル修正: {wrong} → {correct}")
+                corrections.append(f"Spelling corrected: {wrong} → {correct}")
 
-        # Step 3: クエリ展開
+        # Step 3: Query expansion
         expansions = [rewritten]
         for term, expanded in self.query_expansions.items():
-            if term in rewritten:
+            if term in rewritten.lower():
                 expansions = expanded
-                corrections.append(f"クエリ展開: {term} → {expanded}")
+                corrections.append(f"Query expanded: {term} → {expanded}")
 
         return {
             "original": query,
@@ -1539,56 +1538,56 @@ class QueryRewriter:
         }
 
 
-# 使用例
+# Usage example
 rewriter = QueryRewriter()
-result = rewriter.rewrite("ノートPCを探しています")
+result = rewriter.rewrite("I'm looking for a laptop")
 # → {
-#     "original": "ノートPCを探しています",
-#     "rewritten": "ノートPC",
-#     "expansions": ["ノートPC", "ノートパソコン", "ラップトップ"],
+#     "original": "I'm looking for a laptop",
+#     "rewritten": "laptop",
+#     "expansions": ["laptop", "notebook computer", "notebook PC"],
 #     "corrections": [
-#         "パターン除去: 'ノートPCを探しています' → 'ノートPC'",
-#         "クエリ展開: ノートPC → ['ノートPC', 'ノートパソコン', 'ラップトップ']"
+#         "Pattern removed: 'I'm looking for a laptop' → 'laptop'",
+#         "Query expanded: laptop → ['laptop', 'notebook computer', 'notebook PC']"
 #     ]
 # }
 ```
 
 ### 4.3 Learning to Rank (LTR)
 
-BM25 だけでは最適なランキングが得られない場合、機械学習を使ってランキングモデルを構築する手法が Learning to Rank (LTR) である。
+When BM25 alone cannot achieve optimal ranking, Learning to Rank (LTR) is a technique that uses machine learning to build a ranking model.
 
 ```
-Learning to Rank のアーキテクチャ:
+Learning to Rank Architecture:
 
-  ┌── オフライン (モデル学習) ──────────────────────────┐
+  ┌── Offline (Model Training) ────────────────────────┐
   │                                                    │
   │  [Search Logs] ─→ [Click Data] ─→ [Judgment List]  │
   │                                                    │
-  │  Judgment List の例:                                │
-  │  query="ノートPC", doc_id=123, grade=3 (Perfect)   │
-  │  query="ノートPC", doc_id=456, grade=2 (Good)      │
-  │  query="ノートPC", doc_id=789, grade=0 (Bad)       │
+  │  Judgment List example:                            │
+  │  query="laptop", doc_id=123, grade=3 (Perfect)     │
+  │  query="laptop", doc_id=456, grade=2 (Good)        │
+  │  query="laptop", doc_id=789, grade=0 (Bad)         │
   │                                                    │
   │  [Feature Extraction]                              │
-  │    - BM25 スコア                                   │
-  │    - タイトル一致度                                  │
-  │    - 商品レーティング                                │
-  │    - レビュー数                                     │
-  │    - 価格                                           │
-  │    - 売上数                                         │
-  │    - クリック数                                      │
+  │    - BM25 score                                    │
+  │    - Title match score                             │
+  │    - Product rating                                │
+  │    - Review count                                  │
+  │    - Price                                         │
+  │    - Sales volume                                  │
+  │    - Click count                                   │
   │                                                    │
   │  [LambdaMART / RankNet / LambdaRank]               │
   │       ↓                                            │
   │  [Trained Model]                                   │
   └────────┬───────────────────────────────────────────┘
            │
-  ┌────────v── オンライン (推論) ───────────────────────┐
+  ┌────────v── Online (Inference) ─────────────────────┐
   │                                                    │
-  │  Query → [BM25 で候補100件取得]                     │
-  │       → [特徴量抽出]                                │
-  │       → [LTR モデルでリスコア]                       │
-  │       → [リランキング結果を返却]                     │
+  │  Query → [Retrieve 100 candidates with BM25]       │
+  │       → [Feature extraction]                       │
+  │       → [Rescore with LTR model]                   │
+  │       → [Return reranked results]                  │
   │                                                    │
   │  Elasticsearch LTR Plugin:                         │
   │  POST products/_search                             │
@@ -1600,7 +1599,7 @@ Learning to Rank のアーキテクチャ:
   │        "rescore_query": {                          │
   │          "sltr": {                                 │
   │            "model": "my_ltr_model",                │
-  │            "params": { "query": "ノートPC" }        │
+  │            "params": { "query": "laptop" }         │
   │          }                                         │
   │        }                                           │
   │      }                                             │
@@ -1611,94 +1610,94 @@ Learning to Rank のアーキテクチャ:
 
 ---
 
-## 5. 比較表
+## 5. Comparison Tables
 
-### 5.1 検索エンジン比較
+### 5.1 Search Engine Comparison
 
-| 特性 | Elasticsearch | Apache Solr | Meilisearch | Typesense | OpenSearch |
+| Property | Elasticsearch | Apache Solr | Meilisearch | Typesense | OpenSearch |
 |------|:------------:|:-----------:|:-----------:|:---------:|:----------:|
-| ベースエンジン | Lucene | Lucene | 独自 (Rust) | 独自 (C++) | Lucene |
-| ライセンス | SSPL / Elastic | Apache 2.0 | MIT | GPL v3 | Apache 2.0 |
-| 日本語対応 | kuromoji | kuromoji | Lindera | 基本的 | kuromoji |
-| リアルタイム検索 | 1秒以内 | 1秒以内 | 即時 | 即時 | 1秒以内 |
-| 分散スケール | ネイティブ | SolrCloud | 限定的 | 限定的 | ネイティブ |
-| 運用の複雑さ | 高 | 高 | 低 | 低 | 高 |
-| エコシステム | Kibana, Logstash | Banana | Dashboard | Dashboard | OpenSearch Dashboards |
-| マネージドサービス | Elastic Cloud, AWS | なし | Meilisearch Cloud | Typesense Cloud | AWS OpenSearch |
-| 最適用途 | 大規模全文検索・ログ分析 | エンタープライズ | 小中規模・高速サジェスト | 小中規模・タイポ耐性 | 大規模 (OSS 要件) |
+| Base engine | Lucene | Lucene | Custom (Rust) | Custom (C++) | Lucene |
+| License | SSPL / Elastic | Apache 2.0 | MIT | GPL v3 | Apache 2.0 |
+| Japanese support | kuromoji | kuromoji | Lindera | Basic | kuromoji |
+| Real-time search | Within 1 second | Within 1 second | Immediate | Immediate | Within 1 second |
+| Distributed scale | Native | SolrCloud | Limited | Limited | Native |
+| Operational complexity | High | High | Low | Low | High |
+| Ecosystem | Kibana, Logstash | Banana | Dashboard | Dashboard | OpenSearch Dashboards |
+| Managed service | Elastic Cloud, AWS | None | Meilisearch Cloud | Typesense Cloud | AWS OpenSearch |
+| Best use case | Large-scale full-text search & log analysis | Enterprise | Small/medium scale, fast suggest | Small/medium scale, typo tolerance | Large-scale (OSS requirement) |
 
-### 5.2 検索機能の実装方法比較
+### 5.2 Comparison of Search Feature Implementation Methods
 
-| 検索機能 | 実装方法 | 効果 | 実装難易度 |
+| Search feature | Implementation method | Effect | Implementation difficulty |
 |---------|---------|------|-----------|
-| ファジー検索 | fuzziness: "AUTO" | タイポ許容 (1-2文字) | 低 |
-| 同義語展開 | synonym filter | 表記揺れ対応 | 低 |
-| フィールドブースト | fields: ["title^3"] | フィールド重み付け | 低 |
-| ハイライト | highlight API | 該当箇所の強調表示 | 低 |
-| ファセット検索 | aggregations | カテゴリ別件数表示 | 中 |
-| オートコンプリート | completion suggester | 入力補完 | 中 |
-| 地理検索 | geo_point + geo_distance | 距離ベースの検索 | 中 |
-| Function Score | function_score query | ビジネスロジック反映 | 中 |
-| クエリ書き換え | アプリ層で前処理 | 検索精度向上 | 高 |
-| Learning to Rank | LTR プラグイン | ML ベースのランキング | 高 |
+| Fuzzy search | fuzziness: "AUTO" | Tolerates typos (1-2 characters) | Low |
+| Synonym expansion | synonym filter | Handles spelling variations | Low |
+| Field boosting | fields: ["title^3"] | Field weight assignment | Low |
+| Highlighting | highlight API | Emphasize matching sections | Low |
+| Faceted search | aggregations | Display counts by category | Medium |
+| Autocomplete | completion suggester | Input completion | Medium |
+| Geo search | geo_point + geo_distance | Distance-based search | Medium |
+| Function Score | function_score query | Reflect business logic | Medium |
+| Query rewriting | Pre-processing in app layer | Improved search accuracy | High |
+| Learning to Rank | LTR plugin | ML-based ranking | High |
 
-### 5.3 インデックス設計のフィールドタイプ選択
+### 5.3 Field Type Selection for Index Design
 
-| ユースケース | フィールドタイプ | 理由 |
+| Use case | Field type | Reason |
 |------------|----------------|------|
-| 全文検索対象 | text | トークナイズしてインデックス |
-| フィルタ・ソート・集計 | keyword | 完全一致、高速 |
-| 数値フィルタ | integer / float | 範囲検索、ソート |
-| 日時フィルタ | date | 範囲検索、時系列 |
-| 位置情報 | geo_point | 距離検索 |
-| 入力補完 | completion | プレフィックス検索 |
-| 保存のみ (検索不要) | object + enabled:false | ストレージ節約 |
-| ネストされたオブジェクト | nested | オブジェクト内の独立検索 |
+| Full-text search target | text | Tokenized and indexed |
+| Filter / sort / aggregation | keyword | Exact match, fast |
+| Numeric filter | integer / float | Range search, sorting |
+| Date/time filter | date | Range search, time series |
+| Location data | geo_point | Distance search |
+| Input completion | completion | Prefix search |
+| Store only (no search needed) | object + enabled:false | Storage savings |
+| Nested objects | nested | Independent search within objects |
 
 ---
 
-## 6. アンチパターン
+## 6. Anti-Patterns
 
-### アンチパターン 1: RDB に全文検索を任せる
+### Anti-Pattern 1: Relying on RDB for Full-Text Search
 
 ```sql
--- NG: LIKE 検索はインデックスが効かない
+-- BAD: LIKE search cannot use indexes
 SELECT * FROM products
-WHERE name LIKE '%東京%' OR description LIKE '%東京%';
--- → フルテーブルスキャン
--- → 100万行で2-5秒、スケールしない
--- → 形態素解析なし、ランキングなし
+WHERE name LIKE '%Tokyo%' OR description LIKE '%Tokyo%';
+-- → Full table scan
+-- → 2-5 seconds for 1M rows, does not scale
+-- → No morphological analysis, no ranking
 
--- NG: MySQL FULLTEXT も CJK (日本語) に弱い
+-- BAD: MySQL FULLTEXT is also weak for CJK (Japanese)
 SELECT * FROM products
 WHERE MATCH(name, description)
-AGAINST('東京の観光' IN BOOLEAN MODE);
--- → 形態素解析なし (ngram のみ)
--- → 精度が低い、同義語非対応
--- → ファセット検索不可
+AGAINST('Tokyo sightseeing' IN BOOLEAN MODE);
+-- → No morphological analysis (ngram only)
+-- → Low accuracy, no synonym support
+-- → Faceted search not possible
 ```
 
 ```python
-# OK: 専用の検索エンジンを使う
+# OK: Use a dedicated search engine
 #
-# アーキテクチャ:
+# Architecture:
 #   DB (PostgreSQL) --- CDC (Debezium) ---> Kafka ---> Elasticsearch
 #
-# メリット:
-#   - 形態素解析 (kuromoji) で日本語を正確にトークナイズ
-#   - BM25 ランキングで関連性の高い結果を上位に
-#   - ファセット検索、サジェスト、ハイライト全対応
-#   - 水平スケーリング可能 (シャーディング)
+# Benefits:
+#   - Morphological analysis (kuromoji) for accurate tokenization
+#   - BM25 ranking puts most relevant results first
+#   - Full support for faceted search, suggest, and highlighting
+#   - Horizontally scalable (sharding)
 #
-# DB は SSOT (Single Source of Truth) として維持し、
-# Elasticsearch は検索専用のリードモデルとして位置づける
+# DB is maintained as SSOT (Single Source of Truth),
+# Elasticsearch is positioned as a read model for search only
 
 result = es.search(
     index="products",
     body={
         "query": {
             "multi_match": {
-                "query": "東京の観光",
+                "query": "Tokyo sightseeing",
                 "fields": ["title^3", "description"],
                 "analyzer": "ja_search_analyzer",
             }
@@ -1709,38 +1708,38 @@ result = es.search(
 )
 ```
 
-### アンチパターン 2: ダイナミックマッピングに頼る
+### Anti-Pattern 2: Relying on Dynamic Mapping
 
 ```python
-# NG: マッピングを定義せずにドキュメントをインデックス
+# BAD: Indexing documents without defining mapping
 es.index(index="products", body={
-    "name": "テスト商品",        # → text + keyword (両方にインデックス)
-    "price": 1000,              # → long (integer で十分)
-    "description": "テスト説明",  # → text + keyword (keyword は不要)
-    "internal_notes": "社内メモ", # → text + keyword (検索対象外なのにインデックス)
-    "created_at": "2024-01-15",  # → date (正しいが偶然)
+    "name": "Test Product",        # → text + keyword (indexed both ways)
+    "price": 1000,                 # → long (integer is sufficient)
+    "description": "Test description",  # → text + keyword (keyword unnecessary)
+    "internal_notes": "Internal memo",  # → text + keyword (not needed for search)
+    "created_at": "2024-01-15",    # → date (correct but by accident)
 })
-# 問題点:
-#   - 全フィールドが text + keyword 双方にインデックスされる
-#   - ストレージが2倍以上
-#   - インデキシング速度が低下
-#   - 不要なフィールドまで検索対象になる
+# Problems:
+#   - All fields are indexed as both text and keyword
+#   - Storage doubles or more
+#   - Indexing speed degrades
+#   - Unnecessary fields become searchable
 ```
 
 ```python
-# OK: 明示的なマッピングを事前設計
-# (3.1 節のインデックスマッピング設計を参照)
+# OK: Design explicit mappings upfront
+# (See index mapping design in Section 3.1)
 #
-# 設計原則:
-#   - 検索対象フィールド: text + 適切なアナライザー
-#   - フィルタ/ソート/集計用: keyword
-#   - 数値: integer / float (最小限の型を選ぶ)
-#   - 検索不要フィールド: enabled: false
-#   - dynamic: "strict" で未知フィールドを拒否
+# Design principles:
+#   - Fields for search: text + appropriate analyzer
+#   - For filter/sort/aggregation: keyword
+#   - Numeric: integer / float (choose smallest sufficient type)
+#   - Fields not needing search: enabled: false
+#   - dynamic: "strict" to reject unknown fields
 
 index_settings = {
     "mappings": {
-        "dynamic": "strict",  # 未定義フィールドはエラーにする
+        "dynamic": "strict",  # Unknown fields cause an error
         "properties": {
             "title": {
                 "type": "text",
@@ -1749,58 +1748,58 @@ index_settings = {
             "price": {"type": "integer"},
             "metadata": {
                 "type": "object",
-                "enabled": False,   # インデックスしない
+                "enabled": False,   # Not indexed
             },
         }
     }
 }
 ```
 
-### アンチパターン 3: 検索時の同義語展開をインデックス時に行う
+### Anti-Pattern 3: Expanding Synonyms at Index Time
 
 ```python
-# NG: インデックス時に同義語展開
+# BAD: Synonym expansion at index time
 index_settings = {
     "settings": {
         "analysis": {
             "analyzer": {
                 "my_analyzer": {
                     "tokenizer": "kuromoji_tokenizer",
-                    "filter": ["synonym_filter"],  # インデックス時に同義語展開
+                    "filter": ["synonym_filter"],  # Synonym expansion at index time
                 }
             },
             "filter": {
                 "synonym_filter": {
                     "type": "synonym",
-                    "synonyms": ["PC, パソコン, コンピュータ"]
+                    "synonyms": ["PC, personal computer, computer"]
                 }
             }
         }
     }
 }
-# 問題点:
-#   - 同義語辞書を更新するたびに全文書の再インデックスが必要
-#   - インデックスサイズが膨張する
-#   - 100万文書の再インデックスに数時間かかることも
+# Problems:
+#   - Every synonym dictionary update requires full re-indexing of all documents
+#   - Index size bloats
+#   - Re-indexing 1 million documents can take hours
 ```
 
 ```python
-# OK: 検索時のみ同義語展開
+# OK: Synonym expansion at search time only
 index_settings = {
     "settings": {
         "analysis": {
             "analyzer": {
-                "ja_index_analyzer": {     # インデックス時
+                "ja_index_analyzer": {     # At index time
                     "tokenizer": "kuromoji_tokenizer",
                     "filter": ["kuromoji_baseform", "lowercase"]
-                    # ← 同義語フィルタなし
+                    # ← No synonym filter
                 },
-                "ja_search_analyzer": {    # 検索時
+                "ja_search_analyzer": {    # At search time
                     "tokenizer": "kuromoji_tokenizer",
                     "filter": [
                         "kuromoji_baseform",
                         "lowercase",
-                        "synonym_filter",  # ← 検索時のみ同義語展開
+                        "synonym_filter",  # ← Synonym expansion at search time only
                     ]
                 }
             }
@@ -1810,222 +1809,223 @@ index_settings = {
         "properties": {
             "title": {
                 "type": "text",
-                "analyzer": "ja_index_analyzer",       # インデックス時
-                "search_analyzer": "ja_search_analyzer" # 検索時
+                "analyzer": "ja_index_analyzer",       # At index time
+                "search_analyzer": "ja_search_analyzer" # At search time
             }
         }
     }
 }
-# メリット:
-#   - 同義語辞書の更新は analyzer の reload のみ
-#   - 再インデックス不要
-#   - インデックスサイズが小さい
+# Benefits:
+#   - Updating the synonym dictionary only requires reloading the analyzer
+#   - No re-indexing required
+#   - Smaller index size
 ```
 
 ---
 
-## 7. 運用と監視
+## 7. Operations and Monitoring
 
-### 7.1 Elasticsearch クラスタの監視
+### 7.1 Monitoring the Elasticsearch Cluster
 
 ```
-クラスタ監視で見るべきメトリクス:
+Metrics to watch in cluster monitoring:
 
   ┌────────────────────┬──────────────────┬──────────────────────┐
-  │ メトリクス          │ 正常値           │ アラート閾値          │
+  │ Metric             │ Normal value     │ Alert threshold      │
   ├────────────────────┼──────────────────┼──────────────────────┤
   │ Cluster Status     │ green            │ yellow/red           │
-  │ JVM Heap 使用率    │ < 75%            │ > 85%                │
-  │ CPU 使用率         │ < 70%            │ > 85%                │
-  │ Disk 使用率        │ < 80%            │ > 85% (watermark)    │
+  │ JVM Heap usage     │ < 75%            │ > 85%                │
+  │ CPU usage          │ < 70%            │ > 85%                │
+  │ Disk usage         │ < 80%            │ > 85% (watermark)    │
   │ Search Latency p99 │ < 500ms          │ > 1000ms             │
   │ Index Latency p99  │ < 200ms          │ > 500ms              │
-  │ GC 頻度           │ < 5回/分          │ > 10回/分            │
+  │ GC frequency       │ < 5 times/min    │ > 10 times/min       │
   │ Circuit Breaker    │ trip = 0         │ trip > 0             │
   │ Pending Tasks      │ < 5              │ > 20                 │
   │ Rejected Threads   │ 0                │ > 0                  │
   └────────────────────┴──────────────────┴──────────────────────┘
 ```
 
-### 7.2 パフォーマンスチューニングチェックリスト
+### 7.2 Performance Tuning Checklist
 
 ```
-パフォーマンスチューニング:
+Performance tuning:
 
-  インデキシング最適化:
+  Indexing optimization:
   ┌────────────────────────────────────────────────────────────┐
-  │ 1. refresh_interval: "30s" (バルクインデックス時は "-1")     │
-  │ 2. number_of_replicas: 0 (バルク中は無効化)                 │
-  │ 3. bulk API を使用 (1ドキュメントずつ index しない)          │
-  │ 4. chunk_size: 500-1000 (ネットワーク状況に応じて調整)       │
-  │ 5. translog.flush_threshold_size: "1gb" に増加             │
+  │ 1. refresh_interval: "30s" (use "-1" during bulk indexing) │
+  │ 2. number_of_replicas: 0 (disable during bulk operations)  │
+  │ 3. Use Bulk API (do not index one document at a time)      │
+  │ 4. chunk_size: 500-1000 (adjust based on network conditions)│
+  │ 5. Increase translog.flush_threshold_size to "1gb"         │
   └────────────────────────────────────────────────────────────┘
 
-  検索最適化:
+  Search optimization:
   ┌────────────────────────────────────────────────────────────┐
-  │ 1. filter 句は bool/filter に配置 (キャッシュされる)         │
-  │ 2. _source filtering で不要フィールドを除外                 │
-  │ 3. size を最小限に (全件取得しない)                          │
-  │ 4. scroll API → search_after に移行 (大量取得時)            │
-  │ 5. doc_values: true (ソート・集計フィールド)                 │
-  │ 6. fielddata は避ける (text フィールドのソートは keyword で)  │
+  │ 1. Put filter clauses in bool/filter (they are cached)     │
+  │ 2. Use _source filtering to exclude unnecessary fields     │
+  │ 3. Keep size minimal (do not fetch all documents)          │
+  │ 4. Replace scroll API with search_after (for large fetches)│
+  │ 5. doc_values: true (for sort and aggregation fields)      │
+  │ 6. Avoid fielddata (use keyword instead of text for sort)  │
   └────────────────────────────────────────────────────────────┘
 
-  クラスタ最適化:
+  Cluster optimization:
   ┌────────────────────────────────────────────────────────────┐
-  │ 1. JVM Heap: 物理メモリの50%、ただし32GB以下                │
-  │ 2. 残り50%はファイルシステムキャッシュに使用                  │
-  │ 3. SSD を使用 (HDD 比で5-10倍高速)                         │
-  │ 4. master / data / coordinator ノードを分離                 │
-  │ 5. force_merge: 読み取り専用インデックスはセグメントを統合     │
+  │ 1. JVM Heap: 50% of physical memory, but no more than 32GB │
+  │ 2. Use remaining 50% for filesystem cache                  │
+  │ 3. Use SSD (5-10x faster than HDD)                        │
+  │ 4. Separate master / data / coordinator nodes              │
+  │ 5. force_merge: merge segments for read-only indexes       │
   └────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 8. 実践演習
+## 8. Practical Exercises
 
-### 演習 1: 基礎 -- 転置インデックスの手動構築
+### Exercise 1: Basic -- Manually Building an Inverted Index
 
-**課題**: 以下の3つの文書から、手動で転置インデックスを構築し、検索クエリの結果を求めよ。
-
-```
-文書:
-  Doc1: "Python で Web アプリケーションを開発する"
-  Doc2: "Python のデータ分析ライブラリ Pandas"
-  Doc3: "Web フレームワーク Django で REST API を構築する"
-
-問題:
-(a) 各文書をトークナイズせよ (ストップワード "で","の","を" は除去)
-(b) 転置インデックスを構築せよ
-(c) 検索クエリ "Python Web" を AND 検索した場合の結果は？
-(d) 検索クエリ "Python Web" を OR 検索した場合の結果は？
-(e) 各文書の BM25 スコアを概算せよ
-    (k1=1.2, b=0.75, avgdl=5 と仮定)
-```
-
-**期待される出力**:
+**Task**: From the following three documents, manually build an inverted index and determine the results of search queries.
 
 ```
-(a) トークナイズ結果:
-  Doc1: ["Python", "Web", "アプリケーション", "開発する"]
-  Doc2: ["Python", "データ分析", "ライブラリ", "Pandas"]
-  Doc3: ["Web", "フレームワーク", "Django", "REST", "API", "構築する"]
+Documents:
+  Doc1: "Developing web applications with Python"
+  Doc2: "Python data analysis library Pandas"
+  Doc3: "Building REST APIs with the Django web framework"
 
-(b) 転置インデックス:
-  "Python"           → [Doc1, Doc2]
-  "Web"              → [Doc1, Doc3]
-  "アプリケーション"   → [Doc1]
-  "開発する"          → [Doc1]
-  "データ分析"         → [Doc2]
-  "ライブラリ"         → [Doc2]
-  "Pandas"            → [Doc2]
-  "フレームワーク"     → [Doc3]
-  "Django"            → [Doc3]
-  "REST"              → [Doc3]
-  "API"               → [Doc3]
-  "構築する"           → [Doc3]
+Questions:
+(a) Tokenize each document (remove stop words "with", "the")
+(b) Build the inverted index
+(c) What is the result of an AND search for "Python web"?
+(d) What is the result of an OR search for "Python web"?
+(e) Estimate the BM25 score for each document
+    (assuming k1=1.2, b=0.75, avgdl=5)
+```
 
-(c) AND 検索 "Python Web":
+**Expected output**:
+
+```
+(a) Tokenization result:
+  Doc1: ["Python", "web", "applications", "developing"]
+  Doc2: ["Python", "data", "analysis", "library", "Pandas"]
+  Doc3: ["web", "framework", "Django", "REST", "APIs", "building"]
+
+(b) Inverted index:
+  "Python"      → [Doc1, Doc2]
+  "web"         → [Doc1, Doc3]
+  "applications"→ [Doc1]
+  "developing"  → [Doc1]
+  "data"        → [Doc2]
+  "analysis"    → [Doc2]
+  "library"     → [Doc2]
+  "Pandas"      → [Doc2]
+  "framework"   → [Doc3]
+  "Django"      → [Doc3]
+  "REST"        → [Doc3]
+  "APIs"        → [Doc3]
+  "building"    → [Doc3]
+
+(c) AND search "Python web":
   "Python" → {Doc1, Doc2}
-  "Web"    → {Doc1, Doc3}
+  "web"    → {Doc1, Doc3}
   AND: {Doc1, Doc2} ∩ {Doc1, Doc3} = {Doc1}
-  → 結果: Doc1
+  → Result: Doc1
 
-(d) OR 検索 "Python Web":
+(d) OR search "Python web":
   "Python" → {Doc1, Doc2}
-  "Web"    → {Doc1, Doc3}
+  "web"    → {Doc1, Doc3}
   OR: {Doc1, Doc2} ∪ {Doc1, Doc3} = {Doc1, Doc2, Doc3}
-  → 結果: Doc1, Doc2, Doc3
+  → Result: Doc1, Doc2, Doc3
 
-(e) BM25 概算 (クエリ "Python Web"):
+(e) BM25 estimate (query "Python web"):
   N=3, avgdl=5
 
   IDF("Python") = log(1 + (3-2+0.5)/(2+0.5)) = log(1 + 0.6) ≈ 0.47
-  IDF("Web")    = log(1 + (3-2+0.5)/(2+0.5)) = log(1 + 0.6) ≈ 0.47
+  IDF("web")    = log(1 + (3-2+0.5)/(2+0.5)) = log(1 + 0.6) ≈ 0.47
 
   Doc1 (|D|=4):
     score = 0.47 × (1×2.2)/(1+1.2×(1-0.75+0.75×4/5))
           + 0.47 × (1×2.2)/(1+1.2×(1-0.75+0.75×4/5))
           ≈ 0.47 × 1.02 + 0.47 × 1.02 ≈ 0.96
 
-  Doc2 (|D|=4, "Web"なし):
+  Doc2 (|D|=4, no "web"):
     score = 0.47 × 1.02 + 0 ≈ 0.48
 
-  Doc3 (|D|=6, "Python"なし):
+  Doc3 (|D|=6, no "Python"):
     score = 0 + 0.47 × (1×2.2)/(1+1.2×(1-0.75+0.75×6/5))
           ≈ 0 + 0.47 × 0.91 ≈ 0.43
 
-  ランキング: Doc1 (0.96) > Doc2 (0.48) > Doc3 (0.43)
+  Ranking: Doc1 (0.96) > Doc2 (0.48) > Doc3 (0.43)
 ```
 
-### 演習 2: 応用 -- Elasticsearch の検索品質改善
+### Exercise 2: Applied -- Improving Elasticsearch Search Quality
 
-**課題**: 以下の Elasticsearch インデックスに対して、検索品質を改善するための設定変更を行え。
+**Task**: Make configuration changes to improve search quality for the following Elasticsearch index.
 
 ```python
 """
-前提:
-- 商品検索システム (ECサイト)
-- 100万件の商品データ
-- 検索ログから以下の問題が判明:
-  1. "パソコン" で検索しても "PC" がヒットしない
-  2. "iphon" (タイポ) で検索すると0件
-  3. 長い商品説明の方が短いタイトル一致より上位に来る
-  4. 新着商品が埋もれてしまう
-  5. "東京スカイツリー" が "東京" と "スカイツリー" に分割される
+Context:
+- Product search system (e-commerce site)
+- 1 million product records
+- The following problems were identified from search logs:
+  1. Searching for "PC" does not match "personal computer"
+  2. Searching for "iphon" (typo) returns 0 results
+  3. Long product descriptions rank higher than short title matches
+  4. New products get buried
+  5. "Tokyo Skytree" is split into "Tokyo" and "Skytree"
 
-課題:
-(a) 問題1を解決する同義語設定を書け
-(b) 問題2を解決するファジー検索設定を書け
-(c) 問題3を解決するフィールドブースト設定を書け
-(d) 問題4を解決する Function Score 設定を書け
-(e) 問題5を解決するユーザー辞書設定を書け
+Tasks:
+(a) Write the synonym settings to solve problem 1
+(b) Write the fuzzy search settings to solve problem 2
+(c) Write the field boost settings to solve problem 3
+(d) Write the Function Score settings to solve problem 4
+(e) Write the user dictionary settings to solve problem 5
 """
 ```
 
-**期待される出力**:
+**Expected output**:
 
 ```python
-# (a) 同義語設定
+# (a) Synonym settings
 synonym_settings = {
     "filter": {
         "synonym_filter": {
             "type": "synonym",
             "synonyms": [
-                "PC, パソコン, コンピュータ, パーソナルコンピュータ",
-                "スマホ, スマートフォン, 携帯電話",
-                "テレビ, TV, ティーヴィー",
+                "PC, personal computer, computer, desktop computer",
+                "smartphone, mobile phone, cellphone",
+                "television, TV",
             ]
         }
     }
 }
 
-# (b) ファジー検索 (fuzziness: "AUTO" は長さに応じて自動調整)
+# (b) Fuzzy search (fuzziness: "AUTO" adjusts automatically based on length)
 fuzzy_query = {
     "multi_match": {
         "query": "iphon",
         "fields": ["title^3", "description"],
-        "fuzziness": "AUTO",        # 3-5文字: 編集距離1, 6文字以上: 距離2
-        "prefix_length": 1,         # 先頭1文字は一致必須
+        "fuzziness": "AUTO",        # 3-5 chars: edit distance 1, 6+ chars: distance 2
+        "prefix_length": 1,         # First character must match
         "max_expansions": 50,
     }
 }
 
-# (c) フィールドブースト
+# (c) Field boosting
 boosted_query = {
     "multi_match": {
-        "query": "ノートパソコン",
+        "query": "laptop computer",
         "fields": [
-            "title^5",          # タイトル完全一致を最重視
-            "title.ngram^1",    # タイトル部分一致
-            "description^1",    # 説明文は低ウェイト
+            "title^5",          # Prioritize exact title match most
+            "title.ngram^1",    # Title partial match
+            "description^1",    # Description gets low weight
         ],
         "type": "best_fields",
     }
 }
 
-# (d) 新着ブースト (Function Score)
+# (d) Freshness boost (Function Score)
 freshness_query = {
     "function_score": {
         "query": {"match_all": {}},
@@ -2045,220 +2045,220 @@ freshness_query = {
     }
 }
 
-# (e) ユーザー辞書 (kuromoji)
-# userdict.txt に以下を追加:
-# 東京スカイツリー,東京スカイツリー,トウキョウスカイツリー,カスタム名詞
+# (e) User dictionary (kuromoji)
+# Add the following to userdict.txt:
+# TokyoSkytree,TokyoSkytree,TokyoSkytree,CustomNoun
 user_dict_settings = {
     "tokenizer": {
         "kuromoji_user_dict": {
             "type": "kuromoji_tokenizer",
             "user_dictionary": "userdict.txt",
-            "mode": "search",   # search モードで複合語を分割
+            "mode": "search",   # Split compound words in search mode
         }
     }
 }
 ```
 
-### 演習 3: 発展 -- 分散検索システムの設計
+### Exercise 3: Advanced -- Designing a Distributed Search System
 
-**課題**: 以下の要件を満たす検索システムのアーキテクチャを設計せよ。
-
-```
-要件:
-- 対象: ECサイトの商品検索
-- 商品数: 5,000万件
-- データサイズ: 1商品あたり平均 5KB → 合計 250GB
-- 検索QPS: ピーク時 10,000 QPS
-- レイテンシ: p99 < 200ms
-- 可用性: 99.9%
-- 日本語対応必須
-
-設計すべき内容:
-(a) シャード数とレプリカ数の決定
-(b) ノード構成 (台数、スペック)
-(c) インデックス更新のアーキテクチャ
-(d) キャッシュ戦略
-(e) 障害対応計画
-```
-
-**期待される出力**:
+**Task**: Design the architecture of a search system that meets the following requirements.
 
 ```
-(a) シャード設計:
-  データ量: 250GB
-  目標シャードサイズ: 30GB
-  プライマリシャード数: 250 / 30 ≈ 9 → 10 シャード
-  レプリカ数: 2 (可用性 99.9% 確保)
-  総シャード数: 10 × (1 + 2) = 30
+Requirements:
+- Target: Product search for an e-commerce site
+- Number of products: 50 million
+- Data size: 5KB average per product → 250GB total
+- Search QPS: 10,000 QPS at peak
+- Latency: p99 < 200ms
+- Availability: 99.9%
+- Japanese language support required
 
-(b) ノード構成:
-  Master Node: 3台 (専用、小型インスタンス)
+Things to design:
+(a) Number of shards and replicas
+(b) Node configuration (count, specs)
+(c) Index update architecture
+(d) Caching strategy
+(e) Failure response plan
+```
+
+**Expected output**:
+
+```
+(a) Shard design:
+  Data volume: 250GB
+  Target shard size: 30GB
+  Number of primary shards: 250 / 30 ≈ 9 → 10 shards
+  Replica count: 2 (to ensure 99.9% availability)
+  Total shards: 10 × (1 + 2) = 30
+
+(b) Node configuration:
+  Master Node: 3 (dedicated, small instances)
     - 4 vCPU, 8GB RAM
-    - クラスタ管理のみ
-  Data Node: 6台
+    - Cluster management only
+  Data Node: 6
     - 16 vCPU, 64GB RAM (Heap: 30GB)
     - SSD: 500GB
-    - 1ノードあたり 5 シャード (30/6)
-  Coordinator Node: 3台
+    - 5 shards per node (30/6)
+  Coordinator Node: 3
     - 8 vCPU, 32GB RAM
-    - Scatter-Gather の実行
-  合計: 12台
+    - Execute Scatter-Gather
+  Total: 12 nodes
 
-(c) インデックス更新:
+(c) Index updates:
   Source DB (PostgreSQL)
     → Debezium CDC Connector
-    → Kafka (3ブローカー、パーティション=10)
-    → Index Worker (3インスタンス、Consumer Group)
+    → Kafka (3 brokers, partitions=10)
+    → Index Worker (3 instances, Consumer Group)
     → Elasticsearch Bulk API
 
-  更新遅延: 1-3秒
-  スループット: 30,000 docs/sec (3ワーカー合計)
+  Update latency: 1-3 seconds
+  Throughput: 30,000 docs/sec (3 workers combined)
 
-(d) キャッシュ戦略:
-  L1: Redis (検索結果キャッシュ)
-    - キー: hash(query + filters + sort + page)
-    - TTL: 60秒
-    - ヒット率目標: 40%
-    - → 10,000 QPS × 0.4 = 4,000 QPS がキャッシュで処理
-    - → ES への実際の QPS: 6,000
+(d) Caching strategy:
+  L1: Redis (search result cache)
+    - Key: hash(query + filters + sort + page)
+    - TTL: 60 seconds
+    - Target hit rate: 40%
+    - → 10,000 QPS × 0.4 = 4,000 QPS served from cache
+    - → Actual QPS to ES: 6,000
   L2: ES Request Cache
-    - filter 句の結果をキャッシュ
-    - refresh で自動無効化
+    - Cache results of filter clauses
+    - Automatically invalidated on refresh
   L3: ES Field Data Cache / doc_values
-    - ソート・集計フィールド
+    - Sort and aggregation fields
 
-(e) 障害対応:
-  - ノード障害: レプリカ2なので1ノード障害は自動フェイルオーバー
-  - AZ障害: 3 AZ にノードを分散配置
+(e) Failure response:
+  - Node failure: 2 replicas allow automatic failover on 1 node failure
+  - AZ failure: Distribute nodes across 3 AZs
                 AZ-a: Data×2, Master×1, Coord×1
                 AZ-b: Data×2, Master×1, Coord×1
                 AZ-c: Data×2, Master×1, Coord×1
-  - インデックス破損: スナップショット (S3) から日次リストア
-  - Kafka 障害: レプリケーション=3、ISR=2
-  - Circuit Breaker: ES の memory circuit breaker で OOM 防止
+  - Index corruption: Daily restore from snapshot (S3)
+  - Kafka failure: Replication=3, ISR=2
+  - Circuit Breaker: ES memory circuit breaker prevents OOM
 ```
 
 ---
 
 ## 9. FAQ
 
-### Q1. Elasticsearch のシャード数はどう決める？
+### Q1. How do you determine the number of Elasticsearch shards?
 
-**A.** 1シャードあたり10-50GB (推奨30GB前後) が目安である。シャード数は後から変更できないため (Reindex が必要)、初期設計が重要だ。具体的な手順は以下のとおり:
+**A.** The guideline is 10-50GB per shard (around 30GB recommended). Since the shard count cannot be changed later (Reindex is required), the initial design is critical. The specific steps are as follows:
 
-1. 現在のデータ量と将来の増加率を見積もる
-2. `データ量 ÷ 目標シャードサイズ` でプライマリシャード数を計算
-3. ヒープ使用量が `ヒープサイズ × 20 シャード/GB` 以下になるよう調整
-4. 例: 500GBのデータ、30GB/シャード → 17シャード → 切り上げて20シャード
+1. Estimate current data volume and future growth rate
+2. Calculate the number of primary shards using `data volume ÷ target shard size`
+3. Adjust so heap usage stays below `heap size × 20 shards/GB`
+4. Example: 500GB of data, 30GB/shard → 17 shards → round up to 20 shards
 
-注意点として、シャードが多すぎるとコーディネータの Scatter-Gather オーバーヘッドが増加し、少なすぎるとノード追加時にリバランスできない。時系列データの場合は ILM (Index Lifecycle Management) でロールオーバーポリシーを設定し、日次・週次でインデックスを自動分割するのが効果的である。
+Note that too many shards increases coordinator Scatter-Gather overhead, while too few prevents rebalancing when nodes are added. For time-series data, setting a rollover policy with ILM (Index Lifecycle Management) to automatically split indexes daily or weekly is effective.
 
-### Q2. 検索の関連性 (レリバンシー) を改善するには？
+### Q2. How do you improve search relevance?
 
-**A.** 段階的に改善するアプローチが有効である:
+**A.** A gradual improvement approach is effective:
 
-1. **Step 1 (即効性あり)**: アナライザーの最適化 -- 同義語辞書の追加、ユーザー辞書の追加 (固有名詞対応)、ストップワードの調整
-2. **Step 2 (中期)**: フィールドブースト -- タイトルに高いウェイト (`title^3`)、カテゴリに中程度のウェイト (`tags^2`)
-3. **Step 3 (中期)**: Function Score Query -- 人気度 (`log1p(review_count)`)、新着度 (`gauss(created_at)`)、距離 (`gauss(location)`) をスコアに反映
-4. **Step 4 (長期)**: 検索ログ分析 -- ゼロ件ヒットクエリの分析 → 同義語辞書追加、CTR の低いクエリ → ランキング調整
-5. **Step 5 (長期)**: Learning to Rank -- クリックスルーデータから機械学習モデルを構築し、BM25 + Function Score では捉えられない複雑な関連性を学習
+1. **Step 1 (quick wins)**: Analyzer optimization -- add synonym dictionaries, add user dictionaries (for proper nouns), adjust stop words
+2. **Step 2 (medium-term)**: Field boosting -- high weight for title (`title^3`), medium weight for category (`tags^2`)
+3. **Step 3 (medium-term)**: Function Score Query -- reflect popularity (`log1p(review_count)`), freshness (`gauss(created_at)`), and distance (`gauss(location)`) in scoring
+4. **Step 4 (long-term)**: Search log analysis -- analyze zero-result queries → add synonyms, adjust ranking for low-CTR queries
+5. **Step 5 (long-term)**: Learning to Rank -- build a machine learning model from clickthrough data to capture complex relevance that BM25 + Function Score cannot capture
 
-### Q3. インデックスの再構築はどうやる？
+### Q3. How do you rebuild an index?
 
-**A.** ダウンタイムなしで再構築するには Alias パターンを使う:
+**A.** Use the Alias pattern to rebuild without downtime:
 
-1. 新インデックス `products_v2` を新しいマッピングで作成
-2. Reindex API で `products_v1` → `products_v2` にデータをコピー
-3. Alias `products` を `products_v1` → `products_v2` にアトミックに切り替え
-4. 旧インデックス `products_v1` を削除
+1. Create a new index `products_v2` with the new mapping
+2. Copy data from `products_v1` → `products_v2` using the Reindex API
+3. Atomically switch alias `products` from `products_v1` → `products_v2`
+4. Delete the old index `products_v1`
 
-クライアントは常に Alias 名 (`products`) でアクセスするため、切り替えは透過的に行われる。大量データの場合は `slices` パラメータで並列リインデックスすると高速化できる。コード例は 3.4 節の `reindex_with_zero_downtime` 関数を参照。
+Clients always access via the alias name (`products`), so the switch is transparent. For large data volumes, using the `slices` parameter for parallel reindexing speeds up the process. See the `reindex_with_zero_downtime` function in Section 3.4 for a code example.
 
-### Q4. Elasticsearch と RDB のデータ不整合はどう防ぐ？
+### Q4. How do you prevent data inconsistencies between Elasticsearch and RDB?
 
-**A.** CDC (Change Data Capture) パターンを使えば、RDB のトランザクションログ (WAL) から変更を検出するため、アプリケーション層のバグによるデータ不整合を防げる。ただし、以下の対策も必要:
+**A.** Using the CDC (Change Data Capture) pattern detects changes from the RDB transaction log (WAL), preventing data inconsistencies caused by application-layer bugs. However, the following measures are also needed:
 
-1. **整合性チェックジョブ**: 定期的に RDB と ES のドキュメント数・更新日時を比較
-2. **デッドレターキュー**: インデキシング失敗したイベントを別キューに退避し、後で再処理
-3. **フルリビルド**: 月次で全データの再インデックスを実行 (差分では補えない不整合を解消)
-4. **べき等性**: Index Worker をべき等に実装 (同じイベントを2回処理しても同じ結果)
+1. **Consistency check jobs**: Periodically compare document counts and updated timestamps between RDB and ES
+2. **Dead letter queue**: Move failed indexing events to a separate queue for later reprocessing
+3. **Full rebuild**: Re-index all data monthly (resolves inconsistencies that incremental updates cannot fix)
+4. **Idempotency**: Implement Index Worker idempotently (processing the same event twice produces the same result)
 
-### Q5. 検索速度が遅い場合のデバッグ方法は？
+### Q5. How do you debug slow search performance?
 
-**A.** 以下の手順で原因を特定する:
+**A.** Follow these steps to identify the cause:
 
-1. **Profile API** でクエリの各フェーズの実行時間を確認
+1. **Profile API** to check execution time for each phase of a query
    ```
    POST products/_search
    { "profile": true, "query": { ... } }
    ```
-2. **Slow Log** を有効化して遅いクエリを特定
+2. **Slow Log** to enable and identify slow queries
    ```
    PUT products/_settings
    { "index.search.slowlog.threshold.query.warn": "1s" }
    ```
-3. **Hot Threads API** で CPU ボトルネックを特定
+3. **Hot Threads API** to identify CPU bottlenecks
    ```
    GET _nodes/hot_threads
    ```
-4. よくある原因と対策:
-   - Wildcard クエリの先頭に `*` → 避ける
-   - Script Score の重い計算 → Painless スクリプトの最適化
-   - 大量の aggregation → 必要最小限に削減
-   - 巨大な _source の返却 → `_source` フィルタリング
+4. Common causes and solutions:
+   - Leading `*` in wildcard queries → avoid
+   - Heavy calculations in Script Score → optimize Painless scripts
+   - Large number of aggregations → reduce to the minimum necessary
+   - Returning massive `_source` → use `_source` filtering
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not only through theory but by actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. It is recommended to thoroughly understand the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## 10. まとめ
+## 10. Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| 転置インデックス | 検索エンジンの中核データ構造。語 → 文書リストのマッピング。Lucene では FST + Skip List で高速化 |
-| アナライザー | Character Filter → Tokenizer → Token Filter のパイプライン。日本語には kuromoji が必須 |
-| BM25 | TF-IDF の改良版。TF の飽和と文書長の正規化により、より自然なランキングを実現 |
-| 分散検索 | Scatter-Gather パターン。Query Phase + Fetch Phase の2段階。シャード数がスケールの鍵 |
-| Elasticsearch | Lucene ベースの大規模全文検索エンジン。kuromoji で日本語対応、豊富な検索 DSL |
-| インデックス更新 | CDC (Debezium) + Kafka パイプラインで DB 変更を非同期に ES へ反映。遅延1-5秒 |
-| 検索品質改善 | 同義語辞書 → ブースト → Function Score → Query Rewriting → Learning to Rank の段階的改善 |
-| 運用 | Alias パターンでゼロダウンタイム再構築、ILM で時系列管理、Profile API でデバッグ |
+| Inverted index | The core data structure of a search engine. Mapping from term → document list. Lucene uses FST + Skip List for speed |
+| Analyzer | Pipeline of Character Filter → Tokenizer → Token Filter. kuromoji is essential for Japanese |
+| BM25 | An improved version of TF-IDF. Achieves more natural ranking through TF saturation and document length normalization |
+| Distributed search | Scatter-Gather pattern. Two phases: Query Phase + Fetch Phase. Shard count is the key to scaling |
+| Elasticsearch | Large-scale full-text search engine based on Lucene. Japanese support via kuromoji, rich search DSL |
+| Index updates | DB changes reflected asynchronously to ES via CDC (Debezium) + Kafka pipeline. Latency of 1-5 seconds |
+| Search quality improvement | Incremental improvement: synonym dictionaries → boosting → Function Score → Query Rewriting → Learning to Rank |
+| Operations | Zero-downtime rebuild with Alias pattern, time-series management with ILM, debugging with Profile API |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [レートリミッター設計](./03-rate-limiter.md) -- 検索 API のレート制限設計
-- [通知システム設計](./02-notification-system.md) -- 検索アラート通知の実装
-- [CDN](../01-components/03-cdn.md) -- 検索結果ページのキャッシュ戦略
-- [DB スケーリング](../01-components/04-database-scaling.md) -- データソース (RDB) のスケーリング
-- [メッセージキュー](../01-components/02-message-queue.md) -- CDC パイプラインの Kafka 設計
-- [キャッシング](../01-components/01-caching.md) -- Redis を使った検索結果キャッシュ
-- [イベント駆動アーキテクチャ](../02-architecture/03-event-driven.md) -- CDC とイベントストリーミングの基盤
-- [CQRS / Event Sourcing](../../../design-patterns-guide/docs/04-architectural/02-event-sourcing-cqrs.md) -- 検索インデックスをリードモデルとして捉える CQRS パターン
+- [Rate Limiter Design](./03-rate-limiter.md) -- Rate limiting design for search APIs
+- [Notification System Design](./02-notification-system.md) -- Implementing search alert notifications
+- [CDN](../01-components/03-cdn.md) -- Caching strategies for search result pages
+- [DB Scaling](../01-components/04-database-scaling.md) -- Scaling the data source (RDB)
+- [Message Queue](../01-components/02-message-queue.md) -- Kafka design for CDC pipelines
+- [Caching](../01-components/01-caching.md) -- Search result caching with Redis
+- [Event-Driven Architecture](../02-architecture/03-event-driven.md) -- The foundation of CDC and event streaming
+- [CQRS / Event Sourcing](../../../design-patterns-guide/docs/04-architectural/02-event-sourcing-cqrs.md) -- CQRS pattern viewing the search index as a read model
 
 ---
 
-## 参考文献
+## References
 
-1. **Elasticsearch: The Definitive Guide** -- Clinton Gormley & Zachary Tong (O'Reilly, 2015) -- Elasticsearch の包括的リファレンス
-2. **Information Retrieval: Implementing and Evaluating Search Engines** -- Christopher Manning, Prabhakar Raghavan, Hinrich Schutze (Cambridge University Press, 2008) -- 情報検索の理論的基盤 (転置インデックス、BM25、評価指標)
-3. **Relevant Search** -- Doug Turnbull & John Berryman (Manning, 2016) -- 検索の関連性改善の実践ガイド
-4. **Elasticsearch 公式ドキュメント** -- https://www.elastic.co/guide/ -- マッピング、クエリ DSL、クラスタ管理のリファレンス
-5. **Apache Lucene 公式サイト** -- https://lucene.apache.org/ -- Elasticsearch の内部エンジンの仕様
-6. **Designing Data-Intensive Applications** -- Martin Kleppmann (O'Reilly, 2017) -- 分散システム、CDC、ストリーム処理の理論的基盤
+1. **Elasticsearch: The Definitive Guide** -- Clinton Gormley & Zachary Tong (O'Reilly, 2015) -- Comprehensive reference for Elasticsearch
+2. **Information Retrieval: Implementing and Evaluating Search Engines** -- Christopher Manning, Prabhakar Raghavan, Hinrich Schutze (Cambridge University Press, 2008) -- Theoretical foundation of information retrieval (inverted indexes, BM25, evaluation metrics)
+3. **Relevant Search** -- Doug Turnbull & John Berryman (Manning, 2016) -- Practical guide to improving search relevance
+4. **Elasticsearch Official Documentation** -- https://www.elastic.co/guide/ -- Reference for mappings, query DSL, and cluster management
+5. **Apache Lucene Official Site** -- https://lucene.apache.org/ -- Specifications for Elasticsearch's internal engine
+6. **Designing Data-Intensive Applications** -- Martin Kleppmann (O'Reilly, 2017) -- Theoretical foundation for distributed systems, CDC, and stream processing
