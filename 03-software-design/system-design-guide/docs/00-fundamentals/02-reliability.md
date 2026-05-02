@@ -1,157 +1,159 @@
-# 信頼性（Reliability）
+# Reliability
 
-> システムが障害発生時にも正しく機能し続ける能力を理解し、フォールトトレランス・冗長化・障害復旧の設計パターンを、可用性計算・サーキットブレーカー・カオスエンジニアリングの実践を通じて習得する。
-
----
-
-## この章で学ぶこと
-
-1. 信頼性の定義と可用性（Availability）の定量的な計測方法、SLA/SLO/SLI の関係
-2. フォールトトレランスを実現する冗長化パターン（Active-Passive、Active-Active）とフェイルオーバー戦略
-3. サーキットブレーカー・リトライ・バルクヘッド等のレジリエンスパターンの実装と検証
+> Understand the ability of a system to continue functioning correctly even when failures occur, and master fault tolerance, redundancy, and disaster recovery design patterns through hands-on practice with availability calculations, circuit breakers, and chaos engineering.
 
 ---
 
-## 前提知識
+## What You Will Learn
 
-| トピック | 内容 | 参照先 |
+1. The definition of reliability and how to quantitatively measure availability, along with the relationship between SLA, SLO, and SLI
+2. Redundancy patterns for fault tolerance (Active-Passive, Active-Active) and failover strategies
+3. Implementation and validation of resilience patterns such as circuit breakers, retries, and bulkheads
+
+---
+
+## Prerequisites
+
+| Topic | Content | Reference |
 |---------|------|--------|
-| ネットワーク基礎 | TCP/IP、DNS、HTTP の基本概念 | Web/ネットワーク基礎 |
-| スケーラビリティ | 垂直/水平スケーリングの概念 | [スケーラビリティ](./01-scalability.md) |
-| Python 基礎 | asyncio、dataclass、デコレータ | プログラミング基礎 |
-| 分散システムの概念 | ノード、レプリケーションの基本理解 | [CAP定理](./03-cap-theorem.md) |
+| Networking Basics | Fundamental concepts of TCP/IP, DNS, and HTTP | Web/Networking Basics |
+| Scalability | Concepts of vertical/horizontal scaling | [Scalability](./01-scalability.md) |
+| Python Basics | asyncio, dataclass, decorators | Programming Basics |
+| Distributed Systems Concepts | Basic understanding of nodes and replication | [CAP Theorem](./03-cap-theorem.md) |
 
 ---
 
-## 1. 信頼性とは
+## 1. What Is Reliability?
 
-信頼性（Reliability）とは、システムが**障害（fault）が発生しても、期待される機能を正しく提供し続ける**能力を指す。障害をゼロにすることは不可能であるため、障害を**前提として設計**し、障害時の影響を最小化するアプローチが求められる。
+Reliability refers to a system's ability to **continue providing expected functionality correctly even when faults occur**. Since eliminating faults entirely is impossible, the approach required is to **design with faults as a given** and minimize the impact when they occur.
 
-### 1.1 Fault と Failure の区別
+### 1.1 Distinguishing Fault from Failure
 
 ```
-障害 (Fault)   ≠  故障 (Failure)
+Fault   ≠  Failure
 
-Fault:   コンポーネントの一部が仕様から逸脱すること
-         例: ディスク1台の物理故障、ネットワークパケットの損失
-Failure: システム全体がサービスを提供できなくなること
-         例: Webサイトにアクセス不能、データの完全消失
+Fault:   A component deviates from its specification in some way
+         Example: Physical failure of one disk, loss of a network packet
+Failure: The entire system becomes unable to provide service
+         Example: A website becomes inaccessible, complete data loss
 
-信頼性の目標: Fault が Failure に発展することを防ぐ
-         → フォールトトレラント（耐障害性）な設計
+Goal of reliability: Prevent a Fault from escalating into a Failure
+         → Fault-tolerant design
 ```
 
-この区別は極めて重要である。個々のコンポーネントで Fault が発生しても、システム全体として Failure にならないように設計するのが信頼性エンジニアリングの本質である。
+This distinction is critically important. The essence of reliability engineering is designing systems so that even when a Fault occurs in an individual component, the system as a whole does not become a Failure.
 
-### 1.2 障害の3つの分類
+### 1.2 Three Categories of Failures
 
-信頼性設計では、障害を以下の3カテゴリに分類して対策を立てる。
+In reliability design, failures are categorized into the following three types to formulate countermeasures.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    障害の分類                                  │
+│                    Failure Categories                        │
 ├─────────────────┬───────────────────┬───────────────────────┤
-│  ハードウェア障害  │  ソフトウェア障害    │   ヒューマンエラー     │
+│ Hardware Failure │ Software Failure   │   Human Error         │
 ├─────────────────┼───────────────────┼───────────────────────┤
-│ ・ディスク故障    │ ・バグ             │ ・設定ミス            │
-│ ・メモリ破損      │ ・メモリリーク       │ ・誤ったデプロイ       │
-│ ・電源障害       │ ・デッドロック       │ ・手順の誤り          │
-│ ・ネットワーク断   │ ・カスケード障害     │ ・容量の見積もりミス    │
+│ · Disk failure  │ · Bugs             │ · Misconfiguration    │
+│ · Memory        │ · Memory leaks     │ · Incorrect deploys   │
+│   corruption    │ · Deadlocks        │ · Procedural errors   │
+│ · Power outage  │ · Cascade failures │ · Capacity            │
+│ · Network split │                    │   miscalculation      │
 ├─────────────────┼───────────────────┼───────────────────────┤
-│ 対策:           │ 対策:              │ 対策:                │
-│ 冗長化、RAID    │ テスト、監視        │ 自動化、レビュー       │
-│ ホットスペア     │ カオスエンジニアリング │ ガードレール           │
+│ Countermeasures:│ Countermeasures:   │ Countermeasures:      │
+│ Redundancy,     │ Testing,           │ Automation, reviews   │
+│ RAID, hot spare │ monitoring,        │ guardrails            │
+│                 │ chaos engineering  │                       │
 └─────────────────┴───────────────────┴───────────────────────┘
 ```
 
-### 1.3 WHY: なぜ信頼性が重要か
+### 1.3 WHY: Why Does Reliability Matter?
 
-信頼性が不十分な場合の影響を定量的に示す。
+The following quantifies the impact of insufficient reliability.
 
 ```
-ダウンタイムのビジネスインパクト:
+Business Impact of Downtime:
 ─────────────────────────────────────────
-Amazon: 1分のダウンで約 $220,000 の損失（2024年推計）
-Google: 5分のダウンで約 $545,000 の損失
-Facebook: 2021年の6時間障害で推定 $60M の損失
+Amazon:   ~$220,000 lost per minute of downtime (2024 estimate)
+Google:   ~$545,000 lost per 5 minutes of downtime
+Facebook: ~$60M estimated loss from the 6-hour outage in 2021
 
-ECサイトの例:
-  年間売上 10億円、可用性 99.9% の場合
-  → 年間ダウンタイム 8.76時間
-  → 損失額 ≒ 10億 × (8.76 / 8760) ≒ 100万円
+E-commerce example:
+  Annual revenue $10M, availability 99.9%
+  → Annual downtime: 8.76 hours
+  → Estimated loss ≈ $10M × (8.76 / 8760) ≈ $10,000
 
-  可用性を 99.99% に改善した場合
-  → 年間ダウンタイム 52.6分
-  → 損失額 ≒ 10億 × (52.6 / 525600) ≒ 10万円
-  → 年間 90万円の損失削減
+  Improving availability to 99.99%:
+  → Annual downtime: 52.6 minutes
+  → Estimated loss ≈ $10M × (52.6 / 525600) ≈ $1,000
+  → Annual loss reduction of ~$9,000
 ─────────────────────────────────────────
 ```
 
 ---
 
-## 2. 可用性の計算
+## 2. Availability Calculations
 
-### 2.1 可用性とダウンタイム
+### 2.1 Availability and Downtime
 
-可用性（Availability）は、システムが正常に稼働している時間の割合であり、「ナイン」の数で表現される。
+Availability is the proportion of time a system is operating normally, expressed in terms of "nines."
 
-### コード例1: 可用性とダウンタイムの計算
+### Code Example 1: Calculating Availability and Downtime
 
 ```python
 def availability_to_downtime(nines: int):
-    """可用性のナイン数からダウンタイムを計算"""
+    """Calculate downtime from the number of nines of availability"""
     availability = 1 - (10 ** -nines)
     yearly_minutes = 365.25 * 24 * 60
     downtime_minutes = yearly_minutes * (1 - availability)
 
     if downtime_minutes >= 60:
-        return f"{availability:.{nines}%} → {downtime_minutes / 60:.1f} 時間/年"
+        return f"{availability:.{nines}%} → {downtime_minutes / 60:.1f} hours/year"
     elif downtime_minutes >= 1:
-        return f"{availability:.{nines}%} → {downtime_minutes:.1f} 分/年"
+        return f"{availability:.{nines}%} → {downtime_minutes:.1f} minutes/year"
     else:
-        return f"{availability:.{nines}%} → {downtime_minutes * 60:.1f} 秒/年"
+        return f"{availability:.{nines}%} → {downtime_minutes * 60:.1f} seconds/year"
 
 for nines in range(1, 6):
     print(f"{'9' * nines:>5s}: {availability_to_downtime(nines)}")
 
-# 出力:
-#     9: 90.0% → 876.6 時間/年
-#    99: 99.00% → 87.7 時間/年
-#   999: 99.900% → 8.8 時間/年
-#  9999: 99.9900% → 52.6 分/年
-# 99999: 99.99900% → 5.3 分/年
+# Output:
+#     9: 90.0% → 876.6 hours/year
+#    99: 99.00% → 87.7 hours/year
+#   999: 99.900% → 8.8 hours/year
+#  9999: 99.9900% → 52.6 minutes/year
+# 99999: 99.99900% → 5.3 minutes/year
 ```
 
-### ASCII図解1: 可用性レベルの目安
+### ASCII Diagram 1: Availability Level Reference
 
 ```
-  可用性     年間ダウン    月間ダウン    用途の目安
-  ─────────────────────────────────────────────────
-  99%        3.65日        7.3時間      バッチ処理、内部ツール
-  99.9%      8.76時間      43.8分       一般Webサービス
-  99.95%     4.38時間      21.9分       ECサイト
-  99.99%     52.6分        4.38分       決済システム、SaaS
-  99.999%    5.26分        26.3秒       航空管制、医療、通信
-  ─────────────────────────────────────────────────
+  Availability  Annual Down   Monthly Down  Typical Use Case
+  ─────────────────────────────────────────────────────────
+  99%           3.65 days     7.3 hours     Batch processing, internal tools
+  99.9%         8.76 hours    43.8 minutes  General web services
+  99.95%        4.38 hours    21.9 minutes  E-commerce sites
+  99.99%        52.6 minutes  4.38 minutes  Payment systems, SaaS
+  99.999%       5.26 minutes  26.3 seconds  Air traffic control, medical, telecom
+  ─────────────────────────────────────────────────────────
 
-  注意: 複合可用性 = 各コンポーネントの可用性の積
-  例: Web(99.9%) × API(99.9%) × DB(99.9%) = 99.7%
+  Note: Composite availability = product of each component's availability
+  Example: Web(99.9%) × API(99.9%) × DB(99.9%) = 99.7%
 ```
 
-### 2.2 複合システムの可用性
+### 2.2 Composite System Availability
 
-システム全体の可用性は、構成（直列・並列）によって大きく変わる。
+The overall availability of a system varies significantly based on whether components are arranged in series or in parallel.
 
-### コード例2: 複合システムの可用性計算
+### Code Example 2: Composite System Availability Calculation
 
 ```python
 from typing import List
 
 def series_availability(*components: float) -> float:
-    """直列構成の可用性 = 各コンポーネントの可用性の積
+    """Series availability = product of each component's availability
 
-    直列構成では全コンポーネントが動作しないとシステムが停止する。
-    例: LB → App → DB（どれか1つ落ちるとサービス停止）
+    In series, the system stops if any single component fails.
+    Example: LB → App → DB (if any one fails, service stops)
     """
     result = 1.0
     for a in components:
@@ -159,10 +161,10 @@ def series_availability(*components: float) -> float:
     return result
 
 def parallel_availability(*components: float) -> float:
-    """並列構成の可用性 = 1 - (各不可用性の積)
+    """Parallel availability = 1 - (product of each unavailability)
 
-    並列構成では全コンポーネントが同時に故障しないとシステムは停止しない。
-    例: DB Primary || DB Replica（両方同時に落ちなければOK）
+    In parallel, the system only stops if all components fail simultaneously.
+    Example: DB Primary || DB Replica (OK as long as both don't fail at once)
     """
     result = 1.0
     for a in components:
@@ -170,96 +172,98 @@ def parallel_availability(*components: float) -> float:
     return 1 - result
 
 def format_availability(name: str, value: float) -> str:
-    """可用性を分かりやすい形式で表示"""
+    """Display availability in a readable format"""
     yearly_downtime_min = 525960 * (1 - value)
-    return f"{name}: {value:.8f} ({value*100:.4f}%) → 年間ダウンタイム {yearly_downtime_min:.1f}分"
+    return f"{name}: {value:.8f} ({value*100:.4f}%) → Annual downtime {yearly_downtime_min:.1f} min"
 
-# === 直列構成 ===
+# === Series configuration ===
 serial = series_availability(0.999, 0.999, 0.999)
-print(format_availability("直列 (LB→App→DB)", serial))
-# 直列 (LB→App→DB): 0.99700300 (99.7003%) → 年間ダウンタイム 1577.9分
+print(format_availability("Series (LB→App→DB)", serial))
+# Series (LB→App→DB): 0.99700300 (99.7003%) → Annual downtime 1577.9 min
 
-# === 並列構成 ===
+# === Parallel configuration ===
 parallel_db = parallel_availability(0.999, 0.999)
-print(format_availability("並列 DB (Primary||Replica)", parallel_db))
-# 並列 DB (Primary||Replica): 0.99999900 (99.9999%) → 年間ダウンタイム 0.5分
+print(format_availability("Parallel DB (Primary||Replica)", parallel_db))
+# Parallel DB (Primary||Replica): 0.99999900 (99.9999%) → Annual downtime 0.5 min
 
-# === 組み合わせ ===
+# === Combined configuration ===
 combined = series_availability(0.999, 0.999, parallel_db)
 print(format_availability("LB→App→(DB||DB)", combined))
-# LB→App→(DB||DB): 0.99800100 (99.8001%) → 年間ダウンタイム 1051.9分
+# LB→App→(DB||DB): 0.99800100 (99.8001%) → Annual downtime 1051.9 min
 
-# === 全レイヤーを冗長化 ===
+# === Fully redundant across all layers ===
 parallel_lb = parallel_availability(0.999, 0.999)
 parallel_app = parallel_availability(0.999, 0.999)
 fully_redundant = series_availability(parallel_lb, parallel_app, parallel_db)
 print(format_availability("(LB||LB)→(App||App)→(DB||DB)", fully_redundant))
-# (LB||LB)→(App||App)→(DB||DB): 0.99999700 (99.9997%) → 年間ダウンタイム 1.6分
+# (LB||LB)→(App||App)→(DB||DB): 0.99999700 (99.9997%) → Annual downtime 1.6 min
 ```
 
-### ASCII図解2: 直列と並列の可用性
+### ASCII Diagram 2: Series vs Parallel Availability
 
 ```
-■ 直列構成（全てが動作する必要あり）
+■ Series configuration (all components must be operational)
 
   Client → [LB] → [App] → [DB]
            99.9%   99.9%   99.9%
 
-  合計 = 0.999 × 0.999 × 0.999 = 0.997 = 99.7%
-  → コンポーネントが増えるほど可用性が下がる
+  Total = 0.999 × 0.999 × 0.999 = 0.997 = 99.7%
+  → Availability decreases as more components are added
 
-■ 並列構成（冗長化）
+■ Parallel configuration (redundancy)
 
   Client → [LB Active ] → [App 1] → [DB Primary]
            [LB Standby]   [App 2]   [DB Replica]
            99.9999%        99.9999%   99.9999%
 
-  合計 = 0.999999 × 0.999999 × 0.999999 ≒ 99.9997%
-  → 冗長化により各層の可用性を大幅に向上
+  Total = 0.999999 × 0.999999 × 0.999999 ≒ 99.9997%
+  → Redundancy dramatically improves availability at each layer
 
-■ 可用性改善の法則:
-  直列に足すと下がる: 0.999 × 0.999 = 0.998
-  並列に足すと上がる: 1 - (0.001 × 0.001) = 0.999999
+■ Rules for improving availability:
+  Adding in series decreases it: 0.999 × 0.999 = 0.998
+  Adding in parallel increases it: 1 - (0.001 × 0.001) = 0.999999
 ```
 
 ---
 
-## 3. SLA・SLO・SLI
+## 3. SLA, SLO, and SLI
 
-信頼性の目標を定量的に管理するためのフレームワークとして、SLA・SLO・SLI がある。
+SLA, SLO, and SLI form a framework for quantitatively managing reliability targets.
 
-### 3.1 三者の関係
+### 3.1 Relationship Between the Three
 
 ```
   ┌─────────────────────────────────────────────────┐
-  │  SLI (Service Level Indicator) — 実測値          │
-  │  「今、実際にどうなっているか」                     │
-  │  例: レイテンシP99 = 150ms、エラー率 = 0.02%      │
-  │                                                  │
-  │  ┌───────────────────────────────────────────┐   │
-  │  │  SLO (Service Level Objective) — 内部目標  │   │
-  │  │  「チームとして何を目指すか」                 │   │
-  │  │  例: P99 < 200ms を99.9%の時間維持          │   │
-  │  │                                            │   │
-  │  │  ┌───────────────────────────────────┐     │   │
-  │  │  │  SLA (Service Level Agreement)   │     │   │
-  │  │  │  「顧客に何を約束するか」          │     │   │
-  │  │  │  例: 可用性99.95%未達でクレジット  │     │   │
-  │  │  └───────────────────────────────────┘     │   │
-  │  └───────────────────────────────────────────┘   │
+  │  SLI (Service Level Indicator) — Measured value  │
+  │  "What is actually happening right now?"          │
+  │  Example: Latency P99 = 150ms, Error rate = 0.02% │
+  │                                                   │
+  │  ┌───────────────────────────────────────────┐    │
+  │  │  SLO (Service Level Objective) — Internal │    │
+  │  │  "What does the team aim to achieve?"     │    │
+  │  │  Example: Maintain P99 < 200ms for 99.9%  │    │
+  │  │           of the time                     │    │
+  │  │                                           │    │
+  │  │  ┌───────────────────────────────────┐    │    │
+  │  │  │  SLA (Service Level Agreement)   │    │    │
+  │  │  │  "What do we promise customers?" │    │    │
+  │  │  │  Example: Credit issued if       │    │    │
+  │  │  │  availability < 99.95%           │    │    │
+  │  │  └───────────────────────────────────┘    │    │
+  │  └───────────────────────────────────────────┘    │
   └─────────────────────────────────────────────────┘
 
-  重要: SLO は SLA より厳しく設定する
-  SLA: 99.95%（顧客との契約）
-  SLO: 99.99%（内部目標、SLA違反の余裕を確保）
+  Important: Set SLO stricter than SLA
+  SLA: 99.95% (customer contract)
+  SLO: 99.99% (internal target, provides buffer before SLA breach)
 
-  エラーバジェット = SLO - 実績
-  例: SLO 99.9% で今月のエラー率が 0.05% の場合
-  → エラーバジェット残り = 0.1% - 0.05% = 0.05%
-  → バジェット残りがあればリスクのある変更をデプロイ可能
+  Error budget = SLO - actual performance
+  Example: SLO is 99.9% and this month's error rate is 0.05%
+  → Remaining error budget = 0.1% - 0.05% = 0.05%
+  → Remaining budget allows deploying risky changes
 ```
 
-### コード例3: SLI/SLO モニタリングの実装
+### Code Example 3: SLI/SLO Monitoring Implementation
 
 ```python
 import time
@@ -269,16 +273,16 @@ from typing import Optional
 
 @dataclass
 class SLIMetric:
-    """Service Level Indicator の計測"""
+    """Measurement of a Service Level Indicator"""
     name: str
-    window_seconds: int = 3600  # 1時間のスライディングウィンドウ
+    window_seconds: int = 3600  # 1-hour sliding window
 
     _measurements: deque = field(default_factory=deque, init=False)
     _good_count: int = field(default=0, init=False)
     _total_count: int = field(default=0, init=False)
 
     def record(self, is_good: bool, value: float = 0.0):
-        """計測値を記録"""
+        """Record a measurement"""
         now = time.time()
         self._measurements.append((now, is_good, value))
         self._total_count += 1
@@ -287,7 +291,7 @@ class SLIMetric:
         self._evict_old(now)
 
     def _evict_old(self, now: float):
-        """ウィンドウ外の古い計測値を削除"""
+        """Remove old measurements outside the window"""
         while self._measurements and self._measurements[0][0] < now - self.window_seconds:
             _, was_good, _ = self._measurements.popleft()
             self._total_count -= 1
@@ -296,14 +300,14 @@ class SLIMetric:
 
     @property
     def availability(self) -> float:
-        """現在の可用性（成功率）"""
+        """Current availability (success rate)"""
         if self._total_count == 0:
             return 1.0
         return self._good_count / self._total_count
 
     @property
     def percentile_latency(self) -> float:
-        """P99 レイテンシ"""
+        """P99 latency"""
         values = sorted(v for _, is_good, v in self._measurements if is_good)
         if not values:
             return 0.0
@@ -313,20 +317,20 @@ class SLIMetric:
 
 @dataclass
 class SLOChecker:
-    """SLO の達成状況を監視しエラーバジェットを管理"""
+    """Monitor SLO achievement status and manage the error budget"""
     sli: SLIMetric
     target_availability: float = 0.999   # 99.9%
     target_latency_p99: float = 200.0    # 200ms
 
     def check(self) -> dict:
-        """SLO 達成状況を確認"""
+        """Check SLO achievement status"""
         avail = self.sli.availability
         latency = self.sli.percentile_latency
 
         avail_ok = avail >= self.target_availability
         latency_ok = latency <= self.target_latency_p99
 
-        # エラーバジェット計算
+        # Error budget calculation
         error_budget_total = 1.0 - self.target_availability
         error_budget_used = 1.0 - avail
         error_budget_remaining = max(0, error_budget_total - error_budget_used)
@@ -345,12 +349,12 @@ class SLOChecker:
         }
 
 
-# 使用例
+# Usage example
 sli = SLIMetric("api-gateway", window_seconds=3600)
 
-# リクエストを記録
+# Record requests
 for i in range(10000):
-    is_success = i % 1000 != 0  # 0.1% のエラー率
+    is_success = i % 1000 != 0  # 0.1% error rate
     latency = 50 + (i % 100) * 2  # 50-248ms
     sli.record(is_success, latency)
 
@@ -358,7 +362,7 @@ checker = SLOChecker(sli, target_availability=0.999, target_latency_p99=200.0)
 result = checker.check()
 for k, v in result.items():
     print(f"  {k}: {v}")
-# 出力例:
+# Example output:
 #   availability: 99.9000%
 #   availability_target: 99.90%
 #   availability_met: True
@@ -371,110 +375,112 @@ for k, v in result.items():
 
 ---
 
-## 4. 冗長化パターン
+## 4. Redundancy Patterns
 
-### 4.1 Active-Passive と Active-Active
+### 4.1 Active-Passive and Active-Active
 
-### ASCII図解3: Active-Passive vs Active-Active
+### ASCII Diagram 3: Active-Passive vs Active-Active
 
 ```
-■ Active-Passive (ホットスタンバイ)
+■ Active-Passive (Hot Standby)
 
   Client ──→ ┌──────────┐     ┌──────────┐
-             │ Active   │────→│ Passive  │  (データ同期)
-             │ (稼働中) │     │ (待機中) │
+             │ Active   │────→│ Passive  │  (data sync)
+             │ (running)│     │ (standby)│
              └──────────┘     └──────────┘
                   │                │
                   ▼                │
              ┌──────────┐         │
-             │ Service  │         │ Active障害時
-             └──────────┘         │ 自動フェイルオーバー
+             │ Service  │         │ On Active failure:
+             └──────────┘         │ Automatic failover
                                   ▼
   Client ──→              ┌──────────┐
-                          │ 旧Passive│ → 新Active に昇格
+                          │ Former   │ → Promoted to new Active
+                          │ Passive  │
                           └──────────┘
 
-  メリット: シンプル、データ整合性が保ちやすい
-  デメリット: Passive のリソースが通常時は遊休
-  用途: データベース、ステートフルサービス
+  Pros: Simple, easy to maintain data consistency
+  Cons: Passive resources are idle during normal operation
+  Use cases: Databases, stateful services
 
-■ Active-Active (負荷分散 + 冗長)
+■ Active-Active (Load balancing + redundancy)
 
   Client ──→ ┌──────┐     ┌──────────┐
              │  LB  │────→│ Active 1 │
              │      │────→│ Active 2 │
              └──────┘     └──────────┘
-                           ↕ (双方向同期)
-                          どちらが落ちても即座にもう一方が処理
+                           ↕ (bidirectional sync)
+                          Either can handle requests if the other fails
 
-  メリット: リソース効率が良い、フェイルオーバーが高速
-  デメリット: データ競合の管理が複雑
-  用途: Webサーバー、ステートレスサービス
+  Pros: Better resource efficiency, faster failover
+  Cons: Managing data conflicts is complex
+  Use cases: Web servers, stateless services
 
-■ N+1 冗長化
+■ N+1 Redundancy
 
-  通常: Server 1, Server 2, Server 3 で負荷を分散
-  +1:   Server 4 を追加（1台故障しても残り3台で処理可能）
+  Normal: Server 1, Server 2, Server 3 share the load
+  +1:    Server 4 added (if one fails, the remaining 3 can handle it)
 
-  メリット: Active-Active より低コストでフォールトトレランス確保
-  用途: Webサーバーファーム、ワーカープール
+  Pros: Lower cost than Active-Active while achieving fault tolerance
+  Use cases: Web server farms, worker pools
 ```
 
-### 4.2 フェイルオーバー戦略
+### 4.2 Failover Strategies
 
-### ASCII図解4: フェイルオーバーの種類
+### ASCII Diagram 4: Types of Failover
 
 ```
-■ コールドフェイルオーバー
-  ┌─────────┐    障害     ┌─────────┐
-  │ Primary │ ──×──→     │ Standby │  ← 起動に数分かかる
-  │ (稼働)  │            │ (停止)  │     (コスト最小)
+■ Cold Failover
+  ┌─────────┐  failure   ┌─────────┐
+  │ Primary │ ──×──→     │ Standby │  ← Takes minutes to start
+  │(running)│            │(stopped)│     (minimum cost)
   └─────────┘            └─────────┘
-  復旧時間: 数分〜数十分
-  データ損失: バックアップ時点まで
+  Recovery time: Minutes to tens of minutes
+  Data loss: Up to the last backup point
 
-■ ウォームフェイルオーバー
-  ┌─────────┐    障害     ┌─────────┐
-  │ Primary │ ──×──→     │ Standby │  ← 起動済み、データ同期に遅延
-  │ (稼働)  │            │ (低速)  │     (中程度コスト)
+■ Warm Failover
+  ┌─────────┐  failure   ┌─────────┐
+  │ Primary │ ──×──→     │ Standby │  ← Already running, data sync has lag
+  │(running)│            │(slow)   │     (moderate cost)
   └─────────┘            └─────────┘
-  復旧時間: 数十秒〜数分
-  データ損失: レプリケーションラグ分
+  Recovery time: Tens of seconds to minutes
+  Data loss: Amount of replication lag
 
-■ ホットフェイルオーバー
-  ┌─────────┐    障害     ┌─────────┐
-  │ Primary │ ──×──→     │ Standby │  ← 同一状態で同期稼働
-  │ (稼働)  │←──同期──→  │ (稼働)  │     (コスト最大)
+■ Hot Failover
+  ┌─────────┐  failure   ┌─────────┐
+  │ Primary │ ──×──→     │ Standby │  ← Running in sync with same state
+  │(running)│←──sync──→  │(running)│     (maximum cost)
   └─────────┘            └─────────┘
-  復旧時間: 数秒以内
-  データ損失: ほぼゼロ
+  Recovery time: Within seconds
+  Data loss: Near zero
 ```
 
 ---
 
-## 5. レジリエンスパターン
+## 5. Resilience Patterns
 
-### 5.1 サーキットブレーカー
+### 5.1 Circuit Breaker
 
-サーキットブレーカーは、障害が連鎖（カスケード障害）するのを防ぐパターンである。電気回路のブレーカーと同様に、異常時に回路を遮断してシステム全体を保護する。
+The circuit breaker is a pattern that prevents failures from cascading (cascade failures). Like an electrical circuit breaker, it trips the circuit during abnormal conditions to protect the overall system.
 
 ```
-サーキットブレーカーの状態遷移:
+Circuit Breaker State Transitions:
 
-  ┌──────────┐   障害が閾値到達    ┌──────────┐
-  │ CLOSED   │ ─────────────────→ │   OPEN   │
-  │(正常通過) │                    │(即座に拒否)│
-  └──────────┘                    └──────────┘
-       ↑                               │
-       │  成功が閾値到達          タイムアウト経過
-       │                               │
-  ┌──────────┐                         ▼
-  │ HALF_OPEN│ ←───────────────────────
-  │(一部試行) │   失敗 → OPEN に戻る
+  ┌──────────┐  failures reach threshold  ┌──────────┐
+  │ CLOSED   │ ─────────────────────────→ │   OPEN   │
+  │(pass-thru│                            │(reject   │
+  │ normal)  │                            │immediately)
+  └──────────┘                            └──────────┘
+       ↑                                       │
+       │  successes reach threshold    timeout elapses
+       │                                       │
+  ┌──────────┐                                 ▼
+  │ HALF_OPEN│ ←───────────────────────────────
+  │(trial)   │   failure → back to OPEN
   └──────────┘
 ```
 
-### コード例4: サーキットブレーカーパターン
+### Code Example 4: Circuit Breaker Pattern
 
 ```python
 import time
@@ -483,29 +489,29 @@ from dataclasses import dataclass, field
 from typing import Callable, Any
 
 class CircuitState(Enum):
-    CLOSED = "closed"        # 正常（リクエスト通過）
-    OPEN = "open"            # 遮断（リクエスト拒否）
-    HALF_OPEN = "half_open"  # 試行（一部リクエスト通過）
+    CLOSED = "closed"        # Normal (requests pass through)
+    OPEN = "open"            # Tripped (requests rejected)
+    HALF_OPEN = "half_open"  # Trial (some requests pass through)
 
 class CircuitBreakerError(Exception):
-    """サーキットブレーカーが開いている場合の例外"""
+    """Exception raised when the circuit breaker is open"""
     pass
 
 @dataclass
 class CircuitBreaker:
     """
-    サーキットブレーカー: 障害の連鎖を防ぐ
+    Circuit Breaker: Prevents failure cascades
 
-    内部実装の解説:
-      CLOSED 状態で失敗が failure_threshold に達すると OPEN に遷移。
-      OPEN 状態で recovery_timeout 秒が経過すると HALF_OPEN に遷移。
-      HALF_OPEN で success_threshold 回成功すると CLOSED に復帰。
-      HALF_OPEN で1回でも失敗すると再び OPEN に遷移。
+    Implementation notes:
+      In CLOSED state, transitions to OPEN when failures reach failure_threshold.
+      In OPEN state, transitions to HALF_OPEN after recovery_timeout seconds.
+      In HALF_OPEN, transitions back to CLOSED after success_threshold successes.
+      In HALF_OPEN, any single failure transitions back to OPEN.
     """
-    failure_threshold: int = 5          # 障害回数の閾値
-    recovery_timeout: float = 30.0      # OPEN 状態の維持時間（秒）
-    success_threshold: int = 3          # HALF_OPEN→CLOSED に必要な成功回数
-    half_open_max_calls: int = 3        # HALF_OPEN 中の最大同時試行数
+    failure_threshold: int = 5          # Failure count threshold
+    recovery_timeout: float = 30.0      # Duration to stay OPEN (seconds)
+    success_threshold: int = 3          # Successes needed for HALF_OPEN→CLOSED
+    half_open_max_calls: int = 3        # Max concurrent trial calls in HALF_OPEN
 
     state: CircuitState = field(default=CircuitState.CLOSED, init=False)
     failure_count: int = field(default=0, init=False)
@@ -513,13 +519,13 @@ class CircuitBreaker:
     last_failure_time: float = field(default=0, init=False)
     half_open_calls: int = field(default=0, init=False)
 
-    # メトリクス
+    # Metrics
     total_calls: int = field(default=0, init=False)
     total_failures: int = field(default=0, init=False)
     total_rejections: int = field(default=0, init=False)
 
     def call(self, func: Callable, *args, **kwargs) -> Any:
-        """関数をサーキットブレーカー経由で実行"""
+        """Execute a function through the circuit breaker"""
         self.total_calls += 1
 
         if self.state == CircuitState.OPEN:
@@ -527,18 +533,18 @@ class CircuitBreaker:
                 self.state = CircuitState.HALF_OPEN
                 self.success_count = 0
                 self.half_open_calls = 0
-                print(f"[Circuit] OPEN → HALF_OPEN: 試行開始")
+                print(f"[Circuit] OPEN → HALF_OPEN: Starting trial")
             else:
                 self.total_rejections += 1
                 raise CircuitBreakerError(
-                    f"Circuit OPEN: リクエスト拒否 "
-                    f"(復旧まで {self.recovery_timeout - (time.time() - self.last_failure_time):.0f}秒)"
+                    f"Circuit OPEN: Request rejected "
+                    f"({self.recovery_timeout - (time.time() - self.last_failure_time):.0f}s until recovery)"
                 )
 
         if self.state == CircuitState.HALF_OPEN:
             if self.half_open_calls >= self.half_open_max_calls:
                 self.total_rejections += 1
-                raise CircuitBreakerError("Circuit HALF_OPEN: 試行上限に到達")
+                raise CircuitBreakerError("Circuit HALF_OPEN: Trial call limit reached")
             self.half_open_calls += 1
 
         try:
@@ -557,7 +563,7 @@ class CircuitBreaker:
             if self.success_count >= self.success_threshold:
                 self.state = CircuitState.CLOSED
                 self.failure_count = 0
-                print(f"[Circuit] HALF_OPEN → CLOSED: 正常復帰")
+                print(f"[Circuit] HALF_OPEN → CLOSED: Recovered successfully")
         elif self.state == CircuitState.CLOSED:
             self.failure_count = 0
 
@@ -568,10 +574,10 @@ class CircuitBreaker:
 
         if self.state == CircuitState.HALF_OPEN:
             self.state = CircuitState.OPEN
-            print(f"[Circuit] HALF_OPEN → OPEN: 試行失敗、再遮断")
+            print(f"[Circuit] HALF_OPEN → OPEN: Trial failed, re-tripping")
         elif self.failure_count >= self.failure_threshold:
             self.state = CircuitState.OPEN
-            print(f"[Circuit] CLOSED → OPEN: {self.failure_count}回連続障害で遮断")
+            print(f"[Circuit] CLOSED → OPEN: Tripped after {self.failure_count} consecutive failures")
 
     def get_metrics(self) -> dict:
         return {
@@ -583,7 +589,7 @@ class CircuitBreaker:
         }
 
 
-# 使用例
+# Usage example
 cb = CircuitBreaker(failure_threshold=3, recovery_timeout=10.0)
 
 def unreliable_service():
@@ -604,9 +610,9 @@ for i in range(10):
 print(f"\nMetrics: {cb.get_metrics()}")
 ```
 
-### 5.2 リトライ with 指数バックオフ
+### 5.2 Retry with Exponential Backoff
 
-### コード例5: リトライ with 指数バックオフ + ジッター
+### Code Example 5: Retry with Exponential Backoff + Jitter
 
 ```python
 import random
@@ -622,20 +628,20 @@ def retry_with_backoff(
     retryable_exceptions: Tuple[Type[Exception], ...] = (Exception,),
 ):
     """
-    指数バックオフ + ジッターによるリトライデコレータ
+    Retry decorator with exponential backoff + jitter
 
-    WHY 指数バックオフ:
-      固定間隔でリトライすると、多数のクライアントが同時にリトライして
-      障害中のサーバーにさらに負荷をかける（リトライストーム）。
-      指数バックオフで間隔を広げ、ジッターでタイミングを分散させる。
+    WHY exponential backoff:
+      Fixed-interval retries cause many clients to retry simultaneously,
+      putting additional load on an already-failing server (retry storm).
+      Exponential backoff widens the interval, and jitter spreads the timing.
 
-    WHY ジッター:
-      バックオフだけでは、同時に失敗したクライアント群が同じタイミングで
-      リトライを繰り返す（同期現象）。ランダムなジッターで分散させる。
+    WHY jitter:
+      Backoff alone causes clients that failed simultaneously to retry
+      at the same times repeatedly (thundering herd). Random jitter spreads them out.
 
-    ジッター戦略の比較:
-      No Jitter:    delay = base * 2^attempt        (同期あり)
-      Full Jitter:  delay = random(0, base * 2^attempt)  (最も分散)
+    Jitter strategy comparison:
+      No Jitter:    delay = base * 2^attempt        (synchronized)
+      Full Jitter:  delay = random(0, base * 2^attempt)  (most spread out)
       Equal Jitter: delay = base * 2^attempt / 2 + random(0, base * 2^attempt / 2)
     """
     def decorator(func):
@@ -646,15 +652,15 @@ def retry_with_backoff(
                     return func(*args, **kwargs)
                 except retryable_exceptions as e:
                     if attempt == max_retries:
-                        print(f"[Retry] 最大リトライ回数({max_retries})に到達: {e}")
+                        print(f"[Retry] Max retries ({max_retries}) reached: {e}")
                         raise
 
                     delay = min(base_delay * (2 ** attempt), max_delay)
                     if jitter:
                         delay = random.uniform(0, delay)  # Full Jitter
 
-                    print(f"[Retry] 試行{attempt+1}失敗, "
-                          f"{delay:.2f}秒後にリトライ: {e}")
+                    print(f"[Retry] Attempt {attempt+1} failed, "
+                          f"retrying in {delay:.2f}s: {e}")
                     time.sleep(delay)
         return wrapper
     return decorator
@@ -666,16 +672,16 @@ def retry_with_backoff(
     retryable_exceptions=(ConnectionError, TimeoutError),
 )
 def call_external_api(url: str) -> dict:
-    """外部APIの呼び出し（障害時に自動リトライ）"""
+    """Call an external API (automatically retried on failure)"""
     import requests
     response = requests.get(url, timeout=5)
     response.raise_for_status()
     return response.json()
 ```
 
-### 5.3 バルクヘッドパターン
+### 5.3 Bulkhead Pattern
 
-### コード例6: バルクヘッドパターン
+### Code Example 6: Bulkhead Pattern
 
 ```python
 import asyncio
@@ -685,21 +691,22 @@ from typing import Dict
 
 @dataclass
 class BulkheadConfig:
-    """バルクヘッドの設定"""
-    max_concurrent: int       # 最大同時実行数
-    max_queue_size: int = 0   # キュー待ちの最大数
-    timeout: float = 30.0     # タイムアウト（秒）
+    """Bulkhead configuration"""
+    max_concurrent: int       # Maximum concurrent executions
+    max_queue_size: int = 0   # Maximum queued requests
+    timeout: float = 30.0     # Timeout in seconds
 
 class BulkheadPattern:
     """
-    バルクヘッド: リソースを分離して障害の影響範囲を制限
+    Bulkhead: Isolate resources to limit the blast radius of failures
 
     WHY:
-      船舶の隔壁（Bulkhead）に由来。船が浸水しても隔壁で区切ることで
-      全体の沈没を防ぐ。ソフトウェアでも同様に、あるサービスの障害が
-      他のサービスのリソースを食い潰さないように分離する。
+      Named after the watertight compartments on a ship. If a ship takes on
+      water, the bulkheads prevent the whole ship from sinking. Similarly in
+      software, isolate services so that one service's failure doesn't consume
+      all resources of another.
 
-    例: payment サービスが遅延しても、notification のスレッドは影響を受けない
+      Example: Even if the payment service is slow, notification threads are unaffected
     """
 
     def __init__(self, configs: Dict[str, BulkheadConfig]):
@@ -719,7 +726,7 @@ class BulkheadPattern:
                        for name in configs}
 
     async def call_service(self, service_name: str, func, *args):
-        """サービスをバルクヘッド経由で呼び出す"""
+        """Call a service through the bulkhead"""
         if service_name not in self.configs:
             raise ValueError(f"Unknown service: {service_name}")
 
@@ -738,22 +745,22 @@ class BulkheadPattern:
             except asyncio.TimeoutError:
                 self.metrics[service_name]["timeout"] += 1
                 raise TimeoutError(
-                    f"Bulkhead: {service_name} がタイムアウト ({config.timeout}秒)"
+                    f"Bulkhead: {service_name} timed out ({config.timeout}s)"
                 )
 
 
-# 使用例
+# Usage example
 bulkhead = BulkheadPattern({
     "payment":       BulkheadConfig(max_concurrent=10, timeout=30.0),
     "notification":  BulkheadConfig(max_concurrent=5, timeout=10.0),
     "analytics":     BulkheadConfig(max_concurrent=3, timeout=5.0),
 })
-# notification が詰まっても payment には影響しない
+# Even if notification is backed up, payment is unaffected
 ```
 
-### 5.4 ヘルスチェックによる障害検知
+### 5.4 Failure Detection with Health Checks
 
-### コード例7: ヘルスチェック実装
+### Code Example 7: Health Check Implementation
 
 ```python
 import asyncio
@@ -765,7 +772,7 @@ from enum import Enum
 
 class HealthState(Enum):
     HEALTHY = "healthy"
-    DEGRADED = "degraded"      # 遅延が大きいが応答あり
+    DEGRADED = "degraded"      # Responding but with high latency
     UNHEALTHY = "unhealthy"
 
 @dataclass
@@ -778,11 +785,11 @@ class HealthStatus:
 
 class HealthChecker:
     """
-    多層ヘルスチェック: アクティブ + パッシブ + ディープ
+    Multi-layer health checks: Active + Passive + Deep
 
-    アクティブ: 定期的に /health エンドポイントをポーリング
-    パッシブ:   実トラフィックのエラー率から判定
-    ディープ:   DB接続、外部API接続等の依存関係まで確認
+    Active:  Periodically polls the /health endpoint
+    Passive: Determines health from the error rate of real traffic
+    Deep:    Verifies dependencies such as DB connections and external APIs
     """
 
     def __init__(
@@ -808,7 +815,7 @@ class HealthChecker:
         self.statuses: dict[str, HealthStatus] = {}
 
     async def check_one(self, session: aiohttp.ClientSession, url: str):
-        """単一ターゲットのアクティブヘルスチェック"""
+        """Active health check for a single target"""
         start = asyncio.get_event_loop().time()
         try:
             async with session.get(
@@ -843,7 +850,7 @@ class HealthChecker:
         self.failure_counts[url] += 1
         if self.failure_counts[url] >= self.unhealthy_threshold:
             self._update_state(url, HealthState.UNHEALTHY, 0, error)
-            print(f"[ALERT] {url} が {self.failure_counts[url]}回連続失敗 → UNHEALTHY")
+            print(f"[ALERT] {url} failed {self.failure_counts[url]} times consecutively → UNHEALTHY")
 
     def _update_state(self, url: str, state: HealthState,
                       latency: float, error: str = None):
@@ -860,9 +867,9 @@ class HealthChecker:
                 if s.state == HealthState.HEALTHY]
 ```
 
-### 5.5 グレースフルデグラデーション
+### 5.5 Graceful Degradation
 
-### コード例8: グレースフルデグラデーションの実装
+### Code Example 8: Graceful Degradation Implementation
 
 ```python
 from dataclasses import dataclass
@@ -870,10 +877,10 @@ from enum import Enum
 from typing import Any, Dict
 
 class DegradationLevel(Enum):
-    FULL = "full"               # 全機能稼働
-    DEGRADED = "degraded"       # 一部機能を制限
-    MINIMAL = "minimal"         # 最低限の機能のみ
-    MAINTENANCE = "maintenance" # メンテナンスモード
+    FULL = "full"               # All features operational
+    DEGRADED = "degraded"       # Some features restricted
+    MINIMAL = "minimal"         # Only core features available
+    MAINTENANCE = "maintenance" # Maintenance mode
 
 @dataclass
 class FeatureFlag:
@@ -884,15 +891,15 @@ class FeatureFlag:
 
 class GracefulDegradation:
     """
-    グレースフルデグラデーション: 障害時にサービスを段階的に縮退
+    Graceful Degradation: Progressively reduce service scope during failures
 
     WHY:
-      全機能を完璧に提供できない状況でも、コア機能は維持して
-      ユーザーに最低限のサービスを提供する。
-      「何もできない」よりも「一部でも使える」方がはるかに良い。
+      Even when it's not possible to perfectly provide all features,
+      maintain core functionality and provide users with a minimum viable service.
+      "Partially usable" is far better than "completely unavailable."
 
-    例: ECサイトで推薦エンジンが障害 → 人気商品一覧を表示
-        決済が障害 → カートに入れるまでは可能にする
+      Example: Recommendation engine fails on an e-commerce site → show popular items list
+               Payment fails → still allow adding items to cart
     """
 
     def __init__(self):
@@ -927,8 +934,8 @@ class GracefulDegradation:
         print(f"[DEGRADATION] {old.value} → {level.value}")
         enabled = [f.name for f in self.features.values() if f.enabled]
         disabled = [f.name for f in self.features.values() if not f.enabled]
-        print(f"  有効: {enabled}")
-        print(f"  無効: {disabled}")
+        print(f"  Enabled: {enabled}")
+        print(f"  Disabled: {disabled}")
 
     def is_enabled(self, feature_name: str) -> bool:
         feature = self.features.get(feature_name)
@@ -939,46 +946,48 @@ class GracefulDegradation:
         return feature.fallback_value if feature else None
 
 
-# 使用例
+# Usage example
 gd = GracefulDegradation()
-gd.set_level(DegradationLevel.FULL)       # 全機能ON
-gd.set_level(DegradationLevel.DEGRADED)   # 推薦・検索OFF、注文はOK
-gd.set_level(DegradationLevel.MINIMAL)    # 商品一覧と静的ページのみ
+gd.set_level(DegradationLevel.FULL)       # All features ON
+gd.set_level(DegradationLevel.DEGRADED)   # Recommendation/search OFF, orders OK
+gd.set_level(DegradationLevel.MINIMAL)    # Only product listing and static pages
 ```
 
 ---
 
-## 6. カオスエンジニアリング
+## 6. Chaos Engineering
 
-### 6.1 原則と手順
+### 6.1 Principles and Procedure
 
-カオスエンジニアリングは、本番環境で意図的に障害を注入し、システムの信頼性を検証する手法である。
+Chaos engineering is a practice of intentionally injecting failures into production environments to verify system reliability.
 
 ```
-カオスエンジニアリングの4ステップ:
+Four Steps of Chaos Engineering:
 
   ┌─────────────────────────────────────────────────────┐
-  │ Step 1: 定常状態（Steady State）を定義              │
-  │   例: P99レイテンシ < 200ms、エラー率 < 0.1%        │
+  │ Step 1: Define Steady State                         │
+  │   Example: P99 latency < 200ms, error rate < 0.1%  │
   └──────────────┬──────────────────────────────────────┘
                  ▼
   ┌─────────────────────────────────────────────────────┐
-  │ Step 2: 仮説を設定                                  │
-  │   例: 「App Server 1台停止でも P99 < 300ms を維持」  │
+  │ Step 2: Formulate Hypothesis                        │
+  │   Example: "Stopping 1 App Server still keeps      │
+  │             P99 < 300ms"                            │
   └──────────────┬──────────────────────────────────────┘
                  ▼
   ┌─────────────────────────────────────────────────────┐
-  │ Step 3: 障害を注入（Blast Radius を制限）           │
-  │   例: 1台のインスタンスを停止、CPU負荷を注入        │
+  │ Step 3: Inject Failure (Limit Blast Radius)         │
+  │   Example: Stop one instance, inject CPU load       │
   └──────────────┬──────────────────────────────────────┘
                  ▼
   ┌─────────────────────────────────────────────────────┐
-  │ Step 4: 結果を観測し、改善策を実施                   │
-  │   例: フェイルオーバーに45秒 → ヘルスチェック間隔短縮 │
+  │ Step 4: Observe Results and Implement Improvements  │
+  │   Example: Failover took 45s → shorten health check │
+  │            interval                                 │
   └─────────────────────────────────────────────────────┘
 ```
 
-### コード例9: カオスエンジニアリングフレームワーク
+### Code Example 9: Chaos Engineering Framework
 
 ```python
 import asyncio
@@ -994,12 +1003,12 @@ class FaultType(Enum):
 
 @dataclass
 class ChaosExperiment:
-    """カオス実験の定義"""
+    """Definition of a chaos experiment"""
     name: str
     fault_type: FaultType
     target: str
     duration_seconds: float
-    blast_radius: float = 0.1    # 影響範囲（0.0-1.0）
+    blast_radius: float = 0.1    # Impact scope (0.0-1.0)
     latency_ms: float = 0
     error_rate: float = 0
     cpu_load: float = 0
@@ -1014,7 +1023,7 @@ class ExperimentResult:
     recommendations: List[str] = field(default_factory=list)
 
 class ChaosEngine:
-    """カオスエンジニアリングの実行エンジン"""
+    """Execution engine for chaos engineering"""
 
     def __init__(self):
         self.experiments: List[ChaosExperiment] = []
@@ -1022,7 +1031,7 @@ class ChaosEngine:
         self.safety_checks: List[Callable[[], bool]] = []
 
     def add_safety_check(self, check: Callable[[], bool]):
-        """安全チェックを追加（False を返したら即座に停止）"""
+        """Add a safety check (stops immediately if it returns False)"""
         self.safety_checks.append(check)
 
     def _check_safety(self) -> bool:
@@ -1035,23 +1044,23 @@ class ChaosEngine:
         collect_metrics: Callable[[], dict],
     ) -> ExperimentResult:
         print(f"\n{'='*60}")
-        print(f"[CHAOS] 実験開始: {experiment.name}")
-        print(f"  対象: {experiment.target}")
-        print(f"  障害タイプ: {experiment.fault_type.value}")
-        print(f"  影響範囲: {experiment.blast_radius*100:.0f}%")
+        print(f"[CHAOS] Starting experiment: {experiment.name}")
+        print(f"  Target: {experiment.target}")
+        print(f"  Fault type: {experiment.fault_type.value}")
+        print(f"  Blast radius: {experiment.blast_radius*100:.0f}%")
         print(f"{'='*60}")
 
         metrics_before = collect_metrics()
 
         if not self._check_safety():
-            print("[CHAOS] 安全チェック失敗: 実験を中止")
+            print("[CHAOS] Safety check failed: Aborting experiment")
             return ExperimentResult(
                 experiment=experiment, hypothesis_met=False,
-                observations=["安全チェック失敗で中止"],
+                observations=["Aborted due to safety check failure"],
                 metrics_before=metrics_before,
             )
 
-        print(f"[CHAOS] 障害注入中... ({experiment.duration_seconds}秒間)")
+        print(f"[CHAOS] Injecting fault... ({experiment.duration_seconds}s)")
         await asyncio.sleep(experiment.duration_seconds)
 
         metrics_after = collect_metrics()
@@ -1063,23 +1072,23 @@ class ChaosEngine:
         )
 
         if hypothesis_met:
-            print(f"[CHAOS] 仮説達成: システムは耐障害性を維持")
+            print(f"[CHAOS] Hypothesis confirmed: System maintained fault tolerance")
         else:
-            print(f"[CHAOS] 仮説未達成: 改善が必要")
+            print(f"[CHAOS] Hypothesis not met: Improvement needed")
             result.recommendations.append(
-                f"{experiment.target} の {experiment.fault_type.value} 耐性を強化する必要がある"
+                f"{experiment.target} needs improved {experiment.fault_type.value} tolerance"
             )
 
         self.results.append(result)
         return result
 
 
-# 使用例
+# Usage example
 engine = ChaosEngine()
-engine.add_safety_check(lambda: True)  # 本番ではメトリクスAPIを確認
+engine.add_safety_check(lambda: True)  # In production, check metrics API
 
 experiment = ChaosExperiment(
-    name="App Server レイテンシ耐性テスト",
+    name="App Server Latency Tolerance Test",
     fault_type=FaultType.LATENCY,
     target="app-server-1",
     duration_seconds=300,
@@ -1090,67 +1099,67 @@ experiment = ChaosExperiment(
 
 ---
 
-## 7. 比較表
+## 7. Comparison Tables
 
-### 比較表1: フェイルオーバー戦略の比較
+### Comparison Table 1: Failover Strategy Comparison
 
-| 項目 | コールド | ウォーム | ホット |
+| Item | Cold | Warm | Hot |
 |------|---------|---------|--------|
-| 復旧時間 (RTO) | 数分〜数十分 | 数十秒〜数分 | 数秒以内 |
-| コスト | 低い（Standby停止） | 中程度（Standby低速稼働） | 高い（Standby全力稼働） |
-| データ損失 (RPO) | 大きい（最終バックアップまで） | 中程度（レプリケーションラグ分） | ほぼゼロ（同期レプリケーション） |
-| 運用複雑さ | 低い | 中程度 | 高い |
-| 適するシステム | 開発環境、バッチ、社内ツール | 一般Web、ECサイト | 決済、医療、金融 |
-| AWS サービス例 | S3 + EC2 AMI | RDS Multi-AZ (非同期) | Aurora Global DB (同期) |
+| Recovery Time (RTO) | Minutes to tens of minutes | Tens of seconds to minutes | Within seconds |
+| Cost | Low (Standby stopped) | Moderate (Standby running slowly) | High (Standby running at full capacity) |
+| Data Loss (RPO) | High (up to last backup) | Moderate (replication lag) | Near zero (synchronous replication) |
+| Operational Complexity | Low | Moderate | High |
+| Suitable Systems | Dev environments, batch, internal tools | General web, e-commerce | Payments, medical, finance |
+| AWS Service Examples | S3 + EC2 AMI | RDS Multi-AZ (async) | Aurora Global DB (sync) |
 
-### 比較表2: レジリエンスパターンの比較
+### Comparison Table 2: Resilience Pattern Comparison
 
-| パターン | 目的 | 実装複雑度 | 効果 | 適用箇所 |
+| Pattern | Purpose | Implementation Complexity | Effectiveness | Application Point |
 |---------|------|-----------|------|---------|
-| サーキットブレーカー | 障害の連鎖防止 | 中 | 高（カスケード障害防止） | サービス間通信 |
-| リトライ+バックオフ | 一時的障害の回復 | 低 | 中（transient fault対応） | API呼び出し |
-| バルクヘッド | 障害の分離 | 中 | 高（影響範囲限定） | スレッドプール、接続プール |
-| ヘルスチェック | 障害の検知 | 低 | 高（早期検知） | LB → Backend |
-| 冗長化 | 単一障害点の排除 | 高 | 非常に高い | 全レイヤー |
-| グレースフルデグラデーション | 部分的サービス継続 | 中 | 高（UX維持） | フロントエンド連携 |
-| タイムアウト | 無限待ちの防止 | 低 | 中（リソース解放） | 全外部通信 |
-| キャッシュフォールバック | 障害時のデータ提供 | 中 | 中（stale data許容時） | 読み取りパス |
+| Circuit Breaker | Prevent failure cascades | Medium | High (prevents cascade failures) | Inter-service communication |
+| Retry + Backoff | Recover from transient failures | Low | Medium (handles transient faults) | API calls |
+| Bulkhead | Isolate failures | Medium | High (limits blast radius) | Thread pools, connection pools |
+| Health Check | Detect failures | Low | High (early detection) | LB → Backend |
+| Redundancy | Eliminate single points of failure | High | Very high | All layers |
+| Graceful Degradation | Continue partial service | Medium | High (maintains UX) | Frontend integration |
+| Timeout | Prevent indefinite waits | Low | Medium (releases resources) | All external communication |
+| Cache Fallback | Serve data during failures | Medium | Medium (when stale data is acceptable) | Read path |
 
-### 比較表3: カオスエンジニアリングツールの比較
+### Comparison Table 3: Chaos Engineering Tool Comparison
 
-| ツール | 提供元 | 対象 | 特徴 |
+| Tool | Provider | Target | Features |
 |--------|--------|------|------|
-| Chaos Monkey | Netflix | EC2インスタンス | ランダムにインスタンスを停止 |
-| Litmus | CNCF | Kubernetes | K8s ネイティブ、CRDベース |
-| Gremlin | Gremlin社 | マルチプラットフォーム | SaaS、GUI操作、安全機能充実 |
-| AWS FIS | AWS | AWSリソース | AWSサービスとの統合 |
-| Chaos Mesh | PingCAP | Kubernetes | K8s向け、ネットワーク障害が得意 |
-| Toxiproxy | Shopify | TCP接続 | ネットワーク障害シミュレーション |
+| Chaos Monkey | Netflix | EC2 instances | Randomly stops instances |
+| Litmus | CNCF | Kubernetes | K8s-native, CRD-based |
+| Gremlin | Gremlin Inc. | Multi-platform | SaaS, GUI-driven, rich safety features |
+| AWS FIS | AWS | AWS resources | Integration with AWS services |
+| Chaos Mesh | PingCAP | Kubernetes | K8s-focused, strong at network failures |
+| Toxiproxy | Shopify | TCP connections | Network failure simulation |
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン1: リトライストーム
+### Anti-Pattern 1: Retry Storm
 
 ```python
-# NG: 全クライアントが即座にリトライ
+# BAD: All clients retry immediately
 def bad_retry(func, max_retries=5):
     for i in range(max_retries):
         try:
             return func()
         except Exception:
-            time.sleep(1)  # 固定間隔1秒 → 全クライアントが同時にリトライ
+            time.sleep(1)  # Fixed 1-second interval → all clients retry simultaneously
     raise Exception("Max retries exceeded")
 
-# 問題の図解:
+# Diagram of the problem:
 # Client 1 ──retry(1s)──retry(1s)──retry(1s)──→
-# Client 2 ──retry(1s)──retry(1s)──retry(1s)──→  ← 全員同時にサーバーに殺到
+# Client 2 ──retry(1s)──retry(1s)──retry(1s)──→  ← All simultaneously hit the server
 # Client 3 ──retry(1s)──retry(1s)──retry(1s)──→
-# サーバー: 障害中にさらに負荷が3倍 → 復旧不能
+# Server: Load triples during an outage → unable to recover
 
 
-# OK: 指数バックオフ + ジッター
+# GOOD: Exponential backoff + jitter
 import random
 
 def good_retry(func, max_retries=5, base_delay=1.0):
@@ -1158,124 +1167,124 @@ def good_retry(func, max_retries=5, base_delay=1.0):
         try:
             return func()
         except Exception:
-            delay = base_delay * (2 ** i)          # 指数的に間隔を広げる
-            delay = random.uniform(0, delay)        # ジッターで分散
-            delay = min(delay, 60.0)                # 最大60秒にキャップ
+            delay = base_delay * (2 ** i)          # Exponentially increase interval
+            delay = random.uniform(0, delay)        # Jitter to spread out timing
+            delay = min(delay, 60.0)                # Cap at 60 seconds
             time.sleep(delay)
     raise Exception("Max retries exceeded")
 
 # Client 1 ──retry(0.7s)────────retry(2.3s)──────────→
-# Client 2 ──────retry(0.3s)──────────retry(3.1s)───→  ← リトライが分散
+# Client 2 ──────retry(0.3s)──────────retry(3.1s)───→  ← Retries are spread out
 # Client 3 ────────retry(0.9s)────────retry(1.8s)───→
-# サーバー: 負荷が時間分散 → 復旧可能
+# Server: Load is distributed over time → able to recover
 ```
 
-### アンチパターン2: 単一障害点（SPOF）の見落とし
+### Anti-Pattern 2: Overlooking Single Points of Failure (SPOF)
 
 ```python
-# NG: 隠れたSPOFがある構成
+# BAD: Architecture with hidden SPOFs
 class BadArchitecture:
     def __init__(self):
-        self.web_servers = ["web-1", "web-2", "web-3"]  # 冗長化 OK
-        self.load_balancer = "lb-1"    # SPOF! LBが1台のみ
-        self.config_server = "config-1" # SPOF! 設定サーバーが1台
-        self.dns_server = "dns-1"       # SPOF! DNSが1台
+        self.web_servers = ["web-1", "web-2", "web-3"]  # Redundant: OK
+        self.load_balancer = "lb-1"    # SPOF! Only one LB
+        self.config_server = "config-1" # SPOF! Only one config server
+        self.dns_server = "dns-1"       # SPOF! Only one DNS server
 
-# OK: 全レイヤーで冗長化
+# GOOD: Redundancy at every layer
 class GoodArchitecture:
     def __init__(self):
         self.load_balancers = ["lb-active", "lb-standby"]  # VRRP/keepalived
-        self.web_servers = ["web-1", "web-2", "web-3", "web-4"]  # N+1構成
+        self.web_servers = ["web-1", "web-2", "web-3", "web-4"]  # N+1 configuration
         self.db_primary = "db-primary"
         self.db_replicas = ["db-replica-1", "db-replica-2"]
-        self.config_servers = ["etcd-1", "etcd-2", "etcd-3"]  # 分散型
-        self.dns_providers = ["route53", "cloudflare"]  # 複数プロバイダ
+        self.config_servers = ["etcd-1", "etcd-2", "etcd-3"]  # Distributed
+        self.dns_providers = ["route53", "cloudflare"]  # Multiple providers
 
-# SPOF チェックリスト:
-# □ ロードバランサーは冗長化されているか？
-# □ DNS は複数プロバイダか？
-# □ 認証サービスは冗長化されているか？
-# □ 設定管理は分散型か？
-# □ 外部API依存にフォールバックはあるか？
+# SPOF Checklist:
+# □ Is the load balancer redundant?
+# □ Does DNS use multiple providers?
+# □ Is the authentication service redundant?
+# □ Is configuration management distributed?
+# □ Are there fallbacks for external API dependencies?
 ```
 
-### アンチパターン3: 障害テストをしない
+### Anti-Pattern 3: Not Testing for Failures
 
 ```
-NG:
-「冗長化したから大丈夫」と思い込み、一度もフェイルオーバーテストをしない
+BAD:
+Assuming "we have redundancy so we're fine" and never running a failover test
 
-よくある失敗パターン:
-1. フェイルオーバースクリプトにバグがあり、切り替わらない
-2. Standby のデータが古く、切り替え後にデータ不整合
-3. DNS の TTL が長すぎて、切り替えに30分かかる
-4. 監視アラートの送信先が不正で、障害に気づかない
+Common failure patterns:
+1. A bug in the failover script causes it not to switch over
+2. Standby data is stale, causing data inconsistency after switching
+3. DNS TTL is too long, causing a 30-minute cutover delay
+4. Alert notifications go to the wrong destination, causing the team to miss the failure
 
-OK:
-- 定期的なフェイルオーバー演習（月次/四半期）
-- カオスエンジニアリングの継続的実施
-- Game Day（本番環境での障害シミュレーション日）
-- フェイルオーバー後の自動検証スクリプト
-- アラート到達テスト（PagerDuty等の定期テスト）
+GOOD:
+- Regular failover drills (monthly/quarterly)
+- Continuous chaos engineering exercises
+- Game Days (planned failure simulation in production)
+- Automated verification scripts after failover
+- Alert delivery testing (periodic tests via PagerDuty, etc.)
 ```
 
 ---
 
-## 9. 実践演習
+## 9. Hands-On Exercises
 
-### 演習1（基礎）: 可用性計算
+### Exercise 1 (Basic): Availability Calculation
 
-以下のシステム構成の可用性を計算せよ。
+Calculate the availability of the following system configuration.
 
 ```
-構成:
+Configuration:
   Internet → [DNS: 99.99%] → [CDN: 99.95%] → [LB: 99.99%]
-           → [App Server x2 (各99.9%、並列)] → [DB Primary: 99.99%]
+           → [App Server x2 (99.9% each, parallel)] → [DB Primary: 99.99%]
 
-問題:
-1. App Server が並列構成の場合、App層の可用性を求めよ
-2. システム全体の可用性（直列部分の積）を求めよ
-3. 年間ダウンタイムを分単位で求めよ
-4. 可用性を 99.99% 以上にするには、どのコンポーネントを改善すべきか？
+Questions:
+1. If App Servers are in a parallel configuration, what is the App tier availability?
+2. What is the overall system availability (product of the series components)?
+3. What is the annual downtime in minutes?
+4. Which component should be improved to achieve availability of 99.99% or higher?
 ```
 
-**期待される出力:**
+**Expected Output:**
 
 ```
-1. App層（並列）: 1 - (1-0.999)^2 = 1 - 0.000001 = 0.999999 (99.9999%)
-2. 全体: 0.9999 × 0.9995 × 0.9999 × 0.999999 × 0.9999
-       = 0.9992 (99.92%)
-3. 年間ダウンタイム: 525960 × (1 - 0.9992) ≒ 421分 ≒ 7時間
-4. ボトルネックは CDN (99.95%)
-   → CDNの冗長化またはマルチCDN構成で改善
-   → 次にLBとDBの冗長化
+1. App tier (parallel): 1 - (1-0.999)^2 = 1 - 0.000001 = 0.999999 (99.9999%)
+2. Overall: 0.9999 × 0.9995 × 0.9999 × 0.999999 × 0.9999
+          = 0.9992 (99.92%)
+3. Annual downtime: 525960 × (1 - 0.9992) ≒ 421 minutes ≒ 7 hours
+4. Bottleneck is CDN (99.95%)
+   → Improve by redundant CDN or multi-CDN configuration
+   → Next, redundify LB and DB
 ```
 
-### 演習2（応用）: サーキットブレーカーの状態遷移テスト
+### Exercise 2 (Applied): Circuit Breaker State Transition Test
 
-上記のコード例4の `CircuitBreaker` クラスを使い、以下のテストケースを実装せよ。
+Using the `CircuitBreaker` class from Code Example 4 above, implement the following test cases.
 
 ```python
 """
-テストケース:
-1. 正常時: 10回連続成功 → CLOSED のまま
-2. 障害発生: 5回連続失敗 → OPEN に遷移
-3. 復旧試行: 30秒後に HALF_OPEN に遷移、3回成功で CLOSED に復帰
-4. 復旧失敗: HALF_OPEN 中に1回失敗 → 再び OPEN に遷移
-5. メトリクス: total_calls, total_failures, total_rejections が正しいこと
+Test cases:
+1. Normal: 10 consecutive successes → stays CLOSED
+2. Failure: 5 consecutive failures → transitions to OPEN
+3. Recovery attempt: After 30 seconds, transitions to HALF_OPEN; 3 successes return to CLOSED
+4. Recovery failure: 1 failure during HALF_OPEN → transitions back to OPEN
+5. Metrics: total_calls, total_failures, total_rejections are correct
 """
 
 def test_circuit_breaker():
     import time
 
-    # Test 1: 正常時
+    # Test 1: Normal operation
     cb = CircuitBreaker(failure_threshold=5, recovery_timeout=1.0, success_threshold=3)
     for i in range(10):
         cb.call(lambda: "ok")
     assert cb.state == CircuitState.CLOSED, "Test 1 failed"
     print("Test 1: 10 successful calls → state=CLOSED  OK")
 
-    # Test 2: 障害発生
+    # Test 2: Failure
     cb2 = CircuitBreaker(failure_threshold=5, recovery_timeout=1.0)
     for i in range(5):
         try:
@@ -1285,8 +1294,8 @@ def test_circuit_breaker():
     assert cb2.state == CircuitState.OPEN, "Test 2 failed"
     print("Test 2: 5 failed calls → state=OPEN  OK")
 
-    # Test 3: 復旧試行（成功）
-    time.sleep(1.1)  # recovery_timeout 待ち
+    # Test 3: Recovery attempt (success)
+    time.sleep(1.1)  # Wait for recovery_timeout
     for i in range(3):
         cb2.call(lambda: "ok")
     assert cb2.state == CircuitState.CLOSED, "Test 3 failed"
@@ -1297,161 +1306,161 @@ def test_circuit_breaker():
 test_circuit_breaker()
 ```
 
-**期待される出力:**
+**Expected Output:**
 
 ```
 Test 1: 10 successful calls → state=CLOSED  OK
-[Circuit] CLOSED → OPEN: 5回連続障害で遮断
+[Circuit] CLOSED → OPEN: Tripped after 5 consecutive failures
 Test 2: 5 failed calls → state=OPEN  OK
-[Circuit] OPEN → HALF_OPEN: 試行開始
-[Circuit] HALF_OPEN → CLOSED: 正常復帰
+[Circuit] OPEN → HALF_OPEN: Starting trial
+[Circuit] HALF_OPEN → CLOSED: Recovered successfully
 Test 3: After timeout, 3 successes → state=CLOSED  OK
 
 All tests passed!
 ```
 
-### 演習3（発展）: マイクロサービスの信頼性設計
+### Exercise 3 (Advanced): Reliability Design for a Microservices Architecture
 
-以下のECサイトの構成に対して、信頼性を最大化する設計を行え。
+Design a reliability-maximized architecture for the following e-commerce site configuration.
 
 ```
-要件:
-- SLA: 99.95%（月間ダウンタイム 21.9分以内）
-- RPO: 1分以内（最大1分のデータ損失を許容）
-- RTO: 5分以内（5分以内にサービス復旧）
-- ピークトラフィック: 10,000 RPS
+Requirements:
+- SLA: 99.95% (monthly downtime within 21.9 minutes)
+- RPO: Within 1 minute (tolerate up to 1 minute of data loss)
+- RTO: Within 5 minutes (restore service within 5 minutes)
+- Peak traffic: 10,000 RPS
 
-サービス構成:
+Service configuration:
 1. API Gateway
 2. User Service
 3. Order Service
-4. Payment Service（外部決済APIに依存）
-5. Notification Service（メール/SMS送信）
-6. PostgreSQL（ユーザー・注文データ）
-7. Redis（セッション・キャッシュ）
+4. Payment Service (depends on external payment API)
+5. Notification Service (email/SMS delivery)
+6. PostgreSQL (user and order data)
+7. Redis (sessions and cache)
 
-設計課題:
-1. 各サービスにどのレジリエンスパターンを適用するか表にまとめよ
-2. Payment Service の外部API障害時のフォールバック戦略を設計せよ
-3. PostgreSQL の RPO 1分・RTO 5分を満たす構成を設計せよ
-4. 全体の SLA 99.95% を達成するための各コンポーネントの必要可用性を計算せよ
-5. カオスエンジニアリングの実験計画を3つ立案せよ
+Design tasks:
+1. Summarize in a table which resilience patterns to apply to each service
+2. Design a fallback strategy for Payment Service when the external API fails
+3. Design a PostgreSQL configuration that satisfies RPO 1 min / RTO 5 min
+4. Calculate the required availability for each component to achieve overall SLA of 99.95%
+5. Propose three chaos engineering experiment plans
 ```
 
-**期待される出力（概要）:**
+**Expected Output (summary):**
 
 ```
-1. レジリエンスパターン適用表:
-   | サービス        | CB | リトライ | バルクヘッド | ヘルスチェック | デグラデーション |
-   |----------------|:--:|:------:|:---------:|:----------:|:------------:|
-   | API Gateway    | o  | -      | o        | o         | o           |
-   | User Service   | o  | o     | -        | o         | -           |
-   | Order Service  | o  | o     | o        | o         | -           |
-   | Payment        | o  | o     | o        | o         | o           |
-   | Notification   | -  | o     | -        | o         | o           |
+1. Resilience pattern application table:
+   | Service         | CB | Retry | Bulkhead | Health Check | Degradation |
+   |----------------|:--:|:-----:|:--------:|:-----------:|:-----------:|
+   | API Gateway    |  o |   -   |    o     |      o      |      o      |
+   | User Service   |  o |   o   |    -     |      o      |      -      |
+   | Order Service  |  o |   o   |    o     |      o      |      -      |
+   | Payment        |  o |   o   |    o     |      o      |      o      |
+   | Notification   |  - |   o   |    -     |      o      |      o      |
 
-2. Payment フォールバック:
-   - サーキットブレーカー (threshold=3, timeout=30s)
-   - 障害時: 注文を「決済保留」ステータスで保存
-   - 復旧後: 保留注文をバッチ処理で決済
-   - DLQ で未処理の決済を管理
+2. Payment fallback:
+   - Circuit breaker (threshold=3, timeout=30s)
+   - On failure: save order with "payment pending" status
+   - After recovery: process pending orders in a batch job
+   - Use DLQ to manage unprocessed payments
 
-3. PostgreSQL 構成:
+3. PostgreSQL configuration:
    - Primary + Synchronous Replica + Async Replica
-   - WALアーカイブ: 1分間隔でS3にアップロード (RPO <= 1分)
-   - 自動フェイルオーバー: Patroni + etcd (RTO <= 30秒)
+   - WAL archiving: upload to S3 every 1 minute (RPO <= 1 min)
+   - Automatic failover: Patroni + etcd (RTO <= 30 seconds)
 
-4. 可用性計算:
-   7コンポーネント直列で 99.95% を達成するには
-   各コンポーネント >= 99.993% が必要
-   → 各サービスを Active-Active 冗長化で達成
+4. Availability calculation:
+   For 7 components in series to achieve 99.95%:
+   Each component must be >= 99.993%
+   → Achieve this by making each service Active-Active redundant
 
-5. カオス実験:
-   (1) Payment外部API 500ms遅延注入 → CB動作検証
-   (2) DB Primary強制停止 → フェイルオーバー時間計測 (<5分)
-   (3) Redis全ノード停止 → キャッシュなし状態のDB負荷検証
+5. Chaos experiments:
+   (1) Inject 500ms latency into Payment external API → verify CB behavior
+   (2) Force-stop DB Primary → measure failover time (< 5 min)
+   (3) Stop all Redis nodes → verify DB load without cache
 ```
 
 ---
 
 ## 10. FAQ
 
-### Q1: SLA、SLO、SLI の違いは何ですか？
+### Q1: What is the difference between SLA, SLO, and SLI?
 
-**SLI**（Service Level Indicator）は実測値（例: レイテンシP99 = 150ms、エラー率 = 0.02%）。**SLO**（Service Level Objective）はチーム内部の目標値（例: P99 < 200ms を99.9%の時間維持）。**SLA**（Service Level Agreement）は顧客との契約（例: 可用性99.95%を下回った場合クレジット返金）。SLA違反は金銭的ペナルティを伴うため、SLOはSLAより厳しく設定するのが通例である。また、SLI を継続的に計測し、SLO との差分を「エラーバジェット」として管理することで、信頼性と開発速度のバランスを取る。
+**SLI** (Service Level Indicator) is the measured value (e.g., P99 latency = 150ms, error rate = 0.02%). **SLO** (Service Level Objective) is the team's internal target (e.g., maintain P99 < 200ms for 99.9% of the time). **SLA** (Service Level Agreement) is the customer contract (e.g., a credit is issued if availability falls below 99.95%). Because SLA violations carry financial penalties, SLOs are typically set stricter than SLAs. By continuously measuring SLIs and managing the difference from SLOs as an "error budget," teams can balance reliability and development velocity.
 
-### Q2: カオスエンジニアリングとは何ですか？実施する上での注意点は？
+### Q2: What is chaos engineering, and what should I watch out for when practicing it?
 
-カオスエンジニアリングは、本番環境で意図的に障害を注入し、システムの信頼性を検証する手法である。Netflixの「Chaos Monkey」が有名で、ランダムにインスタンスを停止させることでフォールトトレランスをテストする。実施の手順は (1) 定常状態の定義、(2) 仮説の設定、(3) 障害の注入、(4) 結果の観測と改善、である。
+Chaos engineering is the practice of intentionally injecting failures into production environments to verify system reliability. Netflix's "Chaos Monkey," which randomly stops instances to test fault tolerance, is a well-known example. The procedure is: (1) define steady state, (2) formulate a hypothesis, (3) inject a failure, and (4) observe results and improve.
 
-注意点として、Blast Radius を制限すること（最初は1%のトラフィックから開始）、安全停止条件を事前に設けること（エラー率が閾値を超えたら自動停止）、営業時間内に実施すること（問題発生時に即座に対応）、全チームに事前通知すること（意図的障害と本物の障害を混同しない）が挙げられる。
+Key precautions: limit the blast radius (start with 1% of traffic), define safety stop conditions in advance (auto-stop if error rate exceeds a threshold), run experiments during business hours (so issues can be addressed immediately), and notify the entire team beforehand (to avoid confusing intentional failures with real ones).
 
-### Q3: RPOとRTOの違いは何ですか？
+### Q3: What is the difference between RPO and RTO?
 
-**RPO**（Recovery Point Objective）は「どの時点のデータまで復旧できるか」を示す。例えば RPO = 1時間 なら、障害発生時に最大1時間分のデータが失われる可能性がある。**RTO**（Recovery Time Objective）は「障害発生からサービス復旧までの時間」を示す。例えば RTO = 15分 なら、15分以内にサービスを再開しなければならない。RPOはバックアップ頻度やレプリケーション方式で制御し、RTOはフェイルオーバー方式で制御する。
+**RPO** (Recovery Point Objective) indicates "to what point in time data can be restored." For example, an RPO of 1 hour means up to 1 hour of data may be lost in the event of a failure. **RTO** (Recovery Time Objective) indicates "how long it takes from a failure to service restoration." For example, an RTO of 15 minutes means service must be restored within 15 minutes. RPO is controlled by backup frequency and replication method; RTO is controlled by the failover approach.
 
-### Q4: エラーバジェットとは何ですか？
+### Q4: What is an error budget?
 
-エラーバジェットは「SLO 目標の余裕分」を定量的に表したものである。例えば SLO が 99.9% なら、月に 0.1% の時間（約43分）はダウンしても許容される。この43分がエラーバジェットである。バジェットが余っている時はリスクのある新機能をリリースでき、不足している時はリリースを凍結して信頼性改善に集中する。このアプローチにより「信頼性 vs 開発速度」のトレードオフを定量的に管理できる。
+An error budget is a quantitative representation of the "slack" in an SLO target. For example, if the SLO is 99.9%, downtime of 0.1% of the time (about 43 minutes per month) is acceptable. Those 43 minutes are the error budget. When budget remains, risky new features can be released; when it is exhausted, releases are frozen and the team focuses on improving reliability. This approach allows the trade-off between reliability and development velocity to be managed quantitatively.
 
-### Q5: 分散システムで「正確に1回」の処理を実現できますか？
+### Q5: Can "exactly-once" processing be achieved in a distributed system?
 
-厳密な意味での「正確に1回（Exactly-once）」は分散システムでは実現が非常に難しい。ネットワーク障害やプロセスクラッシュにより、メッセージの重複配信は避けられない。実践的なアプローチは「少なくとも1回（At-least-once）」の配信 + 「べき等処理（Idempotent Processing）」の組み合わせである。具体的にはリクエストに一意な ID を付与し、処理済み ID を記録して重複を検知する。
+Strictly speaking, "exactly-once" is extremely difficult to achieve in distributed systems. Due to network failures and process crashes, duplicate message delivery is unavoidable. The practical approach is a combination of "at-least-once" delivery and "idempotent processing." Concretely, assign a unique ID to each request and record processed IDs to detect duplicates.
 
-### Q6: マルチリージョン構成での信頼性設計のポイントは？
+### Q6: What are the key points of reliability design in a multi-region configuration?
 
-マルチリージョン構成では、(1) データの同期方式（同期レプリケーションはレイテンシ増大、非同期はデータ損失リスク）、(2) コンフリクト解決（Active-Active の場合、同一データの同時書き込みをどう解決するか）、(3) フェイルオーバーのトリガー（リージョン全体の障害判定は難しい）、(4) DNS 切り替え時間（TTL の設定）、が主要な検討事項である。AWS では Route 53 の health check + failover routing、Azure では Traffic Manager を使うのが一般的である。
+In a multi-region configuration, the main considerations are: (1) data synchronization method (synchronous replication increases latency; asynchronous replication risks data loss), (2) conflict resolution (how to handle simultaneous writes to the same data in Active-Active), (3) failover trigger (detecting a regional-wide failure is difficult), and (4) DNS switchover time (TTL settings). On AWS, Route 53 health checks with failover routing is the common approach; on Azure, Traffic Manager is typically used.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important. Understanding deepens not just through theory but by actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Jumping to advanced topics before mastering the basics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| 信頼性の定義 | 障害時にも正しく機能し続ける能力。Fault → Failure を防ぐ |
-| 可用性の計算 | 直列=積（下がる）、並列=1-(不可用性の積)（上がる） |
-| SLA/SLO/SLI | SLI（実測）→ SLO（内部目標）→ SLA（顧客契約）の3層管理 |
-| 冗長化 | Active-Passive / Active-Active / N+1 で SPOF を排除 |
-| サーキットブレーカー | CLOSED→OPEN→HALF_OPEN でカスケード障害を防止 |
-| リトライ戦略 | 指数バックオフ + Full Jitter で負荷を分散 |
-| バルクヘッド | リソースを分離して障害の影響範囲を限定 |
-| グレースフルデグラデーション | 全停止ではなく段階的にサービスを縮退 |
-| カオスエンジニアリング | 意図的な障害注入で信頼性を継続的に検証 |
-| エラーバジェット | 信頼性と開発速度のバランスを定量的に管理 |
+| Definition of reliability | The ability to continue functioning correctly even when failures occur. Prevent Fault → Failure escalation |
+| Availability calculation | Series = product (decreases); Parallel = 1-(product of unavailabilities) (increases) |
+| SLA/SLO/SLI | Three-layer management: SLI (measured) → SLO (internal target) → SLA (customer contract) |
+| Redundancy | Eliminate SPOFs with Active-Passive / Active-Active / N+1 |
+| Circuit Breaker | CLOSED→OPEN→HALF_OPEN prevents cascade failures |
+| Retry strategy | Exponential backoff + Full Jitter distributes load |
+| Bulkhead | Isolate resources to limit the blast radius of failures |
+| Graceful Degradation | Progressively reduce service scope rather than a complete outage |
+| Chaos Engineering | Continuously verify reliability through intentional fault injection |
+| Error Budget | Quantitatively manage the balance between reliability and development velocity |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [CAP定理](./03-cap-theorem.md) -- 分散システムにおける一貫性・可用性・分断耐性のトレードオフ
-- [ロードバランサー](../01-components/00-load-balancer.md) -- 冗長化されたトラフィック分散の設計
-- [メッセージキュー](../01-components/02-message-queue.md) -- 非同期処理による信頼性向上とバックプレッシャー
-- [モノリス vs マイクロサービス](../02-architecture/00-monolith-vs-microservices.md) -- サービス分割と障害分離の設計
-- デザインパターン -- オブザーバー等のイベント駆動パターン
+- [CAP Theorem](./03-cap-theorem.md) -- Trade-offs between consistency, availability, and partition tolerance in distributed systems
+- [Load Balancer](../01-components/00-load-balancer.md) -- Designing redundant traffic distribution
+- [Message Queue](../01-components/02-message-queue.md) -- Improving reliability and handling backpressure with asynchronous processing
+- [Monolith vs Microservices](../02-architecture/00-monolith-vs-microservices.md) -- Service decomposition and fault isolation design
+- Design Patterns -- Event-driven patterns such as Observer
 
 ---
 
-## 参考文献
+## References
 
-1. Nygard, M.T. (2018). *Release It!: Design and Deploy Production-Ready Software*, 2nd Edition. Pragmatic Bookshelf. -- サーキットブレーカー、バルクヘッド等のレジリエンスパターンの原典
-2. Rosenthal, C. & Jones, N. (2020). *Chaos Engineering: System Resiliency in Practice*. O'Reilly Media. -- カオスエンジニアリングの体系的な解説
-3. Beyer, B. et al. (2016). *Site Reliability Engineering*. O'Reilly Media. https://sre.google/sre-book/ -- Google の SRE プラクティス（SLI/SLO/SLA、エラーバジェット）
-4. Kleppmann, M. (2017). *Designing Data-Intensive Applications*, Chapter 8: The Trouble with Distributed Systems. O'Reilly Media. -- 分散システムの障害モデルと信頼性設計
-5. Burns, B. (2018). *Designing Distributed Systems*. O'Reilly Media. -- 分散システムのパターンカタログ
+1. Nygard, M.T. (2018). *Release It!: Design and Deploy Production-Ready Software*, 2nd Edition. Pragmatic Bookshelf. -- The canonical reference for resilience patterns such as circuit breakers and bulkheads
+2. Rosenthal, C. & Jones, N. (2020). *Chaos Engineering: System Resiliency in Practice*. O'Reilly Media. -- A systematic guide to chaos engineering
+3. Beyer, B. et al. (2016). *Site Reliability Engineering*. O'Reilly Media. https://sre.google/sre-book/ -- Google's SRE practices (SLI/SLO/SLA, error budgets)
+4. Kleppmann, M. (2017). *Designing Data-Intensive Applications*, Chapter 8: The Trouble with Distributed Systems. O'Reilly Media. -- Failure models and reliability design for distributed systems
+5. Burns, B. (2018). *Designing Distributed Systems*. O'Reilly Media. -- A catalog of distributed systems patterns
