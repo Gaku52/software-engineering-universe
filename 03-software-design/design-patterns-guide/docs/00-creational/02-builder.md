@@ -1,75 +1,75 @@
-# Builder パターン
+# Builder Pattern
 
-> 複雑なオブジェクトの構築プロセスを **段階的に** 分離し、同じ構築手順で異なる表現を作成できるようにする生成パターン。
-
----
-
-## この章で学ぶこと
-
-1. Builder パターンの本質的な目的と、なぜ「段階的な構築」が必要なのかという設計意図（WHY）
-2. Fluent API / Step Builder / Director の各バリエーションと使い分け
-3. Telescoping Constructor 問題の根本的な解決と不変オブジェクトの安全な構築
-4. 各言語（TypeScript / Python / Java / Go / Kotlin）での実装パターンとベストプラクティス
-5. Builder パターンの過剰適用を避けるための判断基準とトレードオフ
+> A creational pattern that **incrementally** separates the construction process of complex objects, enabling the same construction procedure to create different representations.
 
 ---
 
-## 前提知識
+## What You Will Learn in This Chapter
 
-このガイドを理解するために、以下の知識を事前に習得しておくことを推奨します。
+1. The essential purpose of the Builder pattern and the design intent (WHY) behind "incremental construction"
+2. The Fluent API, Step Builder, and Director variations and when to use each
+3. A fundamental solution to the Telescoping Constructor problem and safe construction of immutable objects
+4. Implementation patterns and best practices in each language (TypeScript / Python / Java / Go / Kotlin)
+5. Decision criteria and trade-offs for avoiding over-application of the Builder pattern
 
-| トピック | 必要レベル | 参照リンク |
+---
+
+## Prerequisites
+
+It is recommended that you have prior knowledge of the following topics before working through this guide.
+
+| Topic | Required Level | Reference |
 |---------|-----------|-----------|
-| オブジェクト指向の基礎（クラス、インタフェース、メソッドチェーン） | 必須 | OOP基礎 |
-| Factory パターン | 推奨 | [Factory](./01-factory.md) |
-| 不変性（Immutability）の概念 | 推奨 | [不変性](../../../clean-code-principles/docs/03-practices-advanced/00-immutability.md) |
-| TypeScript の型システム（ジェネリクス、条件型） | あると望ましい | TypeScript ドキュメント |
-| 関数設計（引数の設計） | あると望ましい | [関数設計](../../../clean-code-principles/docs/01-practices/01-functions.md) |
+| Object-oriented basics (classes, interfaces, method chaining) | Required | OOP Basics |
+| Factory pattern | Recommended | [Factory](./01-factory.md) |
+| Concept of Immutability | Recommended | [Immutability](../../../clean-code-principles/docs/03-practices-advanced/00-immutability.md) |
+| TypeScript type system (generics, conditional types) | Nice to have | TypeScript Documentation |
+| Function design (parameter design) | Nice to have | [Function Design](../../../clean-code-principles/docs/01-practices/01-functions.md) |
 
 ---
 
-## 1. Builder パターンの本質 -- なぜ段階的構築が必要なのか
+## 1. The Essence of the Builder Pattern -- Why Incremental Construction Is Necessary
 
-### 1.1 解決する問題: Telescoping Constructor
+### 1.1 The Problem It Solves: Telescoping Constructor
 
-ソフトウェア開発でオブジェクトの属性が増えるにつれ、コンストラクタの引数が膨大になる「**Telescoping Constructor（テレスコーピング・コンストラクタ）問題**」が発生する。
+As the number of attributes on an object grows in software development, a "**Telescoping Constructor**" problem arises, where the constructor ends up with an enormous number of parameters.
 
 ```typescript
-// 問題: 引数が増えるとどれが何か分からない
+// Problem: when arguments grow, it's impossible to tell what each one is
 //                  name    email      age  role   notify  theme   lang  tz
 new User("Taro", "t@x.com", 30, "admin", true, "dark", "ja", "Asia/Tokyo");
 //                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-//                                  6番目以降が何を表すか、読み手には分からない
+//                                  From the 6th argument onward, a reader cannot tell what they represent
 
-// さらに問題: オプション引数がある場合
+// A further problem: when there are optional arguments
 new User("Taro", "t@x.com", 30, undefined, true, undefined, "ja");
 //                                ^^^^^^^^         ^^^^^^^^
-//                                何を省略したのか不明
+//                                it is unclear what was omitted
 ```
 
-**WHY -- なぜこれが深刻な問題なのか?**
+**WHY -- Why is this a serious problem?**
 
 ```
-1. 可読性の破壊
+1. Destruction of readability
    new User("Taro", "t@x.com", 30, "admin", true, "dark")
-   → 3番目は年齢？ ID？ スコア？ コードを読むたびにクラス定義を参照する必要がある
+   → Is the 3rd argument age? An ID? A score? You must look up the class definition every time you read the code.
 
-2. 引数の順序ミス（サイレントバグ）
-   new Config(8080, 3000)  ← port と timeout のどちらが先？
-   → 型が同じ（number）なのでコンパイラも検出できない
+2. Argument order mistakes (silent bugs)
+   new Config(8080, 3000)  ← which comes first, port or timeout?
+   → Since both are the same type (number), the compiler cannot catch this.
 
-3. オプション引数の表現力不足
+3. Lack of expressiveness for optional arguments
    new User("Taro", "t@x.com", undefined, undefined, true, undefined, "ja")
-   → undefined の連鎖は読みにくく、バグの温床
+   → A chain of undefined values is hard to read and a breeding ground for bugs.
 
-4. 不変条件の維持が困難
-   コンストラクタの引数が多いと、バリデーションロジックが複雑化する
+4. Difficulty maintaining invariants
+   When a constructor has many arguments, validation logic becomes complex.
 ```
 
-### 1.2 Builder による解決
+### 1.2 The Solution with Builder
 
 ```typescript
-// Builder なら自己文書化される
+// With a Builder, the code is self-documenting
 const user = User.builder()
   .setName("Taro")
   .setEmail("t@x.com")
@@ -81,29 +81,29 @@ const user = User.builder()
   .setTimezone("Asia/Tokyo")
   .build();
 
-// 利点:
-// 1. 各値の意味が明確（自己文書化）
-// 2. 順序に依存しない
-// 3. オプション値は省略するだけでデフォルト値が適用
-// 4. build() でバリデーションを集約できる
+// Benefits:
+// 1. The meaning of each value is clear (self-documenting)
+// 2. No dependency on argument order
+// 3. Optional values simply omitted, with defaults applied
+// 4. Validation can be centralized in build()
 ```
 
-### 1.3 Builder パターンの定義
+### 1.3 Definition of the Builder Pattern
 
-GoF の定義:
+The GoF definition:
 
-> **複雑なオブジェクトの構築を表現から分離し、同じ構築プロセスで異なる表現を作成できるようにする。**
+> **Separate the construction of a complex object from its representation, allowing the same construction process to create different representations.**
 
-この定義には2つの意図がある:
+This definition carries two intentions:
 
-1. **構築と表現の分離**: オブジェクトの組み立て手順（HOW）と、最終的な形（WHAT）を分離
-2. **同じプロセスで異なる結果**: 同じ手順で HTML / Markdown / PDF など異なる出力を生成
+1. **Separation of construction and representation**: Separate the assembly procedure (HOW) from the final form (WHAT)
+2. **Different results from the same process**: Use the same steps to produce different outputs such as HTML, Markdown, or PDF
 
 ---
 
-## 2. Builder の構造
+## 2. Structure of the Builder
 
-### 2.1 UML クラス図
+### 2.1 UML Class Diagram
 
 ```
 +------------+       +-----------------+
@@ -131,7 +131,7 @@ GoF の定義:
               +-----------+  +-----------+
 ```
 
-### 2.2 シーケンス図
+### 2.2 Sequence Diagram
 
 ```
 Client         Director         Builder          Product
@@ -153,21 +153,21 @@ Client         Director         Builder          Product
   |<-- product ---|                |                |
 ```
 
-### 2.3 Fluent Builder の内部動作
+### 2.3 Internal Operation of the Fluent Builder
 
 ```
-Fluent Builder の核心:
-各 setter が this を返すことで、メソッドチェーンを実現する。
+The core of the Fluent Builder:
+Each setter returns `this`, enabling method chaining.
 
-HttpRequest.builder("POST", "/api")  ← Builder を生成
-  .setHeader("Content-Type", "json") ← this を返す → 次のメソッド呼出可能
-  .setBody('{"name": "Taro"}')       ← this を返す → 次のメソッド呼出可能
-  .setTimeout(5000)                  ← this を返す → 次のメソッド呼出可能
-  .build()                           ← Product を生成して返す
+HttpRequest.builder("POST", "/api")  ← creates a Builder
+  .setHeader("Content-Type", "json") ← returns this → allows the next method call
+  .setBody('{"name": "Taro"}')       ← returns this → allows the next method call
+  .setTimeout(5000)                  ← returns this → allows the next method call
+  .build()                           ← creates and returns the Product
 
-内部状態の変化:
+Internal state changes:
 ┌────────────────────────────────────┐
-│ Builder 内部                        │
+│ Builder internals                   │
 │                                    │
 │ Step 1: method = "POST"            │
 │         url = "/api"               │
@@ -182,19 +182,19 @@ HttpRequest.builder("POST", "/api")  ← Builder を生成
 │ Step 4: timeout = 5000             │
 │                                    │
 │ Step 5 (build): → new HttpRequest  │
-│   全フィールドを Product にコピー    │
-│   バリデーション実行                │
-│   Product は不変（readonly）       │
+│   Copy all fields to Product       │
+│   Run validation                   │
+│   Product is immutable (readonly)  │
 └────────────────────────────────────┘
 ```
 
 ---
 
-## 3. コード例
+## 3. Code Examples
 
-### コード例 1: Fluent Builder（TypeScript）
+### Code Example 1: Fluent Builder (TypeScript)
 
-最も一般的な Builder 実装。実務で圧倒的に多用される。
+The most common Builder implementation, overwhelmingly used in real-world practice.
 
 ```typescript
 class HttpRequest {
@@ -238,7 +238,7 @@ class HttpRequestBuilder {
 
   setHeader(key: string, value: string): this {
     this.headers[key] = value;
-    return this;  // this を返すことでメソッドチェーンを実現
+    return this;  // Returning this enables method chaining
   }
 
   setBody(body: string): this {
@@ -259,7 +259,7 @@ class HttpRequestBuilder {
   }
 
   build(): HttpRequest {
-    // バリデーション
+    // Validation
     if (!this.method) throw new Error("Method is required");
     if (!this.url) throw new Error("URL is required");
 
@@ -267,7 +267,7 @@ class HttpRequestBuilder {
   }
 }
 
-// 使用
+// Usage
 const req = HttpRequest.builder("POST", "/api/users")
   .setHeader("Content-Type", "application/json")
   .setHeader("Authorization", "Bearer token123")
@@ -282,9 +282,9 @@ console.log(req.headers);
 // { "Content-Type": "application/json", "Authorization": "Bearer token123" }
 ```
 
-### コード例 2: Director パターン
+### Code Example 2: Director Pattern
 
-Director は構築手順をカプセル化し、再利用可能にする。
+The Director encapsulates the construction procedure and makes it reusable.
 
 ```typescript
 interface QueryBuilder {
@@ -344,7 +344,7 @@ class SQLQueryBuilder implements QueryBuilder {
   }
 }
 
-// Director: 構築手順を再利用可能にカプセル化
+// Director: encapsulates construction procedures for reuse
 class QueryDirector {
   buildPaginatedQuery(builder: QueryBuilder, table: string, page: number, size: number): string {
     return builder
@@ -377,7 +377,7 @@ class QueryDirector {
   }
 }
 
-// 使用
+// Usage
 const director = new QueryDirector();
 
 const listQuery = director.buildPaginatedQuery(new SQLQueryBuilder(), "users", 2, 20);
@@ -389,7 +389,7 @@ console.log(countQuery);
 // SELECT COUNT(*) as total FROM users WHERE active = true
 ```
 
-### コード例 3: 不変オブジェクトの構築
+### Code Example 3: Building Immutable Objects
 
 ```typescript
 interface UserConfig {
@@ -439,51 +439,51 @@ class UserConfigBuilder {
   }
 
   build(): UserConfig {
-    // 必須フィールドのバリデーション
+    // Validate required fields
     if (!this.config.name) throw new Error("name is required");
     if (!this.config.email) throw new Error("email is required");
 
-    // デフォルト値の適用 + Object.freeze で不変性を保証
+    // Apply defaults + guarantee immutability with Object.freeze
     return Object.freeze({
       name: this.config.name,
       email: this.config.email,
       role: this.config.role ?? "viewer",
       notifications: this.config.notifications ?? true,
-      language: this.config.language ?? "ja",
+      language: this.config.language ?? "en",
       theme: this.config.theme ?? "system",
     });
   }
 }
 
-// 使用
+// Usage
 const config = new UserConfigBuilder()
-  .setName("太郎")
+  .setName("Taro")
   .setEmail("taro@example.com")
   .setRole("admin")
   .setTheme("dark")
   .build();
 
 console.log(config);
-// { name: "太郎", email: "taro@example.com", role: "admin",
-//   notifications: true, language: "ja", theme: "dark" }
+// { name: "Taro", email: "taro@example.com", role: "admin",
+//   notifications: true, language: "en", theme: "dark" }
 
-// config.name = "次郎"; // Error: Cannot assign to read only property
+// config.name = "Jiro"; // Error: Cannot assign to read only property
 ```
 
-### コード例 4: Step Builder（型安全な必須フィールド保証）
+### Code Example 4: Step Builder (Type-safe guarantee of required fields)
 
-コンパイル時に必須フィールドの設定順序を強制する高度なパターン。
+An advanced pattern that enforces the setting order of required fields at compile time.
 
 ```typescript
-// Step 1: name が必須
+// Step 1: name is required
 interface NeedsName {
   setName(name: string): NeedsEmail;
 }
-// Step 2: email が必須
+// Step 2: email is required
 interface NeedsEmail {
   setEmail(email: string): OptionalFields;
 }
-// Step 3: 任意フィールド + build
+// Step 3: optional fields + build
 interface OptionalFields {
   setAge(age: number): OptionalFields;
   setRole(role: string): OptionalFields;
@@ -546,35 +546,35 @@ class PersonBuilder implements NeedsName, NeedsEmail, OptionalFields {
   }
 }
 
-// コンパイル時に順序が強制される
+// The order is enforced at compile time
 const person = PersonBuilder.create()
-  .setName("Taro")           // NeedsEmail が返る → setEmail 以外呼べない
-  .setEmail("t@example.com") // OptionalFields が返る → 任意フィールドと build が呼べる
+  .setName("Taro")           // Returns NeedsEmail → only setEmail can be called next
+  .setEmail("t@example.com") // Returns OptionalFields → optional fields and build become callable
   .setAge(30)
   .setRole("engineer")
   .build();
 
-// コンパイルエラーの例:
-// PersonBuilder.create().setAge(30)           // Error: setAge は NeedsName に存在しない
-// PersonBuilder.create().setName("A").build() // Error: build は NeedsEmail に存在しない
+// Examples of compile errors:
+// PersonBuilder.create().setAge(30)           // Error: setAge does not exist on NeedsName
+// PersonBuilder.create().setName("A").build() // Error: build does not exist on NeedsEmail
 ```
 
-**WHY -- Step Builder が必要な場面:**
+**WHY -- When Step Builder is needed:**
 
 ```
-通常の Fluent Builder の問題:
+The problem with a regular Fluent Builder:
   new UserBuilder()
-    .setAge(30)          // name を設定し忘れ
-    .setRole("admin")    // email を設定し忘れ
-    .build()             // 実行時エラー（build内のバリデーションで検出）
+    .setAge(30)          // forgot to set name
+    .setRole("admin")    // forgot to set email
+    .build()             // runtime error (caught by validation inside build)
 
-Step Builder なら:
+With a Step Builder:
   PersonBuilder.create()
-    .setAge(30)          // コンパイルエラー！NeedsName に setAge は存在しない
-    → 実行前に問題を検出できる
+    .setAge(30)          // Compile error! setAge does not exist on NeedsName
+    → The problem is caught before execution.
 ```
 
-### コード例 5: Python -- Builder with dataclass
+### Code Example 5: Python -- Builder with dataclass
 
 ```python
 from dataclasses import dataclass, field
@@ -582,27 +582,27 @@ from typing import Optional
 
 @dataclass(frozen=True)
 class Pizza:
-    """不変の Pizza オブジェクト"""
+    """Immutable Pizza object"""
     size: str
     crust: str
     cheese: bool
     pepperoni: bool
     mushrooms: bool
-    extra_toppings: tuple[str, ...]  # tuple で不変性を保証
+    extra_toppings: tuple[str, ...]  # tuple guarantees immutability
 
     def description(self) -> str:
         toppings = []
-        if self.cheese: toppings.append("チーズ")
-        if self.pepperoni: toppings.append("ペパロニ")
-        if self.mushrooms: toppings.append("マッシュルーム")
+        if self.cheese: toppings.append("Cheese")
+        if self.pepperoni: toppings.append("Pepperoni")
+        if self.mushrooms: toppings.append("Mushrooms")
         toppings.extend(self.extra_toppings)
-        return f"{self.size} {self.crust} ピザ: {', '.join(toppings)}"
+        return f"{self.size} {self.crust} Pizza: {', '.join(toppings)}"
 
 class PizzaBuilder:
-    """Pizza の段階的構築"""
+    """Incremental construction of a Pizza"""
     def __init__(self, size: str):
         self._size = size
-        self._crust = "レギュラー"
+        self._crust = "Regular"
         self._cheese = False
         self._pepperoni = False
         self._mushrooms = False
@@ -635,41 +635,41 @@ class PizzaBuilder:
             cheese=self._cheese,
             pepperoni=self._pepperoni,
             mushrooms=self._mushrooms,
-            extra_toppings=tuple(self._extra),  # list → tuple で不変化
+            extra_toppings=tuple(self._extra),  # list → tuple for immutability
         )
 
-# 使用
+# Usage
 pizza = (PizzaBuilder("Large")
-    .crust("シンクラスト")
+    .crust("Thin Crust")
     .add_cheese()
     .add_pepperoni()
-    .add_topping("オリーブ")
-    .add_topping("バジル")
+    .add_topping("Olives")
+    .add_topping("Basil")
     .build())
 
 print(pizza.description())
-# Large シンクラスト ピザ: チーズ, ペパロニ, オリーブ, バジル
+# Large Thin Crust Pizza: Cheese, Pepperoni, Olives, Basil
 ```
 
-### コード例 6: Java -- Builder（Effective Java スタイル）
+### Code Example 6: Java -- Builder (Effective Java Style)
 
-Joshua Bloch が推奨するスタイル。Builder をネストクラスとして定義する。
+The style recommended by Joshua Bloch. The Builder is defined as a nested class.
 
 ```java
 public class NutritionFacts {
-    private final int servingSize;   // 必須
-    private final int servings;      // 必須
-    private final int calories;      // 任意
-    private final int fat;           // 任意
-    private final int sodium;        // 任意
-    private final int carbohydrate;  // 任意
+    private final int servingSize;   // required
+    private final int servings;      // required
+    private final int calories;      // optional
+    private final int fat;           // optional
+    private final int sodium;        // optional
+    private final int carbohydrate;  // optional
 
     public static class Builder {
-        // 必須パラメータ
+        // Required parameters
         private final int servingSize;
         private final int servings;
 
-        // 任意パラメータ（デフォルト値で初期化）
+        // Optional parameters (initialized to default values)
         private int calories = 0;
         private int fat = 0;
         private int sodium = 0;
@@ -705,7 +705,7 @@ public class NutritionFacts {
     }
 }
 
-// 使用
+// Usage
 NutritionFacts cocaCola = new NutritionFacts.Builder(240, 8)
     .calories(100)
     .sodium(35)
@@ -713,9 +713,9 @@ NutritionFacts cocaCola = new NutritionFacts.Builder(240, 8)
     .build();
 ```
 
-### コード例 7: Go -- Functional Options Pattern
+### Code Example 7: Go -- Functional Options Pattern
 
-Go 言語では Builder パターンの代わりに Functional Options パターンが推奨される。
+In Go, the Functional Options pattern is preferred over the Builder pattern.
 
 ```go
 package main
@@ -734,10 +734,10 @@ type Server struct {
     certFile     string
 }
 
-// Option は Server の設定を変更する関数型
+// Option is a function type that modifies Server configuration
 type Option func(*Server)
 
-// 各オプションを関数として定義
+// Define each option as a function
 func WithPort(port int) Option {
     return func(s *Server) {
         s.port = port
@@ -763,9 +763,9 @@ func WithTLS(certFile string) Option {
     }
 }
 
-// コンストラクタ: 必須引数 + 可変長オプション
+// Constructor: required arguments + variadic options
 func NewServer(host string, opts ...Option) *Server {
-    // デフォルト値
+    // Default values
     s := &Server{
         host:    host,
         port:    8080,
@@ -773,7 +773,7 @@ func NewServer(host string, opts ...Option) *Server {
         maxConn: 100,
     }
 
-    // オプションを適用
+    // Apply options
     for _, opt := range opts {
         opt(s)
     }
@@ -782,12 +782,12 @@ func NewServer(host string, opts ...Option) *Server {
 }
 
 func main() {
-    // デフォルト設定
+    // Default configuration
     s1 := NewServer("localhost")
     fmt.Printf("Server: %s:%d\n", s1.host, s1.port)
     // Server: localhost:8080
 
-    // カスタム設定
+    // Custom configuration
     s2 := NewServer("api.example.com",
         WithPort(443),
         WithTimeout(10*time.Second),
@@ -799,19 +799,19 @@ func main() {
 }
 ```
 
-**WHY -- Go で Functional Options が好まれる理由:**
+**WHY -- Why Functional Options are preferred in Go:**
 
 ```
-1. Go にはメソッドチェーンの文化がない（error を返す慣習）
-2. ゼロ値が有用なデフォルトとして機能する
-3. 関数はファーストクラスオブジェクトなので自然
-4. テストで特定のオプションだけ変更しやすい
-5. 後方互換性を保ちながらオプションを追加できる
+1. Go does not have a culture of method chaining (convention is to return errors)
+2. Zero values serve as useful defaults
+3. Functions are first-class objects, so this approach is natural
+4. Easy to change only specific options in tests
+5. Options can be added while maintaining backward compatibility
 ```
 
-### コード例 8: Kotlin -- data class + copy
+### Code Example 8: Kotlin -- data class + copy
 
-Kotlin では data class の copy メソッドが Builder の多くのユースケースをカバーする。
+In Kotlin, the `copy` method of data classes covers many Builder use cases.
 
 ```kotlin
 data class ServerConfig(
@@ -823,7 +823,7 @@ data class ServerConfig(
     val certFile: String? = null,
 )
 
-// Kotlin のデフォルト引数 + 名前付き引数 = Builder 不要
+// Kotlin default arguments + named arguments = no Builder needed
 val config1 = ServerConfig(
     host = "localhost",
     port = 3000,
@@ -831,7 +831,7 @@ val config1 = ServerConfig(
     certFile = "/etc/certs/server.pem",
 )
 
-// copy で一部だけ変更（Prototype + Builder の合成）
+// copy to change only some fields (a combination of Prototype + Builder)
 val config2 = config1.copy(
     host = "api.example.com",
     port = 443,
@@ -842,12 +842,12 @@ println(config2)
 //   maxConnections=100, enableTLS=true, certFile=/etc/certs/server.pem)
 ```
 
-### コード例 9: TypeScript -- Generic Builder
+### Code Example 9: TypeScript -- Generic Builder
 
-型安全にフィールドの設定状態を追跡する高度な Builder。
+An advanced Builder that tracks the state of field settings at the type level.
 
 ```typescript
-// 設定されたフィールドを型レベルで追跡
+// Track set fields at the type level
 type BuilderState = {
   name: boolean;
   email: boolean;
@@ -871,27 +871,27 @@ class TypedBuilder<State extends BuilderState = { name: false; email: false }> {
     return this as any;
   }
 
-  // build は name と email が両方 true の場合のみ呼べる
+  // build can only be called when both name and email are true
   build(this: TypedBuilder<{ name: true; email: true }>): Person {
     return this.data as Person;
   }
 }
 
-// OK: name と email が設定済み
+// OK: name and email are both set
 const p1 = new TypedBuilder()
   .setName("Taro")
   .setEmail("t@example.com")
   .setAge(30)
   .build(); // OK
 
-// Error: build は name: false の状態では呼べない
+// Error: build cannot be called when name is false
 // new TypedBuilder().setEmail("t@example.com").build();
 ```
 
-### コード例 10: 複雑なドメインオブジェクトの構築
+### Code Example 10: Building Complex Domain Objects
 
 ```typescript
-// 実務的な例: 電子メール構築
+// A practical example: building an email
 interface Email {
   readonly from: string;
   readonly to: string[];
@@ -990,7 +990,7 @@ class EmailBuilder {
   }
 }
 
-// 使用
+// Usage
 const email = new EmailBuilder()
   .setFrom("noreply@example.com")
   .addTo("user1@example.com", "user2@example.com")
@@ -1003,140 +1003,140 @@ const email = new EmailBuilder()
 
 ---
 
-## 4. 比較表
+## 4. Comparison Tables
 
-### 比較表 1: Builder vs コンストラクタ vs オブジェクトリテラル
+### Comparison Table 1: Builder vs Constructor vs Object Literal
 
-| 観点 | コンストラクタ | オブジェクトリテラル | Builder |
+| Aspect | Constructor | Object Literal | Builder |
 |------|:---:|:---:|:---:|
-| 必須フィールド強制 | Yes | 要バリデーション | Yes (Step Builder) |
-| 可読性（多引数） | 低い | 中 | 高い |
-| 不変性保証 | 可能 | 困難 | 容易 |
-| 複雑な構築ロジック | 困難 | 困難 | 容易 |
-| コード量 | 少ない | 少ない | 多い |
-| バリデーション集約 | コンストラクタ内 | 外部 | build() 内 |
-| IDEサポート（補完） | 良好 | 良好 | 優秀 |
-| 導入の判断基準 | 引数 1-3個 | 全て任意 | 引数 4個以上 |
+| Enforce required fields | Yes | Requires validation | Yes (Step Builder) |
+| Readability (many args) | Low | Medium | High |
+| Immutability guarantee | Possible | Difficult | Easy |
+| Complex construction logic | Difficult | Difficult | Easy |
+| Amount of code | Small | Small | Large |
+| Centralized validation | Inside constructor | External | Inside build() |
+| IDE support (autocomplete) | Good | Good | Excellent |
+| When to use | 1-3 arguments | All optional | 4+ arguments |
 
-### 比較表 2: Builder vs Factory
+### Comparison Table 2: Builder vs Factory
 
-| 観点 | Builder | Factory |
+| Aspect | Builder | Factory |
 |------|---------|---------|
-| 目的 | 段階的な構築 | 型の選択 |
-| 返すもの | 1つの複雑なオブジェクト | さまざまな型のオブジェクト |
-| メソッドチェーン | 一般的 | まれ |
-| 適用場面 | 多数のオプション引数 | バリエーションの切り替え |
-| 構築の柔軟性 | 高い（段階的にカスタマイズ） | 低い（事前定義された型から選択） |
-| 組み合わせ | Factory が Builder を返すこともある | Builder が Factory を使うこともある |
+| Purpose | Incremental construction | Type selection |
+| What it returns | One complex object | Objects of various types |
+| Method chaining | Common | Rare |
+| Use case | Many optional arguments | Switching between variations |
+| Construction flexibility | High (incrementally customizable) | Low (select from predefined types) |
+| Combination | Factory can return a Builder | Builder can use a Factory |
 
-### 比較表 3: 言語別 Builder 代替手法
+### Comparison Table 3: Builder Alternatives by Language
 
-| 言語 | Builder 代替 | 使い分け |
+| Language | Builder Alternative | When to Use |
 |------|-------------|---------|
-| TypeScript | オブジェクトリテラル + Partial<T> | 単純なケース |
-| Python | キーワード引数 + dataclass | Builder 不要なことが多い |
-| Kotlin | 名前付き引数 + copy() | Builder 不要なことが多い |
-| Java | Effective Java Builder | 標準的なアプローチ |
-| Go | Functional Options | Go のイディオム |
-| Rust | Builder derive macro | ボイラープレート削減 |
-| C# | Object Initializer | Builder 不要なことが多い |
+| TypeScript | Object literal + Partial<T> | Simple cases |
+| Python | Keyword arguments + dataclass | Builder often unnecessary |
+| Kotlin | Named arguments + copy() | Builder often unnecessary |
+| Java | Effective Java Builder | Standard approach |
+| Go | Functional Options | Go idiom |
+| Rust | Builder derive macro | Reduces boilerplate |
+| C# | Object Initializer | Builder often unnecessary |
 
 ---
 
-## 5. エッジケースと注意点
+## 5. Edge Cases and Caveats
 
-### 5.1 build() の呼び忘れ
+### 5.1 Forgetting to Call build()
 
 ```typescript
-// BAD: build() を忘れて Builder オブジェクトを使ってしまう
+// BAD: forgetting build() and accidentally using the Builder object
 const config = new ConfigBuilder()
   .setHost("localhost")
   .setPort(8080);
-  // .build() を忘れた！ config は ConfigBuilder 型
+  // forgot .build()! config is of type ConfigBuilder
 
-server.start(config); // 型エラーまたは実行時エラー
+server.start(config); // type error or runtime error
 ```
 
-**対策:**
+**Countermeasures:**
 
 ```typescript
-// 1. TypeScript の型システムで Builder と Product を明確に区別
-//    → server.start() は ServerConfig 型のみ受け付ける
+// 1. Use TypeScript's type system to clearly distinguish Builder from Product
+//    → server.start() only accepts ServerConfig type
 
-// 2. Step Builder で build() を最終ステップに強制
+// 2. Use Step Builder to force build() as the final step
 
-// 3. ESLint ルールで Builder 型の変数への代入を警告
+// 3. Use an ESLint rule to warn on variable assignments of Builder type
 ```
 
-### 5.2 Builder の再利用問題
+### 5.2 Builder Reuse Problem
 
 ```typescript
-// BAD: 同じ Builder インスタンスを再利用
+// BAD: reusing the same Builder instance
 const builder = new UserBuilder().setName("Taro").setEmail("t@example.com");
 
 const user1 = builder.setRole("admin").build();
 const user2 = builder.setRole("viewer").build();
 
-// user2 は admin? viewer? → Builder の内部状態に依存する
-// builder.setRole("admin") が builder を変更しているので、
-// user2 も admin になる可能性がある
+// Is user2 admin or viewer? → depends on the Builder's internal state
+// Since builder.setRole("admin") modified the builder,
+// user2 may also end up as admin
 ```
 
-**対策:**
+**Countermeasures:**
 
 ```typescript
-// Builder の build() 後にリセットするか、
-// 毎回新しい Builder を生成する
+// Either reset the Builder after build(), or
+// create a new Builder each time
 
-// 方法 1: build() でリセット
+// Option 1: reset on build()
 build(): User {
   const user = new User(this);
-  this.reset(); // 内部状態をリセット
+  this.reset(); // reset internal state
   return user;
 }
 
-// 方法 2: 毎回新しい Builder（推奨）
+// Option 2: create a new Builder each time (recommended)
 const user1 = User.builder().setName("Taro").setRole("admin").build();
 const user2 = User.builder().setName("Taro").setRole("viewer").build();
 ```
 
-### 5.3 スレッドセーフティ
+### 5.3 Thread Safety
 
 ```
-マルチスレッド環境で Builder を共有すると問題が発生する:
+Sharing a Builder in a multithreaded environment causes problems:
 
 Thread A: builder.setName("Taro")
-Thread B: builder.setName("Jiro")   ← 競合！
-Thread A: builder.build()            ← Jiro が返る可能性
+Thread B: builder.setName("Jiro")   ← race condition!
+Thread A: builder.build()            ← may return "Jiro"
 
-対策:
-1. Builder は共有せず、各スレッドで新規生成する（推奨）
-2. Builder のメソッドを synchronized にする（非推奨: パフォーマンス低下）
-3. Immutable Builder: 各メソッドが新しい Builder を返す
+Countermeasures:
+1. Do not share Builders; create a new one per thread (recommended)
+2. Synchronize Builder methods (not recommended: performance degradation)
+3. Immutable Builder: each method returns a new Builder
 ```
 
 ---
 
-## 6. アンチパターン
+## 6. Anti-patterns
 
-### アンチパターン 1: Builder の build() を呼び忘れる
+### Anti-pattern 1: Forgetting to Call build()
 
 ```typescript
-// NG: build() を忘れて Builder オブジェクトを使ってしまう
+// NG: forgetting build() and accidentally using the Builder object
 const config = new ConfigBuilder()
   .setHost("localhost")
   .setPort(8080);
-  // .build() を忘れた！
+  // forgot .build()!
 
-server.start(config); // 型エラーまたは実行時エラー
+server.start(config); // type error or runtime error
 ```
 
-**改善**: TypeScript の型システムで Builder と Product を明確に区別する。Step Builder を使えばコンパイルエラーにできる。
+**Fix**: Use TypeScript's type system to clearly distinguish Builder from Product. Using a Step Builder makes this a compile error.
 
-### アンチパターン 2: Builder にビジネスロジックを詰める
+### Anti-pattern 2: Stuffing Business Logic into the Builder
 
 ```typescript
-// NG: Builder が構築以外の責任を持つ
+// NG: Builder takes on responsibilities beyond construction
 class OrderBuilder {
   private items: CartItem[] = [];
   private coupon?: string;
@@ -1154,14 +1154,14 @@ class OrderBuilder {
   build(): Order {
     const order = new Order(this.items);
 
-    // NG: ビジネスロジック
+    // NG: business logic
     if (this.coupon) {
-      const discount = validateCoupon(this.coupon); // クーポン検証
-      order.applyDiscount(discount);                 // 割引適用
+      const discount = validateCoupon(this.coupon); // coupon validation
+      order.applyDiscount(discount);                 // apply discount
     }
-    order.calculateTax();       // 税計算
-    order.calculateShipping();  // 送料計算
-    sendNotification(order);    // 通知送信（副作用）
+    order.calculateTax();       // tax calculation
+    order.calculateShipping();  // shipping calculation
+    sendNotification(order);    // send notification (side effect)
 
     return order;
   }
@@ -1169,7 +1169,7 @@ class OrderBuilder {
 ```
 
 ```typescript
-// OK: Builder は構築のみ。ビジネスロジックはドメインサービスに委譲
+// OK: Builder only constructs. Business logic is delegated to domain services.
 class OrderBuilder {
   private items: CartItem[] = [];
 
@@ -1180,11 +1180,11 @@ class OrderBuilder {
 
   build(): Order {
     if (this.items.length === 0) throw new Error("Order must have items");
-    return new Order([...this.items]); // 構築のみ
+    return new Order([...this.items]); // construction only
   }
 }
 
-// ビジネスロジックはサービスに委譲
+// Business logic is delegated to a service
 class OrderService {
   async processOrder(order: Order, couponCode?: string): Promise<Order> {
     if (couponCode) {
@@ -1198,10 +1198,10 @@ class OrderService {
 }
 ```
 
-### アンチパターン 3: 単純なオブジェクトに Builder を使う
+### Anti-pattern 3: Using Builder for Simple Objects
 
 ```typescript
-// NG: フィールドが2つしかないのに Builder を使う
+// NG: using a Builder for an object with only 2 fields
 class PointBuilder {
   private x = 0;
   private y = 0;
@@ -1211,11 +1211,11 @@ class PointBuilder {
   build(): Point { return new Point(this.x, this.y); }
 }
 
-// 20行のコードが、やりたいことに対して過剰
+// 20 lines of code is excessive for what this accomplishes
 ```
 
 ```typescript
-// OK: コンストラクタで十分
+// OK: a constructor is sufficient
 class Point {
   constructor(public readonly x: number, public readonly y: number) {}
 }
@@ -1223,43 +1223,46 @@ class Point {
 const p = new Point(10, 20);
 ```
 
-**判断基準**: 引数が4つ未満、オプション引数が2つ未満なら、Builder は過剰設計。
+**Decision criteria**: If there are fewer than 4 arguments and fewer than 2 optional arguments, a Builder is over-engineering.
 
 ---
 
-## 7. トレードオフ分析
+## 7. Trade-off Analysis
 
 ```
-利点                              欠点
+Benefits                                   Drawbacks
 +------------------------------+  +------------------------------+
-| 自己文書化された構築コード    |  | ボイラープレートコードが多い  |
-| 不変オブジェクトの安全な構築  |  | クラス数の増加                |
-| バリデーションの集約          |  | 単純なケースには過剰設計      |
-| 順序非依存のフィールド設定    |  | build() の呼び忘れリスク      |
-| IDEの優れたオートコンプリート  |  | Builder と Product の同期維持  |
-| テストでの柔軟な構築          |  | 言語によっては不要（Kotlin等） |
+| Self-documenting build code  |  | Large amount of boilerplate  |
+| Safe construction of         |  | Increased number of classes  |
+|   immutable objects          |  | Over-engineering for simple  |
+| Centralized validation       |  |   cases                      |
+| Order-independent field      |  | Risk of forgetting build()   |
+|   setting                    |  | Need to keep Builder and     |
+| Excellent IDE autocomplete   |  |   Product in sync            |
+| Flexible construction        |  | Unnecessary in some          |
+|   in tests                   |  |   languages (Kotlin, etc.)   |
 +------------------------------+  +------------------------------+
 ```
 
 ---
 
-## 8. 実践演習
+## 8. Practice Exercises
 
-### 演習 1: 基礎 -- HTTP レスポンス Builder
+### Exercise 1: Basic -- HTTP Response Builder
 
-**課題**: HTTP レスポンスオブジェクトを構築する Builder を実装してください。
+**Task**: Implement a Builder that constructs an HTTP response object.
 
-**要件**:
-- ステータスコード（必須）、ヘッダー、ボディ、Content-Type を設定可能
-- Fluent API（メソッドチェーン）
-- build() でバリデーション（ステータスコードが 100-599 の範囲内か）
-- 生成されたレスポンスは不変
+**Requirements**:
+- Configurable status code (required), headers, body, and Content-Type
+- Fluent API (method chaining)
+- Validation in build() (check that status code is in the range 100-599)
+- The generated response is immutable
 
 ```typescript
-// === あなたの実装をここに書いてください ===
+// === Write your implementation here ===
 ```
 
-**期待される出力**:
+**Expected output**:
 
 ```
 const res = new HttpResponseBuilder(200)
@@ -1274,7 +1277,7 @@ console.log(res.body);        // '{"message":"OK"}'
 ```
 
 <details>
-<summary>模範解答（クリックで展開）</summary>
+<summary>Reference Solution (click to expand)</summary>
 
 ```typescript
 interface HttpResponse {
@@ -1321,21 +1324,21 @@ class HttpResponseBuilder {
 
 </details>
 
-### 演習 2: 応用 -- SQL Query Builder with Director
+### Exercise 2: Applied -- SQL Query Builder with Director
 
-**課題**: SQL クエリを構築する Builder と、よく使うクエリパターンを Director として実装してください。
+**Task**: Implement a Builder for constructing SQL queries and a Director for commonly used query patterns.
 
-**要件**:
-- SELECT / FROM / WHERE / JOIN / ORDER BY / LIMIT / OFFSET をサポート
-- WHERE 条件は複数指定可能（AND 結合）
-- Director に「ページネーション付き一覧取得」「件数取得」「検索」の3つの構築パターン
-- パラメータバインディング（SQLインジェクション対策）
+**Requirements**:
+- Support SELECT / FROM / WHERE / JOIN / ORDER BY / LIMIT / OFFSET
+- Multiple WHERE conditions can be specified (joined with AND)
+- Director has three construction patterns: "paginated list retrieval", "count retrieval", and "search"
+- Parameter binding (SQL injection prevention)
 
 ```typescript
-// === あなたの実装をここに書いてください ===
+// === Write your implementation here ===
 ```
 
-**期待される出力**:
+**Expected output**:
 
 ```
 const director = new QueryDirector();
@@ -1348,7 +1351,7 @@ console.log(listQuery.params);
 ```
 
 <details>
-<summary>模範解答（クリックで展開）</summary>
+<summary>Reference Solution (click to expand)</summary>
 
 ```typescript
 interface Query {
@@ -1473,51 +1476,51 @@ class QueryDirector {
 
 </details>
 
-### 演習 3: 発展 -- Step Builder with 条件分岐
+### Exercise 3: Advanced -- Step Builder with Conditional Branching
 
-**課題**: ユーザー種別（個人/法人）によって必須フィールドが異なる Step Builder を設計してください。
+**Task**: Design a Step Builder where required fields differ depending on the user type (individual / corporate).
 
-**要件**:
-- 個人ユーザー: name, email が必須。age はオプション
-- 法人ユーザー: companyName, email, registrationNumber が必須
-- 種別選択後、該当する必須フィールドのみが要求される（型安全）
-- build() は全ての必須フィールドが設定された場合のみ呼び出し可能
+**Requirements**:
+- Individual user: name and email are required. age is optional.
+- Corporate user: companyName, email, and registrationNumber are required.
+- After selecting the type, only the relevant required fields are demanded (type-safe).
+- build() can only be called once all required fields are set.
 
 ```typescript
-// === あなたの実装をここに書いてください ===
+// === Write your implementation here ===
 ```
 
-**期待される出力**:
+**Expected output**:
 
 ```
-// 個人ユーザー
+// Individual user
 const individual = UserBuilder.create()
-  .asIndividual()            // → NeedsIndividualName が返る
-  .setName("太郎")           // → NeedsIndividualEmail が返る
-  .setEmail("taro@test.com") // → IndividualOptional が返る
+  .asIndividual()            // → returns NeedsIndividualName
+  .setName("Taro")           // → returns NeedsIndividualEmail
+  .setEmail("taro@test.com") // → returns IndividualOptional
   .setAge(30)
   .build();
 
-// 法人ユーザー
+// Corporate user
 const corporate = UserBuilder.create()
-  .asCorporate()                       // → NeedsCorporateName が返る
-  .setCompanyName("株式会社Example")    // → NeedsCorporateEmail が返る
-  .setEmail("info@example.co.jp")      // → NeedsCorporateRegNum が返る
-  .setRegistrationNumber("1234567890") // → CorporateOptional が返る
+  .asCorporate()                       // → returns NeedsCorporateName
+  .setCompanyName("Example Corp")      // → returns NeedsCorporateEmail
+  .setEmail("info@example.com")        // → returns NeedsCorporateRegNum
+  .setRegistrationNumber("1234567890") // → returns CorporateOptional
   .build();
 ```
 
 <details>
-<summary>模範解答（クリックで展開）</summary>
+<summary>Reference Solution (click to expand)</summary>
 
 ```typescript
-// 種別選択
+// Type selection
 interface SelectType {
   asIndividual(): NeedsIndividualName;
   asCorporate(): NeedsCorporateName;
 }
 
-// 個人ユーザーのステップ
+// Steps for individual user
 interface NeedsIndividualName {
   setName(name: string): NeedsIndividualEmail;
 }
@@ -1530,7 +1533,7 @@ interface IndividualOptional {
   build(): User;
 }
 
-// 法人ユーザーのステップ
+// Steps for corporate user
 interface NeedsCorporateName {
   setCompanyName(name: string): NeedsCorporateEmail;
 }
@@ -1626,57 +1629,57 @@ class UserBuilder implements
 
 ## 9. FAQ
 
-### Q1: Builder はどの程度の複雑さから導入すべきですか？
+### Q1: From what level of complexity should I introduce a Builder?
 
-目安として、**コンストラクタの引数が 4 つ以上**、または**オプション引数が 2 つ以上**ある場合に Builder の導入を検討します。引数が 2-3 個であればコンストラクタで十分です。
+As a guideline, consider introducing a Builder when a **constructor has 4 or more parameters** or **has 2 or more optional parameters**. If there are 2-3 parameters, a constructor is sufficient.
 
-ただし、以下の場合は引数が少なくても Builder を検討する価値があります:
-- 同じ型の引数が複数ある（順序ミスのリスク）
-- 構築に複数ステップが必要
-- 構築ロジックの再利用が必要（Director）
+However, a Builder is worth considering even with fewer parameters in these cases:
+- There are multiple parameters of the same type (risk of order mistakes)
+- Construction requires multiple steps
+- Reuse of the construction logic is needed (Director)
 
-### Q2: Lombok の @Builder のような自動生成は推奨ですか？
+### Q2: Is auto-generation like Lombok's @Builder recommended?
 
-はい。ボイラープレートコードの削減は生産性に直結します。
+Yes. Reducing boilerplate code directly improves productivity.
 
-| 言語/ツール | 自動生成方法 |
+| Language/Tool | Auto-generation Method |
 |------------|-------------|
 | Java | Lombok @Builder |
 | Kotlin | data class + copy |
-| TypeScript | クラス + ジェネリクスで半自動 |
+| TypeScript | Semi-automatic with classes + generics |
 | Python | dataclasses + Pydantic |
 | Rust | derive_builder crate |
 
-### Q3: Builder と Named Arguments（キーワード引数）の違いは？
+### Q3: What is the difference between Builder and Named Arguments (keyword arguments)?
 
-Python や Kotlin のキーワード引数は Builder の多くのメリットを提供します。しかし、以下の場合は Builder が優位です:
+Keyword arguments in Python and Kotlin provide many of the same benefits as a Builder. However, a Builder has advantages in the following cases:
 
-| 観点 | キーワード引数 | Builder |
+| Aspect | Keyword Arguments | Builder |
 |------|:---:|:---:|
-| 段階的構築 | No | Yes |
-| バリデーション集約 | No | Yes (build()内) |
-| 構築ロジックの再利用 | No | Yes (Director) |
-| 不変性の保証 | 言語依存 | 明示的に制御可能 |
-| コード量 | 少ない | 多い |
+| Incremental construction | No | Yes |
+| Centralized validation | No | Yes (inside build()) |
+| Reuse of construction logic | No | Yes (Director) |
+| Immutability guarantee | Language-dependent | Explicitly controllable |
+| Amount of code | Small | Large |
 
-### Q4: Director は必要ですか？
+### Q4: Is a Director necessary?
 
-多くの実務では Director なしの Fluent Builder で十分です。Director が有効なのは:
+In most real-world situations, a Fluent Builder without a Director is sufficient. A Director is effective when:
 
-1. 同じ構築パターンが複数箇所で使われる場合
-2. 構築手順自体がドメイン知識を表現している場合
-3. テストで定型的なオブジェクトを繰り返し構築する場合
+1. The same construction pattern is used in multiple places
+2. The construction procedure itself expresses domain knowledge
+3. Repeatedly constructing standardized objects in tests
 
-### Q5: Builder と Prototype パターンはどう使い分けますか？
+### Q5: How do you choose between Builder and the Prototype pattern?
 
 ```
-Builder: ゼロからオブジェクトを構築する
-  → 構築パラメータが多い場合に有効
+Builder: construct an object from scratch
+  → Effective when there are many construction parameters
 
-Prototype: 既存オブジェクトをコピーして一部を変更する
-  → ベースとなるオブジェクトが存在する場合に有効
+Prototype: copy an existing object and change some parts
+  → Effective when a base object already exists
 
-Kotlin の copy() は両方を組み合わせている:
+Kotlin's copy() combines both:
   val base = Config(host = "localhost", port = 8080, ...)
   val prod = base.copy(host = "api.example.com", port = 443)
 ```
@@ -1686,50 +1689,50 @@ Kotlin の copy() は両方を組み合わせている:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and confirming its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics to jump into advanced topics. It is recommended to thoroughly understand the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 10. まとめ
+## 10. Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| 目的 | 複雑なオブジェクトを段階的に構築 |
-| 本質的な問題 | Telescoping Constructor の解決と不変オブジェクトの安全な構築 |
-| Fluent API | メソッドチェーンで可読性向上。最も一般的な実装 |
-| Step Builder | 型安全に必須フィールドを保証。コンパイル時に検証 |
-| Director | 構築手順を再利用可能にカプセル化 |
-| 判断基準 | 引数 4+ またはオプション 2+ で検討 |
-| 言語別推奨 | Java: Effective Java スタイル / Go: Functional Options / Kotlin: data class |
-| 最大の注意点 | Builder にビジネスロジックを入れない。build() の呼び忘れに注意 |
+| Purpose | Incrementally construct complex objects |
+| Core problem | Solving the Telescoping Constructor problem and safely constructing immutable objects |
+| Fluent API | Improves readability with method chaining. The most common implementation. |
+| Step Builder | Guarantees required fields in a type-safe way. Verified at compile time. |
+| Director | Encapsulates construction procedures for reuse |
+| Decision criteria | Consider when there are 4+ arguments or 2+ optional arguments |
+| Language-specific recommendations | Java: Effective Java style / Go: Functional Options / Kotlin: data class |
+| Most important caution | Do not put business logic in the Builder. Watch out for forgetting to call build(). |
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [Prototype パターン](./03-prototype.md) -- クローンによる生成。Builder が「ゼロから構築」、Prototype が「既存からコピー」
-- [Factory パターン](./01-factory.md) -- Factory が Builder を返すパターン
-- [Decorator パターン](../01-structural/01-decorator.md) -- 動的な機能追加。Builder の構築結果を装飾
-- [関数設計](../../../clean-code-principles/docs/01-practices/01-functions.md) -- 引数設計のベストプラクティス
-- [不変性](../../../clean-code-principles/docs/03-practices-advanced/00-immutability.md) -- イミュータブルデータ構造の設計
+- [Prototype Pattern](./03-prototype.md) -- Creation via cloning. Builder "constructs from scratch", Prototype "copies from an existing object"
+- [Factory Pattern](./01-factory.md) -- The pattern where a Factory returns a Builder
+- [Decorator Pattern](../01-structural/01-decorator.md) -- Dynamic feature addition. Decorating the result built by a Builder
+- [Function Design](../../../clean-code-principles/docs/01-practices/01-functions.md) -- Best practices for parameter design
+- [Immutability](../../../clean-code-principles/docs/03-practices-advanced/00-immutability.md) -- Design of immutable data structures
 
 ---
 
-## 参考文献
+## References
 
-1. Gamma, E. et al. (1994). *Design Patterns: Elements of Reusable Object-Oriented Software*. Addison-Wesley. -- Builder パターンの原典
+1. Gamma, E. et al. (1994). *Design Patterns: Elements of Reusable Object-Oriented Software*. Addison-Wesley. -- The original source on the Builder pattern
 2. Bloch, J. (2018). *Effective Java* (3rd ed.). Addison-Wesley. Item 2: Consider a builder when faced with many constructor parameters.
 3. Freeman, E. et al. (2004). *Head First Design Patterns*. O'Reilly Media.
 4. Refactoring.Guru -- Builder. https://refactoring.guru/design-patterns/builder
 5. Dave Cheney (2014). Functional options for friendly APIs. https://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis
-6. Martin, R.C. (2008). *Clean Code*. Prentice Hall. Chapter 3: Functions -- 引数の数を最小化する
+6. Martin, R.C. (2008). *Clean Code*. Prentice Hall. Chapter 3: Functions -- Minimize the number of arguments
