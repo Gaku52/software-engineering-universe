@@ -1,223 +1,231 @@
-# クリーンコード概要 ── なぜコード品質が重要か
+# Clean Code Overview ── Why Code Quality Matters
 
-> ソフトウェアの総コストの80%以上は保守に費やされる。読みやすく変更しやすいコードは、チーム全体の生産性を劇的に向上させる。
-
----
-
-## この章で学ぶこと
-
-1. **クリーンコードの定義** ── 著名なエンジニアたちの視点から「良いコード」を理解する
-2. **品質がビジネスに与える影響** ── 技術的負債と開発速度の関係を定量的に把握する
-3. **クリーンコードの実践原則** ── 日常のコーディングで適用できる基本ルールを身につける
-4. **コード品質の定量的測定** ── 複雑度やカバレッジなどの客観的指標を使って品質を評価する
-5. **クリーンコード文化の構築** ── チーム全体で品質を維持するための仕組みと文化を作る
+> More than 80% of the total cost of software is spent on maintenance. Code that is readable and easy to change dramatically improves the productivity of the entire team.
 
 ---
 
-## 前提知識
+## What You Will Learn in This Chapter
 
-このガイドを最大限に活用するために、以下の知識があると望ましい。
+1. **Definition of Clean Code** ── Understand "good code" from the perspectives of renowned engineers
+2. **Impact of Quality on Business** ── Quantify the relationship between technical debt and development velocity
+3. **Practical Principles of Clean Code** ── Acquire fundamental rules you can apply in everyday coding
+4. **Quantitative Measurement of Code Quality** ── Evaluate quality using objective metrics such as complexity and coverage
+5. **Building a Clean Code Culture** ── Create the systems and culture needed to maintain quality across the entire team
 
-| 前提知識 | 説明 | 参照リンク |
+---
+
+## Prerequisites
+
+To get the most out of this guide, the following knowledge is recommended.
+
+| Prerequisite | Description | Reference Link |
 |---------|------|-----------|
-| プログラミング基礎 | 変数、関数、クラスの基本概念 | `../../02-programming/` |
-| オブジェクト指向の基本 | クラス、継承、ポリモーフィズム | `../../02-programming/` |
-| Git基礎 | バージョン管理の基本操作 | `../../05-infrastructure/` |
+| Programming fundamentals | Basic concepts of variables, functions, and classes | `../../02-programming/` |
+| Object-oriented basics | Classes, inheritance, polymorphism | `../../02-programming/` |
+| Git basics | Basic version control operations | `../../05-infrastructure/` |
 
-※ 上記は必須ではないが、コード例を理解する上で役立つ。
+Note: The above are not strictly required, but they will help you understand the code examples.
 
 ---
 
-## 1. クリーンコードとは何か
+## 1. What Is Clean Code?
 
-### 1.1 著名エンジニアによる定義
+### 1.1 Definitions by Renowned Engineers
 
 ```
 +-----------------------------------------------------------+
 |  Robert C. Martin (Uncle Bob)                             |
-|  「クリーンコードは読みやすく、理解しやすく、              |
-|    変更しやすいコードである」                              |
+|  "Clean code is code that is readable, understandable,    |
+|    and easy to change."                                   |
 +-----------------------------------------------------------+
-|  Bjarne Stroustrup (C++の父)                              |
-|  「エレガントで効率的なコードこそクリーンコード。          |
-|    論理が明快でバグが隠れにくい」                          |
+|  Bjarne Stroustrup (Father of C++)                        |
+|  "Elegant and efficient code is clean code.               |
+|    Logic is clear and bugs have nowhere to hide."         |
 +-----------------------------------------------------------+
-|  Grady Booch (UMLの父)                                    |
-|  「クリーンコードは、よく書かれた散文のように読める」      |
+|  Grady Booch (Father of UML)                              |
+|  "Clean code reads like well-written prose."              |
 +-----------------------------------------------------------+
-|  Ward Cunningham (Wikiの発明者)                           |
-|  「読んでみて"まさにこうあるべきだ"と感じるコード」        |
+|  Ward Cunningham (Inventor of Wiki)                       |
+|  "Code that makes you think 'of course it should          |
+|    be this way' when you read it."                        |
 +-----------------------------------------------------------+
 |  Michael Feathers                                         |
-|  「クリーンコードとは、誰か他の人が                        |
-|    メンテナンスすることを意識して書かれたコードだ」        |
+|  "Clean code is code written with an awareness            |
+|    that someone else will maintain it."                   |
 +-----------------------------------------------------------+
 ```
 
-これらの定義に共通するのは、**コードの読み手への配慮**である。プログラムはコンピュータに対する命令であると同時に、チームメンバーへのコミュニケーション手段でもある。
+What these definitions share is **consideration for the reader of the code**. A program is an instruction to a computer, but it is also a means of communication with your teammates.
 
-### 1.2 なぜ「読みやすさ」が最重要なのか ── WHY の深掘り
+### 1.2 Why "Readability" Is Most Important ── A Deeper WHY
 
-ソフトウェア開発において、コードを書く時間と読む時間の比率は概ね 1:10 と言われている（Robert C. Martin の調査）。つまり、コードは書く時間の10倍読まれる。この事実が、可読性を最優先すべき根本的な理由である。
+In software development, the ratio of time spent writing code to time spent reading it is said to be roughly 1:10 (based on research by Robert C. Martin). In other words, code is read ten times more than it is written. This fact is the fundamental reason why readability should be the top priority.
 
 ```
-  開発者の時間配分
+  Developer Time Distribution
 
   ┌─────────────────────────────────────────────────────┐
   │                                                     │
-  │  コードを読む時間                                    │
+  │  Reading code                                        │
   │  ████████████████████████████████████████  (70%)    │
   │                                                     │
-  │  既存コードの修正                                    │
+  │  Modifying existing code                             │
   │  ████████████████  (20%)                            │
   │                                                     │
-  │  新規コードの記述                                    │
+  │  Writing new code                                    │
   │  ██████  (10%)                                      │
   │                                                     │
   └─────────────────────────────────────────────────────┘
-  ※ Robert C. Martin および複数の実証研究に基づく概算
+  * Approximate figures based on Robert C. Martin and multiple empirical studies
 ```
 
-この比率から導かれる結論は明快だ。**1分余計に費やして読みやすいコードを書けば、将来の10分が節約される**。逆に、書くスピードを優先して読みにくいコードを残すと、将来のコストは10倍に膨れ上がる。
+The conclusion drawn from this ratio is clear: **Spending one extra minute to write readable code saves ten minutes in the future**. Conversely, prioritizing writing speed and leaving unreadable code behind inflates future costs by tenfold.
 
-### 1.3 品質の多面的評価
+### 1.3 Multidimensional Quality Assessment
 
 ```
           ┌─────────────────────────────────────────┐
-          │         コード品質の4象限                 │
+          │     Four Quadrants of Code Quality        │
           ├──────────────┬──────────────────────────┤
-          │  可読性       │  保守性                   │
-          │  ・命名が明確 │  ・変更が局所的           │
-          │  ・構造が一貫 │  ・テストが容易           │
-          │  ・意図が明白 │  ・影響範囲が予測可能     │
+          │  Readability  │  Maintainability          │
+          │  ・Clear names│  ・Changes are localized  │
+          │  ・Consistent │  ・Easy to test           │
+          │    structure  │  ・Impact is predictable  │
+          │  ・Intent is  │                           │
+          │    obvious    │                           │
           ├──────────────┼──────────────────────────┤
-          │  信頼性       │  効率性                   │
-          │  ・エラー処理 │  ・適切なアルゴリズム     │
-          │  ・エッジケース│ ・不要な計算がない        │
-          │  ・型安全性   │  ・メモリ効率が良い       │
+          │  Reliability  │  Efficiency               │
+          │  ・Error      │  ・Appropriate algorithms │
+          │    handling   │  ・No unnecessary         │
+          │  ・Edge cases │    computation            │
+          │  ・Type safety│  ・Good memory efficiency │
           └──────────────┴──────────────────────────┘
 ```
 
-### 1.4 クリーンコードの内部メカニズム ── 脳科学的視点
+### 1.4 The Internal Mechanism of Clean Code ── A Neuroscience Perspective
 
-なぜクリーンコードが重要なのかを脳科学の視点からも理解しておこう。
+Let's also understand why clean code matters from a neuroscience perspective.
 
-人間のワーキングメモリ（短期記憶）は、一度に保持できる情報チャンクが 7 +/- 2 個（Miller の法則）とされている。コードを読む際、以下の要素がそれぞれ1チャンクを消費する。
+Human working memory (short-term memory) can hold approximately 7 +/- 2 chunks of information at once (Miller's Law). When reading code, each of the following elements consumes one chunk:
 
 ```
-  ワーキングメモリの消費
+  Working Memory Consumption
 
   ┌────────────────────────────────────────────┐
-  │  利用可能チャンク: 約7個                    │
+  │  Available chunks: approximately 7          │
   │                                            │
-  │  [変数名の意味] [関数の目的] [制御フロー]   │
-  │  [型情報] [エラーケース] [ビジネスルール]    │
-  │  [呼び出し元の文脈]                         │
+  │  [Meaning of variable name] [Purpose of    │
+  │  function] [Control flow]                  │
+  │  [Type information] [Error cases]          │
+  │  [Business rules] [Context of caller]      │
   │                                            │
-  │  → 7個でほぼ限界。これ以上の情報を要求する  │
-  │    コードは理解不能になる                    │
+  │  → Nearly at the limit with 7 chunks.      │
+  │    Code that demands more becomes          │
+  │    incomprehensible.                       │
   └────────────────────────────────────────────┘
 ```
 
-クリーンコードは、各チャンクの認知負荷を最小化する。良い命名は変数の意味を即座に伝え、小さな関数は目的を一目で把握させ、一貫した構造はパターン認識を助ける。つまり**クリーンコードとは、人間の認知限界を尊重したコード**なのである。
+Clean code minimizes the cognitive load of each chunk. Good naming conveys the meaning of a variable instantly, small functions let you grasp their purpose at a glance, and consistent structure aids pattern recognition. In other words, **clean code is code that respects the cognitive limits of human beings**.
 
 ---
 
-## 2. なぜ品質が重要か ── ビジネスインパクト
+## 2. Why Quality Matters ── Business Impact
 
-### 2.1 開発速度の推移
+### 2.1 Development Velocity Over Time
 
 ```
-開発速度
+Development velocity
   ^
   |  ****
   |      ****
-  |          ****                    ← クリーンコード
+  |          ****                    ← Clean code
   |              ****  ****  ****
   |
   |  ****
   |      **
-  |        *                         ← 汚いコード
+  |        *                         ← Dirty code
   |         *  *  .  .  .
-  +------------------------------------> 時間
-   1月  3月  6月  1年  2年
+  +------------------------------------> Time
+   Month 1  Month 3  Month 6  Year 1  Year 2
 ```
 
-### 2.2 技術的負債の定量分析
+### 2.2 Quantitative Analysis of Technical Debt
 
-技術的負債（Technical Debt）とは、短期的な速度を優先して品質を犠牲にした結果、将来支払うことになるコストの比喩である。Ward Cunningham が1992年に提唱した概念で、金融の負債と同様に「利子」が発生する。
+Technical Debt is a metaphor for the future cost that results from sacrificing quality in favor of short-term speed. The concept was coined by Ward Cunningham in 1992, and like financial debt, it accrues "interest."
 
 ```
-  技術的負債の累積モデル
+  Technical Debt Accumulation Model
 
-  コスト
+  Cost
     ^
     |                          ########
     |                     #####
-    |                 ####              ← 利子（負債による追加コスト）
+    |                 ####              ← Interest (additional cost from debt)
     |             ####
     |         ####
     |     ####
     |  ###
     | #
-    +-----------------------------------------> 時間
-    │  元本（最初に借りた負債）
-    │  利子（負債によるスローダウン、バグ増加）
+    +-----------------------------------------> Time
+    │  Principal (the debt originally incurred)
+    │  Interest (slowdown and increased bugs from debt)
 ```
 
-**技術的負債の種類と影響:**
+**Types of Technical Debt and Their Impact:**
 
-| 種類 | 具体例 | 利子（追加コスト） |
+| Type | Example | Interest (additional cost) |
 |------|--------|-------------------|
-| 意図的・慎重な負債 | 「リリース優先で後でリファクタリング」 | 計画的に返済可能 |
-| 意図的・無謀な負債 | 「設計する時間がない」 | 急速に利子が増大 |
-| 無意識・慎重な負債 | 後から「こうすべきだった」と気づく | 学習コストとして許容可能 |
-| 無意識・無謀な負債 | クリーンコードを知らない | 気づかないまま利子が蓄積 |
+| Deliberate and prudent | "Ship first, refactor later" | Can be repaid in a planned manner |
+| Deliberate and reckless | "We don't have time to design" | Interest grows rapidly |
+| Inadvertent and prudent | Realizing later "we should have done it this way" | Acceptable as a learning cost |
+| Inadvertent and reckless | Not knowing clean code | Interest accumulates without awareness |
 
-Martin Fowler の「技術的負債の四象限」に基づく分類。最も危険なのは「無意識・無謀な負債」で、チームがそもそもコード品質の重要性を認識していないケースである。
+Classification based on Martin Fowler's "Technical Debt Quadrant." The most dangerous type is "inadvertent and reckless debt," where the team does not recognize the importance of code quality in the first place.
 
-### 2.3 定量データ
+### 2.3 Quantitative Data
 
-IBMの調査研究と複数の産業レポートに基づく、品質投資の効果を以下に示す。
+The following shows the effects of quality investment, based on IBM research and multiple industry reports.
 
 ```
-  品質投資のROI（Return on Investment）
+  ROI (Return on Investment) of Quality Investment
 
   ┌──────────────────────────────────────────────────────┐
-  │ 投資: コードレビュー 1時間                            │
-  │ 効果: 後工程のバグ修正 3〜20時間を節約               │
-  │ ROI:  3x 〜 20x                                     │
+  │ Investment: 1 hour of code review                     │
+  │ Effect: Saves 3–20 hours of downstream bug fixing    │
+  │ ROI:  3x – 20x                                      │
   ├──────────────────────────────────────────────────────┤
-  │ 投資: テスト自動化（初期コスト 2週間）               │
-  │ 効果: 手動テスト削減、リグレッション防止              │
-  │ ROI:  3ヶ月で損益分岐、その後は継続的にプラス        │
+  │ Investment: Test automation (2-week upfront cost)    │
+  │ Effect: Reduced manual testing, regression prevention │
+  │ ROI:  Break-even in 3 months, continuously positive  │
+  │       thereafter                                     │
   ├──────────────────────────────────────────────────────┤
-  │ 投資: リファクタリング（技術的負債の返済）            │
-  │ 効果: 変更速度の回復、バグ率の低下                    │
-  │ ROI:  負債の大きさに依存。大きいほど効果大           │
+  │ Investment: Refactoring (repaying technical debt)    │
+  │ Effect: Restored change velocity, reduced bug rate   │
+  │ ROI:  Depends on the size of the debt. Larger        │
+  │       debt means greater effect.                     │
   └──────────────────────────────────────────────────────┘
 ```
 
-**バグ修正コストの増大（フェーズ別）:**
+**Rising Cost of Bug Fixes by Phase:**
 
-| 発見フェーズ | 相対コスト | 例 |
+| Discovery Phase | Relative Cost | Example |
 |------------|-----------|-----|
-| 要件定義 | 1x | 「この仕様おかしくない？」 |
-| 設計 | 3-6x | 設計レビューで発見 |
-| コーディング | 10x | コードレビューで発見 |
-| テスト | 15-40x | テスト工程で発見 |
-| リリース後 | 30-100x | 本番障害として発覚 |
+| Requirements | 1x | "Doesn't this spec seem off?" |
+| Design | 3-6x | Found in design review |
+| Coding | 10x | Found in code review |
+| Testing | 15-40x | Found during test phase |
+| Post-release | 30-100x | Discovered as a production incident |
 
-Steve McConnell『Code Complete』やBarry Boehm の研究に基づく。**早期に品質を作り込むことが、最もコスト効率の高い投資**であることが明確にわかる。
+Based on research by Steve McConnell (*Code Complete*) and Barry Boehm. It is clear that **building quality in early is the most cost-effective investment**.
 
 ---
 
-## 3. クリーンコードの実践 ── コード例
+## 3. Practicing Clean Code ── Code Examples
 
-### コード例1: 可読性の比較 ── 意図が読めないコード vs クリーンコード
+### Code Example 1: Readability Comparison ── Unreadable Code vs. Clean Code
 
 ```python
-# ダーティコード: 何をしているか読み取れない
+# Dirty code: It's impossible to tell what this does
 def calc(l, t):
     r = []
     for i in l:
@@ -225,30 +233,30 @@ def calc(l, t):
             r.append(i['n'])
     return r
 
-# クリーンコード: 意図が明確
+# Clean code: Intent is clear
 ACTIVE = 1
 
 def find_active_users_above_threshold(
     users: list[dict],
     age_threshold: int
 ) -> list[str]:
-    """指定年齢以上のアクティブユーザー名を返す。
+    """Returns names of active users above the specified age.
 
     Args:
-        users: ユーザー情報の辞書リスト。各辞書は 'age', 'status', 'name' キーを持つ。
-        age_threshold: 年齢の下限値（この値より大きいユーザーが対象）。
+        users: A list of user dictionaries. Each dictionary has 'age', 'status', and 'name' keys.
+        age_threshold: The minimum age (users strictly older than this value are included).
 
     Returns:
-        条件に合致するユーザー名のリスト。
+        A list of user names matching the criteria.
 
     Examples:
         >>> users = [
-        ...     {'name': '田中', 'age': 25, 'status': 1},
-        ...     {'name': '鈴木', 'age': 17, 'status': 1},
-        ...     {'name': '佐藤', 'age': 30, 'status': 0},
+        ...     {'name': 'Alice', 'age': 25, 'status': 1},
+        ...     {'name': 'Bob', 'age': 17, 'status': 1},
+        ...     {'name': 'Charlie', 'age': 30, 'status': 0},
         ... ]
         >>> find_active_users_above_threshold(users, 20)
-        ['田中']
+        ['Alice']
     """
     active_senior_users = []
     for user in users:
@@ -257,51 +265,51 @@ def find_active_users_above_threshold(
     return active_senior_users
 ```
 
-改善のポイント:
-- 関数名が処理内容を正確に表現
-- 引数名が意味を持つ
-- 型ヒントで期待される型が明確
-- docstringで使用例まで記載
-- マジックナンバー（1）を定数化
+Key improvements:
+- The function name accurately describes what it does
+- Argument names are meaningful
+- Type hints clarify expected types
+- The docstring includes usage examples
+- The magic number (1) is replaced with a named constant
 
-### コード例2: 構造化されたエラーハンドリング
+### Code Example 2: Structured Error Handling
 
 ```python
-# ダーティコード: エラーが飲み込まれる
+# Dirty code: Errors are swallowed
 def get_user(id):
     try:
         return db.query(id)
     except:
-        return None  # どんなエラーも握りつぶす → デバッグ不可能
+        return None  # All errors are silently discarded → impossible to debug
 
-# クリーンコード: エラーの意味が明確
+# Clean code: The meaning of errors is clear
 class UserNotFoundError(Exception):
-    """ユーザーが見つからない場合のエラー"""
+    """Error raised when a user is not found"""
     def __init__(self, user_id: int):
         self.user_id = user_id
-        super().__init__(f"ユーザーID {user_id} は存在しません")
+        super().__init__(f"User ID {user_id} does not exist")
 
 class DatabaseConnectionError(Exception):
-    """データベース接続に失敗した場合のエラー"""
+    """Error raised when a database connection fails"""
     pass
 
 def get_user_by_id(user_id: int) -> "User":
-    """ユーザーIDからユーザーを取得する。
+    """Retrieves a user by their user ID.
 
     Args:
-        user_id: 取得対象のユーザーID。
+        user_id: The ID of the user to retrieve.
 
     Returns:
-        該当するUserオブジェクト。
+        The corresponding User object.
 
     Raises:
-        UserNotFoundError: ユーザーが見つからない場合。
-        DatabaseConnectionError: DB接続に失敗した場合。
+        UserNotFoundError: If the user is not found.
+        DatabaseConnectionError: If the DB connection fails.
     """
     try:
         user = user_repository.find_by_id(user_id)
     except ConnectionError as e:
-        raise DatabaseConnectionError(f"DB接続失敗: {e}") from e
+        raise DatabaseConnectionError(f"DB connection failed: {e}") from e
 
     if user is None:
         raise UserNotFoundError(user_id)
@@ -309,38 +317,38 @@ def get_user_by_id(user_id: int) -> "User":
     return user
 ```
 
-改善のポイント:
-- `except:` の代わりに具体的な例外型をキャッチ
-- カスタム例外クラスでドメイン固有のエラーを表現
-- `from e` で元の例外を保持（例外チェーン）
-- docstring に Raises セクションを記載
+Key improvements:
+- Catches specific exception types instead of bare `except:`
+- Custom exception classes express domain-specific errors
+- `from e` preserves the original exception (exception chaining)
+- The docstring includes a Raises section
 
-### コード例3: 単一責任の関数
+### Code Example 3: Single-Responsibility Functions
 
 ```javascript
-// ダーティコード: 1つの関数で複数の責任
+// Dirty code: One function handling multiple responsibilities
 function processOrder(order) {
-  // バリデーション (責任1)
+  // Validation (responsibility 1)
   if (!order.items || order.items.length === 0) return false;
   if (!order.customer) return false;
 
-  // 合計計算 (責任2)
+  // Total calculation (responsibility 2)
   let total = 0;
   for (const item of order.items) {
     total += item.price * item.quantity;
     if (item.discount) total -= item.discount;
   }
 
-  // DB保存 (責任3)
+  // DB save (responsibility 3)
   db.save({ ...order, total, status: 'confirmed' });
 
-  // メール送信 (責任4)
-  sendEmail(order.customer.email, `注文確定: ${total}円`);
+  // Email sending (responsibility 4)
+  sendEmail(order.customer.email, `Order confirmed: $${total}`);
 
   return true;
 }
 
-// クリーンコード: 各責任を分離
+// Clean code: Each responsibility separated
 function processOrder(order) {
   validateOrder(order);
   const total = calculateOrderTotal(order.items);
@@ -351,10 +359,10 @@ function processOrder(order) {
 
 function validateOrder(order) {
   if (!order.items || order.items.length === 0) {
-    throw new InvalidOrderError('注文には1つ以上の商品が必要です');
+    throw new InvalidOrderError('An order must contain at least one item');
   }
   if (!order.customer) {
-    throw new InvalidOrderError('顧客情報が必要です');
+    throw new InvalidOrderError('Customer information is required');
   }
 }
 
@@ -375,20 +383,20 @@ function confirmOrder(order, total) {
 function notifyCustomer(order) {
   emailService.send(
     order.customer.email,
-    `注文確定: ${order.total}円`
+    `Order confirmed: $${order.total}`
   );
 }
 ```
 
-### コード例4: マジックナンバーの排除
+### Code Example 4: Eliminating Magic Numbers
 
 ```java
-// ダーティコード: マジックナンバーだらけ
+// Dirty code: Full of magic numbers
 if (user.getAge() >= 18 && user.getScore() > 70 && user.getType() == 3) {
     applyDiscount(0.15);
 }
 
-// クリーンコード: 定数で意味を付与
+// Clean code: Constants give meaning
 private static final int LEGAL_AGE = 18;
 private static final int PREMIUM_SCORE_THRESHOLD = 70;
 private static final int GOLD_MEMBER_TYPE = 3;
@@ -400,16 +408,16 @@ if (user.isAdult(LEGAL_AGE)
     applyDiscount(GOLD_MEMBER_DISCOUNT_RATE);
 }
 
-// さらに改善: ビジネスロジックをメソッドに抽出
+// Further improvement: Extract business logic into a method
 if (user.isEligibleForGoldDiscount()) {
     applyDiscount(GOLD_MEMBER_DISCOUNT_RATE);
 }
 ```
 
-### コード例5: ガード節による早期リターン
+### Code Example 5: Guard Clauses for Early Return
 
 ```typescript
-// ダーティコード: ネストが深い
+// Dirty code: Deeply nested
 function getPayAmount(employee: Employee): number {
   let result: number;
   if (employee.isSeparated) {
@@ -428,7 +436,7 @@ function getPayAmount(employee: Employee): number {
   return result;
 }
 
-// クリーンコード: ガード節で平坦化
+// Clean code: Flattened with guard clauses
 function getPayAmount(employee: Employee): number {
   if (employee.isSeparated) return separatedAmount(employee);
   if (employee.isRetired) return retiredAmount(employee);
@@ -437,26 +445,26 @@ function getPayAmount(employee: Employee): number {
 }
 ```
 
-### コード例6: コメントではなくコードで意図を伝える
+### Code Example 6: Express Intent Through Code, Not Comments
 
 ```python
-# ダーティコード: コメントに頼る
-# 30日以上ログインしていないユーザーを取得
-# ステータスがアクティブで、トライアル期間が終了しているもの
+# Dirty code: Relying on comments
+# Get users who haven't logged in for 30 or more days
+# with active status and whose trial period has ended
 users = []
 for u in all_users:
     d = (datetime.now() - u.last_login).days
     if d >= 30 and u.status == 1 and u.trial_end < datetime.now():
         users.append(u)
 
-# クリーンコード: コード自体が意図を語る
+# Clean code: The code itself conveys the intent
 INACTIVE_THRESHOLD_DAYS = 30
 
 def find_inactive_but_subscribed_users(
     all_users: list[User],
     threshold_days: int = INACTIVE_THRESHOLD_DAYS
 ) -> list[User]:
-    """トライアル終了済みのアクティブユーザーで、一定期間ログインしていない人を返す。"""
+    """Returns active users whose trial has ended but who haven't logged in for a given period."""
     return [
         user for user in all_users
         if user.is_inactive_for(threshold_days)
@@ -465,10 +473,10 @@ def find_inactive_but_subscribed_users(
     ]
 ```
 
-### コード例7: 条件式の抽出
+### Code Example 7: Extracting Conditional Expressions
 
 ```java
-// ダーティコード: 複雑な条件式
+// Dirty code: Complex conditional expression
 if (date.getMonth() >= 6 && date.getMonth() <= 8
     && temperature > 30
     && !isHoliday(date)
@@ -477,7 +485,7 @@ if (date.getMonth() >= 6 && date.getMonth() <= 8
     applySummerBonus(employee);
 }
 
-// クリーンコード: 条件をメソッドに抽出
+// Clean code: Conditions extracted into a method
 if (isSummerBonusEligible(date, temperature, employee)) {
     applySummerBonus(employee);
 }
@@ -504,79 +512,81 @@ private boolean isHotDay(int temperature) {
 
 ---
 
-## 4. クリーンコードの基本原則
+## 4. Core Principles of Clean Code
 
-| 原則 | 説明 | 効果 | 参照 |
+| Principle | Description | Effect | Reference |
 |------|------|------|------|
-| 可読性第一 | コードは書く回数より読む回数が圧倒的に多い | 理解時間の短縮 | 本章 |
-| DRY | 同じロジックを繰り返さない | 変更箇所の一元化 | [DRY/KISS/YAGNI](./02-dry-kiss-yagni.md) |
-| KISS | 複雑さを避け、シンプルに保つ | バグの予防 | [DRY/KISS/YAGNI](./02-dry-kiss-yagni.md) |
-| YAGNI | 今必要でない機能は作らない | 無駄な開発の排除 | [DRY/KISS/YAGNI](./02-dry-kiss-yagni.md) |
-| SRP | 1つの関数/クラスに1つの責任 | 変更影響の局所化 | [SOLID原則](./01-solid.md) |
-| 意図の明示 | 名前・構造でコードの目的を伝える | コメント依存の低減 | [命名規則](../01-practices/00-naming.md) |
-| 低結合・高凝集 | モジュール間の依存を最小化し、内部の関連性を最大化 | テスト容易性の向上 | [結合度と凝集度](./03-coupling-cohesion.md) |
+| Readability first | Code is read far more often than it is written | Reduced comprehension time | This chapter |
+| DRY | Don't repeat the same logic | Single source of truth for changes | [DRY/KISS/YAGNI](./02-dry-kiss-yagni.md) |
+| KISS | Avoid complexity, keep it simple | Bug prevention | [DRY/KISS/YAGNI](./02-dry-kiss-yagni.md) |
+| YAGNI | Don't build features you don't need now | Elimination of wasted development | [DRY/KISS/YAGNI](./02-dry-kiss-yagni.md) |
+| SRP | One responsibility per function/class | Localized impact of changes | [SOLID Principles](./01-solid.md) |
+| Express intent | Convey the purpose of code through names and structure | Reduced dependency on comments | [Naming Conventions](../01-practices/00-naming.md) |
+| Low coupling, high cohesion | Minimize dependencies between modules, maximize internal relatedness | Improved testability | [Coupling and Cohesion](./03-coupling-cohesion.md) |
 
-### 原則間の関係図
+### Relationship Diagram Between Principles
 
 ```
   ┌────────────────────────────────────────────────────────┐
-  │                 クリーンコードの原則体系                  │
+  │         System of Clean Code Principles                 │
   │                                                        │
   │              ┌──────────────┐                           │
-  │              │  可読性第一   │  ← 最上位の価値           │
+  │              │ Readability  │  ← Highest-level value    │
+  │              │    first     │                           │
   │              └──────┬───────┘                           │
   │           ┌────────┼────────┐                           │
   │           v        v        v                           │
   │    ┌──────────┐ ┌──────┐ ┌──────┐                      │
-  │    │   KISS   │ │ DRY  │ │ YAGNI│  ← 基本3原則         │
+  │    │   KISS   │ │ DRY  │ │YAGNI │  ← 3 core principles │
   │    └────┬─────┘ └──┬───┘ └──┬───┘                      │
   │         │          │        │                           │
   │         v          v        v                           │
   │    ┌──────────────────────────────┐                     │
-  │    │       SOLID原則               │  ← 設計原則         │
+  │    │       SOLID Principles        │  ← Design principles│
   │    │  (SRP, OCP, LSP, ISP, DIP)   │                     │
   │    └────────────┬─────────────────┘                     │
   │                 │                                       │
   │         ┌───────┼───────┐                               │
   │         v               v                               │
   │  ┌────────────┐  ┌────────────────┐                     │
-  │  │ 低結合高凝集 │  │ デメテルの法則  │  ← モジュール原則   │
-  │  └────────────┘  └────────────────┘                     │
+  │  │Low coupling│  │ Law of Demeter  │  ← Module principles│
+  │  │high cohesion│ └────────────────┘                     │
+  │  └────────────┘                                         │
   └────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 5. コード品質の測定
+## 5. Measuring Code Quality
 
-### 5.1 定量的指標
+### 5.1 Quantitative Metrics
 
-| 指標 | 説明 | 目安 | 測定ツール |
+| Metric | Description | Target | Measurement Tool |
 |------|------|------|-----------|
-| サイクロマティック複雑度 | 分岐数に基づく複雑さ | 関数あたり10以下 | radon (Python), ESLint (JS) |
-| 認知的複雑度 | 人間が感じる理解しにくさ | 関数あたり15以下 | SonarQube |
-| コードカバレッジ | テストで実行されるコードの割合 | 80%以上 | pytest-cov, Istanbul |
-| 重複率 | コピペされたコードの割合 | 5%以下 | PMD CPD, jscpd |
-| 関数の行数 | 1関数の物理行数 | 20行以下推奨 | 各種Linter |
-| 依存関係の深さ | モジュール間の依存段数 | 3段以下 | deptry, madge |
-| 技術的負債比率 | 修正コスト / 再開発コスト | 5%以下 | SonarQube |
+| Cyclomatic complexity | Complexity based on branch count | 10 or less per function | radon (Python), ESLint (JS) |
+| Cognitive complexity | Difficulty of understanding for humans | 15 or less per function | SonarQube |
+| Code coverage | Percentage of code executed by tests | 80% or more | pytest-cov, Istanbul |
+| Duplication rate | Percentage of copy-pasted code | 5% or less | PMD CPD, jscpd |
+| Function length | Physical line count per function | 20 lines or fewer recommended | Various linters |
+| Dependency depth | Number of dependency levels between modules | 3 or fewer | deptry, madge |
+| Technical debt ratio | Fix cost / redevelopment cost | 5% or less | SonarQube |
 
-### 5.2 サイクロマティック複雑度の計算方法
+### 5.2 How to Calculate Cyclomatic Complexity
 
-サイクロマティック複雑度（Cyclomatic Complexity）は Thomas McCabe が1976年に提案した指標で、プログラム内の独立した実行パスの数を表す。
+Cyclomatic Complexity is a metric proposed by Thomas McCabe in 1976 that represents the number of independent execution paths in a program.
 
 ```python
-# 複雑度1: 分岐なし
+# Complexity 1: No branches
 def greet(name: str) -> str:
     return f"Hello, {name}"
 
-# 複雑度2: if文が1つ
+# Complexity 2: One if statement
 def check_age(age: int) -> str:
     if age >= 18:
-        return "成人"
-    return "未成年"
+        return "Adult"
+    return "Minor"
 
-# 複雑度4: if + elif + for
+# Complexity 4: if + elif + for
 def classify_scores(scores: list[int]) -> dict:
     result = {"high": 0, "mid": 0, "low": 0}
     for score in scores:           # +1
@@ -588,218 +598,222 @@ def classify_scores(scores: list[int]) -> dict:
             result["low"] += 1
     return result
 
-# 計算方法: M = E - N + 2P
-# E = エッジ数, N = ノード数, P = 連結成分数
-# 簡易計算: M = 分岐キーワード数(if, elif, for, while, and, or, except) + 1
+# Calculation: M = E - N + 2P
+# E = number of edges, N = number of nodes, P = number of connected components
+# Quick calculation: M = count of branch keywords (if, elif, for, while, and, or, except) + 1
 ```
 
-### 5.3 認知的複雑度（Cognitive Complexity）
+### 5.3 Cognitive Complexity
 
-SonarSource が提案した、サイクロマティック複雑度の改良版。人間にとっての「理解しにくさ」を、以下のルールで数値化する。
+An improved version of cyclomatic complexity proposed by SonarSource. It quantifies the "difficulty of understanding" for humans using the following rules:
 
 ```
-  認知的複雑度のカウントルール
+  Cognitive Complexity Counting Rules
 
-  1. ネストが深くなるほどペナルティが増加
+  1. Penalty increases the deeper the nesting
      if (a) {           // +1
-       if (b) {         // +2 (ネスト1段)
-         if (c) {       // +3 (ネスト2段)
+       if (b) {         // +2 (nesting level 1)
+         if (c) {       // +3 (nesting level 2)
          }
        }
      }
 
-  2. break in linear flow
+  2. Break in linear flow
      if, else if, else, switch, for, while,
-     catch, &&, ||, ?:  → 各+1
+     catch, &&, ||, ?:  → each +1
 
-  3. ネストを増加させない構造
-     else, elif        → ネストペナルティなし
+  3. Structures that do NOT increase nesting
+     else, elif        → no nesting penalty
 
-  サイクロマティック複雑度との違い:
-  ・サイクロマティック: switch 10分岐 → 複雑度10（高い）
-  ・認知的: switch 10分岐 → 複雑度1（人間にとっては読みやすい）
+  Difference from cyclomatic complexity:
+  · Cyclomatic: switch with 10 branches → complexity 10 (high)
+  · Cognitive:  switch with 10 branches → complexity 1 (easy for humans to read)
 ```
 
-### 5.4 品質ダッシュボードの構成例
+### 5.4 Example Quality Dashboard Layout
 
 ```
   ┌────────────────────────────────────────────────────┐
-  │  品質ダッシュボード                                  │
+  │  Quality Dashboard                                   │
   ├────────────────────────────────────────────────────┤
   │                                                    │
-  │  [カバレッジ]    [複雑度]      [重複率]              │
-  │   ████ 85%      平均 6.2      ██ 3.1%             │
-  │   目標: 80%     目標: <10     目標: <5%            │
+  │  [Coverage]      [Complexity]   [Duplication]      │
+  │   ████ 85%       Avg 6.2        ██ 3.1%           │
+  │   Target: 80%    Target: <10    Target: <5%        │
   │                                                    │
-  │  [技術的負債]    [セキュリティ]  [新規Issue]         │
-  │   12日分        脆弱性 0件     今週 +3             │
-  │   先週比: -2日  ブロッカー 0   先週比: -5          │
+  │  [Tech Debt]     [Security]     [New Issues]       │
+  │   12 days        Vulnerabilities: 0  This week: +3 │
+  │   vs last week: -2 days  Blockers: 0  vs last: -5  │
   │                                                    │
-  │  [トレンド]                                         │
-  │   カバレッジ ↑  複雑度 →  負債 ↓  (改善傾向)      │
+  │  [Trends]                                           │
+  │   Coverage ↑  Complexity →  Debt ↓  (improving)   │
   └────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 6. クリーンコード実現のためのツールチェーン
+## 6. Toolchain for Achieving Clean Code
 
-### 6.1 自動フォーマッタとLinter
+### 6.1 Auto-Formatters and Linters
 
-| カテゴリ | Python | JavaScript/TS | Java | Go |
+| Category | Python | JavaScript/TS | Java | Go |
 |---------|--------|--------------|------|-----|
-| フォーマッタ | Black, Ruff | Prettier | google-java-format | gofmt |
+| Formatter | Black, Ruff | Prettier | google-java-format | gofmt |
 | Linter | Ruff, pylint | ESLint | Checkstyle, SpotBugs | golangci-lint |
-| 型チェック | mypy | TypeScript | javac | コンパイラ |
-| 複雑度測定 | radon | eslint-plugin-complexity | PMD | gocyclo |
-| テストカバレッジ | pytest-cov | Istanbul/c8 | JaCoCo | go test -cover |
+| Type checker | mypy | TypeScript | javac | Compiler |
+| Complexity measurement | radon | eslint-plugin-complexity | PMD | gocyclo |
+| Test coverage | pytest-cov | Istanbul/c8 | JaCoCo | go test -cover |
 
-### 6.2 CI/CDパイプラインでの品質ゲート
+### 6.2 Quality Gates in CI/CD Pipelines
 
 ```
   ┌──────────────────────────────────────────────┐
-  │  CI/CD 品質ゲートの設定例                      │
+  │  Example CI/CD Quality Gate Configuration     │
   │                                              │
   │  Stage 1: Lint & Format                      │
   │  ├── Formatter check (--check)               │
-  │  ├── Linter (error のみブロック)              │
-  │  └── 型チェック                               │
+  │  ├── Linter (block on errors only)           │
+  │  └── Type checking                           │
   │                                              │
   │  Stage 2: Test                               │
-  │  ├── ユニットテスト                           │
-  │  ├── インテグレーションテスト                  │
-  │  └── カバレッジ計測 (80%以上)                 │
+  │  ├── Unit tests                              │
+  │  ├── Integration tests                       │
+  │  └── Coverage measurement (80% or above)    │
   │                                              │
   │  Stage 3: Quality Analysis                   │
   │  ├── SonarQube / SonarCloud                  │
-  │  ├── 技術的負債チェック                        │
-  │  └── セキュリティスキャン                      │
+  │  ├── Technical debt check                    │
+  │  └── Security scan                          │
   │                                              │
-  │  Gate: すべてパスしたらマージ許可              │
+  │  Gate: Merge allowed only if all pass        │
   └──────────────────────────────────────────────┘
 ```
 
 ---
 
-## 7. クリーンコード文化の構築
+## 7. Building a Clean Code Culture
 
-### 7.1 ボーイスカウトルール
+### 7.1 The Boy Scout Rule
 
-> 「コードベースを触ったら、見つけた時よりも少しだけ綺麗にして離れよ」── Robert C. Martin
-
-```
-  ボーイスカウトルールの実践
-
-  タスク: ユーザー検索機能にフィルタ追加
-
-  ① 機能実装（本来の仕事）
-     user_search.py に filter 機能を追加
-
-  ② 小さな改善（ボーイスカウトルール）
-     ・変数名 lst → users に変更
-     ・未使用 import を削除
-     ・docstring 追加
-
-  ③ やりすぎない（スコープ制限）
-     ・大規模リファクタリングは別タスクに
-     ・テストがないファイルの全面改修は避ける
-     ・関係ないファイルは触らない
-```
-
-### 7.2 コードレビューでの品質チェック
+> "Leave the codebase a little cleaner than you found it." ── Robert C. Martin
 
 ```
-  コードレビューチェックリスト（品質観点）
+  Practicing the Boy Scout Rule
 
-  □ 命名は意図を正確に伝えているか
-  □ 関数は1つのことだけをしているか
-  □ マジックナンバーは定数化されているか
-  □ エラーハンドリングは適切か
-  □ テストは境界値とエッジケースをカバーしているか
-  □ 重複コードはないか
-  □ 不要なコメントはないか（コードで表現すべき）
-  □ 依存関係の方向は正しいか（DIP）
-  □ 変更の影響範囲は局所的か
-  □ パフォーマンスの懸念はないか
+  Task: Add a filter to the user search feature
+
+  ① Implement the feature (the main work)
+     Add filter functionality to user_search.py
+
+  ② Small improvements (Boy Scout Rule)
+     · Rename variable lst → users
+     · Remove unused imports
+     · Add docstring
+
+  ③ Don't overdo it (limit scope)
+     · Large-scale refactoring belongs in a separate task
+     · Avoid complete rewrites of files with no tests
+     · Don't touch unrelated files
 ```
 
-### 7.3 段階的導入戦略
+### 7.2 Quality Checks in Code Reviews
 
-チームにクリーンコード文化を導入する際は、段階的に進めることが成功の鍵。
+```
+  Code Review Checklist (Quality Perspective)
 
-| Phase | 期間 | 施策 | 成功指標 |
+  □ Does the naming accurately convey the intent?
+  □ Does each function do only one thing?
+  □ Are magic numbers replaced with named constants?
+  □ Is error handling appropriate?
+  □ Do tests cover boundary values and edge cases?
+  □ Is there any duplicated code?
+  □ Are there unnecessary comments? (Intent should be expressed in code)
+  □ Is the direction of dependencies correct? (DIP)
+  □ Is the impact of changes localized?
+  □ Are there any performance concerns?
+```
+
+### 7.3 Gradual Adoption Strategy
+
+When introducing a clean code culture to a team, a gradual approach is the key to success.
+
+| Phase | Duration | Actions | Success Criteria |
 |-------|------|------|---------|
-| 1. 認識 | 1-2週 | 勉強会、書籍共有 | チームメンバーが原則を説明できる |
-| 2. 自動化 | 2-4週 | Linter/Formatter導入、CI設定 | 全PRが品質ゲートを通過 |
-| 3. 実践 | 1-3月 | コードレビュー強化、ペアプロ | レビュー指摘の減少 |
-| 4. 文化 | 3-6月 | 品質ダッシュボード、振り返り | メトリクスの継続的改善 |
-| 5. 定着 | 6月〜 | 新人オンボーディングに組み込み | 新メンバーも自然に実践 |
+| 1. Awareness | 1-2 weeks | Study sessions, sharing books | Team members can explain the principles |
+| 2. Automation | 2-4 weeks | Introduce linter/formatter, configure CI | All PRs pass the quality gate |
+| 3. Practice | 1-3 months | Strengthen code reviews, pair programming | Decrease in review comments |
+| 4. Culture | 3-6 months | Quality dashboard, retrospectives | Continuous improvement of metrics |
+| 5. Establishment | 6 months+ | Incorporate into onboarding | New members naturally follow practices |
 
 ---
 
-## 8. トレードオフとエッジケース
+## 8. Trade-offs and Edge Cases
 
-### 8.1 クリーンコード vs パフォーマンス
+### 8.1 Clean Code vs. Performance
 
-クリーンコードとパフォーマンスが対立する場面は存在する。その際の判断基準を以下に示す。
-
-```
-  判断フロー
-
-  パフォーマンス問題が存在するか？
-  ├── No → クリーンコードを優先
-  └── Yes → 測定したか？
-       ├── No → まず測定する（推測で最適化しない）
-       └── Yes → ボトルネック箇所を特定
-            ├── ボトルネック → 最適化する（コメントで理由を残す）
-            └── 非ボトルネック → クリーンコードを維持
-```
-
-**Donald Knuth の格言:**
-
-> 「早すぎる最適化は諸悪の根源である」（"Premature optimization is the root of all evil"）
-
-ただし、この言葉の全文を知っておくことも重要:
-
-> 「プログラマは、プログラムの重要でない部分の速度について考えたり、心配したりすることに膨大な時間を費やしている。そしてこれらの効率化の試みは、デバッグと保守を考えると実際には大きな悪影響を持つ。我々は97%の時間、小さな効率性を忘れるべきである: **早すぎる最適化は諸悪の根源である**。しかし、残りの3%の重要な機会を逃してはならない。」
-
-### 8.2 クリーンコード vs 締め切り
+There are situations where clean code and performance are in conflict. The following shows the decision criteria for such cases.
 
 ```
-  技術的負債の「意図的借入」判断マトリクス
+  Decision Flow
+
+  Is there a performance problem?
+  ├── No → Prioritize clean code
+  └── Yes → Have you measured it?
+       ├── No → Measure first (don't optimize based on guesses)
+       └── Yes → Identify the bottleneck
+            ├── Bottleneck → Optimize it (leave a comment explaining why)
+            └── Not a bottleneck → Maintain clean code
+```
+
+**Donald Knuth's famous quote:**
+
+> "Premature optimization is the root of all evil."
+
+However, it is also important to know the full quote:
+
+> "Programmers waste enormous amounts of time thinking about, or worrying about, the speed of noncritical parts of their programs, and these attempts at efficiency actually have a strong negative impact when debugging and maintenance are considered. We should forget about small efficiencies, say about 97% of the time: **premature optimization is the root of all evil**. Yet we should not pass up our opportunities in that critical 3%."
+
+### 8.2 Clean Code vs. Deadlines
+
+```
+  Decision Matrix for Deliberate Technical Debt "Borrowing"
 
   ┌───────────────────┬────────────────────┐
-  │  借入すべき場面     │  借入を避けるべき場面 │
+  │  When to borrow   │  When to avoid it  │
   ├───────────────────┼────────────────────┤
-  │ ・事業の存続に関わる │ ・恒常的な締め切り   │
-  │   リリース          │   プレッシャー       │
-  │ ・実験的な機能      │ ・コア機能の品質     │
-  │   （検証後に廃棄    │   低下              │
-  │    の可能性あり）    │ ・チームが返済を      │
-  │ ・返済計画が明確    │   認識していない     │
-  │                    │ ・返済の見通しなし    │
+  │ · A release       │ · Constant deadline│
+  │   critical to     │   pressure         │
+  │   business        │ · Degradation of   │
+  │   survival        │   core feature     │
+  │ · Experimental    │   quality          │
+  │   features        │ · Team is unaware  │
+  │   (may be         │   of the debt      │
+  │    discarded      │ · No plan to repay │
+  │    after testing) │                    │
+  │ · Clear repayment │                    │
+  │   plan            │                    │
   └───────────────────┴────────────────────┘
 ```
 
-### 8.3 代替アプローチ: プラグマティック品質
+### 8.3 Alternative Approach: Pragmatic Quality
 
-「完璧なクリーンコード」を目指すのではなく、**プラグマティック（実用主義的）な品質**を目指すアプローチもある。
+Rather than aiming for "perfect clean code," there is also an approach of targeting **pragmatic quality**.
 
-| 完璧主義 | プラグマティック |
+| Perfectionism | Pragmatic |
 |---------|----------------|
-| 全コードを理想的な品質に | 変更頻度の高い箇所を重点改善 |
-| 全テストを網羅的に | リスクの高い箇所を重点テスト |
-| 全設計をSOLID準拠に | 拡張予定のある箇所を重点設計 |
-| 一度に全面リファクタリング | 触るたびに少しずつ改善 |
+| Bring all code to ideal quality | Focus improvements on frequently changed areas |
+| Comprehensive tests for everything | Focus testing on high-risk areas |
+| All design SOLID-compliant | Focus design on areas planned for extension |
+| Full refactoring all at once | Improve incrementally every time you touch the code |
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### アンチパターン1: 過度な最適化（Premature Optimization）
+### Anti-Pattern 1: Premature Optimization
 
 ```python
-# NG: 読みにくい最適化を早期に行う
+# NG: Unreadable optimization done too early
 def f(d):
     return {k: v for k, v in sorted(
         ((k, sum(x['v'] for x in g))
@@ -808,17 +822,17 @@ def f(d):
              key=lambda x: x['k'])),
         key=lambda x: -x[1])}
 
-# OK: まず可読性を優先し、必要時に最適化
+# OK: Prioritize readability first, then optimize when needed
 from collections import defaultdict
 
 def aggregate_and_sort_by_value(data: list[dict]) -> dict:
-    """キーごとに値を集計し、降順で返す。
+    """Aggregates values by key and returns them in descending order.
 
     Args:
-        data: 'key' と 'value' を持つ辞書のリスト。
+        data: A list of dictionaries with 'key' and 'value' fields.
 
     Returns:
-        キーごとの合計値を降順に並べた辞書。
+        A dictionary of aggregated totals per key, sorted in descending order.
 
     Examples:
         >>> data = [
@@ -840,12 +854,12 @@ def aggregate_and_sort_by_value(data: list[dict]) -> dict:
     ))
 ```
 
-### アンチパターン2: コメントで汚いコードを正当化する
+### Anti-Pattern 2: Using Comments to Justify Dirty Code
 
 ```java
-// NG: コメントで複雑さを説明
-// i は顧客のインデックス、j は注文のインデックス、
-// k は商品のインデックス、t は合計金額
+// NG: Using comments to explain complexity
+// i is the customer index, j is the order index,
+// k is the product index, t is the total amount
 for (int i = 0; i < c.length; i++) {
     for (int j = 0; j < c[i].o.length; j++) {
         for (int k = 0; k < c[i].o[j].p.length; k++) {
@@ -854,7 +868,7 @@ for (int i = 0; i < c.length; i++) {
     }
 }
 
-// OK: コード自体が意味を語る
+// OK: The code speaks for itself
 for (Customer customer : customers) {
     for (Order order : customer.getOrders()) {
         for (Product product : order.getProducts()) {
@@ -864,10 +878,10 @@ for (Customer customer : customers) {
 }
 ```
 
-### アンチパターン3: 過度な抽象化（Astronaut Architecture）
+### Anti-Pattern 3: Over-Abstraction (Astronaut Architecture)
 
 ```python
-# NG: 単純な処理を過度に抽象化
+# NG: Over-abstracting a simple operation
 class AbstractDataProcessorFactory:
     def create_processor(self): ...
 
@@ -882,11 +896,11 @@ class ConcreteDataProcessorFactory(AbstractDataProcessorFactory):
             writer=OutputWriterAdapter(ConsoleWriter()),
         )
 
-# OK: 直接的でシンプル
+# OK: Direct and simple
 import csv
 
 def read_and_display_csv(filepath: str) -> None:
-    """CSVファイルを読み込んでコンソールに表示する。"""
+    """Reads a CSV file and displays it to the console."""
     with open(filepath) as f:
         reader = csv.reader(f)
         for row in reader:
@@ -895,14 +909,14 @@ def read_and_display_csv(filepath: str) -> None:
 
 ---
 
-## 10. 実践演習
+## 10. Practice Exercises
 
-### 演習1（基礎）: コードの可読性改善
+### Exercise 1 (Basic): Improving Code Readability
 
-以下のコードをクリーンコードの原則に従って改善せよ。
+Refactor the following code according to clean code principles.
 
 ```python
-# 改善前
+# Before improvement
 def p(d):
     r = 0
     for x in d:
@@ -915,25 +929,25 @@ def p(d):
     return r
 ```
 
-**期待される改善ポイント:**
-- 意味のある変数名・関数名に変更
-- 定数化すべき文字列リテラルの抽出
-- 型ヒントとdocstringの追加
+**Expected improvement points:**
+- Replace with meaningful variable and function names
+- Extract string literals that should be named constants
+- Add type hints and a docstring
 
-**期待される出力例:**
+**Expected output example:**
 
 ```python
 INCOME = 'income'
 EXPENSE = 'expense'
 
 def calculate_balance(transactions: list[dict]) -> float:
-    """取引リストから残高を計算する。残高は0未満にならない。
+    """Calculates the balance from a list of transactions. Balance will not go below 0.
 
     Args:
-        transactions: 'type' ('income' or 'expense') と 'amount' (float) を持つ辞書リスト。
+        transactions: A list of dictionaries with 'type' ('income' or 'expense') and 'amount' (float).
 
     Returns:
-        計算された残高（最小値は0）。
+        The calculated balance (minimum value is 0).
     """
     balance = 0.0
     for transaction in transactions:
@@ -944,9 +958,9 @@ def calculate_balance(transactions: list[dict]) -> float:
     return max(balance, 0.0)
 ```
 
-### 演習2（応用）: 技術的負債の分析
+### Exercise 2 (Intermediate): Analyzing Technical Debt
 
-以下のコードの技術的負債を特定し、改善計画を立案せよ。
+Identify the technical debt in the following code and create an improvement plan.
 
 ```python
 import json, os, smtplib, sqlite3
@@ -980,30 +994,30 @@ class App:
         conn.close()
 ```
 
-**期待される分析:**
+**Expected analysis:**
 
-| 負債 | 種類 | 優先度 | 改善案 |
+| Debt | Type | Priority | Improvement |
 |------|------|--------|--------|
-| God Class | SRP違反 | 高 | 責任分離（Service, Repository, Validator） |
-| 平文パスワード保存 | セキュリティ | 最高 | bcrypt等によるハッシュ化 |
-| SQL インジェクション耐性 | セキュリティ | 高 | パラメータ化クエリ（実装済みだが検証不足） |
-| except: pass | エラー握りつぶし | 中 | ログ記録 + 適切なエラー処理 |
-| マジックナンバー(8) | 可読性 | 低 | 定数化 |
-| DB接続の管理 | リソースリーク | 高 | コンテキストマネージャ（with文） |
-| テスト不在 | 保守性 | 高 | ユニットテスト追加 |
+| God Class | SRP violation | High | Separate responsibilities (Service, Repository, Validator) |
+| Plaintext password storage | Security | Critical | Hash with bcrypt or equivalent |
+| SQL injection resistance | Security | High | Parameterized queries (partially implemented but insufficient validation) |
+| except: pass | Error swallowing | Medium | Add logging + proper error handling |
+| Magic number (8) | Readability | Low | Replace with named constant |
+| DB connection management | Resource leak | High | Use context manager (with statement) |
+| No tests | Maintainability | High | Add unit tests |
 
-### 演習3（発展）: クリーンコードへのリファクタリング
+### Exercise 3 (Advanced): Refactoring to Clean Code
 
-演習2のコードを、以下の品質基準を満たすようにリファクタリングせよ。
+Refactor the code from Exercise 2 to meet the following quality criteria.
 
-**品質基準:**
-- SOLID原則に準拠
-- 各クラス/関数の責任が明確
-- エラーハンドリングが適切
-- テスト可能な設計
-- セキュリティ上の問題が解消
+**Quality criteria:**
+- Compliant with SOLID principles
+- Responsibilities of each class/function are clear
+- Error handling is appropriate
+- Design is testable
+- Security issues are resolved
 
-**期待される出力例（一部）:**
+**Expected output example (partial):**
 
 ```python
 from abc import ABC, abstractmethod
@@ -1011,13 +1025,13 @@ from dataclasses import dataclass
 from typing import Optional
 import bcrypt
 
-# ドメインモデル
+# Domain model
 @dataclass
 class User:
     email: str
     password_hash: str
 
-# リポジトリ層
+# Repository layer
 class UserRepository(ABC):
     @abstractmethod
     def save(self, user: User) -> None: ...
@@ -1028,19 +1042,19 @@ class UserRepository(ABC):
     @abstractmethod
     def delete_by_email(self, email: str) -> None: ...
 
-# バリデーション
+# Validation
 class UserValidator:
     MIN_PASSWORD_LENGTH = 8
 
     def validate_registration(self, email: str, password: str) -> list[str]:
         errors = []
         if not email or '@' not in email:
-            errors.append("有効なメールアドレスを入力してください")
+            errors.append("Please enter a valid email address")
         if len(password) < self.MIN_PASSWORD_LENGTH:
-            errors.append(f"パスワードは{self.MIN_PASSWORD_LENGTH}文字以上必要です")
+            errors.append(f"Password must be at least {self.MIN_PASSWORD_LENGTH} characters")
         return errors
 
-# 認証サービス
+# Authentication service
 class AuthService:
     def __init__(self, repository: UserRepository, validator: UserValidator):
         self.repository = repository
@@ -1063,33 +1077,33 @@ class AuthService:
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured configuration file | Check the path and format of the configuration file |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Growing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check permissions for the executing user, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace to identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Validate incrementally**: Use logging or a debugger to verify each hypothesis
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1097,102 +1111,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """A decorator that logs the input and output of a function"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Calling: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return value: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception raised in {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (subject to debugging)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Look for the presence of memory leaks
+3. **Check for I/O waits**: Examine disk and network I/O conditions
+4. **Check concurrent connections**: Inspect the state of the connection pool
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem Type | Diagnostic Tool | Countermeasure |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| High CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Asynchronous I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | When to prioritize | When to compromise |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, speed to market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
-┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
-│                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
-│                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
-│                                                 │
-└─────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│        Architecture Selection Flow           │
+├─────────────────────────────────────────────┤
+│                                             │
+│  ① What is the team size?                   │
+│    ├─ Small (1-5 people) → Monolith         │
+│    └─ Large (10+ people) → Go to ②          │
+│                                             │
+│  ② What is the deployment frequency?        │
+│    ├─ Weekly or less → Monolith + modules   │
+│    └─ Daily / multiple times → Go to ③      │
+│                                             │
+│  ③ How independent are the teams?           │
+│    ├─ High → Microservices                  │
+│    └─ Moderate → Modular monolith           │
+│                                             │
+└─────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Analyzing Trade-offs
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze them from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A solution that is fast in the short term can become technical debt in the long term
+- Conversely, over-engineering incurs high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified technology stack has a lower learning cost
+- Adopting diverse technologies enables the right tool for the right job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction enables reusability but can make debugging difficult
+- Low abstraction is intuitive but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Template for recording design decisions
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creates an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1202,17 +1216,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describes the background and the problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describes the decision made"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Adds a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1220,7 +1234,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Adds a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1228,15 +1242,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Outputs in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1244,53 +1258,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to ship a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum necessary features
+- Automated tests only for the critical path
+- Introduce monitoring from an early stage
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons learned:**
+- Don't aim for perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually modernizing a system that has been in operation for more than 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- If no existing tests, write Characterization Tests first
+- Use an API gateway to run old and new systems side by side
+- Perform data migration in stages
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
+| Phase | Work | Estimated Duration | Risk |
 |---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| 1. Investigation | Current state analysis, understanding dependencies | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Migration begins | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core migration | Migrate core features | 6-12 months | High |
+| 5. Completion | Decommission the old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50 or more engineers working on the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Use Domain-Driven Design to clearly define boundaries
+- Assign ownership to each team
+- Manage shared libraries using an Inner Source model
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# Defining API contracts between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1303,20 +1317,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Verifies SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Outputs in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1325,7 +1339,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1346,120 +1360,120 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system where millisecond-level response times are required
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
+| Optimization Technique | Effect | Implementation Cost | Use Case |
 |-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Asynchronous processing | Medium | Medium | I/O-heavy operations |
+| DB optimization | High | High | Slow queries |
+| Code optimization | Low-Medium | High | CPU-bound operations |
 
 ---
 
-## チーム開発での活用
+## Applying This in Team Development
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Key points to verify in code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Are naming conventions consistent?
+- [ ] Is error handling appropriate?
+- [ ] Is test coverage sufficient?
+- [ ] Is there any performance impact?
+- [ ] Are there any security concerns?
+- [ ] Is the documentation up to date?
 
-### ナレッジ共有のベストプラクティス
+### Best Practices for Knowledge Sharing
 
-| 方法 | 頻度 | 対象 | 効果 |
+| Method | Frequency | Audience | Effect |
 |------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talk | Weekly | Whole team | Horizontal knowledge transfer |
+| ADR (Design records) | As needed | Future members | Transparent decision-making |
+| Retrospective | Every 2 weeks | Whole team | Continuous improvement |
+| Mob programming | Monthly | Important design | Building consensus |
 
-### 技術的負債の管理
+### Managing Technical Debt
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
+        High Impact
           │
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │ Plan│Act  │
+    │ for │ now │
+    │ it  │     │
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │ Just│ Next│
+    │ log │Sprint
+    │ it  │     │
     └─────┼─────┘
           │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        Low Impact
+    Low Frequency  High Frequency
 ```
 ---
 
 ## 11. FAQ
 
-### Q1: クリーンコードを書くと開発が遅くならないか？
+### Q1: Does writing clean code slow down development?
 
-短期的には命名や構造の検討に時間がかかる。しかし中長期的には、読む時間・デバッグ時間・変更時間が大幅に削減され、**トータルの生産性は向上する**。IBMの調査では、コードレビューにより後工程の欠陥修正コストが10〜100倍削減されることが示されている。
+In the short term, you spend more time thinking about naming and structure. However, over the medium to long term, time spent reading, debugging, and modifying code is significantly reduced, so **overall productivity improves**. IBM research shows that code review reduces the cost of fixing defects in later phases by 10 to 100 times.
 
-具体的な数字で考えてみよう。1日8時間の開発時間のうち、コードを読む時間が5.6時間（70%）、修正が1.6時間（20%）、新規コード記述が0.8時間（10%）だとする。クリーンコードによって読む時間が30%削減されれば、1日あたり1.68時間の節約になる。これは月に33.6時間、年に403時間に相当する。
+Let's think in concrete numbers. Of an 8-hour development day, if reading code takes 5.6 hours (70%), modification takes 1.6 hours (20%), and writing new code takes 0.8 hours (10%), then a 30% reduction in reading time through clean code saves 1.68 hours per day. That's 33.6 hours per month and 403 hours per year.
 
-### Q2: レガシーコードはどこからクリーンにすべきか？
+### Q2: Where should I start cleaning up legacy code?
 
-**ボーイスカウトルール**（来た時よりも綺麗にして帰る）に従い、触ったファイルを少しずつ改善する。全面書き換えではなく、テストを追加しながら段階的にリファクタリングする。優先度は「頻繁に変更されるファイル」から。
+Follow the **Boy Scout Rule** (leave it cleaner than you found it) and improve files a little at a time as you touch them. Rather than a complete rewrite, add tests and refactor incrementally. Priority goes to "files that are changed frequently."
 
-具体的なステップ:
-1. **Hotspot分析**: Gitのコミット履歴から変更頻度の高いファイルを特定（`git log --format=format: --name-only | sort | uniq -c | sort -rn | head -20`）
-2. **テスト追加**: 改善対象ファイルにまずテストを書く（振る舞いを固定）
-3. **段階的改善**: ボーイスカウトルールに従い、触るたびに少しずつ改善
-4. **計測**: 改善前後の品質メトリクスを比較
+Concrete steps:
+1. **Hotspot analysis**: Use Git commit history to identify frequently changed files (`git log --format=format: --name-only | sort | uniq -c | sort -rn | head -20`)
+2. **Add tests**: First write tests for the target file (to lock in its behavior)
+3. **Incremental improvement**: Follow the Boy Scout Rule and improve a little each time you touch the code
+4. **Measure**: Compare quality metrics before and after improvement
 
-### Q3: チーム全体でクリーンコードを徹底するには？
+### Q3: How do you enforce clean code across an entire team?
 
-1. **コーディング規約の策定と自動化**（Linter、Formatter）
-2. **コードレビュー文化の醸成**（レビューチェックリストの活用）
-3. **ペアプログラミング/モブプログラミング**の導入
-4. **技術的負債の可視化**（品質ダッシュボード）
-5. **チーム読書会**（Clean Code, Refactoring 等を輪読）
-6. **リファクタリングスプリント**の定期実施
+1. **Establish coding standards and automate them** (linters, formatters)
+2. **Foster a code review culture** (use review checklists)
+3. **Introduce pair programming / mob programming**
+4. **Make technical debt visible** (quality dashboard)
+5. **Team reading groups** (read *Clean Code*, *Refactoring*, etc. together)
+6. **Hold regular refactoring sprints**
 
-### Q4: コードが「クリーン」かどうかの判断基準は？
+### Q4: How do you judge whether code is "clean"?
 
-以下のチェックリストを使って判断できる:
+You can use the following checklist:
 
-- **5秒ルール**: 関数を見て5秒以内に目的が把握できるか？
-- **名前テスト**: 関数名だけで何をするか説明できるか？
-- **驚き最小の原則**: コードの動作に驚く部分がないか？
-- **修正テスト**: この箇所を変更する場合、影響範囲は予測できるか？
-- **テストテスト**: この関数のユニットテストは容易に書けるか？
+- **5-second rule**: Can you understand the purpose of a function within 5 seconds of looking at it?
+- **Name test**: Can you explain what a function does from its name alone?
+- **Principle of least surprise**: Is there anything surprising about the behavior of the code?
+- **Modification test**: If you were to change this part, can you predict the scope of impact?
+- **Test test**: Can you easily write a unit test for this function?
 
-### Q5: クリーンコードと設計パターンの関係は？
+### Q5: What is the relationship between clean code and design patterns?
 
-設計パターンはクリーンコードを実現するための**手段の一つ**であり、目的ではない。パターンを知ることは重要だが、「パターンを適用するためにパターンを使う」のは本末転倒。
+Design patterns are **one means** of achieving clean code, not the goal itself. Knowing patterns is important, but using patterns "just to use patterns" is putting the cart before the horse.
 
-正しい関係:
+The correct relationship:
 ```
-問題の認識 → 原則（SOLID, DRY等）で判断 → 必要ならパターンを適用
+Recognize the problem → Judge using principles (SOLID, DRY, etc.) → Apply a pattern if needed
 ```
 
-誤った関係:
+The incorrect relationship:
 ```
-パターンを知っている → パターンを適用できる場面を探す → 無理やり適用
+Know a pattern → Look for situations to apply it → Force it in
 ```
 
 ---
@@ -1467,68 +1481,68 @@ contracts = [
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 内容 |
+| Item | Content |
 |------|------|
-| クリーンコードの本質 | 読みやすく、理解しやすく、変更しやすいコード |
-| ビジネス効果 | 保守コスト削減、開発速度の維持、バグの予防 |
-| 基本原則 | 可読性第一、DRY、KISS、YAGNI、SRP、低結合・高凝集 |
-| 測定方法 | 複雑度、カバレッジ、重複率、関数サイズ、技術的負債比率 |
-| 実践の鍵 | 自動化ツール + コードレビュー + 継続的改善 |
-| 脳科学的根拠 | ワーキングメモリの制約に配慮したコードが理解しやすい |
-| 導入戦略 | 段階的（認識→自動化→実践→文化→定着） |
-| トレードオフ | パフォーマンス・締め切りとのバランスを状況に応じて判断 |
+| Essence of clean code | Code that is readable, understandable, and easy to change |
+| Business effect | Reduced maintenance cost, sustained development velocity, bug prevention |
+| Core principles | Readability first, DRY, KISS, YAGNI, SRP, low coupling and high cohesion |
+| Measurement methods | Complexity, coverage, duplication rate, function size, technical debt ratio |
+| Key to practice | Automation tools + code review + continuous improvement |
+| Neuroscientific basis | Code that respects the constraints of working memory is easier to understand |
+| Adoption strategy | Gradual (awareness → automation → practice → culture → establishment) |
+| Trade-offs | Balance with performance and deadlines based on the situation |
 
-### クリーンコードの原則と実践の対応表
+### Correspondence Table: Clean Code Principles and Practices
 
-| 原則 | 対応する実践 | 測定指標 | ツール |
+| Principle | Corresponding Practice | Measurement Metric | Tool |
 |------|------------|---------|--------|
-| 可読性第一 | 命名規則、コメント最小化 | レビュー時間 | Code review metrics |
-| DRY | 共通モジュール抽出 | 重複率 | jscpd, PMD CPD |
-| KISS | 最小限の抽象化 | 認知的複雑度 | SonarQube |
-| YAGNI | 要件駆動の実装 | 未使用コード率 | dead code analysis |
-| SRP | 小さなクラス・関数 | クラスサイズ | Linter |
-| 低結合 | DI、インターフェース | 依存関係の数 | deptry, madge |
-| 高凝集 | ドメイン基準の構成 | LCOM | SonarQube |
+| Readability first | Naming conventions, minimize comments | Review time | Code review metrics |
+| DRY | Extract common modules | Duplication rate | jscpd, PMD CPD |
+| KISS | Minimal abstraction | Cognitive complexity | SonarQube |
+| YAGNI | Requirements-driven implementation | Unused code rate | dead code analysis |
+| SRP | Small classes and functions | Class size | Linter |
+| Low coupling | DI, interfaces | Number of dependencies | deptry, madge |
+| High cohesion | Domain-based organization | LCOM | SonarQube |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [SOLID原則](./01-solid.md) ── オブジェクト指向設計の5大原則
-- [DRY/KISS/YAGNI](./02-dry-kiss-yagni.md) ── 重複排除と単純化の原則
-- [結合度と凝集度](./03-coupling-cohesion.md) ── モジュール設計の基盤
-- [デメテルの法則](./04-law-of-demeter.md) ── 最小知識の原則
-- [命名規則](../01-practices/00-naming.md) ── 意図を伝える命名術
-- [関数設計](../01-practices/01-functions.md) ── 単一責任・引数・副作用
-- [エラーハンドリング](../01-practices/02-error-handling.md) ── 堅牢なエラー処理
-- [コードスメル](../02-refactoring/00-code-smells.md) ── 問題のあるコードの兆候
-- デザインパターン ── 設計パターンの活用
+- [SOLID Principles](./01-solid.md) ── The 5 principles of object-oriented design
+- [DRY/KISS/YAGNI](./02-dry-kiss-yagni.md) ── Principles of eliminating duplication and keeping things simple
+- [Coupling and Cohesion](./03-coupling-cohesion.md) ── The foundation of module design
+- [Law of Demeter](./04-law-of-demeter.md) ── The principle of least knowledge
+- [Naming Conventions](../01-practices/00-naming.md) ── The art of naming to convey intent
+- [Function Design](../01-practices/01-functions.md) ── Single responsibility, arguments, and side effects
+- [Error Handling](../01-practices/02-error-handling.md) ── Robust error handling
+- [Code Smells](../02-refactoring/00-code-smells.md) ── Signs of problematic code
+- Design Patterns ── Applying design patterns
 
 ---
 
-## 参考文献
+## References
 
-1. **Robert C. Martin** 『Clean Code: A Handbook of Agile Software Craftsmanship』 Prentice Hall, 2008
-2. **Martin Fowler** 『Refactoring: Improving the Design of Existing Code』 Addison-Wesley, 2018 (2nd Edition)
-3. **Steve McConnell** 『Code Complete: A Practical Handbook of Software Construction』 Microsoft Press, 2004 (2nd Edition)
-4. **Dustin Boswell, Trevor Foucher** 『The Art of Readable Code』 O'Reilly Media, 2011
-5. **John Ousterhout** 『A Philosophy of Software Design』 Yaknyam Press, 2018
+1. **Robert C. Martin** *Clean Code: A Handbook of Agile Software Craftsmanship* Prentice Hall, 2008
+2. **Martin Fowler** *Refactoring: Improving the Design of Existing Code* Addison-Wesley, 2018 (2nd Edition)
+3. **Steve McConnell** *Code Complete: A Practical Handbook of Software Construction* Microsoft Press, 2004 (2nd Edition)
+4. **Dustin Boswell, Trevor Foucher** *The Art of Readable Code* O'Reilly Media, 2011
+5. **John Ousterhout** *A Philosophy of Software Design* Yaknyam Press, 2018
 6. **Thomas McCabe** "A Complexity Measure" IEEE Transactions on Software Engineering, 1976
 7. **G. Ann Campbell** "Cognitive Complexity: A New Way of Measuring Understandability" SonarSource, 2018
-8. **Ward Cunningham** "The WyCash Portfolio Management System" OOPSLA Experience Report, 1992 ── 技術的負債の原典
+8. **Ward Cunningham** "The WyCash Portfolio Management System" OOPSLA Experience Report, 1992 ── The original source for technical debt
