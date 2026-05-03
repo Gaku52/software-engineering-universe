@@ -1,80 +1,81 @@
 # Web Workers
 
-> Web Workers はメインスレッドとは別のバックグラウンドスレッドで JavaScript を実行する仕組みである。重い計算処理をオフロードして UI の応答性を維持し、マルチスレッドプログラミングのパターンを Web に持ち込む。Dedicated Worker、Shared Worker、Service Worker の 3 種類を正しく使い分けることで、高パフォーマンスかつオフライン対応のアプリケーションを構築できる。
+> Web Workers are a mechanism for running JavaScript in a background thread separate from the main thread. They offload heavy computation to maintain UI responsiveness and bring multithreaded programming patterns to the Web. By correctly using the three types — Dedicated Worker, Shared Worker, and Service Worker — you can build high-performance, offline-capable applications.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] Web Worker の基本概念とブラウザのスレッドモデルを理解する
-- [ ] Dedicated Worker の生成、メッセージパッシング、終了を実装できる
-- [ ] Shared Worker で複数タブ間の状態共有を実現できる
-- [ ] Service Worker のライフサイクルとキャッシュ戦略を設計できる
-- [ ] Transferable Objects と SharedArrayBuffer の使い分けを判断できる
-- [ ] Worker プールパターンによる並列処理を設計できる
-- [ ] Worklet の種類と用途を把握する
-
----
-
-## 前提知識
-
-- **ブラウザのイベントループ** → 参照: [イベントループ](./01-event-loop-browser.md)
-  Web Worker がメインスレッドとどのように協調動作するかを理解するために、イベントループの仕組み（タスクキュー、マイクロタスク、レンダリングタイミング）を事前に把握しておく必要がある。
-
-- **V8 エンジンの仕組み** → 参照: [V8 エンジン](./00-v8-engine.md)
-  Worker スレッドも V8 エンジンで実行されるため、JIT コンパイル、ガベージコレクション、ヒープ管理の基礎知識があると、Worker のパフォーマンスチューニングがしやすくなる。
-
-- **マルチスレッドプログラミングの概念**
-  Worker によるメッセージパッシング、Shared Worker での状態共有、SharedArrayBuffer での同期処理を理解するには、スレッド間通信、競合状態（Race Condition）、Atomics による排他制御の基本概念が必要である。
+- [ ] Understand the basic concepts of Web Workers and the browser thread model
+- [ ] Implement Dedicated Worker creation, message passing, and termination
+- [ ] Achieve state sharing across multiple tabs with Shared Worker
+- [ ] Design Service Worker lifecycle and caching strategies
+- [ ] Decide when to use Transferable Objects vs. SharedArrayBuffer
+- [ ] Design parallel processing with the Worker pool pattern
+- [ ] Understand the types and purposes of Worklets
 
 ---
 
-## 1. ブラウザのスレッドモデルと Web Worker の位置づけ
+## Prerequisites
 
-### 1.1 シングルスレッドの限界
+- **Browser Event Loop** → Reference: [Event Loop](./01-event-loop-browser.md)
+  To understand how Web Workers cooperate with the main thread, you need a prior grasp of the event loop mechanism (task queue, microtasks, rendering timing).
 
-ブラウザのメインスレッド（UI スレッド）は JavaScript の実行、DOM の更新、レイアウト計算、ペイント処理をすべて 1 つのスレッドで行う。このため、長時間かかる計算処理があると画面が固まり（ジャンク）、ユーザー体験が著しく低下する。
+- **V8 Engine Internals** → Reference: [V8 Engine](./00-v8-engine.md)
+  Worker threads also run on the V8 engine, so foundational knowledge of JIT compilation, garbage collection, and heap management will make Worker performance tuning easier.
+
+- **Multithreaded Programming Concepts**
+  Understanding message passing between Workers, state sharing in Shared Workers, and synchronization with SharedArrayBuffer requires basic concepts of inter-thread communication, race conditions, and mutual exclusion with Atomics.
+
+---
+
+## 1. Browser Thread Model and the Role of Web Workers
+
+### 1.1 Single-Thread Limitations
+
+The browser's main thread (UI thread) handles JavaScript execution, DOM updates, layout calculations, and paint processing all in a single thread. As a result, any long-running computation freezes the screen (jank) and dramatically degrades user experience.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    メインスレッド（UI スレッド）                    │
+│                    Main Thread (UI Thread)                      │
 │                                                                 │
 │  ┌──────┐ ┌──────┐ ┌──────────────────────┐ ┌──────┐ ┌──────┐ │
-│  │ JS   │ │Layout│ │  重い計算（3秒）       │ │Layout│ │Paint │ │
-│  │実行  │ │      │ │  ← この間 UI が固まる │ │      │ │      │ │
+│  │ JS   │ │Layout│ │  Heavy computation   │ │Layout│ │Paint │ │
+│  │ exec │ │      │ │  (3 seconds)         │ │      │ │      │ │
+│  │      │ │      │ │  ← UI is frozen here │ │      │ │      │ │
 │  └──────┘ └──────┘ └──────────────────────┘ └──────┘ └──────┘ │
 │  0ms      16ms      33ms ─────────────────── 3033ms   3050ms   │
 │                                                                 │
-│  60fps を維持するには各フレームを 16.67ms 以内に処理する必要がある │
-│  3 秒のブロッキングは約 180 フレーム分のドロップに相当             │
+│  Maintaining 60fps requires each frame to complete within      │
+│  16.67ms. A 3-second block equals about 180 dropped frames.    │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 Web Worker によるマルチスレッド化
+### 1.2 Multithreading with Web Workers
 
-Web Worker を導入すると、重い計算をバックグラウンドスレッドに移し、メインスレッドは UI 更新に専念できる。
+Introducing a Web Worker moves heavy computation to a background thread, freeing the main thread to focus on UI updates.
 
 ```
 ┌───────────────────────────────────────────────────────────────────┐
-│  メインスレッド                                                    │
+│  Main Thread                                                      │
 │  ┌────┐ ┌──────┐ ┌────┐ ┌──────┐ ┌────┐ ┌──────┐ ┌────────────┐│
-│  │ JS │ │Layout│ │ JS │ │Layout│ │ JS │ │Layout│ │結果受信+描画││
+│  │ JS │ │Layout│ │ JS │ │Layout│ │ JS │ │Layout│ │ Recv+Render││
 │  └────┘ └──────┘ └────┘ └──────┘ └────┘ └──────┘ └────────────┘│
 │  0ms    16ms     33ms    50ms     67ms   83ms     ...           │
 │    │                                                     ▲       │
 │    │ postMessage                            postMessage  │       │
 │    ▼                                                     │       │
 │  ┌─────────────────────────────────────────────────────────┐     │
-│  │  Worker スレッド                                         │     │
+│  │  Worker Thread                                          │     │
 │  │  ┌──────────────────────────────────────────────────┐   │     │
-│  │  │        重い計算（3秒）                             │   │     │
-│  │  │        メインスレッドに影響を与えない               │   │     │
+│  │  │        Heavy computation (3 seconds)             │   │     │
+│  │  │        Does not affect the main thread           │   │     │
 │  │  └──────────────────────────────────────────────────┘   │     │
 │  └─────────────────────────────────────────────────────────┘     │
 │                                                                   │
-│  メインスレッドは 60fps を維持し続ける                              │
+│  The main thread continues to maintain 60fps                     │
 └───────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.3 Worker の種類と全体像
+### 1.3 Types of Workers and Overview
 
 ```
                         Web Worker API
@@ -84,20 +85,21 @@ Web Worker を導入すると、重い計算をバックグラウンドスレッ
         Dedicated       Shared         Service
          Worker         Worker          Worker
               │              │              │
-        1 ページ       複数ページ      全ページ
-        専用スレッド    共有スレッド    プロキシ型
+        1 page          Multiple       All pages
+        dedicated       pages          proxy-type
               │              │              │
-        重い計算        状態共有       キャッシュ
-        データ加工     WebSocket共有   オフライン
-        画像処理        DB 接続共有    Push 通知
-                                      バックグラウンド同期
+        Heavy calc     State sharing   Caching
+        Data process   WebSocket share  Offline
+        Image process  DB conn share   Push notifications
+                                      Background sync
 
               ┌──────────────────────────┐
               │        Worklet           │
               │  Paint / Animation /     │
               │  Audio / Layout          │
-              │  (レンダリングパイプライン │
-              │   統合型の軽量 Worker)    │
+              │  (Lightweight Worker     │
+              │   integrated into the    │
+              │   rendering pipeline)    │
               └──────────────────────────┘
 ```
 
@@ -105,45 +107,45 @@ Web Worker を導入すると、重い計算をバックグラウンドスレッ
 
 ## 2. Dedicated Worker
 
-### 2.1 基本的な使い方
+### 2.1 Basic Usage
 
-Dedicated Worker は最も基本的な Worker で、1 つのページ（正確には 1 つのスクリプトコンテキスト）に紐づく。
+A Dedicated Worker is the most fundamental Worker type, tied to a single page (specifically, a single script context).
 
 ```javascript
 // ===== main.js =====
 
-// Worker の生成
-// worker.js はメインスクリプトとは別のファイルとして用意する
+// Creating a Worker
+// worker.js is prepared as a separate file from the main script
 const worker = new Worker('worker.js');
 
-// Worker にデータを送信
+// Send data to the Worker
 worker.postMessage({
   type: 'sort',
   data: generateLargeArray(1_000_000)
 });
 
-// Worker からの結果を受信
+// Receive results from the Worker
 worker.onmessage = (event) => {
   const { type, result, duration } = event.data;
-  console.log(`[${type}] 完了: ${duration}ms`);
+  console.log(`[${type}] Completed: ${duration}ms`);
   renderResult(result);
 };
 
-// Worker 内でのエラーをキャッチ
+// Catch errors inside the Worker
 worker.onerror = (error) => {
   console.error('Worker error:', error.message);
-  console.error('ファイル:', error.filename);
-  console.error('行番号:', error.lineno);
+  console.error('File:', error.filename);
+  console.error('Line number:', error.lineno);
 };
 
-// Worker が不要になったら終了（リソース解放）
+// Terminate the Worker when no longer needed (release resources)
 // worker.terminate();
 
 
 // ===== worker.js =====
 
-// Worker 側のグローバルスコープは `self`（= DedicatedWorkerGlobalScope）
-// `window` や `document` は存在しない
+// The global scope on the Worker side is `self` (= DedicatedWorkerGlobalScope)
+// `window` and `document` do not exist
 
 self.onmessage = (event) => {
   const { type, data } = event.data;
@@ -163,55 +165,55 @@ self.onmessage = (event) => {
       break;
     }
     default:
-      self.postMessage({ type: 'error', message: `未知のタイプ: ${type}` });
+      self.postMessage({ type: 'error', message: `Unknown type: ${type}` });
   }
 };
 
-// Worker 内からの自発的な終了
+// Voluntarily terminate from inside the Worker
 // self.close();
 ```
 
-### 2.2 Worker でアクセス可能な API
+### 2.2 APIs Accessible in Workers
 
-Worker スレッドはメインスレッドとは異なるグローバルスコープを持つ。DOM には一切アクセスできないが、ネットワーク通信やストレージの一部は利用できる。
+A Worker thread has a different global scope from the main thread. It has no access to the DOM whatsoever, but can use some network communication and storage APIs.
 
-| カテゴリ | API | 利用可否 |
-|----------|-----|----------|
-| DOM | document, window, HTMLElement | 不可 |
-| ネットワーク | fetch, XMLHttpRequest | 可 |
-| WebSocket | WebSocket | 可 |
-| タイマー | setTimeout, setInterval | 可 |
-| ストレージ | IndexedDB | 可 |
-| ストレージ | localStorage, sessionStorage | 不可 |
-| URL | URL, URLSearchParams | 可 |
-| 暗号 | crypto.subtle (Web Crypto API) | 可 |
-| パフォーマンス | performance.now(), performance.mark() | 可 |
-| コンソール | console.log() 等 | 可 |
-| モジュール | importScripts() | 可 |
-| エンコード | TextEncoder, TextDecoder | 可 |
-| 画像処理 | createImageBitmap, OffscreenCanvas | 可 |
-| 通知 | Notification (一部ブラウザ) | 制限あり |
+| Category | API | Available |
+|----------|-----|-----------|
+| DOM | document, window, HTMLElement | No |
+| Network | fetch, XMLHttpRequest | Yes |
+| WebSocket | WebSocket | Yes |
+| Timers | setTimeout, setInterval | Yes |
+| Storage | IndexedDB | Yes |
+| Storage | localStorage, sessionStorage | No |
+| URL | URL, URLSearchParams | Yes |
+| Crypto | crypto.subtle (Web Crypto API) | Yes |
+| Performance | performance.now(), performance.mark() | Yes |
+| Console | console.log() etc. | Yes |
+| Modules | importScripts() | Yes |
+| Encoding | TextEncoder, TextDecoder | Yes |
+| Image processing | createImageBitmap, OffscreenCanvas | Yes |
+| Notifications | Notification (some browsers) | Limited |
 
 ### 2.3 Module Worker
 
-従来の Worker は `importScripts()` でスクリプトを読み込んでいたが、ES Modules に対応した Module Worker を使うと `import`/`export` 構文が利用できる。
+Traditional Workers loaded scripts with `importScripts()`, but a Module Worker supporting ES Modules allows the use of `import`/`export` syntax.
 
 ```javascript
 // ===== main.js =====
 
-// type: 'module' を指定すると ES Module として読み込まれる
+// Specifying type: 'module' loads it as an ES Module
 const worker = new Worker('worker.js', { type: 'module' });
 
 worker.postMessage({ numbers: [5, 3, 8, 1, 9, 2, 7] });
 
 worker.onmessage = (event) => {
-  console.log('統計結果:', event.data);
+  console.log('Statistics result:', event.data);
 };
 
 
 // ===== worker.js (Module Worker) =====
 
-// ES Module の import が使える
+// ES Module imports are available
 import { mean, median, standardDeviation } from './statistics.js';
 
 self.onmessage = (event) => {
@@ -249,12 +251,12 @@ export function standardDeviation(arr) {
 }
 ```
 
-### 2.4 Inline Worker（Blob URL パターン）
+### 2.4 Inline Worker (Blob URL Pattern)
 
-Worker ファイルを別途用意せず、メインスクリプト内にインラインで定義するテクニック。バンドラーとの統合や単一ファイルで完結させたい場合に有用。
+A technique for defining the Worker code inline in the main script rather than as a separate file. Useful for bundler integration or keeping everything in a single file.
 
 ```javascript
-// Worker のコードを文字列として定義
+// Define the Worker code as a string
 function createInlineWorker(workerFunction) {
   const blob = new Blob(
     [`(${workerFunction.toString()})()`],
@@ -263,17 +265,17 @@ function createInlineWorker(workerFunction) {
   const url = URL.createObjectURL(blob);
   const worker = new Worker(url);
 
-  // Blob URL はすぐに解放可能（Worker は既にロード済み）
+  // Blob URL can be released immediately (Worker is already loaded)
   URL.revokeObjectURL(url);
 
   return worker;
 }
 
-// 使用例
+// Usage
 const worker = createInlineWorker(function() {
   self.onmessage = (event) => {
     const { data } = event;
-    // フィボナッチ数列の計算（再帰ではなく反復で実装）
+    // Fibonacci sequence computation (iterative, not recursive)
     function fibonacci(n) {
       if (n <= 1) return n;
       let prev = 0, curr = 1;
@@ -294,9 +296,9 @@ worker.onmessage = (e) => console.log(e.data);
 // { input: 45, result: 1134903170 }
 ```
 
-### 2.5 Worker プールパターン
+### 2.5 Worker Pool Pattern
 
-Worker の生成にはコスト（数 ms〜数十 ms）がかかる。頻繁にタスクを投げる場合は、あらかじめ複数の Worker を生成してプールし、タスクをラウンドロビンやキュー方式で分配するパターンが有効である。
+Creating a Worker has a cost (a few to several tens of milliseconds). When tasks are submitted frequently, it is efficient to pre-create multiple Workers in a pool and distribute tasks using round-robin or queue-based dispatch.
 
 ```javascript
 // ===== WorkerPool.js =====
@@ -308,41 +310,41 @@ class WorkerPool {
     this.taskQueue = [];
     this.workerStatus = [];  // true = idle, false = busy
 
-    // Worker をプールサイズ分生成
+    // Create Workers equal to pool size
     for (let i = 0; i < poolSize; i++) {
       const worker = new Worker(workerScript, { type: 'module' });
       this.workers.push(worker);
-      this.workerStatus.push(true);  // 初期状態は idle
+      this.workerStatus.push(true);  // Initially idle
     }
   }
 
-  // タスクを投入し、Promise で結果を返す
+  // Submit a task and return the result as a Promise
   exec(data) {
     return new Promise((resolve, reject) => {
       const task = { data, resolve, reject };
 
-      // 空いている Worker を探す
+      // Look for an idle Worker
       const idleIndex = this.workerStatus.indexOf(true);
       if (idleIndex !== -1) {
         this._runTask(idleIndex, task);
       } else {
-        // 全 Worker がビジーならキューに入れる
+        // If all Workers are busy, queue the task
         this.taskQueue.push(task);
       }
     });
   }
 
   _runTask(workerIndex, task) {
-    this.workerStatus[workerIndex] = false;  // busy にする
+    this.workerStatus[workerIndex] = false;  // Set to busy
     const worker = this.workers[workerIndex];
 
     const onMessage = (event) => {
       worker.removeEventListener('message', onMessage);
       worker.removeEventListener('error', onError);
-      this.workerStatus[workerIndex] = true;  // idle に戻す
+      this.workerStatus[workerIndex] = true;  // Return to idle
 
       task.resolve(event.data);
-      this._processQueue();  // キューに待ちタスクがあれば処理
+      this._processQueue();  // Process queued tasks if any
     };
 
     const onError = (error) => {
@@ -367,19 +369,19 @@ class WorkerPool {
     this._runTask(idleIndex, task);
   }
 
-  // 全 Worker を終了
+  // Terminate all Workers
   terminate() {
     this.workers.forEach(w => w.terminate());
     this.workers = [];
     this.workerStatus = [];
-    // キュー内の未処理タスクを reject
+    // Reject unprocessed tasks in the queue
     this.taskQueue.forEach(task =>
       task.reject(new Error('WorkerPool terminated'))
     );
     this.taskQueue = [];
   }
 
-  // プールの状態を取得
+  // Get pool status
   get stats() {
     return {
       poolSize: this.poolSize,
@@ -391,11 +393,11 @@ class WorkerPool {
 }
 
 
-// ===== 使用例 =====
+// ===== Usage =====
 
 const pool = new WorkerPool('compute-worker.js', 4);
 
-// 100 個のタスクを並列実行（最大 4 並列）
+// Execute 100 tasks in parallel (max 4 parallel)
 const tasks = Array.from({ length: 100 }, (_, i) => ({
   id: i,
   type: 'heavyComputation',
@@ -406,17 +408,17 @@ const results = await Promise.all(
   tasks.map(task => pool.exec(task))
 );
 
-console.log(`全 ${results.length} タスク完了`);
-console.log('プール状態:', pool.stats);
+console.log(`All ${results.length} tasks completed`);
+console.log('Pool status:', pool.stats);
 
-// 使い終わったらリソースを解放
+// Release resources when done
 pool.terminate();
 ```
 
 ```
-Worker プールの動作イメージ:
+Worker pool operation:
 
-  タスクキュー          Worker プール（サイズ = 4）
+  Task Queue          Worker Pool (size = 4)
   ┌─────────┐
   │ Task 8   │     ┌────────────────────────────────┐
   │ Task 7   │     │ Worker 0: [Task 1] ■■■■□□□□    │
@@ -425,51 +427,51 @@ Worker プールの動作イメージ:
   │          │────→│ Worker 3: [Task 4] ■■□□□□□□    │
   └─────────┘     └────────────────────────────────┘
                           │
-                          ▼ タスク完了時
-                    次のタスクをキューからデキュー
+                          ▼ On task completion
+                    Dequeue next task from queue
 
-  ■ = 処理中の進捗
-  □ = 残り処理
+  ■ = progress of processing
+  □ = remaining processing
 
-  Worker 3 が Task 4 を完了
-    → Worker 3 が idle になる
-    → キューから Task 5 をデキュー
-    → Worker 3 が Task 5 の処理を開始
+  Worker 3 completes Task 4
+    → Worker 3 becomes idle
+    → Dequeue Task 5 from queue
+    → Worker 3 starts processing Task 5
 ```
 
 ---
 
-## 3. メッセージパッシングの詳細
+## 3. Message Passing in Detail
 
-### 3.1 Structured Clone アルゴリズム
+### 3.1 Structured Clone Algorithm
 
-`postMessage()` で送信されるデータは、デフォルトで Structured Clone アルゴリズムによってディープコピーされる。JSON.parse(JSON.stringify()) よりも多くの型をサポートする。
+Data sent with `postMessage()` is deep-copied by the Structured Clone algorithm by default. It supports more types than `JSON.parse(JSON.stringify())`.
 
-| データ型 | Structured Clone | JSON | 備考 |
-|----------|:----------------:|:----:|------|
-| プリミティブ (string, number, boolean) | 可 | 可 | |
-| null, undefined | 可 | null のみ | undefined は JSON で消える |
-| Date | 可 | 文字列化 | JSON は Date を文字列にする |
-| RegExp | 可 | 空オブジェクト | JSON は RegExp を {} にする |
-| Map, Set | 可 | 不可 | JSON 未対応 |
-| ArrayBuffer, TypedArray | 可 | 不可 | バイナリデータ |
-| Blob, File | 可 | 不可 | |
-| ImageData, ImageBitmap | 可 | 不可 | |
-| Error | 可 | 不可 | name と message のみ |
-| Function | 不可 | 不可 | 関数はクローン不可 |
-| DOM ノード | 不可 | 不可 | |
-| Symbol | 不可 | 不可 | |
-| WeakMap, WeakRef | 不可 | 不可 | 弱参照は移行不可 |
-| クラスインスタンス | プロパティのみ | プロパティのみ | プロトタイプチェーンは失われる |
+| Data Type | Structured Clone | JSON | Notes |
+|-----------|:----------------:|:----:|-------|
+| Primitives (string, number, boolean) | Yes | Yes | |
+| null, undefined | Yes | null only | undefined disappears in JSON |
+| Date | Yes | Stringified | JSON converts Date to string |
+| RegExp | Yes | Empty object | JSON converts RegExp to {} |
+| Map, Set | Yes | No | Not supported by JSON |
+| ArrayBuffer, TypedArray | Yes | No | Binary data |
+| Blob, File | Yes | No | |
+| ImageData, ImageBitmap | Yes | No | |
+| Error | Yes | No | Only name and message |
+| Function | No | No | Functions cannot be cloned |
+| DOM nodes | No | No | |
+| Symbol | No | No | |
+| WeakMap, WeakRef | No | No | Weak references cannot be transferred |
+| Class instances | Properties only | Properties only | Prototype chain is lost |
 
-### 3.2 メッセージのシリアライゼーションコスト
+### 3.2 Message Serialization Cost
 
-Structured Clone にはコピーコストが発生する。データサイズが大きいほど、コピーに要する時間は増大する。
+Structured Clone incurs a copy cost. The larger the data, the more time the copy takes.
 
 ```
-Structured Clone のコスト目安（ブラウザ・環境により変動）:
+Approximate cost of Structured Clone (varies by browser and environment):
 
-  データサイズ       コピー時間の目安
+  Data size          Approximate copy time
   ─────────────────────────────────
     1 KB             < 0.01 ms
    10 KB             ~ 0.05 ms
@@ -478,31 +480,31 @@ Structured Clone のコスト目安（ブラウザ・環境により変動）:
    10 MB             ~ 50   ms
   100 MB             ~ 500  ms
 
-  注意: これは一般的な傾向値であり、データの構造（ネスト深度、
-  オブジェクト数）やブラウザエンジンによって大きく変動する。
-  実際のアプリケーションではプロファイリングによる検証を推奨。
+  Note: These are general reference values. They can vary greatly
+  depending on data structure (nesting depth, number of objects)
+  and the browser engine. In actual applications, verify with profiling.
 ```
 
-### 3.3 メッセージプロトコルの設計
+### 3.3 Designing a Message Protocol
 
-複雑なアプリケーションでは、Worker とメインスレッド間のメッセージに一定のプロトコルを設けるとよい。
+For complex applications, it is good practice to establish a protocol for messages between Workers and the main thread.
 
 ```javascript
 // ===== message-protocol.js =====
 
-// メッセージ型の定義（TypeScript 併用時は interface / type で定義）
+// Define message types (use interface / type in TypeScript)
 const MessageType = {
-  // メインスレッド → Worker
+  // Main thread → Worker
   REQUEST_COMPUTE: 'REQUEST_COMPUTE',
   REQUEST_CANCEL:  'REQUEST_CANCEL',
 
-  // Worker → メインスレッド
+  // Worker → Main thread
   RESPONSE_SUCCESS: 'RESPONSE_SUCCESS',
   RESPONSE_ERROR:   'RESPONSE_ERROR',
   PROGRESS_UPDATE:  'PROGRESS_UPDATE',
 };
 
-// リクエスト ID を生成するユーティリティ
+// Utility for generating request IDs
 let requestIdCounter = 0;
 function generateRequestId() {
   return `req_${Date.now()}_${++requestIdCounter}`;
@@ -551,23 +553,23 @@ worker.onmessage = (event) => {
       break;
     }
     case MessageType.PROGRESS_UPDATE: {
-      console.log(`[${requestId}] 進捗: ${progress}%`);
-      // UI のプログレスバーを更新するなど
+      console.log(`[${requestId}] Progress: ${progress}%`);
+      // Update progress bar in the UI, etc.
       break;
     }
   }
 };
 
-// 使用例: Promise ベースで Worker を呼び出す
+// Usage: call the Worker in a Promise-based way
 async function processData(rawData) {
   try {
     const result = await sendRequest(worker, {
       operation: 'analyze',
       data: rawData
     });
-    console.log('結果:', result);
+    console.log('Result:', result);
   } catch (err) {
-    console.error('処理失敗:', err.message);
+    console.error('Processing failed:', err.message);
   }
 }
 
@@ -583,7 +585,7 @@ self.onmessage = (event) => {
       let result = [];
 
       for (let i = 0; i < totalSteps; i++) {
-        // 進捗を定期的に報告
+        // Report progress periodically
         if (i % 10 === 0) {
           self.postMessage({
             type: MessageType.PROGRESS_UPDATE,
@@ -591,7 +593,7 @@ self.onmessage = (event) => {
             progress: Math.round((i / totalSteps) * 100)
           });
         }
-        // 実際の計算処理
+        // Actual computation
         result.push(compute(payload.data, i));
       }
 
@@ -615,66 +617,66 @@ self.onmessage = (event) => {
 
 ## 4. Transferable Objects
 
-### 4.1 所有権の移転（Transfer）
+### 4.1 Ownership Transfer
 
-Structured Clone はデータをコピーするため、大きなバイナリデータの転送にはオーバーヘッドが大きい。Transferable Objects を使うと、データのメモリ領域の「所有権」を移転することで、ほぼゼロコストで転送できる。
+Because Structured Clone copies data, transferring large binary data has significant overhead. With Transferable Objects, you can transfer "ownership" of the memory region — which is nearly zero-cost.
 
 ```javascript
-// ===== Structured Clone（コピー）と Transfer（移転）の比較 =====
+// ===== Comparison: Structured Clone (copy) vs. Transfer (ownership transfer) =====
 
-// --- 方法 1: Structured Clone（デフォルト） ---
+// --- Method 1: Structured Clone (default) ---
 const buffer1 = new ArrayBuffer(100 * 1024 * 1024); // 100MB
-console.log('送信前:', buffer1.byteLength); // 104857600
+console.log('Before send:', buffer1.byteLength); // 104857600
 
-worker.postMessage(buffer1);  // コピーが発生（数十 ms）
-console.log('送信後:', buffer1.byteLength); // 104857600（元のデータは残る）
+worker.postMessage(buffer1);  // A copy is made (tens of ms)
+console.log('After send:', buffer1.byteLength); // 104857600 (original remains)
 
 
-// --- 方法 2: Transfer（所有権の移転） ---
+// --- Method 2: Transfer (ownership transfer) ---
 const buffer2 = new ArrayBuffer(100 * 1024 * 1024); // 100MB
-console.log('送信前:', buffer2.byteLength); // 104857600
+console.log('Before send:', buffer2.byteLength); // 104857600
 
-worker.postMessage(buffer2, [buffer2]);  // 所有権を移転（ほぼ 0ms）
-console.log('送信後:', buffer2.byteLength); // 0 （もうアクセスできない）
+worker.postMessage(buffer2, [buffer2]);  // Transfer ownership (nearly 0ms)
+console.log('After send:', buffer2.byteLength); // 0 (no longer accessible)
 
-// 移転後に buffer2 を使おうとするとエラーにはならないが、
-// byteLength は 0 になり、TypedArray のビューも空になる
+// Using buffer2 after transfer does not throw an error,
+// but byteLength becomes 0 and TypedArray views become empty
 ```
 
-### 4.2 Transferable な型の一覧
+### 4.2 List of Transferable Types
 
-| 型 | 用途 | 備考 |
-|----|------|------|
-| ArrayBuffer | バイナリデータ全般 | 最も一般的な Transferable |
-| MessagePort | Worker 間の直接通信チャネル | Channel Messaging API |
-| ImageBitmap | 画像データ | createImageBitmap() で生成 |
-| OffscreenCanvas | Worker 内での Canvas 描画 | 描画権限の移転 |
-| ReadableStream | ストリームの所有権移転 | Streams API |
-| WritableStream | ストリームの所有権移転 | Streams API |
-| TransformStream | ストリームの所有権移転 | Streams API |
-| VideoFrame | 動画フレーム | WebCodecs API |
-| AudioData | 音声データ | WebCodecs API |
+| Type | Use Case | Notes |
+|------|----------|-------|
+| ArrayBuffer | General binary data | Most common Transferable |
+| MessagePort | Direct communication channel between Workers | Channel Messaging API |
+| ImageBitmap | Image data | Created with createImageBitmap() |
+| OffscreenCanvas | Canvas rendering inside Workers | Transfers drawing rights |
+| ReadableStream | Transfer of stream ownership | Streams API |
+| WritableStream | Transfer of stream ownership | Streams API |
+| TransformStream | Transfer of stream ownership | Streams API |
+| VideoFrame | Video frames | WebCodecs API |
+| AudioData | Audio data | WebCodecs API |
 
-### 4.3 画像処理での Transferable Objects 活用例
+### 4.3 Using Transferable Objects for Image Processing
 
 ```javascript
-// ===== main.js: 画像のグレースケール変換を Worker に委譲 =====
+// ===== main.js: Delegate grayscale conversion to a Worker =====
 
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
 async function processImage(imageElement) {
-  // 画像を ImageBitmap に変換
+  // Convert image to ImageBitmap
   const bitmap = await createImageBitmap(imageElement);
 
-  // OffscreenCanvas を使って ImageData を取得
+  // Get ImageData using OffscreenCanvas
   const offscreen = new OffscreenCanvas(bitmap.width, bitmap.height);
   const offCtx = offscreen.getContext('2d');
   offCtx.drawImage(bitmap, 0, 0);
   const imageData = offCtx.getImageData(0, 0, bitmap.width, bitmap.height);
 
-  // ImageData の内部バッファを Transfer で Worker に送信
-  // imageData.data は Uint8ClampedArray、その buffer が ArrayBuffer
+  // Transfer the internal buffer of ImageData to the Worker
+  // imageData.data is a Uint8ClampedArray; its buffer is an ArrayBuffer
   const buffer = imageData.data.buffer;
 
   worker.postMessage(
@@ -684,7 +686,7 @@ async function processImage(imageElement) {
       height: imageData.height,
       buffer: buffer
     },
-    [buffer]  // buffer を Transfer
+    [buffer]  // Transfer the buffer
   );
 }
 
@@ -707,20 +709,20 @@ self.onmessage = (event) => {
   if (type === 'grayscale') {
     const pixels = new Uint8ClampedArray(buffer);
 
-    // グレースケール変換
+    // Grayscale conversion
     for (let i = 0; i < pixels.length; i += 4) {
       const r = pixels[i];
       const g = pixels[i + 1];
       const b = pixels[i + 2];
-      // 輝度の加重平均（ITU-R BT.709）
+      // Weighted average of luminance (ITU-R BT.709)
       const gray = Math.round(0.2126 * r + 0.7152 * g + 0.0722 * b);
       pixels[i] = gray;
       pixels[i + 1] = gray;
       pixels[i + 2] = gray;
-      // pixels[i + 3] はアルファ値（変更しない）
+      // pixels[i + 3] is the alpha value (do not change)
     }
 
-    // 処理済みバッファを Transfer で返送
+    // Return the processed buffer via Transfer
     self.postMessage(
       { width, height, buffer: pixels.buffer },
       [pixels.buffer]
@@ -729,34 +731,34 @@ self.onmessage = (event) => {
 };
 ```
 
-### 4.4 SharedArrayBuffer と Atomics
+### 4.4 SharedArrayBuffer and Atomics
 
-SharedArrayBuffer は Transfer でも Clone でもなく、複数のスレッドで同一のメモリ領域を共有する仕組みである。共有メモリアクセスにはレースコンディションのリスクがあるため、Atomics API でスレッドセーフな操作を行う。
+SharedArrayBuffer is neither Transfer nor Clone; it is a mechanism by which multiple threads share the same memory region. Shared memory access carries a risk of race conditions, so thread-safe operations are performed with the Atomics API.
 
 ```javascript
 // ===== main.js =====
 
-// Cross-Origin Isolation が必要（HTTP ヘッダーの設定）
+// Cross-Origin Isolation is required (HTTP header configuration):
 // Cross-Origin-Opener-Policy: same-origin
 // Cross-Origin-Embedder-Policy: require-corp
 
-// 共有メモリの確保
+// Allocate shared memory
 const sharedBuffer = new SharedArrayBuffer(4 * 1024); // 4KB
 const sharedArray = new Int32Array(sharedBuffer);
 
-// 初期値の設定
-sharedArray[0] = 0; // カウンター
+// Set initial value
+sharedArray[0] = 0; // counter
 
-// Worker に共有メモリを渡す（Transfer ではなく共有）
+// Pass the shared memory to a Worker (shared, not transferred)
 worker.postMessage({ sharedBuffer });
 
-// メインスレッドでカウンターを安全にインクリメント
+// Safely increment the counter from the main thread
 function incrementCounter() {
   const oldValue = Atomics.add(sharedArray, 0, 1);
-  console.log(`カウンター: ${oldValue} → ${oldValue + 1}`);
+  console.log(`Counter: ${oldValue} → ${oldValue + 1}`);
 }
 
-// カウンターの値を安全に読み取り
+// Safely read the counter value
 function readCounter() {
   return Atomics.load(sharedArray, 0);
 }
@@ -768,14 +770,14 @@ self.onmessage = (event) => {
   const { sharedBuffer } = event.data;
   const sharedArray = new Int32Array(sharedBuffer);
 
-  // Worker 側でもカウンターを安全にインクリメント
+  // Safely increment the counter from the Worker side
   for (let i = 0; i < 1000; i++) {
     Atomics.add(sharedArray, 0, 1);
   }
 
-  // Atomics.wait / Atomics.notify による同期
-  // Worker スレッドで値が変わるのを待つ
-  // （メインスレッドでは Atomics.wait は使用不可）
+  // Synchronization with Atomics.wait / Atomics.notify
+  // Wait for a value change in the Worker thread
+  // (Atomics.wait cannot be used on the main thread)
   const result = Atomics.wait(sharedArray, 1, 0);
   // result: 'ok' | 'not-equal' | 'timed-out'
 
@@ -784,31 +786,31 @@ self.onmessage = (event) => {
 ```
 
 ```
-SharedArrayBuffer vs Transferable Objects の使い分け:
+Choosing between SharedArrayBuffer and Transferable Objects:
 
   ┌─────────────────────────────────────────────────────────────┐
   │                                                             │
-  │   Structured Clone（デフォルト）                              │
-  │   ┌─────────┐    コピー    ┌─────────┐                      │
-  │   │ Main    │ ──────────→ │ Worker  │   両方のスレッドで      │
-  │   │ [ABCDE] │             │ [ABCDE] │   独立したコピーを持つ  │
-  │   └─────────┘             └─────────┘                      │
+  │   Structured Clone (default)                                │
+  │   ┌─────────┐    Copy    ┌─────────┐                        │
+  │   │ Main    │ ─────────→ │ Worker  │   Both threads hold    │
+  │   │ [ABCDE] │            │ [ABCDE] │   independent copies   │
+  │   └─────────┘            └─────────┘                        │
   │                                                             │
-  │   Transfer（所有権移転）                                      │
-  │   ┌─────────┐    移転    ┌─────────┐                       │
-  │   │ Main    │ ────────→ │ Worker  │   送信元はアクセス不可    │
-  │   │ [     ] │            │ [ABCDE] │   高速（ゼロコピー）     │
-  │   └─────────┘            └─────────┘                       │
+  │   Transfer (ownership transfer)                             │
+  │   ┌─────────┐  Transfer  ┌─────────┐                        │
+  │   │ Main    │ ─────────→ │ Worker  │   Sender loses access  │
+  │   │ [     ] │            │ [ABCDE] │   Fast (zero-copy)     │
+  │   └─────────┘            └─────────┘                        │
   │                                                             │
-  │   SharedArrayBuffer（共有メモリ）                              │
-  │   ┌─────────┐            ┌─────────┐                       │
-  │   │ Main    │            │ Worker  │   同一メモリ領域を参照    │
-  │   │    ↓    │            │    ↓    │   Atomics で同期が必要   │
-  │   │  ┌─────────────────────────┐   │                       │
-  │   │  │      [ABCDE]            │   │                       │
-  │   │  │   共有メモリ領域         │   │                       │
-  │   │  └─────────────────────────┘   │                       │
-  │   └─────────┘            └─────────┘                       │
+  │   SharedArrayBuffer (shared memory)                         │
+  │   ┌─────────┐            ┌─────────┐                        │
+  │   │ Main    │            │ Worker  │   Both reference same  │
+  │   │    ↓    │            │    ↓    │   memory region        │
+  │   │  ┌─────────────────────────┐   │   Requires Atomics     │
+  │   │  │      [ABCDE]            │   │   for synchronization  │
+  │   │  │   Shared memory region  │   │                        │
+  │   │  └─────────────────────────┘   │                        │
+  │   └─────────┘            └─────────┘                        │
   │                                                             │
   └─────────────────────────────────────────────────────────────┘
 ```
@@ -817,33 +819,33 @@ SharedArrayBuffer vs Transferable Objects の使い分け:
 
 ## 5. Shared Worker
 
-### 5.1 基本概念
+### 5.1 Basic Concepts
 
-Shared Worker は同一オリジンの複数のページ（タブやフレーム）から接続できる Worker である。Dedicated Worker とは異なり、`onconnect` イベントで接続を管理し、`MessagePort` を介して通信する。
+A Shared Worker can be connected to by multiple pages (tabs or frames) from the same origin. Unlike Dedicated Workers, it manages connections via the `onconnect` event and communicates through a `MessagePort`.
 
 ```javascript
-// ===== main.js（各ページに配置） =====
+// ===== main.js (placed on each page) =====
 
-// Shared Worker の生成
-// 同じ URL を指定すると、既存の Shared Worker に接続される
+// Creating a Shared Worker
+// Specifying the same URL connects to an existing Shared Worker
 const sharedWorker = new SharedWorker('shared-worker.js');
 
-// Shared Worker との通信は port を介して行う
+// Communication with the Shared Worker goes through a port
 const port = sharedWorker.port;
 
-// ポートを開始（onmessage を使う場合は自動で開始される）
-// port.start();  // addEventListener を使う場合は明示的に呼ぶ
+// Start the port (automatically started when using onmessage)
+// port.start();  // Call explicitly when using addEventListener
 
-// メッセージの送信
+// Sending a message
 port.postMessage({
   type: 'increment',
   tabId: crypto.randomUUID()
 });
 
-// メッセージの受信
+// Receiving a message
 port.onmessage = (event) => {
   const { type, count, connections } = event.data;
-  console.log(`カウント: ${count}, 接続タブ数: ${connections}`);
+  console.log(`Count: ${count}, Connected tabs: ${connections}`);
   document.getElementById('counter').textContent = count;
   document.getElementById('tabs').textContent = connections;
 };
@@ -851,7 +853,7 @@ port.onmessage = (event) => {
 
 // ===== shared-worker.js =====
 
-// 接続中のポート一覧
+// List of connected ports
 const ports = new Set();
 let counter = 0;
 
@@ -859,7 +861,7 @@ self.onconnect = (event) => {
   const port = event.ports[0];
   ports.add(port);
 
-  console.log(`新しい接続。現在の接続数: ${ports.size}`);
+  console.log(`New connection. Current connections: ${ports.size}`);
 
   port.onmessage = (msgEvent) => {
     const { type, tabId } = msgEvent.data;
@@ -867,7 +869,7 @@ self.onconnect = (event) => {
     switch (type) {
       case 'increment':
         counter++;
-        // 全接続先に通知（ブロードキャスト）
+        // Notify all connections (broadcast)
         broadcastToAll({
           type: 'update',
           count: counter,
@@ -876,7 +878,7 @@ self.onconnect = (event) => {
         break;
 
       case 'getState':
-        // リクエスト元のみに返信
+        // Reply only to the requester
         port.postMessage({
           type: 'state',
           count: counter,
@@ -886,13 +888,13 @@ self.onconnect = (event) => {
     }
   };
 
-  // 接続が閉じられたときのクリーンアップ
+  // Cleanup when connection is closed
   port.addEventListener('close', () => {
     ports.delete(port);
-    console.log(`切断。残接続数: ${ports.size}`);
+    console.log(`Disconnected. Remaining connections: ${ports.size}`);
   });
 
-  // 接続時に現在の状態を送信
+  // Send current state on connection
   port.postMessage({
     type: 'state',
     count: counter,
@@ -907,19 +909,19 @@ function broadcastToAll(message) {
     try {
       port.postMessage(message);
     } catch (e) {
-      // ポートが閉じている場合は削除
+      // Remove port if it is closed
       ports.delete(port);
     }
   }
 }
 ```
 
-### 5.2 Shared Worker の主なユースケース
+### 5.2 Major Use Cases for Shared Worker
 
 ```
-  Shared Worker の代表的なユースケース:
+  Representative use cases for Shared Worker:
 
-  1. WebSocket 接続の共有
+  1. Sharing a WebSocket connection
   ┌────────┐     ┌────────┐     ┌────────┐
   │ Tab A  │     │ Tab B  │     │ Tab C  │
   └───┬────┘     └───┬────┘     └───┬────┘
@@ -929,8 +931,8 @@ function broadcastToAll(message) {
            ┌─────────┴─────────┐
            │   Shared Worker   │
            │  ┌─────────────┐  │
-           │  │ WebSocket   │  │  ← 接続は 1 本のみ
-           │  │ connection  │  │    サーバー負荷を軽減
+           │  │ WebSocket   │  │  ← Only 1 connection
+           │  │ connection  │  │    reduces server load
            │  └──────┬──────┘  │
            └─────────┼─────────┘
                      │
@@ -938,109 +940,110 @@ function broadcastToAll(message) {
               │   Server    │
               └─────────────┘
 
-  2. 共有キャッシュ / 状態管理
-     複数タブで同じデータを共有し、重複フェッチを防止
+  2. Shared cache / state management
+     Share the same data across multiple tabs, preventing duplicate fetches
 
-  3. ロギング / 分析の集約
-     各タブのイベントを Shared Worker で集約してバッチ送信
+  3. Logging / analytics aggregation
+     Aggregate events from each tab in Shared Worker and batch-send
 ```
 
 ---
 
 ## 6. Service Worker
 
-### 6.1 ライフサイクル
+### 6.1 Lifecycle
 
-Service Worker はページとネットワークの間に立つプログラマブルなプロキシである。通常の Worker とは大きく異なるライフサイクルを持つ。
+A Service Worker is a programmable proxy that sits between the page and the network. It has a lifecycle that differs significantly from ordinary Workers.
 
 ```
-Service Worker のライフサイクル:
+Service Worker lifecycle:
 
   ┌──────────┐
-  │ 未登録    │  navigator.serviceWorker.register('/sw.js')
+  │Unregistered│  navigator.serviceWorker.register('/sw.js')
   └────┬─────┘
        │
        ▼
   ┌──────────┐
-  │ 登録中    │  ブラウザが sw.js をダウンロード・パース
+  │Registering │  Browser downloads and parses sw.js
   │(installing)│
   └────┬─────┘
-       │  install イベント発火
-       │  event.waitUntil() で非同期処理を待機可能
+       │  install event fires
+       │  event.waitUntil() can wait for async processing
        ▼
-  ┌──────────┐    既に古い SW がアクティブな場合
-  │ 待機中    │───────────────────────────────────┐
-  │(waiting)  │  古い SW が制御する全タブが閉じるまで │
-  └────┬─────┘  待機する（skipWaiting() で回避可能） │
-       │                                           │
-       │  全クライアントが解放される                  │
-       │  または self.skipWaiting() が呼ばれる        │
-       ▼                                           │
-  ┌──────────┐                                     │
-  │ 有効化中  │  activate イベント発火                │
-  │(activating)│  古いキャッシュの削除に最適          │
-  └────┬─────┘                                     │
-       │                                           │
-       ▼                                           │
-  ┌──────────┐                                     │
-  │ 有効     │  fetch, push, sync 等のイベントを     │
-  │(activated)│  インターセプト可能                  │
-  └────┬─────┘                                     │
-       │                                           │
-       │  新しいバージョンの sw.js が検出される       │
-       ▼                                           │
-  ┌──────────┐                                     │
-  │ 冗長     │  新しい SW に置き換えられた           │
-  │(redundant)│  または登録/インストール失敗         │
-  └──────────┘  ← ────────────────────────────────┘
+  ┌──────────┐    If an old SW is already active
+  │ Waiting  │─────────────────────────────────────┐
+  │(waiting) │  Waits until all tabs controlled by  │
+  └────┬─────┘  old SW are closed                  │
+       │        (avoidable with skipWaiting())      │
+       │                                            │
+       │  All clients released                      │
+       │  or self.skipWaiting() is called           │
+       ▼                                            │
+  ┌──────────┐                                      │
+  │Activating│  activate event fires                │
+  │(activating)│  Best time to delete old caches   │
+  └────┬─────┘                                      │
+       │                                            │
+       ▼                                            │
+  ┌──────────┐                                      │
+  │ Active   │  Can intercept fetch, push, sync     │
+  │(activated)│  events, etc.                       │
+  └────┬─────┘                                      │
+       │                                            │
+       │  New version of sw.js is detected          │
+       ▼                                            │
+  ┌──────────┐                                      │
+  │ Redundant│  Replaced by new SW                  │
+  │(redundant)│  or registration/install failed    │
+  └──────────┘  ← ───────────────────────────────-─┘
 ```
 
-### 6.2 登録とインストール
+### 6.2 Registration and Installation
 
 ```javascript
-// ===== app.js（メインスクリプト） =====
+// ===== app.js (main script) =====
 
-// Service Worker の登録
+// Service Worker registration
 async function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) {
-    console.log('Service Worker 未対応のブラウザ');
+    console.log('Service Worker is not supported in this browser');
     return;
   }
 
   try {
     const registration = await navigator.serviceWorker.register('/sw.js', {
-      // スコープ: この SW が制御するパスのプレフィックス
+      // Scope: path prefix this SW controls
       scope: '/'
     });
 
-    console.log('SW 登録成功:', registration.scope);
+    console.log('SW registered:', registration.scope);
 
-    // 更新の検出
+    // Detect updates
     registration.addEventListener('updatefound', () => {
       const newWorker = registration.installing;
-      console.log('新しい SW を検出:', newWorker.state);
+      console.log('New SW detected:', newWorker.state);
 
       newWorker.addEventListener('statechange', () => {
-        console.log('SW 状態変更:', newWorker.state);
+        console.log('SW state changed:', newWorker.state);
         if (newWorker.state === 'activated') {
-          // 新しい SW がアクティブになった
-          // ユーザーにリロードを促す UI を表示するなど
+          // New SW has become active
+          // e.g., show UI prompting user to reload
           showUpdateNotification();
         }
       });
     });
   } catch (error) {
-    console.error('SW 登録失敗:', error);
+    console.error('SW registration failed:', error);
   }
 }
 
-// ページ読み込み後に登録
+// Register after page load
 window.addEventListener('load', registerServiceWorker);
 ```
 
-### 6.3 キャッシュ戦略の実装
+### 6.3 Implementing Caching Strategies
 
-Service Worker の最も重要な機能はネットワークリクエストのインターセプトとキャッシュ制御である。代表的なキャッシュ戦略を実装する。
+The most important feature of Service Workers is intercepting network requests and controlling caching. Here we implement representative caching strategies.
 
 ```javascript
 // ===== sw.js =====
@@ -1049,7 +1052,7 @@ const CACHE_VERSION = 'v2';
 const STATIC_CACHE = `static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `dynamic-${CACHE_VERSION}`;
 
-// プリキャッシュする静的アセット
+// Static assets to precache
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -1059,23 +1062,23 @@ const STATIC_ASSETS = [
   '/offline.html'
 ];
 
-// ===== Install: 静的アセットのプリキャッシュ =====
+// ===== Install: Precache static assets =====
 self.addEventListener('install', (event) => {
   console.log('[SW] Install');
   event.waitUntil(
     caches.open(STATIC_CACHE)
       .then(cache => {
-        console.log('[SW] プリキャッシュ開始');
+        console.log('[SW] Starting precache');
         return cache.addAll(STATIC_ASSETS);
       })
       .then(() => {
-        // 待機状態をスキップ（即座にアクティブ化）
+        // Skip waiting state (activate immediately)
         return self.skipWaiting();
       })
   );
 });
 
-// ===== Activate: 古いキャッシュの削除 =====
+// ===== Activate: Delete old caches =====
 self.addEventListener('activate', (event) => {
   console.log('[SW] Activate');
   event.waitUntil(
@@ -1085,43 +1088,43 @@ self.addEventListener('activate', (event) => {
           cacheNames
             .filter(name => name !== STATIC_CACHE && name !== DYNAMIC_CACHE)
             .map(name => {
-              console.log(`[SW] 古いキャッシュ削除: ${name}`);
+              console.log(`[SW] Deleting old cache: ${name}`);
               return caches.delete(name);
             })
         );
       })
       .then(() => {
-        // 全クライアントを即座に制御下に置く
+        // Take control of all clients immediately
         return self.clients.claim();
       })
   );
 });
 
-// ===== Fetch: リクエストのインターセプト =====
+// ===== Fetch: Intercept requests =====
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // API リクエストには Network First 戦略
+  // Network First strategy for API requests
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(networkFirst(request));
     return;
   }
 
-  // 静的アセットには Cache First 戦略
+  // Cache First strategy for static assets
   if (STATIC_ASSETS.includes(url.pathname)) {
     event.respondWith(cacheFirst(request));
     return;
   }
 
-  // その他のリクエストには Stale While Revalidate 戦略
+  // Stale While Revalidate strategy for other requests
   event.respondWith(staleWhileRevalidate(request));
 });
 
 
-// ===== キャッシュ戦略の実装 =====
+// ===== Caching strategy implementations =====
 
-// Cache First: キャッシュ優先、なければネットワーク
+// Cache First: cache first, network if not cached
 async function cacheFirst(request) {
   const cached = await caches.match(request);
   if (cached) {
@@ -1139,7 +1142,7 @@ async function cacheFirst(request) {
   }
 }
 
-// Network First: ネットワーク優先、失敗時キャッシュ
+// Network First: network first, cache on failure
 async function networkFirst(request) {
   try {
     const response = await fetch(request);
@@ -1151,13 +1154,13 @@ async function networkFirst(request) {
   } catch (error) {
     const cached = await caches.match(request);
     return cached || new Response(
-      JSON.stringify({ error: 'オフラインです' }),
+      JSON.stringify({ error: 'You are offline' }),
       { headers: { 'Content-Type': 'application/json' } }
     );
   }
 }
 
-// Stale While Revalidate: キャッシュを即時返却しつつバックグラウンドで更新
+// Stale While Revalidate: return cache immediately, update in background
 async function staleWhileRevalidate(request) {
   const cache = await caches.open(DYNAMIC_CACHE);
   const cached = await cache.match(request);
@@ -1171,40 +1174,40 @@ async function staleWhileRevalidate(request) {
     })
     .catch(() => cached);
 
-  // キャッシュがあれば即時返却、なければネットワークを待つ
+  // Return cache immediately if available; otherwise wait for network
   return cached || fetchPromise;
 }
 ```
 
-### 6.4 キャッシュ戦略の比較表
+### 6.4 Caching Strategy Comparison Table
 
-| 戦略 | 動作 | 最適な用途 | オフライン対応 | 鮮度 |
-|------|------|-----------|:-------------:|------|
-| Cache First | キャッシュ優先、なければネットワーク | 静的アセット (CSS, JS, 画像) | 高 | 低（手動更新が必要） |
-| Network First | ネットワーク優先、失敗時キャッシュ | API レスポンス、頻繁に更新されるデータ | 中 | 高 |
-| Stale While Revalidate | キャッシュを即時返却 + バックグラウンド更新 | ニュースフィード、SNS タイムライン | 中 | 中（次回アクセスで反映） |
-| Network Only | 常にネットワーク | 非冪等リクエスト (POST)、リアルタイムデータ | 不可 | 最高 |
-| Cache Only | 常にキャッシュ | プリキャッシュ済み静的リソース | 最高 | なし（ビルド時に固定） |
+| Strategy | Behavior | Best Use Case | Offline Support | Freshness |
+|----------|----------|---------------|:--------------:|-----------|
+| Cache First | Cache first, network if missing | Static assets (CSS, JS, images) | High | Low (manual update required) |
+| Network First | Network first, cache on failure | API responses, frequently updated data | Medium | High |
+| Stale While Revalidate | Return cache immediately + background update | News feeds, social timelines | Medium | Medium (reflected on next access) |
+| Network Only | Always network | Non-idempotent requests (POST), real-time data | No | Highest |
+| Cache Only | Always cache | Pre-cached static resources | Highest | None (fixed at build time) |
 
 ### 6.5 Background Sync
 
-Service Worker のバックグラウンド同期機能を使うと、オフライン時の操作を保存しておき、ネットワーク復帰時に自動的にサーバーへ送信できる。
+Service Worker's background sync feature allows saving operations performed while offline and automatically sending them to the server when the network is restored.
 
 ```javascript
-// ===== app.js（メインスクリプト） =====
+// ===== app.js (main script) =====
 
 async function sendMessage(message) {
-  // IndexedDB にメッセージを保存
+  // Save message to IndexedDB
   await saveToOutbox(message);
 
-  // Background Sync の登録
+  // Register Background Sync
   const registration = await navigator.serviceWorker.ready;
   try {
     await registration.sync.register('outbox-sync');
-    console.log('Background Sync 登録完了');
+    console.log('Background Sync registered');
   } catch (err) {
-    console.error('Background Sync 未対応:', err);
-    // フォールバック: 即座に送信を試みる
+    console.error('Background Sync not supported:', err);
+    // Fallback: try to send immediately
     await sendPendingMessages();
   }
 }
@@ -1212,7 +1215,7 @@ async function sendMessage(message) {
 
 // ===== sw.js =====
 
-// sync イベントはネットワーク復帰時に自動発火
+// sync event fires automatically when network is restored
 self.addEventListener('sync', (event) => {
   if (event.tag === 'outbox-sync') {
     event.waitUntil(sendPendingMessages());
@@ -1220,7 +1223,7 @@ self.addEventListener('sync', (event) => {
 });
 
 async function sendPendingMessages() {
-  const messages = await getFromOutbox(); // IndexedDB から取得
+  const messages = await getFromOutbox(); // Retrieve from IndexedDB
 
   const results = await Promise.allSettled(
     messages.map(async (msg) => {
@@ -1231,24 +1234,24 @@ async function sendPendingMessages() {
       });
 
       if (response.ok) {
-        await removeFromOutbox(msg.id); // 送信成功したら削除
+        await removeFromOutbox(msg.id); // Delete on successful send
         return { id: msg.id, status: 'sent' };
       }
-      throw new Error(`送信失敗: ${response.status}`);
+      throw new Error(`Send failed: ${response.status}`);
     })
   );
 
   const failed = results.filter(r => r.status === 'rejected');
   if (failed.length > 0) {
-    throw new Error(`${failed.length} 件の送信に失敗`);
-    // エラーを throw すると、ブラウザは後で再試行する
+    throw new Error(`Failed to send ${failed.length} message(s)`);
+    // Throwing an error causes the browser to retry later
   }
 }
 ```
 
-### 6.6 Push 通知
+### 6.6 Push Notifications
 
-Service Worker は Push API と連携し、サーバーからのプッシュ通知を受信できる。ブラウザが閉じていても（バックグラウンドで）通知を表示可能。
+Service Workers integrate with the Push API to receive push notifications from the server. Notifications can be displayed even when the browser is closed (in the background).
 
 ```javascript
 // ===== app.js =====
@@ -1256,20 +1259,20 @@ Service Worker は Push API と連携し、サーバーからのプッシュ通�
 async function subscribeToPush() {
   const registration = await navigator.serviceWorker.ready;
 
-  // 通知の許可を取得
+  // Request notification permission
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') {
-    console.log('通知が許可されていません');
+    console.log('Notification permission not granted');
     return;
   }
 
-  // Push サブスクリプションの作成
+  // Create a push subscription
   const subscription = await registration.pushManager.subscribe({
-    userVisibleOnly: true, // 可視通知のみ（Chrome の要件）
+    userVisibleOnly: true, // Visible notifications only (Chrome requirement)
     applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
   });
 
-  // サーバーにサブスクリプション情報を送信
+  // Send subscription information to the server
   await fetch('/api/push-subscribe', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1293,7 +1296,7 @@ self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
 
   const options = {
-    body: data.body || 'お知らせがあります',
+    body: data.body || 'You have a notification',
     icon: '/images/notification-icon.png',
     badge: '/images/badge.png',
     vibrate: [200, 100, 200],
@@ -1302,17 +1305,17 @@ self.addEventListener('push', (event) => {
       timestamp: Date.now()
     },
     actions: [
-      { action: 'open', title: '開く' },
-      { action: 'dismiss', title: '閉じる' }
+      { action: 'open', title: 'Open' },
+      { action: 'dismiss', title: 'Dismiss' }
     ]
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title || '通知', options)
+    self.registration.showNotification(data.title || 'Notification', options)
   );
 });
 
-// 通知のクリックハンドリング
+// Handle notification clicks
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
@@ -1325,13 +1328,13 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then(clientList => {
-        // 既に開いているタブがあればフォーカス
+        // Focus an already-open tab if available
         for (const client of clientList) {
           if (client.url === targetUrl && 'focus' in client) {
             return client.focus();
           }
         }
-        // なければ新しいタブで開く
+        // Otherwise open a new tab
         return clients.openWindow(targetUrl);
       })
   );
@@ -1340,11 +1343,11 @@ self.addEventListener('notificationclick', (event) => {
 
 ---
 
-## 7. Worker 間通信と Channel Messaging
+## 7. Inter-Worker Communication and Channel Messaging
 
-### 7.1 MessageChannel による直接通信
+### 7.1 Direct Communication with MessageChannel
 
-通常、Worker はメインスレッドを介してしか通信できない。しかし MessageChannel を使うと、2 つの Worker 間で直接通信するチャネルを作成できる。
+Normally, Workers can only communicate through the main thread. However, using MessageChannel, you can create a direct communication channel between two Workers.
 
 ```javascript
 // ===== main.js =====
@@ -1352,15 +1355,15 @@ self.addEventListener('notificationclick', (event) => {
 const workerA = new Worker('workerA.js');
 const workerB = new Worker('workerB.js');
 
-// MessageChannel を作成
+// Create a MessageChannel
 const channel = new MessageChannel();
 
-// port1 を workerA に、port2 を workerB に Transfer
+// Transfer port1 to workerA and port2 to workerB
 workerA.postMessage({ type: 'setPort', port: channel.port1 }, [channel.port1]);
 workerB.postMessage({ type: 'setPort', port: channel.port2 }, [channel.port2]);
 
-// これ以降、workerA と workerB はメインスレッドを介さず直接通信可能
-// メインスレッドはボトルネックにならない
+// From this point, workerA and workerB can communicate directly
+// without going through the main thread
 
 
 // ===== workerA.js =====
@@ -1371,10 +1374,10 @@ self.onmessage = (event) => {
   if (event.data.type === 'setPort') {
     directPort = event.data.port;
     directPort.onmessage = (e) => {
-      console.log('[WorkerA] WorkerB からの直接メッセージ:', e.data);
+      console.log('[WorkerA] Direct message from WorkerB:', e.data);
     };
-    // WorkerB に直接メッセージを送信
-    directPort.postMessage({ from: 'A', message: '直接通信テスト' });
+    // Send a direct message to WorkerB
+    directPort.postMessage({ from: 'A', message: 'Direct communication test' });
   }
 };
 
@@ -1387,11 +1390,11 @@ self.onmessage = (event) => {
   if (event.data.type === 'setPort') {
     directPort = event.data.port;
     directPort.onmessage = (e) => {
-      console.log('[WorkerB] WorkerA からの直接メッセージ:', e.data);
-      // 返信
+      console.log('[WorkerB] Direct message from WorkerA:', e.data);
+      // Reply
       directPort.postMessage({
         from: 'B',
-        message: '了解、直接通信成功'
+        message: 'Acknowledged, direct communication successful'
       });
     };
   }
@@ -1399,55 +1402,55 @@ self.onmessage = (event) => {
 ```
 
 ```
-MessageChannel による Worker 間直接通信:
+Direct Worker-to-Worker communication with MessageChannel:
 
-  通常の通信（メインスレッド経由）:
+  Normal communication (through main thread):
   ┌──────────┐    ┌──────────┐    ┌──────────┐
   │ Worker A │ →  │  Main    │ →  │ Worker B │
   │          │ ←  │ Thread   │ ←  │          │
   └──────────┘    └──────────┘    └──────────┘
-  メインスレッドがボトルネックになる可能性
+  Main thread can become a bottleneck
 
-  MessageChannel（直接通信）:
+  MessageChannel (direct communication):
   ┌──────────┐                    ┌──────────┐
   │ Worker A │ ←── port1──port2 ──→ │ Worker B │
-  │          │  MessageChannel     │          │
+  │          │  MessageChannel    │          │
   └──────────┘                    └──────────┘
-  メインスレッドを経由しない高速な通信
+  Fast communication without going through the main thread
 ```
 
-### 7.2 BroadcastChannel による多対多通信
+### 7.2 Many-to-Many Communication with BroadcastChannel
 
-BroadcastChannel は同一オリジンの全コンテキスト（ページ、Worker、Service Worker）にメッセージをブロードキャストする仕組みである。
+BroadcastChannel is a mechanism for broadcasting messages to all contexts of the same origin (pages, Workers, Service Workers).
 
 ```javascript
-// ===== 任意のコンテキスト（ページでも Worker でも可） =====
+// ===== Any context (can be a page or Worker) =====
 
-// 同じチャネル名を指定すると自動的に接続される
+// Specifying the same channel name automatically connects
 const channel = new BroadcastChannel('app-events');
 
-// メッセージの送信（全リスナーに配信される）
+// Send a message (delivered to all listeners)
 channel.postMessage({
   type: 'user-login',
   userId: 'user123',
   timestamp: Date.now()
 });
 
-// メッセージの受信
+// Receive messages
 channel.onmessage = (event) => {
   const { type, userId } = event.data;
   if (type === 'user-login') {
-    console.log(`ユーザー ${userId} がログインしました`);
+    console.log(`User ${userId} logged in`);
     updateUI();
   }
 };
 
-// 不要になったら閉じる
+// Close when no longer needed
 // channel.close();
 ```
 
 ```
-BroadcastChannel の通信モデル:
+BroadcastChannel communication model:
 
   ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────┐
   │  Tab A   │  │  Tab B   │  │ Worker   │  │ Service Worker│
@@ -1459,31 +1462,31 @@ BroadcastChannel の通信モデル:
                            │
                 BroadcastChannel('app-events')
                            │
-            送信者以外の全リスナーが受信
+            All listeners except the sender receive the message
 ```
 
 ---
 
 ## 8. Worklet
 
-### 8.1 Worklet と Worker の違い
+### 8.1 Differences Between Worklets and Workers
 
-Worklet はレンダリングパイプラインに統合された軽量な Worker である。通常の Worker とは異なり、ブラウザの内部処理（描画、レイアウト、オーディオ処理）に直接介入できる。
+A Worklet is a lightweight Worker integrated into the rendering pipeline. Unlike ordinary Workers, it can directly intervene in browser internal processing (rendering, layout, audio processing).
 
-| 特性 | Worker | Worklet |
-|------|--------|---------|
-| スレッドモデル | 独立したバックグラウンドスレッド | レンダリングパイプライン統合 |
-| 生成コスト | 比較的高い | 軽量 |
-| グローバルスコープ | DedicatedWorkerGlobalScope | 各 Worklet 固有のスコープ |
-| postMessage | 可 | 不可（直接通信なし） |
-| DOM アクセス | 不可 | 不可 |
-| 目的 | 汎用計算のオフロード | パイプライン特化処理 |
-| 実行保証 | 明示的な起動・終了 | ブラウザが必要時に実行 |
-| モジュール | importScripts / ES Modules | ES Modules のみ |
+| Property | Worker | Worklet |
+|----------|--------|---------|
+| Thread model | Independent background thread | Rendering pipeline integrated |
+| Creation cost | Relatively high | Lightweight |
+| Global scope | DedicatedWorkerGlobalScope | Each Worklet has its own scope |
+| postMessage | Available | Unavailable (no direct communication) |
+| DOM access | Unavailable | Unavailable |
+| Purpose | General computation offloading | Pipeline-specific processing |
+| Execution guarantee | Explicit start/stop | Browser runs when needed |
+| Modules | importScripts / ES Modules | ES Modules only |
 
-### 8.2 Paint Worklet（CSS Houdini）
+### 8.2 Paint Worklet (CSS Houdini)
 
-Paint Worklet は CSS の `background-image` をプログラマブルに描画する。Canvas API に似たインターフェースで自由な描画が可能。
+A Paint Worklet draws a CSS `background-image` programmatically. It supports free drawing with an interface similar to the Canvas API.
 
 ```javascript
 // ===== main.js =====
@@ -1496,7 +1499,7 @@ if ('paintWorklet' in CSS) {
 // ===== paint-worklet.js =====
 
 class GradientBorderPainter {
-  // CSS カスタムプロパティへの依存宣言
+  // Declare dependency on CSS custom properties
   static get inputProperties() {
     return [
       '--border-width',
@@ -1512,7 +1515,7 @@ class GradientBorderPainter {
     const endColor = properties.get('--gradient-end').toString().trim()
       || '#4ecdc4';
 
-    // グラデーションボーダーを描画
+    // Draw gradient border
     const gradient = ctx.createLinearGradient(0, 0, size.width, size.height);
     gradient.addColorStop(0, startColor);
     gradient.addColorStop(1, endColor);
@@ -1544,7 +1547,7 @@ registerPaint('gradient-border', GradientBorderPainter);
 
 ### 8.3 Audio Worklet
 
-Audio Worklet は Web Audio API の信号処理をリアルタイムで行う。以前の ScriptProcessorNode（メインスレッドで動作）に代わる、高パフォーマンスな代替手段である。
+An Audio Worklet performs real-time signal processing for the Web Audio API. It is a high-performance alternative to the deprecated ScriptProcessorNode (which ran on the main thread).
 
 ```javascript
 // ===== main.js =====
@@ -1552,17 +1555,17 @@ Audio Worklet は Web Audio API の信号処理をリアルタイムで行う。
 async function setupAudioWorklet() {
   const audioContext = new AudioContext();
 
-  // Audio Worklet モジュールの登録
+  // Register the Audio Worklet module
   await audioContext.audioWorklet.addModule('audio-processor.js');
 
-  // カスタム AudioWorkletNode の生成
+  // Create a custom AudioWorkletNode
   const gainNode = new AudioWorkletNode(audioContext, 'custom-gain');
 
-  // パラメータの制御
+  // Control parameters
   const gainParam = gainNode.parameters.get('gain');
-  gainParam.value = 0.5; // 音量を半分に
+  gainParam.value = 0.5; // Set volume to half
 
-  // 入力 → カスタム処理 → 出力
+  // Input → Custom processing → Output
   const source = audioContext.createMediaStreamSource(
     await navigator.mediaDevices.getUserMedia({ audio: true })
   );
@@ -1579,7 +1582,7 @@ class CustomGainProcessor extends AudioWorkletProcessor {
       defaultValue: 1.0,
       minValue: 0.0,
       maxValue: 2.0,
-      automationRate: 'a-rate' // サンプル単位で変化可能
+      automationRate: 'a-rate' // Can vary per sample
     }];
   }
 
@@ -1593,13 +1596,13 @@ class CustomGainProcessor extends AudioWorkletProcessor {
       const outputChannel = output[channel];
 
       for (let i = 0; i < inputChannel.length; i++) {
-        // gain パラメータが a-rate の場合、サンプルごとに異なる値を持つ
+        // If gain parameter is a-rate, it can have different values per sample
         const g = gain.length > 1 ? gain[i] : gain[0];
         outputChannel[i] = inputChannel[i] * g;
       }
     }
 
-    return true; // true を返すと処理を継続
+    return true; // Returning true continues processing
   }
 }
 
@@ -1608,96 +1611,97 @@ registerProcessor('custom-gain', CustomGainProcessor);
 
 ---
 
-## 9. Worker の種類の総合比較
+## 9. Comprehensive Comparison of Worker Types
 
-### 9.1 機能比較表
+### 9.1 Feature Comparison Table
 
 ```
 ┌────────────────────┬───────────────┬───────────────┬───────────────┬────────────────┐
 │                    │ Dedicated     │ Shared        │ Service       │ Worklet        │
 │                    │ Worker        │ Worker        │ Worker        │                │
 ├────────────────────┼───────────────┼───────────────┼───────────────┼────────────────┤
-│ スコープ           │ 1 ページ      │ 同一オリジン  │ 同一オリジン  │ 特定処理       │
-│ 接続数             │ 1             │ 複数ページ    │ 全ページ      │ N/A            │
-│ DOM アクセス       │ 不可          │ 不可          │ 不可          │ 不可           │
-│ ライフサイクル     │ ページと同じ  │ 全接続終了まで│ 独立（永続）  │ ブラウザ管理   │
-│ オフライン対応     │ 不可          │ 不可          │ 可            │ 不可           │
-│ Push 通知          │ 不可          │ 不可          │ 可            │ 不可           │
-│ ネットワーク制御   │ 不可          │ 不可          │ 可            │ 不可           │
-│ fetch() 利用       │ 可            │ 可            │ 可            │ 不可           │
-│ IndexedDB 利用     │ 可            │ 可            │ 可            │ 不可           │
-│ postMessage        │ 可            │ 可 (port経由) │ 可            │ 不可           │
-│ ES Modules         │ 可            │ 可            │ 可            │ 必須           │
-│ HTTPS 必須         │ 不要          │ 不要          │ 必須          │ 不要           │
-│ DevTools 対応      │ 良好          │ 制限あり      │ 良好          │ 制限あり       │
-│ ブラウザ対応       │ 全モダン      │ 制限あり      │ 全モダン      │ 部分的         │
+│ Scope              │ 1 page        │ Same origin   │ Same origin   │ Specific proc. │
+│ Connections        │ 1             │ Multiple pages│ All pages     │ N/A            │
+│ DOM access         │ No            │ No            │ No            │ No             │
+│ Lifecycle          │ Same as page  │ Until all tabs│ Independent   │ Browser-managed│
+│                    │               │ close         │ (persistent)  │                │
+│ Offline support    │ No            │ No            │ Yes           │ No             │
+│ Push notifications │ No            │ No            │ Yes           │ No             │
+│ Network control    │ No            │ No            │ Yes           │ No             │
+│ fetch() available  │ Yes           │ Yes           │ Yes           │ No             │
+│ IndexedDB          │ Yes           │ Yes           │ Yes           │ No             │
+│ postMessage        │ Yes           │ Yes (via port)│ Yes           │ No             │
+│ ES Modules         │ Yes           │ Yes           │ Yes           │ Required       │
+│ HTTPS required     │ No            │ No            │ Yes           │ No             │
+│ DevTools support   │ Good          │ Limited       │ Good          │ Limited        │
+│ Browser support    │ All modern    │ Limited       │ All modern    │ Partial        │
 ├────────────────────┼───────────────┼───────────────┼───────────────┼────────────────┤
-│ 主な用途           │ 重い計算      │ 状態共有      │ キャッシュ    │ 描画拡張       │
-│                    │ データ加工    │ WebSocket共有 │ PWA           │ オーディオ処理 │
-│                    │ 画像/動画処理 │ DB 接続共有   │ Push / Sync   │ アニメーション │
+│ Main uses          │ Heavy calc    │ State sharing │ Caching       │ Rendering ext. │
+│                    │ Data process  │ WebSocket sh. │ PWA           │ Audio process  │
+│                    │ Image/video   │ DB conn share │ Push / Sync   │ Animation      │
 └────────────────────┴───────────────┴───────────────┴───────────────┴────────────────┘
 ```
 
-### 9.2 ユースケース別の選択指針
+### 9.2 Selection Guide by Use Case
 
 ```
-どの Worker を使うべきか？ フローチャート:
+Which Worker should I use? Flowchart:
 
   ┌─────────────────────────────────────────┐
-  │  何をしたいのか？                         │
+  │  What do you want to do?                │
   └───────────┬─────────────────────────────┘
               │
     ┌─────────┴──────────┐
     │                    │
-  重い計算を          ネットワークを
-  オフロードしたい     制御したい
+  Offload heavy       Control the
+  computation         network
     │                    │
     │                    ▼
     │              ┌──────────────┐
     │              │ Service Worker│
-    │              │ キャッシュ     │
-    │              │ オフライン     │
-    │              │ Push 通知     │
+    │              │ Caching       │
+    │              │ Offline       │
+    │              │ Push notif.   │
     │              └──────────────┘
     │
-    ├── 1 ページでだけ使う？
+    ├── Only needed in 1 page?
     │     │
     │     ├── Yes → Dedicated Worker
     │     │
-    │     └── No → 複数タブで共有したい？
+    │     └── No → Want to share across multiple tabs?
     │               │
     │               ├── Yes → Shared Worker
     │               │
     │               └── No → Dedicated Worker
-    │                          (各ページに 1 つ)
+    │                          (one per page)
     │
-    └── レンダリングに関わる処理？
+    └── Rendering-related processing?
           │
-          ├── 描画のカスタマイズ → Paint Worklet
-          ├── スムーズアニメーション → Animation Worklet
-          ├── リアルタイム音声処理 → Audio Worklet
-          └── カスタムレイアウト → Layout Worklet (実験的)
+          ├── Customizing drawing → Paint Worklet
+          ├── Smooth animations → Animation Worklet
+          ├── Real-time audio processing → Audio Worklet
+          └── Custom layout → Layout Worklet (experimental)
 ```
 
 ---
 
-## 10. アンチパターンと改善策
+## 10. Anti-Patterns and Improvements
 
-### 10.1 アンチパターン 1: Worker の過剰生成
+### 10.1 Anti-Pattern 1: Creating Too Many Workers
 
 ```javascript
-// ===== BAD: タスクごとに Worker を生成・破棄 =====
+// ===== BAD: Create and destroy a Worker for each task =====
 
 async function processItems(items) {
   const results = [];
   for (const item of items) {
-    // 毎回 Worker を生成（数 ms のオーバーヘッド x 1000回）
+    // Create a Worker every time (overhead of a few ms × 1000 times)
     const worker = new Worker('process.js');
 
     const result = await new Promise((resolve) => {
       worker.onmessage = (e) => {
         resolve(e.data);
-        worker.terminate();  // 毎回終了
+        worker.terminate();  // Terminate every time
       };
       worker.postMessage(item);
     });
@@ -1706,72 +1710,72 @@ async function processItems(items) {
   }
   return results;
 }
-// 問題: Worker の生成・破棄コストが大きい
-// 問題: 並列実行されない（逐次処理）
-// 問題: メモリリークの可能性
+// Problem: High cost of creating/destroying Workers
+// Problem: Not executed in parallel (sequential)
+// Problem: Potential memory leaks
 
 
-// ===== GOOD: Worker プールで再利用 =====
+// ===== GOOD: Reuse Workers with a pool =====
 
 const pool = new WorkerPool('process.js', 4);
 
 async function processItems(items) {
-  // 全タスクを並列にキューイング（最大 4 並列）
+  // Queue all tasks in parallel (max 4 parallel)
   const results = await Promise.all(
     items.map(item => pool.exec(item))
   );
   return results;
 }
-// Worker を再利用するため生成コストは初期化時のみ
-// 最大並列数を制御可能
-// 明示的な terminate で確実にリソース解放
+// Workers are reused, so creation cost is only at initialization
+// Maximum concurrency can be controlled
+// Resources are reliably released with explicit terminate
 ```
 
-### 10.2 アンチパターン 2: 大量データの無駄なコピー
+### 10.2 Anti-Pattern 2: Needlessly Copying Large Data
 
 ```javascript
-// ===== BAD: 大きなバッファを毎回コピー =====
+// ===== BAD: Copy a large buffer every frame =====
 
 function processVideoFrame(frameBuffer) {
-  // 100MB のバッファが毎フレームコピーされる
+  // 100MB buffer is copied every frame
   worker.postMessage({ frame: frameBuffer });
-  // frameBuffer はまだメインスレッドに残っている
-  // GC されるまでメモリを二重消費
+  // frameBuffer still remains in the main thread
+  // Memory is consumed twice until GC
 }
 
 worker.onmessage = (event) => {
-  // 結果もコピーで返される
+  // Results are also returned by copy
   const processedFrame = event.data.result;
   renderFrame(processedFrame);
 };
 
-// 問題: 30fps で動画処理する場合、毎秒 6GB のメモリコピーが発生
-// 問題: GC 圧力が高くなり、パフォーマンスが不安定に
+// Problem: At 30fps video processing, 6GB of memory copying per second
+// Problem: GC pressure increases and performance becomes unstable
 
 
-// ===== GOOD: Transferable Objects で所有権を移転 =====
+// ===== GOOD: Transfer ownership with Transferable Objects =====
 
 function processVideoFrame(frameBuffer) {
-  // 所有権を Worker に移転（ゼロコピー）
+  // Transfer ownership to Worker (zero-copy)
   worker.postMessage(
     { frame: frameBuffer },
-    [frameBuffer]  // Transfer リストに含める
+    [frameBuffer]  // Include in Transfer list
   );
-  // frameBuffer.byteLength === 0（もう使えない）
+  // frameBuffer.byteLength === 0 (no longer usable)
 }
 
 worker.onmessage = (event) => {
-  // Worker からも Transfer で返送
+  // Also returned from Worker by Transfer
   const processedFrame = event.data.result;
   renderFrame(processedFrame);
-  // 次のフレーム処理のために再び Worker に Transfer
+  // Transfer back to Worker for next frame processing
 };
 
-// ゼロコピーなので 30fps でも問題なし
-// メモリ使用量も最小限
+// Zero-copy, so no problems even at 30fps
+// Memory usage is also minimal
 
 
-// ===== BETTER: SharedArrayBuffer で共有メモリ（CORS 設定が必要） =====
+// ===== BETTER: Shared memory with SharedArrayBuffer (requires CORS config) =====
 
 const frameBuffer = new SharedArrayBuffer(frameSize);
 const mainView = new Uint8Array(frameBuffer);
@@ -1781,52 +1785,52 @@ const statusArray = new Int32Array(new SharedArrayBuffer(4));
 worker.postMessage({ frameBuffer, statusArray });
 
 function processVideoFrame(rawFrame) {
-  // 共有メモリに書き込み
+  // Write to shared memory
   mainView.set(rawFrame);
-  // Worker に処理開始を通知
+  // Notify Worker to start processing
   Atomics.store(statusArray, 0, 1);
   Atomics.notify(statusArray, 0);
 }
 
-// コピーもメモリ移転も発生しない
+// No copy or memory transfer occurs
 ```
 
-### 10.3 アンチパターン 3: エラーハンドリングの欠如
+### 10.3 Anti-Pattern 3: Missing Error Handling
 
 ```javascript
-// ===== BAD: エラーが無視される =====
+// ===== BAD: Errors are ignored =====
 
 const worker = new Worker('worker.js');
 worker.postMessage(data);
 worker.onmessage = (e) => {
   updateUI(e.data);
 };
-// Worker 内でエラーが発生しても何も起きない
-// Promise が永遠に resolve されない可能性
+// If an error occurs inside the Worker, nothing happens
+// The Promise may never resolve
 
 
-// ===== GOOD: 包括的なエラーハンドリング =====
+// ===== GOOD: Comprehensive error handling =====
 
 const worker = new Worker('worker.js');
 
-// Worker 自体のエラー（構文エラー、未キャッチ例外）
+// Worker's own errors (syntax errors, uncaught exceptions)
 worker.onerror = (error) => {
   console.error('[Worker Error]', error.message);
-  console.error('ファイル:', error.filename, '行:', error.lineno);
-  error.preventDefault(); // デフォルトのエラー報告を抑制
-  showErrorUI('ワーカーで予期しないエラーが発生しました');
+  console.error('File:', error.filename, 'Line:', error.lineno);
+  error.preventDefault(); // Suppress default error reporting
+  showErrorUI('An unexpected error occurred in the worker');
 };
 
-// Worker 内で messageerror（デシリアライズ失敗等）
+// messageerror in Worker (deserialization failure, etc.)
 worker.onmessageerror = (event) => {
-  console.error('[Message Error] メッセージの復元に失敗');
+  console.error('[Message Error] Failed to deserialize message');
 };
 
-// タイムアウト付きのリクエスト
+// Request with timeout
 function requestWithTimeout(worker, data, timeoutMs = 30000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
-      reject(new Error(`Worker タイムアウト: ${timeoutMs}ms`));
+      reject(new Error(`Worker timeout: ${timeoutMs}ms`));
     }, timeoutMs);
 
     const handler = (event) => {
@@ -1844,218 +1848,218 @@ function requestWithTimeout(worker, data, timeoutMs = 30000) {
   });
 }
 
-// 使用例
+// Usage
 try {
   const result = await requestWithTimeout(worker, taskData, 10000);
   updateUI(result);
 } catch (err) {
-  console.error('処理失敗:', err.message);
+  console.error('Processing failed:', err.message);
   showErrorUI(err.message);
 }
 ```
 
 ---
 
-## 11. エッジケース分析
+## 11. Edge Case Analysis
 
-### 11.1 エッジケース 1: Worker の同時生成数制限
+### 11.1 Edge Case 1: Concurrent Worker Creation Limits
 
-ブラウザには Worker の同時生成数に実質的な上限がある。仕様上の制限ではないが、OS スレッド数やメモリの制約から、大量の Worker を同時に生成するとパフォーマンスが低下したり、生成自体が失敗したりする。
+Browsers have an effective upper limit on the number of Workers that can be created simultaneously. While not a specification limit, the OS thread count and memory constraints mean that creating large numbers of Workers simultaneously can degrade performance or fail altogether.
 
 ```javascript
-// ===== 問題: 大量の Worker 同時生成 =====
+// ===== Problem: Creating many Workers at once =====
 
-// 100 個の Worker を一度に生成しようとする
+// Attempting to create 100 Workers at once
 const workers = [];
 for (let i = 0; i < 100; i++) {
   try {
     workers.push(new Worker('heavy-task.js'));
   } catch (e) {
-    console.error(`Worker ${i} の生成に失敗:`, e);
-    // ブラウザによっては 20〜50 個程度で制限に達する
+    console.error(`Worker ${i} creation failed:`, e);
+    // Some browsers hit the limit around 20-50
     break;
   }
 }
 
-// 結果:
-// - Chrome: 概ね動作するが、スレッド数過多でコンテキストスイッチが増大
-// - Firefox: 一定数を超えるとキューイングされる
-// - Safari: より早い段階で制限に達する傾向
-// - 全ブラウザ: メモリ消費が急増（Worker 1 つあたり数 MB のスタック領域）
+// Results:
+// - Chrome: Generally works but context switches increase with too many threads
+// - Firefox: Queued beyond a certain number
+// - Safari: Tends to hit the limit sooner
+// - All browsers: Memory consumption spikes sharply (stack space of a few MB per Worker)
 
 
-// ===== 対策: Worker プール + キューイング =====
+// ===== Solution: Worker pool + queuing =====
 
-// navigator.hardwareConcurrency で論理 CPU コア数を取得
+// Get the number of logical CPU cores with navigator.hardwareConcurrency
 const optimalPoolSize = Math.max(1, navigator.hardwareConcurrency - 1);
-// メインスレッド用に 1 コア残すのが慣例
-console.log(`最適プールサイズ: ${optimalPoolSize}`);
+// Convention: leave 1 core for the main thread
+console.log(`Optimal pool size: ${optimalPoolSize}`);
 
 const pool = new WorkerPool('heavy-task.js', optimalPoolSize);
-// 100 個のタスクを適切な並列度で実行
+// Execute 100 tasks with appropriate parallelism
 const results = await Promise.all(
   tasks.map(task => pool.exec(task))
 );
 ```
 
-### 11.2 エッジケース 2: Service Worker のスコープ制限
+### 11.2 Edge Case 2: Service Worker Scope Restrictions
 
-Service Worker は登録時の `scope` パラメータ（またはスクリプトのディレクトリ）によって制御範囲が決まる。この制限を理解していないと、期待通りにリクエストをインターセプトできない。
+The control range of a Service Worker is determined by the `scope` parameter at registration time (or the directory of the script). Not understanding this limitation means requests may not be intercepted as expected.
 
 ```javascript
-// ===== Service Worker のスコープに関するルール =====
+// ===== Rules about Service Worker scope =====
 
-// 1. デフォルトスコープ = sw.js のディレクトリ
-//    sw.js が /scripts/sw.js にある場合
-//    → スコープは /scripts/ 以下のみ
+// 1. Default scope = directory of sw.js
+//    If sw.js is at /scripts/sw.js
+//    → Scope is /scripts/ and below only
 
-// /sw.js → スコープ: / (ルート以下すべて)
+// /sw.js → Scope: / (everything under root)
 navigator.serviceWorker.register('/sw.js');
 
-// /scripts/sw.js → スコープ: /scripts/ 以下のみ
+// /scripts/sw.js → Scope: /scripts/ and below only
 navigator.serviceWorker.register('/scripts/sw.js');
-// /index.html へのリクエストはインターセプトされない
+// Requests for /index.html are NOT intercepted
 
-// 明示的にスコープを広げようとするとエラー
+// Attempting to widen scope beyond the script directory throws an error
 navigator.serviceWorker.register('/scripts/sw.js', {
-  scope: '/'  // SecurityError: スクリプトのディレクトリより上位は指定不可
+  scope: '/'  // SecurityError: cannot specify a scope above the script's directory
 });
 
-// 解決策 1: sw.js をルートに配置
+// Solution 1: Place sw.js in the root
 navigator.serviceWorker.register('/sw.js', { scope: '/' });
 
-// 解決策 2: Service-Worker-Allowed ヘッダーをサーバーで設定
-// HTTP レスポンスヘッダー: Service-Worker-Allowed: /
-// これにより /scripts/sw.js でもルートスコープを取得可能
+// Solution 2: Set Service-Worker-Allowed header on the server
+// HTTP response header: Service-Worker-Allowed: /
+// This allows /scripts/sw.js to obtain root scope
 navigator.serviceWorker.register('/scripts/sw.js', { scope: '/' });
 
 
-// 2. 複数の Service Worker を異なるスコープで登録
+// 2. Register multiple Service Workers with different scopes
 navigator.serviceWorker.register('/sw-main.js', { scope: '/' });
 navigator.serviceWorker.register('/blog/sw-blog.js', { scope: '/blog/' });
-// /blog/ 以下のリクエストは sw-blog.js が優先
-// それ以外のリクエストは sw-main.js が処理
+// Requests under /blog/ are handled by sw-blog.js first
+// All other requests are handled by sw-main.js
 
-// 3. Service Worker の更新判定
-// ブラウザはバイト単位でスクリプトを比較し、1 バイトでも変わっていれば更新する
-// 24 時間に 1 回、自動的に更新チェックが行われる
-// registration.update() で手動チェックも可能
+// 3. Service Worker update detection
+// The browser compares scripts byte-by-byte; any change triggers an update
+// Automatic update check is performed once every 24 hours
+// registration.update() enables manual checking
 ```
 
 ---
 
 ## FAQ
 
-### Q1: Web Worker、Shared Worker、Service Worker の違いは何か？
+### Q1: What is the difference between Web Worker, Shared Worker, and Service Worker?
 
-**A:** 3 種類の Worker は用途と寿命が異なる。
+**A:** The three types of Workers differ in purpose and lifetime.
 
-| Worker の種類 | 用途 | 寿命 | 共有範囲 |
-|--------------|------|------|----------|
-| **Dedicated Worker** | 単一ページでの並列計算 | ページが閉じるまで | 生成元のページのみ |
-| **Shared Worker** | 複数タブ間の状態共有 | 全タブが閉じるまで | 同一オリジンの全タブ |
-| **Service Worker** | オフライン対応・プッシュ通知 | ブラウザが管理（idle 時に停止） | 同一スコープの全ページ |
+| Worker Type | Purpose | Lifetime | Sharing Scope |
+|-------------|---------|----------|---------------|
+| **Dedicated Worker** | Parallel computation in a single page | Until the page closes | Only the creating page |
+| **Shared Worker** | State sharing across multiple tabs | Until all tabs close | All tabs of the same origin |
+| **Service Worker** | Offline support, push notifications | Browser-managed (stops when idle) | All pages within the same scope |
 
 ```javascript
-// Dedicated Worker: 画像処理など、単一ページの重い計算に使用
+// Dedicated Worker: used for heavy computation in a single page, e.g., image processing
 const worker = new Worker('image-processor.js');
 worker.postMessage(imageData);
 
-// Shared Worker: WebSocket 接続を複数タブで共有
+// Shared Worker: share a WebSocket connection across multiple tabs
 const sharedWorker = new SharedWorker('websocket-manager.js');
 sharedWorker.port.start();
 sharedWorker.port.postMessage({ type: 'subscribe', channel: 'chat' });
 
-// Service Worker: API レスポンスをキャッシュしてオフライン対応
+// Service Worker: cache API responses for offline support
 navigator.serviceWorker.register('/sw.js').then(registration => {
   console.log('Service Worker registered with scope:', registration.scope);
 });
 ```
 
-**選択基準:**
-- **計算処理のみ** → Dedicated Worker
-- **タブ間でリアルタイム同期** → Shared Worker
-- **ネットワークリクエストの制御** → Service Worker
+**Selection criteria:**
+- **Computation only** → Dedicated Worker
+- **Real-time sync across tabs** → Shared Worker
+- **Control network requests** → Service Worker
 
 ---
 
-### Q2: Worker で大きなデータを転送する際の Transferable Objects とは何か？
+### Q2: What are Transferable Objects for transferring large data to a Worker?
 
-**A:** Transferable Objects は、データをコピーせずに所有権を転送する仕組みである。大きな ArrayBuffer を Worker とやり取りする際、構造化複製アルゴリズムによる深いコピーは数百 ms かかることがあるが、転送なら 1ms 未満で完了する。
+**A:** Transferable Objects are a mechanism for transferring ownership of data without copying it. Transferring a large ArrayBuffer using the Structured Clone algorithm deep copy can take hundreds of milliseconds, whereas transfer completes in under 1ms.
 
 ```javascript
-// ===== 通常のコピー（遅い）=====
+// ===== Normal copy (slow) =====
 const largeBuffer = new ArrayBuffer(100 * 1024 * 1024); // 100MB
 console.time('Copy');
-worker.postMessage({ buffer: largeBuffer }); // 深いコピー発生（数百 ms）
+worker.postMessage({ buffer: largeBuffer }); // Deep copy occurs (hundreds of ms)
 console.timeEnd('Copy');
-// メインスレッドでも largeBuffer は引き続き使用可能
+// largeBuffer is still usable in the main thread
 
-// ===== Transferable Objects（速い）=====
+// ===== Transferable Objects (fast) =====
 const largeBuffer2 = new ArrayBuffer(100 * 1024 * 1024);
 console.time('Transfer');
 worker.postMessage(
   { buffer: largeBuffer2 },
-  [largeBuffer2] // 第2引数で転送対象を指定
+  [largeBuffer2] // Specify transfer target in second argument
 );
-console.timeEnd('Transfer'); // 1ms 未満
-// この後、メインスレッドで largeBuffer2 にアクセスすると TypeError
+console.timeEnd('Transfer'); // Under 1ms
+// Accessing largeBuffer2 in the main thread after this throws TypeError
 // console.log(largeBuffer2.byteLength); // Error: Detached ArrayBuffer
 ```
 
-**転送可能なオブジェクト:**
+**Transferable objects:**
 - `ArrayBuffer`
 - `MessagePort`
 - `ImageBitmap`
 - `OffscreenCanvas`
-- `ReadableStream`、`WritableStream`、`TransformStream`
+- `ReadableStream`, `WritableStream`, `TransformStream`
 
-**注意点:**
-- 転送後、元のスレッドからはアクセス不可（Detached 状態）
-- 双方向転送が必要な場合、Worker から返すときも転送を指定する
+**Important notes:**
+- After transfer, access from the original thread is impossible (Detached state)
+- When bidirectional transfer is needed, also specify transfer when returning from Worker
 
 ```javascript
-// Worker 側で処理後に返送
+// Return from Worker after processing
 self.onmessage = (e) => {
   const buffer = e.data.buffer;
-  // 処理実行
+  // Execute processing
   processBuffer(buffer);
 
-  // 処理済みバッファを転送で返す
+  // Return processed buffer by transfer
   self.postMessage({ result: buffer }, [buffer]);
 };
 ```
 
 ---
 
-### Q3: Worker のデバッグ方法は？
+### Q3: How do I debug Workers?
 
-**A:** Chrome DevTools と Firefox Developer Tools は Worker 専用のデバッグ機能を提供している。
+**A:** Chrome DevTools and Firefox Developer Tools provide debugging features specific to Workers.
 
-**Chrome DevTools での Worker デバッグ:**
+**Debugging Workers with Chrome DevTools:**
 
-1. **Worker の一覧表示**
-   `Sources` タブ → 左ペインの `Threads` セクション → 起動中の Worker が表示される
+1. **View Worker list**
+   `Sources` tab → `Threads` section in the left pane → Running Workers are displayed
 
-2. **ブレークポイント設定**
-   Worker のスクリプトを開き、通常の JavaScript と同様にブレークポイントを設置
+2. **Set breakpoints**
+   Open the Worker script and set breakpoints just like with regular JavaScript
 
-3. **コンソールへのアクセス**
-   `Console` タブで `top` のドロップダウン → Worker を選択 → Worker のコンテキストで `console.log` を確認
+3. **Access the console**
+   `Console` tab → dropdown at `top` → Select the Worker → Check `console.log` in the Worker's context
 
-4. **postMessage の追跡**
-   `Performance` タブで記録 → `Main` と `Worker` のタイムラインを並べて確認 → メッセージのやり取りを可視化
+4. **Track postMessage**
+   Record in the `Performance` tab → Compare `Main` and `Worker` timelines side by side → Visualize message exchanges
 
-**Firefox での Worker デバッグ:**
+**Debugging Workers in Firefox:**
 
-1. `about:debugging` → `This Firefox` → 対象の Worker を確認
-2. `Inspect` ボタンで専用の DevTools を起動
-3. `Console`、`Debugger`、`Network` タブで通常通りデバッグ
+1. `about:debugging` → `This Firefox` → Find the target Worker
+2. Launch dedicated DevTools with the `Inspect` button
+3. Debug normally with `Console`, `Debugger`, and `Network` tabs
 
-**ログ出力のベストプラクティス:**
+**Log output best practices:**
 
 ```javascript
-// Worker 側でログにタイムスタンプと Worker ID を付ける
+// Add timestamps and Worker ID to logs on the Worker side
 const workerId = Math.random().toString(36).slice(2, 9);
 
 self.onmessage = (e) => {
@@ -2065,7 +2069,7 @@ self.onmessage = (e) => {
   self.postMessage(result);
 };
 
-// メインスレッド側でも対応するログ
+// Corresponding logs on the main thread side
 worker.postMessage(data);
 console.log(`[Main] ${Date.now()} - Sent to worker:`, data);
 
@@ -2074,71 +2078,71 @@ worker.onmessage = (e) => {
 };
 ```
 
-**Service Worker のデバッグ:**
+**Debugging Service Workers:**
 
-- Chrome: `chrome://serviceworker-internals/` → 登録済み SW の一覧、強制更新、Unregister
-- Firefox: `about:debugging` → `Service Workers` セクション
-- Application タブ → Service Workers → `Update on reload` をチェックして開発中の再読み込みを容易化
-
----
-
-## まとめ
-
-### Web Worker の特性比較
-
-| 項目 | Dedicated Worker | Shared Worker | Service Worker |
-|------|------------------|---------------|----------------|
-| **生成方法** | `new Worker(url)` | `new SharedWorker(url)` | `navigator.serviceWorker.register(url)` |
-| **通信手段** | `postMessage` / `onmessage` | `port.postMessage` / `port.onmessage` | `postMessage` + `fetch` イベント |
-| **DOM アクセス** | 不可 | 不可 | 不可 |
-| **複数タブ共有** | 不可 | 可能 | 可能 |
-| **永続性** | ページが閉じると終了 | 全タブが閉じると終了 | ブラウザが自動管理（idle で停止） |
-| **主な用途** | 画像処理、暗号化、大量計算 | WebSocket 共有、状態同期 | オフライン対応、プッシュ通知 |
-
-### キーポイント
-
-1. **メインスレッドのブロッキングを避ける**
-   16.67ms（60fps）を超える処理は Worker にオフロードする。構造化複製のコストを考慮し、大きなデータには Transferable Objects を使用する。
-
-2. **Worker プールで並列度を制御する**
-   `navigator.hardwareConcurrency` で CPU コア数を取得し、適切なプールサイズを決定する。無制限に Worker を生成すると、コンテキストスイッチとメモリ消費でパフォーマンスが悪化する。
-
-3. **Service Worker はネットワーク層を制御する特殊な Worker**
-   キャッシュ戦略（Cache First、Network First、Stale While Revalidate）を設計し、オフライン対応と高速化を両立する。ライフサイクル（installing → waiting → activated）を理解し、適切なタイミングで `skipWaiting()` と `clients.claim()` を実行する。
+- Chrome: `chrome://serviceworker-internals/` → List of registered SWs, force update, Unregister
+- Firefox: `about:debugging` → `Service Workers` section
+- Application tab → Service Workers → Check `Update on reload` to make reloading easier during development
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [メモリ管理](./03-memory-management.md)
-  Worker で扱う大きなバッファのメモリリークを防ぐためのベストプラクティスと、SharedArrayBuffer のメモリモデルを学ぶ。
+### Comparison of Web Worker Characteristics
 
-- 非同期処理パターン
-  Worker への非同期リクエストを Promise でラップする方法や、複数 Worker の結果を `Promise.all` で集約するパターンを習得する。
+| Item | Dedicated Worker | Shared Worker | Service Worker |
+|------|-----------------|---------------|----------------|
+| **Creation** | `new Worker(url)` | `new SharedWorker(url)` | `navigator.serviceWorker.register(url)` |
+| **Communication** | `postMessage` / `onmessage` | `port.postMessage` / `port.onmessage` | `postMessage` + `fetch` event |
+| **DOM access** | No | No | No |
+| **Multi-tab sharing** | No | Yes | Yes |
+| **Persistence** | Ends when page closes | Ends when all tabs close | Browser-managed (stops when idle) |
+| **Main uses** | Image processing, encryption, bulk computation | WebSocket sharing, state sync | Offline support, push notifications |
 
-- パフォーマンス最適化
-  Worker のオフロード効果を Performance API と Chrome DevTools で定量評価し、ボトルネックを特定する手法を学ぶ。
+### Key Points
+
+1. **Avoid blocking the main thread**
+   Offload processing exceeding 16.67ms (60fps) to a Worker. Account for structured clone costs and use Transferable Objects for large data.
+
+2. **Control parallelism with a Worker pool**
+   Use `navigator.hardwareConcurrency` to get the CPU core count and determine the appropriate pool size. Creating unlimited Workers degrades performance through context switches and memory consumption.
+
+3. **Service Worker is a special Worker that controls the network layer**
+   Design caching strategies (Cache First, Network First, Stale While Revalidate) to achieve both offline support and speed. Understand the lifecycle (installing → waiting → activated) and execute `skipWaiting()` and `clients.claim()` at the appropriate time.
 
 ---
 
-## 参考文献
+## Guides to Read Next
+
+- [Memory Management](./03-memory-management.md)
+  Learn best practices for preventing memory leaks in large buffers handled by Workers, and the memory model of SharedArrayBuffer.
+
+- Async Processing Patterns
+  Learn how to wrap async requests to Workers with Promises, and how to aggregate results from multiple Workers with `Promise.all`.
+
+- Performance Optimization
+  Learn techniques for quantitatively evaluating the offloading effect of Workers with the Performance API and Chrome DevTools, and identifying bottlenecks.
+
+---
+
+## References
 
 1. **MDN Web Docs - Web Workers API**
    https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API
-   Web Worker、Shared Worker、Service Worker の仕様と API リファレンス。構造化複製アルゴリズムと Transferable Objects の詳細。
+   API reference for Web Worker, Shared Worker, and Service Worker. Details on the Structured Clone algorithm and Transferable Objects.
 
 2. **Google Developers - Service Worker Lifecycle**
    https://web.dev/service-worker-lifecycle/
-   Service Worker のライフサイクル（installing → waiting → activated）と、`skipWaiting()`、`clients.claim()` のタイミングをダイアグラムで解説。
+   The Service Worker lifecycle (installing → waiting → activated) and timing of `skipWaiting()` and `clients.claim()` explained with diagrams.
 
 3. **HTML Living Standard - Web Workers**
    https://html.spec.whatwg.org/multipage/workers.html
-   Worker の仕様定義。スレッドモデル、メッセージパッシング、エラーハンドリングの標準動作を確認できる。
+   Worker specification definition. Confirms standard behavior for the thread model, message passing, and error handling.
 
 4. **Jake Archibald - The Offline Cookbook**
    https://jakearchibald.com/2014/offline-cookbook/
-   Service Worker によるキャッシュ戦略（Cache First、Network First、Stale While Revalidate など）の実装パターン集。
+   Collection of Service Worker caching strategy patterns (Cache First, Network First, Stale While Revalidate, etc.).
 
 5. **Surma - Is postMessage slow?**
    https://surma.dev/things/is-postmessage-slow/
-   `postMessage` の構造化複製アルゴリズムのパフォーマンス測定と、Transferable Objects との比較実験。ArrayBuffer の転送で 100 倍以上の高速化を実証。
+   Performance measurements of `postMessage`'s Structured Clone algorithm, and comparison experiments with Transferable Objects. Demonstrates 100x+ speedup with ArrayBuffer transfer.

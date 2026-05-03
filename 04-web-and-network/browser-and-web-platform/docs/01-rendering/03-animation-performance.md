@@ -1,56 +1,56 @@
-# アニメーションパフォーマンス
+# Animation Performance
 
-> 60fpsのスムーズなアニメーションを実現するための手法を体系的に学ぶ。CSS Transitions/Animations、requestAnimationFrame、Web Animations API、FLIP技法、View Transitions APIを深く理解し、パフォーマンス計測と最適化の全体像を把握する。
+> A systematic guide to achieving smooth 60fps animations. Gain a deep understanding of CSS Transitions/Animations, requestAnimationFrame, Web Animations API, the FLIP technique, and View Transitions API, and get a comprehensive picture of performance measurement and optimization.
 
-## 前提知識
+## Prerequisites
 
-- ペイントとコンポジティングの仕組み → 参照: [ペイントとコンポジティング](./02-paint-and-compositing.md)
-- CSSアニメーション/トランジションの基本構文
-- requestAnimationFrameの概念
+- Understanding of paint and compositing → See: [Paint and Compositing](./02-paint-and-compositing.md)
+- Basic syntax of CSS animations/transitions
+- Concept of requestAnimationFrame
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] 60fpsアニメーションの原理とフレームバジェットを理解する
-- [ ] CSS Transitions/Animations の内部動作と最適化手法を習得する
-- [ ] requestAnimationFrame の正しい使い方とタイミングモデルを把握する
-- [ ] FLIP 技法の原理と応用パターンを学ぶ
-- [ ] Web Animations API の統一的なアニメーション制御を理解する
-- [ ] View Transitions API によるページ遷移アニメーションを学ぶ
-- [ ] パフォーマンス計測ツールとデバッグ手法を身につける
-- [ ] アクセシビリティを考慮したアニメーション設計を習得する
+- [ ] Understand the principles of 60fps animation and the frame budget
+- [ ] Master the internal behavior and optimization techniques of CSS Transitions/Animations
+- [ ] Grasp the correct usage and timing model of requestAnimationFrame
+- [ ] Learn the principles and application patterns of the FLIP technique
+- [ ] Understand the unified animation control provided by the Web Animations API
+- [ ] Learn page transition animations with the View Transitions API
+- [ ] Acquire performance measurement tools and debugging techniques
+- [ ] Master animation design that accounts for accessibility
 
 ---
 
-## 1. 60fps の原則とフレームバジェット
+## 1. The 60fps Principle and Frame Budget
 
-### 1.1 なぜ60fpsなのか
+### 1.1 Why 60fps?
 
-人間の視覚系は、およそ10fps以上で連続した画像を「動き」として知覚する。しかし、滑らかな動きとして認識されるには少なくとも24fps（映画の標準フレームレート）が必要であり、インタラクティブなUIにおいてはさらに高いフレームレートが求められる。
+The human visual system perceives a sequence of images as "motion" at roughly 10fps or above. However, at least 24fps (the standard frame rate for film) is required to perceive smooth motion, and interactive UIs demand even higher frame rates.
 
-多くのディスプレイのリフレッシュレートは60Hzであり、これは1秒間に60回画面を更新することを意味する。ブラウザがこのリフレッシュレートに同期してフレームを描画できなければ、ユーザーは「カクつき」（ジャンク）を感じる。
+Most displays have a refresh rate of 60Hz, meaning the screen is updated 60 times per second. If the browser cannot render frames in sync with this refresh rate, users will perceive "jank."
 
 ```
-フレームレートとユーザー体験の関係:
+Frame rate vs. user experience:
 
-  fps    フレーム間隔     ユーザー体験
+  fps    Frame interval   User experience
   ─────────────────────────────────────────────────
-  10fps    100.0ms      スライドショーのような印象
-  24fps     41.7ms      映画的。動きは認識できるがUI向きではない
-  30fps     33.3ms      やや滑らか。モバイルゲームの下限
-  60fps     16.7ms      十分に滑らか。Webアニメーションの標準目標
-  90fps     11.1ms      非常に滑らか。VR/ARの最低要件
-  120fps     8.3ms      極めて滑らか。ProMotionディスプレイ対応
+  10fps    100.0ms      Slideshow-like impression
+  24fps     41.7ms      Cinematic. Motion is perceivable but not ideal for UI
+  30fps     33.3ms      Somewhat smooth. Lower bound for mobile games
+  60fps     16.7ms      Sufficiently smooth. Standard target for web animations
+  90fps     11.1ms      Very smooth. Minimum requirement for VR/AR
+  120fps     8.3ms      Extremely smooth. ProMotion display support
 
-  ※ 人間がジャンクを感知するのはおよそ3フレーム以上のドロップ時
+  * Humans perceive jank when approximately 3 or more frames are dropped
 ```
 
-### 1.2 1フレーム 16.67ms の内訳
+### 1.2 Breakdown of 1 Frame at 16.67ms
 
-ブラウザが1フレームを描画するまでに実行するパイプラインは以下の通りである。
+The pipeline the browser executes to render one frame is as follows.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                   1フレーム = 16.67ms                        │
+│                   1 frame = 16.67ms                          │
 ├──────────────────────────────────────────────────────────────┤
 │                                                              │
 │  Input        rAF         Style        Layout     Paint     │
@@ -62,56 +62,56 @@
 │                                                              │
 │  → Composite (GPU) → Display                                │
 │    ┌────┐                                                    │
-│    │ 6  │  合成レイヤーの結合                                 │
+│    │ 6  │  Merge compositing layers                          │
 │    └────┘                                                    │
 │                                                              │
-│  理想: 全ステップが16.67ms以内に完了すること                   │
-│  実用: JSの処理は10ms以内に収めるのが安全                      │
+│  Ideal: all steps complete within 16.67ms                    │
+│  Practical: keep JS processing within 10ms for safety        │
 └──────────────────────────────────────────────────────────────┘
 
-各ステップの詳細:
-  1. Input Events     : タッチ、クリック、スクロール等のイベント処理
-  2. rAF Callbacks    : requestAnimationFrame で登録されたコールバック
-  3. Style Recalc     : CSSルールの再計算（セレクタマッチング等）
-  4. Layout (Reflow)  : 要素の位置・サイズの再計算
-  5. Paint (Repaint)  : ピクセルの描画命令生成
-  6. Composite        : GPUレイヤーの合成・表示
+Details of each step:
+  1. Input Events     : Process touch, click, scroll, and other events
+  2. rAF Callbacks    : Callbacks registered with requestAnimationFrame
+  3. Style Recalc     : Recalculate CSS rules (selector matching, etc.)
+  4. Layout (Reflow)  : Recalculate element positions and sizes
+  5. Paint (Repaint)  : Generate pixel drawing commands
+  6. Composite        : Merge and display GPU layers
 ```
 
-### 1.3 レンダリングパスとプロパティの関係
+### 1.3 Rendering Path and Property Relationships
 
-CSSプロパティの変更は、レンダリングパイプラインのどの段階をトリガーするかによって、パフォーマンスへの影響が大きく異なる。
+Changes to CSS properties have very different performance impacts depending on which stage of the rendering pipeline they trigger.
 
 ```
-アニメーション対象プロパティとレンダリングコスト:
+Animated properties and rendering cost:
 
-  プロパティ        Layout  Paint  Composite  コスト
+  Property           Layout  Paint  Composite  Cost
   ──────────────────────────────────────────────────
-  transform          -       -       ✓        最低 ★★★
-  opacity            -       -       ✓        最低 ★★★
-  filter             -       ✓       ✓        低   ★★☆
-  background-color   -       ✓       ✓        低   ★★☆
-  box-shadow         -       ✓       ✓        低   ★★☆
-  color              -       ✓       ✓        低   ★★☆
-  border-radius      -       ✓       ✓        低   ★★☆
-  width / height     ✓       ✓       ✓        高   ★☆☆
-  top / left         ✓       ✓       ✓        高   ★☆☆
-  margin / padding   ✓       ✓       ✓        高   ★☆☆
-  font-size          ✓       ✓       ✓        高   ★☆☆
-  display            ✓       ✓       ✓        高   ★☆☆
-  border-width       ✓       ✓       ✓        高   ★☆☆
+  transform            -       -       ✓        Lowest ★★★
+  opacity              -       -       ✓        Lowest ★★★
+  filter               -       ✓       ✓        Low    ★★☆
+  background-color     -       ✓       ✓        Low    ★★☆
+  box-shadow           -       ✓       ✓        Low    ★★☆
+  color                -       ✓       ✓        Low    ★★☆
+  border-radius        -       ✓       ✓        Low    ★★☆
+  width / height       ✓       ✓       ✓        High   ★☆☆
+  top / left           ✓       ✓       ✓        High   ★☆☆
+  margin / padding     ✓       ✓       ✓        High   ★☆☆
+  font-size            ✓       ✓       ✓        High   ★☆☆
+  display              ✓       ✓       ✓        High   ★☆☆
+  border-width         ✓       ✓       ✓        High   ★☆☆
 
-  ★★★ = Compositeのみ → GPUで完結、メインスレッド不要
-  ★★☆ = Paint + Composite → メインスレッドで描画命令生成
-  ★☆☆ = Layout + Paint + Composite → 全要素の再計算が発生
+  ★★★ = Composite only → Completed by GPU, no main thread required
+  ★★☆ = Paint + Composite → Drawing commands generated on main thread
+  ★☆☆ = Layout + Paint + Composite → Recalculation of all elements occurs
 ```
 
-### 1.4 will-change によるレイヤー昇格
+### 1.4 Layer Promotion with will-change
 
-`will-change` プロパティを使うと、ブラウザに対してどのプロパティがアニメーションされるかをヒントとして伝えられる。これにより、事前にGPUレイヤーとして昇格（promote）させ、合成処理の準備を行える。
+The `will-change` property lets you hint to the browser which properties will be animated. This allows the browser to promote elements to GPU layers in advance and prepare for compositing.
 
 ```css
-/* 適切な使用例: アニメーション直前に適用 */
+/* Appropriate usage: apply just before animation */
 .card:hover {
   will-change: transform;
 }
@@ -121,59 +121,59 @@ CSSプロパティの変更は、レンダリングパイプラインのどの�
   transition: transform 300ms ease-out, opacity 300ms ease-out;
 }
 
-/* アニメーション完了後に解除 */
+/* Remove after animation completes */
 .card.animating {
-  /* transitionend イベントで will-change を解除する */
+  /* Remove will-change via the transitionend event */
 }
 ```
 
 ```javascript
-// JavaScript で will-change を適切に管理する例
+// Example of properly managing will-change with JavaScript
 const card = document.querySelector('.card');
 
 card.addEventListener('mouseenter', () => {
-  // ホバー時にレイヤー昇格を予約
+  // Reserve layer promotion on hover
   card.style.willChange = 'transform, opacity';
 });
 
 card.addEventListener('transitionend', () => {
-  // アニメーション完了後にリソースを解放
+  // Release resources after animation completes
   card.style.willChange = 'auto';
 });
 ```
 
 ```
-will-change 使用時のメモリ影響:
+Memory impact when using will-change:
 
-  要素数    will-change なし   will-change あり   メモリ増加
+  # Elements   Without will-change   With will-change   Memory increase
   ──────────────────────────────────────────────────────────
-  10個        基準値             +2-5MB           軽微
-  100個       基準値             +20-50MB         注意
-  1000個      基準値             +200-500MB       危険 ⚠
+  10            baseline              +2-5MB             Minor
+  100           baseline              +20-50MB           Caution
+  1000          baseline              +200-500MB         Dangerous ⚠
 
-  重要: will-change は必要な時だけ、必要な要素にだけ適用する
-  常時適用はGPUメモリを大量消費し、逆効果になる
+  Important: apply will-change only when needed, only to the elements that need it.
+  Persistent application consumes large amounts of GPU memory and is counterproductive.
 ```
 
 ---
 
-## 2. CSS Transitions の深い理解
+## 2. Deep Understanding of CSS Transitions
 
-### 2.1 Transition の内部モデル
+### 2.1 Transition Internal Model
 
-CSS Transitionは、プロパティ値の変化を検出すると自動的に補間アニメーションを生成する仕組みである。ブラウザ内部では以下のステップで処理される。
+CSS Transitions automatically generate interpolated animations when a property value change is detected. The browser processes this internally with the following steps.
 
 ```
-CSS Transition の処理フロー:
+CSS Transition processing flow:
 
-  1. プロパティ値の変化を検出
+  1. Detect property value change
      ┌──────────────────────────────┐
      │ .box { left: 0; }           │
-     │ .box:hover { left: 100px; } │  ← 値が変化した！
+     │ .box:hover { left: 100px; } │  ← Value changed!
      └──────────────────────────────┘
                     │
                     ▼
-  2. transition 宣言をチェック
+  2. Check the transition declaration
      ┌──────────────────────────────────────────┐
      │ transition: left 300ms ease-out 0ms;      │
      │             ^^^^  ^^^^  ^^^^^^^^  ^^^     │
@@ -181,7 +181,7 @@ CSS Transition の処理フロー:
      └──────────────────────────────────────────┘
                     │
                     ▼
-  3. 補間値を計算し、フレームごとに描画
+  3. Calculate interpolated values and render frame by frame
      ┌─────────────────────────────────────┐
      │  t=0ms:    left: 0px               │
      │  t=50ms:   left: 28px  (ease-out)  │
@@ -189,14 +189,14 @@ CSS Transition の処理フロー:
      │  t=150ms:  left: 72px              │
      │  t=200ms:  left: 88px              │
      │  t=250ms:  left: 96px              │
-     │  t=300ms:  left: 100px (完了)      │
+     │  t=300ms:  left: 100px (complete)  │
      └─────────────────────────────────────┘
 ```
 
-### 2.2 transition プロパティの詳細構文
+### 2.2 Detailed Syntax of the transition Property
 
 ```css
-/* 個別プロパティ指定 */
+/* Specify individual properties */
 .element {
   transition-property: transform, opacity, background-color;
   transition-duration: 300ms, 200ms, 150ms;
@@ -204,7 +204,7 @@ CSS Transition の処理フロー:
   transition-delay: 0ms, 50ms, 100ms;
 }
 
-/* ショートハンド */
+/* Shorthand */
 .element {
   transition:
     transform 300ms ease-out 0ms,
@@ -212,47 +212,47 @@ CSS Transition の処理フロー:
     background-color 150ms linear 100ms;
 }
 
-/* 全プロパティ一括指定（注意が必要） */
+/* Apply to all properties at once (use with caution) */
 .element {
   transition: all 300ms ease-out;
-  /* 意図しないプロパティもアニメーションされる可能性がある */
-  /* 例: font-size の変更もアニメーションされてしまう */
+  /* Unintended properties may also be animated */
+  /* e.g., changes to font-size will also be animated */
 }
 ```
 
-### 2.3 transition イベントの活用
+### 2.3 Using Transition Events
 
 ```javascript
 const element = document.querySelector('.animated');
 
-// Transition開始時（各プロパティごとに発火）
+// Fired when a transition starts (fires per property)
 element.addEventListener('transitionstart', (e) => {
-  console.log(`開始: ${e.propertyName}, 時間: ${e.elapsedTime}s`);
+  console.log(`Started: ${e.propertyName}, time: ${e.elapsedTime}s`);
 });
 
-// Transition実行中（各イテレーション完了時。通常はtransitionでは1回）
+// Fired during the transition (once per iteration; usually once for transitions)
 element.addEventListener('transitionrun', (e) => {
-  console.log(`実行中: ${e.propertyName}`);
+  console.log(`Running: ${e.propertyName}`);
 });
 
-// Transition完了時
+// Fired when a transition completes
 element.addEventListener('transitionend', (e) => {
-  console.log(`完了: ${e.propertyName}, 時間: ${e.elapsedTime}s`);
-  // 完了後のクリーンアップ処理
+  console.log(`Completed: ${e.propertyName}, time: ${e.elapsedTime}s`);
+  // Cleanup after completion
   element.classList.remove('animating');
   element.style.willChange = 'auto';
 });
 
-// Transitionキャンセル時（途中で値が変わった場合）
+// Fired when a transition is cancelled (if the value changes mid-transition)
 element.addEventListener('transitioncancel', (e) => {
-  console.log(`キャンセル: ${e.propertyName}`);
+  console.log(`Cancelled: ${e.propertyName}`);
 });
 ```
 
-### 2.4 複数プロパティのステージングアニメーション
+### 2.4 Staging Animation with Multiple Properties
 
 ```css
-/* カードの入場アニメーション: 段階的に要素を表示 */
+/* Card entry animation: display elements in stages */
 .card {
   opacity: 0;
   transform: translateY(30px);
@@ -261,13 +261,13 @@ element.addEventListener('transitioncancel', (e) => {
 .card.visible {
   opacity: 1;
   transform: translateY(0);
-  /* opacity が先に完了し、その後 transform が完了する演出 */
+  /* opacity completes first, then transform completes */
   transition:
     opacity 200ms ease-out 0ms,
     transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1) 50ms;
 }
 
-/* リストアイテムの連鎖アニメーション */
+/* Chained animation for list items */
 .list-item {
   opacity: 0;
   transform: translateX(-20px);
@@ -279,27 +279,27 @@ element.addEventListener('transitioncancel', (e) => {
   transform: translateX(0);
 }
 
-/* CSS変数を使ったスタッガー遅延 */
+/* Stagger delay using CSS custom properties */
 .list-item:nth-child(1) { transition-delay: calc(0 * 50ms); }
 .list-item:nth-child(2) { transition-delay: calc(1 * 50ms); }
 .list-item:nth-child(3) { transition-delay: calc(2 * 50ms); }
 .list-item:nth-child(4) { transition-delay: calc(3 * 50ms); }
 .list-item:nth-child(5) { transition-delay: calc(4 * 50ms); }
 
-/* あるいは CSS カスタムプロパティでインラインに設定 */
+/* Or set inline with a CSS custom property */
 .list-item {
   transition-delay: calc(var(--index) * 50ms);
 }
 ```
 
 ```javascript
-// JavaScript でスタッガー遅延を設定
+// Set stagger delay with JavaScript
 const items = document.querySelectorAll('.list-item');
 items.forEach((item, index) => {
   item.style.setProperty('--index', index);
 });
 
-// IntersectionObserver でビューポート進入時にアニメーション
+// Animate when entering the viewport using IntersectionObserver
 const observer = new IntersectionObserver(
   (entries) => {
     entries.forEach((entry) => {
@@ -317,14 +317,14 @@ items.forEach((item) => observer.observe(item));
 
 ---
 
-## 3. CSS Animations の高度な活用
+## 3. Advanced Use of CSS Animations
 
-### 3.1 @keyframes の補間モデル
+### 3.1 @keyframes Interpolation Model
 
-CSS Animationsは `@keyframes` ルールで定義されたキーフレーム間を補間してアニメーションを生成する。Transitionsが2つの状態間の遷移であるのに対し、Animationsは任意の数の中間状態を定義できる。
+CSS Animations generate animations by interpolating between keyframes defined in `@keyframes` rules. Unlike Transitions which transition between two states, Animations can define any number of intermediate states.
 
 ```css
-/* 基本的なキーフレーム定義 */
+/* Basic keyframe definition */
 @keyframes slideInFromLeft {
   0% {
     transform: translateX(-100%);
@@ -346,7 +346,7 @@ CSS Animationsは `@keyframes` ルールで定義されたキーフレーム間�
   animation: slideInFromLeft 500ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-/* 複数アニメーションの組み合わせ */
+/* Combining multiple animations */
 @keyframes scaleUp {
   from { transform: scale(0.8); }
   to { transform: scale(1); }
@@ -364,36 +364,36 @@ CSS Animationsは `@keyframes` ルールで定義されたキーフレーム間�
 }
 ```
 
-### 3.2 animation-fill-mode の挙動
+### 3.2 Behavior of animation-fill-mode
 
 ```
-animation-fill-mode の動作比較:
+Comparison of animation-fill-mode behavior:
 
-  ──────── 遅延期間 ──── アニメーション期間 ──── 完了後 ────
+  ──────── Delay period ──── Animation period ──── After completion ────
 
   none:
-  [ 初期値          ][ 0% → → → → → 100% ][ 初期値          ]
-                      ^^^^^^^^^^^^^^^^^^
-                      アニメーション中のみ変化
+  [ Initial value      ][ 0% → → → → → 100% ][ Initial value      ]
+                          ^^^^^^^^^^^^^^^^^^
+                          Changes only during animation
 
   forwards:
-  [ 初期値          ][ 0% → → → → → 100% ][ 100%の値を保持  ]
-                                            ^^^^^^^^^^^^^^^^^
-                                            最終フレームで固定
+  [ Initial value      ][ 0% → → → → → 100% ][ Retains 100% value  ]
+                                              ^^^^^^^^^^^^^^^^^
+                                              Locked at final frame
 
   backwards:
-  [ 0%の値を適用    ][ 0% → → → → → 100% ][ 初期値          ]
+  [ 0% value applied   ][ 0% → → → → → 100% ][ Initial value      ]
    ^^^^^^^^^^^^^^^^^
-   遅延中に開始フレームを適用
+   Start frame is applied during delay
 
   both:
-  [ 0%の値を適用    ][ 0% → → → → → 100% ][ 100%の値を保持  ]
-   ^^^^^^^^^^^^^^^^^                        ^^^^^^^^^^^^^^^^^
-   遅延中も完了後も適用
+  [ 0% value applied   ][ 0% → → → → → 100% ][ Retains 100% value  ]
+   ^^^^^^^^^^^^^^^^^                          ^^^^^^^^^^^^^^^^^
+   Applied during delay and after completion
 ```
 
 ```css
-/* 実用例: モーダルの表示/非表示 */
+/* Practical example: modal show/hide */
 @keyframes modalOpen {
   from {
     opacity: 0;
@@ -425,10 +425,10 @@ animation-fill-mode の動作比較:
 }
 ```
 
-### 3.3 animation-composition: 累積と合成
+### 3.3 animation-composition: Accumulation and Compositing
 
 ```css
-/* animation-composition でアニメーション効果を累積できる */
+/* animation-composition allows animation effects to accumulate */
 @keyframes bounce {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-20px); }
@@ -441,23 +441,23 @@ animation-fill-mode の動作比較:
 }
 
 .icon {
-  /* replace: 後のアニメーションが前のものを置き換える（デフォルト） */
+  /* replace: later animations replace earlier ones (default) */
   animation-composition: replace;
 
-  /* add: 変換が加算される */
+  /* add: transforms are added */
   animation-composition: add;
 
-  /* accumulate: 数値が累積される */
+  /* accumulate: values are accumulated */
   animation-composition: accumulate;
 }
 ```
 
-### 3.4 スクロール連動アニメーション (Scroll-driven Animations)
+### 3.4 Scroll-driven Animations
 
-CSS Scroll-driven Animationsは、スクロール位置をアニメーションのタイムラインとして使用する新しいCSS仕様である。
+CSS Scroll-driven Animations is a new CSS spec that uses the scroll position as an animation timeline.
 
 ```css
-/* スクロール進捗インジケータ */
+/* Scroll progress indicator */
 @keyframes progressBar {
   from { transform: scaleX(0); }
   to { transform: scaleX(1); }
@@ -475,7 +475,7 @@ CSS Scroll-driven Animationsは、スクロール位置をアニメーション�
   animation-timeline: scroll(root block);
 }
 
-/* 要素がビューポートに入る時のアニメーション */
+/* Animation when element enters the viewport */
 @keyframes reveal {
   from {
     opacity: 0;
@@ -493,7 +493,7 @@ CSS Scroll-driven Animationsは、スクロール位置をアニメーション�
   animation-range: entry 0% entry 100%;
 }
 
-/* パララックス効果 */
+/* Parallax effect */
 @keyframes parallax {
   from { transform: translateY(100px); }
   to { transform: translateY(-100px); }
@@ -506,43 +506,43 @@ CSS Scroll-driven Animationsは、スクロール位置をアニメーション�
 ```
 
 ```
-Scroll Timeline と View Timeline の違い:
+Differences between Scroll Timeline and View Timeline:
 
   scroll()                          view()
   ──────────────────────────────    ──────────────────────────────
-  スクロールコンテナ全体の            要素がビューポートを
-  スクロール位置に連動                横切る進捗に連動
+  Linked to the scroll position     Linked to the progress of an
+  of the entire scroll container    element crossing the viewport
 
   ┌──────────────────┐              ┌──────────────────┐
   │   scroll: 0%     │              │                  │
   │   ┌────────────┐ │              │  ← entry 0%     │
-  │   │ コンテンツ  │ │              │  ┌────────────┐ │
-  │   │            │ │              │  │ 要素        │ │ entry 100%
+  │   │ Content    │ │              │  ┌────────────┐ │
+  │   │            │ │              │  │ Element    │ │ entry 100%
   │   │            │ │              │  │            │ │
   │   └────────────┘ │              │  │            │ │ exit 0%
   │   scroll: 100%   │              │  └────────────┘ │
   └──────────────────┘              │  ← exit 100%   │
                                     └──────────────────┘
 
-  animation-range の指定:
-    entry 0%   : 要素の先端がビューポート下端に到達
-    entry 100% : 要素の末端がビューポート下端を通過
-    exit 0%    : 要素の先端がビューポート上端に到達
-    exit 100%  : 要素の末端がビューポート上端を通過
+  animation-range values:
+    entry 0%   : leading edge of element reaches bottom of viewport
+    entry 100% : trailing edge of element passes bottom of viewport
+    exit 0%    : leading edge of element reaches top of viewport
+    exit 100%  : trailing edge of element passes top of viewport
 ```
 
 ---
 
-## 4. requestAnimationFrame の徹底理解
+## 4. Thorough Understanding of requestAnimationFrame
 
-### 4.1 rAF のタイミングモデル
+### 4.1 rAF Timing Model
 
-`requestAnimationFrame` (rAF) は、ブラウザの描画サイクルに同期してコールバックを実行する仕組みである。`setInterval` や `setTimeout` と異なり、ディスプレイのリフレッシュレートに合わせた最適なタイミングで呼び出される。
+`requestAnimationFrame` (rAF) is a mechanism that executes callbacks in sync with the browser's rendering cycle. Unlike `setInterval` or `setTimeout`, it is called at an optimal timing aligned with the display's refresh rate.
 
 ```
-rAF のタイミング（60Hz ディスプレイの場合）:
+rAF timing (for 60Hz display):
 
-  時間軸 (ms)
+  Time axis (ms)
   0        16.67     33.33     50.00     66.67
   │         │         │         │         │
   ▼         ▼         ▼         ▼         ▼
@@ -555,20 +555,20 @@ rAF のタイミング（60Hz ディスプレイの場合）:
     cb(0)     cb(16.67)  cb(33.33)  cb(50.00)
               timestamp  timestamp  timestamp
 
-  setInterval(fn, 16) との比較:
+  Comparison with setInterval(fn, 16):
   ┌─────────┬─────────┬─────────┬─────────┐
-  │         │   ↑ ずれ │       ↑ ずれ     │
+  │         │   ↑ drift │     ↑ drift      │
   │ Frame 1 │ Frame 2 │ Frame 3 │ Frame 4 │
   │ fn()    │   fn()  │ fn() fn │ fn()    │
   └─────────┴─────────┴─────────┴─────────┘
-  ※ setInterval はフレームとずれ、1フレームに2回呼ばれたり
-    スキップされたりする
+  * setInterval drifts from frames and may fire twice in one frame
+    or be skipped entirely
 ```
 
-### 4.2 基本的な rAF アニメーションパターン
+### 4.2 Basic rAF Animation Patterns
 
 ```javascript
-// パターン1: 基本的なアニメーションループ
+// Pattern 1: Basic animation loop
 function basicAnimation() {
   let x = 0;
   const element = document.querySelector('.box');
@@ -585,11 +585,11 @@ function basicAnimation() {
   requestAnimationFrame(animate);
 }
 
-// パターン2: タイムスタンプベース（推奨）
+// Pattern 2: Timestamp-based (recommended)
 function timestampAnimation() {
   const element = document.querySelector('.box');
-  const duration = 1000; // 1秒
-  const distance = 300;  // 300px移動
+  const duration = 1000; // 1 second
+  const distance = 300;  // Move 300px
   let startTime = null;
 
   function animate(timestamp) {
@@ -597,7 +597,7 @@ function timestampAnimation() {
     const elapsed = timestamp - startTime;
     const progress = Math.min(elapsed / duration, 1);
 
-    // イージング関数を適用
+    // Apply easing function
     const eased = easeOutCubic(progress);
     element.style.transform = `translateX(${eased * distance}px)`;
 
@@ -609,7 +609,7 @@ function timestampAnimation() {
   requestAnimationFrame(animate);
 }
 
-// パターン3: キャンセル可能なアニメーション
+// Pattern 3: Cancellable animation
 function cancellableAnimation() {
   const element = document.querySelector('.box');
   let animationId = null;
@@ -627,10 +627,10 @@ function cancellableAnimation() {
     }
   }
 
-  // 開始
+  // Start
   animationId = requestAnimationFrame(animate);
 
-  // 停止（任意のタイミングで呼べる）
+  // Stop (can be called at any time)
   function stop() {
     if (animationId !== null) {
       cancelAnimationFrame(animationId);
@@ -642,33 +642,33 @@ function cancellableAnimation() {
 }
 ```
 
-### 4.3 イージング関数ライブラリ
+### 4.3 Easing Function Library
 
 ```javascript
-// 基本イージング関数集
+// Collection of basic easing functions
 const Easing = {
-  // 線形
+  // Linear
   linear: (t) => t,
 
-  // Quad（2次曲線）
+  // Quad (quadratic curve)
   easeInQuad: (t) => t * t,
   easeOutQuad: (t) => t * (2 - t),
   easeInOutQuad: (t) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
 
-  // Cubic（3次曲線）
+  // Cubic (cubic curve)
   easeInCubic: (t) => t * t * t,
   easeOutCubic: (t) => 1 - Math.pow(1 - t, 3),
   easeInOutCubic: (t) =>
     t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
 
-  // Elastic（弾性）
+  // Elastic
   easeOutElastic: (t) => {
     const c4 = (2 * Math.PI) / 3;
     return t === 0 ? 0 : t === 1 ? 1 :
       Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
   },
 
-  // Bounce（バウンス）
+  // Bounce
   easeOutBounce: (t) => {
     const n1 = 7.5625;
     const d1 = 2.75;
@@ -683,20 +683,20 @@ const Easing = {
     }
   },
 
-  // Back（引き戻し）
+  // Back (pullback)
   easeOutBack: (t) => {
     const c1 = 1.70158;
     const c3 = c1 + 1;
     return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
   },
 
-  // Spring（バネ）
+  // Spring
   spring: (t) => {
     return 1 - (Math.cos(t * Math.PI * 4.5) * Math.exp(-t * 6));
   }
 };
 
-// 使用例
+// Usage example
 function springAnimation(element, fromX, toX, duration) {
   let startTime = null;
 
@@ -717,10 +717,10 @@ function springAnimation(element, fromX, toX, duration) {
 }
 ```
 
-### 4.4 rAF のバッチ処理とスケジューリング
+### 4.4 rAF Batch Processing and Scheduling
 
 ```javascript
-// 複数のアニメーションを効率的にバッチ処理するスケジューラ
+// Scheduler that efficiently batch-processes multiple animations
 class AnimationScheduler {
   constructor() {
     this.animations = new Map();
@@ -745,7 +745,7 @@ class AnimationScheduler {
   start() {
     this.isRunning = true;
     const tick = (timestamp) => {
-      // 全アニメーションを1フレーム内でバッチ処理
+      // Batch-process all animations within one frame
       for (const [id, updateFn] of this.animations) {
         const shouldContinue = updateFn(timestamp);
         if (!shouldContinue) {
@@ -773,73 +773,73 @@ class AnimationScheduler {
   }
 }
 
-// 使用例
+// Usage example
 const scheduler = new AnimationScheduler();
 
-// 複数要素のアニメーションを登録
+// Register animations for multiple elements
 document.querySelectorAll('.particle').forEach((el, i) => {
   let startTime = null;
   scheduler.add(`particle-${i}`, (timestamp) => {
     if (startTime === null) startTime = timestamp;
     const progress = (timestamp - startTime) / 2000;
-    if (progress >= 1) return false; // アニメーション完了
+    if (progress >= 1) return false; // Animation complete
 
     const x = Math.sin(progress * Math.PI * 2 + i) * 100;
     const y = Math.cos(progress * Math.PI * 2 + i) * 100;
     el.style.transform = `translate(${x}px, ${y}px)`;
-    return true; // 継続
+    return true; // Continue
   });
 });
 ```
 
 ---
 
-## 5. FLIP 技法の原理と応用
+## 5. Principles and Applications of the FLIP Technique
 
-### 5.1 FLIP の概念
+### 5.1 The FLIP Concept
 
-FLIPは "First, Last, Invert, Play" の頭文字をとった技法であり、Paul Lewisが提唱した。レイアウト変更を伴うアニメーション（要素の移動、リサイズ等）を、パフォーマンスに優れた `transform` アニメーションに変換するテクニックである。
+FLIP stands for "First, Last, Invert, Play" — a technique proposed by Paul Lewis. It converts layout-changing animations (element movement, resizing, etc.) into performant `transform` animations.
 
 ```
-FLIP 技法の4ステップ:
+The 4 steps of the FLIP technique:
 
-  Step 1: First（記録）
+  Step 1: First (record)
   ┌────────────────────────┐
-  │  ┌──┐                  │  getBoundingClientRect() で
-  │  │A │  x=10, y=20      │  現在の位置・サイズを記録
+  │  ┌──┐                  │  Record current position and size
+  │  │A │  x=10, y=20      │  using getBoundingClientRect()
   │  └──┘  w=100, h=50     │
   └────────────────────────┘
 
-  Step 2: Last（変更を適用）
+  Step 2: Last (apply change)
   ┌────────────────────────┐
-  │            ┌──────┐    │  DOM変更を適用し、
-  │            │  A   │    │  最終位置を取得
+  │            ┌──────┐    │  Apply DOM change and
+  │            │  A   │    │  get final position
   │            └──────┘    │  x=200, y=100
   └────────────────────────┘  w=150, h=75
 
-  Step 3: Invert（逆変換）
+  Step 3: Invert (reverse transform)
   ┌────────────────────────┐
-  │  ┌──┐                  │  transform で元の位置に戻す
-  │  │A │  ← transform で  │  deltaX = 10 - 200 = -190
-  │  └──┘    元の位置に     │  deltaY = 20 - 100 = -80
+  │  ┌──┐                  │  Use transform to move back to original position
+  │  │A │  ← transform to  │  deltaX = 10 - 200 = -190
+  │  └──┘    original pos  │  deltaY = 20 - 100 = -80
   └────────────────────────┘  scaleX = 100/150, scaleY = 50/75
 
-  Step 4: Play（再生）
+  Step 4: Play
   ┌────────────────────────┐
-  │  ┌──┐  →  →  ┌──────┐ │  transform を解除して
-  │  │A │  →  →  │  A   │ │  CSS Transition で
-  │  └──┘  →  →  └──────┘ │  自然にアニメーション
+  │  ┌──┐  →  →  ┌──────┐ │  Remove transform and
+  │  │A │  →  →  │  A   │ │  animate naturally with
+  │  └──┘  →  →  └──────┘ │  CSS Transition
   └────────────────────────┘
 ```
 
-### 5.2 汎用 FLIP ヘルパー関数
+### 5.2 General-Purpose FLIP Helper Function
 
 ```javascript
 /**
- * 汎用FLIP アニメーション関数
- * @param {HTMLElement} element - アニメーション対象要素
- * @param {Function} changeFn - DOM変更を行う関数
- * @param {Object} options - アニメーションオプション
+ * General-purpose FLIP animation function
+ * @param {HTMLElement} element - Target element to animate
+ * @param {Function} changeFn - Function that performs the DOM change
+ * @param {Object} options - Animation options
  */
 function flipAnimate(element, changeFn, options = {}) {
   const {
@@ -849,26 +849,26 @@ function flipAnimate(element, changeFn, options = {}) {
     scaleCorrection = true
   } = options;
 
-  // First: 現在の位置・サイズを記録
+  // First: record current position and size
   const first = element.getBoundingClientRect();
 
-  // Last: DOM変更を適用し、最終位置を取得
+  // Last: apply DOM change and get final position
   changeFn();
   const last = element.getBoundingClientRect();
 
-  // 差分を計算
+  // Calculate deltas
   const deltaX = first.left - last.left;
   const deltaY = first.top - last.top;
   const scaleX = first.width / last.width;
   const scaleY = first.height / last.height;
 
-  // 変化がない場合はスキップ
+  // Skip if there is no change
   if (deltaX === 0 && deltaY === 0 && scaleX === 1 && scaleY === 1) {
     if (onComplete) onComplete();
     return;
   }
 
-  // Invert: transform で元の位置に戻す
+  // Invert: use transform to move back to the original position
   const transform = scaleCorrection
     ? `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`
     : `translate(${deltaX}px, ${deltaY}px)`;
@@ -876,15 +876,15 @@ function flipAnimate(element, changeFn, options = {}) {
   element.style.transform = transform;
   element.style.transformOrigin = 'top left';
 
-  // ブラウザに Invert 状態を認識させる
-  // getComputedStyle().transform を読むことで強制的に再計算
+  // Force the browser to recognize the Invert state
+  // Reading getComputedStyle().transform forces recalculation
   void element.offsetHeight;
 
-  // Play: transform を解除してアニメーション
+  // Play: remove transform and animate
   element.style.transition = `transform ${duration}ms ${easing}`;
   element.style.transform = '';
 
-  // 完了後のクリーンアップ
+  // Cleanup after completion
   function handleTransitionEnd(e) {
     if (e.propertyName !== 'transform') return;
     element.removeEventListener('transitionend', handleTransitionEnd);
@@ -896,21 +896,21 @@ function flipAnimate(element, changeFn, options = {}) {
   element.addEventListener('transitionend', handleTransitionEnd);
 }
 
-// 使用例: リストのソートアニメーション
+// Usage example: sort animation for a list
 function sortListWithFlip(container, compareFn) {
   const items = Array.from(container.children);
 
-  // First: 全要素の位置を記録
+  // First: record the position of every element
   const firstRects = new Map();
   items.forEach(item => {
     firstRects.set(item, item.getBoundingClientRect());
   });
 
-  // Last: ソートを適用
+  // Last: apply sort
   items.sort(compareFn);
   items.forEach(item => container.appendChild(item));
 
-  // 各要素にFLIPを適用
+  // Apply FLIP to each element
   items.forEach(item => {
     const first = firstRects.get(item);
     const last = item.getBoundingClientRect();
@@ -934,26 +934,26 @@ function sortListWithFlip(container, compareFn) {
 }
 ```
 
-### 5.3 FLIP によるリスト項目の追加・削除
+### 5.3 Adding and Removing List Items with FLIP
 
 ```javascript
-// リスト項目の追加アニメーション
+// Add list item animation
 function addItemWithFlip(container, newElement, referenceNode = null) {
-  // First: 既存要素の位置を記録
+  // First: record positions of existing elements
   const existingItems = Array.from(container.children);
   const firstRects = new Map();
   existingItems.forEach(item => {
     firstRects.set(item, item.getBoundingClientRect());
   });
 
-  // Last: 新要素を挿入
+  // Last: insert new element
   if (referenceNode) {
     container.insertBefore(newElement, referenceNode);
   } else {
     container.appendChild(newElement);
   }
 
-  // 新要素のアニメーション
+  // Animation for the new element
   newElement.style.opacity = '0';
   newElement.style.transform = 'scale(0.8)';
 
@@ -963,7 +963,7 @@ function addItemWithFlip(container, newElement, referenceNode = null) {
     newElement.style.transform = 'scale(1)';
   });
 
-  // 既存要素のFLIPアニメーション
+  // FLIP animation for existing elements
   existingItems.forEach(item => {
     const first = firstRects.get(item);
     const last = item.getBoundingClientRect();
@@ -983,25 +983,25 @@ function addItemWithFlip(container, newElement, referenceNode = null) {
   });
 }
 
-// リスト項目の削除アニメーション
+// Remove list item animation
 function removeItemWithFlip(container, targetElement) {
-  // First: 全要素の位置を記録
+  // First: record positions of all elements
   const items = Array.from(container.children);
   const firstRects = new Map();
   items.forEach(item => {
     firstRects.set(item, item.getBoundingClientRect());
   });
 
-  // 削除対象のフェードアウト
+  // Fade out the element to remove
   targetElement.style.transition = 'opacity 150ms ease-in, transform 150ms ease-in';
   targetElement.style.opacity = '0';
   targetElement.style.transform = 'scale(0.8)';
 
   targetElement.addEventListener('transitionend', () => {
-    // 要素を削除
+    // Remove the element
     container.removeChild(targetElement);
 
-    // 残りの要素にFLIPを適用
+    // Apply FLIP to the remaining elements
     items.filter(item => item !== targetElement).forEach(item => {
       const first = firstRects.get(item);
       const last = item.getBoundingClientRect();
@@ -1027,42 +1027,42 @@ function removeItemWithFlip(container, targetElement) {
 
 ## 6. Web Animations API (WAAPI)
 
-### 6.1 WAAPI の概要と利点
+### 6.1 Overview and Advantages of WAAPI
 
-Web Animations APIは、CSS AnimationsとCSS Transitionsの基盤となるアニメーションモデルを直接JavaScriptから操作できるAPIである。CSSベースのアニメーションのパフォーマンス特性を維持しつつ、JavaScriptによる動的な制御を可能にする。
+The Web Animations API lets you directly manipulate the animation model that underlies CSS Animations and CSS Transitions from JavaScript. It maintains the performance characteristics of CSS-based animations while enabling dynamic control from JavaScript.
 
 ```
-CSSアニメーション vs rAF vs WAAPI の比較:
+CSS Animation vs rAF vs WAAPI comparison:
 
-  特性              CSS Animation    rAF          WAAPI
+  Feature               CSS Animation    rAF          WAAPI
   ──────────────────────────────────────────────────────────
-  宣言的             ✓               -            -
-  プログラム制御      △               ✓            ✓
-  パフォーマンス      高(GPU)          中(CPU)      高(GPU)
-  一時停止/再開      △               手動実装      ✓ (組み込み)
-  逆再生             -               手動実装      ✓ (組み込み)
-  完了Promise        -               手動実装      ✓ (組み込み)
-  再生速度変更       -               手動実装      ✓ (組み込み)
-  タイムライン同期   ✓ (CSS)          -            ✓ (JS)
-  複数要素の連携     △               手動実装      ✓ (GroupEffect)
-  キーフレーム動的変更 -              ✓            ✓
-  ブラウザ互換性     広い             広い          広い (2024+)
+  Declarative            ✓               -            -
+  Programmatic control   △               ✓            ✓
+  Performance            High (GPU)       Medium (CPU) High (GPU)
+  Pause/resume           △               Manual       ✓ (built-in)
+  Reverse playback       -               Manual       ✓ (built-in)
+  Completion Promise     -               Manual       ✓ (built-in)
+  Playback rate change   -               Manual       ✓ (built-in)
+  Timeline sync          ✓ (CSS)          -            ✓ (JS)
+  Multi-element sync     △               Manual       ✓ (GroupEffect)
+  Dynamic keyframe change -              ✓            ✓
+  Browser compatibility  Wide             Wide         Wide (2024+)
 ```
 
-### 6.2 基本的なWAAPI の使い方
+### 6.2 Basic WAAPI Usage
 
 ```javascript
-// Element.animate() による基本アニメーション
+// Basic animation with Element.animate()
 const element = document.querySelector('.box');
 
 const animation = element.animate(
-  // キーフレーム配列
+  // Keyframe array
   [
     { transform: 'translateX(0)', opacity: 1 },
     { transform: 'translateX(300px)', opacity: 0.5 },
     { transform: 'translateX(300px) rotate(180deg)', opacity: 1 }
   ],
-  // タイミングオプション
+  // Timing options
   {
     duration: 1000,
     easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
@@ -1072,29 +1072,29 @@ const animation = element.animate(
   }
 );
 
-// アニメーションの制御
-animation.pause();           // 一時停止
-animation.play();            // 再生
-animation.reverse();         // 逆再生
-animation.cancel();          // キャンセル
-animation.finish();          // 即完了
+// Controlling the animation
+animation.pause();           // Pause
+animation.play();            // Play
+animation.reverse();         // Reverse
+animation.cancel();          // Cancel
+animation.finish();          // Jump to end immediately
 
-// 再生速度の変更
-animation.playbackRate = 2;  // 2倍速
-animation.playbackRate = 0.5; // 半速
-animation.playbackRate = -1;  // 逆再生
+// Change playback rate
+animation.playbackRate = 2;  // 2x speed
+animation.playbackRate = 0.5; // Half speed
+animation.playbackRate = -1;  // Reverse
 
-// 現在の進捗を取得・設定
-console.log(animation.currentTime);  // 現在の経過時間(ms)
-animation.currentTime = 500;         // 500msの位置にシーク
+// Get/set current progress
+console.log(animation.currentTime);  // Elapsed time in ms
+animation.currentTime = 500;         // Seek to 500ms
 
-// 完了を待つ Promise
+// Promise for completion
 animation.finished.then(() => {
-  console.log('アニメーション完了');
+  console.log('Animation complete');
   element.classList.add('final-state');
 });
 
-// async/await パターン
+// async/await pattern
 async function animateSequence() {
   const el = document.querySelector('.box');
 
@@ -1108,14 +1108,14 @@ async function animateSequence() {
     { duration: 150, fill: 'forwards' }
   ).finished;
 
-  console.log('全アニメーション完了');
+  console.log('All animations complete');
 }
 ```
 
-### 6.3 WAAPI によるステージングアニメーション
+### 6.3 Staged Animation with WAAPI
 
 ```javascript
-// 複数要素の連鎖アニメーション
+// Chained animation for multiple elements
 function staggeredReveal(elements, options = {}) {
   const {
     duration = 400,
@@ -1145,21 +1145,21 @@ function staggeredReveal(elements, options = {}) {
     );
   });
 
-  // 全アニメーション完了を待つ
+  // Wait for all animations to complete
   return Promise.all(animations.map(a => a.finished));
 }
 
-// 使用例
+// Usage example
 const cards = document.querySelectorAll('.card');
 staggeredReveal(cards, { stagger: 80, distance: 40 }).then(() => {
-  console.log('全カードの表示アニメーション完了');
+  console.log('All card reveal animations complete');
 });
 ```
 
-### 6.4 WAAPI のキーフレーム記法
+### 6.4 WAAPI Keyframe Notation
 
 ```javascript
-// 記法1: 配列形式（各フレームを個別オブジェクトで定義）
+// Notation 1: Array form (each frame as a separate object)
 element.animate([
   { transform: 'rotate(0deg)', offset: 0 },
   { transform: 'rotate(360deg)', offset: 0.7 },
@@ -1167,7 +1167,7 @@ element.animate([
   { transform: 'rotate(360deg) scale(1)', offset: 1 }
 ], { duration: 800 });
 
-// 記法2: オブジェクト形式（プロパティごとに値の配列）
+// Notation 2: Object form (array of values per property)
 element.animate({
   transform: [
     'translateX(0)',
@@ -1180,7 +1180,7 @@ element.animate({
   easing: ['ease-in', 'ease-out', 'ease-in-out']
 }, { duration: 1200, iterations: Infinity });
 
-// composite オプションによるアニメーション合成
+// Compositing animations with the composite option
 const baseAnimation = element.animate(
   [{ transform: 'translateX(0)' }, { transform: 'translateX(200px)' }],
   { duration: 2000, iterations: Infinity, composite: 'replace' }
@@ -1190,57 +1190,57 @@ const additiveAnimation = element.animate(
   [{ transform: 'translateY(0)' }, { transform: 'translateY(50px)' }],
   { duration: 1000, iterations: Infinity, composite: 'add' }
 );
-// 結果: X方向とY方向の動きが合成される
+// Result: X-direction and Y-direction movements are composited
 ```
 
 ---
 
 ## 7. View Transitions API
 
-### 7.1 同一ドキュメント内のView Transitions
+### 7.1 View Transitions within the Same Document
 
-View Transitions APIは、DOM変更前後の状態を自動的にスナップショットとして取得し、クロスフェードやスライド等の遷移アニメーションを実現する。FLIPと同様の概念をブラウザネイティブで提供するものである。
+The View Transitions API automatically captures snapshots of the DOM before and after a change, enabling transition animations such as cross-fades and slides. It provides a browser-native equivalent of the FLIP concept.
 
 ```javascript
-// 基本的なView Transition
+// Basic View Transition
 async function updateContent(newContent) {
-  // startViewTransition は DOM 変更を引数として受け取る
+  // startViewTransition accepts a DOM change as its argument
   const transition = document.startViewTransition(() => {
     document.querySelector('.content').innerHTML = newContent;
   });
 
-  // 遷移の完了を待つことが可能
+  // Optionally wait for the transition to complete
   await transition.finished;
-  console.log('View Transition 完了');
+  console.log('View Transition complete');
 }
 
-// View Transition のライフサイクル
+// View Transition lifecycle
 const transition = document.startViewTransition(async () => {
-  // この関数内でDOM変更を行う
+  // Perform DOM changes inside this function
   await fetchAndUpdateDOM();
 });
 
-// 各フェーズのPromise
+// Promises for each phase
 transition.ready.then(() => {
-  // 擬似要素ツリーが構築され、アニメーション開始直前
-  console.log('アニメーション準備完了');
+  // Pseudo-element tree is built, just before animation starts
+  console.log('Animation ready');
 });
 
 transition.updateCallbackDone.then(() => {
-  // DOM更新コールバックが完了した
-  console.log('DOM更新完了');
+  // DOM update callback has completed
+  console.log('DOM update complete');
 });
 
 transition.finished.then(() => {
-  // 全アニメーションが完了した
-  console.log('View Transition 完了');
+  // All animations have completed
+  console.log('View Transition complete');
 });
 ```
 
-### 7.2 View Transition のCSS制御
+### 7.2 CSS Control of View Transitions
 
 ```css
-/* デフォルトのクロスフェードをカスタマイズ */
+/* Customize the default cross-fade */
 ::view-transition-old(root) {
   animation-duration: 250ms;
   animation-timing-function: ease-in;
@@ -1251,7 +1251,7 @@ transition.finished.then(() => {
   animation-timing-function: ease-out;
 }
 
-/* 特定の要素に名前を付けて個別制御 */
+/* Name specific elements for individual control */
 .hero-image {
   view-transition-name: hero;
 }
@@ -1260,7 +1260,7 @@ transition.finished.then(() => {
   view-transition-name: title;
 }
 
-/* 名前付き要素のアニメーションをカスタマイズ */
+/* Customize animations for named elements */
 ::view-transition-old(hero) {
   animation: slideOutLeft 300ms ease-in forwards;
 }
@@ -1286,13 +1286,13 @@ transition.finished.then(() => {
 ```
 
 ```
-View Transition の擬似要素ツリー:
+View Transition pseudo-element tree:
 
   ::view-transition
   ├── ::view-transition-group(root)
   │   ├── ::view-transition-image-pair(root)
-  │   │   ├── ::view-transition-old(root)    ← 変更前のスナップショット
-  │   │   └── ::view-transition-new(root)    ← 変更後のスナップショット
+  │   │   ├── ::view-transition-old(root)    ← Snapshot before change
+  │   │   └── ::view-transition-new(root)    ← Snapshot after change
   │   │
   ├── ::view-transition-group(hero)
   │   ├── ::view-transition-image-pair(hero)
@@ -1304,40 +1304,40 @@ View Transition の擬似要素ツリー:
       │   ├── ::view-transition-old(title)
       │   └── ::view-transition-new(title)
 
-  各グループは独立してアニメーション可能
-  デフォルトでは全要素がクロスフェード
-  view-transition-name で個別制御が可能
+  Each group can be animated independently
+  By default, all elements cross-fade
+  Use view-transition-name for individual control
 ```
 
-### 7.3 MPA (Multi-Page Application) でのView Transitions
+### 7.3 View Transitions in MPA (Multi-Page Application)
 
 ```html
-<!-- ページ間遷移でのView Transitions -->
-<!-- ページ A の head に追加 -->
+<!-- View Transitions for page-to-page navigation -->
+<!-- Add to the head of Page A -->
 <meta name="view-transition" content="same-origin" />
 
-<!-- ページ B の head にも追加 -->
+<!-- Add to the head of Page B as well -->
 <meta name="view-transition" content="same-origin" />
 ```
 
 ```css
-/* ページ間で共有する要素に同じ名前を付ける */
-/* ページ A */
+/* Give the same name to shared elements across pages */
+/* Page A */
 .product-image-123 {
   view-transition-name: product-123;
 }
 
-/* ページ B */
+/* Page B */
 .product-detail-image {
   view-transition-name: product-123;
 }
 
-/* ナビゲーション方向に応じたアニメーション */
+/* Animation based on navigation direction */
 @view-transition {
   navigation: auto;
 }
 
-/* 進む方向のアニメーション */
+/* Forward navigation animation */
 ::view-transition-old(root) {
   animation: slide-out-to-left 300ms ease-in;
 }
@@ -1345,7 +1345,7 @@ View Transition の擬似要素ツリー:
   animation: slide-in-from-right 300ms ease-out;
 }
 
-/* Navigation API と組み合わせて戻る方向を検出 */
+/* Detect backward direction using Navigation API */
 @keyframes slide-out-to-left {
   to { transform: translateX(-30%); opacity: 0; }
 }
@@ -1357,44 +1357,44 @@ View Transition の擬似要素ツリー:
 
 ---
 
-## 8. パフォーマンス計測とデバッグ
+## 8. Performance Measurement and Debugging
 
-### 8.1 Chrome DevTools によるアニメーション分析
+### 8.1 Animation Analysis with Chrome DevTools
 
 ```
-DevTools Performance パネルの読み方:
+Reading the DevTools Performance panel:
 
   ┌────────────────────────────────────────────────────────┐
-  │ FPS グラフ                                              │
+  │ FPS graph                                               │
   │ ████████████████████████ ██ ███████████████████████████ │
-  │ 60fps                   ↑ドロップ                      │
-  │                         ここでジャンク発生               │
+  │ 60fps                   ↑ drop                         │
+  │                         Jank occurs here               │
   ├────────────────────────────────────────────────────────┤
-  │ Main スレッド                                           │
+  │ Main thread                                             │
   │ ┌──────┐ ┌──┐ ┌────────────────────┐ ┌──────┐        │
   │ │ Task │ │rAF│ │   Long Task        │ │ Task │        │
   │ │ 3ms  │ │2ms│ │   52ms (> 50ms)   │ │ 4ms  │        │
   │ └──────┘ └──┘ └────────────────────┘ └──────┘        │
-  │                 ↑ これがジャンクの原因                   │
+  │                 ↑ This is the cause of jank            │
   ├────────────────────────────────────────────────────────┤
-  │ GPU スレッド                                            │
+  │ GPU thread                                              │
   │ ┌─────┐     ┌─────┐     ┌─────┐     ┌─────┐          │
   │ │Comp │     │Comp │     │Comp │     │Comp │          │
   │ │ 2ms │     │ 2ms │     │ 8ms │     │ 2ms │          │
   │ └─────┘     └─────┘     └─────┘     └─────┘          │
   └────────────────────────────────────────────────────────┘
 
-  確認すべきポイント:
-  1. 赤い三角マーク → Long Task（50ms以上）の発生箇所
-  2. FPSグラフの谷 → フレームドロップの発生箇所
-  3. Layout / Paint の発生 → 不必要なリフロー・リペイント
-  4. Forced Reflow 警告 → レイアウトスラッシングの疑い
+  Key points to check:
+  1. Red triangle markers → Location of Long Tasks (50ms or more)
+  2. Valleys in the FPS graph → Location of frame drops
+  3. Layout / Paint occurrences → Unnecessary reflow/repaint
+  4. Forced Reflow warning → Suspected layout thrashing
 ```
 
-### 8.2 Performance API によるプログラム的計測
+### 8.2 Programmatic Measurement with the Performance API
 
 ```javascript
-// フレームレートの計測
+// Frame rate measurement
 class FPSMonitor {
   constructor() {
     this.frames = [];
@@ -1421,7 +1421,7 @@ class FPSMonitor {
       fps: 1000 / delta
     });
 
-    // 直近60フレームのみ保持
+    // Keep only the most recent 60 frames
     if (this.frames.length > 60) {
       this.frames.shift();
     }
@@ -1440,7 +1440,7 @@ class FPSMonitor {
   }
 
   getDroppedFrames() {
-    // 16.67ms * 1.5 = 25ms 以上のフレームをドロップとみなす
+    // Frames over 16.67ms * 1.5 = 25ms are considered dropped
     return this.frames.filter(f => f.frameDuration > 25).length;
   }
 
@@ -1463,11 +1463,11 @@ class FPSMonitor {
   }
 }
 
-// 使用例
+// Usage example
 const monitor = new FPSMonitor();
 monitor.start();
 
-// アニメーション実行...
+// Run animation...
 
 setTimeout(() => {
   monitor.stop();
@@ -1475,23 +1475,23 @@ setTimeout(() => {
 }, 3000);
 ```
 
-### 8.3 PerformanceObserver でのロングタスク検出
+### 8.3 Detecting Long Tasks with PerformanceObserver
 
 ```javascript
-// Long Task の検出と記録
+// Detect and log Long Tasks
 const longTaskObserver = new PerformanceObserver((list) => {
   for (const entry of list.getEntries()) {
     console.warn(
-      `Long Task 検出: ${entry.duration.toFixed(1)}ms`,
-      `名前: ${entry.name}`,
-      `開始: ${entry.startTime.toFixed(1)}ms`
+      `Long Task detected: ${entry.duration.toFixed(1)}ms`,
+      `Name: ${entry.name}`,
+      `Start: ${entry.startTime.toFixed(1)}ms`
     );
 
-    // 50ms以上のタスクはアニメーションに影響を与える可能性がある
+    // Tasks over 50ms may affect animations
     if (entry.duration > 100) {
       console.error(
-        `致命的なLong Task: ${entry.duration.toFixed(1)}ms - ` +
-        `約${Math.floor(entry.duration / 16.67)}フレーム分のジャンクが発生`
+        `Critical Long Task: ${entry.duration.toFixed(1)}ms - ` +
+        `approximately ${Math.floor(entry.duration / 16.67)} frames of jank`
       );
     }
   }
@@ -1499,7 +1499,7 @@ const longTaskObserver = new PerformanceObserver((list) => {
 
 longTaskObserver.observe({ type: 'longtask', buffered: true });
 
-// Layout Shift の検出
+// Detect Layout Shift
 const clsObserver = new PerformanceObserver((list) => {
   for (const entry of list.getEntries()) {
     if (!entry.hadRecentInput) {
@@ -1511,10 +1511,10 @@ const clsObserver = new PerformanceObserver((list) => {
 clsObserver.observe({ type: 'layout-shift', buffered: true });
 ```
 
-### 8.4 フレームタイミングの可視化
+### 8.4 Visualizing Frame Timing
 
 ```javascript
-// アニメーションフレームのタイミングをオーバーレイ表示
+// Display an overlay of animation frame timing
 class FrameTimingOverlay {
   constructor() {
     this.canvas = document.createElement('canvas');
@@ -1553,7 +1553,7 @@ class FrameTimingOverlay {
     const { ctx, canvas } = this;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // FPS テキスト
+    // FPS text
     const fps = this.frameTimes.length > 0
       ? (1000 / (this.frameTimes.reduce((a, b) => a + b) / this.frameTimes.length))
       : 0;
@@ -1561,7 +1561,7 @@ class FrameTimingOverlay {
     ctx.font = '14px monospace';
     ctx.fillText(`${fps.toFixed(0)} FPS`, 10, 18);
 
-    // バーグラフ
+    // Bar graph
     const barWidth = (canvas.width - 20) / this.frameTimes.length;
     this.frameTimes.forEach((dt, i) => {
       const height = Math.min(dt / 33.33 * 40, 50);
@@ -1573,7 +1573,7 @@ class FrameTimingOverlay {
       ctx.fillRect(x, y, Math.max(barWidth - 1, 1), height);
     });
 
-    // 16.67ms ライン
+    // 16.67ms line
     const lineY = canvas.height - 10 - (16.67 / 33.33 * 40);
     ctx.strokeStyle = 'rgba(255,255,255,0.3)';
     ctx.setLineDash([4, 4]);
@@ -1593,14 +1593,14 @@ class FrameTimingOverlay {
 
 ---
 
-## 9. prefers-reduced-motion と アクセシビリティ
+## 9. prefers-reduced-motion and Accessibility
 
-### 9.1 モーション酔いとアクセシビリティ
+### 9.1 Motion Sickness and Accessibility
 
-前庭障害（vestibular disorders）を持つユーザーは、画面上の動きによって頭痛、めまい、吐き気を経験する場合がある。`prefers-reduced-motion` メディアクエリを使うことで、こうしたユーザーに対してアニメーションを軽減できる。
+Users with vestibular disorders may experience headaches, dizziness, and nausea from motion on screen. The `prefers-reduced-motion` media query allows you to reduce animations for these users.
 
 ```css
-/* アプローチ1: 動きを完全に除去 */
+/* Approach 1: Remove motion entirely */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1612,32 +1612,32 @@ class FrameTimingOverlay {
   }
 }
 
-/* アプローチ2: 動きの種類を選択的に制御（推奨） */
+/* Approach 2: Selectively control types of motion (recommended) */
 @media (prefers-reduced-motion: reduce) {
-  /* 移動・回転・スケールは除去 */
+  /* Remove movement, rotation, and scaling */
   .animated-element {
     transform: none !important;
     transition: opacity 200ms ease-out;
   }
 
-  /* フェード効果は残す（動きではないので問題が少ない） */
+  /* Keep fade effects (less problematic since they aren't motion) */
   .fade-in {
     transition: opacity 200ms ease-out;
   }
 
-  /* スクロール連動アニメーションは除去 */
+  /* Remove scroll-driven animations */
   .scroll-animation {
     animation: none !important;
   }
 }
 
-/* アプローチ3: モーション前提ではなく、オプトインにする */
-/* ベース: アニメーションなし */
+/* Approach 3: Opt-in rather than motion-first */
+/* Base: no animation */
 .card {
-  /* 静的なスタイルのみ */
+  /* Static styles only */
 }
 
-/* 動きを許可したユーザーにのみアニメーションを適用 */
+/* Apply animation only for users who permit motion */
 @media (prefers-reduced-motion: no-preference) {
   .card {
     transition: transform 300ms ease-out, opacity 300ms ease-out;
@@ -1649,34 +1649,34 @@ class FrameTimingOverlay {
 }
 ```
 
-### 9.2 JavaScript での prefers-reduced-motion 検出
+### 9.2 Detecting prefers-reduced-motion with JavaScript
 
 ```javascript
-// メディアクエリの状態を検出
+// Detect the state of the media query
 const prefersReducedMotion = window.matchMedia(
   '(prefers-reduced-motion: reduce)'
 );
 
-// 初期値を取得
+// Get the initial value
 if (prefersReducedMotion.matches) {
-  console.log('ユーザーはモーション軽減を要求している');
+  console.log('User has requested reduced motion');
 }
 
-// 設定変更を監視
+// Watch for changes to the setting
 prefersReducedMotion.addEventListener('change', (event) => {
   if (event.matches) {
-    // モーション軽減に切り替わった → アニメーションを停止
+    // Switched to reduced motion → stop animations
     stopAllAnimations();
   } else {
-    // モーション軽減が解除された → アニメーションを有効化
+    // Reduced motion was turned off → enable animations
     enableAnimations();
   }
 });
 
-// アニメーション関数にモーション軽減を組み込む
+// Build reduced motion awareness into your animation function
 function animateElement(element, keyframes, options) {
   if (prefersReducedMotion.matches) {
-    // モーション軽減時: 即座に最終状態を適用
+    // With reduced motion: apply the final state immediately
     const lastKeyframe = keyframes[keyframes.length - 1];
     Object.assign(element.style, lastKeyframe);
     return { finished: Promise.resolve() };
@@ -1685,14 +1685,14 @@ function animateElement(element, keyframes, options) {
   return element.animate(keyframes, options);
 }
 
-// フレームワーク向けカスタムフック例（React風の擬似コード）
+// Example custom hook for frameworks (React-style pseudocode)
 function useReducedMotion() {
   const query = window.matchMedia('(prefers-reduced-motion: reduce)');
   let matches = query.matches;
 
   query.addEventListener('change', (e) => {
     matches = e.matches;
-    // 状態更新をトリガー
+    // Trigger state update
   });
 
   return matches;
@@ -1701,12 +1701,12 @@ function useReducedMotion() {
 
 ---
 
-## 10. アニメーション設計のパターン集
+## 10. Animation Design Patterns
 
-### 10.1 マイクロインタラクション
+### 10.1 Micro-interactions
 
 ```css
-/* ボタンの押下フィードバック */
+/* Button press feedback */
 .button {
   transform: scale(1);
   transition: transform 100ms ease-out;
@@ -1717,7 +1717,7 @@ function useReducedMotion() {
   transition-duration: 50ms;
 }
 
-/* トグルスイッチ */
+/* Toggle switch */
 .toggle-track {
   width: 48px;
   height: 24px;
@@ -1747,7 +1747,7 @@ function useReducedMotion() {
   transform: translateX(24px);
 }
 
-/* スケルトンスクリーンのシマー効果 */
+/* Skeleton screen shimmer effect */
 @keyframes shimmer {
   0% {
     background-position: -200% 0;
@@ -1769,7 +1769,7 @@ function useReducedMotion() {
   border-radius: 4px;
 }
 
-/* ローディングスピナー */
+/* Loading spinner */
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -1784,18 +1784,18 @@ function useReducedMotion() {
 }
 ```
 
-### 10.2 ページ遷移パターン
+### 10.2 Page Transition Patterns
 
 ```javascript
-// スライド遷移（SPA向け）
+// Slide transition (for SPA)
 async function slideTransition(direction, updateFn) {
   if (!document.startViewTransition) {
-    // View Transitions API 非対応時のフォールバック
+    // Fallback for browsers without View Transitions API
     updateFn();
     return;
   }
 
-  // 方向に応じたCSSクラスを設定
+  // Set CSS class based on direction
   document.documentElement.dataset.transition = direction;
 
   const transition = document.startViewTransition(async () => {
@@ -1808,7 +1808,7 @@ async function slideTransition(direction, updateFn) {
 ```
 
 ```css
-/* スライド方向の制御 */
+/* Control slide direction */
 [data-transition="forward"] ::view-transition-old(root) {
   animation: slide-out-left 300ms ease-in forwards;
 }
@@ -1841,31 +1841,31 @@ async function slideTransition(direction, updateFn) {
 
 ---
 
-## 11. アンチパターンと回避策
+## 11. Anti-patterns and Mitigations
 
-### 11.1 アンチパターン1: レイアウトスラッシング
+### 11.1 Anti-pattern 1: Layout Thrashing
 
-レイアウトスラッシング（Layout Thrashing）は、DOM読み取りとDOM書き込みを交互に繰り返すことで、ブラウザが各書き込みの度に強制的にレイアウト再計算を行ってしまう問題である。これはアニメーション中にフレームバジェットを大幅に超過させる最も一般的な原因の一つである。
+Layout thrashing occurs when DOM reads and DOM writes are alternated, forcing the browser to recalculate layout after every write. This is one of the most common causes of significantly exceeding the frame budget during animations.
 
 ```javascript
-// ---- 悪い例: レイアウトスラッシング ----
+// ---- Bad example: layout thrashing ----
 function badResizeItems(items) {
   items.forEach((item) => {
-    // 読み取り → 強制レイアウト発生！
+    // Read → forces layout!
     const height = item.offsetHeight;
-    // 書き込み → レイアウトを無効化
+    // Write → invalidates layout
     item.style.height = (height * 1.2) + 'px';
-    // 次のループの読み取りで再び強制レイアウト...
+    // Next iteration's read forces layout again...
   });
-  // N個の要素があれば N回の強制レイアウトが発生する
+  // N elements means N forced layout calculations
 }
 
-// ---- 良い例: 読み取りと書き込みを分離 ----
+// ---- Good example: separate reads and writes ----
 function goodResizeItems(items) {
-  // Phase 1: 全ての読み取りをまとめて行う
+  // Phase 1: batch all reads together
   const heights = items.map((item) => item.offsetHeight);
 
-  // Phase 2: 全ての書き込みをまとめて行う（レイアウトは1回のみ）
+  // Phase 2: batch all writes together (layout recalculated only once)
   items.forEach((item, i) => {
     item.style.height = (heights[i] * 1.2) + 'px';
   });
@@ -1873,25 +1873,25 @@ function goodResizeItems(items) {
 ```
 
 ```
-レイアウトスラッシングの影響:
+Impact of layout thrashing:
 
-  悪い例（交互に読み書き）:
+  Bad example (alternating reads and writes):
   ┌────┐┌────┐┌────┐┌────┐┌────┐┌────┐┌────┐┌────┐
   │Read││Write│Read││Write│Read││Write│Read││Write│
   │    ││+   ││    ││+   ││    ││+   ││    ││+   │
   │    ││Lay ││    ││Lay ││    ││Lay ││    ││Lay │
   └────┘└────┘└────┘└────┘└────┘└────┘└────┘└────┘
-  合計: 4回のレイアウト計算（各Write時に強制発生）
+  Total: 4 layout calculations (forced after each Write)
 
-  良い例（読み取りをバッチ処理）:
+  Good example (batch reads):
   ┌────┐┌────┐┌────┐┌────┐┌────┐┌────┐┌────┐┌────────┐
   │Read││Read││Read││Read││Write│Write│Write│Write│+Layout│
   └────┘└────┘└────┘└────┘└────┘└────┘└────┘└────┘└──────┘
-  合計: 1回のレイアウト計算（フレーム描画時に1回のみ）
+  Total: 1 layout calculation (only once at frame render time)
 ```
 
 ```javascript
-// fastdom ライブラリのようなパターンで読み書きを分離
+// Pattern similar to fastdom library to separate reads and writes
 class DOMBatcher {
   constructor() {
     this.reads = [];
@@ -1914,11 +1914,11 @@ class DOMBatcher {
     this.scheduled = true;
 
     requestAnimationFrame(() => {
-      // まず全ての読み取りを実行
+      // Execute all reads first
       const readResults = this.reads.map((fn) => fn());
       this.reads = [];
 
-      // 次に全ての書き込みを実行
+      // Then execute all writes
       this.writes.forEach((fn) => fn());
       this.writes = [];
 
@@ -1929,7 +1929,7 @@ class DOMBatcher {
 
 const batcher = new DOMBatcher();
 
-// 使用例: 読み取りと書き込みを安全に分離
+// Usage example: safely separate reads and writes
 function animateCards(cards) {
   cards.forEach((card) => {
     batcher.read(() => {
@@ -1942,37 +1942,37 @@ function animateCards(cards) {
 }
 ```
 
-### 11.2 アンチパターン2: will-change の乱用
+### 11.2 Anti-pattern 2: will-change Overuse
 
-`will-change` を全要素に永続的に適用すると、GPUメモリを大量消費し、かえってパフォーマンスが低下する。
+Applying `will-change` permanently to all elements consumes large amounts of GPU memory and can actually degrade performance.
 
 ```css
-/* ---- 悪い例: will-change を全要素に常時適用 ---- */
+/* ---- Bad example: apply will-change to all elements always ---- */
 * {
   will-change: transform, opacity;
-  /* 全要素がGPUレイヤーに昇格 → メモリ枯渇 */
+  /* Every element is promoted to a GPU layer → memory exhaustion */
 }
 
 .every-list-item {
   will-change: transform;
-  /* 1000個のリストアイテムそれぞれがレイヤーになる */
+  /* 1000 list items each become a layer */
 }
 
-/* ---- 良い例: 必要な時に必要な要素にだけ適用 ---- */
+/* ---- Good example: apply only to the elements that need it, only when needed ---- */
 .card {
-  /* 通常時は will-change なし */
+  /* No will-change under normal conditions */
 }
 
 .card:hover {
   will-change: transform;
-  /* ホバー時にのみ昇格 */
+  /* Promoted only on hover */
 }
 
-/* さらに良い例: JavaScript で動的に制御 */
+/* Even better: control dynamically with JavaScript */
 ```
 
 ```javascript
-// will-change の適切なライフサイクル管理
+// Properly manage the will-change lifecycle
 class WillChangeManager {
   constructor(element, properties) {
     this.element = element;
@@ -1980,26 +1980,26 @@ class WillChangeManager {
     this.isActive = false;
   }
 
-  // アニメーション開始の少し前に準備
+  // Prepare a little before the animation starts
   prepare() {
     if (this.isActive) return;
     this.element.style.willChange = this.properties;
     this.isActive = true;
   }
 
-  // アニメーション完了後に解除
+  // Release after the animation completes
   cleanup() {
     if (!this.isActive) return;
     this.element.style.willChange = 'auto';
     this.isActive = false;
   }
 
-  // transitionend と連動する自動管理
+  // Automatic management tied to transitionend
   autoManage() {
     this.element.addEventListener('mouseenter', () => this.prepare());
     this.element.addEventListener('transitionend', () => this.cleanup());
     this.element.addEventListener('mouseleave', () => {
-      // マウスが離れた後、遷移が終わればクリーンアップ
+      // Cleanup after mouse leaves and transition ends
       requestAnimationFrame(() => {
         if (!this.element.matches(':hover')) {
           this.cleanup();
@@ -2010,24 +2010,24 @@ class WillChangeManager {
 }
 ```
 
-### 11.3 アンチパターン3: setInterval によるアニメーション
+### 11.3 Anti-pattern 3: Animating with setInterval
 
 ```javascript
-// ---- 悪い例: setInterval でアニメーション ----
+// ---- Bad example: animate with setInterval ----
 let x = 0;
 const intervalId = setInterval(() => {
   x += 2;
-  element.style.left = x + 'px'; // Layout を毎回トリガー
+  element.style.left = x + 'px'; // Triggers Layout every time
   if (x >= 300) clearInterval(intervalId);
-}, 16); // 16msはフレームとずれる
+}, 16); // 16ms drifts out of sync with frames
 
-// 問題点:
-// 1. setInterval のタイミングはフレームと同期しない
-// 2. 非アクティブタブでも実行され続ける
-// 3. 処理が遅延した場合、コールバックが溜まる
-// 4. left プロパティは Layout を毎フレーム発生させる
+// Problems:
+// 1. setInterval timing does not sync with frames
+// 2. Continues to run even in inactive tabs
+// 3. If processing is delayed, callbacks pile up
+// 4. The left property triggers Layout every frame
 
-// ---- 良い例: rAF + transform ----
+// ---- Good example: rAF + transform ----
 let startTime = null;
 const duration = 2500;
 
@@ -2048,27 +2048,27 @@ requestAnimationFrame(animate);
 
 ---
 
-## 12. エッジケース分析
+## 12. Edge Case Analysis
 
-### 12.1 エッジケース1: 高リフレッシュレートディスプレイ
+### 12.1 Edge Case 1: High Refresh Rate Displays
 
-120Hzや144Hzのディスプレイでは、1フレームあたりの時間がそれぞれ8.3msや6.9msに短縮される。固定値ベースのアニメーション（フレームごとに一定量移動する方式）は、これらのディスプレイで予期せぬ速度変化を起こす。
+At 120Hz or 144Hz, the time per frame is reduced to 8.3ms or 6.9ms respectively. Fixed-value animations (moving a set amount per frame) will exhibit unexpected speed changes on these displays.
 
 ```javascript
-// ---- 悪い例: フレーム単位の固定値移動 ----
+// ---- Bad example: fixed-value movement per frame ----
 function badAnimate() {
-  x += 5; // 60Hzでは300px/s、120Hzでは600px/s になってしまう
+  x += 5; // 300px/s at 60Hz, but 600px/s at 120Hz
   element.style.transform = `translateX(${x}px)`;
   if (x < 300) requestAnimationFrame(badAnimate);
 }
 
-// ---- 良い例: 経過時間ベースの移動（デルタタイム） ----
+// ---- Good example: elapsed-time-based movement (delta time) ----
 function goodAnimate(timestamp) {
   if (!lastTimestamp) lastTimestamp = timestamp;
   const deltaTime = timestamp - lastTimestamp;
   lastTimestamp = timestamp;
 
-  // 速度: 300px/秒（ディスプレイリフレッシュレートに依存しない）
+  // Speed: 300px/second (independent of display refresh rate)
   const speed = 300; // px per second
   x += speed * (deltaTime / 1000);
 
@@ -2076,41 +2076,41 @@ function goodAnimate(timestamp) {
   if (x < 300) requestAnimationFrame(goodAnimate);
 }
 
-// ---- 最良の例: duration ベースの正規化 ----
+// ---- Best example: duration-based normalization ----
 function bestAnimate(timestamp) {
   if (!startTime) startTime = timestamp;
   const elapsed = timestamp - startTime;
-  const progress = Math.min(elapsed / 1000, 1); // 1秒間で完了
+  const progress = Math.min(elapsed / 1000, 1); // Complete in 1 second
   const eased = Easing.easeOutCubic(progress);
 
   element.style.transform = `translateX(${eased * 300}px)`;
   if (progress < 1) requestAnimationFrame(bestAnimate);
 }
-// この方式なら60Hz, 120Hz, 144Hz いずれでも同じ1秒で300px移動する
+// This approach moves 300px in the same 1 second at 60Hz, 120Hz, or 144Hz
 ```
 
 ```
-リフレッシュレート別のフレームバジェット比較:
+Frame budget comparison by refresh rate:
 
-  リフレッシュ  フレーム間隔   JS予算    フレーム/秒
-  レート                     (目安)
+  Refresh    Frame interval   JS budget   Frames/s
+  Rate                        (approx.)
   ───────────────────────────────────────────────
-  60Hz         16.67ms       10ms       60
-  90Hz         11.11ms       7ms        90
-  120Hz         8.33ms       5ms       120
-  144Hz         6.94ms       4ms       144
-  240Hz         4.17ms       2ms       240
+  60Hz         16.67ms       10ms        60
+  90Hz         11.11ms       7ms         90
+  120Hz         8.33ms       5ms        120
+  144Hz         6.94ms       4ms        144
+  240Hz         4.17ms       2ms        240
 
-  重要: 高リフレッシュレートでは JS の処理時間の許容値が
-  大幅に狭まる。複雑な計算はWorkerに移すことを検討すべき。
+  Important: at higher refresh rates the allowable JS processing time
+  narrows significantly. Consider offloading complex calculations to a Worker.
 ```
 
-### 12.2 エッジケース2: タブ非アクティブ時のアニメーション
+### 12.2 Edge Case 2: Animations in Inactive Tabs
 
-ブラウザはパフォーマンスとバッテリー消費を最適化するため、非アクティブタブでの `requestAnimationFrame` コールバックの頻度を大幅に制限する（通常1fps以下）。これにより、タブを切り替えて戻った際にアニメーションが急激にジャンプする可能性がある。
+Browsers heavily throttle `requestAnimationFrame` callbacks in inactive tabs (often to 1fps or less) to optimize performance and battery usage. This can cause animations to jump abruptly when the user switches back to the tab.
 
 ```javascript
-// タブ切り替え時のアニメーション管理
+// Animation management for tab switching
 class VisibilityAwareAnimation {
   constructor(animateFn) {
     this.animateFn = animateFn;
@@ -2119,7 +2119,7 @@ class VisibilityAwareAnimation {
     this.pausedAt = null;
     this.totalPausedDuration = 0;
 
-    // Page Visibility API で監視
+    // Monitor with Page Visibility API
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         this.onHidden();
@@ -2144,7 +2144,7 @@ class VisibilityAwareAnimation {
         this.lastTimestamp = timestamp;
       }
 
-      // 非アクティブ期間を除いた正味の経過時間を計算
+      // Calculate net elapsed time excluding the inactive period
       const adjustedTime = timestamp - this.totalPausedDuration;
       const shouldContinue = this.animateFn(adjustedTime);
 
@@ -2156,12 +2156,12 @@ class VisibilityAwareAnimation {
   }
 
   onHidden() {
-    // タブが非アクティブになった時刻を記録
+    // Record the time the tab became inactive
     this.pausedAt = performance.now();
   }
 
   onVisible() {
-    // タブがアクティブに戻った時、非アクティブ期間を加算
+    // When the tab becomes active again, add the inactive duration
     if (this.pausedAt !== null) {
       this.totalPausedDuration += performance.now() - this.pausedAt;
       this.pausedAt = null;
@@ -2173,7 +2173,7 @@ class VisibilityAwareAnimation {
   }
 }
 
-// 使用例
+// Usage example
 const anim = new VisibilityAwareAnimation((adjustedTime) => {
   const progress = Math.min(adjustedTime / 3000, 1);
   element.style.transform = `translateX(${progress * 300}px)`;
@@ -2182,106 +2182,106 @@ const anim = new VisibilityAwareAnimation((adjustedTime) => {
 anim.start();
 ```
 
-### 12.3 エッジケース3: transform と子要素への影響
+### 12.3 Edge Case 3: Side Effects of transform on Child Elements
 
-`transform` プロパティは新しいスタッキングコンテキストとコンテインメントブロックを生成するため、子要素の `position: fixed` の基準が変わるなどの副作用がある。
+The `transform` property creates a new stacking context and containing block, which changes the reference point for `position: fixed` on child elements, among other side effects.
 
 ```css
-/* 問題: transform を持つ親の中で fixed が期待通り動かない */
+/* Problem: fixed positioning does not work as expected inside a parent with transform */
 .parent {
-  transform: translateX(0); /* これだけで fixed の基準が変わる */
+  transform: translateX(0); /* This alone changes the reference for fixed */
 }
 
 .parent .fixed-child {
-  position: fixed; /* ビューポート基準ではなく、.parent 基準になる */
+  position: fixed; /* Uses .parent as reference, not the viewport */
   top: 0;
   left: 0;
 }
 
-/* 対策1: fixed要素をtransform要素の外に移動 */
-/* 対策2: ポータルパターンでDOMの別の場所にマウント */
-/* 対策3: fixedの代わりにstickyを使用（用途による） */
+/* Solution 1: Move the fixed element outside the transformed element */
+/* Solution 2: Mount it in a different location in the DOM using the portal pattern */
+/* Solution 3: Use sticky instead of fixed (depending on the use case) */
 ```
 
 ```
-transform が生成するコンテキスト:
+Contexts created by transform:
 
-  transform なし:
+  Without transform:
   ┌─ viewport ──────────────────────────┐
   │  ┌─ parent ──────────┐              │
   │  │  ┌─ child ──────┐ │              │
-  │  │  │ fixed: top 0  │ │   ← viewport基準 │
+  │  │  │ fixed: top 0  │ │   ← viewport reference │
   │  │  └──────────────┘ │              │
   │  └───────────────────┘              │
   └─────────────────────────────────────┘
-  child は viewport の top:0 に表示される
+  child is displayed at viewport top:0
 
-  transform あり:
+  With transform:
   ┌─ viewport ──────────────────────────┐
   │  ┌─ parent (transform) ──────────┐  │
   │  │  ┌─ child ──────┐            │  │
-  │  │  │ fixed: top 0  │ ← parent基準 │  │
+  │  │  │ fixed: top 0  │ ← parent reference │  │
   │  │  └──────────────┘            │  │
   │  └──────────────────────────────┘  │
   └─────────────────────────────────────┘
-  child は parent の top:0 に表示される（意図と異なる可能性）
+  child is displayed at parent top:0 (may differ from intention)
 ```
 
 ---
 
-## 13. 比較表
+## 13. Comparison Tables
 
-### 13.1 アニメーション手法の総合比較
+### 13.1 Overall Comparison of Animation Techniques
 
-| 特性 | CSS Transition | CSS Animation | rAF | WAAPI | FLIP | View Transitions |
+| Feature | CSS Transition | CSS Animation | rAF | WAAPI | FLIP | View Transitions |
 |------|:---:|:---:|:---:|:---:|:---:|:---:|
-| 宣言的記述 | ✓ | ✓ | - | - | - | ✓ (CSS側) |
-| GPUアクセラレーション | ✓ | ✓ | △ | ✓ | ✓ | ✓ |
-| 動的キーフレーム | - | - | ✓ | ✓ | - | - |
-| 一時停止/再開 | - | ✓ (play-state) | 手動 | ✓ | - | - |
-| 完了検出 | イベント | イベント | 手動 | Promise | イベント | Promise |
-| 逆再生 | △ | ✓ (direction) | 手動 | ✓ | - | - |
-| 複雑なシーケンス | △ (delay) | ✓ | ✓ | ✓ | - | △ |
-| DOM変更連動 | - | - | ✓ | ✓ | ✓ | ✓ |
-| スクロール連動 | - | ✓ (scroll-timeline) | ✓ | ✓ | - | - |
-| メインスレッド負荷 | 低 | 低 | 高 | 低 | 中 | 低 |
-| 学習コスト | 低 | 低 | 中 | 中 | 高 | 中 |
-| ブラウザ対応 | 全ブラウザ | 全ブラウザ | 全ブラウザ | 広い | 全ブラウザ | Chrome/Edge主体 |
+| Declarative syntax | ✓ | ✓ | - | - | - | ✓ (CSS side) |
+| GPU acceleration | ✓ | ✓ | △ | ✓ | ✓ | ✓ |
+| Dynamic keyframes | - | - | ✓ | ✓ | - | - |
+| Pause/resume | - | ✓ (play-state) | Manual | ✓ | - | - |
+| Completion detection | Event | Event | Manual | Promise | Event | Promise |
+| Reverse playback | △ | ✓ (direction) | Manual | ✓ | - | - |
+| Complex sequences | △ (delay) | ✓ | ✓ | ✓ | - | △ |
+| DOM change linkage | - | - | ✓ | ✓ | ✓ | ✓ |
+| Scroll linkage | - | ✓ (scroll-timeline) | ✓ | ✓ | - | - |
+| Main thread load | Low | Low | High | Low | Medium | Low |
+| Learning cost | Low | Low | Medium | Medium | High | Medium |
+| Browser support | All browsers | All browsers | All browsers | Wide | All browsers | Chrome/Edge primarily |
 
-### 13.2 イージング関数の推奨用途
+### 13.2 Recommended Uses for Easing Functions
 
-| 用途 | 推奨イージング | 推奨時間 | cubic-bezier 近似値 |
+| Use case | Recommended easing | Recommended duration | cubic-bezier approximation |
 |------|:---:|:---:|:---:|
-| ボタンホバー | ease-out | 100-150ms | (0, 0, 0.2, 1) |
-| ボタン押下 | ease-out | 50-100ms | (0, 0, 0.2, 1) |
-| 要素の入場 | ease-out (decelerate) | 200-350ms | (0.22, 1, 0.36, 1) |
-| 要素の退場 | ease-in (accelerate) | 150-250ms | (0.4, 0, 1, 1) |
-| 移動（入退場） | ease-in-out | 250-400ms | (0.4, 0, 0.2, 1) |
-| オーバーシュート | back(ease-out) | 300-500ms | (0.34, 1.56, 0.64, 1) |
-| 弾み | bounce | 500-800ms | JS実装推奨 |
-| スプリング | spring | 400-700ms | JS実装推奨 |
-| スクロール連動 | linear | - | (0, 0, 1, 1) |
-| ローディング回転 | linear | 600-1000ms | (0, 0, 1, 1) |
-| モーダル表示 | decelerate + overshoot | 250-350ms | (0.34, 1.56, 0.64, 1) |
-| モーダル非表示 | accelerate | 150-200ms | (0.4, 0, 1, 1) |
+| Button hover | ease-out | 100-150ms | (0, 0, 0.2, 1) |
+| Button press | ease-out | 50-100ms | (0, 0, 0.2, 1) |
+| Element entrance | ease-out (decelerate) | 200-350ms | (0.22, 1, 0.36, 1) |
+| Element exit | ease-in (accelerate) | 150-250ms | (0.4, 0, 1, 1) |
+| Movement (enter/exit) | ease-in-out | 250-400ms | (0.4, 0, 0.2, 1) |
+| Overshoot | back (ease-out) | 300-500ms | (0.34, 1.56, 0.64, 1) |
+| Bounce | bounce | 500-800ms | JS implementation recommended |
+| Spring | spring | 400-700ms | JS implementation recommended |
+| Scroll linkage | linear | - | (0, 0, 1, 1) |
+| Loading spinner | linear | 600-1000ms | (0, 0, 1, 1) |
+| Modal open | decelerate + overshoot | 250-350ms | (0.34, 1.56, 0.64, 1) |
+| Modal close | accelerate | 150-200ms | (0.4, 0, 1, 1) |
 
 ---
 
-## 14. 演習
+## 14. Exercises
 
-### 14.1 演習1: 基礎 - CSS Transitionによるカードホバーエフェクト
+### 14.1 Exercise 1: Basic - Card Hover Effect with CSS Transition
 
-以下の要件を満たすカードコンポーネントのアニメーションを実装せよ。
+Implement an animation for a card component that meets the following requirements.
 
-**要件:**
-- ホバー時にカードが4px上に移動し、影が深くなる
-- transform と box-shadow の両方をアニメーションする
-- ease-out イージングで200msかけて遷移する
-- `prefers-reduced-motion: reduce` の場合はアニメーションを無効にする
-- ホバー解除時は少し遅め（250ms）で元に戻る
+**Requirements:**
+- On hover, the card moves up 4px and its shadow deepens
+- Animate both transform and box-shadow
+- Transition over 200ms with ease-out easing
+- Disable the animation when `prefers-reduced-motion: reduce` is set
+- Return to the original state slightly slower (250ms) when hover ends
 
 ```css
-/* 解答例 */
+/* Solution */
 .card {
   background: white;
   border-radius: 8px;
@@ -2304,28 +2304,28 @@ transform が生成するコンテキスト:
   }
   .card:hover {
     transform: none;
-    /* 影の変化だけは残す（非モーション的な変更） */
+    /* Keep the shadow change (non-motion change) */
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
 }
 ```
 
-**確認ポイント:**
-- Chrome DevTools の Rendering タブで "Paint flashing" を有効にし、ホバー時にカード全体ではなく影の部分のみがリペイントされることを確認する
-- Performance タブで録画し、Layout イベントが発生していないことを確認する
+**Verification points:**
+- Enable "Paint flashing" in the Chrome DevTools Rendering tab and confirm that on hover, only the shadow area, not the entire card, is repainted.
+- Record in the Performance tab and confirm that no Layout events occur.
 
-### 14.2 演習2: 中級 - FLIP によるリスト並べ替えアニメーション
+### 14.2 Exercise 2: Intermediate - FLIP List Reorder Animation
 
-以下の要件を満たすソート可能なリストを実装せよ。
+Implement a sortable list that meets the following requirements.
 
-**要件:**
-- ボタンクリックでリスト項目を名前順/数値順に切り替える
-- FLIP技法を用いて、各項目が現在位置から新しい位置へ滑らかに移動する
-- アニメーション時間は300ms、ease-out イージングとする
-- 同時に複数のソートが要求された場合、前のアニメーションをキャンセルして新しいソートを開始する
+**Requirements:**
+- Toggle between name order and numeric order on button click
+- Use the FLIP technique so each item smoothly moves from its current position to its new position
+- Animation duration: 300ms, ease-out easing
+- If a new sort is requested while an animation is running, cancel the previous animation and start the new sort
 
 ```javascript
-// 解答例
+// Solution
 class AnimatedSortableList {
   constructor(container) {
     this.container = container;
@@ -2335,7 +2335,7 @@ class AnimatedSortableList {
 
   async sort(compareFn) {
     if (this.isAnimating) {
-      // 前のアニメーション中なら、完了後に新しいソートを適用
+      // If an animation is in progress, apply the new sort after it finishes
       this.pendingSort = compareFn;
       return;
     }
@@ -2343,13 +2343,13 @@ class AnimatedSortableList {
     this.isAnimating = true;
     const items = Array.from(this.container.children);
 
-    // First: 全要素の現在位置を記録
+    // First: record current positions of all elements
     const firstPositions = new Map();
     items.forEach(item => {
       firstPositions.set(item, item.getBoundingClientRect());
     });
 
-    // Last: ソートを適用
+    // Last: apply sort
     const sorted = [...items].sort(compareFn);
     sorted.forEach(item => this.container.appendChild(item));
 
@@ -2374,11 +2374,11 @@ class AnimatedSortableList {
       );
     }).filter(Boolean);
 
-    // 全アニメーション完了を待つ
+    // Wait for all animations to complete
     await Promise.all(animations.map(a => a.finished));
     this.isAnimating = false;
 
-    // 待機中のソートがあれば実行
+    // If there is a pending sort, run it
     if (this.pendingSort) {
       const nextSort = this.pendingSort;
       this.pendingSort = null;
@@ -2387,7 +2387,7 @@ class AnimatedSortableList {
   }
 }
 
-// 使用例
+// Usage example
 const list = new AnimatedSortableList(document.querySelector('.list'));
 
 document.querySelector('#sort-name').addEventListener('click', () => {
@@ -2401,19 +2401,19 @@ document.querySelector('#sort-value').addEventListener('click', () => {
 });
 ```
 
-### 14.3 演習3: 上級 - Web Animations API + View Transitions による画像ギャラリー
+### 14.3 Exercise 3: Advanced - Image Gallery with Web Animations API + View Transitions
 
-以下の要件を満たす画像ギャラリーのトランジションシステムを実装せよ。
+Implement an image gallery transition system that meets the following requirements.
 
-**要件:**
-- サムネイルクリックでフルサイズ画像に遷移する
-- View Transitions API を使い、サムネイルからフルサイズへの滑らかな遷移を実現する
-- View Transitions 非対応ブラウザにはWAAPIによるフォールバックを提供する
-- 画像が読み込まれる前はスケルトンスクリーンを表示する
-- `prefers-reduced-motion` を尊重する
+**Requirements:**
+- Clicking a thumbnail transitions to the full-size image
+- Use the View Transitions API to achieve a smooth transition from thumbnail to full size
+- Provide a WAAPI fallback for browsers that don't support View Transitions
+- Show a skeleton screen before the image loads
+- Respect `prefers-reduced-motion`
 
 ```javascript
-// 解答例
+// Solution
 class GalleryTransition {
   constructor() {
     this.prefersReducedMotion = window.matchMedia(
@@ -2422,11 +2422,11 @@ class GalleryTransition {
   }
 
   async openFullSize(thumbnail, fullSizeUrl) {
-    // スケルトンを表示
+    // Show skeleton
     const skeleton = this.createSkeleton(thumbnail);
     document.body.appendChild(skeleton);
 
-    // 画像のプリロード
+    // Preload the image
     const img = new Image();
     const imageLoaded = new Promise((resolve) => {
       img.onload = resolve;
@@ -2434,16 +2434,16 @@ class GalleryTransition {
     });
 
     if (document.startViewTransition && !this.prefersReducedMotion.matches) {
-      // View Transitions API が利用可能な場合
+      // Use View Transitions API if available
       return this.openWithViewTransition(thumbnail, img, imageLoaded, skeleton);
     } else {
-      // フォールバック: WAAPI を使用
+      // Fallback: use WAAPI
       return this.openWithWAAPI(thumbnail, img, imageLoaded, skeleton);
     }
   }
 
   async openWithViewTransition(thumbnail, img, imageLoaded, skeleton) {
-    // サムネイルに view-transition-name を設定
+    // Set view-transition-name on the thumbnail
     thumbnail.style.viewTransitionName = 'gallery-image';
 
     await imageLoaded;
@@ -2470,7 +2470,7 @@ class GalleryTransition {
     document.body.appendChild(fullView);
     const fullRect = fullView.getBoundingClientRect();
 
-    // スケール差を計算
+    // Calculate scale difference
     const scaleX = thumbnailRect.width / fullRect.width;
     const scaleY = thumbnailRect.height / fullRect.height;
     const translateX = thumbnailRect.left - fullRect.left +
@@ -2527,43 +2527,43 @@ class GalleryTransition {
 
 ## 15. FAQ
 
-### Q1: CSS Transition と CSS Animation はどう使い分けるべきか？
+### Q1: How should CSS Transition and CSS Animation be used differently?
 
-**回答:** 基本原則は「2状態間の遷移ならTransition、それ以上ならAnimation」である。
+**Answer:** The basic principle is "use Transition for transitions between 2 states, use Animation for anything more complex."
 
-- **Transition の適用場面:** ホバーエフェクト、ボタンの状態変化、メニューの開閉、ツールチップの表示/非表示など、明確な開始状態と終了状態がある場合。トリガー（`:hover`, クラスの付与など）に対する自動的な反応として最適。
-- **Animation の適用場面:** ローディングスピナー、パルスエフェクト、複数の中間状態を経る入場アニメーション、無限ループのアニメーションなど。`@keyframes` で複数の状態を定義する必要がある場合。
+- **When to use Transition:** Hover effects, button state changes, menu open/close, tooltip show/hide, and other cases where there is a clear start state and end state. Optimal as an automatic response to a trigger (`:hover`, class addition, etc.).
+- **When to use Animation:** Loading spinners, pulse effects, entrance animations that pass through multiple intermediate states, infinite loop animations, and other cases where you need to define multiple states with `@keyframes`.
 
-性能面では両者に大きな差はない。いずれも対象プロパティが `transform` / `opacity` であればCompositorスレッドで処理される。コードの可読性と保守性を基準に選択するのが良い。
+There is no significant performance difference between the two. When the target properties are `transform` / `opacity`, both are processed on the Compositor thread. Choose based on code readability and maintainability.
 
-### Q2: requestAnimationFrame と Web Animations API のどちらを使うべきか？
+### Q2: Which should I use: requestAnimationFrame or Web Animations API?
 
-**回答:** 可能な限りWAAPIを使用することを推奨する。
+**Answer:** Using WAAPI is recommended whenever possible.
 
-WAAPIはブラウザのアニメーションエンジンに直接処理を委譲するため、メインスレッドをブロックしない。一方、rAFのコールバック内で行うDOM操作はメインスレッドで実行されるため、他のJavaScript処理と競合する可能性がある。
+WAAPI delegates processing directly to the browser's animation engine, so it does not block the main thread. In contrast, DOM operations performed inside a rAF callback execute on the main thread and may compete with other JavaScript processing.
 
-ただし、以下の場合はrAFが適している:
-- 物理シミュレーション（衝突判定やバネ物理など、各フレームで動的に計算が必要な場合）
-- Canvas / WebGL 描画
-- 外部データ（マウス座標、センサーデータ等）に応じたリアルタイム更新
-- 複雑な条件分岐を含むアニメーションロジック
+However, rAF is appropriate in the following cases:
+- Physics simulations (collision detection, spring physics, etc., where dynamic calculations are needed each frame)
+- Canvas / WebGL rendering
+- Real-time updates based on external data (mouse coordinates, sensor data, etc.)
+- Animation logic involving complex conditional branching
 
-### Q3: アニメーション中にスクロールが発生するとパフォーマンスが低下するのはなぜか？
+### Q3: Why does performance degrade when scrolling occurs during an animation?
 
-**回答:** スクロール処理とアニメーション処理は同じメインスレッドで実行されるため、フレームバジェットを奪い合う形になる。特に以下の状況で問題が顕著になる:
+**Answer:** Scrolling and animation processing execute on the same main thread, so they compete for the frame budget. The problem is particularly noticeable in the following situations:
 
-1. **スクロールイベントリスナー内でのDOM操作:** `scroll` イベントは高頻度で発火し、そのハンドラ内でレイアウトを変更すると強制リフローが多発する。
-2. **パッシブでないスクロールリスナー:** `passive: false` のスクロールリスナーは、ブラウザがスクロールをCompositorに委譲できなくなるため、メインスレッドでの処理を待つことになる。
-3. **固定位置要素のリペイント:** `position: fixed` の要素があると、スクロールのたびにリペイントが発生する場合がある。
+1. **DOM manipulation inside scroll event listeners:** The `scroll` event fires frequently, and changing the layout inside its handler causes many forced reflows.
+2. **Non-passive scroll listeners:** Scroll listeners with `passive: false` prevent the browser from delegating scrolling to the Compositor, forcing it to wait for main-thread processing.
+3. **Repaint of fixed-position elements:** Elements with `position: fixed` may cause repaints on every scroll.
 
-対策として、スクロール連動アニメーションにはCSS Scroll-driven Animationsの使用を検討すべきである。これはCompositorスレッドで動作するため、メインスレッドへの負荷がない。
+As a countermeasure, consider using CSS Scroll-driven Animations for scroll-linked animations. These run on the Compositor thread and impose no load on the main thread.
 
-### Q4: FLIP技法でscaleを使うと子要素のテキストが歪むのを防ぐにはどうすればよいか？
+### Q4: How do I prevent text distortion in child elements when using scale with the FLIP technique?
 
-**回答:** FLIP技法で `scale()` を使用すると、その要素の子要素も同様にスケーリングされ、テキストやアイコンが歪んで見える場合がある。これを防ぐには、子要素に逆スケールを適用する「Counter-Scale」パターンを使用する。
+**Answer:** When using `scale()` with the FLIP technique, child elements are also scaled, which can make text and icons look distorted. To prevent this, use the "Counter-Scale" pattern, which applies an inverse scale to child elements.
 
 ```javascript
-// Counter-Scaleパターン
+// Counter-Scale pattern
 function flipWithCounterScale(parent, changeFn) {
   const first = parent.getBoundingClientRect();
   changeFn();
@@ -2574,7 +2574,7 @@ function flipWithCounterScale(parent, changeFn) {
 
   parent.style.transform = `scale(${scaleX}, ${scaleY})`;
 
-  // 子要素に逆スケールを適用
+  // Apply inverse scale to child elements
   const children = parent.querySelectorAll('.preserve-scale');
   children.forEach(child => {
     child.style.transform = `scale(${1/scaleX}, ${1/scaleY})`;
@@ -2592,162 +2592,162 @@ function flipWithCounterScale(parent, changeFn) {
 }
 ```
 
-### Q5: モバイルデバイスでアニメーションが滑らかにならない場合の対処法は？
+### Q5: What should I do if animations are not smooth on mobile devices?
 
-**回答:** モバイルデバイスのGPUやCPUはデスクトップに比べて性能が限定的である。以下の対策を段階的に適用することを推奨する。
+**Answer:** Mobile devices have more limited GPU and CPU performance than desktops. Apply the following measures step by step.
 
-1. **transform / opacity のみ使用:** Layout や Paint をトリガーするプロパティを避ける。
-2. **要素数の削減:** 同時にアニメーションする要素数を最小限にする（理想は10要素以下）。
-3. **解像度の考慮:** 高解像度デバイスではピクセル数が多い分、描画負荷が高い。大きなアニメーション領域を避ける。
-4. **box-shadow / filter の回避:** これらはPaintが重い処理であり、アニメーション中のリペイントを増やす。
-5. **will-change の節度ある利用:** モバイルではGPUメモリが限られるため、必要な要素にだけ適用する。
+1. **Use only transform / opacity:** Avoid properties that trigger Layout or Paint.
+2. **Reduce the number of elements:** Minimize the number of elements animated simultaneously (ideally 10 or fewer).
+3. **Consider display resolution:** High-resolution devices have more pixels to paint, increasing rendering load. Avoid large animation areas.
+4. **Avoid box-shadow / filter:** These are paint-heavy operations and increase repaints during animation.
+5. **Use will-change sparingly:** GPU memory is limited on mobile, so apply it only to the necessary elements.
 
 ---
 
-## 16. まとめ
+## 16. Summary
 
-### 60fpsアニメーション達成のチェックリスト
+### 60fps Animation Achievement Checklist
 
-| チェック項目 | 判定基準 |
+| Checklist item | Judgment criteria |
 |------|------|
-| transform / opacity のみ使用 | Layout/Paint を発生させていないか |
-| rAFまたはWAAPIを使用 | setInterval/setTimeout を使っていないか |
-| タイムスタンプベースの計算 | フレーム単位の固定値移動をしていないか |
-| will-change の適切な管理 | 必要な時だけ、必要な要素にのみ適用しているか |
-| レイアウトスラッシング回避 | 読み取りと書き込みを分離しているか |
-| prefers-reduced-motion 対応 | モーション軽減設定を尊重しているか |
-| タブ非アクティブ時の対処 | Page Visibility API で制御しているか |
-| ロングタスクの排除 | メインスレッドを50ms以上占有していないか |
-| DevTools での検証 | Performance パネルでジャンクがないことを確認したか |
+| Use only transform / opacity | Is Layout/Paint not being triggered? |
+| Use rAF or WAAPI | Are setInterval/setTimeout not being used? |
+| Timestamp-based calculations | Is per-frame fixed-value movement not being used? |
+| Appropriate will-change management | Is it only applied when needed, to only the necessary elements? |
+| Avoid layout thrashing | Are reads and writes separated? |
+| prefers-reduced-motion support | Is the reduced motion preference being respected? |
+| Handle inactive tabs | Is Page Visibility API being used for control? |
+| Eliminate long tasks | Is the main thread not occupied for more than 50ms? |
+| Verify with DevTools | Has the Performance panel been used to confirm no jank? |
 
-### 技術選択のフローチャート
+### Technology Selection Flowchart
 
 ```
-アニメーション手法の選択:
+Choosing an animation technique:
 
-  開始
+  Start
    │
-   ├── 2状態間の単純な遷移？
+   ├── Simple transition between 2 states?
    │    └── Yes → CSS Transition
    │
-   ├── キーフレームが必要？
+   ├── Keyframes needed?
    │    └── Yes → CSS Animation
-   │         └── スクロール連動？ → animation-timeline: scroll()/view()
+   │         └── Scroll-linked? → animation-timeline: scroll()/view()
    │
-   ├── DOM変更に連動した位置移動？
-   │    ├── View Transitions API 対応ブラウザ？
+   ├── Position change linked to a DOM change?
+   │    ├── Browser supports View Transitions API?
    │    │    └── Yes → View Transitions API
-   │    └── No → FLIP 技法
+   │    └── No → FLIP technique
    │
-   ├── JS制御が必要？（一時停止、逆再生、動的キーフレーム）
+   ├── JS control needed? (pause, reverse, dynamic keyframes)
    │    └── Yes → Web Animations API
    │
-   ├── 物理シミュレーション / Canvas？
+   ├── Physics simulation / Canvas?
    │    └── Yes → requestAnimationFrame
    │
-   └── 上記いずれにも該当しない
-        └── CSS Transition（シンプルさ優先）
+   └── None of the above apply
+        └── CSS Transition (prefer simplicity)
 ```
 
 ---
 
 ## FAQ
 
-### Q1: CSS AnimationsとWeb Animations APIはどう使い分けるべきか？
+### Q1: How should CSS Animations and Web Animations API be used differently?
 
-**A:** 使い分けの基準は「動的制御の必要性」と「複雑さ」である。
+**A:** The key criteria are "the need for dynamic control" and "complexity."
 
 ```
-選定フローチャート:
+Selection flowchart:
 
-  アニメーションの要件
+  Animation requirements
    │
-   ├─ 静的なホバーエフェクトや入退場アニメーション
+   ├─ Static hover effects or entrance/exit animations
    │   └→ CSS Animations/Transitions
-   │      理由: 宣言的でシンプル、will-changeによる自動最適化
+   │      Reason: declarative and simple, automatic optimization via will-change
    │
-   ├─ 途中で速度変更・一時停止・逆再生が必要
+   ├─ Need to change speed, pause, or reverse mid-animation
    │   └→ Web Animations API
-   │      理由: .playbackRate、.pause()、.reverse() が使える
+   │      Reason: .playbackRate, .pause(), .reverse() are available
    │
-   ├─ タイムライン全体の進捗を外部から制御したい
+   ├─ Want to control progress of the entire timeline from outside
    │   └→ Web Animations API
-   │      理由: .currentTime で直接シーク可能
+   │      Reason: can seek directly with .currentTime
    │
-   └─ 物理演算・衝突判定など複雑なロジック
-       └→ requestAnimationFrame + 自前の計算
-          理由: フレームごとの完全な制御が可能
+   └─ Complex logic like physics calculation or collision detection
+       └→ requestAnimationFrame + custom calculations
+          Reason: full control over each frame is possible
 ```
 
-**具体例:**
+**Specific examples:**
 
-| ユースケース | 推奨手法 | 理由 |
+| Use case | Recommended technique | Reason |
 |---|---|---|
-| ボタンホバー時の色変化 | CSS Transition | 最もシンプル、パフォーマンス最適 |
-| ローディングスピナー | CSS Animation | ループアニメーション、宣言的 |
-| モーダルの開閉 | WAAPI | 開閉状態の動的制御が必要 |
-| スクロール連動視差効果 | Scroll-driven Animations | 専用API、最適化済み |
-| ゲームキャラクターの動き | rAF + Canvas | 物理演算が必要 |
+| Color change on button hover | CSS Transition | Simplest, performance-optimal |
+| Loading spinner | CSS Animation | Loop animation, declarative |
+| Modal open/close | WAAPI | Dynamic control of open/close state needed |
+| Scroll-linked parallax | Scroll-driven Animations | Dedicated API, optimized |
+| Game character movement | rAF + Canvas | Physics simulation needed |
 
-**併用パターン:**
+**Combined usage pattern:**
 ```javascript
-// CSS Animationsを定義しておき、WA APIで制御する
+// Define CSS Animations and control with WAAPI
 const elem = document.querySelector('.box');
-const animation = elem.getAnimations()[0]; // CSSアニメーションを取得
+const animation = elem.getAnimations()[0]; // Get CSS animation
 
-// JavaScriptから動的に制御
-animation.playbackRate = 2.0; // 2倍速
-animation.currentTime = 500;  // 500ms地点にシーク
+// Control dynamically from JavaScript
+animation.playbackRate = 2.0; // 2x speed
+animation.currentTime = 500;  // Seek to 500ms
 ```
 
 ---
 
-### Q2: 60fpsを達成するための具体的なチェックリストは？
+### Q2: What is a concrete checklist for achieving 60fps?
 
-**A:** 以下の7つのステップを順に確認する。
+**A:** Check the following 7 steps in order.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│          60fps達成のための7ステップチェックリスト             │
+│          7-step checklist for achieving 60fps               │
 ├─────────────────────────────────────────────────────────────┤
-│ ✅ Step 1: アニメーション対象プロパティの確認                 │
-│    → transform / opacity のみを使用しているか？              │
-│    → width/height/top/left をアニメーションしていないか？    │
+│ ✅ Step 1: Verify animated properties                        │
+│    → Are only transform / opacity being used?               │
+│    → Are width/height/top/left not being animated?          │
 │                                                              │
-│ ✅ Step 2: will-change の適切な設定                          │
-│    → アニメーション前に will-change を設定済みか？           │
-│    → アニメーション終了後に will-change を削除しているか？   │
+│ ✅ Step 2: Appropriate will-change configuration             │
+│    → Has will-change been set before the animation?         │
+│    → Has will-change been removed after the animation ends? │
 │                                                              │
-│ ✅ Step 3: レイヤー化の確認                                  │
-│    → DevTools > Layers パネルで独立レイヤーになっているか？  │
-│    → 不要なレイヤーが大量に作られていないか？                │
+│ ✅ Step 3: Verify layering                                   │
+│    → Is it on an independent layer in DevTools > Layers?    │
+│    → Are unnecessary layers not being created in bulk?      │
 │                                                              │
-│ ✅ Step 4: JavaScriptの処理時間                              │
-│    → rAFコールバック内の処理が10ms以内か？                   │
-│    → 強制同期レイアウト(FSL)を引き起こしていないか？          │
+│ ✅ Step 4: JavaScript processing time                        │
+│    → Is processing inside rAF callbacks within 10ms?        │
+│    → Is Forced Synchronous Layout (FSL) not being caused?   │
 │                                                              │
-│ ✅ Step 5: ペイント範囲の最小化                              │
-│    → DevTools > Rendering > Paint flashing で確認            │
-│    → 必要以上に広範囲を再描画していないか？                  │
+│ ✅ Step 5: Minimize paint area                               │
+│    → Check with DevTools > Rendering > Paint flashing       │
+│    → Is it not repainting a wider area than necessary?      │
 │                                                              │
-│ ✅ Step 6: ガベージコレクションの回避                        │
-│    → アニメーション中にオブジェクト生成していないか？        │
-│    → 配列のプッシュ/スプライスを繰り返していないか？         │
+│ ✅ Step 6: Avoid garbage collection                          │
+│    → Are objects not being created during animation?        │
+│    → Are array push/splice not being repeated?              │
 │                                                              │
-│ ✅ Step 7: パフォーマンス計測                                │
-│    → DevTools > Performance でフレームドロップを確認          │
-│    → FPS Meter で実測値をモニタリング                        │
+│ ✅ Step 7: Performance measurement                           │
+│    → Check for frame drops with DevTools > Performance      │
+│    → Monitor actual values with FPS Meter                   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**デバッグワークフロー:**
+**Debugging workflow:**
 
 ```javascript
-// 1. Performance APIで実測
+// 1. Measure with Performance API
 const observer = new PerformanceObserver((list) => {
   for (const entry of list.getEntries()) {
     if (entry.duration > 16.67) {
-      console.warn(`⚠️ Long frame: ${entry.duration.toFixed(2)}ms`);
+      console.warn(`Long frame: ${entry.duration.toFixed(2)}ms`);
       console.log('Start time:', entry.startTime);
       console.log('Entry type:', entry.entryType);
     }
@@ -2755,104 +2755,104 @@ const observer = new PerformanceObserver((list) => {
 });
 observer.observe({ entryTypes: ['measure', 'longtask'] });
 
-// 2. rAF内で処理時間を計測
+// 2. Measure processing time inside rAF
 function animate() {
   const start = performance.now();
 
-  // アニメーション処理
+  // Animation processing
   updatePositions();
 
   const duration = performance.now() - start;
   if (duration > 10) {
-    console.warn(`⚠️ JS処理が長い: ${duration.toFixed(2)}ms`);
+    console.warn(`JS processing too long: ${duration.toFixed(2)}ms`);
   }
 
   requestAnimationFrame(animate);
 }
 
-// 3. Chrome DevTools のタイムライン分析
-// Performance > Record > アニメーション実行 > 停止
-// フレームバーが赤色 = フレームドロップ発生
-// Summary でどの処理が重いかを特定
+// 3. Chrome DevTools timeline analysis
+// Performance > Record > Run animation > Stop
+// Red frame bar = frame drop occurred
+// Use Summary to identify which processing is heavy
 ```
 
-**よくある落とし穴:**
+**Common pitfalls:**
 
-| 問題 | 症状 | 解決策 |
+| Problem | Symptom | Solution |
 |---|---|---|
-| 強制同期レイアウト | offsetWidth読み取り直後にスタイル変更 | バッチ処理（読み取り→書き込み） |
-| メモリリーク | 長時間実行でカクつき悪化 | removeEventListener、WeakMap使用 |
-| 過剰なレイヤー化 | メモリ使用量増加 | will-changeを必要最小限に |
-| Paint範囲が広い | 全画面再描画 | contain: layout paint を使用 |
+| Forced synchronous layout | Reading offsetWidth immediately before style change | Batch processing (reads → writes) |
+| Memory leak | Jank gets worse over long sessions | Use removeEventListener, WeakMap |
+| Excessive layering | Increased memory usage | Keep will-change to the minimum necessary |
+| Wide paint area | Full-screen repaint | Use contain: layout paint |
 
 ---
 
-### Q3: JavaScriptアニメーションライブラリはどう選ぶべきか？
+### Q3: How should I choose a JavaScript animation library?
 
-**A:** ユースケースとバンドルサイズのトレードオフで判断する。
+**A:** Decide based on use case and bundle size trade-offs.
 
 ```
-ライブラリ選定マトリクス:
+Library selection matrix:
 
-                     複雑さ
+                     Complexity
                        ↑
                        │
   GSAP (TweenMax)      │  Mo.js
   ~30KB (gzip)         │  ~20KB
-  ┌──────────┐        │  ┌──────────┐
-  │フル機能   │        │  │モーション │
-  │タイムライン│        │  │グラフィクス│
-  └──────────┘        │  └──────────┘
+  ┌──────────────┐     │  ┌──────────────┐
+  │ Full-featured │     │  │ Motion       │
+  │ Timeline      │     │  │ graphics     │
+  └──────────────┘     │  └──────────────┘
                        │
   ─────────────────────┼─────────────────────→
-                       │              バンドルサイズ
+                       │              Bundle size
   Anime.js             │  Popmotion
   ~9KB                 │  ~5KB (tree-shakable)
-  ┌──────────┐        │  ┌──────────┐
-  │軽量バランス│        │  │最軽量     │
-  │型          │        │  │関数型     │
-  └──────────┘        │  └──────────┘
+  ┌──────────────┐     │  ┌──────────────┐
+  │ Light balance │     │  │ Lightest     │
+  │              │     │  │ Functional   │
+  └──────────────┘     │  └──────────────┘
                        │
                        ↓
-                    シンプル
+                    Simple
 ```
 
-**選定フローチャート:**
+**Selection flowchart:**
 
 ```
-  要件の確認
+  Check requirements
    │
-   ├─ SVGモーフィングやパス描画が必要
+   ├─ SVG morphing or path drawing needed
    │   └→ GSAP (DrawSVG, MorphSVG) or Mo.js
    │
-   ├─ 複雑なタイムライン制御・シーケンス
-   │   └→ GSAP (Timeline API が最強)
+   ├─ Complex timeline control and sequencing
+   │   └→ GSAP (Timeline API is best-in-class)
    │
-   ├─ 物理演算ベースの自然な動き（慣性・バネ）
+   ├─ Natural physics-based movement (inertia, spring)
    │   └→ Popmotion (spring, inertia)
    │
-   ├─ 軽量でモダンなAPI、TypeScript対応
+   ├─ Lightweight, modern API with TypeScript support
    │   └→ Motion One (~5KB, WAAPI wrapper)
    │
-   └─ バンドルサイズを最小化したい
-       └→ CSS Animations + WAAPI (ライブラリ不要)
+   └─ Minimize bundle size
+       └→ CSS Animations + WAAPI (no library needed)
 ```
 
-**ベンチマーク比較 (2024年基準):**
+**Benchmark comparison (as of 2024):**
 
-| ライブラリ | バンドルサイズ | パフォーマンス | 学習コスト | 推奨ケース |
+| Library | Bundle size | Performance | Learning cost | Recommended cases |
 |---|---|---|---|---|
-| **GSAP** | ~30KB (gzip) | ★★★★★ | 中 | エンタープライズ、複雑なアニメーション |
-| **Anime.js** | ~9KB | ★★★★☆ | 低 | 汎用的な用途、バランス重視 |
-| **Popmotion** | ~5KB | ★★★★★ | 中 | 物理演算、インタラクティブUI |
-| **Motion One** | ~5KB | ★★★★★ | 低 | 最新プロジェクト、WAAPI活用 |
-| **Velocity.js** | ~15KB | ★★★☆☆ | 低 | jQueryからの移行 (非推奨) |
-| **Framer Motion** | ~60KB | ★★★★☆ | 中 | React専用、宣言的API |
+| **GSAP** | ~30KB (gzip) | ★★★★★ | Medium | Enterprise, complex animations |
+| **Anime.js** | ~9KB | ★★★★☆ | Low | General purpose, balanced |
+| **Popmotion** | ~5KB | ★★★★★ | Medium | Physics simulation, interactive UI |
+| **Motion One** | ~5KB | ★★★★★ | Low | New projects, leveraging WAAPI |
+| **Velocity.js** | ~15KB | ★★★☆☆ | Low | Migrating from jQuery (not recommended) |
+| **Framer Motion** | ~60KB | ★★★★☆ | Medium | React-only, declarative API |
 
-**実装例の比較:**
+**Implementation comparison:**
 
 ```javascript
-// 1. GSAP (最も直感的、機能豊富)
+// 1. GSAP (most intuitive, feature-rich)
 gsap.to('.box', {
   x: 100,
   rotation: 360,
@@ -2861,7 +2861,7 @@ gsap.to('.box', {
   onComplete: () => console.log('done')
 });
 
-// 2. Anime.js (シンプル、軽量)
+// 2. Anime.js (simple, lightweight)
 anime({
   targets: '.box',
   translateX: 100,
@@ -2871,7 +2871,7 @@ anime({
   complete: () => console.log('done')
 });
 
-// 3. Popmotion (物理演算特化)
+// 3. Popmotion (physics-focused)
 import { animate, spring } from 'popmotion';
 animate({
   from: 0,
@@ -2882,14 +2882,14 @@ animate({
   }
 });
 
-// 4. Motion One (WAAPI wrapper、最軽量)
+// 4. Motion One (WAAPI wrapper, lightest)
 import { animate } from 'motion';
 animate('.box',
   { x: 100, rotate: 360 },
   { duration: 1, easing: 'ease-out' }
 );
 
-// 5. Web Animations API (ライブラリ不要)
+// 5. Web Animations API (no library needed)
 document.querySelector('.box').animate(
   [
     { transform: 'translateX(0) rotate(0deg)' },
@@ -2899,61 +2899,61 @@ document.querySelector('.box').animate(
 );
 ```
 
-**2026年の推奨:**
-- **新規プロジェクト**: Motion One または WAAPI直接利用（バンドルサイズ最小）
-- **複雑なアニメーション**: GSAP（実績とエコシステム）
-- **React**: Framer Motion（宣言的API）
-- **Vue**: @vueuse/motion（Composition API対応）
+**2026 recommendations:**
+- **New projects**: Motion One or direct WAAPI usage (minimal bundle size)
+- **Complex animations**: GSAP (track record and ecosystem)
+- **React**: Framer Motion (declarative API)
+- **Vue**: @vueuse/motion (Composition API support)
 
 ---
 
-## まとめ
+## Summary
 
-### アニメーションパフォーマンス最適化の全体像
+### Overall Picture of Animation Performance Optimization
 
-| カテゴリ | 重要ポイント | 推奨手法 |
+| Category | Key points | Recommended approach |
 |---|---|---|
-| **基本原則** | 60fps = 16.67ms/frame、JS処理は10ms以内に収める | transform/opacityのみアニメーション |
-| **CSS手法** | Transitions/Animations/Scroll-driven | 静的アニメーションはCSSで宣言的に |
-| **JavaScript手法** | rAF/WAAPI/FLIP技法 | 動的制御が必要な場合のみJSを使用 |
-| **レイヤー最適化** | will-change、contain、合成レイヤー | 事前レイヤー化でペイント回避 |
-| **計測とデバッグ** | DevTools Performance/Rendering、FPS Meter | フレームドロップの早期発見 |
-| **アクセシビリティ** | prefers-reduced-motion、代替UI | 視覚過敏ユーザーへの配慮 |
-| **最新API** | View Transitions、Scroll-driven | ネイティブ機能で高パフォーマンス |
+| **Core principles** | 60fps = 16.67ms/frame, keep JS processing within 10ms | Animate only transform/opacity |
+| **CSS techniques** | Transitions/Animations/Scroll-driven | Use CSS declaratively for static animations |
+| **JavaScript techniques** | rAF/WAAPI/FLIP technique | Use JS only when dynamic control is needed |
+| **Layer optimization** | will-change, contain, compositing layers | Pre-layer promotion to avoid paint |
+| **Measurement and debugging** | DevTools Performance/Rendering, FPS Meter | Early detection of frame drops |
+| **Accessibility** | prefers-reduced-motion, alternative UI | Consideration for visually sensitive users |
+| **Latest APIs** | View Transitions, Scroll-driven | High performance with native features |
 
-### キーポイント
+### Key Points
 
-1. **transformとopacityを最優先する**
-   - GPU合成のみで完結し、Layout/Paintをスキップ
-   - will-change で事前にレイヤー化することで初回フレームも最適化
-   - width/height/top/left は避け、scaleX/scaleY/translateで代替
+1. **Prioritize transform and opacity**
+   - Completed by GPU compositing alone, skipping Layout/Paint
+   - Pre-layering with will-change also optimizes the first frame
+   - Avoid width/height/top/left; use scaleX/scaleY/translate instead
 
-2. **FLIP技法でレイアウト変更を吸収する**
-   - First/Last/Invert/Play の4ステップで、高コストなレイアウト変更を低コストなtransformに変換
-   - 要素の追加・削除・並び替えなど、DOMの構造変更を伴うアニメーションに有効
-   - View Transitions API登場後はそちらを優先（よりシンプルな実装）
+2. **Absorb layout changes with the FLIP technique**
+   - The 4 steps — First/Last/Invert/Play — convert expensive layout changes into cheap transform animations
+   - Effective for animations involving structural DOM changes such as adding, removing, or reordering elements
+   - After the View Transitions API arrived, prefer it (simpler implementation)
 
-3. **計測なしに最適化せず、ボトルネックを特定してから改善する**
-   - DevTools Performanceで「どの処理が重いか」を可視化
-   - FPS Meterで実測値をモニタリング
-   - Long Tasks APIで16.67msを超える処理を検出
-   - パフォーマンスは環境依存が大きいため、ターゲットデバイスで必ず計測すること
-
----
-
-## 次に読むべきガイド
-
-- [V8エンジンの内部動作](../02-javascript-runtime/00-v8-engine.md)
-- 合成レイヤーとGPU加速
-- レイアウトとリフローの最適化
+3. **Don't optimize without measuring; identify the bottleneck before improving**
+   - Visualize "which processing is heavy" with DevTools Performance
+   - Monitor actual values with FPS Meter
+   - Detect processing exceeding 16.67ms with the Long Tasks API
+   - Performance is highly environment-dependent, so always measure on the target device
 
 ---
 
-## 参考文献
+## Next Guides to Read
 
-1. Paul Lewis. "FLIP Your Animations." aerotwist.com, 2015. FLIPテクニックの提唱者による原典。アニメーションのパフォーマンスをtransformベースに変換する手法を解説。
-2. Google Developers. "Rendering Performance." web.dev, 2023. レンダリングパイプラインの各段階と、60fpsを達成するための最適化手法を体系的にまとめた公式ガイド。
-3. Jake Archibald. "View Transitions API." Chrome for Developers, 2023. View Transitions APIの仕様策定に関わったエンジニアによる詳細な解説。SPA・MPA両方のユースケースをカバー。
-4. MDN Web Docs. "Web Animations API." Mozilla, 2024. WAAPIの仕様、メソッド、プロパティの完全なリファレンス。各ブラウザの互換性情報も含む。
-5. CSS Working Group. "CSS Scroll-driven Animations." W3C, 2024. scroll()およびview()タイムラインの仕様書。animation-rangeの詳細な定義を含む。
-6. Steve Souders. "High Performance Web Sites." O'Reilly Media, 2007. Webパフォーマンス最適化の古典的名著。フロントエンドパフォーマンスの基本原則を確立した。
+- [V8 Engine Internals](../02-javascript-runtime/00-v8-engine.md)
+- Compositing Layers and GPU Acceleration
+- Layout and Reflow Optimization
+
+---
+
+## References
+
+1. Paul Lewis. "FLIP Your Animations." aerotwist.com, 2015. The original source by the proposer of the FLIP technique. Explains the method for converting animation performance to transform-based approaches.
+2. Google Developers. "Rendering Performance." web.dev, 2023. Official guide that systematically covers each stage of the rendering pipeline and optimization techniques for achieving 60fps.
+3. Jake Archibald. "View Transitions API." Chrome for Developers, 2023. Detailed explanation by the engineer involved in drafting the View Transitions API spec. Covers use cases for both SPA and MPA.
+4. MDN Web Docs. "Web Animations API." Mozilla, 2024. Complete reference for WAAPI specs, methods, and properties. Includes browser compatibility information.
+5. CSS Working Group. "CSS Scroll-driven Animations." W3C, 2024. Spec for scroll() and view() timelines. Includes detailed definitions of animation-range.
+6. Steve Souders. "High Performance Web Sites." O'Reilly Media, 2007. Classic text on web performance optimization. Established the foundational principles of frontend performance.

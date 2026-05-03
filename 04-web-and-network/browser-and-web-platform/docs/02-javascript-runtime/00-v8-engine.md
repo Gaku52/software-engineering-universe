@@ -1,107 +1,109 @@
-# V8エンジン
+# V8 Engine
 
-> V8はGoogleが開発した高性能JavaScriptエンジンであり、Chrome、Node.js、Denoなど広範なランタイム環境の基盤を形成している。本ガイドではV8の内部アーキテクチャを深掘りし、パーサー、Ignition（インタプリタ）、TurboFan（最適化コンパイラ）、Hidden Class、インラインキャッシュ、ガベージコレクションの各メカニズムを体系的に解説する。
+> V8 is a high-performance JavaScript engine developed by Google that forms the foundation of a wide range of runtime environments including Chrome, Node.js, and Deno. This guide dives deep into V8's internal architecture and systematically explains each mechanism: the parser, Ignition (interpreter), TurboFan (optimizing compiler), Hidden Classes, inline caches, and garbage collection.
 
-## 前提知識
+## Prerequisites
 
-本ガイドを効果的に学習するために、以下の知識を前提とする。
+The following knowledge is assumed for effective learning from this guide.
 
-- **JavaScriptの基本的な実行モデル** --- 変数、関数、クロージャ、プロトタイプチェーンの理解
-- **コンパイラとインタプリタの違い** --- ソースコードから実行可能コードへの変換過程
-  - 参照: CS基礎 - コンパイラ原理
-- **ブラウザのアーキテクチャ** --- レンダリングエンジン、JavaScriptエンジン、イベントループの関係性
-  - 参照: [ブラウザアーキテクチャ](../00-browser-engine/00-browser-architecture.md)
-- **メモリ管理の基礎** --- スタック、ヒープ、ガベージコレクションの概念
-- **実行環境の違い** --- ブラウザ環境とNode.js環境におけるV8の役割の違い
+- **JavaScript's basic execution model** — Understanding of variables, functions, closures, and prototype chains
+- **Difference between compilers and interpreters** — The process of converting source code to executable code
+  - Reference: CS Fundamentals - Compiler Principles
+- **Browser architecture** — Relationship between the rendering engine, JavaScript engine, and event loop
+  - Reference: [Browser Architecture](../00-browser-engine/00-browser-architecture.md)
+- **Basics of memory management** — Concepts of stack, heap, and garbage collection
+- **Runtime environment differences** — The different roles of V8 in browser and Node.js environments
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] V8のソースコード処理パイプライン全体像を理解する
-- [ ] パーサーの仕組み（Lazy Parsing / Eager Parsing）を把握する
-- [ ] Ignition バイトコードインタプリタの動作原理を理解する
-- [ ] TurboFan 最適化コンパイラの最適化手法を学ぶ
-- [ ] Hidden Class によるオブジェクト表現の内部構造を把握する
-- [ ] インラインキャッシュ（IC）の状態遷移を理解する
-- [ ] 世代別ガベージコレクションの戦略を学ぶ
-- [ ] V8に最適化されたコードの書き方を実践する
+- [ ] Understand the overall pipeline of V8's source code processing
+- [ ] Grasp the mechanism of the parser (Lazy Parsing / Eager Parsing)
+- [ ] Understand the operating principles of the Ignition bytecode interpreter
+- [ ] Learn the optimization techniques of the TurboFan optimizing compiler
+- [ ] Grasp the internal structure of object representation via Hidden Classes
+- [ ] Understand the state transitions of Inline Caches (IC)
+- [ ] Learn the strategy of generational garbage collection
+- [ ] Practice writing code optimized for V8
 
 ---
 
-## 1. V8の全体アーキテクチャ
+## 1. V8's Overall Architecture
 
-V8は単なるインタプリタではなく、複数のフェーズを持つ高度なコンパイルパイプラインである。JavaScriptのソースコードは以下のステージを経て実行される。
+V8 is not merely an interpreter but an advanced compilation pipeline with multiple phases. JavaScript source code goes through the following stages before execution.
 
-### 1.1 パイプライン全体図
+### 1.1 Overall Pipeline Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    V8 コンパイルパイプライン                       │
+│                    V8 Compilation Pipeline                       │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  JavaScript ソースコード (.js)                                   │
+│  JavaScript source code (.js)                                   │
 │         │                                                       │
 │         ▼                                                       │
 │  ┌─────────────────┐                                            │
-│  │   Scanner        │  字句解析（Tokenizer）                     │
-│  │   (Lexer)        │  ソースコードをトークン列に分解              │
+│  │   Scanner        │  Lexical analysis (Tokenizer)             │
+│  │   (Lexer)        │  Decomposes source code into tokens       │
 │  └────────┬────────┘                                            │
 │           ▼                                                     │
 │  ┌─────────────────┐                                            │
-│  │   Parser         │  構文解析                                  │
-│  │   (Full/Lazy)    │  トークン列からAST（抽象構文木）を構築       │
+│  │   Parser         │  Syntactic analysis                       │
+│  │   (Full/Lazy)    │  Builds AST (Abstract Syntax Tree)        │
+│  │                  │  from the token stream                    │
 │  └────────┬────────┘                                            │
 │           ▼                                                     │
 │  ┌─────────────────┐                                            │
-│  │   Ignition       │  バイトコードインタプリタ                    │
-│  │   (Interpreter)  │  ASTからバイトコードを生成・実行             │
-│  │                  │  + フィードバックベクタでプロファイリング      │
-│  └────────┬────────┘                                            │
-│           │                                                     │
-│           │  ホットスポット検出                                   │
-│           │  （一定回数以上実行された関数）                        │
-│           ▼                                                     │
-│  ┌─────────────────┐                                            │
-│  │   TurboFan       │  最適化コンパイラ                           │
-│  │   (Optimizing    │  バイトコード + 型フィードバック →            │
-│  │    Compiler)     │  最適化されたマシンコードを生成              │
+│  │   Ignition       │  Bytecode interpreter                     │
+│  │   (Interpreter)  │  Generates and executes bytecode from AST │
+│  │                  │  + Profiling via feedback vector          │
 │  └────────┬────────┘                                            │
 │           │                                                     │
-│           │  脱最適化（Deoptimization）                          │
-│           │  前提条件が崩れた場合、Ignitionに戻る                  │
+│           │  Hot spot detection                                 │
+│           │  (functions executed more than a threshold)         │
 │           ▼                                                     │
 │  ┌─────────────────┐                                            │
-│  │   実行            │  最適化マシンコード or バイトコードを実行    │
+│  │   TurboFan       │  Optimizing compiler                      │
+│  │   (Optimizing    │  bytecode + type feedback →               │
+│  │    Compiler)     │  generates optimized machine code         │
+│  └────────┬────────┘                                            │
+│           │                                                     │
+│           │  Deoptimization                                     │
+│           │  If assumptions break, falls back to Ignition       │
+│           ▼                                                     │
+│  ┌─────────────────┐                                            │
+│  │   Execution      │  Execute optimized machine code           │
+│  │                  │  or bytecode                              │
 │  └─────────────────┘                                            │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 歴史的経緯
+### 1.2 Historical Background
 
-V8のコンパイルパイプラインは、バージョンを重ねるごとに大きく変遷してきた。
+V8's compilation pipeline has undergone major changes across versions.
 
-| 時期 | コンパイラ構成 | 特徴 |
+| Period | Compiler configuration | Characteristics |
 |------|---------------|------|
-| 2008-2010 | Full-Codegen + Crankshaft なし | 初期の単純なJITコンパイラ |
-| 2010-2016 | Full-Codegen + Crankshaft | 2段階JIT。Crankshaftがホットコードを最適化 |
-| 2016-2017 | Ignition + TurboFan（段階導入） | 新パイプラインへの移行期 |
-| 2017-現在 | Ignition + TurboFan | 現行パイプライン。バイトコード + 最適化JIT |
+| 2008-2010 | Full-Codegen only (no Crankshaft) | Early simple JIT compiler |
+| 2010-2016 | Full-Codegen + Crankshaft | Two-tier JIT. Crankshaft optimizes hot code |
+| 2016-2017 | Ignition + TurboFan (gradual rollout) | Transition period to the new pipeline |
+| 2017-present | Ignition + TurboFan | Current pipeline. Bytecode + optimizing JIT |
 
-Full-Codegenは全関数を即座にネイティブコードにコンパイルする方式だったが、起動が遅く、メモリ使用量が多かった。Ignitionの導入により、まずバイトコードとして実行し、本当に必要なコードだけを最適化コンパイルする効率的なアプローチが実現された。
+Full-Codegen compiled all functions to native code immediately, but had slow startup and high memory usage. The introduction of Ignition enabled an efficient approach: run as bytecode first and only optimizing-compile the code that is truly needed.
 
 ---
 
-## 2. パーサー（Parser）
+## 2. Parser
 
-### 2.1 字句解析（Scanner）
+### 2.1 Lexical Analysis (Scanner)
 
-Scannerはソースコードの文字列をトークン（Token）の列に変換する。トークンとはプログラミング言語の最小単位であり、キーワード、識別子、リテラル、演算子などに分類される。
+The Scanner converts the source code string into a sequence of tokens. A token is the minimal unit of a programming language and is categorized as a keyword, identifier, literal, operator, etc.
 
 ```javascript
-// ソースコード
+// Source code
 function add(a, b) { return a + b; }
 
-// トークン列に変換
+// Converted to a token stream
 // Token::kFunction  → "function"
 // Token::kIdentifier → "add"
 // Token::kLeftParen  → "("
@@ -118,88 +120,89 @@ function add(a, b) { return a + b; }
 // Token::kRightBrace → "}"
 ```
 
-V8のScannerはUTF-16エンコーディングのソースコードを処理し、1文字先読み（one-character lookahead）を使ってトークンを識別する。数値リテラルや文字列リテラルのようなマルチキャラクタートークンは、専用のスキャンルーチンで処理される。
+V8's Scanner processes UTF-16 encoded source code and uses one-character lookahead to identify tokens. Multi-character tokens such as numeric and string literals are handled by dedicated scanning routines.
 
-### 2.2 Lazy Parsing と Eager Parsing
+### 2.2 Lazy Parsing and Eager Parsing
 
-V8のパーサーには2つの動作モードがある。これはV8のパフォーマンス戦略の核心部分である。
+V8's parser has two modes of operation. This is a core part of V8's performance strategy.
 
 ```
 ┌───────────────────────────────────────────────────────────┐
-│                  パーサーの2つのモード                       │
+│                  Two Modes of the Parser                   │
 ├──────────────────────┬────────────────────────────────────┤
 │   Eager Parsing      │   Lazy Parsing (PreParser)         │
-│   （完全解析）         │   （遅延解析）                      │
+│   (Full Parse)       │   (Deferred Parse)                 │
 ├──────────────────────┼────────────────────────────────────┤
-│ ・完全なASTを構築     │ ・関数の中身をスキップ               │
-│ ・即座に実行される     │ ・変数スコープだけ確認               │
-│   コードに使用        │ ・構文エラーだけ検出                 │
-│ ・トップレベルコード   │ ・実際に呼び出されるまで              │
-│   に適用される        │   解析を延期                        │
-│                      │ ・メモリと起動時間を節約              │
+│ · Builds a full AST  │ · Skips the body of functions      │
+│ · Used for code that │ · Only checks variable scope       │
+│   is executed        │ · Only detects syntax errors       │
+│   immediately        │ · Defers parsing until the         │
+│ · Applied to         │   function is actually called      │
+│   top-level code     │ · Saves memory and startup time    │
 ├──────────────────────┼────────────────────────────────────┤
-│ コスト: 高            │ コスト: 低（完全解析の約半分）        │
-│ 対象: 即実行コード     │ 対象: 関数宣言                      │
+│ Cost: High           │ Cost: Low (about half of full)     │
+│ Target: Immediately  │ Target: Function declarations      │
+│         executed code│                                    │
 └──────────────────────┴────────────────────────────────────┘
 ```
 
-**Lazy Parsing の仕組み:**
+**How Lazy Parsing works:**
 
 ```javascript
-// トップレベルコード → Eager Parsing（即座に完全解析）
+// Top-level code → Eager Parsing (fully parsed immediately)
 const config = { debug: true };
 
-// 関数宣言 → Lazy Parsing（中身はスキップ）
+// Function declaration → Lazy Parsing (body is skipped)
 function processData(data) {
-  // この中身は最初の呼び出し時まで解析されない
+  // The body is not parsed until the first call
   const result = data.map(item => item.value * 2);
   return result.filter(v => v > 10);
 }
 
-// IIFE（即時実行関数） → Eager Parsing（即座に実行されるため）
+// IIFE (Immediately Invoked Function Expression) → Eager Parsing (executed immediately)
 (function() {
   console.log("immediately invoked");
 })();
 
-// processData が呼び出された時点で初めて完全解析される
+// processData is fully parsed only when it is first called
 processData([{ value: 5 }, { value: 8 }, { value: 15 }]);
 ```
 
-**Lazy Parsing が有効な理由:**
+**Why Lazy Parsing is effective:**
 
-一般的なWebページでは、読み込まれたJavaScriptコードの30-50%は初期表示で実行されない。Lazy Parsingにより、未使用の関数の解析コストを後回しにできるため、ページの初期読み込み速度が向上する。
+In a typical web page, 30–50% of the loaded JavaScript code is not executed during the initial display. Lazy Parsing defers the parsing cost of unused functions, improving the page's initial load speed.
 
-**Lazy Parsing の落とし穴:**
+**Pitfalls of Lazy Parsing:**
 
 ```javascript
-// アンチパターン: Lazy Parsing が裏目に出るケース
-// 関数がすぐに呼ばれるのに、V8がLazy Parsingしてしまう
+// Anti-pattern: case where Lazy Parsing backfires
+// V8 lazy-parses the function even though it is called immediately
 
 function heavyComputation() {
-  // 大量のコード...
+  // A lot of code...
 }
 
-// すぐに呼ばれる → Lazy Parse + Re-parse で二重コスト
+// Called immediately → double cost from Lazy Parse + Re-parse
 heavyComputation();
 
-// 対策: V8にEager Parsingのヒントを与える
-// 括弧で囲むと、V8はIIFEパターンと認識してEager Parsingする
+// Mitigation: give V8 a hint for Eager Parsing
+// Wrapping in parentheses makes V8 recognize it as an IIFE pattern and do Eager Parsing
 const heavyComputation2 = (function() {
-  // 大量のコード...
+  // A lot of code...
 });
 ```
 
-### 2.3 AST（抽象構文木）の構造
+### 2.3 Structure of the AST (Abstract Syntax Tree)
 
-パーサーはトークン列からAST（Abstract Syntax Tree）を構築する。ASTはソースコードの構文構造をツリー形式で表現したものである。
+The parser builds an AST (Abstract Syntax Tree) from the token stream. An AST represents the syntactic structure of source code in tree form.
 
 ```javascript
-// ソースコード
+// Source code
 function multiply(x, y) {
   return x * y;
 }
 
-// 対応するAST（概念的な表現）
+// Corresponding AST (conceptual representation)
 //
 //  FunctionDeclaration
 //  ├── name: "multiply"
@@ -212,50 +215,50 @@ function multiply(x, y) {
 //              └── right: Identifier("y")
 ```
 
-V8のASTノードは内部的にC++のクラスで表現され、各ノードはソースコード上の位置情報（SourcePosition）を保持している。これはエラーメッセージやデバッグ情報の生成に使用される。
+V8's AST nodes are represented internally as C++ classes, and each node holds source position information (SourcePosition). This is used for generating error messages and debug information.
 
 ---
 
-## 3. Ignition バイトコードインタプリタ
+## 3. Ignition Bytecode Interpreter
 
-### 3.1 Ignitionの役割
+### 3.1 Ignition's Role
 
-Ignitionは2016年にV8に導入されたレジスタベースのバイトコードインタプリタである。ASTからバイトコードを生成し、そのバイトコードを直接実行する。
+Ignition is a register-based bytecode interpreter introduced into V8 in 2016. It generates bytecode from the AST and executes that bytecode directly.
 
-**Ignition導入の動機:**
+**Motivation for introducing Ignition:**
 
-1. **メモリ使用量の削減** --- Full-Codegenが生成するネイティブコードに比べ、バイトコードはコンパクト
-2. **起動速度の向上** --- バイトコード生成はネイティブコード生成より高速
-3. **TurboFanへの情報提供** --- 実行中に収集した型情報をTurboFanに渡す
+1. **Reduced memory usage** — Bytecode is more compact than the native code generated by Full-Codegen
+2. **Improved startup speed** — Bytecode generation is faster than native code generation
+3. **Providing information to TurboFan** — Type information collected during execution is passed to TurboFan
 
-### 3.2 バイトコードの例
+### 3.2 Bytecode Example
 
 ```javascript
-// JavaScriptソースコード
+// JavaScript source code
 function add(a, b) {
   return a + b;
 }
 
-// Ignitionが生成するバイトコード（概念的な表現）
-// ※ 実際のバイトコードは --print-bytecode フラグで確認できる
+// Bytecode generated by Ignition (conceptual representation)
+// * Actual bytecode can be seen with the --print-bytecode flag
 //
 // Parameter count: 3 (receiver + a + b)
 // Register count: 0
 // Frame size: 0
 //
-//   Ldar a1          // レジスタa1（引数a）をアキュムレータにロード
-//   Add a2, [0]      // アキュムレータにa2（引数b）を加算
-//                     // [0]はフィードバックスロットのインデックス
-//   Return            // アキュムレータの値を返す
+//   Ldar a1          // Load register a1 (argument a) into the accumulator
+//   Add a2, [0]      // Add a2 (argument b) to the accumulator
+//                     // [0] is the feedback slot index
+//   Return            // Return the value in the accumulator
 ```
 
-**Node.jsでバイトコードを確認する方法:**
+**How to check bytecode in Node.js:**
 
 ```bash
-# --print-bytecode フラグで Ignition のバイトコードを出力
+# Output Ignition bytecode with the --print-bytecode flag
 node --print-bytecode --print-bytecode-filter="add" script.js
 
-# 出力例:
+# Example output:
 # [generated bytecode for function: add (0x...)]
 # Bytecode length: 6
 # Parameter count 3
@@ -266,33 +269,33 @@ node --print-bytecode --print-bytecode-filter="add" script.js
 #    5 : aa                Return
 ```
 
-### 3.3 レジスタベースとスタックベースの比較
+### 3.3 Register-based vs. Stack-based
 
-バイトコードインタプリタには大きく2つの方式がある。Ignitionはレジスタベース方式を採用している。
+Bytecode interpreters come in two major styles. Ignition uses a register-based style.
 
-| 特性 | レジスタベース（Ignition） | スタックベース（旧Java VM等） |
+| Feature | Register-based (Ignition) | Stack-based (old Java VM, etc.) |
 |------|--------------------------|------------------------------|
-| 命令の形式 | `Add r1, r2, r3` | `Push a; Push b; Add` |
-| 命令数 | 少ない（オペランドに直接指定） | 多い（Push/Pop操作が必要） |
-| バイトコードサイズ | やや大きい（オペランド指定分） | 小さい |
-| 実行速度 | 高速（メモリアクセス削減） | やや遅い（スタック操作のオーバーヘッド） |
-| ディスパッチ回数 | 少ない | 多い |
-| 採用例 | V8 Ignition, Lua VM | JVM, Python VM, .NET CLR |
+| Instruction format | `Add r1, r2, r3` | `Push a; Push b; Add` |
+| Instruction count | Fewer (operands specified directly) | More (Push/Pop operations required) |
+| Bytecode size | Slightly larger (operand specifications) | Smaller |
+| Execution speed | Fast (fewer memory accesses) | Somewhat slower (stack operation overhead) |
+| Dispatch count | Fewer | More |
+| Examples | V8 Ignition, Lua VM | JVM, Python VM, .NET CLR |
 
-### 3.4 フィードバックベクタ（Feedback Vector）
+### 3.4 Feedback Vector
 
-Ignitionは実行中に型情報やプロパティアクセスパターンなどのプロファイル情報を収集する。これは**フィードバックベクタ**と呼ばれるデータ構造に保存される。
+During execution, Ignition collects profile information such as type information and property access patterns. This is stored in a data structure called the **feedback vector**.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│              フィードバックベクタの構造                     │
+│              Structure of the Feedback Vector            │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
 │  function calculate(obj) {                              │
-│    return obj.x + obj.y;  // 2つのプロパティアクセス      │
+│    return obj.x + obj.y;  // Two property accesses      │
 │  }                                                      │
 │                                                         │
-│  フィードバックベクタ:                                    │
+│  Feedback vector:                                       │
 │  ┌─────────┬──────────────────────────────────┐         │
 │  │ Slot 0  │ LoadIC: obj.x                    │         │
 │  │         │ → Map: 0x1234 (Hidden Class)     │         │
@@ -308,27 +311,28 @@ Ignitionは実行中に型情報やプロパティアクセスパターンなど
 │  │         │ → Hint: SignedSmall              │         │
 │  └─────────┴──────────────────────────────────┘         │
 │                                                         │
-│  この情報がTurboFanに渡され、最適化の判断材料になる        │
+│  This information is passed to TurboFan and used        │
+│  as the basis for optimization decisions                │
 │                                                         │
 └─────────────────────────────────────────────────────────┘
 ```
 
-フィードバックベクタに蓄積された型情報は、TurboFanが最適化コンパイルを行う際の根拠となる。たとえば「この加算は常にSMI（Small Integer）同士で行われている」という情報があれば、TurboFanは整数加算に特化したマシンコードを生成できる。
+The type information accumulated in the feedback vector serves as the basis when TurboFan performs optimizing compilation. For example, if there is information that "this addition is always performed between SMIs (Small Integers)," TurboFan can generate machine code specialized for integer addition.
 
 ---
 
-## 4. TurboFan 最適化コンパイラ
+## 4. TurboFan Optimizing Compiler
 
-### 4.1 TurboFanの概要
+### 4.1 Overview of TurboFan
 
-TurboFanはV8の最適化コンパイラであり、IgnitionのバイトコードとフィードバックベクタをもとにSSA（Static Single Assignment）形式の中間表現を構築し、数多くの最適化パスを適用した後、高効率なマシンコードを生成する。
+TurboFan is V8's optimizing compiler. Based on Ignition's bytecode and feedback vector, it builds an intermediate representation in SSA (Static Single Assignment) form, applies numerous optimization passes, and then generates highly efficient machine code.
 
-### 4.2 最適化のトリガー条件
+### 4.2 Conditions that Trigger Optimization
 
-TurboFanが関数を最適化コンパイルする条件は以下の通りである。
+The conditions under which TurboFan optimizing-compiles a function are as follows.
 
 ```javascript
-// 最適化のトリガー例
+// Example of an optimization trigger
 function hotFunction(arr) {
   let sum = 0;
   for (let i = 0; i < arr.length; i++) {
@@ -337,26 +341,26 @@ function hotFunction(arr) {
   return sum;
 }
 
-// ループの反復回数やバイトコード実行回数が閾値を超えると
-// TurboFanによる最適化が開始される
+// When the number of loop iterations or bytecode executions
+// exceeds a threshold, optimization by TurboFan begins.
 //
-// 閾値の目安（V8内部で動的に調整される）:
-// - 関数の呼び出し回数
-// - ループのバックエッジカウント（ループ1回転ごとにカウント）
-// - OSR（On-Stack Replacement）の判定
+// Approximate thresholds (dynamically adjusted inside V8):
+// - Number of times a function is called
+// - Loop back-edge count (counted once per loop iteration)
+// - Determination for OSR (On-Stack Replacement)
 //
-// Node.jsで最適化の状況を確認:
+// Check optimization status in Node.js:
 // node --trace-opt --trace-deopt script.js
 ```
 
-### 4.3 主要な最適化手法
+### 4.3 Key Optimization Techniques
 
-TurboFanが適用する代表的な最適化手法を以下に列挙する。
+The following are representative optimization techniques applied by TurboFan.
 
-**インライン展開（Inlining）:**
+**Inlining:**
 
 ```javascript
-// 最適化前
+// Before optimization
 function square(x) {
   return x * x;
 }
@@ -365,57 +369,57 @@ function sumOfSquares(a, b) {
   return square(a) + square(b);
 }
 
-// TurboFanによるインライン展開後（概念的）
+// After TurboFan inlining (conceptual)
 function sumOfSquares_optimized(a, b) {
-  return a * a + b * b;  // 関数呼び出しのオーバーヘッドを排除
+  return a * a + b * b;  // Eliminates function call overhead
 }
 ```
 
-インライン展開により、関数呼び出しのオーバーヘッド（スタックフレームの作成、引数の受け渡し、リターンアドレスの管理）が排除される。TurboFanは関数のサイズ、呼び出し頻度、呼び出しの深さなどを考慮してインライン展開の判断を行う。
+Through inlining, the overhead of a function call (creating a stack frame, passing arguments, managing return addresses) is eliminated. TurboFan makes inlining decisions based on function size, call frequency, and call depth.
 
-**定数畳み込み（Constant Folding）:**
+**Constant Folding:**
 
 ```javascript
-// 最適化前
-const TIMEOUT = 60 * 1000;  // 60秒をミリ秒に変換
+// Before optimization
+const TIMEOUT = 60 * 1000;  // Convert 60 seconds to milliseconds
 
-// TurboFanによる最適化後
-const TIMEOUT = 60000;  // コンパイル時に計算済み
+// After TurboFan optimization
+const TIMEOUT = 60000;  // Calculated at compile time
 ```
 
-**デッドコード除去（Dead Code Elimination）:**
+**Dead Code Elimination:**
 
 ```javascript
-// 最適化前
+// Before optimization
 function process(x) {
-  const unused = x * 2;  // この結果は使われない
+  const unused = x * 2;  // This result is never used
   return x + 1;
 }
 
-// TurboFanによる最適化後
+// After TurboFan optimization
 function process_optimized(x) {
-  return x + 1;  // 不要な計算を除去
+  return x + 1;  // Unnecessary calculation removed
 }
 ```
 
-**ループ不変式の外出し（Loop-Invariant Code Motion）:**
+**Loop-Invariant Code Motion:**
 
 ```javascript
-// 最適化前
+// Before optimization
 function processArray(arr, factor) {
   const results = [];
   for (let i = 0; i < arr.length; i++) {
-    const multiplier = factor * 2;  // ループ内で毎回同じ計算
+    const multiplier = factor * 2;  // Same calculation every iteration
     results.push(arr[i] * multiplier);
   }
   return results;
 }
 
-// TurboFanによる最適化後（概念的）
+// After TurboFan optimization (conceptual)
 function processArray_optimized(arr, factor) {
   const results = [];
-  const multiplier = factor * 2;  // ループの外に移動
-  const len = arr.length;         // 長さの取得もループ外へ
+  const multiplier = factor * 2;  // Moved outside the loop
+  const len = arr.length;         // Length retrieval also moved outside
   for (let i = 0; i < len; i++) {
     results.push(arr[i] * multiplier);
   }
@@ -423,117 +427,121 @@ function processArray_optimized(arr, factor) {
 }
 ```
 
-**型特殊化（Type Specialization）:**
+**Type Specialization:**
 
 ```javascript
-// フィードバックベクタの情報:
-// → add関数は常にSMI（Small Integer）引数で呼ばれている
+// Feedback vector information:
+// → the add function is always called with SMI (Small Integer) arguments
 
 function add(a, b) {
   return a + b;
 }
 
-// TurboFanが生成するマシンコード（概念的な疑似コード）:
+// Machine code generated by TurboFan (conceptual pseudocode):
 //
-// 1. a が SMI か確認（型ガード）
-// 2. b が SMI か確認（型ガード）
-// 3. SMI同士の整数加算（1命令で完了）
-// 4. オーバーフローチェック
-// 5. 結果を返す
+// 1. Check that a is an SMI (type guard)
+// 2. Check that b is an SMI (type guard)
+// 3. Integer addition between two SMIs (complete in 1 instruction)
+// 4. Overflow check
+// 5. Return result
 //
-// もし型ガードが失敗したら → 脱最適化
+// If a type guard fails → deoptimize
 ```
 
-### 4.4 脱最適化（Deoptimization）
+### 4.4 Deoptimization
 
-TurboFanが生成した最適化コードは、型の前提条件に基づいている。この前提が実行時に崩れた場合、V8は**脱最適化**を行い、Ignitionのバイトコード実行に戻す。
+Optimized code generated by TurboFan is based on type assumptions. If these assumptions break at runtime, V8 performs **deoptimization** and falls back to Ignition's bytecode execution.
 
 ```javascript
-// 脱最適化が起きるシナリオ
+// Scenario where deoptimization occurs
 
 function add(a, b) {
   return a + b;
 }
 
-// Phase 1: SMI（整数）で呼び続ける → TurboFanが整数加算に最適化
+// Phase 1: Keep calling with SMIs (integers) → TurboFan optimizes for integer addition
 for (let i = 0; i < 100000; i++) {
-  add(i, i + 1);  // 常に整数
+  add(i, i + 1);  // Always integers
 }
 
-// Phase 2: 突然文字列を渡す → 脱最適化が発生！
+// Phase 2: Suddenly pass a string → deoptimization occurs!
 add("hello", " world");
-// → TurboFanの最適化コードは整数加算前提なので使えない
-// → Ignitionのバイトコードに戻って文字列結合を実行
-// → 再度プロファイリングを行い、新たな最適化を検討
+// → TurboFan's optimized code assumes integer addition, so it can't be used
+// → Falls back to Ignition's bytecode to execute string concatenation
+// → Profiles again and considers new optimizations
 ```
 
-**脱最適化の種類:**
+**Types of deoptimization:**
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│              脱最適化の分類                                │
+│              Classification of Deoptimization            │
 ├─────────────────┬───────────────────────────────────────┤
-│ Eager Deopt     │ 型ガードの失敗など、即座に検出される     │
-│                 │ 例: 整数を期待した箇所に文字列が来た     │
+│ Eager Deopt     │ Detected immediately, e.g., type guard │
+│                 │ failure. Example: a string arrives     │
+│                 │ where an integer was expected          │
 ├─────────────────┼───────────────────────────────────────┤
-│ Lazy Deopt      │ コードの実行後、副作用の処理中に検出     │
-│                 │ 例: マップの変更が検出された              │
+│ Lazy Deopt      │ Detected while processing side effects │
+│                 │ after code execution. Example: a map   │
+│                 │ change is detected                     │
 ├─────────────────┼───────────────────────────────────────┤
-│ Soft Deopt      │ 最適化コードが非効率と判断された場合     │
-│                 │ 例: 多態的な呼び出しサイトの検出          │
+│ Soft Deopt      │ When optimized code is judged          │
+│                 │ inefficient. Example: detection of a   │
+│                 │ polymorphic call site                  │
 └─────────────────┴───────────────────────────────────────┘
 ```
 
-### 4.5 OSR（On-Stack Replacement）
+### 4.5 OSR (On-Stack Replacement)
 
-通常の最適化は関数の次の呼び出し時から適用されるが、OSRは**実行中のループの途中**で最適化コードに切り替える技術である。
+Normal optimization is applied starting from the next function call, but OSR is a technique that switches to optimized code **in the middle of an executing loop**.
 
 ```javascript
 function longRunningLoop() {
   let sum = 0;
   for (let i = 0; i < 10000000; i++) {
     sum += i;
-    // ループのバックエッジで最適化判定
-    // 閾値を超えた時点で、ループ実行中に最適化コードに切り替え（OSR）
-    // → ループ変数 i, sum の状態を最適化コードに引き継ぐ
+    // Optimization decision is made at the loop's back-edge
+    // When the threshold is exceeded, switches to optimized code
+    // mid-loop (OSR)
+    // → The state of loop variables i, sum is carried over to the optimized code
   }
   return sum;
 }
 
-// この関数は1回しか呼ばれないが、ループ内で
-// OSRにより最適化される
+// This function is only called once, but is
+// optimized via OSR inside the loop
 longRunningLoop();
 ```
 
-OSRは長時間実行されるループに対して特に有効である。関数が1回しか呼ばれなくても、ループの反復回数が閾値を超えれば最適化が適用される。
+OSR is particularly effective for loops that run for a long time. Even if a function is only called once, optimization is applied if the loop iteration count exceeds the threshold.
 
 ---
 
-## 5. Hidden Class（Maps）
+## 5. Hidden Classes (Maps)
 
-### 5.1 Hidden Classの基本概念
+### 5.1 Basic Concept of Hidden Classes
 
-JavaScriptのオブジェクトは動的であり、実行時にプロパティの追加・削除が自由にできる。しかし、この柔軟性はプロパティアクセスのパフォーマンスに悪影響を及ぼす。V8はこの問題を**Hidden Class**（V8の内部用語では**Map**）という仕組みで解決している。
+JavaScript objects are dynamic, and properties can be freely added or removed at runtime. However, this flexibility adversely affects property access performance. V8 solves this problem with a mechanism called **Hidden Classes** (referred to internally as **Maps**).
 
-Hidden Classはオブジェクトの「形状（Shape）」を記述するメタデータであり、以下の情報を含む:
+A Hidden Class is metadata that describes the "shape" of an object and contains the following information:
 
-- プロパティの名前
-- プロパティのオフセット（メモリ上の位置）
-- プロパティの属性（writable、enumerable、configurable）
-- プロトタイプチェーンの参照
+- Property names
+- Property offsets (positions in memory)
+- Property attributes (writable, enumerable, configurable)
+- Prototype chain references
 
-### 5.2 Hidden Classの遷移チェーン
+### 5.2 Hidden Class Transition Chain
 
-オブジェクトにプロパティが追加されるたびに、新しいHidden Classが作成され、遷移チェーンが形成される。
+A new Hidden Class is created each time a property is added to an object, forming a transition chain.
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
-│           Hidden Class 遷移チェーンの例                         │
+│           Example of a Hidden Class Transition Chain           │
 ├───────────────────────────────────────────────────────────────┤
 │                                                               │
-│  const point = {};          // Map M0 (空オブジェクト)         │
-│  point.x = 10;             // Map M0 → M1 遷移               │
-│  point.y = 20;             // Map M1 → M2 遷移               │
+│  const point = {};          // Map M0 (empty object)          │
+│  point.x = 10;             // Map M0 → M1 transition         │
+│  point.y = 20;             // Map M1 → M2 transition         │
 │                                                               │
 │                                                               │
 │  Map M0          Map M1              Map M2                   │
@@ -542,28 +550,28 @@ Hidden Classはオブジェクトの「形状（Shape）」を記述するメタ
 │  │          │ x  │              │ y  │ y: offset 1  │         │
 │  └─────────┘    └──────────────┘    └──────────────┘         │
 │                                                               │
-│  遷移情報は Map M0 に保存される:                               │
+│  Transition info is stored in Map M0:                         │
 │  M0.transitions = { "x" → M1 }                               │
 │  M1.transitions = { "y" → M2 }                               │
 │                                                               │
-│  別のオブジェクトが同じ順序でプロパティを追加すると              │
-│  既存の遷移チェーンを再利用する:                                │
+│  When another object adds properties in the same order,       │
+│  the existing transition chain is reused:                     │
 │                                                               │
-│  const point2 = {};         // Map M0（同じ）                 │
-│  point2.x = 30;            // Map M0 → M1（再利用）           │
-│  point2.y = 40;            // Map M1 → M2（再利用）           │
+│  const point2 = {};         // Map M0 (same)                  │
+│  point2.x = 30;            // Map M0 → M1 (reused)           │
+│  point2.y = 40;            // Map M1 → M2 (reused)           │
 │                                                               │
-│  → point と point2 は同じ Map M2 を共有！                      │
+│  → point and point2 share the same Map M2!                    │
 │                                                               │
 └───────────────────────────────────────────────────────────────┘
 ```
 
-### 5.3 Hidden Classの共有と分岐
+### 5.3 Hidden Class Sharing and Branching
 
-同じ「形状」のオブジェクトはHidden Classを共有するが、プロパティの追加順序が異なると別のHidden Classが作成される。
+Objects with the same "shape" share a Hidden Class, but if properties are added in a different order, a different Hidden Class is created.
 
 ```javascript
-// ケース1: 同じ順序 → Hidden Classを共有
+// Case 1: Same order → share Hidden Class
 const a = {};
 a.x = 1;
 a.y = 2;
@@ -571,51 +579,52 @@ a.y = 2;
 const b = {};
 b.x = 3;
 b.y = 4;
-// a と b は同じ Hidden Class
+// a and b have the same Hidden Class
 
-// ケース2: 異なる順序 → 別の Hidden Class
+// Case 2: Different order → different Hidden Class
 const c = {};
-c.y = 2;  // まず y を追加
-c.x = 1;  // 次に x を追加
-// c は a, b とは異なる Hidden Class
+c.y = 2;  // Add y first
+c.x = 1;  // Then add x
+// c has a different Hidden Class from a, b
 
-// ケース3: オブジェクトリテラル → 最適化される
+// Case 3: Object literal → optimized
 const d = { x: 1, y: 2 };
 const e = { x: 3, y: 4 };
-// d と e は同じ Hidden Class（リテラルの形状が同じ）
+// d and e have the same Hidden Class (same literal shape)
 
-// ケース4: delete演算子 → Hidden Classが無効化
+// Case 4: delete operator → Hidden Class invalidated
 const f = { x: 1, y: 2 };
 delete f.x;
-// f は「遅いモード」（辞書モード）に切り替わる
-// → Hidden Class の最適化が失われる
+// f switches to "slow mode" (dictionary mode)
+// → The Hidden Class optimization is lost
 ```
 
 ### 5.4 In-Object Properties vs. Backing Store
 
-V8はオブジェクトのプロパティを2つの方法で格納する。
+V8 stores object properties in two ways.
 
 ```
 ┌───────────────────────────────────────────────────────────┐
-│         プロパティの格納方式                                  │
+│         Property Storage Methods                          │
 ├───────────────────────────────────────────────────────────┤
 │                                                           │
-│  【In-Object Properties】                                  │
-│  オブジェクト本体に直接格納される                            │
+│  [In-Object Properties]                                   │
+│  Stored directly in the object itself                     │
 │  ┌──────────────────────────┐                             │
 │  │ Object Header            │                             │
 │  │ ├── Map pointer          │                             │
 │  │ ├── Properties pointer   │                             │
 │  │ ├── Elements pointer     │                             │
-│  │ ├── In-object prop 0 (x) │  ← 直接アクセス可能          │
-│  │ ├── In-object prop 1 (y) │  ← 直接アクセス可能          │
-│  │ └── In-object prop 2 (z) │  ← 直接アクセス可能          │
+│  │ ├── In-object prop 0 (x) │  ← Directly accessible     │
+│  │ ├── In-object prop 1 (y) │  ← Directly accessible     │
+│  │ └── In-object prop 2 (z) │  ← Directly accessible     │
 │  └──────────────────────────┘                             │
-│  → 最も高速（固定オフセットで直接アクセス）                   │
-│  → V8は初期プロパティ数を見積もってスペースを確保             │
+│  → Fastest (direct access via fixed offset)               │
+│  → V8 reserves space by estimating the initial            │
+│    number of properties                                   │
 │                                                           │
-│  【Backing Store（Properties配列）】                        │
-│  In-Objectスロットが不足した場合に使用                       │
+│  [Backing Store (Properties array)]                       │
+│  Used when In-Object slots are insufficient               │
 │  ┌──────────────────────────┐    ┌──────────────┐        │
 │  │ Object Header            │    │ Properties    │        │
 │  │ ├── Map pointer          │    │ ├── prop 3    │        │
@@ -625,37 +634,38 @@ V8はオブジェクトのプロパティを2つの方法で格納する。
 │  │ ├── In-object prop 1     │                             │
 │  │ └── In-object prop 2     │                             │
 │  └──────────────────────────┘                             │
-│  → やや遅い（間接参照が1回必要）                             │
+│  → Slightly slower (one indirection required)             │
 │                                                           │
-│  【辞書モード（Slow Properties）】                           │
-│  delete演算子使用後や、プロパティ数が非常に多い場合            │
-│  → ハッシュテーブルベースの格納                              │
-│  → Hidden Class の最適化が無効                              │
-│  → 最も遅い                                                │
+│  [Dictionary Mode (Slow Properties)]                      │
+│  After using the delete operator, or when there           │
+│  are a very large number of properties                    │
+│  → Hash table-based storage                               │
+│  → Hidden Class optimization disabled                     │
+│  → Slowest                                                │
 │                                                           │
 └───────────────────────────────────────────────────────────┘
 ```
 
-### 5.5 Elements（配列要素）の格納
+### 5.5 Elements (Array Element) Storage
 
-オブジェクトの名前付きプロパティとは別に、数値インデックスのプロパティ（配列要素）は**Elements**として別の配列に格納される。
+Separately from named properties, numerically indexed properties (array elements) are stored in a separate **Elements** array.
 
 ```javascript
-// Elements の種類（V8内部のElementsKind）
+// Element types (V8 internal ElementsKind)
 
-// PACKED_SMI_ELEMENTS: 全要素が小さな整数
+// PACKED_SMI_ELEMENTS: all elements are small integers
 const smiArray = [1, 2, 3, 4, 5];
 
-// PACKED_DOUBLE_ELEMENTS: 浮動小数点数を含む
+// PACKED_DOUBLE_ELEMENTS: contains floating-point numbers
 const doubleArray = [1.1, 2.2, 3.3];
 
-// PACKED_ELEMENTS: オブジェクトや混合型
+// PACKED_ELEMENTS: objects or mixed types
 const mixedArray = [1, "two", { three: 3 }];
 
-// HOLEY_SMI_ELEMENTS: 穴あき配列（整数）
-const holeyArray = [1, , 3];  // インデックス1が空
+// HOLEY_SMI_ELEMENTS: sparse array (integers)
+const holeyArray = [1, , 3];  // Index 1 is empty
 
-// ElementsKind の遷移（一方向のみ、逆戻りしない！）
+// ElementsKind transitions (one-way only, cannot go back!)
 //
 // PACKED_SMI_ELEMENTS
 //     │
@@ -671,115 +681,114 @@ const holeyArray = [1, , 3];  // インデックス1が空
 //              │
 //              └──→ HOLEY_ELEMENTS
 
-// 一度でも HOLEY になると、PACKED に戻ることはない
+// Once HOLEY, it can never go back to PACKED
 const arr = [1, 2, 3];       // PACKED_SMI_ELEMENTS
-arr.push(4.5);               // → PACKED_DOUBLE_ELEMENTS（不可逆遷移）
-arr.push("hello");           // → PACKED_ELEMENTS（不可逆遷移）
+arr.push(4.5);               // → PACKED_DOUBLE_ELEMENTS (irreversible transition)
+arr.push("hello");           // → PACKED_ELEMENTS (irreversible transition)
 ```
 
 ---
 
-## 6. インラインキャッシュ（Inline Cache: IC）
+## 6. Inline Cache (IC)
 
-### 6.1 インラインキャッシュの基本原理
+### 6.1 Basic Principles of Inline Cache
 
-インラインキャッシュはプロパティアクセスの高速化メカニズムである。JavaScriptのプロパティアクセス `obj.x` は、本来であれば以下のステップが必要となる:
+Inline Cache is a mechanism for speeding up property access. A JavaScript property access `obj.x` normally requires the following steps:
 
-1. オブジェクトのHidden Classを取得
-2. Hidden Classのプロパティテーブルで "x" を検索
-3. オフセットを取得
-4. そのオフセットでメモリからプロパティ値を読み取る
+1. Get the object's Hidden Class
+2. Search for "x" in the Hidden Class's property table
+3. Retrieve the offset
+4. Read the property value from memory at that offset
 
-インラインキャッシュはこの検索結果をキャッシュし、同じHidden Classのオブジェクトが来た場合はステップ2-3をスキップする。
+Inline Cache caches the search result so that for objects with the same Hidden Class, steps 2-3 are skipped.
 
 ```javascript
 function getX(obj) {
-  return obj.x;  // ← このアクセス箇所にICが生成される
+  return obj.x;  // ← An IC is generated at this access site
 }
 
-// 1回目の呼び出し: IC miss
-// → Hidden Classを確認し、"x"のオフセットを検索
-// → 結果をICにキャッシュ（Hidden Class → offset のペア）
+// 1st call: IC miss
+// → Check the Hidden Class and search for the offset of "x"
+// → Cache the result in the IC (Hidden Class → offset pair)
 const p1 = { x: 10, y: 20 };
 getX(p1);
 
-// 2回目以降: IC hit
-// → Hidden Classがキャッシュと一致 → オフセットを直接使用
-// → プロパティテーブルの検索をスキップ
-const p2 = { x: 30, y: 40 };  // p1と同じHidden Class
-getX(p2);  // 高速アクセス
+// 2nd call onwards: IC hit
+// → Hidden Class matches the cache → use the offset directly
+// → Skip the property table search
+const p2 = { x: 30, y: 40 };  // Same Hidden Class as p1
+getX(p2);  // Fast access
 ```
 
-### 6.2 ICの状態遷移（State Machine）
+### 6.2 IC State Machine
 
-インラインキャッシュは以下の状態を持つ有限状態マシンとして動作する。
+Inline Cache operates as a finite state machine with the following states.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│              IC 状態遷移図                                     │
+│              IC State Transition Diagram                     │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  ┌──────────────┐   1つ目のMap    ┌──────────────┐          │
-│  │ Uninitialized │ ────────────▶ │ Monomorphic  │          │
-│  │ (未初期化)     │               │ (単態)        │          │
-│  └──────────────┘               └──────┬───────┘          │
-│                                        │                   │
-│                                 異なるMap  │                   │
-│                                        ▼                   │
-│                                ┌──────────────┐            │
-│                                │ Polymorphic  │            │
-│                                │ (多態: 2-4)   │            │
-│                                └──────┬───────┘            │
-│                                       │                    │
-│                                5つ以上のMap │                    │
-│                                       ▼                    │
-│                                ┌──────────────┐            │
-│                                │ Megamorphic  │            │
-│                                │ (超多態: 5+)  │            │
-│                                └──────────────┘            │
+│  ┌──────────────┐   1st Map         ┌──────────────┐        │
+│  │ Uninitialized │ ────────────▶    │ Monomorphic  │        │
+│  └──────────────┘                  └──────┬───────┘        │
+│                                           │                 │
+│                                  Different Map              │
+│                                           ▼                 │
+│                                  ┌──────────────┐           │
+│                                  │ Polymorphic  │           │
+│                                  │ (2-4 maps)   │           │
+│                                  └──────┬───────┘           │
+│                                         │                   │
+│                                5+ Maps  │                   │
+│                                         ▼                   │
+│                                  ┌──────────────┐           │
+│                                  │ Megamorphic  │           │
+│                                  │ (5+ maps)    │           │
+│                                  └──────────────┘           │
 │                                                             │
-│  パフォーマンス:                                              │
+│  Performance:                                               │
 │  Monomorphic  ≫  Polymorphic  ≫  Megamorphic               │
-│  （最速）          （中程度）       （最遅 / 最適化断念）       │
+│  (Fastest)        (Medium)         (Slowest / opt. disabled)│
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 6.3 各状態の詳細
+### 6.3 Details of Each State
 
-**Monomorphic（単態）--- 最速:**
+**Monomorphic — Fastest:**
 
 ```javascript
-// 常に同じHidden Classのオブジェクトが渡される
+// Always the same Hidden Class object is passed
 function getName(person) {
   return person.name;  // IC: monomorphic
 }
 
-// 全て同じ形状のオブジェクト
+// All objects have the same shape
 getName({ name: "Alice", age: 30 });
 getName({ name: "Bob", age: 25 });
 getName({ name: "Charlie", age: 35 });
-// → ICは1つのHidden Classだけを記録 → 最速
+// → IC records only one Hidden Class → fastest
 ```
 
-**Polymorphic（多態）--- 中程度:**
+**Polymorphic — Medium:**
 
 ```javascript
-// 2-4種類のHidden Classが混在
+// 2–4 types of Hidden Classes mixed
 function getArea(shape) {
   return shape.area;  // IC: polymorphic
 }
 
 getArea({ area: 100, type: "circle" });     // Hidden Class A
 getArea({ area: 200, width: 10, height: 20 }); // Hidden Class B
-// → ICは2つのHidden Classを記録 → まだ十分高速
-// → 線形検索でマッチするHidden Classを探す
+// → IC records 2 Hidden Classes → still fast enough
+// → Linear search to find the matching Hidden Class
 ```
 
-**Megamorphic（超多態）--- 最遅:**
+**Megamorphic — Slowest:**
 
 ```javascript
-// 5種類以上のHidden Classが混在
+// 5 or more types of Hidden Classes mixed
 function getValue(obj) {
   return obj.value;  // IC: megamorphic
 }
@@ -790,129 +799,132 @@ getValue({ value: 3, a: 1, b: 2 });
 getValue({ value: 4, a: 1, b: 2, c: 3 });
 getValue({ value: 5, a: 1, b: 2, c: 3, d: 4 });
 getValue({ value: 6, x: 1 });
-// → ICがmegamorphic状態 → キャッシュ無効
-// → 毎回Hidden Classの検索が必要 → 遅い
-// → TurboFanも型特殊化を断念
+// → IC goes megamorphic → cache disabled
+// → Every call requires a Hidden Class search → slow
+// → TurboFan also gives up on type specialization
 ```
 
-### 6.4 ICの種類
+### 6.4 Types of ICs
 
-V8にはプロパティアクセス以外にも複数のIC種類がある。
+V8 has multiple IC types beyond property access.
 
-| IC種類 | 対象操作 | 例 |
+| IC type | Target operation | Example |
 |--------|----------|-----|
-| LoadIC | プロパティ読み取り | `obj.x` |
-| StoreIC | プロパティ書き込み | `obj.x = 1` |
-| KeyedLoadIC | 動的キーによる読み取り | `obj[key]` |
-| KeyedStoreIC | 動的キーによる書き込み | `obj[key] = 1` |
-| CallIC | 関数呼び出し | `obj.method()` |
-| CompareIC | 比較演算 | `a === b` |
-| BinaryOpIC | 二項演算 | `a + b` |
+| LoadIC | Property read | `obj.x` |
+| StoreIC | Property write | `obj.x = 1` |
+| KeyedLoadIC | Read by dynamic key | `obj[key]` |
+| KeyedStoreIC | Write by dynamic key | `obj[key] = 1` |
+| CallIC | Function call | `obj.method()` |
+| CompareIC | Comparison | `a === b` |
+| BinaryOpIC | Binary operation | `a + b` |
 
 ---
 
-## 7. ガベージコレクション（GC）
+## 7. Garbage Collection (GC)
 
-### 7.1 V8のメモリ構造
+### 7.1 V8's Memory Structure
 
-V8のヒープメモリは複数の領域に分割されている。
+V8's heap memory is divided into multiple regions.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                    V8 ヒープメモリ構造                          │
+│                    V8 Heap Memory Structure                    │
 ├──────────────────────────────────────────────────────────────┤
 │                                                              │
 │  ┌────────────────────────────────────────────┐              │
-│  │          New Space（新世代）                  │              │
+│  │          New Space (Young Generation)        │              │
 │  │  ┌──────────────┬───────────────────┐      │              │
 │  │  │  Semi-space   │  Semi-space       │      │              │
 │  │  │  (From)       │  (To)             │      │              │
 │  │  │  1-16 MB      │  1-16 MB          │      │              │
 │  │  └──────────────┴───────────────────┘      │              │
-│  │  新しく生成されたオブジェクトが配置される        │              │
-│  │  Minor GC（Scavenge）の対象                   │              │
+│  │  Where newly created objects are placed     │              │
+│  │  Target of Minor GC (Scavenge)              │              │
 │  └────────────────────────────────────────────┘              │
 │                                                              │
 │  ┌────────────────────────────────────────────┐              │
-│  │          Old Space（旧世代）                  │              │
+│  │          Old Space (Old Generation)          │              │
 │  │  ┌──────────────────────────────────┐      │              │
 │  │  │  Old Pointer Space                │      │              │
-│  │  │  → 他のオブジェクトへの参照を含む   │      │              │
+│  │  │  → Contains references to other  │      │              │
+│  │  │    objects                        │      │              │
 │  │  ├──────────────────────────────────┤      │              │
 │  │  │  Old Data Space                   │      │              │
-│  │  │  → 参照を含まないデータ（文字列等） │      │              │
+│  │  │  → Data without references       │      │              │
+│  │  │    (strings, etc.)               │      │              │
 │  │  └──────────────────────────────────┘      │              │
-│  │  2回のMinor GCを生き延びたオブジェクト         │              │
-│  │  Major GC（Mark-Sweep-Compact）の対象         │              │
-│  │  サイズ: --max-old-space-size で設定可能       │              │
+│  │  Objects that survived 2 Minor GCs          │              │
+│  │  Target of Major GC (Mark-Sweep-Compact)    │              │
+│  │  Size: configurable with --max-old-space-size│              │
 │  └────────────────────────────────────────────┘              │
 │                                                              │
 │  ┌────────────────────────────────────────────┐              │
 │  │          Large Object Space                  │              │
-│  │  通常のページに収まらない巨大オブジェクト        │              │
-│  │  個別にGC管理される                            │              │
+│  │  Large objects that don't fit in             │              │
+│  │  normal pages                                │              │
+│  │  Managed by GC individually                  │              │
 │  └────────────────────────────────────────────┘              │
 │                                                              │
 │  ┌────────────────────────────────────────────┐              │
 │  │          Code Space                          │              │
-│  │  JITコンパイルされたコードが配置される           │              │
+│  │  Where JIT-compiled code is placed           │              │
 │  └────────────────────────────────────────────┘              │
 │                                                              │
 │  ┌────────────────────────────────────────────┐              │
 │  │          Map Space                           │              │
-│  │  Hidden Class（Map）オブジェクトが配置される    │              │
+│  │  Where Hidden Class (Map) objects are placed │              │
 │  └────────────────────────────────────────────┘              │
 │                                                              │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### 7.2 Minor GC（Scavenge）
+### 7.2 Minor GC (Scavenge)
 
-新世代のGCは**Scavenge**（Cheney's algorithm の変種）を使用する。
+The young generation GC uses **Scavenge** (a variant of Cheney's algorithm).
 
 ```
-Scavenge アルゴリズムの流れ:
+Scavenge algorithm flow:
 
-Step 1: 割り当て
+Step 1: Allocation
 ┌────────────────────────────┬────────────────────────────┐
 │ From Space (active)         │ To Space (inactive)         │
 │ [A][B][C][D][E][ free ]    │ [ empty                  ] │
 └────────────────────────────┴────────────────────────────┘
 
-Step 2: GCトリガー（From Space が満杯に近づく）
-  → ルートオブジェクトから到達可能なオブジェクトを特定
-  → A, C, E が生存、B, D は到達不能（ゴミ）
+Step 2: GC triggered (From Space is nearly full)
+  → Identify objects reachable from root objects
+  → A, C, E survive; B, D are unreachable (garbage)
 
-Step 3: コピー
+Step 3: Copy
 ┌────────────────────────────┬────────────────────────────┐
 │ From Space                  │ To Space                    │
 │ [A][B][C][D][E][ free ]    │ [A'][C'][E'][ free       ] │
 └────────────────────────────┴────────────────────────────┘
-  → 生存オブジェクトをTo Spaceにコピー
-  → コピー先のアドレスで参照を更新
+  → Copy surviving objects to To Space
+  → Update references with the copy destination address
 
-Step 4: 入れ替え
+Step 4: Swap
 ┌────────────────────────────┬────────────────────────────┐
-│ To Space → 新 From Space    │ From Space → 新 To Space    │
-│ [A'][C'][E'][ free       ] │ [ empty (解放済み)        ] │
+│ To Space → new From Space   │ From Space → new To Space   │
+│ [A'][C'][E'][ free       ] │ [ empty (released)        ] │
 └────────────────────────────┴────────────────────────────┘
-  → From と To を入れ替え
-  → 旧From Spaceは丸ごと解放（個別のfreeが不要）
+  → Swap From and To
+  → Old From Space is released entirely (no individual frees needed)
 
-昇格（Promotion）:
-  → 2回のScavengeを生き延びたオブジェクトはOld Spaceに移動
-  → 「長寿命オブジェクト」と判断
+Promotion:
+  → Objects that survived 2 Scavenges are moved to Old Space
+  → Judged to be "long-lived objects"
 ```
 
-### 7.3 Major GC（Mark-Sweep-Compact）
+### 7.3 Major GC (Mark-Sweep-Compact)
 
-旧世代のGCは**Mark-Sweep-Compact**アルゴリズムを使用する。
+The old generation GC uses the **Mark-Sweep-Compact** algorithm.
 
-**Mark フェーズ:**
+**Mark phase:**
 
 ```
-ルートオブジェクト（スタック、グローバル変数等）から開始し、
-到達可能な全オブジェクトを再帰的にマークする。
+Starting from root objects (stack, global variables, etc.),
+recursively mark all reachable objects.
 
   Root Set
     │
@@ -923,111 +935,112 @@ Step 4: 入れ替え
     └──▶ Object B (marked ✓)
            └──▶ Object F (marked ✓)
 
-  Object C (unmarked ✗) → 到達不能 → ゴミ
-  Object G (unmarked ✗) → 到達不能 → ゴミ
+  Object C (unmarked ✗) → Unreachable → Garbage
+  Object G (unmarked ✗) → Unreachable → Garbage
 ```
 
-**Sweep フェーズ:**
+**Sweep phase:**
 
-マークされていないオブジェクトのメモリを解放し、フリーリストに追加する。
+Free the memory of unmarked objects and add to the free list.
 
-**Compact フェーズ:**
+**Compact phase:**
 
-メモリの断片化を解消するため、生存オブジェクトを移動して連続したメモリ領域にまとめる。これにより後続の割り当てが高速になる。
+To eliminate memory fragmentation, move surviving objects to consolidate them into a contiguous memory region. This speeds up subsequent allocations.
 
-### 7.4 インクリメンタルマーキングとコンカレントGC
+### 7.4 Incremental Marking and Concurrent GC
 
-Major GCは旧世代全体を対象とするため、処理に時間がかかる。これによるメインスレッドの停止時間（Stop-the-world pause）を削減するため、V8は以下の手法を採用している。
+Major GC targets the entire old generation, which takes time. To reduce the main-thread pause time (stop-the-world pause) caused by this, V8 employs the following techniques.
 
 ```
-【従来のStop-the-world GC】
-JS実行 ────────┤ GC（長い停止） ├──── JS実行
+[Traditional Stop-the-world GC]
+JS execution ────────┤ GC (long pause) ├──── JS execution
                └─── 100ms+ ───┘
 
-【インクリメンタルマーキング】
-JS実行 ──┤GC├── JS ──┤GC├── JS ──┤GC├── JS実行
+[Incremental Marking]
+JS execution ──┤GC├── JS ──┤GC├── JS ──┤GC├── JS execution
          5ms       5ms       5ms
-→ GC作業を小さなステップに分割
-→ JSの実行と交互に行う
+→ Splits GC work into small steps
+→ Alternates with JS execution
 
-【コンカレントGC】
-メインスレッド: JS実行 ──────────────────────── JS実行
-バックグラウンド:      ├── GC marking ──┤
-→ GC作業の大部分をバックグラウンドスレッドで実行
-→ メインスレッドの停止はほぼゼロに近づく
+[Concurrent GC]
+Main thread:       JS execution ──────────────────────── JS execution
+Background:              ├── GC marking ──┤
+→ Most GC work is done on a background thread
+→ Main thread pause approaches nearly zero
 
-【パラレルGC】
-メインスレッド:    ├── GC ──┤
-ヘルパースレッド1: ├── GC ──┤
-ヘルパースレッド2: ├── GC ──┤
-→ 停止は必要だが、複数スレッドで並列処理して時間短縮
+[Parallel GC]
+Main thread:    ├── GC ──┤
+Helper thread 1:├── GC ──┤
+Helper thread 2:├── GC ──┤
+→ Pause is still needed, but parallel processing on multiple
+  threads reduces the time
 ```
 
-V8のOrinoco GCプロジェクトにより、これらの手法が組み合わされ、GCの停止時間は多くの場合数ミリ秒以下に抑えられている。
+Through V8's Orinoco GC project, these techniques are combined and GC pause time is kept to a few milliseconds or less in most cases.
 
 ---
 
-## 8. V8の配列最適化
+## 8. V8 Array Optimizations
 
-### 8.1 ElementsKind の詳細
+### 8.1 Details of ElementsKind
 
-V8は配列の要素型に応じて内部表現を切り替える。適切なElementsKindを維持することで、配列操作のパフォーマンスが大幅に向上する。
+V8 switches internal representations based on the element types of arrays. Maintaining an appropriate ElementsKind significantly improves array operation performance.
 
 ```javascript
-// PACKED_SMI_ELEMENTS: 最も高速
-// SMI = Small Integer（31ビット符号付き整数、64ビットプラットフォームでは32ビット）
+// PACKED_SMI_ELEMENTS: fastest
+// SMI = Small Integer (31-bit signed int on 32-bit, 32-bit signed on 64-bit)
 const smiArray = [1, 2, 3, 4, 5];
-// → 要素がunboxed（タグなし）で格納される
-// → ポインタ追跡やタグチェックが不要
+// → Elements stored unboxed (without tags)
+// → No pointer tracking or tag checks required
 
 // PACKED_DOUBLE_ELEMENTS
 const doubleArray = [1.1, 2.2, 3.3];
-// → IEEE 754 倍精度浮動小数点数として格納
-// → ヒープオブジェクトとしてのオーバーヘッドがない
+// → Stored as IEEE 754 double-precision floating point
+// → No heap object overhead
 
-// PACKED_ELEMENTS: 最も汎用的だが最も遅い
+// PACKED_ELEMENTS: most general but slowest
 const objectArray = [{ x: 1 }, "hello", true];
-// → 各要素がヒープオブジェクトへのポインタ
-// → GCがポインタを追跡する必要がある
+// → Each element is a pointer to a heap object
+// → GC needs to track the pointers
 ```
 
-### 8.2 配列の最適化ガイドライン
+### 8.2 Array Optimization Guidelines
 
 ```javascript
-// 良い: 型が統一された配列
+// Good: uniform element type
 const numbers = [1, 2, 3, 4, 5];  // PACKED_SMI_ELEMENTS
-numbers.push(6);  // OK: SMIのまま
+numbers.push(6);  // OK: stays SMI
 
-// 悪い: 型の混在で不可逆な遷移が発生
+// Bad: mixed types cause irreversible transitions
 const bad = [1, 2, 3];           // PACKED_SMI_ELEMENTS
-bad.push(4.5);                   // → PACKED_DOUBLE_ELEMENTS（不可逆）
-bad.push("hello");               // → PACKED_ELEMENTS（不可逆）
-// 元のPACKED_SMI_ELEMENTSには二度と戻らない
+bad.push(4.5);                   // → PACKED_DOUBLE_ELEMENTS (irreversible)
+bad.push("hello");               // → PACKED_ELEMENTS (irreversible)
+// Will never return to PACKED_SMI_ELEMENTS
 
-// 良い: 事前確保
+// Good: pre-allocation
 const preallocated = new Array(1000);
-// ただし HOLEY_SMI_ELEMENTS になる点に注意
+// Note: this becomes HOLEY_SMI_ELEMENTS
 
-// より良い: fill で初期化
+// Better: initialize with fill
 const filled = new Array(1000).fill(0);
-// PACKED_SMI_ELEMENTS（穴なし）
+// PACKED_SMI_ELEMENTS (no holes)
 
-// 悪い: 穴あき配列
+// Bad: sparse array
 const holey = [1, , 3];  // HOLEY_SMI_ELEMENTS
-// インデックス1のアクセス時にプロトタイプチェーンの検索が必要
-// → PACKED に比べて遅い
+// Access to index 1 requires a prototype chain search
+// → Slower than PACKED
 ```
 
 ---
 
-## 9. パフォーマンス最適化の実践
+## 9. Practical Performance Optimization
 
-### 9.1 型安定性の確保
+### 9.1 Ensuring Type Stability
 
-V8が最も効率的に動作するのは、変数や関数の引数の型が安定している場合である。
+V8 operates most efficiently when the types of variables and function arguments are stable.
 
 ```javascript
-// アンチパターン1: 同じ変数に異なる型を代入
+// Anti-pattern 1: assigning different types to the same variable
 function unstable() {
   let value = 42;       // SMI
   value = 3.14;         // → Double
@@ -1035,9 +1048,9 @@ function unstable() {
   value = { x: 1 };    // → Object
   return value;
 }
-// → TurboFanが型特殊化できない → 最適化が困難
+// → TurboFan cannot perform type specialization → difficult to optimize
 
-// 推奨パターン: 変数の型を一貫させる
+// Recommended pattern: keep variable types consistent
 function stable() {
   const intValue = 42;
   const floatValue = 3.14;
@@ -1047,22 +1060,22 @@ function stable() {
 }
 ```
 
-### 9.2 オブジェクト初期化のベストプラクティス
+### 9.2 Best Practices for Object Initialization
 
 ```javascript
-// アンチパターン2: 条件付きプロパティ追加
+// Anti-pattern 2: conditional property addition
 function createUser(name, email, isAdmin) {
   const user = { name, email };
   if (isAdmin) {
-    user.role = "admin";        // Hidden Classが分岐
-    user.permissions = ["all"];  // さらに分岐
+    user.role = "admin";        // Hidden Class branches
+    user.permissions = ["all"];  // Further branching
   }
   return user;
 }
-// → isAdmin=true と isAdmin=false で異なるHidden Class
-// → この関数を経由するオブジェクトのICがpolymorphicに
+// → Different Hidden Classes for isAdmin=true and isAdmin=false
+// → IC at sites using this function becomes polymorphic
 
-// 推奨パターン: 全プロパティを初期化
+// Recommended pattern: initialize all properties
 function createUserOptimized(name, email, isAdmin) {
   return {
     name,
@@ -1071,9 +1084,9 @@ function createUserOptimized(name, email, isAdmin) {
     permissions: isAdmin ? ["all"] : null,
   };
 }
-// → 全オブジェクトが同じHidden Class → ICがmonomorphic
+// → All objects have the same Hidden Class → IC stays monomorphic
 
-// 推奨パターン: クラスを使用
+// Recommended pattern: use a class
 class User {
   constructor(name, email, isAdmin) {
     this.name = name;
@@ -1082,24 +1095,24 @@ class User {
     this.permissions = isAdmin ? ["all"] : null;
   }
 }
-// → コンストラクタで全プロパティ初期化 → 安定したHidden Class
+// → All properties initialized in constructor → stable Hidden Class
 ```
 
-### 9.3 関数のmonomorphic性を保つ
+### 9.3 Keeping Functions Monomorphic
 
 ```javascript
-// アンチパターン: 多様な形状のオブジェクトを同じ関数に渡す
+// Anti-pattern: pass objects with various shapes to the same function
 function processItem(item) {
   return item.name + ": " + item.value;
 }
 
 processItem({ name: "A", value: 1 });
-processItem({ name: "B", value: 2, extra: true });       // 別のHidden Class
-processItem({ name: "C", value: 3, x: 1, y: 2 });       // また別のHidden Class
-processItem({ value: 4, name: "D" });                     // 順序違いで別のHidden Class
-// → ICがmegamorphicに → パフォーマンス低下
+processItem({ name: "B", value: 2, extra: true });       // Different Hidden Class
+processItem({ name: "C", value: 3, x: 1, y: 2 });       // Yet another Hidden Class
+processItem({ value: 4, name: "D" });                     // Different order → different Hidden Class
+// → IC goes megamorphic → performance degrades
 
-// 推奨パターン: 統一された形状を使用
+// Recommended pattern: use a consistent shape
 class Item {
   constructor(name, value) {
     this.name = name;
@@ -1110,199 +1123,199 @@ class Item {
 processItem(new Item("A", 1));
 processItem(new Item("B", 2));
 processItem(new Item("C", 3));
-// → 全て同じHidden Class → ICがmonomorphic → 最速
+// → All the same Hidden Class → IC stays monomorphic → fastest
 ```
 
-### 9.4 delete 演算子の回避
+### 9.4 Avoiding the delete Operator
 
 ```javascript
-// アンチパターン: delete でプロパティを削除
+// Anti-pattern: deleting properties with delete
 const obj = { x: 1, y: 2, z: 3 };
 delete obj.y;
-// → オブジェクトが「辞書モード（slow mode）」に切り替わる
-// → Hidden Class の最適化が完全に失われる
-// → 以降のプロパティアクセスが全て遅くなる
+// → Object switches to "dictionary mode (slow mode)"
+// → Hidden Class optimization is completely lost
+// → All subsequent property accesses on this object become slow
 
-// 推奨パターン: null や undefined を代入
+// Recommended pattern: assign null or undefined
 const obj2 = { x: 1, y: 2, z: 3 };
 obj2.y = undefined;
-// → Hidden Class は維持される
-// → プロパティアクセスの最適化は継続
+// → Hidden Class is preserved
+// → Property access optimization continues
 
-// 推奨パターン: 新しいオブジェクトを作成
+// Recommended pattern: create a new object
 const { y, ...rest } = { x: 1, y: 2, z: 3 };
 // rest = { x: 1, z: 3 }
-// → 新しいオブジェクトは新しいHidden Classを持つが、
-//   辞書モードにはならない
+// → New object gets a new Hidden Class, but
+//   does not go into dictionary mode
 ```
 
-### 9.5 数値の型に関する注意
+### 9.5 Notes on Numeric Types
 
-V8は数値を内部的に複数の表現で管理している。
+V8 manages numbers internally in multiple representations.
 
 ```javascript
-// SMI（Small Integer）: 最も効率的
-// → 31ビット符号付き整数（32ビットプラットフォーム）
-// → 32ビット符号付き整数（64ビットプラットフォーム）
-// → タグ付きポインタとして即値で格納（ヒープ割り当て不要）
+// SMI (Small Integer): most efficient
+// → 31-bit signed integer (32-bit platform)
+// → 32-bit signed integer (64-bit platform)
+// → Stored as a tagged pointer immediate (no heap allocation needed)
 const smi = 42;
 
-// HeapNumber: ヒープに割り当てられる浮動小数点数
-// → SMIの範囲外の整数、または小数
-// → ヒープオブジェクトとしてのオーバーヘッドがある
+// HeapNumber: floating-point number allocated on the heap
+// → Integers outside the SMI range, or decimals
+// → Has heap object overhead
 const heapNum = 3.14;
-const bigInt = 2147483648;  // SMI範囲外
+const bigInt = 2147483648;  // Outside SMI range
 
-// 配列におけるSMI vs Doubleの影響
-const smiArr = [1, 2, 3];           // PACKED_SMI_ELEMENTS（最速）
+// Impact of SMI vs Double in arrays
+const smiArr = [1, 2, 3];           // PACKED_SMI_ELEMENTS (fastest)
 const doubleArr = [1, 2, 3.0];      // PACKED_DOUBLE_ELEMENTS
-// 3.0 が含まれるだけでDouble配列になる
+// The mere presence of 3.0 makes it a Double array
 
-// 整数演算がオーバーフローすると型が変わる
+// When integer arithmetic overflows, the type changes
 let counter = 0;
 for (let i = 0; i < 1000000; i++) {
   counter += i;
-  // counter がSMIの範囲を超えた時点でHeapNumberに変更
-  // → ループ内の加算が急に遅くなる可能性
+  // When counter exceeds the SMI range, it changes to HeapNumber
+  // → Addition in the loop may suddenly become slower
 }
 ```
 
 ---
 
-## 10. V8のデバッグとプロファイリング
+## 10. V8 Debugging and Profiling
 
-### 10.1 V8フラグ一覧
+### 10.1 List of V8 Flags
 
-Node.jsやChrome（DevTools Protocol経由）で使用できるV8のデバッグフラグを以下にまとめる。
+The following is a summary of V8 debug flags usable in Node.js or Chrome (via DevTools Protocol).
 
 ```bash
-# 最適化の追跡
+# Track optimizations
 node --trace-opt script.js
-# → TurboFanが最適化した関数を表示
+# → Shows functions that TurboFan has optimized
 
-# 脱最適化の追跡
+# Track deoptimizations
 node --trace-deopt script.js
-# → 脱最適化が発生した箇所と理由を表示
+# → Shows where deoptimization occurred and why
 
-# バイトコードの出力
+# Print bytecode
 node --print-bytecode script.js
-# → Ignitionが生成したバイトコードを表示
+# → Shows the bytecode generated by Ignition
 
-# 特定の関数のバイトコードのみ出力
+# Print only bytecode for a specific function
 node --print-bytecode --print-bytecode-filter="functionName" script.js
 
-# GCの追跡
+# Track GC
 node --trace-gc script.js
-# → GCイベントの発生タイミングと所要時間を表示
+# → Shows when GC events occur and how long they take
 
-# 詳細なGC情報
+# Detailed GC information
 node --trace-gc-verbose script.js
 
-# Hidden Class（Map）の遷移を追跡
+# Track Hidden Class (Map) transitions
 node --trace-maps script.js
 
-# ICの状態を追跡
+# Track IC state
 node --trace-ic script.js
 
-# TurboFanの最適化グラフを出力（Turbolizer用）
+# Output TurboFan optimization graph (for Turbolizer)
 node --trace-turbo script.js
-# → turbo-*.json ファイルが生成される
-# → https://v8.github.io/tools/turbolizer/ で可視化
+# → Generates turbo-*.json files
+# → Visualize at https://v8.github.io/tools/turbolizer/
 ```
 
-### 10.2 Chrome DevToolsでのV8分析
+### 10.2 V8 Analysis with Chrome DevTools
 
 ```
-Chrome DevTools を使ったV8パフォーマンス分析:
+V8 performance analysis with Chrome DevTools:
 
-1. Performance タブ
-   → CPU Profile を記録
-   → 関数ごとの実行時間を確認
-   → ホットスポットの特定
+1. Performance tab
+   → Record CPU profile
+   → Check execution time per function
+   → Identify hot spots
 
-2. Memory タブ
-   → Heap Snapshot: ヒープの全オブジェクトを一覧
-   → Allocation Timeline: メモリ割り当ての時系列変化
-   → Allocation Sampling: 低オーバーヘッドなサンプリング
+2. Memory tab
+   → Heap Snapshot: list all objects on the heap
+   → Allocation Timeline: time-series view of memory allocations
+   → Allocation Sampling: low-overhead sampling
 
-3. Console での確認
+3. Verification in Console
    → %HasFastProperties(obj)
-      オブジェクトが高速プロパティ（Hidden Class）モードかを確認
-      ※ --allow-natives-syntax フラグが必要
+      Check whether an object is in fast properties (Hidden Class) mode
+      * Requires the --allow-natives-syntax flag
 
    → %OptimizeFunctionOnNextCall(fn)
-      関数を次の呼び出し時に強制最適化
-      ※ テスト用途。本番環境では使用しないこと
+      Force-optimize a function on its next call
+      * For testing purposes only. Do not use in production.
 
    → %GetOptimizationStatus(fn)
-      関数の最適化状態を数値で返す
+      Returns the optimization status of a function as a number
 ```
 
-### 10.3 最適化状態の確認方法
+### 10.3 How to Check Optimization Status
 
 ```javascript
-// Node.jsで --allow-natives-syntax フラグを使用して確認
-// ※ このフラグはV8の内部APIを公開するため、開発・テスト目的のみで使用
+// Check using the --allow-natives-syntax flag in Node.js
+// * This flag exposes V8's internal API; use only for development/testing
 
 function testFunction(a, b) {
   return a + b;
 }
 
-// ウォームアップ
+// Warm up
 for (let i = 0; i < 100000; i++) {
   testFunction(i, i + 1);
 }
 
-// 最適化状態を確認
-// %GetOptimizationStatus(testFunction) の返り値:
-// 1 = 関数は最適化可能
-// 2 = 関数は最適化されている
-// 3 = 関数は常に最適化される
-// 4 = 関数は最適化されていない
-// 6 = 関数はベースラインコードの可能性
+// Check optimization status
+// Return values of %GetOptimizationStatus(testFunction):
+// 1 = function is optimizable
+// 2 = function is optimized
+// 3 = function is always optimized
+// 4 = function is not optimized
+// 6 = function may be baseline code
 ```
 
 ---
 
-## 11. エッジケース分析
+## 11. Edge Case Analysis
 
-### 11.1 エッジケース1: try-catch による最適化への影響
+### 11.1 Edge Case 1: Impact of try-catch on Optimization
 
-以前のV8（Crankshaft時代）では、`try-catch` を含む関数は最適化対象から除外されていた。TurboFanではこの制限は大幅に緩和されたが、依然として注意が必要なケースが存在する。
+In older versions of V8 (the Crankshaft era), functions containing `try-catch` were excluded from optimization. TurboFan has largely removed this restriction, but some cases still warrant caution.
 
 ```javascript
-// かつてのアンチパターン（Crankshaft時代）
-// → try-catchがあるだけで関数全体が最適化されなかった
+// Old anti-pattern (Crankshaft era)
+// → The mere presence of try-catch prevented the entire function from being optimized
 function oldPattern() {
   try {
-    // ホットなコード
+    // Hot code
     for (let i = 0; i < 1000000; i++) {
-      // 重い処理
+      // Heavy processing
     }
   } catch (e) {
     console.error(e);
   }
 }
 
-// TurboFan時代の現状:
-// → try-catch自体は最適化を阻害しない
-// → ただし、catch節内のコードは最適化されにくい
-//   （例外発生は稀であるべきという前提）
+// Current state in the TurboFan era:
+// → try-catch itself does not hinder optimization
+// → However, code inside the catch block is harder to optimize
+//   (on the assumption that exceptions should be rare)
 
-// エッジケース: try-catch内での型の不安定さ
+// Edge case: type instability inside try-catch
 function parseJSON(str) {
   try {
     return JSON.parse(str);
-    // 返り値の型がstring, number, object, array等、不定
-    // → 呼び出し側のICがpolymorphicになりやすい
+    // Return type is indeterminate: string, number, object, array, etc.
+    // → IC at the call site is prone to becoming polymorphic
   } catch (e) {
     return null;
-    // さらにnullも返り値に加わる
-    // → 呼び出し側のICがさらに複雑に
+    // null is also added to the possible return types
+    // → IC at the call site becomes even more complex
   }
 }
 
-// 推奨: 返り値の型を統一する工夫
+// Recommended: make an effort to unify the return type
 function parseJSONSafe(str) {
   try {
     const result = JSON.parse(str);
@@ -1311,117 +1324,118 @@ function parseJSONSafe(str) {
     return { success: false, data: null };
   }
 }
-// → 常に同じ形状のオブジェクトを返す → Hidden Classが安定
+// → Always returns an object of the same shape → stable Hidden Class
 ```
 
-### 11.2 エッジケース2: arguments オブジェクトのリーク
+### 11.2 Edge Case 2: arguments Object Leak
 
 ```javascript
-// arguments オブジェクトは特殊な振る舞いを持ち、
-// 最適化に悪影響を与える場合がある
+// The arguments object has special behavior and
+// can adversely affect optimization
 
-// アンチパターン: argumentsを他の関数に渡す（リーク）
+// Anti-pattern: passing arguments to another function (leak)
 function leakyFunction() {
-  // arguments がクロージャに捕捉される → 最適化が困難
+  // arguments is captured by the closure → difficult to optimize
   return Array.prototype.slice.call(arguments);
 }
 
-// アンチパターン: argumentsを外部変数に代入
+// Anti-pattern: assigning arguments to an external variable
 function badPattern() {
-  const args = arguments;  // argumentsオブジェクトが「リーク」
+  const args = arguments;  // arguments object "leaks"
   return function() {
-    return args[0];  // クロージャ内でargumentsを参照
+    return args[0];  // arguments is referenced inside a closure
   };
 }
 
-// 推奨パターン: レストパラメータを使用
+// Recommended pattern: use rest parameters
 function goodPattern(...args) {
-  // argsは通常の配列 → 最適化に問題なし
+  // args is a normal array → no optimization issues
   return args.slice();
 }
 
-// 推奨パターン: ES2015+ のデストラクチャリング
+// Recommended pattern: ES2015+ destructuring
 function betterPattern(first, second, ...rest) {
   return [first, second, ...rest];
 }
 ```
 
-### 11.3 エッジケース3: with文とeval
+### 11.3 Edge Case 3: with Statement and eval
 
 ```javascript
-// with文は V8 の最適化を完全に阻害する
-// → スコープチェーンが動的になり、変数解決が静的にできない
+// The with statement completely blocks V8 optimization
+// → The scope chain becomes dynamic and variable resolution
+//   cannot be done statically
 
-// アンチパターン: with文
+// Anti-pattern: with statement
 function withExample(obj) {
   with (obj) {
-    // x が obj.x なのか外部スコープの x なのか
-    // コンパイル時に判断できない
+    // Cannot determine at compile time whether x is obj.x
+    // or an x from an outer scope
     return x + y;
   }
 }
-// → 関数全体が最適化対象から除外される可能性
-// → strict mode では with文は構文エラー
+// → The entire function may be excluded from optimization
+// → In strict mode, the with statement is a syntax error
 
-// eval も同様の問題を引き起こす
+// eval causes the same problems
 function evalExample(code) {
   eval(code);
-  // eval内で変数が宣言・変更される可能性
-  // → 関数のスコープ全体が動的に
-  // → Hidden Classやスコープの最適化が不可能
+  // Variables may be declared/modified inside eval
+  // → The entire function's scope becomes dynamic
+  // → Optimization of Hidden Classes and scope is impossible
 }
 
-// 間接的なeval（グローバルスコープで実行）は影響が限定的
+// Indirect eval (executed in global scope) has limited impact
 const indirectEval = eval;
 indirectEval("console.log('hello')");
-// → 呼び出し元の関数スコープには影響しない
+// → Does not affect the calling function's scope
 ```
 
 ---
 
-## 12. 比較表
+## 12. Comparison Tables
 
-### 12.1 V8 vs 他のJavaScriptエンジン
+### 12.1 V8 vs Other JavaScript Engines
 
-| 特性 | V8 (Chrome/Node) | SpiderMonkey (Firefox) | JavaScriptCore (Safari) |
+| Feature | V8 (Chrome/Node) | SpiderMonkey (Firefox) | JavaScriptCore (Safari) |
 |------|------------------|----------------------|------------------------|
-| 開発元 | Google | Mozilla | Apple |
-| インタプリタ | Ignition（レジスタベース） | Warp Baseline | LLInt（Low Level Interpreter） |
-| 最適化コンパイラ | TurboFan | Ion（Warp） | DFG + FTL（B3） |
-| JIT段階数 | 2段階（Ignition → TurboFan） | 3段階（Baseline → IC → Ion） | 4段階（LLInt → Baseline → DFG → FTL） |
-| GC方式 | 世代別 Mark-Sweep-Compact | 世代別 Incremental GC | 世代別 Mark-Sweep（Riptide） |
-| Hidden Class名称 | Map | Shape | Structure |
-| IC実装 | フィードバックベクタ | CacheIR | Polymorphic IC |
+| Developer | Google | Mozilla | Apple |
+| Interpreter | Ignition (register-based) | Warp Baseline | LLInt (Low Level Interpreter) |
+| Optimizing compiler | TurboFan | Ion (Warp) | DFG + FTL (B3) |
+| JIT tiers | 2 (Ignition → TurboFan) | 3 (Baseline → IC → Ion) | 4 (LLInt → Baseline → DFG → FTL) |
+| GC method | Generational Mark-Sweep-Compact | Generational Incremental GC | Generational Mark-Sweep (Riptide) |
+| Hidden Class name | Map | Shape | Structure |
+| IC implementation | Feedback vector | CacheIR | Polymorphic IC |
 | WebAssembly | Liftoff + TurboFan | Baseline + Ion | BBQ + OMG |
-| 使用ランタイム | Chrome, Node.js, Deno, Electron | Firefox, SpiderNode | Safari, Bun |
+| Runtime | Chrome, Node.js, Deno, Electron | Firefox, SpiderNode | Safari, Bun |
 
-### 12.2 最適化レベルごとの比較
+### 12.2 Comparison by Optimization Level
 
-| 特性 | Ignition (バイトコード) | TurboFan (最適化済み) |
+| Feature | Ignition (bytecode) | TurboFan (optimized) |
 |------|----------------------|---------------------|
-| 起動速度 | 高速（バイトコード生成は軽量） | 遅い（コンパイルに時間がかかる） |
-| 実行速度 | 中程度（インタプリタ実行） | 高速（ネイティブコード実行） |
-| メモリ使用量 | 小（バイトコードはコンパクト） | 大（マシンコードはサイズが大きい） |
-| コンパイル時間 | 短い | 長い（最適化パス多数） |
-| 型特殊化 | なし（汎用バイトコード） | あり（フィードバックベクタに基づく） |
-| 脱最適化 | 不要（汎用コード） | 必要な場合がある（型前提が崩れた時） |
-| 適用対象 | 全関数（初回実行） | ホットスポットのみ |
-| デバッグ容易性 | 高い（バイトコードと1:1対応） | 低い（インライン展開等で元コードと乖離） |
+| Startup speed | Fast (bytecode generation is lightweight) | Slow (compilation takes time) |
+| Execution speed | Medium (interpreted execution) | Fast (native code execution) |
+| Memory usage | Small (bytecode is compact) | Large (machine code is larger) |
+| Compile time | Short | Long (many optimization passes) |
+| Type specialization | None (generic bytecode) | Yes (based on feedback vector) |
+| Deoptimization | Not needed (generic code) | May be needed (when type assumptions break) |
+| Applies to | All functions (first execution) | Hot spots only |
+| Debuggability | High (1:1 with bytecode) | Low (diverges from original due to inlining, etc.) |
 
 ---
 
-## 13. メモリリーク対策
+## 13. Memory Leak Prevention
 
-### 13.1 典型的なメモリリークパターン
+### 13.1 Typical Memory Leak Patterns
 
-V8のGCは到達可能なオブジェクトを自動的に管理するが、プログラマの意図しない参照が残ることで「メモリリーク」が発生する。
+V8's GC automatically manages reachable objects, but "memory leaks" occur when unintended references remain.
 
 ```javascript
-// パターン1: イベントリスナーの解除忘れ
+// Pattern 1: forgetting to remove event listeners
 class Component {
   constructor() {
     this.data = new Array(10000).fill("large data");
-    // イベントリスナーを登録
+    // Register event listener
     window.addEventListener("resize", this.handleResize);
   }
 
@@ -1430,13 +1444,13 @@ class Component {
   };
 
   destroy() {
-    // リスナーを解除しないと、
-    // このComponentインスタンスはGCされない
-    // → this.data の巨大配列もリークする
+    // Without removing the listener,
+    // this Component instance will not be GC'd
+    // → The large array this.data also leaks
   }
 }
 
-// 修正版
+// Fixed version
 class ComponentFixed {
   constructor() {
     this.data = new Array(10000).fill("large data");
@@ -1450,34 +1464,34 @@ class ComponentFixed {
 
   destroy() {
     window.removeEventListener("resize", this.handleResize);
-    this.data = null;  // 明示的に参照を切る
+    this.data = null;  // Explicitly break the reference
   }
 }
 ```
 
 ```javascript
-// パターン2: クロージャによる意図しない参照保持
+// Pattern 2: unintended reference retention via closures
 function createProcessor() {
-  const hugeData = new Array(1000000).fill("x");  // 巨大なデータ
+  const hugeData = new Array(1000000).fill("x");  // Huge data
 
-  // この関数はhugeDataへの参照を保持し続ける
+  // This function keeps holding a reference to hugeData
   return function process(input) {
-    // hugeDataを直接使っていなくても、
-    // 同じスコープの変数なのでクロージャが参照を保持
+    // Even if hugeData is not used directly,
+    // the closure holds a reference to variables in the same scope
     return input.toUpperCase();
   };
 }
 
 const processor = createProcessor();
-// → processor が存在する限り hugeData はGCされない
+// → hugeData will not be GC'd as long as processor exists
 
-// 修正版: スコープを分離
+// Fixed version: separate the scope
 function createProcessorFixed() {
   const hugeData = new Array(1000000).fill("x");
   const result = processHugeData(hugeData);
 
-  // hugeDataを使う処理を完了させてから
-  // クロージャを返す
+  // Complete processing that uses hugeData before
+  // returning the closure
   return function process(input) {
     return input.toUpperCase() + result;
   };
@@ -1485,20 +1499,20 @@ function createProcessorFixed() {
 ```
 
 ```javascript
-// パターン3: タイマーのクリア忘れ
+// Pattern 3: forgetting to clear timers
 function startPolling() {
   const data = { buffer: new ArrayBuffer(1024 * 1024) }; // 1MB
 
   const intervalId = setInterval(() => {
-    // data への参照が維持される
+    // Reference to data is kept alive
     console.log(data.buffer.byteLength);
   }, 1000);
 
-  // intervalIdを返さないと、クリアする手段がない
-  // → data は永久にGCされない
+  // Without returning intervalId, there is no way to clear it
+  // → data will never be GC'd
 }
 
-// 修正版
+// Fixed version
 function startPollingFixed() {
   const data = { buffer: new ArrayBuffer(1024 * 1024) };
 
@@ -1506,85 +1520,85 @@ function startPollingFixed() {
     console.log(data.buffer.byteLength);
   }, 1000);
 
-  // クリーンアップ関数を返す
+  // Return a cleanup function
   return function stop() {
     clearInterval(intervalId);
-    // intervalIdをクリアすれば、コールバックへの参照が消え、
-    // data もGC対象になる
+    // Clearing intervalId removes the reference to the callback,
+    // making data eligible for GC
   };
 }
 ```
 
-### 13.2 WeakRef と FinalizationRegistry
+### 13.2 WeakRef and FinalizationRegistry
 
-ES2021で導入されたWeakRefとFinalizationRegistryは、メモリリーク対策の強力なツールである。
+WeakRef and FinalizationRegistry, introduced in ES2021, are powerful tools for preventing memory leaks.
 
 ```javascript
-// WeakRef: 弱参照（GCを阻害しない参照）
+// WeakRef: weak reference (does not prevent GC)
 class Cache {
   constructor() {
     this.cache = new Map();
   }
 
   set(key, value) {
-    // WeakRefで値を保持 → GCが必要なら回収可能
+    // Hold value via WeakRef → GC can collect it if needed
     this.cache.set(key, new WeakRef(value));
   }
 
   get(key) {
     const ref = this.cache.get(key);
     if (ref) {
-      const value = ref.deref();  // 弱参照を解決
+      const value = ref.deref();  // Dereference the weak reference
       if (value !== undefined) {
-        return value;  // まだ生きている
+        return value;  // Still alive
       }
-      // GCされていた → キャッシュエントリを削除
+      // Was GC'd → delete the cache entry
       this.cache.delete(key);
     }
     return undefined;
   }
 }
 
-// FinalizationRegistry: オブジェクトがGCされた時のコールバック
+// FinalizationRegistry: callback when an object is GC'd
 const registry = new FinalizationRegistry((heldValue) => {
   console.log(`Object with key "${heldValue}" was garbage collected`);
-  // クリーンアップ処理（外部リソースの解放など）
+  // Cleanup processing (releasing external resources, etc.)
 });
 
 function createManagedObject(key) {
   const obj = { data: new Array(10000) };
-  registry.register(obj, key);  // objがGCされたらkeyを引数にコールバック
+  registry.register(obj, key);  // When obj is GC'd, callback with key as argument
   return obj;
 }
 
-// WeakMap: キーが弱参照（キーオブジェクトがGCされるとエントリ自動削除）
+// WeakMap: keys are weak references (entry auto-deleted when key object is GC'd)
 const metadata = new WeakMap();
 
 function attachMetadata(obj, meta) {
   metadata.set(obj, meta);
-  // obj がどこからも参照されなくなれば、
-  // WeakMapのエントリも自動的に削除される
+  // When obj is no longer referenced from anywhere,
+  // the WeakMap entry is automatically deleted as well
 }
 ```
 
 ---
 
-## 14. WebAssembly と V8
+## 14. WebAssembly and V8
 
-### 14.1 V8のWebAssembly実行パイプライン
+### 14.1 V8's WebAssembly Execution Pipeline
 
-V8はWebAssemblyも実行でき、専用のコンパイルパイプラインを持っている。
+V8 can also execute WebAssembly and has a dedicated compilation pipeline.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│          V8 WebAssembly パイプライン                        │
+│          V8 WebAssembly Pipeline                          │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  .wasm バイナリ                                           │
+│  .wasm binary                                            │
 │      │                                                   │
 │      ▼                                                   │
 │  ┌──────────────┐                                        │
-│  │  Validation   │  Wasmバイナリの検証                     │
+│  │  Validation   │  Validate the Wasm binary             │
 │  └──────┬───────┘                                        │
 │         │                                                │
 │         ├──────────────────┐                              │
@@ -1593,117 +1607,118 @@ V8はWebAssemblyも実行でき、専用のコンパイルパイプラインを�
 │  │  Liftoff       │  │  TurboFan     │                      │
 │  │  (Baseline)    │  │  (Optimizing) │                      │
 │  │                │  │               │                      │
-│  │  高速コンパイル  │  │  高品質最適化   │                      │
-│  │  低品質コード   │  │  遅いコンパイル │                      │
+│  │  Fast compile  │  │  High-quality │                      │
+│  │  Low-quality   │  │  optimization │                      │
+│  │  code          │  │  Slow compile │                      │
 │  └──────┬───────┘  └──────┬───────┘                      │
 │         │                  │                              │
 │         ▼                  ▼                              │
-│  即座に実行開始      TurboFanの完了後に                      │
-│  （レイテンシ重視）    Liftoffコードを置換                     │
-│                     （スループット重視）                      │
+│  Start executing     After TurboFan completes,            │
+│  immediately         replace Liftoff code                 │
+│  (latency focus)     (throughput focus)                   │
 │                                                          │
 │  Lazy Compilation:                                       │
-│  → 関数が初めて呼ばれた時にコンパイル                       │
-│  → 未使用の関数はコンパイルしない                           │
-│  → 起動時間の短縮に貢献                                    │
+│  → Compile when a function is first called               │
+│  → Don't compile unused functions                        │
+│  → Contributes to shorter startup time                   │
 │                                                          │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 14.2 JavaScript と WebAssembly の相互運用
+### 14.2 JavaScript and WebAssembly Interoperability
 
 ```javascript
-// WebAssemblyモジュールの読み込みと実行
+// Loading and executing a WebAssembly module
 async function loadWasm() {
   const response = await fetch("module.wasm");
   const buffer = await response.arrayBuffer();
   const module = await WebAssembly.compile(buffer);
   const instance = await WebAssembly.instantiate(module, {
     env: {
-      // JavaScriptからWasmに渡す関数
+      // Function passed from JavaScript to Wasm
       log: (value) => console.log(value),
     },
   });
 
-  // Wasmのエクスポート関数を呼び出す
+  // Call an exported Wasm function
   const result = instance.exports.add(10, 20);
-  // → JavaScript と Wasm の呼び出しにはオーバーヘッドがある
-  // → 頻繁な小さな呼び出しは避け、まとまった処理を委譲する
+  // → There is overhead in calls between JavaScript and Wasm
+  // → Avoid frequent small calls; delegate chunked processing
 }
 
-// パフォーマンスの考慮点:
-// ・JS → Wasm 呼び出し: 約10-20ns のオーバーヘッド
-// ・Wasm → JS 呼び出し: より大きなオーバーヘッド（型変換等）
-// ・大きなデータ: SharedArrayBufferを使ったゼロコピー転送が理想
-// ・小さな関数の頻繁な呼び出しは JS 内で完結させた方が速い
+// Performance considerations:
+// · JS → Wasm call: ~10-20ns of overhead
+// · Wasm → JS call: larger overhead (type conversions, etc.)
+// · Large data: zero-copy transfer with SharedArrayBuffer is ideal
+// · Frequent calls to small functions are faster to keep in JS
 ```
 
 ---
 
 ## FAQ
 
-### Q1: V8のHidden ClassとInline Cachingはどのように連携して動作するのか？
+### Q1: How do V8's Hidden Classes and Inline Caching work together?
 
-**A:** Hidden ClassとInline Caching（IC）は密接に連携してプロパティアクセスを高速化する。
+**A:** Hidden Classes and Inline Caching (IC) work closely together to speed up property access.
 
-**Hidden Classの役割:**
-- オブジェクトの「形状」を記述するメタデータ
-- プロパティ名とメモリオフセットのマッピングを保持
-- 同じ形状のオブジェクトは同じHidden Classを共有
+**Role of Hidden Classes:**
+- Metadata that describes the "shape" of an object
+- Holds mappings from property names to memory offsets
+- Objects with the same shape share the same Hidden Class
 
-**Inline Cachingの役割:**
-- プロパティアクセス箇所ごとに最適化情報をキャッシュ
-- Hidden Classとオフセットのペアを記憶
-- 次回の同じアクセスで検索をスキップ
+**Role of Inline Caching:**
+- Caches optimization information at each property access site
+- Remembers Hidden Class and offset pairs
+- Skips the search on the next identical access
 
-**連携の具体例:**
+**Concrete example of their cooperation:**
 
 ```javascript
 function getX(obj) {
-  return obj.x;  // ← このアクセス箇所にICが生成される
+  return obj.x;  // ← An IC is generated at this access site
 }
 
-// 1回目の呼び出し: IC miss
+// 1st call: IC miss
 const p1 = { x: 10, y: 20 };
 getX(p1);
-// 1. p1のHidden Class（Map M1）を取得
-// 2. M1のプロパティテーブルで "x" を検索
-// 3. オフセット0を発見
-// 4. ICにキャッシュ: { Map: M1, Property: "x", Offset: 0 }
+// 1. Get p1's Hidden Class (Map M1)
+// 2. Search M1's property table for "x"
+// 3. Find offset 0
+// 4. Cache in IC: { Map: M1, Property: "x", Offset: 0 }
 
-// 2回目の呼び出し: IC hit
-const p2 = { x: 30, y: 40 };  // p1と同じHidden Class M1
+// 2nd call: IC hit
+const p2 = { x: 30, y: 40 };  // Same Hidden Class M1 as p1
 getX(p2);
-// 1. p2のHidden ClassがM1であることを確認
-// 2. ICのキャッシュから直接オフセット0を使用
-// 3. プロパティテーブル検索をスキップ → 高速化
+// 1. Confirm that p2's Hidden Class is M1
+// 2. Use offset 0 directly from the IC cache
+// 3. Skip property table search → faster
 ```
 
-**状態遷移:**
+**State transitions:**
 
 ```
-Uninitialized (未初期化)
-    ↓ 1つ目のHidden Class
-Monomorphic (単態) --- 常に同じHidden Class → 最速
-    ↓ 異なるHidden Class
-Polymorphic (多態) --- 2-4種類のHidden Class → 中速
-    ↓ 5種類以上のHidden Class
-Megamorphic (超多態) --- キャッシュ無効 → 最遅
+Uninitialized
+    ↓ 1st Hidden Class
+Monomorphic — always the same Hidden Class → fastest
+    ↓ different Hidden Class
+Polymorphic — 2–4 Hidden Classes → medium speed
+    ↓ 5+ Hidden Classes
+Megamorphic — cache disabled → slowest
 ```
 
-**最適化のポイント:**
-- 同じ形状のオブジェクトを使い続ける → Monomorphic状態を維持
-- プロパティの追加順序を統一する → Hidden Classを共有
-- オブジェクトリテラルを使う → 初期化時に形状が確定
+**Optimization points:**
+- Keep using objects with the same shape → maintain Monomorphic state
+- Unify property addition order → share Hidden Class
+- Use object literals → shape is fixed at initialization
 
-### Q2: TurboFanのJIT最適化を妨げるコードパターンは何か？
+### Q2: What code patterns hinder TurboFan's JIT optimization?
 
-**A:** 以下のパターンがTurboFanの最適化を阻害または無効化する。
+**A:** The following patterns hinder or invalidate TurboFan's optimization.
 
-**1. 型の不安定性 --- 最適化の最大の敵**
+**1. Type instability — the greatest enemy of optimization**
 
 ```javascript
-// アンチパターン: 変数の型が頻繁に変わる
+// Anti-pattern: variable types change frequently
 function unstable(a, b) {
   return a + b;
 }
@@ -1713,110 +1728,110 @@ unstable(1.5, 2.5);    // Double + Double
 unstable("a", "b");    // String + String
 unstable({}, {});      // Object + Object
 
-// → TurboFanが型特殊化できない
-// → 汎用的な（遅い）加算コードを生成
-// → 脱最適化のリスクが高い
+// → TurboFan cannot specialize by type
+// → Generates generic (slow) addition code
+// → High risk of deoptimization
 ```
 
-**推奨パターン:**
+**Recommended pattern:**
 
 ```javascript
-// 整数専用関数
+// Integer-only function
 function addInt(a, b) {
-  return (a | 0) + (b | 0);  // ビット演算で整数を強制
+  return (a | 0) + (b | 0);  // Bit operation forces integer
 }
 
-// 浮動小数点専用関数
+// Floating-point-only function
 function addFloat(a, b) {
-  return +a + +b;  // 単項プラス演算子でNumber型を強制
+  return +a + +b;  // Unary plus operator forces Number type
 }
 ```
 
-**2. Hidden Classの分岐 --- IC状態の悪化**
+**2. Hidden Class branching — IC state deterioration**
 
 ```javascript
-// アンチパターン: 条件付きプロパティ追加
+// Anti-pattern: conditional property addition
 function createConfig(enableCache) {
   const config = { baseUrl: "/" };
   if (enableCache) {
-    config.cache = true;  // Hidden Classが分岐
+    config.cache = true;  // Hidden Class branches
   }
   return config;
 }
 
-// → 2つの異なるHidden Classが生成される
-// → この関数を使う箇所のICがPolymorphicに
+// → Two different Hidden Classes are created
+// → IC at sites using this function becomes Polymorphic
 ```
 
-**推奨パターン:**
+**Recommended pattern:**
 
 ```javascript
 function createConfig(enableCache) {
   return {
     baseUrl: "/",
-    cache: enableCache || null,  // 常に全プロパティを初期化
+    cache: enableCache || null,  // Always initialize all properties
   };
 }
 ```
 
-**3. delete演算子 --- 辞書モードへの転落**
+**3. delete operator — falling into dictionary mode**
 
 ```javascript
-// アンチパターン: deleteでプロパティ削除
+// Anti-pattern: delete properties with delete
 const obj = { x: 1, y: 2, z: 3 };
 delete obj.y;
 
-// → オブジェクトが「slow mode（辞書モード）」に
-// → Hidden Classの最適化が完全に失われる
-// → 以降のアクセスがハッシュテーブル検索になる
+// → Object goes into "slow mode (dictionary mode)"
+// → Hidden Class optimization is completely lost
+// → Subsequent accesses become hash table lookups
 ```
 
-**推奨パターン:**
+**Recommended pattern:**
 
 ```javascript
-// undefinedを代入
+// Assign undefined
 obj.y = undefined;
 
-// または新しいオブジェクトを作成
+// Or create a new object
 const { y, ...newObj } = obj;
 ```
 
-**4. 配列の穴（Holey Arrays）**
+**4. Array holes (Holey Arrays)**
 
 ```javascript
-// アンチパターン: 穴あき配列
-const arr = [1, 2, , 4];  // インデックス2が空
+// Anti-pattern: sparse array
+const arr = [1, 2, , 4];  // Index 2 is empty
 
-// → HOLEY_SMI_ELEMENTS に遷移
-// → アクセス時にプロトタイプチェーンの検索が必要
-// → PACKED配列より遅い
+// → Transitions to HOLEY_SMI_ELEMENTS
+// → Accessing index 2 requires a prototype chain search
+// → Slower than PACKED array
 ```
 
-**推奨パターン:**
+**Recommended pattern:**
 
 ```javascript
-const arr = [1, 2, 0, 4];  // 穴を埋める
-// または
+const arr = [1, 2, 0, 4];  // Fill the hole
+// or
 const arr = new Array(4).fill(0);
 arr[0] = 1;
 arr[1] = 2;
 arr[3] = 4;
 ```
 
-**5. arguments オブジェクトのリーク**
+**5. arguments object leak**
 
 ```javascript
-// アンチパターン: argumentsを外部に公開
+// Anti-pattern: expose arguments externally
 function leaky() {
   const args = arguments;
   return function() { return args[0]; };
 }
 
-// → クロージャがargumentsを捕捉
-// → 最適化が困難
+// → Closure captures arguments
+// → Difficult to optimize
 ```
 
-**推奨パターン:**
+**Recommended pattern:**
 
 ```javascript
 function optimized(...args) {
@@ -1824,55 +1839,55 @@ function optimized(...args) {
 }
 ```
 
-**6. 評価不能な動的コード**
+**6. Unevaluable dynamic code**
 
 ```javascript
-// アンチパターン: eval、with文
+// Anti-pattern: eval, with statement
 function dynamic(code) {
-  eval(code);  // スコープが動的になる
+  eval(code);  // Scope becomes dynamic
 }
 
-// → 変数解決が静的にできない
-// → 関数全体が最適化対象外
+// → Variable resolution cannot be done statically
+// → Entire function excluded from optimization
 ```
 
-**7. 巨大な関数 --- インライン展開の失敗**
+**7. Huge functions — failure of inlining**
 
 ```javascript
-// アンチパターン: 1000行の巨大関数
+// Anti-pattern: a 1000-line giant function
 function huge() {
-  // ... 大量のコード ...
+  // ... lots of code ...
 }
 
-// → TurboFanがインライン展開できない
-// → 呼び出しオーバーヘッドが残る
+// → TurboFan cannot inline
+// → Call overhead remains
 ```
 
-**推奨パターン:**
+**Recommended pattern:**
 
 ```javascript
-// 小さな関数に分割（10-50行が目安）
+// Split into small functions (10–50 lines is a guideline)
 function small1() { /* ... */ }
 function small2() { /* ... */ }
 ```
 
-**8. try-catch内での型の不安定さ**
+**8. Type instability inside try-catch**
 
 ```javascript
-// アンチパターン: try-catch内で複数の型を返す
+// Anti-pattern: returning multiple types from try-catch
 function parse(str) {
   try {
-    return JSON.parse(str);  // Object, Array, String, Number等
+    return JSON.parse(str);  // Object, Array, String, Number, etc.
   } catch (e) {
-    return null;  // さらにnull
+    return null;  // null is also added
   }
 }
 
-// → 返り値の型が多態的
-// → 呼び出し側のICがMegamorphicに
+// → Return type is polymorphic
+// → IC at the call site goes Megamorphic
 ```
 
-**推奨パターン:**
+**Recommended pattern:**
 
 ```javascript
 function parse(str) {
@@ -1882,199 +1897,199 @@ function parse(str) {
     return { success: false, data: null };
   }
 }
-// → 常に同じ形状のオブジェクトを返す
+// → Always returns an object of the same shape
 ```
 
-### Q3: V8以外の主要JavaScriptエンジン（SpiderMonkey、JavaScriptCore）との違いは何か？
+### Q3: What are the differences from other major JavaScript engines (SpiderMonkey, JavaScriptCore)?
 
-**A:** 主要3エンジンはそれぞれ異なる設計思想と最適化戦略を持つ。
+**A:** The three major engines each have different design philosophies and optimization strategies.
 
-**1. アーキテクチャの違い**
+**1. Architectural differences**
 
-| 特性 | V8 (Chrome/Node) | SpiderMonkey (Firefox) | JavaScriptCore (Safari/Bun) |
+| Feature | V8 (Chrome/Node) | SpiderMonkey (Firefox) | JavaScriptCore (Safari/Bun) |
 |------|------------------|----------------------|------------------------------|
-| **開発元** | Google | Mozilla | Apple |
-| **JIT段階数** | 2段階 | 3段階 | 4段階 |
-| **インタプリタ** | Ignition（レジスタベース） | Warp Baseline | LLInt（Low Level Interpreter） |
-| **ベースラインコンパイラ** | なし（Ignition直接） | Baseline Interpreter | Baseline JIT |
-| **最適化コンパイラ** | TurboFan | Ion（Warp） | DFG + FTL（B3/Air） |
-| **起動戦略** | 高速起動重視 | バランス型 | 段階的最適化重視 |
+| **Developer** | Google | Mozilla | Apple |
+| **JIT tiers** | 2 | 3 | 4 |
+| **Interpreter** | Ignition (register-based) | Warp Baseline | LLInt (Low Level Interpreter) |
+| **Baseline compiler** | None (Ignition directly) | Baseline Interpreter | Baseline JIT |
+| **Optimizing compiler** | TurboFan | Ion (Warp) | DFG + FTL (B3/Air) |
+| **Startup strategy** | Prioritizes fast startup | Balanced | Prioritizes incremental optimization |
 
-**V8の戦略:**
-- Ignition（バイトコード）→ TurboFan（最適化）の2段階
-- 起動速度を優先：バイトコードの生成が非常に高速
-- メモリ効率：バイトコードはコンパクト
+**V8's strategy:**
+- Two tiers: Ignition (bytecode) → TurboFan (optimized)
+- Prioritizes startup speed: bytecode generation is very fast
+- Memory efficiency: bytecode is compact
 
-**SpiderMonkeyの戦略:**
-- Baseline Interpreter → IC Stub → Ion の3段階
-- CacheIR（Inline Cache IR）による柔軟なIC生成
-- WebAssembly最適化に注力（Firefox Reality等）
+**SpiderMonkey's strategy:**
+- Three tiers: Baseline Interpreter → IC Stub → Ion
+- Flexible IC generation via CacheIR (Inline Cache IR)
+- Focused on WebAssembly optimization (Firefox Reality, etc.)
 
-**JavaScriptCoreの戦略:**
-- LLInt → Baseline JIT → DFG → FTL の4段階
-- 長時間実行を想定：最も多段階の最適化
-- FTL（Faster Than Light）は LLVM B3 バックエンド使用
-- Safari等でのバッテリー効率を重視
+**JavaScriptCore's strategy:**
+- Four tiers: LLInt → Baseline JIT → DFG → FTL
+- Assumes long-running execution: most multi-tiered optimization
+- FTL (Faster Than Light) uses the LLVM B3 backend
+- Emphasizes battery efficiency on Safari and other platforms
 
-**2. Hidden Class（形状管理）の違い**
+**2. Differences in Hidden Class (shape management)**
 
-| エンジン | 名称 | 特徴 |
+| Engine | Name | Characteristics |
 |---------|------|------|
-| V8 | Map | 遷移チェーンをMapに保存。Transition Treeを構築 |
-| SpiderMonkey | Shape | Shape Lineageシステム。ShapeTableで高速検索 |
-| JavaScriptCore | Structure | Structure IDによる識別。Property Tableを共有 |
+| V8 | Map | Stores transitions in Maps. Builds a Transition Tree |
+| SpiderMonkey | Shape | Shape Lineage system. Fast lookup with ShapeTable |
+| JavaScriptCore | Structure | Identified by Structure ID. Property Table is shared |
 
-**V8のMap:**
+**V8's Map:**
 ```javascript
-// プロパティ追加順序が重要
+// Property addition order matters
 const obj1 = {};
 obj1.x = 1;  // Map M0 → M1
 obj1.y = 2;  // Map M1 → M2
 
-// 順序が違うと別のMap
+// Different order → different Map
 const obj2 = {};
 obj2.y = 2;  // Map M0 → M3
 obj2.x = 1;  // Map M3 → M4
 ```
 
-**SpiderMonkeyのShape:**
-- BaseShapeとShapeの2層構造
-- プロトタイプ情報をBaseShapeに分離
-- Shapeの共有率がやや高い
+**SpiderMonkey's Shape:**
+- Two-layer structure with BaseShape and Shape
+- Prototype information is separated into BaseShape
+- Slightly higher Shape sharing rate
 
-**JavaScriptCoreのStructure:**
-- Structure IDによる高速な等価性チェック
-- Inline Cacheで Structure IDを直接比較
-- Property Tableを複数のStructureで共有可能
+**JavaScriptCore's Structure:**
+- Fast equality check via Structure ID
+- Inline Cache directly compares Structure IDs
+- Property Table can be shared across multiple Structures
 
-**3. ガベージコレクションの違い**
+**3. Garbage collection differences**
 
-| エンジン | 新世代GC | 旧世代GC | 並行/並列処理 |
+| Engine | Young gen GC | Old gen GC | Concurrent/parallel |
 |---------|----------|----------|--------------|
-| V8 | Scavenge（Cheney's） | Mark-Sweep-Compact | Concurrent Marking, Parallel Scavenging |
-| SpiderMonkey | Nursery（Generational） | Incremental Mark-Sweep | Incremental GC, Parallel Marking |
-| JavaScriptCore | Eden（Generational） | Full GC（Riptide） | Concurrent GC, DFG Safepoints |
+| V8 | Scavenge (Cheney's) | Mark-Sweep-Compact | Concurrent Marking, Parallel Scavenging |
+| SpiderMonkey | Nursery (Generational) | Incremental Mark-Sweep | Incremental GC, Parallel Marking |
+| JavaScriptCore | Eden (Generational) | Full GC (Riptide) | Concurrent GC, DFG Safepoints |
 
 **V8 Orinoco GC:**
-- Concurrent Marking：マーキングをバックグラウンドで実行
-- Parallel Scavenging：新世代GCを並列化
-- Idle-time GC：ブラウザのアイドル時間にGC実行
+- Concurrent Marking: run marking on a background thread
+- Parallel Scavenging: parallelize young generation GC
+- Idle-time GC: run GC during browser idle time
 
 **SpiderMonkey:**
-- Incremental GC：GCを細かく分割してStop-the-worldを削減
-- Compacting GC：メモリ断片化を積極的に解消
-- Background Sweeping：スイープをバックグラウンド化
+- Incremental GC: split GC into small pieces to reduce stop-the-world
+- Compacting GC: aggressively resolve memory fragmentation
+- Background Sweeping: move sweeping to the background
 
 **JavaScriptCore Riptide:**
-- Constraint-based GC：制約ベースのマーキング
-- DFG Safepoint：最適化コード実行中の安全なGCポイント
-- Incremental Marking：少しずつマーキング
+- Constraint-based GC: constraint-based marking
+- DFG Safepoint: safe GC points during optimized code execution
+- Incremental Marking: mark a little at a time
 
-**4. パフォーマンス特性の違い**
+**4. Performance characteristic differences**
 
-**ベンチマーク別の傾向（一般的な傾向）:**
+**General benchmark tendencies:**
 
-| ベンチマーク種別 | V8 | SpiderMonkey | JavaScriptCore |
+| Benchmark type | V8 | SpiderMonkey | JavaScriptCore |
 |------------------|-----|--------------|----------------|
-| **起動速度** | ◎ 最速 | ○ 中程度 | △ やや遅い |
-| **短時間実行** | ◎ 優秀 | ○ 良好 | ○ 良好 |
-| **長時間実行** | ○ 良好 | ○ 良好 | ◎ 最も最適化される |
-| **メモリ効率** | ◎ バイトコードコンパクト | ○ 中程度 | △ 多段階JITでメモリ消費 |
-| **WebAssembly** | ◎ Liftoff高速 | ◎ Ion最適化優秀 | ○ 良好 |
+| **Startup speed** | Excellent | Good | Slightly slow |
+| **Short execution** | Excellent | Good | Good |
+| **Long execution** | Good | Good | Best optimized |
+| **Memory efficiency** | Excellent (compact bytecode) | Good | Uses more memory (multi-tier JIT) |
+| **WebAssembly** | Excellent (fast Liftoff) | Excellent (Ion optimizations) | Good |
 
-**V8の強み:**
-- Node.js、Chrome拡張機能など起動頻度の高いワークロード
-- バイトコードのコンパクトさによるメモリ節約
-- TurboFanの強力な最適化（Speculative Optimization）
+**V8's strengths:**
+- Workloads with frequent startups: Node.js, Chrome extensions, etc.
+- Memory savings from compact bytecode
+- TurboFan's powerful optimization (Speculative Optimization)
 
-**SpiderMonkeyの強み:**
-- asm.js、WebAssembly最適化（Firefoxのゲーム実行等）
-- CacheIRによる柔軟なIC最適化
-- Incremental GCによる応答性
+**SpiderMonkey's strengths:**
+- asm.js and WebAssembly optimization (Firefox game execution, etc.)
+- Flexible IC optimization via CacheIR
+- Responsiveness via Incremental GC
 
-**JavaScriptCoreの強み:**
-- Safari等での長時間実行（FTLによる高度な最適化）
-- バッテリー効率（モバイルデバイス）
-- 4段階JITによる段階的な最適化
+**JavaScriptCore's strengths:**
+- Long-running execution on Safari, etc. (advanced optimization via FTL)
+- Battery efficiency (mobile devices)
+- Incremental optimization via 4-tier JIT
 
-**5. 開発者ツールの違い**
+**5. Developer tooling differences**
 
 **V8:**
-- `node --trace-opt`：最適化の追跡
-- `node --trace-deopt`：脱最適化の追跡
-- Turbolizer：TurboFanのIR可視化ツール
-- `--allow-natives-syntax`：内部API公開
+- `node --trace-opt`: trace optimizations
+- `node --trace-deopt`: trace deoptimizations
+- Turbolizer: TurboFan IR visualization tool
+- `--allow-natives-syntax`: expose internal API
 
 **SpiderMonkey:**
-- `--ion-eager`：Ion最適化を即座に適用
-- `--baseline-eager`：Baseline JITを即座に適用
-- Firefox DevTools：詳細なプロファイラ
+- `--ion-eager`: apply Ion optimization immediately
+- `--baseline-eager`: apply Baseline JIT immediately
+- Firefox DevTools: detailed profiler
 
 **JavaScriptCore:**
-- `--useConcurrentJIT=false`：並行JITを無効化
-- Safari Web Inspector：タイムラインプロファイラ
-- `--dumpDisassembly`：JITコードの逆アセンブル
+- `--useConcurrentJIT=false`: disable concurrent JIT
+- Safari Web Inspector: timeline profiler
+- `--dumpDisassembly`: disassemble JIT code
 
-**6. 使い分けの指針**
+**6. Guidance on which to choose**
 
-**V8を選ぶべき場合:**
-- Node.js、Deno、Electron等のサーバー/デスクトップアプリ
-- 起動速度が重要なCLIツール
-- Chrome拡張機能
+**Choose V8 when:**
+- Node.js, Deno, Electron and other server/desktop apps
+- CLI tools where startup speed matters
+- Chrome extensions
 
-**SpiderMonkeyを選ぶべき場合:**
-- Firefox拡張機能（必須）
-- WebAssemblyヘビーなアプリケーション
-- asm.js互換コード
+**Choose SpiderMonkey when:**
+- Firefox extensions (required)
+- WebAssembly-heavy applications
+- asm.js compatible code
 
-**JavaScriptCoreを選ぶべき場合:**
-- Safari対応が必須のWebアプリ
-- iOS/macOSネイティブアプリ（必須）
-- Bun（新しいJavaScriptランタイム）
+**Choose JavaScriptCore when:**
+- Web apps that must support Safari
+- iOS/macOS native apps (required)
+- Bun (new JavaScript runtime)
 
-**結論:**
-- **V8**: 起動速度とメモリ効率のバランスが優秀。Node.js エコシステムの標準
-- **SpiderMonkey**: WebAssembly最適化に強み。Firefox専用機能に必須
-- **JavaScriptCore**: 長時間実行での最適化が優秀。Apple エコシステムの標準
+**Conclusion:**
+- **V8**: Excellent balance of startup speed and memory efficiency. Standard for the Node.js ecosystem
+- **SpiderMonkey**: Strong WebAssembly optimization. Required for Firefox-specific features
+- **JavaScriptCore**: Excellent optimization for long-running execution. Standard for the Apple ecosystem
 
-実際の開発では、ブラウザ環境ではエンジンの選択はユーザーに依存するため、**すべてのエンジンで良好に動作するコード**（型安定性、Hidden Class共有等）を書くことが重要である。
+In actual development, in a browser environment the engine choice depends on the user, so it is important to write **code that performs well on all engines** (type stability, Hidden Class sharing, etc.).
 
 ---
 
-## まとめ
+## Summary
 
-V8エンジンの内部構造と最適化メカニズムをまとめる。
+A summary of V8 engine internals and optimization mechanisms.
 
-### 重要概念の対応表
+### Correspondence Table of Key Concepts
 
-| 概念 | 役割 | 最適化への影響 | 開発者の制御 |
+| Concept | Role | Impact on optimization | Developer control |
 |------|------|---------------|-------------|
-| **パーサー** | ソースコード → AST変換 | Lazy Parsingで起動高速化 | IIFE パターンでEager Parsingを誘導 |
-| **Ignition** | AST → バイトコード生成・実行 | フィードバックベクタ収集 | 制御不可（型安定性で間接的に影響） |
-| **TurboFan** | バイトコード → 最適化コンパイル | 型特殊化、インライン展開等 | 型安定性、monomorphic呼び出しで支援 |
-| **Hidden Class** | オブジェクト形状の記述 | プロパティアクセス高速化 | 初期化順序の統一、deleteの回避 |
-| **Inline Cache** | アクセス箇所ごとの最適化 | Monomorphic → 最速 | 同一形状オブジェクトの使用 |
-| **GC** | メモリ自動管理 | Stop-the-world時間削減 | 参照の早期解放、WeakRef活用 |
-| **ElementsKind** | 配列の内部表現 | 型統一で高速化 | 穴なし、型統一配列の使用 |
+| **Parser** | Source code → AST conversion | Speed up startup with Lazy Parsing | Use IIFE pattern to induce Eager Parsing |
+| **Ignition** | AST → bytecode generation and execution | Collect feedback vector | No direct control (indirect via type stability) |
+| **TurboFan** | Bytecode → optimizing compile | Type specialization, inlining, etc. | Support via type stability and monomorphic calls |
+| **Hidden Class** | Describe object shape | Speed up property access | Unify init order, avoid delete |
+| **Inline Cache** | Optimization per access site | Monomorphic → fastest | Use objects of the same shape |
+| **GC** | Automatic memory management | Reduce stop-the-world time | Early reference release, use WeakRef |
+| **ElementsKind** | Internal array representation | Speed up with uniform types | Use hole-free, type-uniform arrays |
 
-### V8最適化の3つのキーポイント
+### Three Key Points of V8 Optimization
 
-**1. 型の安定性を維持する**
+**1. Maintain type stability**
 ```javascript
-// ✅ Good: 型が一貫している
+// Good: types are consistent
 function addNumbers(a, b) {
-  return (a | 0) + (b | 0);  // 整数に強制
+  return (a | 0) + (b | 0);  // Force integer
 }
 
-// ❌ Bad: 型が変わる
+// Bad: types change
 function addAny(a, b) {
-  return a + b;  // 整数、浮動小数点、文字列が混在
+  return a + b;  // Mix of integers, floats, and strings
 }
 ```
 
-**2. Hidden Classを共有する**
+**2. Share Hidden Classes**
 ```javascript
-// ✅ Good: 全オブジェクトが同じ形状
+// Good: all objects have the same shape
 class Point {
   constructor(x, y) {
     this.x = x;
@@ -2082,17 +2097,17 @@ class Point {
   }
 }
 
-// ❌ Bad: オブジェクトごとに形状が異なる
+// Bad: shape differs per object
 function createPoint(x, y, hasZ) {
   const p = { x, y };
-  if (hasZ) p.z = 0;  // Hidden Class分岐
+  if (hasZ) p.z = 0;  // Hidden Class branches
   return p;
 }
 ```
 
-**3. Inline Cacheをmonomorphicに保つ**
+**3. Keep Inline Cache monomorphic**
 ```javascript
-// ✅ Good: 常に同じHidden Classのオブジェクトを処理
+// Good: always process objects with the same Hidden Class
 function process(items) {
   for (const item of items) {
     console.log(item.name);  // IC: monomorphic
@@ -2104,138 +2119,138 @@ const items = [
   new Item("C"),
 ];
 
-// ❌ Bad: 異なるHidden Classが混在
+// Bad: mixed Hidden Classes
 const mixed = [
   { name: "A" },
   { name: "B", value: 1 },
-  { value: 2, name: "C" },  // 順序違い
+  { value: 2, name: "C" },  // Different order
 ];
 process(mixed);  // IC: megamorphic
 ```
 
-### パフォーマンス診断のチェックリスト
+### Performance Diagnosis Checklist
 
-- [ ] `node --trace-opt`で最適化状況を確認した
-- [ ] `node --trace-deopt`で脱最適化の原因を特定した
-- [ ] Chrome DevToolsのPerformanceタブでホットスポットを特定した
-- [ ] Memory SnapshotでHidden Classの分岐を確認した
-- [ ] `--trace-ic`でIC状態（monomorphic/polymorphic/megamorphic）を確認した
-- [ ] 配列のElementsKindが意図通りか確認した（SMI/Double/Objectの遷移）
-- [ ] `delete`演算子を使っていないか確認した
-- [ ] `arguments`オブジェクトをリークしていないか確認した
+- [ ] Confirmed optimization status with `node --trace-opt`
+- [ ] Identified causes of deoptimization with `node --trace-deopt`
+- [ ] Identified hot spots with the Chrome DevTools Performance tab
+- [ ] Confirmed Hidden Class branching with Memory Snapshot
+- [ ] Confirmed IC state (monomorphic/polymorphic/megamorphic) with `--trace-ic`
+- [ ] Confirmed that array ElementsKind is as intended (SMI/Double/Object transitions)
+- [ ] Confirmed that `delete` operator is not being used
+- [ ] Confirmed that `arguments` object is not leaking
 
-### V8の進化の方向性
+### V8's Evolution Direction
 
-V8は継続的に進化しており、以下の方向性で改善が続いている。
+V8 continues to evolve, with improvements being made in the following directions.
 
-- **起動速度の向上** --- Lazy Parsingの改善、バイトコードキャッシュ
-- **メモリ効率** --- Pointer Compression（64bit環境で32bitポインタ使用）
-- **GCの低レイテンシ化** --- Concurrent Marking、Incremental Compaction
-- **WebAssembly統合** --- Liftoff（高速ベースラインコンパイラ）、TurboFan最適化
-- **モダンJS機能の最適化** --- async/await、Optional Chaining、Nullish Coalescing
-- **セキュリティ強化** --- Spectre/Meltdown対策、Sandbox強化
+- **Improved startup speed** — Better Lazy Parsing, bytecode caching
+- **Memory efficiency** — Pointer Compression (using 32-bit pointers in a 64-bit environment)
+- **Lower GC latency** — Concurrent Marking, Incremental Compaction
+- **WebAssembly integration** — Liftoff (fast baseline compiler), TurboFan optimization
+- **Optimization of modern JS features** — async/await, Optional Chaining, Nullish Coalescing
+- **Security hardening** — Spectre/Meltdown countermeasures, Sandbox hardening
 
-V8の内部を理解することで、「なぜこのコードが速いのか」「なぜ遅いのか」を論理的に説明でき、根拠のあるパフォーマンス改善が可能になる。
+By understanding V8's internals, you can logically explain "why this code is fast" and "why it is slow," enabling evidence-based performance improvements.
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-V8エンジンの理解を深めたら、次は実行環境でのイベント駆動モデルを学習する。
+After deepening your understanding of the V8 engine, the next step is to learn the event-driven model in the execution environment.
 
-### 推奨学習パス
+### Recommended Learning Path
 
-1. **[イベントループ（ブラウザ）](./01-event-loop-browser.md)** 【次のステップ】
-   - V8のタスク実行と非同期処理の統合
-   - マクロタスク、マイクロタスク、レンダリングのタイミング
-   - requestAnimationFrame、setTimeout、Promiseの実行順序
+1. **[Event Loop (Browser)](./01-event-loop-browser.md)** [Next step]
+   - Integration of V8 task execution with asynchronous processing
+   - Timing of macro tasks, micro tasks, and rendering
+   - Execution order of requestAnimationFrame, setTimeout, and Promise
 
-2. **イベントループ（Node.js）**
-   - libuv統合によるNode.js固有のイベントループ
-   - フェーズごとの処理（timers、I/O callbacks、poll等）
+2. **Event Loop (Node.js)**
+   - Node.js-specific event loop via libuv integration
+   - Processing per phase (timers, I/O callbacks, poll, etc.)
    - process.nextTick vs setImmediate
 
-3. **WebWorker**
-   - 別スレッドでのV8インスタンス実行
-   - メインスレッドとの通信（postMessage）
-   - SharedArrayBufferによる共有メモリ
+3. **Web Workers**
+   - Running a V8 instance on a separate thread
+   - Communication with the main thread (postMessage)
+   - Shared memory via SharedArrayBuffer
 
-4. **メモリ管理とパフォーマンス**
-   - V8のGC詳細とチューニング
-   - メモリリークの検出と修正
-   - Chrome DevToolsを使った実践的プロファイリング
+4. **Memory Management and Performance**
+   - Detailed V8 GC and tuning
+   - Detecting and fixing memory leaks
+   - Practical profiling with Chrome DevTools
 
-### 関連ガイド
+### Related Guides
 
-- **[Chromeブラウザアーキテクチャ](../00-browser-engine/00-browser-architecture.md)** --- V8がどのようにレンダリングエンジンと連携するか
-- **JavaScriptコア仕様** --- V8が実装するECMAScript仕様の詳細
-- **TypeScript型システム** --- 型安定性を静的に保証する方法
+- **[Chrome Browser Architecture](../00-browser-engine/00-browser-architecture.md)** — How V8 cooperates with the rendering engine
+- **JavaScript Core Spec** — Details of the ECMAScript spec implemented by V8
+- **TypeScript Type System** — How to statically guarantee type stability
 
 ---
 
-## 参考文献
+## References
 
-### 公式ドキュメント・ブログ
+### Official Documents and Blogs
 
 1. **V8 Official Blog**
    https://v8.dev/blog
-   V8チームによる最新機能、最適化技術、パフォーマンス改善の解説。Hidden Class、TurboFan、GC改善などの詳細な技術記事が豊富。
+   The latest features, optimization techniques, and performance improvements from the V8 team. Rich in detailed technical articles on Hidden Classes, TurboFan, GC improvements, and more.
 
 2. **V8 Documentation**
    https://v8.dev/docs
-   V8の公式ドキュメント。ビルド方法、デバッグフラグ、埋め込み方法などの実践的情報。
+   Official V8 documentation. Practical information on build methods, debug flags, and embedding.
 
 3. **Chrome DevTools Documentation**
    https://developer.chrome.com/docs/devtools/
-   Chrome DevToolsの公式ドキュメント。Performance、Memory、Profilerタブの使い方。V8のパフォーマンス分析に必須。
+   Official documentation for Chrome DevTools. Usage of the Performance, Memory, and Profiler tabs. Essential for V8 performance analysis.
 
 4. **Node.js Performance Measurement APIs**
    https://nodejs.org/api/perf_hooks.html
-   Node.jsのパフォーマンス計測API。V8のGCイベント、タイミング情報の取得方法。
+   Node.js performance measurement APIs. How to retrieve V8 GC events and timing information.
 
-### 技術記事・解説
+### Technical Articles and Explanations
 
-5. **"A tour of V8: Full Compiler"** --- V8 Blog
+5. **"A tour of V8: Full Compiler"** — V8 Blog
    https://v8.dev/blog/full-compiler
-   V8の初期コンパイラ（Full-Codegen）の解説。現在のIgnitionとの比較に有用。
+   Explanation of V8's early compiler (Full-Codegen). Useful for comparing with the current Ignition.
 
 6. **"Ignition and TurboFan: V8's new interpreter and optimizing compiler"**
    https://v8.dev/blog/ignition-interpreter
-   Ignition導入の背景とTurboFanとの連携。V8の現行パイプラインの決定版解説。
+   Background on the introduction of Ignition and its cooperation with TurboFan. The definitive explanation of V8's current pipeline.
 
-7. **"Fast properties in V8"** --- V8 Blog
+7. **"Fast properties in V8"** — V8 Blog
    https://v8.dev/blog/fast-properties
-   Hidden Class（Map）、In-Object Properties、Backing Storeの詳細解説。プロパティアクセス最適化の必読記事。
+   Detailed explanation of Hidden Classes (Maps), In-Object Properties, and Backing Store. A must-read article for property access optimization.
 
-8. **"V8 Garbage Collection"** --- V8 Blog
+8. **"V8 Garbage Collection"** — V8 Blog
    https://v8.dev/blog/trash-talk
-   Orinoco GCプロジェクトの解説。Scavenge、Mark-Sweep-Compact、Concurrent Markingの仕組み。
+   Explanation of the Orinoco GC project. Mechanisms behind Scavenge, Mark-Sweep-Compact, and Concurrent Marking.
 
-### 書籍
+### Books
 
-9. **"JavaScript: The Definitive Guide, 7th Edition"** --- David Flanagan
-   JavaScriptの包括的リファレンス。V8の動作原理を理解する前提知識として最適。
+9. **"JavaScript: The Definitive Guide, 7th Edition"** — David Flanagan
+   Comprehensive JavaScript reference. Ideal as prerequisite knowledge for understanding how V8 works.
 
-10. **"High Performance Browser Networking"** --- Ilya Grigorik
-    ブラウザのネットワーク、レンダリング、JavaScriptエンジンの連携を解説。V8をブラウザ環境で理解するために有用。
+10. **"High Performance Browser Networking"** — Ilya Grigorik
+    Explains the cooperation between browser networking, rendering, and JavaScript engines. Useful for understanding V8 in a browser environment.
 
-### ツール・可視化
+### Tools and Visualization
 
 11. **Turbolizer**
     https://v8.github.io/tools/turbolizer/
-    TurboFanの最適化グラフを可視化するツール。`node --trace-turbo`で生成したJSONファイルを読み込んで、IR（中間表現）の変換過程を視覚的に確認できる。
+    A tool for visualizing TurboFan's optimization graph. Load the JSON files generated by `node --trace-turbo` to visually trace the IR (intermediate representation) transformation process.
 
 12. **V8 Heap Snapshot Visualizer**
-    Chrome DevTools内蔵。Heap Snapshotを取得してオブジェクトの参照関係、Hidden Class、メモリリークを分析。
+    Built into Chrome DevTools. Take a Heap Snapshot to analyze object reference relationships, Hidden Classes, and memory leaks.
 
-### コミュニティ・ディスカッション
+### Community and Discussion
 
 13. **V8 GitHub Repository**
     https://github.com/v8/v8
-    V8のソースコード。Issue、Pull Request、Discussionで最新の議論を追える。
+    V8 source code. Track the latest discussions via Issues, Pull Requests, and Discussions.
 
 14. **Chromium Blog**
     https://blog.chromium.org/
-    Chromiumプロジェクト全体のブログ。V8以外のレンダリングエンジン（Blink）との連携も理解できる。
+    Blog for the entire Chromium project. Also helps you understand the interaction with the rendering engine (Blink) beyond V8.
 
-これらのリソースを活用して、V8エンジンの理解を深め、実践的なパフォーマンス最適化スキルを習得されたい。
+Use these resources to deepen your understanding of the V8 engine and acquire practical performance optimization skills.

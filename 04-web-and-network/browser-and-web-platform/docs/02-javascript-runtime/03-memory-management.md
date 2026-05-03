@@ -1,268 +1,268 @@
-# JavaScriptメモリ管理
+# JavaScript Memory Management
 
-> V8ヒープ構造からGCアルゴリズム、メモリリーク検出、Chrome DevToolsプロファイリングまで――ブラウザ上で動作するJavaScriptのメモリ管理を体系的に理解し、高パフォーマンスなWebアプリケーションを構築する技術を身につける。
+> From V8 heap structure to GC algorithms, memory leak detection, and Chrome DevTools profiling — systematically understand memory management in JavaScript running in the browser and acquire the skills to build high-performance web applications.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] JavaScriptのメモリモデル（スタック・ヒープ）を正確に理解する
-- [ ] V8エンジンのヒープ構造と世代別GCの動作原理を把握する
-- [ ] Mark-Sweep / Mark-Compact / Scavenge の各アルゴリズムを区別できる
-- [ ] 典型的なメモリリークパターン6種を識別し、対策を実装できる
-- [ ] Chrome DevTools Memory パネルで Heap Snapshot 比較分析ができる
-- [ ] WeakRef / WeakMap / FinalizationRegistry を適切に使い分けられる
-- [ ] 本番環境でのメモリ監視戦略を設計できる
-
----
-
-## 前提知識
-
-- V8エンジンの内部構造 → 参照: [V8エンジン](./00-v8-engine.md)
-- Web Workers → 参照: [Web Workers](./02-web-workers.md)
-- ガベージコレクションの基本概念
+- [ ] Accurately understand the JavaScript memory model (stack and heap)
+- [ ] Grasp V8 engine heap structure and generational GC principles
+- [ ] Distinguish between Mark-Sweep, Mark-Compact, and Scavenge algorithms
+- [ ] Identify 6 typical memory leak patterns and implement countermeasures
+- [ ] Perform Heap Snapshot comparison analysis with the Chrome DevTools Memory panel
+- [ ] Use WeakRef, WeakMap, and FinalizationRegistry appropriately
+- [ ] Design memory monitoring strategies for production environments
 
 ---
 
-## 1. JavaScriptのメモリモデル
+## Prerequisites
 
-### 1.1 スタックとヒープの二層構造
+- V8 engine internals → Reference: [V8 Engine](./00-v8-engine.md)
+- Web Workers → Reference: [Web Workers](./02-web-workers.md)
+- Basic concepts of garbage collection
 
-JavaScriptエンジンは、メモリを大きく2つの領域に分けて管理する。
+---
+
+## 1. JavaScript Memory Model
+
+### 1.1 Two-Layer Structure: Stack and Heap
+
+The JavaScript engine manages memory divided into two main regions.
 
 ```
-JavaScriptメモリの二層構造:
+Two-layer structure of JavaScript memory:
 
-  コールスタック (Stack)              ヒープ (Heap)
+  Call Stack (Stack)                    Heap
   ┌──────────────────────┐          ┌───────────────────────────────┐
-  │ フレーム: main()     │          │                               │
-  │  ├─ x = 42 (数値)   │          │  ┌─────────────────────┐      │
-  │  ├─ y = "hello"     │          │  │ Object {a:1, b:2}   │      │
-  │  └─ obj ────────────│──────→   │  └─────────────────────┘      │
-  │                      │          │                               │
-  │ フレーム: doWork()   │          │  ┌─────────────────────┐      │
-  │  ├─ i = 0 (数値)    │          │  │ Array [1, 2, 3]     │      │
-  │  ├─ arr ────────────│──────→   │  └─────────────────────┘      │
-  │  └─ flag = true     │          │                               │
-  │                      │          │  ┌─────────────────────┐      │
-  │ フレーム: nested()   │          │  │ Function closure     │      │
-  │  ├─ temp = 3.14     │          │  │  captured: [arr]     │      │
-  │  └─ fn ─────────────│──────→   │  └─────────────────────┘      │
+  │ Frame: main()        │          │                               │
+  │  ├─ x = 42 (number) │          │  ┌─────────────────────┐      │
+  │  ├─ y = "hello"      │          │  │ Object {a:1, b:2}   │      │
+  │  └─ obj ─────────────│──────→   │  └─────────────────────┘      │
+  │                       │          │                               │
+  │ Frame: doWork()       │          │  ┌─────────────────────┐      │
+  │  ├─ i = 0 (number)   │          │  │ Array [1, 2, 3]     │      │
+  │  ├─ arr ──────────────│──────→   │  └─────────────────────┘      │
+  │  └─ flag = true       │          │                               │
+  │                       │          │  ┌─────────────────────┐      │
+  │ Frame: nested()       │          │  │ Function closure    │      │
+  │  ├─ temp = 3.14       │          │  │  captured: [arr]    │      │
+  │  └─ fn ───────────────│──────→   │  └─────────────────────┘      │
   └──────────────────────┘          │                               │
                                     │  ┌─────────────────────┐      │
-  特徴:                             │  │ Map {key → value}    │      │
+  Characteristics:                  │  │ Map {key → value}   │      │
   - LIFO (Last In, First Out)       │  └─────────────────────┘      │
-  - 固定サイズ (通常 1MB 程度)      │                               │
-  - 関数終了で自動解放              │  特徴:                        │
-  - プリミティブ値を直接格納        │  - 動的サイズ (数MB〜数GB)    │
-                                    │  - GCによる自動解放            │
-                                    │  - オブジェクト型を格納        │
+  - Fixed size (typically ~1MB)     │                               │
+  - Automatically freed on         │  Characteristics:             │
+    function return                 │  - Dynamic size (MB to GB)   │
+  - Stores primitive values         │  - Automatically freed by GC │
+    directly                        │  - Stores object types       │
                                     └───────────────────────────────┘
 ```
 
-#### スタックに格納されるもの
+#### What Is Stored on the Stack
 
-| データ種別 | 例 | サイズ |
-|-----------|-----|--------|
-| 数値 (Number) | `42`, `3.14` | 8バイト (IEEE 754) |
-| 真偽値 (Boolean) | `true`, `false` | タグ付きポインタ内 |
-| null / undefined | `null` | タグ付きポインタ内 |
-| BigInt (小さい値) | `42n` | インライン化される場合あり |
-| 参照 (ポインタ) | `obj → 0x7ff...` | 8バイト (64bit環境) |
+| Data Type | Example | Size |
+|-----------|---------|------|
+| Number | `42`, `3.14` | 8 bytes (IEEE 754) |
+| Boolean | `true`, `false` | Within tagged pointer |
+| null / undefined | `null` | Within tagged pointer |
+| BigInt (small value) | `42n` | May be inlined |
+| Reference (pointer) | `obj → 0x7ff...` | 8 bytes (64-bit environment) |
 
-#### ヒープに格納されるもの
+#### What Is Stored on the Heap
 
-| データ種別 | 例 | 補足 |
-|-----------|-----|------|
-| Object | `{a: 1}` | Hidden Class + プロパティストレージ |
-| Array | `[1, 2, 3]` | 内部的には特殊なObject |
-| Function | `() => {}` | コードへの参照 + クロージャ環境 |
-| String (長い) | `"hello..."` | 一定長以上はヒープ割り当て |
-| Map / Set | `new Map()` | ハッシュテーブル構造 |
-| RegExp | `/abc/g` | コンパイル済みパターン |
-| ArrayBuffer | `new ArrayBuffer(1024)` | 連続メモリブロック |
-| DOM Node参照 | `document.getElementById(...)` | C++側オブジェクトへのラッパー |
+| Data Type | Example | Notes |
+|-----------|---------|-------|
+| Object | `{a: 1}` | Hidden Class + property storage |
+| Array | `[1, 2, 3]` | Internally a special Object |
+| Function | `() => {}` | Reference to code + closure environment |
+| String (long) | `"hello..."` | Heap-allocated above a certain length |
+| Map / Set | `new Map()` | Hash table structure |
+| RegExp | `/abc/g` | Compiled pattern |
+| ArrayBuffer | `new ArrayBuffer(1024)` | Contiguous memory block |
+| DOM Node reference | `document.getElementById(...)` | Wrapper for a C++ object |
 
-### 1.2 値のコピーと参照の共有
+### 1.2 Value Copy vs. Reference Sharing
 
 ```javascript
-// コード例 1: プリミティブのコピー vs オブジェクトの参照共有
+// Code example 1: primitive copy vs. object reference sharing
 
-// プリミティブ: 値がコピーされる
+// Primitives: the value is copied
 let a = 42;
-let b = a;      // b は 42 の独立したコピーを持つ
+let b = a;      // b has an independent copy of 42
 b = 100;
-console.log(a); // 42 (a は影響を受けない)
+console.log(a); // 42 (a is unaffected)
 
-// オブジェクト: 参照が共有される
+// Objects: the reference is shared
 let obj1 = { name: "Alice", scores: [90, 85, 92] };
-let obj2 = obj1;          // obj2 は同じオブジェクトを参照
+let obj2 = obj1;          // obj2 references the same object
 obj2.name = "Bob";
-console.log(obj1.name);   // "Bob" (obj1 も影響を受ける)
+console.log(obj1.name);   // "Bob" (obj1 is also affected)
 
-// 参照の切断: 新しいオブジェクトを代入
+// Cutting the reference: assign a new object
 obj2 = { name: "Charlie", scores: [70, 80] };
-console.log(obj1.name);   // "Bob" (obj1 は元のオブジェクトを参照し続ける)
+console.log(obj1.name);   // "Bob" (obj1 continues to reference the original object)
 
-// 浅いコピー: スプレッド演算子
+// Shallow copy: spread operator
 let obj3 = { ...obj1 };
 obj3.name = "Dave";
-console.log(obj1.name);   // "Bob" (プリミティブプロパティは独立)
+console.log(obj1.name);   // "Bob" (primitive properties are independent)
 obj3.scores.push(100);
-console.log(obj1.scores); // [90, 85, 92, 100] (ネストされた配列は共有!)
+console.log(obj1.scores); // [90, 85, 92, 100] (nested array is shared!)
 
-// 深いコピー: structuredClone (推奨)
+// Deep copy: structuredClone (recommended)
 let obj4 = structuredClone(obj1);
 obj4.scores.push(200);
-console.log(obj1.scores); // [90, 85, 92, 100] (影響を受けない)
+console.log(obj1.scores); // [90, 85, 92, 100] (unaffected)
 ```
 
-### 1.3 GCルートと到達可能性
+### 1.3 GC Roots and Reachability
 
-ガベージコレクション (GC) は「到達可能性 (Reachability)」に基づいてオブジェクトの生死を判定する。GCルートから辿れるオブジェクトは生存、辿れないオブジェクトは回収対象となる。
+Garbage collection (GC) determines whether objects are alive based on "reachability." Objects reachable from GC roots survive; objects that are not reachable become candidates for collection.
 
 ```
-GCルートからの到達可能性判定:
+Reachability determination from GC roots:
 
-  GCルート
-  ├── グローバルオブジェクト (window / globalThis)
+  GC Roots
+  ├── Global object (window / globalThis)
   │     ├── window.app ──→ [App Object] ──→ [Config]
   │     └── window.cache ──→ [Cache Map] ──→ [Entry1] ──→ [Data1]
   │                                        └→ [Entry2] ──→ [Data2]
   │
-  ├── コールスタック上のローカル変数
+  ├── Local variables on the call stack
   │     ├── localVar ──→ [Temp Object]
-  │     └── callback ──→ [Function] ──→ (クロージャ) ──→ [Captured Vars]
+  │     └── callback ──→ [Function] ──→ (closure) ──→ [Captured Vars]
   │
-  ├── アクティブなタイマー
+  ├── Active timers
   │     ├── setInterval(fn, 1000) ──→ [fn] ──→ [Referenced Data]
   │     └── setTimeout(fn, 5000) ──→ [fn]
   │
-  └── その他
-        ├── Promise の then/catch コールバック
+  └── Others
+        ├── Promise then/catch callbacks
         ├── MutationObserver
         ├── MessagePort
-        └── アクティブな EventListener
+        └── Active EventListeners
 
-  到達不能 (GC対象):
+  Unreachable (GC targets):
   ┌─────────────────────────────────────────────────┐
-  │  [Orphan Object]     どのルートからも辿れない     │
-  │  [Detached DOM Tree] DOM から除去 & JS参照なし    │
-  │  [Old Closure Data]  関数実行完了 & 参照消失      │
+  │  [Orphan Object]     Not reachable from any root │
+  │  [Detached DOM Tree] Removed from DOM & no JS ref│
+  │  [Old Closure Data]  Function done & refs gone   │
   └─────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. V8エンジンのヒープ構造
+## 2. V8 Engine Heap Structure
 
-### 2.1 V8ヒープの内部構成
+### 2.1 Internal Layout of the V8 Heap
 
-V8エンジン (Chrome, Node.js で使用) は、ヒープ領域を複数のスペースに分割して管理する。この構造が世代別GCの基盤となる。
+The V8 engine (used in Chrome and Node.js) divides and manages the heap into multiple spaces. This structure forms the foundation of generational GC.
 
 ```
-V8 ヒープ構造 (詳細):
+V8 Heap Structure (detailed):
 
   ┌──────────────────────────────────────────────────────────────┐
   │                        V8 Heap                               │
   │                                                              │
   │  ┌─────────────────────────────────────────────────────┐     │
-  │  │              New Space (Young Generation)            │     │
+  │  │              New Space (Young Generation)           │     │
   │  │  ┌──────────────────┐  ┌──────────────────┐         │     │
   │  │  │   Semi-Space A   │  │   Semi-Space B   │         │     │
   │  │  │   (From-Space)   │  │   (To-Space)     │         │     │
   │  │  │                  │  │                  │         │     │
-  │  │  │  新規オブジェクト │  │  Scavenge後の    │         │     │
-  │  │  │  が割り当てられる │  │  生存者が移動    │         │     │
-  │  │  │                  │  │                  │         │     │
-  │  │  │  サイズ: 1〜8 MB │  │  サイズ: 1〜8 MB │         │     │
+  │  │  │  New objects are │  │  Survivors after │         │     │
+  │  │  │  allocated here  │  │  Scavenge move   │         │     │
+  │  │  │                  │  │  here            │         │     │
+  │  │  │  Size: 1~8 MB    │  │  Size: 1~8 MB    │         │     │
   │  │  └──────────────────┘  └──────────────────┘         │     │
   │  └─────────────────────────────────────────────────────┘     │
   │                                                              │
   │  ┌─────────────────────────────────────────────────────┐     │
-  │  │              Old Space (Old Generation)              │     │
+  │  │              Old Space (Old Generation)             │     │
   │  │                                                     │     │
   │  │  ┌──────────────────────────────────────────┐       │     │
   │  │  │  Old Pointer Space                       │       │     │
-  │  │  │  他オブジェクトへの参照を含むオブジェクト │       │     │
+  │  │  │  Objects containing references to others │       │     │
   │  │  └──────────────────────────────────────────┘       │     │
   │  │                                                     │     │
   │  │  ┌──────────────────────────────────────────┐       │     │
   │  │  │  Old Data Space                          │       │     │
-  │  │  │  プリミティブデータのみのオブジェクト     │       │     │
-  │  │  │  (文字列、ボックス化された数値など)       │       │     │
+  │  │  │  Objects with only primitive data        │       │     │
+  │  │  │  (strings, boxed numbers, etc.)          │       │     │
   │  │  └──────────────────────────────────────────┘       │     │
   │  │                                                     │     │
-  │  │  サイズ: 数百MB〜数GB (--max-old-space-size)        │     │
+  │  │  Size: hundreds of MB to GB (--max-old-space-size)  │     │
   │  └─────────────────────────────────────────────────────┘     │
   │                                                              │
   │  ┌──────────────────┐  ┌──────────────────┐                  │
   │  │ Large Object     │  │ Code Space       │                  │
   │  │ Space            │  │                  │                  │
-  │  │ サイズ > 閾値の  │  │ JITコンパイル    │                  │
-  │  │ オブジェクト      │  │ 済みコード       │                  │
-  │  │ (配列等)         │  │                  │                  │
+  │  │ Objects larger   │  │ JIT-compiled     │                  │
+  │  │ than threshold   │  │ code             │                  │
+  │  │ (arrays, etc.)   │  │                  │                  │
   │  └──────────────────┘  └──────────────────┘                  │
   │                                                              │
   │  ┌──────────────────┐  ┌──────────────────┐                  │
   │  │ Map Space        │  │ Cell Space       │                  │
   │  │                  │  │                  │                  │
   │  │ Hidden Class     │  │ Cell / Property  │                  │
-  │  │ (Map) 構造体     │  │ Cell             │                  │
+  │  │ (Map) structs    │  │ Cell             │                  │
   │  └──────────────────┘  └──────────────────┘                  │
   └──────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 各スペースの役割と特性
+### 2.2 Role and Characteristics of Each Space
 
-| スペース | 役割 | 典型サイズ | GC方式 | 頻度 |
-|---------|------|-----------|--------|------|
-| New Space (Semi-Space A/B) | 新規オブジェクトの割り当て | 1〜8 MB | Scavenge (コピーGC) | 高頻度 (ms単位) |
-| Old Pointer Space | 長寿命オブジェクト (参照含む) | 数百MB〜 | Mark-Sweep / Mark-Compact | 低頻度 |
-| Old Data Space | 長寿命データ (参照なし) | 数十MB〜 | Mark-Sweep / Mark-Compact | 低頻度 |
-| Large Object Space | 巨大オブジェクト (閾値超え) | 可変 | Mark-Sweep | 低頻度 |
-| Code Space | JITコンパイル済みコード | 数十MB | 特殊なGC | 低頻度 |
-| Map Space | Hidden Class (Map) | 数MB | Mark-Sweep | 低頻度 |
+| Space | Role | Typical Size | GC Method | Frequency |
+|-------|------|-------------|-----------|-----------|
+| New Space (Semi-Space A/B) | Allocating new objects | 1~8 MB | Scavenge (copy GC) | High (millisecond-level) |
+| Old Pointer Space | Long-lived objects (containing references) | Hundreds of MB+ | Mark-Sweep / Mark-Compact | Low |
+| Old Data Space | Long-lived data (no references) | Tens of MB+ | Mark-Sweep / Mark-Compact | Low |
+| Large Object Space | Large objects (above threshold) | Variable | Mark-Sweep | Low |
+| Code Space | JIT-compiled code | Tens of MB | Special GC | Low |
+| Map Space | Hidden Classes (Maps) | A few MB | Mark-Sweep | Low |
 
-### 2.3 オブジェクトのライフサイクル
+### 2.3 Object Lifecycle
 
 ```javascript
-// コード例 2: オブジェクトのライフサイクル追跡
+// Code example 2: Tracking object lifecycle
 
 function demonstrateLifecycle() {
-  // Phase 1: New Space に割り当て
+  // Phase 1: Allocated in New Space
   const shortLived = { type: "temporary", data: new Array(100) };
-  // → shortLived は New Space (Semi-Space A) に配置される
+  // → shortLived is placed in New Space (Semi-Space A)
 
-  // Phase 2: 関数終了で shortLived は到達不能に
-  // → 次の Scavenge で回収される (New Space 内で完結)
+  // Phase 2: shortLived becomes unreachable when function ends
+  // → Collected by next Scavenge (completed within New Space)
 
-  // Phase 3: 長寿命オブジェクトは Old Space へ昇格
+  // Phase 3: Long-lived objects are promoted to Old Space
   const cache = new Map();
   for (let i = 0; i < 10000; i++) {
     cache.set(i, { value: i * 2, label: `item-${i}` });
   }
-  // → cache と内部オブジェクトは複数回の Scavenge を生き延び
-  //   Old Space (Old Pointer Space) へ昇格 (promotion)
+  // → cache and internal objects survive multiple Scavenge cycles
+  //   and are promoted to Old Space (Old Pointer Space)
 
-  return cache; // cache は呼び出し元で参照され続ける
+  return cache; // cache continues to be referenced by the caller
 }
 
-// グローバルスコープで保持 → GCルートから到達可能
+// Kept in global scope → reachable from GC roots
 const globalCache = demonstrateLifecycle();
 
-// 明示的に参照を切る → GC対象になる
+// Explicitly cut the reference → becomes GC candidate
 // globalCache = null;
 ```
 
-### 2.4 Hidden Class (Map) とインラインキャッシュ
+### 2.4 Hidden Classes (Maps) and Inline Caches
 
-V8はオブジェクトの「形状 (shape)」を Hidden Class (内部的には Map と呼ばれる) で管理する。同じ順序で同じプロパティを持つオブジェクトは同一の Hidden Class を共有し、プロパティアクセスが高速化される。
+V8 manages the "shape" of objects using Hidden Classes (internally called Maps). Objects with the same properties in the same order share a Hidden Class, speeding up property access.
 
 ```javascript
-// コード例 3: Hidden Class とメモリ効率
+// Code example 3: Hidden Classes and memory efficiency
 
-// 良い例: 同一の Hidden Class を共有
+// Good example: sharing the same Hidden Class
 function createPoint(x, y) {
-  // 全てのオブジェクトが同じ順序でプロパティを持つ
+  // All objects have properties in the same order
   return { x: x, y: y };
 }
 
@@ -270,10 +270,10 @@ const points = [];
 for (let i = 0; i < 10000; i++) {
   points.push(createPoint(i, i * 2));
 }
-// → 10000個のオブジェクトが1つの Hidden Class を共有
-// → メモリ効率が良い (Hidden Class は1つだけ)
+// → 10,000 objects share a single Hidden Class
+// → Memory-efficient (only one Hidden Class)
 
-// 悪い例: 異なる Hidden Class が大量生成される
+// Bad example: many different Hidden Classes are created
 const badPoints = [];
 for (let i = 0; i < 10000; i++) {
   const p = {};
@@ -281,136 +281,137 @@ for (let i = 0; i < 10000; i++) {
     p.x = i;
     p.y = i * 2;
   } else {
-    p.y = i * 2;  // プロパティ追加順が異なる!
+    p.y = i * 2;  // Different property addition order!
     p.x = i;
   }
   badPoints.push(p);
 }
-// → 2種類の Hidden Class が生成される
-// → インラインキャッシュのミスが発生し、プロパティアクセスが低速化
+// → 2 types of Hidden Classes are created
+// → Inline cache misses occur, slowing property access
 
-// 最悪の例: delete による Hidden Class の退化
+// Worst example: degradation of Hidden Class by delete
 const obj = { a: 1, b: 2, c: 3 };
 delete obj.b;
-// → Hidden Class が「辞書モード (slow mode)」に退化
-// → ハッシュテーブルベースのルックアップになり低速化
-// 対策: delete の代わりに undefined を代入する
-// obj.b = undefined; // Hidden Class を壊さない
+// → Hidden Class degrades to "dictionary mode (slow mode)"
+// → Property access becomes hash-table-based lookup, slowing things down
+// Countermeasure: assign undefined instead of using delete
+// obj.b = undefined; // Does not destroy the Hidden Class
 ```
 
 ---
 
-## 3. GCアルゴリズム詳解
+## 3. GC Algorithms in Detail
 
-### 3.1 Minor GC: Scavenge (コピーGC)
+### 3.1 Minor GC: Scavenge (Copy GC)
 
-New Space で実行される高速なGCアルゴリズム。Cheney のコピーGCアルゴリズムに基づく。
+A fast GC algorithm executed in New Space. Based on Cheney's copy GC algorithm.
 
 ```
-Scavenge アルゴリズムの動作:
+Scavenge algorithm operation:
 
-  === 初期状態 ===
+  === Initial state ===
   From-Space (Semi-Space A):          To-Space (Semi-Space B):
   ┌────────────────────────────┐      ┌────────────────────────────┐
-  │ [Obj-A] [Dead] [Obj-B]    │      │         (空)               │
+  │ [Obj-A] [Dead] [Obj-B]    │      │         (empty)            │
   │ [Dead] [Obj-C] [Dead]     │      │                            │
   │ [Obj-D] [Dead] [Dead]     │      │                            │
   └────────────────────────────┘      └────────────────────────────┘
 
-  === Scavenge 実行 ===
-  1. GCルートから From-Space 内の到達可能オブジェクトを走査
-  2. 到達可能オブジェクトを To-Space にコピー
-  3. すでに1回以上 Scavenge を生き延びたオブジェクトは Old Space へ昇格
+  === Scavenge execution ===
+  1. Scan reachable objects in From-Space from GC roots
+  2. Copy reachable objects to To-Space
+  3. Objects that have already survived one or more Scavenge cycles
+     are promoted to Old Space
 
   From-Space:                          To-Space:
   ┌────────────────────────────┐      ┌────────────────────────────┐
-  │ (全てのデータは破棄)       │      │ [Obj-A'] [Obj-B'] [Obj-C']│
+  │ (all data discarded)       │      │ [Obj-A'] [Obj-B'] [Obj-C']│
   │                            │      │                            │
   │                            │      │                            │
   └────────────────────────────┘      └────────────────────────────┘
-                                            ↑ コンパクション済み
-                                            (断片化なし)
-  [Obj-D] → Old Space へ昇格 (2回目の Scavenge 生存)
+                                            ↑ Already compacted
+                                            (no fragmentation)
+  [Obj-D] → Promoted to Old Space (survived 2nd Scavenge)
 
-  === ロール交代 ===
-  旧 To-Space が新しい From-Space になる
-  旧 From-Space が新しい To-Space になる (次回の Scavenge 用)
+  === Role swap ===
+  Old To-Space becomes new From-Space
+  Old From-Space becomes new To-Space (for next Scavenge)
 ```
 
-**Scavenge の特性:**
+**Scavenge characteristics:**
 
-| 特性 | 値 |
-|------|-----|
-| 停止時間 | 通常 1〜10 ms |
-| 対象空間 | New Space のみ (1〜8 MB) |
-| アルゴリズム | コピーGC (Cheney) |
-| コンパクション | コピー時に自動的に実施 |
-| 空間効率 | 50% (2つの Semi-Space を使用) |
-| 昇格条件 | 1回以上の Scavenge を生存 or To-Space の 25% 超過 |
+| Property | Value |
+|----------|-------|
+| Stop time | Typically 1~10 ms |
+| Target space | New Space only (1~8 MB) |
+| Algorithm | Copy GC (Cheney) |
+| Compaction | Automatically performed during copy |
+| Space efficiency | 50% (uses 2 Semi-Spaces) |
+| Promotion condition | Survived 1+ Scavenge, or To-Space exceeds 25% |
 
-### 3.2 Major GC: Mark-Sweep と Mark-Compact
+### 3.2 Major GC: Mark-Sweep and Mark-Compact
 
-Old Space で実行される、より大規模なGC。Mark-Sweep (マーク&スイープ) と Mark-Compact (マーク&コンパクト) の2つのフェーズから構成される。
+A larger-scale GC executed in Old Space, consisting of two phases: Mark-Sweep and Mark-Compact.
 
-#### Mark フェーズ
+#### Mark Phase
 
 ```
-Mark フェーズ (三色マーキング):
+Mark phase (tri-color marking):
 
-  色の意味:
-  - 白 (White): 未訪問 (GC開始時、全オブジェクトが白)
-  - 灰 (Gray):  訪問済みだが子の走査が未完了
-  - 黒 (Black): 訪問済みかつ子の走査も完了
+  Color meaning:
+  - White: Unvisited (all objects are white at GC start)
+  - Gray:  Visited but children not yet scanned
+  - Black: Visited and all children scanned
 
-  === 手順 ===
+  === Steps ===
 
-  Step 1: GCルートの直接の子を灰色にマーク
+  Step 1: Mark direct children of GC roots as gray
   ┌─────┐
-  │Root │──→ [Obj-A: 灰] ──→ [Obj-B: 白]
-  │     │──→ [Obj-C: 灰]     [Obj-D: 白] (孤立)
+  │Root │──→ [Obj-A: gray] ──→ [Obj-B: white]
+  │     │──→ [Obj-C: gray]     [Obj-D: white] (isolated)
   └─────┘
 
-  Step 2: 灰色オブジェクトの子を走査し、自身を黒にする
+  Step 2: Scan children of gray objects, mark self as black
   ┌─────┐
-  │Root │──→ [Obj-A: 黒] ──→ [Obj-B: 灰]
-  │     │──→ [Obj-C: 黒]     [Obj-D: 白] (孤立)
+  │Root │──→ [Obj-A: black] ──→ [Obj-B: gray]
+  │     │──→ [Obj-C: black]     [Obj-D: white] (isolated)
   └─────┘
 
-  Step 3: 灰色がなくなるまで繰り返す
+  Step 3: Repeat until no more gray objects
   ┌─────┐
-  │Root │──→ [Obj-A: 黒] ──→ [Obj-B: 黒]
-  │     │──→ [Obj-C: 黒]     [Obj-D: 白 → 回収!]
+  │Root │──→ [Obj-A: black] ──→ [Obj-B: black]
+  │     │──→ [Obj-C: black]     [Obj-D: white → collected!]
   └─────┘
 
-  結果: 白いままのオブジェクト = 到達不能 = GC対象
+  Result: Objects that remain white = unreachable = GC targets
 ```
 
-#### Sweep フェーズと Compact フェーズ
+#### Sweep Phase and Compact Phase
 
-**Mark-Sweep** はマーク済みでない (白い) オブジェクトのメモリを解放する。高速だが断片化が発生する。
+**Mark-Sweep** frees the memory of objects that were not marked (white). It is fast but causes fragmentation.
 
-**Mark-Compact** は生存オブジェクトをメモリの一端に寄せることで断片化を解消する。Sweep より低速だが、大きなオブジェクトの割り当てに必要な連続領域を確保できる。
+**Mark-Compact** eliminates fragmentation by moving surviving objects to one end of memory. It is slower than Sweep but can secure the contiguous region needed for allocating large objects.
 
-### 3.3 インクリメンタルマーキングと並行GC
+### 3.3 Incremental Marking and Concurrent GC
 
-V8は停止時間を短縮するため、複数の最適化技法を組み合わせている。
+V8 combines multiple optimization techniques to reduce stop times.
 
-| 技法 | 説明 | 効果 |
-|------|------|------|
-| インクリメンタルマーキング | Mark フェーズを小さなステップに分割し、アプリケーション実行と交互に行う | 長い停止時間を回避 |
-| 並行マーキング (Concurrent) | ワーカースレッドでマーキングを並行実行 | メインスレッドの停止時間を短縮 |
-| 並列マーキング (Parallel) | 複数スレッドで同時にマーキング | マーキング処理自体の高速化 |
-| 遅延スイープ (Lazy Sweeping) | Sweep を必要になるまで遅延 | 停止時間の分散 |
-| 並行コンパクション | メモリの移動を並行実行 | コンパクション時の停止短縮 |
+| Technique | Description | Effect |
+|-----------|-------------|--------|
+| Incremental marking | Divides the Mark phase into small steps, interleaving with application execution | Avoids long stop times |
+| Concurrent marking | Runs marking in parallel on worker threads | Reduces main thread stop time |
+| Parallel marking | Runs marking simultaneously on multiple threads | Speeds up the marking process itself |
+| Lazy sweeping | Defers Sweep until needed | Distributes stop time |
+| Concurrent compaction | Runs memory movement concurrently | Reduces stop time during compaction |
 
 ```javascript
-// コード例 4: GC停止時間の測定
+// Code example 4: Measuring GC pause times
 
-// Performance API を使ったGC停止時間の間接測定
+// Indirect measurement of GC pause times using the Performance API
 function measureGCPauses(durationMs = 5000) {
   const pauses = [];
   let lastTime = performance.now();
-  const threshold = 5; // 5ms 以上の停止をGCと推定
+  const threshold = 5; // Estimate pauses > 5ms as GC
 
   const intervalId = setInterval(() => {
     const now = performance.now();
@@ -429,85 +430,85 @@ function measureGCPauses(durationMs = 5000) {
   setTimeout(() => {
     clearInterval(intervalId);
     console.table(pauses);
-    console.log(`検出された停止: ${pauses.length}回`);
+    console.log(`Detected pauses: ${pauses.length}`);
   }, durationMs);
 }
 
-// 使用例:
-// measureGCPauses(10000); // 10秒間監視
+// Usage:
+// measureGCPauses(10000); // Monitor for 10 seconds
 ```
 
-### 3.4 Orinoco: V8の最新GCアーキテクチャ
+### 3.4 Orinoco: V8's Modern GC Architecture
 
-V8のGCサブシステム「Orinoco」は、以下の設計方針で進化を続けている。
+V8's GC subsystem "Orinoco" continues to evolve with the following design principles.
 
-1. **並行 (Concurrent)**: メインスレッドを停止せずにバックグラウンドでGC作業を実行
-2. **並列 (Parallel)**: 複数のヘルパースレッドでGC作業を分担
-3. **インクリメンタル (Incremental)**: GC作業を小さなチャンクに分割し、段階的に処理
+1. **Concurrent**: Execute GC work in the background without stopping the main thread
+2. **Parallel**: Distribute GC work across multiple helper threads
+3. **Incremental**: Divide GC work into small chunks and process them gradually
 
-これらの組み合わせにより、Major GC でも停止時間は数ミリ秒程度に抑えられる。
+Through a combination of these approaches, even Major GC stop times are kept to just a few milliseconds.
 
 ---
 
-## 4. メモリリークの典型パターンと対策
+## 4. Typical Memory Leak Patterns and Countermeasures
 
-### 4.1 パターン一覧
+### 4.1 Pattern Overview
 
-| # | パターン | 重篤度 | 検出難易度 | 主な対策 |
-|---|---------|--------|-----------|---------|
-| 1 | グローバル変数の意図しない生成 | 中 | 易 | `"use strict"`, ESLint no-implicit-globals |
-| 2 | タイマーのクリア忘れ | 高 | 中 | `clearInterval` / `clearTimeout` |
-| 3 | イベントリスナーの解除忘れ | 高 | 中 | `removeEventListener` / `AbortController` |
-| 4 | クロージャによる意図しない参照保持 | 高 | 難 | スコープの最小化、null代入 |
-| 5 | 切り離されたDOMツリー (Detached DOM) | 高 | 中 | JS側の参照をnullに |
-| 6 | コンソールログでのオブジェクト保持 | 低 | 易 | 本番ではログを除去 |
+| # | Pattern | Severity | Detection Difficulty | Main Countermeasure |
+|---|---------|----------|---------------------|---------------------|
+| 1 | Unintentional creation of global variables | Medium | Easy | `"use strict"`, ESLint no-implicit-globals |
+| 2 | Forgetting to clear timers | High | Medium | `clearInterval` / `clearTimeout` |
+| 3 | Forgetting to remove event listeners | High | Medium | `removeEventListener` / `AbortController` |
+| 4 | Unintentional reference retention by closures | High | Hard | Minimize scope, assign null |
+| 5 | Detached DOM trees | High | Medium | Null out JS-side references |
+| 6 | Object retention by console.log | Low | Easy | Remove logs in production |
 
-### 4.2 パターン 1: グローバル変数の意図しない生成
+### 4.2 Pattern 1: Unintentional Creation of Global Variables
 
 ```javascript
-// アンチパターン 1: 暗黙のグローバル変数
+// Anti-pattern 1: implicit global variables
 
 function processData(items) {
-  // "use strict" がない場合、result がグローバル変数になる
-  result = items.map(item => item.value * 2); // var/let/const がない!
+  // Without "use strict", result becomes a global variable
+  result = items.map(item => item.value * 2); // No var/let/const!
 
-  // さらに危険: this が window を指すケース
+  // Even more dangerous: case where this points to window
   this.accumulatedData = new Array(100000).fill(0);
-  // → window.accumulatedData としてグローバルに残り続ける
+  // → Persists globally as window.accumulatedData
 }
 
-// 対策: strict mode + 適切な変数宣言
+// Countermeasure: strict mode + proper variable declarations
 "use strict";
 
 function processDataSafe(items) {
-  const result = items.map(item => item.value * 2); // ブロックスコープ
+  const result = items.map(item => item.value * 2); // Block scope
   return result;
 }
 ```
 
-### 4.3 パターン 2: タイマーのクリア忘れ
+### 4.3 Pattern 2: Forgetting to Clear Timers
 
 ```javascript
-// アンチパターン 2: SPA でのタイマーリーク
+// Anti-pattern 2: timer leak in SPAs
 
 class DataPollingWidget {
   constructor(endpoint) {
     this.endpoint = endpoint;
     this.data = null;
 
-    // 問題: コンポーネント破棄時にクリアされない
+    // Problem: not cleared when component is destroyed
     this.intervalId = setInterval(async () => {
       const response = await fetch(this.endpoint);
-      this.data = await response.json(); // 大量のデータを蓄積
+      this.data = await response.json(); // Accumulates large amounts of data
       this.render();
     }, 5000);
   }
 
   render() {
-    // UIの更新処理
+    // UI update processing
   }
 
-  // 修正: 明示的なクリーンアップメソッド
+  // Fix: explicit cleanup method
   destroy() {
     clearInterval(this.intervalId);
     this.intervalId = null;
@@ -515,7 +516,7 @@ class DataPollingWidget {
   }
 }
 
-// React での正しいパターン
+// Correct pattern in React
 function useDataPolling(endpoint, intervalMs = 5000) {
   const [data, setData] = React.useState(null);
 
@@ -537,9 +538,9 @@ function useDataPolling(endpoint, intervalMs = 5000) {
     };
 
     const id = setInterval(poll, intervalMs);
-    poll(); // 初回即時実行
+    poll(); // Execute immediately on first run
 
-    // クリーンアップ: アンマウント時に確実に停止
+    // Cleanup: ensure stopping on unmount
     return () => {
       clearInterval(id);
       controller.abort();
@@ -550,15 +551,15 @@ function useDataPolling(endpoint, intervalMs = 5000) {
 }
 ```
 
-### 4.4 パターン 3: イベントリスナーの解除忘れ
+### 4.4 Pattern 3: Forgetting to Remove Event Listeners
 
 ```javascript
-// 問題のあるパターン: リスナーが蓄積する
+// Problematic pattern: listeners accumulate
 class ScrollTracker {
   constructor() {
     this.positions = [];
 
-    // 問題: 匿名関数なので removeEventListener できない
+    // Problem: anonymous function, cannot removeEventListener
     window.addEventListener("scroll", () => {
       this.positions.push({
         y: window.scrollY,
@@ -568,7 +569,7 @@ class ScrollTracker {
   }
 }
 
-// 修正版 1: 名前付き関数 + removeEventListener
+// Fix 1: named function + removeEventListener
 class ScrollTrackerFixed {
   constructor() {
     this.positions = [];
@@ -586,7 +587,7 @@ class ScrollTrackerFixed {
   }
 }
 
-// 修正版 2: AbortController による一括管理 (推奨)
+// Fix 2: bulk management with AbortController (recommended)
 class ScrollTrackerModern {
   constructor() {
     this.positions = [];
@@ -597,7 +598,7 @@ class ScrollTrackerModern {
     }, { signal: this.abortController.signal });
 
     window.addEventListener("resize", () => {
-      this.positions = []; // リサイズ時にリセット
+      this.positions = []; // Reset on resize
     }, { signal: this.abortController.signal });
 
     document.addEventListener("visibilitychange", () => {
@@ -606,48 +607,49 @@ class ScrollTrackerModern {
   }
 
   flush() {
-    // サーバーに送信するなどの処理
+    // Processing such as sending to server
     this.positions = [];
   }
 
   destroy() {
-    // 全てのリスナーを一括解除
+    // Bulk remove all listeners
     this.abortController.abort();
     this.positions = [];
   }
 }
 ```
 
-### 4.5 パターン 4: クロージャによる意図しない参照保持
+### 4.5 Pattern 4: Unintentional Reference Retention by Closures
 
-クロージャは外側のスコープの変数を「キャプチャ」する。V8は最適化により使用されない変数をクロージャから除外するが、特定の条件下では大きなオブジェクトが保持され続ける。
+Closures "capture" variables from outer scopes. V8 excludes unused variables from closures through optimization, but under certain conditions, large objects can continue to be retained.
 
 ```javascript
-// エッジケース 1: eval が存在するとクロージャの最適化が無効化される
+// Edge case 1: presence of eval disables closure optimization
 
 function createProcessor() {
   const hugeBuffer = new ArrayBuffer(100 * 1024 * 1024); // 100MB
   const metadata = { created: Date.now(), type: "buffer" };
 
-  // hugeBuffer を使わないが、eval があるため全変数がキャプチャされる
+  // hugeBuffer is not used, but because eval exists,
+  // all variables are captured
   return function process(code) {
-    // eval が存在すると、V8 はどの変数が使われるか静的に判定できない
-    // そのため、スコープ内の全変数を保持してしまう
-    return eval(code); // hugeBuffer も保持される!
+    // With eval present, V8 cannot statically determine which variables are used
+    // Therefore, all variables in scope are retained
+    return eval(code); // hugeBuffer is also retained!
   };
 }
 
-// 対策: クロージャのスコープを明示的に制限する
+// Countermeasure: explicitly limit closure scope
 function createProcessorFixed() {
   const hugeBuffer = new ArrayBuffer(100 * 1024 * 1024);
   const result = processBuffer(hugeBuffer);
 
-  // hugeBuffer を使い終わったら、別スコープで関数を作成
+  // Create function in a different scope after finishing with hugeBuffer
   return createCallback(result);
 }
 
 function createCallback(processedResult) {
-  // このクロージャは processedResult のみをキャプチャ
+  // This closure only captures processedResult
   return function() {
     return processedResult;
   };
@@ -655,30 +657,31 @@ function createCallback(processedResult) {
 ```
 
 ```javascript
-// エッジケース 2: 複数クロージャが同一スコープを共有する場合
+// Edge case 2: multiple closures share the same scope
 
 function setupHandlers() {
   const largeData = new Array(1000000).fill("data");
   const config = { debug: true };
 
-  // handler1 は largeData を使う
+  // handler1 uses largeData
   const handler1 = () => {
     console.log(largeData.length);
   };
 
-  // handler2 は largeData を使わない
-  // しかし、V8 の実装によっては handler1 と同じ Context オブジェクトを共有
-  // → largeData への参照が handler2 にも残る可能性がある
+  // handler2 does not use largeData
+  // However, depending on V8's implementation, it may share the same
+  // Context object as handler1
+  // → largeData reference may remain in handler2 as well
   const handler2 = () => {
     console.log(config.debug);
   };
 
-  // handler1 を破棄しても handler2 が生きていれば
-  // largeData が解放されない可能性がある
+  // Even if handler1 is discarded, if handler2 is alive,
+  // largeData may not be freed
   return { handler1, handler2 };
 }
 
-// 対策: 関数を別々のスコープで定義する
+// Countermeasure: define functions in separate scopes
 function setupHandlersSafe() {
   const handler1 = createHandler1();
   const handler2 = createHandler2();
@@ -696,14 +699,14 @@ function createHandler2() {
 }
 ```
 
-### 4.6 パターン 5: 切り離されたDOMツリー (Detached DOM)
+### 4.6 Pattern 5: Detached DOM Tree
 
-SPAにおいて最も発生頻度が高いリークパターンの一つ。DOMノードがドキュメントツリーから除去されても、JavaScript側の参照が残っていると GC されない。
+One of the most frequently occurring leak patterns in SPAs. Even when a DOM node is removed from the document tree, if a JavaScript-side reference remains, it cannot be GC'd.
 
 ```
-Detached DOM ツリーのリークメカニズム:
+Detached DOM tree leak mechanism:
 
-  === DOMツリーに接続中 ===
+  === Connected to DOM tree ===
   document
   └── body
       └── #container
@@ -711,26 +714,26 @@ Detached DOM ツリーのリークメカニズム:
           ├── .card-2 ←─── JS: this.cards[1]
           └── .card-3 ←─── JS: this.cards[2]
 
-  === #container を DOM から除去 ===
+  === Remove #container from DOM ===
   document
   └── body
-      (空)
+      (empty)
 
-  切り離された DOM ツリー (Detached):
-  #container          ← GC したいが...
-  ├── .card-1 ←────── JS: this.cards[0] がまだ参照!
-  ├── .card-2 ←────── JS: this.cards[1] がまだ参照!
-  └── .card-3 ←────── JS: this.cards[2] がまだ参照!
+  Detached DOM tree:
+  #container          ← Want to GC, but...
+  ├── .card-1 ←────── JS: this.cards[0] still references!
+  ├── .card-2 ←────── JS: this.cards[1] still references!
+  └── .card-3 ←────── JS: this.cards[2] still references!
 
-  → this.cards 配列が参照を保持しているため
-    #container 以下のツリー全体が GC されない
-  → DevTools の Heap Snapshot で "Detached" と表示される
+  → Because the this.cards array holds references,
+    the entire tree under #container cannot be GC'd
+  → Displayed as "Detached" in DevTools Heap Snapshot
 ```
 
 ```javascript
-// コード例 5: Detached DOM の検出と修正
+// Code example 5: Detecting and fixing Detached DOM
 
-// 問題のあるコード
+// Problematic code
 class CardList {
   constructor(container) {
     this.container = container;
@@ -744,14 +747,14 @@ class CardList {
     card.innerHTML = `
       <h3>${data.title}</h3>
       <p>${data.description}</p>
-      <button class="delete-btn">削除</button>
+      <button class="delete-btn">Delete</button>
     `;
 
     const deleteBtn = card.querySelector(".delete-btn");
     const handler = () => this.removeCard(card);
     deleteBtn.addEventListener("click", handler);
 
-    // 問題: cards 配列とリスナーMap に参照を保持
+    // Problem: references retained in cards array and listeners Map
     this.cards.push(card);
     this.listeners.set(card, { element: deleteBtn, handler });
 
@@ -760,31 +763,31 @@ class CardList {
 
   removeCard(card) {
     this.container.removeChild(card);
-    // ここで cards 配列から除去しないと Detached DOM リーク!
+    // Not removing from the cards array here causes Detached DOM leak!
   }
 
-  // 修正版: 完全なクリーンアップ
+  // Fixed version: complete cleanup
   removeCardFixed(card) {
-    // 1. イベントリスナーの解除
+    // 1. Remove event listener
     const listenerInfo = this.listeners.get(card);
     if (listenerInfo) {
       listenerInfo.element.removeEventListener("click", listenerInfo.handler);
       this.listeners.delete(card);
     }
 
-    // 2. 配列からの除去
+    // 2. Remove from array
     const index = this.cards.indexOf(card);
     if (index !== -1) {
       this.cards.splice(index, 1);
     }
 
-    // 3. DOM からの除去
+    // 3. Remove from DOM
     card.remove();
   }
 
-  // 全体のクリーンアップ
+  // Full cleanup
   destroy() {
-    // 全カードのクリーンアップ
+    // Clean up all cards
     for (const card of [...this.cards]) {
       this.removeCardFixed(card);
     }
@@ -795,39 +798,39 @@ class CardList {
 }
 ```
 
-### 4.7 パターン 6: console.log によるオブジェクト保持
+### 4.7 Pattern 6: Object Retention by console.log
 
-開発時に見落としがちなリークパターン。`console.log` に渡されたオブジェクトは DevTools がそのオブジェクトを表示するために参照を保持する。
+An easily overlooked leak pattern during development. Objects passed to `console.log` are referenced by DevTools to display them.
 
 ```javascript
-// console.log によるリーク
+// Leak by console.log
 function processLargeData() {
-  const data = generateHugeDataset(); // 数十MBのデータ
+  const data = generateHugeDataset(); // Data of tens of MB
 
-  console.log("Processing data:", data); // DevTools がdata を保持!
+  console.log("Processing data:", data); // DevTools holds a reference to data!
 
   const result = transform(data);
 
-  // data は本来ここで GC 対象になるべきだが、
-  // console.log が参照を保持し続ける
+  // data should become a GC candidate here,
+  // but console.log continues to hold the reference
 
   return result;
 }
 
-// 対策 1: 本番環境ではログを除去
-// webpack / vite の設定で console.log を strip
+// Countermeasure 1: Remove logs in production
+// Strip console.log in webpack / vite configuration
 
-// 対策 2: 必要な情報のみをログ出力
+// Countermeasure 2: Log only necessary information
 function processLargeDataFixed() {
   const data = generateHugeDataset();
 
-  console.log("Processing data, size:", data.length); // サイズのみ
+  console.log("Processing data, size:", data.length); // Size only
 
   const result = transform(data);
   return result;
 }
 
-// 対策 3: 条件付きロギング
+// Countermeasure 3: Conditional logging
 const IS_DEV = process.env.NODE_ENV === "development";
 
 function debugLog(label, data) {
@@ -841,24 +844,24 @@ function debugLog(label, data) {
 
 ## 5. WeakRef / WeakMap / WeakSet / FinalizationRegistry
 
-### 5.1 弱参照の概念
+### 5.1 The Concept of Weak References
 
-通常の参照 (強参照) はオブジェクトの GC を妨げるが、弱参照 (Weak Reference) はGCを妨げない。オブジェクトへの弱参照だけが残っている場合、そのオブジェクトはGC対象となる。
+Normal references (strong references) prevent an object from being GC'd, but weak references do not. If only weak references to an object remain, it becomes a GC candidate.
 
-| 型 | キーの参照 | 値の参照 | GC への影響 | イテレーション |
-|-----|-----------|---------|-----------|-------------|
-| Map | 強参照 | 強参照 | キーも値もGCを妨げる | 可能 |
-| WeakMap | 弱参照 | 強参照 | キーがGCされるとエントリ削除 | 不可 |
-| Set | - | 強参照 | 値のGCを妨げる | 可能 |
-| WeakSet | - | 弱参照 | 値のGCを妨げない | 不可 |
-| WeakRef | - | 弱参照 | 対象のGCを妨げない | - |
+| Type | Key Reference | Value Reference | GC Effect | Iteration |
+|------|:------------:|:---------------:|:----------:|:---------:|
+| Map | Strong | Strong | Both key and value prevent GC | Possible |
+| WeakMap | Weak | Strong | Entry deleted when key is GC'd | Not possible |
+| Set | - | Strong | Prevents GC of value | Possible |
+| WeakSet | - | Weak | Does not prevent GC of value | Not possible |
+| WeakRef | - | Weak | Does not prevent GC of target | - |
 
-### 5.2 WeakMap を使ったキャッシュの実装
+### 5.2 Implementing a Cache with WeakMap
 
 ```javascript
-// コード例 6: WeakMap によるメモリ安全なキャッシュ
+// Code example 6: Memory-safe cache with WeakMap
 
-// 問題: Map を使うと、キーオブジェクトが他で不要になっても解放されない
+// Problem: using Map keeps key objects alive even when no longer needed
 class UnsafeCache {
   constructor() {
     this.cache = new Map();
@@ -872,10 +875,10 @@ class UnsafeCache {
     this.cache.set(obj, result);
     return result;
   }
-  // obj がどこでも不要になっても、this.cache が参照を保持 → リーク
+  // Even if obj is no longer needed, this.cache holds the reference → leak
 }
 
-// 修正: WeakMap を使うとキーが GC されたとき自動的にエントリが削除される
+// Fix: using WeakMap, the entry is automatically deleted when the key is GC'd
 class SafeCache {
   constructor() {
     this.cache = new WeakMap();
@@ -889,16 +892,16 @@ class SafeCache {
     this.cache.set(obj, result);
     return result;
   }
-  // obj が他のどこからも参照されなくなれば、エントリも自動削除
+  // Once obj is no longer referenced anywhere, the entry is also automatically deleted
 }
 
-// 実践例: DOM要素に関連データを紐付ける
+// Practical example: associating data with DOM elements
 const elementData = new WeakMap();
 
 function attachData(element, data) {
   elementData.set(element, data);
-  // element が DOM から除去され、他の参照もなくなれば
-  // data も自動的に GC される
+  // When element is removed from DOM and has no other references,
+  // data is also automatically GC'd
 }
 
 function getData(element) {
@@ -906,16 +909,16 @@ function getData(element) {
 }
 ```
 
-### 5.3 WeakRef と FinalizationRegistry
+### 5.3 WeakRef and FinalizationRegistry
 
 ```javascript
-// コード例 7: WeakRef を使ったサイズ制限なしキャッシュ
+// Code example 7: Unlimited-size cache using WeakRef
 
 class WeakCache {
   constructor() {
     this.cache = new Map(); // key: string, value: WeakRef<Object>
     this.registry = new FinalizationRegistry((key) => {
-      // オブジェクトがGCされたら、Mapからエントリを削除
+      // When an object is GC'd, remove the entry from Map
       const ref = this.cache.get(key);
       if (ref && ref.deref() === undefined) {
         this.cache.delete(key);
@@ -925,7 +928,7 @@ class WeakCache {
   }
 
   set(key, value) {
-    // 既存のエントリがあれば FinalizationRegistry から登録解除
+    // Unregister from FinalizationRegistry if existing entry exists
     const existingRef = this.cache.get(key);
     if (existingRef) {
       this.registry.unregister(existingRef);
@@ -934,7 +937,7 @@ class WeakCache {
     const ref = new WeakRef(value);
     this.cache.set(key, ref);
 
-    // GC時の通知を登録 (unregister用のトークンとして ref を使用)
+    // Register GC notification (use ref as token for unregister)
     this.registry.register(value, key, ref);
   }
 
@@ -944,7 +947,7 @@ class WeakCache {
 
     const value = ref.deref();
     if (value === undefined) {
-      // すでにGCされている → エントリを削除
+      // Already GC'd → delete the entry
       this.cache.delete(key);
       return undefined;
     }
@@ -952,7 +955,7 @@ class WeakCache {
   }
 
   get size() {
-    // 実際の生存エントリ数 (GC済みは含まない)
+    // Actual number of live entries (excludes GC'd ones)
     let count = 0;
     for (const [key, ref] of this.cache) {
       if (ref.deref() !== undefined) {
@@ -965,7 +968,7 @@ class WeakCache {
   }
 }
 
-// 使用例
+// Usage
 const imageCache = new WeakCache();
 
 async function loadImage(url) {
@@ -982,14 +985,14 @@ async function loadImage(url) {
 }
 ```
 
-> **注意**: FinalizationRegistry のコールバックは GC のタイミングに依存し、実行が保証されない。リソースの確実な解放には明示的な `dispose()` / `close()` メソッドを使用すること。FinalizationRegistry はセーフティネットとして位置づける。
+> **Note**: FinalizationRegistry callbacks depend on GC timing and are not guaranteed to execute. For reliable resource cleanup, use explicit `dispose()` / `close()` methods. FinalizationRegistry should be positioned as a safety net.
 
-### 5.4 Symbol.dispose と using 宣言 (TC39 Stage 3→4)
+### 5.4 Symbol.dispose and the using Declaration (TC39 Stage 3→4)
 
-ECMAScript の Explicit Resource Management 提案では、`Symbol.dispose` と `using` 宣言によりリソースの確実な解放を言語レベルでサポートする。
+The ECMAScript Explicit Resource Management proposal supports reliable resource cleanup at the language level through `Symbol.dispose` and `using` declarations.
 
 ```javascript
-// コード例 8: Explicit Resource Management (using 宣言)
+// Code example 8: Explicit Resource Management (using declaration)
 
 class DatabaseConnection {
   #connection;
@@ -1002,7 +1005,7 @@ class DatabaseConnection {
     return this.#connection.execute(sql);
   }
 
-  // Symbol.dispose を実装 → using 宣言で自動解放
+  // Implement Symbol.dispose → automatic cleanup with using declaration
   [Symbol.dispose]() {
     this.#connection.close();
     this.#connection = null;
@@ -1010,7 +1013,7 @@ class DatabaseConnection {
   }
 }
 
-// using 宣言: スコープ終了時に自動的に dispose が呼ばれる
+// using declaration: dispose is automatically called when the scope ends
 async function fetchUserData(userId) {
   using db = new DatabaseConnection("postgres://localhost/mydb");
 
@@ -1018,11 +1021,11 @@ async function fetchUserData(userId) {
   const orders = await db.query(`SELECT * FROM orders WHERE user_id = ${userId}`);
 
   return { user, orders };
-  // ← ここで自動的に db[Symbol.dispose]() が呼ばれる
-  // 例外が発生しても確実に呼ばれる (try-finally と同等)
+  // ← db[Symbol.dispose]() is automatically called here
+  // Called reliably even if an exception occurs (equivalent to try-finally)
 }
 
-// 非同期リソース用: Symbol.asyncDispose + await using
+// For async resources: Symbol.asyncDispose + await using
 class StreamProcessor {
   #stream;
 
@@ -1038,137 +1041,137 @@ class StreamProcessor {
 
 async function processFile(path) {
   await using processor = new StreamProcessor(openFile(path));
-  // ... 処理 ...
-  // スコープ終了時に await processor[Symbol.asyncDispose]() が呼ばれる
+  // ... processing ...
+  // await processor[Symbol.asyncDispose]() is called when scope ends
 }
 ```
 
 ---
 
-## 6. Chrome DevTools によるメモリプロファイリング
+## 6. Memory Profiling with Chrome DevTools
 
-### 6.1 Memory パネルの概要
+### 6.1 Overview of the Memory Panel
 
-Chrome DevTools の Memory パネルは3つの主要なプロファイリング手法を提供する。
+The Memory panel in Chrome DevTools provides three main profiling approaches.
 
-| 手法 | 目的 | オーバーヘッド | 適したシナリオ |
-|------|------|-------------|-------------|
-| Heap Snapshot | ある時点の全オブジェクトを記録 | 高 (一時停止あり) | リーク箇所の特定、オブジェクト保持チェーンの分析 |
-| Allocation Timeline | 時間軸でのメモリ割り当て記録 | 中 | いつメモリが割り当てられたかの特定 |
-| Allocation Sampling | サンプリングベースの割り当て記録 | 低 | 長時間のプロファイリング、本番に近い環境 |
+| Approach | Purpose | Overhead | Suitable Scenarios |
+|----------|---------|----------|-------------------|
+| Heap Snapshot | Record all objects at a point in time | High (with pause) | Identifying leak locations, analyzing object retention chains |
+| Allocation Timeline | Record memory allocations over time | Medium | Identifying when memory is allocated |
+| Allocation Sampling | Sampling-based allocation recording | Low | Long-running profiling, near-production environments |
 
-### 6.2 Heap Snapshot の操作手順
+### 6.2 Heap Snapshot Step-by-Step Procedure
 
 ```
-Heap Snapshot によるリーク検出 (ステップバイステップ):
+Memory leak detection with Heap Snapshot (step-by-step):
 
   ┌────────────────────────────────────────────────────────┐
-  │ Step 1: 準備                                          │
-  │  - Chrome DevTools を開く (F12 / Cmd+Opt+I)           │
-  │  - Memory タブを選択                                   │
-  │  - "Heap snapshot" ラジオボタンを選択                   │
+  │ Step 1: Preparation                                    │
+  │  - Open Chrome DevTools (F12 / Cmd+Opt+I)              │
+  │  - Select the Memory tab                               │
+  │  - Select the "Heap snapshot" radio button             │
   └───────────────────────────┬────────────────────────────┘
                               ↓
   ┌────────────────────────────────────────────────────────┐
-  │ Step 2: ベースラインスナップショット                    │
-  │  - GCを強制実行 (ゴミ箱アイコンをクリック)              │
-  │  - "Take snapshot" ボタンをクリック                     │
-  │  - → Snapshot 1 が記録される                           │
+  │ Step 2: Baseline snapshot                              │
+  │  - Force GC (click the trash icon)                     │
+  │  - Click the "Take snapshot" button                    │
+  │  - → Snapshot 1 is recorded                            │
   └───────────────────────────┬────────────────────────────┘
                               ↓
   ┌────────────────────────────────────────────────────────┐
-  │ Step 3: リークが疑われる操作を実行                     │
-  │  - ページ遷移、ダイアログ開閉、データ読み込み等         │
-  │  - 操作前の状態に戻す (ダイアログを閉じる等)           │
+  │ Step 3: Perform the suspected leaking operation        │
+  │  - Page navigation, dialog open/close, data loading    │
+  │  - Return to state before operation (e.g., close dialog)│
   └───────────────────────────┬────────────────────────────┘
                               ↓
   ┌────────────────────────────────────────────────────────┐
-  │ Step 4: 比較用スナップショット                         │
-  │  - GCを強制実行                                        │
+  │ Step 4: Comparison snapshot                            │
+  │  - Force GC                                            │
   │  - "Take snapshot" → Snapshot 2                        │
   └───────────────────────────┬────────────────────────────┘
                               ↓
   ┌────────────────────────────────────────────────────────┐
-  │ Step 5: 比較分析                                       │
-  │  - Snapshot 2 を選択                                    │
-  │  - ビューを "Comparison" に切り替え                     │
-  │  - "Compared to Snapshot 1" を選択                      │
-  │  - "#Delta" 列でソート → 正の値 = リーク候補           │
-  │  - "#New" 列 = 新規割り当てされたオブジェクト数        │
-  │  - "#Deleted" 列 = GCされたオブジェクト数              │
+  │ Step 5: Comparison analysis                            │
+  │  - Select Snapshot 2                                    │
+  │  - Switch view to "Comparison"                          │
+  │  - Select "Compared to Snapshot 1"                      │
+  │  - Sort by "#Delta" column → positive values = leak     │
+  │  - "#New" column = number of newly allocated objects    │
+  │  - "#Deleted" column = number of GC'd objects           │
   │  - "#Delta" = #New - #Deleted                          │
   └───────────────────────────┬────────────────────────────┘
                               ↓
   ┌────────────────────────────────────────────────────────┐
-  │ Step 6: 保持チェーンの調査                             │
-  │  - リーク候補のオブジェクトをクリック                    │
-  │  - 下部の "Retainers" パネルで保持者を確認              │
-  │  - ルートまでのチェーンを辿り、リーク原因を特定         │
+  │ Step 6: Investigate retention chains                   │
+  │  - Click on a leak candidate object                     │
+  │  - Check retainers in the bottom "Retainers" panel     │
+  │  - Trace the chain to the root to identify leak source │
   └────────────────────────────────────────────────────────┘
 ```
 
-### 6.3 Heap Snapshot のビューモード
+### 6.3 Heap Snapshot View Modes
 
-| ビュー | 表示内容 | 用途 |
-|--------|---------|------|
-| Summary | コンストラクタ名でグループ化 | オブジェクト種別ごとのメモリ消費把握 |
-| Comparison | 2つのスナップショットの差分 | リーク特定に最適 |
-| Containment | オブジェクトの包含関係 | ヒープ構造の理解 |
-| Statistics | メモリ種別の円グラフ | 全体像の把握 |
+| View | Content Displayed | Use Case |
+|------|------------------|----------|
+| Summary | Grouped by constructor name | Understanding memory consumption by object type |
+| Comparison | Diff between two snapshots | Best for identifying leaks |
+| Containment | Containment relationships between objects | Understanding heap structure |
+| Statistics | Pie chart of memory types | Understanding the overall picture |
 
-#### Summary ビューの重要カラム
+#### Important Columns in Summary View
 
-| カラム | 意味 |
-|--------|------|
-| Constructor | オブジェクトのコンストラクタ名 |
-| Distance | GCルートからの最短距離 |
-| Shallow Size | オブジェクト自体のサイズ (バイト) |
-| Retained Size | オブジェクトとその排他的依存先の合計サイズ |
+| Column | Meaning |
+|--------|---------|
+| Constructor | Object's constructor name |
+| Distance | Shortest distance from GC root |
+| Shallow Size | Size of the object itself (bytes) |
+| Retained Size | Total size of object and its exclusive dependencies |
 
-**Shallow Size vs Retained Size の違い:**
+**Difference between Shallow Size and Retained Size:**
 
 ```
-例: オブジェクト A が B, C を排他的に保持し、D は A と E の両方が保持
+Example: Object A exclusively holds B and C; D is held by both A and E
 
   [A] ──→ [B] ──→ [C]
    │
    └──→ [D] ←── [E]
 
-  A の Shallow Size  = A 自体のサイズ (例: 64 bytes)
-  A の Retained Size = A + B + C のサイズ合計 (例: 64 + 128 + 256 = 448 bytes)
-                       D は E からも参照されているため含まない
+  A's Shallow Size  = size of A itself (e.g., 64 bytes)
+  A's Retained Size = total of A + B + C sizes (e.g., 64 + 128 + 256 = 448 bytes)
+                     D is referenced by E as well, so it is not included
 ```
 
-### 6.4 Allocation Timeline の活用
+### 6.4 Using Allocation Timeline
 
-Allocation Timeline は時間軸でメモリ割り当てを追跡し、どの操作がメモリ消費の原因かを特定するのに有効。
+Allocation Timeline tracks memory allocations over time and is useful for identifying which operations are responsible for memory consumption.
 
 ```
-Allocation Timeline の読み方:
+How to read Allocation Timeline:
 
-  時間 →
+  Time →
   ┌──────────────────────────────────────────────────────┐
-  │ ████                                                  │ ← 青: 生存中
-  │ ░░░░██████                                            │ ← 灰: GC済み
-  │         ░░░░████████████████████████████              │ ← 長い青 = リーク候補
+  │ ████                                                  │ ← blue: alive
+  │ ░░░░██████                                            │ ← gray: GC'd
+  │         ░░░░████████████████████████████              │ ← long blue = leak candidate
   │              ░░░░░░░░                                 │
   │                    ████                               │
-  │                         ░░░░██████████████████████    │ ← リーク候補
+  │                         ░░░░██████████████████████    │ ← leak candidate
   │                              ░░░░░░░░                 │
   └──────────────────────────────────────────────────────┘
-    ↑ ボタンクリック      ↑ ページ遷移     ↑ データ読み込み
+    ↑ button click       ↑ page nav       ↑ data load
 
-  青いバーが記録終了時まで残っている = 生存オブジェクト
-  → 本来解放されるべきなのに残っている = リーク
-  → バーをクリックすると該当オブジェクトの詳細が表示される
+  Blue bars remaining until recording end = surviving objects
+  → Should have been freed but remains = leak
+  → Click on a bar to show details of the corresponding object
 ```
 
-### 6.5 Performance.memory API と measureUserAgentSpecificMemory
+### 6.5 Performance.memory API and measureUserAgentSpecificMemory
 
 ```javascript
-// コード例 9: ブラウザ上でのメモリ使用量モニタリング
+// Code example 9: Memory usage monitoring in the browser
 
-// Performance.memory API (Chrome 限定、非推奨傾向)
+// Performance.memory API (Chrome only, being deprecated)
 function getMemoryInfo() {
   if (performance.memory) {
     return {
@@ -1183,8 +1186,8 @@ function getMemoryInfo() {
   return null;
 }
 
-// より新しい API: performance.measureUserAgentSpecificMemory()
-// Cross-Origin Isolation が必要 (COOP + COEP ヘッダー)
+// Newer API: performance.measureUserAgentSpecificMemory()
+// Requires Cross-Origin Isolation (COOP + COEP headers)
 async function measureMemory() {
   if (performance.measureUserAgentSpecificMemory) {
     try {
@@ -1211,7 +1214,7 @@ async function measureMemory() {
   return null;
 }
 
-// 定期的なメモリ監視
+// Periodic memory monitoring
 class MemoryMonitor {
   constructor(options = {}) {
     this.intervalMs = options.intervalMs || 10000;
@@ -1232,7 +1235,7 @@ class MemoryMonitor {
       };
       this.history.push(entry);
 
-      // 警告判定
+      // Warning determination
       const usedMB = parseFloat(info.usedHeapMB);
       if (usedMB > this.criticalThresholdMB) {
         console.warn(`[Memory CRITICAL] ${usedMB} MB used`);
@@ -1242,11 +1245,11 @@ class MemoryMonitor {
         this.onWarning?.(entry);
       }
 
-      // 上昇傾向の検出
+      // Detect upward trend
       if (this.history.length >= 10) {
         const recent = this.history.slice(-10);
         const trend = this.calculateTrend(recent);
-        if (trend > 0.5) { // 1サンプルあたり0.5MB以上の増加
+        if (trend > 0.5) { // More than 0.5 MB increase per sample
           console.warn(`[Memory TREND] Increasing at ${trend.toFixed(2)} MB/sample`);
         }
       }
@@ -1271,55 +1274,55 @@ class MemoryMonitor {
 
 ---
 
-## 7. Node.js 環境でのメモリ管理
+## 7. Memory Management in Node.js Environments
 
-### 7.1 Node.js のヒープサイズ制御
+### 7.1 Controlling Heap Size in Node.js
 
-Node.js はデフォルトでヒープサイズに上限が設けられている。大量のデータを処理するアプリケーションでは、この上限を意識する必要がある。
+Node.js has a default upper limit on heap size. Applications processing large amounts of data need to be aware of this limit.
 
-| Node.js バージョン | デフォルト Old Space 上限 | 備考 |
-|-------------------|-------------------------|------|
-| v12 以前 | ~1.5 GB (64bit) | 32bit では ~512 MB |
-| v12〜v16 | ~2 GB | 段階的に増加 |
-| v17 以降 | ~4 GB | 物理メモリの50%まで自動調整 |
+| Node.js Version | Default Old Space Limit | Notes |
+|----------------|------------------------|-------|
+| v12 and earlier | ~1.5 GB (64-bit) | ~512 MB on 32-bit |
+| v12~v16 | ~2 GB | Gradually increasing |
+| v17 and later | ~4 GB | Auto-adjusted up to 50% of physical memory |
 
 ```bash
-# ヒープサイズの明示的な設定
-node --max-old-space-size=8192 server.js  # Old Space を 8GB に設定
-node --max-semi-space-size=64 server.js   # Semi-Space を 64MB に設定
+# Explicitly set heap size
+node --max-old-space-size=8192 server.js  # Set Old Space to 8GB
+node --max-semi-space-size=64 server.js   # Set Semi-Space to 64MB
 
-# V8 の GC フラグ
-node --expose-gc server.js                # global.gc() を有効化
-node --trace-gc server.js                 # GC イベントをログ出力
-node --trace-gc-verbose server.js         # 詳細な GC ログ
+# V8 GC flags
+node --expose-gc server.js                # Enable global.gc()
+node --trace-gc server.js                 # Log GC events
+node --trace-gc-verbose server.js         # Detailed GC log
 ```
 
-### 7.2 process.memoryUsage() による監視
+### 7.2 Monitoring with process.memoryUsage()
 
 ```javascript
-// コード例 10: Node.js でのメモリ使用量監視
+// Code example 10: Memory usage monitoring in Node.js
 
 function printMemoryUsage(label = "") {
   const usage = process.memoryUsage();
   const formatMB = (bytes) => (bytes / 1024 / 1024).toFixed(2) + " MB";
 
   console.log(`=== Memory Usage ${label} ===`);
-  console.log(`  rss:          ${formatMB(usage.rss)}`);        // OS から割り当てられた総メモリ
-  console.log(`  heapTotal:    ${formatMB(usage.heapTotal)}`);   // V8 ヒープ合計
-  console.log(`  heapUsed:     ${formatMB(usage.heapUsed)}`);    // V8 ヒープ使用量
-  console.log(`  external:     ${formatMB(usage.external)}`);    // C++ オブジェクト (Buffer等)
-  console.log(`  arrayBuffers: ${formatMB(usage.arrayBuffers)}`);// ArrayBuffer の合計
+  console.log(`  rss:          ${formatMB(usage.rss)}`);        // Total memory allocated by OS
+  console.log(`  heapTotal:    ${formatMB(usage.heapTotal)}`);   // V8 heap total
+  console.log(`  heapUsed:     ${formatMB(usage.heapUsed)}`);    // V8 heap usage
+  console.log(`  external:     ${formatMB(usage.external)}`);    // C++ objects (Buffer, etc.)
+  console.log(`  arrayBuffers: ${formatMB(usage.arrayBuffers)}`);// Total ArrayBuffers
 }
 
-// rss vs heapUsed の違い
-// rss (Resident Set Size): プロセスが使用している物理メモリ全体
-//   → V8ヒープ + C++オブジェクト + ネイティブアドオン + スタック
-// heapUsed: V8 が管理する JavaScript オブジェクトのメモリ
-//   → rss の一部
+// rss vs heapUsed difference
+// rss (Resident Set Size): total physical memory the process is using
+//   → V8 heap + C++ objects + native addons + stack
+// heapUsed: memory for JavaScript objects managed by V8
+//   → a subset of rss
 
-// 使用例: 処理前後のメモリ差分を計測
+// Usage: measure memory delta before and after processing
 async function measureMemoryImpact(fn) {
-  // GCを強制実行してベースラインを安定化
+  // Force GC to stabilize baseline
   if (global.gc) global.gc();
 
   const before = process.memoryUsage();
@@ -1350,44 +1353,44 @@ async function measureMemoryImpact(fn) {
 }
 ```
 
-### 7.3 Buffer と ArrayBuffer のメモリ特性
+### 7.3 Memory Characteristics of Buffer and ArrayBuffer
 
-Node.js の Buffer は V8 ヒープの外側 (external memory) に割り当てられることがある。これにより `heapUsed` には反映されないメモリ消費が発生する。
+Node.js Buffer can be allocated outside the V8 heap (external memory). This results in memory consumption that is not reflected in `heapUsed`.
 
 ```javascript
-// Buffer のメモリ特性の確認
+// Confirming memory characteristics of Buffer
 function demonstrateBufferMemory() {
   printMemoryUsage("Before");
 
-  // Buffer.alloc: external memory に割り当て
+  // Buffer.alloc: allocated in external memory
   const buf1 = Buffer.alloc(50 * 1024 * 1024); // 50MB
   printMemoryUsage("After Buffer.alloc(50MB)");
-  // → external が増加、heapUsed はほぼ変わらない
+  // → external increases, heapUsed barely changes
 
-  // 通常の配列: V8 ヒープに割り当て
+  // Normal array: allocated in V8 heap
   const arr = new Array(5 * 1024 * 1024).fill(0);
   printMemoryUsage("After Array(5M)");
-  // → heapUsed が増加
+  // → heapUsed increases
 }
 ```
 
 ---
 
-## 8. フレームワーク別のメモリ管理ベストプラクティス
+## 8. Memory Management Best Practices by Framework
 
-### 8.1 React でのメモリ管理
+### 8.1 Memory Management in React
 
 ```javascript
-// コード例 11: React コンポーネントでのメモリリーク対策
+// Code example 11: Memory leak countermeasures in React components
 
 import { useState, useEffect, useRef, useCallback } from "react";
 
-// アンチパターン: アンマウント後の state 更新
+// Anti-pattern: updating state after unmount
 function LeakyComponent({ userId }) {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // 問題: アンマウント後に setUser が呼ばれるとメモリリーク + 警告
+    // Problem: calling setUser after unmount causes memory leak + warning
     fetch(`/api/users/${userId}`)
       .then(res => res.json())
       .then(data => setUser(data));
@@ -1396,7 +1399,7 @@ function LeakyComponent({ userId }) {
   return <div>{user?.name}</div>;
 }
 
-// 修正版: AbortController + クリーンアップ
+// Fixed version: AbortController + cleanup
 function SafeComponent({ userId }) {
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
@@ -1421,7 +1424,7 @@ function SafeComponent({ userId }) {
     fetchUser();
 
     return () => {
-      controller.abort(); // アンマウント時にリクエストをキャンセル
+      controller.abort(); // Cancel request on unmount
     };
   }, [userId]);
 
@@ -1429,7 +1432,7 @@ function SafeComponent({ userId }) {
   return <div>{user?.name}</div>;
 }
 
-// WebSocket のクリーンアップ
+// WebSocket cleanup
 function useWebSocket(url) {
   const [messages, setMessages] = useState([]);
   const wsRef = useRef(null);
@@ -1440,7 +1443,7 @@ function useWebSocket(url) {
 
     ws.onmessage = (event) => {
       setMessages(prev => {
-        // メモリ制限: 最新1000件のみ保持
+        // Memory limit: keep only the latest 1000 messages
         const updated = [...prev, JSON.parse(event.data)];
         return updated.slice(-1000);
       });
@@ -1451,7 +1454,7 @@ function useWebSocket(url) {
     };
 
     return () => {
-      ws.close(); // アンマウント時に接続を閉じる
+      ws.close(); // Close connection on unmount
       wsRef.current = null;
     };
   }, [url]);
@@ -1463,7 +1466,7 @@ function useWebSocket(url) {
   return { messages, send };
 }
 
-// IntersectionObserver のクリーンアップ
+// IntersectionObserver cleanup
 function useLazyLoad(ref) {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -1475,7 +1478,7 @@ function useLazyLoad(ref) {
       ([entry]) => {
         if (entry.isIntersecting) {
           setIsVisible(true);
-          observer.unobserve(element); // 一度表示されたら監視を停止
+          observer.unobserve(element); // Stop watching once visible
         }
       },
       { threshold: 0.1 }
@@ -1484,7 +1487,7 @@ function useLazyLoad(ref) {
     observer.observe(element);
 
     return () => {
-      observer.disconnect(); // クリーンアップ
+      observer.disconnect(); // Cleanup
     };
   }, [ref]);
 
@@ -1492,10 +1495,10 @@ function useLazyLoad(ref) {
 }
 ```
 
-### 8.2 Vue.js でのメモリ管理
+### 8.2 Memory Management in Vue.js
 
 ```javascript
-// Vue 3 Composition API でのメモリ管理
+// Memory management with Vue 3 Composition API
 import { ref, onMounted, onBeforeUnmount, watch } from "vue";
 
 export function usePolling(fetchFn, intervalMs = 5000) {
@@ -1521,7 +1524,7 @@ export function usePolling(fetchFn, intervalMs = 5000) {
   });
 
   onBeforeUnmount(() => {
-    // 確実にクリーンアップ
+    // Ensure cleanup
     if (timerId) clearInterval(timerId);
     if (abortController) abortController.abort();
   });
@@ -1532,24 +1535,24 @@ export function usePolling(fetchFn, intervalMs = 5000) {
 
 ---
 
-## 9. 本番環境でのメモリ監視戦略
+## 9. Memory Monitoring Strategy for Production Environments
 
-### 9.1 メモリ予算 (Memory Budget) の設定
+### 9.1 Setting a Memory Budget
 
-パフォーマンスバジェットと同様に、メモリ消費にも予算を設けて継続的に監視することが重要。
+Just like performance budgets, it is important to set budgets for memory consumption and monitor them continuously.
 
-| メトリクス | 推奨上限 (モバイル) | 推奨上限 (デスクトップ) | 測定方法 |
-|-----------|-------------------|---------------------|---------|
-| JS Heap (初期ロード後) | 30 MB | 80 MB | `performance.memory.usedJSHeapSize` |
-| JS Heap (ピーク時) | 80 MB | 200 MB | Heap Snapshot |
-| DOM ノード数 | 800 | 1500 | `document.querySelectorAll("*").length` |
-| JS イベントリスナー数 | 200 | 500 | DevTools > Elements > Event Listeners |
-| Detached DOM ノード | 0 | 0 | Heap Snapshot で "Detached" 検索 |
+| Metric | Recommended Limit (Mobile) | Recommended Limit (Desktop) | Measurement Method |
+|--------|--------------------------|---------------------------|-------------------|
+| JS Heap (after initial load) | 30 MB | 80 MB | `performance.memory.usedJSHeapSize` |
+| JS Heap (peak) | 80 MB | 200 MB | Heap Snapshot |
+| DOM node count | 800 | 1500 | `document.querySelectorAll("*").length` |
+| JS event listener count | 200 | 500 | DevTools > Elements > Event Listeners |
+| Detached DOM nodes | 0 | 0 | Search "Detached" in Heap Snapshot |
 
-### 9.2 自動リーク検出テスト
+### 9.2 Automated Leak Detection Testing
 
 ```javascript
-// コード例 12: Puppeteer を使った自動メモリリーク検出
+// Code example 12: Automated memory leak detection with Puppeteer
 
 const puppeteer = require("puppeteer");
 
@@ -1559,12 +1562,12 @@ async function detectMemoryLeak(url, action, iterations = 10) {
 
   await page.goto(url, { waitUntil: "networkidle0" });
 
-  // ウォームアップ: 最初の数回は計測対象外
+  // Warmup: exclude first few runs from measurement
   for (let i = 0; i < 3; i++) {
     await action(page);
   }
 
-  // GC を実行してベースラインを取得
+  // Run GC to get baseline
   await page.evaluate(() => {
     if (window.gc) window.gc();
   });
@@ -1574,12 +1577,12 @@ async function detectMemoryLeak(url, action, iterations = 10) {
   for (let i = 0; i < iterations; i++) {
     await action(page);
 
-    // GC を強制実行
+    // Force GC
     await page.evaluate(() => {
       if (window.gc) window.gc();
     });
 
-    // メモリ使用量を記録
+    // Record memory usage
     const metrics = await page.metrics();
     memorySnapshots.push({
       iteration: i,
@@ -1593,7 +1596,7 @@ async function detectMemoryLeak(url, action, iterations = 10) {
 
   await browser.close();
 
-  // リーク判定: メモリが単調増加しているか
+  // Leak determination: is memory monotonically increasing?
   const heapValues = memorySnapshots.map(s => s.jsHeapUsedSize);
   const firstHalf = heapValues.slice(0, Math.floor(heapValues.length / 2));
   const secondHalf = heapValues.slice(Math.floor(heapValues.length / 2));
@@ -1601,7 +1604,7 @@ async function detectMemoryLeak(url, action, iterations = 10) {
   const avgFirst = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
   const avgSecond = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
 
-  const leakDetected = avgSecond > avgFirst * 1.1; // 10%以上の増加
+  const leakDetected = avgSecond > avgFirst * 1.1; // More than 10% increase
 
   return {
     leakDetected,
@@ -1612,7 +1615,7 @@ async function detectMemoryLeak(url, action, iterations = 10) {
   };
 }
 
-// 使用例:
+// Usage:
 // const result = await detectMemoryLeak(
 //   "http://localhost:3000",
 //   async (page) => {
@@ -1628,26 +1631,26 @@ async function detectMemoryLeak(url, action, iterations = 10) {
 
 ---
 
-## 10. 演習問題
+## 10. Exercises
 
-### 演習 1 (初級): メモリリークの識別
+### Exercise 1 (Beginner): Identifying Memory Leaks
 
-以下のコードに含まれるメモリリークを全て指摘し、修正せよ。
+Identify all memory leaks in the following code and fix them.
 
 ```javascript
-// 演習 1: 以下のコードのメモリリークを修正せよ
+// Exercise 1: Fix the memory leaks in the following code
 
 class ChatRoom {
   constructor() {
     this.messages = [];
     this.subscribers = [];
 
-    // (A) リサイズハンドラ
+    // (A) Resize handler
     window.addEventListener("resize", () => {
       this.adjustLayout();
     });
 
-    // (B) メッセージポーリング
+    // (B) Message polling
     setInterval(async () => {
       const newMessages = await fetch("/api/messages").then(r => r.json());
       this.messages.push(...newMessages);
@@ -1660,7 +1663,7 @@ class ChatRoom {
   }
 
   adjustLayout() {
-    // レイアウト調整処理
+    // Layout adjustment processing
   }
 
   render() {
@@ -1668,13 +1671,13 @@ class ChatRoom {
   }
 
   destroy() {
-    // 何もしていない!
+    // Does nothing!
   }
 }
 ```
 
 <details>
-<summary>解答例 (クリックで展開)</summary>
+<summary>Example Answer (click to expand)</summary>
 
 ```javascript
 class ChatRoomFixed {
@@ -1683,12 +1686,12 @@ class ChatRoomFixed {
     this.subscribers = [];
     this.abortController = new AbortController();
 
-    // (A) 修正: AbortController で管理
+    // (A) Fix: managed with AbortController
     window.addEventListener("resize", () => {
       this.adjustLayout();
     }, { signal: this.abortController.signal });
 
-    // (B) 修正: intervalId を保持 + メッセージ上限
+    // (B) Fix: retain intervalId + message limit
     this.pollingId = setInterval(async () => {
       try {
         const res = await fetch("/api/messages", {
@@ -1697,7 +1700,7 @@ class ChatRoomFixed {
         const newMessages = await res.json();
         this.messages.push(...newMessages);
 
-        // メッセージ数の上限を設ける (メモリ無制限増加を防止)
+        // Set a message limit (prevent unlimited memory growth)
         if (this.messages.length > 1000) {
           this.messages = this.messages.slice(-500);
         }
@@ -1713,7 +1716,7 @@ class ChatRoomFixed {
 
   subscribe(callback) {
     this.subscribers.push(callback);
-    // unsubscribe 関数を返す
+    // Return an unsubscribe function
     return () => {
       const index = this.subscribers.indexOf(callback);
       if (index !== -1) this.subscribers.splice(index, 1);
@@ -1727,86 +1730,86 @@ class ChatRoomFixed {
   }
 
   destroy() {
-    // 全リスナーを一括解除
+    // Bulk-remove all listeners
     this.abortController.abort();
-    // タイマー停止
+    // Stop timer
     clearInterval(this.pollingId);
-    // 参照をクリア
+    // Clear references
     this.messages = [];
     this.subscribers = [];
   }
 }
 ```
 
-**指摘ポイント:**
-1. `window.addEventListener` に匿名関数を使用しており、`removeEventListener` できない → AbortController で管理
-2. `setInterval` の戻り値を保持しておらず、`clearInterval` できない → `this.pollingId` で保持
-3. `this.messages` が無制限に増加する → 上限を設けて古いメッセージを削除
-4. `subscribe` で登録した `callback` を解除する手段がない → unsubscribe 関数を返す
-5. `destroy()` が空 → 全リソースを確実に解放
+**Issues identified:**
+1. An anonymous function is used with `window.addEventListener`, which cannot be `removeEventListener`'d → manage with AbortController
+2. The return value of `setInterval` is not retained, so `clearInterval` cannot be called → retain as `this.pollingId`
+3. `this.messages` grows without limit → set a limit and delete old messages
+4. There is no way to unregister the `callback` registered with `subscribe` → return an unsubscribe function
+5. `destroy()` is empty → reliably release all resources
 
 </details>
 
-### 演習 2 (中級): Heap Snapshot の分析
+### Exercise 2 (Intermediate): Analyzing Heap Snapshots
 
-以下のシナリオで Heap Snapshot を取得し、リーク原因を特定せよ。
+Obtain a Heap Snapshot in the following scenario and identify the cause of the leak.
 
 ```
-シナリオ:
-1. SPAアプリケーションでユーザー一覧ページを表示
-2. ユーザー詳細モーダルを10回開閉する
-3. メモリが開閉のたびに増加し、解放されない
+Scenario:
+1. Display a user list page in an SPA
+2. Open and close a user detail modal 10 times
+3. Memory increases with each open/close and is not released
 
-手順:
-(a) DevTools Memory タブを開き、初期スナップショットを取得
-(b) モーダルを10回開閉する
-(c) ゴミ箱アイコンでGCを強制実行
-(d) 2つ目のスナップショットを取得
-(e) Comparison ビューで分析
+Steps:
+(a) Open the DevTools Memory tab and take the initial snapshot
+(b) Open and close the modal 10 times
+(c) Force GC by clicking the trash icon
+(d) Take a second snapshot
+(e) Analyze with the Comparison view
 
-注目すべきポイント:
-- "Detached" で検索 → 切り離されたDOMノード
-- #Delta が正の大きい値 → リーク候補
-- Retainers パネルで保持チェーンを確認
-- EventListener や closure が保持者になっていないか
+Key points to look for:
+- Search for "Detached" → detached DOM nodes
+- Large positive #Delta values → leak candidates
+- Check retention chains in the Retainers panel
+- Look for EventListeners or closures as retainers
 ```
 
-**確認項目チェックリスト:**
+**Verification checklist:**
 
-| 確認項目 | 期待値 | リーク時の傾向 |
-|---------|--------|-------------|
-| Detached HTMLDivElement | 0 | モーダルの開閉回数に比例して増加 |
-| (closure) | 安定 | 開閉ごとに新しいクロージャが蓄積 |
-| EventListener count | 安定 | 開閉ごとに増加 |
-| Array entries | 安定 | 内部配列にDOM参照が蓄積 |
+| Item | Expected Value | Tendency When Leaking |
+|------|---------------|----------------------|
+| Detached HTMLDivElement | 0 | Increases proportionally to modal open/close count |
+| (closure) | Stable | New closures accumulate with each open/close |
+| EventListener count | Stable | Increases with each open/close |
+| Array entries | Stable | DOM references accumulate in internal array |
 
-### 演習 3 (上級): メモリ安全なキャッシュシステムの設計
+### Exercise 3 (Advanced): Designing a Memory-Safe Cache System
 
-以下の要件を満たすキャッシュシステムを設計・実装せよ。
+Design and implement a cache system meeting the following requirements.
 
-**要件:**
-1. LRU (Least Recently Used) 方式で最大エントリ数を制限
-2. 個々のエントリに TTL (Time To Live) を設定可能
-3. メモリプレッシャー時に自動的にエントリを削減
-4. キャッシュヒット率の統計情報を提供
+**Requirements:**
+1. LRU (Least Recently Used) method with a maximum entry count limit
+2. Individual entries can have a TTL (Time To Live)
+3. Automatically reduce entries under memory pressure
+4. Provide cache hit rate statistics
 
 <details>
-<summary>解答例 (クリックで展開)</summary>
+<summary>Example Answer (click to expand)</summary>
 
 ```javascript
 class MemorySafeCache {
   constructor(options = {}) {
     this.maxEntries = options.maxEntries || 1000;
-    this.defaultTTL = options.defaultTTL || 60000; // 60秒
+    this.defaultTTL = options.defaultTTL || 60000; // 60 seconds
     this.pressureThreshold = options.pressureThreshold || 0.8; // 80%
 
-    // LRU 用の Map (挿入順序を保持)
+    // Map for LRU (preserves insertion order)
     this.cache = new Map();
 
-    // 統計情報
+    // Statistics
     this.stats = { hits: 0, misses: 0, evictions: 0, expired: 0 };
 
-    // メモリプレッシャー監視
+    // Memory pressure monitoring
     this.startMemoryMonitoring();
   }
 
@@ -1817,7 +1820,7 @@ class MemorySafeCache {
       return undefined;
     }
 
-    // TTL チェック
+    // TTL check
     if (Date.now() > entry.expiresAt) {
       this.cache.delete(key);
       this.stats.expired++;
@@ -1825,7 +1828,7 @@ class MemorySafeCache {
       return undefined;
     }
 
-    // LRU: アクセスされたエントリを末尾に移動
+    // LRU: move accessed entry to end
     this.cache.delete(key);
     this.cache.set(key, entry);
 
@@ -1834,12 +1837,12 @@ class MemorySafeCache {
   }
 
   set(key, value, ttl = this.defaultTTL) {
-    // 既存エントリがあれば削除 (更新)
+    // Delete existing entry if it exists (update)
     if (this.cache.has(key)) {
       this.cache.delete(key);
     }
 
-    // サイズ制限チェック
+    // Size limit check
     while (this.cache.size >= this.maxEntries) {
       this.evictOldest();
     }
@@ -1856,7 +1859,7 @@ class MemorySafeCache {
   }
 
   evictOldest() {
-    // Map の最初のエントリ (最も古い) を削除
+    // Delete the first entry (oldest) in Map
     const firstKey = this.cache.keys().next().value;
     if (firstKey !== undefined) {
       this.cache.delete(firstKey);
@@ -1872,14 +1875,14 @@ class MemorySafeCache {
   }
 
   estimateSize(value) {
-    // 大まかなサイズ推定
+    // Rough size estimation
     if (typeof value === "string") return value.length * 2;
     if (typeof value === "number") return 8;
     if (value === null || value === undefined) return 0;
     try {
       return JSON.stringify(value).length * 2;
     } catch {
-      return 1024; // 推定不能な場合のデフォルト
+      return 1024; // Default when estimation is not possible
     }
   }
 
@@ -1919,65 +1922,65 @@ class MemorySafeCache {
 
 ---
 
-## 11. よくある質問 (FAQ)
+## 11. Frequently Asked Questions (FAQ)
 
-### Q1: ガベージコレクションを手動で実行できるか?
+### Q1: Can garbage collection be triggered manually?
 
-ブラウザ環境では `gc()` 関数は通常利用できない。Chrome DevTools の Memory パネルにあるゴミ箱アイコンをクリックすることで手動GCを実行できるが、これはデバッグ目的に限られる。
+In browser environments, the `gc()` function is not normally available. You can trigger manual GC by clicking the trash icon in the Memory panel of Chrome DevTools, but this is limited to debugging purposes.
 
-Node.js では `--expose-gc` フラグを付けて起動することで `global.gc()` が利用可能になる。ただし、本番環境で手動GCを多用するのは推奨されない。V8のGCスケジューラはヒューリスティックに基づいて最適なタイミングでGCを実行しており、手動介入はパフォーマンスを悪化させることがある。
+In Node.js, starting with the `--expose-gc` flag makes `global.gc()` available. However, frequent manual GC in production is not recommended. V8's GC scheduler uses heuristics to run GC at optimal times, and manual intervention can degrade performance.
 
 ```javascript
-// Node.js: --expose-gc フラグが必要
+// Node.js: requires --expose-gc flag
 if (global.gc) {
-  global.gc(); // Minor GC + Major GC を実行
+  global.gc(); // Runs Minor GC + Major GC
 } else {
   console.warn("GC is not exposed. Run with --expose-gc flag.");
 }
 ```
 
-### Q2: メモリリークとメモリ膨張 (Memory Bloat) の違いは?
+### Q2: What is the difference between a memory leak and memory bloat?
 
-**メモリリーク**: 不要になったオブジェクトが意図せず保持され続け、使用メモリが単調増加する現象。GCルートからの参照が残っているため、GCが回収できない。
+**Memory leak**: A phenomenon where unnecessary objects are unintentionally retained, causing memory usage to monotonically increase. GC cannot collect them because references from GC roots remain.
 
-**メモリ膨張 (Memory Bloat)**: アプリケーションが正当に必要とするメモリが設計上多すぎる現象。リークではないが、パフォーマンスに悪影響を与える。
+**Memory bloat**: A phenomenon where an application legitimately requires too much memory by design. Not a leak, but it negatively affects performance.
 
-| 特性 | メモリリーク | メモリ膨張 |
-|------|------------|----------|
-| メモリ推移 | 単調増加 (時間とともに悪化) | 高いが安定 |
-| GC | 回収できないオブジェクトが蓄積 | GCは正常に動作 |
-| 原因 | バグ (参照の解放忘れ) | 設計上の問題 (非効率なデータ構造) |
-| 対策 | 参照の解放、リスナーの解除 | データ構造の最適化、仮想化、遅延読み込み |
-| 検出方法 | Heap Snapshot の Comparison | Performance Monitor の JS Heap Size |
+| Property | Memory Leak | Memory Bloat |
+|----------|------------|-------------|
+| Memory trend | Monotonically increases (worsens over time) | High but stable |
+| GC | Unreachable objects accumulate | GC operates normally |
+| Cause | Bug (forgotten reference release) | Design issue (inefficient data structures) |
+| Countermeasure | Release references, remove listeners | Optimize data structures, virtualize, lazy load |
+| Detection | Heap Snapshot Comparison | Performance Monitor JS Heap Size |
 
-### Q3: WeakMap と通常の Map はどちらを使うべきか?
+### Q3: Which should I use, WeakMap or regular Map?
 
-**Map を使うべきケース:**
-- キーがプリミティブ値 (文字列、数値) の場合 → WeakMap はオブジェクトキーのみ
-- キーの列挙が必要な場合 → WeakMap は `keys()`, `values()`, `entries()` を持たない
-- キャッシュのサイズを明示的に管理したい場合
+**Use Map when:**
+- Keys are primitive values (strings, numbers) → WeakMap only supports object keys
+- Key enumeration is needed → WeakMap has no `keys()`, `values()`, `entries()`
+- You want explicit cache size management
 
-**WeakMap を使うべきケース:**
-- DOM要素にメタデータを関連付ける場合
-- オブジェクトへの追加データを、そのオブジェクトのライフサイクルに連動させたい場合
-- プライベートデータの格納 (外部からアクセス不可)
-- メモリリークを避けたいキャッシュ
+**Use WeakMap when:**
+- Associating metadata with DOM elements
+- You want additional object data to follow the object's lifecycle
+- Storing private data (inaccessible from outside)
+- Caches where you want to avoid memory leaks
 
 ```javascript
-// WeakMap が最適: DOM要素へのメタデータ付与
+// WeakMap is ideal: attaching metadata to DOM elements
 const tooltipData = new WeakMap();
 
 function setTooltip(element, text) {
   tooltipData.set(element, { text, visible: false });
-  // element がDOMから除去されGCされると、tooltipDataのエントリも自動消滅
+  // When element is removed from DOM and GC'd, the tooltipData entry also disappears
 }
 
-// Map が最適: 文字列キーのキャッシュ
+// Map is ideal: cache with string keys
 const apiCache = new Map();
 
 function cacheResponse(url, data) {
   apiCache.set(url, { data, timestamp: Date.now() });
-  // 明示的なサイズ管理が可能
+  // Explicit size management is possible
   if (apiCache.size > 100) {
     const oldestKey = apiCache.keys().next().value;
     apiCache.delete(oldestKey);
@@ -1985,172 +1988,172 @@ function cacheResponse(url, data) {
 }
 ```
 
-### Q4: ArrayBuffer や TypedArray のメモリはどこに割り当てられるか?
+### Q4: Where is memory for ArrayBuffer and TypedArray allocated?
 
-ArrayBuffer のバッキングストアは V8 ヒープの外側 (external memory) に割り当てられる。ただし、ArrayBuffer オブジェクト自体は V8 ヒープ上に存在する。
+The backing store of ArrayBuffer is allocated outside the V8 heap (external memory). However, the ArrayBuffer object itself exists on the V8 heap.
 
 ```javascript
-// ArrayBuffer: バッキングストアは external memory
+// ArrayBuffer: backing store in external memory
 const buffer = new ArrayBuffer(1024 * 1024); // 1MB
-// → V8 ヒープ上には ArrayBuffer オブジェクト (~100 bytes)
-// → external memory に 1MB の連続メモリブロック
+// → V8 heap: ArrayBuffer object (~100 bytes)
+// → external memory: 1MB contiguous memory block
 
-// SharedArrayBuffer: 複数の Worker 間で共有可能
+// SharedArrayBuffer: can be shared between multiple Workers
 const shared = new SharedArrayBuffer(1024);
-// → Web Worker 間でメモリを共有
-// → Cross-Origin Isolation (COOP + COEP) が必要
+// → Shares memory between Web Workers
+// → Requires Cross-Origin Isolation (COOP + COEP)
 
-// TypedArray: ArrayBuffer のビューであり、追加のメモリは消費しない
-const view1 = new Uint8Array(buffer);       // buffer の全体を参照
-const view2 = new Float64Array(buffer, 0, 128); // buffer の一部を参照
-// → view1, view2 は同じ buffer のメモリを共有
+// TypedArray: a view of ArrayBuffer, does not consume additional memory
+const view1 = new Uint8Array(buffer);        // References the entire buffer
+const view2 = new Float64Array(buffer, 0, 128); // References a portion of buffer
+// → view1 and view2 share the same buffer memory
 ```
 
-### Q5: Web Worker を使うとメモリ管理はどう変わるか?
+### Q5: How does using Web Workers change memory management?
 
-各 Web Worker は独立した V8 インスタンスとヒープを持つ。Worker 間でのデータ転送は、構造化複製 (Structured Clone) によるコピーか、Transferable オブジェクトによる所有権の移転で行われる。
+Each Web Worker has an independent V8 instance and heap. Data transfer between Workers is done either by copying (Structured Clone) or by transferring ownership (Transferable objects).
 
 ```javascript
-// メインスレッド
+// Main thread
 const worker = new Worker("worker.js");
 
-// コピー転送: データが複製される (元データは保持される)
+// Copy transfer: data is duplicated (original is retained)
 const data = new Uint8Array(1024 * 1024);
 worker.postMessage({ type: "process", data: data });
-// → data のコピーが Worker に送られる (メモリが一時的に2倍)
+// → A copy of data is sent to Worker (memory temporarily doubles)
 
-// 所有権移転 (Transfer): ゼロコピーでデータを移動
+// Ownership transfer (Transfer): moves data without copying
 const buffer = new ArrayBuffer(1024 * 1024);
 worker.postMessage({ type: "process", buffer: buffer }, [buffer]);
-// → buffer の所有権が Worker に移転
-// → メインスレッド側の buffer.byteLength は 0 になる (使用不可)
-// → メモリの複製が発生しない
+// → Ownership of buffer is transferred to Worker
+// → buffer.byteLength on the main thread side becomes 0 (unusable)
+// → No memory duplication occurs
 ```
 
-### Q6: メモリリークを検出する方法は？（Chrome DevTools）
+### Q6: How do I detect memory leaks? (Chrome DevTools)
 
-Chrome DevTools の Memory パネルを使った体系的なメモリリーク検出手順:
+Systematic memory leak detection using the Chrome DevTools Memory panel:
 
-**ステップ1: ベースラインの取得**
-1. ページをリロードして初期状態にする
-2. Memory パネル → Heap snapshot を撮影 (Snapshot 1)
+**Step 1: Get a baseline**
+1. Reload the page to the initial state
+2. Memory panel → Take Heap snapshot (Snapshot 1)
 
-**ステップ2: 操作の実行**
-3. リークが疑われる操作を実行（例: モーダルを開いて閉じる、ページ遷移、データ読み込み）
-4. 操作を繰り返す（5〜10回程度）
+**Step 2: Perform operations**
+3. Execute suspected leaking operations (e.g., open and close a modal, page navigation, data loading)
+4. Repeat the operations (5~10 times)
 
-**ステップ3: 比較分析**
-5. もう一度 Heap snapshot を撮影 (Snapshot 2)
-6. Snapshot 2 を選択し、表示モードを "Comparison" に変更
-7. "Objects allocated between Snapshot 1 and Snapshot 2" を確認
+**Step 3: Comparative analysis**
+5. Take another Heap snapshot (Snapshot 2)
+6. Select Snapshot 2 and change the display mode to "Comparison"
+7. Check "Objects allocated between Snapshot 1 and Snapshot 2"
 
-**ステップ4: リークの特定**
+**Step 4: Identify the leak**
 ```
-Comparison ビューの見方:
-- New: 新しく作成されたオブジェクト数
-- Deleted: 削除されたオブジェクト数
-- Delta: New - Deleted (正の値が大きいとリークの可能性)
-- Size Delta: メモリ増加量
+How to read the Comparison view:
+- New: number of newly created objects
+- Deleted: number of deleted objects
+- Delta: New - Deleted (large positive value may indicate a leak)
+- Size Delta: amount of memory increase
 ```
 
-リークの典型的な兆候:
-- Delta が大きく正の値のまま推移する
-- Detached HTMLDivElement などの DOM ノードが残存
-- Array や Object が際限なく増加している
+Typical signs of a leak:
+- Delta stays large and positive
+- DOM nodes like Detached HTMLDivElement remain
+- Arrays or Objects increase indefinitely
 
-**ステップ5: Retainers パスの分析**
-8. 増加しているオブジェクトを選択
-9. "Retainers" パネルで、GC ルートからの参照チェーンを確認
-10. 意図しない参照を特定して修正
+**Step 5: Analyze the Retainers path**
+8. Select the increasing object
+9. Check the reference chain from the GC root in the "Retainers" panel
+10. Identify and fix unintentional references
 
 ```javascript
-// 検出例: イベントリスナーの解除忘れ
+// Detection example: forgotten event listener removal
 class ComponentWithLeak {
   constructor() {
     this.data = new Array(10000).fill(0);
-    // 問題: removeEventListener していない
+    // Problem: not calling removeEventListener
     window.addEventListener('resize', this.handleResize.bind(this));
   }
   handleResize() { /* ... */ }
 }
 
-// Heap Snapshot の Retainers:
+// Heap Snapshot Retainers:
 // GC root → Window → listeners → resize → Function → ComponentWithLeak → data
 //                                                       ^^^^^^^^^^^^^^^^
-//                                                       ここでリークが発生
+//                                                       Leak occurs here
 ```
 
-### Q7: クロージャによるメモリリークを防ぐには？
+### Q7: How can I prevent memory leaks from closures?
 
-クロージャは便利だが、不要な外部変数をキャプチャし続けるとメモリリークの原因になる。
+Closures are convenient but can cause memory leaks by continuing to capture unnecessary external variables.
 
-**問題パターン1: 大きなオブジェクトを不要にキャプチャ**
+**Problem pattern 1: Unintentionally capturing large objects**
 ```javascript
 function createProcessor() {
   const hugeData = new Array(1000000).fill(Math.random()); // 8MB
   const metadata = { size: hugeData.length, created: Date.now() };
 
-  // 問題: metadata だけ使いたいのに、hugeData も一緒にキャプチャされる
+  // Problem: want to use only metadata, but hugeData is also captured
   return function() {
     console.log(`Processed ${metadata.size} items`);
   };
 }
 
 const process = createProcessor();
-// → hugeData は関数スコープ内で定義されているため、
-//   返された関数がクロージャとしてキャプチャし続ける
-//   (process が生きている限り 8MB が解放されない)
+// → hugeData is defined in the function scope and continues to be captured
+//   by the returned function as a closure
+//   (8MB is not freed as long as process is alive)
 ```
 
-**解決策1: 必要な値だけを抽出**
+**Solution 1: Extract only needed values**
 ```javascript
 function createProcessor() {
   const hugeData = new Array(1000000).fill(Math.random());
-  const size = hugeData.length; // プリミティブ値を抽出
+  const size = hugeData.length; // Extract the primitive value
   const created = Date.now();
 
-  // hugeData はここでスコープを抜けるので GC 対象になる
+  // hugeData goes out of scope here and becomes a GC candidate
 
   return function() {
     console.log(`Processed ${size} items at ${created}`);
   };
-  // → クロージャは size と created だけをキャプチャ (16バイト程度)
+  // → Closure captures only size and created (~16 bytes)
 }
 ```
 
-**問題パターン2: イベントハンドラでの this キャプチャ**
+**Problem pattern 2: Capturing this in event handlers**
 ```javascript
 class DataGrid {
   constructor(data) {
-    this.data = data; // 大量のデータ
+    this.data = data; // Large amounts of data
     this.renderCache = new Map();
 
-    // 問題: アロー関数で this を暗黙的にキャプチャ
+    // Problem: implicitly captures this with arrow function
     document.getElementById('refresh-btn').addEventListener('click', () => {
-      this.refresh(); // this.data も一緒にキャプチャされる
+      this.refresh(); // this.data is also captured
     });
   }
 
   refresh() {
     this.renderCache.clear();
-    // ... 再描画処理
+    // ... re-render processing
   }
 
   destroy() {
-    // 問題: イベントリスナーが解除されていない
-    // → this (と this.data) が解放されない
+    // Problem: event listener is not removed
+    // → this (and this.data) cannot be freed
   }
 }
 ```
 
-**解決策2: 明示的なクリーンアップ**
+**Solution 2: Explicit cleanup**
 ```javascript
 class DataGrid {
   constructor(data) {
     this.data = data;
     this.renderCache = new Map();
 
-    // 解決策: ハンドラへの参照を保持
+    // Solution: retain reference to the handler
     this.handleRefresh = () => this.refresh();
     this.refreshBtn = document.getElementById('refresh-btn');
     this.refreshBtn.addEventListener('click', this.handleRefresh);
@@ -2161,32 +2164,32 @@ class DataGrid {
   }
 
   destroy() {
-    // 正しくリスナーを解除
+    // Properly remove listener
     this.refreshBtn.removeEventListener('click', this.handleRefresh);
-    this.handleRefresh = null; // 参照も切断
-    this.data = null; // 大きなデータも明示的に解放
+    this.handleRefresh = null; // Also cut the reference
+    this.data = null; // Also explicitly free the large data
     this.renderCache.clear();
   }
 }
 ```
 
-**問題パターン3: タイマーコールバックでのキャプチャ**
+**Problem pattern 3: Capturing in timer callbacks**
 ```javascript
 function startPolling(url) {
-  const history = []; // 結果の履歴
+  const history = []; // Result history
 
   const intervalId = setInterval(async () => {
     const result = await fetch(url).then(r => r.json());
-    history.push(result); // 無制限に蓄積
+    history.push(result); // Accumulates indefinitely
     processResult(result);
   }, 5000);
 
   return () => clearInterval(intervalId);
-  // 問題: history は clearInterval しても残り続ける
+  // Problem: history persists even after clearInterval
 }
 ```
 
-**解決策3: リングバッファで上限を設ける**
+**Solution 3: Set a limit with a ring buffer**
 ```javascript
 function startPolling(url, maxHistory = 10) {
   const history = [];
@@ -2194,7 +2197,7 @@ function startPolling(url, maxHistory = 10) {
   const intervalId = setInterval(async () => {
     const result = await fetch(url).then(r => r.json());
 
-    // 上限を超えたら古いものを削除
+    // Delete old ones when limit is exceeded
     if (history.length >= maxHistory) {
       history.shift();
     }
@@ -2205,55 +2208,55 @@ function startPolling(url, maxHistory = 10) {
 
   return () => {
     clearInterval(intervalId);
-    history.length = 0; // 配列もクリア
+    history.length = 0; // Also clear the array
   };
 }
 ```
 
-**ベストプラクティス:**
-1. クロージャがキャプチャする変数を意識する（DevTools の Scope パネルで確認可能）
-2. 大きなデータは必要な値だけ抽出してから関数を返す
-3. イベントリスナーやタイマーのクリーンアップを必ず実装
-4. 無制限に成長する配列/Map には上限を設ける
+**Best practices:**
+1. Be aware of the variables a closure captures (can verify in DevTools Scope panel)
+2. Extract only needed values from large data before returning the function
+3. Always implement cleanup for event listeners and timers
+4. Set limits on arrays/Maps that grow indefinitely
 
-### Q8: 大規模SPAでのメモリ管理戦略は？
+### Q8: What is the memory management strategy for large-scale SPAs?
 
-シングルページアプリケーション (SPA) は長時間稼働するため、メモリ管理が特に重要。
+Single Page Applications run for long periods, making memory management especially important.
 
-**戦略1: ページ遷移時のクリーンアップ**
+**Strategy 1: Cleanup on page navigation**
 ```javascript
-// React の例
+// React example
 function UserProfile({ userId }) {
   useEffect(() => {
-    // データ購読の開始
+    // Start data subscription
     const subscription = userService.subscribe(userId, handleUpdate);
     const timerId = setInterval(refreshData, 30000);
 
-    // クリーンアップ関数: コンポーネントのアンマウント時に実行
+    // Cleanup function: runs when component unmounts
     return () => {
-      subscription.unsubscribe(); // 購読解除
-      clearInterval(timerId);     // タイマー解除
-      userService.clearCache(userId); // キャッシュクリア
+      subscription.unsubscribe(); // Unsubscribe
+      clearInterval(timerId);     // Clear timer
+      userService.clearCache(userId); // Clear cache
     };
   }, [userId]);
 
-  // ... コンポーネント本体
+  // ... component body
 }
 ```
 
-**戦略2: 仮想化 (Virtualization) で大量データを扱う**
+**Strategy 2: Handle large data with virtualization**
 ```javascript
-// 問題: 10万件のリストを全てDOMレンダリング
+// Problem: render 100,000 list items all as DOM
 function HugeList({ items }) {
   return (
     <div>
       {items.map(item => <ListItem key={item.id} {...item} />)}
-      {/* 10万個のDOMノード → メモリ膨張 */}
+      {/* 100,000 DOM nodes → memory bloat */}
     </div>
   );
 }
 
-// 解決策: react-window による仮想化
+// Solution: virtualization with react-window
 import { FixedSizeList } from 'react-window';
 
 function VirtualizedList({ items }) {
@@ -2270,13 +2273,13 @@ function VirtualizedList({ items }) {
         </div>
       )}
     </FixedSizeList>
-    // 画面に表示される分だけレンダリング (例: 15個)
-    // → メモリ使用量が数千分の一に削減
+    // Only renders what is visible on screen (e.g., 15 items)
+    // → Memory usage reduced by thousands of times
   );
 }
 ```
 
-**戦略3: メモリ予算の設定と監視**
+**Strategy 3: Set and monitor memory budget**
 ```javascript
 class MemoryBudgetMonitor {
   constructor(budgetMB = 150) {
@@ -2300,39 +2303,39 @@ class MemoryBudgetMonitor {
   }
 
   triggerSoftCleanup() {
-    // 優先度の低いキャッシュをクリア
+    // Clear low-priority caches
     imageCache.evictOldest(50);
     dataCache.trim(100);
   }
 
   triggerEmergencyCleanup() {
-    // 全てのキャッシュをクリア
+    // Clear all caches
     imageCache.clear();
     dataCache.clear();
 
-    // ユーザーに通知
-    showNotification("メモリ不足のため、一部のデータをクリアしました");
+    // Notify user
+    showNotification("Some data was cleared due to low memory");
   }
 
   startMonitoring() {
-    setInterval(() => this.checkMemory(), 30000); // 30秒ごと
+    setInterval(() => this.checkMemory(), 30000); // Every 30 seconds
   }
 }
 
-const monitor = new MemoryBudgetMonitor(150); // 予算 150MB
+const monitor = new MemoryBudgetMonitor(150); // Budget 150MB
 ```
 
-**戦略4: キャッシュの有効期限と上限**
+**Strategy 4: Cache expiry and limits**
 ```javascript
 class BoundedCache {
-  constructor(maxSize = 100, maxAge = 5 * 60 * 1000) { // 5分
+  constructor(maxSize = 100, maxAge = 5 * 60 * 1000) { // 5 minutes
     this.cache = new Map();
     this.maxSize = maxSize;
     this.maxAge = maxAge;
   }
 
   set(key, value) {
-    // 上限チェック: LRU削除
+    // Limit check: LRU eviction
     if (this.cache.size >= this.maxSize) {
       const firstKey = this.cache.keys().next().value;
       this.cache.delete(firstKey);
@@ -2348,7 +2351,7 @@ class BoundedCache {
     const entry = this.cache.get(key);
     if (!entry) return undefined;
 
-    // 期限チェック
+    // Expiry check
     if (Date.now() - entry.timestamp > this.maxAge) {
       this.cache.delete(key);
       return undefined;
@@ -2368,19 +2371,19 @@ class BoundedCache {
 }
 ```
 
-**戦略5: Service Worker によるオフロード**
+**Strategy 5: Offload to Web Worker**
 ```javascript
-// メインスレッド
+// Main thread
 const worker = new Worker('heavy-processor.js');
 
 worker.postMessage({
   type: 'processLargeDataset',
   data: hugeDataset
-}, [hugeDataset.buffer]); // Transferable で所有権移転
+}, [hugeDataset.buffer]); // Transfer ownership with Transferable
 
 worker.onmessage = (e) => {
   const result = e.data;
-  updateUI(result); // 結果だけ受け取る
+  updateUI(result); // Receive only the result
 };
 
 // heavy-processor.js (Worker)
@@ -2388,71 +2391,71 @@ self.onmessage = (e) => {
   const { type, data } = e.data;
 
   if (type === 'processLargeDataset') {
-    const result = processData(data); // 重い処理
+    const result = processData(data); // Heavy processing
     self.postMessage(result);
-    // Worker のヒープで処理されるため、メインスレッドに影響しない
+    // Processed on Worker heap, no impact on main thread
   }
 };
 ```
 
-**戦略6: 定期的なページリロード（最終手段）**
+**Strategy 6: Periodic page reload (last resort)**
 ```javascript
-// 長時間稼働するダッシュボードなど
+// For long-running dashboards, etc.
 class AutoReloadManager {
   constructor(maxUptimeHours = 8) {
     this.maxUptime = maxUptimeHours * 60 * 60 * 1000;
     this.startTime = Date.now();
-    this.checkInterval = setInterval(() => this.checkUptime(), 60000); // 1分ごと
+    this.checkInterval = setInterval(() => this.checkUptime(), 60000); // Every minute
   }
 
   checkUptime() {
     const uptime = Date.now() - this.startTime;
 
     if (uptime > this.maxUptime) {
-      // ユーザーに通知してリロード
-      if (confirm("アプリケーションを最新の状態に更新します。よろしいですか？")) {
+      // Notify user and reload
+      if (confirm("The application will be refreshed to the latest state. OK?")) {
         location.reload();
       }
     }
   }
 }
 
-// 8時間で自動リロード提案
+// Suggest auto-reload after 8 hours
 const reloadManager = new AutoReloadManager(8);
 ```
 
-**チェックリスト:**
-- [ ] コンポーネントのクリーンアップ関数を実装
-- [ ] 大量データは仮想化 (react-window, virtual-scroller など)
-- [ ] メモリ予算を設定し、超過時にアラートを発火
-- [ ] キャッシュに上限と有効期限を設ける
-- [ ] 重い処理は Web Worker でオフロード
-- [ ] E2Eテストでメモリリークテストを自動化
-- [ ] 長時間稼働アプリでは定期リロードを検討
+**Checklist:**
+- [ ] Implement component cleanup functions
+- [ ] Virtualize large amounts of data (react-window, virtual-scroller, etc.)
+- [ ] Set a memory budget and fire alerts when exceeded
+- [ ] Set limits and expiry for caches
+- [ ] Offload heavy processing to Web Workers
+- [ ] Automate memory leak tests in E2E tests
+- [ ] Consider periodic reloads for long-running apps
 
 ---
 
-## 12. アンチパターン集
+## 12. Anti-Pattern Collection
 
-### アンチパターン 1: 無制限に成長する配列/Map
+### Anti-Pattern 1: Arrays/Maps That Grow Without Limit
 
 ```javascript
-// 問題: イベントログが際限なく蓄積される
+// Problem: event logs accumulate without limit
 class EventLogger {
   constructor() {
-    this.events = []; // 上限がない!
+    this.events = []; // No limit!
   }
 
   log(event) {
     this.events.push({
       ...event,
       timestamp: Date.now(),
-      stack: new Error().stack // スタックトレースも保持 → メモリ消費大
+      stack: new Error().stack // Also retains stack trace → high memory consumption
     });
   }
 }
 
-// 対策: リングバッファを使用
+// Countermeasure: use a ring buffer
 class BoundedEventLogger {
   constructor(maxSize = 1000) {
     this.events = new Array(maxSize);
@@ -2465,7 +2468,7 @@ class BoundedEventLogger {
     this.events[this.index] = {
       ...event,
       timestamp: Date.now()
-      // stack は本番では省略
+      // stack omitted in production
     };
     this.index = (this.index + 1) % this.maxSize;
     this.count = Math.min(this.count + 1, this.maxSize);
@@ -2483,14 +2486,14 @@ class BoundedEventLogger {
 }
 ```
 
-### アンチパターン 2: MutationObserver の disconnect 忘れ
+### Anti-Pattern 2: Forgetting to disconnect MutationObserver
 
 ```javascript
-// 問題: observer が disconnect されない
+// Problem: observer is never disconnected
 function watchDOMChanges(target) {
   const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
-      processMutation(mutation); // mutation が大量のDOM参照を含む
+      processMutation(mutation); // mutation contains many DOM references
     }
   });
 
@@ -2501,11 +2504,11 @@ function watchDOMChanges(target) {
     characterData: true,
   });
 
-  // disconnect が呼ばれないと、target が DOMから除去されても
-  // observer が内部的に参照を保持し続ける
+  // If disconnect is not called, even after target is removed from DOM,
+  // the observer continues to hold internal references
 }
 
-// 対策: 必ず disconnect を呼ぶ
+// Countermeasure: always call disconnect
 function watchDOMChangesSafe(target) {
   const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
@@ -2518,13 +2521,13 @@ function watchDOMChangesSafe(target) {
     subtree: true,
   });
 
-  // クリーンアップ関数を返す
+  // Return a cleanup function
   return () => {
     observer.disconnect();
   };
 }
 
-// React での使用例
+// React usage example
 function useObserveDOMChanges(ref, callback) {
   React.useEffect(() => {
     if (!ref.current) return;
@@ -2539,69 +2542,69 @@ function useObserveDOMChanges(ref, callback) {
 
 ---
 
-## 13. メモリ管理チェックリスト
+## 13. Memory Management Checklist
 
-### 開発フェーズ
+### Development Phase
 
-- [ ] `"use strict"` または ESLint の `no-implicit-globals` ルールを有効化
-- [ ] `setInterval` / `setTimeout` の戻り値を保持し、クリーンアップで `clear*` を呼ぶ
-- [ ] `addEventListener` には対応する `removeEventListener` または AbortController を使用
-- [ ] クロージャのキャプチャ変数を最小限にする (関数を別スコープで定義)
-- [ ] DOM参照を JS 変数に保持する場合、DOM除去時に null を代入
-- [ ] 配列や Map に上限サイズを設ける
-- [ ] `console.log` に大きなオブジェクトを渡さない (本番では除去)
+- [ ] Enable `"use strict"` or ESLint's `no-implicit-globals` rule
+- [ ] Retain return values of `setInterval` / `setTimeout` and call `clear*` in cleanup
+- [ ] Pair `addEventListener` with corresponding `removeEventListener` or AbortController
+- [ ] Minimize closure capture variables (define functions in separate scopes)
+- [ ] When holding DOM references in JS variables, assign null when the DOM is removed
+- [ ] Set maximum sizes on arrays and Maps
+- [ ] Do not pass large objects to `console.log` (remove in production)
 
-### テストフェーズ
+### Testing Phase
 
-- [ ] Chrome DevTools の Heap Snapshot Comparison でリーク検出テストを実施
-- [ ] Puppeteer / Playwright による自動メモリリーク検出をCIに組み込む
-- [ ] Performance Monitor で長時間稼働時のメモリ推移を確認
-- [ ] Mobile デバイスでのメモリ消費を確認 (メモリ制約が厳しい)
+- [ ] Conduct leak detection tests with Chrome DevTools Heap Snapshot Comparison
+- [ ] Incorporate automated memory leak detection with Puppeteer / Playwright into CI
+- [ ] Check memory trends during long-running operation with Performance Monitor
+- [ ] Check memory consumption on mobile devices (stricter memory constraints)
 
-### 本番運用フェーズ
+### Production Operation Phase
 
-- [ ] `performance.measureUserAgentSpecificMemory()` または RUM ツールでメモリ監視
-- [ ] メモリ予算を設定し、超過時にアラートを発火
-- [ ] 長時間稼働するSPAでは、定期的なページリロードを検討
+- [ ] Monitor memory with `performance.measureUserAgentSpecificMemory()` or RUM tools
+- [ ] Set a memory budget and fire alerts when exceeded
+- [ ] Consider periodic page reloads for long-running SPAs
 
 ---
 
 ## FAQ
 
-### Q1: メモリリークが疑われるとき、最初に確認すべきことは何ですか?
-Chrome DevTools の Performance Monitor パネルで「JS Heap Size」の推移を監視することから始めます。特定の操作（ページ遷移、モーダルの開閉、リスト操作など）を繰り返した際にヒープサイズが単調増加していればメモリリークの可能性が高いです。次に Memory パネルで操作前後の Heap Snapshot を取得し、Comparison ビューで増加したオブジェクトを特定します。Detached DOM ノード、未解除のイベントリスナー、クロージャによる意図しない参照保持が主要な原因です。
+### Q1: What should I check first when a memory leak is suspected?
+Start by monitoring the "JS Heap Size" trend in Chrome DevTools Performance Monitor panel. If heap size monotonically increases when repeating specific operations (page navigation, dialog open/close, list manipulation, etc.), a memory leak is likely. Next, get Heap Snapshots before and after the operation in the Memory panel and identify the increasing objects with the Comparison view. Detached DOM nodes, unremoved event listeners, and unintentional reference retention by closures are the main causes.
 
-### Q2: WeakMapとMapの使い分けの判断基準は何ですか?
-キーとなるオブジェクトのライフサイクルに依存するメタデータを格納する場合は WeakMap を使います。例えば、DOM要素に関連するキャッシュデータや、オブジェクトごとのプライベートデータの格納に適しています。WeakMap のキーはGCに回収されうるため、キーの列挙や `.size` プロパティは利用できません。一方、キーを列挙する必要がある場合や、プリミティブ値をキーにしたい場合、キーの生存をMap側で保証したい場合は通常の Map を使用します。
+### Q2: What are the criteria for choosing between WeakMap and Map?
+Use WeakMap when storing metadata that depends on the lifecycle of the object serving as the key. For example, it is suitable for caching data associated with DOM elements or for storing per-object private data. WeakMap keys can be GC'd, so key enumeration and the `.size` property are unavailable. On the other hand, use a regular Map when you need to enumerate keys, when you want primitive values as keys, or when you want the Map to guarantee the existence of keys.
 
-### Q3: SPAでメモリ使用量が増え続ける場合の一般的な対処法は?
-SPA（Single Page Application）では画面遷移してもページがリロードされないため、メモリが蓄積しやすい構造です。対処法として、(1) コンポーネントのアンマウント時にタイマー（setInterval）、WebSocket接続、イベントリスナーを確実にクリーンアップする、(2) AbortController を使ってfetchリクエストやイベントリスナーを一括解除する、(3) 大量のデータを保持するキャッシュには LRU（Least Recently Used）方式の上限を設ける、(4) `performance.measureUserAgentSpecificMemory()` を使って本番環境でもメモリ使用量を定期的に監視する、といった施策が有効です。
-
----
-
-## まとめ
-
-| 概念 | ポイント |
-|------|---------|
-| メモリモデル | スタック (プリミティブ + 参照) とヒープ (オブジェクト) の二層構造 |
-| V8ヒープ | New Space (Scavenge) と Old Space (Mark-Sweep/Compact) の世代別構成 |
-| GCアルゴリズム | Minor GC (Scavenge, ms単位) と Major GC (Mark-Sweep, インクリメンタル) |
-| リークパターン | タイマー、リスナー、クロージャ、Detached DOM、console.log |
-| 弱参照 | WeakMap/WeakRef で GC を妨げない参照を実現 |
-| DevTools | Heap Snapshot の Comparison ビューがリーク検出の決定打 |
-| 本番監視 | メモリ予算の設定と自動テストの組み込み |
+### Q3: What are common remedies when memory keeps increasing in an SPA?
+Since pages are not reloaded during navigation in SPAs (Single Page Applications), memory tends to accumulate. Effective measures include: (1) ensure cleanup of timers (setInterval), WebSocket connections, and event listeners when components unmount; (2) use AbortController to bulk-remove fetch requests and event listeners; (3) set LRU (Least Recently Used) limits on caches that hold large amounts of data; (4) use `performance.measureUserAgentSpecificMemory()` to periodically monitor memory usage even in production.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| Concept | Key Points |
+|---------|-----------|
+| Memory model | Two-layer structure: stack (primitives + references) and heap (objects) |
+| V8 heap | Generational structure: New Space (Scavenge) and Old Space (Mark-Sweep/Compact) |
+| GC algorithms | Minor GC (Scavenge, ms-level) and Major GC (Mark-Sweep, incremental) |
+| Leak patterns | Timers, listeners, closures, Detached DOM, console.log |
+| Weak references | WeakMap/WeakRef for references that don't prevent GC |
+| DevTools | Heap Snapshot Comparison view is the decisive tool for leak detection |
+| Production monitoring | Setting memory budgets and incorporating automated tests |
+
+---
+
+## Guides to Read Next
 
 - [DOM API](../03-web-apis/00-dom-api.md)
-- イベントモデル
-- イベントループ
+- Event Model
+- Event Loop
 
 ---
 
-## 参考文献
+## References
 
 1. V8 Team. "Trash talk: the Orinoco garbage collector." V8 Blog, 2019. https://v8.dev/blog/trash-talk
 2. Google. "Fix memory problems." Chrome DevTools Documentation, 2024. https://developer.chrome.com/docs/devtools/memory-problems
@@ -2609,4 +2612,3 @@ SPA（Single Page Application）では画面遷移してもページがリロー
 4. Addy Osmani. "Memory Management Reference." 2012.
 5. MDN Web Docs. "Memory management." Mozilla, 2024. https://developer.mozilla.org/en-US/docs/Web/JavaScript/Memory_management
 6. Lin Clark. "A Cartoon Intro to ArrayBuffers and SharedArrayBuffers." Mozilla Hacks, 2017.
-
