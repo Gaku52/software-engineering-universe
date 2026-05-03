@@ -1,39 +1,39 @@
-# ページネーションとフィルタリング
+# Pagination and Filtering
 
-> 大量データを効率的に返すためのページネーション、フィルタリング、ソート、検索の設計パターン。Offset / Cursor / Keyset 方式の比較、GraphQL Relay Connection 仕様、フィルタ構文、全文検索まで、データ取得 API の全技法を網羅する。
+> Design patterns for pagination, filtering, sorting, and searching to efficiently return large datasets. Covers a full range of data-fetching API techniques: comparison of Offset / Cursor / Keyset approaches, the GraphQL Relay Connection spec, filter syntax, and full-text search.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] Offset 方式・Cursor 方式・Keyset 方式の違いと選定基準を理解する
-- [ ] GraphQL Relay Connection 仕様によるページネーションを実装できる
-- [ ] フィルタリングとソートの API 設計を把握する
-- [ ] 全文検索・ファセット検索の設計を学ぶ
-- [ ] ページネーションに関するパフォーマンス最適化を習得する
-- [ ] 各方式のエッジケースとアンチパターンを理解する
+- [ ] Understand the differences between Offset, Cursor, and Keyset pagination and how to choose among them
+- [ ] Implement pagination using the GraphQL Relay Connection spec
+- [ ] Grasp API design for filtering and sorting
+- [ ] Learn the design of full-text search and faceted search
+- [ ] Master performance optimizations related to pagination
+- [ ] Understand edge cases and anti-patterns for each approach
 
-## 前提知識
+## Prerequisites
 
-- REST APIの基本原則 → 参照: [REST Best Practices](../01-rest-and-graphql/00-rest-best-practices.md)
-- HTTPクエリパラメータの仕組み → 参照: HTTPの基礎
-- API設計の命名規則 → 参照: [命名規則と慣例](./01-naming-and-conventions.md)
+- Fundamentals of REST API design → See: [REST Best Practices](../01-rest-and-graphql/00-rest-best-practices.md)
+- How HTTP query parameters work → See: HTTP Basics
+- API design naming conventions → See: [Naming Conventions](./01-naming-and-conventions.md)
 
 ---
 
-## 1. ページネーション方式の全体像
+## 1. Overview of Pagination Approaches
 
-API が返すデータセットが大きくなるにつれ、一度のレスポンスで全件を返すことは
-ネットワーク帯域・メモリ・レスポンスタイムの観点から現実的でなくなる。
-ページネーション（Pagination）は、データセットを小さなチャンク（ページ）に分割し、
-クライアントが必要な部分だけを取得できるようにする手法である。
+As the dataset returned by an API grows larger, returning all records in a single response
+becomes impractical from the perspectives of network bandwidth, memory, and response time.
+Pagination divides a dataset into small chunks (pages) so that
+clients can retrieve only the portion they need.
 
-### 1.1 三大ページネーション方式の比較
+### 1.1 Comparison of the Three Main Pagination Approaches
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│              ページネーション方式の分類                           │
+│              Pagination Approach Classification                   │
 ├──────────────┬──────────────────┬───────────────────────────────┤
-│  Offset 方式  │   Cursor 方式    │       Keyset 方式             │
-│  (ページ番号)  │   (不透明トークン) │    (ソートキー直接指定)        │
+│  Offset      │   Cursor         │       Keyset                  │
+│  (Page Number)│  (Opaque Token)  │  (Sort Key Direct Exposure)  │
 ├──────────────┼──────────────────┼───────────────────────────────┤
 │  page=3      │  cursor=abc123   │  created_at_gt=2024-01-15     │
 │  per_page=20 │  limit=20        │  id_gt=100&limit=20           │
@@ -44,26 +44,26 @@ API が返すデータセットが大きくなるにつれ、一度のレスポ�
 │              │  LIMIT 20        │  LIMIT 20                     │
 ├──────────────┼──────────────────┼───────────────────────────────┤
 │  O(n) skip   │  O(log n) seek   │  O(log n) seek               │
-│  ページジャンプ○│  ページジャンプ× │  ページジャンプ×              │
-│  位置ずれ有り  │  位置ずれ無し    │  位置ずれ無し                 │
+│  Page jump ○ │  Page jump ×    │  Page jump ×                 │
+│  Drift: yes  │  Drift: no       │  Drift: no                   │
 └──────────────┴──────────────────┴───────────────────────────────┘
 ```
 
-> **Cursor 方式と Keyset 方式の違い**: Cursor 方式はソートキーをBase64等で
-> エンコードした「不透明トークン」を使い、クライアントはその中身を知る必要がない。
-> Keyset 方式はソートキーの値をそのままクエリパラメータに露出する。
-> 本質的なSQL実行計画は同じだが、APIの抽象度が異なる。
+> **Difference between Cursor and Keyset**: The Cursor approach uses an "opaque token"
+> that encodes sort key values with Base64, so the client does not need to know its contents.
+> The Keyset approach exposes sort key values directly as query parameters.
+> The underlying SQL execution plan is the same, but the level of API abstraction differs.
 
 ---
 
-### 1.2 Offset 方式（ページ番号ベース）
+### 1.2 Offset Approach (Page-Number Based)
 
-最も直感的なページネーション方式。SQL の `OFFSET` / `LIMIT` に直接対応する。
+The most intuitive pagination approach. Maps directly to SQL `OFFSET` / `LIMIT`.
 
 ```
 GET /api/v1/users?page=3&per_page=20
 
-レスポンス:
+Response:
 {
   "data": [...],
   "meta": {
@@ -83,84 +83,84 @@ GET /api/v1/users?page=3&per_page=20
   }
 }
 
-内部SQL:
+Internal SQL:
 SELECT * FROM users
 ORDER BY created_at DESC
 LIMIT 20 OFFSET 40;  -- (page - 1) * per_page
 
-利点:
-  直感的（「3ページ目」が明確）
-  任意のページにジャンプ可能
-  UIにページ番号を表示しやすい
-  既存のSQLと親和性が高い
+Advantages:
+  Intuitive ("page 3" is clear)
+  Can jump to any page
+  Easy to display page numbers in the UI
+  High compatibility with existing SQL
 
-欠点:
-  OFFSET が大きいとパフォーマンス劣化
-    → OFFSET 100000 は10万行スキップ（O(n)）
-  データの追加/削除で位置ずれ
-    → ページ2を見ている間にデータが挿入されると重複表示
-  totalのCOUNTクエリが重い（大規模テーブル）
+Disadvantages:
+  Performance degrades as OFFSET grows
+    → OFFSET 100000 skips 100,000 rows (O(n))
+  Position drift when data is added or deleted
+    → If data is inserted while viewing page 2, duplicates appear
+  COUNT query for total is expensive (large tables)
 ```
 
-#### Offset 方式の内部動作を図解する
+#### Visualizing the Internal Behavior of Offset
 
 ```
-データベースのスキャン動作（page=5001, per_page=20 の場合）:
+Database scan behavior (page=5001, per_page=20):
 
   Row 1      ─┐
   Row 2       │
   Row 3       │
-  ...         │  ← OFFSET 100000: これらの行を全てスキャン
-  Row 99999   │     してからスキップする（O(n) コスト）
+  ...         │  ← OFFSET 100000: all these rows are scanned
+  Row 99999   │     and then skipped (O(n) cost)
   Row 100000 ─┘
   Row 100001 ─┐
   Row 100002  │
-  ...         │  ← LIMIT 20: この20行だけを返す
+  ...         │  ← LIMIT 20: only these 20 rows are returned
   Row 100020 ─┘
   Row 100021
   ...
 
-  つまり page が大きくなるほどスキャン量が増え、
-  レスポンスタイムは線形的に悪化する:
+  As page increases, the amount scanned grows,
+  and response time degrades linearly:
 
   page=1    →  ~2ms
   page=100  →  ~15ms
   page=1000 →  ~120ms
   page=5000 →  ~600ms
-  page=10000→  ~1200ms （テーブルサイズ依存）
+  page=10000→  ~1200ms (depends on table size)
 ```
 
-#### Offset 方式の位置ずれ問題
+#### Position Drift in the Offset Approach
 
 ```
 Timeline:
-  T1: Client が page=2 (id=21〜40) を取得
-  T2: 別ユーザーが id=25 のデータを削除
-  T3: Client が page=3 を取得
-      → 本来 id=41〜60 だが、削除により id=42〜61 になる
-      → id=41 が page=2 の末尾と page=3 の先頭のどちらにも含まれない
-         （データの「穴」が発生）
+  T1: Client fetches page=2 (id=21~40)
+  T2: Another user deletes id=25
+  T3: Client fetches page=3
+      → Should be id=41~60, but due to deletion it becomes id=42~61
+      → id=41 is missing from both the end of page=2 and the start of page=3
+         (a "hole" in the data appears)
 
-  逆に挿入の場合:
-  T1: Client が page=1 (id=1〜20) を取得
-  T2: 新しいデータが先頭に挿入される（id=0 相当）
-  T3: Client が page=2 を取得
-      → id=20 が page=1 にも page=2 にも含まれる（重複）
+  Conversely, on insertion:
+  T1: Client fetches page=1 (id=1~20)
+  T2: New data is inserted at the top (equivalent to id=0)
+  T3: Client fetches page=2
+      → id=20 appears in both page=1 and page=2 (duplicate)
 
-  この問題は「ページドリフト」と呼ばれる。
+  This problem is called "page drift".
 ```
 
 ---
 
-### 1.3 Cursor 方式（不透明トークンベース）
+### 1.3 Cursor Approach (Opaque Token Based)
 
-ソートキーの値をエンコードした不透明なトークン（cursor）を使い、
-「この位置の次から N 件」を取得する方式。
+Uses an opaque token (cursor) that encodes the sort key value to
+fetch "N records starting from after this position".
 
 ```
 GET /api/v1/users?cursor=eyJpZCI6MTAwfQ&limit=20
 
-レスポンス:
+Response:
 {
   "data": [...],
   "meta": {
@@ -171,37 +171,37 @@ GET /api/v1/users?cursor=eyJpZCI6MTAwfQ&limit=20
   }
 }
 
-cursorの中身（Base64エンコード）:
+Cursor contents (Base64-encoded):
   {"id": 100, "createdAt": "2024-01-15T10:00:00Z"}
 
-内部SQL:
+Internal SQL:
 SELECT * FROM users
 WHERE (created_at, id) < ('2024-01-15T10:00:00Z', 100)
 ORDER BY created_at DESC, id DESC
 LIMIT 20;
 
-利点:
-  一定のパフォーマンス（WHERE句でインデックス利用、O(log n)）
-  データの追加/削除で位置ずれしない
-  リアルタイムフィードに最適
+Advantages:
+  Consistent performance (uses index with WHERE clause, O(log n))
+  No position drift on insert/delete
+  Ideal for real-time feeds
 
-欠点:
-  任意のページにジャンプ不可
-  ページ番号の表示が困難
-  cursor の生成・解析が複雑
-  ソート順の変更で既存cursorが無効になる
+Disadvantages:
+  Cannot jump to arbitrary pages
+  Difficult to display page numbers
+  Cursor generation and parsing is complex
+  Existing cursors become invalid when sort order changes
 ```
 
 ---
 
-### 1.4 Keyset 方式（ソートキー直接指定）
+### 1.4 Keyset Approach (Sort Key Direct Exposure)
 
-Cursor 方式の変種で、ソートキーの値をクエリパラメータに直接露出する。
+A variant of Cursor that exposes sort key values directly as query parameters.
 
 ```
 GET /api/v1/users?created_at_lt=2024-01-15T10:00:00Z&id_lt=100&limit=20
 
-レスポンス:
+Response:
 {
   "data": [...],
   "meta": {
@@ -211,95 +211,95 @@ GET /api/v1/users?created_at_lt=2024-01-15T10:00:00Z&id_lt=100&limit=20
   }
 }
 
-内部SQL（Cursor方式と同一）:
+Internal SQL (identical to Cursor approach):
 SELECT * FROM users
 WHERE (created_at, id) < ('2024-01-15T10:00:00Z', 100)
 ORDER BY created_at DESC, id DESC
 LIMIT 20;
 
-利点:
-  cursorのエンコード/デコードが不要
-  デバッグしやすい（パラメータが可読）
-  クライアントが自由にソートキーを指定可能
+Advantages:
+  No cursor encode/decode required
+  Easy to debug (parameters are human-readable)
+  Client can freely specify sort keys
 
-欠点:
-  内部のソートキーが外部に露出する（API契約が脆い）
-  複合ソートキーのパラメータが冗長になる
-  ソートキーの型やフォーマットをクライアントが知る必要がある
+Disadvantages:
+  Internal sort keys are exposed externally (fragile API contract)
+  Composite sort key parameters become verbose
+  Client needs to know the type and format of sort keys
 ```
 
 ---
 
-### 1.5 方式選定のデシジョンツリー
+### 1.5 Decision Tree for Choosing a Pagination Approach
 
 ```
-                    ページネーション方式の選定
+                    Choosing a Pagination Approach
                            │
-                    ページジャンプが必要？
+                    Is page jumping required?
                     ┌──────┴──────┐
                    Yes           No
                     │             │
-             データ量 < 10万件？   リアルタイム性が必要？
+             Data count < 100K?   Is real-time access needed?
              ┌──────┴──────┐   ┌──────┴──────┐
             Yes           No  Yes           No
              │             │   │             │
-        ┌────┘        ┌───┘   │        データ量 > 100万件？
+        ┌────┘        ┌───┘   │        Data count > 1M?
         │             │       │        ┌──────┴──────┐
-   Offset方式    Offset方式   Cursor   Yes           No
-   （推奨）     ＋推定total    方式     │             │
-                               │    Cursor方式   どちらでも可
-                               │   （推奨）     （Cursor推奨）
+   Offset         Offset +   Cursor   Yes           No
+   (recommended)  estimated   (rec.)   │             │
+                  total               Cursor      Either works
+                               │     (recommended) (Cursor recommended)
                                │
-                         Cursor方式
-                         （推奨）
+                         Cursor
+                         (recommended)
 
-  具体的なユースケース:
+  Specific use cases:
   ┌───────────────────────┬──────────────┐
-  │ ユースケース           │ 推奨方式      │
+  │ Use Case              │ Recommended  │
   ├───────────────────────┼──────────────┤
-  │ 管理画面のテーブル      │ Offset       │
-  │ 検索結果一覧           │ Offset       │
-  │ SNSタイムライン        │ Cursor       │
-  │ チャット履歴           │ Cursor       │
-  │ 通知一覧              │ Cursor       │
-  │ 無限スクロール         │ Cursor       │
-  │ データエクスポート      │ Keyset       │
-  │ バッチ処理             │ Keyset       │
+  │ Admin panel table     │ Offset       │
+  │ Search results list   │ Offset       │
+  │ SNS timeline          │ Cursor       │
+  │ Chat history          │ Cursor       │
+  │ Notification list     │ Cursor       │
+  │ Infinite scroll       │ Cursor       │
+  │ Data export           │ Keyset       │
+  │ Batch processing      │ Keyset       │
   │ GraphQL API           │ Cursor       │
-  │ 公開API（サードパーティ）│ Cursor       │
+  │ Public API (3rd party)│ Cursor       │
   └───────────────────────┴──────────────┘
 ```
 
 ---
 
-## 2. Cursor 実装の詳細
+## 2. Cursor Implementation Details
 
-### 2.1 基本実装（Node.js + Prisma）
+### 2.1 Basic Implementation (Node.js + Prisma)
 
 ```javascript
-// --- Cursor エンコード/デコード ---
+// --- Cursor encode/decode ---
 
 /**
- * カーソルデータをBase64urlエンコードする。
- * Base64url を使う理由:
- *   - URL safe（+, /, = を使わない）
- *   - クエリパラメータにそのまま渡せる
- *   - クライアントにとって不透明（opaque）
+ * Encodes cursor data with Base64url encoding.
+ * Reasons for using Base64url:
+ *   - URL safe (does not use +, /, =)
+ *   - Can be passed directly as a query parameter
+ *   - Opaque to the client
  */
 function encodeCursor(data) {
   return Buffer.from(JSON.stringify(data)).toString('base64url');
 }
 
 /**
- * Base64urlエンコードされたカーソルをデコードする。
- * 不正なカーソルに対してはエラーを投げる。
+ * Decodes a Base64url-encoded cursor.
+ * Throws an error for invalid cursors.
  */
 function decodeCursor(cursor) {
   try {
     const decoded = JSON.parse(
       Buffer.from(cursor, 'base64url').toString()
     );
-    // バリデーション: 必要なフィールドが存在するか
+    // Validation: check that required fields exist
     if (!decoded.id) {
       throw new Error('Invalid cursor: missing id');
     }
@@ -309,7 +309,7 @@ function decodeCursor(cursor) {
   }
 }
 
-// --- Cursorページネーション ---
+// --- Cursor pagination ---
 async function listUsers(params) {
   const {
     cursor,
@@ -318,10 +318,10 @@ async function listUsers(params) {
     order = 'desc',
   } = params;
 
-  // limit の上限を設ける（DoS防止）
+  // Set an upper bound on limit (DoS prevention)
   const take = Math.min(Math.max(limit, 1), 100);
 
-  // ソートフィールドのホワイトリスト検証
+  // Whitelist validation of sort fields
   const allowedSortFields = ['createdAt', 'updatedAt', 'name', 'email'];
   if (!allowedSortFields.includes(sort)) {
     throw new ApiError(400, `Invalid sort field: ${sort}`);
@@ -330,8 +330,8 @@ async function listUsers(params) {
   let where = {};
   if (cursor) {
     const decoded = decodeCursor(cursor);
-    // 複合カーソル: ソートキー + ID でタイブレーク
-    // (created_at, id) の複合比較で一意性を保証
+    // Composite cursor: sort key + ID as tiebreaker
+    // Composite comparison on (created_at, id) ensures uniqueness
     where = {
       OR: [
         {
@@ -349,8 +349,8 @@ async function listUsers(params) {
     };
   }
 
-  // take + 1 件取得して hasNextPage を判定する技法
-  // 余分な1件が取れたら「次のページが存在する」
+  // Fetch take + 1 records to determine hasNextPage
+  // If the extra record is retrieved, "the next page exists"
   const items = await prisma.user.findMany({
     where,
     orderBy: [{ [sort]: order }, { id: order }],
@@ -383,16 +383,16 @@ async function listUsers(params) {
 }
 ```
 
-### 2.2 複合ソートキーでのカーソル実装
+### 2.2 Cursor Implementation with Composite Sort Keys
 
-カーソルが単一キーでなく複合キー（例: `(priority, created_at, id)`）の場合、
-SQL の `WHERE` 句が複雑になる。これを「行値比較（Row Value Comparison）」で解決する。
+When a cursor uses a composite key (e.g., `(priority, created_at, id)`) rather than a single key,
+the SQL `WHERE` clause becomes complex. This can be resolved with "Row Value Comparison".
 
 ```sql
--- 複合ソート: priority DESC, created_at DESC, id DESC
--- カーソル位置: priority=3, created_at='2024-06-01', id=500
+-- Composite sort: priority DESC, created_at DESC, id DESC
+-- Cursor position: priority=3, created_at='2024-06-01', id=500
 
--- 方法1: OR条件の展開（全DBで動作）
+-- Method 1: Expanded OR conditions (works with all DBs)
 SELECT * FROM tasks
 WHERE
   (priority < 3)
@@ -401,18 +401,18 @@ WHERE
 ORDER BY priority DESC, created_at DESC, id DESC
 LIMIT 20;
 
--- 方法2: 行値比較（PostgreSQL, MySQL 8.0+ で動作）
+-- Method 2: Row value comparison (works with PostgreSQL, MySQL 8.0+)
 SELECT * FROM tasks
 WHERE (priority, created_at, id) < (3, '2024-06-01', 500)
 ORDER BY priority DESC, created_at DESC, id DESC
 LIMIT 20;
 
--- 方法2 は簡潔だが、混合ソート順（ASC/DESC混在）には使えない。
--- 混合ソート順の場合は方法1のOR展開が必須。
+-- Method 2 is concise, but cannot be used with mixed sort orders (ASC/DESC mixed).
+-- For mixed sort orders, the OR expansion in Method 1 is required.
 ```
 
 ```javascript
-// 複合ソートキーのカーソル実装（Node.js）
+// Composite sort key cursor implementation (Node.js)
 function buildCursorWhere(sortKeys, cursorData, orders) {
   // sortKeys: ['priority', 'createdAt', 'id']
   // cursorData: { priority: 3, createdAt: '2024-06-01', id: 500 }
@@ -423,12 +423,12 @@ function buildCursorWhere(sortKeys, cursorData, orders) {
   for (let i = 0; i < sortKeys.length; i++) {
     const condition = {};
 
-    // 前のキーが全て等しい
+    // All preceding keys are equal
     for (let j = 0; j < i; j++) {
       condition[sortKeys[j]] = cursorData[sortKeys[j]];
     }
 
-    // 現在のキーが比較条件を満たす
+    // The current key satisfies the comparison condition
     const op = orders[i] === 'desc' ? 'lt' : 'gt';
     condition[sortKeys[i]] = { [op]: cursorData[sortKeys[i]] };
 
@@ -438,7 +438,7 @@ function buildCursorWhere(sortKeys, cursorData, orders) {
   return { OR: conditions };
 }
 
-// 使用例
+// Usage example
 const where = buildCursorWhere(
   ['priority', 'createdAt', 'id'],
   { priority: 3, createdAt: '2024-06-01T00:00:00Z', id: 500 },
@@ -451,20 +451,20 @@ const where = buildCursorWhere(
 //   ]}
 ```
 
-### 2.3 暗号化カーソルとセキュリティ
+### 2.3 Encrypted Cursors and Security
 
-カーソルの内容がBase64でエンコードされているだけの場合、
-クライアントがデコードして改ざんできる。これを防ぐには
-HMAC署名や暗号化を施す。
+When cursor contents are only Base64-encoded,
+the client can decode and tamper with them. To prevent this,
+apply HMAC signing or encryption.
 
 ```javascript
 const crypto = require('crypto');
 
-const CURSOR_SECRET = process.env.CURSOR_SECRET; // 十分な長さのランダム文字列
+const CURSOR_SECRET = process.env.CURSOR_SECRET; // A sufficiently long random string
 
 /**
- * 署名付きカーソルを生成する。
- * フォーマット: base64url(JSON) + "." + hmac_signature
+ * Generates a signed cursor.
+ * Format: base64url(JSON) + "." + hmac_signature
  */
 function encodeSecureCursor(data) {
   const payload = Buffer.from(JSON.stringify(data)).toString('base64url');
@@ -476,8 +476,8 @@ function encodeSecureCursor(data) {
 }
 
 /**
- * 署名付きカーソルを検証・デコードする。
- * 署名が不正な場合は例外を投げる。
+ * Validates and decodes a signed cursor.
+ * Throws an exception if the signature is invalid.
  */
 function decodeSecureCursor(cursor) {
   const [payload, signature] = cursor.split('.');
@@ -485,7 +485,7 @@ function decodeSecureCursor(cursor) {
     throw new ApiError(400, 'Invalid cursor format');
   }
 
-  // HMAC検証（タイミング攻撃を防ぐため timingSafeEqual を使用）
+  // HMAC validation (use timingSafeEqual to prevent timing attacks)
   const expected = crypto
     .createHmac('sha256', CURSOR_SECRET)
     .update(payload)
@@ -504,16 +504,15 @@ function decodeSecureCursor(cursor) {
 
 ---
 
-## 3. GraphQL Relay Connection 仕様
+## 3. GraphQL Relay Connection Spec
 
-GraphQL における標準的なページネーション仕様として、
-Relay の「Connection」パターンがある。
-Facebook が策定し、GitHub・Shopify・Stripe 等の主要 GraphQL API で採用されている。
+The Relay "Connection" pattern is the standard pagination spec for GraphQL.
+Established by Facebook, it is adopted by major GraphQL APIs including GitHub, Shopify, and Stripe.
 
-### 3.1 Connection 仕様の構造
+### 3.1 Structure of the Connection Spec
 
 ```
-Connection 仕様の概念モデル:
+Conceptual model of the Connection spec:
 
   Query
     │
@@ -536,26 +535,26 @@ Connection 仕様の概念モデル:
     │           │     ├── startCursor: "cursor_abc1"
     │           │     └── endCursor: "cursor_abc10"
     │           │
-    │           └── totalCount: 1500 （拡張フィールド）
+    │           └── totalCount: 1500 (extension field)
     │
     └── ...
 
-  用語の定義:
-  - Connection: ページネーション対応のコレクション型
-  - Edge: ノードとカーソルのペア
-  - Node: 実際のデータオブジェクト
-  - PageInfo: ページネーションメタデータ
-  - Cursor: 各エッジの位置を示す不透明な文字列
+  Term definitions:
+  - Connection: A collection type with pagination support
+  - Edge: A pair of a node and a cursor
+  - Node: The actual data object
+  - PageInfo: Pagination metadata
+  - Cursor: An opaque string indicating the position of each edge
 ```
 
-### 3.2 GraphQL スキーマ定義
+### 3.2 GraphQL Schema Definition
 
 ```graphql
-# Connection 仕様に準拠した GraphQL スキーマ
+# GraphQL schema conforming to the Connection spec
 
 type Query {
-  # 前方ページネーション: first + after
-  # 後方ページネーション: last + before
+  # Forward pagination: first + after
+  # Backward pagination: last + before
   users(
     first: Int
     after: String
@@ -569,7 +568,7 @@ type Query {
 type UserConnection {
   edges: [UserEdge!]!
   pageInfo: PageInfo!
-  totalCount: Int        # 拡張: 総件数
+  totalCount: Int        # Extension: total count
 }
 
 type UserEdge {
@@ -629,10 +628,10 @@ enum UserStatus {
 }
 ```
 
-### 3.3 Connection リゾルバの実装
+### 3.3 Connection Resolver Implementation
 
 ```javascript
-// GraphQL Relay Connection リゾルバ実装（Node.js + Prisma）
+// GraphQL Relay Connection resolver implementation (Node.js + Prisma)
 
 const resolvers = {
   Query: {
@@ -643,21 +642,21 @@ const resolvers = {
         filter, orderBy,
       } = args;
 
-      // first と last の同時指定は禁止
+      // Specifying both first and last is not allowed
       if (first != null && last != null) {
         throw new UserInputError(
           'Cannot specify both "first" and "last"'
         );
       }
 
-      // どちらも指定なしの場合はデフォルト
+      // Default when neither is specified
       const limit = first ?? last ?? 20;
       const clampedLimit = Math.min(Math.max(limit, 1), 100);
 
-      // フィルタ条件の構築
+      // Build filter conditions
       const where = buildFilterWhere(filter);
 
-      // ソート条件の構築
+      // Build sort conditions
       const sort = orderBy
         ? { field: orderBy.field, dir: orderBy.direction }
         : { field: 'CREATED_AT', dir: 'DESC' };
@@ -665,7 +664,7 @@ const resolvers = {
       const sortField = sortFieldMap[sort.field]; // CREATED_AT → createdAt
       const sortDir = sort.dir.toLowerCase();
 
-      // カーソルのデコードと WHERE 条件の追加
+      // Decode cursor and add WHERE conditions
       if (after) {
         const cursorData = decodeCursor(after);
         const cursorWhere = buildCursorWhere(
@@ -678,7 +677,7 @@ const resolvers = {
 
       if (before) {
         const cursorData = decodeCursor(before);
-        // before の場合は逆方向
+        // For before, use reverse direction
         const reverseDir = sortDir === 'desc' ? 'asc' : 'desc';
         const cursorWhere = buildCursorWhere(
           [sortField, 'id'],
@@ -688,7 +687,7 @@ const resolvers = {
         Object.assign(where, cursorWhere);
       }
 
-      // クエリ実行（take + 1 で hasMore 判定）
+      // Execute query (take + 1 to determine hasMore)
       let items = await context.prisma.user.findMany({
         where,
         orderBy: [
@@ -698,7 +697,7 @@ const resolvers = {
         take: clampedLimit + 1,
       });
 
-      // last の場合は結果を反転
+      // Reverse results for last
       if (last) {
         items = items.reverse();
       }
@@ -706,10 +705,10 @@ const resolvers = {
       const hasMore = items.length > clampedLimit;
       const nodes = hasMore ? items.slice(0, clampedLimit) : items;
 
-      // totalCount の取得（オプション）
+      // Fetch totalCount (optional)
       const totalCount = await context.prisma.user.count({ where });
 
-      // Connection オブジェクトの構築
+      // Build Connection object
       const edges = nodes.map(node => ({
         cursor: encodeCursor({
           [sortField]: node[sortField],
@@ -745,10 +744,10 @@ const sortFieldMap = {
 };
 ```
 
-### 3.4 Connection 仕様のクエリ例
+### 3.4 Connection Spec Query Examples
 
 ```graphql
-# 前方ページネーション（最初の10件、その後続き）
+# Forward pagination (first 10 records, then continue)
 query GetUsers {
   users(first: 10, filter: { role: ADMIN }) {
     edges {
@@ -771,7 +770,7 @@ query GetUsers {
   }
 }
 
-# 次のページを取得（endCursor を after に渡す）
+# Fetch next page (pass endCursor to after)
 query GetNextPage {
   users(first: 10, after: "eyJjcmVhdGVkQXQiOiIyMDI0LTAxLTE1IiwiaWQiOjEwMH0") {
     edges {
@@ -788,7 +787,7 @@ query GetNextPage {
   }
 }
 
-# 後方ページネーション（最後の5件を取得）
+# Backward pagination (fetch last 5 records)
 query GetLastUsers {
   users(last: 5) {
     edges {
@@ -808,76 +807,76 @@ query GetLastUsers {
 
 ---
 
-## 4. 方式別パフォーマンス比較表
+## 4. Performance Comparison by Approach
 
-### 4.1 基本特性の比較
+### 4.1 Comparison of Basic Characteristics
 
-| 特性 | Offset 方式 | Cursor 方式 | Keyset 方式 | GraphQL Connection |
-|------|------------|------------|------------|-------------------|
-| ページジャンプ | 可能 | 不可 | 不可 | 不可 |
-| 総件数の表示 | 容易 | 別途COUNT必要 | 別途COUNT必要 | totalCount拡張 |
-| パフォーマンス | O(n) offset | O(log n) | O(log n) | O(log n) |
-| 位置安定性 | ずれる | ずれない | ずれない | ずれない |
-| ソート変更 | 容易 | cursor無効化 | パラメータ変更 | cursor無効化 |
-| 双方向ナビ | 可能 | 可能 | 可能 | first/last対応 |
-| 実装の複雑さ | 低 | 中 | 低〜中 | 高 |
-| API抽象度 | 低（SQL漏出） | 高（不透明） | 低（キー露出） | 高（仕様準拠） |
-| モバイル適性 | 中 | 高 | 中 | 高 |
-| キャッシュ | しやすい | しにくい | しにくい | しにくい |
+| Characteristic | Offset | Cursor | Keyset | GraphQL Connection |
+|----------------|--------|--------|--------|--------------------|
+| Page jumping | Possible | Not possible | Not possible | Not possible |
+| Display total count | Easy | Requires separate COUNT | Requires separate COUNT | totalCount extension |
+| Performance | O(n) offset | O(log n) | O(log n) | O(log n) |
+| Position stability | Drifts | No drift | No drift | No drift |
+| Sort change | Easy | Invalidates cursor | Parameter change | Invalidates cursor |
+| Bidirectional nav | Possible | Possible | Possible | first/last support |
+| Implementation complexity | Low | Medium | Low–Medium | High |
+| API abstraction | Low (SQL leaks) | High (opaque) | Low (key exposed) | High (spec-compliant) |
+| Mobile suitability | Medium | High | Medium | High |
+| Cacheability | Easy | Difficult | Difficult | Difficult |
 
-### 4.2 データ規模別パフォーマンス目安
+### 4.2 Performance Benchmarks by Data Scale
 
-| データ件数 | Offset (page=末尾) | Cursor | 備考 |
-|-----------|-------------------|--------|------|
-| 1,000件 | ~1ms | ~1ms | 差は無視できる |
-| 10,000件 | ~5ms | ~1ms | Offsetでもまだ許容範囲 |
-| 100,000件 | ~50ms | ~2ms | Offsetの劣化が顕在化 |
-| 1,000,000件 | ~500ms | ~3ms | Offsetは本番で問題になる |
-| 10,000,000件 | ~5000ms | ~5ms | Offsetは事実上使用不可 |
-| 100,000,000件 | timeout | ~8ms | Cursorのみ現実的 |
+| Record count | Offset (last page) | Cursor | Notes |
+|--------------|-------------------|--------|-------|
+| 1,000 | ~1ms | ~1ms | Difference negligible |
+| 10,000 | ~5ms | ~1ms | Offset still acceptable |
+| 100,000 | ~50ms | ~2ms | Offset degradation becomes apparent |
+| 1,000,000 | ~500ms | ~3ms | Offset causes problems in production |
+| 10,000,000 | ~5000ms | ~5ms | Offset effectively unusable |
+| 100,000,000 | timeout | ~8ms | Only Cursor is realistic |
 
-> 上記の値はインデックスが適切に設定された PostgreSQL 環境での参考値であり、
-> ハードウェア・データ分布・同時接続数によって大きく変動する。
+> The values above are reference figures for a PostgreSQL environment with proper indexes,
+> and may vary significantly depending on hardware, data distribution, and concurrent connections.
 
 ---
 
-## 5. フィルタリング設計
+## 5. Filtering Design
 
-### 5.1 フィルタリングパターンの全体像
+### 5.1 Overview of Filtering Patterns
 
 ```
-フィルタリングのAPI設計パターン:
+API design patterns for filtering:
 
-  (1) シンプルなクエリパラメータ（推奨・小規模API向け）:
+  (1) Simple query parameters (recommended for small-scale APIs):
     GET /api/v1/users?status=active&role=admin&age_min=18&age_max=65
 
-    → 単純なフィルタに最適
-    → フィールド名がそのままパラメータ名
+    → Best for simple filters
+    → Field names map directly to parameter names
 
-  (2) フィルタ演算子パターン（中規模API向け）:
+  (2) Filter operator pattern (for medium-scale APIs):
     GET /api/v1/users?filter[status]=active
     GET /api/v1/users?filter[age][gte]=18&filter[age][lte]=65
     GET /api/v1/users?filter[name][contains]=taro
 
-    演算子一覧:
+    Operator list:
     ┌──────────┬────────────────┬────────────────────────────────┐
-    │ 演算子    │ 意味           │ 例                              │
+    │ Operator │ Meaning        │ Example                        │
     ├──────────┼────────────────┼────────────────────────────────┤
-    │ eq       │ 等しい          │ filter[status][eq]=active      │
-    │ ne       │ 等しくない      │ filter[status][ne]=deleted     │
-    │ gt       │ より大きい      │ filter[age][gt]=18             │
-    │ gte      │ 以上           │ filter[age][gte]=18            │
-    │ lt       │ より小さい      │ filter[age][lt]=65             │
-    │ lte      │ 以下           │ filter[age][lte]=65            │
-    │ in       │ 含まれる        │ filter[role][in]=admin,editor  │
-    │ nin      │ 含まれない      │ filter[role][nin]=guest        │
-    │ contains │ 部分一致        │ filter[name][contains]=taro    │
-    │ starts   │ 前方一致        │ filter[name][starts]=ta        │
-    │ exists   │ 存在する        │ filter[avatar][exists]=true    │
-    │ between  │ 範囲           │ filter[age][between]=18,65     │
+    │ eq       │ Equal          │ filter[status][eq]=active      │
+    │ ne       │ Not equal      │ filter[status][ne]=deleted     │
+    │ gt       │ Greater than   │ filter[age][gt]=18             │
+    │ gte      │ Greater or eq  │ filter[age][gte]=18            │
+    │ lt       │ Less than      │ filter[age][lt]=65             │
+    │ lte      │ Less or eq     │ filter[age][lte]=65            │
+    │ in       │ Included in    │ filter[role][in]=admin,editor  │
+    │ nin      │ Not included   │ filter[role][nin]=guest        │
+    │ contains │ Partial match  │ filter[name][contains]=taro    │
+    │ starts   │ Prefix match   │ filter[name][starts]=ta        │
+    │ exists   │ Exists         │ filter[avatar][exists]=true    │
+    │ between  │ Range          │ filter[age][between]=18,65     │
     └──────────┴────────────────┴────────────────────────────────┘
 
-  (3) JSON API 仕様:
+  (3) JSON API spec:
     GET /api/v1/users?filter[status]=active&filter[role]=admin
 
   (4) RHS Colon:
@@ -886,30 +885,30 @@ query GetLastUsers {
   (5) LHS Brackets:
     GET /api/v1/users?status[eq]=active&age[gte]=18
 
-  推奨:
-    → 小規模API: (1) シンプルパターン
-    → 中規模API: (2) フィルタ演算子
-    → 複雑な検索: 専用の検索エンドポイント（POST /search）
+  Recommended:
+    → Small-scale API: (1) Simple pattern
+    → Medium-scale API: (2) Filter operators
+    → Complex search: Dedicated search endpoint (POST /search)
 ```
 
-### 5.2 フィルタパーサーの実装
+### 5.2 Filter Parser Implementation
 
 ```javascript
-// フィルタパーサーの実装例（セキュリティ考慮済み）
+// Filter parser implementation (security-conscious)
 
 /**
- * クエリパラメータからフィルタ条件を抽出する。
- * filter[field][operator] 形式をパースする。
+ * Extracts filter conditions from query parameters.
+ * Parses the filter[field][operator] format.
  *
- * セキュリティ上の重要ポイント:
- * - 許可されたフィールドのみ受け付ける（ホワイトリスト）
- * - 許可された演算子のみ受け付ける
- * - 値のサニタイゼーション
+ * Key security points:
+ * - Only accept allowed fields (whitelist)
+ * - Only accept allowed operators
+ * - Sanitize values
  */
 function parseFilters(query, schema) {
   const filters = {};
 
-  // スキーマ定義（許可フィールドと型情報）
+  // Schema definition (allowed fields and type information)
   const allowedFields = schema || {
     status:    { type: 'enum',    values: ['active', 'inactive', 'suspended'] },
     role:      { type: 'enum',    values: ['admin', 'editor', 'viewer'] },
@@ -925,24 +924,24 @@ function parseFilters(query, schema) {
   ];
 
   for (const [key, value] of Object.entries(query)) {
-    // filter[field][operator] パターンのパース
+    // Parse filter[field][operator] pattern
     const match = key.match(/^filter\(\w+)\\])?$/);
     if (!match) continue;
 
     const field = match[1];
     const operator = match[2] || 'eq';
 
-    // フィールド検証
+    // Field validation
     if (!allowedFields[field]) {
-      continue; // 未知のフィールドは無視（エラーにしてもよい）
+      continue; // Ignore unknown fields (could also throw an error)
     }
 
-    // 演算子検証
+    // Operator validation
     if (!allowedOperators.includes(operator)) {
       continue;
     }
 
-    // 値のバリデーション
+    // Value validation
     const validated = validateFilterValue(
       value, allowedFields[field], operator
     );
@@ -965,7 +964,7 @@ function parseFilters(query, schema) {
 }
 
 /**
- * フィルタ値のバリデーション
+ * Validates a filter value
  */
 function validateFilterValue(value, fieldSchema, operator) {
   switch (fieldSchema.type) {
@@ -987,8 +986,8 @@ function validateFilterValue(value, fieldSchema, operator) {
 
     case 'string':
       if (value.length > (fieldSchema.maxLength || 1000)) return null;
-      // SQLインジェクション対策: パラメータバインディングで処理するため
-      // ここでのエスケープは不要だが、長さは制限する
+      // SQL injection mitigation: handled by parameter binding,
+      // so escaping here is unnecessary, but length should be restricted
       return value;
 
     case 'datetime': {
@@ -1001,7 +1000,7 @@ function validateFilterValue(value, fieldSchema, operator) {
   }
 }
 
-// Prisma WHERE句への変換
+// Convert to Prisma WHERE clause
 function filtersToPrismaWhere(filters) {
   const where = {};
   const operatorMap = {
@@ -1029,37 +1028,37 @@ function filtersToPrismaWhere(filters) {
 
 ---
 
-## 6. ソート設計
+## 6. Sort Design
 
-### 6.1 ソートパラメータの設計パターン
+### 6.1 Sort Parameter Design Patterns
 
 ```
-ソートのAPI設計:
+API design for sorting:
 
-  (1) シンプルなパラメータ:
+  (1) Simple parameters:
     GET /api/v1/users?sort=created_at&order=desc
-    GET /api/v1/users?sort=-created_at        ← -プレフィックスで降順
+    GET /api/v1/users?sort=-created_at        ← - prefix for descending
 
-  (2) 複数フィールドソート:
+  (2) Multi-field sort:
     GET /api/v1/users?sort=-created_at,name
-    → created_at降順 → name昇順
+    → created_at descending → name ascending
 
-  (3) JSON API 仕様:
+  (3) JSON API spec:
     GET /api/v1/users?sort=-created_at,name
 
-ソートの注意点:
-  [推奨] ソート可能なフィールドをホワイトリストで制限
-  [推奨] デフォルトソートを必ず定義（例: -created_at）
-  [推奨] ソートフィールドにインデックスを張る
-  [推奨] Cursor方式ではソートキーをcursorに含める
-  [推奨] ソートの最後に必ず一意キー（id）を追加する（安定ソート）
-  [禁止] ユーザー入力をそのままORDER BYに渡さない
+Sort best practices:
+  [Recommended] Restrict sortable fields with a whitelist
+  [Recommended] Always define a default sort (e.g., -created_at)
+  [Recommended] Create indexes on sort fields
+  [Recommended] For Cursor approach, include sort key in cursor
+  [Recommended] Always append a unique key (id) at the end of sort (stable sort)
+  [Prohibited]  Do not pass user input directly to ORDER BY
 ```
 
-### 6.2 ソートパーサーの実装
+### 6.2 Sort Parser Implementation
 
 ```javascript
-// ソートパーサー（安定ソート保証付き）
+// Sort parser (with stable sort guarantee)
 function parseSort(sortParam, allowedFields) {
   const DEFAULT_SORT = [{ createdAt: 'desc' }, { id: 'desc' }];
 
@@ -1069,21 +1068,21 @@ function parseSort(sortParam, allowedFields) {
     const desc = field.startsWith('-');
     const name = desc ? field.slice(1) : field;
 
-    // ホワイトリスト検証
+    // Whitelist validation
     if (!allowedFields.includes(name)) {
       throw new ApiError(400, `Invalid sort field: ${name}`);
     }
 
-    // snake_case → camelCase 変換
+    // snake_case → camelCase conversion
     const camelName = name.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 
     return { [camelName]: desc ? 'desc' : 'asc' };
   });
 
-  // 安定ソートのため、最後に id を追加（重複がなければ）
+  // Append id for stable sort (if not already present)
   const hasId = orderBy.some(o => 'id' in o);
   if (!hasId) {
-    // 最初のソートの方向に合わせる
+    // Match the direction of the first sort field
     const firstDir = Object.values(orderBy[0])[0];
     orderBy.push({ id: firstDir });
   }
@@ -1091,7 +1090,7 @@ function parseSort(sortParam, allowedFields) {
   return orderBy;
 }
 
-// 使用例
+// Usage example
 const orderBy = parseSort(
   req.query.sort,    // "-created_at,name"
   ['created_at', 'name', 'email', 'updated_at']
@@ -1101,15 +1100,15 @@ const orderBy = parseSort(
 
 ---
 
-## 7. フィールド選択（Sparse Fieldsets）
+## 7. Field Selection (Sparse Fieldsets)
 
 ```
-不要なフィールドを除外してレスポンスサイズを削減:
+Reduce response size by excluding unnecessary fields:
 
   GET /api/v1/users?fields=id,name,email
   GET /api/v1/users?fields[users]=id,name&fields[orders]=id,total
 
-レスポンス（指定フィールドのみ）:
+Response (specified fields only):
   {
     "data": [
       { "id": "1", "name": "Taro", "email": "taro@example.com" },
@@ -1117,35 +1116,35 @@ const orderBy = parseSort(
     ]
   }
 
-利点:
-  レスポンスサイズの削減
-  ネットワーク帯域の節約
-  モバイルアプリで特に有効
-  DBクエリのSELECT最適化
+Advantages:
+  Reduced response size
+  Network bandwidth savings
+  Especially effective for mobile apps
+  Optimizes SELECT in DB queries
 
-注意:
-  → id は常に含める（クライアントの参照整合性のため）
-  → セキュリティ上返してはいけないフィールドのチェック
-  → GraphQL はスキーマレベルでこの機能を本質的に備える
-  → フィールド選択はキャッシュキーに含める必要がある
+Notes:
+  → Always include id (for client referential integrity)
+  → Check for fields that must not be returned for security reasons
+  → GraphQL inherently provides this feature at the schema level
+  → Field selection must be included in cache keys
 ```
 
 ```javascript
-// フィールド選択の実装
+// Field selection implementation
 function parseFields(fieldsParam, allowedFields) {
-  if (!fieldsParam) return undefined; // 全フィールド返却
+  if (!fieldsParam) return undefined; // Return all fields
 
   const requested = fieldsParam.split(',').map(f => f.trim());
 
-  // ホワイトリスト検証
+  // Whitelist validation
   const valid = requested.filter(f => allowedFields.includes(f));
 
-  // id は常に含める
+  // Always include id
   if (!valid.includes('id')) {
     valid.unshift('id');
   }
 
-  // Prisma の select に変換
+  // Convert to Prisma select
   const select = {};
   for (const field of valid) {
     select[field] = true;
@@ -1154,7 +1153,7 @@ function parseFields(fieldsParam, allowedFields) {
   return select;
 }
 
-// 使用例
+// Usage example
 const select = parseFields(
   req.query.fields,
   ['id', 'name', 'email', 'role', 'createdAt', 'updatedAt']
@@ -1164,21 +1163,21 @@ const select = parseFields(
 
 ---
 
-## 8. 検索設計
+## 8. Search Design
 
-### 8.1 検索の API 設計パターン
+### 8.1 API Design Patterns for Search
 
 ```
-検索のAPI設計:
+API design for search:
 
-  (1) シンプル検索（全文検索）:
+  (1) Simple search (full-text search):
     GET /api/v1/users?q=taro
-    → name, email 等の複数フィールドを横断検索
+    → Cross-field search across name, email, etc.
 
-  (2) 詳細検索（フィルタ + 検索の組み合わせ）:
+  (2) Advanced search (combining filters + search):
     GET /api/v1/users?q=taro&filter[role]=admin&sort=-relevance
 
-  (3) 専用検索エンドポイント:
+  (3) Dedicated search endpoint:
     POST /api/v1/search
     {
       "query": "taro",
@@ -1196,7 +1195,7 @@ const select = parseFields(
       }
     }
 
-    レスポンス:
+    Response:
     {
       "data": [
         {
@@ -1226,43 +1225,43 @@ const select = parseFields(
     }
 ```
 
-### 8.2 検索バックエンドの選定
+### 8.2 Choosing a Search Backend
 
 ```
-検索バックエンドの比較:
+Search backend comparison:
 
 ┌──────────────┬────────────┬───────────┬──────────┬───────────────┐
-│ バックエンド   │ 全文検索    │ ファセット │ 運用コスト │ 適したケース    │
+│ Backend      │ Full-text  │ Facets    │ Ops cost │ Best for       │
 ├──────────────┼────────────┼───────────┼──────────┼───────────────┤
-│ PostgreSQL   │ tsvector   │ GROUP BY  │ 低       │ 〜100万件      │
-│ (pg_trgm)    │ tsquery    │           │          │ 既にPG使用中   │
+│ PostgreSQL   │ tsvector   │ GROUP BY  │ Low      │ Up to ~1M rows │
+│ (pg_trgm)    │ tsquery    │           │          │ Already on PG  │
 ├──────────────┼────────────┼───────────┼──────────┼───────────────┤
-│ Elasticsearch│ BM25       │ Aggs      │ 高       │ 100万件〜      │
-│              │ アナライザ  │ Bucket    │          │ 高度な検索要件  │
+│ Elasticsearch│ BM25       │ Aggs      │ High     │ 1M+ rows       │
+│              │ Analyzers  │ Bucket    │          │ Advanced search│
 ├──────────────┼────────────┼───────────┼──────────┼───────────────┤
-│ OpenSearch   │ BM25       │ Aggs      │ 中〜高   │ AWS環境        │
-│              │ アナライザ  │ Bucket    │          │ ES互換が必要   │
+│ OpenSearch   │ BM25       │ Aggs      │ Med–High │ AWS env        │
+│              │ Analyzers  │ Bucket    │          │ ES compatibility│
 ├──────────────┼────────────┼───────────┼──────────┼───────────────┤
-│ Meilisearch  │ 組み込み    │ 組み込み   │ 低       │ 〜1000万件     │
-│              │ Typo耐性   │           │          │ 簡易セットアップ │
+│ Meilisearch  │ Built-in   │ Built-in  │ Low      │ Up to ~10M     │
+│              │ Typo-tol.  │           │          │ Easy setup     │
 ├──────────────┼────────────┼───────────┼──────────┼───────────────┤
-│ Typesense    │ 組み込み    │ 組み込み   │ 低       │ 〜1000万件     │
-│              │ 型付き     │           │          │ 型安全性重視   │
+│ Typesense    │ Built-in   │ Built-in  │ Low      │ Up to ~10M     │
+│              │ Typed      │           │          │ Type safety    │
 ├──────────────┼────────────┼───────────┼──────────┼───────────────┤
-│ Algolia      │ ホスティッド│ 組み込み   │ 高       │ 規模問わず     │
-│              │ SaaS       │           │          │ 即座に導入したい │
+│ Algolia      │ Hosted     │ Built-in  │ High     │ Any scale      │
+│              │ SaaS       │           │          │ Instant deploy │
 └──────────────┴────────────┴───────────┴──────────┴───────────────┘
 ```
 
-### 8.3 PostgreSQL 全文検索の実装
+### 8.3 PostgreSQL Full-Text Search Implementation
 
 ```sql
--- PostgreSQL での全文検索セットアップ
+-- PostgreSQL full-text search setup
 
--- 1. tsvector カラムの追加
+-- 1. Add tsvector column
 ALTER TABLE users ADD COLUMN search_vector tsvector;
 
--- 2. トリガーで自動更新
+-- 2. Auto-update with trigger
 CREATE OR REPLACE FUNCTION update_search_vector()
 RETURNS trigger AS $$
 BEGIN
@@ -1278,10 +1277,10 @@ CREATE TRIGGER users_search_vector_trigger
   BEFORE INSERT OR UPDATE ON users
   FOR EACH ROW EXECUTE FUNCTION update_search_vector();
 
--- 3. GIN インデックスの作成
+-- 3. Create GIN index
 CREATE INDEX idx_users_search_vector ON users USING GIN (search_vector);
 
--- 4. 検索クエリ
+-- 4. Search query
 SELECT
   id, name, email,
   ts_rank(search_vector, query) AS relevance
@@ -1291,14 +1290,14 @@ WHERE search_vector @@ query
 ORDER BY relevance DESC
 LIMIT 20;
 
--- 5. 前方一致（オートコンプリート用）
+-- 5. Prefix match (for autocomplete)
 SELECT id, name
 FROM users
 WHERE name ILIKE 'tar%'
 ORDER BY name
 LIMIT 10;
 
--- 6. pg_trgm による類似検索（typo耐性）
+-- 6. Similarity search with pg_trgm (typo tolerance)
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX idx_users_name_trgm ON users USING GIN (name gin_trgm_ops);
 
@@ -1311,14 +1310,15 @@ LIMIT 10;
 
 ---
 
-## 9. ページネーション + フィルタ + ソートの統合実装
+## 9. Integrated Implementation of Pagination + Filtering + Sorting
 
-ここまで個別に解説した各機能を統合した、本番品質の API エンドポイント実装を示す。
+Here we show a production-quality API endpoint implementation that integrates
+all the features explained individually above.
 
-### 9.1 統合コントローラ（Express.js + Prisma）
+### 9.1 Integrated Controller (Express.js + Prisma)
 
 ```javascript
-// routes/users.js - 統合的なリスト取得エンドポイント
+// routes/users.js - Integrated list retrieval endpoint
 
 const express = require('express');
 const router = express.Router();
@@ -1326,14 +1326,14 @@ const router = express.Router();
 /**
  * GET /api/v1/users
  *
- * クエリパラメータ:
- *   - page / per_page     : Offset方式ページネーション
- *   - cursor / limit      : Cursor方式ページネーション
- *   - filter[field][op]   : フィルタリング
- *   - sort                : ソート（-prefix で降順）
- *   - fields              : フィールド選択
- *   - q                   : 全文検索
- *   - include_total       : 総件数を含めるか
+ * Query parameters:
+ *   - page / per_page     : Offset-based pagination
+ *   - cursor / limit      : Cursor-based pagination
+ *   - filter[field][op]   : Filtering
+ *   - sort                : Sorting (- prefix for descending)
+ *   - fields              : Field selection
+ *   - q                   : Full-text search
+ *   - include_total       : Whether to include total count
  */
 router.get('/users', async (req, res, next) => {
   try {
@@ -1342,32 +1342,32 @@ router.get('/users', async (req, res, next) => {
       sort, fields, q, include_total,
     } = req.query;
 
-    // --- ページネーション方式の判定 ---
+    // --- Determine pagination approach ---
     const useCursor = cursor != null || (page == null && cursor == null);
-    // cursor パラメータがある、または何も指定なしの場合は Cursor 方式
+    // Use Cursor approach if cursor parameter is present, or if nothing is specified
 
-    // --- フィルタの解析 ---
+    // --- Parse filters ---
     const filters = parseFilters(req.query, USERS_FILTER_SCHEMA);
     const where = filtersToPrismaWhere(filters);
 
-    // --- 全文検索の統合 ---
+    // --- Integrate full-text search ---
     if (q) {
-      // PostgreSQL 全文検索を WHERE に統合
+      // Integrate PostgreSQL full-text search into WHERE
       where.searchVector = {
         search: q.split(/\s+/).join(' & '),
       };
     }
 
-    // --- ソートの解析 ---
+    // --- Parse sort ---
     const orderBy = parseSort(sort, USERS_SORT_FIELDS);
 
-    // --- フィールド選択 ---
+    // --- Field selection ---
     const select = parseFields(fields, USERS_ALLOWED_FIELDS);
 
     let result;
 
     if (useCursor) {
-      // --- Cursor 方式 ---
+      // --- Cursor approach ---
       result = await cursorPaginate({
         model: prisma.user,
         where,
@@ -1377,7 +1377,7 @@ router.get('/users', async (req, res, next) => {
         limit: limit ? parseInt(limit, 10) : 20,
       });
     } else {
-      // --- Offset 方式 ---
+      // --- Offset approach ---
       const pageNum = Math.max(parseInt(page, 10) || 1, 1);
       const perPage = Math.min(
         Math.max(parseInt(per_page, 10) || 20, 1),
@@ -1395,12 +1395,12 @@ router.get('/users', async (req, res, next) => {
       });
     }
 
-    // --- レスポンスヘッダの設定 ---
+    // --- Set response headers ---
     if (result.meta.total != null) {
       res.set('X-Total-Count', result.meta.total.toString());
     }
 
-    // Link ヘッダ（RFC 8288）
+    // Link header (RFC 8288)
     if (result.links) {
       const linkParts = Object.entries(result.links)
         .filter(([, url]) => url != null)
@@ -1416,7 +1416,7 @@ router.get('/users', async (req, res, next) => {
   }
 });
 
-// --- Cursor ページネーション関数 ---
+// --- Cursor pagination function ---
 async function cursorPaginate({ model, where, orderBy, select, cursor, limit }) {
   const take = Math.min(Math.max(limit, 1), 100);
 
@@ -1429,7 +1429,7 @@ async function cursorPaginate({ model, where, orderBy, select, cursor, limit }) 
       decoded,
       [sortDir, sortDir]
     );
-    // 既存の where と AND 結合
+    // AND-combine with existing where
     if (cursorWhere.OR) {
       where.AND = where.AND || [];
       where.AND.push(cursorWhere);
@@ -1470,7 +1470,7 @@ async function cursorPaginate({ model, where, orderBy, select, cursor, limit }) 
   };
 }
 
-// --- Offset ページネーション関数 ---
+// --- Offset pagination function ---
 async function offsetPaginate({
   model, where, orderBy, select, page, perPage, includeTotal,
 }) {
@@ -1488,7 +1488,7 @@ async function offsetPaginate({
   ]);
 
   const totalPages = total != null ? Math.ceil(total / perPage) : null;
-  const baseUrl = '/api/v1/users'; // 実際にはリクエストから構築
+  const baseUrl = '/api/v1/users'; // In practice, construct from request
 
   return {
     data,
@@ -1519,32 +1519,31 @@ module.exports = router;
 
 ---
 
-## 10. アンチパターンと対策
+## 10. Anti-Patterns and Mitigations
 
-### 10.1 アンチパターン 1: limit 無制限の API
+### 10.1 Anti-Pattern 1: Unlimited limit API
 
 ```
-[問題]
+[Problem]
   GET /api/v1/users?limit=999999999
 
-  クライアントが巨大な limit を指定できる場合、
-  以下の問題が発生する:
+  When a client can specify a huge limit, the following problems arise:
 
-  (a) メモリ枯渇:
-      100万件のユーザーオブジェクトをメモリ上に展開
-      → JSON シリアライゼーションで更にメモリ使用量が倍増
-      → OOM Kill によるプロセスクラッシュ
+  (a) Memory exhaustion:
+      Expanding 1 million user objects in memory
+      → JSON serialization further doubles memory usage
+      → Process crash due to OOM Kill
 
-  (b) レスポンスタイム超過:
-      巨大な JSON レスポンスの生成と転送に時間がかかる
-      → タイムアウト → リトライ → さらに負荷増大
+  (b) Response time exceeded:
+      Generating and transferring a huge JSON response takes time
+      → Timeout → Retry → Even higher load
 
-  (c) DoS 攻撃ベクトル:
-      悪意あるクライアントが繰り返し巨大リクエストを送信
-      → サーバーリソースの枯渇
+  (c) DoS attack vector:
+      A malicious client repeatedly sends huge requests
+      → Server resource exhaustion
 
-[対策]
-  // limit のクランプ（必須）
+[Mitigation]
+  // Clamp limit (required)
   const MAX_LIMIT = 100;
   const DEFAULT_LIMIT = 20;
 
@@ -1555,47 +1554,47 @@ module.exports = router;
     return Math.min(parsed, MAX_LIMIT);
   }
 
-  // API ドキュメントに上限を明記:
-  // "limit: 1〜100の整数（デフォルト: 20、最大: 100）"
+  // Document the upper limit clearly:
+  // "limit: integer from 1 to 100 (default: 20, max: 100)"
 
-  // レスポンスヘッダで上限を通知:
+  // Notify the client of the upper limit via response header:
   // X-Max-Limit: 100
 ```
 
-### 10.2 アンチパターン 2: COUNT(*) の無条件実行
+### 10.2 Anti-Pattern 2: Unconditional COUNT(*) Execution
 
 ```
-[問題]
-  毎回のリストAPIリクエストで COUNT(*) を実行:
+[Problem]
+  Running COUNT(*) on every list API request:
 
   SELECT COUNT(*) FROM users WHERE status = 'active';
-  -- 1000万行テーブルの場合、~200ms
+  -- For a 10M row table, ~200ms
 
-  さらに、フィルタ条件が複雑な場合:
+  Additionally, for complex filter conditions:
   SELECT COUNT(*) FROM users
   WHERE status = 'active'
     AND role IN ('admin', 'editor')
     AND created_at > '2023-01-01';
-  -- インデックスが効かないケースでは ~2000ms
+  -- In cases where indexes do not help: ~2000ms
 
-  全てのリクエストでこのクエリが走ると、
-  DB の CPU 使用率が常に高い状態になる。
+  If this query runs on every request,
+  DB CPU usage stays constantly high.
 
-[対策]
+[Mitigation]
 
-  (1) 総件数をオプトイン方式にする:
+  (1) Make total count opt-in:
       GET /api/v1/users?include_total=true
-      → デフォルトでは total を返さない
+      → Do not return total by default
 
-  (2) 推定値を返す（PostgreSQL）:
-      -- 正確な COUNT の代わりに推定行数を使用
+  (2) Return an estimated value (PostgreSQL):
+      -- Use estimated row count instead of exact COUNT
       SELECT reltuples::bigint AS estimate
       FROM pg_class
       WHERE relname = 'users';
-      -- 定期的に ANALYZE で更新される
+      -- Updated periodically by ANALYZE
 
-  (3) カウントキャッシュを使う:
-      -- Redis にカウントをキャッシュ（TTL 60秒）
+  (3) Use a count cache:
+      -- Cache count in Redis (TTL 60 seconds)
       const cacheKey = `count:users:${filterHash}`;
       let total = await redis.get(cacheKey);
       if (total == null) {
@@ -1603,28 +1602,28 @@ module.exports = router;
         await redis.set(cacheKey, total, 'EX', 60);
       }
 
-  (4) 「もっと見る」パターン:
-      → total を返さず、hasNextPage のみ返す
-      → "全 XXX 件" の表示を避け、"もっと見る" ボタンのみ
-      → モバイルアプリでは主流のパターン
+  (4) "Load more" pattern:
+      → Do not return total, return only hasNextPage
+      → Avoid "All N results" display; show only "Load more" button
+      → Common pattern in mobile apps
 ```
 
-### 10.3 アンチパターン 3: フィルタフィールドのブラックリスト方式
+### 10.3 Anti-Pattern 3: Blacklist Approach for Filter Fields
 
 ```
-[問題]
-  // 「禁止フィールド以外は全て許可」という設計
+[Problem]
+  // Design that allows everything except "blocked fields"
   const blockedFields = ['password', 'secret'];
 
   function isAllowedFilter(field) {
     return !blockedFields.includes(field);
   }
 
-  // 新しいフィールド（例: internal_notes）が追加されたとき、
-  // blocklist の更新を忘れると機密情報がフィルタ可能になる。
+  // When a new field (e.g., internal_notes) is added,
+  // forgetting to update the blocklist allows filtering of sensitive information.
 
-[対策]
-  // ホワイトリスト方式を使う（許可フィールドのみ明示）
+[Mitigation]
+  // Use whitelist approach (explicitly list allowed fields)
   const ALLOWED_FILTER_FIELDS = [
     'status', 'role', 'name', 'email', 'createdAt'
   ];
@@ -1633,19 +1632,19 @@ module.exports = router;
     return ALLOWED_FILTER_FIELDS.includes(field);
   }
 
-  // 新しいフィールドは意図的に追加するまでフィルタ不可
-  // → デフォルト拒否（Deny by default）の原則
+  // New fields are not filterable until intentionally added
+  // → Deny by default principle
 ```
 
 ---
 
-## 11. エッジケース分析
+## 11. Edge Case Analysis
 
-### 11.1 エッジケース 1: ソートキーの値が重複する場合
+### 11.1 Edge Case 1: Duplicate Sort Key Values
 
 ```
-[状況]
-  100人のユーザーが同じ created_at を持つ場合:
+[Situation]
+  100 users share the same created_at:
 
   id=1,  created_at='2024-01-15'
   id=2,  created_at='2024-01-15'
@@ -1653,69 +1652,69 @@ module.exports = router;
   ...
   id=100, created_at='2024-01-15'
 
-  Cursor方式で created_at のみをカーソルに使うと:
+  Using only created_at as the cursor in Cursor approach:
 
-  1ページ目: WHERE created_at <= '2024-01-15' LIMIT 20
-  → id=1〜20 を取得（created_at で順序が不定）
+  Page 1: WHERE created_at <= '2024-01-15' LIMIT 20
+  → Fetches id=1~20 (order within same created_at is undefined)
 
-  2ページ目: WHERE created_at < '2024-01-15' LIMIT 20
-  → 0件（全て同じ created_at なので条件に合う行がない）
+  Page 2: WHERE created_at < '2024-01-15' LIMIT 20
+  → 0 records (no rows match since all have the same created_at)
 
-  結果: 2ページ目以降が取得できない。
+  Result: Page 2 and beyond cannot be fetched.
 
-[解決策]
-  必ずタイブレーカーとして一意キー（id）を複合キーに含める:
+[Solution]
+  Always include a unique key (id) as a tiebreaker in the composite key:
 
-  -- 正しい SQL
+  -- Correct SQL
   WHERE (created_at, id) < ('2024-01-15', 20)
   ORDER BY created_at DESC, id DESC
   LIMIT 20;
 
-  これにより created_at が同じでも id で順序が一意に定まる。
+  This ensures unique ordering by id even when created_at is the same.
 
-  カーソルデータ:
+  Cursor data:
   { "createdAt": "2024-01-15", "id": 20 }
 
-  [教訓]
-  カーソルには常に一意キー（id）を含めること。
-  これは「安定カーソル（Stable Cursor）」の基本原則である。
+  [Lesson]
+  Always include a unique key (id) in the cursor.
+  This is the fundamental principle of a "Stable Cursor".
 ```
 
-### 11.2 エッジケース 2: NULL 値を含むソートキー
+### 11.2 Edge Case 2: NULL Values in Sort Keys
 
 ```
-[状況]
-  一部のユーザーの deleted_at が NULL:
+[Situation]
+  Some users have a NULL deleted_at:
 
-  id=1, deleted_at=NULL        （未削除）
-  id=2, deleted_at='2024-03-01' （削除済み）
-  id=3, deleted_at=NULL        （未削除）
-  id=4, deleted_at='2024-01-15' （削除済み）
+  id=1, deleted_at=NULL        (not deleted)
+  id=2, deleted_at='2024-03-01' (deleted)
+  id=3, deleted_at=NULL        (not deleted)
+  id=4, deleted_at='2024-01-15' (deleted)
 
-  deleted_at DESC でソートすると:
-  → NULL の位置はDBMSによって異なる
-    PostgreSQL: NULL が最初（NULLS FIRST がデフォルト for DESC）
-    MySQL: NULL が最後（DESC の場合）
+  Sorting by deleted_at DESC:
+  → NULL position differs by DBMS
+    PostgreSQL: NULL first (NULLS FIRST is default for DESC)
+    MySQL: NULL last (for DESC)
 
-  カーソルに NULL が含まれると比較が正しく動作しない:
-  WHERE deleted_at < NULL → 常に FALSE（NULL との比較は UNKNOWN）
+  Comparison does not work correctly when NULL is included in the cursor:
+  WHERE deleted_at < NULL → Always FALSE (comparison with NULL is UNKNOWN)
 
-[解決策]
+[Solution]
 
-  (1) NULL を含むフィールドでのソートを避ける
-      → ソート可能フィールドは NOT NULL のものに限定
+  (1) Avoid sorting on fields that contain NULL
+      → Restrict sortable fields to NOT NULL ones
 
-  (2) NULL を含む場合は COALESCE で置換:
+  (2) Replace NULL with COALESCE when NULLs are present:
       ORDER BY COALESCE(deleted_at, '9999-12-31') DESC, id DESC
 
-  (3) カーソル内で NULL を特別扱い:
+  (3) Treat NULL specially within the cursor:
       function buildCursorWhereWithNull(sortField, cursorValue, id) {
         if (cursorValue === null) {
-          // NULL の位置（NULLS FIRST / LAST）に応じて条件を変える
+          // Adjust condition based on NULL position (NULLS FIRST / LAST)
           return {
             OR: [
-              { [sortField]: { not: null } }, // NULLでない行は全て「後」
-              { [sortField]: null, id: { lt: id } }, // 同じNULLならidで比較
+              { [sortField]: { not: null } }, // All non-NULL rows come "after"
+              { [sortField]: null, id: { lt: id } }, // Same NULL, compare by id
             ],
           };
         }
@@ -1727,178 +1726,178 @@ module.exports = router;
         };
       }
 
-  [教訓]
-  ソートキーに NULL を許容する場合は、NULL の順序を明示的に制御し、
-  カーソル比較で NULL を特別扱いする必要がある。
-  可能であれば NOT NULL 制約のあるフィールドのみソート対象とする。
+  [Lesson]
+  When sort keys allow NULL, you must explicitly control NULL ordering
+  and treat NULL specially in cursor comparisons.
+  Where possible, restrict sortable fields to those with a NOT NULL constraint.
 ```
 
-### 11.3 エッジケース 3: 並行書き込みとカーソルの整合性
+### 11.3 Edge Case 3: Concurrent Writes and Cursor Consistency
 
 ```
-[状況]
-  Time T1: クライアントが1ページ目を取得
+[Situation]
+  Time T1: Client fetches page 1
            cursor = { createdAt: '2024-06-10', id: 20 }
 
-  Time T2: 管理者が id=15 のユーザーの createdAt を
-           '2024-06-10' → '2024-06-11' に更新
+  Time T2: Admin updates id=15 user's createdAt
+           from '2024-06-10' to '2024-06-11'
 
-  Time T3: クライアントが2ページ目を取得（cursor を使用）
+  Time T3: Client fetches page 2 (using cursor)
            WHERE (created_at, id) < ('2024-06-10', 20)
 
-  結果:
-  - id=15 は createdAt が '2024-06-11' に変わったため、
-    1ページ目にも2ページ目にも含まれない（消失）
-  - ソートキーが変更可能なフィールドの場合、
-    カーソル方式でもデータの消失や重複が起こりうる
+  Result:
+  - id=15 is excluded from both page 1 and page 2
+    because its createdAt changed to '2024-06-11' (disappears)
+  - When sort keys are mutable fields,
+    data disappearance or duplication can occur even with Cursor approach
 
-[対策]
-  (1) ソートキーは不変フィールドを使う:
-      → created_at（作成日は変更されない）
-      → id（主キーは変更されない）
-      → sequence_number（連番は変更されない）
+[Mitigation]
+  (1) Use immutable fields as sort keys:
+      → created_at (creation date is not changed)
+      → id (primary key is not changed)
+      → sequence_number (sequence is not changed)
 
-  (2) ソートキーの変更を禁止する:
-      → updated_at でソートする場合、ページング中の更新は
-        ビジネスルール上許容するかどうかを判断する
+  (2) Prohibit changes to sort keys:
+      → When sorting by updated_at, decide at the business level
+        whether updates during paging are acceptable
 
-  (3) スナップショット方式:
-      → ページング開始時のスナップショットIDを発行し、
-        全ページ取得が完了するまで同じスナップショットを参照
-      → 実装が複雑だが、一貫性は最も高い
+  (3) Snapshot approach:
+      → Issue a snapshot ID at the start of paging,
+        and reference the same snapshot until all pages are fetched
+      → Implementation is complex, but consistency is highest
 ```
 
 ---
 
-## 12. インデックス戦略
+## 12. Index Strategy
 
-ページネーション・フィルタリング・ソートのパフォーマンスは、
-適切なインデックス設計に大きく依存する。
+The performance of pagination, filtering, and sorting depends heavily
+on appropriate index design.
 
-### 12.1 インデックス設計の原則
+### 12.1 Index Design Principles
 
 ```
-ページネーション関連のインデックス戦略:
+Index strategy for pagination:
 
-  (1) Offset 方式:
-      -- ソートキーにインデックスを張る
+  (1) Offset approach:
+      -- Create index on sort key
       CREATE INDEX idx_users_created_at ON users (created_at DESC);
 
-      -- フィルタ + ソートの複合インデックス
+      -- Composite index for filter + sort
       CREATE INDEX idx_users_status_created
         ON users (status, created_at DESC);
 
-  (2) Cursor / Keyset 方式:
-      -- ソートキー + ID の複合インデックス（必須）
+  (2) Cursor / Keyset approach:
+      -- Composite index on sort key + ID (required)
       CREATE INDEX idx_users_created_id
         ON users (created_at DESC, id DESC);
 
-      -- フィルタ + ソートキー + ID の複合インデックス
+      -- Composite index for filter + sort key + ID
       CREATE INDEX idx_users_status_created_id
         ON users (status, created_at DESC, id DESC);
 
-  (3) カバリングインデックス:
-      -- SELECT するカラムも含めることでテーブルスキャン不要
+  (3) Covering index:
+      -- Include SELECT columns to avoid table scan
       CREATE INDEX idx_users_list_covering
         ON users (status, created_at DESC, id DESC)
         INCLUDE (name, email, role);
-      -- PostgreSQL 11+ で INCLUDE が利用可能
+      -- INCLUDE available in PostgreSQL 11+
 
-  インデックス設計のフローチャート:
+  Index design flowchart:
 
-  フィルタ条件 → 等価条件のカラムを先頭に
+  Filter conditions → Put equality columns first
        ↓
-  ソート条件 → ソートキーを次に
+  Sort conditions → Put sort keys next
        ↓
-  ページネーション → id を末尾に
+  Pagination → Put id last
        ↓
-  SELECT対象 → INCLUDE で追加（カバリング）
+  SELECT targets → Add with INCLUDE (covering)
 
-  例: status = 'active' AND role = 'admin' ORDER BY created_at DESC
+  Example: status = 'active' AND role = 'admin' ORDER BY created_at DESC
 
   CREATE INDEX idx_users_optimal
     ON users (status, role, created_at DESC, id DESC)
     INCLUDE (name, email);
 
   → WHERE status = 'active' AND role = 'admin'
-    がインデックスの先頭2列で絞り込み、
+    narrows down using the first 2 index columns,
     ORDER BY created_at DESC, id DESC
-    がインデックスの後続列でカバーされ、
-    name, email は INCLUDE でテーブルアクセス不要。
+    is covered by subsequent index columns,
+    name, email do not require table access via INCLUDE.
 ```
 
-### 12.2 EXPLAIN ANALYZE による検証
+### 12.2 Verification with EXPLAIN ANALYZE
 
 ```sql
--- Offset 方式の実行計画（問題のあるケース）
+-- Execution plan for Offset approach (problematic case)
 EXPLAIN ANALYZE
 SELECT * FROM users
 ORDER BY created_at DESC
 LIMIT 20 OFFSET 100000;
 
--- 結果（例）:
+-- Result (example):
 -- Limit  (cost=12345.67..12346.00 rows=20)
 --   -> Sort  (cost=12345.67..15000.00 rows=1000000)
 --         Sort Key: created_at DESC
 --         Sort Method: top-N heapsort  Memory: 30kB
 --         -> Seq Scan on users  (cost=0.00..10000.00 rows=1000000)
 -- Planning Time: 0.5ms
--- Execution Time: 580ms  ← 遅い
+-- Execution Time: 580ms  ← slow
 
--- Cursor 方式の実行計画（改善後）
+-- Execution plan for Cursor approach (after improvement)
 EXPLAIN ANALYZE
 SELECT * FROM users
 WHERE (created_at, id) < ('2024-01-15', 100)
 ORDER BY created_at DESC, id DESC
 LIMIT 20;
 
--- 結果（例）:
+-- Result (example):
 -- Limit  (cost=0.56..1.80 rows=20)
 --   -> Index Scan using idx_users_created_id on users
 --         (cost=0.56..5000.00 rows=100000)
 --         Index Cond: (created_at, id) < ('2024-01-15', 100)
 -- Planning Time: 0.3ms
--- Execution Time: 1.2ms  ← 高速
+-- Execution Time: 1.2ms  ← fast
 ```
 
 ---
 
-## 13. レートリミットとページネーションの関係
+## 13. Rate Limits and Pagination
 
-ページネーションAPIはレートリミットと密接に関連する。
-大量ページの取得はバッチ的な処理と見なされ、通常の API 呼び出しとは
-異なるレートリミットポリシーを適用すべき場合がある。
+Pagination APIs are closely related to rate limits.
+Fetching many pages is considered batch-like processing, and it may be appropriate to apply
+a different rate limit policy than for normal API calls.
 
-### 13.1 ページネーション API のレートリミット設計
+### 13.1 Rate Limit Design for Pagination APIs
 
 ```
-レートリミット設計の考慮事項:
+Rate limit design considerations:
 
-  (1) 通常のレートリミット:
-      X-RateLimit-Limit: 1000        (1時間あたりの上限)
-      X-RateLimit-Remaining: 998     (残りリクエスト数)
-      X-RateLimit-Reset: 1719849600  (リセット時刻, Unix epoch)
+  (1) Standard rate limits:
+      X-RateLimit-Limit: 1000        (limit per hour)
+      X-RateLimit-Remaining: 998     (remaining requests)
+      X-RateLimit-Reset: 1719849600  (reset time, Unix epoch)
 
-  (2) ページネーション専用の考慮:
-      - 1ページ取得 = 1リクエストとしてカウント
-      - limit が大きいリクエストはコスト加重を適用
-        例: limit=100 → 5リクエスト分としてカウント
-      - 自動バッチ取得（全ページ巡回）を検出したらスロットリング
-      - Retry-After ヘッダで待機時間を通知
+  (2) Pagination-specific considerations:
+      - 1 page fetch = counts as 1 request
+      - Apply cost weighting for requests with large limit
+        e.g., limit=100 → counts as 5 requests
+      - Throttle if automated batch fetching (traversing all pages) is detected
+      - Notify wait time via Retry-After header
 
-  (3) ページネーションのコスト加重の例:
+  (3) Example of cost weighting for pagination:
       ┌────────────┬───────────────┐
-      │ limit 値    │ コスト（リクエスト換算）│
+      │ limit value │ Cost (in requests) │
       ├────────────┼───────────────┤
-      │ 1〜20      │ 1              │
-      │ 21〜50     │ 2              │
-      │ 51〜100    │ 5              │
+      │ 1–20       │ 1              │
+      │ 21–50      │ 2              │
+      │ 51–100     │ 5              │
       └────────────┴───────────────┘
 
-  (4) バルクエクスポートが必要な場合:
-      → 専用のエクスポートエンドポイントを用意
-      → 非同期ジョブとして処理
-      → WebhookかポーリングでCSV/JSONファイルのURLを返す
+  (4) When bulk export is required:
+      → Provide a dedicated export endpoint
+      → Process as an async job
+      → Return CSV/JSON file URL via webhook or polling
 
       POST /api/v1/exports
       {
@@ -1917,59 +1916,59 @@ LIMIT 20;
 
 ---
 
-## 14. キャッシュ戦略
+## 14. Cache Strategy
 
-### 14.1 ページネーション API のキャッシュ
+### 14.1 Caching Pagination APIs
 
 ```
-ページネーション結果のキャッシュ戦略:
+Cache strategy for pagination results:
 
   ┌────────────────────────────────────────────────────────────┐
-  │                   キャッシュの判断基準                       │
+  │                   Cache Decision Criteria                   │
   ├──────────┬──────────────┬──────────────┬──────────────────┤
-  │ 方式      │ キャッシュ適性 │ キャッシュキー │ TTL の目安        │
+  │ Approach │ Cache suit.  │ Cache key    │ TTL guideline    │
   ├──────────┼──────────────┼──────────────┼──────────────────┤
-  │ Offset   │ 高           │ page+filter  │ 30秒〜5分        │
-  │ Cursor   │ 低           │ cursor+limit │ 使い捨て         │
-  │ Keyset   │ 低           │ keys+limit   │ 使い捨て         │
+  │ Offset   │ High         │ page+filter  │ 30s–5min         │
+  │ Cursor   │ Low          │ cursor+limit │ Single-use       │
+  │ Keyset   │ Low          │ keys+limit   │ Single-use       │
   └──────────┴──────────────┴──────────────┴──────────────────┘
 
-  Offset 方式はキャッシュしやすい:
-  → 同じ page=3&per_page=20 は同じ結果を返すことが期待される
-  → CDN やリバースプロキシでのキャッシュが効果的
-  → ただし、データの更新頻度に応じて TTL を調整
+  Offset approach is cache-friendly:
+  → The same page=3&per_page=20 is expected to return the same result
+  → Caching at CDN or reverse proxy is effective
+  → Adjust TTL based on data update frequency
 
-  Cursor 方式はキャッシュしにくい:
-  → カーソルはユーザー固有のコンテキストを含む
-  → 同じカーソルでも取得タイミングでデータが異なる可能性
-  → キャッシュするなら、カーソル値をキーに短い TTL で
+  Cursor approach is not cache-friendly:
+  → Cursor contains user-specific context
+  → Data for the same cursor may differ depending on retrieval timing
+  → If caching, use cursor value as key with short TTL
 
-  HTTP キャッシュヘッダの設定例:
+  Example HTTP cache header settings:
 
-  // Offset 方式（キャッシュ可能）
+  // Offset approach (cacheable)
   Cache-Control: public, max-age=30, s-maxage=60
   ETag: "users-page3-v1234"
   Vary: Accept, Authorization
 
-  // Cursor 方式（キャッシュ非推奨）
+  // Cursor approach (caching not recommended)
   Cache-Control: private, no-store
-  // または
+  // or
   Cache-Control: private, max-age=10
 ```
 
-### 14.2 Conditional Request の活用
+### 14.2 Using Conditional Requests
 
 ```javascript
-// ETag を使った条件付きリクエスト
+// Conditional requests with ETag
 
-// サーバー側
+// Server side
 router.get('/users', async (req, res) => {
   const result = await listUsers(req.query);
 
-  // データのハッシュから ETag を生成
+  // Generate ETag from data hash
   const etag = generateETag(result.data);
 
-  // If-None-Match ヘッダのチェック
+  // Check If-None-Match header
   if (req.headers['if-none-match'] === etag) {
     return res.status(304).end(); // Not Modified
   }
@@ -1991,136 +1990,136 @@ function generateETag(data) {
 
 ---
 
-## 15. ベストプラクティスまとめ
+## 15. Best Practices Summary
 
-### 15.1 設計原則
+### 15.1 Design Principles
 
 ```
-ページネーション設計の原則:
+Pagination design principles:
 
-  [必須]
-  (1) デフォルト値を必ず設定する
-      → limit のデフォルト: 20
-      → sort のデフォルト: -created_at
-      → page のデフォルト: 1
+  [Required]
+  (1) Always set default values
+      → Default limit: 20
+      → Default sort: -created_at
+      → Default page: 1
 
-  (2) 上限を設定する
-      → limit の最大: 100
-      → page の最大: 合理的な範囲
-      → ソートフィールド数の最大: 3
+  (2) Set upper bounds
+      → Max limit: 100
+      → Max page: reasonable range
+      → Max number of sort fields: 3
 
-  (3) 空のコレクションは 200 + 空配列を返す
-      → 404 ではない（コレクションは存在するが中身が空）
+  (3) Return 200 + empty array for empty collections
+      → Not 404 (collection exists but is empty)
       {
         "data": [],
         "meta": { "total": 0, "page": 1, "totalPages": 0 }
       }
 
-  (4) フィルタ可能・ソート可能フィールドをドキュメントに明記する
-      → OpenAPI / Swagger で enum として定義
-      → API ドキュメントのパラメータ説明に列挙
+  (4) Document filterable and sortable fields clearly
+      → Define as enum in OpenAPI / Swagger
+      → List in API documentation parameter descriptions
 
-  [推奨]
-  (5) HATEOAS リンクを含める
+  [Recommended]
+  (5) Include HATEOAS links
       → self, first, prev, next, last
-      → Link ヘッダ（RFC 8288）も併用
+      → Also use Link header (RFC 8288)
 
-  (6) メタデータを構造化する
-      → data / meta / links の3層構造
-      → meta に total, page, perPage, hasNextPage 等
+  (6) Structure metadata
+      → 3-tier structure: data / meta / links
+      → meta contains total, page, perPage, hasNextPage, etc.
 
-  (7) 一貫した命名規則を使う
-      → snake_case vs camelCase はプロジェクト全体で統一
-      → page / per_page / limit / offset の命名もAPIの全体で統一
+  (7) Use consistent naming conventions
+      → snake_case vs camelCase should be unified across the project
+      → page / per_page / limit / offset naming unified across the API
 
-  (8) バージョニングとの関係
-      → ページネーションパラメータの変更は破壊的変更
-      → API バージョンを上げるか、後方互換性を維持する
+  (8) Relationship with versioning
+      → Changes to pagination parameters are breaking changes
+      → Increment API version or maintain backward compatibility
 ```
 
-### 15.2 パフォーマンスチェックリスト
+### 15.2 Performance Checklist
 
 ```
-パフォーマンス最適化チェックリスト:
+Performance optimization checklist:
 
-  [インデックス]
-  [ ] ソートフィールドにインデックスがあるか
-  [ ] フィルタ + ソートの複合インデックスがあるか
-  [ ] Cursor方式の場合、(sort_key, id) の複合インデックスがあるか
-  [ ] カバリングインデックスを検討したか
+  [Indexes]
+  [ ] Is there an index on sort fields?
+  [ ] Is there a composite index for filter + sort?
+  [ ] For Cursor approach, is there a composite index on (sort_key, id)?
+  [ ] Has a covering index been considered?
 
-  [クエリ]
-  [ ] SELECT * を避け、必要なカラムのみ取得しているか
-  [ ] COUNT(*) は必要な場合のみ実行しているか
-  [ ] EXPLAIN ANALYZE で実行計画を確認したか
-  [ ] N+1 問題が発生していないか
+  [Queries]
+  [ ] Are only necessary columns fetched instead of SELECT *?
+  [ ] Is COUNT(*) only executed when needed?
+  [ ] Has the execution plan been verified with EXPLAIN ANALYZE?
+  [ ] Are there any N+1 issues?
 
-  [アプリケーション]
-  [ ] limit の上限チェックがあるか
-  [ ] フィルタ/ソートフィールドのホワイトリストがあるか
-  [ ] カーソルのバリデーションがあるか
-  [ ] レスポンスの JSON シリアライゼーションが効率的か
+  [Application]
+  [ ] Is there an upper bound check on limit?
+  [ ] Is there a whitelist for filter/sort fields?
+  [ ] Is there cursor validation?
+  [ ] Is response JSON serialization efficient?
 
-  [インフラ]
-  [ ] 適切なキャッシュ戦略があるか
-  [ ] レートリミットが設定されているか
-  [ ] データベースコネクションプールが適切か
-  [ ] タイムアウトが設定されているか
+  [Infrastructure]
+  [ ] Is there an appropriate caching strategy?
+  [ ] Is rate limiting configured?
+  [ ] Is the database connection pool appropriate?
+  [ ] Are timeouts configured?
 ```
 
-### 15.3 セキュリティチェックリスト
+### 15.3 Security Checklist
 
 ```
-セキュリティ対策チェックリスト:
+Security checklist:
 
-  [入力検証]
-  [ ] フィルタフィールドのホワイトリスト検証
-  [ ] ソートフィールドのホワイトリスト検証
-  [ ] limit の範囲チェック（1〜100）
-  [ ] page の範囲チェック（1〜合理的上限）
-  [ ] カーソルのフォーマット検証
-  [ ] 検索クエリのサニタイゼーション
-  [ ] フィルタ値の型チェック
+  [Input Validation]
+  [ ] Whitelist validation for filter fields
+  [ ] Whitelist validation for sort fields
+  [ ] Range check for limit (1–100)
+  [ ] Range check for page (1–reasonable upper bound)
+  [ ] Cursor format validation
+  [ ] Search query sanitization
+  [ ] Type check for filter values
 
-  [出力制御]
-  [ ] 機密フィールドの除外（password, secret 等）
-  [ ] 権限に基づくフィールド制限
-  [ ] 他ユーザーのデータが漏洩しないフィルタ制限
+  [Output Control]
+  [ ] Exclusion of sensitive fields (password, secret, etc.)
+  [ ] Field restriction based on permissions
+  [ ] Filter restrictions to prevent leaking other users' data
 
-  [DoS 対策]
-  [ ] limit の上限チェック
-  [ ] 同時リクエスト数の制限
-  [ ] 複雑なフィルタの制限（演算子の数、ネストの深さ）
-  [ ] 全文検索クエリの長さ制限
+  [DoS Mitigation]
+  [ ] Upper bound check on limit
+  [ ] Limit on concurrent requests
+  [ ] Restriction on complex filters (number of operators, nesting depth)
+  [ ] Length limit on full-text search queries
 
-  [カーソルセキュリティ]
-  [ ] カーソルの署名または暗号化
-  [ ] カーソルの有効期限
-  [ ] 他ユーザーのカーソルの再利用防止
+  [Cursor Security]
+  [ ] Cursor signing or encryption
+  [ ] Cursor expiration
+  [ ] Prevention of reusing another user's cursor
 ```
 
 ---
 
-## 16. 演習問題
+## 16. Exercises
 
-### 16.1 演習 Level 1: 基本的な Offset ページネーション
+### 16.1 Exercise Level 1: Basic Offset Pagination
 
 ```
-[課題]
-  以下の仕様を満たす Offset ページネーションAPIを設計せよ。
+[Task]
+  Design an Offset pagination API that satisfies the following spec.
 
-  エンドポイント: GET /api/v1/products
-  パラメータ:
-    - page (デフォルト: 1)
-    - per_page (デフォルト: 20, 最大: 100)
-    - sort (デフォルト: -created_at)
+  Endpoint: GET /api/v1/products
+  Parameters:
+    - page (default: 1)
+    - per_page (default: 20, max: 100)
+    - sort (default: -created_at)
 
-  レスポンスフォーマット:
-    - data: 商品の配列
+  Response format:
+    - data: array of products
     - meta: total, page, perPage, totalPages, hasNextPage, hasPrevPage
     - links: self, first, prev, next, last
 
-  テーブル定義:
+  Table definition:
     products (
       id          SERIAL PRIMARY KEY,
       name        VARCHAR(200) NOT NULL,
@@ -2131,29 +2130,29 @@ function generateETag(data) {
       updated_at  TIMESTAMP DEFAULT NOW()
     )
 
-[期待される実装要素]
-  1. パラメータのバリデーション
-  2. ソートフィールドのホワイトリスト
-  3. limit のクランプ
-  4. links の動的生成
-  5. 適切な SQL（またはORM）クエリ
+[Expected implementation elements]
+  1. Parameter validation
+  2. Sort field whitelist
+  3. Limit clamping
+  4. Dynamic link generation
+  5. Appropriate SQL (or ORM) query
 ```
 
 ```javascript
-// 解答例
+// Sample solution
 router.get('/products', async (req, res) => {
-  // 1. パラメータの解析とバリデーション
+  // 1. Parse and validate parameters
   const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
   const perPage = Math.min(
     Math.max(parseInt(req.query.per_page, 10) || 20, 1),
     100
   );
 
-  // 2. ソートの解析
+  // 2. Parse sort
   const SORT_FIELDS = ['created_at', 'name', 'price', 'updated_at'];
   const orderBy = parseSort(req.query.sort || '-created_at', SORT_FIELDS);
 
-  // 3. データ取得（Promise.all で並列実行）
+  // 3. Fetch data (parallel execution with Promise.all)
   const skip = (page - 1) * perPage;
   const [products, total] = await Promise.all([
     prisma.product.findMany({
@@ -2165,7 +2164,7 @@ router.get('/products', async (req, res) => {
     prisma.product.count({ where: { status: 'active' } }),
   ]);
 
-  // 4. メタデータとリンクの構築
+  // 4. Build metadata and links
   const totalPages = Math.ceil(total / perPage);
   const baseUrl = `${req.protocol}://${req.get('host')}/api/v1/products`;
 
@@ -2190,24 +2189,24 @@ router.get('/products', async (req, res) => {
 });
 ```
 
-### 16.2 演習 Level 2: Cursor ページネーション + フィルタリング
+### 16.2 Exercise Level 2: Cursor Pagination + Filtering
 
 ```
-[課題]
-  以下の仕様を満たす Cursor ページネーション + フィルタリングAPIを実装せよ。
+[Task]
+  Implement a Cursor pagination + filtering API that satisfies the following spec.
 
-  エンドポイント: GET /api/v1/orders
-  パラメータ:
-    - cursor (Base64url エンコード)
-    - limit (デフォルト: 20, 最大: 50)
+  Endpoint: GET /api/v1/orders
+  Parameters:
+    - cursor (Base64url encoded)
+    - limit (default: 20, max: 50)
     - filter[status] (in: pending, processing, shipped, delivered, cancelled)
-    - filter[total][gte] (最低金額)
-    - filter[total][lte] (最高金額)
-    - filter[created_at][gte] (開始日)
-    - filter[created_at][lte] (終了日)
-    - sort (デフォルト: -created_at)
+    - filter[total][gte] (minimum amount)
+    - filter[total][lte] (maximum amount)
+    - filter[created_at][gte] (start date)
+    - filter[created_at][lte] (end date)
+    - sort (default: -created_at)
 
-  テーブル定義:
+  Table definition:
     orders (
       id          SERIAL PRIMARY KEY,
       user_id     INTEGER NOT NULL REFERENCES users(id),
@@ -2218,15 +2217,15 @@ router.get('/products', async (req, res) => {
       updated_at  TIMESTAMP DEFAULT NOW()
     )
 
-  要件:
-    - カーソルは署名付き（改ざん防止）
-    - フィルタフィールドはホワイトリスト方式
-    - ソートは複合ソート対応（例: -total,created_at）
-    - 空結果でも 200 + 空配列を返す
+  Requirements:
+    - Cursor must be signed (tamper-proof)
+    - Filter fields must use whitelist approach
+    - Sort must support composite sort (e.g., -total,created_at)
+    - Return 200 + empty array even for empty results
 ```
 
 ```javascript
-// 解答例（核となるロジック）
+// Sample solution (core logic)
 const ORDER_FILTER_SCHEMA = {
   status: {
     type: 'enum',
@@ -2242,17 +2241,17 @@ router.get('/orders', authenticate, async (req, res) => {
   const { cursor, limit: limitParam, sort: sortParam } = req.query;
   const limit = Math.min(Math.max(parseInt(limitParam, 10) || 20, 1), 50);
 
-  // フィルタの解析
+  // Parse filters
   const filters = parseFilters(req.query, ORDER_FILTER_SCHEMA);
   const where = filtersToPrismaWhere(filters);
 
-  // 認証ユーザーのデータのみに制限
+  // Restrict to authenticated user's data only
   where.userId = req.user.id;
 
-  // ソートの解析（安定ソート保証）
+  // Parse sort (with stable sort guarantee)
   const orderBy = parseSort(sortParam || '-created_at', ORDER_SORT_FIELDS);
 
-  // カーソルの処理
+  // Process cursor
   if (cursor) {
     const decoded = decodeSecureCursor(cursor);
     const sortField = Object.keys(orderBy[0])[0];
@@ -2264,7 +2263,7 @@ router.get('/orders', authenticate, async (req, res) => {
     where.AND.push(cursorWhere);
   }
 
-  // データ取得
+  // Fetch data
   const items = await prisma.order.findMany({
     where,
     orderBy,
@@ -2296,13 +2295,13 @@ router.get('/orders', authenticate, async (req, res) => {
 });
 ```
 
-### 16.3 演習 Level 3: GraphQL Connection + ファセット検索
+### 16.3 Exercise Level 3: GraphQL Connection + Faceted Search
 
 ```
-[課題]
-  GraphQL Relay Connection 仕様に準拠した商品検索APIを実装せよ。
+[Task]
+  Implement a product search API conforming to the GraphQL Relay Connection spec.
 
-  スキーマ:
+  Schema:
     type Query {
       searchProducts(
         query: String
@@ -2333,17 +2332,17 @@ router.get('/orders', authenticate, async (req, res) => {
       count: Int!
     }
 
-  要件:
-    1. first/after と last/before の双方向ページネーション
-    2. 全文検索（query パラメータ）
-    3. フィルタリング（category, priceRange, rating）
-    4. ファセット集計（フィルタ適用後の集計値）
-    5. ソート（relevance, price, rating, newest）
-    6. totalCount はフィルタ適用後の件数
+  Requirements:
+    1. Bidirectional pagination with first/after and last/before
+    2. Full-text search (query parameter)
+    3. Filtering (category, priceRange, rating)
+    4. Facet aggregation (aggregated values after filter is applied)
+    5. Sorting (relevance, price, rating, newest)
+    6. totalCount is the count after filter is applied
 ```
 
 ```javascript
-// 解答例（GraphQL リゾルバ）
+// Sample solution (GraphQL resolver)
 const resolvers = {
   Query: {
     searchProducts: async (_, args, ctx) => {
@@ -2352,13 +2351,13 @@ const resolvers = {
         filter, orderBy,
       } = args;
 
-      // パラメータ検証
+      // Parameter validation
       if (first != null && last != null) {
-        throw new UserInputError('first と last は同時に指定できません');
+        throw new UserInputError('first and last cannot be specified at the same time');
       }
       const limit = Math.min(first ?? last ?? 20, 100);
 
-      // 検索条件の構築
+      // Build search conditions
       const where = {};
       if (query) {
         where.OR = [
@@ -2372,7 +2371,7 @@ const resolvers = {
       if (filter?.maxPrice) where.price = { ...where.price, lte: filter.maxPrice };
       if (filter?.minRating) where.rating = { gte: filter.minRating };
 
-      // ソート
+      // Sort
       const sortMap = {
         RELEVANCE: query ? undefined : [{ createdAt: 'desc' }],
         PRICE_ASC: [{ price: 'asc' }, { id: 'asc' }],
@@ -2382,7 +2381,7 @@ const resolvers = {
       };
       const sort = sortMap[orderBy?.field || 'NEWEST'];
 
-      // カーソル処理
+      // Cursor processing
       if (after) {
         const cursor = decodeCursor(after);
         const sortField = Object.keys(sort[0])[0];
@@ -2402,7 +2401,7 @@ const resolvers = {
         );
       }
 
-      // データ取得 + ファセット集計を並列実行
+      // Parallel execution of data fetch + facet aggregation
       const [items, totalCount, categoryFacets, ratingFacets] = await Promise.all([
         ctx.prisma.product.findMany({
           where,
@@ -2427,7 +2426,7 @@ const resolvers = {
         }),
       ]);
 
-      // last の場合は結果を反転
+      // Reverse results for last
       let nodes = last ? [...items].reverse() : items;
       const hasMore = nodes.length > limit;
       nodes = hasMore ? nodes.slice(0, limit) : nodes;
@@ -2481,41 +2480,41 @@ function buildPriceRangeFacets(products) {
 
 ---
 
-## 17. 各種フレームワークでのページネーション実装パターン
+## 17. Pagination Implementation Patterns by Framework
 
-### 17.1 フレームワーク別の実装比較
+### 17.1 Comparison by Framework
 
 ```
-主要フレームワークでのページネーション対応状況:
+Pagination support status by major framework:
 
 ┌───────────────┬──────────┬──────────┬─────────────────────────┐
-│ フレームワーク   │ Offset   │ Cursor   │ 備考                     │
+│ Framework     │ Offset   │ Cursor   │ Notes                   │
 ├───────────────┼──────────┼──────────┼─────────────────────────┤
-│ Django REST   │ 組み込み  │ 組み込み  │ PageNumberPagination     │
+│ Django REST   │ Built-in │ Built-in │ PageNumberPagination     │
 │ Framework     │          │          │ CursorPagination         │
 ├───────────────┼──────────┼──────────┼─────────────────────────┤
-│ Rails (Kaminari)│ 組み込み │ gem追加  │ kaminari + order_query   │
+│ Rails (Kaminari)│ Built-in│ Add gem │ kaminari + order_query   │
 ├───────────────┼──────────┼──────────┼─────────────────────────┤
-│ Spring Data   │ 組み込み  │ 手動実装  │ Pageable + Slice         │
+│ Spring Data   │ Built-in │ Manual   │ Pageable + Slice         │
 ├───────────────┼──────────┼──────────┼─────────────────────────┤
-│ FastAPI       │ 手動実装  │ 手動実装  │ fastapi-pagination       │
+│ FastAPI       │ Manual   │ Manual   │ fastapi-pagination       │
 ├───────────────┼──────────┼──────────┼─────────────────────────┤
-│ Express.js    │ 手動実装  │ 手動実装  │ Prisma / TypeORM         │
+│ Express.js    │ Manual   │ Manual   │ Prisma / TypeORM         │
 ├───────────────┼──────────┼──────────┼─────────────────────────┤
-│ NestJS        │ 手動実装  │ 手動実装  │ nestjs-paginate          │
+│ NestJS        │ Manual   │ Manual   │ nestjs-paginate          │
 ├───────────────┼──────────┼──────────┼─────────────────────────┤
-│ Apollo Server │ 手動実装  │ 手動実装  │ Relay Connection 仕様    │
-│ (GraphQL)     │          │          │ graphql-relay             │
+│ Apollo Server │ Manual   │ Manual   │ Relay Connection spec    │
+│ (GraphQL)     │          │          │ graphql-relay            │
 ├───────────────┼──────────┼──────────┼─────────────────────────┤
-│ Hasura        │ 組み込み  │ 組み込み  │ offset/limit + cursor    │
-│ (GraphQL)     │          │          │ 自動生成                 │
+│ Hasura        │ Built-in │ Built-in │ offset/limit + cursor    │
+│ (GraphQL)     │          │          │ auto-generated           │
 └───────────────┴──────────┴──────────┴─────────────────────────┘
 ```
 
-### 17.2 Python（FastAPI + SQLAlchemy）での実装例
+### 17.2 Python (FastAPI + SQLAlchemy) Implementation Example
 
 ```python
-# FastAPI + SQLAlchemy でのカーソルページネーション
+# Cursor pagination with FastAPI + SQLAlchemy
 
 from fastapi import FastAPI, Query, HTTPException
 from sqlalchemy import select, and_, or_, func
@@ -2555,7 +2554,7 @@ def encode_cursor(data: dict) -> str:
 
 
 def decode_cursor(cursor: str) -> dict:
-    # パディング補完
+    # Pad as necessary
     padding = 4 - len(cursor) % 4
     if padding != 4:
         cursor += "=" * padding
@@ -2573,7 +2572,7 @@ async def list_users(
     status: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    # ソートの解析
+    # Parse sort
     desc = sort.startswith("-")
     sort_field = sort.lstrip("-")
     allowed = {"created_at", "name", "email"}
@@ -2584,7 +2583,7 @@ async def list_users(
     order = column.desc() if desc else column.asc()
     id_order = User.id.desc() if desc else User.id.asc()
 
-    # WHERE 条件
+    # WHERE conditions
     conditions = []
     if status:
         conditions.append(User.status == status)
@@ -2608,7 +2607,7 @@ async def list_users(
                 )
             )
 
-    # クエリ実行
+    # Execute query
     query = (
         select(User)
         .where(and_(*conditions) if conditions else True)
@@ -2647,120 +2646,120 @@ async def list_users(
 
 ---
 
-## 18. FAQ（よくある質問）
+## 18. FAQ
 
-### Q1: Offset 方式と Cursor 方式のどちらをデフォルトにすべきか？
-
-```
-A: 新規 API であれば Cursor 方式を推奨する。
-   理由:
-   - パフォーマンスがデータ量に依存しない
-   - データの整合性が高い（位置ずれしない）
-   - モバイルアプリとの相性が良い
-   - 将来的なスケールに対応できる
-
-   ただし、以下の場合は Offset 方式が適切:
-   - 管理画面でページジャンプが必要
-   - 検索結果で「全 N 件中 X〜Y 件」の表示が必要
-   - データ量が少なく（<10万件）、パフォーマンス問題が予見されない
-
-   両方をサポートすることも可能:
-   - デフォルトは Cursor 方式
-   - page パラメータが指定された場合は Offset 方式にフォールバック
-```
-
-### Q2: カーソルに有効期限を設けるべきか？
+### Q1: Should I default to Offset or Cursor pagination?
 
 ```
-A: 一般的にはカーソルに有効期限は設けない。
-   カーソルはソートキーの値を持つだけで、
-   サーバー側のステート（セッション等）を持たないため、
-   有効期限を管理する必要がない。
+A: For new APIs, Cursor is recommended.
+   Reasons:
+   - Performance does not depend on data volume
+   - High data integrity (no position drift)
+   - Works well with mobile apps
+   - Can handle future scaling
 
-   ただし、以下の場合は有効期限が有用:
-   - セキュリティ要件でカーソルの再利用を制限したい場合
-     → カーソルに発行時刻を含め、一定時間経過後は拒否
-   - データの一貫性を保証したい場合
-     → 古いカーソルで最新のデータを取得すると混乱する
+   However, Offset is appropriate in the following cases:
+   - Admin panels where page jumping is required
+   - Search results requiring "X–Y of N total" display
+   - Small data volume (<100K records), no foreseeable performance issues
 
-   実装する場合:
+   Supporting both is also possible:
+   - Default to Cursor approach
+   - Fall back to Offset when the page parameter is specified
+```
+
+### Q2: Should cursors have an expiration time?
+
+```
+A: Generally, cursors do not need an expiration time.
+   A cursor holds only the value of the sort key
+   and does not maintain server-side state (e.g., session),
+   so there is no need to manage expiration.
+
+   However, expiration is useful in the following cases:
+   - When security requirements restrict cursor reuse
+     → Include issued-at time in cursor, reject after a certain period
+   - When you want to guarantee data consistency
+     → Fetching latest data with an old cursor may cause confusion
+
+   Implementation:
    {
      "createdAt": "2024-01-15",
      "id": 100,
-     "issuedAt": 1705305600  // カーソル発行時刻
+     "issuedAt": 1705305600  // Cursor issue time
    }
 
-   // デコード時に有効期限チェック
-   const MAX_CURSOR_AGE = 24 * 60 * 60; // 24時間
+   // Check expiration on decode
+   const MAX_CURSOR_AGE = 24 * 60 * 60; // 24 hours
    if (Date.now() / 1000 - decoded.issuedAt > MAX_CURSOR_AGE) {
      throw new ApiError(400, 'Cursor has expired');
    }
 ```
 
-### Q3: GraphQL の Connection 仕様で totalCount を返すべきか？
+### Q3: Should totalCount be returned in the GraphQL Connection spec?
 
 ```
-A: totalCount は Relay の公式仕様には含まれないが、
-   多くの API が拡張フィールドとして提供している。
+A: totalCount is not part of the official Relay spec,
+   but many APIs provide it as an extension field.
 
-   totalCount を返す場合の注意点:
-   - COUNT クエリのコストを認識する（大規模テーブルでは重い）
-   - フィールドレベルで遅延解決（resolve）する
-     → totalCount が SELECT されていない場合はクエリを実行しない
+   Notes when returning totalCount:
+   - Be aware of the cost of COUNT queries (expensive on large tables)
+   - Resolve lazily at the field level
+     → Only execute query when totalCount is not selected
 
-   // リゾルバでの遅延解決
+   // Lazy resolution in resolver
    UserConnection: {
      totalCount: async (parent, _, ctx) => {
-       // このフィールドが要求された場合のみ COUNT を実行
+       // Only execute COUNT when this field is requested
        return ctx.prisma.user.count({ where: parent._where });
      },
    },
 
-   代替手段:
-   - estimatedTotalCount: 推定値を返す（高速）
-   - totalCount を非推奨（deprecated）にして hasNextPage のみ推奨
-   - totalCount をキャッシュ（30秒〜5分の TTL）
+   Alternatives:
+   - estimatedTotalCount: return an estimate (faster)
+   - Deprecate totalCount and recommend hasNextPage only
+   - Cache totalCount (TTL of 30 seconds–5 minutes)
 ```
 
-### Q4: 無限スクロールの実装でカーソルを使う場合、戻る操作はどう実装するか？
+### Q4: How do you implement the back navigation when using cursors for infinite scroll?
 
 ```
-A: 無限スクロール UI では通常「戻る」操作は不要だが、
-   ブラウザの「戻る」ボタンでリストに戻った場合に
-   スクロール位置を復元する必要がある。
+A: In infinite scroll UI, "back" navigation is usually not needed,
+   but when the user returns to the list via the browser's back button,
+   the scroll position needs to be restored.
 
-   実装パターン:
-   (1) クライアント側でデータをキャッシュ
-       → React Query / SWR のキャッシュにデータを保持
-       → ページ遷移後に戻ってもキャッシュから復元
+   Implementation patterns:
+   (1) Cache data on the client side
+       → Retain data in React Query / SWR cache
+       → Restore from cache even after page navigation
 
-   (2) URL にカーソルを含める
+   (2) Include cursor in URL
        → /items?cursor=abc123
-       → ブラウザ履歴にカーソルが残り、戻った時に再取得可能
+       → Cursor remains in browser history, enabling re-fetch on back
 
-   (3) sessionStorage にスクロール位置とデータを保存
-       → 画面離脱時に保存、復帰時に復元
+   (3) Save scroll position and data to sessionStorage
+       → Save on page leave, restore on return
 ```
 
-### Q5: フィルタとソートをカーソルと組み合わせる場合、フィルタ変更時にカーソルはリセットすべきか？
+### Q5: When combining filters and sort with cursor, should the cursor be reset when the filter changes?
 
 ```
-A: フィルタまたはソート条件が変更された場合、
-   カーソルは必ずリセット（null に戻す）する必要がある。
+A: When filter or sort conditions change,
+   the cursor must be reset (set back to null).
 
-   理由:
-   - カーソルはソートキーの値を含むため、ソート順が変わると無効になる
-   - フィルタが変わると結果セットが異なるため、
-     以前のカーソル位置に意味がなくなる
+   Reasons:
+   - Cursor contains sort key values, so it becomes invalid when sort order changes
+   - When filter changes, the result set changes,
+     making the previous cursor position meaningless
 
-   クライアント側の実装:
-   // React の例
+   Client-side implementation:
+   // React example
    function useProductList() {
      const [filters, setFilters] = useState({});
      const [sort, setSort] = useState('-created_at');
      const [cursor, setCursor] = useState(null);
 
-     // フィルタまたはソートが変わったらカーソルをリセット
+     // Reset cursor when filter or sort changes
      useEffect(() => {
        setCursor(null);
      }, [filters, sort]);
@@ -2768,89 +2767,89 @@ A: フィルタまたはソート条件が変更された場合、
      // ...
    }
 
-   サーバー側の防御:
-   - カーソルにフィルタ/ソートのハッシュを含め、
-     不一致の場合は 400 を返すことも有効
+   Server-side defense:
+   - Including a hash of filter/sort in the cursor
+     and returning 400 on mismatch is also effective
    {
      "createdAt": "2024-01-15",
      "id": 100,
-     "contextHash": "a1b2c3"  // filter+sort のハッシュ
+     "contextHash": "a1b2c3"  // hash of filter+sort
    }
 ```
 
 ---
 
-## 19. 関連する RFC・仕様書
+## 19. Related RFCs and Specifications
 
-ページネーションに関連する標準仕様と業界プラクティスを以下にまとめる。
+The following summarizes standard specs and industry practices related to pagination.
 
 ```
-関連仕様:
+Related specifications:
 
   RFC 8288 - Web Linking
-    → Link ヘッダによるページネーションリンクの標準
+    → Standard for pagination links via Link header
     → Link: <https://api.example.com/users?page=3>; rel="next"
 
   RFC 7807 - Problem Details for HTTP APIs
-    → ページネーションエラー時のレスポンスフォーマット
+    → Response format for pagination errors
 
   JSON:API v1.1 - Pagination
     → https://jsonapi.org/format/#fetching-pagination
-    → page[number] / page[size] パラメータの標準
+    → Standard for page[number] / page[size] parameters
 
   GraphQL Relay Cursor Connections Specification
     → https://relay.dev/graphql/connections.htm
-    → first/after/last/before + edges/pageInfo の標準
+    → Standard for first/after/last/before + edges/pageInfo
 
   OData v4.0 - Query Options
     → $top / $skip / $count / $filter / $orderby
-    → エンタープライズ API での標準クエリオプション
+    → Standard query options for enterprise APIs
 ```
 
 ---
 
 ## FAQ
 
-### Q1: Offset方式とCursor方式のページネーション、どちらを選ぶべきか？
+### Q1: Which should I choose between Offset and Cursor pagination?
 
 ```
-A: データの特性と用途に応じて選択する。
+A: Choose based on the data characteristics and use case.
 
-Offset方式を選ぶべきケース:
-  - 管理画面やダッシュボードなど、ページジャンプ機能が必須
-  - データセットが比較的小規模（数千件程度）
-  - データの更新頻度が低い（位置ずれの影響が小さい）
-  - ユーザーが「3ページ目」「最後のページ」など直接アクセスしたい
-  - キャッシュを活用しやすい環境
+When to choose Offset:
+  - Admin panels or dashboards where page jumping is essential
+  - Relatively small datasets (on the order of thousands)
+  - Low data update frequency (low impact of position drift)
+  - Users want direct access to "page 3" or "last page"
+  - Environments where caching is easy
 
-  例: 社内の従業員一覧、商品カタログの管理画面
+  Examples: Internal employee lists, product catalog admin screens
 
-Cursor方式を選ぶべきケース:
-  - SNSフィードやタイムラインなど、無限スクロールUI
-  - 大規模データセット（数万件以上）
-  - データの更新頻度が高い（リアルタイム性が重要）
-  - モバイルアプリなど、パフォーマンスが重要
-  - ページジャンプ機能が不要
+When to choose Cursor:
+  - Infinite scroll UI such as SNS feeds and timelines
+  - Large datasets (tens of thousands or more)
+  - High data update frequency (real-time data is important)
+  - Mobile apps where performance is critical
+  - Page jumping is not needed
 
-  例: Twitter/Instagram風のフィード、チャットメッセージ履歴
+  Examples: Twitter/Instagram-style feeds, chat message history
 
-ハイブリッドアプローチ:
-  - 初回読み込みはCursor方式で高速化
-  - 検索結果など一部の画面ではOffset方式も提供
-  - APIドキュメントで両方式の使い分けを明記
+Hybrid approach:
+  - Use Cursor for initial load to improve speed
+  - Provide Offset for some screens such as search results
+  - Document the use case for each approach in the API documentation
 ```
 
-### Q2: フィルタリングのパラメータが多くなりすぎた場合の対処法は？
+### Q2: What to do when filter parameters become too many?
 
 ```
-A: 複雑なフィルタは POST /search エンドポイントに移行する。
+A: Move complex filters to a POST /search endpoint.
 
-GET での限界:
-  - URLの最大長は2048文字が一般的
-  - 10個以上のフィルタパラメータは可読性が低下
-  - ネストした条件（AND/OR の組み合わせ）は表現困難
+Limitations of GET:
+  - URL max length is generally 2048 characters
+  - More than 10 filter parameters reduces readability
+  - Nested conditions (combinations of AND/OR) are hard to express
 
-  悪い例:
+  Bad example:
   GET /api/products?
     category=electronics&
     price_min=100&price_max=500&
@@ -2861,7 +2860,7 @@ GET での限界:
     created_after=2024-01-01&
     created_before=2024-12-31
 
-POST /search への移行:
+Migrating to POST /search:
   POST /api/products/search
   {
     "filters": {
@@ -2881,31 +2880,31 @@ POST /search への移行:
     "cursor": "abc123"
   }
 
-利点:
-  - JSON形式で複雑な条件を表現可能
-  - ネストした AND/OR 条件も記述可能
-  - URLの長さ制限を回避
-  - スキーマ検証が容易（JSON Schema等）
-  - 検索条件の保存・共有が容易（リクエストボディを保存）
+Advantages:
+  - Complex conditions can be expressed in JSON format
+  - Nested AND/OR conditions can be written
+  - Avoids URL length limits
+  - Schema validation is easy (JSON Schema, etc.)
+  - Search conditions can be easily saved and shared (save request body)
 
-注意点:
-  - POSTだがべき等（副作用なし）であることを明記
-  - キャッシュが効きにくいため、検索結果のキャッシュ戦略が必要
-  - 簡易検索はGET、高度な検索はPOSTと使い分ける
+Notes:
+  - Clarify that POST is idempotent (no side effects)
+  - Cache strategy for search results is needed since HTTP caching is difficult
+  - Use GET for simple search, POST for advanced search
 ```
 
-### Q3: 大規模データセットでのページネーションのパフォーマンス対策は？
+### Q3: What are the performance measures for pagination with large datasets?
 
 ```
-A: インデックス最適化、クエリチューニング、キャッシュ戦略の組み合わせ。
+A: A combination of index optimization, query tuning, and caching strategies.
 
-1. インデックス戦略:
-   - カバリングインデックスの活用
+1. Index strategy:
+   - Utilize covering indexes
    CREATE INDEX idx_products_pagination
      ON products (category, created_at DESC, id)
      INCLUDE (name, price);
 
-   -- SELECT * ではなく必要カラムのみ取得してインデックスオンリースキャン
+   -- Index-only scan by fetching only necessary columns, not SELECT *
    SELECT id, name, price, category, created_at
    FROM products
    WHERE category = 'electronics'
@@ -2913,26 +2912,26 @@ A: インデックス最適化、クエリチューニング、キャッシュ�
    ORDER BY created_at DESC, id DESC
    LIMIT 20;
 
-2. パーティショニング:
-   - 時系列データは月次/年次でパーティション分割
+2. Partitioning:
+   - Partition time-series data by month/year
    CREATE TABLE products_2024_01 PARTITION OF products
      FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
 
-   -- 最新データのパーティションのみスキャン
-   -- 古いデータへのアクセスはアーカイブから取得
+   -- Scan only the latest data partition
+   -- Access to old data retrieved from archive
 
-3. マテリアライズドビュー:
-   - よく使われるフィルタ条件を事前計算
+3. Materialized views:
+   - Pre-calculate frequently used filter conditions
    CREATE MATERIALIZED VIEW products_electronics AS
    SELECT * FROM products WHERE category = 'electronics'
    ORDER BY created_at DESC;
 
    REFRESH MATERIALIZED VIEW CONCURRENTLY products_electronics;
 
-4. アプリケーションレベルキャッシュ:
-   - 初回ページ（cursor=null）はCDN/Redisでキャッシュ
-   - TTLは短め（1-5分）で鮮度を保つ
-   // Redis での実装例
+4. Application-level caching:
+   - Cache first page (cursor=null) at CDN/Redis
+   - Use short TTL (1-5 minutes) to maintain freshness
+   // Redis implementation example
    const cacheKey = `products:${category}:first_page`;
    let result = await redis.get(cacheKey);
    if (!result) {
@@ -2940,66 +2939,66 @@ A: インデックス最適化、クエリチューニング、キャッシュ�
      await redis.setex(cacheKey, 300, JSON.stringify(result));
    }
 
-5. 非同期カウント:
-   - totalCount の取得は重いため、別リクエストまたは概算値で対応
-   // 概算カウント（PostgreSQL）
+5. Async count:
+   - Fetching totalCount is expensive, so use separate request or approximate value
+   // Approximate count (PostgreSQL)
    SELECT reltuples::bigint AS estimate
    FROM pg_class
    WHERE relname = 'products';
 
-   // または totalCount を別エンドポイントに分離
+   // Or separate totalCount to its own endpoint
    GET /api/products/count?category=electronics
 
-6. 段階的データロード:
-   - 初回は20件のみ、スクロール時に追加ロード
-   - 「全件表示」は避け、上限を設ける（例: 最大1000件）
+6. Progressive data loading:
+   - Load only 20 records initially, load more on scroll
+   - Avoid "show all" and set an upper limit (e.g., max 1000 records)
    {
      "data": [...],
      "pageInfo": {
        "hasNextPage": true,
        "endCursor": "abc123",
-       "remainingEstimate": 500  // 残り件数の概算
+       "remainingEstimate": 500  // Approximate remaining count
      }
    }
 
-パフォーマンス指標:
-  - P95レスポンスタイム < 200ms を目標
-  - データベーススロークエリログの監視
-  - EXPLAIN ANALYZE で実行計画を定期チェック
+Performance targets:
+  - P95 response time < 200ms goal
+  - Monitor database slow query logs
+  - Periodically check execution plans with EXPLAIN ANALYZE
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 概念 | ポイント |
-|------|---------|
-| Offset 方式 | 直感的だが大規模でパフォーマンス劣化。管理画面・検索結果向け |
-| Cursor 方式 | 一定性能で位置ずれなし。SNS・モバイル・大規模データ向け |
-| Keyset 方式 | Cursor の変種。キー露出だがデバッグしやすい。バッチ処理向け |
-| GraphQL Connection | Relay 標準。edges/pageInfo/totalCount の構造化された仕様 |
-| フィルタリング | ホワイトリスト + 演算子パターン。セキュリティ最優先 |
-| ソート | -プレフィックスで降順。安定ソートのため必ず id を末尾に追加 |
-| 検索 | 簡易は GET ?q=、複雑は POST /search。ファセット検索は専用バックエンド |
-| インデックス | (filter_key, sort_key, id) の複合インデックスが基本 |
-| セキュリティ | limit 上限・ホワイトリスト・カーソル署名 |
-| キャッシュ | Offset はキャッシュ向き。Cursor は ETag / 条件付きリクエスト活用 |
-
----
-
-## 次に読むべきガイド
-
-- [REST ベストプラクティス](../01-rest-and-graphql/00-rest-best-practices.md) -- REST API設計の基本原則と実装パターン
-- エラーハンドリング設計 -- APIエラーレスポンスの標準化とクライアント対応
-- API バージョニング戦略 -- 破壊的変更の管理と互換性維持の手法
+| Concept | Key Point |
+|---------|-----------|
+| Offset approach | Intuitive but performance degrades at scale. For admin panels and search results |
+| Cursor approach | Consistent performance without drift. For SNS, mobile, and large datasets |
+| Keyset approach | Variant of Cursor. Exposes keys but easy to debug. For batch processing |
+| GraphQL Connection | Relay standard. Structured spec with edges/pageInfo/totalCount |
+| Filtering | Whitelist + operator pattern. Security first |
+| Sorting | - prefix for descending. Always append id last for stable sort |
+| Search | Simple: GET ?q=, complex: POST /search. Faceted search needs dedicated backend |
+| Index | Composite index of (filter_key, sort_key, id) is the foundation |
+| Security | limit upper bound, whitelist, cursor signing |
+| Caching | Offset is cache-friendly. Cursor uses ETag / conditional requests |
 
 ---
 
-## 参考文献
+## What to Read Next
 
-1. Relay Team. "GraphQL Cursor Connections Specification." relay.dev/graphql/connections.htm, 2024. -- Connection 仕様の公式ドキュメント。edges, pageInfo, cursor の構造を定義している。
-2. Stripe. "Pagination - API Reference." stripe.com/docs/api/pagination, 2024. -- Cursor ベースページネーションの業界標準的な実装例。auto-pagination ヘルパーも提供。
-3. JSON:API. "Fetching Data - Pagination." jsonapi.org/format/#fetching-pagination, 2024. -- JSON:API 仕様におけるページネーションの標準的な設計。page[number] / page[size] パラメータの定義。
-4. Slack. "Pagination - Web API." api.slack.com/docs/pagination, 2024. -- Cursor ベースページネーションの移行事例。Offset から Cursor への段階的移行方法を解説。
-5. GitHub. "Using pagination in the REST API." docs.github.com/en/rest/using-the-rest-api/using-pagination-in-the-rest-api, 2024. -- Link ヘッダ（RFC 8288）を活用した実装例。per_page の上限設定など。
-6. Markus Winand. "No Offset: Keyset Pagination for SQL." use-the-index-luke.com/no-offset, 2024. -- OFFSET の問題点と Keyset ページネーションの利点を SQL レベルで詳細に解説。
+- [REST Best Practices](../01-rest-and-graphql/00-rest-best-practices.md) -- Fundamental principles and implementation patterns for REST API design
+- Error Handling Design -- Standardization of API error responses and client handling
+- API Versioning Strategy -- Managing breaking changes and maintaining compatibility
+
+---
+
+## References
+
+1. Relay Team. "GraphQL Cursor Connections Specification." relay.dev/graphql/connections.htm, 2024. -- Official documentation for the Connection spec. Defines the structure of edges, pageInfo, and cursor.
+2. Stripe. "Pagination - API Reference." stripe.com/docs/api/pagination, 2024. -- Industry-standard implementation example of cursor-based pagination. Also provides an auto-pagination helper.
+3. JSON:API. "Fetching Data - Pagination." jsonapi.org/format/#fetching-pagination, 2024. -- Standard pagination design in the JSON:API spec. Defines page[number] / page[size] parameters.
+4. Slack. "Pagination - Web API." api.slack.com/docs/pagination, 2024. -- Migration case study for cursor-based pagination. Explains the step-by-step migration from Offset to Cursor.
+5. GitHub. "Using pagination in the REST API." docs.github.com/en/rest/using-the-rest-api/using-pagination-in-the-rest-api, 2024. -- Implementation example using Link header (RFC 8288). Includes per_page upper limit settings.
+6. Markus Winand. "No Offset: Keyset Pagination for SQL." use-the-index-luke.com/no-offset, 2024. -- Detailed SQL-level explanation of the drawbacks of OFFSET and the advantages of Keyset pagination.
