@@ -1,54 +1,54 @@
 # DOM API
 
-> DOMはHTMLをJavaScriptで操作するためのAPIである。DOMツリーの構造理解、効率的なノード操作、イベントモデル、MutationObserver、Shadow DOM、Virtual DOMとの比較まで網羅的に学び、パフォーマンスを意識した堅牢な実装を目指す。
+> The DOM is the API for manipulating HTML with JavaScript. This chapter provides comprehensive coverage from understanding the structure of the DOM tree, efficient node manipulation, the event model, MutationObserver, and Shadow DOM, to a comparison with Virtual DOM — building toward robust, performance-conscious implementations.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] DOMツリーの構造とノードの種類を正確に理解する
-- [ ] 要素の取得・作成・挿入・削除を効率的に行う
-- [ ] Layout Thrashing を回避するバッチ処理パターンを習得する
-- [ ] イベントモデル（キャプチャ / バブリング / 委任）を使い分ける
-- [ ] MutationObserver で DOM 変更を非同期監視する設計を理解する
-- [ ] Shadow DOM によるスタイル・DOM の隔離を体験する
-- [ ] Virtual DOM との設計思想の違いを比較し、選択基準を持つ
+- [ ] Accurately understand the structure of the DOM tree and the types of nodes
+- [ ] Efficiently retrieve, create, insert, and delete elements
+- [ ] Master batch-processing patterns to avoid Layout Thrashing
+- [ ] Use the event model (capture / bubbling / delegation) appropriately
+- [ ] Understand the design for asynchronously monitoring DOM changes with MutationObserver
+- [ ] Experience style and DOM isolation via Shadow DOM
+- [ ] Compare the design philosophy of Virtual DOM and choose the right approach
 
-## 前提知識
+## Prerequisites
 
-本章を学習する前に、以下の知識を習得しておくことを推奨する。
+Before studying this chapter, it is recommended that you have acquired the following knowledge.
 
-- **ブラウザのHTML/CSSパース**: ブラウザがHTMLとCSSをどのように解析し、DOMツリーとCSSOMツリーを構築するかを理解することで、DOM APIの操作がレンダリングにどう影響するかを把握できる。詳細は [../00-browser-engine/02-parsing-html-css.md](../00-browser-engine/02-parsing-html-css.md) を参照。
+- **Browser HTML/CSS Parsing**: Understanding how the browser parses HTML and CSS to build the DOM tree and CSSOM tree helps you grasp how DOM API operations affect rendering. See [../00-browser-engine/02-parsing-html-css.md](../00-browser-engine/02-parsing-html-css.md) for details.
 
-- **JavaScriptの基本構文**: 変数、関数、オブジェクト、配列などの基本的な構文に加え、`const`/`let`のスコープ、アロー関数、テンプレートリテラルなどのES2015以降の機能を理解していることが前提となる。
+- **Basic JavaScript Syntax**: Beyond variables, functions, objects, and arrays, familiarity with ES2015+ features such as `const`/`let` scoping, arrow functions, and template literals is assumed.
 
-- **イベント駆動プログラミングの概念**: DOMはイベント駆動モデルを採用しており、ユーザーのインタラクション（クリック、キー入力など）やブラウザの状態変化（DOM読み込み完了、リサイズなど）に応じて処理を実行する。コールバック関数、非同期処理の基礎を理解しておくと、イベントリスナーの実装がスムーズになる。
+- **Concepts of Event-Driven Programming**: The DOM uses an event-driven model, executing code in response to user interactions (clicks, key input, etc.) and browser state changes (DOM load complete, resize, etc.). Understanding callback functions and the basics of asynchronous processing makes implementing event listeners much smoother.
 
 ---
 
-## 1. DOMツリーの基礎構造
+## 1. Fundamental Structure of the DOM Tree
 
-### 1.1 DOMとは何か
+### 1.1 What is the DOM?
 
-DOM（Document Object Model）は、HTMLやXML文書をプログラムから操作するための標準インターフェースである。ブラウザはHTMLを受け取ると、まずパーサがトークン化と構文解析を行い、その結果をツリー構造のオブジェクトモデルとしてメモリ上に構築する。このツリーがDOMツリーであり、JavaScriptはこのDOMツリーのAPIを通じて文書の構造・スタイル・内容を読み書きする。
+The DOM (Document Object Model) is the standard interface for programmatically manipulating HTML and XML documents. When a browser receives HTML, the parser tokenizes and parses it, then builds the result as a tree-structured object model in memory. This tree is the DOM tree, and JavaScript reads and writes the document's structure, style, and content through the DOM tree's API.
 
-DOMの仕様はWHATWGが管理する DOM Living Standard として継続的に更新されている。歴史的には DOM Level 1（1998年）から始まり、Level 2、Level 3 と段階的に拡張されてきたが、現在は「レベル」による区分は廃止され、単一の Living Standard として運用されている。
+The DOM specification is continuously updated as the DOM Living Standard, managed by WHATWG. Historically it started with DOM Level 1 (1998) and expanded through Level 2 and Level 3, but the "level" distinction is now abolished and it operates as a single Living Standard.
 
-### 1.2 ノードの種類とツリー構造
+### 1.2 Node Types and Tree Structure
 
-DOMツリーは多種のノードで構成される。主要なノード型を以下に示す。
+The DOM tree is composed of various types of nodes. The major node types are shown below.
 
 ```
 Node (nodeType)
-├── Document (9)         ... 文書全体のルート
+├── Document (9)         ... Root of the entire document
 ├── DocumentType (10)    ... <!DOCTYPE html>
-├── Element (1)          ... <div>, <p>, <span> など
-├── Attr (2)             ... 属性ノード（現在は直接アクセス非推奨）
-├── Text (3)             ... テキストコンテンツ
-├── Comment (8)          ... <!-- コメント -->
-├── DocumentFragment (11)... メモリ上の仮想コンテナ
-└── ProcessingInstruction (7) ... <?xml ... ?>（XMLのみ）
+├── Element (1)          ... <div>, <p>, <span>, etc.
+├── Attr (2)             ... Attribute node (direct access now discouraged)
+├── Text (3)             ... Text content
+├── Comment (8)          ... <!-- comment -->
+├── DocumentFragment (11)... Virtual container in memory
+└── ProcessingInstruction (7) ... <?xml ... ?> (XML only)
 ```
 
-典型的なHTML文書のDOMツリーを ASCII 図で表す。
+The DOM tree of a typical HTML document in ASCII form:
 
 ```
                         Document
@@ -70,32 +70,32 @@ Node (nodeType)
                                      "A"    "B"    "C"
 ```
 
-### 1.3 ノード間のナビゲーション
+### 1.3 Navigating Between Nodes
 
-各ノードは親・子・兄弟への参照を持ち、ツリーを自由に走査できる。ただし、全ノード用プロパティとElement専用プロパティが存在する点に注意が必要である。
+Each node holds references to its parent, children, and siblings, allowing free traversal of the tree. Note that there are properties for all nodes and properties exclusive to Elements.
 
-| 関係 | 全ノード用 | Element専用 |
+| Relationship | All Nodes | Elements Only |
 |------|-----------|------------|
-| 親 | `parentNode` | `parentElement` |
-| 子（先頭） | `firstChild` | `firstElementChild` |
-| 子（末尾） | `lastChild` | `lastElementChild` |
-| 前の兄弟 | `previousSibling` | `previousElementSibling` |
-| 次の兄弟 | `nextSibling` | `nextElementSibling` |
-| 子リスト | `childNodes`（NodeList） | `children`（HTMLCollection） |
+| Parent | `parentNode` | `parentElement` |
+| Child (first) | `firstChild` | `firstElementChild` |
+| Child (last) | `lastChild` | `lastElementChild` |
+| Previous sibling | `previousSibling` | `previousElementSibling` |
+| Next sibling | `nextSibling` | `nextElementSibling` |
+| Child list | `childNodes` (NodeList) | `children` (HTMLCollection) |
 
-全ノード用プロパティはテキストノードやコメントノードも含む。例えば HTML 中の改行やインデントに対応するテキストノードも `childNodes` には含まれる。Element のみを走査したい場合は Element 専用プロパティを使う。
+All-node properties include text nodes and comment nodes. For example, text nodes corresponding to line breaks and indentation in HTML are also included in `childNodes`. Use Element-only properties when you want to traverse only Elements.
 
 ```javascript
-// 全ノード走査 vs Element 走査の違い
+// Difference between all-node traversal vs Element traversal
 const body = document.body;
 
-// childNodes はテキストノード（改行/空白）も含む
-console.log(body.childNodes.length);    // 例: 7（テキスト3 + 要素3 + テキスト1）
+// childNodes includes text nodes (newlines/whitespace)
+console.log(body.childNodes.length);    // e.g. 7 (3 text + 3 elements + 1 text)
 
-// children は Element のみ
-console.log(body.children.length);      // 例: 3（要素のみ）
+// children contains only Elements
+console.log(body.children.length);      // e.g. 3 (elements only)
 
-// 再帰的なツリー走査
+// Recursive tree traversal
 function walkDOM(node, callback, depth = 0) {
   callback(node, depth);
   let child = node.firstChild;
@@ -118,69 +118,69 @@ walkDOM(document.body, (node, depth) => {
 
 ---
 
-## 2. 要素の取得
+## 2. Retrieving Elements
 
-### 2.1 取得メソッドの一覧と特性
+### 2.1 Overview and Characteristics of Retrieval Methods
 
-要素を取得するメソッドは大きく分けて2系統ある。`querySelector` 系（静的スナップショット）と `getElementsBy` 系（ライブコレクション）である。
+There are two main families of element retrieval methods: the `querySelector` family (static snapshots) and the `getElementsBy` family (live collections).
 
 ```javascript
-// ---- querySelector 系（静的 NodeList） ----
-const el  = document.querySelector('#app');          // 最初の1つ
-const els = document.querySelectorAll('.card');       // 全て
+// ---- querySelector family (static NodeList) ----
+const el  = document.querySelector('#app');          // First match
+const els = document.querySelectorAll('.card');       // All matches
 
-// ---- getElementsBy 系（ライブ HTMLCollection） ----
-const byId    = document.getElementById('app');               // 単一要素
-const byClass = document.getElementsByClassName('card');       // ライブ
-const byTag   = document.getElementsByTagName('div');          // ライブ
-const byName  = document.getElementsByName('email');           // ライブ NodeList
+// ---- getElementsBy family (live HTMLCollection) ----
+const byId    = document.getElementById('app');               // Single element
+const byClass = document.getElementsByClassName('card');       // Live
+const byTag   = document.getElementsByTagName('div');          // Live
+const byName  = document.getElementsByName('email');           // Live NodeList
 
-// ---- 特殊な取得 ----
-const closest = element.closest('.container');  // 祖先方向に最も近い一致要素
-const matches = element.matches('.active');     // セレクタに一致するか判定
+// ---- Special retrieval ----
+const closest = element.closest('.container');  // Nearest ancestor matching selector
+const matches = element.matches('.active');     // Check if element matches selector
 ```
 
-### 2.2 静的 NodeList vs ライブ HTMLCollection
+### 2.2 Static NodeList vs Live HTMLCollection
 
-この違いは実務でバグの原因になりやすい。比較表で整理する。
+This difference is a common source of bugs in practice. The table below summarizes the comparison.
 
-| 特性 | `querySelectorAll` | `getElementsByClassName` |
+| Property | `querySelectorAll` | `getElementsByClassName` |
 |------|-------------------|------------------------|
-| 返却型 | 静的 `NodeList` | ライブ `HTMLCollection` |
-| DOM変更の反映 | されない（取得時点のスナップショット） | リアルタイムに反映される |
-| `forEach` 対応 | あり | なし（`Array.from()` が必要） |
-| セレクタの柔軟性 | CSSセレクタ全般 | クラス名のみ |
-| パフォーマンス | やや遅い（セレクタ解析あり） | 高速（単純なインデックス参照） |
-| ループ中の追加/削除 | 安全（スナップショットのため） | 危険（コレクションが変化する） |
+| Return type | Static `NodeList` | Live `HTMLCollection` |
+| Reflects DOM changes | No (snapshot at time of retrieval) | Reflected in real time |
+| `forEach` support | Yes | No (requires `Array.from()`) |
+| Selector flexibility | Full CSS selectors | Class name only |
+| Performance | Slightly slower (selector parsing) | Fast (simple index reference) |
+| Add/remove during loop | Safe (because it is a snapshot) | Dangerous (collection changes) |
 
 ```javascript
-// ライブコレクションの落とし穴
+// Pitfall of live collections
 const items = document.getElementsByClassName('item');
 console.log(items.length);  // 3
 
-// ループ中に class を除去すると、インデックスがずれる
+// Removing a class during the loop causes index shifting
 for (let i = 0; i < items.length; i++) {
-  items[i].classList.remove('item');  // 除去した瞬間に items から消える
-  // i=0 で除去 → items.length が 2 に → i=1 は元の3番目の要素
+  items[i].classList.remove('item');  // Removed instantly from items
+  // At i=0, remove → items.length becomes 2 → i=1 is the original 3rd element
 }
-// 結果: 1つおきにしか処理されない
+// Result: only every other element is processed
 
-// 安全な方法1: querySelectorAll（静的）
+// Safe approach 1: querySelectorAll (static)
 document.querySelectorAll('.item').forEach(el => {
-  el.classList.remove('item');  // 安全
+  el.classList.remove('item');  // Safe
 });
 
-// 安全な方法2: 逆順ループ
+// Safe approach 2: reverse loop
 for (let i = items.length - 1; i >= 0; i--) {
-  items[i].classList.remove('item');  // 後ろから処理すればインデックスが崩れない
+  items[i].classList.remove('item');  // Processing from the back prevents index corruption
 }
 ```
 
 ---
 
-## 3. 要素の作成・挿入・削除
+## 3. Creating, Inserting, and Removing Elements
 
-### 3.1 基本的な CRUD 操作
+### 3.1 Basic CRUD Operations
 
 ```javascript
 // ---- Create ----
@@ -190,40 +190,40 @@ div.id = 'card-1';
 div.setAttribute('data-category', 'tech');
 div.textContent = 'Hello, DOM!';
 
-// テンプレートから作成（複雑な構造向き）
+// Create from template (suitable for complex structures)
 const template = document.getElementById('card-template');
 const clone = template.content.cloneNode(true);  // deep clone
 
 // ---- Insert ----
-parent.appendChild(child);                 // 末尾に追加
-parent.insertBefore(newChild, refChild);   // refChild の前に挿入
-parent.replaceChild(newChild, oldChild);   // 置換
+parent.appendChild(child);                 // Append to end
+parent.insertBefore(newChild, refChild);   // Insert before refChild
+parent.replaceChild(newChild, oldChild);   // Replace
 
-// モダン API（IE 非対応だが現在は問題なし）
-parent.append(child1, child2, 'text');     // 末尾に複数追加（テキストも可）
-parent.prepend(child);                     // 先頭に追加
-refChild.before(newChild);                 // refChild の前に
-refChild.after(newChild);                  // refChild の後に
-oldChild.replaceWith(newChild);            // 自身を置換
+// Modern API (no IE support needed today)
+parent.append(child1, child2, 'text');     // Append multiple (text also allowed)
+parent.prepend(child);                     // Insert at beginning
+refChild.before(newChild);                 // Insert before refChild
+refChild.after(newChild);                  // Insert after refChild
+oldChild.replaceWith(newChild);            // Replace self
 
 // ---- Delete ----
-parent.removeChild(child);                 // 従来の方法
-child.remove();                            // モダン API
+parent.removeChild(child);                 // Traditional approach
+child.remove();                            // Modern API
 
 // ---- Read / Update ----
 element.getAttribute('href');
 element.setAttribute('href', '/new-path');
 element.removeAttribute('disabled');
 element.hasAttribute('hidden');
-element.toggleAttribute('hidden');         // あれば削除、なければ追加
+element.toggleAttribute('hidden');         // Remove if present, add if absent
 ```
 
-### 3.2 DocumentFragment によるバッチ挿入
+### 3.2 Batch Insertion with DocumentFragment
 
-DOM に要素を1つずつ追加すると、追加のたびにレイアウト再計算が発生する可能性がある。`DocumentFragment` を使うと、メモリ上で仮想的にツリーを構築し、最後に1回だけ DOM に反映できる。
+Adding elements to the DOM one at a time may trigger layout recalculation with each addition. Using `DocumentFragment`, you can build the tree virtually in memory and apply it to the DOM in a single operation at the end.
 
 ```javascript
-// DocumentFragment を使った効率的な大量挿入
+// Efficient bulk insertion with DocumentFragment
 function createList(items) {
   const fragment = document.createDocumentFragment();
 
@@ -247,27 +247,27 @@ function createList(items) {
   return fragment;
 }
 
-// 1,000 件のデータを一括挿入
+// Bulk insert 1,000 items
 const data = Array.from({ length: 1000 }, (_, i) => ({
   name: `Item ${i}`,
   count: Math.floor(Math.random() * 100),
 }));
 
 const ul = document.querySelector('#list');
-ul.appendChild(createList(data));  // DOM操作は1回だけ
+ul.appendChild(createList(data));  // DOM operation happens only once
 ```
 
 ### 3.3 insertAdjacentHTML / insertAdjacentElement
 
-`innerHTML` は対象要素の全子孫を破棄して再構築するが、`insertAdjacentHTML` は既存の DOM を保持したまま指定位置に HTML を挿入する。
+`innerHTML` destroys and rebuilds all descendants of the target element, but `insertAdjacentHTML` inserts HTML at a specified position while preserving the existing DOM.
 
 ```
-insertAdjacentHTML の4つのポジション:
+The four positions of insertAdjacentHTML:
 
   <!-- 'beforebegin' -->
   <div id="target">
     <!-- 'afterbegin' -->
-    <p>既存の内容</p>
+    <p>Existing content</p>
     <!-- 'beforeend' -->
   </div>
   <!-- 'afterend' -->
@@ -276,86 +276,86 @@ insertAdjacentHTML の4つのポジション:
 ```javascript
 const target = document.getElementById('target');
 
-// 末尾に追加（既存の内容を壊さない）
-target.insertAdjacentHTML('beforeend', '<p class="new">追加コンテンツ</p>');
+// Append to end (without destroying existing content)
+target.insertAdjacentHTML('beforeend', '<p class="new">Added content</p>');
 
-// 要素の前に挿入
-target.insertAdjacentHTML('beforebegin', '<h2>見出し</h2>');
+// Insert before the element
+target.insertAdjacentHTML('beforebegin', '<h2>Heading</h2>');
 
-// insertAdjacentElement: Element オブジェクトを挿入
+// insertAdjacentElement: insert an Element object
 const newEl = document.createElement('div');
-newEl.textContent = '新しい要素';
+newEl.textContent = 'New element';
 target.insertAdjacentElement('afterend', newEl);
 
-// insertAdjacentText: テキストノードを挿入
-target.insertAdjacentText('afterbegin', 'テキスト先頭追加: ');
+// insertAdjacentText: insert a text node
+target.insertAdjacentText('afterbegin', 'Text prepended: ');
 ```
 
 ---
 
-## 4. DOM 操作とレンダリングパイプライン
+## 4. DOM Manipulation and the Rendering Pipeline
 
-### 4.1 ブラウザのレンダリングフロー
+### 4.1 Browser Rendering Flow
 
-DOM 操作がなぜパフォーマンスに影響するかを理解するには、ブラウザのレンダリングパイプラインを知る必要がある。
+To understand why DOM operations affect performance, you need to know the browser's rendering pipeline.
 
 ```
 ┌─────────┐   ┌──────────┐   ┌────────┐   ┌─────────┐   ┌──────────┐
 │  Parse  │──▶│  Style   │──▶│ Layout │──▶│  Paint  │──▶│Composite │
 │ HTML/CSS│   │ Compute  │   │(Reflow)│   │(Repaint)│   │ (Layers) │
 └─────────┘   └──────────┘   └────────┘   └─────────┘   └──────────┘
-     DOM          CSSOM        位置/寸法     ピクセル描画    GPU合成
-   ツリー構築     スタイル計算     計算
+     DOM          CSSOM       Position/   Pixel drawing   GPU compositing
+   tree build  style compute  size calc
 ```
 
-各段階のコスト:
+Cost of each stage:
 
-| 段階 | トリガーとなる操作 | コスト |
+| Stage | Triggering Operations | Cost |
 |------|-------------------|--------|
-| Style | クラス追加・削除、スタイル変更 | 中 |
-| Layout (Reflow) | 幅・高さ変更、要素追加/削除、`offsetHeight` 読み取り | 高 |
-| Paint (Repaint) | 背景色・影の変更、`visibility` 変更 | 中～高 |
-| Composite | `transform`、`opacity` の変更 | 低 |
+| Style | Adding/removing classes, changing styles | Medium |
+| Layout (Reflow) | Changing width/height, adding/removing elements, reading `offsetHeight` | High |
+| Paint (Repaint) | Changing background color/shadow, changing `visibility` | Medium–High |
+| Composite | Changing `transform`, `opacity` | Low |
 
-### 4.2 Layout Thrashing（レイアウト スラッシング）
+### 4.2 Layout Thrashing
 
-Layout Thrashing は、レイアウト情報の読み取りと書き込みを交互に行うことで、フレームごとに何度もレイアウト再計算が発生する現象である。
+Layout Thrashing is a phenomenon where interleaving reads and writes of layout information causes multiple layout recalculations per frame.
 
 ```javascript
-// ---- アンチパターン: Layout Thrashing ----
-// offsetHeight の読み取りごとに強制的な同期レイアウトが発生する
+// ---- Anti-pattern: Layout Thrashing ----
+// Each read of offsetHeight triggers a forced synchronous layout
 function badResize(elements) {
   elements.forEach(el => {
-    const height = el.offsetHeight;          // 読み → 強制レイアウト
-    el.style.height = (height * 2) + 'px';   // 書き → レイアウト無効化
-    // 次の反復で再び offsetHeight → 再度強制レイアウト ...
+    const height = el.offsetHeight;          // Read → forced layout
+    el.style.height = (height * 2) + 'px';   // Write → invalidates layout
+    // Next iteration reads offsetHeight again → forced layout again ...
   });
 }
 
-// ---- 推奨パターン: 読み書き分離 ----
+// ---- Recommended pattern: Separate reads and writes ----
 function goodResize(elements) {
-  // Phase 1: 全ての読み取りをまとめる
+  // Phase 1: Batch all reads
   const heights = elements.map(el => el.offsetHeight);
 
-  // Phase 2: 全ての書き込みをまとめる
+  // Phase 2: Batch all writes
   elements.forEach((el, i) => {
     el.style.height = (heights[i] * 2) + 'px';
   });
 }
 
-// ---- 推奨パターン: requestAnimationFrame で書き込みを遅延 ----
+// ---- Recommended pattern: Defer writes with requestAnimationFrame ----
 function rafResize(elements) {
-  const heights = elements.map(el => el.offsetHeight);  // 読み取り
+  const heights = elements.map(el => el.offsetHeight);  // Read
 
   requestAnimationFrame(() => {
     elements.forEach((el, i) => {
-      el.style.height = (heights[i] * 2) + 'px';       // 書き込み
+      el.style.height = (heights[i] * 2) + 'px';       // Write
     });
   });
 }
 ```
 
-レイアウトを強制するプロパティ・メソッドの代表例:
+Representative properties and methods that force layout:
 
 - `offsetTop`, `offsetLeft`, `offsetWidth`, `offsetHeight`
 - `scrollTop`, `scrollLeft`, `scrollWidth`, `scrollHeight`
@@ -363,53 +363,53 @@ function rafResize(elements) {
 - `getComputedStyle()`
 - `getBoundingClientRect()`
 
-### 4.3 効率的な DOM 操作のベストプラクティス
+### 4.3 Best Practices for Efficient DOM Manipulation
 
 ```javascript
-// 1. classList API でクラスを操作（className 直接操作より安全）
+// 1. Manipulate classes with the classList API (safer than direct className manipulation)
 element.classList.add('active', 'highlight');
 element.classList.remove('active');
 element.classList.toggle('visible');
 element.classList.contains('active');    // boolean
 element.classList.replace('old', 'new');
 
-// 2. dataset API でカスタムデータ属性を操作
+// 2. Manipulate custom data attributes with the dataset API
 // HTML: <div data-user-id="42" data-is-admin="true">
-element.dataset.userId;      // "42"（camelCase に変換される）
-element.dataset.isAdmin;     // "true"（文字列であることに注意）
+element.dataset.userId;      // "42" (converted to camelCase)
+element.dataset.isAdmin;     // "true" (note: always a string)
 delete element.dataset.userId;
 
-// 3. style プロパティの一括設定
-// 悪い例: 複数回の style 書き込み
+// 3. Batch style property setting
+// Bad: multiple style writes
 element.style.width = '100px';
 element.style.height = '200px';
 element.style.background = 'red';
 
-// 良い例: cssText で一括設定
+// Good: set all at once with cssText
 element.style.cssText = 'width: 100px; height: 200px; background: red;';
 
-// さらに良い例: クラスの付け替え（スタイルは CSS に定義）
+// Even better: swap classes (styles defined in CSS)
 element.classList.add('card--expanded');
 
-// 4. display: none で DOM から一時的に切り離し、操作後に復帰
-element.style.display = 'none';  // レイアウトツリーから除外
-// ... 複数の DOM 操作 ...
-element.style.display = '';       // 復帰（1回だけ Reflow）
+// 4. Temporarily detach from DOM with display: none, then restore after operations
+element.style.display = 'none';  // Removed from layout tree
+// ... multiple DOM operations ...
+element.style.display = '';       // Restore (only one Reflow)
 ```
 
 ---
 
-## 5. イベントモデル
+## 5. The Event Model
 
-### 5.1 イベント伝播の3フェーズ
+### 5.1 The Three Phases of Event Propagation
 
-DOM イベントは、ルートからターゲットへ降りていく「キャプチャフェーズ」、ターゲットでの「ターゲットフェーズ」、ターゲットからルートへ昇っていく「バブリングフェーズ」の3段階で伝播する。
+DOM events propagate in three stages: the "capture phase" descending from root to target, the "target phase" at the target, and the "bubbling phase" ascending from target to root.
 
 ```
-イベント伝播の流れ（クリックイベントの例）:
+Event propagation flow (click event example):
 
   Window
-    │  ↓ キャプチャ          ↑ バブリング
+    │  ↓ Capture          ↑ Bubbling
   Document
     │  ↓                    ↑
   <html>
@@ -418,74 +418,74 @@ DOM イベントは、ルートからターゲットへ降りていく「キャ�
     │  ↓                    ↑
   <div#container>
     │  ↓                    ↑
-  <button#target>  ← ターゲットフェーズ（ここでイベント発火）
+  <button#target>  ← Target phase (event fires here)
 ```
 
 ```javascript
 const container = document.getElementById('container');
 const button = document.getElementById('target');
 
-// キャプチャフェーズで処理（第3引数 true または { capture: true }）
+// Handle in capture phase (third argument true or { capture: true })
 container.addEventListener('click', (e) => {
-  console.log('1. container キャプチャ');
+  console.log('1. container capture');
 }, true);
 
-// バブリングフェーズで処理（デフォルト）
+// Handle in bubbling phase (default)
 container.addEventListener('click', (e) => {
-  console.log('3. container バブリング');
+  console.log('3. container bubbling');
 });
 
 button.addEventListener('click', (e) => {
-  console.log('2. button ターゲット');
+  console.log('2. button target');
 });
 
-// ボタンクリック時の出力順:
-// 1. container キャプチャ
-// 2. button ターゲット
-// 3. container バブリング
+// Output order when button is clicked:
+// 1. container capture
+// 2. button target
+// 3. container bubbling
 ```
 
-### 5.2 イベントの制御メソッド
+### 5.2 Event Control Methods
 
 ```javascript
 element.addEventListener('click', (e) => {
-  // イベントの伝播を停止（後続のリスナーは実行される）
+  // Stop propagation (subsequent listeners on ancestors still run)
   e.stopPropagation();
 
-  // 同一要素の残りのリスナーも含めて停止
+  // Stop all listeners including those on the same element
   e.stopImmediatePropagation();
 
-  // デフォルト動作をキャンセル（リンク遷移、フォーム送信など）
+  // Cancel the default action (link navigation, form submission, etc.)
   e.preventDefault();
 
-  // デフォルト動作がキャンセル可能か確認
+  // Check whether the default action can be cancelled
   console.log(e.cancelable);   // true or false
 
-  // イベント発生源の情報
-  console.log(e.target);       // 実際にクリックされた要素
-  console.log(e.currentTarget); // リスナーが登録された要素
-  console.log(e.eventPhase);   // 1=キャプチャ, 2=ターゲット, 3=バブリング
+  // Information about the event source
+  console.log(e.target);       // The element actually clicked
+  console.log(e.currentTarget); // The element on which the listener was registered
+  console.log(e.eventPhase);   // 1=capture, 2=target, 3=bubbling
 });
 ```
 
-### 5.3 イベント委任（Event Delegation）
+### 5.3 Event Delegation
 
-個々の子要素にリスナーを登録する代わりに、共通の親要素に1つだけリスナーを登録し、`event.target` で発火元を特定するパターンをイベント委任と呼ぶ。動的に追加される要素にも対応できるため、SPA などで頻用される。
+The pattern of registering a single listener on a common parent element rather than individual listeners on each child element, and using `event.target` to identify the source, is called event delegation. Because it also handles dynamically added elements, it is frequently used in SPAs.
 
 ```javascript
-// ---- イベント委任の実装例 ----
+// ---- Event delegation example ----
 
-// 1,000 件のリストアイテムに個別リスナーを登録するのは非効率
-// 親の <ul> に1つだけ登録する
+// Registering individual listeners on 1,000 list items is inefficient.
+// Register just one on the parent <ul>.
 
 const todoList = document.getElementById('todo-list');
 
 todoList.addEventListener('click', (e) => {
-  // closest で最も近い li を探す（クリックが li 内の span や icon でも対応）
+  // Use closest to find the nearest li (handles clicks on span or icon inside li)
   const item = e.target.closest('li.todo-item');
-  if (!item) return;  // li 以外のクリックは無視
+  if (!item) return;  // Ignore clicks outside li
 
-  // data-action で処理を分岐
+  // Branch on data-action
   const action = e.target.closest('[data-action]')?.dataset.action;
 
   switch (action) {
@@ -501,57 +501,57 @@ todoList.addEventListener('click', (e) => {
   }
 });
 
-// HTML構造:
+// HTML structure:
 // <ul id="todo-list">
 //   <li class="todo-item">
 //     <span data-action="toggle">Buy milk</span>
 //     <button data-action="edit">Edit</button>
 //     <button data-action="delete">Delete</button>
 //   </li>
-//   ... 動的に追加されるアイテムにも自動対応 ...
+//   ... dynamically added items are automatically handled ...
 // </ul>
 ```
 
-### 5.4 addEventListener のオプション
+### 5.4 addEventListener Options
 
 ```javascript
 element.addEventListener('scroll', handler, {
-  capture: false,    // キャプチャフェーズで発火するか（デフォルト: false）
-  once: true,        // 1回だけ実行し自動的に解除（デフォルト: false）
-  passive: true,     // preventDefault() を呼ばないことを宣言
-  signal: controller.signal,  // AbortSignal でリスナーを解除
+  capture: false,    // Fire in capture phase (default: false)
+  once: true,        // Execute once, then auto-remove (default: false)
+  passive: true,     // Declare that preventDefault() will not be called
+  signal: controller.signal,  // Remove listener with AbortSignal
 });
 
-// passive: true のメリット
-// scroll/touchmove イベントで passive: true を指定すると
-// ブラウザは preventDefault がないことを保証できるため
-// スクロールを即座に開始し、スムーズなスクロールが実現する
+// Benefit of passive: true
+// Specifying passive: true for scroll/touchmove events guarantees
+// to the browser that there is no preventDefault, so scrolling
+// starts immediately, achieving smooth scrolling.
 
-// AbortController によるリスナー解除
+// Removing listeners with AbortController
 const controller = new AbortController();
 
 element.addEventListener('click', handler, { signal: controller.signal });
 element.addEventListener('keyup', handler2, { signal: controller.signal });
 element.addEventListener('scroll', handler3, { signal: controller.signal });
 
-// 3つのリスナーをまとめて解除
+// Remove all three listeners at once
 controller.abort();
 ```
 
-### 5.5 カスタムイベント
+### 5.5 Custom Events
 
 ```javascript
-// CustomEvent で独自イベントを発火
+// Fire a custom event with CustomEvent
 const event = new CustomEvent('user:login', {
   detail: { userId: 42, username: 'alice' },
-  bubbles: true,      // バブリングさせるか
-  cancelable: true,    // preventDefault 可能にするか
-  composed: true,      // Shadow DOM 境界を越えるか
+  bubbles: true,      // Whether to bubble
+  cancelable: true,    // Whether preventDefault is allowed
+  composed: true,      // Whether to cross Shadow DOM boundaries
 });
 
 element.dispatchEvent(event);
 
-// 受け取り側
+// Receiving side
 document.addEventListener('user:login', (e) => {
   console.log(e.detail.username);  // "alice"
 });
@@ -561,95 +561,95 @@ document.addEventListener('user:login', (e) => {
 
 ## 6. MutationObserver
 
-### 6.1 概要と用途
+### 6.1 Overview and Use Cases
 
-`MutationObserver` は DOM の変更をバッチで非同期に通知するAPIである。従来の `Mutation Events`（DOMNodeInserted 等）はイベントごとに同期的に発火しパフォーマンスが極端に悪かったため、その代替として設計された。
+`MutationObserver` is an API that asynchronously notifies DOM changes in batches. The legacy `Mutation Events` (DOMNodeInserted, etc.) fired synchronously on each event, causing extreme performance degradation, so MutationObserver was designed as their replacement.
 
-主な用途:
+Main use cases:
 
-- サードパーティスクリプトによる DOM 変更の検知と対処
-- 動的コンテンツのロード完了検知（広告、埋め込みウィジェットなど）
-- WYSIWYG エディタでのコンテンツ変更追跡
-- アクセシビリティツールでの動的コンテンツ監視
-- ブラウザ拡張機能でのページ変更の検知
+- Detecting and handling DOM changes made by third-party scripts
+- Detecting load completion of dynamic content (ads, embedded widgets, etc.)
+- Tracking content changes in WYSIWYG editors
+- Monitoring dynamic content in accessibility tools
+- Detecting page changes in browser extensions
 
-### 6.2 基本的な使い方
+### 6.2 Basic Usage
 
 ```javascript
-// MutationObserver の基本パターン
+// Basic MutationObserver pattern
 
-// 1. コールバック関数を定義
+// 1. Define the callback function
 const callback = (mutationList, observer) => {
   for (const mutation of mutationList) {
     switch (mutation.type) {
       case 'childList':
-        // 子要素の追加
+        // Node added
         mutation.addedNodes.forEach(node => {
           if (node.nodeType === Node.ELEMENT_NODE) {
-            console.log('追加された要素:', node.tagName, node.className);
+            console.log('Added element:', node.tagName, node.className);
           }
         });
-        // 子要素の削除
+        // Node removed
         mutation.removedNodes.forEach(node => {
           if (node.nodeType === Node.ELEMENT_NODE) {
-            console.log('削除された要素:', node.tagName);
+            console.log('Removed element:', node.tagName);
           }
         });
         break;
 
       case 'attributes':
         console.log(
-          `属性変更: ${mutation.attributeName}`,
-          `旧値: ${mutation.oldValue}`,
-          `新値: ${mutation.target.getAttribute(mutation.attributeName)}`
+          `Attribute changed: ${mutation.attributeName}`,
+          `Old value: ${mutation.oldValue}`,
+          `New value: ${mutation.target.getAttribute(mutation.attributeName)}`
         );
         break;
 
       case 'characterData':
         console.log(
-          'テキスト変更:',
-          `旧値: ${mutation.oldValue}`,
-          `新値: ${mutation.target.textContent}`
+          'Text changed:',
+          `Old value: ${mutation.oldValue}`,
+          `New value: ${mutation.target.textContent}`
         );
         break;
     }
   }
 };
 
-// 2. オブザーバーを作成
+// 2. Create the observer
 const observer = new MutationObserver(callback);
 
-// 3. 監視を開始（オプションで対象を絞る）
+// 3. Start observing (narrow the target with options)
 observer.observe(document.getElementById('app'), {
-  childList: true,           // 子要素の追加/削除を監視
-  attributes: true,          // 属性の変更を監視
-  characterData: true,       // テキストコンテンツの変更を監視
-  subtree: true,             // 子孫要素も含めて監視
-  attributeOldValue: true,   // 変更前の属性値を記録
-  characterDataOldValue: true, // 変更前のテキストを記録
-  attributeFilter: ['class', 'style', 'data-state'], // 監視する属性を限定
+  childList: true,           // Monitor addition/removal of child elements
+  attributes: true,          // Monitor attribute changes
+  characterData: true,       // Monitor text content changes
+  subtree: true,             // Include descendant elements
+  attributeOldValue: true,   // Record old attribute value before change
+  characterDataOldValue: true, // Record old text before change
+  attributeFilter: ['class', 'style', 'data-state'], // Limit monitored attributes
 });
 
-// 4. 未処理の変更を即時取得
+// 4. Get pending changes immediately
 const pendingMutations = observer.takeRecords();
 
-// 5. 監視を停止
+// 5. Stop observing
 observer.disconnect();
 ```
 
-### 6.3 実用例: 要素の出現を待つユーティリティ
+### 6.3 Practical Example: Utility to Wait for an Element
 
 ```javascript
 /**
- * 指定セレクタに一致する要素が DOM に追加されるまで待つ
- * @param {string} selector - CSSセレクタ
- * @param {Element} root - 監視対象のルート要素
- * @param {number} timeout - タイムアウト（ms）
+ * Wait until an element matching the given selector is added to the DOM
+ * @param {string} selector - CSS selector
+ * @param {Element} root - Root element to observe
+ * @param {number} timeout - Timeout in ms
  * @returns {Promise<Element>}
  */
 function waitForElement(selector, root = document.body, timeout = 10000) {
   return new Promise((resolve, reject) => {
-    // 既に存在するか確認
+    // Check if it already exists
     const existing = root.querySelector(selector);
     if (existing) {
       resolve(existing);
@@ -677,58 +677,58 @@ function waitForElement(selector, root = document.body, timeout = 10000) {
   });
 }
 
-// 使用例
+// Usage
 try {
   const modal = await waitForElement('.modal-dialog');
-  console.log('モーダルが表示された:', modal);
+  console.log('Modal appeared:', modal);
 } catch (e) {
-  console.error('モーダルが表示されなかった:', e.message);
+  console.error('Modal did not appear:', e.message);
 }
 ```
 
-### 6.4 MutationObserver のパフォーマンス考慮点
+### 6.4 Performance Considerations for MutationObserver
 
-MutationObserver はマイクロタスクとして処理されるため、同期的な DOM 変更が全て完了した後にまとめて通知される。これにより Mutation Events よりも大幅にパフォーマンスが改善されているが、以下の点に注意が必要である。
+MutationObserver is processed as a microtask, so it is notified in batch after all synchronous DOM changes have completed. This significantly improves performance over Mutation Events, but note the following:
 
-- `subtree: true` で広範囲を監視すると、大量の Mutation レコードが生成される
-- コールバック内で DOM を変更すると、再帰的に通知が発生する可能性がある
-- `attributeFilter` で監視対象属性を絞ることで、不要な通知を減らす
-- 不要になったら必ず `disconnect()` を呼ぶ（メモリリーク防止）
+- Monitoring a wide range with `subtree: true` can generate a large number of Mutation records
+- Modifying the DOM inside the callback may trigger recursive notifications
+- Use `attributeFilter` to narrow monitored attributes and reduce unnecessary notifications
+- Always call `disconnect()` when no longer needed (to prevent memory leaks)
 
 ---
 
 ## 7. Shadow DOM
 
-### 7.1 Shadow DOM の概念
+### 7.1 Concept of Shadow DOM
 
-Shadow DOM は DOM のサブツリーをカプセル化する仕組みである。Shadow DOM 内のスタイルと DOM 構造は外部から隔離され、外部のスタイルも Shadow DOM 内に影響しない。これにより、コンポーネントの再利用性と堅牢性が大幅に向上する。
+Shadow DOM is a mechanism for encapsulating a subtree of the DOM. Styles and DOM structure inside the Shadow DOM are isolated from the outside, and external styles do not affect the inside either. This greatly improves component reusability and robustness.
 
-Shadow DOM の構造を ASCII 図で示す。
+The structure of Shadow DOM in ASCII:
 
 ```
 <my-card>                          ← Host Element
   ├── #shadow-root (open)          ← Shadow Root
-  │     ├── <style>                ← スコープ付きスタイル（外部に影響しない）
+  │     ├── <style>                ← Scoped styles (do not affect outside)
   │     │     .title { color: blue; }
   │     ├── <div class="title">
-  │     │     └── <slot name="title">  ← 名前付きスロット
+  │     │     └── <slot name="title">  ← Named slot
   │     │           └── (fallback: "Default Title")
   │     └── <div class="content">
-  │           └── <slot>           ← デフォルトスロット
-  │                 └── (fallback: なし)
+  │           └── <slot>           ← Default slot
+  │                 └── (fallback: none)
   │
-  └── Light DOM (子要素)
-        ├── <span slot="title">カスタムタイトル</span>  → name="title" のスロットへ
-        └── <p>カード本文</p>                           → デフォルトスロットへ
+  └── Light DOM (child elements)
+        ├── <span slot="title">Custom Title</span>  → goes to name="title" slot
+        └── <p>Card body</p>                         → goes to default slot
 ```
 
-### 7.2 Shadow DOM を使った Web Component の実装
+### 7.2 Implementing a Web Component with Shadow DOM
 
 ```javascript
-// ---- 完全な Web Component の例 ----
+// ---- Complete Web Component example ----
 
 class AccordionItem extends HTMLElement {
-  // 監視する属性を宣言
+  // Declare observed attributes
   static get observedAttributes() {
     return ['open', 'disabled'];
   }
@@ -792,7 +792,7 @@ class AccordionItem extends HTMLElement {
       </div>
     `;
 
-    // イベントバインド
+    // Bind events
     this._shadow.querySelector('.header').addEventListener('click', () => {
       if (!this.hasAttribute('disabled')) {
         this.toggleAttribute('open');
@@ -800,18 +800,18 @@ class AccordionItem extends HTMLElement {
     });
   }
 
-  // ライフサイクルコールバック
+  // Lifecycle callbacks
   connectedCallback() {
-    // DOM に追加された時
+    // Called when added to the DOM
     this.setAttribute('role', 'region');
   }
 
   disconnectedCallback() {
-    // DOM から削除された時（クリーンアップ）
+    // Called when removed from the DOM (cleanup)
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
-    // 監視対象属性が変更された時
+    // Called when a monitored attribute changes
     if (name === 'open') {
       this.dispatchEvent(new CustomEvent('toggle', {
         detail: { open: this.hasAttribute('open') },
@@ -823,107 +823,108 @@ class AccordionItem extends HTMLElement {
 
 customElements.define('accordion-item', AccordionItem);
 
-// HTML での使用:
+// Usage in HTML:
 // <accordion-item open>
-//   <span slot="title">セクション1</span>
-//   <p>コンテンツ...</p>
+//   <span slot="title">Section 1</span>
+//   <p>Content...</p>
 // </accordion-item>
 ```
 
-### 7.3 Shadow DOM のスタイル境界
+### 7.3 Style Boundaries of Shadow DOM
 
-Shadow DOM のスタイル隔離に関するルールを整理する。
+Rules about style isolation in Shadow DOM:
 
-| スタイルの方向 | 動作 | 回避策 |
+| Style direction | Behavior | Workaround |
 |---------------|------|--------|
-| 外部 CSS → Shadow DOM 内 | 適用されない | `::part()` 疑似要素で公開 |
-| Shadow DOM 内 CSS → 外部 | 漏れない | 意図通りの動作 |
-| 継承プロパティ（color, font 等） | Shadow DOM 境界を越えて継承される | `all: initial` でリセット可能 |
-| CSS カスタムプロパティ（変数） | Shadow DOM 境界を越える | テーマ設定に活用可能 |
+| External CSS → Inside Shadow DOM | Not applied | Expose with `::part()` pseudo-element |
+| Shadow DOM CSS → Outside | Does not leak | Intended behavior |
+| Inherited properties (color, font, etc.) | Inherited across Shadow DOM boundary | Can reset with `all: initial` |
+| CSS custom properties (variables) | Cross Shadow DOM boundary | Useful for theming |
 
 ```javascript
-// CSS カスタムプロパティによるテーマ設定
-// 外部 CSS:
+// Theming via CSS custom properties
+// External CSS:
 //   accordion-item {
 //     --accordion-bg: #f0f0f0;
 //     --accordion-color: #333;
 //   }
 
-// Shadow DOM 内 CSS:
+// Shadow DOM CSS:
 //   .header {
 //     background: var(--accordion-bg, #f7fafc);
 //     color: var(--accordion-color, inherit);
 //   }
 
-// ::part() による外部からのスタイリング
-// 外部 CSS:
+// Styling from outside with ::part()
+// External CSS:
 //   accordion-item::part(header) {
 //     background: navy;
 //     color: white;
 //   }
 ```
 
-### 7.4 open vs closed モード
+### 7.4 open vs closed Mode
 
 ```javascript
-// open モード: shadowRoot プロパティで外部からアクセス可能
+// open mode: shadowRoot property allows external access
 const openEl = document.createElement('div');
 const openShadow = openEl.attachShadow({ mode: 'open' });
 console.log(openEl.shadowRoot === openShadow);  // true
 
-// closed モード: shadowRoot は null を返す
+// closed mode: shadowRoot returns null
 const closedEl = document.createElement('div');
 const closedShadow = closedEl.attachShadow({ mode: 'closed' });
 console.log(closedEl.shadowRoot);  // null
-// closedShadow への参照を保持していれば操作は可能
-// 完全なセキュリティ境界ではないことに注意
+// If you hold a reference to closedShadow, you can still operate on it.
+// Note: this is not a complete security boundary.
 ```
 
-実務では `open` モードが推奨される。理由は以下の通り:
+In practice, `open` mode is recommended for the following reasons:
 
-- DevTools でのデバッグが容易
-- テストフレームワークからアクセス可能
-- `closed` は完全なセキュリティ境界を提供しない（WeakMap 等で迂回可能）
-- ブラウザ内部コンポーネント（`<input type="date">` 等）は `closed` を使用
+- Easier debugging in DevTools
+- Accessible from test frameworks
+- `closed` does not provide a complete security boundary (can be bypassed with WeakMap, etc.)
+- Internal browser components (e.g., `<input type="date">`) use `closed`
 
 ---
 
-## 8. Virtual DOM との比較
+## 8. Comparison with Virtual DOM
 
-### 8.1 Virtual DOM とは
+### 8.1 What is Virtual DOM?
 
-Virtual DOM は React が普及させた概念で、実 DOM のツリー構造を JavaScript オブジェクトとしてメモリ上に保持し、状態変更時に新旧の仮想ツリーを比較（差分検出 = Reconciliation / Diffing）して、最小限の実 DOM 操作のみを行うアーキテクチャである。
+Virtual DOM is a concept popularized by React. It keeps a JavaScript object representation of the real DOM tree in memory, and when state changes, it compares the old and new virtual trees (diff detection = Reconciliation / Diffing) and applies only the minimal real DOM updates necessary.
 
-Virtual DOM は「DOM 操作が遅い」という前提に基づいている。JavaScript のオブジェクト操作は DOM 操作より桁違いに高速であるため、差分計算を JavaScript 側で行い、実 DOM への書き込みを最小化するという戦略を取る。
+Virtual DOM is based on the premise that "DOM operations are slow." Since JavaScript object operations are orders of magnitude faster than DOM operations, the strategy is to perform diff calculations on the JavaScript side and minimize writes to the real DOM.
 
-### 8.2 Virtual DOM の動作原理
+### 8.2 How Virtual DOM Works
 
 ```
-Virtual DOM の更新サイクル:
+Virtual DOM update cycle:
 
-  ┌──────────────┐    状態変更     ┌──────────────┐
-  │  旧 Virtual  │ ──────────────▶ │  新 Virtual  │
-  │     DOM      │                 │     DOM      │
-  │   (v-node)   │                 │   (v-node)   │
-  └──────┬───────┘                 └──────┬───────┘
-         │                                │
-         └────────────┬───────────────────┘
+  ┌──────────────┐    State change     ┌──────────────┐
+  │  Old Virtual │ ──────────────────▶ │  New Virtual │
+  │     DOM      │                     │     DOM      │
+  │   (v-node)   │                     │   (v-node)   │
+  └──────┬───────┘                     └──────┬───────┘
+         │                                    │
+         └────────────┬───────────────────────┘
                       │
                    Diffing
-                   (差分検出)
+                   (diff detection)
                       │
                       ▼
               ┌───────────────┐
-              │  最小限の      │
-              │  DOM パッチ    │
-              │  (実DOM更新)   │
+              │  Minimal      │
+              │  DOM patch    │
+              │  (real DOM    │
+              │   update)     │
               └───────────────┘
 ```
 
 ```javascript
-// Virtual DOM ノードの概念的な構造（React の場合）
+// Conceptual structure of a Virtual DOM node (React example)
 // JSX: <div className="card"><h1>Title</h1><p>Body</p></div>
-// ↓ トランスパイル後
+// ↓ After transpilation
 const vnode = {
   type: 'div',
   props: { className: 'card' },
@@ -941,84 +942,84 @@ const vnode = {
   ],
 };
 
-// 状態変更により新しい vnode が生成される
+// A state change produces a new vnode
 const newVnode = {
   type: 'div',
-  props: { className: 'card active' },  // className 変更
+  props: { className: 'card active' },  // className changed
   children: [
     {
       type: 'h1',
       props: {},
-      children: ['New Title'],            // テキスト変更
+      children: ['New Title'],            // text changed
     },
     {
       type: 'p',
       props: {},
-      children: ['Body'],                 // 変更なし
+      children: ['Body'],                 // no change
     },
   ],
 };
 
-// Diff 結果:
-// 1. div の className を 'card' → 'card active' に変更
-// 2. h1 のテキストを 'Title' → 'New Title' に変更
-// 3. p は変更なし → 何もしない
+// Diff result:
+// 1. Change div's className from 'card' to 'card active'
+// 2. Change h1's text from 'Title' to 'New Title'
+// 3. p is unchanged → do nothing
 ```
 
-### 8.3 Virtual DOM vs 直接 DOM 操作 vs Shadow DOM
+### 8.3 Virtual DOM vs Direct DOM Manipulation vs Shadow DOM
 
-| 比較項目 | Virtual DOM (React等) | 直接 DOM 操作 | Shadow DOM |
+| Comparison | Virtual DOM (React, etc.) | Direct DOM Manipulation | Shadow DOM |
 |---------|----------------------|--------------|------------|
-| 目的 | 宣言的UIと効率的な更新 | DOM の直接制御 | DOM/CSSの隔離 |
-| 抽象化レベル | 高い（JSX → vnode → DOM） | 低い（DOM API 直接） | 中間（ネイティブAPI） |
-| パフォーマンス | 中（diff コストあり） | 最高（最適化次第） | 高（ネイティブ） |
-| メモリ使用量 | 多い（仮想ツリー保持） | 少ない | 中程度 |
-| 学習コスト | 中～高（フレームワーク依存） | 低～中 | 中 |
-| CSS隔離 | なし（CSS Modules等で別途対応） | なし | あり（ネイティブ） |
-| コンポーネント化 | フレームワーク提供 | 自作が必要 | Web Components |
-| SSR対応 | フレームワークが対応 | N/A | 限定的 |
-| ブラウザ互換性 | フレームワーク依存 | 最高 | モダンブラウザのみ |
-| 適用シナリオ | 複雑な状態管理を持つSPA | シンプルなインタラクション | 再利用可能なUIパーツ |
+| Purpose | Declarative UI with efficient updates | Direct control of DOM | DOM/CSS isolation |
+| Abstraction level | High (JSX → vnode → DOM) | Low (DOM API directly) | Middle (native API) |
+| Performance | Medium (diff cost) | Highest (depending on optimization) | High (native) |
+| Memory usage | High (virtual tree held in memory) | Low | Moderate |
+| Learning cost | Medium–High (framework dependent) | Low–Medium | Medium |
+| CSS isolation | None (handled separately with CSS Modules, etc.) | None | Yes (native) |
+| Componentization | Provided by framework | Requires custom implementation | Web Components |
+| SSR support | Framework handles it | N/A | Limited |
+| Browser compatibility | Framework dependent | Highest | Modern browsers only |
+| Application scenario | SPAs with complex state management | Simple interactions | Reusable UI parts |
 
-### 8.4 各アプローチの使い分け指針
+### 8.4 Guidelines for Choosing an Approach
 
 ```
-                 アプローチ選択フローチャート:
+                 Approach selection flowchart:
 
-                    UIの複雑さは?
+                    UI complexity?
                    /            \
-              単純               複雑
+              Simple             Complex
               /                    \
-     頻繁な更新あり?          状態管理が必要?
+     Frequent updates?         State management needed?
       /         \              /          \
     Yes          No          Yes           No
     /             \           /              \
- 直接DOM操作    直接DOM操作  Virtual DOM     Shadow DOM +
- (バッチ処理)  (シンプル)   (React/Vue等)   Web Components
+ Direct DOM    Direct DOM  Virtual DOM     Shadow DOM +
+ (batch)       (simple)   (React/Vue etc) Web Components
 ```
 
-- **直接 DOM 操作**: フォームバリデーション、簡易アニメーション、jQuery 的な操作
-- **Virtual DOM**: 複雑な状態管理を持つ SPA、頻繁な再レンダリングが必要なUI
-- **Shadow DOM**: デザインシステム、埋め込みウィジェット、マイクロフロントエンド
+- **Direct DOM manipulation**: Form validation, simple animations, jQuery-style operations
+- **Virtual DOM**: SPAs with complex state management, UIs requiring frequent re-renders
+- **Shadow DOM**: Design systems, embedded widgets, micro-frontends
 
-### 8.5 Incremental DOM と Svelte のアプローチ
+### 8.5 Incremental DOM and the Svelte Approach
 
-Virtual DOM の代替として注目される2つのアプローチがある。
+Two alternative approaches to Virtual DOM are noteworthy.
 
-**Incremental DOM（Angular Ivy）**: 仮想ツリーを保持せず、実 DOM を直接インクリメンタルに走査・更新する。メモリ効率が高い。
+**Incremental DOM (Angular Ivy)**: Does not hold a virtual tree; instead incrementally traverses and updates the real DOM directly. Memory-efficient.
 
-**Svelte のコンパイル時アプローチ**: ビルド時にコンポーネントを効率的な命令型 DOM 操作コードにコンパイルする。ランタイムに仮想 DOM の diff エンジンを持たないため、バンドルサイズが小さく、実行時パフォーマンスも高い。
+**Svelte's compile-time approach**: At build time, components are compiled into efficient imperative DOM operation code. Because there is no virtual DOM diff engine at runtime, bundle sizes are small and runtime performance is high.
 
 ```javascript
-// Svelte のコンパイル結果の概念イメージ
-// 入力（.svelte ファイル）:
+// Conceptual image of Svelte's compiled output
+// Input (.svelte file):
 //   <script>
 //     let count = 0;
 //     function increment() { count += 1; }
 //   </script>
 //   <button on:click={increment}>{count}</button>
 
-// コンパイル出力（概念的）:
+// Compiled output (conceptual):
 function create_fragment(ctx) {
   let button;
   let t;
@@ -1033,8 +1034,8 @@ function create_fragment(ctx) {
       target.appendChild(button);
       button.addEventListener('click', ctx[1]);  // increment
     },
-    p(ctx) {  // update（差分のみ）
-      t.data = ctx[0];  // テキストノードを直接更新（diff不要）
+    p(ctx) {  // update (only diffs)
+      t.data = ctx[0];  // directly update text node (no diff needed)
     },
     d(detaching) {  // destroy
       if (detaching) button.remove();
@@ -1045,57 +1046,57 @@ function create_fragment(ctx) {
 
 ---
 
-## 9. DOM 操作の高度なパターン
+## 9. Advanced DOM Manipulation Patterns
 
-### 9.1 Range API によるテキスト操作
+### 9.1 Text Manipulation with the Range API
 
-`Range` API は DOM ツリー内の任意の範囲を表現し、テキスト選択やリッチテキストエディタの実装に不可欠である。
+The `Range` API represents an arbitrary range within the DOM tree and is essential for implementing text selection and rich-text editors.
 
 ```javascript
-// Range の基本操作
+// Basic Range operations
 const range = document.createRange();
 
-// 要素の内容全体を選択
+// Select the entire contents of an element
 range.selectNodeContents(element);
 
-// 特定のテキストノードの一部を選択
-const textNode = element.firstChild;  // テキストノード
-range.setStart(textNode, 5);   // 5文字目から
-range.setEnd(textNode, 10);    // 10文字目まで
+// Select a portion of a text node
+const textNode = element.firstChild;  // text node
+range.setStart(textNode, 5);   // from the 5th character
+range.setEnd(textNode, 10);    // up to the 10th character
 
-// 選択範囲の情報取得
-console.log(range.toString());           // 選択されたテキスト
-console.log(range.getBoundingClientRect()); // 選択範囲の座標
+// Get information about the selected range
+console.log(range.toString());           // The selected text
+console.log(range.getBoundingClientRect()); // Coordinates of the selection
 
-// 選択範囲を操作
-range.deleteContents();                   // 選択範囲を削除
-range.insertNode(document.createElement('mark')); // ノード挿入
+// Manipulate the selection
+range.deleteContents();                   // Delete selected range
+range.insertNode(document.createElement('mark')); // Insert node
 
-// ユーザの選択範囲を取得
+// Get the user's current selection
 const selection = window.getSelection();
 if (selection.rangeCount > 0) {
   const userRange = selection.getRangeAt(0);
-  console.log('選択テキスト:', userRange.toString());
+  console.log('Selected text:', userRange.toString());
 
-  // 選択範囲をマーカーで囲む
+  // Wrap selection in a highlight marker
   const mark = document.createElement('mark');
   mark.style.backgroundColor = '#ffeb3b';
   userRange.surroundContents(mark);
 }
 ```
 
-### 9.2 TreeWalker によるツリー走査
+### 9.2 Tree Traversal with TreeWalker
 
-`TreeWalker` は DOM ツリーを効率的に走査するためのイテレータである。フィルタリング機能を持ち、特定のノード型のみを走査できる。
+`TreeWalker` is an iterator for efficiently traversing the DOM tree. It has filtering capabilities and can traverse only specific node types.
 
 ```javascript
-// テキストノードのみを走査
+// Traverse only text nodes
 const walker = document.createTreeWalker(
-  document.body,          // ルート
-  NodeFilter.SHOW_TEXT,   // テキストノードのみ
+  document.body,          // Root
+  NodeFilter.SHOW_TEXT,   // Text nodes only
   {
     acceptNode(node) {
-      // 空白のみのテキストノードを除外
+      // Exclude whitespace-only text nodes
       return node.textContent.trim()
         ? NodeFilter.FILTER_ACCEPT
         : NodeFilter.FILTER_REJECT;
@@ -1109,7 +1110,7 @@ while ((current = walker.nextNode())) {
   textNodes.push(current);
 }
 
-// テキスト検索と置換
+// Text search and replace
 function findAndHighlight(root, searchText) {
   const walker = document.createTreeWalker(
     root,
@@ -1143,12 +1144,12 @@ function findAndHighlight(root, searchText) {
 }
 ```
 
-### 9.3 IntersectionObserver との連携
+### 9.3 Integration with IntersectionObserver
 
-`IntersectionObserver` は要素のビューポート内への出入りを監視する API で、DOM 操作と組み合わせて遅延ロードやアニメーション制御に使える。
+`IntersectionObserver` monitors when elements enter and leave the viewport, and can be combined with DOM manipulation for lazy loading and animation control.
 
 ```javascript
-// 遅延ロード + DOM 操作の組み合わせ
+// Combination of lazy loading + DOM manipulation
 function setupLazyLoading() {
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
@@ -1156,27 +1157,27 @@ function setupLazyLoading() {
         const img = entry.target;
         const src = img.dataset.src;
 
-        // 実際の src を設定
+        // Set the actual src
         img.src = src;
         img.removeAttribute('data-src');
         img.classList.add('loaded');
 
-        // 監視を解除
+        // Stop observing
         observer.unobserve(img);
       }
     });
   }, {
-    rootMargin: '200px 0px',  // ビューポートの200px手前から読み込み開始
+    rootMargin: '200px 0px',  // Start loading 200px before the viewport
     threshold: 0.01,
   });
 
-  // data-src 属性を持つ全画像を監視
+  // Observe all images with a data-src attribute
   document.querySelectorAll('img[data-src]').forEach(img => {
     observer.observe(img);
   });
 }
 
-// 無限スクロールの実装
+// Implementing infinite scroll
 function setupInfiniteScroll(container, loadMore) {
   const sentinel = document.createElement('div');
   sentinel.className = 'scroll-sentinel';
@@ -1197,7 +1198,7 @@ function setupInfiniteScroll(container, loadMore) {
         fragment.appendChild(el);
       });
 
-      // sentinel の前に挿入（sentinel は常に末尾）
+      // Insert before the sentinel (sentinel always stays at the end)
       container.insertBefore(fragment, sentinel);
       isLoading = false;
     }
@@ -1208,21 +1209,21 @@ function setupInfiniteScroll(container, loadMore) {
 }
 ```
 
-### 9.4 ResizeObserver と DOM レイアウト変更
+### 9.4 ResizeObserver and DOM Layout Changes
 
 ```javascript
-// 要素のサイズ変更を検知してレイアウトを調整
+// Detect element size changes and adjust layout
 const resizeObserver = new ResizeObserver((entries) => {
   for (const entry of entries) {
     const { width, height } = entry.contentRect;
 
-    // コンテナ幅に応じたレスポンシブレイアウト（CSS Container Queries の代替）
+    // Responsive layout based on container width (alternative to CSS Container Queries)
     const container = entry.target;
     container.classList.toggle('compact', width < 400);
     container.classList.toggle('medium', width >= 400 && width < 800);
     container.classList.toggle('wide', width >= 800);
 
-    // グリッドの列数を動的に調整
+    // Dynamically adjust grid column count
     const columns = Math.max(1, Math.floor(width / 250));
     container.style.setProperty('--columns', columns);
   }
@@ -1233,11 +1234,11 @@ resizeObserver.observe(document.querySelector('.grid-container'));
 
 ---
 
-## 10. Template 要素と Declarative Shadow DOM
+## 10. The `<template>` Element and Declarative Shadow DOM
 
-### 10.1 `<template>` 要素
+### 10.1 The `<template>` Element
 
-`<template>` 要素はレンダリングされないが、JavaScript からクローンして利用できる HTML テンプレートを定義する。`innerHTML` による文字列パースと比べ、テンプレートはパース済みの DOM フラグメントを提供するため効率的である。
+The `<template>` element defines an HTML template that is not rendered but can be cloned from JavaScript. Compared to string parsing via `innerHTML`, templates provide a pre-parsed DOM fragment and are more efficient.
 
 ```javascript
 // HTML:
@@ -1245,7 +1246,7 @@ resizeObserver.observe(document.querySelector('.grid-container'));
 //   <div class="card">
 //     <h3 class="card-title"></h3>
 //     <p class="card-body"></p>
-//     <button class="card-action">詳細</button>
+//     <button class="card-action">Details</button>
 //   </div>
 // </template>
 
@@ -1256,13 +1257,13 @@ function createCard(title, body) {
   clone.querySelector('.card-title').textContent = title;
   clone.querySelector('.card-body').textContent = body;
   clone.querySelector('.card-action').addEventListener('click', () => {
-    console.log(`${title} の詳細を表示`);
+    console.log(`Show details for ${title}`);
   });
 
   return clone;
 }
 
-// テンプレートを使った大量生成
+// Mass generation using templates
 const container = document.getElementById('card-list');
 const fragment = document.createDocumentFragment();
 
@@ -1274,7 +1275,7 @@ container.appendChild(fragment);
 
 ### 10.2 Declarative Shadow DOM (DSD)
 
-Declarative Shadow DOM は、HTML 内で直接 Shadow DOM を宣言できる機能である。JavaScript なしで Shadow DOM を構築でき、サーバーサイドレンダリング（SSR）との互換性が向上する。
+Declarative Shadow DOM is a feature that allows declaring Shadow DOM directly in HTML. It builds Shadow DOM without JavaScript and improves compatibility with server-side rendering (SSR).
 
 ```html
 <!-- Declarative Shadow DOM -->
@@ -1291,39 +1292,39 @@ Declarative Shadow DOM は、HTML 内で直接 Shadow DOM を宣言できる機�
       <slot></slot>
     </div>
   </template>
-  <span slot="title">宣言的 Shadow DOM</span>
-  <p>JavaScript なしで Shadow DOM が構築される</p>
+  <span slot="title">Declarative Shadow DOM</span>
+  <p>Shadow DOM is constructed without JavaScript</p>
 </my-card>
 ```
 
-DSD の利点:
+Benefits of DSD:
 
-- SSR でレンダリングした HTML に Shadow DOM を含められる
-- JavaScript の読み込み前にコンポーネントの構造とスタイルが適用される
-- FOUC（Flash of Unstyled Content）を防止できる
-- ストリーミング SSR との相性が良い
+- Shadow DOM can be included in SSR-rendered HTML
+- Component structure and styles are applied before JavaScript loads
+- Prevents FOUC (Flash of Unstyled Content)
+- Works well with streaming SSR
 
 ---
 
-## 11. アンチパターンと対策
+## 11. Anti-Patterns and Countermeasures
 
-### 11.1 アンチパターン1: innerHTML による XSS 脆弱性
+### 11.1 Anti-Pattern 1: XSS Vulnerability via innerHTML
 
-`innerHTML` にユーザ入力を直接代入することは、クロスサイトスクリプティング（XSS）の典型的な原因となる。
+Directly assigning user input to `innerHTML` is a classic cause of cross-site scripting (XSS).
 
 ```javascript
-// ---- 危険: innerHTML にユーザ入力を直接代入 ----
+// ---- Dangerous: assign user input directly to innerHTML ----
 const userInput = '<img src=x onerror="alert(document.cookie)">';
-element.innerHTML = userInput;  // XSS! スクリプトが実行される
+element.innerHTML = userInput;  // XSS! Script executes
 
-// ---- 安全策1: textContent を使う ----
-element.textContent = userInput;  // テキストとして表示される（HTMLとして解釈されない）
+// ---- Safe approach 1: use textContent ----
+element.textContent = userInput;  // Displayed as text (not interpreted as HTML)
 
-// ---- 安全策2: DOMPurify でサニタイズ ----
+// ---- Safe approach 2: sanitize with DOMPurify ----
 // import DOMPurify from 'dompurify';
 element.innerHTML = DOMPurify.sanitize(userInput);
 
-// ---- 安全策3: Sanitizer API（ブラウザネイティブ、Chrome 105+） ----
+// ---- Safe approach 3: Sanitizer API (browser-native, Chrome 105+) ----
 const sanitizer = new Sanitizer({
   allowElements: ['b', 'i', 'em', 'strong', 'a'],
   allowAttributes: { 'href': ['a'] },
@@ -1331,20 +1332,20 @@ const sanitizer = new Sanitizer({
 });
 element.setHTML(userInput, { sanitizer });
 
-// ---- 安全策4: DOM API で要素を構築 ----
+// ---- Safe approach 4: build elements with DOM API ----
 function safeRender(data) {
   const div = document.createElement('div');
   const heading = document.createElement('h2');
-  heading.textContent = data.title;  // 常にテキストとして扱われる
+  heading.textContent = data.title;  // always treated as text
   div.appendChild(heading);
 
   const link = document.createElement('a');
   link.textContent = data.linkText;
   link.href = data.url;
 
-  // href の検証（javascript: プロトコル対策）
+  // Validate href (guard against javascript: protocol)
   if (!/^https?:\/\//i.test(data.url)) {
-    link.href = '#';  // 不正なURLを無効化
+    link.href = '#';  // Invalidate malformed URL
   }
 
   div.appendChild(link);
@@ -1352,18 +1353,18 @@ function safeRender(data) {
 }
 ```
 
-### 11.2 アンチパターン2: DOM 操作によるメモリリーク
+### 11.2 Anti-Pattern 2: Memory Leaks from DOM Manipulation
 
-イベントリスナーの登録解除漏れや、循環参照によるメモリリークは長時間稼働するSPAで深刻な問題となる。
+Forgetting to remove event listeners and circular references can cause serious memory leaks in long-running SPAs.
 
 ```javascript
-// ---- 危険: リスナーの解除漏れ ----
+// ---- Dangerous: forgotten listener removal ----
 class BadComponent {
   constructor(element) {
     this.element = element;
     this.data = new Array(10000).fill('large data');
 
-    // グローバルリスナーを登録したが解除を忘れる
+    // Register global listeners but forget to remove them
     window.addEventListener('resize', this.onResize.bind(this));
     document.addEventListener('scroll', this.onScroll.bind(this));
   }
@@ -1373,12 +1374,12 @@ class BadComponent {
 
   destroy() {
     this.element.remove();
-    // リスナーが残ったまま → this への参照が保持 → GC されない
-    // this.data の 10,000 要素分のメモリがリークする
+    // Listeners remain → reference to this is kept → not GC'd
+    // Memory for the 10,000-element this.data leaks
   }
 }
 
-// ---- 安全: AbortController でリスナーを一括管理 ----
+// ---- Safe: manage listeners together with AbortController ----
 class GoodComponent {
   constructor(element) {
     this.element = element;
@@ -1396,16 +1397,16 @@ class GoodComponent {
   onClick() { /* ... */ }
 
   destroy() {
-    this.controller.abort();  // 全リスナーを一括解除
+    this.controller.abort();  // Remove all listeners at once
     this.element.remove();
-    this.data = null;         // 大きなデータへの参照を明示的に解放
+    this.data = null;         // Explicitly release reference to large data
   }
 }
 
-// ---- WeakRef / FinalizationRegistry による参照管理 ----
+// ---- Reference management with WeakRef / FinalizationRegistry ----
 const cache = new Map();
 const registry = new FinalizationRegistry((key) => {
-  // 要素がGCされたらキャッシュからも削除
+  // Remove from cache when the element is GC'd
   cache.delete(key);
   console.log(`Element with key "${key}" was garbage collected`);
 });
@@ -1429,24 +1430,24 @@ function getCachedElement(key) {
 }
 ```
 
-### 11.3 アンチパターン3: 同期的な大量 DOM 更新
+### 11.3 Anti-Pattern 3: Synchronous Bulk DOM Updates
 
-大量のデータを一度に DOM に反映すると、メインスレッドをブロックしてフレームドロップが発生する。
+Adding a large amount of data to the DOM all at once blocks the main thread and causes frame drops.
 
 ```javascript
-// ---- 危険: 10,000 件を一度に DOM に追加 ----
+// ---- Dangerous: add 10,000 items to the DOM at once ----
 function badRender(items) {
   const container = document.getElementById('list');
-  container.innerHTML = '';  // 全削除（内部イベントリスナーもリーク）
+  container.innerHTML = '';  // Delete all (also leaks internal event listeners)
 
   items.forEach(item => {
     const div = document.createElement('div');
     div.textContent = item.name;
-    container.appendChild(div);  // 10,000回のDOM操作
+    container.appendChild(div);  // 10,000 DOM operations
   });
 }
 
-// ---- 安全策1: DocumentFragment + requestAnimationFrame でチャンク処理 ----
+// ---- Safe approach 1: chunk processing with DocumentFragment + requestAnimationFrame ----
 function chunkedRender(items, chunkSize = 100) {
   const container = document.getElementById('list');
   let index = 0;
@@ -1471,7 +1472,7 @@ function chunkedRender(items, chunkSize = 100) {
   requestAnimationFrame(renderChunk);
 }
 
-// ---- 安全策2: requestIdleCallback で空き時間に処理 ----
+// ---- Safe approach 2: process during idle time with requestIdleCallback ----
 function idleRender(items) {
   const container = document.getElementById('list');
   let index = 0;
@@ -1499,35 +1500,35 @@ function idleRender(items) {
 
 ---
 
-## 12. エッジケース分析
+## 12. Edge Case Analysis
 
-### 12.1 エッジケース1: disconnected な要素への操作
+### 12.1 Edge Case 1: Operations on Disconnected Elements
 
-DOM から取り外された要素（disconnected element）に対する操作は、エラーにはならないが意図しない結果を招くことがある。
+Operations on elements removed from the DOM (disconnected elements) do not throw errors, but can produce unintended results.
 
 ```javascript
-// ---- エッジケース: 取り外された要素への操作 ----
+// ---- Edge case: operations on a removed element ----
 
 const div = document.createElement('div');
 div.textContent = 'Hello';
 document.body.appendChild(div);
 
-// 参照を保持したまま DOM から削除
+// Remove from DOM while keeping the reference
 div.remove();
 
-// 以下の操作はエラーにならないが、画面に反映されない
-div.textContent = 'Updated';           // 成功するが画面に見えない
-div.classList.add('active');           // 成功するが効果なし
-div.style.backgroundColor = 'red';   // 成功するが効果なし
+// The following operations do not throw errors, but are not visible on screen
+div.textContent = 'Updated';           // Succeeds but not visible
+div.classList.add('active');           // Succeeds but has no effect
+div.style.backgroundColor = 'red';   // Succeeds but has no effect
 
-// offsetHeight 等のレイアウト情報は 0 を返す
-console.log(div.offsetHeight);  // 0（DOMツリーに属していないため）
+// Layout properties like offsetHeight return 0
+console.log(div.offsetHeight);  // 0 (not part of the DOM tree)
 console.log(div.offsetWidth);   // 0
 
-// isConnected プロパティで確認可能
+// Can be checked with the isConnected property
 console.log(div.isConnected);  // false
 
-// ---- 安全な実装パターン ----
+// ---- Safe implementation pattern ----
 function updateElement(el, updates) {
   if (!el.isConnected) {
     console.warn('Element is not connected to the DOM');
@@ -1543,13 +1544,13 @@ function updateElement(el, updates) {
   return true;
 }
 
-// MutationObserver のコールバック内での注意点
+// Note when inside a MutationObserver callback
 const observer = new MutationObserver((mutations) => {
   for (const mutation of mutations) {
-    // removedNodes 内の要素は既に disconnected
+    // Elements in removedNodes are already disconnected
     mutation.removedNodes.forEach(node => {
       if (node.nodeType === Node.ELEMENT_NODE) {
-        // クリーンアップ処理（リスナー解除、タイマー停止など）
+        // Cleanup processing (remove listeners, stop timers, etc.)
         cleanupElement(node);
       }
     });
@@ -1557,56 +1558,56 @@ const observer = new MutationObserver((mutations) => {
 });
 ```
 
-### 12.2 エッジケース2: ライブコレクションの反復中の変更
+### 12.2 Edge Case 2: Modifying Live Collections During Iteration
 
-前述のライブ HTMLCollection の問題をさらに深掘りする。削除だけでなく、追加も危険である。
+Going deeper into the live HTMLCollection problem mentioned earlier. Not just removal, but addition is also dangerous.
 
 ```javascript
-// ---- エッジケース: ライブコレクションへの要素追加 ----
+// ---- Edge case: adding elements to a live collection ----
 
 const container = document.getElementById('container');
 const children = container.getElementsByTagName('div');
 
-// 反復中に新しい div を追加すると無限ループになる
-// 以下は意図的に示す危険なコードである（実行してはならない）
+// Adding a new div during iteration causes an infinite loop.
+// The following is shown intentionally as dangerous code (do not execute):
 /*
 for (let i = 0; i < children.length; i++) {
   const newDiv = document.createElement('div');
   newDiv.textContent = 'clone';
   container.appendChild(newDiv);
-  // children.length が毎回増加 → 無限ループ
+  // children.length keeps increasing → infinite loop
 }
 */
 
-// ---- 安全策: スプレッド構文で静的配列に変換 ----
+// ---- Safe approach: convert to a static array with spread syntax ----
 const staticChildren = [...container.getElementsByTagName('div')];
 staticChildren.forEach(child => {
   const clone = child.cloneNode(true);
-  container.appendChild(clone);  // 安全：staticChildren は変化しない
+  container.appendChild(clone);  // Safe: staticChildren does not change
 });
 
-// ---- 安全策: querySelectorAll（静的 NodeList） ----
+// ---- Safe approach: querySelectorAll (static NodeList) ----
 container.querySelectorAll('div').forEach(child => {
   const clone = child.cloneNode(true);
-  container.appendChild(clone);  // 安全
+  container.appendChild(clone);  // Safe
 });
 
-// ---- エッジケース: NodeList の forEach 可否 ----
-// querySelectorAll の NodeList → forEach あり
-// childNodes の NodeList → forEach あり（モダンブラウザ）
-// getElementsBy の HTMLCollection → forEach なし
-// 安全のため Array.from() を経由するのが確実
+// ---- Edge case: forEach availability of NodeList ----
+// NodeList from querySelectorAll → forEach available
+// NodeList from childNodes → forEach available (modern browsers)
+// HTMLCollection from getElementsBy → forEach NOT available
+// Using Array.from() is safest
 Array.from(document.getElementsByClassName('item')).forEach(el => {
-  // 安全に処理
+  // Safe processing
 });
 ```
 
-### 12.3 エッジケース3: Shadow DOM 境界とイベント retargeting
+### 12.3 Edge Case 3: Event Retargeting at Shadow DOM Boundaries
 
-Shadow DOM 境界を越えるイベントでは、`event.target` がリターゲットされる。
+Events crossing Shadow DOM boundaries have their `event.target` retargeted.
 
 ```javascript
-// Shadow DOM 内のボタンをクリックした場合
+// When a button inside Shadow DOM is clicked
 class MyWidget extends HTMLElement {
   constructor() {
     super();
@@ -1616,53 +1617,53 @@ class MyWidget extends HTMLElement {
 }
 customElements.define('my-widget', MyWidget);
 
-// 外部からリスナーを登録
+// Register a listener from outside
 document.addEventListener('click', (e) => {
-  // Shadow DOM 内のボタンがクリックされても
-  // event.target は <my-widget> ホスト要素になる（リターゲット）
-  console.log(e.target);       // <my-widget> （内部のボタンではない）
+  // Even when the button inside Shadow DOM is clicked,
+  // event.target becomes the <my-widget> host element (retargeted)
+  console.log(e.target);       // <my-widget> (not the inner button)
   console.log(e.composedPath()); // [button#inner-btn, #shadow-root, my-widget, body, html, document, Window]
 });
 
-// composed: false のイベントは Shadow DOM 境界を越えない
-// composed: true のイベント（click, focus, input 等）は境界を越える
+// Events with composed: false do not cross Shadow DOM boundaries
+// Events with composed: true (click, focus, input, etc.) cross the boundary
 
-// composedPath() で実際のイベント経路を確認できる
+// composedPath() lets you see the actual event path
 document.addEventListener('click', (e) => {
   const path = e.composedPath();
-  // path[0] が実際にクリックされた要素（Shadow DOM 内部含む）
-  console.log('実際のターゲット:', path[0]);
+  // path[0] is the element actually clicked (including inside Shadow DOM)
+  console.log('Actual target:', path[0]);
 });
 ```
 
 ---
 
-## 13. 演習問題
+## 13. Exercises
 
-### 演習1（初級）: TODO リストの CRUD 実装
+### Exercise 1 (Beginner): Implement a TODO List with CRUD
 
-以下の仕様を満たす TODO リストを、フレームワークを使わず素の DOM API のみで実装せよ。
+Implement a TODO list meeting the following specifications using only the raw DOM API without any framework.
 
-**要件:**
-- テキスト入力欄と「追加」ボタンがある
-- Enter キーでも追加できる
-- 各 TODO に「完了」トグルボタンと「削除」ボタンがある
-- 完了した TODO には取り消し線が表示される
-- 空文字の TODO は追加できない（バリデーション）
-- イベント委任を使って `<ul>` に1つだけリスナーを登録する
+**Requirements:**
+- There is a text input field and an "Add" button
+- Can also add by pressing Enter
+- Each TODO has a "Complete" toggle button and a "Delete" button
+- Completed TODOs show strikethrough
+- Empty TODOs cannot be added (validation)
+- Use event delegation to register only one listener on `<ul>`
 
 ```javascript
-// ---- 演習1の解答例 ----
+// ---- Sample solution for Exercise 1 ----
 
 function createTodoApp(rootSelector) {
   const root = document.querySelector(rootSelector);
 
-  // DOM 構造の構築
+  // Build DOM structure
   root.innerHTML = '';
   const form = document.createElement('form');
   form.innerHTML = `
-    <input type="text" class="todo-input" placeholder="TODOを入力..." />
-    <button type="submit">追加</button>
+    <input type="text" class="todo-input" placeholder="Enter a TODO..." />
+    <button type="submit">Add</button>
   `;
 
   const list = document.createElement('ul');
@@ -1673,14 +1674,14 @@ function createTodoApp(rootSelector) {
 
   root.append(form, list, stats);
 
-  // 状態管理
+  // State management
   let todos = [];
   let nextId = 1;
 
   function updateStats() {
     const total = todos.length;
     const completed = todos.filter(t => t.done).length;
-    stats.textContent = `全 ${total} 件 / 完了 ${completed} 件 / 残り ${total - completed} 件`;
+    stats.textContent = `Total: ${total} / Completed: ${completed} / Remaining: ${total - completed}`;
   }
 
   function renderTodo(todo) {
@@ -1690,8 +1691,8 @@ function createTodoApp(rootSelector) {
 
     li.innerHTML = `
       <span class="todo-text">${escapeHtml(todo.text)}</span>
-      <button data-action="toggle">${todo.done ? '戻す' : '完了'}</button>
-      <button data-action="delete">削除</button>
+      <button data-action="toggle">${todo.done ? 'Undo' : 'Complete'}</button>
+      <button data-action="delete">Delete</button>
     `;
 
     return li;
@@ -1703,7 +1704,7 @@ function createTodoApp(rootSelector) {
     return div.innerHTML;
   }
 
-  // フォーム送信
+  // Form submission
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const input = form.querySelector('.todo-input');
@@ -1724,7 +1725,7 @@ function createTodoApp(rootSelector) {
     input.focus();
   });
 
-  // イベント委任で TODO の操作を処理
+  // Handle TODO operations with event delegation
   list.addEventListener('click', (e) => {
     const actionBtn = e.target.closest('[data-action]');
     if (!actionBtn) return;
@@ -1742,7 +1743,7 @@ function createTodoApp(rootSelector) {
         li.classList.toggle('completed');
         li.querySelector('.todo-text').style.textDecoration =
           todo.done ? 'line-through' : 'none';
-        actionBtn.textContent = todo.done ? '戻す' : '完了';
+        actionBtn.textContent = todo.done ? 'Undo' : 'Complete';
         updateStats();
       }
     }
@@ -1757,22 +1758,22 @@ function createTodoApp(rootSelector) {
   updateStats();
 }
 
-// 使用: createTodoApp('#app');
+// Usage: createTodoApp('#app');
 ```
 
-### 演習2（中級）: MutationObserver を使った DOM 変更ログ
+### Exercise 2 (Intermediate): DOM Change Log with MutationObserver
 
-外部スクリプトが DOM を変更する状況をシミュレートし、MutationObserver で変更履歴を記録・表示する仕組みを実装せよ。
+Simulate a scenario where an external script modifies the DOM, and implement a mechanism to record and display the change history with MutationObserver.
 
-**要件:**
-- 監視対象の要素と、変更ログの表示エリアがある
-- 子要素の追加・削除、属性の変更、テキストの変更を検知する
-- 各変更のタイプ、タイムスタンプ、詳細情報をログに表示する
-- 「監視開始」「監視停止」のトグルボタンがある
-- ログのクリアボタンがある
+**Requirements:**
+- There is a monitored element and a change log display area
+- Detect addition/removal of child elements, attribute changes, and text changes
+- Display the type, timestamp, and details of each change in the log
+- There is a toggle button for "Start monitoring" / "Stop monitoring"
+- There is a log clear button
 
 ```javascript
-// ---- 演習2の解答例 ----
+// ---- Sample solution for Exercise 2 ----
 
 function createDOMMutationLogger(targetSelector, logSelector) {
   const target = document.querySelector(targetSelector);
@@ -1816,23 +1817,23 @@ function createDOMMutationLogger(targetSelector, logSelector) {
             mutation.addedNodes.forEach(node => {
               if (node.nodeType === Node.ELEMENT_NODE) {
                 addLogEntry('childList',
-                  `追加: <${node.tagName.toLowerCase()}> → ${getPath(mutation.target)}`);
+                  `Added: <${node.tagName.toLowerCase()}> → ${getPath(mutation.target)}`);
               }
             });
             mutation.removedNodes.forEach(node => {
               if (node.nodeType === Node.ELEMENT_NODE) {
                 addLogEntry('childList',
-                  `削除: <${node.tagName.toLowerCase()}> from ${getPath(mutation.target)}`);
+                  `Removed: <${node.tagName.toLowerCase()}> from ${getPath(mutation.target)}`);
               }
             });
             break;
           case 'attributes':
             addLogEntry('attributes',
-              `属性変更: ${mutation.attributeName} on ${getPath(mutation.target)}`);
+              `Attribute changed: ${mutation.attributeName} on ${getPath(mutation.target)}`);
             break;
           case 'characterData':
             addLogEntry('characterData',
-              `テキスト変更: "${mutation.oldValue?.substring(0, 30)}..." → "${mutation.target.textContent.substring(0, 30)}..."`);
+              `Text changed: "${mutation.oldValue?.substring(0, 30)}..." → "${mutation.target.textContent.substring(0, 30)}..."`);
             break;
         }
       }
@@ -1848,14 +1849,14 @@ function createDOMMutationLogger(targetSelector, logSelector) {
     });
 
     isObserving = true;
-    addLogEntry('system', '監視を開始しました');
+    addLogEntry('system', 'Monitoring started');
   }
 
   function stopObserving() {
     if (!isObserving || !observer) return;
     observer.disconnect();
     isObserving = false;
-    addLogEntry('system', '監視を停止しました');
+    addLogEntry('system', 'Monitoring stopped');
   }
 
   function getPath(el) {
@@ -1878,22 +1879,22 @@ function createDOMMutationLogger(targetSelector, logSelector) {
 }
 ```
 
-### 演習3（上級）: Shadow DOM を使った再利用可能なモーダルコンポーネント
+### Exercise 3 (Advanced): Reusable Modal Component with Shadow DOM
 
-Web Components と Shadow DOM を使い、以下の仕様を満たすモーダルダイアログを実装せよ。
+Using Web Components and Shadow DOM, implement a modal dialog meeting the following specifications.
 
-**要件:**
-- `<modal-dialog>` カスタム要素として登録する
-- `open` 属性でモーダルの表示/非表示を制御する
-- `title` スロットと `default` スロットでコンテンツを注入する
-- `footer` スロットにアクションボタンを配置できる
-- ESC キーで閉じる、背景クリックで閉じる
-- フォーカストラップ（Tab キーがモーダル外に出ない）
-- CSS カスタムプロパティでテーマカスタマイズ可能
-- `open` / `close` カスタムイベントを発火する
+**Requirements:**
+- Register as a `<modal-dialog>` custom element
+- Control show/hide with the `open` attribute
+- Inject content via `title` slot and `default` slot
+- Place action buttons in the `footer` slot
+- Close with ESC key, close by clicking background
+- Focus trap (Tab key cannot leave the modal)
+- Theme customization with CSS custom properties
+- Fire `open` / `close` custom events
 
 ```javascript
-// ---- 演習3の解答例 ----
+// ---- Sample solution for Exercise 3 ----
 
 class ModalDialog extends HTMLElement {
   static get observedAttributes() {
@@ -1990,8 +1991,8 @@ class ModalDialog extends HTMLElement {
       <div class="backdrop" part="backdrop"></div>
       <div class="dialog" role="dialog" aria-modal="true" part="dialog">
         <div class="header" part="header">
-          <slot name="title"><span>ダイアログ</span></slot>
-          <button class="close-btn" aria-label="閉じる" part="close-btn">&times;</button>
+          <slot name="title"><span>Dialog</span></slot>
+          <button class="close-btn" aria-label="Close" part="close-btn">&times;</button>
         </div>
         <div class="body" part="body">
           <slot></slot>
@@ -2002,7 +2003,7 @@ class ModalDialog extends HTMLElement {
       </div>
     `;
 
-    // イベントバインド
+    // Bind events
     this._shadow.querySelector('.backdrop').addEventListener('click', () => {
       this.close();
     });
@@ -2041,7 +2042,7 @@ class ModalDialog extends HTMLElement {
   }
 
   _onOpen() {
-    // フォーカスをダイアログ内に移動
+    // Move focus inside the dialog
     const dialog = this._shadow.querySelector('.dialog');
     const firstFocusable = dialog.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
     if (firstFocusable) {
@@ -2063,7 +2064,7 @@ class ModalDialog extends HTMLElement {
       return;
     }
 
-    // フォーカストラップ
+    // Focus trap
     if (e.key === 'Tab') {
       const dialog = this._shadow.querySelector('.dialog');
       const focusables = [
@@ -2089,12 +2090,12 @@ class ModalDialog extends HTMLElement {
 
 customElements.define('modal-dialog', ModalDialog);
 
-// HTML での使用:
+// Usage in HTML:
 // <modal-dialog id="my-modal">
-//   <h2 slot="title">確認</h2>
-//   <p>この操作を実行しますか?</p>
+//   <h2 slot="title">Confirmation</h2>
+//   <p>Do you want to execute this operation?</p>
 //   <div slot="footer">
-//     <button onclick="document.getElementById('my-modal').close()">キャンセル</button>
+//     <button onclick="document.getElementById('my-modal').close()">Cancel</button>
 //     <button onclick="confirm()">OK</button>
 //   </div>
 // </modal-dialog>
@@ -2102,9 +2103,9 @@ customElements.define('modal-dialog', ModalDialog);
 
 ---
 
-## 14. DOM API のブラウザ間差異と Polyfill
+## 14. Cross-Browser Differences and Polyfills for DOM API
 
-### 14.1 モダン API のブラウザサポート状況
+### 14.1 Browser Support Status of Modern APIs
 
 | API | Chrome | Firefox | Safari | Edge |
 |-----|--------|---------|--------|------|
@@ -2120,23 +2121,23 @@ customElements.define('modal-dialog', ModalDialog);
 | Declarative Shadow DOM | 111+ | 123+ | 16.4+ | 111+ |
 | `element.isConnected` | 51+ | 49+ | 10+ | 79+ |
 
-### 14.2 Safari 固有の注意点
+### 14.2 Safari-Specific Considerations
 
-Safari は他のブラウザに比べ、一部の DOM API の実装が遅れることがある。特に以下の点に注意が必要である。
+Safari can lag behind other browsers in implementing some DOM APIs. Particular attention is needed for the following:
 
-- `adoptedStyleSheets` のサポートが遅れた（Safari 16.4+ で対応）
-- Form-associated custom elements の対応が遅い
-- Declarative Shadow DOM の `shadowrootmode` が Safari 16.4+ で対応
-- `:focus-visible` 疑似クラスの挙動が微妙に異なる場合がある
+- `adoptedStyleSheets` support was delayed (supported in Safari 16.4+)
+- Support for form-associated custom elements is slow
+- Declarative Shadow DOM's `shadowrootmode` supported in Safari 16.4+
+- The `:focus-visible` pseudo-class may behave slightly differently
 
 ---
 
-## 15. パフォーマンス計測
+## 15. Performance Measurement
 
-### 15.1 DOM 操作のパフォーマンス計測手法
+### 15.1 Techniques for Measuring DOM Operation Performance
 
 ```javascript
-// Performance API でDOM操作の所要時間を計測
+// Measure DOM operation duration with Performance API
 function measureDOMOperation(label, operation) {
   performance.mark(`${label}-start`);
 
@@ -2148,7 +2149,7 @@ function measureDOMOperation(label, operation) {
   const measure = performance.getEntriesByName(label)[0];
   console.log(`${label}: ${measure.duration.toFixed(2)}ms`);
 
-  // クリーンアップ
+  // Cleanup
   performance.clearMarks(`${label}-start`);
   performance.clearMarks(`${label}-end`);
   performance.clearMeasures(label);
@@ -2156,7 +2157,7 @@ function measureDOMOperation(label, operation) {
   return measure.duration;
 }
 
-// 使用例: innerHTML vs DocumentFragment の比較
+// Usage: compare innerHTML vs DocumentFragment
 const container = document.getElementById('test');
 const items = Array.from({ length: 5000 }, (_, i) => `Item ${i}`);
 
@@ -2178,7 +2179,7 @@ measureDOMOperation('DocumentFragment', () => {
   container.appendChild(fragment);
 });
 
-// PerformanceObserver でレイアウトシフトを監視
+// Monitor layout shifts with PerformanceObserver
 const layoutShiftObserver = new PerformanceObserver((list) => {
   for (const entry of list.getEntries()) {
     if (entry.entryType === 'layout-shift' && !entry.hadRecentInput) {
@@ -2190,134 +2191,3 @@ layoutShiftObserver.observe({ type: 'layout-shift', buffered: true });
 ```
 
 ---
-
-## 16. FAQ
-
-### Q1: querySelector と getElementById はどちらを使うべきか?
-
-**回答:** 一般的には `querySelector` / `querySelectorAll` を推奨する。CSS セレクタの柔軟性があり、静的な NodeList を返すためループ中の安全性が高い。ただし、ID による単一要素の取得で最高のパフォーマンスが求められる場面（例えばアニメーションフレーム内で毎フレーム呼ばれるなど）では `getElementById` がわずかに高速である。日常的な開発ではこの差は無視できるため、コードの一貫性を重視して `querySelector` 系に統一するチームが多い。
-
-### Q2: MutationObserver のコールバック内で DOM を変更するとどうなるか?
-
-**回答:** MutationObserver のコールバック内で DOM を変更すると、その変更は次のマイクロタスクキューで再度 MutationObserver に通知される。直接的な無限ループにはならない（同期的に再帰しないため）が、コールバック → DOM 変更 → コールバック → DOM 変更 ... という連鎖が起こりうる。これを防ぐには、コールバック内で変更を行う前に `observer.disconnect()` し、変更後に再度 `observer.observe()` するか、フラグ変数で再帰を防止する。
-
-```javascript
-let isUpdating = false;
-
-const observer = new MutationObserver((mutations) => {
-  if (isUpdating) return;  // 自身の変更による通知を無視
-
-  isUpdating = true;
-  // DOM 変更処理
-  element.setAttribute('data-count', String(mutations.length));
-  isUpdating = false;
-});
-```
-
-### Q3: Shadow DOM を使うと SEO に影響はあるか?
-
-**回答:** 検索エンジンのクローラ（特に Googlebot）は JavaScript を実行し、Shadow DOM のコンテンツもインデックスする能力を持つ。ただし、Light DOM のコンテンツ（スロットに挿入されるコンテンツ）の方が確実にインデックスされるため、SEO 上重要なテキストは Light DOM 側に配置し、Shadow DOM 内では構造とスタイリングのみを担当させるのが安全な設計である。Declarative Shadow DOM を使えば、HTML のソース上に Shadow DOM の構造が存在するため、JavaScript 実行を待たずにコンテンツが利用可能になり、SSR との組み合わせで SEO への影響を最小化できる。
-
-### Q4: Virtual DOM は本当に「速い」のか?
-
-**回答:** 正確には「手動の DOM 操作より速い」わけではなく、「最適化されていない DOM 操作より安全に速い」という表現が適切である。手動で最小限の DOM 操作を正確に行えるなら、それが最速である。しかし、複雑な UI の状態遷移において、開発者が毎回最小限の差分を計算して DOM 操作を行うのは困難であり、バグの温床になる。Virtual DOM は「宣言的に UI を記述でき、かつ十分に高速」という開発体験とパフォーマンスのバランスを実現する。Svelte のようなコンパイル時アプローチが Virtual DOM のオーバーヘッドを回避しつつ宣言的な開発体験を提供する点も、近年注目されている。
-
-### Q5: Web Components は React や Vue の代替になるか?
-
-**回答:** Web Components と React/Vue は競合ではなく、レイヤーが異なる。Web Components はブラウザネイティブのコンポーネント機構であり、フレームワーク非依存の再利用可能な UI パーツを作るのに適している。一方、React/Vue は状態管理、ルーティング、エコシステム全体を含む包括的なフレームワークである。デザインシステムの基盤を Web Components で構築し、アプリケーション層を React/Vue で構築するハイブリッドアプローチも有効である。Lit や Stencil など、Web Components の開発体験を向上させるライブラリも成熟してきている。
-
-### Q6: innerHTML と textContent の使い分けは?
-
-**回答:** `innerHTML` はHTML文字列をパースして要素として挿入するため、タグを含むコンテンツを設定する場合に使用する。一方、`textContent` は文字列をそのままテキストノードとして挿入するため、HTMLタグはエスケープされて表示される。**セキュリティ上の理由から、ユーザー入力をそのまま表示する場合は必ず `textContent` を使用する。** `innerHTML` でユーザー入力を扱うとXSS（クロスサイトスクリプティング）攻撃のリスクがある。また、`textContent` は単純なテキスト挿入のため、`innerHTML` より高速である。HTML構造を動的に生成する必要がある場合は `createElement` + `appendChild` または `insertAdjacentHTML` を検討する。パフォーマンス面では、大量のテキストを設定する際は `textContent` が最も効率的である。
-
-### Q7: 仮想DOMとリアルDOMの違いとは?
-
-**回答:** リアルDOM（Real DOM）はブラウザが実際にメモリ上に保持する文書構造であり、DOM APIを通じて直接操作する。仮想DOM（Virtual DOM）はReactやVueなどのフレームワークが採用するメモリ上のJavaScriptオブジェクトで、リアルDOMの軽量な表現である。仮想DOMのメリットは、宣言的なUI記述と効率的な差分更新（diff/patch）の両立にある。開発者は「最終的なUIの状態」だけを記述し、フレームワークが前回の仮想DOMと比較して最小限のリアルDOM操作を自動生成する。これにより、手動で差分計算を行う複雑さから解放され、バグを減らしつつパフォーマンスを維持できる。ただし、仮想DOMの比較処理自体にもコストがあるため、極めて単純なDOM操作では直接操作の方が高速な場合もある。Svelteのようなコンパイル時アプローチは、仮想DOMのオーバーヘッドを回避しつつ宣言的な開発体験を提供する。
-
-### Q8: DOM操作のパフォーマンス最適化のポイントは?
-
-**回答:** DOM操作の最適化には以下のポイントがある。**(1) Layout Thrashingの回避**: 読み取り（offsetHeight等）と書き込み（style変更等）を交互に行うと、ブラウザが毎回レイアウト再計算を強制される。`fastdom` ライブラリや手動でのバッチ処理により、読み取りをまとめて行い、その後書き込みをまとめて行う。**(2) DocumentFragmentの活用**: 複数要素を挿入する際は、DocumentFragmentに一度追加してから一括挿入することで、レンダリング回数を削減できる。**(3) `requestAnimationFrame` の使用**: アニメーションやスクロール連動処理では、ブラウザの再描画タイミングに合わせて処理を実行することで、滑らかな描画を実現できる。**(4) イベント委任**: 多数の子要素にイベントリスナーを個別に設定せず、親要素で一括処理することでメモリ使用量とイベント登録コストを削減できる。**(5) `will-change` CSSプロパティ**: 頻繁に変更されるプロパティを事前にブラウザに通知することで、最適化のヒントを与えられる（ただし過度な使用はメモリを圧迫する）。
-
----
-
-## 17. まとめ
-
-### 要点の整理
-
-| 概念 | 重要ポイント | 典型的な使用場面 |
-|------|-------------|----------------|
-| DOM ツリー構造 | ノード型の理解、Element 専用ナビゲーション | ツリー走査、構造分析 |
-| 要素の取得 | 静的 NodeList vs ライブ HTMLCollection の区別 | 要素検索、フィルタリング |
-| CRUD 操作 | DocumentFragment、insertAdjacentHTML | 大量挿入、部分更新 |
-| レンダリング | Layout Thrashing 回避、読み書き分離 | パフォーマンス最適化 |
-| イベントモデル | キャプチャ / バブリング / 委任 / passive | ユーザインタラクション |
-| MutationObserver | 非同期バッチ通知、attributeFilter | DOM 変更監視 |
-| Shadow DOM | スタイル隔離、スロット、ライフサイクル | Web Components |
-| Virtual DOM | diff/patch、宣言的 UI | React/Vue 等のSPA |
-| テンプレート | `<template>` 要素、Declarative Shadow DOM | 効率的な要素生成 |
-
-### キーポイント
-
-1. **DOM操作はレンダリングパフォーマンスに直結する**: Layout Thrashingを避けるため、読み取り操作と書き込み操作を分離し、DocumentFragmentやrequestAnimationFrameを活用してバッチ処理を行う。直接DOM操作が最速だが、複雑なUIでは仮想DOMによる宣言的アプローチが開発効率とパフォーマンスのバランスを取る。
-
-2. **イベント処理の効率化が重要**: イベント委任により親要素で一括処理することでメモリとCPUコストを削減し、`passive: true` オプションでスクロールパフォーマンスを向上させる。MutationObserverを使えばDOM変更を非同期バッチで監視でき、ポーリングによるCPU浪費を避けられる。
-
-3. **Shadow DOMとWeb Componentsでカプセル化を実現**: Shadow DOMによりスタイルとDOMを隔離し、グローバルCSSの競合を防ぐ。スロット機構でコンテンツ投影を行い、Custom ElementsとShadow DOMを組み合わせることでフレームワーク非依存の再利用可能なコンポーネントを構築できる。
-
-### チェックリスト
-
-- [ ] `querySelector` と `getElementsBy` の違い（静的 vs ライブ）を説明できる
-- [ ] DocumentFragment を使ったバッチ挿入を実装できる
-- [ ] Layout Thrashing とその回避策を説明できる
-- [ ] イベントキャプチャ / バブリング / 委任の使い分けができる
-- [ ] `passive` オプションの意義を説明できる
-- [ ] MutationObserver で DOM 変更を監視する処理を書ける
-- [ ] Shadow DOM の隔離境界とスタイルの挙動を説明できる
-- [ ] Virtual DOM と直接 DOM 操作の長所短所を比較できる
-- [ ] メモリリークの原因と AbortController による対策を実装できる
-- [ ] Web Components のライフサイクルコールバックを列挙できる
-
----
-
-## FAQ
-
-### Q1: innerHTMLとtextContentとinnerTextの違いは何ですか?
-`innerHTML` はHTML文字列としてノードの内容を取得・設定します。HTMLタグが解釈されるため、XSS脆弱性の原因になりえます。`textContent` はノードとその子孫の全テキストコンテンツを取得・設定し、HTMLタグは純粋なテキストとして扱われます。非表示要素（`display: none`）のテキストも含まれ、レイアウトの再計算を引き起こしません。`innerText` は「表示されているテキスト」を返し、CSSを考慮してレンダリング結果に基づくテキストを取得するため、`display: none` の要素は除外され、レイアウト再計算が発生します。パフォーマンスを重視する場合は `textContent` を使用してください。
-
-### Q2: addEventListener の第三引数にはどのような値を指定できますか?
-第三引数には真偽値（キャプチャフェーズで処理するか）またはオプションオブジェクトを指定できます。オプションオブジェクトでは `capture`（キャプチャフェーズで処理）、`once`（一度だけ実行して自動解除）、`passive`（preventDefault()を呼ばないことを宣言しスクロールパフォーマンスを向上）、`signal`（AbortSignal でリスナーを一括解除）を指定できます。特に `passive: true` はタッチイベントやスクロールイベントで重要で、ブラウザはスクロールの阻止がないことを前提に最適化を行えます。
-
-### Q3: Virtual DOMと直接DOM操作のどちらを選ぶべきですか?
-UIの複雑さとチームの規模によって判断します。状態変化に応じてUIの多くの部分が連動して更新されるアプリケーション（ダッシュボード、チャット、フォームウィザードなど）では、Virtual DOM を採用するフレームワーク（React、Vue）が開発効率とバグの少なさの面で優れます。一方、軽量なウィジェット、パフォーマンスが極めて重要な部分、フレームワーク非依存のライブラリでは、直接DOM操作の方がオーバーヘッドが少なく高速です。両者は排他的ではなく、React内でも `ref` を使って直接DOM操作を行う場面があります。
-
----
-
-## まとめ
-
-このガイドでは以下を学びました:
-
-- DOMツリーの構造とノード型の分類、及びDOMとCSSOMの関係
-- 要素の取得・作成・挿入・削除の効率的なパターンとDocumentFragmentによるバッチ処理
-- Layout Thrashingの原因と回避策（読み書き分離、requestAnimationFrameの活用）
-- イベントモデル（キャプチャ/バブリング/委任）とpassiveオプションによるパフォーマンス最適化
-- Shadow DOMによるスタイル・DOMの隔離とWeb Componentsの設計パターン
-
----
-
-## 次に読むべきガイド
-
-- [01-fetch-and-streams.md](./01-fetch-and-streams.md) -- Fetch と Streams
-- [02-intersection-resize-observer.md](./02-intersection-resize-observer.md) -- Observer API (Intersection, Resize, Mutation)
-- [../04-storage-and-caching/00-web-storage.md](../04-storage-and-caching/00-web-storage.md) -- Web Storage API
-
----
-
-## 参考文献
-
-1. WHATWG. "DOM Living Standard." https://dom.spec.whatwg.org/ , 2024.
-2. MDN Web Docs. "Document Object Model (DOM)." Mozilla, https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model , 2024.
-3. Google Developers. "Rendering Performance." https://web.dev/rendering-performance/ , 2024.
-4. MDN Web Docs. "Web Components." Mozilla, https://developer.mozilla.org/en-US/docs/Web/API/Web_components , 2024.
-5. WHATWG. "HTML Living Standard - Shadow DOM." https://html.spec.whatwg.org/multipage/scripting.html , 2024.
-6. Wilcox, Jason. "Virtual DOM is pure overhead." Svelte Blog, https://svelte.dev/blog/virtual-dom-is-pure-overhead , 2018.
-

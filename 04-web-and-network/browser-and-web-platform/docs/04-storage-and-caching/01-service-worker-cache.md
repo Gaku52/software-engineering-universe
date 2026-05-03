@@ -1,41 +1,41 @@
-# Service Worker とキャッシュ戦略
+# Service Worker and Cache Strategies
 
-> Service Worker は Web アプリにオフライン対応、バックグラウンド同期、Push 通知を実現するブラウザ API である。Cache API と組み合わせることで、ネットワーク状況に左右されないレジリエントなユーザー体験を構築できる。本章では、Service Worker のライフサイクルから始め、5 大キャッシュ戦略の詳細、Workbox による実務的な実装、PWA（Progressive Web App）の構築方法、そしてデバッグとトラブルシューティングまでを体系的に解説する。
+> Service Worker is a browser API that enables offline support, background synchronization, and push notifications for web applications. Combined with the Cache API, it allows you to build resilient user experiences that are unaffected by network conditions. This chapter systematically covers everything from the Service Worker lifecycle, through the details of the five major cache strategies, practical implementation with Workbox, building PWAs (Progressive Web Apps), and debugging and troubleshooting.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] Service Worker のライフサイクルと登録・更新の仕組みを正確に理解する
-- [ ] Cache API の基本操作（open, put, match, delete）を使いこなす
-- [ ] 5 つのキャッシュ戦略（Cache First, Network First, Stale-While-Revalidate, Cache Only, Network Only）の特性と使い分けを把握する
-- [ ] Workbox ライブラリを用いた効率的な Service Worker 開発手法を習得する
-- [ ] PWA の構成要素と installability（インストール可能性）の要件を学ぶ
-- [ ] キャッシュのバージョニングと古いキャッシュの削除戦略を理解する
-- [ ] オフラインフォールバックページの実装方法を身につける
+- [ ] Understand the Service Worker lifecycle and the mechanisms for registration and updates accurately
+- [ ] Master the basic Cache API operations (open, put, match, delete)
+- [ ] Understand the characteristics and appropriate use cases of the five cache strategies (Cache First, Network First, Stale-While-Revalidate, Cache Only, Network Only)
+- [ ] Learn efficient Service Worker development using the Workbox library
+- [ ] Learn the components of a PWA and the requirements for installability
+- [ ] Understand cache versioning and strategies for deleting stale caches
+- [ ] Learn how to implement an offline fallback page
 
 ---
 
-## 1. Service Worker の基礎概念
+## 1. Service Worker Fundamentals
 
-### 1.1 Service Worker とは何か
+### 1.1 What Is a Service Worker?
 
-Service Worker は、Web ページとネットワークの間に位置するプログラマブルなプロキシサーバーである。通常のスクリプトとは異なり、以下の特徴を持つ。
+A Service Worker is a programmable proxy server that sits between the web page and the network. Unlike regular scripts, it has the following characteristics.
 
-1. **独立したスレッドで動作する** -- メインスレッド（UI スレッド）とは別のスレッドで実行されるため、DOM に直接アクセスできない
-2. **イベント駆動型である** -- 必要なときだけ起動し、不要になると停止する
-3. **HTTPS 必須** -- セキュリティ上の理由から、localhost を除き HTTPS 環境でのみ動作する
-4. **ステートレスである** -- 起動のたびに状態がリセットされるため、永続化には IndexedDB や Cache API を使用する
+1. **Runs on an independent thread** -- it executes on a separate thread from the main (UI) thread, so it cannot access the DOM directly
+2. **Event-driven** -- it starts only when needed and stops when idle
+3. **Requires HTTPS** -- for security reasons, it only works in HTTPS environments (except for localhost)
+4. **Stateless** -- state is reset on each startup, so IndexedDB or the Cache API must be used for persistence
 
 ```
 +-------------------------------------------------------------------+
-|  ブラウザ                                                          |
+|  Browser                                                          |
 |                                                                   |
 |  +------------------+      +-------------------+                  |
-|  |   Web ページ      |      |  Service Worker   |                  |
-|  |  (メインスレッド)  | <--> |  (別スレッド)      |                  |
+|  |   Web Page        |      |  Service Worker   |                  |
+|  |  (Main Thread)    | <--> |  (Worker Thread)  |                  |
 |  |                  |      |                   |                  |
-|  | - DOM 操作       |      | - fetch イベント   |                  |
-|  | - UI 描画        |      | - push イベント    |                  |
-|  | - ユーザー操作    |      | - sync イベント    |                  |
+|  | - DOM operations |      | - fetch event     |                  |
+|  | - UI rendering   |      | - push event      |                  |
+|  | - User input     |      | - sync event      |                  |
 |  +------------------+      +--------+----------+                  |
 |                                     |                             |
 |                                     v                             |
@@ -48,118 +48,118 @@ Service Worker は、Web ページとネットワークの間に位置するプ�
                                       |
                                       v
                              +--------+----------+
-                             |   ネットワーク     |
-                             |  (リモートサーバー) |
+                             |   Network         |
+                             |  (Remote server)  |
                              +-------------------+
 ```
 
-### 1.2 Service Worker のスコープ
+### 1.2 Service Worker Scope
 
-Service Worker には「スコープ」の概念がある。スコープとは、その Service Worker が制御するパスの範囲である。
+Service Workers have the concept of a "scope." The scope is the range of paths that the Service Worker controls.
 
 ```javascript
-// デフォルトスコープ: Service Worker ファイルが置かれたディレクトリ
-// /sw.js を登録 → スコープは /（サイト全体）
+// Default scope: the directory where the Service Worker file is placed
+// Registering /sw.js → scope is / (entire site)
 navigator.serviceWorker.register('/sw.js');
 
-// /app/sw.js を登録 → スコープは /app/
+// Registering /app/sw.js → scope is /app/
 navigator.serviceWorker.register('/app/sw.js');
 
-// 明示的にスコープを指定する
+// Explicitly specify the scope
 navigator.serviceWorker.register('/sw.js', {
   scope: '/app/'
 });
 
-// 注意: スコープは SW ファイルの配置場所より上位には設定できない
-// /app/sw.js を登録して scope: '/' は不可（Service-Worker-Allowed ヘッダーが必要）
+// Note: the scope cannot be set higher than the location of the SW file
+// Registering /app/sw.js with scope: '/' is not allowed (requires Service-Worker-Allowed header)
 ```
 
-### 1.3 Service Worker と通常のスクリプトの違い
+### 1.3 Differences Between Service Workers and Regular Scripts
 
-| 特性 | 通常の JavaScript | Service Worker |
+| Property | Regular JavaScript | Service Worker |
 |------|-------------------|----------------|
-| 実行スレッド | メインスレッド | ワーカースレッド |
-| DOM アクセス | 可能 | 不可 |
-| window オブジェクト | 利用可能 | 不可（self を使用） |
-| ライフサイクル | ページと同期 | ページとは独立 |
-| ネットワークリクエストの傍受 | 不可 | fetch イベントで可能 |
-| HTTPS 要件 | なし | 必須（localhost 除く） |
-| 永続性 | ページ離脱で終了 | ブラウザが管理 |
-| 利用可能な API | すべて | Cache API, Fetch API, IndexedDB, postMessage 等 |
-| バックグラウンド処理 | 不可 | Push, Sync イベント対応 |
+| Execution thread | Main thread | Worker thread |
+| DOM access | Possible | Not available |
+| window object | Available | Not available (use self) |
+| Lifecycle | Synchronized with page | Independent of page |
+| Network request interception | Not possible | Possible via fetch event |
+| HTTPS requirement | None | Required (except localhost) |
+| Persistence | Ends when page is closed | Managed by browser |
+| Available APIs | All | Cache API, Fetch API, IndexedDB, postMessage, etc. |
+| Background processing | Not possible | Supports Push, Sync events |
 
 ---
 
-## 2. Service Worker ライフサイクル（詳細）
+## 2. Service Worker Lifecycle (Detailed)
 
-Service Worker のライフサイクルは、Web 開発者が最もつまずきやすい領域の一つである。各フェーズを正確に理解することが、安定した実装の前提条件となる。
+The Service Worker lifecycle is one of the areas where web developers most commonly get confused. Accurately understanding each phase is a prerequisite for stable implementation.
 
 ```
 +-----------------------------------------------------------+
-|              Service Worker ライフサイクル                   |
+|              Service Worker Lifecycle                      |
 +-----------------------------------------------------------+
 |                                                           |
-|  [未登録] --(register())--> [登録中]                       |
+|  [Unregistered] --(register())--> [Registering]           |
 |                               |                           |
 |                               v                           |
-|                          [インストール中]                   |
-|                          install イベント                   |
+|                          [Installing]                     |
+|                          install event                    |
 |                               |                           |
 |                    +----------+----------+                 |
 |                    |                     |                 |
 |                    v                     v                 |
-|              [待機中]              [インストール失敗]        |
-|            (waiting)                  (破棄)               |
+|              [Waiting]             [Install failed]       |
+|            (waiting)                  (discarded)         |
 |                    |                                       |
 |      +-------------+-------------+                        |
 |      |                           |                        |
 |      v                           v                        |
-| [古い SW が制御中]         [skipWaiting()]                  |
-| 全タブ閉じるまで待機         即座にアクティブ化               |
+| [Old SW in control]        [skipWaiting()]                 |
+| Wait until all tabs closed   Activate immediately          |
 |      |                           |                        |
 |      +-------------+-------------+                        |
 |                    |                                       |
 |                    v                                       |
-|              [アクティベーション]                            |
-|              activate イベント                              |
+|              [Activating]                                  |
+|              activate event                               |
 |                    |                                       |
 |                    v                                       |
-|              [アクティブ/制御中]                             |
-|              fetch, push, sync イベント処理                 |
+|              [Active/Controlling]                          |
+|              fetch, push, sync event handling             |
 |                    |                                       |
 |                    v                                       |
-|              [更新チェック]                                 |
-|              24h ごと or register() 呼び出し時              |
-|              1 バイトでも差異があれば                        |
-|              新しい SW をインストール開始                     |
+|              [Update check]                               |
+|              Every 24h or on register() call              |
+|              If any byte difference exists,               |
+|              start installing new SW                      |
 +-----------------------------------------------------------+
 ```
 
-### 2.1 登録（Registration）
+### 2.1 Registration
 
 ```javascript
-// main.js（ページ側のスクリプト）
+// main.js (page-side script)
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
       const registration = await navigator.serviceWorker.register('/sw.js', {
         scope: '/',
-        // updateViaCache: 'none' を指定すると SW ファイル自体のHTTPキャッシュを無視
+        // Specifying updateViaCache: 'none' ignores the HTTP cache for the SW file itself
         updateViaCache: 'none'
       });
 
       console.log('SW registered:', registration.scope);
 
-      // 更新チェックを手動でトリガーする（オプション）
+      // Manually trigger an update check (optional)
       registration.update();
 
-      // 登録状態の確認
+      // Check registration state
       if (registration.installing) {
-        console.log('Service Worker: インストール中');
+        console.log('Service Worker: Installing');
       } else if (registration.waiting) {
-        console.log('Service Worker: 待機中（更新あり）');
+        console.log('Service Worker: Waiting (update available)');
       } else if (registration.active) {
-        console.log('Service Worker: アクティブ');
+        console.log('Service Worker: Active');
       }
     } catch (error) {
       console.error('SW registration failed:', error);
@@ -168,7 +168,7 @@ if ('serviceWorker' in navigator) {
 }
 ```
 
-### 2.2 インストール（Installation）
+### 2.2 Installation
 
 ```javascript
 // sw.js
@@ -185,7 +185,7 @@ const PRECACHE_URLS = [
 self.addEventListener('install', (event) => {
   console.log('[SW] Install event');
 
-  // waitUntil() でインストール完了までブラウザに待機を指示する
+  // waitUntil() tells the browser to wait until installation is complete
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -193,22 +193,22 @@ self.addEventListener('install', (event) => {
         return cache.addAll(PRECACHE_URLS);
       })
       .then(() => {
-        // skipWaiting() を呼ぶと、待機をスキップして即座にアクティブ化する
-        // 注意: 既存のタブが古い SW で制御されている状態で新しい SW が
-        //       アクティブになるため、互換性に注意が必要
+        // Calling skipWaiting() skips the waiting state and activates immediately
+        // Note: the new SW becomes active while existing tabs are still controlled
+        //       by the old SW, so be careful about compatibility
         return self.skipWaiting();
       })
   );
 });
 ```
 
-### 2.3 アクティベーション（Activation）
+### 2.3 Activation
 
 ```javascript
 self.addEventListener('activate', (event) => {
   console.log('[SW] Activate event');
 
-  // 古いキャッシュを削除する
+  // Delete old caches
   const cacheWhitelist = [CACHE_NAME];
 
   event.waitUntil(
@@ -224,42 +224,42 @@ self.addEventListener('activate', (event) => {
         );
       })
       .then(() => {
-        // clients.claim() で、現在開いている全タブの制御を即座に開始する
-        // これがないと、新しい SW は次回のナビゲーションまで制御を開始しない
+        // clients.claim() immediately starts controlling all currently open tabs
+        // Without this, the new SW will not start controlling until the next navigation
         return self.clients.claim();
       })
   );
 });
 ```
 
-### 2.4 更新の仕組み
+### 2.4 How Updates Work
 
-Service Worker の更新は以下のタイミングで自動チェックされる。
+Service Worker updates are automatically checked at the following times:
 
-1. ユーザーがスコープ内のページへナビゲーションしたとき
-2. `push` や `sync` などの機能イベントが発火したとき（前回のチェックから24時間以上経過している場合）
-3. `registration.update()` を明示的に呼び出したとき
+1. When the user navigates to a page within the scope
+2. When functional events like `push` or `sync` fire (if more than 24 hours have passed since the last check)
+3. When `registration.update()` is called explicitly
 
 ```javascript
-// 更新の手動チェックと通知
+// Manual update check and notification
 async function checkForUpdates() {
   const registration = await navigator.serviceWorker.getRegistration();
   if (!registration) return;
 
-  // 更新チェック
+  // Check for updates
   await registration.update();
 
-  // 待機中の SW があるか確認
+  // Check if there is a waiting SW
   if (registration.waiting) {
     showUpdateNotification(registration.waiting);
   }
 
-  // 新しい SW のインストールを監視
+  // Watch for new SW installation
   registration.addEventListener('updatefound', () => {
     const newWorker = registration.installing;
     newWorker.addEventListener('statechange', () => {
       if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-        // 新しいバージョンが利用可能
+        // A new version is available
         showUpdateNotification(newWorker);
       }
     });
@@ -267,7 +267,7 @@ async function checkForUpdates() {
 }
 
 function showUpdateNotification(worker) {
-  // UI で「更新あり」を表示し、ユーザーがクリックしたら SW に通知
+  // Show "Update available" in UI, notify SW when user clicks
   const updateBanner = document.getElementById('update-banner');
   updateBanner.style.display = 'block';
   updateBanner.querySelector('button').addEventListener('click', () => {
@@ -275,14 +275,14 @@ function showUpdateNotification(worker) {
   });
 }
 
-// SW 側: skipWaiting メッセージを受け取る
+// SW side: receive skipWaiting message
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
 });
 
-// ページ側: controller が変わったらリロード
+// Page side: reload when controller changes
 navigator.serviceWorker.addEventListener('controllerchange', () => {
   window.location.reload();
 });
@@ -290,27 +290,27 @@ navigator.serviceWorker.addEventListener('controllerchange', () => {
 
 ---
 
-## 3. Cache API の基本操作
+## 3. Basic Cache API Operations
 
-Cache API は Service Worker だけでなく、通常の Window コンテキストからも利用可能な非同期 API である。HTTP のリクエスト/レスポンスペアをキーバリュー形式で保存する。
+The Cache API is an asynchronous API available not only from Service Workers but also from regular Window contexts. It stores HTTP request/response pairs in a key-value format.
 
-### 3.1 基本メソッド
+### 3.1 Basic Methods
 
 ```javascript
 // --- caches.open(cacheName) ---
-// 指定した名前のキャッシュを開く（なければ作成する）
+// Open the cache with the specified name (creates it if it doesn't exist)
 const cache = await caches.open('my-cache-v1');
 
 // --- cache.add(request) ---
-// リクエストを取得し、レスポンスをキャッシュに保存する
+// Fetch a request and store the response in the cache
 await cache.add('/styles/main.css');
-// 内部的には以下と同等:
+// Internally equivalent to:
 // const response = await fetch('/styles/main.css');
 // await cache.put('/styles/main.css', response);
 
 // --- cache.addAll(requests) ---
-// 複数のリクエストを一括でキャッシュに追加する
-// 1 つでも失敗するとすべて失敗する（アトミック操作）
+// Add multiple requests to the cache at once
+// If any one fails, all fail (atomic operation)
 await cache.addAll([
   '/',
   '/index.html',
@@ -319,88 +319,88 @@ await cache.addAll([
 ]);
 
 // --- cache.put(request, response) ---
-// リクエストとレスポンスのペアを直接キャッシュに保存する
+// Store a request/response pair directly in the cache
 const response = await fetch('/api/data');
 await cache.put('/api/data', response.clone());
-// 注意: response.clone() を使う。Response は一度しか読み取れないため
+// Note: use response.clone() because Response can only be read once
 
 // --- cache.match(request, options) ---
-// キャッシュからリクエストに一致するレスポンスを検索する
+// Search the cache for a response matching the request
 const cachedResponse = await cache.match('/styles/main.css');
 if (cachedResponse) {
   console.log('Cache hit!');
 }
 
-// オプション: ignoreSearch でクエリパラメータを無視してマッチング
+// Option: ignoreSearch ignores query parameters when matching
 const result = await cache.match('/api/users', { ignoreSearch: true });
-// /api/users?page=1 なども一致する
+// /api/users?page=1 etc. will also match
 
 // --- cache.delete(request) ---
-// 特定のキャッシュエントリを削除する
+// Delete a specific cache entry
 const deleted = await cache.delete('/old-resource.js');
 console.log('Deleted:', deleted); // true or false
 
 // --- cache.keys() ---
-// キャッシュ内のすべてのリクエスト（キー）を取得する
+// Get all requests (keys) in the cache
 const requests = await cache.keys();
 requests.forEach((request) => {
   console.log('Cached:', request.url);
 });
 
 // --- caches.keys() ---
-// すべてのキャッシュ名を取得する
+// Get all cache names
 const cacheNames = await caches.keys();
 console.log('Available caches:', cacheNames);
 
 // --- caches.delete(cacheName) ---
-// キャッシュ全体を削除する
+// Delete an entire cache
 await caches.delete('old-cache-v1');
 
 // --- caches.match(request) ---
-// すべてのキャッシュを横断して検索する（最初に一致したものを返す）
+// Search across all caches (returns the first match)
 const anyMatch = await caches.match('/styles/main.css');
 ```
 
-### 3.2 Cache API の制約と注意点
+### 3.2 Cache API Constraints and Notes
 
-| 項目 | 詳細 |
+| Item | Details |
 |------|------|
-| ストレージ上限 | ブラウザ・デバイスにより異なる。Chrome ではディスク容量の最大 80% まで（オリジン単位で 60% まで） |
-| 格納対象 | HTTP リクエスト/レスポンスペアのみ（任意のデータは IndexedDB を使う） |
-| キーの一致 | URL ベースの完全一致（デフォルト）。Vary ヘッダーも考慮される |
-| CORS レスポンス | opaque レスポンス（no-cors）もキャッシュ可能だがステータスは 0 になる |
-| レスポンスの消費 | Response は一度しか body を読み取れない。複数回使う場合は clone() が必要 |
-| 永続性 | 明示的に削除するか、ブラウザのストレージ圧迫時に evict される可能性がある |
+| Storage limit | Varies by browser and device. Chrome allows up to 80% of disk space (up to 60% per origin) |
+| Storable content | HTTP request/response pairs only (use IndexedDB for arbitrary data) |
+| Key matching | Exact URL match by default. Vary headers are also considered |
+| CORS responses | Opaque responses (no-cors) can be cached but status becomes 0 |
+| Response consumption | A Response body can only be read once. Use clone() if needed multiple times |
+| Persistence | May be evicted when explicitly deleted or when browser storage is under pressure |
 
 ---
 
-## 4. 5 大キャッシュ戦略の詳細
+## 4. The Five Major Cache Strategies in Detail
 
-キャッシュ戦略とは、Service Worker が fetch イベントを受け取った際に「キャッシュとネットワークをどのように組み合わせてレスポンスを返すか」を決定するパターンである。
+A cache strategy is a pattern that determines how the Service Worker combines the cache and the network to return a response when it receives a fetch event.
 
-### 4.1 Cache First（キャッシュ優先）
+### 4.1 Cache First
 
-キャッシュにあればキャッシュから返し、なければネットワークに取りに行く。
+Returns from cache if available; otherwise fetches from the network.
 
 ```
-リクエスト --> [Cache に存在？]
+Request --> [Exists in Cache?]
                 |          |
                YES         NO
                 |          |
                 v          v
-        [Cache から返す]  [Network へ]
+        [Return from cache] [Go to Network]
                               |
                               v
-                        [Cache に保存]
+                        [Save to Cache]
                               |
                               v
-                        [レスポンス返却]
+                        [Return response]
 ```
 
 ```javascript
-// Cache First 戦略の実装
+// Cache First strategy implementation
 self.addEventListener('fetch', (event) => {
-  // 対象: ハッシュ付きの静的アセット
+  // Target: static assets with hash in filename
   if (event.request.url.match(/\.(css|js|woff2?|png|jpg|svg)(\?.*)?$/)) {
     event.respondWith(
       caches.match(event.request)
@@ -409,7 +409,7 @@ self.addEventListener('fetch', (event) => {
             return cachedResponse;
           }
           return fetch(event.request).then((networkResponse) => {
-            // 正常なレスポンスのみキャッシュする
+            // Only cache successful responses
             if (networkResponse.ok) {
               const responseClone = networkResponse.clone();
               caches.open('static-assets-v1').then((cache) => {
@@ -424,38 +424,38 @@ self.addEventListener('fetch', (event) => {
 });
 ```
 
-**適用対象**: ビルド済み CSS/JS（ファイル名にハッシュ含む）、Web フォント、ロゴ画像
-**メリット**: 高速、オフライン対応、ネットワーク負荷軽減
-**デメリット**: キャッシュが古い場合に更新が反映されない
+**Use cases**: Built CSS/JS (filenames include hash), web fonts, logo images
+**Pros**: Fast, offline support, reduced network load
+**Cons**: Updates may not be reflected if cache is stale
 
-### 4.2 Network First（ネットワーク優先）
+### 4.2 Network First
 
-まずネットワークに取りに行き、失敗した場合にキャッシュから返す。
+Attempts network first; falls back to cache on failure.
 
 ```
-リクエスト --> [Network へ]
+Request --> [Go to Network]
                 |        |
-              成功       失敗
+             Success    Failure
                 |        |
                 v        v
-        [Cache に保存] [Cache に存在？]
+        [Save to Cache] [Exists in Cache?]
                 |        |        |
                 v       YES       NO
-        [レスポンス返却]  |        |
+        [Return response]  |      |
                         v        v
-                  [Cache から]  [エラー or
-                   [返す]     オフラインページ]
+                  [Return from   [Error or
+                   cache]     offline page]
 ```
 
 ```javascript
-// Network First 戦略の実装（タイムアウト付き）
+// Network First strategy implementation (with timeout)
 self.addEventListener('fetch', (event) => {
   if (event.request.url.includes('/api/')) {
     event.respondWith(
-      // タイムアウトを設けてネットワークリクエストを試行
+      // Attempt network request with a timeout
       promiseWithTimeout(fetch(event.request), 3000)
         .then((networkResponse) => {
-          // 成功: キャッシュに保存して返す
+          // Success: save to cache and return
           const responseClone = networkResponse.clone();
           caches.open('api-cache-v1').then((cache) => {
             cache.put(event.request, responseClone);
@@ -463,12 +463,12 @@ self.addEventListener('fetch', (event) => {
           return networkResponse;
         })
         .catch(async () => {
-          // 失敗: キャッシュから返す
+          // Failure: return from cache
           const cachedResponse = await caches.match(event.request);
           if (cachedResponse) {
             return cachedResponse;
           }
-          // キャッシュもない場合: エラーレスポンスを返す
+          // No cache either: return error response
           return new Response(
             JSON.stringify({ error: 'Offline', cached: false }),
             {
@@ -481,7 +481,7 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
-// タイムアウト付き Promise のユーティリティ
+// Promise with timeout utility
 function promiseWithTimeout(promise, ms) {
   const timeout = new Promise((_, reject) => {
     setTimeout(() => reject(new Error('Timeout')), ms);
@@ -490,52 +490,55 @@ function promiseWithTimeout(promise, ms) {
 }
 ```
 
-**適用対象**: API レスポンス、HTML ページ、動的コンテンツ
-**メリット**: 常に最新データを優先する
-**デメリット**: オフライン時やネットワーク遅延時に初回表示が遅い
+**Use cases**: API responses, HTML pages, dynamic content
+**Pros**: Always prioritizes the latest data
+**Cons**: Slow initial display when offline or on slow networks
 
-### 4.3 Stale-While-Revalidate（SWR）
+### 4.3 Stale-While-Revalidate (SWR)
 
-キャッシュから即座にレスポンスを返しつつ、バックグラウンドでネットワークから最新版を取得してキャッシュを更新する。
+Returns an immediate response from the cache while fetching the latest version from the network in the background to update the cache.
 
 ```
-リクエスト --> [Cache に存在？]
+Request --> [Exists in Cache?]
                 |          |
                YES         NO
                 |          |
                 v          |
-        [Cache から即座に返す] |
+        [Return immediately  |
+         from cache]        |
                 |          |
                 v          v
-        [バックグラウンドで   [Network へ]
-         Network へ]            |
-                |               v
-                v         [Cache に保存]
-        [Cache を更新]          |
-        (次回リクエスト時に      v
-         最新版が返る)    [レスポンス返却]
+        [Fetch from       [Go to Network]
+         Network in           |
+         background]          v
+                |       [Save to Cache]
+                v             |
+        [Update Cache]        v
+        (latest version  [Return response]
+         returned on
+         next request)
 ```
 
 ```javascript
-// Stale-While-Revalidate 戦略の実装
+// Stale-While-Revalidate strategy implementation
 self.addEventListener('fetch', (event) => {
   if (event.request.url.includes('/content/')) {
     event.respondWith(
       caches.open('content-cache-v1').then((cache) => {
         return cache.match(event.request).then((cachedResponse) => {
-          // バックグラウンドでネットワークから最新版を取得
+          // Fetch latest version from network in background
           const fetchPromise = fetch(event.request)
             .then((networkResponse) => {
-              // キャッシュを更新
+              // Update cache
               cache.put(event.request, networkResponse.clone());
               return networkResponse;
             })
             .catch(() => {
-              // ネットワーク失敗時は何もしない（キャッシュが既に返されている）
+              // Network failure: do nothing (cache has already been returned)
               console.log('[SW] Background fetch failed, using cached version');
             });
 
-          // キャッシュがあればすぐに返す、なければネットワークを待つ
+          // Return cache immediately if available, otherwise wait for network
           return cachedResponse || fetchPromise;
         });
       })
@@ -544,25 +547,25 @@ self.addEventListener('fetch', (event) => {
 });
 ```
 
-**適用対象**: ユーザーアバター、ニュースフィード、ソーシャルメディアのタイムライン、更新頻度が中程度のコンテンツ
-**メリット**: 高速な初回表示 + バックグラウンドで最新化
-**デメリット**: 初回表示が1回分古い可能性がある
+**Use cases**: User avatars, news feeds, social media timelines, content with moderate update frequency
+**Pros**: Fast initial display + stays up-to-date in background
+**Cons**: Initial display may be one version behind
 
 ### 4.4 Cache Only
 
-キャッシュからのみレスポンスを返す。ネットワークリクエストは一切行わない。
+Returns responses only from the cache. No network requests are made.
 
 ```javascript
-// Cache Only 戦略の実装
+// Cache Only strategy implementation
 self.addEventListener('fetch', (event) => {
-  // プリキャッシュされたリソースに限定して使用
+  // Use only for precached resources
   if (event.request.url.includes('/static/')) {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         if (cachedResponse) {
           return cachedResponse;
         }
-        // キャッシュにない場合は 404 を返す
+        // Not in cache: return 404
         return new Response('Resource not found in cache', {
           status: 404,
           statusText: 'Not Found'
@@ -573,18 +576,18 @@ self.addEventListener('fetch', (event) => {
 });
 ```
 
-**適用対象**: install イベントでプリキャッシュした静的リソース
-**メリット**: 完全にオフライン対応、ネットワーク通信ゼロ
-**デメリット**: キャッシュにない場合は失敗する
+**Use cases**: Static resources precached during the install event
+**Pros**: Fully offline, zero network communication
+**Cons**: Fails if resource is not in cache
 
 ### 4.5 Network Only
 
-ネットワークからのみレスポンスを取得する。キャッシュは使用しない。
+Fetches responses only from the network. Cache is not used.
 
 ```javascript
-// Network Only 戦略の実装
+// Network Only strategy implementation
 self.addEventListener('fetch', (event) => {
-  // キャッシュ不要な動的リクエスト
+  // Dynamic requests that should not be cached
   if (event.request.url.includes('/api/auth/') ||
       event.request.method !== 'GET') {
     event.respondWith(
@@ -602,30 +605,30 @@ self.addEventListener('fetch', (event) => {
 });
 ```
 
-**適用対象**: 認証 API、決済処理、リアルタイムデータ
-**メリット**: 常に最新のデータを取得
-**デメリット**: オフライン時に完全に動作しない
+**Use cases**: Authentication APIs, payment processing, real-time data
+**Pros**: Always retrieves the latest data
+**Cons**: Does not work at all when offline
 
-### 4.6 戦略の選択ガイド（総合比較表）
+### 4.6 Strategy Selection Guide (Comprehensive Comparison)
 
-| 戦略 | 速度 | 鮮度 | オフライン対応 | 適用対象 |
+| Strategy | Speed | Freshness | Offline Support | Use Cases |
 |------|------|------|---------------|---------|
-| Cache First | 最速 | 低い（キャッシュ依存） | 完全対応 | ハッシュ付き CSS/JS、フォント、ロゴ |
-| Network First | 遅い（ネットワーク依存） | 最新 | キャッシュがあれば対応 | API データ、HTML ページ |
-| Stale-While-Revalidate | 速い | 1 回遅れ | キャッシュがあれば対応 | アバター、フィード、中頻度更新コンテンツ |
-| Cache Only | 最速 | 固定 | 完全対応 | プリキャッシュされた静的リソース |
-| Network Only | 遅い | 最新 | 非対応 | 認証 API、決済、非冪等リクエスト |
+| Cache First | Fastest | Low (cache-dependent) | Full support | Hashed CSS/JS, fonts, logos |
+| Network First | Slow (network-dependent) | Latest | If cache available | API data, HTML pages |
+| Stale-While-Revalidate | Fast | One behind | If cache available | Avatars, feeds, moderate-frequency content |
+| Cache Only | Fastest | Fixed | Full support | Precached static resources |
+| Network Only | Slow | Latest | No support | Auth APIs, payments, non-idempotent requests |
 
 ---
 
-## 5. 実践的な Service Worker の実装
+## 5. Practical Service Worker Implementation
 
-### 5.1 統合的な fetch ハンドラー
+### 5.1 Unified fetch Handler
 
-実際のアプリケーションでは、リクエストの種類に応じて戦略を切り替える。
+In real applications, strategies are switched based on the type of request.
 
 ```javascript
-// sw.js -- 統合的な Service Worker 実装
+// sw.js -- Unified Service Worker implementation
 const STATIC_CACHE = 'static-v2';
 const DYNAMIC_CACHE = 'dynamic-v1';
 const API_CACHE = 'api-v1';
@@ -640,7 +643,7 @@ const PRECACHE_URLS = [
 ];
 
 // ==========================================
-// インストール: プリキャッシュ
+// Install: precache
 // ==========================================
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -651,7 +654,7 @@ self.addEventListener('install', (event) => {
 });
 
 // ==========================================
-// アクティベーション: 古いキャッシュの削除
+// Activate: delete old caches
 // ==========================================
 self.addEventListener('activate', (event) => {
   const validCaches = [STATIC_CACHE, DYNAMIC_CACHE, API_CACHE];
@@ -667,29 +670,29 @@ self.addEventListener('activate', (event) => {
 });
 
 // ==========================================
-// フェッチ: リクエスト種別ごとに戦略を適用
+// Fetch: apply strategy based on request type
 // ==========================================
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // 同一オリジンのリクエストのみ処理する
+  // Only handle same-origin requests
   if (url.origin !== location.origin) {
     return;
   }
 
-  // POST, PUT, DELETE はネットワークに直接転送
+  // Forward POST, PUT, DELETE directly to network
   if (request.method !== 'GET') {
     return;
   }
 
-  // API リクエスト: Network First
+  // API requests: Network First
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(networkFirst(request, API_CACHE, 3000));
     return;
   }
 
-  // HTML ナビゲーション: Network First（オフラインフォールバック付き）
+  // HTML navigation: Network First (with offline fallback)
   if (request.mode === 'navigate') {
     event.respondWith(
       networkFirst(request, DYNAMIC_CACHE, 3000)
@@ -698,7 +701,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 静的アセット: Cache First
+  // Static assets: Cache First
   if (request.destination === 'style' ||
       request.destination === 'script' ||
       request.destination === 'font' ||
@@ -707,12 +710,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // その他: Stale-While-Revalidate
+  // Others: Stale-While-Revalidate
   event.respondWith(staleWhileRevalidate(request, DYNAMIC_CACHE));
 });
 
 // ==========================================
-// 戦略関数
+// Strategy functions
 // ==========================================
 async function cacheFirst(request, cacheName) {
   const cached = await caches.match(request);
@@ -769,16 +772,16 @@ function promiseWithTimeout(promise, ms) {
 }
 ```
 
-### 5.2 オフラインフォールバックページ
+### 5.2 Offline Fallback Page
 
 ```html
 <!-- offline.html -->
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>オフライン</title>
+  <title>Offline</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
@@ -812,9 +815,9 @@ function promiseWithTimeout(promise, ms) {
 <body>
   <div class="container">
     <div class="icon">&#128268;</div>
-    <h1>接続がありません</h1>
-    <p>インターネットに接続されていないようです。<br>接続を確認してから再試行してください。</p>
-    <button onclick="window.location.reload()">再試行</button>
+    <h1>No connection</h1>
+    <p>It looks like you are not connected to the internet.<br>Please check your connection and try again.</p>
+    <button onclick="window.location.reload()">Retry</button>
   </div>
 </body>
 </html>
@@ -822,15 +825,15 @@ function promiseWithTimeout(promise, ms) {
 
 ---
 
-## 6. Workbox による Service Worker 開発
+## 6. Service Worker Development with Workbox
 
-Workbox は Google が開発した Service Worker のライブラリ群である。キャッシュ戦略の実装、プリキャッシュマニフェストの生成、ルーティングなどの機能を提供し、Service Worker 開発の生産性と品質を大幅に向上させる。
+Workbox is a set of libraries developed by Google for Service Workers. It provides features such as cache strategy implementations, precache manifest generation, and routing, significantly improving the productivity and quality of Service Worker development.
 
-### 6.1 Workbox のアーキテクチャ
+### 6.1 Workbox Architecture
 
 ```
 +-----------------------------------------------------------+
-|  Workbox モジュール構成                                     |
+|  Workbox Module Structure                                  |
 +-----------------------------------------------------------+
 |                                                           |
 |  workbox-routing          workbox-strategies              |
@@ -856,7 +859,7 @@ Workbox は Google が開発した Service Worker のライブラリ群である
 |  | statuses: [0,200]|         | Queue            |        |
 |  +------------------+         +------------------+        |
 |                                                           |
-|  workbox-window (ページ側)                                 |
+|  workbox-window (page side)                               |
 |  +------------------+                                     |
 |  | Workbox class     |                                     |
 |  | register()        |                                     |
@@ -865,26 +868,26 @@ Workbox は Google が開発した Service Worker のライブラリ群である
 +-----------------------------------------------------------+
 ```
 
-### 6.2 Workbox の導入方法
+### 6.2 How to Install Workbox
 
-Workbox は以下の 3 つの方法で導入できる。
+Workbox can be installed in three ways.
 
 ```javascript
-// 方法 1: CDN から importScripts で読み込み（プロトタイプ向け）
+// Method 1: Load via importScripts from CDN (for prototyping)
 importScripts('https://storage.googleapis.com/workbox-cdn/releases/7.0.0/workbox-sw.js');
 
-// 方法 2: npm パッケージとしてインストール（推奨）
+// Method 2: Install as npm packages (recommended)
 // npm install workbox-precaching workbox-routing workbox-strategies
 //            workbox-expiration workbox-cacheable-response
 
-// 方法 3: Workbox CLI でプロジェクトを生成
+// Method 3: Generate project with Workbox CLI
 // npx workbox-cli wizard
 ```
 
-### 6.3 Workbox を使った Service Worker 実装
+### 6.3 Service Worker Implementation with Workbox
 
 ```javascript
-// sw.js -- Workbox ベースの Service Worker
+// sw.js -- Workbox-based Service Worker
 
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 import { registerRoute, NavigationRoute } from 'workbox-routing';
@@ -898,18 +901,17 @@ import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 import { BackgroundSyncPlugin } from 'workbox-background-sync';
 
 // ==========================================
-// プリキャッシュ: ビルド時に生成されたマニフェスト
+// Precache: manifest generated at build time
 // ==========================================
-// __WB_MANIFEST はビルドツール（workbox-webpack-plugin,
-// workbox-build, @vite-plugin/pwa 等）によって自動的に
-// プリキャッシュすべきファイルリストに置換される
+// __WB_MANIFEST is automatically replaced with the list of files to precache
+// by build tools (workbox-webpack-plugin, workbox-build, @vite-plugin/pwa, etc.)
 precacheAndRoute(self.__WB_MANIFEST);
 
-// 古いプリキャッシュの自動クリーンアップ
+// Automatically clean up outdated precaches
 cleanupOutdatedCaches();
 
 // ==========================================
-// 画像: Cache First + 有効期限 + サイズ制限
+// Images: Cache First + expiration + size limit
 // ==========================================
 registerRoute(
   ({ request }) => request.destination === 'image',
@@ -917,19 +919,19 @@ registerRoute(
     cacheName: 'images-cache',
     plugins: [
       new CacheableResponsePlugin({
-        statuses: [0, 200]  // opaque レスポンスも許可
+        statuses: [0, 200]  // Allow opaque responses as well
       }),
       new ExpirationPlugin({
-        maxEntries: 100,           // 最大 100 エントリ
-        maxAgeSeconds: 30 * 24 * 60 * 60, // 30 日
-        purgeOnQuotaError: true    // ストレージ不足時に自動削除
+        maxEntries: 100,           // Max 100 entries
+        maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+        purgeOnQuotaError: true    // Auto-delete when storage is low
       })
     ]
   })
 );
 
 // ==========================================
-// フォント: Cache First（長期キャッシュ）
+// Fonts: Cache First (long-term caching)
 // ==========================================
 registerRoute(
   ({ request }) => request.destination === 'font',
@@ -941,7 +943,7 @@ registerRoute(
       }),
       new ExpirationPlugin({
         maxEntries: 30,
-        maxAgeSeconds: 365 * 24 * 60 * 60 // 1 年
+        maxAgeSeconds: 365 * 24 * 60 * 60 // 1 year
       })
     ]
   })
@@ -965,7 +967,7 @@ registerRoute(
 );
 
 // ==========================================
-// API: Network First + タイムアウト
+// API: Network First + timeout
 // ==========================================
 registerRoute(
   ({ url }) => url.pathname.startsWith('/api/'),
@@ -978,14 +980,14 @@ registerRoute(
       }),
       new ExpirationPlugin({
         maxEntries: 50,
-        maxAgeSeconds: 5 * 60 // 5 分
+        maxAgeSeconds: 5 * 60 // 5 minutes
       })
     ]
   })
 );
 
 // ==========================================
-// HTML ナビゲーション: Network First + オフラインフォールバック
+// HTML navigation: Network First + offline fallback
 // ==========================================
 const navigationHandler = new NetworkFirst({
   cacheName: 'pages-cache',
@@ -997,9 +999,9 @@ const navigationHandler = new NetworkFirst({
   ]
 });
 
-// NavigationRoute は mode: 'navigate' のリクエストのみに一致する
+// NavigationRoute only matches requests with mode: 'navigate'
 const navigationRoute = new NavigationRoute(navigationHandler, {
-  // 除外パス: API や静的ファイルのリクエストをスキップ
+  // Excluded paths: skip requests for API and static files
   denylist: [
     /\/api\//,
     /\.(js|css|png|jpg|svg|woff2?)$/
@@ -1009,10 +1011,10 @@ const navigationRoute = new NavigationRoute(navigationHandler, {
 registerRoute(navigationRoute);
 
 // ==========================================
-// バックグラウンド同期: オフライン時のフォーム送信
+// Background sync: form submissions when offline
 // ==========================================
 const bgSyncPlugin = new BackgroundSyncPlugin('form-submissions', {
-  maxRetentionTime: 24 * 60 // 24 時間（分単位）
+  maxRetentionTime: 24 * 60 // 24 hours (in minutes)
 });
 
 registerRoute(
@@ -1024,39 +1026,39 @@ registerRoute(
 );
 ```
 
-### 6.4 ページ側での Workbox Window の利用
+### 6.4 Using Workbox Window on the Page Side
 
 ```javascript
-// main.js -- ページ側のスクリプト
+// main.js -- page-side script
 import { Workbox } from 'workbox-window';
 
 if ('serviceWorker' in navigator) {
   const wb = new Workbox('/sw.js');
 
-  // 新しい SW がインストールされ、待機状態になったとき
+  // When a new SW is installed and enters the waiting state
   wb.addEventListener('waiting', (event) => {
-    // ユーザーに更新を通知するUI を表示
+    // Show UI to notify the user of an update
     const shouldUpdate = confirm(
-      '新しいバージョンが利用可能です。更新しますか？'
+      'A new version is available. Would you like to update?'
     );
 
     if (shouldUpdate) {
-      // 待機中の SW に skipWaiting を指示
+      // Tell the waiting SW to skip waiting
       wb.messageSkipWaiting();
     }
   });
 
-  // controller が変わった（新しい SW がアクティブになった）
+  // When the controller changes (new SW becomes active)
   wb.addEventListener('controlling', () => {
-    // ページをリロードして新しい SW を適用
+    // Reload the page to apply the new SW
     window.location.reload();
   });
 
-  // SW が初めてアクティブになったとき
+  // When the SW becomes active for the first time
   wb.addEventListener('activated', (event) => {
     if (!event.isUpdate) {
-      // 初回インストール: キャッシュが完了した旨を通知
-      console.log('Service Worker がインストールされました');
+      // Initial install: notify that caching is complete
+      console.log('Service Worker has been installed');
     }
   });
 
@@ -1064,10 +1066,10 @@ if ('serviceWorker' in navigator) {
 }
 ```
 
-### 6.5 ビルドツールとの統合
+### 6.5 Integration with Build Tools
 
 ```javascript
-// vite.config.js -- Vite + VitePWA プラグイン
+// vite.config.js -- Vite + VitePWA plugin
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
@@ -1096,9 +1098,9 @@ export default defineConfig({
         ]
       },
       workbox: {
-        // プリキャッシュの glob パターン
+        // Glob patterns for precaching
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        // ランタイムキャッシュの設定
+        // Runtime caching configuration
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\.example\.com\/.*/i,
@@ -1141,11 +1143,11 @@ export default defineConfig({
 const { InjectManifest } = require('workbox-webpack-plugin');
 
 module.exports = {
-  // ... webpack の設定
+  // ... webpack configuration
   plugins: [
     new InjectManifest({
-      swSrc: './src/sw.js',        // ソースの SW ファイル
-      swDest: 'sw.js',             // 出力先
+      swSrc: './src/sw.js',        // Source SW file
+      swDest: 'sw.js',             // Output destination
       maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
       include: [/\.html$/, /\.js$/, /\.css$/, /\.woff2$/],
       exclude: [/\.map$/, /manifest\.json$/]
@@ -1156,54 +1158,54 @@ module.exports = {
 
 ---
 
-## 7. PWA（Progressive Web App）の構築
+## 7. Building PWAs (Progressive Web Apps)
 
-### 7.1 PWA の要件と構成要素
+### 7.1 PWA Requirements and Components
 
-PWA は以下の 3 つの要件を満たすことで、ブラウザからインストール可能な Web アプリとなる。
+A PWA meets the following three requirements to become a web app installable from the browser.
 
 ```
 +-----------------------------------------------------------+
-|  PWA の構成要素                                             |
+|  PWA Components                                            |
 +-----------------------------------------------------------+
 |                                                           |
 |  1. Service Worker                                        |
-|     - fetch イベントハンドラーを持つ                         |
-|     - オフライン時にレスポンスを返せる                       |
+|     - Has a fetch event handler                           |
+|     - Can return responses when offline                   |
 |                                                           |
 |  2. Web App Manifest (manifest.json)                      |
-|     - name (または short_name)                             |
-|     - icons (192x192 以上)                                |
+|     - name (or short_name)                                |
+|     - icons (192x192 or larger)                           |
 |     - start_url                                           |
-|     - display (standalone, fullscreen, minimal-ui)         |
+|     - display (standalone, fullscreen, minimal-ui)        |
 |                                                           |
 |  3. HTTPS                                                 |
-|     - 全ページが HTTPS で配信されている                      |
-|     - localhost は開発用に例外                               |
+|     - All pages are served over HTTPS                     |
+|     - localhost is an exception for development           |
 |                                                           |
 |  +----------------------------------------------------+   |
-|  | インストール可能になるための追加条件 (Chrome)          |   |
-|  | - beforeinstallprompt イベントが発火する              |   |
-|  | - ユーザーが 30 秒以上サイトを閲覧している             |   |
-|  | - Service Worker に fetch ハンドラーがある             |   |
+|  | Additional requirements to be installable (Chrome) |   |
+|  | - beforeinstallprompt event fires                   |   |
+|  | - User has browsed the site for 30+ seconds         |   |
+|  | - Service Worker has a fetch handler                |   |
 |  +----------------------------------------------------+   |
 +-----------------------------------------------------------+
 ```
 
-### 7.2 Web App Manifest の詳細
+### 7.2 Web App Manifest Details
 
 ```json
 {
-  "name": "タスク管理アプリケーション",
-  "short_name": "タスク管理",
-  "description": "チームのタスクを効率的に管理するプログレッシブ Web アプリ",
+  "name": "Task Management Application",
+  "short_name": "Tasks",
+  "description": "A progressive web app for efficiently managing team tasks",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#ffffff",
   "theme_color": "#3b82f6",
-  "lang": "ja",
+  "lang": "en",
   "dir": "ltr",
   "categories": ["productivity", "utilities"],
   "icons": [
@@ -1261,21 +1263,21 @@ PWA は以下の 3 つの要件を満たすことで、ブラウザからイン�
       "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "デスクトップ版のホーム画面"
+      "label": "Desktop home screen"
     },
     {
       "src": "/screenshots/mobile.png",
       "sizes": "390x844",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "モバイル版のホーム画面"
+      "label": "Mobile home screen"
     }
   ],
   "shortcuts": [
     {
-      "name": "新しいタスク",
-      "short_name": "新規",
-      "description": "新しいタスクを作成",
+      "name": "New Task",
+      "short_name": "New",
+      "description": "Create a new task",
       "url": "/tasks/new?source=shortcut",
       "icons": [
         {
@@ -1285,8 +1287,8 @@ PWA は以下の 3 つの要件を満たすことで、ブラウザからイン�
       ]
     },
     {
-      "name": "今日のタスク",
-      "short_name": "今日",
+      "name": "Today's Tasks",
+      "short_name": "Today",
       "url": "/tasks/today?source=shortcut"
     }
   ],
@@ -1315,19 +1317,19 @@ PWA は以下の 3 つの要件を満たすことで、ブラウザからイン�
 }
 ```
 
-### 7.3 display モードの比較
+### 7.3 display Mode Comparison
 
-| display モード | ブラウザ UI | アドレスバー | ステータスバー | 用途 |
+| display mode | Browser UI | Address bar | Status bar | Use case |
 |---------------|------------|-------------|--------------|------|
-| fullscreen | 非表示 | 非表示 | 非表示 | ゲーム、没入型コンテンツ |
-| standalone | 非表示 | 非表示 | 表示 | 一般的なアプリ（推奨） |
-| minimal-ui | 最小限 | 表示（縮小） | 表示 | ナビゲーション機能が必要なアプリ |
-| browser | 完全表示 | 表示 | 表示 | 通常の Web サイト |
+| fullscreen | Hidden | Hidden | Hidden | Games, immersive content |
+| standalone | Hidden | Hidden | Shown | General apps (recommended) |
+| minimal-ui | Minimal | Shown (reduced) | Shown | Apps that need navigation features |
+| browser | Full | Shown | Shown | Regular websites |
 
-### 7.4 インストールプロンプトの制御
+### 7.4 Controlling the Install Prompt
 
 ```javascript
-// install-prompt.js -- インストールプロンプトの制御
+// install-prompt.js -- controlling the install prompt
 class PWAInstallManager {
   constructor() {
     this.deferredPrompt = null;
@@ -1336,30 +1338,30 @@ class PWAInstallManager {
   }
 
   setupEventListeners() {
-    // beforeinstallprompt: ブラウザがインストール可能と判断したとき
+    // beforeinstallprompt: when the browser determines the app is installable
     window.addEventListener('beforeinstallprompt', (event) => {
-      // デフォルトのプロンプトを抑制
+      // Suppress the default prompt
       event.preventDefault();
       this.deferredPrompt = event;
 
-      // カスタムの「インストール」ボタンを表示
+      // Show a custom "Install" button
       this.showInstallButton();
     });
 
-    // appinstalled: インストールが完了したとき
+    // appinstalled: when installation is complete
     window.addEventListener('appinstalled', () => {
       this.isInstalled = true;
       this.deferredPrompt = null;
       this.hideInstallButton();
 
-      // アナリティクスにインストールを記録
+      // Record installation in analytics
       this.trackInstallation();
     });
 
-    // display-mode の変化を監視（standalone で開かれたか）
+    // Monitor display-mode changes (whether opened in standalone mode)
     window.matchMedia('(display-mode: standalone)').addEventListener('change', (e) => {
       if (e.matches) {
-        console.log('PWA がスタンドアロンモードで開かれました');
+        console.log('PWA opened in standalone mode');
       }
     });
   }
@@ -1382,24 +1384,24 @@ class PWAInstallManager {
   async promptInstall() {
     if (!this.deferredPrompt) return;
 
-    // インストールプロンプトを表示
+    // Show the install prompt
     this.deferredPrompt.prompt();
 
-    // ユーザーの選択を待つ
+    // Wait for user's choice
     const { outcome } = await this.deferredPrompt.userChoice;
     console.log('Install prompt outcome:', outcome);
 
     if (outcome === 'accepted') {
-      console.log('ユーザーがインストールを承認');
+      console.log('User accepted installation');
     } else {
-      console.log('ユーザーがインストールを拒否');
+      console.log('User declined installation');
     }
 
     this.deferredPrompt = null;
   }
 
   trackInstallation() {
-    // Google Analytics 等にインストールイベントを送信
+    // Send install event to Google Analytics or similar
     if (typeof gtag === 'function') {
       gtag('event', 'pwa_install', {
         event_category: 'PWA',
@@ -1408,7 +1410,7 @@ class PWAInstallManager {
     }
   }
 
-  // PWA として起動されたかを判定
+  // Determine if running as PWA
   static isRunningAsPWA() {
     return (
       window.matchMedia('(display-mode: standalone)').matches ||
@@ -1418,28 +1420,28 @@ class PWAInstallManager {
   }
 }
 
-// 初期化
+// Initialize
 const pwaInstaller = new PWAInstallManager();
 ```
 
-### 7.5 iOS Safari での PWA 対応
+### 7.5 PWA Support for iOS Safari
 
-iOS Safari は Web App Manifest の一部機能にしか対応しておらず、独自の meta タグが必要になる場合がある。
+iOS Safari only supports a subset of Web App Manifest features and requires proprietary meta tags in some cases.
 
 ```html
 <head>
-  <!-- 標準の manifest -->
+  <!-- Standard manifest -->
   <link rel="manifest" href="/manifest.json">
 
-  <!-- iOS Safari 向けの設定 -->
+  <!-- Settings for iOS Safari -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="タスク管理">
+  <meta name="apple-mobile-web-app-title" content="Task Manager">
 
-  <!-- iOS 向けアイコン -->
+  <!-- Icons for iOS -->
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180x180.png">
 
-  <!-- iOS 向けスプラッシュスクリーン -->
+  <!-- Splash screen for iOS -->
   <link rel="apple-touch-startup-image"
         media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)"
         href="/splash/iPhone_13_portrait.png">
@@ -1447,10 +1449,10 @@ iOS Safari は Web App Manifest の一部機能にしか対応しておらず、
         media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)"
         href="/splash/iPhone_13_Pro_Max_portrait.png">
 
-  <!-- テーマカラー -->
+  <!-- Theme color -->
   <meta name="theme-color" content="#3b82f6">
 
-  <!-- Windows 向けタイル設定 -->
+  <!-- Windows tile settings -->
   <meta name="msapplication-TileColor" content="#3b82f6">
   <meta name="msapplication-TileImage" content="/icons/mstile-144x144.png">
 </head>
@@ -1458,20 +1460,20 @@ iOS Safari は Web App Manifest の一部機能にしか対応しておらず、
 
 ---
 
-## 8. 高度なキャッシュパターン
+## 8. Advanced Cache Patterns
 
-### 8.1 キャッシュのバージョニング戦略
+### 8.1 Cache Versioning Strategy
 
-キャッシュのバージョニングは、アプリケーションの更新時に古いキャッシュを適切に管理するための重要な仕組みである。
+Cache versioning is an important mechanism for properly managing old caches when an application is updated.
 
 ```javascript
-// バージョン管理の方式
+// Cache versioning approaches
 
-// 方式 1: 単一バージョン番号（シンプルだが粒度が粗い）
+// Approach 1: Single version number (simple but coarse-grained)
 const CACHE_VERSION = 'v3';
 const CACHE_NAME = `app-cache-${CACHE_VERSION}`;
 
-// 方式 2: リソース種別ごとにバージョンを分離
+// Approach 2: Separate versions per resource type
 const CACHES = {
   static: 'static-v5',
   images: 'images-v2',
@@ -1479,21 +1481,21 @@ const CACHES = {
   pages: 'pages-v3'
 };
 
-// 方式 3: ビルドハッシュを使用（ビルドツールと連携）
-const BUILD_HASH = '8f4a2c1e'; // ビルド時に注入される
+// Approach 3: Use build hash (integrated with build tools)
+const BUILD_HASH = '8f4a2c1e'; // Injected at build time
 const CACHES_BY_HASH = {
   precache: `precache-${BUILD_HASH}`,
   runtime: 'runtime-v1'
 };
 
-// activate イベントで古いキャッシュを削除
+// Delete old caches in the activate event
 self.addEventListener('activate', (event) => {
   const validCacheNames = Object.values(CACHES);
   event.waitUntil(
     caches.keys().then((keyList) => {
       return Promise.all(
         keyList.map((key) => {
-          // 有効なキャッシュ名に含まれないものを削除
+          // Delete anything not in the valid cache names
           if (!validCacheNames.includes(key)) {
             console.log('[SW] Removing old cache:', key);
             return caches.delete(key);
@@ -1505,12 +1507,12 @@ self.addEventListener('activate', (event) => {
 });
 ```
 
-### 8.2 Range Request への対応
+### 8.2 Handling Range Requests
 
-動画や音声ファイルの再生では、Range Request（部分的なコンテンツ取得）への対応が必要になる。
+Video and audio playback requires handling Range Requests (partial content retrieval).
 
 ```javascript
-// Range Request に対応した Cache First 戦略
+// Cache First strategy with Range Request support
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
@@ -1524,10 +1526,10 @@ async function handleRangeRequest(request) {
   const cachedResponse = await cache.match(request.url, { ignoreSearch: true });
 
   if (!cachedResponse) {
-    // キャッシュにない: ネットワークから取得してキャッシュ
+    // Not in cache: fetch from network and cache
     try {
       const networkResponse = await fetch(request);
-      // 全体をキャッシュに保存（Range なしで）
+      // Save entire content to cache (without Range)
       const fullRequest = new Request(request.url);
       cache.put(fullRequest, networkResponse.clone());
       return networkResponse;
@@ -1536,7 +1538,7 @@ async function handleRangeRequest(request) {
     }
   }
 
-  // キャッシュにある場合: Range ヘッダーを処理
+  // In cache: handle Range header
   const rangeHeader = request.headers.get('Range');
   if (!rangeHeader) {
     return cachedResponse;
@@ -1568,12 +1570,12 @@ async function handleRangeRequest(request) {
 }
 ```
 
-### 8.3 キャッシュサイズの管理
+### 8.3 Cache Size Management
 
-ストレージクォータを超えないよう、キャッシュサイズを管理する仕組みを構築する。
+Build a mechanism to manage cache size so that storage quotas are not exceeded.
 
 ```javascript
-// キャッシュサイズ管理ユーティリティ
+// Cache size management utility
 class CacheManager {
   constructor(cacheName, options = {}) {
     this.cacheName = cacheName;
@@ -1581,11 +1583,11 @@ class CacheManager {
     this.maxAgeMs = (options.maxAgeSeconds || 7 * 24 * 60 * 60) * 1000;
   }
 
-  // エントリの追加（古いものを自動削除）
+  // Add entry (automatically removes old ones)
   async put(request, response) {
     const cache = await caches.open(this.cacheName);
 
-    // タイムスタンプをヘッダーに記録
+    // Record timestamp in headers
     const headers = new Headers(response.headers);
     headers.set('sw-cache-timestamp', Date.now().toString());
 
@@ -1597,16 +1599,16 @@ class CacheManager {
 
     await cache.put(request, timestampedResponse);
 
-    // エントリ数の制限を適用
+    // Apply entry count limit
     await this.expireEntries();
   }
 
-  // 期限切れ・超過エントリの削除
+  // Delete expired and excess entries
   async expireEntries() {
     const cache = await caches.open(this.cacheName);
     const keys = await cache.keys();
 
-    // タイムスタンプとともにエントリを収集
+    // Collect entries with timestamps
     const entries = await Promise.all(
       keys.map(async (request) => {
         const response = await cache.match(request);
@@ -1618,7 +1620,7 @@ class CacheManager {
       })
     );
 
-    // 古い順にソート
+    // Sort from oldest to newest
     entries.sort((a, b) => a.timestamp - b.timestamp);
 
     const now = Date.now();
@@ -1639,7 +1641,7 @@ class CacheManager {
     }
   }
 
-  // ストレージ使用量の確認
+  // Check storage usage
   static async getStorageEstimate() {
     if ('storage' in navigator && 'estimate' in navigator.storage) {
       const { usage, quota } = await navigator.storage.estimate();
@@ -1656,43 +1658,43 @@ class CacheManager {
 
 ### 8.4 Navigation Preload
 
-Navigation Preload は、Service Worker の起動とネットワークリクエストを並列化することで、ナビゲーション時のパフォーマンスを改善する仕組みである。
+Navigation Preload is a mechanism that improves navigation performance by parallelizing Service Worker startup with network requests.
 
 ```javascript
-// activate イベントで Navigation Preload を有効化
+// Enable Navigation Preload in the activate event
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
       if (self.registration.navigationPreload) {
-        // Navigation Preload を有効化
+        // Enable Navigation Preload
         await self.registration.navigationPreload.enable();
-        // カスタムヘッダーを設定（オプション）
+        // Set a custom header (optional)
         await self.registration.navigationPreload.setHeaderValue('true');
       }
     })()
   );
 });
 
-// fetch イベントで preloadResponse を活用
+// Use preloadResponse in the fetch event
 self.addEventListener('fetch', (event) => {
   if (event.request.mode === 'navigate') {
     event.respondWith(
       (async () => {
         try {
-          // Navigation Preload のレスポンスを利用
+          // Use the Navigation Preload response
           const preloadResponse = await event.preloadResponse;
           if (preloadResponse) {
-            // キャッシュに保存
+            // Save to cache
             const cache = await caches.open('pages-cache');
             cache.put(event.request, preloadResponse.clone());
             return preloadResponse;
           }
 
-          // preload が使えない場合は通常のフェッチ
+          // Fall back to normal fetch if preload is unavailable
           const networkResponse = await fetch(event.request);
           return networkResponse;
         } catch (error) {
-          // オフライン: キャッシュからフォールバック
+          // Offline: fall back to cache
           const cached = await caches.match(event.request);
           return cached || caches.match('/offline.html');
         }
@@ -1704,62 +1706,62 @@ self.addEventListener('fetch', (event) => {
 
 ---
 
-## 前提知識
+## Prerequisites
 
-本章を最大限に活用するため、以下の前提知識を習得しておくことを推奨する。
+To get the most out of this chapter, it is recommended that you have acquired the following prerequisite knowledge.
 
-- **Web Storage の基礎**: localStorage および sessionStorage の使い方、ストレージの制約とセキュリティモデルについて理解していることが望ましい。詳細は [Web Storage と Cookie](./00-web-storage.md) を参照のこと。
-- **Fetch API の理解**: Service Worker のネットワークインターセプトの基盤となる Fetch API の基本操作（Request/Response オブジェクトの取り扱い、CORS、opaque レスポンス）を理解していることが必要である。詳細は [Fetch API とストリーム処理](../03-web-apis/01-fetch-and-streams.md) を参照のこと。
-- **Promise ベースの非同期プログラミング**: Service Worker の API は全て Promise ベースであり、async/await、Promise.all、Promise.race などの非同期制御パターンを使いこなせることが前提となる。
+- **Web Storage basics**: It is desirable to understand how to use localStorage and sessionStorage, storage limitations, and the security model. See [Web Storage and Cookies](./00-web-storage.md) for details.
+- **Understanding the Fetch API**: Understanding the basic operations of the Fetch API (handling Request/Response objects, CORS, opaque responses), which forms the foundation of Service Worker network interception, is required. See [Fetch API and Streams](../03-web-apis/01-fetch-and-streams.md) for details.
+- **Promise-based asynchronous programming**: All Service Worker APIs are Promise-based, so being able to use asynchronous control patterns such as async/await, Promise.all, and Promise.race is a prerequisite.
 
-これらの知識がない場合でも本章を読み進めることは可能だが、上記のガイドを先に参照することで理解が深まる。
+Even without this knowledge it is possible to work through this chapter, but reading the above guides first will deepen your understanding.
 
 ---
 
 ## FAQ
 
-### Q1: Service Worker のライフサイクル管理において、skipWaiting() と clients.claim() を使うべきタイミングは？
+### Q1: When should skipWaiting() and clients.claim() be used in Service Worker lifecycle management?
 
-**A**: `skipWaiting()` と `clients.claim()` は以下の条件下で使用する。
+**A**: Use `skipWaiting()` and `clients.claim()` under the following conditions.
 
-- **skipWaiting() を使うべき場合**:
-  - アプリケーションの全ての版が相互に互換性を持つ場合（キャッシュキーやデータ構造が変わらない）
-  - 緊急のバグ修正や重要なセキュリティパッチを即座に適用したい場合
-  - プロトタイプや開発環境で高速な反復開発を行いたい場合
+- **When to use skipWaiting()**:
+  - When all versions of the application are mutually compatible (cache keys and data structures don't change)
+  - When you want to apply an emergency bug fix or critical security patch immediately
+  - When you want rapid iteration in a prototype or development environment
 
-- **skipWaiting() を使わない方が良い場合**:
-  - 新旧の Service Worker がキャッシュスキーマやデータ構造を変更する場合（古い SW で制御されているタブが壊れる可能性）
-  - 複数タブを開いているユーザーが多い環境で、一貫性を保ちたい場合
+- **When NOT to use skipWaiting()**:
+  - When new and old Service Workers change cache schemas or data structures (risk of breaking tabs controlled by old SW)
+  - In environments with many users who have multiple tabs open and you want to maintain consistency
 
-- **clients.claim() を使うべき場合**:
-  - Service Worker が初回インストールされた際に、既に開いているページを即座に制御下に置きたい場合
-  - `skipWaiting()` と組み合わせて、新しい SW が即座に全タブを制御するようにしたい場合
+- **When to use clients.claim()**:
+  - When you want the Service Worker to immediately take control of already-open pages on first install
+  - When combined with `skipWaiting()` to make a new SW immediately control all tabs
 
-実務では、ユーザーに「更新が利用可能です」というバナーを表示し、ユーザーが明示的に承認した場合のみ `skipWaiting()` を呼ぶ実装が推奨される。
+In practice, it is recommended to show the user a "Update available" banner and only call `skipWaiting()` when the user explicitly approves.
 
-### Q2: キャッシュ戦略（Cache First vs Network First 等）の選択基準は？
+### Q2: What are the criteria for choosing a cache strategy (Cache First vs Network First, etc.)?
 
-**A**: リソースの特性に応じて以下の基準で選択する。
+**A**: Select based on the following criteria according to the characteristics of the resource.
 
-| リソース種別 | 推奨戦略 | 理由 |
+| Resource type | Recommended strategy | Reason |
 |------------|---------|------|
-| ビルドハッシュ付き JS/CSS | Cache First | ハッシュによりバージョン管理されているため、一度キャッシュすれば永続的に使える |
-| Web フォント | Cache First | 変更頻度が極めて低く、長期キャッシュが有効 |
-| ロゴ・アイコン画像 | Cache First | ブランドアセットは変更されにくく、高速表示が求められる |
-| API レスポンス | Network First | 常に最新のデータを優先し、オフライン時のみキャッシュから返す |
-| HTML ページ | Network First または Stale-While-Revalidate | 最新コンテンツを優先しつつ、オフライン時にはキャッシュでフォールバック |
-| ユーザーアバター画像 | Stale-While-Revalidate | 即座に表示しつつ、バックグラウンドで最新版を取得する |
-| ニュースフィード | Stale-While-Revalidate または Network First | 鮮度が重要だが、即座の表示も求められる |
-| 認証 API・決済処理 | Network Only | セキュリティとデータ整合性のため、キャッシュを使わない |
-| プリキャッシュされた静的リソース | Cache Only | install イベントで明示的にキャッシュしたものに限定 |
+| Build-hashed JS/CSS | Cache First | Versioned by hash, so can be permanently used once cached |
+| Web fonts | Cache First | Extremely low change frequency; long-term caching is effective |
+| Logos and icon images | Cache First | Brand assets rarely change and fast display is required |
+| API responses | Network First | Prioritize latest data; only return from cache when offline |
+| HTML pages | Network First or Stale-While-Revalidate | Prioritize fresh content; fall back to cache when offline |
+| User avatar images | Stale-While-Revalidate | Display immediately while fetching latest version in background |
+| News feed | Stale-While-Revalidate or Network First | Freshness is important but immediate display is also required |
+| Auth API, payment processing | Network Only | Do not use cache for security and data integrity |
+| Precached static resources | Cache Only | Limit to what was explicitly cached in the install event |
 
-戦略選択の際は、ユーザー体験（速度 vs 鮮度）とオフライン対応の必要性をトレードオフとして検討する。
+When selecting a strategy, consider the tradeoff between user experience (speed vs freshness) and the need for offline support.
 
-### Q3: Service Worker の更新とバージョニングの最良の実践方法は？
+### Q3: What is the best practice for Service Worker updates and versioning?
 
-**A**: 以下のアプローチを組み合わせることで、安全かつ効率的な更新管理が可能となる。
+**A**: Combining the following approaches enables safe and efficient update management.
 
-**1. キャッシュ名にバージョン番号またはビルドハッシュを含める**
+**1. Include a version number or build hash in the cache name**
 
 ```javascript
 const CACHE_VERSION = 'v3';
@@ -1767,14 +1769,14 @@ const STATIC_CACHE = `static-${CACHE_VERSION}`;
 const API_CACHE = `api-${CACHE_VERSION}`;
 ```
 
-または、ビルドツールから注入されたハッシュを使用する。
+Or use a hash injected by the build tool.
 
 ```javascript
-const BUILD_HASH = '__BUILD_HASH__'; // Webpack/Vite で置換
+const BUILD_HASH = '__BUILD_HASH__'; // Replaced by Webpack/Vite
 const STATIC_CACHE = `static-${BUILD_HASH}`;
 ```
 
-**2. activate イベントで古いキャッシュを削除する**
+**2. Delete old caches in the activate event**
 
 ```javascript
 self.addEventListener('activate', (event) => {
@@ -1790,10 +1792,10 @@ self.addEventListener('activate', (event) => {
 });
 ```
 
-**3. ユーザーに更新を通知し、明示的な承認を得る**
+**3. Notify the user of updates and get explicit approval**
 
 ```javascript
-// ページ側
+// Page side
 navigator.serviceWorker.addEventListener('controllerchange', () => {
   window.location.reload();
 });
@@ -1803,7 +1805,7 @@ registration.addEventListener('updatefound', () => {
   const newWorker = registration.installing;
   newWorker.addEventListener('statechange', () => {
     if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-      // ユーザーに「更新が利用可能」と通知
+      // Notify user that "Update is available"
       showUpdateBanner(() => {
         newWorker.postMessage({ type: 'SKIP_WAITING' });
       });
@@ -1811,7 +1813,7 @@ registration.addEventListener('updatefound', () => {
   });
 });
 
-// SW 側
+// SW side
 self.addEventListener('message', (event) => {
   if (event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
@@ -1819,51 +1821,51 @@ self.addEventListener('message', (event) => {
 });
 ```
 
-**4. Workbox や VitePWA 等のツールを活用する**
+**4. Leverage tools like Workbox or VitePWA**
 
-Workbox の `precacheAndRoute(__WB_MANIFEST)` を使うことで、ビルド時に生成されたマニフェストが自動的にバージョン管理される。
+Using Workbox's `precacheAndRoute(__WB_MANIFEST)` automatically manages versioning through a manifest generated at build time.
 
-**5. CI/CD パイプラインで Service Worker のバージョンを検証する**
+**5. Validate the Service Worker version in the CI/CD pipeline**
 
-デプロイ時に Service Worker ファイルのハッシュを記録し、変更があった場合のみ新しいバージョンとして扱うことで、不要な更新を防ぐ。
+Record the hash of the Service Worker file at deployment time and treat it as a new version only when it changes, preventing unnecessary updates.
 
 ---
 
-## まとめ
+## Summary
 
-Service Worker とキャッシュ戦略は、モダンな Web アプリケーションにおけるオフライン対応とパフォーマンス最適化の中核技術である。本章の内容を以下の表に整理する。
+Service Worker and cache strategies are core technologies for offline support and performance optimization in modern web applications. The content of this chapter is organized in the table below.
 
-| カテゴリ | 主要技術・戦略 | 用途 |
+| Category | Key technologies/strategies | Purpose |
 |---------|--------------|------|
-| ライフサイクル管理 | register, install, activate, skipWaiting, clients.claim | Service Worker の登録・更新・アクティベーション制御 |
-| キャッシュ操作 | Cache API (open, put, match, delete, keys) | HTTP リクエスト/レスポンスのキャッシング |
-| キャッシュ戦略 | Cache First, Network First, Stale-While-Revalidate, Cache Only, Network Only | リソースの特性に応じた最適な配信方法の選択 |
-| 統合開発 | Workbox（precaching, routing, strategies, expiration, backgroundSync） | 効率的な Service Worker 開発と保守性の向上 |
-| PWA 構築 | Web App Manifest, beforeinstallprompt, installability | インストール可能な Web アプリの実現 |
-| バージョニング | キャッシュ名管理、activate イベントでの古いキャッシュ削除 | 安全な更新とストレージの適正化 |
-| 高度なパターン | Navigation Preload, Range Request 対応, キャッシュサイズ管理 | パフォーマンス最適化と大容量ファイルへの対応 |
+| Lifecycle management | register, install, activate, skipWaiting, clients.claim | Service Worker registration, update, and activation control |
+| Cache operations | Cache API (open, put, match, delete, keys) | Caching of HTTP requests/responses |
+| Cache strategies | Cache First, Network First, Stale-While-Revalidate, Cache Only, Network Only | Selecting the optimal delivery method based on resource characteristics |
+| Integrated development | Workbox (precaching, routing, strategies, expiration, backgroundSync) | Efficient Service Worker development and improved maintainability |
+| PWA construction | Web App Manifest, beforeinstallprompt, installability | Realizing installable web applications |
+| Versioning | Cache name management, deleting old caches in activate event | Safe updates and proper storage management |
+| Advanced patterns | Navigation Preload, Range Request support, cache size management | Performance optimization and support for large files |
 
-### キーポイント
+### Key Points
 
-1. **Service Worker はライフサイクルが複雑である**: install, waiting, activate の各フェーズを正確に理解し、`skipWaiting()` や `clients.claim()` の影響を把握することが重要である。不適切な使用は、複数タブ間でのアプリケーション状態の不整合を引き起こす。
+1. **Service Worker has a complex lifecycle**: It is important to accurately understand each phase of install, waiting, and activate, and to understand the effects of `skipWaiting()` and `clients.claim()`. Improper use can cause inconsistent application state between multiple tabs.
 
-2. **キャッシュ戦略は「一つ」ではなく「組み合わせ」である**: 静的アセットには Cache First、API には Network First、ユーザーアバターには Stale-While-Revalidate というように、リソースの性質に応じて戦略を使い分けることで、速度と鮮度の最適なバランスを実現できる。
+2. **Cache strategies are a "combination," not just one**: By using different strategies based on the nature of resources — Cache First for static assets, Network First for APIs, Stale-While-Revalidate for user avatars — you can achieve the optimal balance of speed and freshness.
 
-3. **Workbox によって実装の複雑さは大幅に軽減される**: 手動で fetch イベントハンドラーを実装することも可能だが、Workbox を使うことでプリキャッシュマニフェストの自動生成、有効期限管理、バックグラウンド同期などの高度な機能を簡潔に実装できる。特に大規模なプロジェクトでは、Workbox の導入が強く推奨される。
+3. **Workbox greatly reduces implementation complexity**: While it is possible to implement fetch event handlers manually, using Workbox allows you to implement advanced features such as automatic precache manifest generation, expiration management, and background sync concisely. Introducing Workbox is strongly recommended, especially for large-scale projects.
 
-Service Worker とキャッシュ戦略をマスターすることで、ネットワーク状況に左右されない堅牢でレスポンシブな Web アプリケーションを構築できる。
-
----
-
-## 次に読むべきガイド
-
-Service Worker の基盤を理解した後は、パフォーマンス計測とユーザー体験の最適化に進むことを推奨する。
-
-- **[Performance API](./02-performance-api.md)**: Navigation Timing、Resource Timing、Core Web Vitals（LCP/INP/CLS）の計測方法と、Lighthouse を用いたパフォーマンス監査の実践を学ぶ。Service Worker によるキャッシュがパフォーマンス指標に与える影響を定量的に評価できるようになる。
+By mastering Service Worker and cache strategies, you can build robust and responsive web applications that are unaffected by network conditions.
 
 ---
 
-## 参考文献
+## What to Read Next
+
+After understanding the foundations of Service Worker, it is recommended to move on to performance measurement and user experience optimization.
+
+- **[Performance API](./02-performance-api.md)**: Learn how to measure Navigation Timing, Resource Timing, and Core Web Vitals (LCP/INP/CLS), and practice performance auditing with Lighthouse. You will be able to quantitatively evaluate the impact of Service Worker caching on performance metrics.
+
+---
+
+## References
 
 1. Google Developers. "Service Worker API." MDN Web Docs, 2024. https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API
 2. Google. "Service Workers: an Introduction." web.dev, 2024. https://web.dev/articles/service-workers-introduction
