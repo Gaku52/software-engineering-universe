@@ -1,190 +1,190 @@
-# API First 設計
+# API First Design
 
-> API First設計は実装前にAPIの契約を定義するアプローチ。OpenAPI仕様でAPIを先に設計し、フロントエンド・バックエンドが並行開発できる体制を構築する。スキーマ駆動開発によって型安全性・テスト自動化・ドキュメント生成を一体化し、チーム全体の生産性を飛躍的に向上させる手法である。
+> API First design is an approach that defines the API contract before implementation. By designing the API in OpenAPI specification first, it enables parallel development between frontend and backend teams. Schema-driven development integrates type safety, test automation, and documentation generation into a unified workflow, dramatically boosting team-wide productivity.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] API First設計の哲学と利点を理解する
-- [ ] OpenAPI（Swagger）仕様の書き方を把握する
-- [ ] モックサーバーを活用した並行開発を学ぶ
-- [ ] コード生成ツールチェーンの構築方法を習得する
-- [ ] API設計レビューのプロセスと品質基準を理解する
-- [ ] 実務プロジェクトでの導入ステップを把握する
-- [ ] Contract Testing の実践方法を学ぶ
-- [ ] Design-First ワークフローの組織的展開を理解する
+- [ ] Understand the philosophy and benefits of API First design
+- [ ] Learn how to write OpenAPI (Swagger) specifications
+- [ ] Learn parallel development using mock servers
+- [ ] Master how to build a code generation toolchain
+- [ ] Understand the API design review process and quality standards
+- [ ] Learn the steps for introducing API First into real-world projects
+- [ ] Learn how to practice Contract Testing
+- [ ] Understand the organizational rollout of a Design-First workflow
 
-## 前提知識
+## Prerequisites
 
-- HTTP メソッドとステータスコードの基本 → 参照: HTTPの基礎
-- REST APIの概念 → 参照: REST API
-- JSONフォーマットの基本的な読み書き
+- Basic knowledge of HTTP methods and status codes → See: HTTP Basics
+- Concept of REST APIs → See: REST API
+- Basic reading and writing of JSON format
 
 ---
 
-## 1. API First とは
+## 1. What Is API First
 
-### 1.1 基本概念
+### 1.1 Core Concept
 
 ```
-API First = 「コード実装の前にAPIの設計を確定させる」
+API First = "Finalize the API design before writing implementation code"
 
-  従来のアプローチ（Code First）:
-  バックエンド実装 → API仕様が確定 → フロントエンド開発
-  → フロントエンドが待ちになる
+  Traditional approach (Code First):
+  Backend implementation → API spec is finalized → Frontend development
+  → Frontend has to wait
 
   API First:
-  API仕様を定義 → モックサーバー立ち上げ
-  → バックエンド: 仕様に沿って実装
-  → フロントエンド: モックサーバーで並行開発
-  → 両者が合流して統合テスト
+  Define API spec → Spin up mock server
+  → Backend: implement according to spec
+  → Frontend: develop in parallel against mock server
+  → Both sides converge for integration testing
 
-  利点:
-  ✓ フロントエンドとバックエンドの並行開発
-  ✓ 仕様書 = 唯一の信頼できる情報源（Single Source of Truth）
-  ✓ API設計のレビューが容易
-  ✓ コード生成による型安全なクライアント
-  ✓ テストの自動生成
-  ✓ ドキュメントの自動生成と常時最新化
-  ✓ マイクロサービス間の契約の明確化
-  ✓ 組織横断的なAPI標準の統一
+  Benefits:
+  ✓ Parallel development of frontend and backend
+  ✓ Spec = Single Source of Truth
+  ✓ Easy to review API design
+  ✓ Type-safe client via code generation
+  ✓ Automatic test generation
+  ✓ Automatic documentation generation, always up to date
+  ✓ Clear contracts between microservices
+  ✓ Unified API standards across the organization
 
-  ツールチェーン:
-  設計:      Stoplight Studio, Swagger Editor, Redocly
-  仕様:      OpenAPI 3.1 (YAML/JSON)
-  モック:    Prism, MSW, WireMock, Microcks
-  コード生成: openapi-generator, orval, openapi-typescript
-  ドキュメント: Redoc, Swagger UI, Scalar, Elements
-  テスト:    Dredd, Schemathesis, Pact, Specmatic
-  リント:    Spectral, Redocly CLI, vacuum
-  ガバナンス: Optic, Bump.sh
+  Toolchain:
+  Design:       Stoplight Studio, Swagger Editor, Redocly
+  Spec:         OpenAPI 3.1 (YAML/JSON)
+  Mock:         Prism, MSW, WireMock, Microcks
+  Code gen:     openapi-generator, orval, openapi-typescript
+  Docs:         Redoc, Swagger UI, Scalar, Elements
+  Testing:      Dredd, Schemathesis, Pact, Specmatic
+  Linting:      Spectral, Redocly CLI, vacuum
+  Governance:   Optic, Bump.sh
 ```
 
-### 1.2 Code First vs API First の詳細比較
+### 1.2 Detailed Comparison: Code First vs API First
 
 ```
 ┌─────────────────────┬──────────────────────┬──────────────────────┐
-│ 観点                │ Code First           │ API First            │
+│ Aspect              │ Code First           │ API First            │
 ├─────────────────────┼──────────────────────┼──────────────────────┤
-│ 開発開始            │ バックエンド実装から  │ API仕様定義から       │
-│ フロントエンド開始  │ バックエンド完了後    │ モックで即座に開始    │
-│ 仕様書管理          │ コードから自動生成    │ 仕様書がマスター      │
-│ 設計レビュー        │ コードレビューに混在  │ 独立した設計レビュー  │
-│ 型安全性            │ 手動定義が必要        │ 自動生成で保証        │
-│ 変更管理            │ 実装差分から追跡      │ 仕様差分で明確        │
-│ 学習コスト          │ 低い                  │ 中程度（OpenAPI習得） │
-│ 初期コスト          │ 低い                  │ 中程度                │
-│ 長期メンテナンス    │ 高い                  │ 低い                  │
-│ チーム間合意        │ 曖昧になりがち        │ 明確な契約            │
-│ テスト自動化        │ 手動セットアップ      │ 仕様から自動生成      │
-│ ドキュメント鮮度    │ 乖離しがち            │ 常に最新              │
-│ 適用規模            │ 小規模プロジェクト    │ 中〜大規模            │
-│ マイクロサービス    │ 調整が困難            │ 契約駆動で最適        │
+│ Development start   │ From backend impl    │ From API spec def    │
+│ Frontend start      │ After backend done   │ Immediately via mock │
+│ Spec management     │ Auto-gen from code   │ Spec is the master   │
+│ Design review       │ Mixed in code review │ Independent review   │
+│ Type safety         │ Manual definition    │ Guaranteed by gen    │
+│ Change tracking     │ From code diff       │ Clear via spec diff  │
+│ Learning cost       │ Low                  │ Medium (OpenAPI)     │
+│ Initial cost        │ Low                  │ Medium               │
+│ Long-term maint.    │ High                 │ Low                  │
+│ Team agreement      │ Tends to be vague    │ Clear contract       │
+│ Test automation     │ Manual setup         │ Auto-gen from spec   │
+│ Doc freshness       │ Tends to drift       │ Always current       │
+│ Applicable scale    │ Small projects       │ Medium to large      │
+│ Microservices       │ Hard to coordinate   │ Optimal with CDC     │
 └─────────────────────┴──────────────────────┴──────────────────────┘
 ```
 
-### 1.3 API First が解決する課題
+### 1.3 Problems API First Solves
 
 ```
-問題1: フロントエンド・バックエンドの待ち合わせ
+Problem 1: Frontend/backend waiting on each other
 ─────────────────────────────────────────
   Code First:
-  Week 1-3: バックエンド実装
-  Week 4-6: フロントエンド開発（バックエンドが終わるまで待機）
-  Week 7:   統合テスト
-  合計: 7週間
+  Week 1-3: Backend implementation
+  Week 4-6: Frontend development (waits until backend is done)
+  Week 7:   Integration testing
+  Total: 7 weeks
 
   API First:
-  Week 1:   API仕様を共同設計
-  Week 2-4: バックエンド実装 ←→ フロントエンド開発（並行）
-  Week 5:   統合テスト
-  合計: 5週間（約30%短縮）
+  Week 1:   Collaboratively design API spec
+  Week 2-4: Backend implementation ←→ Frontend development (parallel)
+  Week 5:   Integration testing
+  Total: 5 weeks (~30% reduction)
 
-問題2: 仕様とコードの乖離
+Problem 2: Spec and code diverge
 ─────────────────────────────────────────
   Code First:
-  コード変更 → ドキュメント更新忘れ → 仕様書が古い → バグの温床
+  Code changes → forget to update docs → spec goes stale → source of bugs
 
   API First:
-  仕様書変更 → CI/CDで検証 → コード生成で反映 → 常に同期
+  Spec changes → validated in CI/CD → reflected via code gen → always in sync
 
-問題3: マイクロサービス間の契約不整合
+Problem 3: Contract mismatches between microservices
 ─────────────────────────────────────────
   Code First:
-  サービスAが変更 → サービスBが壊れる → 本番障害
+  Service A changes → Service B breaks → production incident
 
   API First:
-  仕様変更をPR → Contract Test → 依存サービスへ通知 → 安全に移行
+  Spec change via PR → Contract Test → notify dependent services → safe migration
 
-問題4: API設計の品質のバラつき
+Problem 4: Inconsistent API design quality
 ─────────────────────────────────────────
   Code First:
-  開発者ごとに異なるAPI設計 → 一貫性がない
+  Each developer designs APIs differently → no consistency
 
   API First:
-  スタイルガイド + Linter → 設計レビュー → 統一されたAPI品質
+  Style guide + Linter → design review → unified API quality
 ```
 
-### 1.4 API First の成熟度モデル
+### 1.4 API First Maturity Model
 
 ```
-Level 0: Ad Hoc（場当たり的）
-  - API仕様なし
-  - 口頭やSlackでの仕様伝達
-  - ドキュメントは手動で後から作成
+Level 0: Ad Hoc
+  - No API spec
+  - Spec communicated verbally or via Slack
+  - Documentation created manually after the fact
 
-Level 1: Design First（設計先行）
-  - OpenAPIで仕様を先に書く
-  - 仕様書からドキュメント生成
-  - 手動でのコード実装
+Level 1: Design First
+  - Write spec in OpenAPI ahead of implementation
+  - Generate documentation from the spec
+  - Manual code implementation
 
-Level 2: Contract Driven（契約駆動）
-  - モックサーバーで並行開発
-  - コード生成の活用
-  - Contract Testの導入
+Level 2: Contract Driven
+  - Parallel development using mock servers
+  - Use of code generation
+  - Introduction of Contract Testing
 
-Level 3: Automated（自動化）
-  - CI/CDでの仕様検証
-  - Breaking Change自動検出
-  - ドキュメント・SDK自動公開
+Level 3: Automated
+  - Spec validation in CI/CD
+  - Automatic detection of breaking changes
+  - Automated documentation and SDK publishing
 
-Level 4: Governed（ガバナンス）
-  - 組織全体のAPIスタイルガイド
+Level 4: Governed
+  - Organization-wide API style guide
   - Design System for APIs
-  - API Catalog管理
-  - メトリクスに基づく品質改善
+  - API Catalog management
+  - Quality improvements driven by metrics
 
-目標: 新規プロジェクトはLevel 2以上で開始し、
-      6ヶ月以内にLevel 3到達を目指す
+Goal: Start new projects at Level 2 or above,
+      and aim to reach Level 3 within 6 months
 ```
 
 ---
 
-## 2. OpenAPI 仕様
+## 2. OpenAPI Specification
 
-### 2.1 基本構造
+### 2.1 Basic Structure
 
 ```yaml
-# openapi.yaml - OpenAPI 3.1 仕様書の完全な例
+# openapi.yaml - Complete example of an OpenAPI 3.1 specification
 openapi: '3.1.0'
 info:
   title: User Management API
   version: '1.0.0'
   description: |
-    ユーザー管理のためのRESTful API。
+    A RESTful API for user management.
 
-    ## 概要
-    このAPIは、ユーザーの登録・認証・プロフィール管理を提供します。
+    ## Overview
+    This API provides user registration, authentication, and profile management.
 
-    ## 認証
-    Bearer Token（JWT）による認証が必要です。
-    `/auth/login` エンドポイントでトークンを取得してください。
+    ## Authentication
+    Authentication via Bearer Token (JWT) is required.
+    Obtain a token from the `/auth/login` endpoint.
 
-    ## レート制限
-    - 認証済みユーザー: 1000 req/min
-    - 未認証: 100 req/min
+    ## Rate Limiting
+    - Authenticated users: 1000 req/min
+    - Unauthenticated: 100 req/min
 
-    ## エラーハンドリング
-    全てのエラーレスポンスは RFC 7807 Problem Details 形式に従います。
+    ## Error Handling
+    All error responses follow the RFC 7807 Problem Details format.
   contact:
     name: API Support
     email: api-support@example.com
@@ -195,7 +195,7 @@ info:
   termsOfService: https://example.com/terms
 
 externalDocs:
-  description: 詳細なAPI開発者ガイド
+  description: Detailed API developer guide
   url: https://developer.example.com/guide
 
 servers:
@@ -208,32 +208,32 @@ servers:
 
 tags:
   - name: Users
-    description: ユーザー管理操作
+    description: User management operations
   - name: Auth
-    description: 認証・認可操作
+    description: Authentication and authorization operations
   - name: Admin
-    description: 管理者専用操作
+    description: Admin-only operations
 
 paths:
   /users:
     get:
-      summary: ユーザー一覧の取得
+      summary: Get list of users
       description: |
-        ページネーション付きのユーザー一覧を返します。
-        フィルタリングとソートに対応しています。
+        Returns a paginated list of users.
+        Supports filtering and sorting.
       operationId: listUsers
       tags: [Users]
       parameters:
         - name: page
           in: query
-          description: ページ番号（1始まり）
+          description: Page number (1-indexed)
           schema:
             type: integer
             default: 1
             minimum: 1
         - name: per_page
           in: query
-          description: 1ページあたりの件数
+          description: Number of items per page
           schema:
             type: integer
             default: 20
@@ -241,46 +241,46 @@ paths:
             maximum: 100
         - name: sort
           in: query
-          description: ソートフィールド
+          description: Sort field
           schema:
             type: string
             enum: [name, email, created_at, updated_at]
             default: created_at
         - name: order
           in: query
-          description: ソート順
+          description: Sort order
           schema:
             type: string
             enum: [asc, desc]
             default: desc
         - name: search
           in: query
-          description: 名前・メールでの検索（部分一致）
+          description: Search by name or email (partial match)
           schema:
             type: string
             maxLength: 100
         - name: role
           in: query
-          description: ロールでフィルタ
+          description: Filter by role
           schema:
             type: string
             enum: [user, admin, moderator]
         - name: status
           in: query
-          description: ステータスでフィルタ
+          description: Filter by status
           schema:
             type: string
             enum: [active, inactive, suspended]
       responses:
         '200':
-          description: ユーザー一覧
+          description: List of users
           headers:
             X-Total-Count:
-              description: 総件数
+              description: Total item count
               schema:
                 type: integer
             X-RateLimit-Remaining:
-              description: 残りリクエスト数
+              description: Remaining request count
               schema:
                 type: integer
           content:
@@ -289,11 +289,11 @@ paths:
                 $ref: '#/components/schemas/UserListResponse'
               examples:
                 default:
-                  summary: 標準レスポンス例
+                  summary: Standard response example
                   value:
                     data:
                       - id: "550e8400-e29b-41d4-a716-446655440000"
-                        name: "田中太郎"
+                        name: "Taro Tanaka"
                         email: "tanaka@example.com"
                         role: "admin"
                         status: "active"
@@ -309,10 +309,10 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
 
     post:
-      summary: ユーザーの作成
+      summary: Create a user
       description: |
-        新しいユーザーを作成します。
-        メールアドレスはシステム全体で一意である必要があります。
+        Creates a new user.
+        The email address must be unique across the system.
       operationId: createUser
       tags: [Users]
       requestBody:
@@ -323,25 +323,25 @@ paths:
               $ref: '#/components/schemas/CreateUserRequest'
             examples:
               basic:
-                summary: 基本的なユーザー作成
+                summary: Basic user creation
                 value:
-                  name: "山田花子"
+                  name: "Hanako Yamada"
                   email: "yamada@example.com"
               withRole:
-                summary: ロール指定でユーザー作成
+                summary: Create user with a role
                 value:
-                  name: "佐藤次郎"
+                  name: "Jiro Sato"
                   email: "sato@example.com"
                   role: "moderator"
                   profile:
-                    bio: "エンジニアリングマネージャー"
+                    bio: "Engineering Manager"
                     avatarUrl: "https://example.com/avatars/sato.png"
       responses:
         '201':
-          description: ユーザー作成成功
+          description: User created successfully
           headers:
             Location:
-              description: 作成されたリソースのURL
+              description: URL of the created resource
               schema:
                 type: string
                 format: uri
@@ -350,7 +350,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserResponse'
         '409':
-          description: メールアドレスが既に使用されている
+          description: Email address is already in use
           content:
             application/json:
               schema:
@@ -360,14 +360,14 @@ paths:
 
   /users/{userId}:
     get:
-      summary: ユーザー詳細の取得
+      summary: Get user details
       operationId: getUser
       tags: [Users]
       parameters:
         - $ref: '#/components/parameters/UserId'
       responses:
         '200':
-          description: ユーザー詳細
+          description: User details
           content:
             application/json:
               schema:
@@ -376,8 +376,8 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     put:
-      summary: ユーザー情報の更新
-      description: ユーザー情報を完全に置換します。
+      summary: Update user information
+      description: Fully replaces user information.
       operationId: updateUser
       tags: [Users]
       parameters:
@@ -390,7 +390,7 @@ paths:
               $ref: '#/components/schemas/UpdateUserRequest'
       responses:
         '200':
-          description: 更新成功
+          description: Update successful
           content:
             application/json:
               schema:
@@ -398,7 +398,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: メールアドレスが既に使用されている
+          description: Email address is already in use
           content:
             application/json:
               schema:
@@ -407,8 +407,8 @@ paths:
           $ref: '#/components/responses/ValidationError'
 
     patch:
-      summary: ユーザー情報の部分更新
-      description: 指定されたフィールドのみを更新します。
+      summary: Partially update user information
+      description: Updates only the specified fields.
       operationId: patchUser
       tags: [Users]
       parameters:
@@ -421,7 +421,7 @@ paths:
               $ref: '#/components/schemas/PatchUserRequest'
       responses:
         '200':
-          description: 部分更新成功
+          description: Partial update successful
           content:
             application/json:
               schema:
@@ -430,26 +430,26 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     delete:
-      summary: ユーザーの削除
+      summary: Delete a user
       description: |
-        ユーザーを論理削除します。
-        削除後30日以内であれば復元可能です。
+        Soft-deletes a user.
+        The user can be restored within 30 days of deletion.
       operationId: deleteUser
       tags: [Users]
       parameters:
         - $ref: '#/components/parameters/UserId'
       responses:
         '204':
-          description: 削除成功
+          description: Deletion successful
         '404':
           $ref: '#/components/responses/NotFound'
 
   /auth/login:
     post:
-      summary: ログイン
+      summary: Login
       operationId: login
       tags: [Auth]
-      security: []  # 認証不要
+      security: []  # No authentication required
       requestBody:
         required: true
         content:
@@ -466,7 +466,7 @@ paths:
                   minLength: 8
       responses:
         '200':
-          description: ログイン成功
+          description: Login successful
           content:
             application/json:
               schema:
@@ -478,12 +478,12 @@ paths:
                     type: string
                   expires_in:
                     type: integer
-                    description: アクセストークンの有効期限（秒）
+                    description: Access token expiry in seconds
                   token_type:
                     type: string
                     enum: [Bearer]
         '401':
-          description: 認証失敗
+          description: Authentication failed
           content:
             application/json:
               schema:
@@ -491,7 +491,7 @@ paths:
 
   /auth/refresh:
     post:
-      summary: トークンリフレッシュ
+      summary: Refresh token
       operationId: refreshToken
       tags: [Auth]
       security: []
@@ -507,7 +507,7 @@ paths:
                   type: string
       responses:
         '200':
-          description: トークン更新成功
+          description: Token refresh successful
           content:
             application/json:
               schema:
@@ -520,7 +520,7 @@ paths:
 
   /users/{userId}/avatar:
     put:
-      summary: アバター画像のアップロード
+      summary: Upload avatar image
       operationId: uploadAvatar
       tags: [Users]
       parameters:
@@ -535,13 +535,13 @@ paths:
                 file:
                   type: string
                   format: binary
-                  description: "画像ファイル（JPEG, PNG, WebP）最大5MB"
+                  description: "Image file (JPEG, PNG, WebP) max 5MB"
             encoding:
               file:
                 contentType: image/jpeg, image/png, image/webp
       responses:
         '200':
-          description: アップロード成功
+          description: Upload successful
           content:
             application/json:
               schema:
@@ -551,7 +551,7 @@ paths:
                     type: string
                     format: uri
         '413':
-          description: ファイルサイズ超過
+          description: File size exceeded
           content:
             application/json:
               schema:
@@ -563,7 +563,7 @@ components:
       name: userId
       in: path
       required: true
-      description: ユーザーのUUID
+      description: User UUID
       schema:
         type: string
         format: uuid
@@ -582,21 +582,21 @@ components:
           type: string
           minLength: 1
           maxLength: 100
-          description: ユーザーの表示名
+          description: User display name
         email:
           type: string
           format: email
-          description: メールアドレス（一意）
+          description: Email address (unique)
         role:
           type: string
           enum: [user, admin, moderator]
           default: user
-          description: ユーザーのロール
+          description: User role
         status:
           type: string
           enum: [active, inactive, suspended]
           default: active
-          description: アカウントのステータス
+          description: Account status
         profile:
           $ref: '#/components/schemas/UserProfile'
         createdAt:
@@ -614,11 +614,11 @@ components:
         bio:
           type: string
           maxLength: 500
-          description: 自己紹介文
+          description: User biography
         avatarUrl:
           type: string
           format: uri
-          description: アバター画像のURL
+          description: Avatar image URL
         location:
           type: string
           maxLength: 100
@@ -713,16 +713,16 @@ components:
       properties:
         total:
           type: integer
-          description: 総件数
+          description: Total item count
         page:
           type: integer
-          description: 現在のページ番号
+          description: Current page number
         per_page:
           type: integer
-          description: 1ページあたりの件数
+          description: Number of items per page
         total_pages:
           type: integer
-          description: 総ページ数
+          description: Total number of pages
 
     PaginationLinks:
       type: object
@@ -752,20 +752,20 @@ components:
         type:
           type: string
           format: uri
-          description: エラータイプを識別するURI
+          description: URI identifying the error type
         title:
           type: string
-          description: エラーの概要
+          description: Short summary of the error
         status:
           type: integer
-          description: HTTPステータスコード
+          description: HTTP status code
         detail:
           type: string
-          description: エラーの詳細説明
+          description: Detailed description of the error
         instance:
           type: string
           format: uri
-          description: エラーが発生した具体的なリソース
+          description: The specific resource where the error occurred
         errors:
           type: array
           items:
@@ -777,11 +777,11 @@ components:
                 type: string
               code:
                 type: string
-          description: フィールド単位のバリデーションエラー
+          description: Per-field validation errors
 
   responses:
     Unauthorized:
-      description: 認証エラー
+      description: Authentication error
       content:
         application/json:
           schema:
@@ -790,10 +790,10 @@ components:
             type: "https://api.example.com/errors/unauthorized"
             title: "Unauthorized"
             status: 401
-            detail: "認証トークンが無効または期限切れです"
+            detail: "The authentication token is invalid or expired"
 
     NotFound:
-      description: リソースが見つからない
+      description: Resource not found
       content:
         application/json:
           schema:
@@ -802,10 +802,10 @@ components:
             type: "https://api.example.com/errors/not-found"
             title: "Not Found"
             status: 404
-            detail: "指定されたリソースは存在しません"
+            detail: "The specified resource does not exist"
 
     ValidationError:
-      description: バリデーションエラー
+      description: Validation error
       content:
         application/json:
           schema:
@@ -814,17 +814,17 @@ components:
             type: "https://api.example.com/errors/validation"
             title: "Validation Error"
             status: 422
-            detail: "入力データにエラーがあります"
+            detail: "There are errors in the input data"
             errors:
               - field: "email"
-                message: "有効なメールアドレスを入力してください"
+                message: "Please enter a valid email address"
                 code: "invalid_format"
 
     TooManyRequests:
-      description: レート制限超過
+      description: Rate limit exceeded
       headers:
         Retry-After:
-          description: 再試行までの秒数
+          description: Seconds until retry is allowed
           schema:
             type: integer
       content:
@@ -835,7 +835,7 @@ components:
             type: "https://api.example.com/errors/rate-limit"
             title: "Too Many Requests"
             status: 429
-            detail: "レート制限を超えました。60秒後に再試行してください"
+            detail: "Rate limit exceeded. Please retry after 60 seconds"
 
   securitySchemes:
     bearerAuth:
@@ -843,26 +843,26 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: |
-        JWTベースの認証。`/auth/login` でトークンを取得してください。
-        トークンは1時間で期限切れとなります。
+        JWT-based authentication. Obtain a token from `/auth/login`.
+        Tokens expire after 1 hour.
     apiKey:
       type: apiKey
       in: header
       name: X-API-Key
-      description: サービス間通信用のAPIキー
+      description: API key for service-to-service communication
 
 security:
   - bearerAuth: []
 ```
 
-### 2.2 OpenAPI 3.1 の重要な機能
+### 2.2 Key Features of OpenAPI 3.1
 
 ```yaml
-# 1. JSON Schema との完全互換
-# OpenAPI 3.1 は JSON Schema Draft 2020-12 と完全互換
+# 1. Full compatibility with JSON Schema
+# OpenAPI 3.1 is fully compatible with JSON Schema Draft 2020-12
 components:
   schemas:
-    # if/then/else が使える
+    # if/then/else is supported
     Payment:
       type: object
       properties:
@@ -887,14 +887,14 @@ components:
         then:
           required: [bankAccount]
 
-    # prefixItems (旧 tuple validation)
+    # prefixItems (formerly tuple validation)
     Coordinate:
       type: array
       prefixItems:
         - type: number
-          description: 緯度
+          description: Latitude
         - type: number
-          description: 経度
+          description: Longitude
       minItems: 2
       maxItems: 2
 
@@ -911,7 +911,7 @@ components:
 webhooks:
   userCreated:
     post:
-      summary: ユーザー作成時のWebhook
+      summary: Webhook on user creation
       requestBody:
         required: true
         content:
@@ -929,11 +929,11 @@ webhooks:
                   format: date-time
       responses:
         '200':
-          description: Webhook受信確認
+          description: Webhook received confirmation
 
   userDeleted:
     post:
-      summary: ユーザー削除時のWebhook
+      summary: Webhook on user deletion
       requestBody:
         required: true
         content:
@@ -955,9 +955,9 @@ webhooks:
                   format: date-time
       responses:
         '200':
-          description: Webhook受信確認
+          description: Webhook received confirmation
 
-# 3. パスアイテムの $ref
+# 3. $ref for path items
 paths:
   /users:
     $ref: './paths/users.yaml'
@@ -965,37 +965,37 @@ paths:
     $ref: './paths/users-by-id.yaml'
 ```
 
-### 2.3 仕様ファイルの分割管理
+### 2.3 Managing Split Specification Files
 
 ```
-プロジェクト規模が大きくなると、1ファイルでの管理は困難になる。
-ファイル分割のベストプラクティス:
+When a project grows large, managing everything in a single file becomes difficult.
+Best practices for splitting files:
 
 api/
-├── openapi.yaml          # ルートファイル（$refで各ファイルを参照）
-├── info.yaml             # API情報（title, description, version）
+├── openapi.yaml          # Root file (references each file via $ref)
+├── info.yaml             # API info (title, description, version)
 ├── paths/
-│   ├── users.yaml        # /users パス定義
-│   ├── users-by-id.yaml  # /users/{userId} パス定義
-│   ├── auth.yaml         # /auth/* パス定義
-│   └── admin.yaml        # /admin/* パス定義
+│   ├── users.yaml        # /users path definitions
+│   ├── users-by-id.yaml  # /users/{userId} path definitions
+│   ├── auth.yaml         # /auth/* path definitions
+│   └── admin.yaml        # /admin/* path definitions
 ├── schemas/
-│   ├── user.yaml         # User関連スキーマ
-│   ├── auth.yaml         # Auth関連スキーマ
-│   ├── common.yaml       # 共通スキーマ（Error, Pagination）
-│   └── admin.yaml        # Admin関連スキーマ
+│   ├── user.yaml         # User-related schemas
+│   ├── auth.yaml         # Auth-related schemas
+│   ├── common.yaml       # Common schemas (Error, Pagination)
+│   └── admin.yaml        # Admin-related schemas
 ├── parameters/
-│   ├── path.yaml         # パスパラメータ
-│   └── query.yaml        # クエリパラメータ
+│   ├── path.yaml         # Path parameters
+│   └── query.yaml        # Query parameters
 ├── responses/
-│   └── errors.yaml       # 共通エラーレスポンス
+│   └── errors.yaml       # Common error responses
 └── examples/
-    ├── users.yaml        # ユーザー関連の例
-    └── errors.yaml       # エラーレスポンスの例
+    ├── users.yaml        # User-related examples
+    └── errors.yaml       # Error response examples
 ```
 
 ```yaml
-# api/openapi.yaml（ルートファイル）
+# api/openapi.yaml (root file)
 openapi: '3.1.0'
 info:
   $ref: './info.yaml'
@@ -1018,7 +1018,7 @@ components:
 ```
 
 ```yaml
-# api/schemas/user.yaml（分割されたスキーマファイル）
+# api/schemas/user.yaml (split schema file)
 User:
   type: object
   required: [id, name, email, createdAt]
@@ -1060,56 +1060,56 @@ UserResponse:
 ```
 
 ```bash
-# 分割ファイルの結合（バンドル）
-# Redocly CLIを使用
+# Bundle split files into one
+# Using Redocly CLI
 npx @redocly/cli bundle api/openapi.yaml -o dist/openapi.yaml
 
-# Swagger CLI を使用
+# Using Swagger CLI
 npx swagger-cli bundle api/openapi.yaml -o dist/openapi.yaml -t yaml
 
-# バリデーション
+# Validation
 npx @redocly/cli lint api/openapi.yaml
 npx swagger-cli validate api/openapi.yaml
 ```
 
 ---
 
-## 3. コード生成
+## 3. Code Generation
 
-### 3.1 TypeScript 型生成
+### 3.1 TypeScript Type Generation
 
 ```bash
-# openapi-typescript: OpenAPIからTypeScript型を生成
+# openapi-typescript: Generate TypeScript types from OpenAPI
 npm install -D openapi-typescript
 
-# 型生成の実行
+# Run type generation
 npx openapi-typescript openapi.yaml -o src/api/types.ts
 
-# watchモード（仕様変更を自動検知）
+# Watch mode (auto-detect spec changes)
 npx openapi-typescript openapi.yaml -o src/api/types.ts --watch
 ```
 
 ```typescript
-// 生成された型の使用例（src/api/types.ts から）
+// Example usage of generated types (from src/api/types.ts)
 import type { paths, components } from './types';
 
-// リクエスト型の取得
+// Extract request type
 type CreateUserBody = paths['/users']['post']['requestBody']['content']['application/json'];
 // => { name: string; email: string; role?: 'user' | 'admin' | 'moderator'; }
 
-// レスポンス型の取得
+// Extract response type
 type UserListResponse = paths['/users']['get']['responses']['200']['content']['application/json'];
 
-// スキーマ型の直接参照
+// Direct schema type reference
 type User = components['schemas']['User'];
 type Error = components['schemas']['Error'];
 
-// クエリパラメータ型
+// Query parameter types
 type ListUsersParams = paths['/users']['get']['parameters']['query'];
 ```
 
 ```typescript
-// openapi-fetch: 型安全なFetchクライアント
+// openapi-fetch: Type-safe fetch client
 import createClient from 'openapi-fetch';
 import type { paths } from './types';
 
@@ -1120,21 +1120,21 @@ const client = createClient<paths>({
   },
 });
 
-// 完全に型安全なAPIコール
-// パス、メソッド、パラメータ、レスポンスすべてが型チェックされる
+// Fully type-safe API call
+// Path, method, parameters, and response are all type-checked
 const { data, error } = await client.GET('/users', {
   params: {
     query: {
       page: 1,
       per_page: 20,
-      sort: 'created_at',  // enum から選択
-      role: 'admin',       // enum から選択
+      sort: 'created_at',  // selected from enum
+      role: 'admin',       // selected from enum
     },
   },
 });
 
 if (data) {
-  // data は UserListResponse 型として推論される
+  // data is inferred as UserListResponse type
   data.data.forEach(user => {
     console.log(user.name);   // string
     console.log(user.email);  // string
@@ -1142,16 +1142,16 @@ if (data) {
   });
 }
 
-// ユーザー作成（リクエストボディも型チェック）
+// Create user (request body is also type-checked)
 const { data: newUser, error: createError } = await client.POST('/users', {
   body: {
-    name: '田中太郎',
+    name: 'Taro Tanaka',
     email: 'tanaka@example.com',
-    // role: 'invalid' // ← コンパイルエラー！
+    // role: 'invalid' // ← compile error!
   },
 });
 
-// パスパラメータも型安全
+// Path parameters are also type-safe
 const { data: user } = await client.GET('/users/{userId}', {
   params: {
     path: { userId: '550e8400-e29b-41d4-a716-446655440000' },
@@ -1159,7 +1159,7 @@ const { data: user } = await client.GET('/users/{userId}', {
 });
 ```
 
-### 3.2 orval によるクライアント生成
+### 3.2 Client Generation with orval
 
 ```typescript
 // orval.config.ts
@@ -1173,10 +1173,10 @@ export default defineConfig({
     },
     output: {
       target: './src/api/generated.ts',
-      client: 'react-query',  // TanStack Query のフック生成
-      mode: 'tags-split',     // タグごとにファイル分割
+      client: 'react-query',  // Generate TanStack Query hooks
+      mode: 'tags-split',     // Split files by tag
       schemas: './src/api/models',
-      mock: true,             // MSW用モックも同時生成
+      mock: true,             // Also generate MSW mocks
       override: {
         mutator: {
           path: './src/api/custom-fetch.ts',
@@ -1187,7 +1187,7 @@ export default defineConfig({
           useMutation: true,
           signal: true,
         },
-        // Zodバリデーションスキーマも生成
+        // Also generate Zod validation schemas
         zod: {
           strict: {
             response: true,
@@ -1204,19 +1204,19 @@ export default defineConfig({
 ```
 
 ```bash
-# orval の実行
+# Run orval
 npx orval
 
-# watch モード
+# Watch mode
 npx orval --watch
 ```
 
 ```typescript
-// 生成されたReact Queryフックの使用例
+// Example usage of generated React Query hooks
 import { useListUsers, useCreateUser, useGetUser } from './api/generated';
 
 function UserList() {
-  // 自動生成されたフック（キャッシュキー、型すべて自動）
+  // Auto-generated hooks (cache keys and types all automatic)
   const { data, isLoading, error } = useListUsers({
     page: 1,
     per_page: 20,
@@ -1228,7 +1228,7 @@ function UserList() {
   const handleCreate = async () => {
     await createUser.mutateAsync({
       data: {
-        name: '新規ユーザー',
+        name: 'New User',
         email: 'new@example.com',
       },
     });
@@ -1242,23 +1242,23 @@ function UserList() {
       {data?.data?.map(user => (
         <UserCard key={user.id} user={user} />
       ))}
-      <button onClick={handleCreate}>追加</button>
+      <button onClick={handleCreate}>Add</button>
     </div>
   );
 }
 
 function UserDetail({ userId }: { userId: string }) {
-  // パスパラメータも型安全
+  // Path parameters are also type-safe
   const { data } = useGetUser(userId);
 
   return <div>{data?.data?.name}</div>;
 }
 ```
 
-### 3.3 サーバーサイドコード生成
+### 3.3 Server-Side Code Generation
 
 ```bash
-# Go サーバースタブ生成（oapi-codegen）
+# Generate Go server stubs (oapi-codegen)
 go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@latest
 
 oapi-codegen \
@@ -1269,7 +1269,7 @@ oapi-codegen \
 ```
 
 ```go
-// 生成されたインターフェースの実装（Go）
+// Implementing the generated interface (Go)
 package api
 
 import (
@@ -1277,7 +1277,7 @@ import (
     "github.com/labstack/echo/v4"
 )
 
-// 生成されたインターフェース
+// Generated interface
 type ServerInterface interface {
     ListUsers(ctx echo.Context, params ListUsersParams) error
     CreateUser(ctx echo.Context) error
@@ -1286,7 +1286,7 @@ type ServerInterface interface {
     DeleteUser(ctx echo.Context, userId string) error
 }
 
-// 実装
+// Implementation
 type UserHandler struct {
     userService UserService
 }
@@ -1341,7 +1341,7 @@ func (h *UserHandler) CreateUser(ctx echo.Context) error {
 ```
 
 ```bash
-# Python サーバースタブ生成（FastAPI）
+# Generate Python server stubs (FastAPI)
 pip install openapi-generator-cli
 
 openapi-generator-cli generate \
@@ -1352,13 +1352,13 @@ openapi-generator-cli generate \
 ```
 
 ```python
-# 生成されたFastAPIサーバーの拡張例
+# Example extending the generated FastAPI server
 from fastapi import FastAPI, HTTPException, Depends, Query
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from uuid import UUID
 
-# 生成されたモデル
+# Generated models
 class User(BaseModel):
     id: UUID
     name: str
@@ -1386,7 +1386,7 @@ class UserListResponse(BaseModel):
     data: list[User]
     meta: PaginationMeta
 
-# エンドポイント実装
+# Endpoint implementation
 app = FastAPI(title="User Management API", version="1.0.0")
 
 @app.get("/v1/users", response_model=UserListResponse)
@@ -1422,7 +1422,7 @@ async def create_user(
     return UserResponse(data=user)
 ```
 
-### 3.4 コード生成のCI/CDパイプライン
+### 3.4 CI/CD Pipeline for Code Generation
 
 ```yaml
 # .github/workflows/api-codegen.yml
@@ -1495,58 +1495,58 @@ jobs:
 
 ---
 
-## 4. モックサーバー
+## 4. Mock Server
 
-### 4.1 Prism によるモックサーバー
+### 4.1 Mock Server with Prism
 
 ```bash
-# Prismのインストールと起動
+# Install and start Prism
 npm install -D @stoplight/prism-cli
 
-# モックサーバー起動（OpenAPI仕様からレスポンスを自動生成）
+# Start mock server (auto-generates responses from OpenAPI spec)
 npx prism mock openapi.yaml
-# → http://localhost:4010 でモックAPIが起動
+# → Mock API starts at http://localhost:4010
 
-# 動的モック（リクエストに基づいてレスポンスを変化）
+# Dynamic mock (vary responses based on request)
 npx prism mock openapi.yaml --dynamic
 
-# バリデーションプロキシモード
-# 実際のAPIに対するリクエスト/レスポンスが仕様に準拠しているか検証
+# Validation proxy mode
+# Verifies that requests/responses to the real API conform to the spec
 npx prism proxy openapi.yaml https://api.example.com/v1
 ```
 
 ```bash
-# Prism モックサーバーへのリクエスト例
-# ユーザー一覧取得
+# Example requests to the Prism mock server
+# Get user list
 curl http://localhost:4010/users?page=1&per_page=10
 
-# ユーザー作成
+# Create user
 curl -X POST http://localhost:4010/users \
   -H "Content-Type: application/json" \
-  -d '{"name": "テスト", "email": "test@example.com"}'
+  -d '{"name": "Test", "email": "test@example.com"}'
 
-# バリデーションエラーの確認
+# Check validation error
 curl -X POST http://localhost:4010/users \
   -H "Content-Type: application/json" \
   -d '{"name": ""}'
-# → 422 Validation Error が返る
+# → Returns 422 Validation Error
 
-# 特定のレスポンス例を指定
+# Specify a particular response example
 curl http://localhost:4010/users \
   -H "Prefer: example=empty_list"
 ```
 
-### 4.2 MSW（Mock Service Worker）
+### 4.2 MSW (Mock Service Worker)
 
 ```typescript
-// msw/handlers.ts - フロントエンド開発用のモックハンドラ
+// msw/handlers.ts - Mock handlers for frontend development
 import { http, HttpResponse, delay } from 'msw';
 
-// OpenAPI仕様に基づいたモックデータ
+// Mock data based on OpenAPI spec
 const mockUsers = [
   {
     id: '550e8400-e29b-41d4-a716-446655440000',
-    name: '田中太郎',
+    name: 'Taro Tanaka',
     email: 'tanaka@example.com',
     role: 'admin',
     status: 'active',
@@ -1555,7 +1555,7 @@ const mockUsers = [
   },
   {
     id: '550e8400-e29b-41d4-a716-446655440001',
-    name: '山田花子',
+    name: 'Hanako Yamada',
     email: 'yamada@example.com',
     role: 'user',
     status: 'active',
@@ -1564,7 +1564,7 @@ const mockUsers = [
   },
   {
     id: '550e8400-e29b-41d4-a716-446655440002',
-    name: '佐藤次郎',
+    name: 'Jiro Sato',
     email: 'sato@example.com',
     role: 'moderator',
     status: 'inactive',
@@ -1574,9 +1574,9 @@ const mockUsers = [
 ];
 
 export const handlers = [
-  // ユーザー一覧
+  // User list
   http.get('https://api.example.com/v1/users', async ({ request }) => {
-    await delay(200); // リアルな遅延をシミュレート
+    await delay(200); // Simulate realistic latency
 
     const url = new URL(request.url);
     const page = parseInt(url.searchParams.get('page') || '1');
@@ -1586,7 +1586,7 @@ export const handlers = [
 
     let filtered = [...mockUsers];
 
-    // フィルタリング
+    // Filtering
     if (search) {
       filtered = filtered.filter(u =>
         u.name.includes(search) || u.email.includes(search)
@@ -1596,7 +1596,7 @@ export const handlers = [
       filtered = filtered.filter(u => u.role === role);
     }
 
-    // ページネーション
+    // Pagination
     const total = filtered.length;
     const start = (page - 1) * perPage;
     const paged = filtered.slice(start, start + perPage);
@@ -1621,36 +1621,36 @@ export const handlers = [
     });
   }),
 
-  // ユーザー作成
+  // Create user
   http.post('https://api.example.com/v1/users', async ({ request }) => {
     await delay(300);
 
     const body = await request.json() as { name: string; email: string; role?: string };
 
-    // バリデーション
+    // Validation
     if (!body.name || body.name.length === 0) {
       return HttpResponse.json(
         {
           type: 'https://api.example.com/errors/validation',
           title: 'Validation Error',
           status: 422,
-          detail: '入力データにエラーがあります',
+          detail: 'There are errors in the input data',
           errors: [
-            { field: 'name', message: '名前は必須です', code: 'required' },
+            { field: 'name', message: 'Name is required', code: 'required' },
           ],
         },
         { status: 422 }
       );
     }
 
-    // 重複チェック
+    // Duplicate check
     if (mockUsers.some(u => u.email === body.email)) {
       return HttpResponse.json(
         {
           type: 'https://api.example.com/errors/conflict',
           title: 'Conflict',
           status: 409,
-          detail: 'このメールアドレスは既に使用されています',
+          detail: 'This email address is already in use',
         },
         { status: 409 }
       );
@@ -1679,7 +1679,7 @@ export const handlers = [
     );
   }),
 
-  // ユーザー詳細
+  // User detail
   http.get('https://api.example.com/v1/users/:userId', async ({ params }) => {
     await delay(150);
 
@@ -1690,7 +1690,7 @@ export const handlers = [
           type: 'https://api.example.com/errors/not-found',
           title: 'Not Found',
           status: 404,
-          detail: '指定されたユーザーは存在しません',
+          detail: 'The specified user does not exist',
         },
         { status: 404 }
       );
@@ -1699,7 +1699,7 @@ export const handlers = [
     return HttpResponse.json({ data: user });
   }),
 
-  // ユーザー削除
+  // Delete user
   http.delete('https://api.example.com/v1/users/:userId', async ({ params }) => {
     await delay(200);
 
@@ -1710,7 +1710,7 @@ export const handlers = [
           type: 'https://api.example.com/errors/not-found',
           title: 'Not Found',
           status: 404,
-          detail: '指定されたユーザーは存在しません',
+          detail: 'The specified user does not exist',
         },
         { status: 404 }
       );
@@ -1720,7 +1720,7 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 });
   }),
 
-  // 認証
+  // Authentication
   http.post('https://api.example.com/v1/auth/login', async ({ request }) => {
     await delay(500);
 
@@ -1740,7 +1740,7 @@ export const handlers = [
         type: 'https://api.example.com/errors/unauthorized',
         title: 'Unauthorized',
         status: 401,
-        detail: 'メールアドレスまたはパスワードが正しくありません',
+        detail: 'Incorrect email address or password',
       },
       { status: 401 }
     );
@@ -1749,13 +1749,13 @@ export const handlers = [
 ```
 
 ```typescript
-// msw/browser.ts - ブラウザ環境でのセットアップ
+// msw/browser.ts - Setup for browser environment
 import { setupWorker } from 'msw/browser';
 import { handlers } from './handlers';
 
 export const worker = setupWorker(...handlers);
 
-// main.tsx でのセットアップ
+// Setup in main.tsx
 async function enableMocking() {
   if (import.meta.env.DEV) {
     const { worker } = await import('./msw/browser');
@@ -1775,7 +1775,7 @@ enableMocking().then(() => {
 ```
 
 ```typescript
-// msw/server.ts - テスト環境でのセットアップ
+// msw/server.ts - Setup for test environment
 import { setupServer } from 'msw/node';
 import { handlers } from './handlers';
 
@@ -1790,7 +1790,7 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 ```
 
-### 4.3 WireMock による高度なモック
+### 4.3 Advanced Mocking with WireMock
 
 ```json
 // wiremock/mappings/get-users.json
@@ -1813,7 +1813,7 @@ afterAll(() => server.close());
       "data": [
         {
           "id": "550e8400-e29b-41d4-a716-446655440000",
-          "name": "田中太郎",
+          "name": "Taro Tanaka",
           "email": "tanaka@example.com",
           "role": "admin"
         }
@@ -1856,7 +1856,7 @@ afterAll(() => server.close());
       "errors": [
         {
           "field": "name",
-          "message": "名前は必須です",
+          "message": "Name is required",
           "code": "required"
         }
       ]
@@ -1867,30 +1867,30 @@ afterAll(() => server.close());
 ```
 
 ```bash
-# WireMock の起動
+# Start WireMock
 docker run -d \
   --name wiremock \
   -p 8080:8080 \
   -v $(pwd)/wiremock:/home/wiremock \
   wiremock/wiremock:latest
 
-# 動作確認
+# Verify operation
 curl http://localhost:8080/v1/users?page=1
 ```
 
 ---
 
-## 5. API リンティングとスタイルガイド
+## 5. API Linting and Style Guide
 
-### 5.1 Spectral によるリンティング
+### 5.1 Linting with Spectral
 
 ```yaml
-# .spectral.yaml - APIリンティングルール
+# .spectral.yaml - API linting rules
 extends:
   - spectral:oas
 
 rules:
-  # カスタムルール: オペレーションIDの命名規則
+  # Custom rule: operationId naming convention
   operation-id-casing:
     given: "$.paths[*][*].operationId"
     then:
@@ -1898,18 +1898,18 @@ rules:
       functionOptions:
         type: camel
     severity: error
-    message: "operationIdはcamelCaseで記述してください"
+    message: "operationId must be written in camelCase"
 
-  # カスタムルール: レスポンスにはdataラッパーを使う
+  # Custom rule: responses should use a data wrapper
   response-data-wrapper:
     given: "$.paths[*][get,post,put,patch].responses[200,201].content.application/json.schema"
     then:
       field: properties.data
       function: truthy
     severity: warn
-    message: "レスポンスはdata プロパティでラップしてください"
+    message: "Responses should be wrapped in a data property"
 
-  # カスタムルール: エラーレスポンスはRFC 7807形式
+  # Custom rule: error responses must follow RFC 7807 format
   error-response-format:
     given: "$.paths[*][*].responses[4XX,5XX].content.application/json.schema"
     then:
@@ -1920,9 +1920,9 @@ rules:
       - field: properties.status
         function: truthy
     severity: error
-    message: "エラーレスポンスはRFC 7807 Problem Details形式にしてください"
+    message: "Error responses must follow RFC 7807 Problem Details format"
 
-  # カスタムルール: パスは複数形名詞
+  # Custom rule: paths should use plural nouns
   path-plural-resource:
     given: "$.paths"
     then:
@@ -1930,9 +1930,9 @@ rules:
       functionOptions:
         match: "^/[a-z]+s(/\\{[^}]+\\}(/[a-z]+s)?)*$"
     severity: warn
-    message: "リソースパスは複数形の名詞を使ってください"
+    message: "Resource paths should use plural nouns"
 
-  # すべてのエンドポイントにタグを付ける
+  # All endpoints must have tags
   operation-tag-defined:
     given: "$.paths[*][get,post,put,patch,delete]"
     then:
@@ -1941,27 +1941,27 @@ rules:
       functionOptions:
         min: 1
     severity: error
-    message: "すべてのオペレーションにタグを付けてください"
+    message: "All operations must have at least one tag"
 
-  # 説明文の必須化
+  # Descriptions are required
   operation-description:
     given: "$.paths[*][get,post,put,patch,delete]"
     then:
       field: description
       function: truthy
     severity: warn
-    message: "オペレーションにdescriptionを付けてください"
+    message: "Operations should have a description"
 
-  # セキュリティの定義チェック
+  # Security definition check
   security-defined:
     given: "$"
     then:
       field: security
       function: truthy
     severity: error
-    message: "グローバルセキュリティを定義してください"
+    message: "Please define global security"
 
-  # プロパティ名のケーシング
+  # Property name casing
   property-casing:
     given: "$.components.schemas[*].properties[*]~"
     then:
@@ -1969,32 +1969,32 @@ rules:
       functionOptions:
         type: camel
     severity: error
-    message: "プロパティ名はcamelCaseで記述してください"
+    message: "Property names must be written in camelCase"
 ```
 
 ```bash
-# Spectralの実行
+# Run Spectral
 npx @stoplight/spectral-cli lint openapi.yaml
 
-# 出力例:
+# Example output:
 # openapi.yaml
-#  45:17  warning  operation-description   オペレーションにdescriptionを付けてください  paths./users.get
-#  78:21  error    operation-id-casing     operationIdはcamelCaseで記述してください     paths./users.post
+#  45:17  warning  operation-description   Operations should have a description  paths./users.get
+#  78:21  error    operation-id-casing     operationId must be written in camelCase  paths./users.post
 #
 # ✖ 2 problems (1 error, 1 warning, 0 infos, 0 hints)
 ```
 
-### 5.2 組織のAPIスタイルガイド定義
+### 5.2 Defining the Organization's API Style Guide
 
 ```yaml
-# api-style-guide.yaml - 組織全体のAPIスタイルガイド
+# api-style-guide.yaml - Organization-wide API style guide
 extends:
   - spectral:oas
-  - .spectral.yaml  # プロジェクト固有ルール
+  - .spectral.yaml  # Project-specific rules
 
 rules:
-  # === 命名規則 ===
-  # URLはケバブケース
+  # === Naming Conventions ===
+  # URLs should use kebab-case
   paths-kebab-case:
     given: "$.paths[*]~"
     then:
@@ -2003,8 +2003,8 @@ rules:
         match: "^(/[a-z][a-z0-9-]*(/\\{[a-zA-Z]+\\})?)+$"
     severity: error
 
-  # === バージョニング ===
-  # URLにバージョンを含める
+  # === Versioning ===
+  # URLs must include a version
   path-version:
     given: "$.servers[*].url"
     then:
@@ -2012,10 +2012,10 @@ rules:
       functionOptions:
         match: "/v[0-9]+"
     severity: error
-    message: "サーバーURLにバージョンを含めてください（例: /v1）"
+    message: "Server URLs must include a version (e.g. /v1)"
 
-  # === ページネーション ===
-  # GETリストにはページネーション必須
+  # === Pagination ===
+  # Pagination is required for GET list endpoints
   pagination-required:
     given: "$.paths[*].get.parameters"
     then:
@@ -2029,10 +2029,10 @@ rules:
               name:
                 const: page
     severity: warn
-    message: "一覧エンドポイントにはpageパラメータを含めてください"
+    message: "List endpoints should include a page parameter"
 
-  # === セキュリティ ===
-  # HTTPSのみ
+  # === Security ===
+  # HTTPS only
   https-only:
     given: "$.servers[*].url"
     then:
@@ -2040,10 +2040,10 @@ rules:
       functionOptions:
         match: "^https://|^http://localhost"
     severity: error
-    message: "本番環境ではHTTPSを使用してください"
+    message: "Use HTTPS in production environments"
 
-  # === レスポンス ===
-  # 成功レスポンスの型定義必須
+  # === Responses ===
+  # Schema definition required for successful responses
   response-schema-required:
     given: "$.paths[*][*].responses[2XX].content.application/json"
     then:
@@ -2056,7 +2056,7 @@ rules:
 
 ## 6. Contract Testing
 
-### 6.1 Pact によるConsumer-Driven Contract Testing
+### 6.1 Consumer-Driven Contract Testing with Pact
 
 ```typescript
 // consumer/tests/user-api.pact.spec.ts
@@ -2073,11 +2073,11 @@ const provider = new PactV4({
 
 describe('User API Contract', () => {
   describe('GET /users', () => {
-    it('ユーザー一覧を取得できる', async () => {
+    it('can retrieve a list of users', async () => {
       await provider
         .addInteraction()
-        .given('ユーザーが3人存在する')
-        .uponReceiving('ユーザー一覧の取得リクエスト')
+        .given('3 users exist')
+        .uponReceiving('request to get user list')
         .withRequest('GET', '/v1/users', (builder) => {
           builder.query({ page: '1', per_page: '20' });
           builder.headers({ Authorization: 'Bearer valid-token' });
@@ -2087,7 +2087,7 @@ describe('User API Contract', () => {
           builder.jsonBody({
             data: eachLike({
               id: uuid(),
-              name: like('田中太郎'),
+              name: like('Taro Tanaka'),
               email: like('tanaka@example.com'),
               role: like('user'),
               status: like('active'),
@@ -2110,17 +2110,17 @@ describe('User API Contract', () => {
         });
     });
 
-    it('ユーザーを作成できる', async () => {
+    it('can create a user', async () => {
       await provider
         .addInteraction()
-        .uponReceiving('ユーザー作成リクエスト')
+        .uponReceiving('request to create user')
         .withRequest('POST', '/v1/users', (builder) => {
           builder.headers({
             'Content-Type': 'application/json',
             Authorization: 'Bearer valid-token',
           });
           builder.jsonBody({
-            name: '山田花子',
+            name: 'Hanako Yamada',
             email: 'yamada@example.com',
           });
         })
@@ -2132,7 +2132,7 @@ describe('User API Contract', () => {
           builder.jsonBody({
             data: {
               id: uuid(),
-              name: '山田花子',
+              name: 'Hanako Yamada',
               email: 'yamada@example.com',
               role: 'user',
               status: 'active',
@@ -2143,11 +2143,11 @@ describe('User API Contract', () => {
         .executeTest(async (mockServer) => {
           const client = new UserApiClient(mockServer.url);
           const result = await client.createUser({
-            name: '山田花子',
+            name: 'Hanako Yamada',
             email: 'yamada@example.com',
           });
 
-          expect(result.data.name).toBe('山田花子');
+          expect(result.data.name).toBe('Hanako Yamada');
           expect(result.data.email).toBe('yamada@example.com');
         });
     });
@@ -2169,21 +2169,21 @@ describe('Provider Verification', () => {
 
   afterAll(() => server.close());
 
-  it('Pact契約を満たしている', async () => {
+  it('satisfies the Pact contract', async () => {
     const verifier = new Verifier({
       providerBaseUrl: 'http://localhost:3001',
       pactUrls: ['./pacts/FrontendApp-UserService.json'],
-      // または Pact Broker から取得
+      // Or fetch from Pact Broker
       // pactBrokerUrl: 'https://pact-broker.example.com',
       // providerVersion: process.env.GIT_SHA,
       stateHandlers: {
-        'ユーザーが3人存在する': async () => {
-          // テストデータのセットアップ
+        '3 users exist': async () => {
+          // Set up test data
           await seedTestUsers(3);
         },
       },
       requestFilter: (req, res, next) => {
-        // テスト用のAuth headerを追加
+        // Add Auth header for testing
         req.headers['authorization'] = 'Bearer test-token';
         next();
       },
@@ -2194,16 +2194,16 @@ describe('Provider Verification', () => {
 });
 ```
 
-### 6.2 Schemathesis による仕様ベーステスト
+### 6.2 Property-Based Testing with Schemathesis
 
 ```bash
-# Schemathesis: OpenAPI仕様から自動テスト生成
+# Schemathesis: Auto-generate tests from OpenAPI spec
 pip install schemathesis
 
-# 基本的なテスト実行
+# Run basic tests
 schemathesis run http://localhost:3000/v1/openapi.yaml
 
-# 詳細オプション
+# Detailed options
 schemathesis run http://localhost:3000/v1/openapi.yaml \
   --checks all \
   --hypothesis-max-examples 100 \
@@ -2211,29 +2211,29 @@ schemathesis run http://localhost:3000/v1/openapi.yaml \
   --base-url http://localhost:3000/v1 \
   --workers 4
 
-# 特定のエンドポイントのみテスト
+# Test specific endpoints only
 schemathesis run http://localhost:3000/v1/openapi.yaml \
   --endpoint "/users" \
   --method GET
 
-# stateful テスト（APIの状態遷移をテスト）
+# Stateful testing (test API state transitions)
 schemathesis run http://localhost:3000/v1/openapi.yaml \
   --stateful=links
 ```
 
 ```python
-# Schemathesis のPythonテストとしての使用
+# Using Schemathesis as Python tests
 import schemathesis
 
 schema = schemathesis.from_url("http://localhost:3000/v1/openapi.yaml")
 
 @schema.parametrize()
 def test_api(case):
-    """OpenAPI仕様に基づいた自動テスト"""
+    """Auto tests based on OpenAPI spec"""
     response = case.call()
     case.validate_response(response)
 
-# 特定のエンドポイントのテスト
+# Test a specific endpoint
 @schema.parametrize(endpoint="/users", method="POST")
 def test_create_user(case):
     response = case.call()
@@ -2244,10 +2244,10 @@ def test_create_user(case):
         assert "data" in data
         assert "id" in data["data"]
 
-# カスタムチェック
+# Custom checks
 @schema.parametrize()
 def test_response_time(case):
-    """レスポンスタイムが500ms以内であること"""
+    """Response time must be within 500ms"""
     import time
     start = time.time()
     response = case.call()
@@ -2257,16 +2257,16 @@ def test_response_time(case):
     case.validate_response(response)
 ```
 
-### 6.3 Dredd によるAPI仕様テスト
+### 6.3 API Spec Testing with Dredd
 
 ```bash
-# Dreddのインストール
+# Install Dredd
 npm install -D dredd
 
-# 基本的な実行
+# Basic run
 npx dredd openapi.yaml http://localhost:3000/v1
 
-# 設定ファイルを使った実行
+# Run with config file
 npx dredd
 ```
 
@@ -2296,29 +2296,29 @@ sorted: false
 import { Hooks } from 'dredd-hooks';
 const hooks = new Hooks();
 
-// テスト前のセットアップ
+// Setup before tests
 hooks.beforeAll((transactions, done) => {
-  // テストデータベースの初期化
-  console.log('テストデータベースを初期化中...');
+  // Initialize test database
+  console.log('Initializing test database...');
   done();
 });
 
-// 特定のエンドポイントのフック
+// Hooks for specific endpoints
 hooks.before('Users > User Collection > List Users', (transaction, done) => {
-  // 事前にテストユーザーを作成
+  // Create test user in advance
   transaction.request.headers['Authorization'] = 'Bearer test-admin-token';
   done();
 });
 
 hooks.before('Users > User Resource > Create User', (transaction, done) => {
-  // リクエストボディの調整
+  // Adjust request body
   const body = JSON.parse(transaction.request.body);
   body.email = `test-${Date.now()}@example.com`;
   transaction.request.body = JSON.stringify(body);
   done();
 });
 
-// レスポンス後の検証
+// Post-response verification
 hooks.after('Users > User Resource > Get User', (transaction, done) => {
   const body = JSON.parse(transaction.real.body);
   if (!body.data.id) {
@@ -2327,7 +2327,7 @@ hooks.after('Users > User Resource > Get User', (transaction, done) => {
   done();
 });
 
-// スキップするエンドポイント
+// Skip certain endpoints
 hooks.before('Admin > Admin Operations > Delete All Users', (transaction, done) => {
   transaction.skip = true;
   done();
@@ -2338,12 +2338,12 @@ export default hooks;
 
 ---
 
-## 7. ドキュメント生成
+## 7. Documentation Generation
 
 ### 7.1 Redoc
 
 ```html
-<!-- index.html - Redocによるドキュメント表示 -->
+<!-- index.html - Display documentation with Redoc -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -2380,10 +2380,10 @@ export default hooks;
 ```
 
 ```bash
-# Redocで静的HTMLを生成
+# Generate static HTML with Redoc
 npx @redocly/cli build-docs openapi.yaml -o docs/index.html
 
-# カスタムテーマ付き
+# With custom theme
 npx @redocly/cli build-docs openapi.yaml \
   -o docs/index.html \
   --theme.openapi.colors.primary.main="#4f46e5" \
@@ -2393,7 +2393,7 @@ npx @redocly/cli build-docs openapi.yaml \
 ### 7.2 Swagger UI
 
 ```typescript
-// Express.js での Swagger UI 設定
+// Swagger UI setup with Express.js
 import express from 'express';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yamljs';
@@ -2414,7 +2414,7 @@ const options = {
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, options));
 
-// Swagger JSON エンドポイント
+// Swagger JSON endpoint
 app.get('/api-docs.json', (req, res) => {
   res.json(swaggerDocument);
 });
@@ -2423,7 +2423,7 @@ app.get('/api-docs.json', (req, res) => {
 ### 7.3 Scalar
 
 ```typescript
-// Scalar - モダンなAPIドキュメントUI
+// Scalar - Modern API documentation UI
 import { apiReference } from '@scalar/express-api-reference';
 
 app.use('/docs', apiReference({
@@ -2441,247 +2441,247 @@ app.use('/docs', apiReference({
 
 ---
 
-## 8. 設計レビューチェックリスト
+## 8. Design Review Checklist
 
-### 8.1 包括的なレビュー項目
-
-```
-API設計レビュー包括チェックリスト:
-
-━━━ 命名規則 ━━━
-□ リソース名は名詞・複数形か（/users, /orders, /products）
-□ URLはケバブケースか（/user-profiles）
-□ プロパティ名は一貫したケーシングか（camelCase推奨）
-□ operationIdはcamelCaseか
-□ enumの値は一貫しているか（snake_case推奨）
-□ 日時フィールド名は統一されているか（createdAt/created_at）
-
-━━━ HTTPメソッド ━━━
-□ GET: データ取得のみ、副作用なし
-□ POST: リソース作成、または非冪等操作
-□ PUT: リソースの完全置換（冪等）
-□ PATCH: リソースの部分更新
-□ DELETE: リソースの削除（冪等）
-□ 冪等性が正しいか（PUT/DELETE は冪等）
-□ 安全性が正しいか（GET/HEAD/OPTIONS は安全）
-
-━━━ ステータスコード ━━━
-□ 200: 成功（GET, PUT, PATCH）
-□ 201: 作成成功（POST）+ Locationヘッダ
-□ 204: 成功・レスポンスボディなし（DELETE）
-□ 400: リクエスト不正
-□ 401: 認証エラー
-□ 403: 認可エラー（権限不足）
-□ 404: リソース未発見
-□ 409: 競合（重複など）
-□ 422: バリデーションエラー
-□ 429: レート制限超過 + Retry-Afterヘッダ
-□ 500: サーバー内部エラー
-
-━━━ レスポンス設計 ━━━
-□ エラーレスポンスが統一されているか（RFC 7807推奨）
-□ 一覧レスポンスにページネーション情報があるか
-□ レスポンスのdataラッパーが統一されているか
-□ null可能フィールドが明示されているか
-□ 日時はISO 8601形式か
-□ IDはUUID形式か
-
-━━━ セキュリティ ━━━
-□ 認証方式が定義されているか
-□ 入力バリデーションが定義されているか（minLength, maxLength, pattern）
-□ レート制限が考慮されているか
-□ CORS設定が適切か
-□ センシティブデータがURLに含まれていないか
-□ 適切な権限チェックがあるか
-
-━━━ 互換性 ━━━
-□ 破壊的変更がないか
-□ オプショナルフィールドの追加は後方互換か
-□ バージョニング戦略が決まっているか
-□ 廃止予定のエンドポイントにDeprecatedマーキングがあるか
-□ Sunset ヘッダが設定されているか
-
-━━━ パフォーマンス ━━━
-□ 大量データのエンドポイントにページネーションがあるか
-□ N+1問題を回避するinclude/expandパラメータがあるか
-□ キャッシュ戦略（ETag, Cache-Control）が考慮されているか
-□ 不要なデータのフィルタリング（fields パラメータ）があるか
-
-━━━ ドキュメント ━━━
-□ すべてのエンドポイントにsummaryがあるか
-□ リクエスト/レスポンスのexamplesがあるか
-□ エラーケースが文書化されているか
-□ 認証方法の説明があるか
-□ レート制限の説明があるか
-```
-
-### 8.2 設計レビュープロセス
+### 8.1 Comprehensive Review Items
 
 ```
-API設計レビューのワークフロー:
+API Design Review Comprehensive Checklist:
 
-Step 1: 設計提案
-───────────────────
-  - 開発者がOpenAPI仕様のPRを作成
-  - PR説明にAPIの目的・ユースケースを記載
-  - 仕様変更の理由を明記
+━━━ Naming Conventions ━━━
+□ Are resource names nouns in plural form? (/users, /orders, /products)
+□ Are URLs in kebab-case? (/user-profiles)
+□ Are property names consistently cased? (camelCase recommended)
+□ Is operationId in camelCase?
+□ Are enum values consistent? (snake_case recommended)
+□ Are datetime field names unified? (createdAt/created_at)
 
-Step 2: 自動チェック（CI）
-───────────────────
-  - Spectralによるリンティング
-  - Breaking Change検出
-  - 型定義の生成テスト
-  - モックサーバーの起動テスト
+━━━ HTTP Methods ━━━
+□ GET: Data retrieval only, no side effects
+□ POST: Resource creation, or non-idempotent operations
+□ PUT: Full resource replacement (idempotent)
+□ PATCH: Partial resource update
+□ DELETE: Resource deletion (idempotent)
+□ Is idempotency correct? (PUT/DELETE are idempotent)
+□ Is safety correct? (GET/HEAD/OPTIONS are safe)
 
-Step 3: 人によるレビュー
-───────────────────
-  - APIアーキテクトまたはテックリード
-  - セキュリティエンジニア（認証/認可関連）
-  - フロントエンド開発者（使い勝手の確認）
-  - チェックリストに基づく確認
+━━━ Status Codes ━━━
+□ 200: Success (GET, PUT, PATCH)
+□ 201: Created successfully (POST) + Location header
+□ 204: Success, no response body (DELETE)
+□ 400: Bad request
+□ 401: Authentication error
+□ 403: Authorization error (insufficient permissions)
+□ 404: Resource not found
+□ 409: Conflict (duplicate, etc.)
+□ 422: Validation error
+□ 429: Rate limit exceeded + Retry-After header
+□ 500: Internal server error
 
-Step 4: フィードバック反映
-───────────────────
-  - レビューコメントに基づく修正
-  - 再度自動チェック
+━━━ Response Design ━━━
+□ Are error responses unified? (RFC 7807 recommended)
+□ Do list responses include pagination info?
+□ Is the data wrapper in responses consistent?
+□ Are nullable fields explicitly marked?
+□ Are datetimes in ISO 8601 format?
+□ Are IDs in UUID format?
 
-Step 5: 承認とマージ
+━━━ Security ━━━
+□ Is the authentication method defined?
+□ Is input validation defined? (minLength, maxLength, pattern)
+□ Is rate limiting considered?
+□ Is CORS configured appropriately?
+□ Are sensitive data excluded from URLs?
+□ Are proper permission checks in place?
+
+━━━ Compatibility ━━━
+□ Are there no breaking changes?
+□ Are optional field additions backward-compatible?
+□ Is the versioning strategy decided?
+□ Are deprecated endpoints marked as Deprecated?
+□ Is the Sunset header set?
+
+━━━ Performance ━━━
+□ Are high-volume endpoints paginated?
+□ Are include/expand parameters available to avoid N+1 problems?
+□ Is a caching strategy considered? (ETag, Cache-Control)
+□ Is there a fields parameter to filter unnecessary data?
+
+━━━ Documentation ━━━
+□ Do all endpoints have a summary?
+□ Are there examples for requests/responses?
+□ Are error cases documented?
+□ Is the authentication method explained?
+□ Is the rate limit explained?
+```
+
+### 8.2 Design Review Process
+
+```
+API Design Review Workflow:
+
+Step 1: Design Proposal
 ───────────────────
-  - 最低2名の承認
-  - CI全通過
-  - APIカタログへの自動登録
+  - Developer creates a PR with the OpenAPI spec
+  - PR description includes the API's purpose and use cases
+  - Reasons for spec changes are clearly stated
+
+Step 2: Automated Checks (CI)
+───────────────────
+  - Linting with Spectral
+  - Breaking change detection
+  - Type definition generation test
+  - Mock server startup test
+
+Step 3: Human Review
+───────────────────
+  - API architect or tech lead
+  - Security engineer (for auth/authorization)
+  - Frontend developer (to check usability)
+  - Checklist-based review
+
+Step 4: Incorporate Feedback
+───────────────────
+  - Revisions based on review comments
+  - Re-run automated checks
+
+Step 5: Approval and Merge
+───────────────────
+  - Minimum 2 approvals required
+  - All CI checks pass
+  - Auto-registration in API catalog
 ```
 
 ---
 
-## 9. 実務での導入ステップ
+## 9. Introduction Steps for Real-World Projects
 
-### 9.1 段階的な導入計画
+### 9.1 Phased Adoption Plan
 
 ```
-Phase 1: 基盤整備（1-2週間）
+Phase 1: Foundation (1-2 weeks)
 ─────────────────────────────
-  □ OpenAPI仕様書のテンプレート作成
-  □ Spectralルールの初期設定
-  □ CI/CDパイプラインへのリンティング追加
-  □ チームへのOpenAPIトレーニング
-  □ ツールチェーンの選定と導入
+  □ Create OpenAPI spec template
+  □ Initial Spectral rule setup
+  □ Add linting to CI/CD pipeline
+  □ OpenAPI training for the team
+  □ Select and introduce toolchain
 
-  成果物:
+  Deliverables:
   - .spectral.yaml
   - openapi-template.yaml
-  - CI設定ファイル
-  - トレーニング資料
+  - CI config files
+  - Training materials
 
-Phase 2: パイロットプロジェクト（2-4週間）
+Phase 2: Pilot Project (2-4 weeks)
 ─────────────────────────────────────
-  □ 1つの新規APIをAPI Firstで設計
-  □ モックサーバーの活用
-  □ コード生成の導入
-  □ 並行開発の実践
-  □ 振り返りとプロセス改善
+  □ Design one new API with API First
+  □ Utilize mock servers
+  □ Introduce code generation
+  □ Practice parallel development
+  □ Retrospective and process improvement
 
-  成果物:
-  - パイロットAPIの仕様書
-  - コード生成設定
-  - MSWハンドラ
-  - 振り返りレポート
+  Deliverables:
+  - Pilot API spec
+  - Code generation config
+  - MSW handlers
+  - Retrospective report
 
-Phase 3: 展開（4-8週間）
-─────────────────────────
-  □ 既存APIのOpenAPI仕様書化
-  □ 全新規APIのAPI First適用
-  □ Contract Testingの導入
-  □ APIカタログの構築
-  □ スタイルガイドの策定
+Phase 3: Rollout (4-8 weeks)
+─────────────────────────────
+  □ Document existing APIs in OpenAPI
+  □ Apply API First to all new APIs
+  □ Introduce Contract Testing
+  □ Build API catalog
+  □ Establish style guide
 
-  成果物:
-  - 既存APIの仕様書
-  - APIカタログ
-  - APIスタイルガイド
-  - Contract Testスイート
+  Deliverables:
+  - Existing API specs
+  - API catalog
+  - API style guide
+  - Contract test suite
 
-Phase 4: 成熟化（継続的）
-─────────────────────────
-  □ Breaking Change自動検出
-  □ SDKの自動生成・公開
-  □ APIメトリクスの収集
-  □ 定期的なスタイルガイド更新
-  □ API設計のナレッジ共有
+Phase 4: Maturation (ongoing)
+─────────────────────────────
+  □ Automatic breaking change detection
+  □ Auto-generate and publish SDKs
+  □ Collect API metrics
+  □ Regular style guide updates
+  □ Share API design knowledge
 
-  成果物:
-  - 自動化されたCI/CDパイプライン
-  - メトリクスダッシュボード
-  - ナレッジベース
+  Deliverables:
+  - Automated CI/CD pipeline
+  - Metrics dashboard
+  - Knowledge base
 ```
 
-### 9.2 プロジェクト構成テンプレート
+### 9.2 Project Structure Template
 
 ```
 project/
 ├── api/
-│   ├── openapi.yaml          # API仕様書（ルート）
-│   ├── paths/                 # パス定義
-│   ├── schemas/               # スキーマ定義
-│   ├── parameters/            # パラメータ定義
-│   ├── responses/             # レスポンス定義
-│   └── examples/              # レスポンス例
+│   ├── openapi.yaml          # API spec (root)
+│   ├── paths/                 # Path definitions
+│   ├── schemas/               # Schema definitions
+│   ├── parameters/            # Parameter definitions
+│   ├── responses/             # Response definitions
+│   └── examples/              # Response examples
 ├── frontend/
 │   ├── src/
 │   │   ├── api/
-│   │   │   ├── types.ts       # ← 自動生成
-│   │   │   ├── client.ts      # ← 自動生成
+│   │   │   ├── types.ts       # ← Auto-generated
+│   │   │   ├── client.ts      # ← Auto-generated
 │   │   │   └── custom-fetch.ts
 │   │   └── msw/
-│   │       ├── handlers.ts    # モックハンドラ
+│   │       ├── handlers.ts    # Mock handlers
 │   │       ├── browser.ts
 │   │       └── server.ts
 │   └── orval.config.ts
 ├── backend/
 │   ├── api/
-│   │   └── api.gen.go         # ← 自動生成
+│   │   └── api.gen.go         # ← Auto-generated
 │   └── internal/
 │       └── handler/
-│           └── user.go        # ハンドラ実装
+│           └── user.go        # Handler implementation
 ├── tests/
 │   ├── contract/
-│   │   ├── consumer.spec.ts   # Consumer契約テスト
-│   │   └── provider.spec.ts   # Provider検証テスト
-│   └── pacts/                 # 生成されたPactファイル
+│   │   ├── consumer.spec.ts   # Consumer contract tests
+│   │   └── provider.spec.ts   # Provider verification tests
+│   └── pacts/                 # Generated Pact files
 ├── docs/
-│   └── index.html             # ← Redocで自動生成
-├── .spectral.yaml             # リンティングルール
+│   └── index.html             # ← Auto-generated by Redoc
+├── .spectral.yaml             # Linting rules
 ├── .github/
 │   └── workflows/
-│       ├── api-lint.yml       # API仕様のリンティング
-│       ├── api-codegen.yml    # コード生成
-│       └── api-docs.yml       # ドキュメント生成
+│       ├── api-lint.yml       # API spec linting
+│       ├── api-codegen.yml    # Code generation
+│       └── api-docs.yml       # Documentation generation
 └── Makefile
 ```
 
 ```makefile
-# Makefile - API開発タスク
+# Makefile - API development tasks
 .PHONY: api-lint api-bundle api-mock api-codegen api-docs api-test
 
-# API仕様のリンティング
+# Lint the API spec
 api-lint:
 	npx @stoplight/spectral-cli lint api/openapi.yaml
 	npx @redocly/cli lint api/openapi.yaml
 
-# API仕様のバンドル（分割ファイルの結合）
+# Bundle API spec (merge split files)
 api-bundle:
 	npx @redocly/cli bundle api/openapi.yaml -o dist/openapi.yaml
 
-# モックサーバーの起動
+# Start mock server
 api-mock:
 	npx @stoplight/prism-cli mock api/openapi.yaml --port 4010
 
-# コード生成
+# Code generation
 api-codegen: api-bundle
 	npx openapi-typescript dist/openapi.yaml -o frontend/src/api/types.ts
 	cd frontend && npx orval
 
-# ドキュメント生成
+# Generate documentation
 api-docs: api-bundle
 	npx @redocly/cli build-docs dist/openapi.yaml -o docs/index.html
 
@@ -2689,15 +2689,15 @@ api-docs: api-bundle
 api-test:
 	cd tests/contract && npm test
 
-# Breaking Change検出
+# Detect breaking changes
 api-breaking:
 	npx @opticdev/optic diff api/openapi.yaml --base origin/main --check
 
-# 全タスク実行
+# Run all tasks
 api-all: api-lint api-bundle api-codegen api-docs api-test
 ```
 
-### 9.3 package.json のスクリプト設定
+### 9.3 package.json Script Configuration
 
 ```json
 {
@@ -2734,12 +2734,12 @@ api-all: api-lint api-bundle api-codegen api-docs api-test
 
 ---
 
-## 10. 高度なパターン
+## 10. Advanced Patterns
 
-### 10.1 APIゲートウェイとの統合
+### 10.1 Integration with API Gateway
 
 ```yaml
-# Kong Gateway の宣言的設定（OpenAPIから生成）
+# Kong Gateway declarative configuration (generated from OpenAPI)
 _format_version: "3.0"
 
 services:
@@ -2781,7 +2781,7 @@ services:
 ```
 
 ```typescript
-// OpenAPIからAPI Gateway設定を生成するスクリプト
+// Script to generate API Gateway config from OpenAPI
 import { parse } from 'yaml';
 import { readFileSync, writeFileSync } from 'fs';
 
@@ -2817,7 +2817,7 @@ function generateGatewayConfig(spec: OpenAPISpec) {
           plugins: [],
         };
 
-        // セキュリティ設定
+        // Security configuration
         if (operation.security !== undefined) {
           if (operation.security.length > 0) {
             route.plugins.push({
@@ -2827,7 +2827,7 @@ function generateGatewayConfig(spec: OpenAPISpec) {
           }
         }
 
-        // レート制限
+        // Rate limiting
         route.plugins.push({
           name: 'rate-limiting',
           config: { minute: 100, policy: 'redis' },
@@ -2846,14 +2846,15 @@ const config = generateGatewayConfig(spec);
 writeFileSync('kong.yaml', JSON.stringify(config, null, 2));
 ```
 
-### 10.2 マイクロサービスでのAPI First
+### 10.2 API First in Microservices
 
 ```
-マイクロサービスアーキテクチャでのAPI First運用:
+API First operations in microservice architecture:
 
 ┌──────────────────────────────────────────────┐
 │                API Registry                   │
-│  (すべてのサービスのOpenAPI仕様を集約管理)      │
+│  (Centrally manages OpenAPI specs for all     │
+│   services)                                   │
 │                                               │
 │  ┌─────────┐ ┌─────────┐ ┌─────────┐        │
 │  │ User API│ │Order API│ │Payment  │  ...    │
@@ -2865,21 +2866,24 @@ writeFileSync('kong.yaml', JSON.stringify(config, null, 2));
 │ User       │  │ Order      │  │ Payment    │
 │ Service    │←→│ Service    │←→│ Service    │
 │            │  │            │  │            │
-│ ・仕様を先  │  │ ・依存先の  │  │ ・Contract │
-│   に定義    │  │   仕様参照  │  │   Test実施 │
-│ ・Contract  │  │ ・型安全な  │  │ ・Breaking │
-│   Test公開  │  │   クライアント │  │   Change  │
-│ ・Mock提供  │  │   生成      │  │   検出     │
+│ ・Define   │  │ ・Reference│  │ ・Practice │
+│   spec     │  │   dependent│  │   Contract │
+│   first    │  │   spec     │  │   Testing  │
+│ ・Publish  │  │ ・Generate │  │ ・Detect   │
+│   Contract │  │   type-safe│  │   Breaking │
+│   Tests    │  │   client   │  │   Changes  │
+│ ・Provide  │  │            │  │            │
+│   Mock     │  │            │  │            │
 └────────────┘  └────────────┘  └────────────┘
 ```
 
 ```yaml
-# サービス間通信の仕様定義
+# Spec definition for inter-service communication
 # order-service/api/internal/user-client.yaml
-# （User Serviceの仕様から必要な部分を参照）
+# (Reference the necessary parts of the User Service spec)
 openapi: '3.1.0'
 info:
-  title: User Service Client（Order Serviceが使用する部分）
+  title: User Service Client (subset used by Order Service)
   version: '1.0.0'
 
 paths:
@@ -2913,21 +2917,21 @@ paths:
                         format: email
 ```
 
-### 10.3 イベント駆動APIの設計
+### 10.3 Event-Driven API Design
 
 ```yaml
-# AsyncAPI 仕様（イベント駆動API）
+# AsyncAPI specification (event-driven API)
 asyncapi: '2.6.0'
 info:
   title: User Events API
   version: '1.0.0'
-  description: ユーザー関連イベントの非同期API仕様
+  description: Async API spec for user-related events
 
 channels:
   user.created:
     publish:
       operationId: onUserCreated
-      summary: ユーザー作成イベント
+      summary: User created event
       message:
         name: UserCreatedEvent
         contentType: application/json
@@ -2962,13 +2966,13 @@ channels:
               timestamp: "2024-06-01T12:00:00Z"
               data:
                 userId: "550e8400-e29b-41d4-a716-446655440000"
-                name: "田中太郎"
+                name: "Taro Tanaka"
                 email: "tanaka@example.com"
 
   user.updated:
     publish:
       operationId: onUserUpdated
-      summary: ユーザー更新イベント
+      summary: User updated event
       message:
         name: UserUpdatedEvent
         contentType: application/json
@@ -2998,7 +3002,7 @@ channels:
   user.deleted:
     publish:
       operationId: onUserDeleted
-      summary: ユーザー削除イベント
+      summary: User deleted event
       message:
         name: UserDeletedEvent
         contentType: application/json
@@ -3025,63 +3029,63 @@ channels:
                   format: date-time
 ```
 
-### 10.4 API ライフサイクル管理
+### 10.4 API Lifecycle Management
 
 ```
-API ライフサイクルの各フェーズ:
+API Lifecycle Phases:
 
 ┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐
 │ Design  │ → │  Build  │ → │  Test   │ → │ Deploy  │ → │ Retire  │
-│ 設計    │   │  構築   │   │ テスト  │   │ 運用    │   │ 廃止    │
 └─────────┘   └─────────┘   └─────────┘   └─────────┘   └─────────┘
      │              │              │              │              │
      ▼              ▼              ▼              ▼              ▼
-  OpenAPI       コード生成     Contract      モニタリング   Deprecation
-  Spectral      モック生成     Schemathesis   メトリクス    Sunset Header
-  レビュー      型安全実装     Pact           アラート      移行ガイド
+  OpenAPI       Code gen       Contract      Monitoring    Deprecation
+  Spectral      Mock gen       Schemathesis  Metrics       Sunset Header
+  Review        Type-safe      Pact          Alerts        Migration guide
+                impl
 
-各フェーズの詳細:
+Phase Details:
 
-1. Design（設計）
-   - ユースケース分析
-   - OpenAPI仕様の作成
-   - Spectralによるリンティング
-   - 設計レビュー（最低2名承認）
-   - Breaking Change検出
+1. Design
+   - Use case analysis
+   - Create OpenAPI spec
+   - Linting with Spectral
+   - Design review (minimum 2 approvals)
+   - Breaking change detection
 
-2. Build（構築）
-   - コード生成（型、クライアント、サーバースタブ）
-   - モックサーバー構築
-   - ハンドラ実装
-   - 並行開発の実施
+2. Build
+   - Code generation (types, client, server stubs)
+   - Build mock server
+   - Implement handlers
+   - Conduct parallel development
 
-3. Test（テスト）
+3. Test
    - Contract Testing
-   - Property-based Testing（Schemathesis）
+   - Property-based Testing (Schemathesis)
    - Integration Testing
    - Performance Testing
    - Security Testing
 
-4. Deploy（運用）
-   - ドキュメント公開
-   - SDK配布
-   - メトリクス収集
-   - エラー率モニタリング
-   - SLA管理
+4. Deploy
+   - Publish documentation
+   - Distribute SDKs
+   - Collect metrics
+   - Monitor error rates
+   - SLA management
 
-5. Retire（廃止）
-   - Deprecationマーキング
-   - Sunset Headerの追加
-   - 移行ガイドの提供
-   - 利用者への通知
-   - 段階的な廃止
+5. Retire
+   - Mark as Deprecated
+   - Add Sunset Header
+   - Provide migration guide
+   - Notify consumers
+   - Gradual retirement
 ```
 
 ```typescript
-// API廃止のための実装例
+// Implementation example for API deprecation
 import express from 'express';
 
-// Deprecation ミドルウェア
+// Deprecation middleware
 function deprecationMiddleware(
   sunsetDate: string,
   alternativeUrl: string,
@@ -3091,7 +3095,7 @@ function deprecationMiddleware(
     res.setHeader('Sunset', new Date(sunsetDate).toUTCString());
     res.setHeader('Link', `<${alternativeUrl}>; rel="successor-version"`);
 
-    // メトリクスに記録
+    // Record in metrics
     metrics.counter('api.deprecated.usage', 1, {
       path: req.path,
       method: req.method,
@@ -3102,11 +3106,11 @@ function deprecationMiddleware(
   };
 }
 
-// 廃止予定エンドポイントの設定
+// Configure deprecated endpoint
 app.get('/v1/users/search',
   deprecationMiddleware('2025-06-01', '/v2/users?search='),
   async (req, res) => {
-    // 旧実装
+    // Old implementation
     const results = await userService.search(req.query.q as string);
     res.json({ data: results });
   }
@@ -3115,63 +3119,63 @@ app.get('/v1/users/search',
 
 ---
 
-## 11. トラブルシューティング
+## 11. Troubleshooting
 
-### 11.1 よくある問題と解決策
+### 11.1 Common Problems and Solutions
 
 ```
-問題1: 仕様とコードの乖離
+Problem 1: Spec and code diverge
 ──────────────────────────
-  症状: 実装がOpenAPI仕様と一致しない
-  原因: 手動実装で仕様の変更が反映されていない
-  解決:
-  - CI/CDでDredd/Schemathesisによる自動検証
-  - コード生成の活用で乖離を防ぐ
-  - Prismのproxyモードで実APIを検証
+  Symptom: Implementation does not match the OpenAPI spec
+  Cause: Manual implementation doesn't reflect spec changes
+  Solution:
+  - Automated validation with Dredd/Schemathesis in CI/CD
+  - Use code generation to prevent divergence
+  - Validate real API with Prism proxy mode
 
-問題2: OpenAPI仕様が肥大化
+Problem 2: OpenAPI spec becomes bloated
 ──────────────────────────
-  症状: 1ファイルが数千行になり管理困難
-  原因: すべての定義を1ファイルに記述
-  解決:
-  - ファイル分割（paths/, schemas/, responses/）
-  - $refによる参照
-  - redocly bundleで統合
-  - タグによる論理的な分類
+  Symptom: A single file grows to thousands of lines and becomes unmanageable
+  Cause: All definitions written in one file
+  Solution:
+  - Split files (paths/, schemas/, responses/)
+  - Use $ref references
+  - Merge with redocly bundle
+  - Logical grouping by tags
 
-問題3: コード生成の型が不正確
+Problem 3: Inaccurate types from code generation
 ──────────────────────────
-  症状: 生成された型がnull許容やオプショナルの扱いが不正確
-  原因: OpenAPI仕様のnullable/required指定が不完全
-  解決:
-  - nullableフィールドの明示的指定
-  - requiredフィールドの正確なリスト
-  - 生成された型のスナップショットテスト
+  Symptom: Generated types handle nullable/optional incorrectly
+  Cause: Incomplete nullable/required specifications in OpenAPI spec
+  Solution:
+  - Explicitly specify nullable fields
+  - Accurate list of required fields
+  - Snapshot tests for generated types
 
-問題4: モックと実装の不一致
+Problem 4: Mock and implementation mismatch
 ──────────────────────────
-  症状: モックサーバーではOKだが実APIで動かない
-  原因: モックが仕様に基づかないカスタム実装
-  解決:
-  - Prismで仕様ベースのモック使用
-  - Contract Testの導入
-  - E2Eテストの追加
+  Symptom: Works against mock but not against real API
+  Cause: Mock is a custom implementation not based on the spec
+  Solution:
+  - Use Prism for spec-based mocks
+  - Introduce Contract Testing
+  - Add E2E tests
 
-問題5: Breaking Changeの検出漏れ
+Problem 5: Missed breaking change detection
 ──────────────────────────
-  症状: APIの変更がクライアントを壊す
-  原因: Breaking Changeの自動検出がない
-  解決:
-  - Opticの導入
-  - CIでの自動チェック
-  - セマンティックバージョニング
-  - 変更ログの自動生成
+  Symptom: API changes break clients
+  Cause: No automatic detection of breaking changes
+  Solution:
+  - Introduce Optic
+  - Automated checks in CI
+  - Semantic versioning
+  - Auto-generate changelogs
 ```
 
-### 11.2 パフォーマンス考慮事項
+### 11.2 Performance Considerations
 
 ```typescript
-// APIレスポンスのキャッシュ制御
+// Cache control for API responses
 import express from 'express';
 
 function cacheControl(maxAge: number, isPublic: boolean = false) {
@@ -3182,7 +3186,7 @@ function cacheControl(maxAge: number, isPublic: boolean = false) {
   };
 }
 
-// ETagベースの条件付きリクエスト
+// ETag-based conditional requests
 function conditionalRequest() {
   return (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const originalJson = res.json.bind(res);
@@ -3202,9 +3206,9 @@ function conditionalRequest() {
   };
 }
 
-// ユーザー一覧（キャッシュ付き）
+// User list with caching
 app.get('/v1/users',
-  cacheControl(60, false),  // 60秒のプライベートキャッシュ
+  cacheControl(60, false),  // 60-second private cache
   conditionalRequest(),
   async (req, res) => {
     const users = await userService.list(req.query);
@@ -3212,9 +3216,9 @@ app.get('/v1/users',
   }
 );
 
-// 静的リソース（長いキャッシュ）
+// Static resources (long cache)
 app.get('/v1/users/:id/avatar',
-  cacheControl(86400, true),  // 24時間のパブリックキャッシュ
+  cacheControl(86400, true),  // 24-hour public cache
   async (req, res) => {
     const avatar = await userService.getAvatar(req.params.id);
     res.type('image/png').send(avatar);
@@ -3224,27 +3228,27 @@ app.get('/v1/users/:id/avatar',
 
 ---
 
-## 12. 実践演習
+## 12. Practical Exercises
 
-### 演習1: ECサイトAPIの設計
+### Exercise 1: Design an E-Commerce API
 
 ```
-要件:
-- 商品カタログのCRUD
-- カートの管理
-- 注文の作成・取得
-- ユーザーレビュー
+Requirements:
+- CRUD for product catalog
+- Cart management
+- Order creation and retrieval
+- User reviews
 
-課題:
-1. OpenAPI仕様を設計してください
-2. Spectralルールを設定してください
-3. Prismでモックサーバーを起動してください
-4. openapi-typescriptで型を生成してください
-5. MSWでフロントエンド用モックを作成してください
+Tasks:
+1. Design the OpenAPI spec
+2. Configure Spectral rules
+3. Start a mock server with Prism
+4. Generate types with openapi-typescript
+5. Create frontend mocks with MSW
 ```
 
 ```yaml
-# 演習1の回答例（商品カタログ部分）
+# Sample answer for Exercise 1 (product catalog section)
 openapi: '3.1.0'
 info:
   title: E-Commerce API
@@ -3278,7 +3282,7 @@ paths:
             enum: [price_asc, price_desc, newest, popular]
       responses:
         '200':
-          description: 商品一覧
+          description: Product list
           content:
             application/json:
               schema:
@@ -3302,7 +3306,7 @@ paths:
           schema: { type: string, format: uuid }
       responses:
         '200':
-          description: 商品詳細
+          description: Product details
           content:
             application/json:
               schema:
@@ -3317,7 +3321,7 @@ paths:
       tags: [Cart]
       responses:
         '200':
-          description: カートの内容
+          description: Cart contents
           content:
             application/json:
               schema:
@@ -3346,7 +3350,7 @@ paths:
                   maximum: 99
       responses:
         '200':
-          description: カートに追加成功
+          description: Added to cart successfully
           content:
             application/json:
               schema:
@@ -3378,7 +3382,7 @@ paths:
                   maxLength: 500
       responses:
         '201':
-          description: 注文作成成功
+          description: Order created successfully
           content:
             application/json:
               schema:
@@ -3395,7 +3399,7 @@ components:
         id: { type: string, format: uuid }
         name: { type: string }
         price: { type: number }
-        currency: { type: string, default: "JPY" }
+        currency: { type: string, default: "USD" }
         thumbnailUrl: { type: string, format: uri }
         category: { type: string }
         inStock: { type: boolean }
@@ -3457,78 +3461,42 @@ components:
         total_pages: { type: integer }
 ```
 
-### 演習2: API仕様のリファクタリング
+### Exercise 2: Refactoring an API Spec
 
 ```
-課題: 以下の問題がある既存API仕様を改善してください
+Task: Improve the following existing API spec that has these problems
 
-問題のある仕様:
-- エラーレスポンスが統一されていない
-- ページネーションがない
-- 認証が定義されていない
-- operationIdがない
-- examplesがない
-- nullable指定が漏れている
+Problems in the spec:
+- Error responses are not unified
+- No pagination
+- Authentication is not defined
+- No operationId
+- No examples
+- Missing nullable specifications
 
-改善のポイント:
-1. RFC 7807 形式のエラーレスポンスを統一定義
-2. ページネーションパラメータとメタ情報を追加
-3. Bearer Token認証を追加
-4. 全エンドポイントにoperationIdを付与
-5. リクエスト/レスポンスのexamplesを追加
-6. nullable: true を必要なフィールドに追加
+Improvement points:
+1. Define unified error responses in RFC 7807 format
+2. Add pagination parameters and meta information
+3. Add Bearer Token authentication
+4. Assign operationId to all endpoints
+5. Add examples for requests/responses
+6. Add nullable: true to fields that require it
 ```
 
 ---
 
 ## FAQ
 
-### Q1: API First設計とCode First設計のどちらを選ぶべきか？
+### Q1: When should I choose API First vs Code First?
 
-プロジェクトの規模と特性によって選択すべきです。フロントエンド・バックエンドが異なるチームで並行開発する場合、複数サービス間の連携がある場合、長期運用が見込まれる場合はAPI Firstが有効です。一方、小規模なプロトタイプや単一チームでのスピード重視の開発ではCode Firstでも問題ありません。ただし、API Firstは初期投資が必要ですが、後のリファクタリングコストを大幅に削減できるため、中長期的には効率的です。
+The choice depends on the project's scale and characteristics. API First is effective when frontend and backend are developed in parallel by different teams, when there are multiple service integrations, or when long-term maintenance is expected. On the other hand, Code First is fine for small prototypes or speed-focused development by a single team. However, while API First requires upfront investment, it significantly reduces future refactoring costs, making it more efficient in the medium to long term.
 
-### Q2: OpenAPI仕様のバージョン（2.0 vs 3.0 vs 3.1）の違いは？
+### Q2: What are the differences between OpenAPI versions (2.0 vs 3.0 vs 3.1)?
 
-OpenAPI 2.0（旧Swagger）は2014年のレガシー仕様であり、現在は非推奨です。OpenAPI 3.0（2017年）はコンポーネント再利用性の向上、複数サーバー対応、リクエストボディの強化などが追加されました。OpenAPI 3.1（2021年）はJSON Schema 2020-12との完全互換性を実現し、webhooksサポート、より柔軟なスキーマ定義が可能になりました。新規プロジェクトでは3.1を選択し、既存プロジェクトも段階的に移行することを推奨します。
+OpenAPI 2.0 (formerly Swagger) is a 2014 legacy spec and is now deprecated. OpenAPI 3.0 (2017) added improved component reusability, multi-server support, and enhanced request body handling. OpenAPI 3.1 (2021) achieves full compatibility with JSON Schema 2020-12, adds webhook support, and enables more flexible schema definitions. For new projects, choose 3.1, and it is recommended to gradually migrate existing projects as well.
 
-### Q3: 小規模プロジェクトでもAPI First設計は有効か？
+### Q3: Is API First design effective for small-scale projects?
 
-小規模プロジェクトでも十分に有効です。OpenAPI仕様を書く初期コストは数時間程度ですが、型安全なコード生成・自動テスト・ドキュメント自動生成によって開発速度が向上します。特にフロントエンド・バックエンド間の認識齟齬を防ぎ、手戻りを削減できる点は小規模でも大きなメリットです。Stoplight StudioやSwagger Editorなどのツールを使えば、GUIで仕様を作成できるため学習コストも低く抑えられます。
-
----
-
-## まとめ
-
-| 概念 | ポイント |
-|------|---------|
-| API First | 実装前に仕様を確定、並行開発を実現 |
-| OpenAPI 3.1 | 業界標準のAPI仕様記述形式、JSON Schema完全互換 |
-| コード生成 | 型安全なクライアント/サーバーを自動生成 |
-| モックサーバー | Prism/MSW等で仕様からモックを自動生成 |
-| リンティング | Spectralで設計品質を自動チェック |
-| Contract Testing | Pact/Schemathesisで仕様準拠を検証 |
-| ドキュメント | Redoc/Scalar/Swagger UIで自動生成 |
-| ライフサイクル | 設計→構築→テスト→運用→廃止の全フェーズ管理 |
-| ガバナンス | 組織全体のスタイルガイドと品質基準 |
-| Breaking Change | Opticで破壊的変更を自動検出 |
+It is fully effective even for small projects. The initial cost of writing an OpenAPI spec is a matter of a few hours, but development speed improves through type-safe code generation, automated testing, and automatic documentation generation. In particular, preventing misunderstandings between frontend and backend, and reducing rework, are major benefits even at small scale. Using tools like Stoplight Studio or Swagger Editor, you can create specs with a GUI, keeping the learning cost low.
 
 ---
-
-## 次に読むべきガイド
-→ [命名規則と慣例](./01-naming-and-conventions.md)
-→ [バージョニング戦略](./02-versioning-strategy.md)
-→ [ページネーションとフィルタリング](./03-pagination-and-filtering.md)
-
----
-
-## 参考文献
-1. OpenAPI Initiative. "OpenAPI Specification 3.1." 2024.
-2. Stoplight. "API Design Guide." 2024.
-3. RFC 7807. "Problem Details for HTTP APIs." IETF, 2016.
-4. SmartBear. "Swagger / OpenAPI Best Practices." 2024.
-5. Pact Foundation. "Consumer-Driven Contract Testing." 2024.
-6. Schemathesis. "Property-Based Testing for APIs." 2024.
-7. Redocly. "API Documentation Best Practices." 2024.
-8. Optic. "API Change Management." 2024.
-9. AsyncAPI Initiative. "AsyncAPI Specification." 2024.
-10. Kong. "API Gateway Configuration." 2024.
