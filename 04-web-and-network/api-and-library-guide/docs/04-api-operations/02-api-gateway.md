@@ -1,213 +1,213 @@
-# APIゲートウェイ
+# API Gateway
 
-> APIゲートウェイはマイクロサービスの統一エントリポイントである。ルーティング、認証の一元化、レート制限、リクエスト変換、サーキットブレーカーまで、APIゲートウェイの設計・構築・運用を体系的に習得する。Kong、AWS API Gateway、Nginx、Envoy を中心に、プロダクション環境で求められる構成パターン、セキュリティ統合、サービスメッシュ連携を包括的に扱う。
-
----
-
-## この章で学ぶこと
-
-- [ ] APIゲートウェイの役割とアーキテクチャを理解する
-- [ ] 主要なゲートウェイ製品（Kong、AWS API Gateway、Nginx、Envoy）を比較し選定できる
-- [ ] BFF（Backend for Frontend）パターンを設計できる
-- [ ] レート制限アルゴリズム（Token Bucket、Sliding Window）を実装できる
-- [ ] 認証統合（JWT、OAuth 2.0、API Key）をゲートウェイ層で構成できる
-- [ ] サーキットブレーカーとリトライ戦略を適切に設定できる
-- [ ] サービスメッシュ（Istio + Envoy）との連携を理解する
-- [ ] 本番環境におけるモニタリングとトラブルシューティングを実践できる
+> An API gateway serves as the unified entry point for microservices. This guide systematically covers the design, construction, and operation of API gateways — from routing, centralized authentication, rate limiting, and request transformation to circuit breakers. Using Kong, AWS API Gateway, Nginx, and Envoy as primary examples, it comprehensively addresses the configuration patterns, security integration, and service mesh coordination required in production environments.
 
 ---
 
-## 前提知識
+## What You Will Learn
 
-- APIモニタリングとロギング → 参照: [モニタリングとロギング](./01-monitoring-and-logging.md)
-- レート制限の概念 → 参照: [レート制限](../03-api-security/01-rate-limiting.md)
-- API認証パターン → 参照: [認証パターン](../03-api-security/00-authentication-patterns.md)
+- [ ] Understand the role and architecture of API gateways
+- [ ] Compare and select among major gateway products (Kong, AWS API Gateway, Nginx, Envoy)
+- [ ] Design BFF (Backend for Frontend) patterns
+- [ ] Implement rate limiting algorithms (Token Bucket, Sliding Window)
+- [ ] Configure authentication integration (JWT, OAuth 2.0, API Key) at the gateway layer
+- [ ] Properly configure circuit breakers and retry strategies
+- [ ] Understand integration with service meshes (Istio + Envoy)
+- [ ] Practice monitoring and troubleshooting in production environments
 
 ---
 
-## 1. APIゲートウェイの役割とアーキテクチャ
+## Prerequisites
 
-### 1.1 なぜAPIゲートウェイが必要か
+- API monitoring and logging → See: [Monitoring and Logging](./01-monitoring-and-logging.md)
+- Rate limiting concepts → See: [Rate Limiting](../03-api-security/01-rate-limiting.md)
+- API authentication patterns → See: [Authentication Patterns](../03-api-security/00-authentication-patterns.md)
 
-マイクロサービスアーキテクチャにおいて、クライアントが個々のサービスに直接通信する場合、以下の問題が生じる。
+---
+
+## 1. API Gateway Role and Architecture
+
+### 1.1 Why API Gateways Are Necessary
+
+In a microservices architecture, when clients communicate directly with individual services, the following problems arise.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ ゲートウェイなしの構成（問題パターン）                        │
+│ Configuration Without a Gateway (Problem Pattern)         │
 │                                                         │
 │  Browser ─── https://user.api.example.com/users         │
 │          ├── https://order.api.example.com/orders        │
 │          ├── https://payment.api.example.com/pay         │
 │          └── https://notify.api.example.com/notifications│
 │                                                         │
-│  問題点:                                                 │
-│   - クライアントが全サービスのエンドポイントを知る必要がある   │
-│   - CORS設定がサービスごとに分散する                       │
-│   - 認証ロジックが各サービスに重複する                      │
-│   - レート制限を統一的に適用できない                        │
-│   - サービスの追加・統合・分割がクライアントに影響する         │
-│   - TLS証明書を各サービスで管理する必要がある                │
+│  Problems:                                              │
+│   - Clients must know the endpoint of every service     │
+│   - CORS configuration is scattered across services     │
+│   - Authentication logic is duplicated in each service  │
+│   - Rate limiting cannot be applied uniformly           │
+│   - Adding, merging, or splitting services affects clients│
+│   - TLS certificates must be managed per service        │
 └─────────────────────────────────────────────────────────┘
 ```
 
-APIゲートウェイはこれらの問題を解決する「正面玄関」として機能する。
+An API gateway acts as the "front door" that resolves all these problems.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ ゲートウェイありの構成（推奨パターン）                          │
+│ Configuration With a Gateway (Recommended Pattern)           │
 │                                                             │
 │           ┌──────────────────┐                               │
-│  Browser ─┤  API Gateway     ├─── User Service (内部)        │
-│  Mobile  ─┤  (単一URL)       ├─── Order Service (内部)       │
-│  3rd App ─┤  api.example.com ├─── Payment Service (内部)     │
+│  Browser ─┤  API Gateway     ├─── User Service (internal)   │
+│  Mobile  ─┤  (single URL)    ├─── Order Service (internal)  │
+│  3rd App ─┤  api.example.com ├─── Payment Service (internal)│
 │           └──────────────────┘                               │
 │                  │                                           │
-│                  ├── TLS終端                                  │
-│                  ├── 認証・認可                                │
-│                  ├── レート制限                                │
-│                  ├── ルーティング                              │
-│                  ├── リクエスト/レスポンス変換                   │
-│                  ├── ロードバランシング                         │
-│                  ├── キャッシュ                                │
-│                  ├── ログ・メトリクス                           │
-│                  └── サーキットブレーカー                       │
+│                  ├── TLS termination                         │
+│                  ├── Authentication & authorization          │
+│                  ├── Rate limiting                           │
+│                  ├── Routing                                 │
+│                  ├── Request / response transformation       │
+│                  ├── Load balancing                          │
+│                  ├── Caching                                 │
+│                  ├── Logging & metrics                       │
+│                  └── Circuit breaker                         │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 APIゲートウェイの8つの主要機能
+### 1.2 Eight Key Functions of an API Gateway
 
 ```
-APIゲートウェイ = マイクロサービスへの単一エントリポイント
+API Gateway = Single entry point to microservices
 
-  クライアント → API Gateway → User Service
-                             → Order Service
-                             → Payment Service
-                             → Notification Service
+  Client → API Gateway → User Service
+                       → Order Service
+                       → Payment Service
+                       → Notification Service
 
-主要機能:
-  (1) ルーティング:
+Key functions:
+  (1) Routing:
      → /users/* → User Service
      → /orders/* → Order Service
-     → パスベース、ヘッダーベース、クエリパラメータベースのルーティング
-     → バージョニング: /v1/* → Service v1, /v2/* → Service v2
+     → Path-based, header-based, and query-parameter-based routing
+     → Versioning: /v1/* → Service v1, /v2/* → Service v2
 
-  (2) 認証・認可の一元化:
-     → JWT検証をゲートウェイで実施
-     → 各サービスは認証済みリクエストのみ受信
-     → API Key の検証
-     → OAuth 2.0 トークンイントロスペクション
-     → mTLS によるサービス間認証
+  (2) Centralized authentication & authorization:
+     → JWT validation performed at the gateway
+     → Each service only receives authenticated requests
+     → API Key validation
+     → OAuth 2.0 token introspection
+     → mTLS for inter-service authentication
 
-  (3) レート制限:
-     → グローバルなレート制限
-     → クライアント/プラン別の制限
-     → Token Bucket / Sliding Window アルゴリズム
-     → DDoS防御の第一層
+  (3) Rate limiting:
+     → Global rate limiting
+     → Per-client / per-plan limits
+     → Token Bucket / Sliding Window algorithms
+     → First line of defense against DDoS
 
-  (4) リクエスト/レスポンス変換:
-     → ヘッダーの追加/削除
-     → リクエストボディの変換（XML → JSON 等）
-     → レスポンスの集約（API Composition）
-     → GraphQL → REST 変換
+  (4) Request / response transformation:
+     → Adding / removing headers
+     → Request body transformation (XML → JSON, etc.)
+     → Response aggregation (API Composition)
+     → GraphQL → REST transformation
 
-  (5) ロードバランシング:
-     → サービスインスタンス間の分散
-     → ラウンドロビン、最小接続数、重み付き
-     → ヘルスチェック（アクティブ/パッシブ）
+  (5) Load balancing:
+     → Distribution across service instances
+     → Round-robin, least connections, weighted
+     → Health checks (active / passive)
 
-  (6) キャッシュ:
-     → レスポンスキャッシュ（TTL制御）
-     → CDN統合（CloudFront, Fastly）
-     → 条件付きリクエスト（ETag, Last-Modified）
+  (6) Caching:
+     → Response caching (TTL control)
+     → CDN integration (CloudFront, Fastly)
+     → Conditional requests (ETag, Last-Modified)
 
-  (7) 監視・ログ:
-     → アクセスログ（構造化ログ）
-     → メトリクス収集（レイテンシ、エラー率、スループット）
-     → 分散トレーシング（OpenTelemetry, Jaeger）
-     → アラート統合（PagerDuty, Slack）
+  (7) Monitoring & logging:
+     → Access logs (structured logging)
+     → Metrics collection (latency, error rate, throughput)
+     → Distributed tracing (OpenTelemetry, Jaeger)
+     → Alert integration (PagerDuty, Slack)
 
-  (8) サーキットブレーカー:
-     → 障害サービスへのリクエストを遮断
-     → フォールバックレスポンス
-     → 障害の伝播を防止（カスケード障害の回避）
+  (8) Circuit breaker:
+     → Block requests to failing services
+     → Fallback responses
+     → Prevent failure propagation (avoid cascade failures)
 ```
 
-### 1.3 デプロイメントパターン
+### 1.3 Deployment Patterns
 
-APIゲートウェイのデプロイには複数のパターンがある。各パターンの特性を理解して適切に選択する。
+API gateways can be deployed using multiple patterns. Understand the characteristics of each pattern and choose appropriately.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│ パターン1: 集中型ゲートウェイ                                     │
+│ Pattern 1: Centralized Gateway                                  │
 │                                                                │
 │   Client → [API Gateway] → Service A                           │
 │                           → Service B                           │
 │                           → Service C                           │
 │                                                                │
-│   特徴: 単一のゲートウェイが全トラフィックを処理                     │
-│   利点: シンプル、一元管理                                        │
-│   欠点: 単一障害点、チーム間のボトルネック                           │
+│   Characteristics: A single gateway handles all traffic        │
+│   Pros: Simple, centralized management                         │
+│   Cons: Single point of failure, bottleneck for teams          │
 ├────────────────────────────────────────────────────────────────┤
-│ パターン2: BFF（Backend for Frontend）                           │
+│ Pattern 2: BFF (Backend for Frontend)                          │
 │                                                                │
 │   Web    → [Web BFF]    → Service A / B / C                    │
 │   Mobile → [Mobile BFF] → Service A / B / C                    │
 │   3rd    → [Public GW]  → Service A / B / C                    │
 │                                                                │
-│   特徴: クライアント種別ごとに専用ゲートウェイ                      │
-│   利点: クライアント最適化、チーム独立                              │
-│   欠点: 管理コスト増大、ロジック重複リスク                          │
+│   Characteristics: Dedicated gateway per client type           │
+│   Pros: Client optimization, team independence                 │
+│   Cons: Increased management cost, risk of logic duplication   │
 ├────────────────────────────────────────────────────────────────┤
-│ パターン3: 2層ゲートウェイ                                        │
+│ Pattern 3: Two-Tier Gateway                                    │
 │                                                                │
 │   Client → [Edge GW] → [Internal GW A] → Service A            │
 │                       → [Internal GW B] → Service B            │
 │                       → [Internal GW C] → Service C            │
 │                                                                │
-│   特徴: Edge層（外部向け）+ 内部層（ドメイン別）                    │
-│   利点: 関心の分離、ドメインチームの自律性                          │
-│   欠点: レイテンシ増加、構成の複雑化                               │
+│   Characteristics: Edge layer (external) + internal layer (domain-based) │
+│   Pros: Separation of concerns, domain team autonomy           │
+│   Cons: Increased latency, more complex configuration          │
 └────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. ゲートウェイ製品の詳細比較
+## 2. Detailed Comparison of Gateway Products
 
-### 2.1 主要製品の機能比較
+### 2.1 Feature Comparison of Major Products
 
-| 項目 | AWS API Gateway | Kong | Nginx (Plus) | Envoy | Traefik | Apigee |
+| Item | AWS API Gateway | Kong | Nginx (Plus) | Envoy | Traefik | Apigee |
 |------|----------------|------|-------------|-------|---------|--------|
-| タイプ | マネージド | OSS/商用 | OSS/商用 | OSS | OSS/商用 | マネージド |
-| デプロイ | サーバーレス | セルフホスト/K8s | セルフホスト/K8s | サイドカー/K8s | セルフホスト/K8s | クラウド |
-| プロトコル | HTTP, WebSocket | HTTP, gRPC, WebSocket | HTTP, TCP, UDP | HTTP, gRPC, TCP | HTTP, gRPC, TCP | HTTP, gRPC |
-| プラグイン数 | Lambda連携中心 | 300+ (Hub) | モジュール式 | フィルタチェーン | ミドルウェア | ポリシー |
-| 設定方式 | Console/CloudFormation/CDK | Admin API/declarative YAML | conf ファイル | xDS API / YAML | YAML / Label | Console/API |
-| K8s 統合 | なし | Kong Ingress Controller | Ingress Controller | Istio / Gateway API | Ingress / CRD | Apigee Adapter |
-| サービスメッシュ | なし | Kong Mesh (Kuma) | なし | Istio データプレーン | Traefik Mesh | Apigee Service Mesh |
-| コスト | 従量課金 | OSS無料/Enterprise有料 | OSS無料/Plus有料 | 無料 | OSS無料/Enterprise有料 | 従量課金 |
-| 学習コスト | 低 | 中 | 低 | 高 | 低〜中 | 中〜高 |
-| 最適用途 | AWS環境 | 汎用 | 高性能リバースプロキシ | サービスメッシュ | コンテナ/動的環境 | エンタープライズAPI管理 |
+| Type | Managed | OSS/Commercial | OSS/Commercial | OSS | OSS/Commercial | Managed |
+| Deployment | Serverless | Self-hosted/K8s | Self-hosted/K8s | Sidecar/K8s | Self-hosted/K8s | Cloud |
+| Protocols | HTTP, WebSocket | HTTP, gRPC, WebSocket | HTTP, TCP, UDP | HTTP, gRPC, TCP | HTTP, gRPC, TCP | HTTP, gRPC |
+| Plugins | Lambda-centric | 300+ (Hub) | Modular | Filter chain | Middleware | Policy |
+| Configuration | Console/CloudFormation/CDK | Admin API/declarative YAML | conf file | xDS API / YAML | YAML / Label | Console/API |
+| K8s integration | None | Kong Ingress Controller | Ingress Controller | Istio / Gateway API | Ingress / CRD | Apigee Adapter |
+| Service mesh | None | Kong Mesh (Kuma) | None | Istio data plane | Traefik Mesh | Apigee Service Mesh |
+| Cost | Pay-per-use | OSS free/Enterprise paid | OSS free/Plus paid | Free | OSS free/Enterprise paid | Pay-per-use |
+| Learning curve | Low | Medium | Low | High | Low–Medium | Medium–High |
+| Best for | AWS environments | General purpose | High-performance reverse proxy | Service mesh | Containers/dynamic environments | Enterprise API management |
 
-### 2.2 パフォーマンス特性の比較
+### 2.2 Performance Characteristics Comparison
 
-| 指標 | AWS API Gateway | Kong | Nginx | Envoy |
-|------|----------------|------|-------|-------|
-| レイテンシ（P99） | 10-30ms 追加 | 1-5ms 追加 | < 1ms 追加 | 1-3ms 追加 |
-| スループット | 10,000 RPS (デフォルト) | 50,000+ RPS | 100,000+ RPS | 50,000+ RPS |
-| メモリ使用量 | マネージド | 200-500MB | 50-100MB | 100-300MB |
-| 水平スケーリング | 自動 | 手動/K8s HPA | 手動/K8s HPA | Istio で自動 |
-| ウォームアップ | コールドスタートあり | 不要 | 不要 | 不要 |
+| Metric | AWS API Gateway | Kong | Nginx | Envoy |
+|--------|----------------|------|-------|-------|
+| Latency (P99) | +10–30ms | +1–5ms | <+1ms | +1–3ms |
+| Throughput | 10,000 RPS (default) | 50,000+ RPS | 100,000+ RPS | 50,000+ RPS |
+| Memory usage | Managed | 200–500MB | 50–100MB | 100–300MB |
+| Horizontal scaling | Automatic | Manual/K8s HPA | Manual/K8s HPA | Automatic via Istio |
+| Warm-up | Cold starts occur | Not needed | Not needed | Not needed |
 
-### 2.3 選定フローチャート
+### 2.3 Selection Flowchart
 
 ```
                        ┌─────────────────┐
-                       │ ゲートウェイ選定  │
+                       │ Gateway Selection│
                        └────────┬────────┘
                                 │
                      ┌──────────▼──────────┐
-                     │ AWS 環境のみ？        │
+                     │ AWS environment only?│
                      └─────┬─────────┬─────┘
                        Yes │         │ No
                            │         │
@@ -215,64 +215,64 @@ APIゲートウェイのデプロイには複数のパターンがある。各�
                    │ AWS API GW │     │
                    └───────────┘     │
                               ┌──────▼──────────┐
-                              │ K8s を使用？      │
+                              │ Using K8s?       │
                               └──┬──────────┬───┘
                              Yes │          │ No
                                  │          │
                         ┌────────▼────┐  ┌──▼──────────┐
-                        │サービスメッシュ│  │ Nginx       │
-                        │が必要？      │  │ (シンプル)   │
+                        │ Service mesh│  │ Nginx       │
+                        │ needed?     │  │ (simple)    │
                         └──┬─────┬───┘  └─────────────┘
                        Yes │     │ No
                            │     │
                   ┌────────▼──┐ ┌▼───────────┐
                   │ Envoy +   │ │ Kong       │
-                  │ Istio     │ │ (プラグイン)│
+                  │ Istio     │ │ (plugins)  │
                   └───────────┘ └────────────┘
 ```
 
 ---
 
-## 3. AWS API Gateway 詳細
+## 3. AWS API Gateway in Detail
 
-### 3.1 APIタイプの選択
+### 3.1 Choosing an API Type
 
 ```
-AWS API Gateway の3種類:
+Three types of AWS API Gateway:
 
-  (1) HTTP API（推奨・低コスト）:
-     → REST API の 70% 安い料金
-     → 低レイテンシ（REST APIより高速）
-     → JWT Authorizer（ネイティブサポート）
-     → Lambda プロキシ統合
-     → CORS 自動設定
-     → 制限: リクエスト/レスポンス変換なし、Usage Plan なし
+  (1) HTTP API (recommended – low cost):
+     → 70% cheaper than REST API
+     → Low latency (faster than REST API)
+     → JWT Authorizer (native support)
+     → Lambda proxy integration
+     → Automatic CORS configuration
+     → Limitations: no request/response transformation, no Usage Plans
 
-  (2) REST API（全機能）:
-     → リクエスト/レスポンス変換（VTL テンプレート）
-     → APIキー + Usage Plan（API課金管理）
-     → AWS WAF 統合
-     → キャッシュ機能（0.5GB〜237GB）
-     → リクエストバリデーション
-     → カナリアリリース対応
+  (2) REST API (full feature set):
+     → Request/response transformation (VTL templates)
+     → API keys + Usage Plans (API billing management)
+     → AWS WAF integration
+     → Caching (0.5GB–237GB)
+     → Request validation
+     → Canary release support
 
   (3) WebSocket API:
-     → 双方向リアルタイム通信
-     → $connect / $disconnect / $default ルート
-     → チャット、ゲーム、金融リアルタイムフィード
-     → Lambda / DynamoDB バックエンド
-     → Connection管理API（@connections）
+     → Bidirectional real-time communication
+     → $connect / $disconnect / $default routes
+     → Chat, gaming, financial real-time feeds
+     → Lambda / DynamoDB backends
+     → Connection management API (@connections)
 
-選択基準:
-  HTTP API ← シンプルなREST + JWT認証で十分な場合
-  REST API ← Usage Plan、WAF、変換が必要な場合
-  WebSocket API ← リアルタイム双方向通信が必要な場合
+Selection criteria:
+  HTTP API ← When simple REST + JWT authentication is sufficient
+  REST API ← When Usage Plans, WAF, or transformation are needed
+  WebSocket API ← When real-time bidirectional communication is needed
 ```
 
-### 3.2 AWS SAM によるデプロイ
+### 3.2 Deployment with AWS SAM
 
 ```yaml
-# AWS SAM テンプレート（本番品質）
+# AWS SAM template (production quality)
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Production API Gateway with Authentication and Rate Limiting
@@ -386,7 +386,7 @@ Resources:
             Path: /users
             Method: POST
 
-  # Health Check (認証なし)
+  # Health Check (no authentication)
   HealthCheckFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -411,10 +411,10 @@ Outputs:
     Value: !Ref ApiGateway
 ```
 
-### 3.3 カスタムドメインとステージ管理
+### 3.3 Custom Domains and Stage Management
 
 ```yaml
-# カスタムドメイン設定
+# Custom domain configuration
 Resources:
   ApiDomainName:
     Type: AWS::ApiGatewayV2::DomainName
@@ -433,7 +433,7 @@ Resources:
       Stage: !Ref Environment
       ApiMappingKey: v1
 
-  # Route 53 レコード
+  # Route 53 record
   DnsRecord:
     Type: AWS::Route53::RecordSet
     Properties:
@@ -445,52 +445,52 @@ Resources:
         HostedZoneId: !GetAtt ApiDomainName.RegionalHostedZoneId
 ```
 
-### 3.4 AWS API Gateway の制限事項
+### 3.4 AWS API Gateway Limitations
 
 ```
-AWS API Gateway の主要制限:
+Key limits of AWS API Gateway:
 
   HTTP API:
-  ├── ペイロードサイズ: 10 MB
-  ├── タイムアウト: 30 秒
-  ├── リクエスト/秒: 10,000（デフォルト、引き上げ可能）
-  ├── ルート数: 300
-  ├── ステージ数: 10
-  └── Authorizer: JWT のみ（Lambda Authorizer なし → REST API を検討）
+  ├── Payload size: 10 MB
+  ├── Timeout: 30 seconds
+  ├── Requests/second: 10,000 (default, can be increased)
+  ├── Route count: 300
+  ├── Stage count: 10
+  └── Authorizer: JWT only (no Lambda Authorizer → consider REST API)
 
   REST API:
-  ├── ペイロードサイズ: 10 MB
-  ├── タイムアウト: 29 秒
-  ├── リクエスト/秒: 10,000（デフォルト、引き上げ可能）
-  ├── リソース数: 300
-  ├── ステージ数: 10
-  ├── API Key 数: 10,000
-  └── Usage Plan 数: 300
+  ├── Payload size: 10 MB
+  ├── Timeout: 29 seconds
+  ├── Requests/second: 10,000 (default, can be increased)
+  ├── Resource count: 300
+  ├── Stage count: 10
+  ├── API key count: 10,000
+  └── Usage Plan count: 300
 
   WebSocket API:
-  ├── メッセージサイズ: 128 KB（送信）/ 32 KB（受信フレーム）
-  ├── 接続時間: 最大 2 時間
-  ├── アイドルタイムアウト: 10 分
-  └── 同時接続数: デフォルト制限あり
+  ├── Message size: 128 KB (send) / 32 KB (receive frame)
+  ├── Connection time: max 2 hours
+  ├── Idle timeout: 10 minutes
+  └── Concurrent connections: subject to default limits
 
-  共通の注意点:
-  → コールドスタート: 初回リクエストでレイテンシが増加する場合がある
-  → VPC Link: VPC内リソースへの接続にはVPC Linkが必要
-  → バイナリデータ: Content-Type のマッピングが必要
-  → CORS: HTTP API は自動、REST API は手動設定が必要
+  Common notes:
+  → Cold starts: initial requests may have increased latency
+  → VPC Link: required to connect to resources inside a VPC
+  → Binary data: Content-Type mapping is required
+  → CORS: automatic for HTTP API, manual configuration required for REST API
 ```
 
 ---
 
-## 4. Kong Gateway 詳細
+## 4. Kong Gateway in Detail
 
-### 4.1 アーキテクチャ
+### 4.1 Architecture
 
-Kong はコントロールプレーンとデータプレーンに分離されたアーキテクチャを持つ。
+Kong has an architecture separated into a control plane and a data plane.
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│ Kong アーキテクチャ                                          │
+│ Kong Architecture                                           │
 │                                                            │
 │  ┌─────────────────────────────────────┐                   │
 │  │ Control Plane                       │                   │
@@ -499,7 +499,7 @@ Kong はコントロールプレーンとデータプレーンに分離された
 │  │  │ :8001    │  │ (PostgreSQL)     │  │                   │
 │  │  └─────────┘  └──────────────────┘  │                   │
 │  └──────────────────┬──────────────────┘                   │
-│                     │ 設定同期                              │
+│                     │ Configuration sync                    │
 │  ┌──────────────────▼──────────────────┐                   │
 │  │ Data Plane (Proxy)                  │                   │
 │  │  ┌─────────┐  ┌──────────────────┐  │                   │
@@ -509,21 +509,21 @@ Kong はコントロールプレーンとデータプレーンに分離された
 │  │  └─────────┘  └──────────────────┘  │                   │
 │  └─────────────────────────────────────┘                   │
 │                                                            │
-│  DB-less Mode: YAML設定のみでDB不要（推奨: K8s環境）          │
-│  Hybrid Mode: CP/DP分離でセキュリティ強化                      │
+│  DB-less Mode: YAML config only, no DB required (recommended for K8s)  │
+│  Hybrid Mode: CP/DP separation for enhanced security       │
 └────────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 宣言的設定（DB-less モード）
+### 4.2 Declarative Configuration (DB-less Mode)
 
 ```yaml
-# kong.yml - 本番品質の宣言的設定
+# kong.yml - production-quality declarative configuration
 _format_version: "3.0"
 _transform: true
 
-# サービス定義
+# Service definitions
 services:
-  # ユーザーサービス
+  # User service
   - name: user-service
     url: http://user-service:3000
     connect_timeout: 5000
@@ -546,7 +546,7 @@ services:
           x-api-version:
             - v1
     plugins:
-      # JWT 認証
+      # JWT authentication
       - name: jwt
         config:
           secret_is_base64: false
@@ -555,7 +555,7 @@ services:
           header_names:
             - Authorization
           key_claim_name: iss
-      # レート制限
+      # Rate limiting
       - name: rate-limiting
         config:
           minute: 100
@@ -588,14 +588,14 @@ services:
             - X-RateLimit-Limit
           max_age: 86400
           credentials: true
-      # リクエスト変換
+      # Request transformation
       - name: request-transformer
         config:
           add:
             headers:
               - "X-Gateway-Version:kong-3.x"
               - "X-Forwarded-Service:user-service"
-      # レスポンス変換
+      # Response transformation
       - name: response-transformer
         config:
           remove:
@@ -608,7 +608,7 @@ services:
               - "X-Frame-Options:DENY"
               - "Strict-Transport-Security:max-age=31536000; includeSubDomains"
 
-  # 注文サービス
+  # Order service
   - name: order-service
     url: http://order-service:3000
     connect_timeout: 5000
@@ -636,7 +636,7 @@ services:
           allowed_payload_size: 5
           size_unit: megabytes
 
-  # ヘルスチェック（認証不要）
+  # Health check (no authentication required)
   - name: health-service
     url: http://health-aggregator:3000
     routes:
@@ -646,30 +646,30 @@ services:
         methods:
           - GET
 
-# グローバルプラグイン
+# Global plugins
 plugins:
-  # 全サービス共通のログ
+  # Common logging for all services
   - name: tcp-log
     config:
       host: log-collector
       port: 5140
       tls: false
       keepalive: 60000
-  # Prometheus メトリクス
+  # Prometheus metrics
   - name: prometheus
     config:
       per_consumer: true
       status_code_metrics: true
       latency_metrics: true
       bandwidth_metrics: true
-  # Bot 検出
+  # Bot detection
   - name: bot-detection
     config:
       deny:
         - "curl"
         - "wget"
 
-# コンシューマー定義（API利用者）
+# Consumer definitions (API users)
 consumers:
   - username: mobile-app
     keyauth_credentials:
@@ -697,7 +697,7 @@ consumers:
             host: redis
             port: 6379
 
-# アップストリーム定義（ロードバランシング）
+# Upstream definitions (load balancing)
 upstreams:
   - name: user-service
     algorithm: round-robin
@@ -731,7 +731,7 @@ upstreams:
 ### 4.3 Kong on Kubernetes
 
 ```yaml
-# Kong Ingress Controller を使った K8s 設定
+# K8s configuration using Kong Ingress Controller
 apiVersion: configuration.konghq.com/v1
 kind: KongPlugin
 metadata:
@@ -807,12 +807,12 @@ spec:
 
 ---
 
-## 5. Nginx によるAPIゲートウェイ構成
+## 5. Nginx as an API Gateway
 
-### 5.1 基本構成
+### 5.1 Basic Configuration
 
 ```nginx
-# /etc/nginx/nginx.conf - APIゲートウェイ構成
+# /etc/nginx/nginx.conf - API gateway configuration
 user nginx;
 worker_processes auto;
 error_log /var/log/nginx/error.log warn;
@@ -825,12 +825,12 @@ events {
 }
 
 http {
-    # 基本設定
+    # Basic settings
     include /etc/nginx/mime.types;
     default_type application/json;
     charset utf-8;
 
-    # ログフォーマット（JSON構造化ログ）
+    # Log format (JSON structured logging)
     log_format json_combined escape=json
         '{'
             '"time":"$time_iso8601",'
@@ -848,42 +848,42 @@ http {
 
     access_log /var/log/nginx/access.log json_combined;
 
-    # パフォーマンスチューニング
+    # Performance tuning
     sendfile on;
     tcp_nopush on;
     tcp_nodelay on;
     keepalive_timeout 65;
     keepalive_requests 1000;
 
-    # バッファ設定
+    # Buffer settings
     client_body_buffer_size 16k;
     client_max_body_size 10m;
     proxy_buffer_size 16k;
     proxy_buffers 4 32k;
     proxy_busy_buffers_size 64k;
 
-    # Gzip圧縮
+    # Gzip compression
     gzip on;
     gzip_vary on;
     gzip_min_length 1024;
     gzip_types application/json application/xml text/plain;
 
-    # セキュリティヘッダー
+    # Security headers
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "DENY" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
-    # レート制限ゾーン
+    # Rate limiting zones
     limit_req_zone $binary_remote_addr zone=api_global:10m rate=100r/s;
     limit_req_zone $http_x_api_key zone=api_key:10m rate=50r/s;
     limit_req_zone $binary_remote_addr zone=auth_endpoint:10m rate=10r/s;
 
-    # 接続数制限
+    # Connection count limit
     limit_conn_zone $binary_remote_addr zone=conn_limit:10m;
 
-    # アップストリーム定義
+    # Upstream definitions
     upstream user_service {
         least_conn;
         server user-service-1:3000 weight=5 max_fails=3 fail_timeout=30s;
@@ -905,7 +905,7 @@ http {
         keepalive 8;
     }
 
-    # キャッシュ設定
+    # Cache settings
     proxy_cache_path /var/cache/nginx/api_cache
         levels=1:2
         keys_zone=api_cache:10m
@@ -913,7 +913,7 @@ http {
         inactive=60m
         use_temp_path=off;
 
-    # SSL設定
+    # SSL settings
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;
     ssl_prefer_server_ciphers off;
@@ -921,7 +921,7 @@ http {
     ssl_session_timeout 1d;
     ssl_session_tickets off;
 
-    # HTTPS サーバー
+    # HTTPS server
     server {
         listen 443 ssl http2;
         server_name api.example.com;
@@ -929,13 +929,13 @@ http {
         ssl_certificate /etc/nginx/ssl/fullchain.pem;
         ssl_certificate_key /etc/nginx/ssl/privkey.pem;
 
-        # リクエストID生成
+        # Request ID generation
         set $request_id $http_x_request_id;
         if ($request_id = '') {
             set $request_id $request_id;
         }
 
-        # ヘルスチェック（認証不要）
+        # Health check (no authentication required)
         location /health {
             access_log off;
             return 200 '{"status":"healthy"}';
@@ -952,10 +952,10 @@ http {
                 return 204;
             }
 
-            # 以下のlocationブロックへフォールスルー
+            # Fall through to the location blocks below
         }
 
-        # ユーザーAPI
+        # Users API
         location /api/v1/users {
             limit_req zone=api_global burst=20 nodelay;
             limit_conn conn_limit 50;
@@ -971,7 +971,7 @@ http {
             proxy_read_timeout 30s;
             proxy_send_timeout 10s;
 
-            # レスポンスキャッシュ（GETリクエストのみ）
+            # Response cache (GET requests only)
             proxy_cache api_cache;
             proxy_cache_methods GET;
             proxy_cache_valid 200 5m;
@@ -981,7 +981,7 @@ http {
             add_header X-Cache-Status $upstream_cache_status;
         }
 
-        # 注文API
+        # Orders API
         location /api/v1/orders {
             limit_req zone=api_global burst=10 nodelay;
 
@@ -997,7 +997,7 @@ http {
             proxy_send_timeout 10s;
         }
 
-        # 決済API（厳しいレート制限）
+        # Payments API (strict rate limiting)
         location /api/v1/payments {
             limit_req zone=auth_endpoint burst=5 nodelay;
             limit_conn conn_limit 10;
@@ -1013,12 +1013,12 @@ http {
             proxy_read_timeout 120s;
             proxy_send_timeout 30s;
 
-            # キャッシュ無効
+            # Cache disabled
             proxy_no_cache 1;
             proxy_cache_bypass 1;
         }
 
-        # エラーハンドリング
+        # Error handling
         error_page 429 = @rate_limited;
         location @rate_limited {
             default_type application/json;
@@ -1032,7 +1032,7 @@ http {
         }
     }
 
-    # HTTP → HTTPS リダイレクト
+    # HTTP → HTTPS redirect
     server {
         listen 80;
         server_name api.example.com;
@@ -1043,30 +1043,30 @@ http {
 
 ---
 
-## 6. レート制限の設計と実装
+## 6. Rate Limiting Design and Implementation
 
-### 6.1 レート制限アルゴリズムの比較
+### 6.1 Comparison of Rate Limiting Algorithms
 
-| アルゴリズム | 仕組み | 精度 | メモリ | バースト許容 | 実装難度 |
-|------------|--------|------|--------|------------|---------|
-| Fixed Window | 固定時間窓でカウント | 低 | 小 | 窓境界で2倍 | 低 |
-| Sliding Window Log | リクエスト時刻を全記録 | 高 | 大 | なし | 中 |
-| Sliding Window Counter | 前窓と現窓の加重平均 | 中-高 | 小 | 小 | 中 |
-| Token Bucket | トークン消費方式 | 高 | 小 | 制御可能 | 中 |
-| Leaky Bucket | 一定レートで流出 | 高 | 小 | なし | 中 |
+| Algorithm | Mechanism | Precision | Memory | Burst Allowed | Implementation Complexity |
+|-----------|-----------|-----------|--------|---------------|--------------------------|
+| Fixed Window | Count within fixed time window | Low | Small | 2x at window boundary | Low |
+| Sliding Window Log | Record every request timestamp | High | Large | None | Medium |
+| Sliding Window Counter | Weighted average of previous and current window | Medium–High | Small | Small | Medium |
+| Token Bucket | Token consumption model | High | Small | Controllable | Medium |
+| Leaky Bucket | Drain at a fixed rate | High | Small | None | Medium |
 
-### 6.2 Token Bucket アルゴリズムの実装
+### 6.2 Token Bucket Algorithm Implementation
 
 ```javascript
-// Token Bucket レート制限（Redis ベース）
+// Token Bucket rate limiter (Redis-based)
 const Redis = require('ioredis');
 
 class TokenBucketRateLimiter {
   /**
    * @param {Object} options
-   * @param {number} options.maxTokens - バケットの最大容量
-   * @param {number} options.refillRate - 1秒あたりのトークン補充数
-   * @param {number} options.tokensPerRequest - 1リクエストで消費するトークン数
+   * @param {number} options.maxTokens - Maximum bucket capacity
+   * @param {number} options.refillRate - Tokens refilled per second
+   * @param {number} options.tokensPerRequest - Tokens consumed per request
    */
   constructor(options) {
     this.redis = new Redis({
@@ -1082,15 +1082,15 @@ class TokenBucketRateLimiter {
   }
 
   /**
-   * レート制限チェック
-   * @param {string} identifier - クライアント識別子（IP, API Key, User ID）
+   * Rate limit check
+   * @param {string} identifier - Client identifier (IP, API Key, User ID)
    * @returns {Object} { allowed, remaining, retryAfter, limit }
    */
   async checkLimit(identifier) {
     const key = `${this.keyPrefix}${identifier}`;
     const now = Date.now();
 
-    // Luaスクリプトでアトミックに実行
+    // Execute atomically via Lua script
     const luaScript = `
       local key = KEYS[1]
       local max_tokens = tonumber(ARGV[1])
@@ -1102,18 +1102,18 @@ class TokenBucketRateLimiter {
       local tokens = tonumber(bucket[1])
       local last_refill = tonumber(bucket[2])
 
-      -- 初回アクセスの場合
+      -- First access
       if tokens == nil then
         tokens = max_tokens
         last_refill = now
       end
 
-      -- トークン補充
+      -- Refill tokens
       local elapsed = (now - last_refill) / 1000
       local new_tokens = elapsed * refill_rate
       tokens = math.min(max_tokens, tokens + new_tokens)
 
-      -- トークン消費判定
+      -- Determine token consumption
       local allowed = 0
       local remaining = tokens
       local retry_after = 0
@@ -1127,7 +1127,7 @@ class TokenBucketRateLimiter {
         remaining = tokens
       end
 
-      -- 更新
+      -- Update
       redis.call('HMSET', key, 'tokens', tokens, 'last_refill', now)
       redis.call('EXPIRE', key, math.ceil(max_tokens / refill_rate) + 10)
 
@@ -1148,7 +1148,7 @@ class TokenBucketRateLimiter {
   }
 
   /**
-   * Express ミドルウェア
+   * Express middleware
    */
   middleware(identifierFn) {
     return async (req, res, next) => {
@@ -1159,7 +1159,7 @@ class TokenBucketRateLimiter {
       try {
         const result = await this.checkLimit(identifier);
 
-        // レート制限ヘッダーを設定
+        // Set rate limit headers
         res.set('X-RateLimit-Limit', String(result.limit));
         res.set('X-RateLimit-Remaining', String(result.remaining));
 
@@ -1175,7 +1175,7 @@ class TokenBucketRateLimiter {
 
         next();
       } catch (error) {
-        // Redis障害時はリクエストを許可（fault-tolerant）
+        // Allow request when Redis fails (fault-tolerant)
         console.error('Rate limiter error:', error.message);
         next();
       }
@@ -1183,21 +1183,21 @@ class TokenBucketRateLimiter {
   }
 }
 
-// 利用例
+// Usage example
 const rateLimiter = new TokenBucketRateLimiter({
-  maxTokens: 100,     // バケット容量
-  refillRate: 10,      // 毎秒10トークン補充
-  tokensPerRequest: 1, // 1リクエスト = 1トークン
+  maxTokens: 100,     // Bucket capacity
+  refillRate: 10,      // Refill 10 tokens per second
+  tokensPerRequest: 1, // 1 request = 1 token
 });
 
-// Express での利用
+// Use with Express
 const express = require('express');
 const app = express();
 
-// グローバルレート制限
+// Global rate limiting
 app.use(rateLimiter.middleware());
 
-// エンドポイント別のレート制限
+// Per-endpoint rate limiting
 const strictLimiter = new TokenBucketRateLimiter({
   maxTokens: 10,
   refillRate: 1,
@@ -1210,14 +1210,14 @@ app.post('/api/v1/auth/login',
 );
 ```
 
-### 6.3 Sliding Window Counter の実装
+### 6.3 Sliding Window Counter Implementation
 
 ```javascript
-// Sliding Window Counter（精度とメモリ効率のバランス型）
+// Sliding Window Counter (balanced precision and memory efficiency)
 class SlidingWindowRateLimiter {
   constructor(options) {
     this.redis = new Redis(options.redisUrl || 'redis://localhost:6379');
-    this.windowSize = options.windowSize || 60; // 秒
+    this.windowSize = options.windowSize || 60; // seconds
     this.maxRequests = options.maxRequests || 100;
     this.keyPrefix = 'ratelimit:sliding:';
   }
@@ -1239,7 +1239,7 @@ class SlidingWindowRateLimiter {
       local current_count = tonumber(redis.call('GET', current_key) or '0')
       local previous_count = tonumber(redis.call('GET', previous_key) or '0')
 
-      -- 加重平均による推定レート
+      -- Estimated rate via weighted average
       local estimated_count = previous_count * (1 - window_progress) + current_count
 
       if estimated_count >= max_requests then
@@ -1247,7 +1247,7 @@ class SlidingWindowRateLimiter {
         return {0, math.floor(max_requests - estimated_count), retry_after}
       end
 
-      -- カウントインクリメント
+      -- Increment count
       redis.call('INCR', current_key)
       redis.call('EXPIRE', current_key, window_size * 2)
 
@@ -1273,49 +1273,49 @@ class SlidingWindowRateLimiter {
 
 ---
 
-## 7. 認証統合パターン
+## 7. Authentication Integration Patterns
 
-### 7.1 ゲートウェイ層での認証フロー
+### 7.1 Authentication Flow at the Gateway Layer
 
 ```
 ┌───────────────────────────────────────────────────────────────────┐
-│ ゲートウェイ認証フロー                                               │
+│ Gateway Authentication Flow                                        │
 │                                                                   │
-│  (1) API Key 認証                                                 │
-│  Client ──[X-API-Key: xxx]──→ Gateway ──[検証]──→ Backend         │
+│  (1) API Key Authentication                                       │
+│  Client ──[X-API-Key: xxx]──→ Gateway ──[Validate]──→ Backend    │
 │                                  │                                │
-│                                  ├── Redis/DB で Key 検証          │
-│                                  ├── プラン/クォータ確認             │
-│                                  └── X-Consumer-ID ヘッダー付与     │
+│                                  ├── Validate Key via Redis/DB    │
+│                                  ├── Check plan / quota           │
+│                                  └── Attach X-Consumer-ID header  │
 │                                                                   │
-│  (2) JWT Bearer Token 認証                                        │
-│  Client ──[Authorization: Bearer xxx]──→ Gateway ──→ Backend      │
+│  (2) JWT Bearer Token Authentication                              │
+│  Client ──[Authorization: Bearer xxx]──→ Gateway ──→ Backend     │
 │                                            │                      │
-│                                            ├── 署名検証（RS256）    │
-│                                            ├── exp / iss 確認      │
-│                                            ├── scope 確認          │
-│                                            └── X-User-ID 付与      │
+│                                            ├── Verify signature (RS256) │
+│                                            ├── Check exp / iss    │
+│                                            ├── Check scope        │
+│                                            └── Attach X-User-ID   │
 │                                                                   │
 │  (3) OAuth 2.0 Token Introspection                                │
 │  Client ──[Token]──→ Gateway ──→ Auth Server ──→ Gateway → Backend│
 │                                      │                            │
-│                                      ├── /introspect エンドポイント │
-│                                      ├── active / scope 確認       │
-│                                      └── キャッシュ（5分）           │
+│                                      ├── /introspect endpoint     │
+│                                      ├── Check active / scope     │
+│                                      └── Cache (5 minutes)        │
 │                                                                   │
-│  (4) mTLS（サービス間通信）                                         │
-│  Service A ──[Client Cert]──→ Gateway ──[証明書検証]──→ Service B  │
+│  (4) mTLS (inter-service communication)                           │
+│  Service A ──[Client Cert]──→ Gateway ──[Cert Verify]──→ Service B│
 │                                  │                                │
-│                                  ├── CA 証明書チェーン検証           │
-│                                  ├── CN/SAN によるサービス識別        │
-│                                  └── 証明書ローテーション対応         │
+│                                  ├── CA certificate chain verification │
+│                                  ├── Service identification by CN/SAN  │
+│                                  └── Certificate rotation support  │
 └───────────────────────────────────────────────────────────────────┘
 ```
 
-### 7.2 JWT認証ミドルウェアの実装
+### 7.2 JWT Authentication Middleware Implementation
 
 ```javascript
-// ゲートウェイ用 JWT 認証ミドルウェア
+// JWT authentication middleware for the gateway
 const jwt = require('jsonwebtoken');
 const jwksClient = require('jwks-rsa');
 
@@ -1326,17 +1326,17 @@ class JwtAuthenticator {
     this.algorithms = options.algorithms || ['RS256'];
     this.clockTolerance = options.clockTolerance || 30;
 
-    // JWKS クライアント（公開鍵の動的取得）
+    // JWKS client (dynamic public key retrieval)
     this.jwks = jwksClient({
       jwksUri: `${this.issuer}/.well-known/jwks.json`,
       cache: true,
       cacheMaxEntries: 5,
-      cacheMaxAge: 600000, // 10分キャッシュ
+      cacheMaxAge: 600000, // 10-minute cache
       rateLimit: true,
       jwksRequestsPerMinute: 10,
     });
 
-    // パス除外設定
+    // Path exclusion configuration
     this.excludePaths = new Set(options.excludePaths || [
       '/health',
       '/metrics',
@@ -1346,7 +1346,7 @@ class JwtAuthenticator {
   }
 
   /**
-   * 署名検証用の公開鍵を取得
+   * Retrieve the signing key for verification
    */
   getSigningKey(header) {
     return new Promise((resolve, reject) => {
@@ -1358,16 +1358,16 @@ class JwtAuthenticator {
   }
 
   /**
-   * Express ミドルウェア
+   * Express middleware
    */
   middleware() {
     return async (req, res, next) => {
-      // 除外パスのチェック
+      // Check excluded paths
       if (this.excludePaths.has(req.path)) {
         return next();
       }
 
-      // OPTIONS リクエストはスキップ
+      // Skip OPTIONS requests
       if (req.method === 'OPTIONS') {
         return next();
       }
@@ -1383,7 +1383,7 @@ class JwtAuthenticator {
       const token = authHeader.substring(7);
 
       try {
-        // ヘッダーを先にデコードして kid を取得
+        // Decode header first to obtain kid
         const decoded = jwt.decode(token, { complete: true });
         if (!decoded || !decoded.header) {
           return res.status(401).json({
@@ -1392,7 +1392,7 @@ class JwtAuthenticator {
           });
         }
 
-        // 公開鍵を取得して検証
+        // Retrieve public key and verify
         const signingKey = await this.getSigningKey(decoded.header);
         const payload = jwt.verify(token, signingKey, {
           algorithms: this.algorithms,
@@ -1401,7 +1401,7 @@ class JwtAuthenticator {
           clockTolerance: this.clockTolerance,
         });
 
-        // 検証済み情報をリクエストに付与
+        // Attach verified info to the request
         req.user = {
           id: payload.sub,
           email: payload.email,
@@ -1409,7 +1409,7 @@ class JwtAuthenticator {
           scopes: payload.scope ? payload.scope.split(' ') : [],
         };
 
-        // バックエンドサービス向けヘッダーを設定
+        // Set headers for backend services
         req.headers['x-user-id'] = payload.sub;
         req.headers['x-user-email'] = payload.email || '';
         req.headers['x-user-roles'] = (payload.roles || []).join(',');
@@ -1439,7 +1439,7 @@ class JwtAuthenticator {
   }
 
   /**
-   * スコープベースの認可ミドルウェア
+   * Scope-based authorization middleware
    */
   requireScopes(...requiredScopes) {
     return (req, res, next) => {
@@ -1468,7 +1468,7 @@ class JwtAuthenticator {
   }
 }
 
-// 利用例
+// Usage example
 const auth = new JwtAuthenticator({
   issuer: 'https://auth.example.com',
   audience: 'https://api.example.com',
@@ -1481,7 +1481,7 @@ app.use(auth.middleware());
 app.get('/api/v1/admin/users',
   auth.requireScopes('admin:read', 'users:list'),
   (req, res) => {
-    // req.user.id, req.user.roles でアクセス可能
+    // Accessible via req.user.id, req.user.roles
     res.json({ users: [] });
   }
 );
@@ -1489,46 +1489,46 @@ app.get('/api/v1/admin/users',
 
 ---
 
-## 8. サーキットブレーカーパターン
+## 8. Circuit Breaker Pattern
 
-### 8.1 状態遷移モデル
+### 8.1 State Transition Model
 
 ```
 ┌───────────────────────────────────────────────────────────┐
-│ サーキットブレーカー 状態遷移図                                │
+│ Circuit Breaker State Transition Diagram                   │
 │                                                           │
-│    ┌──────────┐   失敗閾値超過   ┌──────────┐              │
-│    │  CLOSED  │ ──────────────→ │   OPEN   │              │
-│    │ (通常)   │                 │ (遮断)   │              │
-│    │          │ ←────────────── │          │              │
-│    └──────────┘   成功(3回)     └────┬─────┘              │
-│         ↑                           │                     │
-│         │  成功                      │ タイムアウト          │
-│         │                           ↓                     │
-│         │                    ┌──────────┐                 │
-│         └─────────────────── │HALF-OPEN │                 │
-│                    成功      │ (試行)   │                  │
-│                              └────┬─────┘                 │
-│                                   │                       │
-│                                   │ 失敗                   │
-│                                   ↓                       │
-│                              ┌──────────┐                 │
-│                              │   OPEN   │                 │
-│                              │ (再遮断) │                  │
-│                              └──────────┘                 │
+│    ┌──────────┐  Failure threshold exceeded ┌──────────┐  │
+│    │  CLOSED  │ ─────────────────────────→  │   OPEN   │  │
+│    │ (normal) │                             │ (tripped)│  │
+│    │          │ ←───────────────────────────│          │  │
+│    └──────────┘   3 successes               └────┬─────┘  │
+│         ↑                                        │        │
+│         │  Success                               │ Timeout│
+│         │                                        ↓        │
+│         │                              ┌──────────┐       │
+│         └──────────────────────────────│HALF-OPEN │       │
+│                          Success       │ (testing)│       │
+│                                        └────┬─────┘       │
+│                                             │              │
+│                                             │ Failure      │
+│                                             ↓              │
+│                                        ┌──────────┐       │
+│                                        │   OPEN   │       │
+│                                        │ (re-trip)│       │
+│                                        └──────────┘       │
 │                                                           │
-│  パラメータ設定ガイドライン:                                   │
-│   失敗閾値: 5回連続失敗 or 50%エラー率（直近10リクエスト）       │
-│   タイムアウト: 30秒後に Half-Open へ遷移                      │
-│   成功閾値: Half-Open で3回連続成功したら Closed へ復帰         │
-│   監視ウィンドウ: 直近10リクエストでエラー率を計算                │
+│  Parameter setting guidelines:                            │
+│   Failure threshold: 5 consecutive failures or 50% error rate (last 10 requests) │
+│   Timeout: transition to Half-Open after 30 seconds       │
+│   Success threshold: return to Closed after 3 consecutive successes in Half-Open  │
+│   Monitoring window: calculate error rate over the last 10 requests               │
 └───────────────────────────────────────────────────────────┘
 ```
 
-### 8.2 プロダクション品質のサーキットブレーカー実装
+### 8.2 Production-Quality Circuit Breaker Implementation
 
 ```javascript
-// プロダクション品質のサーキットブレーカー
+// Production-quality circuit breaker
 const EventEmitter = require('events');
 
 class CircuitBreaker extends EventEmitter {
@@ -1548,7 +1548,7 @@ class CircuitBreaker extends EventEmitter {
     this.halfOpenRequests = 0;
     this.requestHistory = [];
 
-    // メトリクス
+    // Metrics
     this.metrics = {
       totalRequests: 0,
       successfulRequests: 0,
@@ -1604,7 +1604,7 @@ class CircuitBreaker extends EventEmitter {
     this.metrics.totalRequests++;
     const currentState = this.getState();
 
-    // OPEN状態: 即座に拒否
+    // OPEN state: reject immediately
     if (currentState === 'OPEN') {
       this.metrics.rejectedRequests++;
       this.emit('rejected', { name: this.name, state: currentState });
@@ -1615,7 +1615,7 @@ class CircuitBreaker extends EventEmitter {
       throw new Error(`Circuit ${this.name} is OPEN`);
     }
 
-    // HALF_OPEN状態: 同時リクエスト数を制限
+    // HALF_OPEN state: limit concurrent requests
     if (currentState === 'HALF_OPEN') {
       if (this.halfOpenRequests >= this.halfOpenMaxConcurrent) {
         this.metrics.rejectedRequests++;
@@ -1650,7 +1650,7 @@ class CircuitBreaker extends EventEmitter {
       }
     }
 
-    // CLOSED 状態での連続失敗カウントをリセット
+    // Reset consecutive failure count in CLOSED state
     if (this.state === 'CLOSED') {
       this.failures = Math.max(0, this.failures - 1);
     }
@@ -1692,7 +1692,7 @@ class CircuitBreaker extends EventEmitter {
   }
 }
 
-// サーキットブレーカーレジストリ（複数サービス管理）
+// Circuit breaker registry (managing multiple services)
 class CircuitBreakerRegistry {
   constructor() {
     this.breakers = new Map();
@@ -1726,7 +1726,7 @@ class CircuitBreakerRegistry {
   }
 }
 
-// 使用例
+// Usage example
 const registry = new CircuitBreakerRegistry();
 
 async function getUser(id) {
@@ -1751,7 +1751,7 @@ async function getUser(id) {
   );
 }
 
-// メトリクスエンドポイント
+// Metrics endpoint
 app.get('/metrics/circuit-breakers', (req, res) => {
   res.json(registry.getAllMetrics());
 });
@@ -1759,51 +1759,51 @@ app.get('/metrics/circuit-breakers', (req, res) => {
 
 ---
 
-## 9. サービスメッシュとの統合
+## 9. Integration with Service Meshes
 
-### 9.1 サービスメッシュの基本概念
+### 9.1 Basic Concepts of Service Meshes
 
-サービスメッシュは、マイクロサービス間の通信を管理するインフラストラクチャ層である。APIゲートウェイが「南北」（外部→内部）トラフィックを管理するのに対し、サービスメッシュは「東西」（内部サービス間）トラフィックを管理する。
+A service mesh is an infrastructure layer that manages communication between microservices. While an API gateway manages "north-south" (external→internal) traffic, a service mesh manages "east-west" (inter-service) traffic.
 
 ```
 ┌───────────────────────────────────────────────────────────────────┐
-│ APIゲートウェイ vs サービスメッシュ                                    │
+│ API Gateway vs Service Mesh                                        │
 │                                                                   │
-│  南北トラフィック（North-South）                                     │
+│  North-South Traffic                                              │
 │  ─────────────────────────────                                    │
-│  外部クライアント → APIゲートウェイ → 内部サービス                       │
+│  External client → API Gateway → Internal services               │
 │                                                                   │
-│  ・外部からのリクエストを処理                                         │
-│  ・認証、レート制限、TLS終端                                         │
-│  ・API管理、開発者ポータル                                           │
+│  · Handles requests from outside                                  │
+│  · Authentication, rate limiting, TLS termination                 │
+│  · API management, developer portal                               │
 │                                                                   │
-│  東西トラフィック（East-West）                                       │
+│  East-West Traffic                                                │
 │  ─────────────────────────────                                    │
-│  内部サービス ↔ サイドカープロキシ ↔ 内部サービス                       │
+│  Internal service ↔ Sidecar proxy ↔ Internal service             │
 │                                                                   │
-│  ・サービス間通信の暗号化（mTLS）                                     │
-│  ・サービスディスカバリ                                               │
-│  ・負荷分散、リトライ、サーキットブレーカー                              │
-│  ・トラフィック制御（カナリア、A/Bテスト）                              │
-│  ・オブザーバビリティ（メトリクス、トレース、ログ）                       │
+│  · Encryption of inter-service communication (mTLS)               │
+│  · Service discovery                                              │
+│  · Load balancing, retries, circuit breakers                      │
+│  · Traffic control (canary, A/B testing)                          │
+│  · Observability (metrics, traces, logs)                          │
 └───────────────────────────────────────────────────────────────────┘
 ```
 
-### 9.2 Istio + Envoy アーキテクチャ
+### 9.2 Istio + Envoy Architecture
 
 ```
 ┌───────────────────────────────────────────────────────────────────┐
-│ Istio アーキテクチャ                                                │
+│ Istio Architecture                                                 │
 │                                                                   │
 │  ┌─────────────────── Control Plane ──────────────────┐           │
 │  │                                                     │           │
-│  │   istiod (Pilot + Citadel + Galley 統合)            │           │
+│  │   istiod (Pilot + Citadel + Galley unified)         │           │
 │  │   ┌──────────┐ ┌──────────┐ ┌──────────────────┐   │           │
 │  │   │  Pilot   │ │ Citadel  │ │   Configuration  │   │           │
 │  │   │ (Config) │ │ (Cert)   │ │   (Validation)   │   │           │
 │  │   └────┬─────┘ └────┬─────┘ └────────┬─────────┘   │           │
 │  └────────┼─────────────┼───────────────┼─────────────┘           │
-│           │ xDS API     │ mTLS証明書     │ 設定配布                │
+│           │ xDS API     │ mTLS certs     │ Config distribution     │
 │  ┌────────▼─────────────▼───────────────▼─────────────┐           │
 │  │                 Data Plane                          │           │
 │  │                                                     │           │
@@ -1822,10 +1822,10 @@ app.get('/metrics/circuit-breakers', (req, res) => {
 └───────────────────────────────────────────────────────────────────┘
 ```
 
-### 9.3 Istio の設定例
+### 9.3 Istio Configuration Examples
 
 ```yaml
-# VirtualService: トラフィックルーティング
+# VirtualService: traffic routing
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
@@ -1835,7 +1835,7 @@ spec:
   hosts:
     - user-service
   http:
-    # カナリアリリース: 10%のトラフィックを v2 に振り分け
+    # Canary release: route 10% of traffic to v2
     - match:
         - headers:
             x-canary:
@@ -1865,7 +1865,7 @@ spec:
             value: 0.1
           fixedDelay: 5s
 ---
-# DestinationRule: サブセット定義とサーキットブレーカー
+# DestinationRule: subset definition and circuit breaker
 apiVersion: networking.istio.io/v1beta1
 kind: DestinationRule
 metadata:
@@ -1899,7 +1899,7 @@ spec:
       labels:
         version: v2
 ---
-# PeerAuthentication: mTLS 設定
+# PeerAuthentication: mTLS configuration
 apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
@@ -1909,7 +1909,7 @@ spec:
   mtls:
     mode: STRICT
 ---
-# AuthorizationPolicy: サービス間の認可
+# AuthorizationPolicy: inter-service authorization
 apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
@@ -1938,7 +1938,7 @@ spec:
             methods: ["DELETE"]
             paths: ["/users/*"]
 ---
-# RequestAuthentication: JWT認証（Istio Ingress Gateway）
+# RequestAuthentication: JWT authentication (Istio Ingress Gateway)
 apiVersion: security.istio.io/v1beta1
 kind: RequestAuthentication
 metadata:
@@ -1957,10 +1957,10 @@ spec:
       outputPayloadToHeader: "x-jwt-payload"
 ```
 
-### 9.4 Istio Gateway + APIゲートウェイの2層構成
+### 9.4 Two-Tier Configuration: Istio Gateway + API Gateway
 
 ```yaml
-# Istio Ingress Gateway（外部トラフィック受け口）
+# Istio Ingress Gateway (entry point for external traffic)
 apiVersion: networking.istio.io/v1beta1
 kind: Gateway
 metadata:
@@ -2018,12 +2018,12 @@ spec:
 
 ---
 
-## 10. BFF（Backend for Frontend）パターン詳細
+## 10. BFF (Backend for Frontend) Pattern in Detail
 
-### 10.1 BFF の設計原則
+### 10.1 BFF Design Principles
 
 ```
-BFF パターンの全体像:
+BFF Pattern Overview:
 
   ┌───────────────────────────────────────────────────────────────┐
   │                                                               │
@@ -2036,44 +2036,44 @@ BFF パターンの全体像:
   │                                                               │
   └───────────────────────────────────────────────────────────────┘
 
-  各 BFF の責務:
+  Responsibilities of each BFF:
   ┌────────────────────────────────────────────────────────────┐
   │ Web BFF:                                                   │
-  │  ├── フルフィーチャーのレスポンス                               │
-  │  ├── SSR 用のデータ集約                                      │
-  │  ├── Cookie ベース認証（HttpOnly, Secure, SameSite）          │
-  │  ├── CSRF 対策                                              │
-  │  ├── HTML メタデータ生成（OGP, SEO）                          │
-  │  └── WebSocket 接続管理                                      │
+  │  ├── Full-featured responses                               │
+  │  ├── Data aggregation for SSR                              │
+  │  ├── Cookie-based authentication (HttpOnly, Secure, SameSite) │
+  │  ├── CSRF protection                                       │
+  │  ├── HTML metadata generation (OGP, SEO)                   │
+  │  └── WebSocket connection management                       │
   │                                                            │
   │ Mobile BFF:                                                │
-  │  ├── 軽量レスポンス（フィールド選択、帯域節約）                   │
-  │  ├── プッシュ通知トークン管理                                  │
-  │  ├── Bearer Token 認証（OAuth 2.0）                          │
-  │  ├── オフラインサポート（差分同期API）                          │
-  │  ├── アプリバージョン別の互換性レイヤー                         │
-  │  └── デバイス情報ヘッダー処理                                  │
+  │  ├── Lightweight responses (field selection, bandwidth saving) │
+  │  ├── Push notification token management                    │
+  │  ├── Bearer Token authentication (OAuth 2.0)               │
+  │  ├── Offline support (delta sync API)                      │
+  │  ├── App-version compatibility layer                       │
+  │  └── Device info header processing                         │
   │                                                            │
   │ Public API GW:                                             │
-  │  ├── REST + ページネーション（カーソルベース）                   │
-  │  ├── API Key 認証 + Usage Plan                              │
-  │  ├── 厳格なレート制限（プランごと）                             │
-  │  ├── OpenAPI 仕様書の自動生成                                 │
-  │  ├── Webhook 配信                                           │
-  │  └── API バージョニング（URL / Header）                       │
+  │  ├── REST + pagination (cursor-based)                      │
+  │  ├── API Key authentication + Usage Plans                  │
+  │  ├── Strict rate limiting (per plan)                       │
+  │  ├── Auto-generated OpenAPI spec                           │
+  │  ├── Webhook delivery                                      │
+  │  └── API versioning (URL / Header)                         │
   └────────────────────────────────────────────────────────────┘
 ```
 
-### 10.2 BFF 実装例（Node.js / Express）
+### 10.2 BFF Implementation Example (Node.js / Express)
 
 ```javascript
-// Web BFF - API Composition パターン
+// Web BFF - API Composition pattern
 const express = require('express');
 const axios = require('axios');
 
 const app = express();
 
-// サービスクライアント（サーキットブレーカー付き）
+// Service clients (with circuit breaker)
 const serviceClients = {
   user: createServiceClient('http://user-service:3000', 'user-service'),
   order: createServiceClient('http://order-service:3000', 'order-service'),
@@ -2107,12 +2107,12 @@ function createServiceClient(baseURL, name) {
   };
 }
 
-// ダッシュボードAPI: 複数サービスからデータを集約
+// Dashboard API: aggregate data from multiple services
 app.get('/bff/dashboard', async (req, res) => {
   const userId = req.headers['x-user-id'];
 
   try {
-    // 並行リクエスト（Promise.allSettled で部分障害に対応）
+    // Parallel requests (use Promise.allSettled to handle partial failures)
     const [userResult, ordersResult, recommendationsResult] = await Promise.allSettled([
       serviceClients.user.get(`/users/${userId}`, {
         fallback: { id: userId, name: 'User', _fallback: true },
@@ -2125,7 +2125,7 @@ app.get('/bff/dashboard', async (req, res) => {
       }),
     ]);
 
-    // レスポンス集約
+    // Aggregate responses
     const dashboard = {
       user: userResult.status === 'fulfilled' ? userResult.value : null,
       recentOrders: ordersResult.status === 'fulfilled' ? ordersResult.value : { items: [] },
@@ -2139,7 +2139,7 @@ app.get('/bff/dashboard', async (req, res) => {
       },
     };
 
-    // 部分障害の場合は 206 Partial Content
+    // Return 206 Partial Content on partial failure
     const statusCode = dashboard._metadata.partial ? 206 : 200;
     res.status(statusCode).json(dashboard);
   } catch (error) {
@@ -2148,7 +2148,7 @@ app.get('/bff/dashboard', async (req, res) => {
   }
 });
 
-// Mobile BFF: 軽量レスポンス + フィールド選択
+// Mobile BFF: lightweight response + field selection
 app.get('/bff/mobile/feed', async (req, res) => {
   const userId = req.headers['x-user-id'];
   const fields = req.query.fields ? req.query.fields.split(',') : null;
@@ -2166,7 +2166,7 @@ app.get('/bff/mobile/feed', async (req, res) => {
       notifications: (notifications?.items || []).slice(0, 5),
     };
 
-    // フィールド選択（帯域節約）
+    // Field selection (bandwidth saving)
     if (fields) {
       const filteredFeed = {};
       for (const field of fields) {
@@ -2177,9 +2177,9 @@ app.get('/bff/mobile/feed', async (req, res) => {
       feed = filteredFeed;
     }
 
-    // アプリバージョン互換性
+    // App version compatibility
     if (compareVersions(appVersion, '2.0.0') < 0) {
-      // v1 形式への変換
+      // Convert to v1 format
       feed = transformToV1Format(feed);
     }
 
@@ -2210,27 +2210,27 @@ function transformToV1Format(feed) {
 
 ---
 
-## 11. リトライ戦略とタイムアウト設計
+## 11. Retry Strategies and Timeout Design
 
-### 11.1 リトライパターンの比較
+### 11.1 Comparison of Retry Patterns
 
-| パターン | 説明 | 適用場面 | 注意点 |
-|---------|------|---------|--------|
-| Immediate Retry | 即座にリトライ | 一時的なネットワークエラー | サービスに負荷を与える |
-| Fixed Interval | 固定間隔でリトライ | 短時間の障害 | Thundering Herd 問題 |
-| Exponential Backoff | 指数関数的に間隔拡大 | 一般的なリトライ | 最大間隔の設定が必要 |
-| Exponential + Jitter | 指数 + ランダム揺らぎ | 分散システム推奨 | 標準的なベストプラクティス |
-| Circuit Breaker + Retry | CB内でリトライ | 障害検知と組み合わせ | 複雑だが最も堅牢 |
+| Pattern | Description | Use Case | Caution |
+|---------|-------------|----------|---------|
+| Immediate Retry | Retry instantly | Transient network errors | Adds load to service |
+| Fixed Interval | Retry at fixed intervals | Short-lived failures | Thundering herd problem |
+| Exponential Backoff | Exponentially growing intervals | General retry scenarios | Must set a maximum interval |
+| Exponential + Jitter | Exponential + random jitter | Recommended for distributed systems | Standard best practice |
+| Circuit Breaker + Retry | Retry within CB | Combined with failure detection | Complex but most robust |
 
-### 11.2 Exponential Backoff with Jitter の実装
+### 11.2 Exponential Backoff with Jitter Implementation
 
 ```javascript
-// プロダクション品質のリトライユーティリティ
+// Production-quality retry utility
 class RetryPolicy {
   constructor(options = {}) {
     this.maxRetries = options.maxRetries || 3;
-    this.baseDelay = options.baseDelay || 1000;  // 1秒
-    this.maxDelay = options.maxDelay || 30000;    // 30秒
+    this.baseDelay = options.baseDelay || 1000;  // 1 second
+    this.maxDelay = options.maxDelay || 30000;    // 30 seconds
     this.jitterFactor = options.jitterFactor || 0.5;
     this.retryableErrors = options.retryableErrors || [
       'ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EPIPE',
@@ -2242,14 +2242,14 @@ class RetryPolicy {
   }
 
   /**
-   * リトライ対象かどうかを判定
+   * Determine whether an error is retryable
    */
   isRetryable(error) {
-    // ネットワークエラー
+    // Network errors
     if (error.code && this.retryableErrors.includes(error.code)) {
       return true;
     }
-    // HTTP ステータスコード
+    // HTTP status codes
     if (error.response && this.retryableStatusCodes.includes(error.response.status)) {
       return true;
     }
@@ -2257,22 +2257,22 @@ class RetryPolicy {
   }
 
   /**
-   * 次のリトライまでの待機時間を計算
+   * Calculate the delay before the next retry
    * Exponential Backoff with Full Jitter
    */
   calculateDelay(attempt) {
-    // 指数バックオフ
+    // Exponential backoff
     const exponentialDelay = Math.min(
       this.maxDelay,
       this.baseDelay * Math.pow(2, attempt)
     );
-    // Full Jitter: [0, exponentialDelay] の範囲でランダム
+    // Full Jitter: random value in [0, exponentialDelay]
     const jitter = Math.random() * exponentialDelay * this.jitterFactor;
     return Math.floor(exponentialDelay * (1 - this.jitterFactor) + jitter);
   }
 
   /**
-   * リトライ付きで関数を実行
+   * Execute a function with retry
    */
   async execute(fn, context = {}) {
     let lastError;
@@ -2284,14 +2284,14 @@ class RetryPolicy {
       } catch (error) {
         lastError = error;
 
-        // 最終試行 or リトライ不可のエラー
+        // Final attempt or non-retryable error
         if (attempt === this.maxRetries || !this.isRetryable(error)) {
           throw error;
         }
 
         const delay = this.calculateDelay(attempt);
 
-        // 429 の場合は Retry-After ヘッダーを尊重
+        // Respect Retry-After header for 429 responses
         const retryAfterHeader = error.response?.headers?.['retry-after'];
         const actualDelay = retryAfterHeader
           ? Math.max(delay, parseInt(retryAfterHeader) * 1000)
@@ -2311,38 +2311,38 @@ class RetryPolicy {
   }
 }
 
-// タイムアウト階層の設計
+// Timeout hierarchy design
 class TimeoutConfig {
   /**
-   * タイムアウト階層:
-   *   クライアント > ゲートウェイ > サービス > DB/外部API
+   * Timeout hierarchy:
+   *   Client > Gateway > Service > DB / External API
    *
    *   Client: 30s → Gateway: 25s → Service: 20s → DB: 5s
-   *   各層で余裕を持たせることで、適切なエラーレスポンスを返せる
+   *   Each layer has a margin to allow proper error responses to be returned
    */
   static getConfig(tier) {
     const configs = {
-      // 外部クライアントに面するゲートウェイ
+      // Gateway facing external clients
       gateway: {
         connectTimeout: 5000,
         readTimeout: 25000,
         writeTimeout: 10000,
         idleTimeout: 60000,
       },
-      // 内部サービス間通信
+      // Inter-service communication
       service: {
         connectTimeout: 3000,
         readTimeout: 20000,
         writeTimeout: 5000,
         idleTimeout: 30000,
       },
-      // データベース接続
+      // Database connection
       database: {
         connectTimeout: 2000,
         queryTimeout: 5000,
         poolTimeout: 10000,
       },
-      // 外部API呼び出し
+      // External API calls
       externalApi: {
         connectTimeout: 5000,
         readTimeout: 15000,
@@ -2353,7 +2353,7 @@ class TimeoutConfig {
   }
 }
 
-// 利用例: ゲートウェイでのサービス呼び出し
+// Usage example: calling a service from the gateway
 const retryPolicy = new RetryPolicy({
   maxRetries: 3,
   baseDelay: 500,
@@ -2384,55 +2384,55 @@ async function callUserService(userId) {
 
 ---
 
-## 12. モニタリングとオブザーバビリティ
+## 12. Monitoring and Observability
 
-### 12.1 APIゲートウェイのメトリクス設計
+### 12.1 Metrics Design for API Gateways
 
-ゲートウェイで収集すべきメトリクスは RED メソッド（Rate, Error, Duration）を基本とする。
+The metrics to collect at the gateway are based on the RED method (Rate, Error, Duration).
 
 ```
-APIゲートウェイ メトリクス体系:
+API Gateway Metrics Framework:
 
-  (1) Rate（リクエスト率）
-      ├── requests_total: リクエスト総数
-      ├── requests_per_second: RPS（秒間リクエスト数）
-      └── requests_by_route: ルート別リクエスト数
+  (1) Rate (request rate)
+      ├── requests_total: total request count
+      ├── requests_per_second: RPS (requests per second)
+      └── requests_by_route: request count per route
 
-  (2) Error（エラー率）
-      ├── errors_total: エラー総数
-      ├── error_rate: エラー率（4xx + 5xx）/ total
-      ├── errors_by_status: ステータスコード別エラー数
-      └── circuit_breaker_trips: サーキットブレーカー発動回数
+  (2) Error (error rate)
+      ├── errors_total: total error count
+      ├── error_rate: error rate (4xx + 5xx) / total
+      ├── errors_by_status: error count by status code
+      └── circuit_breaker_trips: circuit breaker trip count
 
-  (3) Duration（レイテンシ）
-      ├── request_duration_seconds: リクエスト処理時間
-      │   ├── P50（中央値）
+  (3) Duration (latency)
+      ├── request_duration_seconds: request processing time
+      │   ├── P50 (median)
       │   ├── P95
       │   ├── P99
       │   └── P99.9
-      ├── upstream_response_time: アップストリーム応答時間
-      └── gateway_processing_time: ゲートウェイ自体の処理時間
+      ├── upstream_response_time: upstream response time
+      └── gateway_processing_time: gateway's own processing time
 
-  (4) Saturation（飽和度）
-      ├── active_connections: アクティブ接続数
-      ├── connection_pool_usage: コネクションプール使用率
-      ├── rate_limit_remaining: レート制限残量
-      └── memory_usage: メモリ使用量
+  (4) Saturation
+      ├── active_connections: active connection count
+      ├── connection_pool_usage: connection pool utilization
+      ├── rate_limit_remaining: remaining rate limit quota
+      └── memory_usage: memory usage
 ```
 
-### 12.2 Prometheus メトリクス収集（Express ミドルウェア）
+### 12.2 Prometheus Metrics Collection (Express Middleware)
 
 ```javascript
-// Prometheus メトリクス収集ミドルウェア
+// Prometheus metrics collection middleware
 const promClient = require('prom-client');
 
-// デフォルトメトリクス（CPU, メモリ, イベントループ）
+// Default metrics (CPU, memory, event loop)
 promClient.collectDefaultMetrics({
   prefix: 'api_gateway_',
   gcDurationBuckets: [0.001, 0.01, 0.1, 1, 2, 5],
 });
 
-// カスタムメトリクス
+// Custom metrics
 const httpRequestDuration = new promClient.Histogram({
   name: 'api_gateway_http_request_duration_seconds',
   help: 'HTTP request duration in seconds',
@@ -2470,13 +2470,13 @@ const upstreamResponseTime = new promClient.Histogram({
   buckets: [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30],
 });
 
-// メトリクス収集ミドルウェア
+// Metrics collection middleware
 function metricsMiddleware() {
   return (req, res, next) => {
     activeConnections.inc();
     const startTime = process.hrtime.bigint();
 
-    // レスポンス完了時にメトリクス記録
+    // Record metrics on response completion
     res.on('finish', () => {
       activeConnections.dec();
       const duration = Number(process.hrtime.bigint() - startTime) / 1e9;
@@ -2497,38 +2497,38 @@ function metricsMiddleware() {
   };
 }
 
-// メトリクスエンドポイント
+// Metrics endpoint
 app.get('/metrics', async (req, res) => {
   res.set('Content-Type', promClient.register.contentType);
   res.send(await promClient.register.metrics());
 });
 
-// Grafana ダッシュボード用の PromQL クエリ例
+// PromQL query examples for Grafana dashboards
 const grafanaQueries = {
-  // RPS（リクエスト/秒）
+  // RPS (requests per second)
   rps: 'rate(api_gateway_http_requests_total[5m])',
 
-  // エラー率（5xx）
+  // Error rate (5xx)
   errorRate: 'sum(rate(api_gateway_http_requests_total{status_code=~"5.."}[5m])) / sum(rate(api_gateway_http_requests_total[5m]))',
 
-  // P99 レイテンシ
+  // P99 latency
   p99Latency: 'histogram_quantile(0.99, sum(rate(api_gateway_http_request_duration_seconds_bucket[5m])) by (le, route))',
 
-  // サービス別アップストリーム応答時間
+  // Upstream response time by service
   upstreamP95: 'histogram_quantile(0.95, sum(rate(api_gateway_upstream_response_time_seconds_bucket[5m])) by (le, service))',
 
-  // サーキットブレーカー状態
+  // Circuit breaker state
   cbState: 'api_gateway_circuit_breaker_state',
 
-  // レート制限発動率
+  // Rate limit hit rate
   rateLimitRate: 'rate(api_gateway_rate_limit_hits_total[5m])',
 };
 ```
 
-### 12.3 分散トレーシング統合
+### 12.3 Distributed Tracing Integration
 
 ```javascript
-// OpenTelemetry による分散トレーシング
+// Distributed tracing via OpenTelemetry
 const { NodeSDK } = require('@opentelemetry/sdk-node');
 const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-grpc');
 const { HttpInstrumentation } = require('@opentelemetry/instrumentation-http');
@@ -2540,7 +2540,7 @@ const {
   SEMRESATTRS_DEPLOYMENT_ENVIRONMENT,
 } = require('@opentelemetry/semantic-conventions');
 
-// SDK初期化
+// SDK initialization
 const sdk = new NodeSDK({
   resource: new Resource({
     [SEMRESATTRS_SERVICE_NAME]: 'api-gateway',
@@ -2563,10 +2563,10 @@ const sdk = new NodeSDK({
 
 sdk.start();
 
-// トレースコンテキスト伝播ミドルウェア
+// Trace context propagation middleware
 function tracePropagation() {
   return (req, res, next) => {
-    // W3C Trace Context ヘッダーを上流サービスに転送
+    // Forward W3C Trace Context headers to upstream services
     const traceParent = req.headers['traceparent'];
     const traceState = req.headers['tracestate'];
 
@@ -2574,7 +2574,7 @@ function tracePropagation() {
       req.traceContext = { traceParent, traceState };
     }
 
-    // リクエストIDの設定（トレースIDと紐づけ）
+    // Set request ID (linked to trace ID)
     const requestId = req.headers['x-request-id'] || generateRequestId();
     req.headers['x-request-id'] = requestId;
     res.set('X-Request-ID', requestId);
@@ -2590,74 +2590,74 @@ function generateRequestId() {
 
 ---
 
-## FAQ（よくある質問）
+## FAQ
 
-### Q1: API Gateway の必要性の判断基準は何か
+### Q1: What are the criteria for deciding whether an API Gateway is necessary?
 
-API Gateway の導入は、以下の状況において特に有効である。
+Introducing an API Gateway is particularly effective in the following situations.
 
-| 状況 | Gateway 不要 | Gateway 推奨 |
-|------|------------|------------|
-| サービス数 | モノリス、1-2サービス | 3サービス以上のマイクロサービス |
-| クライアント種別 | 単一のWebアプリのみ | Web、Mobile、サードパーティAPI等の複数クライアント |
-| 認証要件 | サービス毎に異なる認証方式 | 統一的な認証・認可が必要 |
-| レート制限 | 不要、または各サービスで実装済み | グローバルなレート制限が必要 |
-| TLS終端 | 各サービスが直接TLS対応 | TLS終端を一箇所に集約したい |
-| 運用負荷 | サービス毎の設定変更が許容できる | 統一的な設定管理・監視が必要 |
+| Situation | Gateway Not Needed | Gateway Recommended |
+|-----------|-------------------|---------------------|
+| Number of services | Monolith, 1–2 services | 3+ microservices |
+| Client types | Single web app only | Multiple clients: Web, Mobile, third-party APIs, etc. |
+| Authentication requirements | Different auth per service | Unified authentication & authorization needed |
+| Rate limiting | Not needed, or already implemented per service | Global rate limiting required |
+| TLS termination | Each service handles TLS directly | Centralize TLS termination in one place |
+| Operational burden | Per-service config changes are acceptable | Unified config management and monitoring needed |
 
-**Gateway 不要な典型例**:
-- シンプルなモノリシックアプリケーション
-- 内部の管理画面のみのシステム
-- サービス数が少なく、今後も増える予定がない
+**Typical cases where Gateway is not needed**:
+- Simple monolithic applications
+- Systems with an internal admin panel only
+- Few services with no plans to grow
 
-**Gateway 必須な典型例**:
-- 10個以上のマイクロサービスを持つシステム
-- BFF（Backend for Frontend）パターンが必要なマルチデバイス対応
-- サードパーティに API を提供するプラットフォームビジネス
-- レガシーシステムのモダナイゼーションの過渡期（Strangler Fig Pattern）
+**Typical cases where Gateway is essential**:
+- Systems with 10+ microservices
+- Multi-device support requiring BFF (Backend for Frontend) patterns
+- Platform businesses providing an API to third parties
+- Legacy system modernization transition (Strangler Fig Pattern)
 
-最小構成であれば Nginx をリバースプロキシとして使い始め、認証統合やレート制限が必要になった段階で Kong や AWS API Gateway へ移行するアプローチも現実的である。
+For a minimal configuration, it is also practical to start with Nginx as a reverse proxy and migrate to Kong or AWS API Gateway once authentication integration and rate limiting become necessary.
 
-### Q2: Kong vs AWS API Gateway 等のツール比較はどうすべきか
+### Q2: How should you compare Kong vs AWS API Gateway and other tools?
 
-主要な API Gateway 製品の比較を以下に示す。
+A comparison of major API Gateway products is shown below.
 
-| 製品 | タイプ | 主な特徴 | 適用シーン |
-|------|--------|---------|----------|
-| **Kong Gateway** | OSS + Enterprise | - プラグインエコシステムが豊富<br>- Kubernetes Native（Ingress Controller）<br>- 高性能（C + Lua）<br>- セルフホスト or Kong Konnect（SaaS） | 中〜大規模、Kubernetes環境、カスタマイズ性重視 |
-| **AWS API Gateway** | Managed（SaaS） | - AWS サービスとの統合が容易<br>- サーバーレス（Lambda 統合）<br>- スケーラビリティが自動<br>- 従量課金モデル | AWS環境、サーバーレス中心、運用負荷を最小化したい |
-| **Nginx / Nginx Plus** | OSS + Commercial | - 高性能・低レイテンシ<br>- リバースプロキシとして実績<br>- 設定ファイルベース<br>- Plus版で動的設定・ヘルスチェック | レガシー環境との互換性、シンプルなルーティング |
-| **Envoy Proxy** | OSS（CNCF） | - サービスメッシュの標準プロキシ<br>- xDS プロトコルで動的設定<br>- Istio のデータプレーン<br>- 高度なトラフィック制御 | Kubernetes + サービスメッシュ環境、マイクロサービスの高度な制御 |
-| **Azure API Management** | Managed（SaaS） | - Azure 統合<br>- 開発者ポータル標準装備<br>- API バージョニング・変換 | Azure環境、API プロダクト管理重視 |
-| **Tyk** | OSS + Enterprise | - GraphQL 対応<br>- API アナリティクス<br>- 開発者ポータル | API-as-a-Product、開発者エコシステム構築 |
+| Product | Type | Key Features | Use Case |
+|---------|------|-------------|----------|
+| **Kong Gateway** | OSS + Enterprise | - Rich plugin ecosystem<br>- Kubernetes Native (Ingress Controller)<br>- High performance (C + Lua)<br>- Self-hosted or Kong Konnect (SaaS) | Medium–large scale, Kubernetes environments, customizability-focused |
+| **AWS API Gateway** | Managed (SaaS) | - Easy integration with AWS services<br>- Serverless (Lambda integration)<br>- Automatic scalability<br>- Pay-per-use model | AWS environments, serverless-centric, minimize operational burden |
+| **Nginx / Nginx Plus** | OSS + Commercial | - High performance, low latency<br>- Proven as a reverse proxy<br>- Config-file based<br>- Dynamic config and health checks with Plus | Legacy environment compatibility, simple routing |
+| **Envoy Proxy** | OSS (CNCF) | - Standard proxy for service meshes<br>- Dynamic config via xDS protocol<br>- Istio data plane<br>- Advanced traffic control | Kubernetes + service mesh environments, advanced microservice traffic control |
+| **Azure API Management** | Managed (SaaS) | - Azure integration<br>- Developer portal included<br>- API versioning and transformation | Azure environments, API product management focus |
+| **Tyk** | OSS + Enterprise | - GraphQL support<br>- API analytics<br>- Developer portal | API-as-a-Product, building developer ecosystems |
 
-**選定フローチャート**:
+**Selection flowchart**:
 
 ```
-環境はAWS中心?
-  → Yes → サーバーレス中心?
+Primarily AWS environment?
+  → Yes → Serverless-centric?
            → Yes → AWS API Gateway
            → No → Kong on EKS or ALB + Lambda Authorizer
-  → No → Kubernetes環境?
-          → Yes → サービスメッシュ（Istio）必要?
+  → No → Kubernetes environment?
+          → Yes → Service mesh (Istio) needed?
                    → Yes → Envoy (Istio)
                    → No → Kong Ingress Controller
-          → No → 既存のNginx資産がある?
+          → No → Existing Nginx assets?
                   → Yes → Nginx Plus
                   → No → Kong (Docker Compose / VM)
 ```
 
-**コスト比較の目安**（月間1億リクエスト想定）:
-- AWS API Gateway: $350-500（REST API）、$100-150（HTTP API）
-- Kong（セルフホスト）: $100-200（インフラコスト）+ 運用コスト
-- Kong Konnect（SaaS）: $1500-3000/月（Enterprise）
-- Nginx Plus: $2500/年/インスタンス
+**Estimated cost comparison** (assuming 100M requests per month):
+- AWS API Gateway: $350–500 (REST API), $100–150 (HTTP API)
+- Kong (self-hosted): $100–200 (infrastructure cost) + operational cost
+- Kong Konnect (SaaS): $1500–3000/month (Enterprise)
+- Nginx Plus: $2500/year/instance
 
-### Q3: マイクロサービス環境での Gateway パターンは何か
+### Q3: What Gateway patterns are used in microservices environments?
 
-マイクロサービスアーキテクチャにおける API Gateway の配置パターンは以下の3つが代表的である。
+Three representative placement patterns for API Gateways in microservices architectures are as follows.
 
-#### パターン1: 単一 API Gateway（シンプル構成）
+#### Pattern 1: Single API Gateway (Simple Configuration)
 
 ```
          ┌─────────────────┐
@@ -2665,18 +2665,18 @@ Internet─┤  API Gateway    ├─── User Service
          │  (Kong / AWS)   ├─── Order Service
          └─────────────────┘└─── Payment Service
 
-メリット:
-  - 構成がシンプル
-  - 運用コストが低い
-  - 統一的なポリシー適用が容易
+Pros:
+  - Simple configuration
+  - Low operational cost
+  - Easy to apply unified policies
 
-デメリット:
-  - Gateway が SPOF（単一障害点）になる
-  - スケールの限界
-  - 全チームが同じGatewayを共有するため、変更の調整が必要
+Cons:
+  - Gateway becomes SPOF (single point of failure)
+  - Scaling limitations
+  - All teams share the same gateway, requiring coordination for changes
 ```
 
-#### パターン2: BFF（Backend for Frontend）パターン
+#### Pattern 2: BFF (Backend for Frontend) Pattern
 
 ```
          ┌──────────────┐
@@ -2690,22 +2690,22 @@ Partner ─┤ Partner API  ├─┘  ├────────────�
          └──────────────┘    │ Payment    │
                              └────────────┘
 
-メリット:
-  - クライアント特性に最適化されたAPI設計
-  - チーム毎に独立してGatewayを管理可能
-  - 障害の影響範囲が限定される
+Pros:
+  - API design optimized for client characteristics
+  - Each team can manage their gateway independently
+  - Failure blast radius is limited
 
-デメリット:
-  - Gateway の数が増え、運用コストが増加
-  - 共通機能（認証、ログ等）の重複実装リスク
-  - サービス間の共通ポリシー適用が複雑
+Cons:
+  - Number of gateways increases, raising operational costs
+  - Risk of duplicating common functionality (auth, logging, etc.)
+  - Applying common policies across services becomes complex
 ```
 
-#### パターン3: 階層型 Gateway（大規模構成）
+#### Pattern 3: Layered Gateway (Large-Scale Configuration)
 
 ```
                     ┌──────────────────┐
-Internet ───────────┤ Edge Gateway     ├── DDoS対策、TLS終端、WAF
+Internet ───────────┤ Edge Gateway     ├── DDoS protection, TLS termination, WAF
                     │ (Cloudflare/CDN) │
                     └─────────┬────────┘
                               │
@@ -2722,54 +2722,54 @@ Internet ───────────┤ Edge Gateway     ├── DDoS対
          │  └────────┘ └────────┘ └────────┘     │
          └──────────────────────────────────────┘
 
-メリット:
-  - 役割分離による高いスケーラビリティ
-  - セキュリティ層（Edge）とビジネスロジック層（BFF）の分離
-  - サービスメッシュによるマイクロサービス間通信の高度な制御
+Pros:
+  - High scalability through role separation
+  - Separation of security layer (Edge) and business logic layer (BFF)
+  - Advanced control of inter-microservice communication via service mesh
 
-デメリット:
-  - アーキテクチャが複雑
-  - 運用に高度なスキルが必要
-  - レイテンシのオーバーヘッド（複数のプロキシ層）
+Cons:
+  - Complex architecture
+  - Requires advanced operational skills
+  - Latency overhead from multiple proxy layers
 ```
 
-**推奨アプローチ**:
-- スタートアップ、小規模: パターン1（単一Gateway）で開始
-- クライアント種別が多い（Web/Mobile/Partner）: パターン2（BFF）
-- エンタープライズ、大規模トラフィック: パターン3（階層型 + Service Mesh）
+**Recommended approach**:
+- Startup, small-scale: Start with Pattern 1 (single Gateway)
+- Multiple client types (Web/Mobile/Partner): Pattern 2 (BFF)
+- Enterprise, high-traffic: Pattern 3 (layered + Service Mesh)
 
 ---
 
-## まとめ
+## Summary
 
-| 概念 | ポイント |
-|------|---------|
-| API Gateway の役割 | ルーティング、認証、レート制限、TLS終端を一元化する「正面玄関」 |
-| 主要機能 | (1) ルーティング、(2) 認証・認可、(3) レート制限、(4) リクエスト変換、(5) ロードバランシング、(6) キャッシュ、(7) ロギング、(8) サーキットブレーカー |
-| Kong Gateway | Lua プラグインエコシステム、Kubernetes Ingress Controller、高性能 |
-| AWS API Gateway | マネージドサービス、Lambda 統合、従量課金、運用負荷最小 |
-| Nginx | 高性能リバースプロキシ、設定ファイルベース、レガシー環境に強い |
-| Envoy Proxy | サービスメッシュのデータプレーン、xDS 動的設定、Istio 標準 |
-| BFF パターン | クライアント種別毎に専用の Gateway を配置、最適化された API 提供 |
-| レート制限 | Token Bucket（バースト許容）、Sliding Window（厳密な制限） |
-| サーキットブレーカー | 上流サービスの障害を検知して自動的に遮断、フェイルファスト |
-| サービスメッシュ連携 | Istio + Envoy で East-West トラフィック制御、Gateway は North-South を担当 |
+| Concept | Key Point |
+|---------|-----------|
+| API Gateway role | "Front door" that centralizes routing, authentication, rate limiting, and TLS termination |
+| Key functions | (1) Routing, (2) Auth & authorization, (3) Rate limiting, (4) Request transformation, (5) Load balancing, (6) Caching, (7) Logging, (8) Circuit breaker |
+| Kong Gateway | Lua plugin ecosystem, Kubernetes Ingress Controller, high performance |
+| AWS API Gateway | Managed service, Lambda integration, pay-per-use, minimal operational burden |
+| Nginx | High-performance reverse proxy, config-file based, strong in legacy environments |
+| Envoy Proxy | Service mesh data plane, xDS dynamic config, Istio standard |
+| BFF pattern | Dedicated gateway per client type, optimized API delivery |
+| Rate limiting | Token Bucket (burst-tolerant), Sliding Window (strict limiting) |
+| Circuit breaker | Automatically trips when upstream service fails, fail-fast behavior |
+| Service mesh integration | Istio + Envoy for East-West traffic control; Gateway handles North-South |
 
-**重要なポイント**:
-1. **API Gateway は「必須」ではない**: モノリスや小規模システムでは過剰。サービス数が3つ以上、複数クライアント対応が必要になった段階で導入を検討する
-2. **段階的な導入**: まず Nginx でリバースプロキシ、次に Kong で認証・レート制限、最終的にサービスメッシュへ移行するアプローチが現実的
-3. **監視は Gateway 導入と同時に整備**: メトリクス、ログ、トレーシングを初期段階から組み込むことで、トラブルシューティングが容易になる
-
----
-
-## 次に読むべきガイド
-
-→ [SDK設計](../02-sdk-and-libraries/00-sdk-design.md) — API利用者向けSDKの設計
-→ [認証パターン](../03-api-security/00-authentication-patterns.md) — GatewayでのAPI認証
+**Key takeaways**:
+1. **An API Gateway is not "mandatory"**: Overkill for monoliths and small-scale systems. Consider introducing one when the number of services reaches 3+, or when multiple client types need to be supported.
+2. **Incremental adoption**: It is practical to start with Nginx as a reverse proxy, then add authentication and rate limiting with Kong, and eventually transition to a service mesh.
+3. **Set up monitoring at the same time as the Gateway**: Building metrics, logging, and tracing in from the early stage makes troubleshooting significantly easier.
 
 ---
 
-## 参考文献
+## Next Guides to Read
+
+→ [SDK Design](../02-sdk-and-libraries/00-sdk-design.md) — Designing SDKs for API consumers
+→ [Authentication Patterns](../03-api-security/00-authentication-patterns.md) — API authentication at the Gateway
+
+---
+
+## References
 
 1. Kong Inc. "Kong Gateway Documentation." Kong Inc., 2024. https://docs.konghq.com/gateway/latest/
 2. Amazon Web Services. "Amazon API Gateway Developer Guide." AWS, 2024. https://docs.aws.amazon.com/apigateway/latest/developerguide/welcome.html
