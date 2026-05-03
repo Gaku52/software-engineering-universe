@@ -1,91 +1,93 @@
 # REST vs GraphQL
 
-> RESTとGraphQLの本質的な違い、それぞれの強みと弱み、選定基準を体系的に比較する。プロジェクトの要件に応じた適切な選択と、ハイブリッドアプローチまで、実践的な判断基準を提供する。アーキテクチャの根本的な設計思想から、パフォーマンス特性、運用上の考慮事項、ユースケース別の選択指針に至るまでを網羅的に解説する。
+> A systematic comparison of the fundamental differences between REST and GraphQL, their respective strengths and weaknesses, and selection criteria. This guide provides practical decision-making guidelines covering everything from choosing the right approach based on project requirements through hybrid architectures — from the foundational design philosophies of each architecture, to performance characteristics, operational considerations, and use-case-specific selection guidance.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] RESTとGraphQLのアーキテクチャ上の根本的な違いを理解する
-- [ ] データ取得パターンの差異とそのトレードオフを把握する
-- [ ] パフォーマンス特性の違いとベンチマーク観点を学ぶ
-- [ ] プロジェクト要件に基づく選定基準を体系化する
-- [ ] ハイブリッドアプローチの設計パターンを習得する
-- [ ] 移行戦略と段階的導入の手法を理解する
-- [ ] アンチパターンとエッジケースへの対処法を身につける
+- [ ] Understand the fundamental architectural differences between REST and GraphQL
+- [ ] Grasp the differences in data-fetching patterns and their trade-offs
+- [ ] Learn about performance characteristics and benchmarking perspectives
+- [ ] Systematize selection criteria based on project requirements
+- [ ] Master hybrid-approach design patterns
+- [ ] Understand migration strategies and incremental adoption techniques
+- [ ] Learn how to handle anti-patterns and edge cases
 
-## 前提知識
+## Prerequisites
 
-- REST APIの設計原則とベストプラクティス → 参照: [REST Best Practices](./00-rest-best-practices.md)
-- GraphQLの基礎概念（Schema, Query, Mutation） → 参照: [GraphQL基礎](./01-graphql-fundamentals.md)
-- GraphQLの高度な機能（Subscription, Federation） → 参照: [GraphQL応用](./02-graphql-advanced.md)
+- REST API design principles and best practices → See: [REST Best Practices](./00-rest-best-practices.md)
+- GraphQL fundamentals (Schema, Query, Mutation) → See: [GraphQL Fundamentals](./01-graphql-fundamentals.md)
+- Advanced GraphQL features (Subscription, Federation) → See: [GraphQL Advanced](./02-graphql-advanced.md)
 
 ---
 
-## 1. アーキテクチャ思想の根本的な違い
+## 1. Fundamental Differences in Architectural Philosophy
 
-REST（Representational State Transfer）とGraphQLは、APIの設計に対して根本的に異なるアプローチを取る。両者の違いを正確に理解するためには、それぞれが生まれた背景と設計哲学を把握する必要がある。
+REST (Representational State Transfer) and GraphQL take fundamentally different approaches to API design. To accurately understand their differences, it is necessary to understand the background and design philosophy from which each emerged.
 
-### 1.1 RESTの設計哲学
+### 1.1 REST Design Philosophy
 
-RESTは2000年にRoy Fieldingの博士論文で提唱されたアーキテクチャスタイルである。Webの成功を支える原則を体系化したものであり、以下の制約に基づいている。
+REST is an architectural style proposed by Roy Fielding in his doctoral dissertation in 2000. It systematizes the principles that support the success of the Web, and is based on the following constraints.
 
 ```
-REST の6つの制約:
+The 6 Constraints of REST:
 
   ┌─────────────────────────────────────────────────────────────────┐
-  │  1. Client-Server（クライアント・サーバー分離）                │
-  │     → 関心の分離により独立して進化可能                         │
+  │  1. Client-Server (Client-Server Separation)                    │
+  │     → Separation of concerns allows independent evolution       │
   │                                                                 │
-  │  2. Stateless（ステートレス）                                   │
-  │     → 各リクエストは自己完結的、サーバーはセッション不保持     │
+  │  2. Stateless                                                   │
+  │     → Each request is self-contained; server holds no session   │
   │                                                                 │
-  │  3. Cacheable（キャッシュ可能）                                 │
-  │     → レスポンスにキャッシュ可否を明示                         │
+  │  3. Cacheable                                                   │
+  │     → Responses explicitly indicate whether they are cacheable  │
   │                                                                 │
-  │  4. Uniform Interface（統一インターフェース）                   │
-  │     → リソース識別、表現による操作、自己記述的メッセージ、     │
-  │       HATEOAS（ハイパーメディアによる状態遷移）               │
+  │  4. Uniform Interface                                           │
+  │     → Resource identification, manipulation through             │
+  │       representations, self-descriptive messages,               │
+  │       HATEOAS (Hypermedia as the Engine of Application State)   │
   │                                                                 │
-  │  5. Layered System（階層化システム）                            │
-  │     → 中間層（プロキシ、ゲートウェイ）の透過的挿入             │
+  │  5. Layered System                                              │
+  │     → Transparent insertion of intermediary layers              │
+  │       (proxies, gateways)                                       │
   │                                                                 │
-  │  6. Code on Demand（オプション）                                │
-  │     → サーバーからクライアントへのコード転送                   │
+  │  6. Code on Demand (optional)                                   │
+  │     → Transfer of code from server to client                   │
   └─────────────────────────────────────────────────────────────────┘
 ```
 
-RESTの核心は「リソース指向」にある。世界をリソース（名詞）として捉え、HTTPメソッド（動詞）で操作する。URIはリソースのアイデンティティであり、表現はリソースの状態を伝える。
+The core of REST is "resource orientation." It views the world as resources (nouns) and manipulates them with HTTP methods (verbs). URIs are the identity of resources, and representations convey the state of resources.
 
-### 1.2 GraphQLの設計哲学
+### 1.2 GraphQL Design Philosophy
 
-GraphQLは2012年にFacebook（現Meta）で開発され、2015年にオープンソース化された。モバイルアプリケーション開発における以下の課題を解決するために生まれた。
+GraphQL was developed at Facebook (now Meta) in 2012 and open-sourced in 2015. It was created to solve the following challenges in mobile application development.
 
 ```
-GraphQL が解決した課題:
+Problems GraphQL Solved:
 
   ┌─────────────────────────────────────────────────────────────────┐
-  │  課題1: Over-fetching（過剰取得）                              │
-  │  → モバイルで不要なデータが帯域を圧迫                         │
+  │  Problem 1: Over-fetching                                       │
+  │  → Unwanted data on mobile consuming bandwidth                 │
   │                                                                 │
-  │  課題2: Under-fetching（取得不足）                             │
-  │  → 1画面に必要なデータに複数リクエストが必要                  │
+  │  Problem 2: Under-fetching                                      │
+  │  → Multiple requests needed for data in a single screen        │
   │                                                                 │
-  │  課題3: エンドポイント爆発                                     │
-  │  → クライアントごとに専用エンドポイントが増殖                 │
+  │  Problem 3: Endpoint explosion                                  │
+  │  → Dedicated endpoints proliferating per client                │
   │                                                                 │
-  │  課題4: バージョニング地獄                                     │
-  │  → v1, v2, v3... の管理コスト                                  │
+  │  Problem 4: Versioning hell                                     │
+  │  → Management cost of v1, v2, v3, ...                          │
   │                                                                 │
-  │  課題5: フロントエンド・バックエンドの密結合                   │
-  │  → 画面変更のたびにAPI変更が必要                               │
+  │  Problem 5: Tight coupling between frontend and backend        │
+  │  → API changes required with every screen change               │
   └─────────────────────────────────────────────────────────────────┘
 ```
 
-GraphQLの核心は「クライアント駆動のデータ取得」にある。サーバーはデータグラフを公開し、クライアントが必要なデータの形状を宣言的に指定する。
+The core of GraphQL is "client-driven data fetching." The server exposes a data graph, and the client declaratively specifies the shape of the data it needs.
 
-### 1.3 アーキテクチャモデルの比較図
+### 1.3 Architectural Model Comparison Diagram
 
 ```
-REST アーキテクチャモデル:
+REST Architecture Model:
 
   Client                     Server
   ┌──────┐                   ┌──────────────────────────┐
@@ -94,18 +96,18 @@ REST アーキテクチャモデル:
   │      │  GET /users/1/    │  /posts/:id       → PostController.show    │
   │      │      posts        │  /comments/:id    → CommentController.show │
   │      │ ──────────────→   │                                            │
-  │      │  GET /posts/1/    │  各エンドポイントが独立したリソースを      │
-  │      │      comments     │  表現し、固定のレスポンス構造を返す        │
-  │      │ ──────────────→   │                                            │
+  │      │  GET /posts/1/    │  Each endpoint represents an independent   │
+  │      │      comments     │  resource and returns a fixed response     │
+  │      │ ──────────────→   │  structure                                 │
   └──────┘                   └──────────────────────────────────────────┘
-  3回のリクエスト             3つのエンドポイント
+  3 requests                 3 endpoints
 
 
-GraphQL アーキテクチャモデル:
+GraphQL Architecture Model:
 
   Client                     Server
   ┌──────┐                   ┌──────────────────────────┐
-  │      │  POST /graphql    │  Schema（型定義）        │
+  │      │  POST /graphql    │  Schema (type definitions)│
   │      │  query {          │    ├── User              │
   │      │    user(id:1) {   │    │   ├── name          │
   │      │      name         │    │   └── posts         │
@@ -115,110 +117,110 @@ GraphQL アーキテクチャモデル:
   │      │          body     │    └── Comment           │
   │      │        }          │        └── body          │
   │      │      }            │                          │
-  │      │    }              │  Resolver が必要な        │
-  │      │  }                │  データのみ取得・結合     │
-  │      │ ──────────────→   │                          │
+  │      │    }              │  Resolvers fetch and      │
+  │      │  }                │  combine only the needed  │
+  │      │ ──────────────→   │  data                     │
   └──────┘                   └──────────────────────────┘
-  1回のリクエスト             1つのエンドポイント
+  1 request                  1 endpoint
 ```
 
 ---
 
-## 2. 基本比較表
+## 2. Basic Comparison Tables
 
-以下の表では、両者の主要な特性を網羅的に比較する。
+The following tables provide a comprehensive comparison of the major characteristics of both approaches.
 
-### 比較表1: 技術的特性の比較
+### Comparison Table 1: Technical Characteristics
 
-| 観点 | REST | GraphQL |
-|------|------|---------|
-| エンドポイント | 複数（リソースごとに1つ） | 単一（`/graphql`） |
-| データ取得 | サーバーが決定（固定構造） | クライアントが宣言的に指定 |
-| 型システム | なし（OpenAPI/JSON Schemaで補完） | 組み込み（SDL: Schema Definition Language） |
-| HTTPキャッシュ | 標準のHTTPキャッシュ機構を完全活用 | 困難（POSTリクエストのため） |
-| 学習コスト | 低い（HTTP知識で十分） | 中程度（SDL、リゾルバー、クライアントライブラリ） |
-| エコシステム | 非常に成熟（20年以上の歴史） | 成長中（2015年〜） |
-| ファイルアップロード | 容易（multipart/form-data） | 複雑（別途対応が必要） |
-| リアルタイム通信 | WebSocket/SSEを別途実装 | Subscription が組み込み |
-| エラーハンドリング | HTTPステータスコード（4xx, 5xx） | 常にHTTP 200 + errors配列 |
-| テスト容易性 | curl等で即テスト可能 | 専用クライアント（GraphiQL等）が推奨 |
-| バージョニング | URLベース（/v1/, /v2/）またはヘッダー | 不要（スキーマの進化的追加） |
-| オーバーヘッド | 低い（HTTPメソッドのみ） | クエリの解析・検証コスト |
-| ドキュメント | OpenAPI/Swagger UIで生成 | スキーマ自体がドキュメント |
-| コード生成 | OpenAPI Generatorで可能 | codegen で型安全なクライアント自動生成 |
-| 認証・認可 | HTTPヘッダー（標準的） | HTTPヘッダー + フィールドレベル認可 |
+| Aspect | REST | GraphQL |
+|--------|------|---------|
+| Endpoints | Multiple (one per resource) | Single (`/graphql`) |
+| Data fetching | Server-determined (fixed structure) | Client-declared declaratively |
+| Type system | None (supplemented by OpenAPI/JSON Schema) | Built-in (SDL: Schema Definition Language) |
+| HTTP caching | Full use of standard HTTP caching mechanisms | Difficult (due to POST requests) |
+| Learning cost | Low (HTTP knowledge sufficient) | Moderate (SDL, resolvers, client libraries) |
+| Ecosystem | Very mature (20+ years of history) | Growing (since 2015) |
+| File upload | Easy (multipart/form-data) | Complex (requires separate handling) |
+| Real-time communication | WebSocket/SSE implemented separately | Subscription built in |
+| Error handling | HTTP status codes (4xx, 5xx) | Always HTTP 200 + errors array |
+| Testability | Instant testing with curl, etc. | Dedicated client (GraphiQL, etc.) recommended |
+| Versioning | URL-based (/v1/, /v2/) or headers | Not needed (evolutionary schema additions) |
+| Overhead | Low (HTTP methods only) | Query parsing and validation cost |
+| Documentation | Generated via OpenAPI/Swagger UI | Schema itself serves as documentation |
+| Code generation | Possible with OpenAPI Generator | Auto-generates type-safe clients via codegen |
+| Authentication/Authorization | HTTP headers (standard) | HTTP headers + field-level authorization |
 
-### 比較表2: 運用・組織面の比較
+### Comparison Table 2: Operations and Organizational Aspects
 
-| 観点 | REST | GraphQL |
-|------|------|---------|
-| チーム構成 | バックエンド中心 | フロントエンド・バックエンド協調 |
-| API設計プロセス | エンドポイント設計（URL設計） | スキーマ設計（型とリレーション） |
-| モニタリング | エンドポイント単位で明確 | クエリ単位で複雑 |
-| レート制限 | リクエスト単位で容易 | クエリの複雑度ベースが必要 |
-| セキュリティ | エンドポイント単位のアクセス制御 | フィールド単位の認可が必要 |
-| CDN連携 | 標準対応 | Persisted Queries + APQ で対応 |
-| ログ分析 | URLパスで分類容易 | クエリ解析が必要 |
-| SLA定義 | エンドポイント単位で明確 | クエリパターン別に定義が必要 |
-| 段階的ロールアウト | エンドポイント単位 | フィールド単位の@deprecatedディレクティブ |
-| サードパーティ連携 | 広く受け入れられている | 対応サービスが限定的 |
+| Aspect | REST | GraphQL |
+|--------|------|---------|
+| Team structure | Backend-centric | Frontend-backend collaboration |
+| API design process | Endpoint design (URL design) | Schema design (types and relations) |
+| Monitoring | Clear per-endpoint | Complex per-query |
+| Rate limiting | Easy per-request | Requires query complexity-based approach |
+| Security | Per-endpoint access control | Per-field authorization needed |
+| CDN integration | Standard support | Persisted Queries + APQ |
+| Log analysis | Easy classification by URL path | Requires query analysis |
+| SLA definition | Clear per-endpoint | Needs definition by query pattern |
+| Gradual rollout | Per-endpoint | Per-field @deprecated directive |
+| Third-party integration | Widely accepted | Limited compatible services |
 
 ---
 
-## 3. データ取得パターンの詳細比較
+## 3. Detailed Comparison of Data Fetching Patterns
 
-### 3.1 Over-fetching と Under-fetching
+### 3.1 Over-fetching and Under-fetching
 
-RESTとGraphQLの最も顕著な違いは、データ取得のパターンにある。
+The most notable difference between REST and GraphQL lies in data-fetching patterns.
 
 ```typescript
 // ====================================================================
-// コード例1: ユーザーダッシュボード画面のデータ取得
+// Code Example 1: Data fetching for a user dashboard screen
 // ====================================================================
 
-// --- REST での実装 ---
-// 画面に表示する情報: ユーザー名、直近5件の注文、各注文の商品名
+// --- Implementation with REST ---
+// Information to display: user name, last 5 orders, product name per order
 
-// リクエスト1: ユーザー情報の取得
+// Request 1: Fetch user information
 // GET /api/v1/users/123
 const userResponse = await fetch('/api/v1/users/123');
 const user = await userResponse.json();
-// レスポンス（不要なフィールドも含む = Over-fetching）:
+// Response (includes unnecessary fields = Over-fetching):
 // {
 //   "id": "123",
 //   "name": "Tanaka Taro",
 //   "email": "tanaka@example.com",
-//   "avatar": "https://cdn.example.com/avatars/123.jpg",  ← 不要
-//   "address": "Tokyo, Japan",                             ← 不要
-//   "phone": "+81-90-1234-5678",                           ← 不要
-//   "preferences": { ... },                                ← 不要
-//   "createdAt": "2024-01-15T10:30:00Z"                    ← 不要
+//   "avatar": "https://cdn.example.com/avatars/123.jpg",  ← not needed
+//   "address": "Tokyo, Japan",                             ← not needed
+//   "phone": "+81-90-1234-5678",                           ← not needed
+//   "preferences": { ... },                                ← not needed
+//   "createdAt": "2024-01-15T10:30:00Z"                    ← not needed
 // }
 
-// リクエスト2: 注文一覧の取得（Under-fetching: 別リクエストが必要）
+// Request 2: Fetch order list (Under-fetching: separate request required)
 // GET /api/v1/users/123/orders?limit=5&sort=-createdAt
 const ordersResponse = await fetch(
   '/api/v1/users/123/orders?limit=5&sort=-createdAt'
 );
 const orders = await ordersResponse.json();
-// レスポンス:
+// Response:
 // [
 //   { "id": "ord-001", "total": 15000, "status": "delivered", ... },
 //   { "id": "ord-002", "total": 8500, "status": "shipped", ... },
 //   ...
 // ]
 
-// リクエスト3〜7: 各注文の商品詳細（N+1問題）
+// Requests 3–7: Product details for each order (N+1 problem)
 const orderDetails = await Promise.all(
   orders.map(order =>
     fetch(`/api/v1/orders/${order.id}/items`).then(r => r.json())
   )
 );
-// 合計リクエスト数: 2 + N（注文数）= 最大7リクエスト
+// Total requests: 2 + N (number of orders) = up to 7 requests
 
 
-// --- GraphQL での実装 ---
-// 1リクエストで必要なデータのみ取得
+// --- Implementation with GraphQL ---
+// Fetch only the needed data in a single request
 const DASHBOARD_QUERY = `
   query UserDashboard($userId: ID!) {
     user(id: $userId) {
@@ -246,71 +248,71 @@ const result = await graphqlClient.query({
   query: DASHBOARD_QUERY,
   variables: { userId: '123' }
 });
-// 合計リクエスト数: 1
-// レスポンスには指定したフィールドのみが含まれる
+// Total requests: 1
+// Response contains only the specified fields
 ```
 
-### 3.2 RESTにおけるOver-fetching対策
+### 3.2 Strategies for Mitigating Over-fetching in REST
 
-RESTでもOver-fetchingやUnder-fetchingを軽減する手法は存在する。ただし、これらはGraphQLの機能を部分的に再発明している側面がある。
+There are techniques to reduce over-fetching and under-fetching in REST as well. However, these approaches partially reinvent features that GraphQL provides natively.
 
 ```typescript
 // ====================================================================
-// コード例2: REST でのデータ取得最適化パターン
+// Code Example 2: Data-fetching optimization patterns in REST
 // ====================================================================
 
-// パターンA: フィールド選択（Sparse Fieldsets）
+// Pattern A: Field selection (Sparse Fieldsets)
 // GET /api/v1/users/123?fields=name,email
-// → JSON:API 仕様で標準化されたアプローチ
+// → Standardized approach in the JSON:API specification
 const user = await fetch('/api/v1/users/123?fields=name,email');
-// 利点: Over-fetching を軽減
-// 欠点: サーバー側でフィールドフィルタリングの実装が必要
-//        ネストされたリソースのフィールド選択が複雑化
+// Benefit: Reduces over-fetching
+// Drawback: Requires server-side field filtering implementation
+//           Nested resource field selection becomes complex
 
-// パターンB: リソース展開（Embedding / Include）
+// Pattern B: Resource embedding (Embedding / Include)
 // GET /api/v1/users/123?include=orders,orders.items
-// → JSON:API の include パラメータ
+// → The include parameter from JSON:API
 const userWithOrders = await fetch(
   '/api/v1/users/123?include=orders,orders.items'
 );
-// 利点: Under-fetching を軽減（1リクエストで関連リソース取得）
-// 欠点: サーバー側の実装が複雑
-//        include の深さ制限の管理が必要
+// Benefit: Reduces under-fetching (related resources in one request)
+// Drawback: Complex server-side implementation
+//           Managing depth limits for includes
 
-// パターンC: 専用エンドポイント（View / Projection）
+// Pattern C: Dedicated endpoint (View / Projection)
 // GET /api/v1/users/123/dashboard-summary
 const summary = await fetch('/api/v1/users/123/dashboard-summary');
-// 利点: クライアントに最適化されたレスポンス
-// 欠点: 画面ごとにエンドポイントが増殖
-//        → BFF（Backend for Frontend）パターンの台頭
+// Benefit: Response optimized for the client
+// Drawback: Endpoints proliferate per screen
+//           → Rise of the BFF (Backend for Frontend) pattern
 
-// パターンD: OData クエリオプション
+// Pattern D: OData query options
 // GET /api/v1/users?$select=name,email&$expand=orders($top=5)
 const odataResult = await fetch(
   '/api/v1/users?$select=name,email&$expand=orders($top=5)'
 );
-// 利点: 標準化されたクエリ言語
-// 欠点: OData 仕様の複雑さ、学習コスト
+// Benefit: Standardized query language
+// Drawback: Complexity of OData spec, learning cost
 
-// パターンE: カスタムクエリパラメータ
+// Pattern E: Custom query parameters
 // GET /api/v1/users/123?view=detailed&depth=2
 const detailedUser = await fetch(
   '/api/v1/users/123?view=detailed&depth=2'
 );
-// 利点: シンプルに実装可能
-// 欠点: 非標準、APIごとに異なるルール
+// Benefit: Simple to implement
+// Drawback: Non-standard, different rules per API
 ```
 
-### 3.3 Mutation（データ更新）の比較
+### 3.3 Comparison of Mutation (Data Update)
 
 ```typescript
 // ====================================================================
-// コード例3: データ更新操作の比較
+// Code Example 3: Comparison of data update operations
 // ====================================================================
 
-// --- REST での更新 ---
+// --- Updates with REST ---
 
-// 完全な更新（PUT）
+// Full update (PUT)
 // PUT /api/v1/users/123
 await fetch('/api/v1/users/123', {
   method: 'PUT',
@@ -320,23 +322,23 @@ await fetch('/api/v1/users/123', {
     email: 'jiro@example.com',
     address: 'Osaka, Japan',
     phone: '+81-90-9876-5432'
-    // 全フィールドを送信する必要がある
+    // All fields must be sent
   })
 });
 
-// 部分更新（PATCH）
+// Partial update (PATCH)
 // PATCH /api/v1/users/123
 await fetch('/api/v1/users/123', {
   method: 'PATCH',
   headers: { 'Content-Type': 'application/merge-patch+json' },
   body: JSON.stringify({
     name: 'Tanaka Jiro'
-    // 変更するフィールドのみ
+    // Only the fields to change
   })
 });
 
-// 複数リソースの同時更新は標準的でない
-// → バッチエンドポイントの独自実装が必要
+// Simultaneous updates to multiple resources are non-standard
+// → Requires a custom batch endpoint
 // POST /api/v1/batch
 await fetch('/api/v1/batch', {
   method: 'POST',
@@ -349,9 +351,9 @@ await fetch('/api/v1/batch', {
 });
 
 
-// --- GraphQL での更新 ---
+// --- Updates with GraphQL ---
 
-// 単一の Mutation
+// Single Mutation
 const UPDATE_USER = `
   mutation UpdateUser($input: UpdateUserInput!) {
     updateUser(input: $input) {
@@ -378,10 +380,10 @@ await graphqlClient.mutate({
     }
   }
 });
-// 利点: 更新後のデータを同じリクエストで取得可能
-// 利点: errors フィールドでバリデーションエラーを構造化
+// Benefit: Updated data can be retrieved in the same request
+// Benefit: Validation errors are structured in the errors field
 
-// 複数操作の同時実行（標準的にサポート）
+// Multiple operations executed simultaneously (natively supported)
 const BATCH_MUTATION = `
   mutation BatchUpdate($userInput: UpdateUserInput!, $notif: CreateNotificationInput!) {
     updateUser(input: $userInput) {
@@ -392,86 +394,86 @@ const BATCH_MUTATION = `
     }
   }
 `;
-// → 単一リクエストで複数の Mutation を実行
-// → ただし、各 Mutation は順次実行される（並列ではない）
+// → Multiple Mutations executed in a single request
+// → However, each Mutation executes sequentially (not in parallel)
 ```
 
 ---
 
-## 4. パフォーマンス比較
+## 4. Performance Comparison
 
-パフォーマンスの観点では、RESTとGraphQLはそれぞれ異なる特性を持つ。単純に「どちらが速い」とは言えず、ユースケースによって有利不利が変わる。
+From a performance perspective, REST and GraphQL each have different characteristics. It cannot simply be said that one is "faster" than the other — the advantages and disadvantages vary depending on the use case.
 
-### 4.1 レイテンシ特性
+### 4.1 Latency Characteristics
 
 ```
-レイテンシ比較（典型的なシナリオ）:
+Latency Comparison (Typical Scenarios):
 
-シナリオ1: 単一リソースの取得（ユーザー情報のみ）
+Scenario 1: Retrieving a single resource (user info only)
 ──────────────────────────────────────────────────
   REST:   Client ──GET /users/1──→ Server ──→ DB
-          合計: ネットワーク往復1回 + DB 1回
-          CDNキャッシュヒット時: 数ms（最速）
+          Total: 1 network round trip + 1 DB query
+          On CDN cache hit: a few ms (fastest)
 
   GraphQL: Client ──POST /graphql──→ Parse → Validate → Execute → DB
-           合計: ネットワーク往復1回 + 解析コスト + DB 1回
-           CDNキャッシュ: 困難（POSTのため）
+           Total: 1 network round trip + parsing cost + 1 DB query
+           CDN caching: difficult (due to POST)
 
-  結論: 単一リソース → REST が有利（特にCDNキャッシュ活用時）
+  Conclusion: Single resource → REST has the advantage (especially with CDN caching)
 
 
-シナリオ2: 関連リソースの取得（ユーザー + 注文 + 商品）
+Scenario 2: Fetching related resources (user + orders + products)
 ──────────────────────────────────────────────────
   REST:   Client ──GET /users/1──→ Server
           Client ──GET /users/1/orders──→ Server
           Client ──GET /orders/1/items──→ Server
           Client ──GET /orders/2/items──→ Server
-          合計: ネットワーク往復4回（シーケンシャル）
+          Total: 4 network round trips (sequential)
 
   GraphQL: Client ──POST /graphql──→ Parse → Validate → Execute
-           → DB(user) + DB(orders) + DB(items) ← DataLoader でバッチ化
-           合計: ネットワーク往復1回 + DB 数回（並列可）
+           → DB(user) + DB(orders) + DB(items) ← batched by DataLoader
+           Total: 1 network round trip + several DB queries (parallelizable)
 
-  結論: 関連データ → GraphQL が有利（ラウンドトリップ削減）
+  Conclusion: Related data → GraphQL has the advantage (fewer round trips)
 
 
-シナリオ3: 高トラフィック環境（1000 req/sec）
+Scenario 3: High-traffic environment (1,000 req/sec)
 ──────────────────────────────────────────────────
-  REST:   CDNキャッシュ活用で大半をオフロード
-          Cache-Control ヘッダーによる粒度制御
-          キャッシュヒット率80%以上を達成可能
+  REST:   Offload most traffic with CDN caching
+          Fine-grained control with Cache-Control headers
+          Cache hit rate of 80%+ achievable
 
-  GraphQL: クエリの多様性によりキャッシュ効率が低下
-           Persisted Queries で改善可能
-           APQ（Automatic Persisted Queries）で運用負荷軽減
+  GraphQL: Cache efficiency drops due to query variety
+           Can be improved with Persisted Queries
+           APQ (Automatic Persisted Queries) reduces operational burden
 
-  結論: 高トラフィック + 単純データ → REST が有利
+  Conclusion: High traffic + simple data → REST has the advantage
 ```
 
-### 4.2 ペイロードサイズの比較
+### 4.2 Payload Size Comparison
 
 ```
-ペイロードサイズ比較:
+Payload Size Comparison:
 
-ユーザーダッシュボード画面で必要なデータ:
-  → ユーザー名、メールアドレス、注文5件のタイトルと金額
+Data needed on a user dashboard screen:
+  → Username, email address, title and amount for 5 orders
 
-REST レスポンス（Over-fetching あり）:
+REST response (with over-fetching):
   ┌──────────────────────────────────┐
-  │ User レスポンス:         ~800B   │  ← name, email 以外に
-  │   id, name, email, avatar,      │     avatar, address, phone,
-  │   address, phone, preferences,  │     preferences 等が含まれる
+  │ User response:           ~800B   │  ← Contains avatar, address, phone,
+  │   id, name, email, avatar,      │     preferences, etc. beyond name
+  │   address, phone, preferences,  │     and email
   │   createdAt, updatedAt, ...     │
   ├──────────────────────────────────┤
-  │ Orders レスポンス:      ~2000B   │  ← 各注文の全フィールド
+  │ Orders response:        ~2000B   │  ← All fields for each order
   │   [{id, total, status,          │
   │     shippingAddress, items,     │
   │     createdAt, ...}, ...]       │
   ├──────────────────────────────────┤
-  │ 合計: ~2800B + HTTPヘッダ×2     │
+  │ Total: ~2800B + HTTP headers ×2 │
   └──────────────────────────────────┘
 
-GraphQL レスポンス（必要なデータのみ）:
+GraphQL response (only the required data):
   ┌──────────────────────────────────┐
   │ { "data": {                      │
   │     "user": {                    │
@@ -484,43 +486,43 @@ GraphQL レスポンス（必要なデータのみ）:
   │   }                              │
   │ }                                │
   ├──────────────────────────────────┤
-  │ 合計: ~600B + HTTPヘッダ×1      │
+  │ Total: ~600B + HTTP headers ×1  │
   └──────────────────────────────────┘
 
-  差分: REST は約4.7倍のデータ転送量
-  → 低帯域環境（モバイルネットワーク）で特に影響大
+  Difference: REST transfers approximately 4.7× more data
+  → Especially impactful in low-bandwidth environments (mobile networks)
 ```
 
-### 4.3 サーバーサイドのパフォーマンス考慮事項
+### 4.3 Server-Side Performance Considerations
 
 ```typescript
 // ====================================================================
-// コード例4: GraphQL の N+1 問題と DataLoader による解決
+// Code Example 4: The N+1 problem in GraphQL and solving it with DataLoader
 // ====================================================================
 
-// N+1 問題が発生するリゾルバー（アンチパターン）
+// Resolver that causes the N+1 problem (anti-pattern)
 const resolvers = {
   Query: {
     users: () => db.query('SELECT * FROM users LIMIT 10')
-    // → 1回のクエリ
+    // → 1 query
   },
   User: {
     orders: (user) => db.query('SELECT * FROM orders WHERE user_id = ?', [user.id])
-    // → ユーザーごとに1回 = 10回のクエリ
-    // 合計: 1 + 10 = 11クエリ（N+1問題）
+    // → 1 query per user = 10 queries
+    // Total: 1 + 10 = 11 queries (N+1 problem)
   }
 };
 
-// DataLoader による解決
+// Solution using DataLoader
 import DataLoader from 'dataloader';
 
 const ordersByUserLoader = new DataLoader(async (userIds: string[]) => {
-  // バッチクエリ: 1回のSQLで全ユーザーの注文を取得
+  // Batch query: fetch all users' orders in a single SQL call
   const orders = await db.query(
     'SELECT * FROM orders WHERE user_id IN (?)',
     [userIds]
   );
-  // userIds の順序に合わせてグループ化して返す
+  // Group by userId and return in the same order as userIds
   const ordersByUserId = new Map<string, Order[]>();
   for (const order of orders) {
     const existing = ordersByUserId.get(order.userId) || [];
@@ -533,157 +535,157 @@ const ordersByUserLoader = new DataLoader(async (userIds: string[]) => {
 const optimizedResolvers = {
   Query: {
     users: () => db.query('SELECT * FROM users LIMIT 10')
-    // → 1回のクエリ
+    // → 1 query
   },
   User: {
     orders: (user) => ordersByUserLoader.load(user.id)
-    // → DataLoader がバッチ化: 1回のクエリ
-    // 合計: 1 + 1 = 2クエリ（N+1問題解決）
+    // → DataLoader batches into: 1 query
+    // Total: 1 + 1 = 2 queries (N+1 problem solved)
   }
 };
 
-// DataLoader の動作原理:
-// 1. 同一イベントループ内の .load() 呼び出しを収集
-// 2. process.nextTick() でバッチ関数を実行
-// 3. 結果を各呼び出し元に分配
-// 4. リクエストスコープでキャッシュ（重複排除）
+// How DataLoader works:
+// 1. Collects all .load() calls within the same event loop tick
+// 2. Executes the batch function on process.nextTick()
+// 3. Distributes results back to each caller
+// 4. Caches within request scope (deduplication)
 ```
 
 ---
 
-## 5. 選定基準の体系化
+## 5. Systematizing Selection Criteria
 
-### 5.1 ユースケース別選定マトリクス
-
-```
-RESTを選ぶべき場合:
-  [1] シンプルなCRUD操作が中心のアプリケーション
-  [2] HTTPキャッシュ（CDN含む）を最大限活用したい
-  [3] ファイルアップロード/ダウンロードが主要な機能
-  [4] サードパーティ向けの公開API
-  [5] チームにGraphQL経験者がいない（学習コスト考慮）
-  [6] マイクロサービス間の同期通信（gRPC も検討対象）
-  [7] 低レイテンシが最優先事項（CDNキャッシュ前提）
-  [8] 規制対応でAPI仕様の厳密な管理が必要
-  [9] WebHook との連携が多い
-
-GraphQLを選ぶべき場合:
-  [1] 複雑なデータ関係がある（ソーシャルグラフ、EC商品カタログ等）
-  [2] 多様なクライアント（Web、iOS、Android、スマートTV等）
-  [3] フロントエンドの柔軟性・開発速度が重要
-  [4] 1画面で多くの関連データを表示（ダッシュボード等）
-  [5] リアルタイム更新が必要（Subscription）
-  [6] BFF（Backend for Frontend）層を構築する
-  [7] スキーマ駆動開発でフロントエンド・バックエンドを並行開発
-  [8] API のバージョニングを避けたい
-  [9] 型安全なクライアントコードの自動生成を活用したい
-
-gRPCを選ぶべき場合:
-  [1] マイクロサービス間の高速な内部通信
-  [2] ストリーミング通信（双方向含む）
-  [3] 多言語環境でのサービス間通信
-  [4] バイナリデータの効率的な転送
-  [5] パフォーマンスが最優先（Protocol Buffersの効率）
-```
-
-### 5.2 判断フローチャート
+### 5.1 Use-Case Selection Matrix
 
 ```
-API 技術選定フローチャート:
+When to choose REST:
+  [1] Application centered on simple CRUD operations
+  [2] Want to maximize HTTP caching (including CDN)
+  [3] File upload/download is a major feature
+  [4] Public API for third parties
+  [5] Team has no GraphQL experience (account for learning cost)
+  [6] Synchronous communication between microservices (gRPC also worth considering)
+  [7] Low latency is the top priority (assuming CDN caching)
+  [8] Compliance requires strict management of API specifications
+  [9] Heavy integration with webhooks
+
+When to choose GraphQL:
+  [1] Complex data relationships (social graphs, e-commerce product catalogs, etc.)
+  [2] Multiple client types (Web, iOS, Android, smart TV, etc.)
+  [3] Frontend flexibility and development speed are important
+  [4] Displaying many related data points on a single screen (dashboards, etc.)
+  [5] Real-time updates needed (Subscription)
+  [6] Building a BFF (Backend for Frontend) layer
+  [7] Schema-driven development for parallel frontend-backend work
+  [8] Want to avoid API versioning
+  [9] Want to leverage auto-generated type-safe client code
+
+When to choose gRPC:
+  [1] High-speed internal communication between microservices
+  [2] Streaming communication (including bidirectional)
+  [3] Service-to-service communication in a polyglot environment
+  [4] Efficient transfer of binary data
+  [5] Performance is top priority (efficiency of Protocol Buffers)
+```
+
+### 5.2 Decision Flowchart
+
+```
+API Technology Selection Flowchart:
 
   START
     │
-    ├── Q1: 公開API（サードパーティ向け）か？
-    │     ├── YES → REST（標準的、ドキュメント豊富、採用障壁低）
+    ├── Q1: Is this a public API (for third parties)?
+    │     ├── YES → REST (standard, abundant docs, low adoption barrier)
     │     └── NO ↓
     │
-    ├── Q2: マイクロサービス間の内部通信か？
-    │     ├── YES → Q2a: レイテンシが最重要か？
-    │     │           ├── YES → gRPC（バイナリ、HTTP/2）
-    │     │           └── NO → REST（シンプルさ優先）
+    ├── Q2: Is this internal communication between microservices?
+    │     ├── YES → Q2a: Is latency the top priority?
+    │     │           ├── YES → gRPC (binary, HTTP/2)
+    │     │           └── NO → REST (favor simplicity)
     │     └── NO ↓
     │
-    ├── Q3: クライアントが3種類以上あるか？
-    │     ├── YES → GraphQL（各クライアント最適化）
+    ├── Q3: Are there 3 or more types of clients?
+    │     ├── YES → GraphQL (optimization for each client)
     │     └── NO ↓
     │
-    ├── Q4: 画面に複雑なデータ関係を表示するか？
-    │     ├── YES → GraphQL（データグラフの柔軟な探索）
+    ├── Q4: Does the screen display complex data relationships?
+    │     ├── YES → GraphQL (flexible traversal of the data graph)
     │     └── NO ↓
     │
-    ├── Q5: HTTPキャッシュ/CDNを重視するか？
-    │     ├── YES → REST（標準HTTPキャッシュ活用）
+    ├── Q5: Is HTTP caching/CDN a priority?
+    │     ├── YES → REST (standard HTTP caching)
     │     └── NO ↓
     │
-    ├── Q6: チームにGraphQL経験者がいるか？
+    ├── Q6: Does the team have GraphQL experience?
     │     ├── YES → GraphQL
-    │     └── NO → REST（学習コスト考慮）
+    │     └── NO → REST (account for learning cost)
     │
-    └── 迷ったら → REST（シンプルさは正義）
-                    + 後から部分的にGraphQLを追加可能
+    └── When in doubt → REST (simplicity is virtuous)
+                        + GraphQL can be added partially later
 ```
 
 ---
 
-## 6. 開発体験（Developer Experience）の比較
+## 6. Developer Experience Comparison
 
-### 6.1 API設計プロセス
+### 6.1 API Design Process
 
 ```
-REST の API 設計プロセス:
+REST API Design Process:
 
-  1. リソースの特定
-     → 名詞を洗い出す（User, Order, Product, ...）
+  1. Identify resources
+     → List out nouns (User, Order, Product, ...)
 
-  2. URI 設計
+  2. URI design
      → /api/v1/users
      → /api/v1/users/:id
      → /api/v1/users/:id/orders
-     → ネストの深さ、命名規則の統一
+     → Consistency in nesting depth and naming conventions
 
-  3. HTTPメソッドのマッピング
-     → GET（取得）、POST（作成）、PUT/PATCH（更新）、DELETE（削除）
+  3. Mapping HTTP methods
+     → GET (read), POST (create), PUT/PATCH (update), DELETE (delete)
 
-  4. レスポンス構造の設計
-     → 各エンドポイントの JSON 構造を定義
-     → ページネーション方式の決定（offset, cursor）
+  4. Designing response structures
+     → Define JSON structure for each endpoint
+     → Decide on pagination strategy (offset, cursor)
 
-  5. OpenAPI 仕様書の作成
-     → YAML/JSON で API 仕様を記述
-     → Swagger UI でドキュメント生成
+  5. Creating OpenAPI specification
+     → Describe API specification in YAML/JSON
+     → Generate documentation with Swagger UI
 
-  6. バージョニング戦略
-     → URL(/v1/, /v2/)、ヘッダー、メディアタイプ
+  6. Versioning strategy
+     → URL (/v1/, /v2/), headers, media types
 
 
-GraphQL の API 設計プロセス:
+GraphQL API Design Process:
 
-  1. ドメインモデルの定義
-     → 型（Type）としてエンティティを定義
+  1. Define domain model
+     → Define entities as types
 
-  2. スキーマ定義（SDL）
+  2. Schema definition (SDL)
      → type User { id: ID!, name: String!, orders: [Order!]! }
-     → スキーマ = 仕様書 = ドキュメント
+     → Schema = specification = documentation
 
-  3. Query / Mutation / Subscription の設計
-     → どのデータをどう取得・更新・監視するか
+  3. Design Query / Mutation / Subscription
+     → Which data to fetch, update, or observe and how
 
-  4. リゾルバーの実装
-     → 各フィールドのデータ取得ロジック
+  4. Implement resolvers
+     → Data-fetching logic for each field
 
-  5. スキーマの進化
-     → 新しいフィールド追加は非破壊的
-     → @deprecated ディレクティブで段階的廃止
+  5. Schema evolution
+     → Adding new fields is non-breaking
+     → Gradual deprecation with @deprecated directive
 ```
 
-### 6.2 型安全性とコード生成
+### 6.2 Type Safety and Code Generation
 
 ```typescript
 // ====================================================================
-// コード例5: GraphQL Code Generator によるフロントエンド型生成
+// Code Example 5: Frontend type generation with GraphQL Code Generator
 // ====================================================================
 
-// --- スキーマ定義（サーバー側: schema.graphql）---
+// --- Schema definition (server side: schema.graphql) ---
 // type User {
 //   id: ID!
 //   name: String!
@@ -716,7 +718,7 @@ GraphQL の API 設計プロセス:
 //   createdAt: DateTime!
 // }
 
-// --- クエリ定義（フロントエンド側: queries/user.graphql）---
+// --- Query definition (frontend side: queries/user.graphql) ---
 // query GetUserDashboard($userId: ID!) {
 //   user(id: $userId) {
 //     name
@@ -734,8 +736,8 @@ GraphQL の API 設計プロセス:
 //   }
 // }
 
-// --- codegen が自動生成する型（generated/graphql.ts）---
-// ※ 以下は codegen の出力イメージ
+// --- Types auto-generated by codegen (generated/graphql.ts) ---
+// The following is an example of codegen output
 
 export type UserRole = 'ADMIN' | 'MEMBER' | 'GUEST';
 export type OrderStatus = 'PENDING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
@@ -763,7 +765,7 @@ export interface GetUserDashboardQueryVariables {
   userId: string;
 }
 
-// --- 型安全なコンポーネント（React + Apollo Client）---
+// --- Type-safe component (React + Apollo Client) ---
 import { useQuery } from '@apollo/client';
 import { GetUserDashboardQuery, GetUserDashboardQueryVariables } from './generated/graphql';
 import { GET_USER_DASHBOARD } from './queries/user';
@@ -780,10 +782,10 @@ function UserDashboard({ userId }: { userId: string }) {
   if (error) return <Error message={error.message} />;
   if (!data?.user) return <NotFound />;
 
-  // data.user.name → string（型安全）
-  // data.user.role → 'ADMIN' | 'MEMBER' | 'GUEST'（型安全）
-  // data.user.orders.edges[0].node.total → number（型安全）
-  // data.user.nonExistent → コンパイルエラー（存在しないフィールド）
+  // data.user.name → string (type-safe)
+  // data.user.role → 'ADMIN' | 'MEMBER' | 'GUEST' (type-safe)
+  // data.user.orders.edges[0].node.total → number (type-safe)
+  // data.user.nonExistent → compile error (field does not exist)
 
   return (
     <div>
@@ -795,79 +797,83 @@ function UserDashboard({ userId }: { userId: string }) {
 }
 ```
 
-### 6.3 テスト・デバッグ体験の比較
+### 6.3 Testing and Debugging Experience Comparison
 
 ```
-REST のテスト・デバッグ:
+REST Testing and Debugging:
 
   ┌─────────────────────────────────────────────────────────┐
-  │ ツールチェーン:                                         │
-  │   - curl / HTTPie: コマンドラインから即テスト           │
-  │   - Postman / Insomnia: GUI ベースのテスト             │
-  │   - Swagger UI: OpenAPI から自動生成のテスト画面       │
-  │   - REST Client (VS Code): エディタ内でテスト         │
+  │ Toolchain:                                              │
+  │   - curl / HTTPie: instant testing from the command line│
+  │   - Postman / Insomnia: GUI-based testing               │
+  │   - Swagger UI: auto-generated test UI from OpenAPI     │
+  │   - REST Client (VS Code): test within the editor       │
   │                                                         │
-  │ 利点:                                                   │
-  │   - ブラウザのアドレスバーで GET リクエストテスト       │
-  │   - curl 一行でテスト完結                               │
-  │   - HTTPステータスコードで即座にエラー原因を特定       │
-  │   - ネットワークタブで直感的にデバッグ                 │
+  │ Advantages:                                             │
+  │   - Test GET requests directly in the browser address   │
+  │     bar                                                 │
+  │   - Testing complete with a single curl command         │
+  │   - Instantly identify error cause from HTTP status code│
+  │   - Intuitive debugging in the Network tab              │
   │                                                         │
-  │ 例:                                                     │
-  │   $ curl -s http://api.example.com/users/1 | jq .      │
+  │ Example:                                                │
+  │   $ curl -s http://api.example.com/users/1 | jq .       │
   │   $ curl -X POST http://api.example.com/users \         │
   │       -H "Content-Type: application/json" \             │
   │       -d '{"name":"test"}'                              │
   └─────────────────────────────────────────────────────────┘
 
-GraphQL のテスト・デバッグ:
+GraphQL Testing and Debugging:
 
   ┌─────────────────────────────────────────────────────────┐
-  │ ツールチェーン:                                         │
-  │   - GraphiQL: インタラクティブ IDE（自動補完付き）     │
-  │   - Apollo Studio / Explorer: 高機能なテスト環境       │
-  │   - Altair GraphQL Client: デスクトップクライアント    │
-  │   - Apollo DevTools: ブラウザ拡張（キャッシュ可視化）  │
+  │ Toolchain:                                              │
+  │   - GraphiQL: interactive IDE (with autocomplete)       │
+  │   - Apollo Studio / Explorer: feature-rich test         │
+  │     environment                                         │
+  │   - Altair GraphQL Client: desktop client               │
+  │   - Apollo DevTools: browser extension (cache           │
+  │     visualization)                                      │
   │                                                         │
-  │ 利点:                                                   │
-  │   - スキーマの自動補完によるクエリ作成支援             │
-  │   - ドキュメントエクスプローラーで API 探索            │
-  │   - クエリのパフォーマンス分析                         │
-  │   - キャッシュの状態を可視化（Apollo DevTools）        │
+  │ Advantages:                                             │
+  │   - Schema autocomplete assists with query building     │
+  │   - Document explorer for API discovery                 │
+  │   - Query performance analysis                          │
+  │   - Visualize cache state (Apollo DevTools)             │
   │                                                         │
-  │ 注意:                                                   │
-  │   - curl でのテストが冗長（POST + JSON ボディ）        │
-  │   - エラーが常に HTTP 200 → ステータスコードで判断不可 │
-  │   - ネットワークタブでは全て POST /graphql に見える    │
+  │ Caveats:                                                │
+  │   - Testing with curl is verbose (POST + JSON body)     │
+  │   - Errors are always HTTP 200 → cannot judge by status │
+  │   - In the Network tab everything appears as            │
+  │     POST /graphql                                       │
   └─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 7. セキュリティの比較
+## 7. Security Comparison
 
-### 7.1 REST のセキュリティモデル
+### 7.1 REST Security Model
 
-RESTでは、エンドポイント単位でのアクセス制御が基本となる。これはWebアプリケーションフレームワークの標準的なミドルウェア/フィルターと相性が良い。
+In REST, access control at the endpoint level is the foundation. This works well with standard middleware/filters in web application frameworks.
 
 ```typescript
-// REST のセキュリティ実装パターン
-// Express.js + ミドルウェアの例
+// REST security implementation pattern
+// Example: Express.js + middleware
 
-// エンドポイント単位の認可
+// Per-endpoint authorization
 app.get('/api/v1/users', authenticate, authorize('admin'), usersController.list);
 app.get('/api/v1/users/:id', authenticate, usersController.show);
 app.post('/api/v1/users', authenticate, authorize('admin'), usersController.create);
 app.delete('/api/v1/users/:id', authenticate, authorize('admin'), usersController.delete);
 
-// レート制限（エンドポイント単位で容易）
+// Rate limiting (easy per endpoint)
 app.use('/api/v1/', rateLimit({
-  windowMs: 15 * 60 * 1000,  // 15分
-  max: 100,                   // 100リクエスト
+  windowMs: 15 * 60 * 1000,  // 15 minutes
+  max: 100,                   // 100 requests
   standardHeaders: true
 }));
 
-// 入力バリデーション（ルートごとに定義）
+// Input validation (defined per route)
 app.post('/api/v1/users',
   body('name').isString().isLength({ min: 1, max: 100 }),
   body('email').isEmail(),
@@ -876,33 +882,33 @@ app.post('/api/v1/users',
 );
 ```
 
-### 7.2 GraphQL のセキュリティモデル
+### 7.2 GraphQL Security Model
 
-GraphQLでは、クライアントがクエリを自由に構成できるため、より細かなセキュリティ対策が必要となる。
+In GraphQL, because clients can freely compose queries, more granular security measures are required.
 
 ```typescript
 // ====================================================================
-// コード例6: GraphQL のセキュリティ対策
+// Code Example 6: Security measures for GraphQL
 // ====================================================================
 
-// --- 1. クエリの深度制限 ---
+// --- 1. Query depth limiting ---
 import depthLimit from 'graphql-depth-limit';
 
 const server = new ApolloServer({
   schema,
   validationRules: [
-    depthLimit(7)  // ネストの深さを7レベルに制限
+    depthLimit(7)  // Limit nesting depth to 7 levels
   ]
 });
 
-// 攻撃例（深いネストによるDoS）:
+// Attack example (DoS via deep nesting):
 // query {
 //   user(id: "1") {
 //     friends {
 //       friends {
 //         friends {
 //           friends {
-//             friends { ... }  ← 深いネストでサーバーリソース消費
+//             friends { ... }  ← Deep nesting consumes server resources
 //           }
 //         }
 //       }
@@ -910,7 +916,7 @@ const server = new ApolloServer({
 //   }
 // }
 
-// --- 2. クエリの複雑度制限 ---
+// --- 2. Query complexity limiting ---
 import { createComplexityLimitRule } from 'graphql-validation-complexity';
 
 const complexityRule = createComplexityLimitRule(1000, {
@@ -918,21 +924,21 @@ const complexityRule = createComplexityLimitRule(1000, {
   objectCost: 2,
   listFactor: 10
 });
-// → クエリ全体の「コスト」を計算し、閾値を超えたら拒否
+// → Calculates the total "cost" of a query and rejects it if it exceeds the threshold
 
-// --- 3. フィールドレベルの認可 ---
+// --- 3. Field-level authorization ---
 const resolvers = {
   User: {
     email: (user, args, context) => {
-      // 本人またはAdmin のみメールアドレスを閲覧可能
+      // Only the user themselves or an Admin can view the email address
       if (context.currentUser.id === user.id ||
           context.currentUser.role === 'ADMIN') {
         return user.email;
       }
-      return null;  // 権限がない場合は null を返す
+      return null;  // Return null if no permission
     },
     salary: (user, args, context) => {
-      // HR部門のみ給与情報を閲覧可能
+      // Only the HR department can view salary information
       if (!context.currentUser.departments.includes('HR')) {
         throw new ForbiddenError('Insufficient permissions');
       }
@@ -941,63 +947,69 @@ const resolvers = {
   }
 };
 
-// --- 4. Persisted Queries（クエリの事前登録）---
-// 本番環境では任意のクエリを受け付けず、事前登録されたクエリのみ実行
+// --- 4. Persisted Queries (pre-registration of queries) ---
+// In production, do not accept arbitrary queries; execute only pre-registered ones
 const server = new ApolloServer({
   schema,
   persistedQueries: {
     cache: new InMemoryLRUCache()
   }
 });
-// クライアントはクエリのハッシュ値を送信
+// Client sends a hash of the query
 // POST /graphql
 // { "extensions": { "persistedQuery": { "sha256Hash": "abc123..." } } }
 
-// --- 5. インジェクション対策 ---
-// GraphQL の変数は型システムで検証されるため、
-// SQLインジェクション等はリゾルバー実装に依存
+// --- 5. Injection countermeasures ---
+// GraphQL variables are validated by the type system,
+// so SQLi, etc. depend on the resolver implementation
 const resolvers = {
   Query: {
     user: async (_, { id }, context) => {
-      // NG: 文字列結合（SQLインジェクション脆弱性）
+      // NG: String concatenation (SQL injection vulnerability)
       // return db.query(`SELECT * FROM users WHERE id = '${id}'`);
 
-      // OK: パラメータ化クエリ
+      // OK: Parameterized query
       return db.query('SELECT * FROM users WHERE id = $1', [id]);
     }
   }
 };
 ```
 
-### 7.3 セキュリティ比較サマリー
+### 7.3 Security Comparison Summary
 
 ```
-セキュリティ観点の比較:
+Security Perspective Comparison:
 
   ┌──────────────────────┬───────────────────┬────────────────────┐
-  │ 観点                 │ REST              │ GraphQL            │
+  │ Aspect               │ REST              │ GraphQL            │
   ├──────────────────────┼───────────────────┼────────────────────┤
-  │ アクセス制御の粒度   │ エンドポイント    │ フィールド         │
-  │ レート制限           │ 容易              │ 複雑度ベースが必要 │
-  │ DoS対策              │ 標準的            │ 深度/複雑度制限    │
-  │ 入力バリデーション   │ 手動定義          │ 型システムで一部   │
-  │ イントロスペクション │ 該当なし          │ 本番で無効化推奨   │
-  │ クエリ制御           │ サーバーが決定    │ Persisted Queries  │
-  │ 認証                 │ 標準HTTPヘッダー  │ 同左               │
-  │ CORS                 │ 標準対応          │ 同左               │
+  │ Access control       │ Per endpoint      │ Per field          │
+  │   granularity        │                   │                    │
+  │ Rate limiting        │ Easy              │ Complexity-based   │
+  │                      │                   │   required         │
+  │ DoS countermeasures  │ Standard          │ Depth/complexity   │
+  │                      │                   │   limits           │
+  │ Input validation     │ Manually defined  │ Partially by type  │
+  │                      │                   │   system           │
+  │ Introspection        │ N/A               │ Recommended to     │
+  │                      │                   │   disable in prod  │
+  │ Query control        │ Server-determined │ Persisted Queries  │
+  │ Authentication       │ Standard HTTP     │ Same               │
+  │                      │   headers         │                    │
+  │ CORS                 │ Standard support  │ Same               │
   └──────────────────────┴───────────────────┴────────────────────┘
 ```
 
 ---
 
-## 8. ハイブリッドアプローチの設計パターン
+## 8. Hybrid Approach Design Patterns
 
-実務では REST と GraphQL を共存させるパターンが多く採用されている。プロジェクトの特性に応じて、最適な組み合わせを選択することが重要である。
+In practice, patterns that coexist REST and GraphQL are widely adopted. It is important to choose the optimal combination based on the characteristics of the project.
 
-### 8.1 パターン一覧
+### 8.1 Pattern List
 
 ```
-パターン1: REST + GraphQL BFF（Backend for Frontend）
+Pattern 1: REST + GraphQL BFF (Backend for Frontend)
 
   ┌─────────┐     GraphQL      ┌──────────┐     REST      ┌──────────────┐
   │  Web    │ ──────────────→  │  GraphQL │ ──────────→  │ User Service │
@@ -1011,28 +1023,28 @@ const resolvers = {
                                               ──────────→  │ Product Svc  │
                                                            └──────────────┘
 
-  利点:
-  → フロントエンドは GraphQL の柔軟性を享受
-  → バックエンドは REST の安定性を維持
-  → BFF がデータの集約・変換を担当
-  → 既存の REST マイクロサービスを変更不要
+  Advantages:
+  → Frontend benefits from GraphQL's flexibility
+  → Backend maintains REST's stability
+  → BFF handles data aggregation and transformation
+  → Existing REST microservices require no changes
 
 
-パターン2: 機能別の使い分け
+Pattern 2: Using each where appropriate by feature
 
   ┌─────────────────────────────────────────────┐
-  │ アプリケーション                            │
+  │ Application                                 │
   │                                              │
-  │  CRUD操作         → REST API                │
-  │  ダッシュボード   → GraphQL（複雑なデータ） │
-  │  ファイル操作     → REST API                │
-  │  リアルタイム     → GraphQL Subscription    │
-  │  Webhook受信      → REST API                │
-  │  検索             → REST（Elasticsearch）   │
+  │  CRUD operations   → REST API               │
+  │  Dashboard         → GraphQL (complex data) │
+  │  File operations   → REST API               │
+  │  Real-time         → GraphQL Subscription   │
+  │  Webhook receiving → REST API               │
+  │  Search            → REST (Elasticsearch)   │
   └─────────────────────────────────────────────┘
 
 
-パターン3: 公開 API / 内部 API の分離
+Pattern 3: Separating public API / internal API
 
   ┌──────────────┐    REST       ┌──────────────┐
   │ Third Party  │ ──────────→  │              │
@@ -1040,15 +1052,15 @@ const resolvers = {
   └──────────────┘              │   API        │
                                 │   Gateway    │
   ┌──────────────┐   GraphQL    │              │
-  │ 自社         │ ──────────→  │              │
-  │ フロントエンド│              │              │
+  │ In-house     │ ──────────→  │              │
+  │ Frontend     │              │              │
   └──────────────┘              └──────────────┘
 
-  → サードパーティ: REST（標準的、キャッシュ可能、ドキュメント容易）
-  → 自社フロントエンド: GraphQL（柔軟、型安全、開発効率）
+  → Third party: REST (standard, cacheable, easy to document)
+  → In-house frontend: GraphQL (flexible, type-safe, development efficiency)
 
 
-パターン4: GraphQL Federation（スーパーグラフ）
+Pattern 4: GraphQL Federation (Supergraph)
 
   ┌─────────┐      ┌──────────────────────┐
   │ Client  │ ──→  │  GraphQL Gateway     │
@@ -1064,19 +1076,19 @@ const resolvers = {
         │ (REST)  │  │ (gRPC)  │  │ (GraphQL)  │
         └─────────┘  └─────────┘  └────────────┘
 
-  → Apollo Federation / GraphQL Mesh で統一インターフェース
-  → 各サービスは最適な技術を選択
-  → Gateway が自動的にクエリを分解・統合
+  → Unified interface with Apollo Federation / GraphQL Mesh
+  → Each service selects the best technology
+  → Gateway automatically decomposes and integrates queries
 ```
 
-### 8.2 Apollo Federation の実装例
+### 8.2 Apollo Federation Implementation Example
 
 ```typescript
 // ====================================================================
-// コード例7: Apollo Federation によるマイクロサービス統合
+// Code Example 7: Microservice integration with Apollo Federation
 // ====================================================================
 
-// --- ユーザーサービス（サブグラフ） ---
+// --- User Service (subgraph) ---
 import { buildSubgraphSchema } from '@apollo/subgraph';
 import { gql } from 'graphql-tag';
 
@@ -1118,7 +1130,7 @@ const userSchema = buildSubgraphSchema([
 ]);
 
 
-// --- 注文サービス（サブグラフ） ---
+// --- Order Service (subgraph) ---
 const orderTypeDefs = gql`
   extend schema @link(url: "https://specs.apollo.dev/federation/v2.0",
                       import: ["@key", "@external"])
@@ -1146,7 +1158,7 @@ const orderTypeDefs = gql`
     quantity: Int!
   }
 
-  # User 型を拡張して orders フィールドを追加
+  # Extend the User type to add an orders field
   extend type User @key(fields: "id") {
     id: ID! @external
     orders(first: Int, after: String): OrderConnection!
@@ -1182,7 +1194,7 @@ const orderResolvers = {
 };
 
 
-// --- Gateway（ルーター）の設定 ---
+// --- Gateway (router) configuration ---
 // supergraph.yaml
 // subgraphs:
 //   users:
@@ -1194,14 +1206,14 @@ const orderResolvers = {
 //     schema:
 //       subgraph_url: http://orders-service:4002/graphql
 
-// Gateway がスキーマを統合した結果、
-// クライアントは以下のようなクエリを実行できる:
+// After the Gateway integrates the schemas,
+// clients can execute queries like the following:
 //
 // query {
 //   user(id: "1") {
-//     name          ← ユーザーサービスから取得
-//     email         ← ユーザーサービスから取得
-//     orders(first: 5) {  ← 注文サービスから取得
+//     name          ← fetched from User Service
+//     email         ← fetched from User Service
+//     orders(first: 5) {  ← fetched from Order Service
 //       edges {
 //         node {
 //           id
@@ -1220,110 +1232,110 @@ const orderResolvers = {
 
 ---
 
-## 9. 移行戦略
+## 9. Migration Strategies
 
-### 9.1 REST から GraphQL への段階的移行
+### 9.1 Incremental Migration from REST to GraphQL
 
 ```
-Phase 1: GraphQL Layer の追加（2-4週間）
+Phase 1: Adding a GraphQL Layer (2–4 weeks)
 ──────────────────────────────────────────
 
   ┌─────────┐    GraphQL     ┌──────────────┐    REST     ┌───────────┐
-  │ Client  │ ──────────→   │  GraphQL     │ ─────────→ │ 既存 REST │
-  │ (新規)  │                │  Layer       │            │ API       │
+  │ Client  │ ──────────→   │  GraphQL     │ ─────────→ │ Existing  │
+  │ (new)   │                │  Layer       │            │ REST API  │
   └─────────┘                │              │            │           │
-                              │ リゾルバーが │            └───────────┘
-  ┌─────────┐    REST        │ 内部で REST  │
-  │ Client  │ ──────────→   │ を呼び出す   │
-  │ (既存)  │                └──────────────┘
+                              │ Resolvers    │            └───────────┘
+  ┌─────────┐    REST        │ internally   │
+  │ Client  │ ──────────→   │ call REST    │
+  │(existing│                └──────────────┘
   └─────────┘
-  ※ 既存クライアントは REST を継続
+  * Existing clients continue using REST
 
-  実施内容:
-  → 既存 REST API の上に GraphQL レイヤーを構築
-  → GraphQL のリゾルバーが内部で REST API を呼ぶ
-  → 新規クライアントから GraphQL を使い始める
-  → 既存クライアントは影響を受けない
+  Activities:
+  → Build a GraphQL layer on top of existing REST APIs
+  → GraphQL resolvers internally call the REST API
+  → New clients start using GraphQL
+  → Existing clients are unaffected
 
 
-Phase 2: 新機能は GraphQL で開発（1-3ヶ月）
+Phase 2: New features built with GraphQL (1–3 months)
 ──────────────────────────────────────────
 
-  実施内容:
-  → 新しい画面/機能から GraphQL を使用
-  → 既存画面は引き続き REST を使用
-  → チームが GraphQL に習熟する期間
-  → GraphQL リゾルバーの一部を直接 DB アクセスに変更
+  Activities:
+  → Use GraphQL for new screens/features
+  → Existing screens continue using REST
+  → Period for the team to become proficient in GraphQL
+  → Some GraphQL resolvers switched to direct DB access
 
 
-Phase 3: 既存機能の段階的移行（3-6ヶ月）
+Phase 3: Incremental migration of existing features (3–6 months)
 ──────────────────────────────────────────
 
-  実施内容:
-  → 使用量の少ない REST エンドポイントから移行
-  → クライアント側のデータ取得層を GraphQL に切り替え
-  → REST エンドポイントの利用状況をモニタリング
-  → 未使用の REST エンドポイントを段階的に廃止
+  Activities:
+  → Start migrating REST endpoints with lower usage
+  → Switch the client-side data-fetching layer to GraphQL
+  → Monitor usage of REST endpoints
+  → Gradually deprecate unused REST endpoints
 
 
-Phase 4: 最適化と安定化（1-2ヶ月）
+Phase 4: Optimization and stabilization (1–2 months)
 ──────────────────────────────────────────
 
-  実施内容:
-  → GraphQL リゾルバーの全てを直接 DB アクセスに変更
-  → DataLoader の最適化
-  → Persisted Queries の導入
-  → パフォーマンスモニタリングの整備
+  Activities:
+  → Switch all GraphQL resolvers to direct DB access
+  → Optimize DataLoaders
+  → Introduce Persisted Queries
+  → Set up performance monitoring
 ```
 
-### 9.2 移行時の注意事項
+### 9.2 Migration Caveats
 
 ```
-移行のリスクと対策:
+Migration Risks and Countermeasures:
 
-  リスク1: パフォーマンス劣化
-  → 対策: GraphQL Layer のリゾルバーが REST を呼ぶ構成では
-           ネットワークホップが増加する
-           → 内部通信のレイテンシをモニタリング
-           → 早期に直接 DB アクセスに切り替え
+  Risk 1: Performance degradation
+  → Countermeasure: A configuration where GraphQL Layer resolvers call REST
+           adds network hops
+           → Monitor latency of internal communication
+           → Switch to direct DB access early
 
-  リスク2: チームの学習コスト
-  → 対策: 小さな機能から始める
-           → ペアプログラミングで知見を共有
-           → GraphQL の社内勉強会を開催
+  Risk 2: Team learning cost
+  → Countermeasure: Start with small features
+           → Share knowledge via pair programming
+           → Hold in-house GraphQL study sessions
 
-  リスク3: キャッシュ戦略の変更
-  → 対策: REST 時代の HTTP キャッシュから
-           GraphQL のクライアントキャッシュへ
-           → Apollo Client の正規化キャッシュを活用
-           → CDN キャッシュは Persisted Queries で対応
+  Risk 3: Caching strategy change
+  → Countermeasure: From HTTP caching in the REST era
+           to GraphQL client-side caching
+           → Leverage Apollo Client's normalized cache
+           → Address CDN caching with Persisted Queries
 
-  リスク4: モニタリングの変更
-  → 対策: エンドポイント単位 → クエリ単位への切り替え
-           → Apollo Studio / GraphQL トレーシングを導入
-           → クエリのパフォーマンスを可視化
+  Risk 4: Monitoring change
+  → Countermeasure: Switch from per-endpoint to per-query monitoring
+           → Introduce Apollo Studio / GraphQL tracing
+           → Visualize query performance
 
-  リスク5: ロールバックの困難さ
-  → 対策: REST API を一定期間維持
-           → Feature Flag で GraphQL/REST を切り替え可能に
-           → 段階的にトラフィックを移行
+  Risk 5: Difficulty of rollback
+  → Countermeasure: Maintain REST API for a period of time
+           → Enable switching between GraphQL/REST via Feature Flag
+           → Migrate traffic incrementally
 ```
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### 10.1 アンチパターン1: GraphQL で REST を再発明する
+### 10.1 Anti-Pattern 1: Reinventing REST with GraphQL
 
 ```typescript
 // ====================================================================
-// アンチパターン: GraphQL で REST のようなクエリ設計
+// Anti-Pattern: Query design in GraphQL that mirrors REST
 // ====================================================================
 
-// --- NG: リソースごとに別々のクエリを定義 ---
+// --- NG: Defining separate queries per resource ---
 const BAD_SCHEMA = `
   type Query {
-    # REST のエンドポイントをそのまま GraphQL に移植
+    # Directly porting REST endpoints to GraphQL
     getUser(id: ID!): User
     getUserOrders(userId: ID!, page: Int): [Order]
     getUserOrderItems(orderId: ID!): [OrderItem]
@@ -1332,13 +1344,13 @@ const BAD_SCHEMA = `
   }
 `;
 
-// クライアント側のコード（REST と変わらない）
+// Client-side code (no different from REST)
 const user = await query({ query: GET_USER, variables: { id: '1' } });
 const orders = await query({ query: GET_USER_ORDERS, variables: { userId: '1' } });
 const items = await query({ query: GET_USER_ORDER_ITEMS, variables: { orderId: orders[0].id } });
-// → GraphQL を使う意味がない。REST の方が適切。
+// → There is no point in using GraphQL. REST would be more appropriate.
 
-// --- OK: グラフ構造を活かした設計 ---
+// --- OK: Design that leverages graph structure ---
 const GOOD_SCHEMA = `
   type Query {
     user(id: ID!): User
@@ -1361,7 +1373,7 @@ const GOOD_SCHEMA = `
   }
 `;
 
-// クライアントが必要なデータ構造を宣言的に指定
+// Client declaratively specifies the needed data structure
 const GOOD_QUERY = `
   query UserDashboard($id: ID!) {
     user(id: $id) {
@@ -1377,19 +1389,19 @@ const GOOD_QUERY = `
     }
   }
 `;
-// → 1リクエストで必要なデータを全て取得
+// → Fetch all needed data in a single request
 ```
 
-**解説**: GraphQL の価値は「データグラフの柔軟な探索」にある。REST のエンドポイント構造をそのまま GraphQL に移植すると、クエリ解析のオーバーヘッドが加わるだけで利点が得られない。スキーマ設計では、リソース間の関係（グラフ構造）を型のフィールドとして表現し、クライアントが必要な深さまでトラバースできるようにすることが重要である。
+**Explanation**: The value of GraphQL lies in "flexible traversal of the data graph." Directly porting a REST endpoint structure to GraphQL only adds the overhead of query parsing without gaining any advantages. Schema design should express relationships between resources (graph structure) as fields on types, allowing clients to traverse to the required depth.
 
-### 10.2 アンチパターン2: 認可を GraphQL リゾルバーに分散配置する
+### 10.2 Anti-Pattern 2: Scattering Authorization Logic Across GraphQL Resolvers
 
 ```typescript
 // ====================================================================
-// アンチパターン: リゾルバーごとに認可ロジックを記述
+// Anti-Pattern: Writing authorization logic in each resolver
 // ====================================================================
 
-// --- NG: 各リゾルバーに認可コードが分散 ---
+// --- NG: Authorization code scattered across each resolver ---
 const BAD_RESOLVERS = {
   Query: {
     users: (_, args, ctx) => {
@@ -1399,11 +1411,11 @@ const BAD_RESOLVERS = {
     },
     orders: (_, args, ctx) => {
       if (!ctx.user) throw new AuthenticationError('Not authenticated');
-      // role チェックを忘れがち → セキュリティホール
+      // Role check easily forgotten → security hole
       return db.orders.findAll();
     },
-    // 新しいリゾルバーを追加するたびに認可コードをコピペ
-    // → メンテナンスコスト増大、漏れのリスク
+    // Copy-pasting authorization code every time a new resolver is added
+    // → Increased maintenance cost, risk of omissions
   },
   User: {
     email: (user, _, ctx) => {
@@ -1416,7 +1428,7 @@ const BAD_RESOLVERS = {
   }
 };
 
-// --- OK: 認可レイヤーを分離（graphql-shield 等）---
+// --- OK: Separate the authorization layer (e.g., graphql-shield) ---
 import { shield, rule, and, or } from 'graphql-shield';
 
 const isAuthenticated = rule()((_, args, ctx) => {
@@ -1447,7 +1459,7 @@ const permissions = shield({
   }
 });
 
-// リゾルバーはビジネスロジックのみに集中
+// Resolvers focus on business logic only
 const GOOD_RESOLVERS = {
   Query: {
     users: () => db.users.findAll(),
@@ -1459,60 +1471,60 @@ const GOOD_RESOLVERS = {
     salary: (user) => user.salary
   }
 };
-// → 認可ルールが一箇所に集約、漏れが起きにくい
-// → リゾルバーのテストが容易（認可を気にしなくてよい）
+// → Authorization rules consolidated in one place, omissions less likely
+// → Resolvers are easier to test (no need to worry about authorization)
 ```
 
-**解説**: 認可ロジックをリゾルバーに直接埋め込むと、新しいフィールドやクエリの追加時に認可チェックを忘れるリスクが高まる。graphql-shield のような認可レイヤーを使うことで、認可ルールを宣言的に一箇所で管理できる。これは REST における認可ミドルウェアに相当するアプローチである。
+**Explanation**: Embedding authorization logic directly in resolvers raises the risk of forgetting to add authorization checks when new fields or queries are added. Using an authorization layer like graphql-shield allows authorization rules to be managed declaratively in one place. This is analogous to the authorization middleware approach in REST.
 
-### 10.3 アンチパターン3: GraphQL でファイルアップロードを無理に実装する
+### 10.3 Anti-Pattern 3: Forcing File Uploads into GraphQL
 
 ```
-NG パターン:
-  → GraphQL の Mutation で Base64 エンコードしたファイルを送信
-  → multipart/form-data の GraphQL 拡張（graphql-upload）を使う
-  → 大きなファイルでメモリ問題が発生
+NG Pattern:
+  → Sending Base64-encoded files via GraphQL Mutation
+  → Using the GraphQL multipart/form-data extension (graphql-upload)
+  → Memory issues occur with large files
 
-OK パターン:
-  → ファイルアップロードは REST エンドポイント（または S3 直接）で処理
-  → アップロード完了後、GraphQL Mutation でメタデータを登録
+OK Pattern:
+  → Handle file uploads via a REST endpoint (or directly to S3)
+  → After upload completes, register metadata via GraphQL Mutation
 
-  手順:
+  Steps:
   1. REST: POST /api/upload → { "fileUrl": "https://cdn.example.com/file.jpg" }
   2. GraphQL: mutation { attachFile(url: "https://cdn.example.com/file.jpg") { ... } }
 
-  → REST と GraphQL の適材適所
+  → Using REST and GraphQL where each excels
 ```
 
 ---
 
-## 11. エッジケース分析
+## 11. Edge Case Analysis
 
-### 11.1 エッジケース1: 大量のネストされたデータを持つクエリ
+### 11.1 Edge Case 1: Queries with Deeply Nested Data
 
-GraphQL の柔軟性は、適切に制御しなければサーバーに過大な負荷をかける可能性がある。
+GraphQL's flexibility can place excessive load on the server if not properly controlled.
 
 ```
-問題シナリオ:
-  ソーシャルネットワークで「友だちの友だちの友だちの投稿」を取得
+Problem Scenario:
+  Fetching "friends of friends of friends of friends' posts" in a social network
 
   query DangerousQuery {
     user(id: "1") {
-      friends(first: 50) {           # 50人
+      friends(first: 50) {           # 50 people
         edges {
           node {
-            friends(first: 50) {     # 50 x 50 = 2,500人
+            friends(first: 50) {     # 50 x 50 = 2,500 people
               edges {
                 node {
-                  friends(first: 50) { # 50 x 50 x 50 = 125,000人
+                  friends(first: 50) { # 50 x 50 x 50 = 125,000 people
                     edges {
                       node {
-                        posts(first: 10) { # 125,000 x 10 = 1,250,000件
+                        posts(first: 10) { # 125,000 x 10 = 1,250,000 items
                           edges {
                             node {
                               title
                               body
-                              comments(first: 5) { # 6,250,000件
+                              comments(first: 5) { # 6,250,000 items
                                 edges { node { body } }
                               }
                             }
@@ -1530,41 +1542,41 @@ GraphQL の柔軟性は、適切に制御しなければサーバーに過大な
     }
   }
 
-  理論上のデータベースアクセス:
-  → ユーザー取得: 1回
-  → 友だち(L1): 1回（50件）
-  → 友だち(L2): 50回（2,500件）
-  → 友だち(L3): 2,500回（125,000件）
-  → 投稿: 125,000回（1,250,000件）
-  → コメント: 1,250,000回（6,250,000件）
-  → DataLoader を使っても、返却データ量が膨大
+  Theoretical database access:
+  → Fetch user: 1 time
+  → Friends (L1): 1 time (50 records)
+  → Friends (L2): 50 times (2,500 records)
+  → Friends (L3): 2,500 times (125,000 records)
+  → Posts: 125,000 times (1,250,000 records)
+  → Comments: 1,250,000 times (6,250,000 records)
+  → Even with DataLoader, the volume of returned data is enormous
 
-対策の組み合わせ:
+Combination of countermeasures:
 
-  1. 深度制限（Depth Limit）
-     → 最大深度を5-7に制限
-     → depthLimit(7) で設定
+  1. Depth Limit
+     → Limit maximum depth to 5–7
+     → Set with depthLimit(7)
 
-  2. 複雑度分析（Query Complexity Analysis）
-     → 各フィールドにコストを割り当て
-     → list フィールドには乗算ファクターを適用
-     → 合計コストが閾値を超えたら拒否
+  2. Query Complexity Analysis
+     → Assign a cost to each field
+     → Apply a multiplication factor to list fields
+     → Reject if total cost exceeds the threshold
 
-  3. ページネーションの強制
-     → first/last パラメータの最大値を制限
-     → first: 100 を超えるリクエストは拒否
+  3. Enforcing pagination
+     → Limit the maximum value of the first/last parameters
+     → Reject requests where first: exceeds 100
 
-  4. タイムアウト
-     → リゾルバーレベルのタイムアウト
-     → リクエスト全体のタイムアウト（例: 30秒）
+  4. Timeout
+     → Resolver-level timeout
+     → Request-wide timeout (e.g., 30 seconds)
 
   5. Persisted Queries
-     → 本番環境では事前登録されたクエリのみ許可
-     → 任意のクエリを受け付けない
+     → In production, only allow pre-registered queries
+     → Do not accept arbitrary queries
 ```
 
 ```typescript
-// 複雑度分析の実装例
+// Example implementation of complexity analysis
 import { getComplexity, simpleEstimator, fieldExtensionsEstimator } from 'graphql-query-complexity';
 
 const server = new ApolloServer({
@@ -1596,64 +1608,64 @@ const server = new ApolloServer({
 });
 ```
 
-### 11.2 エッジケース2: REST と GraphQL のキャッシュ戦略の衝突
+### 11.2 Edge Case 2: Cache Strategy Conflicts Between REST and GraphQL
 
-ハイブリッドアーキテクチャにおいて、REST と GraphQL のキャッシュが不整合を起こすケースがある。
+In a hybrid architecture, REST and GraphQL caches can become inconsistent.
 
 ```
-問題シナリオ:
-  GraphQL BFF → REST マイクロサービス の構成で、
-  REST 側のキャッシュと GraphQL 側のキャッシュが不整合
+Problem Scenario:
+  In a GraphQL BFF → REST microservice configuration,
+  the REST-side cache and the GraphQL-side cache fall out of sync
 
-  時系列:
-  T=0  REST: GET /users/1 → { name: "Tanaka" }（Cache-Control: max-age=60）
+  Timeline:
+  T=0  REST: GET /users/1 → { name: "Tanaka" }  (Cache-Control: max-age=60)
   T=5  GraphQL: query { user(id:"1") { name } }
-       → BFF が REST を呼ぶ → キャッシュから "Tanaka" を返す
+       → BFF calls REST → returns "Tanaka" from cache
   T=10 REST: PATCH /users/1 { name: "Suzuki" }
-       → DB 更新成功
-       → REST キャッシュ無効化
+       → DB update succeeds
+       → REST cache invalidated
   T=15 GraphQL: query { user(id:"1") { name } }
-       → Apollo Client のキャッシュから "Tanaka" を返す（不整合！）
-       → BFF 側も REST のキャッシュを使い "Tanaka" を返す可能性
+       → Returns "Tanaka" from Apollo Client cache (inconsistency!)
+       → BFF side may also return "Tanaka" using the REST cache
 
   ┌─────────────┐   ┌──────────────────┐   ┌────────────────┐
-  │ Apollo      │   │ BFF 内部         │   │ REST Service   │
-  │ Client      │   │ HTTP キャッシュ  │   │ CDN キャッシュ │
+  │ Apollo      │   │ BFF internal     │   │ REST Service   │
+  │ Client      │   │ HTTP cache       │   │ CDN cache      │
   │ Cache       │   │                  │   │                │
   │ "Tanaka" X  │   │ "Tanaka" X       │   │ "Suzuki" OK    │
   └─────────────┘   └──────────────────┘   └────────────────┘
-  3層のキャッシュが不整合
+  3 layers of cache are inconsistent
 
-対策:
+Countermeasures:
 
-  1. キャッシュ TTL の統一
-     → REST と GraphQL のキャッシュ期間を統一
-     → 短い TTL（例: 5秒）で整合性を優先
+  1. Unified cache TTL
+     → Unify the cache period for REST and GraphQL
+     → Prioritize consistency with a short TTL (e.g., 5 seconds)
 
-  2. Mutation 後のキャッシュ無効化
-     → GraphQL Mutation 成功時に関連キャッシュを無効化
-     → Apollo Client の refetchQueries / cache.evict()
+  2. Cache invalidation after Mutation
+     → Invalidate related caches on GraphQL Mutation success
+     → Apollo Client's refetchQueries / cache.evict()
 
-  3. イベント駆動のキャッシュ無効化
-     → REST 側の更新イベントを GraphQL BFF に通知
-     → Redis Pub/Sub や メッセージキューを活用
+  3. Event-driven cache invalidation
+     → Notify GraphQL BFF of update events from the REST side
+     → Leverage Redis Pub/Sub or message queues
 
-  4. Optimistic Update（楽観的更新）
-     → Mutation 送信前にクライアントキャッシュを更新
-     → サーバー応答で最終的に確定
-     → Apollo Client の optimisticResponse 機能
+  4. Optimistic Update
+     → Update the client cache before the Mutation is sent
+     → Finalized when the server responds
+     → Apollo Client's optimisticResponse feature
 
-  5. キャッシュ戦略の一元化
-     → BFF 側のみでキャッシュを管理
-     → REST 側はキャッシュなし（no-store）
-     → 単一の真実の源泉を維持
+  5. Centralized cache strategy
+     → Manage cache only on the BFF side
+     → No caching on the REST side (no-store)
+     → Maintain a single source of truth
 ```
 
-### 11.3 エッジケース3: エラーハンドリングの違いによる混乱
+### 11.3 Edge Case 3: Confusion from Error Handling Differences
 
 ```
-REST のエラーレスポンス:
-  → HTTP ステータスコードで即座にエラーの種類を判別
+REST Error Response:
+  → Error type instantly identifiable from HTTP status code
 
   HTTP 400 Bad Request
   { "error": "validation_error", "details": [...] }
@@ -1668,17 +1680,17 @@ REST のエラーレスポンス:
   { "error": "internal_error" }
 
 
-GraphQL のエラーレスポンス:
-  → 常に HTTP 200 OK（ネットワーク層は成功）
-  → errors 配列でアプリケーションエラーを伝達
-  → 部分的なデータ返却が可能（REST にはない特性）
+GraphQL Error Response:
+  → Always HTTP 200 OK (network layer succeeds)
+  → Application errors conveyed via the errors array
+  → Partial data return is possible (a characteristic absent in REST)
 
   HTTP 200 OK
   {
     "data": {
       "user": {
         "name": "Tanaka",
-        "orders": null           ← 注文サービスがダウン
+        "orders": null           ← Order service is down
       }
     },
     "errors": [
@@ -1693,14 +1705,14 @@ GraphQL のエラーレスポンス:
     ]
   }
 
-  注意:
-  → data と errors が同時に存在しうる（部分的成功）
-  → REST では「部分的成功」を表現できない
-  → クライアント側のエラーハンドリングが複雑化する
+  Note:
+  → data and errors can coexist (partial success)
+  → REST cannot express "partial success"
+  → Client-side error handling becomes more complex
 
-  推奨パターン:
-  → ビジネスエラーは data 内の Union 型で表現
-  → システムエラーのみ errors 配列を使用
+  Recommended pattern:
+  → Express business errors as Union types inside data
+  → Use the errors array only for system errors
 
   union UpdateUserResult = UpdateUserSuccess | ValidationError | NotFoundError
 
@@ -1720,36 +1732,36 @@ GraphQL のエラーレスポンス:
 
 ---
 
-## 12. 演習問題
+## 12. Exercises
 
-### 演習1（初級）: REST と GraphQL の基本的な違いを体験する
+### Exercise 1 (Beginner): Experience the basic differences between REST and GraphQL
 
-以下の REST API を GraphQL スキーマとクエリに変換せよ。
+Convert the following REST API to a GraphQL schema and query.
 
 ```
-課題:
-  ECサイトの商品カタログ API を設計する。
+Assignment:
+  Design a product catalog API for an e-commerce site.
 
-  REST API（既存）:
-    GET /api/v1/products              → 商品一覧
-    GET /api/v1/products/:id          → 商品詳細
-    GET /api/v1/products/:id/reviews  → 商品レビュー一覧
-    GET /api/v1/categories            → カテゴリ一覧
-    GET /api/v1/categories/:id/products → カテゴリ別商品
+  REST API (existing):
+    GET /api/v1/products              → Product list
+    GET /api/v1/products/:id          → Product details
+    GET /api/v1/products/:id/reviews  → Product review list
+    GET /api/v1/categories            → Category list
+    GET /api/v1/categories/:id/products → Products by category
 
-  データモデル:
+  Data model:
     Product: { id, name, price, description, categoryId, imageUrl, stock }
     Category: { id, name, parentId }
     Review: { id, productId, userId, rating, comment, createdAt }
 
-  要求:
-  (a) 上記のデータモデルを GraphQL スキーマ（SDL）で定義せよ
-  (b) 「カテゴリ一覧と各カテゴリの商品上位3件を取得する」クエリを書け
-  (c) REST では何リクエスト必要か、GraphQL では何リクエストかを比較せよ
+  Requirements:
+  (a) Define the above data model as a GraphQL schema (SDL)
+  (b) Write a query to "fetch the category list and the top 3 products for each category"
+  (c) Compare how many requests REST requires vs. GraphQL
 
-模範解答:
+Sample Answer:
 
-  (a) GraphQL スキーマ:
+  (a) GraphQL Schema:
   type Query {
     products(first: Int, after: String, categoryId: ID): ProductConnection!
     product(id: ID!): Product
@@ -1785,7 +1797,7 @@ GraphQL のエラーレスポンス:
     createdAt: DateTime!
   }
 
-  (b) クエリ:
+  (b) Query:
   query CategoriesWithTopProducts {
     categories {
       id
@@ -1803,19 +1815,19 @@ GraphQL のエラーレスポンス:
     }
   }
 
-  (c) リクエスト数の比較:
-  REST: 1（カテゴリ一覧）+ N（カテゴリ数 x 商品取得）= 1 + N リクエスト
-  GraphQL: 1 リクエスト
-  カテゴリが10個の場合: REST = 11, GraphQL = 1
+  (c) Request count comparison:
+  REST: 1 (category list) + N (categories × product fetch) = 1 + N requests
+  GraphQL: 1 request
+  With 10 categories: REST = 11, GraphQL = 1
 ```
 
-### 演習2（中級）: パフォーマンス最適化
+### Exercise 2 (Intermediate): Performance optimization
 
-以下のGraphQLスキーマにおいて、N+1問題を特定し、DataLoaderで解決せよ。
+Identify the N+1 problem in the following GraphQL schema and resolve it with DataLoader.
 
 ```
-課題:
-  ブログシステムの以下のスキーマでパフォーマンスを最適化する。
+Assignment:
+  Optimize performance in a blog system with the following schema.
 
   type Query {
     posts(first: Int): [Post!]!
@@ -1825,55 +1837,55 @@ GraphQL のエラーレスポンス:
     id: ID!
     title: String!
     body: String!
-    author: User!          # N+1 問題の発生箇所
-    comments: [Comment!]!  # N+1 問題の発生箇所
-    tags: [Tag!]!          # N+1 問題の発生箇所
+    author: User!          # Location of the N+1 problem
+    comments: [Comment!]!  # Location of the N+1 problem
+    tags: [Tag!]!          # Location of the N+1 problem
   }
 
   type Comment {
     id: ID!
     body: String!
-    author: User!          # N+1 問題の発生箇所（ネスト）
+    author: User!          # Location of the N+1 problem (nested)
   }
 
-  実装すべきもの:
-  (a) N+1 問題が発生するナイーブなリゾルバーを示せ
-  (b) DataLoader を使った最適化版リゾルバーを示せ
-  (c) クエリ実行時の SQL 発行回数を比較せよ
+  What to implement:
+  (a) Show the naive resolver where the N+1 problem occurs
+  (b) Show the optimized resolver using DataLoader
+  (c) Compare the number of SQL queries issued during query execution
 
-模範解答:
+Sample Answer:
 
-  (a) ナイーブなリゾルバー:
+  (a) Naive resolver:
   const resolvers = {
     Query: {
       posts: () => db.query('SELECT * FROM posts LIMIT 10')
-      // → 1クエリ
+      // → 1 query
     },
     Post: {
       author: (post) => db.query(
         'SELECT * FROM users WHERE id = ?', [post.authorId]
       ),
-      // → 10クエリ（投稿ごとに1回）
+      // → 10 queries (1 per post)
       comments: (post) => db.query(
         'SELECT * FROM comments WHERE post_id = ?', [post.id]
       ),
-      // → 10クエリ
+      // → 10 queries
       tags: (post) => db.query(
         'SELECT t.* FROM tags t JOIN post_tags pt ON t.id = pt.tag_id
          WHERE pt.post_id = ?', [post.id]
       )
-      // → 10クエリ
+      // → 10 queries
     },
     Comment: {
       author: (comment) => db.query(
         'SELECT * FROM users WHERE id = ?', [comment.authorId]
       )
-      // → コメント数 x 1クエリ（例: 50クエリ）
+      // → comment count × 1 query (e.g., 50 queries)
     }
   };
-  // 合計: 1 + 10 + 10 + 10 + 50 = 81クエリ
+  // Total: 1 + 10 + 10 + 10 + 50 = 81 queries
 
-  (b) DataLoader 最適化版:
+  (b) DataLoader optimized version:
   const createLoaders = () => ({
     userLoader: new DataLoader(async (ids) => {
       const users = await db.query(
@@ -1910,50 +1922,50 @@ GraphQL のエラーレスポンス:
     })
   });
 
-  // 合計: 1(posts) + 1(users) + 1(comments) + 1(tags)
-  //       + 1(comment authors) = 5クエリ
-  // 81クエリ → 5クエリ に削減（約94%削減）
+  // Total: 1(posts) + 1(users) + 1(comments) + 1(tags)
+  //       + 1(comment authors) = 5 queries
+  // Reduced from 81 queries to 5 queries (approx. 94% reduction)
 ```
 
-### 演習3（上級）: ハイブリッドアーキテクチャの設計
+### Exercise 3 (Advanced): Hybrid architecture design
 
-以下の要件を満たすシステムのAPI設計を行え。
+Design an API for a system that meets the following requirements.
 
 ```
-課題:
-  オンライン学習プラットフォームの設計
+Assignment:
+  Design an online learning platform
 
-  要件:
-  - 公開API: サードパーティの教育機関がコース情報を取得
-  - 学生向けUI: コース検索、受講管理、進捗追跡（Web + iOS + Android）
-  - 講師向けUI: コース作成、受講生管理、分析ダッシュボード
-  - 管理者向け: ユーザー管理、売上レポート
-  - 動画アップロード: 大容量ファイルの処理
-  - リアルタイム: ライブ授業のチャット、通知
+  Requirements:
+  - Public API: third-party educational institutions fetch course information
+  - Student UI: course search, enrollment management, progress tracking (Web + iOS + Android)
+  - Instructor UI: course creation, student management, analytics dashboard
+  - Admin: user management, sales reports
+  - Video upload: handling large files
+  - Real-time: live class chat, notifications
 
-  設計すべきもの:
-  (a) API 技術の選定（REST / GraphQL / gRPC の使い分け）
-  (b) システムアーキテクチャ図
-  (c) 各コンポーネントの技術選定理由
+  What to design:
+  (a) API technology selection (how to use REST / GraphQL / gRPC)
+  (b) System architecture diagram
+  (c) Reasoning for the technology selection of each component
 
-模範解答:
+Sample Answer:
 
-  (a) 技術選定:
+  (a) Technology selection:
   ┌────────────────────────┬──────────────┬─────────────────────────┐
-  │ コンポーネント         │ 技術         │ 理由                    │
+  │ Component              │ Technology   │ Reason                  │
   ├────────────────────────┼──────────────┼─────────────────────────┤
-  │ 公開API                │ REST         │ 標準的、CDNキャッシュ   │
-  │ 学生向けBFF            │ GraphQL      │ 多クライアント、柔軟性  │
-  │ 講師ダッシュボード     │ GraphQL      │ 複雑なデータ集約        │
-  │ 管理者向け             │ GraphQL      │ 分析データの柔軟な取得  │
-  │ 動画アップロード       │ REST         │ multipart/form-data     │
-  │ リアルタイム通知       │ GraphQL Sub  │ Subscription 活用       │
-  │ ライブチャット         │ WebSocket    │ 低レイテンシ双方向通信  │
-  │ マイクロサービス間     │ gRPC         │ 高速、型安全            │
-  │ 動画トランスコード連携 │ メッセージQ  │ 非同期処理              │
+  │ Public API             │ REST         │ Standard, CDN caching   │
+  │ Student BFF            │ GraphQL      │ Multi-client, flexible  │
+  │ Instructor dashboard   │ GraphQL      │ Complex data aggregation │
+  │ Admin                  │ GraphQL      │ Flexible analytics data │
+  │ Video upload           │ REST         │ multipart/form-data     │
+  │ Real-time notifications│ GraphQL Sub  │ Use Subscription        │
+  │ Live chat              │ WebSocket    │ Low-latency bidirectional│
+  │ Between microservices  │ gRPC         │ Fast, type-safe         │
+  │ Video transcode link   │ Message Q    │ Async processing        │
   └────────────────────────┴──────────────┴─────────────────────────┘
 
-  (b) アーキテクチャ図:
+  (b) Architecture diagram:
 
   ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐
   │ Student  │ │ Teacher  │ │ Admin    │ │ Third Party  │
@@ -1977,215 +1989,169 @@ GraphQL のエラーレスポンス:
        v        v          v             v
      [DB]     [DB]    [ObjectStore]  [DWH/OLAP]
 
-  (c) 技術選定理由:
-  - 公開API は REST: サードパーティの採用障壁を下げ、
-    CDN キャッシュでスケーラビリティを確保する
-  - BFF は GraphQL Federation: 学生・講師・管理者の
-    異なるデータ要件に単一のスキーマで対応する
-  - マイクロサービス間は gRPC: Protocol Buffers による
-    型安全性と HTTP/2 による高速通信を実現する
-  - 動画アップロードは REST: 大容量バイナリの
-    multipart アップロードに最適である
-  - リアルタイムは GraphQL Subscription + WebSocket:
-    通知には Subscription、チャットには WebSocket を使い分ける
+  (c) Technology selection rationale:
+  - Public API uses REST: lowers the adoption barrier for third parties
+    and ensures scalability with CDN caching
+  - BFF uses GraphQL Federation: addresses the different data requirements
+    of students, instructors, and admins with a single schema
+  - Inter-microservice communication uses gRPC: achieves type safety
+    with Protocol Buffers and high-speed communication with HTTP/2
+  - Video upload uses REST: optimal for large binary multipart uploads
+  - Real-time uses GraphQL Subscription + WebSocket:
+    use Subscription for notifications and WebSocket for chat
 ```
 
 ---
 
-## 13. 実務での判断基準チェックリスト
+## 13. Practical Decision Checklist
 
-プロジェクトで REST と GraphQL のどちらを採用するか迷った場合に使えるチェックリストを以下に示す。
+The following checklist can be used when you are uncertain which to choose — REST or GraphQL — for a project.
 
 ```
-REST vs GraphQL 判断チェックリスト:
+REST vs GraphQL Decision Checklist:
 
   ┌──────────────────────────────────────────┬──────┬─────────┬──────┐
-  │ チェック項目                             │ REST │ GraphQL │ 配点 │
+  │ Check Item                               │ REST │ GraphQL │ Pts  │
   ├──────────────────────────────────────────┼──────┼─────────┼──────┤
-  │ チームに GraphQL 経験者がいる            │      │   +2    │  /2  │
-  │ クライアントが3種類以上ある              │      │   +3    │  /3  │
-  │ 1画面に表示するデータソースが3つ以上     │      │   +2    │  /2  │
-  │ CDN キャッシュが重要                     │  +3  │         │  /3  │
-  │ ファイルアップロードが主要機能           │  +2  │         │  /2  │
-  │ サードパーティ向け公開 API               │  +3  │         │  /3  │
-  │ リアルタイム機能が必要                   │      │   +2    │  /2  │
-  │ スキーマ駆動開発を行いたい               │      │   +2    │  /2  │
-  │ API バージョニングを避けたい             │      │   +2    │  /2  │
-  │ 開発速度（フロントエンド）優先           │      │   +2    │  /2  │
-  │ 運用のシンプルさ優先                     │  +2  │         │  /2  │
-  │ 型安全なコード生成が重要                 │      │   +2    │  /2  │
+  │ Team has GraphQL experience              │      │   +2    │  /2  │
+  │ 3 or more types of clients               │      │   +3    │  /3  │
+  │ 3 or more data sources on a single screen│      │   +2    │  /2  │
+  │ CDN caching is important                 │  +3  │         │  /3  │
+  │ File upload is a major feature           │  +2  │         │  /2  │
+  │ Public API for third parties             │  +3  │         │  /3  │
+  │ Real-time features needed                │      │   +2    │  /2  │
+  │ Want schema-driven development           │      │   +2    │  /2  │
+  │ Want to avoid API versioning             │      │   +2    │  /2  │
+  │ Frontend development speed is priority   │      │   +2    │  /2  │
+  │ Operational simplicity is priority       │  +2  │         │  /2  │
+  │ Type-safe code generation is important   │      │   +2    │  /2  │
   ├──────────────────────────────────────────┼──────┼─────────┼──────┤
-  │ 合計                                     │ /10  │  /17    │      │
+  │ Total                                    │ /10  │  /17    │      │
   └──────────────────────────────────────────┴──────┴─────────┴──────┘
 
-  判定:
-  REST合計 > GraphQL合計 → REST を推奨
-  GraphQL合計 > REST合計 → GraphQL を推奨
-  差が2点以内 → ハイブリッドアプローチを検討
+  Judgment:
+  REST total > GraphQL total → Recommend REST
+  GraphQL total > REST total → Recommend GraphQL
+  Difference within 2 points → Consider a hybrid approach
 ```
 
 ---
 
-## 14. FAQ（よくある質問）
+## 14. FAQ (Frequently Asked Questions)
 
-### FAQ 1: GraphQL は REST の上位互換なのか？
+### FAQ 1: Is GraphQL a superset of REST?
 
-**回答**: いいえ。GraphQL と REST は異なるトレードオフを持つ技術であり、上位互換の関係にはない。
+**Answer**: No. GraphQL and REST are technologies with different trade-offs and are not in a superset relationship.
 
-GraphQL が REST より優れている点は、柔軟なデータ取得、型システムの組み込み、クライアント駆動のデータ取得である。一方、REST が GraphQL より優れている点は、HTTP キャッシュの完全活用、運用のシンプルさ、エコシステムの成熟度、ファイル操作の容易さである。
+Where GraphQL excels over REST: flexible data fetching, built-in type system, and client-driven data retrieval. Where REST excels over GraphQL: full use of HTTP caching, operational simplicity, ecosystem maturity, and ease of file operations.
 
-「GraphQL が登場したから REST は不要」というのは誤りであり、プロジェクトの特性に応じて適切な技術を選択することが重要である。実務では両者を組み合わせるハイブリッドアプローチが最も効果的であることが多い。
+"Now that GraphQL exists, REST is no longer needed" is incorrect. It is important to choose the appropriate technology based on project characteristics. In practice, a hybrid approach combining both is often most effective.
 
-### FAQ 2: GraphQL はパフォーマンスが悪いのか？
+### FAQ 2: Does GraphQL have poor performance?
 
-**回答**: 一概にそうとは言えない。パフォーマンス特性は異なるが、適切に設計・最適化すれば両者とも高いパフォーマンスを達成できる。
+**Answer**: Not necessarily. The performance characteristics differ, but both can achieve high performance when properly designed and optimized.
 
-GraphQL がパフォーマンス上不利になるケースは以下の通りである。
-- CDN キャッシュを活用できるような単純な GET リクエスト
-- クエリの解析・検証にかかるオーバーヘッド（マイクロ秒からミリ秒単位）
-- N+1 問題を放置した場合のデータベースアクセス
+Cases where GraphQL is at a performance disadvantage:
+- Simple GET requests that could leverage CDN caching
+- Overhead of query parsing and validation (microseconds to milliseconds)
+- Database access when the N+1 problem is left unaddressed
 
-逆に GraphQL がパフォーマンス上有利になるケースは以下の通りである。
-- 複数の関連リソースを取得する場合（ラウンドトリップ削減）
-- モバイルネットワークでの Over-fetching 回避
-- クライアントごとに最適化されたペイロード
+Cases where GraphQL is at a performance advantage:
+- Fetching multiple related resources (fewer round trips)
+- Avoiding over-fetching on mobile networks
+- Payloads optimized for each client
 
-重要なのは、DataLoader の導入、クエリの複雑度制限、Persisted Queries の活用といった最適化を適切に行うことである。
+The key is to properly apply optimizations such as introducing DataLoader, limiting query complexity, and leveraging Persisted Queries.
 
-### FAQ 3: 小規模プロジェクトでも GraphQL を使うべきか？
+### FAQ 3: Should GraphQL be used even for small-scale projects?
 
-**回答**: 小規模プロジェクトでは REST の方が適切なケースが多い。
+**Answer**: For small-scale projects, REST is often more appropriate.
 
-GraphQL を導入すると、スキーマ定義、リゾルバーの実装、クライアントライブラリの設定、DataLoader の実装など、初期のセットアップコストが発生する。小規模プロジェクトでは、この初期コストが利点を上回ることがある。
+Introducing GraphQL incurs upfront setup costs: schema definition, resolver implementation, client library configuration, and DataLoader implementation. For small projects, these initial costs can outweigh the benefits.
 
-ただし、以下の条件に該当する場合は小規模でも GraphQL の検討価値がある。
-- 将来的にクライアントの種類が増える見込みがある
-- フロントエンドの開発速度が最優先事項
-- チームに GraphQL の経験者がいる
-- TypeScript と codegen による型安全性を重視する
+However, even at small scale, GraphQL is worth considering if the following conditions apply:
+- There is a prospect of more client types in the future
+- Frontend development speed is the top priority
+- The team has GraphQL experience
+- Type safety from TypeScript and codegen is valued
 
-迷った場合は REST で始め、必要に応じて GraphQL を追加するアプローチが低リスクである。
+When in doubt, starting with REST and adding GraphQL as needed is the low-risk approach.
 
-### FAQ 4: GraphQL Subscription と WebSocket はどう使い分けるのか？
+### FAQ 4: How should GraphQL Subscription and WebSocket be used?
 
-**回答**: GraphQL Subscription は WebSocket の上に構築された抽象化レイヤーであり、技術レベルが異なる。
+**Answer**: GraphQL Subscription is an abstraction layer built on top of WebSocket — they operate at different technical levels.
 
-GraphQL Subscription を選ぶ場合:
-- 既存の GraphQL スキーマにリアルタイム機能を追加する場合
-- 型安全なリアルタイムデータ配信が必要な場合
-- クライアントが受け取るデータの形状を柔軟に指定したい場合
+When to choose GraphQL Subscription:
+- Adding real-time features to an existing GraphQL schema
+- When type-safe real-time data delivery is needed
+- When clients want to flexibly specify the shape of data they receive
 
-直接 WebSocket を使う場合:
-- 高頻度のメッセージ交換（チャット、ゲーム等）
-- バイナリデータのストリーミング
-- GraphQL のオーバーヘッドを避けたい低レイテンシ要件
-- サーバー側で特定のデータ形式を強制したい場合
+When to use WebSocket directly:
+- High-frequency message exchange (chat, games, etc.)
+- Streaming binary data
+- Low-latency requirements where GraphQL overhead should be avoided
+- When the server needs to enforce a specific data format
 
-両者の主な違いは、Subscription はクエリとして宣言的にデータを指定できる点にあり、WebSocket は自由なメッセージ形式で通信できる点にある。
+The main difference is that Subscription allows data to be declared declaratively as a query, while WebSocket enables communication in any message format.
 
-### FAQ 5: REST API から GraphQL への移行はどのくらいの期間がかかるか？
+### FAQ 5: How long does migration from a REST API to GraphQL take?
 
-**回答**: プロジェクトの規模とチームの経験によって大きく異なるが、一般的な目安は以下の通りである。
+**Answer**: It varies widely depending on project size and team experience, but the following are general guidelines.
 
-- 小規模（エンドポイント10-20個、チーム3-5人）: 1-2ヶ月
-- 中規模（エンドポイント50-100個、チーム5-10人）: 3-6ヶ月
-- 大規模（エンドポイント100個以上、チーム10人以上）: 6-12ヶ月以上
+- Small scale (10–20 endpoints, team of 3–5): 1–2 months
+- Medium scale (50–100 endpoints, team of 5–10): 3–6 months
+- Large scale (100+ endpoints, team of 10+): 6–12 months or more
 
-移行期間を短縮するためのポイントは以下の通りである。
-- 段階的移行を行い、全てを一度に移行しない
-- 既存 REST の上に GraphQL レイヤーを構築し、段階的に直接 DB アクセスに切り替える
-- 新機能から GraphQL を採用し、既存機能は後回しにする
-- チームの学習期間を確保し、最初の1-2週間は学習に集中する
+Key points for shortening the migration period:
+- Migrate incrementally — do not migrate everything at once
+- Build a GraphQL layer on top of the existing REST, then gradually switch to direct DB access
+- Adopt GraphQL for new features and defer existing features
+- Allocate time for the team to learn — focus the first 1–2 weeks on learning
 
 ---
 
-## 15. 業界での採用事例と動向
+## 15. Industry Adoption Cases and Trends
 
 ```
-GraphQL 採用企業の代表例と採用理由:
+Representative companies using GraphQL and their reasons:
 
-  Meta（Facebook）:
-  → GraphQL の開発元
-  → モバイルアプリのデータ取得最適化が動機
-  → ニュースフィードの複雑なデータグラフに適用
+  Meta (Facebook):
+  → Creators of GraphQL
+  → Motivated by optimizing data fetching for mobile apps
+  → Applied to the complex data graph of the News Feed
 
   GitHub:
-  → REST API v3 → GraphQL API v4 に移行
-  → リポジトリ、Issues、PR の複雑な関連データ
-  → 利用者（開発者）が必要なデータのみ取得可能に
+  → Migrated from REST API v3 to GraphQL API v4
+  → Complex related data for repositories, Issues, PRs
+  → Enabled users (developers) to fetch only the data they need
 
   Shopify:
-  → EC プラットフォームの公開 API として GraphQL を採用
-  → ストアフロント API: GraphQL
-  → Admin API: GraphQL + REST（後方互換性のため）
+  → Adopted GraphQL as the public API for their e-commerce platform
+  → Storefront API: GraphQL
+  → Admin API: GraphQL + REST (for backward compatibility)
 
   Netflix:
-  → マイクロサービスの統合レイヤーとして GraphQL Federation を採用
-  → 数百のマイクロサービスを統一的な GraphQL インターフェースで公開
+  → Adopted GraphQL Federation as the integration layer for microservices
+  → Hundreds of microservices exposed through a unified GraphQL interface
 
-  Twitter（X）:
-  → 社内 API として GraphQL を活用
-  → タイムラインの複雑なデータ取得に適用
+  Twitter (X):
+  → Uses GraphQL internally
+  → Applied to complex data retrieval for timelines
 
 
-REST を継続採用している代表例:
+Representative companies that continue to use REST:
 
   Stripe:
-  → 決済 API は REST（公開 API の標準性を重視）
-  → 広範なエコシステムとの互換性を優先
+  → Payment API uses REST (prioritizes standardization of public API)
+  → Prioritizes compatibility with a broad ecosystem
 
   Twilio:
-  → 通信 API は REST（シンプルさを重視）
-  → curl での即テスト可能性を重視
+  → Communications API uses REST (prioritizes simplicity)
+  → Values the ability to instantly test with curl
 
   AWS:
-  → 大半のサービス API は REST ベース
-  → ただし AppSync で GraphQL サービスも提供
-```
-
----
-
-## 16. 将来の展望
-
-REST と GraphQL の技術的進化は続いており、以下のトレンドが注目されている。
-
-```
-GraphQL の進化方向:
-
-  1. GraphQL over HTTP 仕様の標準化
-     → GET リクエストでの GraphQL クエリ（キャッシュ可能性向上）
-     → 標準的な HTTP セマンティクスとの統合
-
-  2. @defer / @stream ディレクティブ
-     → 大きなレスポンスの段階的配信
-     → 初期表示の高速化（プログレッシブレンダリング）
-
-  3. Client Controlled Nullability
-     → クエリ側で null 許容性を制御
-     → エラーハンドリングの柔軟性向上
-
-  4. GraphQL Federation の進化
-     → Apollo Router の Rust 実装による高速化
-     → サブグラフの独立したデプロイ
-     → コンポーザビリティの向上
-
-REST の進化方向:
-
-  1. HTTP/3（QUIC）との統合
-     → より高速なコネクション確立
-     → パケットロス耐性の向上
-
-  2. JSON:API / HAL の普及
-     → REST のベストプラクティスの標準化
-     → ハイパーメディア駆動の成熟
-
-  3. OpenAPI 3.1 / 4.0 の進化
-     → JSON Schema との完全互換
-     → より表現力の高いスキーマ定義
-
-  4. REST + AI/LLM
-     → 自然言語からの API 呼び出し
-     → LLM のツール呼び出しとして REST が標準的
+  → Most service APIs are REST-based
+  → However, also provides GraphQL services through AppSync
 ```
 
 ---
@@ -2193,63 +2159,62 @@ REST の進化方向:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just from theory, but from actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next steps.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-### 最終比較表
-
-| 観点 | REST | GraphQL | gRPC |
-|------|------|---------|------|
-| 適用場面 | CRUD、公開 API | 複雑なデータ、多クライアント | サービス間通信 |
-| キャッシュ | HTTP 標準 | 独自実装（Apollo Cache 等） | なし（アプリ層で実装） |
-| 型安全 | OpenAPI で補完 | 組み込み（SDL） | Protocol Buffers |
-| 学習コスト | 低 | 中 | 中から高 |
-| エコシステム | 最も成熟 | 成長中 | バックエンド中心 |
-| ファイル操作 | 容易 | 複雑 | ストリーミング可 |
-| リアルタイム | WebSocket/SSE | Subscription | 双方向ストリーミング |
-| 運用容易性 | 高 | 中 | 中 |
-| モバイル適性 | 中 | 高（ペイロード最適化） | 高（バイナリ） |
-| セキュリティ制御 | エンドポイント単位 | フィールド単位 | サービス単位 |
-
-### 選択の原則
-
-1. **シンプルさを優先する場合**: REST を選択する。HTTP の標準機能を最大限活用でき、チームの学習コストが低い。
-2. **柔軟性を優先する場合**: GraphQL を選択する。クライアント駆動のデータ取得で、フロントエンドの開発効率を最大化できる。
-3. **パフォーマンスを優先する場合**: 単純なケースは REST（CDN キャッシュ）、複雑なケースは GraphQL（リクエスト削減）、内部通信は gRPC を選択する。
-4. **迷った場合**: REST で始め、必要に応じて GraphQL を部分的に追加するハイブリッドアプローチが低リスクである。
-
-最も重要なのは、技術選定を「流行」ではなく「プロジェクトの要件」に基づいて行うことである。REST と GraphQL はどちらも成熟した技術であり、適切な場面で使えば大きな価値を発揮する。本ガイドで示した判断基準とチェックリストを活用し、プロジェクトに最適な選択を行うことを推奨する。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- SDK設計の基礎
-- [RESTful API 設計の詳細](./00-rest-best-practices.md)
-- [GraphQL スキーマ設計の実践](./01-graphql-fundamentals.md)
+### Final Comparison Table
+
+| Aspect | REST | GraphQL | gRPC |
+|--------|------|---------|------|
+| Use cases | CRUD, public API | Complex data, multiple clients | Inter-service communication |
+| Caching | HTTP standard | Custom implementation (Apollo Cache, etc.) | None (implement at application layer) |
+| Type safety | Supplemented by OpenAPI | Built-in (SDL) | Protocol Buffers |
+| Learning cost | Low | Moderate | Moderate to high |
+| Ecosystem | Most mature | Growing | Backend-centric |
+| File operations | Easy | Complex | Streaming capable |
+| Real-time | WebSocket/SSE | Subscription | Bidirectional streaming |
+| Operational ease | High | Moderate | Moderate |
+| Mobile suitability | Moderate | High (payload optimization) | High (binary) |
+| Security control | Per endpoint | Per field | Per service |
+
+### Selection Principles
+
+1. **When simplicity is the priority**: Choose REST. HTTP's standard features can be leveraged to the fullest, with a low team learning cost.
+2. **When flexibility is the priority**: Choose GraphQL. Client-driven data fetching maximizes frontend development efficiency.
+3. **When performance is the priority**: Choose REST for simple cases (CDN caching), GraphQL for complex cases (fewer requests), and gRPC for internal communication.
+4. **When in doubt**: Start with REST and adopt a hybrid approach by partially adding GraphQL as needed — this is the low-risk path.
+
+Most importantly, technology selection should be based on "project requirements" rather than "trends." Both REST and GraphQL are mature technologies that deliver great value when used in the right context. Use the decision criteria and checklists shown in this guide to make the best choice for your project.
 
 ---
 
-## 参考文献
+## What to Read Next
 
-1. Fielding, R.T. "Architectural Styles and the Design of Network-based Software Architectures." Doctoral dissertation, University of California, Irvine, 2000. -- REST の原論文。アーキテクチャ制約の定義と理論的根拠を提供する。
-2. Buna, S. "GraphQL in Action." Manning Publications, 2021. -- GraphQL の実践的な入門書。スキーマ設計、リゾルバー実装、パフォーマンス最適化をカバーする。
-3. Sturgeon, P. "Build APIs You Won't Hate." Leanpub, 2023 (2nd edition). -- RESTful API 設計のベストプラクティス集。バージョニング、ページネーション、エラーハンドリングの実践的指針を提供する。
-4. Netflix Technology Blog. "Beyond REST: Rapid Development with GraphQL Microservices." 2023. -- Netflix における GraphQL Federation の大規模採用事例。マイクロサービス環境での GraphQL 統合の知見を共有する。
-5. GitHub Engineering Blog. "The GitHub GraphQL API." 2016. -- GitHub が REST API v3 から GraphQL API v4 へ移行した経緯と設計判断を解説する。
-6. Apollo GraphQL. "Principled GraphQL." 2019. -- GraphQL のスキーマ設計、運用、ガバナンスに関する10の原則を定めたガイドライン。
-7. Richardson, L. and Ruby, S. "RESTful Web APIs." O'Reilly Media, 2013. -- REST の理論と実践を体系的にまとめた名著。HATEOAS の実装方法など高度なトピックも扱う。
+- SDK Design Fundamentals
+- [RESTful API Design in Depth](./00-rest-best-practices.md)
+- [Practical GraphQL Schema Design](./01-graphql-fundamentals.md)
 
+---
+
+## References
+
+1. Fielding, R.T. "Architectural Styles and the Design of Network-based Software Architectures." Doctoral dissertation, University of California, Irvine, 2000. -- The original REST paper. Provides the definitions and theoretical basis for architectural constraints.
+2. Buna, S. "GraphQL in Action." Manning Publications, 2021. -- A practical introduction to GraphQL. Covers schema design, resolver implementation, and performance optimization.
+3. Sturgeon, P. "Build APIs You Won't Hate." Leanpub, 2023 (2nd edition). -- A collection of best practices for RESTful API design. Provides practical guidance on versioning, pagination, and error handling.
+4. Netflix Technology Blog. "Beyond REST: Rapid Development with GraphQL Microservices." 2023. -- A large-scale GraphQL Federation adoption case at Netflix. Shares knowledge of GraphQL integration in microservice environments.
+5. GitHub Engineering Blog. "The GitHub GraphQL API." 2016. -- Explains the background and design decisions behind GitHub's migration from REST API v3 to GraphQL API v4.
+6. Apollo GraphQL. "Principled GraphQL." 2019. -- Guidelines defining 10 principles for GraphQL schema design, operations, and governance.
+7. Richardson, L. and Ruby, S. "RESTful Web APIs." O'Reilly Media, 2013. -- A seminal work systematically covering REST theory and practice. Also covers advanced topics like HATEOAS implementation.

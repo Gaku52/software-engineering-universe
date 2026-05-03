@@ -1,81 +1,81 @@
-# GraphQL基礎
+# GraphQL Fundamentals
 
-> GraphQLはFacebookが開発したクエリ言語。スキーマ駆動開発、型システム、Query/Mutation/Subscription、リゾルバーの仕組みを理解し、REST APIとは異なるアプローチでのAPI設計を習得する。
+> GraphQL is a query language developed by Facebook. Learn schema-driven development, the type system, Query/Mutation/Subscription, and resolver mechanics to master an API design approach that differs from REST.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] GraphQLの型システムとスキーマ定義を理解する
-- [ ] Query・Mutation・Subscriptionの使い分けを把握する
-- [ ] リゾルバーの実装パターンを学ぶ
-- [ ] Apollo Serverの構築と運用手法を身につける
-- [ ] N+1問題とDataLoaderによる最適化を理解する
-- [ ] エラーハンドリングと認証・認可パターンを習得する
+- [ ] Understand GraphQL's type system and schema definitions
+- [ ] Know when to use Query, Mutation, and Subscription
+- [ ] Learn resolver implementation patterns
+- [ ] Build and operate an Apollo Server
+- [ ] Understand the N+1 problem and optimization with DataLoader
+- [ ] Master error handling and authentication/authorization patterns
 
-## 前提知識
+## Prerequisites
 
-- REST APIの基本概念 → 参照: [REST Best Practices](./00-rest-best-practices.md)
-- HTTPリクエスト/レスポンスの仕組み → 参照: HTTPの基礎
-- JSONデータ構造の理解
-- 型システムの基礎知識（TypeScriptやJavaの型概念があると望ましい）
+- Basic concepts of REST API → See: [REST Best Practices](./00-rest-best-practices.md)
+- How HTTP requests/responses work → See: HTTP Basics
+- Understanding of JSON data structures
+- Basic knowledge of type systems (familiarity with TypeScript or Java types is helpful)
 
 ---
 
-## 1. GraphQLとは
+## 1. What Is GraphQL
 
-### 1.1 概要と歴史
+### 1.1 Overview and History
 
-GraphQLは2012年にFacebook社内でモバイルアプリ向けのデータ取得基盤として開発された。2015年にオープンソースとして公開され、2019年にはLinux Foundation傘下のGraphQL Foundationに移管された。
+GraphQL was developed inside Facebook in 2012 as a data-fetching foundation for mobile apps. It was open-sourced in 2015 and transferred to the GraphQL Foundation under the Linux Foundation in 2019.
 
 ```
 GraphQL = Graph Query Language
-  → API のためのクエリ言語 + 型システム + ランタイム
-  → Facebook が 2012年に内部開発、2015年に公開、2019年にGraphQL Foundation設立
+  → A query language for APIs + type system + runtime
+  → Developed internally at Facebook in 2012, released publicly in 2015, GraphQL Foundation established in 2019
 
-歴史年表:
-  2012  Facebook内部で開発開始（モバイルニュースフィード向け）
-  2015  React.jsカンファレンスで公開、仕様のオープンソース化
-  2016  GitHub API v4がGraphQLを採用（大規模事例の先駆け）
-  2017  Apollo, Relay Modern, Prismaなどエコシステムが拡大
-  2018  GraphQL仕様にSubscriptionが正式追加
-  2019  GraphQL Foundation設立（Linux Foundation傘下）
-  2021  @defer, @streamディレクティブの仕様策定開始
-  2023  GraphQL仕様 October 2021 Editionの安定リリース
-  2024  Composite Schema（Federation統一仕様）のRFC進行中
+Timeline:
+  2012  Development began inside Facebook (for the mobile news feed)
+  2015  Announced at the React.js Conference; spec open-sourced
+  2016  GitHub API v4 adopts GraphQL (first major large-scale adoption)
+  2017  Ecosystem expands: Apollo, Relay Modern, Prisma, and others
+  2018  Subscription formally added to the GraphQL spec
+  2019  GraphQL Foundation established (under the Linux Foundation)
+  2021  Specification work on @defer and @stream directives begins
+  2023  Stable release of the GraphQL Specification October 2021 Edition
+  2024  Composite Schema (unified Federation spec) RFC in progress
 ```
 
-### 1.2 GraphQLの3つの柱
+### 1.2 The Three Pillars of GraphQL
 
 ```
 +-------------------------------------------------------------------+
-|                    GraphQLの3つの柱                                 |
+|                    The Three Pillars of GraphQL                    |
 +-------------------------------------------------------------------+
 |                                                                   |
-|  [1] クエリ言語           [2] 型システム         [3] ランタイム      |
-|  (Query Language)        (Type System)         (Execution Engine) |
+|  [1] Query Language       [2] Type System        [3] Runtime      |
+|  (Query Language)         (Type System)          (Execution Engine)|
 |                                                                   |
-|  クライアントが            スキーマで              リクエストを       |
-|  欲しいデータを            APIの形を               解析・検証し       |
-|  宣言的に記述              厳密に定義               結果を返す        |
+|  Clients describe         The schema strictly    Parses, validates,|
+|  the data they want       defines the shape      and returns       |
+|  declaratively            of the API             the result        |
 |                                                                   |
-|  ・Query                 ・Scalar型              ・パース           |
-|  ・Mutation              ・Object型              ・バリデーション     |
-|  ・Subscription          ・Enum型                ・実行（リゾルバー） |
-|  ・Fragment              ・Interface/Union       ・シリアライズ       |
-|  ・Variable              ・Input型               ・エラーハンドリング  |
+|  · Query                 · Scalar types          · Parse           |
+|  · Mutation              · Object types          · Validate        |
+|  · Subscription          · Enum types            · Execute         |
+|  · Fragment              · Interface/Union       · Serialize        |
+|  · Variable              · Input types           · Error handling  |
 |                                                                   |
 +-------------------------------------------------------------------+
 ```
 
-### 1.3 RESTとの比較
+### 1.3 Comparison with REST
 
 ```
-REST vs GraphQL（イメージ）:
+REST vs GraphQL (conceptual):
 
   REST:
     GET /users/123            → { id, name, email, address, ... }
     GET /users/123/orders     → [{ id, total, items, ... }]
     GET /orders/456/items     → [{ id, product, price, ... }]
-    → 3リクエスト、不要なデータも含む
+    → 3 requests, includes unnecessary data
 
   GraphQL:
     POST /graphql
@@ -88,55 +88,55 @@ REST vs GraphQL（イメージ）:
         }
       }
     }
-    → 1リクエスト、必要なデータのみ
+    → 1 request, only the data you need
 ```
 
-**比較表1: REST vs GraphQL 機能比較**
+**Comparison Table 1: REST vs GraphQL Feature Comparison**
 
-| 観点 | REST | GraphQL |
-|------|------|---------|
-| エンドポイント | リソースごとに複数 (`/users`, `/orders`) | 単一 (`/graphql`) |
-| データ取得量 | サーバーが決定（Over-fetching発生） | クライアントが必要なフィールドを指定 |
-| 型システム | OpenAPI/Swaggerで別途定義 | スキーマに内蔵（SDL） |
-| バージョニング | URLパス (`/v1/`, `/v2/`) が一般的 | スキーマ進化（deprecated + 新フィールド追加） |
-| キャッシュ | HTTPキャッシュヘッダーで容易 | 専用キャッシュ戦略が必要（Apollo Cacheなど） |
-| リアルタイム | WebSocket / SSE を別途実装 | Subscriptionで標準サポート |
-| 学習コスト | 広く知られており低い | SDL・リゾルバーなど独自概念の学習が必要 |
-| ファイルアップロード | multipart/form-data で標準対応 | 仕様外（Apollo Upload等で拡張） |
-| エラーハンドリング | HTTPステータスコード | 常に200、errorsフィールドで表現 |
-| ドキュメント | Swagger UI等で生成 | GraphiQL/Playground等で自動生成+対話的実行 |
-| ネストデータ | 複数リクエストまたはInclude指定 | 1リクエストで任意の深さまで取得可能 |
+| Aspect | REST | GraphQL |
+|--------|------|---------|
+| Endpoints | Multiple per resource (`/users`, `/orders`) | Single (`/graphql`) |
+| Data fetching | Server decides (over-fetching occurs) | Client specifies required fields |
+| Type system | Defined separately via OpenAPI/Swagger | Built into the schema (SDL) |
+| Versioning | URL path (`/v1/`, `/v2/`) is common | Schema evolution (deprecated + add new fields) |
+| Caching | Easy with HTTP cache headers | Requires dedicated cache strategy (Apollo Cache, etc.) |
+| Real-time | WebSocket / SSE implemented separately | Natively supported via Subscription |
+| Learning curve | Widely known, low | Requires learning SDL, resolvers, and other concepts |
+| File upload | Standard with multipart/form-data | Outside the spec (extended via Apollo Upload, etc.) |
+| Error handling | HTTP status codes | Always 200; errors expressed in `errors` field |
+| Documentation | Generated with Swagger UI, etc. | Auto-generated and interactive via GraphiQL/Playground |
+| Nested data | Multiple requests or include params | Any depth in a single request |
 
-**比較表2: ユースケース別適性**
+**Comparison Table 2: Suitability by Use Case**
 
-| ユースケース | REST推奨度 | GraphQL推奨度 | 理由 |
-|-------------|-----------|-------------|------|
-| CRUDが中心のシンプルAPI | ★★★★★ | ★★★☆☆ | RESTの方がシンプルで十分 |
-| モバイルアプリ向けBFF | ★★☆☆☆ | ★★★★★ | 帯域節約・1リクエストが大きい利点 |
-| マイクロサービス集約 | ★★★☆☆ | ★★★★★ | Federation/Stitchingで統合容易 |
-| 外部公開API | ★★★★★ | ★★★☆☆ | REST+OpenAPIの方が汎用的 |
-| ダッシュボード/管理画面 | ★★★☆☆ | ★★★★★ | 複雑なデータ要件に柔軟対応 |
-| IoT/組み込み | ★★★★★ | ★★☆☆☆ | HTTP GETの方が軽量 |
-| リアルタイム通知 | ★★★☆☆ | ★★★★☆ | Subscriptionで標準サポート |
-| ファイル配信/ストリーム | ★★★★★ | ★☆☆☆☆ | GraphQLはJSONデータ向け |
+| Use Case | REST Recommendation | GraphQL Recommendation | Reason |
+|----------|--------------------|-----------------------|--------|
+| Simple CRUD-centric API | ★★★★★ | ★★★☆☆ | REST is simpler and sufficient |
+| BFF for mobile apps | ★★☆☆☆ | ★★★★★ | Bandwidth savings; fewer round trips |
+| Microservice aggregation | ★★★☆☆ | ★★★★★ | Easy integration via Federation/Stitching |
+| Publicly exposed API | ★★★★★ | ★★★☆☆ | REST + OpenAPI is more universal |
+| Dashboards / admin panels | ★★★☆☆ | ★★★★★ | Flexible for complex data requirements |
+| IoT / embedded systems | ★★★★★ | ★★☆☆☆ | HTTP GET is lighter |
+| Real-time notifications | ★★★☆☆ | ★★★★☆ | Natively supported via Subscription |
+| File delivery / streaming | ★★★★★ | ★☆☆☆☆ | GraphQL is intended for JSON data |
 
-### 1.4 GraphQLのリクエスト/レスポンスフロー
+### 1.4 GraphQL Request/Response Flow
 
 ```
 ┌──────────────┐     POST /graphql      ┌──────────────────────────┐
 │              │ ─────────────────────→ │  GraphQL Server          │
 │   Client     │     {                  │                          │
-│  (Browser/   │       query: "...",    │  1. Parse (構文解析)      │
+│  (Browser/   │       query: "...",    │  1. Parse                │
 │   Mobile)    │       variables: {}    │         ↓                │
-│              │     }                  │  2. Validate (検証)       │
-│              │                        │     - 型チェック           │
-│              │                        │     - フィールド存在確認   │
+│              │     }                  │  2. Validate             │
+│              │                        │     - Type check         │
+│              │                        │     - Field existence    │
 │              │                        │         ↓                │
-│              │     {                  │  3. Execute (実行)        │
-│              │       data: {...},     │     - リゾルバー呼び出し   │
-│              │ ←───────────────────── │     - データソースアクセス  │
+│              │     {                  │  3. Execute              │
+│              │       data: {...},     │     - Invoke resolvers   │
+│              │ ←───────────────────── │     - Access data sources│
 │              │       errors: [...]    │         ↓                │
-│              │     }                  │  4. Serialize (直列化)    │
+│              │     }                  │  4. Serialize            │
 └──────────────┘                        └──────────────────────────┘
                                                ↕
                                         ┌──────────────┐
@@ -150,45 +150,45 @@ REST vs GraphQL（イメージ）:
 
 ---
 
-## 2. スキーマ定義（SDL）
+## 2. Schema Definition (SDL)
 
-### 2.1 スカラー型
+### 2.1 Scalar Types
 
-GraphQLには5つの組み込みスカラー型がある。
+GraphQL has five built-in scalar types.
 
 ```graphql
-# 組み込みスカラー型
-# Int     : 符号付き32ビット整数
-# Float   : 倍精度浮動小数点数
-# String  : UTF-8文字列
+# Built-in scalar types
+# Int     : Signed 32-bit integer
+# Float   : Double-precision floating point
+# String  : UTF-8 string
 # Boolean : true / false
-# ID      : 一意識別子（内部的にはString）
+# ID      : Unique identifier (internally a String)
 
-# カスタムスカラー型の定義
-scalar DateTime    # ISO 8601形式の日時文字列
-scalar Email       # メールアドレス形式の文字列
-scalar URL         # URL形式の文字列
-scalar JSON        # 任意のJSONオブジェクト
-scalar BigInt      # 64ビット整数（Int範囲を超える場合）
-scalar Void        # 戻り値なし（副作用のみのMutationに使用）
+# Custom scalar type definitions
+scalar DateTime    # Date/time string in ISO 8601 format
+scalar Email       # String in email address format
+scalar URL         # String in URL format
+scalar JSON        # Arbitrary JSON object
+scalar BigInt      # 64-bit integer (when Int range is exceeded)
+scalar Void        # No return value (used for side-effect-only Mutations)
 ```
 
-### 2.2 オブジェクト型と型修飾子
+### 2.2 Object Types and Type Modifiers
 
 ```graphql
-# 型修飾子の組み合わせと意味
+# Type modifier combinations and their meaning
 #
-# String    → null許容文字列（値はnullまたはString）
-# String!   → 非null文字列（値は必ずString）
-# [String]  → null許容の配列（配列自体がnull、要素もnull可）
-# [String]! → 非nullの配列（配列自体は非null、要素はnull可）
-# [String!] → null許容の配列（配列自体はnull可、要素は非null）
-# [String!]!→ 非nullの配列（配列自体も要素も非null）
+# String    → Nullable string (value is null or String)
+# String!   → Non-null string (value must be String)
+# [String]  → Nullable array (array itself may be null; elements may also be null)
+# [String]! → Non-null array (array itself is non-null; elements may be null)
+# [String!] → Nullable array (array itself may be null; elements are non-null)
+# [String!]!→ Non-null array (both array and elements are non-null)
 
 # ┌──────────────────────────────────────────────────────┐
-# │  型修飾子の許容パターン一覧                            │
+# │  Allowed values for each type modifier               │
 # ├───────────────┬──────────────────────────────────────┤
-# │  宣言         │  許容される値                          │
+# │  Declaration  │  Allowed values                      │
 # ├───────────────┼──────────────────────────────────────┤
 # │  String       │  null, "hello"                       │
 # │  String!      │  "hello"                             │
@@ -199,10 +199,10 @@ scalar Void        # 戻り値なし（副作用のみのMutationに使用）
 # └───────────────┴──────────────────────────────────────┘
 ```
 
-### 2.3 列挙型
+### 2.3 Enum Types
 
 ```graphql
-# 列挙型
+# Enum types
 enum UserRole {
   USER
   ADMIN
@@ -219,16 +219,16 @@ enum OrderStatus {
   REFUNDED
 }
 
-# 列挙型はフィルタリング、バリデーション、ドキュメント化に有用
-# 実行時にスキーマに存在しない値が渡されるとバリデーションエラーになる
+# Enum types are useful for filtering, validation, and documentation
+# If a value not present in the schema is passed at runtime, a validation error is raised
 ```
 
-### 2.4 オブジェクト型の定義
+### 2.4 Object Type Definitions
 
 ```graphql
-# オブジェクト型
+# Object types
 type User {
-  id: ID!                     # !は非null
+  id: ID!                     # ! means non-null
   name: String!
   email: Email!
   role: UserRole!
@@ -236,7 +236,7 @@ type User {
   bio: String
   createdAt: DateTime!
   updatedAt: DateTime!
-  orders: [Order!]!           # 非nullの配列（配列自体も非null）
+  orders: [Order!]!           # non-null array (both array and elements are non-null)
   orderCount: Int!
   posts: [Post!]!
   followers: [User!]!
@@ -247,7 +247,7 @@ type Order {
   id: ID!
   user: User!
   status: OrderStatus!
-  total: Int!                 # 金額（円）
+  total: Int!                 # Amount (in cents or smallest currency unit)
   items: [OrderItem!]!
   shippingAddress: Address
   note: String
@@ -261,7 +261,7 @@ type OrderItem {
   product: Product!
   quantity: Int!
   unitPrice: Int!
-  subtotal: Int!              # quantity * unitPrice（計算フィールド）
+  subtotal: Int!              # quantity * unitPrice (computed field)
 }
 
 type Product {
@@ -280,7 +280,7 @@ type Category {
   id: ID!
   name: String!
   slug: String!
-  parent: Category            # 再帰的な型参照（親カテゴリ）
+  parent: Category            # Recursive type reference (parent category)
   children: [Category!]!
   products: [Product!]!
 }
@@ -304,19 +304,19 @@ type Post {
 }
 ```
 
-### 2.5 入力型（Input Types）
+### 2.5 Input Types
 
 ```graphql
-# 入力型（Mutation の引数に使用）
-# input型とtype型の違い:
-#   - input型はMutation/Queryの引数にのみ使用可能
-#   - input型のフィールドにはtype型を含められない（inputのみ）
-#   - input型にはリゾルバーを定義できない
+# Input types (used as Mutation arguments)
+# Difference between input and type:
+#   - input types can only be used as Mutation/Query arguments
+#   - input type fields cannot include object types (only other input types)
+#   - input types cannot have resolvers
 
 input CreateUserInput {
   name: String!
   email: Email!
-  role: UserRole = USER       # デフォルト値
+  role: UserRole = USER       # Default value
   bio: String
   avatar: String
 }
@@ -349,10 +349,10 @@ input AddressInput {
 }
 ```
 
-### 2.6 Interface と Union
+### 2.6 Interface and Union
 
 ```graphql
-# Interface: 共通フィールドを持つ型の抽象化
+# Interface: abstraction for types sharing common fields
 interface Node {
   id: ID!
 }
@@ -378,15 +378,15 @@ type Post implements Node & Timestamped {
   updatedAt: DateTime!
 }
 
-# Union: 共通フィールドを持たない型の集合
+# Union: a set of types that do not share common fields
 union SearchResult = User | Post | Product
 
 type Query {
   search(query: String!): [SearchResult!]!
-  node(id: ID!): Node         # Relay Global Object Identificationパターン
+  node(id: ID!): Node         # Relay Global Object Identification pattern
 }
 
-# Unionのクエリ例
+# Example query for Union:
 # query {
 #   search(query: "GraphQL") {
 #     ... on User { name, email }
@@ -396,13 +396,13 @@ type Query {
 # }
 ```
 
-### 2.7 ディレクティブ
+### 2.7 Directives
 
 ```graphql
-# 組み込みディレクティブ
-# @skip(if: Boolean!)    - trueの場合そのフィールドを除外
-# @include(if: Boolean!) - trueの場合そのフィールドを含める
-# @deprecated(reason: String) - フィールドの非推奨化
+# Built-in directives
+# @skip(if: Boolean!)    - Exclude the field if true
+# @include(if: Boolean!) - Include the field if true
+# @deprecated(reason: String) - Mark a field as deprecated
 
 type User {
   id: ID!
@@ -411,7 +411,7 @@ type User {
   username: String @deprecated(reason: "Use 'name' instead.")
 }
 
-# クエリでのディレクティブ使用
+# Using directives in a query
 # query GetUser($id: ID!, $includeOrders: Boolean!) {
 #   user(id: $id) {
 #     name
@@ -423,7 +423,7 @@ type User {
 #   }
 # }
 
-# カスタムディレクティブの定義（サーバー側で実装が必要）
+# Custom directive definitions (require server-side implementation)
 directive @auth(requires: UserRole!) on FIELD_DEFINITION
 directive @cacheControl(maxAge: Int!) on FIELD_DEFINITION
 directive @rateLimit(max: Int!, window: String!) on FIELD_DEFINITION
@@ -434,10 +434,10 @@ type Query {
 }
 ```
 
-### 2.8 ページネーション用型（Relay Connection仕様）
+### 2.8 Pagination Types (Relay Connection Spec)
 
 ```graphql
-# Relay Connection仕様に基づくページネーション
+# Pagination based on the Relay Connection specification
 
 type PageInfo {
   hasNextPage: Boolean!
@@ -468,32 +468,32 @@ type OrderConnection {
   totalCount: Int!
 }
 
-# Cursor vs Offset ページネーション比較:
+# Cursor vs Offset pagination comparison:
 #
-# Offset方式:  users(offset: 20, limit: 10)
-#   利点: 実装が簡単、任意のページにジャンプ可能
-#   欠点: データ挿入/削除時にずれが発生、大きなオフセットはDB負荷大
+# Offset:  users(offset: 20, limit: 10)
+#   Pros: Easy to implement, can jump to any page
+#   Cons: Shifts occur on insert/delete; large offsets cause high DB load
 #
-# Cursor方式:  users(first: 10, after: "abc123")
-#   利点: データ変更に強い、一貫した結果、インデックス利用で高速
-#   欠点: 任意ページジャンプ不可、実装がやや複雑
+# Cursor:  users(first: 10, after: "abc123")
+#   Pros: Stable under data changes, consistent results, fast via index
+#   Cons: Cannot jump to arbitrary pages; slightly more complex to implement
 ```
 
 ---
 
-## 3. Query（データ取得）
+## 3. Query (Data Fetching)
 
-### 3.1 Query型の定義
+### 3.1 Query Type Definition
 
 ```graphql
-# スキーマ定義
+# Schema definition
 type Query {
-  # 単一リソース
+  # Single resource
   user(id: ID!): User
   order(id: ID!): Order
   product(id: ID!): Product
 
-  # コレクション（Cursor ページネーション）
+  # Collections (cursor pagination)
   users(
     first: Int
     after: String
@@ -509,18 +509,18 @@ type Query {
     filter: OrderFilter
   ): OrderConnection!
 
-  # 検索
+  # Search
   searchUsers(query: String!, limit: Int = 10): [User!]!
   search(query: String!, types: [SearchType!]): [SearchResult!]!
 
-  # 集計
+  # Aggregation
   userStats: UserStats!
   orderStats(period: StatPeriod!): OrderStats!
 
-  # ヘルスチェック
+  # Health check
   health: HealthStatus!
 
-  # 現在のログインユーザー
+  # Currently authenticated user
   me: User
 }
 
@@ -589,12 +589,12 @@ type HealthStatus {
 }
 ```
 
-### 3.2 クエリの書き方
+### 3.2 Writing Queries
 
 ```graphql
-# クライアントからのクエリ例
+# Example queries from a client
 
-# 基本的なクエリ
+# Basic query
 query GetUser {
   user(id: "123") {
     id
@@ -604,7 +604,7 @@ query GetUser {
   }
 }
 
-# ネストされたクエリ
+# Nested query
 query GetUserWithOrders {
   user(id: "123") {
     name
@@ -633,7 +633,7 @@ query GetUserWithOrders {
   }
 }
 
-# 変数を使ったクエリ
+# Query with variables
 query GetUsers($first: Int!, $after: String, $role: UserRole) {
   users(first: $first, after: $after, filter: { role: $role }) {
     edges {
@@ -652,15 +652,15 @@ query GetUsers($first: Int!, $after: String, $role: UserRole) {
     totalCount
   }
 }
-# 変数: { "first": 20, "after": null, "role": "ADMIN" }
+# Variables: { "first": 20, "after": null, "role": "ADMIN" }
 
-# エイリアス（同じフィールドを異なる引数で取得）
+# Aliases (fetching the same field with different arguments)
 query CompareUsers {
   admin: user(id: "1") { name, role, orderCount }
   editor: user(id: "2") { name, role, orderCount }
 }
 
-# フラグメント（共通フィールドの再利用）
+# Fragments (reusing common fields)
 fragment UserBasic on User {
   id
   name
@@ -697,10 +697,10 @@ query GetMultipleUsers {
 }
 ```
 
-### 3.3 インラインフラグメントとUnion型のクエリ
+### 3.3 Inline Fragments and Union Type Queries
 
 ```graphql
-# Union型に対するインラインフラグメント
+# Inline fragments for Union types
 query SearchAll($q: String!) {
   search(query: $q) {
     ... on User {
@@ -724,14 +724,14 @@ query SearchAll($q: String!) {
   }
 }
 
-# __typename はオブジェクトの型名を返す特殊フィールド
-# レスポンス例:
+# __typename is a special field that returns the type name of the object
+# Example response:
 # {
 #   "data": {
 #     "search": [
 #       { "__typename": "User", "id": "1", "name": "Taro", "email": "..." },
-#       { "__typename": "Post", "id": "10", "title": "GraphQL入門", "body": "..." },
-#       { "__typename": "Product", "id": "100", "name": "GraphQL本", "price": 3000 }
+#       { "__typename": "Post", "id": "10", "title": "Intro to GraphQL", "body": "..." },
+#       { "__typename": "Product", "id": "100", "name": "GraphQL Book", "price": 3000 }
 #     ]
 #   }
 # }
@@ -739,35 +739,35 @@ query SearchAll($q: String!) {
 
 ---
 
-## 4. Mutation（データ変更）
+## 4. Mutation (Data Modification)
 
-### 4.1 Mutation型の定義
+### 4.1 Mutation Type Definition
 
 ```graphql
-# スキーマ定義
+# Schema definition
 type Mutation {
-  # ユーザー
+  # User
   createUser(input: CreateUserInput!): CreateUserPayload!
   updateUser(id: ID!, input: UpdateUserInput!): UpdateUserPayload!
   deleteUser(id: ID!): DeleteUserPayload!
 
-  # ユーザー認証
+  # User authentication
   signUp(input: SignUpInput!): AuthPayload!
   signIn(email: Email!, password: String!): AuthPayload!
   refreshToken(token: String!): AuthPayload!
 
-  # 注文
+  # Orders
   createOrder(input: CreateOrderInput!): CreateOrderPayload!
   updateOrderStatus(id: ID!, status: OrderStatus!): UpdateOrderPayload!
   cancelOrder(id: ID!): CancelOrderPayload!
 
-  # 商品
+  # Products
   createProduct(input: CreateProductInput!): CreateProductPayload!
   updateProduct(id: ID!, input: UpdateProductInput!): UpdateProductPayload!
   deleteProduct(id: ID!): DeleteProductPayload!
 }
 
-# Payload パターン（成功/エラーを表現）
+# Payload pattern (representing success/error)
 type CreateUserPayload {
   user: User
   errors: [UserError!]!
@@ -804,11 +804,11 @@ type CancelOrderPayload {
   errors: [UserError!]!
 }
 
-# エラー型
+# Error type
 type UserError {
-  field: String               # エラーが発生したフィールド名
-  message: String!            # 人間が読めるメッセージ
-  code: ErrorCode!            # 機械処理用のエラーコード
+  field: String               # Name of the field where the error occurred
+  message: String!            # Human-readable message
+  code: ErrorCode!            # Machine-readable error code
 }
 
 enum ErrorCode {
@@ -849,10 +849,10 @@ input UpdateProductInput {
 }
 ```
 
-### 4.2 Mutationの実行例
+### 4.2 Executing Mutations
 
 ```graphql
-# ユーザー作成
+# Create user
 mutation CreateUser($input: CreateUserInput!) {
   createUser(input: $input) {
     user {
@@ -869,9 +869,9 @@ mutation CreateUser($input: CreateUserInput!) {
     }
   }
 }
-# 変数: { "input": { "name": "Taro", "email": "taro@example.com" } }
+# Variables: { "input": { "name": "Taro", "email": "taro@example.com" } }
 
-# 成功レスポンス:
+# Success response:
 # {
 #   "data": {
 #     "createUser": {
@@ -887,7 +887,7 @@ mutation CreateUser($input: CreateUserInput!) {
 #   }
 # }
 
-# エラーレスポンス:
+# Error response:
 # {
 #   "data": {
 #     "createUser": {
@@ -905,7 +905,7 @@ mutation CreateUser($input: CreateUserInput!) {
 ```
 
 ```graphql
-# 認証（サインイン）
+# Authentication (sign in)
 mutation SignIn($email: Email!, $password: String!) {
   signIn(email: $email, password: $password) {
     token
@@ -921,7 +921,7 @@ mutation SignIn($email: Email!, $password: String!) {
   }
 }
 
-# 注文作成
+# Create order
 mutation CreateOrder($input: CreateOrderInput!) {
   createOrder(input: $input) {
     order {
@@ -942,7 +942,7 @@ mutation CreateOrder($input: CreateOrderInput!) {
     }
   }
 }
-# 変数:
+# Variables:
 # {
 #   "input": {
 #     "items": [
@@ -951,61 +951,61 @@ mutation CreateOrder($input: CreateOrderInput!) {
 #     ],
 #     "shippingAddress": {
 #       "postalCode": "100-0001",
-#       "prefecture": "東京都",
-#       "city": "千代田区",
-#       "street": "丸の内1-1-1"
+#       "prefecture": "Tokyo",
+#       "city": "Chiyoda",
+#       "street": "Marunouchi 1-1-1"
 #     }
 #   }
 # }
 ```
 
-### 4.3 Mutationの設計原則
+### 4.3 Mutation Design Principles
 
 ```
-Mutation設計の5原則:
+5 Principles for Mutation Design:
 
-  1. 入力はInput型にまとめる
+  1. Wrap inputs in an Input type
      ✗ createUser(name: String!, email: String!, role: UserRole!)
      ○ createUser(input: CreateUserInput!)
-     → 引数追加時にクエリを変更せずInput型の拡張だけで済む
+     → When adding arguments, you only need to extend the Input type without changing the query
 
-  2. 戻り値はPayload型で統一する
-     ✗ createUser(input: ...): User!      ← エラー情報なし
+  2. Use Payload types consistently for return values
+     ✗ createUser(input: ...): User!      ← No error information
      ○ createUser(input: ...): CreateUserPayload!
-     → 成功時のデータとエラー情報を同一レスポンスで返す
+     → Returns both success data and error information in the same response
 
-  3. 冪等性を意識する
-     → 同じMutationを複数回実行しても結果が同じ
-     → クライアントIDやリクエストIDで重複排除
+  3. Design for idempotency
+     → Running the same Mutation multiple times produces the same result
+     → Deduplicate with a client ID or request ID
 
-  4. 命名は動詞 + 名詞
+  4. Name with verb + noun
      ○ createUser, updateOrder, cancelSubscription
      ✗ userCreate, orderUpdate
 
-  5. 1つのMutationで1つの操作
+  5. One operation per Mutation
      ✗ updateUserAndCreateOrder(...)
-     ○ updateUser(...) + createOrder(...) を別々に
+     ○ updateUser(...) + createOrder(...) as separate operations
 ```
 
 ---
 
-## 5. Subscription（リアルタイム通知）
+## 5. Subscription (Real-Time Notifications)
 
-### 5.1 Subscriptionの仕組み
+### 5.1 How Subscription Works
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                 Subscription のフロー                         │
+│                 Subscription Flow                             │
 │                                                              │
 │  Client                    Server                PubSub      │
 │    │                         │                      │        │
 │    │  subscription {         │                      │        │
 │    │    orderUpdated(userId)  │                      │        │
 │    │  }                      │                      │        │
-│    │ ───WebSocket接続───→    │                      │        │
+│    │ ───WebSocket connect──→  │                      │        │
 │    │                         │  subscribe(topic) →  │        │
 │    │                         │                      │        │
-│    │         ... 待機中 ...   │                      │        │
+│    │         ... waiting ...  │                      │        │
 │    │                         │                      │        │
 │    │                         │  ← publish(topic,    │        │
 │    │                         │      payload)        │        │
@@ -1019,25 +1019,25 @@ Mutation設計の5原則:
 │    │  ← { data: {...} }     │                      │        │
 │    │                         │                      │        │
 │    │  unsubscribe           │                      │        │
-│    │ ───WebSocket切断───→    │                      │        │
+│    │ ───WebSocket close───→  │                      │        │
 │    │                         │                      │        │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 Subscription型の定義
+### 5.2 Subscription Type Definition
 
 ```graphql
 type Subscription {
-  # 注文ステータスの変更を購読
+  # Subscribe to order status changes
   orderStatusChanged(userId: ID!): OrderStatusEvent!
 
-  # 新しいメッセージの購読（チャット機能）
+  # Subscribe to new messages (chat feature)
   messageSent(channelId: ID!): Message!
 
-  # 商品在庫の変更
+  # Subscribe to product stock changes
   stockUpdated(productId: ID!): StockEvent!
 
-  # 全体通知
+  # Global notifications
   notificationReceived(userId: ID!): Notification!
 }
 
@@ -1078,15 +1078,15 @@ enum NotificationType {
 }
 ```
 
-### 5.3 Subscriptionリゾルバーの実装
+### 5.3 Subscription Resolver Implementation
 
 ```javascript
-// PubSubを使ったSubscriptionリゾルバー
+// Subscription resolver using PubSub
 import { PubSub } from 'graphql-subscriptions';
 
 const pubsub = new PubSub();
 
-// イベント名の定数
+// Event name constants
 const EVENTS = {
   ORDER_STATUS_CHANGED: 'ORDER_STATUS_CHANGED',
   MESSAGE_SENT: 'MESSAGE_SENT',
@@ -1097,19 +1097,19 @@ const EVENTS = {
 const resolvers = {
   Subscription: {
     orderStatusChanged: {
-      // subscribe関数がAsyncIteratorを返す
+      // subscribe function returns an AsyncIterator
       subscribe: (_, { userId }) => {
         return pubsub.asyncIterator(
           `${EVENTS.ORDER_STATUS_CHANGED}.${userId}`
         );
       },
-      // resolve関数でペイロードを変換（オプション）
+      // resolve function to transform the payload (optional)
       resolve: (payload) => payload,
     },
 
     messageSent: {
       subscribe: (_, { channelId }, context) => {
-        // 認証チェック
+        // Authentication check
         if (!context.user) {
           throw new Error('Authentication required');
         }
@@ -1135,7 +1135,7 @@ const resolvers = {
     updateOrderStatus: async (_, { id, status }, context) => {
       const order = await context.dataSources.orderAPI.updateStatus(id, status);
 
-      // Subscriptionにイベントを発行
+      // Publish event to Subscription
       pubsub.publish(`${EVENTS.ORDER_STATUS_CHANGED}.${order.userId}`, {
         orderStatusChanged: {
           order,
@@ -1151,10 +1151,10 @@ const resolvers = {
 };
 ```
 
-### 5.4 クライアントでのSubscription利用
+### 5.4 Using Subscriptions on the Client
 
 ```javascript
-// Apollo Client でのSubscription利用
+// Using Subscription with Apollo Client
 import {
   ApolloClient,
   InMemoryCache,
@@ -1165,12 +1165,12 @@ import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { createClient } from 'graphql-ws';
 import { getMainDefinition } from '@apollo/client/utilities';
 
-// HTTP接続（Query/Mutation用）
+// HTTP connection (for Query/Mutation)
 const httpLink = new HttpLink({
   uri: 'http://localhost:4000/graphql',
 });
 
-// WebSocket接続（Subscription用）
+// WebSocket connection (for Subscription)
 const wsLink = new GraphQLWsLink(
   createClient({
     url: 'ws://localhost:4000/graphql',
@@ -1180,7 +1180,7 @@ const wsLink = new GraphQLWsLink(
   })
 );
 
-// オペレーションタイプに応じてリンクを切り替え
+// Switch links based on operation type
 const splitLink = split(
   ({ query }) => {
     const definition = getMainDefinition(query);
@@ -1189,8 +1189,8 @@ const splitLink = split(
       definition.operation === 'subscription'
     );
   },
-  wsLink,   // Subscriptionの場合
-  httpLink  // Query/Mutationの場合
+  wsLink,   // For Subscriptions
+  httpLink  // For Query/Mutation
 );
 
 const client = new ApolloClient({
@@ -1198,7 +1198,7 @@ const client = new ApolloClient({
   cache: new InMemoryCache(),
 });
 
-// Reactコンポーネントでの使用
+// Usage in a React component
 import { useSubscription, gql } from '@apollo/client';
 
 const ORDER_STATUS_SUBSCRIPTION = gql`
@@ -1222,85 +1222,86 @@ function OrderTracker({ userId }) {
     { variables: { userId } }
   );
 
-  if (loading) return <p>注文状態を監視中...</p>;
-  if (error) return <p>接続エラー: {error.message}</p>;
+  if (loading) return <p>Watching order status...</p>;
+  if (error) return <p>Connection error: {error.message}</p>;
 
   if (data) {
     const { order, previousStatus, newStatus } = data.orderStatusChanged;
     return (
       <div>
-        <p>注文 #{order.id} のステータスが変更されました</p>
+        <p>Order #{order.id} status has changed</p>
         <p>{previousStatus} → {newStatus}</p>
       </div>
     );
   }
 
-  return <p>更新待ち...</p>;
+  return <p>Waiting for updates...</p>;
 }
 ```
 
 ---
 
-## 6. リゾルバー実装
+## 6. Resolver Implementation
 
-### 6.1 リゾルバーの基本構造
+### 6.1 Basic Resolver Structure
 
 ```
-リゾルバーの4つの引数:
+The four arguments of a resolver:
 
   resolver(parent, args, context, info)
 
-  parent  : 親フィールドのリゾルバーが返した値
-            （ルートリゾルバーではundefined）
-  args    : クエリで渡された引数
-  context : リクエスト全体で共有されるオブジェクト
-            （認証情報、DataSource、DataLoaderなど）
-  info    : クエリのAST情報
-            （フィールド名、パス、選択セットなど）
+  parent  : The value returned by the parent field's resolver
+            (undefined for root resolvers)
+  args    : Arguments passed in the query
+  context : An object shared across the entire request
+            (auth info, DataSource, DataLoader, etc.)
+  info    : AST information about the query
+            (field name, path, selection set, etc.)
 
   ┌──────────────────────────────────────────────────────┐
-  │  リゾルバーチェーン（実行順序）                         │
+  │  Resolver Chain (execution order)                    │
   │                                                      │
   │  query {                                             │
-  │    user(id: "1") {        ← Query.user リゾルバー     │
-  │      name                 ← デフォルトリゾルバー        │
-  │      orders {             ← User.orders リゾルバー     │
-  │        items {            ← Order.items リゾルバー     │
-  │          product {        ← OrderItem.product リゾルバー│
-  │            name           ← デフォルトリゾルバー        │
-  │          }                                            │
-  │        }                                              │
-  │      }                                                │
-  │    }                                                  │
-  │  }                                                    │
+  │    user(id: "1") {        ← Query.user resolver      │
+  │      name                 ← Default resolver         │
+  │      orders {             ← User.orders resolver     │
+  │        items {            ← Order.items resolver     │
+  │          product {        ← OrderItem.product resolver│
+  │            name           ← Default resolver         │
+  │          }                                           │
+  │        }                                             │
+  │      }                                               │
+  │    }                                                 │
+  │  }                                                   │
   │                                                      │
-  │  デフォルトリゾルバー:                                  │
-  │    parent[fieldName] を返す                            │
-  │    → parentオブジェクトに同名プロパティがあれば自動解決  │
+  │  Default resolver:                                   │
+  │    Returns parent[fieldName]                         │
+  │    → Automatically resolved if the parent object     │
+  │      has a property with the same name               │
   └──────────────────────────────────────────────────────┘
 ```
 
-### 6.2 リゾルバーの実装
+### 6.2 Resolver Implementation
 
 ```javascript
-// Apollo Server でのリゾルバー実装
+// Resolver implementation with Apollo Server
 import { GraphQLScalarType, Kind } from 'graphql';
 
 const resolvers = {
-  // === ルートリゾルバー ===
+  // === Root resolvers ===
   Query: {
-    // 単一ユーザー取得
+    // Fetch a single user
     user: async (parent, { id }, context) => {
-      // 認証チェック
+      // Authentication check
       if (!context.user) {
-        throw new AuthenticationError('ログインが必要です');
+        throw new AuthenticationError('Login required');
       }
       const user = await context.dataSources.userAPI.getUser(id);
       if (!user) return null;
       return user;
     },
 
-    // ユーザー一覧（Cursorページネーション）
+    // List users (cursor pagination)
     users: async (parent, { first = 20, after, filter, sort }, context) => {
       const { nodes, totalCount, hasNextPage, hasPreviousPage } =
         await context.dataSources.userAPI.listUsers({
@@ -1327,7 +1328,7 @@ const resolvers = {
       };
     },
 
-    // 検索
+    // Search
     search: async (parent, { query, types }, context) => {
       const results = [];
 
@@ -1347,23 +1348,23 @@ const resolvers = {
       return results;
     },
 
-    // 現在のユーザー
+    // Current user
     me: (parent, args, context) => {
       return context.user || null;
     },
   },
 
-  // === Mutationリゾルバー ===
+  // === Mutation resolvers ===
   Mutation: {
     createUser: async (parent, { input }, context) => {
       try {
-        // バリデーション
+        // Validation
         if (!input.name || input.name.trim().length === 0) {
           return {
             user: null,
             errors: [{
               field: 'name',
-              message: '名前は必須です',
+              message: 'Name is required',
               code: 'VALIDATION_ERROR',
             }],
           };
@@ -1377,7 +1378,7 @@ const resolvers = {
             user: null,
             errors: [{
               field: 'email',
-              message: '既に登録済みのメールアドレスです',
+              message: 'Email address is already registered',
               code: 'ALREADY_EXISTS',
             }],
           };
@@ -1386,7 +1387,7 @@ const resolvers = {
           user: null,
           errors: [{
             field: null,
-            message: '予期しないエラーが発生しました',
+            message: 'An unexpected error occurred',
             code: 'INTERNAL_ERROR',
           }],
         };
@@ -1394,13 +1395,13 @@ const resolvers = {
     },
 
     updateUser: async (parent, { id, input }, context) => {
-      // 認可チェック（自分自身またはADMINのみ）
+      // Authorization check (only the user themselves or ADMIN)
       if (context.user.id !== id && context.user.role !== 'ADMIN') {
         return {
           user: null,
           errors: [{
             field: null,
-            message: '他のユーザーの情報を変更する権限がありません',
+            message: 'You do not have permission to modify another user\'s information',
             code: 'FORBIDDEN',
           }],
         };
@@ -1427,7 +1428,7 @@ const resolvers = {
           deletedId: null,
           errors: [{
             field: null,
-            message: '管理者権限が必要です',
+            message: 'Admin privileges required',
             code: 'FORBIDDEN',
           }],
         };
@@ -1437,28 +1438,28 @@ const resolvers = {
     },
   },
 
-  // === フィールドレベルリゾルバー ===
+  // === Field-level resolvers ===
   User: {
-    // user.orders は別テーブルから取得
+    // user.orders is fetched from a separate table
     orders: async (user, { first = 10, after }, context) => {
       return context.dataSources.orderAPI.getOrdersByUserId(
         user.id, first, after
       );
     },
 
-    // 計算フィールド
+    // Computed field
     orderCount: async (user, args, context) => {
       return context.dataSources.orderAPI.countByUserId(user.id);
     },
 
-    // フォロワー
+    // Followers
     followers: async (user, args, context) => {
       return context.dataSources.userAPI.getFollowers(user.id);
     },
   },
 
   Order: {
-    // 注文に紐づくユーザー
+    // User associated with the order
     user: async (order, args, context) => {
       return context.dataSources.userAPI.getUser(order.userId);
     },
@@ -1473,14 +1474,14 @@ const resolvers = {
       return context.dataSources.productAPI.getProduct(item.productId);
     },
 
-    // 計算フィールド
+    // Computed field
     subtotal: (item) => item.quantity * item.unitPrice,
   },
 
-  // === Union型のリゾルバー ===
+  // === Union type resolver ===
   SearchResult: {
     __resolveType(obj) {
-      // オブジェクトの型を判定
+      // Determine the type of the object
       if (obj.email) return 'User';
       if (obj.body) return 'Post';
       if (obj.price !== undefined) return 'Product';
@@ -1488,10 +1489,10 @@ const resolvers = {
     },
   },
 
-  // === カスタムスカラー ===
+  // === Custom scalars ===
   DateTime: new GraphQLScalarType({
     name: 'DateTime',
-    description: 'ISO 8601形式の日時文字列',
+    description: 'Date/time string in ISO 8601 format',
     serialize(value) {
       return value instanceof Date ? value.toISOString() : value;
     },
@@ -1516,7 +1517,7 @@ const resolvers = {
 
   Email: new GraphQLScalarType({
     name: 'Email',
-    description: 'メールアドレス形式の文字列',
+    description: 'String in email address format',
     serialize(value) {
       return value;
     },
@@ -1543,9 +1544,9 @@ const resolvers = {
 
 ---
 
-## 7. Apollo Server セットアップ
+## 7. Apollo Server Setup
 
-### 7.1 基本セットアップ
+### 7.1 Basic Setup
 
 ```javascript
 // server.js - Apollo Server v4
@@ -1557,24 +1558,24 @@ import express from 'express';
 import cors from 'cors';
 import http from 'http';
 
-// スキーマファイルの読み込み
+// Load the schema file
 const typeDefs = readFileSync('./schema.graphql', 'utf-8');
 
-// サーバー作成
+// Create the server
 const server = new ApolloServer({
   typeDefs,
   resolvers,
-  // イントロスペクション（本番では無効推奨）
+  // Introspection (recommended to disable in production)
   introspection: process.env.NODE_ENV !== 'production',
-  // プラグイン
+  // Plugins
   plugins: [
-    // ランディングページ（開発環境でGraphQL Playgroundを表示）
+    // Landing page (shows GraphQL Playground in development)
     process.env.NODE_ENV === 'production'
       ? ApolloServerPluginLandingPageDisabled()
       : ApolloServerPluginLandingPageLocalDefault(),
-    // レスポンスキャッシュ
+    // Response cache
     responseCachePlugin(),
-    // ログプラグイン
+    // Logging plugin
     {
       async requestDidStart(requestContext) {
         const start = Date.now();
@@ -1596,10 +1597,10 @@ const server = new ApolloServer({
       },
     },
   ],
-  // フォーマットエラー（本番ではスタックトレースを隠す）
+  // Format errors (hide stack traces in production)
   formatError: (formattedError, error) => {
     if (process.env.NODE_ENV === 'production') {
-      // 内部エラーの詳細を隠蔽
+      // Hide details of internal errors
       if (formattedError.extensions?.code === 'INTERNAL_SERVER_ERROR') {
         return {
           message: 'Internal server error',
@@ -1611,13 +1612,13 @@ const server = new ApolloServer({
   },
 });
 
-// スタンドアロンモード（最もシンプル）
+// Standalone mode (simplest option)
 const { url } = await startStandaloneServer(server, {
   listen: { port: 4000 },
   context: async ({ req }) => ({
-    // 認証
+    // Authentication
     user: await authenticateUser(req.headers.authorization),
-    // データソース
+    // Data sources
     dataSources: {
       userAPI: new UserAPI(),
       orderAPI: new OrderAPI(),
@@ -1629,10 +1630,10 @@ const { url } = await startStandaloneServer(server, {
 console.log(`GraphQL server ready at ${url}`);
 ```
 
-### 7.2 Express統合セットアップ
+### 7.2 Express Integration Setup
 
 ```javascript
-// express-server.js - Express + Apollo Server + WebSocket (Subscription対応)
+// express-server.js - Express + Apollo Server + WebSocket (Subscription support)
 import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
 import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
@@ -1644,25 +1645,25 @@ import http from 'http';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 
-// スキーマ作成
+// Create the schema
 const schema = makeExecutableSchema({ typeDefs, resolvers });
 
-// Express + HTTPサーバー
+// Express + HTTP server
 const app = express();
 const httpServer = http.createServer(app);
 
-// WebSocketサーバー（Subscription用）
+// WebSocket server (for Subscriptions)
 const wsServer = new WebSocketServer({
   server: httpServer,
   path: '/graphql',
 });
 
-// WebSocketの終了処理を設定
+// Configure WebSocket cleanup
 const serverCleanup = useServer(
   {
     schema,
     context: async (ctx) => {
-      // WebSocket接続時の認証
+      // Authentication on WebSocket connect
       const token = ctx.connectionParams?.authToken;
       const user = await authenticateToken(token);
       return {
@@ -1687,9 +1688,9 @@ const serverCleanup = useServer(
 const server = new ApolloServer({
   schema,
   plugins: [
-    // HTTPサーバーの正常終了
+    // Graceful HTTP server shutdown
     ApolloServerPluginDrainHttpServer({ httpServer }),
-    // WebSocketサーバーの正常終了
+    // Graceful WebSocket server shutdown
     {
       async serverWillStart() {
         return {
@@ -1704,7 +1705,7 @@ const server = new ApolloServer({
 
 await server.start();
 
-// Expressミドルウェアとして設定
+// Register as Express middleware
 app.use(
   '/graphql',
   cors(),
@@ -1720,7 +1721,7 @@ app.use(
   })
 );
 
-// ヘルスチェックエンドポイント（REST）
+// Health check endpoint (REST)
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
 });
@@ -1732,14 +1733,14 @@ httpServer.listen(PORT, () => {
 });
 ```
 
-### 7.3 認証・認可パターン
+### 7.3 Authentication and Authorization Patterns
 
 ```javascript
-// auth.js - 認証・認可ユーティリティ
+// auth.js - Authentication and authorization utilities
 
 import jwt from 'jsonwebtoken';
 
-// JWTトークンからユーザーを取得
+// Retrieve user from JWT token
 async function authenticateUser(authHeader) {
   if (!authHeader) return null;
 
@@ -1749,11 +1750,11 @@ async function authenticateUser(authHeader) {
     const user = await UserModel.findById(decoded.userId);
     return user;
   } catch (error) {
-    return null; // トークン無効でもnullを返す（エラーにしない）
+    return null; // Return null for invalid tokens (do not throw)
   }
 }
 
-// ディレクティブベースの認可
+// Directive-based authorization
 import { mapSchema, getDirective, MapperKind } from '@graphql-tools/utils';
 import { defaultFieldResolver } from 'graphql';
 
@@ -1766,15 +1767,15 @@ function authDirectiveTransformer(schema) {
         const originalResolver = fieldConfig.resolve || defaultFieldResolver;
 
         fieldConfig.resolve = async (parent, args, context, info) => {
-          // 認証チェック
+          // Authentication check
           if (!context.user) {
-            throw new Error('認証が必要です');
+            throw new Error('Authentication required');
           }
 
-          // 認可チェック
+          // Authorization check
           if (requires && context.user.role !== requires) {
             throw new Error(
-              `この操作には${requires}権限が必要です`
+              `This operation requires ${requires} privileges`
             );
           }
 
@@ -1786,17 +1787,16 @@ function authDirectiveTransformer(schema) {
   });
 }
 
-// 使用例（スキーマ変換）
+// Usage (schema transformation)
 let schema = makeExecutableSchema({ typeDefs, resolvers });
 schema = authDirectiveTransformer(schema);
 ```
 
-### 7.4 DataSourceパターン
+### 7.4 DataSource Pattern
 
 ```javascript
 // data-sources/user-api.js
-// RESTDataSourceを使ったデータソースの実装
-
+// DataSource implementation using RESTDataSource
 import { RESTDataSource } from '@apollo/datasource-rest';
 
 class UserAPI extends RESTDataSource {
@@ -1805,9 +1805,9 @@ class UserAPI extends RESTDataSource {
     this.baseURL = 'http://internal-api:3000/';
   }
 
-  // キャッシュTTLの設定
+  // Configure cache TTL
   override cacheOptionsFor() {
-    return { ttl: 60 }; // 60秒キャッシュ
+    return { ttl: 60 }; // Cache for 60 seconds
   }
 
   async getUser(id) {
@@ -1844,11 +1844,11 @@ class UserAPI extends RESTDataSource {
 }
 
 // data-sources/database-source.js
-// SQLデータベースを直接利用するデータソース
+// DataSource using a SQL database directly
 
 class DatabaseSource {
   constructor(pool) {
-    this.pool = pool; // データベース接続プール
+    this.pool = pool; // Database connection pool
   }
 
   async getUser(id) {
@@ -1882,7 +1882,7 @@ class DatabaseSource {
       params.push(`%${filter.nameContains}%`);
     }
 
-    // ソート
+    // Sorting
     const sortMap = {
       CREATED_AT_ASC: 'created_at ASC',
       CREATED_AT_DESC: 'created_at DESC',
@@ -1891,7 +1891,7 @@ class DatabaseSource {
     };
     query += ` ORDER BY ${sortMap[sort] || 'created_at DESC'}`;
 
-    // ページネーション（+1で次ページの有無を判定）
+    // Pagination (fetch +1 to determine if a next page exists)
     query += ` LIMIT $${paramIndex++}`;
     params.push(first + 1);
 
@@ -1925,19 +1925,19 @@ class DatabaseSource {
 
 ---
 
-## 8. N+1問題とDataLoader
+## 8. The N+1 Problem and DataLoader
 
-### 8.1 N+1問題とは
+### 8.1 What Is the N+1 Problem
 
 ```
-N+1問題のイメージ:
+The N+1 problem illustrated:
 
   query {
-    users(first: 10) {        ← 1回のSQLクエリ（ユーザー10件取得）
+    users(first: 10) {        ← 1 SQL query (fetch 10 users)
       edges {
         node {
           name
-          orders {             ← ユーザーごとに1回のSQLクエリ（×10回）
+          orders {             ← 1 SQL query per user (×10 times)
             id
             total
           }
@@ -1946,53 +1946,53 @@ N+1問題のイメージ:
     }
   }
 
-  実行されるSQL:
-    1. SELECT * FROM users LIMIT 10              -- 1回
-    2. SELECT * FROM orders WHERE user_id = 1    -- User 1の注文
-    3. SELECT * FROM orders WHERE user_id = 2    -- User 2の注文
-    4. SELECT * FROM orders WHERE user_id = 3    -- User 3の注文
+  SQL executed:
+    1. SELECT * FROM users LIMIT 10              -- 1 time
+    2. SELECT * FROM orders WHERE user_id = 1    -- Orders for User 1
+    3. SELECT * FROM orders WHERE user_id = 2    -- Orders for User 2
+    4. SELECT * FROM orders WHERE user_id = 3    -- Orders for User 3
     ...
-   11. SELECT * FROM orders WHERE user_id = 10   -- User 10の注文
+   11. SELECT * FROM orders WHERE user_id = 10   -- Orders for User 10
 
-  → 合計 11回のDBクエリ（1 + N = 1 + 10 = 11）
+  → 11 total DB queries (1 + N = 1 + 10 = 11)
 
-  DataLoader で解決:
-    1. SELECT * FROM users LIMIT 10              -- 1回
-    2. SELECT * FROM orders WHERE user_id IN (1,2,3,...,10) -- 1回
+  Resolved with DataLoader:
+    1. SELECT * FROM users LIMIT 10              -- 1 time
+    2. SELECT * FROM orders WHERE user_id IN (1,2,3,...,10) -- 1 time
 
-  → 合計 2回のDBクエリ
+  → 2 total DB queries
 ```
 
-### 8.2 DataLoaderの実装
+### 8.2 DataLoader Implementation
 
 ```javascript
 // data-loaders.js
 import DataLoader from 'dataloader';
 
-// DataLoaderファクトリ（リクエストごとに新しいインスタンスを作成）
+// DataLoader factory (create a new instance per request)
 function createLoaders(db) {
   return {
-    // ユーザーローダー
+    // User loader
     userLoader: new DataLoader(async (userIds) => {
-      // バッチ関数: IDの配列を受け取り、同じ順序で結果を返す
+      // Batch function: receives an array of IDs and returns results in the same order
       const users = await db.query(
         'SELECT * FROM users WHERE id = ANY($1)',
         [userIds]
       );
 
-      // IDの順序を保持してマッピング
+      // Map preserving ID order
       const userMap = new Map(users.rows.map((u) => [u.id, u]));
       return userIds.map((id) => userMap.get(id) || null);
     }),
 
-    // ユーザーの注文ローダー（1:Nの関係）
+    // Orders by user ID loader (1:N relationship)
     ordersByUserIdLoader: new DataLoader(async (userIds) => {
       const orders = await db.query(
         'SELECT * FROM orders WHERE user_id = ANY($1) ORDER BY created_at DESC',
         [userIds]
       );
 
-      // ユーザーIDごとにグループ化
+      // Group by user ID
       const orderMap = new Map();
       for (const order of orders.rows) {
         if (!orderMap.has(order.user_id)) {
@@ -2004,7 +2004,7 @@ function createLoaders(db) {
       return userIds.map((id) => orderMap.get(id) || []);
     }),
 
-    // 商品ローダー
+    // Product loader
     productLoader: new DataLoader(async (productIds) => {
       const products = await db.query(
         'SELECT * FROM products WHERE id = ANY($1)',
@@ -2015,7 +2015,7 @@ function createLoaders(db) {
       return productIds.map((id) => productMap.get(id) || null);
     }),
 
-    // 注文アイテムローダー（1:Nの関係）
+    // Order items by order ID loader (1:N relationship)
     orderItemsByOrderIdLoader: new DataLoader(async (orderIds) => {
       const items = await db.query(
         'SELECT * FROM order_items WHERE order_id = ANY($1)',
@@ -2035,19 +2035,19 @@ function createLoaders(db) {
   };
 }
 
-// コンテキストでDataLoaderを設定
+// Set up DataLoader in context
 const server = new ApolloServer({ typeDefs, resolvers });
 
 const { url } = await startStandaloneServer(server, {
   context: async ({ req }) => ({
     user: await authenticateUser(req.headers.authorization),
-    // リクエストごとに新しいLoaderを作成（キャッシュはリクエストスコープ）
+    // Create new loaders per request (cache is request-scoped)
     loaders: createLoaders(db),
     db,
   }),
 });
 
-// リゾルバーでDataLoaderを使用
+// Using DataLoader in resolvers
 const resolversWithLoader = {
   Query: {
     user: (_, { id }, { loaders }) => loaders.userLoader.load(id),
@@ -2068,38 +2068,38 @@ const resolversWithLoader = {
 };
 ```
 
-### 8.3 DataLoaderの注意点
+### 8.3 DataLoader Considerations
 
 ```
-DataLoader使用時の注意:
+Notes when using DataLoader:
 
-  1. リクエストスコープで作成する
-     ✗ グローバルにDataLoaderを1つだけ作成
-       → キャッシュが他のリクエストに漏れる（セキュリティリスク）
-     ○ コンテキスト生成時にリクエストごとに新規作成
+  1. Create per request scope
+     ✗ Create a single global DataLoader instance
+       → Cache leaks across other requests (security risk)
+     ○ Create a new instance per request during context generation
 
-  2. バッチ関数は入力と同じ順序で結果を返す
-     ✗ [id=3, id=1, id=2] → [user1, user2, user3]  （ID順）
-     ○ [id=3, id=1, id=2] → [user3, user1, user2]  （入力順）
+  2. Batch function must return results in the same order as the input
+     ✗ [id=3, id=1, id=2] → [user1, user2, user3]  (by ID order)
+     ○ [id=3, id=1, id=2] → [user3, user1, user2]  (by input order)
 
-  3. 見つからないキーにはnullを返す（エラーではなく）
+  3. Return null for missing keys (not an error)
      ✗ throw new Error('User not found')
      ○ return null
 
-  4. キャッシュの無効化
-     → Mutation後に loader.clear(id) または loader.clearAll()
-     → 更新されたデータを再読み込みするために必要
+  4. Cache invalidation
+     → After a Mutation, call loader.clear(id) or loader.clearAll()
+     → Required to reload updated data
 
-  5. バッチサイズの制限
-     → maxBatchSize オプションで設定可能
-     → DBの IN句制限に合わせる（PostgreSQLは約65000パラメータ）
+  5. Batch size limits
+     → Configurable with the maxBatchSize option
+     → Align with DB IN clause limits (PostgreSQL supports ~65,000 parameters)
 ```
 
 ---
 
-## 9. クライアント実装
+## 9. Client Implementation
 
-### 9.1 Apollo Client セットアップ
+### 9.1 Apollo Client Setup
 
 ```javascript
 // apollo-client.js
@@ -2112,7 +2112,7 @@ import {
 import { onError } from '@apollo/client/link/error';
 import { RetryLink } from '@apollo/client/link/retry';
 
-// エラーハンドリングリンク
+// Error handling link
 const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
   if (graphQLErrors) {
     graphQLErrors.forEach(({ message, locations, path, extensions }) => {
@@ -2122,7 +2122,7 @@ const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
         `Path: ${path}, Code: ${extensions?.code}`
       );
 
-      // 認証エラー時はログアウト処理
+      // Log out on authentication error
       if (extensions?.code === 'UNAUTHENTICATED') {
         localStorage.removeItem('token');
         window.location.href = '/login';
@@ -2135,7 +2135,7 @@ const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
   }
 });
 
-// リトライリンク
+// Retry link
 const retryLink = new RetryLink({
   delay: {
     initial: 300,
@@ -2148,7 +2148,7 @@ const retryLink = new RetryLink({
   },
 });
 
-// 認証リンク（リクエストヘッダーにトークンを付与）
+// Auth link (attach token to request headers)
 const authLink = new ApolloLink((operation, forward) => {
   const token = localStorage.getItem('token');
   operation.setContext({
@@ -2159,12 +2159,12 @@ const authLink = new ApolloLink((operation, forward) => {
   return forward(operation);
 });
 
-// キャッシュ設定
+// Cache configuration
 const cache = new InMemoryCache({
   typePolicies: {
     Query: {
       fields: {
-        // ページネーションのマージポリシー
+        // Pagination merge policy
         users: {
           keyArgs: ['filter', 'sort'],
           merge(existing, incoming, { args }) {
@@ -2178,7 +2178,7 @@ const cache = new InMemoryCache({
       },
     },
     User: {
-      // ユーザーのキャッシュキー
+      // Cache key for users
       keyFields: ['id'],
     },
     Order: {
@@ -2187,13 +2187,13 @@ const cache = new InMemoryCache({
   },
 });
 
-// クライアント作成
+// Create client
 const client = new ApolloClient({
   link: from([errorLink, retryLink, authLink, httpLink]),
   cache,
   defaultOptions: {
     watchQuery: {
-      fetchPolicy: 'cache-and-network', // キャッシュ優先で最新も取得
+      fetchPolicy: 'cache-and-network', // Serve from cache first, then fetch fresh data
       errorPolicy: 'all',
     },
     query: {
@@ -2207,13 +2207,13 @@ const client = new ApolloClient({
 });
 ```
 
-### 9.2 Reactコンポーネントでの使用
+### 9.2 Usage in React Components
 
 ```javascript
 // components/UserList.jsx
 import { useQuery, useMutation, gql } from '@apollo/client';
 
-// クエリ定義
+// Query definition
 const GET_USERS = gql`
   query GetUsers($first: Int!, $after: String, $filter: UserFilter) {
     users(first: $first, after: $after, filter: $filter) {
@@ -2254,7 +2254,7 @@ function UserList() {
   });
 
   const [deleteUser] = useMutation(DELETE_USER, {
-    // Mutation後のキャッシュ更新
+    // Update cache after Mutation
     update(cache, { data: { deleteUser: result } }) {
       if (result.deletedId) {
         cache.modify({
@@ -2274,21 +2274,21 @@ function UserList() {
     },
   });
 
-  if (loading && !data) return <p>読み込み中...</p>;
-  if (error) return <p>エラー: {error.message}</p>;
+  if (loading && !data) return <p>Loading...</p>;
+  if (error) return <p>Error: {error.message}</p>;
 
   const { edges, pageInfo, totalCount } = data.users;
 
   return (
     <div>
-      <h1>ユーザー一覧 ({totalCount}件)</h1>
+      <h1>User List ({totalCount} users)</h1>
       <ul>
         {edges.map(({ node }) => (
           <li key={node.id}>
             {node.name} ({node.email}) - {node.role}
-            <span>注文数: {node.orderCount}</span>
+            <span>Orders: {node.orderCount}</span>
             <button onClick={() => deleteUser({ variables: { id: node.id } })}>
-              削除
+              Delete
             </button>
           </li>
         ))}
@@ -2301,7 +2301,7 @@ function UserList() {
             })
           }
         >
-          もっと読み込む
+          Load more
         </button>
       )}
     </div>
@@ -2344,31 +2344,31 @@ const GET_USER = gql`
 function UserProfile({ userId }) {
   const { loading, error, data } = useQuery(GET_USER, {
     variables: { id: userId },
-    // ポーリング（10秒ごとに自動更新）
+    // Polling (auto-refresh every 10 seconds)
     // pollInterval: 10000,
   });
 
   if (loading) return <p>Loading...</p>;
   if (error) return <p>Error: {error.message}</p>;
-  if (!data.user) return <p>ユーザーが見つかりません</p>;
+  if (!data.user) return <p>User not found</p>;
 
   const { user } = data;
   return (
     <div>
       <h1>{user.name}</h1>
       <p>{user.email}</p>
-      <p>役割: {user.role}</p>
+      <p>Role: {user.role}</p>
       {user.bio && <p>{user.bio}</p>}
-      <h2>注文履歴</h2>
+      <h2>Order History</h2>
       {user.orders.edges.map(({ node }) => (
         <div key={node.id}>
-          <h3>注文 #{node.id}</h3>
-          <p>ステータス: {node.status}</p>
-          <p>合計: {node.total.toLocaleString()}円</p>
+          <h3>Order #{node.id}</h3>
+          <p>Status: {node.status}</p>
+          <p>Total: {node.total.toLocaleString()}</p>
           <ul>
             {node.items.map((item, i) => (
               <li key={i}>
-                {item.product.name} x {item.quantity} = {item.subtotal.toLocaleString()}円
+                {item.product.name} x {item.quantity} = {item.subtotal.toLocaleString()}
               </li>
             ))}
           </ul>
@@ -2381,46 +2381,46 @@ function UserProfile({ userId }) {
 
 ---
 
-## 10. エラーハンドリング
+## 10. Error Handling
 
-### 10.1 GraphQLのエラーモデル
+### 10.1 GraphQL Error Model
 
 ```
-GraphQLのエラー分類:
+GraphQL error classification:
 
   ┌──────────────────────────────────────────────────────────────┐
-  │                    GraphQL エラーの3層構造                     │
+  │               Three-layer GraphQL Error Model                │
   │                                                              │
-  │  Layer 1: ネットワークエラー                                   │
-  │    → HTTPレベルのエラー（接続タイムアウト、DNS解決失敗等）       │
-  │    → レスポンスのHTTPステータスが4xx/5xx                       │
-  │    → GraphQLサーバーに到達できていない状態                     │
+  │  Layer 1: Network errors                                     │
+  │    → HTTP-level errors (connection timeout, DNS failure, etc.)│
+  │    → HTTP response status is 4xx/5xx                         │
+  │    → The GraphQL server was not reached                      │
   │                                                              │
-  │  Layer 2: GraphQL実行エラー（errors配列）                     │
-  │    → パース失敗、バリデーション失敗、リゾルバー内例外           │
-  │    → HTTPステータスは200だがerrorsフィールドにエラー情報あり    │
-  │    → data は partial（一部null）になることがある               │
+  │  Layer 2: GraphQL execution errors (errors field)            │
+  │    → Parse failure, validation failure, resolver exceptions  │
+  │    → HTTP status is 200 but errors field contains error info │
+  │    → data may be partial (some fields null)                  │
   │                                                              │
-  │  Layer 3: ビジネスロジックエラー（Payloadのerrorsフィールド）  │
-  │    → アプリケーション固有のエラー（バリデーション、認可等）     │
-  │    → GraphQLとしては成功（errorsなし）                        │
-  │    → Payloadオブジェクト内のerrorsで表現                      │
+  │  Layer 3: Business logic errors (Payload errors field)       │
+  │    → Application-specific errors (validation, authorization) │
+  │    → Successful as GraphQL (no errors field)                 │
+  │    → Expressed via errors inside the Payload object          │
   │                                                              │
   └──────────────────────────────────────────────────────────────┘
 ```
 
-### 10.2 エラーレスポンスの形式
+### 10.2 Error Response Format
 
 ```javascript
-// Layer 2: GraphQL実行エラーの例
-// リゾルバー内でthrowされたエラー
+// Layer 2: GraphQL execution error example
+// Error thrown inside a resolver
 {
   "data": {
     "user": null
   },
   "errors": [
     {
-      "message": "認証が必要です",
+      "message": "Authentication required",
       "locations": [{ "line": 2, "column": 3 }],
       "path": ["user"],
       "extensions": {
@@ -2431,8 +2431,8 @@ GraphQLのエラー分類:
   ]
 }
 
-// Layer 3: ビジネスロジックエラーの例
-// Payloadパターンによるエラー
+// Layer 3: Business logic error example
+// Error via Payload pattern
 {
   "data": {
     "createUser": {
@@ -2440,12 +2440,12 @@ GraphQLのエラー分類:
       "errors": [
         {
           "field": "email",
-          "message": "既に登録済みのメールアドレスです",
+          "message": "Email address is already registered",
           "code": "ALREADY_EXISTS"
         },
         {
           "field": "name",
-          "message": "名前は2文字以上で入力してください",
+          "message": "Name must be at least 2 characters",
           "code": "VALIDATION_ERROR"
         }
       ]
@@ -2453,19 +2453,19 @@ GraphQLのエラー分類:
   }
 }
 
-// Partial Data（部分的成功）の例
-// 一部のフィールドが失敗しても他のフィールドは返す
+// Partial Data example
+// Return other fields even if some fail
 {
   "data": {
     "user": {
       "name": "Taro",
       "email": "taro@example.com",
-      "orders": null  // ← このフィールドだけエラー
+      "orders": null  // ← Only this field errored
     }
   },
   "errors": [
     {
-      "message": "注文サービスに接続できません",
+      "message": "Cannot connect to order service",
       "path": ["user", "orders"],
       "extensions": { "code": "SERVICE_UNAVAILABLE" }
     }
@@ -2473,37 +2473,37 @@ GraphQLのエラー分類:
 }
 ```
 
-### 10.3 エラー設計のベストプラクティス
+### 10.3 Error Design Best Practices
 
 ```
-エラー設計の指針:
+Error design guidelines:
 
-  1. 予期されるエラー → Payloadパターン（Layer 3）
-     - バリデーションエラー
-     - 重複登録
-     - 権限不足
-     → クライアントが型安全にハンドリング可能
+  1. Expected errors → Payload pattern (Layer 3)
+     - Validation errors
+     - Duplicate registration
+     - Insufficient permissions
+     → Client can handle in a type-safe manner
 
-  2. 予期しないエラー → GraphQL errors（Layer 2）
-     - 認証期限切れ
-     - サーバー内部エラー
-     - リソース上限超過
-     → extensions.code で分類
+  2. Unexpected errors → GraphQL errors (Layer 2)
+     - Expired authentication
+     - Internal server errors
+     - Resource limit exceeded
+     → Classify with extensions.code
 
-  3. エラーコードは必ず定義する
-     → 人間向けメッセージは変わりうるが、コードは安定
-     → クライアントのi18n対応にも有用
+  3. Always define error codes
+     → Human-readable messages may change; codes are stable
+     → Also useful for client-side i18n
 
-  4. エラーにはfieldパスを含める
-     → フォームのどの項目でエラーが出たか特定できる
-     → UXの向上に直結
+  4. Include a field path in errors
+     → Identifies which form field caused the error
+     → Directly improves UX
 ```
 
 ---
 
-## 11. テスト戦略
+## 11. Testing Strategy
 
-### 11.1 リゾルバーの単体テスト
+### 11.1 Unit Testing Resolvers
 
 ```javascript
 // __tests__/resolvers/user.test.js
@@ -2523,7 +2523,7 @@ describe('Query.user', () => {
     jest.clearAllMocks();
   });
 
-  it('IDでユーザーを取得できること', async () => {
+  it('should fetch a user by ID', async () => {
     const mockUser = {
       id: '123',
       name: 'Taro',
@@ -2542,7 +2542,7 @@ describe('Query.user', () => {
     expect(mockContext.dataSources.userAPI.getUser).toHaveBeenCalledWith('123');
   });
 
-  it('存在しないIDの場合nullを返すこと', async () => {
+  it('should return null for a non-existent ID', async () => {
     mockContext.dataSources.userAPI.getUser.mockResolvedValue(null);
 
     const result = await resolvers.Query.user(
@@ -2565,7 +2565,7 @@ describe('Mutation.createUser', () => {
     },
   };
 
-  it('正常にユーザーを作成できること', async () => {
+  it('should create a user successfully', async () => {
     const input = { name: 'Taro', email: 'taro@example.com' };
     const createdUser = { id: '456', ...input, role: 'USER' };
     mockContext.dataSources.userAPI.createUser.mockResolvedValue(createdUser);
@@ -2580,12 +2580,12 @@ describe('Mutation.createUser', () => {
     expect(result.errors).toEqual([]);
   });
 
-  it('重複メール時にエラーを返すこと', async () => {
+  it('should return an error for a duplicate email', async () => {
     const input = { name: 'Taro', email: 'existing@example.com' };
     mockContext.dataSources.userAPI.createUser.mockRejectedValue({
       code: 'DUPLICATE_EMAIL',
       field: 'email',
-      message: '既に登録済みのメールアドレスです',
+      message: 'Email address is already registered',
     });
 
     const result = await resolvers.Mutation.createUser(
@@ -2600,7 +2600,7 @@ describe('Mutation.createUser', () => {
 });
 ```
 
-### 11.2 統合テスト
+### 11.2 Integration Tests
 
 ```javascript
 // __tests__/integration/server.test.js
@@ -2610,14 +2610,14 @@ import assert from 'assert';
 
 const typeDefs = readFileSync('./schema.graphql', 'utf-8');
 
-describe('GraphQL Server統合テスト', () => {
+describe('GraphQL Server Integration Tests', () => {
   let server;
 
   beforeAll(() => {
     server = new ApolloServer({ typeDefs, resolvers });
   });
 
-  it('ユーザー取得クエリが正しく動作すること', async () => {
+  it('should correctly execute a user fetch query', async () => {
     const response = await server.executeOperation(
       {
         query: `
@@ -2653,14 +2653,14 @@ describe('GraphQL Server統合テスト', () => {
     assert.strictEqual(data.user.name, 'Test User');
   });
 
-  it('認証なしのリクエストがエラーになること', async () => {
+  it('should error on unauthenticated requests', async () => {
     const response = await server.executeOperation(
       {
         query: `query { users(first: 10) { edges { node { id } } } }`,
       },
       {
         contextValue: {
-          user: null, // 未認証
+          user: null, // Unauthenticated
           dataSources: {
             userAPI: { listUsers: jest.fn() },
           },
@@ -2677,33 +2677,33 @@ describe('GraphQL Server統合テスト', () => {
 
 ---
 
-## 12. セキュリティ
+## 12. Security
 
-### 12.1 クエリ深度制限
+### 12.1 Query Depth Limiting
 
 ```javascript
-// セキュリティ: クエリの深度制限
+// Security: limit query depth
 import depthLimit from 'graphql-depth-limit';
 
 const server = new ApolloServer({
   typeDefs,
   resolvers,
   validationRules: [
-    depthLimit(10), // 最大深度10
+    depthLimit(10), // Maximum depth of 10
   ],
 });
 
-// 深度10を超えるクエリはバリデーションで拒否される
-// 悪意あるクエリ例:
+// Queries exceeding depth 10 are rejected at validation
+// Example of a malicious query:
 // query {
-//   user(id: "1") {       // 深度 1
-//     orders {             // 深度 2
-//       items {            // 深度 3
-//         product {        // 深度 4
-//           category {     // 深度 5
-//             parent {     // 深度 6 （再帰的）
-//               parent {   // 深度 7
-//                 ...      // 無限再帰の可能性
+//   user(id: "1") {       // depth 1
+//     orders {             // depth 2
+//       items {            // depth 3
+//         product {        // depth 4
+//           category {     // depth 5
+//             parent {     // depth 6 (recursive)
+//               parent {   // depth 7
+//                 ...      // potentially infinite recursion
 //               }
 //             }
 //           }
@@ -2714,10 +2714,10 @@ const server = new ApolloServer({
 // }
 ```
 
-### 12.2 クエリ複雑度制限
+### 12.2 Query Complexity Limiting
 
 ```javascript
-// クエリの複雑度（コスト）制限
+// Query complexity (cost) limiting
 import { createComplexityRule, simpleEstimator } from 'graphql-query-complexity';
 
 const server = new ApolloServer({
@@ -2736,21 +2736,21 @@ const server = new ApolloServer({
   ],
 });
 
-// スキーマレベルでフィールドごとのコストを指定
+// Specify per-field cost at the schema level
 // type Query {
 //   users(first: Int): UserConnection! @complexity(value: 10, multipliers: ["first"])
 //   user(id: ID!): User @complexity(value: 1)
 // }
 //
-// users(first: 100) のコスト = 10 * 100 = 1000 → 上限に達する
+// Cost of users(first: 100) = 10 * 100 = 1000 → hits the limit
 ```
 
-### 12.3 レート制限とAPQ
+### 12.3 Rate Limiting and APQ
 
 ```javascript
 // Automatic Persisted Queries (APQ)
-// クエリ文字列のハッシュを送信し、サーバーにキャッシュされたクエリを実行
-// → クエリ文字列の転送量を削減し、任意クエリの実行を防止
+// Send a hash of the query string; the server executes the cached query
+// → Reduces query string transfer size and prevents arbitrary query execution
 
 import {
   ApolloClient,
@@ -2764,7 +2764,7 @@ const httpLink = createHttpLink({ uri: '/graphql' });
 
 const persistedQueriesLink = createPersistedQueryLink({
   sha256,
-  useGETForHashedQueries: true, // GETリクエストでCDNキャッシュ活用
+  useGETForHashedQueries: true, // Use GET requests to leverage CDN caching
 });
 
 const client = new ApolloClient({
@@ -2772,38 +2772,38 @@ const client = new ApolloClient({
   cache: new InMemoryCache(),
 });
 
-// サーバー側: allowedOperationsのホワイトリスト（本番向け）
-// → 登録されたクエリのみ実行を許可
-// → GraphiQL等からの任意クエリ実行を防止
+// Server side: allowedOperations whitelist (for production)
+// → Allow execution only of registered queries
+// → Prevents arbitrary query execution from GraphiQL, etc.
 ```
 
 ---
 
-## 13. アンチパターン
+## 13. Anti-Patterns
 
-### 13.1 アンチパターン1: 巨大な単一リゾルバー
+### 13.1 Anti-Pattern 1: Monolithic Single Resolver
 
 ```javascript
-// ===== アンチパターン: 巨大な単一リゾルバー =====
-// すべてのロジックを1つのリゾルバーに詰め込む
+// ===== Anti-pattern: Monolithic single resolver =====
+// Cramming all logic into one resolver
 
 const badResolvers = {
   Query: {
     user: async (_, { id }, context) => {
-      // DBクエリ
+      // DB query
       const user = await db.query('SELECT * FROM users WHERE id = $1', [id]);
 
-      // 注文を取得（N+1問題を引き起こす）
+      // Fetch orders (causes N+1 problem)
       const orders = await db.query(
         'SELECT * FROM orders WHERE user_id = $1', [id]
       );
 
-      // 各注文のアイテムを取得（さらにN+1）
+      // Fetch items for each order (another N+1)
       for (const order of orders.rows) {
         order.items = await db.query(
           'SELECT * FROM order_items WHERE order_id = $1', [order.id]
         );
-        // 各アイテムの商品を取得（さらにN+1）
+        // Fetch product for each item (yet another N+1)
         for (const item of order.items.rows) {
           item.product = await db.query(
             'SELECT * FROM products WHERE id = $1', [item.product_id]
@@ -2811,20 +2811,20 @@ const badResolvers = {
         }
       }
 
-      // バリデーション、変換、キャッシュすべてここに...
+      // Validation, transformation, caching all here...
       user.rows[0].orders = orders.rows;
       return user.rows[0];
     },
   },
 };
 
-// 問題点:
-// 1. N+1問題（注文ごと、アイテムごとに個別クエリ）
-// 2. クライアントがordersを要求していなくても全データを取得
-// 3. テストが困難（モック対象が多い）
-// 4. 関心の分離ができていない
+// Problems:
+// 1. N+1 problem (individual queries per order and per item)
+// 2. Fetches all data even if the client did not request orders
+// 3. Hard to test (many mock targets)
+// 4. No separation of concerns
 
-// ===== 改善: フィールドリゾルバー + DataLoader =====
+// ===== Improvement: Field resolvers + DataLoader =====
 const goodResolvers = {
   Query: {
     user: (_, { id }, { loaders }) => loaders.userLoader.load(id),
@@ -2842,18 +2842,18 @@ const goodResolvers = {
       loaders.productLoader.load(item.productId),
   },
 };
-// → 各フィールドが独立、DataLoaderでバッチ化、必要なフィールドのみ解決
+// → Each field is independent; DataLoader batches queries; only required fields resolved
 ```
 
-### 13.2 アンチパターン2: スキーマとビジネスロジックの密結合
+### 13.2 Anti-Pattern 2: Tight Coupling of Schema and Business Logic
 
 ```javascript
-// ===== アンチパターン: リゾルバーにビジネスロジックを直接記述 =====
+// ===== Anti-pattern: Business logic written directly in resolvers =====
 
 const badMutationResolver = {
   Mutation: {
     createOrder: async (_, { input }, context) => {
-      // 在庫チェック（ビジネスロジック）
+      // Stock check (business logic)
       for (const item of input.items) {
         const product = await db.query(
           'SELECT stock FROM products WHERE id = $1', [item.productId]
@@ -2863,14 +2863,14 @@ const badMutationResolver = {
             order: null,
             errors: [{
               field: 'items',
-              message: `${product.rows[0].name}の在庫が不足しています`,
+              message: `Insufficient stock for ${product.rows[0].name}`,
               code: 'VALIDATION_ERROR',
             }],
           };
         }
       }
 
-      // 金額計算（ビジネスロジック）
+      // Total calculation (business logic)
       let total = 0;
       for (const item of input.items) {
         const product = await db.query(
@@ -2879,18 +2879,18 @@ const badMutationResolver = {
         total += product.rows[0].price * item.quantity;
       }
 
-      // 割引適用（ビジネスロジック）
+      // Apply discount (business logic)
       if (total > 10000) {
         total = Math.floor(total * 0.9);
       }
 
-      // DB書き込み、メール送信など全部ここに...
-      // → テスト困難、再利用不可、変更リスク高
+      // DB writes, email sends, etc. all here...
+      // → Hard to test, not reusable, high change risk
     },
   },
 };
 
-// ===== 改善: サービス層に分離 =====
+// ===== Improvement: Extract to a service layer =====
 
 // services/order-service.js
 class OrderService {
@@ -2901,16 +2901,16 @@ class OrderService {
   }
 
   async createOrder(input, userId) {
-    // バリデーション
+    // Validation
     const validationErrors = await this.validateOrderInput(input);
     if (validationErrors.length > 0) {
       return { order: null, errors: validationErrors };
     }
 
-    // 金額計算
+    // Total calculation
     const total = await this.calculateTotal(input.items);
 
-    // 注文作成
+    // Create order
     const order = await this.db.createOrder({
       userId,
       items: input.items,
@@ -2918,7 +2918,7 @@ class OrderService {
       status: 'PENDING',
     });
 
-    // 通知
+    // Notification
     await this.notificationService.sendOrderConfirmation(order);
 
     return { order, errors: [] };
@@ -2928,7 +2928,7 @@ class OrderService {
   async calculateTotal(items) { /* ... */ }
 }
 
-// リゾルバーは薄いレイヤーとして機能
+// Resolver acts as a thin layer
 const goodMutationResolver = {
   Mutation: {
     createOrder: async (_, { input }, context) => {
@@ -2936,26 +2936,26 @@ const goodMutationResolver = {
     },
   },
 };
-// → テスト容易、ロジック再利用可能、関心の分離
+// → Easy to test, logic is reusable, separation of concerns
 ```
 
-### 13.3 アンチパターン3: 過度なネスト許可
+### 13.3 Anti-Pattern 3: Allowing Excessive Nesting
 
 ```
-アンチパターン: 循環参照の放置
+Anti-pattern: Ignoring circular references
 
   type User {
     orders: [Order!]!
   }
   type Order {
-    user: User!       ← User → Order → User → Order → ... 無限ループ可能
+    user: User!       ← User → Order → User → Order → ... infinite loop possible
     items: [OrderItem!]!
   }
   type OrderItem {
-    order: Order!     ← OrderItem → Order → OrderItem → ... 循環
+    order: Order!     ← OrderItem → Order → OrderItem → ... circular
   }
 
-  悪意あるクエリ:
+  Malicious query:
   query DeepNested {
     user(id: "1") {
       orders {
@@ -2963,7 +2963,7 @@ const goodMutationResolver = {
           orders {
             user {
               orders {
-                # ... 無限に続けられる
+                # ... can continue indefinitely
               }
             }
           }
@@ -2972,21 +2972,21 @@ const goodMutationResolver = {
     }
   }
 
-  対策:
-  1. depthLimit による深度制限（セクション12.1参照）
-  2. 複雑度コスト制限（セクション12.2参照）
-  3. クエリタイムアウトの設定
-  4. 逆参照を慎重に設計（本当に必要な場合のみ追加）
+  Countermeasures:
+  1. Depth limiting via depthLimit (see Section 12.1)
+  2. Complexity cost limiting (see Section 12.2)
+  3. Set query timeouts
+  4. Design reverse references carefully (only add when truly needed)
 ```
 
 ---
 
-## 14. エッジケース分析
+## 14. Edge Case Analysis
 
-### 14.1 エッジケース1: Nullableフィールドのチェーン
+### 14.1 Edge Case 1: Chained Nullable Fields
 
 ```graphql
-# 問題: ネストされたnullableフィールドのアクセス
+# Problem: accessing nested nullable fields
 
 type User {
   id: ID!
@@ -3004,12 +3004,12 @@ type Address {
   city: String!
 }
 
-# クエリ
+# Query
 query GetUserAddress {
   user(id: "1") {
     name
-    profile {          # nullの可能性あり
-      address {        # nullの可能性あり
+    profile {          # may be null
+      address {        # may be null
         prefecture
         city
       }
@@ -3017,7 +3017,7 @@ query GetUserAddress {
   }
 }
 
-# レスポンスパターン1: profileがnull
+# Response pattern 1: profile is null
 # {
 #   "data": {
 #     "user": {
@@ -3027,7 +3027,7 @@ query GetUserAddress {
 #   }
 # }
 
-# レスポンスパターン2: profileはあるがaddressがnull
+# Response pattern 2: profile exists but address is null
 # {
 #   "data": {
 #     "user": {
@@ -3039,14 +3039,14 @@ query GetUserAddress {
 #   }
 # }
 
-# クライアント側の安全なアクセス:
+# Safe access on the client side:
 # const city = data?.user?.profile?.address?.city ?? 'N/A';
 ```
 
 ```
-エッジケースの図解:
+Edge case illustrated:
 
-  Non-null伝播ルール:
+  Non-null propagation rules:
   ┌──────────────────────────────────────────────────────┐
   │                                                      │
   │  type Query {                                        │
@@ -3054,44 +3054,44 @@ query GetUserAddress {
   │  }                                                   │
   │                                                      │
   │  type User {                                         │
-  │    name: String!             # non-null               │
-  │    orders: [Order!]!         # non-null (配列と要素)   │
+  │    name: String!             # non-null              │
+  │    orders: [Order!]!         # non-null (array+elems)│
   │  }                                                   │
   │                                                      │
-  │  もし User.name のリゾルバーがnullを返したら:           │
-  │    → nameはnon-nullなのでUser全体がnullになる          │
-  │    → user フィールドがnullableなら user: null になる    │
-  │    → user フィールドがnon-null(User!)なら              │
-  │      さらに親に伝播し、最終的にdata全体がnullになる     │
+  │  If the resolver for User.name returns null:         │
+  │    → name is non-null, so the entire User becomes null│
+  │    → If user is nullable (User), then user: null     │
+  │    → If user is non-null (User!), the null propagates│
+  │      upward until data itself becomes null           │
   │                                                      │
-  │  教訓:                                                │
-  │    non-null(!)は「このフィールドは必ず値がある」という  │
-  │    保証だが、リゾルバーがnullを返すとエラー伝播する     │
-  │    外部サービス依存のフィールドはnullableにすることで   │
-  │    部分的な成功（Partial Data）を可能にする            │
+  │  Lesson:                                             │
+  │    Non-null (!) guarantees "this field always has a  │
+  │    value," but if the resolver returns null, the     │
+  │    error propagates. Make fields that depend on      │
+  │    external services nullable to enable partial data.│
   └──────────────────────────────────────────────────────┘
 ```
 
-### 14.2 エッジケース2: 大量データの一括リクエスト
+### 14.2 Edge Case 2: Bulk Data Requests
 
 ```graphql
-# 問題: クライアントが大量データを一度に要求
+# Problem: client requests a large amount of data at once
 
-# 危険なクエリ例
+# Dangerous query example
 query GetAllUsers {
-  users(first: 10000) {           # 1万件要求
+  users(first: 10000) {           # Requesting 10,000 records
     edges {
       node {
         id
         name
-        orders(first: 100) {       # 各ユーザーの注文100件
+        orders(first: 100) {       # 100 orders per user
           edges {
             node {
-              items {               # 各注文の全アイテム
+              items {               # All items per order
                 product {
                   name
                   category {
-                    products {      # カテゴリの全商品
+                    products {      # All products in the category
                       name
                     }
                   }
@@ -3104,33 +3104,33 @@ query GetAllUsers {
     }
   }
 }
-# → 10000 * 100 * N * M = 数百万レコードのDB負荷が発生しうる
+# → 10000 * 100 * N * M = potentially millions of DB records loaded
 ```
 
 ```
-対策の多層防御:
+Multi-layer defense strategy:
 
-  Layer 1: 引数の上限値
-    → first/last の最大値を制限（例: max 100）
-    → リゾルバー内で Math.min(args.first, MAX_PAGE_SIZE) を適用
+  Layer 1: Argument upper bounds
+    → Limit the maximum value of first/last (e.g., max 100)
+    → Apply Math.min(args.first, MAX_PAGE_SIZE) in the resolver
 
-  Layer 2: クエリ深度制限
-    → depthLimit(7) で過度なネストを防止
+  Layer 2: Query depth limiting
+    → depthLimit(7) to prevent excessive nesting
 
-  Layer 3: クエリ複雑度制限
-    → 1リクエストあたりのコスト上限を設定
+  Layer 3: Query complexity limiting
+    → Set a cost limit per request
 
-  Layer 4: タイムアウト
-    → リゾルバー/DBクエリにタイムアウトを設定
-    → 一定時間で強制打ち切り
+  Layer 4: Timeouts
+    → Set timeouts on resolvers/DB queries
+    → Forcefully cut off after a given duration
 
-  Layer 5: レート制限
-    → IPベース / ユーザーベースでリクエスト数を制限
-    → 時間窓内の最大リクエスト数を管理
+  Layer 5: Rate limiting
+    → Limit requests per IP / per user
+    → Manage maximum request count within a time window
 ```
 
 ```javascript
-// 実装例: 引数の上限値チェック
+// Implementation example: argument upper bound check
 const MAX_PAGE_SIZE = 100;
 
 const resolvers = {
@@ -3153,58 +3153,58 @@ const resolvers = {
 };
 ```
 
-### 14.3 エッジケース3: 並行Mutationの競合
+### 14.3 Edge Case 3: Concurrent Mutation Conflicts
 
 ```
-並行Mutation時のデータ競合:
+Data conflicts from concurrent Mutations:
 
   Client A                          Client B
     |                                 |
     | updateUser(id:"1",             | updateUser(id:"1",
-    |   input: {name:"太郎"})         |   input: {email:"new@x.com"})
+    |   input: {name:"Taro"})        |   input: {email:"new@x.com"})
     |                                 |
     | --- (1) READ user --->         |
     | <-- name:"Taro", email:"old"   |
     |                                 | --- (2) READ user --->
     |                                 | <-- name:"Taro", email:"old"
-    | --- (3) WRITE name:"太郎" -->  |
+    | --- (3) WRITE name:"Taro" -->  |
     |                                 | --- (4) WRITE email:"new" -->
     |                                 |
-    |  結果: name="太郎", email="new@x.com"
-    |  → この場合は問題なし（異なるフィールド）
+    |  Result: name="Taro", email="new@x.com"
+    |  → No problem here (different fields)
     |
-    |  問題のあるケース: 同一フィールドの更新
-    |  Client A: updateUser(input: {name:"太郎"})
-    |  Client B: updateUser(input: {name:"花子"})
-    |  → 最後の書き込みが勝つ（Last Write Wins）
+    |  Problematic case: updating the same field
+    |  Client A: updateUser(input: {name:"Taro"})
+    |  Client B: updateUser(input: {name:"Hanako"})
+    |  → Last Write Wins
 
-  対策:
-    1. 楽観的ロック: updatedAtをチェック
+  Countermeasures:
+    1. Optimistic locking: check updatedAt
        input UpdateUserInput {
          name: String
-         expectedVersion: Int!  # 更新前のバージョン番号
+         expectedVersion: Int!  # Version number before the update
        }
 
-    2. フィールドレベルロック:
-       → 変更するフィールドのみを対象にUPDATE
-       → PATCH的な部分更新
+    2. Field-level locking:
+       → UPDATE only the fields being changed
+       → Partial update (PATCH-style)
 
-    3. イベントソーシング:
-       → 変更をイベントとして記録
-       → 競合検知と解決が容易
+    3. Event sourcing:
+       → Record changes as events
+       → Conflict detection and resolution become straightforward
 ```
 
 ---
 
-## 15. パフォーマンス最適化
+## 15. Performance Optimization
 
-### 15.1 クエリプランニング
+### 15.1 Query Planning
 
 ```
-パフォーマンス最適化の観点:
+Performance optimization perspectives:
 
   ┌────────────────────────────────────────────────────────────┐
-  │  GraphQL パフォーマンス最適化ピラミッド                      │
+  │  GraphQL Performance Optimization Pyramid                  │
   │                                                            │
   │                    ┌───┐                                   │
   │                   / CDN \                                  │
@@ -3223,14 +3223,14 @@ const resolvers = {
   │      /  (Foundation)                  \                    │
   │     └─────────────────────────────────┘                   │
   │                                                            │
-  │  下層から順に最適化するのが効果的                             │
+  │  Optimize from the bottom layer up for best results        │
   └────────────────────────────────────────────────────────────┘
 ```
 
-### 15.2 応答キャッシュ
+### 15.2 Response Caching
 
 ```javascript
-// Apollo Server のレスポンスキャッシュ
+// Apollo Server response cache
 import responseCachePlugin from '@apollo/server-plugin-response-cache';
 
 const server = new ApolloServer({
@@ -3238,17 +3238,17 @@ const server = new ApolloServer({
   resolvers,
   plugins: [
     responseCachePlugin({
-      // ユーザーごとにキャッシュを分離
+      // Separate cache per user
       sessionId: (requestContext) =>
         requestContext.contextValue.user?.id || 'anonymous',
     }),
   ],
 });
 
-// スキーマでキャッシュヒントを設定
+// Set cache hints in the schema
 // type Query {
-//   publicPosts: [Post!]! @cacheControl(maxAge: 300)  # 5分キャッシュ
-//   me: User @cacheControl(maxAge: 0, scope: PRIVATE) # キャッシュなし
+//   publicPosts: [Post!]! @cacheControl(maxAge: 300)  # Cache for 5 minutes
+//   me: User @cacheControl(maxAge: 0, scope: PRIVATE) # No cache
 // }
 //
 // type Post @cacheControl(maxAge: 60) {
@@ -3260,37 +3260,37 @@ const server = new ApolloServer({
 
 ---
 
-## 16. 演習問題
+## 16. Exercises
 
-### 演習1: 基礎（スキーマ定義）
+### Exercise 1: Basics (Schema Definition)
 
-以下の要件を満たすGraphQLスキーマをSDLで定義せよ。
+Define a GraphQL schema in SDL that satisfies the following requirements.
 
 ```
-要件: ブログシステムのスキーマ
+Requirements: Schema for a blog system
 
-エンティティ:
+Entities:
   - Author: id, name, email, bio, createdAt
   - Article: id, title, body, author, tags, status(DRAFT/PUBLISHED/ARCHIVED),
              publishedAt, createdAt, updatedAt
   - Comment: id, article, author, body, createdAt
   - Tag: id, name, slug
 
-機能:
-  - 記事一覧（ページネーション、ステータスフィルタ、タグフィルタ）
-  - 記事詳細（コメント付き）
-  - 著者の記事一覧
-  - 記事作成/更新/削除（Mutation）
-  - コメント追加/削除（Mutation）
+Features:
+  - Article list (pagination, status filter, tag filter)
+  - Article detail (with comments)
+  - Author's article list
+  - Create/update/delete articles (Mutation)
+  - Add/delete comments (Mutation)
 
-条件:
-  - Relay Connection仕様のページネーション
-  - Payloadパターンのエラーハンドリング
-  - 適切なnull/non-null設定
+Conditions:
+  - Relay Connection spec pagination
+  - Payload pattern error handling
+  - Appropriate null/non-null settings
 ```
 
 ```graphql
-# 解答例（一部）
+# Sample answer (partial)
 
 scalar DateTime
 
@@ -3321,7 +3321,7 @@ type Article {
   author: Author!
   tags: [Tag!]!
   status: ArticleStatus!
-  publishedAt: DateTime       # DRAFTの場合null
+  publishedAt: DateTime       # null when DRAFT
   createdAt: DateTime!
   updatedAt: DateTime!
   comments(first: Int, after: String): CommentConnection!
@@ -3431,24 +3431,24 @@ type Mutation {
 }
 ```
 
-### 演習2: 中級（リゾルバーとDataLoader）
+### Exercise 2: Intermediate (Resolvers and DataLoader)
 
-上記のブログスキーマに対して、以下のリゾルバーを実装せよ。
+Implement the following resolvers for the blog schema above.
 
 ```
-要件:
-  1. Query.articles リゾルバー（カーソルページネーション付き）
-  2. Article.commentCount フィールドリゾルバー（DataLoader使用）
-  3. Mutation.createArticle リゾルバー（バリデーション付き）
-  4. 全てのリゾルバーで認証チェックを行うこと
+Requirements:
+  1. Query.articles resolver (with cursor pagination)
+  2. Article.commentCount field resolver (using DataLoader)
+  3. Mutation.createArticle resolver (with validation)
+  4. All resolvers must include authentication checks
 ```
 
 ```javascript
-// 解答例
+// Sample answer
 
 import DataLoader from 'dataloader';
 
-// DataLoaderの作成
+// Create DataLoaders
 function createBlogLoaders(db) {
   return {
     commentCountLoader: new DataLoader(async (articleIds) => {
@@ -3480,7 +3480,7 @@ function createBlogLoaders(db) {
 const blogResolvers = {
   Query: {
     articles: async (_, args, context) => {
-      if (!context.user) throw new Error('認証が必要です');
+      if (!context.user) throw new Error('Authentication required');
 
       const { first = 20, after, status, tagSlug, authorId } = args;
       const safeFirst = Math.min(first, 100);
@@ -3541,23 +3541,23 @@ const blogResolvers = {
       if (!context.user) {
         return {
           article: null,
-          errors: [{ field: null, message: '認証が必要です', code: 'UNAUTHENTICATED' }],
+          errors: [{ field: null, message: 'Authentication required', code: 'UNAUTHENTICATED' }],
         };
       }
 
-      // バリデーション
+      // Validation
       const errors = [];
       if (!input.title || input.title.trim().length < 3) {
         errors.push({
           field: 'title',
-          message: 'タイトルは3文字以上で入力してください',
+          message: 'Title must be at least 3 characters',
           code: 'VALIDATION_ERROR',
         });
       }
       if (!input.body || input.body.trim().length < 10) {
         errors.push({
           field: 'body',
-          message: '本文は10文字以上で入力してください',
+          message: 'Body must be at least 10 characters',
           code: 'VALIDATION_ERROR',
         });
       }
@@ -3577,22 +3577,22 @@ const blogResolvers = {
 };
 ```
 
-### 演習3: 応用（Subscription + 統合テスト）
+### Exercise 3: Advanced (Subscription + Integration Test)
 
-以下の要件でリアルタイムコメント通知機能を実装せよ。
+Implement a real-time comment notification feature with the following requirements.
 
 ```
-要件:
-  1. 記事にコメントが追加されたらSubscriptionで通知
-  2. 通知には記事ID、コメント内容、投稿者名を含める
-  3. 購読者は記事の著者のみ（認可チェック）
-  4. 統合テストも作成する
+Requirements:
+  1. Notify via Subscription when a comment is added to an article
+  2. Notification includes article ID, comment content, and author name
+  3. Only the article author can subscribe (authorization check)
+  4. Also create an integration test
 ```
 
 ```javascript
-// 解答例
+// Sample answer
 
-// スキーマ追加
+// Schema addition
 // type Subscription {
 //   commentAdded(articleId: ID!): CommentAddedEvent!
 // }
@@ -3613,12 +3613,12 @@ const subscriptionResolvers = {
       subscribe: withFilter(
         () => pubsub.asyncIterator(COMMENT_ADDED),
         async (payload, variables, context) => {
-          // 記事IDのフィルタリング
+          // Filter by article ID
           if (payload.commentAdded.articleId !== variables.articleId) {
             return false;
           }
 
-          // 認可チェック: 記事の著者のみ購読可能
+          // Authorization check: only the article author can subscribe
           const article = await context.dataSources.articleAPI
             .getArticle(variables.articleId);
           return article?.authorId === context.user?.id;
@@ -3629,14 +3629,14 @@ const subscriptionResolvers = {
 
   Mutation: {
     addComment: async (_, { input }, context) => {
-      // ... コメント作成処理 ...
+      // ... comment creation logic ...
       const comment = await context.db.query(
         `INSERT INTO comments (article_id, author_id, body, created_at)
          VALUES ($1, $2, $3, NOW()) RETURNING *`,
         [input.articleId, context.user.id, input.body]
       );
 
-      // Subscriptionにイベント発行
+      // Publish event to Subscription
       pubsub.publish(COMMENT_ADDED, {
         commentAdded: {
           articleId: input.articleId,
@@ -3649,11 +3649,11 @@ const subscriptionResolvers = {
   },
 };
 
-// 統合テスト
+// Integration test
 // __tests__/subscription.test.js
 describe('Subscription: commentAdded', () => {
-  it('記事著者にコメント通知が届くこと', async () => {
-    // 1. Subscriptionを開始
+  it('should deliver a comment notification to the article author', async () => {
+    // 1. Start Subscription
     const subscription = client.subscribe({
       query: gql`
         subscription OnCommentAdded($articleId: ID!) {
@@ -3669,12 +3669,12 @@ describe('Subscription: commentAdded', () => {
       variables: { articleId: 'article-1' },
     });
 
-    // 2. 結果を収集するPromise
+    // 2. Promise to collect results
     const resultPromise = new Promise((resolve) => {
       subscription.subscribe({ next: resolve });
     });
 
-    // 3. コメントを追加
+    // 3. Add a comment
     await client.mutate({
       mutation: gql`
         mutation AddComment($input: AddCommentInput!) {
@@ -3689,7 +3689,7 @@ describe('Subscription: commentAdded', () => {
       },
     });
 
-    // 4. Subscription結果の検証
+    // 4. Verify Subscription result
     const result = await resultPromise;
     expect(result.data.commentAdded.articleId).toBe('article-1');
     expect(result.data.commentAdded.comment.body).toBe('Great article!');
@@ -3701,114 +3701,114 @@ describe('Subscription: commentAdded', () => {
 
 ## FAQ
 
-### Q1: GraphQLとREST APIはどのような場面で使い分けるべきか?
+### Q1: When should I use GraphQL vs REST API?
 
-GraphQLとREST APIは異なる設計思想とトレードオフを持つため、プロジェクトの特性に応じた使い分けが重要である。
+GraphQL and REST have different design philosophies and trade-offs, so choosing based on project characteristics is important.
 
-**GraphQLが適する場面:**
-- **複雑なデータ要件を持つUI**: モバイルアプリやダッシュボードなど、画面ごとに異なるデータセットが必要な場合
-- **マイクロサービス統合**: 複数のバックエンドサービスを単一のAPIとして集約したい場合（BFF: Backend for Frontendパターン）
-- **フロントエンド主導開発**: フロントエンドチームがバックエンドへの依存を減らし、自律的にデータ要件を定義したい場合
-- **リアルタイム機能**: Subscriptionを利用したチャット、通知、リアルタイムダッシュボード
+**When GraphQL is a good fit:**
+- **Complex UI data requirements**: Mobile apps and dashboards that require different data sets per screen
+- **Microservice aggregation**: When you want to unify multiple backend services as a single API (BFF: Backend for Frontend pattern)
+- **Frontend-driven development**: When the frontend team wants to reduce backend dependency and define data requirements autonomously
+- **Real-time features**: Chat, notifications, and real-time dashboards using Subscription
 
-**REST APIが適する場面:**
-- **シンプルなCRUD操作**: ユーザー登録、ログイン、基本的なリソース管理など、定型的な操作が中心の場合
-- **ファイル処理**: 大容量ファイルのアップロード/ダウンロード、ストリーミング配信
-- **CDNキャッシュ活用**: URLベースのキャッシュ戦略が明確で、HTTPキャッシュを最大限活用したい場合
-- **外部公開API**: 広範な互換性が必要で、OpenAPI（Swagger）によるドキュメント生成やHTTPステータスコードの標準活用が重要な場合
+**When REST is a good fit:**
+- **Simple CRUD operations**: Standard operations like user registration, login, and basic resource management
+- **File handling**: Large file upload/download and streaming delivery
+- **CDN cache utilization**: When URL-based caching strategy is clear and HTTP caching should be maximized
+- **Publicly exposed API**: When broad compatibility is required and OpenAPI (Swagger) documentation and standard HTTP status codes matter
 
-**併用パターン（推奨）:**
-実運用では、外部向けはREST API（安定性・互換性重視）、内部向けBFFとしてGraphQL（開発効率重視）という組み合わせがよく採用される。例えば、モバイルアプリは内部GraphQL APIを使用し、サードパーティ連携は公開REST APIを提供する構成である。
+**Combined pattern (recommended):**
+In practice, a common approach is to use REST API externally (prioritizing stability and compatibility) and GraphQL internally as a BFF (prioritizing development efficiency). For example, mobile apps use the internal GraphQL API while third-party integrations are served via the public REST API.
 
-### Q2: GraphQLのN+1問題とは何か、どう解決するか?
+### Q2: What is the N+1 problem in GraphQL, and how do you solve it?
 
-N+1問題は、GraphQLのリゾルバーが階層的に実行される性質により発生する、最も頻繁に遭遇するパフォーマンス課題である。
+The N+1 problem is the most frequently encountered performance issue in GraphQL, caused by the hierarchical nature of resolver execution.
 
-**問題の発生メカニズム:**
+**How the problem occurs:**
 ```graphql
 query {
-  articles {           # 1回のクエリで10件取得
+  articles {           # 1 query fetches 10 records
     id
     title
-    author {           # 各記事ごとに1回、合計10回のクエリ
+    author {           # 1 query per article = 10 queries total
       name
     }
   }
 }
 ```
 
-上記のクエリは、`articles`の取得で1回、各記事の`author`取得でN回（記事数分）、合計N+1回のデータベースクエリを実行してしまう。記事が1000件あれば1001回のクエリが発生し、深刻なパフォーマンス劣化を引き起こす。
+The query above executes 1 query for `articles` and N queries (one per article) for each `author`, totaling N+1 database queries. With 1,000 articles, 1,001 queries are fired, causing serious performance degradation.
 
-**解決手段:**
+**Solutions:**
 
-1. **DataLoader（最も推奨）**: Facebook開発のバッチ処理ライブラリ。リクエストスコープ内でIDをバッチ化し、一括取得+キャッシュを行う（本章セクション8参照）。
-   - メリット: リゾルバーのロジックを変更せず導入可能、公式推奨パターン
-   - 実装: `new DataLoader(ids => batchGetAuthors(ids))` でバッチ関数を定義し、contextに格納
+1. **DataLoader (most recommended)**: A batching library developed by Facebook. It batches IDs within a request scope and performs bulk retrieval + caching (see Section 8 of this guide).
+   - Benefit: Can be introduced without modifying resolver logic; officially recommended pattern
+   - Implementation: Define a batch function with `new DataLoader(ids => batchGetAuthors(ids))` and store in context
 
-2. **JOINベースのリゾルバー**: `info`パラメータから必要なフィールドを解析し、事前にJOINクエリを構築する方法。
-   - メリット: 最適なSQLクエリを1回で実行可能
-   - デメリット: リゾルバーの複雑度が増加、`graphql-fields`や`graphql-parse-resolve-info`ライブラリの知識が必要
+2. **JOIN-based resolvers**: Parse required fields from the `info` parameter and build JOIN queries ahead of time.
+   - Benefit: Can execute optimal SQL in a single query
+   - Drawback: Increases resolver complexity; requires knowledge of `graphql-fields` or `graphql-parse-resolve-info`
 
-3. **Lookahead/Projection**: 次に解決されるフィールドを先読みし、必要なデータを事前取得する手法。
-   - メリット: データソースの特性に応じた最適化が可能
-   - デメリット: 実装が複雑、フレームワーク依存
+3. **Lookahead/Projection**: Pre-fetch data by reading ahead to the next fields to be resolved.
+   - Benefit: Optimal for data source-specific optimizations
+   - Drawback: Complex implementation; framework-dependent
 
-**推奨アプローチ:** まずDataLoaderを導入し、それでも解決しない特殊ケース（集約関数、複雑なJOIN）でJOINベースリゾルバーを検討する段階的な戦略が実運用では有効である。
+**Recommended approach:** Introduce DataLoader first, then consider JOIN-based resolvers for special cases (aggregate functions, complex JOINs) where DataLoader is insufficient.
 
-### Q3: GraphQLを導入する際の学習コストと組織的な準備は?
+### Q3: What are the learning costs and organizational preparations for adopting GraphQL?
 
-GraphQLの導入には技術的な学習だけでなく、組織的な準備が必要となる。
+Adopting GraphQL requires not only technical learning but also organizational preparation.
 
-**技術的な学習コスト:**
-- **基礎習得**: 型システム、スキーマ定義（SDL）、Query/Mutation/Subscriptionの理解に1-2週間
-- **実装スキル**: リゾルバー実装、DataLoader、エラーハンドリング、認証・認可パターンの習得に2-4週間
-- **運用知識**: Apollo Server構築、パフォーマンス最適化、セキュリティ対策、監視・ロギングに1-2ヶ月
-- **高度なトピック**: Federation、Schema Stitching、Relay仕様、キャッシュ戦略に2-3ヶ月
+**Technical learning costs:**
+- **Fundamentals**: Understanding the type system, schema definition (SDL), and Query/Mutation/Subscription: 1-2 weeks
+- **Implementation skills**: Resolver implementation, DataLoader, error handling, authentication/authorization patterns: 2-4 weeks
+- **Operational knowledge**: Apollo Server setup, performance optimization, security measures, monitoring and logging: 1-2 months
+- **Advanced topics**: Federation, Schema Stitching, Relay spec, cache strategies: 2-3 months
 
-**組織的な準備:**
+**Organizational preparation:**
 
-1. **スキーマガバナンス体制**: スキーマの変更管理、レビュープロセス、Breaking Changeの管理ルール策定
-2. **ツールチェーン整備**: GraphiQL/Playground、Apollo Studio、スキーマバリデーション（CI統合）、コード生成ツール
-3. **ドキュメント文化**: SDL自体がドキュメントになるが、ビジネスロジックやユースケースの補足ドキュメントが必要
-4. **段階的な導入計画**:
-   - **Phase 1**: 小規模な内部ツールで試験導入（2-4週間）
-   - **Phase 2**: 単一マイクロサービスのBFF構築（1-2ヶ月）
-   - **Phase 3**: 複数サービス統合、Federationの検討（2-3ヶ月）
-   - **Phase 4**: 外部公開APIとしての展開（セキュリティ・スケーラビリティ確立後）
+1. **Schema governance**: Change management for schemas, review processes, and rules for managing breaking changes
+2. **Toolchain setup**: GraphiQL/Playground, Apollo Studio, schema validation (CI integration), code generation tools
+3. **Documentation culture**: The SDL itself serves as documentation, but supplementary docs for business logic and use cases are necessary
+4. **Phased adoption plan**:
+   - **Phase 1**: Trial with a small internal tool (2-4 weeks)
+   - **Phase 2**: Build a BFF for a single microservice (1-2 months)
+   - **Phase 3**: Multi-service integration; evaluate Federation (2-3 months)
+   - **Phase 4**: Deploy as a publicly exposed API (after establishing security and scalability)
 
-5. **チーム体制**: フロントエンド・バックエンド間のコミュニケーションコスト削減がGraphQLの利点だが、初期はスキーマ設計を主導する「GraphQL Champion」役の配置が推奨される。
+5. **Team structure**: GraphQL's benefit is reducing communication costs between frontend and backend teams, but during the initial phase it is recommended to appoint a "GraphQL Champion" to lead schema design.
 
-**失敗を避けるポイント:**
-- 既存REST APIの全置き換えを最初から目指さない（段階的移行）
-- N+1問題を後回しにせず、DataLoaderを最初から導入する
-- スキーマのバージョニング戦略（Schema Evolution）を初期に確立する
-- 監視・ロギング基盤（Apollo Studio、Sentryなど）を早期に整備する
-
----
-
-## まとめ
-
-| 概念 | ポイント |
-|------|---------|
-| SDL | 型システムでスキーマを定義、APIの仕様書として機能 |
-| Query | クライアントが必要なデータを正確に指定、フラグメントで再利用 |
-| Mutation | Payloadパターンでエラーハンドリング、Input型で引数を構造化 |
-| Subscription | WebSocketベースのリアルタイム通知、PubSubパターンで実装 |
-| リゾルバー | 親→子の階層的なデータ取得、4引数（parent, args, context, info） |
-| DataLoader | N+1問題の解決、バッチ処理+リクエストスコープキャッシュ |
-| Apollo Server | Express統合、プラグイン機構、ディレクティブベースの認可 |
-| セキュリティ | 深度制限、複雑度制限、レート制限、APQの多層防御 |
-| エラー設計 | ネットワーク/GraphQL/ビジネスの3層モデル |
-| テスト | 単体（リゾルバー）+ 統合（executeOperation）+ E2E |
+**Tips for avoiding failure:**
+- Don't aim to replace all existing REST APIs at once (migrate incrementally)
+- Don't defer the N+1 problem; introduce DataLoader from the start
+- Establish a schema versioning strategy (Schema Evolution) early on
+- Set up monitoring and logging infrastructure (Apollo Studio, Sentry, etc.) early
 
 ---
 
-## 次に読むべきガイド
-→ [GraphQL応用](./02-graphql-advanced.md) -- Federation, Schema Stitching, Caching戦略, CI/CD統合
+## Summary
+
+| Concept | Key Points |
+|---------|-----------|
+| SDL | Define schema with the type system; acts as the API specification |
+| Query | Client specifies exactly the data needed; reuse fields with fragments |
+| Mutation | Handle errors with Payload pattern; structure arguments with Input types |
+| Subscription | Real-time notifications over WebSocket; implement with PubSub pattern |
+| Resolvers | Hierarchical data fetching parent→child; 4 arguments (parent, args, context, info) |
+| DataLoader | Solves N+1 problem; batch processing + request-scoped cache |
+| Apollo Server | Express integration, plugin system, directive-based authorization |
+| Security | Multi-layer defense: depth limit, complexity limit, rate limit, APQ |
+| Error design | Three-layer model: network / GraphQL / business |
+| Testing | Unit (resolvers) + integration (executeOperation) + E2E |
 
 ---
 
-## 参考文献
+## What to Read Next
+→ [GraphQL Advanced](./02-graphql-advanced.md) -- Federation, Schema Stitching, Caching strategies, CI/CD integration
+
+---
+
+## References
 1. GraphQL Foundation. "GraphQL Specification (October 2021 Edition)." graphql.org, 2023.
 2. Apollo GraphQL. "Apollo Server v4 Documentation." apollographql.com/docs/apollo-server, 2024.
 3. Lee, B. "GraphQL in Action." Manning Publications, 2021.
