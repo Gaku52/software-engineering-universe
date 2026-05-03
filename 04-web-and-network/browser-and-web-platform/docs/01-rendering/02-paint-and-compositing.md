@@ -1,90 +1,90 @@
-# Paint と Compositing
+# Paint and Compositing
 
-> Paint はレイアウト情報をピクセルへ変換し、Compositing は GPU でレイヤーを合成して最終画像を生成する。レイヤー昇格、will-change、GPU アクセラレーション、合成戦略の仕組みを理解することは、スムーズな UI を実現するうえで不可欠である。本ガイドでは、ブラウザのレンダリングパイプライン後半を構成する Paint フェーズと Compositing フェーズについて、その内部動作からパフォーマンス最適化手法まで体系的に解説する。
+> Paint converts layout information into pixels, and Compositing uses the GPU to blend layers together to produce the final image. Understanding layer promotion, will-change, GPU acceleration, and compositing strategies is essential for achieving smooth UIs. This guide systematically explains the Paint and Compositing phases that form the latter half of the browser rendering pipeline — from their internal workings to practical performance optimization techniques.
 
-## 前提知識
+## Prerequisites
 
-本ガイドを最大限活用するため、以下のトピックについて事前に理解しておくことを推奨する。
+To get the most out of this guide, it is recommended to have prior knowledge of the following topics.
 
-- **レンダリングパイプラインの全体像** - ブラウザが HTML/CSS をどのように解析し、画面に表示するかの全体フローを理解していることが前提となる。DOM 構築、CSSOM 構築、スタイル計算、レイアウト計算の各フェーズについて基本的な知識があれば、Paint と Compositing の位置づけがより明確になる。参照: [レンダリングパイプライン](./00-rendering-pipeline.md)
+- **Overview of the Rendering Pipeline** — A prerequisite understanding of the overall flow by which a browser parses HTML/CSS and displays it on screen. A basic knowledge of DOM construction, CSSOM construction, style calculation, and layout calculation will make the role of Paint and Compositing clearer. Reference: [Rendering Pipeline](./00-rendering-pipeline.md)
 
-- **CSS レイアウトエンジンの仕組み** - Layout フェーズで計算された要素の位置・サイズ情報が、Paint フェーズでどのように活用されるかを理解するため、レイアウトエンジンの基本動作を把握しておくことが望ましい。特に Stacking Context（スタッキングコンテキスト）の概念は、レイヤー昇格の理解に直結する。参照: [CSS レイアウトエンジン](./01-css-layout-engine.md)
+- **How the CSS Layout Engine Works** — It is useful to understand the basic operation of the layout engine in order to see how element position and size information calculated during the Layout phase is used in the Paint phase. In particular, the concept of Stacking Context is directly linked to understanding layer promotion. Reference: [CSS Layout Engine](./01-css-layout-engine.md)
 
-- **GPU アクセラレーションの基本概念** - GPU（Graphics Processing Unit）が CPU と異なりどのような処理を得意とするのか、また GPU メモリ（VRAM）と CPU メモリの違いについて基本的な知識があると、レイヤー昇格のコストやメリットを理解しやすくなる。
+- **Basic Concepts of GPU Acceleration** — A basic knowledge of how a GPU (Graphics Processing Unit) differs from a CPU and what kinds of tasks it excels at, as well as the difference between GPU memory (VRAM) and CPU memory, makes it easier to understand the cost and benefits of layer promotion.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- [ ] Paint と Composite の役割の違いを説明できる
-- [ ] ブラウザのレンダリングパイプライン全体における Paint/Composite の位置づけを理解する
-- [ ] レイヤー昇格の条件、メリット、コストを把握する
-- [ ] GPU アクセラレーションの仕組みと適用範囲を理解する
-- [ ] `will-change` プロパティの正しい使い方を習得する
-- [ ] `contain` / `content-visibility` による最適化を実践できる
-- [ ] DevTools を使ったペイント・合成のプロファイリングができる
-- [ ] アンチパターンを認識して回避できる
+- [ ] Explain the difference in roles between Paint and Composite
+- [ ] Understand the position of Paint/Composite within the overall browser rendering pipeline
+- [ ] Grasp the conditions, benefits, and costs of layer promotion
+- [ ] Understand the mechanism and scope of GPU acceleration
+- [ ] Learn the correct way to use the `will-change` property
+- [ ] Practice optimization using `contain` / `content-visibility`
+- [ ] Profile paint and compositing using DevTools
+- [ ] Recognize and avoid anti-patterns
 
 ---
 
-## 1. レンダリングパイプラインにおける位置づけ
+## 1. Position in the Rendering Pipeline
 
-Paint と Compositing は、ブラウザのレンダリングパイプラインの後半に位置する。前半のフェーズ（DOM 構築、CSSOM 構築、スタイル計算、レイアウト）が「何をどこに配置するか」を決定するのに対し、後半の Paint と Compositing は「どのようにピクセル化して画面に表示するか」を担う。
+Paint and Compositing are located in the latter half of the browser's rendering pipeline. While the first half (DOM construction, CSSOM construction, style calculation, layout) determines "what to place where," the latter half — Paint and Compositing — is responsible for "how to convert to pixels and display on screen."
 
 ```
-レンダリングパイプライン全体像
+Overview of the Rendering Pipeline
 ===========================================================================
 
- ┌──────────┐   ┌──────────┐   ┌────────────┐   ┌──────────┐
- │   DOM    │──▶│  CSSOM   │──▶│   Style    │──▶│  Layout  │
- │ 構築     │   │ 構築     │   │   計算     │   │ (Reflow) │
- └──────────┘   └──────────┘   └────────────┘   └────┬─────┘
-                                                      │
-                                                      ▼
- ┌───────────────────────────────────────────────────────────┐
- │                 Paint Phase                                │
- │  ┌─────────────────┐   ┌──────────────────────┐          │
- │  │ Paint Records   │──▶│ Rasterization        │          │
- │  │ (描画命令リスト)│   │ (ピクセル化)         │          │
- │  └─────────────────┘   └──────────┬───────────┘          │
- └───────────────────────────────────┼───────────────────────┘
+ ┌──────────────┐   ┌──────────┐   ┌────────────┐   ┌──────────┐
+ │     DOM      │──▶│  CSSOM   │──▶│   Style    │──▶│  Layout  │
+ │ Construction │   │ Construc-│   │ Calculation│   │ (Reflow) │
+ └──────────────┘   └──────────┘   └────────────┘   └────┬─────┘
+                                                          │
+                                                          ▼
+ ┌───────────────────────────────────────────────────────────────┐
+ │                 Paint Phase                                    │
+ │  ┌─────────────────┐   ┌──────────────────────┐              │
+ │  │ Paint Records   │──▶│ Rasterization        │              │
+ │  │ (draw cmd list) │   │ (pixel conversion)   │              │
+ │  └─────────────────┘   └──────────┬───────────┘              │
+ └───────────────────────────────────┼───────────────────────────┘
                                      │
                                      ▼
- ┌───────────────────────────────────────────────────────────┐
- │              Compositing Phase                             │
- │  ┌─────────────────┐   ┌──────────────────────┐          │
- │  │ Layer 合成      │──▶│ GPU テクスチャ       │          │
- │  │ (Draw Quads)    │   │ 画面表示             │          │
- │  └─────────────────┘   └──────────────────────┘          │
- └───────────────────────────────────────────────────────────┘
+ ┌───────────────────────────────────────────────────────────────┐
+ │              Compositing Phase                                 │
+ │  ┌─────────────────┐   ┌──────────────────────┐              │
+ │  │ Layer Composit- │──▶│ GPU Texture          │              │
+ │  │ ing (Draw Quads)│   │ Screen Display       │              │
+ │  └─────────────────┘   └──────────────────────┘              │
+ └───────────────────────────────────────────────────────────────┘
 
 ===========================================================================
 ```
 
-### 1.1 各フェーズで発生するコスト
+### 1.1 Cost Incurred by Each Phase
 
-CSS プロパティの変更が引き起こすレンダリング処理の範囲は、変更されるプロパティによって大きく異なる。以下に、プロパティ変更とトリガーされるフェーズの関係を示す。
+The range of rendering processing triggered by a CSS property change varies greatly depending on which property is changed. The following shows the relationship between property changes and the phases they trigger.
 
-| 変更されるプロパティ | Layout | Paint | Composite | 具体例 |
+| Changed Property | Layout | Paint | Composite | Example |
 |:---|:---:|:---:|:---:|:---|
-| `width`, `height`, `margin`, `padding` | Yes | Yes | Yes | ボックスサイズの変更 |
-| `top`, `left` (positioned) | Yes | Yes | Yes | 位置の変更 |
-| `color`, `background-color` | No | Yes | Yes | 色の変更 |
-| `box-shadow`, `border-radius` | No | Yes | Yes | 装飾の変更 |
-| `transform` | No | No | Yes | 移動・回転・拡大 |
-| `opacity` | No | No | Yes | 透明度の変更 |
-| `filter` (GPU 対応) | No | No | Yes | ぼかし・色調変更 |
+| `width`, `height`, `margin`, `padding` | Yes | Yes | Yes | Changing box size |
+| `top`, `left` (positioned) | Yes | Yes | Yes | Changing position |
+| `color`, `background-color` | No | Yes | Yes | Changing color |
+| `box-shadow`, `border-radius` | No | Yes | Yes | Changing decorations |
+| `transform` | No | No | Yes | Move, rotate, scale |
+| `opacity` | No | No | Yes | Changing transparency |
+| `filter` (GPU-supported) | No | No | Yes | Blur, color adjustment |
 
-この表から明らかなとおり、`transform` と `opacity` の変更は Layout も Paint もスキップし、Composite のみで完結する。これが「Compositor-only プロパティ」と呼ばれ、高パフォーマンスなアニメーションの基盤となる理由である。
+As this table makes clear, changes to `transform` and `opacity` skip both Layout and Paint and complete in Composite alone. This is called "Compositor-only properties" and is why they form the foundation of high-performance animations.
 
 ---
 
-## 2. Paint（ペイント）の詳細
+## 2. Paint Details
 
-### 2.1 Paint Records の生成
+### 2.1 Generating Paint Records
 
-Paint フェーズの最初のステップは、レイアウトツリーを走査して Paint Records（描画命令リスト）を生成することである。Paint Records は、各要素の描画に必要な情報を順序付きリストとして保持する。
+The first step of the Paint phase is to traverse the layout tree and generate Paint Records (a list of drawing commands). Paint Records hold the information needed to draw each element as an ordered list.
 
 ```
-Paint Records の構造（概念図）
+Paint Records Structure (Conceptual Diagram)
 ===========================================================================
 
   PaintRecord {
@@ -119,63 +119,64 @@ Paint Records の構造（概念図）
 
 ===========================================================================
 
-  描画順序（Stacking Context に従う）:
-  1. ルート要素の背景とボーダー
-  2. z-index が負の子要素
-  3. フロー内ブロックレベル要素
-  4. フロート要素
-  5. フロー内インライン要素
-  6. z-index: 0 の positioned 要素
-  7. z-index が正の子要素
+  Drawing order (follows Stacking Context):
+  1. Background and border of the root element
+  2. Child elements with negative z-index
+  3. In-flow block-level elements
+  4. Float elements
+  5. In-flow inline elements
+  6. Positioned elements with z-index: 0
+  7. Child elements with positive z-index
 ```
 
-### 2.2 ラスタライズ（Rasterization）
+### 2.2 Rasterization
 
-Paint Records が生成されると、次にラスタライズが行われる。ラスタライズは、ベクターベースの描画命令を実際のピクセルデータ（ビットマップ）に変換するプロセスである。
+Once Paint Records are generated, rasterization occurs next. Rasterization is the process of converting vector-based drawing commands into actual pixel data (bitmaps).
 
-#### タイルベースラスタライズ
+#### Tile-Based Rasterization
 
-現代のブラウザは、ページ全体を一度にラスタライズするのではなく、画面をタイル（通常 256x256 ピクセル）に分割してラスタライズを行う。
+Modern browsers do not rasterize the entire page at once; instead, they divide the screen into tiles (typically 256x256 pixels) and rasterize them.
 
 ```
-タイルベースラスタライズの優先順位
+Priority Order of Tile-Based Rasterization
 ===========================================================================
 
-  ビューポート（画面に見えている領域）
+  Viewport (the area visible on screen)
   ┌─────────────────────────────────────────┐
   │                                         │
   │  ┌──────┬──────┬──────┬──────┐         │
-  │  │ P:1  │ P:1  │ P:1  │ P:1  │  ← 最優先でラスタライズ
+  │  │ P:1  │ P:1  │ P:1  │ P:1  │  ← Rasterized with highest priority
   │  ├──────┼──────┼──────┼──────┤         │
-  │  │ P:1  │ P:1  │ P:1  │ P:1  │  ← 最優先でラスタライズ
+  │  │ P:1  │ P:1  │ P:1  │ P:1  │  ← Rasterized with highest priority
   │  ├──────┼──────┼──────┼──────┤         │
-  │  │ P:1  │ P:1  │ P:1  │ P:1  │  ← 最優先でラスタライズ
+  │  │ P:1  │ P:1  │ P:1  │ P:1  │  ← Rasterized with highest priority
   │  └──────┴──────┴──────┴──────┘         │
   │                                         │
   └─────────────────────────────────────────┘
   ┌──────┬──────┬──────┬──────┐
-  │ P:2  │ P:2  │ P:2  │ P:2  │  ← ビューポート近傍（次に優先）
+  │ P:2  │ P:2  │ P:2  │ P:2  │  ← Near viewport (next priority)
   ├──────┼──────┼──────┼──────┤
-  │ P:3  │ P:3  │ P:3  │ P:3  │  ← 少し離れた領域
+  │ P:3  │ P:3  │ P:3  │ P:3  │  ← Area slightly further away
   ├──────┼──────┼──────┼──────┤
-  │ P:4  │ P:4  │ P:4  │ P:4  │  ← さらに離れた領域
+  │ P:4  │ P:4  │ P:4  │ P:4  │  ← Even further away
   ├──────┼──────┼──────┼──────┤
-  │ P:5  │ P:5  │ P:5  │ P:5  │  ← 最後にラスタライズ
+  │ P:5  │ P:5  │ P:5  │ P:5  │  ← Rasterized last
   └──────┴──────┴──────┴──────┘
 
-  P:N = Priority（優先度）。N が小さいほど高優先
-  → ユーザーのスクロール方向を予測して事前ラスタライズも行われる
+  P:N = Priority. The smaller N is, the higher the priority.
+  → Pre-rasterization is also performed by predicting the user's scroll direction.
 
 ===========================================================================
 ```
 
-#### ラスタースレッドの並行処理
+#### Parallel Processing by Raster Threads
 
-ラスタライズはメインスレッドとは独立したラスタースレッドで実行される。Chromium では複数のラスタースレッドが並行してタイルを処理する。
+Rasterization runs on raster threads independent from the main thread. In Chromium, multiple raster threads process tiles in parallel.
 
 ```javascript
-// ラスタースレッドの動作を概念的に示すコード（実際のブラウザ内部の擬似コード）
-// ※ これは教育目的の疑似実装であり、実際のブラウザ実装とは異なる
+// Code conceptually illustrating the behavior of raster threads
+// (pseudo-code for the actual browser internals)
+// ※ This is an educational pseudo-implementation and differs from the actual browser implementation
 
 class RasterThread {
   constructor(id, gpuContext) {
@@ -185,10 +186,10 @@ class RasterThread {
   }
 
   processTile(tile) {
-    // タイル内の Paint Records を取得
+    // Get Paint Records within the tile
     const records = tile.getPaintRecords();
 
-    // GPU ラスタライズの場合: GPU コンテキストを使用
+    // GPU rasterization: use the GPU context
     if (this.gpuContext) {
       const texture = this.gpuContext.createTexture(
         tile.width,
@@ -200,7 +201,7 @@ class RasterThread {
       return texture;
     }
 
-    // ソフトウェアラスタライズの場合: CPU でビットマップ生成
+    // Software rasterization: generate bitmap on CPU
     const bitmap = new Bitmap(tile.width, tile.height);
     for (const record of records) {
       bitmap.draw(record);
@@ -209,75 +210,75 @@ class RasterThread {
   }
 }
 
-// Chromium の場合、通常 4 つのラスタースレッドが並行動作
-// モバイルデバイスでは 2 つに制限されることが多い
+// In Chromium, typically 4 raster threads run in parallel.
+// On mobile devices, this is often limited to 2.
 ```
 
-### 2.3 GPU ラスタライズと Software ラスタライズ
+### 2.3 GPU Rasterization vs. Software Rasterization
 
-ラスタライズには 2 つの方式がある。
+There are two methods of rasterization.
 
-| 項目 | Software Rasterization | GPU Rasterization |
+| Item | Software Rasterization | GPU Rasterization |
 |:---|:---|:---|
-| 実行場所 | CPU（ラスタースレッド） | GPU |
-| ビットマップ生成 | CPU がピクセルデータを生成 | GPU シェーダーがテクスチャを生成 |
-| VRAM 転送 | CPU → GPU へのコピーが必要 | GPU 上で直接生成（転送不要） |
-| 適したケース | シンプルなページ、GPU 非対応デバイス | 複雑な描画、高 DPI ディスプレイ |
-| Chromium デフォルト | 以前のデフォルト | 現在のデフォルト（Android / Desktop） |
-| テキスト描画品質 | 高品質（CPU フォントレンダラー使用） | やや劣る場合あり（改善中） |
+| Execution Location | CPU (raster threads) | GPU |
+| Bitmap Generation | CPU generates pixel data | GPU shader generates texture |
+| VRAM Transfer | Copy from CPU → GPU required | Generated directly on GPU (no transfer needed) |
+| Suited For | Simple pages, non-GPU-capable devices | Complex rendering, high-DPI displays |
+| Chromium Default | Previously the default | Current default (Android / Desktop) |
+| Text Rendering Quality | High quality (uses CPU font renderer) | Slightly inferior in some cases (improving) |
 
-Chromium では `chrome://gpu` ページで現在のラスタライズ方式を確認できる。`Rasterization: Hardware accelerated` と表示されていれば GPU ラスタライズが有効である。
+In Chromium, you can check the current rasterization method at the `chrome://gpu` page. If it shows `Rasterization: Hardware accelerated`, GPU rasterization is enabled.
 
-### 2.4 Repaint（再ペイント）の条件
+### 2.4 Conditions That Trigger Repaint
 
-以下の操作は Repaint をトリガーする。Repaint は Layout の再計算を伴わないが、ピクセルの再生成が必要になるため、パフォーマンスコストがかかる。
+The following operations trigger a Repaint. A Repaint does not involve a layout recalculation, but it does require pixel regeneration, incurring a performance cost.
 
 ```css
-/* Repaint をトリガーするプロパティの例 */
+/* Examples of properties that trigger Repaint */
 .element {
-  /* 色関連 */
-  color: red;              /* テキスト色の変更 */
-  background-color: blue;  /* 背景色の変更 */
-  border-color: green;     /* ボーダー色の変更 */
+  /* Color-related */
+  color: red;              /* Changing text color */
+  background-color: blue;  /* Changing background color */
+  border-color: green;     /* Changing border color */
 
-  /* 視覚効果 */
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2); /* 影の変更 */
-  text-decoration: underline;             /* テキスト装飾の変更 */
-  outline: 2px solid red;                 /* アウトラインの変更 */
-  background-image: url("new.jpg");       /* 背景画像の変更 */
+  /* Visual effects */
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2); /* Changing shadow */
+  text-decoration: underline;             /* Changing text decoration */
+  outline: 2px solid red;                 /* Changing outline */
+  background-image: url("new.jpg");       /* Changing background image */
 
-  /* visibility の変更（display:none とは異なりレイアウトに影響しない） */
+  /* Changing visibility (unlike display:none, does not affect layout) */
   visibility: hidden;
 }
 ```
 
 ---
 
-## 3. Compositing（合成）の詳細
+## 3. Compositing Details
 
-### 3.1 Compositing の基本概念
+### 3.1 Basic Concept of Compositing
 
-Compositing は、複数のレイヤー（合成レイヤー）を GPU 上で重ね合わせ、最終的な画面表示を生成するプロセスである。各レイヤーは独立したテクスチャとして GPU メモリ（VRAM）に保持され、合成時に z-order に従って重ね合わされる。
+Compositing is the process of overlaying multiple layers (composited layers) on the GPU to generate the final screen display. Each layer is held as an independent texture in GPU memory (VRAM) and is blended in z-order during compositing.
 
 ```
-合成レイヤーの重ね合わせ（概念図）
+Overlaying Composited Layers (Conceptual Diagram)
 ===========================================================================
 
-  GPU メモリ上のレイヤー:
+  Layers in GPU memory:
 
-  Layer 3 (z-index: 100) ─── ポップアップメニュー
+  Layer 3 (z-index: 100) --- Popup menu
   ┌──────────┐
   │ Menu     │
   │ Item 1   │
   │ Item 2   │
   └──────────┘
-                    ↓ 合成
-  Layer 2 (z-index: 10) ─── ヘッダー（position: fixed）
+                    ↓ Composite
+  Layer 2 (z-index: 10) --- Header (position: fixed)
   ┌──────────────────────────────────────┐
   │ Header    [Logo]    [Nav]    [User]  │
   └──────────────────────────────────────┘
-                    ↓ 合成
-  Layer 1 (z-index: 1) ─── コンテンツ（transform アニメーション中）
+                    ↓ Composite
+  Layer 1 (z-index: 1) --- Content (during transform animation)
   ┌──────────────────────────────────────┐
   │ Main Content Area                    │
   │                                      │
@@ -285,111 +286,111 @@ Compositing は、複数のレイヤー（合成レイヤー）を GPU 上で重
   │  │ Card 1  │  │ Card 2  │          │
   │  └─────────┘  └─────────┘          │
   └──────────────────────────────────────┘
-                    ↓ 合成
-  Layer 0 (root) ─── ルートレイヤー
+                    ↓ Composite
+  Layer 0 (root) --- Root layer
   ┌──────────────────────────────────────┐
   │ body background (#f5f5f5)            │
   │                                      │
   └──────────────────────────────────────┘
 
-  最終画面 = Layer 0 + Layer 1 + Layer 2 + Layer 3 を GPU が合成
-  → 各レイヤーのテクスチャを alpha blending で重ね合わせ
+  Final screen = GPU composites Layer 0 + Layer 1 + Layer 2 + Layer 3
+  → Overlays each layer's texture using alpha blending
 
 ===========================================================================
 ```
 
-### 3.2 Compositor Thread の役割
+### 3.2 Role of the Compositor Thread
 
-Compositing は、メインスレッドとは別の Compositor Thread（合成スレッド）で実行される。これは非常に重要な設計上の決定であり、以下の利点をもたらす。
+Compositing runs on a Compositor Thread separate from the main thread. This is a critically important design decision that provides the following benefits.
 
 ```
-スレッド間の役割分担
+Division of Roles Between Threads
 ===========================================================================
 
-  メインスレッド                    Compositor Thread
+  Main Thread                       Compositor Thread
   ┌──────────────────────┐         ┌──────────────────────┐
-  │ ・JavaScript 実行    │         │ ・レイヤーの合成      │
-  │ ・DOM 操作           │         │ ・タイル管理          │
-  │ ・スタイル計算       │         │ ・スクロール処理      │
-  │ ・レイアウト計算     │         │ ・transform アニメ    │
-  │ ・Paint Records 生成 │         │ ・opacity アニメ      │
-  │ ・イベントハンドラ   │         │ ・Draw Quads 生成     │
+  │ · JavaScript exec    │         │ · Layer compositing   │
+  │ · DOM manipulation   │         │ · Tile management     │
+  │ · Style calculation  │         │ · Scroll processing   │
+  │ · Layout calculation │         │ · transform animation │
+  │ · Paint Records gen. │         │ · opacity animation   │
+  │ · Event handlers     │         │ · Draw Quads gen.     │
   └──────────┬───────────┘         └──────────┬───────────┘
              │                                 │
-             │    コミット（同期ポイント）       │
+             │    Commit (synchronization pt.)  │
              │ ────────────────────────────▶   │
              │                                 │
              │                                 ▼
              │                     ┌──────────────────────┐
              │                     │ Raster Threads       │
-             │                     │ （タイルのピクセル化）│
+             │                     │ (pixel-ize tiles)    │
              │                     └──────────┬───────────┘
              │                                 │
              │                                 ▼
              │                     ┌──────────────────────┐
              │                     │ GPU Process          │
-             │                     │ （テクスチャ合成）   │
-             │                     │ （画面表示）         │
+             │                     │ (texture compositing)│
+             │                     │ (screen display)     │
              │                     └──────────────────────┘
 
 ===========================================================================
 
-  メインスレッドがビジー状態でも:
-  → スクロールは Compositor Thread で処理される（Non-fast scrollable region 外）
-  → transform/opacity アニメーションは Compositor Thread で継続
-  → ユーザーは「カクつき」を感じにくい
+  Even when the main thread is busy:
+  → Scrolling is handled by the Compositor Thread (outside non-fast scrollable regions)
+  → transform/opacity animations continue on the Compositor Thread
+  → Users are less likely to experience "jank"
 ```
 
-### 3.3 Draw Quads と Display Compositor
+### 3.3 Draw Quads and the Display Compositor
 
-Compositor Thread がレイヤーの合成を行う際に生成するのが Draw Quads である。Draw Quads は、GPU に対する最終的な描画命令であり、各タイルのテクスチャをどの位置にどのサイズで描画するかを指定する。
+When the Compositor Thread composites layers, it generates Draw Quads. Draw Quads are the final drawing commands to the GPU, specifying where and at what size each tile's texture should be rendered.
 
 ```javascript
-// Draw Quad の概念的な構造（教育目的の疑似コード）
+// Conceptual structure of a Draw Quad (educational pseudo-code)
 const drawQuad = {
   type: "TileDrawQuad",
-  // タイルのテクスチャ（GPU メモリ上のビットマップ）
+  // Tile texture (bitmap in GPU memory)
   texture: gpuTextureHandle,
-  // 描画先の矩形（画面座標系）
+  // Destination rectangle (in screen coordinates)
   destRect: { x: 0, y: 0, width: 256, height: 256 },
-  // テクスチャ内の参照範囲（UV 座標）
+  // Reference area within the texture (UV coordinates)
   texCoordRect: { u0: 0.0, v0: 0.0, u1: 1.0, v1: 1.0 },
-  // 変換行列（transform の適用）
+  // Transform matrix (applying transform)
   transformMatrix: [
     1, 0, 0, 0,
     0, 1, 0, 0,
     0, 0, 1, 0,
     100, 50, 0, 1  // translateX(100px) translateY(50px)
   ],
-  // 透明度
+  // Transparency
   opacity: 0.9,
-  // ブレンドモード
+  // Blend mode
   blendMode: "normal"
 };
 ```
 
 ---
 
-## 4. レイヤー昇格の詳細
+## 4. Layer Promotion Details
 
-### 4.1 明示的レイヤー昇格
+### 4.1 Explicit Layer Promotion
 
-特定の CSS プロパティを適用すると、要素は独立した合成レイヤーに昇格する。これを明示的レイヤー昇格と呼ぶ。
+Applying specific CSS properties promotes an element to an independent composited layer. This is called explicit layer promotion.
 
 ```css
-/* 方法 1: will-change プロパティ（推奨） */
+/* Method 1: will-change property (recommended) */
 .promoted-element {
   will-change: transform;
 }
 
-/* 方法 2: 3D transform（レガシーハック） */
+/* Method 2: 3D transform (legacy hack) */
 .promoted-element-legacy {
   transform: translateZ(0);
-  /* または */
+  /* or */
   transform: translate3d(0, 0, 0);
 }
 
-/* 方法 3: CSS アニメーション中の要素（自動） */
+/* Method 3: Elements being CSS animated (automatic) */
 .animated-element {
   animation: slideIn 0.3s ease-out;
 }
@@ -399,7 +400,7 @@ const drawQuad = {
   to   { transform: translateX(0); }
 }
 
-/* 方法 4: position: fixed（多くのブラウザで自動昇格） */
+/* Method 4: position: fixed (auto-promoted in most browsers) */
 .fixed-header {
   position: fixed;
   top: 0;
@@ -407,151 +408,151 @@ const drawQuad = {
   right: 0;
 }
 
-/* 方法 5: 特定の HTML 要素（自動昇格） */
-/* <video>, <canvas>, <iframe> は自動的にレイヤー昇格される */
+/* Method 5: Specific HTML elements (auto-promoted) */
+/* <video>, <canvas>, <iframe> are automatically promoted to layers */
 ```
 
-### 4.2 暗黙的レイヤー昇格（Implicit Compositing）
+### 4.2 Implicit Layer Promotion (Implicit Compositing)
 
-暗黙的レイヤー昇格は、意図せずに発生するレイヤー昇格であり、パフォーマンス問題の原因となることが多い。
+Implicit layer promotion is an unintentional layer promotion that often causes performance issues.
 
 ```
-暗黙的レイヤー昇格のメカニズム
+Mechanism of Implicit Layer Promotion
 ===========================================================================
 
-  ケース: 要素 A が昇格済み、要素 B が A の上に重なる場合
+  Case: Element A is already promoted, Element B overlaps A
 
-  通常の描画順序:
+  Normal drawing order:
   ┌──────────────────────────┐
   │ Layer 0 (root)           │
   │  ┌────────────────────┐  │
-  │  │ Element A (z:1)    │  │ ← 昇格済み（独自レイヤー）
+  │  │ Element A (z:1)    │  │ ← Already promoted (own layer)
   │  │ transform: ...     │  │
   │  └────────────────────┘  │
   │       ┌──────────────┐   │
-  │       │ Element B    │   │ ← A と重なっている
+  │       │ Element B    │   │ ← Overlapping A
   │       │ (z:2)        │   │
   │       └──────────────┘   │
   └──────────────────────────┘
 
-  問題:
-  → A は独自レイヤーで GPU テクスチャとして保持
-  → B は A の上に描画される必要がある
-  → B がルートレイヤーに残ると、A のテクスチャの上に正しく描画できない
-  → よって B も独自レイヤーに昇格が必要（暗黙的昇格）
+  Problem:
+  → A is held as a GPU texture in its own layer
+  → B needs to be drawn on top of A
+  → If B stays in the root layer, it cannot be drawn correctly on top of A's texture
+  → Therefore B also needs to be promoted to its own layer (implicit promotion)
 
-  結果:
-  Layer 0 (root)  ← ルートレイヤー
-  Layer 1 (A)     ← 明示的に昇格
-  Layer 2 (B)     ← 暗黙的に昇格（メモリ消費が増加）
+  Result:
+  Layer 0 (root)  ← Root layer
+  Layer 1 (A)     ← Explicitly promoted
+  Layer 2 (B)     ← Implicitly promoted (increases memory consumption)
 
 ===========================================================================
 ```
 
-### 4.3 レイヤー爆発（Layer Explosion）
+### 4.3 Layer Explosion
 
-暗黙的レイヤー昇格が連鎖すると、レイヤー爆発が発生する。これは大量のレイヤーが生成され、GPU メモリが枯渇する深刻な問題である。
+When implicit layer promotions cascade, a layer explosion occurs. This is a serious problem where a large number of layers are created and GPU memory is exhausted.
 
 ```html
-<!-- アンチパターン: レイヤー爆発を引き起こすコード -->
+<!-- Anti-pattern: code that causes a layer explosion -->
 <style>
   .base {
     position: relative;
     z-index: 1;
-    /* この要素が昇格すると、上に重なる全要素が暗黙的に昇格 */
+    /* When this element is promoted, all elements overlapping it are implicitly promoted */
     will-change: transform;
   }
 
   .item {
     position: relative;
-    z-index: 2; /* base より上 → 暗黙的昇格の対象 */
+    z-index: 2; /* Higher than base → subject to implicit promotion */
     width: 200px;
     height: 100px;
     margin: 4px;
   }
 </style>
 
-<!-- 1000 個の .item が全て暗黙的に昇格 -->
-<!-- 各 200x100x4 = 80KB → 合計約 80MB の GPU メモリ消費 -->
+<!-- All 1000 .items are implicitly promoted -->
+<!-- Each 200x100x4 = 80KB → total ~80MB GPU memory consumption -->
 <div class="base">Base Element</div>
 <div class="item">Item 1</div>
 <div class="item">Item 2</div>
-<!-- ... 998 個続く ... -->
+<!-- ... 998 more ... -->
 <div class="item">Item 1000</div>
 ```
 
 ```css
-/* 修正: z-index を適切に設定してレイヤー爆発を防ぐ */
+/* Fix: set z-index appropriately to prevent layer explosion */
 .base {
   position: relative;
-  z-index: 2;         /* item より上に設定 */
+  z-index: 2;         /* Set higher than item */
   will-change: transform;
 }
 
 .item {
   position: relative;
-  z-index: 1;         /* base より下 → 暗黙的昇格は発生しない */
+  z-index: 1;         /* Lower than base → no implicit promotion */
   width: 200px;
   height: 100px;
   margin: 4px;
 }
 ```
 
-### 4.4 レイヤー昇格のコスト
+### 4.4 Cost of Layer Promotion
 
-レイヤー昇格にはメモリコストが伴う。各レイヤーは GPU メモリ上にテクスチャとして保持されるため、レイヤーの数とサイズが増えるほど消費メモリが増加する。
+Layer promotion comes with a memory cost. Because each layer is held as a texture in GPU memory, the more layers there are and the larger they are, the more memory is consumed.
 
 ```
-レイヤーのメモリ消費計算
+Layer Memory Consumption Calculation
 ===========================================================================
 
-  基本計算式:
-  メモリ = width(px) x height(px) x 4(bytes/pixel, RGBA) x devicePixelRatio^2
+  Basic formula:
+  Memory = width(px) x height(px) x 4(bytes/pixel, RGBA) x devicePixelRatio^2
 
-  例 1: 標準的なカード要素（通常ディスプレイ）
-  幅: 300px, 高さ: 200px, DPR: 1
-  メモリ = 300 x 200 x 4 x 1 = 240,000 bytes ≈ 234 KB
+  Example 1: Standard card element (regular display)
+  Width: 300px, Height: 200px, DPR: 1
+  Memory = 300 x 200 x 4 x 1 = 240,000 bytes ≈ 234 KB
 
-  例 2: 同じカード要素（Retina ディスプレイ, DPR: 2）
-  メモリ = 300 x 200 x 4 x 4 = 960,000 bytes ≈ 937 KB
-  → DPR 2 のデバイスでは 4 倍のメモリ
+  Example 2: Same card element (Retina display, DPR: 2)
+  Memory = 300 x 200 x 4 x 4 = 960,000 bytes ≈ 937 KB
+  → 4x memory on DPR 2 devices
 
-  例 3: フルスクリーンレイヤー（1920x1080, DPR: 1）
-  メモリ = 1920 x 1080 x 4 = 8,294,400 bytes ≈ 7.9 MB
+  Example 3: Full-screen layer (1920x1080, DPR: 1)
+  Memory = 1920 x 1080 x 4 = 8,294,400 bytes ≈ 7.9 MB
 
-  例 4: フルスクリーンレイヤー（1920x1080, DPR: 2）
-  メモリ = 3840 x 2160 x 4 = 33,177,600 bytes ≈ 31.6 MB
+  Example 4: Full-screen layer (1920x1080, DPR: 2)
+  Memory = 3840 x 2160 x 4 = 33,177,600 bytes ≈ 31.6 MB
 
-  モバイルデバイスの GPU メモリ上限（参考値）:
-  ローエンド: 128〜256 MB
-  ミドルレンジ: 512 MB〜1 GB
-  ハイエンド: 2〜4 GB
+  GPU memory limits on mobile devices (reference values):
+  Low-end:    128~256 MB
+  Mid-range:  512 MB~1 GB
+  High-end:   2~4 GB
 
 ===========================================================================
 ```
 
 ---
 
-## 5. GPU アクセラレーションの仕組み
+## 5. How GPU Acceleration Works
 
-### 5.1 GPU が得意な処理
+### 5.1 What the GPU Excels At
 
-GPU（Graphics Processing Unit）は、大量の並列演算に特化したプロセッサである。以下の処理は GPU で高速に実行できる。
+A GPU (Graphics Processing Unit) is a processor specialized for large-scale parallel computation. The following processes can be executed quickly on a GPU.
 
-- **テクスチャの合成**: 複数のビットマップを重ね合わせる処理
-- **行列変換**: transform（移動、回転、拡大縮小、傾斜）の適用
-- **透明度処理**: opacity の変更と alpha blending
-- **フィルター処理**: blur、brightness、contrast などの CSS フィルター
-- **3D 変換**: perspective、rotateX/Y/Z などの 3D 変換
+- **Texture Compositing**: Overlaying multiple bitmaps
+- **Matrix Transformation**: Applying transforms (move, rotate, scale, skew)
+- **Transparency Processing**: Changing opacity and alpha blending
+- **Filter Processing**: CSS filters such as blur, brightness, and contrast
+- **3D Transformations**: 3D transforms such as perspective, rotateX/Y/Z
 
-### 5.2 Compositor-Only プロパティ
+### 5.2 Compositor-Only Properties
 
-以下のプロパティは、メインスレッドに戻ることなく Compositor Thread と GPU のみで処理できる。これを「Compositor-Only プロパティ」と呼ぶ。
+The following properties can be handled entirely by the Compositor Thread and GPU without going back to the main thread. These are called "Compositor-Only properties."
 
 ```css
-/* Compositor-Only プロパティ（高パフォーマンスアニメーション向け） */
+/* Compositor-Only properties (for high-performance animations) */
 
-/* 1. transform - あらゆる変換 */
+/* 1. transform - all transformations */
 .move    { transform: translateX(100px); }
 .rotate  { transform: rotate(45deg); }
 .scale   { transform: scale(1.5); }
@@ -559,25 +560,25 @@ GPU（Graphics Processing Unit）は、大量の並列演算に特化したプ�
 .matrix  { transform: matrix(1, 0, 0, 1, 100, 50); }
 .combine { transform: translate(100px, 50px) rotate(45deg) scale(1.2); }
 
-/* 2. opacity - 透明度 */
+/* 2. opacity - transparency */
 .fade    { opacity: 0.5; }
 
-/* 3. filter - 一部のフィルター（GPU 対応ブラウザ） */
+/* 3. filter - some filters (GPU-capable browsers) */
 .blur    { filter: blur(4px); }
 
-/* 4. backdrop-filter - 背景フィルター（GPU 対応ブラウザ） */
+/* 4. backdrop-filter - background filter (GPU-capable browsers) */
 .glass   { backdrop-filter: blur(10px); }
 ```
 
 ```javascript
-// パフォーマンスの違いを示す比較コード
+// Comparison code showing performance differences
 
-// --- 悪い例: left/top アニメーション（Layout + Paint + Composite） ---
+// --- Bad example: left/top animation (Layout + Paint + Composite) ---
 function animateBad(element) {
   let position = 0;
   function frame() {
     position += 2;
-    element.style.left = position + "px"; // Layout をトリガー
+    element.style.left = position + "px"; // Triggers Layout
     if (position < 300) {
       requestAnimationFrame(frame);
     }
@@ -585,12 +586,12 @@ function animateBad(element) {
   requestAnimationFrame(frame);
 }
 
-// --- 良い例: transform アニメーション（Composite のみ） ---
+// --- Good example: transform animation (Composite only) ---
 function animateGood(element) {
   let position = 0;
   function frame() {
     position += 2;
-    element.style.transform = `translateX(${position}px)`; // Composite のみ
+    element.style.transform = `translateX(${position}px)`; // Composite only
     if (position < 300) {
       requestAnimationFrame(frame);
     }
@@ -598,7 +599,7 @@ function animateGood(element) {
   requestAnimationFrame(frame);
 }
 
-// --- 最良の例: CSS Animation / Web Animations API ---
+// --- Best example: CSS Animation / Web Animations API ---
 function animateBest(element) {
   element.animate(
     [
@@ -611,133 +612,134 @@ function animateBest(element) {
       fill: "forwards"
     }
   );
-  // Web Animations API はブラウザが最適化しやすい
-  // Compositor Thread で完全にオフメインスレッド実行される
+  // Web Animations API is easier for the browser to optimize
+  // Runs completely off the main thread on the Compositor Thread
 }
 ```
 
-### 5.3 GPU アクセラレーションの有効化確認
+### 5.3 Verifying GPU Acceleration is Active
 
 ```javascript
-// Chrome DevTools Console で確認する方法
+// How to check using the Chrome DevTools Console
 
-// 1. GPU 情報の確認
-// chrome://gpu にアクセスして以下を確認:
+// 1. Check GPU info
+// Visit chrome://gpu and confirm:
 // - Canvas: Hardware accelerated
 // - Compositing: Hardware accelerated
 // - Rasterization: Hardware accelerated
 // - Video Decode: Hardware accelerated
 
-// 2. 要素のレイヤー情報を確認（DevTools Layers パネル）
+// 2. Check element layer information (DevTools Layers panel)
 // DevTools > More tools > Layers
-// → 各レイヤーの昇格理由、メモリサイズ、描画回数を確認
+// → Check promotion reason, memory size, and draw count for each layer
 
-// 3. Performance パネルでフレーム分析
+// 3. Frame analysis with Performance panel
 // DevTools > Performance > Record
-// → 各フレームの Composite 時間を確認
-// → 16.67ms（60fps）以内に収まっているか確認
+// → Check Composite time for each frame
+// → Confirm it stays within 16.67ms (60fps)
 ```
 
 ---
 
-## 6. will-change プロパティの深掘り
+## 6. Deep Dive into the will-change Property
 
-### 6.1 will-change の目的と仕組み
+### 6.1 Purpose and Mechanism of will-change
 
-`will-change` は、ブラウザに対して「この要素のこのプロパティが近い将来変更される」ことを事前に通知するためのプロパティである。ブラウザはこのヒントを受け取ると、事前に最適化準備（レイヤー昇格、GPU テクスチャの確保など）を行う。
+`will-change` is a property to notify the browser in advance that "this property on this element will change in the near future." When the browser receives this hint, it prepares optimizations in advance (layer promotion, securing GPU textures, etc.).
 
 ```css
-/* will-change の基本構文 */
+/* Basic syntax of will-change */
 .element {
-  will-change: auto;          /* デフォルト値。ヒントなし */
-  will-change: transform;     /* transform の変更を予告 */
-  will-change: opacity;       /* opacity の変更を予告 */
-  will-change: transform, opacity; /* 複数プロパティの予告 */
-  will-change: scroll-position;    /* スクロール位置の変更を予告 */
-  will-change: contents;      /* 要素コンテンツの変更を予告 */
+  will-change: auto;          /* Default value. No hint. */
+  will-change: transform;     /* Announces transform changes */
+  will-change: opacity;       /* Announces opacity changes */
+  will-change: transform, opacity; /* Announces multiple properties */
+  will-change: scroll-position;    /* Announces scroll position changes */
+  will-change: contents;      /* Announces changes to element content */
 }
 ```
 
-### 6.2 will-change が引き起こす内部動作
+### 6.2 Internal Operations Triggered by will-change
 
-`will-change: transform` を設定すると、ブラウザ内部で以下の処理が即座に実行される。
+When `will-change: transform` is set, the following processes are immediately executed inside the browser.
 
 ```
-will-change 設定時のブラウザ内部動作
+Browser Internal Behavior When will-change Is Set
 ===========================================================================
 
-  will-change: transform を設定した瞬間:
+  The moment will-change: transform is set:
 
-  1. 新しい Stacking Context（スタッキングコンテキスト）の生成
-     → z-index: auto でも新しいスタッキングコンテキストが作られる
-     → 子要素の z-index の基準点が変わる
+  1. A new Stacking Context is created
+     → A new stacking context is created even with z-index: auto
+     → The reference point for child element z-index values changes
 
-  2. 新しい Containing Block の生成（fixed 配置の子要素に対して）
-     → position: fixed の子要素が、viewport ではなく
-       will-change 要素を基準にする場合がある
+  2. A new Containing Block is created (for fixed-position children)
+     → Children with position: fixed may use the will-change element
+       as their reference instead of the viewport
 
-  3. 合成レイヤーの生成
-     → GPU テクスチャが確保される
-     → VRAM が消費される
+  3. A composited layer is created
+     → GPU texture is reserved
+     → VRAM is consumed
 
-  4. 新しい Offset Parent の生成
-     → offsetParent が変わる可能性がある
+  4. A new Offset Parent is created
+     → offsetParent may change
 
-  注意すべき副作用:
+  Notable side effects:
   ┌────────────────────────────────────────────────────┐
-  │ will-change: transform を親に設定すると...          │
+  │ Setting will-change: transform on a parent...      │
   │                                                    │
   │ .parent { will-change: transform; }                │
   │                                                    │
   │   .child {                                         │
   │     position: fixed;                               │
   │     top: 0;                                        │
-  │     /* viewport 基準ではなく .parent 基準になる！ */│
+  │     /* Positioned relative to .parent, not         │
+  │        the viewport! */                            │
   │   }                                                │
   └────────────────────────────────────────────────────┘
 
 ===========================================================================
 ```
 
-### 6.3 will-change のベストプラクティス
+### 6.3 Best Practices for will-change
 
 ```javascript
-// パターン 1: イベント駆動での動的設定・解除（推奨）
-// ホバー時のアニメーション準備
+// Pattern 1: Dynamically set and unset based on events (recommended)
+// Prepare animation on hover
 const card = document.querySelector(".card");
 
 card.addEventListener("mouseenter", () => {
-  // マウスが乗った瞬間に昇格を準備
+  // Prepare for promotion when the mouse enters
   card.style.willChange = "transform, box-shadow";
 });
 
 card.addEventListener("mouseleave", () => {
-  // マウスが離れた時点ではまだ解除しない
-  // （トランジション完了後に解除）
+  // Do not unset yet when the mouse leaves
+  // (Unset after transition completes)
 });
 
 card.addEventListener("transitionend", () => {
-  // トランジション完了後に解除
+  // Unset after the transition completes
   card.style.willChange = "auto";
 });
 ```
 
 ```javascript
-// パターン 2: スクロール連動アニメーションの場合
+// Pattern 2: For scroll-linked animations
 const observer = new IntersectionObserver(
   (entries) => {
     entries.forEach((entry) => {
       if (entry.isIntersecting) {
-        // ビューポートに入る直前に昇格を準備
+        // Prepare for promotion just before entering the viewport
         entry.target.style.willChange = "transform, opacity";
       } else {
-        // ビューポートから出た後に解除
+        // Unset after leaving the viewport
         entry.target.style.willChange = "auto";
       }
     });
   },
   {
-    // ビューポートの上下 200px 手前から検知
+    // Detect 200px before the viewport's top and bottom edges
     rootMargin: "200px 0px"
   }
 );
@@ -748,8 +750,8 @@ document.querySelectorAll(".animate-on-scroll").forEach((el) => {
 ```
 
 ```css
-/* パターン 3: 常時アニメーションする要素（CSS のみ） */
-/* ローディングスピナーなど、常にアニメーションしている要素に限定 */
+/* Pattern 3: Elements that animate continuously (CSS only) */
+/* Limit to elements that are always animating, such as loading spinners */
 .spinner {
   will-change: transform;
   animation: spin 1s linear infinite;
@@ -759,50 +761,50 @@ document.querySelectorAll(".animate-on-scroll").forEach((el) => {
   to { transform: rotate(360deg); }
 }
 
-/* パターン 4: ページ内ナビゲーション（親要素でのヒント） */
-/* 子要素がホバー時にアニメーションする場合、親のホバーで準備 */
+/* Pattern 4: In-page navigation (hint on parent element) */
+/* When child elements animate on hover, prepare on parent hover */
 .card-grid:hover .card {
   will-change: transform;
 }
 ```
 
-### 6.4 will-change アンチパターン集
+### 6.4 will-change Anti-Patterns
 
 ```css
-/* ===== アンチパターン 1: 全要素への適用 ===== */
-/* GPU メモリを大量消費し、逆にパフォーマンス低下を引き起こす */
+/* ===== Anti-pattern 1: Applying to all elements ===== */
+/* Consumes large amounts of GPU memory and actually degrades performance */
 * {
-  will-change: transform;  /* 絶対にやってはいけない */
+  will-change: transform;  /* Never do this */
 }
 
-/* 何が起こるか:
-   → 全要素が合成レイヤーに昇格
-   → GPU メモリが枯渇（特にモバイルで致命的）
-   → レイヤー合成のオーバーヘッドが増大
-   → 結果的にパフォーマンスが悪化
+/* What happens:
+   → All elements are promoted to composited layers
+   → GPU memory is exhausted (fatal, especially on mobile)
+   → Overhead of layer compositing increases
+   → Performance actually degrades
 */
 
-/* ===== アンチパターン 2: 不要な常時設定 ===== */
+/* ===== Anti-pattern 2: Unnecessary persistent setting ===== */
 .button {
   will-change: transform, opacity, color, background-color, box-shadow;
-  /* 問題: 使わないかもしれないプロパティまで列挙
-     → 無駄なリソース消費 */
+  /* Problem: lists properties that may never be used
+     → Wastes resources */
 }
 
-/* 修正 */
+/* Fix */
 .button {
   transition: transform 0.2s, opacity 0.2s;
-  /* will-change は JavaScript で動的に設定・解除 */
+  /* Set and unset will-change dynamically with JavaScript */
 }
 
-/* ===== アンチパターン 3: CSS 内での安易な使用 ===== */
+/* ===== Anti-pattern 3: Casual use in CSS ===== */
 .modal {
   will-change: transform;
-  /* モーダルは開閉時のみアニメーション
-     → 常時設定は無駄なリソース消費 */
+  /* Modal only animates when opening/closing
+     → Always-on setting wastes resources */
 }
 
-/* 修正: モーダルが開く直前に動的設定 */
+/* Fix: Set dynamically just before the modal opens */
 .modal.is-opening {
   will-change: transform, opacity;
 }
@@ -810,57 +812,57 @@ document.querySelectorAll(".animate-on-scroll").forEach((el) => {
 
 ---
 
-## 7. CSS contain プロパティによる最適化
+## 7. Optimization with the CSS contain Property
 
-### 7.1 contain の概要
+### 7.1 Overview of contain
 
-CSS `contain` プロパティは、ブラウザに対して要素のレンダリングの独立性をヒントとして伝える。これにより、要素内部の変更が外部に影響しないことをブラウザが保証でき、最適化の機会が増える。
+The CSS `contain` property gives the browser a hint about the rendering independence of an element. This allows the browser to guarantee that changes inside the element do not affect the outside, creating more optimization opportunities.
 
 ```css
-/* contain の値と効果 */
+/* contain values and their effects */
 
-/* layout: レイアウト計算を要素内に封じ込め */
+/* layout: Contain layout calculations within the element */
 .widget {
   contain: layout;
-  /* 効果:
-     → この要素内部のレイアウト変更が親や兄弟要素に伝播しない
-     → フロートやクリアの影響が外部に漏れない
-     → ブラウザは要素外のレイアウト再計算をスキップできる */
+  /* Effects:
+     → Layout changes inside this element do not propagate to parent or sibling elements
+     → Float and clear effects do not leak to the outside
+     → The browser can skip layout recalculations outside the element */
 }
 
-/* paint: 描画を要素の境界内に封じ込め */
+/* paint: Contain drawing within the element's boundary */
 .sidebar {
   contain: paint;
-  /* 効果:
-     → この要素の子孫は要素境界の外側に描画されない
-     → overflow: hidden と似た効果だが、ブラウザ最適化のヒントとして機能
-     → 要素がビューポート外の場合、子孫の Paint をスキップ可能 */
+  /* Effects:
+     → Descendants of this element are not drawn outside the element boundary
+     → Similar effect to overflow: hidden, but functions as a browser optimization hint
+     → If the element is outside the viewport, Paint of descendants can be skipped */
 }
 
-/* size: 要素のサイズを子コンテンツに依存させない */
+/* size: Prevent the element's size from depending on child content */
 .fixed-size-container {
   contain: size;
   width: 300px;
   height: 200px;
-  /* 効果:
-     → 子要素の変更がこの要素のサイズに影響しない
-     → 注意: 明示的なサイズ指定が必須 */
+  /* Effects:
+     → Changes in child elements do not affect this element's size
+     → Note: An explicit size must be specified */
 }
 
-/* style: カウンターやquotesのスコープを制限 */
+/* style: Limit the scope of counters and quotes */
 .isolated {
   contain: style;
-  /* 効果:
-     → CSS カウンターの値が外部に漏れない
-     → quotes の状態が外部に影響しない */
+  /* Effects:
+     → CSS counter values do not leak to the outside
+     → The state of quotes does not affect the outside */
 }
 
-/* content: layout + paint の短縮形 */
+/* content: Shorthand for layout + paint */
 .card {
   contain: content;
 }
 
-/* strict: size + layout + paint の短縮形（最も強力） */
+/* strict: Shorthand for size + layout + paint (most powerful) */
 .tile {
   contain: strict;
   width: 200px;
@@ -868,10 +870,10 @@ CSS `contain` プロパティは、ブラウザに対して要素のレンダリ
 }
 ```
 
-### 7.2 contain の使いどころ
+### 7.2 When to Use contain
 
 ```html
-<!-- 実用例: カード型レイアウトでの contain 活用 -->
+<!-- Practical example: Using contain in a card layout -->
 <style>
   .card-grid {
     display: grid;
@@ -882,8 +884,8 @@ CSS `contain` プロパティは、ブラウザに対して要素のレンダリ
 
   .card {
     contain: content;
-    /* カード内部の変更が他のカードに影響しないことを保証
-       → カード内のDOM変更時に、他のカードの再レイアウトをスキップ */
+    /* Guarantees that changes inside the card do not affect other cards
+       → Skips re-layout of other cards when DOM changes inside a card */
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     overflow: hidden;
@@ -920,116 +922,116 @@ CSS `contain` プロパティは、ブラウザに対して要素のレンダリ
       <p class="card__description">Description text...</p>
     </div>
   </article>
-  <!-- 数十〜数百枚のカード -->
+  <!-- Dozens to hundreds of cards -->
 </div>
 ```
 
-### 7.3 contain と will-change の組み合わせ
+### 7.3 Combining contain and will-change
 
 ```css
-/* contain と will-change を組み合わせた最適化 */
+/* Optimization combining contain and will-change */
 .animated-widget {
-  contain: layout paint;     /* レイアウト・描画の封じ込め */
-  /* will-change は JavaScript で動的設定 */
+  contain: layout paint;     /* Contain layout and paint */
+  /* Set will-change dynamically with JavaScript */
 }
 
-/* Intersection Observer と組み合わせた最適化パターン */
+/* Optimization pattern combined with Intersection Observer */
 .lazy-section {
   contain: content;
   content-visibility: auto;
-  contain-intrinsic-size: 0 500px; /* 推定サイズを指定 */
+  contain-intrinsic-size: 0 500px; /* Specify estimated size */
 }
 ```
 
 ---
 
-## 8. content-visibility による遅延レンダリング
+## 8. Deferred Rendering with content-visibility
 
-### 8.1 content-visibility の概要
+### 8.1 Overview of content-visibility
 
-`content-visibility` は、ビューポート外の要素のレンダリングを遅延させることで、初期ページロードのパフォーマンスを大幅に向上させるプロパティである。
+`content-visibility` is a property that can dramatically improve initial page load performance by deferring rendering of elements outside the viewport.
 
 ```css
-/* content-visibility の3つの値 */
+/* The 3 values of content-visibility */
 
-/* visible: デフォルト値。通常どおりレンダリング */
+/* visible: Default value. Renders normally. */
 .normal {
   content-visibility: visible;
 }
 
-/* hidden: 要素のコンテンツを完全に非表示（display: none に近い）*/
-/* ただし、要素自体のボックスは維持される */
+/* hidden: Completely hides the element's content (similar to display: none)*/
+/* However, the element's own box is maintained */
 .hidden-content {
   content-visibility: hidden;
-  /* 用途: タブの非アクティブパネルなど
-     → display: none と異なり、再表示時のレンダリングコストが低い
-     → レンダリング状態がキャッシュされるため */
+  /* Use case: inactive tab panels, etc.
+     → Unlike display: none, re-display rendering cost is lower
+     → Because the rendering state is cached */
 }
 
-/* auto: ビューポート外の場合にレンダリングをスキップ */
+/* auto: Skips rendering when outside the viewport */
 .lazy-render {
   content-visibility: auto;
   contain-intrinsic-size: auto 300px;
-  /* ビューポート外の要素:
-     → Style, Layout, Paint をすべてスキップ
-     → スクロールで近づくと自動でレンダリング開始
-     → contain-intrinsic-size で推定サイズを指定し、スクロールバーの安定性を確保 */
+  /* For elements outside the viewport:
+     → Skips all of Style, Layout, and Paint
+     → Rendering starts automatically as the user scrolls near
+     → Specify estimated size with contain-intrinsic-size for scrollbar stability */
 }
 ```
 
-### 8.2 content-visibility: auto の効果測定
+### 8.2 Measuring the Effect of content-visibility: auto
 
 ```
-content-visibility: auto 適用前後の比較（長いページの場合）
+Before/After Comparison of content-visibility: auto (for long pages)
 ===========================================================================
 
-  ページ構成: 50 セクション、各セクション内に複数要素
+  Page structure: 50 sections, multiple elements per section
 
-  ┌─ ビューポート ──────────────────┐
-  │  Section 1  ← 通常レンダリング  │
-  │  Section 2  ← 通常レンダリング  │
-  │  Section 3  ← 通常レンダリング  │
+  ┌─ Viewport ──────────────────────┐
+  │  Section 1  ← Normal rendering  │
+  │  Section 2  ← Normal rendering  │
+  │  Section 3  ← Normal rendering  │
   └────────────────────────────────┘
-     Section 4  ← content-visibility: auto でスキップ
-     Section 5  ← content-visibility: auto でスキップ
+     Section 4  ← Skipped with content-visibility: auto
+     Section 5  ← Skipped with content-visibility: auto
      ...
-     Section 50 ← content-visibility: auto でスキップ
+     Section 50 ← Skipped with content-visibility: auto
 
-  パフォーマンス効果（参考値）:
-  ┌───────────────────┬───────────┬──────────────┐
-  │ 指標              │ 適用前    │ 適用後       │
-  ├───────────────────┼───────────┼──────────────┤
-  │ 初期レンダリング  │ 800ms     │ 120ms        │
-  │ DOM ノード処理数  │ 5000      │ 300          │
-  │ Layout 計算       │ 200ms     │ 30ms         │
-  │ Paint 処理        │ 150ms     │ 25ms         │
-  │ メモリ消費        │ 50MB      │ 15MB         │
-  └───────────────────┴───────────┴──────────────┘
+  Performance effects (reference values):
+  ┌────────────────────┬───────────┬──────────────┐
+  │ Metric             │ Before    │ After        │
+  ├────────────────────┼───────────┼──────────────┤
+  │ Initial rendering  │ 800ms     │ 120ms        │
+  │ DOM nodes processed│ 5000      │ 300          │
+  │ Layout calculation │ 200ms     │ 30ms         │
+  │ Paint processing   │ 150ms     │ 25ms         │
+  │ Memory consumption │ 50MB      │ 15MB         │
+  └────────────────────┴───────────┴──────────────┘
 
-  ※ 数値はページ構成やデバイスにより大きく異なる
+  ※ Values vary greatly depending on page structure and device.
 
 ===========================================================================
 ```
 
-### 8.3 content-visibility の実装例
+### 8.3 Implementation Example of content-visibility
 
 ```html
-<!-- 実装例: 長いドキュメントページ -->
+<!-- Implementation example: Long document page -->
 <style>
   .doc-section {
     content-visibility: auto;
     contain-intrinsic-size: auto 500px;
-    /* auto キーワードにより、一度レンダリングされた後は
-       実際のサイズをブラウザが記憶する */
+    /* With the auto keyword, the browser remembers the actual size
+       after it has been rendered once */
     padding: 2rem;
     border-bottom: 1px solid #e5e7eb;
   }
 
-  /* content-visibility: hidden を活用したタブ切り替え */
+  /* Tab switching using content-visibility: hidden */
   .tab-panel {
     content-visibility: hidden;
-    /* レンダリング状態がキャッシュされるため
-       タブ切り替え時の再レンダリングが高速 */
+    /* Since the rendering state is cached,
+       re-rendering on tab switch is fast */
   }
 
   .tab-panel.is-active {
@@ -1048,13 +1050,13 @@ content-visibility: auto 適用前後の比較（長いページの場合）
     <p>This section may be below the fold...</p>
   </section>
 
-  <!-- 多数のセクションが続く -->
+  <!-- Many more sections follow -->
 </article>
 ```
 
 ```javascript
-// content-visibility と IntersectionObserver の連携
-// より細かい制御が必要な場合
+// Linking content-visibility with IntersectionObserver
+// For cases where finer control is needed
 
 class LazyRenderController {
   constructor(selector, options = {}) {
@@ -1074,7 +1076,7 @@ class LazyRenderController {
 
   init() {
     this.elements.forEach((el) => {
-      // 初期状態では content-visibility: auto を使用
+      // Initially use content-visibility: auto
       el.style.contentVisibility = "auto";
       el.style.containIntrinsicSize = "auto 300px";
       this.observer.observe(el);
@@ -1084,9 +1086,9 @@ class LazyRenderController {
   handleIntersection(entries) {
     entries.forEach((entry) => {
       if (entry.isIntersecting && !this.rendered.has(entry.target)) {
-        // 一度表示された要素は通常レンダリングに切り替え
+        // Switch to normal rendering once displayed
         this.rendered.add(entry.target);
-        // 動的コンテンツのロードなどをトリガー
+        // Trigger loading of dynamic content, etc.
         this.loadContent(entry.target);
       }
     });
@@ -1095,7 +1097,7 @@ class LazyRenderController {
   loadContent(element) {
     const lazyContent = element.dataset.lazySrc;
     if (lazyContent) {
-      // 動的にコンテンツをロード
+      // Dynamically load content
       fetch(lazyContent)
         .then((res) => res.text())
         .then((html) => {
@@ -1109,7 +1111,7 @@ class LazyRenderController {
   }
 }
 
-// 使用例
+// Usage example
 const controller = new LazyRenderController(".doc-section", {
   rootMargin: "300px 0px"
 });
@@ -1117,23 +1119,23 @@ const controller = new LazyRenderController(".doc-section", {
 
 ---
 
-## 9. DevTools によるペイントとコンポジティングの分析
+## 9. Analyzing Paint and Compositing with DevTools
 
-### 9.1 Chrome DevTools: Layers パネル
+### 9.1 Chrome DevTools: Layers Panel
 
-Layers パネルは、ページ上の全合成レイヤーを 3D ビューで可視化するツールである。
+The Layers panel is a tool that visualizes all composited layers on the page in a 3D view.
 
 ```
-Chrome DevTools Layers パネルの使い方
+How to Use the Chrome DevTools Layers Panel
 ===========================================================================
 
-  アクセス方法:
-  1. DevTools を開く（F12 または Cmd+Option+I）
-  2. 右上の「⋮」→「More tools」→「Layers」
+  How to access:
+  1. Open DevTools (F12 or Cmd+Option+I)
+  2. Top right "⋮" → "More tools" → "Layers"
 
-  表示される情報:
+  Information displayed:
   ┌─────────────────────────────────────────────────────┐
-  │ Layers パネル                                       │
+  │ Layers Panel                                        │
   │                                                     │
   │ ┌─────────────────────┐ ┌───────────────────────┐  │
   │ │                     │ │ Details               │  │
@@ -1154,105 +1156,105 @@ Chrome DevTools Layers パネルの使い方
   │ └─────────────────────┘                            │
   └─────────────────────────────────────────────────────┘
 
-  確認すべきポイント:
-  ① レイヤー数が妥当か（数十個以下が理想）
-  ② 各レイヤーのメモリ消費が適正か
-  ③ 不要な暗黙的昇格がないか（Compositing Reasons を確認）
-  ④ Paint Count が異常に多くないか
+  Points to check:
+  ① Is the number of layers reasonable (ideally dozens or fewer)?
+  ② Is the memory consumption of each layer appropriate?
+  ③ Are there any unnecessary implicit promotions (check Compositing Reasons)?
+  ④ Is Paint Count abnormally high?
 
 ===========================================================================
 ```
 
-### 9.2 Chrome DevTools: Rendering タブ
+### 9.2 Chrome DevTools: Rendering Tab
 
 ```
-Rendering タブの各機能
+Features in the Rendering Tab
 ===========================================================================
 
-  アクセス方法:
-  DevTools > 「⋮」 > More tools > Rendering
+  How to access:
+  DevTools > "⋮" > More tools > Rendering
 
   ┌─────────────────────────────────────────────────────┐
   │ Rendering                                           │
   │                                                     │
   │ [x] Paint flashing                                  │
-  │     → 再 Paint された領域を緑色でハイライト         │
-  │     → 不要な Repaint を発見するのに有用             │
+  │     → Highlights repainted areas in green           │
+  │     → Useful for finding unnecessary repaints       │
   │                                                     │
   │ [x] Layout shift regions                            │
-  │     → レイアウトシフトが発生した領域を青色で表示    │
-  │     → CLS（Cumulative Layout Shift）の原因特定に有用│
+  │     → Displays layout-shifted areas in blue         │
+  │     → Useful for identifying CLS causes             │
   │                                                     │
   │ [x] Layer borders                                   │
-  │     → レイヤー境界をオレンジ色の線で表示            │
-  │     → タイル境界を水色の線で表示                    │
-  │     → レイヤーの分割状況を直感的に確認              │
+  │     → Displays layer boundaries in orange lines     │
+  │     → Displays tile boundaries in light-blue lines  │
+  │     → Intuitively check layer structure             │
   │                                                     │
   │ [x] Frame Rendering Stats                           │
-  │     → FPS メーター、GPU メモリ使用量を表示          │
-  │     → リアルタイムのフレームレート監視              │
+  │     → Displays FPS meter and GPU memory usage       │
+  │     → Real-time frame rate monitoring               │
   │                                                     │
   │ [ ] Scrolling performance issues                    │
-  │     → スクロールパフォーマンスに影響する領域を表示  │
-  │     → touch / wheel イベントリスナーの影響を可視化  │
+  │     → Displays areas affecting scroll performance   │
+  │     → Visualize impact of touch/wheel event listeners│
   │                                                     │
   │ [ ] Core Web Vitals                                 │
-  │     → LCP, FID, CLS をリアルタイムで表示            │
+  │     → Displays LCP, FID, CLS in real time           │
   └─────────────────────────────────────────────────────┘
 
 ===========================================================================
 ```
 
-### 9.3 Performance パネルでのフレーム分析
+### 9.3 Frame Analysis in the Performance Panel
 
 ```javascript
-// Performance パネルの読み方（概念的な説明）
+// How to read the Performance panel (conceptual explanation)
 
 /*
-  Performance Recording の構造:
+  Structure of a Performance Recording:
 
   ┌──────────────────────────────────────────────────────┐
-  │ Timeline（時間軸）                                   │
-  │ ├── Frames（各フレームのタイミング）                 │
-  │ ├── Main（メインスレッドの活動）                     │
-  │ │   ├── JavaScript 実行                              │
+  │ Timeline                                             │
+  │ ├── Frames (timing of each frame)                    │
+  │ ├── Main (activity on the main thread)               │
+  │ │   ├── JavaScript execution                         │
   │ │   ├── Recalculate Style                           │
   │ │   ├── Layout                                       │
   │ │   ├── Update Layer Tree                           │
   │ │   ├── Paint                                        │
   │ │   └── Composite Layers                            │
-  │ ├── Compositor（合成スレッド）                       │
-  │ ├── Raster（ラスタースレッド）                       │
-  │ └── GPU（GPU プロセス）                              │
+  │ ├── Compositor (compositor thread)                   │
+  │ ├── Raster (raster threads)                          │
+  │ └── GPU (GPU process)                               │
   └──────────────────────────────────────────────────────┘
 
-  フレーム分析の手順:
-  1. 「Record」ボタンを押して操作を記録
-  2. Frames セクションで各フレームの長さを確認
-     → 16.67ms を超えるフレームを探す
-  3. 長いフレームを選択して Main セクションを確認
-     → 何が時間を消費しているか特定
-  4. Paint や Composite Layers の時間を確認
+  Steps for frame analysis:
+  1. Press "Record" and perform actions
+  2. Check the length of each frame in the Frames section
+     → Look for frames exceeding 16.67ms
+  3. Select a long frame and check the Main section
+     → Identify what is consuming time
+  4. Check the time for Paint and Composite Layers
 
-  理想的なフレームの構成:
-  16.67ms（60fps ターゲット）の内訳:
+  Ideal frame composition:
+  16.67ms (60fps target) breakdown:
   ┌────────────────────────────────────────────┐
   │ JS     │ Style  │ Layout │ Paint │ Comp.  │
   │ 4ms    │ 1ms    │ 2ms    │ 1ms   │ 0.5ms  │
   │ ────── │ ────── │ ────── │ ───── │ ────── │
-  │ 残り 8.17ms は余裕（idle time）            │
+  │ Remaining 8.17ms is idle time              │
   └────────────────────────────────────────────┘
 */
 ```
 
 ---
 
-## 10. 合成戦略の設計パターン
+## 10. Design Patterns for Compositing Strategies
 
-### 10.1 スクロール連動アニメーションの最適化
+### 10.1 Optimizing Scroll-Linked Animations
 
 ```javascript
-// スクロール連動パララックスの最適化実装
+// Optimized implementation of scroll-linked parallax
 class OptimizedParallax {
   constructor(container) {
     this.container = container;
@@ -1263,13 +1265,13 @@ class OptimizedParallax {
   }
 
   init() {
-    // 各レイヤーに will-change を事前設定（常にスクロール連動するため）
+    // Pre-set will-change on each layer (since they always scroll-link)
     this.layers.forEach((layer) => {
       layer.style.willChange = "transform";
     });
 
-    // passive: true でスクロールイベントを登録
-    // → Compositor Thread のスクロール処理をブロックしない
+    // Register scroll event with passive: true
+    // → Does not block scroll processing on the Compositor Thread
     window.addEventListener("scroll", () => this.onScroll(), {
       passive: true
     });
@@ -1277,7 +1279,7 @@ class OptimizedParallax {
 
   onScroll() {
     if (!this.ticking) {
-      // requestAnimationFrame で次のフレームにバッチ処理
+      // Batch process in the next frame using requestAnimationFrame
       requestAnimationFrame(() => {
         this.updatePositions();
         this.ticking = false;
@@ -1291,21 +1293,21 @@ class OptimizedParallax {
 
     this.layers.forEach((layer) => {
       const speed = parseFloat(layer.dataset.parallaxSpeed);
-      // transform のみを使用（Compositor-Only）
+      // Use transform only (Compositor-Only)
       const offset = scrollY * speed;
       layer.style.transform = `translate3d(0, ${offset}px, 0)`;
     });
   }
 
   destroy() {
-    // クリーンアップ: will-change を解除
+    // Cleanup: unset will-change
     this.layers.forEach((layer) => {
       layer.style.willChange = "auto";
     });
   }
 }
 
-// 使用例
+// Usage example
 // <div class="parallax-container">
 //   <div data-parallax-speed="0.5">Slow layer</div>
 //   <div data-parallax-speed="0.8">Medium layer</div>
@@ -1316,35 +1318,35 @@ const parallax = new OptimizedParallax(
 );
 ```
 
-### 10.2 リスト仮想化とレイヤー戦略
+### 10.2 List Virtualization and Layer Strategy
 
-大量のリストアイテムを表示する場合、仮想化（ウィンドウイング）と合成レイヤー戦略を組み合わせることが重要である。
+When displaying large numbers of list items, it is important to combine virtualization (windowing) with a composited layer strategy.
 
 ```javascript
-// 仮想スクロールリストの合成レイヤー最適化
+// Composited layer optimization for a virtualized scroll list
 class VirtualizedList {
   constructor(container, options) {
     this.container = container;
     this.itemHeight = options.itemHeight;
     this.totalItems = options.totalItems;
-    this.overscan = options.overscan || 5; // バッファ行数
+    this.overscan = options.overscan || 5; // Number of buffer rows
     this.renderItem = options.renderItem;
 
-    // スクロールコンテナの設定
+    // Configure the scroll container
     this.container.style.overflow = "auto";
     this.container.style.position = "relative";
-    // contain でレイアウトの影響範囲を限定
+    // Limit the layout impact area with contain
     this.container.style.contain = "strict";
 
-    // 全体の高さを持つスペーサー
+    // Spacer that holds the total height
     this.spacer = document.createElement("div");
     this.spacer.style.height = `${this.totalItems * this.itemHeight}px`;
     this.spacer.style.position = "relative";
     this.container.appendChild(this.spacer);
 
-    // 表示中のアイテムを保持するコンテナ
+    // Container holding visible items
     this.viewport = document.createElement("div");
-    // transform で位置をオフセット（Compositor-Only）
+    // Offset position using transform (Compositor-Only)
     this.viewport.style.willChange = "transform";
     this.viewport.style.position = "absolute";
     this.viewport.style.top = "0";
@@ -1377,23 +1379,23 @@ class VirtualizedList {
         + this.overscan
     );
 
-    // transform でオフセット（Layout を回避）
+    // Offset with transform (avoids Layout)
     const offsetY = startIndex * this.itemHeight;
     this.viewport.style.transform = `translateY(${offsetY}px)`;
 
-    // 必要なアイテムのみ DOM に存在させる
+    // Only keep needed items in the DOM
     this.viewport.innerHTML = "";
     for (let i = startIndex; i <= endIndex; i++) {
       const item = this.renderItem(i);
       item.style.height = `${this.itemHeight}px`;
-      // 各アイテムには contain: content を適用
+      // Apply contain: content to each item
       item.style.contain = "content";
       this.viewport.appendChild(item);
     }
   }
 }
 
-// 使用例
+// Usage example
 const list = new VirtualizedList(
   document.querySelector("#list-container"),
   {
@@ -1413,102 +1415,102 @@ const list = new VirtualizedList(
 
 ## FAQ
 
-### Q1. コンポジットレイヤーが多すぎる場合、どのような問題が発生しますか？
+### Q1. What problems arise when there are too many composite layers?
 
-コンポジットレイヤーが過剰に生成されると、以下の深刻なパフォーマンス問題が発生する。
+When composite layers are created in excess, the following serious performance issues occur.
 
-**GPU メモリ枯渇**: 各レイヤーは GPU メモリ上にテクスチャとして保持されるため、レイヤー数が増えるほど VRAM 消費量が増大する。特にモバイルデバイスでは GPU メモリが限られているため、レイヤーが数百個に達すると GPU メモリが枯渇し、ブラウザがテクスチャを破棄して再生成する「スラッシング」が発生する。これにより、スムーズであるべきアニメーションがカクついたり、最悪の場合ページがクラッシュする。
+**GPU Memory Exhaustion**: Because each layer is held as a texture in GPU memory, VRAM consumption increases as the number of layers grows. Mobile devices in particular have limited GPU memory, and when layers reach the hundreds, GPU memory is exhausted and the browser undergoes "thrashing," discarding and recreating textures. This causes animations that should be smooth to jank, and in the worst case, the page crashes.
 
-**合成オーバーヘッドの増大**: Compositor Thread は毎フレーム、全レイヤーの Draw Quads を生成し GPU に送信する必要がある。レイヤー数が多いほどこの処理コストが増加し、Composite 処理自体がボトルネックとなる。特に複雑な z-index 構造を持つページでは、レイヤーの重なり順序の計算コストも増大する。
+**Increased Compositing Overhead**: The Compositor Thread must generate Draw Quads for all layers every frame and send them to the GPU. The more layers there are, the higher this processing cost becomes, and the Composite process itself becomes a bottleneck. Especially on pages with complex z-index structures, the cost of calculating layer stacking order also increases.
 
-**初期レンダリングの遅延**: ページロード時に大量のレイヤーが昇格すると、各レイヤーのテクスチャを GPU メモリに転送する時間が増え、初期表示が遅延する。特に低速なネットワークやデバイスでは、ユーザーが空白画面を見る時間が長くなり UX を著しく損なう。
+**Delay in Initial Rendering**: When a large number of layers are promoted during page load, the time to transfer each layer's texture to GPU memory increases, delaying the initial display. Especially on slow networks or devices, the time users see a blank screen grows longer, severely harming UX.
 
-**対策**: DevTools の Layers パネルで定期的にレイヤー数とメモリ消費量を確認し、不要な `will-change` や暗黙的レイヤー昇格を排除する。理想的なレイヤー数は数十個以内であり、100 個を超える場合は設計を見直すべきである。
+**Countermeasures**: Regularly check the number of layers and memory consumption using the DevTools Layers panel, and eliminate unnecessary `will-change` and implicit layer promotions. The ideal number of layers is within a few dozen, and if it exceeds 100, the design should be reconsidered.
 
-### Q2. will-change プロパティの正しい使い方は？常に設定しておいてはいけないのですか？
+### Q2. What is the correct way to use the will-change property? Should it always be set?
 
-`will-change` は「近い将来変更されるプロパティ」をブラウザに事前通知するためのヒントであり、**常時設定すべきではない**。常時設定するとメモリを無駄に消費し、逆にパフォーマンスが悪化する。
+`will-change` is a hint to notify the browser in advance of "a property that will change in the near future," and **should not be set permanently**. Setting it persistently wastes memory and can actually degrade performance.
 
-**正しい使い方**:
-- **イベント駆動で動的に設定・解除**: ホバー時やフォーカス時など、ユーザーインタラクションの直前に `will-change` を設定し、アニメーション完了後（`transitionend` イベント）に `will-change: auto` で解除する。
-- **Intersection Observer と連携**: ビューポートに要素が近づいた時点で `will-change` を設定し、ビューポートから離れた後に解除する。
-- **常時アニメーションする要素にのみ CSS で設定**: ローディングスピナーや常に動いているアニメーション要素など、設定と解除のタイミングが明確でない場合にのみ CSS で設定する。
+**Correct Usage**:
+- **Dynamically set and unset based on events**: Set `will-change` just before user interactions such as hover or focus, and unset it with `will-change: auto` after animation completes (the `transitionend` event).
+- **Link with Intersection Observer**: Set `will-change` when an element approaches the viewport, and unset it after it leaves.
+- **Only set in CSS for elements that always animate**: Only set in CSS when the timing of setting and unsetting is not clear, such as loading spinners or elements that are always moving.
 
-**避けるべきパターン**:
-- `*` セレクタや全要素への適用
-- 数十個以上の要素に常時設定
-- 使わないプロパティまで列挙（例: `will-change: transform, opacity, color, background-color`）
+**Patterns to Avoid**:
+- Applying to the `*` selector or all elements
+- Always setting on dozens or more elements
+- Listing properties that won't be used (e.g., `will-change: transform, opacity, color, background-color`)
 
-具体的なコード例は「6.3 will-change のベストプラクティス」セクションを参照のこと。
+For specific code examples, refer to the "6.3 Best Practices for will-change" section.
 
-### Q3. ペイントとコンポジットのパフォーマンスを計測するには？
+### Q3. How do you measure paint and composite performance?
 
-ブラウザのパフォーマンスを正確に計測するには、Chrome DevTools の複数のツールを組み合わせて使用する。
+To accurately measure browser performance, use a combination of multiple tools in Chrome DevTools.
 
-**Performance パネルでのプロファイリング**:
-1. DevTools > Performance タブを開く
-2. 「Record」ボタン（⚫︎）を押してアニメーションやスクロールを実行
-3. 「Stop」で記録を停止
-4. Frames セクションで各フレームの長さを確認（16.67ms を超えるフレームを探す）
-5. Main セクションで Paint や Composite Layers の処理時間を確認
-6. Raster セクションでラスタライズの並列度を確認
+**Profiling with the Performance Panel**:
+1. Open DevTools > Performance tab
+2. Press the "Record" button (⚫︎) and perform animations or scrolling
+3. Stop recording with "Stop"
+4. Check the length of each frame in the Frames section (look for frames exceeding 16.67ms)
+5. Check the processing time for Paint and Composite Layers in the Main section
+6. Check the parallelism of rasterization in the Raster section
 
-**Rendering タブでのリアルタイム可視化**:
-- DevTools > More tools > Rendering を開く
-- 「Paint flashing」を有効化 → 再 Paint された領域が緑色でハイライトされる
-- 「Layer borders」を有効化 → レイヤー境界がオレンジ色の線で表示される
-- 「Frame Rendering Stats」を有効化 → FPS メーターと GPU メモリ使用量がリアルタイム表示される
+**Real-Time Visualization with the Rendering Tab**:
+- Open DevTools > More tools > Rendering
+- Enable "Paint flashing" → Repainted areas are highlighted in green
+- Enable "Layer borders" → Layer boundaries are displayed in orange lines
+- Enable "Frame Rendering Stats" → FPS meter and GPU memory usage are displayed in real time
 
-**Layers パネルでのレイヤー分析**:
-- DevTools > More tools > Layers を開く
-- 3D ビューで全レイヤーを可視化
-- 各レイヤーの「Compositing Reasons」で昇格理由を確認
-- メモリサイズと Paint Count を確認
+**Layer Analysis with the Layers Panel**:
+- Open DevTools > More tools > Layers
+- Visualize all layers in 3D view
+- Check the "Compositing Reasons" for each layer to see the promotion reason
+- Check memory size and Paint Count
 
-**Web Vitals の測定**:
-Lighthouse（DevTools > Lighthouse タブ）で CLS（Cumulative Layout Shift）や FID（First Input Delay）を測定し、レンダリングパフォーマンスが UX に与える影響を定量的に評価する。
+**Measuring Web Vitals**:
+Use Lighthouse (DevTools > Lighthouse tab) to measure CLS (Cumulative Layout Shift) and FID (First Input Delay), and quantitatively evaluate the impact of rendering performance on UX.
 
-詳細な使い方は「9. DevTools によるペイントとコンポジティングの分析」セクションを参照のこと。
+For detailed instructions, refer to the "9. Analyzing Paint and Compositing with DevTools" section.
 
 ---
 
-## まとめ
+## Summary
 
-本ガイドでは、ブラウザのレンダリングパイプライン後半を構成する Paint と Compositing の仕組みを詳細に解説した。以下の表で、各フェーズの主要な特徴を整理する。
+This guide provided a detailed explanation of the Paint and Compositing phases that form the latter half of the browser rendering pipeline. The following table summarizes the key characteristics of each phase.
 
-| フェーズ | 主な処理内容 | 実行スレッド | GPU 利用 | パフォーマンスへの影響 |
+| Phase | Main Processing | Thread | GPU Use | Performance Impact |
 |:---|:---|:---|:---:|:---|
-| **Paint** | Layout 情報を Paint Records に変換 → ラスタライズでピクセル化 | メインスレッド（Paint Records 生成）<br>ラスタースレッド（ラスタライズ） | GPU または CPU | 中程度。color や background-color の変更で再 Paint が発生。Layout 変更よりは軽量だが、頻繁な Repaint は避けるべき。 |
-| **Compositing** | 複数の合成レイヤーを GPU で重ね合わせ、最終画面を生成 | Compositor Thread | GPU（必須） | 低い。transform や opacity の変更は Composite のみで完結し、非常に高速。ただしレイヤー数が過剰だと合成オーバーヘッドが増大。 |
+| **Paint** | Convert Layout info to Paint Records → Rasterize to pixels | Main thread (Paint Records gen.)<br>Raster threads (rasterization) | GPU or CPU | Moderate. Repaint occurs on changes to color or background-color. Lighter than Layout changes, but frequent repaints should be avoided. |
+| **Compositing** | Overlay multiple composited layers on the GPU to generate the final screen | Compositor Thread | GPU (required) | Low. Changes to transform or opacity complete in Composite only and are very fast. However, excessive layer count increases compositing overhead. |
 
-### 本ガイドの重要なポイント
+### Key Points of This Guide
 
-1. **Compositor-Only プロパティの活用**: `transform` と `opacity` はメインスレッドを経由せず、Compositor Thread と GPU のみで処理される。これにより、JavaScript がメインスレッドをブロックしていても、スムーズなアニメーションが実現できる。60fps を維持するアニメーションを実装する際は、必ず `transform` と `opacity` を使用し、`left`/`top` や `width`/`height` の変更を避ける。
+1. **Leverage Compositor-Only Properties**: `transform` and `opacity` are processed by the Compositor Thread and GPU alone, bypassing the main thread. This allows smooth animations even when JavaScript is blocking the main thread. When implementing 60fps animations, always use `transform` and `opacity`, and avoid changing `left`/`top` or `width`/`height`.
 
-2. **レイヤー昇格の適切な管理**: レイヤー昇格は GPU メモリを消費するため、無計画に行うとパフォーマンスが悪化する。`will-change` はイベント駆動で動的に設定・解除し、常時設定を避ける。DevTools の Layers パネルで定期的にレイヤー数とメモリ消費量を確認し、暗黙的レイヤー昇格によるレイヤー爆発を防ぐ。
+2. **Manage Layer Promotion Appropriately**: Layer promotion consumes GPU memory, so unplanned promotion degrades performance. Set and unset `will-change` dynamically based on events and avoid persistent settings. Regularly check the number of layers and memory consumption with the DevTools Layers panel, and prevent layer explosions caused by implicit layer promotions.
 
-3. **DevTools によるプロファイリングの習慣化**: パフォーマンス問題は主観的な感覚ではなく、Performance パネルや Rendering タブで定量的に測定すべきである。特に「Paint flashing」と「Layer borders」は、不要な Repaint やレイヤー構造の問題を即座に発見できる強力なツールである。開発中はこれらのツールを常に有効化し、問題を早期に発見する習慣をつけることが重要である。
-
----
-
-## 次に読むべきガイド
-
-Paint と Compositing の仕組みを理解したら、次は実際のアニメーション実装におけるパフォーマンス最適化手法を学ぶことを推奨する。
-
-- **[アニメーションパフォーマンス](./03-animation-performance.md)** - 本ガイドで学んだ Compositor-Only プロパティ、レイヤー昇格、GPU アクセラレーションの知識を実践的なアニメーション実装に応用する方法を解説する。CSS Animations、CSS Transitions、Web Animations API の使い分け、requestAnimationFrame の最適な使い方、FLIP テクニック、スクロール連動アニメーションのパフォーマンス改善など、実務で即戦力となる技術を体系的に習得できる。
+3. **Make Profiling with DevTools a Habit**: Performance issues should be measured quantitatively using the Performance panel and the Rendering tab, not by subjective feel. In particular, "Paint flashing" and "Layer borders" are powerful tools for instantly finding unnecessary repaint and layer structure problems. Develop the habit of always enabling these tools during development to find problems early.
 
 ---
 
-## 参考文献
+## Guides to Read Next
 
-本ガイドの執筆にあたり、以下の資料を参考にした。より深い理解を得たい場合は、これらの資料を直接参照することを推奨する。
+After understanding how Paint and Compositing work, it is recommended to learn about performance optimization techniques in practical animation implementations.
 
-- **Chromium Design Documents: GPU Accelerated Compositing** - Chromium プロジェクトの公式設計ドキュメント。Compositor Thread の内部動作、レイヤー昇格の詳細なメカニズム、GPU プロセスとの通信方式が解説されている。ブラウザエンジンの実装レベルの知識を得たい場合に必読。[https://www.chromium.org/developers/design-documents/gpu-accelerated-compositing-in-chrome](https://www.chromium.org/developers/design-documents/gpu-accelerated-compositing-in-chrome)
+- **[Animation Performance](./03-animation-performance.md)** — Explains how to apply the knowledge of Compositor-Only properties, layer promotion, and GPU acceleration learned in this guide to practical animation implementations. Systematically learn technologies that are immediately useful in practice, including how to choose between CSS Animations, CSS Transitions, and the Web Animations API, the optimal use of requestAnimationFrame, the FLIP technique, and improving the performance of scroll-linked animations.
 
-- **Inside look at modern web browser (part 3) - What happens in a renderer process?** - Google Chrome Developers による、レンダラープロセス内部の詳細な解説記事。Paint Records の生成、ラスタライズ、Compositing の各フェーズがイラスト付きでわかりやすく説明されている。特にタイルベースラスタライズの仕組みが視覚的に理解できる。[https://developer.chrome.com/blog/inside-browser-part3](https://developer.chrome.com/blog/inside-browser-part3)
+---
 
-- **Stick to Compositor-Only Properties and Manage Layer Count** - Web Fundamentals（現 web.dev）の高パフォーマンスアニメーションに関するガイド。Compositor-Only プロパティの選択基準、レイヤー数の管理方法、DevTools を使った計測手法が実践的に解説されている。[https://web.dev/articles/stick-to-compositor-only-properties-and-manage-layer-count](https://web.dev/articles/stick-to-compositor-only-properties-and-manage-layer-count)
+## References
 
-- **CSS Containment Module Level 2 (W3C Specification)** - `contain` プロパティの公式仕様。各値（layout, paint, size, style）の正確な動作定義と、ブラウザ最適化への影響が詳述されている。仕様レベルの厳密な理解が必要な場合に参照すべき。[https://www.w3.org/TR/css-contain-2/](https://www.w3.org/TR/css-contain-2/)
+The following materials were referenced in writing this guide. If you want a deeper understanding, it is recommended to refer directly to these materials.
 
-- **content-visibility: the new CSS property that boosts your rendering performance** - `content-visibility` プロパティの実践的な活用方法と効果測定の事例。特に長いページにおける初期レンダリング時間の劇的な改善効果が、実データとともに示されている。[https://web.dev/articles/content-visibility](https://web.dev/articles/content-visibility)
+- **Chromium Design Documents: GPU Accelerated Compositing** — The official design document for the Chromium project. Explains the internal operation of the Compositor Thread, the detailed mechanism of layer promotion, and the communication method with the GPU process. Must-read if you want to gain knowledge at the browser engine implementation level. [https://www.chromium.org/developers/design-documents/gpu-accelerated-compositing-in-chrome](https://www.chromium.org/developers/design-documents/gpu-accelerated-compositing-in-chrome)
+
+- **Inside look at modern web browser (part 3) - What happens in a renderer process?** — A detailed explanatory article about the inside of the renderer process by Google Chrome Developers. The Paint Records generation, rasterization, and Compositing phases are explained with illustrations in an easy-to-understand manner. Tile-based rasterization in particular can be visually understood. [https://developer.chrome.com/blog/inside-browser-part3](https://developer.chrome.com/blog/inside-browser-part3)
+
+- **Stick to Compositor-Only Properties and Manage Layer Count** — A guide on high-performance animations from Web Fundamentals (now web.dev). Practically explains the criteria for selecting Compositor-Only properties, methods for managing layer count, and measurement techniques using DevTools. [https://web.dev/articles/stick-to-compositor-only-properties-and-manage-layer-count](https://web.dev/articles/stick-to-compositor-only-properties-and-manage-layer-count)
+
+- **CSS Containment Module Level 2 (W3C Specification)** — The official specification of the `contain` property. The precise behavioral definitions of each value (layout, paint, size, style) and their impact on browser optimization are detailed. Should be referenced when a strict understanding at the specification level is needed. [https://www.w3.org/TR/css-contain-2/](https://www.w3.org/TR/css-contain-2/)
+
+- **content-visibility: the new CSS property that boosts your rendering performance** — Practical usage and performance measurement case studies for the `content-visibility` property. The dramatic improvement in initial rendering time for long pages in particular is shown with actual data. [https://web.dev/articles/content-visibility](https://web.dev/articles/content-visibility)

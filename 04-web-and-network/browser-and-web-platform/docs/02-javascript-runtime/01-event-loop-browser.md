@@ -1,193 +1,194 @@
-# ブラウザのイベントループ
+# Browser Event Loop
 
-> ブラウザのイベントループは JavaScript の実行モデルの核心である。タスクキュー、マイクロタスクキュー、requestAnimationFrame、requestIdleCallback の実行順序を正確に理解することで、パフォーマンスの最適化やデバッグが格段に容易になる。本ガイドでは WHATWG HTML Living Standard に準拠した正確なモデルを、豊富なコード例・図解・演習とともに解説する。
+> The browser event loop is the core of the JavaScript execution model. A precise understanding of the execution order of the task queue, microtask queue, requestAnimationFrame, and requestIdleCallback dramatically simplifies performance optimization and debugging. This guide explains the accurate model conforming to the WHATWG HTML Living Standard, with abundant code examples, diagrams, and exercises.
 
 ---
 
-## 目次
+## Table of Contents
 
-1. [この章で学ぶこと](#この章で学ぶこと)
-2. [前提知識](#前提知識)
-3. [イベントループの全体構造](#1-イベントループの全体構造)
-4. [タスク（マクロタスク）の詳細](#2-タスクマクロタスクの詳細)
-5. [マイクロタスクの詳細](#3-マイクロタスクの詳細)
-6. [タスク vs マイクロタスク比較](#4-タスク-vs-マイクロタスク比較)
-7. [requestAnimationFrame（rAF）](#5-requestanimationframeraf)
-8. [requestIdleCallback（rIC）](#6-requestidlecallbackric)
-9. [スケジューリング API 比較表](#7-スケジューリング-api-比較表)
-10. [実行順序の統合モデル](#8-実行順序の統合モデル)
-11. [コード例集](#9-コード例集)
-12. [アンチパターン](#10-アンチパターン)
-13. [エッジケース分析](#11-エッジケース分析)
-14. [段階別演習](#12-段階別演習)
+1. [What You Will Learn](#what-you-will-learn)
+2. [Prerequisites](#prerequisites)
+3. [Overall Structure of the Event Loop](#1-overall-structure-of-the-event-loop)
+4. [Tasks (Macrotasks) in Detail](#2-tasks-macrotasks-in-detail)
+5. [Microtasks in Detail](#3-microtasks-in-detail)
+6. [Tasks vs. Microtasks Comparison](#4-tasks-vs-microtasks-comparison)
+7. [requestAnimationFrame (rAF)](#5-requestanimationframe-raf)
+8. [requestIdleCallback (rIC)](#6-requestidlecallback-ric)
+9. [Scheduling API Comparison Table](#7-scheduling-api-comparison-table)
+10. [Integrated Execution Order Model](#8-integrated-execution-order-model)
+11. [Code Examples](#9-code-examples)
+12. [Anti-Patterns](#10-anti-patterns)
+13. [Edge Case Analysis](#11-edge-case-analysis)
+14. [Staged Exercises](#12-staged-exercises)
 15. [FAQ](#13-faq)
-16. [用語集](#14-用語集)
-17. [まとめ](#まとめ)
-18. [次に読むべきガイド](#次に読むべきガイド)
-19. [参考文献](#参考文献)
+16. [Glossary](#14-glossary)
+17. [Summary](#summary)
+18. [Guides to Read Next](#guides-to-read-next)
+19. [References](#references)
 
 ---
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] ブラウザのイベントループが WHATWG 仕様上どのように定義されているか理解する
-- [ ] マクロタスクとマイクロタスクの実行順序を正確に予測できるようになる
-- [ ] requestAnimationFrame（rAF）のタイミングと活用法を習得する
-- [ ] requestIdleCallback（rIC）による低優先度処理の設計手法を学ぶ
-- [ ] 各スケジューリング API の使い分けを身につける
-- [ ] レンダリングパイプラインとイベントループの関係を把握する
-- [ ] 典型的なアンチパターンを認識し、回避できるようになる
-- [ ] エッジケースにおける挙動を予測できるようになる
-
----
-
-## 前提知識
-
-本ガイドを最大限に活用するためには、以下の知識があることが望ましい。
-
-| 分野 | 必要なレベル | 参照先 |
-|------|------------|--------|
-| JavaScript 基礎 | コールスタック、スコープチェーンの理解 | JS 基礎ガイド |
-| Promise / async-await | 基本的な非同期処理が書ける | 非同期処理ガイド |
-| DOM API | addEventListener, querySelector 等 | DOM 操作ガイド |
-| ブラウザレンダリング | レイアウト・ペイントの概念 | レンダリングガイド |
+- [ ] Understand how the browser event loop is defined in the WHATWG specification
+- [ ] Accurately predict the execution order of macrotasks and microtasks
+- [ ] Learn the timing and usage of requestAnimationFrame (rAF)
+- [ ] Learn design techniques for low-priority processing with requestIdleCallback (rIC)
+- [ ] Understand how to choose the right scheduling API for each situation
+- [ ] Grasp the relationship between the rendering pipeline and the event loop
+- [ ] Recognize and avoid typical anti-patterns
+- [ ] Predict behavior in edge cases
 
 ---
 
-## 1. イベントループの全体構造
+## Prerequisites
 
-### 1.1 WHATWG 仕様に基づくモデル
+To get the most out of this guide, the following knowledge is recommended.
 
-イベントループは、ブラウザがユーザーインタラクション、スクリプト実行、レンダリング、ネットワーク処理などの作業を協調的に処理するためのメカニズムである。WHATWG HTML Living Standard（Section 8.1.7）では、イベントループの各サイクルで行われる処理ステップが厳密に定義されている。
+| Field | Required Level | Reference |
+|-------|---------------|-----------|
+| JavaScript basics | Understanding of call stack and scope chain | JS Basics Guide |
+| Promise / async-await | Ability to write basic asynchronous code | Async Processing Guide |
+| DOM API | addEventListener, querySelector, etc. | DOM Manipulation Guide |
+| Browser rendering | Concepts of layout and paint | Rendering Guide |
+
+---
+
+## 1. Overall Structure of the Event Loop
+
+### 1.1 Model Based on the WHATWG Specification
+
+The event loop is the mechanism by which a browser cooperatively processes tasks such as user interactions, script execution, rendering, and network handling. The WHATWG HTML Living Standard (Section 8.1.7) strictly defines the processing steps performed in each cycle of the event loop.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                  イベントループの1サイクル                        │
+│                  One Cycle of the Event Loop                    │
 │                                                                 │
 │  ┌───────────────────────────────────────────────────────────┐  │
-│  │ Step 1: タスクキューから最も古いタスクを1つ取得し実行       │  │
-│  │         （キューが空ならスキップ）                         │  │
+│  │ Step 1: Retrieve the oldest task from the task queue      │  │
+│  │         and execute it (skip if queue is empty)           │  │
 │  │                                                           │  │
-│  │  タスクの例:                                              │  │
-│  │   - setTimeout / setInterval のコールバック               │  │
-│  │   - I/O コールバック（fetch, XMLHttpRequest 完了）        │  │
-│  │   - UI イベントのディスパッチ（click, keydown 等）        │  │
-│  │   - MessageChannel の onmessage                          │  │
-│  │   - history.back() / history.forward() ナビゲーション     │  │
+│  │  Examples of tasks:                                       │  │
+│  │   - setTimeout / setInterval callbacks                    │  │
+│  │   - I/O callbacks (fetch, XMLHttpRequest completion)      │  │
+│  │   - UI event dispatch (click, keydown, etc.)              │  │
+│  │   - MessageChannel onmessage                              │  │
+│  │   - history.back() / history.forward() navigation        │  │
 │  └───────────────────────────────────────────────────────────┘  │
 │                           │                                     │
 │                           ▼                                     │
 │  ┌───────────────────────────────────────────────────────────┐  │
-│  │ Step 2: マイクロタスクチェックポイント                     │  │
-│  │         マイクロタスクキューが空になるまで繰り返し実行     │  │
+│  │ Step 2: Microtask checkpoint                              │  │
+│  │         Repeatedly execute until the microtask queue      │  │
+│  │         is empty                                          │  │
 │  │                                                           │  │
-│  │  マイクロタスクの例:                                      │  │
-│  │   - Promise の then / catch / finally コールバック        │  │
-│  │   - queueMicrotask() で登録された関数                    │  │
-│  │   - MutationObserver のコールバック                       │  │
-│  │   - async 関数の await 後の継続処理                      │  │
+│  │  Examples of microtasks:                                  │  │
+│  │   - Promise then / catch / finally callbacks              │  │
+│  │   - Functions registered with queueMicrotask()           │  │
+│  │   - MutationObserver callbacks                            │  │
+│  │   - Continuation after await in async functions           │  │
 │  └───────────────────────────────────────────────────────────┘  │
 │                           │                                     │
 │                           ▼                                     │
 │  ┌───────────────────────────────────────────────────────────┐  │
-│  │ Step 3: レンダリング更新（ブラウザが必要と判断した場合）   │  │
+│  │ Step 3: Rendering update (when browser deems necessary)   │  │
 │  │                                                           │  │
-│  │  3a. resize / scroll イベントの発火                       │  │
-│  │  3b. requestAnimationFrame コールバックの実行             │  │
-│  │  3c. IntersectionObserver コールバック                    │  │
-│  │  3d. Style 再計算（Recalculate Style）                   │  │
-│  │  3e. Layout（Reflow）                                    │  │
-│  │  3f. Paint                                               │  │
-│  │  3g. Composite                                           │  │
+│  │  3a. Fire resize / scroll events                          │  │
+│  │  3b. Execute requestAnimationFrame callbacks              │  │
+│  │  3c. IntersectionObserver callbacks                       │  │
+│  │  3d. Style recalculation (Recalculate Style)              │  │
+│  │  3e. Layout (Reflow)                                      │  │
+│  │  3f. Paint                                                │  │
+│  │  3g. Composite                                            │  │
 │  └───────────────────────────────────────────────────────────┘  │
 │                           │                                     │
 │                           ▼                                     │
 │  ┌───────────────────────────────────────────────────────────┐  │
-│  │ Step 4: アイドル期間の処理（余裕がある場合）              │  │
-│  │         requestIdleCallback コールバックの実行            │  │
+│  │ Step 4: Idle period processing (if time allows)           │  │
+│  │         Execute requestIdleCallback callbacks             │  │
 │  └───────────────────────────────────────────────────────────┘  │
 │                           │                                     │
 │                           ▼                                     │
-│                    ① に戻る（次のサイクル）                     │
+│                    Return to ① (next cycle)                     │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 重要な設計原則
+### 1.2 Key Design Principles
 
-イベントループの設計には、以下の根本的な原則がある。
+The event loop design rests on the following fundamental principles.
 
-**シングルスレッド原則**: JavaScript のメインスレッドは1つだけであり、同時に1つのタスクしか実行できない。これにより、共有状態に対するデータ競合（data race）が原理的に発生しない。一方で、長時間実行されるタスクがあると UI が固まる（ジャンク）原因となる。
+**Single-thread principle**: There is only one main JavaScript thread, and only one task can execute at a time. This means data races on shared state cannot occur in principle. On the other hand, long-running tasks cause the UI to freeze (jank).
 
-**協調的マルチタスキング**: イベントループはプリエンプティブ（強制的な中断）ではなく、各タスクが自発的に制御を返すことで他のタスクに実行機会を与える。これは協調的マルチタスキングの一種であり、タスクの設計者がフレーム予算（通常 16.67ms = 1/60fps）を意識する必要がある。
+**Cooperative multitasking**: The event loop is not preemptive (forcible interruption); each task voluntarily returns control to give other tasks a chance to run. This is a form of cooperative multitasking, and task designers must be aware of the frame budget (typically 16.67ms = 1/60fps).
 
-**タスクの粒度制御**: タスクは1つずつ実行されるが、マイクロタスクはチェックポイントごとに全て実行される。この違いは意図的な設計であり、マイクロタスクは「現在のタスクの論理的な延長」として扱われる。
+**Task granularity control**: Tasks are executed one at a time, but microtasks are all executed at each checkpoint. This difference is intentional design; microtasks are treated as a "logical extension of the current task."
 
-### 1.3 イベントループの種類
+### 1.3 Types of Event Loops
 
-WHATWG 仕様では、以下の種類のイベントループが定義されている。
+The WHATWG specification defines the following types of event loops.
 
-| 種類 | コンテキスト | 特徴 |
-|------|------------|------|
-| Window イベントループ | ブラウザタブ / iframe | レンダリング更新を含む完全なループ |
-| Worker イベントループ | Web Worker / Service Worker | レンダリングステップなし |
-| Worklet イベントループ | AudioWorklet, PaintWorklet | 制限された API セット |
+| Type | Context | Characteristics |
+|------|---------|----------------|
+| Window event loop | Browser tab / iframe | Full loop including rendering updates |
+| Worker event loop | Web Worker / Service Worker | No rendering step |
+| Worklet event loop | AudioWorklet, PaintWorklet | Restricted API set |
 
-本ガイドでは、最も一般的な **Window イベントループ** を中心に解説する。Worker イベントループについては別ガイドで扱う。
+This guide focuses primarily on the most common **Window event loop**. Worker event loops are covered in a separate guide.
 
 ---
 
-## 2. タスク（マクロタスク）の詳細
+## 2. Tasks (Macrotasks) in Detail
 
-### 2.1 タスクソースとタスクキュー
+### 2.1 Task Sources and Task Queues
 
-仕様上、イベントループは複数のタスクキューを持つことができる。各タスクは特定の「タスクソース」から生成され、同じタスクソースからのタスクは順序が保証される。ただし、異なるタスクソース間の優先度はブラウザの実装に委ねられている。
+According to the specification, an event loop can have multiple task queues. Each task is generated from a specific "task source," and tasks from the same source are guaranteed to be ordered. However, the priority between different task sources is left to the browser implementation.
 
 ```
-タスクキューの内部構造（概念図）:
+Internal structure of task queues (conceptual diagram):
 
  ┌──────────────────────────────────────────────────────┐
- │ イベントループ                                        │
+ │ Event Loop                                           │
  │                                                      │
  │  ┌─────────────────────────┐                         │
- │  │ タスクキュー A          │  ← UI イベント用         │
+ │  │ Task Queue A            │  ← For UI events        │
  │  │ [click_cb] [scroll_cb]  │                         │
  │  └─────────────────────────┘                         │
  │                                                      │
  │  ┌─────────────────────────┐                         │
- │  │ タスクキュー B          │  ← タイマー用            │
+ │  │ Task Queue B            │  ← For timers           │
  │  │ [timeout1] [interval2]  │                         │
  │  └─────────────────────────┘                         │
  │                                                      │
  │  ┌─────────────────────────┐                         │
- │  │ タスクキュー C          │  ← ネットワーク用        │
+ │  │ Task Queue C            │  ← For network          │
  │  │ [fetch_cb] [xhr_cb]     │                         │
  │  └─────────────────────────┘                         │
  │                                                      │
- │  ブラウザは各サイクルで「どのキューから取るか」を      │
- │  自由に選択できる（優先度はブラウザ依存）              │
+ │  The browser can freely choose which queue to        │
+ │  pick from each cycle (priority is browser-specific) │
  └──────────────────────────────────────────────────────┘
 ```
 
-### 2.2 主なタスクソース一覧
+### 2.2 List of Major Task Sources
 
-| タスクソース | 生成される場面 | 備考 |
-|-------------|--------------|------|
-| DOM 操作 | `element.click()` のプログラム的呼び出し | ユーザー操作とは別扱い |
-| ユーザーインタラクション | クリック、キー入力、スクロール | ブラウザが高優先度にしがち |
-| ネットワーク | fetch / XHR の完了 | レスポンス到着時にキューイング |
-| ナビゲーション | `history.pushState()` 等 | ページ遷移のための処理 |
-| タイマー | `setTimeout`, `setInterval` | 遅延が保証されない点に注意 |
-| MessageChannel | `port.postMessage()` | Worker との通信にも使用 |
-| IndexedDB | トランザクション完了時 | 非同期 DB 操作の結果通知 |
+| Task Source | When Generated | Notes |
+|-------------|----------------|-------|
+| DOM manipulation | Programmatic `element.click()` calls | Treated differently from user actions |
+| User interaction | Click, key input, scroll | Browser tends to give high priority |
+| Network | fetch / XHR completion | Queued when response arrives |
+| Navigation | `history.pushState()`, etc. | Processing for page transitions |
+| Timer | `setTimeout`, `setInterval` | Note that delay is not guaranteed |
+| MessageChannel | `port.postMessage()` | Also used for Worker communication |
+| IndexedDB | On transaction completion | Result notification for async DB operations |
 
-### 2.3 setTimeout の遅延に関する仕様
+### 2.3 Specification for setTimeout Delay
 
-`setTimeout(fn, 0)` と書いても、実際には0ms後に実行されるわけではない。WHATWG 仕様では以下のルールが定められている。
+Even writing `setTimeout(fn, 0)` does not mean it will actually execute after 0ms. The WHATWG specification defines the following rules.
 
 ```javascript
-// setTimeout のネスト制限（HTML 仕様 Section 8.6）
+// setTimeout nesting limit (HTML spec Section 8.6)
 //
-// ネストレベルが 5 を超えた場合、最小遅延は 4ms に強制される
+// When nesting level exceeds 5, the minimum delay is forced to 4ms
 
 function demonstrateNestedTimeout() {
   const start = performance.now();
@@ -199,7 +200,7 @@ function demonstrateNestedTimeout() {
     console.log(`Nest ${count}: ${elapsed.toFixed(2)}ms`);
 
     if (count < 10) {
-      setTimeout(nest, 0);  // 0ms 指定でもネスト深くなると 4ms+ になる
+      setTimeout(nest, 0);  // Even with 0ms, becomes 4ms+ when deeply nested
     }
   }
 
@@ -207,45 +208,45 @@ function demonstrateNestedTimeout() {
 }
 
 demonstrateNestedTimeout();
-// 典型的な出力:
-// Nest 1: 0.10ms    ← ほぼ即座
+// Typical output:
+// Nest 1: 0.10ms    ← nearly immediate
 // Nest 2: 0.20ms
 // Nest 3: 0.30ms
 // Nest 4: 0.40ms
 // Nest 5: 0.50ms
-// Nest 6: 4.50ms    ← ここからネスト制限発動
+// Nest 6: 4.50ms    ← nesting limit kicks in here
 // Nest 7: 8.60ms
 // Nest 8: 12.70ms
 // Nest 9: 16.80ms
 // Nest 10: 20.90ms
 ```
 
-この挙動は「setTimeout clamping」と呼ばれ、再帰的な setTimeout によるCPU の過剰消費を防ぐための保護メカニズムである。
+This behavior is called "setTimeout clamping" and is a protection mechanism to prevent excessive CPU consumption by recursive setTimeouts.
 
-### 2.4 タスクの実行と長時間タスクの問題
+### 2.4 Task Execution and the Long Task Problem
 
-各タスクは開始から終了まで中断されない（run-to-completion）。これはコードの予測可能性を高める一方で、長時間タスクがメインスレッドをブロックし、レンダリング更新やユーザーインタラクションへの応答を妨げるリスクがある。
+Each task runs uninterrupted from start to finish (run-to-completion). While this enhances code predictability, long-running tasks risk blocking the main thread and preventing rendering updates and responses to user interactions.
 
 ```javascript
-// 長時間タスクの例（アンチパターン）
+// Example of a long-running task (anti-pattern)
 button.addEventListener('click', () => {
-  // この同期処理が完了するまで UI は固まる
-  const result = heavyComputation(); // 200ms かかる処理
+  // The UI is frozen until this synchronous processing completes
+  const result = heavyComputation(); // Takes 200ms
   display.textContent = result;
 });
 
-// 改善例: タスクを分割する
+// Improved example: splitting the task
 button.addEventListener('click', async () => {
   display.textContent = 'Computing...';
 
-  // yieldToMain: 制御をメインスレッドに返す
+  // yieldToMain: return control to the main thread
   await yieldToMain();
 
   const result = heavyComputation();
   display.textContent = result;
 });
 
-// yieldToMain のシンプルな実装
+// Simple implementation of yieldToMain
 function yieldToMain() {
   return new Promise(resolve => {
     setTimeout(resolve, 0);
@@ -253,10 +254,10 @@ function yieldToMain() {
 }
 ```
 
-**Long Tasks API** を使えば、50ms を超える長時間タスクを検出できる。
+The **Long Tasks API** allows you to detect tasks that exceed 50ms.
 
 ```javascript
-// Long Tasks API による監視
+// Monitoring with the Long Tasks API
 const observer = new PerformanceObserver((list) => {
   for (const entry of list.getEntries()) {
     console.warn(
@@ -271,48 +272,48 @@ observer.observe({ type: 'longtask', buffered: true });
 
 ---
 
-## 3. マイクロタスクの詳細
+## 3. Microtasks in Detail
 
-### 3.1 マイクロタスクチェックポイント
+### 3.1 Microtask Checkpoints
 
-マイクロタスクは、以下の「マイクロタスクチェックポイント」で実行される。
+Microtasks are executed at the following "microtask checkpoints."
 
-1. **各タスクの実行完了後**（イベントループの Step 2）
-2. **コールバック実行後**（一部の Web API）
-3. **コールスタックが空になった時点**
+1. **After each task completes** (Step 2 of the event loop)
+2. **After certain Web API callbacks execute**
+3. **When the call stack becomes empty**
 
-重要なのは、マイクロタスクの処理中に新たなマイクロタスクがキューに追加された場合、**そのマイクロタスクも同じチェックポイント内で実行される**という点である。これにより、マイクロタスクの再帰的なキューイングは無限ループを引き起こす可能性がある。
+An important point is that if a new microtask is added to the queue while processing microtasks, **that microtask is also executed within the same checkpoint**. This means recursive microtask queuing can cause an infinite loop.
 
 ```javascript
-// 危険: マイクロタスクの無限ループ
-// 以下のコードはブラウザタブをフリーズさせる
+// Dangerous: infinite microtask loop
+// The following code will freeze a browser tab
 function dangerousInfiniteLoop() {
   queueMicrotask(() => {
     console.log('This will repeat forever');
-    dangerousInfiniteLoop();  // 新しいマイクロタスクが即座に実行される
+    dangerousInfiniteLoop();  // New microtask executes immediately
   });
 }
-// dangerousInfiniteLoop(); // 絶対に実行しないこと！
+// dangerousInfiniteLoop(); // Never run this!
 
-// 対比: setTimeout による再帰は安全
+// Contrast: recursion with setTimeout is safe
 function safeRecursion() {
   setTimeout(() => {
     console.log('This yields to the event loop');
-    safeRecursion();  // 次のタスクサイクルまで待機
+    safeRecursion();  // Waits until the next task cycle
   }, 0);
 }
 ```
 
-### 3.2 Promise チェーンとマイクロタスク
+### 3.2 Promise Chains and Microtasks
 
-Promise の `.then()` / `.catch()` / `.finally()` は、Promise が解決（settled）した時点でマイクロタスクキューに追加される。
+Promise `.then()` / `.catch()` / `.finally()` callbacks are added to the microtask queue when the Promise is settled.
 
 ```javascript
-// Promise チェーンの実行順序を追跡する
+// Tracing the execution order of a Promise chain
 console.log('A: sync start');
 
 const p = new Promise((resolve) => {
-  console.log('B: executor (sync)');  // executor は同期実行
+  console.log('B: executor (sync)');  // executor runs synchronously
   resolve('done');
   console.log('C: after resolve (still sync)');
 });
@@ -329,34 +330,34 @@ p.then(() => {
 
 console.log('G: sync end');
 
-// 出力順序:
+// Output order:
 // A: sync start
 // B: executor (sync)
 // C: after resolve (still sync)
 // G: sync end
 // D: first then - done
-// F: another branch then    ← D と F は同じ Promise から分岐
-// E: second then            ← D の .then() チェーンなので F の後
+// F: another branch then    ← D and F branch from the same Promise
+// E: second then            ← in D's .then() chain, so after F
 ```
 
-### 3.3 async/await とマイクロタスク
+### 3.3 async/await and Microtasks
 
-`async/await` は Promise の糖衣構文（syntactic sugar）であり、`await` の後の処理はマイクロタスクとして実行される。
+`async/await` is syntactic sugar for Promises; code after `await` executes as a microtask.
 
 ```javascript
 async function example() {
   console.log('1: before await');
   await Promise.resolve();
-  console.log('2: after await');  // マイクロタスクとして実行
+  console.log('2: after await');  // executed as a microtask
   await Promise.resolve();
-  console.log('3: after second await');  // 次のマイクロタスクとして実行
+  console.log('3: after second await');  // executed as the next microtask
 }
 
 console.log('A: start');
 example();
 console.log('B: end');
 
-// 出力:
+// Output:
 // A: start
 // 1: before await
 // B: end
@@ -364,7 +365,7 @@ console.log('B: end');
 // 3: after second await
 ```
 
-`await` は内部的に以下のように変換される。
+`await` is internally transformed as follows.
 
 ```
 async function f() {        →   function f() {
@@ -375,13 +376,13 @@ async function f() {        →   function f() {
                             →   }
 ```
 
-### 3.4 queueMicrotask の活用
+### 3.4 Using queueMicrotask
 
-`queueMicrotask()` は、Promise を経由せずに直接マイクロタスクをキューに追加する API である。
+`queueMicrotask()` is an API that adds a microtask directly to the queue without going through a Promise.
 
 ```javascript
-// queueMicrotask の典型的な使用例:
-// バッチ処理の最適化
+// Typical use of queueMicrotask:
+// Optimizing batch processing
 
 class BatchProcessor {
   #pending = [];
@@ -392,7 +393,7 @@ class BatchProcessor {
 
     if (!this.#scheduled) {
       this.#scheduled = true;
-      // 同期コードが全て完了した後にバッチ処理
+      // Batch process after all synchronous code completes
       queueMicrotask(() => {
         this.#flush();
       });
@@ -403,7 +404,7 @@ class BatchProcessor {
     const batch = this.#pending.splice(0);
     this.#scheduled = false;
     console.log(`Processing batch of ${batch.length} items:`, batch);
-    // 実際の処理をここで一括実行
+    // Perform actual processing here in bulk
   }
 }
 
@@ -411,17 +412,17 @@ const processor = new BatchProcessor();
 processor.add('item1');
 processor.add('item2');
 processor.add('item3');
-// 同期コード完了後に1回だけ flush される:
+// After synchronous code completes, flush is called once:
 // "Processing batch of 3 items: ['item1', 'item2', 'item3']"
 ```
 
-### 3.5 MutationObserver とマイクロタスク
+### 3.5 MutationObserver and Microtasks
 
-`MutationObserver` のコールバックはマイクロタスクとして実行される。これにより、複数の DOM 変更を1つのコールバック呼び出しで効率的に処理できる。
+`MutationObserver` callbacks execute as microtasks. This allows multiple DOM changes to be efficiently handled in a single callback invocation.
 
 ```javascript
 const observer = new MutationObserver((mutations) => {
-  // ここはマイクロタスクとして実行される
+  // This runs as a microtask
   console.log(`${mutations.length} mutations observed`);
   mutations.forEach(m => {
     console.log(`  Type: ${m.type}, Target: ${m.target.id}`);
@@ -434,8 +435,8 @@ observer.observe(document.getElementById('container'), {
   attributes: true,
 });
 
-// 以下の3つの DOM 変更は、同じマイクロタスクチェックポイントで
-// 1回のコールバックにまとめて通知される
+// The following 3 DOM changes are bundled into a single callback
+// notification at the same microtask checkpoint
 const container = document.getElementById('container');
 container.appendChild(document.createElement('div'));
 container.setAttribute('data-count', '1');
@@ -444,48 +445,48 @@ container.firstChild.textContent = 'Hello';
 
 ---
 
-## 4. タスク vs マイクロタスク比較
+## 4. Tasks vs. Microtasks Comparison
 
-### 4.1 比較表
+### 4.1 Comparison Table
 
-| 特性 | タスク（マクロタスク） | マイクロタスク |
-|------|----------------------|--------------|
-| **実行タイミング** | イベントループの各サイクルで1つずつ | チェックポイントで全て実行 |
-| **レンダリングとの関係** | タスク間にレンダリング機会あり | マイクロタスク中はレンダリングなし |
-| **キューの管理** | 複数のタスクキュー（優先度あり） | 単一のマイクロタスクキュー |
-| **生成元** | setTimeout, I/O, UI イベント | Promise, queueMicrotask, MutationObserver |
-| **優先度** | マイクロタスクより低い | タスクより高い（同サイクル内で先に実行） |
-| **無限ループの危険** | 各タスク間に yield するため比較的安全 | 再帰的追加で無限ループの危険あり |
-| **典型的な遅延** | 最小 4ms（ネスト制限時） | サブミリ秒 |
-| **使いどころ** | 遅延実行、定期処理 | 非同期処理の継続、状態の一貫性保証 |
+| Property | Task (Macrotask) | Microtask |
+|----------|-----------------|-----------|
+| **Execution timing** | One at a time each event loop cycle | All executed at each checkpoint |
+| **Relationship to rendering** | Rendering opportunity between tasks | No rendering while processing microtasks |
+| **Queue management** | Multiple task queues (with priority) | Single microtask queue |
+| **Sources** | setTimeout, I/O, UI events | Promise, queueMicrotask, MutationObserver |
+| **Priority** | Lower than microtasks | Higher than tasks (executed first within the same cycle) |
+| **Risk of infinite loop** | Relatively safe as tasks yield between cycles | Risk of infinite loop with recursive additions |
+| **Typical delay** | Minimum 4ms (under nesting limit) | Sub-millisecond |
+| **Best use case** | Delayed execution, periodic processing | Async continuation, state consistency guarantees |
 
-### 4.2 実行順序の視覚化
+### 4.2 Visualizing Execution Order
 
 ```
-時間軸 →
+Time axis →
 
-タスクのみの場合:
+Tasks only:
   ┌──────┐     ┌──────┐     ┌──────┐
   │Task A│ Ren │Task B│ Ren │Task C│
   └──────┘     └──────┘     └──────┘
           ↑           ↑
-      レンダリング  レンダリング
+      Rendering   Rendering
 
-マイクロタスクありの場合:
+With microtasks:
   ┌──────┬──────────────┐     ┌──────┬───────┐
   │Task A│ Micro1 Micro2│ Ren │Task B│ Micro3│ Ren
   └──────┴──────────────┘     └──────┴───────┘
                          ↑                     ↑
-                     レンダリング           レンダリング
+                     Rendering             Rendering
 
-  ポイント: マイクロタスクはタスク直後に「割り込み」実行される
-           レンダリングはマイクロタスク完了後まで遅延する
+  Key point: Microtasks "interject" immediately after a task
+             Rendering is delayed until microtasks complete
 ```
 
-### 4.3 実行順序の完全な例
+### 4.3 Complete Execution Order Example
 
 ```javascript
-// コード例1: タスクとマイクロタスクの実行順序（基礎）
+// Code example 1: Execution order of tasks and microtasks (basics)
 console.log('1: sync');
 
 setTimeout(() => {
@@ -502,21 +503,21 @@ queueMicrotask(() => {
 
 console.log('5: sync');
 
-// 出力:
+// Output:
 // 1: sync
 // 5: sync
 // 3: promise
 // 4: queueMicrotask
 // 2: timeout
 //
-// 解説:
-// (a) 同期コード: 1, 5
-// (b) マイクロタスク: 3, 4 （Promise.then と queueMicrotask は同列）
-// (c) タスク: 2 （setTimeout は次のタスクサイクル）
+// Explanation:
+// (a) Synchronous code: 1, 5
+// (b) Microtasks: 3, 4 (Promise.then and queueMicrotask are on the same level)
+// (c) Task: 2 (setTimeout runs in the next task cycle)
 ```
 
 ```javascript
-// コード例2: タスク内で生成されるマイクロタスク（中級）
+// Code example 2: Microtasks generated within a task (intermediate)
 setTimeout(() => {
   console.log('timeout 1');
   Promise.resolve().then(() => console.log('promise in timeout 1'));
@@ -532,50 +533,50 @@ Promise.resolve().then(() => {
   queueMicrotask(() => console.log('nested microtask'));
 });
 
-// 出力:
+// Output:
 // promise 1
-// nested microtask     ← promise 1 のマイクロタスク内で追加されたもの
+// nested microtask     ← added inside the promise 1 microtask
 // timeout 1
-// promise in timeout 1 ← timeout 1 完了後のマイクロタスクチェックポイント
+// promise in timeout 1 ← microtask checkpoint after timeout 1
 // timeout 2
-// promise in timeout 2 ← timeout 2 完了後のマイクロタスクチェックポイント
+// promise in timeout 2 ← microtask checkpoint after timeout 2
 ```
 
 ---
 
-## 5. requestAnimationFrame（rAF）
+## 5. requestAnimationFrame (rAF)
 
-### 5.1 rAF の実行タイミング
+### 5.1 rAF Execution Timing
 
-`requestAnimationFrame` はレンダリング更新の直前に呼び出されるコールバックを登録する API である。ブラウザがレンダリングを行うと判断したサイクルにおいて、rAF コールバックが実行され、その後にスタイル再計算・レイアウト・ペイントが行われる。
+`requestAnimationFrame` registers a callback to be called immediately before a rendering update. In cycles where the browser decides to render, rAF callbacks execute, followed by style recalculation, layout, and paint.
 
 ```
-1フレームの詳細タイムライン（60fps の場合、1フレーム = 約16.67ms）:
+Detailed timeline of one frame (at 60fps, 1 frame ≈ 16.67ms):
 
   0ms                              16.67ms
   │                                │
-  ├── Task 実行                    │
+  ├── Task execution               │
   │     │                          │
-  │     ├── Microtask チェックポイント
+  │     ├── Microtask checkpoint   │
   │     │                          │
   │     ├── resize / scroll events │
   │     │                          │
-  │     ├── rAF コールバック群      │ ← ここで DOM 変更を行う
+  │     ├── rAF callbacks          │ ← make DOM changes here
   │     │                          │
-  │     ├── Style 再計算           │
-  │     ├── Layout（Reflow）       │
+  │     ├── Style recalculation    │
+  │     ├── Layout (Reflow)        │
   │     ├── Paint                  │
   │     ├── Composite              │
   │     │                          │
-  │     └── Idle（余った時間）      │ ← rIC はここで実行
+  │     └── Idle (remaining time)  │ ← rIC runs here
   │                                │
   │◄──────── 16.67ms ─────────────►│
 ```
 
-### 5.2 rAF の基本的な使い方
+### 5.2 Basic Usage of rAF
 
 ```javascript
-// コード例3: rAF によるスムーズアニメーション
+// Code example 3: Smooth animation with rAF
 function animateElement(element, targetX, duration) {
   const startX = parseFloat(getComputedStyle(element).transform.split(',')[4]) || 0;
   const distance = targetX - startX;
@@ -586,7 +587,7 @@ function animateElement(element, targetX, duration) {
     const elapsed = currentTime - startTime;
     const progress = Math.min(elapsed / duration, 1);
 
-    // イージング関数: ease-out-cubic
+    // Easing function: ease-out-cubic
     const eased = 1 - Math.pow(1 - progress, 3);
 
     element.style.transform = `translateX(${startX + distance * eased}px)`;
@@ -599,32 +600,32 @@ function animateElement(element, targetX, duration) {
   requestAnimationFrame(frame);
 }
 
-// 使用例
+// Usage
 const box = document.getElementById('animated-box');
-animateElement(box, 300, 1000);  // 300px の位置まで 1000ms かけて移動
+animateElement(box, 300, 1000);  // Move to 300px over 1000ms
 ```
 
-### 5.3 rAF と DOM バッチ更新
+### 5.3 rAF and DOM Batch Updates
 
-DOM の読み取りと書き込みを交互に行うと、ブラウザは「強制同期レイアウト（Forced Synchronous Layout）」を発生させてパフォーマンスが低下する。rAF を使って書き込みをバッチ処理することで、この問題を回避できる。
+Alternating DOM reads and writes causes "Forced Synchronous Layout" and degrades performance. Batching writes with rAF avoids this problem.
 
 ```javascript
-// アンチパターン: 読み取りと書き込みの交互実行
-// → 強制同期レイアウトが発生する
+// Anti-pattern: alternating reads and writes
+// → causes Forced Synchronous Layout
 function badLayout(elements) {
   elements.forEach(el => {
-    const height = el.offsetHeight;    // 読み取り（Layout を強制）
-    el.style.height = height * 2 + 'px'; // 書き込み（Layout を無効化）
-    // 次の読み取りで再び Layout 計算が必要になる
+    const height = el.offsetHeight;       // read (forces Layout)
+    el.style.height = height * 2 + 'px'; // write (invalidates Layout)
+    // Next read requires layout recalculation again
   });
 }
 
-// 推奨パターン: 読み取りと書き込みを分離
+// Recommended pattern: separate reads and writes
 function goodLayout(elements) {
-  // Phase 1: 全ての読み取りを先に行う
+  // Phase 1: perform all reads first
   const heights = elements.map(el => el.offsetHeight);
 
-  // Phase 2: rAF 内で全ての書き込みを行う
+  // Phase 2: perform all writes inside rAF
   requestAnimationFrame(() => {
     elements.forEach((el, i) => {
       el.style.height = heights[i] * 2 + 'px';
@@ -633,15 +634,15 @@ function goodLayout(elements) {
 }
 ```
 
-### 5.4 rAF のキャンセル
+### 5.4 Canceling rAF
 
 ```javascript
-// rAF のキャンセル方法
+// How to cancel rAF
 let animationId = null;
 
 function startAnimation() {
   function frame(timestamp) {
-    // アニメーション処理
+    // Animation processing
     updatePosition(timestamp);
     animationId = requestAnimationFrame(frame);
   }
@@ -655,76 +656,76 @@ function stopAnimation() {
   }
 }
 
-// ページ可視性の変化に応じた制御
+// Control based on page visibility changes
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
-    stopAnimation();  // タブが非表示になったら停止
+    stopAnimation();  // Stop when tab becomes hidden
   } else {
-    startAnimation(); // タブが表示されたら再開
+    startAnimation(); // Resume when tab becomes visible
   }
 });
 ```
 
-### 5.5 rAF の注意点
+### 5.5 Important Notes on rAF
 
-1. **非アクティブタブでの動作**: 多くのブラウザは、非アクティブタブの rAF を停止またはスロットリングする。これは省電力のための措置である。
-2. **フレームレートの変動**: rAF は必ずしも 60fps で呼ばれるわけではない。ディスプレイのリフレッシュレート（120Hz, 144Hz など）やブラウザの負荷に依存する。
-3. **rAF 内での rAF 登録**: rAF コールバック内で新たに `requestAnimationFrame` を呼ぶと、**次のフレーム** で実行される（同フレームでは実行されない）。
+1. **Behavior in inactive tabs**: Most browsers stop or throttle rAF in inactive tabs. This is a power-saving measure.
+2. **Frame rate variation**: rAF is not necessarily called at 60fps. It depends on the display's refresh rate (120Hz, 144Hz, etc.) and browser load.
+3. **Registering rAF inside rAF**: Calling `requestAnimationFrame` inside a rAF callback schedules the new callback for the **next frame** (not the current one).
 
 ```javascript
-// rAF 内での rAF 登録は次フレームになる
+// rAF registered inside rAF runs in the next frame
 requestAnimationFrame(() => {
   console.log('Frame 1');
   requestAnimationFrame(() => {
-    console.log('Frame 2');  // Frame 1 の次のフレームで実行
+    console.log('Frame 2');  // Runs in the frame after Frame 1
   });
 });
 ```
 
-### 5.6 rAF vs setTimeout(fn, 16) 比較表
+### 5.6 rAF vs. setTimeout(fn, 16) Comparison Table
 
-| 特性 | requestAnimationFrame | setTimeout(fn, 16) |
-|------|----------------------|-------------------|
-| **フレーム同期** | ディスプレイリフレッシュレートに正確に同期 | ずれが蓄積する可能性あり |
-| **非アクティブタブ** | 停止される（省電力） | 実行され続ける（一部ブラウザで制限あり） |
-| **タイムスタンプ** | 高精度の DOMHighResTimeStamp が渡される | 自分で計測する必要あり |
-| **バッテリー消費** | 低い（不要時は停止） | 高い（常時実行） |
-| **レンダリングとの関係** | レンダリング直前に実行（最適なタイミング） | レンダリングとは無関係 |
-| **最小間隔** | ディスプレイ依存（16.67ms @60Hz） | 4ms（ネスト制限後） |
-| **用途** | アニメーション、DOM 更新 | 遅延実行、ポーリング |
+| Property | requestAnimationFrame | setTimeout(fn, 16) |
+|----------|-----------------------|-------------------|
+| **Frame sync** | Precisely synchronized with display refresh rate | Drift can accumulate |
+| **Inactive tab** | Stopped (power-saving) | Continues running (limited in some browsers) |
+| **Timestamp** | High-precision DOMHighResTimeStamp is provided | Must measure manually |
+| **Battery usage** | Low (stops when not needed) | High (always running) |
+| **Relationship to rendering** | Runs just before rendering (optimal timing) | Unrelated to rendering |
+| **Minimum interval** | Display-dependent (16.67ms @60Hz) | 4ms (after nesting limit) |
+| **Use case** | Animations, DOM updates | Delayed execution, polling |
 
 ---
 
-## 6. requestIdleCallback（rIC）
+## 6. requestIdleCallback (rIC)
 
-### 6.1 アイドル期間の概念
+### 6.1 The Concept of Idle Periods
 
-ブラウザの各フレームには「予算」がある。60fps のディスプレイでは 1 フレームあたり約 16.67ms である。タスク実行、マイクロタスク処理、レンダリングが全てこの予算内に収まった場合、残りの時間が「アイドル期間」となる。`requestIdleCallback` は、このアイドル期間に低優先度の処理を実行するための API である。
+Each browser frame has a "budget." At 60fps, this is approximately 16.67ms per frame. When task execution, microtask processing, and rendering all finish within this budget, the remaining time becomes an "idle period." `requestIdleCallback` is the API for executing low-priority processing during this idle period.
 
 ```
-フレーム予算の配分イメージ:
+Frame budget allocation:
 
- ケース1: 処理が軽い場合（アイドル時間あり）
+ Case 1: Light processing (idle time available)
  ┌────────┬──────┬──────────┬──────────────────┐
  │ Task   │Micro │Rendering │   Idle (rIC)     │
  │ 3ms    │ 1ms  │  5ms     │   7.67ms         │
  └────────┴──────┴──────────┴──────────────────┘
  │◄───────────── 16.67ms ─────────────────────►│
 
- ケース2: 処理が重い場合（アイドル時間なし）
+ Case 2: Heavy processing (no idle time)
  ┌────────────────────┬──────┬──────────┐
  │ Task               │Micro │Rendering │
- │ 10ms               │ 2ms  │  5ms     │← 予算超過！rIC は実行されない
+ │ 10ms               │ 2ms  │  5ms     │← Budget exceeded! rIC does not run
  └────────────────────┴──────┴──────────┘
  │◄───────────── 17ms ────────────────►│
 ```
 
 ### 6.2 IdleDeadline API
 
-rIC のコールバックには `IdleDeadline` オブジェクトが渡される。これを使ってアイドル期間の残り時間を確認し、処理を適切に分割できる。
+rIC callbacks receive an `IdleDeadline` object. Use it to check the remaining idle time and split processing appropriately.
 
 ```javascript
-// コード例4: rIC による段階的なデータ処理
+// Code example 4: Incremental data processing with rIC
 class IdleProcessor {
   #queue = [];
   #isProcessing = false;
@@ -740,11 +741,11 @@ class IdleProcessor {
 
     requestIdleCallback((deadline) => {
       this.#process(deadline);
-    }, { timeout: 5000 });  // 最大 5 秒待っても実行されない場合は強制実行
+    }, { timeout: 5000 });  // Force execution if not run within 5 seconds
   }
 
   #process(deadline) {
-    // アイドル時間が残っている間、またはタイムアウトした場合に処理
+    // Process while idle time remains, or when timed out
     while (
       this.#queue.length > 0 &&
       (deadline.timeRemaining() > 1 || deadline.didTimeout)
@@ -754,7 +755,7 @@ class IdleProcessor {
     }
 
     if (this.#queue.length > 0) {
-      // まだ残りがある場合、次のアイドル期間に継続
+      // If items remain, continue in next idle period
       requestIdleCallback((deadline) => {
         this.#process(deadline);
       }, { timeout: 5000 });
@@ -764,37 +765,37 @@ class IdleProcessor {
   }
 
   #processItem(item) {
-    // 個々のアイテムの処理
+    // Process individual items
     console.log(`Processing: ${item}`);
   }
 }
 
-// 使用例: 1000件のアイテムをアイドル時間で段階的に処理
+// Usage: incrementally process 1000 items during idle time
 const processor = new IdleProcessor();
 processor.enqueue(Array.from({ length: 1000 }, (_, i) => `item-${i}`));
 ```
 
-### 6.3 rIC の制約と注意事項
+### 6.3 rIC Restrictions and Cautions
 
-**DOM 操作の禁止**: rIC コールバック内で DOM を変更すると、予期しないレイアウト再計算が発生する可能性がある。DOM 変更が必要な場合は、rIC 内から rAF をスケジュールし、rAF 内で DOM を操作すべきである。
+**No DOM manipulation**: Changing the DOM inside an rIC callback can cause unexpected layout recalculations. If DOM changes are needed, schedule an rAF from within rIC and manipulate the DOM inside rAF.
 
 ```javascript
-// 推奨: rIC + rAF の組み合わせ
+// Recommended: combining rIC + rAF
 requestIdleCallback((deadline) => {
-  // アイドル時間中に計算を行う
+  // Perform calculations during idle time
   const results = performCalculations(deadline);
 
-  // DOM 変更は rAF に委譲する
+  // Delegate DOM changes to rAF
   requestAnimationFrame(() => {
     updateDOM(results);
   });
 });
 ```
 
-**ブラウザサポート**: Safari は requestIdleCallback をサポートしていない（2025年時点）。ポリフィルまたはフォールバックが必要である。
+**Browser support**: Safari does not support requestIdleCallback (as of 2025). A polyfill or fallback is needed.
 
 ```javascript
-// rIC のポリフィル（簡易版）
+// rIC polyfill (simplified)
 const requestIdleCallbackCompat =
   window.requestIdleCallback ||
   function(callback, options) {
@@ -816,60 +817,60 @@ const cancelIdleCallbackCompat =
   };
 ```
 
-### 6.4 rIC の典型的なユースケース
+### 6.4 Typical rIC Use Cases
 
-| ユースケース | 説明 | timeout の目安 |
-|-------------|------|---------------|
-| アナリティクス送信 | ユーザー行動ログの非同期送信 | 3000ms |
-| プリフェッチ | 次のページのリソースを事前取得 | 5000ms |
-| 遅延初期化 | 非クリティカル機能の初期化 | 10000ms |
-| データ前処理 | 検索インデックスの構築など | なし（完了保証不要） |
-| キャッシュ管理 | 不要なキャッシュエントリの削除 | なし |
-| テレメトリ | パフォーマンスデータの収集・送信 | 5000ms |
+| Use Case | Description | Recommended timeout |
+|----------|-------------|---------------------|
+| Analytics sending | Async sending of user behavior logs | 3000ms |
+| Prefetch | Pre-fetching resources for the next page | 5000ms |
+| Lazy initialization | Initializing non-critical features | 10000ms |
+| Data preprocessing | Building search indexes, etc. | none (no completion guarantee needed) |
+| Cache management | Deleting unnecessary cache entries | none |
+| Telemetry | Collecting and sending performance data | 5000ms |
 
 ---
 
-## 7. スケジューリング API 比較表
+## 7. Scheduling API Comparison Table
 
-### 7.1 全 API 横断比較
+### 7.1 Cross-API Comparison
 
-| API | 実行タイミング | 優先度 | フレーム同期 | キャンセル可能 | 最適な用途 |
-|-----|--------------|--------|-------------|--------------|-----------|
-| 同期コード | 即座 | 最高 | - | 不可 | 即時実行が必要な処理 |
-| `queueMicrotask()` | タスク直後 | 高 | なし | 不可 | 状態の一貫性保証 |
-| `Promise.then()` | タスク直後 | 高 | なし | 不可 | 非同期処理の継続 |
-| `MutationObserver` | DOM 変更後 | 高 | なし | observe 解除 | DOM 変更の監視 |
-| `requestAnimationFrame` | レンダリング前 | 中-高 | あり | `cancelAnimationFrame` | アニメーション、DOM 更新 |
-| `setTimeout(fn, 0)` | 次サイクル以降 | 中 | なし | `clearTimeout` | 遅延実行 |
-| `setInterval(fn, ms)` | 定期的 | 中 | なし | `clearInterval` | 定期ポーリング |
-| `MessageChannel` | 次サイクル | 中 | なし | port.close() | ネスト制限回避 |
-| `requestIdleCallback` | アイドル時 | 低 | なし | `cancelIdleCallback` | 低優先度処理 |
-| `scheduler.postTask()` | 優先度依存 | 可変 | なし | `AbortController` | 優先度付きタスク |
+| API | Execution Timing | Priority | Frame sync | Cancelable | Best Use |
+|-----|-----------------|----------|------------|------------|----------|
+| Synchronous code | Immediate | Highest | - | No | Processing needing immediate execution |
+| `queueMicrotask()` | Right after task | High | No | No | State consistency guarantees |
+| `Promise.then()` | Right after task | High | No | No | Async continuation |
+| `MutationObserver` | After DOM change | High | No | Disconnect | Watching DOM changes |
+| `requestAnimationFrame` | Before rendering | Medium-High | Yes | `cancelAnimationFrame` | Animations, DOM updates |
+| `setTimeout(fn, 0)` | Next cycle onward | Medium | No | `clearTimeout` | Delayed execution |
+| `setInterval(fn, ms)` | Periodic | Medium | No | `clearInterval` | Periodic polling |
+| `MessageChannel` | Next cycle | Medium | No | port.close() | Avoiding nesting limits |
+| `requestIdleCallback` | During idle | Low | No | `cancelIdleCallback` | Low-priority processing |
+| `scheduler.postTask()` | Priority-dependent | Variable | No | `AbortController` | Priority-based tasks |
 
-### 7.2 scheduler.postTask()（新しい API）
+### 7.2 scheduler.postTask() (New API)
 
-`scheduler.postTask()` は、タスクに明示的な優先度を付与できる新しい API である（Chrome 94+ でサポート）。
+`scheduler.postTask()` is a new API that allows explicit priority assignment to tasks (supported in Chrome 94+).
 
 ```javascript
-// scheduler.postTask() の使用例
+// Usage of scheduler.postTask()
 async function demonstrateScheduler() {
-  // user-blocking: ユーザー操作に影響する処理（最高優先度）
+  // user-blocking: processing affecting user interactions (highest priority)
   scheduler.postTask(() => {
     console.log('user-blocking task');
   }, { priority: 'user-blocking' });
 
-  // user-visible: 表示に影響するが即時でなくてよい処理
+  // user-visible: affects display but doesn't need to be immediate
   scheduler.postTask(() => {
     console.log('user-visible task');
   }, { priority: 'user-visible' });
 
-  // background: バックグラウンド処理（最低優先度）
+  // background: background processing (lowest priority)
   scheduler.postTask(() => {
     console.log('background task');
   }, { priority: 'background' });
 }
 
-// AbortController によるキャンセル
+// Canceling with AbortController
 const controller = new AbortController();
 
 scheduler.postTask(
@@ -877,17 +878,17 @@ scheduler.postTask(
   { priority: 'background', signal: controller.signal }
 );
 
-controller.abort();  // タスクをキャンセル
+controller.abort();  // Cancel the task
 ```
 
 ---
 
-## 8. 実行順序の統合モデル
+## 8. Integrated Execution Order Model
 
-### 8.1 全 API を含む実行順序
+### 8.1 Execution Order Including All APIs
 
 ```javascript
-// コード例5: 全スケジューリング API の実行順序
+// Code example 5: Execution order with all scheduling APIs
 console.log('1: sync');
 
 setTimeout(() => console.log('2: setTimeout'), 0);
@@ -902,67 +903,67 @@ requestIdleCallback(() => console.log('6: rIC'));
 
 console.log('7: sync end');
 
-// 保証される順序:
+// Guaranteed order:
 // 1: sync
 // 7: sync end
-// 3: promise         ← マイクロタスク（Promise）
-// 4: queueMicrotask  ← マイクロタスク（queueMicrotask）
+// 3: promise         ← microtask (Promise)
+// 4: queueMicrotask  ← microtask (queueMicrotask)
 //
-// 以下はブラウザの判断による（相対順序は変わりうる）:
-// 2: setTimeout      ← タスク
-// 5: rAF             ← レンダリング前（レンダリングが発生する場合）
-// 6: rIC             ← アイドル時間（余裕がある場合）
+// The following depend on browser decision (relative order may vary):
+// 2: setTimeout      ← task
+// 5: rAF             ← before rendering (if rendering occurs)
+// 6: rIC             ← during idle time (if time allows)
 //
-// 典型的な出力:
+// Typical output:
 // 1, 7, 3, 4, 5, 2, 6
-// または
+// or
 // 1, 7, 3, 4, 2, 5, 6
 ```
 
-### 8.2 実行順序の決定フローチャート
+### 8.2 Flowchart for Determining Execution Order
 
 ```
-実行順序を予測するためのフローチャート:
+Flowchart for predicting execution order:
 
-  コードを読む
+  Read the code
        │
        ▼
-  ┌─────────────┐    はい    ┌──────────────────┐
-  │ 同期コードか？├──────────►│ 即座に実行（順序通り）│
-  └──────┬──────┘           └──────────────────┘
-         │ いいえ
+  ┌─────────────┐    yes    ┌──────────────────────┐
+  │ Synchronous? ├─────────►│ Execute immediately   │
+  └──────┬──────┘           │ (in order)            │
+         │ no               └──────────────────────┘
          ▼
-  ┌─────────────────┐  はい  ┌────────────────────────┐
-  │ マイクロタスクか？├──────►│ 現在のタスク完了直後に   │
-  │ (Promise, queue  │       │ 全てのマイクロタスクと   │
-  │  Microtask, etc) │       │ 一緒に実行              │
+  ┌─────────────────┐  yes  ┌────────────────────────┐
+  │ Microtask?       ├──────►│ Execute right after     │
+  │ (Promise, queue  │       │ current task, together  │
+  │  Microtask, etc) │       │ with all microtasks     │
   └──────┬──────────┘       └────────────────────────┘
-         │ いいえ
+         │ no
          ▼
-  ┌─────────────┐    はい    ┌────────────────────────┐
-  │ rAF か？     ├──────────►│ 次のレンダリングフレーム │
-  │              │           │ の直前に実行             │
+  ┌─────────────┐    yes    ┌────────────────────────┐
+  │ rAF?         ├─────────►│ Run just before the     │
+  │              │           │ next rendering frame    │
   └──────┬──────┘           └────────────────────────┘
-         │ いいえ
+         │ no
          ▼
-  ┌─────────────┐    はい    ┌────────────────────────┐
-  │ タスクか？    ├──────────►│ タスクキューに追加      │
-  │ (setTimeout) │           │ 順番が来たら実行        │
+  ┌─────────────┐    yes    ┌────────────────────────┐
+  │ Task?        ├─────────►│ Added to task queue     │
+  │ (setTimeout) │           │ Runs when its turn comes│
   └──────┬──────┘           └────────────────────────┘
-         │ いいえ
+         │ no
          ▼
-  ┌─────────────┐    はい    ┌────────────────────────┐
-  │ rIC か？     ├──────────►│ アイドル期間に実行      │
-  │              │           │（最も低い優先度）       │
+  ┌─────────────┐    yes    ┌────────────────────────┐
+  │ rIC?         ├─────────►│ Run during idle period  │
+  │              │           │ (lowest priority)       │
   └─────────────┘           └────────────────────────┘
 ```
 
-### 8.3 複雑な実行順序のトレース
+### 8.3 Tracing Complex Execution Order
 
-以下は、複数の API が組み合わさった場合の詳細なトレースである。
+The following is a detailed trace for a case combining multiple APIs.
 
 ```javascript
-// 複合的な実行順序の例
+// Example of composite execution order
 console.log('A');
 
 setTimeout(() => {
@@ -984,40 +985,40 @@ Promise.resolve().then(() => console.log('H'));
 
 console.log('I');
 
-// トレース:
-// Step 1 (同期): A, I
-// Step 2 (マイクロタスク): F → G（F 内で追加された G も同じチェックポイント）, H
-//   ※ F と H の順序は登録順で F → H、G は F の中で追加されるので F → G → H
-//   正確な出力: F, G, H
-// Step 3 (レンダリング判断):
-//   レンダリングする場合: D → E（rAF 内の Promise）
-//   レンダリングしない場合: D, E は次のレンダリングまで遅延
-// Step 4 (タスク): B → C（B 内で追加された C はマイクロタスクチェックポイントで実行）
+// Trace:
+// Step 1 (sync): A, I
+// Step 2 (microtasks): F → G (G added inside F, runs same checkpoint), H
+//   ※ F and H order is registration order F → H; G added inside F so F → G → H
+//   Exact output: F, G, H
+// Step 3 (rendering decision):
+//   If rendering: D → E (Promise inside rAF)
+//   If not rendering: D, E deferred until next rendering
+// Step 4 (task): B → C (C added inside B, runs at microtask checkpoint)
 //
-// 典型的な出力: A, I, F, G, H, D, E, B, C
+// Typical output: A, I, F, G, H, D, E, B, C
 ```
 
 ---
 
-## 9. コード例集
+## 9. Code Examples
 
-### 9.1 コード例6: MessageChannel による即時タスクスケジューリング
+### 9.1 Code Example 6: Immediate Task Scheduling with MessageChannel
 
-`MessageChannel` を使うと、`setTimeout` のネスト制限（4ms）を回避して、より高速にタスクをスケジュールできる。React のスケジューラ（Scheduler パッケージ）でもこの手法が使用されている。
+Using `MessageChannel` avoids the `setTimeout` nesting limit (4ms) and allows faster task scheduling. React's scheduler (Scheduler package) also uses this technique.
 
 ```javascript
-// MessageChannel を使った高速タスクスケジューリング
+// Fast task scheduling with MessageChannel
 function scheduleTask(callback) {
   const channel = new MessageChannel();
   channel.port1.onmessage = () => callback();
   channel.port2.postMessage(null);
 }
 
-// 速度比較
+// Speed comparison
 async function benchmark() {
   const iterations = 100;
 
-  // setTimeout(fn, 0) の場合
+  // With setTimeout(fn, 0)
   const startTimeout = performance.now();
   let countTimeout = 0;
   await new Promise(resolve => {
@@ -1033,7 +1034,7 @@ async function benchmark() {
   });
   const timeoutDuration = performance.now() - startTimeout;
 
-  // MessageChannel の場合
+  // With MessageChannel
   const startChannel = performance.now();
   let countChannel = 0;
   await new Promise(resolve => {
@@ -1052,16 +1053,16 @@ async function benchmark() {
 
   console.log(`setTimeout x${iterations}: ${timeoutDuration.toFixed(1)}ms`);
   console.log(`MessageChannel x${iterations}: ${channelDuration.toFixed(1)}ms`);
-  // 典型的な結果（Chrome）:
-  // setTimeout x100: ~450ms（ネスト制限で各 4ms+ に）
-  // MessageChannel x100: ~15ms（ネスト制限なし）
+  // Typical results (Chrome):
+  // setTimeout x100: ~450ms (each 4ms+ due to nesting limit)
+  // MessageChannel x100: ~15ms (no nesting limit)
 }
 ```
 
-### 9.2 コード例7: イベントループを活用したプログレス表示
+### 9.2 Code Example 7: Progress Display Using the Event Loop
 
 ```javascript
-// 重い処理の途中でプログレスバーを更新する
+// Update a progress bar in the middle of heavy processing
 async function processWithProgress(data, progressCallback) {
   const total = data.length;
   const chunkSize = 100;
@@ -1069,19 +1070,19 @@ async function processWithProgress(data, progressCallback) {
   for (let i = 0; i < total; i += chunkSize) {
     const chunk = data.slice(i, i + chunkSize);
 
-    // チャンクを処理
+    // Process the chunk
     for (const item of chunk) {
       processItem(item);
     }
 
-    // プログレスを更新（DOM 操作）
+    // Update progress (DOM manipulation)
     const progress = Math.min((i + chunkSize) / total, 1);
     progressCallback(progress);
 
-    // メインスレッドに制御を返してレンダリングを許可
+    // Return control to the main thread to allow rendering
     await new Promise(resolve => {
       requestAnimationFrame(() => {
-        // rAF 内で resolve することで、レンダリング後に次のチャンクが実行される
+        // Resolving inside rAF means the next chunk runs after rendering
         resolve();
       });
     });
@@ -1090,7 +1091,7 @@ async function processWithProgress(data, progressCallback) {
   progressCallback(1);
 }
 
-// 使用例
+// Usage
 const progressBar = document.getElementById('progress-bar');
 const data = generateLargeDataset(10000);
 
@@ -1100,10 +1101,10 @@ processWithProgress(data, (progress) => {
 });
 ```
 
-### 9.3 コード例8: デバウンスとイベントループ
+### 9.3 Code Example 8: Debounce and the Event Loop
 
 ```javascript
-// マイクロタスクベースのデバウンス（同一タスク内の複数呼び出しを統合）
+// Microtask-based debounce (merges multiple calls within the same task)
 function microtaskDebounce(fn) {
   let scheduled = false;
   let latestArgs = null;
@@ -1120,7 +1121,7 @@ function microtaskDebounce(fn) {
   };
 }
 
-// rAF ベースのデバウンス（フレーム単位で統合）
+// rAF-based debounce (merges per frame)
 function rafDebounce(fn) {
   let frameId = null;
   let latestArgs = null;
@@ -1136,7 +1137,7 @@ function rafDebounce(fn) {
   };
 }
 
-// タスクベースのデバウンス（従来型、ms 指定）
+// Task-based debounce (traditional, with ms delay)
 function taskDebounce(fn, delay = 300) {
   let timerId = null;
 
@@ -1148,37 +1149,37 @@ function taskDebounce(fn, delay = 300) {
   };
 }
 
-// 使い分け:
-// microtaskDebounce: 同一同期コンテキスト内の重複排除
-// rafDebounce: スクロールやリサイズなどフレーム単位の処理
-// taskDebounce: ユーザー入力（検索ボックスなど）の待機
+// When to use which:
+// microtaskDebounce: deduplication within the same synchronous context
+// rafDebounce: per-frame processing like scroll or resize
+// taskDebounce: waiting for user input (search boxes, etc.)
 ```
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### 10.1 アンチパターン1: マイクロタスクによるレンダリングブロック
+### 10.1 Anti-Pattern 1: Blocking Rendering with Microtasks
 
-**問題**: マイクロタスクはチェックポイント内で全て実行されるため、大量のマイクロタスクはレンダリングを長時間ブロックする。
+**Problem**: Because microtasks are all executed within a checkpoint, a large number of microtasks will block rendering for a long time.
 
 ```javascript
-// NG: マイクロタスクの大量キューイング
+// BAD: queuing a large number of microtasks
 function processAllWithMicrotasks(items) {
   items.forEach((item, index) => {
-    // 10000個の Promise チェーンがマイクロタスクキューに積まれる
+    // 10,000 Promise chains are stacked in the microtask queue
     Promise.resolve().then(() => {
       processItem(item);
       if (index % 100 === 0) {
         updateProgressUI(index / items.length);
-        // この UI 更新はレンダリングされない！
-        // 全てのマイクロタスクが完了するまでレンダリングはブロックされる
+        // This UI update will NOT render!
+        // Rendering is blocked until all microtasks complete
       }
     });
   });
 }
 
-// OK: タスクに分割してレンダリング機会を確保
+// GOOD: split into tasks to allow rendering opportunities
 async function processAllWithYield(items) {
   const chunkSize = 50;
   for (let i = 0; i < items.length; i += chunkSize) {
@@ -1187,37 +1188,37 @@ async function processAllWithYield(items) {
 
     updateProgressUI(Math.min((i + chunkSize) / items.length, 1));
 
-    // setTimeout でメインスレッドに制御を返す
+    // Return control to the main thread with setTimeout
     await new Promise(resolve => setTimeout(resolve, 0));
   }
 }
 ```
 
-**なぜ問題なのか**: マイクロタスクキューが空になるまでレンダリングパイプラインは開始されない。10000件のマイクロタスクが積まれると、全て実行されるまで画面は更新されず、ユーザーにはフリーズしたように見える。
+**Why it's a problem**: The rendering pipeline does not start until the microtask queue is empty. If 10,000 microtasks are queued, the screen won't update until all of them run, making it appear frozen to the user.
 
-### 10.2 アンチパターン2: rAF 内での重い同期処理
+### 10.2 Anti-Pattern 2: Heavy Synchronous Processing Inside rAF
 
-**問題**: rAF コールバック内で重い処理を行うと、フレーム予算を超過してフレームドロップが発生する。
+**Problem**: Performing heavy processing inside rAF callbacks exceeds the frame budget and causes frame drops.
 
 ```javascript
-// NG: rAF 内での重い処理
+// BAD: heavy processing inside rAF
 requestAnimationFrame(() => {
-  // 大量のデータをソート（数十ms かかる可能性）
+  // Sorting a large array (could take tens of ms)
   const sorted = hugeArray.sort((a, b) => complexComparison(a, b));
 
-  // ソート結果を DOM に反映
+  // Reflecting sort results in the DOM
   sorted.forEach(item => {
     const el = document.createElement('div');
     el.textContent = item.name;
-    container.appendChild(el);  // DOM 操作も重い
+    container.appendChild(el);  // DOM manipulation is also heavy
   });
-  // フレーム予算（16.67ms）を大幅に超過 → ジャンク発生
+  // Far exceeds the frame budget (16.67ms) → jank occurs
 });
 
-// OK: 計算は事前に行い、rAF では DOM 操作のみ
+// GOOD: compute ahead of time, only do DOM operations in rAF
 const sorted = hugeArray.sort((a, b) => complexComparison(a, b));
 
-// DOM 更新は DocumentFragment を使ってバッチ処理
+// Batch DOM updates using DocumentFragment
 requestAnimationFrame(() => {
   const fragment = document.createDocumentFragment();
   sorted.forEach(item => {
@@ -1225,26 +1226,26 @@ requestAnimationFrame(() => {
     el.textContent = item.name;
     fragment.appendChild(el);
   });
-  container.appendChild(fragment);  // 1回の DOM 操作で済む
+  container.appendChild(fragment);  // Single DOM operation
 });
 ```
 
-**なぜ問題なのか**: rAF はレンダリングの直前に実行される。ここでフレーム予算を使い切ると、レンダリング自体が遅延し、ユーザーが認知できるレベルのカクつきが発生する。rAF 内では DOM の書き込みのみに集中し、計算処理は事前に完了させるべきである。
+**Why it's a problem**: rAF runs immediately before rendering. Using up the frame budget here delays rendering itself, causing jank that users can perceive. Focus only on DOM writes inside rAF, and complete computation beforehand.
 
-### 10.3 アンチパターン3: setInterval の不適切な使用
+### 10.3 Anti-Pattern 3: Inappropriate Use of setInterval
 
 ```javascript
-// NG: setInterval で正確なタイミングを期待
+// BAD: expecting precise timing from setInterval
 let lastTime = performance.now();
 setInterval(() => {
   const now = performance.now();
   const drift = now - lastTime - 1000;
   console.log(`Drift: ${drift.toFixed(1)}ms`);
   lastTime = now;
-  // 長時間実行するとドリフトが蓄積する
+  // Drift accumulates over long runs
 }, 1000);
 
-// OK: setTimeout の再帰呼び出しで自己補正
+// GOOD: self-correcting recursive setTimeout
 function accurateInterval(callback, interval) {
   let expected = performance.now() + interval;
 
@@ -1254,7 +1255,7 @@ function accurateInterval(callback, interval) {
     callback(drift);
 
     expected += interval;
-    // ドリフトを補正して次のタイマーを設定
+    // Correct for drift when setting the next timer
     setTimeout(step, Math.max(0, interval - drift));
   }
 
@@ -1268,111 +1269,111 @@ accurateInterval((drift) => {
 
 ---
 
-## 11. エッジケース分析
+## 11. Edge Case Analysis
 
-### 11.1 エッジケース1: Promise コンストラクタ内の例外
+### 11.1 Edge Case 1: Exceptions Inside the Promise Constructor
 
-Promise コンストラクタの executor 内で同期的にスローされた例外は、Promise の reject として処理される。しかし、executor 内で非同期に（setTimeout 内で）スローされた例外は、catch できない未処理例外となる。
+Exceptions thrown synchronously inside a Promise constructor executor are handled as a rejection. However, exceptions thrown asynchronously (inside setTimeout) within the executor become unhandled exceptions that cannot be caught.
 
 ```javascript
-// ケース A: executor 内の同期例外 → reject として捕捉可能
+// Case A: synchronous exception in executor → catchable as rejection
 const p1 = new Promise((resolve, reject) => {
   throw new Error('sync error');
 });
 p1.catch(err => console.log('Caught:', err.message));
-// 出力: Caught: sync error
+// Output: Caught: sync error
 
-// ケース B: executor 内の非同期例外 → 捕捉不可
+// Case B: async exception in executor → cannot be caught
 const p2 = new Promise((resolve, reject) => {
   setTimeout(() => {
     throw new Error('async error');
-    // この例外は Promise チェーンでは捕捉できない
-    // window.onerror または unhandledrejection で検出される
+    // This exception cannot be caught with the Promise chain
+    // Detected by window.onerror or unhandledrejection
   }, 0);
 });
 p2.catch(err => console.log('This will NOT be called'));
 
-// ケース C: resolve 後の例外は無視される
+// Case C: exception after resolve is ignored
 const p3 = new Promise((resolve, reject) => {
   resolve('done');
   throw new Error('after resolve');
-  // resolve 後の throw は無視される（Promise の状態は不変）
+  // throw after resolve is ignored (Promise state is immutable)
 });
 p3.then(val => console.log('Value:', val));
-// 出力: Value: done
+// Output: Value: done
 ```
 
-**イベントループとの関連**: ケース B では、`setTimeout` のコールバックは別のタスクとして実行される。そのタスク内での例外は、元の Promise チェーンとは完全に独立したコンテキストで発生するため、`.catch()` では捕捉できない。これはイベントループの「タスク境界」を跨ぐことによるものである。
+**Relationship to the event loop**: In Case B, the `setTimeout` callback runs as a separate task. The exception in that task occurs in a completely independent context from the original Promise chain, so it cannot be caught with `.catch()`. This is due to crossing a "task boundary" in the event loop.
 
-### 11.2 エッジケース2: ネストされた rAF の実行フレーム
+### 11.2 Edge Case 2: Execution Frame of Nested rAF
 
-`requestAnimationFrame` 内で新たに `requestAnimationFrame` を呼ぶと、新しいコールバックは次のフレームで実行される。これはレイアウトの読み取り・書き込みパターンで活用できるが、注意が必要である。
+Calling `requestAnimationFrame` inside a `requestAnimationFrame` callback causes the new callback to run in the next frame. This can be utilized in layout read/write patterns, but requires care.
 
 ```javascript
-// 「次のフレームまで待つ」テクニック
+// "Wait until next paint" technique
 function afterNextPaint(callback) {
   requestAnimationFrame(() => {
-    // この rAF は現在のフレームのレンダリング前に実行
+    // This rAF runs before rendering of the current frame
     requestAnimationFrame(() => {
-      // この rAF は次のフレームのレンダリング前に実行
-      // つまり、前のフレームのレンダリング（Paint）完了後
+      // This rAF runs before rendering of the next frame
+      // i.e., after rendering (Paint) of the previous frame completes
       callback();
     });
   });
 }
 
-// 使用例: DOM 変更後に「描画完了」を検知
+// Usage: detect "paint complete" after DOM change
 element.style.display = 'block';
 afterNextPaint(() => {
-  // ここでは element が画面上に描画されていることが期待できる
+  // Here, element is expected to be visible on screen
   const rect = element.getBoundingClientRect();
   console.log('Element is now visible at:', rect);
 });
 ```
 
 ```
-ダブル rAF のタイムライン:
+Double rAF timeline:
 
  Frame N                          Frame N+1
  ┌──────────────────────────────┐ ┌────────────────────────────┐
  │ rAF-1 │ Style │Layout│Paint │ │ rAF-2  │ Style│Layout│Paint│
- │(登録) │       │      │      │ │(実行)  │      │      │     │
+ │(reg.) │       │      │      │ │(exec.) │      │      │     │
  └───┬──────────────────────────┘ └───┬────────────────────────┘
      │                                │
-     └─ rAF-2 を登録                  └─ callback 実行
-                                         （Paint 後の状態が確定）
+     └─ registers rAF-2               └─ callback runs
+                                         (state after Paint confirmed)
 ```
 
-### 11.3 エッジケース3: async/await と実行コンテキストの保持
+### 11.3 Edge Case 3: Retaining Execution Context with async/await
 
 ```javascript
-// async 関数内での this の挙動
+// Behavior of this inside async functions
 class Timer {
   name = 'MyTimer';
 
   async start() {
-    console.log(this.name);    // 'MyTimer' （同期部分）
+    console.log(this.name);    // 'MyTimer' (synchronous part)
 
     await Promise.resolve();
-    console.log(this.name);    // 'MyTimer' （this は保持される）
+    console.log(this.name);    // 'MyTimer' (this is retained)
 
-    // しかし、コールバックとして渡した場合は異なる
+    // But when passed as a callback, it differs
     setTimeout(function() {
-      // console.log(this.name); // undefined （this が失われる）
+      // console.log(this.name); // undefined (this is lost)
     }, 0);
 
     setTimeout(() => {
-      console.log(this.name);   // 'MyTimer' （arrow function で this 保持）
+      console.log(this.name);   // 'MyTimer' (this retained with arrow function)
     }, 0);
   }
 }
 
-// await 前後でマイクロタスクの実行順序が変わるケース
+// Case where microtask execution order changes across await boundaries
 async function tricky() {
   console.log('1');
-  await null;           // マイクロタスク境界
+  await null;           // microtask boundary
   console.log('2');
-  await null;           // マイクロタスク境界
+  await null;           // microtask boundary
   console.log('3');
 }
 
@@ -1381,25 +1382,25 @@ tricky();
 console.log('B');
 Promise.resolve().then(() => console.log('C'));
 
-// 出力: A, 1, B, C, 2, 3
-// 解説:
-// 同期: A, 1（await null まで）, B
-// マイクロタスク: C（Promise.then）, 2（await null の継続）
-//   ※ await null の継続は Promise.resolve(null).then(() => ...) と等価
-//   C と 2 の順序は、C が先に登録されているため C が先
-// 次のマイクロタスク: 3（2の await null の継続）
+// Output: A, 1, B, C, 2, 3
+// Explanation:
+// Sync: A, 1 (up to await null), B
+// Microtasks: C (Promise.then), 2 (continuation of await null)
+//   ※ await null continuation is equivalent to Promise.resolve(null).then(() => ...)
+//   C is registered first, so C comes first
+// Next microtask: 3 (continuation of 2's await null)
 ```
 
 ---
 
-## 12. 段階別演習
+## 12. Staged Exercises
 
-### 12.1 演習1（初級）: 実行順序の予測
+### 12.1 Exercise 1 (Beginner): Predicting Execution Order
 
-以下のコードの出力順序を予測せよ。予測後にブラウザの DevTools コンソールで検証すること。
+Predict the output order of the following code. After predicting, verify in the browser's DevTools console.
 
 ```javascript
-// 問題1
+// Problem 1
 console.log('start');
 
 setTimeout(() => console.log('timeout'), 0);
@@ -1414,7 +1415,7 @@ console.log('end');
 ```
 
 <details>
-<summary>解答</summary>
+<summary>Answer</summary>
 
 ```
 start
@@ -1425,40 +1426,40 @@ promise 2
 timeout
 ```
 
-**解説**:
-1. 同期コード: `start`, `end`
-2. マイクロタスクチェックポイント:
-   - `promise 1`（最初の .then、Promise.resolve() で即座にキューイング）
-   - `microtask`（queueMicrotask で登録）
-   - `promise 2`（promise 1 の .then が解決した後にキューイング → 同チェックポイント内で実行）
-3. タスク: `timeout`
+**Explanation**:
+1. Synchronous code: `start`, `end`
+2. Microtask checkpoint:
+   - `promise 1` (first .then, queued immediately with Promise.resolve())
+   - `microtask` (registered with queueMicrotask)
+   - `promise 2` (queued after promise 1 resolves → runs in the same checkpoint)
+3. Task: `timeout`
 
-`promise 1` と `microtask` の順序は、Promise.resolve().then() と queueMicrotask() の登録順に依存する。`promise 2` は `promise 1` の実行完了後にマイクロタスクキューに追加されるが、チェックポイント内なのでそのまま実行される。
+The order of `promise 1` and `microtask` depends on the registration order of Promise.resolve().then() and queueMicrotask(). `promise 2` is added to the microtask queue after `promise 1` executes, but since it's within the same checkpoint, it runs immediately.
 </details>
 
-### 12.2 演習2（中級）: rAF を使ったアニメーション実装
+### 12.2 Exercise 2 (Intermediate): Implementing an Animation with rAF
 
-以下の要件を満たすカウントダウンタイマーを rAF で実装せよ。
+Implement a countdown timer using rAF that meets the following requirements.
 
-- 10 から 0 までカウントダウンする
-- 各カウントの表示は正確に 1 秒間隔にする
-- カウント 0 で停止し、「Complete!」と表示する
-- `cancelAnimationFrame` で途中停止可能にする
+- Counts down from 10 to 0
+- Each count displays at exactly 1-second intervals
+- Stops at count 0 and displays "Complete!"
+- Can be stopped mid-way with `cancelAnimationFrame`
 
 ```javascript
-// 演習2のスケルトン
+// Exercise 2 skeleton
 function createCountdown(element, from, onComplete) {
   let startTime = null;
   let currentCount = from;
   let animationId = null;
 
   function tick(timestamp) {
-    // ここを実装せよ
+    // Implement here
   }
 
   animationId = requestAnimationFrame(tick);
 
-  // キャンセル関数を返す
+  // Return cancel function
   return () => {
     if (animationId !== null) {
       cancelAnimationFrame(animationId);
@@ -1469,7 +1470,7 @@ function createCountdown(element, from, onComplete) {
 ```
 
 <details>
-<summary>解答</summary>
+<summary>Answer</summary>
 
 ```javascript
 function createCountdown(element, from, onComplete) {
@@ -1511,33 +1512,33 @@ function createCountdown(element, from, onComplete) {
   };
 }
 
-// 使用例
+// Usage
 const display = document.getElementById('countdown');
 const cancel = createCountdown(display, 10, () => {
   console.log('Countdown finished!');
 });
 
-// 5秒後に途中停止する場合:
+// To stop after 5 seconds:
 // setTimeout(() => cancel(), 5000);
 ```
 
-**ポイント**:
-- `startTime` を最初のフレームで記録し、経過時間ベースでカウントを計算する
-- `setInterval` ではなく rAF を使うことで、フレームに同期した滑らかな表示が可能
-- キャンセル関数を返すことで外部からの停止を可能にする
+**Key points**:
+- Record `startTime` at the first frame and calculate the count based on elapsed time
+- Using rAF instead of `setInterval` enables smooth frame-synchronized display
+- Returning a cancel function allows external stopping
 </details>
 
-### 12.3 演習3（上級）: タスクスケジューラの実装
+### 12.3 Exercise 3 (Advanced): Implementing a Task Scheduler
 
-以下の要件を満たすタスクスケジューラを実装せよ。
+Implement a task scheduler that meets the following requirements.
 
-- 優先度付きタスクキュー（high, normal, low の 3 段階）
-- 各タスクはフレーム予算（デフォルト 8ms）を超えない範囲で実行
-- 予算超過時は次のフレームに延期
-- タスクの追加・キャンセルが可能
+- Priority-based task queue (3 levels: high, normal, low)
+- Each task runs within the frame budget (default 8ms)
+- When budget is exceeded, defer to the next frame
+- Tasks can be added and canceled
 
 ```javascript
-// 演習3のスケルトン
+// Exercise 3 skeleton
 class PriorityTaskScheduler {
   #queues = { high: [], normal: [], low: [] };
   #isRunning = false;
@@ -1548,22 +1549,22 @@ class PriorityTaskScheduler {
   }
 
   schedule(task, priority = 'normal') {
-    // ここを実装せよ
-    // task は { id: string, run: () => void } の形式
+    // Implement here
+    // task has the form { id: string, run: () => void }
   }
 
   cancel(taskId) {
-    // ここを実装せよ
+    // Implement here
   }
 
   #processQueue() {
-    // ここを実装せよ
+    // Implement here
   }
 }
 ```
 
 <details>
-<summary>解答</summary>
+<summary>Answer</summary>
 
 ```javascript
 class PriorityTaskScheduler {
@@ -1651,7 +1652,7 @@ class PriorityTaskScheduler {
   }
 }
 
-// 使用例
+// Usage
 const scheduler = new PriorityTaskScheduler(8);
 
 scheduler.schedule({
@@ -1669,98 +1670,98 @@ const taskId = scheduler.schedule({
   run: () => prefetchNextPage(),
 }, 'normal');
 
-// 不要になったらキャンセル
+// Cancel when no longer needed
 scheduler.cancel(taskId);
 ```
 
-**設計ポイント**:
-- 優先度の高いキューから順にタスクを取得する（high → normal → low）
-- `performance.now()` でフレーム予算の残りを確認し、超過前にループを抜ける
-- rAF を使うことでフレーム単位の処理サイクルを実現する
-- `destroy()` メソッドでリソースを適切に解放する
+**Design points**:
+- Retrieve tasks from the highest-priority queue first (high → normal → low)
+- Check remaining frame budget with `performance.now()` and exit the loop before exceeding it
+- Use rAF to achieve a per-frame processing cycle
+- Release resources properly with the `destroy()` method
 </details>
 
 ---
 
 ## 13. FAQ
 
-### Q1: マクロタスクとマイクロタスクの実行順序の違いは？
+### Q1: What is the difference in execution order between macrotasks and microtasks?
 
-**回答**: マクロタスクとマイクロタスクは、イベントループにおいて異なるタイミングで処理される。
+**Answer**: Macrotasks and microtasks are processed at different timings in the event loop.
 
-**マクロタスク（Task）**:
-- `setTimeout`、`setInterval`、I/O、UI イベントなどで生成される
-- イベントループは1回のループで**1つのマクロタスクのみ**を実行する
-- マクロタスク間にはレンダリング更新の機会が挟まる
-- タスクキューは複数存在する場合があり、ブラウザが優先度を決定する
+**Macrotask (Task)**:
+- Generated by `setTimeout`, `setInterval`, I/O, UI events, etc.
+- The event loop executes **only one macrotask** per loop iteration
+- Rendering update opportunities are interspersed between macrotasks
+- Multiple task queues may exist, and the browser determines priority
 
-**マイクロタスク（Microtask）**:
-- `Promise.then`、`queueMicrotask`、`MutationObserver` などで生成される
-- マクロタスク完了後、マイクロタスクキューが**空になるまで全て**実行される
-- マイクロタスクの実行中に新たなマイクロタスクが追加された場合、それも同じチェックポイント内で実行される
-- レンダリング更新はマイクロタスクキューが空になるまで行われない
+**Microtask**:
+- Generated by `Promise.then`, `queueMicrotask`, `MutationObserver`, etc.
+- After a macrotask completes, **all** microtasks run until the queue is empty
+- If a new microtask is added while processing microtasks, it also runs within the same checkpoint
+- Rendering updates do not occur until the microtask queue is empty
 
-**実行順序の具体例**:
+**Concrete example of execution order**:
 
 ```javascript
-console.log('1: 同期コード');
+console.log('1: synchronous code');
 
-setTimeout(() => console.log('2: マクロタスク'), 0);
+setTimeout(() => console.log('2: macrotask'), 0);
 
 Promise.resolve().then(() => {
-  console.log('3: マイクロタスク');
-  Promise.resolve().then(() => console.log('4: ネストされたマイクロタスク'));
+  console.log('3: microtask');
+  Promise.resolve().then(() => console.log('4: nested microtask'));
 });
 
 queueMicrotask(() => console.log('5: queueMicrotask'));
 
-console.log('6: 同期コード終了');
+console.log('6: sync end');
 
-// 出力順序:
-// 1: 同期コード
-// 6: 同期コード終了
-// 3: マイクロタスク
+// Output order:
+// 1: synchronous code
+// 6: sync end
+// 3: microtask
 // 5: queueMicrotask
-// 4: ネストされたマイクロタスク
-// 2: マクロタスク
+// 4: nested microtask
+// 2: macrotask
 ```
 
-**重要なポイント**:
-- マイクロタスクは現在のタスクの「論理的な延長」として扱われる
-- マイクロタスクが大量にキューイングされるとレンダリングがブロックされ、UI が固まる原因となる
-- `setTimeout(fn, 0)` でもマイクロタスクより後に実行される
+**Key points**:
+- Microtasks are treated as the "logical extension" of the current task
+- Large numbers of queued microtasks block rendering and can freeze the UI
+- Even `setTimeout(fn, 0)` runs after microtasks
 
-### Q2: ブラウザのイベントループとNode.jsのイベントループの違いは？
+### Q2: What is the difference between the browser event loop and the Node.js event loop?
 
-**回答**: ブラウザとNode.jsのイベントループは、基本的な概念は共通しているが、構造と動作に重要な違いがある。
+**Answer**: The browser and Node.js event loops share basic concepts but have important structural and behavioral differences.
 
-**ブラウザのイベントループ**:
+**Browser event loop**:
 
-1. **タスクソース**: UI イベント、タイマー、ネットワーク、ユーザーインタラクションなど
-2. **レンダリング**: タスク実行後、マイクロタスク処理後に、レンダリング更新ステップが挿入される（必要に応じて）
-3. **フレームレート**: 通常 60fps（約16.67ms/フレーム）でレンダリングが試行される
-4. **優先度**: 複数のタスクキューがあるが、優先度はブラウザ実装に依存
+1. **Task sources**: UI events, timers, network, user interactions, etc.
+2. **Rendering**: After task and microtask processing, a rendering update step is inserted as needed
+3. **Frame rate**: Rendering is attempted at typically 60fps (approximately 16.67ms/frame)
+4. **Priority**: Multiple task queues exist, but priority depends on browser implementation
 
-**Node.jsのイベントループ**:
+**Node.js event loop**:
 
-1. **フェーズベース**: イベントループは複数のフェーズ（timers、pending callbacks、idle/prepare、poll、check、close callbacks）に分かれている
-2. **各フェーズの処理**: 各フェーズで対応するタスクキューを処理し、フェーズ間でマイクロタスクキューを処理する
-3. **`setImmediate` vs `setTimeout`**: Node.js 固有の `setImmediate` は check フェーズで実行され、`setTimeout` は timers フェーズで実行される
-4. **レンダリングなし**: Node.js はサーバー環境のため、レンダリングステップが存在しない
+1. **Phase-based**: The event loop is divided into multiple phases (timers, pending callbacks, idle/prepare, poll, check, close callbacks)
+2. **Phase processing**: Each phase processes its corresponding task queue; the microtask queue is processed between phases
+3. **`setImmediate` vs `setTimeout`**: Node.js-specific `setImmediate` runs in the check phase; `setTimeout` runs in the timers phase
+4. **No rendering**: Node.js is a server environment, so no rendering step exists
 
-**具体的な違いの例**:
+**Example of specific differences**:
 
 ```javascript
-// ブラウザとNode.jsで動作が異なる例
+// Example that behaves differently in browser vs Node.js
 setTimeout(() => console.log('timeout 1'), 0);
-setImmediate(() => console.log('immediate 1'));  // Node.js のみ
+setImmediate(() => console.log('immediate 1'));  // Node.js only
 
-// Node.js では実行順序が不定（タイマーの精度による）
-// ブラウザでは setImmediate がサポートされていない
+// In Node.js, execution order is non-deterministic (depends on timer precision)
+// In browsers, setImmediate is not supported
 ```
 
 ```javascript
-// マイクロタスク処理のタイミング
+// Timing of microtask processing
 setTimeout(() => {
   console.log('timeout');
   Promise.resolve().then(() => console.log('microtask in timeout'));
@@ -1768,51 +1769,51 @@ setTimeout(() => {
 
 setTimeout(() => console.log('timeout 2'), 0);
 
-// ブラウザ: timeout → microtask in timeout → timeout 2
-// Node.js v11+: 同じ（ブラウザ互換の挙動）
-// Node.js v10以前: timeout → timeout 2 → microtask in timeout
+// Browser: timeout → microtask in timeout → timeout 2
+// Node.js v11+: same (browser-compatible behavior)
+// Node.js v10 and earlier: timeout → timeout 2 → microtask in timeout
 ```
 
-**まとめ**:
-- ブラウザのイベントループは「UI レンダリング」を中心に設計されている
-- Node.js のイベントループは「I/O 処理の効率」を中心に設計されている
-- Node.js v11 以降、ブラウザとの互換性が向上し、マイクロタスクの処理タイミングがブラウザと同等になった
+**Summary**:
+- The browser event loop is designed around "UI rendering"
+- The Node.js event loop is designed around "I/O processing efficiency"
+- Since Node.js v11, compatibility with browsers has improved, and microtask processing timing is equivalent to the browser
 
-### Q3: 長時間実行されるタスクがUIをブロックする場合の対処法は？
+### Q3: What should I do when a long-running task blocks the UI?
 
-**回答**: 長時間タスク（Long Task）は UI の応答性を低下させる主要な原因である。50ms を超えるタスクは Long Task と見なされ、ユーザー体験に悪影響を与える。以下の対処法がある。
+**Answer**: Long Tasks (tasks exceeding 50ms) are the primary cause of reduced UI responsiveness. Here are approaches to address them.
 
-**1. タスク分割（Task Splitting）**
+**1. Task Splitting**
 
-長いタスクを小さなチャンクに分割し、メインスレッドに制御を返す（yield to main thread）。
+Split long tasks into small chunks and yield control back to the main thread.
 
 ```javascript
-// 悪い例: 長時間ブロック
+// Bad: long blocking
 function processLargeArray(items) {
   items.forEach(item => {
-    heavyComputation(item);  // 各処理に10ms かかる
+    heavyComputation(item);  // 10ms per item
   });
-  // 1000件なら10秒間 UI がブロックされる
+  // 1000 items means the UI is blocked for 10 seconds
 }
 
-// 良い例: タスク分割
+// Good: task splitting
 async function processLargeArrayChunked(items, chunkSize = 100) {
   for (let i = 0; i < items.length; i += chunkSize) {
     const chunk = items.slice(i, i + chunkSize);
     chunk.forEach(item => heavyComputation(item));
 
-    // チャンクごとにメインスレッドに制御を返す
+    // Return control to the main thread after each chunk
     await new Promise(resolve => setTimeout(resolve, 0));
   }
 }
 ```
 
-**2. Web Workers の活用**
+**2. Using Web Workers**
 
-CPU 集約的な処理をバックグラウンドスレッドにオフロードする。
+Offload CPU-intensive processing to a background thread.
 
 ```javascript
-// メインスレッド
+// Main thread
 const worker = new Worker('heavy-worker.js');
 worker.postMessage({ data: largeDataset });
 worker.onmessage = (event) => {
@@ -1826,9 +1827,9 @@ self.onmessage = (event) => {
 };
 ```
 
-**3. requestIdleCallback の活用**
+**3. Using requestIdleCallback**
 
-優先度の低い処理をアイドル時間に実行する。
+Run low-priority processing during idle time.
 
 ```javascript
 function processBackgroundTasks(tasks) {
@@ -1846,7 +1847,7 @@ function processBackgroundTasks(tasks) {
   requestIdleCallback(processTasks);
 }
 
-// 使用例
+// Usage
 const backgroundTasks = [
   () => preloadImage('img1.jpg'),
   () => preloadImage('img2.jpg'),
@@ -1855,30 +1856,30 @@ const backgroundTasks = [
 processBackgroundTasks(backgroundTasks);
 ```
 
-**4. Scheduler API（実験的）**
+**4. Scheduler API (Experimental)**
 
-優先度付きタスクスケジューリングを行う。
+Perform priority-based task scheduling.
 
 ```javascript
-// 高優先度タスク（ユーザーインタラクション）
+// High-priority task (user interaction)
 scheduler.postTask(() => {
   handleUserClick();
 }, { priority: 'user-blocking' });
 
-// 中優先度タスク（レンダリング更新）
+// Medium-priority task (rendering update)
 scheduler.postTask(() => {
   updateChart();
 }, { priority: 'user-visible' });
 
-// 低優先度タスク（アナリティクス送信）
+// Low-priority task (analytics sending)
 scheduler.postTask(() => {
   sendAnalytics();
 }, { priority: 'background' });
 ```
 
-**5. パフォーマンス測定**
+**5. Performance Measurement**
 
-Long Tasks API で長時間タスクを検出する。
+Detect long tasks with the Long Tasks API.
 
 ```javascript
 const observer = new PerformanceObserver((list) => {
@@ -1893,90 +1894,90 @@ const observer = new PerformanceObserver((list) => {
 observer.observe({ entryTypes: ['longtask'] });
 ```
 
-**まとめ**:
-- タスク分割で UI の応答性を維持する
-- CPU 集約的な処理は Web Workers へオフロード
-- 低優先度処理は requestIdleCallback でアイドル時間に実行
-- Long Tasks API で問題箇所を特定し、継続的に改善する
-- 目標: メインスレッドのタスクを50ms以下に保つ
+**Summary**:
+- Maintain UI responsiveness by splitting tasks
+- Offload CPU-intensive processing to Web Workers
+- Run low-priority processing in idle time with requestIdleCallback
+- Identify problem areas with the Long Tasks API and improve continuously
+- Goal: keep main thread tasks under 50ms
 
-### Q4: async/awaitを使えばイベントループのブロッキングは防げますか?
+### Q4: Does using async/await prevent event loop blocking?
 
-**回答**: `async/await` は非同期処理を同期的な見た目で書ける構文糖衣であるが、`await` が返すPromiseの解決はマイクロタスクとして処理される。つまり、`await` の前後で処理が分割されるが、各分割された処理自体がCPU集約的であればメインスレッドをブロックする。例えば、`for` ループ内で10万回の計算を行う処理を `async` 関数に入れても、ループ自体は同期的に実行される。ブロッキングを防ぐには、ループ内で明示的に `await new Promise(resolve => setTimeout(resolve, 0))` を挿入してメインスレッドに制御を返すか、Web Workers に処理をオフロードする必要がある。
+**Answer**: `async/await` is syntactic sugar that lets you write asynchronous code in a synchronous style, but the resolution of Promises returned by `await` is processed as microtasks. This means processing is split before and after each `await`, but if each split portion is CPU-intensive, it will still block the main thread. For example, putting a loop with 100,000 calculations inside an `async` function doesn't help, because the loop itself runs synchronously. To prevent blocking, you must explicitly insert `await new Promise(resolve => setTimeout(resolve, 0))` inside the loop to yield control back to the main thread, or offload the processing to Web Workers.
 
-### Q5: requestAnimationFrame のコールバック内で重い処理を行うとどうなりますか?
+### Q5: What happens if I perform heavy processing inside a requestAnimationFrame callback?
 
-**回答**: rAF コールバックはレンダリング直前に実行されるため、コールバック内の処理が16.67msを超えると、そのフレームのレンダリングが遅延し、フレームドロップ（ジャンク）が発生する。rAF コールバック内ではDOM更新やスタイル変更など「レンダリングの準備」に必要な処理のみを行い、データの計算やネットワーク通信などは事前に完了させておくのが原則である。やむを得ず複数フレームにまたがる処理が必要な場合は、処理を小さなチャンクに分割し、各フレームで一部ずつ実行する。
+**Answer**: Since rAF callbacks run just before rendering, if processing inside the callback exceeds 16.67ms, rendering for that frame is delayed, causing frame drops (jank). The principle is to only perform "rendering preparation" work inside rAF callbacks — such as DOM updates and style changes — and complete data computation and network communication beforehand. If processing that spans multiple frames is unavoidable, split it into small chunks and execute a portion each frame.
 
 ---
 
-## 14. 用語集
+## 14. Glossary
 
-| 用語 | 英語 | 説明 |
-|------|------|------|
-| イベントループ | Event Loop | ブラウザがタスクを協調的に処理するための無限ループ機構 |
-| タスク | Task（Macrotask） | setTimeout、I/O、UI イベントなどにより生成される作業単位 |
-| マイクロタスク | Microtask | Promise.then や queueMicrotask で生成される高優先度の作業単位 |
-| タスクキュー | Task Queue | タスクが順番に格納される FIFO キュー |
-| マイクロタスクチェックポイント | Microtask Checkpoint | マイクロタスクキューを全て処理するポイント |
-| レンダリングパイプライン | Rendering Pipeline | Style → Layout → Paint → Composite の処理フロー |
-| フレーム予算 | Frame Budget | 1フレームに割り当てられる時間（60fps で約 16.67ms） |
-| 強制同期レイアウト | Forced Synchronous Layout | DOM 読み取り前に未処理のスタイル変更を強制的にレイアウト計算すること |
-| レイアウトスラッシング | Layout Thrashing | 読み取りと書き込みの交互実行による繰り返しレイアウト計算 |
-| ジャンク | Jank | フレームドロップによる画面のカクつき |
-| コールスタック | Call Stack | 関数呼び出しの履歴を管理するスタック構造 |
-| Run-to-completion | Run-to-completion | 1つのタスクが開始されたら完了するまで中断されない性質 |
-| Yield | Yield | メインスレッドに制御を返すこと |
+| Term | Definition |
+|------|-----------|
+| Event Loop | An infinite-loop mechanism by which the browser cooperatively processes tasks |
+| Task (Macrotask) | A unit of work generated by setTimeout, I/O, UI events, etc. |
+| Microtask | A high-priority unit of work generated by Promise.then or queueMicrotask |
+| Task Queue | A FIFO queue where tasks are stored in order |
+| Microtask Checkpoint | A point where all microtasks in the queue are processed |
+| Rendering Pipeline | The processing flow: Style → Layout → Paint → Composite |
+| Frame Budget | Time allocated per frame (approximately 16.67ms at 60fps) |
+| Forced Synchronous Layout | Forcing layout calculation before a DOM read due to unprocessed style changes |
+| Layout Thrashing | Repeated layout calculations caused by alternating reads and writes |
+| Jank | Screen stuttering due to frame drops |
+| Call Stack | A stack structure that manages the history of function calls |
+| Run-to-completion | The property that once a task starts, it cannot be interrupted until it completes |
+| Yield | Returning control to the main thread |
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just from theory, but from actually writing code and observing behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. It is recommended to thoroughly understand the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world development?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 概念 | 実行タイミング | 用途 | 重要な注意点 |
-|------|-------------|------|-------------|
-| 同期コード | 即座（コールスタック上） | 即時実行が必要な処理 | 長時間実行は UI をブロック |
-| マイクロタスク | タスク完了直後、全て実行 | Promise, async/await, MutationObserver | 大量キューイングはレンダリングをブロック |
-| タスク（マクロタスク） | 1つずつ、レンダリング機会を挟む | setTimeout, I/O, UI イベント | ネスト制限（4ms）に注意 |
-| rAF | レンダリング直前 | アニメーション、DOM バッチ更新 | 内部で重い処理を避ける |
-| rIC | アイドル時間 | 低優先度処理 | DOM 操作は禁止、Safari 未サポート |
-| scheduler.postTask | 優先度に応じて | 優先度付きタスクスケジューリング | ブラウザサポートが限定的 |
-
-### 設計指針
-
-1. **フレーム予算を意識する**: 1フレーム 16.67ms の予算内で処理を完了する設計を心がける
-2. **適切な API を選択する**: 処理の優先度と性質に応じて、マイクロタスク・タスク・rAF・rIC を使い分ける
-3. **長時間タスクを分割する**: 50ms を超えるタスクは分割し、`yield to main thread` パターンを適用する
-4. **読み取りと書き込みを分離する**: DOM の読み取りと書き込みを交互に行わず、バッチ処理する
-5. **測定に基づく最適化**: Long Tasks API や Performance Observer を活用して、ボトルネックを特定する
+Knowledge of this topic is frequently utilized in day-to-day development work. It is especially important during code reviews and architectural design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [Web Workers によるマルチスレッド処理](02-web-workers.md)
-- Service Worker のライフサイクルとイベントループ
-- ブラウザのレンダリングパイプライン詳細
+| Concept | Execution Timing | Use Case | Important Notes |
+|---------|-----------------|----------|----------------|
+| Synchronous code | Immediate (on call stack) | Processing requiring immediate execution | Long runs block the UI |
+| Microtask | Right after task, all executed | Promise, async/await, MutationObserver | Mass queuing blocks rendering |
+| Task (Macrotask) | One at a time, with rendering opportunities | setTimeout, I/O, UI events | Be aware of nesting limit (4ms) |
+| rAF | Just before rendering | Animations, batched DOM updates | Avoid heavy processing inside |
+| rIC | During idle time | Low-priority processing | No DOM manipulation; not supported in Safari |
+| scheduler.postTask | According to priority | Priority-based task scheduling | Limited browser support |
+
+### Design Principles
+
+1. **Be aware of the frame budget**: Design to complete processing within the 16.67ms per-frame budget
+2. **Choose the right API**: Use microtasks, tasks, rAF, and rIC appropriately based on processing priority and nature
+3. **Split long tasks**: Split tasks exceeding 50ms and apply the "yield to main thread" pattern
+4. **Separate reads and writes**: Avoid alternating DOM reads and writes; use batch processing
+5. **Optimize based on measurement**: Use the Long Tasks API and Performance Observer to identify bottlenecks
 
 ---
 
-## 参考文献
+## Guides to Read Next
+
+- [Multithreading with Web Workers](02-web-workers.md)
+- Service Worker Lifecycle and Event Loop
+- Browser Rendering Pipeline in Detail
+
+---
+
+## References
 
 1. WHATWG. "HTML Living Standard -- 8.1.7 Event loops." <https://html.spec.whatwg.org/multipage/webappapis.html#event-loops> (2024)
 2. Jake Archibald. "Tasks, microtasks, queues and schedules." <https://jakearchibald.com/2015/tasks-microtasks-queues-and-schedules/> (2015)
@@ -1986,4 +1987,3 @@ observer.observe({ entryTypes: ['longtask'] });
 6. MDN Web Docs. "requestIdleCallback." <https://developer.mozilla.org/en-US/docs/Web/API/Window/requestIdleCallback>
 7. W3C. "Long Tasks API." <https://w3c.github.io/longtasks/>
 8. Google Developers. "Optimize long tasks." <https://web.dev/optimize-long-tasks/> (2023)
-
