@@ -1,237 +1,237 @@
-# ナビゲーションとローディング
+# Navigation and Loading
 
-> ブラウザのアドレスバーにURLを入力してからページが表示されるまでの全プロセスを追う。DNS解決、TLS接続、HTTP通信、HTMLパース、リソース読み込みの各段階を詳細に理解する。
+> Follow every step from typing a URL in the browser address bar to the page being displayed. Understand in detail each phase: DNS resolution, TLS connection, HTTP communication, HTML parsing, and resource loading.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] ナビゲーション開始からレンダリングまでの全流れを理解する
-- [ ] リソース読み込みの優先順位を把握する
-- [ ] ページロードのパフォーマンス指標を学ぶ
-- [ ] Service Worker によるネットワーク制御を理解する
-- [ ] Preload Scanner とリソースヒントの実務活用を身につける
-- [ ] Navigation Timing API を使った計測とボトルネック特定を実践する
-- [ ] HTTP/2・HTTP/3 がローディングに与える影響を把握する
-- [ ] SPA と MPA のナビゲーション差異を理解する
-
----
-
-## 前提知識
-
-- ブラウザのアーキテクチャ → 参照: [ブラウザアーキテクチャ](./00-browser-architecture.md)
-- DNS解決とHTTP通信の仕組み → 参照: DNS
-- TCP/TLSハンドシェイク → 参照: TCP
+- [ ] Understand the complete flow from navigation start to rendering
+- [ ] Grasp resource loading priorities
+- [ ] Learn page load performance metrics
+- [ ] Understand network control via Service Workers
+- [ ] Gain practical skills for Preload Scanner and resource hints
+- [ ] Practice measurement and bottleneck identification using the Navigation Timing API
+- [ ] Understand the impact of HTTP/2 and HTTP/3 on loading
+- [ ] Understand the differences in navigation between SPAs and MPAs
 
 ---
 
-## 1. ナビゲーションの全体像
+## Prerequisites
 
-### 1.1 URL入力からページ表示までの全プロセス
+- Browser architecture → Reference: [Browser Architecture](./00-browser-architecture.md)
+- DNS resolution and HTTP communication → Reference: DNS
+- TCP/TLS handshake → Reference: TCP
 
-```
-URL入力 → ページ表示 の全プロセス:
+---
 
-  ① URL入力/クリック
-     ↓
-  ② URLの解析とセキュリティチェック
-     ↓
-  ③ Service Worker チェック（登録されていれば）
-     ↓
-  ④ DNS解決
-     ↓
-  ⑤ TCP接続（3-way handshake）
-     ↓
-  ⑥ TLSハンドシェイク（HTTPS の場合）
-     ↓
-  ⑦ HTTPリクエスト送信
-     ↓
-  ⑧ HTTPレスポンス受信（最初のバイト = TTFB）
-     ↓
-  ⑨ HTMLパース開始
-     ↓
-  ⑩ サブリソースの発見と読み込み（CSS, JS, 画像等）
-     ↓
-  ⑪ DOM構築 + CSSOM構築
-     ↓
-  ⑫ レンダーツリー構築
-     ↓
-  ⑬ レイアウト計算
-     ↓
-  ⑭ ペイント
-     ↓
-  ⑮ コンポジット（GPU合成）
-     ↓
-  ⑯ 画面表示
-```
+## 1. Overview of Navigation
 
-### 1.2 各フェーズの詳細な時間的分解
+### 1.1 The Complete Process from URL Input to Page Display
 
 ```
-典型的なナビゲーションの時間構成（デスクトップ + 光回線）:
+Complete process: URL input → page display
 
-  フェーズ           │ 所要時間    │ 累積時間
-  ─────────────────┼───────────┼──────────
-  URL解析           │ <1ms       │ ~1ms
-  キャッシュチェック   │ 1-5ms      │ ~5ms
-  DNS解決           │ 20-120ms   │ ~50ms
-  TCP 3-way HS     │ 10-50ms    │ ~80ms
-  TLS 1.3 HS       │ 10-50ms    │ ~120ms
-  HTTPリクエスト送信  │ 1-5ms      │ ~125ms
-  サーバー処理       │ 50-500ms   │ ~300ms
-  最初のバイト受信    │ 1ms        │ ~300ms (TTFB)
-  HTML転送          │ 10-100ms   │ ~400ms
-  HTMLパース開始     │ <1ms       │ ~400ms
-  CSS/JSダウンロード │ 50-300ms   │ ~600ms
-  DOM+CSSOM構築     │ 50-200ms   │ ~700ms
-  レンダーツリー構築  │ 10-50ms    │ ~750ms
-  レイアウト計算     │ 10-100ms   │ ~800ms
-  ペイント          │ 5-50ms     │ ~850ms
-  コンポジット       │ 1-10ms     │ ~860ms
-  ─────────────────┼───────────┼──────────
-  合計              │            │ ~860ms
-
-モバイル（4G LTE）の場合:
-  DNS解決: 50-200ms
-  TCP + TLS: 100-300ms
-  TTFB: 200-800ms
-  合計: 1500-4000ms（デスクトップの2-5倍）
+  ① URL input / click
+     ↓
+  ② URL parsing and security check
+     ↓
+  ③ Service Worker check (if registered)
+     ↓
+  ④ DNS resolution
+     ↓
+  ⑤ TCP connection (3-way handshake)
+     ↓
+  ⑥ TLS handshake (for HTTPS)
+     ↓
+  ⑦ HTTP request sent
+     ↓
+  ⑧ HTTP response received (first byte = TTFB)
+     ↓
+  ⑨ HTML parsing begins
+     ↓
+  ⑩ Sub-resource discovery and loading (CSS, JS, images, etc.)
+     ↓
+  ⑪ DOM construction + CSSOM construction
+     ↓
+  ⑫ Render tree construction
+     ↓
+  ⑬ Layout calculation
+     ↓
+  ⑭ Paint
+     ↓
+  ⑮ Composite (GPU compositing)
+     ↓
+  ⑯ Screen display
 ```
 
-### 1.3 ブラウザのマルチプロセスアーキテクチャとナビゲーション
+### 1.2 Detailed Timing Breakdown of Each Phase
 
 ```
-Chrome のプロセス間通信によるナビゲーション:
+Typical navigation timing (desktop + fiber connection):
 
-  Browser Process              Renderer Process (旧ページ)    Renderer Process (新ページ)
-  ┌──────────────┐            ┌──────────────────┐          ┌──────────────────┐
-  │ UI Thread    │            │                  │          │                  │
-  │  ↓           │            │                  │          │                  │
-  │ URL解析      │            │                  │          │                  │
-  │  ↓           │            │                  │          │                  │
-  │ Network      │            │                  │          │                  │
-  │ Thread       │            │                  │          │                  │
-  │  ↓           │            │                  │          │                  │
-  │ DNS→TCP→TLS  │            │                  │          │                  │
-  │  ↓           │            │                  │          │                  │
-  │ HTTP送受信   │            │                  │          │                  │
-  │  ↓           │            │                  │          │                  │
-  │ レスポンス    │ ──unload──→│ beforeunload    │          │                  │
-  │ ヘッダ確認   │            │ unload          │          │                  │
-  │  ↓           │            │ (破棄)          │          │                  │
-  │ Renderer     │ ─────────────────────────────→│ 初期化            │
-  │ 選択/起動    │            │                  │          │  ↓               │
-  │  ↓           │            │                  │          │ HTMLパース        │
-  │ データ転送   │ ─────────────────────────────→│ DOM構築           │
-  │              │            │                  │          │  ↓               │
-  │              │            │                  │          │ レンダリング       │
-  └──────────────┘            └──────────────────┘          └──────────────────┘
+  Phase                │ Duration    │ Cumulative
+  ─────────────────────┼─────────────┼────────────
+  URL parsing          │ <1ms        │ ~1ms
+  Cache check          │ 1–5ms       │ ~5ms
+  DNS resolution       │ 20–120ms    │ ~50ms
+  TCP 3-way HS         │ 10–50ms     │ ~80ms
+  TLS 1.3 HS           │ 10–50ms     │ ~120ms
+  HTTP request sent    │ 1–5ms       │ ~125ms
+  Server processing    │ 50–500ms    │ ~300ms
+  First byte received  │ 1ms         │ ~300ms (TTFB)
+  HTML transfer        │ 10–100ms    │ ~400ms
+  HTML parse begins    │ <1ms        │ ~400ms
+  CSS/JS download      │ 50–300ms    │ ~600ms
+  DOM+CSSOM build      │ 50–200ms    │ ~700ms
+  Render tree build    │ 10–50ms     │ ~750ms
+  Layout calculation   │ 10–100ms    │ ~800ms
+  Paint                │ 5–50ms      │ ~850ms
+  Composite            │ 1–10ms      │ ~860ms
+  ─────────────────────┼─────────────┼────────────
+  Total                │             │ ~860ms
 
-  ナビゲーションのプロセス間遷移:
-  1. Browser Process の UI Thread がURL入力を受け取る
-  2. Network Thread がネットワークリクエストを処理
-  3. レスポンスのContent-Typeを確認
-     - text/html → Renderer Process を起動
+Mobile (4G LTE):
+  DNS resolution: 50–200ms
+  TCP + TLS: 100–300ms
+  TTFB: 200–800ms
+  Total: 1500–4000ms (2–5x desktop)
+```
+
+### 1.3 Browser Multi-Process Architecture and Navigation
+
+```
+Navigation via Chrome inter-process communication:
+
+  Browser Process         Renderer Process (old page)    Renderer Process (new page)
+  ┌──────────────┐        ┌──────────────────┐           ┌──────────────────┐
+  │ UI Thread    │        │                  │           │                  │
+  │  ↓           │        │                  │           │                  │
+  │ URL parsing  │        │                  │           │                  │
+  │  ↓           │        │                  │           │                  │
+  │ Network      │        │                  │           │                  │
+  │ Thread       │        │                  │           │                  │
+  │  ↓           │        │                  │           │                  │
+  │ DNS→TCP→TLS  │        │                  │           │                  │
+  │  ↓           │        │                  │           │                  │
+  │ HTTP send/recv│        │                  │           │                  │
+  │  ↓           │        │                  │           │                  │
+  │ Response     │─unload→│ beforeunload     │           │                  │
+  │ header check │        │ unload           │           │                  │
+  │  ↓           │        │ (discard)        │           │                  │
+  │ Renderer     │────────────────────────────────────→  │ init             │
+  │ select/launch│        │                  │           │  ↓               │
+  │  ↓           │        │                  │           │ HTML parse        │
+  │ Data transfer│────────────────────────────────────→  │ DOM build        │
+  │              │        │                  │           │  ↓               │
+  │              │        │                  │           │ Rendering         │
+  └──────────────┘        └──────────────────┘           └──────────────────┘
+
+  Navigation process transition:
+  1. UI Thread of Browser Process receives URL input
+  2. Network Thread handles the network request
+  3. Check response Content-Type
+     - text/html → launch Renderer Process
      - application/pdf → PDF Viewer
-     - application/octet-stream → ダウンロードマネージャ
-  4. 旧 Renderer Process に unload イベント送信
-  5. 新 Renderer Process にデータを転送
-  6. 新 Renderer Process が HTML パースとレンダリングを実行
+     - application/octet-stream → Download Manager
+  4. Send unload event to old Renderer Process
+  5. Transfer data to new Renderer Process
+  6. New Renderer Process performs HTML parsing and rendering
 ```
 
-### 1.4 Same-Site と Cross-Site ナビゲーション
+### 1.4 Same-Site and Cross-Site Navigation
 
 ```
-Same-Site ナビゲーション:
+Same-Site navigation:
   example.com/page1 → example.com/page2
-  → 同じ Renderer Process を再利用可能
-  → プロセス起動コストが不要
-  → メモリ効率が良い
+  → Can reuse the same Renderer Process
+  → No process startup cost
+  → Better memory efficiency
 
-Cross-Site ナビゲーション:
+Cross-Site navigation:
   example.com → other-site.com
-  → 新しい Renderer Process を起動
-  → Site Isolation によるセキュリティ確保
-  → プロセス起動に 50-150ms 追加
+  → Launch a new Renderer Process
+  → Security ensured by Site Isolation
+  → Additional 50–150ms for process startup
 
 Back/Forward Cache (bfcache):
-  → ページ全体をメモリに保持
-  → 戻る/進むが瞬時（数ms）
-  → ただし以下の条件で無効化:
-    - unload イベントリスナーがある
+  → Keeps entire pages in memory
+  → Back/Forward navigation is instant (a few ms)
+  → However, disabled under these conditions:
+    - unload event listeners present
     - Cache-Control: no-store
-    - WebSocket や WebRTC が使用中
-    - HTTP接続（HTTPS のみ対象）
+    - WebSocket or WebRTC in use
+    - HTTP connection (HTTPS only)
 ```
 
 ---
 
-## 2. DNS解決の詳細
+## 2. DNS Resolution in Detail
 
-### 2.1 DNS解決のフロー
+### 2.1 DNS Resolution Flow
 
 ```
-DNSルックアップの階層構造:
+DNS lookup hierarchy:
 
-  ブラウザ
+  Browser
   │
-  ├── ① ブラウザDNSキャッシュ確認（数秒〜数分キャッシュ）
+  ├── ① Check browser DNS cache (cached for seconds to minutes)
   │     → Chrome: chrome://net-internals/#dns
-  │     → ヒット → 即座にIPアドレス取得（<1ms）
+  │     → Hit → IP address obtained instantly (<1ms)
   │
-  ├── ② OS DNSキャッシュ確認
-  │     → /etc/hosts ファイルもここで参照
+  ├── ② Check OS DNS cache
+  │     → /etc/hosts file is also consulted here
   │     → Windows: ipconfig /displaydns
   │     → macOS: dscacheutil -cachedump
-  │     → ヒット → IPアドレス取得（1-5ms）
+  │     → Hit → IP address obtained (1–5ms)
   │
-  ├── ③ リゾルバ（ISP/パブリックDNS）に問い合わせ
+  ├── ③ Query resolver (ISP/public DNS)
   │     → Google DNS: 8.8.8.8
   │     → Cloudflare DNS: 1.1.1.1
-  │     → リゾルバキャッシュヒット → 10-30ms
+  │     → Resolver cache hit → 10–30ms
   │
-  ├── ④ ルートDNSサーバー（.）
-  │     → "example.com" → ".com のネームサーバーはここ"
-  │     → 世界に13系統（エニーキャスト）
+  ├── ④ Root DNS server (.)
+  │     → "example.com" → "here is the nameserver for .com"
+  │     → 13 root systems worldwide (anycast)
   │
-  ├── ⑤ TLDネームサーバー（.com, .jp 等）
-  │     → "example.com" → "example.com のNSサーバーはここ"
+  ├── ⑤ TLD nameserver (.com, .jp, etc.)
+  │     → "example.com" → "here is the NS server for example.com"
   │
-  └── ⑥ 権威DNSサーバー（ドメイン管理者）
+  └── ⑥ Authoritative DNS server (domain owner)
         → "example.com" → "93.184.216.34"
-        → TTL付きで返答
+        → Returns with TTL
 
-  フル解決の場合: 100-200ms
-  キャッシュヒット: <5ms
+  Full resolution: 100–200ms
+  Cache hit: <5ms
 ```
 
-### 2.2 DNS over HTTPS (DoH) と DNS over TLS (DoT)
+### 2.2 DNS over HTTPS (DoH) and DNS over TLS (DoT)
 
 ```
-従来のDNS:
-  ポート53、平文UDP → ISPや攻撃者がDNSクエリを覗き見/改ざん可能
+Traditional DNS:
+  Port 53, plaintext UDP → ISP or attacker can snoop/tamper with DNS queries
 
 DNS over HTTPS (DoH):
-  → HTTPS(443)でDNSクエリを暗号化
-  → ブラウザが直接サポート
-  → Chrome: chrome://settings/security → セキュアDNS
+  → Encrypts DNS queries over HTTPS (443)
+  → Directly supported by browsers
+  → Chrome: chrome://settings/security → Secure DNS
   → Firefox: about:preferences#general → DNS over HTTPS
 
 DNS over TLS (DoT):
-  → TLS(853)でDNSクエリを暗号化
-  → OS レベルでサポート
+  → Encrypts DNS queries over TLS (853)
+  → Supported at the OS level
 
-パフォーマンスへの影響:
-  初回: DoH は TLS ハンドシェイク分遅い（+50-100ms）
-  2回目以降: HTTP/2 接続再利用で同等
+Performance impact:
+  First time: DoH is slower by one TLS handshake (+50–100ms)
+  Subsequent: Equivalent due to HTTP/2 connection reuse
 
-実装例（Chrome の DoH 設定確認）:
+Example (checking DoH settings in Chrome):
 ```
 
 ```javascript
-// DNS解決時間の計測
+// Measure DNS resolution time
 async function measureDNSTime(hostname) {
   const start = performance.now();
 
-  // Resource Timing API を使用
+  // Use Resource Timing API
   const img = new Image();
   img.src = `https://${hostname}/favicon.ico?t=${Date.now()}`;
 
@@ -250,41 +250,41 @@ async function measureDNSTime(hostname) {
   });
 }
 
-// 使用例
+// Usage example
 measureDNSTime('api.example.com').then(console.log);
 // { dnsTime: 23.5, connectTime: 45.2, totalTime: 312.8 }
 ```
 
-### 2.3 DNS プリフェッチの実装
+### 2.3 Implementing DNS Prefetch
 
 ```html
-<!-- DNSプリフェッチ: 事前にDNS解決だけ行う -->
+<!-- DNS prefetch: resolve DNS in advance only -->
 <link rel="dns-prefetch" href="//api.example.com">
 <link rel="dns-prefetch" href="//cdn.example.com">
 <link rel="dns-prefetch" href="//fonts.googleapis.com">
 
-<!-- preconnect: DNS + TCP + TLS を事前確立 -->
+<!-- preconnect: pre-establish DNS + TCP + TLS -->
 <link rel="preconnect" href="https://api.example.com">
 <link rel="preconnect" href="https://cdn.example.com" crossorigin>
 
 <!--
-  dns-prefetch vs preconnect の使い分け:
+  When to use dns-prefetch vs preconnect:
 
   dns-prefetch:
-    - コスト: 低（DNS解決のみ）
-    - 対象: 使うかもしれない外部ドメイン
-    - 上限目安: 10-15個
+    - Cost: low (DNS resolution only)
+    - Use for: external domains you might use
+    - Suggested limit: 10–15
 
   preconnect:
-    - コスト: 中（DNS + TCP + TLS）
-    - 対象: 確実に使う外部ドメイン
-    - 上限目安: 3-5個（接続維持のコストがある）
-    - 10秒以内に使わないと接続が切断される
+    - Cost: medium (DNS + TCP + TLS)
+    - Use for: external domains you will definitely use
+    - Suggested limit: 3–5 (maintaining connections has a cost)
+    - Connection is dropped if not used within 10 seconds
 -->
 ```
 
 ```javascript
-// 動的な DNS プリフェッチ
+// Dynamic DNS prefetch
 function prefetchDNS(hostname) {
   const link = document.createElement('link');
   link.rel = 'dns-prefetch';
@@ -292,7 +292,7 @@ function prefetchDNS(hostname) {
   document.head.appendChild(link);
 }
 
-// ユーザーがリンクにホバーした時に DNS を先に解決
+// Resolve DNS when the user hovers over a link
 document.querySelectorAll('a[href^="http"]').forEach((anchor) => {
   anchor.addEventListener(
     'mouseenter',
@@ -309,119 +309,119 @@ document.querySelectorAll('a[href^="http"]').forEach((anchor) => {
 
 ---
 
-## 3. TCP接続とTLSハンドシェイク
+## 3. TCP Connection and TLS Handshake
 
-### 3.1 TCP 3-way ハンドシェイク
+### 3.1 TCP 3-Way Handshake
 
 ```
-TCP 3-way Handshake:
+TCP 3-Way Handshake:
 
-  クライアント                    サーバー
+  Client                          Server
   │                              │
-  │ ── SYN (seq=100) ──────────→│  ① SYN送信
-  │                              │     クライアントが接続要求
+  │ ── SYN (seq=100) ──────────→│  ① SYN sent
+  │                              │     Client requests connection
   │                              │
-  │←── SYN+ACK (seq=300,ack=101)│  ② SYN+ACK受信
-  │                              │     サーバーが応答
+  │←── SYN+ACK (seq=300,ack=101)│  ② SYN+ACK received
+  │                              │     Server responds
   │                              │
-  │ ── ACK (ack=301) ──────────→│  ③ ACK送信
-  │                              │     接続確立
+  │ ── ACK (ack=301) ──────────→│  ③ ACK sent
+  │                              │     Connection established
   │                              │
-  │ ── HTTP GET / ─────────────→│  ④ データ送信可能
+  │ ── HTTP GET / ─────────────→│  ④ Data transmission possible
   │                              │
 
-  所要時間 = RTT × 1.5
-  （RTT: Round Trip Time）
+  Time required = RTT × 1.5
+  (RTT: Round Trip Time)
 
-  光回線(国内): RTT 5-20ms → TCP確立 7-30ms
-  4G LTE:     RTT 30-80ms → TCP確立 45-120ms
-  海外サーバー: RTT 100-300ms → TCP確立 150-450ms
+  Fiber (domestic): RTT 5–20ms → TCP established 7–30ms
+  4G LTE:          RTT 30–80ms → TCP established 45–120ms
+  Overseas server: RTT 100–300ms → TCP established 150–450ms
 
 TCP Fast Open (TFO):
-  → 初回接続時にCookieを取得
-  → 2回目以降は SYN に HTTP データを載せる
-  → 1 RTT 削減
-  → Linux, macOS でサポート
+  → Obtains a cookie on first connection
+  → On subsequent connections, HTTP data is included in the SYN
+  → Saves 1 RTT
+  → Supported on Linux and macOS
 ```
 
-### 3.2 TLS 1.3 ハンドシェイク
+### 3.2 TLS 1.3 Handshake
 
 ```
-TLS 1.3 ハンドシェイク（1-RTT）:
+TLS 1.3 Handshake (1-RTT):
 
-  クライアント                        サーバー
+  Client                              Server
   │                                  │
   │ ── ClientHello ────────────────→│
-  │    + サポートする暗号スイート      │
-  │    + Key Share（鍵交換パラメータ） │
-  │    + SNI（Server Name Indication）│
+  │    + Supported cipher suites     │
+  │    + Key Share (key exchange params)│
+  │    + SNI (Server Name Indication)│
   │                                  │
   │←── ServerHello ─────────────────│
-  │    + 選択した暗号スイート          │
+  │    + Selected cipher suite       │
   │    + Key Share                   │
-  │    + 証明書                      │
-  │    + 証明書検証                   │
+  │    + Certificate                 │
+  │    + Certificate verification    │
   │    + Finished                    │
   │                                  │
   │ ── Finished ───────────────────→│
-  │ ── HTTP リクエスト ──────────────→│  暗号化通信開始
+  │ ── HTTP Request ────────────────→│  Encrypted communication begins
   │                                  │
 
-  TLS 1.2: 2-RTT（追加のラウンドトリップが必要）
-  TLS 1.3: 1-RTT（鍵交換を最初のメッセージに含む）
+  TLS 1.2: 2-RTT (requires extra round trips)
+  TLS 1.3: 1-RTT (key exchange included in first message)
 
-  TLS 1.3 0-RTT（再接続時）:
-  → 前回のセッションチケットを使用
-  → ClientHello にアプリケーションデータを含める
-  → ただしリプレイ攻撃のリスクあり（GETのみ推奨）
+  TLS 1.3 0-RTT (reconnection):
+  → Uses previous session ticket
+  → Includes application data in ClientHello
+  → However, risk of replay attacks (GET-only recommended)
 
-比較:
+Comparison:
   TLS 1.2: TCP(1.5 RTT) + TLS(2 RTT) = 3.5 RTT
   TLS 1.3: TCP(1.5 RTT) + TLS(1 RTT) = 2.5 RTT
   TLS 1.3 0-RTT: TCP(1.5 RTT) + TLS(0 RTT) = 1.5 RTT
 ```
 
-### 3.3 QUIC/HTTP3 による接続最適化
+### 3.3 Connection Optimization with QUIC/HTTP/3
 
 ```
-HTTP/3 (QUIC) のハンドシェイク:
+HTTP/3 (QUIC) Handshake:
 
-  従来（HTTP/2 over TLS 1.3）:
+  Legacy (HTTP/2 over TLS 1.3):
     TCP 3-way HS:  1.5 RTT
     TLS 1.3 HS:    1 RTT
-    合計:           2.5 RTT
+    Total:          2.5 RTT
 
   HTTP/3 (QUIC):
-    QUIC HS（暗号化統合）: 1 RTT
-    合計:                   1 RTT
+    QUIC HS (integrated encryption): 1 RTT
+    Total:                            1 RTT
 
-  HTTP/3 0-RTT（再接続）:
-    合計: 0 RTT（データを最初のパケットで送信）
+  HTTP/3 0-RTT (reconnection):
+    Total: 0 RTT (data sent in first packet)
 
-  クライアント                    サーバー
+  Client                          Server
   │                              │
-  │ ── QUIC Initial ───────────→│  暗号化パラメータ + HTTP リクエスト
-  │                              │  （0-RTT の場合）
+  │ ── QUIC Initial ───────────→│  Encryption params + HTTP request
+  │                              │  (for 0-RTT)
   │                              │
-  │←── QUIC Handshake ──────────│  暗号化完了 + HTTP レスポンス開始
+  │←── QUIC Handshake ──────────│  Encryption complete + HTTP response begins
   │                              │
-  │ ── QUIC Short Header ──────→│  以降は暗号化されたデータ通信
+  │ ── QUIC Short Header ──────→│  Subsequent encrypted data communication
   │                              │
 
-QUIC の追加メリット:
-  - ヘッドオブラインブロッキング解消
-    → 1つのストリームのパケットロスが他に影響しない
-  - 接続マイグレーション
-    → Wi-Fi → 4G 切り替え時に接続を維持
-  - 輻輳制御の改善
-    → ストリーム単位での制御
+Additional QUIC benefits:
+  - Head-of-line blocking elimination
+    → Packet loss in one stream does not affect others
+  - Connection migration
+    → Maintains connection when switching from Wi-Fi to 4G
+  - Improved congestion control
+    → Per-stream control
 ```
 
 ---
 
-## 4. HTTPリクエストとレスポンス
+## 4. HTTP Request and Response
 
-### 4.1 HTTPリクエストの構造
+### 4.1 HTTP Request Structure
 
 ```http
 GET /index.html HTTP/2
@@ -440,26 +440,26 @@ Upgrade-Insecure-Requests: 1
 ```
 
 ```
-リクエストヘッダの役割:
+Request header roles:
 
   Accept-Encoding: gzip, deflate, br
-  → サポートする圧縮形式を通知
-  → Brotli(br) はGzipより15-25%効率的
+  → Notifies the server of supported compression formats
+  → Brotli (br) is 15–25% more efficient than Gzip
 
-  Sec-Fetch-* ヘッダ:
-  → ブラウザが自動付与（改ざん不可）
-  → サーバー側でリクエストの出所を判定可能
+  Sec-Fetch-* headers:
+  → Automatically added by the browser (cannot be tampered with)
+  → Allows the server to determine the origin of the request
 
-  Sec-Fetch-Dest: document    → ページナビゲーション
-  Sec-Fetch-Dest: image       → 画像リクエスト
-  Sec-Fetch-Dest: script      → スクリプトリクエスト
-  Sec-Fetch-Mode: navigate    → ユーザー操作によるナビゲーション
-  Sec-Fetch-Mode: cors        → CORS リクエスト
-  Sec-Fetch-Site: same-origin → 同一オリジン
-  Sec-Fetch-Site: cross-site  → クロスサイト
+  Sec-Fetch-Dest: document    → Page navigation
+  Sec-Fetch-Dest: image       → Image request
+  Sec-Fetch-Dest: script      → Script request
+  Sec-Fetch-Mode: navigate    → User-triggered navigation
+  Sec-Fetch-Mode: cors        → CORS request
+  Sec-Fetch-Site: same-origin → Same origin
+  Sec-Fetch-Site: cross-site  → Cross-site
 ```
 
-### 4.2 HTTPレスポンスの構造とキャッシュ
+### 4.2 HTTP Response Structure and Caching
 
 ```http
 HTTP/2 200 OK
@@ -475,76 +475,76 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains
 ```
 
 ```
-キャッシュ制御の詳細:
+Cache control details:
 
   ┌──────────────────────────────────────────────────────────┐
-  │ Cache-Control ディレクティブ                              │
+  │ Cache-Control Directives                                  │
   ├──────────────────┬───────────────────────────────────────┤
-  │ public           │ CDN・共有キャッシュに保存可            │
-  │ private          │ ブラウザキャッシュのみ                  │
-  │ no-cache         │ 毎回サーバーに検証（キャッシュは保持）   │
-  │ no-store         │ 一切キャッシュしない                    │
-  │ max-age=3600     │ 3600秒間新鮮とみなす                   │
-  │ s-maxage=86400   │ 共有キャッシュ用の有効期限              │
-  │ stale-while-     │ 期限切れでも表示しつつバックグラウンド   │
-  │  revalidate=86400│  で再検証（86400秒まで）               │
-  │ stale-if-error   │ エラー時に期限切れキャッシュを表示       │
-  │ immutable        │ max-age内はリロードでも再検証しない     │
-  │ must-revalidate  │ 期限切れ後は必ず再検証                  │
+  │ public           │ Storable in CDN/shared caches          │
+  │ private          │ Browser cache only                     │
+  │ no-cache         │ Validate with server every time (cache kept) │
+  │ no-store         │ Do not cache at all                    │
+  │ max-age=3600     │ Fresh for 3600 seconds                 │
+  │ s-maxage=86400   │ Expiration for shared caches           │
+  │ stale-while-     │ Serve stale while revalidating in      │
+  │  revalidate=86400│  background (up to 86400 seconds)      │
+  │ stale-if-error   │ Serve stale cache on error             │
+  │ immutable        │ No revalidation even on reload within max-age │
+  │ must-revalidate  │ Must revalidate after expiration       │
   └──────────────────┴───────────────────────────────────────┘
 
-  キャッシュ判定フロー:
+  Cache decision flow:
 
-  リクエスト発生
+  Request issued
     ↓
-  キャッシュにある？ ─ No → ネットワークリクエスト
+  In cache? ─ No → Network request
     │ Yes
     ↓
-  max-age 内？ ─ Yes → キャッシュから返却（200 from cache）
+  Within max-age? ─ Yes → Return from cache (200 from cache)
     │ No
     ↓
-  ETag/Last-Modified あり？ ─ No → ネットワークリクエスト
+  ETag/Last-Modified present? ─ No → Network request
     │ Yes
     ↓
-  条件付きリクエスト送信
+  Send conditional request
   If-None-Match: "abc123"
   If-Modified-Since: Mon, 20 Jan 2026 10:00:00 GMT
     ↓
-  サーバーレスポンス
-    ├─ 304 Not Modified → キャッシュを使用
-    └─ 200 OK → 新しいレスポンスで更新
+  Server response
+    ├─ 304 Not Modified → Use cache
+    └─ 200 OK → Update with new response
 ```
 
-### 4.3 圧縮とエンコーディング
+### 4.3 Compression and Encoding
 
 ```javascript
-// サーバーサイド（Node.js/Express）での圧縮設定
+// Server-side compression configuration (Node.js/Express)
 const express = require('express');
 const compression = require('compression');
 
 const app = express();
 
-// Brotli + Gzip 圧縮の設定
+// Configure Brotli + Gzip compression
 app.use(
   compression({
-    // Brotli を優先
+    // Prefer Brotli
     filter: (req, res) => {
       if (req.headers['x-no-compression']) return false;
       return compression.filter(req, res);
     },
-    // 1KB以上のレスポンスのみ圧縮
+    // Only compress responses larger than 1KB
     threshold: 1024,
   })
 );
 
-// 静的ファイルの事前圧縮（ビルド時に .br, .gz を生成）
-// Nginx 設定例
+// Pre-compress static files (generate .br, .gz at build time)
+// Nginx configuration example
 /*
-  # Brotli の事前圧縮ファイルを優先
+  # Prefer pre-compressed Brotli files
   brotli_static on;
   gzip_static on;
 
-  # 動的圧縮（事前圧縮がない場合）
+  # Dynamic compression (when no pre-compressed file exists)
   brotli on;
   brotli_comp_level 6;
   brotli_types text/html text/css application/javascript application/json;
@@ -554,7 +554,7 @@ app.use(
   gzip_types text/html text/css application/javascript application/json;
 */
 
-// 圧縮効率の比較（typical values）
+// Compression efficiency comparison (typical values)
 const compressionRatios = {
   'HTML (100KB)': { gzip: '25KB (75%)', brotli: '20KB (80%)' },
   'CSS (50KB)': { gzip: '12KB (76%)', brotli: '9KB (82%)' },
@@ -565,124 +565,124 @@ const compressionRatios = {
 
 ---
 
-## 5. HTMLパースとリソース発見
+## 5. HTML Parsing and Resource Discovery
 
-### 5.1 パーサーの動作モデル
+### 5.1 Parser Behavior Model
 
 ```
-HTMLパーサーの動作:
+HTML parser behavior:
 
   <html>
   <head>
-    <link rel="stylesheet" href="style.css">  ← レンダリングブロック
-    <script src="app.js"></script>              ← パーサーブロック
+    <link rel="stylesheet" href="style.css">  ← render-blocking
+    <script src="app.js"></script>              ← parser-blocking
   </head>
   <body>
-    <img src="photo.jpg">                      ← 非ブロック
-    <script src="analytics.js" defer></script>  ← 非ブロック
+    <img src="photo.jpg">                      ← non-blocking
+    <script src="analytics.js" defer></script>  ← non-blocking
   </body>
   </html>
 
-パーサーブロック:
-  <script> タグに到達 → パース停止 → JS ダウンロード → JS 実行 → パース再開
-  → JS が DOM を変更する可能性があるため
+Parser blocking:
+  Encounters <script> tag → parsing halts → JS downloads → JS executes → parsing resumes
+  → Because JS may modify the DOM
 
-レンダリングブロック:
-  CSS の読み込み → CSSOM が完成するまでレンダリングを保留
-  → 正確なスタイル計算に必要
+Render blocking:
+  CSS loading → rendering is deferred until CSSOM is complete
+  → Needed for accurate style calculation
 
-解決策:
+Solutions:
   ┌────────────────────┬──────────────────────────────────┐
-  │ 属性               │ 動作                             │
+  │ Attribute          │ Behavior                         │
   ├────────────────────┼──────────────────────────────────┤
-  │ <script>           │ パーサーブロック（ダウンロード+実行）│
-  │ <script async>     │ ダウンロード並行、DL完了後即実行  │
-  │ <script defer>     │ ダウンロード並行、DOMContentLoaded前に実行│
-  │ <script type=module>│ defer相当 + ESModules            │
+  │ <script>           │ Parser-blocking (download+execute)│
+  │ <script async>     │ Download in parallel, exec immediately on completion│
+  │ <script defer>     │ Download in parallel, exec before DOMContentLoaded│
+  │ <script type=module>│ defer equivalent + ESModules    │
   └────────────────────┴──────────────────────────────────┘
 
-  タイムライン:
-  パーサー:    ─────パース─────│停止│─パース─
-  <script>:                   │DL→│実行│
-  <script async>: │──DL──│実行│  パーサーと並行DL
-  <script defer>: │──DL──────│    │実行│  DOMContentLoaded前
+  Timeline:
+  Parser:          ─────parse─────│halt│─parse─
+  <script>:                       │DL→│exec│
+  <script async>: │──DL──│exec│  parallel DL with parser
+  <script defer>: │──DL──────│    │exec│  before DOMContentLoaded
 
 Preload Scanner:
-  → パーサーがブロックされている間も先読みスキャン
-  → <link>, <script>, <img> を事前に発見
-  → ダウンロードを開始（パース再開を待たない）
+  → Continues scanning ahead even while the parser is blocked
+  → Discovers <link>, <script>, <img> in advance
+  → Starts downloading (does not wait for parser to resume)
 ```
 
-### 5.2 Speculative Parsing（投機的パース）の詳細
+### 5.2 Speculative Parsing in Detail
 
 ```
-Preload Scanner（投機的パーサー）の仕組み:
+How the Preload Scanner (speculative parser) works:
 
-  メインパーサー                    Preload Scanner
+  Main Parser                      Preload Scanner
   ─────────────────                ─────────────────
-  <html> パース開始                │
-  <head> パース                    │
-  <link rel="stylesheet"> 発見     │
-   → CSS ダウンロード開始          │
-  <script src="app.js"> 発見       │
-   → パーサーブロック！             │
-   → JS ダウンロード待ち           │
-   │                              │ 先行してHTMLをスキャン
-   │ (停止中)                     │ <img src="hero.jpg"> 発見
-   │                              │  → ダウンロード開始
-   │                              │ <script src="util.js"> 発見
-   │                              │  → ダウンロード開始
-   │                              │ <link rel="stylesheet" href="page.css">
-   │                              │  → ダウンロード開始
-   │                              │
-  app.js 実行完了                  │
-  パース再開                       │
-  hero.jpg → すでにDL済み！        │
-  util.js → すでにDL済み！         │
-  page.css → すでにDL済み！        │
+  <html> parse starts              │
+  <head> parsed                    │
+  <link rel="stylesheet"> found    │
+   → CSS download starts           │
+  <script src="app.js"> found      │
+   → Parser blocked!               │
+   → Waiting for JS download       │
+   │                               │ Scans HTML ahead
+   │ (halted)                      │ Finds <img src="hero.jpg">
+   │                               │  → Download starts
+   │                               │ Finds <script src="util.js">
+   │                               │  → Download starts
+   │                               │ Finds <link rel="stylesheet" href="page.css">
+   │                               │  → Download starts
+   │                               │
+  app.js execution complete        │
+  Parser resumes                   │
+  hero.jpg → already downloaded!  │
+  util.js → already downloaded!   │
+  page.css → already downloaded!  │
 
-  Preload Scanner による効果:
-  → Without: 各リソースをシーケンシャルに発見・DL
-  → With: ブロック中に先読みして並列DL
-  → 典型的に20-50%のローディング時間短縮
+  Benefits of Preload Scanner:
+  → Without: discovers and downloads resources sequentially
+  → With: prefetches and downloads in parallel during blocking
+  → Typically 20–50% reduction in loading time
 
-  注意: Preload Scanner が見つけられないもの:
-  - JavaScript で動的に追加されるリソース
-  - CSS の @import で参照されるリソース
-  - CSS の background-image
-  - Web Font（CSS 内で @font-face で定義）
-  → これらには明示的な preload が必要
+  Note: What the Preload Scanner cannot find:
+  - Resources added dynamically by JavaScript
+  - Resources referenced via CSS @import
+  - CSS background-image
+  - Web fonts (defined in CSS via @font-face)
+  → These require explicit preload hints
 ```
 
-### 5.3 async / defer / module の実務的使い分け
+### 5.3 Practical Guide: async / defer / module
 
 ```html
-<!-- ❌ パーサーブロック：避けるべき配置 -->
+<!-- ❌ Parser-blocking: placement to avoid -->
 <head>
-  <script src="analytics.js"></script> <!-- パースを止める -->
+  <script src="analytics.js"></script> <!-- blocks parsing -->
 </head>
 
-<!-- ✅ defer：DOM解析後に順序通り実行 -->
+<!-- ✅ defer: executes in order after DOM is parsed -->
 <head>
-  <script src="vendor.js" defer></script>   <!-- 1番目に実行 -->
-  <script src="app.js" defer></script>      <!-- 2番目に実行（依存関係を保持） -->
-  <script src="init.js" defer></script>     <!-- 3番目に実行 -->
+  <script src="vendor.js" defer></script>   <!-- executes 1st -->
+  <script src="app.js" defer></script>      <!-- executes 2nd (order preserved) -->
+  <script src="init.js" defer></script>     <!-- executes 3rd -->
 </head>
 
-<!-- ✅ async：独立したスクリプト向け -->
+<!-- ✅ async: for independent scripts -->
 <head>
-  <script src="analytics.js" async></script>  <!-- 他に依存しない -->
-  <script src="ads.js" async></script>        <!-- 他に依存しない -->
+  <script src="analytics.js" async></script>  <!-- no dependencies -->
+  <script src="ads.js" async></script>        <!-- no dependencies -->
 </head>
 
-<!-- ✅ type="module"：ESModules（defer相当 + strict mode） -->
+<!-- ✅ type="module": ESModules (defer equivalent + strict mode) -->
 <head>
   <script type="module" src="app.mjs"></script>
 </head>
 
-<!-- ✅ 動的import：必要な時にロード -->
+<!-- ✅ dynamic import: load only when needed -->
 <script>
-  // ユーザー操作時に初めてロード
+  // Load only when the user interacts
   document.getElementById('editor-btn').addEventListener('click', async () => {
     const { Editor } = await import('./editor.mjs');
     const editor = new Editor('#container');
@@ -692,7 +692,7 @@ Preload Scanner（投機的パーサー）の仕組み:
 ```
 
 ```javascript
-// defer vs async の動作を実験するコード
+// Code to experiment with defer vs async behavior
 // defer-test.js
 console.log('defer script executed');
 console.log('DOM ready:', document.readyState);
@@ -705,35 +705,35 @@ console.log('Body exists:', !!document.body);
 console.log('async script executed');
 console.log('DOM ready:', document.readyState);
 // → "async script executed"
-// → "DOM ready: loading" (DL完了タイミング次第で interactive の場合も)
+// → "DOM ready: loading" (may be "interactive" depending on when download completes)
 
 // module-test.mjs
 console.log('module script executed');
 console.log('DOM ready:', document.readyState);
 // → "module script executed"
-// → "DOM ready: interactive" （defer と同じ）
+// → "DOM ready: interactive" (same as defer)
 
-// inline module は即座に defer 扱い
+// inline module is immediately treated as defer
 // <script type="module">
 //   console.log('inline module');
-//   // → DOMContentLoaded 前に実行される
+//   // → executes before DOMContentLoaded
 // </script>
 ```
 
-### 5.4 CSS の読み込み戦略
+### 5.4 CSS Loading Strategy
 
 ```html
-<!-- クリティカルCSS：インライン化してFCPを高速化 -->
+<!-- Critical CSS: inline to speed up FCP -->
 <head>
   <style>
-    /* First Paint に必要な最小CSS（Above-the-fold） */
+    /* Minimum CSS needed for First Paint (above-the-fold) */
     body { margin: 0; font-family: system-ui; }
     .header { background: #1a1a2e; color: white; padding: 16px; }
     .hero { min-height: 60vh; display: flex; align-items: center; }
     .hero h1 { font-size: 2.5rem; }
   </style>
 
-  <!-- 残りのCSSは非同期で読み込み -->
+  <!-- Load remaining CSS asynchronously -->
   <link rel="preload" href="/css/full.css" as="style"
         onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="/css/full.css"></noscript>
@@ -741,19 +741,19 @@ console.log('DOM ready:', document.readyState);
 ```
 
 ```javascript
-// クリティカルCSSの自動抽出（Node.jsビルドスクリプト）
+// Automated critical CSS extraction (Node.js build script)
 const critical = require('critical');
 
 async function generateCriticalCSS() {
   const result = await critical.generate({
-    // 対象ページのHTMLファイルまたはURL
+    // Target page HTML file or URL
     src: 'https://example.com',
-    // ビューポートサイズ
+    // Viewport size
     width: 1300,
     height: 900,
-    // インライン化する
+    // Inline it
     inline: true,
-    // 出力先
+    // Output destination
     target: {
       html: 'dist/index.html',
       css: 'dist/critical.css',
@@ -764,12 +764,12 @@ async function generateCriticalCSS() {
   console.log('Critical CSS extracted:', result.css.length, 'bytes');
 }
 
-// CSS の @import はレンダリングを遅延させる
-// ❌ 悪い例：チェーン読み込み
+// CSS @import delays rendering
+// ❌ Bad: chained loading
 // style.css → @import "reset.css" → @import "variables.css"
-// → シーケンシャルにダウンロードされる
+// → Downloaded sequentially
 
-// ✅ 良い例：並列読み込み
+// ✅ Good: parallel loading
 // <link rel="stylesheet" href="reset.css">
 // <link rel="stylesheet" href="variables.css">
 // <link rel="stylesheet" href="style.css">
@@ -777,56 +777,56 @@ async function generateCriticalCSS() {
 
 ---
 
-## 6. リソースの優先順位
+## 6. Resource Priorities
 
-### 6.1 Chrome のリソース読み込み優先順位
+### 6.1 Chrome Resource Loading Priority
 
 ```
-Chromeのリソース読み込み優先順位:
+Chrome resource loading priorities:
 
   ┌─────────────────┬──────────┬────────────────────┐
-  │ リソース         │ 優先度   │ 備考               │
+  │ Resource         │ Priority │ Notes              │
   ├─────────────────┼──────────┼────────────────────┤
-  │ HTML            │ Highest  │ 最優先              │
-  │ CSS (head内)    │ Highest  │ レンダリングブロック │
-  │ フォント(CSS参照)│ Highest  │ テキスト表示に必要  │
-  │ Script (head内) │ High     │ async/deferで変化   │
-  │ Script (body末)  │ Medium   │                    │
-  │ 画像(viewport内)│ Medium   │ LCPに影響する場合High│
-  │ 画像(viewport外)│ Low      │ lazy load対象       │
-  │ Prefetch        │ Lowest   │ 将来のナビゲーション │
+  │ HTML            │ Highest  │ Top priority        │
+  │ CSS (in head)   │ Highest  │ Render-blocking     │
+  │ Font (CSS ref.) │ Highest  │ Required for text   │
+  │ Script (in head)│ High     │ Changes with async/defer│
+  │ Script (body end)│ Medium  │                    │
+  │ Image (in viewport)│ Medium│ High if it's LCP   │
+  │ Image (off-screen)│ Low    │ Target for lazy load│
+  │ Prefetch        │ Lowest   │ Future navigation   │
   └─────────────────┴──────────┴────────────────────┘
 
-  fetchpriority 属性:
-  <img src="hero.jpg" fetchpriority="high">  ← LCP画像の優先度アップ
-  <img src="ad.jpg" fetchpriority="low">     ← 広告画像の優先度ダウン
-  <script src="app.js" fetchpriority="high"> ← 重要なJSの優先度アップ
+  fetchpriority attribute:
+  <img src="hero.jpg" fetchpriority="high">  ← boost priority for LCP image
+  <img src="ad.jpg" fetchpriority="low">     ← lower priority for ad images
+  <script src="app.js" fetchpriority="high"> ← boost priority for critical JS
 
-  リソースヒント:
+  Resource hints:
   <link rel="preload" href="font.woff2" as="font" crossorigin>
-  → 発見前からダウンロード開始
+  → Start downloading before discovery
 
   <link rel="preconnect" href="https://api.example.com">
-  → DNS + TCP + TLS を事前確立
+  → Pre-establish DNS + TCP + TLS
 
   <link rel="prefetch" href="/next-page.html">
-  → アイドル時に先読み（次のナビゲーション用）
+  → Prefetch during idle time (for next navigation)
 
   <link rel="modulepreload" href="/module.js">
-  → ESModuleの先読み
+  → Prefetch ES modules
 ```
 
-### 6.2 fetchpriority の実務活用
+### 6.2 Practical Use of fetchpriority
 
 ```html
-<!-- LCP要素の優先度を上げる -->
+<!-- Boost priority for the LCP element -->
 <img src="/hero-banner.webp"
      alt="Hero Banner"
      fetchpriority="high"
      width="1200"
      height="600">
 
-<!-- ファーストビュー外の画像は遅延読み込み -->
+<!-- Lazy-load images below the fold -->
 <img src="/product-1.webp"
      alt="Product 1"
      loading="lazy"
@@ -834,14 +834,14 @@ Chromeのリソース読み込み優先順位:
      width="400"
      height="300">
 
-<!-- カルーセルの最初の画像だけ高優先度 -->
+<!-- High priority only for the first carousel image -->
 <div class="carousel">
   <img src="/slide-1.webp" fetchpriority="high">
   <img src="/slide-2.webp" fetchpriority="low" loading="lazy">
   <img src="/slide-3.webp" fetchpriority="low" loading="lazy">
 </div>
 
-<!-- フォントの事前読み込み -->
+<!-- Preload fonts -->
 <link rel="preload"
       href="/fonts/NotoSansJP-Regular.woff2"
       as="font"
@@ -849,159 +849,159 @@ Chromeのリソース読み込み優先順位:
       crossorigin
       fetchpriority="high">
 
-<!-- 重要なAPIリクエストの優先度を上げる -->
+<!-- Boost priority for critical API requests -->
 <script>
-  // fetchpriority を fetch API で使用
+  // Use fetchpriority with the Fetch API
   const response = await fetch('/api/critical-data', {
     priority: 'high', // Fetch Priority API
   });
 
-  // 低優先度のプリフェッチ
+  // Low-priority prefetch
   const prefetchResponse = await fetch('/api/suggestions', {
     priority: 'low',
   });
 </script>
 ```
 
-### 6.3 HTTP/2 の優先順位とマルチプレキシング
+### 6.3 HTTP/2 Priority and Multiplexing
 
 ```
-HTTP/1.1 の制限:
-  → 1つのTCP接続で1つのリクエスト/レスポンス
-  → ブラウザはドメインあたり6接続まで
-  → 7個目以降は待ち行列
+HTTP/1.1 limitations:
+  → One request/response per TCP connection
+  → Browser allows up to 6 connections per domain
+  → 7th and beyond wait in a queue
 
-  接続1: ─[HTML]──[CSS]──[JS1]──[img1]──
-  接続2: ──────[JS2]──[img2]──[img3]──
-  接続3: ──────[font1]──[img4]──[img5]──
-  接続4: ──────────[img6]──[img7]──
-  接続5: ──────────[img8]──[img9]──
-  接続6: ──────────[img10]──[img11]──
-  待ち:  ──────────────────[img12] [img13]...
+  Connection 1: ─[HTML]──[CSS]──[JS1]──[img1]──
+  Connection 2: ──────[JS2]──[img2]──[img3]──
+  Connection 3: ──────[font1]──[img4]──[img5]──
+  Connection 4: ──────────[img6]──[img7]──
+  Connection 5: ──────────[img8]──[img9]──
+  Connection 6: ──────────[img10]──[img11]──
+  Waiting:      ──────────────────[img12] [img13]...
 
-HTTP/2 のマルチプレキシング:
-  → 1つのTCP接続で複数のストリームを並行
-  → ドメインあたり1接続で全リソース
-  → 優先順位ベースのストリーム制御
+HTTP/2 multiplexing:
+  → Multiple streams in parallel over one TCP connection
+  → One connection per domain handles all resources
+  → Priority-based stream control
 
-  接続1: ─[HTML]─┬─[CSS]─┬─[JS1]──┬─[JS2]───
-                 ├─[font]┤        ├─[img1]──
-                 │       │        ├─[img2]──
-                 │       │        └─[img3]──
-                 │       │
-  優先順位ツリー:
+  Connection 1: ─[HTML]─┬─[CSS]─┬─[JS1]──┬─[JS2]───
+                         ├─[font]┤        ├─[img1]──
+                         │       │        ├─[img2]──
+                         │       │        └─[img3]──
+
+  Priority tree:
     HTML (weight: 256)
     ├── CSS (weight: 256, exclusive)
     ├── JS (weight: 220)
     ├── Font (weight: 256)
     └── Images (weight: 110)
 
-HTTP/3 の改善:
-  → QUIC ストリームレベルでの多重化
-  → 1つのストリームの遅延が他に影響しない
-  → パケットロス時の回復が高速
+HTTP/3 improvements:
+  → Multiplexing at the QUIC stream level
+  → Delay in one stream does not affect others
+  → Faster recovery from packet loss
 ```
 
 ---
 
-## 7. ページロードのイベントとライフサイクル
+## 7. Page Load Events and Lifecycle
 
-### 7.1 主要なイベントタイミング
+### 7.1 Key Event Timing
 
 ```
-主要なイベントタイミング:
+Key event timing:
 
   0ms  ─── navigationStart
   │
-  50ms ─── DNS解決完了
+  50ms ─── DNS resolution complete
   │
-  80ms ─── TCP接続完了
+  80ms ─── TCP connection complete
   │
-  130ms ── TLS完了
+  130ms ── TLS complete
   │
-  150ms ── リクエスト送信
+  150ms ── Request sent
   │
-  250ms ── TTFB（最初のバイト受信）
-  │         → サーバー処理時間の指標
+  250ms ── TTFB (first byte received)
+  │         → Indicator of server processing time
   │
-  300ms ── FP（First Paint）
-  │         → 最初のピクセルが表示
+  300ms ── FP (First Paint)
+  │         → First pixel displayed
   │
-  400ms ── FCP（First Contentful Paint）
-  │         → 最初のテキスト/画像が表示
+  400ms ── FCP (First Contentful Paint)
+  │         → First text/image displayed
   │
   800ms ── DOMContentLoaded
-  │         → DOM構築完了、defer script実行完了
-  │         → jQuery の $(document).ready() はここ
+  │         → DOM construction complete, defer scripts executed
+  │         → jQuery's $(document).ready() fires here
   │
-  1500ms ─ LCP（Largest Contentful Paint）
-  │         → 最大のコンテンツが表示
-  │         → Core Web Vitals 指標
+  1500ms ─ LCP (Largest Contentful Paint)
+  │         → Largest content element displayed
+  │         → Core Web Vitals metric
   │
   2000ms ─ load
-  │         → 全リソース（画像等）の読み込み完了
-  │         → window.onload はここ
+  │         → All resources (images, etc.) loaded
+  │         → window.onload fires here
   │
   3000ms ─ fully interactive
-             → JS実行完了、操作可能
+             → JS execution complete, user can interact
 
   DOMContentLoaded vs load:
-  DOMContentLoaded: HTMLパース完了（画像はまだかも）
-  load: 画像、CSS、iframe 等全て完了
+  DOMContentLoaded: HTML parsing complete (images may not be done yet)
+  load: Images, CSS, iframes, etc. all complete
 ```
 
-### 7.2 Core Web Vitals の詳細
+### 7.2 Core Web Vitals in Detail
 
 ```
-Core Web Vitals（2024年〜の指標）:
+Core Web Vitals (metrics from 2024 onward):
 
   ┌────────────────────────────────────────────┐
   │ LCP (Largest Contentful Paint)              │
-  │ → ビューポート内の最大要素が表示された時刻    │
-  │ → 良好: ≤2.5s / 要改善: ≤4.0s / 不良: >4.0s │
+  │ → Time when the largest element in the viewport is displayed │
+  │ → Good: ≤2.5s / Needs improvement: ≤4.0s / Poor: >4.0s │
   │                                            │
-  │ 対象要素:                                    │
+  │ Target elements:                            │
   │   - <img>                                   │
-  │   - <svg> 内の <image>                      │
-  │   - <video> のポスター画像                    │
-  │   - background-image の要素                  │
-  │   - テキストノードを含むブロック要素            │
+  │   - <image> inside <svg>                   │
+  │   - Poster image of <video>                │
+  │   - Elements with background-image         │
+  │   - Block elements containing text nodes   │
   └────────────────────────────────────────────┘
 
   ┌────────────────────────────────────────────┐
   │ INP (Interaction to Next Paint)             │
-  │ → ユーザー操作から画面更新までの遅延          │
-  │ → FID の後継指標（2024年3月〜）              │
-  │ → 良好: ≤200ms / 要改善: ≤500ms / 不良: >500ms│
+  │ → Delay from user interaction to screen update │
+  │ → Successor to FID (since March 2024)       │
+  │ → Good: ≤200ms / Needs improvement: ≤500ms / Poor: >500ms │
   │                                            │
-  │ 計測対象のイベント:                           │
+  │ Measured events:                            │
   │   - click / tap                             │
   │   - keydown / keyup                         │
   │   - mousedown / mouseup                     │
   │                                            │
-  │ INP = 入力遅延 + 処理時間 + 表示遅延         │
-  │   入力遅延: メインスレッドがビジーの間の待ち    │
-  │   処理時間: イベントハンドラの実行時間         │
-  │   表示遅延: レイアウト → ペイント → コンポジット│
+  │ INP = input delay + processing time + presentation delay │
+  │   Input delay: waiting while main thread is busy  │
+  │   Processing time: event handler execution time   │
+  │   Presentation delay: layout → paint → composite  │
   └────────────────────────────────────────────┘
 
   ┌────────────────────────────────────────────┐
   │ CLS (Cumulative Layout Shift)               │
-  │ → 予期しないレイアウトのずれの累積             │
-  │ → 良好: ≤0.1 / 要改善: ≤0.25 / 不良: >0.25  │
+  │ → Cumulative unexpected layout shifts       │
+  │ → Good: ≤0.1 / Needs improvement: ≤0.25 / Poor: >0.25 │
   │                                            │
-  │ CLS を引き起こす原因:                         │
-  │   - サイズ未指定の画像/iframe                 │
-  │   - 動的に挿入されるコンテンツ                 │
-  │   - Webフォントの読み込み（FOIT/FOUT）         │
-  │   - DOM操作でのコンテンツ追加                  │
+  │ Causes of CLS:                              │
+  │   - Images/iframes without specified sizes  │
+  │   - Dynamically inserted content            │
+  │   - Web font loading (FOIT/FOUT)            │
+  │   - Adding content via DOM manipulation     │
   └────────────────────────────────────────────┘
 ```
 
-### 7.3 パフォーマンス指標の計測実装
+### 7.3 Implementing Performance Metric Measurement
 
 ```javascript
-// Core Web Vitals を web-vitals ライブラリで計測
+// Measure Core Web Vitals with the web-vitals library
 import { onLCP, onINP, onCLS, onFCP, onTTFB } from 'web-vitals';
 
 function sendToAnalytics(metric) {
@@ -1012,14 +1012,14 @@ function sendToAnalytics(metric) {
     delta: metric.delta,
     id: metric.id,
     navigationType: metric.navigationType,
-    // LCP の場合、対象要素の情報
+    // For LCP, information about the target element
     ...(metric.entries?.length && {
       element: metric.entries[metric.entries.length - 1]?.element?.tagName,
       url: metric.entries[metric.entries.length - 1]?.url,
     }),
   };
 
-  // Beacon API で確実に送信（ページ離脱時も）
+  // Send reliably with the Beacon API (even on page unload)
   if (navigator.sendBeacon) {
     navigator.sendBeacon('/analytics', JSON.stringify(body));
   } else {
@@ -1031,14 +1031,14 @@ function sendToAnalytics(metric) {
   }
 }
 
-// 各指標を計測・送信
+// Measure and send each metric
 onLCP(sendToAnalytics);
 onINP(sendToAnalytics);
 onCLS(sendToAnalytics);
 onFCP(sendToAnalytics);
 onTTFB(sendToAnalytics);
 
-// PerformanceObserver を使った詳細計測
+// Detailed measurement using PerformanceObserver
 class PerformanceMonitor {
   constructor() {
     this.metrics = {};
@@ -1074,7 +1074,7 @@ class PerformanceMonitor {
       });
     });
 
-    // Long Tasks（INP の原因調査に有用）
+    // Long Tasks (useful for investigating INP causes)
     this.observe('longtask', (entries) => {
       entries.forEach((entry) => {
         console.warn(
@@ -1085,7 +1085,7 @@ class PerformanceMonitor {
       });
     });
 
-    // Resource Timing（個別リソースの読み込み時間）
+    // Resource Timing (loading time per resource)
     this.observe('resource', (entries) => {
       entries.forEach((entry) => {
         if (entry.duration > 500) {
@@ -1160,10 +1160,10 @@ class PerformanceMonitor {
   }
 }
 
-// 使用例
+// Usage example
 const monitor = new PerformanceMonitor();
 window.addEventListener('load', () => {
-  // ページ完全読み込み後にレポート取得
+  // Get report after full page load
   setTimeout(() => {
     console.table(monitor.getReport().navigation);
     console.table(monitor.getReport().resources);
@@ -1175,17 +1175,17 @@ window.addEventListener('load', () => {
 
 ## 8. Navigation Timing API
 
-### 8.1 基本的な計測
+### 8.1 Basic Measurement
 
 ```javascript
-// ページ読み込みの各段階を計測
+// Measure each phase of page loading
 const entry = performance.getEntriesByType('navigation')[0];
 
 console.log({
   // DNS
   dns: entry.domainLookupEnd - entry.domainLookupStart,
 
-  // TCP接続
+  // TCP connection
   tcp: entry.connectEnd - entry.connectStart,
 
   // TLS
@@ -1197,17 +1197,17 @@ console.log({
   // TTFB
   ttfb: entry.responseStart - entry.requestStart,
 
-  // コンテンツ転送
+  // Content transfer
   download: entry.responseEnd - entry.responseStart,
 
-  // DOM処理
+  // DOM processing
   domProcessing: entry.domContentLoadedEventEnd - entry.responseEnd,
 
-  // 全体
+  // Total
   total: entry.loadEventEnd - entry.startTime,
 });
 
-// Web Vitals の計測
+// Measure Web Vitals
 new PerformanceObserver((list) => {
   for (const entry of list.getEntries()) {
     console.log(`LCP: ${entry.startTime}ms`);
@@ -1215,52 +1215,52 @@ new PerformanceObserver((list) => {
 }).observe({ type: 'largest-contentful-paint', buffered: true });
 ```
 
-### 8.2 Navigation Timing Level 2 の全プロパティ
+### 8.2 All Properties of Navigation Timing Level 2
 
 ```javascript
-// Navigation Timing Level 2 のタイムライン
+// Navigation Timing Level 2 timeline
 const nav = performance.getEntriesByType('navigation')[0];
 
 /*
-  タイムライン:
+  Timeline:
 
   startTime (0)
   │
   ├─ redirectStart ──── redirectEnd
-  │   (リダイレクトがある場合)
+  │   (if there are redirects)
   │
   ├─ fetchStart
-  │   (リクエスト開始)
+  │   (request starts)
   │
   ├─ domainLookupStart ──── domainLookupEnd
-  │   (DNS解決)
+  │   (DNS resolution)
   │
   ├─ connectStart ──── secureConnectionStart ──── connectEnd
-  │   (TCP接続)         (TLS開始)                  (TLS完了)
+  │   (TCP connection)  (TLS starts)               (TLS complete)
   │
   ├─ requestStart
-  │   (リクエスト送信)
+  │   (request sent)
   │
   ├─ responseStart ──── responseEnd
-  │   (TTFB)            (レスポンス受信完了)
+  │   (TTFB)            (response fully received)
   │
   ├─ domInteractive
-  │   (HTMLパース完了、DOMが操作可能)
+  │   (HTML parse complete, DOM is manipulable)
   │
   ├─ domContentLoadedEventStart ──── domContentLoadedEventEnd
-  │   (DOMContentLoadedイベント)
+  │   (DOMContentLoaded event)
   │
   └─ loadEventStart ──── loadEventEnd
-      (loadイベント)
+      (load event)
 */
 
-// 実務で使える診断レポート
+// Diagnostic report for production use
 function generateLoadReport() {
   const nav = performance.getEntriesByType('navigation')[0];
   if (!nav) return null;
 
   const report = {
-    // === ネットワーク層 ===
+    // === Network layer ===
     redirect:
       nav.redirectEnd > 0
         ? `${(nav.redirectEnd - nav.redirectStart).toFixed(0)}ms (${nav.redirectCount} redirects)`
@@ -1272,11 +1272,11 @@ function generateLoadReport() {
         ? `${(nav.connectEnd - nav.secureConnectionStart).toFixed(0)}ms`
         : 'N/A',
 
-    // === サーバー層 ===
+    // === Server layer ===
     ttfb: `${(nav.responseStart - nav.requestStart).toFixed(0)}ms`,
     serverTime: `${(nav.responseStart - nav.connectEnd).toFixed(0)}ms`,
 
-    // === コンテンツ転送 ===
+    // === Content transfer ===
     download: `${(nav.responseEnd - nav.responseStart).toFixed(0)}ms`,
     transferSize: `${(nav.transferSize / 1024).toFixed(1)}KB`,
     compressionRatio:
@@ -1284,12 +1284,12 @@ function generateLoadReport() {
         ? `${((1 - nav.encodedBodySize / nav.decodedBodySize) * 100).toFixed(0)}%`
         : 'N/A',
 
-    // === クライアント層 ===
+    // === Client layer ===
     domParsing: `${(nav.domInteractive - nav.responseEnd).toFixed(0)}ms`,
     domContentLoaded: `${nav.domContentLoadedEventEnd.toFixed(0)}ms`,
     load: `${nav.loadEventEnd.toFixed(0)}ms`,
 
-    // === プロトコル情報 ===
+    // === Protocol info ===
     protocol: nav.nextHopProtocol, // "h2", "h3", "http/1.1"
     type: nav.type, // "navigate", "reload", "back_forward", "prerender"
   };
@@ -1297,24 +1297,24 @@ function generateLoadReport() {
   return report;
 }
 
-// コンソールにテーブル表示
+// Display as a table in the console
 console.table(generateLoadReport());
 ```
 
-### 8.3 Resource Timing API の活用
+### 8.3 Using the Resource Timing API
 
 ```javascript
-// 全リソースの読み込み時間を分析
+// Analyze loading time of all resources
 function analyzeResources() {
   const resources = performance.getEntriesByType('resource');
 
-  // リソースタイプ別に分類
+  // Classify by resource type
   const byType = {};
   resources.forEach((r) => {
     const type = r.initiatorType;
     if (!byType[type]) byType[type] = [];
     byType[type].push({
-      name: r.name.split('/').pop().split('?')[0], // ファイル名のみ
+      name: r.name.split('/').pop().split('?')[0], // filename only
       duration: Math.round(r.duration),
       size: Math.round(r.transferSize / 1024), // KB
       protocol: r.nextHopProtocol,
@@ -1322,7 +1322,7 @@ function analyzeResources() {
     });
   });
 
-  // 遅いリソースを特定
+  // Identify slow resources
   const slowResources = resources
     .filter((r) => r.duration > 200)
     .sort((a, b) => b.duration - a.duration)
@@ -1353,8 +1353,8 @@ function analyzeResources() {
   return { byType, slowResources };
 }
 
-// Server Timing API の活用
-// サーバーサイドで設定:
+// Using the Server Timing API
+// Configure on server side:
 // Server-Timing: db;dur=42, cache;desc="Cache Read";dur=5, app;dur=123
 
 const nav = performance.getEntriesByType('navigation')[0];
@@ -1370,48 +1370,48 @@ if (nav.serverTiming) {
 
 ---
 
-## 9. Service Worker とナビゲーション
+## 9. Service Workers and Navigation
 
-### 9.1 Service Worker のライフサイクル
+### 9.1 Service Worker Lifecycle
 
 ```
-Service Worker のライフサイクル:
+Service Worker lifecycle:
 
   ┌─────────────────────────────────────────────┐
-  │ 1. Registration（登録）                       │
+  │ 1. Registration                              │
   │    navigator.serviceWorker.register('/sw.js')│
   │                                             │
-  │ 2. Installation（インストール）                │
-  │    → install イベント発火                     │
-  │    → キャッシュの事前準備                      │
+  │ 2. Installation                              │
+  │    → install event fires                     │
+  │    → Pre-cache assets                        │
   │                                             │
-  │ 3. Activation（有効化）                       │
-  │    → activate イベント発火                    │
-  │    → 古いキャッシュの削除                      │
+  │ 3. Activation                                │
+  │    → activate event fires                    │
+  │    → Delete old caches                       │
   │                                             │
-  │ 4. Controlling（制御中）                      │
-  │    → fetch イベントでリクエストを傍受          │
-  │    → ナビゲーションリクエストも制御可能         │
+  │ 4. Controlling                               │
+  │    → Intercepts requests via fetch event     │
+  │    → Can also control navigation requests    │
   └─────────────────────────────────────────────┘
 
-  Service Worker によるナビゲーション制御:
+  Navigation control by Service Worker:
 
-  ブラウザ             Service Worker          ネットワーク
+  Browser             Service Worker          Network
   │                   │                       │
   │ ── navigation ──→│                       │
-  │                   │ fetch イベント発火      │
+  │                   │ fetch event fires      │
   │                   │                       │
-  │                   │ キャッシュ確認          │
-  │                   ├─ ヒット → レスポンス返却│
+  │                   │ Check cache            │
+  │                   ├─ hit → return response │
   │                   │                       │
-  │                   ├─ ミス ─────────────→│ ネットワーク
-  │                   │                     │ リクエスト
-  │                   │←────── レスポンス ──│
-  │←── レスポンス ───│                       │
+  │                   ├─ miss ────────────────→│ network
+  │                   │                       │ request
+  │                   │←────── response ──────│
+  │←── response ──────│                       │
   │                   │                       │
 ```
 
-### 9.2 キャッシュ戦略の実装
+### 9.2 Implementing Cache Strategies
 
 ```javascript
 // sw.js - Service Worker
@@ -1425,7 +1425,7 @@ const STATIC_ASSETS = [
   '/images/logo.svg',
 ];
 
-// インストール時にキャッシュ
+// Cache on install
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
@@ -1435,7 +1435,7 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// 有効化時に古いキャッシュを削除
+// Delete old caches on activation
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
@@ -1451,34 +1451,34 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// フェッチ時のキャッシュ戦略
+// Cache strategy on fetch
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // ナビゲーションリクエスト: Network First
+  // Navigation requests: Network First
   if (request.mode === 'navigate') {
     event.respondWith(networkFirstStrategy(request));
     return;
   }
 
-  // 静的アセット: Cache First
+  // Static assets: Cache First
   if (isStaticAsset(url)) {
     event.respondWith(cacheFirstStrategy(request));
     return;
   }
 
-  // APIリクエスト: Stale While Revalidate
+  // API requests: Stale While Revalidate
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(staleWhileRevalidateStrategy(request));
     return;
   }
 
-  // その他: Network Only
+  // Everything else: Network Only
   event.respondWith(fetch(request));
 });
 
-// Cache First: キャッシュ優先、なければネットワーク
+// Cache First: prefer cache, fall back to network
 async function cacheFirstStrategy(request) {
   const cached = await caches.match(request);
   if (cached) return cached;
@@ -1491,7 +1491,7 @@ async function cacheFirstStrategy(request) {
   return response;
 }
 
-// Network First: ネットワーク優先、失敗したらキャッシュ
+// Network First: prefer network, fall back to cache on failure
 async function networkFirstStrategy(request) {
   try {
     const response = await fetch(request, { timeout: 3000 });
@@ -1504,12 +1504,12 @@ async function networkFirstStrategy(request) {
     const cached = await caches.match(request);
     if (cached) return cached;
 
-    // オフラインフォールバック
+    // Offline fallback
     return caches.match('/offline.html');
   }
 }
 
-// Stale While Revalidate: キャッシュを返しつつ裏で更新
+// Stale While Revalidate: return cache while updating in background
 async function staleWhileRevalidateStrategy(request) {
   const cache = await caches.open(CACHE_NAME);
   const cached = await cache.match(request);
@@ -1534,11 +1534,11 @@ function isStaticAsset(url) {
 ### 9.3 Navigation Preload
 
 ```javascript
-// Navigation Preload: SW起動待ちの間にネットワークリクエストを開始
+// Navigation Preload: start network request while waiting for SW to start
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
-      // Navigation Preload を有効化
+      // Enable Navigation Preload
       if (self.registration.navigationPreload) {
         await self.registration.navigationPreload.enable();
       }
@@ -1551,16 +1551,16 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       (async () => {
         try {
-          // Navigation Preload のレスポンスを使用
+          // Use the Navigation Preload response
           const preloadResponse = await event.preloadResponse;
           if (preloadResponse) {
             return preloadResponse;
           }
 
-          // フォールバック：通常のネットワークリクエスト
+          // Fallback: regular network request
           return await fetch(event.request);
         } catch (error) {
-          // オフライン時はキャッシュを返す
+          // Return cache when offline
           const cached = await caches.match(event.request);
           return cached || caches.match('/offline.html');
         }
@@ -1570,46 +1570,46 @@ self.addEventListener('fetch', (event) => {
 });
 
 /*
-  Navigation Preload のメリット:
+  Benefits of Navigation Preload:
 
   Without Navigation Preload:
-    SW起動(50ms) → fetch イベント → ネットワークリクエスト(200ms)
-    合計: 250ms
+    SW startup (50ms) → fetch event → network request (200ms)
+    Total: 250ms
 
   With Navigation Preload:
-    SW起動(50ms)
-    ネットワークリクエスト(200ms)  ← 並行して開始
-    合計: 200ms（SW起動と並行）
+    SW startup (50ms)
+    Network request (200ms)  ← starts in parallel
+    Total: 200ms (parallel with SW startup)
 
-  → 50-100ms の短縮効果
+  → 50–100ms improvement
 */
 ```
 
 ---
 
-## 10. SPA のナビゲーション
+## 10. SPA Navigation
 
-### 10.1 クライアントサイドナビゲーション
+### 10.1 Client-Side Navigation
 
 ```javascript
-// History API を使った SPA ナビゲーション
+// SPA navigation using the History API
 class SPARouter {
   constructor() {
     this.routes = new Map();
     this.currentPath = null;
 
-    // ブラウザの戻る/進むボタン
+    // Browser back/forward buttons
     window.addEventListener('popstate', (event) => {
       this.navigate(location.pathname, false);
     });
 
-    // リンクのクリックを傍受
+    // Intercept link clicks
     document.addEventListener('click', (event) => {
       const anchor = event.target.closest('a[href]');
       if (!anchor) return;
 
       const url = new URL(anchor.href);
-      if (url.origin !== location.origin) return; // 外部リンクはスルー
+      if (url.origin !== location.origin) return; // pass through external links
 
       event.preventDefault();
       this.navigate(url.pathname);
@@ -1624,7 +1624,7 @@ class SPARouter {
   async navigate(path, pushState = true) {
     if (path === this.currentPath) return;
 
-    // パフォーマンスマーク
+    // Performance mark
     performance.mark('navigation-start');
 
     const handler = this.matchRoute(path);
@@ -1633,14 +1633,14 @@ class SPARouter {
       return;
     }
 
-    // 履歴に追加
+    // Add to history
     if (pushState) {
       history.pushState({ path }, '', path);
     }
 
     this.currentPath = path;
 
-    // ページ遷移アニメーション
+    // Page transition animation
     const container = document.getElementById('app');
     container.classList.add('page-transitioning');
 
@@ -1651,25 +1651,25 @@ class SPARouter {
       container.classList.remove('page-transitioning');
     }
 
-    // パフォーマンス計測
+    // Performance measurement
     performance.mark('navigation-end');
     performance.measure('spa-navigation', 'navigation-start', 'navigation-end');
 
     const measure = performance.getEntriesByName('spa-navigation').pop();
     console.log(`SPA Navigation: ${measure.duration.toFixed(0)}ms`);
 
-    // スクロール位置をリセット
+    // Reset scroll position
     window.scrollTo(0, 0);
 
-    // アナリティクスに送信
+    // Send to analytics
     this.trackPageView(path);
   }
 
   matchRoute(path) {
-    // 完全一致
+    // Exact match
     if (this.routes.has(path)) return this.routes.get(path);
 
-    // パラメータ付きルート
+    // Routes with parameters
     for (const [pattern, handler] of this.routes) {
       const regex = new RegExp(
         '^' + pattern.replace(/:([^/]+)/g, '(?<$1>[^/]+)') + '$'
@@ -1684,7 +1684,7 @@ class SPARouter {
   }
 
   trackPageView(path) {
-    // Soft Navigation API（Chrome 実験的機能）
+    // Soft Navigation API (Chrome experimental feature)
     if (window.PerformanceObserver) {
       try {
         new PerformanceObserver((list) => {
@@ -1699,7 +1699,7 @@ class SPARouter {
   }
 }
 
-// 使用例
+// Usage example
 const router = new SPARouter();
 router
   .route('/', async () => {
@@ -1717,22 +1717,22 @@ router
 ### 10.2 View Transitions API
 
 ```javascript
-// View Transitions API（Chrome 111+）
-// SPA ナビゲーション時のスムーズなアニメーション
+// View Transitions API (Chrome 111+)
+// Smooth animation during SPA navigation
 
 async function navigateWithTransition(url) {
-  // View Transition 非対応ブラウザのフォールバック
+  // Fallback for browsers that don't support View Transitions
   if (!document.startViewTransition) {
     await updateDOM(url);
     return;
   }
 
-  // View Transition を開始
+  // Start View Transition
   const transition = document.startViewTransition(async () => {
     await updateDOM(url);
   });
 
-  // トランジション完了を待つ
+  // Wait for transition to complete
   await transition.finished;
 }
 
@@ -1742,19 +1742,19 @@ async function updateDOM(url) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
 
-  // メインコンテンツを置換
+  // Replace main content
   document.querySelector('main').innerHTML =
     doc.querySelector('main').innerHTML;
 
-  // タイトルを更新
+  // Update title
   document.title = doc.title;
 }
 ```
 
 ```css
-/* View Transitions のカスタムアニメーション */
+/* Custom animations for View Transitions */
 
-/* デフォルトのフェードイン/アウト */
+/* Default fade-in/fade-out */
 ::view-transition-old(root) {
   animation: fade-out 0.3s ease-out;
 }
@@ -1773,7 +1773,7 @@ async function updateDOM(url) {
   to { opacity: 1; }
 }
 
-/* 特定の要素にカスタムトランジション名を設定 */
+/* Assign custom transition names to specific elements */
 .hero-image {
   view-transition-name: hero;
 }
@@ -1782,7 +1782,7 @@ async function updateDOM(url) {
   view-transition-name: title;
 }
 
-/* 要素ごとのアニメーション */
+/* Per-element animations */
 ::view-transition-old(hero) {
   animation: slide-out-left 0.4s ease-in;
 }
@@ -1802,10 +1802,10 @@ async function updateDOM(url) {
 }
 ```
 
-### 10.3 Speculation Rules API（プリレンダリング）
+### 10.3 Speculation Rules API (Prerendering)
 
 ```html
-<!-- Speculation Rules API: 次のナビゲーションを事前レンダリング -->
+<!-- Speculation Rules API: pre-render the next navigation -->
 <script type="speculationrules">
 {
   "prerender": [
@@ -1831,26 +1831,26 @@ async function updateDOM(url) {
 </script>
 
 <!--
-  eagerness の種類:
-  - "eager": 即座に実行
-  - "moderate": ホバー時に実行（200msのインテントシグナル）
-  - "conservative": クリック/タップ時に実行
+  eagerness types:
+  - "eager": execute immediately
+  - "moderate": execute on hover (200ms intent signal)
+  - "conservative": execute on click/tap
 
   prefetch vs prerender:
-  - prefetch: HTMLのみ取得（ネットワーク節約）
-  - prerender: ページ全体を裏でレンダリング（瞬時表示）
+  - prefetch: fetch HTML only (saves bandwidth)
+  - prerender: render entire page in background (instant display)
 
-  制限事項:
-  - prerender は同一オリジンのみ
-  - 1ページにつき prerender は最大10件
-  - メモリ使用量に注意
+  Limitations:
+  - prerender is same-origin only
+  - maximum 10 prerenders per page
+  - be mindful of memory usage
 -->
 ```
 
 ```javascript
-// Speculation Rules を動的に追加
+// Add Speculation Rules dynamically
 function addSpeculationRules(urls) {
-  // 既存のルールを削除
+  // Remove existing rules
   document
     .querySelectorAll('script[type="speculationrules"]')
     .forEach((el) => el.remove());
@@ -1870,9 +1870,9 @@ function addSpeculationRules(urls) {
   document.head.appendChild(script);
 }
 
-// ユーザーの行動に基づいてプリレンダリング対象を決定
+// Decide prerender targets based on user behavior
 function predictNextNavigation() {
-  // 最も確率の高いリンクを特定
+  // Identify the most likely links
   const links = Array.from(document.querySelectorAll('a[href^="/"]'));
   const visibleLinks = links.filter((link) => {
     const rect = link.getBoundingClientRect();
@@ -1884,12 +1884,12 @@ function predictNextNavigation() {
     );
   });
 
-  // ビューポート内のリンクをプリレンダリング候補に
+  // Make links in the viewport prerender candidates
   const urls = visibleLinks.slice(0, 3).map((link) => link.href);
   addSpeculationRules(urls);
 }
 
-// Intersection Observer でビューポート内リンクを監視
+// Monitor in-viewport links with Intersection Observer
 const observer = new IntersectionObserver(
   (entries) => {
     entries.forEach((entry) => {
@@ -1909,44 +1909,44 @@ document.querySelectorAll('a[href^="/"]').forEach((link) => {
 
 ---
 
-## 11. パフォーマンス最適化の実践
+## 11. Performance Optimization in Practice
 
-### 11.1 Critical Rendering Path の最適化
+### 11.1 Optimizing the Critical Rendering Path
 
 ```html
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- 1. DNS/接続の事前確立 -->
+  <!-- 1. Pre-establish DNS/connections -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://cdn.example.com" crossorigin>
   <link rel="dns-prefetch" href="//analytics.example.com">
 
-  <!-- 2. クリティカルCSS（インライン） -->
+  <!-- 2. Critical CSS (inlined) -->
   <style>
-    /* Above-the-fold に必要な最小CSS */
+    /* Minimum CSS needed for above-the-fold */
     :root { --primary: #1a1a2e; --text: #333; }
     body { margin: 0; font-family: system-ui, sans-serif; color: var(--text); }
     .header { background: var(--primary); color: white; padding: 1rem; }
     .hero { min-height: 50vh; display: grid; place-items: center; }
   </style>
 
-  <!-- 3. 重要フォントの事前読み込み -->
+  <!-- 3. Preload important fonts -->
   <link rel="preload" href="/fonts/main.woff2" as="font" type="font/woff2" crossorigin>
 
-  <!-- 4. 非クリティカルCSS（非同期読み込み） -->
+  <!-- 4. Non-critical CSS (async loading) -->
   <link rel="preload" href="/css/app.css" as="style"
         onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="/css/app.css"></noscript>
 
-  <!-- 5. JavaScriptは defer で -->
+  <!-- 5. JavaScript with defer -->
   <script src="/js/vendor.js" defer></script>
   <script src="/js/app.js" defer></script>
 
-  <!-- 6. 独立した解析系は async で -->
+  <!-- 6. Independent analytics with async -->
   <script src="/js/analytics.js" async></script>
 </head>
 <body>
@@ -1955,7 +1955,7 @@ document.querySelectorAll('a[href^="/"]').forEach((link) => {
   </header>
 
   <main class="hero">
-    <!-- 7. LCP候補の画像は高優先度 -->
+    <!-- 7. LCP candidate image with high priority -->
     <img src="/images/hero.webp"
          alt="Hero Image"
          fetchpriority="high"
@@ -1965,7 +1965,7 @@ document.querySelectorAll('a[href^="/"]').forEach((link) => {
   </main>
 
   <section class="products">
-    <!-- 8. ファーストビュー外の画像はlazy -->
+    <!-- 8. Below-fold images with lazy loading -->
     <img src="/images/product-1.webp"
          alt="Product 1"
          loading="lazy"
@@ -1986,64 +1986,64 @@ document.querySelectorAll('a[href^="/"]').forEach((link) => {
 </html>
 ```
 
-### 11.2 ローディングパフォーマンスのチェックリスト
+### 11.2 Loading Performance Checklist
 
 ```
-パフォーマンス最適化チェックリスト:
+Performance optimization checklist:
 
-  ■ ネットワーク層
-  □ HTTP/2 または HTTP/3 を使用
-  □ CDN を利用（地理的に近いサーバーから配信）
-  □ Brotli 圧縮を有効化
-  □ preconnect で重要なドメインに事前接続
-  □ dns-prefetch で外部ドメインを事前解決
-  □ 不要なリダイレクトを削除
+  ■ Network layer
+  □ Use HTTP/2 or HTTP/3
+  □ Use a CDN (serve from geographically close servers)
+  □ Enable Brotli compression
+  □ Use preconnect for critical domains
+  □ Use dns-prefetch for external domains
+  □ Remove unnecessary redirects
 
-  ■ キャッシュ層
-  □ 静的アセットに長いmax-age + immutable
-  □ HTML に stale-while-revalidate
-  □ Service Worker でオフライン対応
-  □ ETag/Last-Modified で条件付きリクエスト
-  □ CDN のキャッシュヒット率を監視
+  ■ Cache layer
+  □ Long max-age + immutable for static assets
+  □ stale-while-revalidate for HTML
+  □ Offline support with Service Worker
+  □ Conditional requests with ETag/Last-Modified
+  □ Monitor CDN cache hit rate
 
-  ■ リソース層
-  □ クリティカルCSS をインライン化
-  □ 非クリティカルCSS を非同期読み込み
-  □ JavaScript に defer/async を適用
-  □ LCP 画像に fetchpriority="high"
-  □ ファーストビュー外の画像に loading="lazy"
-  □ 不要な JavaScript を削除（tree shaking）
-  □ コード分割（dynamic import）
+  ■ Resource layer
+  □ Inline critical CSS
+  □ Load non-critical CSS asynchronously
+  □ Apply defer/async to JavaScript
+  □ fetchpriority="high" for LCP images
+  □ loading="lazy" for below-fold images
+  □ Remove unused JavaScript (tree shaking)
+  □ Code splitting (dynamic import)
 
-  ■ 画像/メディア層
-  □ WebP/AVIF フォーマットを使用
-  □ 適切なサイズの画像を配信（srcset）
-  □ width/height 属性で CLS を防止
-  □ 画像 CDN で自動最適化
+  ■ Image/media layer
+  □ Use WebP/AVIF format
+  □ Serve appropriately sized images (srcset)
+  □ Prevent CLS with width/height attributes
+  □ Auto-optimize with image CDN
 
-  ■ フォント層
-  □ WOFF2 フォーマットを使用
-  □ font-display: swap/optional を設定
-  □ preload でフォントを事前読み込み
-  □ フォントサブセット化（日本語は特に重要）
+  ■ Font layer
+  □ Use WOFF2 format
+  □ Set font-display: swap/optional
+  □ Preload fonts
+  □ Font subsetting (especially important for CJK)
 
-  ■ JavaScript実行層
-  □ Long Task を分割（50ms以下）
-  □ requestIdleCallback で非重要処理を延期
-  □ Web Worker でメインスレッドを解放
-  □ Third-party スクリプトの影響を計測
+  ■ JavaScript execution layer
+  □ Split Long Tasks (under 50ms)
+  □ Defer non-critical work with requestIdleCallback
+  □ Free main thread with Web Worker
+  □ Measure impact of third-party scripts
 ```
 
-### 11.3 Waterfall 分析の実践
+### 11.3 Waterfall Analysis in Practice
 
 ```javascript
-// Chrome DevTools の Network タブと同等の分析をコードで実装
+// Implement analysis equivalent to Chrome DevTools Network tab in code
 class WaterfallAnalyzer {
   analyze() {
     const resources = performance.getEntriesByType('resource');
     const nav = performance.getEntriesByType('navigation')[0];
 
-    // ウォーターフォールデータの生成
+    // Generate waterfall data
     const waterfall = resources.map((r) => ({
       name: this.getShortName(r.name),
       type: r.initiatorType,
@@ -2053,7 +2053,7 @@ class WaterfallAnalyzer {
       size: Math.round(r.transferSize / 1024),
       protocol: r.nextHopProtocol,
 
-      // 各フェーズの内訳
+      // Breakdown by phase
       phases: {
         blocked: Math.round(r.fetchStart - r.startTime),
         dns: Math.round(r.domainLookupEnd - r.domainLookupStart),
@@ -2067,7 +2067,7 @@ class WaterfallAnalyzer {
       },
     }));
 
-    // ボトルネックの特定
+    // Identify bottlenecks
     const bottlenecks = this.findBottlenecks(waterfall);
 
     return { waterfall, bottlenecks };
@@ -2077,7 +2077,7 @@ class WaterfallAnalyzer {
     const issues = [];
 
     waterfall.forEach((r) => {
-      // DNS解決が遅い
+      // Slow DNS resolution
       if (r.phases.dns > 50) {
         issues.push({
           resource: r.name,
@@ -2086,7 +2086,7 @@ class WaterfallAnalyzer {
         });
       }
 
-      // TTFB が遅い
+      // Slow TTFB
       if (r.phases.waiting > 200) {
         issues.push({
           resource: r.name,
@@ -2095,7 +2095,7 @@ class WaterfallAnalyzer {
         });
       }
 
-      // ダウンロードが遅い（大きいファイル）
+      // Slow download (large file)
       if (r.phases.download > 500) {
         issues.push({
           resource: r.name,
@@ -2104,7 +2104,7 @@ class WaterfallAnalyzer {
         });
       }
 
-      // ブロック時間が長い（HTTP/1.1の同時接続制限）
+      // Long blocking time (HTTP/1.1 concurrent connection limit)
       if (r.phases.blocked > 100) {
         issues.push({
           resource: r.name,
@@ -2126,7 +2126,7 @@ class WaterfallAnalyzer {
     }
   }
 
-  // テキストベースのウォーターフォール表示
+  // Text-based waterfall display
   printWaterfall() {
     const { waterfall, bottlenecks } = this.analyze();
     const maxEnd = Math.max(...waterfall.map((r) => r.end));
@@ -2160,7 +2160,7 @@ class WaterfallAnalyzer {
   }
 }
 
-// 使用例
+// Usage example
 window.addEventListener('load', () => {
   setTimeout(() => {
     const analyzer = new WaterfallAnalyzer();
@@ -2171,70 +2171,70 @@ window.addEventListener('load', () => {
 
 ---
 
-## 12. 実務でのトラブルシューティング
+## 12. Troubleshooting in Production
 
-### 12.1 よくあるローディング問題と対処法
+### 12.1 Common Loading Problems and Solutions
 
 ```
-問題1: TTFB が遅い（>600ms）
-─────────────────────────────
-原因:
-  - サーバーの処理時間が長い（DB クエリ、API 呼び出し）
-  - 地理的距離が遠い
-  - SSL 証明書の検証に時間がかかる
-
-対処法:
-  - CDN を導入（エッジキャッシュ）
-  - サーバーサイドキャッシュ（Redis, Memcached）
-  - データベースクエリの最適化
-  - HTTP/2 Server Push（または Early Hints 103）
-
-問題2: LCP が遅い（>2.5s）
-─────────────────────────
-原因:
-  - LCP 要素（画像/テキスト）の発見が遅い
-  - CSS がレンダリングをブロック
-  - Web フォントの読み込み待ち
-  - JavaScript によるレンダリングブロック
-
-対処法:
-  - LCP 画像に preload + fetchpriority="high"
-  - クリティカルCSS のインライン化
-  - font-display: optional/swap
-  - SSR/SSG でHTML内にコンテンツを含める
-
-問題3: CLS が大きい（>0.1）
-─────────────────────────
-原因:
-  - 画像にwidth/height 未指定
-  - 動的に挿入される広告/バナー
-  - Web フォントの FOUT（Flash of Unstyled Text）
-  - 非同期で読み込まれるコンポーネント
-
-対処法:
-  - 全メディアに aspect-ratio または width/height 指定
-  - 広告枠のプレースホルダーを確保
-  - font-display: optional
-  - コンテンツの挿入位置を固定（min-height）
-
-問題4: JavaScript の読み込みが遅い
+Problem 1: TTFB is slow (>600ms)
 ─────────────────────────────────
-原因:
-  - バンドルサイズが大きい（>200KB gzipped）
-  - 全ページ共通で不要なコードまで読み込み
-  - third-party スクリプトが多い
+Causes:
+  - Long server processing time (DB queries, API calls)
+  - Geographically distant server
+  - SSL certificate validation takes time
 
-対処法:
-  - コード分割（route-based code splitting）
-  - tree shaking で未使用コード除去
-  - dynamic import で遅延読み込み
-  - third-party スクリプトの監査と削除
+Solutions:
+  - Introduce CDN (edge caching)
+  - Server-side caching (Redis, Memcached)
+  - Optimize database queries
+  - HTTP/2 Server Push (or Early Hints 103)
+
+Problem 2: LCP is slow (>2.5s)
+────────────────────────────────
+Causes:
+  - LCP element (image/text) discovered late
+  - CSS blocking rendering
+  - Waiting for web font loading
+  - JavaScript blocking rendering
+
+Solutions:
+  - preload + fetchpriority="high" for LCP image
+  - Inline critical CSS
+  - font-display: optional/swap
+  - Include content in HTML via SSR/SSG
+
+Problem 3: CLS is high (>0.1)
+───────────────────────────────
+Causes:
+  - Images/iframes without width/height
+  - Dynamically inserted ads/banners
+  - Web font FOUT (Flash of Unstyled Text)
+  - Components loaded asynchronously
+
+Solutions:
+  - Specify aspect-ratio or width/height for all media
+  - Reserve placeholder for ad slots
+  - font-display: optional
+  - Fix content insertion position (min-height)
+
+Problem 4: JavaScript loading is slow
+──────────────────────────────────────
+Causes:
+  - Large bundle size (>200KB gzipped)
+  - Loading unused code shared across all pages
+  - Too many third-party scripts
+
+Solutions:
+  - Code splitting (route-based)
+  - Remove unused code with tree shaking
+  - Lazy loading with dynamic import
+  - Audit and remove third-party scripts
 ```
 
-### 12.2 Lighthouse によるパフォーマンス監査
+### 12.2 Performance Auditing with Lighthouse
 
 ```javascript
-// Lighthouse CLI の実行（Node.js）
+// Running Lighthouse CLI (Node.js)
 const lighthouse = require('lighthouse');
 const chromeLauncher = require('chrome-launcher');
 
@@ -2246,7 +2246,7 @@ async function runLighthouse(url) {
     output: 'json',
     onlyCategories: ['performance'],
     settings: {
-      // モバイルシミュレーション
+      // Mobile simulation
       formFactor: 'mobile',
       throttling: {
         rttMs: 150, // RTT
@@ -2292,14 +2292,14 @@ async function runLighthouse(url) {
   return report;
 }
 
-// 使用例
+// Usage example
 runLighthouse('https://example.com');
 ```
 
-### 12.3 Real User Monitoring (RUM) の実装
+### 12.3 Implementing Real User Monitoring (RUM)
 
 ```javascript
-// 本番環境での RUM データ収集
+// RUM data collection for production
 class RUMCollector {
   constructor(endpoint) {
     this.endpoint = endpoint;
@@ -2396,7 +2396,7 @@ class RUMCollector {
   send() {
     this.collectNavigationTiming();
 
-    // ページ離脱時に送信
+    // Send on page unload
     const sendData = () => {
       const blob = new Blob([JSON.stringify(this.data)], {
         type: 'application/json',
@@ -2404,19 +2404,19 @@ class RUMCollector {
       navigator.sendBeacon(this.endpoint, blob);
     };
 
-    // visibilitychange を優先（pagehide のフォールバック）
+    // Prefer visibilitychange (pagehide as fallback)
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {
         sendData();
       }
     });
 
-    // iOS Safari 対応
+    // Support for iOS Safari
     window.addEventListener('pagehide', sendData);
   }
 }
 
-// 使用例
+// Usage example
 const rum = new RUMCollector('/api/rum');
 rum.collectWebVitals();
 rum.send();
@@ -2424,60 +2424,60 @@ rum.send();
 
 ---
 
-## 13. Early Hints (103) と Server Push の比較
+## 13. Comparing Early Hints (103) and Server Push
 
 ### 13.1 HTTP 103 Early Hints
 
 ```
-103 Early Hints の仕組み:
+How 103 Early Hints works:
 
-  クライアント                    サーバー
+  Client                          Server
   │                              │
   │ ── GET /index.html ────────→│
-  │                              │ サーバー処理開始
-  │                              │ （DBクエリ等に 300ms）
+  │                              │ Server processing begins
+  │                              │ (e.g., DB queries take 300ms)
   │                              │
-  │←── 103 Early Hints ─────────│  ← サーバー処理中に先行返却！
+  │←── 103 Early Hints ─────────│  ← Sent ahead while server is still processing!
   │    Link: </style.css>; rel=preload; as=style
   │    Link: </app.js>; rel=preload; as=script
   │    Link: <https://cdn.example.com>; rel=preconnect
   │                              │
-  │  CSS/JS ダウンロード開始       │ サーバーまだ処理中...
-  │  ↓↓↓ 並行ダウンロード ↓↓↓    │
-  │                              │ サーバー処理完了
+  │  CSS/JS download starts      │ Server still processing...
+  │  ↓↓↓ parallel downloads ↓↓↓ │
+  │                              │ Server processing complete
   │←── 200 OK ──────────────────│
   │    <html>...                 │
   │                              │
-  │  CSS/JS → すでにダウンロード済み！
+  │  CSS/JS → already downloaded!
 
-  メリット:
-  → サーバーの処理待ち時間を有効活用
-  → TTFB が長い場合に特に効果的
-  → 100-300ms の改善が期待できる
+  Benefits:
+  → Effectively uses server processing wait time
+  → Especially effective when TTFB is long
+  → Expected improvement of 100–300ms
 
-  設定例（Nginx）:
+  Configuration example (Nginx):
 ```
 
 ```nginx
-# Nginx で 103 Early Hints
+# 103 Early Hints in Nginx
 location / {
-    # 103 Early Hints を返す
+    # Return 103 Early Hints
     add_header Link "</css/app.css>; rel=preload; as=style" early;
     add_header Link "</js/app.js>; rel=preload; as=script" early;
     add_header Link "<https://fonts.googleapis.com>; rel=preconnect" early;
 
-    # バックエンドにプロキシ
+    # Proxy to backend
     proxy_pass http://backend;
 }
 ```
 
 ```javascript
-// Node.js (Express) での 103 Early Hints
+// 103 Early Hints in Node.js (Express)
 const express = require('express');
 const app = express();
 
 app.get('/', (req, res) => {
-  // 103 Early Hints を先行送信
+  // Send 103 Early Hints ahead of time
   res.writeEarlyHints({
     link: [
       '</css/app.css>; rel=preload; as=style',
@@ -2486,7 +2486,7 @@ app.get('/', (req, res) => {
     ],
   });
 
-  // 通常のレスポンス処理（DBクエリ等）
+  // Normal response processing (DB queries, etc.)
   const data = await fetchDataFromDB();
 
   res.render('index', { data });
@@ -2495,12 +2495,12 @@ app.get('/', (req, res) => {
 
 ---
 
-## 14. 画像の最適化とローディング戦略
+## 14. Image Optimization and Loading Strategies
 
-### 14.1 レスポンシブ画像の配信
+### 14.1 Responsive Image Delivery
 
 ```html
-<!-- srcset + sizes による最適な画像配信 -->
+<!-- Optimal image delivery with srcset + sizes -->
 <img
   src="/images/hero-800.webp"
   srcset="
@@ -2519,9 +2519,9 @@ app.get('/', (req, res) => {
   decoding="async"
 >
 
-<!-- picture要素によるフォーマット分岐 -->
+<!-- Format switching with picture element -->
 <picture>
-  <!-- AVIF（最も効率的、対応ブラウザ限定） -->
+  <!-- AVIF (most efficient, limited browser support) -->
   <source
     type="image/avif"
     srcset="/images/hero-400.avif 400w,
@@ -2529,7 +2529,7 @@ app.get('/', (req, res) => {
            /images/hero-1200.avif 1200w"
     sizes="(max-width: 600px) 100vw, 800px"
   >
-  <!-- WebP（広くサポート） -->
+  <!-- WebP (widely supported) -->
   <source
     type="image/webp"
     srcset="/images/hero-400.webp 400w,
@@ -2537,7 +2537,7 @@ app.get('/', (req, res) => {
            /images/hero-1200.webp 1200w"
     sizes="(max-width: 600px) 100vw, 800px"
   >
-  <!-- フォールバック（JPEG） -->
+  <!-- Fallback (JPEG) -->
   <img
     src="/images/hero-800.jpg"
     alt="Hero Image"
@@ -2549,17 +2549,17 @@ app.get('/', (req, res) => {
 </picture>
 ```
 
-### 14.2 画像の遅延読み込みパターン
+### 14.2 Image Lazy Loading Patterns
 
 ```javascript
-// Native lazy loading + Intersection Observer のハイブリッド戦略
+// Hybrid strategy: native lazy loading + Intersection Observer
 class ImageLazyLoader {
   constructor(options = {}) {
     this.rootMargin = options.rootMargin || '200px 0px';
     this.threshold = options.threshold || 0.01;
     this.loaded = new Set();
 
-    // Native lazy loading 対応チェック
+    // Check for native lazy loading support
     this.supportsNativeLazy = 'loading' in HTMLImageElement.prototype;
 
     if (!this.supportsNativeLazy) {
@@ -2583,7 +2583,7 @@ class ImageLazyLoader {
       }
     );
 
-    // data-src 属性を持つ画像を監視
+    // Observe images with a data-src attribute
     document.querySelectorAll('img[data-src]').forEach((img) => {
       this.observer.observe(img);
     });
@@ -2597,6 +2597,7 @@ class ImageLazyLoader {
       img.src = src;
       img.removeAttribute('data-src');
     }
+
     if (srcset) {
       img.srcset = srcset;
       img.removeAttribute('data-srcset');
@@ -2607,74 +2608,74 @@ class ImageLazyLoader {
   }
 }
 
-// 使用例
+// Usage example
 const lazyLoader = new ImageLazyLoader({ rootMargin: '300px 0px' });
 ```
 
 ---
 
-## 15. 高度なプリロード戦略
+## 15. Advanced Preload Strategies
 
-### 15.1 リソースヒントの総合ガイド
+### 15.1 Comprehensive Guide to Resource Hints
 
 ```html
 <!--
-  リソースヒントの完全ガイド:
+  Complete guide to resource hints:
 
   ┌──────────────────┬───────────────────┬──────────────┬──────────┐
-  │ ヒント           │ 動作               │ コスト       │ 用途     │
+  │ Hint             │ Action             │ Cost         │ Use case │
   ├──────────────────┼───────────────────┼──────────────┼──────────┤
-  │ dns-prefetch     │ DNS解決のみ        │ 極低         │ 外部ドメイン│
-  │ preconnect       │ DNS+TCP+TLS       │ 低           │ 確実に使う │
-  │ preload          │ リソースをDL       │ 中           │ 現ページ  │
-  │ prefetch         │ 将来のリソースをDL  │ 低(idle時)   │ 次ページ  │
-  │ modulepreload    │ ESModuleをDL+parse│ 中           │ JSモジュール│
-  │ prerender        │ ページ全体をレンダ  │ 高           │ 次ページ  │
+  │ dns-prefetch     │ DNS only           │ Very low     │ External domains│
+  │ preconnect       │ DNS+TCP+TLS        │ Low          │ Definite use│
+  │ preload          │ Download resource  │ Medium       │ Current page│
+  │ prefetch         │ Download future res│ Low (idle)   │ Next page │
+  │ modulepreload    │ Download+parse ESM │ Medium       │ JS modules│
+  │ prerender        │ Render whole page  │ High         │ Next page │
   └──────────────────┴───────────────────┴──────────────┴──────────┘
 -->
 
-<!-- dns-prefetch: とにかく外部ドメインには付ける -->
+<!-- dns-prefetch: add to any external domain -->
 <link rel="dns-prefetch" href="//analytics.google.com">
 <link rel="dns-prefetch" href="//fonts.gstatic.com">
 <link rel="dns-prefetch" href="//api.stripe.com">
 
-<!-- preconnect: 確実に使う重要なオリジン（3-5個まで） -->
+<!-- preconnect: important origins you will definitely use (up to 3–5) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://cdn.example.com" crossorigin>
 
-<!-- preload: 現在のページで確実に必要なリソース -->
+<!-- preload: resources definitely needed by the current page -->
 <link rel="preload" href="/fonts/main.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/css/critical.css" as="style">
 <link rel="preload" href="/images/hero.webp" as="image" type="image/webp"
       imagesrcset="/images/hero-400.webp 400w, /images/hero-800.webp 800w"
       imagesizes="100vw">
 
-<!-- prefetch: 次のナビゲーションで必要になるリソース -->
+<!-- prefetch: resources needed for the next navigation -->
 <link rel="prefetch" href="/js/product-page.js">
 <link rel="prefetch" href="/api/popular-products" as="fetch" crossorigin>
 
-<!-- modulepreload: ESModuleの事前読み込み -->
+<!-- modulepreload: preload ES modules -->
 <link rel="modulepreload" href="/js/modules/cart.mjs">
 <link rel="modulepreload" href="/js/modules/auth.mjs">
 ```
 
-### 15.2 Priority Hints の実践
+### 15.2 Priority Hints in Practice
 
 ```javascript
-// Fetch Priority API の活用
-// 重要なAPIリクエストの優先度を制御
+// Using the Fetch Priority API
+// Control priority of important API requests
 
-// 高優先度: ユーザーが待っているデータ
+// High priority: data the user is waiting for
 const criticalData = await fetch('/api/user-profile', {
   priority: 'high',
 });
 
-// 低優先度: バックグラウンドでの事前取得
+// Low priority: background prefetch
 const prefetchData = await fetch('/api/recommendations', {
   priority: 'low',
 });
 
-// 画像の優先度制御
+// Image priority control
 function loadImage(src, priority = 'auto') {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -2685,10 +2686,10 @@ function loadImage(src, priority = 'auto') {
   });
 }
 
-// LCP 画像を高優先度で読み込み
+// Load LCP image with high priority
 await loadImage('/images/hero.webp', 'high');
 
-// デコレーション画像を低優先度で読み込み
+// Load decoration image with low priority
 await loadImage('/images/background-pattern.webp', 'low');
 ```
 
@@ -2696,50 +2697,50 @@ await loadImage('/images/background-pattern.webp', 'low');
 
 ## FAQ
 
-### Q1. プリロード（preload）とプリフェッチ（prefetch）の使い分けは？
+### Q1. When should I use preload vs prefetch?
 
-**A:** リソースの**使用タイミング**で判断します。
+**A:** Decide based on **when the resource is used**.
 
-| 手法 | 用途 | タイミング | 優先度 | 使用例 |
-|------|------|-----------|--------|--------|
-| **preload** | 現在のページで**確実に使う**リソース | すぐに取得 | 高 | 現在ページのCritical CSS/フォント |
-| **prefetch** | **次のページ**で使う可能性があるリソース | アイドル時に取得 | 低 | 次のページのJS/画像 |
+| Method | Use | Timing | Priority | Example |
+|--------|-----|--------|----------|---------|
+| **preload** | Resources **definitely used** on the current page | Fetch immediately | High | Critical CSS/fonts on the current page |
+| **prefetch** | Resources possibly needed on the **next page** | Fetch during idle | Low | JS/images for the next page |
 
 ```html
-<!-- ❌ 間違い: 次のページのリソースをpreload -->
+<!-- ❌ Wrong: preload for next page resources -->
 <link rel="preload" href="/next-page.css" as="style">
 
-<!-- ✅ 正解: 現在ページのCritical CSS をpreload -->
+<!-- ✅ Correct: preload for current page critical CSS -->
 <link rel="preload" href="/critical.css" as="style">
 
-<!-- ✅ 正解: 次のページのリソースをprefetch -->
+<!-- ✅ Correct: prefetch for next page resources -->
 <link rel="prefetch" href="/next-page.css" as="style">
 ```
 
-**判断フロー:**
+**Decision flow:**
 ```
-このリソースは現在のページで使う？
-├─ YES → preload（高優先度で即取得）
-└─ NO → 次のページで使う？
-         ├─ YES → prefetch（低優先度でアイドル時取得）
-         └─ NO → 何もしない
+Does this resource need to be used on the current page?
+├─ YES → preload (fetch immediately with high priority)
+└─ NO → Will it be used on the next page?
+         ├─ YES → prefetch (fetch during idle with low priority)
+         └─ NO → Do nothing
 ```
 
-**よくある間違い:**
-- すべてのリソースをpreloadして逆に遅くなる（帯域を奪い合う）
-- Critical でないリソースをpreloadして本当に必要なリソースが遅延
-- ユーザーが次のページに行かないのにprefetchして無駄
+**Common mistakes:**
+- Preloading all resources and slowing things down (contention for bandwidth)
+- Preloading non-critical resources and delaying truly needed ones
+- Prefetching when the user won't navigate to that page (waste)
 
-**ベストプラクティス:**
+**Best practices:**
 ```html
-<!-- 1. Critical CSS/フォントのみpreload -->
+<!-- 1. Preload critical CSS/fonts only -->
 <link rel="preload" href="/critical.css" as="style">
 <link rel="preload" href="/font.woff2" as="font" type="font/woff2" crossorigin>
 
-<!-- 2. 高確率で次に遷移するページをprefetch -->
+<!-- 2. Prefetch pages you are likely to navigate to next -->
 <link rel="prefetch" href="/likely-next-page.html">
 
-<!-- 3. Speculation Rules API で事前レンダリング -->
+<!-- 3. Pre-render with Speculation Rules API -->
 <script type="speculationrules">
 {
   "prerender": [
@@ -2751,99 +2752,99 @@ await loadImage('/images/background-pattern.webp', 'low');
 
 ---
 
-### Q2. Critical Rendering Path（クリティカルレンダリングパス）を最適化するには？
+### Q2. How do I optimize the Critical Rendering Path?
 
-**A:** **レンダーブロックリソースを最小化**し、**Above-the-Fold コンテンツを優先**します。
+**A:** **Minimize render-blocking resources** and **prioritize above-the-fold content**.
 
-#### Critical Rendering Path（CRP）とは
+#### What is the Critical Rendering Path (CRP)?
 
 ```
 HTML → DOM
 CSS  → CSSOM  } → Render Tree → Layout → Paint
-JS   → 実行
+JS   → Execute
 ```
 
-**ボトルネック:**
-- CSS: すべてのCSSが読み込まれるまでレンダリングがブロックされる
-- JavaScript: `<script>`がHTMLパースをブロック
-- 大きなHTML/CSS: パース時間が増加
+**Bottlenecks:**
+- CSS: rendering is blocked until all CSS is loaded
+- JavaScript: `<script>` blocks HTML parsing
+- Large HTML/CSS: increases parse time
 
-#### 最適化戦略（優先度順）
+#### Optimization strategies (in priority order)
 
-**1. CSS最適化（最重要）**
+**1. CSS optimization (most important)**
 ```html
-<!-- ❌ 悪い例: 全CSSがレンダーブロック -->
+<!-- ❌ Bad: all CSS is render-blocking -->
 <link rel="stylesheet" href="/all-styles.css">
 
-<!-- ✅ 良い例: Critical CSS をインライン化 -->
+<!-- ✅ Good: inline critical CSS -->
 <style>
-/* Above-the-Fold の最小限のスタイルのみ */
+/* Only the minimum styles needed above the fold */
 .hero { display: flex; ... }
 .nav { position: sticky; ... }
 </style>
 
-<!-- 残りのCSSは非同期読み込み -->
+<!-- Load remaining CSS asynchronously -->
 <link rel="preload" href="/non-critical.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="/non-critical.css"></noscript>
 
-<!-- メディアクエリで条件付き読み込み -->
+<!-- Conditional loading with media queries -->
 <link rel="stylesheet" href="/print.css" media="print">
 ```
 
-**2. JavaScript最適化**
+**2. JavaScript optimization**
 ```html
-<!-- ❌ 悪い例: パーサーブロック -->
+<!-- ❌ Bad: parser-blocking -->
 <script src="/app.js"></script>
 
-<!-- ✅ 良い例: defer/async を使う -->
+<!-- ✅ Good: use defer/async -->
 <script src="/app.js" defer></script>
 <script src="/analytics.js" async></script>
 
-<!-- ✅ モジュールはデフォルトで defer -->
+<!-- ✅ Modules are defer by default -->
 <script type="module" src="/app.js"></script>
 ```
 
-**3. リソースヒントで事前接続**
+**3. Pre-connect with resource hints**
 ```html
-<!-- DNS解決 + TCP接続 + TLS を事前実行 -->
+<!-- Pre-execute DNS resolution + TCP connection + TLS -->
 <link rel="preconnect" href="https://cdn.example.com">
 <link rel="dns-prefetch" href="https://analytics.example.com">
 ```
 
-**4. 画像の遅延読み込み**
+**4. Lazy-load images**
 ```html
-<!-- Above-the-Fold の画像のみ即読み込み -->
+<!-- Only above-the-fold images loaded immediately -->
 <img src="/hero.webp" fetchpriority="high" alt="Hero">
 
-<!-- Below-the-Fold の画像は lazy loading -->
+<!-- Below-the-fold images with lazy loading -->
 <img src="/gallery-1.webp" loading="lazy" alt="Gallery">
 ```
 
-#### 計測と検証
+#### Measurement and verification
 
 ```javascript
-// Critical Rendering Path の計測
+// Measure the Critical Rendering Path
 const perfData = performance.getEntriesByType('navigation')[0];
 
 console.log({
-  // HTML読み込み完了（DOM構築開始可能）
+  // HTML loaded (DOM construction can start)
   domInteractive: perfData.domInteractive,
 
-  // CSS/JS読み込み完了（レンダリング可能）
+  // CSS/JS loaded (rendering possible)
   domContentLoaded: perfData.domContentLoadedEventEnd,
 
-  // すべてのリソース読み込み完了
+  // All resources loaded
   loadComplete: perfData.loadEventEnd,
 
-  // 最初のペイント
+  // First paint
   firstPaint: performance.getEntriesByName('first-paint')[0]?.startTime,
 
-  // LCP（最大コンテンツの描画）
-  lcp: '(PerformanceObserver で計測)'
+  // LCP (largest contentful paint)
+  lcp: '(measure with PerformanceObserver)'
 });
 ```
 
-**Lighthouse での検証項目:**
+**Lighthouse audit items:**
 - Eliminate render-blocking resources
 - Reduce unused CSS
 - Minify CSS/JS
@@ -2852,32 +2853,32 @@ console.log({
 
 ---
 
-### Q3. Service Worker がナビゲーションに与える影響は？
+### Q3. How does a Service Worker affect navigation?
 
-**A:** Service Worker は**ネットワークリクエストを横取り**し、キャッシュ戦略を実装できます。
+**A:** A Service Worker **intercepts network requests** and lets you implement caching strategies.
 
-#### Service Worker のライフサイクルとナビゲーション
+#### Service Worker Lifecycle and Navigation
 
 ```
-ナビゲーション開始
+Navigation starts
   ↓
-Service Worker が登録されている？
-  ├─ NO → 通常のネットワークリクエスト
-  └─ YES → Service Worker の fetch イベント
+Service Worker registered?
+  ├─ NO → Normal network request
+  └─ YES → Service Worker fetch event
             ↓
-         fetch ハンドラが実装されている？
-            ├─ NO → ネットワークリクエスト（フォールバック）
-            └─ YES → キャッシュ戦略を実行
+         fetch handler implemented?
+            ├─ NO → Network request (fallback)
+            └─ YES → Execute cache strategy
                       ↓
-                   - Cache First（キャッシュ優先）
-                   - Network First（ネットワーク優先）
-                   - Stale While Revalidate（キャッシュ返却 + バックグラウンド更新）
+                   - Cache First (prefer cache)
+                   - Network First (prefer network)
+                   - Stale While Revalidate (return cache + update in background)
                    - Cache Only / Network Only
 ```
 
-#### キャッシュ戦略による影響
+#### Impact by cache strategy
 
-**1. Cache First（最速、オフライン対応）**
+**1. Cache First (fastest, offline capable)**
 ```javascript
 // sw.js
 self.addEventListener('fetch', (event) => {
@@ -2888,12 +2889,12 @@ self.addEventListener('fetch', (event) => {
 });
 ```
 
-**影響:**
-- ✅ TTFB が **1ms未満**（キャッシュヒット時）
-- ✅ オフライン動作可能
-- ⚠️ 古いコンテンツを表示する可能性
+**Impact:**
+- TTFB under **1ms** (on cache hit)
+- Offline operation possible
+- May serve stale content
 
-**2. Network First（最新データ優先）**
+**2. Network First (always fresh data)**
 ```javascript
 self.addEventListener('fetch', (event) => {
   event.respondWith(
@@ -2903,12 +2904,12 @@ self.addEventListener('fetch', (event) => {
 });
 ```
 
-**影響:**
-- ✅ 常に最新コンテンツ
-- ⚠️ オンライン時の速度向上は限定的
-- ✅ オフライン時のフォールバック
+**Impact:**
+- Always fresh content
+- Limited speed improvement when online
+- Fallback when offline
 
-**3. Stale While Revalidate（バランス型）**
+**3. Stale While Revalidate (balanced)**
 ```javascript
 self.addEventListener('fetch', (event) => {
   event.respondWith(
@@ -2925,43 +2926,43 @@ self.addEventListener('fetch', (event) => {
 });
 ```
 
-**影響:**
-- ✅ 即座にキャッシュを返却（高速）
-- ✅ バックグラウンドで更新（次回アクセス時に最新）
-- ✅ Core Web Vitals（LCP）の改善
+**Impact:**
+- Returns cache immediately (fast)
+- Updates in background (fresh on next access)
+- Improves Core Web Vitals (LCP)
 
-#### ナビゲーションへの影響（数値例）
+#### Impact on navigation (example numbers)
 
-| 戦略 | TTFB | LCP | オフライン | 最新性 |
-|------|------|-----|-----------|--------|
-| Service Worker なし | 300ms | 2.5s | ❌ | ✅ |
-| Cache First | **5ms** | **0.8s** | ✅ | ⚠️ |
-| Network First | 300ms | 2.5s | 一部✅ | ✅ |
-| Stale While Revalidate | **5ms** | **0.8s** | ✅ | ✅(次回) |
+| Strategy | TTFB | LCP | Offline | Freshness |
+|----------|------|-----|---------|-----------|
+| No Service Worker | 300ms | 2.5s | No | Yes |
+| Cache First | **5ms** | **0.8s** | Yes | May be stale |
+| Network First | 300ms | 2.5s | Partial | Yes |
+| Stale While Revalidate | **5ms** | **0.8s** | Yes | Yes (next access) |
 
-#### 注意点
+#### Notes
 
-**1. Service Worker のインストール遅延**
+**1. Service Worker installation delay**
 ```javascript
-// 初回訪問時は Service Worker が未登録
-// → 2回目以降の訪問から効果が出る
+// On first visit, Service Worker is not yet registered
+// → Takes effect from the second visit onward
 
-// 登録
+// Registration
 navigator.serviceWorker.register('/sw.js');
 
-// アクティベーション待ち
+// Wait for activation
 self.addEventListener('install', (event) => {
-  self.skipWaiting(); // すぐにアクティベーション
+  self.skipWaiting(); // activate immediately
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(clients.claim()); // 既存ページも制御
+  event.waitUntil(clients.claim()); // also control existing pages
 });
 ```
 
-**2. キャッシュの無効化**
+**2. Cache invalidation**
 ```javascript
-// バージョン管理でキャッシュをクリア
+// Clear cache with version management
 const CACHE_VERSION = 'v2';
 
 self.addEventListener('activate', (event) => {
@@ -2977,50 +2978,50 @@ self.addEventListener('activate', (event) => {
 });
 ```
 
-**3. Navigation Preload（Chrome 59+）**
+**3. Navigation Preload (Chrome 59+)**
 ```javascript
-// Service Worker 起動と並行してネットワークリクエストを開始
+// Start network request in parallel with Service Worker startup
 self.addEventListener('activate', (event) => {
   event.waitUntil(self.registration.navigationPreload.enable());
 });
 
 self.addEventListener('fetch', (event) => {
   event.respondWith(
-    event.preloadResponse // Navigation Preload の結果
+    event.preloadResponse // result of Navigation Preload
       .then(response => response || fetch(event.request))
   );
 });
 ```
 
-**影響:** Service Worker 起動の遅延（50-100ms）を吸収
+**Impact:** Absorbs Service Worker startup delay (50–100ms)
 
 ---
 
-## まとめ
+## Summary
 
-| 概念 | ポイント |
-|------|---------|
-| ナビゲーション | DNS→TCP→TLS→HTTP→パース→レンダリング |
-| パーサーブロック | `<script>`がHTMLパースを停止 |
-| 解決策 | defer/async/preload/preconnect |
-| 優先順位 | CSS=最高、画像=viewport依存 |
-| イベント | DOMContentLoaded(DOM完了) vs load(全完了) |
-| Core Web Vitals | LCP(≤2.5s), INP(≤200ms), CLS(≤0.1) |
-| Service Worker | オフライン対応、キャッシュ戦略 |
-| HTTP/2・HTTP/3 | マルチプレキシング、0-RTT接続 |
-| Early Hints | サーバー処理待ち中にリソース先読み |
-| Speculation Rules | 次のナビゲーションを事前レンダリング |
-| RUM | 実ユーザーのパフォーマンスデータ収集 |
-| 画像最適化 | WebP/AVIF、srcset、lazy loading |
-
----
-
-## 次に読むべきガイド
-→ [HTML/CSSパーシング](./02-parsing-html-css.md)
+| Concept | Key Point |
+|---------|-----------|
+| Navigation | DNS → TCP → TLS → HTTP → parse → rendering |
+| Parser blocking | `<script>` halts HTML parsing |
+| Solutions | defer / async / preload / preconnect |
+| Priority | CSS = highest, images = depends on viewport |
+| Events | DOMContentLoaded (DOM complete) vs load (all complete) |
+| Core Web Vitals | LCP (≤2.5s), INP (≤200ms), CLS (≤0.1) |
+| Service Worker | Offline support, cache strategies |
+| HTTP/2 / HTTP/3 | Multiplexing, 0-RTT connection |
+| Early Hints | Preload resources while waiting for server processing |
+| Speculation Rules | Pre-render the next navigation |
+| RUM | Collect performance data from real users |
+| Image optimization | WebP/AVIF, srcset, lazy loading |
 
 ---
 
-## 参考文献
+## Guides to Read Next
+→ [HTML/CSS Parsing](./02-parsing-html-css.md)
+
+---
+
+## References
 1. Mariko Kosaka. "Inside look at modern web browser (Part 2)." Google, 2018.
 2. web.dev. "Optimizing resource loading." Google, 2024.
 3. web.dev. "Core Web Vitals." Google, 2024.

@@ -1,170 +1,170 @@
-# HTML/CSSパーシング
+# HTML/CSS Parsing
 
-> HTMLとCSSのパース処理はレンダリングの出発点。HTMLパーサーによるDOM構築、CSSパーサーによるCSSOM構築、そしてレンダーツリーの生成プロセスを深く理解する。ブラウザがバイト列を受け取ってから画面に描画可能なデータ構造を生成するまでの全工程を、仕様レベルで解説する。
+> HTML and CSS parsing are the starting point of rendering. This guide provides a deep dive into DOM construction via the HTML parser, CSSOM construction via the CSS parser, and the render tree generation process. The entire pipeline — from the moment the browser receives raw bytes to producing a data structure ready to paint — is explained at the specification level.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] HTMLパーサーのトークン化とツリー構築を仕様レベルで理解する
-- [ ] CSS字句解析・構文解析のアルゴリズムを把握する
-- [ ] CSSOMの構築プロセスとスタイル計算の全体像を学ぶ
-- [ ] DOMとCSSOMの統合（レンダーツリー）を深く理解する
-- [ ] エラー回復・投機的パースなどブラウザ固有の最適化を知る
-- [ ] パフォーマンスに影響するアンチパターンを見抜けるようになる
+- [ ] Understand HTML parser tokenization and tree construction at the specification level
+- [ ] Grasp the lexical analysis and parsing algorithms used for CSS
+- [ ] Learn the CSSOM construction process and the full picture of style resolution
+- [ ] Deeply understand DOM and CSSOM integration (the render tree)
+- [ ] Discover browser-specific optimizations such as error recovery and speculative parsing
+- [ ] Identify anti-patterns that negatively impact performance
 
-## 前提知識
+## Prerequisites
 
-- ブラウザのナビゲーションとローディング → 参照: [ナビゲーション](./01-navigation-and-loading.md)
-- HTML/CSSの文法と構造の基礎知識
-- DOMツリーの概念
+- Browser navigation and loading → see: [Navigation](./01-navigation-and-loading.md)
+- Basic knowledge of HTML/CSS syntax and structure
+- Familiarity with the concept of a DOM tree
 
 ---
 
-## 1. パーシングの全体像
+## 1. Overview of Parsing
 
-ブラウザがHTMLドキュメントを受信してから描画可能な状態に到達するまでには、複数のパース工程が直列・並列に動作する。まず全体像を俯瞰する。
+From the moment a browser receives an HTML document to reaching a state ready for painting, multiple parsing stages operate in series and in parallel. Let's start with a high-level view.
 
-### 1.1 バイト列からレンダーツリーまでの処理フロー
+### 1.1 Processing Flow from Bytes to Render Tree
 
 ```
-  ネットワークからバイト列を受信
+Receive bytes from the network
        │
        ▼
   ┌──────────────────────────────────────────────────────┐
-  │  1. 文字エンコーディング検出                          │
-  │     HTTP Content-Type ヘッダ                         │
-  │     BOM (Byte Order Mark)                            │
-  │     <meta charset="UTF-8">                           │
-  │     → バイト列を Unicode 文字列に変換                 │
+  │  1. Character Encoding Detection                      │
+  │     HTTP Content-Type header                          │
+  │     BOM (Byte Order Mark)                             │
+  │     <meta charset="UTF-8">                            │
+  │     → Convert byte sequence to Unicode string         │
   └──────────────┬───────────────────────────────────────┘
                  │
                  ▼
   ┌──────────────────────────────────────────────────────┐
-  │  2. HTML トークナイザ (Tokenizer / 字句解析)          │
-  │     文字列 → トークン列                              │
+  │  2. HTML Tokenizer (Lexical Analysis)                 │
+  │     String → Token sequence                          │
   │     DOCTYPE, StartTag, EndTag, Comment, Character,   │
   │     EndOfFile                                        │
   └──────────────┬───────────────────────────────────────┘
-                 │ トークンを1つずつ発行
+                 │ Emit tokens one by one
                  ▼
   ┌──────────────────────────────────────────────────────┐
-  │  3. HTML ツリービルダ (Tree Construction / 構文解析)   │
-  │     トークン列 → DOM ツリー                          │
-  │     挿入モード (Insertion Mode) による状態遷移        │
-  │     エラー回復・暗黙の要素補完                        │
+  │  3. HTML Tree Builder (Tree Construction / Parsing)   │
+  │     Token sequence → DOM tree                        │
+  │     State transitions via Insertion Mode             │
+  │     Error recovery and implicit element completion   │
   └──────────────┬───────────────────────────────────────┘
                  │
                  ▼
   ┌──────────────────────────────────────────────────────┐
-  │  4. DOM (Document Object Model)                      │
-  │     メモリ上のオブジェクトツリー                      │
-  │     JavaScript からアクセス可能                      │
+  │  4. DOM (Document Object Model)                       │
+  │     In-memory object tree                            │
+  │     Accessible from JavaScript                       │
   └──────────────┬───────────────────────────────────────┘
                  │                    ┌───────────────────────────────────┐
-                 │                    │  5. CSS パーサー                   │
-                 │                    │     CSS文字列 → トークン列         │
-                 │                    │     トークン列 → CSSルール群       │
-                 │                    │     → CSSOM 構築                  │
+                 │                    │  5. CSS Parser                    │
+                 │                    │     CSS string → Token sequence   │
+                 │                    │     Token sequence → CSS rules    │
+                 │                    │     → Build CSSOM                 │
                  │                    └──────────┬────────────────────────┘
                  │                               │
                  ▼                               ▼
   ┌──────────────────────────────────────────────────────┐
-  │  6. スタイル計算 (Style Resolution)                   │
-  │     DOM の各ノード × CSSOM の全ルールをマッチング     │
-  │     → Computed Style の決定                          │
+  │  6. Style Resolution                                  │
+  │     Match every DOM node against all CSSOM rules     │
+  │     → Determine Computed Style                       │
   └──────────────┬───────────────────────────────────────┘
                  │
                  ▼
   ┌──────────────────────────────────────────────────────┐
-  │  7. レンダーツリー (Render Tree / Layout Tree)        │
-  │     表示対象の要素 + 確定スタイル                     │
-  │     display: none は除外                             │
+  │  7. Render Tree (Render Tree / Layout Tree)           │
+  │     Visible elements + finalized styles              │
+  │     Elements with display: none are excluded         │
   └──────────────────────────────────────────────────────┘
 ```
 
-この処理フローにおいて、HTML パースと CSS パースは部分的に並列で進行する。HTML パーサーが `<link rel="stylesheet">` や `<style>` タグを検出すると、CSS パーサーが起動して CSSOM の構築を開始する。ただし CSS の読み込み完了を待たずに HTML のパース自体は継続される点が重要である。
+In this processing flow, HTML parsing and CSS parsing progress partially in parallel. When the HTML parser encounters a `<link rel="stylesheet">` or `<style>` tag, the CSS parser starts and begins building the CSSOM. Crucially, HTML parsing itself continues without waiting for CSS loading to complete.
 
-### 1.2 文字エンコーディング検出の詳細
+### 1.2 Character Encoding Detection in Detail
 
-ブラウザがバイト列を文字列として解釈するためには、まず文字エンコーディングを確定する必要がある。HTML Living Standard では以下の優先順位でエンコーディングを決定する。
+Before the browser can interpret a byte sequence as a string, it must determine the character encoding. The HTML Living Standard defines the following priority order for encoding determination.
 
 ```
-エンコーディング決定の優先順位:
+Encoding determination priority:
 
   1. BOM (Byte Order Mark)
      UTF-8:    EF BB BF
      UTF-16 BE: FE FF
      UTF-16 LE: FF FE
-     → BOMが存在すれば最優先で採用
+     → If BOM exists, it takes top priority
 
-  2. HTTP Content-Type ヘッダ
+  2. HTTP Content-Type header
      Content-Type: text/html; charset=UTF-8
-     → サーバーが明示的に指定
+     → Explicitly specified by the server
 
-  3. <meta> タグによる宣言
+  3. <meta> tag declaration
      <meta charset="UTF-8">
      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-     → HTML の先頭 1024 バイト以内で検出する必要がある
+     → Must be detected within the first 1024 bytes of HTML
 
-  4. Prescan アルゴリズム
-     → パーサーが HTML の先頭部分をスキャンし、
-       meta タグの charset 属性を探す
-     → 1024 バイトまでしかスキャンしない
+  4. Prescan algorithm
+     → The parser scans the beginning of the HTML
+       looking for the charset attribute of a meta tag
+     → Scans only up to 1024 bytes
 
-  5. 親ドキュメントのエンコーディング
-     → iframe の場合、親のエンコーディングを参考にする
+  5. Parent document encoding
+     → For iframes, the parent's encoding is used as a reference
 
-  6. ブラウザのデフォルト
-     → 地域設定に応じたフォールバック
-     → 多くのモダンブラウザでは UTF-8 がデフォルト
+  6. Browser default
+     → Fallback based on regional settings
+     → Most modern browsers default to UTF-8
 ```
 
-**コード例 1: エンコーディング指定のベストプラクティス**
+**Code Example 1: Best Practice for Specifying Encoding**
 
 ```html
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
-  <!-- charset宣言は <head> 内の最初の要素として配置する -->
-  <!-- 先頭1024バイト以内に含まれることが保証されるため -->
+  <!-- Place the charset declaration as the first element inside <head> -->
+  <!-- This guarantees it is within the first 1024 bytes -->
   <meta charset="UTF-8">
-  <title>エンコーディング指定の例</title>
+  <title>Encoding Declaration Example</title>
 </head>
 <body>
-  <p>日本語を含むページでは UTF-8 を明示的に宣言する</p>
+  <p>For pages containing non-ASCII characters, explicitly declare UTF-8</p>
 </body>
 </html>
 ```
 
-サーバー側のHTTPヘッダでもエンコーディングを指定するのが理想的である。
+It is ideal to also specify the encoding in the server-side HTTP header.
 
 ```
 HTTP/1.1 200 OK
 Content-Type: text/html; charset=UTF-8
 ```
 
-もし HTTP ヘッダと `<meta>` タグで異なるエンコーディングが指定された場合、HTTP ヘッダが優先される（BOM がある場合を除く）。
+If a different encoding is specified in the HTTP header versus the `<meta>` tag, the HTTP header takes precedence (unless a BOM is present).
 
 ---
 
-## 2. HTMLトークナイザ（字句解析）
+## 2. HTML Tokenizer (Lexical Analysis)
 
-### 2.1 トークナイザのステートマシン
+### 2.1 Tokenizer State Machine
 
-HTML トークナイザは**有限状態機械 (Finite State Machine)** として実装される。HTML Living Standard では 80 以上の状態が定義されており、入力文字に応じて状態遷移しながらトークンを生成する。
+The HTML tokenizer is implemented as a **Finite State Machine (FSM)**. The HTML Living Standard defines more than 80 states; the tokenizer transitions between states based on the input character and emits tokens as it goes.
 
 ```
-HTMLトークナイザの主要な状態遷移図:
+Key state transition diagram of the HTML tokenizer:
 
   ┌─────────────┐    '<'     ┌──────────────┐
   │  Data State │──────────→│  Tag Open    │
-  │  (初期状態)  │           │  State       │
+  │  (initial)  │           │  State       │
   └──────┬──────┘           └──────┬───────┘
          │                         │
-    文字  │ トークン生成              │ 文字種による分岐
+  char   │ emit token               │ branch on character type
          ▼                         │
   ┌─────────────┐           ┌──────┴───────┐
-  │ Character   │           │ 英字         │
-  │ Token 発行  │           │  → Tag Name  │
+  │ Character   │           │ Letter       │
+  │ Token emit  │           │  → Tag Name  │
   └─────────────┘           │    State     │
                             │              │
                             │ '/'          │
@@ -181,17 +181,17 @@ HTMLトークナイザの主要な状態遷移図:
                             │    Comment   │
                             └──────────────┘
 
-  Tag Name State での遷移:
-  ┌──────────────┐    空白    ┌───────────────────┐
+  Transitions in Tag Name State:
+  ┌──────────────┐   space   ┌───────────────────┐
   │  Tag Name    │──────────→│ Before Attribute  │
   │  State       │           │ Name State        │
   └──────┬───────┘           └─────────┬─────────┘
          │                             │
-    '>'  │ トークン発行           英字  │
+    '>'  │ emit token          letter  │
          ▼                             ▼
   ┌─────────────┐           ┌───────────────────┐
   │ Data State  │           │ Attribute Name    │
-  │ へ戻る      │           │ State             │
+  │ return      │           │ State             │
   └─────────────┘           └─────────┬─────────┘
                                       │
                                  '='  │
@@ -201,7 +201,7 @@ HTMLトークナイザの主要な状態遷移図:
                             │ State             │
                             └─────────┬─────────┘
                                       │
-                              '"' or '│' or 文字
+                              '"' or '│' or char
                                       ▼
                             ┌───────────────────┐
                             │ Attribute Value   │
@@ -209,97 +209,98 @@ HTMLトークナイザの主要な状態遷移図:
                             └───────────────────┘
 ```
 
-### 2.2 トークンの種類と構造
+### 2.2 Token Types and Structure
 
-HTMLトークナイザが生成するトークンは以下の6種類である。
+The HTML tokenizer produces the following six types of tokens.
 
 ```
 ┌────────────────┬─────────────────────────────────────────────────┐
-│ トークン種別    │ 説明と例                                         │
+│ Token type     │ Description and example                         │
 ├────────────────┼─────────────────────────────────────────────────┤
 │ DOCTYPE        │ <!DOCTYPE html>                                 │
-│                │ 属性: name, publicId, systemId, forceQuirks     │
+│                │ Fields: name, publicId, systemId, forceQuirks   │
 ├────────────────┼─────────────────────────────────────────────────┤
-│ StartTag       │ <div class="main" id="content">                │
-│                │ 属性: tagName, attributes[], selfClosing        │
+│ StartTag       │ <div class="main" id="content">                 │
+│                │ Fields: tagName, attributes[], selfClosing       │
 ├────────────────┼─────────────────────────────────────────────────┤
 │ EndTag         │ </div>                                          │
-│                │ 属性: tagName                                   │
+│                │ Fields: tagName                                 │
 ├────────────────┼─────────────────────────────────────────────────┤
-│ Comment        │ <!-- コメント本文 -->                             │
-│                │ 属性: data                                      │
+│ Comment        │ <!-- comment text -->                           │
+│                │ Fields: data                                    │
 ├────────────────┼─────────────────────────────────────────────────┤
-│ Character      │ テキストノード用の文字                            │
-│                │ 属性: data (1文字ずつ or バッファリング)           │
+│ Character      │ Characters for text nodes                       │
+│                │ Fields: data (one character at a time or        │
+│                │ buffered)                                       │
 ├────────────────┼─────────────────────────────────────────────────┤
-│ EndOfFile      │ 入力の終端を示す特殊トークン                      │
-│                │ パース完了のシグナル                              │
+│ EndOfFile      │ Special token indicating end of input           │
+│                │ Signals that parsing is complete                │
 └────────────────┴─────────────────────────────────────────────────┘
 ```
 
-**コード例 2: トークン化の具体的な流れ**
+**Code Example 2: Tracing the Tokenization Process**
 
-以下の HTML 断片がどのようにトークン化されるかを追跡する。
+Let's trace how the following HTML fragment is tokenized.
 
 ```html
 <p class="intro">Hello, <em>world</em>!</p>
 ```
 
 ```
-トークン化の過程:
+Tokenization process:
 
-入力文字列: <p class="intro">Hello, <em>world</em>!</p>
+Input string: <p class="intro">Hello, <em>world</em>!</p>
 
-位置 0:  '<'    → Data → Tag Open State
-位置 1:  'p'    → Tag Open → Tag Name State (tagName = "p")
-位置 2:  ' '    → Tag Name → Before Attribute Name State
-                   StartTag トークン生成開始 {tagName: "p"}
-位置 3:  'c'    → Attribute Name State (attrName = "c")
-位置 4:  'l'    → attrName = "cl"
-位置 5:  'a'    → attrName = "cla"
-位置 6:  's'    → attrName = "clas"
-位置 7:  's'    → attrName = "class"
-位置 8:  '='    → Before Attribute Value State
-位置 9:  '"'    → Attribute Value (Double-Quoted) State
-位置 10: 'i'    → attrValue = "i"
+Position 0:  '<'    → Data → Tag Open State
+Position 1:  'p'    → Tag Open → Tag Name State (tagName = "p")
+Position 2:  ' '    → Tag Name → Before Attribute Name State
+                       StartTag token construction begins {tagName: "p"}
+Position 3:  'c'    → Attribute Name State (attrName = "c")
+Position 4:  'l'    → attrName = "cl"
+Position 5:  'a'    → attrName = "cla"
+Position 6:  's'    → attrName = "clas"
+Position 7:  's'    → attrName = "class"
+Position 8:  '='    → Before Attribute Value State
+Position 9:  '"'    → Attribute Value (Double-Quoted) State
+Position 10: 'i'    → attrValue = "i"
 ...
-位置 14: 'o'    → attrValue = "intro"
-位置 15: '"'    → After Attribute Value (Quoted) State
-位置 16: '>'    → Data State
-                   ★ StartTag トークン発行: {tagName: "p", attrs: [{name:"class", value:"intro"}]}
+Position 14: 'o'    → attrValue = "intro"
+Position 15: '"'    → After Attribute Value (Quoted) State
+Position 16: '>'    → Data State
+                       ★ StartTag token emitted: {tagName: "p", attrs: [{name:"class", value:"intro"}]}
 
-位置 17: 'H'    → Character トークン蓄積
+Position 17: 'H'    → Character token accumulation
 ...
-位置 23: ' '    → Character トークン蓄積
-                   ★ Character トークン発行: "Hello, "
+Position 23: ' '    → Character token accumulation
+                       ★ Character token emitted: "Hello, "
 
-位置 24: '<'    → Data → Tag Open State
-位置 25: 'e'    → Tag Name State (tagName = "e")
-位置 26: 'm'    → tagName = "em"
-位置 27: '>'    → Data State
-                   ★ StartTag トークン発行: {tagName: "em", attrs: []}
+Position 24: '<'    → Data → Tag Open State
+Position 25: 'e'    → Tag Name State (tagName = "e")
+Position 26: 'm'    → tagName = "em"
+Position 27: '>'    → Data State
+                       ★ StartTag token emitted: {tagName: "em", attrs: []}
 
-位置 28: 'w'    → Character トークン蓄積
+Position 28: 'w'    → Character token accumulation
 ...
-位置 32: 'd'    → Character トークン蓄積
-                   ★ Character トークン発行: "world"
+Position 32: 'd'    → Character token accumulation
+                       ★ Character token emitted: "world"
 
-位置 33: '<'    → Tag Open State
-位置 34: '/'    → End Tag Open State
-位置 35: 'e'    → Tag Name State (tagName = "e")
-位置 36: 'm'    → tagName = "em"
-位置 37: '>'    → Data State
-                   ★ EndTag トークン発行: {tagName: "em"}
+Position 33: '<'    → Tag Open State
+Position 34: '/'    → End Tag Open State
+Position 35: 'e'    → Tag Name State (tagName = "e")
+Position 36: 'm'    → tagName = "em"
+Position 37: '>'    → Data State
+                       ★ EndTag token emitted: {tagName: "em"}
 
-位置 38: '!'    → Character トークン発行: "!"
+Position 38: '!'    → Character token emitted: "!"
 
-位置 39: '<'    → Tag Open State
-位置 40: '/'    → End Tag Open State
-位置 41: 'p'    → Tag Name State (tagName = "p")
-位置 42: '>'    → Data State
-                   ★ EndTag トークン発行: {tagName: "p"}
+Position 39: '<'    → Tag Open State
+Position 40: '/'    → End Tag Open State
+Position 41: 'p'    → Tag Name State (tagName = "p")
+Position 42: '>'    → Data State
+                       ★ EndTag token emitted: {tagName: "p"}
 
-発行されたトークン列:
+Emitted token sequence:
   [StartTag: p (class="intro")]
   [Character: "Hello, "]
   [StartTag: em]
@@ -309,14 +310,14 @@ HTMLトークナイザが生成するトークンは以下の6種類である。
   [EndTag: p]
 ```
 
-### 2.3 文字参照 (Character Reference) の処理
+### 2.3 Character Reference Processing
 
-トークナイザは文字参照（HTML エンティティ）も処理する。
+The tokenizer also handles character references (HTML entities).
 
 ```
-文字参照の種類:
+Types of character references:
 
-  1. 名前付き文字参照
+  1. Named character references
      &amp;   → &
      &lt;    → <
      &gt;    → >
@@ -324,127 +325,127 @@ HTMLトークナイザが生成するトークンは以下の6種類である。
      &apos;  → '
      &nbsp;  → U+00A0 (Non-Breaking Space)
 
-  2. 10進数文字参照
-     &#65;   → A  (ASCIIコード 65)
-     &#8364; → €  (Unicodeコードポイント)
+  2. Decimal numeric references
+     &#65;   → A  (ASCII code 65)
+     &#8364; → €  (Unicode code point)
 
-  3. 16進数文字参照
+  3. Hexadecimal numeric references
      &#x41;  → A
      &#x20AC; → €
 
-処理フロー:
-  Data State で '&' を検出
-    → Character Reference State へ遷移
-    → '#' なら数値参照
-    → 英字なら名前付き参照
-    → 名前テーブルからマッチ検索
-    → 解決した文字を Character トークンとして発行
+Processing flow:
+  Detect '&' in Data State
+    → Transition to Character Reference State
+    → '#' → numeric reference
+    → Letter → named reference
+    → Search name table for a match
+    → Emit resolved character as a Character token
 ```
 
-### 2.4 スクリプトタグ内のトークン化
+### 2.4 Tokenization Inside Script Tags
 
-`<script>` タグ内部は通常の HTML とは異なるトークン化ルールが適用される。
+Different tokenization rules apply inside `<script>` tags compared to regular HTML.
 
 ```
-<script> タグの特殊処理:
+Special handling of <script> tags:
 
-  通常の Data State:
-    '<' を検出 → Tag Open State → タグとして処理
+  Normal Data State:
+    Detect '<' → Tag Open State → process as a tag
 
   Script Data State:
-    '<' を検出 → Script Data Less-Than Sign State
-    → '</script>' にマッチするかチェック
-    → マッチしなければ全てテキストとして扱う
+    Detect '<' → Script Data Less-Than Sign State
+    → Check whether '</script>' matches
+    → If no match, treat everything as text
 
-  これにより以下のコードが正しく処理される:
+  This allows the following code to be processed correctly:
 
   <script>
-    var html = "<div>これはHTMLではなくJSの文字列</div>";
-    if (a < b && c > d) { /* < と > はタグではない */ }
+    var html = "<div>This is a JS string, not HTML</div>";
+    if (a < b && c > d) { /* < and > are not tags */ }
   </script>
 
-  注意: </script> はスクリプトの終了を示す
-  → スクリプト内で "</script>" という文字列リテラルを
-    直接書くと意図しない終了が起きる
+  Note: </script> signals the end of the script
+  → Writing the string literal "</script>" directly inside
+    a script will cause an unintended early termination
 
-  回避策:
+  Workarounds:
   <script>
-    // NG: var s = "</script>";
-    // OK: var s = "<\/script>";
-    // OK: var s = "<" + "/script>";
+    // BAD: var s = "</script>";
+    // OK:  var s = "<\/script>";
+    // OK:  var s = "<" + "/script>";
   </script>
 ```
 
 ---
 
-## 3. HTMLツリービルダ（構文解析・DOM構築）
+## 3. HTML Tree Builder (Parsing and DOM Construction)
 
-### 3.1 挿入モード (Insertion Mode) による状態管理
+### 3.1 State Management via Insertion Mode
 
-HTML ツリービルダは、トークナイザから受け取ったトークンを DOM ツリーに変換する。ツリービルダもステートマシンとして実装されており、「挿入モード (Insertion Mode)」と呼ばれる状態を持つ。
+The HTML tree builder converts tokens received from the tokenizer into the DOM tree. The tree builder is also implemented as a state machine, maintaining a state called the "Insertion Mode."
 
-HTML Living Standard では以下の挿入モードが定義されている。
+The HTML Living Standard defines the following insertion modes.
 
 ```
-主要な挿入モード一覧:
+List of key insertion modes:
 
-  ┌─ 初期状態 ─────────────────────────────────┐
-  │  initial                                    │
-  │    → DOCTYPE トークンを処理                  │
-  │    → before html へ遷移                     │
-  ├─────────────────────────────────────────────┤
-  │  before html                                │
-  │    → <html> StartTag を処理                 │
-  │    → before head へ遷移                     │
-  ├─────────────────────────────────────────────┤
-  │  before head                                │
-  │    → <head> StartTag を処理                 │
-  │    → in head へ遷移                         │
-  ├─────────────────────────────────────────────┤
-  │  in head                                    │
-  │    → <meta>, <title>, <link>, <style>,      │
-  │      <script> 等を処理                      │
-  │    → </head> で after head へ遷移           │
-  ├─────────────────────────────────────────────┤
-  │  in head noscript                           │
-  │    → <noscript> 内部の処理                   │
-  ├─────────────────────────────────────────────┤
-  │  after head                                 │
-  │    → <body> StartTag を処理                 │
-  │    → in body へ遷移                         │
-  ├─────────────────────────────────────────────┤
-  │  in body                                    │
-  │    → 本文中の全要素を処理                    │
-  │    → 最も複雑なモード                        │
-  ├─────────────────────────────────────────────┤
-  │  in table                                   │
-  │    → <table> 内部の処理                     │
-  │    → foster parenting が発生するモード       │
-  ├─────────────────────────────────────────────┤
-  │  in row / in cell / in caption              │
-  │    → テーブル内の各部位の処理                │
-  ├─────────────────────────────────────────────┤
-  │  in select                                  │
-  │    → <select> 内部の処理                    │
-  ├─────────────────────────────────────────────┤
-  │  after body                                 │
-  │    → </body> 後の処理                       │
-  │    → after after body へ遷移                │
-  ├─────────────────────────────────────────────┤
-  │  in frameset / after frameset               │
-  │    → フレームセットの処理（レガシー）         │
-  ├─────────────────────────────────────────────┤
-  │  after after body                           │
-  │    → </html> 後の処理                       │
-  │    → EOF で完了                             │
-  └─────────────────────────────────────────────┘
+  ┌─ Initial state ────────────────────────────────────┐
+  │  initial                                            │
+  │    → Process DOCTYPE token                          │
+  │    → Transition to before html                      │
+  ├─────────────────────────────────────────────────────┤
+  │  before html                                        │
+  │    → Process <html> StartTag                        │
+  │    → Transition to before head                      │
+  ├─────────────────────────────────────────────────────┤
+  │  before head                                        │
+  │    → Process <head> StartTag                        │
+  │    → Transition to in head                          │
+  ├─────────────────────────────────────────────────────┤
+  │  in head                                            │
+  │    → Process <meta>, <title>, <link>, <style>,      │
+  │      <script>, etc.                                 │
+  │    → </head> transitions to after head              │
+  ├─────────────────────────────────────────────────────┤
+  │  in head noscript                                   │
+  │    → Processing inside <noscript>                   │
+  ├─────────────────────────────────────────────────────┤
+  │  after head                                         │
+  │    → Process <body> StartTag                        │
+  │    → Transition to in body                          │
+  ├─────────────────────────────────────────────────────┤
+  │  in body                                            │
+  │    → Processes all elements in the document body    │
+  │    → The most complex mode                          │
+  ├─────────────────────────────────────────────────────┤
+  │  in table                                           │
+  │    → Processing inside <table>                      │
+  │    → The mode where foster parenting occurs         │
+  ├─────────────────────────────────────────────────────┤
+  │  in row / in cell / in caption                      │
+  │    → Processing each part within a table            │
+  ├─────────────────────────────────────────────────────┤
+  │  in select                                          │
+  │    → Processing inside <select>                     │
+  ├─────────────────────────────────────────────────────┤
+  │  after body                                         │
+  │    → Processing after </body>                       │
+  │    → Transitions to after after body                │
+  ├─────────────────────────────────────────────────────┤
+  │  in frameset / after frameset                       │
+  │    → Processing framesets (legacy)                  │
+  ├─────────────────────────────────────────────────────┤
+  │  after after body                                   │
+  │    → Processing after </html>                       │
+  │    → Completes on EOF                               │
+  └─────────────────────────────────────────────────────┘
 ```
 
-### 3.2 オープン要素スタック (Stack of Open Elements)
+### 3.2 Stack of Open Elements
 
-ツリービルダは「オープン要素スタック」を管理する。このスタックはネスト構造を追跡するためのデータ構造である。
+The tree builder maintains a "stack of open elements." This stack is a data structure for tracking nested element structure.
 
-**コード例 3: オープン要素スタックの変化を追跡する**
+**Code Example 3: Tracing Changes to the Stack of Open Elements**
 
 ```html
 <!DOCTYPE html>
@@ -459,34 +460,34 @@ HTML Living Standard では以下の挿入モードが定義されている。
 ```
 
 ```
-オープン要素スタックの変化:
+Changes to the stack of open elements:
 
-  トークン                  スタック状態           挿入モード
+  Token                    Stack state             Insertion mode
   ─────────────────────────────────────────────────────────────
-  DOCTYPE html              []                    initial
-                            []                    before html
-  <html>                    [html]                before head
-  <head>                    [html, head]          in head
-  <title>                   [html, head, title]   text
-  "Test"                    [html, head, title]   text
-  </title>                  [html, head]          in head
-  </head>                   [html]                after head
-  <body>                    [html, body]          in body
-  <div>                     [html, body, div]     in body
-  <p>                       [html, body, div, p]  in body
-  "Hello "                  [html, body, div, p]  in body
-  <strong>                  [html, body, div, p,  in body
-                             strong]
-  "World"                   [html, body, div, p,  in body
-                             strong]
-  </strong>                 [html, body, div, p]  in body
-  </p>                      [html, body, div]     in body
-  </div>                    [html, body]          in body
-  </body>                   [html]                after body
-  </html>                   []                    after after body
-  EOF                       (完了)
+  DOCTYPE html             []                      initial
+                           []                      before html
+  <html>                   [html]                  before head
+  <head>                   [html, head]             in head
+  <title>                  [html, head, title]      text
+  "Test"                   [html, head, title]      text
+  </title>                 [html, head]             in head
+  </head>                  [html]                   after head
+  <body>                   [html, body]             in body
+  <div>                    [html, body, div]        in body
+  <p>                      [html, body, div, p]     in body
+  "Hello "                 [html, body, div, p]     in body
+  <strong>                 [html, body, div, p,     in body
+                            strong]
+  "World"                  [html, body, div, p,     in body
+                            strong]
+  </strong>                [html, body, div, p]     in body
+  </p>                     [html, body, div]        in body
+  </div>                   [html, body]             in body
+  </body>                  [html]                   after body
+  </html>                  []                       after after body
+  EOF                      (complete)
 
-  生成される DOM ツリー:
+  Generated DOM tree:
   Document
   ├── DOCTYPE: html
   └── html
@@ -501,14 +502,14 @@ HTML Living Standard では以下の挿入モードが定義されている。
                       └── "World"
 ```
 
-### 3.3 エラー回復と暗黙の要素補完
+### 3.3 Error Recovery and Implicit Element Completion
 
-HTML パーサーの最大の特徴は、**不正な HTML に対してもエラーを投げずに回復する**ことである。これは HTML Living Standard で詳細に仕様化されている。
+The hallmark of the HTML parser is that it **recovers from malformed HTML without throwing an error**. This is specified in detail in the HTML Living Standard.
 
-**コード例 4: エラー回復の動作例**
+**Code Example 4: Error Recovery in Action**
 
 ```html
-<!-- 入力 (不正なHTML) -->
+<!-- Input (malformed HTML) -->
 <p>First
 <p>Second
 <div><span></div>
@@ -516,178 +517,178 @@ HTML パーサーの最大の特徴は、**不正な HTML に対してもエラ�
 ```
 
 ```
-パーサーによるエラー回復処理:
+Error recovery by the parser:
 
-  入力: <p>First<p>Second
+  Input: <p>First<p>Second
   ──────────────────────
-  1. <p>First を処理: p 要素を生成、"First" テキストを追加
-  2. 2つ目の <p> を検出:
-     → 現在の p はまだ閉じられていない
-     → 仕様: "in body" モードで <p> の StartTag を受信し、
-       スタック上に p がある場合は暗黙的に閉じる
-     → 暗黙の </p> を挿入
-     → 新しい p 要素を生成
-  3. 結果:
-     <p>First</p>        ← 暗黙の終了タグ
-     <p>Second</p>       ← 暗黙の終了タグ
+  1. Process <p>First: create p element, append "First" text
+  2. Encounter second <p>:
+     → The current p is still open
+     → Spec: when receiving a <p> StartTag in "in body" mode
+       while a p is on the stack, implicitly close it
+     → Insert an implicit </p>
+     → Create a new p element
+  3. Result:
+     <p>First</p>        ← implicit end tag
+     <p>Second</p>       ← implicit end tag
 
-  入力: <div><span></div>
+  Input: <div><span></div>
   ──────────────────────
-  1. <div> を生成しスタックに積む
-  2. <span> を生成しスタックに積む: [html, body, div, span]
-  3. </div> を受信:
-     → スタック上の span は閉じられていない
-     → 仕様: </div> はスタックを div まで巻き戻す
-     → span を暗黙的に閉じる
-  4. 結果:
+  1. Create <div>, push onto stack
+  2. Create <span>, push onto stack: [html, body, div, span]
+  3. Receive </div>:
+     → span on the stack has not been closed
+     → Spec: </div> unwinds the stack back to div
+     → Implicitly close span
+  4. Result:
      <div><span></span></div>
 
-  入力: <table><td>Cell</table>
+  Input: <table><td>Cell</table>
   ──────────────────────────────
-  1. <table> を生成、挿入モード "in table" へ
-  2. <td> を受信:
-     → <td> は <tr> 内にあるべき
-     → 仕様: 暗黙の <tbody> と <tr> を生成
-  3. 結果:
+  1. Create <table>, switch insertion mode to "in table"
+  2. Receive <td>:
+     → <td> should be inside <tr>
+     → Spec: implicitly generate <tbody> and <tr>
+  3. Result:
      <table>
-       <tbody>          ← 暗黙生成
-         <tr>           ← 暗黙生成
+       <tbody>          ← implicitly generated
+         <tr>           ← implicitly generated
            <td>Cell</td>
          </tr>
        </tbody>
      </table>
 ```
 
-### 3.4 Foster Parenting（里親処理）
+### 3.4 Foster Parenting
 
-テーブル要素内に不正な要素やテキストが出現した場合、ブラウザは「foster parenting」と呼ばれる特殊な処理を行う。
+When invalid elements or text appear inside table elements, the browser performs a special process called "foster parenting."
 
 ```
-Foster Parenting の動作:
+How foster parenting works:
 
-  入力:
+  Input:
   <table>
     <tr>
-      <td>正しい位置</td>
+      <td>Valid position</td>
     </tr>
-    テーブル外のテキスト
-    <div>テーブル外の要素</div>
+    Text outside the table
+    <div>Element outside the table</div>
   </table>
 
-  問題:
-  → テキストや <div> は <table> の直接の子になれない
-  → <table> 内で許可されるのは <thead>, <tbody>, <tfoot>,
-    <tr>, <caption>, <colgroup>, <col> のみ
+  Problem:
+  → Text and <div> cannot be direct children of <table>
+  → Inside <table>, only <thead>, <tbody>, <tfoot>,
+    <tr>, <caption>, <colgroup>, and <col> are allowed
 
-  Foster Parenting の結果:
-  不正な要素はテーブルの「前」に移動される
+  Foster parenting result:
+  Invalid elements are moved to the position "before" the table
 
-  DOM 上の結果:
-  テーブル外のテキスト          ← table の前に移動
-  <div>テーブル外の要素</div>  ← table の前に移動
+  Result in the DOM:
+  Text outside the table           ← moved before table
+  <div>Element outside the table</div>  ← moved before table
   <table>
     <tbody>
       <tr>
-        <td>正しい位置</td>
+        <td>Valid position</td>
       </tr>
     </tbody>
   </table>
 
-  → DevTools で確認すると、テキストや div が
-    table タグの前に移動していることが分かる
+  → Inspecting in DevTools shows the text and div
+    have been moved before the table tag
 ```
 
-### 3.5 アクティブフォーマッティング要素リスト (Active Formatting Elements)
+### 3.5 Active Formatting Elements List
 
-HTML パーサーは `<b>`, `<i>`, `<em>`, `<strong>`, `<a>`, `<font>` などのフォーマッティング要素に対して、特別な「再構築 (Reconstruction)」処理を行う。
+The HTML parser applies special "reconstruction" processing to formatting elements such as `<b>`, `<i>`, `<em>`, `<strong>`, `<a>`, and `<font>`.
 
 ```
 Adoption Agency Algorithm:
 
-  入力: <p>Normal <b>Bold <i>Both</b> Italic?</i></p>
+  Input: <p>Normal <b>Bold <i>Both</b> Italic?</i></p>
 
-  問題:
-  → <b> と <i> が交差してネストされている
-  → 正しいツリー構造に変換する必要がある
+  Problem:
+  → <b> and <i> are interleaved (crossed nesting)
+  → Must be converted to a valid tree structure
 
-  Adoption Agency Algorithm の結果:
+  Result of Adoption Agency Algorithm:
   <p>
     Normal
     <b>Bold <i>Both</i></b>
     <i> Italic?</i>
   </p>
 
-  → <b> の終了で <i> を一旦閉じ、
-    <b> を閉じた後に <i> を再度開く
-  → ブラウザ間で統一的な挙動（仕様で定義済み）
+  → When </b> is encountered, <i> is temporarily closed,
+    then after </b>, <i> is reopened
+  → Consistent behavior across browsers (defined in the spec)
 ```
 
 ---
 
-## 4. DOMの構造と内部表現
+## 4. DOM Structure and Internal Representation
 
-### 4.1 DOMノードの分類
+### 4.1 DOM Node Types
 
-DOM (Document Object Model) はHTMLドキュメントをオブジェクトのツリー構造として表現するプログラミングインターフェイスである。
+The DOM (Document Object Model) is a programming interface that represents an HTML document as a tree of objects.
 
 ```
-DOM ノード階層:
+DOM node hierarchy:
 
-  Node (抽象基底クラス)
-  ├── Document           nodeType = 9   ルートノード
+  Node (abstract base class)
+  ├── Document           nodeType = 9   Root node
   ├── DocumentType       nodeType = 10  <!DOCTYPE html>
-  ├── DocumentFragment   nodeType = 11  仮想コンテナ
-  ├── Element            nodeType = 1   HTML要素
+  ├── DocumentFragment   nodeType = 11  Virtual container
+  ├── Element            nodeType = 1   HTML element
   │   ├── HTMLElement
   │   │   ├── HTMLDivElement
   │   │   ├── HTMLParagraphElement
   │   │   ├── HTMLInputElement
   │   │   ├── HTMLAnchorElement
-  │   │   └── ... (各HTML要素に対応するクラス)
+  │   │   └── ... (class for each HTML element)
   │   └── SVGElement
   │       ├── SVGSVGElement
   │       └── ...
-  ├── Attr               nodeType = 2   属性ノード
-  ├── Text               nodeType = 3   テキストノード
-  ├── Comment            nodeType = 8   コメントノード
-  └── CDATASection       nodeType = 4   CDATA（XMLのみ）
+  ├── Attr               nodeType = 2   Attribute node
+  ├── Text               nodeType = 3   Text node
+  ├── Comment            nodeType = 8   Comment node
+  └── CDATASection       nodeType = 4   CDATA (XML only)
 ```
 
-### 4.2 DOMノードの主要プロパティとメソッド
+### 4.2 Key Properties and Methods of DOM Nodes
 
 ```
-ノード間のナビゲーション:
+Navigating between nodes:
 
-  parentNode                  ← 親ノード
-  childNodes                  ← 子ノード一覧 (NodeList)
-  firstChild / lastChild      ← 最初/最後の子
-  previousSibling / nextSibling  ← 前後の兄弟
-  children                    ← 子要素のみ (HTMLCollection)
-  firstElementChild           ← 最初の子要素
-  parentElement               ← 親要素
+  parentNode                  ← Parent node
+  childNodes                  ← List of child nodes (NodeList)
+  firstChild / lastChild      ← First/last child
+  previousSibling / nextSibling  ← Previous/next sibling
+  children                    ← Child elements only (HTMLCollection)
+  firstElementChild           ← First child element
+  parentElement               ← Parent element
 
   ┌────────────────────────────────────────────────────┐
-  │  プロパティ           │ 全ノード含む │ 要素のみ    │
-  ├──────────────────────┼─────────────┼────────────┤
-  │  子ノード一覧         │ childNodes  │ children   │
-  │  最初の子             │ firstChild  │ firstElem. │
-  │  最後の子             │ lastChild   │ lastElem.  │
-  │  次の兄弟             │ nextSibling │ nextElem.  │
-  │  前の兄弟             │ prevSibling │ prevElem.  │
-  └──────────────────────┴─────────────┴────────────┘
+  │  Property            │ All nodes   │ Elements only  │
+  ├──────────────────────┼─────────────┼────────────────┤
+  │  Child node list     │ childNodes  │ children       │
+  │  First child         │ firstChild  │ firstElem.     │
+  │  Last child          │ lastChild   │ lastElem.      │
+  │  Next sibling        │ nextSibling │ nextElem.      │
+  │  Previous sibling    │ prevSibling │ prevElem.      │
+  └──────────────────────┴─────────────┴────────────────┘
 
-  ※ childNodes はテキストノードやコメントも含む
-  ※ children は Element ノードのみ
+  * childNodes includes text nodes and comments
+  * children includes only Element nodes
 ```
 
-### 4.3 ブラウザエンジン内部でのDOM表現
+### 4.3 Internal DOM Representation in the Browser Engine
 
-DOM はブラウザエンジン内部では C++ のオブジェクトとして実装される。JavaScript からの DOM アクセスはバインディングレイヤーを経由する。
+Internally in the browser engine, the DOM is implemented as C++ objects. JavaScript DOM access goes through a binding layer.
 
 ```
-Blink (Chrome) での DOM 内部表現:
+Internal DOM representation in Blink (Chrome):
 
-  C++ 側:
+  C++ side:
   ┌──────────────────────────────────┐
   │  blink::Node                     │
   │  ├── parent_: Node*              │
@@ -705,33 +706,33 @@ Blink (Chrome) での DOM 内部表現:
   │  └── class_list_: DOMTokenList*  │
   └──────────────────────────────────┘
 
-  JavaScript 側 (V8 バインディング):
+  JavaScript side (V8 binding):
   ┌──────────────────────────────────┐
-  │  v8::Object (JS オブジェクト)     │
+  │  v8::Object (JS object)          │
   │  └── internal_field_ ──→ blink::Node* │
   └──────────────────────────────────┘
 
-  JS から DOM にアクセスするコスト:
-  1. V8 の JS オブジェクトを参照
-  2. internal field から C++ ポインタを取得
-  3. C++ オブジェクトのメソッドを呼び出し
-  4. 戻り値を V8 の JS 値に変換
-  → この往復コストが DOM 操作のオーバーヘッドとなる
+  Cost of accessing the DOM from JS:
+  1. Dereference the V8 JS object
+  2. Retrieve the C++ pointer from internal field
+  3. Call the method on the C++ object
+  4. Convert the return value to a V8 JS value
+  → This round-trip cost is the overhead of DOM operations
 ```
 
 ---
 
-## 5. CSSパーシングとCSSOM構築
+## 5. CSS Parsing and CSSOM Construction
 
-### 5.1 CSS字句解析（トークン化）
+### 5.1 CSS Lexical Analysis (Tokenization)
 
-CSSパーサーは HTML パーサーとは異なり、**文脈自由文法 (Context-Free Grammar)** に基づいて動作する。CSS Syntax Module Level 3 で定義されるトークン化アルゴリズムにより、CSS テキストはトークン列に変換される。
+Unlike the HTML parser, the CSS parser operates on a **context-free grammar (CFG)**. The tokenization algorithm defined in CSS Syntax Module Level 3 converts CSS text into a token sequence.
 
 ```
-CSSトークンの種類:
+CSS token types:
 
   ┌────────────────────┬──────────────────────────────────────┐
-  │ トークン種別        │ 例                                   │
+  │ Token type         │ Example                              │
   ├────────────────────┼──────────────────────────────────────┤
   │ <ident-token>      │ color, margin, div, .class           │
   │ <function-token>   │ rgb(, calc(, var(                    │
@@ -752,14 +753,14 @@ CSSトークンの種類:
   │ <)-token>          │ )                                    │
   │ <[-token>          │ [                                    │
   │ <]-token>          │ ]                                    │
-  │ <whitespace-token> │ スペース、タブ、改行                   │
+  │ <whitespace-token> │ space, tab, newline                  │
   │ <CDC-token>        │ -->                                  │
   │ <CDO-token>        │ <!--                                 │
-  │ <EOF-token>        │ 入力終端                              │
+  │ <EOF-token>        │ End of input                         │
   └────────────────────┴──────────────────────────────────────┘
 ```
 
-**コード例 5: CSSトークン化の具体例**
+**Code Example 5: CSS Tokenization Example**
 
 ```css
 .container > .item {
@@ -770,7 +771,7 @@ CSSトークンの種類:
 ```
 
 ```
-トークン化結果:
+Tokenization result:
 
   <delim-token: .>
   <ident-token: container>
@@ -821,12 +822,12 @@ CSSトークンの種類:
   <EOF-token>
 ```
 
-### 5.2 CSS構文解析（パーシング）
+### 5.2 CSS Parsing
 
-トークン列は CSS 構文解析器によって構造化されたルール群に変換される。CSS の文法は以下の構造で定義される。
+The token sequence is converted by the CSS parser into a structured set of rules. The CSS grammar is defined with the following structure.
 
 ```
-CSS の文法構造 (BNF風表記):
+CSS grammar structure (BNF-style notation):
 
   stylesheet  ::= rule*
   rule        ::= at-rule | qualified-rule
@@ -835,30 +836,30 @@ CSS の文法構造 (BNF風表記):
   declaration-list ::= declaration (';' declaration)* ';'?
   declaration ::= IDENT ':' component-value+ ('!' 'important')?
 
-セレクタの文法:
+Selector grammar:
   selector-list    ::= complex-selector (',' complex-selector)*
   complex-selector ::= compound-selector (combinator compound-selector)*
   compound-selector ::= type-selector? (class-selector | id-selector |
                          attr-selector | pseudo-class)* pseudo-element?
-  combinator       ::= '>' | '+' | '~' | ' ' (子孫)
+  combinator       ::= '>' | '+' | '~' | ' ' (descendant)
 
-  例: div.container > ul.menu li.active a:hover::before
-  分解:
+  Example: div.container > ul.menu li.active a:hover::before
+  Decomposition:
   ├── compound: div.container
-  ├── combinator: > (子)
+  ├── combinator: > (child)
   ├── compound: ul.menu
-  ├── combinator: ' ' (子孫)
+  ├── combinator: ' ' (descendant)
   ├── compound: li.active
-  ├── combinator: ' ' (子孫)
+  ├── combinator: ' ' (descendant)
   └── compound: a:hover::before
 ```
 
-### 5.3 CSSOMの構造
+### 5.3 CSSOM Structure
 
-CSSOM (CSS Object Model) は CSS をプログラムから操作するためのオブジェクトモデルである。
+The CSSOM (CSS Object Model) is an object model for programmatic manipulation of CSS.
 
 ```
-CSSOM ツリーの構造:
+CSSOM tree structure:
 
   document.styleSheets (StyleSheetList)
   ├── StyleSheet[0] (CSSStyleSheet)
@@ -896,11 +897,11 @@ CSSOM ツリーの構造:
       └── cssRules (CSSRuleList)
           └── ...
 
-CSSRule の種類:
+CSSRule types:
   ┌──────────────────────────┬──────┬───────────────────────┐
-  │ ルール型                  │ type │ 説明                   │
+  │ Rule type                │ type │ Description            │
   ├──────────────────────────┼──────┼───────────────────────┤
-  │ CSSStyleRule             │ 1    │ 通常のスタイルルール    │
+  │ CSSStyleRule             │ 1    │ Normal style rule      │
   │ CSSImportRule            │ 3    │ @import                │
   │ CSSMediaRule             │ 4    │ @media                 │
   │ CSSFontFaceRule          │ 5    │ @font-face             │
@@ -911,35 +912,35 @@ CSSRule の種類:
   └──────────────────────────┴──────┴───────────────────────┘
 ```
 
-### 5.4 スタイルの計算（Style Resolution）
+### 5.4 Style Resolution
 
-DOM ツリーと CSSOM が構築された後、ブラウザは各 DOM 要素に対して最終的なスタイル（Computed Style）を計算する。このプロセスは以下のステップで進行する。
+After the DOM tree and CSSOM are built, the browser calculates the final style (Computed Style) for each DOM element. This process proceeds through the following steps.
 
 ```
-スタイル計算の全体フロー:
+Overall style resolution flow:
 
-  ステップ 1: スタイルソースの収集
+  Step 1: Collect style sources
   ┌─────────────────────────────────────────────────┐
-  │  User Agent Stylesheet (ブラウザデフォルト)       │
+  │  User Agent Stylesheet (browser defaults)        │
   │  ↓                                              │
-  │  User Stylesheet (ユーザー設定)                  │
+  │  User Stylesheet (user preferences)             │
   │  ↓                                              │
-  │  Author Stylesheet (開発者のCSS)                 │
-  │    - 外部CSS (<link>)                            │
-  │    - 内部CSS (<style>)                           │
-  │    - インラインCSS (style="...")                  │
+  │  Author Stylesheet (developer CSS)              │
+  │    - External CSS (<link>)                       │
+  │    - Internal CSS (<style>)                      │
+  │    - Inline CSS (style="...")                    │
   │  ↓                                              │
   │  CSS Animations / Transitions                    │
   └─────────────────────────────────────────────────┘
 
-  ステップ 2: セレクタマッチング
-  → 各 DOM 要素に対して、全 CSS ルールのセレクタを評価
-  → マッチするルールの宣言を収集
+  Step 2: Selector matching
+  → Evaluate selectors of all CSS rules against each DOM element
+  → Collect declarations from matching rules
 
-  ステップ 3: カスケード (Cascade)
-  → マッチした宣言を優先度順にソート
+  Step 3: Cascade
+  → Sort matched declarations in priority order
 
-  カスケード順序（優先度の低い順）:
+  Cascade order (lowest to highest priority):
   ┌─────────────────────────────────────────────────┐
   │  1. Normal User Agent declarations               │
   │  2. Normal User declarations                     │
@@ -951,15 +952,15 @@ DOM ツリーと CSSOM が構築された後、ブラウザは各 DOM 要素に�
   │  8. CSS Transitions                              │
   └─────────────────────────────────────────────────┘
 
-  ※ CSS Cascade Layers (@layer) が追加された場合、
-    同一オリジン内でさらに細かい優先度制御が可能
+  * When CSS Cascade Layers (@layer) are added,
+    finer-grained priority control within the same origin is possible
 
-  ステップ 4: 詳細度 (Specificity) の計算
-  → 同一カスケードレベル内で競合する場合に使用
+  Step 4: Specificity calculation
+  → Used when declarations at the same cascade level conflict
 
-  詳細度の計算式: (A, B, C)
+  Specificity formula: (A, B, C)
   ┌──────────────────────────────┬──────────┬──────┐
-  │ セレクタ                     │ (A,B,C)  │ 値   │
+  │ Selector                     │ (A,B,C)  │ Value│
   ├──────────────────────────────┼──────────┼──────┤
   │ *                            │ (0,0,0)  │ 0    │
   │ li                           │ (0,0,1)  │ 1    │
@@ -971,23 +972,23 @@ DOM ツリーと CSSOM が構築された後、ブラウザは各 DOM 要素に�
   │ #nav ul li.active a          │ (1,1,3)  │ 113  │
   │ :is(#nav) .item              │ (1,1,0)  │ 110  │
   │ :where(#nav) .item           │ (0,1,0)  │ 10   │
-  │ style="" (インライン)         │ 最高      │ --   │
+  │ style="" (inline)            │ highest  │ --   │
   └──────────────────────────────┴──────────┴──────┘
 
-  注意: :is() は引数の最大詳細度を採用
-        :where() は常に詳細度 0
-        :not() は引数の詳細度を採用
+  Note: :is() uses the maximum specificity of its arguments
+        :where() always has specificity 0
+        :not() uses the specificity of its arguments
 
-  ステップ 5: 宣言値 (Declared Value) の決定
-  → カスケード + 詳細度 + ソース順で最終的な宣言値を決定
+  Step 5: Declared value determination
+  → Determine the final declared value using cascade + specificity + source order
 
-  ステップ 6: 指定値 (Specified Value) の決定
-  → 宣言値がない場合: 継承 or 初期値
-  → inherit, initial, unset, revert の解決
+  Step 6: Specified value determination
+  → If no declared value: inherit or initial value
+  → Resolve inherit, initial, unset, revert
 
-  継承プロパティと非継承プロパティ:
+  Inherited vs. non-inherited properties:
   ┌───────────────────────┬────────────────────────┐
-  │ 継承する               │ 継承しない              │
+  │ Inherited             │ Not inherited           │
   ├───────────────────────┼────────────────────────┤
   │ color                 │ margin                 │
   │ font-family           │ padding                │
@@ -997,120 +998,122 @@ DOM ツリーと CSSOM が構築された後、ブラウザは各 DOM 要素に�
   │ visibility            │ position               │
   │ cursor                │ background             │
   │ list-style            │ overflow               │
-  │ letter-spacing        │ flex / grid 関連        │
+  │ letter-spacing        │ flex / grid properties │
   └───────────────────────┴────────────────────────┘
 
-  ステップ 7: 計算値 (Computed Value) の算出
-  → 相対値を絶対値に変換
+  Step 7: Computed value calculation
+  → Convert relative values to absolute values
   → em, rem → px
-  → percentage → px (一部を除く)
-  → currentColor → 実際の色値
-  → inherit → 親の計算値
+  → percentage → px (with some exceptions)
+  → currentColor → actual color value
+  → inherit → parent's computed value
 
-  ステップ 8: 使用値 (Used Value) の算出
-  → レイアウト計算に必要な最終値
-  → auto → 実際の px 値
-  → percentage (width等) → 実際の px 値
+  Step 8: Used value calculation
+  → Final value needed for layout calculation
+  → auto → actual px value
+  → percentage (width, etc.) → actual px value
 
-  ステップ 9: 実際値 (Actual Value) の算出
-  → デバイスの制約に合わせた最終調整
-  → サブピクセル丸め
-  → 利用不可能なフォントのフォールバック
+  Step 9: Actual value calculation
+  → Final adjustments to fit device constraints
+  → Sub-pixel rounding
+  → Font fallback for unavailable fonts
 ```
 
-### 5.5 セレクタマッチングの最適化
+### 5.5 Selector Matching Optimization
 
-ブラウザは全DOM要素 x 全CSSルールのマッチングを効率化するために、複数の最適化手法を使用する。
-
-```
-セレクタの右から左への評価:
-
-  セレクタ: #main .content p a.link
-
-  素朴な方法（左から右）:
-  1. #main を探す
-  2. その子孫で .content を探す
-  3. その子孫で p を探す
-  4. その子孫で a.link を探す
-  → 多くの候補が生まれ、途中で失敗するケースが多い
-
-  実際のブラウザ（右から左）:
-  1. a.link を全て探す（キーセレクタ）
-  2. 各 a.link の祖先に p があるか
-  3. その祖先に .content があるか
-  4. その祖先に #main があるか
-  → キーセレクタで候補を絞り込み、
-    祖先チェーンを辿って検証する方が効率的
-
-Bloom Filter による高速化:
-  → DOM 要素の祖先チェーンに含まれる
-    id, class, tag name を Bloom Filter に記録
-  → セレクタの祖先要素が Bloom Filter にないなら
-    確実にマッチしない（高速な否定判定）
-  → False positive はあるが False negative はない
-
-スタイル共有 (Style Sharing):
-  → 兄弟要素で同じクラス・属性を持つ場合、
-    Computed Style を共有して計算コストを削減
-  → 条件: 同一タグ名、同一クラス、同一属性、
-    同一親要素のスタイルから同一セレクタにマッチ
-```
-
-### 5.6 CSS パーサーのエラー処理
-
-CSS パーサーもエラーに対して寛容であり、認識できないプロパティや値はスキップして処理を継続する。
+Browsers use multiple optimization techniques to efficiently match all DOM elements against all CSS rules.
 
 ```
-CSS エラー回復の例:
+Right-to-left selector evaluation:
 
-  /* 未知のプロパティ → スキップ */
+  Selector: #main .content p a.link
+
+  Naive approach (left-to-right):
+  1. Find #main
+  2. Find .content among its descendants → traverse many descendants
+  3. Find p among those descendants → traverse further
+  4. Find a.link among those descendants → traverse even further
+  → Candidates can "fan out" at each step
+  → Failing paths cannot be detected until the end
+
+  Actual browsers (right-to-left):
+  1. Find all a.link (the key selector) → relatively few on the page
+  2. Check whether each a.link has p as an ancestor
+  3. Check whether that ancestor has .content
+  4. Check whether that ancestor has #main
+  → The key selector greatly narrows down candidates
+  → Traversing the ancestor chain is a single path, so it is low cost
+  → Failure can be determined at an early stage
+
+Bloom Filter acceleration:
+  → Record id, class, and tag name found in the ancestor chain
+    of a DOM element in a Bloom Filter
+  → If an ancestor required by a selector is absent from the Bloom Filter,
+    it definitely does not match (fast negative determination)
+  → False positives are possible, but false negatives are not
+
+Style sharing:
+  → When sibling elements share the same class and attributes,
+    share the Computed Style to reduce calculation cost
+  → Conditions: same tag name, same class, same attributes,
+    matching same selectors from the same parent element's style
+```
+
+### 5.6 CSS Parser Error Handling
+
+The CSS parser is also tolerant of errors; it skips unrecognized properties or values and continues processing.
+
+```
+CSS error recovery example:
+
+  /* Unknown property → skip */
   .box {
-    color: red;         /* OK: 適用 */
-    colr: blue;         /* NG: スキップ（タイポ） */
-    font-size: 16px;    /* OK: 適用 */
+    color: red;         /* OK: applied */
+    colr: blue;         /* NG: skipped (typo) */
+    font-size: 16px;    /* OK: applied */
   }
 
-  /* 不正な値 → その宣言のみスキップ */
+  /* Invalid value → skip only that declaration */
   .box {
-    width: 100px;       /* OK: 適用 */
-    width: abc;         /* NG: スキップ */
-    height: 50px;       /* OK: 適用 */
+    width: 100px;       /* OK: applied */
+    width: abc;         /* NG: skipped */
+    height: 50px;       /* OK: applied */
   }
 
-  /* 不正なセレクタ → ルール全体をスキップ */
-  .valid { color: red; }           /* OK: 適用 */
-  .invalid[[ { color: blue; }      /* NG: ルール全体スキップ */
-  .also-valid { color: green; }    /* OK: 適用 */
+  /* Invalid selector → skip entire rule */
+  .valid { color: red; }           /* OK: applied */
+  .invalid[[ { color: blue; }      /* NG: entire rule skipped */
+  .also-valid { color: green; }    /* OK: applied */
 
-  /* 中括弧の不一致 → 回復を試みる */
+  /* Mismatched braces → attempt recovery */
   .box { color: red;
-    /* '}' が欠落 → 次の '}' まで読み飛ばす */
+    /* Missing '}' → skip forward to the next '}' */
   .next { color: blue; }
 
-この「フォワード互換性」は CSS の設計哲学の核心であり、
-古いブラウザでも新しい CSS 構文を含むスタイルシートを
-（未知部分をスキップして）処理できる。
+This "forward compatibility" is a core CSS design philosophy,
+allowing older browsers to process stylesheets containing new CSS syntax
+by skipping the unknown parts.
 ```
 
 ---
 
-## 6. レンダーツリーの構築
+## 6. Render Tree Construction
 
-### 6.1 DOMとCSSOMの統合
+### 6.1 DOM and CSSOM Integration
 
-レンダーツリー（Layout Tree とも呼ばれる）は、DOM ツリーと CSSOM を統合して構築される。表示対象の各要素に対して、確定したスタイル情報が付与される。
+The render tree (also called the Layout Tree) is built by integrating the DOM tree with the CSSOM. Each visible element is annotated with its finalized style information.
 
 ```
-DOM + CSSOM → レンダーツリー の詳細:
+DOM + CSSOM → Render Tree in detail:
 
-  DOM ツリー:                    CSSOM ルール:
-  Document                      body { font: 16px/1.5 sans-serif; }
-  └── html                      h1 { font-size: 2em; color: #333; }
-      ├── head                   p { margin: 1em 0; }
-      │   ├── title              .hidden { display: none; }
-      │   ├── style              .invisible { visibility: hidden; }
-      │   └── link               img { max-width: 100%; }
-      └── body                   ::before { content: "★"; }
+  DOM tree:                      CSSOM rules:
+  Document                       body { font: 16px/1.5 sans-serif; }
+  └── html                       h1 { font-size: 2em; color: #333; }
+      ├── head                    p { margin: 1em 0; }
+      │   ├── title               .hidden { display: none; }
+      │   ├── style               .invisible { visibility: hidden; }
+      │   └── link                img { max-width: 100%; }
+      └── body                    ::before { content: "★"; }
           ├── h1
           ├── p
           ├── div.hidden
@@ -1118,7 +1121,7 @@ DOM + CSSOM → レンダーツリー の詳細:
           ├── img
           └── script
 
-  レンダーツリー (構築結果):
+  Render tree (construction result):
   RenderView (viewport)
   └── RenderBody
       │  font: 16px/1.5 sans-serif
@@ -1126,429 +1129,429 @@ DOM + CSSOM → レンダーツリー の詳細:
       │   │  font-size: 32px; color: #333
       │   ├── RenderInline (::before pseudo)
       │   │   └── "★"
-      │   └── RenderText: タイトルテキスト
+      │   └── RenderText: heading text
       ├── RenderBlock (p)
       │   │  margin: 16px 0
-      │   └── RenderText: 段落テキスト
-      ├── RenderBlock (div.invisible)    ← visibility:hidden は含まれる
+      │   └── RenderText: paragraph text
+      ├── RenderBlock (div.invisible)    ← visibility:hidden is included
       │   │  visibility: hidden
-      │   └── (子要素...)
+      │   └── (child elements...)
       ├── RenderImage (img)
       │   └── max-width: 100%
       │
-      │  ※ head 要素は含まれない (display: none が UA スタイルで設定)
-      │  ※ div.hidden は含まれない (display: none)
-      │  ※ script 要素は含まれない (display: none が UA スタイルで設定)
-      └── (以上)
+      │  * head element not included (UA style sets display: none)
+      │  * div.hidden not included (display: none)
+      │  * script element not included (UA style sets display: none)
+      └── (end)
 
-  レンダーツリーに含まれない要素:
+  Elements excluded from the render tree:
   ┌────────────────────────┬──────────────────────────────┐
-  │ 要素                    │ 理由                          │
+  │ Element                │ Reason                        │
   ├────────────────────────┼──────────────────────────────┤
-  │ <head> とその子要素     │ UA スタイルで display: none    │
-  │ <script>               │ UA スタイルで display: none    │
-  │ display: none の要素    │ 明示的に非表示                │
-  │ <meta>, <link>         │ UA スタイルで display: none    │
+  │ <head> and children    │ UA style: display: none       │
+  │ <script>               │ UA style: display: none       │
+  │ display: none elements │ Explicitly hidden             │
+  │ <meta>, <link>         │ UA style: display: none       │
   └────────────────────────┴──────────────────────────────┘
 
-  レンダーツリーに含まれるが見えない要素:
+  Elements included in the render tree but not visible:
   ┌────────────────────────┬──────────────────────────────┐
-  │ 要素                    │ 理由                          │
+  │ Element                │ Reason                        │
   ├────────────────────────┼──────────────────────────────┤
-  │ visibility: hidden     │ スペースを占めるが透明         │
-  │ opacity: 0             │ 完全に透明だがスペースを占める  │
-  │ position: absolute +   │ 画面外に配置されている         │
-  │   left: -9999px        │                              │
-  │ clip-path: inset(100%) │ クリップで完全に切り取られる   │
+  │ visibility: hidden     │ Takes up space but transparent│
+  │ opacity: 0             │ Fully transparent, takes space│
+  │ position: absolute +   │ Positioned off-screen         │
+  │   left: -9999px        │                               │
+  │ clip-path: inset(100%) │ Completely clipped            │
   └────────────────────────┴──────────────────────────────┘
 ```
 
-### 6.2 擬似要素のレンダーツリーへの挿入
+### 6.2 Inserting Pseudo-Elements into the Render Tree
 
-`::before` と `::after` 擬似要素は DOM には存在しないが、レンダーツリーには含まれる。
+`::before` and `::after` pseudo-elements do not exist in the DOM, but they are included in the render tree.
 
 ```
-擬似要素の扱い:
+Handling of pseudo-elements:
 
   CSS:
   .quote::before {
-    content: "「";
+    content: "\u300C";
     color: gray;
   }
   .quote::after {
-    content: "」";
+    content: "\u300D";
     color: gray;
   }
 
   DOM:
-  <p class="quote">重要な言葉</p>
+  <p class="quote">Important words</p>
 
-  DOM ツリー（擬似要素は含まれない）:
+  DOM tree (pseudo-elements are not included):
   p.quote
-  └── "重要な言葉"
+  └── "Important words"
 
-  レンダーツリー（擬似要素が含まれる）:
+  Render tree (pseudo-elements are included):
   RenderBlock (p.quote)
   ├── RenderInline (::before)
-  │   └── RenderText: "「"
-  ├── RenderText: "重要な言葉"
+  │   └── RenderText: "\u300C"
+  ├── RenderText: "Important words"
   └── RenderInline (::after)
-      └── RenderText: "」"
+      └── RenderText: "\u300D"
 
-  → 擬似要素は DOM API からはアクセスできない
-  → querySelectorAll('::before') は動作しない
-  → getComputedStyle(el, '::before') でスタイルのみ取得可能
+  → Pseudo-elements cannot be accessed via the DOM API
+  → querySelectorAll('::before') does not work
+  → getComputedStyle(el, '::before') can retrieve only styles
 ```
 
-### 6.3 Anonymous Box の生成
+### 6.3 Anonymous Box Generation
 
-レンダーツリーでは、CSS の視覚フォーマットモデルに従って「匿名ボックス (Anonymous Box)」が自動生成される場合がある。
+In the render tree, "anonymous boxes" may be automatically generated in accordance with the CSS visual formatting model.
 
 ```
-Anonymous Box の例:
+Anonymous box example:
 
   DOM:
   <div>
-    テキスト1
-    <p>段落</p>
-    テキスト2
+    Text 1
+    <p>Paragraph</p>
+    Text 2
   </div>
 
   CSS:
   div { display: block; }
   p { display: block; }
 
-  レンダーツリー:
+  Render tree:
   RenderBlock (div)
-  ├── RenderBlock (anonymous)    ← 匿名ブロックボックス
-  │   └── RenderText: "テキスト1"
+  ├── RenderBlock (anonymous)    ← anonymous block box
+  │   └── RenderText: "Text 1"
   ├── RenderBlock (p)
-  │   └── RenderText: "段落"
-  └── RenderBlock (anonymous)    ← 匿名ブロックボックス
-      └── RenderText: "テキスト2"
+  │   └── RenderText: "Paragraph"
+  └── RenderBlock (anonymous)    ← anonymous block box
+      └── RenderText: "Text 2"
 
-  理由:
-  → ブロック要素 (div) の直接の子にテキストとブロック要素が
-    混在する場合、テキストは匿名ブロックボックスで包まれる
-  → CSS の規則: ブロックコンテナはブロックレベルの子のみ、
-    またはインラインレベルの子のみを持つべき
-  → 混在する場合は匿名ボックスで包んで統一する
+  Reason:
+  → When a block element (div) has a mix of text and block elements
+    as direct children, text is wrapped in an anonymous block box
+  → CSS rule: a block container should have only block-level children
+    or only inline-level children
+  → When both are mixed, anonymous boxes wrap them to unify the type
 ```
 
 ---
 
-## 7. Incremental Parsing と Speculative Parsing
+## 7. Incremental Parsing and Speculative Parsing
 
-### 7.1 ストリーミングパース（増分パーシング）
+### 7.1 Streaming Parse (Incremental Parsing)
 
-HTML パーサーはネットワークからのデータ受信を待つことなく、受け取ったチャンクから順次パースを行う。
+The HTML parser parses received chunks incrementally without waiting for the entire network data.
 
 ```
-増分パーシングの動作:
+Incremental parsing in action:
 
-  ネットワーク受信:
-  ──────────────────────────────────────────────────→ 時間
+  Network reception:
+  ──────────────────────────────────────────────────→ time
   │chunk1│      │chunk2│      │chunk3│      │chunk4│
   │<html>│      │<body>│      │<div> │      │</div>│
   │<head>│      │  <h1>│      │  <p> │      │</body│
   │...   │      │  ... │      │  ... │      │</html│
 
-  パーサー動作:
-  ──────────────────────────────────────────────────→ 時間
+  Parser behavior:
+  ──────────────────────────────────────────────────→ time
   │parse1│      │parse2│      │parse3│      │parse4│
-  │DOM構築│     │DOM追加│     │DOM追加│     │DOM完成│
+  │build │      │add   │      │add   │      │done  │
+  │ DOM  │      │ DOM  │      │ DOM  │      │      │
         ↓             ↓             ↓
-      DOMContentLoaded前のDOM部分木がどんどん成長
+      DOM subtree grows continuously before DOMContentLoaded
 
-  利点:
-  → First Contentful Paint が早まる
-  → ユーザーは全 HTML のダウンロード完了前にコンテンツを見られる
-  → HTML全体のサイズに関わらず応答性が向上する
+  Benefits:
+  → First Contentful Paint happens earlier
+  → Users can see content before the entire HTML download completes
+  → Responsiveness improves regardless of total HTML size
 
-  制約:
-  → パーサーは未受信部分の構造を予測できない
-  → <script> でパースがブロックされる場合がある
+  Constraints:
+  → The parser cannot predict the structure of unreceived portions
+  → Parsing may be blocked by <script> tags
 ```
 
-### 7.2 パーサーブロッキングとその回避
+### 7.2 Parser Blocking and How to Avoid It
 
-同期 `<script>` タグは HTML パーサーをブロックする。これはスクリプトが `document.write()` を使用してパーサーの入力を変更する可能性があるためである。
+Synchronous `<script>` tags block the HTML parser. This is because scripts may modify the parser's input stream via `document.write()`.
 
 ```
-パーサーブロッキングの種類:
+Types of parser blocking:
 
-  1. 同期スクリプト（パーサーブロッキング）
+  1. Synchronous scripts (parser-blocking)
   ──────────────────────────────────────────────────
   <script src="app.js"></script>
 
-  パーサー: [パース]→[停止......DL......実行]→[再開]
-                    ↑                        ↑
-               スクリプト発見           実行完了後に再開
+  Parser: [parse]→[stop......DL......execute]→[resume]
+                  ↑                           ↑
+             script found              resume after execution
 
-  2. async スクリプト（非パーサーブロッキング）
+  2. async scripts (non-parser-blocking)
   ──────────────────────────────────────────────────
   <script src="app.js" async></script>
 
-  パーサー: [パース]→[パース継続]→[パース継続]→[完了]
-  スクリプト:       [DL........]→[実行]
-                     ↑ パースと並行してDL、DL完了次第実行
+  Parser: [parse]→[continue parsing]→[continue]→[done]
+  Script:         [DL.............]→[execute]
+                   ↑ Downloads in parallel; executes as soon as DL completes
 
-  3. defer スクリプト（非パーサーブロッキング）
+  3. defer scripts (non-parser-blocking)
   ──────────────────────────────────────────────────
   <script src="app.js" defer></script>
 
-  パーサー: [パース]→[パース継続]→[完了]→[実行]
-  スクリプト:       [DL...........]     ↑
-                                  DOMContentLoaded 前に
-                                  ソース順で実行
+  Parser: [parse]→[continue parsing]→[done]→[execute]
+  Script:         [DL.................]      ↑
+                                       executes in source order
+                                       before DOMContentLoaded
 
-  4. module スクリプト（defer と同等）
+  4. module scripts (equivalent to defer)
   ──────────────────────────────────────────────────
   <script type="module" src="app.mjs"></script>
 
-  → デフォルトで defer と同じ動作
-  → async 属性を付けると async 動作に変更可能
+  → Behaves like defer by default
+  → Adding async attribute changes it to async behavior
 
-  比較表:
-  ┌──────────┬────────────┬──────────┬───────────────┐
-  │ 属性      │ パース     │ 実行タイミング │ 実行順序    │
-  │          │ ブロック   │              │             │
-  ├──────────┼────────────┼──────────────┼─────────────┤
-  │ なし      │ する       │ DL直後       │ ソース順    │
-  │ async    │ しない     │ DL直後       │ 不定        │
-  │ defer    │ しない     │ DOM構築後    │ ソース順    │
-  │ module   │ しない     │ DOM構築後    │ ソース順    │
-  │ module   │ しない     │ DL直後       │ 不定        │
-  │ +async   │            │              │             │
-  └──────────┴────────────┴──────────────┴─────────────┘
+  Comparison table:
+  ┌──────────┬────────────┬──────────────────┬─────────────┐
+  │ Attribute│ Parser     │ Execution timing  │ Order       │
+  │          │ blocking   │                  │             │
+  ├──────────┼────────────┼──────────────────┼─────────────┤
+  │ none     │ yes        │ right after DL   │ source order│
+  │ async    │ no         │ right after DL   │ unspecified │
+  │ defer    │ no         │ after DOM built  │ source order│
+  │ module   │ no         │ after DOM built  │ source order│
+  │ module   │ no         │ right after DL   │ unspecified │
+  │ +async   │            │                  │             │
+  └──────────┴────────────┴──────────────────┴─────────────┘
 ```
 
-### 7.3 Speculative Parsing（投機的パース / Preload Scanner）
+### 7.3 Speculative Parsing (Preload Scanner)
 
-メインパーサーがスクリプト実行でブロックされている間、ブラウザは「Preload Scanner」と呼ばれる軽量パーサーを並行して動作させる。
+While the main parser is blocked by script execution, the browser runs a lightweight parser called the "Preload Scanner" in parallel.
 
 ```
-Speculative Parsing の動作:
+How speculative parsing works:
 
-  メインパーサー:
-  [パース]→[ブロック(script DL+実行)]→[再開]→[パース]
-                  ↓ 同時に
+  Main parser:
+  [parse]→[blocked (script DL+execute)]→[resume]→[parse]
+                  ↓ simultaneously
   Preload Scanner:
-           [先読みスキャン..................]
-           発見: <link rel="stylesheet" href="styles.css">
-           発見: <script src="other.js">
-           発見: <img src="hero.jpg">
+           [ahead scanning.......................]
+           Found: <link rel="stylesheet" href="styles.css">
+           Found: <script src="other.js">
+           Found: <img src="hero.jpg">
                   ↓
-  ネットワーク:
-           [styles.css DL開始]
-           [other.js DL開始]
-           [hero.jpg DL開始]
+  Network:
+           [styles.css DL start]
+           [other.js DL start]
+           [hero.jpg DL start]
 
-  Preload Scanner が検出するリソース:
+  Resources detected by the Preload Scanner:
   → <link rel="stylesheet" href="...">
   → <script src="...">
   → <img src="...">
   → <video src="..."> / <source src="...">
   → <link rel="preload" href="...">
 
-  Preload Scanner が行わないこと:
-  → DOM ツリーの構築
-  → CSS の解析
-  → JavaScript の実行
-  → レイアウト計算
-  → あくまでリソース URL の発見とネットワークリクエスト発行のみ
+  What the Preload Scanner does NOT do:
+  → Build the DOM tree
+  → Parse CSS
+  → Execute JavaScript
+  → Calculate layout
+  → Only discovers resource URLs and initiates network requests
 
-  パフォーマンスへの影響:
-  → Preload Scanner が効果を発揮する条件:
-    同期 <script> の後に多くのリソース参照がある場合
-  → 効果がない場合:
-    全リソースが <head> 内の <script> より前に宣言されている場合
+  Performance impact:
+  → Conditions where the Preload Scanner is effective:
+    When many resource references follow a synchronous <script>
+  → Conditions where it has no effect:
+    When all resources are declared before <script> tags in <head>
 ```
 
 ---
 
-## 8. CSS がレンダリングに与えるブロッキング効果
+## 8. Render-Blocking Effect of CSS
 
-### 8.1 CSS のレンダーブロッキング
+### 8.1 CSS Render Blocking
 
-CSS はパーサーブロッキングではないが、**レンダーブロッキング**である。つまり、CSS の読み込みが完了するまで画面の描画が開始されない。
+CSS is not parser-blocking, but it is **render-blocking**. This means the browser will not start painting until CSS has finished loading.
 
 ```
-CSS レンダーブロッキングの動作:
+CSS render-blocking behavior:
 
-  HTML パーサー:
-  [パース開始]→[<link> 発見]→[パース継続]→[DOM 構築完了]
-                    ↓
-  CSS ダウンロード:
-               [DL.................]→[CSSOM 構築]
-                                             ↓
-  レンダリング:                        [待機........]→[レンダーツリー構築]→[描画]
+  HTML parser:
+  [start parsing]→[find <link>]→[continue parsing]→[DOM done]
+                      ↓
+  CSS download:
+               [DL.................]→[build CSSOM]
+                                              ↓
+  Rendering:                          [waiting......]→[build render tree]→[paint]
                                       ↑
-                                 CSSOM 構築完了まで
-                                 レンダリングは開始されない
+                               Rendering does not start
+                               until CSSOM construction completes
 
-  理由:
-  → CSSOM なしでレンダリングすると FOUC (Flash of Unstyled Content) が発生
-  → スタイルなしの瞬間的な表示はユーザー体験を大きく損なう
-  → そのためブラウザは CSSOM 構築完了を待つ
+  Reason:
+  → Rendering without CSSOM causes FOUC (Flash of Unstyled Content)
+  → A momentary flash of unstyled content severely harms user experience
+  → Therefore the browser waits for CSSOM construction to complete
 
-  CSS が JavaScript もブロックするケース:
-  → <link rel="stylesheet"> の後に <script> がある場合
-  → CSS の読み込みが完了するまでスクリプトの実行も遅延する
-  → スクリプトが Computed Style を参照する可能性があるため
-
+  Case where CSS also blocks JavaScript:
+  → When a <script> follows <link rel="stylesheet">
+  → Script execution is also delayed until CSS finishes loading
+  → This is because the script may reference the Computed Style
   <link rel="stylesheet" href="styles.css">
   <script>
-    // styles.css の読み込み完了まで実行されない
-    // getComputedStyle() が正しい値を返すことを保証するため
+    // Not executed until styles.css finishes loading
+    // Guarantees that getComputedStyle() returns correct values
     const style = getComputedStyle(document.body);
   </script>
 ```
 
-### 8.2 Critical CSS とリソースヒント
+### 8.2 Critical CSS and Resource Hints
 
-レンダーブロッキングの影響を最小化するための手法を解説する。
+This section explains techniques to minimize the impact of render blocking.
 
-**コード例 6: Critical CSS のインライン化**
+**Code Example 6: Inlining Critical CSS**
 
 ```html
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
 
-  <!-- Critical CSS: ATF (Above The Fold) に必要な最小限のスタイルをインライン化 -->
+  <!-- Critical CSS: inline the minimum styles needed for above-the-fold content -->
   <style>
-    /* ファーストビューに必要なスタイルのみ */
+    /* Only styles required for the first viewport */
     body { margin: 0; font-family: sans-serif; }
     .header { background: #333; color: white; padding: 1rem; }
     .hero { padding: 2rem; text-align: center; }
     .hero h1 { font-size: 2.5rem; margin: 0; }
   </style>
 
-  <!-- 非クリティカル CSS は非同期で読み込む -->
+  <!-- Load non-critical CSS asynchronously -->
   <link rel="preload" href="styles.css" as="style"
         onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="styles.css"></noscript>
 
-  <!-- リソースヒント -->
+  <!-- Resource hints -->
   <link rel="dns-prefetch" href="//fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preload" href="hero-image.webp" as="image">
 </head>
 <body>
-  <header class="header">サイト名</header>
+  <header class="header">Site Name</header>
   <section class="hero">
-    <h1>ようこそ</h1>
+    <h1>Welcome</h1>
   </section>
-  <!-- 以下のコンテンツは非同期 CSS 読み込み完了後にスタイル適用 -->
+  <!-- Content below will have styles applied after async CSS finishes loading -->
 </body>
 </html>
 ```
 
 ```
-リソースヒントの種類と効果:
+Resource hint types and effects:
 
   ┌────────────────────┬───────────────────────────────────┐
-  │ ヒント              │ 効果                              │
+  │ Hint               │ Effect                            │
   ├────────────────────┼───────────────────────────────────┤
-  │ dns-prefetch       │ DNS 解決のみ先行実行               │
-  │ preconnect         │ DNS + TCP + TLS を先行実行         │
-  │ preload            │ リソースを高優先度で先行取得        │
-  │ prefetch           │ 次のナビゲーションで必要な          │
-  │                    │ リソースを低優先度で先行取得        │
-  │ modulepreload      │ ES Module を先行取得・解析         │
+  │ dns-prefetch       │ Pre-resolve DNS only              │
+  │ preconnect         │ Pre-execute DNS + TCP + TLS       │
+  │ preload            │ Pre-fetch resource at high priority│
+  │ prefetch           │ Pre-fetch resource needed for     │
+  │                    │ the next navigation at low priority│
+  │ modulepreload      │ Pre-fetch and parse ES Module     │
   └────────────────────┴───────────────────────────────────┘
 ```
 
 ---
 
-## 9. アンチパターンと対策
+## 9. Anti-Patterns and Remedies
 
-### 9.1 アンチパターン 1: document.write() の使用
+### 9.1 Anti-Pattern 1: Using document.write()
 
-`document.write()` はパーサーの入力ストリームに直接テキストを挿入するAPIであり、多くの問題を引き起こす。
+`document.write()` is an API that inserts text directly into the parser's input stream, causing many problems.
 
 ```
-document.write() のアンチパターン:
+document.write() anti-pattern:
 
-  問題のあるコード:
+  Problematic code:
   <script>
     document.write('<link rel="stylesheet" href="dynamic.css">');
     document.write('<script src="analytics.js"><\/script>');
   </script>
 
-  問題点:
-  1. パーサーブロッキング
-     → document.write() 内のスクリプトもパーサーをブロック
-     → ネストされたブロッキングが発生
+  Problems:
+  1. Parser blocking
+     → Scripts inside document.write() also block the parser
+     → Nested blocking occurs
 
-  2. Speculative Parser の無効化
-     → document.write() はパーサーの入力を変更する
-     → Preload Scanner が発見したリソースが無効になる可能性
-     → ブラウザの最適化が機能しなくなる
+  2. Disabling the Speculative Parser
+     → document.write() changes the parser's input
+     → Resources discovered by the Preload Scanner may be invalidated
+     → Browser optimizations stop working
 
-  3. 遅い接続での自動ブロック
-     → Chrome は 2G 接続で document.write() による
-       外部スクリプトの読み込みをブロックする（Intervention）
+  3. Automatic blocking on slow connections
+     → Chrome blocks external script loading via document.write()
+       on 2G connections (Intervention)
 
-  4. 非同期スクリプトからの呼び出しで文書が破壊される
-     → DOMContentLoaded 後に document.write() を呼ぶと
-       ドキュメント全体が置き換えられる
+  4. Destroying the document when called from async scripts
+     → Calling document.write() after DOMContentLoaded replaces
+       the entire document
 
-  代替策:
-  // NG: document.write()
+  Alternatives:
+  // BAD: document.write()
   document.write('<script src="analytics.js"><\/script>');
 
-  // OK: DOM API を使用
+  // OK: use the DOM API
   const script = document.createElement('script');
   script.src = 'analytics.js';
   script.async = true;
   document.head.appendChild(script);
 
-  // OK: insertAdjacentHTML を使用
+  // OK: use insertAdjacentHTML
   document.body.insertAdjacentHTML('beforeend',
-    '<div class="dynamic-content">動的コンテンツ</div>');
+    '<div class="dynamic-content">Dynamic content</div>');
 ```
 
-### 9.2 アンチパターン 2: 過度に深いセレクタネスト
+### 9.2 Anti-Pattern 2: Excessively Deep Selector Nesting
 
 ```
-過度に深いセレクタのアンチパターン:
+Excessively deep selector anti-pattern:
 
-  NG: 深いネストのセレクタ（パフォーマンスが悪い）
+  BAD: deeply nested selectors (poor performance)
   ────────────────────────────────────────────
   #app > .main-content > .sidebar > .widget-area >
   .widget > .widget-header > h3 > span.icon {
     color: blue;
   }
 
-  問題点:
-  1. セレクタマッチングのコスト増大
-     → 右から左に評価するため、まず全ての span.icon を検索
-     → 各候補について 7 階層の祖先チェーンを辿る
-     → DOM の深さに比例してマッチングコストが増大
+  Problems:
+  1. Increased selector matching cost
+     → Evaluated right-to-left: first find all span.icon
+     → For each candidate, traverse 7 levels of the ancestor chain
+     → Matching cost grows proportionally to DOM depth
 
-  2. 詳細度の過剰な上昇
-     → (1, 1, 4) という高い詳細度
-     → オーバーライドに !important が必要になる悪循環
+  2. Excessively high specificity
+     → High specificity of (1, 1, 4)
+     → Overriding requires !important, creating a vicious cycle
 
-  3. HTML 構造への強い依存
-     → HTML の構造を変更するとスタイルが崩壊する
-     → 保守性が著しく低下する
+  3. Strong dependency on HTML structure
+     → Changing HTML structure breaks styles
+     → Maintainability degrades significantly
 
-  OK: BEM 命名規則によるフラットなセレクタ
+  OK: Flat selectors with BEM naming
   ────────────────────────────────────────────
   .widget__header-icon {
     color: blue;
   }
 
-  → 詳細度 (0, 1, 0)
-  → DOM 構造に依存しない
-  → マッチングコストが最小
-  → オーバーライドも容易
+  → Specificity (0, 1, 0)
+  → No dependency on DOM structure
+  → Minimum matching cost
+  → Easy to override
 
-  OK: CSS Custom Properties + コンポーネント設計
+  OK: CSS Custom Properties + component design
   ────────────────────────────────────────────
   .widget {
     --icon-color: blue;
@@ -1557,14 +1560,14 @@ document.write() のアンチパターン:
     color: var(--icon-color);
   }
 
-  → 最大2階層で済む
-  → カスタムプロパティでテーマ化も容易
+  → Only two levels of nesting needed
+  → Theming with custom properties is also easy
 ```
 
-### 9.3 アンチパターン 3: @import によるCSS読み込みの連鎖
+### 9.3 Anti-Pattern 3: Chained CSS Loading with @import
 
 ```
-@import チェーンのアンチパターン:
+@import chain anti-pattern:
 
   styles.css:
     @import url('reset.css');
@@ -1575,118 +1578,120 @@ document.write() のアンチパターン:
     @import url('buttons.css');
     @import url('forms.css');
 
-  問題点:
-  → @import は直列ダウンロードを引き起こす
-  → styles.css DL完了 → reset.css, layout.css, components.css DL開始
-  → components.css DL完了 → buttons.css, forms.css DL開始
-  → ウォーターフォール型のリクエストチェーンが発生
+  Problems:
+  → @import causes sequential downloading
+  → After styles.css DL completes → reset.css, layout.css, components.css start
+  → After components.css DL completes → buttons.css, forms.css start
+  → A waterfall request chain occurs
 
   ┌──────────────────────────────────────────────────┐
   │ <link>                     │ @import              │
   ├────────────────────────────┼──────────────────────┤
-  │ 並列ダウンロード            │ 直列ダウンロード      │
-  │ Preload Scanner が検出可能  │ CSS パース後に発見    │
-  │ 高速                       │ 低速                 │
+  │ Parallel download           │ Sequential download  │
+  │ Detectable by Preload Scanner│ Discovered after   │
+  │                             │  CSS parse          │
+  │ Fast                        │ Slow                │
   └────────────────────────────┴──────────────────────┘
 
-  対策:
-  <!-- NG: @import チェーン -->
+  Solution:
+  <!-- BAD: @import chain -->
   <link rel="stylesheet" href="styles.css">
 
-  <!-- OK: 全てを <link> で並列読み込み -->
+  <!-- OK: load everything in parallel with <link> -->
   <link rel="stylesheet" href="reset.css">
   <link rel="stylesheet" href="layout.css">
   <link rel="stylesheet" href="buttons.css">
   <link rel="stylesheet" href="forms.css">
 
-  <!-- さらに良い: ビルドツールで1ファイルに結合 -->
+  <!-- Even better: bundle into one file with a build tool -->
   <link rel="stylesheet" href="bundle.css">
 ```
 
 ---
 
-## 10. エッジケース分析
+## 10. Edge Case Analysis
 
-### 10.1 エッジケース 1: エンコーディング誤判定とパース失敗
+### 10.1 Edge Case 1: Encoding Misdetection and Parse Failure
 
 ```
-エンコーディング誤判定のシナリオ:
+Encoding misdetection scenario:
 
-  状況:
-  → サーバーが Content-Type: text/html (charsetなし) を返す
-  → HTML に <meta charset> がない
-  → HTML 内に Shift_JIS の日本語が含まれている
-  → ブラウザが UTF-8 と判定
+  Situation:
+  → Server returns Content-Type: text/html (no charset)
+  → HTML has no <meta charset>
+  → HTML contains multi-byte character content
+  → Browser determines encoding as UTF-8
 
-  発生する問題:
-  1. マルチバイト文字の途中でタグ区切り文字 '<' に相当する
-     バイトが出現する可能性
-  2. 属性値の中で引用符 '"' に相当するバイトが出現する可能性
-  3. パーサーが意図しないタグやコメントを検出
+  Problems that occur:
+  1. In the middle of a multi-byte character, a byte equivalent to
+     the tag delimiter '<' may appear
+  2. Inside an attribute value, a byte equivalent to a quote '"' may appear
+  3. Parser detects unintended tags or comments
 
-  例:
-  Shift_JIS での「表」= 0x95 0x5C
-  → 0x5C は ASCII の '\' (バックスラッシュ)
-  → UTF-8 として解釈すると不正なバイト列
-  → パース結果が文字化けするだけでなく、
-    DOM 構造自体が壊れる可能性がある
+  Example:
+  "Omote" (表) in Shift_JIS = 0x95 0x5C
+  → 0x5C is ASCII '\' (backslash)
+  → Interpreted as UTF-8, it becomes an invalid byte sequence
+  → Not only garbled characters result, but
+    the DOM structure itself may be corrupted
 
-  Shift_JIS での「ソ」= 0x83 0x5C
-  → 同様に 0x5C を含む
-  → CSS の url() 内でパス区切りと誤認される場合がある
+  "So" (ソ) in Shift_JIS = 0x83 0x5C
+  → Also contains 0x5C
+  → In CSS url(), it may be misidentified as a path separator
 
-  対策:
-  → 必ず UTF-8 を使用し、HTTP ヘッダと meta タグの両方で宣言
+  Remedies:
+  → Always use UTF-8 and declare it in both the HTTP header and meta tag
   → Content-Type: text/html; charset=UTF-8
-  → <meta charset="UTF-8">（head 内の最初の要素として配置）
-  → BOM の付与は推奨されないが、最終手段として有効
+  → <meta charset="UTF-8"> (placed as the first element in head)
+  → Adding a BOM is not recommended but is valid as a last resort
 ```
 
-### 10.2 エッジケース 2: 超巨大DOMとパフォーマンス劣化
+### 10.2 Edge Case 2: Huge DOM and Performance Degradation
 
 ```
-巨大 DOM のパフォーマンス影響:
+Performance impact of a huge DOM:
 
-  問題の発生条件:
-  → DOM ノード数が数万〜数十万に達するページ
-  → 例: 無限スクロールで全データを DOM に追加し続ける
-  → 例: 大量の行を持つテーブル（<tr> が 10,000 行以上）
+  Conditions that cause the problem:
+  → Pages where DOM node count reaches tens of thousands to hundreds of thousands
+  → Example: appending all data to the DOM continuously with infinite scroll
+  → Example: a table with huge numbers of rows (10,000+ <tr> elements)
 
-  影響を受ける処理:
+  Affected processes:
   ┌──────────────────────────┬──────────────────────────────┐
-  │ 処理                     │ 影響                          │
+  │ Process                  │ Impact                        │
   ├──────────────────────────┼──────────────────────────────┤
-  │ 初期パース                │ DOM 構築時間の線形的増大       │
-  │ スタイル計算              │ 全要素×全ルールのマッチング    │
-  │                          │ O(n * m) のコスト増大          │
-  │ レイアウト                │ ボックスモデル計算の増大       │
-  │ メモリ使用量              │ 各ノードが C++ オブジェクト    │
-  │                          │ として存在するため増大          │
-  │ querySelector            │ サブツリー全体を走査           │
-  │ DOM 操作                 │ リフロー範囲の拡大             │
-  │ ガベージコレクション      │ 大量オブジェクトの管理コスト   │
+  │ Initial parse            │ Linear increase in DOM build  │
+  │ Style calculation        │ All elements × all rules:     │
+  │                          │ O(n * m) cost growth          │
+  │ Layout                   │ Increased box model calculation│
+  │ Memory usage             │ Each node exists as a C++     │
+  │                          │ object → memory grows         │
+  │ querySelector            │ Traverses the entire subtree  │
+  │ DOM operations           │ Expanded reflow scope         │
+  │ Garbage collection       │ Management cost of many       │
+  │                          │ objects                       │
   └──────────────────────────┴──────────────────────────────┘
 
-  推奨される DOM ノード数の目安:
-  → 合計ノード数: 1,500 以下が理想
-  → 最大の深さ: 32 レベル以下
-  → 親ノードあたりの子ノード: 60 以下
-  → Lighthouse は 1,400 ノード超で警告を出す
+  Recommended DOM node count guidelines:
+  → Total node count: ideally 1,500 or fewer
+  → Maximum depth: 32 levels or fewer
+  → Children per parent node: 60 or fewer
+  → Lighthouse warns when nodes exceed 1,400
 
-  対策:
-  → 仮想スクロール (Virtual Scrolling) の導入
-    → 表示領域内の要素のみ DOM に配置
-    → スクロールに応じて DOM を動的に入れ替え
-  → コンテンツの遅延読み込み (Lazy Loading)
-  → content-visibility: auto の活用
-    → 画面外の要素のレンダリングをスキップ
-    → DOM には存在するがスタイル計算・レイアウトを省略
+  Remedies:
+  → Introduce virtual scrolling
+    → Only place visible elements in the DOM
+    → Dynamically swap DOM elements as user scrolls
+  → Lazy loading of content
+  → Use content-visibility: auto
+    → Skip rendering of off-screen elements
+    → Elements exist in the DOM but style calculation and layout are skipped
 ```
 
-### 10.3 エッジケース 3: テンプレートタグと Shadow DOM のパース
+### 10.3 Edge Case 3: Parsing of Template Tags and Shadow DOM
 
 ```
-<template> タグの特殊なパース処理:
+Special parse processing of <template> tags:
 
   <template id="card-template">
     <div class="card">
@@ -1695,14 +1700,14 @@ document.write() のアンチパターン:
     </div>
   </template>
 
-  パーサーの動作:
-  1. <template> StartTag を検出
-  2. 挿入モードを保存し、"in template" モードに切り替え
-  3. テンプレートの内容は別の DocumentFragment に構築
-     → メインの DOM ツリーには接続されない
-  4. </template> で保存したモードに復帰
+  Parser behavior:
+  1. Detect <template> StartTag
+  2. Save insertion mode and switch to "in template" mode
+  3. Template content is built in a separate DocumentFragment
+     → Not connected to the main DOM tree
+  4. Restore saved mode on </template>
 
-  結果:
+  Result:
   DOM:
   template#card-template
   └── #document-fragment (template.content)
@@ -1710,15 +1715,15 @@ document.write() のアンチパターン:
           ├── h2.card-title
           └── p.card-body
 
-  → template.content が DocumentFragment
-  → template 要素自体の childNodes は空
-  → レンダーツリーには含まれない（表示されない）
+  → template.content is a DocumentFragment
+  → template element's own childNodes is empty
+  → Not included in the render tree (not displayed)
 
-Shadow DOM のパース:
-  → JavaScript で attachShadow() を使用して作成
-  → HTML パーサーが直接 Shadow DOM を構築するわけではない
-  → ただし Declarative Shadow DOM (<template shadowrootmode="open">)
-    は HTML パーサーが処理する
+Shadow DOM parsing:
+  → Created using attachShadow() in JavaScript
+  → The HTML parser does not directly build Shadow DOM
+  → However, Declarative Shadow DOM (<template shadowrootmode="open">)
+    is processed by the HTML parser
 
   <div id="host">
     <template shadowrootmode="open">
@@ -1728,31 +1733,31 @@ Shadow DOM のパース:
     <span>Light DOM content</span>
   </div>
 
-  → パーサーが <template shadowrootmode="open"> を検出
-  → Shadow Root を作成し、テンプレート内容を Shadow Tree に配置
-  → <slot> を通じて Light DOM の子要素が配置される
+  → Parser detects <template shadowrootmode="open">
+  → Creates a Shadow Root and places template content in the Shadow Tree
+  → Light DOM child elements are placed via <slot>
 ```
 
 ---
 
-## 11. 演習問題
+## 11. Exercises
 
-### 演習 1: 基礎レベル - トークン化とDOM構築の追跡
+### Exercise 1: Basic Level — Tracing Tokenization and DOM Construction
 
-以下の HTML を手動でトークン化し、生成される DOM ツリーを描画せよ。
+Manually tokenize the following HTML and draw the generated DOM tree.
 
 ```html
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>演習</title>
+  <title>Exercise</title>
 </head>
 <body>
   <main>
     <article>
-      <h1 class="title" id="top">見出し</h1>
-      <p>本文 <a href="#">リンク</a> 続き</p>
+      <h1 class="title" id="top">Heading</h1>
+      <p>Body text <a href="#">Link</a> continued</p>
     </article>
   </main>
 </body>
@@ -1760,162 +1765,160 @@ Shadow DOM のパース:
 ```
 
 ```
-解答のガイド:
+Answer guide:
 
-  ステップ 1: トークン列を列挙する
-  → DOCTYPE トークン (name: "html")
-  → StartTag: html (lang="ja")
-  → Character: 改行+空白
+  Step 1: Enumerate the token sequence
+  → DOCTYPE token (name: "html")
+  → StartTag: html (lang="en")
+  → Character: newline + whitespace
   → StartTag: head
-  → Character: 改行+空白
+  → Character: newline + whitespace
   → StartTag: meta (charset="UTF-8") [self-closing]
-  → Character: 改行+空白
+  → Character: newline + whitespace
   → StartTag: title
-  → Character: "演習"
+  → Character: "Exercise"
   → EndTag: title
-  → ... (以下省略、全てのトークンを列挙する)
+  → ... (omitted below; enumerate all tokens)
 
-  ステップ 2: DOM ツリーを構築する
+  Step 2: Build the DOM tree
   Document
   ├── DOCTYPE: html
-  └── html [lang="ja"]
+  └── html [lang="en"]
       ├── head
       │   ├── meta [charset="UTF-8"]
       │   └── title
-      │       └── "演習"
+      │       └── "Exercise"
       └── body
           └── main
               └── article
                   ├── h1 [class="title", id="top"]
-                  │   └── "見出し"
+                  │   └── "Heading"
                   └── p
-                      ├── "本文 "
+                      ├── "Body text "
                       ├── a [href="#"]
-                      │   └── "リンク"
-                      └── " 続き"
+                      │   └── "Link"
+                      └── " continued"
 
-  ステップ 3: オープン要素スタックの変化を記録する
-  → 各トークン受信時のスタック状態と挿入モードを追跡
+  Step 3: Record the changes to the stack of open elements
+  → Track the stack state and insertion mode at each token reception
 ```
 
-### 演習 2: 中級レベル - エラー回復の予測
+### Exercise 2: Intermediate Level — Predicting Error Recovery
 
-以下の不正な HTML がブラウザでどのようにパースされるかを予測せよ。DevTools の Elements パネルで結果を確認し、予測と比較せよ。
+Predict how the following malformed HTML will be parsed by the browser. Verify the result in the DevTools Elements panel and compare with your prediction.
 
 ```html
 <div>
-  <p>段落1
-  <p>段落2
+  <p>Paragraph 1
+  <p>Paragraph 2
   <table>
     <tr>
-      <td>セル
-      不正なテキスト
+      <td>Cell
+      Invalid text
     </tr>
   </table>
-  <b><i>交差するタグ</b></i>
+  <b><i>Crossed tags</b></i>
   <ul>
-    <li>リスト1
-    <li>リスト2
+    <li>Item 1
+    <li>Item 2
   </ul>
   <form>
-    <form>ネストされたform</form>
+    <form>Nested form</form>
   </form>
 </div>
 ```
 
 ```
-解答のポイント:
+Key points for the answer:
 
-  1. <p> タグの暗黙的な閉じ
-     → <p>段落1 の後に <p> が来ると暗黙の </p> が挿入される
-     → 結果: <p>段落1</p><p>段落2</p>
+  1. Implicit closing of <p> tags
+     → When a second <p> follows <p>Paragraph 1, an implicit </p> is inserted
+     → Result: <p>Paragraph 1</p><p>Paragraph 2</p>
 
-  2. <table> 内の不正なテキスト
-     → "不正なテキスト" は foster parenting により
-       テーブルの前に移動される
+  2. Invalid text inside <table>
+     → "Invalid text" is moved before the table by foster parenting
 
-  3. <b><i> の交差
-     → Adoption Agency Algorithm により:
-       <b><i>交差するタグ</i></b><i></i>
-       と再構成される
+  3. Crossed <b><i> tags
+     → Adoption Agency Algorithm reconstructs as:
+       <b><i>Crossed tags</i></b><i></i>
 
-  4. <li> の暗黙的な閉じ
-     → <li>リスト1 の後に <li> が来ると暗黙の </li> が挿入される
+  4. Implicit closing of <li>
+     → When a second <li> follows <li>Item 1, an implicit </li> is inserted
 
-  5. ネストされた <form>
-     → HTML 仕様では <form> のネストは禁止
-     → 内側の <form> タグは無視される
-     → 結果: <form>ネストされたform</form>
+  5. Nested <form>
+     → The HTML spec prohibits nesting <form>
+     → The inner <form> tag is ignored
+     → Result: <form>Nested form</form>
 ```
 
-### 演習 3: 上級レベル - パフォーマンス最適化の設計
+### Exercise 3: Advanced Level — Designing a Resource Loading Strategy
 
-以下の要件を満たすHTMLドキュメントのリソース読み込み戦略を設計せよ。
+Design a resource loading strategy for an HTML document that satisfies the following requirements.
 
 ```
-要件:
-  → ファーストビューに3つのCSSファイルが必要
+Requirements:
+  → Three CSS files needed for the first viewport
      - reset.css (2KB)
      - layout.css (5KB)
      - hero.css (3KB)
-  → スクロール後に必要なCSS
+  → CSS needed after scrolling
      - components.css (15KB)
      - animations.css (8KB)
   → JavaScript
-     - app.js (50KB) - メインアプリケーション
-     - analytics.js (10KB) - 分析（非同期で可）
-     - widget.js (20KB) - ページ下部のウィジェット
-  → 画像
-     - hero.webp (100KB) - ファーストビューのヒーロー画像
-     - icon-sprite.svg (5KB) - アイコン群
-  → フォント
+     - app.js (50KB) - main application
+     - analytics.js (10KB) - analytics (can be async)
+     - widget.js (20KB) - widget at the bottom of the page
+  → Images
+     - hero.webp (100KB) - hero image for first viewport
+     - icon-sprite.svg (5KB) - icon set
+  → Fonts
      - custom-font.woff2 (30KB)
 
-設計のガイドライン:
-  1. Critical CSS のインライン化を検討する
-     → reset.css + layout.css + hero.css = 合計 10KB
-     → インライン化すれば外部CSSのDL待ちが不要
-     → ただし HTML サイズが増加するトレードオフ
+Design guidelines:
+  1. Consider inlining Critical CSS
+     → reset.css + layout.css + hero.css = total 10KB
+     → Inlining avoids waiting for external CSS downloads
+     → Trade-off: HTML size increases
 
-  2. 非クリティカル CSS の遅延読み込み
-     → components.css, animations.css は
-       media="print" + onload で非同期化
-     → または rel="preload" + as="style" で先行取得
+  2. Deferred loading of non-critical CSS
+     → components.css, animations.css can be made async
+       using media="print" + onload
+     → Or use rel="preload" + as="style" to pre-fetch
 
-  3. JavaScript の読み込み戦略
-     → app.js: defer（DOM構築後にソース順で実行）
-     → analytics.js: async（DL次第実行、順序不問）
-     → widget.js: defer + ページ下部に配置
+  3. JavaScript loading strategy
+     → app.js: defer (execute in source order after DOM is built)
+     → analytics.js: async (execute as soon as downloaded, order doesn't matter)
+     → widget.js: defer + place near bottom of page
 
-  4. リソースヒントの活用
+  4. Use resource hints
      → preload: hero.webp, custom-font.woff2
-     → preconnect: フォント配信サーバー
-     → dns-prefetch: 分析サーバー
+     → preconnect: font delivery server
+     → dns-prefetch: analytics server
 
-  5. 最終的な <head> の構成例を書き出す
+  5. Write out the final <head> configuration
 ```
 
-**コード例 7: 最適化されたリソース読み込み**
+**Code Example 7: Optimized Resource Loading**
 
 ```html
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- リソースヒント: 先行接続 -->
+  <!-- Resource hints: pre-connect -->
   <link rel="preconnect" href="https://fonts.example.com" crossorigin>
   <link rel="dns-prefetch" href="//analytics.example.com">
 
-  <!-- Critical リソースの先行取得 -->
+  <!-- Pre-fetch critical resources -->
   <link rel="preload" href="hero.webp" as="image" type="image/webp">
   <link rel="preload" href="custom-font.woff2" as="font"
         type="font/woff2" crossorigin>
 
-  <!-- Critical CSS をインライン化 -->
+  <!-- Inline Critical CSS -->
   <style>
-    /* reset.css + layout.css + hero.css の内容 (合計約10KB) */
+    /* Contents of reset.css + layout.css + hero.css (about 10KB total) */
     *, *::before, *::after { box-sizing: border-box; margin: 0; }
     body { font-family: 'CustomFont', sans-serif; line-height: 1.6; }
     .header { /* ... */ }
@@ -1927,7 +1930,7 @@ Shadow DOM のパース:
     }
   </style>
 
-  <!-- 非クリティカル CSS の非同期読み込み -->
+  <!-- Non-critical CSS loaded asynchronously -->
   <link rel="preload" href="components.css" as="style"
         onload="this.onload=null;this.rel='stylesheet'">
   <link rel="preload" href="animations.css" as="style"
@@ -1937,13 +1940,13 @@ Shadow DOM のパース:
     <link rel="stylesheet" href="animations.css">
   </noscript>
 
-  <!-- JavaScript: defer でパーサーブロッキング回避 -->
+  <!-- JavaScript: use defer to avoid parser blocking -->
   <script src="app.js" defer></script>
   <script src="widget.js" defer></script>
-  <!-- Analytics: async で独立実行 -->
+  <!-- Analytics: run independently with async -->
   <script src="analytics.js" async></script>
 
-  <title>最適化されたページ</title>
+  <title>Optimized Page</title>
 </head>
 <body>
   <header class="header">
@@ -1951,103 +1954,103 @@ Shadow DOM のパース:
          loading="eager">
   </header>
   <section class="hero">
-    <img src="hero.webp" alt="ヒーロー画像"
+    <img src="hero.webp" alt="Hero image"
          width="1200" height="600"
          fetchpriority="high">
   </section>
-  <!-- 以下は遅延読み込み対象 -->
+  <!-- Below is subject to lazy loading -->
 </body>
 </html>
 ```
 
 ---
 
-## 12. HTMLパーサーとCSSパーサーの比較
+## 12. HTML Parser vs. CSS Parser Comparison
 
 ```
 ┌────────────────────┬──────────────────────┬──────────────────────┐
-│ 観点                │ HTML パーサー          │ CSS パーサー          │
+│ Aspect             │ HTML Parser           │ CSS Parser           │
 ├────────────────────┼──────────────────────┼──────────────────────┤
-│ 文法の種類          │ 文脈依存             │ 文脈自由              │
-│                    │ (非正規、非CFG)       │ (CFG)                │
+│ Grammar type       │ Context-dependent    │ Context-free         │
+│                    │ (non-regular, non-CFG)│ (CFG)               │
 ├────────────────────┼──────────────────────┼──────────────────────┤
-│ エラー処理          │ 仕様で詳細に         │ 不正な宣言を          │
-│                    │ 回復手順が定義        │ スキップ              │
+│ Error handling     │ Detailed recovery    │ Skip invalid         │
+│                    │ procedure in spec    │ declarations         │
 ├────────────────────┼──────────────────────┼──────────────────────┤
-│ 出力                │ DOM ツリー            │ CSSOM                │
+│ Output             │ DOM tree             │ CSSOM                │
 ├────────────────────┼──────────────────────┼──────────────────────┤
-│ 増分パース          │ 対応                 │ 通常は全体を          │
-│                    │ (ストリーミング)       │ 一括パース            │
+│ Incremental parse  │ Supported            │ Usually parses       │
+│                    │ (streaming)          │ all at once          │
 ├────────────────────┼──────────────────────┼──────────────────────┤
-│ スクリプトとの       │ ブロッキングされる     │ スタイルシート読込で   │
-│ 相互作用            │ (同期スクリプト)       │ JS 実行をブロック     │
+│ Interaction with   │ Blocked by           │ Stylesheet loading   │
+│ scripts            │ (synchronous scripts)│ blocks JS execution  │
 ├────────────────────┼──────────────────────┼──────────────────────┤
-│ 仕様の定義場所      │ HTML Living Standard  │ CSS Syntax Module    │
-│                    │ "Parsing" セクション   │ Level 3              │
+│ Specification      │ HTML Living Standard │ CSS Syntax Module    │
+│ location           │ "Parsing" section    │ Level 3              │
 ├────────────────────┼──────────────────────┼──────────────────────┤
-│ 状態数              │ 80+ 状態              │ トークナイザ状態は     │
-│                    │ (トークナイザのみ)     │ 比較的少数            │
+│ State count        │ 80+ states           │ Tokenizer states are │
+│                    │ (tokenizer only)     │ relatively fewer     │
 ├────────────────────┼──────────────────────┼──────────────────────┤
-│ ツール表現          │ ステートマシン +       │ 再帰下降パーサー      │
-│                    │ スタックベース構文解析  │ (多くの実装で)        │
+│ Tool representation│ State machine +      │ Recursive descent    │
+│                    │ stack-based parsing  │ parser (many impls.) │
 ├────────────────────┼──────────────────────┼──────────────────────┤
-│ フォワード          │ 未知のタグは           │ 未知のプロパティは    │
-│ 互換性              │ HTMLUnknownElement    │ スキップ              │
-│                    │ として処理             │                      │
+│ Forward            │ Unknown tags are     │ Unknown properties   │
+│ compatibility      │ processed as         │ are skipped          │
+│                    │ HTMLUnknownElement   │                      │
 └────────────────────┴──────────────────────┴──────────────────────┘
 ```
 
 ---
 
-## 13. パフォーマンス計測とデバッグ手法
+## 13. Performance Measurement and Debugging Techniques
 
-### 13.1 DevTools を使ったパース状況の確認
+### 13.1 Checking Parse Status with DevTools
 
 ```
-Chrome DevTools でのパフォーマンス分析:
+Performance analysis with Chrome DevTools:
 
-  Performance パネル:
-  1. "Record" を押してページ読み込みを記録
-  2. "Main" セクションでパース処理を確認
+  Performance panel:
+  1. Click "Record" and record the page load
+  2. Check parsing activity in the "Main" section
 
-  確認できるイベント:
+  Events you can observe:
   ┌──────────────────────────┬──────────────────────────┐
-  │ イベント名                │ 意味                      │
+  │ Event name               │ Meaning                  │
   ├──────────────────────────┼──────────────────────────┤
-  │ Parse HTML               │ HTML パース処理時間        │
-  │ Parse Stylesheet         │ CSS パース処理時間         │
-  │ Recalculate Style        │ スタイル再計算             │
-  │ Layout                   │ レイアウト計算             │
-  │ Evaluate Script          │ JS 実行                   │
-  │ DOMContentLoaded         │ DOM 構築完了               │
-  │ First Paint              │ 最初の描画                │
-  │ First Contentful Paint   │ 最初のコンテンツ描画       │
-  │ Largest Contentful Paint │ 最大コンテンツ描画         │
+  │ Parse HTML               │ HTML parse duration       │
+  │ Parse Stylesheet         │ CSS parse duration        │
+  │ Recalculate Style        │ Style recalculation       │
+  │ Layout                   │ Layout calculation        │
+  │ Evaluate Script          │ JS execution              │
+  │ DOMContentLoaded         │ DOM construction complete │
+  │ First Paint              │ First paint               │
+  │ First Contentful Paint   │ First contentful paint    │
+  │ Largest Contentful Paint │ Largest contentful paint  │
   └──────────────────────────┴──────────────────────────┘
 
-  Network パネル:
-  → CSS ファイルのウォーターフォールチャートで
-    読み込み順序とブロッキングを確認
-  → "Disable cache" にチェックしてキャッシュなしの
-    本来の読み込み時間を確認
+  Network panel:
+  → Check the waterfall chart for CSS files to see
+    load order and blocking
+  → Check "Disable cache" to see actual load time
+    without cache
 
-  Coverage パネル:
-  → 使用されていない CSS/JS の割合を表示
-  → 赤色の部分が未使用コード
-  → Critical CSS の特定に活用できる
+  Coverage panel:
+  → Shows the percentage of unused CSS/JS
+  → Red areas indicate unused code
+  → Useful for identifying Critical CSS
 
-  Elements パネル:
-  → Computed タブで最終的な Computed Style を確認
-  → 各プロパティがどのルールから来ているかを追跡
-  → Styles パネルで適用されるルールの優先順位を確認
+  Elements panel:
+  → Check the final Computed Style in the Computed tab
+  → Trace which rule each property came from
+  → Check rule priority in the Styles panel
 ```
 
-### 13.2 PerformanceObserver による計測
+### 13.2 Measuring with PerformanceObserver
 
-**コード例 8: パース関連のパフォーマンスメトリクスを取得する**
+**Code Example 8: Collecting Parse-Related Performance Metrics**
 
 ```javascript
-// PerformanceObserver で LCP を計測
+// Measure LCP with PerformanceObserver
 const lcpObserver = new PerformanceObserver((list) => {
   const entries = list.getEntries();
   const lastEntry = entries[entries.length - 1];
@@ -2056,7 +2059,7 @@ const lcpObserver = new PerformanceObserver((list) => {
 });
 lcpObserver.observe({ type: 'largest-contentful-paint', buffered: true });
 
-// Resource Timing で CSS ファイルの読み込み時間を計測
+// Measure CSS file load time with Resource Timing
 const resourceObserver = new PerformanceObserver((list) => {
   for (const entry of list.getEntries()) {
     if (entry.initiatorType === 'link' || entry.initiatorType === 'css') {
@@ -2070,7 +2073,7 @@ const resourceObserver = new PerformanceObserver((list) => {
 });
 resourceObserver.observe({ type: 'resource', buffered: true });
 
-// Navigation Timing で DOM パース完了時刻を取得
+// Get DOM parse completion time with Navigation Timing
 window.addEventListener('load', () => {
   const nav = performance.getEntriesByType('navigation')[0];
   console.log('DOM Interactive:', nav.domInteractive, 'ms');
@@ -2081,21 +2084,21 @@ window.addEventListener('load', () => {
 
 ---
 
-## FAQ（よくある質問）
+## FAQ
 
-### Q1: innerHTML と DOM API のどちらがパフォーマンスに優れるか？
+### Q1: Which is better for performance, innerHTML or the DOM API?
 
 ```
 innerHTML vs DOM API:
 
-  innerHTML を使用する場合:
+  Using innerHTML:
   element.innerHTML = '<div class="card"><h2>Title</h2><p>Body</p></div>';
 
-  → ブラウザ内部で HTML パーサーが起動される
-  → 文字列をトークン化 → ツリー構築 → DOM ノード生成
-  → 既存の子ノードは全て破棄される（GC 対象）
+  → The HTML parser is invoked inside the browser
+  → String → tokenize → tree construction → DOM node generation
+  → All existing child nodes are destroyed (eligible for GC)
 
-  DOM API を使用する場合:
+  Using the DOM API:
   const card = document.createElement('div');
   card.className = 'card';
   const h2 = document.createElement('h2');
@@ -2106,169 +2109,167 @@ innerHTML vs DOM API:
   card.appendChild(p);
   element.appendChild(card);
 
-  → パーサーを経由しない直接的な DOM 操作
-  → 各操作が個別の DOM ミューテーション
+  → Direct DOM manipulation without going through the parser
+  → Each operation is an individual DOM mutation
 
-  一般的な傾向:
-  → 少数の要素: DOM API が高速（パーサーのオーバーヘッドなし）
-  → 大量の要素: innerHTML が高速（文字列結合のほうが軽い）
-  → 最適解: DocumentFragment + DOM API、
-    または requestAnimationFrame でバッチ化
+  General trends:
+  → Few elements: DOM API is faster (no parser overhead)
+  → Many elements: innerHTML is faster (string concatenation is lighter)
+  → Optimal: DocumentFragment + DOM API,
+    or batched with requestAnimationFrame
 
-  セキュリティの観点:
-  → innerHTML はXSSの脆弱性を生むリスクがある
-  → ユーザー入力を含む場合は textContent を使用
-  → 信頼できないHTMLを挿入する場合は DOMPurify 等でサニタイズ
+  Security perspective:
+  → innerHTML can introduce XSS vulnerabilities
+  → Use textContent when input contains user data
+  → Sanitize untrusted HTML with DOMPurify or similar tools
 ```
 
-### Q2: なぜ CSS セレクタは右から左に評価されるのか？
+### Q2: Why are CSS selectors evaluated right-to-left?
 
 ```
-右から左の評価が効率的な理由:
+Why right-to-left evaluation is efficient:
 
-  セレクタ: .sidebar .widget h3
+  Selector: .sidebar .widget h3
 
-  左から右の場合:
-  1. .sidebar を探す → 数個見つかる
-  2. 各 .sidebar の子孫で .widget を探す → 多数の子孫を走査
-  3. 各 .widget の子孫で h3 を探す → さらに走査
-  → 各段階で候補が「扇状に」広がる可能性
-  → 失敗するパスも最後まで走査しないと分からない
+  Left-to-right approach:
+  1. Find .sidebar → a few found
+  2. Find .widget among descendants of each .sidebar → traverse many
+  3. Find h3 among descendants of each .widget → traverse even more
+  → Candidates can "fan out" at each stage
+  → Failing paths cannot be detected until the end
 
-  右から左の場合:
-  1. h3 を全て探す → ページ上の h3 は比較的少数
-  2. 各 h3 の祖先に .widget があるか → 祖先チェーンを辿る
-  3. .widget の祖先に .sidebar があるか → さらに辿る
-  → 最初のステップで候補が大きく絞り込まれる
-  → 祖先チェーンは1本道なので走査コストが低い
-  → 失敗判定が早い段階で行える
+  Right-to-left approach:
+  1. Find all h3 → relatively few h3 elements on the page
+  2. Check if each h3 has .widget as an ancestor → traverse ancestor chain
+  3. Check if .widget has .sidebar as an ancestor → traverse further
+  → Candidates are significantly narrowed at the first step
+  → The ancestor chain is a single path, so traversal cost is low
+  → Failure can be determined at an early stage
 
-  定量的な比較:
-  → DOM ノード数 N、セレクタの深さ D、マッチ数 M とすると
-  → 左から右: O(N * D) の平均ケース
-  → 右から左: O(M * D) の平均ケース
-  → 通常 M << N なので右から左が効率的
+  Quantitative comparison:
+  → With N DOM nodes, selector depth D, and M matches:
+  → Left-to-right: O(N * D) average case
+  → Right-to-left: O(M * D) average case
+  → Since typically M << N, right-to-left is more efficient
 ```
 
-### Q3: display: none と visibility: hidden のパース・レンダリングへの違いは何か？
+### Q3: What is the difference between display: none and visibility: hidden in terms of parsing and rendering?
 
 ```
 display: none vs visibility: hidden:
 
   ┌──────────────────┬──────────────────┬──────────────────┐
-  │ 項目              │ display: none    │ visibility:hidden│
+  │ Aspect            │ display: none    │ visibility:hidden│
   ├──────────────────┼──────────────────┼──────────────────┤
-  │ DOM に存在        │ はい              │ はい              │
-  │ レンダーツリーに   │ いいえ            │ はい              │
-  │ 含まれるか        │                  │                  │
-  │ レイアウト計算    │ されない          │ される            │
-  │ スペースを占める  │ 占めない          │ 占める            │
-  │ 子要素への影響    │ 子も全て非表示    │ 子で visible に   │
-  │                  │ (解除不可)        │ 戻せる            │
-  │ 再表示のコスト    │ レンダーツリー     │ 再描画のみ        │
-  │                  │ 再構築が必要      │ (リフロー不要)    │
-  │ アクセシビリティ  │ 読み上げ対象外    │ 読み上げ対象外    │
-  │ イベント受信      │ 受信しない        │ 受信しない        │
-  │ トランジション    │ 適用不可          │ 適用可能          │
+  │ Exists in DOM     │ Yes              │ Yes              │
+  │ Included in       │ No               │ Yes              │
+  │ render tree       │                  │                  │
+  │ Layout calculated │ No               │ Yes              │
+  │ Occupies space    │ No               │ Yes              │
+  │ Effect on children│ All children     │ Children can     │
+  │                   │ also hidden      │ be set to visible│
+  │                   │ (cannot undo)    │                  │
+  │ Cost to show again│ Render tree      │ Repaint only     │
+  │                   │ must be rebuilt  │ (no reflow)      │
+  │ Accessibility     │ Not read aloud   │ Not read aloud   │
+  │ Event reception   │ Does not receive │ Does not receive │
+  │ Transitions       │ Not applicable   │ Applicable       │
   └──────────────────┴──────────────────┴──────────────────┘
 
-  content-visibility: auto との違い:
-  → content-visibility: auto は DOM にもレンダーツリーにも存在
-  → ただし画面外の場合、子要素のレンダリングをスキップ
-  → contain-intrinsic-size でサイズのヒントを与えることで
-    レイアウトシフトを防止
+  Difference with content-visibility: auto:
+  → content-visibility: auto exists in both DOM and render tree
+  → However, for off-screen elements, rendering of children is skipped
+  → Provide a size hint with contain-intrinsic-size to prevent layout shift
 ```
 
-### Q4: HTML パーサーはなぜ文脈自由文法で定義できないのか？
+### Q4: Why can't the HTML parser be defined with a context-free grammar?
 
 ```
-HTML が文脈自由文法で定義できない理由:
+Reasons why HTML cannot be defined with a context-free grammar:
 
-  1. エラー回復が文脈依存
-     → 同じトークンでも現在のオープン要素スタックの状態によって
-       異なる処理が必要
-     → 例: <p> 内で <p> が来たら暗黙の </p> を挿入するが、
-       <div> 内で <p> が来たら通常の開始タグとして処理
+  1. Error recovery is context-dependent
+     → The same token requires different handling depending on
+       the current state of the stack of open elements
+     → Example: when a <p> appears inside <p>, insert an implicit </p>;
+       when a <p> appears inside <div>, process it as a normal start tag
 
-  2. スクリプトによるパーサー状態の変更
-     → <script> 内で document.write() が呼ばれると
-       パーサーの入力ストリームが変更される
-     → これは通常の文法定義では表現できない
+  2. Parser state changes by scripts
+     → When document.write() is called inside <script>,
+       the parser's input stream is changed
+     → This cannot be expressed in a normal grammar definition
 
-  3. 挿入モード（23種類）による文脈依存処理
-     → 同じタグでも挿入モードによって全く異なる動作
-     → "in table" モードでの <td> と
-       "in body" モードでの <td> は異なる処理
+  3. Context-dependent processing via insertion modes (23 types)
+     → The same tag behaves completely differently depending on the insertion mode
+     → <td> in "in table" mode differs from <td> in "in body" mode
 
   4. Foster Parenting
-     → テーブル内の不正な要素を別の位置に移動する処理
-     → 文法規則だけでは表現できない
+     → The process of moving invalid elements inside a table to another position
+     → Cannot be expressed by grammar rules alone
 
-  対して CSS は:
-  → 文脈自由文法で十分に定義可能
-  → 不正な入力はスキップするだけ（回復手順が単純）
-  → パース中にルールの出力が他のルールに影響しない
+  In contrast, CSS:
+  → Can be fully defined with a context-free grammar
+  → Invalid input is simply skipped (simple recovery procedure)
+  → Parsing one rule's output does not affect other rules
 ```
 
-### Q5: ブラウザのパースにおいて Web Worker は使われるか？
+### Q5: Are Web Workers used in browser parsing?
 
 ```
-Web Worker とパーシングの関係:
+Relationship between Web Workers and parsing:
 
-  HTML パーサー:
-  → メインスレッドで動作する（DOMはメインスレッド専用）
-  → Web Worker からは DOM にアクセスできない
-  → そのため HTML パースは並列化できない
+  HTML parser:
+  → Runs on the main thread (DOM is main-thread only)
+  → Web Workers cannot access the DOM
+  → Therefore HTML parsing cannot be parallelized
 
-  CSS パーサー:
-  → 一部のブラウザではスタイル計算の一部を並列化
-  → ただしパース自体は通常メインスレッドで実行
+  CSS parser:
+  → Some browsers parallelize parts of style calculation
+  → However, parsing itself usually runs on the main thread
 
-  Off-Main-Thread の取り組み:
-  → Chrome は "Off-Main-Thread CSS" を研究中
-  → CSS のパースとスタイルマッチングの一部を
-    ワーカースレッドに移譲する試み
-  → Servo (Rust製エンジン) はスタイル計算を並列化
+  Off-main-thread efforts:
+  → Chrome is researching "Off-Main-Thread CSS"
+  → Attempting to delegate parts of CSS parsing and style matching
+    to worker threads
+  → Servo (Rust-based engine) parallelizes style calculation
 
-  開発者が活用できるパターン:
-  → Web Worker 内で DOMParser を使うことはできない
-  → ただし Worker 内で文字列としてHTMLを処理し、
-    結果の構造化データをメインスレッドに送ることは可能
-  → 例: マークダウンを Worker でパースし、
-    生成された HTML 文字列をメインスレッドで innerHTML に設定
+  Patterns developers can use:
+  → DOMParser cannot be used inside a Web Worker
+  → However, HTML can be processed as a string in a Worker,
+    and the resulting structured data can be sent to the main thread
+  → Example: parse Markdown in a Worker and set the generated
+    HTML string as innerHTML on the main thread
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 概念 | ポイント |
-|------|---------|
-| 文字エンコーディング検出 | BOM > HTTP ヘッダ > meta charset の優先順位 |
-| HTMLトークナイザ | 80+状態のステートマシン、6種のトークンを生成 |
-| HTMLツリービルダ | 挿入モード + オープン要素スタックでDOM構築 |
-| エラー回復 | 暗黙の要素補完、Foster Parenting、Adoption Agency |
-| DOM | C++オブジェクトツリー、JSバインディング経由でアクセス |
-| CSSトークナイザ | 20+種のトークンを生成、文脈自由文法 |
-| CSSOM | StyleSheetList > CSSStyleSheet > CSSRuleList の階層 |
-| スタイル計算 | カスケード → 詳細度 → 継承 → 値の解決 (9ステップ) |
-| セレクタマッチング | 右から左評価、Bloom Filter、スタイル共有で最適化 |
-| レンダーツリー | DOM + CSSOM の統合、display:none は除外 |
-| 増分パース | ストリーミング処理、Preload Scanner による最適化 |
-| CSS ブロッキング | レンダーブロッキング（パーサーブロッキングではない） |
-
----
-
-## 次に読むべきガイド
-→ [ブラウザセキュリティモデル](./03-browser-security-model.md)
+| Concept | Key Point |
+|---------|-----------|
+| Character encoding detection | Priority: BOM > HTTP header > meta charset |
+| HTML tokenizer | State machine with 80+ states, generates 6 token types |
+| HTML tree builder | Builds DOM using insertion modes + stack of open elements |
+| Error recovery | Implicit element completion, foster parenting, Adoption Agency |
+| DOM | C++ object tree, accessed via JS bindings |
+| CSS tokenizer | Generates 20+ token types, context-free grammar |
+| CSSOM | Hierarchy of StyleSheetList > CSSStyleSheet > CSSRuleList |
+| Style resolution | Cascade → specificity → inheritance → value resolution (9 steps) |
+| Selector matching | Right-to-left evaluation, Bloom Filter, style sharing for optimization |
+| Render tree | Integration of DOM + CSSOM; display:none excluded |
+| Incremental parsing | Streaming processing, optimized by Preload Scanner |
+| CSS blocking | Render-blocking (not parser-blocking) |
 
 ---
 
-## 参考文献
+## Next Guide to Read
+→ [Browser Security Model](./03-browser-security-model.md)
+
+---
+
+## References
 1. WHATWG. "HTML Living Standard - Parsing HTML documents." https://html.spec.whatwg.org/multipage/parsing.html
 2. W3C. "CSS Syntax Module Level 3." https://www.w3.org/TR/css-syntax-3/
 3. Garsiel, T. and Irish, P. "How Browsers Work: Behind the scenes of modern web browsers." web.dev, 2011. https://web.dev/articles/howbrowserswork
 4. W3C. "CSS Cascading and Inheritance Level 5." https://www.w3.org/TR/css-cascade-5/
 5. Google. "Render-tree Construction, Layout, and Paint." web.dev. https://web.dev/articles/critical-rendering-path/render-tree-construction
 6. Mozilla. "How CSS is structured." MDN Web Docs. https://developer.mozilla.org/en-US/docs/Learn/CSS/First_steps/How_CSS_is_structured
-

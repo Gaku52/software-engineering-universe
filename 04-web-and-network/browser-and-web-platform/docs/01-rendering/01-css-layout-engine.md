@@ -1,57 +1,57 @@
-# CSSレイアウトエンジン
+# CSS Layout Engine
 
-> CSSレイアウトエンジンは、HTML要素の位置・寸法・配置順序を決定するブラウザ内部の中核コンポーネントである。Box Model、Normal Flow、Flexbox、Grid、Positioning、およびレイアウト計算アルゴリズムの内部動作を深く理解することで、意図通りのレイアウトを効率的かつパフォーマンスに優れた形で構築できるようになる。本ガイドでは、W3C 仕様に基づいた厳密な解説から、現場で即座に活用できるパターン集、さらにエッジケースやアンチパターンまでを網羅的にカバーする。
+> The CSS layout engine is a core component inside the browser that determines the position, dimensions, and arrangement order of HTML elements. By deeply understanding the Box Model, Normal Flow, Flexbox, Grid, Positioning, and the internal workings of layout calculation algorithms, you can build layouts that behave exactly as intended — efficiently and with excellent performance. This guide covers everything from rigorous explanations based on W3C specifications, to a collection of immediately applicable patterns for real-world projects, and includes edge cases and anti-patterns.
 
 ---
 
-## 目次
+## Table of Contents
 
-1. [Box Model の詳細](#1-box-model-の詳細)
-2. [Normal Flow とフォーマッティングコンテキスト](#2-normal-flow-とフォーマッティングコンテキスト)
-3. [Flexbox の内部アルゴリズム](#3-flexbox-の内部アルゴリズム)
-4. [CSS Grid の内部アルゴリズム](#4-css-grid-の内部アルゴリズム)
-5. [Positioning と Stacking Context](#5-positioning-と-stacking-context)
-6. [レイアウト計算アルゴリズムの全体像](#6-レイアウト計算アルゴリズムの全体像)
-7. [パフォーマンスとレイアウトスラッシング](#7-パフォーマンスとレイアウトスラッシング)
-8. [Flexbox vs Grid 使い分け徹底比較](#8-flexbox-vs-grid-使い分け徹底比較)
-9. [実践コード例集](#9-実践コード例集)
-10. [アンチパターン集](#10-アンチパターン集)
-11. [エッジケース分析](#11-エッジケース分析)
-12. [演習問題（3段階）](#12-演習問題3段階)
+1. [Box Model in Detail](#1-box-model-in-detail)
+2. [Normal Flow and Formatting Contexts](#2-normal-flow-and-formatting-contexts)
+3. [Flexbox Internal Algorithm](#3-flexbox-internal-algorithm)
+4. [CSS Grid Internal Algorithm](#4-css-grid-internal-algorithm)
+5. [Positioning and Stacking Context](#5-positioning-and-stacking-context)
+6. [Layout Calculation Algorithm Overview](#6-layout-calculation-algorithm-overview)
+7. [Performance and Layout Thrashing](#7-performance-and-layout-thrashing)
+8. [Flexbox vs Grid — In-Depth Comparison](#8-flexbox-vs-grid--in-depth-comparison)
+9. [Practical Code Examples](#9-practical-code-examples)
+10. [Anti-Pattern Collection](#10-anti-pattern-collection)
+11. [Edge Case Analysis](#11-edge-case-analysis)
+12. [Exercises (3 Levels)](#12-exercises-3-levels)
 13. [FAQ](#13-faq)
-14. [用語集](#14-用語集)
-15. [参考文献](#15-参考文献)
+14. [Glossary](#14-glossary)
+15. [References](#15-references)
 
 ---
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- [ ] Box Model の 2 つのモード（content-box / border-box）の計算差異を正確に理解する
-- [ ] Normal Flow におけるブロックレベルとインラインレベルの配置規則を把握する
-- [ ] BFC（Block Formatting Context）の生成条件と効果を理解する
-- [ ] Flexbox の 6 段階レイアウトアルゴリズムを内部まで追跡できる
-- [ ] CSS Grid のトラックサイジングアルゴリズムを理解する
-- [ ] レイアウト計算がブラウザのレンダリングパイプラインのどこに位置するかを把握する
-- [ ] パフォーマンスを考慮したレイアウト設計ができるようになる
-
----
-
-## 前提知識
-
-- レンダリングパイプラインの全体像 → 参照: [レンダリングパイプライン](./00-rendering-pipeline.md)
-- CSSのボックスモデルとレイアウトモード（Flexbox, Grid）
-- DOM/CSSOMツリーの構築 → 参照: [HTML/CSSパース](../00-browser-engine/02-parsing-html-css.md)
+- [ ] Accurately understand the calculation differences between the two Box Model modes (content-box / border-box)
+- [ ] Grasp the placement rules for block-level and inline-level elements in Normal Flow
+- [ ] Understand the conditions that generate a BFC (Block Formatting Context) and its effects
+- [ ] Trace Flexbox's 6-stage layout algorithm all the way through internally
+- [ ] Understand the CSS Grid track sizing algorithm
+- [ ] Know where layout calculation sits in the browser's rendering pipeline
+- [ ] Be able to design layouts with performance in mind
 
 ---
 
-## 1. Box Model の詳細
+## Prerequisites
 
-### 1.1 CSS Box Model の構造
+- Overview of the rendering pipeline → See: [Rendering Pipeline](./00-rendering-pipeline.md)
+- CSS box model and layout modes (Flexbox, Grid)
+- DOM/CSSOM tree construction → See: [HTML/CSS Parsing](../00-browser-engine/02-parsing-html-css.md)
 
-すべての HTML 要素は「ボックス」として描画される。各ボックスは 4 つの領域で構成される。
+---
+
+## 1. Box Model in Detail
+
+### 1.1 CSS Box Model Structure
+
+Every HTML element is rendered as a "box." Each box is composed of four regions.
 
 ```
-CSS Box Model の完全構造:
+Complete structure of the CSS Box Model:
 
   ┌─────────────────────────────────────────────────────┐
   │                    margin-top                       │
@@ -83,59 +83,59 @@ CSS Box Model の完全構造:
   └─────────────────────────────────────────────────────┘
 ```
 
-各領域の役割:
+Role of each region:
 
-| 領域 | 説明 | 負の値 | 背景適用 |
-|------|------|--------|----------|
-| content | テキストや子要素を配置する領域 | N/A | あり |
-| padding | コンテンツとボーダー間の余白 | 不可 | あり |
-| border | ボックスの境界線 | N/A | ボーダー自身 |
-| margin | 他の要素との外側余白 | 可能 | なし（透明） |
+| Region | Description | Negative Values | Background Applied |
+|--------|-------------|-----------------|-------------------|
+| content | Area where text and child elements are placed | N/A | Yes |
+| padding | Space between content and border | Not allowed | Yes |
+| border | The boundary line of the box | N/A | Border itself |
+| margin | Outer spacing from other elements | Allowed | No (transparent) |
 
-### 1.2 box-sizing プロパティの詳細
+### 1.2 The box-sizing Property in Detail
 
-`box-sizing` は、`width` と `height` が何を指すかを制御するプロパティである。
+`box-sizing` controls what `width` and `height` refer to.
 
 ```css
-/* content-box（デフォルト） */
+/* content-box (default) */
 .element-content-box {
   box-sizing: content-box;
   width: 300px;
   padding: 20px;
   border: 5px solid #333;
-  /* 描画上の幅 = 300 + 20*2 + 5*2 = 350px */
-  /* 描画上の幅を事前に計算する必要がある */
+  /* Rendered width = 300 + 20*2 + 5*2 = 350px */
+  /* You need to pre-calculate the rendered width */
 }
 
-/* border-box（推奨） */
+/* border-box (recommended) */
 .element-border-box {
   box-sizing: border-box;
   width: 300px;
   padding: 20px;
   border: 5px solid #333;
-  /* 描画上の幅 = 300px（指定したまま） */
-  /* コンテンツ幅 = 300 - 20*2 - 5*2 = 250px */
+  /* Rendered width = 300px (exactly as specified) */
+  /* Content width = 300 - 20*2 - 5*2 = 250px */
 }
 ```
 
-計算の比較表:
+Calculation comparison table:
 
-| プロパティ | content-box | border-box |
-|-----------|-------------|------------|
-| 指定 width | 300px | 300px |
+| Property | content-box | border-box |
+|----------|-------------|------------|
+| Specified width | 300px | 300px |
 | padding | 20px x 2 = 40px | 20px x 2 = 40px |
 | border | 5px x 2 = 10px | 5px x 2 = 10px |
-| コンテンツ幅 | 300px | 250px |
-| 描画上の幅 | 350px | 300px |
-| margin 込みの占有幅 | 350px + margin | 300px + margin |
+| Content width | 300px | 250px |
+| Rendered width | 350px | 300px |
+| Total occupied width (including margin) | 350px + margin | 300px + margin |
 
-border-box を全要素に適用するリセット:
+Reset to apply border-box to all elements:
 
 ```css
 /*
  * Universal box-sizing reset
- * 継承方式により、特定のコンポーネントで
- * content-box に戻すことも容易になる
+ * Using inheritance makes it easy to revert
+ * back to content-box for specific components
  */
 html {
   box-sizing: border-box;
@@ -145,159 +145,159 @@ html {
   box-sizing: inherit;
 }
 
-/* 特定コンポーネントだけ content-box に戻す場合 */
+/* Revert back to content-box for specific components */
 .legacy-component {
   box-sizing: content-box;
 }
 ```
 
-### 1.3 マージンの相殺（Margin Collapsing）
+### 1.3 Margin Collapsing
 
-隣接するブロックレベル要素の垂直マージンは「相殺」される。これは CSS の重要な特性であり、多くの初学者が混乱するポイントでもある。
+The vertical margins of adjacent block-level elements "collapse." This is an important CSS characteristic that confuses many beginners.
 
 ```
-マージン相殺の基本:
+Basics of margin collapsing:
 
-  ケース1: 兄弟要素の隣接マージン
+  Case 1: Adjacent margins of sibling elements
   ┌──────────────┐
-  │   要素 A     │  margin-bottom: 30px
+  │  Element A   │  margin-bottom: 30px
   └──────────────┘
-         ↕ 30px（大きい方が採用される）
+         ↕ 30px (the larger value wins)
   ┌──────────────┐
-  │   要素 B     │  margin-top: 20px
+  │  Element B   │  margin-top: 20px
   └──────────────┘
 
-  結果: 間隔は 30px（30 + 20 = 50px ではない）
+  Result: Gap is 30px (NOT 30 + 20 = 50px)
 
-  ケース2: 親と最初の子のマージン
-  ┌──────────────────────┐  ← 親の margin-top と
-  │ ┌──────────────────┐ │     子の margin-top が相殺
-  │ │   子要素         │ │
+  Case 2: Margin between parent and first child
+  ┌──────────────────────┐  ← parent's margin-top and
+  │ ┌──────────────────┐ │     child's margin-top collapse
+  │ │  child element   │ │
   │ └──────────────────┘ │
   └──────────────────────┘
 
-  ケース3: 空のブロック要素
+  Case 3: Empty block element
   ┌──────────────┐
-  │  要素 A      │
+  │  Element A   │
   └──────────────┘
-                       ← 空の要素の margin-top と
-  (空の <div>)            margin-bottom も相殺
+                       ← The margin-top and margin-bottom
+  (empty <div>)          of an empty element also collapse
                        ←
   ┌──────────────┐
-  │  要素 B      │
+  │  Element B   │
   └──────────────┘
 ```
 
-マージン相殺が発生しない条件:
+Conditions under which margin collapsing does NOT occur:
 
 ```css
-/* 以下の条件のいずれかに該当する場合、マージンは相殺されない */
+/* Margins do not collapse if any of the following conditions apply */
 
-/* 1. Flexbox / Grid の子要素 */
+/* 1. Children of Flexbox / Grid */
 .flex-container { display: flex; flex-direction: column; }
-.flex-container > * { /* margin は相殺されない */ }
+.flex-container > * { /* margins do not collapse */ }
 
-/* 2. BFC を生成する要素 */
-.bfc { overflow: hidden; }         /* BFC 境界でブロックされる */
-.bfc { display: flow-root; }       /* より明示的な BFC 生成 */
+/* 2. Elements that generate a BFC */
+.bfc { overflow: hidden; }         /* blocked at the BFC boundary */
+.bfc { display: flow-root; }       /* more explicit BFC generation */
 
-/* 3. padding または border がある親要素 */
-.parent { padding-top: 1px; }      /* 親子間の相殺を防ぐ */
+/* 3. Parent elements with padding or border */
+.parent { padding-top: 1px; }      /* prevents parent-child collapse */
 .parent { border-top: 1px solid transparent; }
 
-/* 4. float 要素 */
+/* 4. Floated elements */
 .floated { float: left; }
 
 /* 5. position: absolute / fixed */
 .positioned { position: absolute; }
 
-/* 6. インライン要素が間に存在 */
-/* テキストノードやインライン要素が兄弟マージンの間にある場合 */
+/* 6. When an inline element exists in between */
+/* If a text node or inline element exists between sibling margins */
 ```
 
-### 1.4 負のマージン
+### 1.4 Negative Margins
 
-マージンには負の値を設定できる。これは他のボックス領域（padding, border）にはない特性である。
+Margins can be set to negative values. This is a characteristic unique to margins — not available for other box regions (padding, border).
 
 ```css
-/* 負のマージンの効果 */
+/* Effect of negative margins */
 .pull-up {
   margin-top: -20px;
-  /* 要素を上方向に 20px 引っ張る */
-  /* 後続要素も一緒に引き上げられる */
+  /* Pulls the element 20px upward */
+  /* Subsequent elements are pulled up along with it */
 }
 
 .pull-left {
   margin-left: -20px;
-  /* 要素を左方向に 20px 引っ張る */
+  /* Pulls the element 20px to the left */
 }
 
-/* 実用例: カード画像をコンテナからはみ出させる */
+/* Practical use: making a card image bleed beyond its container */
 .card-image {
   margin-left: -16px;
   margin-right: -16px;
   margin-top: -16px;
-  /* カードの padding 分だけ逆方向に拡張 */
+  /* Expands in the opposite direction by the amount of the card's padding */
 }
 ```
 
 ---
 
-## 2. Normal Flow とフォーマッティングコンテキスト
+## 2. Normal Flow and Formatting Contexts
 
-### 2.1 Normal Flow の基本規則
+### 2.1 Basic Rules of Normal Flow
 
-Normal Flow は CSS のデフォルトのレイアウトモードである。すべての要素は、特別なプロパティ（float, position, display: flex / grid 等）が適用されない限り、Normal Flow に従って配置される。
+Normal Flow is CSS's default layout mode. All elements follow Normal Flow unless special properties (float, position, display: flex / grid, etc.) are applied.
 
 ```
-Normal Flow の 2 つのレベル:
+The 2 levels of Normal Flow:
 
-  ブロックレベル要素 (display: block / list-item / table 等):
+  Block-level elements (display: block / list-item / table, etc.):
   ─────────────────────────────────────────
   ┌───────────────────────────────────────┐
-  │ <div>  横幅は親の 100%              │
+  │ <div>  width is 100% of parent       │
   └───────────────────────────────────────┘
   ┌───────────────────────────────────────┐
-  │ <p>    新しい行から開始              │
+  │ <p>    starts on a new line          │
   └───────────────────────────────────────┘
   ┌───────────────────────────────────────┐
-  │ <h2>   縦に積み重なる               │
+  │ <h2>   stacks vertically             │
   └───────────────────────────────────────┘
 
-  インラインレベル要素 (display: inline / inline-block 等):
+  Inline-level elements (display: inline / inline-block, etc.):
   ─────────────────────────────────────────
-  ここに│<span>│と│<a href>│と│<strong>│が
-  横に並んで│<em>│配置される。行末で折り返す。
+  Here │<span>│ and │<a href>│ and │<strong>│
+  are placed horizontally │<em>│ and wrap at line end.
 ```
 
-### 2.2 display プロパティの整理
+### 2.2 Overview of the display Property
 
-CSS Display Level 3 仕様では、`display` プロパティは「外部表示型」と「内部表示型」の 2 つの値で構成される。
+In the CSS Display Level 3 specification, the `display` property is composed of two values: "outer display type" and "inner display type."
 
-| 短縮形 | 外部表示型 | 内部表示型 | 説明 |
-|--------|-----------|-----------|------|
-| `block` | block | flow | ブロックコンテナ |
-| `inline` | inline | flow | インラインボックス |
-| `inline-block` | inline | flow-root | インラインレベルの BFC |
-| `flex` | block | flex | ブロックレベルの Flex コンテナ |
-| `inline-flex` | inline | flex | インラインレベルの Flex コンテナ |
-| `grid` | block | grid | ブロックレベルの Grid コンテナ |
-| `inline-grid` | inline | grid | インラインレベルの Grid コンテナ |
-| `flow-root` | block | flow-root | BFC を生成するブロックコンテナ |
-| `none` | - | - | レイアウトツリーから除外 |
+| Shorthand | Outer Display Type | Inner Display Type | Description |
+|-----------|-------------------|--------------------|-------------|
+| `block` | block | flow | Block container |
+| `inline` | inline | flow | Inline box |
+| `inline-block` | inline | flow-root | Inline-level BFC |
+| `flex` | block | flex | Block-level Flex container |
+| `inline-flex` | inline | flex | Inline-level Flex container |
+| `grid` | block | grid | Block-level Grid container |
+| `inline-grid` | inline | grid | Inline-level Grid container |
+| `flow-root` | block | flow-root | Block container that generates a BFC |
+| `none` | - | - | Excluded from the layout tree |
 
-### 2.3 BFC（Block Formatting Context）
+### 2.3 BFC (Block Formatting Context)
 
-BFC はブロックレベル要素の独立したレイアウト領域である。BFC 内部のレイアウトは外部に影響を与えず、外部のレイアウトも BFC 内部に影響しない。
+A BFC is an independent layout area for block-level elements. The layout inside a BFC does not affect the outside, and external layout does not affect the inside of a BFC.
 
-BFC を生成する条件（主要なもの）:
+Conditions that generate a BFC (major ones):
 
 ```css
-/* 1. ドキュメントのルート要素 */
-/* <html> 要素は常に BFC を生成する */
+/* 1. The root element of the document */
+/* The <html> element always generates a BFC */
 
-/* 2. float 要素 */
-.bfc-float { float: left; }  /* left / right どちらでも */
+/* 2. Floated elements */
+.bfc-float { float: left; }  /* either left or right */
 
 /* 3. position: absolute / fixed */
 .bfc-positioned { position: absolute; }
@@ -305,83 +305,82 @@ BFC を生成する条件（主要なもの）:
 /* 4. display: inline-block */
 .bfc-inline-block { display: inline-block; }
 
-/* 5. display: flow-root（最も明示的な方法） */
+/* 5. display: flow-root (the most explicit method) */
 .bfc-flow-root { display: flow-root; }
 
-/* 6. display: flex / grid のコンテナ */
+/* 6. display: flex / grid containers */
 .bfc-flex { display: flex; }
 
-/* 7. overflow が visible 以外 */
-.bfc-overflow { overflow: hidden; }  /* auto / scroll も可 */
+/* 7. overflow other than visible */
+.bfc-overflow { overflow: hidden; }  /* auto / scroll also work */
 
-/* 8. contain プロパティ */
-.bfc-contain { contain: layout; }  /* content / strict も可 */
+/* 8. contain property */
+.bfc-contain { contain: layout; }  /* content / strict also work */
 ```
 
-BFC の 3 つの主要効果:
+The 3 main effects of a BFC:
 
 ```
-効果1: フロートの包含
+Effect 1: Float containment
   ─────────────────────────────────────
-  BFC なし:                BFC あり:
+  Without BFC:             With BFC:
   ┌────────────────┐       ┌────────────────────┐
-  │ 親              │       │ 親 (BFC)            │
+  │ parent          │       │ parent (BFC)        │
   │ ┌──────┐       │       │ ┌──────┐            │
-  │ │float │       │       │ │float │ テキスト   │
+  │ │float │       │       │ │float │ text       │
   │ └──────┘       │       │ └──────┘            │
   └────────────────┘       │                     │
-  テキストがここに          └────────────────────┘
-  はみ出す
+  text spills out here     └────────────────────┘
 
-効果2: マージン相殺の遮断
+Effect 2: Blocking margin collapsing
   ─────────────────────────────────────
-  BFC 境界を跨ぐマージンは相殺されない
+  Margins across a BFC boundary do not collapse
 
-効果3: フロートとの重なり防止
+Effect 3: Preventing overlap with floats
   ─────────────────────────────────────
-  BFC 要素は隣接するフロートと重ならない
+  A BFC element does not overlap with adjacent floats
 ```
 
-### 2.4 インラインフォーマッティングコンテキスト（IFC）
+### 2.4 Inline Formatting Context (IFC)
 
-IFC はインラインレベル要素のレイアウトコンテキストである。テキストの配置や `line-height` の計算はすべて IFC の中で行われる。
+An IFC is the layout context for inline-level elements. Text placement and `line-height` calculation all happen inside an IFC.
 
 ```css
-/* IFC における重要な概念 */
+/* Important concepts in an IFC */
 
-/* line box: インライン要素を含む 1 行分の領域 */
+/* line box: the area for one line containing inline elements */
 .text-container {
   font-size: 16px;
   line-height: 1.5;
-  /* line box の高さ = 16 * 1.5 = 24px */
+  /* line box height = 16 * 1.5 = 24px */
 }
 
-/* vertical-align: line box 内の垂直配置 */
+/* vertical-align: vertical placement within a line box */
 .icon {
   vertical-align: middle;
-  /* baseline, top, bottom, text-top, text-bottom なども使用可能 */
+  /* baseline, top, bottom, text-top, text-bottom are also available */
 }
 
-/* inline-block の特性 */
+/* inline-block characteristics */
 .inline-block-element {
   display: inline-block;
   width: 100px;
   height: 50px;
   vertical-align: top;
-  /* インラインの流れに参加しつつ、幅と高さを持てる */
+  /* Participates in inline flow while being able to have width and height */
 }
 ```
 
 ---
 
-## 3. Flexbox の内部アルゴリズム
+## 3. Flexbox Internal Algorithm
 
-### 3.1 Flexbox レイアウトの概念モデル
+### 3.1 Flexbox Layout Conceptual Model
 
-Flexbox は 1 次元レイアウトシステムであり、主軸（main axis）と交差軸（cross axis）の 2 つの軸で要素を配置する。
+Flexbox is a one-dimensional layout system that positions elements along two axes: the main axis and the cross axis.
 
 ```
-flex-direction: row（デフォルト）の軸:
+Axes for flex-direction: row (default):
 
   main-start                                    main-end
       │                                            │
@@ -392,143 +391,145 @@ flex-direction: row（デフォルト）の軸:
   │  │         │  │         │  │         │         │
   │  └─────────┘  └─────────┘  └─────────┘         │
   │                                                  │
-  │  ──────── main axis（主軸）────────→             │
+  │  ──────── main axis ──────────────→              │
   │                                                  │
   └──────────────────────────────────────────────────┘ ← cross-end
                                                   │
-                                           cross axis
-                                           （交差軸）↓
+                                           cross axis ↓
 
-flex-direction: column の場合:
-  main axis が縦方向、cross axis が横方向に入れ替わる
+When flex-direction: column:
+  The main axis runs vertically and the cross axis runs horizontally.
 ```
 
-### 3.2 Flex コンテナのプロパティ詳細
+### 3.2 Flex Container Properties in Detail
 
 ```css
 .flex-container {
-  display: flex;           /* flex コンテナを生成 */
+  display: flex;           /* generates a flex container */
 
-  /* --- 主軸の方向 --- */
-  flex-direction: row;           /* 左→右（デフォルト） */
-  flex-direction: row-reverse;   /* 右→左 */
-  flex-direction: column;        /* 上→下 */
-  flex-direction: column-reverse;/* 下→上 */
+  /* --- Main axis direction --- */
+  flex-direction: row;           /* left→right (default) */
+  flex-direction: row-reverse;   /* right→left */
+  flex-direction: column;        /* top→bottom */
+  flex-direction: column-reverse;/* bottom→top */
 
-  /* --- 折り返し --- */
-  flex-wrap: nowrap;    /* 折り返さない（デフォルト） */
-  flex-wrap: wrap;      /* 折り返す */
-  flex-wrap: wrap-reverse; /* 逆方向に折り返す */
+  /* --- Wrapping --- */
+  flex-wrap: nowrap;    /* no wrapping (default) */
+  flex-wrap: wrap;      /* wrap to next line */
+  flex-wrap: wrap-reverse; /* wrap in reverse direction */
 
-  /* --- 省略記法 --- */
+  /* --- Shorthand --- */
   flex-flow: row wrap;  /* flex-direction + flex-wrap */
 
-  /* --- 主軸上の配置 --- */
-  justify-content: flex-start;    /* 先頭寄せ（デフォルト） */
-  justify-content: flex-end;      /* 末尾寄せ */
-  justify-content: center;        /* 中央寄せ */
-  justify-content: space-between; /* 両端揃え・均等配置 */
-  justify-content: space-around;  /* 各アイテム周囲に均等余白 */
-  justify-content: space-evenly;  /* 完全均等余白 */
+  /* --- Alignment along the main axis --- */
+  justify-content: flex-start;    /* align to start (default) */
+  justify-content: flex-end;      /* align to end */
+  justify-content: center;        /* center */
+  justify-content: space-between; /* space between items, flush to edges */
+  justify-content: space-around;  /* equal space around each item */
+  justify-content: space-evenly;  /* fully equal spacing */
 
-  /* --- 交差軸上の配置 --- */
-  align-items: stretch;     /* 引き伸ばし（デフォルト） */
-  align-items: flex-start;  /* 交差軸の先頭 */
-  align-items: flex-end;    /* 交差軸の末尾 */
-  align-items: center;      /* 交差軸の中央 */
-  align-items: baseline;    /* テキストのベースライン揃え */
+  /* --- Alignment along the cross axis --- */
+  align-items: stretch;     /* stretch to fill (default) */
+  align-items: flex-start;  /* start of cross axis */
+  align-items: flex-end;    /* end of cross axis */
+  align-items: center;      /* center of cross axis */
+  align-items: baseline;    /* align text baselines */
 
-  /* --- 複数行の配置 --- */
-  align-content: flex-start;    /* wrap 時に複数行を先頭寄せ */
-  align-content: center;        /* wrap 時に複数行を中央寄せ */
-  align-content: space-between; /* wrap 時に行間を均等配置 */
+  /* --- Multi-line alignment --- */
+  align-content: flex-start;    /* pack lines to start when wrapping */
+  align-content: center;        /* center lines when wrapping */
+  align-content: space-between; /* equal spacing between lines when wrapping */
 
-  /* --- 間隔 --- */
-  gap: 16px;         /* 行・列共通 */
-  row-gap: 16px;     /* 行間のみ */
-  column-gap: 24px;  /* 列間のみ */
+  /* --- Gaps --- */
+  gap: 16px;         /* both row and column */
+  row-gap: 16px;     /* row only */
+  column-gap: 24px;  /* column only */
 }
 ```
 
-### 3.3 Flex アイテムのプロパティ詳細
+### 3.3 Flex Item Properties in Detail
 
 ```css
 .flex-item {
-  /* --- 伸縮の制御 --- */
-  flex-grow: 0;     /* 余白の分配比率（デフォルト: 0 = 伸びない） */
-  flex-shrink: 1;   /* 縮小の分配比率（デフォルト: 1 = 縮む） */
-  flex-basis: auto; /* 基準サイズ（デフォルト: auto = コンテンツ依存） */
+  /* --- Controlling growth and shrinkage --- */
+  flex-grow: 0;     /* ratio for distributing free space (default: 0 = don't grow) */
+  flex-shrink: 1;   /* ratio for shrinking (default: 1 = shrink) */
+  flex-basis: auto; /* base size (default: auto = depends on content) */
 
-  /* --- flex 省略記法 --- */
-  flex: initial;   /* = 0 1 auto → 縮小のみ */
-  flex: auto;      /* = 1 1 auto → 伸縮両方 */
-  flex: none;      /* = 0 0 auto → 固定サイズ */
-  flex: 1;         /* = 1 1 0%   → 均等分配 */
-  flex: 2;         /* = 2 1 0%   → 2 倍の比率で分配 */
+  /* --- flex shorthand --- */
+  flex: initial;   /* = 0 1 auto → shrink only */
+  flex: auto;      /* = 1 1 auto → grow and shrink */
+  flex: none;      /* = 0 0 auto → fixed size */
+  flex: 1;         /* = 1 1 0%   → equal distribution */
+  flex: 2;         /* = 2 1 0%   → distributed at 2x the ratio */
 
-  /* --- 個別の交差軸配置 --- */
-  align-self: auto;       /* コンテナの align-items に従う */
-  align-self: flex-start; /* このアイテムだけ先頭寄せ */
-  align-self: center;     /* このアイテムだけ中央寄せ */
+  /* --- Individual cross-axis alignment --- */
+  align-self: auto;       /* follows the container's align-items */
+  align-self: flex-start; /* only this item aligns to start */
+  align-self: center;     /* only this item centers */
 
-  /* --- 表示順序 --- */
-  order: 0;   /* デフォルト。数値が小さいほど先 */
-  order: -1;  /* 先頭に移動 */
-  order: 1;   /* 末尾に移動 */
+  /* --- Display order --- */
+  order: 0;   /* default; lower numbers appear first */
+  order: -1;  /* move to the beginning */
+  order: 1;   /* move to the end */
 }
 ```
 
-### 3.4 Flexbox レイアウト計算アルゴリズム（6 段階）
+### 3.4 Flexbox Layout Calculation Algorithm (6 Stages)
 
-ブラウザのレイアウトエンジンが Flexbox をどのように計算するか、その内部アルゴリズムを段階的に解説する。
+A step-by-step explanation of how the browser's layout engine calculates Flexbox — its internal algorithm.
 
 ```
-Flexbox レイアウト計算の 6 段階:
+6 stages of Flexbox layout calculation:
 
   ┌─────────────────────────────────────────────┐
-  │ Stage 1: 利用可能空間の決定                 │
-  │  コンテナの幅（または高さ）から padding     │
-  │  と border を引いた値                        │
+  │ Stage 1: Determine available space          │
+  │  Container width (or height) minus          │
+  │  padding and border                         │
   └─────────────┬───────────────────────────────┘
                 │
   ┌─────────────▼───────────────────────────────┐
-  │ Stage 2: 各アイテムの仮サイズ決定           │
-  │  flex-basis → width/height → コンテンツ     │
-  │  の優先順位でベースサイズを決定             │
+  │ Stage 2: Determine tentative size per item  │
+  │  Priority: flex-basis → width/height →      │
+  │  content size                               │
   └─────────────┬───────────────────────────────┘
                 │
   ┌─────────────▼───────────────────────────────┐
-  │ Stage 3: 余白（正 / 負）の計算              │
-  │  利用可能空間 - 全アイテムの仮サイズ合計    │
-  │  正 = 余白あり、負 = はみ出し               │
+  │ Stage 3: Calculate free space (+ or -)      │
+  │  Available space - sum of tentative sizes   │
+  │  Positive = free space, Negative = overflow │
   └─────────────┬───────────────────────────────┘
                 │
   ┌─────────────▼───────────────────────────────┐
-  │ Stage 4: flex-grow / flex-shrink の適用     │
-  │  余白が正 → flex-grow 比率で分配           │
-  │  余白が負 → flex-shrink 比率で縮小         │
+  │ Stage 4: Apply flex-grow / flex-shrink      │
+  │  Positive free space → distribute by        │
+  │  flex-grow ratio                            │
+  │  Negative free space → shrink by            │
+  │  flex-shrink ratio                          │
   └─────────────┬───────────────────────────────┘
                 │
   ┌─────────────▼───────────────────────────────┐
-  │ Stage 5: min/max 制約の適用                 │
-  │  min-width / max-width の範囲にクランプ     │
-  │  制約違反があれば Stage 4 を再実行          │
+  │ Stage 5: Apply min/max constraints          │
+  │  Clamp to the range of min-width/max-width  │
+  │  If constraints are violated, re-run        │
+  │  Stage 4                                    │
   └─────────────┬───────────────────────────────┘
                 │
   ┌─────────────▼───────────────────────────────┐
-  │ Stage 6: 配置の決定                         │
-  │  justify-content → 主軸配置                │
-  │  align-items → 交差軸配置                  │
-  │  align-content → 複数行配置                │
+  │ Stage 6: Determine placement                │
+  │  justify-content → main axis placement      │
+  │  align-items     → cross axis placement     │
+  │  align-content   → multi-line placement     │
   └─────────────────────────────────────────────┘
 ```
 
-#### 計算例: flex-grow の分配
+#### Calculation Example: flex-grow Distribution
 
 ```css
 .container {
   display: flex;
-  width: 600px;  /* 利用可能空間: 600px */
+  width: 600px;  /* available space: 600px */
 }
 
 .item-a { flex: 2 1 100px; }  /* basis: 100px, grow: 2 */
@@ -537,17 +538,17 @@ Flexbox レイアウト計算の 6 段階:
 ```
 
 ```
-計算過程:
+Calculation process:
 
-  Step 1: 仮サイズ合計 = 100 + 150 + 100 = 350px
-  Step 2: 余白 = 600 - 350 = 250px（正の余白）
-  Step 3: grow 合計 = 2 + 1 + 1 = 4
-  Step 4: 各アイテムへの分配
+  Step 1: Sum of tentative sizes = 100 + 150 + 100 = 350px
+  Step 2: Free space = 600 - 350 = 250px (positive free space)
+  Step 3: Total grow = 2 + 1 + 1 = 4
+  Step 4: Distribution per item
     item-a: 100 + (250 * 2/4) = 100 + 125 = 225px
     item-b: 150 + (250 * 1/4) = 150 + 62.5 = 212.5px
     item-c: 100 + (250 * 1/4) = 100 + 62.5 = 162.5px
 
-  検算: 225 + 212.5 + 162.5 = 600px ✓
+  Verification: 225 + 212.5 + 162.5 = 600px ✓
 
   ┌────────────────────────────────────────────────────┐
   │ ┌──────────────┐ ┌─────────────┐ ┌──────────┐     │
@@ -558,14 +559,14 @@ Flexbox レイアウト計算の 6 段階:
                         600px
 ```
 
-#### 計算例: flex-shrink の縮小
+#### Calculation Example: flex-shrink Shrinkage
 
-flex-shrink の計算は flex-grow よりも複雑である。縮小量はアイテムの flex-basis にも比例する。
+The calculation for flex-shrink is more complex than for flex-grow. The amount of shrinkage is also proportional to the item's flex-basis.
 
 ```css
 .container {
   display: flex;
-  width: 400px;  /* 利用可能空間: 400px */
+  width: 400px;  /* available space: 400px */
 }
 
 .item-a { flex: 0 2 200px; }  /* basis: 200px, shrink: 2 */
@@ -573,68 +574,68 @@ flex-shrink の計算は flex-grow よりも複雑である。縮小量はアイ
 ```
 
 ```
-計算過程:
+Calculation process:
 
-  Step 1: 仮サイズ合計 = 200 + 300 = 500px
-  Step 2: 不足分 = 400 - 500 = -100px（負の余白）
-  Step 3: 加重縮小係数の計算
-    item-a の加重 = shrink * basis = 2 * 200 = 400
-    item-b の加重 = shrink * basis = 1 * 300 = 300
-    加重合計 = 400 + 300 = 700
-  Step 4: 各アイテムの縮小量
+  Step 1: Sum of tentative sizes = 200 + 300 = 500px
+  Step 2: Deficit = 400 - 500 = -100px (negative free space)
+  Step 3: Calculate weighted shrink factor
+    item-a weight = shrink * basis = 2 * 200 = 400
+    item-b weight = shrink * basis = 1 * 300 = 300
+    Total weight = 400 + 300 = 700
+  Step 4: Shrinkage per item
     item-a: 200 - (100 * 400/700) = 200 - 57.14 ≈ 142.86px
     item-b: 300 - (100 * 300/700) = 300 - 42.86 ≈ 257.14px
 
-  検算: 142.86 + 257.14 = 400px ✓
+  Verification: 142.86 + 257.14 = 400px ✓
 
-  ※ flex-shrink では basis の大きい要素ほど
-    「同じ shrink 値でも多く縮む」ことに注意
+  Note: With flex-shrink, an item with a larger basis shrinks more
+        even at the same shrink value — this is the weighted approach.
 ```
 
 ### 3.5 flex-basis vs width
 
-`flex-basis` と `width`（または `height`）の優先順位を正確に理解することは重要である。
+It is important to precisely understand the priority order between `flex-basis` and `width` (or `height`).
 
 ```
-flex-basis の解決優先順位:
+Resolution priority of flex-basis:
 
-  1. flex-basis が auto 以外 → flex-basis を使用
-  2. flex-basis が auto かつ width 指定あり → width を使用
-  3. flex-basis が auto かつ width なし → コンテンツサイズ
-  4. flex-basis: 0 → コンテンツサイズを無視して 0 から開始
+  1. If flex-basis is not auto → use flex-basis
+  2. If flex-basis is auto and width is specified → use width
+  3. If flex-basis is auto and no width → use content size
+  4. flex-basis: 0 → ignore content size and start from 0
 
-  注意: flex-basis: 0 と flex-basis: 0% は異なる場合がある
-        コンテナに明示的なサイズがない場合、% はパーセント
-        計算が不能になる
+  Note: flex-basis: 0 and flex-basis: 0% can differ
+        When the container has no explicit size, % cannot
+        be resolved as a percentage calculation
 ```
 
 ```css
-/* よくある混乱: flex: 1 の内部動作 */
+/* Common confusion: how flex: 1 works internally */
 .item {
   flex: 1;
-  /* これは flex: 1 1 0% と展開される */
-  /* flex-basis: 0% → コンテンツサイズを考慮せず、 */
-  /* 利用可能空間を grow 比率で完全均等に分配する */
+  /* This expands to flex: 1 1 0% */
+  /* flex-basis: 0% → ignores content size, */
+  /* distributes available space fully equally by grow ratio */
 }
 
 .item-auto {
   flex: 1 1 auto;
-  /* flex-basis: auto → まずコンテンツサイズを確保し、 */
-  /* 余った空間を grow 比率で分配する */
-  /* コンテンツの多いアイテムはより大きくなる */
+  /* flex-basis: auto → first reserves content size, */
+  /* then distributes remaining space by grow ratio */
+  /* Items with more content become larger */
 }
 ```
 
 ---
 
-## 4. CSS Grid の内部アルゴリズム
+## 4. CSS Grid Internal Algorithm
 
-### 4.1 Grid レイアウトの概念モデル
+### 4.1 CSS Grid Layout Conceptual Model
 
-CSS Grid は 2 次元レイアウトシステムであり、行（row）と列（column）の両方を同時に制御できる。Flexbox が「コンテンツに合わせて伸縮する」のに対し、Grid は「グリッド構造にコンテンツを配置する」アプローチをとる。
+CSS Grid is a two-dimensional layout system that can control both rows and columns simultaneously. While Flexbox "stretches and shrinks to fit content," Grid takes the approach of "placing content onto a grid structure."
 
 ```
-CSS Grid の基本構造:
+Basic structure of CSS Grid:
 
   grid-template-columns: 200px 1fr 1fr;
   grid-template-rows: 80px 1fr 60px;
@@ -659,122 +660,123 @@ CSS Grid の基本構造:
        ↕          ↕
      12px gap   12px gap
 
-  Grid Line（グリッド線）:
-  │1       │2          │3          │4  ← 列のグリッド線
-  ─1─────────────────────────────────  ← 行のグリッド線
+  Grid Lines:
+  │1       │2          │3          │4  ← column grid lines
+  ─1─────────────────────────────────  ← row grid lines
   ─2─────────────────────────────────
   ─3─────────────────────────────────
   ─4─────────────────────────────────
 ```
 
-### 4.2 Grid コンテナのプロパティ詳細
+### 4.2 Grid Container Properties in Detail
 
 ```css
 .grid-container {
   display: grid;
 
-  /* --- トラックの定義 --- */
+  /* --- Define tracks --- */
   grid-template-columns: 200px 1fr 1fr;
   grid-template-rows: auto 1fr auto;
 
-  /* repeat() 関数 */
-  grid-template-columns: repeat(3, 1fr);          /* 3 等分 */
-  grid-template-columns: repeat(4, 100px 200px);  /* パターン繰り返し */
-  grid-template-columns: 200px repeat(3, 1fr);    /* 混合 */
+  /* repeat() function */
+  grid-template-columns: repeat(3, 1fr);          /* divide into 3 equal parts */
+  grid-template-columns: repeat(4, 100px 200px);  /* repeat a pattern */
+  grid-template-columns: 200px repeat(3, 1fr);    /* mixed */
 
-  /* minmax() 関数 */
+  /* minmax() function */
   grid-template-columns: minmax(200px, 1fr) 2fr;
-  /* 最小 200px、最大で 1fr 相当 */
+  /* minimum 200px, maximum 1fr equivalent */
 
   /* auto-fill / auto-fit */
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
 
-  /* --- エリアテンプレート --- */
+  /* --- Area template --- */
   grid-template-areas:
     "header  header  header"
     "sidebar content content"
     "footer  footer  footer";
 
-  /* --- 間隔 --- */
+  /* --- Gaps --- */
   gap: 16px;
   row-gap: 16px;
   column-gap: 24px;
 
-  /* --- 暗黙的トラック --- */
+  /* --- Implicit tracks --- */
   grid-auto-rows: minmax(100px, auto);
   grid-auto-columns: 1fr;
   grid-auto-flow: row;     /* row | column | dense */
 
-  /* --- 配置 --- */
-  justify-items: stretch;   /* セル内の水平配置 */
-  align-items: stretch;     /* セル内の垂直配置 */
-  justify-content: start;   /* グリッド全体の水平配置 */
-  align-content: start;     /* グリッド全体の垂直配置 */
+  /* --- Alignment --- */
+  justify-items: stretch;   /* horizontal alignment within cells */
+  align-items: stretch;     /* vertical alignment within cells */
+  justify-content: start;   /* horizontal alignment of entire grid */
+  align-content: start;     /* vertical alignment of entire grid */
 }
 ```
 
-### 4.3 Grid アイテムのプロパティ詳細
+### 4.3 Grid Item Properties in Detail
 
 ```css
 .grid-item {
-  /* --- 配置（ライン番号指定） --- */
+  /* --- Placement (by line number) --- */
   grid-column-start: 1;
-  grid-column-end: 3;       /* 列1から列3まで（2カラム分） */
+  grid-column-end: 3;       /* from column 1 to column 3 (spans 2 columns) */
   grid-row-start: 1;
   grid-row-end: 2;
 
-  /* --- 省略記法 --- */
+  /* --- Shorthand --- */
   grid-column: 1 / 3;       /* start / end */
   grid-row: 1 / 2;
   grid-area: 1 / 1 / 2 / 3; /* row-start / col-start / row-end / col-end */
 
-  /* --- span キーワード --- */
-  grid-column: 1 / span 2;  /* 列1から2カラム分 */
-  grid-column: span 2;      /* 自動配置で2カラム分 */
+  /* --- span keyword --- */
+  grid-column: 1 / span 2;  /* from column 1, span 2 columns */
+  grid-column: span 2;      /* auto-placed, span 2 columns */
 
-  /* --- エリア名指定 --- */
-  grid-area: header;         /* grid-template-areas で定義した名前 */
+  /* --- Named area --- */
+  grid-area: header;         /* name defined in grid-template-areas */
 
-  /* --- 個別配置 --- */
-  justify-self: center;     /* セル内の水平配置（個別） */
-  align-self: end;           /* セル内の垂直配置（個別） */
+  /* --- Individual alignment --- */
+  justify-self: center;     /* horizontal alignment within cell (individual) */
+  align-self: end;           /* vertical alignment within cell (individual) */
 }
 ```
 
-### 4.4 Grid トラックサイジングアルゴリズム
+### 4.4 Grid Track Sizing Algorithm
 
-Grid のトラックサイジングは CSS 仕様の中でも最も複雑なアルゴリズムの一つである。以下にその概要を示す。
+Grid track sizing is one of the most complex algorithms in the CSS specification. Here is an overview.
 
 ```
-Grid トラックサイジングアルゴリズムの概要:
+Overview of the Grid track sizing algorithm:
 
   ┌─────────────────────────────────────────────┐
-  │ Phase 1: 固定サイズトラックの解決           │
-  │  px, em 等の固定単位 → そのまま確定        │
+  │ Phase 1: Resolve fixed-size tracks          │
+  │  Fixed units like px, em → determined as-is │
   └─────────────┬───────────────────────────────┘
                 │
   ┌─────────────▼───────────────────────────────┐
-  │ Phase 2: コンテンツベーストラックの解決     │
+  │ Phase 2: Resolve content-based tracks       │
   │  auto, min-content, max-content,            │
-  │  fit-content() → コンテンツを測定して決定  │
+  │  fit-content() → measure content to decide  │
   └─────────────┬───────────────────────────────┘
                 │
   ┌─────────────▼───────────────────────────────┐
-  │ Phase 3: fr 単位トラックの解決              │
-  │  残りの利用可能空間を fr 比率で分配        │
-  │  ※ minmax(auto, 1fr) の場合、            │
-  │    最小値はコンテンツサイズ                 │
+  │ Phase 3: Resolve fr-unit tracks             │
+  │  Distribute remaining available space       │
+  │  by fr ratio                                │
+  │  Note: for minmax(auto, 1fr),               │
+  │    the minimum value is content size        │
   └─────────────┬───────────────────────────────┘
                 │
   ┌─────────────▼───────────────────────────────┐
-  │ Phase 4: スパンアイテムの調整               │
-  │  複数トラックにまたがるアイテムの          │
-  │  サイズ要求をトラックに分配                │
+  │ Phase 4: Adjust spanning items              │
+  │  Distribute the size requirements of items  │
+  │  spanning multiple tracks across tracks     │
   └─────────────────────────────────────────────┘
 ```
 
-### 4.5 fr 単位の詳細な計算
+### 4.5 Detailed Calculation of the fr Unit
 
 ```css
 .container {
@@ -786,71 +788,71 @@ Grid トラックサイジングアルゴリズムの概要:
 ```
 
 ```
-fr 単位の計算過程:
+fr unit calculation process:
 
-  Step 1: 利用可能空間の計算
-    コンテナ幅: 900px
-    gap の合計: 20px * 2 = 40px（3列の間に2つの gap）
-    固定トラック: 200px
-    fr に割り当て可能な空間 = 900 - 40 - 200 = 660px
+  Step 1: Calculate available space
+    Container width: 900px
+    Total gaps: 20px * 2 = 40px (2 gaps between 3 columns)
+    Fixed tracks: 200px
+    Space available for fr = 900 - 40 - 200 = 660px
 
-  Step 2: fr の合計
+  Step 2: Total fr
     1fr + 2fr = 3fr
 
-  Step 3: 1fr あたりの値
+  Step 3: Value of 1fr
     660px / 3 = 220px
 
-  Step 4: 各トラックの幅
-    列1: 200px（固定）
-    列2: 1fr = 220px
-    列3: 2fr = 440px
+  Step 4: Width of each track
+    Column 1: 200px (fixed)
+    Column 2: 1fr = 220px
+    Column 3: 2fr = 440px
 
-  検算: 200 + 220 + 440 + 40(gap) = 900px ✓
+  Verification: 200 + 220 + 440 + 40(gap) = 900px ✓
 
   ┌──────────┬────────────────┬──────────────────────────────┐
   │  200px   │     220px      │           440px              │
-  │  固定    │     1fr        │           2fr                │
+  │  fixed   │     1fr        │           2fr                │
   └──────────┴────────────────┴──────────────────────────────┘
        ↕ 20px gap     ↕ 20px gap
 ```
 
-### 4.6 auto-fill vs auto-fit の違い
+### 4.6 Difference Between auto-fill and auto-fit
 
 ```css
-/* auto-fill: 空のトラックも保持 */
+/* auto-fill: retains empty tracks */
 .grid-auto-fill {
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
 }
 
-/* auto-fit: 空のトラックを折りたたむ */
+/* auto-fit: collapses empty tracks */
 .grid-auto-fit {
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 ```
 
 ```
-コンテナ幅: 600px、アイテム: 2個、minmax(150px, 1fr) の場合:
+Container width: 600px, items: 2, minmax(150px, 1fr):
 
   auto-fill:
   ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
   │ item1  │ │ item2  │ │ (empty)│ │ (empty)│
   │ 150px  │ │ 150px  │ │ 150px  │ │ 150px  │
   └────────┘ └────────┘ └────────┘ └────────┘
-  → 4 トラック生成、空トラックも 150px 確保
+  → 4 tracks created, empty tracks also hold 150px
 
   auto-fit:
   ┌──────────────────┐ ┌──────────────────┐
   │     item1        │ │     item2        │
   │     300px        │ │     300px        │
   └──────────────────┘ └──────────────────┘
-  → 空トラックは 0px に折りたたまれ、
-    残り空間を既存アイテムが 1fr で分配
+  → Empty tracks collapse to 0px,
+    existing items share remaining space via 1fr
 ```
 
-### 4.7 grid-template-areas による名前付きレイアウト
+### 4.7 Named Layout with grid-template-areas
 
 ```css
-/* ダッシュボードレイアウトの例 */
+/* Example: dashboard layout */
 .dashboard {
   display: grid;
   grid-template-columns: 250px 1fr 1fr;
@@ -870,7 +872,7 @@ fr 単位の計算過程:
 .aside  { grid-area: aside; }
 .footer { grid-area: footer; }
 
-/* "." でエリアを空白にすることも可能 */
+/* "." can be used to leave an area empty */
 .layout-with-gap {
   grid-template-areas:
     "header header header"
@@ -881,72 +883,73 @@ fr 単位の計算過程:
 
 ---
 
-## 5. Positioning と Stacking Context
+## 5. Positioning and Stacking Context
 
-### 5.1 position プロパティの全モード
+### 5.1 All Modes of the position Property
 
 ```css
-/* static（デフォルト） */
+/* static (default) */
 .static {
   position: static;
-  /* Normal Flow に従う */
-  /* top / left / right / bottom は無効 */
+  /* Follows Normal Flow */
+  /* top / left / right / bottom have no effect */
 }
 
-/* relative: 元の位置から相対移動 */
+/* relative: moves relative to original position */
 .relative {
   position: relative;
   top: 10px;
   left: 20px;
-  /* Normal Flow 上の元の位置から移動 */
-  /* 元の位置には空白が残る（スペースを占有し続ける） */
+  /* Moves from the original position in Normal Flow */
+  /* The original position is preserved (still occupies space) */
 }
 
-/* absolute: 最寄りの positioned 祖先を基準に配置 */
+/* absolute: placed relative to the nearest positioned ancestor */
 .absolute {
   position: absolute;
   top: 0;
   right: 0;
-  /* Normal Flow から完全に外れる */
-  /* 基準: 最寄りの position: static 以外の祖先 */
-  /* 祖先が全て static の場合は初期包含ブロック（viewport 相当） */
+  /* Completely removed from Normal Flow */
+  /* Reference: the nearest ancestor with position other than static */
+  /* If all ancestors are static, the initial containing block (viewport) is used */
 }
 
-/* fixed: viewport を基準に固定配置 */
+/* fixed: placed relative to the viewport */
 .fixed {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
-  /* スクロールしても位置が変わらない */
-  /* ※ 祖先に transform, filter, perspective がある場合は */
-  /*   その祖先が包含ブロックになる（重要なエッジケース） */
+  /* Position does not change on scroll */
+  /* Note: if an ancestor has transform, filter, or perspective,
+     that ancestor becomes the containing block (important edge case) */
 }
 
-/* sticky: スクロール位置に応じて relative / fixed を切り替え */
+/* sticky: switches between relative and fixed based on scroll position */
 .sticky {
   position: sticky;
   top: 0;
-  /* スクロール前は relative と同じ */
-  /* スクロールして top: 0 に達すると fixed のように振る舞う */
-  /* ※ 最寄りのスクロール可能な祖先の中で動作する */
+  /* Before scrolling, behaves like relative */
+  /* When scroll reaches top: 0, behaves like fixed */
+  /* Note: operates within the nearest scrollable ancestor */
 }
 ```
 
-### 5.2 Stacking Context（重ね合わせコンテキスト）
+### 5.2 Stacking Context
 
 ```
-Stacking Context の描画順序:
+Paint order within a Stacking Context:
 
-  背面                                          前面
+  Back                                          Front
   ─────────────────────────────────────────────────→
 
-  1. 背景と    2. 負の     3. ブロック  4. float  5. インライン  6. z-index:0  7. 正の
-     ボーダー    z-index     レベル       要素      レベル        / auto        z-index
+  1. Background  2. Negative  3. Block-    4. Float  5. Inline-  6. z-index:0  7. Positive
+     and border    z-index     level        elements  level       / auto        z-index
+                               elements               elements
 
   ┌──────────────────────────────────────────────────┐
   │ ┌─────────┐                                      │
-  │ │z-index  │ ← 最前面 (7)                        │
+  │ │z-index  │ ← frontmost (7)                     │
   │ │  : 10   │                                      │
   │ └─────────┘                                      │
   │          ┌─────────┐                             │
@@ -954,97 +957,97 @@ Stacking Context の描画順序:
   │          │  : 0    │                              │
   │          └─────────┘                             │
   │ ┌─────────────────────┐                          │
-  │ │ インラインテキスト  │ ← (5)                    │
+  │ │ inline text         │ ← (5)                    │
   │ └─────────────────────┘                          │
   │    ┌─────────┐                                   │
   │    │ float   │ ← (4)                             │
   │    └─────────┘                                   │
   │ ┌────────────────────────────────────┐           │
-  │ │ ブロックレベル子要素              │ ← (3)      │
+  │ │ block-level child element          │ ← (3)     │
   │ └────────────────────────────────────┘           │
   │  ┌──────────┐                                    │
   │  │z-index   │ ← (2)                             │
   │  │ : -1     │                                    │
   │  └──────────┘                                    │
-  │ ████████████████████████████████████ ← (1) 背景  │
+  │ ████████████████████████████████████ ← (1) background │
   └──────────────────────────────────────────────────┘
 ```
 
-Stacking Context を生成する条件:
+Conditions that generate a Stacking Context:
 
 ```css
-/* Stacking Context を生成する主な条件 */
+/* Main conditions that generate a Stacking Context */
 
-/* 1. ルート要素 (<html>) */
+/* 1. Root element (<html>) */
 
 /* 2. position + z-index */
 .sc-1 { position: relative; z-index: 1; }
 .sc-2 { position: absolute; z-index: 0; }
 
-/* 3. position: fixed / sticky は常に生成 */
+/* 3. position: fixed / sticky always generates one */
 .sc-3 { position: fixed; }
 .sc-4 { position: sticky; top: 0; }
 
-/* 4. opacity が 1 未満 */
+/* 4. opacity less than 1 */
 .sc-5 { opacity: 0.99; }
 
-/* 5. transform が none 以外 */
+/* 5. transform other than none */
 .sc-6 { transform: translateZ(0); }
 
-/* 6. filter が none 以外 */
+/* 6. filter other than none */
 .sc-7 { filter: blur(0); }
 
-/* 7. will-change が特定プロパティ */
+/* 7. will-change with specific properties */
 .sc-8 { will-change: transform; }
 
 /* 8. isolation: isolate */
 .sc-9 { isolation: isolate; }
 
-/* 9. mix-blend-mode が normal 以外 */
+/* 9. mix-blend-mode other than normal */
 .sc-10 { mix-blend-mode: multiply; }
 
 /* 10. contain: layout / paint / strict / content */
 .sc-11 { contain: paint; }
 ```
 
-### 5.3 包含ブロック（Containing Block）
+### 5.3 Containing Block
 
-要素のサイズ計算やパーセンテージ値の基準となるのが包含ブロックである。
+The containing block is the reference rectangle for an element's size calculations and percentage values.
 
 ```
-包含ブロックの決定規則:
+Rules for determining the containing block:
 
   position: static / relative
-  → 最寄りのブロックコンテナ祖先のコンテンツ領域
+  → Content area of the nearest block container ancestor
 
   position: absolute
-  → 最寄りの position: static 以外の祖先の
-     パディング辺（padding edge）
+  → Padding edge of the nearest ancestor with
+     position other than static
 
   position: fixed
-  → ビューポート（通常）
-  → ※ transform/filter/perspective を持つ祖先がある場合は
-     その祖先のパディング辺
+  → Viewport (normally)
+  → Note: if an ancestor has transform/filter/perspective,
+     it becomes that ancestor's padding edge
 
   position: sticky
-  → 最寄りのスクロール可能な祖先のコンテンツ領域
+  → Content area of the nearest scrollable ancestor
 ```
 
 ---
 
-## 6. レイアウト計算アルゴリズムの全体像
+## 6. Layout Calculation Algorithm Overview
 
-### 6.1 ブラウザのレンダリングパイプラインにおける位置
+### 6.1 Position in the Browser Rendering Pipeline
 
 ```
-レンダリングパイプライン全体図:
+Full rendering pipeline diagram:
 
   HTML/CSS
     │
     ▼
   ┌──────────┐   ┌──────────┐   ┌──────────┐
   │  Parse   │──→│   DOM    │──→│  CSSOM   │
-  │ (解析)   │   │  Tree    │   │  Tree    │
+  │          │   │  Tree    │   │  Tree    │
   └──────────┘   └──────────┘   └──────────┘
                        │              │
                        ▼              │
@@ -1055,252 +1058,255 @@ Stacking Context を生成する条件:
                       │
                       ▼
                 ┌───────────┐
-                │  Layout   │ ← ★ ここがレイアウト計算
-                │ (Reflow)  │    要素の位置とサイズを決定
+                │  Layout   │ ← ★ This is layout calculation
+                │ (Reflow)  │    Determines positions and sizes
                 └─────┬─────┘
                       │
                       ▼
                 ┌───────────┐
                 │  Paint    │
-                │ (描画命令 │
-                │  生成)    │
+                │ (generate │
+                │  draw     │
+                │  commands)│
                 └─────┬─────┘
                       │
                       ▼
                 ┌───────────┐
                 │ Composite │
-                │ (合成)    │
                 └───────────┘
                       │
                       ▼
-                  画面表示
+                  Display
 ```
 
-### 6.2 レイアウト計算の詳細フロー
+### 6.2 Detailed Layout Calculation Flow
 
 ```
-Layout 計算の内部フロー:
+Internal flow of Layout calculation:
 
   ┌──────────────────────────────────────────────┐
-  │ 1. ルート要素から開始                        │
-  │    初期包含ブロック = ビューポートサイズ      │
+  │ 1. Start from the root element               │
+  │    Initial containing block = viewport size  │
   └─────────────┬────────────────────────────────┘
                 │
   ┌─────────────▼────────────────────────────────┐
-  │ 2. 各要素の display / position を評価        │
-  │    → レイアウトモードの決定                  │
+  │ 2. Evaluate display / position per element   │
+  │    → Determine layout mode                   │
   │    Normal Flow / Flex / Grid / Float / Abs   │
   └─────────────┬────────────────────────────────┘
                 │
   ┌─────────────▼────────────────────────────────┐
-  │ 3. ツリーを深さ優先で走査                    │
-  │    親要素は「利用可能空間」を子に伝える      │
-  │    子要素は「必要なサイズ」を親に返す        │
+  │ 3. Traverse tree in depth-first order        │
+  │    Parent passes "available space" to child  │
+  │    Child returns "required size" to parent   │
   └─────────────┬────────────────────────────────┘
                 │
   ┌─────────────▼────────────────────────────────┐
-  │ 4. 制約の解決                                │
+  │ 4. Resolve constraints                       │
   │    width / height / min / max / %            │
-  │    利用可能空間と要素の固有サイズから決定    │
+  │    Determined from available space and       │
+  │    the element's intrinsic size              │
   └─────────────┬────────────────────────────────┘
                 │
   ┌─────────────▼────────────────────────────────┐
-  │ 5. 各レイアウトモード固有のアルゴリズム実行  │
-  │    Block: 縦積み + マージン相殺             │
-  │    Inline: 行ボックス生成 + 折り返し        │
-  │    Flex: 6 段階アルゴリズム                  │
-  │    Grid: トラックサイジング                  │
+  │ 5. Execute the algorithm specific to each    │
+  │    layout mode                               │
+  │    Block: vertical stacking + margin collapse│
+  │    Inline: line box creation + wrapping      │
+  │    Flex: 6-stage algorithm                   │
+  │    Grid: track sizing                        │
   └─────────────┬────────────────────────────────┘
                 │
   ┌─────────────▼────────────────────────────────┐
-  │ 6. 座標の確定                                │
-  │    各要素の (x, y, width, height) を確定    │
-  │    レイアウトツリーに書き込み                │
+  │ 6. Finalize coordinates                      │
+  │    Determine (x, y, width, height) per elem  │
+  │    Write to layout tree                      │
   └──────────────────────────────────────────────┘
 ```
 
-### 6.3 パーセンテージ値の解決
+### 6.3 Resolving Percentage Values
 
-パーセンテージ値は包含ブロックを基準に計算される。しかし、プロパティによって基準が異なる。
+Percentage values are calculated relative to the containing block. However, the reference differs depending on the property.
 
-| プロパティ | パーセンテージの基準 |
-|-----------|---------------------|
-| width | 包含ブロックの幅 |
-| height | 包含ブロックの高さ（※） |
-| padding-top / padding-bottom | 包含ブロックの**幅**（高さではない） |
-| margin-top / margin-bottom | 包含ブロックの**幅**（高さではない） |
-| top / bottom | 包含ブロックの高さ |
-| left / right | 包含ブロックの幅 |
-| font-size | 親要素の font-size |
-| line-height | 要素自身の font-size |
+| Property | Percentage Reference |
+|----------|---------------------|
+| width | Width of containing block |
+| height | Height of containing block (*) |
+| padding-top / padding-bottom | **Width** of containing block (not height) |
+| margin-top / margin-bottom | **Width** of containing block (not height) |
+| top / bottom | Height of containing block |
+| left / right | Width of containing block |
+| font-size | Parent element's font-size |
+| line-height | The element's own font-size |
 
 ```css
 /*
- * 重要: padding と margin の上下方向の % は
- * 「包含ブロックの幅」を基準にする
+ * Important: % for vertical padding and margin is
+ * based on the "width" of the containing block.
  *
- * この仕様は直感に反するが、循環参照を防ぐための設計である
+ * This spec is counterintuitive but is designed
+ * to prevent circular references.
  */
 .aspect-ratio-hack {
   width: 100%;
-  padding-top: 56.25%;  /* 16:9 のアスペクト比 */
-  /* padding-top の % は幅を基準にするため、 */
-  /* 幅の 56.25% = 9/16 の高さが得られる */
+  padding-top: 56.25%;  /* 16:9 aspect ratio */
+  /* padding-top % is relative to width, so
+     56.25% of the width = 9/16 height */
   height: 0;
 }
 
-/* 現代的なアスペクト比の指定 */
+/* Modern way to specify aspect ratio */
 .modern-aspect-ratio {
   aspect-ratio: 16 / 9;
   width: 100%;
-  /* aspect-ratio プロパティで直接指定可能 */
+  /* Can be specified directly with the aspect-ratio property */
 }
 ```
 
 ---
 
-## 7. パフォーマンスとレイアウトスラッシング
+## 7. Performance and Layout Thrashing
 
-### 7.1 レイアウトスラッシング（Layout Thrashing）
+### 7.1 Layout Thrashing
 
-レイアウトスラッシングとは、JavaScript で DOM の読み取りと書き込みを交互に行うことで、ブラウザに同期的なレイアウト再計算を強制する問題である。
+Layout Thrashing is the problem of forcing the browser to synchronously recalculate layout by alternating between reading and writing to the DOM in JavaScript.
 
 ```javascript
-// --- アンチパターン: レイアウトスラッシング ---
-// 各ループでレイアウト再計算が発生する（O(n) のレイアウト計算）
+// --- Anti-pattern: Layout Thrashing ---
+// A layout recalculation occurs on each loop iteration (O(n) layout calculations)
 const elements = document.querySelectorAll('.item');
 for (const el of elements) {
-  const height = el.offsetHeight;       // 読み取り → 同期レイアウト発生
-  el.style.width = height * 2 + 'px';  // 書き込み → レイアウトが無効化
+  const height = el.offsetHeight;       // read → triggers synchronous layout
+  el.style.width = height * 2 + 'px';  // write → invalidates layout
 }
 
-// --- 改善パターン: 読み取りと書き込みを分離 ---
+// --- Improved pattern: Separate reads and writes ---
 const elements = document.querySelectorAll('.item');
 
-// Phase 1: 全ての読み取りをまとめる
+// Phase 1: Batch all reads
 const heights = Array.from(elements).map(el => el.offsetHeight);
 
-// Phase 2: 全ての書き込みをまとめる
+// Phase 2: Batch all writes
 elements.forEach((el, i) => {
   el.style.width = heights[i] * 2 + 'px';
 });
 ```
 
-### 7.2 レイアウトを発生させるプロパティ
+### 7.2 Properties That Trigger Layout
 
-以下のプロパティや API はレイアウト計算を発生させる。パフォーマンスに敏感な場面では注意が必要である。
+The following properties and APIs trigger layout calculation. Care is needed in performance-sensitive contexts.
 
 ```
-レイアウトを発生（トリガー）させる操作:
+Operations that trigger (cause) layout:
 
-  DOM プロパティの読み取り:
+  Reading DOM properties:
   ├── offsetTop, offsetLeft, offsetWidth, offsetHeight
   ├── scrollTop, scrollLeft, scrollWidth, scrollHeight
   ├── clientTop, clientLeft, clientWidth, clientHeight
-  └── getComputedStyle() の一部プロパティ
+  └── some properties of getComputedStyle()
 
-  レイアウトのみ（Paint なし）:
+  Layout only (no Paint):
   ├── width, height, min-*, max-*
   ├── padding, margin, border
   ├── display, position, float
   ├── top, left, right, bottom
   └── font-size, line-height, text-align
 
-  Paint まで発生:
+  Up to Paint:
   ├── color, background, box-shadow
   ├── border-radius, border-style
   └── visibility
 
-  Composite のみ（最軽量）:
+  Composite only (lightest):
   ├── transform
   ├── opacity
   └── will-change
 ```
 
-### 7.3 contain プロパティによるレイアウト最適化
+### 7.3 Layout Optimization with the contain Property
 
 ```css
-/* contain: レイアウトの影響範囲を限定する */
+/* contain: limits the scope of layout impact */
 .card {
   contain: layout;
-  /* この要素内部のレイアウト変更は外部に影響しない */
-  /* ブラウザはこの要素だけを再計算すればよい */
+  /* Layout changes inside this element do not affect the outside */
+  /* The browser only needs to recalculate this element */
 }
 
 .widget {
   contain: strict;
-  /* layout + paint + size + style を全て包含 */
-  /* 最も強力だが、サイズがコンテンツに依存できない */
+  /* Contains layout + paint + size + style — all of them */
+  /* Most powerful, but size cannot depend on content */
 }
 
 .article {
   contain: content;
-  /* layout + paint + style を包含 */
-  /* size は包含しないため、コンテンツに応じたサイズ変更は可能 */
+  /* Contains layout + paint + style */
+  /* Does not contain size, so size changes with content are still possible */
 }
 
-/* content-visibility: 画面外の要素のレンダリングをスキップ */
+/* content-visibility: skips rendering of off-screen elements */
 .long-list-item {
   content-visibility: auto;
   contain-intrinsic-size: 0 200px;
-  /* 画面外の場合、200px の仮サイズでレイアウトされ、 */
-  /* 内部のレンダリングは完全にスキップされる */
+  /* When off-screen, laid out with a placeholder size of 200px,
+     and internal rendering is completely skipped */
 }
 ```
 
 ---
 
-## 8. Flexbox vs Grid 使い分け徹底比較
+## 8. Flexbox vs Grid — In-Depth Comparison
 
-### 8.1 設計思想の違い
+### 8.1 Difference in Design Philosophy
 
-| 観点 | Flexbox | CSS Grid |
-|------|---------|----------|
-| 次元 | 1次元（行 **or** 列） | 2次元（行 **と** 列を同時に制御） |
-| 設計アプローチ | コンテンツ主導（content-out） | レイアウト主導（layout-in） |
-| サイズの決定 | コンテンツに基づいて伸縮 | トラック定義に基づいて配置 |
-| 折り返し | flex-wrap で 1次元の延長 | 本質的に 2次元の構造 |
-| アイテムの配置 | ソース順序に依存しやすい | grid-area で自由に配置可能 |
-| 重なり | 標準では不可 | grid-area の重複で可能 |
-| Gap サポート | あり | あり |
-| サブグリッド | なし | subgrid で入れ子の整列が可能 |
-| ブラウザ対応 | IE11 部分対応（-ms-） | IE11 非対応（旧仕様のみ） |
-| 適切な用途 | ナビバー、カード内、ツールバー | ページレイアウト、ダッシュボード |
+| Aspect | Flexbox | CSS Grid |
+|--------|---------|----------|
+| Dimensions | 1D (row **or** column) | 2D (controls rows **and** columns simultaneously) |
+| Design approach | Content-driven (content-out) | Layout-driven (layout-in) |
+| Size determination | Stretches/shrinks based on content | Placed according to track definition |
+| Wrapping | Extension of 1D via flex-wrap | Inherently 2D structure |
+| Item placement | Tends to depend on source order | Freely placeable with grid-area |
+| Overlap | Not standard | Possible by overlapping grid-area |
+| Gap support | Yes | Yes |
+| Subgrid | No | Nested alignment possible with subgrid |
+| Browser support | IE11 partial (-ms-) | IE11 not supported (old spec only) |
+| Appropriate uses | Navbars, card interiors, toolbars | Page layouts, dashboards |
 
-### 8.2 ユースケース別の推奨
+### 8.2 Recommendations by Use Case
 
 ```
-ユースケース別推奨レイアウトモード:
+Recommended layout mode by use case:
 
   ┌────────────────────────────┬──────────┬──────────┐
-  │ ユースケース               │ Flexbox  │  Grid    │
+  │ Use Case                   │ Flexbox  │  Grid    │
   ├────────────────────────────┼──────────┼──────────┤
-  │ ナビゲーションバー         │  ★推奨  │  △可    │
-  │ カードの内部レイアウト     │  ★推奨  │  △可    │
-  │ ツールバーのボタン配置     │  ★推奨  │  ○可    │
-  │ フォームの input + button  │  ★推奨  │  ○可    │
-  │ 要素の中央揃え             │  ★推奨  │  ★推奨  │
-  │ 等幅のカードグリッド       │  ○可    │  ★推奨  │
-  │ ページ全体のレイアウト     │  △可    │  ★推奨  │
-  │ ダッシュボード             │  ×不適  │  ★推奨  │
-  │ 聖杯レイアウト             │  △可    │  ★推奨  │
-  │ マガジン風レイアウト       │  ×不適  │  ★推奨  │
-  │ 要素の重なり配置           │  ×不適  │  ★推奨  │
-  │ レスポンシブカードリスト   │  ○可    │  ★推奨  │
+  │ Navigation bar             │  ★Best  │  △OK    │
+  │ Card interior layout       │  ★Best  │  △OK    │
+  │ Toolbar button placement   │  ★Best  │  ○OK    │
+  │ Form input + button        │  ★Best  │  ○OK    │
+  │ Centering an element       │  ★Best  │  ★Best  │
+  │ Equal-width card grid      │  ○OK    │  ★Best  │
+  │ Full page layout           │  △OK    │  ★Best  │
+  │ Dashboard                  │  ×Avoid │  ★Best  │
+  │ Holy Grail layout          │  △OK    │  ★Best  │
+  │ Magazine-style layout      │  ×Avoid │  ★Best  │
+  │ Overlapping elements       │  ×Avoid │  ★Best  │
+  │ Responsive card list       │  ○OK    │  ★Best  │
   └────────────────────────────┴──────────┴──────────┘
 
-  ★推奨: 最適な選択
-  ○可:  使用可能だが最適ではない
-  △可:  やや無理がある
-  ×不適: 不適切
+  ★Best: Optimal choice
+  ○OK:  Usable but not optimal
+  △OK:  Somewhat forced
+  ×Avoid: Inappropriate
 ```
 
-### 8.3 Flexbox と Grid の組み合わせ
+### 8.3 Combining Flexbox and Grid
 
-実際のプロジェクトでは、Flexbox と Grid を適材適所で組み合わせることが最も効果的である。
+In actual projects, combining Flexbox and Grid where each shines is the most effective approach.
 
 ```css
-/* ページ全体: Grid */
+/* Entire page: Grid */
 .page-layout {
   display: grid;
   grid-template-columns: 250px 1fr;
@@ -1312,7 +1318,7 @@ elements.forEach((el, i) => {
   min-height: 100vh;
 }
 
-/* ヘッダー内部: Flexbox */
+/* Header interior: Flexbox */
 .header {
   grid-area: header;
   display: flex;
@@ -1321,14 +1327,14 @@ elements.forEach((el, i) => {
   padding: 0 24px;
 }
 
-/* ナビゲーション: Flexbox */
+/* Navigation: Flexbox */
 .header-nav {
   display: flex;
   gap: 16px;
   align-items: center;
 }
 
-/* メインコンテンツ内のカードグリッド: Grid */
+/* Card grid inside main content: Grid */
 .main-content {
   grid-area: main;
   display: grid;
@@ -1337,32 +1343,32 @@ elements.forEach((el, i) => {
   padding: 24px;
 }
 
-/* 各カード内部: Flexbox */
+/* Each card interior: Flexbox */
 .card {
   display: flex;
   flex-direction: column;
 }
 
 .card-body {
-  flex: 1;  /* カードの高さが揃う */
+  flex: 1;  /* cards align to the same height */
 }
 
 .card-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: auto;  /* フッターを底辺に固定 */
+  margin-top: auto;  /* pin footer to the bottom */
 }
 ```
 
 ---
 
-## 9. 実践コード例集
+## 9. Practical Code Examples
 
-### 9.1 完全な中央揃え（5 つの方法）
+### 9.1 Perfect Centering (5 Methods)
 
 ```css
-/* 方法1: Flexbox（最も汎用的） */
+/* Method 1: Flexbox (most versatile) */
 .center-flex {
   display: flex;
   justify-content: center;
@@ -1370,14 +1376,14 @@ elements.forEach((el, i) => {
   min-height: 100vh;
 }
 
-/* 方法2: Grid（最も簡潔） */
+/* Method 2: Grid (most concise) */
 .center-grid {
   display: grid;
   place-items: center;
   min-height: 100vh;
 }
 
-/* 方法3: Grid + margin: auto */
+/* Method 3: Grid + margin: auto */
 .center-grid-margin {
   display: grid;
   min-height: 100vh;
@@ -1386,7 +1392,7 @@ elements.forEach((el, i) => {
   margin: auto;
 }
 
-/* 方法4: position + transform */
+/* Method 4: position + transform */
 .center-position {
   position: relative;
   min-height: 100vh;
@@ -1398,7 +1404,7 @@ elements.forEach((el, i) => {
   transform: translate(-50%, -50%);
 }
 
-/* 方法5: position + inset + margin（モダン） */
+/* Method 5: position + inset + margin (modern) */
 .center-inset {
   position: relative;
   min-height: 100vh;
@@ -1412,10 +1418,10 @@ elements.forEach((el, i) => {
 }
 ```
 
-### 9.2 聖杯レイアウト（Holy Grail Layout）
+### 9.2 Holy Grail Layout
 
 ```css
-/* CSS Grid による聖杯レイアウト */
+/* Holy Grail layout with CSS Grid */
 .holy-grail {
   display: grid;
   grid-template:
@@ -1433,7 +1439,7 @@ elements.forEach((el, i) => {
 .aside  { grid-area: aside;  background: #edf2f7; }
 .footer { grid-area: footer; background: #2d3748; color: white; }
 
-/* レスポンシブ対応 */
+/* Responsive */
 @media (max-width: 768px) {
   .holy-grail {
     grid-template:
@@ -1447,10 +1453,10 @@ elements.forEach((el, i) => {
 }
 ```
 
-### 9.3 sticky フッター
+### 9.3 Sticky Footer
 
 ```css
-/* 方法1: Flexbox による sticky フッター */
+/* Method 1: Sticky footer with Flexbox */
 .page-flex {
   display: flex;
   flex-direction: column;
@@ -1459,29 +1465,29 @@ elements.forEach((el, i) => {
 
 .page-flex > main {
   flex: 1;
-  /* メインコンテンツが少なくても、 */
-  /* フッターはビューポートの底に配置される */
+  /* Even if there is little main content,
+     the footer is placed at the bottom of the viewport */
 }
 
-/* 方法2: Grid による sticky フッター */
+/* Method 2: Sticky footer with Grid */
 .page-grid {
   display: grid;
   grid-template-rows: auto 1fr auto;
   min-height: 100vh;
 }
 
-/* 方法3: Grid + min-height（最も簡潔） */
+/* Method 3: Grid + min-height (most concise) */
 body {
   display: grid;
   grid-template-rows: auto 1fr auto;
-  min-height: 100dvh;  /* dvh: 動的ビューポート高さ */
+  min-height: 100dvh;  /* dvh: dynamic viewport height */
 }
 ```
 
-### 9.4 レスポンシブカードグリッド
+### 9.4 Responsive Card Grid
 
 ```css
-/* 自動折り返しカードグリッド（メディアクエリ不要） */
+/* Auto-wrapping card grid (no media queries needed) */
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
@@ -1490,14 +1496,14 @@ body {
 }
 
 /*
- * min(100%, 300px) を使う理由:
- * - ビューポートが 300px 未満の場合、minmax(300px, 1fr) だと
- *   カードがコンテナをはみ出す
- * - min(100%, 300px) により、コンテナ幅が 300px 未満の場合は
- *   100% が適用され、はみ出しを防止する
+ * Why use min(100%, 300px):
+ * - If the viewport is smaller than 300px, minmax(300px, 1fr)
+ *   causes the card to overflow the container
+ * - With min(100%, 300px), if the container width is less than 300px,
+ *   100% is applied, preventing overflow
  */
 
-/* カードの均等な高さ揃え */
+/* Equal height cards */
 .card {
   display: flex;
   flex-direction: column;
@@ -1536,60 +1542,60 @@ body {
 }
 ```
 
-### 9.5 サイドバー + メインの可変レイアウト
+### 9.5 Sidebar + Main Variable Layout
 
 ```css
-/* サイドバーが常に一定幅、メインが残りを占める */
+/* Sidebar always at a fixed width, main takes the remainder */
 .sidebar-layout {
   display: flex;
   gap: 24px;
 }
 
 .sidebar {
-  flex: 0 0 280px;  /* 固定幅 280px */
-  /* flex-shrink: 0 で縮小を防止 */
+  flex: 0 0 280px;  /* fixed width 280px */
+  /* flex-shrink: 0 prevents shrinking */
 }
 
 .main-content {
   flex: 1;
   min-width: 0;
-  /* min-width: 0 がないとテキストのオーバーフローが発生する */
-  /* Flex アイテムのデフォルト min-width は auto（コンテンツ幅） */
+  /* Without min-width: 0, text overflow occurs */
+  /* Default min-width of a flex item is auto (content width) */
 }
 
-/* レスポンシブ: 小さい画面では縦積み */
+/* Responsive: stack vertically on small screens */
 @media (max-width: 768px) {
   .sidebar-layout {
     flex-direction: column;
   }
 
   .sidebar {
-    flex: none;  /* 固定幅を解除 */
-    order: -1;   /* 必要に応じてサイドバーを上に */
+    flex: none;  /* release fixed width */
+    order: -1;   /* move sidebar to top if needed */
   }
 }
 ```
 
 ---
 
-## 10. アンチパターン集
+## 10. Anti-Pattern Collection
 
-### 10.1 アンチパターン: min-width: 0 の未設定による Flex アイテムのオーバーフロー
+### 10.1 Anti-Pattern: Flex Item Overflow Due to Missing min-width: 0
 
 ```css
-/* --- 問題のあるコード --- */
+/* --- Problematic code --- */
 .container {
   display: flex;
 }
 
 .long-text-item {
   flex: 1;
-  /* 長いテキストやURLがコンテナからはみ出す */
-  /* Flex アイテムの min-width のデフォルトは auto であり、 */
-  /* これは「コンテンツの最小幅より小さくならない」ことを意味する */
+  /* Long text or URLs overflow the container */
+  /* The default min-width of a flex item is auto, which means
+     "don't shrink below the minimum content width" */
 }
 
-/* --- 修正後のコード --- */
+/* --- Fixed code --- */
 .container {
   display: flex;
 }
@@ -1597,8 +1603,8 @@ body {
 .long-text-item {
   flex: 1;
   min-width: 0;
-  /* min-width: 0 により、コンテンツ幅未満への縮小を許可する */
-  /* これで text-overflow: ellipsis なども正しく動作する */
+  /* min-width: 0 allows shrinking below the content width */
+  /* text-overflow: ellipsis and similar also work correctly now */
 }
 
 .long-text-item p {
@@ -1609,48 +1615,48 @@ body {
 ```
 
 ```
-問題の図解:
+Illustration of the problem:
 
-  min-width: auto（デフォルト）の場合:
+  With min-width: auto (default):
   ┌──────────────────────────────────────────────────────┐
   │ ┌────────┐ ┌─────────────────────────────────────────┼──────┐
-  │ │ sidebar│ │ この長いテキストがコンテナからはみ出す   │はみ出│
+  │ │sidebar │ │ This long text overflows the container  │oflow │
   │ └────────┘ └─────────────────────────────────────────┼──────┘
   └──────────────────────────────────────────────────────┘
 
-  min-width: 0 を追加した場合:
+  With min-width: 0 added:
   ┌──────────────────────────────────────────────────────┐
   │ ┌────────┐ ┌────────────────────────────────────────┐│
-  │ │ sidebar│ │ この長いテキストがコンテナ内に収...     ││
+  │ │sidebar │ │ This long text stays within the con... ││
   │ └────────┘ └────────────────────────────────────────┘│
   └──────────────────────────────────────────────────────┘
 ```
 
-### 10.2 アンチパターン: height: 100% の連鎖忘れ
+### 10.2 Anti-Pattern: Forgetting the height: 100% Chain
 
 ```css
-/* --- 問題のあるコード --- */
+/* --- Problematic code --- */
 .child {
   height: 100%;
-  /* 親要素に明示的な高さが設定されていないと、 */
-  /* height: 100% は無視される */
-  /* ブラウザは「何の 100%?」を解決できない */
+  /* Without an explicit height on the parent,
+     height: 100% is ignored.
+     The browser cannot resolve "100% of what?" */
 }
 
-/* --- 修正後のコード --- */
+/* --- Fixed code --- */
 
-/* 方法1: 高さの連鎖を確保する */
+/* Method 1: Ensure the height chain */
 html, body {
-  height: 100%;  /* まずルートから高さを確保 */
+  height: 100%;  /* first establish height at the root */
 }
 .parent {
-  height: 100%;  /* 親にも明示的な高さが必要 */
+  height: 100%;  /* parent also needs explicit height */
 }
 .child {
-  height: 100%;  /* これで正しく動作する */
+  height: 100%;  /* now works correctly */
 }
 
-/* 方法2: min-height + flex を使う（推奨） */
+/* Method 2: Use min-height + flex (recommended) */
 html {
   height: 100%;
 }
@@ -1660,27 +1666,27 @@ body {
   flex-direction: column;
 }
 .child {
-  flex: 1;  /* 残りの空間を占める */
+  flex: 1;  /* takes up remaining space */
 }
 
-/* 方法3: dvh 単位を使う（最新の方法） */
+/* Method 3: Use dvh unit (latest approach) */
 .full-height {
   min-height: 100dvh;
   /* dvh = dynamic viewport height */
-  /* モバイルでアドレスバーが出入りしても正確 */
+  /* Accurate even when the mobile address bar appears/disappears */
 }
 ```
 
-### 10.3 アンチパターン: z-index のインフレーション
+### 10.3 Anti-Pattern: z-index Inflation
 
 ```css
-/* --- 問題のあるコード --- */
+/* --- Problematic code --- */
 .modal     { z-index: 99999; }
 .tooltip   { z-index: 999999; }
 .dropdown  { z-index: 9999; }
-/* z-index の値が無秩序に増大し、管理不能になる */
+/* z-index values grow chaotically and become unmanageable */
 
-/* --- 改善: z-index スケールの定義 --- */
+/* --- Improvement: define a z-index scale --- */
 :root {
   --z-dropdown:  100;
   --z-sticky:    200;
@@ -1696,158 +1702,159 @@ body {
 .tooltip  { z-index: var(--z-tooltip); }
 
 /*
- * さらに、isolation: isolate を使って
- * Stacking Context を明示的に区切ることで、
- * 各コンポーネント内の z-index が外部に漏れないようにする
+ * Additionally, use isolation: isolate to explicitly
+ * separate Stacking Contexts so that z-index within
+ * each component does not leak to the outside.
  */
 .component {
   isolation: isolate;
-  /* このコンポーネント内の z-index は外部と独立する */
+  /* z-index inside this component is independent of the outside */
 }
 ```
 
 ---
 
-## 11. エッジケース分析
+## 11. Edge Case Analysis
 
-### 11.1 エッジケース: position: fixed と transform の相互作用
+### 11.1 Edge Case: Interaction Between position: fixed and transform
 
-`position: fixed` の要素は通常ビューポートを基準に配置される。しかし、祖先要素に `transform`、`filter`、`perspective` のいずれかが設定されていると、その祖先要素が新しい包含ブロックとなり、fixed 配置が意図通りに動作しなくなる。
+A `position: fixed` element is normally placed relative to the viewport. However, if any ancestor has `transform`, `filter`, or `perspective` set, that ancestor becomes the new containing block, and the fixed placement no longer works as intended.
 
 ```css
-/* 問題が発生するケース */
+/* Case where the problem occurs */
 .animated-parent {
   transform: translateX(0);
-  /* この transform により、新しい包含ブロックが生成される */
+  /* This transform creates a new containing block */
 }
 
 .modal-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
-  /* 期待: ビューポート全体をカバー */
-  /* 現実: .animated-parent の領域内に制限される */
+  /* Expected: covers the entire viewport */
+  /* Reality: restricted to the area of .animated-parent */
 }
 ```
 
 ```
-問題の図解:
+Illustration of the problem:
 
-  通常の fixed 配置:
+  Normal fixed placement:
   ┌── viewport ────────────────────────────┐
   │ ┌── fixed overlay ──────────────────┐  │
   │ │                                   │  │
-  │ │  ビューポート全体をカバー         │  │
+  │ │  covers the entire viewport       │  │
   │ │                                   │  │
   │ └───────────────────────────────────┘  │
   └────────────────────────────────────────┘
 
-  祖先に transform がある場合:
+  When an ancestor has transform:
   ┌── viewport ────────────────────────────┐
   │                                        │
   │  ┌── transform parent ──────┐          │
   │  │ ┌── fixed overlay ────┐  │          │
-  │  │ │ 親の中に閉じ込め   │  │          │
-  │  │ │ られてしまう       │  │          │
+  │  │ │ trapped inside      │  │          │
+  │  │ │ the parent          │  │          │
   │  │ └────────────────────┘  │          │
   │  └──────────────────────────┘          │
   │                                        │
   └────────────────────────────────────────┘
 ```
 
-対策:
+Workarounds:
 
 ```css
-/* 対策1: モーダルを DOM のトップレベルに配置する */
-/* React の createPortal や Vue の Teleport を使用 */
+/* Workaround 1: Place the modal at the top level in the DOM */
+/* Use React's createPortal or Vue's Teleport */
 
-/* 対策2: transform の代わりに will-change を使う（場合による） */
-/* ※ will-change: transform も同様の問題を引き起こすため注意 */
+/* Workaround 2: Use will-change instead of transform (case-dependent) */
+/* Note: will-change: transform causes the same issue */
 
-/* 対策3: 祖先の transform を条件付きで適用する */
+/* Workaround 3: Apply transform conditionally on the ancestor */
 .parent {
-  /* アニメーション中のみ transform を適用 */
-  /* idle 状態では transform: none を維持 */
+  /* Apply transform only during animation */
+  /* Maintain transform: none in idle state */
 }
 
-/* 対策4: CSS の @layer や :has() を使った条件付き transform */
+/* Workaround 4: Conditional transform using CSS @layer or :has() */
 .parent:not(:has(.modal-open)) {
   transform: translateX(var(--offset));
 }
 ```
 
-### 11.2 エッジケース: Flex アイテムの min-height と百分率の子要素
+### 11.2 Edge Case: min-height on a Flex Item and Percentage Children
 
-Flex アイテムに `min-height` を設定し、その子要素に `height: 100%` を指定すると、一部のブラウザで期待通りに動作しない場合がある。
+If `min-height` is set on a flex item and a child of that item has `height: 100%`, it may not work as expected in some browsers.
 
 ```css
-/* 問題が発生するケース */
+/* Case where the problem occurs */
 .flex-container {
   display: flex;
   min-height: 500px;
 }
 
 .flex-item {
-  /* flex アイテムは min-height: 500px のコンテナの中で */
-  /* 引き伸ばされて 500px になる（align-items: stretch のため） */
+  /* The flex item is stretched to 500px inside the min-height: 500px
+     container (due to align-items: stretch) */
 }
 
 .inner-child {
   height: 100%;
-  /* 一部のブラウザ（古い Chrome 等）では、 */
-  /* flex アイテムの「引き伸ばされた高さ」を */
-  /* 百分率の基準として認識しない場合がある */
+  /* Some browsers (older Chrome, etc.) may not recognize
+     the "stretched height" of a flex item as the
+     reference for percentage-based height */
 }
 
-/* 対策 */
+/* Workaround */
 .flex-item-fixed {
   display: flex;
   flex-direction: column;
-  /* flex アイテム自身も flex コンテナにすることで */
-  /* 子要素に flex: 1 を使って高さを分配できる */
+  /* By making the flex item itself a flex container,
+     flex: 1 can be used on children to distribute height */
 }
 
 .inner-child-fixed {
   flex: 1;
-  /* height: 100% の代わりに flex: 1 を使用 */
+  /* Use flex: 1 instead of height: 100% */
 }
 ```
 
-### 11.3 エッジケース: Grid の 1fr と min-content の関係
+### 11.3 Edge Case: Relationship Between Grid 1fr and min-content
 
 ```css
-/* 1fr は「minmax(auto, 1fr)」の省略形である */
-/* auto = min-content のため、コンテンツが大きいと */
-/* 1fr のトラックが均等にならない場合がある */
+/* 1fr is shorthand for "minmax(auto, 1fr)" */
+/* Since auto = min-content, tracks may not be equal
+   when content is large */
 
 .grid-unequal {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  /* 各カラムのコンテンツ量が異なると、 */
-  /* コンテンツの多いカラムが他より大きくなる場合がある */
+  /* If content amount differs between columns,
+     the column with more content may become larger */
 }
 
-/* 対策: minmax(0, 1fr) で最小値を 0 にする */
+/* Workaround: use minmax(0, 1fr) to set minimum to 0 */
 .grid-equal {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  /* 最小値が 0 なので、コンテンツに関係なく均等分配される */
-  /* ※ コンテンツのオーバーフローが発生する可能性がある */
+  /* With a minimum of 0, space is distributed equally
+     regardless of content
+     Note: content overflow may occur */
 }
 ```
 
 ---
 
-## 12. 演習問題（3段階）
+## 12. Exercises (3 Levels)
 
-### 12.1 基礎レベル（Beginner）
+### 12.1 Beginner Level
 
-**演習 B-1: Box Model の計算**
+**Exercise B-1: Box Model Calculation**
 
-以下の CSS が適用された要素の、画面上に描画される実際の幅と高さを答えよ。
+For the element with the following CSS applied, state the actual rendered width and height on screen.
 
 ```css
-/* 問題 1 */
+/* Problem 1 */
 .box-a {
   box-sizing: content-box;
   width: 200px;
@@ -1857,7 +1864,7 @@ Flex アイテムに `min-height` を設定し、その子要素に `height: 100
   margin: 20px;
 }
 
-/* 問題 2 */
+/* Problem 2 */
 .box-b {
   box-sizing: border-box;
   width: 200px;
@@ -1869,27 +1876,27 @@ Flex アイテムに `min-height` を設定し、その子要素に `height: 100
 ```
 
 <details>
-<summary>解答</summary>
+<summary>Answer</summary>
 
-問題 1（content-box）:
-- 描画幅 = 200 + 15*2 + 3*2 = 236px
-- 描画高さ = 150 + 15*2 + 3*2 = 186px
-- 占有幅（margin 込み） = 236 + 20*2 = 276px
-- 占有高さ（margin 込み） = 186 + 20*2 = 226px
+Problem 1 (content-box):
+- Rendered width = 200 + 15*2 + 3*2 = 236px
+- Rendered height = 150 + 15*2 + 3*2 = 186px
+- Total occupied width (including margin) = 236 + 20*2 = 276px
+- Total occupied height (including margin) = 186 + 20*2 = 226px
 
-問題 2（border-box）:
-- 描画幅 = 200px（指定値そのまま）
-- 描画高さ = 150px（指定値そのまま）
-- コンテンツ幅 = 200 - 15*2 - 3*2 = 164px
-- コンテンツ高さ = 150 - 15*2 - 3*2 = 114px
-- 占有幅（margin 込み） = 200 + 20*2 = 240px
-- 占有高さ（margin 込み） = 150 + 20*2 = 190px
+Problem 2 (border-box):
+- Rendered width = 200px (exactly as specified)
+- Rendered height = 150px (exactly as specified)
+- Content width = 200 - 15*2 - 3*2 = 164px
+- Content height = 150 - 15*2 - 3*2 = 114px
+- Total occupied width (including margin) = 200 + 20*2 = 240px
+- Total occupied height (including margin) = 150 + 20*2 = 190px
 
 </details>
 
-**演習 B-2: マージン相殺**
+**Exercise B-2: Margin Collapsing**
 
-以下のマークアップで、要素 A と要素 B の間の実際の間隔はいくらか。
+What is the actual gap between element A and element B in the following markup?
 
 ```html
 <div class="a" style="margin-bottom: 40px;">A</div>
@@ -1897,17 +1904,17 @@ Flex アイテムに `min-height` を設定し、その子要素に `height: 100
 ```
 
 <details>
-<summary>解答</summary>
+<summary>Answer</summary>
 
-マージン相殺により、大きい方の値が採用される。したがって間隔は **40px**（40px + 25px = 65px ではない）。
+Due to margin collapsing, the larger value wins. Therefore the gap is **40px** (NOT 40px + 25px = 65px).
 
 </details>
 
-### 12.2 中級レベル（Intermediate）
+### 12.2 Intermediate Level
 
-**演習 I-1: Flexbox の計算**
+**Exercise I-1: Flexbox Calculation**
 
-以下のレイアウトで、各アイテムの最終的な幅を計算せよ。
+Calculate the final width of each item in the following layout.
 
 ```css
 .container {
@@ -1921,23 +1928,23 @@ Flex アイテムに `min-height` を設定し、その子要素に `height: 100
 ```
 
 <details>
-<summary>解答</summary>
+<summary>Answer</summary>
 
-Step 1: 仮サイズ合計 = 100 + 200 + 150 = 450px
-Step 2: 余白 = 800 - 450 = 350px（正の余白 → flex-grow 適用）
-Step 3: grow 合計 = 3 + 2 + 1 = 6
-Step 4: 分配
+Step 1: Sum of tentative sizes = 100 + 200 + 150 = 450px
+Step 2: Free space = 800 - 450 = 350px (positive → apply flex-grow)
+Step 3: Total grow = 3 + 2 + 1 = 6
+Step 4: Distribution
 - item-a: 100 + (350 * 3/6) = 100 + 175 = **275px**
 - item-b: 200 + (350 * 2/6) = 200 + 116.67 ≈ **316.67px**
 - item-c: 150 + (350 * 1/6) = 150 + 58.33 ≈ **208.33px**
 
-検算: 275 + 316.67 + 208.33 = 800px
+Verification: 275 + 316.67 + 208.33 = 800px
 
 </details>
 
-**演習 I-2: Grid のトラックサイジング**
+**Exercise I-2: Grid Track Sizing**
 
-以下の Grid コンテナの各列の幅を計算せよ。
+Calculate the width of each column in the following Grid container.
 
 ```css
 .container {
@@ -1949,26 +1956,26 @@ Step 4: 分配
 ```
 
 <details>
-<summary>解答</summary>
+<summary>Answer</summary>
 
-Step 1: gap の合計 = 24px * 2 = 48px
-Step 2: fr に割り当て可能な空間 = 1200 - 300 - 48 = 852px
-Step 3: fr 合計 = 2 + 1 = 3
+Step 1: Total gaps = 24px * 2 = 48px
+Step 2: Space available for fr = 1200 - 300 - 48 = 852px
+Step 3: Total fr = 2 + 1 = 3
 Step 4: 1fr = 852 / 3 = 284px
-Step 5: 各列の幅
-- 列1: **300px**（固定）
-- 列2: 2fr = **568px**
-- 列3: 1fr = **284px**
+Step 5: Width per column
+- Column 1: **300px** (fixed)
+- Column 2: 2fr = **568px**
+- Column 3: 1fr = **284px**
 
-検算: 300 + 568 + 284 + 48(gap) = 1200px
+Verification: 300 + 568 + 284 + 48(gap) = 1200px
 
 </details>
 
-### 12.3 上級レベル（Advanced）
+### 12.3 Advanced Level
 
-**演習 A-1: flex-shrink の加重計算**
+**Exercise A-1: Weighted flex-shrink Calculation**
 
-以下のレイアウトで、コンテナ幅が 300px の場合、各アイテムの最終的な幅を計算せよ。ただし、min-width の制約は考慮しないものとする。
+Calculate the final width of each item when the container width is 300px. Ignore min-width constraints.
 
 ```css
 .container {
@@ -1982,59 +1989,59 @@ Step 5: 各列の幅
 ```
 
 <details>
-<summary>解答</summary>
+<summary>Answer</summary>
 
-Step 1: 仮サイズ合計 = 200 + 150 + 100 = 450px
-Step 2: 不足分 = 300 - 450 = -150px（負の余白 → flex-shrink 適用）
-Step 3: 加重縮小係数の計算
+Step 1: Sum of tentative sizes = 200 + 150 + 100 = 450px
+Step 2: Deficit = 300 - 450 = -150px (negative → apply flex-shrink)
+Step 3: Calculate weighted shrink factor
 - item-a: shrink * basis = 3 * 200 = 600
 - item-b: shrink * basis = 2 * 150 = 300
 - item-c: shrink * basis = 1 * 100 = 100
-- 加重合計 = 600 + 300 + 100 = 1000
+- Total weight = 600 + 300 + 100 = 1000
 
-Step 4: 各アイテムの縮小量
+Step 4: Shrinkage per item
 - item-a: 200 - (150 * 600/1000) = 200 - 90 = **110px**
 - item-b: 150 - (150 * 300/1000) = 150 - 45 = **105px**
 - item-c: 100 - (150 * 100/1000) = 100 - 15 = **85px**
 
-検算: 110 + 105 + 85 = 300px
+Verification: 110 + 105 + 85 = 300px
 
-ポイント: flex-shrink では basis が大きい要素ほど多く縮む（加重方式）。これは flex-grow（単純な比率分配）とは異なる挙動である。
+Key point: With flex-shrink, an item with a larger basis shrinks more (weighted approach). This differs from flex-grow (simple ratio distribution).
 
 </details>
 
-**演習 A-2: Stacking Context とレイアウトの総合問題**
+**Exercise A-2: Comprehensive Problem — Stacking Context and Layout**
 
-以下のコードで、`.modal` がビューポート全体をカバーしない原因を特定し、修正案を 2 つ提示せよ。
+Identify the reason why `.modal` does not cover the entire viewport in the code below, and propose two fixes.
 
 ```html
 <div class="app" style="transform: scale(1);">
   <div class="content">
     <div class="modal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5);">
-      モーダル
+      Modal
     </div>
   </div>
 </div>
 ```
 
 <details>
-<summary>解答</summary>
+<summary>Answer</summary>
 
-原因: `.app` に `transform: scale(1)` が設定されているため、`.app` が `.modal`（position: fixed）の新しい包含ブロックとなる。結果として、fixed 配置はビューポートではなく `.app` を基準にしてしまう。
+Cause: `.app` has `transform: scale(1)` set, so `.app` becomes the new containing block for `.modal` (position: fixed). As a result, the fixed placement is relative to `.app` rather than the viewport.
 
-修正案 1: モーダルを `.app` の外側に移動する（DOM 構造の変更）。
+Fix 1: Move the modal outside of `.app` (change the DOM structure).
 ```html
 <div class="app" style="transform: scale(1);">
   <div class="content">...</div>
 </div>
 <div class="modal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5);">
-  モーダル
+  Modal
 </div>
 ```
 
-修正案 2: React Portal や Vue Teleport を使い、モーダルを `<body>` 直下にレンダリングする。
+Fix 2: Use React Portal or Vue Teleport to render the modal directly under `<body>`.
 ```javascript
-// React の例
+// React example
 createPortal(<Modal />, document.body);
 ```
 
@@ -2044,9 +2051,9 @@ createPortal(<Modal />, document.body);
 
 ## 13. FAQ
 
-### Q1: Flexbox で子要素の高さを揃えるにはどうすればよいか
+### Q1: How do I align the heights of children in Flexbox?
 
-**A:** Flexbox のデフォルトの `align-items: stretch` により、同じ行のフレックスアイテムは自動的に最も高いアイテムに合わせて引き伸ばされる。特別な設定は不要である。
+**A:** Flexbox's default `align-items: stretch` automatically stretches flex items in the same row to the height of the tallest item. No special configuration is needed.
 
 ```css
 .card-row {
@@ -2056,10 +2063,10 @@ createPortal(<Modal />, document.body);
 
 .card {
   flex: 1;
-  /* align-items: stretch がデフォルトなので */
-  /* カードの高さは自動的に揃う */
+  /* align-items: stretch is the default, so
+     card heights align automatically */
 
-  /* 内部のボタンを底辺に固定する場合 */
+  /* To pin a button to the bottom: */
   display: flex;
   flex-direction: column;
 }
@@ -2068,10 +2075,10 @@ createPortal(<Modal />, document.body);
 .card-button { margin-top: auto; }
 ```
 
-ただし、`flex-wrap: wrap` を使用している場合、異なる行のアイテム同士の高さは揃わない。行をまたいだ高さの統一が必要な場合は、CSS Grid の使用を検討する。
+However, when using `flex-wrap: wrap`, items in different rows do not align to each other's height. If you need uniform height across rows, consider using CSS Grid.
 
 ```css
-/* Grid なら行をまたいだ列の幅が揃う */
+/* Grid aligns column widths across rows */
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -2079,23 +2086,23 @@ createPortal(<Modal />, document.body);
 }
 ```
 
-### Q2: Grid で auto-fill と auto-fit のどちらを使えばよいか
+### Q2: When should I use auto-fill vs auto-fit in Grid?
 
-**A:** 以下の基準で選択する。
+**A:** Choose based on the following criteria.
 
-- **auto-fill**: アイテム数が少ない場合でもグリッドの列数を維持したい場合。空のセルが可視化されるデザイン（背景色やボーダーのあるグリッド）に適している。
-- **auto-fit**: アイテム数が少ない場合に、既存のアイテムを引き伸ばして利用可能空間全体を埋めたい場合。カードリストやギャラリーなど、ほとんどのケースで auto-fit が適切である。
+- **auto-fill**: When you want to maintain the number of columns even if there are few items. Suitable for designs where empty cells are visible (grids with background colors or borders).
+- **auto-fit**: When you want existing items to stretch and fill all available space when there are few items. Suitable for most cases like card lists and galleries.
 
-多くの場合、`auto-fit` が直感的な挙動をするため推奨される。
+In most cases, `auto-fit` behaves intuitively and is recommended.
 
-### Q3: なぜ padding-top のパーセンテージは幅基準なのか
+### Q3: Why is the percentage for padding-top based on width?
 
-**A:** CSS 仕様では、padding および margin のパーセンテージ値はすべて包含ブロックの「幅」を基準に計算される。上下方向であっても同様である。
+**A:** In the CSS specification, percentage values for padding and margin are always calculated relative to the "width" of the containing block — even for vertical directions.
 
-この設計の理由は、高さ基準にすると循環参照が発生する可能性があるためである。例えば、要素の高さがコンテンツ量に依存し（auto）、そのコンテンツの padding-top が高さの 10% だとすると、高さ → padding → 高さ → ... と循環してしまう。幅はブロック要素では包含ブロックから確定的に決まるため、循環参照が発生しない。
+The reason for this design is that using height as the reference would create circular references. For example, if an element's height depends on its content amount (auto), and its padding-top is 10% of that height, you get height → padding → height → ... ad infinitum. Width is determined conclusively from the containing block for block elements, so no circular reference occurs.
 
 ```css
-/* この仕様を利用したアスペクト比の維持テクニック */
+/* Using this spec to maintain aspect ratios */
 .aspect-16-9 {
   width: 100%;
   padding-top: 56.25%; /* 9 / 16 * 100 = 56.25% */
@@ -2108,41 +2115,41 @@ createPortal(<Modal />, document.body);
   inset: 0;
 }
 
-/* 現在は aspect-ratio プロパティが推奨される */
+/* The aspect-ratio property is now preferred */
 .modern-aspect {
   aspect-ratio: 16 / 9;
 }
 ```
 
-### Q4: position: sticky が動作しない場合の一般的な原因は何か
+### Q4: What are the common causes when position: sticky doesn't work?
 
-**A:** `position: sticky` が動作しない主な原因は以下の通りである。
+**A:** The main causes of `position: sticky` not working are:
 
-1. **祖先要素に overflow: hidden / auto / scroll が設定されている**: sticky 要素は最寄りのスクロール可能な祖先の中で動作する。overflow が設定されていると、その要素がスクロールコンテナとなり、sticky の動作範囲がそのコンテナ内に限定される。
+1. **An ancestor has overflow: hidden / auto / scroll set**: A sticky element operates within the nearest scrollable ancestor. When overflow is set, that element becomes the scroll container and the sticky behavior is restricted to within it.
 
-2. **sticky 要素の親が高さを持たない**: sticky 要素は親要素の範囲内でのみ「固定」される。親の高さが sticky 要素と同じ場合、スクロールしても動かないように見える。
+2. **The sticky element's parent has no height**: A sticky element is only "fixed" within the range of its parent element. If the parent's height is the same as the sticky element, it appears not to move on scroll.
 
-3. **top / bottom / left / right が未指定**: sticky には必ずスクロール方向の閾値を指定する必要がある。
+3. **No top / bottom / left / right threshold specified**: sticky always requires specifying a threshold in the scroll direction.
 
 ```css
-/* 正しい sticky ヘッダーの実装 */
+/* Correct sticky header implementation */
 .sticky-header {
   position: sticky;
-  top: 0;        /* 必須: 閾値の指定 */
-  z-index: 10;   /* 推奨: 他の要素の上に表示 */
-  background: white; /* 推奨: 背景色の設定 */
+  top: 0;        /* required: specify the threshold */
+  z-index: 10;   /* recommended: display above other elements */
+  background: white; /* recommended: set a background color */
 }
 
-/* 祖先の overflow を確認する */
-/* 以下のような祖先があると sticky が機能しない */
+/* Check ancestors for overflow */
+/* The following ancestor causes sticky to not work */
 .problematic-ancestor {
-  overflow: hidden; /* これが原因の場合が多い */
+  overflow: hidden; /* this is often the cause */
 }
 ```
 
-### Q5: CSS Grid の subgrid とは何か
+### Q5: What is CSS Grid subgrid?
 
-**A:** `subgrid` は、Grid アイテムが親のグリッドトラックを継承する機能である。入れ子のグリッドコンテンツを親のグリッドラインに正確に揃えることができる。
+**A:** `subgrid` is a feature that allows a Grid item to inherit track definitions from the parent grid. It enables nested grid content to be aligned precisely to the parent grid lines.
 
 ```css
 .parent-grid {
@@ -2152,35 +2159,35 @@ createPortal(<Modal />, document.body);
 }
 
 .child-spanning {
-  grid-column: 1 / -1;  /* 全列にまたがる */
+  grid-column: 1 / -1;  /* spans all columns */
   display: grid;
   grid-template-columns: subgrid;
-  /* 親の 3 列のトラック定義をそのまま使用 */
-  /* 子の列は親の列と正確にアラインされる */
+  /* Inherits the parent's 3-column track definition directly */
+  /* Child columns are aligned precisely with parent columns */
 }
 ```
 
-subgrid がない場合は、入れ子のグリッドが親のトラック定義を参照できないため、ピクセル値の一致やカスタムプロパティの共有で回避する必要があった。subgrid により、カードリストのヘッダーや本文の位置を行をまたいで正確に揃えるといった表現が可能になる。
+Without subgrid, nested grids could not reference the parent's track definitions, requiring workarounds like matching pixel values or sharing custom properties. Subgrid enables expressions like aligning card headers or body text positions precisely across rows.
 
-### Q6: Flexbox と Grid の使い分けの基準は何か
+### Q6: What is the criterion for choosing between Flexbox and Grid?
 
-**A:** Flexbox と Grid の選択は、レイアウトの次元性と柔軟性の要求で決まる。
+**A:** The choice between Flexbox and Grid depends on the dimensionality of the layout and the flexibility requirements.
 
-**Flexbox を選択すべき場合:**
-- **1次元レイアウト**: 単一の行または列に沿ってアイテムを配置する場合（ナビゲーションバー、ツールバー、カードの内部レイアウト）
-- **コンテンツ主導のサイズ**: アイテムのサイズがコンテンツ量に応じて自動調整されるべき場合
-- **動的な並び**: アイテム数が動的に変化し、自動的に折り返したい場合（タグリスト、ボタングループ）
+**When to choose Flexbox:**
+- **1D layout**: Placing items along a single row or column (navigation bars, toolbars, card interior layouts)
+- **Content-driven sizing**: When item size should auto-adjust based on content amount
+- **Dynamic arrangement**: When the number of items changes dynamically and you want automatic wrapping (tag lists, button groups)
 
-**Grid を選択すべき場合:**
-- **2次元レイアウト**: 行と列の両方を同時に制御する必要がある場合（ページ全体のレイアウト、複雑なカードグリッド）
-- **厳密な配置**: アイテムを特定のグリッドライン上に配置する必要がある場合
-- **行をまたいだ整列**: 異なる行の要素を列方向で正確に揃える必要がある場合
+**When to choose Grid:**
+- **2D layout**: When you need to control both rows and columns simultaneously (full-page layout, complex card grids)
+- **Precise placement**: When items need to be placed on specific grid lines
+- **Cross-row alignment**: When elements in different rows need to align precisely in the column direction
 
-**両方を組み合わせる場合:**
-多くの実践的なレイアウトでは、Grid で大枠のレイアウトを定義し、各グリッドセル内部で Flexbox を使用するのが最も効果的である。
+**When to combine both:**
+In most practical layouts, the most effective approach is to define the overall structure with Grid and use Flexbox inside each grid cell.
 
 ```css
-/* Grid でページ全体の構造を定義 */
+/* Grid defines the overall page structure */
 .page-layout {
   display: grid;
   grid-template-areas:
@@ -2191,7 +2198,7 @@ subgrid がない場合は、入れ子のグリッドが親のトラック定義
   gap: 20px;
 }
 
-/* Flexbox でヘッダー内部のナビゲーションを配置 */
+/* Flexbox arranges navigation inside the header */
 .header-nav {
   display: flex;
   justify-content: space-between;
@@ -2200,44 +2207,44 @@ subgrid がない場合は、入れ子のグリッドが親のトラック定義
 }
 ```
 
-### Q7: レイアウトスラッシングの検出と対策方法は何か
+### Q7: How do I detect and address Layout Thrashing?
 
-**A:** レイアウトスラッシング（Layout Thrashing）は、JavaScriptによるDOMの読み取りと書き込みが交互に実行されることで、ブラウザが強制的に何度もレイアウト計算をやり直す現象である。
+**A:** Layout Thrashing is the phenomenon where JavaScript reads from and writes to the DOM alternately, forcing the browser to redo layout calculations multiple times.
 
-**検出方法:**
+**Detection methods:**
 
-1. **Chrome DevTools Performance タブ**: 紫色の「Recalculate Style」と「Layout」のブロックが頻繁に出現する
-2. **警告メッセージ**: "Forced reflow is a likely performance bottleneck" が Console に表示される
-3. **パフォーマンス計測**: 同じ操作が他のブラウザやデバイスと比較して異常に遅い
+1. **Chrome DevTools Performance tab**: Frequent purple "Recalculate Style" and "Layout" blocks appear
+2. **Warning message**: "Forced reflow is a likely performance bottleneck" appears in the Console
+3. **Performance measurement**: The same operation is abnormally slow compared to other browsers or devices
 
-**典型的なアンチパターン:**
+**Typical anti-pattern:**
 
 ```javascript
-// ❌ レイアウトスラッシングを引き起こす
+// Layout Thrashing trigger
 for (let i = 0; i < elements.length; i++) {
-  const height = elements[i].offsetHeight; // 読み取り → Layout 発生
-  elements[i].style.marginTop = height + 10 + 'px'; // 書き込み → 次の読み取りで再計算
+  const height = elements[i].offsetHeight; // read → Layout occurs
+  elements[i].style.marginTop = height + 10 + 'px'; // write → recalculation on next read
 }
 ```
 
-**対策:**
+**Countermeasures:**
 
-1. **読み取りと書き込みを分離する:**
+1. **Separate reads and writes:**
 
 ```javascript
-// ✅ 読み取りをまとめて実行
+// Batch all reads
 const heights = elements.map(el => el.offsetHeight);
 
-// ✅ 書き込みをまとめて実行
+// Batch all writes
 elements.forEach((el, i) => {
   el.style.marginTop = heights[i] + 10 + 'px';
 });
 ```
 
-2. **requestAnimationFrame を使用する:**
+2. **Use requestAnimationFrame:**
 
 ```javascript
-// ✅ 読み取りと書き込みをフレームで分離
+// Separate reads and writes by frame
 requestAnimationFrame(() => {
   const height = element.offsetHeight;
   requestAnimationFrame(() => {
@@ -2246,10 +2253,10 @@ requestAnimationFrame(() => {
 });
 ```
 
-3. **FastDOM などのライブラリを使用する:**
+3. **Use libraries like FastDOM:**
 
 ```javascript
-// ✅ FastDOM がバッチ処理を自動化
+// FastDOM automates batching
 fastdom.measure(() => {
   const height = element.offsetHeight;
   fastdom.mutate(() => {
@@ -2258,162 +2265,162 @@ fastdom.measure(() => {
 });
 ```
 
-4. **CSS で解決できる場合は CSS を優先する:**
+4. **Prefer CSS solutions when possible:**
 
 ```css
-/* ✅ JavaScript を使わずに CSS で解決 */
+/* Solve with CSS without JavaScript */
 .element {
   margin-top: calc(var(--element-height) + 10px);
 }
 ```
 
-### Q8: CSS Containment（contain プロパティ）の効果と使い方は何か
+### Q8: What are the effects and usage of CSS Containment (the contain property)?
 
-**A:** CSS Containment は、要素が文書の他の部分に与える影響を制限することで、ブラウザがレイアウト計算やペイント処理を最適化できるようにする機能である。
+**A:** CSS Containment is a feature that limits the influence an element has on the rest of the document, allowing the browser to optimize layout calculations and paint operations.
 
-**contain プロパティの値:**
+**Values for the contain property:**
 
 ```css
-/* レイアウトの影響範囲を限定 */
+/* Limit the scope of layout impact */
 .container {
   contain: layout;
-  /* この要素内のレイアウト変更は、外部に影響しない */
-  /* ブラウザは外部の再計算をスキップできる */
+  /* Layout changes inside this element do not affect the outside */
+  /* The browser can skip recalculation of the outside */
 }
 
-/* ペイントの影響範囲を限定 */
+/* Limit the scope of paint impact */
 .container {
   contain: paint;
-  /* 子要素は親のボックス外に描画されない */
-  /* overflow: hidden に似ているが、より効率的 */
+  /* Child elements are not painted outside the parent's box */
+  /* Similar to overflow: hidden, but more efficient */
 }
 
-/* サイズ計算を独立させる */
+/* Make size calculation independent */
 .container {
   contain: size;
-  /* 子要素のサイズが親のサイズに影響しない */
-  /* 明示的な width/height が必要 */
+  /* Child element sizes do not affect the parent's size */
+  /* Explicit width/height is required */
 }
 
-/* スタイル計算を限定（カウンターなど） */
+/* Limit style calculation (counters, etc.) */
 .container {
   contain: style;
-  /* CSS カウンターが外部に影響しない */
+  /* CSS counters do not affect the outside */
 }
 
-/* すべての containment を適用 */
+/* Apply all containment */
 .container {
-  contain: strict; /* size layout paint style と同等 */
+  contain: strict; /* equivalent to size layout paint style */
 }
 
-/* size 以外のすべてを適用（最も実用的） */
+/* Apply all except size (most practical) */
 .container {
-  contain: content; /* layout paint style と同等 */
+  contain: content; /* equivalent to layout paint style */
 }
 ```
 
-**実用的な使用例:**
+**Practical usage examples:**
 
 ```css
-/* 1. 大量のカードリスト（仮想スクロール） */
+/* 1. Large card lists (virtual scrolling) */
 .card-item {
   contain: content;
-  /* 各カードの変更が他のカードに影響しない */
-  /* スクロールパフォーマンスが大幅に向上 */
+  /* Changes in each card do not affect other cards */
+  /* Scroll performance improves significantly */
 }
 
-/* 2. 独立したウィジェット */
+/* 2. Independent widgets */
 .widget {
   contain: layout style paint;
-  /* ウィジェット内部の変更が外部に影響しない */
+  /* Changes inside the widget do not affect the outside */
 }
 
-/* 3. オフスクリーンレンダリングの最適化 */
+/* 3. Optimizing off-screen rendering */
 .offscreen-content {
   content-visibility: auto;
-  contain-intrinsic-size: 500px; /* 推定サイズ */
-  /* 画面外のコンテンツはレンダリングされない */
+  contain-intrinsic-size: 500px; /* estimated size */
+  /* Off-screen content is not rendered */
 }
 ```
 
-**効果:**
+**Effects:**
 
-- **レイアウト計算の削減**: 変更の影響範囲が限定されるため、ブラウザは不要な再計算をスキップできる
-- **ペイント処理の最適化**: 描画領域が明確になるため、レイヤー分割が効率化される
-- **メモリ使用量の削減**: 画面外のコンテンツをスキップできる（content-visibility と組み合わせた場合）
+- **Reduced layout calculation**: The scope of changes is limited, so the browser can skip unnecessary recalculations
+- **Optimized paint processing**: Rendering regions become clear, making layer splitting more efficient
+- **Reduced memory usage**: Off-screen content can be skipped (when combined with content-visibility)
 
-**注意点:**
+**Notes:**
 
-- `contain: size` を使用する場合は、明示的な寸法指定が必須である
-- 過度な使用は逆効果になる場合がある。パフォーマンス計測を行って効果を確認する
-- `content-visibility: auto` と組み合わせることで、さらに大きな効果が得られる
+- When using `contain: size`, explicit dimension specification is required
+- Overuse can be counterproductive. Measure performance to confirm the effect
+- Combining with `content-visibility: auto` achieves even greater results
 
 ---
 
-## 14. 用語集
+## 14. Glossary
 
-| 用語 | 説明 |
-|------|------|
-| Box Model | すべての HTML 要素を content、padding、border、margin の 4 領域で構成されるボックスとして扱うモデル |
-| BFC | Block Formatting Context。ブロック要素の独立したレイアウトコンテキスト |
-| IFC | Inline Formatting Context。インライン要素のレイアウトコンテキスト |
-| Flex Container | `display: flex` が設定された要素。子要素は Flex アイテムになる |
-| Flex Item | Flex コンテナの直接の子要素 |
-| Main Axis | Flexbox の主軸。flex-direction により方向が決まる |
-| Cross Axis | Flexbox の交差軸。主軸に垂直な方向 |
-| Grid Track | Grid の 1 行または 1 列 |
-| Grid Line | Grid のトラック間の境界線。番号で参照できる |
-| Grid Area | Grid 内の矩形領域。名前を付けて参照できる |
-| fr 単位 | Grid の利用可能空間を分数比率で分配する単位 |
-| Stacking Context | z-index による重ね合わせの独立した評価コンテキスト |
-| Containing Block | パーセンテージ値や absolute 配置の基準となる矩形領域 |
-| Layout Thrashing | DOM の読み取りと書き込みの交互実行によるパフォーマンス低下 |
-| Reflow | レイアウト計算のやり直し。DOM 変更によってトリガーされる |
-| subgrid | Grid アイテムが親のグリッドトラック定義を継承する機能 |
-| Normal Flow | CSS のデフォルトレイアウトモード。ブロック要素は縦積み、インライン要素は横並び |
-| content-visibility | 画面外の要素のレンダリングを遅延させるプロパティ |
+| Term | Description |
+|------|-------------|
+| Box Model | A model that treats every HTML element as a box composed of four regions: content, padding, border, and margin |
+| BFC | Block Formatting Context. An independent layout context for block elements |
+| IFC | Inline Formatting Context. The layout context for inline elements |
+| Flex Container | An element with `display: flex` set. Its children become Flex Items |
+| Flex Item | A direct child element of a Flex Container |
+| Main Axis | The primary axis of Flexbox. Its direction is determined by flex-direction |
+| Cross Axis | The cross axis of Flexbox. The direction perpendicular to the main axis |
+| Grid Track | One row or column of a Grid |
+| Grid Line | The boundary line between Grid tracks. Can be referenced by number |
+| Grid Area | A rectangular region within a Grid. Can be referenced by name |
+| fr unit | A unit that distributes available space in a Grid by fractional ratio |
+| Stacking Context | An independent evaluation context for z-index-based layering |
+| Containing Block | The rectangular region that serves as the reference for percentage values and absolute positioning |
+| Layout Thrashing | Performance degradation caused by alternating DOM reads and writes |
+| Reflow | Redo of layout calculation. Triggered by DOM changes |
+| subgrid | A feature that allows a Grid item to inherit track definitions from the parent grid |
+| Normal Flow | CSS's default layout mode. Block elements stack vertically, inline elements flow horizontally |
+| content-visibility | A property that defers rendering of off-screen elements |
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just from theory but from actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. It is recommended to thoroughly understand the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 概念 | 核心ポイント | 注意点 |
-|------|-------------|--------|
-| Box Model | border-box を全要素に適用する | margin は相殺される。padding/margin の % は幅基準 |
-| Normal Flow | ブロックは縦積み、インラインは横並び | マージン相殺の条件を正確に把握する |
-| BFC | display: flow-root で生成するのが最も明示的 | float の包含、マージン相殺の遮断に有効 |
-| Flexbox | 1 次元レイアウト、flex: 1 で均等分配 | min-width: 0 を忘れるとオーバーフローする |
-| Grid | 2 次元レイアウト、fr 単位で柔軟な分配 | 1fr は minmax(auto, 1fr) の省略形 |
-| Positioning | fixed は transform のある祖先に影響される | sticky は overflow のある祖先で動作しない場合がある |
-| パフォーマンス | contain で影響範囲を限定、読み書き分離を徹底 | Layout Thrashing は重大なパフォーマンス問題 |
+Knowledge of this topic is frequently applied in everyday development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [Paint と Compositing](./02-paint-and-compositing.md) -- Paint と Compositing のパイプラインを理解し、レンダリングの後半工程を学ぶ
-- CSS Animations と Transitions -- アニメーションとトランジションのパフォーマンス最適化を学ぶ
+| Concept | Core Point | Notes |
+|---------|-----------|-------|
+| Box Model | Apply border-box to all elements | Margins collapse. % for padding/margin is relative to width |
+| Normal Flow | Block elements stack vertically, inline elements flow horizontally | Understand the conditions for margin collapsing precisely |
+| BFC | display: flow-root is the most explicit way to generate one | Effective for containing floats and blocking margin collapsing |
+| Flexbox | 1D layout; flex: 1 for equal distribution | Forgetting min-width: 0 causes overflow |
+| Grid | 2D layout; flexible distribution with fr units | 1fr is shorthand for minmax(auto, 1fr) |
+| Positioning | fixed is affected by transform on ancestors | sticky may not work in ancestors with overflow |
+| Performance | Limit scope with contain; thoroughly separate reads and writes | Layout Thrashing is a serious performance issue |
 
 ---
 
-## 15. 参考文献
+## Next Guides to Read
+
+- [Paint and Compositing](./02-paint-and-compositing.md) -- Understand the Paint and Compositing pipeline and learn the latter stages of rendering
+- CSS Animations and Transitions -- Learn performance optimization for animations and transitions
+
+---
+
+## 15. References
 
 1. W3C. "CSS Box Model Module Level 3." W3C Working Draft. https://www.w3.org/TR/css-box-3/
 2. W3C. "CSS Flexible Box Layout Module Level 1." W3C Candidate Recommendation. https://www.w3.org/TR/css-flexbox-1/
@@ -2429,18 +2436,18 @@ fastdom.measure(() => {
 12. web.dev. "content-visibility: the new CSS property that boosts your rendering performance." Google Chrome Developers. https://web.dev/content-visibility/
 8. Google Developers. "Rendering Performance." Web Fundamentals. https://web.dev/rendering-performance/
 
-### 追加 FAQ
+### Additional FAQ
 
-### Q4: Flexbox と Grid を同一コンポーネント内で併用してもよいですか?
-はい、Flexbox と Grid の併用は一般的なパターンです。例えば、ページ全体のレイアウト（ヘッダー・サイドバー・メイン・フッター）には Grid を使い、ナビゲーションバーやカードの内部レイアウトには Flexbox を使うのが典型的です。Grid は2次元配置、Flexbox は1次元配置に強いため、それぞれの特性を活かした使い分けが推奨されます。ネストしても性能上の問題はほとんどありません。
+### Q4: Is it OK to use Flexbox and Grid together inside the same component?
+Yes, combining Flexbox and Grid is a common pattern. For example, it is typical to use Grid for the overall page layout (header, sidebar, main, footer) and Flexbox for navigation bars or the interior of cards. Since Grid excels at 2D placement and Flexbox at 1D placement, using each where it shines is recommended. Nesting them causes almost no performance issues.
 
-### Q5: position: sticky が効かない場合のよくある原因は何ですか?
-最も多い原因は、sticky要素の祖先に `overflow: hidden`、`overflow: auto`、または `overflow: scroll` が設定されている場合です。sticky はスクロールコンテナを基準に動作するため、意図しない祖先がスクロールコンテナになっていると正しく機能しません。また、sticky 要素に `top`、`bottom`、`left`、`right` のいずれかの閾値が指定されていない場合も動作しません。DevTools の Computed パネルで `position` が `sticky` であることを確認し、祖先要素の `overflow` 値をチェックしてください。
+### Q5: What are the common causes when position: sticky doesn't work?
+The most common cause is when an ancestor of the sticky element has `overflow: hidden`, `overflow: auto`, or `overflow: scroll` set. Since sticky operates relative to its scroll container, it does not function correctly if an unintended ancestor becomes the scroll container. It also won't work if no threshold (`top`, `bottom`, `left`, or `right`) is specified on the sticky element. Use the DevTools Computed panel to confirm `position` is `sticky`, and check the `overflow` values of ancestor elements.
 
-### Q6: CSS Grid の subgrid はどのような場面で有効ですか?
-subgrid は、親グリッドのトラック定義（行や列の幅・高さ）を子グリッドが継承できる機能です。カードリストで各カードのヘッダー・本文・フッターの高さを全カード間で揃えたい場合に特に有効です。subgrid がない場合は固定高さを指定するか JavaScript で高さを同期する必要がありましたが、subgrid により純粋な CSS で実現できます。2024年時点で主要ブラウザ（Chrome、Firefox、Safari）で対応済みです。
+### Q6: When is CSS Grid subgrid useful?
+Subgrid is a feature that allows a child grid to inherit the track definitions (row/column widths and heights) from the parent grid. It is especially useful when you want to align the header, body, and footer heights of each card in a card list across all cards. Without subgrid, you had to specify fixed heights or synchronize heights with JavaScript, but subgrid makes it achievable with pure CSS. As of 2024, it is supported in all major browsers (Chrome, Firefox, Safari).
 
-### 追加参考文献
+### Additional References
 
 13. Ahmad Shadeed. "Debugging CSS Grid and Flexbox Layouts." 2023. https://ishadeed.com/article/css-grid-debugging/
 14. web.dev. "CSS subgrid." Google Chrome Developers. https://web.dev/articles/css-subgrid
@@ -2448,7 +2455,7 @@ subgrid は、親グリッドのトラック定義（行や列の幅・高さ）
 
 ---
 
-## 参考文献
+## References
 
-- [MDN Web Docs](https://developer.mozilla.org/) - Web技術のリファレンス
-- [Wikipedia](https://ja.wikipedia.org/) - 技術概念の概要
+- [MDN Web Docs](https://developer.mozilla.org/) - Web technology reference
+- [Wikipedia](https://en.wikipedia.org/) - Overview of technical concepts
