@@ -1,184 +1,188 @@
-# RESTベストプラクティス
+# REST Best Practices
 
-> RESTの6原則を超えた実践的なベストプラクティス。リソース設計、HTTPメソッド、ステータスコード、エラーレスポンス、HATEOAS、冪等性の設計、コンテンツネゴシエーション、バルク操作、部分更新（PATCH）まで、プロダクションレベルのREST API設計を網羅的に習得する。
+> Practical best practices beyond the 6 REST constraints. Master production-level REST API design covering resource design, HTTP methods, status codes, error responses, HATEOAS, idempotency design, content negotiation, bulk operations, and partial updates (PATCH).
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] リソース指向のURI設計原則を理解する
-- [ ] HTTPメソッドの正しい使い分けを把握する
-- [ ] ステータスコードの選択基準を習得する
-- [ ] RFC 9457準拠のエラーレスポンス設計を学ぶ
-- [ ] HATEOASとハイパーメディアの活用を理解する
-- [ ] 冪等性の設計と冪等性キーの実装を把握する
-- [ ] PATCH（部分更新）とバルク操作の設計を学ぶ
-- [ ] アンチパターンを識別し回避する力を養う
+- [ ] Understand the principles of resource-oriented URI design
+- [ ] Know how to use HTTP methods correctly
+- [ ] Learn the criteria for selecting status codes
+- [ ] Learn RFC 9457-compliant error response design
+- [ ] Understand how to use HATEOAS and hypermedia
+- [ ] Understand idempotency design and implementation of idempotency keys
+- [ ] Learn PATCH (partial update) and bulk operation design
+- [ ] Develop the ability to identify and avoid anti-patterns
 
-## 前提知識
+## Prerequisites
 
-- HTTPメソッドとステータスコード → 参照: HTTPの基礎
-- API設計の基本原則 → 参照: [API First設計](../00-api-design-principles/00-api-first-design.md)
-- API命名規則 → 参照: [命名規則と慣例](../00-api-design-principles/01-naming-and-conventions.md)
+- HTTP methods and status codes → See: HTTP Fundamentals
+- Basic principles of API design → See: [API First Design](../00-api-design-principles/00-api-first-design.md)
+- API naming conventions → See: [Naming Conventions and Standards](../00-api-design-principles/01-naming-and-conventions.md)
 
 ---
 
-## 1. REST の6原則（復習と深掘り）
+## 1. The 6 REST Constraints (Review and Deep Dive)
 
-Roy Fielding が2000年の博士論文で提唱したRESTアーキテクチャスタイルは、6つの制約から構成される。これらの制約はWebの成功要因を形式化したものであり、単なる「設計ガイドライン」ではなくアーキテクチャ上の**制約（constraint）**として定義されている。
+The REST architectural style proposed by Roy Fielding in his 2000 doctoral dissertation consists of six constraints. These constraints formalize the factors behind the success of the Web and are defined not merely as "design guidelines" but as architectural **constraints**.
 
 ```
-Roy Fielding の REST アーキテクチャスタイル（2000年）:
+Roy Fielding's REST Architectural Style (2000):
 
   ┌─────────────────────────────────────────────────────────────────┐
-  │                    REST の 6 つの制約                            │
+  │                    The 6 REST Constraints                        │
   ├─────────────────┬───────────────────────────────────────────────┤
-  │ ① Client-Server │ UIとデータの関心を分離                         │
-  │                 │ → 各コンポーネントが独立に進化可能               │
-  │                 │ → フロントエンドとバックエンドの独立デプロイ       │
+  │ ① Client-Server │ Separate UI and data concerns                 │
+  │                 │ → Each component can evolve independently     │
+  │                 │ → Independent deployment of frontend/backend  │
   ├─────────────────┼───────────────────────────────────────────────┤
-  │ ② Stateless     │ 各リクエストに必要な情報を全て含める             │
-  │                 │ → サーバーにセッション状態を保持しない            │
-  │                 │ → スケーラビリティの基盤（任意のサーバーが処理可能）│
+  │ ② Stateless     │ Each request contains all required info       │
+  │                 │ → Server holds no session state               │
+  │                 │ → Foundation for scalability (any server      │
+  │                 │   can handle any request)                     │
   ├─────────────────┼───────────────────────────────────────────────┤
-  │ ③ Cacheable     │ レスポンスにキャッシュ可否を明示                 │
-  │                 │ → Cache-Control, ETag, Last-Modified           │
-  │                 │ → ネットワーク効率とユーザー体感速度の改善        │
+  │ ③ Cacheable     │ Responses explicitly indicate cacheability    │
+  │                 │ → Cache-Control, ETag, Last-Modified          │
+  │                 │ → Improves network efficiency and UX speed    │
   ├─────────────────┼───────────────────────────────────────────────┤
-  │ ④ Uniform       │ リソースの識別（URI）                           │
-  │   Interface     │ 表現によるリソース操作（JSON/XML）               │
-  │                 │ 自己記述的メッセージ                              │
-  │                 │ HATEOAS                                        │
+  │ ④ Uniform       │ Resource identification (URI)                 │
+  │   Interface     │ Resource manipulation through representations  │
+  │                 │ (JSON/XML)                                     │
+  │                 │ Self-descriptive messages                     │
+  │                 │ HATEOAS                                       │
   ├─────────────────┼───────────────────────────────────────────────┤
-  │ ⑤ Layered       │ クライアントは直接サーバーか中間層か区別しない    │
-  │   System        │ → ロードバランサー、CDN、APIゲートウェイ         │
-  │                 │ → セキュリティ、監視、変換の追加が透過的          │
+  │ ⑤ Layered       │ Client does not distinguish between direct    │
+  │   System        │ server or intermediary layers                 │
+  │                 │ → Load balancers, CDN, API gateways           │
+  │                 │ → Security, monitoring, transformation added  │
+  │                 │   transparently                               │
   ├─────────────────┼───────────────────────────────────────────────┤
-  │ ⑥ Code on       │ サーバーからクライアントにコードを送信可能         │
-  │   Demand        │ → JavaScript、WebAssembly 等                   │
-  │   (optional)    │ → 唯一のオプション制約                          │
+  │ ⑥ Code on       │ Server can send code to client               │
+  │   Demand        │ → JavaScript, WebAssembly, etc.              │
+  │   (optional)    │ → The only optional constraint               │
   └─────────────────┴───────────────────────────────────────────────┘
 ```
 
-### 1.1 制約間の関係
+### 1.1 Relationships Between Constraints
 
-6つの制約は独立ではなく、互いに影響し合う。Stateless制約はCacheableを前提とし、Uniform InterfaceはLayered Systemを可能にする。
+The six constraints are not independent — they influence each other. The Stateless constraint is a prerequisite for Cacheable, and Uniform Interface enables Layered System.
 
 ```
-  ┌──────────┐     依存      ┌───────────┐
+  ┌──────────┐   depends on  ┌───────────┐
   │Stateless │ ─────────────→│ Cacheable │
-  │          │ セッションなし  │           │ キャッシュで性能補完
-  └──────────┘  だから必要    └───────────┘
+  │          │ no sessions    │           │ caching compensates for performance
+  └──────────┘ so necessary  └───────────┘
        │                          │
-       │ 前提                     │ 活用
+       │ prerequisite             │ utilized
        ▼                          ▼
   ┌──────────────┐          ┌────────────┐
   │   Uniform    │ ───────→ │  Layered   │
-  │  Interface   │ 統一IF    │  System    │
-  │              │ が透過    │            │
-  └──────────────┘ 層を実現  └────────────┘
+  │  Interface   │ unified   │  System    │
+  │              │ IF enables│            │
+  └──────────────┘ layers   └────────────┘
        │
-       │ 構成要素
+       │ component
        ▼
   ┌──────────┐
   │ HATEOAS  │
-  │          │ ← Uniform Interface の最重要構成要素
+  │          │ ← Most important component of Uniform Interface
   └──────────┘
 ```
 
 ---
 
-## 2. リソース設計の原則
+## 2. Principles of Resource Design
 
-REST APIの設計において最も重要なのは**リソースの識別と命名**である。リソースはシステム内のエンティティや概念を表し、URIによって一意に識別される。
+The most important aspect of REST API design is **resource identification and naming**. Resources represent entities or concepts within the system and are uniquely identified by URIs.
 
-### 2.1 URI設計のルール
+### 2.1 URI Design Rules
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│                     URI 設計の基本原則                          │
+│                     Basic URI Design Principles                 │
 ├────────────────────────────────────────────────────────────────┤
 │                                                                │
-│  1. 名詞を使う（動詞は使わない）                                 │
-│     良い例: GET /users                                         │
-│     悪い例: GET /getUsers, POST /createUser                    │
+│  1. Use nouns (not verbs)                                      │
+│     Good: GET /users                                           │
+│     Bad:  GET /getUsers, POST /createUser                      │
 │                                                                │
-│  2. 複数形を使う                                                │
-│     良い例: /users, /orders, /products                         │
-│     悪い例: /user, /order, /product                            │
+│  2. Use plural forms                                           │
+│     Good: /users, /orders, /products                          │
+│     Bad:  /user, /order, /product                             │
 │                                                                │
-│  3. ケバブケース（kebab-case）を使う                             │
-│     良い例: /order-items, /shipping-addresses                  │
-│     悪い例: /orderItems, /order_items                          │
+│  3. Use kebab-case                                             │
+│     Good: /order-items, /shipping-addresses                   │
+│     Bad:  /orderItems, /order_items                           │
 │                                                                │
-│  4. 階層関係はパスで表現                                         │
-│     良い例: /users/123/orders                                  │
-│     注意: 階層は2段まで推奨（3段以上は可読性低下）               │
+│  4. Express hierarchical relationships via path               │
+│     Good: /users/123/orders                                   │
+│     Note: Recommend max 2 levels deep (3+ reduces readability)│
 │                                                                │
-│  5. バージョニングはパスに含める                                  │
-│     良い例: /api/v1/users                                      │
-│     代替案: Accept: application/vnd.myapi.v1+json              │
+│  5. Include versioning in path                                 │
+│     Good: /api/v1/users                                       │
+│     Alt:  Accept: application/vnd.myapi.v1+json               │
 │                                                                │
-│  6. フィルタ・ソート・ページングはクエリパラメータ                 │
-│     良い例: /users?status=active&sort=-created_at&page=2       │
+│  6. Filtering, sorting, paging via query parameters           │
+│     Good: /users?status=active&sort=-created_at&page=2        │
 │                                                                │
-│  7. 末尾スラッシュは付けない                                     │
-│     良い例: /users/123                                         │
-│     悪い例: /users/123/                                        │
+│  7. No trailing slashes                                        │
+│     Good: /users/123                                          │
+│     Bad:  /users/123/                                         │
 │                                                                │
 └────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 リソースモデリングの実例
+### 2.2 Resource Modeling Example
 
-ECサイトを題材に、リソース設計の全体像を示す。
+Using an e-commerce site as an example, the overall picture of resource design is shown below.
 
 ```javascript
-// ECサイトのリソース設計例
+// Resource design example for an e-commerce site
 
-// ── コレクションリソース（一覧） ──
-// GET /api/v1/products              商品一覧
-// GET /api/v1/categories            カテゴリ一覧
-// GET /api/v1/users                 ユーザー一覧（管理者のみ）
-// GET /api/v1/orders                注文一覧
+// ── Collection resources (list) ──
+// GET /api/v1/products              Product list
+// GET /api/v1/categories            Category list
+// GET /api/v1/users                 User list (admin only)
+// GET /api/v1/orders                Order list
 
-// ── 個別リソース（単体） ──
-// GET /api/v1/products/prod_abc123  商品詳細
-// GET /api/v1/users/usr_def456      ユーザー詳細
-// GET /api/v1/orders/ord_ghi789     注文詳細
+// ── Individual resources (single) ──
+// GET /api/v1/products/prod_abc123  Product detail
+// GET /api/v1/users/usr_def456      User detail
+// GET /api/v1/orders/ord_ghi789     Order detail
 
-// ── サブリソース（親子関係） ──
-// GET /api/v1/users/usr_def456/orders          ユーザーの注文一覧
-// GET /api/v1/orders/ord_ghi789/items          注文の商品一覧
-// GET /api/v1/products/prod_abc123/reviews     商品のレビュー一覧
+// ── Sub-resources (parent-child relationship) ──
+// GET /api/v1/users/usr_def456/orders          User's order list
+// GET /api/v1/orders/ord_ghi789/items          Order's product list
+// GET /api/v1/products/prod_abc123/reviews     Product's review list
 
-// ── アクションリソース（動詞的操作、RESTの例外） ──
-// POST /api/v1/orders/ord_ghi789/cancel        注文キャンセル
-// POST /api/v1/orders/ord_ghi789/refund        返金処理
-// POST /api/v1/users/usr_def456/verify-email   メール認証
+// ── Action resources (verb-like operations, REST exceptions) ──
+// POST /api/v1/orders/ord_ghi789/cancel        Cancel order
+// POST /api/v1/orders/ord_ghi789/refund        Process refund
+// POST /api/v1/users/usr_def456/verify-email   Email verification
 
-// ── シングルトンリソース ──
-// GET  /api/v1/users/me                        現在のユーザー
-// GET  /api/v1/settings                        アプリ設定
-// GET  /api/v1/users/usr_def456/cart            ユーザーのカート（1つ）
+// ── Singleton resources ──
+// GET  /api/v1/users/me                        Current user
+// GET  /api/v1/settings                        App settings
+// GET  /api/v1/users/usr_def456/cart            User's cart (single)
 
-// ── 検索リソース ──
-// GET  /api/v1/search?q=laptop&category=electronics  全文検索
-// POST /api/v1/products/search                        複雑な検索（ボディ使用）
+// ── Search resources ──
+// GET  /api/v1/search?q=laptop&category=electronics  Full-text search
+// POST /api/v1/products/search                        Complex search (using body)
 ```
 
-### 2.3 リソースID設計
+### 2.3 Resource ID Design
 
-リソースの識別子の選択はセキュリティと運用の両面で重要である。
+The choice of resource identifier is important from both security and operational perspectives.
 
-| ID方式 | 例 | メリット | デメリット |
-|--------|-----|---------|-----------|
-| 連番（auto-increment） | `123` | シンプル、ソート可能 | 推測可能、総数が漏洩 |
-| UUID v4 | `550e8400-e29b-41d4-a716-446655440000` | 推測不可能、分散生成 | 長い、インデックス効率低 |
-| UUID v7 | `018e4a8c-1234-7abc-8def-0123456789ab` | 時系列ソート可能、推測不可 | 比較的新しい規格 |
-| プレフィックス付きID | `usr_abc123`, `ord_def456` | 型が一目でわかる、推測不可 | 独自実装が必要 |
-| Snowflake ID | `1234567890123456789` | 時系列、分散生成、高性能 | 64bit整数の範囲 |
+| ID type | Example | Pros | Cons |
+|---------|---------|------|------|
+| Sequential (auto-increment) | `123` | Simple, sortable | Guessable, leaks total count |
+| UUID v4 | `550e8400-e29b-41d4-a716-446655440000` | Unpredictable, distributed generation | Long, lower index efficiency |
+| UUID v7 | `018e4a8c-1234-7abc-8def-0123456789ab` | Time-sortable, unpredictable | Relatively new standard |
+| Prefixed ID | `usr_abc123`, `ord_def456` | Type visible at a glance, unpredictable | Requires custom implementation |
+| Snowflake ID | `1234567890123456789` | Time-ordered, distributed generation, high performance | 64-bit integer range |
 
 ```javascript
-// プレフィックス付きID生成の実装例
+// Implementation example for prefixed ID generation
 const crypto = require('crypto');
 
 const ID_PREFIXES = {
@@ -194,12 +198,12 @@ function generateId(resourceType) {
   if (!prefix) {
     throw new Error(`Unknown resource type: ${resourceType}`);
   }
-  // 16バイトのランダム文字列を生成
+  // Generate a 16-byte random string
   const random = crypto.randomBytes(16).toString('base64url');
   return `${prefix}_${random}`;
 }
 
-// 使用例
+// Usage example
 console.log(generateId('user'));    // usr_Ab3dEfGhIjKlMnOpQrSt0w
 console.log(generateId('order'));   // ord_Xy9ZaBcDeFgHiJkLmNoPq2
 console.log(generateId('product'));// prod_Rs4TuVwXyZaBcDeFgHiJk1
@@ -207,65 +211,66 @@ console.log(generateId('product'));// prod_Rs4TuVwXyZaBcDeFgHiJk1
 
 ---
 
-## 3. HTTPメソッドの正しい使い方
+## 3. Correct Usage of HTTP Methods
 
-### 3.1 メソッド一覧と特性
+### 3.1 Method Overview and Characteristics
 
 ```
 ┌─────────┬──────────────────────────────────────────────────────────┐
-│ メソッド │ 意味と使い方                                             │
+│ Method  │ Meaning and Usage                                        │
 ├─────────┼──────────────────────────────────────────────────────────┤
-│ GET     │ リソースの取得                                           │
-│         │ ・副作用なし（Safe）                                      │
-│         │ ・冪等（Idempotent）                                     │
-│         │ ・キャッシュ可能                                          │
-│         │ ・リクエストボディなし                                     │
+│ GET     │ Retrieve a resource                                      │
+│         │ · No side effects (Safe)                                 │
+│         │ · Idempotent                                             │
+│         │ · Cacheable                                              │
+│         │ · No request body                                        │
 ├─────────┼──────────────────────────────────────────────────────────┤
-│ POST    │ リソースの作成 / アクション実行                            │
-│         │ ・非冪等（2回実行 = 2つ作成）                              │
-│         │ ・キャッシュ不可                                          │
-│         │ ・成功時 201 Created + Location ヘッダー                  │
+│ POST    │ Create a resource / execute an action                    │
+│         │ · Non-idempotent (2 calls = 2 resources created)        │
+│         │ · Not cacheable                                          │
+│         │ · Success: 201 Created + Location header                │
 ├─────────┼──────────────────────────────────────────────────────────┤
-│ PUT     │ リソースの完全置換                                        │
-│         │ ・冪等（同じリクエストを何回送っても同じ結果）              │
-│         │ ・リソースが存在しなければ作成（upsert的）                 │
-│         │ ・全フィールドを送信                                      │
+│ PUT     │ Full replacement of a resource                           │
+│         │ · Idempotent (same result regardless of how many times) │
+│         │ · Creates if resource does not exist (upsert-like)      │
+│         │ · Send all fields                                        │
 ├─────────┼──────────────────────────────────────────────────────────┤
-│ PATCH   │ リソースの部分更新                                        │
-│         │ ・変更フィールドのみ送信                                   │
-│         │ ・冪等性は実装依存（相対的変更は非冪等）                   │
+│ PATCH   │ Partial update of a resource                             │
+│         │ · Send only changed fields                              │
+│         │ · Idempotency is implementation-dependent               │
+│         │   (relative changes are non-idempotent)                 │
 ├─────────┼──────────────────────────────────────────────────────────┤
-│ DELETE  │ リソースの削除                                            │
-│         │ ・冪等（削除済みなら何もしない or 404）                    │
-│         │ ・成功時 204 No Content（ボディなし）                     │
+│ DELETE  │ Delete a resource                                        │
+│         │ · Idempotent (no-op or 404 if already deleted)          │
+│         │ · Success: 204 No Content (no body)                     │
 ├─────────┼──────────────────────────────────────────────────────────┤
-│ HEAD    │ GETと同じだがボディなし（メタデータ確認用）                │
-│         │ ・リソースの存在確認                                      │
-│         │ ・Content-Length の確認                                   │
+│ HEAD    │ Same as GET but no body (for checking metadata)          │
+│         │ · Check resource existence                              │
+│         │ · Check Content-Length                                   │
 ├─────────┼──────────────────────────────────────────────────────────┤
-│ OPTIONS │ 対応メソッドの確認                                        │
-│         │ ・CORS プリフライトリクエスト                              │
-│         │ ・Allow ヘッダーで対応メソッド返却                        │
+│ OPTIONS │ Check supported methods                                  │
+│         │ · CORS preflight requests                               │
+│         │ · Returns supported methods via Allow header            │
 └─────────┴──────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 メソッド特性の比較表
+### 3.2 Method Characteristics Comparison
 
-| 特性 | GET | POST | PUT | PATCH | DELETE | HEAD | OPTIONS |
-|------|-----|------|-----|-------|--------|------|---------|
-| Safe（安全） | Yes | No | No | No | No | Yes | Yes |
-| Idempotent（冪等） | Yes | No | Yes | Impl. | Yes | Yes | Yes |
+| Property | GET | POST | PUT | PATCH | DELETE | HEAD | OPTIONS |
+|----------|-----|------|-----|-------|--------|------|---------|
+| Safe | Yes | No | No | No | No | Yes | Yes |
+| Idempotent | Yes | No | Yes | Impl. | Yes | Yes | Yes |
 | Cacheable | Yes | No | No | No | No | Yes | No |
 | Request Body | No | Yes | Yes | Yes | Optional | No | No |
-| 成功時の典型コード | 200 | 201 | 200 | 200 | 204 | 200 | 200 |
+| Typical success code | 200 | 201 | 200 | 200 | 204 | 200 | 200 |
 
-### 3.3 CRUD操作の完全な実装例
+### 3.3 Complete CRUD Implementation Example
 
 ```javascript
 const express = require('express');
 const router = express.Router();
 
-// ── GET: コレクション取得（一覧） ──
+// ── GET: Retrieve collection (list) ──
 router.get('/api/v1/products', async (req, res) => {
   const {
     page = 1,
@@ -274,7 +279,7 @@ router.get('/api/v1/products', async (req, res) => {
     category,
     min_price,
     max_price,
-    q, // 検索クエリ
+    q, // search query
   } = req.query;
 
   const filters = {};
@@ -312,7 +317,7 @@ router.get('/api/v1/products', async (req, res) => {
   });
 });
 
-// ── GET: 個別リソース取得 ──
+// ── GET: Retrieve individual resource ──
 router.get('/api/v1/products/:id', async (req, res) => {
   const product = await Product.findById(req.params.id);
 
@@ -340,9 +345,9 @@ router.get('/api/v1/products/:id', async (req, res) => {
     });
 });
 
-// ── POST: リソース作成 ──
+// ── POST: Create resource ──
 router.post('/api/v1/products', authenticate, authorize('admin'), async (req, res) => {
-  // バリデーション
+  // Validation
   const { error, value } = productSchema.validate(req.body);
   if (error) {
     return res.status(422).json({
@@ -374,7 +379,7 @@ router.post('/api/v1/products', authenticate, authorize('admin'), async (req, re
     });
 });
 
-// ── PUT: リソース完全置換 ──
+// ── PUT: Full resource replacement ──
 router.put('/api/v1/products/:id', authenticate, authorize('admin'), async (req, res) => {
   const { error, value } = productSchema.validate(req.body);
   if (error) {
@@ -389,7 +394,7 @@ router.put('/api/v1/products/:id', authenticate, authorize('admin'), async (req,
     });
   }
 
-  // 楽観的ロック
+  // Optimistic locking
   const ifMatch = req.headers['if-match'];
   const existing = await Product.findById(req.params.id);
 
@@ -422,7 +427,7 @@ router.put('/api/v1/products/:id', authenticate, authorize('admin'), async (req,
     .json({ data: serializeProduct(updated) });
 });
 
-// ── DELETE: リソース削除 ──
+// ── DELETE: Delete resource ──
 router.delete('/api/v1/products/:id', authenticate, authorize('admin'), async (req, res) => {
   const product = await Product.findById(req.params.id);
 
@@ -434,13 +439,13 @@ router.delete('/api/v1/products/:id', authenticate, authorize('admin'), async (r
     });
   }
 
-  // 論理削除（推奨）
+  // Soft delete (recommended)
   await Product.findByIdAndUpdate(req.params.id, {
     deleted_at: new Date(),
     deleted_by: req.user.id,
   });
 
-  // 物理削除の場合: await Product.findByIdAndDelete(req.params.id);
+  // Hard delete: await Product.findByIdAndDelete(req.params.id);
 
   res.status(204).end();
 });
@@ -448,131 +453,131 @@ router.delete('/api/v1/products/:id', authenticate, authorize('admin'), async (r
 
 ---
 
-## 4. ステータスコード完全ガイド
+## 4. Complete Status Code Guide
 
-HTTPステータスコードはAPIの「語彙」である。適切なコードを返すことで、クライアントは追加情報なしにレスポンスの意味を把握できる。
+HTTP status codes are the "vocabulary" of an API. By returning appropriate codes, clients can understand the meaning of a response without additional information.
 
-### 4.1 ステータスコード一覧と使用場面
+### 4.1 Status Code List and Use Cases
 
 ```
 ┌─────┬──────────────────────────┬────────────────────────────────────┐
-│コード│ 名称                     │ 使用場面                           │
+│Code │ Name                     │ Use Case                           │
 ├─────┼──────────────────────────┼────────────────────────────────────┤
-│     │ === 2xx 成功 ===         │                                    │
-│ 200 │ OK                       │ GET/PUT/PATCH の成功               │
-│ 201 │ Created                  │ POST によるリソース作成成功         │
-│ 202 │ Accepted                 │ 非同期処理の受付完了                │
-│ 204 │ No Content               │ DELETE 成功（ボディなし）          │
+│     │ === 2xx Success ===      │                                    │
+│ 200 │ OK                       │ Success for GET/PUT/PATCH          │
+│ 201 │ Created                  │ Resource created via POST          │
+│ 202 │ Accepted                 │ Async processing accepted          │
+│ 204 │ No Content               │ DELETE success (no body)          │
 ├─────┼──────────────────────────┼────────────────────────────────────┤
-│     │ === 3xx リダイレクト ===  │                                    │
-│ 301 │ Moved Permanently        │ リソースの恒久移動                  │
-│ 302 │ Found                    │ 一時的リダイレクト                  │
-│ 304 │ Not Modified             │ キャッシュが有効（条件付きGET）     │
-│ 307 │ Temporary Redirect       │ メソッドを維持したリダイレクト       │
-│ 308 │ Permanent Redirect       │ メソッドを維持した恒久リダイレクト   │
+│     │ === 3xx Redirect ===     │                                    │
+│ 301 │ Moved Permanently        │ Resource permanently moved         │
+│ 302 │ Found                    │ Temporary redirect                 │
+│ 304 │ Not Modified             │ Cache valid (conditional GET)      │
+│ 307 │ Temporary Redirect       │ Redirect preserving method         │
+│ 308 │ Permanent Redirect       │ Permanent redirect preserving method│
 ├─────┼──────────────────────────┼────────────────────────────────────┤
-│     │ === 4xx クライアントエラー│                                    │
-│ 400 │ Bad Request              │ リクエスト構文エラー                │
-│ 401 │ Unauthorized             │ 認証が必要（未認証）                │
-│ 403 │ Forbidden                │ 認可エラー（権限不足）              │
-│ 404 │ Not Found                │ リソースが存在しない                │
-│ 405 │ Method Not Allowed       │ 許可されていないHTTPメソッド        │
-│ 406 │ Not Acceptable           │ Accept ヘッダーの形式に非対応       │
-│ 409 │ Conflict                 │ リソースの競合（楽観ロック等）       │
-│ 410 │ Gone                     │ リソースが恒久的に削除済み          │
-│ 412 │ Precondition Failed      │ If-Match 等の前提条件不一致         │
-│ 415 │ Unsupported Media Type   │ Content-Type 非対応                │
-│ 422 │ Unprocessable Entity     │ バリデーションエラー                │
-│ 429 │ Too Many Requests        │ レート制限超過                      │
+│     │ === 4xx Client Error === │                                    │
+│ 400 │ Bad Request              │ Request syntax error               │
+│ 401 │ Unauthorized             │ Authentication required (unauthenticated) │
+│ 403 │ Forbidden                │ Authorization error (insufficient permissions) │
+│ 404 │ Not Found                │ Resource does not exist            │
+│ 405 │ Method Not Allowed       │ HTTP method not permitted          │
+│ 406 │ Not Acceptable           │ Requested format not supported     │
+│ 409 │ Conflict                 │ Resource conflict (optimistic lock, etc.) │
+│ 410 │ Gone                     │ Resource permanently deleted       │
+│ 412 │ Precondition Failed      │ If-Match or other precondition mismatch │
+│ 415 │ Unsupported Media Type   │ Content-Type not supported         │
+│ 422 │ Unprocessable Entity     │ Validation error                   │
+│ 429 │ Too Many Requests        │ Rate limit exceeded                │
 ├─────┼──────────────────────────┼────────────────────────────────────┤
-│     │ === 5xx サーバーエラー === │                                    │
-│ 500 │ Internal Server Error    │ サーバー内部エラー（汎用）          │
-│ 502 │ Bad Gateway              │ 上流サーバーからの不正レスポンス    │
-│ 503 │ Service Unavailable      │ サービス一時停止（メンテナンス等）  │
-│ 504 │ Gateway Timeout          │ 上流サーバーのタイムアウト          │
+│     │ === 5xx Server Error === │                                    │
+│ 500 │ Internal Server Error    │ Internal server error (generic)    │
+│ 502 │ Bad Gateway              │ Invalid response from upstream     │
+│ 503 │ Service Unavailable      │ Service temporarily unavailable (maintenance, etc.) │
+│ 504 │ Gateway Timeout          │ Upstream server timeout            │
 └─────┴──────────────────────────┴────────────────────────────────────┘
 ```
 
-### 4.2 よくある誤用と正しい選択
+### 4.2 Common Misuses and Correct Choices
 
-| 場面 | よくある誤用 | 正しいコード | 理由 |
-|------|-------------|-------------|------|
-| ログイン失敗 | 403 | **401** | 認証（Authentication）の失敗は401。403は認可（Authorization）の失敗 |
-| バリデーションエラー | 400 | **422** | 構文は正しいが意味的に不正。400は構文エラー |
-| リソースが既に存在 | 400 | **409** | 状態の競合を表すのが409 |
-| レート制限 | 503 | **429** | クライアント側の問題であり4xx。503はサーバー側 |
-| 非同期処理の受付 | 200 | **202** | 処理はまだ完了していないため200は不適切 |
-| DELETEで既に削除済み | 404 | **204 or 404** | どちらも正当。冪等性を重視するなら204、厳密さなら404 |
+| Situation | Common Misuse | Correct Code | Reason |
+|-----------|--------------|--------------|--------|
+| Login failure | 403 | **401** | Login failure is an authentication (Authentication) failure → 401. 403 is for authorization (Authorization) failure |
+| Validation error | 400 | **422** | Syntax is valid but semantically invalid. 400 is for syntax errors |
+| Resource already exists | 400 | **409** | 409 represents a state conflict |
+| Rate limiting | 503 | **429** | This is a client-side issue, hence 4xx. 503 is server-side |
+| Async processing accepted | 200 | **202** | Processing is not yet complete, so 200 is inappropriate |
+| DELETE on already deleted resource | 404 | **204 or 404** | Both are valid. 204 emphasizes idempotency; 404 is more strict |
 
-### 4.3 ステータスコード選択のフローチャート
+### 4.3 Status Code Selection Flowchart
 
 ```
-  リクエスト受信
+  Request received
        │
        ▼
-  構文は正しい？ ─── No ──→ 400 Bad Request
+  Valid syntax? ─── No ──→ 400 Bad Request
        │
       Yes
        │
        ▼
-  認証済み？ ─── No ──→ 401 Unauthorized
+  Authenticated? ─── No ──→ 401 Unauthorized
        │
       Yes
        │
        ▼
-  権限あり？ ─── No ──→ 403 Forbidden
+  Authorized? ─── No ──→ 403 Forbidden
        │
       Yes
        │
        ▼
-  リソースは存在？ ─── No ──→ 404 Not Found
-       │                       (POST の場合は通過)
+  Resource exists? ─── No ──→ 404 Not Found
+       │                       (skip for POST)
       Yes
        │
        ▼
-  バリデーション通過？ ─── No ──→ 422 Unprocessable Entity
-       │
-      Yes
-       │
-       ▼
-  競合なし？ ─── No ──→ 409 Conflict
+  Validation passed? ─── No ──→ 422 Unprocessable Entity
        │
       Yes
        │
        ▼
-  処理成功？ ─── No ──→ 500 Internal Server Error
+  No conflict? ─── No ──→ 409 Conflict
        │
       Yes
        │
        ▼
-  メソッドに応じたレスポンス:
+  Processing succeeded? ─── No ──→ 500 Internal Server Error
+       │
+      Yes
+       │
+       ▼
+  Response based on method:
     GET/PUT/PATCH → 200 OK
     POST          → 201 Created
     DELETE        → 204 No Content
-    非同期        → 202 Accepted
+    Async         → 202 Accepted
 ```
 
 ---
 
-## 5. エラーレスポンス設計（RFC 9457）
+## 5. Error Response Design (RFC 9457)
 
 ### 5.1 Problem Details for HTTP APIs
 
-RFC 9457（旧RFC 7807）は、HTTP APIのエラーレスポンスを標準化する仕様である。これにより、異なるAPI間でエラー処理のコードを共通化できる。
+RFC 9457 (formerly RFC 7807) is a specification that standardizes error responses for HTTP APIs. This allows error handling code to be shared across different APIs.
 
 ```javascript
-// RFC 9457 準拠のエラーレスポンス構造
+// RFC 9457-compliant error response structure
 
-// 基本構造
+// Basic structure
 {
-  "type": "https://api.example.com/errors/validation",     // エラー種別のURI
-  "title": "Validation Error",                              // 人間可読なタイトル
-  "status": 422,                                            // HTTPステータスコード
-  "detail": "The 'email' field is not a valid email address.", // 具体的な説明
-  "instance": "/api/v1/users"                               // エラーが発生したリクエストURI
+  "type": "https://api.example.com/errors/validation",     // URI identifying the error type
+  "title": "Validation Error",                              // Human-readable title
+  "status": 422,                                            // HTTP status code
+  "detail": "The 'email' field is not a valid email address.", // Specific description
+  "instance": "/api/v1/users"                               // URI of the request where the error occurred
 }
 
-// 拡張フィールド付き（バリデーションエラー）
+// With extended fields (validation error)
 {
   "type": "https://api.example.com/errors/validation",
   "title": "Validation Error",
@@ -595,7 +600,7 @@ RFC 9457（旧RFC 7807）は、HTTP APIのエラーレスポンスを標準化�
   ]
 }
 
-// レート制限エラー
+// Rate limit error
 {
   "type": "https://api.example.com/errors/rate-limit",
   "title": "Rate Limit Exceeded",
@@ -609,10 +614,10 @@ RFC 9457（旧RFC 7807）は、HTTP APIのエラーレスポンスを標準化�
 }
 ```
 
-### 5.2 エラーレスポンスの実装
+### 5.2 Implementing Error Responses
 
 ```javascript
-// エラーハンドリングのミドルウェア実装
+// Middleware implementation for error handling
 
 class ApiError extends Error {
   constructor(type, title, status, detail, extensions = {}) {
@@ -635,7 +640,7 @@ class ApiError extends Error {
   }
 }
 
-// 定義済みエラーファクトリ
+// Predefined error factories
 const Errors = {
   notFound: (resource, id) =>
     new ApiError(
@@ -688,7 +693,7 @@ const Errors = {
     ),
 };
 
-// Express グローバルエラーハンドラー
+// Express global error handler
 function errorHandler(err, req, res, next) {
   if (err instanceof ApiError) {
     return res
@@ -700,7 +705,7 @@ function errorHandler(err, req, res, next) {
       });
   }
 
-  // 予期しないエラー
+  // Unexpected error
   console.error('Unhandled error:', err);
   res
     .status(500)
@@ -714,7 +719,7 @@ function errorHandler(err, req, res, next) {
     });
 }
 
-// 使用例
+// Usage example
 router.get('/api/v1/users/:id', async (req, res) => {
   const user = await User.findById(req.params.id);
   if (!user) throw Errors.notFound('User', req.params.id);
@@ -724,33 +729,33 @@ router.get('/api/v1/users/:id', async (req, res) => {
 
 ---
 
-## 6. HATEOAS（深掘り）
+## 6. HATEOAS (Deep Dive)
 
-### 6.1 HATEOASの本質
+### 6.1 The Essence of HATEOAS
 
-HATEOAS（Hypermedia As The Engine Of Application State）は REST の Uniform Interface の最も重要な構成要素である。クライアントはAPIのURL構造を事前に知る必要がなく、レスポンスに含まれるリンクだけでAPIを操作できる。
+HATEOAS (Hypermedia As The Engine Of Application State) is the most important component of REST's Uniform Interface. Clients do not need to know the URL structure of the API in advance — they can operate the API solely through links included in responses.
 
 ```
 HATEOAS = Hypermedia As The Engine Of Application State
 
   ┌───────────────────────────────────────────────────────┐
-  │            HATEOAS の動作モデル                        │
+  │            HATEOAS Operation Model                     │
   │                                                       │
-  │  クライアント         サーバー                         │
+  │  Client              Server                           │
   │      │                   │                            │
   │      │  GET /api/v1/     │                            │
   │      │ ───────────────→  │                            │
-  │      │                   │  ルートリソース:            │
+  │      │                   │  Root resource:            │
   │      │  ←─────────────── │  { links: {                │
   │      │                   │      users: "/api/v1/users"│
   │      │                   │      products: "..."       │
   │      │                   │    }                       │
   │      │                   │  }                         │
   │      │                   │                            │
-  │      │  リンクを辿る      │                            │
+  │      │  Follow link       │                            │
   │      │  GET /api/v1/users│                            │
   │      │ ───────────────→  │                            │
-  │      │                   │  ユーザー一覧:             │
+  │      │                   │  User list:                │
   │      │  ←─────────────── │  { data: [...],            │
   │      │                   │    links: {                │
   │      │                   │      self, next, prev,     │
@@ -758,22 +763,22 @@ HATEOAS = Hypermedia As The Engine Of Application State
   │      │                   │    }                       │
   │      │                   │  }                         │
   │      │                   │                            │
-  │      │  さらにリンクを辿る│                            │
+  │      │  Follow next link  │                            │
   │      │  ...              │                            │
   └───────────────────────────────────────────────────────┘
 
-  重要な概念:
-  → クライアントは最初のURL（エントリポイント）だけ知っていればよい
-  → 以降の操作は全てレスポンスのリンクから発見する
-  → APIの構造変更（URL変更）がクライアントに影響しない
+  Key concepts:
+  → Client only needs to know the initial URL (entry point)
+  → All subsequent operations are discovered through response links
+  → API structural changes (URL changes) do not affect clients
 ```
 
-### 6.2 状態遷移とリンクの動的変化
+### 6.2 State Transitions and Dynamic Link Changes
 
-HATEOASの核心は、リソースの状態に応じて利用可能なアクション（リンク）が変化する点にある。
+The core of HATEOAS is that the available actions (links) change depending on the state of the resource.
 
 ```javascript
-// 注文リソースの状態遷移に応じたHATEOASリンク
+// HATEOAS links based on order resource state transitions
 
 function buildOrderLinks(order) {
   const base = `/api/v1/orders/${order.id}`;
@@ -812,14 +817,14 @@ function buildOrderLinks(order) {
 
     case 'cancelled':
     case 'refunded':
-      // 終端状態: 追加アクションなし
+      // Terminal state: no additional actions
       break;
   }
 
   return links;
 }
 
-// レスポンス例: status = 'pending'
+// Response example: status = 'pending'
 // {
 //   "data": {
 //     "id": "ord_abc123",
@@ -836,71 +841,71 @@ function buildOrderLinks(order) {
 // }
 ```
 
-### 6.3 HATEOASの現実的な採用レベル
+### 6.3 Practical HATEOAS Adoption Levels
 
 ```
-  Level 0: 完全無視
-    → URLをドキュメントで配布し、クライアントがハードコード
-    → 最も一般的だが、APIの変更時に全クライアントの更新が必要
+  Level 0: Completely ignored
+    → URLs are distributed via documentation, clients hardcode them
+    → Most common but requires updating all clients when API changes
 
-  Level 1: 関連リソースへのリンク
-    → レスポンスに関連リソースの self リンクを含める
-    → GitHub API, Stripe API がこのレベル
-    → 推奨: 最低限この水準を目指す
+  Level 1: Links to related resources
+    → Include self links to related resources in responses
+    → GitHub API, Stripe API are at this level
+    → Recommended: aim for at least this standard
 
-  Level 2: アクションリンク付き
-    → 利用可能なアクション（method付き）をリンクとして含める
-    → PayPal API がこのレベル
-    → 推奨: 状態遷移のあるリソースに採用
+  Level 2: With action links
+    → Include available actions (with method) as links
+    → PayPal API is at this level
+    → Recommended: adopt for resources with state transitions
 
-  Level 3: 完全なHATEOAS
-    → クライアントはエントリポイントURLのみ知っていれば操作可能
-    → HAL, JSON-LD, Siren 等のハイパーメディア形式を使用
-    → 実装コストが高く、実務での採用例は限定的
+  Level 3: Full HATEOAS
+    → Client only needs to know the entry point URL to operate
+    → Uses hypermedia formats like HAL, JSON-LD, Siren
+    → High implementation cost; limited real-world adoption
 ```
 
 ---
 
-## 7. 冪等性の設計
+## 7. Idempotency Design
 
-### 7.1 冪等性とは
+### 7.1 What Is Idempotency?
 
-冪等性（Idempotency）とは、同じ操作を何回実行しても結果が変わらない性質である。ネットワーク障害やリトライが発生するプロダクション環境で、データの一貫性を保つために不可欠な概念である。
+Idempotency refers to the property whereby performing the same operation multiple times always yields the same result. It is an essential concept for maintaining data consistency in production environments where network failures and retries occur.
 
 ```
-冪等性（Idempotency）:
-  → 同じリクエストを何回実行しても結果が同じ
+Idempotency:
+  → The same request produces the same result no matter how many times it is executed
 
-  冪等なメソッド:
-    GET     — 常に冪等（副作用なし）
-    PUT     — 冪等（同じリソースを同じ状態に上書き）
-    DELETE  — 冪等（削除済みなら何もしない / 404）
-    HEAD    — 常に冪等
-    OPTIONS — 常に冪等
+  Idempotent methods:
+    GET     — Always idempotent (no side effects)
+    PUT     — Idempotent (overwrites the same resource to the same state)
+    DELETE  — Idempotent (no-op or 404 if already deleted)
+    HEAD    — Always idempotent
+    OPTIONS — Always idempotent
 
-  冪等でないメソッド:
-    POST    — 2回実行すると2つリソースが作成される
-    PATCH   — 相対的な変更の場合（例: { "op": "increment", "value": 1 }）
+  Non-idempotent methods:
+    POST    — Running twice creates two resources
+    PATCH   — When using relative changes (e.g., { "op": "increment", "value": 1 })
 ```
 
-### 7.2 冪等性キー（Idempotency Key）
+### 7.2 Idempotency Key
 
-POSTリクエストに冪等性を持たせる仕組みがIdempotency Keyである。Stripe APIが採用し、業界標準となっている。
+An Idempotency Key is a mechanism for making POST requests idempotent. Adopted by the Stripe API, it has become an industry standard.
 
 ```javascript
-// 冪等性キーのサーバー実装（Redis使用）
+// Server-side implementation of idempotency keys (using Redis)
 const Redis = require('ioredis');
 const redis = new Redis();
 const crypto = require('crypto');
 
-// 冪等性ミドルウェア
+// Idempotency middleware
 async function idempotencyMiddleware(req, res, next) {
   const idempotencyKey = req.headers['idempotency-key'];
 
-  // キーなしの場合は通常処理（冪等性なし）
+  // No key: proceed without idempotency
   if (!idempotencyKey) return next();
 
-  // キーのフォーマット検証（UUIDv4推奨）
+  // Validate key format (UUID v4 recommended)
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey)) {
     return res.status(400).json({
       type: 'https://api.example.com/errors/invalid-idempotency-key',
@@ -912,7 +917,7 @@ async function idempotencyMiddleware(req, res, next) {
 
   const cacheKey = `idempotency:${req.method}:${req.path}:${idempotencyKey}`;
 
-  // ロック取得（同じキーの同時処理を防ぐ）
+  // Acquire lock (prevent concurrent processing of the same key)
   const lockKey = `${cacheKey}:lock`;
   const lockAcquired = await redis.set(lockKey, '1', 'EX', 60, 'NX');
 
@@ -926,23 +931,23 @@ async function idempotencyMiddleware(req, res, next) {
   }
 
   try {
-    // キャッシュ確認
+    // Check cache
     const cached = await redis.get(cacheKey);
 
     if (cached) {
-      // 処理済み → キャッシュした結果をそのまま返す
+      // Already processed → return the cached result as-is
       const { statusCode, headers, body } = JSON.parse(cached);
       Object.entries(headers).forEach(([key, value]) => res.set(key, value));
       return res.status(statusCode).json(body);
     }
 
-    // リクエストボディのハッシュを保存（同じキーで異なるボディを検出）
+    // Save hash of request body (detect same key with different body)
     const bodyHash = crypto
       .createHash('sha256')
       .update(JSON.stringify(req.body))
       .digest('hex');
 
-    // レスポンスをインターセプトして保存
+    // Intercept and save response
     const originalJson = res.json.bind(res);
     res.json = async (body) => {
       const responseHeaders = {
@@ -962,63 +967,63 @@ async function idempotencyMiddleware(req, res, next) {
 
     next();
   } finally {
-    // ロック解放
+    // Release lock
     await redis.del(lockKey);
   }
 }
 
-// 使用
+// Usage
 app.post('/api/v1/payments', idempotencyMiddleware, paymentHandler);
 app.post('/api/v1/orders', idempotencyMiddleware, orderHandler);
 ```
 
 ---
 
-## 8. コンテンツネゴシエーション
+## 8. Content Negotiation
 
-### 8.1 基本概念
+### 8.1 Basic Concepts
 
-コンテンツネゴシエーションは、クライアントとサーバーが最適な表現形式を合意するプロセスである。
+Content negotiation is the process by which a client and server agree on the optimal representation format.
 
 ```
 Content Negotiation:
-  → クライアントが希望する表現形式を指定
+  → Client specifies the desired representation format
 
-  リクエスト:
-    Accept: application/json          ← JSON希望
-    Accept: application/xml           ← XML希望
-    Accept: text/csv                  ← CSV希望
-    Accept: application/pdf           ← PDF希望
-    Accept-Language: ja               ← 日本語希望
-    Accept-Encoding: gzip, br         ← 圧縮形式
+  Request:
+    Accept: application/json          ← Wants JSON
+    Accept: application/xml           ← Wants XML
+    Accept: text/csv                  ← Wants CSV
+    Accept: application/pdf           ← Wants PDF
+    Accept-Language: ja               ← Wants Japanese
+    Accept-Encoding: gzip, br         ← Compression format
 
-  レスポンス:
+  Response:
     Content-Type: application/json; charset=utf-8
     Content-Language: ja
     Content-Encoding: br
 
   406 Not Acceptable:
-    → サーバーがクライアントの希望形式に対応していない場合
+    → Returned when the server does not support the client's requested format
 
-実装パターン:
-  (1) Accept ヘッダーベース（標準的・推奨）
-  (2) 拡張子ベース: /users.json, /users.xml
-  (3) クエリパラメータ: /users?format=csv
+Implementation patterns:
+  (1) Accept header-based (standard, recommended)
+  (2) Extension-based: /users.json, /users.xml
+  (3) Query parameter: /users?format=csv
 
-推奨:
-  → デフォルトはJSON
-  → 管理画面向けにCSVエクスポート対応
-  → Accept ヘッダーで切り替え
+Recommended:
+  → Default is JSON
+  → Support CSV export for admin interfaces
+  → Switch format via Accept header
 ```
 
-### 8.2 コンテンツネゴシエーションの実装
+### 8.2 Implementing Content Negotiation
 
 ```javascript
-// Express でのコンテンツネゴシエーション実装
+// Content negotiation implementation in Express
 
 function contentNegotiation(formatters) {
   return (req, res, next) => {
-    // req.accepts() は Express 組込みの Accept ヘッダー解析
+    // req.accepts() is Express's built-in Accept header parser
     const format = req.accepts(Object.keys(formatters));
 
     if (!format) {
@@ -1030,7 +1035,7 @@ function contentNegotiation(formatters) {
       });
     }
 
-    // 選択されたフォーマッターを res に設定
+    // Set the selected formatter on res
     res.formatResponse = (data) => {
       const formatter = formatters[format];
       const { contentType, body } = formatter(data);
@@ -1041,7 +1046,7 @@ function contentNegotiation(formatters) {
   };
 }
 
-// フォーマッター定義
+// Formatter definitions
 const userFormatters = {
   'application/json': (data) => ({
     contentType: 'application/json; charset=utf-8',
@@ -1057,7 +1062,7 @@ const userFormatters = {
   }),
 };
 
-// 使用
+// Usage
 router.get(
   '/api/v1/users',
   contentNegotiation(userFormatters),
@@ -1070,35 +1075,35 @@ router.get(
 
 ---
 
-## 9. 部分更新（PATCH）の深掘り
+## 9. Partial Updates (PATCH) — Deep Dive
 
-PATCHメソッドはリソースの部分更新を行うHTTPメソッドである。PUTがリソースの完全置換を意味するのに対し、PATCHは変更が必要なフィールドのみを送信する。
+PATCH is the HTTP method for partial updates to a resource. While PUT means complete replacement of a resource, PATCH only sends the fields that need to be changed.
 
-### 9.1 PUT vs PATCH の比較
+### 9.1 PUT vs PATCH Comparison
 
-| 特性 | PUT | PATCH |
-|------|-----|-------|
-| 意味 | リソースの完全置換 | リソースの部分更新 |
-| 送信するフィールド | 全フィールド | 変更フィールドのみ |
-| 冪等性 | 常に冪等 | 実装依存 |
-| 欠落フィールドの扱い | デフォルト値 or null | 変更なし |
-| 帯域幅 | 大きい | 小さい |
-| 用途 | 設定の完全上書き | プロフィール更新など |
+| Property | PUT | PATCH |
+|----------|-----|-------|
+| Meaning | Complete resource replacement | Partial resource update |
+| Fields sent | All fields | Only changed fields |
+| Idempotency | Always idempotent | Implementation-dependent |
+| Missing fields | Default value or null | Unchanged |
+| Bandwidth | Large | Small |
+| Use case | Complete overwrite of settings | Profile update, etc. |
 
-### 9.2 Merge Patch（RFC 7396）
+### 9.2 Merge Patch (RFC 7396)
 
-Merge Patchは最もシンプルな部分更新形式である。JSONオブジェクトをそのまま送信し、含まれるフィールドだけが更新される。
+Merge Patch is the simplest form of partial update. Send the JSON object as-is and only the included fields are updated.
 
 ```javascript
-// Merge Patch の実装
+// Merge Patch implementation
 
-// リクエスト:
+// Request:
 // PATCH /api/v1/users/usr_abc123
 // Content-Type: application/merge-patch+json
 // {
-//   "name": "Updated Name",    ← 値を更新
-//   "address": null,            ← フィールドを削除
-//   // email は含めない         ← 変更なし
+//   "name": "Updated Name",    ← Update value
+//   "address": null,            ← Delete field
+//   // email not included       ← No change
 // }
 
 function applyMergePatch(original, patch) {
@@ -1110,13 +1115,13 @@ function applyMergePatch(original, patch) {
 
   for (const [key, value] of Object.entries(patch)) {
     if (value === null) {
-      // null → フィールドを削除
+      // null → delete the field
       delete result[key];
     } else if (typeof value === 'object' && !Array.isArray(value)) {
-      // ネストされたオブジェクト → 再帰的にマージ
+      // Nested object → recursively merge
       result[key] = applyMergePatch(result[key] || {}, value);
     } else {
-      // それ以外 → 値を設定
+      // Otherwise → set the value
       result[key] = value;
     }
   }
@@ -1124,12 +1129,12 @@ function applyMergePatch(original, patch) {
   return result;
 }
 
-// Express ルート
+// Express route
 router.patch('/api/v1/users/:id', authenticate, async (req, res) => {
   const user = await User.findById(req.params.id);
   if (!user) throw Errors.notFound('User', req.params.id);
 
-  // バリデーション（部分スキーマで検証）
+  // Validation (validate with partial schema)
   const { error, value } = userPatchSchema.validate(req.body, {
     allowUnknown: false,
     stripUnknown: true,
@@ -1143,33 +1148,33 @@ router.patch('/api/v1/users/:id', authenticate, async (req, res) => {
 });
 ```
 
-#### Merge Patch の制限事項
+#### Merge Patch Limitations
 
 ```
-Merge Patch の制限:
+Merge Patch limitations:
 
-  1. 配列の部分更新ができない
-     → 配列は常に全置換される
-     → 例: tags: ["a", "b"] に "c" を追加したい場合
-           tags: ["a", "b", "c"] を全て送る必要がある
+  1. Cannot partially update arrays
+     → Arrays are always fully replaced
+     → Example: to add "c" to tags: ["a", "b"],
+           you must send tags: ["a", "b", "c"] in full
 
-  2. null値の設定と削除が区別できない
-     → null = 「このフィールドを削除」と解釈される
-     → null を値として設定したい場合に問題
+  2. Cannot distinguish between setting null and deleting a field
+     → null is interpreted as "delete this field"
+     → Problematic when you want to set null as a value
 
-  3. 空オブジェクトの扱い
-     → {} は「変更なし」を意味する
-     → 空オブジェクトを値として設定したい場合に問題
+  3. Handling of empty objects
+     → {} means "no changes"
+     → Problematic when you want to set an empty object as a value
 
-  これらの制限が問題になる場合 → JSON Patch を検討
+  If these limitations are a problem → consider JSON Patch
 ```
 
-### 9.3 JSON Patch（RFC 6902）
+### 9.3 JSON Patch (RFC 6902)
 
-JSON Patchはより細かい操作が可能な部分更新形式であり、操作のリストとして表現される。
+JSON Patch is a partial update format allowing finer-grained operations, expressed as a list of operations.
 
 ```javascript
-// JSON Patch のリクエスト例:
+// JSON Patch request example:
 // PATCH /api/v1/users/usr_abc123
 // Content-Type: application/json-patch+json
 // [
@@ -1181,15 +1186,15 @@ JSON Patchはより細かい操作が可能な部分更新形式であり、操�
 //   { "op": "test", "path": "/version", "value": 5 }
 // ]
 
-// JSON Patch の操作一覧:
-//   add     — フィールド追加 / 配列要素の挿入
-//   remove  — フィールド削除 / 配列要素の削除
-//   replace — フィールドの値を置換
-//   move    — フィールドを移動（remove + add）
-//   copy    — フィールドをコピー
-//   test    — 値の検証（一致しなければ操作全体を中止）
+// JSON Patch operations:
+//   add     — Add a field / insert an array element
+//   remove  — Remove a field / delete an array element
+//   replace — Replace a field value
+//   move    — Move a field (remove + add)
+//   copy    — Copy a field
+//   test    — Validate a value (abort all operations if mismatch)
 
-// fast-json-patch ライブラリを使用した実装
+// Implementation using the fast-json-patch library
 const jsonPatch = require('fast-json-patch');
 
 router.patch('/api/v1/users/:id', authenticate, async (req, res) => {
@@ -1204,7 +1209,7 @@ router.patch('/api/v1/users/:id', authenticate, async (req, res) => {
     // JSON Patch
     const patchOps = req.body;
 
-    // バリデーション
+    // Validation
     const validationResult = jsonPatch.validate(patchOps, user.toObject());
     if (validationResult) {
       return res.status(422).json({
@@ -1215,7 +1220,7 @@ router.patch('/api/v1/users/:id', authenticate, async (req, res) => {
       });
     }
 
-    // パッチ適用
+    // Apply patch
     updatedData = jsonPatch.applyPatch(
       jsonPatch.deepClone(user.toObject()),
       patchOps
@@ -1241,21 +1246,21 @@ router.patch('/api/v1/users/:id', authenticate, async (req, res) => {
 
 ---
 
-## 10. バルク操作
+## 10. Bulk Operations
 
-### 10.1 バルク操作の設計パターン
+### 10.1 Bulk Operation Design Patterns
 
-複数リソースを一括で操作する場合の設計パターンを示す。
+Design patterns for operating on multiple resources at once.
 
 ```javascript
-// バッチリクエストの完全な実装例
+// Complete implementation example for batch requests
 
-// ── バッチ作成 ──
+// ── Batch create ──
 // POST /api/v1/users/batch
 router.post('/api/v1/users/batch', authenticate, authorize('admin'), async (req, res) => {
   const { operations } = req.body;
 
-  // バッチサイズの制限
+  // Batch size limit
   if (!operations || operations.length === 0) {
     throw Errors.validation([{
       field: 'operations',
@@ -1278,7 +1283,7 @@ router.post('/api/v1/users/batch', authenticate, authorize('admin'), async (req,
 
   for (const op of operations) {
     try {
-      // 個別バリデーション
+      // Individual validation
       const { error, value } = userSchema.validate(op.body);
       if (error) {
         results.push({
@@ -1293,7 +1298,7 @@ router.post('/api/v1/users/batch', authenticate, authorize('admin'), async (req,
         continue;
       }
 
-      // リソース作成
+      // Create resource
       const user = await User.create({
         ...value,
         id: generateId('user'),
@@ -1319,10 +1324,10 @@ router.post('/api/v1/users/batch', authenticate, authorize('admin'), async (req,
     }
   }
 
-  // 全体のHTTPステータス:
-  //   全成功 → 200
-  //   部分失敗 → 207 Multi-Status
-  //   全失敗 → 422
+  // Overall HTTP status:
+  //   All succeeded → 200
+  //   Partial failure → 207 Multi-Status
+  //   All failed → 422
   const overallStatus = failed === 0 ? 200 : succeeded === 0 ? 422 : 207;
 
   res.status(overallStatus).json({
@@ -1335,7 +1340,7 @@ router.post('/api/v1/users/batch', authenticate, authorize('admin'), async (req,
   });
 });
 
-// ── 一括削除 ──
+// ── Bulk delete ──
 // POST /api/v1/users/batch-delete
 router.post('/api/v1/users/batch-delete', authenticate, authorize('admin'), async (req, res) => {
   const { ids } = req.body;
@@ -1368,7 +1373,7 @@ router.post('/api/v1/users/batch-delete', authenticate, authorize('admin'), asyn
   });
 });
 
-// ── 一括更新 ──
+// ── Bulk update ──
 // PATCH /api/v1/users/batch
 router.patch('/api/v1/users/batch', authenticate, authorize('admin'), async (req, res) => {
   const { ids, update } = req.body;
@@ -1394,49 +1399,50 @@ router.patch('/api/v1/users/batch', authenticate, authorize('admin'), async (req
 });
 ```
 
-### 10.2 バルク操作の設計考慮事項
+### 10.2 Bulk Operation Design Considerations
 
 ```
-バルク操作の設計ポイント:
+Bulk operation design points:
 
-  1. トランザクション制御
+  1. Transaction control
      ┌─────────────────────────────────────────────────┐
-     │  All-or-Nothing（トランザクション）              │
-     │  → 1つでも失敗したら全てロールバック             │
-     │  → データ一貫性が重要な場合（決済処理等）        │
-     │  → パフォーマンスは低下するが安全                │
+     │  All-or-Nothing (transaction)                    │
+     │  → Roll back everything if any one fails        │
+     │  → When data consistency is critical (payments) │
+     │  → Lower performance but safe                   │
      ├─────────────────────────────────────────────────┤
-     │  Partial Success（部分成功）                     │
-     │  → 各操作を独立に処理し、個別に成功/失敗を返す  │
-     │  → バルクインポート等に適する                    │
-     │  → 207 Multi-Status で個別結果を返す            │
+     │  Partial Success                                 │
+     │  → Process each operation independently,        │
+     │    return individual success/failure            │
+     │  → Suitable for bulk imports                    │
+     │  → Return individual results with 207 Multi-Status│
      └─────────────────────────────────────────────────┘
 
-  2. サイズ制限
-     → バッチサイズの上限を設定（例: 100件）
-     → リクエストボディサイズの制限
-     → タイムアウトの考慮
+  2. Size limits
+     → Set upper limit on batch size (e.g., 100 items)
+     → Limit request body size
+     → Consider timeouts
 
-  3. 進捗通知（大量データの場合）
-     → 非同期処理 + ポーリング
+  3. Progress notification (for large datasets)
+     → Async processing + polling
      → POST /api/v1/imports → 202 Accepted + Job ID
-     → GET /api/v1/jobs/{job_id} → 進捗確認
+     → GET /api/v1/jobs/{job_id} → Check progress
 
-  4. エラーレポート
-     → 各操作のインデックスとエラー内容を返す
-     → クライアントが再試行すべき操作を特定できるようにする
+  4. Error reporting
+     → Return index and error content for each operation
+     → Enable client to identify which operations to retry
 ```
 
 ---
 
-## 11. 楽観的ロック
+## 11. Optimistic Locking
 
-### 11.1 ETag / If-Match による楽観的ロック
+### 11.1 Optimistic Locking with ETag / If-Match
 
-楽観的ロック（Optimistic Locking）は、同時更新の競合をHTTPヘッダーで検出する仕組みである。
+Optimistic locking is a mechanism for detecting concurrent update conflicts using HTTP headers.
 
 ```
-楽観的ロックのフロー:
+Optimistic locking flow:
 
   Client A                Server               Client B
      │                       │                      │
@@ -1468,12 +1474,12 @@ router.patch('/api/v1/users/batch', authenticate, authorize('admin'), async (req
      │                       │  (v5 != v6)          │
      │                       │─────────────────────→│
      │                       │                      │
-     │                       │  Client B は再取得   │
-     │                       │  してリトライする     │
+     │                       │  Client B re-fetches │
+     │                       │  and retries         │
 ```
 
 ```javascript
-// 楽観的ロックの完全な実装
+// Complete implementation of optimistic locking
 
 router.put('/api/v1/users/:id', authenticate, async (req, res) => {
   const ifMatch = req.headers['if-match'];
@@ -1481,7 +1487,7 @@ router.put('/api/v1/users/:id', authenticate, async (req, res) => {
 
   if (!user) throw Errors.notFound('User', req.params.id);
 
-  // If-Match ヘッダーが指定されている場合、ETag を検証
+  // If If-Match header is provided, validate ETag
   if (ifMatch) {
     const currentETag = `"${user.version}"`;
     if (ifMatch !== currentETag) {
@@ -1497,18 +1503,18 @@ router.put('/api/v1/users/:id', authenticate, async (req, res) => {
     }
   }
 
-  // バリデーション
+  // Validation
   const { error, value } = userSchema.validate(req.body);
   if (error) throw Errors.validation(error.details);
 
-  // 更新（version をインクリメント）
+  // Update (increment version)
   const updated = await User.findOneAndUpdate(
-    { _id: req.params.id, version: user.version }, // version も条件に含める
+    { _id: req.params.id, version: user.version }, // include version in condition
     { ...value, version: user.version + 1 },
     { new: true }
   );
 
-  // DB レベルでも競合検出（findOneAndUpdate が null を返す場合）
+  // Detect conflict at DB level too (when findOneAndUpdate returns null)
   if (!updated) {
     return res.status(409).json({
       type: 'https://api.example.com/errors/conflict',
@@ -1526,35 +1532,35 @@ router.put('/api/v1/users/:id', authenticate, async (req, res) => {
 
 ---
 
-## 12. レスポンス圧縮とキャッシュ戦略
+## 12. Response Compression and Caching Strategy
 
-### 12.1 圧縮
+### 12.1 Compression
 
 ```
-圧縮形式の比較:
+Compression format comparison:
 
   ┌──────────────────────────────────────────────────────┐
-  │  形式     │  圧縮率   │  速度     │  ブラウザ対応     │
+  │  Format   │  Ratio    │  Speed    │  Browser Support  │
   ├───────────┼──────────┼──────────┼──────────────────┤
-  │  gzip     │  良好     │  高速     │  ほぼ全て        │
-  │  Brotli   │  最良     │  中速     │  主要ブラウザ     │
-  │           │ (gzip比   │ (圧縮は   │  (IE除く)        │
-  │           │  +20-30%) │  遅い)    │                  │
-  │  zstd     │  最良     │  最速     │  限定的（新規格） │
+  │  gzip     │  Good     │  Fast     │  Almost all      │
+  │  Brotli   │  Best     │  Medium   │  Major browsers  │
+  │           │ (+20-30%  │ (compress │  (except IE)     │
+  │           │  vs gzip) │  is slow) │                  │
+  │  zstd     │  Best     │  Fastest  │  Limited (new)   │
   └──────────────────────────────────────────────────────┘
 
-  推奨設定:
-  → JSON APIレスポンス: Brotli（対応ブラウザ） or gzip（フォールバック）
-  → 1KB未満のレスポンス: 圧縮不要（オーバーヘッドが効果を上回る）
-  → 静的アセット: 事前圧縮（ビルド時に .br / .gz を生成）
+  Recommended settings:
+  → JSON API responses: Brotli (supporting browsers) or gzip (fallback)
+  → Responses under 1KB: no compression needed (overhead outweighs benefit)
+  → Static assets: pre-compress (generate .br / .gz at build time)
 ```
 
-### 12.2 キャッシュ戦略
+### 12.2 Caching Strategy
 
 ```javascript
-// Express でのキャッシュヘッダー設定
+// Cache header configuration in Express
 
-// 不変リソース（ビルドアセット、画像等）
+// Immutable resources (build assets, images, etc.)
 app.use('/static', express.static('public', {
   maxAge: '365d',
   immutable: true,
@@ -1563,13 +1569,13 @@ app.use('/static', express.static('public', {
   },
 }));
 
-// API レスポンスのキャッシュミドルウェア
+// Cache control middleware for API responses
 function cacheControl(options = {}) {
   return (req, res, next) => {
     const {
       visibility = 'private',   // 'public' or 'private'
-      maxAge = 0,               // 秒数
-      sMaxAge,                  // CDN キャッシュ秒数
+      maxAge = 0,               // seconds
+      sMaxAge,                  // CDN cache seconds
       mustRevalidate = false,
       noCache = false,
       noStore = false,
@@ -1593,26 +1599,26 @@ function cacheControl(options = {}) {
   };
 }
 
-// 使用例
-// 商品一覧: 60秒キャッシュ、CDNは300秒
+// Usage examples
+// Product list: 60-second cache, CDN 300 seconds
 router.get('/api/v1/products',
   cacheControl({ visibility: 'public', maxAge: 60, sMaxAge: 300 }),
   productListHandler
 );
 
-// ユーザー情報: キャッシュなし、毎回サーバー確認（ETagで304活用）
+// User info: no cache, verify with server each time (use 304 with ETag)
 router.get('/api/v1/users/me',
   cacheControl({ visibility: 'private', noCache: true }),
   currentUserHandler
 );
 
-// 決済情報: キャッシュ禁止
+// Payment info: caching prohibited
 router.get('/api/v1/payments/:id',
   cacheControl({ noStore: true }),
   paymentHandler
 );
 
-// 設定マスタ: 1時間キャッシュ
+// Master settings: 1-hour cache
 router.get('/api/v1/settings',
   cacheControl({ visibility: 'public', maxAge: 3600 }),
   settingsHandler
@@ -1621,22 +1627,22 @@ router.get('/api/v1/settings',
 
 ---
 
-## 13. ページネーション設計
+## 13. Pagination Design
 
-大量のリソース一覧を返すAPIにはページネーションが不可欠である。3つの主要なアプローチを比較する。
+Pagination is essential for APIs that return large lists of resources. Three major approaches are compared below.
 
-### 13.1 ページネーション方式の比較
+### 13.1 Pagination Method Comparison
 
-| 方式 | パラメータ例 | メリット | デメリット |
-|------|-------------|---------|-----------|
-| オフセットベース | `?page=3&limit=20` | 実装が容易、任意ページにジャンプ可 | 大量データでSQLのOFFSETが遅い、挿入/削除時にずれる |
-| カーソルベース | `?cursor=abc123&limit=20` | 高性能、大量データに強い、一貫性 | 任意ページジャンプ不可、ソート制約 |
-| キーセットベース | `?after_id=123&limit=20` | カーソルと同等の性能、透過的 | ソート条件に制約 |
+| Method | Parameter example | Pros | Cons |
+|--------|------------------|------|------|
+| Offset-based | `?page=3&limit=20` | Easy to implement, can jump to any page | SQL OFFSET is slow for large datasets; shifts on insert/delete |
+| Cursor-based | `?cursor=abc123&limit=20` | High performance, handles large data well, consistent | Cannot jump to arbitrary pages; sorting constraints |
+| Keyset-based | `?after_id=123&limit=20` | Same performance as cursor, transparent | Sorting constraints |
 
-### 13.2 各方式の実装
+### 13.2 Implementation of Each Method
 
 ```javascript
-// ── オフセットベースのページネーション ──
+// ── Offset-based pagination ──
 router.get('/api/v1/products', async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
@@ -1662,13 +1668,13 @@ router.get('/api/v1/products', async (req, res) => {
   });
 });
 
-// ── カーソルベースのページネーション ──
+// ── Cursor-based pagination ──
 router.get('/api/v1/products', async (req, res) => {
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
-  const cursor = req.query.cursor; // Base64エンコードされたカーソル
+  const cursor = req.query.cursor; // Base64-encoded cursor
 
   let query = 'SELECT * FROM products';
-  const params = [limit + 1]; // 1つ多く取得（next の有無判定用）
+  const params = [limit + 1]; // fetch one extra (to determine if there is a next page)
 
   if (cursor) {
     const decoded = JSON.parse(Buffer.from(cursor, 'base64url').toString());
@@ -1707,72 +1713,72 @@ router.get('/api/v1/products', async (req, res) => {
 
 ---
 
-## 14. アンチパターン
+## 14. Anti-Patterns
 
-### 14.1 アンチパターン1: 動詞ベースのURL設計
+### 14.1 Anti-Pattern 1: Verb-Based URL Design
 
 ```
-アンチパターン: 動詞ベースのURL
+Anti-pattern: Verb-based URLs
 
-  悪い例（RPCスタイル）:
+  Bad examples (RPC style):
     POST /api/getUsers
     POST /api/createUser
     POST /api/deleteUser
     POST /api/updateUserEmail
     POST /api/searchProducts
 
-  問題点:
-  → 操作ごとに新しいエンドポイントが増殖
-  → HTTPメソッドの意味が失われる（全てPOST）
-  → キャッシュが効かない
-  → 統一的なインターフェースが崩れる
+  Problems:
+  → New endpoints proliferate for each operation
+  → HTTP method semantics are lost (everything is POST)
+  → Caching does not work
+  → Uniform interface breaks down
 
-  正しい設計（リソース指向）:
-    GET    /api/v1/users                    ユーザー一覧
-    POST   /api/v1/users                    ユーザー作成
-    DELETE /api/v1/users/123                ユーザー削除
-    PATCH  /api/v1/users/123                ユーザー更新
-    GET    /api/v1/products?q=laptop        商品検索
+  Correct design (resource-oriented):
+    GET    /api/v1/users                    User list
+    POST   /api/v1/users                    Create user
+    DELETE /api/v1/users/123                Delete user
+    PATCH  /api/v1/users/123                Update user
+    GET    /api/v1/products?q=laptop        Search products
 
-  例外: 動詞が許容される場面
-  → リソースに対する「アクション」を表す場合
+  Exception: when verbs are acceptable
+  → When expressing an "action" on a resource
   → POST /api/v1/orders/123/cancel
   → POST /api/v1/users/123/verify-email
-  → これらは状態遷移であり、独立したリソースとして扱いにくい
+  → These are state transitions and are difficult to model as independent resources
 ```
 
-### 14.2 アンチパターン2: レスポンスの不統一
+### 14.2 Anti-Pattern 2: Inconsistent Responses
 
 ```
-アンチパターン: レスポンス構造が API ごとに異なる
+Anti-pattern: Response structure varies across APIs
 
-  悪い例:
+  Bad examples:
     GET /api/v1/users     → { "users": [...] }
     GET /api/v1/products  → { "data": [...], "count": 10 }
-    GET /api/v1/orders    → [...] (配列そのまま)
-    GET /api/v1/users/123 → { "id": "123", "name": "..." } (ラッパーなし)
+    GET /api/v1/orders    → [...] (raw array)
+    GET /api/v1/users/123 → { "id": "123", "name": "..." } (no wrapper)
 
-  問題点:
-  → クライアントが各エンドポイントの構造を個別に把握する必要がある
-  → 共通のHTTPクライアントラッパーが書けない
-  → メタデータ（ページネーション情報等）の配置場所が不統一
+  Problems:
+  → Clients must understand each endpoint's structure individually
+  → Cannot write a shared HTTP client wrapper
+  → Inconsistent placement of metadata (pagination info, etc.)
 
-  正しい設計: 統一されたレスポンスエンベロープ
+  Correct design: Unified response envelope
 
-    // コレクション
+    // Collection
     {
       "data": [...],
       "meta": { "page": 1, "limit": 20, "total": 150 },
       "links": { "self": "...", "next": "...", "prev": "..." }
     }
 
-    // 個別リソース
+    // Individual resource
     {
       "data": { "id": "123", "name": "..." },
       "links": { "self": "...", "related": "..." }
     }
 
-    // エラー
+    // Error
     {
       "type": "https://api.example.com/errors/...",
       "title": "...",
@@ -1781,50 +1787,50 @@ router.get('/api/v1/products', async (req, res) => {
     }
 ```
 
-### 14.3 アンチパターン3: 過度なネスト
+### 14.3 Anti-Pattern 3: Excessive Nesting
 
 ```
-アンチパターン: 深すぎるリソース階層
+Anti-pattern: Resource hierarchy too deep
 
-  悪い例:
+  Bad example:
     GET /api/v1/companies/1/departments/2/teams/3/members/4/tasks/5
 
-  問題点:
-  → URLが長くなり可読性が低下
-  → 全ての親リソースのIDが必要（不必要に結合度が高い）
-  → キャッシュの粒度が粗くなる
-  → ルーティングの複雑化
+  Problems:
+  → URL becomes long and hard to read
+  → Requires all parent resource IDs (unnecessarily high coupling)
+  → Cache granularity becomes coarse
+  → Routing complexity increases
 
-  正しい設計: 最大2段のネスト + クエリパラメータ
+  Correct design: Max 2 levels of nesting + query parameters
 
-    GET /api/v1/tasks/5                          タスクに直接アクセス
-    GET /api/v1/tasks?team_id=3                  チームのタスク一覧
-    GET /api/v1/tasks?member_id=4&status=active  メンバーのアクティブタスク
+    GET /api/v1/tasks/5                          Direct access to task
+    GET /api/v1/tasks?team_id=3                  Task list for a team
+    GET /api/v1/tasks?member_id=4&status=active  Active tasks for a member
 
-    // 親子関係が強い場合のみ1段のネスト
-    GET /api/v1/orders/123/items                 注文の商品一覧
-    GET /api/v1/users/456/notifications          ユーザーの通知一覧
+    // Only 1 level of nesting when parent-child relationship is strong
+    GET /api/v1/orders/123/items                 Product list for an order
+    GET /api/v1/users/456/notifications          Notification list for a user
 ```
 
 ---
 
-## 15. エッジケース分析
+## 15. Edge Case Analysis
 
-### 15.1 エッジケース1: 論理削除と物理削除の共存
+### 15.1 Edge Case 1: Coexistence of Soft Delete and Hard Delete
 
-リソースの削除には「論理削除（ソフトデリート）」と「物理削除（ハードデリート）」がある。多くのプロダクション環境では論理削除が推奨されるが、GDPRなどの規制対応で物理削除が必要になる場合もある。
+Resource deletion can be either "soft delete" (logical delete) or "hard delete" (physical delete). Soft delete is recommended in most production environments, but hard delete may be required for compliance with regulations like GDPR.
 
 ```javascript
-// 論理削除と物理削除の共存設計
+// Design for coexistence of soft delete and hard delete
 
-// ── 標準の DELETE: 論理削除 ──
+// ── Standard DELETE: soft delete ──
 // DELETE /api/v1/users/usr_abc123
-// → deleted_at を設定、データは残存
+// → Sets deleted_at; data remains
 router.delete('/api/v1/users/:id', authenticate, async (req, res) => {
   const user = await User.findById(req.params.id);
   if (!user) throw Errors.notFound('User', req.params.id);
 
-  // 既に論理削除済みの場合
+  // If already soft-deleted
   if (user.deleted_at) {
     return res.status(410).json({
       type: 'https://api.example.com/errors/gone',
@@ -1843,28 +1849,28 @@ router.delete('/api/v1/users/:id', authenticate, async (req, res) => {
   res.status(204).end();
 });
 
-// ── 物理削除（GDPR対応）: 別エンドポイント ──
+// ── Hard delete (GDPR compliance): separate endpoint ──
 // DELETE /api/v1/users/usr_abc123/permanent
-// → データを完全に抹消
+// → Completely erases the data
 router.delete('/api/v1/users/:id/permanent',
   authenticate,
   authorize('admin'),
-  requireMfa,  // MFA必須
+  requireMfa,  // MFA required
   async (req, res) => {
     const user = await User.findById(req.params.id);
     if (!user) throw Errors.notFound('User', req.params.id);
 
-    // 監査ログに記録
+    // Record in audit log
     await AuditLog.create({
       action: 'PERMANENT_DELETE',
       resource_type: 'User',
       resource_id: req.params.id,
       performed_by: req.user.id,
-      reason: req.body.reason, // 削除理由（必須）
+      reason: req.body.reason, // deletion reason (required)
       timestamp: new Date(),
     });
 
-    // 関連データの削除
+    // Delete related data
     await Promise.all([
       Order.updateMany(
         { user_id: req.params.id },
@@ -1878,14 +1884,14 @@ router.delete('/api/v1/users/:id/permanent',
   }
 );
 
-// ── 論理削除されたリソースの取得 ──
-// GET /api/v1/users?include_deleted=true (管理者のみ)
+// ── Retrieve soft-deleted resources ──
+// GET /api/v1/users?include_deleted=true (admin only)
 router.get('/api/v1/users', authenticate, async (req, res) => {
   const filters = {};
 
-  // 通常ユーザーは削除済みを見れない
+  // Regular users cannot see deleted resources
   if (req.query.include_deleted === 'true' && req.user.role === 'admin') {
-    // フィルタなし（削除済みも含む）
+    // No filter (includes deleted)
   } else {
     filters.deleted_at = null;
   }
@@ -1894,7 +1900,7 @@ router.get('/api/v1/users', authenticate, async (req, res) => {
   res.json({ data: users.map(serializeUser) });
 });
 
-// ── 論理削除の復元 ──
+// ── Restore a soft-deleted resource ──
 // POST /api/v1/users/usr_abc123/restore
 router.post('/api/v1/users/:id/restore',
   authenticate,
@@ -1922,24 +1928,24 @@ router.post('/api/v1/users/:id/restore',
 );
 ```
 
-### 15.2 エッジケース2: 非同期操作とポーリング
+### 15.2 Edge Case 2: Async Operations and Polling
 
-長時間かかる操作（大量データのインポート、レポート生成、画像処理など）を同期的に処理するとタイムアウトが発生する。非同期パターンで解決する。
+Long-running operations (bulk data imports, report generation, image processing, etc.) will time out if handled synchronously. Resolve this with the async pattern.
 
 ```javascript
-// 非同期操作のパターン
+// Async operation pattern
 
-// ── Step 1: ジョブの開始 ──
+// ── Step 1: Start a job ──
 // POST /api/v1/reports
-// → 202 Accepted を即座に返し、バックグラウンドで処理
+// → Return 202 Accepted immediately and process in background
 router.post('/api/v1/reports', authenticate, async (req, res) => {
   const { type, date_range, format } = req.body;
 
-  // バリデーション
+  // Validation
   const { error } = reportRequestSchema.validate(req.body);
   if (error) throw Errors.validation(error.details);
 
-  // ジョブを作成
+  // Create job
   const job = await Job.create({
     id: generateId('job'),
     type: 'report_generation',
@@ -1950,7 +1956,7 @@ router.post('/api/v1/reports', authenticate, async (req, res) => {
     progress: 0,
   });
 
-  // キューに追加（実際の処理はワーカーが行う）
+  // Add to queue (actual processing is done by a worker)
   await queue.add('generate-report', {
     jobId: job.id,
     ...req.body,
@@ -1971,7 +1977,7 @@ router.post('/api/v1/reports', authenticate, async (req, res) => {
     });
 });
 
-// ── Step 2: ジョブの進捗確認 ──
+// ── Step 2: Check job progress ──
 // GET /api/v1/jobs/job_abc123
 router.get('/api/v1/jobs/:id', authenticate, async (req, res) => {
   const job = await Job.findById(req.params.id);
@@ -1994,8 +2000,8 @@ router.get('/api/v1/jobs/:id', authenticate, async (req, res) => {
   switch (job.status) {
     case 'queued':
     case 'processing':
-      // ポーリング間隔を Retry-After で指示
-      res.set('Retry-After', '5'); // 5秒後に再確認
+      // Instruct polling interval via Retry-After
+      res.set('Retry-After', '5'); // check again in 5 seconds
       response.links.cancel = { href: `/api/v1/jobs/${job.id}/cancel`, method: 'POST' };
       break;
 
@@ -2013,7 +2019,7 @@ router.get('/api/v1/jobs/:id', authenticate, async (req, res) => {
   res.status(200).json(response);
 });
 
-// ── Step 3: ジョブのキャンセル ──
+// ── Step 3: Cancel a job ──
 // POST /api/v1/jobs/job_abc123/cancel
 router.post('/api/v1/jobs/:id/cancel', authenticate, async (req, res) => {
   const job = await Job.findById(req.params.id);
@@ -2041,28 +2047,28 @@ router.post('/api/v1/jobs/:id/cancel', authenticate, async (req, res) => {
 ```
 
 ```
-非同期操作のシーケンス図:
+Async operation sequence diagram:
 
   Client                    API Server              Worker (Queue)
     │                          │                         │
     │  POST /api/v1/reports    │                         │
     │ ────────────────────────→│                         │
-    │                          │  Job 作成 & キュー追加   │
+    │                          │  Create job & add to queue│
     │                          │────────────────────────→│
     │  202 Accepted            │                         │
     │  Location: /jobs/abc     │                         │
     │ ←────────────────────────│                         │
     │                          │                         │
-    │  (5秒後)                 │                         │
-    │  GET /api/v1/jobs/abc    │         処理中...       │
+    │  (5 seconds later)       │                         │
+    │  GET /api/v1/jobs/abc    │      processing...      │
     │ ────────────────────────→│                         │
     │  200 { status:processing │                         │
     │       progress: 45 }     │                         │
     │  Retry-After: 5          │                         │
     │ ←────────────────────────│                         │
     │                          │                         │
-    │  (5秒後)                 │                         │
-    │  GET /api/v1/jobs/abc    │    処理完了             │
+    │  (5 seconds later)       │                         │
+    │  GET /api/v1/jobs/abc    │    processing complete  │
     │ ────────────────────────→│←────────────────────────│
     │  200 { status:completed  │                         │
     │       result_url: "..." }│                         │
@@ -2070,37 +2076,37 @@ router.post('/api/v1/jobs/:id/cancel', authenticate, async (req, res) => {
     │                          │                         │
     │  GET /results/abc.csv    │                         │
     │ ────────────────────────→│                         │
-    │  200 (レポートファイル)   │                         │
+    │  200 (report file)        │                         │
     │ ←────────────────────────│                         │
 ```
 
 ---
 
-## 16. レート制限
+## 16. Rate Limiting
 
-### 16.1 レート制限の実装
+### 16.1 Implementing Rate Limiting
 
 ```javascript
-// トークンバケットアルゴリズムによるレート制限
+// Rate limiting using token bucket algorithm
 
 const Redis = require('ioredis');
 const redis = new Redis();
 
 async function rateLimitMiddleware(req, res, next) {
-  const identifier = req.user?.id || req.ip; // 認証済みならユーザーID、未認証ならIP
+  const identifier = req.user?.id || req.ip; // user ID if authenticated, otherwise IP
   const key = `ratelimit:${identifier}`;
 
-  // 設定
-  const limit = req.user ? 1000 : 100;  // 認証済み: 1000/分, 未認証: 100/分
-  const window = 60; // 60秒
+  // Configuration
+  const limit = req.user ? 1000 : 100;  // authenticated: 1000/min, unauthenticated: 100/min
+  const window = 60; // 60 seconds
 
-  // Redisでカウント
+  // Count with Redis
   const multi = redis.multi();
   multi.incr(key);
   multi.ttl(key);
   const [[, count], [, ttl]] = await multi.exec();
 
-  // 初回アクセス時にTTLを設定
+  // Set TTL on first access
   if (ttl === -1) {
     await redis.expire(key, window);
   }
@@ -2108,7 +2114,7 @@ async function rateLimitMiddleware(req, res, next) {
   const remaining = Math.max(0, limit - count);
   const resetTime = new Date(Date.now() + (ttl > 0 ? ttl : window) * 1000);
 
-  // レート制限ヘッダーを設定（RFC 6585 / Draft RateLimit Header）
+  // Set rate limit headers (RFC 6585 / Draft RateLimit Header)
   res.set({
     'RateLimit-Limit': limit.toString(),
     'RateLimit-Remaining': remaining.toString(),
@@ -2140,64 +2146,64 @@ app.use('/api/', rateLimitMiddleware);
 
 ---
 
-## 17. APIバージョニング
+## 17. API Versioning
 
-APIのバージョニングは、既存クライアントの互換性を維持しながらAPIを進化させるための仕組みである。
+API versioning is the mechanism for evolving an API while maintaining compatibility with existing clients.
 
 ```
-バージョニング戦略の比較:
+Versioning strategy comparison:
 
   ┌──────────────────┬──────────────────────────────────────────┐
-  │  方式            │  特徴                                     │
+  │  Method          │  Characteristics                          │
   ├──────────────────┼──────────────────────────────────────────┤
-  │  URI パス         │  /api/v1/users, /api/v2/users            │
-  │                  │  最も一般的で分かりやすい                  │
-  │                  │  ルーティングが明確                        │
-  │                  │  キャッシュが効きやすい                    │
-  │                  │  (GitHub, Stripe, Google 等が採用)        │
+  │  URI path        │  /api/v1/users, /api/v2/users            │
+  │                  │  Most common and clear                    │
+  │                  │  Routing is explicit                      │
+  │                  │  Cache-friendly                           │
+  │                  │  (adopted by GitHub, Stripe, Google, etc.)│
   ├──────────────────┼──────────────────────────────────────────┤
-  │  クエリパラメータ │  /api/users?version=2                    │
-  │                  │  既存URLへの影響が小さい                   │
-  │                  │  パラメータ省略時のデフォルト設定が必要     │
-  │                  │  (Google API の一部が採用)                │
+  │  Query parameter │  /api/users?version=2                    │
+  │                  │  Minimal impact on existing URLs          │
+  │                  │  Requires default when parameter omitted  │
+  │                  │  (used by some Google APIs)               │
   ├──────────────────┼──────────────────────────────────────────┤
-  │  カスタムヘッダー │  X-API-Version: 2                        │
-  │                  │  URIがクリーン                             │
-  │                  │  ブラウザから直接テストしにくい             │
-  │                  │  (Azure API Management 等)               │
+  │  Custom header   │  X-API-Version: 2                        │
+  │                  │  Clean URIs                               │
+  │                  │  Harder to test directly from browser     │
+  │                  │  (Azure API Management, etc.)             │
   ├──────────────────┼──────────────────────────────────────────┤
-  │  Accept ヘッダー │  Accept: application/vnd.myapi.v2+json   │
-  │                  │  RESTの原則に最も忠実                      │
-  │                  │  実装と利用が複雑                          │
-  │                  │  (GitHub API v3 が採用)                   │
+  │  Accept header   │  Accept: application/vnd.myapi.v2+json   │
+  │                  │  Most faithful to REST principles         │
+  │                  │  Complex to implement and use             │
+  │                  │  (adopted by GitHub API v3)               │
   └──────────────────┴──────────────────────────────────────────┘
 
-  推奨:
-  → URI パスが最も実用的（/api/v1/...）
-  → 新バージョンは破壊的変更がある場合のみ作成
-  → マイナー変更は同一バージョン内で後方互換に追加
+  Recommended:
+  → URI path is most practical (/api/v1/...)
+  → Create a new version only when there are breaking changes
+  → Add minor changes in a backward-compatible way within the same version
 ```
 
 ```javascript
-// バージョンルーティングの実装例
+// Version routing implementation example
 
 const express = require('express');
 const app = express();
 
-// バージョンごとにルーターを分離
+// Separate routers per version
 const v1Router = require('./routes/v1');
 const v2Router = require('./routes/v2');
 
 app.use('/api/v1', v1Router);
 app.use('/api/v2', v2Router);
 
-// バージョン非指定時のリダイレクト
+// Redirect when version is not specified
 app.use('/api/users', (req, res) => {
-  // 最新安定版にリダイレクト
+  // Redirect to latest stable version
   res.redirect(307, `/api/v2${req.url}`);
 });
 
-// 非推奨バージョンの警告ヘッダー
+// Deprecation warning header
 function deprecationWarning(sunsetDate) {
   return (req, res, next) => {
     res.set({
@@ -2209,84 +2215,84 @@ function deprecationWarning(sunsetDate) {
   };
 }
 
-// v1 全体に非推奨警告を付与
+// Add deprecation warning to all of v1
 v1Router.use(deprecationWarning('2025-12-31T23:59:59Z'));
 ```
 
 ---
 
-## 18. 演習問題
+## 18. Exercises
 
-### 18.1 演習1: 基礎（リソース設計）
+### 18.1 Exercise 1: Basic (Resource Design)
 
-**課題**: 図書館管理システムのREST APIを設計せよ。
+**Task**: Design a REST API for a library management system.
 
-以下の要件を満たすURIとHTTPメソッドの組み合わせを設計すること。
-
-```
-要件:
-  - 書籍の管理（CRUD）
-  - 著者の管理（CRUD）
-  - 書籍の貸出・返却
-  - 貸出履歴の照会
-  - 書籍の検索（タイトル、著者名、ISBN）
-  - 会員の管理（CRUD）
-  - 会員ごとの貸出中リスト
-  - 予約機能
-
-模範解答:
-
-  # 書籍
-  GET    /api/v1/books                        書籍一覧
-  GET    /api/v1/books?q=REST&author=fielding  書籍検索
-  GET    /api/v1/books/:id                    書籍詳細
-  POST   /api/v1/books                        書籍登録
-  PUT    /api/v1/books/:id                    書籍更新（全体）
-  PATCH  /api/v1/books/:id                    書籍更新（部分）
-  DELETE /api/v1/books/:id                    書籍削除
-
-  # 著者
-  GET    /api/v1/authors                      著者一覧
-  GET    /api/v1/authors/:id                  著者詳細
-  GET    /api/v1/authors/:id/books            著者の書籍一覧
-  POST   /api/v1/authors                      著者登録
-  PUT    /api/v1/authors/:id                  著者更新
-  DELETE /api/v1/authors/:id                  著者削除
-
-  # 貸出
-  POST   /api/v1/books/:id/checkout           書籍の貸出
-  POST   /api/v1/books/:id/return             書籍の返却
-
-  # 会員
-  GET    /api/v1/members                      会員一覧
-  GET    /api/v1/members/:id                  会員詳細
-  GET    /api/v1/members/:id/checkouts        会員の貸出中リスト
-  GET    /api/v1/members/:id/history          会員の貸出履歴
-  POST   /api/v1/members                      会員登録
-
-  # 予約
-  POST   /api/v1/books/:id/reservations       予約作成
-  DELETE /api/v1/books/:id/reservations/:rid   予約キャンセル
-  GET    /api/v1/members/:id/reservations      会員の予約一覧
-```
-
-### 18.2 演習2: 中級（エラーハンドリングとステータスコード）
-
-**課題**: 以下の各シナリオに対して、適切なHTTPステータスコードとRFC 9457準拠のエラーレスポンスボディを記述せよ。
+Design a combination of URIs and HTTP methods that satisfies the following requirements.
 
 ```
-シナリオ:
+Requirements:
+  - Book management (CRUD)
+  - Author management (CRUD)
+  - Book checkout and return
+  - Checkout history lookup
+  - Book search (by title, author name, ISBN)
+  - Member management (CRUD)
+  - Currently checked-out list per member
+  - Reservation feature
 
-  A) ユーザーが無効なJSONをリクエストボディに送信した
-  B) 認証トークンが期限切れ
-  C) 一般ユーザーが管理者専用エンドポイントにアクセス
-  D) 存在しないユーザーIDを指定してGETリクエスト
-  E) メールアドレスが既に登録済みのユーザーを作成しようとした
-  F) 注文の同時更新が発生した（楽観ロック競合）
-  G) レート制限を超過
-  H) 外部決済APIがタイムアウトした
+Model answer:
 
-模範解答:
+  # Books
+  GET    /api/v1/books                        Book list
+  GET    /api/v1/books?q=REST&author=fielding  Book search
+  GET    /api/v1/books/:id                    Book detail
+  POST   /api/v1/books                        Register book
+  PUT    /api/v1/books/:id                    Update book (full)
+  PATCH  /api/v1/books/:id                    Update book (partial)
+  DELETE /api/v1/books/:id                    Delete book
+
+  # Authors
+  GET    /api/v1/authors                      Author list
+  GET    /api/v1/authors/:id                  Author detail
+  GET    /api/v1/authors/:id/books            Author's book list
+  POST   /api/v1/authors                      Register author
+  PUT    /api/v1/authors/:id                  Update author
+  DELETE /api/v1/authors/:id                  Delete author
+
+  # Checkouts
+  POST   /api/v1/books/:id/checkout           Checkout a book
+  POST   /api/v1/books/:id/return             Return a book
+
+  # Members
+  GET    /api/v1/members                      Member list
+  GET    /api/v1/members/:id                  Member detail
+  GET    /api/v1/members/:id/checkouts        Member's currently checked-out list
+  GET    /api/v1/members/:id/history          Member's checkout history
+  POST   /api/v1/members                      Register member
+
+  # Reservations
+  POST   /api/v1/books/:id/reservations       Create reservation
+  DELETE /api/v1/books/:id/reservations/:rid   Cancel reservation
+  GET    /api/v1/members/:id/reservations      Member's reservation list
+```
+
+### 18.2 Exercise 2: Intermediate (Error Handling and Status Codes)
+
+**Task**: For each scenario below, write the appropriate HTTP status code and an RFC 9457-compliant error response body.
+
+```
+Scenarios:
+
+  A) User sent invalid JSON in the request body
+  B) Authentication token has expired
+  C) Regular user accessed an admin-only endpoint
+  D) GET request specifying a non-existent user ID
+  E) Attempted to create a user whose email is already registered
+  F) Concurrent update of an order occurred (optimistic lock conflict)
+  G) Rate limit exceeded
+  H) External payment API timed out
+
+Model answers:
 
   A) 400 Bad Request
   {
@@ -2357,48 +2363,48 @@ v1Router.use(deprecationWarning('2025-12-31T23:59:59Z'));
   }
 ```
 
-### 18.3 演習3: 上級（完全なAPI設計）
+### 18.3 Exercise 3: Advanced (Complete API Design)
 
-**課題**: タスク管理アプリケーションの REST API を設計せよ。以下の要件を全て満たすこと。
+**Task**: Design a REST API for a task management application. Satisfy all of the following requirements.
 
 ```
-要件:
-  - タスクのCRUD
-  - タスクの状態遷移（todo → in_progress → review → done）
-  - タスクのアサイン（担当者の設定）
-  - プロジェクト単位のタスク管理
-  - タスクへのコメント機能
-  - タスクの一括ステータス変更
-  - HATEOAS対応（状態に応じたリンク）
-  - 楽観的ロック対応
-  - ページネーション対応
-  - 適切なエラーレスポンス
+Requirements:
+  - Task CRUD
+  - Task state transitions (todo → in_progress → review → done)
+  - Task assignment (setting an assignee)
+  - Task management per project
+  - Comment feature for tasks
+  - Bulk status change for tasks
+  - HATEOAS support (links based on state)
+  - Optimistic locking support
+  - Pagination support
+  - Appropriate error responses
 
-設計すべき項目:
-  1. 全エンドポイントの一覧（URI + Method）
-  2. 代表的なレスポンスのJSON（HATEOAS付き）
-  3. 状態遷移図
-  4. エラーケースの列挙
+Items to design:
+  1. Full list of endpoints (URI + Method)
+  2. JSON for representative responses (with HATEOAS)
+  3. State transition diagram
+  4. Enumeration of error cases
 
-模範解答（抜粋）:
+Model answer (excerpt):
 
-  # エンドポイント一覧
-  GET    /api/v1/projects                          プロジェクト一覧
-  POST   /api/v1/projects                          プロジェクト作成
-  GET    /api/v1/projects/:pid                     プロジェクト詳細
-  GET    /api/v1/projects/:pid/tasks               プロジェクトのタスク一覧
-  POST   /api/v1/projects/:pid/tasks               タスク作成
-  GET    /api/v1/tasks/:id                         タスク詳細
-  PUT    /api/v1/tasks/:id                         タスク更新
-  PATCH  /api/v1/tasks/:id                         タスク部分更新
-  DELETE /api/v1/tasks/:id                         タスク削除
-  POST   /api/v1/tasks/:id/transition              状態遷移
-  PATCH  /api/v1/tasks/:id/assignee                アサイン変更
-  GET    /api/v1/tasks/:id/comments                コメント一覧
-  POST   /api/v1/tasks/:id/comments                コメント投稿
-  PATCH  /api/v1/tasks/batch                       一括ステータス変更
+  # Endpoint list
+  GET    /api/v1/projects                          Project list
+  POST   /api/v1/projects                          Create project
+  GET    /api/v1/projects/:pid                     Project detail
+  GET    /api/v1/projects/:pid/tasks               Project's task list
+  POST   /api/v1/projects/:pid/tasks               Create task
+  GET    /api/v1/tasks/:id                         Task detail
+  PUT    /api/v1/tasks/:id                         Update task
+  PATCH  /api/v1/tasks/:id                         Partial update task
+  DELETE /api/v1/tasks/:id                         Delete task
+  POST   /api/v1/tasks/:id/transition              State transition
+  PATCH  /api/v1/tasks/:id/assignee                Change assignee
+  GET    /api/v1/tasks/:id/comments                Comment list
+  POST   /api/v1/tasks/:id/comments                Post comment
+  PATCH  /api/v1/tasks/batch                       Bulk status change
 
-  # 状態遷移図
+  # State transition diagram
        ┌──────┐     start      ┌─────────────┐
        │ todo │ ──────────────→│ in_progress │
        └──────┘                └─────────────┘
@@ -2415,16 +2421,16 @@ v1Router.use(deprecationWarning('2025-12-31T23:59:59Z'));
                               │ done │
                               └──────┘
 
-  # タスク詳細のレスポンス（status = "in_progress"）
+  # Task detail response (status = "in_progress")
   {
     "data": {
       "id": "task_abc123",
-      "title": "REST APIガイドの執筆",
+      "title": "Write REST API Guide",
       "description": "...",
       "status": "in_progress",
       "assignee": {
         "id": "usr_def456",
-        "name": "田中太郎"
+        "name": "Taro Tanaka"
       },
       "project_id": "proj_ghi789",
       "version": 3,
@@ -2447,48 +2453,48 @@ v1Router.use(deprecationWarning('2025-12-31T23:59:59Z'));
 
 ## 19. FAQ
 
-### Q1: RESTful APIで適切なHTTPステータスコードの選び方は？
+### Q1: How do I choose the appropriate HTTP status code for a RESTful API?
 
-**A**: ステータスコードは「何が起きたか」を明確に伝えるために選択する。以下の基準で判断する。
-
-```
-成功系:
-  200 OK           → GET/PATCH成功（レスポンスボディあり）
-  201 Created      → POST成功（新規リソース作成）
-  204 No Content   → DELETE/PUT成功（レスポンスボディなし）
-
-クライアントエラー系:
-  400 Bad Request      → リクエスト構文エラー（JSON不正など）
-  401 Unauthorized     → 認証が必要
-  403 Forbidden        → 認証済みだが権限不足
-  404 Not Found        → リソースが存在しない
-  422 Unprocessable Entity → バリデーションエラー
-
-サーバーエラー系:
-  500 Internal Server Error → サーバー内部エラー
-  503 Service Unavailable   → 一時的な過負荷
-```
-
-特に、バリデーションエラーには422を使い、400はリクエスト形式そのものの問題（JSONパースエラー等）に限定することで、クライアント側のエラー処理が明確になる。
-
-### Q2: HATEOASは実際のプロジェクトで採用すべきか？
-
-**A**: 完全なHATEOAS（Level 3）は実装コストが高いため、以下の段階的アプローチを推奨する。
+**A**: Choose status codes to clearly communicate "what happened." Use the following criteria to decide.
 
 ```
-Level 0（最低限）:
-  → URIハードコードを避け、APIドキュメントで関連リソースのパスを明示
+Success:
+  200 OK           → GET/PATCH succeeded (response body present)
+  201 Created      → POST succeeded (new resource created)
+  204 No Content   → DELETE/PUT succeeded (no response body)
 
-Level 1（推奨）:
-  → レスポンスに関連リソースのURIを含める
+Client error:
+  400 Bad Request      → Request syntax error (invalid JSON, etc.)
+  401 Unauthorized     → Authentication required
+  403 Forbidden        → Authenticated but insufficient permissions
+  404 Not Found        → Resource does not exist
+  422 Unprocessable Entity → Validation error
+
+Server error:
+  500 Internal Server Error → Server internal error
+  503 Service Unavailable   → Temporarily overloaded
+```
+
+In particular, use 422 for validation errors and reserve 400 strictly for problems with the request format itself (JSON parse errors, etc.), which makes client-side error handling clearer.
+
+### Q2: Should HATEOAS be adopted in real projects?
+
+**A**: Full HATEOAS (Level 3) has a high implementation cost, so the following incremental approach is recommended.
+
+```
+Level 0 (minimum):
+  → Avoid hardcoding URIs; make related resource paths explicit in API documentation
+
+Level 1 (recommended):
+  → Include URIs to related resources in responses
   {
     "id": "usr_123",
     "name": "Alice",
     "orders_url": "/api/v1/users/usr_123/orders"
   }
 
-Level 2（状態遷移が重要な場合）:
-  → 実行可能なアクションのみをリンクとして返す
+Level 2 (when state transitions matter):
+  → Return only executable actions as links
   {
     "id": "ord_456",
     "status": "pending",
@@ -2498,19 +2504,19 @@ Level 2（状態遷移が重要な場合）:
     }
   }
 
-Level 3（完全なHATEOAS）:
-  → すべての状態遷移をハイパーメディアで表現
-  → 大規模な公開APIや複雑なワークフローのみで採用
+Level 3 (full HATEOAS):
+  → All state transitions expressed through hypermedia
+  → Adopt only for large-scale public APIs or complex workflows
 ```
 
-多くのプロジェクトではLevel 1で十分な価値が得られる。Level 3は、Stripe APIのような複雑な状態管理が必要な場合に限定すべきである。
+Level 1 provides sufficient value for most projects. Level 3 should be limited to cases requiring complex state management, such as the Stripe API.
 
-### Q3: REST APIでのエラーレスポンスのベストプラクティスは？
+### Q3: What are the best practices for error responses in REST APIs?
 
-**A**: RFC 9457（Problem Details for HTTP APIs）に準拠した構造を使うことが現代の標準である。
+**A**: Using a structure compliant with RFC 9457 (Problem Details for HTTP APIs) is the modern standard.
 
 ```javascript
-// RFC 9457準拠のエラーレスポンス
+// RFC 9457-compliant error response
 {
   "type": "https://api.example.com/errors/validation-error",
   "title": "Validation Error",
@@ -2524,104 +2530,104 @@ Level 3（完全なHATEOAS）:
       "message": "Must be a valid email address"
     }
   ],
-  "trace_id": "abc123def456"  // デバッグ用の追跡ID
+  "trace_id": "abc123def456"  // trace ID for debugging
 }
 ```
 
-必須フィールド:
-- `type`: エラー種別を示すURI（ドキュメントへのリンク）
-- `title`: 人間が読める短いエラータイトル
-- `status`: HTTPステータスコード
-- `detail`: 具体的なエラー詳細
-- `instance`: エラーが発生したリクエストパス
+Required fields:
+- `type`: URI indicating the error type (link to documentation)
+- `title`: Short, human-readable error title
+- `status`: HTTP status code
+- `detail`: Specific error details
+- `instance`: Request path where the error occurred
 
-拡張フィールド:
-- `errors`: バリデーションエラーの詳細（配列）
-- `trace_id`: サーバーログとの紐付け用ID
+Extended fields:
+- `errors`: Validation error details (array)
+- `trace_id`: ID for correlating with server logs
 
-このフォーマットにより、クライアント側で一貫したエラーハンドリングが可能になる。
+This format enables consistent error handling on the client side.
 
-### Q4: PUT と PATCH のどちらを使うべきか？
+### Q4: Should I use PUT or PATCH?
 
-**A**: 実務では PATCH（Merge Patch）を基本とし、設定系のリソースでのみ PUT を使うのが最も実用的である。
+**A**: In practice, using PATCH (Merge Patch) as the default and reserving PUT only for configuration-style resources is the most practical approach.
 
-理由は以下の通り:
-- PUT は全フィールドの送信が必要なため、クライアントの実装負荷が高い
-- フィールドの追加時に、PUT では全クライアントの更新が必要
-- PATCH（Merge Patch）は変更フィールドのみ送信するため、帯域幅の節約にもなる
-- ただし、設定ファイルのように「全体を一括で管理する」リソースでは PUT が適切
-
-```
-判断基準:
-  「このリソースは部分的に更新されるか？」
-    → Yes → PATCH（Merge Patch）
-    → No（常に全体を置換） → PUT
-```
-
-### Q5: ネストが深いリソースはどう設計するか？
-
-**A**: ネストは最大2段までとし、3段以上が必要な場合はクエリパラメータでフィルタリングする。
+Reasons:
+- PUT requires sending all fields, which increases implementation burden on clients
+- When fields are added, all clients need to be updated for PUT
+- PATCH (Merge Patch) only sends changed fields, saving bandwidth
+- However, PUT is appropriate for resources like configuration files that are "managed entirely as a whole"
 
 ```
-悪い例:  GET /companies/1/departments/2/teams/3/members
-良い例:  GET /members?team_id=3
-         GET /teams/3/members  （1段のネストは許容）
+Decision criteria:
+  "Is this resource updated partially?"
+    → Yes → PATCH (Merge Patch)
+    → No (always replaced in full) → PUT
 ```
 
-リソースが独立してアクセスされる場面があるなら、トップレベルのエンドポイントを提供すべきである。例えば、チームに属する「メンバー」は `/members/:id` でも直接アクセスできるようにする。
+### Q5: How should I design deeply nested resources?
 
-### Q6: 認証にはどの方式を採用すべきか？
-
-**A**: マシン間通信（M2M）ではAPIキーまたはOAuth2 Client Credentials、ユーザー操作が伴う場合はOAuth2 Authorization Code + PKCE を推奨する。
+**A**: Keep nesting to a maximum of 2 levels, and use query parameters for filtering when 3 or more levels are needed.
 
 ```
-用途別の推奨認証方式:
+Bad:  GET /companies/1/departments/2/teams/3/members
+Good: GET /members?team_id=3
+      GET /teams/3/members  (1 level of nesting is acceptable)
+```
+
+If a resource is accessed independently, a top-level endpoint should be provided. For example, "members" belonging to a team should also be directly accessible via `/members/:id`.
+
+### Q6: Which authentication method should I adopt?
+
+**A**: For machine-to-machine (M2M) communication, API keys or OAuth2 Client Credentials are recommended. For user-facing interactions, OAuth2 Authorization Code + PKCE is recommended.
+
+```
+Recommended auth methods by use case:
 
   ┌──────────────────┬────────────────────────────────┐
-  │  用途            │  推奨方式                       │
+  │  Use case        │  Recommended method             │
   ├──────────────────┼────────────────────────────────┤
   │  SPA             │  OAuth2 Authorization Code     │
   │                  │  + PKCE + Secure Cookie        │
   ├──────────────────┼────────────────────────────────┤
-  │  モバイルアプリ   │  OAuth2 Authorization Code     │
+  │  Mobile app      │  OAuth2 Authorization Code     │
   │                  │  + PKCE                        │
   ├──────────────────┼────────────────────────────────┤
-  │  サーバー間通信   │  OAuth2 Client Credentials     │
+  │  Server-to-server│  OAuth2 Client Credentials     │
   │                  │  or API Key + Secret           │
   ├──────────────────┼────────────────────────────────┤
-  │  管理画面        │  OAuth2 + MFA                  │
+  │  Admin interface │  OAuth2 + MFA                  │
   ├──────────────────┼────────────────────────────────┤
-  │  Webhook         │  HMAC署名検証                  │
+  │  Webhook         │  HMAC signature verification   │
   └──────────────────┴────────────────────────────────┘
 
-  非推奨:
-  → Basic認証（パスワードが毎回送信される）
-  → JWT をローカルストレージに保存（XSS脆弱性）
-  → APIキーのみ（ユーザー操作に使う場合）
+  Not recommended:
+  → Basic auth (password is sent with every request)
+  → Storing JWT in localStorage (XSS vulnerability)
+  → API key alone (when used for user-facing operations)
 ```
 
-### Q7: レスポンスのフィールド名はキャメルケースかスネークケースか？
+### Q7: Should response field names use camelCase or snake_case?
 
-**A**: JSON APIではスネークケース（`snake_case`）が推奨される。JavaScript のプロパティ名の慣習はキャメルケースだが、APIレベルでは以下の理由でスネークケースが優勢である。
+**A**: For JSON APIs, snake_case (`snake_case`) is recommended. Although camelCase is the JavaScript property naming convention, snake_case prevails at the API level for the following reasons:
 
-- Google JSON Style Guide がスネークケースを推奨
-- Ruby, Python, Go など多くのバックエンド言語の慣習と一致
-- GitHub, Stripe, Twilio 等の主要APIがスネークケースを採用
-- ただし、組織内で統一されていることが最も重要
+- Google JSON Style Guide recommends snake_case
+- Consistent with conventions in many backend languages: Ruby, Python, Go, etc.
+- Major APIs like GitHub, Stripe, and Twilio use snake_case
+- That said, consistency within the organization is most important
 
-### Q8: 空のレスポンスはどう返すべきか？
+### Q8: How should empty responses be returned?
 
-**A**: 空のコレクションは200 OKで空配列を返す。リソースが見つからない場合は404を返す。DELETEの成功は204 No Contentでボディなしとする。
+**A**: Return an empty collection as 200 OK with an empty array. Return 404 if a resource is not found. Return 204 No Content with no body on successful DELETE.
 
 ```javascript
-// 空のコレクション: 200 + 空配列（404ではない）
-// GET /api/v1/users?status=vip （VIPユーザーがいない場合）
+// Empty collection: 200 + empty array (not 404)
+// GET /api/v1/users?status=vip (when no VIP users exist)
 {
   "data": [],
   "meta": { "page": 1, "limit": 20, "total": 0, "total_pages": 0 }
 }
 
-// リソースが見つからない: 404
+// Resource not found: 404
 // GET /api/v1/users/nonexistent
 {
   "type": "https://api.example.com/errors/not-found",
@@ -2630,70 +2636,70 @@ Level 3（完全なHATEOAS）:
   "detail": "User with id 'nonexistent' does not exist."
 }
 
-// DELETE成功: 204 No Content（ボディなし）
+// DELETE success: 204 No Content (no body)
 // DELETE /api/v1/users/usr_abc123
-// → 204 (空レスポンス)
+// → 204 (empty response)
 ```
 
 ---
 
-## 20. まとめ
+## 20. Summary
 
-| 概念 | ポイント |
-|------|---------|
-| リソース設計 | 名詞・複数形・ケバブケース、ネストは2段まで |
-| HTTPメソッド | GET=取得, POST=作成, PUT=完全置換, PATCH=部分更新, DELETE=削除 |
-| ステータスコード | 201=作成成功, 204=ボディなし成功, 422=バリデーション, 429=レート制限 |
-| エラーレスポンス | RFC 9457準拠: type, title, status, detail, instance |
-| HATEOAS | 状態に応じたリンクの動的変化、最低でもLevel 1を目指す |
-| 冪等性 | Idempotency-Keyで POST を冪等に、Stripe方式が業界標準 |
-| PATCH | Merge Patch（シンプル）vs JSON Patch（高機能） |
-| バルク操作 | 部分失敗を許容、207 Multi-Statusで個別結果を返す |
-| 楽観ロック | ETag / If-Match で同時更新検出、412で競合通知 |
-| ページネーション | 大量データにはカーソルベース、UI向けにはオフセットベース |
-| バージョニング | URIパス方式（/api/v1/...）が最も実用的 |
-| レート制限 | RateLimit-* ヘッダーで残数通知、429で制限超過 |
+| Concept | Key Points |
+|---------|-----------|
+| Resource design | Nouns, plural, kebab-case; max 2 levels of nesting |
+| HTTP methods | GET=retrieve, POST=create, PUT=full replace, PATCH=partial update, DELETE=delete |
+| Status codes | 201=created, 204=success no body, 422=validation, 429=rate limit |
+| Error responses | RFC 9457-compliant: type, title, status, detail, instance |
+| HATEOAS | Dynamic link changes based on state; aim for at least Level 1 |
+| Idempotency | Make POST idempotent with Idempotency-Key; Stripe approach is industry standard |
+| PATCH | Merge Patch (simple) vs JSON Patch (feature-rich) |
+| Bulk operations | Allow partial failures; return individual results with 207 Multi-Status |
+| Optimistic locking | Detect concurrent updates with ETag / If-Match; notify conflicts with 412 |
+| Pagination | Cursor-based for large data; offset-based for UI-facing |
+| Versioning | URI path approach (/api/v1/...) is most practical |
+| Rate limiting | Notify remaining count with RateLimit-* headers; 429 for limit exceeded |
 
-**キーポイント**:
+**Key Points**:
 
-1. **リソース指向設計**: URIは「動詞」ではなく「名詞」で表現し、HTTPメソッドで操作を示す。`POST /users` は OK、`POST /createUser` は NG。
-2. **エラーレスポンスの標準化**: RFC 9457準拠のProblem Detailsフォーマットを採用することで、クライアント側のエラーハンドリングが一貫し、デバッグ効率が向上する。
-3. **冪等性の保証**: 重要な操作（決済、リソース作成）には Idempotency-Key を導入し、ネットワークリトライによる重複実行を防止する。
+1. **Resource-oriented design**: Express URIs with "nouns," not "verbs," and indicate operations via HTTP methods. `POST /users` is OK; `POST /createUser` is not.
+2. **Standardized error responses**: Adopting RFC 9457-compliant Problem Details format makes client-side error handling consistent and improves debugging efficiency.
+3. **Guaranteeing idempotency**: Introduce Idempotency-Key for critical operations (payments, resource creation) to prevent duplicate execution caused by network retries.
 
 ---
 
 ## FAQ
 
-### Q1: PATCHリクエストでJSON Merge PatchとJSON Patchのどちらを採用すべきか?
-JSON Merge Patch（RFC 7396）はシンプルで直感的であり、一般的なフィールド更新に適している。JSONオブジェクトの部分更新をそのまま送信するだけでよく、学習コストが低い。一方、JSON Patch（RFC 6902）は配列操作（要素の追加・削除・移動）やフィールド名の変更など、より複雑な操作に対応できる。多くの場合はJSON Merge Patchで十分であり、配列の部分更新が頻繁に必要な場合にのみJSON Patchを検討するとよい。
+### Q1: Should I use JSON Merge Patch or JSON Patch for PATCH requests?
+JSON Merge Patch (RFC 7396) is simple and intuitive, and is suitable for general field updates. You only need to send the partial JSON object directly, with a low learning curve. On the other hand, JSON Patch (RFC 6902) supports more complex operations such as array manipulation (adding, removing, moving elements) and renaming fields. JSON Merge Patch is sufficient in most cases; consider JSON Patch only when partial array updates are frequently needed.
 
-### Q2: バルク操作のAPIでトランザクション保証は必要か?
-基本的には部分失敗を許容する設計（207 Multi-Status）を推奨する。全件成功または全件失敗のトランザクション保証は、大量データ処理時にパフォーマンスのボトルネックとなり、分散システムでは実装が複雑になる。ただし、金融取引のように一貫性が必須のドメインでは、トランザクション保証が必要な場合もある。その場合は、バッチサイズに上限（例: 100件）を設け、処理時間の予測可能性を確保することが重要である。
+### Q2: Is transaction guarantee necessary for bulk operation APIs?
+The design that allows partial failures (207 Multi-Status) is generally recommended. An all-or-nothing transaction guarantee becomes a performance bottleneck with large data volumes and is complex to implement in distributed systems. However, in domains where consistency is mandatory — such as financial transactions — transaction guarantees may be necessary. In those cases, it is important to set an upper limit on batch size (e.g., 100 items) to ensure predictable processing times.
 
-### Q3: APIレスポンスでnullと未定義（フィールド省略）をどう使い分けるべきか?
-明確なルールを決めてドキュメントに記載することが最も重要である。推奨アプローチとしては、nullは「値が明示的に空である」ことを意味し、フィールド省略は「そのリソースにはこの属性が存在しない」または「リクエストで指定されなかった」ことを意味すると定義する。PATCH操作ではこの区別が特に重要で、nullの送信は「値をクリアする」、フィールド省略は「変更しない」と解釈するのが一般的なパターンである。
+### Q3: How should null and undefined (omitted fields) be distinguished in API responses?
+The most important thing is to define a clear rule and document it. The recommended approach: define null as meaning "the value is explicitly empty," and a missing field as meaning "this resource does not have this attribute" or "it was not specified in the request." This distinction is especially important in PATCH operations: sending null means "clear the value," while omitting the field means "do not change it" — this is the common pattern.
 
-## まとめ
+## Summary
 
-このガイドでは以下を学びました:
+In this guide you learned:
 
-- RESTの6原則に基づくリソース指向設計と、名詞・複数形・ケバブケースによるURI命名規則
-- HTTPメソッド・ステータスコードの正しい使い方と、RFC 9457準拠のエラーレスポンス設計
-- HATEOASによる状態遷移の表現と、Idempotency-Keyを用いた冪等性の保証
-- 部分更新（PATCH）、バルク操作、楽観的ロック（ETag/If-Match）の実装パターン
-- ページネーション設計、レート制限、バージョニングなどの運用に不可欠なAPI設計要素
-
----
-
-## 次に読むべきガイド
-
-- [GraphQL基礎](01-graphql-fundamentals.md) -- クエリ言語、スキーマ、リゾルバ
-- APIバージョニング戦略 -- バージョニング戦略の詳細
-- API認証・認可 -- 認証・認可の実装パターン
+- Resource-oriented design based on the 6 REST constraints, and URI naming with nouns, plural forms, and kebab-case
+- Correct usage of HTTP methods and status codes, and RFC 9457-compliant error response design
+- Expressing state transitions with HATEOAS, and guaranteeing idempotency using Idempotency-Key
+- Implementation patterns for partial updates (PATCH), bulk operations, and optimistic locking (ETag/If-Match)
+- Pagination design, rate limiting, versioning, and other API design elements essential for production operations
 
 ---
 
-## 参考文献
+## Next Guides to Read
+
+- [GraphQL Fundamentals](01-graphql-fundamentals.md) -- query language, schemas, resolvers
+- API Versioning Strategies -- details on versioning strategies
+- API Authentication and Authorization -- implementation patterns for auth
+
+---
+
+## References
 
 1. Fielding, R. "Architectural Styles and the Design of Network-based Software Architectures." Ph.D. Dissertation, University of California, Irvine, 2000. https://www.ics.uci.edu/~fielding/pubs/dissertation/top.htm
 2. RFC 9457. "Problem Details for HTTP APIs." IETF, 2023. https://datatracker.ietf.org/doc/html/rfc9457
