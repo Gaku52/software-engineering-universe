@@ -1,296 +1,296 @@
-# バージョニング戦略
+# Versioning Strategy
 
-> APIのバージョニングは後方互換性と進化のバランスを追求する技術的判断の集合体である。破壊的変更の定義、URI/ヘッダー/クエリパラメータベースの戦略、セマンティックバージョニング、非推奨化プロセスを深く理解し、長期運用に耐えるAPIを設計する。
+> API versioning is a collection of technical decisions that pursue the balance between backward compatibility and evolution. Deeply understand the definition of breaking changes, URI/header/query parameter-based strategies, semantic versioning, and the deprecation process to design APIs that withstand long-term operation.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- [ ] 破壊的変更と非破壊的変更を明確に区別できるようになる
-- [ ] 3つのバージョニング方式（URI、ヘッダー、クエリパラメータ）の特性と選択基準を把握する
-- [ ] セマンティックバージョニングの原則をAPIに適用する方法を理解する
-- [ ] 非推奨化と移行のプロセスを設計・実行できるようになる
-- [ ] バージョンレス設計の思想と実践手法を習得する
-- [ ] 破壊的変更の影響を最小化するための戦略的アプローチを身につける
+- [ ] Clearly distinguish between breaking changes and non-breaking changes
+- [ ] Understand the characteristics and selection criteria for the three versioning approaches (URI, header, query parameter)
+- [ ] Understand how to apply semantic versioning principles to APIs
+- [ ] Be able to design and execute deprecation and migration processes
+- [ ] Acquire the philosophy and practical techniques of versionless design
+- [ ] Develop a strategic approach to minimizing the impact of breaking changes
 
-## 前提知識
+## Prerequisites
 
-- API First設計の概念 → 参照: [API First設計](./00-api-first-design.md)
-- API命名規則の基本 → 参照: [命名規則と慣例](./01-naming-and-conventions.md)
-- セマンティックバージョニング（SemVer）の基本知識
+- The concept of API First design → See: [API First Design](./00-api-first-design.md)
+- Basics of API naming conventions → See: [Naming Conventions and Standards](./01-naming-and-conventions.md)
+- Basic knowledge of Semantic Versioning (SemVer)
 
 ---
 
-## 1. なぜAPIバージョニングが必要なのか
+## 1. Why API Versioning Is Necessary
 
-ソフトウェアは常に進化する。ビジネス要件の変化、技術的負債の解消、セキュリティ対応など、APIを変更する理由は尽きない。しかし、APIはプロバイダーとコンシューマーの間の「契約」であり、一方的な変更はシステム全体を破壊しかねない。
+Software is constantly evolving. Reasons to change an API never run out — changing business requirements, resolving technical debt, addressing security concerns, and more. However, an API is a "contract" between a provider and a consumer, and unilateral changes can break the entire system.
 
 ```
-APIバージョニングが解決する根本的課題:
+The fundamental problem API versioning solves:
 
-  問題:
-  ┌──────────────┐     契約（API仕様）     ┌──────────────┐
-  │  API Provider │◄──────────────────────►│  API Consumer │
-  │  （サーバー） │                         │ （クライアント）│
-  └──────────────┘                         └──────────────┘
-       │                                        │
-       │ 仕様を変更したい                        │ 既存動作を維持したい
-       │ （機能追加/修正/改善）                   │ （安定稼働が最優先）
-       │                                        │
-       └─────────── 利害の対立 ──────────────────┘
+  Problem:
+  ┌──────────────┐     Contract (API spec)     ┌──────────────┐
+  │  API Provider │◄──────────────────────────►│  API Consumer │
+  │  (Server)    │                             │  (Client)    │
+  └──────────────┘                             └──────────────┘
+       │                                             │
+       │ Wants to change the spec                    │ Wants to maintain existing behavior
+       │ (add features/fix/improve)                  │ (stable operation is top priority)
+       │                                             │
+       └─────────── Conflict of interests ───────────┘
 
-  解決策: バージョニング
-  ┌──────────────┐     v1（旧契約）        ┌──────────────┐
-  │  API Provider │◄──────────────────────►│  旧クライアント │
-  │              │     v2（新契約）        ┌──────────────┐
-  │              │◄──────────────────────►│  新クライアント │
-  └──────────────┘                         └──────────────┘
+  Solution: Versioning
+  ┌──────────────┐     v1 (old contract)        ┌──────────────┐
+  │  API Provider │◄──────────────────────────►│  Old Client   │
+  │              │     v2 (new contract)        ┌──────────────┐
+  │              │◄──────────────────────────►│  New Client   │
+  └──────────────┘                             └──────────────┘
 ```
 
-### 1.1 バージョニングなしのリスク
+### 1.1 Risks Without Versioning
 
-バージョニングを設けない場合に発生し得る問題を整理する。
+The following table organizes the problems that can occur when versioning is not in place.
 
-| リスク分類 | 具体例 | 影響度 |
+| Risk Category | Concrete Example | Impact Level |
 |-----------|--------|--------|
-| 機能破壊 | フィールド名変更でクライアントのパースが失敗 | 致命的 |
-| データ喪失 | レスポンス構造の変更でデータのマッピングが不正確に | 重大 |
-| 信頼喪失 | 予告なき仕様変更でパートナー企業の信頼を失う | 長期的 |
-| 運用コスト | 緊急ロールバックやホットフィックスの頻発 | 中〜高 |
-| 法的リスク | SLA違反による契約上の問題 | 状況依存 |
+| Feature breakage | Client parsing fails due to field name changes | Critical |
+| Data loss | Data mapping becomes inaccurate due to response structure changes | Severe |
+| Loss of trust | Partner companies lose confidence due to spec changes without notice | Long-term |
+| Operational cost | Frequent emergency rollbacks and hotfixes | Medium–High |
+| Legal risk | Contractual issues due to SLA violations | Context-dependent |
 
-### 1.2 バージョニング導入のタイミング
+### 1.2 Timing for Introducing Versioning
 
-APIを公開する時点でバージョニング戦略を決定しておくことが望ましい。後からバージョニングを追加するのは、事実上「最初の破壊的変更」を引き起こすためである。
+It is preferable to decide on a versioning strategy at the point when the API is published. Adding versioning after the fact is effectively causing "the first breaking change."
 
 ```
-推奨されるタイミング:
+Recommended timing:
 
-  ✓ API設計フェーズ        → バージョニング方式の決定
-  ✓ 初回リリース（GA）     → v1 としてリリース
-  ✓ 破壊的変更が必要な時   → v2 をリリースし、v1 と並行運用
-  ✗ 内部APIのみの段階      → 厳密なバージョニングは過剰な場合がある
-  ✗ プロトタイプ/α版       → 頻繁な破壊的変更は許容される
+  ✓ API design phase         → Decide the versioning approach
+  ✓ Initial release (GA)     → Release as v1
+  ✓ When a breaking change is needed → Release v2 and run v1 and v2 in parallel
+  ✗ Internal-only API stage  → Strict versioning may be excessive
+  ✗ Prototype/alpha stage    → Frequent breaking changes are acceptable
 ```
 
 ---
 
-## 2. 破壊的変更の定義と分類
+## 2. Defining and Classifying Breaking Changes
 
-### 2.1 変更の3分類
+### 2.1 Three Categories of Changes
 
-APIの変更は、クライアントへの影響度に応じて3つに分類される。
-
-```
-分類マトリクス:
-
-  影響度
-  高 │  ┌─────────────────────────────────────┐
-     │  │  破壊的変更（Breaking Changes）      │
-     │  │  バージョンアップが必須               │
-     │  │  例: フィールド削除、型変更           │
-     │  └─────────────────────────────────────┘
-  中 │  ┌─────────────────────────────────────┐
-     │  │  グレーゾーン（Gray Area）            │
-     │  │  クライアント実装に依存               │
-     │  │  例: デフォルト値変更、順序変更       │
-     │  └─────────────────────────────────────┘
-  低 │  ┌─────────────────────────────────────┐
-     │  │  非破壊的変更（Non-Breaking Changes） │
-     │  │  バージョンアップ不要                 │
-     │  │  例: フィールド追加、エンドポイント追加│
-     │  └─────────────────────────────────────┘
-     └──────────────────────────────────────────
-```
-
-### 2.2 非破壊的変更（バージョンアップ不要）
-
-以下の変更はクライアントの動作を壊さないため、バージョンアップなしで適用できる。
+API changes are classified into three categories based on the degree of impact on clients.
 
 ```
-非破壊的変更の詳細リスト:
+Classification matrix:
 
-  レスポンス関連:
-    ✓ レスポンスにフィールドを追加
-    ✓ レスポンスヘッダーの追加
-    ✓ エラーメッセージの文言改善（コードが変わらない場合）
-    ✓ レスポンス速度の改善
+  Impact
+  High │  ┌─────────────────────────────────────┐
+       │  │  Breaking Changes                    │
+       │  │  Version bump required               │
+       │  │  e.g.: field deletion, type changes  │
+       │  └─────────────────────────────────────┘
+  Med  │  ┌─────────────────────────────────────┐
+       │  │  Gray Area                           │
+       │  │  Depends on client implementation    │
+       │  │  e.g.: default value changes, order  │
+       │  └─────────────────────────────────────┘
+  Low  │  ┌─────────────────────────────────────┐
+       │  │  Non-Breaking Changes                │
+       │  │  No version bump required            │
+       │  │  e.g.: adding fields, new endpoints  │
+       │  └─────────────────────────────────────┘
+       └──────────────────────────────────────────
+```
 
-  リクエスト関連:
-    ✓ オプショナルなリクエストパラメータの追加
-    ✓ オプショナルなリクエストヘッダーの追加
+### 2.2 Non-Breaking Changes (No Version Bump Required)
 
-  エンドポイント関連:
-    ✓ 新しいエンドポイントの追加
-    ✓ 新しいHTTPメソッドのサポート追加
-    ✓ 新しいリソースタイプの追加
+The following changes do not break client behavior and can be applied without a version bump.
 
-  ドキュメント関連:
-    ✓ APIドキュメントの改善
-    ✓ 使用例の追加
+```
+Detailed list of non-breaking changes:
 
-  前提条件:
-    → クライアントは「Robustness Principle（堅牢性の原則）」に従い、
-      未知のフィールドを無視する実装であること
+  Response-related:
+    ✓ Adding fields to the response
+    ✓ Adding response headers
+    ✓ Improving error message wording (when the code does not change)
+    ✓ Improving response speed
+
+  Request-related:
+    ✓ Adding optional request parameters
+    ✓ Adding optional request headers
+
+  Endpoint-related:
+    ✓ Adding new endpoints
+    ✓ Adding support for new HTTP methods
+    ✓ Adding new resource types
+
+  Documentation-related:
+    ✓ Improving API documentation
+    ✓ Adding usage examples
+
+  Preconditions:
+    → Clients must follow the "Robustness Principle" and
+      implement behavior that ignores unknown fields
     → "Be conservative in what you send, be liberal in what you accept"
-      （Postel's Law / RFC 761）
+      (Postel's Law / RFC 761)
 ```
 
-### 2.3 破壊的変更（バージョンアップ必須）
+### 2.3 Breaking Changes (Version Bump Required)
 
-以下の変更はクライアントの動作を壊す可能性が高く、新しいバージョンとしてリリースすべきである。
+The following changes are likely to break client behavior and should be released as a new version.
 
 ```python
-# コード例1: 破壊的変更の具体例
+# Code example 1: Concrete examples of breaking changes
 
-# === フィールド削除 ===
-# v1レスポンス
+# === Field deletion ===
+# v1 response
 {
     "user": {
         "id": 123,
-        "name": "田中太郎",
-        "email": "tanaka@example.com",
-        "phone": "03-1234-5678"    # v2で削除 → 破壊的
+        "name": "John Doe",
+        "email": "john@example.com",
+        "phone": "555-1234-5678"    # deleted in v2 → breaking
     }
 }
 
-# v2レスポンス（phoneフィールドが消失）
+# v2 response (phone field is gone)
 {
     "user": {
         "id": 123,
-        "name": "田中太郎",
-        "email": "tanaka@example.com"
-        # phone が存在しない → クライアントのuser.phoneがnull/undefinedに
+        "name": "John Doe",
+        "email": "john@example.com"
+        # phone does not exist → user.phone becomes null/undefined on the client
     }
 }
 
-# === 型変更 ===
-# v1: idがinteger
-{"id": 123, "name": "田中太郎"}
+# === Type change ===
+# v1: id is integer
+{"id": 123, "name": "John Doe"}
 
-# v2: idがstring（破壊的変更）
-{"id": "usr_123", "name": "田中太郎"}
-# → クライアントがidを数値として処理している場合に障害発生
+# v2: id is string (breaking change)
+{"id": "usr_123", "name": "John Doe"}
+# → failure occurs if client processes id as a number
 
-# === 必須パラメータの追加 ===
+# === Adding a required parameter ===
 # v1: POST /api/v1/users
-# Body: {"name": "田中太郎"}  ← nameだけでOK
+# Body: {"name": "John Doe"}  ← name alone is OK
 
 # v2: POST /api/v2/users
-# Body: {"name": "田中太郎", "email": "tanaka@example.com"}
-# ← emailが必須に → 旧クライアントのリクエストが400エラーに
+# Body: {"name": "John Doe", "email": "john@example.com"}
+# ← email is now required → old client requests return 400 errors
 
-# === エンドポイントの変更 ===
+# === Endpoint changes ===
 # v1: GET /api/v1/users/{id}/orders
-# v2: GET /api/v2/customers/{id}/purchases  ← パスもリソース名も変更
+# v2: GET /api/v2/customers/{id}/purchases  ← both path and resource name changed
 ```
 
-### 2.4 グレーゾーン変更
+### 2.4 Gray Area Changes
 
-クライアント実装の品質に依存する変更群。保守的に判断するならば、破壊的変更として扱うのが安全である。
+A group of changes that depends on the quality of client implementations. To be conservative, treating them as breaking changes is the safer approach.
 
 ```python
-# コード例2: グレーゾーン変更の具体例と判断基準
+# Code example 2: Concrete examples of gray area changes and judgment criteria
 
-# === デフォルト値の変更 ===
-# v1: GET /api/v1/users → ソート順がデフォルトで created_at ASC
-# v2: GET /api/v1/users → ソート順がデフォルトで updated_at DESC
-# 判断: クライアントがデフォルトのソート順に依存している場合は破壊的
+# === Default value changes ===
+# v1: GET /api/v1/users → default sort order is created_at ASC
+# v2: GET /api/v1/users → default sort order is updated_at DESC
+# Judgment: breaking if client depends on the default sort order
 
-# === ページネーションのデフォルトサイズ変更 ===
-# v1: デフォルトで1ページ100件
-# v2: デフォルトで1ページ20件
-# 判断: 全件取得前提のクライアントにとっては破壊的
+# === Pagination default size change ===
+# v1: default 100 items per page
+# v2: default 20 items per page
+# Judgment: breaking for clients that assume all items are returned at once
 
-# === レスポンスフィールドの並び順変更 ===
+# === Response field order change ===
 # v1: {"id": 1, "name": "foo", "email": "bar"}
 # v2: {"name": "foo", "email": "bar", "id": 1}
-# 判断: JSON仕様上は順序不定だが、位置ベースのパーサーには影響する
+# Judgment: JSON spec says order is undefined, but affects position-based parsers
 
-# === エラーコードの追加 ===
-# v1: 認証エラーは常に 401
-# v2: 認証エラーを 401（認証なし）と 403（権限不足）に分離
-# 判断: クライアントが401のみをハンドリングしている場合は影響あり
+# === Adding error codes ===
+# v1: authentication errors always return 401
+# v2: authentication errors split into 401 (no auth) and 403 (insufficient permission)
+# Judgment: impacts clients handling only 401
 
-# === Null許容性の変更 ===
-# v1: "address"フィールドは常にオブジェクト
-# v2: "address"フィールドがnullになり得る
-# 判断: null チェックなしのクライアントでNullPointerException等が発生
+# === Nullability changes ===
+# v1: "address" field is always an object
+# v2: "address" field can be null
+# Judgment: NullPointerException etc. in clients without null checks
 
-# === 判断フローチャート ===
-# 1. クライアントのコード変更が必要か？
-#    → Yes: 破壊的変更として扱う
-#    → No:  次のチェックへ
-# 2. クライアントの動作が変わるか？
-#    → Yes: グレーゾーン（保守的に判断）
-#    → No:  非破壊的変更
-# 3. 影響を受けるクライアントの割合は？
-#    → 多い: 破壊的変更として扱う
-#    → 少ない: ケースバイケースで判断
+# === Decision flowchart ===
+# 1. Does the client require a code change?
+#    → Yes: treat as breaking change
+#    → No:  proceed to next check
+# 2. Does the client behavior change?
+#    → Yes: gray area (judge conservatively)
+#    → No:  non-breaking change
+# 3. What proportion of clients is affected?
+#    → Many: treat as breaking change
+#    → Few: judge case by case
 ```
 
-### 2.5 破壊的変更の影響分析テンプレート
+### 2.5 Breaking Change Impact Analysis Template
 
-破壊的変更を検討する際は、以下のテンプレートで影響を事前分析することを推奨する。
+When considering a breaking change, it is recommended to pre-analyze the impact using the following template.
 
-| 分析項目 | 内容 |
+| Analysis Item | Content |
 |---------|------|
-| 変更内容 | 具体的に何を変更するか |
-| 変更理由 | なぜこの変更が必要か |
-| 影響範囲 | 影響を受けるエンドポイント一覧 |
-| クライアント影響 | どのクライアントが影響を受けるか |
-| 移行コスト | クライアント側の修正に必要な工数 |
-| 代替案 | 非破壊的な方法で同じ目的を達成できないか |
-| ロールバック計画 | 問題発生時の復旧手順 |
-| スケジュール | 告知→並行運用→旧バージョン終了の時系列 |
+| Change content | What specifically is being changed |
+| Reason for change | Why this change is necessary |
+| Scope of impact | List of affected endpoints |
+| Client impact | Which clients are affected |
+| Migration cost | Effort required for modifications on the client side |
+| Alternatives | Can the same goal be achieved in a non-breaking way |
+| Rollback plan | Recovery procedure in case of problems |
+| Schedule | Timeline from announcement → parallel operation → old version retirement |
 
 ---
 
-## 3. バージョニング方式の詳細比較
+## 3. Detailed Comparison of Versioning Approaches
 
-APIバージョニングには主要な3つの方式と、いくつかの派生形がある。それぞれの方式を実装例とともに詳しく解説する。
+There are three major API versioning approaches and several variants. Each approach is explained in detail with implementation examples.
 
-### 3.1 URI パスバージョニング
+### 3.1 URI Path Versioning
 
-最も広く採用されているバージョニング方式。バージョン番号をURLパスに含める。
+The most widely adopted versioning approach. The version number is included in the URL path.
 
 ```
-URI パスバージョニングのパターン:
+URI path versioning patterns:
 
-  標準パターン:
+  Standard pattern:
     https://api.example.com/v1/users
     https://api.example.com/v2/users
 
-  サブドメインパターン:
+  Subdomain pattern:
     https://v1.api.example.com/users
     https://v2.api.example.com/users
 
-  パスプレフィックスパターン:
+  Path prefix pattern:
     https://api.example.com/api/v1/users
     https://api.example.com/api/v2/users
 
-  リクエストフロー:
+  Request flow:
   ┌──────────┐    GET /v1/users    ┌───────────┐    route    ┌───────────┐
-  │ クライアント│──────────────────►│ APIゲート  │──────────►│ v1ハンドラ │
-  └──────────┘                    │ ウェイ     │           └───────────┘
+  │  Client   │──────────────────►│  API      │──────────►│ v1 handler │
+  └──────────┘                    │  Gateway  │           └───────────┘
                                   │           │
   ┌──────────┐    GET /v2/users    │           │    route    ┌───────────┐
-  │ クライアント│──────────────────►│           │──────────►│ v2ハンドラ │
+  │  Client   │──────────────────►│           │──────────►│ v2 handler │
   └──────────┘                    └───────────┘           └───────────┘
 ```
 
 ```python
-# コード例3: URI パスバージョニングの実装（Python / Flask）
+# Code example 3: URI path versioning implementation (Python / Flask)
 
 from flask import Flask, jsonify, request
 from functools import wraps
 
 app = Flask(__name__)
 
-# --- バージョンルーティングの基本実装 ---
+# --- Basic version routing implementation ---
 
-# v1: ユーザーリソース
+# v1: User resource
 @app.route('/api/v1/users', methods=['GET'])
 def get_users_v1():
-    """v1ではシンプルなユーザー情報を返す"""
+    """v1 returns simple user information"""
     users = fetch_users_from_db()
     return jsonify({
         "users": [
@@ -303,10 +303,10 @@ def get_users_v1():
         ]
     })
 
-# v2: ユーザーリソース（拡張版）
+# v2: User resource (extended)
 @app.route('/api/v2/users', methods=['GET'])
 def get_users_v2():
-    """v2ではページネーション付きのレスポンスを返す"""
+    """v2 returns a response with pagination"""
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
 
@@ -316,9 +316,9 @@ def get_users_v2():
         "data": [
             {
                 "id": u.id,
-                "full_name": u.name,        # name → full_name に変更
+                "full_name": u.name,        # name → full_name renamed
                 "email": u.email,
-                "profile": {                  # v2で追加されたネスト構造
+                "profile": {                  # nested structure added in v2
                     "avatar_url": u.avatar_url,
                     "bio": u.bio,
                     "created_at": u.created_at.isoformat()
@@ -326,7 +326,7 @@ def get_users_v2():
             }
             for u in pagination.items
         ],
-        "pagination": {                       # v2で追加されたメタ情報
+        "pagination": {                       # meta information added in v2
             "current_page": pagination.page,
             "total_pages": pagination.pages,
             "total_items": pagination.total,
@@ -334,11 +334,11 @@ def get_users_v2():
         }
     })
 
-# --- Blueprintによるバージョン分離（推奨パターン） ---
+# --- Version separation using Blueprint (recommended pattern) ---
 
 from flask import Blueprint
 
-# バージョンごとにBlueprintを作成
+# Create a Blueprint per version
 v1_bp = Blueprint('v1', __name__, url_prefix='/api/v1')
 v2_bp = Blueprint('v2', __name__, url_prefix='/api/v2')
 
@@ -350,18 +350,18 @@ def v1_get_users():
 def v2_get_users():
     return jsonify({"version": "v2", "data": [], "pagination": {}})
 
-# アプリケーションに登録
+# Register with the application
 app.register_blueprint(v1_bp)
 app.register_blueprint(v2_bp)
 
-# --- バージョン非推奨ミドルウェア ---
+# --- Version deprecation middleware ---
 
 DEPRECATED_VERSIONS = {'v1'}
 SUNSET_DATES = {'v1': 'Sat, 01 Jan 2026 00:00:00 GMT'}
 
 @app.before_request
 def add_deprecation_headers():
-    """非推奨バージョンへのリクエストに警告ヘッダーを付与"""
+    """Add a warning header to requests for deprecated versions"""
     path = request.path
     for version in DEPRECATED_VERSIONS:
         if f'/api/{version}/' in path:
@@ -371,7 +371,7 @@ def add_deprecation_headers():
 
 @app.after_request
 def inject_sunset_header(response):
-    """レスポンスにSunsetヘッダーを挿入"""
+    """Insert Sunset header into response"""
     from flask import g
     version = getattr(g, 'deprecated_version', None)
     if version:
@@ -384,64 +384,64 @@ def inject_sunset_header(response):
     return response
 ```
 
-### 3.2 ヘッダーバージョニング
+### 3.2 Header Versioning
 
-HTTPヘッダーを使ってバージョンを指定する方式。RESTの原則であるコンテンツネゴシエーションを活用する。
+An approach that specifies the version using HTTP headers. It leverages content negotiation, which is a REST principle.
 
 ```
-ヘッダーバージョニングのバリエーション:
+Variations of header versioning:
 
-  ① Accept ヘッダー（メディアタイプ）:
+  ① Accept header (media type):
     Accept: application/vnd.example.v1+json
     Accept: application/vnd.example.v2+json
 
-  ② カスタムヘッダー:
+  ② Custom header:
     X-API-Version: 1
     X-API-Version: 2
 
-  ③ Accept ヘッダー（パラメータ付き）:
+  ③ Accept header (with parameter):
     Accept: application/json; version=1
     Accept: application/json; version=2
 
-  リクエストフロー:
+  Request flow:
   ┌──────────┐   GET /users              ┌───────────┐
-  │ クライアント│  Accept: ...vnd.v1+json  │           │   ┌───────────┐
-  │          │──────────────────────────►│ APIゲート  │──►│ v1シリアラ │
-  └──────────┘                          │ ウェイ     │   │ イザ       │
+  │  Client   │  Accept: ...vnd.v1+json  │           │   ┌───────────┐
+  │          │──────────────────────────►│  API      │──►│ v1        │
+  └──────────┘                          │  Gateway  │   │ Serializer │
                                         │           │   └───────────┘
-  ┌──────────┐   GET /users              │ (ヘッダー  │
-  │ クライアント│  Accept: ...vnd.v2+json  │  で分岐)   │   ┌───────────┐
-  │          │──────────────────────────►│           │──►│ v2シリアラ │
-  └──────────┘                          └───────────┘   │ イザ       │
+  ┌──────────┐   GET /users              │ (branch   │
+  │  Client   │  Accept: ...vnd.v2+json  │  by       │   ┌───────────┐
+  │          │──────────────────────────►│  header)  │──►│ v2        │
+  └──────────┘                          └───────────┘   │ Serializer │
                                                         └───────────┘
 
-  注意: URLは全バージョンで同一（/users）
+  Note: URL is the same for all versions (/users)
 ```
 
 ```python
-# コード例4: ヘッダーバージョニングの実装（Python / Flask）
+# Code example 4: Header versioning implementation (Python / Flask)
 
 from flask import Flask, jsonify, request, abort
 from functools import wraps
 
 app = Flask(__name__)
 
-# --- メディアタイプパーサー ---
+# --- Media type parser ---
 
 def parse_api_version(accept_header: str) -> int:
     """
-    Acceptヘッダーからバージョンを抽出する。
+    Extract version from Accept header.
 
-    対応フォーマット:
+    Supported formats:
       - application/vnd.example.v1+json → 1
       - application/vnd.example.v2+json → 2
       - application/json; version=1     → 1
-      - application/json                → デフォルト（最新安定版）
+      - application/json                → default (latest stable)
     """
     if not accept_header:
         return get_default_version()
 
-    # vnd フォーマットの解析
+    # Parse vnd format
     import re
     vnd_match = re.search(
         r'application/vnd\.example\.v(\d+)\+json',
@@ -450,7 +450,7 @@ def parse_api_version(accept_header: str) -> int:
     if vnd_match:
         return int(vnd_match.group(1))
 
-    # パラメータフォーマットの解析
+    # Parse parameter format
     param_match = re.search(
         r'application/json;\s*version=(\d+)',
         accept_header
@@ -461,13 +461,13 @@ def parse_api_version(accept_header: str) -> int:
     return get_default_version()
 
 def get_default_version() -> int:
-    """バージョン未指定時のデフォルトバージョンを返す"""
-    return 2  # 最新安定版
+    """Returns the default version when no version is specified"""
+    return 2  # latest stable version
 
-# --- バージョンデコレータ ---
+# --- Version decorator ---
 
 def api_version(version: int):
-    """指定バージョンでのみアクセス可能にするデコレータ"""
+    """Decorator that makes an endpoint accessible only for the specified version"""
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
@@ -475,11 +475,11 @@ def api_version(version: int):
                 request.headers.get('Accept', '')
             )
             if requested_version != version:
-                return None  # このハンドラではない
+                return None  # not this handler
 
             response = f(*args, **kwargs)
 
-            # Content-Typeにバージョン情報を含める
+            # Include version information in Content-Type
             if hasattr(response, 'headers'):
                 response.headers['Content-Type'] = (
                     f'application/vnd.example.v{version}+json'
@@ -488,23 +488,23 @@ def api_version(version: int):
         return wrapper
     return decorator
 
-# --- マルチバージョンディスパッチャー ---
+# --- Multi-version dispatcher ---
 
 class VersionedEndpoint:
-    """複数バージョンのハンドラを管理するディスパッチャー"""
+    """Dispatcher that manages handlers for multiple versions"""
 
     def __init__(self):
         self.handlers = {}
 
     def version(self, v: int):
-        """バージョンごとのハンドラを登録するデコレータ"""
+        """Decorator to register a handler for each version"""
         def decorator(f):
             self.handlers[v] = f
             return f
         return decorator
 
     def dispatch(self):
-        """リクエストのバージョンに応じて適切なハンドラを呼び出す"""
+        """Call the appropriate handler based on the request version"""
         requested_version = parse_api_version(
             request.headers.get('Accept', '')
         )
@@ -516,17 +516,17 @@ class VersionedEndpoint:
             ))
         return handler()
 
-# 使用例
+# Usage example
 users_endpoint = VersionedEndpoint()
 
 @users_endpoint.version(1)
 def get_users_v1():
-    return jsonify({"users": [{"id": 1, "name": "田中太郎"}]})
+    return jsonify({"users": [{"id": 1, "name": "John Doe"}]})
 
 @users_endpoint.version(2)
 def get_users_v2():
     return jsonify({
-        "data": [{"id": 1, "full_name": "田中太郎", "profile": {}}],
+        "data": [{"id": 1, "full_name": "John Doe", "profile": {}}],
         "pagination": {"page": 1, "total": 1}
     })
 
@@ -535,68 +535,68 @@ def users():
     return users_endpoint.dispatch()
 ```
 
-### 3.3 クエリパラメータバージョニング
+### 3.3 Query Parameter Versioning
 
-URLのクエリパラメータでバージョンを指定する方式。
+An approach that specifies the version using URL query parameters.
 
 ```
-クエリパラメータバージョニングのパターン:
+Query parameter versioning patterns:
 
-  基本形:
+  Basic form:
     GET /api/users?version=1
     GET /api/users?version=2
     GET /api/users?v=2
 
-  リクエストフロー:
+  Request flow:
   ┌──────────┐  GET /users?version=1   ┌───────────┐   ┌──────────┐
-  │ クライアント│─────────────────────►│ ルーター    │──►│ v1ロジック │
+  │  Client   │─────────────────────►│  Router    │──►│ v1 logic  │
   └──────────┘                        │           │   └──────────┘
-                                      │ ?version  │
-  ┌──────────┐  GET /users?version=2   │ を解析    │   ┌──────────┐
-  │ クライアント│─────────────────────►│           │──►│ v2ロジック │
+                                      │ parse     │
+  ┌──────────┐  GET /users?version=2   │ ?version  │   ┌──────────┐
+  │  Client   │─────────────────────►│           │──►│ v2 logic  │
   └──────────┘                        └───────────┘   └──────────┘
 
-  省略時の挙動（3パターン）:
-    A) 最新版をデフォルト → GET /users → v2 が返る
-    B) 最古版をデフォルト → GET /users → v1 が返る（安全寄り）
-    C) エラーを返す      → GET /users → 400 Bad Request
+  Behavior when omitted (3 patterns):
+    A) Default to latest  → GET /users → returns v2
+    B) Default to oldest  → GET /users → returns v1 (safer)
+    C) Return error       → GET /users → 400 Bad Request
 
-    推奨: パターンA（最新安定版をデフォルト）
+    Recommendation: Pattern A (default to latest stable version)
 ```
 
-### 3.4 3方式の総合比較
+### 3.4 Comprehensive Comparison of Three Approaches
 
-| 比較項目 | URI パス | ヘッダー | クエリパラメータ |
+| Comparison Item | URI Path | Header | Query Parameter |
 |---------|---------|---------|---------------|
-| 可読性 | 非常に高い | 低い | 高い |
-| ブラウザテスト | 容易 | 困難（curl等が必要） | 容易 |
-| キャッシュ | バージョン別に自然分離 | Varyヘッダーが必要 | パラメータ含むキーが必要 |
-| CDNルーティング | 容易 | CDN依存 | 可能だが設定複雑 |
-| REST原則準拠 | やや違反（同一リソースに複数URI） | 準拠（コンテンツネゴシエーション） | やや違反 |
-| ハイパーメディア | バージョンがリンクに含まれる | リンクはバージョン非依存 | パラメータがリンクに混入 |
-| 実装の容易さ | 非常に容易 | やや複雑 | 容易 |
-| API Gateway対応 | 全ゲートウェイ対応 | 主要ゲートウェイ対応 | 全ゲートウェイ対応 |
-| 主な採用例 | GitHub, Twitter, Google | Stripe (カスタムヘッダー) | Amazon, Netflix (一部) |
-| 推奨度 | 高（最も一般的） | 中〜高（純粋なREST） | 中（手軽だが非推奨傾向） |
+| Readability | Very high | Low | High |
+| Browser testing | Easy | Difficult (requires curl, etc.) | Easy |
+| Caching | Naturally separated by version | Vary header required | Key including parameter required |
+| CDN routing | Easy | CDN-dependent | Possible but complex setup |
+| REST compliance | Slight violation (multiple URIs for same resource) | Compliant (content negotiation) | Slight violation |
+| Hypermedia | Version included in links | Links are version-independent | Parameters mixed into links |
+| Ease of implementation | Very easy | Somewhat complex | Easy |
+| API Gateway support | All gateways | Major gateways | All gateways |
+| Major adopters | GitHub, Twitter, Google | Stripe (custom header) | Amazon, Netflix (partial) |
+| Recommendation | High (most common) | Medium–High (pure REST) | Medium (easy but trending away) |
 
-### 3.5 ハイブリッドアプローチ
+### 3.5 Hybrid Approach
 
-実際のプロダクションでは、複数の方式を組み合わせるケースもある。
+In actual production, combinations of multiple approaches are sometimes used.
 
 ```
-ハイブリッドの例:
+Hybrid examples:
 
-  ① URI + ヘッダーの併用:
-    → メジャーバージョンはURIで管理: /api/v1/, /api/v2/
-    → マイナーバージョンはヘッダーで管理: X-API-Minor-Version: 3
-    → 適用例: メジャー変更は稀、マイナー改善は頻繁なAPI
+  ① Combined URI + header:
+    → Major version managed by URI: /api/v1/, /api/v2/
+    → Minor version managed by header: X-API-Minor-Version: 3
+    → Use case: APIs where major changes are rare but minor improvements are frequent
 
-  ② URI + 日付ベースの併用:
-    → メジャーバージョンはURI: /api/v2/
-    → 日付バージョンはヘッダー: API-Version: 2024-01-15
-    → 適用例: Stripe風の細やかなバージョン管理
+  ② Combined URI + date-based:
+    → Major version by URI: /api/v2/
+    → Date version by header: API-Version: 2024-01-15
+    → Use case: Fine-grained version management in the Stripe style
 
-  ③ APIゲートウェイでのバージョン統合:
+  ③ Version integration at API Gateway:
     ┌─────────────────────────────────────────┐
     │              API Gateway                 │
     │                                          │
@@ -604,72 +604,72 @@ URLのクエリパラメータでバージョンを指定する方式。
     │  /v2/* ─────────────► Backend v2         │
     │  Accept:vnd.v3+json ► Backend v3 (beta)  │
     │                                          │
-    │  ルール: URIバージョンを優先、            │
-    │         なければヘッダーを確認             │
+    │  Rule: prioritize URI version,           │
+    │        otherwise check header            │
     └─────────────────────────────────────────┘
 ```
 
 ---
 
-## 4. セマンティックバージョニングとAPIバージョン
+## 4. Semantic Versioning and API Versions
 
-### 4.1 セマンティックバージョニング（SemVer）の基本
+### 4.1 Basics of Semantic Versioning (SemVer)
 
-セマンティックバージョニング（Semantic Versioning / SemVer）は、バージョン番号に意味を持たせる規則体系である。
+Semantic Versioning (SemVer) is a system of rules that gives meaning to version numbers.
 
 ```
-SemVer形式: MAJOR.MINOR.PATCH
+SemVer format: MAJOR.MINOR.PATCH
 
-  MAJOR（メジャー）: 後方互換性のない変更
+  MAJOR: Backward-incompatible changes
     1.0.0 → 2.0.0
-    例: フィールド削除、型変更、エンドポイント再設計
+    e.g.: field deletion, type changes, endpoint redesign
 
-  MINOR（マイナー）: 後方互換性のある機能追加
+  MINOR: Backward-compatible feature additions
     1.0.0 → 1.1.0
-    例: 新しいエンドポイント追加、オプショナルパラメータ追加
+    e.g.: adding new endpoints, adding optional parameters
 
-  PATCH（パッチ）: 後方互換性のあるバグ修正
+  PATCH: Backward-compatible bug fixes
     1.0.0 → 1.0.1
-    例: レスポンスのバグ修正、ドキュメント修正
+    e.g.: response bug fixes, documentation fixes
 
-  プレリリース:
-    2.0.0-alpha.1  → アルファ版
-    2.0.0-beta.1   → ベータ版
-    2.0.0-rc.1     → リリース候補
+  Pre-release:
+    2.0.0-alpha.1  → alpha version
+    2.0.0-beta.1   → beta version
+    2.0.0-rc.1     → release candidate
 
-  バージョン番号の比較順序:
+  Version number comparison order:
     1.0.0-alpha < 1.0.0-alpha.1 < 1.0.0-beta
     < 1.0.0-beta.2 < 1.0.0-rc.1 < 1.0.0
 ```
 
-### 4.2 SemVerとAPIバージョンのマッピング
+### 4.2 Mapping SemVer to API Versions
 
-APIのURIバージョニングでは通常メジャーバージョンのみを公開するが、内部的にはSemVerで管理することが望ましい。
+API URI versioning typically exposes only the major version publicly, but it is preferable to manage internally using SemVer.
 
 ```
-マッピング戦略:
+Mapping strategy:
 
-  内部バージョン       公開APIバージョン     URIパス
+  Internal version    Public API version    URI path
   ─────────────────  ─────────────────    ──────────
   1.0.0              v1                    /api/v1/
-  1.1.0              v1                    /api/v1/  （新機能追加）
-  1.2.0              v1                    /api/v1/  （さらに機能追加）
-  1.2.1              v1                    /api/v1/  （バグ修正）
-  2.0.0              v2                    /api/v2/  （破壊的変更）
-  2.1.0              v2                    /api/v2/  （新機能追加）
+  1.1.0              v1                    /api/v1/  (feature added)
+  1.2.0              v1                    /api/v1/  (more features added)
+  1.2.1              v1                    /api/v1/  (bug fix)
+  2.0.0              v2                    /api/v2/  (breaking change)
+  2.1.0              v2                    /api/v2/  (feature added)
 
-  ポイント:
-  → URIのバージョンはメジャーバージョンのみ
-  → マイナー/パッチはURIに影響しない
-  → 内部バージョンはCHANGELOGやドキュメントで管理
-  → レスポンスヘッダーで詳細バージョンを通知可能:
+  Key points:
+  → URI version uses major version only
+  → Minor/patch do not affect the URI
+  → Internal version managed in CHANGELOG and documentation
+  → Detailed version can be communicated via response header:
      X-API-Version: 2.1.0
 ```
 
-### 4.3 CHANGELOG管理
+### 4.3 CHANGELOG Management
 
 ```markdown
-# コード例5: CHANGELOG.mdの構成例
+# Code example 5: CHANGELOG.md structure example
 
 # Changelog
 
@@ -679,84 +679,84 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ## [2.1.0] - 2025-06-15
 
 ### Added
-- `GET /api/v2/users/{id}/preferences` エンドポイントを追加
-- ユーザーレスポンスに `timezone` フィールドを追加（オプショナル）
-- バッチ取得 `POST /api/v2/users/batch` をサポート
+- Added `GET /api/v2/users/{id}/preferences` endpoint
+- Added `timezone` field (optional) to user response
+- Added support for batch retrieval `POST /api/v2/users/batch`
 
 ### Changed
-- `GET /api/v2/users` のデフォルトページサイズを50から20に変更
+- Changed default page size for `GET /api/v2/users` from 50 to 20
 
 ### Deprecated
-- `GET /api/v2/users/{id}/settings` は v2.3.0 で削除予定
-  代替: `GET /api/v2/users/{id}/preferences`
+- `GET /api/v2/users/{id}/settings` is scheduled for removal in v2.3.0
+  Alternative: `GET /api/v2/users/{id}/preferences`
 
 ## [2.0.0] - 2025-01-10 [BREAKING]
 
 ### Breaking Changes
-- ユーザーレスポンスの `name` フィールドを `full_name` に変更
-- `GET /api/v1/users` のフラットレスポンスを
-  `data` + `pagination` のラッパー構造に変更
-- 認証方式を API Key から OAuth 2.0 に変更
+- Renamed `name` field to `full_name` in user response
+- Changed flat response of `GET /api/v1/users` to
+  wrapper structure with `data` + `pagination`
+- Changed authentication from API Key to OAuth 2.0
 
 ### Added
-- ユーザープロフィール情報（avatar_url, bio）を追加
-- ページネーションメタ情報をレスポンスに含める
+- Added user profile information (avatar_url, bio)
+- Included pagination metadata in responses
 
 ### Migration Guide
-- 詳細は v1→v2 移行ガイド を参照
+- See the v1→v2 migration guide for details
 
 ## [1.2.1] - 2024-11-20
 
 ### Fixed
-- `GET /api/v1/users` でメールアドレスが null の場合に
-  500 エラーが返る問題を修正
+- Fixed 500 error returned when email address is null
+  in `GET /api/v1/users`
 
 ## [1.2.0] - 2024-10-01
 
 ### Added
-- ユーザー検索 `GET /api/v1/users?search=keyword` をサポート
-- レスポンスに `created_at` フィールドを追加
+- Added user search support: `GET /api/v1/users?search=keyword`
+- Added `created_at` field to response
 ```
 
 ---
 
-## 5. バージョン移行プロセスの設計
+## 5. Designing the Version Migration Process
 
-### 5.1 非推奨化（Deprecation）の完全フロー
+### 5.1 Complete Deprecation Flow
 
-APIバージョンの廃止は、段階的かつ透明性のあるプロセスで進めなければならない。
+Retiring an API version must proceed as a gradual and transparent process.
 
 ```
-非推奨化タイムライン（標準プラン）:
+Deprecation timeline (standard plan):
 
-  T-12ヶ月  T-6ヶ月   T-3ヶ月   T-1ヶ月    T（廃止日）
-  ────────────────────────────────────────────────────►
+  T-12mo    T-6mo     T-3mo     T-1mo     T (retirement date)
+  ────────────────────────────────────────────────────────────►
   │         │         │         │          │
-  │         │         │         │          └─ 410 Gone を返す
-  │         │         │         │             移行先へのリダイレクト情報
+  │         │         │         │          └─ Return 410 Gone
+  │         │         │         │             Include redirect info to successor
   │         │         │         │
-  │         │         │         └─ 最終警告メール送信
-  │         │         │            レート制限を厳格化
-  │         │         │            ダッシュボードで警告表示
+  │         │         │         └─ Send final warning email
+  │         │         │            Tighten rate limits
+  │         │         │            Show warning in dashboard
   │         │         │
-  │         │         └─ Deprecation ヘッダー付与開始
-  │         │            主要クライアントへの個別通知
-  │         │            移行ガイドの公開
+  │         │         └─ Start attaching Deprecation header
+  │         │            Individual notification to major clients
+  │         │            Publish migration guide
   │         │
-  │         └─ 新バージョン GA リリース
-  │            並行運用開始
-  │            ドキュメントで非推奨を明記
+  │         └─ New version GA release
+  │            Start parallel operation
+  │            Document deprecation explicitly
   │
-  └─ 新バージョンベータ公開
-     移行計画の策定開始
-     パートナーへの事前告知
+  └─ New version beta release
+     Start drafting migration plan
+     Advance notice to partners
 
-  エンタープライズプラン: 上記の2倍の期間（24ヶ月並行運用）
+  Enterprise plan: Double the above period (24 months parallel operation)
 ```
 
-### 5.2 HTTP ヘッダーによる非推奨通知
+### 5.2 Deprecation Notification via HTTP Headers
 
-RFC 8594（Sunset Header）と関連するヘッダーを活用して、プログラマティックに非推奨を通知する。
+Use RFC 8594 (Sunset Header) and related headers to notify deprecation programmatically.
 
 ```http
 HTTP/1.1 200 OK
@@ -771,129 +771,130 @@ X-API-Warn: "This API version is deprecated. Please migrate to v2."
 {
   "data": { ... },
   "_deprecation_notice": {
-    "message": "API v1 は 2026年7月1日に廃止されます。v2への移行をお願いします。",
+    "message": "API v1 will be retired on July 1, 2026. Please migrate to v2.",
     "migration_guide": "https://api.example.com/v1-to-v2-migration",
     "sunset_date": "2026-07-01T00:00:00Z"
   }
 }
 ```
 
-### 5.3 使用状況のモニタリング
+### 5.3 Usage Monitoring
 
-旧バージョンの使用状況を継続的に監視し、廃止判断の根拠とする。
+Continuously monitor usage of old versions and use the data as a basis for retirement decisions.
 
 ```
-モニタリングダッシュボード（概念図）:
+Monitoring dashboard (conceptual diagram):
 
-  API v1 利用状況
+  API v1 Usage
   ═══════════════════════════════════════════
 
-  日次リクエスト数:
-  1月 ████████████████████████████████ 320K
-  2月 ██████████████████████████████   300K
-  3月 ████████████████████████         240K
-  4月 ██████████████████               180K  ← 移行ガイド公開
-  5月 ████████████                     120K
-  6月 ████████                          80K  ← 最終警告
-  7月 ███                               30K  ← 廃止予定月
+  Daily request count:
+  Jan ████████████████████████████████ 320K
+  Feb ██████████████████████████████   300K
+  Mar ████████████████████████         240K
+  Apr ██████████████████               180K  ← migration guide published
+  May ████████████                     120K
+  Jun ████████                          80K  ← final warning
+  Jul ███                               30K  ← scheduled retirement month
 
-  ユニーククライアント数:
-  1月: 45社  → 7月: 3社（個別対応で移行支援）
+  Unique client count:
+  Jan: 45 companies  → Jul: 3 companies (individually supported for migration)
 
-  監視すべきメトリクス:
-  - リクエスト数（日次/週次/月次）
-  - ユニーククライアント数
-  - エラー率の変化
-  - レスポンスタイムの変化
-  - 新バージョン(v2)の採用率
+  Metrics to monitor:
+  - Request count (daily/weekly/monthly)
+  - Unique client count
+  - Changes in error rate
+  - Changes in response time
+  - Adoption rate of new version (v2)
 ```
 
-### 5.4 移行ガイドの構成
+### 5.4 Migration Guide Structure
 
-移行ガイドはクライアント開発者が最も参照するドキュメントであり、以下の要素を含むべきである。
+A migration guide is the document that client developers refer to most, and it should include the following elements.
 
 ```
-移行ガイドの必須セクション:
+Required sections for a migration guide:
 
-  1. 変更概要サマリー
-     → 何がなぜ変わったのかを簡潔に説明
+  1. Change summary overview
+     → Briefly explain what changed and why
 
-  2. 変更点の詳細一覧
-     → 各フィールド/エンドポイントの変更をテーブル形式で記載
+  2. Detailed list of changes
+     → Document each field/endpoint change in table format
 
-  3. 新旧マッピング表
-     → v1のフィールドがv2のどのフィールドに対応するかを明示
+  3. Old-to-new mapping table
+     → Clearly show which v1 fields correspond to which v2 fields
 
-  4. コード例（Before / After）
-     → 主要言語ごとの移行コードサンプル
+  4. Code examples (Before / After)
+     → Migration code samples for major languages
 
   5. FAQ
-     → 移行時によくある質問と回答
+     → Common questions and answers during migration
 
-  6. スケジュール
-     → 廃止日、マイルストーン
+  6. Schedule
+     → Retirement date, milestones
 
-  7. サポート情報
-     → 問い合わせ先、Slackチャンネル、メーリングリスト
+  7. Support information
+     → Contact info, Slack channel, mailing list
 ```
 
-### 5.5 新旧フィールドマッピングの設計
+### 5.5 Designing Old-to-New Field Mapping
 
-バージョン移行において最も重要なのは、新旧フィールドの対応関係を明確にすることである。
+The most important aspect of version migration is clearly defining the correspondence between old and new fields.
 
-| v1 フィールド | v2 フィールド | 変更種別 | 備考 |
+| v1 Field | v2 Field | Change Type | Notes |
 |-------------|-------------|---------|------|
-| `name` | `full_name` | リネーム | フィールド名変更のみ、値は同一 |
-| `email` | `email` | 変更なし | そのまま移行可能 |
-| `id` (integer) | `id` (string) | 型変更 | `"usr_"` プレフィックス付きに変更 |
-| `phone` | 削除 | 削除 | `profile.phone_number` に移動 |
-| (なし) | `profile` | 新規追加 | ネストされたオブジェクト |
-| (なし) | `profile.avatar_url` | 新規追加 | - |
-| (なし) | `profile.bio` | 新規追加 | - |
-| (なし) | `profile.phone_number` | 移動 | v1 の `phone` が移動 |
-| (なし) | `profile.created_at` | 新規追加 | ISO 8601 形式 |
+| `name` | `full_name` | Rename | Only field name changed, value is the same |
+| `email` | `email` | No change | Can be migrated as-is |
+| `id` (integer) | `id` (string) | Type change | Changed to include `"usr_"` prefix |
+| `phone` | Removed | Deletion | Moved to `profile.phone_number` |
+| (none) | `profile` | New addition | Nested object |
+| (none) | `profile.avatar_url` | New addition | - |
+| (none) | `profile.bio` | New addition | - |
+| (none) | `profile.phone_number` | Moved | v1's `phone` was moved here |
+| (none) | `profile.created_at` | New addition | ISO 8601 format |
 
 ---
 
-## 6. バージョンレス設計（Evolvable API）
+## 6. Versionless Design (Evolvable API)
 
-### 6.1 バージョンレスAPIの思想
+### 6.1 Philosophy of Versionless APIs
 
-バージョンレス設計とは、明示的なバージョン番号を使わずにAPIを進化させるアプローチである。「バージョンを作らなくて済むようにAPI設計を工夫する」という考え方が根底にある。
+Versionless design is an approach to evolving an API without using explicit version numbers. The underlying idea is to "engineer the API design so that versioning is never needed."
 
 ```
-バージョンレス設計の原則:
+Principles of versionless design:
 
   ┌──────────────────────────────────────────────────┐
-  │         バージョンレスAPIの4つの柱               │
+  │         Four Pillars of a Versionless API         │
   │                                                  │
-  │  ① Additive Changes Only（追加のみ）            │
-  │     → フィールドの追加は許可、削除/変更は禁止    │
+  │  ① Additive Changes Only                         │
+  │     → Adding fields is allowed; deletion/change  │
+  │       is prohibited                              │
   │                                                  │
-  │  ② Robustness Principle（堅牢性原則）            │
-  │     → クライアントは未知のフィールドを無視する   │
+  │  ② Robustness Principle                          │
+  │     → Clients ignore unknown fields              │
   │                                                  │
-  │  ③ Optional by Default（デフォルトでオプショナル）│
-  │     → 新しいフィールドは常にオプショナル          │
+  │  ③ Optional by Default                           │
+  │     → New fields are always optional             │
   │                                                  │
-  │  ④ Explicit Contract（明示的契約）               │
-  │     → 何が保証されるかを明確にドキュメント化     │
+  │  ④ Explicit Contract                             │
+  │     → Clearly document what is guaranteed        │
   └──────────────────────────────────────────────────┘
 ```
 
-### 6.2 日付ベースバージョニング（Stripe方式）
+### 6.2 Date-Based Versioning (Stripe Approach)
 
-Stripeが採用する日付ベースバージョニングは、バージョンレスと明示的バージョニングのハイブリッドとして高い評価を受けている。
+The date-based versioning adopted by Stripe is highly regarded as a hybrid of versionless and explicit versioning.
 
 ```python
-# コード例6: 日付ベースバージョニングの実装概念
+# Code example 6: Conceptual implementation of date-based versioning
 
 from datetime import date
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
-# バージョン定義: 日付 → 変更内容のマッピング
+# Version definitions: mapping of dates → changes
 VERSION_CHANGES = {
     '2024-01-15': {
         'description': 'Initial GA release',
@@ -937,33 +938,34 @@ VERSION_CHANGES = {
 }
 
 SUPPORTED_VERSIONS = sorted(VERSION_CHANGES.keys())
-DEFAULT_VERSION = SUPPORTED_VERSIONS[-1]  # 最新
+DEFAULT_VERSION = SUPPORTED_VERSIONS[-1]  # latest
 
 def get_requested_version() -> str:
-    """リクエストからAPIバージョンを取得する"""
-    # Stripe-Version ヘッダーを確認
+    """Get the API version from the request"""
+    # Check Stripe-Version header
     version = request.headers.get('Stripe-Version',
               request.headers.get('API-Version'))
 
     if version and version in VERSION_CHANGES:
         return version
 
-    # アカウントのデフォルトバージョンを使用
-    # （実際のStripeではアカウント作成時のバージョンが固定される）
+    # Use the account's default version
+    # (in actual Stripe, the version at account creation time is pinned)
     return DEFAULT_VERSION
 
 def transform_response(data: dict, endpoint: str,
                        requested_version: str) -> dict:
     """
-    リクエストされたバージョンに合わせてレスポンスを変換する。
-    最新のデータ構造を基準に、古いバージョン向けに変換を適用する。
+    Transform the response to match the requested version.
+    Uses the latest data structure as the base, and applies
+    transformations for older versions (rolling back).
     """
     result = data.copy()
 
-    # 新しいバージョンの変更を逆順に適用（巻き戻し）
+    # Apply changes from newer versions in reverse order (rolling back)
     for version_date in reversed(SUPPORTED_VERSIONS):
         if version_date <= requested_version:
-            break  # リクエストされたバージョンまで到達
+            break  # reached the requested version
 
         changes = VERSION_CHANGES[version_date]['changes']
         for change in changes:
@@ -971,19 +973,19 @@ def transform_response(data: dict, endpoint: str,
                 continue
 
             if change['type'] == 'field_renamed':
-                # 新名→旧名に巻き戻す
+                # Roll back new name → old name
                 new_field = change['new_field']
                 old_field = change['old_field']
                 if new_field in result:
                     result[old_field] = result.pop(new_field)
 
             elif change['type'] == 'field_added':
-                # 追加されたフィールドを除去
+                # Remove added field
                 field = change['field']
                 result.pop(field, None)
 
             elif change['type'] == 'field_type_changed':
-                # 型変更を巻き戻す（string → integer）
+                # Roll back type change (string → integer)
                 field = change['field']
                 if field in result and isinstance(result[field], str):
                     result[field] = int(
@@ -994,21 +996,21 @@ def transform_response(data: dict, endpoint: str,
 
 @app.route('/api/users/<user_id>', methods=['GET'])
 def get_user(user_id):
-    """日付ベースバージョニングによるユーザー取得"""
+    """User retrieval using date-based versioning"""
     requested_version = get_requested_version()
 
-    # 内部では常に最新のデータ構造を使用
+    # Always use the latest data structure internally
     user_data = {
         'id': f'usr_{user_id}',
-        'full_name': '田中太郎',
-        'email': 'tanaka@example.com',
+        'full_name': 'John Doe',
+        'email': 'john@example.com',
         'profile': {
             'avatar_url': 'https://example.com/avatar.jpg',
-            'bio': 'ソフトウェアエンジニア'
+            'bio': 'Software Engineer'
         }
     }
 
-    # リクエストされたバージョンに合わせて変換
+    # Transform to match the requested version
     response_data = transform_response(
         user_data, '/users', requested_version
     )
@@ -1017,46 +1019,46 @@ def get_user(user_id):
     response.headers['API-Version'] = requested_version
     return response
 
-# --- 使用例 ---
-# 最新バージョン（2025-06-15）:
+# --- Usage examples ---
+# Latest version (2025-06-15):
 #   curl -H "API-Version: 2025-06-15" https://api.example.com/api/users/123
-#   → {"id": "usr_123", "full_name": "田中太郎", ...}
+#   → {"id": "usr_123", "full_name": "John Doe", ...}
 
-# 古いバージョン（2024-01-15）:
+# Old version (2024-01-15):
 #   curl -H "API-Version: 2024-01-15" https://api.example.com/api/users/123
-#   → {"id": 123, "name": "田中太郎", ...}  # 旧構造で返る
+#   → {"id": 123, "name": "John Doe", ...}  # returned in old structure
 ```
 
-### 6.3 フィールド選択によるバージョンレス化
+### 6.3 Versionlessness Through Field Selection
 
-GraphQLのようにクライアントが必要なフィールドを選択するアプローチ。REST APIにおいてもフィールド選択パラメータを導入することで、破壊的変更の影響を軽減できる。
+An approach similar to GraphQL where clients select the fields they need. Introducing field selection parameters in REST APIs can also reduce the impact of breaking changes.
 
 ```python
-# コード例7: フィールド選択の実装
+# Code example 7: Field selection implementation
 
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
 def filter_fields(data: dict, fields: list) -> dict:
-    """指定されたフィールドのみを含むレスポンスを構築する"""
+    """Build a response containing only the specified fields"""
     if not fields:
-        return data  # fieldsが未指定なら全フィールドを返す
+        return data  # return all fields if fields not specified
 
     result = {}
     for field in fields:
-        # ドット記法によるネストフィールドのサポート
-        # 例: "profile.avatar_url"
+        # Support for nested fields using dot notation
+        # e.g.: "profile.avatar_url"
         parts = field.split('.')
         source = data
         target = result
         for i, part in enumerate(parts):
             if i == len(parts) - 1:
-                # 最後のパート: 値をコピー
+                # Last part: copy value
                 if part in source:
                     target[part] = source[part]
             else:
-                # 中間パート: ネスト構造を構築
+                # Intermediate part: build nested structure
                 if part in source and isinstance(source[part], dict):
                     if part not in target:
                         target[part] = {}
@@ -1069,7 +1071,7 @@ def filter_fields(data: dict, fields: list) -> dict:
 @app.route('/api/users', methods=['GET'])
 def get_users():
     """
-    フィールド選択パラメータの使用例:
+    Usage examples for field selection parameter:
       GET /api/users?fields=id,full_name,email
       GET /api/users?fields=id,profile.avatar_url
     """
@@ -1080,22 +1082,22 @@ def get_users():
     users = [
         {
             'id': 'usr_1',
-            'full_name': '田中太郎',
-            'email': 'tanaka@example.com',
+            'full_name': 'John Doe',
+            'email': 'john@example.com',
             'profile': {
                 'avatar_url': 'https://example.com/avatar1.jpg',
-                'bio': 'エンジニア',
-                'phone_number': '03-1234-5678'
+                'bio': 'Engineer',
+                'phone_number': '555-1234-5678'
             }
         },
         {
             'id': 'usr_2',
-            'full_name': '佐藤花子',
-            'email': 'sato@example.com',
+            'full_name': 'Jane Smith',
+            'email': 'jane@example.com',
             'profile': {
                 'avatar_url': 'https://example.com/avatar2.jpg',
-                'bio': 'デザイナー',
-                'phone_number': '03-9876-5432'
+                'bio': 'Designer',
+                'phone_number': '555-9876-5432'
             }
         }
     ]
@@ -1103,29 +1105,29 @@ def get_users():
     filtered_users = [filter_fields(u, fields) for u in users]
     return jsonify({'data': filtered_users})
 
-# --- リクエスト例と結果 ---
+# --- Request examples and results ---
 
-# 全フィールド:
+# All fields:
 # GET /api/users
 # → {"data": [{"id": "usr_1", "full_name": "...", ...}]}
 
-# 選択フィールド:
+# Selected fields:
 # GET /api/users?fields=id,full_name
-# → {"data": [{"id": "usr_1", "full_name": "田中太郎"},
-#              {"id": "usr_2", "full_name": "佐藤花子"}]}
+# → {"data": [{"id": "usr_1", "full_name": "John Doe"},
+#              {"id": "usr_2", "full_name": "Jane Smith"}]}
 
-# ネストフィールド:
+# Nested fields:
 # GET /api/users?fields=id,profile.avatar_url
 # → {"data": [{"id": "usr_1", "profile": {"avatar_url": "..."}},
 #              {"id": "usr_2", "profile": {"avatar_url": "..."}}]}
 ```
 
-### 6.4 Feature Flagsによる段階的公開
+### 6.4 Gradual Rollout Using Feature Flags
 
-新機能をフィーチャーフラグで制御することで、同一バージョン内で段階的に機能を公開する手法。
+A technique to gradually release features within the same version by controlling new functionality with feature flags.
 
 ```
-Feature Flagsの段階的展開:
+Gradual rollout with Feature Flags:
 
   Phase 1: Internal Testing
   ┌──────────────────────────────────────────┐
@@ -1155,24 +1157,24 @@ Feature Flagsの段階的展開:
   │ Status: Standard                         │
   └──────────────────────────────────────────┘
 
-  リクエストでのフラグ指定:
+  Specifying flags in requests:
     GET /api/users?include=enhanced_profile
     GET /api/users?features=new_pagination,enhanced_profile
 ```
 
 ---
 
-## 7. APIゲートウェイにおけるバージョン管理
+## 7. Version Management in API Gateways
 
-### 7.1 ゲートウェイパターン
+### 7.1 Gateway Pattern
 
-大規模なAPI運用では、APIゲートウェイがバージョンルーティングの中心的な役割を果たす。
+In large-scale API operations, the API gateway plays a central role in version routing.
 
 ```
-APIゲートウェイのバージョンルーティング:
+Version routing at the API gateway:
 
   ┌─────────────┐
-  │  クライアント  │
+  │   Client    │
   └──────┬──────┘
          │
          ▼
@@ -1180,7 +1182,7 @@ APIゲートウェイのバージョンルーティング:
   │              API Gateway (Kong / AWS API GW)      │
   │                                                    │
   │  ┌────────────────────────────────────────────┐   │
-  │  │          バージョンルーティング              │   │
+  │  │          Version Routing                   │   │
   │  │                                            │   │
   │  │  /v1/*  ──────────►  Backend Service v1    │   │
   │  │                      (legacy, maintenance) │   │
@@ -1192,108 +1194,108 @@ APIゲートウェイのバージョンルーティング:
   │  │                      (preview, unstable)   │   │
   │  └────────────────────────────────────────────┘   │
   │                                                    │
-  │  追加機能:                                         │
-  │  ├─ レート制限（バージョン別に設定可能）            │
-  │  ├─ 認証・認可                                     │
-  │  ├─ リクエスト/レスポンス変換                      │
-  │  ├─ キャッシュ（バージョン別）                     │
-  │  ├─ アクセスログ（バージョン別メトリクス）         │
-  │  └─ 非推奨ヘッダーの自動付与                       │
+  │  Additional features:                              │
+  │  ├─ Rate limiting (configurable per version)       │
+  │  ├─ Authentication / Authorization                 │
+  │  ├─ Request / Response transformation              │
+  │  ├─ Caching (per version)                          │
+  │  ├─ Access logging (per version metrics)           │
+  │  └─ Automatic attachment of deprecation headers    │
   └──────────────────────────────────────────────────┘
 ```
 
-### 7.2 リクエスト/レスポンス変換パターン
+### 7.2 Request/Response Transformation Pattern
 
-ゲートウェイでリクエストやレスポンスを変換することで、バックエンドは最新バージョンのみを実装し、旧バージョンとの互換性をゲートウェイ層で吸収するパターンがある。
+There is a pattern where the gateway transforms requests and responses so that the backend only implements the latest version, and the gateway layer absorbs compatibility with old versions.
 
 ```
-変換パターンのアーキテクチャ:
+Transformation pattern architecture:
 
-  クライアント(v1)        API Gateway           バックエンド(v2のみ)
+  Client (v1)          API Gateway           Backend (v2 only)
   ─────────────        ──────────────         ──────────────────
        │                     │                       │
        │  GET /v1/users      │                       │
        │────────────────────►│                       │
-       │                     │  リクエスト変換         │
+       │                     │  Request transform     │
        │                     │  /v1/users → /v2/users│
-       │                     │  パラメータマッピング   │
+       │                     │  Parameter mapping     │
        │                     │──────────────────────►│
        │                     │                       │
        │                     │◄──────────────────────│
-       │                     │  v2レスポンス          │
+       │                     │  v2 response           │
        │                     │                       │
-       │                     │  レスポンス変換         │
-       │                     │  full_name → name     │
-       │                     │  profile削除           │
+       │                     │  Response transform    │
+       │                     │  full_name → name      │
+       │                     │  Remove profile        │
        │◄────────────────────│                       │
-       │  v1レスポンス        │                       │
+       │  v1 response        │                       │
 
-  利点:
-  ✓ バックエンドは最新バージョンのみ実装すればよい
-  ✓ 旧バージョンのメンテナンスコストがゲートウェイ設定に集約される
-  ✓ バックエンドのコードが単純に保てる
+  Advantages:
+  ✓ Backend only needs to implement the latest version
+  ✓ Maintenance cost of old versions is centralized in gateway config
+  ✓ Backend code stays simple
 
-  欠点:
-  ✗ ゲートウェイの変換ルールが複雑化する
-  ✗ 変換によるパフォーマンスオーバーヘッド
-  ✗ 変換ルールのテスト/デバッグが困難
+  Disadvantages:
+  ✗ Gateway transformation rules become complex
+  ✗ Performance overhead from transformations
+  ✗ Testing/debugging transformation rules is difficult
 ```
 
 ---
 
-## 8. マイクロサービスにおけるバージョニング
+## 8. Versioning in Microservices
 
-### 8.1 サービス間APIのバージョニング
+### 8.1 Versioning for Service-to-Service APIs
 
-マイクロサービスアーキテクチャでは、外部向けAPIだけでなくサービス間の内部APIもバージョニングの対象となる。
+In microservice architectures, not only external-facing APIs but also internal APIs between services are subject to versioning.
 
 ```
-マイクロサービス間のバージョニング考慮事項:
+Versioning considerations for microservice communication:
 
   ┌───────────┐     v2      ┌───────────┐     v1      ┌───────────┐
-  │ Order      │────────────►│ User       │────────────►│ Billing    │
-  │ Service    │             │ Service    │             │ Service    │
-  │ (v2依存)   │             │ (v1,v2公開)│             │ (v1公開)   │
+  │  Order     │────────────►│  User     │────────────►│  Billing  │
+  │  Service   │             │  Service  │             │  Service  │
+  │ (v2 dep.)  │             │ (v1,v2)   │             │ (v1)      │
   └───────────┘             └───────────┘             └───────────┘
        │                         │
        │ v1                      │ v1
        ▼                         ▼
   ┌───────────┐             ┌───────────┐
-  │ Inventory  │             │ Notification│
-  │ Service    │             │ Service     │
-  │ (v1公開)   │             │ (v1公開)    │
+  │  Inventory │             │Notification│
+  │  Service   │             │  Service   │
+  │  (v1)      │             │  (v1)      │
   └───────────┘             └───────────┘
 
-  戦略:
-  ① Consumer-Driven Contracts（CDC）
-     → 各コンシューマーが期待する契約をテストで定義
-     → プロバイダーは全コンシューマーの契約を満たすことを検証
-     → ツール: Pact, Spring Cloud Contract
+  Strategies:
+  ① Consumer-Driven Contracts (CDC)
+     → Each consumer defines expected contracts as tests
+     → Provider verifies it satisfies all consumer contracts
+     → Tools: Pact, Spring Cloud Contract
 
-  ② Tolerant Reader パターン
-     → コンシューマーは必要なフィールドのみを読み取る
-     → 未知のフィールドは無視する
-     → レスポンス構造の追加的変更に強い
+  ② Tolerant Reader pattern
+     → Consumer reads only the fields it needs
+     → Unknown fields are ignored
+     → Resilient to additive changes in response structure
 
   ③ Schema Registry
-     → Avro/Protobuf等のスキーマをレジストリで一元管理
-     → スキーマの互換性を自動チェック
-     → ツール: Confluent Schema Registry
+     → Schemas such as Avro/Protobuf managed centrally in a registry
+     → Automatic compatibility checking for schemas
+     → Tools: Confluent Schema Registry
 ```
 
-### 8.2 イベント駆動アーキテクチャにおけるバージョニング
+### 8.2 Versioning in Event-Driven Architectures
 
-非同期通信（イベント/メッセージ）のバージョニングも重要な課題である。
+Versioning for asynchronous communication (events/messages) is also an important challenge.
 
 ```python
-# コード例8: イベントスキーマのバージョニング
+# Code example 8: Event schema versioning
 
 import json
 from datetime import datetime
 from typing import Any
 
 class VersionedEvent:
-    """バージョン付きイベントの基底クラス"""
+    """Base class for versioned events"""
 
     def __init__(self, event_type: str, version: int,
                  payload: dict):
@@ -1316,10 +1318,10 @@ class VersionedEvent:
         return json.dumps(self.to_dict(), ensure_ascii=False)
 
 
-# --- イベント定義: ユーザー作成 ---
+# --- Event definition: user created ---
 
 class UserCreatedEventV1(VersionedEvent):
-    """v1: シンプルなユーザー作成イベント"""
+    """v1: Simple user created event"""
 
     def __init__(self, user_id: int, name: str, email: str):
         super().__init__(
@@ -1334,7 +1336,7 @@ class UserCreatedEventV1(VersionedEvent):
 
 
 class UserCreatedEventV2(VersionedEvent):
-    """v2: プロフィール情報を含むユーザー作成イベント"""
+    """v2: User created event including profile information"""
 
     def __init__(self, user_id: str, full_name: str,
                  email: str, profile: dict):
@@ -1342,18 +1344,18 @@ class UserCreatedEventV2(VersionedEvent):
             event_type='user.created',
             version=2,
             payload={
-                'user_id': user_id,      # string型に変更
+                'user_id': user_id,      # changed to string type
                 'full_name': full_name,   # name → full_name
                 'email': email,
-                'profile': profile        # 新規追加
+                'profile': profile        # newly added
             }
         )
 
 
-# --- イベントコンシューマー: バージョン対応 ---
+# --- Event consumer: multi-version support ---
 
 class UserEventConsumer:
-    """複数バージョンのイベントを処理するコンシューマー"""
+    """Consumer that handles events of multiple versions"""
 
     def handle(self, event_json: str) -> None:
         event = json.loads(event_json)
@@ -1362,7 +1364,7 @@ class UserEventConsumer:
 
         handler = getattr(self, f'_handle_v{version}', None)
         if handler is None:
-            # 未知のバージョン: ログを記録して処理をスキップ
+            # Unknown version: log and skip processing
             log_warning(
                 f"Unknown event version: {version}, "
                 f"event_type: {event['metadata']['event_type']}"
@@ -1372,40 +1374,40 @@ class UserEventConsumer:
         handler(payload)
 
     def _handle_v1(self, payload: dict) -> None:
-        """v1イベントの処理"""
+        """Process v1 event"""
         user_id = payload['user_id']
         name = payload['name']
         email = payload['email']
-        # v1の処理ロジック
+        # v1 processing logic
         create_user_record(user_id, name, email)
 
     def _handle_v2(self, payload: dict) -> None:
-        """v2イベントの処理"""
+        """Process v2 event"""
         user_id = payload['user_id']
         full_name = payload['full_name']
         email = payload['email']
         profile = payload.get('profile', {})
-        # v2の処理ロジック
+        # v2 processing logic
         create_user_record_v2(user_id, full_name, email, profile)
 
 
-# --- Upcastingパターン ---
+# --- Upcasting pattern ---
 
 class EventUpcaster:
-    """古いバージョンのイベントを最新バージョンに変換する"""
+    """Converts old version events to the latest version"""
 
     @staticmethod
     def upcast(event: dict) -> dict:
         version = event['metadata']['version']
         payload = event['payload']
 
-        # v1 → v2 への変換
+        # Convert v1 → v2
         if version == 1:
             payload = {
                 'user_id': str(payload['user_id']),
                 'full_name': payload['name'],
                 'email': payload['email'],
-                'profile': {}  # デフォルト値で補完
+                'profile': {}  # fill with default value
             }
             event['metadata']['version'] = 2
             event['payload'] = payload
@@ -1415,14 +1417,14 @@ class EventUpcaster:
 
 ---
 
-## 9. テスト戦略
+## 9. Test Strategy
 
-### 9.1 バージョン互換性テスト
+### 9.1 Version Compatibility Testing
 
-APIの各バージョンが正しく動作することを保証するためのテスト戦略を設計する。
+Design a test strategy to ensure that each version of the API works correctly.
 
 ```python
-# コード例9: バージョン互換性テストの実装（pytest）
+# Code example 9: Version compatibility test implementation (pytest)
 
 import pytest
 import json
@@ -1435,10 +1437,10 @@ def client():
         yield client
 
 class TestUserEndpointV1:
-    """v1 ユーザーエンドポイントのテスト"""
+    """Tests for the v1 user endpoint"""
 
     def test_get_users_v1_response_structure(self, client):
-        """v1のレスポンス構造が正しいことを検証"""
+        """Verify that the v1 response structure is correct"""
         response = client.get('/api/v1/users')
         data = json.loads(response.data)
 
@@ -1448,16 +1450,16 @@ class TestUserEndpointV1:
 
         if data['users']:
             user = data['users'][0]
-            # v1では 'name' フィールドが存在する（'full_name'ではない）
+            # v1 has 'name' field (not 'full_name')
             assert 'name' in user
             assert 'full_name' not in user
-            # v1では 'id' が integer
+            # v1 'id' is integer
             assert isinstance(user['id'], int)
-            # v1では 'profile' は存在しない
+            # v1 does not have 'profile'
             assert 'profile' not in user
 
     def test_get_users_v1_deprecation_headers(self, client):
-        """v1が非推奨の場合、適切なヘッダーが返ることを検証"""
+        """Verify that appropriate headers are returned when v1 is deprecated"""
         response = client.get('/api/v1/users')
 
         assert response.headers.get('Deprecation') == 'true'
@@ -1465,10 +1467,10 @@ class TestUserEndpointV1:
         assert 'Link' in response.headers
 
 class TestUserEndpointV2:
-    """v2 ユーザーエンドポイントのテスト"""
+    """Tests for the v2 user endpoint"""
 
     def test_get_users_v2_response_structure(self, client):
-        """v2のレスポンス構造が正しいことを検証"""
+        """Verify that the v2 response structure is correct"""
         response = client.get('/api/v2/users')
         data = json.loads(response.data)
 
@@ -1479,16 +1481,16 @@ class TestUserEndpointV2:
 
         if data['data']:
             user = data['data'][0]
-            # v2では 'full_name' フィールドが存在する
+            # v2 has 'full_name' field
             assert 'full_name' in user
             assert 'name' not in user
-            # v2では 'id' が string
+            # v2 'id' is string
             assert isinstance(user['id'], str)
-            # v2では 'profile' が存在する
+            # v2 has 'profile'
             assert 'profile' in user
 
     def test_get_users_v2_pagination(self, client):
-        """v2のページネーションが正しく動作することを検証"""
+        """Verify that v2 pagination works correctly"""
         response = client.get('/api/v2/users?page=1&per_page=10')
         data = json.loads(response.data)
 
@@ -1499,21 +1501,21 @@ class TestUserEndpointV2:
         assert pagination['current_page'] == 1
 
 class TestVersionCompatibility:
-    """バージョン間の互換性テスト"""
+    """Cross-version compatibility tests"""
 
     def test_v1_and_v2_same_data(self, client):
-        """v1とv2が同じデータソースから返すことを検証"""
+        """Verify that v1 and v2 return from the same data source"""
         v1_response = client.get('/api/v1/users')
         v2_response = client.get('/api/v2/users')
 
         v1_data = json.loads(v1_response.data)
         v2_data = json.loads(v2_response.data)
 
-        # ユーザー数が同じであること
+        # User count should be the same
         assert len(v1_data['users']) == len(v2_data['data'])
 
     def test_v1_name_maps_to_v2_full_name(self, client):
-        """v1のnameがv2のfull_nameに対応することを検証"""
+        """Verify that v1 name corresponds to v2 full_name"""
         v1_response = client.get('/api/v1/users/1')
         v2_response = client.get('/api/v2/users/1')
 
@@ -1523,36 +1525,36 @@ class TestVersionCompatibility:
         assert v1_user['name'] == v2_user['data']['full_name']
 
 class TestDateBasedVersioning:
-    """日付ベースバージョニングのテスト"""
+    """Tests for date-based versioning"""
 
     def test_old_version_returns_old_structure(self, client):
-        """古いバージョンを指定すると旧構造が返ることを検証"""
+        """Verify that specifying an old version returns the old structure"""
         response = client.get(
             '/api/users/123',
             headers={'API-Version': '2024-01-15'}
         )
         data = json.loads(response.data)
 
-        # 旧構造: idがinteger, nameフィールド
+        # Old structure: id is integer, name field
         assert isinstance(data['id'], int)
         assert 'name' in data
         assert 'full_name' not in data
 
     def test_new_version_returns_new_structure(self, client):
-        """新しいバージョンを指定すると新構造が返ることを検証"""
+        """Verify that specifying a new version returns the new structure"""
         response = client.get(
             '/api/users/123',
             headers={'API-Version': '2025-06-15'}
         )
         data = json.loads(response.data)
 
-        # 新構造: idがstring, full_nameフィールド
+        # New structure: id is string, full_name field
         assert isinstance(data['id'], str)
         assert 'full_name' in data
         assert 'name' not in data
 
     def test_version_header_in_response(self, client):
-        """レスポンスにバージョン情報が含まれることを検証"""
+        """Verify that version information is included in the response"""
         response = client.get(
             '/api/users/123',
             headers={'API-Version': '2024-06-01'}
@@ -1561,355 +1563,357 @@ class TestDateBasedVersioning:
         assert response.headers.get('API-Version') == '2024-06-01'
 ```
 
-### 9.2 Contract Testing（契約テスト）
+### 9.2 Contract Testing
 
-Consumer-Driven Contract（CDC）テストにより、プロバイダーとコンシューマー間の契約を自動検証する。
+Consumer-Driven Contract (CDC) testing automatically verifies the contract between provider and consumer.
 
 ```
-Contract Testingのフロー:
+Contract Testing flow:
 
   ┌──────────────┐                      ┌──────────────┐
   │  Consumer     │                      │  Provider     │
   │  (Order Svc)  │                      │  (User Svc)   │
   └──────┬───────┘                      └──────┬───────┘
          │                                     │
-         │  1. コンシューマーが契約を定義         │
+         │  1. Consumer defines the contract    │
          │  ┌─────────────────────────┐        │
-         │  │ "GET /users/1 を呼ぶと   │        │
-         │  │  id, full_name, email    │        │
-         │  │  を含むJSONが返る"       │        │
+         │  │ "Calling GET /users/1   │        │
+         │  │  returns a JSON with    │        │
+         │  │  id, full_name, email"  │        │
          │  └───────────┬─────────────┘        │
          │              │                       │
-         │              │  2. 契約をブローカーに公開
+         │              │  2. Publish contract to broker
          │              ▼                       │
          │     ┌─────────────────┐              │
          │     │  Pact Broker     │              │
-         │     │  (契約の保管庫)   │              │
+         │     │  (contract repo) │              │
          │     └────────┬────────┘              │
          │              │                       │
-         │              │  3. プロバイダーが契約を検証
+         │              │  3. Provider verifies contract
          │              └──────────────────────►│
          │                                      │
-         │                  4. 検証結果をブローカーに報告
+         │                  4. Report verification result to broker
          │              ┌───────────────────────│
          │              ▼                       │
          │     ┌─────────────────┐              │
          │     │  Pact Broker     │              │
-         │     │  ✓ 検証成功      │              │
+         │     │  ✓ Verified      │              │
          │     │  or              │              │
-         │     │  ✗ 検証失敗      │              │
+         │     │  ✗ Failed        │              │
          │     └─────────────────┘              │
 ```
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### 10.1 アンチパターン1: バージョン番号のインフレーション
+### 10.1 Anti-Pattern 1: Version Number Inflation
 
-頻繁にメジャーバージョンを上げてしまい、クライアントが追従できなくなるパターン。
-
-```
-アンチパターン: バージョン爆発
-
-  悪い例:
-  ┌──────────────────────────────────────────────────────┐
-  │  2024年1月:  /api/v1/users  ← 初期リリース          │
-  │  2024年3月:  /api/v2/users  ← 小さな変更でv2に      │
-  │  2024年5月:  /api/v3/users  ← また小さな変更でv3に  │
-  │  2024年7月:  /api/v4/users  ← レスポンス追加でv4に  │
-  │  2024年9月:  /api/v5/users  ← パフォーマンス改善でv5│
-  │  2024年11月: /api/v6/users  ← 新フィールド追加でv6  │
-  │                                                      │
-  │  結果:                                                │
-  │  ✗ クライアントが6バージョンのうちどれを使えばよいか  │
-  │    判断できない                                       │
-  │  ✗ 各バージョンのメンテナンスコストが膨大             │
-  │  ✗ ドキュメントがバージョンごとに分散                 │
-  │  ✗ 開発チームが旧バージョンの動作を把握しきれない     │
-  └──────────────────────────────────────────────────────┘
-
-  正しいアプローチ:
-  ┌──────────────────────────────────────────────────────┐
-  │  2024年1月:  /api/v1/users  ← 初期リリース          │
-  │  2024年3月:  /api/v1/users  ← 非破壊的変更（v1維持）│
-  │  2024年5月:  /api/v1/users  ← 非破壊的変更（v1維持）│
-  │  2024年7月:  /api/v1/users  ← 非破壊的変更（v1維持）│
-  │  2025年1月:  /api/v2/users  ← 蓄積した破壊的変更を  │
-  │                                まとめてv2にリリース  │
-  │                                                      │
-  │  原則:                                                │
-  │  ✓ 破壊的変更をバッチにまとめてバージョンアップ       │
-  │  ✓ 非破壊的変更は現行バージョンに追加                 │
-  │  ✓ メジャーバージョンは1〜2年に1回程度が目安          │
-  │  ✓ 同時並行運用は最大2〜3バージョンに抑える          │
-  └──────────────────────────────────────────────────────┘
-```
-
-**問題の本質**: 非破壊的変更を破壊的変更と誤認してバージョンを上げている。変更が非破壊的であれば、新しいバージョンは不要である。「追加」「オプショナル化」は非破壊的変更であり、バージョンアップの理由にならない。
-
-**対策**:
-- 破壊的変更の明確な定義を策定し、チーム全体で共有する
-- バージョンアップの承認プロセスを設ける（アーキテクチャレビュー等）
-- 非破壊的変更の手法（フィールド追加、Feature Flags等）を積極活用する
-
-### 10.2 アンチパターン2: バージョン固定の放置（ゾンビバージョン）
-
-旧バージョンを非推奨にも廃止にもせず、永続的に運用し続けてしまうパターン。
+A pattern where major versions are bumped frequently, making it impossible for clients to keep up.
 
 ```
-アンチパターン: ゾンビバージョン
+Anti-pattern: Version explosion
 
-  悪い例:
+  Bad example:
   ┌──────────────────────────────────────────────────────┐
-  │  /api/v1/users  ← 2020年リリース。まだ稼働中         │
-  │  /api/v2/users  ← 2022年リリース。まだ稼働中         │
-  │  /api/v3/users  ← 2024年リリース。最新               │
+  │  Jan 2024:  /api/v1/users  ← initial release         │
+  │  Mar 2024:  /api/v2/users  ← minor change bumped v2  │
+  │  May 2024:  /api/v3/users  ← another minor change v3 │
+  │  Jul 2024:  /api/v4/users  ← response addition v4    │
+  │  Sep 2024:  /api/v5/users  ← performance improvement │
+  │  Nov 2024:  /api/v6/users  ← new field added v6      │
   │                                                      │
-  │  v1の状態:                                            │
-  │  ✗ セキュリティパッチが当たっていない                 │
-  │  ✗ 旧ライブラリに依存（EOLのフレームワーク上で動作） │
-  │  ✗ 担当者が退職済みで、コードの理解者がいない        │
-  │  ✗ テストが壊れたまま放置されている                  │
-  │  ✗ しかし「誰かが使っているかもしれない」ので停止不可│
+  │  Result:                                             │
+  │  ✗ Clients cannot determine which of the 6 versions  │
+  │    to use                                            │
+  │  ✗ Maintenance cost for each version is enormous     │
+  │  ✗ Documentation is scattered across versions        │
+  │  ✗ Dev team cannot keep track of old version behavior│
   └──────────────────────────────────────────────────────┘
 
-  根本原因:
-  ① 非推奨化プロセスが定義されていない
-  ② 利用状況のモニタリングが行われていない
-  ③ 「停止するとクレームが来る」という恐怖
-  ④ 廃止のための予算/工数が確保されていない
-
-  正しいアプローチ:
+  Correct approach:
   ┌──────────────────────────────────────────────────────┐
-  │  リリース時点で廃止計画を策定する:                    │
+  │  Jan 2024:  /api/v1/users  ← initial release         │
+  │  Mar 2024:  /api/v1/users  ← non-breaking (v1 kept)  │
+  │  May 2024:  /api/v1/users  ← non-breaking (v1 kept)  │
+  │  Jul 2024:  /api/v1/users  ← non-breaking (v1 kept)  │
+  │  Jan 2025:  /api/v2/users  ← accumulated breaking    │
+  │                               changes bundled in v2  │
   │                                                      │
-  │  v1 リリース時:                                      │
-  │   → 「v2リリース後12ヶ月で廃止」をドキュメントに明記 │
-  │   → SLAに並行運用期間を記載                          │
-  │                                                      │
-  │  v2 リリース時:                                      │
-  │   → v1の非推奨化を開始                               │
-  │   → Deprecation/Sunsetヘッダーを付与                 │
-  │   → 利用状況モニタリングを開始                       │
-  │                                                      │
-  │  v1 廃止日:                                          │
-  │   → 410 Gone を返す                                  │
-  │   → リダイレクト情報を含める                         │
-  │   → 旧コードを完全に削除                             │
+  │  Principles:                                         │
+  │  ✓ Batch breaking changes together for version bumps │
+  │  ✓ Add non-breaking changes to the current version   │
+  │  ✓ Major version bumps roughly once every 1–2 years  │
+  │  ✓ Limit concurrent versions to 2–3 maximum          │
   └──────────────────────────────────────────────────────┘
 ```
 
-**問題の本質**: 旧バージョンの廃止は技術的な判断だけでなく、ビジネス判断とプロセス設計の問題である。明確な廃止ポリシーがないと、旧バージョンは永遠に残り続ける。
+**Root of the problem**: Mistaking non-breaking changes for breaking changes and bumping the version. If a change is non-breaking, a new version is not needed. "Additions" and "making things optional" are non-breaking changes and are not reasons for a version bump.
 
-**対策**:
-- APIライフサイクルポリシーを策定し、SLAの一部として公開する
-- 旧バージョンの利用状況を定期的にレビューする（月次等）
-- 廃止判断の閾値を定める（例: 月間リクエストが全体の1%未満になったら廃止検討）
-- 廃止工数をスプリント計画に組み込む
+**Remedies**:
+- Establish a clear definition of breaking changes and share it across the team
+- Put a version bump approval process in place (architecture review, etc.)
+- Actively use non-breaking change techniques (adding fields, Feature Flags, etc.)
+
+### 10.2 Anti-Pattern 2: Abandoned Version Lock (Zombie Versions)
+
+A pattern where old versions are neither deprecated nor retired and continue to run indefinitely.
+
+```
+Anti-pattern: Zombie versions
+
+  Bad example:
+  ┌──────────────────────────────────────────────────────┐
+  │  /api/v1/users  ← released in 2020. still running   │
+  │  /api/v2/users  ← released in 2022. still running   │
+  │  /api/v3/users  ← released in 2024. latest          │
+  │                                                      │
+  │  State of v1:                                        │
+  │  ✗ Security patches not applied                      │
+  │  ✗ Depends on old libraries (runs on EOL framework)  │
+  │  ✗ Original developer has left; no one understands   │
+  │    the code                                          │
+  │  ✗ Tests are broken and left unfixed                 │
+  │  ✗ But cannot be stopped because "someone may use it"│
+  └──────────────────────────────────────────────────────┘
+
+  Root causes:
+  ① Deprecation process not defined
+  ② Usage is not monitored
+  ③ Fear of receiving complaints if stopped
+  ④ No budget/effort allocated for retirement
+
+  Correct approach:
+  ┌──────────────────────────────────────────────────────┐
+  │  Draft a retirement plan at release time:            │
+  │                                                      │
+  │  At v1 release:                                      │
+  │   → Document "retire 12 months after v2 release"     │
+  │   → Include parallel operation period in SLA         │
+  │                                                      │
+  │  At v2 release:                                      │
+  │   → Begin deprecation of v1                          │
+  │   → Attach Deprecation/Sunset headers                │
+  │   → Begin usage monitoring                           │
+  │                                                      │
+  │  On v1 retirement date:                              │
+  │   → Return 410 Gone                                  │
+  │   → Include redirect information                     │
+  │   → Fully delete old code                            │
+  └──────────────────────────────────────────────────────┘
+```
+
+**Root of the problem**: Retiring an old version is not just a technical decision — it is a business decision and a process design issue. Without a clear retirement policy, old versions persist forever.
+
+**Remedies**:
+- Define an API lifecycle policy and publish it as part of the SLA
+- Regularly review usage of old versions (monthly, etc.)
+- Set thresholds for retirement decisions (e.g., consider retiring when monthly requests fall below 1% of total)
+- Include retirement work in sprint planning
 
 ---
 
-## 11. エッジケース分析
+## 11. Edge Case Analysis
 
-### 11.1 エッジケース1: 複数バージョンにまたがるトランザクション
+### 11.1 Edge Case 1: Transactions Spanning Multiple Versions
 
-クライアントが複数のエンドポイントを組み合わせて1つのトランザクションを構成している場合、一部のエンドポイントだけがバージョンアップすると整合性の問題が発生する。
+When a client combines multiple endpoints to form a single transaction, upgrading only some of the endpoints can cause consistency issues.
 
 ```
-エッジケース: 部分的バージョンアップの罠
+Edge case: The partial version upgrade trap
 
-  シナリオ:
-  クライアントの処理フロー（注文作成）:
-    1. POST /api/v2/orders        ← v2に移行済み
-    2. GET  /api/v1/users/{id}    ← v1のまま
-    3. POST /api/v2/payments      ← v2に移行済み
+  Scenario:
+  Client processing flow (order creation):
+    1. POST /api/v2/orders        ← migrated to v2
+    2. GET  /api/v1/users/{id}    ← still on v1
+    3. POST /api/v2/payments      ← migrated to v2
 
-  問題:
+  Problem:
   ┌──────────────────────────────────────────────────┐
-  │  v2のordersは user_id を string ("usr_123") で    │
-  │  受け取る仕様に変更された。                       │
-  │                                                    │
-  │  しかし v1 の users は id を integer (123) で       │
-  │  返すため、クライアントが v1 から取得した id を     │
-  │  v2 の orders に渡すと型不一致エラーが発生する。   │
-  │                                                    │
-  │  1. GET /api/v1/users/123 → {"id": 123, ...}      │
-  │  2. POST /api/v2/orders                             │
-  │     Body: {"user_id": 123}  ← integer!             │
-  │     → 400 Bad Request: user_id must be string      │
+  │  v2 orders changed to accept user_id             │
+  │  as string ("usr_123").                          │
+  │                                                  │
+  │  However, v1 users returns id as integer (123),  │
+  │  so when the client passes the id retrieved from │
+  │  v1 users to v2 orders, a type mismatch error    │
+  │  occurs.                                         │
+  │                                                  │
+  │  1. GET /api/v1/users/123 → {"id": 123, ...}     │
+  │  2. POST /api/v2/orders                          │
+  │     Body: {"user_id": 123}  ← integer!           │
+  │     → 400 Bad Request: user_id must be string    │
   └──────────────────────────────────────────────────┘
 
-  対策:
-  ① バージョン整合性ポリシーの策定:
-     → 同一クライアントは全エンドポイントで同じバージョンを使用
-     → ゲートウェイでバージョン混在を検出・警告
+  Countermeasures:
+  ① Version consistency policy:
+     → Same client uses the same version across all endpoints
+     → Gateway detects and warns about mixed versions
 
-  ② 型変換の互換レイヤー:
-     → v2のordersがinteger型のuser_idも受け付ける
-     → 内部で自動変換: 123 → "usr_123"
-     → ただし、これは技術的負債になりやすい
+  ② Type conversion compatibility layer:
+     → v2 orders also accept integer user_id
+     → Auto-convert internally: 123 → "usr_123"
+     → However, this can easily become technical debt
 
-  ③ クロスバージョン互換テスト:
-     → v1とv2の組み合わせをCIで自動テスト
-     → 互換性マトリクスを維持
+  ③ Cross-version compatibility tests:
+     → Automatically test v1 and v2 combinations in CI
+     → Maintain a compatibility matrix
 ```
 
-### 11.2 エッジケース2: キャッシュとバージョンの不整合
+### 11.2 Edge Case 2: Cache and Version Inconsistency
 
-CDNやブラウザキャッシュにバージョン間で不整合なデータが残るケース。
+A case where inconsistent data from different versions remains in CDN or browser cache.
 
 ```
-エッジケース: キャッシュ汚染
+Edge case: Cache pollution
 
-  シナリオ:
+  Scenario:
   ┌────────┐  GET /users  ┌─────┐  GET /v1/users  ┌──────┐
-  │クライアント│──────────────►│ CDN │────────────────►│Backend│
+  │ Client  │──────────────►│ CDN │────────────────►│Backend│
   └────────┘              └─────┘                └──────┘
 
-  問題の発生パターン:
+  Problem occurrence pattern:
 
-  1. 12:00 - クライアントAが /api/v1/users をリクエスト
-     → CDNがv1レスポンスをキャッシュ（TTL: 1時間）
+  1. 12:00 - Client A requests /api/v1/users
+     → CDN caches v1 response (TTL: 1 hour)
 
-  2. 12:30 - APIプロバイダーがv1を廃止し、/api/v1/ を削除
-     → /api/v1/ へのリクエストは 410 Gone を返すようになる
+  2. 12:30 - API provider retires v1 and deletes /api/v1/
+     → Requests to /api/v1/ now return 410 Gone
 
-  3. 12:45 - クライアントBが /api/v1/users をリクエスト
-     → CDNがキャッシュからv1レスポンスを返す（古いデータ）
-     → クライアントBはv1がまだ生きていると認識
+  3. 12:45 - Client B requests /api/v1/users
+     → CDN returns v1 response from cache (stale data)
+     → Client B perceives v1 as still alive
 
-  4. 13:00 - CDNキャッシュが期限切れ
-     → 以降はバックエンドの 410 Gone が返る
-     → クライアントBが突然エラーに遭遇
+  4. 13:00 - CDN cache expires
+     → Backend's 410 Gone is returned going forward
+     → Client B suddenly encounters an error
 
-  対策:
-  ① バージョン別のキャッシュキー設定:
+  Countermeasures:
+  ① Version-specific cache key settings:
      Cache-Control: public, max-age=3600
      Vary: Accept, API-Version
 
-  ② 廃止前のキャッシュパージ:
-     → CDN上の旧バージョンキャッシュを廃止と同時にパージ
+  ② Purge cache before retirement:
+     → Purge old version cache at the same time as retirement
      → CloudFront: Invalidation, Fastly: Purge API
 
-  ③ 段階的なTTL短縮:
-     → 廃止3ヶ月前: TTLを1時間→10分に短縮
-     → 廃止1ヶ月前: TTLを10分→1分に短縮
-     → 廃止当日: キャッシュ無効（no-cache）
+  ③ Gradual TTL reduction:
+     → 3 months before retirement: reduce TTL from 1 hour to 10 minutes
+     → 1 month before retirement: reduce TTL from 10 minutes to 1 minute
+     → On retirement day: disable cache (no-cache)
 
-  ④ Surrogate-Keyによる選択的パージ:
+  ④ Selective purge using Surrogate-Key:
      Surrogate-Key: api-v1 users-list
-     → 廃止時に "api-v1" タグのキャッシュを一括パージ
+     → Bulk purge cache tagged "api-v1" at retirement
 ```
 
-### 11.3 エッジケース3: モバイルアプリとバージョン強制
+### 11.3 Edge Case 3: Mobile Apps and Forced Version Upgrades
 
-モバイルアプリケーションではユーザーがアプリを更新しない限り古いAPIバージョンが呼ばれ続ける。ウェブアプリと異なり、クライアントのバージョンをサーバー側で制御できない。
+With mobile applications, old API versions continue to be called unless users update the app. Unlike web apps, the client version cannot be controlled server-side.
 
 ```
-モバイルアプリのバージョニング課題:
+Versioning challenges for mobile apps:
 
-  ウェブアプリ:
-    サーバーデプロイ → 全ユーザーが即座に新バージョンを利用
-    → バージョン移行が容易
+  Web app:
+    Server deploy → All users immediately use the new version
+    → Version migration is easy
 
-  モバイルアプリ:
-    ストア公開 → ユーザーが更新しない限り旧バージョンが残存
-    → 6ヶ月後でも旧バージョンのインストールが30%以上
+  Mobile app:
+    Store publish → Old version persists until users update
+    → 6 months later, 30%+ installs may still be on old version
 
-  対策:
-  ① アプリ内強制アップデート:
-     → APIレスポンスで最小サポートバージョンを通知
-     → 旧アプリは更新ダイアログを表示
-     → ただし、UXへの影響が大きいため慎重に判断
+  Countermeasures:
+  ① In-app forced update:
+     → Notify minimum supported version in API response
+     → Old app displays update dialog
+     → However, use carefully due to large UX impact
 
-  ② APIバージョンの長期サポート:
-     → モバイルアプリ向けAPIは最低18〜24ヶ月サポート
-     → デスクトップ/ウェブ向けより長い並行運用期間が必要
+  ② Long-term API version support:
+     → APIs for mobile apps should support at least 18–24 months
+     → Longer parallel operation period than for desktop/web
 
-  ③ クライアントバージョン別メトリクス:
-     → User-Agentやカスタムヘッダーでアプリバージョンを識別
-     → 古いアプリバージョンの利用率が5%未満になったら廃止検討
+  ③ Client version-specific metrics:
+     → Identify app version via User-Agent or custom headers
+     → Consider retiring when usage of old app version falls below 5%
 ```
 
 ---
 
-## 12. 演習問題
+## 12. Practice Problems
 
-### 12.1 基礎演習: バージョニング方式の選定
+### 12.1 Basic Exercise: Selecting a Versioning Approach
 
-以下のシナリオそれぞれに最適なバージョニング方式を選定し、その理由を述べよ。
+For each of the following scenarios, select the most suitable versioning approach and explain your reasoning.
 
-**シナリオA**: 社内のマイクロサービス間で使用する内部API。サービスは全てKubernetes上で稼働し、Istioサービスメッシュで接続されている。変更頻度は月1〜2回。
+**Scenario A**: An internal API used between microservices within a company. All services run on Kubernetes and are connected via the Istio service mesh. Change frequency is 1–2 times per month.
 
-**シナリオB**: 金融機関向けのオープンバンキングAPI。PSD2規制に準拠する必要があり、外部のフィンテック企業50社以上が利用する。契約上のSLAが厳格。
+**Scenario B**: An open banking API for financial institutions. Must comply with PSD2 regulations, and more than 50 external fintech companies use it. Contractual SLA is strict.
 
-**シナリオC**: スタートアップの初期プロダクト。APIコンシューマーは自社のモバイルアプリのみ。2週間スプリントで頻繁にAPIが変更される。ユーザー数は1000人未満。
-
-```
-解答のヒント:
-
-  考慮すべき観点:
-  ├─ コンシューマーの数と種類（内部/外部）
-  ├─ 変更頻度
-  ├─ 規制要件の有無
-  ├─ SLAの厳格さ
-  ├─ 開発チームの規模とスキル
-  ├─ 運用インフラの成熟度
-  └─ 将来の拡張予定
-
-  各シナリオの期待される解答方向:
-  A: 内部APIのためバージョンレスまたは軽量なバージョニング
-     Consumer-Driven Contracts + Tolerant Reader が有効
-  B: 厳格なURIバージョニング + 長期並行運用
-     SemVerによる内部管理 + CHANGELOGの公開
-  C: バージョンレスまたはクエリパラメータ方式
-     モバイルアプリのみなので柔軟に対応可能
-     ただし将来の外部公開を見据えてURIバージョニングも検討
-```
-
-### 12.2 応用演習: 移行計画の策定
-
-以下のv1 APIをv2に移行する計画を策定せよ。
+**Scenario C**: An early-stage startup product. The only API consumer is the company's own mobile app. APIs change frequently on 2-week sprints. User count is under 1,000.
 
 ```
-v1 API仕様:
+Hints for answers:
+
+  Aspects to consider:
+  ├─ Number and type of consumers (internal/external)
+  ├─ Change frequency
+  ├─ Presence of regulatory requirements
+  ├─ Strictness of SLA
+  ├─ Size and skill of the development team
+  ├─ Maturity of operational infrastructure
+  └─ Future expansion plans
+
+  Expected answer direction for each scenario:
+  A: Internal API → versionless or lightweight versioning
+     Consumer-Driven Contracts + Tolerant Reader are effective
+  B: Strict URI versioning + long-term parallel operation
+     Internal management with SemVer + public CHANGELOG
+  C: Versionless or query parameter approach
+     Flexible since it's mobile app only
+     However, also consider URI versioning in anticipation of future external publishing
+```
+
+### 12.2 Applied Exercise: Drafting a Migration Plan
+
+Draft a plan to migrate the following v1 API to v2.
+
+```
+v1 API spec:
   POST /api/v1/products
   Request:
     {
-      "name": "ノートPC",
-      "price": 98000,         # integer（円単位）
+      "name": "Laptop",
+      "price": 98000,         # integer (in JPY)
       "category": "electronics",
-      "tags": "laptop,portable" # カンマ区切り文字列
+      "tags": "laptop,portable" # comma-separated string
     }
 
   Response:
     {
       "id": 1,
-      "name": "ノートPC",
+      "name": "Laptop",
       "price": 98000,
       "category": "electronics",
       "tags": "laptop,portable",
-      "created": "2024-01-15"  # YYYY-MM-DD形式
+      "created": "2024-01-15"  # YYYY-MM-DD format
     }
 
-v2 API仕様（変更予定）:
+v2 API spec (planned changes):
   POST /api/v2/products
   Request:
     {
-      "name": "ノートPC",
-      "price": {               # オブジェクトに変更
+      "name": "Laptop",
+      "price": {               # changed to object
         "amount": 98000,
         "currency": "JPY"
       },
-      "category_id": "cat_electronics",  # IDベースに変更
-      "tags": ["laptop", "portable"]     # 配列に変更
+      "category_id": "cat_electronics",  # changed to ID-based
+      "tags": ["laptop", "portable"]     # changed to array
     }
 
   Response:
     {
-      "id": "prod_1",         # string型、プレフィックス付き
-      "name": "ノートPC",
+      "id": "prod_1",         # string type with prefix
+      "name": "Laptop",
       "price": {
         "amount": 98000,
         "currency": "JPY"
@@ -1919,51 +1923,51 @@ v2 API仕様（変更予定）:
         "name": "Electronics"
       },
       "tags": ["laptop", "portable"],
-      "created_at": "2024-01-15T00:00:00Z"  # ISO 8601形式
+      "created_at": "2024-01-15T00:00:00Z"  # ISO 8601 format
     }
 ```
 
-**課題**:
-1. 全ての破壊的変更をリストアップし、影響度を分析せよ
-2. 12ヶ月の移行タイムラインを作成せよ
-3. 移行ガイドの主要セクション（新旧マッピング表、コード例）を作成せよ
-4. v1からv2への自動変換関数を設計せよ
+**Tasks**:
+1. List all breaking changes and analyze their impact
+2. Create a 12-month migration timeline
+3. Create the main sections of a migration guide (old-to-new mapping table, code examples)
+4. Design an automatic conversion function from v1 to v2
 
 ```
-解答のヒント:
+Hints for answers:
 
-  破壊的変更の一覧:
-  ├─ price: integer → object (型変更)
-  ├─ category: string → object (構造変更)
-  ├─ category → category_id (リクエスト側のフィールド名変更)
-  ├─ tags: string → array (型変更)
-  ├─ id: integer → string (型変更 + プレフィックス追加)
-  ├─ created → created_at (フィールド名変更)
-  └─ created: YYYY-MM-DD → ISO 8601 (フォーマット変更)
+  List of breaking changes:
+  ├─ price: integer → object (type change)
+  ├─ category: string → object (structural change)
+  ├─ category → category_id (request side field name change)
+  ├─ tags: string → array (type change)
+  ├─ id: integer → string (type change + prefix added)
+  ├─ created → created_at (field name change)
+  └─ created: YYYY-MM-DD → ISO 8601 (format change)
 
-  タイムライン例:
-  月1-2:  v2の設計・レビュー・実装
-  月3:    v2ベータ公開、内部テスト
-  月4:    v2 GA公開、並行運用開始、移行ガイド公開
-  月5-8:  v1に非推奨ヘッダー付与、主要クライアントへの個別通知
-  月9-10: v1のレート制限を段階的に厳格化
-  月11:   最終警告の送信
-  月12:   v1の廃止（410 Gone）
+  Timeline example:
+  Month 1-2:  v2 design, review, implementation
+  Month 3:    v2 beta release, internal testing
+  Month 4:    v2 GA release, begin parallel operation, publish migration guide
+  Month 5-8:  Attach deprecation headers to v1, individual notification to major clients
+  Month 9-10: Gradually tighten v1 rate limits
+  Month 11:   Send final warning
+  Month 12:   Retire v1 (410 Gone)
 ```
 
-### 12.3 発展演習: バージョニングフレームワークの設計
+### 12.3 Advanced Exercise: Designing a Versioning Framework
 
-以下の要件を満たすバージョニングフレームワークを設計せよ（コードまたは擬似コードで記述）。
+Design a versioning framework that satisfies the following requirements (describe in code or pseudocode).
 
-**要件**:
-1. URI パスバージョニングとヘッダーバージョニングの両方をサポート
-2. バージョンごとのリクエスト/レスポンス変換機能
-3. 非推奨バージョンへのアクセスに自動でSunsetヘッダーを付与
-4. バージョン別のアクセスメトリクスの収集
-5. 未サポートバージョンへのリクエストに適切なエラーレスポンスを返す
+**Requirements**:
+1. Support both URI path versioning and header versioning
+2. Request/response transformation functionality per version
+3. Automatically attach Sunset header to access to deprecated versions
+4. Collect per-version access metrics
+5. Return an appropriate error response for requests to unsupported versions
 
 ```python
-# 解答の骨格（発展させること）:
+# Skeleton for answer (to be extended):
 
 from abc import ABC, abstractmethod
 from typing import Callable, Optional
@@ -1972,50 +1976,50 @@ from datetime import datetime
 
 @dataclass
 class VersionConfig:
-    """バージョンの設定情報"""
-    version: str                         # "v1", "v2", "2024-01-15" 等
+    """Configuration information for a version"""
+    version: str                         # "v1", "v2", "2024-01-15", etc.
     status: str                          # "active", "deprecated", "sunset"
-    release_date: datetime               # リリース日
-    sunset_date: Optional[datetime]      # 廃止予定日（Noneなら未定）
-    successor: Optional[str]             # 後継バージョン（Noneなら最新）
-    transformers: dict = field(          # エンドポイント別の変換関数
+    release_date: datetime               # release date
+    sunset_date: Optional[datetime]      # planned retirement date (None if TBD)
+    successor: Optional[str]             # successor version (None if latest)
+    transformers: dict = field(          # transformation functions per endpoint
         default_factory=dict
     )
 
 class VersioningMiddleware:
-    """バージョニングミドルウェアの基底クラス"""
+    """Base class for versioning middleware"""
 
     def __init__(self):
         self.versions: dict[str, VersionConfig] = {}
         self.metrics: dict[str, int] = {}
 
     def register_version(self, config: VersionConfig) -> None:
-        """バージョンを登録する"""
+        """Register a version"""
         self.versions[config.version] = config
 
     def resolve_version(self, request) -> str:
-        """リクエストからバージョンを解決する"""
-        # 1. URIパスをチェック
+        """Resolve version from request"""
+        # 1. Check URI path
         version = self._extract_from_path(request.path)
         if version:
             return version
 
-        # 2. ヘッダーをチェック
+        # 2. Check headers
         version = self._extract_from_header(request.headers)
         if version:
             return version
 
-        # 3. デフォルトバージョンを返す
+        # 3. Return default version
         return self._get_default_version()
 
     def process_request(self, request):
-        """リクエストを処理し、適切なバージョンにルーティング"""
+        """Process request and route to appropriate version"""
         version = self.resolve_version(request)
 
-        # メトリクス収集
+        # Collect metrics
         self._record_metrics(version)
 
-        # バージョンの状態チェック
+        # Check version status
         config = self.versions.get(version)
         if config is None:
             return self._unsupported_version_response(version)
@@ -2023,7 +2027,7 @@ class VersioningMiddleware:
         if config.status == 'sunset':
             return self._gone_response(version, config)
 
-        # リクエスト変換（必要な場合）
+        # Transform request (if needed)
         transformed_request = self._transform_request(
             request, version
         )
@@ -2031,15 +2035,15 @@ class VersioningMiddleware:
         return transformed_request, config
 
     def process_response(self, response, version: str):
-        """レスポンスにバージョン関連ヘッダーを付与"""
+        """Add version-related headers to response"""
         config = self.versions[version]
 
-        # レスポンス変換
+        # Transform response
         transformed = self._transform_response(
             response, version
         )
 
-        # 非推奨ヘッダーの付与
+        # Attach deprecation headers
         if config.status == 'deprecated':
             transformed.headers['Deprecation'] = 'true'
             if config.sunset_date:
@@ -2054,290 +2058,289 @@ class VersioningMiddleware:
                     f'rel="successor-version"'
                 )
 
-        # バージョン情報ヘッダー
+        # Version info header
         transformed.headers['X-API-Version'] = version
 
         return transformed
 
-    # --- 以下、各種ヘルパーメソッドを実装 ---
+    # --- Implement the following helper methods below ---
     # _extract_from_path, _extract_from_header,
     # _get_default_version, _record_metrics,
     # _unsupported_version_response, _gone_response,
     # _transform_request, _transform_response
 ```
 
-**発展課題**:
-- 上記の骨格コードを完全に実装せよ
-- ユニットテストを作成し、全てのパターン（アクティブ/非推奨/廃止済みバージョン）をカバーせよ
-- OpenAPI仕様からバージョン間の差分を自動検出する機能を追加せよ
+**Advanced tasks**:
+- Fully implement the skeleton code above
+- Write unit tests covering all patterns (active/deprecated/retired versions)
+- Add a feature to automatically detect differences between versions from an OpenAPI spec
 
 ---
 
-## 13. 実践的なバージョニングポリシーテンプレート
+## 13. Practical Versioning Policy Template
 
-組織やプロジェクトで使用できるバージョニングポリシーのテンプレートを以下に示す。
+The following is a versioning policy template that can be used in an organization or project.
 
 ```
 =================================================================
-           [プロジェクト名] API バージョニングポリシー
+           [Project Name] API Versioning Policy
                      Version 1.0 / 2025-01-01
 =================================================================
 
-1. バージョニング方式
-   本APIはURIパスバージョニングを採用する。
-   形式: /api/v{MAJOR}/
-   例: /api/v1/, /api/v2/
+1. Versioning approach
+   This API adopts URI path versioning.
+   Format: /api/v{MAJOR}/
+   Example: /api/v1/, /api/v2/
 
-2. バージョン番号の管理
-   - 公開バージョン: メジャーバージョンのみ（v1, v2, v3...）
-   - 内部バージョン: セマンティックバージョニング（MAJOR.MINOR.PATCH）
-   - 内部バージョンはX-API-Versionヘッダーで通知
+2. Version number management
+   - Public version: major version only (v1, v2, v3...)
+   - Internal version: semantic versioning (MAJOR.MINOR.PATCH)
+   - Internal version communicated via X-API-Version header
 
-3. 破壊的変更の定義
-   以下の変更を破壊的変更とする:
-   a) レスポンスフィールドの削除
-   b) フィールドの型変更
-   c) 必須パラメータの追加
-   d) エンドポイントのURL変更/削除
-   e) ステータスコードの意味変更
-   f) 認証/認可方式の変更
-   g) フィールド名の変更
+3. Definition of breaking changes
+   The following changes are classified as breaking changes:
+   a) Deletion of response fields
+   b) Type changes of fields
+   c) Addition of required parameters
+   d) Changes/deletion of endpoint URLs
+   e) Changes to the meaning of status codes
+   f) Changes to authentication/authorization methods
+   g) Field name changes
 
-4. 非破壊的変更の定義
-   以下の変更はバージョンアップなしで適用する:
-   a) オプショナルフィールドの追加
-   b) 新規エンドポイントの追加
-   c) エラーメッセージの文言改善
-   d) パフォーマンスの改善
+4. Definition of non-breaking changes
+   The following changes are applied without a version bump:
+   a) Addition of optional fields
+   b) Addition of new endpoints
+   c) Improvement of error message wording
+   d) Performance improvements
 
-5. ライフサイクルポリシー
-   a) 新バージョンリリース後、旧バージョンは最低12ヶ月間
-      並行運用する
-   b) エンタープライズ契約のお客様には最低24ヶ月間の
-      並行運用を保証する
-   c) 並行運用期間はSLAに明記する
+5. Lifecycle policy
+   a) Old versions run in parallel for at least 12 months
+      after a new version is released
+   b) A minimum of 24 months of parallel operation is
+      guaranteed for enterprise customers
+   c) Parallel operation period is stated in the SLA
 
-6. 非推奨化プロセス
-   a) 新バージョンGA後、旧バージョンにDeprecationヘッダーを付与
-   b) 廃止6ヶ月前: ドキュメント・メール・ダッシュボードで告知
-   c) 廃止3ヶ月前: 主要クライアントへの個別通知
-   d) 廃止1ヶ月前: 最終警告、レート制限の段階的厳格化
-   e) 廃止日: 410 Gone を返す
+6. Deprecation process
+   a) Attach Deprecation header to old version after new version GA
+   b) 6 months before retirement: announce via docs, email, dashboard
+   c) 3 months before retirement: individual notification to major clients
+   d) 1 month before retirement: final warning, gradual rate limit tightening
+   e) On retirement date: return 410 Gone
 
-7. 移行支援
-   a) 移行ガイド（変更点一覧、新旧マッピング、コード例）を公開
-   b) サンドボックス環境での事前検証を提供
-   c) テクニカルサポートによる移行支援を提供
+7. Migration support
+   a) Publish migration guide (list of changes, old-to-new mapping, code examples)
+   b) Provide pre-verification in a sandbox environment
+   c) Provide migration support via technical support
 
-8. 同時運用バージョン数
-   最大3バージョンを同時運用する（current, deprecated, sunset予告）。
-   それ以上古いバージョンは廃止する。
+8. Maximum concurrent versions
+   A maximum of 3 versions run concurrently (current, deprecated, sunset-announced).
+   Older versions beyond this are retired.
 
-9. 緊急時の例外
-   セキュリティ脆弱性への対応など緊急性の高い場合は、
-   上記プロセスを短縮して変更を適用する場合がある。
-   その場合も可能な限り事前に通知する。
+9. Exceptions in emergencies
+   In cases of high urgency such as addressing security vulnerabilities,
+   changes may be applied with a shortened process.
+   Even in such cases, notify in advance as much as possible.
 
-10. ポリシーの更新
-    本ポリシーは年1回レビューし、必要に応じて更新する。
-    ポリシーの変更自体も6ヶ月前に告知する。
+10. Policy updates
+    This policy is reviewed once a year and updated as needed.
+    Changes to the policy itself are announced 6 months in advance.
 =================================================================
 ```
 
 ---
 
-## 14. FAQ（よくある質問）
+## 14. FAQ
 
-### FAQ 1: URIバージョニングとヘッダーバージョニング、どちらを選ぶべきか？
+### FAQ 1: Should I choose URI versioning or header versioning?
 
-**回答**: 大多数のケースではURIパスバージョニング（/api/v1/）を推奨する。理由は以下の通り。
+**Answer**: URI path versioning (/api/v1/) is recommended in the majority of cases, for the following reasons.
 
-- 最も直感的で理解しやすい。開発者がURLを見ただけでバージョンがわかる
-- ブラウザやcurlでの手動テストが容易
-- CDNやロードバランサーでのルーティング設定が単純
-- ドキュメントでの説明がしやすい
-- 業界で最も広く採用されており、学習コストが低い
+- Most intuitive and easiest to understand. Developers can tell the version just by looking at the URL
+- Easy to test manually in a browser or with curl
+- Simple routing configuration in CDN and load balancers
+- Easy to explain in documentation
+- Most widely adopted in the industry, with a low learning curve
 
-ただし、以下のケースではヘッダーバージョニングを検討する価値がある。
-- REST原則への厳密な準拠が求められる場合
-- 同一リソースに対して複数の表現を提供する必要がある場合（コンテンツネゴシエーション）
-- 日付ベースの細やかなバージョン管理が必要な場合（Stripe方式）
+However, consider header versioning in the following cases:
+- When strict compliance with REST principles is required
+- When it is necessary to provide multiple representations for the same resource (content negotiation)
+- When fine-grained date-based version management is needed (Stripe approach)
 
-### FAQ 2: 最初のリリースは v0 と v1 のどちらにすべきか？
+### FAQ 2: Should the first release start at v0 or v1?
 
-**回答**: v1 からスタートすることを推奨する。
+**Answer**: It is recommended to start from v1.
 
-v0 はSemVerにおいて「初期開発段階であり、いつでも破壊的変更が起こり得る」という意味を持つ。パブリックAPIでv0を使うと、「このAPIは不安定で信頼できない」というメッセージになりかねない。
+In SemVer, v0 means "initial development phase, where breaking changes can occur at any time." Using v0 in a public API can send the message that "this API is unstable and unreliable."
 
-ただし、以下の場合はv0を使うことも妥当である。
-- 明確にプレビュー/ベータ版として提供する場合
-- 内部APIで、安定性よりも柔軟性を優先する場合
-- フィードバック収集が主目的で、本番利用を想定していない場合
+However, using v0 is also reasonable in the following cases:
+- When explicitly provided as a preview/beta version
+- For internal APIs where flexibility is prioritized over stability
+- When the main purpose is gathering feedback and production use is not assumed
 
-### FAQ 3: バージョンアップ時に旧バージョンのバグ修正はどこまで行うべきか？
+### FAQ 3: How far should bug fixes in old versions go when a new version is released?
 
-**回答**: セキュリティ修正は必ず行い、機能的なバグ修正はポリシーに応じて判断する。
+**Answer**: Security fixes must always be done; functional bug fixes should be determined based on policy.
 
-推奨する対応レベル:
+Recommended response levels:
 
-| 修正種別 | 旧バージョン対応 | 理由 |
+| Fix type | Old version response | Reason |
 |---------|----------------|------|
-| セキュリティ脆弱性 | 必須 | 利用者の安全を守る義務がある |
-| データ整合性バグ | 推奨 | データ破損はビジネスに直結する |
-| 機能バグ（重大） | ケースバイケース | 影響度と移行スケジュールによる |
-| 機能バグ（軽微） | 新バージョンでのみ修正 | 移行インセンティブにもなる |
-| UX改善 | 新バージョンでのみ対応 | 旧バージョンへの投資を最小化 |
+| Security vulnerabilities | Mandatory | Obligation to protect users' safety |
+| Data integrity bugs | Recommended | Data corruption directly impacts business |
+| Functional bugs (major) | Case by case | Depends on impact and migration schedule |
+| Functional bugs (minor) | Fix in new version only | Becomes a migration incentive |
+| UX improvements | New version only | Minimize investment in old version |
 
-### FAQ 4: GraphQLにバージョニングは必要か？
+### FAQ 4: Is versioning needed for GraphQL?
 
-**回答**: GraphQLは本質的にバージョンレスな設計を志向しているが、完全にバージョニング不要ということではない。
+**Answer**: GraphQL inherently aims for a versionless design, but that does not mean versioning is completely unnecessary.
 
-GraphQLが持つバージョンレスの仕組み:
-- クライアントが必要なフィールドを選択するため、フィールド追加が非破壊的
-- `@deprecated` ディレクティブによるフィールド単位の非推奨化
-- スキーマの段階的進化が容易
+Versionless mechanisms that GraphQL has:
+- Because clients select the fields they need, adding fields is non-breaking
+- Per-field deprecation using the `@deprecated` directive
+- Gradual schema evolution is easy
 
-ただし、以下の場合はバージョニングの検討が必要:
-- スキーマの根本的な再設計が必要な場合
-- 型の変更（String → Int等）が必要な場合
-- クエリの構文やセマンティクスを変更する場合
+However, versioning should be considered in the following cases:
+- When a fundamental redesign of the schema is necessary
+- When type changes are necessary (String → Int, etc.)
+- When changing the syntax or semantics of queries
 
-### FAQ 5: APIバージョニングとマイクロサービスのバージョニングは同じか？
+### FAQ 5: Are API versioning and microservice versioning the same?
 
-**回答**: 密接に関連するが、異なる関心事である。
+**Answer**: They are closely related but are different concerns.
 
-- **APIバージョニング**: 外部に公開するインターフェースの契約管理。コンシューマーへの影響を制御する
-- **サービスバージョニング**: 内部のデプロイメント単位の管理。Blue-Greenデプロイ、カナリアリリース等のデプロイ戦略と関連する
+- **API versioning**: Contract management for externally published interfaces. Controls the impact on consumers
+- **Service versioning**: Management of internal deployment units. Related to deployment strategies such as Blue-Green deployment and canary releases
 
-1つのサービスが複数のAPIバージョンを提供することもあれば、APIバージョンの変更なしにサービスが何度もデプロイされることもある。両者を混同しないことが重要である。
+A single service may provide multiple API versions, or a service may be deployed many times without changing the API version. It is important not to confuse the two.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. It is recommended to thoroughly understand the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 15. まとめ
+## 15. Summary
 
-| 概念 | ポイント |
+| Concept | Key Point |
 |------|---------|
-| URLバージョニング | パスに/v1/を含める方式、最もシンプルで広く採用 |
-| ヘッダーバージョニング | Accept headerで指定、URLをクリーンに保つ |
-| 破壊的変更管理 | 非推奨通知→移行期間→旧バージョン廃止のライフサイクル |
-| 後方互換性 | フィールド追加はOK、削除・型変更は破壊的変更 |
+| URL versioning | Include /v1/ in the path; simplest and most widely adopted |
+| Header versioning | Specified via Accept header; keeps URLs clean |
+| Breaking change management | Lifecycle of deprecation notice → migration period → old version retirement |
+| Backward compatibility | Adding fields is OK; deletion and type changes are breaking |
 
-### この章のキーポイント
+### Key Points of This Chapter
 
-1. **バージョニング戦略は早期に決定** — 後からの変更は困難
-2. **破壊的変更は計画的に管理** — 非推奨通知と移行期間を設ける
-3. **後方互換性を常に意識** — クライアントへの影響を最小化する
+1. **Decide versioning strategy early** — changing later is difficult
+2. **Manage breaking changes deliberately** — provide deprecation notice and migration period
+3. **Always be aware of backward compatibility** — minimize impact on clients
 
-### 15.1 要点の整理
+### 15.1 Summary of Key Points
 
-| 概念 | ポイント |
+| Concept | Key Point |
 |------|---------|
-| 破壊的変更 | フィールド削除、型変更、必須パラメータ追加、エンドポイント変更 |
-| URIバージョニング | /api/v1/ が最も一般的で推奨。メジャーバージョンのみ公開 |
-| ヘッダーバージョニング | REST原則に準拠。Stripe風の日付ベースに適する |
-| クエリパラメータ | 実装が簡単だが長期運用では非推奨傾向 |
-| セマンティックバージョニング | MAJOR.MINOR.PATCH で内部管理。公開はMAJORのみ |
-| 非推奨化 | 6ヶ月前告知 → 12ヶ月並行運用 → 410 Gone で終了 |
-| バージョンレス | Additive only + Feature Flags + Robustness Principle |
-| Contract Testing | Consumer-Driven Contracts で互換性を自動検証 |
-| APIゲートウェイ | バージョンルーティングとレスポンス変換の中核 |
-| ポリシー | リリース時点で廃止計画を策定。ゾンビバージョンを防ぐ |
+| Breaking changes | Field deletion, type changes, adding required parameters, endpoint changes |
+| URI versioning | /api/v1/ is most common and recommended. Expose major version only |
+| Header versioning | Compliant with REST principles. Suited for Stripe-style date-based versioning |
+| Query parameter | Easy to implement but trending away from in long-term operation |
+| Semantic versioning | Internally managed with MAJOR.MINOR.PATCH. Only MAJOR is published |
+| Deprecation | 6-month advance notice → 12-month parallel operation → end with 410 Gone |
+| Versionless | Additive only + Feature Flags + Robustness Principle |
+| Contract Testing | Consumer-Driven Contracts for automatic compatibility verification |
+| API Gateway | Core of version routing and response transformation |
+| Policy | Draft retirement plan at release time. Prevent zombie versions |
 
-### 15.2 バージョニング方式の選定フローチャート
+### 15.2 Versioning Approach Selection Flowchart
 
 ```
-バージョニング方式の選定フロー:
+Versioning approach selection flow:
 
   START
     │
-    ├─ 外部公開APIか？
-    │   ├─ Yes → コンシューマー数は？
-    │   │        ├─ 多い（10社以上）→ URIバージョニング（推奨）
-    │   │        ├─ 少ない（1〜9社）→ URIまたはヘッダー
-    │   │        └─ 自社アプリのみ → 状況に応じて選択
+    ├─ Is it an externally published API?
+    │   ├─ Yes → How many consumers?
+    │   │        ├─ Many (10+ companies) → URI versioning (recommended)
+    │   │        ├─ Few (1–9 companies)  → URI or header
+    │   │        └─ Own app only         → choose based on situation
     │   │
-    │   └─ No（内部API）→ バージョンレスまたは軽量バージョニング
-    │                      Consumer-Driven Contracts を検討
+    │   └─ No (internal API) → Versionless or lightweight versioning
+    │                          Consider Consumer-Driven Contracts
     │
-    ├─ 変更頻度は？
-    │   ├─ 高い → バージョンレス + Feature Flags
-    │   ├─ 中程度 → URIバージョニング
-    │   └─ 低い → URIバージョニング（最もシンプル）
+    ├─ What is the change frequency?
+    │   ├─ High     → Versionless + Feature Flags
+    │   ├─ Medium   → URI versioning
+    │   └─ Low      → URI versioning (simplest)
     │
-    ├─ 規制要件があるか？
-    │   ├─ Yes → URIバージョニング + 厳格なポリシー
-    │   └─ No → 柔軟に選択可能
+    ├─ Are there regulatory requirements?
+    │   ├─ Yes → URI versioning + strict policy
+    │   └─ No  → Flexible choice
     │
-    └─ 既存システムとの互換性は？
-        ├─ CDN/プロキシ経由 → URIバージョニング（ルーティング容易）
-        ├─ APIゲートウェイ → いずれの方式も対応可能
-        └─ 直接接続 → 制約なし
+    └─ Compatibility with existing systems?
+        ├─ Via CDN/proxy    → URI versioning (easy routing)
+        ├─ API Gateway      → Any approach supported
+        └─ Direct connection → No constraints
 ```
 
-### 15.3 チェックリスト
+### 15.3 Checklist
 
-APIバージョニング戦略を策定する際に確認すべき項目。
+Items to confirm when formulating an API versioning strategy.
 
-- [ ] バージョニング方式を決定したか（URI/ヘッダー/クエリパラメータ）
-- [ ] 破壊的変更の定義をドキュメント化したか
-- [ ] 非推奨化プロセスを策定したか（タイムライン、通知方法）
-- [ ] 並行運用期間を決定したか（最低12ヶ月を推奨）
-- [ ] CHANGELOGの運用ルールを定めたか
-- [ ] バージョン互換性テストをCIに組み込んだか
-- [ ] 利用状況モニタリングの仕組みを構築したか
-- [ ] 移行ガイドのテンプレートを用意したか
-- [ ] APIゲートウェイのバージョンルーティングを設定したか
-- [ ] バージョニングポリシーを公開したか
-- [ ] エンタープライズ向けの長期サポートを検討したか
-- [ ] モバイルアプリ特有のバージョン管理を考慮したか
-
----
-
-## まとめ
-
-このガイドでは以下を学びました:
-
-- APIバージョニングが必要となる理由と、破壊的変更の定義・分類方法
-- URIバージョニング、ヘッダーバージョニング、クエリパラメータ方式の比較と適切な選定基準
-- セマンティックバージョニングを活用した内部バージョン管理とCHANGELOG運用の実践
-- 非推奨化プロセスの設計（告知→並行運用→廃止）とバージョンレス設計（Evolvable API）の考え方
-- APIゲートウェイやマイクロサービス環境でのバージョンルーティングとContract Testingによる互換性自動検証
+- [ ] Has the versioning approach been decided (URI/header/query parameter)?
+- [ ] Has the definition of breaking changes been documented?
+- [ ] Has the deprecation process been defined (timeline, notification method)?
+- [ ] Has the parallel operation period been decided (minimum 12 months recommended)?
+- [ ] Have CHANGELOG operation rules been established?
+- [ ] Have version compatibility tests been incorporated into CI?
+- [ ] Has a usage monitoring mechanism been built?
+- [ ] Has a migration guide template been prepared?
+- [ ] Has the API gateway version routing been configured?
+- [ ] Has the versioning policy been published?
+- [ ] Has long-term support for enterprise customers been considered?
+- [ ] Have mobile app-specific version management considerations been addressed?
 
 ---
 
-## 次に読むべきガイド
-→ [ページネーションとフィルタリング](./03-pagination-and-filtering.md)
+## Summary
+
+This guide covered the following:
+
+- Why API versioning is necessary and how to define and classify breaking changes
+- Comparison of URI versioning, header versioning, and query parameter approaches, and selection criteria
+- Practical internal version management using semantic versioning and CHANGELOG operations
+- Designing the deprecation process (announcement → parallel operation → retirement) and the concept of versionless design (Evolvable API)
+- Version routing in API gateway and microservice environments, and automatic compatibility verification through Contract Testing
 
 ---
 
-## 参考文献
+## What to Read Next
+→ [Pagination and Filtering](./03-pagination-and-filtering.md)
 
-1. Stripe. "API Versioning." stripe.com/docs/api/versioning, 2024. -- 日付ベースバージョニングの代表的実装。全APIコンシューマーが特定の日付バージョンに固定され、明示的にアップグレードしない限り旧挙動が維持される仕組みを詳細に解説している。
+---
 
-2. RFC 8594. "The Sunset HTTP Header Field." IETF, 2019. -- APIエンドポイントの廃止予定日をHTTPヘッダーで通知するための標準仕様。Deprecationヘッダーと組み合わせることで、プログラマティックな非推奨化通知を実現する。
+## References
 
-3. Fielding, Roy Thomas. "Architectural Styles and the Design of Network-based Software Architectures." Doctoral dissertation, University of California, Irvine, 2000. -- RESTアーキテクチャスタイルの原典。コンテンツネゴシエーションの概念がヘッダーバージョニングの理論的基盤となっている。
+1. Stripe. "API Versioning." stripe.com/docs/api/versioning, 2024. -- A representative implementation of date-based versioning. Explains in detail the mechanism by which all API consumers are pinned to a specific date version and old behavior is maintained unless explicitly upgraded.
 
-4. Preston-Werner, Tom. "Semantic Versioning 2.0.0." semver.org, 2013. -- セマンティックバージョニングの仕様書。MAJOR.MINOR.PATCHの各番号が持つ意味と、バージョン番号の比較ルールを定義している。APIバージョニングの内部管理に広く適用される。
+2. RFC 8594. "The Sunset HTTP Header Field." IETF, 2019. -- Standard specification for notifying the planned retirement date of an API endpoint via HTTP header. Enables programmatic deprecation notification when combined with the Deprecation header.
 
-5. Pact Foundation. "Consumer-Driven Contract Testing." docs.pact.io, 2024. -- マイクロサービス間のAPI互換性を自動検証するためのContract Testingフレームワーク。コンシューマーが定義した契約をプロバイダーが満たすことを継続的に検証する手法を詳述している。
+3. Fielding, Roy Thomas. "Architectural Styles and the Design of Network-based Software Architectures." Doctoral dissertation, University of California, Irvine, 2000. -- The origin of the REST architectural style. The concept of content negotiation forms the theoretical foundation of header versioning.
 
-6. Google Cloud. "API Design Guide - Versioning." cloud.google.com/apis/design, 2024. -- Google CloudのAPI設計ガイドにおけるバージョニングセクション。メジャーバージョンのURIパス組み込み、マイナーバージョンの内部管理、互換性維持のルールをGoogleの大規模APIエコシステムの視点から解説している。
+4. Preston-Werner, Tom. "Semantic Versioning 2.0.0." semver.org, 2013. -- The semantic versioning specification. Defines the meaning of each MAJOR.MINOR.PATCH number and the rules for comparing version numbers. Widely applied to internal management of API versions.
 
+5. Pact Foundation. "Consumer-Driven Contract Testing." docs.pact.io, 2024. -- A contract testing framework for automatically verifying API compatibility between microservices. Details how to continuously verify that providers satisfy the contracts defined by consumers.
+
+6. Google Cloud. "API Design Guide - Versioning." cloud.google.com/apis/design, 2024. -- The versioning section in Google Cloud's API design guide. Explains the rules for embedding major versions in URI paths, internal minor version management, and maintaining compatibility from the perspective of Google's large-scale API ecosystem.
