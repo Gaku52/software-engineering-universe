@@ -1,63 +1,63 @@
-# npmパッケージ開発
+# npm Package Development
 
-> npmパッケージの設計から公開までの全工程。package.jsonの設計、ESM/CJSデュアルパッケージ、TypeScript設定、ビルドパイプライン、モノレポ管理、セマンティックバージョニング、公開ワークフローまで、プロフェッショナルなパッケージ開発の全知識を体系的に習得する。
+> Everything you need to know for developing npm packages, from design to publishing. Systematically master all knowledge for professional package development: package.json design, ESM/CJS dual packages, TypeScript configuration, build pipeline, monorepo management, semantic versioning, and publishing workflows.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- [ ] package.jsonの設計原則とexportsフィールドの詳細を理解する
-- [ ] ESM/CJSデュアルパッケージのビルド設定を構築できる
-- [ ] TypeScriptでの型定義生成と公開パターンを把握する
-- [ ] セマンティックバージョニングの判断基準を正しく適用できる
-- [ ] モノレポでの複数パッケージ管理戦略を実践できる
-- [ ] CI/CDと連携した自動公開ワークフローを構築できる
-- [ ] パッケージ品質を測定・改善する指標を活用できる
-
----
-
-## 前提知識
-
-- SDK設計の基本原則 → 参照: [SDK設計](./00-sdk-design.md)
-- Node.jsのモジュールシステム（CommonJS/ESM）の理解
-- TypeScriptの基本的な型定義 → 参照: TypeScript Complete Guide
+- [ ] Understand package.json design principles and the details of the exports field
+- [ ] Build ESM/CJS dual-package build configuration
+- [ ] Grasp type definition generation and publishing patterns in TypeScript
+- [ ] Correctly apply semantic versioning decision criteria
+- [ ] Practice multi-package management strategies in a monorepo
+- [ ] Build an automated publishing workflow integrated with CI/CD
+- [ ] Utilize metrics to measure and improve package quality
 
 ---
 
-## 1. npmパッケージ開発の全体像
+## Prerequisites
 
-npmパッケージの開発は、単にコードを書いてnpm publishするだけの作業ではない。パッケージの設計、ビルド、テスト、バージョニング、公開、保守という一連のライフサイクル全体を適切に管理する必要がある。
+- Basic SDK design principles → See: [SDK Design](./00-sdk-design.md)
+- Understanding of Node.js module systems (CommonJS/ESM)
+- Basic TypeScript type definitions → See: TypeScript Complete Guide
+
+---
+
+## 1. Overview of npm Package Development
+
+Developing an npm package is not simply a matter of writing code and running npm publish. You need to properly manage the entire lifecycle: package design, build, testing, versioning, publishing, and maintenance.
 
 ```
-npmパッケージ開発ライフサイクル:
+npm Package Development Lifecycle:
 
   +----------+     +----------+     +----------+     +----------+
-  |  設計    | --> |  実装    | --> |  ビルド  | --> |  テスト  |
+  |  Design  | --> |  Impl.   | --> |  Build   | --> |  Test    |
   | package  |     | src/     |     | tsup/    |     | vitest/  |
   | .json    |     | TypeScript|    | rollup   |     | jest     |
   +----------+     +----------+     +----------+     +----------+
        ^                                                   |
        |                                                   v
   +----------+     +----------+     +----------+     +----------+
-  |  保守    | <-- |  監視    | <-- |  公開    | <-- | バージョ |
-  | issue/   |     | download |     | npm      |     | ニング   |
-  | PR対応   |     | stats    |     | publish  |     | semver   |
+  | Maintain | <-- | Monitor  | <-- | Publish  | <-- | Version  |
+  | issue/   |     | download |     | npm      |     | semver   |
+  | PR resp. |     | stats    |     | publish  |     |          |
   +----------+     +----------+     +----------+     +----------+
 
-  各フェーズの所要時間（中規模パッケージの場合）:
-    設計:        数時間〜数日
-    実装:        数日〜数週間
-    ビルド設定:  数時間
-    テスト:      継続的
-    バージョニング: PR単位で記録
-    公開:        自動化により数分
-    保守:        継続的
+  Estimated time per phase (for a medium-sized package):
+    Design:         Hours to days
+    Implementation: Days to weeks
+    Build setup:    Hours
+    Testing:        Ongoing
+    Versioning:     Recorded per PR
+    Publishing:     Minutes with automation
+    Maintenance:    Ongoing
 ```
 
-### 1.1 npmレジストリの基本概念
+### 1.1 Basic Concepts of the npm Registry
 
-npmレジストリは世界最大のソフトウェアレジストリであり、200万以上のパッケージが登録されている。パッケージ公開者として理解すべき基本概念を整理する。
+The npm registry is the world's largest software registry, with over 2 million packages registered. Here are the fundamental concepts a package publisher should understand.
 
 ```
-npmレジストリの構造:
+npm Registry Structure:
 
   +---------------------------+
   |     npm Registry          |
@@ -66,51 +66,51 @@ npmレジストリの構造:
   |                           |
   |  Scoped Packages          |
   |  @scope/package-name      |
-  |  例: @example/sdk         |
+  |  e.g.: @example/sdk       |
   |                           |
   |  Unscoped Packages        |
   |  package-name             |
-  |  例: express              |
+  |  e.g.: express            |
   |                           |
   |  Tags (dist-tags):        |
-  |    latest  → 安定版       |
-  |    next    → 次期版       |
-  |    beta    → ベータ版     |
-  |    canary  → カナリア版   |
+  |    latest  → stable       |
+  |    next    → upcoming     |
+  |    beta    → beta         |
+  |    canary  → canary       |
   |                           |
   +---------------------------+
 
-  パッケージの命名規則:
-    - 214文字以下
-    - 小文字のみ（大文字不可）
-    - ハイフン・ドット・アンダースコア使用可
-    - スコープ: @org/name 形式
-    - 既存パッケージ名との類似に注意
-      （typosquatting 防止）
+  Package naming conventions:
+    - Up to 214 characters
+    - Lowercase only (no uppercase)
+    - Hyphens, dots, underscores allowed
+    - Scope: @org/name format
+    - Beware of similarity to existing package names
+      (typosquatting prevention)
 ```
 
-### 1.2 パッケージの種類と設計判断
+### 1.2 Package Types and Design Decisions
 
-パッケージを開発する前に、その種類と想定される利用形態を明確にする。
+Before developing a package, clearly define its type and intended usage.
 
-| パッケージ種類 | 特徴 | 例 | 依存方針 |
-|---------------|------|-----|---------|
-| ライブラリ | 汎用的な関数群 | lodash, date-fns | ゼロ依存が理想 |
-| SDK | API クライアント | @aws-sdk/client-s3 | 最小限の依存 |
-| CLIツール | コマンドラインツール | eslint, prettier | 必要な依存を許容 |
-| フレームワーク | アプリ構築基盤 | express, fastify | プラグイン設計 |
-| プラグイン | 既存ツールの拡張 | eslint-plugin-xxx | peerDependencies |
-| 型定義 | TypeScript型のみ | @types/xxx | ゼロ依存 |
-| ユーティリティ | 小さなヘルパー | is-odd, left-pad | ゼロ依存 |
-| モノレポパッケージ | 複数パッケージの集合 | @babel/xxx | 内部依存のみ |
+| Package Type | Characteristics | Examples | Dependency Policy |
+|-------------|----------------|---------|-------------------|
+| Library | General-purpose function collection | lodash, date-fns | Zero dependencies is ideal |
+| SDK | API client | @aws-sdk/client-s3 | Minimal dependencies |
+| CLI tool | Command-line tool | eslint, prettier | Necessary dependencies allowed |
+| Framework | Application foundation | express, fastify | Plugin design |
+| Plugin | Extension of existing tools | eslint-plugin-xxx | peerDependencies |
+| Type definitions | TypeScript types only | @types/xxx | Zero dependencies |
+| Utility | Small helpers | is-odd, left-pad | Zero dependencies |
+| Monorepo package | Collection of packages | @babel/xxx | Internal dependencies only |
 
 ---
 
-## 2. package.json 完全設計ガイド
+## 2. Complete package.json Design Guide
 
-package.jsonはnpmパッケージの心臓部であり、パッケージのメタデータ、依存関係、エントリポイント、スクリプト、公開設定など、あらゆる情報を定義する。
+package.json is the heart of an npm package, defining all information including metadata, dependencies, entry points, scripts, and publishing settings.
 
-### 2.1 フルスペック package.json
+### 2.1 Full-spec package.json
 
 ```json
 {
@@ -245,50 +245,50 @@ package.jsonはnpmパッケージの心臓部であり、パッケージのメ�
 }
 ```
 
-### 2.2 exportsフィールドの詳細解説
+### 2.2 Detailed Explanation of the exports Field
 
-`exports`フィールドはNode.js 12.7.0で導入され、パッケージのエントリポイントを厳密に制御する最も重要な設定である。
+The `exports` field was introduced in Node.js 12.7.0 and is the most important setting for strictly controlling a package's entry points.
 
 ```
-exports の条件解決フロー:
+exports condition resolution flow:
 
   import { Client } from '@example/sdk'
        |
        v
-  exports["."] を参照
+  Look up exports["."]
        |
-       +-- ESM (import文) で読み込み?
+       +-- Loading with ESM (import statement)?
        |     |
-       |     +-- "import" 条件にマッチ
+       |     +-- Matches "import" condition
        |           |
-       |           +-- TypeScript? → "types" を参照
+       |           +-- TypeScript? → refer to "types"
        |           |     → ./dist/index.d.ts
        |           |
-       |           +-- ランタイム → "default" を参照
+       |           +-- Runtime → refer to "default"
        |                 → ./dist/index.js
        |
-       +-- CJS (require) で読み込み?
+       +-- Loading with CJS (require)?
              |
-             +-- "require" 条件にマッチ
+             +-- Matches "require" condition
                    |
-                   +-- TypeScript? → "types" を参照
+                   +-- TypeScript? → refer to "types"
                    |     → ./dist/index.d.cts
                    |
-                   +-- ランタイム → "default" を参照
+                   +-- Runtime → refer to "default"
                          → ./dist/index.cjs
 
-  条件の優先順位（上から順に評価）:
-    1. "types"     → TypeScript型解決
-    2. "import"    → ESM環境
-    3. "require"   → CJS環境
-    4. "node"      → Node.js環境
-    5. "browser"   → ブラウザ環境
-    6. "default"   → フォールバック
+  Condition priority order (evaluated top to bottom):
+    1. "types"     → TypeScript type resolution
+    2. "import"    → ESM environment
+    3. "require"   → CJS environment
+    4. "node"      → Node.js environment
+    5. "browser"   → Browser environment
+    6. "default"   → Fallback
 
-  重要: "types" は必ず各条件ブロックの最初に置く
+  Important: "types" must always be placed first in each condition block
 ```
 
-#### サブパスexportsのパターン
+#### Subpath Exports Patterns
 
 ```json
 {
@@ -305,161 +305,161 @@ exports の条件解決フロー:
 }
 ```
 
-サブパスexportsの設計で重要なのは、内部モジュールへの直接アクセスを防ぐことである。`"./internal/*": null`のように明示的にnullを指定することで、`@example/sdk/internal/secret`のようなインポートをエラーにできる。
+The important thing in designing subpath exports is to prevent direct access to internal modules. By explicitly specifying null as `"./internal/*": null`, imports like `@example/sdk/internal/secret` will result in an error.
 
-### 2.3 依存関係フィールドの使い分け
+### 2.3 Using Dependency Fields Correctly
 
 ```
-依存関係フィールドの判断フローチャート:
+Dependency field decision flowchart:
 
-  このモジュールは...
+  This module is...
        |
-       +-- ランタイムで必要?
+       +-- Required at runtime?
        |     |
-       |     +-- バンドルに含める? → dependencies
+       |     +-- Bundle it in? → dependencies
        |     |
-       |     +-- 利用者が用意? → peerDependencies
+       |     +-- Provided by user? → peerDependencies
        |           |
-       |           +-- 無くても動く? → peerDependenciesMeta
+       |           +-- Works without it? → peerDependenciesMeta
        |                               { "optional": true }
        |
-       +-- ビルド・テストのみ? → devDependencies
+       +-- Only for build/test? → devDependencies
        |
-       +-- バンドル済みで配布? → bundleDependencies
+       +-- Distributed bundled? → bundleDependencies
        |
-       +-- 代替パッケージ? → optionalDependencies
+       +-- Alternative package? → optionalDependencies
 ```
 
-| フィールド | 用途 | npm install時 | 具体例 |
-|-----------|------|---------------|-------|
-| dependencies | ランタイム必須 | インストールされる | zod, jose |
-| devDependencies | 開発時のみ | 利用者にはインストールされない | vitest, tsup, eslint |
-| peerDependencies | 利用者が提供 | npm 7+で自動インストール | react, vue |
-| peerDependenciesMeta | peerの詳細設定 | optional指定等 | - |
-| optionalDependencies | あれば使う | 失敗しても続行 | fsevents |
-| bundleDependencies | バンドル同梱 | tarballに含まれる | - |
-| overrides | バージョン強制 | 推移的依存を上書き | セキュリティ修正 |
+| Field | Purpose | At npm install time | Examples |
+|-------|---------|--------------------|---------| 
+| dependencies | Required at runtime | Installed | zod, jose |
+| devDependencies | Development only | Not installed for users | vitest, tsup, eslint |
+| peerDependencies | Provided by user | Auto-installed in npm 7+ | react, vue |
+| peerDependenciesMeta | peerDep detailed config | optional settings, etc. | - |
+| optionalDependencies | Use if available | Continue on failure | fsevents |
+| bundleDependencies | Bundled together | Included in tarball | - |
+| overrides | Force version | Override transitive deps | Security fixes |
 
-### 2.4 scriptsフィールドのベストプラクティス
+### 2.4 Best Practices for the scripts Field
 
-npmスクリプトはパッケージ開発における自動化の中核を担う。ライフサイクルスクリプトとカスタムスクリプトを適切に活用する。
+npm scripts are the core of automation in package development. Properly utilize lifecycle scripts and custom scripts.
 
 ```
-npm ライフサイクルスクリプトの実行順序:
+npm lifecycle script execution order:
 
-  npm publish 実行時:
+  When running npm publish:
     prepublishOnly → prepare → prepack → postpack → publish → postpublish
 
-  npm install 実行時（依存として）:
+  When running npm install (as a dependency):
     preinstall → install → postinstall → prepare
 
-  npm test 実行時:
+  When running npm test:
     pretest → test → posttest
 
-  推奨するライフサイクルスクリプト:
-    "prepare":        ビルド（git clone後に自動実行）
-    "prepublishOnly": テスト + 型チェック + ビルド
-    "prepack":        package.json のクリーンアップ
+  Recommended lifecycle scripts:
+    "prepare":        Build (auto-runs after git clone)
+    "prepublishOnly": Test + type check + build
+    "prepack":        package.json cleanup
 
-  避けるべきスクリプト:
-    "postinstall":    セキュリティリスク（任意コード実行）
-    "preinstall":     同上
+  Scripts to avoid:
+    "postinstall":    Security risk (arbitrary code execution)
+    "preinstall":     Same risk
 ```
 
 ---
 
-## 3. ESM/CJSデュアルパッケージ構築
+## 3. Building ESM/CJS Dual Packages
 
-### 3.1 なぜデュアルパッケージが必要か
+### 3.1 Why Are Dual Packages Necessary?
 
-Node.jsのモジュールシステムはESM（ECMAScript Modules）とCJS（CommonJS）の2つが共存している。2025年現在でもCJS環境を使うプロジェクトは多数存在し、パッケージ作者は両方のフォーマットを提供する必要がある。
+Node.js has two module systems coexisting: ESM (ECMAScript Modules) and CJS (CommonJS). Even as of 2025, many projects still use CJS environments, and package authors need to provide both formats.
 
 ```
-Node.js モジュールシステムの歴史と現状:
+History and current state of the Node.js module system:
 
-  2009  Node.js誕生 → CJS (require/module.exports)
-  2015  ES2015仕様 → ESM 仕様策定 (import/export)
-  2017  Node.js 8   → ESM 実験的サポート（--experimental-modules）
-  2019  Node.js 12  → exports フィールド導入
-  2020  Node.js 14  → ESM 安定版サポート
+  2009  Node.js born → CJS (require/module.exports)
+  2015  ES2015 spec → ESM spec finalized (import/export)
+  2017  Node.js 8   → ESM experimental support (--experimental-modules)
+  2019  Node.js 12  → exports field introduced
+  2020  Node.js 14  → ESM stable support
   2021  Node.js 16  → package.json "type": "module"
-  2023  Node.js 20  → require(esm) 実験的サポート
-  2024  Node.js 22  → require(esm) 安定化開始
+  2023  Node.js 20  → require(esm) experimental support
+  2024  Node.js 22  → require(esm) stabilization begins
 
-  現在のエコシステム状況:
-    ESMのみ:     新しいフレームワーク（Nuxt 3, SvelteKit等）
-    CJSのみ:     レガシープロジェクト、一部のツール
-    デュアル:     ほとんどの広く使われるパッケージ
-    → パッケージ作者はデュアル対応が推奨される
+  Current ecosystem state:
+    ESM only:   New frameworks (Nuxt 3, SvelteKit, etc.)
+    CJS only:   Legacy projects, some tools
+    Dual:       Most widely-used packages
+    → Dual support is recommended for package authors
 ```
 
-### 3.2 tsupによるビルド設定
+### 3.2 Build Configuration with tsup
 
-tsupはesbuildベースの高速バンドラーで、ESM/CJSデュアルパッケージの構築に最適なツールである。
+tsup is an esbuild-based fast bundler and the optimal tool for building ESM/CJS dual packages.
 
 ```typescript
-// tsup.config.ts - 基本設定
+// tsup.config.ts - basic configuration
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  // エントリポイント
+  // Entry points
   entry: [
     'src/index.ts',
     'src/users/index.ts',
     'src/billing/index.ts',
   ],
 
-  // 出力フォーマット
+  // Output formats
   format: ['esm', 'cjs'],
 
-  // 型定義ファイルの生成
+  // Generate type definition files
   dts: true,
 
-  // コード分割（ESMのみ有効）
+  // Code splitting (only effective for ESM)
   splitting: true,
 
-  // ソースマップ
+  // Source maps
   sourcemap: true,
 
-  // ビルド前にdistをクリーンアップ
+  // Clean dist before build
   clean: true,
 
-  // minify設定（SDKはminifyしない）
+  // Minify settings (SDKs should not be minified)
   minify: false,
 
-  // ターゲット環境
+  // Target environment
   target: 'es2022',
 
-  // 出力ディレクトリ
+  // Output directory
   outDir: 'dist',
 
-  // 外部依存（バンドルしない）
+  // External dependencies (not bundled)
   external: [],
 
-  // バナー（ライセンスヘッダー等）
+  // Banner (license header, etc.)
   banner: {
     js: '/* @example/sdk - MIT License */',
   },
 
-  // shims（import.meta.url等のCJS互換）
+  // Shims (CJS compatibility for import.meta.url, etc.)
   shims: true,
 
-  // 環境変数の定義
+  // Environment variable definitions
   define: {
     'process.env.SDK_VERSION': JSON.stringify('1.0.0'),
   },
 
-  // ビルド後のフック
+  // Post-build hook
   onSuccess: 'echo "Build completed successfully"',
 });
 ```
 
 ```typescript
-// tsup.config.ts - 高度な設定（環境別ビルド）
+// tsup.config.ts - advanced configuration (per-environment builds)
 import { defineConfig } from 'tsup';
 
 export default defineConfig([
-  // Node.js向けビルド
+  // Node.js build
   {
     entry: ['src/index.ts'],
     format: ['esm', 'cjs'],
@@ -472,7 +472,7 @@ export default defineConfig([
     sourcemap: true,
     external: ['ws'],
   },
-  // ブラウザ向けビルド
+  // Browser build
   {
     entry: ['src/index.browser.ts'],
     format: ['esm'],
@@ -483,61 +483,61 @@ export default defineConfig([
     globalName: 'ExampleSDK',
     minify: true,
     sourcemap: true,
-    noExternal: [/.*/],  // 全依存をバンドル
+    noExternal: [/.*/],  // Bundle all dependencies
   },
 ]);
 ```
 
-### 3.3 ビルドツール比較
+### 3.3 Build Tool Comparison
 
-| 観点 | tsup | rollup | esbuild | tsc | unbuild |
-|------|------|--------|---------|-----|---------|
-| ビルド速度 | 非常に速い | 普通 | 最速 | 遅い | 速い |
-| ESM+CJS出力 | 1コマンド | プラグイン必要 | 設定必要 | 別々にビルド | 1コマンド |
-| 型定義生成 | 内蔵 | プラグイン必要 | 非対応 | 内蔵 | 内蔵 |
-| Tree-shaking | 良好 | 最良 | 良好 | なし | 良好 |
-| 設定の簡潔さ | 非常に簡潔 | 複雑 | 簡潔 | 中程度 | 簡潔 |
-| プラグイン | esbuild互換 | 豊富 | 限定的 | なし | rollup互換 |
-| ユースケース | SDK/ライブラリ | 大規模ライブラリ | 速度重視 | 型チェック | モノレポ |
-| 推奨度 | 高（汎用） | 高（大規模） | 中 | 低（ビルド用途） | 高（モノレポ） |
+| Aspect | tsup | rollup | esbuild | tsc | unbuild |
+|--------|------|--------|---------|-----|---------|
+| Build speed | Very fast | Average | Fastest | Slow | Fast |
+| ESM+CJS output | 1 command | Requires plugins | Config needed | Build separately | 1 command |
+| Type generation | Built-in | Requires plugin | Not supported | Built-in | Built-in |
+| Tree-shaking | Good | Best | Good | None | Good |
+| Config simplicity | Very simple | Complex | Simple | Moderate | Simple |
+| Plugins | esbuild-compatible | Rich | Limited | None | rollup-compatible |
+| Use case | SDK/Library | Large-scale library | Speed-focused | Type checking | Monorepo |
+| Recommendation | High (general) | High (large-scale) | Medium | Low (for builds) | High (monorepo) |
 
-### 3.4 Dual Package Hazard（二重パッケージ問題）
+### 3.4 Dual Package Hazard
 
-ESMとCJSの両方を提供する場合、同じパッケージがESMとCJSの両方として読み込まれ、シングルトンが2つ作られる「Dual Package Hazard」に注意が必要である。
+When providing both ESM and CJS, be careful of the "Dual Package Hazard," where the same package gets loaded as both ESM and CJS, creating two singleton instances.
 
 ```
-Dual Package Hazard の発生パターン:
+Dual Package Hazard occurrence pattern:
 
   App (ESM)
     |
     +-- import { Client } from '@example/sdk'
-    |     → dist/index.js (ESM版) をロード
-    |     → Client のインスタンスを作成
+    |     → loads dist/index.js (ESM version)
+    |     → creates a Client instance
     |
-    +-- require('@example/sdk') （CJS依存経由）
-          → dist/index.cjs (CJS版) をロード
-          → 別の Client クラスがロードされる
-          → instanceof チェックが失敗する!
+    +-- require('@example/sdk') (via CJS dependency)
+          → loads dist/index.cjs (CJS version)
+          → a different Client class is loaded
+          → instanceof check fails!
 
-  対策:
-    1. ステートレスな設計にする（推奨）
-       → グローバル状態を持たない
-       → instanceof ではなくダックタイピング
+  Countermeasures:
+    1. Stateless design (recommended)
+       → Don't hold global state
+       → Duck typing instead of instanceof
 
-    2. CJS版をESM版のラッパーにする
+    2. Make the CJS version a wrapper for the ESM version
        // dist/index.cjs
        module.exports = require('./index.js');
-       → ただし動的 import が必要
+       → But this requires dynamic import
 
-    3. package.json で "type": "module" を設定し、
-       CJS利用者には明示的にラッパーを提供
+    3. Set "type": "module" in package.json,
+       and provide an explicit wrapper for CJS users
 ```
 
 ---
 
-## 4. TypeScript設定の詳細
+## 4. TypeScript Configuration in Detail
 
-### 4.1 パッケージ開発用 tsconfig.json
+### 4.1 tsconfig.json for Package Development
 
 ```json
 {
@@ -575,40 +575,40 @@ Dual Package Hazard の発生パターン:
 }
 ```
 
-### 4.2 重要なTypeScriptコンパイラオプション解説
+### 4.2 Key TypeScript Compiler Options Explained
 
 ```
-moduleResolution の選択ガイド:
+moduleResolution selection guide:
 
-  "bundler"（推奨: tsup/rollup使用時）
-    → import './foo' で .ts ファイルを解決
-    → exports フィールドを正しく解釈
-    → 拡張子なしインポートが可能
+  "bundler" (recommended when using tsup/rollup)
+    → Resolves .ts files with import './foo'
+    → Correctly interprets the exports field
+    → Extension-less imports are allowed
 
-  "node16" / "nodenext"（推奨: tsc直接使用時）
-    → Node.js のモジュール解決に完全準拠
-    → .js 拡張子が必須
-    → exports フィールドを正しく解釈
+  "node16" / "nodenext" (recommended when using tsc directly)
+    → Fully conforms to Node.js module resolution
+    → .js extension is required
+    → Correctly interprets the exports field
 
-  "node"（非推奨）
-    → レガシーな解決方式
-    → exports フィールドを無視する場合がある
+  "node" (not recommended)
+    → Legacy resolution method
+    → May ignore the exports field
 
-  verbatimModuleSyntax: true（推奨）
-    → import type { Foo } の明示が必須
-    → 型のみのインポートを正しく区別
-    → ビルド時の不要なインポート除去が確実
+  verbatimModuleSyntax: true (recommended)
+    → Explicit import type { Foo } is required
+    → Correctly distinguishes type-only imports
+    → Ensures unnecessary imports are removed at build time
 ```
 
-### 4.3 型定義ファイルの品質管理
+### 4.3 Type Definition File Quality Management
 
-型定義の品質はパッケージのユーザー体験に直結する。TypeScriptユーザーにとって、型定義はドキュメントそのものである。
+Type definition quality directly affects the user experience of a package. For TypeScript users, type definitions are the documentation itself.
 
 ```typescript
-// src/types.ts - 丁寧な型定義の例
+// src/types.ts - example of careful type definitions
 
 /**
- * SDK クライアントの設定オプション。
+ * SDK client configuration options.
  *
  * @example
  * ```typescript
@@ -621,131 +621,131 @@ moduleResolution の選択ガイド:
  */
 export interface ClientOptions {
   /**
-   * APIキー。環境変数 `EXAMPLE_API_KEY` からも読み取り可能。
+   * API key. Can also be read from the `EXAMPLE_API_KEY` environment variable.
    * @see https://example.com/docs/authentication
    */
   apiKey: string;
 
   /**
-   * APIのベースURL。デフォルトは `https://api.example.com/v1`。
+   * API base URL. Defaults to `https://api.example.com/v1`.
    * @default "https://api.example.com/v1"
    */
   baseURL?: string;
 
   /**
-   * リクエストのタイムアウト（ミリ秒）。
+   * Request timeout in milliseconds.
    * @default 30000
    */
   timeout?: number;
 
   /**
-   * リトライの最大回数。0 でリトライ無効。
+   * Maximum number of retries. Set to 0 to disable retries.
    * @default 3
    */
   maxRetries?: number;
 
   /**
-   * カスタムfetch関数。テスト時のモック注入等に使用。
+   * Custom fetch function. Used for mock injection in tests.
    */
   fetch?: typeof globalThis.fetch;
 
   /**
-   * カスタムヘッダー。全リクエストに付与される。
+   * Custom headers. Applied to all requests.
    */
   defaultHeaders?: Record<string, string>;
 }
 
 /**
- * ページネーションされたレスポンスの共通型。
- * @typeParam T - リスト内の要素の型
+ * Common type for paginated responses.
+ * @typeParam T - Type of elements in the list
  */
 export interface PaginatedResponse<T> {
-  /** データの配列 */
+  /** Array of data */
   data: T[];
-  /** 次のページが存在するか */
+  /** Whether the next page exists */
   hasMore: boolean;
-  /** 次ページ取得用のカーソル */
+  /** Cursor for fetching the next page */
   cursor?: string;
-  /** 結果の総数（取得可能な場合） */
+  /** Total count of results (if available) */
   totalCount?: number;
 }
 
 /**
- * APIエラーレスポンスの型。
+ * Type for API error responses.
  */
 export interface APIError {
-  /** エラーコード（例: "NOT_FOUND", "RATE_LIMITED"） */
+  /** Error code (e.g., "NOT_FOUND", "RATE_LIMITED") */
   code: string;
-  /** 人間が読めるエラーメッセージ */
+  /** Human-readable error message */
   message: string;
-  /** エラーの詳細情報 */
+  /** Detailed error information */
   details?: Record<string, unknown>;
-  /** リクエストID（サポート問い合わせ時に使用） */
+  /** Request ID (used for support inquiries) */
   requestId?: string;
 }
 ```
 
 ---
 
-## 5. ゼロ依存設計の原則と実践
+## 5. Zero-Dependency Design Principles and Practice
 
-### 5.1 なぜゼロ依存を目指すのか
+### 5.1 Why Aim for Zero Dependencies?
 
 ```
-依存の数とリスクの関係:
+Relationship between dependency count and risk:
 
-  依存 0個:  リスク最小 ████
-  依存 1-3個: リスク低   ████████
-  依存 4-10個: リスク中  ████████████████
-  依存 10+個: リスク高   ████████████████████████████
+  0 deps:    Risk minimum ████
+  1-3 deps:  Risk low     ████████
+  4-10 deps: Risk medium  ████████████████
+  10+ deps:  Risk high    ████████████████████████████
 
-  主なリスク:
-    1. サプライチェーン攻撃
-       → 依存パッケージが乗っ取られる
-       → event-stream事件（2018年）が有名
-       → 推移的依存まで含めると影響範囲が巨大
+  Main risks:
+    1. Supply chain attacks
+       → A dependency package is taken over
+       → The event-stream incident (2018) is a famous example
+       → Impact scope is huge when transitive dependencies are included
 
-    2. バージョン競合
-       → 利用者の他の依存とバージョンが衝突
-       → node_modules の肥大化
-       → デバッグが困難
+    2. Version conflicts
+       → Version clashes with user's other dependencies
+       → Bloating of node_modules
+       → Difficult to debug
 
-    3. メンテナンス負荷
-       → 依存のアップデート対応
-       → 非推奨化への追従
-       → ライセンス互換性の確認
+    3. Maintenance burden
+       → Responding to dependency updates
+       → Keeping up with deprecations
+       → Verifying license compatibility
 
-    4. バンドルサイズ増加
-       → Tree-shakingが効かない依存
-       → 利用者のアプリサイズに影響
+    4. Bundle size increase
+       → Dependencies that Tree-shaking can't eliminate
+       → Affects users' application size
 ```
 
-### 5.2 Node.js 組み込みAPIによる代替
+### 5.2 Alternatives Using Node.js Built-in APIs
 
 ```typescript
-// ゼロ依存で実現するユーティリティ集
+// Utility collection with zero dependencies
 
-// --- UUID生成（uuid パッケージ不要） ---
+// --- UUID generation (no need for uuid package) ---
 function generateId(): string {
   return crypto.randomUUID();
 }
 
-// --- ディープクローン（lodash.cloneDeep 不要） ---
+// --- Deep clone (no need for lodash.cloneDeep) ---
 function deepClone<T>(obj: T): T {
   return structuredClone(obj);
 }
 
-// --- クエリ文字列（qs パッケージ不要） ---
+// --- Query string (no need for qs package) ---
 function buildQueryString(params: Record<string, string>): string {
   return new URLSearchParams(params).toString();
 }
 
-// --- Base64エンコード（buffer パッケージ不要） ---
+// --- Base64 encoding (no need for buffer package) ---
 function toBase64(str: string): string {
   return btoa(str);
 }
 
-// --- SHA-256ハッシュ（crypto-js パッケージ不要） ---
+// --- SHA-256 hash (no need for crypto-js package) ---
 async function sha256(message: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(message);
@@ -755,7 +755,7 @@ async function sha256(message: string): Promise<string> {
     .join('');
 }
 
-// --- リトライ（p-retry パッケージ不要） ---
+// --- Retry (no need for p-retry package) ---
 async function withRetry<T>(
   fn: () => Promise<T>,
   options: { maxRetries: number; baseDelay: number } = {
@@ -779,7 +779,7 @@ async function withRetry<T>(
   throw lastError;
 }
 
-// --- タイムアウト付きfetch（node-fetch 不要、Node.js 18+） ---
+// --- fetch with timeout (no need for node-fetch, Node.js 18+) ---
 async function fetchWithTimeout(
   url: string,
   options: RequestInit & { timeout?: number } = {},
@@ -799,129 +799,129 @@ async function fetchWithTimeout(
 }
 ```
 
-### 5.3 依存が許容されるケース
+### 5.3 Cases Where Dependencies Are Acceptable
 
-| カテゴリ | パッケージ例 | 理由 |
-|---------|-------------|------|
-| 暗号・認証 | jose, @noble/hashes | セキュリティ実装は専門家のコードを使うべき |
-| Protocol Buffers | protobuf.js | プロトコル仕様の実装が複雑 |
-| WebSocket (Node.js) | ws | Node.js組み込みが不十分 |
-| 圧縮 | fflate | WASM実装でパフォーマンスが重要 |
-| バリデーション | zod | 型推論との統合が複雑 |
+| Category | Example Packages | Reason |
+|---------|----------------|--------|
+| Cryptography / Auth | jose, @noble/hashes | Security implementations should use expert code |
+| Protocol Buffers | protobuf.js | Protocol spec implementation is complex |
+| WebSocket (Node.js) | ws | Node.js built-in is insufficient |
+| Compression | fflate | WASM implementation is important for performance |
+| Validation | zod | Integration with type inference is complex |
 
 ---
 
-## 6. セマンティックバージョニング詳細
+## 6. Semantic Versioning in Detail
 
-### 6.1 SemVerの3つの数字
+### 6.1 The 3 Numbers in SemVer
 
 ```
 SemVer: MAJOR.MINOR.PATCH
 
-  MAJOR（破壊的変更）: 1.0.0 → 2.0.0
-    具体例:
-    - 公開メソッドの削除またはリネーム
-    - 引数の型変更（string → number）
-    - 必須パラメータの追加
-    - デフォルト動作の変更
-    - 最小Node.jsバージョンの引き上げ
-    - 例外の型変更
+  MAJOR (breaking changes): 1.0.0 → 2.0.0
+    Examples:
+    - Deletion or renaming of public methods
+    - Argument type changes (string → number)
+    - Adding required parameters
+    - Changing default behavior
+    - Raising minimum Node.js version
+    - Changing exception types
 
-  MINOR（後方互換の機能追加）: 1.0.0 → 1.1.0
-    具体例:
-    - 新しいメソッド・クラスの追加
-    - オプショナルパラメータの追加
-    - 新しいイベントの追加
-    - 新しいエクスポートの追加
-    - 非推奨マーキング（@deprecated）
+  MINOR (backward-compatible feature additions): 1.0.0 → 1.1.0
+    Examples:
+    - Adding new methods/classes
+    - Adding optional parameters
+    - Adding new events
+    - Adding new exports
+    - Adding deprecation marking (@deprecated)
 
-  PATCH（バグ修正）: 1.0.0 → 1.0.1
-    具体例:
-    - バグ修正
-    - パフォーマンス改善
-    - ドキュメントの修正
-    - devDependenciesの更新
-    - 内部リファクタリング（外部挙動は変わらない）
+  PATCH (bug fixes): 1.0.0 → 1.0.1
+    Examples:
+    - Bug fixes
+    - Performance improvements
+    - Documentation fixes
+    - Updating devDependencies
+    - Internal refactoring (no external behavior change)
 
-  プレリリース:
-    1.0.0-alpha.1   → 初期テスト版（APIが不安定）
-    1.0.0-beta.1    → 機能完成版（バグ修正中）
-    1.0.0-rc.1      → リリース候補（重大バグのみ修正）
+  Pre-release:
+    1.0.0-alpha.1   → Early test version (API unstable)
+    1.0.0-beta.1    → Feature-complete (fixing bugs)
+    1.0.0-rc.1      → Release candidate (critical bugs only)
 ```
 
-### 6.2 バージョン判断のグレーゾーン
+### 6.2 Gray Areas in Versioning Decisions
 
 ```
-判断が難しいケース:
+Hard-to-decide cases:
 
-  Q: TypeScriptの型を厳密化した（anyをstringに変更）
-  A: → MINOR（型の厳密化は利用者のコードを壊す可能性）
-     → ただし、明らかなバグ修正ならPATCH
+  Q: Made TypeScript types more strict (changed any to string)
+  A: → MINOR (stricter types may break user code)
+     → But if it's clearly a bug fix, PATCH
 
-  Q: エラーメッセージを変更した
-  A: → PATCH（エラーメッセージは公開APIではない）
-     → ただし、正規表現でパースしている利用者がいる可能性
+  Q: Changed an error message
+  A: → PATCH (error messages are not public API)
+     → But some users may be parsing with regex
 
-  Q: パフォーマンスを大幅に改善した
-  A: → PATCH（外部動作は変わらない）
-     → ただし、メモリ使用量の変化で影響がある場合はMINOR
+  Q: Significantly improved performance
+  A: → PATCH (no change in external behavior)
+     → But MINOR if memory usage changes cause impact
 
-  Q: Node.js 16のサポートを終了した
-  A: → MAJOR（利用者の環境を制限する変更）
+  Q: Dropped support for Node.js 16
+  A: → MAJOR (restricts user environments)
 
-  Q: 新しいオプションを追加し、デフォルト値を設定した
-  A: → MINOR（既存コードは変更なしで動く）
-     → ただし、デフォルト値が既存の動作を変える場合はMAJOR
+  Q: Added a new option with a default value set
+  A: → MINOR (existing code works without changes)
+     → But MAJOR if the default changes existing behavior
 ```
 
-### 6.3 Changesetsによるバージョン管理
+### 6.3 Version Management with Changesets
 
 ```bash
-# Changesets の初期設定
+# Initial setup of Changesets
 npx changeset init
-# → .changeset/ ディレクトリが作成される
+# → .changeset/ directory is created
 
-# 変更を記録（PRごとに実行）
+# Record a change (run per PR)
 npx changeset
-# インタラクティブに:
-#   1. 変更があるパッケージを選択
-#   2. 変更の種類を選択（major / minor / patch）
-#   3. 変更の説明を記入
+# Interactively:
+#   1. Select the packages with changes
+#   2. Select the type of change (major / minor / patch)
+#   3. Write a description of the change
 
-# バージョンアップ + CHANGELOG 更新
+# Version bump + CHANGELOG update
 npx changeset version
-# → package.json の version が更新される
-# → CHANGELOG.md が自動生成される
+# → package.json version is updated
+# → CHANGELOG.md is auto-generated
 
-# npm に公開
+# Publish to npm
 npx changeset publish
-# → npm publish が実行される
-# → git tag が作成される
+# → npm publish is executed
+# → git tag is created
 ```
 
 ```
-.changeset/ ディレクトリ構造:
+.changeset/ directory structure:
 
   .changeset/
-  ├── config.json           ← Changesets の設定
-  ├── README.md             ← 説明
-  ├── brave-fans-dance.md   ← 変更記録1（ランダム名）
-  └── shy-maps-grin.md      ← 変更記録2
+  ├── config.json           ← Changesets configuration
+  ├── README.md             ← Description
+  ├── brave-fans-dance.md   ← Change record 1 (random name)
+  └── shy-maps-grin.md      ← Change record 2
 
-  変更記録ファイルの例（brave-fans-dance.md）:
+  Example change record file (brave-fans-dance.md):
   ---
   "@example/sdk": minor
   ---
 
-  ユーザー管理APIにバッチ取得メソッドを追加。
-  `client.users.list()` で最大100件の一括取得が可能。
+  Added batch fetch method to the user management API.
+  Up to 100 items can be fetched at once with `client.users.list()`.
 ```
 
 ---
 
-## 7. テスト戦略
+## 7. Test Strategy
 
-### 7.1 テスト設定
+### 7.1 Test Configuration
 
 ```typescript
 // vitest.config.ts
@@ -940,7 +940,7 @@ export default defineConfig({
         'src/**/*.test.ts',
         'src/**/*.spec.ts',
         'src/**/types.ts',
-        'src/**/index.ts',  // re-exports のみのファイル
+        'src/**/index.ts',  // Files with re-exports only
       ],
       thresholds: {
         branches: 80,
@@ -955,7 +955,7 @@ export default defineConfig({
 });
 ```
 
-### 7.2 MSWを使ったHTTPモックテスト
+### 7.2 HTTP Mock Testing with MSW
 
 ```typescript
 // src/__tests__/client.test.ts
@@ -964,7 +964,7 @@ import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { ExampleClient } from '../index';
 
-// MSWサーバーのセットアップ
+// MSW server setup
 const server = setupServer();
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
@@ -978,10 +978,10 @@ describe('ExampleClient', () => {
   });
 
   describe('users.get()', () => {
-    it('IDを指定してユーザーを取得できる', async () => {
+    it('can retrieve a user by specifying an ID', async () => {
       server.use(
         http.get('https://api.example.com/v1/users/123', ({ request }) => {
-          // 認証ヘッダーの検証
+          // Verify authorization header
           expect(request.headers.get('Authorization')).toBe(
             'Bearer test-key-xxx',
           );
@@ -996,13 +996,12 @@ describe('ExampleClient', () => {
       );
 
       const user = await client.users.get('123');
-
       expect(user.id).toBe('123');
       expect(user.name).toBe('Tanaka Taro');
       expect(user.role).toBe('admin');
     });
 
-    it('存在しないユーザーで404エラーが返る', async () => {
+    it('returns a 404 error for a non-existent user', async () => {
       server.use(
         http.get('https://api.example.com/v1/users/999', () => {
           return HttpResponse.json(
@@ -1022,7 +1021,7 @@ describe('ExampleClient', () => {
       });
     });
 
-    it('500エラー時にリトライが行われる', async () => {
+    it('retries on 500 error', async () => {
       let attempts = 0;
       server.use(
         http.get('https://api.example.com/v1/users/123', () => {
@@ -1045,10 +1044,10 @@ describe('ExampleClient', () => {
       expect(attempts).toBe(3);
     });
 
-    it('タイムアウト時に適切なエラーが返る', async () => {
+    it('returns an appropriate error on timeout', async () => {
       server.use(
         http.get('https://api.example.com/v1/users/123', async () => {
-          // 意図的に遅延を入れる
+          // Intentional delay
           await new Promise(resolve => setTimeout(resolve, 15_000));
           return HttpResponse.json({ id: '123' });
         }),
@@ -1067,7 +1066,7 @@ describe('ExampleClient', () => {
   });
 
   describe('users.list()', () => {
-    it('ページネーション付きでユーザー一覧を取得できる', async () => {
+    it('can retrieve a paginated user list', async () => {
       server.use(
         http.get('https://api.example.com/v1/users', ({ request }) => {
           const url = new URL(request.url);
@@ -1101,48 +1100,48 @@ describe('ExampleClient', () => {
 
 ---
 
-## 8. 公開ワークフロー
+## 8. Publishing Workflow
 
-### 8.1 公開前チェックリスト
+### 8.1 Pre-publish Checklist
 
 ```
-公開前チェックリスト（必須）:
+Pre-publish checklist (required):
 
-  コード品質:
-    [x] テストが全て通る（npm test）
-    [x] 型チェックが通る（npm run typecheck）
-    [x] lint エラーがない（npm run lint）
-    [x] フォーマットが統一されている（npm run format:check）
+  Code quality:
+    [x] All tests pass (npm test)
+    [x] Type check passes (npm run typecheck)
+    [x] No lint errors (npm run lint)
+    [x] Formatting is consistent (npm run format:check)
 
-  パッケージ設定:
-    [x] package.json の version が正しい
-    [x] exports フィールドが正しく設定されている
-    [x] files フィールドで不要ファイルが除外されている
-    [x] engines フィールドが設定されている
-    [x] license ファイルが含まれている
+  Package configuration:
+    [x] package.json version is correct
+    [x] exports field is correctly configured
+    [x] Unnecessary files are excluded via the files field
+    [x] engines field is configured
+    [x] license file is included
 
-  ドキュメント:
-    [x] README.md が最新
-    [x] CHANGELOG.md が更新されている
-    [x] 型定義にJSDocコメントがある
+  Documentation:
+    [x] README.md is up to date
+    [x] CHANGELOG.md is updated
+    [x] Type definitions have JSDoc comments
 
-  セキュリティ:
-    [x] .env ファイルが含まれていない
-    [x] APIキーやシークレットが含まれていない
-    [x] npm audit で脆弱性がない
+  Security:
+    [x] .env file is not included
+    [x] No API keys or secrets are included
+    [x] No vulnerabilities from npm audit
 
-  確認:
-    [x] npm pack --dry-run で内容を確認
-    [x] npm pack → tarball を展開して検証
+  Verification:
+    [x] Check contents with npm pack --dry-run
+    [x] npm pack → extract tarball and verify
 ```
 
-### 8.2 npm pack による事前確認
+### 8.2 Pre-verification with npm pack
 
 ```bash
-# 含まれるファイルの確認
+# Check included files
 npm pack --dry-run
 
-# 出力例:
+# Example output:
 # npm notice Tarball Contents
 # npm notice 1.2kB  package.json
 # npm notice 4.5kB  README.md
@@ -1159,14 +1158,14 @@ npm pack --dry-run
 # npm notice unpacked size: 47.5 kB
 # npm notice total files:   8
 
-# 実際にtarballを作成して検証
+# Actually create the tarball and verify
 npm pack
 tar -xzf example-sdk-1.0.0.tgz
 ls package/
 # → dist/  LICENSE  package.json  README.md
 ```
 
-### 8.3 GitHub Actions での自動公開
+### 8.3 Automated Publishing with GitHub Actions
 
 ```yaml
 # .github/workflows/release.yml
@@ -1226,21 +1225,21 @@ jobs:
 
 ---
 
-## 9. モノレポ管理戦略
+## 9. Monorepo Management Strategy
 
-### 9.1 モノレポとは
+### 9.1 What Is a Monorepo?
 
-モノレポ（Monorepo）は、複数のパッケージを1つのリポジトリで管理する手法である。大規模なSDKやフレームワークでは、モノレポが事実上の標準となっている。
+A monorepo (Monorepo) is an approach to managing multiple packages in a single repository. For large-scale SDKs and frameworks, monorepos have become the de facto standard.
 
 ```
-モノレポの構造例:
+Example monorepo structure:
 
   my-sdk/
-  ├── package.json              ← ルート（private: true）
-  ├── pnpm-workspace.yaml       ← ワークスペース定義
-  ├── turbo.json                ← Turborepo設定
+  ├── package.json              ← Root (private: true)
+  ├── pnpm-workspace.yaml       ← Workspace definition
+  ├── turbo.json                ← Turborepo configuration
   ├── .changeset/
-  │   └── config.json           ← Changesets設定
+  │   └── config.json           ← Changesets configuration
   ├── packages/
   │   ├── core/                 ← @my-sdk/core
   │   │   ├── package.json
@@ -1260,27 +1259,27 @@ jobs:
   │       ├── src/
   │       └── tsconfig.json
   ├── apps/
-  │   ├── docs/                 ← ドキュメントサイト
-  │   └── playground/           ← デモアプリ
+  │   ├── docs/                 ← Documentation site
+  │   └── playground/           ← Demo app
   └── tooling/
-      ├── eslint-config/        ← 共有ESLint設定
-      ├── tsconfig/             ← 共有TypeScript設定
-      └── prettier-config/      ← 共有Prettier設定
+      ├── eslint-config/        ← Shared ESLint config
+      ├── tsconfig/             ← Shared TypeScript config
+      └── prettier-config/      ← Shared Prettier config
 ```
 
-### 9.2 モノレポツール比較
+### 9.2 Monorepo Tool Comparison
 
-| 観点 | pnpm workspaces | npm workspaces | Turborepo | Nx | Lerna |
-|------|----------------|----------------|-----------|-----|-------|
-| パッケージ管理 | pnpm | npm | npm/pnpm/yarn | npm/pnpm/yarn | npm/yarn |
-| タスク実行 | なし | なし | 並列・キャッシュ | 並列・キャッシュ | 並列 |
-| ビルドキャッシュ | なし | なし | ローカル+リモート | ローカル+リモート | なし |
-| 依存関係グラフ | 基本的 | 基本的 | 自動検出 | 高度 | 基本的 |
-| 設定の簡潔さ | 非常に簡潔 | 非常に簡潔 | 簡潔 | やや複雑 | 中程度 |
-| 学習コスト | 低 | 低 | 低〜中 | 中〜高 | 低 |
-| 推奨用途 | 小〜中規模 | 小規模 | 中〜大規模 | 大規模 | レガシー |
+| Aspect | pnpm workspaces | npm workspaces | Turborepo | Nx | Lerna |
+|--------|----------------|----------------|-----------|-----|-------|
+| Package manager | pnpm | npm | npm/pnpm/yarn | npm/pnpm/yarn | npm/yarn |
+| Task execution | None | None | Parallel + cache | Parallel + cache | Parallel |
+| Build cache | None | None | Local + remote | Local + remote | None |
+| Dependency graph | Basic | Basic | Auto-detect | Advanced | Basic |
+| Config simplicity | Very simple | Very simple | Simple | Somewhat complex | Moderate |
+| Learning cost | Low | Low | Low-medium | Medium-high | Low |
+| Recommended use | Small-medium | Small | Medium-large | Large | Legacy |
 
-### 9.3 pnpm + Turborepo のセットアップ
+### 9.3 pnpm + Turborepo Setup
 
 ```yaml
 # pnpm-workspace.yaml
@@ -1291,7 +1290,7 @@ packages:
 ```
 
 ```json
-// ルート package.json
+// Root package.json
 {
   "name": "my-sdk-monorepo",
   "private": true,
@@ -1354,7 +1353,7 @@ packages:
 }
 ```
 
-### 9.4 モノレポ内パッケージの相互参照
+### 9.4 Cross-referencing Packages Within a Monorepo
 
 ```json
 // packages/react/package.json
@@ -1377,11 +1376,11 @@ packages:
 ```
 
 ```
-モノレポの依存関係グラフ:
+Monorepo dependency graph:
 
   @my-sdk/react ──depends──> @my-sdk/core
        |                          |
-       +──peer──> react           +──(ゼロ依存)
+       +──peer──> react           +──(zero deps)
        +──peer──> react-dom
 
   @my-sdk/vue ───depends──> @my-sdk/core
@@ -1393,21 +1392,21 @@ packages:
        +──dep───> commander
        +──dep───> chalk
 
-  ビルド順序（Turborepoが自動解決）:
-    1. @my-sdk/core        （依存なし）
-    2. @my-sdk/react       （coreに依存）
-       @my-sdk/vue         （coreに依存、並列実行可）
-       @my-sdk/cli         （coreに依存、並列実行可）
+  Build order (auto-resolved by Turborepo):
+    1. @my-sdk/core        (no dependencies)
+    2. @my-sdk/react       (depends on core)
+       @my-sdk/vue         (depends on core, can run in parallel)
+       @my-sdk/cli         (depends on core, can run in parallel)
 
-  "workspace:*" は公開時に実際のバージョンに置換される:
-    開発時: "@my-sdk/core": "workspace:*"
-    公開時: "@my-sdk/core": "^1.0.0"
+  "workspace:*" is replaced with the actual version at publish time:
+    During development: "@my-sdk/core": "workspace:*"
+    At publish time:    "@my-sdk/core": "^1.0.0"
 ```
 
-### 9.5 共有設定の管理
+### 9.5 Shared Configuration Management
 
 ```json
-// tooling/tsconfig/base.json - 共有TypeScript設定
+// tooling/tsconfig/base.json - shared TypeScript configuration
 {
   "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
@@ -1433,7 +1432,7 @@ packages:
 ```
 
 ```json
-// packages/core/tsconfig.json - 各パッケージのTypeScript設定
+// packages/core/tsconfig.json - per-package TypeScript configuration
 {
   "extends": "../../tooling/tsconfig/base.json",
   "compilerOptions": {
@@ -1450,46 +1449,46 @@ packages:
 
 ---
 
-## 10. パッケージサイズの最適化
+## 10. Package Size Optimization
 
-### 10.1 サイズが重要な理由
+### 10.1 Why Size Matters
 
-パッケージサイズは利用者のインストール時間、CI/CDの実行時間、そしてバンドルサイズに直接影響する。特にフロントエンドで使用されるパッケージでは、バンドルサイズの削減が極めて重要である。
+Package size directly affects users' installation time, CI/CD execution time, and bundle size. Especially for packages used on the frontend, reducing bundle size is extremely important.
 
 ```
-パッケージサイズの測定ポイント:
+Package size measurement points:
 
   +-------------------+
-  |   npm パッケージ   |
+  |   npm package     |
   +-------------------+
          |
          v
-  1. Install Size（インストールサイズ）
-     → npm install 時にダウンロードされる合計サイズ
-     → 推移的依存を含む
-     → 目安: SDK なら 1MB 以下
+  1. Install Size
+     → Total size downloaded at npm install
+     → Includes transitive dependencies
+     → Target: Under 1MB for SDKs
 
-  2. Publish Size（公開サイズ）
-     → npm pack で生成される tarball のサイズ
-     → files フィールドで制御
-     → 目安: 100KB 以下
+  2. Publish Size
+     → Size of the tarball generated by npm pack
+     → Controlled by the files field
+     → Target: Under 100KB
 
-  3. Bundle Size（バンドルサイズ）
-     → webpack/vite 等でバンドルした際のサイズ
-     → Tree-shaking の効果に依存
-     → 目安: gzip 後 10KB 以下（ライブラリ）
+  3. Bundle Size
+     → Size when bundled with webpack/vite/etc.
+     → Depends on Tree-shaking effectiveness
+     → Target: Under 10KB after gzip (libraries)
 
-  測定ツール:
-    npm pack --dry-run          → 公開サイズ
-    npx size-limit              → バンドルサイズ
-    https://bundlephobia.com    → オンラインで確認
-    https://pkg-size.dev        → より詳細な分析
+  Measurement tools:
+    npm pack --dry-run          → Publish size
+    npx size-limit              → Bundle size
+    https://bundlephobia.com    → Check online
+    https://pkg-size.dev        → More detailed analysis
 ```
 
-### 10.2 size-limit の設定
+### 10.2 size-limit Configuration
 
 ```json
-// package.json に追加
+// Add to package.json
 {
   "size-limit": [
     {
@@ -1512,7 +1511,7 @@ packages:
 ```
 
 ```yaml
-# .github/workflows/size.yml - PRごとにサイズを測定
+# .github/workflows/size.yml - measure size per PR
 name: Size Check
 
 on: [pull_request]
@@ -1531,130 +1530,130 @@ jobs:
       - uses: andresz1/size-limit-action@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          # PRコメントにサイズ変更を表示
+          # Display size changes as PR comment
 ```
 
-### 10.3 Tree-shakingの最適化
+### 10.3 Tree-shaking Optimization
 
 ```typescript
-// 悪い例: バレルファイルで全てを再エクスポート
+// Bad: Re-exporting everything from a barrel file
 // src/index.ts
 export * from './users';
 export * from './billing';
 export * from './analytics';
 export * from './utils';
-// → import { Users } from '@example/sdk' で
-//   billing, analytics, utils もバンドルされる可能性
+// → With import { Users } from '@example/sdk',
+//   billing, analytics, utils may also be bundled
 
-// 良い例: サブパスエクスポートで分割
-// package.json の exports で個別にエントリポイントを定義
+// Good: Split with subpath exports
+// Define individual entry points in package.json exports
 // → import { Users } from '@example/sdk/users'
-//   users モジュールのみがバンドルされる
+//   Only the users module is bundled
 
-// Tree-shaking を妨げるパターン:
-// 1. クラスの static プロパティへの副作用のある代入
+// Patterns that impede Tree-shaking:
+// 1. Side-effectful assignment to class static properties
 class Client {
-  // 悪い: 副作用がある
-  static instances = new Map();  // モジュール読み込み時に実行される
+  // Bad: has side effects
+  static instances = new Map();  // Executed when module loads
 }
 
-// 2. トップレベルの副作用
-console.log('SDK loaded');  // 副作用あり → Tree-shake不可
-const config = loadConfig(); // 関数呼び出し → 副作用の可能性
+// 2. Top-level side effects
+console.log('SDK loaded');  // Side effect → cannot be Tree-shaken
+const config = loadConfig(); // Function call → possible side effect
 
-// 3. enumの使用
+// 3. Using enum
 enum Status { Active, Inactive }
-// → コンパイル後に即時実行関数(IIFE)になる → Tree-shake不可
+// → Compiles to an IIFE → cannot be Tree-shaken
 
-// 良い代替: const object + as const
+// Good alternative: const object + as const
 const Status = {
   Active: 'active',
   Inactive: 'inactive',
 } as const;
 type Status = typeof Status[keyof typeof Status];
-// → 純粋なオブジェクトリテラル → Tree-shake可能
+// → Pure object literal → can be Tree-shaken
 ```
 
 ---
 
-## 11. セキュリティと品質管理
+## 11. Security and Quality Management
 
-### 11.1 npm provenance（出所証明）
+### 11.1 npm Provenance
 
-npm provenanceは、パッケージがどのソースコードからどのCI環境で構築されたかを暗号的に証明する仕組みである。
+npm provenance is a mechanism that cryptographically proves from which source code and in which CI environment a package was built.
 
 ```bash
-# provenance付きで公開
+# Publish with provenance
 npm publish --provenance
 
-# GitHub Actionsで自動化する場合:
-# permissions に id-token: write が必要
-# registry-url の設定が必要
+# When automating with GitHub Actions:
+# permissions requires id-token: write
+# registry-url must be configured
 ```
 
 ```
-npm provenance の仕組み:
+How npm provenance works:
 
-  開発者のコード
+  Developer's code
        |
        v
-  GitHub リポジトリ
+  GitHub repository
        |
        v
-  GitHub Actions（CI）
+  GitHub Actions (CI)
        |
-       +-- OIDC トークンを発行
+       +-- Issues OIDC token
        |
        v
   npm publish --provenance
        |
-       +-- Sigstore で署名
+       +-- Signs with Sigstore
        |
        v
-  npm レジストリ
+  npm registry
        |
-       +-- パッケージ + 署名 + ビルド情報
+       +-- Package + signature + build info
        |
        v
-  利用者が検証可能:
-    - どのリポジトリのコードか
-    - どのコミットからビルドされたか
-    - どのCI環境で実行されたか
-    - ビルドログへのリンク
+  Users can verify:
+    - Which repository's code it came from
+    - Which commit it was built from
+    - Which CI environment it ran in
+    - Link to build logs
 ```
 
-### 11.2 セキュリティチェックリスト
+### 11.2 Security Checklist
 
 ```
-パッケージのセキュリティ対策:
+Package security measures:
 
-  開発時:
-    [x] npm audit を定期実行
-    [x] dependabot / renovate で依存を自動更新
-    [x] Socket.dev でサプライチェーンリスクを監視
-    [x] .npmrc に ignore-scripts=true を設定
+  During development:
+    [x] Regularly run npm audit
+    [x] Automatically update dependencies with dependabot / renovate
+    [x] Monitor supply chain risks with Socket.dev
+    [x] Set ignore-scripts=true in .npmrc
 
-  公開時:
-    [x] 2FA を有効化（npm login）
-    [x] provenance を有効化
-    [x] npm token の権限を最小限に
-    [x] CODEOWNERS で公開権限を制限
+  At publish time:
+    [x] Enable 2FA (npm login)
+    [x] Enable provenance
+    [x] Minimize npm token permissions
+    [x] Restrict publish permissions with CODEOWNERS
 
-  パッケージの設計:
-    [x] eval() / Function() を使わない
-    [x] 動的 require() を避ける
-    [x] ユーザー入力をサニタイズ
-    [x] prototype pollution 対策
-    [x] ReDoS（正規表現DoS）対策
+  Package design:
+    [x] Do not use eval() / Function()
+    [x] Avoid dynamic require()
+    [x] Sanitize user input
+    [x] Protect against prototype pollution
+    [x] Guard against ReDoS (Regular Expression Denial of Service)
 
-  .npmrc の推奨設定:
+  Recommended .npmrc settings:
     //registry.npmjs.org/:_authToken=${NPM_TOKEN}
     ignore-scripts=true
     audit=true
     fund=false
 ```
 
-### 11.3 品質指標の自動測定
+### 11.3 Automated Quality Measurement
 
 ```yaml
 # .github/workflows/quality.yml
@@ -1674,36 +1673,36 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-      # テストカバレッジ
+      # Test coverage
       - run: npm run test:coverage
       - uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
-      # バンドルサイズ
+      # Bundle size
       - run: npx size-limit
 
-      # 型チェック
+      # Type check
       - run: npm run typecheck
 
-      # lint
+      # Lint
       - run: npm run lint
 
-      # セキュリティ監査
+      # Security audit
       - run: npm audit --production
 
-      # ライセンスチェック
+      # License check
       - run: npx license-checker --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC'
 ```
 
 ---
 
-## 12. アンチパターンと対策
+## 12. Anti-patterns and Countermeasures
 
-### 12.1 アンチパターン: 肥大化するバレルファイル
+### 12.1 Anti-pattern: Bloated Barrel Files
 
 ```typescript
-// [アンチパターン] 巨大なバレルファイル
+// [Anti-pattern] Giant barrel file
 // src/index.ts
 export * from './users';
 export * from './billing';
@@ -1715,88 +1714,87 @@ export * from './utils';
 export * from './errors';
 export * from './types';
 export * from './constants';
-// → 全モジュールが1つのエントリポイントに集約
-// → Tree-shakingが効きにくくなる
-// → 利用者のバンドルサイズが肥大化
-// → 循環参照のリスクが増大
-// → IDE の自動補完が遅くなる
+// → All modules are aggregated at a single entry point
+// → Tree-shaking becomes less effective
+// → User's bundle size bloats
+// → Risk of circular references increases
+// → IDE auto-completion slows down
 
-// [対策] サブパスエクスポートで分割
+// [Solution] Split with subpath exports
 // package.json
 // {
 //   "exports": {
-//     ".":           "./dist/index.js",      ← コアのみ
+//     ".":           "./dist/index.js",      ← Core only
 //     "./users":     "./dist/users/index.js",
 //     "./billing":   "./dist/billing/index.js",
 //     "./analytics": "./dist/analytics/index.js"
 //   }
 // }
 
-// src/index.ts - コアのみエクスポート
+// src/index.ts - export core only
 export { ExampleClient } from './client';
 export type { ClientOptions, APIError } from './types';
 
-// 利用者側:
+// User side:
 // import { ExampleClient } from '@example/sdk';
 // import { UsersResource } from '@example/sdk/users';
-// → 必要なモジュールのみがバンドルされる
+// → Only the needed modules are bundled
 ```
 
-### 12.2 アンチパターン: peerDependenciesの誤用
+### 12.2 Anti-pattern: Misuse of peerDependencies
 
 ```
-[アンチパターン] peerDependencies を dependencies に入れる
+[Anti-pattern] Putting peerDependencies into dependencies
 
-  // 悪い例: React をdependencies に入れたReactコンポーネントライブラリ
+  // Bad example: A React component library with React in dependencies
   {
     "name": "my-react-library",
     "dependencies": {
-      "react": "^18.0.0"     // ← これが問題
+      "react": "^18.0.0"     // ← This is the problem
     }
   }
 
-  発生する問題:
-    1. 利用者のプロジェクトに別バージョンのReactが存在
-    2. node_modules に2つの React がインストールされる
-    3. React の内部状態が共有されず、フックが壊れる
-    4. "Invalid hook call" エラーが発生
+  Problems this causes:
+    1. User's project already has a different version of React
+    2. Two copies of React get installed in node_modules
+    3. React's internal state is not shared, hooks break
+    4. "Invalid hook call" error occurs
 
   node_modules/
-  ├── react@18.3.0/          ← 利用者のReact
+  ├── react@18.3.0/          ← User's React
   ├── my-react-library/
   │   └── node_modules/
-  │       └── react@18.2.0/  ← ライブラリ同梱のReact（別インスタンス）
+  │       └── react@18.2.0/  ← React bundled with library (separate instance)
 
-  正しい対策:
+  Correct fix:
   {
     "name": "my-react-library",
     "peerDependencies": {
       "react": "^18.0.0 || ^19.0.0"
     },
     "devDependencies": {
-      "react": "^18.3.0"     ← 開発・テスト用
+      "react": "^18.3.0"     ← For development and testing
     }
   }
 
-  peerDependencies にすべきもの:
-    - フレームワーク本体（react, vue, angular）
-    - プラグインのホスト（eslint, webpack, vite）
-    - 共有される必要があるライブラリ（同一インスタンスが必須）
+  What should be in peerDependencies:
+    - Framework core packages (react, vue, angular)
+    - Plugin hosts (eslint, webpack, vite)
+    - Libraries that need to be shared (require same instance)
 ```
 
-### 12.3 アンチパターン: .npmignore の使用
+### 12.3 Anti-pattern: Using .npmignore
 
 ```
-[アンチパターン] .npmignore で除外ファイルを管理
+[Anti-pattern] Managing excluded files with .npmignore
 
-  問題点:
-    - .gitignore と .npmignore の優先順位が複雑
-    - 新しいファイルを追加した際に .npmignore の更新を忘れる
-    - ソースコードやテストが意図せず公開される
-    - 明示的な「含めるもの」ではなく「除外するもの」を管理
+  Problems:
+    - Priority between .gitignore and .npmignore is complex
+    - Easy to forget updating .npmignore when adding new files
+    - Source code or tests get inadvertently published
+    - Managing "what to exclude" rather than "what to include"
 
-  正しい対策: package.json の files フィールドを使う
-
+  Correct approach: Use the files field in package.json
   {
     "files": [
       "dist",
@@ -1806,78 +1804,78 @@ export type { ClientOptions, APIError } from './types';
     ]
   }
 
-  files の利点:
-    - ホワイトリスト方式（明示的に含めるものを指定）
-    - 新しいファイルが意図せず公開されない
-    - package.json, README.md, LICENSE は自動的に含まれる
-    - npm pack --dry-run で簡単に確認できる
+  Benefits of files:
+    - Whitelist approach (explicitly specify what to include)
+    - New files cannot be accidentally published
+    - package.json, README.md, LICENSE are automatically included
+    - Easy to verify with npm pack --dry-run
 ```
 
 ---
 
-## 13. エッジケース分析
+## 13. Edge Case Analysis
 
-### 13.1 エッジケース: ESMとCJSの相互運用
+### 13.1 Edge Case: ESM and CJS Interoperability
 
 ```typescript
-// エッジケース: CJSからESMモジュールをrequireする
+// Edge case: requiring an ESM module from CJS
 
-// ESMのみを提供するパッケージをCJSプロジェクトから使う場合
-// → require() は使えない（ERR_REQUIRE_ESM エラー）
+// When using an ESM-only package from a CJS project
+// → require() cannot be used (ERR_REQUIRE_ESM error)
 
-// Node.js 22 以降:
-// require(esm) がサポートされつつあるが、
-// トップレベル await を含むモジュールは依然として require 不可
+// Node.js 22 and later:
+// require(esm) support is growing, but
+// modules containing top-level await still cannot be required
 
-// 対処法1: 動的 import() を使う（CJSでも利用可能）
+// Workaround 1: Use dynamic import() (works in CJS too)
 // cjs-consumer.cjs
 async function main() {
-  // 動的 import() は CJS でも使える
+  // Dynamic import() works in CJS
   const { ExampleClient } = await import('@example/sdk');
   const client = new ExampleClient({ apiKey: 'xxx' });
 }
 main();
 
-// 対処法2: パッケージ側でCJSビルドを提供する（推奨）
-// → tsup で format: ['esm', 'cjs'] を設定
+// Workaround 2: Provide a CJS build from the package side (recommended)
+// → Set format: ['esm', 'cjs'] in tsup
 
-// 対処法3: ラッパーファイルを提供
+// Workaround 3: Provide a wrapper file
 // dist/index.cjs
 // const mod = await import('./index.js');
 // module.exports = mod;
-// → ただしトップレベル await が必要なので Node.js 14+ のみ
+// → Requires top-level await, so Node.js 14+ only
 
-// 注意: default export の扱いが異なる
+// Note: handling of default exports differs
 // ESM: export default class Client {}
 // CJS: const { default: Client } = require('@example/sdk');
-//      ← ".default" が必要になる場合がある
-// → named export を推奨（default export を避ける）
+//      ← ".default" may be required
+// → Named exports are recommended (avoid default exports)
 ```
 
-### 13.2 エッジケース: TypeScript の moduleResolution による型解決の違い
+### 13.2 Edge Case: Type Resolution Differences by TypeScript moduleResolution
 
 ```
-TypeScript moduleResolution とパッケージ型解決:
+TypeScript moduleResolution and package type resolution:
 
-  利用者のtsconfig.json の moduleResolution 設定によって
-  パッケージの型がどのように解決されるかが変わる:
+  How package types are resolved changes depending on
+  the moduleResolution setting in the user's tsconfig.json:
 
-  "node" (レガシー):
-    → package.json の "types" フィールドのみ参照
-    → "exports" フィールドの "types" は無視される
-    → typesVersions によるサブパス解決が必要
+  "node" (legacy):
+    → Only references the "types" field of package.json
+    → "types" inside the "exports" field is ignored
+    → Subpath resolution via typesVersions is required
 
   "node16" / "nodenext":
-    → "exports" フィールドの "types" を参照
-    → 条件分岐（import/require）に基づいて型を解決
-    → .d.ts と .d.cts を区別する
+    → References "types" inside the "exports" field
+    → Resolves types based on conditions (import/require)
+    → Distinguishes between .d.ts and .d.cts
 
   "bundler":
-    → "exports" フィールドの "types" を参照
-    → 拡張子なしインポートを許容
-    → 最も柔軟な設定
+    → References "types" inside the "exports" field
+    → Allows extension-less imports
+    → Most flexible setting
 
-  全ての moduleResolution に対応する方法:
+  How to support all moduleResolution settings:
 
   {
     "types": "./dist/index.d.ts",
@@ -1910,68 +1908,68 @@ TypeScript moduleResolution とパッケージ型解決:
     }
   }
 
-  → "types" トップレベル: レガシー moduleResolution 用
-  → "exports" 内の "types": node16/nodenext/bundler 用
-  → "typesVersions": TypeScript 4.x 以前の互換性用
+  → Top-level "types": For legacy moduleResolution
+  → "types" inside "exports": For node16/nodenext/bundler
+  → "typesVersions": For compatibility with TypeScript 4.x and earlier
 ```
 
-### 13.3 エッジケース: npm publish の取り消しとバージョンの再利用
+### 13.3 Edge Case: Undoing npm publish and Version Reuse
 
 ```
-npm unpublish のルールと制約:
+Rules and constraints of npm unpublish:
 
-  72時間ルール:
-    - 公開から72時間以内: unpublish 可能
-    - 72時間を超過: unpublish 不可（サポートに連絡が必要）
+  72-hour rule:
+    - Within 72 hours of publishing: unpublish is possible
+    - After 72 hours: unpublish is not possible (need to contact support)
 
-  バージョンの再利用禁止:
-    - 一度公開したバージョン番号は unpublish 後も再利用不可
-    - 例: 1.0.0 を公開 → unpublish → 1.0.0 で再公開は不可
-    - → 1.0.1 として公開する必要がある
+  Prohibition on version reuse:
+    - Once-published version numbers cannot be reused even after unpublish
+    - Example: publish 1.0.0 → unpublish → cannot re-publish as 1.0.0
+    - → Must publish as 1.0.1
 
-  deprecate（非推奨化）の活用:
-    $ npm deprecate @example/sdk@1.0.0 "セキュリティ脆弱性あり。2.0.0に更新してください"
-    → パッケージは引き続き利用可能
-    → npm install 時に警告メッセージが表示される
-    → 全バージョンを deprecate: npm deprecate @example/sdk "このパッケージは非推奨です"
+  Using deprecation:
+    $ npm deprecate @example/sdk@1.0.0 "Security vulnerability. Please update to 2.0.0"
+    → Package remains available
+    → Warning message displayed during npm install
+    → Deprecate all versions: npm deprecate @example/sdk "This package is deprecated"
 
-  dist-tag による安全なリリース:
-    # ベータ版を "beta" タグで公開
+  Safe releases using dist-tags:
+    # Publish beta version with "beta" tag
     npm publish --tag beta
-    # → npm install @example/sdk@beta でインストール
-    # → npm install @example/sdk では latest のまま
+    # → Install with npm install @example/sdk@beta
+    # → npm install @example/sdk still gets latest
 
-    # カナリア版を "canary" タグで公開
+    # Publish canary version with "canary" tag
     npm publish --tag canary
-    # → 自動テスト用、毎日の自動ビルドに使用
+    # → For automated testing, used in daily automated builds
 ```
 
 ---
 
-## 14. 実践演習
+## 14. Practice Exercises
 
-### 14.1 演習1（初級）: 基本的なnpmパッケージの作成
+### 14.1 Exercise 1 (Beginner): Creating a Basic npm Package
 
-シンプルなユーティリティパッケージを作成し、ローカルでビルド・テストする演習である。
+An exercise to create a simple utility package and build/test it locally.
 
 ```
-演習の目標:
-  - package.json の基本フィールドを設定できる
-  - tsup でESM/CJSのデュアルビルドを実行できる
-  - vitest でテストを書いて実行できる
+Exercise goals:
+  - Configure basic fields in package.json
+  - Run an ESM/CJS dual build with tsup
+  - Write and run tests with vitest
 
-手順:
+Steps:
 
-  1. プロジェクトの初期化
+  1. Initialize the project
      $ mkdir my-utils && cd my-utils
      $ npm init -y
      $ npm install -D typescript tsup vitest
 
-  2. package.json の編集（以下を参考に設定）
+  2. Edit package.json (configure using the following as a reference)
 ```
 
 ```json
-// 演習1: package.json
+// Exercise 1: package.json
 {
   "name": "@yourname/utils",
   "version": "0.1.0",
@@ -2003,11 +2001,11 @@ npm unpublish のルールと制約:
 ```
 
 ```typescript
-// 演習1: src/index.ts
+// Exercise 1: src/index.ts
 /**
- * 文字列の先頭を大文字にする。
- * @param str - 変換する文字列
- * @returns 先頭が大文字の文字列
+ * Capitalizes the first letter of a string.
+ * @param str - The string to convert
+ * @returns The string with the first letter capitalized
  */
 export function capitalize(str: string): string {
   if (str.length === 0) return str;
@@ -2015,10 +2013,10 @@ export function capitalize(str: string): string {
 }
 
 /**
- * 配列をチャンクに分割する。
- * @param array - 分割する配列
- * @param size - チャンクサイズ
- * @returns チャンクの配列
+ * Splits an array into chunks.
+ * @param array - The array to split
+ * @param size - Chunk size
+ * @returns Array of chunks
  */
 export function chunk<T>(array: T[], size: number): T[][] {
   if (size <= 0) throw new Error('Chunk size must be greater than 0');
@@ -2030,10 +2028,10 @@ export function chunk<T>(array: T[], size: number): T[][] {
 }
 
 /**
- * オブジェクトから指定したキーのみを抽出する。
- * @param obj - 元のオブジェクト
- * @param keys - 抽出するキーの配列
- * @returns 抽出されたオブジェクト
+ * Extracts only specified keys from an object.
+ * @param obj - The source object
+ * @param keys - Array of keys to extract
+ * @returns The extracted object
  */
 export function pick<T extends Record<string, unknown>, K extends keyof T>(
   obj: T,
@@ -2050,44 +2048,44 @@ export function pick<T extends Record<string, unknown>, K extends keyof T>(
 ```
 
 ```typescript
-// 演習1: src/index.test.ts
+// Exercise 1: src/index.test.ts
 import { describe, it, expect } from 'vitest';
 import { capitalize, chunk, pick } from './index';
 
 describe('capitalize', () => {
-  it('先頭を大文字にする', () => {
+  it('capitalizes the first letter', () => {
     expect(capitalize('hello')).toBe('Hello');
   });
 
-  it('空文字列を処理する', () => {
+  it('handles empty string', () => {
     expect(capitalize('')).toBe('');
   });
 
-  it('既に大文字の場合はそのまま', () => {
+  it('stays the same if already capitalized', () => {
     expect(capitalize('Hello')).toBe('Hello');
   });
 });
 
 describe('chunk', () => {
-  it('配列をチャンクに分割する', () => {
+  it('splits an array into chunks', () => {
     expect(chunk([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
   });
 
-  it('チャンクサイズが配列長以上の場合', () => {
+  it('handles chunk size larger than array length', () => {
   });
 
-  it('チャンクサイズが0以下でエラー', () => {
+  it('throws error for chunk size 0 or less', () => {
     expect(() => chunk([1], 0)).toThrow('Chunk size must be greater than 0');
   });
 });
 
 describe('pick', () => {
-  it('指定したキーのみを抽出する', () => {
+  it('extracts only specified keys', () => {
     const obj = { a: 1, b: 2, c: 3 };
     expect(pick(obj, ['a', 'c'])).toEqual({ a: 1, c: 3 });
   });
 
-  it('存在しないキーは無視する', () => {
+  it('ignores non-existent keys', () => {
     const obj = { a: 1, b: 2 };
     expect(pick(obj, ['a', 'c' as keyof typeof obj])).toEqual({ a: 1 });
   });
@@ -2095,24 +2093,24 @@ describe('pick', () => {
 ```
 
 ```
-演習1の確認ポイント:
-  [x] npm run build が成功する
-  [x] dist/ に .js, .cjs, .d.ts, .d.cts が生成される
-  [x] npm run test が全て通る
-  [x] npm pack --dry-run で含まれるファイルを確認
+Exercise 1 verification points:
+  [x] npm run build succeeds
+  [x] .js, .cjs, .d.ts, .d.cts are generated in dist/
+  [x] npm run test all passes
+  [x] Verify included files with npm pack --dry-run
 ```
 
-### 14.2 演習2（中級）: サブパスエクスポート付きSDKの構築
+### 14.2 Exercise 2 (Intermediate): Building an SDK with Subpath Exports
 
-APIクライアントSDKをサブパスエクスポートで設計し、Tree-shakingが効く構造を作る演習である。
+An exercise to design an API client SDK with subpath exports, creating a structure where Tree-shaking is effective.
 
 ```
-演習の目標:
-  - サブパスエクスポートを正しく設定できる
-  - 内部モジュールの隠蔽ができる
-  - MSWを使ったテストが書ける
+Exercise goals:
+  - Correctly configure subpath exports
+  - Hide internal modules
+  - Write tests using MSW
 
-ディレクトリ構成:
+Directory structure:
 
   sdk-exercise/
   ├── package.json
@@ -2120,24 +2118,24 @@ APIクライアントSDKをサブパスエクスポートで設計し、Tree-sha
   ├── tsconfig.json
   ├── vitest.config.ts
   └── src/
-      ├── index.ts           ← メインエントリ
-      ├── client.ts           ← HTTPクライアント
-      ├── types.ts            ← 共有型定義
-      ├── errors.ts           ← エラークラス
+      ├── index.ts           ← Main entry
+      ├── client.ts          ← HTTP client
+      ├── types.ts           ← Shared type definitions
+      ├── errors.ts          ← Error classes
       ├── users/
-      │   ├── index.ts        ← @example/sdk/users
+      │   ├── index.ts       ← @example/sdk/users
       │   ├── types.ts
       │   └── __tests__/
       │       └── users.test.ts
       └── posts/
-          ├── index.ts        ← @example/sdk/posts
+          ├── index.ts       ← @example/sdk/posts
           ├── types.ts
           └── __tests__/
               └── posts.test.ts
 ```
 
 ```typescript
-// 演習2: src/client.ts
+// Exercise 2: src/client.ts
 import type { ClientOptions } from './types';
 import { APIError, TimeoutError } from './errors';
 
@@ -2204,7 +2202,7 @@ export class BaseClient {
             errorBody.requestId,
           );
 
-          // 5xx エラーはリトライ対象
+          // 5xx errors are retry targets
           if (response.status >= 500 && attempt < this.maxRetries) {
             lastError = apiError;
             const delay = 1000 * Math.pow(2, attempt);
@@ -2242,7 +2240,7 @@ export class BaseClient {
 ```
 
 ```typescript
-// 演習2: src/errors.ts
+// Exercise 2: src/errors.ts
 export class APIError extends Error {
   readonly status: number;
   readonly code?: string;
@@ -2281,86 +2279,86 @@ export class ValidationError extends Error {
 ```
 
 ```
-演習2の確認ポイント:
-  [x] import { ExampleClient } from '@example/sdk' が動作する
-  [x] import { UsersResource } from '@example/sdk/users' が動作する
-  [x] import { something } from '@example/sdk/internal' がエラーになる
-  [x] MSW でモックしたテストが全て通る
-  [x] npm pack --dry-run で不要ファイルが含まれていない
+Exercise 2 verification points:
+  [x] import { ExampleClient } from '@example/sdk' works
+  [x] import { UsersResource } from '@example/sdk/users' works
+  [x] import { something } from '@example/sdk/internal' gives an error
+  [x] All MSW-mocked tests pass
+  [x] No unnecessary files included in npm pack --dry-run
 ```
 
-### 14.3 演習3（上級）: モノレポでの複数パッケージ管理
+### 14.3 Exercise 3 (Advanced): Multi-Package Management in a Monorepo
 
-pnpm + Turborepo + Changesets でモノレポを構築し、複数パッケージの連携開発と自動リリースを実現する演習である。
+An exercise to build a monorepo with pnpm + Turborepo + Changesets, enabling coordinated development of multiple packages and automated releases.
 
 ```
-演習の目標:
-  - pnpm workspace の設定ができる
-  - Turborepo でビルド順序を管理できる
-  - Changesets でバージョンとCHANGELOGを管理できる
-  - GitHub Actions で自動リリースパイプラインを構築できる
+Exercise goals:
+  - Configure pnpm workspace
+  - Manage build order with Turborepo
+  - Manage versions and CHANGELOG with Changesets
+  - Build an automated release pipeline with GitHub Actions
 
-手順:
+Steps:
 
-  1. モノレポの初期化
+  1. Initialize the monorepo
      $ mkdir my-sdk-mono && cd my-sdk-mono
      $ pnpm init
      $ pnpm add -Dw turbo @changesets/cli
      $ npx changeset init
 
-  2. ワークスペース定義
-     pnpm-workspace.yaml を作成
+  2. Define the workspace
+     Create pnpm-workspace.yaml
 
-  3. パッケージの作成
+  3. Create packages
      $ mkdir -p packages/core packages/react packages/cli
      $ cd packages/core && pnpm init
      $ cd packages/react && pnpm init
      $ cd packages/cli && pnpm init
 
-  4. 依存関係の設定
+  4. Set up dependencies
      packages/react/package.json:
        "dependencies": { "@my-sdk/core": "workspace:*" }
 
-  5. ビルド・テストの実行
+  5. Run build and tests
      $ pnpm turbo build
      $ pnpm turbo test
 
-  6. 変更の記録
+  6. Record a change
      $ pnpm changeset
      → @my-sdk/core: minor
-     → "ユーザー一覧APIのサポートを追加"
+     → "Added support for user list API"
 
-  7. バージョンアップ
+  7. Version bump
      $ pnpm changeset version
      → @my-sdk/core: 0.1.0 → 0.2.0
-     → @my-sdk/react: 0.1.0 → 0.1.1（依存更新）
+     → @my-sdk/react: 0.1.0 → 0.1.1 (dependency update)
 
-  確認ポイント:
-  [x] pnpm turbo build が依存順序を正しく解決する
-  [x] packages/react から packages/core を参照できる
-  [x] changeset version で全パッケージのバージョンが正しく更新される
-  [x] CHANGELOG.md が各パッケージに自動生成される
-  [x] workspace:* が公開時に実際のバージョンに置換される
+  Verification points:
+  [x] pnpm turbo build correctly resolves dependency order
+  [x] packages/react can reference packages/core
+  [x] changeset version correctly updates versions for all packages
+  [x] CHANGELOG.md is auto-generated for each package
+  [x] workspace:* is replaced with the actual version at publish time
 ```
 
 ---
 
-## 15. パッケージメンテナンスのベストプラクティス
+## 15. Package Maintenance Best Practices
 
-### 15.1 CHANGELOG の書き方
+### 15.1 How to Write a CHANGELOG
 
 ```markdown
-<!-- CHANGELOG.md の例 -->
+<!-- CHANGELOG.md example -->
 # @example/sdk
 
 ## 2.0.0
 
 ### Breaking Changes
 
-- `Client` コンストラクタのオプションから `apiUrl` を削除。
-  代わりに `baseURL` を使用してください。
-- 最小 Node.js バージョンを 18 に引き上げ。
-- `users.delete()` の戻り値を `void` から `{ deleted: boolean }` に変更。
+- Removed `apiUrl` from `Client` constructor options.
+  Use `baseURL` instead.
+- Raised minimum Node.js version to 18.
+- Changed return value of `users.delete()` from `void` to `{ deleted: boolean }`.
 
 ### Migration Guide
 
@@ -2374,45 +2372,45 @@ pnpm + Turborepo + Changesets でモノレポを構築し、複数パッケー�
 
 ### Features
 
-- `users.list()` にフィルタオプションを追加。
-- `billing.invoices()` メソッドを新規追加。
-- レスポンスに `requestId` フィールドを追加。
+- Added filter options to `users.list()`.
+- Added new `billing.invoices()` method.
+- Added `requestId` field to responses.
 
 ### Bug Fixes
 
-- リトライ時にタイムアウトがリセットされない問題を修正。
-- ページネーションの `cursor` が `null` の場合にエラーになる問題を修正。
+- Fixed issue where timeout was not reset on retry.
+- Fixed error when pagination `cursor` is `null`.
 ```
 
-### 15.2 非推奨化（Deprecation）の正しい手順
+### 15.2 Correct Deprecation Procedure
 
 ```typescript
-// Step 1: JSDoc で @deprecated を付与（MINOR リリース）
+// Step 1: Add @deprecated in JSDoc (MINOR release)
 /**
- * ユーザーを名前で検索する。
- * @deprecated v1.3.0 で非推奨。代わりに `users.list({ filter: { name } })` を使用してください。
- * v2.0.0 で削除予定。
+ * Search for a user by name.
+ * @deprecated Deprecated since v1.3.0. Use `users.list({ filter: { name } })` instead.
+ * Scheduled for removal in v2.0.0.
  */
 export function findUserByName(name: string): Promise<User> {
-  // 実行時の警告（Node.js環境）
+  // Runtime warning (Node.js environment)
   if (typeof process !== 'undefined') {
     process.emitWarning(
       'findUserByName() is deprecated. Use users.list({ filter: { name } }) instead.',
       'DeprecationWarning',
     );
   }
-  // 既存の実装をそのまま維持
+  // Keep existing implementation intact
   return this.users.list({ filter: { name } }).then(res => res.data[0]);
 }
 
-// Step 2: README と CHANGELOG に非推奨を明記
-// Step 3: 1-2 MINOR バージョン後に MAJOR リリースで削除
+// Step 2: Document the deprecation in README and CHANGELOG
+// Step 3: Remove in a MAJOR release after 1-2 MINOR versions
 ```
 
-### 15.3 依存の定期更新
+### 15.3 Regular Dependency Updates
 
 ```json
-// renovate.json - Renovate Bot の設定
+// renovate.json - Renovate Bot configuration
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
@@ -2445,145 +2443,146 @@ export function findUserByName(name: string): Promise<User> {
 
 ---
 
-## 16. FAQ（よくある質問）
+## 16. FAQ (Frequently Asked Questions)
 
-### Q1: ESMのみで公開してよいか? CJSは必要か?
-
-```
-A: 2025年現在、CJSビルドを提供することが依然として強く推奨される。
-
-  ESMのみでよいケース:
-    - CLIツール（利用者がimportしない）
-    - 新しいフレームワーク専用のプラグイン
-    - 内部パッケージ（モノレポ内でのみ使用）
-    - ターゲットがブラウザのみ
-
-  CJSが必要なケース:
-    - 広く使われる汎用ライブラリ
-    - SDK / APIクライアント
-    - テストフレームワークから使われるもの
-    - Jest（ESM対応が不完全）を使うプロジェクト
-
-  判断基準:
-    - 利用者の10%以上がCJSを使う可能性 → デュアル提供
-    - tsup を使えば追加コストはほぼゼロ
-    → 迷ったらデュアル提供が安全
-```
-
-### Q2: dependencies と devDependencies の区別がわからない
+### Q1: Is it okay to publish ESM only? Is CJS necessary?
 
 ```
-A: パッケージが npm install された「後」に必要かどうかで判断する。
+A: As of 2025, providing a CJS build is still strongly recommended.
 
-  テスト:
-    npm install @example/sdk を実行した場合、
-    そのモジュールがなくても動作するか?
+  Cases where ESM only is fine:
+    - CLI tools (users don't import them)
+    - Plugins specific to new frameworks
+    - Internal packages (used only within a monorepo)
+    - Targets only browsers
+
+  Cases where CJS is needed:
+    - Widely-used general-purpose libraries
+    - SDKs / API clients
+    - Things used from test frameworks
+    - Projects using Jest (incomplete ESM support)
+
+  Decision criteria:
+    - More than 10% of users may use CJS → provide dual
+    - With tsup, the additional cost is nearly zero
+    → When in doubt, providing dual is safe
+```
+
+### Q2: I can't tell the difference between dependencies and devDependencies
+
+```
+A: Decide based on whether it's needed "after" npm install is run.
+
+  Test:
+    When npm install @example/sdk is run,
+    does it work without that module?
 
     YES → devDependencies
     NO  → dependencies
 
-  具体例:
-    tsup       → devDependencies（ビルド時のみ使用）
-    vitest     → devDependencies（テスト時のみ使用）
-    eslint     → devDependencies（lint時のみ使用）
-    typescript → devDependencies（コンパイル時のみ使用）
-    zod        → dependencies（ランタイムでバリデーションに使用）
-    jose       → dependencies（ランタイムでJWTを処理）
+  Specific examples:
+    tsup       → devDependencies (only used at build time)
+    vitest     → devDependencies (only used at test time)
+    eslint     → devDependencies (only used at lint time)
+    typescript → devDependencies (only used at compile time)
+    zod        → dependencies (used for validation at runtime)
+    jose       → dependencies (processes JWT at runtime)
 
-  注意: tsup でバンドルする場合
-    → 依存のコードがdistに含まれる
-    → その場合 dependencies に入れる必要がない場合がある
-    → ただし利用者がTree-shakingする場合は dependencies が正しい
+  Note: when bundling with tsup
+    → Dependency code is included in dist
+    → In that case, may not need to be in dependencies
+    → However, dependencies is correct if users Tree-shake
 
   peerDependencies:
-    → 利用者のプロジェクトに同一インスタンスが必要な場合
-    → 例: react, vue, eslint
+    → When the same instance is needed in the user's project
+    → Examples: react, vue, eslint
 ```
 
-### Q3: パッケージ名に @scope を付けるべきか?
+### Q3: Should I add a @scope to my package name?
 
 ```
-A: 組織やブランドに紐づくパッケージには @scope を付けることを強く推奨する。
+A: It is strongly recommended to add a @scope to packages
+   tied to an organization or brand.
 
-  @scope を付ける利点:
-    1. 名前の衝突を回避できる
-       → "utils" は既に存在するが "@yourorg/utils" は確保可能
-    2. パッケージの所有者が明確
-    3. 組織内の npm アクセス制御が容易
-    4. 関連パッケージのグルーピング
+  Benefits of adding @scope:
+    1. Avoids name collisions
+       → "utils" already exists, but "@yourorg/utils" can be reserved
+    2. Package ownership is clear
+    3. npm access control within an organization is easier
+    4. Grouping of related packages
        → @my-sdk/core, @my-sdk/react, @my-sdk/vue
 
-  @scope を付けない場合:
-    - 既に有名なパッケージ名を確保済み
-    - 個人の小さなユーティリティ
-    - 広く認知されたプロジェクト名
+  Cases where @scope is not needed:
+    - Already have a famous package name reserved
+    - Small personal utility
+    - Well-known project name
 
-  注意点:
-    - @scope 付きパッケージはデフォルトで private
-    - 公開するには npm publish --access public が必要
-    - publishConfig で設定することも可能:
+  Notes:
+    - Scoped packages are private by default
+    - npm publish --access public is needed to publish
+    - Can also configure with publishConfig:
       "publishConfig": { "access": "public" }
 
-  npm org の作成:
+  Creating an npm org:
     $ npm org create my-org
-    → @my-org/* スコープが使用可能になる
+    → @my-org/* scope becomes available
 ```
 
-### Q4: バージョン 0.x.x でいつまで開発してよいか?
+### Q4: How long can I keep developing at version 0.x.x?
 
 ```
-A: 0.x.x は「初期開発段階」を意味し、API が不安定であることを宣言する。
-   利用者が増え、APIが安定したら速やかに 1.0.0 へ移行すべきである。
+A: 0.x.x means "initial development stage" and declares that the API is unstable.
+   Once users increase and the API stabilizes, you should move to 1.0.0 promptly.
 
-  0.x.x の SemVer ルール:
-    - 0.x.x は破壊的変更をいつでも行える
-    - 0.MINOR.PATCH の MINOR が破壊的変更を含む場合がある
-    - 利用者は安定性を期待できない
+  SemVer rules for 0.x.x:
+    - 0.x.x can have breaking changes at any time
+    - MINOR in 0.MINOR.PATCH may include breaking changes
+    - Users cannot expect stability
 
-  1.0.0 へ移行するタイミング:
-    - 本番環境で使用されている
-    - 主要なAPIが確定している
-    - 週間ダウンロード数が一定以上
-    - ドキュメントが整備されている
+  Timing to move to 1.0.0:
+    - Being used in production
+    - Primary APIs are finalized
+    - Weekly download count exceeds a certain threshold
+    - Documentation is in order
 
-  移行しないリスク:
-    - 利用者が不安定と判断して採用を見送る
-    - ^ 付きバージョン指定で意図しない破壊的変更を受ける
+  Risks of not moving:
+    - Users judge it as unstable and decline to adopt
+    - Inadvertent breaking changes received via ^ version specifier
     - "dependencies": { "@example/sdk": "^0.5.0" }
-      → 0.6.0 で破壊的変更が入っても自動更新される
+      → If 0.6.0 has breaking changes, auto-updated
 ```
 
-### Q5: パッケージの README に何を書くべきか?
+### Q5: What should I write in a package README?
 
 ```
-A: README はパッケージの「顔」であり、利用者が最初に見るドキュメントである。
-   以下の構成を推奨する。
+A: README is the "face" of the package and the first document users see.
+   The following structure is recommended.
 
-  推奨する README 構成:
-    1. パッケージ名 + 一行説明
-    2. バッジ（npm version, CI status, coverage, license）
-    3. インストール方法
-    4. クイックスタート（最小限のコード例）
-    5. 主要な機能の紹介
-    6. APIリファレンスへのリンク
-    7. マイグレーションガイド（メジャーバージョンアップ時）
-    8. コントリビューティングガイドへのリンク
-    9. ライセンス
+  Recommended README structure:
+    1. Package name + one-line description
+    2. Badges (npm version, CI status, coverage, license)
+    3. Installation instructions
+    4. Quick start (minimal code example)
+    5. Overview of major features
+    6. Link to API reference
+    7. Migration guide (when major version is bumped)
+    8. Link to contributing guide
+    9. License
 
-  npm の README 表示:
-    - npmjs.com のパッケージページに表示される
-    - マークダウンがレンダリングされる
-    - 画像は絶対URLを使用すること
-    - HTMLタグは一部制限あり
+  README display on npm:
+    - Displayed on the npmjs.com package page
+    - Markdown is rendered
+    - Use absolute URLs for images
+    - Some HTML tags are restricted
 ```
 
-### Q6: CommonJSとESMのデュアルパッケージはどう設定するか?
+### Q6: How do I configure a CommonJS and ESM dual package?
 
 ```
-A: package.json の exports フィールドで "import" と "require" の条件分岐を行い、
-   tsup で ESM/CJS のデュアルビルドを実行する。
+A: Use the exports field in package.json to branch between "import" and "require"
+   conditions, and run a dual build of ESM/CJS with tsup.
 
-  基本的な設定パターン:
+  Basic configuration pattern:
 
     // package.json
     {
@@ -2612,274 +2611,277 @@ A: package.json の exports フィールドで "import" と "require" の条件�
       sourcemap: true,
     });
 
-  ビルド実行:
+  Running the build:
     $ pnpm tsup
     → dist/index.js     (ESM)
     → dist/index.cjs    (CJS)
-    → dist/index.d.ts   (型定義)
-    → dist/index.d.cts  (CJS用型定義、自動生成)
+    → dist/index.d.ts   (type definitions)
+    → dist/index.d.cts  (CJS type definitions, auto-generated)
 
-  Dual Package Hazard の回避:
-    - 同一パッケージが ESM/CJS で二重にロードされるリスク
-    - 状態を持たない pure function のみで構成する
-    - シングルトンパターンを避ける
-    - 詳細 → 参照: Node.js公式「Dual Package Hazard」
+  Avoiding Dual Package Hazard:
+    - Risk of the same package being loaded twice as ESM/CJS
+    - Compose only of stateless pure functions
+    - Avoid the singleton pattern
+    - Details → See: Node.js official "Dual Package Hazard"
 
-  条件の優先順位:
-    1. "types" → 型定義（必ず最初に配置）
+  Condition priority:
+    1. "types" → type definitions (must be placed first)
     2. "import" → ESM
     3. "require" → CJS
-    4. "default" → フォールバック（通常不要）
+    4. "default" → fallback (usually not needed)
 ```
 
-### Q7: npmパッケージのバージョニング（SemVer）の実践的な運用方法は?
+### Q7: What is the practical operation of npm package versioning (SemVer)?
 
 ```
-A: セマンティックバージョニング（SemVer）は MAJOR.MINOR.PATCH の3つの数値で構成され、
-   変更内容に応じて適切な位置を更新する。
+A: Semantic Versioning (SemVer) consists of three numbers MAJOR.MINOR.PATCH,
+   and the appropriate position is updated based on the content of the change.
 
-  バージョン更新の判断基準:
+  Versioning decision criteria:
 
     MAJOR (1.0.0 → 2.0.0):
-      - 破壊的変更（Breaking Change）
-      - 例: 関数シグネチャの変更、必須パラメータの追加、削除
-      - export されているAPIの挙動変更
-      - Node.js の最低バージョンの引き上げ
-      - 既存コードが動作しなくなる可能性がある変更
+      - Breaking Change
+      - Examples: function signature changes, adding/removing required parameters
+      - Changing the behavior of exported APIs
+      - Raising minimum Node.js version
+      - Changes that may break existing code
 
     MINOR (1.0.0 → 1.1.0):
-      - 後方互換性のある機能追加
-      - 例: 新しい関数の export、オプショナル引数の追加
-      - 既存の動作を変えずに機能を拡張
-      - 依存パッケージの MINOR アップデート（破壊的変更なし）
+      - Backward-compatible feature additions
+      - Examples: exporting new functions, adding optional arguments
+      - Expanding functionality without changing existing behavior
+      - Minor updates to dependency packages (no breaking changes)
 
     PATCH (1.0.0 → 1.0.1):
-      - バグ修正のみ
-      - 例: 誤動作の修正、型定義の誤りの修正
-      - パフォーマンス改善（挙動変更なし）
-      - ドキュメントの修正
-      - 依存パッケージの PATCH アップデート
+      - Bug fixes only
+      - Examples: fixing malfunctions, fixing type definition errors
+      - Performance improvements (no behavior changes)
+      - Documentation fixes
+      - Patch updates to dependency packages
 
-  Changesets を使った自動管理:
+  Automated management with Changesets:
 
     $ npx changeset
-    → 変更の種類（major/minor/patch）を選択
-    → .changeset/xxxxx.md にサマリーを記述
-    → PR にマージ時、自動でバージョン更新 & CHANGELOG 生成
+    → Select type of change (major/minor/patch)
+    → Write summary in .changeset/xxxxx.md
+    → On PR merge, automatically update version & generate CHANGELOG
 
-  プレリリースバージョン:
-    - 1.0.0-beta.1, 1.0.0-rc.2 など
-    - npm publish --tag beta で公開
-    - 通常の npm install では取得されない
-    - テストユーザー向けに先行公開
+  Pre-release versions:
+    - 1.0.0-beta.1, 1.0.0-rc.2, etc.
+    - Publish with npm publish --tag beta
+    - Not retrieved by normal npm install
+    - Pre-release for test users
 
-  バージョン固定の推奨:
-    - ^ (Caret): MINOR までの自動更新を許可
+  Recommended version pinning:
+    - ^ (Caret): Allow auto-update up to MINOR
       "dependencies": { "@example/sdk": "^1.2.3" }
-      → 1.x.x の最新が自動取得される
-    - ~ (Tilde): PATCH のみの自動更新を許可
+      → Latest 1.x.x is auto-fetched
+    - ~ (Tilde): Allow auto-update for PATCH only
       "dependencies": { "@example/sdk": "~1.2.3" }
-      → 1.2.x の最新が自動取得される
+      → Latest 1.2.x is auto-fetched
 ```
 
-### Q8: 公開前のパッケージテスト方法（npm link vs pack）は?
+### Q8: How to test a package before publishing (npm link vs pack)?
 
 ```
-A: npm link と npm pack は異なる用途で使い分ける。
-   本番に近い検証には npm pack を強く推奨する。
+A: npm link and npm pack are used for different purposes.
+   npm pack is strongly recommended for production-close verification.
 
-  npm link の使い方:
+  How to use npm link:
 
-    パッケージ側:
+    Package side:
       $ cd /path/to/my-package
       $ npm link
 
-    利用側:
+    Consumer side:
       $ cd /path/to/test-project
       $ npm link @example/my-package
 
-    利点:
-      - リアルタイムに変更が反映される
-      - 開発サイクルが速い
+    Benefits:
+      - Changes are reflected in real time
+      - Fast development cycle
 
-    欠点:
-      - symlink が作成されるため本番と異なる挙動の可能性
-      - package.json の "files" フィールドが検証されない
-      - 不要なファイルが含まれても気づかない
+    Drawbacks:
+      - Symlinks are created, so behavior may differ from production
+      - The "files" field of package.json is not verified
+      - Unnecessary files may be included without noticing
 
-  npm pack の使い方（推奨）:
+  How to use npm pack (recommended):
 
-    パッケージ側:
+    Package side:
       $ npm pack --dry-run
-      → 公開されるファイル一覧を確認（実際のtarballは作成しない）
+      → Check the list of files to be published (no actual tarball)
 
       $ npm pack
-      → example-my-package-1.0.0.tgz が生成される
+      → example-my-package-1.0.0.tgz is generated
 
-    利用側:
+    Consumer side:
       $ npm install /path/to/example-my-package-1.0.0.tgz
 
-    利点:
-      - 本番の npm install と同じ挙動
-      - "files" フィールドが正しく機能しているか検証可能
-      - 不要なファイルの混入を事前検出
-      - tarball のサイズも確認できる
+    Benefits:
+      - Same behavior as a production npm install
+      - Can verify that the "files" field is working correctly
+      - Detect unnecessary file inclusion in advance
+      - Can also check tarball size
 
-    欠点:
-      - 変更のたびに pack し直す必要がある
-      - 開発サイクルがやや遅い
+    Drawbacks:
+      - Need to re-pack on every change
+      - Development cycle is somewhat slower
 
-  推奨ワークフロー:
+  Recommended workflow:
 
-    開発中:
-      → npm link で高速な反復開発
+    During development:
+      → npm link for fast iterative development
 
-    公開前の最終検証:
-      → npm pack でパッケージ内容を確認
-      → npm pack --dry-run で含まれるファイル一覧を検証
-      → 生成された .tgz を別プロジェクトで npm install してテスト
+    Final verification before publishing:
+      → npm pack to check package contents
+      → npm pack --dry-run to verify included file list
+      → npm install the generated .tgz in another project to test
 
-  publishConfig の検証:
-    → npm pack は publishConfig の設定も反映する
-    → registry, access 等の設定が正しいか確認可能
+  Verifying publishConfig:
+    → npm pack also reflects publishConfig settings
+    → Can verify that registry, access, etc. are configured correctly
 
-  CI/CD での pack テスト:
-    - GitHub Actions で npm pack を実行
-    - 生成された tarball を artifact として保存
-    - サイズ増加を検出してアラート
+  Pack testing in CI/CD:
+    - Run npm pack in GitHub Actions
+    - Save the generated tarball as an artifact
+    - Alert on size increase
 ```
 
 ---
 
-## 17. npm パッケージ品質チェックシート
+## 17. npm Package Quality Checklist
 
 ```
-パッケージ公開前の品質チェック（全項目クリアで公開可能）:
+Quality check before publishing (all items must be cleared):
 
-  基本設定:
-    [ ] package.json の name が正しい
-    [ ] version が SemVer に準拠している
-    [ ] description が簡潔で明確
-    [ ] license フィールドが設定されている
-    [ ] engines で Node.js バージョンを指定
-    [ ] keywords が適切に設定されている
-    [ ] repository, homepage, bugs が設定されている
+  Basic configuration:
+    [ ] package.json name is correct
+    [ ] version conforms to SemVer
+    [ ] description is concise and clear
+    [ ] license field is configured
+    [ ] Node.js version specified in engines
+    [ ] keywords are appropriately set
+    [ ] repository, homepage, bugs are configured
 
-  モジュール設定:
-    [ ] "type": "module" が設定されている
-    [ ] exports フィールドが正しく設定されている
-    [ ] main, module, types のフォールバックがある
-    [ ] サブパスエクスポートが意図通り動作する
-    [ ] 内部モジュールへの直接アクセスが防止されている
+  Module configuration:
+    [ ] "type": "module" is configured
+    [ ] exports field is correctly configured
+    [ ] main, module, types fallbacks exist
+    [ ] Subpath exports work as intended
+    [ ] Direct access to internal modules is prevented
 
-  ビルド:
-    [ ] ESM と CJS の両方が出力される
-    [ ] 型定義ファイル(.d.ts, .d.cts)が生成される
-    [ ] ソースマップが生成される
-    [ ] ビルド成果物が dist/ に出力される
-    [ ] sideEffects: false が設定されている
+  Build:
+    [ ] Both ESM and CJS are output
+    [ ] Type definition files (.d.ts, .d.cts) are generated
+    [ ] Source maps are generated
+    [ ] Build artifacts are output to dist/
+    [ ] sideEffects: false is configured
 
-  テスト:
-    [ ] テストカバレッジが 80% 以上
-    [ ] エッジケースのテストがある
-    [ ] エラーケースのテストがある
-    [ ] 非同期処理のテストがある
+  Testing:
+    [ ] Test coverage is 80% or more
+    [ ] Edge case tests exist
+    [ ] Error case tests exist
+    [ ] Async processing tests exist
 
-  公開設定:
-    [ ] files フィールドで公開ファイルを制限
-    [ ] npm pack --dry-run で内容を確認
-    [ ] .env やシークレットが含まれていない
-    [ ] 不要なテストファイルが含まれていない
-    [ ] 2FA が有効化されている
-    [ ] provenance が設定されている
+  Publish configuration:
+    [ ] Published files restricted with files field
+    [ ] Contents verified with npm pack --dry-run
+    [ ] No .env or secrets included
+    [ ] No unnecessary test files included
+    [ ] 2FA is enabled
+    [ ] provenance is configured
 
-  ドキュメント:
-    [ ] README.md が最新
-    [ ] CHANGELOG.md が更新されている
-    [ ] 型定義に JSDoc コメントがある
-    [ ] コード例が動作する
+  Documentation:
+    [ ] README.md is up to date
+    [ ] CHANGELOG.md is updated
+    [ ] Type definitions have JSDoc comments
+    [ ] Code examples work
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 概念 | ポイント |
-|------|---------|
-| package.json | exports で ESM/CJS 対応、types は各条件の先頭に配置 |
-| ビルド | tsup が SDK 開発に最適、環境別ビルドも対応可能 |
-| 型定義 | JSDoc コメント付きの丁寧な型がユーザー体験を向上させる |
-| 依存 | ゼロ依存を目指す、Node.js 組み込み API で代替 |
-| バージョン | SemVer + Changesets で体系的に管理 |
-| テスト | MSW で HTTP レベルのモック、カバレッジ 80% 以上 |
-| モノレポ | pnpm + Turborepo + Changesets が現代の標準構成 |
-| 公開 | GitHub Actions で自動化、provenance で信頼性を確保 |
-| セキュリティ | npm audit、2FA、provenance、サプライチェーン対策 |
-| メンテナンス | Renovate で依存更新、非推奨化は段階的に実施 |
+| Concept | Key Points |
+|---------|-----------|
+| package.json | ESM/CJS support via exports, types placed at top of each condition |
+| Build | tsup is optimal for SDK development, supports per-environment builds |
+| Type definitions | Well-commented types with JSDoc improve user experience |
+| Dependencies | Aim for zero dependencies, use Node.js built-in APIs as alternatives |
+| Versioning | Systematic management with SemVer + Changesets |
+| Testing | HTTP-level mock with MSW, 80% or more coverage |
+| Monorepo | pnpm + Turborepo + Changesets is the modern standard setup |
+| Publishing | Automated with GitHub Actions, provenance for reliability |
+| Security | npm audit, 2FA, provenance, supply chain countermeasures |
+| Maintenance | Dependency updates with Renovate, deprecation done gradually |
 
 ```
-npmパッケージ開発の成熟度モデル:
+npm package development maturity model:
 
-  Level 1 - 基本:
-    [x] npm publish できる
-    [x] package.json の基本フィールドを設定
-    [x] ESM で動作する
+  Level 1 - Basic:
+    [x] Can run npm publish
+    [x] Configure basic fields in package.json
+    [x] Works with ESM
 
-  Level 2 - 標準:
-    [x] ESM/CJS デュアルビルド
-    [x] TypeScript 型定義を提供
-    [x] テストカバレッジ 80% 以上
-    [x] CI/CD パイプライン構築
-    [x] SemVer に準拠したバージョニング
+  Level 2 - Standard:
+    [x] ESM/CJS dual build
+    [x] Provide TypeScript type definitions
+    [x] Test coverage 80% or more
+    [x] Build CI/CD pipeline
+    [x] SemVer-compliant versioning
 
-  Level 3 - プロフェッショナル:
-    [x] サブパスエクスポートの設計
-    [x] Changesets による体系的リリース管理
-    [x] size-limit によるバンドルサイズ監視
-    [x] npm provenance の有効化
-    [x] 包括的なセキュリティ対策
+  Level 3 - Professional:
+    [x] Subpath exports design
+    [x] Systematic release management with Changesets
+    [x] Bundle size monitoring with size-limit
+    [x] npm provenance enabled
+    [x] Comprehensive security measures
 
-  Level 4 - エキスパート:
-    [x] モノレポでの複数パッケージ管理
-    [x] Dual Package Hazard への対策
-    [x] 全 moduleResolution への対応
-    [x] 自動依存更新（Renovate/Dependabot）
-    [x] 非推奨化の段階的プロセス
-    [x] コミュニティ貢献の受け入れ体制
+  Level 4 - Expert:
+    [x] Multi-package management in monorepo
+    [x] Countermeasures for Dual Package Hazard
+    [x] Support for all moduleResolution settings
+    [x] Automated dependency updates (Renovate/Dependabot)
+    [x] Staged deprecation process
+    [x] Community contribution acceptance setup
 ```
 
 ---
 
 ## FAQ
 
-### Q1: モノレポと単一パッケージのどちらで始めるべきか?
-最初は単一パッケージで始め、パッケージの境界が明確になった時点でモノレポに移行することを推奨する。初期段階でモノレポを導入すると、パッケージ分割の判断が難しく、不要な複雑さを生むことが多い。具体的な分割の目安としては、異なるフレームワーク向けのアダプター（@my-sdk/react, @my-sdk/vue 等）が必要になった時や、コアロジックとユーティリティの責務が明確に分かれた時がモノレポへの移行タイミングである。
+### Q1: Should I start with a monorepo or a single package?
 
-### Q2: パッケージの非推奨化（deprecation）はどう進めるべきか?
-段階的な非推奨化プロセスを推奨する。まず `npm deprecate` コマンドで非推奨メッセージを設定し、利用者が `npm install` 時に警告を受け取るようにする。同時に、後継パッケージへの移行ガイドを README と CHANGELOG に明記する。非推奨化の告知から完全廃止まで最低6ヶ月の猶予期間を設け、週間ダウンロード数が十分に減少したことを確認してからアーカイブする。
+Start with a single package and move to a monorepo when package boundaries become clear. Introducing a monorepo at an early stage often makes it difficult to decide how to split packages and introduces unnecessary complexity. Concrete split criteria include when adapters for different frameworks (such as @my-sdk/react, @my-sdk/vue) are needed, or when the responsibilities of core logic and utilities are clearly separated.
 
-### Q3: パッケージのセキュリティ対策として最低限やるべきことは何か?
-最低限実施すべき対策は以下の4点である。(1) npm 2FA（二要素認証）の有効化によりアカウント乗っ取りを防止する。(2) `npm provenance` を有効化し、パッケージの出所をCI/CDパイプラインまで追跡可能にする。(3) `npm audit` をCIに組み込み、既知の脆弱性を持つ依存を検出する。(4) `.npmrc` で `ignore-scripts=true` を設定し、postinstall スクリプトによる攻撃を防ぐ。加えて、Renovate や Dependabot で依存の自動更新を設定することが望ましい。
+### Q2: How should package deprecation proceed?
 
----
+A staged deprecation process is recommended. First, set a deprecation message with the `npm deprecate` command so users receive a warning during `npm install`. At the same time, document the migration guide to the successor package in the README and CHANGELOG. Allow at least 6 months between announcing deprecation and complete removal, and archive only after confirming that weekly downloads have sufficiently decreased.
 
-## 次に読むべきガイド
--> [APIドキュメンテーション](./02-api-documentation.md)
+### Q3: What are the minimum security measures I should take for a package?
+
+The minimum measures to implement are the following four. (1) Enable npm 2FA (two-factor authentication) to prevent account hijacking. (2) Enable `npm provenance` to make the package's origin traceable back to the CI/CD pipeline. (3) Incorporate `npm audit` into CI to detect dependencies with known vulnerabilities. (4) Set `ignore-scripts=true` in `.npmrc` to prevent attacks via postinstall scripts. Additionally, it is desirable to configure automatic dependency updates with Renovate or Dependabot.
 
 ---
 
-## 参考文献
+## What to Read Next
+-> [API Documentation](./02-api-documentation.md)
 
-1. npm. "package.json documentation." docs.npmjs.com, 2024. -- package.json の全フィールドに関する公式リファレンス。exports フィールドの詳細仕様や条件付きエクスポートの優先順位について、最も正確な情報源である。
+---
 
-2. Node.js. "Modules: Packages." nodejs.org/api/packages.html, 2024. -- Node.js のモジュール解決アルゴリズムの公式仕様。ESM と CJS の相互運用、exports フィールドの解決順序、Dual Package Hazard の公式見解が記載されている。
+## References
 
-3. tsup. "Bundle your TypeScript library with no config." github.com/egoist/tsup, 2024. -- tsup の公式ドキュメント。ESM/CJS デュアルビルド、型定義生成、コード分割、環境別ビルド等の設定方法が網羅されている。
+1. npm. "package.json documentation." docs.npmjs.com, 2024. -- Official reference for all package.json fields. The most accurate source for detailed specifications of the exports field and condition export priority.
 
-4. Changesets. "A way to manage your versioning and changelogs." github.com/changesets/changesets, 2024. -- Changesets の公式リポジトリ。モノレポ対応のバージョン管理、CHANGELOG 自動生成、GitHub Actions との連携設定について詳述されている。
+2. Node.js. "Modules: Packages." nodejs.org/api/packages.html, 2024. -- Official spec for the Node.js module resolution algorithm. Contains official statements on ESM and CJS interoperability, exports field resolution order, and Dual Package Hazard.
 
-5. Turborepo. "High-performance build system for JavaScript and TypeScript codebases." turbo.build, 2024. -- Turborepo の公式ドキュメント。モノレポのタスク実行、ビルドキャッシュ、依存関係グラフの自動検出について解説されている。
+3. tsup. "Bundle your TypeScript library with no config." github.com/egoist/tsup, 2024. -- Official tsup documentation. Covers configuration methods for ESM/CJS dual build, type definition generation, code splitting, and per-environment builds comprehensively.
 
-6. Semver. "Semantic Versioning 2.0.0." semver.org, 2024. -- セマンティックバージョニングの公式仕様。MAJOR/MINOR/PATCH の定義、プレリリースバージョンの規則、バージョン比較のアルゴリズムが定義されている。
+4. Changesets. "A way to manage your versioning and changelogs." github.com/changesets/changesets, 2024. -- Official Changesets repository. Detailed explanation of monorepo-compatible version management, automatic CHANGELOG generation, and GitHub Actions integration configuration.
 
-7. npm. "npm provenance." docs.npmjs.com/generating-provenance-statements, 2024. -- npm provenance（出所証明）の公式ガイド。Sigstore を用いたパッケージの署名と検証、GitHub Actions での設定方法が解説されている。
+5. Turborepo. "High-performance build system for JavaScript and TypeScript codebases." turbo.build, 2024. -- Official Turborepo documentation. Explains monorepo task execution, build caching, and automatic dependency graph detection.
+
+6. Semver. "Semantic Versioning 2.0.0." semver.org, 2024. -- Official semantic versioning spec. Defines MAJOR/MINOR/PATCH definitions, pre-release version rules, and version comparison algorithms.
+
+7. npm. "npm provenance." docs.npmjs.com/generating-provenance-statements, 2024. -- Official npm provenance guide. Explains package signing and verification using Sigstore and GitHub Actions configuration methods.
