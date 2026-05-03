@@ -1,77 +1,77 @@
-# 命名規則と慣例
+# Naming Conventions and Standards
 
-> API の命名は開発者体験（DX）に直結する。一貫性のあるエンドポイント命名、レスポンス構造、エラー設計、日時・ID・列挙型の規約を確立し、使いやすいAPIを設計する。命名の統一はAPIの予測可能性を高め、ドキュメントを読まなくても直感的に利用できるAPIの基盤となる。
+> API naming directly impacts developer experience (DX). Establish consistent endpoint naming, response structure, error design, and conventions for dates, IDs, and enumerations to design APIs that are easy to use. Unified naming increases API predictability and forms the foundation of an API that can be used intuitively without reading the documentation.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] エンドポイントとフィールドの命名規則を理解する
-- [ ] レスポンスのエンベロープ設計を把握する
-- [ ] 一貫性のあるエラーレスポンスを学ぶ
-- [ ] ヘッダー規約とメタデータの標準化を習得する
-- [ ] 日時・ID・列挙型の統一規約を確立する
-- [ ] 実務プロジェクトでの命名ガイドラインを策定する
-- [ ] 国際化対応の命名パターンを理解する
-- [ ] OpenAPI仕様での命名規則の実装方法を把握する
+- [ ] Understand naming conventions for endpoints and fields
+- [ ] Grasp the response envelope design
+- [ ] Learn consistent error responses
+- [ ] Master header conventions and metadata standardization
+- [ ] Establish unified conventions for dates, IDs, and enumerations
+- [ ] Define naming guidelines for real-world projects
+- [ ] Understand naming patterns for internationalization
+- [ ] Learn how to implement naming conventions in OpenAPI specifications
 
-## 前提知識
+## Prerequisites
 
-- API First設計の基本概念 → 参照: [API First設計](./00-api-first-design.md)
-- HTTP メソッド（GET/POST/PUT/DELETE）の理解 → 参照: HTTPの基礎
-- REST APIの基本原則 → 参照: REST API
+- Basic concepts of API First design → See: [API First Design](./00-api-first-design.md)
+- Understanding of HTTP methods (GET/POST/PUT/DELETE) → See: HTTP Basics
+- Basic principles of REST API → See: REST API
 
 ---
 
-## 1. エンドポイント命名
+## 1. Endpoint Naming
 
-### 1.1 基本ルール
+### 1.1 Basic Rules
 
 ```
-基本ルール:
-  ✓ 名詞・複数形:     /users, /orders, /products
-  ✓ ケバブケース:      /user-profiles, /order-items
-  ✓ 小文字のみ
-  ✓ 末尾スラッシュなし: /users（✗ /users/）
-  ✗ 動詞を使わない:   /getUsers, /createOrder
-  ✗ 大文字:           /Users, /OrderItems
-  ✗ アンダースコア:   /user_profiles
-  ✗ ファイル拡張子:   /users.json
+Basic rules:
+  ✓ Nouns, plural form:    /users, /orders, /products
+  ✓ kebab-case:            /user-profiles, /order-items
+  ✓ Lowercase only
+  ✓ No trailing slash:     /users (✗ /users/)
+  ✗ No verbs:              /getUsers, /createOrder
+  ✗ No uppercase:          /Users, /OrderItems
+  ✗ No underscores:        /user_profiles
+  ✗ No file extensions:    /users.json
 
-  リソースの階層:
+  Resource hierarchy:
   /users/{userId}
   /users/{userId}/orders
   /users/{userId}/orders/{orderId}
-  → 2階層まで（3階層以上はフラットに）
+  → Up to 2 levels (3+ levels should be flattened)
 
-  コレクション操作:
-  GET    /users           — 一覧取得
-  POST   /users           — 作成
-  GET    /users/{id}      — 詳細取得
-  PUT    /users/{id}      — 完全更新
-  PATCH  /users/{id}      — 部分更新
-  DELETE /users/{id}      — 削除
+  Collection operations:
+  GET    /users           — List
+  POST   /users           — Create
+  GET    /users/{id}      — Get detail
+  PUT    /users/{id}      — Full update
+  PATCH  /users/{id}      — Partial update
+  DELETE /users/{id}      — Delete
 
-  アクション（RESTに収まらない操作）:
-  POST   /users/{id}/activate     — ユーザーの有効化
-  POST   /users/{id}/reset-password — パスワードリセット
-  POST   /orders/{id}/cancel      — 注文キャンセル
-  → 動詞が必要な場合はサブリソースとして表現
+  Actions (operations that don't fit REST):
+  POST   /users/{id}/activate       — Activate user
+  POST   /users/{id}/reset-password — Reset password
+  POST   /orders/{id}/cancel        — Cancel order
+  → Express as sub-resources when a verb is required
 ```
 
-### 1.2 リソース名の選定ガイドライン
+### 1.2 Resource Name Selection Guidelines
 
 ```
-リソース名の選定基準:
+Criteria for selecting resource names:
 
-  1. ビジネスドメインの用語を使う
+  1. Use business domain terminology
   ─────────────────────────────
-  ✓ /invoices     （請求書）
+  ✓ /invoices
   ✗ /payment-documents
-  ✓ /shipments    （出荷）
+  ✓ /shipments
   ✗ /delivery-records
-  ✓ /subscriptions（サブスクリプション）
+  ✓ /subscriptions
   ✗ /recurring-payments
 
-  2. 略語は避ける
+  2. Avoid abbreviations
   ─────────────────────────────
   ✓ /organizations
   ✗ /orgs
@@ -79,36 +79,36 @@
   ✗ /configs
   ✓ /applications
   ✗ /apps
-  例外: 業界標準の略語は許容
+  Exception: industry-standard abbreviations are acceptable
   ✓ /urls, /ids, /apis
 
-  3. 技術用語よりビジネス用語
+  3. Business terms over technical terms
   ─────────────────────────────
   ✓ /users/{id}/preferences
   ✗ /users/{id}/settings-records
   ✓ /notifications
   ✗ /push-message-queue-items
 
-  4. 曖昧な名前を避ける
+  4. Avoid ambiguous names
   ─────────────────────────────
   ✗ /data, /items, /things, /resources, /objects
-  ✓ 具体的なリソース名を使う
+  ✓ Use specific resource names
 
-  5. 単数形と複数形のルール
+  5. Singular vs plural rules
   ─────────────────────────────
-  コレクション: 常に複数形
+  Collections: always plural
   ✓ /users, /orders, /products
 
-  シングルトンリソース: 単数形
-  ✓ /users/{id}/profile    （各ユーザーに1つ）
-  ✓ /settings              （システム設定は1つ）
-  ✓ /users/{id}/cart        （各ユーザーに1つのカート）
+  Singleton resources: singular
+  ✓ /users/{id}/profile    (one per user)
+  ✓ /settings              (one system configuration)
+  ✓ /users/{id}/cart       (one cart per user)
 ```
 
-### 1.3 階層設計の実践パターン
+### 1.3 Practical Hierarchy Design Patterns
 
 ```
-パターン1: シンプルなCRUD
+Pattern 1: Simple CRUD
 ─────────────────────────
   GET    /products
   POST   /products
@@ -117,42 +117,42 @@
   PATCH  /products/{productId}
   DELETE /products/{productId}
 
-パターン2: 親子関係
+Pattern 2: Parent-child relationship
 ─────────────────────────
-  GET    /users/{userId}/orders              — ユーザーの注文一覧
-  POST   /users/{userId}/orders              — ユーザーの注文作成
-  GET    /users/{userId}/orders/{orderId}    — 特定注文の詳細
+  GET    /users/{userId}/orders              — User's order list
+  POST   /users/{userId}/orders              — Create user's order
+  GET    /users/{userId}/orders/{orderId}    — Specific order detail
 
-  ※ 注文を直接アクセスできるエイリアスも提供:
-  GET    /orders/{orderId}                   — 注文詳細（直接アクセス）
+  ※ Also provide an alias for direct order access:
+  GET    /orders/{orderId}                   — Order detail (direct access)
 
-パターン3: 深いネストの回避
+Pattern 3: Avoiding deep nesting
 ─────────────────────────
-  ✗ 避けるべき（3階層以上）:
+  ✗ Avoid (3+ levels):
   GET /users/{userId}/orders/{orderId}/items/{itemId}/reviews
 
-  ✓ フラット化する:
+  ✓ Flatten:
   GET /order-items/{itemId}/reviews
   GET /reviews?orderId={orderId}
 
-パターン4: 多対多関係
+Pattern 4: Many-to-many relationships
 ─────────────────────────
-  ✓ 関連リソースとして表現:
-  GET    /users/{userId}/roles               — ユーザーのロール一覧
-  PUT    /users/{userId}/roles/{roleId}      — ロールの割り当て
-  DELETE /users/{userId}/roles/{roleId}      — ロールの解除
+  ✓ Express as related resource:
+  GET    /users/{userId}/roles               — User's role list
+  PUT    /users/{userId}/roles/{roleId}      — Assign role
+  DELETE /users/{userId}/roles/{roleId}      — Remove role
 
-  ✓ 別アプローチ（ジャンクションリソース）:
+  ✓ Alternative approach (junction resource):
   GET    /role-assignments?userId={userId}
   POST   /role-assignments
   DELETE /role-assignments/{assignmentId}
 
-パターン5: 検索とフィルタリング
+Pattern 5: Search and filtering
 ─────────────────────────
-  ✓ クエリパラメータで表現:
+  ✓ Express as query parameters:
   GET /products?category=electronics&minPrice=1000&sort=-price
 
-  ✓ 複雑な検索は専用エンドポイント:
+  ✓ Complex search with dedicated endpoint:
   POST /products/search
   {
     "query": "laptop",
@@ -163,14 +163,14 @@
     "sort": [{ "field": "price", "order": "asc" }]
   }
 
-パターン6: バルク操作
+Pattern 6: Bulk operations
 ─────────────────────────
-  ✓ コレクションに対する一括操作:
+  ✓ Batch operations on collections:
   POST   /users/bulk-create
   PATCH  /users/bulk-update
   DELETE /users/bulk-delete
 
-  ✓ またはバッチリクエスト:
+  ✓ Or batch requests:
   POST /batch
   {
     "requests": [
@@ -179,9 +179,9 @@
     ]
   }
 
-パターン7: 非同期操作
+Pattern 7: Asynchronous operations
 ─────────────────────────
-  ✓ 長時間かかる操作:
+  ✓ Long-running operations:
   POST /reports/generate
   → 202 Accepted
   {
@@ -203,59 +203,59 @@
   }
 ```
 
-### 1.4 operationId の命名規則
+### 1.4 operationId Naming Conventions
 
 ```
-operationIdの命名パターン:
+operationId naming patterns:
 
-  基本形: {動詞}{リソース名}（camelCase）
+  Base form: {verb}{ResourceName} (camelCase)
 
-  CRUD操作:
+  CRUD operations:
   ─────────────────────────────
   GET    /users          → listUsers
   POST   /users          → createUser
   GET    /users/{id}     → getUser
-  PUT    /users/{id}     → updateUser（完全更新）
-  PATCH  /users/{id}     → patchUser（部分更新）
+  PUT    /users/{id}     → updateUser (full update)
+  PATCH  /users/{id}     → patchUser (partial update)
   DELETE /users/{id}     → deleteUser
 
-  サブリソース:
+  Sub-resources:
   ─────────────────────────────
   GET    /users/{id}/orders     → listUserOrders
   POST   /users/{id}/orders     → createUserOrder
   GET    /users/{id}/profile    → getUserProfile
   PUT    /users/{id}/profile    → updateUserProfile
 
-  アクション:
+  Actions:
   ─────────────────────────────
   POST   /users/{id}/activate       → activateUser
   POST   /users/{id}/deactivate     → deactivateUser
   POST   /orders/{id}/cancel        → cancelOrder
   POST   /users/{id}/reset-password → resetUserPassword
 
-  検索:
+  Search:
   ─────────────────────────────
   GET    /users?search=...     → searchUsers
   POST   /products/search      → searchProducts
 
-  命名ルール:
-  ✓ camelCaseで統一
-  ✓ 動詞 + 名詞の組み合わせ
-  ✓ APIクライアント生成時のメソッド名になる
-  ✓ 一意であること（API全体で重複なし）
-  ✗ get_user, GetUser, get-user は避ける
+  Naming rules:
+  ✓ Use camelCase consistently
+  ✓ Combination of verb + noun
+  ✓ Becomes the method name when generating API clients
+  ✓ Must be unique (no duplicates across the entire API)
+  ✗ Avoid get_user, GetUser, get-user
 ```
 
 ---
 
-## 2. フィールド命名
+## 2. Field Naming
 
-### 2.1 ケーシング規約
+### 2.1 Casing Conventions
 
 ```
-JSON フィールド名:
+JSON field names:
 
-  推奨: camelCase（JavaScript / フロントエンド親和性）
+  Recommended: camelCase (JavaScript / frontend friendly)
   {
     "userId": "123",
     "firstName": "Taro",
@@ -267,7 +267,7 @@ JSON フィールド名:
     "postalCode": "100-0001"
   }
 
-  許容: snake_case（Ruby/Python エコシステム）
+  Acceptable: snake_case (Ruby/Python ecosystems)
   {
     "user_id": "123",
     "first_name": "Taro",
@@ -279,164 +279,164 @@ JSON フィールド名:
     "postal_code": "100-0001"
   }
 
-  → プロジェクト内で統一が最重要
-  → フロントエンドがJavaScript/TypeScriptならcamelCase推奨
-  → バックエンドがPython/RubyならsnakeCase許容
+  → Consistency within the project is most important
+  → camelCase recommended if frontend is JavaScript/TypeScript
+  → snake_case acceptable if backend is Python/Ruby
 
-ケーシング変換の自動化:
-  → APIゲートウェイやミドルウェアで変換
-  → クライアントライブラリで変換
-  → 仕様書では1つのケーシングに統一
+Automating casing conversion:
+  → Convert at API gateway or middleware level
+  → Convert in client libraries
+  → Use one casing in specifications
 ```
 
-### 2.2 フィールド名の命名パターン
+### 2.2 Field Name Patterns
 
 ```
-1. 日時フィールド
+1. Date/time fields
 ─────────────────────────────
-  命名パターン: {動詞の過去分詞}At
+  Naming pattern: {past participle}At
 
-  createdAt       — 作成日時
-  updatedAt       — 更新日時
-  deletedAt       — 削除日時（論理削除）
-  publishedAt     — 公開日時
-  expiredAt       — 有効期限
-  lastLoginAt     — 最終ログイン日時
-  scheduledAt     — 予定日時
-  completedAt     — 完了日時
-  startedAt       — 開始日時
-  cancelledAt     — キャンセル日時
+  createdAt       — Creation timestamp
+  updatedAt       — Update timestamp
+  deletedAt       — Deletion timestamp (soft delete)
+  publishedAt     — Publication timestamp
+  expiredAt       — Expiration timestamp
+  lastLoginAt     — Last login timestamp
+  scheduledAt     — Scheduled timestamp
+  completedAt     — Completion timestamp
+  startedAt       — Start timestamp
+  cancelledAt     — Cancellation timestamp
 
-  フォーマット:
-  → ISO 8601 形式: "2024-01-15T10:30:00Z"
-  → UTC で統一
-  → タイムゾーンは別フィールド（必要な場合）
+  Format:
+  → ISO 8601 format: "2024-01-15T10:30:00Z"
+  → Use UTC consistently
+  → Timezone in a separate field (if needed)
 
   {
     "createdAt": "2024-01-15T10:30:00Z",
     "timezone": "Asia/Tokyo"
   }
 
-  日付のみ（時刻なし）:
-  → ISO 8601 日付形式: "2024-01-15"
-  → フィールド名: birthDate, hireDate, dueDate
-  → "On" サフィックスも許容: expiresOn
+  Date only (no time):
+  → ISO 8601 date format: "2024-01-15"
+  → Field names: birthDate, hireDate, dueDate
+  → "On" suffix also acceptable: expiresOn
 
-2. ID フィールド
+2. ID fields
 ─────────────────────────────
-  推奨形式:
+  Recommended formats:
 
   UUID v4: "550e8400-e29b-41d4-a716-446655440000"
-  → ランダム生成、衝突確率極めて低い
-  → 分散システムで最適
+  → Randomly generated, extremely low collision probability
+  → Optimal for distributed systems
 
   UUID v7: "01908816-2e7d-7c0e-8a1c-3b4d5e6f7a8b"
-  → タイムスタンプ内蔵、ソート可能
-  → UUID v4の後継として推奨
+  → Timestamp embedded, sortable
+  → Recommended as successor to UUID v4
 
   ULID: "01ARZ3NDEKTSV4RRFFQ69G5FAV"
-  → ソート可能、URLフレンドリー
-  → 26文字で表現
+  → Sortable, URL-friendly
+  → Represented in 26 characters
 
-  プレフィックス付きID: "user_2c9p8K3nMv", "ord_7x4mR9yLpq"
-  → リソース種別が一目でわかる
-  → Stripe, Twilio等が採用
-  → ログやデバッグで便利
+  Prefixed ID: "user_2c9p8K3nMv", "ord_7x4mR9yLpq"
+  → Resource type is immediately identifiable
+  → Used by Stripe, Twilio, etc.
+  → Convenient for logging and debugging
 
-  ✗ 避けるべき:
-  → 自動増分整数（予測可能、セキュリティリスク）
-  → 連番（データ量の推測が可能）
+  ✗ Avoid:
+  → Auto-incrementing integers (predictable, security risk)
+  → Sequential numbers (data volume can be estimated)
 
-  複数IDフィールドの命名:
+  Naming multiple ID fields:
   {
-    "id": "user_2c9p8K3nMv",           ← 自身のID
-    "organizationId": "org_5x8mN3pLq", ← 外部キー
-    "createdBy": "user_7y2kR9wMn"      ← 作成者ID
+    "id": "user_2c9p8K3nMv",           ← Own ID
+    "organizationId": "org_5x8mN3pLq", ← Foreign key
+    "createdBy": "user_7y2kR9wMn"      ← Creator ID
   }
 
-3. 真偽値フィールド
+3. Boolean fields
 ─────────────────────────────
-  命名パターン: is/has/can/should + 形容詞/動詞
+  Naming pattern: is/has/can/should + adjective/verb
 
-  is + 状態:
-  isActive        — 有効か
-  isVerified      — 検証済みか
-  isPublished     — 公開済みか
-  isDeleted       — 削除済みか（論理削除）
-  isDefault       — デフォルトか
-  isLocked        — ロック中か
+  is + state:
+  isActive        — Whether active
+  isVerified      — Whether verified
+  isPublished     — Whether published
+  isDeleted       — Whether deleted (soft delete)
+  isDefault       — Whether default
+  isLocked        — Whether locked
 
-  has + 所有:
-  hasPassword     — パスワード設定済みか
-  hasAvatar       — アバター画像があるか
-  hasPremium      — プレミアムプランか
-  hasChildren     — 子要素があるか
+  has + possession:
+  hasPassword     — Whether password is set
+  hasAvatar       — Whether avatar image exists
+  hasPremium      — Whether on premium plan
+  hasChildren     — Whether child elements exist
 
-  can + 能力:
-  canEdit         — 編集可能か
-  canDelete       — 削除可能か
-  canShare        — 共有可能か
-  canExport       — エクスポート可能か
+  can + capability:
+  canEdit         — Whether editable
+  canDelete       — Whether deletable
+  canShare        — Whether shareable
+  canExport       — Whether exportable
 
-  should + 推奨:
-  shouldNotify    — 通知すべきか
-  shouldSync      — 同期すべきか
+  should + recommendation:
+  shouldNotify    — Whether to notify
+  shouldSync      — Whether to sync
 
-  ✗ 避けるべき:
-  → active（isActiveを使う）
-  → flag, status（具体的な名前を使う）
-  → enabled/disabled（isEnabledを使う）
+  ✗ Avoid:
+  → active (use isActive)
+  → flag, status (use specific names)
+  → enabled/disabled (use isEnabled)
 
-4. 列挙型フィールド
+4. Enumeration fields
 ─────────────────────────────
-  推奨: snake_case の小文字
+  Recommended: lowercase snake_case
 
-  ステータス系:
+  Status:
   "status": "active"
   "status": "in_progress"
   "status": "completed"
   "status": "cancelled"
 
-  種別系:
+  Type:
   "type": "credit_card"
   "type": "bank_transfer"
   "type": "digital_wallet"
 
-  ロール系:
+  Role:
   "role": "admin"
   "role": "moderator"
   "role": "member"
   "role": "guest"
 
-  優先度系:
+  Priority:
   "priority": "critical"
   "priority": "high"
   "priority": "medium"
   "priority": "low"
 
-  列挙値の命名ルール:
-  ✓ snake_case の小文字で統一
-  ✓ 新しい値を追加しても後方互換
-  ✓ 意味が明確で省略しない
-  ✗ 数値コード（1, 2, 3）は避ける
-  ✗ 大文字（ACTIVE, IN_PROGRESS）は意見が分かれる
+  Enumeration value naming rules:
+  ✓ Use lowercase snake_case consistently
+  ✓ Adding new values remains backward compatible
+  ✓ Clear meaning, no abbreviations
+  ✗ Avoid numeric codes (1, 2, 3)
+  ✗ Uppercase (ACTIVE, IN_PROGRESS) is debated
 
-5. 金額フィールド
+5. Amount fields
 ─────────────────────────────
-  推奨: 最小単位の整数 + 通貨コード
+  Recommended: smallest unit integer + currency code
 
   {
-    "amount": 1500,          ← 1500円（整数で表現）
-    "currency": "JPY",       ← ISO 4217 通貨コード
-    "displayAmount": "¥1,500" ← 表示用（参考値）
+    "amount": 1500,          ← 1500 JPY (expressed as integer)
+    "currency": "JPY",       ← ISO 4217 currency code
+    "displayAmount": "¥1,500" ← For display (reference value)
   }
 
   {
-    "amount": 2999,          ← $29.99（セント単位）
+    "amount": 2999,          ← $29.99 (in cents)
     "currency": "USD"
   }
 
-  複数金額:
+  Multiple amounts:
   {
     "subtotal": 10000,
     "tax": 1000,
@@ -446,9 +446,9 @@ JSON フィールド名:
     "currency": "JPY"
   }
 
-6. 配列フィールド
+6. Array fields
 ─────────────────────────────
-  命名パターン: 複数形名詞
+  Naming pattern: plural nouns
 
   "users": [...]
   "tags": [...]
@@ -456,33 +456,33 @@ JSON フィールド名:
   "attachments": [...]
   "lineItems": [...]
 
-  カウントフィールド:
+  Count fields:
   "userCount": 150
   "commentCount": 42
   "totalItems": 500
 
-  ✗ 避けるべき:
-  → "userList"（Listサフィックスは不要）
-  → "userData"（Dataサフィックスは不要）
+  ✗ Avoid:
+  → "userList" (List suffix is unnecessary)
+  → "userData" (Data suffix is unnecessary)
 
-7. ネストオブジェクトの命名
+7. Nested object naming
 ─────────────────────────────
   {
-    "user": {                        ← 単数形
+    "user": {                        ← singular
       "id": "user_abc",
-      "name": "田中太郎",
-      "profile": {                   ← 関連オブジェクト
-        "bio": "エンジニア",
+      "name": "Taro Tanaka",
+      "profile": {                   ← related object
+        "bio": "Engineer",
         "avatarUrl": "https://..."
       },
-      "address": {                   ← 住所オブジェクト
+      "address": {                   ← address object
         "postalCode": "100-0001",
-        "prefecture": "東京都",
-        "city": "千代田区",
-        "street": "丸の内1-1-1",
-        "building": "東京ビル3F"
+        "prefecture": "Tokyo",
+        "city": "Chiyoda",
+        "street": "Marunouchi 1-1-1",
+        "building": "Tokyo Building 3F"
       },
-      "metadata": {                  ← メタデータ
+      "metadata": {                  ← metadata
         "lastLoginIp": "192.168.1.1",
         "userAgent": "Mozilla/5.0..."
       }
@@ -490,55 +490,55 @@ JSON フィールド名:
   }
 ```
 
-### 2.3 フィールド命名のアンチパターン
+### 2.3 Field Naming Anti-patterns
 
 ```
-アンチパターン集:
+Anti-patterns:
 
-  1. 型名をフィールド名に含める
+  1. Including type name in field name
   ✗ "nameString", "ageNumber", "isActiveBool"
   ✓ "name", "age", "isActive"
 
-  2. 冗長なプレフィックス
-  ✗ "userName", "userEmail" （Userオブジェクト内）
+  2. Redundant prefixes
+  ✗ "userName", "userEmail" (inside a User object)
   ✓ "name", "email"
-  ※ ただしIDは "userId" のように明示が推奨
+  ※ However, IDs should be explicit like "userId"
 
-  3. 略語の乱用
+  3. Overusing abbreviations
   ✗ "desc", "qty", "amt", "addr", "msg"
   ✓ "description", "quantity", "amount", "address", "message"
-  例外: "id", "url", "api" は許容
+  Exception: "id", "url", "api" are acceptable
 
-  4. 一貫性のないケーシング
-  ✗ 同一APIで "createdAt" と "updated_at" が混在
-  ✓ どちらかに統一
+  4. Inconsistent casing
+  ✗ "createdAt" and "updated_at" mixed in the same API
+  ✓ Standardize to one
 
-  5. 意味の重複
-  ✗ "priceAmount"（priceだけで金額とわかる）
-  ✗ "nameString"（nameだけで文字列とわかる）
+  5. Redundant meaning
+  ✗ "priceAmount" (price alone implies amount)
+  ✗ "nameString" (name alone implies string)
   ✓ "price", "name"
 
-  6. 否定形の真偽値
+  6. Negated boolean values
   ✗ "isNotActive", "isDisabled", "isInvalid"
-  ✓ "isActive"（false で非アクティブ）
-  ✓ "isEnabled"（false で無効）
-  ✓ "isValid"（false で無効）
+  ✓ "isActive" (false means inactive)
+  ✓ "isEnabled" (false means disabled)
+  ✓ "isValid" (false means invalid)
 ```
 
 ---
 
-## 3. レスポンス設計
+## 3. Response Design
 
-### 3.1 エンベロープパターン
+### 3.1 Envelope Pattern
 
 ```
-エンベロープパターン:
+Envelope pattern:
 
-  単一リソース:
+  Single resource:
   {
     "data": {
       "id": "user_abc123",
-      "name": "田中太郎",
+      "name": "Taro Tanaka",
       "email": "tanaka@example.com",
       "role": "admin",
       "isActive": true,
@@ -547,11 +547,11 @@ JSON フィールド名:
     }
   }
 
-  コレクション:
+  Collection:
   {
     "data": [
-      { "id": "user_abc", "name": "田中太郎" },
-      { "id": "user_def", "name": "山田花子" }
+      { "id": "user_abc", "name": "Taro Tanaka" },
+      { "id": "user_def", "name": "Hanako Yamada" }
     ],
     "meta": {
       "total": 150,
@@ -570,97 +570,97 @@ JSON フィールド名:
     }
   }
 
-  空のレスポンス:
-  204 No Content（ボディなし）
-  → DELETE 成功時等
+  Empty response:
+  204 No Content (no body)
+  → On successful DELETE, etc.
 
-  作成成功:
+  Creation success:
   201 Created
   Location: /api/v1/users/user_xyz789
   {
     "data": {
       "id": "user_xyz789",
-      "name": "佐藤次郎",
+      "name": "Jiro Sato",
       "email": "sato@example.com",
       "createdAt": "2024-06-15T09:00:00Z"
     }
   }
 ```
 
-### 3.2 null vs 省略 の設計方針
+### 3.2 null vs Omission Design Policy
 
 ```
-nullと省略の使い分け:
+Distinguishing null from omission:
 
-  基本方針:
-  → null: フィールドが存在するが値がない
-  → 省略: フィールドが該当しない、または未リクエスト
+  Basic policy:
+  → null: field exists but has no value
+  → Omit: field is not applicable, or was not requested
 
-  例1: ユーザープロフィール
+  Example 1: User profile
   {
-    "name": "田中太郎",
-    "phone": null,           ← 電話番号未設定
-    "bio": null,             ← 自己紹介未設定
-    // "deletedAt" は省略    ← 削除されていない場合
-    "avatarUrl": null         ← アバター未設定
+    "name": "Taro Tanaka",
+    "phone": null,           ← phone number not set
+    "bio": null,             ← bio not set
+    // "deletedAt" omitted   ← not deleted
+    "avatarUrl": null         ← avatar not set
   }
 
-  例2: 論理削除されたユーザー
+  Example 2: Soft-deleted user
   {
-    "name": "田中太郎",
-    "deletedAt": "2024-06-01T12:00:00Z",  ← 削除日時あり
+    "name": "Taro Tanaka",
+    "deletedAt": "2024-06-01T12:00:00Z",  ← deletion timestamp present
     "phone": null
   }
 
-  例3: フィールド選択（sparse fieldsets）
+  Example 3: Field selection (sparse fieldsets)
   GET /users/123?fields=name,email
   {
     "data": {
       "id": "user_abc",
-      "name": "田中太郎",
+      "name": "Taro Tanaka",
       "email": "tanaka@example.com"
-      // phone, bio等は省略（リクエストされていない）
+      // phone, bio, etc. omitted (not requested)
     }
   }
 
-  OpenAPIでの定義:
-  nullableフィールド:
+  OpenAPI definition:
+  nullable fields:
     phone:
       type: string
-      nullable: true          ← null可能
+      nullable: true          ← can be null
     deletedAt:
       type: string
       format: date-time
-      nullable: true          ← null可能（未削除時）
+      nullable: true          ← can be null (when not deleted)
 
-  省略可能フィールド:
-  → requiredリストに含めない
-  → ドキュメントで省略条件を明記
+  Optional fields:
+  → Do not include in required list
+  → Document the omission conditions explicitly
 ```
 
-### 3.3 レスポンスの拡張パターン
+### 3.3 Response Extension Patterns
 
 ```typescript
-// パターン1: リソース展開（Expand / Include）
+// Pattern 1: Resource expansion (Expand / Include)
 // GET /orders/ord_abc?expand=customer,items.product
 
-// レスポンス:
+// Response:
 {
   "data": {
     "id": "ord_abc",
     "status": "confirmed",
-    "customer": {                    // ← 展開されたリソース
+    "customer": {                    // ← expanded resource
       "id": "user_123",
-      "name": "田中太郎",
+      "name": "Taro Tanaka",
       "email": "tanaka@example.com"
     },
     "items": [
       {
         "id": "item_1",
         "quantity": 2,
-        "product": {                 // ← ネストされた展開
+        "product": {                 // ← nested expansion
           "id": "prod_xyz",
-          "name": "ワイヤレスイヤホン",
+          "name": "Wireless Earphones",
           "price": 15000
         }
       }
@@ -670,18 +670,18 @@ nullと省略の使い分け:
   }
 }
 
-// 展開なしの場合（デフォルト）:
+// Without expansion (default):
 // GET /orders/ord_abc
 {
   "data": {
     "id": "ord_abc",
     "status": "confirmed",
-    "customerId": "user_123",        // ← IDのみ
+    "customerId": "user_123",        // ← ID only
     "items": [
       {
         "id": "item_1",
         "quantity": 2,
-        "productId": "prod_xyz"      // ← IDのみ
+        "productId": "prod_xyz"      // ← ID only
       }
     ],
     "totalAmount": 30000,
@@ -691,17 +691,17 @@ nullと省略の使い分け:
 ```
 
 ```typescript
-// パターン2: フィールド選択（Sparse Fieldsets）
+// Pattern 2: Field selection (Sparse Fieldsets)
 // GET /users?fields[users]=name,email&fields[profile]=bio
 
 {
   "data": [
     {
       "id": "user_abc",
-      "name": "田中太郎",
+      "name": "Taro Tanaka",
       "email": "tanaka@example.com",
       "profile": {
-        "bio": "エンジニア"
+        "bio": "Engineer"
       }
     }
   ]
@@ -709,8 +709,8 @@ nullと省略の使い分け:
 ```
 
 ```typescript
-// パターン3: サイドローディング
-// 関連リソースを別セクションに含める（JSON:API風）
+// Pattern 3: Side-loading
+// Include related resources in a separate section (JSON:API style)
 {
   "data": [
     {
@@ -721,11 +721,11 @@ nullと省略の使い分け:
   ],
   "included": {
     "users": [
-      { "id": "user_abc", "name": "田中太郎" }
+      { "id": "user_abc", "name": "Taro Tanaka" }
     ],
     "products": [
-      { "id": "prod_1", "name": "商品A", "price": 1000 },
-      { "id": "prod_2", "name": "商品B", "price": 2000 }
+      { "id": "prod_1", "name": "Product A", "price": 1000 },
+      { "id": "prod_2", "name": "Product B", "price": 2000 }
     ]
   },
   "meta": {
@@ -735,112 +735,112 @@ nullと省略の使い分け:
 }
 ```
 
-### 3.4 ステータスコードの使い分け
+### 3.4 Status Code Usage Guide
 
 ```
-HTTPステータスコード使い分けガイド:
+HTTP status code usage guide:
 
-━━━ 2xx 成功 ━━━
+━━━ 2xx Success ━━━
   200 OK
-  → GET: リソースの取得成功
-  → PUT/PATCH: リソースの更新成功
-  → POST: 操作の成功（リソース作成以外）
+  → GET: resource retrieved successfully
+  → PUT/PATCH: resource updated successfully
+  → POST: operation succeeded (other than resource creation)
 
   201 Created
-  → POST: リソースの作成成功
-  → Locationヘッダーで作成されたリソースのURLを返す
-  → レスポンスボディで作成されたリソースを返す
+  → POST: resource created successfully
+  → Return URL of created resource in Location header
+  → Return created resource in response body
 
   202 Accepted
-  → 非同期処理の受付成功
-  → 処理はまだ完了していない
-  → ステータス確認用URLをレスポンスに含める
+  → Asynchronous processing accepted
+  → Processing is not yet complete
+  → Include status check URL in response
 
   204 No Content
-  → DELETE: 削除成功
-  → PUT/PATCH: 更新成功（レスポンスボディ不要の場合）
-  → レスポンスボディなし
+  → DELETE: deletion successful
+  → PUT/PATCH: update successful (when response body is not needed)
+  → No response body
 
-━━━ 3xx リダイレクト ━━━
+━━━ 3xx Redirect ━━━
   301 Moved Permanently
-  → リソースのURLが恒久的に変更
-  → 新しいURLをLocationヘッダーで通知
+  → Resource URL has permanently changed
+  → Notify new URL via Location header
 
   304 Not Modified
-  → 条件付きリクエスト（If-None-Match/If-Modified-Since）
-  → キャッシュが有効、ボディなし
+  → Conditional request (If-None-Match/If-Modified-Since)
+  → Cache is valid, no body
 
-━━━ 4xx クライアントエラー ━━━
+━━━ 4xx Client Errors ━━━
   400 Bad Request
-  → リクエスト形式が不正（JSONパースエラー等）
-  → クエリパラメータの型不正
+  → Request format is invalid (JSON parse error, etc.)
+  → Query parameter type is invalid
 
   401 Unauthorized
-  → 認証トークンなし、または無効
-  → ログインが必要
+  → Missing or invalid authentication token
+  → Login required
 
   403 Forbidden
-  → 認証済みだが権限不足
-  → アクセス拒否
+  → Authenticated but insufficient permissions
+  → Access denied
 
   404 Not Found
-  → リソースが存在しない
-  → URLが不正
+  → Resource does not exist
+  → URL is invalid
 
   405 Method Not Allowed
-  → 対象リソースに対して許可されていないHTTPメソッド
-  → Allowヘッダーで許可メソッドを通知
+  → HTTP method not allowed for the target resource
+  → Notify allowed methods via Allow header
 
   409 Conflict
-  → リソースの競合（重複メール等）
-  → 楽観ロックの競合
+  → Resource conflict (duplicate email, etc.)
+  → Optimistic lock conflict
 
   410 Gone
-  → リソースが永久に削除された
-  → 以前は存在していたが、現在は利用不可
+  → Resource has been permanently deleted
+  → Previously existed but no longer available
 
   413 Content Too Large
-  → リクエストボディが大きすぎる
-  → ファイルアップロードのサイズ超過
+  → Request body is too large
+  → File upload size exceeded
 
   415 Unsupported Media Type
-  → サポートしていないContent-Type
+  → Unsupported Content-Type
 
   422 Unprocessable Entity
-  → リクエスト形式は正しいがバリデーションエラー
-  → ビジネスロジックの制約違反
+  → Request format is correct but validation error
+  → Business logic constraint violation
 
   429 Too Many Requests
-  → レート制限超過
-  → Retry-Afterヘッダーで再試行時期を通知
+  → Rate limit exceeded
+  → Notify retry time via Retry-After header
 
-━━━ 5xx サーバーエラー ━━━
+━━━ 5xx Server Errors ━━━
   500 Internal Server Error
-  → サーバー内部のエラー
-  → 詳細をクライアントに返さない
-  → requestIdでサーバーログと紐付け
+  → Internal server error
+  → Do not return details to the client
+  → Associate with server logs via requestId
 
   502 Bad Gateway
-  → 上流サーバーからの不正なレスポンス
+  → Invalid response from upstream server
 
   503 Service Unavailable
-  → サービスが一時的に利用不可
-  → Retry-Afterヘッダーで復旧見込みを通知
+  → Service temporarily unavailable
+  → Notify expected recovery time via Retry-After header
 
   504 Gateway Timeout
-  → 上流サーバーからの応答タイムアウト
+  → Response timeout from upstream server
 ```
 
 ---
 
-## 4. エラー設計
+## 4. Error Design
 
 ### 4.1 RFC 7807 Problem Details
 
 ```json
-// RFC 7807 Problem Details 完全実装例
+// RFC 7807 Problem Details complete implementation examples
 
-// バリデーションエラー (422)
+// Validation error (422)
 {
   "type": "https://api.example.com/errors/validation",
   "title": "Validation Error",
@@ -851,143 +851,143 @@ HTTPステータスコード使い分けガイド:
     {
       "field": "email",
       "code": "INVALID_FORMAT",
-      "message": "有効なメールアドレスを入力してください",
+      "message": "Please enter a valid email address",
       "rejectedValue": "not-an-email"
     },
     {
       "field": "age",
       "code": "OUT_OF_RANGE",
-      "message": "年齢は18歳以上150歳以下で入力してください",
+      "message": "Age must be between 18 and 150",
       "rejectedValue": 5
     },
     {
       "field": "name",
       "code": "REQUIRED",
-      "message": "名前は必須です"
+      "message": "Name is required"
     }
   ],
   "requestId": "req_550e8400-e29b-41d4"
 }
 
-// 認証エラー (401)
+// Authentication error (401)
 {
   "type": "https://api.example.com/errors/unauthorized",
   "title": "Unauthorized",
   "status": 401,
-  "detail": "認証トークンが無効または期限切れです。再ログインしてください。",
+  "detail": "The authentication token is invalid or has expired. Please log in again.",
   "instance": "/api/v1/users/me"
 }
 
-// 権限エラー (403)
+// Authorization error (403)
 {
   "type": "https://api.example.com/errors/forbidden",
   "title": "Forbidden",
   "status": 403,
-  "detail": "この操作を実行する権限がありません。管理者に連絡してください。",
+  "detail": "You do not have permission to perform this operation. Please contact an administrator.",
   "instance": "/api/v1/admin/users",
   "requiredPermission": "admin:users:write"
 }
 
-// リソース未発見 (404)
+// Resource not found (404)
 {
   "type": "https://api.example.com/errors/not-found",
   "title": "Not Found",
   "status": 404,
-  "detail": "ユーザー 'user_abc123' は存在しません。",
+  "detail": "User 'user_abc123' does not exist.",
   "instance": "/api/v1/users/user_abc123"
 }
 
-// 競合 (409)
+// Conflict (409)
 {
   "type": "https://api.example.com/errors/conflict",
   "title": "Conflict",
   "status": 409,
-  "detail": "このメールアドレスは既に使用されています。",
+  "detail": "This email address is already in use.",
   "instance": "/api/v1/users",
   "conflictingField": "email",
   "conflictingValue": "tanaka@example.com"
 }
 
-// レート制限 (429)
+// Rate limit (429)
 {
   "type": "https://api.example.com/errors/rate-limit",
   "title": "Too Many Requests",
   "status": 429,
-  "detail": "レート制限を超えました。60秒後に再試行してください。",
+  "detail": "Rate limit exceeded. Please retry after 60 seconds.",
   "retryAfter": 60,
   "limit": 100,
   "remaining": 0,
   "resetAt": "2024-06-01T12:01:00Z"
 }
 
-// サーバーエラー (500)
+// Server error (500)
 {
   "type": "https://api.example.com/errors/internal",
   "title": "Internal Server Error",
   "status": 500,
-  "detail": "予期しないエラーが発生しました。問題が続く場合はサポートに連絡してください。",
+  "detail": "An unexpected error occurred. If the problem persists, please contact support.",
   "requestId": "req_7890abcd-ef12-3456"
 }
 ```
 
-### 4.2 エラーコード体系
+### 4.2 Error Code System
 
 ```
-エラーコード体系設計:
+Error code system design:
 
-  命名規則: DOMAIN_ENTITY_ACTION の形式（大文字スネークケース）
+  Naming convention: DOMAIN_ENTITY_ACTION format (UPPER_SNAKE_CASE)
 
-  認証・認可:
+  Authentication/Authorization:
   ─────────────────────────
-  AUTH_TOKEN_MISSING         — トークンなし
-  AUTH_TOKEN_EXPIRED         — トークン期限切れ
-  AUTH_TOKEN_INVALID         — トークン不正
-  AUTH_REFRESH_TOKEN_EXPIRED — リフレッシュトークン期限切れ
-  AUTH_INSUFFICIENT_SCOPE    — スコープ不足
-  AUTH_ACCOUNT_LOCKED        — アカウントロック
-  AUTH_ACCOUNT_SUSPENDED     — アカウント停止
-  AUTH_MFA_REQUIRED          — 二要素認証が必要
-  AUTH_PASSWORD_INCORRECT    — パスワード不正
+  AUTH_TOKEN_MISSING         — Missing token
+  AUTH_TOKEN_EXPIRED         — Token expired
+  AUTH_TOKEN_INVALID         — Invalid token
+  AUTH_REFRESH_TOKEN_EXPIRED — Refresh token expired
+  AUTH_INSUFFICIENT_SCOPE    — Insufficient scope
+  AUTH_ACCOUNT_LOCKED        — Account locked
+  AUTH_ACCOUNT_SUSPENDED     — Account suspended
+  AUTH_MFA_REQUIRED          — Multi-factor authentication required
+  AUTH_PASSWORD_INCORRECT    — Incorrect password
 
-  ユーザー:
+  User:
   ─────────────────────────
-  USER_NOT_FOUND             — ユーザー未発見
-  USER_EMAIL_ALREADY_EXISTS  — メールアドレス重複
-  USER_EMAIL_INVALID         — メールアドレス形式不正
-  USER_NAME_TOO_LONG         — 名前が長すぎる
-  USER_NAME_REQUIRED         — 名前が未入力
-  USER_ROLE_INVALID          — 不正なロール
-  USER_CANNOT_DELETE_SELF    — 自分自身を削除できない
+  USER_NOT_FOUND             — User not found
+  USER_EMAIL_ALREADY_EXISTS  — Email address already exists
+  USER_EMAIL_INVALID         — Invalid email address format
+  USER_NAME_TOO_LONG         — Name too long
+  USER_NAME_REQUIRED         — Name is required
+  USER_ROLE_INVALID          — Invalid role
+  USER_CANNOT_DELETE_SELF    — Cannot delete yourself
 
-  注文:
+  Order:
   ─────────────────────────
-  ORDER_NOT_FOUND            — 注文未発見
-  ORDER_ALREADY_CANCELLED    — 既にキャンセル済み
-  ORDER_CANNOT_CANCEL        — キャンセル不可（出荷済み等）
-  ORDER_PAYMENT_FAILED       — 決済失敗
-  ORDER_INSUFFICIENT_STOCK   — 在庫不足
-  ORDER_AMOUNT_EXCEEDS_LIMIT — 注文金額上限超過
+  ORDER_NOT_FOUND            — Order not found
+  ORDER_ALREADY_CANCELLED    — Already cancelled
+  ORDER_CANNOT_CANCEL        — Cannot cancel (already shipped, etc.)
+  ORDER_PAYMENT_FAILED       — Payment failed
+  ORDER_INSUFFICIENT_STOCK   — Insufficient stock
+  ORDER_AMOUNT_EXCEEDS_LIMIT — Order amount exceeds limit
 
-  汎用:
+  General:
   ─────────────────────────
-  VALIDATION_ERROR           — バリデーションエラー（汎用）
-  REQUIRED_FIELD             — 必須フィールド未入力
-  INVALID_FORMAT             — 形式不正
-  OUT_OF_RANGE               — 範囲外
-  TOO_LONG                   — 文字数超過
-  TOO_SHORT                  — 文字数不足
-  RATE_LIMIT_EXCEEDED        — レート制限超過
-  INTERNAL_ERROR             — 内部エラー
-  SERVICE_UNAVAILABLE        — サービス一時停止
-  RESOURCE_NOT_FOUND         — リソース未発見（汎用）
-  DUPLICATE_RESOURCE         — リソース重複
-  CONFLICT                   — 競合
+  VALIDATION_ERROR           — Validation error (generic)
+  REQUIRED_FIELD             — Required field missing
+  INVALID_FORMAT             — Invalid format
+  OUT_OF_RANGE               — Out of range
+  TOO_LONG                   — Too many characters
+  TOO_SHORT                  — Too few characters
+  RATE_LIMIT_EXCEEDED        — Rate limit exceeded
+  INTERNAL_ERROR             — Internal error
+  SERVICE_UNAVAILABLE        — Service temporarily unavailable
+  RESOURCE_NOT_FOUND         — Resource not found (generic)
+  DUPLICATE_RESOURCE         — Duplicate resource
+  CONFLICT                   — Conflict
 ```
 
-### 4.3 エラーレスポンスの実装例
+### 4.3 Error Response Implementation Examples
 
 ```typescript
-// TypeScript - エラーハンドリングの実装
+// TypeScript - Error handling implementation
 interface ProblemDetails {
   type: string;
   title: string;
@@ -996,7 +996,7 @@ interface ProblemDetails {
   instance?: string;
   requestId?: string;
   errors?: FieldError[];
-  [key: string]: unknown; // 拡張プロパティ
+  [key: string]: unknown; // Extension properties
 }
 
 interface FieldError {
@@ -1006,7 +1006,7 @@ interface FieldError {
   rejectedValue?: unknown;
 }
 
-// エラークラス定義
+// Error class definition
 class ApiError extends Error {
   constructor(
     public readonly statusCode: number,
@@ -1033,14 +1033,14 @@ class ApiError extends Error {
   }
 }
 
-// 具象エラークラス
+// Concrete error classes
 class ValidationError extends ApiError {
   constructor(errors: FieldError[]) {
     super(
       422,
       'validation',
       'Validation Error',
-      '入力データにエラーがあります。',
+      'There are errors in the input data.',
       errors,
     );
   }
@@ -1052,7 +1052,7 @@ class NotFoundError extends ApiError {
       404,
       'not-found',
       'Not Found',
-      `${resource} '${id}' は存在しません。`,
+      `${resource} '${id}' does not exist.`,
     );
   }
 }
@@ -1071,13 +1071,13 @@ class ConflictError extends ApiError {
 }
 
 class UnauthorizedError extends ApiError {
-  constructor(detail: string = '認証が必要です。') {
+  constructor(detail: string = 'Authentication is required.') {
     super(401, 'unauthorized', 'Unauthorized', detail);
   }
 }
 
 class ForbiddenError extends ApiError {
-  constructor(detail: string = 'この操作を実行する権限がありません。') {
+  constructor(detail: string = 'You do not have permission to perform this operation.') {
     super(403, 'forbidden', 'Forbidden', detail);
   }
 }
@@ -1088,7 +1088,7 @@ class RateLimitError extends ApiError {
       429,
       'rate-limit',
       'Too Many Requests',
-      `レート制限を超えました。${retryAfter}秒後に再試行してください。`,
+      `Rate limit exceeded. Please retry after ${retryAfter} seconds.`,
       undefined,
       { retryAfter },
     );
@@ -1097,7 +1097,7 @@ class RateLimitError extends ApiError {
 ```
 
 ```typescript
-// Express.js エラーハンドリングミドルウェア
+// Express.js error handling middleware
 import { Request, Response, NextFunction } from 'express';
 import { randomUUID } from 'crypto';
 
@@ -1119,7 +1119,7 @@ function errorHandler(
     return;
   }
 
-  // 予期しないエラー
+  // Unexpected error
   console.error(`[${requestId}] Unhandled error:`, err);
 
   res
@@ -1130,13 +1130,13 @@ function errorHandler(
       type: 'https://api.example.com/errors/internal',
       title: 'Internal Server Error',
       status: 500,
-      detail: '予期しないエラーが発生しました。',
+      detail: 'An unexpected error occurred.',
       requestId,
       instance: req.originalUrl,
     });
 }
 
-// 使用例
+// Usage example
 app.post('/api/v1/users', async (req, res, next) => {
   try {
     const errors: FieldError[] = [];
@@ -1145,7 +1145,7 @@ app.post('/api/v1/users', async (req, res, next) => {
       errors.push({
         field: 'name',
         code: 'REQUIRED_FIELD',
-        message: '名前は必須です。',
+        message: 'Name is required.',
       });
     }
 
@@ -1153,13 +1153,13 @@ app.post('/api/v1/users', async (req, res, next) => {
       errors.push({
         field: 'email',
         code: 'REQUIRED_FIELD',
-        message: 'メールアドレスは必須です。',
+        message: 'Email address is required.',
       });
     } else if (!isValidEmail(req.body.email)) {
       errors.push({
         field: 'email',
         code: 'INVALID_FORMAT',
-        message: '有効なメールアドレスを入力してください。',
+        message: 'Please enter a valid email address.',
         rejectedValue: req.body.email,
       });
     }
@@ -1171,7 +1171,7 @@ app.post('/api/v1/users', async (req, res, next) => {
     const existingUser = await userService.findByEmail(req.body.email);
     if (existingUser) {
       throw new ConflictError(
-        'このメールアドレスは既に使用されています。',
+        'This email address is already in use.',
         'email',
         req.body.email,
       );
@@ -1189,7 +1189,7 @@ app.post('/api/v1/users', async (req, res, next) => {
 ```
 
 ```go
-// Go - エラーハンドリングの実装
+// Go - Error handling implementation
 package api
 
 import (
@@ -1198,7 +1198,7 @@ import (
     "net/http"
 )
 
-// ProblemDetails はRFC 7807のエラーレスポンス
+// ProblemDetails is the RFC 7807 error response
 type ProblemDetails struct {
     Type      string       `json:"type"`
     Title     string       `json:"title"`
@@ -1216,7 +1216,7 @@ type FieldError struct {
     RejectedValue interface{} `json:"rejectedValue,omitempty"`
 }
 
-// APIError はアプリケーション固有のエラー型
+// APIError is the application-specific error type
 type APIError struct {
     StatusCode int
     ErrorType  string
@@ -1241,13 +1241,13 @@ func (e *APIError) ToProblemDetails(requestID, instance string) ProblemDetails {
     }
 }
 
-// エラーファクトリ関数
+// Error factory functions
 func NewValidationError(errors []FieldError) *APIError {
     return &APIError{
         StatusCode: http.StatusUnprocessableEntity,
         ErrorType:  "validation",
         Title:      "Validation Error",
-        Detail:     "入力データにエラーがあります。",
+        Detail:     "There are errors in the input data.",
         Errors:     errors,
     }
 }
@@ -1257,7 +1257,7 @@ func NewNotFoundError(resource, id string) *APIError {
         StatusCode: http.StatusNotFound,
         ErrorType:  "not-found",
         Title:      "Not Found",
-        Detail:     fmt.Sprintf("%s '%s' は存在しません。", resource, id),
+        Detail:     fmt.Sprintf("%s '%s' does not exist.", resource, id),
     }
 }
 
@@ -1270,7 +1270,7 @@ func NewConflictError(detail string) *APIError {
     }
 }
 
-// エラーハンドリングミドルウェア
+// Error handling middleware
 func ErrorMiddleware(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         defer func() {
@@ -1284,7 +1284,7 @@ func ErrorMiddleware(next http.Handler) http.Handler {
                     Type:      "https://api.example.com/errors/internal",
                     Title:     "Internal Server Error",
                     Status:    500,
-                    Detail:    "予期しないエラーが発生しました。",
+                    Detail:    "An unexpected error occurred.",
                     RequestID: requestID,
                     Instance:  r.URL.Path,
                 }
@@ -1298,12 +1298,12 @@ func ErrorMiddleware(next http.Handler) http.Handler {
 
 ---
 
-## 5. ヘッダー規約
+## 5. Header Conventions
 
-### 5.1 標準ヘッダー
+### 5.1 Standard Headers
 
 ```
-標準リクエストヘッダー:
+Standard request headers:
   Content-Type: application/json
   Accept: application/json
   Authorization: Bearer <token>
@@ -1313,53 +1313,53 @@ func ErrorMiddleware(next http.Handler) http.Handler {
   If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
   Idempotency-Key: key_abc123
 
-標準レスポンスヘッダー:
+Standard response headers:
   Content-Type: application/json; charset=utf-8
   Content-Language: ja
   Cache-Control: private, max-age=0, no-cache
   ETag: "33a64df551425fcc55e4d42a148795d9f25f89d4"
   Last-Modified: Wed, 21 Oct 2015 07:28:00 GMT
-  Location: /api/v1/users/user_abc123     （201 Created時）
-  Retry-After: 60                          （429 / 503時）
+  Location: /api/v1/users/user_abc123     (on 201 Created)
+  Retry-After: 60                          (on 429 / 503)
   Vary: Accept, Authorization, Accept-Language
 ```
 
-### 5.2 カスタムヘッダー
+### 5.2 Custom Headers
 
 ```
-カスタムヘッダー:
+Custom headers:
 
-  リクエスト追跡:
-  X-Request-Id: req_550e8400-e29b     — リクエスト追跡ID
-  X-Correlation-Id: corr_abc123       — 分散トレーシングID
-  X-Client-Version: 2.1.0             — クライアントバージョン
-  X-Client-Platform: ios              — クライアントプラットフォーム
+  Request tracking:
+  X-Request-Id: req_550e8400-e29b     — Request tracking ID
+  X-Correlation-Id: corr_abc123       — Distributed tracing ID
+  X-Client-Version: 2.1.0             — Client version
+  X-Client-Platform: ios              — Client platform
 
-  レート制限:
-  X-RateLimit-Limit: 100              — 制限値
-  X-RateLimit-Remaining: 42           — 残り回数
-  X-RateLimit-Reset: 1640000000       — リセット時刻（Unix timestamp）
+  Rate limiting:
+  X-RateLimit-Limit: 100              — Limit value
+  X-RateLimit-Remaining: 42           — Remaining count
+  X-RateLimit-Reset: 1640000000       — Reset time (Unix timestamp)
 
-  ページネーション:
-  X-Total-Count: 150                  — 総件数
-  X-Page-Count: 8                     — 総ページ数
+  Pagination:
+  X-Total-Count: 150                  — Total count
+  X-Page-Count: 8                     — Total page count
 
-  API廃止:
-  Deprecation: true                   — 廃止予定
-  Sunset: Sat, 01 Jun 2025 00:00:00 GMT  — 廃止日
+  API deprecation:
+  Deprecation: true                   — Scheduled for deprecation
+  Sunset: Sat, 01 Jun 2025 00:00:00 GMT  — Deprecation date
   Link: </v2/users>; rel="successor-version"
 
-  ※ X- プレフィックスの取り扱い:
-  → RFC 6648 で非推奨になった
-  → しかし実務では依然として広く使われている
-  → 新規APIでは X- なしのカスタムヘッダーも検討
-  → RateLimit-Limit, RateLimit-Remaining 等
+  ※ Handling the X- prefix:
+  → Deprecated by RFC 6648
+  → However, still widely used in practice
+  → For new APIs, consider custom headers without X-
+  → e.g., RateLimit-Limit, RateLimit-Remaining
 ```
 
-### 5.3 冪等性キーの実装
+### 5.3 Idempotency Key Implementation
 
 ```typescript
-// 冪等性キーの実装例
+// Idempotency key implementation example
 import { Redis } from 'ioredis';
 
 interface IdempotencyRecord {
@@ -1373,24 +1373,24 @@ class IdempotencyMiddleware {
   private redis: Redis;
   private ttlSeconds: number;
 
-  constructor(redis: Redis, ttlSeconds: number = 86400) { // 24時間
+  constructor(redis: Redis, ttlSeconds: number = 86400) { // 24 hours
     this.redis = redis;
     this.ttlSeconds = ttlSeconds;
   }
 
   middleware() {
     return async (req: Request, res: Response, next: NextFunction) => {
-      // GET/DELETE は冪等なのでスキップ
+      // GET/DELETE are idempotent, so skip
       if (['GET', 'DELETE', 'PUT'].includes(req.method)) {
         return next();
       }
 
       const idempotencyKey = req.headers['idempotency-key'] as string;
 
-      // POSTリクエストには冪等性キーを推奨
+      // Idempotency key is recommended for POST requests
       if (!idempotencyKey && req.method === 'POST') {
         console.warn('POST request without Idempotency-Key');
-        return next(); // キーなしでも処理は続行
+        return next(); // Continue processing without a key
       }
 
       if (!idempotencyKey) {
@@ -1399,12 +1399,12 @@ class IdempotencyMiddleware {
 
       const cacheKey = `idempotency:${idempotencyKey}`;
 
-      // 既存のレスポンスを確認
+      // Check for existing response
       const cached = await this.redis.get(cacheKey);
       if (cached) {
         const record: IdempotencyRecord = JSON.parse(cached);
 
-        // キャッシュされたレスポンスを返す
+        // Return cached response
         Object.entries(record.headers).forEach(([key, value]) => {
           res.setHeader(key, value);
         });
@@ -1413,7 +1413,7 @@ class IdempotencyMiddleware {
         return;
       }
 
-      // レスポンスをキャプチャ
+      // Capture response
       const originalJson = res.json.bind(res);
       res.json = (body: any) => {
         const record: IdempotencyRecord = {
@@ -1425,7 +1425,7 @@ class IdempotencyMiddleware {
           createdAt: new Date().toISOString(),
         };
 
-        // 成功レスポンスのみキャッシュ
+        // Cache only successful responses
         if (res.statusCode >= 200 && res.statusCode < 300) {
           this.redis.setex(cacheKey, this.ttlSeconds, JSON.stringify(record));
         }
@@ -1438,63 +1438,63 @@ class IdempotencyMiddleware {
   }
 }
 
-// 使用例
+// Usage example
 const idempotency = new IdempotencyMiddleware(redis);
 app.use('/api/v1', idempotency.middleware());
 ```
 
 ---
 
-## 6. 国際化対応
+## 6. Internationalization
 
-### 6.1 多言語レスポンスの設計
+### 6.1 Multi-language Response Design
 
 ```
-国際化（i18n）対応のAPI設計:
+API design for internationalization (i18n):
 
-  リクエスト:
+  Request:
   Accept-Language: ja, en;q=0.8, zh;q=0.5
 
-  レスポンス:
+  Response:
   Content-Language: ja
 
-  エラーメッセージの多言語化:
+  Multi-language error messages:
   {
     "type": "https://api.example.com/errors/validation",
     "title": "Validation Error",
     "status": 422,
-    "detail": "入力データにエラーがあります。",
+    "detail": "There are errors in the input data.",
     "errors": [
       {
         "field": "email",
         "code": "INVALID_FORMAT",
-        "message": "有効なメールアドレスを入力してください"
+        "message": "Please enter a valid email address"
       }
     ]
   }
 
-  多言語コンテンツの返却パターン:
+  Patterns for returning multi-language content:
 
-  パターン1: Accept-Languageに基づく単一言語返却
+  Pattern 1: Return single language based on Accept-Language
   GET /products/123
   Accept-Language: ja
   →
   {
     "data": {
       "id": "prod_123",
-      "name": "ワイヤレスイヤホン",
-      "description": "高音質Bluetoothイヤホン"
+      "name": "Wireless Earphones",
+      "description": "High-quality Bluetooth earphones"
     }
   }
 
-  パターン2: 全言語を含むレスポンス
+  Pattern 2: Response including all languages
   GET /products/123?include_translations=true
   →
   {
     "data": {
       "id": "prod_123",
-      "name": "ワイヤレスイヤホン",
-      "description": "高音質Bluetoothイヤホン",
+      "name": "Wireless Earphones",
+      "description": "High-quality Bluetooth earphones",
       "translations": {
         "en": {
           "name": "Wireless Earphones",
@@ -1508,7 +1508,7 @@ app.use('/api/v1', idempotency.middleware());
     }
   }
 
-  パターン3: ロケール別フィールド
+  Pattern 3: Locale-specific fields
   {
     "data": {
       "id": "prod_123",
@@ -1517,53 +1517,53 @@ app.use('/api/v1', idempotency.middleware());
       "name_zh": "无线耳机"
     }
   }
-  → パターン3は拡張性が低いため、パターン1 or 2を推奨
+  → Pattern 3 has low extensibility; Pattern 1 or 2 is recommended
 ```
 
-### 6.2 タイムゾーン対応
+### 6.2 Timezone Handling
 
 ```
-タイムゾーン処理の規約:
+Timezone handling conventions:
 
-  基本方針:
-  1. サーバーは常にUTCで保存・返却
-  2. クライアントがローカル時間に変換
-  3. タイムゾーン情報が必要な場合は別フィールド
+  Basic policy:
+  1. Server always stores and returns in UTC
+  2. Client converts to local time
+  3. Include timezone information in a separate field if needed
 
-  リクエスト:
+  Request:
   {
     "scheduledAt": "2024-06-15T10:00:00Z",    ← UTC
-    "timezone": "Asia/Tokyo"                    ← 表示用タイムゾーン
+    "timezone": "Asia/Tokyo"                    ← Display timezone
   }
 
-  レスポンス:
+  Response:
   {
-    "scheduledAt": "2024-06-15T01:00:00Z",     ← UTC（=JST 10:00）
+    "scheduledAt": "2024-06-15T01:00:00Z",     ← UTC (= JST 10:00)
     "timezone": "Asia/Tokyo",
-    "localTime": "2024-06-15T10:00:00+09:00"   ← 参考値（ローカル時間）
+    "localTime": "2024-06-15T10:00:00+09:00"   ← Reference value (local time)
   }
 
-  日付のみ（時刻なし）のフィールド:
+  Date-only (no time) fields:
   {
-    "birthDate": "1990-05-15",   ← ISO 8601日付形式
+    "birthDate": "1990-05-15",   ← ISO 8601 date format
     "dueDate": "2024-12-31"
   }
 
-  期間の表現:
+  Duration representation:
   {
-    "duration": "PT1H30M",       ← ISO 8601期間形式（1時間30分）
-    "trialPeriod": "P30D"        ← 30日間
+    "duration": "PT1H30M",       ← ISO 8601 duration format (1 hour 30 minutes)
+    "trialPeriod": "P30D"        ← 30 days
   }
 ```
 
 ---
 
-## 7. OpenAPIでの命名規則の実装
+## 7. Implementing Naming Conventions in OpenAPI
 
-### 7.1 スキーマ定義のベストプラクティス
+### 7.1 Schema Definition Best Practices
 
 ```yaml
-# OpenAPI 3.1 での命名規則適用例
+# OpenAPI 3.1 naming convention application example
 openapi: '3.1.0'
 info:
   title: Naming Convention Example API
@@ -1571,57 +1571,57 @@ info:
 
 components:
   schemas:
-    # スキーマ名: PascalCase
+    # Schema name: PascalCase
     User:
       type: object
       required: [id, name, email, role, isActive, createdAt]
       properties:
-        # プロパティ名: camelCase
+        # Property name: camelCase
         id:
           type: string
           format: uuid
           readOnly: true
-          description: ユーザーの一意識別子
+          description: Unique identifier for the user
           example: "550e8400-e29b-41d4-a716-446655440000"
         name:
           type: string
           minLength: 1
           maxLength: 100
-          description: ユーザーの表示名
-          example: "田中太郎"
+          description: User's display name
+          example: "Taro Tanaka"
         email:
           type: string
           format: email
-          description: メールアドレス（システム内で一意）
+          description: Email address (unique within the system)
           example: "tanaka@example.com"
         role:
           type: string
-          # 列挙値: snake_case の小文字
+          # Enumeration values: lowercase snake_case
           enum: [user, admin, moderator]
           default: user
-          description: ユーザーのロール
+          description: User's role
         isActive:
           type: boolean
           default: true
-          description: アカウントが有効かどうか
-        # 日時: ISO 8601 + At サフィックス
+          description: Whether the account is active
+        # Date/time: ISO 8601 + At suffix
         createdAt:
           type: string
           format: date-time
           readOnly: true
-          description: 作成日時（UTC）
+          description: Creation timestamp (UTC)
         updatedAt:
           type: string
           format: date-time
           readOnly: true
           nullable: true
-          description: 最終更新日時（UTC）
+          description: Last update timestamp (UTC)
         deletedAt:
           type: string
           format: date-time
           readOnly: true
           nullable: true
-          description: 削除日時（論理削除、null=未削除）
+          description: Deletion timestamp (soft delete, null = not deleted)
         profile:
           $ref: '#/components/schemas/UserProfile'
 
@@ -1632,12 +1632,12 @@ components:
           type: string
           maxLength: 500
           nullable: true
-          description: 自己紹介文
+          description: Self-introduction text
         avatarUrl:
           type: string
           format: uri
           nullable: true
-          description: アバター画像のURL
+          description: URL of avatar image
         location:
           type: string
           maxLength: 100
@@ -1646,7 +1646,7 @@ components:
           type: string
           format: date
           nullable: true
-          description: 生年月日（YYYY-MM-DD）
+          description: Date of birth (YYYY-MM-DD)
         socialLinks:
           type: object
           nullable: true
@@ -1658,8 +1658,8 @@ components:
               type: string
               nullable: true
 
-    # リクエスト/レスポンスのラッパー
-    # 命名規則: {Action}{Resource}Request / {Resource}Response
+    # Request/response wrappers
+    # Naming convention: {Action}{Resource}Request / {Resource}Response
     CreateUserRequest:
       type: object
       required: [name, email]
@@ -1723,22 +1723,22 @@ components:
         links:
           $ref: '#/components/schemas/PaginationLinks'
 
-    # 共通スキーマの命名
+    # Common schema naming
     PaginationMeta:
       type: object
       properties:
         total:
           type: integer
-          description: 総件数
+          description: Total count
         page:
           type: integer
-          description: 現在のページ番号
+          description: Current page number
         perPage:
           type: integer
-          description: 1ページあたりの件数
+          description: Items per page
         totalPages:
           type: integer
-          description: 総ページ数
+          description: Total page count
         hasNextPage:
           type: boolean
         hasPrevPage:
@@ -1765,7 +1765,7 @@ components:
           format: uri
           nullable: true
 
-    # RFC 7807 エラー
+    # RFC 7807 Error
     ProblemDetails:
       type: object
       required: [type, title, status]
@@ -1802,15 +1802,15 @@ components:
         rejectedValue: {}
 ```
 
-### 7.2 Spectralでの命名規則チェック
+### 7.2 Naming Convention Checks with Spectral
 
 ```yaml
-# .spectral.yaml - 命名規則のLintルール
+# .spectral.yaml - Naming convention lint rules
 extends:
   - spectral:oas
 
 rules:
-  # パス名: ケバブケース
+  # Path names: kebab-case
   paths-kebab-case:
     given: "$.paths[*]~"
     then:
@@ -1818,7 +1818,7 @@ rules:
       functionOptions:
         match: "^(/[a-z][a-z0-9-]*(/\\{[a-zA-Z]+\\})?)+$"
     severity: error
-    message: "パス名はケバブケースで記述してください（例: /user-profiles）"
+    message: "Path names must be in kebab-case (e.g., /user-profiles)"
 
   # operationId: camelCase
   operation-id-camel-case:
@@ -1828,9 +1828,9 @@ rules:
       functionOptions:
         type: camel
     severity: error
-    message: "operationIdはcamelCaseで記述してください"
+    message: "operationId must be in camelCase"
 
-  # スキーマ名: PascalCase
+  # Schema names: PascalCase
   schema-names-pascal-case:
     given: "$.components.schemas[*]~"
     then:
@@ -1838,9 +1838,9 @@ rules:
       functionOptions:
         type: pascal
     severity: error
-    message: "スキーマ名はPascalCaseで記述してください"
+    message: "Schema names must be in PascalCase"
 
-  # プロパティ名: camelCase
+  # Property names: camelCase
   property-names-camel-case:
     given: "$..properties[*]~"
     then:
@@ -1848,9 +1848,9 @@ rules:
       functionOptions:
         type: camel
     severity: error
-    message: "プロパティ名はcamelCaseで記述してください"
+    message: "Property names must be in camelCase"
 
-  # enum値: snake_case
+  # Enum values: snake_case
   enum-values-snake-case:
     given: "$..enum[*]"
     then:
@@ -1858,9 +1858,9 @@ rules:
       functionOptions:
         match: "^[a-z][a-z0-9_]*$"
     severity: warn
-    message: "enum値はsnake_caseで記述してください"
+    message: "Enum values must be in snake_case"
 
-  # 日時フィールド: Atサフィックス
+  # Date/time fields: At suffix
   datetime-field-suffix:
     given: "$..properties[*][?(@.format=='date-time')]~"
     then:
@@ -1868,9 +1868,9 @@ rules:
       functionOptions:
         match: "At$"
     severity: warn
-    message: "日時フィールドは'At'サフィックスを使ってください（例: createdAt）"
+    message: "Date/time fields should use the 'At' suffix (e.g., createdAt)"
 
-  # 真偽値フィールド: is/has/canプレフィックス
+  # Boolean fields: is/has/can prefix
   boolean-field-prefix:
     given: "$..properties[?(@.type=='boolean')]~"
     then:
@@ -1878,134 +1878,134 @@ rules:
       functionOptions:
         match: "^(is|has|can|should)"
     severity: warn
-    message: "真偽値フィールドはis/has/can/shouldプレフィックスを使ってください"
+    message: "Boolean fields should use is/has/can/should prefix"
 ```
 
 ---
 
-## 8. 業界標準APIの命名分析
+## 8. Naming Analysis of Industry-Standard APIs
 
-### 8.1 主要APIの命名パターン比較
+### 8.1 Comparing Naming Patterns Across Major APIs
 
 ```
-主要APIの命名パターン:
+Naming patterns of major APIs:
 
   Stripe API:
   ─────────────────────────
-  エンドポイント: /v1/customers, /v1/payment_intents
-  ID形式: cus_xxxxx, pi_xxxxx（プレフィックス付き）
-  フィールド: snake_case
-  列挙型: snake_case（"requires_payment_method"）
-  日時: Unix timestamp
-  特徴: プレフィックス付きIDで可読性が高い
+  Endpoints: /v1/customers, /v1/payment_intents
+  ID format: cus_xxxxx, pi_xxxxx (prefixed)
+  Fields: snake_case
+  Enumerations: snake_case ("requires_payment_method")
+  Timestamps: Unix timestamp
+  Notable: Prefixed IDs improve readability
 
   GitHub API:
   ─────────────────────────
-  エンドポイント: /repos/{owner}/{repo}/issues
-  ID形式: 数値ID
-  フィールド: snake_case
-  列挙型: snake_case（"pull_request"）
-  日時: ISO 8601
-  特徴: ハイパーメディア（HATEOAS）リンク
+  Endpoints: /repos/{owner}/{repo}/issues
+  ID format: Numeric ID
+  Fields: snake_case
+  Enumerations: snake_case ("pull_request")
+  Timestamps: ISO 8601
+  Notable: Hypermedia (HATEOAS) links
 
   Google Cloud API:
   ─────────────────────────
-  エンドポイント: /v1/projects/{projectId}/datasets
-  ID形式: 文字列ID
-  フィールド: camelCase
-  列挙型: UPPER_SNAKE_CASE（"RUNNING", "FAILED"）
-  日時: ISO 8601 / protobuf Timestamp
-  特徴: resource name パターン
+  Endpoints: /v1/projects/{projectId}/datasets
+  ID format: String ID
+  Fields: camelCase
+  Enumerations: UPPER_SNAKE_CASE ("RUNNING", "FAILED")
+  Timestamps: ISO 8601 / protobuf Timestamp
+  Notable: Resource name pattern
 
   Twilio API:
   ─────────────────────────
-  エンドポイント: /2010-04-01/Accounts/{sid}/Messages
-  ID形式: SID（AC, SM等のプレフィックス + 32文字）
-  フィールド: snake_case
-  列挙型: snake_case
-  日時: RFC 2822
-  特徴: 日付ベースのバージョニング
+  Endpoints: /2010-04-01/Accounts/{sid}/Messages
+  ID format: SID (AC, SM prefix + 32 characters)
+  Fields: snake_case
+  Enumerations: snake_case
+  Timestamps: RFC 2822
+  Notable: Date-based versioning
 
   Shopify API:
   ─────────────────────────
-  エンドポイント: /admin/api/2024-01/products.json
-  ID形式: 数値ID
-  フィールド: snake_case
-  列挙型: snake_case
-  日時: ISO 8601
-  特徴: 日付ベースバージョン + .json拡張子
+  Endpoints: /admin/api/2024-01/products.json
+  ID format: Numeric ID
+  Fields: snake_case
+  Enumerations: snake_case
+  Timestamps: ISO 8601
+  Notable: Date-based versioning + .json extension
 
-  共通パターン:
+  Common patterns:
   ─────────────────────────
-  → ほとんどのAPIがsnake_caseを採用
-  → 日時はISO 8601が主流（Stripeを除く）
-  → IDはUUIDまたはプレフィックス付き文字列
-  → エンドポイントは名詞・複数形
-  → エラーレスポンスはRFC 7807に収束
+  → Most APIs adopt snake_case
+  → ISO 8601 is mainstream for timestamps (except Stripe)
+  → IDs are UUIDs or prefixed strings
+  → Endpoints use nouns in plural form
+  → Error responses converging on RFC 7807
 ```
 
-### 8.2 自社APIスタイルガイドの策定
+### 8.2 Establishing Your Own API Style Guide
 
 ```
-自社APIスタイルガイド テンプレート:
+Internal API Style Guide Template:
 
-1. 基本方針
-   - フィールド名: camelCase
-   - URL: ケバブケース、複数形名詞
+1. Basic policy
+   - Field names: camelCase
+   - URLs: kebab-case, plural nouns
    - operationId: camelCase
-   - スキーマ名: PascalCase
-   - 列挙値: snake_case（小文字）
+   - Schema names: PascalCase
+   - Enum values: snake_case (lowercase)
 
-2. ID規約
-   - 形式: UUIDv7（ソート可能）
-   - 表示: ハイフン付き（550e8400-e29b-41d4-...）
-   - 外部公開APIはプレフィックス付きを検討（user_xxx）
+2. ID conventions
+   - Format: UUIDv7 (sortable)
+   - Representation: with hyphens (550e8400-e29b-41d4-...)
+   - Consider prefixed IDs for public-facing APIs (user_xxx)
 
-3. 日時規約
-   - 形式: ISO 8601（"2024-01-15T10:30:00Z"）
-   - タイムゾーン: UTC
-   - フィールド名: createdAt, updatedAt, deletedAt
-   - 日付のみ: ISO 8601日付（"2024-01-15"）
+3. Date/time conventions
+   - Format: ISO 8601 ("2024-01-15T10:30:00Z")
+   - Timezone: UTC
+   - Field names: createdAt, updatedAt, deletedAt
+   - Date only: ISO 8601 date ("2024-01-15")
 
-4. レスポンス規約
-   - エンベロープ: { "data": ... }
-   - コレクション: { "data": [...], "meta": {...}, "links": {...} }
-   - 空レスポンス: 204 No Content
-   - 作成: 201 Created + Location ヘッダー
+4. Response conventions
+   - Envelope: { "data": ... }
+   - Collections: { "data": [...], "meta": {...}, "links": {...} }
+   - Empty response: 204 No Content
+   - Creation: 201 Created + Location header
 
-5. エラー規約
-   - 形式: RFC 7807 Problem Details
+5. Error conventions
+   - Format: RFC 7807 Problem Details
    - Content-Type: application/problem+json
-   - エラーコード: UPPER_SNAKE_CASE
-   - requestId: 全レスポンスに含める
+   - Error codes: UPPER_SNAKE_CASE
+   - requestId: include in all responses
 
-6. ヘッダー規約
-   - 認証: Authorization: Bearer <token>
-   - リクエスト追跡: X-Request-Id
-   - レート制限: X-RateLimit-Limit, X-RateLimit-Remaining
-   - 冪等性: Idempotency-Key（POST）
+6. Header conventions
+   - Authentication: Authorization: Bearer <token>
+   - Request tracking: X-Request-Id
+   - Rate limiting: X-RateLimit-Limit, X-RateLimit-Remaining
+   - Idempotency: Idempotency-Key (POST)
 
-7. バージョニング
+7. Versioning
    - URL: /v1/users
-   - メジャーバージョンのみ
+   - Major version only
 ```
 
 ---
 
-## 9. 実践演習
+## 9. Practice Exercises
 
-### 演習1: 命名規則の修正
+### Exercise 1: Fix Naming Conventions
 
 ```
-以下のAPI仕様の命名問題を特定し、修正してください:
+Identify and fix the naming issues in the following API specification:
 
-修正前:
+Before:
   POST /api/createUser
   GET /api/GetUserList
   PUT /api/user_profile/{user_id}
   DELETE /api/Users/{UserID}
 
-  レスポンス:
+  Response:
   {
     "user_Name": "Taro",
     "Email": "taro@example.com",
@@ -2015,13 +2015,13 @@ rules:
     "user_id": 42
   }
 
-修正後:
+After:
   POST /api/v1/users
   GET /api/v1/users
   PUT /api/v1/users/{userId}/profile
   DELETE /api/v1/users/{userId}
 
-  レスポンス:
+  Response:
   {
     "data": {
       "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -2034,63 +2034,62 @@ rules:
   }
 ```
 
-### 演習2: エラーレスポンスの設計
+### Exercise 2: Design Error Responses
 
 ```
-以下のシナリオに対するエラーレスポンスを設計してください:
+Design error responses for the following scenarios:
 
-1. 未認証ユーザーがアクセス
-2. メールアドレスの形式不正 + 名前が空
-3. 既に存在するメールアドレスでユーザー作成
-4. 存在しないユーザーIDでアクセス
-5. レート制限超過
-6. サーバー内部エラー
+1. Unauthenticated user access
+2. Invalid email format + empty name
+3. Creating a user with an already-existing email address
+4. Accessing a non-existent user ID
+5. Rate limit exceeded
+6. Internal server error
 
-回答例は上記セクション4を参照してください。
-各エラーに対して:
-- 適切なステータスコード
-- RFC 7807形式のレスポンスボディ
-- エラーコード
-- ユーザー向けメッセージ
-を定義します。
+See Section 4 above for answer examples.
+For each error, define:
+- Appropriate status code
+- RFC 7807 format response body
+- Error code
+- User-facing message
 ```
 
-### 演習3: スタイルガイドの策定
+### Exercise 3: Create a Style Guide
 
 ```
-課題: 新規プロジェクトのAPIスタイルガイドを策定してください。
+Task: Create an API style guide for a new project.
 
-以下の項目を決定し、文書化する:
-1. フィールドのケーシング規則（camelCase / snake_case）
-2. ID の形式（UUID / ULID / プレフィックス付き）
-3. 日時の形式と表現
-4. 列挙型の命名規則
-5. エラーレスポンスの形式
-6. ページネーションの設計
-7. バージョニング方針
+Decide and document the following items:
+1. Field casing rules (camelCase / snake_case)
+2. ID format (UUID / ULID / prefixed)
+3. Date/time format and representation
+4. Enumeration naming conventions
+5. Error response format
+6. Pagination design
+7. Versioning policy
 
-チーム内で合意を取り、Spectralルールとして実装してください。
+Reach team consensus and implement as Spectral rules.
 ```
 
 ---
 
 ## FAQ
 
-### Q1: キャメルケースとスネークケース、API設計ではどちらが推奨？
+### Q1: Between camelCase and snake_case, which is recommended for API design?
 
-**A**: 両方とも広く使われており、絶対的な正解はありませんが、以下の傾向があります。
+**A**: Both are widely used and there is no absolute answer, but the following tendencies exist.
 
-- **camelCase推奨**: JSON APIでは主流。JavaScript/TypeScript環境と親和性が高い（例: GitHub API, Stripe API）
-- **snake_case推奨**: Python/Ruby環境、データベースカラム名との一貫性を重視する場合（例: Slack API, Twitter API v1）
+- **camelCase recommended**: Mainstream for JSON APIs. High affinity with JavaScript/TypeScript environments (e.g., GitHub API, Stripe API)
+- **snake_case recommended**: Python/Ruby environments, when consistency with database column names is important (e.g., Slack API, Twitter API v1)
 
-**重要なのは一貫性**: プロジェクト内で統一し、ドキュメント化してください。
-OpenAPI仕様でスキーマを定義し、Spectralルールで自動チェックすることで、命名の一貫性を保証できます。
+**Consistency is what matters most**: Standardize within the project and document it.
+By defining schemas in OpenAPI specifications and auto-checking with Spectral rules, you can ensure naming consistency.
 
 ```yaml
-# Spectral ルール例
+# Spectral rule example
 rules:
   field-names-camel-case:
-    description: フィールド名は camelCase で記述する
+    description: Field names must be in camelCase
     given: $.paths..*.responses..content..schema..properties[*]~
     then:
       function: pattern
@@ -2098,67 +2097,67 @@ rules:
         match: "^[a-z][a-zA-Z0-9]*$"
 ```
 
-### Q2: URLパスの命名で単数形と複数形のどちらを使うべき？
+### Q2: Should singular or plural form be used for URL path naming?
 
-**A**: **複数形が推奨**されます。
+**A**: **Plural form is recommended**.
 
-理由:
-- コレクションを表現する場合に自然（`GET /users` でユーザー一覧を取得）
-- 単一リソースも同じパスで表現可能（`GET /users/{id}` で特定ユーザーを取得）
-- 業界標準（Google API Design Guide, Microsoft REST API Guidelines）
+Reasons:
+- Natural when representing a collection (`GET /users` retrieves a list of users)
+- Single resources can also be expressed with the same path (`GET /users/{id}` retrieves a specific user)
+- Industry standard (Google API Design Guide, Microsoft REST API Guidelines)
 
 ```
-推奨:
-  GET    /users          ← 複数形
+Recommended:
+  GET    /users          ← plural
   GET    /users/{id}
   POST   /users
   DELETE /users/{id}
 
-非推奨:
-  GET    /user           ← 単数形
+Not recommended:
+  GET    /user           ← singular
   GET    /user/{id}
 ```
 
-**例外**: リソースが単一の場合（シングルトン）は単数形を使用
+**Exception**: Use singular when the resource is a singleton
 ```
-GET /auth/session       ← 現在のセッション（1つしか存在しない）
-GET /user/profile       ← 現在のユーザーのプロフィール
+GET /auth/session       ← current session (only one exists)
+GET /user/profile       ← current user's profile
 ```
 
-### Q3: APIの命名規則をチーム内で統一するための方法は？
+### Q3: What is the best way to standardize API naming conventions within a team?
 
-**A**: 以下の3段階アプローチが効果的です。
+**A**: The following three-step approach is effective.
 
-**1. スタイルガイドの策定**
-- API設計の命名規則を文書化（例: この章の内容をベースに）
-- フィールド、エンドポイント、エラーコード、日時形式などを明記
-- チームレビューを経て正式採用
+**1. Create a style guide**
+- Document naming conventions for API design (e.g., based on the content of this chapter)
+- Specify fields, endpoints, error codes, date/time formats, etc.
+- Formally adopt after team review
 
-**2. OpenAPI仕様での実装**
+**2. Implementation in OpenAPI specification**
 ```yaml
-# openapi.yaml でスキーマを定義
+# Define schemas in openapi.yaml
 components:
   schemas:
     User:
       type: object
       properties:
-        userId:          # camelCase 統一
+        userId:          # camelCase standardized
           type: string
           format: uuid
-        createdAt:       # 日時は ISO 8601
+        createdAt:       # date/time is ISO 8601
           type: string
           format: date-time
-        isActive:        # 真偽値は is プレフィックス
+        isActive:        # boolean uses is prefix
           type: boolean
 ```
 
-**3. Spectralによる自動チェック**
+**3. Automated checks with Spectral**
 ```yaml
 # .spectral.yaml
 extends: spectral:oas
 rules:
   path-params-kebab-case:
-    description: パスはケバブケースで記述
+    description: Paths must be in kebab-case
     given: $.paths[*]~
     then:
       function: pattern
@@ -2166,7 +2165,7 @@ rules:
         match: "^/[a-z0-9-/{}]*$"
 
   response-property-camelcase:
-    description: レスポンスフィールドは camelCase
+    description: Response fields must be in camelCase
     given: $.paths..responses..content..schema..properties[*]~
     then:
       function: casing
@@ -2174,34 +2173,34 @@ rules:
         type: camel
 ```
 
-CI/CDパイプラインに組み込むことで、PR時に自動チェックが走り、命名規則違反を防げます。
+By integrating into your CI/CD pipeline, automatic checks run on PRs, preventing naming convention violations.
 
 ---
 
-## まとめ
+## Summary
 
-| 概念 | ポイント |
+| Concept | Key Points |
 |------|---------|
-| エンドポイント | 名詞・複数形、ケバブケース、2階層まで |
-| フィールド | camelCase/snake_case統一、ISO 8601日時 |
-| ID | UUID/ULID推奨、プレフィックス付きも有効 |
-| 真偽値 | is/has/canプレフィックス |
-| 列挙型 | snake_case小文字で統一 |
-| レスポンス | data + meta エンベロープ |
-| エラー | RFC 7807 Problem Details、エラーコード体系 |
-| ヘッダー | 標準ヘッダー + カスタムヘッダーの規約 |
-| 国際化 | Accept-Language、UTC統一 |
-| 一貫性 | Spectralで自動チェック |
+| Endpoints | Nouns, plural form, kebab-case, up to 2 levels |
+| Fields | Unified camelCase/snake_case, ISO 8601 timestamps |
+| IDs | UUID/ULID recommended, prefixed IDs also effective |
+| Booleans | is/has/can prefix |
+| Enumerations | Unified lowercase snake_case |
+| Responses | data + meta envelope |
+| Errors | RFC 7807 Problem Details, error code system |
+| Headers | Standard headers + custom header conventions |
+| Internationalization | Accept-Language, UTC standardization |
+| Consistency | Automated checks with Spectral |
 
 ---
 
-## 次に読むべきガイド
-- [バージョニング戦略](./02-versioning-strategy.md)
-- [ページネーションとフィルタリング](./03-pagination-and-filtering.md)
+## Next Guides to Read
+- [Versioning Strategy](./02-versioning-strategy.md)
+- [Pagination and Filtering](./03-pagination-and-filtering.md)
 
 ---
 
-## 参考文献
+## References
 1. RFC 7807. "Problem Details for HTTP APIs." IETF, 2016.
 2. RFC 9457. "Problem Details for HTTP APIs (updated)." IETF, 2023.
 3. RFC 6648. "Deprecating the X- Prefix." IETF, 2012.
