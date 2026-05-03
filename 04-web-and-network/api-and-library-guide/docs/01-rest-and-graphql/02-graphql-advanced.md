@@ -1,81 +1,81 @@
-# GraphQL応用
+# GraphQL Advanced
 
-> GraphQLの応用トピック。Subscription（リアルタイム通信）、DataLoader（N+1問題の解決）、キャッシュ戦略、エラーハンドリング、セキュリティ、Federation、パフォーマンスチューニングまで、プロダクション運用に必要な知識を網羅的に習得する。
+> Advanced GraphQL topics. Comprehensively learn everything needed for production operations: Subscription (real-time communication), DataLoader (solving the N+1 problem), cache strategies, error handling, security, Federation, and performance tuning.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] Subscriptionによるリアルタイム通信を理解する
-- [ ] DataLoaderでN+1問題を解決する方法を把握する
-- [ ] GraphQLのキャッシュ戦略を複数レイヤーで学ぶ
-- [ ] エラーハンドリングの設計パターンを習得する
-- [ ] GraphQL特有のセキュリティ対策を実装できる
-- [ ] スキーマ設計の高度なパターンを使いこなす
-- [ ] Apollo Federationによるマイクロサービス統合を理解する
-- [ ] パフォーマンスの計測と最適化手法を把握する
-- [ ] テスト戦略とモニタリングを実践できる
+- [ ] Understand real-time communication with Subscription
+- [ ] Know how to solve the N+1 problem with DataLoader
+- [ ] Learn GraphQL caching strategies across multiple layers
+- [ ] Master error handling design patterns
+- [ ] Implement GraphQL-specific security measures
+- [ ] Use advanced schema design patterns
+- [ ] Understand microservice integration with Apollo Federation
+- [ ] Know how to measure and optimize performance
+- [ ] Practice testing strategies and monitoring
 
-## 前提知識
+## Prerequisites
 
-- GraphQLの基礎（Query, Mutation, Schema） → 参照: [GraphQL基礎](./01-graphql-fundamentals.md)
-- REST APIの設計原則 → 参照: [REST Best Practices](./00-rest-best-practices.md)
-- TypeScriptの型システム → 参照: TypeScript Complete Guide
+- GraphQL basics (Query, Mutation, Schema) → See: [GraphQL Fundamentals](./01-graphql-fundamentals.md)
+- REST API design principles → See: [REST Best Practices](./00-rest-best-practices.md)
+- TypeScript type system → See: TypeScript Complete Guide
 
 ---
 
-## 1. Subscription（リアルタイム通信）
+## 1. Subscription (Real-Time Communication)
 
-### 1.1 Subscriptionの基本概念
+### 1.1 Basic Concepts of Subscription
 
-GraphQL Subscriptionは、サーバーからクライアントへのリアルタイムデータ配信を実現する仕組みである。RESTでのポーリングやWebSocketの直接利用と比較して、型安全なリアルタイム通信を提供する。
+GraphQL Subscription provides a mechanism for real-time data delivery from server to client. Compared to polling with REST or using WebSocket directly, it offers type-safe real-time communication.
 
 ```
-Subscriptionの動作フロー:
+Subscription flow:
 
   Client                    Server
     |                         |
-    |-- subscription req ---->|  ① WebSocket接続確立
+    |-- subscription req ---->|  ① Establish WebSocket connection
     |                         |
-    |                         |  ② サーバー側でイベント発生
-    |<-- data push -----------|  ③ データをクライアントへ配信
+    |                         |  ② Event occurs on the server
+    |<-- data push -----------|  ③ Deliver data to the client
     |                         |
-    |                         |  ④ 再度イベント発生
-    |<-- data push -----------|  ⑤ 再度データ配信
+    |                         |  ④ Another event occurs
+    |<-- data push -----------|  ⑤ Deliver data again
     |                         |
-    |-- unsubscribe --------->|  ⑥ 購読解除
+    |-- unsubscribe --------->|  ⑥ Unsubscribe
     |                         |
 
-  vs ポーリング:
-    Client → Server: GET /api/messages?since=xxx  (毎秒)
-    → 無駄なリクエストが大量に発生
-    → リアルタイム性が低い（ポーリング間隔に依存）
+  vs Polling:
+    Client → Server: GET /api/messages?since=xxx  (every second)
+    → Generates a large number of unnecessary requests
+    → Low real-time performance (depends on polling interval)
 
-  vs WebSocket直接利用:
-    → 型安全性がない
-    → メッセージフォーマットの統一が困難
-    → GraphQLのSubscriptionは型付きリアルタイム通信を提供
+  vs Direct WebSocket:
+    → No type safety
+    → Difficult to unify message format
+    → GraphQL Subscription provides typed real-time communication
 ```
 
-### 1.2 スキーマ定義
+### 1.2 Schema Definition
 
 ```graphql
-# Subscription スキーマ定義
+# Subscription schema definition
 type Subscription {
-  # 新しいメッセージの購読
+  # Subscribe to new messages
   messageAdded(channelId: ID!): Message!
 
-  # 注文ステータスの変更
+  # Order status changes
   orderStatusChanged(orderId: ID!): Order!
 
-  # ユーザーのオンライン状態
+  # User online presence
   userPresenceChanged: UserPresence!
 
-  # 通知のリアルタイム配信
+  # Real-time notification delivery
   notificationReceived(userId: ID!): Notification!
 
-  # ダッシュボードメトリクスの更新
+  # Dashboard metrics updates
   metricsUpdated(dashboardId: ID!): DashboardMetrics!
 
-  # タイピングインジケーター
+  # Typing indicator
   userTyping(channelId: ID!): TypingIndicator!
 }
 
@@ -137,10 +137,10 @@ type DashboardMetrics {
 }
 ```
 
-### 1.3 サーバー側実装（Apollo Server + WebSocket）
+### 1.3 Server-Side Implementation (Apollo Server + WebSocket)
 
 ```javascript
-// サーバー側（Apollo Server + WebSocket）
+// Server side (Apollo Server + WebSocket)
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import { useServer } from 'graphql-ws/lib/use/ws';
@@ -153,7 +153,7 @@ import express from 'express';
 
 const pubsub = new PubSub();
 
-// イベント名の定数定義
+// Event name constants
 const EVENTS = {
   MESSAGE_ADDED: 'MESSAGE_ADDED',
   ORDER_STATUS_CHANGED: 'ORDER_STATUS_CHANGED',
@@ -165,12 +165,12 @@ const EVENTS = {
 
 const resolvers = {
   Subscription: {
-    // withFilterでチャンネルIDによるフィルタリング
+    // Filter by channel ID with withFilter
     messageAdded: {
       subscribe: withFilter(
         () => pubsub.asyncIterator(EVENTS.MESSAGE_ADDED),
         (payload, variables) => {
-          // 指定されたチャンネルのメッセージのみ配信
+          // Only deliver messages for the specified channel
           return payload.messageAdded.channel.id === variables.channelId;
         }
       ),
@@ -193,7 +193,7 @@ const resolvers = {
       subscribe: withFilter(
         () => pubsub.asyncIterator(EVENTS.NOTIFICATION_RECEIVED),
         (payload, variables, context) => {
-          // 認証済みユーザー自身の通知のみ配信
+          // Only deliver notifications to the authenticated user themselves
           return payload.notificationReceived.userId === variables.userId
             && context.user.id === variables.userId;
         }
@@ -213,7 +213,7 @@ const resolvers = {
       subscribe: withFilter(
         () => pubsub.asyncIterator(EVENTS.METRICS_UPDATED),
         (payload, variables, context) => {
-          // 管理者のみメトリクスを購読可能
+          // Only admins can subscribe to metrics
           if (!context.user?.roles?.includes('ADMIN')) {
             throw new Error('Not authorized to subscribe to metrics');
           }
@@ -225,7 +225,7 @@ const resolvers = {
 
   Mutation: {
     sendMessage: async (_, { input }, context) => {
-      // 認証チェック
+      // Authentication check
       if (!context.user) {
         throw new GraphQLError('Not authenticated', {
           extensions: { code: 'UNAUTHENTICATED' },
@@ -237,7 +237,7 @@ const resolvers = {
         authorId: context.user.id,
       });
 
-      // Subscriptionに通知
+      // Notify Subscription
       pubsub.publish(EVENTS.MESSAGE_ADDED, {
         messageAdded: message,
       });
@@ -251,18 +251,18 @@ const resolvers = {
         status
       );
 
-      // 注文ステータス変更を通知
+      // Notify of order status change
       pubsub.publish(EVENTS.ORDER_STATUS_CHANGED, {
         orderStatusChanged: order,
       });
 
-      // 顧客への通知も同時に発行
+      // Also publish a customer notification
       pubsub.publish(EVENTS.NOTIFICATION_RECEIVED, {
         notificationReceived: {
           userId: order.customerId,
           type: 'ORDER_UPDATE',
-          title: '注文ステータスが更新されました',
-          body: `注文 #${orderId} のステータスが「${status}」に変更されました`,
+          title: 'Order status has been updated',
+          body: `Order #${orderId} status changed to "${status}"`,
           createdAt: new Date().toISOString(),
         },
       });
@@ -283,13 +283,13 @@ const resolvers = {
   },
 };
 
-// Express + Apollo Server + WebSocket のセットアップ
+// Setup Express + Apollo Server + WebSocket
 const app = express();
 const httpServer = createServer(app);
 
 const schema = makeExecutableSchema({ typeDefs, resolvers });
 
-// WebSocketサーバーのセットアップ
+// WebSocket server setup
 const wsServer = new WebSocketServer({
   server: httpServer,
   path: '/graphql',
@@ -299,7 +299,7 @@ const serverCleanup = useServer(
   {
     schema,
     context: async (ctx, msg, args) => {
-      // WebSocket接続時の認証
+      // Authentication on WebSocket connect
       const token = ctx.connectionParams?.authorization;
       if (!token) {
         throw new Error('Missing authentication token');
@@ -314,16 +314,16 @@ const serverCleanup = useServer(
     },
     onConnect: async (ctx) => {
       console.log('Client connected:', ctx.connectionParams);
-      // 接続時のバリデーション
+      // Validate on connection
       const token = ctx.connectionParams?.authorization;
       if (!token) {
-        return false; // 接続を拒否
+        return false; // Reject the connection
       }
       return true;
     },
     onDisconnect: async (ctx, code, reason) => {
       console.log('Client disconnected:', code, reason);
-      // ユーザーのオフライン状態を通知
+      // Notify user's offline status
       if (ctx.extra?.user) {
         pubsub.publish(EVENTS.USER_PRESENCE_CHANGED, {
           userPresenceChanged: {
@@ -339,7 +339,7 @@ const serverCleanup = useServer(
       console.log('Subscription started:', msg.payload.query);
     },
     onNext: (ctx, msg, args, result) => {
-      // 各メッセージ送信時のフック
+      // Hook called on each message send
       console.log('Sending subscription data');
     },
     onError: (ctx, msg, errors) => {
@@ -352,13 +352,13 @@ const serverCleanup = useServer(
   wsServer
 );
 
-// Apollo Server のセットアップ
+// Apollo Server setup
 const server = new ApolloServer({
   schema,
   plugins: [
-    // HTTPサーバーの適切なシャットダウン
+    // Graceful HTTP server shutdown
     ApolloServerPluginDrainHttpServer({ httpServer }),
-    // WebSocketサーバーの適切なシャットダウン
+    // Graceful WebSocket server shutdown
     {
       async serverWillStart() {
         return {
@@ -390,14 +390,14 @@ httpServer.listen(4000, () => {
 });
 ```
 
-### 1.4 スケーラブルなPubSub実装（Redis）
+### 1.4 Scalable PubSub Implementation (Redis)
 
 ```javascript
-// プロダクション環境ではインメモリPubSubの代わりにRedis PubSubを使用
+// In production environments, use Redis PubSub instead of in-memory PubSub
 import { RedisPubSub } from 'graphql-redis-subscriptions';
 import Redis from 'ioredis';
 
-// Redis接続の設定
+// Redis connection configuration
 const redisOptions = {
   host: process.env.REDIS_HOST || 'localhost',
   port: parseInt(process.env.REDIS_PORT || '6379'),
@@ -408,14 +408,14 @@ const redisOptions = {
   maxRetriesPerRequest: 3,
 };
 
-// PubSub用に別々のRedis接続を作成（推奨）
+// Create separate Redis connections for PubSub (recommended)
 const pubsub = new RedisPubSub({
   publisher: new Redis(redisOptions),
   subscriber: new Redis(redisOptions),
-  // メッセージのシリアライゼーション
+  // Message serialization
   serializer: (data) => JSON.stringify(data),
   deserializer: (message) => JSON.parse(message),
-  // 接続エラーハンドリング
+  // Connection error handling
   connectionListener: (err) => {
     if (err) {
       console.error('Redis connection error:', err);
@@ -423,11 +423,11 @@ const pubsub = new RedisPubSub({
   },
 });
 
-// 複数サーバーインスタンスでの利用
-// Server A で publish → Redis → Server B の subscriber に配信
-// → 水平スケーリングが可能
+// Usage with multiple server instances:
+// Server A publishes → Redis → delivered to Server B's subscriber
+// → Horizontal scaling is possible
 
-// Kafka を使ったPubSub（大規模システム向け）
+// Kafka-based PubSub (for large-scale systems)
 import { KafkaPubSub } from 'graphql-kafka-subscriptions';
 
 const kafkaPubSub = await KafkaPubSub.create({
@@ -441,16 +441,16 @@ const kafkaPubSub = await KafkaPubSub.create({
 });
 ```
 
-### 1.5 クライアント側実装（React + Apollo Client）
+### 1.5 Client-Side Implementation (React + Apollo Client)
 
 ```javascript
-// Apollo Client のWebSocket設定
+// Apollo Client WebSocket configuration
 import { ApolloClient, InMemoryCache, split, HttpLink } from '@apollo/client';
 import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { createClient } from 'graphql-ws';
 import { getMainDefinition } from '@apollo/client/utilities';
 
-// HTTP リンク（Query, Mutation用）
+// HTTP link (for Query, Mutation)
 const httpLink = new HttpLink({
   uri: 'https://api.example.com/graphql',
   headers: {
@@ -458,18 +458,18 @@ const httpLink = new HttpLink({
   },
 });
 
-// WebSocket リンク（Subscription用）
+// WebSocket link (for Subscription)
 const wsLink = new GraphQLWsLink(
   createClient({
     url: 'wss://api.example.com/graphql',
     connectionParams: () => ({
       authorization: `Bearer ${getToken()}`,
     }),
-    // 再接続設定
+    // Reconnect settings
     retryAttempts: 5,
     shouldRetry: () => true,
     retryWait: async (retryCount) => {
-      // 指数バックオフ
+      // Exponential backoff
       const delay = Math.min(1000 * Math.pow(2, retryCount), 30000);
       await new Promise((resolve) => setTimeout(resolve, delay));
     },
@@ -478,12 +478,12 @@ const wsLink = new GraphQLWsLink(
       closed: (event) => console.log('WebSocket closed:', event),
       error: (error) => console.error('WebSocket error:', error),
     },
-    // KeepAlive設定
-    keepAlive: 10000, // 10秒ごとにping
+    // KeepAlive settings
+    keepAlive: 10000, // ping every 10 seconds
   })
 );
 
-// 操作タイプに応じてリンクを振り分け
+// Route to the appropriate link based on operation type
 const splitLink = split(
   ({ query }) => {
     const definition = getMainDefinition(query);
@@ -503,7 +503,7 @@ const client = new ApolloClient({
 ```
 
 ```tsx
-// React コンポーネントでの利用
+// Usage in React components
 import { useSubscription, useQuery, gql } from '@apollo/client';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -547,7 +547,7 @@ const GET_MESSAGES = gql`
 `;
 
 function ChatMessages({ channelId }) {
-  // 既存メッセージの取得
+  // Fetch existing messages
   const { data, loading, fetchMore, subscribeToMore } = useQuery(
     GET_MESSAGES,
     {
@@ -555,7 +555,7 @@ function ChatMessages({ channelId }) {
     }
   );
 
-  // subscribeToMore で既存クエリに新しいメッセージを追加
+  // Use subscribeToMore to append new messages to the existing query
   useEffect(() => {
     const unsubscribe = subscribeToMore({
       document: MESSAGE_SUBSCRIPTION,
@@ -565,7 +565,7 @@ function ChatMessages({ channelId }) {
 
         const newMessage = subscriptionData.data.messageAdded;
 
-        // 重複チェック
+        // Duplicate check
         const exists = prev.messages.edges.some(
           (edge) => edge.node.id === newMessage.id
         );
@@ -609,7 +609,7 @@ function ChatMessages({ channelId }) {
   );
 }
 
-// タイピングインジケーターの実装
+// Typing indicator implementation
 const TYPING_SUBSCRIPTION = gql`
   subscription OnUserTyping($channelId: ID!) {
     userTyping(channelId: $channelId) {
@@ -644,7 +644,7 @@ function TypingIndicator({ channelId }) {
     },
   });
 
-  // 5秒後にタイピング状態を自動クリア
+  // Auto-clear typing state after 5 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       setTypingUsers((prev) => {
@@ -680,18 +680,18 @@ function TypingIndicator({ channelId }) {
 
 ---
 
-## 2. N+1問題とDataLoader
+## 2. N+1 Problem and DataLoader
 
-### 2.1 N+1問題の詳細
+### 2.1 The N+1 Problem in Detail
 
 ```
-N+1問題:
+N+1 problem:
   query {
-    users(first: 10) {        <- 1回のクエリ（usersテーブル）
+    users(first: 10) {        <- 1 query (users table)
       edges {
         node {
           name
-          orders {             <- 10回のクエリ（ordersテーブル x ユーザー数）
+          orders {             <- 10 queries (orders table × number of users)
             total
           }
         }
@@ -699,16 +699,16 @@ N+1問題:
     }
   }
 
-  実行されるSQL:
-    SELECT * FROM users LIMIT 10;              -- 1回
-    SELECT * FROM orders WHERE user_id = 1;    -- +1回
-    SELECT * FROM orders WHERE user_id = 2;    -- +1回
-    SELECT * FROM orders WHERE user_id = 3;    -- +1回
-    ...                                         -- = N+1回
+  SQL executed:
+    SELECT * FROM users LIMIT 10;              -- 1 time
+    SELECT * FROM orders WHERE user_id = 1;    -- +1 time
+    SELECT * FROM orders WHERE user_id = 2;    -- +1 time
+    SELECT * FROM orders WHERE user_id = 3;    -- +1 time
+    ...                                         -- = N+1 times
 
-  -> 10ユーザー = 11クエリ（1 + 10）
-  -> 100ユーザー = 101クエリ
-  -> ネストが深いと指数的に増加:
+  -> 10 users = 11 queries (1 + 10)
+  -> 100 users = 101 queries
+  -> Deep nesting grows exponentially:
 
   query {
     users(first: 10) {              -- 1
@@ -723,33 +723,33 @@ N+1問題:
       }
     }
   }
-  -> 合計: 3,061 クエリ！
+  -> Total: 3,061 queries!
 ```
 
-### 2.2 DataLoaderによる解決
+### 2.2 Solving with DataLoader
 
 ```javascript
-// DataLoader による解決
+// Solving with DataLoader
 import DataLoader from 'dataloader';
 
-// === バッチ関数の基本パターン ===
+// === Basic batch function patterns ===
 
-// パターン1: 1対1（ユーザーIDからユーザーを取得）
+// Pattern 1: One-to-one (fetch user from user ID)
 const userLoader = new DataLoader(async (userIds) => {
   console.log(`Batch loading users: [${userIds.join(', ')}]`);
 
-  // 1回のクエリで全ユーザーを取得
+  // Fetch all users in a single query
   const users = await db.query(
     'SELECT * FROM users WHERE id = ANY($1)',
     [userIds]
   );
 
-  // 入力IDの順序を保持してマッピング
+  // Map preserving input ID order
   const userMap = new Map(users.map(u => [u.id, u]));
   return userIds.map(id => userMap.get(id) || null);
 });
 
-// パターン2: 1対多（ユーザーIDから注文一覧を取得）
+// Pattern 2: One-to-many (fetch order list from user ID)
 const ordersByUserLoader = new DataLoader(async (userIds) => {
   console.log(`Batch loading orders for users: [${userIds.join(', ')}]`);
 
@@ -758,7 +758,7 @@ const ordersByUserLoader = new DataLoader(async (userIds) => {
     [userIds]
   );
 
-  // userIdでグループ化して返す
+  // Group by userId and return
   const orderMap = new Map();
   orders.forEach(order => {
     if (!orderMap.has(order.userId)) {
@@ -770,9 +770,9 @@ const ordersByUserLoader = new DataLoader(async (userIds) => {
   return userIds.map(id => orderMap.get(id) || []);
 });
 
-// パターン3: 条件付きローダー（ステータスでフィルタ）
+// Pattern 3: Conditional loader (filter by status)
 const activeOrdersByUserLoader = new DataLoader(async (keys) => {
-  // keysは { userId, status } のオブジェクト配列
+  // keys is an array of { userId, status } objects
   const userIds = [...new Set(keys.map(k => k.userId))];
   const statuses = [...new Set(keys.map(k => k.status))];
 
@@ -785,11 +785,11 @@ const activeOrdersByUserLoader = new DataLoader(async (keys) => {
     orders.filter(o => o.userId === key.userId && o.status === key.status)
   );
 }, {
-  // カスタムキャッシュキー（オブジェクトをキーにする場合に必要）
+  // Custom cache key function (required when using objects as keys)
   cacheKeyFn: (key) => `${key.userId}:${key.status}`,
 });
 
-// リゾルバーでDataLoaderを使用
+// Using DataLoader in resolvers
 const resolvers = {
   User: {
     orders: (user, _, context) => context.loaders.ordersByUserLoader.load(user.id),
@@ -798,7 +798,7 @@ const resolvers = {
         userId: user.id,
         status: 'ACTIVE',
       }),
-    // 集計もDataLoaderで効率化
+    // Aggregations can also be optimized with DataLoader
     orderCount: async (user, _, context) => {
       const orders = await context.loaders.ordersByUserLoader.load(user.id);
       return orders.length;
@@ -813,23 +813,23 @@ const resolvers = {
   },
 };
 
-// 実行されるSQL（DataLoader使用後）:
-//   SELECT * FROM users LIMIT 10;                          -- 1回
-//   SELECT * FROM orders WHERE user_id = ANY([1,2,...10]); -- 1回
-//   SELECT * FROM products WHERE id = ANY([...]);          -- 1回
-// -> 合計3クエリ（N+1が解消）
+// SQL executed after using DataLoader:
+//   SELECT * FROM users LIMIT 10;                          -- 1 time
+//   SELECT * FROM orders WHERE user_id = ANY([1,2,...10]); -- 1 time
+//   SELECT * FROM products WHERE id = ANY([...]);          -- 1 time
+// -> 3 total queries (N+1 resolved)
 ```
 
-### 2.3 DataLoaderのコンテキスト管理
+### 2.3 DataLoader Context Management
 
 ```javascript
-// DataLoaderのコンテキスト設定
-// 重要: DataLoaderはリクエストごとに新しいインスタンスを作る
-// → キャッシュの不整合を防ぐため
+// DataLoader context configuration
+// Important: Create a new DataLoader instance per request
+// → to prevent cache inconsistencies
 
 function createLoaders(db) {
   return {
-    // ユーザーローダー
+    // User loader
     userLoader: new DataLoader(async (ids) => {
       const users = await db.query(
         'SELECT * FROM users WHERE id = ANY($1)', [ids]
@@ -837,15 +837,15 @@ function createLoaders(db) {
       const userMap = new Map(users.map(u => [u.id, u]));
       return ids.map(id => userMap.get(id) || null);
     }, {
-      // オプション設定
-      batch: true,          // バッチ処理を有効化（デフォルト: true）
-      maxBatchSize: 100,    // 1バッチの最大サイズ
-      cache: true,          // キャッシュを有効化（デフォルト: true）
+      // Option settings
+      batch: true,          // Enable batching (default: true)
+      maxBatchSize: 100,    // Maximum size per batch
+      cache: true,          // Enable caching (default: true)
       batchScheduleFn: (callback) => setTimeout(callback, 10),
-      // 10ms待ってからバッチ実行（より多くのリクエストをまとめる）
+      // Wait 10ms before executing batch (to group more requests)
     }),
 
-    // 注文ローダー
+    // Order loader
     ordersByUserLoader: new DataLoader(async (userIds) => {
       const orders = await db.query(
         'SELECT * FROM orders WHERE user_id = ANY($1) ORDER BY created_at DESC',
@@ -859,7 +859,7 @@ function createLoaders(db) {
       return userIds.map(id => map.get(id) || []);
     }),
 
-    // 商品ローダー
+    // Product loader
     productLoader: new DataLoader(async (ids) => {
       const products = await db.query(
         'SELECT * FROM products WHERE id = ANY($1)', [ids]
@@ -868,7 +868,7 @@ function createLoaders(db) {
       return ids.map(id => map.get(id) || null);
     }),
 
-    // 注文アイテムローダー
+    // Order items loader
     orderItemsLoader: new DataLoader(async (orderIds) => {
       const items = await db.query(
         `SELECT oi.*, p.name as product_name, p.price
@@ -885,7 +885,7 @@ function createLoaders(db) {
       return orderIds.map(id => map.get(id) || []);
     }),
 
-    // カテゴリ別商品ローダー
+    // Products by category loader
     productsByCategoryLoader: new DataLoader(async (categoryIds) => {
       const products = await db.query(
         'SELECT * FROM products WHERE category_id = ANY($1) ORDER BY name',
@@ -901,7 +901,7 @@ function createLoaders(db) {
   };
 }
 
-// Apollo Server のコンテキスト
+// Apollo Server context
 const server = new ApolloServer({
   typeDefs,
   resolvers,
@@ -910,18 +910,18 @@ const server = new ApolloServer({
 const { url } = await startStandaloneServer(server, {
   context: async ({ req }) => ({
     user: await authenticateUser(req),
-    loaders: createLoaders(db), // リクエストごとに新規作成
+    loaders: createLoaders(db), // Create new per request
     dataSources: createDataSources(),
   }),
 });
 ```
 
-### 2.4 DataLoaderのプライミングとキャッシュ制御
+### 2.4 DataLoader Priming and Cache Control
 
 ```javascript
-// DataLoaderの高度な利用パターン
+// Advanced DataLoader usage patterns
 
-// 1. プライミング（事前にキャッシュをセット）
+// 1. Priming (pre-populate the cache)
 const resolvers = {
   Mutation: {
     createUser: async (_, { input }, { loaders }) => {
@@ -930,8 +930,8 @@ const resolvers = {
         [input.name, input.email]
       );
 
-      // 作成したユーザーをDataLoaderのキャッシュに事前登録
-      // → 後続のリゾルバーでDBクエリを回避
+      // Pre-register the created user in the DataLoader cache
+      // → Avoids DB queries in subsequent resolvers
       loaders.userLoader.prime(user.id, user);
 
       return { user, errors: [] };
@@ -939,21 +939,21 @@ const resolvers = {
   },
 };
 
-// 2. キャッシュのクリア
+// 2. Cache clearing
 async function updateUser(id, input, loaders) {
   const user = await db.query(
     'UPDATE users SET name = $2 WHERE id = $1 RETURNING *',
     [id, input.name]
   );
 
-  // 古いキャッシュをクリアして新しいデータをセット
+  // Clear old cache and set new data
   loaders.userLoader.clear(id);
   loaders.userLoader.prime(id, user);
 
   return user;
 }
 
-// 3. 全キャッシュのクリア
+// 3. Clear all caches
 function clearAllLoaderCaches(loaders) {
   Object.values(loaders).forEach(loader => {
     if (loader instanceof DataLoader) {
@@ -962,7 +962,7 @@ function clearAllLoaderCaches(loaders) {
   });
 }
 
-// 4. エラーハンドリング付きバッチ関数
+// 4. Batch function with error handling
 const robustUserLoader = new DataLoader(async (ids) => {
   try {
     const users = await db.query(
@@ -973,13 +973,13 @@ const robustUserLoader = new DataLoader(async (ids) => {
     return ids.map(id => {
       const user = userMap.get(id);
       if (!user) {
-        // 個別のエラーを返す（バッチ全体を失敗させない）
+        // Return an individual error (do not fail the whole batch)
         return new Error(`User not found: ${id}`);
       }
       return user;
     });
   } catch (error) {
-    // DBエラーの場合は全IDに対してエラーを返す
+    // On DB error, return an error for all IDs
     return ids.map(() => new Error(`Database error: ${error.message}`));
   }
 });
@@ -987,51 +987,51 @@ const robustUserLoader = new DataLoader(async (ids) => {
 
 ---
 
-## 3. キャッシュ戦略
+## 3. Cache Strategies
 
-### 3.1 GraphQLキャッシュの課題と解決策
+### 3.1 GraphQL Caching Challenges and Solutions
 
 ```
-GraphQLのキャッシュの課題:
-  -> RESTはURLベースでキャッシュ可能
+GraphQL caching challenges:
+  -> REST can cache by URL
      GET /api/users/123 → Cache-Control: max-age=3600
-  -> GraphQLは全てPOST /graphql（URLが同じ）
-  -> HTTPキャッシュが使えない
+  -> GraphQL always uses POST /graphql (same URL)
+  -> HTTP caching is not applicable
 
-解決策（4つのレイヤー）:
+Solutions (4 layers):
 
   ┌──────────────────────────────────────────┐
-  │  Layer 1: クライアントサイドキャッシュ       │
-  │  → Apollo Client InMemoryCache            │
-  │  → 正規化キャッシュ（__typename + id）      │
+  │  Layer 1: Client-side cache              │
+  │  → Apollo Client InMemoryCache           │
+  │  → Normalized cache (__typename + id)    │
   ├──────────────────────────────────────────┤
-  │  Layer 2: CDNキャッシュ                     │
-  │  → Persisted Queries（GET変換）            │
-  │  → Automatic Persisted Queries (APQ)      │
+  │  Layer 2: CDN cache                      │
+  │  → Persisted Queries (convert to GET)    │
+  │  → Automatic Persisted Queries (APQ)     │
   ├──────────────────────────────────────────┤
-  │  Layer 3: サーバーサイドキャッシュ            │
-  │  → Redis/Memcachedによるレスポンスキャッシュ  │
-  │  → @cacheControl ディレクティブ             │
+  │  Layer 3: Server-side cache              │
+  │  → Response cache with Redis/Memcached   │
+  │  → @cacheControl directive               │
   ├──────────────────────────────────────────┤
-  │  Layer 4: データソースキャッシュ              │
-  │  → DataLoaderのリクエスト内キャッシュ         │
-  │  → RESTDataSourceのHTTPキャッシュ           │
+  │  Layer 4: Data source cache              │
+  │  → In-request cache from DataLoader      │
+  │  → HTTP cache from RESTDataSource        │
   └──────────────────────────────────────────┘
 ```
 
-### 3.2 Apollo Client 正規化キャッシュ
+### 3.2 Apollo Client Normalized Cache
 
 ```javascript
-// Apollo Client の正規化キャッシュ
+// Apollo Client normalized cache
 import { InMemoryCache, makeVar } from '@apollo/client';
 
 const cache = new InMemoryCache({
   typePolicies: {
-    // ユーザー型のキャッシュ設定
+    // Cache configuration for the User type
     User: {
-      keyFields: ['id'], // idフィールドでキャッシュのキーを生成
+      keyFields: ['id'], // Generate cache key from id field
       fields: {
-        // フルネームの計算フィールド
+        // Computed full name field
         fullName: {
           read(_, { readField }) {
             const firstName = readField('firstName');
@@ -1042,49 +1042,49 @@ const cache = new InMemoryCache({
       },
     },
 
-    // 商品型のキャッシュ設定
+    // Cache configuration for the Product type
     Product: {
-      keyFields: ['sku'], // SKUをキーとして使用（idの代わり）
+      keyFields: ['sku'], // Use SKU as the key instead of id
       fields: {
-        // 価格の表示フォーマット
+        // Formatted price display
         formattedPrice: {
           read(_, { readField }) {
             const price = readField('price');
-            return `¥${price.toLocaleString()}`;
+            return `$${price.toLocaleString()}`;
           },
         },
       },
     },
 
-    // クエリフィールドのキャッシュ設定
+    // Cache configuration for query fields
     Query: {
       fields: {
-        // usersクエリのキャッシュとページネーション
+        // Cache and pagination for the users query
         users: {
-          keyArgs: ['filter', 'sort'], // これらの引数でキャッシュを分ける
+          keyArgs: ['filter', 'sort'], // Separate cache per these arguments
           merge(existing, incoming, { args }) {
-            // ページネーションのマージ
+            // Merge for pagination
             if (!existing) return incoming;
             if (args?.after) {
-              // 追加読み込み（infinite scroll）
+              // Incremental loading (infinite scroll)
               return {
                 ...incoming,
                 edges: [...existing.edges, ...incoming.edges],
               };
             }
-            // 新規取得（フィルタ変更等）
+            // Fresh fetch (filter change, etc.)
             return incoming;
           },
           read(existing, { args }) {
-            // キャッシュからの読み取り
+            // Read from cache
             return existing;
           },
         },
 
-        // 単一ユーザーのキャッシュ参照
+        // Cache reference for a single user
         user: {
           read(_, { args, toReference }) {
-            // キャッシュに既にあるユーザーを参照
+            // Reference a user already in the cache
             return toReference({
               __typename: 'User',
               id: args.id,
@@ -1092,7 +1092,7 @@ const cache = new InMemoryCache({
           },
         },
 
-        // 検索結果のキャッシュ
+        // Cache for search results
         search: {
           keyArgs: ['query', 'type'],
           merge(existing = { results: [] }, incoming) {
@@ -1105,7 +1105,7 @@ const cache = new InMemoryCache({
       },
     },
 
-    // ページネーション接続のキャッシュ設定
+    // Cache configuration for pagination connections
     UserConnection: {
       fields: {
         edges: {
@@ -1117,26 +1117,26 @@ const cache = new InMemoryCache({
     },
   },
 
-  // 可能なタイプの定義（Union/Interfaceの解決用）
+  // Possible types definition (for Union/Interface resolution)
   possibleTypes: {
     SearchResult: ['User', 'Product', 'Order'],
     Node: ['User', 'Product', 'Order', 'Category'],
   },
 });
 
-// === キャッシュの手動操作 ===
+// === Manual cache operations ===
 
-// 1. キャッシュの直接更新
+// 1. Direct cache update
 client.cache.modify({
   id: client.cache.identify({ __typename: 'User', id: '123' }),
   fields: {
     name: () => 'Updated Name',
-    email: (prevEmail) => prevEmail, // 変更しない
+    email: (prevEmail) => prevEmail, // No change
     orderCount: (prevCount) => prevCount + 1,
   },
 });
 
-// 2. キャッシュへの書き込み
+// 2. Write to cache
 client.cache.writeQuery({
   query: GET_USER,
   variables: { id: '123' },
@@ -1150,20 +1150,20 @@ client.cache.writeQuery({
   },
 });
 
-// 3. キャッシュからの読み取り
+// 3. Read from cache
 const cachedUser = client.cache.readQuery({
   query: GET_USER,
   variables: { id: '123' },
 });
 
-// 4. キャッシュからの削除（evict）
+// 4. Evict from cache
 client.cache.evict({
   id: client.cache.identify({ __typename: 'User', id: '123' }),
 });
-// ガベージコレクション（参照されなくなったオブジェクトを削除）
+// Garbage collection (remove unreferenced objects)
 client.cache.gc();
 
-// 5. Reactive Variables（ローカルステート管理）
+// 5. Reactive Variables (local state management)
 const isLoggedInVar = makeVar(false);
 const cartItemsVar = makeVar([]);
 
@@ -1186,7 +1186,7 @@ const cache2 = new InMemoryCache({
   },
 });
 
-// Reactive Variableの更新（自動的にUIが再レンダリングされる）
+// Updating Reactive Variables (automatically re-renders UI)
 isLoggedInVar(true);
 cartItemsVar([...cartItemsVar(), { productId: '123', quantity: 1 }]);
 ```
@@ -1195,14 +1195,13 @@ cartItemsVar([...cartItemsVar(), { productId: '123', quantity: 1 }]);
 
 ```javascript
 // Automatic Persisted Queries (APQ)
-// → クエリ文字列をSHA256ハッシュに変換してGETリクエストに
-
+// → Convert query strings to SHA256 hashes for GET requests
 import { createPersistedQueryLink } from '@apollo/client/link/persisted-queries';
 import { sha256 } from 'crypto-hash';
 
 const persistedQueryLink = createPersistedQueryLink({
   sha256,
-  useGETForHashedQueries: true, // GETリクエストを使用 → CDNキャッシュ可能
+  useGETForHashedQueries: true, // Use GET requests → CDN-cacheable
 });
 
 const client = new ApolloClient({
@@ -1210,34 +1209,34 @@ const client = new ApolloClient({
   cache: new InMemoryCache(),
 });
 
-// APQの動作フロー:
-// 1. 初回: GET /graphql?extensions={"persistedQuery":{"sha256Hash":"abc..."}}
-// 2. サーバー: "PersistedQueryNotFound" を返す
-// 3. クライアント: POST /graphql でフルクエリを送信
-// 4. サーバー: クエリをハッシュと紐付けて保存
-// 5. 次回以降: GET /graphql?extensions={"persistedQuery":{"sha256Hash":"abc..."}}
-//    → CDNでキャッシュ可能！
+// APQ flow:
+// 1. First request: GET /graphql?extensions={"persistedQuery":{"sha256Hash":"abc..."}}
+// 2. Server: returns "PersistedQueryNotFound"
+// 3. Client: sends full query via POST /graphql
+// 4. Server: stores the query associated with its hash
+// 5. Subsequent requests: GET /graphql?extensions={"persistedQuery":{"sha256Hash":"abc..."}}
+//    → Can be cached by CDN!
 
-// サーバー側の設定（Apollo Server）
+// Server-side configuration (Apollo Server)
 const server = new ApolloServer({
   typeDefs,
   resolvers,
   persistedQueries: {
-    // Redisキャッシュで永続化
+    // Persist with Redis cache
     cache: new KeyValueCache({
       url: process.env.REDIS_URL,
-      ttl: 86400, // 24時間
+      ttl: 86400, // 24 hours
     }),
   },
 });
 ```
 
-### 3.4 サーバーサイドキャッシュ
+### 3.4 Server-Side Caching
 
 ```javascript
-// @cacheControl ディレクティブによるキャッシュ制御
+// Cache control via @cacheControl directive
 const typeDefs = gql`
-  # ディレクティブ定義
+  # Directive definition
   enum CacheControlScope {
     PUBLIC
     PRIVATE
@@ -1249,13 +1248,13 @@ const typeDefs = gql`
     inheritMaxAge: Boolean
   ) on FIELD_DEFINITION | OBJECT | INTERFACE | UNION
 
-  # 型レベルのキャッシュ設定
+  # Type-level cache settings
   type Product @cacheControl(maxAge: 3600) {
     id: ID!
     name: String!
     description: String!
-    price: Float! @cacheControl(maxAge: 300)  # 価格は5分
-    inventory: Int! @cacheControl(maxAge: 30) # 在庫は30秒
+    price: Float! @cacheControl(maxAge: 300)  # Price: 5 minutes
+    inventory: Int! @cacheControl(maxAge: 30) # Inventory: 30 seconds
   }
 
   type User @cacheControl(maxAge: 0, scope: PRIVATE) {
@@ -1272,7 +1271,7 @@ const typeDefs = gql`
   }
 `;
 
-// Redisを使ったリゾルバーレベルのキャッシュ
+// Resolver-level caching with Redis
 import Redis from 'ioredis';
 
 const redis = new Redis(process.env.REDIS_URL);
@@ -1283,23 +1282,23 @@ function withCache(resolver, options = {}) {
   return async (parent, args, context, info) => {
     const cacheKey = `${keyPrefix}:${info.fieldName}:${JSON.stringify(args)}`;
 
-    // キャッシュチェック
+    // Check cache
     const cached = await redis.get(cacheKey);
     if (cached) {
       return JSON.parse(cached);
     }
 
-    // リゾルバー実行
+    // Execute resolver
     const result = await resolver(parent, args, context, info);
 
-    // キャッシュに保存
+    // Save to cache
     await redis.setex(cacheKey, ttl, JSON.stringify(result));
 
     return result;
   };
 }
 
-// 利用例
+// Usage example
 const resolvers = {
   Query: {
     products: withCache(
@@ -1318,12 +1317,12 @@ const resolvers = {
   },
 };
 
-// キャッシュの無効化
+// Cache invalidation
 async function invalidateProductCache(productId) {
-  // 個別商品のキャッシュを削除
+  // Delete individual product cache
   await redis.del(`product:product:{"id":"${productId}"}`);
 
-  // 商品一覧のキャッシュを全て削除
+  // Delete all product list caches
   const keys = await redis.keys('products:products:*');
   if (keys.length > 0) {
     await redis.del(...keys);
@@ -1333,16 +1332,16 @@ async function invalidateProductCache(productId) {
 
 ---
 
-## 4. エラーハンドリング
+## 4. Error Handling
 
-### 4.1 エラーパターンの分類
+### 4.1 Error Pattern Classification
 
 ```graphql
-# GraphQLの2つのエラーパターン
+# Two error patterns in GraphQL
 
-# (1) トップレベルエラー（GraphQL仕様のerrors配列）
-# -> 認証エラー、構文エラー、サーバーエラー
-# -> クライアントが予期できないエラー
+# (1) Top-level errors (errors array per GraphQL spec)
+# -> Authentication errors, syntax errors, server errors
+# -> Errors the client cannot anticipate
 {
   "data": null,
   "errors": [
@@ -1358,9 +1357,9 @@ async function invalidateProductCache(productId) {
   ]
 }
 
-# (2) ビジネスロジックエラー（Payload内のerrors）
-# -> バリデーション、ビジネスルール違反
-# -> クライアントが処理すべきエラー
+# (2) Business logic errors (errors inside Payload)
+# -> Validation, business rule violations
+# -> Errors the client should handle
 {
   "data": {
     "createUser": {
@@ -1376,8 +1375,8 @@ async function invalidateProductCache(productId) {
   }
 }
 
-# (3) 部分成功パターン
-# -> 一部のフィールドはnull、他は正常に返る
+# (3) Partial success pattern
+# -> Some fields are null; others return normally
 {
   "data": {
     "user": {
@@ -1398,13 +1397,13 @@ async function invalidateProductCache(productId) {
 }
 ```
 
-### 4.2 Result型パターン（Union型によるエラー表現）
+### 4.2 Result Type Pattern (Expressing Errors via Union Types)
 
 ```graphql
-# Result型パターン: Union型でエラーを型安全に表現
-# → GraphQLの型システムを活用した最も堅牢な方法
+# Result type pattern: type-safe error expression using Union types
+# → The most robust approach leveraging the GraphQL type system
 
-# エラー型の定義
+# Error type definitions
 interface UserError {
   message: String!
   path: [String!]
@@ -1437,7 +1436,7 @@ type BusinessRuleError implements UserError {
   details: JSON
 }
 
-# Mutation結果のUnion型
+# Union types for Mutation results
 union CreateUserResult = CreateUserSuccess | ValidationError | AuthorizationError
 
 type CreateUserSuccess {
@@ -1459,7 +1458,7 @@ type Mutation {
   updateOrder(id: ID!, input: UpdateOrderInput!): UpdateOrderResult!
 }
 
-# クライアント側のクエリ
+# Client-side query
 mutation CreateUser($input: CreateUserInput!) {
   createUser(input: $input) {
     ... on CreateUserSuccess {
@@ -1482,13 +1481,13 @@ mutation CreateUser($input: CreateUserInput!) {
 }
 ```
 
-### 4.3 サーバー側のエラーハンドリング実装
+### 4.3 Server-Side Error Handling Implementation
 
 ```javascript
-// サーバー側のエラーハンドリング
+// Server-side error handling
 import { GraphQLError } from 'graphql';
 
-// カスタムエラークラスの定義
+// Custom error class definitions
 class AppError extends GraphQLError {
   constructor(message, code, extensions = {}) {
     super(message, {
@@ -1540,16 +1539,16 @@ class RateLimitError extends AppError {
   }
 }
 
-// リゾルバーでの使用
+// Usage in resolvers
 const resolvers = {
   Query: {
     user: async (_, { id }, context) => {
-      // 認証チェック
+      // Authentication check
       if (!context.user) {
         throw new AuthenticationError();
       }
 
-      // 権限チェック
+      // Authorization check
       if (!context.user.canViewUser(id)) {
         throw new ForbiddenError('You do not have permission to view this user');
       }
@@ -1565,10 +1564,10 @@ const resolvers = {
 
   Mutation: {
     createUser: async (_, { input }, context) => {
-      // バリデーション
+      // Validation
       const validationErrors = validateCreateUserInput(input);
       if (validationErrors.length > 0) {
-        // Result型パターンの場合
+        // Using the Result type pattern
         return {
           __typename: 'ValidationError',
           message: 'Validation failed',
@@ -1594,7 +1593,7 @@ const resolvers = {
             path: ['createUser', 'input', 'email'],
           };
         }
-        throw error; // 予期しないエラーはトップレベルに
+        throw error; // Unexpected errors bubble up to the top level
       }
     },
 
@@ -1619,7 +1618,7 @@ const resolvers = {
         };
       }
 
-      // ビジネスルールチェック
+      // Business rule check
       if (order.status === 'SHIPPED' && input.status === 'CANCELLED') {
         return {
           __typename: 'BusinessRuleError',
@@ -1639,12 +1638,12 @@ const resolvers = {
   },
 };
 
-// グローバルエラーフォーマッター
+// Global error formatter
 const server = new ApolloServer({
   typeDefs,
   resolvers,
   formatError: (formattedError, error) => {
-    // 内部エラーの詳細をログに記録
+    // Log internal error details
     console.error('GraphQL Error:', {
       message: formattedError.message,
       code: formattedError.extensions?.code,
@@ -1652,7 +1651,7 @@ const server = new ApolloServer({
       originalError: error,
     });
 
-    // プロダクション環境では内部エラーの詳細を隠す
+    // Hide internal error details in production
     if (process.env.NODE_ENV === 'production') {
       if (formattedError.extensions?.code === 'INTERNAL_SERVER_ERROR') {
         return {
@@ -1665,7 +1664,7 @@ const server = new ApolloServer({
       }
     }
 
-    // スタックトレースを削除
+    // Remove stack trace
     delete formattedError.extensions?.stacktrace;
 
     return formattedError;
@@ -1673,13 +1672,13 @@ const server = new ApolloServer({
 });
 ```
 
-### 4.4 クライアント側のエラーハンドリング
+### 4.4 Client-Side Error Handling
 
 ```typescript
-// クライアント側のエラーハンドリング（React + Apollo Client）
+// Client-side error handling (React + Apollo Client)
 import { ApolloError, useQuery, useMutation } from '@apollo/client';
 
-// エラーリンクの設定
+// Error link configuration
 import { onError } from '@apollo/client/link/error';
 
 const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) => {
@@ -1687,7 +1686,7 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
     for (const error of graphQLErrors) {
       switch (error.extensions?.code) {
         case 'UNAUTHENTICATED':
-          // トークンリフレッシュを試みる
+          // Try token refresh
           const oldHeaders = operation.getContext().headers;
           return fromPromise(
             refreshToken().then((newToken) => {
@@ -1702,12 +1701,12 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
           ).flatMap((result) => result);
 
         case 'FORBIDDEN':
-          // 権限エラーページへリダイレクト
+          // Redirect to permission error page
           window.location.href = '/forbidden';
           break;
 
         case 'RATE_LIMITED':
-          // リトライ
+          // Retry
           const retryAfter = error.extensions?.retryAfter || 60;
           console.warn(`Rate limited. Retrying after ${retryAfter}s`);
           break;
@@ -1724,34 +1723,34 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
     if ('statusCode' in networkError) {
       switch (networkError.statusCode) {
         case 503:
-          // サービス一時停止
+          // Service temporarily unavailable
           showMaintenanceNotification();
           break;
         case 502:
         case 504:
-          // ゲートウェイエラー → リトライ
+          // Gateway error → retry
           return forward(operation);
       }
     }
   }
 });
 
-// React コンポーネントでのエラーハンドリング
+// Error handling in React components
 function UserProfile({ userId }: { userId: string }) {
   const { data, loading, error } = useQuery(GET_USER, {
     variables: { id: userId },
-    errorPolicy: 'all', // エラーがあっても部分データを受け取る
+    errorPolicy: 'all', // Receive partial data even with errors
   });
 
   if (loading) return <LoadingSpinner />;
 
   if (error) {
-    // ネットワークエラー
+    // Network error
     if (error.networkError) {
       return <NetworkErrorMessage onRetry={() => window.location.reload()} />;
     }
 
-    // GraphQLエラー
+    // GraphQL errors
     const authError = error.graphQLErrors?.find(
       (e) => e.extensions?.code === 'UNAUTHENTICATED'
     );
@@ -1769,20 +1768,20 @@ function UserProfile({ userId }: { userId: string }) {
     return <GenericErrorMessage error={error} />;
   }
 
-  // 部分データの表示（errorsがあってもdataは利用可能）
+  // Display partial data (data is available even with errors)
   return (
     <div>
       <h1>{data.user.name}</h1>
       {data.user.orders ? (
         <OrderList orders={data.user.orders} />
       ) : (
-        <p>注文データの取得に失敗しました</p>
+        <p>Failed to load order data</p>
       )}
     </div>
   );
 }
 
-// Mutation のエラーハンドリング（Result型パターン）
+// Mutation error handling (Result type pattern)
 function CreateUserForm() {
   const [createUser, { loading }] = useMutation(CREATE_USER);
 
@@ -1794,7 +1793,7 @@ function CreateUserForm() {
 
       switch (result.__typename) {
         case 'CreateUserSuccess':
-          toast.success('ユーザーが作成されました');
+          toast.success('User created successfully');
           navigate(`/users/${result.user.id}`);
           break;
 
@@ -1803,13 +1802,13 @@ function CreateUserForm() {
           break;
 
         case 'AuthorizationError':
-          toast.error('権限がありません');
+          toast.error('Permission denied');
           break;
       }
     } catch (error) {
-      // ネットワークエラー等の予期しないエラー
+      // Unexpected errors such as network errors
       if (error instanceof ApolloError) {
-        toast.error('通信エラーが発生しました。再度お試しください。');
+        toast.error('A communication error occurred. Please try again.');
       }
     }
   };
@@ -1820,14 +1819,14 @@ function CreateUserForm() {
 
 ---
 
-## 5. セキュリティ
+## 5. Security
 
-### 5.1 GraphQL特有のセキュリティリスク
+### 5.1 GraphQL-Specific Security Risks
 
 ```
-GraphQL特有のセキュリティリスク:
+GraphQL-specific security risks:
 
-(1) クエリの深さ攻撃（Query Depth Attack）:
+(1) Query Depth Attack:
   query {
     user(id: "1") {
       orders {
@@ -1835,7 +1834,7 @@ GraphQL特有のセキュリティリスク:
           product {
             reviews {
               author {
-                orders {        <- 再帰的にネスト
+                orders {        <- Recursively nested
                   items { ... }
                 }
               }
@@ -1845,9 +1844,9 @@ GraphQL特有のセキュリティリスク:
       }
     }
   }
-  -> 対策: クエリ深さの制限
+  -> Countermeasure: Limit query depth
 
-(2) クエリの複雑度攻撃（Query Complexity Attack）:
+(2) Query Complexity Attack:
   query {
     users(first: 1000) {
       orders(first: 1000) {
@@ -1855,61 +1854,61 @@ GraphQL特有のセキュリティリスク:
       }
     }
   }
-  -> 対策: クエリコストの制限
+  -> Countermeasure: Limit query cost
 
-(3) イントロスペクション悪用:
+(3) Introspection Abuse:
   query { __schema { types { name fields { name } } } }
-  -> 対策: 本番では無効化
+  -> Countermeasure: Disable in production
 
-(4) Batch攻撃（Query Batching Attack）:
+(4) Batch Attack (Query Batching Attack):
   [
     { "query": "query { user(id: \"1\") { ... } }" },
     { "query": "query { user(id: \"2\") { ... } }" },
     ... x 1000
   ]
-  -> 対策: バッチサイズの制限
+  -> Countermeasure: Limit batch size
 
-(5) フィールドサジェスション攻撃:
+(5) Field Suggestion Attack:
   query { user { passwrd } }
-  -> "Did you mean 'password'?" がスキーマ情報を漏洩
-  -> 対策: サジェスションの無効化
+  -> "Did you mean 'password'?" leaks schema information
+  -> Countermeasure: Disable suggestions
 
-(6) Aliasベースの攻撃:
+(6) Alias-based Attack:
   query {
     a1: user(id: "1") { email }
     a2: user(id: "2") { email }
     ... x 1000
   }
-  -> 同一フィールドをエイリアスで大量リクエスト
-  -> 対策: エイリアス数の制限
+  -> Bulk requests for the same field using aliases
+  -> Countermeasure: Limit the number of aliases
 ```
 
-### 5.2 セキュリティ対策の実装
+### 5.2 Implementing Security Measures
 
 ```javascript
-// セキュリティ対策の実装
+// Implementing security measures
 
-// (1) クエリ深さ制限
+// (1) Query depth limiting
 import depthLimit from 'graphql-depth-limit';
 
-// (2) クエリコスト分析
+// (2) Query cost analysis
 import {
   createComplexityRule,
   simpleEstimator,
   fieldExtensionsEstimator,
 } from 'graphql-query-complexity';
 
-// (3) クエリ数制限（エイリアス攻撃対策）
+// (3) Query count limiting (against alias attacks)
 import { createComplexityLimitRule } from 'graphql-validation-complexity';
 
 const server = new ApolloServer({
   typeDefs,
   resolvers,
   validationRules: [
-    // 最大7階層のネスト
+    // Max 7 levels of nesting
     depthLimit(7, { ignore: ['__schema'] }),
 
-    // クエリコスト制限
+    // Query cost limiting
     createComplexityRule({
       maximumComplexity: 1000,
       estimators: [
@@ -1918,25 +1917,25 @@ const server = new ApolloServer({
       ],
       onComplete: (complexity) => {
         console.log('Query Complexity:', complexity);
-        // メトリクス記録
+        // Record metrics
         metrics.recordComplexity(complexity);
       },
     }),
   ],
 
-  // イントロスペクションの無効化（本番環境）
+  // Disable introspection (production environment)
   introspection: process.env.NODE_ENV !== 'production',
 
-  // フィールドサジェスションの無効化
+  // Disable field suggestions
   includeStacktraceInErrorResponses: false,
 
   plugins: [
-    // CSRF対策
+    // CSRF protection
     {
       async requestDidStart() {
         return {
           async didResolveOperation(requestContext) {
-            // Content-Type チェック
+            // Content-Type check
             const contentType = requestContext.request.http?.headers.get('content-type');
             if (!contentType?.includes('application/json')) {
               throw new GraphQLError('Content-Type must be application/json');
@@ -1946,7 +1945,7 @@ const server = new ApolloServer({
       },
     },
 
-    // ロギングプラグイン
+    // Logging plugin
     {
       async requestDidStart(requestContext) {
         const start = Date.now();
@@ -1965,7 +1964,7 @@ const server = new ApolloServer({
   ],
 });
 
-// (4) レート制限（フィールドレベル）
+// (4) Rate limiting (field level)
 import { mapSchema, getDirective, MapperKind } from '@graphql-tools/utils';
 
 const rateLimitDirectiveTypeDefs = `
@@ -2012,7 +2011,7 @@ function rateLimitDirective(directiveName = 'rateLimit') {
   };
 }
 
-// スキーマでの使用
+// Usage in schema
 const typeDefs = gql`
   ${rateLimitDirectiveTypeDefs}
 
@@ -2029,10 +2028,10 @@ const typeDefs = gql`
 `;
 ```
 
-### 5.3 認可（Authorization）の実装
+### 5.3 Authorization Implementation
 
 ```javascript
-// フィールドレベル認可
+// Field-level authorization
 import { mapSchema, getDirective, MapperKind } from '@graphql-tools/utils';
 
 const authDirectiveTypeDefs = `
@@ -2086,7 +2085,7 @@ function authDirective(directiveName = 'auth') {
   };
 }
 
-// スキーマでの使用
+// Usage in schema
 const typeDefs = gql`
   ${authDirectiveTypeDefs}
 
@@ -2112,12 +2111,12 @@ const typeDefs = gql`
   }
 `;
 
-// Persisted Queries（許可されたクエリのみ実行）
-// → 最も強力なセキュリティ対策
+// Persisted Queries (execute only allowed queries)
+// → The strongest security measure
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-// ビルド時にクエリを抽出してホワイトリストを作成
+// Extract queries at build time and create a whitelist
 const allowedQueries = new Map();
 const queryFiles = fs.readdirSync('./queries');
 queryFiles.forEach((file) => {
@@ -2153,8 +2152,8 @@ const server = new ApolloServer({
   ],
 });
 
-// バッチサイズ制限
-// Express ミドルウェアで実装
+// Batch size limiting
+// Implemented as Express middleware
 app.use('/graphql', (req, res, next) => {
   if (Array.isArray(req.body)) {
     if (req.body.length > 10) {
@@ -2169,12 +2168,12 @@ app.use('/graphql', (req, res, next) => {
 
 ---
 
-## 6. スキーマ設計パターン
+## 6. Schema Design Patterns
 
-### 6.1 インターフェースとユニオン型
+### 6.1 Interfaces and Union Types
 
 ```graphql
-# (1) インターフェース（共通フィールドの定義）
+# (1) Interface (defining common fields)
 interface Node {
   id: ID!
 }
@@ -2209,7 +2208,7 @@ type Product implements Node & Timestamped & Auditable {
   version: Int!
 }
 
-# (2) ユニオン型（異なる型の集合）
+# (2) Union types (a set of different types)
 union SearchResult = User | Product | Order | Category
 
 type Query {
@@ -2223,7 +2222,7 @@ enum SearchResultType {
   ORDERS
 }
 
-# クエリ側のフラグメント活用
+# Leveraging fragments on the client side
 query Search($q: String!) {
   search(query: $q) {
     ... on User {
@@ -2246,24 +2245,24 @@ query Search($q: String!) {
   }
 }
 
-# (3) Relay Node仕様（Global Object Identification）
+# (3) Relay Node spec (Global Object Identification)
 type Query {
-  node(id: ID!): Node           # 任意のNodeをIDで取得
-  nodes(ids: [ID!]!): [Node]!   # 複数のNodeを一括取得
+  node(id: ID!): Node           # Fetch any Node by ID
+  nodes(ids: [ID!]!): [Node]!   # Batch-fetch multiple Nodes
   users(first: Int, after: String): UserConnection!
 }
 
-# Node IDはBase64エンコードされた "Type:id" 形式
+# Node IDs are Base64-encoded "Type:id" format
 # User:123 → "VXNlcjoxMjM="
 # Product:456 → "UHJvZHVjdDo0NTY="
 
-# (4) カスタムスカラー
-scalar DateTime    # ISO 8601 日時
-scalar JSON        # 任意のJSON
-scalar URL         # URL文字列
-scalar Email       # メールアドレス
-scalar Currency    # 通貨コード（ISO 4217）
-scalar PhoneNumber # E.164形式の電話番号
+# (4) Custom scalars
+scalar DateTime    # ISO 8601 date/time
+scalar JSON        # Arbitrary JSON
+scalar URL         # URL string
+scalar Email       # Email address
+scalar Currency    # Currency code (ISO 4217)
+scalar PhoneNumber # Phone number in E.164 format
 
 type User {
   id: ID!
@@ -2275,13 +2274,13 @@ type User {
 }
 ```
 
-### 6.2 Relay Connection仕様（カーソルベースページネーション）
+### 6.2 Relay Connection Spec (Cursor-Based Pagination)
 
 ```graphql
-# Relay Connection仕様
-# → カーソルベースのページネーション標準
+# Relay Connection specification
+# → Standard for cursor-based pagination
 
-# Connection型の定義
+# Connection type definitions
 type UserConnection {
   edges: [UserEdge!]!
   pageInfo: PageInfo!
@@ -2301,10 +2300,10 @@ type PageInfo {
 }
 
 type Query {
-  # 前方ページネーション
+  # Forward pagination
   users(first: Int!, after: String, filter: UserFilter): UserConnection!
 
-  # 後方ページネーション
+  # Backward pagination
   # users(last: Int!, before: String): UserConnection!
 }
 
@@ -2330,17 +2329,17 @@ input DateRangeFilter {
 ```
 
 ```javascript
-// Connection リゾルバーの実装
+// Connection resolver implementation
 const resolvers = {
   Query: {
     users: async (_, { first, after, filter }, context) => {
-      // カーソルのデコード
+      // Decode cursor
       const cursor = after ? decodeCursor(after) : null;
 
-      // フィルタ条件の構築
+      // Build filter conditions
       const where = buildWhereClause(filter);
 
-      // N+1 を取得（hasNextPage判定のため）
+      // Fetch N+1 (to determine hasNextPage)
       const limit = first + 1;
 
       let query = db('users').where(where).orderBy('created_at', 'desc').limit(limit);
@@ -2358,7 +2357,7 @@ const resolvers = {
       const hasNextPage = rows.length > first;
       const nodes = hasNextPage ? rows.slice(0, first) : rows;
 
-      // 総件数（オプション、パフォーマンスに注意）
+      // Total count (optional; be mindful of performance)
       const [{ count: totalCount }] = await db('users').where(where).count('* as count');
 
       return {
@@ -2388,7 +2387,7 @@ const resolvers = {
   },
 };
 
-// カーソルのエンコード/デコード
+// Cursor encoding/decoding
 function encodeCursor(data) {
   return Buffer.from(JSON.stringify(data)).toString('base64');
 }
@@ -2397,7 +2396,7 @@ function decodeCursor(cursor) {
   return JSON.parse(Buffer.from(cursor, 'base64').toString('utf-8'));
 }
 
-// フィルタ条件の構築
+// Build filter conditions
 function buildWhereClause(filter) {
   if (!filter) return {};
 
@@ -2420,10 +2419,10 @@ function buildWhereClause(filter) {
 }
 ```
 
-### 6.3 ディレクティブの活用
+### 6.3 Using Directives
 
 ```graphql
-# カスタムディレクティブ
+# Custom directives
 directive @auth(requires: [Role!]!) on FIELD_DEFINITION | OBJECT
 directive @deprecated(reason: String!) on FIELD_DEFINITION | ENUM_VALUE
 directive @cacheControl(maxAge: Int!, scope: CacheControlScope) on FIELD_DEFINITION | OBJECT
@@ -2446,7 +2445,7 @@ enum LogLevel {
   ERROR
 }
 
-# ディレクティブの利用例
+# Directive usage examples
 type Query {
   publicData: String!
   sensitiveData: String! @auth(requires: [ADMIN])
@@ -2470,12 +2469,12 @@ input CreateUserInput {
 }
 ```
 
-### 6.4 Input型とMutation設計パターン
+### 6.4 Input Types and Mutation Design Patterns
 
 ```graphql
-# Mutation設計のベストプラクティス
+# Mutation design best practices
 
-# (1) 単一のInput型を使用
+# (1) Use a single Input type
 input CreateUserInput {
   name: String!
   email: String!
@@ -2501,7 +2500,7 @@ input UpdateProfileInput {
   location: String
 }
 
-# (2) Payload型で結果を返す
+# (2) Return results via Payload types
 type CreateUserPayload {
   user: User
   errors: [UserError!]!
@@ -2512,29 +2511,29 @@ type DeleteUserPayload {
   errors: [UserError!]!
 }
 
-# (3) 一貫性のあるMutation命名
+# (3) Consistent Mutation naming
 type Mutation {
-  # CRUD操作: create/update/delete + リソース名
+  # CRUD operations: create/update/delete + resource name
   createUser(input: CreateUserInput!): CreateUserPayload!
   updateUser(id: ID!, input: UpdateUserInput!): UpdateUserPayload!
   deleteUser(id: ID!): DeleteUserPayload!
 
-  # アクション: 動詞 + リソース名
+  # Actions: verb + resource name
   activateUser(id: ID!): ActivateUserPayload!
   deactivateUser(id: ID!): DeactivateUserPayload!
   resetPassword(email: String!): ResetPasswordPayload!
   verifyEmail(token: String!): VerifyEmailPayload!
 
-  # 関連リソースの操作
+  # Related resource operations
   addUserToTeam(userId: ID!, teamId: ID!): AddUserToTeamPayload!
   removeUserFromTeam(userId: ID!, teamId: ID!): RemoveUserFromTeamPayload!
 
-  # バッチ操作
+  # Batch operations
   bulkCreateUsers(inputs: [CreateUserInput!]!): BulkCreateUsersPayload!
   bulkDeleteUsers(ids: [ID!]!): BulkDeleteUsersPayload!
 }
 
-# (4) ファイルアップロード
+# (4) File upload
 scalar Upload
 
 type Mutation {
@@ -2552,17 +2551,17 @@ input DocumentMetadataInput {
 
 ---
 
-## 7. Apollo Federation（マイクロサービス統合）
+## 7. Apollo Federation (Microservice Integration)
 
-### 7.1 Federationの概要
+### 7.1 Federation Overview
 
 ```
-Apollo Federation アーキテクチャ:
+Apollo Federation architecture:
 
   ┌─────────────────────────────────────┐
   │           Apollo Gateway             │
-  │  (統合GraphQLエンドポイント)           │
-  │  クエリプランニング & 実行             │
+  │  (Unified GraphQL endpoint)          │
+  │  Query planning & execution          │
   └───┬──────────┬──────────┬───────────┘
       │          │          │
   ┌───┴───┐  ┌──┴───┐  ┌──┴───┐
@@ -2575,14 +2574,14 @@ Apollo Federation アーキテクチャ:
   │UserDB │  │OrderDB│  │ProdDB│
   └───────┘  └──────┘  └──────┘
 
-  利点:
-  → 各サービスが独立してデプロイ可能
-  → チームごとにスキーマを管理
-  → 単一のGraphQLエンドポイントをクライアントに提供
-  → スキーマの型をサービス間で共有（Entity）
+  Benefits:
+  → Each service can be deployed independently
+  → Each team manages its own schema
+  → Provides a single GraphQL endpoint to clients
+  → Share types (Entities) across services
 ```
 
-### 7.2 Subgraph（サブグラフ）の定義
+### 7.2 Subgraph Definition
 
 ```graphql
 # === Users Service (Subgraph) ===
@@ -2621,7 +2620,7 @@ type Mutation {
 
 extend schema @link(url: "https://specs.apollo.dev/federation/v2.0", import: ["@key", "@external", "@requires"])
 
-# Users ServiceのUser型を拡張
+# Extend the User type from Users Service
 type User @key(fields: "id") {
   id: ID!
   orders(first: Int!, after: String): OrderConnection!
@@ -2644,7 +2643,7 @@ type OrderItem {
   subtotal: Float!
 }
 
-# Products Serviceの型を参照
+# Reference to type from Products Service
 type Product @key(fields: "id") {
   id: ID!
 }
@@ -2709,10 +2708,10 @@ type Query {
 }
 ```
 
-### 7.3 Gatewayの設定
+### 7.3 Gateway Configuration
 
 ```javascript
-// Apollo Gateway の設定
+// Apollo Gateway configuration
 import { ApolloServer } from '@apollo/server';
 import { ApolloGateway, IntrospectAndCompose, RemoteGraphQLDataSource } from '@apollo/gateway';
 import { startStandaloneServer } from '@apollo/server/standalone';
@@ -2724,25 +2723,25 @@ const gateway = new ApolloGateway({
       { name: 'orders', url: 'http://orders-service:4002/graphql' },
       { name: 'products', url: 'http://products-service:4003/graphql' },
     ],
-    pollIntervalInMs: 10000, // 10秒ごとにスキーマ更新をチェック
+    pollIntervalInMs: 10000, // Check for schema updates every 10 seconds
   }),
 
-  // カスタムDataSource（認証ヘッダーの転送）
+  // Custom DataSource (forward authentication headers)
   buildService({ url }) {
     return new RemoteGraphQLDataSource({
       url,
       willSendRequest({ request, context }) {
-        // クライアントの認証情報をサブグラフに転送
+        // Forward client authentication to subgraphs
         if (context.token) {
           request.http.headers.set('authorization', context.token);
         }
-        // リクエストIDの伝播（分散トレーシング）
+        // Propagate request ID (distributed tracing)
         if (context.requestId) {
           request.http.headers.set('x-request-id', context.requestId);
         }
       },
       didReceiveResponse({ response, context }) {
-        // レスポンスヘッダーの処理
+        // Process response headers
         const cacheControl = response.http.headers.get('cache-control');
         if (cacheControl) {
           context.cacheControl = cacheControl;
@@ -2755,7 +2754,7 @@ const gateway = new ApolloGateway({
 
 const server = new ApolloServer({
   gateway,
-  // Gateway固有のプラグイン
+  // Gateway-specific plugins
   plugins: [
     {
       async requestDidStart() {
@@ -2763,7 +2762,7 @@ const server = new ApolloServer({
         return {
           async willSendResponse(requestContext) {
             const duration = Date.now() - start;
-            // Gateway レベルのメトリクス記録
+            // Record gateway-level metrics
             metrics.recordGatewayLatency(
               requestContext.request.operationName,
               duration
@@ -2786,10 +2785,10 @@ const { url } = await startStandaloneServer(server, {
 console.log(`Gateway running at ${url}`);
 ```
 
-### 7.4 サブグラフのリゾルバー実装
+### 7.4 Subgraph Resolver Implementation
 
 ```javascript
-// Users Service のリゾルバー
+// Users Service resolvers
 import { buildSubgraphSchema } from '@apollo/subgraph';
 
 const resolvers = {
@@ -2800,7 +2799,7 @@ const resolvers = {
   },
 
   User: {
-    // __resolveReference: Federation がEntity解決時に呼ぶ
+    // __resolveReference: called by Federation when resolving an Entity
     __resolveReference: (ref, context) => {
       return context.dataSources.userAPI.getUser(ref.id);
     },
@@ -2811,7 +2810,7 @@ const server = new ApolloServer({
   schema: buildSubgraphSchema({ typeDefs, resolvers }),
 });
 
-// Orders Service のリゾルバー
+// Orders Service resolvers
 const orderResolvers = {
   Query: {
     order: (_, { id }, context) => context.dataSources.orderAPI.getOrder(id),
@@ -2819,7 +2818,7 @@ const orderResolvers = {
   },
 
   User: {
-    // User型の拡張フィールド
+    // Extended fields on the User type
     orders: (user, args, context) => {
       return context.dataSources.orderAPI.getOrdersByUser(user.id, args);
     },
@@ -2844,12 +2843,12 @@ const orderResolvers = {
 
 ---
 
-## 8. パフォーマンスチューニング
+## 8. Performance Tuning
 
-### 8.1 クエリパフォーマンスの計測
+### 8.1 Measuring Query Performance
 
 ```javascript
-// パフォーマンス計測プラグイン
+// Performance measurement plugin
 const performancePlugin = {
   async requestDidStart(requestContext) {
     const start = process.hrtime.bigint();
@@ -2879,7 +2878,7 @@ const performancePlugin = {
       async willSendResponse(requestContext) {
         const totalDuration = Number(process.hrtime.bigint() - start) / 1e6;
 
-        // 遅いリゾルバーの検出（100ms以上）
+        // Detect slow resolvers (over 100ms)
         const slowResolvers = resolverTimings.filter((t) => t.duration > 100);
 
         if (slowResolvers.length > 0) {
@@ -2893,7 +2892,7 @@ const performancePlugin = {
           });
         }
 
-        // メトリクス送信
+        // Send metrics
         await metrics.send({
           operation: requestContext.request.operationName,
           totalDuration,
@@ -2902,7 +2901,7 @@ const performancePlugin = {
           errors: requestContext.errors?.length || 0,
         });
 
-        // 開発環境ではレスポンスにタイミング情報を追加
+        // Add timing info to response in development
         if (process.env.NODE_ENV === 'development') {
           requestContext.response.extensions = {
             ...requestContext.response.extensions,
@@ -2931,18 +2930,18 @@ function printPath(path) {
 }
 ```
 
-### 8.2 クエリの最適化テクニック
+### 8.2 Query Optimization Techniques
 
 ```javascript
-// 1. フィールドレベルの遅延解決（必要なフィールドのみ解決）
+// 1. Field-level lazy resolution (only resolve fields that are requested)
 const resolvers = {
   User: {
-    // ordersフィールドがクエリに含まれている場合のみ実行される
+    // Only executed if the orders field is included in the query
     orders: async (user, args, context, info) => {
-      // info.fieldNodesからサブフィールドを確認
+      // Check sub-fields from info.fieldNodes
       const requestedFields = getRequestedFields(info);
 
-      // 必要なフィールドのみSELECT
+      // SELECT only the required fields
       const selectFields = mapFieldsToColumns(requestedFields);
 
       return context.dataSources.orderAPI.getOrdersByUser(user.id, {
@@ -2951,14 +2950,14 @@ const resolvers = {
       });
     },
 
-    // 重い計算フィールドの最適化
+    // Optimizing heavy computed fields
     statistics: async (user, _, context, info) => {
-      // statisticsフィールドが実際にリクエストされたサブフィールドを確認
+      // Check which sub-fields of statistics were actually requested
       const requestedStats = getRequestedFields(info);
 
       const result = {};
 
-      // リクエストされた統計のみ計算
+      // Only calculate requested statistics
       if (requestedStats.includes('orderCount')) {
         result.orderCount = await context.loaders.orderCountLoader.load(user.id);
       }
@@ -2978,7 +2977,7 @@ const resolvers = {
   },
 };
 
-// 2. @defer / @stream ディレクティブ（段階的レスポンス）
+// 2. @defer / @stream directives (incremental response)
 // GraphQL Incremental Delivery
 const GET_USER_WITH_DEFER = gql`
   query GetUser($id: ID!) {
@@ -2986,7 +2985,7 @@ const GET_USER_WITH_DEFER = gql`
       id
       name
       email
-      # 重いフィールドを遅延ロード
+      # Defer loading of heavy fields
       ... @defer(label: "orders") {
         orders(first: 10) {
           edges {
@@ -3011,7 +3010,7 @@ const GET_USER_WITH_DEFER = gql`
   }
 `;
 
-// クライアント側での @defer 利用
+// Using @defer on the client side
 function UserProfile({ userId }) {
   const { data, loading } = useQuery(GET_USER_WITH_DEFER, {
     variables: { id: userId },
@@ -3019,16 +3018,16 @@ function UserProfile({ userId }) {
 
   return (
     <div>
-      {/* 基本情報は即座に表示 */}
+      {/* Basic info displayed immediately */}
       <h1>{data?.user?.name}</h1>
       <p>{data?.user?.email}</p>
 
-      {/* 注文は遅延ロード */}
+      {/* Orders loaded deferred */}
       <Suspense fallback={<OrdersSkeleton />}>
         <OrderList orders={data?.user?.orders} />
       </Suspense>
 
-      {/* レコメンデーションも遅延ロード */}
+      {/* Recommendations also loaded deferred */}
       <Suspense fallback={<RecommendationsSkeleton />}>
         <Recommendations items={data?.user?.recommendations} />
       </Suspense>
@@ -3036,17 +3035,17 @@ function UserProfile({ userId }) {
   );
 }
 
-// 3. クエリプランの最適化
-// lookahead パターン: 親リゾルバーで子の必要データを先読み
+// 3. Query plan optimization
+// Lookahead pattern: pre-fetch child data in the parent resolver
 const resolvers = {
   Query: {
     users: async (_, args, context, info) => {
-      // 子フィールドで何が要求されているか確認
+      // Check what the child fields require
       const selections = info.fieldNodes[0].selectionSet;
       const needsOrders = hasField(selections, 'orders');
       const needsProfile = hasField(selections, 'profile');
 
-      // JOINまたはサブクエリで一括取得
+      // Bulk-fetch with JOIN or subquery
       let query = db('users').select('users.*');
 
       if (needsProfile) {
@@ -3056,7 +3055,7 @@ const resolvers = {
 
       const users = await query.where(buildFilter(args.filter)).limit(args.first);
 
-      // DataLoaderにプライミング
+      // Prime DataLoader
       if (needsOrders) {
         const userIds = users.map(u => u.id);
         const allOrders = await db('orders').whereIn('user_id', userIds);
@@ -3072,10 +3071,10 @@ const resolvers = {
 };
 ```
 
-### 8.3 プロダクション運用のベストプラクティス
+### 8.3 Production Operation Best Practices
 
 ```javascript
-// Apollo Server のプロダクション設定
+// Apollo Server production configuration
 import { ApolloServer } from '@apollo/server';
 import { ApolloServerPluginLandingPageDisabled } from '@apollo/server/plugin/disabled';
 import { ApolloServerPluginUsageReporting } from '@apollo/server/plugin/usageReporting';
@@ -3084,30 +3083,30 @@ const server = new ApolloServer({
   typeDefs,
   resolvers,
 
-  // プロダクション設定
+  // Production settings
   introspection: false,
   includeStacktraceInErrorResponses: false,
 
   plugins: [
-    // ランディングページの無効化
+    // Disable landing page
     ApolloServerPluginLandingPageDisabled(),
 
-    // Apollo Studio へのメトリクス送信
+    // Send metrics to Apollo Studio
     ApolloServerPluginUsageReporting({
-      sendVariableValues: { none: true }, // 変数値を送信しない
-      sendHeaders: { none: true },        // ヘッダーを送信しない
+      sendVariableValues: { none: true }, // Do not send variable values
+      sendHeaders: { none: true },        // Do not send headers
     }),
 
-    // パフォーマンス計測
+    // Performance measurement
     performancePlugin,
 
-    // リクエストログ
+    // Request logging
     {
       async requestDidStart({ request }) {
         return {
           async didEncounterErrors({ errors }) {
             errors.forEach((error) => {
-              // エラーログ（Sentry等に送信）
+              // Error logging (send to Sentry, etc.)
               Sentry.captureException(error.originalError || error, {
                 extra: {
                   query: request.query,
@@ -3122,14 +3121,14 @@ const server = new ApolloServer({
     },
   ],
 
-  // リクエストボディサイズの制限
-  // expressMiddleware側で設定
+  // Request body size limit
+  // Configured on the expressMiddleware side
 });
 
-// Express設定
+// Express configuration
 app.use(
   '/graphql',
-  express.json({ limit: '1mb' }), // リクエストサイズ制限
+  express.json({ limit: '1mb' }), // Request size limit
   expressMiddleware(server, {
     context: async ({ req }) => ({
       user: await authenticateUser(req),
@@ -3140,12 +3139,12 @@ app.use(
   })
 );
 
-// ヘルスチェックエンドポイント
+// Health check endpoint
 app.get('/health', async (req, res) => {
   try {
-    // DB接続チェック
+    // DB connection check
     await db.raw('SELECT 1');
-    // Redisチェック
+    // Redis check
     await redis.ping();
     res.json({ status: 'healthy', timestamp: new Date().toISOString() });
   } catch (error) {
@@ -3160,12 +3159,12 @@ app.get('/health', async (req, res) => {
 
 ---
 
-## 9. テスト戦略
+## 9. Testing Strategy
 
-### 9.1 リゾルバーの単体テスト
+### 9.1 Unit Testing Resolvers
 
 ```javascript
-// リゾルバーの単体テスト（Jest）
+// Resolver unit tests (Jest)
 import { resolvers } from '../resolvers';
 
 describe('User resolvers', () => {
@@ -3274,10 +3273,10 @@ describe('User resolvers', () => {
 });
 ```
 
-### 9.2 統合テスト
+### 9.2 Integration Tests
 
 ```javascript
-// GraphQL統合テスト（Apollo Server + Supertest）
+// GraphQL integration tests (Apollo Server + Supertest)
 import { ApolloServer } from '@apollo/server';
 import request from 'supertest';
 import { createTestServer, createTestDatabase } from '../test/helpers';
@@ -3297,12 +3296,12 @@ describe('GraphQL API Integration Tests', () => {
   });
 
   beforeEach(async () => {
-    // テストデータの投入
+    // Seed test data
     await testDb.seed.run();
   });
 
   afterEach(async () => {
-    // テストデータのクリア
+    // Clear test data
     await testDb.raw('TRUNCATE users, orders, products CASCADE');
   });
 
@@ -3346,7 +3345,7 @@ describe('GraphQL API Integration Tests', () => {
     });
 
     it('should handle cursor-based pagination', async () => {
-      // 1ページ目
+      // Page 1
       const page1 = await graphqlRequest(server, {
         query: GET_USERS,
         variables: { first: 3 },
@@ -3354,13 +3353,13 @@ describe('GraphQL API Integration Tests', () => {
 
       const endCursor = page1.data.users.pageInfo.endCursor;
 
-      // 2ページ目
+      // Page 2
       const page2 = await graphqlRequest(server, {
         query: GET_USERS,
         variables: { first: 3, after: endCursor },
       });
 
-      // 重複がないことを確認
+      // Verify no duplicates
       const page1Ids = page1.data.users.edges.map(e => e.node.id);
       const page2Ids = page2.data.users.edges.map(e => e.node.id);
       const intersection = page1Ids.filter(id => page2Ids.includes(id));
@@ -3402,7 +3401,7 @@ describe('GraphQL API Integration Tests', () => {
       expect(response.data.createUser.__typename).toBe('CreateUserSuccess');
       expect(response.data.createUser.user.name).toBe('Test User');
 
-      // DBに保存されていることを確認
+      // Verify saved to DB
       const dbUser = await testDb('users')
         .where({ email: 'test@example.com' })
         .first();
@@ -3413,10 +3412,10 @@ describe('GraphQL API Integration Tests', () => {
 });
 ```
 
-### 9.3 スキーマテスト
+### 9.3 Schema Tests
 
 ```javascript
-// スキーマの構造テスト
+// Schema structure tests
 import { buildSchema, validateSchema, introspectionFromSchema } from 'graphql';
 
 describe('GraphQL Schema', () => {
@@ -3455,7 +3454,7 @@ describe('GraphQL Schema', () => {
     expect(userType.getFields()).toHaveProperty('id');
   });
 
-  // スキーマの破壊的変更チェック
+  // Breaking change check
   it('should not have breaking changes from previous version', async () => {
     const { findBreakingChanges } = await import('graphql');
 
@@ -3464,7 +3463,7 @@ describe('GraphQL Schema', () => {
 
     const breakingChanges = findBreakingChanges(oldSchema, newSchema);
 
-    // 許容される破壊的変更がある場合はフィルタ
+    // Filter if there are allowed breaking changes
     const unexpectedChanges = breakingChanges.filter(
       change => !allowedBreakingChanges.includes(change.description)
     );
@@ -3476,15 +3475,15 @@ describe('GraphQL Schema', () => {
 
 ---
 
-## 10. モニタリングとオブザーバビリティ
+## 10. Monitoring and Observability
 
-### 10.1 メトリクス収集
+### 10.1 Metrics Collection
 
 ```javascript
-// Prometheus メトリクスの収集
+// Prometheus metrics collection
 import { register, Counter, Histogram, Gauge } from 'prom-client';
 
-// メトリクス定義
+// Metric definitions
 const graphqlRequestDuration = new Histogram({
   name: 'graphql_request_duration_seconds',
   help: 'Duration of GraphQL requests',
@@ -3518,7 +3517,7 @@ const activeSubscriptions = new Gauge({
   labelNames: ['subscription'],
 });
 
-// メトリクス収集プラグイン
+// Metrics collection plugin
 const metricsPlugin = {
   async requestDidStart({ request }) {
     const timer = graphqlRequestDuration.startTimer();
@@ -3565,23 +3564,23 @@ const metricsPlugin = {
   },
 };
 
-// メトリクスエンドポイント
+// Metrics endpoint
 app.get('/metrics', async (req, res) => {
   res.set('Content-Type', register.contentType);
   res.end(await register.metrics());
 });
 ```
 
-### 10.2 分散トレーシング
+### 10.2 Distributed Tracing
 
 ```javascript
-// OpenTelemetry による分散トレーシング
+// Distributed tracing with OpenTelemetry
 import { trace, SpanStatusCode } from '@opentelemetry/api';
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
 import { GraphQLInstrumentation } from '@opentelemetry/instrumentation-graphql';
 import { JaegerExporter } from '@opentelemetry/exporter-jaeger';
 
-// トレーサープロバイダーの設定
+// Tracer provider configuration
 const provider = new NodeTracerProvider();
 provider.addSpanProcessor(
   new BatchSpanProcessor(
@@ -3592,7 +3591,7 @@ provider.addSpanProcessor(
 );
 provider.register();
 
-// GraphQL 自動計装
+// GraphQL auto-instrumentation
 const graphqlInstrumentation = new GraphQLInstrumentation({
   mergeItems: true,
   allowValues: process.env.NODE_ENV !== 'production',
@@ -3602,7 +3601,7 @@ const graphqlInstrumentation = new GraphQLInstrumentation({
 graphqlInstrumentation.setTracerProvider(provider);
 graphqlInstrumentation.enable();
 
-// カスタムスパンの追加
+// Adding custom spans
 const tracer = trace.getTracer('graphql-api');
 
 const resolvers = {
@@ -3639,52 +3638,52 @@ const resolvers = {
 
 ## FAQ
 
-### Q1: GraphQL Subscriptionとポーリングの使い分けは？
+### Q1: When should I use GraphQL Subscription vs polling?
 
-**A:** リアルタイム性の要件とコスト、実装複雑度のバランスで判断する。
+**A:** Decide based on the balance of real-time requirements, cost, and implementation complexity.
 
-**Subscriptionを選ぶべきケース:**
-- チャットアプリ、コラボレーションツールなど、低レイテンシーが必須
-- サーバー側でイベント駆動の更新が多い（1秒間に複数回の更新）
-- 多数のクライアントが同じデータを購読している（PubSubで効率的に配信可能）
-- WebSocketインフラが整備されている
+**When to choose Subscription:**
+- Chat apps, collaboration tools, and other cases where low latency is essential
+- Many server-side event-driven updates (multiple times per second)
+- Many clients subscribing to the same data (can be efficiently delivered via PubSub)
+- WebSocket infrastructure is in place
 
-**ポーリングを選ぶべきケース:**
-- 更新頻度が低い（数分〜数十分に1回程度）
-- 既存のHTTP/RESTインフラを活用したい
-- WebSocket接続の維持コストを避けたい（モバイルアプリのバッテリー消費など）
-- ファイアウォール環境でWebSocketが使えない
+**When to choose polling:**
+- Low update frequency (once every few minutes or tens of minutes)
+- Want to leverage existing HTTP/REST infrastructure
+- Want to avoid the cost of maintaining WebSocket connections (mobile app battery usage, etc.)
+- WebSocket is unavailable in firewall environments
 
-**ハイブリッド戦略:**
+**Hybrid strategy:**
 ```javascript
-// 優先度の高い更新はSubscription、それ以外はポーリング
+// High-priority updates via Subscription; everything else via polling
 const CRITICAL_SUBSCRIPTIONS = ['newMessage', 'orderStatusUpdate'];
 const POLLING_QUERIES = ['unreadCount', 'notifications'];
 
-// Subscription（リアルタイム）
+// Subscription (real-time)
 useSubscription(NEW_MESSAGE_SUBSCRIPTION, {
   onData: ({ data }) => updateUI(data),
 });
 
-// ポーリング（30秒ごと）
+// Polling (every 30 seconds)
 useQuery(UNREAD_COUNT_QUERY, {
   pollInterval: 30000,
 });
 ```
 
-### Q2: GraphQLのスキーマ設計でRelay仕様に準拠すべきか？
+### Q2: Should I follow the Relay spec when designing a GraphQL schema?
 
-**A:** プロジェクトの規模と将来の拡張性を考慮して判断する。
+**A:** Decide based on the size of the project and future extensibility.
 
-**Relay仕様に準拠すべきケース:**
-- 大規模なアプリケーション（数百以上のエンティティ）
-- ページネーションを多用する
-- クライアント側で正規化キャッシュを活用したい（Apollo Client、Relay）
-- スキーマの一貫性を保ちたい
+**When to follow the Relay spec:**
+- Large-scale applications (hundreds or more entities)
+- Heavy use of pagination
+- Want to leverage normalized caching on the client (Apollo Client, Relay)
+- Want to maintain schema consistency
 
-**Relay準拠のメリット:**
+**Benefits of Relay compliance:**
 ```graphql
-# Relay Connection仕様
+# Relay Connection spec
 type UserConnection {
   edges: [UserEdge!]!
   pageInfo: PageInfo!
@@ -3703,9 +3702,9 @@ type PageInfo {
   endCursor: String
 }
 
-# Node Interface（グローバルID）
+# Node Interface (global ID)
 interface Node {
-  id: ID!  # グローバルに一意なID（例: "VXNlcjox"）
+  id: ID!  # Globally unique ID (e.g., "VXNlcjox")
 }
 
 type User implements Node {
@@ -3714,14 +3713,14 @@ type User implements Node {
 }
 ```
 
-**Relay準拠のデメリット:**
-- 初期実装コストが高い
-- シンプルなケースでも冗長なスキーマになる
-- カーソルベースのページネーションが不要な場合はオーバーエンジニアリング
+**Drawbacks of Relay compliance:**
+- High initial implementation cost
+- Schema becomes verbose even for simple cases
+- Over-engineering when cursor-based pagination is not needed
 
-**代替案:**
+**Alternative:**
 ```graphql
-# シンプルなページネーション（小規模アプリ向け）
+# Simple pagination (for small-scale apps)
 type UserPage {
   users: [User!]!
   total: Int!
@@ -3733,34 +3732,34 @@ type Query {
 }
 ```
 
-**推奨アプローチ:**
-- 新規プロジェクト（中規模以上）: Relay仕様を採用（将来の拡張性を確保）
-- 既存プロジェクトの小規模な機能追加: 既存のパターンを踏襲
-- プロトタイプ/MVP: シンプルなページネーションで開始、必要になったら移行
+**Recommended approach:**
+- New project (medium scale or larger): Adopt the Relay spec (ensures future extensibility)
+- Small feature additions to existing projects: Follow existing patterns
+- Prototype/MVP: Start with simple pagination; migrate when needed
 
-### Q3: GraphQLのキャッシュ戦略はRESTと比べてどう異なるか？
+### Q3: How does GraphQL's cache strategy differ from REST?
 
-**A:** GraphQLは正規化キャッシュを活用し、エンティティレベルでキャッシュ管理を行う点がRESTと大きく異なる。
+**A:** GraphQL uses normalized caching and manages cache at the entity level, which is a key difference from REST.
 
-**RESTのキャッシュ戦略:**
+**REST cache strategy:**
 ```
-エンドポイント単位のキャッシュ:
+Per-endpoint caching:
   GET /api/users/123        → Cache-Control: max-age=3600
   GET /api/users/123/posts  → Cache-Control: max-age=1800
 
-問題点:
-  - 同じユーザーデータが複数エンドポイントで重複してキャッシュされる
-  - 部分的な更新が困難（user.name だけ変更されても全体を再取得）
-  - キャッシュ無効化が粗い（user が更新されたら全エンドポイントを invalidate）
+Problems:
+  - The same user data is cached redundantly across multiple endpoints
+  - Partial updates are difficult (even if just user.name changes, the whole thing must be re-fetched)
+  - Cache invalidation is coarse (if a user is updated, invalidate all endpoints)
 ```
 
-**GraphQLのキャッシュ戦略:**
+**GraphQL cache strategy:**
 ```javascript
-// 正規化キャッシュ（Apollo Client）
+// Normalized cache (Apollo Client)
 const cache = new InMemoryCache({
   typePolicies: {
     User: {
-      keyFields: ['id'],  // キャッシュキー
+      keyFields: ['id'],  // Cache key
       fields: {
         posts: {
           merge(existing = [], incoming) {
@@ -3772,7 +3771,7 @@ const cache = new InMemoryCache({
   },
 });
 
-// クエリ1
+// Query 1
 query GetUser {
   user(id: "123") {
     id
@@ -3781,96 +3780,96 @@ query GetUser {
   }
 }
 
-// クエリ2
+// Query 2
 query GetUserPosts {
   user(id: "123") {
     id
-    name  # キャッシュから取得（リクエストしない）
+    name  # Served from cache (no request made)
     posts { title }
   }
 }
 
-// Mutation後の自動キャッシュ更新
+// Automatic cache update after Mutation
 mutation UpdateUserName {
   updateUser(id: "123", name: "New Name") {
     id
-    name  # キャッシュ内の user:123 の name が自動更新される
+    name  # Automatically updates name of user:123 in the cache
   }
 }
 ```
 
-**GraphQL特有のキャッシュレイヤー:**
+**GraphQL-specific cache layers:**
 ```
 ┌─────────────────────────────────────┐
-│ 1. クライアント正規化キャッシュ       │  Apollo Client InMemoryCache
-│    (User:123, Post:456)             │  → エンティティ単位でキャッシュ
+│ 1. Client normalized cache          │  Apollo Client InMemoryCache
+│    (User:123, Post:456)             │  → Cache per entity
 └─────────────────────────────────────┘
            ↓
 ┌─────────────────────────────────────┐
-│ 2. Persisted Queries                │  クエリハッシュでキャッシュ
-│    (sha256: abc123 → クエリ文字列)   │  → CDN/サーバーで活用
+│ 2. Persisted Queries                │  Cache by query hash
+│    (sha256: abc123 → query string)  │  → Usable via CDN/server
 └─────────────────────────────────────┘
            ↓
 ┌─────────────────────────────────────┐
-│ 3. サーバーサイドキャッシュ (Redis)  │  リゾルバー結果のキャッシュ
+│ 3. Server-side cache (Redis)        │  Cache resolver results
 │    user:123 → { id, name, email }   │  → DataLoader + Redis
 └─────────────────────────────────────┘
            ↓
 ┌─────────────────────────────────────┐
-│ 4. データベースクエリキャッシュ       │  DB層のキャッシュ
+│ 4. Database query cache             │  DB-layer caching
 └─────────────────────────────────────┘
 ```
 
-**キャッシュ無効化の違い:**
+**Cache invalidation differences:**
 ```javascript
-// REST: エンドポイント単位で無効化
+// REST: Invalidate per endpoint
 cache.invalidate('/api/users/123');
 cache.invalidate('/api/users/123/posts');
 
-// GraphQL: エンティティ単位で無効化
-cache.evict({ id: 'User:123' });  // User:123に関連する全クエリが無効化
-cache.gc();  // 孤立したキャッシュエントリを削除
+// GraphQL: Invalidate per entity
+cache.evict({ id: 'User:123' });  // All queries related to User:123 are invalidated
+cache.gc();  // Remove orphaned cache entries
 
-// または refetchQueries で特定クエリを再取得
+// Or re-fetch specific queries with refetchQueries
 await updateUser({
   refetchQueries: [{ query: GET_USER, variables: { id: '123' } }],
 });
 ```
 
-**まとめ:**
-| 項目 | REST | GraphQL |
+**Summary:**
+| Item | REST | GraphQL |
 |------|------|---------|
-| キャッシュ単位 | エンドポイント | エンティティ（型+ID） |
-| 重複データ | 多い | 正規化により最小化 |
-| 部分更新 | 困難 | 自動的にキャッシュマージ |
-| 無効化の粒度 | 粗い | 細かい（フィールド単位も可能） |
-| CDN活用 | 容易 | Persisted Queriesで可能 |
+| Cache granularity | Endpoint | Entity (type + ID) |
+| Duplicate data | Much | Minimized by normalization |
+| Partial updates | Difficult | Automatic cache merge |
+| Invalidation granularity | Coarse | Fine (down to field level) |
+| CDN utilization | Easy | Possible with Persisted Queries |
 
 ---
 
-## まとめ
+## Summary
 
-| 概念 | ポイント |
-|------|---------|
-| Subscription | WebSocket + PubSub でリアルタイム、Redis PubSubでスケーリング |
-| DataLoader | バッチ処理でN+1問題を解消、リクエストごとにインスタンス作成 |
-| キャッシュ | 正規化キャッシュ + Persisted Queries + サーバーサイドRedis |
-| エラーハンドリング | トップレベルエラー vs Payload内エラー、Result型パターン |
-| セキュリティ | 深さ制限、コスト制限、レート制限、イントロスペクション無効化 |
-| スキーマ設計 | Interface、Union、Relay Connection、カスタムディレクティブ |
-| Federation | マイクロサービス統合、Entity解決、Gateway |
-| パフォーマンス | リゾルバー計測、@defer、クエリプラン最適化 |
-| テスト | 単体テスト、統合テスト、スキーマテスト |
-| モニタリング | Prometheus メトリクス、OpenTelemetry トレーシング |
+| Concept | Key Points |
+|---------|-----------|
+| Subscription | Real-time over WebSocket + PubSub; scale with Redis PubSub |
+| DataLoader | Batch processing resolves N+1; create instance per request |
+| Caching | Normalized cache + Persisted Queries + server-side Redis |
+| Error handling | Top-level errors vs Payload errors; Result type pattern |
+| Security | Depth limit, cost limit, rate limit, disable introspection |
+| Schema design | Interface, Union, Relay Connection, custom directives |
+| Federation | Microservice integration, Entity resolution, Gateway |
+| Performance | Resolver profiling, @defer, query plan optimization |
+| Testing | Unit tests, integration tests, schema tests |
+| Monitoring | Prometheus metrics, OpenTelemetry tracing |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 - [REST vs GraphQL](./03-rest-vs-graphql.md) -- REST vs GraphQL
 
 ---
 
-## 参考文献
+## References
 1. Apollo. "Production Readiness Checklist." apollographql.com, 2024.
 2. Facebook. "DataLoader." github.com/graphql/dataloader, 2024.
 3. Relay. "Relay Specification." relay.dev, 2024.
