@@ -1,148 +1,148 @@
-# APIテスト
+# API Testing
 
-> APIテストは品質の最後の砦。単体テスト、統合テスト、コントラクトテスト、負荷テスト、E2Eテストまで、APIの正確性・信頼性・性能を保証するテスト戦略の全体像と実践パターンを習得する。
+> API testing is the last line of defense for quality. Master the overall test strategy and practical patterns to guarantee the correctness, reliability, and performance of APIs — from unit tests, integration tests, and contract tests through load tests and E2E tests.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] APIテストの種類と戦略（テストピラミッド）を理解する
-- [ ] supertest / Jest / Vitest による単体テスト・統合テストを実装できる
-- [ ] Pact によるコントラクトテストの原理と実装を把握する
-- [ ] k6 / Artillery による負荷テスト・パフォーマンステストを設計・実行できる
-- [ ] Postman / Newman を用いたテスト自動化の手法を身につける
-- [ ] E2Eテストと統合テストの境界を理解し、適切な粒度でテストを書ける
-- [ ] CI/CDパイプラインへのテスト組み込み手法を学ぶ
-
----
-
-## 前提知識
-
-- REST APIの設計原則 → 参照: [REST Best Practices](../01-rest-and-graphql/00-rest-best-practices.md)
-- HTTPメソッドとステータスコード → 参照: HTTPの基礎（ネットワーク基礎編）
-- テスト手法の基礎（単体テスト、統合テスト、E2Eテスト）
-- CI/CD パイプラインの基本概念
-- Node.js の基本的な開発環境（npm/yarn、package.json の理解）
+- [ ] Understand API test types and strategy (test pyramid)
+- [ ] Implement unit tests and integration tests using supertest / Jest / Vitest
+- [ ] Understand the principles and implementation of contract testing with Pact
+- [ ] Design and execute load tests and performance tests with k6 / Artillery
+- [ ] Learn test automation techniques using Postman / Newman
+- [ ] Understand the boundary between E2E tests and integration tests and write tests at an appropriate granularity
+- [ ] Learn how to incorporate tests into CI/CD pipelines
 
 ---
 
-## 1. APIテストの全体像
+## Prerequisites
 
-### 1.1 テストピラミッドとAPIテストの位置づけ
+- REST API design principles → See: [REST Best Practices](../01-rest-and-graphql/00-rest-best-practices.md)
+- HTTP methods and status codes → See: HTTP Fundamentals (Networking Basics)
+- Basics of testing methodologies (unit testing, integration testing, E2E testing)
+- Basic concepts of CI/CD pipelines
+- Basic Node.js development environment (npm/yarn, understanding of package.json)
 
-ソフトウェアテストにおいて、テストピラミッドは各レベルのテストの理想的な割合を示す概念モデルである。APIテストにおいても同様のピラミッド構造が適用され、下層ほど実行速度が速く、数が多く、上層ほど実行コストが高いが現実に近い検証が可能となる。
+---
+
+## 1. Overview of API Testing
+
+### 1.1 Test Pyramid and the Position of API Testing
+
+In software testing, the test pyramid is a conceptual model showing the ideal ratio of tests at each level. A similar pyramid structure applies to API testing: tests at lower layers execute faster and are more numerous, while tests at higher layers are more costly to run but provide more realistic verification.
 
 ```
-テストピラミッド（API版）
+Test Pyramid (API Version)
 
                   /\
-                 /  \        E2E テスト（少数: 5-10%）
-                /    \       ・本番同等環境で全体フローを検証
-               /      \     ・ユーザーシナリオ単位（登録→購入→確認）
-              /--------\    ・実行時間: 数分〜数十分
+                 /  \        E2E Tests (few: 5-10%)
+                /    \       · Verify end-to-end flows in production-equivalent environment
+               /      \     · User scenario units (register → purchase → confirm)
+              /--------\    · Execution time: minutes to tens of minutes
              /          \
-            /  統合テスト  \   統合テスト（中程度: 20-30%）
-           /   (API層)    \  ・エンドポイント単位のリクエスト/レスポンス
-          /                \ ・DB + API + 認証の結合検証
-         /------------------\・実行時間: 数秒〜数十秒
-        /                    \
-       / コントラクトテスト    \  コントラクトテスト（中程度: 10-15%）
-      /                        \ ・API仕様の合意検証
-     /--------------------------\・Consumer-Provider間の契約
-    /                            \
-   /    ユニットテスト（多数）     \  ユニットテスト（最多: 50-60%）
-  /    バリデーション/ビジネス      \ ・バリデーション、変換、計算ロジック
- /    ロジック/データ変換            \・モック/スタブ活用、DB不要
-/------------------------------------\・実行時間: ミリ秒単位
+            /  Integration \   Integration Tests (moderate: 20-30%)
+           /   Tests        \  · Request/response per endpoint
+          /   (API layer)    \ · Combined verification of DB + API + authentication
+         /                    \· Execution time: seconds to tens of seconds
+        /--------------------  \
+       / Contract Tests         \  Contract Tests (moderate: 10-15%)
+      /                          \ · API specification agreement verification
+     /----------------------------\· Contract between Consumer and Provider
+    /                              \
+   /    Unit Tests (many)           \  Unit Tests (most: 50-60%)
+  /    Validation / Business         \ · Validation, transformation, calculation logic
+ /    Logic / Data Transformation     \· Use mocks/stubs, no DB required
+/--------------------------------------\· Execution time: milliseconds
 ```
 
-### 1.2 テスト種別の詳細分類
+### 1.2 Detailed Classification of Test Types
 
-APIテストは目的と粒度によって以下の6種類に大別される。
+API tests are broadly classified into the following 6 types depending on purpose and granularity.
 
 ```
-APIテスト種別マップ
+API Test Type Map
 
 +------------------------------------------------------------------+
-|                    APIテストの種類                                  |
+|                    Types of API Tests                             |
 +------------------------------------------------------------------+
 |                                                                    |
-|  [1] ユニットテスト        [2] 統合テスト                           |
-|  +-----------------------+ +--------------------------+           |
-|  | ・バリデーション関数   | | ・HTTP リクエスト/レスポンス|          |
-|  | ・ビジネスルール計算   | | ・DB 読み書き含む検証     |           |
-|  | ・データ変換・整形     | | ・認証/認可フロー         |           |
-|  | ・エラーハンドリング   | | ・ミドルウェア連携         |           |
-|  +-----------------------+ +--------------------------+           |
+|  [1] Unit Tests              [2] Integration Tests                |
+|  +-------------------------+ +----------------------------+       |
+|  | · Validation functions  | | · HTTP request/response    |       |
+|  | · Business rule calc.   | | · Verification incl. DB    |       |
+|  | · Data transform/format | | · Authentication/authz flow|       |
+|  | · Error handling        | | · Middleware integration    |       |
+|  +-------------------------+ +----------------------------+       |
 |                                                                    |
-|  [3] コントラクトテスト    [4] E2Eテスト                            |
-|  +-----------------------+ +--------------------------+           |
-|  | ・スキーマ整合性       | | ・複数API横断シナリオ     |           |
-|  | ・Consumer-Provider   | | ・外部サービス連携        |           |
-|  | ・バージョン互換性     | | ・データ一貫性の検証      |           |
-|  +-----------------------+ +--------------------------+           |
+|  [3] Contract Tests          [4] E2E Tests                        |
+|  +-------------------------+ +----------------------------+       |
+|  | · Schema consistency    | | · Cross-API scenarios      |       |
+|  | · Consumer-Provider     | | · External service integr. |       |
+|  | · Version compatibility | | · Data consistency check   |       |
+|  +-------------------------+ +----------------------------+       |
 |                                                                    |
-|  [5] 負荷テスト            [6] セキュリティテスト                   |
-|  +-----------------------+ +--------------------------+           |
-|  | ・スループット測定     | | ・認証バイパス検証        |           |
-|  | ・レイテンシ分析       | | ・インジェクション検証    |           |
-|  | ・スケーラビリティ検証 | | ・レート制限検証          |           |
-|  | ・障害耐性テスト       | | ・入力バリデーション      |           |
-|  +-----------------------+ +--------------------------+           |
+|  [5] Load Tests              [6] Security Tests                   |
+|  +-------------------------+ +----------------------------+       |
+|  | · Throughput measurement| | · Auth bypass verification |       |
+|  | · Latency analysis      | | · Injection verification   |       |
+|  | · Scalability testing   | | · Rate limit verification  |       |
+|  | · Fault tolerance tests | | · Input validation         |       |
+|  +-------------------------+ +----------------------------+       |
 +------------------------------------------------------------------+
 ```
 
-### 1.3 テスト戦略の設計原則
+### 1.3 Design Principles for Test Strategy
 
-APIテスト戦略を設計する際の基本原則は以下の通りである。
+The following are the basic principles for designing an API test strategy.
 
-**原則1: テストの独立性**
-各テストケースは他のテストに依存してはならない。テスト実行順序が変わっても結果が変わらないことが求められる。
+**Principle 1: Test Independence**
+Each test case must not depend on other tests. The result must not change regardless of the order in which tests are executed.
 
-**原則2: テストデータの管理**
-テストごとにデータをセットアップし、終了時にクリーンアップする。共有状態を避けることで、テストの信頼性を確保する。
+**Principle 2: Test Data Management**
+Set up data for each test and clean up at the end. Avoid shared state to ensure test reliability.
 
-**原則3: 適切な粒度の選択**
-テストピラミッドに従い、高速に実行できるユニットテストを最も多く、実行コストの高いE2Eテストを最小限にする。
+**Principle 3: Selecting the Appropriate Granularity**
+Following the test pyramid, maximize fast-executing unit tests and minimize costly E2E tests.
 
-**原則4: 決定論的なテスト**
-日時やランダム値に依存するテストは、固定値を注入できる設計にする。flaky test（不安定なテスト）を生まないことが重要である。
+**Principle 4: Deterministic Tests**
+Design tests that depend on dates or random values so that fixed values can be injected. It is important not to produce flaky tests (unstable tests).
 
-**原則5: 境界値とエッジケースの網羅**
-正常系だけでなく、空文字列、null値、巨大データ、特殊文字、同時アクセスなどのエッジケースを意識的にテストする。
+**Principle 5: Covering Boundary Values and Edge Cases**
+Test not only the happy path but also edge cases such as empty strings, null values, large data, special characters, and concurrent access.
 
 ---
 
-## 2. ユニットテストの実践
+## 2. Unit Testing in Practice
 
-### 2.1 バリデーションロジックのテスト
+### 2.1 Testing Validation Logic
 
-ユニットテストはAPIの最も基礎的なテスト層であり、DBやネットワークに依存しない純粋な関数やクラスのロジックを検証する。
+Unit tests are the most basic test layer for APIs, verifying the logic of pure functions and classes that do not depend on a DB or network.
 
 ```javascript
 // src/validators/userValidator.js
 export class UserValidator {
   static validateEmail(email) {
     if (!email || typeof email !== 'string') {
-      return { valid: false, error: 'メールアドレスは必須です' };
+      return { valid: false, error: 'Email address is required' };
     }
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!emailRegex.test(email)) {
-      return { valid: false, error: 'メールアドレスの形式が不正です' };
+      return { valid: false, error: 'Email address format is invalid' };
     }
     if (email.length > 254) {
-      return { valid: false, error: 'メールアドレスが長すぎます（最大254文字）' };
+      return { valid: false, error: 'Email address is too long (max 254 characters)' };
     }
     return { valid: true, error: null };
   }
 
   static validateAge(age) {
     if (age === undefined || age === null) {
-      return { valid: false, error: '年齢は必須です' };
+      return { valid: false, error: 'Age is required' };
     }
     if (!Number.isInteger(age)) {
-      return { valid: false, error: '年齢は整数で指定してください' };
+      return { valid: false, error: 'Age must be specified as an integer' };
     }
     if (age < 0 || age > 150) {
-      return { valid: false, error: '年齢は0〜150の範囲で指定してください' };
+      return { valid: false, error: 'Age must be in the range 0–150' };
     }
     return { valid: true, error: null };
   }
@@ -156,9 +156,9 @@ export class UserValidator {
     if (!ageResult.valid) errors.push({ field: 'age', message: ageResult.error });
 
     if (!input.name || input.name.trim().length === 0) {
-      errors.push({ field: 'name', message: '名前は必須です' });
+      errors.push({ field: 'name', message: 'Name is required' });
     } else if (input.name.length > 100) {
-      errors.push({ field: 'name', message: '名前は100文字以内で指定してください' });
+      errors.push({ field: 'name', message: 'Name must be 100 characters or fewer' });
     }
 
     return { valid: errors.length === 0, errors };
@@ -172,10 +172,10 @@ import { describe, it, expect } from 'vitest';
 import { UserValidator } from '../../src/validators/userValidator';
 
 describe('UserValidator', () => {
-  // === メールアドレスバリデーション ===
+  // === Email address validation ===
   describe('validateEmail', () => {
-    // 正常系
-    it('有効なメールアドレスを受け入れる', () => {
+    // Happy path
+    it('accepts valid email addresses', () => {
       const testCases = [
         'user@example.com',
         'user.name@example.co.jp',
@@ -189,16 +189,16 @@ describe('UserValidator', () => {
       });
     });
 
-    // 異常系
-    it('不正なメールアドレスを拒否する', () => {
+    // Error path
+    it('rejects invalid email addresses', () => {
       const testCases = [
-        { input: '', expected: 'メールアドレスは必須です' },
-        { input: null, expected: 'メールアドレスは必須です' },
-        { input: undefined, expected: 'メールアドレスは必須です' },
-        { input: 'invalid', expected: 'メールアドレスの形式が不正です' },
-        { input: '@example.com', expected: 'メールアドレスの形式が不正です' },
-        { input: 'user@', expected: 'メールアドレスの形式が不正です' },
-        { input: 'user@.com', expected: 'メールアドレスの形式が不正です' },
+        { input: '', expected: 'Email address is required' },
+        { input: null, expected: 'Email address is required' },
+        { input: undefined, expected: 'Email address is required' },
+        { input: 'invalid', expected: 'Email address format is invalid' },
+        { input: '@example.com', expected: 'Email address format is invalid' },
+        { input: 'user@', expected: 'Email address format is invalid' },
+        { input: 'user@.com', expected: 'Email address format is invalid' },
       ];
       testCases.forEach(({ input, expected }) => {
         const result = UserValidator.validateEmail(input);
@@ -207,43 +207,43 @@ describe('UserValidator', () => {
       });
     });
 
-    // 境界値
-    it('254文字を超えるメールアドレスを拒否する', () => {
-      const longEmail = 'a'.repeat(243) + '@example.com'; // 255文字
+    // Boundary values
+    it('rejects email addresses longer than 254 characters', () => {
+      const longEmail = 'a'.repeat(243) + '@example.com'; // 255 characters
       const result = UserValidator.validateEmail(longEmail);
       expect(result.valid).toBe(false);
-      expect(result.error).toBe('メールアドレスが長すぎます（最大254文字）');
+      expect(result.error).toBe('Email address is too long (max 254 characters)');
     });
 
-    it('254文字ちょうどのメールアドレスを受け入れる', () => {
-      const email = 'a'.repeat(242) + '@example.com'; // 254文字
+    it('accepts an email address that is exactly 254 characters', () => {
+      const email = 'a'.repeat(242) + '@example.com'; // 254 characters
       const result = UserValidator.validateEmail(email);
       expect(result.valid).toBe(true);
     });
   });
 
-  // === 年齢バリデーション ===
+  // === Age validation ===
   describe('validateAge', () => {
-    it('有効な年齢を受け入れる', () => {
+    it('accepts valid ages', () => {
       [0, 1, 25, 100, 150].forEach(age => {
         expect(UserValidator.validateAge(age).valid).toBe(true);
       });
     });
 
-    it('境界外の年齢を拒否する', () => {
+    it('rejects ages outside the valid range', () => {
       expect(UserValidator.validateAge(-1).valid).toBe(false);
       expect(UserValidator.validateAge(151).valid).toBe(false);
     });
 
-    it('非整数を拒否する', () => {
+    it('rejects non-integer values', () => {
       expect(UserValidator.validateAge(25.5).valid).toBe(false);
       expect(UserValidator.validateAge('25').valid).toBe(false);
     });
   });
 
-  // === 複合バリデーション ===
+  // === Composite validation ===
   describe('validateCreateUserInput', () => {
-    it('全フィールドが有効な場合にtrueを返す', () => {
+    it('returns true when all fields are valid', () => {
       const result = UserValidator.validateCreateUserInput({
         name: 'Taro Yamada',
         email: 'taro@example.com',
@@ -253,7 +253,7 @@ describe('UserValidator', () => {
       expect(result.errors).toHaveLength(0);
     });
 
-    it('複数フィールドのエラーを同時に返す', () => {
+    it('returns errors for multiple fields simultaneously', () => {
       const result = UserValidator.validateCreateUserInput({
         name: '',
         email: 'invalid',
@@ -269,24 +269,24 @@ describe('UserValidator', () => {
 });
 ```
 
-### 2.2 ビジネスロジックのテスト
+### 2.2 Testing Business Logic
 
 ```javascript
 // src/services/pricingService.js
 export class PricingService {
   /**
-   * 商品の最終価格を計算する
-   * @param {number} basePrice - 基本価格
-   * @param {string} membershipTier - 会員ランク ('bronze'|'silver'|'gold'|'platinum')
-   * @param {number} quantity - 数量
-   * @param {string|null} couponCode - クーポンコード
+   * Calculates the final price of an item
+   * @param {number} basePrice - Base price
+   * @param {string} membershipTier - Membership tier ('bronze'|'silver'|'gold'|'platinum')
+   * @param {number} quantity - Quantity
+   * @param {string|null} couponCode - Coupon code
    * @returns {{ finalPrice: number, discount: number, breakdown: object }}
    */
   static calculatePrice(basePrice, membershipTier, quantity, couponCode = null) {
-    if (basePrice < 0) throw new Error('基本価格は0以上である必要があります');
-    if (quantity < 1) throw new Error('数量は1以上である必要があります');
+    if (basePrice < 0) throw new Error('Base price must be 0 or greater');
+    if (quantity < 1) throw new Error('Quantity must be 1 or greater');
 
-    // 会員割引率
+    // Membership discount rates
     const tierDiscounts = {
       bronze: 0,
       silver: 0.05,
@@ -294,13 +294,13 @@ export class PricingService {
       platinum: 0.15,
     };
 
-    // 数量割引率
+    // Quantity discount rates
     let quantityDiscount = 0;
     if (quantity >= 100) quantityDiscount = 0.10;
     else if (quantity >= 50) quantityDiscount = 0.07;
     else if (quantity >= 10) quantityDiscount = 0.05;
 
-    // クーポン割引
+    // Coupon discount
     const couponDiscounts = {
       'SUMMER2024': 0.20,
       'WELCOME10': 0.10,
@@ -308,7 +308,7 @@ export class PricingService {
     };
     const couponDiscount = couponCode ? (couponDiscounts[couponCode] || 0) : 0;
 
-    // 割引は加算ではなく、最大の割引を適用
+    // Discounts are not additive — the maximum discount is applied
     const tierRate = tierDiscounts[membershipTier] || 0;
     const maxDiscount = Math.max(tierRate, quantityDiscount, couponDiscount);
 
@@ -339,58 +339,58 @@ import { describe, it, expect } from 'vitest';
 import { PricingService } from '../../src/services/pricingService';
 
 describe('PricingService.calculatePrice', () => {
-  it('基本的な価格計算（割引なし）', () => {
+  it('basic price calculation (no discount)', () => {
     const result = PricingService.calculatePrice(1000, 'bronze', 1);
     expect(result.finalPrice).toBe(1000);
     expect(result.discount).toBe(0);
   });
 
-  it('会員割引の適用', () => {
+  it('applies membership discount', () => {
     const result = PricingService.calculatePrice(1000, 'gold', 1);
-    // gold: 10%割引 → 1000 - 100 = 900
+    // gold: 10% discount → 1000 - 100 = 900
     expect(result.finalPrice).toBe(900);
     expect(result.discount).toBe(100);
     expect(result.breakdown.appliedDiscount).toBe(0.10);
   });
 
-  it('数量割引の適用（10個以上）', () => {
+  it('applies quantity discount (10 or more)', () => {
     const result = PricingService.calculatePrice(100, 'bronze', 10);
-    // 100 * 10 = 1000, 5%割引 → 1000 - 50 = 950
+    // 100 * 10 = 1000, 5% discount → 1000 - 50 = 950
     expect(result.finalPrice).toBe(950);
   });
 
-  it('クーポン割引が会員割引より大きい場合はクーポンを適用', () => {
+  it('applies coupon discount when greater than membership discount', () => {
     const result = PricingService.calculatePrice(1000, 'silver', 1, 'SUMMER2024');
-    // silver: 5%, クーポン: 20% → 最大の20%を適用
+    // silver: 5%, coupon: 20% → apply the maximum of 20%
     expect(result.finalPrice).toBe(800);
     expect(result.breakdown.appliedDiscount).toBe(0.20);
   });
 
-  it('無効なクーポンコードは無視される', () => {
+  it('ignores an invalid coupon code', () => {
     const result = PricingService.calculatePrice(1000, 'bronze', 1, 'INVALID');
     expect(result.finalPrice).toBe(1000);
     expect(result.breakdown.couponDiscount).toBe(0);
   });
 
-  it('負の価格でエラーを投げる', () => {
+  it('throws an error for a negative price', () => {
     expect(() => PricingService.calculatePrice(-100, 'bronze', 1))
-      .toThrow('基本価格は0以上である必要があります');
+      .toThrow('Base price must be 0 or greater');
   });
 
-  it('数量0でエラーを投げる', () => {
+  it('throws an error for quantity 0', () => {
     expect(() => PricingService.calculatePrice(1000, 'bronze', 0))
-      .toThrow('数量は1以上である必要があります');
+      .toThrow('Quantity must be 1 or greater');
   });
 });
 ```
 
 ---
 
-## 3. 統合テストの実践（supertest）
+## 3. Integration Testing in Practice (supertest)
 
-### 3.1 テスト環境のセットアップ
+### 3.1 Setting Up the Test Environment
 
-統合テストではHTTPリクエストを実際に送信し、エンドポイントの動作を検証する。supertestはNode.jsのHTTPサーバーに対してリクエストを送信するためのライブラリであり、Express / Koa / Fastify などのフレームワークと組み合わせて使用する。
+In integration tests, HTTP requests are actually sent to verify endpoint behavior. supertest is a library for sending requests to Node.js HTTP servers and is used in combination with frameworks such as Express / Koa / Fastify.
 
 ```javascript
 // __tests__/setup/testServer.js
@@ -399,7 +399,7 @@ import { app } from '../../src/app';
 import { db } from '../../src/db';
 import { createTestUser, generateToken } from './helpers';
 
-// テスト用のサーバーとDB接続を管理
+// Manages the test server and DB connection
 export function setupTestServer() {
   let server;
   let authToken;
@@ -408,17 +408,17 @@ export function setupTestServer() {
   let adminUser;
 
   beforeAll(async () => {
-    // テスト用DBのマイグレーション実行
+    // Run migrations for the test DB
     await db.migrate.latest();
-    // テスト用シードデータ投入
+    // Insert test seed data
     await db.seed.run();
   });
 
   beforeEach(async () => {
-    // 各テスト前にテーブルをクリーンアップ
+    // Clean up tables before each test
     await db.raw('TRUNCATE TABLE users, orders, products CASCADE');
 
-    // テスト用ユーザーとトークンを作成
+    // Create test users and tokens
     testUser = await createTestUser(db, {
       name: 'Test User',
       email: 'test@example.com',
@@ -449,7 +449,7 @@ export function setupTestServer() {
 }
 ```
 
-### 3.2 CRUDエンドポイントの統合テスト
+### 3.2 Integration Tests for CRUD Endpoints
 
 ```javascript
 // __tests__/integration/users.test.js
@@ -460,7 +460,7 @@ import { db } from '../../src/db';
 
 const request = supertest(app);
 
-describe('Users API - 統合テスト', () => {
+describe('Users API - Integration Tests', () => {
   let authToken;
 
   beforeAll(async () => {
@@ -483,11 +483,11 @@ describe('Users API - 統合テスト', () => {
   });
 
   // ============================================
-  // GET /api/v1/users - ユーザー一覧取得
+  // GET /api/v1/users - Get user list
   // ============================================
   describe('GET /api/v1/users', () => {
-    it('ページネーション付きのユーザー一覧を返す', async () => {
-      // データ準備
+    it('returns a paginated list of users', async () => {
+      // Prepare data
       await db('users').insert([
         { id: 'u1', name: 'Alice', email: 'alice@example.com', role: 'user' },
         { id: 'u2', name: 'Bob', email: 'bob@example.com', role: 'admin' },
@@ -504,7 +504,7 @@ describe('Users API - 統合テスト', () => {
       expect(res.body.meta.total).toBe(3);
     });
 
-    it('ロールでフィルタリングできる', async () => {
+    it('can filter by role', async () => {
       await db('users').insert([
         { id: 'u1', name: 'Alice', email: 'alice@example.com', role: 'user' },
         { id: 'u2', name: 'Bob', email: 'bob@example.com', role: 'admin' },
@@ -518,20 +518,20 @@ describe('Users API - 統合テスト', () => {
       expect(res.body.data.every(u => u.role === 'admin')).toBe(true);
     });
 
-    it('認証なしで401を返す', async () => {
+    it('returns 401 without authentication', async () => {
       await request
         .get('/api/v1/users')
         .expect(401);
     });
 
-    it('無効なトークンで401を返す', async () => {
+    it('returns 401 with an invalid token', async () => {
       await request
         .get('/api/v1/users')
         .set('Authorization', 'Bearer invalid-token-here')
         .expect(401);
     });
 
-    it('期限切れトークンで401を返す', async () => {
+    it('returns 401 with an expired token', async () => {
       const expiredToken = generateToken(
         { id: 'user_test', role: 'admin' },
         { expiresIn: '-1h' }
@@ -545,10 +545,10 @@ describe('Users API - 統合テスト', () => {
   });
 
   // ============================================
-  // POST /api/v1/users - ユーザー作成
+  // POST /api/v1/users - Create user
   // ============================================
   describe('POST /api/v1/users', () => {
-    it('ユーザーを作成して201を返す', async () => {
+    it('creates a user and returns 201', async () => {
       const res = await request
         .post('/api/v1/users')
         .set('Authorization', `Bearer ${authToken}`)
@@ -558,13 +558,13 @@ describe('Users API - 統合テスト', () => {
       expect(res.body.data).toMatchObject({
         name: 'New User',
         email: 'new@example.com',
-        role: 'user', // デフォルトロール
+        role: 'user', // default role
       });
       expect(res.body.data.id).toBeDefined();
       expect(res.headers.location).toMatch(/\/api\/v1\/users\//);
     });
 
-    it('不正なメールアドレスで422を返す', async () => {
+    it('returns 422 for an invalid email address', async () => {
       const res = await request
         .post('/api/v1/users')
         .set('Authorization', `Bearer ${authToken}`)
@@ -576,7 +576,7 @@ describe('Users API - 統合テスト', () => {
       );
     });
 
-    it('重複メールアドレスで409を返す', async () => {
+    it('returns 409 for a duplicate email address', async () => {
       await request
         .post('/api/v1/users')
         .set('Authorization', `Bearer ${authToken}`)
@@ -592,17 +592,17 @@ describe('Users API - 統合テスト', () => {
       expect(res.body.error.code).toBe('DUPLICATE_RESOURCE');
     });
 
-    it('必須フィールド欠落で422を返す', async () => {
+    it('returns 422 when required fields are missing', async () => {
       const res = await request
         .post('/api/v1/users')
         .set('Authorization', `Bearer ${authToken}`)
-        .send({}) // 空ボディ
+        .send({}) // empty body
         .expect(422);
 
       expect(res.body.errors.length).toBeGreaterThanOrEqual(2);
     });
 
-    it('一般ユーザーがadminロールで作成しようとすると403を返す', async () => {
+    it('returns 403 when a regular user tries to create with admin role', async () => {
       const userToken = generateToken({ id: 'u_normal', role: 'user' });
 
       await request
@@ -614,10 +614,10 @@ describe('Users API - 統合テスト', () => {
   });
 
   // ============================================
-  // PUT /api/v1/users/:id - ユーザー更新
+  // PUT /api/v1/users/:id - Update user
   // ============================================
   describe('PUT /api/v1/users/:id', () => {
-    it('ユーザー情報を更新する', async () => {
+    it('updates user information', async () => {
       const res = await request
         .put('/api/v1/users/user_test')
         .set('Authorization', `Bearer ${authToken}`)
@@ -627,7 +627,7 @@ describe('Users API - 統合テスト', () => {
       expect(res.body.data.name).toBe('Updated Name');
     });
 
-    it('存在しないユーザーIDで404を返す', async () => {
+    it('returns 404 for a non-existent user ID', async () => {
       await request
         .put('/api/v1/users/nonexistent_id')
         .set('Authorization', `Bearer ${authToken}`)
@@ -635,8 +635,8 @@ describe('Users API - 統合テスト', () => {
         .expect(404);
     });
 
-    it('楽観的ロックによる競合検出', async () => {
-      // バージョン1で取得
+    it('detects conflict via optimistic locking', async () => {
+      // Get with version 1
       const getRes = await request
         .get('/api/v1/users/user_test')
         .set('Authorization', `Bearer ${authToken}`)
@@ -644,7 +644,7 @@ describe('Users API - 統合テスト', () => {
 
       const version = getRes.body.data.version;
 
-      // 1回目の更新（成功）
+      // First update (succeeds)
       await request
         .put('/api/v1/users/user_test')
         .set('Authorization', `Bearer ${authToken}`)
@@ -652,7 +652,7 @@ describe('Users API - 統合テスト', () => {
         .send({ name: 'Update 1' })
         .expect(200);
 
-      // 2回目の更新（古いバージョンで競合）
+      // Second update (conflict due to stale version)
       await request
         .put('/api/v1/users/user_test')
         .set('Authorization', `Bearer ${authToken}`)
@@ -663,10 +663,10 @@ describe('Users API - 統合テスト', () => {
   });
 
   // ============================================
-  // DELETE /api/v1/users/:id - ユーザー削除
+  // DELETE /api/v1/users/:id - Delete user
   // ============================================
   describe('DELETE /api/v1/users/:id', () => {
-    it('ユーザーを削除して204を返す', async () => {
+    it('deletes a user and returns 204', async () => {
       const created = await db('users').insert({
         id: 'u_delete', name: 'To Delete', email: 'delete@example.com', role: 'user',
       }).returning('*');
@@ -676,14 +676,14 @@ describe('Users API - 統合テスト', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .expect(204);
 
-      // 削除後に取得すると404
+      // 404 when retrieved after deletion
       await request
         .get(`/api/v1/users/${created[0].id}`)
         .set('Authorization', `Bearer ${authToken}`)
         .expect(404);
     });
 
-    it('冪等性: 同じリソースを2回削除しても安全', async () => {
+    it('idempotency: safe to delete the same resource twice', async () => {
       await db('users').insert({
         id: 'u_idem', name: 'Idempotent', email: 'idem@example.com', role: 'user',
       });
@@ -693,7 +693,7 @@ describe('Users API - 統合テスト', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .expect(204);
 
-      // 2回目の削除は404（既に存在しない）
+      // Second deletion returns 404 (already gone)
       await request
         .delete('/api/v1/users/u_idem')
         .set('Authorization', `Bearer ${authToken}`)
@@ -703,9 +703,9 @@ describe('Users API - 統合テスト', () => {
 });
 ```
 
-### 3.3 テストヘルパーとファクトリー
+### 3.3 Test Helpers and Factories
 
-テストコードの重複を避けるため、テストヘルパーとファクトリーパターンを活用する。
+To avoid duplication in test code, use test helpers and the factory pattern.
 
 ```javascript
 // __tests__/helpers/factories.js
@@ -765,14 +765,14 @@ export class OrderFactory {
 
 ---
 
-## 4. Postman / Newman によるAPIテスト自動化
+## 4. API Test Automation with Postman / Newman
 
-### 4.1 Postman コレクションの構造化
+### 4.1 Structuring Postman Collections
 
-Postmanは手動テストだけでなく、コレクションとして定義されたテストを自動実行する機能を提供する。CI/CDパイプラインではNewman（Postmanのコマンドラインランナー）を使用する。
+Postman provides not just manual testing but also the ability to automatically run tests defined as collections. In CI/CD pipelines, Newman (Postman's command-line runner) is used.
 
 ```
-Postman コレクション構成例
+Postman Collection Structure Example
 
 Collection: "User Management API"
   |
@@ -783,38 +783,38 @@ Collection: "User Management API"
   |     +-- POST /auth/logout
   |
   +-- Folder: "Users (CRUD)"
-  |     +-- GET  /api/v1/users       (一覧取得)
-  |     +-- POST /api/v1/users       (作成)
-  |     +-- GET  /api/v1/users/:id   (個別取得)
-  |     +-- PUT  /api/v1/users/:id   (更新)
-  |     +-- DELETE /api/v1/users/:id (削除)
+  |     +-- GET  /api/v1/users       (list)
+  |     +-- POST /api/v1/users       (create)
+  |     +-- GET  /api/v1/users/:id   (get by ID)
+  |     +-- PUT  /api/v1/users/:id   (update)
+  |     +-- DELETE /api/v1/users/:id (delete)
   |
   +-- Folder: "Error Cases"
-  |     +-- 認証エラー (401)
-  |     +-- 認可エラー (403)
-  |     +-- バリデーションエラー (422)
-  |     +-- リソース競合 (409)
+  |     +-- Authentication error (401)
+  |     +-- Authorization error (403)
+  |     +-- Validation error (422)
+  |     +-- Resource conflict (409)
   |
   +-- Folder: "Edge Cases"
-        +-- 空リクエスト
-        +-- 巨大ペイロード
-        +-- 特殊文字入力
-        +-- 同時リクエスト
+        +-- Empty request
+        +-- Oversized payload
+        +-- Special character input
+        +-- Concurrent requests
 ```
 
-### 4.2 Postman テストスクリプトの記述
+### 4.2 Writing Postman Test Scripts
 
 ```javascript
-// Postman の Tests タブに記述するスクリプト例
+// Example scripts written in the Postman Tests tab
 
-// === POST /auth/login のテストスクリプト ===
-// ステータスコードの検証
-pm.test("ステータスコード200を返す", function () {
+// === Test script for POST /auth/login ===
+// Verify status code
+pm.test("Returns status code 200", function () {
     pm.response.to.have.status(200);
 });
 
-// レスポンスボディの検証
-pm.test("アクセストークンを含むレスポンスを返す", function () {
+// Verify response body
+pm.test("Returns response containing access token", function () {
     const jsonData = pm.response.json();
     pm.expect(jsonData).to.have.property('accessToken');
     pm.expect(jsonData).to.have.property('refreshToken');
@@ -822,24 +822,24 @@ pm.test("アクセストークンを含むレスポンスを返す", function ()
     pm.expect(jsonData.expiresIn).to.be.a('number');
 });
 
-// トークンを環境変数に保存（後続リクエストで使用）
-pm.test("トークンを環境変数に保存する", function () {
+// Save token to environment variable (for use in subsequent requests)
+pm.test("Saves token to environment variable", function () {
     const jsonData = pm.response.json();
     pm.environment.set("accessToken", jsonData.accessToken);
     pm.environment.set("refreshToken", jsonData.refreshToken);
 });
 
-// レスポンス時間の検証
-pm.test("レスポンスが500ms以内に返る", function () {
+// Verify response time
+pm.test("Response returns within 500ms", function () {
     pm.expect(pm.response.responseTime).to.be.below(500);
 });
 
-// ヘッダーの検証
-pm.test("Content-Typeがapplication/jsonである", function () {
+// Verify headers
+pm.test("Content-Type is application/json", function () {
     pm.response.to.have.header("Content-Type", "application/json; charset=utf-8");
 });
 
-// スキーマバリデーション
+// Schema validation
 const schema = {
     type: "object",
     required: ["accessToken", "refreshToken", "expiresIn", "user"],
@@ -860,18 +860,18 @@ const schema = {
     }
 };
 
-pm.test("レスポンスがスキーマに準拠している", function () {
+pm.test("Response conforms to schema", function () {
     pm.response.to.have.jsonSchema(schema);
 });
 ```
 
-### 4.3 Newman によるCI/CD統合
+### 4.3 CI/CD Integration with Newman
 
 ```bash
-# Newman のインストール
+# Install Newman
 npm install -g newman newman-reporter-htmlextra
 
-# コレクションの実行
+# Run a collection
 newman run ./postman/collection.json \
   --environment ./postman/env-staging.json \
   --reporters cli,htmlextra \
@@ -880,7 +880,7 @@ newman run ./postman/collection.json \
   --delay-request 100 \
   --timeout-request 10000
 
-# GitHub Actions での実行例
+# Example GitHub Actions configuration
 # .github/workflows/api-tests.yml
 # name: API Tests
 # on:
@@ -911,41 +911,42 @@ newman run ./postman/collection.json \
 
 ---
 
-## 5. コントラクトテスト（Pact）
+## 5. Contract Testing (Pact)
 
-### 5.1 コントラクトテストの概念
+### 5.1 The Concept of Contract Testing
 
-コントラクトテストは、サービス間のAPI仕様（契約）が両者間で合意されていることを検証するテスト手法である。マイクロサービスアーキテクチャにおいて、Consumer（APIを呼び出す側）とProvider（APIを提供する側）が互いの期待に沿って動作していることを保証する。
+Contract testing is a testing methodology that verifies that the API specification (contract) between services is agreed upon by both parties. In a microservices architecture, it ensures that the Consumer (the side calling the API) and the Provider (the side providing the API) are operating in accordance with each other's expectations.
 
 ```
-コントラクトテスト フロー図
+Contract Testing Flow Diagram
 
-  Consumer側                  Pact Broker                Provider側
-  (フロントエンド)             (契約管理)                 (APIサーバー)
+  Consumer Side               Pact Broker               Provider Side
+  (Frontend)                  (Contract Management)      (API Server)
   +------------------+      +------------------+      +------------------+
   |                  |      |                  |      |                  |
-  | 1. テスト実行    |      |                  |      |                  |
-  |    (Mockサーバー |----->| 2. コントラクト  |      |                  |
-  |     に対して)    |      |    (Pact JSON)を |      |                  |
-  |                  |      |    アップロード  |      |                  |
+  | 1. Run tests     |      |                  |      |                  |
+  |    (against Mock |----->| 2. Upload        |      |                  |
+  |     server)      |      |    contract      |      |                  |
+  |                  |      |    (Pact JSON)   |      |                  |
   +------------------+      |                  |      |                  |
-                            |                  |----->| 3. コントラクトを|
-                            |                  |      |    ダウンロードし|
-                            |                  |      |    Providerに対し|
-                            |                  |<-----| 4. 検証結果を    |
-                            |                  |      |    報告          |
+                            |                  |----->| 3. Download      |
+                            |                  |      |    contract and  |
+                            |                  |      |    verify against|
+                            |                  |<-----| 4. Report        |
+                            |                  |      |    verification  |
                             +------------------+      +------------------+
                                      |
                                      v
                             +------------------+
-                            | 5. CI/CDで       |
-                            | can-i-deploy を  |
-                            | チェックし、     |
-                            | デプロイ可否判定 |
+                            | 5. Run           |
+                            | can-i-deploy in  |
+                            | CI/CD to         |
+                            | determine deploy |
+                            | eligibility      |
                             +------------------+
 ```
 
-### 5.2 Consumer側テストの実装
+### 5.2 Implementing the Consumer Side Test
 
 ```javascript
 // __tests__/contract/userApiConsumer.pact.test.js
@@ -962,13 +963,13 @@ const provider = new PactV3({
   logLevel: 'warn',
 });
 
-describe('User API Contract - Consumer側', () => {
-  // ユーザー一覧取得のコントラクト
+describe('User API Contract - Consumer Side', () => {
+  // Contract for getting the user list
   describe('GET /api/v1/users', () => {
-    it('ページネーション付きのユーザー一覧を返すこと', async () => {
+    it('returns a paginated list of users', async () => {
       provider
-        .given('ユーザーが複数存在する')
-        .uponReceiving('ユーザー一覧取得リクエスト')
+        .given('multiple users exist')
+        .uponReceiving('a request to get the user list')
         .withRequest({
           method: 'GET',
           path: '/api/v1/users',
@@ -1019,12 +1020,12 @@ describe('User API Contract - Consumer側', () => {
     });
   });
 
-  // ユーザー個別取得のコントラクト
+  // Contract for getting an individual user
   describe('GET /api/v1/users/:id', () => {
-    it('指定IDのユーザーを返すこと', async () => {
+    it('returns the user with the specified ID', async () => {
       provider
-        .given('ID 123 のユーザーが存在する')
-        .uponReceiving('ユーザー個別取得リクエスト')
+        .given('a user with ID 123 exists')
+        .uponReceiving('a request to get an individual user')
         .withRequest({
           method: 'GET',
           path: '/api/v1/users/123',
@@ -1042,7 +1043,7 @@ describe('User API Contract - Consumer側', () => {
               email: like('taro@example.com'),
               role: regex(/^(user|admin)$/, 'user'),
               profile: {
-                bio: like('ソフトウェアエンジニア'),
+                bio: like('Software Engineer'),
                 avatarUrl: like('https://example.com/avatar.png'),
               },
             },
@@ -1063,10 +1064,10 @@ describe('User API Contract - Consumer側', () => {
       });
     });
 
-    it('存在しないIDで404を返すこと', async () => {
+    it('returns 404 for a non-existent ID', async () => {
       provider
-        .given('ID 999 のユーザーは存在しない')
-        .uponReceiving('存在しないユーザーの取得リクエスト')
+        .given('a user with ID 999 does not exist')
+        .uponReceiving('a request to get a non-existent user')
         .withRequest({
           method: 'GET',
           path: '/api/v1/users/999',
@@ -1080,7 +1081,7 @@ describe('User API Contract - Consumer側', () => {
           body: {
             error: {
               code: string('NOT_FOUND'),
-              message: like('指定されたユーザーは見つかりませんでした'),
+              message: like('The specified user was not found'),
             },
           },
         });
@@ -1096,9 +1097,9 @@ describe('User API Contract - Consumer側', () => {
     });
   });
 
-  // ユーザー作成のコントラクト
+  // Contract for creating a user
   describe('POST /api/v1/users', () => {
-    it('新規ユーザーを作成して201を返すこと', async () => {
+    it('creates a new user and returns 201', async () => {
       const newUser = {
         name: 'Hanako Suzuki',
         email: 'hanako@example.com',
@@ -1106,8 +1107,8 @@ describe('User API Contract - Consumer側', () => {
       };
 
       provider
-        .given('ユーザー登録が可能な状態')
-        .uponReceiving('ユーザー作成リクエスト')
+        .given('user registration is available')
+        .uponReceiving('a request to create a user')
         .withRequest({
           method: 'POST',
           path: '/api/v1/users',
@@ -1150,7 +1151,7 @@ describe('User API Contract - Consumer側', () => {
 });
 ```
 
-### 5.3 Provider側の検証
+### 5.3 Provider Side Verification
 
 ```javascript
 // __tests__/contract/userApiProvider.pact.test.js
@@ -1158,7 +1159,7 @@ import { Verifier } from '@pact-foundation/pact';
 import { app } from '../../src/app';
 import { db } from '../../src/db';
 
-describe('User API Contract - Provider検証', () => {
+describe('User API Contract - Provider Verification', () => {
   let server;
   const port = 4567;
 
@@ -1172,32 +1173,32 @@ describe('User API Contract - Provider検証', () => {
     await db.destroy();
   });
 
-  it('Consumer のコントラクトを満たすこと', async () => {
+  it('satisfies the Consumer contract', async () => {
     const opts = {
       provider: 'UserAPI',
       providerBaseUrl: `http://localhost:${port}`,
 
-      // Pact Brokerから取得する場合
+      // Retrieve from Pact Broker
       pactBrokerUrl: process.env.PACT_BROKER_URL,
       pactBrokerToken: process.env.PACT_BROKER_TOKEN,
 
-      // ローカルファイルから取得する場合
+      // Retrieve from local file
       // pactUrls: ['./pacts/FrontendApp-UserAPI.json'],
 
       publishVerificationResult: process.env.CI === 'true',
       providerVersion: process.env.GIT_COMMIT_SHA,
       providerVersionBranch: process.env.GIT_BRANCH,
 
-      // Provider Stateのハンドラー
+      // Provider State handlers
       stateHandlers: {
-        'ユーザーが複数存在する': async () => {
+        'multiple users exist': async () => {
           await db('users').truncate();
           await db('users').insert([
             { id: 'user_1', name: 'Taro', email: 'taro@example.com', role: 'user' },
             { id: 'user_2', name: 'Hanako', email: 'hanako@example.com', role: 'admin' },
           ]);
         },
-        'ID 123 のユーザーが存在する': async () => {
+        'a user with ID 123 exists': async () => {
           await db('users').truncate();
           await db('users').insert({
             id: '123',
@@ -1205,20 +1206,20 @@ describe('User API Contract - Provider検証', () => {
             email: 'taro@example.com',
             role: 'user',
             profile: JSON.stringify({
-              bio: 'ソフトウェアエンジニア',
+              bio: 'Software Engineer',
               avatarUrl: 'https://example.com/avatar.png',
             }),
           });
         },
-        'ID 999 のユーザーは存在しない': async () => {
+        'a user with ID 999 does not exist': async () => {
           await db('users').where({ id: '999' }).delete();
         },
-        'ユーザー登録が可能な状態': async () => {
+        'user registration is available': async () => {
           await db('users').where({ email: 'hanako@example.com' }).delete();
         },
       },
 
-      // リクエストフィルター（認証トークンの注入など）
+      // Request filter (e.g., injecting auth tokens)
       requestFilter: (req, res, next) => {
         req.headers['authorization'] = 'Bearer test-provider-token';
         next();
@@ -1230,23 +1231,23 @@ describe('User API Contract - Provider検証', () => {
 });
 ```
 
-### 5.4 Pact Broker とデプロイ安全性
+### 5.4 Pact Broker and Deploy Safety
 
 ```bash
-# Pact Broker での can-i-deploy チェック
-# Consumer のデプロイ前に実行
+# can-i-deploy check in Pact Broker
+# Run before Consumer deployment
 pact-broker can-i-deploy \
   --pacticipant FrontendApp \
   --version $(git rev-parse HEAD) \
   --to-environment production
 
-# Provider のデプロイ前に実行
+# Run before Provider deployment
 pact-broker can-i-deploy \
   --pacticipant UserAPI \
   --version $(git rev-parse HEAD) \
   --to-environment production
 
-# デプロイ成功の記録
+# Record a successful deployment
 pact-broker record-deployment \
   --pacticipant UserAPI \
   --version $(git rev-parse HEAD) \
@@ -1255,52 +1256,52 @@ pact-broker record-deployment \
 
 ---
 
-## 6. 負荷テスト
+## 6. Load Testing
 
-### 6.1 負荷テストの種類と目的
+### 6.1 Types and Purpose of Load Tests
 
-負荷テストは、APIが一定の負荷条件下で正常に動作するかを検証するテストである。目的に応じて複数の種類が存在する。
+Load testing verifies that an API operates correctly under a given load condition. Several types exist depending on the purpose.
 
-| テスト種類 | 目的 | VU数 | 期間 | 特徴 |
-|------------|------|------|------|------|
-| スモークテスト | 基本動作確認 | 1-5 | 1分 | デプロイ後の簡易確認 |
-| ロードテスト | 通常負荷検証 | 50-200 | 5-30分 | 平常時のパフォーマンス検証 |
-| ストレステスト | 限界点の特定 | 200-1000+ | 10-60分 | システムの破綻点を発見 |
-| スパイクテスト | 急激な負荷変動 | 0→500→0 | 5-10分 | 瞬間的な負荷への耐性 |
-| ソークテスト | 長時間安定性 | 50-100 | 1-24時間 | メモリリーク等の検出 |
-| ブレイクポイントテスト | 破綻点の特定 | 段階的に増加 | 可変 | 最大許容量の測定 |
+| Test Type | Purpose | VU Count | Duration | Characteristics |
+|------------|---------|----------|----------|-----------------|
+| Smoke Test | Basic operation check | 1-5 | 1 min | Quick check after deployment |
+| Load Test | Normal load verification | 50-200 | 5-30 min | Performance check under normal conditions |
+| Stress Test | Identifying the breaking point | 200-1000+ | 10-60 min | Find where the system breaks down |
+| Spike Test | Sudden load fluctuation | 0→500→0 | 5-10 min | Resilience against instantaneous load |
+| Soak Test | Long-term stability | 50-100 | 1-24 hours | Detect memory leaks, etc. |
+| Breakpoint Test | Identify the breaking point | Gradually increasing | Variable | Measure maximum capacity |
 
-### 6.2 k6 による負荷テスト
+### 6.2 Load Testing with k6
 
 ```javascript
-// load-tests/scenarios/user-api-load.js（k6）
+// load-tests/scenarios/user-api-load.js (k6)
 import http from 'k6/http';
 import { check, sleep, group } from 'k6';
 import { Counter, Rate, Trend } from 'k6/metrics';
 
-// カスタムメトリクス定義
+// Custom metrics definitions
 const errorRate = new Rate('errors');
 const userCreated = new Counter('users_created');
 const listDuration = new Trend('list_duration', true);
 const createDuration = new Trend('create_duration', true);
 
-// テストシナリオ設定
+// Test scenario configuration
 export const options = {
   scenarios: {
-    // シナリオ1: 読み取り中心の通常負荷
+    // Scenario 1: Read-heavy normal load
     read_load: {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-        { duration: '30s', target: 30 },    // ウォームアップ
-        { duration: '2m',  target: 30 },    // 定常負荷
-        { duration: '30s', target: 0 },     // クールダウン
+        { duration: '30s', target: 30 },    // Warm-up
+        { duration: '2m',  target: 30 },    // Steady load
+        { duration: '30s', target: 0 },     // Cool-down
       ],
       gracefulRampDown: '10s',
       exec: 'readScenario',
       tags: { scenario: 'read' },
     },
-    // シナリオ2: 書き込み中心の高負荷
+    // Scenario 2: Write-heavy high load
     write_load: {
       executor: 'ramping-vus',
       startVUs: 0,
@@ -1311,38 +1312,38 @@ export const options = {
       ],
       gracefulRampDown: '10s',
       exec: 'writeScenario',
-      startTime: '10s',  // 10秒遅れて開始
+      startTime: '10s',  // Start 10 seconds later
       tags: { scenario: 'write' },
     },
-    // シナリオ3: スパイクテスト
+    // Scenario 3: Spike test
     spike: {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-        { duration: '10s', target: 5 },     // ベースライン
-        { duration: '5s',  target: 100 },   // 急激なスパイク
-        { duration: '30s', target: 100 },   // スパイク維持
-        { duration: '5s',  target: 5 },     // 急激な減少
-        { duration: '30s', target: 5 },     // 回復確認
-        { duration: '10s', target: 0 },     // 終了
+        { duration: '10s', target: 5 },     // Baseline
+        { duration: '5s',  target: 100 },   // Sudden spike
+        { duration: '30s', target: 100 },   // Sustained spike
+        { duration: '5s',  target: 5 },     // Sudden decrease
+        { duration: '30s', target: 5 },     // Recovery check
+        { duration: '10s', target: 0 },     // End
       ],
       exec: 'readScenario',
-      startTime: '4m',  // 他のシナリオ後に実行
+      startTime: '4m',  // Run after other scenarios
       tags: { scenario: 'spike' },
     },
   },
   thresholds: {
-    // グローバル閾値
+    // Global thresholds
     http_req_duration: ['p(50)<200', 'p(95)<500', 'p(99)<1000'],
     http_req_failed: ['rate<0.01'],
     errors: ['rate<0.05'],
 
-    // シナリオ別の閾値
+    // Per-scenario thresholds
     'http_req_duration{scenario:read}': ['p(95)<300'],
     'http_req_duration{scenario:write}': ['p(95)<800'],
     'http_req_duration{scenario:spike}': ['p(95)<2000'],
 
-    // カスタムメトリクスの閾値
+    // Custom metric thresholds
     list_duration: ['p(95)<400'],
     create_duration: ['p(95)<700'],
   },
@@ -1356,43 +1357,43 @@ const headers = {
   'Content-Type': 'application/json',
 };
 
-// 読み取りシナリオ
+// Read scenario
 export function readScenario() {
-  group('ユーザー一覧取得', () => {
+  group('Get user list', () => {
     const startTime = Date.now();
     const res = http.get(`${BASE_URL}/users?limit=20`, { headers });
     listDuration.add(Date.now() - startTime);
 
     const success = check(res, {
-      'ステータスが200': (r) => r.status === 200,
-      'レスポンスにdataが存在': (r) => {
+      'Status is 200': (r) => r.status === 200,
+      'Response contains data': (r) => {
         try { return JSON.parse(r.body).data !== undefined; }
         catch { return false; }
       },
-      'レスポンスタイム < 500ms': (r) => r.timings.duration < 500,
+      'Response time < 500ms': (r) => r.timings.duration < 500,
     });
 
     errorRate.add(!success);
   });
 
-  group('ユーザー個別取得', () => {
+  group('Get individual user', () => {
     const userId = `user_${Math.floor(Math.random() * 100) + 1}`;
     const res = http.get(`${BASE_URL}/users/${userId}`, { headers });
 
     const success = check(res, {
-      'ステータスが200または404': (r) => [200, 404].includes(r.status),
-      'レスポンスタイム < 300ms': (r) => r.timings.duration < 300,
+      'Status is 200 or 404': (r) => [200, 404].includes(r.status),
+      'Response time < 300ms': (r) => r.timings.duration < 300,
     });
 
     errorRate.add(!success);
   });
 
-  sleep(Math.random() * 2 + 1); // 1〜3秒のランダムなシンクタイム
+  sleep(Math.random() * 2 + 1); // Random think time of 1–3 seconds
 }
 
-// 書き込みシナリオ
+// Write scenario
 export function writeScenario() {
-  group('ユーザー作成', () => {
+  group('Create user', () => {
     const startTime = Date.now();
     const uniqueId = `${Date.now()}_${__VU}_${__ITER}`;
     const payload = JSON.stringify({
@@ -1405,22 +1406,22 @@ export function writeScenario() {
     createDuration.add(Date.now() - startTime);
 
     const success = check(res, {
-      'ステータスが201': (r) => r.status === 201,
-      '作成されたユーザーIDが返る': (r) => {
+      'Status is 201': (r) => r.status === 201,
+      'Created user ID is returned': (r) => {
         try { return JSON.parse(r.body).data.id !== undefined; }
         catch { return false; }
       },
-      'レスポンスタイム < 1000ms': (r) => r.timings.duration < 1000,
+      'Response time < 1000ms': (r) => r.timings.duration < 1000,
     });
 
     if (success) userCreated.add(1);
     errorRate.add(!success);
   });
 
-  sleep(Math.random() * 3 + 2); // 2〜5秒のシンクタイム
+  sleep(Math.random() * 3 + 2); // Think time of 2–5 seconds
 }
 
-// テスト結果のサマリー出力
+// Output test result summary
 export function handleSummary(data) {
   return {
     'stdout': textSummary(data, { indent: ' ', enableColors: true }),
@@ -1430,34 +1431,34 @@ export function handleSummary(data) {
 ```
 
 ```bash
-# k6 実行コマンド
+# k6 run command
 k6 run load-tests/scenarios/user-api-load.js \
   --env BASE_URL=https://api-staging.example.com/v1 \
   --env API_TOKEN=sk_test_xxx \
   --out json=./reports/k6-results.json
 
-# Grafana + InfluxDB への出力
+# Output to Grafana + InfluxDB
 k6 run load-tests/scenarios/user-api-load.js \
   --out influxdb=http://localhost:8086/k6
 ```
 
-### 6.3 Artillery による負荷テスト
+### 6.3 Load Testing with Artillery
 
 ```yaml
 # load-tests/artillery/user-api.yml
 config:
   target: "https://api-staging.example.com"
   phases:
-    - name: "ウォームアップ"
+    - name: "Warm-up"
       duration: 30
       arrivalRate: 5
-    - name: "通常負荷"
+    - name: "Normal load"
       duration: 120
       arrivalRate: 20
-    - name: "ピーク負荷"
+    - name: "Peak load"
       duration: 60
       arrivalRate: 50
-    - name: "クールダウン"
+    - name: "Cool-down"
       duration: 30
       arrivalRate: 5
   defaults:
@@ -1472,7 +1473,7 @@ config:
     maxErrorRate: 1
 
 scenarios:
-  - name: "ユーザー一覧取得"
+  - name: "Get user list"
     weight: 60
     flow:
       - get:
@@ -1482,7 +1483,7 @@ scenarios:
             - hasProperty: "data"
             - contentType: "application/json"
 
-  - name: "ユーザー作成→取得→更新"
+  - name: "Create user → Get → Update"
     weight: 30
     flow:
       - post:
@@ -1509,7 +1510,7 @@ scenarios:
           expect:
             - statusCode: 200
 
-  - name: "検索シナリオ"
+  - name: "Search scenario"
     weight: 10
     flow:
       - get:
@@ -1519,51 +1520,51 @@ scenarios:
 ```
 
 ```bash
-# Artillery 実行コマンド
+# Artillery run command
 artillery run load-tests/artillery/user-api.yml \
   --output ./reports/artillery-report.json
 
-# HTMLレポート生成
+# Generate HTML report
 artillery report ./reports/artillery-report.json \
   --output ./reports/artillery-report.html
 ```
 
 ---
 
-## 7. E2Eテスト
+## 7. E2E Testing
 
-### 7.1 E2Eテストの設計
+### 7.1 Designing E2E Tests
 
-E2E（End-to-End）テストは、ユーザーの実際の利用シナリオを模擬し、複数のAPIを横断して全体的なフローが正しく動作することを検証する。テストピラミッドの最上位に位置し、数は少ないが高い信頼性を提供する。
+E2E (End-to-End) tests simulate real user scenarios and verify that the overall flow works correctly across multiple APIs. They sit at the top of the test pyramid, are few in number, but provide high confidence.
 
 ```
-E2Eテスト シナリオ例: ECサイト購入フロー
+E2E Test Scenario Example: E-Commerce Purchase Flow
 
-  [1] 会員登録                [2] ログイン
+  [1] Register                [2] Login
   POST /auth/register   -->  POST /auth/login
   201 Created                 200 OK (token)
        |                           |
        v                           v
-  [3] 商品一覧取得            [4] 商品をカートに追加
+  [3] Get product list        [4] Add product to cart
   GET /products          -->  POST /cart/items
   200 OK                      201 Created
        |                           |
        v                           v
-  [5] カート確認              [6] 注文作成
+  [5] View cart               [6] Create order
   GET /cart              -->  POST /orders
   200 OK                      201 Created
        |                           |
        v                           v
-  [7] 決済実行                [8] 注文確認
+  [7] Execute payment         [8] Confirm order
   POST /payments         -->  GET /orders/:id
   200 OK                      200 OK (status: paid)
        |
        v
-  [9] メール送信確認（非同期）
-  → 注文確認メールが送信されたことをキューで検証
+  [9] Email confirmation (async)
+  → Verify that an order confirmation email was sent via queue
 ```
 
-### 7.2 E2Eテストの実装
+### 7.2 Implementing E2E Tests
 
 ```javascript
 // __tests__/e2e/purchaseFlow.test.js
@@ -1575,7 +1576,7 @@ import { seedProducts } from '../helpers/seedData';
 
 const request = supertest(app);
 
-describe('E2E: 商品購入フロー', () => {
+describe('E2E: Product Purchase Flow', () => {
   let accessToken;
   let userId;
   let productId;
@@ -1585,7 +1586,7 @@ describe('E2E: 商品購入フロー', () => {
   beforeAll(async () => {
     await db.migrate.latest();
     await db.raw('TRUNCATE TABLE users, products, carts, orders, payments CASCADE');
-    // テスト用商品データを投入
+    // Insert test product data
     const products = await seedProducts(db);
     productId = products[0].id;
   });
@@ -1594,7 +1595,7 @@ describe('E2E: 商品購入フロー', () => {
     await db.destroy();
   });
 
-  it('ステップ1: 会員登録', async () => {
+  it('Step 1: Register', async () => {
     const res = await request
       .post('/auth/register')
       .send({
@@ -1608,7 +1609,7 @@ describe('E2E: 商品購入フロー', () => {
     userId = res.body.data.id;
   });
 
-  it('ステップ2: ログイン', async () => {
+  it('Step 2: Login', async () => {
     const res = await request
       .post('/auth/login')
       .send({
@@ -1622,7 +1623,7 @@ describe('E2E: 商品購入フロー', () => {
     accessToken = res.body.accessToken;
   });
 
-  it('ステップ3: 商品一覧取得', async () => {
+  it('Step 3: Get product list', async () => {
     const res = await request
       .get('/api/v1/products?limit=10')
       .set('Authorization', `Bearer ${accessToken}`)
@@ -1633,7 +1634,7 @@ describe('E2E: 商品購入フロー', () => {
     expect(res.body.data[0]).toHaveProperty('price');
   });
 
-  it('ステップ4: 商品をカートに追加', async () => {
+  it('Step 4: Add product to cart', async () => {
     const res = await request
       .post('/api/v1/cart/items')
       .set('Authorization', `Bearer ${accessToken}`)
@@ -1648,7 +1649,7 @@ describe('E2E: 商品購入フロー', () => {
     cartId = res.body.data.id;
   });
 
-  it('ステップ5: カート確認', async () => {
+  it('Step 5: View cart', async () => {
     const res = await request
       .get('/api/v1/cart')
       .set('Authorization', `Bearer ${accessToken}`)
@@ -1658,7 +1659,7 @@ describe('E2E: 商品購入フロー', () => {
     expect(res.body.data.totalAmount).toBeGreaterThan(0);
   });
 
-  it('ステップ6: 注文作成', async () => {
+  it('Step 6: Create order', async () => {
     const res = await request
       .post('/api/v1/orders')
       .set('Authorization', `Bearer ${accessToken}`)
@@ -1666,9 +1667,9 @@ describe('E2E: 商品購入フロー', () => {
         cartId,
         shippingAddress: {
           postalCode: '100-0001',
-          prefecture: '東京都',
-          city: '千代田区',
-          line1: '千代田1-1',
+          prefecture: 'Tokyo',
+          city: 'Chiyoda',
+          line1: 'Chiyoda 1-1',
         },
       })
       .expect(201);
@@ -1678,7 +1679,7 @@ describe('E2E: 商品購入フロー', () => {
     orderId = res.body.data.id;
   });
 
-  it('ステップ7: 決済実行', async () => {
+  it('Step 7: Execute payment', async () => {
     const res = await request
       .post('/api/v1/payments')
       .set('Authorization', `Bearer ${accessToken}`)
@@ -1693,7 +1694,7 @@ describe('E2E: 商品購入フロー', () => {
     expect(res.body.data.orderId).toBe(orderId);
   });
 
-  it('ステップ8: 注文ステータス確認', async () => {
+  it('Step 8: Confirm order status', async () => {
     const res = await request
       .get(`/api/v1/orders/${orderId}`)
       .set('Authorization', `Bearer ${accessToken}`)
@@ -1708,11 +1709,11 @@ describe('E2E: 商品購入フロー', () => {
 
 ---
 
-## 8. OpenAPI仕様ベースのテスト
+## 8. OpenAPI Specification-Based Testing
 
-### 8.1 スキーマ検証テスト
+### 8.1 Schema Validation Tests
 
-OpenAPI（旧Swagger）仕様書を基にしたテストは、APIレスポンスが定義されたスキーマに準拠していることを自動的に検証する。手動でテストケースを書く手間を削減し、仕様と実装の乖離を防ぐ。
+Tests based on the OpenAPI (formerly Swagger) specification automatically verify that API responses conform to the defined schema. This reduces the effort of writing test cases by hand and prevents divergence between the specification and implementation.
 
 ```javascript
 // __tests__/schema/openapi-validation.test.js
@@ -1727,16 +1728,16 @@ import { resolveRefs } from '../helpers/schemaResolver';
 
 const request = supertest(app);
 
-describe('OpenAPI スキーマ検証', () => {
+describe('OpenAPI Schema Validation', () => {
   let spec;
   let ajv;
   let token;
 
   beforeAll(async () => {
-    // OpenAPI仕様を読み込み
+    // Load the OpenAPI specification
     spec = yaml.load(readFileSync('./openapi.yaml', 'utf-8'));
 
-    // JSONスキーマバリデーター設定
+    // Configure JSON schema validator
     ajv = new Ajv({
       allErrors: true,
       strict: false,
@@ -1744,14 +1745,14 @@ describe('OpenAPI スキーマ検証', () => {
     });
     addFormats(ajv);
 
-    // テスト用トークン取得
+    // Get test token
     const loginRes = await request
       .post('/auth/login')
       .send({ email: 'test@example.com', password: 'test123' });
     token = loginRes.body.accessToken;
   });
 
-  // OpenAPIの各パスに対して自動テスト生成
+  // Auto-generate tests for each path in the OpenAPI spec
   const endpoints = [
     { method: 'get', path: '/api/v1/users', status: 200 },
     { method: 'get', path: '/api/v1/users/test_id', status: 200 },
@@ -1759,11 +1760,11 @@ describe('OpenAPI スキーマ検証', () => {
   ];
 
   endpoints.forEach(({ method, path, status }) => {
-    it(`${method.toUpperCase()} ${path} のレスポンスがスキーマに準拠する`, async () => {
+    it(`${method.toUpperCase()} ${path} response conforms to schema`, async () => {
       const res = await requestmethod
         .set('Authorization', `Bearer ${token}`);
 
-      // OpenAPIスキーマを取得
+      // Get OpenAPI schema
       const specPath = path.replace(/\/test_id/, '/{id}')
                            .replace('/api/v1', '');
       const responseSchema = spec.paths[specPath]?.[method]
@@ -1771,16 +1772,16 @@ describe('OpenAPI スキーマ検証', () => {
         ?.content?.['application/json']?.schema;
 
       if (!responseSchema) {
-        throw new Error(`スキーマが見つかりません: ${method.toUpperCase()} ${specPath} ${status}`);
+        throw new Error(`Schema not found: ${method.toUpperCase()} ${specPath} ${status}`);
       }
 
-      // $ref を解決してバリデーション実行
+      // Resolve $ref and run validation
       const resolvedSchema = resolveRefs(responseSchema, spec);
       const validate = ajv.compile(resolvedSchema);
       const valid = validate(res.body);
 
       if (!valid) {
-        console.error('バリデーションエラー:', JSON.stringify(validate.errors, null, 2));
+        console.error('Validation error:', JSON.stringify(validate.errors, null, 2));
       }
 
       expect(valid).toBe(true);
@@ -1789,16 +1790,16 @@ describe('OpenAPI スキーマ検証', () => {
 });
 ```
 
-### 8.2 Schemathesisによるファジングテスト
+### 8.2 Fuzzing Tests with Schemathesis
 
 ```python
 # fuzz-tests/test_api_fuzz.py
-# Schemathesis: OpenAPI仕様ベースの自動ファジングテスト
+# Schemathesis: Automated fuzzing tests based on the OpenAPI specification
 
 import schemathesis
 import pytest
 
-# OpenAPI仕様を読み込み
+# Load the OpenAPI specification
 schema = schemathesis.from_url(
     "https://api-staging.example.com/openapi.yaml",
     base_url="https://api-staging.example.com",
@@ -1807,31 +1808,31 @@ schema = schemathesis.from_url(
 @schema.parametrize()
 def test_api_conformance(case):
     """
-    OpenAPI仕様に基づく自動テスト
-    - 全エンドポイントに対してランダムなリクエストを生成
-    - レスポンスがスキーマに準拠しているかを検証
-    - 5xx エラーが返らないことを確認
+    Automated tests based on the OpenAPI specification
+    - Generates random requests for all endpoints
+    - Verifies that responses conform to the schema
+    - Confirms that no 5xx errors are returned
     """
     response = case.call_and_validate()
 
-    # 5xxエラーは許容しない
+    # 5xx errors are not acceptable
     assert response.status_code < 500, \
-        f"サーバーエラー: {response.status_code} - {response.text}"
+        f"Server error: {response.status_code} - {response.text}"
 
-# 状態遷移を考慮したテスト
+# Test considering state transitions
 @schema.parametrize(method="POST")
 def test_create_operations(case):
-    """POST操作の検証: 作成後に取得できることを確認"""
+    """Verification of POST operations: confirms that a resource can be retrieved after creation"""
     response = case.call_and_validate()
 
     if response.status_code == 201:
-        # Locationヘッダーからリソースを取得
+        # Get the resource from the Location header
         location = response.headers.get("Location")
         if location:
             get_response = case.session.get(location)
             assert get_response.status_code == 200
 
-# CLIでの実行例:
+# CLI execution example:
 # schemathesis run https://api-staging.example.com/openapi.yaml \
 #   --auth "Bearer sk_test_xxx" \
 #   --stateful=links \
@@ -1842,18 +1843,18 @@ def test_create_operations(case):
 
 ---
 
-## 9. テスト環境とモック
+## 9. Test Environments and Mocks
 
-### 9.1 外部サービスのモック（MSW）
+### 9.1 Mocking External Services (MSW)
 
-統合テストやE2Eテストにおいて、外部のサードパーティAPIに実際のリクエストを送ることは避けるべきである。MSW（Mock Service Worker）を使用することで、ネットワークレベルでリクエストをインターセプトし、モックレスポンスを返すことができる。
+In integration tests and E2E tests, sending actual requests to external third-party APIs should be avoided. Using MSW (Mock Service Worker) allows you to intercept requests at the network level and return mock responses.
 
 ```javascript
 // __tests__/mocks/handlers.js
 import { http, HttpResponse } from 'msw';
 
 export const handlers = [
-  // Stripe 決済API のモック
+  // Mock for Stripe Payment API
   http.post('https://api.stripe.com/v1/charges', async ({ request }) => {
     const body = await request.formData();
     const amount = body.get('amount');
@@ -1881,11 +1882,11 @@ export const handlers = [
     });
   }),
 
-  // SendGrid メール送信API のモック
+  // Mock for SendGrid Email Sending API
   http.post('https://api.sendgrid.com/v3/mail/send', async ({ request }) => {
     const body = await request.json();
 
-    // モックの中でも最低限のバリデーション
+    // Minimal validation even in the mock
     if (!body.personalizations?.[0]?.to?.[0]?.email) {
       return HttpResponse.json(
         { errors: [{ message: 'The to array is required' }] },
@@ -1896,21 +1897,21 @@ export const handlers = [
     return new HttpResponse(null, { status: 202 });
   }),
 
-  // 地理情報API のモック
+  // Mock for Geocoding API
   http.get('https://api.geocoding.example.com/v1/search', ({ request }) => {
     const url = new URL(request.url);
     const query = url.searchParams.get('q');
 
     const mockResults = {
-      '東京都千代田区': {
+      'Tokyo, Chiyoda': {
         lat: 35.6812,
         lng: 139.7671,
-        formattedAddress: '日本、〒100-0001 東京都千代田区',
+        formattedAddress: 'Japan, 〒100-0001 Tokyo, Chiyoda',
       },
-      '大阪府大阪市': {
+      'Osaka, Osaka City': {
         lat: 34.6937,
         lng: 135.5023,
-        formattedAddress: '日本、〒530-0001 大阪府大阪市北区',
+        formattedAddress: 'Japan, 〒530-0001 Osaka, Osaka City, Kita Ward',
       },
     };
 
@@ -1931,18 +1932,18 @@ export const mockServer = setupServer(...handlers);
 ```
 
 ```javascript
-// __tests__/setup.js （Vitest のグローバルセットアップ）
+// __tests__/setup.js (Vitest global setup)
 import { beforeAll, afterAll, afterEach } from 'vitest';
 import { mockServer } from './mocks/server';
 
 beforeAll(() => {
   mockServer.listen({
-    onUnhandledRequest: 'warn', // モック外のリクエストを警告
+    onUnhandledRequest: 'warn', // Warn on requests outside the mock
   });
 });
 
 afterEach(() => {
-  mockServer.resetHandlers(); // テスト間でハンドラーをリセット
+  mockServer.resetHandlers(); // Reset handlers between tests
 });
 
 afterAll(() => {
@@ -1950,31 +1951,31 @@ afterAll(() => {
 });
 ```
 
-### 9.2 テスト用データベース戦略
+### 9.2 Test Database Strategies
 
 ```
-テスト用データベース戦略の比較
+Comparison of Test Database Strategies
 
 +-------------------+----------------+----------------+------------------+
-| 戦略              | 速度           | 分離性         | 本番との近さ     |
+| Strategy          | Speed          | Isolation      | Proximity to Prod|
 +-------------------+----------------+----------------+------------------+
-| SQLite in-memory  | 非常に高速     | 完全分離       | 低い             |
-|                   | (ms単位)       | (プロセスごと) | (SQL方言の差)    |
+| SQLite in-memory  | Very fast      | Fully isolated | Low              |
+|                   | (ms-level)     | (per process)  | (SQL dialect diff)|
 +-------------------+----------------+----------------+------------------+
-| Docker PostgreSQL | 中程度         | 完全分離       | 高い             |
-|                   | (秒単位)       | (コンテナごと) | (同一エンジン)   |
+| Docker PostgreSQL | Moderate       | Fully isolated | High             |
+|                   | (second-level) | (per container)| (same engine)    |
 +-------------------+----------------+----------------+------------------+
-| テスト用スキーマ  | 高速           | スキーマ分離   | 高い             |
-|                   | (ms〜秒)       | (同一DB内)     | (同一エンジン)   |
+| Test schema       | Fast           | Schema-level   | High             |
+|                   | (ms to s)      | (same DB)      | (same engine)    |
 +-------------------+----------------+----------------+------------------+
-| トランザクション  | 非常に高速     | テスト単位     | 高い             |
-| ロールバック       | (ms単位)       | (ロールバック) | (同一エンジン)   |
+| Transaction       | Very fast      | Per-test       | High             |
+| rollback          | (ms-level)     | (rollback)     | (same engine)    |
 +-------------------+----------------+----------------+------------------+
 ```
 
 ```javascript
 // __tests__/setup/testDb.js
-// トランザクションロールバック戦略の実装例
+// Example implementation of the transaction rollback strategy
 
 import { beforeEach, afterEach } from 'vitest';
 import { db } from '../../src/db';
@@ -1983,15 +1984,15 @@ let transaction;
 
 export function useTransactionalTests() {
   beforeEach(async () => {
-    // 各テストをトランザクション内で実行
+    // Run each test inside a transaction
     transaction = await db.transaction();
-    // アプリケーションのDBインスタンスをトランザクションに差し替え
+    // Replace the application's DB instance with the transaction
     db._originalKnex = db.client;
     db.client = transaction;
   });
 
   afterEach(async () => {
-    // テスト終了後にロールバック（データを元に戻す）
+    // Rollback after test ends (restore data to original state)
     await transaction.rollback();
     db.client = db._originalKnex;
   });
@@ -2000,18 +2001,18 @@ export function useTransactionalTests() {
 
 ---
 
-## 10. CI/CDパイプラインへの統合
+## 10. Integration into CI/CD Pipelines
 
-### 10.1 テスト実行の自動化フロー
+### 10.1 Automated Test Execution Flow
 
 ```
-CI/CDパイプライン上のテスト実行フロー
+Test Execution Flow in the CI/CD Pipeline
 
-  コード変更をプッシュ
+  Push code change
          |
          v
   +----------------------------------------------+
-  |  Stage 1: 静的解析 (並列実行, 約1分)          |
+  |  Stage 1: Static analysis (parallel, ~1 min)  |
   |  +----------+ +----------+ +----------+      |
   |  | ESLint   | | TypeCheck| | Prettier |      |
   |  +----------+ +----------+ +----------+      |
@@ -2019,52 +2020,52 @@ CI/CDパイプライン上のテスト実行フロー
          |
          v
   +----------------------------------------------+
-  |  Stage 2: ユニットテスト (並列実行, 約2分)    |
+  |  Stage 2: Unit tests (parallel, ~2 min)       |
   |  +------------------+ +-------------------+  |
-  |  | バリデーション   | | ビジネスロジック  |  |
-  |  | テスト (500+)    | | テスト (300+)     |  |
-  |  +------------------+ +-------------------+  |
-  +----------------------------------------------+
-         |
-         v
-  +----------------------------------------------+
-  |  Stage 3: 統合テスト (Docker環境, 約5分)      |
-  |  +------------------+ +-------------------+  |
-  |  | APIエンドポイント| | DB統合テスト      |  |
-  |  | テスト (200+)    | | (100+)            |  |
+  |  | Validation       | | Business logic    |  |
+  |  | tests (500+)     | | tests (300+)      |  |
   |  +------------------+ +-------------------+  |
   +----------------------------------------------+
          |
          v
   +----------------------------------------------+
-  |  Stage 4: コントラクトテスト (約3分)          |
+  |  Stage 3: Integration tests (Docker, ~5 min)  |
   |  +------------------+ +-------------------+  |
-  |  | Consumer検証     | | can-i-deploy      |  |
-  |  +------------------+ | チェック           |  |
-  |                       +-------------------+  |
+  |  | API endpoint     | | DB integration    |  |
+  |  | tests (200+)     | | tests (100+)      |  |
+  |  +------------------+ +-------------------+  |
   +----------------------------------------------+
          |
          v
   +----------------------------------------------+
-  |  Stage 5: E2Eテスト (ステージング環境, 約10分)|
+  |  Stage 4: Contract tests (~3 min)             |
+  |  +------------------+ +-------------------+  |
+  |  | Consumer         | | can-i-deploy      |  |
+  |  | verification     | | check             |  |
+  |  +------------------+ +-------------------+  |
+  +----------------------------------------------+
+         |
+         v
+  +----------------------------------------------+
+  |  Stage 5: E2E tests (staging env, ~10 min)    |
   |  +---------------------+                     |
-  |  | シナリオテスト (20+) |                     |
+  |  | Scenario tests (20+)|                     |
   |  +---------------------+                     |
   +----------------------------------------------+
          |
          v
   +----------------------------------------------+
-  |  Stage 6: 負荷テスト (夜間バッチ/手動, 約30分)|
+  |  Stage 6: Load tests (nightly/manual, ~30 min)|
   |  +---------------------+                     |
   |  | k6 / Artillery      |                     |
   |  +---------------------+                     |
   +----------------------------------------------+
          |
          v
-  デプロイ (全テストパス時のみ)
+  Deploy (only when all tests pass)
 ```
 
-### 10.2 GitHub Actions 設定例
+### 10.2 GitHub Actions Configuration Example
 
 ```yaml
 # .github/workflows/api-tests.yml
@@ -2076,10 +2077,10 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: '0 2 * * *'  # 毎日深夜2時に負荷テスト実行
+    - cron: '0 2 * * *'  # Run load tests nightly at 2 AM
 
 jobs:
-  # ===== ユニットテスト =====
+  # ===== Unit tests =====
   unit-tests:
     runs-on: ubuntu-latest
     steps:
@@ -2098,7 +2099,7 @@ jobs:
           name: unit-test-results
           path: ./reports/
 
-  # ===== 統合テスト =====
+  # ===== Integration tests =====
   integration-tests:
     runs-on: ubuntu-latest
     needs: unit-tests
@@ -2135,7 +2136,7 @@ jobs:
           DATABASE_URL: postgres://test:test@localhost:5432/testdb
           REDIS_URL: redis://localhost:6379
 
-  # ===== コントラクトテスト =====
+  # ===== Contract tests =====
   contract-tests:
     runs-on: ubuntu-latest
     needs: integration-tests
@@ -2153,7 +2154,7 @@ jobs:
           GIT_COMMIT_SHA: ${{ github.sha }}
           GIT_BRANCH: ${{ github.ref_name }}
 
-  # ===== 負荷テスト（スケジュール実行時のみ）=====
+  # ===== Load tests (scheduled runs only) =====
   load-tests:
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule'
@@ -2170,28 +2171,28 @@ jobs:
 
 ---
 
-## 11. アンチパターンと対策
+## 11. Anti-Patterns and Remedies
 
-### 11.1 アンチパターン1: テスト間の暗黙的な依存関係
+### 11.1 Anti-Pattern 1: Implicit Dependencies Between Tests
 
-テストが他のテストの副作用に依存している場合、テスト実行順序が変わると予期しない失敗が起きる。これは最も多いflakyテストの原因の一つである。
+When a test depends on side effects from another test, unexpected failures occur when the test execution order changes. This is one of the most common causes of flaky tests.
 
-**問題のあるコード:**
+**Problematic code:**
 
 ```javascript
-// アンチパターン: テストAで作成したデータにテストBが依存
+// Anti-pattern: test B depends on data created by test A
 describe('Orders API', () => {
-  // テストA: ユーザーを作成（副作用がDBに残る）
+  // Test A: creates a user (side effect remains in DB)
   it('should create a user', async () => {
     await request.post('/api/v1/users')
       .send({ name: 'SharedUser', email: 'shared@example.com' })
       .expect(201);
   });
 
-  // テストB: テストAで作成されたユーザーに依存（危険）
+  // Test B: depends on the user created by test A (dangerous)
   it('should create an order for the user', async () => {
     const users = await request.get('/api/v1/users?filter[email]=shared@example.com');
-    const userId = users.body.data[0].id; // テストAが先に実行されていないとundefined
+    const userId = users.body.data[0].id; // undefined if test A didn't run first
 
     await request.post('/api/v1/orders')
       .send({ userId, items: [{ productId: 'p1', quantity: 1 }] })
@@ -2200,15 +2201,15 @@ describe('Orders API', () => {
 });
 ```
 
-**改善されたコード:**
+**Improved code:**
 
 ```javascript
-// 正しいパターン: 各テストが独立してデータを準備
+// Correct pattern: each test prepares its own data independently
 describe('Orders API', () => {
   let testUser;
 
   beforeEach(async () => {
-    // 各テスト前にクリーンな状態を構築
+    // Build a clean state before each test
     await db.raw('TRUNCATE TABLE users, orders CASCADE');
     testUser = await UserFactory.create({
       name: 'Test User',
@@ -2230,31 +2231,31 @@ describe('Orders API', () => {
 });
 ```
 
-### 11.2 アンチパターン2: タイムアウトに依存したテスト
+### 11.2 Anti-Pattern 2: Tests That Depend on Timeouts
 
-非同期処理のテストで `setTimeout` や固定待機時間に依存すると、環境によってテストが不安定になる。
+Depending on `setTimeout` or a fixed wait time in asynchronous tests makes tests unstable across environments.
 
-**問題のあるコード:**
+**Problematic code:**
 
 ```javascript
-// アンチパターン: 固定のsleepで非同期処理の完了を待つ
+// Anti-pattern: using a fixed sleep to wait for async processing to complete
 it('should send a notification after order creation', async () => {
   await request.post('/api/v1/orders')
     .send({ userId: 'u1', items: [{ productId: 'p1', quantity: 1 }] })
     .expect(201);
 
-  // 2秒待てば通知が送られるだろう... という希望的観測
+  // Wishful thinking: the notification will have been sent after 2 seconds...
   await new Promise(resolve => setTimeout(resolve, 2000));
 
   const notifications = await db('notifications').where({ userId: 'u1' });
-  expect(notifications).toHaveLength(1); // CI環境では失敗する可能性が高い
+  expect(notifications).toHaveLength(1); // Likely to fail in CI environments
 });
 ```
 
-**改善されたコード:**
+**Improved code:**
 
 ```javascript
-// 正しいパターン: ポーリングまたはイベント駆動で完了を待つ
+// Correct pattern: wait for completion using polling or event-driven approach
 import { waitFor } from '../helpers/async';
 
 it('should send a notification after order creation', async () => {
@@ -2262,11 +2263,11 @@ it('should send a notification after order creation', async () => {
     .send({ userId: 'u1', items: [{ productId: 'p1', quantity: 1 }] })
     .expect(201);
 
-  // ポーリングで条件が満たされるまで待機（最大5秒、100msごとにチェック）
+  // Poll until the condition is met (max 5 seconds, check every 100ms)
   const notifications = await waitFor(
     async () => {
       const rows = await db('notifications').where({ userId: 'u1' });
-      if (rows.length === 0) throw new Error('通知がまだ作成されていない');
+      if (rows.length === 0) throw new Error('Notification has not been created yet');
       return rows;
     },
     { timeout: 5000, interval: 100 }
@@ -2286,27 +2287,27 @@ export async function waitFor(fn, { timeout = 5000, interval = 100 } = {}) {
       await new Promise(resolve => setTimeout(resolve, interval));
     }
   }
-  throw new Error(`waitFor: ${timeout}ms 以内に条件が満たされませんでした`);
+  throw new Error(`waitFor: condition was not met within ${timeout}ms`);
 }
 ```
 
-### 11.3 アンチパターン3: 本番データを使ったテスト
+### 11.3 Anti-Pattern 3: Testing with Production Data
 
-テスト環境で本番データのコピーを使用することは、プライバシーリスクとテストの再現性の両面で問題がある。テスト用のシードデータを明示的に管理することが推奨される。
+Using a copy of production data in a test environment poses problems both in terms of privacy risk and test reproducibility. It is recommended to explicitly manage test seed data.
 
 ---
 
-## 12. エッジケース分析
+## 12. Edge Case Analysis
 
-### 12.1 同時リクエストによる競合状態
+### 12.1 Race Conditions from Concurrent Requests
 
-複数のクライアントが同時に同じリソースを操作する場合の振る舞いをテストする。
+Test the behavior when multiple clients operate on the same resource simultaneously.
 
 ```javascript
 // __tests__/edge-cases/concurrency.test.js
-describe('同時リクエストの競合処理', () => {
-  it('同じ商品への同時在庫引当で一方が失敗すること', async () => {
-    // 在庫1個の商品を準備
+describe('Race condition handling for concurrent requests', () => {
+  it('one of two concurrent stock reservations for the same item should fail', async () => {
+    // Prepare a product with 1 unit of stock
     await db('products').insert({
       id: 'prod_limited',
       name: 'Limited Item',
@@ -2314,7 +2315,7 @@ describe('同時リクエストの競合処理', () => {
       price: 5000,
     });
 
-    // 2つのリクエストを同時に送信
+    // Send two requests simultaneously
     const [res1, res2] = await Promise.all([
       request.post('/api/v1/orders')
         .set('Authorization', `Bearer ${token1}`)
@@ -2324,19 +2325,19 @@ describe('同時リクエストの競合処理', () => {
         .send({ items: [{ productId: 'prod_limited', quantity: 1 }] }),
     ]);
 
-    // 一方が201、もう一方が409（在庫不足）であることを検証
+    // Verify that one returns 201 and the other returns 409 (insufficient stock)
     const statuses = [res1.status, res2.status].sort();
     expect(statuses).toEqual([201, 409]);
 
-    // 在庫が負にならないことを検証
+    // Verify that stock does not go negative
     const product = await db('products').where({ id: 'prod_limited' }).first();
     expect(product.stock).toBe(0);
   });
 
-  it('楽観的ロック違反で適切なエラーが返ること', async () => {
+  it('optimistic lock violation should return an appropriate error', async () => {
     const user = await UserFactory.create({ name: 'Original' });
 
-    // 同時に2つの更新リクエスト
+    // Two concurrent update requests
     const [res1, res2] = await Promise.all([
       request.put(`/api/v1/users/${user.id}`)
         .set('Authorization', `Bearer ${authToken}`)
@@ -2354,16 +2355,16 @@ describe('同時リクエストの競合処理', () => {
 });
 ```
 
-### 12.2 巨大ペイロードとレート制限
+### 12.2 Large Payloads and Rate Limiting
 
 ```javascript
 // __tests__/edge-cases/limits.test.js
-describe('ペイロードサイズとレート制限', () => {
-  it('1MBを超えるリクエストボディで413を返すこと', async () => {
+describe('Payload size and rate limiting', () => {
+  it('returns 413 for a request body exceeding 1MB', async () => {
     const largePayload = {
       name: 'Test User',
       email: 'test@example.com',
-      bio: 'x'.repeat(1024 * 1024 + 1), // 1MB超
+      bio: 'x'.repeat(1024 * 1024 + 1), // Over 1MB
     };
 
     const res = await request
@@ -2375,8 +2376,8 @@ describe('ペイロードサイズとレート制限', () => {
     expect(res.body.error.code).toBe('PAYLOAD_TOO_LARGE');
   });
 
-  it('レート制限を超過すると429を返すこと', async () => {
-    // レート制限が100req/分と仮定
+  it('returns 429 when the rate limit is exceeded', async () => {
+    // Assuming a rate limit of 100 req/min
     const requests = Array.from({ length: 110 }, () =>
       request.get('/api/v1/users')
         .set('Authorization', `Bearer ${authToken}`)
@@ -2387,17 +2388,17 @@ describe('ペイロードサイズとレート制限', () => {
     const tooManyRequests = responses.filter(r => r.status === 429);
     expect(tooManyRequests.length).toBeGreaterThan(0);
 
-    // 429レスポンスにRetry-Afterヘッダーが含まれること
+    // The 429 response should include a Retry-After header
     const rateLimitedRes = tooManyRequests[0];
     expect(rateLimitedRes.headers['retry-after']).toBeDefined();
     expect(rateLimitedRes.body.error.code).toBe('RATE_LIMIT_EXCEEDED');
   });
 
-  it('Unicode特殊文字を含むリクエストが正しく処理されること', async () => {
+  it('correctly processes requests containing Unicode special characters', async () => {
     const unicodePayload = {
-      name: '日本語テスト emoji混在',
+      name: 'Japanese test with emoji mixed in',
       email: 'unicode@example.com',
-      bio: '改行\nタブ\t特殊文字<script>alert("xss")</script>',
+      bio: 'Newline\nTab\tSpecial chars<script>alert("xss")</script>',
     };
 
     const res = await request
@@ -2406,12 +2407,12 @@ describe('ペイロードサイズとレート制限', () => {
       .send(unicodePayload)
       .expect(201);
 
-    expect(res.body.data.name).toBe('日本語テスト emoji混在');
-    // XSSスクリプトがエスケープまたは除去されていること
+    expect(res.body.data.name).toBe('Japanese test with emoji mixed in');
+    // XSS script should be escaped or removed
     expect(res.body.data.bio).not.toContain('<script>');
   });
 
-  it('空配列やnull値のフィールドが正しく処理されること', async () => {
+  it('correctly processes fields with empty arrays and null values', async () => {
     const edgeCasePayload = {
       name: 'Edge Case User',
       email: 'edge@example.com',
@@ -2434,68 +2435,68 @@ describe('ペイロードサイズとレート制限', () => {
 
 ---
 
-## 13. テストツール比較表
+## 13. Test Tool Comparison Tables
 
-### 13.1 テストフレームワーク比較
+### 13.1 Test Framework Comparison
 
-| 特性 | Vitest | Jest | Mocha + Chai | Playwright Test |
+| Characteristic | Vitest | Jest | Mocha + Chai | Playwright Test |
 |------|--------|------|-------------|----------------|
-| 実行速度 | 非常に高速 | 高速 | 中程度 | 中程度 |
-| TypeScript対応 | ネイティブ | 変換必要 | 変換必要 | ネイティブ |
-| ESM対応 | ネイティブ | 実験的 | 対応 | ネイティブ |
-| ウォッチモード | HMR統合 | 標準搭載 | 別途導入 | 標準搭載 |
-| スナップショット | 対応 | 対応 | 別途導入 | 対応 |
-| カバレッジ | v8/istanbul | istanbul | 別途導入 | 標準搭載 |
-| 並列実行 | スレッドベース | ワーカーベース | 逐次 | ワーカーベース |
-| モック | vi.mock | jest.mock | sinon | 標準搭載 |
-| 設定の簡潔さ | 非常に簡潔 | 中程度 | 柔軟だが冗長 | 簡潔 |
-| Vite統合 | 完全統合 | なし | なし | なし |
-| コミュニティ | 急成長中 | 最大規模 | 成熟 | 急成長中 |
+| Execution speed | Very fast | Fast | Moderate | Moderate |
+| TypeScript support | Native | Requires transform | Requires transform | Native |
+| ESM support | Native | Experimental | Supported | Native |
+| Watch mode | HMR-integrated | Built-in | Requires add-on | Built-in |
+| Snapshot | Supported | Supported | Requires add-on | Supported |
+| Coverage | v8/istanbul | istanbul | Requires add-on | Built-in |
+| Parallel execution | Thread-based | Worker-based | Sequential | Worker-based |
+| Mocking | vi.mock | jest.mock | sinon | Built-in |
+| Config simplicity | Very simple | Moderate | Flexible but verbose | Simple |
+| Vite integration | Full integration | None | None | None |
+| Community | Rapidly growing | Largest | Mature | Rapidly growing |
 
-### 13.2 負荷テストツール比較
+### 13.2 Load Test Tool Comparison
 
-| 特性 | k6 | Artillery | Locust | Gatling | JMeter |
+| Characteristic | k6 | Artillery | Locust | Gatling | JMeter |
 |------|-----|-----------|--------|---------|--------|
-| 記述言語 | JavaScript | YAML/JS | Python | Scala/Java | GUI/XML |
-| 学習曲線 | 低い | 非常に低い | 低い | 中程度 | 高い |
-| リソース効率 | 非常に高い | 中程度 | 中程度 | 高い | 低い |
-| 分散実行 | k6 Cloud | Artillery Cloud | 標準対応 | 標準対応 | 要設定 |
-| CI/CD統合 | 容易 | 容易 | 中程度 | 中程度 | 困難 |
-| プロトコル | HTTP/WS/gRPC | HTTP/WS/Socket.io | HTTP/WS | HTTP/WS | 多数 |
-| リアルタイム監視 | Grafana連携 | 標準ダッシュボード | Web UI | 標準レポート | リスナー |
-| スクリプト柔軟性 | 高い | 中程度 | 高い | 高い | 低い |
-| OSS/商用 | OSS (Cloud有料) | OSS (Cloud有料) | 完全OSS | OSS (Enterprise有) | 完全OSS |
-| 推奨用途 | 汎用 | 小〜中規模 | 大規模分散 | 大規模 | レガシー |
+| Scripting language | JavaScript | YAML/JS | Python | Scala/Java | GUI/XML |
+| Learning curve | Low | Very low | Low | Moderate | High |
+| Resource efficiency | Very high | Moderate | Moderate | High | Low |
+| Distributed execution | k6 Cloud | Artillery Cloud | Built-in | Built-in | Requires config |
+| CI/CD integration | Easy | Easy | Moderate | Moderate | Difficult |
+| Protocols | HTTP/WS/gRPC | HTTP/WS/Socket.io | HTTP/WS | HTTP/WS | Many |
+| Real-time monitoring | Grafana integration | Built-in dashboard | Web UI | Built-in reports | Listeners |
+| Script flexibility | High | Moderate | High | High | Low |
+| OSS/Commercial | OSS (Cloud paid) | OSS (Cloud paid) | Fully OSS | OSS (Enterprise available) | Fully OSS |
+| Recommended use | General purpose | Small–medium scale | Large distributed | Large scale | Legacy |
 
 ---
 
-## 14. 演習問題
+## 14. Exercises
 
-### 14.1 演習1: 基礎レベル（ユニットテスト）
+### 14.1 Exercise 1: Basic Level (Unit Tests)
 
-**課題:** 以下の `OrderService` クラスに対するユニットテストを作成せよ。正常系3ケース、異常系3ケース、境界値2ケースを含むこと。
+**Task:** Create unit tests for the following `OrderService` class. Include at least 3 happy-path cases, 3 error cases, and 2 boundary-value cases.
 
 ```javascript
 // src/services/orderService.js
 export class OrderService {
   static calculateShippingCost(totalAmount, prefecture, isExpress) {
-    // 基本送料
+    // Base shipping cost
     let baseCost = 600;
 
-    // 離島加算
-    const remoteAreas = ['沖縄県', '北海道'];
+    // Remote area surcharge
+    const remoteAreas = ['Okinawa', 'Hokkaido'];
     if (remoteAreas.includes(prefecture)) {
       baseCost += 500;
     }
 
-    // 速達加算
+    // Express surcharge
     if (isExpress) {
       baseCost += 400;
     }
 
-    // 一定金額以上で送料無料
+    // Free shipping above a certain amount
     if (totalAmount >= 5000) {
-      return { cost: 0, freeShipping: true, reason: '5,000円以上で送料無料' };
+      return { cost: 0, freeShipping: true, reason: 'Free shipping on orders over 5,000 yen' };
     }
 
     return { cost: baseCost, freeShipping: false, reason: null };
@@ -2503,225 +2504,225 @@ export class OrderService {
 }
 ```
 
-**期待する解答の方向性:**
+**Expected direction of the answer:**
 
-- 通常の都道府県でisExpress=falseの基本料金（600円）
-- 北海道の加算（1,100円）
-- 速達の加算（1,000円）
-- 5,000円以上の送料無料
-- 4,999円（境界値ぎりぎり送料あり）と5,000円（送料無料）
-- 離島 + 速達の組み合わせ（1,500円）
-- 負の金額やundefinedの入力に対する堅牢性
+- Basic fee with isExpress=false for a standard prefecture (600 yen)
+- Hokkaido surcharge (1,100 yen)
+- Express surcharge (1,000 yen)
+- Free shipping at 5,000 yen or more
+- 4,999 yen (just below boundary, shipping charged) and 5,000 yen (free shipping)
+- Remote area + express combination (1,500 yen)
+- Robustness against negative amounts or undefined input
 
-### 14.2 演習2: 中級レベル（統合テスト + モック）
+### 14.2 Exercise 2: Intermediate Level (Integration Tests + Mocks)
 
-**課題:** 以下の条件を満たす統合テストスイートを作成せよ。
+**Task:** Create an integration test suite that satisfies the following conditions.
 
-1. `POST /api/v1/orders` エンドポイントのテスト
-2. 注文作成時にStripe APIが呼ばれることをMSWでモック
-3. 在庫不足の場合のエラーハンドリング
-4. トランザクションのロールバック（決済失敗時に注文が保存されないこと）
+1. Tests for the `POST /api/v1/orders` endpoint
+2. Mock the Stripe API call during order creation using MSW
+3. Error handling when stock is insufficient
+4. Transaction rollback (order is not saved when payment fails)
 
-**ヒント:**
+**Hint:**
 
 ```javascript
-// テスト構成の骨子
-describe('POST /api/v1/orders - 統合テスト', () => {
-  // MSWで Stripe API をモック
-  // beforeEach で商品・ユーザーデータを準備
-  // afterEach でデータをクリーンアップ
+// Test structure skeleton
+describe('POST /api/v1/orders - Integration Tests', () => {
+  // Mock Stripe API with MSW
+  // Prepare product and user data in beforeEach
+  // Clean up data in afterEach
 
-  it('正常な注文フロー: 作成 -> 決済 -> 在庫更新', async () => {
-    // 1. 注文作成リクエスト送信
-    // 2. レスポンスの検証（201, 注文ID, ステータス）
-    // 3. DBの注文レコード検証
-    // 4. 在庫が減少していることを検証
+  it('normal order flow: create → payment → stock update', async () => {
+    // 1. Send order creation request
+    // 2. Verify response (201, order ID, status)
+    // 3. Verify order record in DB
+    // 4. Verify that stock has decreased
   });
 
-  it('決済失敗時: 注文がロールバックされること', async () => {
-    // 1. Stripeモックをエラーレスポンスに変更
-    // 2. 注文作成リクエスト送信
-    // 3. レスポンスの検証（402 Payment Required）
-    // 4. DBに注文レコードが存在しないこと
-    // 5. 在庫が変わっていないこと
+  it('payment failure: order should be rolled back', async () => {
+    // 1. Change Stripe mock to error response
+    // 2. Send order creation request
+    // 3. Verify response (402 Payment Required)
+    // 4. Verify that no order record exists in DB
+    // 5. Verify that stock has not changed
   });
 });
 ```
 
-### 14.3 演習3: 上級レベル（負荷テスト + パフォーマンス分析）
+### 14.3 Exercise 3: Advanced Level (Load Tests + Performance Analysis)
 
-**課題:** k6を使って以下の要件を満たす負荷テストシナリオを設計・実装せよ。
+**Task:** Design and implement a load test scenario using k6 that satisfies the following requirements.
 
-1. **ロードテスト**: 同時50ユーザーで5分間、p95 < 500msを検証
-2. **スパイクテスト**: 10->200->10ユーザーの急激な変動、エラー率 < 5%を検証
-3. **ソークテスト**: 同時20ユーザーで1時間、メモリ使用量の増加傾向を観察
-4. カスタムメトリクスでエンドポイントごとのレイテンシを計測
-5. テスト結果をJSONで出力し、しきい値違反を検出
+1. **Load test**: 50 concurrent users for 5 minutes, verify p95 < 500ms
+2. **Spike test**: Sudden variation from 10→200→10 users, verify error rate < 5%
+3. **Soak test**: 20 concurrent users for 1 hour, observe trends in memory usage
+4. Measure per-endpoint latency using custom metrics
+5. Output test results as JSON and detect threshold violations
 
-**評価基準:**
+**Evaluation criteria:**
 
-- シナリオ設計の適切さ（段階的なVU変化）
-- 閾値の設定（p50, p95, p99, エラー率）
-- カスタムメトリクスの活用
-- テスト結果の可視化とレポート
-
----
-
-## 15. テスト戦略チェックリスト
-
-```
-APIテスト品質チェックリスト
-
-[ユニットテスト]
-  [ ] バリデーションロジックの全パスがテストされている
-  [ ] ビジネスルールの境界値が網羅されている
-  [ ] エラーケースが適切にテストされている
-  [ ] 依存関係がモック/スタブで分離されている
-  [ ] テストカバレッジが80%以上である
-
-[統合テスト]
-  [ ] 全CRUDエンドポイントがテストされている
-  [ ] 認証・認可のフローが検証されている
-  [ ] ページネーション・フィルタリングがテストされている
-  [ ] エラーレスポンスの形式が仕様に準拠している
-  [ ] テストデータが各テストで独立に管理されている
-  [ ] 冪等性（同じリクエスト2回で同じ結果）が検証されている
-
-[コントラクトテスト]
-  [ ] Consumer-Provider間の契約が定義されている
-  [ ] Pact Brokerで契約が管理されている
-  [ ] can-i-deployでデプロイ前チェックが実施されている
-  [ ] Provider Stateが適切に設定されている
-
-[E2Eテスト]
-  [ ] 主要ユーザーシナリオ（3-5個）がテストされている
-  [ ] テスト環境が本番と同等に構成されている
-  [ ] 外部サービスが適切にモックされている
-
-[負荷テスト]
-  [ ] 性能目標（SLA/SLO）が明確に定義されている
-  [ ] ロードテストの閾値が設定されている
-  [ ] スパイクテストで障害耐性が検証されている
-  [ ] 定期的な負荷テスト実行がCIに組み込まれている
-
-[テスト運用]
-  [ ] flakyテストの検出と修正プロセスがある
-  [ ] テスト実行時間が許容範囲内である
-  [ ] テストレポートが自動生成されている
-  [ ] テストカバレッジの推移が追跡されている
-```
+- Appropriateness of scenario design (gradual VU changes)
+- Threshold settings (p50, p95, p99, error rate)
+- Use of custom metrics
+- Visualization of test results and reporting
 
 ---
 
-## 16. よくある質問（FAQ）
+## 15. Test Strategy Checklist
 
-### Q1: 統合テストとE2Eテストの境界はどこにあるのか
+```
+API Test Quality Checklist
 
-**A:** 統合テストは単一のAPIエンドポイント（または密接に関連する少数のエンドポイント）の動作を検証し、外部サービスはモックする。E2Eテストは複数のAPI/サービスを横断するユーザーシナリオを検証し、可能な限り実環境に近い構成で実行する。
+[Unit Tests]
+  [ ] All code paths in validation logic are tested
+  [ ] Boundary values of business rules are covered
+  [ ] Error cases are appropriately tested
+  [ ] Dependencies are isolated with mocks/stubs
+  [ ] Test coverage is 80% or higher
 
-具体的には、`POST /users` 単体の入力バリデーションやDB保存は統合テストであり、「ユーザー登録 -> ログイン -> プロフィール更新 -> メール確認」のような一連のフローはE2Eテストに分類される。判断に迷った場合は、テストが失敗したときに「どのコンポーネントが壊れたか」を特定できるかどうかが基準となる。特定できるならば統合テスト、特定が困難ならばE2Eテストである。
+[Integration Tests]
+  [ ] All CRUD endpoints are tested
+  [ ] Authentication and authorization flows are verified
+  [ ] Pagination and filtering are tested
+  [ ] Error response format conforms to specification
+  [ ] Test data is managed independently in each test
+  [ ] Idempotency (same request twice yields same result) is verified
 
-### Q2: テストカバレッジは何%を目指すべきか
+[Contract Tests]
+  [ ] Consumer-Provider contracts are defined
+  [ ] Contracts are managed in Pact Broker
+  [ ] can-i-deploy pre-deployment check is performed
+  [ ] Provider States are set up appropriately
 
-**A:** 一律に数値目標を設定するのは危険だが、一般的なガイドラインとして以下の目標が参考になる。
+[E2E Tests]
+  [ ] Key user scenarios (3-5) are tested
+  [ ] Test environment is configured equivalent to production
+  [ ] External services are appropriately mocked
 
-- **ユニットテスト**: ビジネスロジック層のステートメントカバレッジ80%以上
-- **統合テスト**: 全エンドポイントの正常系 + 主要な異常系（認証エラー、バリデーションエラー）がカバーされていること
-- **コントラクトテスト**: Consumer-Provider間の全インタラクションがカバーされていること
+[Load Tests]
+  [ ] Performance goals (SLA/SLO) are clearly defined
+  [ ] Load test thresholds are configured
+  [ ] Spike test verifies fault tolerance
+  [ ] Regular load test execution is incorporated into CI
 
-カバレッジ数値よりも重要なのは「テストが実際にバグを検出できるか」という観点である。分岐カバレッジ（branch coverage）を重視し、特にエッジケースや境界値のテストが不足していないかを定期的にレビューすることが望ましい。なお、生成されたコードやボイラープレート（設定ファイルなど）にまでカバレッジを求める必要はない。
+[Test Operations]
+  [ ] A process for detecting and fixing flaky tests exists
+  [ ] Test execution time is within an acceptable range
+  [ ] Test reports are automatically generated
+  [ ] Trends in test coverage are tracked
+```
 
-### Q3: flakyテスト（不安定なテスト）をどのように管理すべきか
+---
 
-**A:** flakyテストはCI/CDの信頼性を著しく低下させるため、発見次第すぐに対処することが重要である。管理手法は以下の通り。
+## 16. Frequently Asked Questions (FAQ)
 
-1. **検出**: テスト実行結果を記録し、同一テストの成功/失敗のばらつきを可視化する。多くのCIツールにはflaky test検出機能が備わっている。
-2. **隔離**: 発見されたflakyテストには `@flaky` タグを付与し、メインのテストスイートから一時的に隔離する。隔離中のテストは別のジョブとして実行し、メインパイプラインをブロックしないようにする。
-3. **根本原因分析**: 主な原因は (a) テスト間のデータ共有、(b) 時刻依存、(c) ネットワーク遅延、(d) 非同期処理のタイミング問題である。
-4. **修正**: 根本原因を特定したら速やかに修正する。1週間以上flakyのまま放置されたテストは削除を検討する。
-5. **予防**: コードレビューで新しいテストにflaky要素がないか確認する。固定シードの使用、時刻のモック、ポーリングによる非同期待機などの手法を徹底する。
+### Q1: Where is the boundary between integration tests and E2E tests?
 
-### Q4: マイクロサービス間のテストで最も効果的なアプローチは何か
+**A:** Integration tests verify the behavior of a single API endpoint (or a small number of closely related endpoints), with external services mocked. E2E tests verify user scenarios that span multiple APIs/services and are run in a configuration as close to a real environment as possible.
 
-**A:** マイクロサービス環境では、コントラクトテスト（Pact等）が最も費用対効果の高いアプローチである。各サービスのE2Eテストを全サービスの結合状態で実行しようとすると、環境構築・メンテナンスコストが爆発的に増加する。
+Specifically, input validation and DB saving for `POST /users` alone is an integration test, while a series of flows like "user registration → login → profile update → email confirmation" is classified as an E2E test. When in doubt, the criterion is whether you can identify "which component broke" when the test fails. If you can, it is an integration test; if it is difficult, it is an E2E test.
 
-推奨される戦略は次の通りである。
+### Q2: What coverage percentage should I aim for?
 
-1. 各サービス内のユニットテスト・統合テストを充実させる
-2. サービス間のインターフェースをコントラクトテストで保護する
-3. E2Eテストは主要なビジネスフロー（3-5シナリオ）に限定する
-4. Pact BrokerのWebhookを活用し、コントラクト変更時にProviderの検証を自動起動する
+**A:** Setting a uniform numerical target is dangerous, but the following goals serve as a general guideline.
 
-### Q5: APIテストにおけるテストデータ戦略のベストプラクティスは何か
+- **Unit tests**: Statement coverage of 80% or more for the business logic layer
+- **Integration tests**: Happy paths + key error cases (authentication errors, validation errors) for all endpoints are covered
+- **Contract tests**: All Consumer-Provider interactions are covered
 
-**A:** テストデータ戦略は以下の3層で構成するのが望ましい。
+More important than coverage numbers is the perspective of "can the tests actually detect bugs?" Focus on branch coverage, and regularly review whether testing of edge cases and boundary values is insufficient. There is no need to demand coverage from generated code or boilerplate (config files, etc.).
 
-1. **ファクトリーパターン**: テスト内で必要なデータを動的に生成する。faker等のライブラリを使いつつ、テスト目的に応じたデフォルト値をファクトリーで管理する。
-2. **フィクスチャー**: 共通的なマスターデータ（商品カテゴリ、都道府県リストなど）は固定のシードファイルとして管理する。
-3. **スナップショット**: 特定のテストシナリオに必要な複雑なデータセットは、スナップショットとしてJSON/SQLファイルで保持する。
+### Q3: How should flaky tests (unstable tests) be managed?
 
-原則として、各テストは自身が必要とするデータを自身のセットアップで作成し、終了後にクリーンアップすることが求められる。テスト間でデータを共有する場合は、読み取り専用のマスターデータに限定する。
+**A:** Flaky tests significantly degrade CI/CD reliability, so it is important to address them as soon as they are found. Management methods are as follows.
 
-### Q6: APIテストで単体テスト・統合テスト・E2Eテストの使い分けは？
+1. **Detection**: Record test execution results and visualize the variance in success/failure for the same test. Many CI tools have flaky test detection features.
+2. **Isolation**: Tag discovered flaky tests with `@flaky` and temporarily isolate them from the main test suite. Run isolated tests as a separate job so they do not block the main pipeline.
+3. **Root cause analysis**: The main causes are (a) shared data between tests, (b) time-dependency, (c) network delays, (d) timing issues with asynchronous processing.
+4. **Fix**: Once the root cause is identified, fix it promptly. Tests that have been left flaky for more than a week should be considered for deletion.
+5. **Prevention**: Check for flaky elements in new tests during code review. Enforce techniques such as using fixed seeds, mocking time, and polling for async waiting.
 
-**A:** 各テストレベルは検証範囲と実行コストのトレードオフにより使い分ける。
+### Q4: What is the most effective approach for testing between microservices?
 
-| テストレベル | 検証範囲 | 外部依存 | 実行速度 | 割合の目安 |
+**A:** In a microservices environment, contract testing (such as Pact) is the most cost-effective approach. Trying to run E2E tests for each service in a fully integrated state causes the environment setup and maintenance costs to explode.
+
+The recommended strategy is as follows.
+
+1. Enrich unit tests and integration tests within each service
+2. Protect inter-service interfaces with contract tests
+3. Limit E2E tests to key business flows (3-5 scenarios)
+4. Use Pact Broker webhooks to automatically trigger Provider verification when contracts change
+
+### Q5: What are the best practices for test data strategy in API testing?
+
+**A:** A test data strategy composed of the following 3 layers is desirable.
+
+1. **Factory pattern**: Dynamically generate data needed within tests. Use libraries like faker while managing default values for test purposes in factories.
+2. **Fixtures**: Manage common master data (product categories, prefecture lists, etc.) as fixed seed files.
+3. **Snapshots**: Retain complex datasets needed for specific test scenarios as JSON/SQL snapshot files.
+
+As a principle, each test must create the data it needs in its own setup and clean up after completion. When sharing data between tests, limit it to read-only master data.
+
+### Q6: How should unit tests, integration tests, and E2E tests be used in API testing?
+
+**A:** Each test level is differentiated by the trade-off between verification scope and execution cost.
+
+| Test Level | Verification Scope | External Dependencies | Execution Speed | Target Ratio |
 |------------|---------|---------|---------|-----------|
-| **単体テスト** | 関数・メソッド単位のロジック | モック/スタブで完全に隔離 | ミリ秒単位 | 50-60% |
-| **統合テスト** | エンドポイント単位（API+DB） | DB等の内部依存は実環境、外部APIはモック | 数秒 | 20-30% |
-| **E2Eテスト** | 複数サービス横断のシナリオ | 可能な限り実環境に近い構成 | 数分 | 5-10% |
+| **Unit tests** | Per-function/method logic | Fully isolated with mocks/stubs | Milliseconds | 50-60% |
+| **Integration tests** | Per-endpoint (API+DB) | Internal deps are real env, external APIs are mocked | Seconds | 20-30% |
+| **E2E tests** | Cross-service scenarios | Configuration as close to real env as possible | Minutes | 5-10% |
 
-**使い分けの判断基準**:
-- バリデーションロジック、計算ロジック、データ変換 → **単体テスト**
-- エンドポイントの入出力、認証・認可、データベース操作 → **統合テスト**
-- ユーザー登録→ログイン→購入のような複数画面/APIにまたがるフロー → **E2Eテスト**
+**Criteria for differentiation**:
+- Validation logic, calculation logic, data transformation → **unit tests**
+- Endpoint input/output, authentication/authorization, database operations → **integration tests**
+- Flows spanning multiple screens/APIs like user registration → login → purchase → **E2E tests**
 
-単体テストで多くのロジックを検証し、統合テストでエンドポイントの動作を保証し、E2Eテストは重要なビジネスシナリオのみに絞ることで、効率的かつ保守しやすいテストスイートが構築できる。
+By verifying much of the logic in unit tests, guaranteeing endpoint behavior in integration tests, and limiting E2E tests to critical business scenarios only, an efficient and maintainable test suite can be built.
 
-### Q7: APIのモックとスタブの違いと使い分けは？
+### Q7: What is the difference between mocks and stubs in API testing, and how should they be used?
 
-**A:** モックとスタブはどちらもテスト用のダミーオブジェクトだが、検証の責任が異なる。
+**A:** Mocks and stubs are both dummy objects for testing, but they differ in their verification responsibility.
 
-| 特性 | スタブ（Stub） | モック（Mock） |
+| Characteristic | Stub | Mock |
 |-----|--------------|--------------|
-| **目的** | テスト対象に必要な依存を提供する | テスト対象が依存を正しく呼び出したかを検証する |
-| **検証の主体** | テスト対象の戻り値や状態 | 依存オブジェクトの呼び出し（回数・引数） |
-| **設定方法** | 固定の戻り値を返すだけ | 期待される呼び出しを事前に定義する |
-| **失敗条件** | テスト対象のassertionが失敗 | モックへの期待された呼び出しが満たされない |
+| **Purpose** | Provides the dependency needed by the subject under test | Verifies that the subject under test called the dependency correctly |
+| **Verification subject** | Return value or state of the subject under test | Calls to the dependency object (count, arguments) |
+| **Setup method** | Just returns a fixed value | Define expected calls in advance |
+| **Failure condition** | Assertion on the subject under test fails | Expected calls to the mock are not satisfied |
 
-**具体例**:
+**Concrete examples**:
 
 ```typescript
-// スタブの例: メール送信サービスの実装を固定値に置き換える
+// Example of a stub: replaces the email service implementation with a fixed value
 const emailStub = {
   send: () => Promise.resolve(true)
 };
-// テストは「ユーザー登録が成功したか」を検証
+// Test verifies "did user registration succeed"
 
-// モックの例: メール送信が正しいパラメータで呼ばれたかを検証
+// Example of a mock: verifies that the email was called with the correct parameters
 const emailMock = vi.fn();
 await registerUser({ email: 'test@example.com' });
 expect(emailMock).toHaveBeenCalledWith({
   to: 'test@example.com',
-  subject: 'ようこそ'
+  subject: 'Welcome'
 });
 ```
 
-**使い分けの指針**:
-- **スタブを使う**: 依存の戻り値のパターンを検証したいとき（正常系・異常系の分岐）
-- **モックを使う**: 依存が正しく呼ばれたかを検証したいとき（通知送信、ログ出力、イベント発行）
+**Guidelines for differentiation**:
+- **Use stubs**: When you want to verify patterns in the return value of a dependency (branching for happy/error cases)
+- **Use mocks**: When you want to verify that a dependency was called correctly (notification sending, log output, event publishing)
 
-過度なモックの使用はテストが実装の詳細に依存し、リファクタリング耐性が低下するため、原則としてスタブを優先し、モックは「依存の呼び出し自体がテストの目的」である場合に限定する。
+Excessive use of mocks makes tests depend on implementation details and reduces refactoring resilience, so as a principle prefer stubs and limit mocks to cases where "the call to the dependency itself is the purpose of the test."
 
-### Q8: CI/CDパイプラインにAPIテストを組み込む方法は？
+### Q8: How do you incorporate API tests into CI/CD pipelines?
 
-**A:** APIテストをCI/CDパイプラインに組み込む際は、テストレベルごとに実行タイミングとゲート条件を設計する。
+**A:** When incorporating API tests into CI/CD pipelines, design the execution timing and gate conditions for each test level.
 
-**典型的なパイプライン構成**:
+**Typical pipeline configuration**:
 
 ```yaml
-# GitHub Actions の例
+# GitHub Actions example
 name: API Testing Pipeline
 
 on: [push, pull_request]
@@ -2733,8 +2734,8 @@ jobs:
       - uses: actions/checkout@v3
       - run: npm install
       - run: npm run test:unit
-      # 高速（数十秒）、全コミットで実行
-      # カバレッジが80%未満で失敗
+      # Fast (tens of seconds), runs on every commit
+      # Fails if coverage drops below 80%
 
   integration-tests:
     runs-on: ubuntu-latest
@@ -2745,149 +2746,145 @@ jobs:
       - uses: actions/checkout@v3
       - run: npm install
       - run: npm run test:integration
-      # 中速（数分）、全コミットで実行
-      # エンドポイントの動作検証
+      # Medium speed (minutes), runs on every commit
+      # Verifies endpoint behavior
 
   contract-tests:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
       - run: npm run test:pact
-      # PR作成時のみ実行
-      # Pact Brokerにコントラクトを発行
+      # Runs only when a PR is created
+      # Publishes contract to Pact Broker
 
   e2e-tests:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
       - run: npm run test:e2e
-      # mainブランチへのマージ時のみ実行
-      # 最も時間がかかる（数分〜数十分）
+      # Runs only when merging to main branch
+      # Takes the longest (minutes to tens of minutes)
 
   load-tests:
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule'
     steps:
       - run: k6 run load-test.js
-      # 定期実行（週次など）
-      # パフォーマンスの劣化を検知
+      # Scheduled execution (weekly, etc.)
+      # Detects performance degradation
 ```
 
-**ゲート条件の設計**:
-- **ユニット・統合テスト**: 全てパスしなければマージ不可（必須ゲート）
-- **コントラクトテスト**: PR作成時に実行、失敗時は警告（推奨ゲート）
-- **E2Eテスト**: デプロイ前に実行、失敗時はロールバック（必須ゲート）
-- **負荷テスト**: 定期実行、閾値超過時にアラート（監視目的）
+**Gate condition design**:
+- **Unit and integration tests**: All must pass before merge is allowed (required gate)
+- **Contract tests**: Run when PR is created, warn on failure (recommended gate)
+- **E2E tests**: Run before deployment, rollback on failure (required gate)
+- **Load tests**: Scheduled execution, alert when threshold is exceeded (monitoring purpose)
 
-**ベストプラクティス**:
-1. **テスト並列化**: CI環境でテストを並列実行し、フィードバック時間を短縮する
-2. **テスト結果の可視化**: JUnit形式のレポートを出力し、GitHub/GitLabのUIで結果を表示する
-3. **flakyテストの隔離**: 不安定なテストは別ジョブに分離し、メインパイプラインをブロックしない
-4. **キャッシュ活用**: 依存関係のインストールをキャッシュし、CI実行時間を短縮する
-5. **段階的ロールアウト**: E2Eテストはステージング環境で実行し、成功後に本番デプロイする
+**Best practices**:
+1. **Test parallelization**: Run tests in parallel in the CI environment to reduce feedback time
+2. **Test result visualization**: Output JUnit-format reports and display results in GitHub/GitLab UI
+3. **Flaky test isolation**: Separate unstable tests into a separate job so they do not block the main pipeline
+4. **Cache utilization**: Cache dependency installation to reduce CI execution time
+5. **Gradual rollout**: Run E2E tests in a staging environment and deploy to production only after success
 
-これにより、高速なフィードバックループと高い品質保証を両立したCI/CDパイプラインが実現できる。
+This achieves a CI/CD pipeline that balances fast feedback loops with high quality assurance.
 
 ---
 
-## 17. まとめ
+## 17. Summary
 
-APIテストは、品質保証の最後の砦として、APIの正確性・信頼性・性能を保証するための重要な実践である。本章で学んだ内容を以下にまとめる。
+API testing is an important practice for guaranteeing the accuracy, reliability, and performance of APIs as the last line of defense for quality assurance. The following summarizes what was learned in this chapter.
 
-### テスト種別と推奨ツール・実行戦略
+### Test Types, Recommended Tools, and Execution Strategies
 
-| テスト種類 | 推奨ツール | 検証対象 | 実行頻度 | 割合の目安 | 実行時間 |
+| Test Type | Recommended Tools | What to Verify | Execution Frequency | Target Ratio | Execution Time |
 |-----------|-----------|---------|---------|-----------|---------|
-| **ユニットテスト** | Vitest, Jest | 関数・メソッド単位のロジック | 全コミット | 50-60% | ミリ秒 |
-| **統合テスト** | supertest + Vitest | エンドポイント＋DB＋認証 | 全コミット | 20-30% | 数秒 |
-| **コントラクトテスト** | Pact | サービス間インターフェース仕様 | PR作成時 | 10-15% | 数秒 |
-| **E2Eテスト** | supertest / Playwright | ユーザーシナリオ全体 | デプロイ前 | 5-10% | 数分 |
-| **負荷テスト** | k6, Artillery | パフォーマンス・スケーラビリティ | 週次/リリース前 | - | 数分〜数十分 |
-| **ファジングテスト** | Schemathesis | エッジケース・境界値の自動発見 | 週次 | - | 数分 |
-| **セキュリティテスト** | OWASP ZAP, Burp Suite | 脆弱性の検出 | リリース前 | - | 数十分 |
+| **Unit tests** | Vitest, Jest | Per-function/method logic | Every commit | 50-60% | Milliseconds |
+| **Integration tests** | supertest + Vitest | Endpoint + DB + auth | Every commit | 20-30% | Seconds |
+| **Contract tests** | Pact | Inter-service interface spec | On PR creation | 10-15% | Seconds |
+| **E2E tests** | supertest / Playwright | Full user scenarios | Before deployment | 5-10% | Minutes |
+| **Load tests** | k6, Artillery | Performance & scalability | Weekly/pre-release | - | Minutes to tens of minutes |
+| **Fuzzing tests** | Schemathesis | Auto-discovery of edge cases/boundary values | Weekly | - | Minutes |
+| **Security tests** | OWASP ZAP, Burp Suite | Vulnerability detection | Pre-release | - | Tens of minutes |
 
-### テスト戦略設計の3大原則
+### Three Major Principles for Test Strategy Design
 
-#### 1. テストピラミッドに従った構成
+#### 1. Structure Based on the Test Pyramid
 
-テストピラミッドの原則に従い、**ユニットテストを最も多く（50-60%）、統合テストを中程度（20-30%）、E2Eテストを最小限（5-10%）**にする。下層のテストほど高速で安定しており、上層のテストほど実環境に近いが実行コストが高い。適切なバランスを保つことで、高速なフィードバックループと高い品質保証を両立する。
+Following the test pyramid principle, **maximize unit tests (50-60%), keep integration tests at a moderate level (20-30%), and minimize E2E tests (5-10%)**. Tests at lower layers are faster and more stable; tests at higher layers are closer to a real environment but have higher execution costs. Maintaining an appropriate balance achieves both fast feedback loops and high quality assurance.
 
-**実践指針**:
-- バリデーション・計算ロジックは**ユニットテストで網羅**する（外部依存をモック/スタブで隔離）
-- エンドポイントの動作とDB連携は**統合テストで保証**する（テストDBを使用）
-- 重要なビジネスシナリオのみ**E2Eテストで検証**する（3-5シナリオに絞る）
+**Practical guidelines**:
+- **Comprehensively cover** validation and calculation logic with unit tests (isolate external dependencies with mocks/stubs)
+- **Guarantee** endpoint behavior and DB integration with integration tests (use a test DB)
+- **Verify** only critical business scenarios with E2E tests (limit to 3-5 scenarios)
 
-#### 2. テストの独立性と冪等性の確保
+#### 2. Ensuring Test Independence and Idempotency
 
-各テストは**独立して実行可能**であり、**実行順序に依存しない**設計が必須である。テスト間でデータを共有すると、テストの失敗原因の特定が困難になり、並列実行もできなくなる。
+Each test must be **independently executable** and **not depend on execution order**. When tests share data, identifying the cause of a failure becomes difficult and parallel execution becomes impossible.
 
-**実践指針**:
-- 各テストは自身のセットアップで必要なデータを作成し、teardownでクリーンアップする
-- テスト間でDBの状態を共有しない（トランザクションロールバックまたはデータクリア）
-- 固定シードを使用し、ランダムな失敗（flakyテスト）を防ぐ
-- テストの実行順序をシャッフルして依存関係を検出する
+**Practical guidelines**:
+- Each test creates the data it needs in its own setup and cleans it up in teardown
+- Do not share DB state between tests (transaction rollback or data clearing)
+- Use fixed seeds to prevent random failures (flaky tests)
+- Shuffle test execution order to detect dependencies
 
-#### 3. CI/CDパイプラインへの統合と継続的な品質監視
+#### 3. Integration into CI/CD Pipelines and Continuous Quality Monitoring
 
-テストは**CI/CDパイプラインに組み込み、自動実行**されることで初めて価値を発揮する。全コミットでユニット・統合テストを実行し、PR作成時にコントラクトテストを実行し、デプロイ前にE2Eテストを実行することで、品質の劣化を早期に検出する。
+Tests only deliver value when **incorporated into CI/CD pipelines and executed automatically**. Running unit and integration tests on every commit, contract tests when a PR is created, and E2E tests before deployment enables early detection of quality degradation.
 
-**実践指針**:
-- ユニット・統合テストは全コミットで実行し、失敗時はマージをブロックする（必須ゲート）
-- コントラクトテストはPR作成時に実行し、API仕様の互換性を検証する
-- E2Eテストはステージング環境で実行し、成功後に本番デプロイする
-- テスト結果をJUnit形式で出力し、GitHub/GitLabのUIで可視化する
-- カバレッジレポートを生成し、未テスト箇所を継続的に改善する
-- flakyテストは発見次第、即座に修正または隔離する（1週間以上放置されたテストは削除を検討）
+**Practical guidelines**:
+- Run unit and integration tests on every commit and block merging on failure (required gate)
+- Run contract tests when a PR is created to verify API specification compatibility
+- Run E2E tests in the staging environment and deploy to production only after success
+- Output test results in JUnit format and visualize in GitHub/GitLab UI
+- Generate coverage reports and continuously improve untested areas
+- Fix or isolate flaky tests as soon as they are found (consider deleting tests that have been left flaky for more than a week)
 
-### 重要ポイント
+### Key Points
 
-- **テストピラミッドを意識する**: ユニットテスト50-60%、統合テスト20-30%、E2E 5-10%のバランスを保つ
-- **モックとスタブを使い分ける**: スタブは依存の戻り値を提供し、モックは依存の呼び出しを検証する。原則としてスタブを優先する
-- **コントラクトテストでマイクロサービスを保護する**: Pactを用いて、Consumer-Provider間のAPI仕様の合意を自動検証する
-- **負荷テストで性能を保証する**: k6/Artilleryで定期的に負荷テストを実行し、パフォーマンスの劣化を早期に検出する
-- **CI/CDパイプラインに組み込む**: テストを自動実行し、品質ゲートとして機能させる
-- **flakyテストは即座に対処する**: 不安定なテストはCI/CDの信頼性を著しく低下させるため、発見次第すぐに修正または隔離する
+- **Be aware of the test pyramid**: Maintain a balance of unit tests 50-60%, integration tests 20-30%, E2E 5-10%
+- **Differentiate between mocks and stubs**: Stubs provide return values for dependencies; mocks verify calls to dependencies. Prefer stubs as a principle
+- **Protect microservices with contract tests**: Use Pact to automatically verify API specification agreement between Consumer and Provider
+- **Guarantee performance with load tests**: Run load tests regularly with k6/Artillery to detect performance degradation early
+- **Incorporate into CI/CD pipelines**: Run tests automatically and make them function as quality gates
+- **Address flaky tests immediately**: Unstable tests significantly degrade CI/CD reliability, so fix or isolate them as soon as they are discovered
 
 ---
 
 ## FAQ
 
-### Q1: APIテストの自動化をどこから始めるべきか?
-まずは最も費用対効果の高い統合テスト（supertest + Vitest/Jest）から始めることを推奨する。主要なエンドポイントの正常系（CRUD操作）と主要な異常系（認証エラー、バリデーションエラー、404）をカバーするテストを作成し、CIパイプラインで全コミット時に自動実行する。その後、ビジネスロジック層のユニットテスト、サービス間のコントラクトテスト、主要シナリオのE2Eテストの順に拡充していくのが効率的である。
+### Q1: Where should I start automating API tests?
+It is recommended to start with integration tests (supertest + Vitest/Jest) that offer the highest cost-effectiveness. Create tests that cover the happy paths (CRUD operations) and key error cases (authentication errors, validation errors, 404) for the main endpoints, and set them to run automatically on every commit in the CI pipeline. After that, it is efficient to expand in the following order: unit tests for the business logic layer, contract tests between services, and E2E tests for key scenarios.
 
-### Q2: テスト環境のデータベースはどのように管理すべきか?
-テスト専用のデータベースを用意し、各テストスイートの前後でクリーンな状態をリセットする方式を推奨する。方法としては、(1) トランザクションロールバック方式（テスト毎にBEGIN/ROLLBACKで包む）が最も高速、(2) マイグレーション＋シード方式（テストスイート開始前にDB再構築）が最も確実。Docker Composeでテスト用DBコンテナを立ち上げ、CI環境でも同一構成を再現できるようにする。本番DBへの接続は絶対に避けること。
+### Q2: How should the test environment database be managed?
+It is recommended to prepare a dedicated test database and reset it to a clean state before and after each test suite. Methods: (1) the transaction rollback method (wrap each test in BEGIN/ROLLBACK) is the fastest; (2) the migration + seed method (rebuild the DB before the test suite starts) is the most reliable. Stand up a test DB container with Docker Compose so that the same configuration can be reproduced in CI environments. Never connect to the production DB.
 
-### Q3: 負荷テストの実行頻度と閾値はどう設定すべきか?
-負荷テストは週次の定期実行とリリース前の必須実行を推奨する。閾値は、SLO（サービスレベル目標）に基づいて設定する。例えば、P99レイテンシ < 500ms、エラー率 < 0.1%、スループット > 1000 RPS のように定量的な基準を定める。k6やArtilleryのCI統合機能を使い、閾値を超過した場合にテストを失敗させることで、パフォーマンス劣化を自動検出する。ベースラインとの比較（前回比10%以上の劣化でアラート等）も有効である。
+### Q3: How often should load tests be run and how should thresholds be set?
+Weekly scheduled execution and mandatory pre-release execution are recommended for load tests. Thresholds are set based on SLOs (Service Level Objectives). For example, define quantitative criteria such as P99 latency < 500ms, error rate < 0.1%, throughput > 1000 RPS. Using the CI integration features of k6 or Artillery to fail the test when thresholds are exceeded enables automatic detection of performance degradation. Comparison with a baseline (e.g., alert on more than 10% degradation from previous run) is also effective.
 
-## まとめ
+## Summary
 
-このガイドでは以下を学びました:
+In this guide, you learned the following:
 
-- テストピラミッドに基づくAPIテスト戦略の設計と、ユニット・統合・E2E各レベルの適切なバランス配分
-- supertestを使った統合テストの実装パターンと、認証・バリデーション・エラーハンドリングの検証手法
-- Pactによるコンシューマー駆動コントラクトテストを使ったマイクロサービス間のAPI互換性保証
-- k6/Artilleryを使った負荷テストの設計と、SLOに基づくパフォーマンス閾値の設定
-- CI/CDパイプラインへのテスト統合戦略と、flakyテストの検出・隔離・修正のプロセス
-
----
-
-## 次に読むべきガイド
-
-- [監視とロギング](./01-monitoring-and-logging.md) -- APIの運用監視とログ戦略
-- [REST Best Practices](../01-rest-and-graphql/00-rest-best-practices.md) -- REST API設計の基礎
-- 認証と認可 -- OAuth2とOpenID Connectによる認証
+- Design of API test strategy based on the test pyramid, and the appropriate balance across unit, integration, and E2E levels
+- Integration test implementation patterns using supertest, and verification techniques for authentication, validation, and error handling
+- API compatibility guarantees between microservices using Consumer-Driven Contract Testing with Pact
+- Load test design using k6/Artillery and SLO-based performance threshold settings
+- Test integration strategies for CI/CD pipelines, and processes for detecting, isolating, and fixing flaky tests
 
 ---
 
-## 参考文献
+## What to Read Next
+
+- [Monitoring and Logging](./01-monitoring-and-logging.md) -- API operational monitoring and logging strategy
+- [REST Best Practices](../01-rest-and-graphql/00-rest-best-practices.md) -- REST API design fundamentals
+- Authentication and Authorization -- Authentication with OAuth2 and OpenID Connect
+
+---
+
+## References
 
 1. k6. "Load Testing for Engineering Teams." k6.io, 2024. https://k6.io/docs/
 2. Pact Foundation. "Consumer-Driven Contract Testing." pact.io, 2024. https://docs.pact.io/
 3. Schemathesis. "Property-Based API Testing with OpenAPI." github.com/schemathesis, 2024. https://github.com/schemathesis/schemathesis
 4. Martin Fowler. "Testing Strategies in a Microservice Architecture." martinfowler.com, 2014. https://martinfowler.com/articles/microservice-testing/
-5. MSW (Mock Service Worker). "API mocking of the next generation." mswjs.io, 2024. https://mswjs.io/docs/
-6. Postman. "API Test Automation." postman.com, 2024. https://learning.postman.com/docs/
-7. Artillery. "Cloud-Scale Load Testing." artillery.io, 2024. https://www.artillery.io/docs
-

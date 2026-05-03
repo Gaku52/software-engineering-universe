@@ -1,217 +1,216 @@
-# APIモニタリング・ロギング
+# API Monitoring and Logging
 
-> API監視はサービス品質の可視化と安定運用の基盤である。エラー率、レイテンシ、スループットの計測から構造化ログ、分散トレーシング、Prometheus/Grafanaによるメトリクス可視化、OpenTelemetryによるオブザーバビリティ統合まで、プロダクションAPIの信頼性を支える監視体制を体系的に解説する。
+> API monitoring is the foundation for visualizing service quality and enabling stable operations. This guide systematically explains the monitoring framework that supports the reliability of production APIs — from measuring error rates, latency, and throughput through structured logging, distributed tracing, Prometheus/Grafana-based metrics visualization, and OpenTelemetry-based observability integration.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] APIの主要メトリクス（RED/USE）とSLI/SLO/SLAの関係を理解する
-- [ ] 構造化ログの設計原則と実装パターンを習得する
-- [ ] 分散トレーシングの仕組みとOpenTelemetryによる実装を把握する
-- [ ] Prometheus + Grafanaによるメトリクス収集・可視化を構築できる
-- [ ] アラート設計とインシデント対応のベストプラクティスを学ぶ
-- [ ] ログ集約基盤（ELK/Loki）の選定と構築方法を理解する
-
----
-
-## 前提知識
-
-- APIテストの基本 → 参照: [APIテスト](./00-api-testing.md)
-- HTTPステータスコードの理解 → 参照: HTTPの基礎
-- ログの基本概念（構造化ログ、ログレベル）
+- [ ] Understand the key API metrics (RED/USE) and the relationship between SLI/SLO/SLA
+- [ ] Master the design principles and implementation patterns for structured logging
+- [ ] Understand the mechanisms of distributed tracing and its implementation with OpenTelemetry
+- [ ] Build metrics collection and visualization with Prometheus + Grafana
+- [ ] Learn best practices for alert design and incident response
+- [ ] Understand how to select and build a log aggregation platform (ELK/Loki)
 
 ---
 
-## 1. オブザーバビリティの三本柱
+## Prerequisites
 
-現代のAPIモニタリングは「オブザーバビリティ（Observability）」という概念を中核に据えている。オブザーバビリティとは、システムの外部出力（ログ、メトリクス、トレース）からシステム内部の状態を推測できる能力のことである。
+- Basics of API testing → See: [API Testing](./00-api-testing.md)
+- Understanding of HTTP status codes → See: HTTP Fundamentals
+- Basic concepts of logging (structured logging, log levels)
+
+---
+
+## 1. The Three Pillars of Observability
+
+Modern API monitoring is centered on the concept of "Observability." Observability is the ability to infer the internal state of a system from its external outputs (logs, metrics, traces).
 
 ```
 +===========================================================================+
-|                     オブザーバビリティの三本柱                                |
+|                     The Three Pillars of Observability                    |
 +===========================================================================+
 |                                                                           |
 |   +-------------------+  +-------------------+  +-------------------+     |
 |   |      Logs         |  |     Metrics       |  |     Traces        |     |
-|   |   (ログ)          |  |   (メトリクス)     |  |   (トレース)      |     |
 |   +-------------------+  +-------------------+  +-------------------+     |
-|   | - 離散イベント     |  | - 数値データ       |  | - リクエスト追跡   |     |
-|   | - テキスト/JSON    |  | - 時系列集約      |  | - サービス横断    |     |
-|   | - デバッグ向き     |  | - アラート向き     |  | - 依存関係把握    |     |
-|   | - 高カーディナリティ|  | - 低オーバーヘッド |  | - ボトルネック特定 |     |
+|   | - Discrete events |  | - Numeric data    |  | - Request tracking|     |
+|   | - Text/JSON       |  | - Time-series agg.|  | - Cross-service   |     |
+|   | - Debug-oriented  |  | - Alert-oriented  |  | - Dep. analysis   |     |
+|   | - High cardinality|  | - Low overhead    |  | - Bottleneck id.  |     |
 |   +--------+----------+  +--------+----------+  +--------+----------+     |
 |            |                       |                       |              |
 |            +----------+------------+-----------+-----------+              |
 |                       |                        |                         |
 |              +--------v--------+     +---------v--------+                |
 |              |   Correlation   |     |   Exemplars      |                |
-|              | (相関付け)       |     | (代表サンプル)    |                |
 |              +-----------------+     +------------------+                |
 |                       |                        |                         |
 |              +--------v------------------------v--------+                |
-|              |        統合オブザーバビリティ基盤          |                |
+|              |     Integrated Observability Platform    |                |
 |              |  (Grafana / Datadog / New Relic / Splunk) |                |
 |              +------------------------------------------+                |
 +===========================================================================+
 ```
 
-### 1.1 各柱の役割と使い分け
+### 1.1 Role and Use of Each Pillar
 
-| 観点 | ログ (Logs) | メトリクス (Metrics) | トレース (Traces) |
+| Aspect | Logs | Metrics | Traces |
 |------|-------------|---------------------|-------------------|
-| データ形式 | テキスト/構造化JSON | 数値（カウンタ/ゲージ/ヒストグラム） | スパンのツリー構造 |
-| 粒度 | 個別イベント単位 | 集約された統計値 | リクエスト単位のフロー |
-| ストレージコスト | 高（全イベント保存） | 低（集約値のみ） | 中（サンプリング可能） |
-| 主な用途 | デバッグ、監査 | アラート、容量計画 | ボトルネック特定、依存分析 |
-| 代表ツール | Elasticsearch, Loki | Prometheus, InfluxDB | Jaeger, Zipkin, Tempo |
-| カーディナリティ | 非常に高い | 低〜中 | 中〜高 |
-| リアルタイム性 | 秒単位 | 秒〜分単位 | 秒単位 |
-| 保持期間の目安 | 30〜90日 | 13ヶ月（長期トレンド） | 7〜30日 |
+| Data format | Text / structured JSON | Numeric (counter/gauge/histogram) | Tree structure of spans |
+| Granularity | Individual event | Aggregated statistics | Per-request flow |
+| Storage cost | High (all events saved) | Low (aggregated values only) | Medium (sampling possible) |
+| Primary use | Debugging, auditing | Alerting, capacity planning | Bottleneck identification, dependency analysis |
+| Representative tools | Elasticsearch, Loki | Prometheus, InfluxDB | Jaeger, Zipkin, Tempo |
+| Cardinality | Very high | Low–medium | Medium–high |
+| Real-time nature | Seconds | Seconds–minutes | Seconds |
+| Recommended retention | 30–90 days | 13 months (long-term trends) | 7–30 days |
 
-### 1.2 三本柱の相関付け
+### 1.2 Correlating the Three Pillars
 
-オブザーバビリティの真価は、三本柱を相互に関連付けることで発揮される。たとえば、メトリクスでレイテンシの異常を検出した場合、そのタイミングのトレースを確認してボトルネックとなっているサービスを特定し、該当サービスのログから根本原因を突き止めるという流れが理想的なトラブルシューティングフローとなる。
+The true value of observability is realized by correlating the three pillars. For example, when a latency anomaly is detected in metrics, the ideal troubleshooting flow is to check the traces from that time to identify the bottleneck service, then dig into that service's logs to find the root cause.
 
 ```
-トラブルシューティングフロー:
+Troubleshooting Flow:
 
   [Grafana Dashboard]            [Jaeger / Tempo]           [Elasticsearch / Loki]
-  メトリクス異常検出              トレース分析                ログ詳細調査
+  Anomaly detected in metrics    Trace analysis              Detailed log investigation
         |                              |                          |
         v                              v                          v
-  P99レイテンシが                 遅延スパンを特定            エラーの根本原因を
-  閾値を超過                      (DB Query: 3.2s)           ログから特定
+  P99 latency exceeds            Identify slow span          Identify root cause
+  threshold                      (DB Query: 3.2s)            from logs
         |                              |                          |
-        +------> trace_id で紐付け ----+----> request_id で紐付け +
+        +------> Link via trace_id ----+----> Link via request_id +
         |                              |                          |
         v                              v                          v
-  exemplar から                   span の属性から             スタックトレースと
-  該当 trace_id を取得            サービス名・操作を特定      コンテキスト情報を確認
+  Get the relevant              Identify service name      Review stack trace and
+  trace_id from exemplar        and operation from span    context information
 ```
 
 ---
 
-## 2. 主要メトリクスの設計
+## 2. Designing Key Metrics
 
-### 2.1 RED メソッド（リクエスト駆動型サービス向け）
+### 2.1 The RED Method (for Request-Driven Services)
 
-REDメソッドはTom Wilkie（Grafana Labs）が提唱した、リクエスト駆動型サービスのモニタリング手法である。API サービスのモニタリングに最適な方法論として広く採用されている。
+The RED method, proposed by Tom Wilkie (Grafana Labs), is a monitoring methodology for request-driven services. It is widely adopted as the optimal methodology for monitoring API services.
 
 ```
-RED メソッド（API向け主要メトリクス）:
+RED Method (Key Metrics for APIs):
 
-  R — Rate（リクエストレート）:
-     定義: 単位時間あたりのリクエスト数
-     指標:
-       -> リクエスト数/秒（RPS, QPS）
-       -> エンドポイント別の内訳
-       -> ステータスコード別の内訳
-       -> HTTP メソッド別の内訳
-     PromQL例:
+  R — Rate (Request Rate):
+     Definition: Number of requests per unit time
+     Indicators:
+       -> Requests per second (RPS, QPS)
+       -> Breakdown by endpoint
+       -> Breakdown by status code
+       -> Breakdown by HTTP method
+     PromQL examples:
        rate(http_requests_total[5m])
        sum by (path) (rate(http_requests_total[5m]))
 
-  E — Errors（エラー率）:
-     定義: 失敗したリクエストの割合
-     指標:
-       -> 5xx エラーの割合（サーバー起因）
-       -> 4xx エラーの割合（クライアント起因）
-       -> タイムアウト率
-       -> サーキットブレーカー発動率
-     PromQL例:
+  E — Errors (Error Rate):
+     Definition: Percentage of failed requests
+     Indicators:
+       -> 5xx error rate (server-side cause)
+       -> 4xx error rate (client-side cause)
+       -> Timeout rate
+       -> Circuit breaker activation rate
+     PromQL example:
        rate(http_requests_total{status_code=~"5.."}[5m])
        / rate(http_requests_total[5m])
 
-  D — Duration（レイテンシ）:
-     定義: リクエスト処理にかかる時間
-     指標:
-       -> P50（中央値）: 典型的なユーザー体験
-       -> P95: 大多数のユーザー体験
-       -> P99: テール・レイテンシ
-       -> P99.9: 最悪ケースに近い値
-     PromQL例:
+  D — Duration (Latency):
+     Definition: Time taken to process a request
+     Indicators:
+       -> P50 (median): Typical user experience
+       -> P95: Majority of user experiences
+       -> P99: Tail latency
+       -> P99.9: Near-worst-case value
+     PromQL example:
        histogram_quantile(0.99,
          rate(http_request_duration_seconds_bucket[5m]))
 ```
 
-### 2.2 USE メソッド（リソース向け）
+### 2.2 The USE Method (for Resources)
 
-Brendan Gregg が提唱した USE メソッドは、CPU、メモリ、ディスク、ネットワークなどのインフラリソースのモニタリングに適している。APIサーバーのリソース状況を把握するために RED と併用する。
+The USE method, proposed by Brendan Gregg, is suited for monitoring infrastructure resources such as CPU, memory, disk, and network. Used alongside RED to understand the resource status of API servers.
 
-| リソース | Utilization（使用率） | Saturation（飽和度） | Errors（エラー） |
+| Resource | Utilization | Saturation | Errors |
 |---------|---------------------|---------------------|-----------------|
-| CPU | CPU使用率 (%) | ランキュー長 | マシンチェック例外 |
-| メモリ | メモリ使用率 (%) | スワップ使用量 | OOM キル回数 |
-| ディスクI/O | I/O使用率 (%) | I/Oキュー長 | デバイスエラー |
-| ネットワーク | 帯域使用率 (%) | パケットドロップ | CRCエラー |
-| ファイル記述子 | FD使用率 (%) | ソケットキュー | 接続拒否 |
+| CPU | CPU utilization (%) | Run queue length | Machine check exceptions |
+| Memory | Memory utilization (%) | Swap usage | OOM kill count |
+| Disk I/O | I/O utilization (%) | I/O queue length | Device errors |
+| Network | Bandwidth utilization (%) | Packet drops | CRC errors |
+| File descriptors | FD utilization (%) | Socket queue | Connection refusals |
 
-### 2.3 SLI / SLO / SLA の定義と運用
+### 2.3 Defining and Operating SLI / SLO / SLA
 
-SLI（Service Level Indicator）、SLO（Service Level Objective）、SLA（Service Level Agreement）は、サービスの信頼性を定量的に管理するためのフレームワークである。
+SLI (Service Level Indicator), SLO (Service Level Objective), and SLA (Service Level Agreement) are a framework for quantitatively managing service reliability.
 
 ```
-SLI / SLO / SLA の階層:
+The SLI / SLO / SLA Hierarchy:
 
   +-------------------------------------------------------------------+
   |  SLA (Service Level Agreement)                                     |
-  |  契約上の合意: 「99.9% の可用性を保証。違反時はクレジット返金」       |
+  |  Contractual agreement: "Guarantees 99.9% availability.           |
+  |  Credit refund in case of violation."                              |
   |                                                                    |
   |  +--------------------------------------------------------------+  |
   |  |  SLO (Service Level Objective)                                |  |
-  |  |  内部目標: 「99.95% の可用性を目標とする」                     |  |
-  |  |  ※ SLA より厳しく設定してバッファを確保                       |  |
+  |  |  Internal target: "Target 99.95% availability"               |  |
+  |  |  * Set stricter than SLA to maintain a buffer                |  |
   |  |                                                               |  |
   |  |  +----------------------------------------------------------+ |  |
   |  |  |  SLI (Service Level Indicator)                            | |  |
-  |  |  |  測定指標: 「成功レスポンス数 / 全レスポンス数」            | |  |
+  |  |  |  Measurement: "Successful responses / All responses"      | |  |
   |  |  +----------------------------------------------------------+ |  |
   |  +--------------------------------------------------------------+  |
   +-------------------------------------------------------------------+
 
-  代表的な SLI:
-    可用性 SLI:   成功レスポンス / 全レスポンス
-    レイテンシ SLI: P99 < 閾値 のリクエスト割合
-    品質 SLI:     正常データ返却数 / 全レスポンス数
-    鮮度 SLI:     最新データ返却数 / 全レスポンス数
+  Typical SLIs:
+    Availability SLI:  Successful responses / All responses
+    Latency SLI:       Percentage of requests where P99 < threshold
+    Quality SLI:       Responses with correct data / All responses
+    Freshness SLI:     Responses with up-to-date data / All responses
 
-  SLO 設計の指針:
-    可用性:    99.9%（月間43分のダウンタイム許容）
-    レイテンシ: P99 < 500ms を 99% の時間で達成
-    エラー率:  < 0.1%
+  SLO Design Guidelines:
+    Availability:  99.9% (allows 43 minutes of downtime per month)
+    Latency:       P99 < 500ms achieved for 99% of the time
+    Error rate:    < 0.1%
 
-  エラーバジェットの概念:
-    SLO 99.9% の場合 → エラーバジェット = 0.1%
-    月間リクエスト 100万件 → 1,000リクエストまで失敗許容
-    消費速度による意思決定:
-      -> バジェット余裕あり: 新機能リリースを推進
-      -> バジェット消費中:  リリース速度を調整
-      -> バジェット枯渇:   新機能停止、信頼性改善に注力
+  Error Budget Concept:
+    SLO of 99.9% → Error budget = 0.1%
+    1 million requests/month → up to 1,000 failed requests allowed
+    Decision-making based on consumption rate:
+      -> Budget remaining:   Push new feature releases
+      -> Budget being used:  Adjust release pace
+      -> Budget exhausted:   Halt new features, focus on reliability
 ```
 
-### 2.4 ゴールデンシグナルとの対応
+### 2.4 Correspondence with Golden Signals
 
-Google SRE が定義するFour Golden Signals との対応関係を整理する。
+Mapping the relationship to the Four Golden Signals defined by Google SRE.
 
-| Golden Signal | RED対応 | 説明 | 具体的メトリクス |
+| Golden Signal | RED Mapping | Description | Specific Metrics |
 |--------------|---------|------|----------------|
-| Latency | Duration | リクエスト処理時間 | http_request_duration_seconds |
-| Traffic | Rate | リクエスト量 | http_requests_total |
-| Errors | Errors | エラー率 | http_errors_total |
-| Saturation | (USE) | リソース飽和度 | cpu_usage, memory_usage |
+| Latency | Duration | Request processing time | http_request_duration_seconds |
+| Traffic | Rate | Request volume | http_requests_total |
+| Errors | Errors | Error rate | http_errors_total |
+| Saturation | (USE) | Resource saturation | cpu_usage, memory_usage |
 
 ---
 
-## 3. 構造化ログの設計と実装
+## 3. Designing and Implementing Structured Logging
 
-### 3.1 なぜ構造化ログが必要か
+### 3.1 Why Structured Logging Is Necessary
 
-従来のプレーンテキストログは、人間が読むには直感的だが、機械的な解析には適さない。構造化ログ（JSON形式）を採用することで、ログ集約基盤での検索・集計・アラートが容易になる。
+Traditional plain-text logs are intuitive for humans to read but are not suitable for machine-based analysis. By adopting structured logs (in JSON format), searching, aggregating, and alerting in a log aggregation platform becomes easier.
 
 ```
-従来のプレーンテキストログ:
+Traditional plain-text log:
   2024-01-15 10:30:00 INFO [UserService] GET /api/v1/users 200 45ms uid=user_123
 
-構造化ログ (JSON):
+Structured log (JSON):
   {
     "timestamp": "2024-01-15T10:30:00.000Z",
     "level": "info",
@@ -227,39 +226,39 @@ Google SRE が定義するFour Golden Signals との対応関係を整理する�
     "userAgent": "Mozilla/5.0..."
   }
 
-構造化ログの利点:
-  -> 検索可能:  path="/api/v1/users" AND statusCode>=500
-  -> 集計可能:  AVG(duration) GROUP BY path
-  -> 相関可能:  traceId で分散トレースと紐付け
-  -> 型安全:    数値は数値として、文字列は文字列として扱える
-  -> 拡張可能:  フィールド追加が容易
+Advantages of structured logging:
+  -> Searchable:   path="/api/v1/users" AND statusCode>=500
+  -> Aggregatable: AVG(duration) GROUP BY path
+  -> Correlatable: Link to distributed traces via traceId
+  -> Type-safe:    Numbers treated as numbers, strings as strings
+  -> Extensible:   Easy to add fields
 ```
 
-### 3.2 ログレベルの設計指針
+### 3.2 Log Level Design Guidelines
 
-ログレベルの使い分けはチーム内で統一しなければならない。以下に指針を示す。
+The use of log levels must be standardized within the team. Guidelines are shown below.
 
-| レベル | 用途 | プロダクション出力 | 例 |
+| Level | Purpose | Production output | Example |
 |--------|------|------------------|-----|
-| FATAL | プロセス停止が必要な致命的エラー | 常に出力 | DB接続不可、設定ファイル読み込み失敗 |
-| ERROR | 処理失敗だがプロセスは継続可能 | 常に出力 | API呼び出し失敗、データ不整合 |
-| WARN | 潜在的な問題、注意が必要な状況 | 常に出力 | レート制限接近、非推奨APIの使用 |
-| INFO | 正常な業務イベント | 常に出力 | リクエスト完了、バッチ処理完了 |
-| DEBUG | デバッグ用の詳細情報 | 通常は無効 | SQL クエリ内容、キャッシュヒット/ミス |
-| TRACE | 最も詳細なトレース情報 | 通常は無効 | 関数の入出力、変数値 |
+| FATAL | Fatal errors requiring process shutdown | Always output | DB unreachable, config file read failure |
+| ERROR | Processing failure but process can continue | Always output | API call failure, data inconsistency |
+| WARN | Potential problems, situations requiring attention | Always output | Approaching rate limit, use of deprecated API |
+| INFO | Normal business events | Always output | Request completed, batch processing completed |
+| DEBUG | Detailed information for debugging | Normally disabled | SQL query contents, cache hit/miss |
+| TRACE | Most detailed trace information | Normally disabled | Function input/output, variable values |
 
-### 3.3 構造化ログの実装（Node.js / pino）
+### 3.3 Implementing Structured Logging (Node.js / pino)
 
 ```javascript
-// ===== 構造化ログ基盤の実装 =====
+// ===== Structured logging foundation implementation =====
 import pino from 'pino';
 import { randomUUID } from 'crypto';
 import { AsyncLocalStorage } from 'async_hooks';
 
-// AsyncLocalStorage でリクエストコンテキストを管理
+// Manage request context with AsyncLocalStorage
 const asyncLocalStorage = new AsyncLocalStorage();
 
-// ロガーの初期化
+// Initialize the logger
 const logger = pino({
   level: process.env.LOG_LEVEL || 'info',
   formatters: {
@@ -273,13 +272,13 @@ const logger = pino({
     }),
   },
   timestamp: pino.stdTimeFunctions.isoTime,
-  // 本番環境ではシリアライズを最適化
+  // Optimize serialization for production
   serializers: {
     req: pino.stdSerializers.req,
     res: pino.stdSerializers.res,
     err: pino.stdSerializers.err,
   },
-  // 機密情報のレダクション
+  // Redact sensitive information
   redact: {
     paths: [
       'req.headers.authorization',
@@ -292,7 +291,7 @@ const logger = pino({
   },
 });
 
-// コンテキスト付きロガーを取得
+// Get logger with context
 function getLogger() {
   const store = asyncLocalStorage.getStore();
   if (store && store.logger) {
@@ -301,17 +300,17 @@ function getLogger() {
   return logger;
 }
 
-// リクエストログ・ミドルウェア
+// Request logging middleware
 function requestLogger(req, res, next) {
   const requestId = req.headers['x-request-id'] || randomUUID();
   const traceId = req.headers['x-trace-id'] || randomUUID().replace(/-/g, '');
   const startTime = performance.now();
 
-  // リクエスト情報をセット
+  // Set request information
   req.requestId = requestId;
   res.setHeader('X-Request-Id', requestId);
 
-  // コンテキスト付きの子ロガーを生成
+  // Generate a child logger with context
   const childLogger = logger.child({
     requestId,
     traceId,
@@ -321,7 +320,7 @@ function requestLogger(req, res, next) {
 
   req.log = childLogger;
 
-  // リクエスト開始ログ
+  // Log request start
   childLogger.info({
     event: 'request_started',
     userAgent: req.headers['user-agent'],
@@ -330,9 +329,9 @@ function requestLogger(req, res, next) {
     contentLength: req.headers['content-length'],
   }, 'Incoming request');
 
-  // AsyncLocalStorage にコンテキストをセット
+  // Set context in AsyncLocalStorage
   asyncLocalStorage.run({ logger: childLogger, requestId, traceId }, () => {
-    // レスポンス完了時にログ
+    // Log when response completes
     res.on('finish', () => {
       const duration = performance.now() - startTime;
       const logData = {
@@ -356,7 +355,7 @@ function requestLogger(req, res, next) {
   });
 }
 
-// 出力例:
+// Output example:
 // {
 //   "level": "info",
 //   "time": "2024-01-15T10:30:00.000Z",
@@ -374,10 +373,10 @@ function requestLogger(req, res, next) {
 // }
 ```
 
-### 3.4 構造化ログの実装（Python / structlog）
+### 3.4 Implementing Structured Logging (Python / structlog)
 
 ```python
-# ===== Python での構造化ログ実装（structlog + FastAPI） =====
+# ===== Structured logging implementation in Python (structlog + FastAPI) =====
 import structlog
 import uuid
 import time
@@ -385,11 +384,11 @@ from contextvars import ContextVar
 from fastapi import FastAPI, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
-# コンテキスト変数
+# Context variables
 request_id_var: ContextVar[str] = ContextVar('request_id', default='')
 trace_id_var: ContextVar[str] = ContextVar('trace_id', default='')
 
-# structlog の設定
+# structlog configuration
 structlog.configure(
     processors=[
         structlog.contextvars.merge_contextvars,
@@ -398,7 +397,7 @@ structlog.configure(
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
-        # 本番環境では JSON レンダラー
+        # Use JSON renderer in production
         structlog.processors.JSONRenderer(),
     ],
     context_class=dict,
@@ -414,7 +413,7 @@ logger = structlog.get_logger()
 app = FastAPI()
 
 class LoggingMiddleware(BaseHTTPMiddleware):
-    """リクエスト/レスポンスログのミドルウェア"""
+    """Middleware for request/response logging"""
 
     async def dispatch(self, request: Request, call_next):
         request_id = request.headers.get(
@@ -424,11 +423,11 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             'x-trace-id', uuid.uuid4().hex
         )
 
-        # コンテキスト変数にセット
+        # Set context variables
         request_id_var.set(request_id)
         trace_id_var.set(trace_id)
 
-        # structlog のコンテキストにバインド
+        # Bind to structlog context
         structlog.contextvars.clear_contextvars()
         structlog.contextvars.bind_contextvars(
             request_id=request_id,
@@ -476,59 +475,59 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             raise
 ```
 
-### 3.5 ログのセキュリティとプライバシー
+### 3.5 Log Security and Privacy
 
-ログに機密情報を含めないことは必須要件である。以下のフィールドは必ずマスキングまたは除外する。
+It is a mandatory requirement not to include sensitive information in logs. The following fields must always be masked or excluded.
 
 ```
-機密情報の分類とマスキング方針:
+Classification of sensitive information and masking policy:
 
-  絶対に記録しない:
-    -> パスワード、APIキー、トークン
-    -> クレジットカード番号
-    -> 社会保障番号（マイナンバー）
-    -> 暗号鍵、シークレット
+  Never log:
+    -> Passwords, API keys, tokens
+    -> Credit card numbers
+    -> Social security numbers / national ID numbers
+    -> Encryption keys, secrets
 
-  マスキングして記録:
-    -> メールアドレス: u***@example.com
-    -> 電話番号: ***-****-1234
-    -> IPアドレス: 192.168.xxx.xxx（必要に応じて）
+  Log with masking:
+    -> Email addresses: u***@example.com
+    -> Phone numbers: ***-****-1234
+    -> IP addresses: 192.168.xxx.xxx (as needed)
 
-  そのまま記録可能:
-    -> リクエストID、トレースID
-    -> HTTPメソッド、パス、ステータスコード
-    -> レイテンシ、タイムスタンプ
-    -> ユーザーID（内部識別子）
+  Safe to log as-is:
+    -> Request ID, trace ID
+    -> HTTP method, path, status code
+    -> Latency, timestamp
+    -> User ID (internal identifier)
     -> User-Agent
 ```
 
 ---
 
-## 4. 分散トレーシングの設計と実装
+## 4. Designing and Implementing Distributed Tracing
 
-### 4.1 分散トレーシングの基本概念
+### 4.1 Basic Concepts of Distributed Tracing
 
-マイクロサービスアーキテクチャでは、1つのユーザーリクエストが複数のサービスを横断して処理される。分散トレーシングは、このリクエストフロー全体を追跡し可視化する技術である。
+In a microservices architecture, a single user request is processed across multiple services. Distributed tracing is a technique for tracking and visualizing this entire request flow.
 
 ```
-分散トレーシングの構造:
+Structure of Distributed Tracing:
 
-  Trace（トレース）: 1つのリクエストの全体像
+  Trace: The overall picture of one request
   |
-  +-- Span A: API Gateway (開始 0ms, 終了 60ms)
+  +-- Span A: API Gateway (start 0ms, end 60ms)
   |   |
-  |   +-- Span B: Auth Service (開始 2ms, 終了 12ms)
+  |   +-- Span B: Auth Service (start 2ms, end 12ms)
   |   |   |
-  |   |   +-- Span C: Redis Cache Lookup (開始 3ms, 終了 5ms)
-  |   |   +-- Span D: JWT Verify (開始 5ms, 終了 11ms)
+  |   |   +-- Span C: Redis Cache Lookup (start 3ms, end 5ms)
+  |   |   +-- Span D: JWT Verify (start 5ms, end 11ms)
   |   |
-  |   +-- Span E: User Service (開始 13ms, 終了 55ms)
+  |   +-- Span E: User Service (start 13ms, end 55ms)
   |       |
-  |       +-- Span F: PostgreSQL Query (開始 15ms, 終了 35ms)
-  |       +-- Span G: Response Serialization (開始 36ms, 終了 42ms)
-  |       +-- Span H: Cache Write (開始 43ms, 終了 50ms)
+  |       +-- Span F: PostgreSQL Query (start 15ms, end 35ms)
+  |       +-- Span G: Response Serialization (start 36ms, end 42ms)
+  |       +-- Span H: Cache Write (start 43ms, end 50ms)
 
-  タイムライン表示:
+  Timeline view:
   |--A (API Gateway)----------------------------------------------|
     |--B (Auth)---------|
       |-C-| |-D-------|
@@ -536,47 +535,47 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                           |--F (DB Query)--------|
                                                   |-G-| |--H--|
 
-  各 Span が保持する情報:
-    -> trace_id:    リクエスト全体の一意識別子 (128bit)
-    -> span_id:     個別処理の一意識別子 (64bit)
-    -> parent_span_id: 親スパンのID
-    -> operation:   操作名 (例: "GET /api/users")
-    -> start_time:  開始時刻
-    -> end_time:    終了時刻
-    -> status:      成功/エラー
-    -> attributes:  任意の属性 (key-value)
-    -> events:      スパン内のイベント (ログ的な情報)
+  Information held by each Span:
+    -> trace_id:       Unique identifier for the entire request (128-bit)
+    -> span_id:        Unique identifier for the individual operation (64-bit)
+    -> parent_span_id: ID of the parent span
+    -> operation:      Operation name (e.g., "GET /api/users")
+    -> start_time:     Start time
+    -> end_time:       End time
+    -> status:         Success/Error
+    -> attributes:     Arbitrary attributes (key-value)
+    -> events:         Events within the span (log-like information)
 ```
 
-### 4.2 W3C Trace Context 標準
+### 4.2 W3C Trace Context Standard
 
-W3C Trace Context は、分散トレースのコンテキスト伝搬を標準化した仕様である。異なるベンダーのトレーシングツール間でも一貫したトレースが可能になる。
+W3C Trace Context is a specification that standardizes context propagation for distributed tracing. It enables consistent tracing across different vendors' tracing tools.
 
 ```
-W3C Trace Context ヘッダー:
+W3C Trace Context Headers:
 
   traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
                |  |                                |                  |
                |  |                                |                  +-- flags
                |  |                                |                      01 = sampled
-               |  |                                +-- span-id (64bit, 16 hex)
-               |  +-- trace-id (128bit, 32 hex chars)
-               +-- version (常に "00")
+               |  |                                +-- span-id (64-bit, 16 hex chars)
+               |  +-- trace-id (128-bit, 32 hex chars)
+               +-- version (always "00")
 
   tracestate: rojo=00f067aa0ba902b7,congo=t61rcWkgMzE
-              ベンダー固有の追加情報を伝搬
+              Propagates vendor-specific additional information
 
   baggage: userId=user_123,tenantId=tenant_456
-           アプリケーション固有のコンテキストを伝搬
+           Propagates application-specific context
 ```
 
-### 4.3 OpenTelemetry による分散トレーシング実装
+### 4.3 Implementing Distributed Tracing with OpenTelemetry
 
-OpenTelemetry（OTel）は、CNCF がホストするオブザーバビリティフレームワークであり、ベンダー非依存のテレメトリデータ（トレース、メトリクス、ログ）収集を可能にする。
+OpenTelemetry (OTel) is an observability framework hosted by the CNCF that enables vendor-agnostic collection of telemetry data (traces, metrics, logs).
 
 ```javascript
-// ===== OpenTelemetry 完全セットアップ =====
-// tracing.js - アプリケーション起動前に読み込む
+// ===== Full OpenTelemetry Setup =====
+// tracing.js - Load before application startup
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
@@ -592,44 +591,44 @@ import {
   SEMRESATTRS_DEPLOYMENT_ENVIRONMENT,
 } from '@opentelemetry/semantic-conventions';
 
-// リソース情報の定義
+// Define resource information
 const resource = new Resource({
   [SEMRESATTRS_SERVICE_NAME]: process.env.SERVICE_NAME || 'user-service',
   [SEMRESATTRS_SERVICE_VERSION]: process.env.APP_VERSION || '1.0.0',
   [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: process.env.NODE_ENV || 'development',
 });
 
-// トレースエクスポーターの設定
+// Configure the trace exporter
 const traceExporter = new OTLPTraceExporter({
   url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318/v1/traces',
   headers: {
-    // 認証が必要な場合
+    // When authentication is required:
     // 'Authorization': `Bearer ${process.env.OTEL_AUTH_TOKEN}`,
   },
 });
 
-// メトリクスエクスポーターの設定
+// Configure the metrics exporter
 const metricExporter = new OTLPMetricExporter({
   url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318/v1/metrics',
 });
 
 const metricReader = new PeriodicExportingMetricReader({
   exporter: metricExporter,
-  exportIntervalMillis: 30000, // 30秒間隔でエクスポート
+  exportIntervalMillis: 30000, // Export every 30 seconds
 });
 
-// SDK の初期化
+// Initialize the SDK
 const sdk = new NodeSDK({
   resource,
   traceExporter,
   metricReader,
   instrumentations: [
     new HttpInstrumentation({
-      // ヘルスチェックなど不要なトレースを除外
+      // Exclude unnecessary traces like health checks
       ignoreIncomingRequestHook: (req) => {
         return req.url === '/health' || req.url === '/metrics';
       },
-      // レスポンスヘッダーからカスタム属性を追加
+      // Add custom attributes from response headers
       responseHook: (span, response) => {
         span.setAttribute('http.response.content_length',
           response.headers['content-length'] || 0);
@@ -645,7 +644,7 @@ const sdk = new NodeSDK({
 
 sdk.start();
 
-// グレースフルシャットダウン
+// Graceful shutdown
 process.on('SIGTERM', () => {
   sdk.shutdown()
     .then(() => console.log('Tracing terminated'))
@@ -654,25 +653,25 @@ process.on('SIGTERM', () => {
 });
 ```
 
-### 4.4 カスタムスパンの作成
+### 4.4 Creating Custom Spans
 
-自動計装だけでは捕捉できないビジネスロジックの処理を、カスタムスパンとして記録する。
+Record business logic processing that cannot be captured by auto-instrumentation alone as custom spans.
 
 ```javascript
-// ===== カスタムスパンの作成例 =====
+// ===== Example of creating custom spans =====
 import { trace, SpanStatusCode, context } from '@opentelemetry/api';
 
 const tracer = trace.getTracer('user-service', '1.0.0');
 
-// 基本的なカスタムスパン
+// Basic custom span
 async function getUser(id) {
   return tracer.startActiveSpan('getUser', async (span) => {
-    // 属性の設定
+    // Set attributes
     span.setAttribute('user.id', id);
     span.setAttribute('db.system', 'postgresql');
 
     try {
-      // データベースクエリ
+      // Database query
       const user = await tracer.startActiveSpan('db.query.findUser',
         async (dbSpan) => {
           dbSpan.setAttribute('db.statement', 'SELECT * FROM users WHERE id = $1');
@@ -692,7 +691,7 @@ async function getUser(id) {
         return null;
       }
 
-      // キャッシュ書き込み
+      // Write to cache
       await tracer.startActiveSpan('cache.write', async (cacheSpan) => {
         cacheSpan.setAttribute('cache.type', 'redis');
         cacheSpan.setAttribute('cache.key', `user:${id}`);
@@ -717,37 +716,37 @@ async function getUser(id) {
   });
 }
 
-// サンプリング戦略の設定
+// Sampling strategy configuration
 import { ParentBasedSampler, TraceIdRatioBasedSampler } from '@opentelemetry/sdk-trace-base';
 
 const sampler = new ParentBasedSampler({
-  // 親スパンがない場合は 10% サンプリング
+  // Sample 10% of root spans (those without a parent)
   root: new TraceIdRatioBasedSampler(0.1),
 });
 ```
 
-### 4.5 サンプリング戦略
+### 4.5 Sampling Strategies
 
-全リクエストのトレースを収集するとストレージコストが膨大になるため、適切なサンプリング戦略が必要である。
+Collecting traces for all requests results in massive storage costs, so an appropriate sampling strategy is required.
 
-| サンプリング方式 | 説明 | 適用場面 | トレードオフ |
+| Sampling Method | Description | Use Case | Trade-offs |
 |----------------|------|---------|------------|
-| 常時サンプリング | 全トレースを収集 | 開発環境、低トラフィック | ストレージコスト大 |
-| 確率サンプリング | 一定割合（例: 10%）を収集 | 一般的な本番環境 | レアイベントを見逃す可能性 |
-| レートリミット | 秒間N件のトレースを収集 | 高トラフィック環境 | トラフィック急増時にカバー率低下 |
-| テールベースサンプリング | エラーや遅延リクエストを優先収集 | 大規模本番環境 | Collector側の複雑性増加 |
-| ルールベース | エンドポイント別にサンプリング率を設定 | 複雑なAPI群 | 設定管理の負荷 |
+| Always-on sampling | Collect all traces | Development environment, low traffic | High storage cost |
+| Probability sampling | Collect a fixed percentage (e.g., 10%) | General production environment | May miss rare events |
+| Rate limiting | Collect N traces per second | High-traffic environments | Coverage decreases during traffic spikes |
+| Tail-based sampling | Prioritize collection of errors and slow requests | Large-scale production environments | Increased complexity at the Collector |
+| Rule-based | Set sampling rate per endpoint | Complex API groups | Configuration management overhead |
 
 ---
 
-## 5. Prometheus によるメトリクス収集
+## 5. Collecting Metrics with Prometheus
 
-### 5.1 Prometheus のアーキテクチャ
+### 5.1 Prometheus Architecture
 
-Prometheus は CNCF が管理するオープンソースの監視システムで、Pull型のメトリクス収集、時系列データベース、強力なクエリ言語（PromQL）を特徴とする。
+Prometheus is an open-source monitoring system managed by the CNCF, featuring pull-based metrics collection, a time-series database, and a powerful query language (PromQL).
 
 ```
-Prometheus アーキテクチャ:
+Prometheus Architecture:
 
   +------------------+     +------------------+     +------------------+
   |  API Server A    |     |  API Server B    |     |  API Server C    |
@@ -761,13 +760,13 @@ Prometheus アーキテクチャ:
                           |    Prometheus      |
                           |  +-------------+  |
                           |  | TSDB        |  |
-                          |  | (時系列DB)  |  |
+                          |  | (time-series|  |
+                          |  |  DB)        |  |
                           |  +-------------+  |
                           |  | PromQL      |  |
-                          |  | (クエリ)    |  |
+                          |  | (queries)   |  |
                           |  +-------------+  |
                           |  | Alert Rules |  |
-                          |  | (アラート)  |  |
                           |  +-------------+  |
                           +---------+---------+
                                     |
@@ -775,29 +774,30 @@ Prometheus アーキテクチャ:
                      |                             |
            +---------v---------+         +---------v---------+
            |   Alertmanager    |         |     Grafana       |
-           |  (通知管理)       |         |  (可視化)         |
-           +---------+---------+         +-------------------+
+           |  (notification    |         |  (visualization)  |
+           |   management)     |         +-------------------+
+           +---------+---------+
                      |
           +----------+----------+
           |          |          |
        Slack     PagerDuty   Email
 ```
 
-### 5.2 メトリクスの型と使い分け
+### 5.2 Metric Types and When to Use Each
 
-Prometheus には4種類のメトリクス型がある。それぞれの特性と適切な使い分けを理解することが重要である。
+Prometheus has 4 types of metrics. It is important to understand the characteristics of each and use them appropriately.
 
-| 型 | 説明 | 用途 | 注意点 |
+| Type | Description | Use | Notes |
 |---|------|------|-------|
-| Counter | 単調増加する累積値 | リクエスト数、エラー数 | リセットは再起動時のみ。rate() で変化率を見る |
-| Gauge | 増減する現在値 | CPU使用率、接続数、キューサイズ | スナップショット値。直接表示可能 |
-| Histogram | 値の分布を観測（バケット） | レイテンシ、レスポンスサイズ | バケット境界の設計が重要 |
-| Summary | クライアント側でパーセンタイル計算 | レイテンシ（サーバー側集約不要時） | 集約不可。Histogram を推奨 |
+| Counter | Monotonically increasing cumulative value | Request count, error count | Resets only on restart. Use rate() to see the rate of change |
+| Gauge | Current value that can increase or decrease | CPU utilization, connection count, queue size | Snapshot value. Can be displayed directly |
+| Histogram | Observe distribution of values (buckets) | Latency, response size | Bucket boundary design is important |
+| Summary | Calculates percentiles on the client side | Latency (when server-side aggregation is not needed) | Cannot be aggregated. Histogram is recommended |
 
-### 5.3 API メトリクス計装の実装
+### 5.3 Implementing API Metrics Instrumentation
 
 ```javascript
-// ===== Prometheus メトリクス計装（prom-client） =====
+// ===== Prometheus metrics instrumentation (prom-client) =====
 import {
   Registry, Counter, Histogram, Gauge, Summary,
   collectDefaultMetrics
@@ -805,16 +805,16 @@ import {
 
 const registry = new Registry();
 
-// Node.js ランタイムのデフォルトメトリクスを収集
+// Collect default metrics for the Node.js runtime
 collectDefaultMetrics({
   register: registry,
   prefix: 'api_',
   gcDurationBuckets: [0.001, 0.01, 0.1, 1, 2, 5],
 });
 
-// ----- カスタムメトリクスの定義 -----
+// ----- Define custom metrics -----
 
-// リクエストカウンター
+// Request counter
 const httpRequestTotal = new Counter({
   name: 'http_requests_total',
   help: 'Total number of HTTP requests',
@@ -822,24 +822,24 @@ const httpRequestTotal = new Counter({
   registers: [registry],
 });
 
-// レイテンシ・ヒストグラム
+// Latency histogram
 const httpRequestDuration = new Histogram({
   name: 'http_request_duration_seconds',
   help: 'HTTP request duration in seconds',
   labelNames: ['method', 'path', 'status_code'],
-  // レイテンシ分布に適したバケット設計
+  // Bucket design appropriate for latency distribution
   buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
   registers: [registry],
 });
 
-// アクティブ接続数（ゲージ）
+// Active connections (gauge)
 const activeConnections = new Gauge({
   name: 'http_active_connections',
   help: 'Number of active HTTP connections',
   registers: [registry],
 });
 
-// レスポンスサイズ・ヒストグラム
+// Response size histogram
 const httpResponseSize = new Histogram({
   name: 'http_response_size_bytes',
   help: 'HTTP response size in bytes',
@@ -848,7 +848,7 @@ const httpResponseSize = new Histogram({
   registers: [registry],
 });
 
-// DB クエリカウンター
+// DB query counter
 const dbQueryTotal = new Counter({
   name: 'db_queries_total',
   help: 'Total number of database queries',
@@ -856,7 +856,7 @@ const dbQueryTotal = new Counter({
   registers: [registry],
 });
 
-// DB クエリ・レイテンシ
+// DB query latency
 const dbQueryDuration = new Histogram({
   name: 'db_query_duration_seconds',
   help: 'Database query duration in seconds',
@@ -865,7 +865,7 @@ const dbQueryDuration = new Histogram({
   registers: [registry],
 });
 
-// 外部API呼び出し
+// External API calls
 const externalApiDuration = new Histogram({
   name: 'external_api_duration_seconds',
   help: 'External API call duration in seconds',
@@ -874,7 +874,7 @@ const externalApiDuration = new Histogram({
   registers: [registry],
 });
 
-// キャッシュ・ヒット率
+// Cache hit rate
 const cacheOperations = new Counter({
   name: 'cache_operations_total',
   help: 'Total cache operations',
@@ -882,7 +882,7 @@ const cacheOperations = new Counter({
   registers: [registry],
 });
 
-// ビジネスメトリクス例
+// Business metrics example
 const userRegistrations = new Counter({
   name: 'user_registrations_total',
   help: 'Total user registrations',
@@ -890,13 +890,13 @@ const userRegistrations = new Counter({
   registers: [registry],
 });
 
-// ----- ミドルウェア -----
+// ----- Middleware -----
 function metricsMiddleware(req, res, next) {
   activeConnections.inc();
   const end = httpRequestDuration.startTimer();
 
   res.on('finish', () => {
-    // パスの正規化（パスパラメータを :param に置換）
+    // Normalize path (replace path params with :param)
     const normalizedPath = req.route?.path || normalizePath(req.path);
     const labels = {
       method: req.method,
@@ -908,7 +908,7 @@ function metricsMiddleware(req, res, next) {
     end(labels);
     activeConnections.dec();
 
-    // レスポンスサイズの記録
+    // Record response size
     const contentLength = parseInt(res.getHeader('content-length') || '0', 10);
     if (contentLength > 0) {
       httpResponseSize.observe(
@@ -921,56 +921,56 @@ function metricsMiddleware(req, res, next) {
   next();
 }
 
-// パスの正規化（高カーディナリティを防止）
+// Path normalization (prevent high cardinality)
 function normalizePath(path) {
   return path
     .replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '/:id')
     .replace(/\/\d+/g, '/:id');
 }
 
-// メトリクスエンドポイント
+// Metrics endpoint
 app.get('/metrics', async (req, res) => {
   res.set('Content-Type', registry.contentType);
   res.end(await registry.metrics());
 });
 ```
 
-### 5.4 PromQL クエリの実践
+### 5.4 PromQL Queries in Practice
 
-PromQL は Prometheus のクエリ言語であり、時系列データの選択、集約、変換を行う。以下に頻出クエリパターンを示す。
+PromQL is Prometheus's query language used to select, aggregate, and transform time-series data. The following shows frequently used query patterns.
 
 ```
-PromQL 頻出クエリ集:
+PromQL Common Query Collection:
 
   ===== Rate / Throughput =====
 
-  # 全体のリクエストレート（5分間の移動平均）
+  # Overall request rate (5-minute moving average)
   rate(http_requests_total[5m])
 
-  # エンドポイント別のリクエストレート
+  # Request rate by endpoint
   sum by (path) (rate(http_requests_total[5m]))
 
-  # HTTP メソッド別のリクエストレート
+  # Request rate by HTTP method
   sum by (method) (rate(http_requests_total[5m]))
 
   ===== Error Rate =====
 
-  # 5xx エラー率
+  # 5xx error rate
   sum(rate(http_requests_total{status_code=~"5.."}[5m]))
   /
   sum(rate(http_requests_total[5m]))
 
-  # エンドポイント別のエラー率
+  # Error rate by endpoint
   sum by (path) (rate(http_requests_total{status_code=~"5.."}[5m]))
   /
   sum by (path) (rate(http_requests_total[5m]))
 
-  # 特定エラーコード（429: Rate Limit）の発生率
+  # Rate of specific error code (429: Rate Limit)
   sum(rate(http_requests_total{status_code="429"}[5m]))
 
   ===== Latency (Percentile) =====
 
-  # P50（中央値）
+  # P50 (median)
   histogram_quantile(0.50,
     sum by (le) (rate(http_request_duration_seconds_bucket[5m])))
 
@@ -982,40 +982,40 @@ PromQL 頻出クエリ集:
   histogram_quantile(0.99,
     sum by (le) (rate(http_request_duration_seconds_bucket[5m])))
 
-  # エンドポイント別の P99
+  # P99 by endpoint
   histogram_quantile(0.99,
     sum by (le, path) (rate(http_request_duration_seconds_bucket[5m])))
 
   ===== Saturation =====
 
-  # アクティブ接続数
+  # Active connections
   http_active_connections
 
-  # Node.js イベントループ遅延
+  # Node.js event loop lag
   api_nodejs_eventloop_lag_seconds
 
-  # メモリ使用率
+  # Memory usage
   api_process_resident_memory_bytes
   / on() group_left()
   machine_memory_bytes
 
-  ===== SLO 関連 =====
+  ===== SLO Related =====
 
-  # 可用性 SLI（30日間）
+  # Availability SLI (30-day rolling)
   1 - (
     sum(increase(http_requests_total{status_code=~"5.."}[30d]))
     /
     sum(increase(http_requests_total[30d]))
   )
 
-  # エラーバジェット残り（SLO 99.9%）
+  # Remaining error budget (SLO 99.9%)
   1 - (
     sum(increase(http_requests_total{status_code=~"5.."}[30d]))
     /
     sum(increase(http_requests_total[30d]))
   ) - 0.999
 
-  # エラーバジェット消費率（1時間あたり）
+  # Error budget consumption rate (per hour)
   (
     sum(rate(http_requests_total{status_code=~"5.."}[1h]))
     /
@@ -1024,50 +1024,50 @@ PromQL 頻出クエリ集:
 
   ===== Database =====
 
-  # DB クエリレート
+  # DB query rate
   sum by (operation) (rate(db_queries_total[5m]))
 
-  # DB クエリの P95 レイテンシ
+  # DB query P95 latency
   histogram_quantile(0.95,
     sum by (le, table) (rate(db_query_duration_seconds_bucket[5m])))
 
-  # 遅いクエリの割合（1秒超）
+  # Proportion of slow queries (over 1 second)
   sum(rate(db_query_duration_seconds_bucket{le="1"}[5m]))
   /
   sum(rate(db_query_duration_seconds_count[5m]))
 
   ===== Cache =====
 
-  # キャッシュヒット率
+  # Cache hit rate
   sum(rate(cache_operations_total{result="hit"}[5m]))
   /
   sum(rate(cache_operations_total{result=~"hit|miss"}[5m]))
 ```
 
-### 5.5 Prometheus の設定
+### 5.5 Prometheus Configuration
 
 ```yaml
 # ===== prometheus.yml =====
 global:
-  scrape_interval: 15s        # メトリクス収集間隔
-  evaluation_interval: 15s    # ルール評価間隔
-  scrape_timeout: 10s         # スクレイプタイムアウト
+  scrape_interval: 15s        # Metrics collection interval
+  evaluation_interval: 15s    # Rule evaluation interval
+  scrape_timeout: 10s         # Scrape timeout
 
-# アラートルールファイルの指定
+# Specify alert rule files
 rule_files:
   - "rules/api_alerts.yml"
   - "rules/slo_alerts.yml"
 
-# Alertmanager の設定
+# Alertmanager configuration
 alerting:
   alertmanagers:
     - static_configs:
         - targets:
             - "alertmanager:9093"
 
-# スクレイプ対象の設定
+# Scrape target configuration
 scrape_configs:
-  # API サーバー
+  # API servers
   - job_name: 'api-servers'
     metrics_path: '/metrics'
     scrape_interval: 10s
@@ -1080,7 +1080,7 @@ scrape_configs:
           cluster: 'production'
           region: 'ap-northeast-1'
 
-    # Kubernetes Service Discovery の場合
+    # For Kubernetes Service Discovery:
     # kubernetes_sd_configs:
     #   - role: pod
     # relabel_configs:
@@ -1088,7 +1088,7 @@ scrape_configs:
     #     action: keep
     #     regex: true
 
-  # Node Exporter（インフラメトリクス）
+  # Node Exporter (infrastructure metrics)
   - job_name: 'node-exporter'
     static_configs:
       - targets:
@@ -1109,34 +1109,34 @@ scrape_configs:
 
 ---
 
-## 6. Grafana によるダッシュボード設計
+## 6. Dashboard Design with Grafana
 
-### 6.1 API ダッシュボードの構成原則
+### 6.1 Principles for API Dashboard Structure
 
-効果的なダッシュボードは、問題発生時に素早く原因を特定できる構造を持つ。「Overview → 詳細 → 根本原因」の階層的な構成が推奨される。
+An effective dashboard has a structure that allows you to quickly identify the cause of a problem when one occurs. A hierarchical structure of "Overview → Detail → Root Cause" is recommended.
 
 ```
-API ダッシュボードの階層構造:
+Hierarchical Structure of an API Dashboard:
 
-  Level 1: Overview Dashboard（概要）
+  Level 1: Overview Dashboard
   +================================================================+
-  |  [可用性]    [リクエスト/秒]   [P99 レイテンシ]   [エラー率]     |
-  |   99.95%       1,245 RPS        123ms             0.03%        |
+  |  [Availability]  [Requests/sec]   [P99 Latency]   [Error Rate] |
+  |   99.95%           1,245 RPS         123ms           0.03%     |
   +================================================================+
   |                                                                 |
-  |  [RPS グラフ]              [レイテンシ分布グラフ]                |
-  |  ~~~~~~~~                  ~~P50~~~~                            |
-  |  ~~~~~~~~~~                ~~~~P95~~~~~                         |
-  |  ~~~~~~~~~~~~              ~~~~~~P99~~~~~~~                     |
+  |  [RPS Graph]                   [Latency Distribution Graph]     |
+  |  ~~~~~~~~                      ~~P50~~~~                        |
+  |  ~~~~~~~~~~                    ~~~~P95~~~~~                     |
+  |  ~~~~~~~~~~~~                  ~~~~~~P99~~~~~~~                 |
   |                                                                 |
-  |  [エラー率グラフ]          [アクティブ接続数グラフ]              |
-  |  __/\___                   ~~~~~~~~~                            |
-  |  _______/\_                ~~~~~~~~~~~                          |
+  |  [Error Rate Graph]            [Active Connections Graph]       |
+  |  __/\___                       ~~~~~~~~~                        |
+  |  _______/\_                    ~~~~~~~~~~~                      |
   +================================================================+
 
-  Level 2: Endpoint Dashboard（エンドポイント別）
+  Level 2: Endpoint Dashboard (by endpoint)
   +================================================================+
-  |  エンドポイント別 RPS / レイテンシ / エラー率 テーブル           |
+  |  RPS / Latency / Error Rate Table by Endpoint                   |
   |                                                                 |
   |  Path              RPS    P50    P99    Error%   Status         |
   |  GET /api/users    320    12ms   89ms   0.01%    OK             |
@@ -1145,20 +1145,20 @@ API ダッシュボードの階層構造:
   |  POST /api/auth    290    23ms   510ms  0.15%    WARN           |
   +================================================================+
 
-  Level 3: Service Dependencies（依存サービス）
+  Level 3: Service Dependencies
   +================================================================+
-  |  [DB クエリ P99]   [Redis レイテンシ]   [外部API レイテンシ]    |
+  |  [DB Query P99]   [Redis Latency]   [External API Latency]      |
   |                                                                 |
-  |  [DB コネクションプール使用率]  [キャッシュヒット率]             |
+  |  [DB Connection Pool Utilization]  [Cache Hit Rate]             |
   +================================================================+
 
-  Level 4: Infrastructure（インフラ）
+  Level 4: Infrastructure
   +================================================================+
-  |  [CPU使用率]  [メモリ使用率]  [ディスクI/O]  [ネットワーク帯域] |
+  |  [CPU Usage]  [Memory Usage]  [Disk I/O]  [Network Bandwidth]  |
   +================================================================+
 ```
 
-### 6.2 Grafana ダッシュボードの JSON プロビジョニング
+### 6.2 Grafana Dashboard JSON Provisioning
 
 ```json
 {
@@ -1251,42 +1251,42 @@ API ダッシュボードの階層構造:
 
 ---
 
-## 7. アラート設計
+## 7. Alert Design
 
-### 7.1 アラート設計の原則
+### 7.1 Principles of Alert Design
 
-効果的なアラートは「対処可能（actionable）」でなければならない。受け取った人が何をすべきか明確でないアラートは、アラート疲れ（alert fatigue）を招き、本当に重要なアラートの見逃しにつながる。
+Effective alerts must be "actionable." Alerts where the recipient does not know clearly what to do lead to alert fatigue, causing truly important alerts to be missed.
 
 ```
-アラート設計の5原則:
+5 Principles of Alert Design:
 
-  1. アクション可能であること
-     -> アラートを受けた人が何をすべか明確
-     -> 自動復旧するものはアラートにしない
-     -> Runbook（対応手順書）を紐付ける
+  1. Be actionable
+     -> Clear what the person receiving the alert should do
+     -> Do not alert on things that auto-recover
+     -> Link to a Runbook (response procedures)
 
-  2. SLO ベースであること
-     -> エラーバジェットの消費率でアラート
-     -> 瞬間的なスパイクでは発報しない
-     -> 持続的な品質低下を検出する
+  2. Be SLO-based
+     -> Alert based on error budget consumption rate
+     -> Do not fire on momentary spikes
+     -> Detect sustained quality degradation
 
-  3. 重大度が適切であること
-     -> Critical: 即時対応（ページ通知）
-     -> Warning: 営業時間内に対応
-     -> Info: 記録のみ（通知不要）
+  3. Have appropriate severity
+     -> Critical: Immediate action required (page notification)
+     -> Warning: Handle during business hours
+     -> Info: Record only (no notification needed)
 
-  4. 重複を排除すること
-     -> 同じ根本原因のアラートをグループ化
-     -> 上位レベルのアラートが下位を包含
-     -> 連鎖的なアラート発報を抑制
+  4. Eliminate duplicates
+     -> Group alerts with the same root cause
+     -> Higher-level alerts encompass lower-level ones
+     -> Suppress cascading alert firing
 
-  5. 定期的に見直すこと
-     -> 発報ゼロのアラートは削除を検討
-     -> 頻繁に誤報するアラートは閾値を調整
-     -> インシデント事後分析でアラートの有効性を評価
+  5. Review periodically
+     -> Consider deleting alerts that never fire
+     -> Adjust thresholds for frequently false-positive alerts
+     -> Evaluate alert effectiveness in post-incident analysis
 ```
 
-### 7.2 アラートルールの実装（Prometheus Alerting Rules）
+### 7.2 Implementing Alert Rules (Prometheus Alerting Rules)
 
 ```yaml
 # ===== rules/api_alerts.yml =====
@@ -1295,7 +1295,7 @@ groups:
     rules:
       # ----- Critical Alerts -----
 
-      # 5xx エラー率が 5% を超過（5分間持続）
+      # 5xx error rate exceeds 5% (sustained for 5 minutes)
       - alert: HighErrorRate
         expr: |
           sum(rate(http_requests_total{status_code=~"5.."}[5m]))
@@ -1315,7 +1315,7 @@ groups:
           runbook_url: "https://wiki.example.com/runbooks/high-error-rate"
           dashboard_url: "https://grafana.example.com/d/api-overview"
 
-      # P99 レイテンシが 5秒超（5分間持続）
+      # P99 latency exceeds 5 seconds (sustained for 5 minutes)
       - alert: HighLatency
         expr: |
           histogram_quantile(0.99,
@@ -1332,7 +1332,7 @@ groups:
             Check database queries and external API calls.
           runbook_url: "https://wiki.example.com/runbooks/high-latency"
 
-      # サービスダウン（メトリクス収集不可）
+      # Service down (metrics unreachable)
       - alert: ServiceDown
         expr: up{job="api-servers"} == 0
         for: 1m
@@ -1345,7 +1345,7 @@ groups:
 
       # ----- Warning Alerts -----
 
-      # エラーバジェット消費率が 1日あたり 2% 超
+      # Error budget consumption rate exceeds 2% per day
       - alert: ErrorBudgetBurnRate
         expr: |
           (
@@ -1363,7 +1363,7 @@ groups:
             Current burn rate will exhaust the monthly error budget
             in less than 2 days.
 
-      # P99 レイテンシが 1秒超
+      # P99 latency exceeds 1 second
       - alert: ElevatedLatency
         expr: |
           histogram_quantile(0.99,
@@ -1376,7 +1376,7 @@ groups:
         annotations:
           summary: "P99 latency exceeds 1 second"
 
-      # ディスク使用率 80% 超
+      # Disk usage over 80%
       - alert: DiskSpaceWarning
         expr: |
           (node_filesystem_avail_bytes{mountpoint="/"}
@@ -1388,7 +1388,7 @@ groups:
         annotations:
           summary: "Disk space is running low"
 
-      # DB 接続プール枯渇気味
+      # DB connection pool nearly exhausted
       - alert: DBConnectionPoolExhaustion
         expr: |
           pg_stat_activity_count / pg_settings_max_connections > 0.8
@@ -1401,7 +1401,7 @@ groups:
 
   - name: api_slo
     rules:
-      # SLO 可用性（30日ローリング）
+      # SLO availability (30-day rolling)
       - record: slo:availability:ratio30d
         expr: |
           1 - (
@@ -1410,14 +1410,14 @@ groups:
             sum(increase(http_requests_total[30d]))
           )
 
-      # SLO レイテンシ（P99 < 500ms 達成率）
+      # SLO latency (P99 < 500ms achievement rate)
       - record: slo:latency:ratio30d
         expr: |
           sum(increase(http_request_duration_seconds_bucket{le="0.5"}[30d]))
           /
           sum(increase(http_request_duration_seconds_count[30d]))
 
-      # エラーバジェット残量
+      # Remaining error budget
       - record: slo:error_budget:remaining
         expr: |
           1 - (
@@ -1425,7 +1425,7 @@ groups:
           )
 ```
 
-### 7.3 Alertmanager の設定
+### 7.3 Alertmanager Configuration
 
 ```yaml
 # ===== alertmanager.yml =====
@@ -1433,52 +1433,52 @@ global:
   resolve_timeout: 5m
   slack_api_url: 'https://hooks.slack.com/services/xxx/yyy/zzz'
 
-# 通知テンプレート
+# Notification templates
 templates:
   - '/etc/alertmanager/templates/*.tmpl'
 
-# ルーティング設定
+# Routing configuration
 route:
-  # デフォルトの受信者
+  # Default receiver
   receiver: 'slack-default'
-  # グループ化するラベル
+  # Labels to group by
   group_by: ['alertname', 'team']
-  # グループ化の待機時間
+  # Wait time for grouping
   group_wait: 30s
-  # 同一グループの再通知間隔
+  # Re-notification interval for the same group
   group_interval: 5m
-  # 同一アラートの再通知間隔
+  # Re-notification interval for the same alert
   repeat_interval: 4h
 
   routes:
-    # Critical アラート → PagerDuty + Slack
+    # Critical alerts → PagerDuty + Slack
     - match:
         severity: critical
       receiver: 'pagerduty-critical'
       group_wait: 10s
       repeat_interval: 1h
-      continue: true  # 後続ルートも評価
+      continue: true  # Also evaluate subsequent routes
 
     - match:
         severity: critical
       receiver: 'slack-critical'
 
-    # Warning アラート → Slack のみ
+    # Warning alerts → Slack only
     - match:
         severity: warning
       receiver: 'slack-warning'
       repeat_interval: 8h
 
-# 通知の抑制ルール
+# Alert suppression rules
 inhibit_rules:
-  # ServiceDown が発報中は、同インスタンスの他アラートを抑制
+  # While ServiceDown is firing, suppress other alerts for the same instance
   - source_match:
       alertname: 'ServiceDown'
     target_match_re:
       alertname: '.+'
     equal: ['instance']
 
-# 受信者の定義
+# Receiver definitions
 receivers:
   - name: 'slack-default'
     slack_configs:
@@ -1509,26 +1509,26 @@ receivers:
 
 ---
 
-## 8. ログ集約基盤の構築
+## 8. Building a Log Aggregation Platform
 
-### 8.1 ログ集約アーキテクチャの比較
+### 8.1 Comparison of Log Aggregation Architectures
 
-| 項目 | ELK Stack | Grafana Loki | Datadog Logs |
+| Item | ELK Stack | Grafana Loki | Datadog Logs |
 |------|-----------|-------------|--------------|
-| 構成 | Elasticsearch + Logstash + Kibana | Loki + Promtail + Grafana | SaaS（マネージド） |
-| インデックス方式 | 全文検索インデックス | ラベルのみインデックス | 全文検索 |
-| ストレージコスト | 高（全フィールドインデックス） | 低（ログ本文は非インデックス） | 従量課金 |
-| クエリ速度 | 高速（インデックス済み） | ラベル検索は高速、本文検索はやや遅い | 高速 |
-| 運用負荷 | 高（Elasticsearch クラスタ管理） | 低（シンプルなアーキテクチャ） | なし（SaaS） |
-| Grafana統合 | プラグインで可能 | ネイティブ統合 | プラグインで可能 |
-| 適用規模 | 中〜大規模 | 小〜大規模 | 全規模 |
+| Composition | Elasticsearch + Logstash + Kibana | Loki + Promtail + Grafana | SaaS (managed) |
+| Indexing method | Full-text search index | Labels only | Full-text search |
+| Storage cost | High (all fields indexed) | Low (log content not indexed) | Usage-based billing |
+| Query speed | Fast (indexed) | Label search is fast; content search is slightly slower | Fast |
+| Operational burden | High (Elasticsearch cluster management) | Low (simple architecture) | None (SaaS) |
+| Grafana integration | Possible via plugin | Native integration | Possible via plugin |
+| Applicable scale | Medium–large | Small–large | All scales |
 
-### 8.2 Grafana Loki によるログ集約
+### 8.2 Log Aggregation with Grafana Loki
 
-Loki は Grafana Labs が開発したログ集約システムで、「Prometheus のログ版」とも呼ばれる。メタデータ（ラベル）のみをインデックス化し、ログ本文はそのまま保存する設計により、低コストで大量のログを扱える。
+Loki is a log aggregation system developed by Grafana Labs, sometimes called "Prometheus for logs." By indexing only metadata (labels) and storing log content as-is, it can handle large amounts of logs at low cost.
 
 ```yaml
-# ===== Loki + Promtail の Docker Compose 構成 =====
+# ===== Loki + Promtail Docker Compose configuration =====
 version: "3.8"
 
 services:
@@ -1587,7 +1587,7 @@ scrape_configs:
       - source_labels: ['__meta_docker_container_label_service']
         target_label: 'service'
     pipeline_stages:
-      # JSON ログのパース
+      # Parse JSON logs
       - json:
           expressions:
             level: level
@@ -1597,17 +1597,17 @@ scrape_configs:
             path: path
             statusCode: statusCode
             duration: duration
-      # ラベルとして抽出
+      # Extract as labels
       - labels:
           level:
           service:
           method:
           statusCode:
-      # タイムスタンプの設定
+      # Set timestamp
       - timestamp:
           source: time
           format: RFC3339Nano
-      # メトリクスの生成（ログからメトリクスを導出）
+      # Generate metrics (derive metrics from logs)
       - metrics:
           log_lines_total:
             type: Counter
@@ -1624,59 +1624,59 @@ scrape_configs:
               buckets: [10, 50, 100, 250, 500, 1000, 2500, 5000]
 ```
 
-### 8.3 LogQL クエリの実践
+### 8.3 LogQL Queries in Practice
 
-LogQL は Loki のクエリ言語であり、PromQL に似た構文でログの検索と集計を行う。
+LogQL is Loki's query language, which uses a syntax similar to PromQL to search and aggregate logs.
 
 ```
-LogQL 頻出クエリ集:
+LogQL Common Query Collection:
 
-  ===== ログストリームの選択 =====
+  ===== Selecting Log Streams =====
 
-  # サービス名でフィルタ
+  # Filter by service name
   {service="user-service"}
 
-  # 複数条件
+  # Multiple conditions
   {service="user-service", level="error"}
 
-  # 正規表現マッチ
+  # Regex match
   {service=~"user-.*|order-.*"}
 
-  ===== ログ行のフィルタリング =====
+  ===== Filtering Log Lines =====
 
-  # テキスト検索（含む）
+  # Text search (contains)
   {service="user-service"} |= "timeout"
 
-  # テキスト検索（含まない）
+  # Text search (does not contain)
   {service="user-service"} != "healthcheck"
 
-  # 正規表現フィルタ
+  # Regex filter
   {service="user-service"} |~ "status_code=(5[0-9]{2})"
 
-  ===== JSON パース + フィルタ =====
+  ===== JSON Parse + Filter =====
 
-  # JSON フィールドでフィルタ
+  # Filter by JSON field
   {service="user-service"}
     | json
     | statusCode >= 500
 
-  # 特定パスのエラー
+  # Errors for a specific path
   {service="user-service"}
     | json
     | path="/api/v1/orders"
     | statusCode >= 500
 
-  # 遅いリクエスト（500ms以上）
+  # Slow requests (500ms or more)
   {service="user-service"}
     | json
     | duration > 500
 
-  ===== メトリクスクエリ（集計） =====
+  ===== Metric Queries (Aggregation) =====
 
-  # エラーログの発生率
+  # Error log occurrence rate
   rate({service="user-service", level="error"}[5m])
 
-  # エンドポイント別のリクエスト数
+  # Request count by endpoint
   sum by (path) (
     count_over_time(
       {service="user-service"}
@@ -1686,7 +1686,7 @@ LogQL 頻出クエリ集:
     )
   )
 
-  # P99 レイテンシ（ログから算出）
+  # P99 latency (calculated from logs)
   quantile_over_time(0.99,
     {service="user-service"}
       | json
@@ -1697,12 +1697,12 @@ LogQL 頻出クエリ集:
 
 ---
 
-## 9. OpenTelemetry Collector の構成
+## 9. OpenTelemetry Collector Configuration
 
-OpenTelemetry Collector は、テレメトリデータ（トレース、メトリクス、ログ）を受信、処理、エクスポートするエージェントである。アプリケーションとバックエンドの間に配置することで、ベンダー非依存のデータパイプラインを構築できる。
+The OpenTelemetry Collector is an agent that receives, processes, and exports telemetry data (traces, metrics, logs). By placing it between the application and the backend, you can build a vendor-agnostic data pipeline.
 
 ```
-OpenTelemetry Collector アーキテクチャ:
+OpenTelemetry Collector Architecture:
 
   +----------------+   +----------------+   +----------------+
   |  API Server A  |   |  API Server B  |   |  API Server C  |
@@ -1756,7 +1756,7 @@ receivers:
       http:
         endpoint: "0.0.0.0:4318"
 
-  # Prometheus メトリクスも受信可能
+  # Can also receive Prometheus metrics
   prometheus:
     config:
       scrape_configs:
@@ -1766,19 +1766,19 @@ receivers:
             - targets: ['0.0.0.0:8888']
 
 processors:
-  # バッチ処理（パフォーマンス最適化）
+  # Batch processing (performance optimization)
   batch:
     timeout: 5s
     send_batch_size: 1024
     send_batch_max_size: 2048
 
-  # メモリ制限
+  # Memory limit
   memory_limiter:
     check_interval: 1s
     limit_mib: 512
     spike_limit_mib: 128
 
-  # 属性の追加・変換
+  # Add and transform attributes
   attributes:
     actions:
       - key: environment
@@ -1788,7 +1788,7 @@ processors:
         value: ap-northeast-1
         action: upsert
 
-  # 不要なデータのフィルタリング
+  # Filter unnecessary data
   filter:
     error_mode: ignore
     traces:
@@ -1796,43 +1796,43 @@ processors:
         - 'attributes["http.target"] == "/health"'
         - 'attributes["http.target"] == "/metrics"'
 
-  # テールベースサンプリング
+  # Tail-based sampling
   tail_sampling:
     decision_wait: 10s
     num_traces: 100000
     policies:
-      # エラーは全て収集
+      # Collect all errors
       - name: errors
         type: status_code
         status_code:
           status_codes: [ERROR]
-      # 遅いリクエストは全て収集
+      # Collect all slow requests
       - name: slow-requests
         type: latency
         latency:
           threshold_ms: 1000
-      # その他は 10% サンプリング
+      # Sample 10% of everything else
       - name: probabilistic
         type: probabilistic
         probabilistic:
           sampling_percentage: 10
 
 exporters:
-  # トレース -> Jaeger
+  # Traces -> Jaeger
   otlp/jaeger:
     endpoint: "jaeger:4317"
     tls:
       insecure: true
 
-  # メトリクス -> Prometheus
+  # Metrics -> Prometheus
   prometheusremotewrite:
     endpoint: "http://prometheus:9090/api/v1/write"
 
-  # ログ -> Loki
+  # Logs -> Loki
   loki:
     endpoint: "http://loki:3100/loki/api/v1/push"
 
-  # デバッグ用ログ出力
+  # Debug log output
   logging:
     loglevel: info
 
@@ -1860,54 +1860,54 @@ service:
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### アンチパターン1: ログの過剰出力と高カーディナリティ
+### Anti-Pattern 1: Excessive Log Output and High Cardinality
 
-**症状**: ログストレージが急速に肥大化し、検索パフォーマンスが劣化。メトリクスのラベル爆発によりPrometheusのメモリが枯渇する。
+**Symptoms**: Log storage grows rapidly and search performance degrades. Prometheus memory is exhausted due to label explosion in metrics.
 
 ```
-問題のあるログ出力:
+Problematic log output:
 
-  // 全リクエストのボディをログに含める
+  // Include the entire request body in logs
   logger.info({
     event: 'request',
-    body: req.body,         // 大量のデータがログに流れる
-    headers: req.headers,   // 機密情報を含む可能性
+    body: req.body,         // Massive amounts of data flow into logs
+    headers: req.headers,   // May contain sensitive information
     query: req.query,
   });
 
-  // デバッグログを本番で有効にしたまま
-  logger.debug({ cache: entireCacheContents }); // 巨大オブジェクト
+  // Debug logs left enabled in production
+  logger.debug({ cache: entireCacheContents }); // Huge object
 
-問題のあるメトリクスラベル:
+Problematic metric labels:
 
-  // ユーザーIDをラベルに含める（高カーディナリティ）
+  // Include user ID in labels (high cardinality)
   httpRequestTotal.inc({
     method: req.method,
-    path: req.originalUrl,  // クエリパラメータ込み -> 無限のラベル組合せ
-    userId: req.user.id,    // ユーザー数分のラベル値
-    requestId: req.id,      // リクエスト毎にユニーク -> 致命的
+    path: req.originalUrl,  // Including query params -> infinite label combinations
+    userId: req.user.id,    // One label value per user
+    requestId: req.id,      // Unique per request -> fatal
   });
 
-  結果:
-    -> Prometheus のメモリ使用量が指数関数的に増大
-    -> クエリ速度が大幅に低下
-    -> カーディナリティ爆発（cardinality explosion）
+  Result:
+    -> Prometheus memory usage grows exponentially
+    -> Query speed degrades significantly
+    -> Cardinality explosion
 
-正しい設計:
+Correct design:
 
-  // ログ: 必要最小限のフィールドに絞る
+  // Logs: Limit to the minimum necessary fields
   logger.info({
     event: 'request_completed',
     method: req.method,
-    path: req.route?.path,  // テンプレートパス（/users/:id）
+    path: req.route?.path,  // Template path (/users/:id)
     statusCode: res.statusCode,
     duration: durationMs,
-    userId: req.user?.id,   // ログには可（メトリクスには不可）
+    userId: req.user?.id,   // OK for logs (not for metrics)
   });
 
-  // メトリクス: 低カーディナリティのラベルのみ
+  // Metrics: Only low-cardinality labels
   httpRequestTotal.inc({
     method: req.method,
     path: req.route?.path || normalizePath(req.path),
@@ -1915,125 +1915,125 @@ service:
   });
 ```
 
-### アンチパターン2: アラート設定の不備によるアラート疲れ
+### Anti-Pattern 2: Alert Fatigue from Poor Alert Configuration
 
-**症状**: 大量の不要なアラートが発報し、オンコールエンジニアが疲弊。重要なアラートが他のノイズに埋もれて見逃される。
+**Symptoms**: A flood of unnecessary alerts exhausts on-call engineers. Important alerts are buried in noise and missed.
 
 ```
-問題のあるアラート設定:
+Problematic alert configuration:
 
-  1. 閾値が厳しすぎる:
+  1. Threshold too strict:
      alert: HighLatency
-     expr: histogram_quantile(0.99, ...) > 0.1   # 100ms は厳しすぎ
-     for: 1m                                       # 1分で発報は早すぎ
-     -> 一時的なスパイクで頻繁に発報
+     expr: histogram_quantile(0.99, ...) > 0.1   # 100ms is too strict
+     for: 1m                                       # 1 minute is too fast to fire
+     -> Fires frequently on transient spikes
 
-  2. アクション不明確:
+  2. Unclear action:
      annotations:
-       summary: "Something went wrong"   # 何が問題か不明
-       # runbook_url なし               # 対処方法が不明
-     -> 受け取っても何をすべきかわからない
+       summary: "Something went wrong"   # Unclear what is wrong
+       # no runbook_url                  # Unclear how to respond
+     -> Recipient doesn't know what to do
 
-  3. 重複アラート:
-     DB接続エラー -> 以下が同時に発報:
+  3. Duplicate alerts:
+     DB connection error -> All of the following fire simultaneously:
        - DBConnectionError
        - HighErrorRate
        - SlowQueries
        - ServiceDegraded
        - SLOViolation
-     -> 根本原因は1つなのに5つのアラート
+     -> 5 alerts for a single root cause
 
-  4. 自動復旧する問題へのアラート:
-     一時的なネットワーク切断 -> 自動リトライで復旧
-     -> 不要なアラート発報
+  4. Alert on auto-recovering problems:
+     Transient network disconnect -> Auto-retry recovers it
+     -> Unnecessary alert firing
 
-正しいアラート設計:
+Correct alert design:
 
-  1. 適切な閾値と持続時間:
+  1. Appropriate thresholds and duration:
      alert: HighLatency
-     expr: histogram_quantile(0.99, ...) > 1     # 1秒は合理的
-     for: 10m                                      # 10分持続で確信
+     expr: histogram_quantile(0.99, ...) > 1     # 1 second is reasonable
+     for: 10m                                      # 10 minutes to be certain
 
-  2. 明確なアノテーション:
+  2. Clear annotations:
      annotations:
        summary: "P99 latency exceeds 1s for 10 minutes"
        description: "Current P99: {{ $value }}s. Check DB and cache."
        runbook_url: "https://wiki.example.com/runbooks/high-latency"
        dashboard_url: "https://grafana.example.com/d/api"
 
-  3. 抑制ルール（Inhibition）:
-     DBConnectionError が発報中 -> 派生アラートを抑制
+  3. Suppression rules (Inhibition):
+     While DBConnectionError is firing -> suppress derived alerts
 
-  4. アクション可能なもののみ:
-     自動復旧する問題 -> アラートではなくメトリクスで記録
+  4. Only actionable items:
+     Auto-recovering problems -> record as metrics, not alerts
 ```
 
 ---
 
-## 11. エッジケース分析
+## 11. Edge Case Analysis
 
-### エッジケース1: メトリクス収集の時間ずれとサンプリングの落とし穴
+### Edge Case 1: Timing Discrepancies in Metrics Collection and Sampling Pitfalls
 
-Prometheus は Pull 型でメトリクスを収集するため、スクレイプ間隔の間に発生した短時間のスパイクを捕捉できない場合がある。また、ヒストグラムのバケット設計が不適切だと、パーセンタイル値に大きな誤差が生じる。
+Since Prometheus collects metrics via pull, short-duration spikes that occur between scrape intervals may not be captured. Also, if histogram bucket design is inappropriate, percentile values may have large errors.
 
 ```
-問題: ヒストグラムバケットの設計不備
+Problem: Poor histogram bucket design
 
-  設定:
-    buckets: [0.1, 1, 10]  // 3バケットのみ
+  Configuration:
+    buckets: [0.1, 1, 10]  // Only 3 buckets
 
-  実際の分布:
-    0-50ms:   80% のリクエスト
-    50-100ms: 15% のリクエスト
-    100-200ms: 4% のリクエスト
-    200ms+:    1% のリクエスト
+  Actual distribution:
+    0-50ms:   80% of requests
+    50-100ms: 15% of requests
+    100-200ms: 4% of requests
+    200ms+:    1% of requests
 
-  P99 の計算結果:
-    -> 0.1s (100ms) バケットに99%が収まるため
-    -> P99 = 約100ms と報告される
-    -> 実際の P99 は約180ms（大きな誤差）
+  P99 calculation result:
+    -> 99% falls within the 0.1s (100ms) bucket
+    -> P99 reported as approximately 100ms
+    -> Actual P99 is approximately 180ms (large error)
 
-  対策:
+  Remedy:
     buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]
-    -> レイテンシ分布に合った細かいバケットを設計
-    -> デフォルトバケット（上記）は多くのAPI向けに適切
+    -> Design fine-grained buckets appropriate for the latency distribution
+    -> The default buckets (above) are appropriate for most APIs
 
-問題: スクレイプ間隔とレートの誤差
+Problem: Error from scrape interval and rate calculation
 
-  スクレイプ間隔: 15秒
-  実際のリクエストパターン:
-    0-5s:  100 req/s（スパイク）
-    5-15s: 10 req/s（通常）
+  Scrape interval: 15 seconds
+  Actual request pattern:
+    0-5s:  100 req/s (spike)
+    5-15s: 10 req/s (normal)
 
-  rate(http_requests_total[1m]) の結果:
-    -> 約 40 req/s（平均化されてしまう）
-    -> 100 req/s のスパイクは観測できない
+  Result of rate(http_requests_total[1m]):
+    -> Approximately 40 req/s (averaged out)
+    -> The 100 req/s spike cannot be observed
 
-  対策:
-    -> irate() を使用して瞬間レートを計算
-    -> スクレイプ間隔を短くする（5秒等。ただしリソース消費増加）
-    -> アプリケーション側でもメトリクスを記録
+  Remedies:
+    -> Use irate() to calculate the instantaneous rate
+    -> Shorten the scrape interval (to 5 seconds, etc.; increases resource consumption)
+    -> Also record metrics on the application side
 ```
 
-### エッジケース2: 分散トレーシングにおけるコンテキスト消失
+### Edge Case 2: Context Loss in Distributed Tracing
 
-非同期処理やメッセージキューを介した通信では、トレースコンテキストが消失しやすい。特にイベント駆動アーキテクチャでは、明示的なコンテキスト伝搬が必要になる。
+In asynchronous processing or communication via message queues, trace context is easily lost. Especially in event-driven architectures, explicit context propagation is necessary.
 
 ```
-問題: メッセージキュー経由のコンテキスト消失
+Problem: Context loss via message queue
 
   [API Server] --HTTP--> [Order Service] --Kafka--> [Payment Service]
        |                       |                          |
     trace_id: abc123      trace_id: abc123           trace_id: ???
-    span_id:  001         span_id:  002              (コンテキスト消失)
+    span_id:  001         span_id:  002              (context lost)
 
-  原因:
-    -> Kafka メッセージにトレースコンテキストを含めていない
-    -> Consumer 側でコンテキストを復元していない
+  Cause:
+    -> Trace context not included in Kafka messages
+    -> Context not restored on the consumer side
 
-  対策: メッセージヘッダーにコンテキストを埋め込む
+  Remedy: Embed context in message headers
 
-    // Producer 側
+    // Producer side
     import { propagation, context } from '@opentelemetry/api';
 
     async function publishToKafka(topic, message) {
@@ -2041,7 +2041,7 @@ Prometheus は Pull 型でメトリクスを収集するため、スクレイプ
         span.setAttribute('messaging.system', 'kafka');
         span.setAttribute('messaging.destination', topic);
 
-        // 現在のコンテキストをヘッダーに注入
+        // Inject current context into headers
         const headers = {};
         propagation.inject(context.active(), headers);
 
@@ -2049,7 +2049,7 @@ Prometheus は Pull 型でメトリクスを収集するため、スクレイプ
           topic,
           messages: [{
             value: JSON.stringify(message),
-            headers,  // トレースコンテキストを含むヘッダー
+            headers,  // Headers containing trace context
           }],
         });
 
@@ -2057,20 +2057,20 @@ Prometheus は Pull 型でメトリクスを収集するため、スクレイプ
       });
     }
 
-    // Consumer 側
+    // Consumer side
     async function consumeFromKafka(message) {
-      // ヘッダーからコンテキストを復元
+      // Restore context from headers
       const parentContext = propagation.extract(
         context.active(),
         message.headers
       );
 
-      // 復元したコンテキストを親として新しいスパンを作成
+      // Create a new span with the restored context as parent
       return context.with(parentContext, () => {
         return tracer.startActiveSpan('kafka.consume', async (span) => {
           span.setAttribute('messaging.system', 'kafka');
 
-          // ビジネスロジック
+          // Business logic
           await processPayment(JSON.parse(message.value));
 
           span.end();
@@ -2078,16 +2078,16 @@ Prometheus は Pull 型でメトリクスを収集するため、スクレイプ
       });
     }
 
-問題: setTimeout / setInterval でのコンテキスト消失
+Problem: Context loss with setTimeout / setInterval
 
-  対策:
+  Remedy:
     import { context } from '@opentelemetry/api';
 
-    // コンテキストを明示的に伝搬
+    // Explicitly propagate context
     const currentContext = context.active();
     setTimeout(() => {
       context.with(currentContext, () => {
-        // ここではトレースコンテキストが保持される
+        // Trace context is preserved here
         doSomething();
       });
     }, 5000);
@@ -2095,360 +2095,360 @@ Prometheus は Pull 型でメトリクスを収集するため、スクレイプ
 
 ---
 
-## 12. 演習問題
+## 12. Exercises
 
-### 演習1: 基礎 -- 構造化ログの実装
+### Exercise 1: Basic — Implementing Structured Logging
 
-以下の要件を満たすログミドルウェアを Express.js で実装せよ。
+Implement a logging middleware in Express.js that satisfies the following requirements.
 
 ```
-要件:
-  1. JSON 形式の構造化ログを出力する
-  2. 各リクエストに一意の requestId を付与する
-  3. レスポンス完了時に以下の情報を記録する:
+Requirements:
+  1. Output structured logs in JSON format
+  2. Assign a unique requestId to each request
+  3. Record the following information when a response completes:
      - method, path, statusCode, duration(ms)
-     - userId（認証済みの場合）
-  4. ステータスコードに応じてログレベルを変える:
+     - userId (if authenticated)
+  4. Change the log level based on status code:
      - 5xx -> error
      - 4xx -> warn
-     - それ以外 -> info
-  5. パスワードやトークンなどの機密情報をマスキングする
+     - Other -> info
+  5. Mask sensitive information such as passwords and tokens
 
-ヒント:
-  - pino または winston を使用する
-  - res.on('finish', callback) でレスポンス完了を検知する
-  - pino の redact オプションで機密情報を除外する
+Hints:
+  - Use pino or winston
+  - Detect response completion with res.on('finish', callback)
+  - Exclude sensitive information with pino's redact option
 
-確認ポイント:
-  -> ログが JSON 形式で出力されているか
-  -> requestId が全ログに含まれているか
-  -> 機密情報がマスキングされているか
-  -> ログレベルが適切に設定されているか
+Verification Points:
+  -> Are logs output in JSON format?
+  -> Is requestId included in all logs?
+  -> Is sensitive information masked?
+  -> Are log levels set appropriately?
 ```
 
-### 演習2: 中級 -- Prometheus メトリクスとアラート設計
+### Exercise 2: Intermediate — Prometheus Metrics and Alert Design
 
-以下の要件を満たす API モニタリング基盤を構築せよ。
+Build an API monitoring infrastructure that satisfies the following requirements.
 
 ```
-要件:
-  1. prom-client で以下のメトリクスを計装する:
+Requirements:
+  1. Instrument the following metrics with prom-client:
      - http_requests_total (Counter)
      - http_request_duration_seconds (Histogram)
      - http_active_connections (Gauge)
      - db_query_duration_seconds (Histogram)
-  2. /metrics エンドポイントを公開する
-  3. 以下のアラートルールを Prometheus に設定する:
-     - 5xx エラー率 > 5% が 5分間持続 -> Critical
-     - P99 レイテンシ > 2秒 が 10分間持続 -> Warning
-     - サービスダウン（up == 0）が 1分間持続 -> Critical
-  4. Grafana ダッシュボードで RPS、レイテンシ、エラー率を可視化する
+  2. Expose a /metrics endpoint
+  3. Configure the following alert rules in Prometheus:
+     - 5xx error rate > 5% for 5 minutes -> Critical
+     - P99 latency > 2 seconds for 10 minutes -> Warning
+     - Service down (up == 0) for 1 minute -> Critical
+  4. Visualize RPS, latency, and error rate in a Grafana dashboard
 
-構成:
-  docker-compose.yml で以下を起動:
-    - API サーバー（Node.js）
+Configuration:
+  Start the following with docker-compose.yml:
+    - API server (Node.js)
     - Prometheus
     - Grafana
     - Alertmanager
 
-確認ポイント:
-  -> curl http://localhost:3000/metrics でメトリクスが取得できるか
-  -> Prometheus の Targets で API サーバーが UP であるか
-  -> Grafana でダッシュボードが表示されるか
-  -> 意図的にエラーを発生させてアラートが発報するか
+Verification Points:
+  -> Can metrics be retrieved with curl http://localhost:3000/metrics?
+  -> Is the API server UP in Prometheus Targets?
+  -> Is the dashboard displayed in Grafana?
+  -> When intentionally causing errors, does the alert fire?
 ```
 
-### 演習3: 上級 -- 分散トレーシングとオブザーバビリティ統合
+### Exercise 3: Advanced — Distributed Tracing and Observability Integration
 
-以下のマイクロサービス構成で、エンドツーエンドの分散トレーシングを実装せよ。
+Implement end-to-end distributed tracing for the following microservices configuration.
 
 ```
-構成:
+Configuration:
   [Client] -> [API Gateway] -> [User Service] -> [PostgreSQL]
                              -> [Order Service] -> [Redis]
-                                                -> [Payment API (外部)]
+                                                -> [Payment API (external)]
 
-要件:
-  1. OpenTelemetry SDK で各サービスを計装する
-  2. W3C Trace Context ヘッダーでコンテキストを伝搬する
-  3. カスタムスパンでビジネスロジックの処理時間を記録する
-  4. エラー発生時に span.recordException() でエラー情報を記録する
-  5. Jaeger でトレースを可視化する
-  6. Grafana でメトリクス、トレース、ログを相互リンクする
+Requirements:
+  1. Instrument each service with the OpenTelemetry SDK
+  2. Propagate context with W3C Trace Context headers
+  3. Record processing time for business logic with custom spans
+  4. Record error information with span.recordException() when an error occurs
+  5. Visualize traces in Jaeger
+  6. Cross-link metrics, traces, and logs in Grafana
 
-追加課題:
-  - テールベースサンプリングを OTel Collector で設定する
-  - エラートレースと遅延トレースを 100% 収集する
-  - ログに trace_id と span_id を含めてトレースと紐付ける
-  - Grafana の Explore ビューでトレースからログへジャンプする
+Additional challenges:
+  - Configure tail-based sampling in the OTel Collector
+  - Collect 100% of error traces and high-latency traces
+  - Include trace_id and span_id in logs to link to traces
+  - Jump from traces to logs using Grafana's Explore view
 
-確認ポイント:
-  -> Jaeger でサービス間のトレースが一貫して表示されるか
-  -> ボトルネックとなっているスパンを特定できるか
-  -> エラーが発生したスパンが正しくマークされているか
-  -> ログから対応するトレースへ遷移できるか
-  -> サンプリングポリシーが期待通りに動作しているか
+Verification Points:
+  -> Are cross-service traces displayed consistently in Jaeger?
+  -> Can you identify the span that is a bottleneck?
+  -> Are error spans correctly marked?
+  -> Can you navigate from a log to the corresponding trace?
+  -> Is the sampling policy operating as expected?
 ```
 
 ---
 
-## 13. 本番環境でのベストプラクティス
+## 13. Best Practices for Production Environments
 
-### 13.1 ログローテーションと保持ポリシー
-
-```
-ログ保持ポリシーの設計指針:
-
-  Tier 1 -- ホットストレージ（高速検索可能）:
-    期間:   7-14日
-    用途:   アクティブなデバッグ、インシデント対応
-    ストレージ: SSD / Elasticsearch Hot Node
-
-  Tier 2 -- ウォームストレージ（検索可能だがやや遅い）:
-    期間:   30-90日
-    用途:   トレンド分析、過去のインシデント調査
-    ストレージ: HDD / Elasticsearch Warm Node / S3
-
-  Tier 3 -- コールドストレージ（アーカイブ）:
-    期間:   1年以上（コンプライアンス要件による）
-    用途:   監査、法的要件
-    ストレージ: S3 Glacier / GCS Coldline
-
-  ログレベル別の保持期間:
-    ERROR/FATAL: 90日（ホット14日 + ウォーム76日）
-    WARN:        30日（ホット7日 + ウォーム23日）
-    INFO:        14日（全てホット）
-    DEBUG:       3日（開発環境のみ）
-```
-
-### 13.2 パフォーマンスへの影響を最小化する
+### 13.1 Log Rotation and Retention Policy
 
 ```
-モニタリングのオーバーヘッドを抑える原則:
+Log retention policy design guidelines:
 
-  1. 非同期ログ出力:
-     -> ログの書き込みをバッファリングし、非同期でフラッシュ
-     -> pino はデフォルトで非同期書き込みに対応
-     -> 同期書き込みはレイテンシに直接影響する
+  Tier 1 -- Hot storage (fast searchable):
+    Period:   7-14 days
+    Use:      Active debugging, incident response
+    Storage:  SSD / Elasticsearch Hot Node
 
-  2. メトリクスのラベル数を制限:
-     -> ラベルの組合せ数（カーディナリティ）を 1,000 以下に
-     -> path ラベルはテンプレート（/users/:id）を使用
-     -> ユーザーIDやリクエストIDはラベルに含めない
+  Tier 2 -- Warm storage (searchable but slightly slower):
+    Period:   30-90 days
+    Use:      Trend analysis, past incident investigation
+    Storage:  HDD / Elasticsearch Warm Node / S3
 
-  3. トレースのサンプリング:
-     -> 本番環境では 1-10% のサンプリング
-     -> エラーと遅延リクエストは 100% 収集
-     -> テールベースサンプリングで重要なトレースを確保
+  Tier 3 -- Cold storage (archive):
+    Period:   1 year or more (depending on compliance requirements)
+    Use:      Auditing, legal requirements
+    Storage:  S3 Glacier / GCS Coldline
 
-  4. ログのフィルタリング:
-     -> ヘルスチェックやメトリクスエンドポイントのログを除外
-     -> 本番では DEBUG/TRACE レベルを無効化
-     -> 動的ログレベル変更の仕組みを用意する
-
-  5. バッチ処理:
-     -> テレメトリデータのエクスポートをバッチ化
-     -> 個別送信ではなく、まとめて送信することでオーバーヘッド削減
+  Retention period by log level:
+    ERROR/FATAL: 90 days (hot 14 days + warm 76 days)
+    WARN:        30 days (hot 7 days + warm 23 days)
+    INFO:        14 days (all hot)
+    DEBUG:       3 days (development environment only)
 ```
 
-### 13.3 障害時のモニタリング継続性
+### 13.2 Minimizing Performance Impact
 
 ```
-モニタリング基盤自体の可用性確保:
+Principles for reducing monitoring overhead:
 
-  問題: 障害発生時こそモニタリングが重要だが、
-        障害がモニタリング基盤に波及する場合がある
+  1. Asynchronous log output:
+     -> Buffer log writes and flush asynchronously
+     -> pino supports asynchronous writing by default
+     -> Synchronous writes directly impact latency
 
-  対策:
-    1. モニタリング基盤を監視対象とは別のインフラに配置
-    2. Prometheus の Federation で階層化
-    3. Thanos/Cortex で長期保存と高可用性を実現
-    4. アラート通知経路を多重化（Slack + PagerDuty + Email）
-    5. Dead Man's Switch アラート（常時発報するアラートが
-       停止した場合にモニタリング基盤の障害を検出）
+  2. Limit the number of metric labels:
+     -> Keep the number of label combinations (cardinality) below 1,000
+     -> Use template paths (/users/:id) for the path label
+     -> Do not include user IDs or request IDs in labels
 
-  Dead Man's Switch の例:
+  3. Trace sampling:
+     -> 1-10% sampling in production environments
+     -> Collect 100% of errors and slow requests
+     -> Use tail-based sampling to ensure important traces are captured
+
+  4. Log filtering:
+     -> Exclude logs from health check and metrics endpoints
+     -> Disable DEBUG/TRACE levels in production
+     -> Prepare a mechanism for dynamic log level changes
+
+  5. Batch processing:
+     -> Batch telemetry data exports
+     -> Send in bulk rather than individually to reduce overhead
+```
+
+### 13.3 Monitoring Continuity During Failures
+
+```
+Ensuring availability of the monitoring infrastructure itself:
+
+  Problem: Monitoring is most important during a failure,
+           but failures can sometimes affect the monitoring infrastructure
+
+  Remedies:
+    1. Place the monitoring infrastructure on separate infrastructure from what is being monitored
+    2. Use Prometheus Federation for hierarchical structure
+    3. Use Thanos/Cortex for long-term storage and high availability
+    4. Multiplex alert notification channels (Slack + PagerDuty + Email)
+    5. Dead Man's Switch alert (detects monitoring infrastructure failure
+       when a constantly-firing alert stops)
+
+  Dead Man's Switch example:
     - alert: PrometheusAlive
       expr: vector(1)
       labels:
         severity: critical
       annotations:
         summary: "Dead man's switch - Prometheus is alive"
-    -> Alertmanager でこのアラートの受信を監視
-    -> 一定時間受信しなければ、外部監視から通知
+    -> Monitor receipt of this alert in Alertmanager
+    -> If not received for a certain period, notify via external monitoring
 ```
 
 ---
 
-## 14. FAQ（よくある質問）
+## 14. FAQ (Frequently Asked Questions)
 
-### Q1: Prometheus と Datadog のどちらを選ぶべきか
+### Q1: Should I choose Prometheus or Datadog?
 
-Prometheus はオープンソースで柔軟性が高く、ランニングコストを抑えられる反面、運用負荷が高い。Datadog は SaaS であり、運用負荷は低いが従量課金のコストが嵩む場合がある。選定の基準は以下の通りである。
+Prometheus is open-source and highly flexible, keeping running costs low, but has high operational burden. Datadog is SaaS, so operational burden is low, but usage-based billing can be costly. Selection criteria are as follows.
 
-| 判断軸 | Prometheus 推奨 | Datadog 推奨 |
+| Decision axis | Prometheus recommended | Datadog recommended |
 |--------|----------------|-------------|
-| チームの運用力 | Kubernetes/インフラ運用に強い | アプリ開発に集中したい |
-| 予算 | インフラコストに余裕がある | 人件費 > SaaS費用の場合 |
-| スケール | 中規模（月間数十億データポイント） | 大規模・多拠点 |
-| カスタマイズ | 独自のメトリクス設計が必要 | 標準的な監視で十分 |
-| 統合 | Grafana エコシステムを活用 | APM + ログ + インフラを一元管理 |
+| Team operational capability | Strong in Kubernetes/infrastructure operations | Want to focus on application development |
+| Budget | Have budget for infrastructure costs | Personnel costs > SaaS costs |
+| Scale | Medium scale (tens of billions of data points per month) | Large scale, multi-region |
+| Customization | Need custom metrics design | Standard monitoring is sufficient |
+| Integration | Utilizing the Grafana ecosystem | Centrally managing APM + logs + infrastructure |
 
-小〜中規模のチームではまず Prometheus + Grafana で始め、運用負荷が課題になった段階で SaaS への移行を検討するアプローチが合理的である。
+For small to medium-scale teams, the rational approach is to start with Prometheus + Grafana and consider migrating to SaaS when operational burden becomes a problem.
 
-### Q2: ログとメトリクスの使い分けの基準は何か
+### Q2: What is the criterion for choosing between logs and metrics?
 
-端的に言えば、「何が起きたか」を知りたい場合はログ、「どれくらい起きているか」を知りたい場合はメトリクスである。
+Briefly, use logs when you want to know "what happened," and metrics when you want to know "how often it happened."
 
-- メトリクス: 集約的な問いに答える。「エラー率は何%か」「P99レイテンシは何msか」「リクエスト数は増加傾向か」
-- ログ: 個別の問いに答える。「このリクエストはなぜ失敗したか」「ユーザーXの操作履歴は何か」「どのSQLクエリがエラーになったか」
+- Metrics: Answer aggregate questions. "What is the error rate?" "What is the P99 latency in ms?" "Is the number of requests trending upward?"
+- Logs: Answer individual questions. "Why did this request fail?" "What is the operation history for user X?" "Which SQL query resulted in an error?"
 
-アラートはメトリクスベースで設定し、インシデント調査時にログを参照するというフローが一般的である。メトリクスで異常を検出し、ログで根本原因を特定する。
+The typical flow is to set alerts based on metrics and refer to logs when investigating an incident. Detect anomalies with metrics and identify the root cause with logs.
 
-### Q3: 分散トレーシングのサンプリング率はどの程度にすべきか
+### Q3: What sampling rate should be used for distributed tracing?
 
-サンプリング率はトラフィック量とストレージ容量に依存する。一般的な指針は以下の通りである。
+The sampling rate depends on traffic volume and storage capacity. General guidelines are as follows.
 
-- 開発/ステージング環境: 100%（全トレース収集）
-- 低トラフィック（< 100 RPS）の本番環境: 50-100%
-- 中トラフィック（100-1000 RPS）: 10-50%
-- 高トラフィック（> 1000 RPS）: 1-10%
+- Development/staging environments: 100% (collect all traces)
+- Production with low traffic (< 100 RPS): 50-100%
+- Production with medium traffic (100-1000 RPS): 10-50%
+- Production with high traffic (> 1000 RPS): 1-10%
 
-ただし、テールベースサンプリングを導入すれば、エラーや高レイテンシのトレースは 100% 収集しつつ、正常なトレースのみサンプリング対象にできる。これにより、デバッグに最も価値のあるトレースを確実に保持できる。
+However, with tail-based sampling, you can collect 100% of error and high-latency traces while only sampling normal traces. This ensures that the traces most valuable for debugging are always retained.
 
-### Q4: OpenTelemetry とベンダー固有の SDK はどちらを使うべきか
+### Q4: Should I use OpenTelemetry or vendor-specific SDKs?
 
-OpenTelemetry を推奨する。OpenTelemetry はベンダー非依存であるため、バックエンド（Jaeger, Zipkin, Datadog, New Relic 等）を後から変更できる。ベンダーロックインを避けることで、将来のコスト最適化や技術選択の自由度が確保される。主要な APM ベンダーも OpenTelemetry のネイティブサポートを進めており、互換性の問題は減少している。
+OpenTelemetry is recommended. Since OpenTelemetry is vendor-agnostic, you can change the backend (Jaeger, Zipkin, Datadog, New Relic, etc.) later. Avoiding vendor lock-in ensures freedom in future cost optimization and technology choices. Major APM vendors are also progressing their native support for OpenTelemetry, and compatibility issues are decreasing.
 
-### Q5: モニタリングツールの選定基準は何か
+### Q5: What are the criteria for selecting monitoring tools?
 
-モニタリングツールの選定では以下の観点を総合的に評価する必要がある。
+When selecting monitoring tools, the following aspects need to be evaluated comprehensively.
 
-| 観点 | 評価ポイント |
+| Aspect | Evaluation Points |
 |------|------------|
-| 機能カバレッジ | メトリクス・ログ・トレースの統合度、ダッシュボード機能、アラート機能の充実度 |
-| スケーラビリティ | 想定データ量（データポイント/秒、ログ量/日）に対応できるか |
-| コスト | 初期費用、運用コスト、データ保持コスト、従量課金の透明性 |
-| 運用負荷 | セルフホスト vs SaaS、必要な専門知識、保守の難易度 |
-| エコシステム | 既存ツールとの統合、OpenTelemetry サポート、プラグインの充実度 |
-| ベンダーロックイン | データのエクスポート可否、標準プロトコル対応 |
+| Feature coverage | Degree of integration of metrics/logs/traces, dashboard features, richness of alert features |
+| Scalability | Can it handle the expected data volume (data points/second, log volume/day)? |
+| Cost | Initial cost, operational cost, data retention cost, transparency of usage-based billing |
+| Operational burden | Self-hosted vs. SaaS, required expertise, maintenance difficulty |
+| Ecosystem | Integration with existing tools, OpenTelemetry support, richness of plugins |
+| Vendor lock-in | Whether data can be exported, support for standard protocols |
 
-スタートアップや小規模チームであれば、運用負荷の低い SaaS（Datadog、New Relic）を選択し、成長後にコスト最適化として Prometheus + Grafana 等のオープンソースへの移行を検討するのが現実的である。一方、大規模なトラフィックを扱う組織では、初期からオープンソースベースの基盤を構築し、運用ノウハウを蓄積する戦略が有効である。
+For startups and small teams, selecting a SaaS with low operational burden (Datadog, New Relic) and considering migration to open-source options like Prometheus + Grafana as a cost optimization after growth is realistic. On the other hand, for organizations handling large-scale traffic, building an open-source-based foundation from the start and accumulating operational know-how is an effective strategy.
 
-### Q6: アラート設計のベストプラクティスは何か
+### Q6: What are the best practices for alert design?
 
-効果的なアラート設計には以下の原則を適用する。
+Apply the following principles to effective alert design.
 
-1. **SLO ベースのアラート**: 「CPU 使用率 > 80%」ではなく「エラーバジェットの消費率 > 5%/hour」のようにユーザー影響に基づくアラートを設定する
-2. **アクション可能性**: アラートを受け取った人が明確なアクションを取れる内容にする。「何を確認し、何をすべきか」を Runbook として整備する
-3. **適切な閾値設定**: 過去のデータから P95/P99 を分析し、誤検知と見逃しのバランスを取る。静的閾値ではなく異常検知アルゴリズムの活用も検討する
-4. **重複排除とグルーピング**: 関連する複数のアラートを 1 つの通知にまとめ、アラート疲れを防ぐ
-5. **段階的エスカレーション**: Severity（Critical/Warning/Info）に応じた通知先と対応時間を明確化する
-6. **サイレント期間の設定**: デプロイ中やメンテナンス中のアラートを自動的に抑制する仕組みを用意する
+1. **SLO-based alerts**: Set alerts based on user impact, such as "error budget consumption rate > 5%/hour," rather than "CPU usage > 80%"
+2. **Actionability**: Make the content such that the person receiving the alert can take clear action. Prepare a Runbook for "what to check and what to do"
+3. **Appropriate threshold setting**: Analyze P95/P99 from historical data to balance false positives and misses. Also consider using anomaly detection algorithms rather than static thresholds
+4. **Deduplication and grouping**: Consolidate multiple related alerts into a single notification to prevent alert fatigue
+5. **Gradual escalation**: Clearly define the notification target and response time for each Severity (Critical/Warning/Info)
+6. **Setting silence periods**: Prepare a mechanism to automatically suppress alerts during deployments or maintenance
 
-アラートは「ユーザーに影響が出ている」または「これから影響が出る可能性が高い」場合にのみ発報すべきである。単なる情報通知はアラートではなくダッシュボードやレポートで十分である。
+Alerts should only fire when "users are being impacted" or "there is a high likelihood that users will be impacted." Simple informational notifications are sufficient with dashboards or reports, not alerts.
 
-### Q7: ログの保持期間と管理はどうすべきか
+### Q7: How should log retention periods and management be handled?
 
-ログの保持期間は、法的要件、コスト、実用性のバランスで決定する。
+Log retention periods are determined by balancing legal requirements, cost, and practicality.
 
-| ログ種別 | 推奨保持期間 | 理由 |
+| Log Type | Recommended Retention | Reason |
 |---------|------------|------|
-| アプリケーションログ（エラー・警告） | 30〜90日（ホットストレージ）<br>1年（コールドストレージ） | トラブルシューティングに必要な期間<br>長期トレンド分析・監査用 |
-| アクセスログ | 7〜30日（ホットストレージ）<br>6ヶ月〜1年（コールドストレージ） | 直近のトラフィック分析用<br>セキュリティインシデント調査用 |
-| 監査ログ（金融・医療） | 7年以上（アーカイブストレージ） | 法的要件（SOX法、GDPR等）による |
-| デバッグログ | 1〜7日 | 開発環境のみで有効化、本番では無効化が望ましい |
+| Application logs (errors, warnings) | 30–90 days (hot storage)<br>1 year (cold storage) | Period required for troubleshooting<br>Long-term trend analysis / auditing |
+| Access logs | 7–30 days (hot storage)<br>6 months–1 year (cold storage) | Recent traffic analysis<br>Security incident investigation |
+| Audit logs (financial/medical) | 7 years or more (archive storage) | Legal requirements (SOX, GDPR, etc.) |
+| Debug logs | 1–7 days | Enable only in development environments; disable in production is preferred |
 
-ストレージコスト削減のためのベストプラクティス:
-- **段階的ストレージ移行**: Elasticsearch → S3 → Glacier のような階層化
-- **サンプリング**: 正常系リクエストの 1-10% のみ記録する
-- **構造化ログの圧縮**: JSON ログを gzip で圧縮（70-90% のサイズ削減）
-- **古いログの集約**: 詳細ログを日次集計データに変換して保持
+Best practices for reducing storage costs:
+- **Tiered storage migration**: Tiering like Elasticsearch → S3 → Glacier
+- **Sampling**: Record only 1-10% of normal requests
+- **Compress structured logs**: Compress JSON logs with gzip (70-90% size reduction)
+- **Aggregate old logs**: Convert detailed logs to daily aggregate data for retention
 
-また、GDPR 等のプライバシー規制により、個人情報を含むログは削除リクエストに対応できる仕組みが必要である。ログに含まれる PII（個人識別情報）は暗号化またはマスキングを検討する。
-
----
-
-## 15. モニタリング成熟度モデル
-
-組織のモニタリング成熟度を段階的に向上させるためのロードマップを以下に示す。
-
-```
-モニタリング成熟度レベル:
-
-  Level 0: 無監視
-    -> ログ出力は console.log のみ
-    -> 障害はユーザーからの報告で気付く
-    -> 対応: まずログ基盤とヘルスチェックを導入
-
-  Level 1: 基本監視
-    -> 構造化ログを導入
-    -> アップタイム監視（ping/healthcheck）
-    -> 基本的なメトリクス（CPU, メモリ, ディスク）
-    -> 対応: RED メトリクスの導入
-
-  Level 2: アプリケーション監視
-    -> RED メトリクス（Rate, Errors, Duration）
-    -> エンドポイント別のメトリクス
-    -> Grafana ダッシュボード
-    -> 基本的なアラート設定
-    -> 対応: SLI/SLO の定義と分散トレーシング
-
-  Level 3: オブザーバビリティ
-    -> SLI/SLO ベースのアラート
-    -> 分散トレーシング（OpenTelemetry）
-    -> ログ・メトリクス・トレースの相関付け
-    -> エラーバジェットによるリリース管理
-    -> 対応: 自動化とプロアクティブ監視
-
-  Level 4: プロアクティブ監視
-    -> 異常検知（ML ベース）
-    -> 自動スケーリングとの連携
-    -> カオスエンジニアリングとの統合
-    -> SLO ダッシュボードによるビジネス可視化
-    -> 継続的な改善サイクル
-```
+Also, due to privacy regulations such as GDPR, a mechanism to handle deletion requests for logs containing personal information is necessary. Consider encrypting or masking PII (Personally Identifiable Information) included in logs.
 
 ---
 
-## まとめ
+## 15. Monitoring Maturity Model
 
-| 概念 | ポイント |
+The following is a roadmap for gradually improving an organization's monitoring maturity.
+
+```
+Monitoring Maturity Levels:
+
+  Level 0: No monitoring
+    -> Logging is console.log only
+    -> Failures are noticed via user reports
+    -> Action: Start by introducing a log platform and health checks
+
+  Level 1: Basic monitoring
+    -> Structured logging introduced
+    -> Uptime monitoring (ping/healthcheck)
+    -> Basic metrics (CPU, memory, disk)
+    -> Action: Introduce RED metrics
+
+  Level 2: Application monitoring
+    -> RED metrics (Rate, Errors, Duration)
+    -> Per-endpoint metrics
+    -> Grafana dashboards
+    -> Basic alert configuration
+    -> Action: Define SLI/SLO and distributed tracing
+
+  Level 3: Observability
+    -> SLI/SLO-based alerts
+    -> Distributed tracing (OpenTelemetry)
+    -> Correlation of logs, metrics, and traces
+    -> Release management with error budget
+    -> Action: Automation and proactive monitoring
+
+  Level 4: Proactive monitoring
+    -> Anomaly detection (ML-based)
+    -> Integration with auto-scaling
+    -> Chaos engineering integration
+    -> Business visualization via SLO dashboards
+    -> Continuous improvement cycle
+```
+
+---
+
+## Summary
+
+| Concept | Key Points |
 |------|---------|
-| オブザーバビリティ | ログ・メトリクス・トレースの三本柱で構成 |
-| RED メソッド | Rate, Errors, Duration でAPIを監視 |
-| SLI/SLO | 可用性99.9%、P99 < 500ms、エラーバジェットで意思決定 |
-| 構造化ログ | JSON形式 + requestId + traceId で相関可能に |
-| 分散トレーシング | OpenTelemetry + W3C Trace Context で標準化 |
-| Prometheus | Pull型メトリクス収集、PromQLで柔軟なクエリ |
-| Grafana | 階層的ダッシュボード設計、メトリクス・ログ・トレースの統合 |
-| アラート設計 | SLOベース、アクション可能、重複排除 |
-| ログ集約 | Loki（低コスト）または ELK（全文検索）で集中管理 |
-| OTel Collector | ベンダー非依存のテレメトリパイプライン |
+| Observability | Composed of the three pillars: logs, metrics, traces |
+| RED method | Monitor APIs with Rate, Errors, Duration |
+| SLI/SLO | 99.9% availability, P99 < 500ms, decision-making with error budget |
+| Structured logging | JSON format + requestId + traceId for correlation |
+| Distributed tracing | Standardized with OpenTelemetry + W3C Trace Context |
+| Prometheus | Pull-based metrics collection, flexible queries with PromQL |
+| Grafana | Hierarchical dashboard design, integration of metrics/logs/traces |
+| Alert design | SLO-based, actionable, deduplicated |
+| Log aggregation | Centralized management with Loki (low cost) or ELK (full-text search) |
+| OTel Collector | Vendor-agnostic telemetry pipeline |
 
 ---
 
 ## FAQ
 
-### Q1: 小規模チームでオブザーバビリティを始めるにはどこから手を付けるべきか?
-まずは構造化ログ（JSON形式）の導入と、ヘルスチェックエンドポイントの実装から始めることを推奨する。次に、REDメソッド（Rate、Errors、Duration）の3指標をPrometheus + Grafanaで可視化する。この段階でエラー率とP99レイテンシのアラートを設定すれば、障害の早期検出が可能になる。分散トレーシングはマイクロサービスが3つ以上になった時点で導入を検討するとよい。
+### Q1: Where should a small team start with observability?
+It is recommended to start with introducing structured logging (JSON format) and implementing a health check endpoint. Next, visualize the 3 indicators of the RED method (Rate, Errors, Duration) with Prometheus + Grafana. Setting alerts for error rate and P99 latency at this stage enables early detection of failures. Consider introducing distributed tracing when you have 3 or more microservices.
 
-### Q2: ログレベル（INFO/WARN/ERROR等）の使い分けの基準は何か?
-ERRORはシステムが正常に動作していない状態を示し、即座に調査が必要なもの（DB接続失敗、外部API障害等）に使用する。WARNは現時点では問題ないが将来的にエラーになりうるもの（ディスク容量の逼迫、レート制限の接近等）に使用する。INFOはビジネス上重要なイベント（ユーザー登録、決済完了等）に使用する。DEBUGは開発時のトラブルシューティング情報であり、本番環境ではデフォルトで無効化する。本番環境でDEBUGログを有効にする場合は、動的ログレベル変更の仕組みを導入しておくとよい。
+### Q2: What is the criterion for using log levels (INFO/WARN/ERROR, etc.)?
+ERROR indicates that the system is not operating normally and should be used for things that require immediate investigation (DB connection failure, external API failure, etc.). WARN is for things that are not a problem now but could become errors in the future (approaching disk capacity, approaching rate limit, etc.). INFO is for business-critical events (user registration, payment completion, etc.). DEBUG is troubleshooting information for development time and should be disabled by default in production environments. If enabling DEBUG logs in production, it is good to have a mechanism for dynamic log level changes.
 
-### Q3: SLO（サービスレベル目標）の初期設定値はどの程度にすべきか?
-まずは控えめな目標から始め、データを蓄積しながら徐々に引き上げるアプローチを推奨する。初期設定の目安としては、可用性99.9%（月間ダウンタイム約43分）、P99レイテンシ < 1秒、エラー率 < 0.5%が一般的な出発点である。エラーバジェット（100% - SLO）の消費率を監視し、リリース判断に活用する。SLOは四半期ごとにレビューし、実績データに基づいて調整する。99.99%以上の可用性は運用コストが指数関数的に増大するため、ビジネス要件と照合して妥当性を判断すること。
-
----
-
-## 次に読むべきガイド
-
-→ [APIゲートウェイ](./02-api-gateway.md) — APIゲートウェイの設計とモニタリング統合
-→ [レート制限](../03-api-security/01-rate-limiting.md) — レート制限とメトリクスの関連
+### Q3: What should the initial SLO (Service Level Objective) values be set to?
+It is recommended to start with conservative targets and gradually raise them as data accumulates. Common starting points as initial settings are 99.9% availability (approximately 43 minutes of monthly downtime), P99 latency < 1 second, and error rate < 0.5%. Monitor the consumption rate of the error budget (100% - SLO) and use it for release decisions. Review SLOs quarterly and adjust based on actual data. Since availability above 99.99% causes operational costs to increase exponentially, verify appropriateness by cross-referencing with business requirements.
 
 ---
 
-## 参考文献
+## What to Read Next
+
+→ [API Gateway](./02-api-gateway.md) — API gateway design and monitoring integration
+→ [Rate Limiting](../03-api-security/01-rate-limiting.md) — Rate limiting and its relationship to metrics
+
+---
+
+## References
 
 1. Google. "Site Reliability Engineering: How Google Runs Production Systems." O'Reilly Media, 2016. https://sre.google/sre-book/table-of-contents/
 2. OpenTelemetry Authors. "OpenTelemetry Documentation." Cloud Native Computing Foundation, 2024. https://opentelemetry.io/docs/
