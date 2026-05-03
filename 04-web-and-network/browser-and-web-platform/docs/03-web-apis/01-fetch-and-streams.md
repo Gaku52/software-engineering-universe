@@ -1,37 +1,37 @@
-# Fetch と Streams
+# Fetch and Streams
 
-> Fetch APIはXMLHttpRequestの後継として策定されたモダンなHTTPクライアントAPI。Streams APIと組み合わせることで、大きなレスポンスの段階的処理、進捗表示、AbortControllerによるキャンセルを実現する。本章ではFetch APIの基礎から高度なパターン、Streams APIによるストリーミング処理、実務でのベストプラクティスまでを包括的に解説する。
+> The Fetch API is a modern HTTP client API designed as the successor to XMLHttpRequest. Combined with the Streams API, it enables incremental processing of large responses, progress display, and cancellation via AbortController. This chapter provides a comprehensive guide from the basics of the Fetch API through advanced patterns, streaming processing with the Streams API, and best practices for production use.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] Fetch APIの基本と高度な使い方を理解する
-- [ ] Request / Response オブジェクトの詳細を把握する
-- [ ] Streams APIでのストリーミング処理を実装できるようになる
-- [ ] AbortControllerによるリクエストキャンセルとタイムアウトを学ぶ
-- [ ] 実務レベルのfetchラッパーとエラーハンドリングを構築する
-- [ ] Server-Sent Events / NDJSON / チャンク転送のストリーム処理を理解する
-- [ ] テスト戦略とモック手法を把握する
+- [ ] Understand the basics and advanced usage of the Fetch API
+- [ ] Grasp the details of Request / Response objects
+- [ ] Be able to implement streaming processing with the Streams API
+- [ ] Learn request cancellation and timeout using AbortController
+- [ ] Build production-level fetch wrappers and error handling
+- [ ] Understand stream processing for Server-Sent Events / NDJSON / chunked transfer encoding
+- [ ] Understand testing strategies and mocking techniques
 
-## 前提知識
+## Prerequisites
 
-本章を学習する前に、以下の知識を習得しておくことを推奨する。
+Before studying this chapter, it is recommended to have acquired the following knowledge.
 
-- **HTTPの基礎**: HTTPリクエスト/レスポンスの構造、ステータスコード、ヘッダー、メソッド（GET, POST, PUT, DELETE等）の意味を理解していることが前提となる。詳細は [../../../network-fundamentals/docs/02-http/00-http-basics.md](../../../network-fundamentals/docs/02-http/00-http-basics.md) を参照。
+- **HTTP Basics**: Understanding of the structure of HTTP requests/responses, status codes, headers, and the meaning of methods (GET, POST, PUT, DELETE, etc.) is assumed. See [../../../network-fundamentals/docs/02-http/00-http-basics.md](../../../network-fundamentals/docs/02-http/00-http-basics.md) for details.
 
-- **PromiseとAsync/Await**: Fetch APIはPromiseベースであり、`async`/`await` 構文を使った非同期処理の記述が中心となる。Promiseのチェーン、エラーハンドリング（`.catch()`, `try/catch`）、並行処理（`Promise.all()`, `Promise.race()`）を理解していることが重要である。
+- **Promise and Async/Await**: The Fetch API is Promise-based, and writing asynchronous processing using `async`/`await` syntax is central. It is important to understand Promise chaining, error handling (`.catch()`, `try/catch`), and concurrent processing (`Promise.all()`, `Promise.race()`).
 
-- **DOM API**: Fetch APIで取得したデータをDOMに反映する場面が多いため、基本的なDOM操作（要素の取得、作成、挿入）を理解しておく。詳細は [./00-dom-api.md](./00-dom-api.md) を参照。
+- **DOM API**: Since there are many situations where data retrieved with the Fetch API is reflected in the DOM, understand basic DOM operations (retrieving, creating, inserting elements). See [./00-dom-api.md](./00-dom-api.md) for details.
 
 ---
 
-## 1. Fetch APIの基礎
+## 1. Fetch API Basics
 
-### 1.1 XMLHttpRequestからFetch APIへの進化
+### 1.1 Evolution from XMLHttpRequest to Fetch API
 
-XMLHttpRequest（XHR）はAjaxの基盤として長年使われてきたが、コールバックベースのAPIは複雑になりやすく、ストリーミング処理のサポートも限定的だった。Fetch APIはこれらの課題を解決するために設計された。
+XMLHttpRequest (XHR) has long been used as the foundation of Ajax, but its callback-based API tends to become complex and its support for streaming processing was limited. The Fetch API was designed to solve these issues.
 
 ```javascript
-// XMLHttpRequest（旧来のパターン）
+// XMLHttpRequest (legacy pattern)
 function fetchDataXHR(url, callback) {
   const xhr = new XMLHttpRequest();
   xhr.open('GET', url);
@@ -50,7 +50,7 @@ function fetchDataXHR(url, callback) {
   xhr.send();
 }
 
-// Fetch API（モダンなパターン）
+// Fetch API (modern pattern)
 async function fetchData(url) {
   const response = await fetch(url);
   if (!response.ok) {
@@ -60,27 +60,27 @@ async function fetchData(url) {
 }
 ```
 
-Fetch APIの主な利点を以下にまとめる。
+The main advantages of the Fetch API are summarized below.
 
-| 特徴 | XMLHttpRequest | Fetch API |
-|------|---------------|-----------|
-| 非同期モデル | コールバック | Promise |
-| ストリーミング | 限定的 | ReadableStream |
-| リクエストキャンセル | xhr.abort() | AbortController |
-| CORS制御 | 限定的 | mode オプション |
-| キャッシュ制御 | 手動ヘッダー | cache オプション |
-| Service Worker連携 | 不可 | FetchEvent で統一 |
-| 構文の簡潔さ | 冗長 | シンプル |
+| Feature | XMLHttpRequest | Fetch API |
+|---------|---------------|-----------|
+| Async model | Callback | Promise |
+| Streaming | Limited | ReadableStream |
+| Request cancellation | xhr.abort() | AbortController |
+| CORS control | Limited | mode option |
+| Cache control | Manual headers | cache option |
+| Service Worker integration | Not possible | Unified via FetchEvent |
+| Syntax simplicity | Verbose | Simple |
 
-### 1.2 基本的なGETリクエスト
+### 1.2 Basic GET Request
 
 ```javascript
-// 最もシンプルなGET
+// Simplest GET
 const response = await fetch('/api/users');
 const users = await response.json();
 console.log(users);
 
-// URLSearchParams によるクエリパラメータの構築
+// Building query parameters with URLSearchParams
 const params = new URLSearchParams({
   page: '1',
   limit: '20',
@@ -90,33 +90,33 @@ const params = new URLSearchParams({
 const response = await fetch(`/api/users?${params}`);
 const data = await response.json();
 
-// 配列パラメータの追加
+// Adding array parameters
 const params = new URLSearchParams();
 params.append('tag', 'javascript');
 params.append('tag', 'typescript');
 params.append('tag', 'react');
 // → tag=javascript&tag=typescript&tag=react
 
-// URL オブジェクトとの組み合わせ
+// Combining with URL object
 const url = new URL('/api/search', 'https://api.example.com');
 url.searchParams.set('q', 'fetch api');
-url.searchParams.set('lang', 'ja');
+url.searchParams.set('lang', 'en');
 const response = await fetch(url);
-// → https://api.example.com/api/search?q=fetch+api&lang=ja
+// → https://api.example.com/api/search?q=fetch+api&lang=en
 ```
 
-### 1.3 POSTリクエスト
+### 1.3 POST Request
 
 ```javascript
-// JSON送信
+// Sending JSON
 const response = await fetch('/api/users', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
-    name: '田中太郎',
-    email: 'taro@example.com',
+    name: 'John Doe',
+    email: 'john@example.com',
     role: 'admin',
   }),
 });
@@ -128,49 +128,49 @@ if (!response.ok) {
 const created = await response.json();
 console.log('Created user:', created.id);
 
-// FormData送信（ファイルアップロード含む）
+// Sending FormData (including file upload)
 const formData = new FormData();
-formData.append('name', '田中太郎');
+formData.append('name', 'John Doe');
 formData.append('avatar', fileInput.files[0]);
 formData.append('documents', file1);
 formData.append('documents', file2);
 
-// FormDataの場合、Content-Typeは自動設定される（boundary含む）
+// For FormData, Content-Type is set automatically (including boundary)
 const response = await fetch('/api/users', {
   method: 'POST',
   body: formData,
-  // headers: { 'Content-Type': 'multipart/form-data' } は設定しない！
+  // headers: { 'Content-Type': 'multipart/form-data' } should NOT be set!
 });
 
-// URLSearchParams送信（application/x-www-form-urlencoded）
+// Sending URLSearchParams (application/x-www-form-urlencoded)
 const body = new URLSearchParams({
-  username: 'taro',
+  username: 'john',
   password: 'secret123',
   grant_type: 'password',
 });
 
 const response = await fetch('/oauth/token', {
   method: 'POST',
-  body, // Content-Typeは自動でapplication/x-www-form-urlencodedになる
+  body, // Content-Type is automatically set to application/x-www-form-urlencoded
 });
 ```
 
-### 1.4 PUT / PATCH / DELETEリクエスト
+### 1.4 PUT / PATCH / DELETE Requests
 
 ```javascript
-// PUTリクエスト（リソース全体の置換）
+// PUT request (replace entire resource)
 const response = await fetch(`/api/users/${userId}`, {
   method: 'PUT',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    name: '田中太郎',
-    email: 'taro@example.com',
+    name: 'John Doe',
+    email: 'john@example.com',
     role: 'editor',
     active: true,
   }),
 });
 
-// PATCHリクエスト（部分更新）
+// PATCH request (partial update)
 const response = await fetch(`/api/users/${userId}`, {
   method: 'PATCH',
   headers: { 'Content-Type': 'application/json' },
@@ -179,7 +179,7 @@ const response = await fetch(`/api/users/${userId}`, {
   }),
 });
 
-// JSON Patch形式（RFC 6902）
+// JSON Patch format (RFC 6902)
 const response = await fetch(`/api/users/${userId}`, {
   method: 'PATCH',
   headers: { 'Content-Type': 'application/json-patch+json' },
@@ -190,7 +190,7 @@ const response = await fetch(`/api/users/${userId}`, {
   ]),
 });
 
-// DELETEリクエスト
+// DELETE request
 const response = await fetch(`/api/users/${userId}`, {
   method: 'DELETE',
 });
@@ -202,7 +202,7 @@ if (response.status === 204) {
   console.log('Deleted:', result);
 }
 
-// DELETEリクエストにボディを含める場合
+// DELETE request with body
 const response = await fetch('/api/users/batch', {
   method: 'DELETE',
   headers: { 'Content-Type': 'application/json' },
@@ -213,48 +213,48 @@ const response = await fetch('/api/users/batch', {
 });
 ```
 
-### 1.5 fetchの重要な注意点
+### 1.5 Important Notes About fetch
 
 ```javascript
-// ★ 注意1: fetchはネットワークエラー時のみrejectする
-// → 404や500はrejectされない！
+// ★ Note 1: fetch only rejects on network errors
+// → 404 and 500 are NOT rejected!
 try {
   const response = await fetch('/api/nonexistent');
-  // response.status === 404 だが、catchには入らない
+  // response.status === 404, but catch is not entered
   console.log(response.ok); // false
   console.log(response.status); // 404
 } catch (err) {
-  // ネットワーク切断・DNS解決失敗・CORSエラー等の場合のみ
+  // Only when network disconnection / DNS resolution failure / CORS error etc.
   console.error('Network error:', err);
 }
 
-// ★ 注意2: レスポンスボディは1回しか読めない
+// ★ Note 2: Response body can only be read once
 const response = await fetch('/api/data');
 const json = await response.json();
-// const text = await response.text(); // エラー！bodyは消費済み
+// const text = await response.text(); // Error! body is already consumed
 
-// 複数回読みたい場合はcloneを使う
+// Use clone if you want to read multiple times
 const response = await fetch('/api/data');
 const clone = response.clone();
 const json = await response.json();
-const text = await clone.text(); // これはOK
+const text = await clone.text(); // This is OK
 
-// ★ 注意3: cookieのデフォルト送信挙動
-// same-originリクエストではcookieが送信される（credentials: 'same-origin'がデフォルト）
-// cross-originリクエストではcookieは送信されない
-// cross-originでcookieを送信するにはcredentials: 'include'が必要
+// ★ Note 3: Default cookie sending behavior
+// Cookies are sent for same-origin requests (credentials: 'same-origin' is the default)
+// Cookies are NOT sent for cross-origin requests
+// credentials: 'include' is required to send cookies with cross-origin requests
 const response = await fetch('https://other-domain.com/api/data', {
-  credentials: 'include', // クロスオリジンでcookieを送信
+  credentials: 'include', // Send cookies with cross-origin
 });
 
-// ★ 注意4: リダイレクトの処理
+// ★ Note 4: Redirect handling
 const response = await fetch('/api/redirect', {
-  redirect: 'follow',  // デフォルト: リダイレクトを自動追跡
-  // redirect: 'error', // リダイレクト時にエラー
-  // redirect: 'manual', // リダイレクトを手動処理
+  redirect: 'follow',  // Default: automatically follow redirects
+  // redirect: 'error', // Error on redirect
+  // redirect: 'manual', // Handle redirect manually
 });
 
-// manualの場合、opaqueredirect レスポンスが返る
+// With manual, an opaqueredirect response is returned
 if (response.type === 'opaqueredirect') {
   const redirectUrl = response.url;
   console.log('Redirected to:', redirectUrl);
@@ -263,14 +263,14 @@ if (response.type === 'opaqueredirect') {
 
 ---
 
-## 2. Request / Response オブジェクト
+## 2. Request / Response Objects
 
-### 2.1 Request オブジェクト
+### 2.1 Request Object
 
-Fetch APIのfetch()関数は内部でRequestオブジェクトを生成する。明示的にRequestオブジェクトを作成することで、リクエストの再利用やService Workerでの操作が可能になる。
+The fetch() function of the Fetch API internally creates a Request object. By explicitly creating a Request object, requests can be reused and manipulated in Service Workers.
 
 ```javascript
-// Requestオブジェクトの明示的な生成
+// Explicitly creating a Request object
 const request = new Request('/api/users', {
   method: 'GET',
   headers: new Headers({
@@ -286,16 +286,16 @@ const request = new Request('/api/users', {
   integrity: 'sha256-abc123...', // Subresource Integrity
 });
 
-// Requestオブジェクトをfetchに渡す
+// Pass Request object to fetch
 const response = await fetch(request);
 
-// Requestのクローン（Service Workerで頻用）
+// Cloning a Request (frequently used in Service Worker)
 const clonedRequest = request.clone();
 
-// Requestの主要プロパティ
-console.log(request.url);        // 完全なURL
+// Key properties of Request
+console.log(request.url);        // Full URL
 console.log(request.method);     // GET, POST, etc.
-console.log(request.headers);    // Headers オブジェクト
+console.log(request.headers);    // Headers object
 console.log(request.body);       // ReadableStream | null
 console.log(request.mode);       // cors, no-cors, same-origin
 console.log(request.credentials);// include, same-origin, omit
@@ -303,7 +303,7 @@ console.log(request.cache);      // default, no-store, reload, etc.
 console.log(request.redirect);   // follow, error, manual
 console.log(request.signal);     // AbortSignal
 
-// 既存Requestを基にオプションを上書き
+// Override options based on an existing Request
 const authenticatedRequest = new Request(request, {
   headers: new Headers({
     ...Object.fromEntries(request.headers.entries()),
@@ -312,76 +312,76 @@ const authenticatedRequest = new Request(request, {
 });
 ```
 
-### 2.2 Headers オブジェクト
+### 2.2 Headers Object
 
 ```javascript
-// Headersの作成と操作
+// Creating and manipulating Headers
 const headers = new Headers();
 headers.append('Content-Type', 'application/json');
 headers.append('Accept', 'application/json');
 headers.append('X-Custom-Header', 'value1');
-headers.append('X-Custom-Header', 'value2'); // 複数値の追加
+headers.append('X-Custom-Header', 'value2'); // Adding multiple values
 
-// set は上書き、append は追加
-headers.set('X-Custom-Header', 'single-value'); // 上書き
+// set overwrites, append adds
+headers.set('X-Custom-Header', 'single-value'); // Overwrite
 
-// 値の取得
+// Getting values
 console.log(headers.get('Content-Type'));      // 'application/json'
 console.log(headers.has('Authorization'));       // false
 console.log(headers.get('X-Custom-Header'));    // 'single-value'
 
-// ヘッダーの削除
+// Deleting a header
 headers.delete('X-Custom-Header');
 
-// イテレーション
+// Iteration
 for (const [name, value] of headers) {
   console.log(`${name}: ${value}`);
 }
 
-// オブジェクトからの初期化
+// Initialization from an object
 const headers = new Headers({
   'Content-Type': 'application/json',
   'Authorization': 'Bearer token123',
-  'Accept-Language': 'ja,en;q=0.9',
+  'Accept-Language': 'en,ja;q=0.9',
 });
 
-// レスポンスヘッダーの読み取り
+// Reading response headers
 const response = await fetch('/api/data');
 console.log(response.headers.get('Content-Type'));
 console.log(response.headers.get('X-Request-Id'));
 console.log(response.headers.get('X-RateLimit-Remaining'));
 
-// ★ CORSではサーバーがAccess-Control-Expose-Headersで
-//    公開していないヘッダーは読み取れない
-// サーバー側: Access-Control-Expose-Headers: X-Request-Id, X-RateLimit-Remaining
+// ★ With CORS, headers not exposed by the server via Access-Control-Expose-Headers
+//    cannot be read
+// Server side: Access-Control-Expose-Headers: X-Request-Id, X-RateLimit-Remaining
 
-// Headersをオブジェクトに変換
+// Converting Headers to an object
 const headerObj = Object.fromEntries(headers.entries());
 ```
 
-### 2.3 Response オブジェクト
+### 2.3 Response Object
 
 ```javascript
-// Responseの主要プロパティ
+// Key properties of Response
 const response = await fetch('/api/users');
 
-console.log(response.ok);         // true（status 200-299）
+console.log(response.ok);         // true (status 200-299)
 console.log(response.status);     // 200
 console.log(response.statusText); // 'OK'
-console.log(response.url);        // リクエストの最終URL
-console.log(response.redirected); // リダイレクトが発生したか
+console.log(response.url);        // Final URL of the request
+console.log(response.redirected); // Whether a redirect occurred
 console.log(response.type);       // 'basic', 'cors', 'opaque', etc.
-console.log(response.headers);    // Headers オブジェクト
+console.log(response.headers);    // Headers object
 console.log(response.body);       // ReadableStream
 
-// レスポンスボディの読み取りメソッド
+// Response body reading methods
 const json = await response.json();        // JSON → Object
-const text = await response.text();        // テキスト
-const blob = await response.blob();        // Blob（バイナリデータ）
+const text = await response.text();        // Text
+const blob = await response.blob();        // Blob (binary data)
 const buffer = await response.arrayBuffer(); // ArrayBuffer
 const formData = await response.formData(); // FormData
 
-// カスタムResponseの生成（Service Workerで活用）
+// Creating a custom Response (used in Service Worker)
 const customResponse = new Response(
   JSON.stringify({ message: 'Hello from cache' }),
   {
@@ -394,27 +394,27 @@ const customResponse = new Response(
   }
 );
 
-// 静的メソッド
+// Static methods
 const redirectResponse = Response.redirect('https://example.com/new-url', 301);
-const errorResponse = Response.error(); // ネットワークエラーレスポンス
-const jsonResponse = Response.json({ ok: true }); // JSON レスポンス（新API）
+const errorResponse = Response.error(); // Network error response
+const jsonResponse = Response.json({ ok: true }); // JSON response (new API)
 ```
 
 ---
 
-## 3. AbortController 詳解
+## 3. AbortController In Depth
 
-### 3.1 基本的なキャンセル
+### 3.1 Basic Cancellation
 
 ```javascript
-// AbortControllerの基本
+// AbortController basics
 const controller = new AbortController();
 const { signal } = controller;
 
-// signalをfetchに渡す
+// Pass signal to fetch
 const fetchPromise = fetch('/api/large-data', { signal });
 
-// 何らかの条件でキャンセル
+// Cancel on some condition
 document.getElementById('cancelBtn').addEventListener('click', () => {
   controller.abort();
 });
@@ -432,15 +432,15 @@ try {
 }
 ```
 
-### 3.2 タイムアウトの実装
+### 3.2 Implementing Timeouts
 
 ```javascript
-// 方法1: setTimeout + AbortController
+// Method 1: setTimeout + AbortController
 function fetchWithTimeout(url, options = {}, timeout = 5000) {
   const controller = new AbortController();
   const { signal } = controller;
 
-  // 既存のsignalがある場合はany()で合成
+  // If there is an existing signal, combine with any()
   const combinedSignal = options.signal
     ? AbortSignal.any([signal, options.signal])
     : signal;
@@ -457,7 +457,7 @@ function fetchWithTimeout(url, options = {}, timeout = 5000) {
   });
 }
 
-// 使用例
+// Usage example
 try {
   const response = await fetchWithTimeout('/api/slow-endpoint', {}, 3000);
   const data = await response.json();
@@ -469,12 +469,12 @@ try {
   }
 }
 
-// 方法2: AbortSignal.timeout()（推奨・ブラウザサポート確認が必要）
+// Method 2: AbortSignal.timeout() (recommended — check browser support)
 const response = await fetch('/api/data', {
   signal: AbortSignal.timeout(5000),
 });
 
-// 方法3: 複数シグナルの合成
+// Method 3: Combining multiple signals
 const userController = new AbortController();
 const combinedSignal = AbortSignal.any([
   userController.signal,
@@ -483,16 +483,16 @@ const combinedSignal = AbortSignal.any([
 
 const response = await fetch('/api/data', { signal: combinedSignal });
 
-// ユーザーがキャンセルボタンを押した場合
+// When the user presses the cancel button
 cancelButton.onclick = () => userController.abort();
 ```
 
-### 3.3 Reactでのキャンセルパターン
+### 3.3 Cancellation Patterns in React
 
 ```typescript
 import { useEffect, useState, useCallback } from 'react';
 
-// パターン1: useEffectでのクリーンアップ
+// Pattern 1: Cleanup in useEffect
 function UserList() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -523,7 +523,7 @@ function UserList() {
     }
 
     loadUsers();
-    return () => controller.abort(); // アンマウント時にキャンセル
+    return () => controller.abort(); // Cancel on unmount
   }, []);
 
   if (loading) return <div>Loading...</div>;
@@ -531,7 +531,7 @@ function UserList() {
   return <ul>{users.map(u => <li key={u.id}>{u.name}</li>)}</ul>;
 }
 
-// パターン2: カスタムフック
+// Pattern 2: Custom hook
 function useFetch<T>(url: string, options?: RequestInit) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
@@ -582,7 +582,7 @@ function useFetch<T>(url: string, options?: RequestInit) {
   return { data, loading, error };
 }
 
-// カスタムフックの使用
+// Using the custom hook
 function UserProfile({ userId }: { userId: string }) {
   const { data, loading, error } = useFetch<User>(
     `/api/users/${userId}`
@@ -595,14 +595,14 @@ function UserProfile({ userId }: { userId: string }) {
   return <div>{data.name}</div>;
 }
 
-// パターン3: 検索のデバウンスとキャンセル
+// Pattern 3: Debouncing searches with cancellation
 function SearchComponent() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const controllerRef = useRef<AbortController | null>(null);
 
   const search = useCallback(async (searchQuery: string) => {
-    // 前のリクエストをキャンセル
+    // Cancel the previous request
     if (controllerRef.current) {
       controllerRef.current.abort();
     }
@@ -631,7 +631,7 @@ function SearchComponent() {
     }
   }, []);
 
-  // デバウンス処理
+  // Debounce processing
   useEffect(() => {
     const timeoutId = setTimeout(() => search(query), 300);
     return () => clearTimeout(timeoutId);
@@ -654,26 +654,26 @@ function SearchComponent() {
 }
 ```
 
-### 3.4 AbortControllerの応用
+### 3.4 Advanced Uses of AbortController
 
 ```javascript
-// fetch以外でのAbortController活用
-// EventListenerのキャンセル
+// Using AbortController beyond fetch
+// Cancelling EventListeners
 const controller = new AbortController();
 
 document.addEventListener('click', handleClick, { signal: controller.signal });
 document.addEventListener('keydown', handleKey, { signal: controller.signal });
 document.addEventListener('scroll', handleScroll, { signal: controller.signal });
 
-// まとめてリスナーを削除
+// Remove all listeners at once
 controller.abort();
 
-// カスタムの非同期処理でのキャンセル対応
+// Supporting cancellation in custom async processing
 async function processItems(items, signal) {
   const results = [];
 
   for (const item of items) {
-    // 各イテレーションでキャンセルをチェック
+    // Check for cancellation at each iteration
     if (signal?.aborted) {
       throw new DOMException('Processing cancelled', 'AbortError');
     }
@@ -685,32 +685,32 @@ async function processItems(items, signal) {
   return results;
 }
 
-// signalのイベントリスナー
+// Signal event listener
 const controller = new AbortController();
 
 controller.signal.addEventListener('abort', () => {
   console.log('Abort reason:', controller.signal.reason);
-  // クリーンアップ処理
+  // Cleanup processing
 });
 
-// abort理由を指定
+// Specifying abort reason
 controller.abort(new Error('User navigated away'));
 console.log(controller.signal.reason); // Error: User navigated away
 ```
 
 ---
 
-## 4. Streams API 詳解
+## 4. Streams API In Depth
 
 ### 4.1 ReadableStream
 
-ReadableStreamは非同期的にデータを読み取るためのインターフェース。fetch()のresponse.bodyはReadableStreamを返す。
+ReadableStream is an interface for reading data asynchronously. The response.body of fetch() returns a ReadableStream.
 
 ```javascript
-// ReadableStreamの基本構造
+// Basic structure of ReadableStream
 const stream = new ReadableStream({
   start(controller) {
-    // ストリーム初期化時に呼ばれる
+    // Called when the stream is initialized
     controller.enqueue('Hello');
     controller.enqueue(' ');
     controller.enqueue('World');
@@ -718,17 +718,17 @@ const stream = new ReadableStream({
   },
 
   pull(controller) {
-    // コンシューマーがデータを要求した時に呼ばれる
-    // 非同期データソースからの読み取りに適している
+    // Called when the consumer requests data
+    // Suitable for reading from asynchronous data sources
   },
 
   cancel(reason) {
-    // ストリームがキャンセルされた時に呼ばれる
+    // Called when the stream is cancelled
     console.log('Stream cancelled:', reason);
   },
 });
 
-// Readerを使った読み取り
+// Reading with a Reader
 const reader = stream.getReader();
 
 while (true) {
@@ -737,20 +737,20 @@ while (true) {
   console.log(value);
 }
 
-reader.releaseLock(); // ロックを解放
+reader.releaseLock(); // Release the lock
 
-// カウンティングストラテジー（バックプレッシャー制御）
+// Counting strategy (backpressure control)
 const stream = new ReadableStream(
   {
     start(controller) {
-      // データをエンキュー
+      // Enqueue data
     },
     pull(controller) {
-      // desiredSizeが0以下ならバッファが満杯
+      // If desiredSize is 0 or less, the buffer is full
       console.log('Desired size:', controller.desiredSize);
     },
   },
-  new CountQueuingStrategy({ highWaterMark: 10 }) // 最大10チャンク
+  new CountQueuingStrategy({ highWaterMark: 10 }) // Max 10 chunks
 );
 
 // ByteLengthQueuingStrategy
@@ -762,10 +762,10 @@ const stream = new ReadableStream(
 );
 ```
 
-### 4.2 ダウンロード進捗表示
+### 4.2 Download Progress Display
 
 ```javascript
-// 実務で使えるダウンロード進捗コンポーネント
+// A reusable download progress component
 async function downloadWithProgress(url, onProgress) {
   const response = await fetch(url);
 
@@ -773,12 +773,12 @@ async function downloadWithProgress(url, onProgress) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
 
-  // Content-Lengthヘッダーからファイルサイズを取得
+  // Get file size from the Content-Length header
   const contentLength = response.headers.get('Content-Length');
   const total = contentLength ? parseInt(contentLength, 10) : null;
 
   if (!response.body) {
-    // body が null の場合（通常は発生しない）
+    // If body is null (normally this does not happen)
     return response.blob();
   }
 
@@ -802,16 +802,16 @@ async function downloadWithProgress(url, onProgress) {
       total,
       percentage: total ? Math.round((received / total) * 100) : null,
       speed, // bytes/sec
-      eta: total ? Math.round((total - received) / speed) : null, // 残り秒数
+      eta: total ? Math.round((total - received) / speed) : null, // seconds remaining
     });
   }
 
-  // チャンクを結合してBlobを生成
+  // Combine chunks into a Blob
   const blob = new Blob(chunks);
   return blob;
 }
 
-// Reactでの使用例
+// Usage example in React
 function DownloadButton({ url, filename }) {
   const [progress, setProgress] = useState(null);
   const [downloading, setDownloading] = useState(false);
@@ -821,7 +821,7 @@ function DownloadButton({ url, filename }) {
     try {
       const blob = await downloadWithProgress(url, setProgress);
 
-      // ダウンロードリンクを生成
+      // Generate a download link
       const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = objectUrl;
@@ -855,7 +855,7 @@ function DownloadButton({ url, filename }) {
               : `${(progress.loaded / 1024 / 1024).toFixed(1)} MB`
             }
             {progress.speed && ` (${formatSpeed(progress.speed)})`}
-            {progress.eta !== null && ` - 残り ${progress.eta}秒`}
+            {progress.eta !== null && ` - ${progress.eta}s remaining`}
           </span>
         </div>
       )}
@@ -871,11 +871,11 @@ function formatSpeed(bytesPerSec) {
 }
 ```
 
-### 4.3 アップロード進捗（XMLHttpRequestとの併用）
+### 4.3 Upload Progress (Using XMLHttpRequest Together)
 
 ```javascript
-// Fetch APIではアップロード進捗を直接取得できない（2024年時点）
-// XMLHttpRequestのupload.onprogressを使用する
+// The Fetch API cannot directly get upload progress (as of 2024)
+// Use XMLHttpRequest's upload.onprogress
 
 function uploadWithProgress(url, file, onProgress) {
   return new Promise((resolve, reject) => {
@@ -911,7 +911,7 @@ function uploadWithProgress(url, file, onProgress) {
   });
 }
 
-// チャンクアップロード（大きなファイルの分割送信）
+// Chunked upload (split sending of large files)
 async function chunkedUpload(url, file, chunkSize = 5 * 1024 * 1024) {
   const totalChunks = Math.ceil(file.size / chunkSize);
   const uploadId = crypto.randomUUID();
@@ -939,7 +939,7 @@ async function chunkedUpload(url, file, chunkSize = 5 * 1024 * 1024) {
     console.log(`Uploaded chunk ${i + 1}/${totalChunks}`);
   }
 
-  // 全チャンクのアップロード完了を通知
+  // Notify completion of all chunk uploads
   const response = await fetch(`${url}/complete`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -953,14 +953,14 @@ async function chunkedUpload(url, file, chunkSize = 5 * 1024 * 1024) {
 ### 4.4 TransformStream
 
 ```javascript
-// TransformStreamの基本
+// TransformStream basics
 const uppercaseTransform = new TransformStream({
   transform(chunk, controller) {
     controller.enqueue(chunk.toUpperCase());
   },
 });
 
-// JSONラインパーサー（NDJSON対応）
+// JSON Lines parser (NDJSON support)
 function createNDJSONParser() {
   let buffer = '';
 
@@ -968,7 +968,7 @@ function createNDJSONParser() {
     transform(chunk, controller) {
       buffer += chunk;
       const lines = buffer.split('\n');
-      buffer = lines.pop(); // 不完全な最後の行をバッファに残す
+      buffer = lines.pop(); // Keep the incomplete last line in the buffer
 
       for (const line of lines) {
         const trimmed = line.trim();
@@ -984,7 +984,7 @@ function createNDJSONParser() {
     },
 
     flush(controller) {
-      // ストリーム終了時にバッファの残りを処理
+      // Process remaining buffer when stream ends
       const trimmed = buffer.trim();
       if (trimmed) {
         try {
@@ -997,7 +997,7 @@ function createNDJSONParser() {
   });
 }
 
-// 使用例
+// Usage example
 async function* streamNDJSON(url) {
   const response = await fetch(url);
   const reader = response.body
@@ -1012,7 +1012,7 @@ async function* streamNDJSON(url) {
   }
 }
 
-// データフィルタリング TransformStream
+// Data filtering TransformStream
 function createFilterStream(predicate) {
   return new TransformStream({
     transform(chunk, controller) {
@@ -1023,7 +1023,7 @@ function createFilterStream(predicate) {
   });
 }
 
-// バッチング TransformStream
+// Batching TransformStream
 function createBatchStream(batchSize) {
   let batch = [];
 
@@ -1043,7 +1043,7 @@ function createBatchStream(batchSize) {
   });
 }
 
-// パイプライン構築
+// Building a pipeline
 const response = await fetch('/api/events');
 const reader = response.body
   .pipeThrough(new TextDecoderStream())
@@ -1055,14 +1055,14 @@ const reader = response.body
 while (true) {
   const { done, value: batch } = await reader.read();
   if (done) break;
-  await processBatch(batch); // 10件ずつバッチ処理
+  await processBatch(batch); // Process 10 items at a time
 }
 ```
 
 ### 4.5 WritableStream
 
 ```javascript
-// WritableStreamの基本
+// WritableStream basics
 const writableStream = new WritableStream({
   start(controller) {
     console.log('Stream started');
@@ -1070,7 +1070,7 @@ const writableStream = new WritableStream({
 
   write(chunk, controller) {
     console.log('Writing chunk:', chunk);
-    // 非同期処理も可能
+    // Asynchronous processing is also possible
     return processChunk(chunk);
   },
 
@@ -1083,17 +1083,17 @@ const writableStream = new WritableStream({
   },
 });
 
-// WriterでWritableStreamに書き込む
+// Writing to a WritableStream with a Writer
 const writer = writableStream.getWriter();
 await writer.write('Hello');
 await writer.write(' World');
 await writer.close();
 
-// ReadableStreamからWritableStreamへのパイプ
+// Piping from ReadableStream to WritableStream
 const response = await fetch('/api/large-data');
 await response.body.pipeTo(writableStream);
 
-// ファイルへの書き込み（File System Access API）
+// Writing to a file (File System Access API)
 async function saveStreamToFile(readableStream) {
   const fileHandle = await window.showSaveFilePicker({
     suggestedName: 'download.txt',
@@ -1112,7 +1112,7 @@ async function saveStreamToFile(readableStream) {
     .pipeTo(writable);
 }
 
-// DOM への段階的書き込み
+// Incremental writing to the DOM
 function createDOMWritableStream(container) {
   return new WritableStream({
     write(chunk) {
@@ -1133,12 +1133,12 @@ await response.body
 
 ---
 
-## 5. Server-Sent Events (SSE) とストリーミング
+## 5. Server-Sent Events (SSE) and Streaming
 
 ### 5.1 EventSource API
 
 ```javascript
-// EventSource による SSE の受信
+// Receiving SSE via EventSource
 const eventSource = new EventSource('/api/events');
 
 eventSource.onopen = () => {
@@ -1157,7 +1157,7 @@ eventSource.onerror = (event) => {
   }
 };
 
-// 名前付きイベントの受信
+// Receiving named events
 eventSource.addEventListener('user-update', (event) => {
   const user = JSON.parse(event.data);
   console.log('User updated:', user);
@@ -1168,19 +1168,19 @@ eventSource.addEventListener('notification', (event) => {
   showNotification(notification);
 });
 
-// 接続を閉じる
+// Close the connection
 eventSource.close();
 
-// EventSourceの制限:
-// - GETリクエストのみ
-// - カスタムヘッダーを設定できない
-// - 認証トークンの送信にはCookieかURLパラメータが必要
+// EventSource limitations:
+// - GET requests only
+// - Cannot set custom headers
+// - Authentication tokens must be sent via Cookie or URL parameters
 ```
 
-### 5.2 Fetch APIによるSSE処理
+### 5.2 SSE Processing with Fetch API
 
 ```javascript
-// Fetch APIを使ったSSE（カスタムヘッダー対応）
+// SSE via Fetch API (supports custom headers)
 async function fetchSSE(url, options = {}) {
   const { onMessage, onError, signal, headers = {} } = options;
 
@@ -1208,7 +1208,7 @@ async function fetchSSE(url, options = {}) {
 
     buffer += value;
     const events = buffer.split('\n\n');
-    buffer = events.pop(); // 不完全なイベントをバッファに残す
+    buffer = events.pop(); // Keep incomplete event in buffer
 
     for (const eventStr of events) {
       if (!eventStr.trim()) continue;
@@ -1240,7 +1240,7 @@ function parseSSEEvent(eventStr) {
   return event.data ? event : null;
 }
 
-// 使用例: ChatGPT風のストリーミングレスポンス
+// Usage example: ChatGPT-style streaming response
 async function streamChatResponse(prompt) {
   const controller = new AbortController();
 
@@ -1269,10 +1269,10 @@ async function streamChatResponse(prompt) {
 }
 ```
 
-### 5.3 AI/LLM APIのストリーミング応答処理
+### 5.3 Processing Streaming Responses from AI/LLM APIs
 
 ```typescript
-// OpenAI互換APIのストリーミング処理
+// Streaming processing for OpenAI-compatible APIs
 interface ChatChunk {
   id: string;
   object: string;
@@ -1338,13 +1338,13 @@ async function* streamChatCompletion(
           yield content;
         }
       } catch (e) {
-        // パースエラーは無視
+        // Ignore parse errors
       }
     }
   }
 }
 
-// React コンポーネントでの使用
+// Usage in a React component
 function ChatStream({ messages }: { messages: Message[] }) {
   const [response, setResponse] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -1391,12 +1391,12 @@ function ChatStream({ messages }: { messages: Message[] }) {
 
 ---
 
-## 6. 高度なFetchパターン
+## 6. Advanced Fetch Patterns
 
-### 6.1 リトライ戦略
+### 6.1 Retry Strategy
 
 ```typescript
-// 指数バックオフ付きリトライ
+// Retry with exponential backoff
 interface RetryOptions {
   maxRetries?: number;
   baseDelay?: number;
@@ -1424,14 +1424,14 @@ async function fetchWithRetry(
     try {
       const response = await fetch(url, options);
 
-      // リトライ可能なステータスコードの場合
+      // For retryable status codes
       if (retryableStatuses.includes(response.status) && attempt < maxRetries) {
-        // Retry-Afterヘッダーの確認
+        // Check the Retry-After header
         const retryAfter = response.headers.get('Retry-After');
         let delay: number;
 
         if (retryAfter) {
-          // Retry-After は秒数またはHTTP日付形式
+          // Retry-After is in seconds or HTTP date format
           const retrySeconds = parseInt(retryAfter, 10);
           if (!isNaN(retrySeconds)) {
             delay = retrySeconds * 1000;
@@ -1439,7 +1439,7 @@ async function fetchWithRetry(
             delay = new Date(retryAfter).getTime() - Date.now();
           }
         } else {
-          // 指数バックオフ + ジッター
+          // Exponential backoff + jitter
           delay = Math.min(
             baseDelay * Math.pow(2, attempt) + Math.random() * 1000,
             maxDelay
@@ -1470,7 +1470,7 @@ async function fetchWithRetry(
   throw lastError || new Error('Max retries reached');
 }
 
-// 使用例
+// Usage example
 const response = await fetchWithRetry('/api/unreliable', {}, {
   maxRetries: 5,
   baseDelay: 500,
@@ -1480,10 +1480,10 @@ const response = await fetchWithRetry('/api/unreliable', {}, {
 });
 ```
 
-### 6.2 並行リクエストと制御
+### 6.2 Concurrent Requests and Control
 
 ```typescript
-// Promise.all による並行リクエスト
+// Concurrent requests with Promise.all
 async function fetchMultiple(urls: string[]) {
   const responses = await Promise.all(
     urls.map(url => fetch(url).then(r => {
@@ -1494,7 +1494,7 @@ async function fetchMultiple(urls: string[]) {
   return responses;
 }
 
-// Promise.allSettled でエラー耐性のある並行リクエスト
+// Error-tolerant concurrent requests with Promise.allSettled
 async function fetchMultipleSafe(urls: string[]) {
   const results = await Promise.allSettled(
     urls.map(url => fetch(url).then(r => {
@@ -1511,7 +1511,7 @@ async function fetchMultipleSafe(urls: string[]) {
   }));
 }
 
-// 並行数制限（コンカレンシー制御）
+// Concurrency limit control
 async function fetchWithConcurrencyLimit<T>(
   urls: string[],
   concurrency: number,
@@ -1536,7 +1536,7 @@ async function fetchWithConcurrencyLimit<T>(
   return results;
 }
 
-// 使用例: 最大5並行でAPI呼び出し
+// Usage example: API calls with max 5 concurrent requests
 const userIds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 const users = await fetchWithConcurrencyLimit(
   userIds.map(id => `/api/users/${id}`),
@@ -1548,7 +1548,7 @@ const users = await fetchWithConcurrencyLimit(
   }
 );
 
-// Promise.race による最速レスポンス取得
+// Get the fastest response with Promise.race
 async function fetchFastest(urls: string[]) {
   const controller = new AbortController();
 
@@ -1561,7 +1561,7 @@ async function fetchFastest(urls: string[]) {
       })
     );
 
-    // 最初のレスポンスを受信したら他のリクエストをキャンセル
+    // Cancel other requests after receiving the first response
     controller.abort();
     return result;
   } catch (err) {
@@ -1571,10 +1571,10 @@ async function fetchFastest(urls: string[]) {
 }
 ```
 
-### 6.3 リクエストのキューイング
+### 6.3 Request Queuing
 
 ```typescript
-// リクエストキュー（順番に実行・レート制限対応）
+// Request queue (execute in order, supports rate limiting)
 class RequestQueue {
   private queue: Array<() => Promise<void>> = [];
   private running = 0;
@@ -1620,7 +1620,7 @@ class RequestQueue {
   }
 }
 
-// 使用例: APIレート制限（1秒に1リクエスト）
+// Usage example: API rate limiting (1 request per second)
 const queue = new RequestQueue(1, 1000);
 
 const results = await Promise.all(
@@ -1630,10 +1630,10 @@ const results = await Promise.all(
 );
 ```
 
-### 6.4 キャッシュ戦略
+### 6.4 Cache Strategy
 
 ```typescript
-// メモリキャッシュ付きfetch
+// Fetch with in-memory cache
 class FetchCache {
   private cache = new Map<string, {
     data: any;
@@ -1651,12 +1651,12 @@ class FetchCache {
     const cached = this.cache.get(url);
     const now = Date.now();
 
-    // キャッシュが有効な場合
+    // If cache is valid
     if (cached && now - cached.timestamp < this.ttl) {
       return cached.data;
     }
 
-    // 条件付きリクエスト（ETag / Last-Modified）
+    // Conditional request (ETag / Last-Modified)
     const headers = new Headers(options?.headers);
     if (cached?.etag) {
       headers.set('If-None-Match', cached.etag);
@@ -1697,7 +1697,7 @@ class FetchCache {
     this.cache.clear();
   }
 
-  // パターンにマッチするエントリを無効化
+  // Invalidate entries matching a pattern
   invalidatePattern(pattern: RegExp) {
     for (const key of this.cache.keys()) {
       if (pattern.test(key)) {
@@ -1707,10 +1707,10 @@ class FetchCache {
   }
 }
 
-// 使用例
-const apiCache = new FetchCache(60 * 1000); // 1分TTL
+// Usage example
+const apiCache = new FetchCache(60 * 1000); // 1 minute TTL
 
-// 同じURLへの複数リクエストを集約（デデュプリケーション）
+// Aggregate multiple requests to the same URL (deduplication)
 class RequestDeduplicator {
   private pending = new Map<string, Promise<any>>();
 
@@ -1737,7 +1737,7 @@ class RequestDeduplicator {
 
 const dedup = new RequestDeduplicator();
 
-// 同時に呼ばれても実際のfetchは1回だけ
+// Even if called simultaneously, the actual fetch only runs once
 const [users1, users2, users3] = await Promise.all([
   dedup.fetch('/api/users'),
   dedup.fetch('/api/users'),
@@ -1747,12 +1747,12 @@ const [users1, users2, users3] = await Promise.all([
 
 ---
 
-## 7. 実務レベルのfetchラッパー
+## 7. Production-Level Fetch Wrapper
 
-### 7.1 型安全なAPIクライアント
+### 7.1 Type-Safe API Client
 
 ```typescript
-// エラークラス階層
+// Error class hierarchy
 class ApiError extends Error {
   constructor(
     public status: number,
@@ -1788,7 +1788,7 @@ class TimeoutError extends Error {
   }
 }
 
-// APIクライアント設定
+// API client configuration
 interface ApiClientConfig {
   baseUrl: string;
   timeout?: number;
@@ -1799,7 +1799,7 @@ interface ApiClientConfig {
   retryOptions?: RetryOptions;
 }
 
-// 本格的なAPIクライアント
+// Full-featured API client
 class ApiClient {
   private config: Required<Omit<ApiClientConfig, 'getAuthToken' | 'onUnauthorized' | 'onError'>> & Partial<Pick<ApiClientConfig, 'getAuthToken' | 'onUnauthorized' | 'onError'>>;
 
@@ -1823,7 +1823,7 @@ class ApiClient {
       timeout?: number;
     } = {}
   ): Promise<T> {
-    // URL構築
+    // Build URL
     const url = new URL(path, this.config.baseUrl);
     if (options.query) {
       for (const [key, value] of Object.entries(options.query)) {
@@ -1833,14 +1833,14 @@ class ApiClient {
       }
     }
 
-    // ヘッダー構築
+    // Build headers
     const headers = new Headers({
       'Accept': 'application/json',
       ...this.config.headers,
       ...options.headers,
     });
 
-    // 認証トークン
+    // Authentication token
     if (this.config.getAuthToken) {
       const token = await this.config.getAuthToken();
       if (token) {
@@ -1848,19 +1848,19 @@ class ApiClient {
       }
     }
 
-    // ボディの処理
+    // Body processing
     let body: BodyInit | undefined;
     if (options.body !== undefined) {
       if (options.body instanceof FormData) {
         body = options.body;
-        // FormDataの場合はContent-Typeを設定しない（ブラウザが自動設定）
+        // Do not set Content-Type for FormData (browser sets it automatically)
       } else {
         headers.set('Content-Type', 'application/json');
         body = JSON.stringify(options.body);
       }
     }
 
-    // タイムアウト設定
+    // Timeout configuration
     const timeout = options.timeout ?? this.config.timeout;
     const timeoutSignal = AbortSignal.timeout(timeout);
     const combinedSignal = options.signal
@@ -1892,7 +1892,7 @@ class ApiClient {
           method
         );
 
-        // 401の特別処理
+        // Special handling for 401
         if (apiError.isUnauthorized) {
           this.config.onUnauthorized?.();
         }
@@ -1906,7 +1906,7 @@ class ApiClient {
         return undefined as T;
       }
 
-      // Content-Typeに応じたレスポンスの解析
+      // Parse response according to Content-Type
       const contentType = response.headers.get('Content-Type') || '';
       if (contentType.includes('application/json')) {
         return response.json();
@@ -1925,7 +1925,7 @@ class ApiClient {
           throw timeoutErr;
         }
         if (err.name === 'AbortError') {
-          throw err; // ユーザーによるキャンセルはそのまま
+          throw err; // Pass through cancellation by the user
         }
       }
 
@@ -1937,7 +1937,7 @@ class ApiClient {
     }
   }
 
-  // HTTPメソッドのショートカット
+  // HTTP method shortcuts
   get<T>(path: string, query?: Record<string, string | number | boolean | undefined>, options?: { signal?: AbortSignal }) {
     return this.request<T>('GET', path, { query, ...options });
   }
@@ -1958,7 +1958,7 @@ class ApiClient {
     return this.request<T>('DELETE', path, options);
   }
 
-  // ストリーミングリクエスト
+  // Streaming request
   async *stream<T>(
     path: string,
     options: {
@@ -2020,29 +2020,29 @@ class ApiClient {
         try {
           yield JSON.parse(data) as T;
         } catch {
-          // パースエラーは無視
+          // Ignore parse errors
         }
       }
     }
   }
 }
 
-// 使用例
+// Usage example
 const api = new ApiClient({
   baseUrl: 'https://api.example.com',
   timeout: 15000,
   getAuthToken: () => localStorage.getItem('access_token'),
   onUnauthorized: () => {
-    // トークンリフレッシュまたはログイン画面へリダイレクト
+    // Refresh token or redirect to login screen
     window.location.href = '/login';
   },
   onError: (error) => {
-    // エラー監視サービスに送信
+    // Send to error monitoring service
     errorTracker.capture(error);
   },
 });
 
-// 型安全なAPI呼び出し
+// Type-safe API calls
 interface User {
   id: number;
   name: string;
@@ -2066,8 +2066,8 @@ const users = await api.get<PaginatedResponse<User>>('/users', {
 
 // POST
 const newUser = await api.post<User>('/users', {
-  name: '田中太郎',
-  email: 'taro@example.com',
+  name: 'John Doe',
+  email: 'john@example.com',
   role: 'editor',
 });
 
@@ -2079,7 +2079,7 @@ const updated = await api.patch<User>(`/users/${userId}`, {
 // DELETE
 await api.delete(`/users/${userId}`);
 
-// ストリーミング
+// Streaming
 for await (const chunk of api.stream<{ content: string }>('/chat', {
   body: { message: 'Hello' },
 })) {
@@ -2087,10 +2087,10 @@ for await (const chunk of api.stream<{ content: string }>('/chat', {
 }
 ```
 
-### 7.2 インターセプターパターン
+### 7.2 Interceptor Pattern
 
 ```typescript
-// リクエスト/レスポンスインターセプター
+// Request / Response interceptors
 type RequestInterceptor = (
   url: string,
   options: RequestInit
@@ -2123,7 +2123,7 @@ class InterceptableFetch {
   }
 
   async fetch(url: string, options: RequestInit = {}): Promise<Response> {
-    // リクエストインターセプターを順番に適用
+    // Apply request interceptors in order
     let currentUrl = url;
     let currentOptions = { ...options };
 
@@ -2133,7 +2133,7 @@ class InterceptableFetch {
 
     let response = await fetch(currentUrl, currentOptions);
 
-    // レスポンスインターセプターを順番に適用
+    // Apply response interceptors in order
     for (const interceptor of this.responseInterceptors) {
       response = await interceptor(response, currentUrl, currentOptions);
     }
@@ -2142,10 +2142,10 @@ class InterceptableFetch {
   }
 }
 
-// 使用例
+// Usage example
 const client = new InterceptableFetch();
 
-// ロギングインターセプター
+// Logging interceptor
 client.addRequestInterceptor(async (url, options) => {
   console.log(`[API] ${options.method || 'GET'} ${url}`);
   const startTime = performance.now();
@@ -2159,7 +2159,7 @@ client.addResponseInterceptor(async (response, url, options) => {
   return response;
 });
 
-// 認証インターセプター
+// Authentication interceptor
 client.addRequestInterceptor(async (url, options) => {
   const token = await getAccessToken();
   const headers = new Headers(options.headers);
@@ -2169,7 +2169,7 @@ client.addRequestInterceptor(async (url, options) => {
   return [url, { ...options, headers }];
 });
 
-// トークンリフレッシュインターセプター
+// Token refresh interceptor
 client.addResponseInterceptor(async (response, url, options) => {
   if (response.status === 401) {
     const newToken = await refreshToken();
@@ -2185,65 +2185,65 @@ client.addResponseInterceptor(async (response, url, options) => {
 
 ---
 
-## 8. CORS（Cross-Origin Resource Sharing）
+## 8. CORS (Cross-Origin Resource Sharing)
 
-### 8.1 CORSの基本
+### 8.1 CORS Basics
 
 ```javascript
-// Simple Request（プリフライト不要）
-// 条件: GET/HEAD/POST, 特定のヘッダーのみ, 特定のContent-Typeのみ
+// Simple Request (no preflight required)
+// Conditions: GET/HEAD/POST, specific headers only, specific Content-Types only
 const response = await fetch('https://api.example.com/data', {
   method: 'GET',
-  mode: 'cors', // デフォルト
+  mode: 'cors', // Default
 });
 
-// Preflight が必要なリクエスト
-// カスタムヘッダーやContent-Type: application/jsonを使う場合
+// Request requiring preflight
+// When using custom headers or Content-Type: application/json
 const response = await fetch('https://api.example.com/data', {
   method: 'POST',
   headers: {
-    'Content-Type': 'application/json', // preflightトリガー
-    'X-Custom-Header': 'value',          // preflightトリガー
+    'Content-Type': 'application/json', // triggers preflight
+    'X-Custom-Header': 'value',          // triggers preflight
   },
   body: JSON.stringify({ key: 'value' }),
   mode: 'cors',
 });
 
-// サーバー側の設定例（Express.js）
+// Server-side configuration example (Express.js)
 // app.use(cors({
 //   origin: ['https://example.com', 'https://app.example.com'],
 //   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
 //   allowedHeaders: ['Content-Type', 'Authorization', 'X-Custom-Header'],
 //   exposedHeaders: ['X-Request-Id', 'X-RateLimit-Remaining'],
 //   credentials: true,
-//   maxAge: 86400, // プリフライト結果のキャッシュ（秒）
+//   maxAge: 86400, // Cache duration of preflight result (seconds)
 // }));
 ```
 
-### 8.2 CORSのトラブルシューティング
+### 8.2 CORS Troubleshooting
 
 ```javascript
-// よくあるCORSエラーと対処法
+// Common CORS errors and solutions
 
-// エラー1: No 'Access-Control-Allow-Origin' header
-// → サーバー側でAccess-Control-Allow-Originヘッダーを設定
+// Error 1: No 'Access-Control-Allow-Origin' header
+// → Set the Access-Control-Allow-Origin header on the server side
 
-// エラー2: credentials flagがtrueだがAccess-Control-Allow-Origin が *
-// → credentials: 'include' を使う場合、サーバーは具体的なオリジンを返す必要がある
-// → Access-Control-Allow-Origin: https://app.example.com（* は不可）
+// Error 2: credentials flag is true but Access-Control-Allow-Origin is *
+// → When using credentials: 'include', server must return a specific origin
+// → Access-Control-Allow-Origin: https://app.example.com (* is not allowed)
 
-// エラー3: Method not allowed
-// → サーバーのAccess-Control-Allow-MethodsにHTTPメソッドを追加
+// Error 3: Method not allowed
+// → Add the HTTP method to the server's Access-Control-Allow-Methods
 
-// no-corsモード（レスポンスは読めないが、リクエストは送信される）
+// no-cors mode (request is sent but response cannot be read)
 const response = await fetch('https://third-party.com/api', {
-  mode: 'no-cors', // opaque response（ステータスやボディにアクセス不可）
+  mode: 'no-cors', // opaque response (no access to status or body)
 });
 // response.type === 'opaque'
 // response.status === 0
-// response.body は null
+// response.body is null
 
-// プロキシ経由でCORSを回避（開発環境）
+// Bypassing CORS via proxy (development environment)
 // vite.config.ts
 // export default defineConfig({
 //   server: {
@@ -2260,21 +2260,21 @@ const response = await fetch('https://third-party.com/api', {
 
 ---
 
-## 9. テスト戦略
+## 9. Testing Strategy
 
-### 9.1 MSW（Mock Service Worker）によるモック
+### 9.1 Mocking with MSW (Mock Service Worker)
 
 ```typescript
-// msw v2 のセットアップ
+// msw v2 setup
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 
-// ハンドラー定義
+// Handler definitions
 const handlers = [
   http.get('/api/users', () => {
     return HttpResponse.json([
-      { id: 1, name: '田中太郎', email: 'taro@example.com' },
-      { id: 2, name: '鈴木花子', email: 'hanako@example.com' },
+      { id: 1, name: 'John Doe', email: 'john@example.com' },
+      { id: 2, name: 'Jane Smith', email: 'jane@example.com' },
     ]);
   }),
 
@@ -2285,8 +2285,8 @@ const handlers = [
     }
     return HttpResponse.json({
       id: Number(id),
-      name: '田中太郎',
-      email: 'taro@example.com',
+      name: 'John Doe',
+      email: 'john@example.com',
     });
   }),
 
@@ -2298,7 +2298,7 @@ const handlers = [
     );
   }),
 
-  // ストリーミングレスポンスのモック
+  // Mock streaming response
   http.get('/api/events', () => {
     const stream = new ReadableStream({
       async start(controller) {
@@ -2320,7 +2320,7 @@ const handlers = [
     });
   }),
 
-  // エラーレスポンス
+  // Error response
   http.get('/api/error', () => {
     return HttpResponse.json(
       { error: 'Internal Server Error' },
@@ -2328,12 +2328,12 @@ const handlers = [
     );
   }),
 
-  // ネットワークエラー
+  // Network error
   http.get('/api/network-error', () => {
     return HttpResponse.error();
   }),
 
-  // 遅延レスポンス
+  // Delayed response
   http.get('/api/slow', async () => {
     await new Promise(r => setTimeout(r, 5000));
     return HttpResponse.json({ data: 'slow response' });
@@ -2342,31 +2342,31 @@ const handlers = [
 
 const server = setupServer(...handlers);
 
-// テストセットアップ
+// Test setup
 beforeAll(() => server.listen());
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-// テスト例
+// Test examples
 describe('API Client', () => {
-  test('ユーザー一覧を取得できる', async () => {
+  test('can fetch user list', async () => {
     const users = await api.get('/api/users');
     expect(users).toHaveLength(2);
-    expect(users[0].name).toBe('田中太郎');
+    expect(users[0].name).toBe('John Doe');
   });
 
-  test('404エラーを適切に処理する', async () => {
+  test('handles 404 error correctly', async () => {
     await expect(api.get('/api/users/999')).rejects.toThrow(ApiError);
     await expect(api.get('/api/users/999')).rejects.toMatchObject({
       status: 404,
     });
   });
 
-  test('ネットワークエラーを適切に処理する', async () => {
+  test('handles network error correctly', async () => {
     await expect(api.get('/api/network-error')).rejects.toThrow(NetworkError);
   });
 
-  test('タイムアウトを適切に処理する', async () => {
+  test('handles timeout correctly', async () => {
     const clientWithShortTimeout = new ApiClient({
       baseUrl: '',
       timeout: 100,
@@ -2377,7 +2377,7 @@ describe('API Client', () => {
     ).rejects.toThrow(TimeoutError);
   });
 
-  test('リクエストがキャンセルできる', async () => {
+  test('request can be cancelled', async () => {
     const controller = new AbortController();
 
     const promise = api.get('/api/slow', undefined, {
@@ -2389,8 +2389,8 @@ describe('API Client', () => {
     await expect(promise).rejects.toThrow();
   });
 
-  // テスト内でハンドラーを上書き
-  test('サーバーエラー時にリトライする', async () => {
+  // Overriding a handler within a test
+  test('retries on server error', async () => {
     let attempts = 0;
 
     server.use(
@@ -2411,10 +2411,10 @@ describe('API Client', () => {
 });
 ```
 
-### 9.2 ユニットテストでのfetchモック
+### 9.2 Mocking fetch in Unit Tests
 
 ```typescript
-// グローバルfetchのモック（Vitest）
+// Mocking global fetch (Vitest)
 import { vi, describe, test, expect, beforeEach } from 'vitest';
 
 describe('fetchData', () => {
@@ -2422,7 +2422,7 @@ describe('fetchData', () => {
     vi.restoreAllMocks();
   });
 
-  test('正常レスポンスを処理する', async () => {
+  test('processes successful response', async () => {
     const mockData = { id: 1, name: 'Test' };
 
     global.fetch = vi.fn().mockResolvedValue({
@@ -2437,7 +2437,7 @@ describe('fetchData', () => {
     expect(fetch).toHaveBeenCalledWith('/api/test', expect.any(Object));
   });
 
-  test('HTTPエラーを処理する', async () => {
+  test('processes HTTP error', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 500,
@@ -2448,9 +2448,9 @@ describe('fetchData', () => {
     await expect(fetchData('/api/test')).rejects.toThrow('HTTP 500');
   });
 
-  test('AbortControllerが正しく使われる', async () => {
+  test('AbortController is used correctly', async () => {
     global.fetch = vi.fn().mockImplementation((url, options) => {
-      // signalが渡されていることを確認
+      // Verify that signal is passed
       expect(options.signal).toBeInstanceOf(AbortSignal);
       return Promise.resolve({
         ok: true,
@@ -2464,7 +2464,7 @@ describe('fetchData', () => {
   });
 });
 
-// ReadableStreamのモック
+// Mocking ReadableStream
 function createMockReadableStream(chunks: string[]) {
   let index = 0;
   return new ReadableStream({
@@ -2479,7 +2479,7 @@ function createMockReadableStream(chunks: string[]) {
   });
 }
 
-test('ストリーミングレスポンスを処理する', async () => {
+test('processes streaming response', async () => {
   const chunks = [
     'data: {"content":"Hello"}\n\n',
     'data: {"content":" World"}\n\n',
@@ -2504,34 +2504,34 @@ test('ストリーミングレスポンスを処理する', async () => {
 
 ---
 
-## 10. パフォーマンス最適化
+## 10. Performance Optimization
 
-### 10.1 接続の最適化
+### 10.1 Connection Optimization
 
 ```javascript
-// DNS プリフェッチ
+// DNS prefetch
 // <link rel="dns-prefetch" href="https://api.example.com">
 
-// プリコネクト（DNS + TCP + TLS）
+// Preconnect (DNS + TCP + TLS)
 // <link rel="preconnect" href="https://api.example.com">
 
-// プリフェッチ（リソースの先読み）
+// Prefetch (pre-loading resources)
 // <link rel="prefetch" href="/api/next-page-data">
 
-// プリロード（高優先度リソース）
+// Preload (high-priority resources)
 // <link rel="preload" href="/api/critical-data" as="fetch" crossorigin>
 
-// fetch の priority ヒント
+// fetch priority hint
 const response = await fetch('/api/critical-data', {
   priority: 'high', // 'high', 'low', 'auto'
 });
 
 const response = await fetch('/api/analytics', {
   priority: 'low',
-  keepalive: true, // ページ遷移後もリクエストを維持
+  keepalive: true, // Keep request alive after page navigation
 });
 
-// keepalive でページ離脱時にデータを送信
+// Sending data when leaving a page with keepalive
 window.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') {
     fetch('/api/analytics/page-exit', {
@@ -2540,12 +2540,12 @@ window.addEventListener('visibilitychange', () => {
         page: window.location.pathname,
         duration: performance.now(),
       }),
-      keepalive: true, // ページが閉じても送信を維持
+      keepalive: true, // Keep sending even if page is closed
     });
   }
 });
 
-// navigator.sendBeacon（keepaliveの代替）
+// navigator.sendBeacon (alternative to keepalive)
 window.addEventListener('unload', () => {
   navigator.sendBeacon('/api/analytics/page-exit', JSON.stringify({
     page: window.location.pathname,
@@ -2554,44 +2554,44 @@ window.addEventListener('unload', () => {
 });
 ```
 
-### 10.2 レスポンスのキャッシュ
+### 10.2 Response Caching
 
 ```javascript
-// Cache APIの直接利用
+// Direct use of Cache API
 const cacheName = 'api-cache-v1';
 
 async function fetchWithCache(url, options = {}) {
   const cache = await caches.open(cacheName);
 
-  // キャッシュから検索
+  // Search in cache
   const cachedResponse = await cache.match(url);
   if (cachedResponse) {
-    // キャッシュのAge確認
+    // Check cache age
     const cachedDate = new Date(cachedResponse.headers.get('Date') || 0);
     const age = Date.now() - cachedDate.getTime();
 
-    if (age < 5 * 60 * 1000) { // 5分以内
+    if (age < 5 * 60 * 1000) { // Within 5 minutes
       return cachedResponse;
     }
   }
 
-  // ネットワークからフェッチ
+  // Fetch from network
   const response = await fetch(url, options);
 
   if (response.ok) {
-    // レスポンスをキャッシュに保存（cloneが必要）
+    // Save response to cache (clone is necessary)
     cache.put(url, response.clone());
   }
 
   return response;
 }
 
-// Stale-While-Revalidate パターン
+// Stale-While-Revalidate pattern
 async function staleWhileRevalidate(url, options = {}) {
   const cache = await caches.open(cacheName);
   const cachedResponse = await cache.match(url);
 
-  // バックグラウンドで更新
+  // Update in the background
   const fetchPromise = fetch(url, options).then(response => {
     if (response.ok) {
       cache.put(url, response.clone());
@@ -2599,64 +2599,64 @@ async function staleWhileRevalidate(url, options = {}) {
     return response;
   });
 
-  // キャッシュがあればすぐ返す（同時にバックグラウンド更新）
+  // Return immediately if cached (simultaneously update in background)
   return cachedResponse || fetchPromise;
 }
 ```
 
-### 10.3 バンドルサイズの考慮
+### 10.3 Bundle Size Considerations
 
 ```javascript
-// fetchのポリフィル（レガシーブラウザ対応は不要な場合がほとんど）
-// ES2017+をサポートするブラウザは全てfetchを実装している
+// fetch polyfill (rarely needed for legacy browser support anymore)
+// Browsers supporting ES2017+ all implement fetch natively
 // Safari 10.1+, Chrome 42+, Firefox 39+, Edge 14+
 
-// ★ whatwg-fetch ポリフィルは新規プロジェクトでは不要
-// ★ isomorphic-fetch も不要（Node.js 18以降はネイティブfetch対応）
+// ★ The whatwg-fetch polyfill is not needed in new projects
+// ★ isomorphic-fetch is also not needed (Node.js 18+ has native fetch support)
 
-// Node.js でのfetch
-// Node.js 18+: ネイティブfetchが利用可能
-// Node.js 16-17: undici パッケージを使用
+// fetch in Node.js
+// Node.js 18+: native fetch is available
+// Node.js 16-17: use the undici package
 // import { fetch } from 'undici';
 
-// Denoでのfetch: ネイティブサポート
-// Bun: ネイティブサポート
+// fetch in Deno: natively supported
+// Bun: natively supported
 ```
 
 ---
 
-## 11. セキュリティ考慮事項
+## 11. Security Considerations
 
-### 11.1 XSS対策
+### 11.1 XSS Prevention
 
 ```javascript
-// APIレスポンスの安全な処理
+// Safe processing of API responses
 
-// ★ レスポンスデータを直接DOMに挿入しない
+// ★ Do not insert response data directly into the DOM
 const user = await fetch('/api/users/1').then(r => r.json());
 
-// 危険: XSS脆弱性
+// Dangerous: XSS vulnerability
 // element.innerHTML = user.bio;
 
-// 安全: textContentを使う
+// Safe: use textContent
 element.textContent = user.bio;
 
-// ReactではデフォルトでXSS対策済み
-// <div>{user.bio}</div> → 自動エスケープ
+// React has XSS protection by default
+// <div>{user.bio}</div> → automatically escaped
 
-// ★ dangerouslySetInnerHTML は信頼できるデータのみ
+// ★ Use dangerouslySetInnerHTML only with trusted data
 // <div dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />
 
-// DOMPurifyによるサニタイゼーション
+// Sanitization with DOMPurify
 import DOMPurify from 'dompurify';
 const clean = DOMPurify.sanitize(user.richBio);
 element.innerHTML = clean;
 ```
 
-### 11.2 CSRF対策
+### 11.2 CSRF Prevention
 
 ```javascript
-// CSRFトークンの送信
+// Sending a CSRF token
 async function fetchWithCSRF(url, options = {}) {
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content
     || getCookie('XSRF-TOKEN');
@@ -2669,48 +2669,48 @@ async function fetchWithCSRF(url, options = {}) {
   return fetch(url, { ...options, headers, credentials: 'same-origin' });
 }
 
-// SameSite Cookie（サーバー側の設定）
+// SameSite Cookie (server-side configuration)
 // Set-Cookie: session=abc123; SameSite=Lax; Secure; HttpOnly
 
-// Double Submit Cookie パターン
-// 1. サーバーがCSRFトークンをCookieとレスポンスボディの両方で送信
-// 2. クライアントはリクエスト時にCookieのトークンをヘッダーに含める
-// 3. サーバーはCookieとヘッダーのトークンが一致することを確認
+// Double Submit Cookie pattern
+// 1. Server sends CSRF token in both Cookie and response body
+// 2. Client includes the cookie token in the request header
+// 3. Server verifies that Cookie and header token match
 ```
 
-### 11.3 機密情報の保護
+### 11.3 Protecting Sensitive Information
 
 ```javascript
-// ★ アクセストークンをURLに含めない
-// 悪い例: fetch(`/api/data?token=${accessToken}`)
-// → URLはログに記録される、Refererヘッダーで漏洩する
+// ★ Do not include access tokens in the URL
+// Bad example: fetch(`/api/data?token=${accessToken}`)
+// → URLs are recorded in logs, leaked via Referer header
 
-// 良い例: Authorizationヘッダーを使用
+// Good example: use Authorization header
 fetch('/api/data', {
   headers: { 'Authorization': `Bearer ${accessToken}` },
 });
 
-// ★ レスポンスのキャッシュに注意
-// 機密データにはキャッシュ制御ヘッダーを設定
+// ★ Be careful about caching responses
+// Set cache control headers for sensitive data
 // Cache-Control: no-store, no-cache, must-revalidate
 // Pragma: no-cache
 
-// ★ エラーメッセージに機密情報を含めない
-// 悪い例: throw new Error(`API key ${apiKey} is invalid`);
-// 良い例: throw new Error('Authentication failed');
+// ★ Do not include sensitive information in error messages
+// Bad example: throw new Error(`API key ${apiKey} is invalid`);
+// Good example: throw new Error('Authentication failed');
 
-// Content-Security-Policy でfetchの宛先を制限
+// Restrict fetch destinations with Content-Security-Policy
 // Content-Security-Policy: connect-src 'self' https://api.example.com
 ```
 
 ---
 
-## 12. 実務パターン集
+## 12. Production Pattern Collection
 
-### 12.1 ページネーション
+### 12.1 Pagination
 
 ```typescript
-// オフセットベースのページネーション
+// Offset-based pagination
 async function fetchPaginated<T>(
   url: string,
   page: number,
@@ -2732,7 +2732,7 @@ async function fetchPaginated<T>(
   };
 }
 
-// カーソルベースのページネーション
+// Cursor-based pagination
 async function* fetchAllPages<T>(
   url: string,
   limit = 100
@@ -2754,7 +2754,7 @@ async function* fetchAllPages<T>(
   }
 }
 
-// 使用例: 全ページのデータを収集
+// Usage example: collecting all pages of data
 async function fetchAllUsers() {
   const allUsers: User[] = [];
 
@@ -2766,7 +2766,7 @@ async function fetchAllUsers() {
   return allUsers;
 }
 
-// 無限スクロールの実装（React）
+// Infinite scroll implementation (React)
 function InfiniteScrollList() {
   const [items, setItems] = useState<Item[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -2824,33 +2824,33 @@ function InfiniteScrollList() {
 }
 ```
 
-### 12.2 楽観的更新（Optimistic Updates）
+### 12.2 Optimistic Updates
 
 ```typescript
-// 楽観的更新パターン
+// Optimistic update pattern
 async function optimisticUpdate<T>(
   currentState: T,
   optimisticState: T,
   setState: (state: T) => void,
   apiCall: () => Promise<T>
 ): Promise<T> {
-  // 1. 即座にUIを更新
+  // 1. Update UI immediately
   setState(optimisticState);
 
   try {
-    // 2. APIコール
+    // 2. API call
     const serverState = await apiCall();
-    // 3. サーバーの結果で上書き
+    // 3. Overwrite with server result
     setState(serverState);
     return serverState;
   } catch (err) {
-    // 4. エラー時はロールバック
+    // 4. Rollback on error
     setState(currentState);
     throw err;
   }
 }
 
-// React での使用例（いいねボタン）
+// Usage example in React (like button)
 function LikeButton({ postId, initialLiked, initialCount }) {
   const [liked, setLiked] = useState(initialLiked);
   const [count, setCount] = useState(initialCount);
@@ -2859,7 +2859,7 @@ function LikeButton({ postId, initialLiked, initialCount }) {
     const previousLiked = liked;
     const previousCount = count;
 
-    // 楽観的更新
+    // Optimistic update
     setLiked(!liked);
     setCount(liked ? count - 1 : count + 1);
 
@@ -2873,10 +2873,10 @@ function LikeButton({ postId, initialLiked, initialCount }) {
       const data = await result.json();
       setCount(data.likeCount);
     } catch (err) {
-      // ロールバック
+      // Rollback
       setLiked(previousLiked);
       setCount(previousCount);
-      toast.error('操作に失敗しました');
+      toast.error('Operation failed');
     }
   };
 
@@ -2888,15 +2888,15 @@ function LikeButton({ postId, initialLiked, initialCount }) {
 }
 ```
 
-### 12.3 ポーリングとWebSocket
+### 12.3 Polling and WebSocket
 
 ```typescript
-// ロングポーリング
+// Long polling
 async function longPoll(url: string, onMessage: (data: any) => void) {
   while (true) {
     try {
       const response = await fetch(url, {
-        signal: AbortSignal.timeout(60000), // 60秒タイムアウト
+        signal: AbortSignal.timeout(60000), // 60-second timeout
       });
 
       if (response.ok) {
@@ -2905,16 +2905,16 @@ async function longPoll(url: string, onMessage: (data: any) => void) {
       }
     } catch (err) {
       if (err.name === 'TimeoutError') {
-        // タイムアウトは正常（再接続）
+        // Timeout is normal (reconnect)
         continue;
       }
-      // エラー時は少し待ってからリトライ
+      // Wait a bit and retry on error
       await new Promise(r => setTimeout(r, 5000));
     }
   }
 }
 
-// インターバルポーリング（指数バックオフ付き）
+// Interval polling (with exponential backoff)
 class Poller {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private interval: number;
@@ -2948,10 +2948,10 @@ class Poller {
       if (response.ok) {
         const data = await response.json();
         this.onData(data);
-        this.currentInterval = this.interval; // 成功時はリセット
+        this.currentInterval = this.interval; // Reset on success
       }
     } catch (err) {
-      // エラー時はバックオフ
+      // Back off on error
       this.currentInterval = Math.min(
         this.currentInterval * 2,
         this.maxInterval
@@ -2962,7 +2962,7 @@ class Poller {
   }
 }
 
-// 使用例
+// Usage example
 const poller = new Poller('/api/notifications', (data) => {
   updateNotifications(data);
 }, { interval: 10000 });
@@ -2973,27 +2973,27 @@ poller.start();
 
 ---
 
-## 13. Node.js / Edge Runtime でのFetch
+## 13. Fetch in Node.js / Edge Runtime
 
-### 13.1 Node.jsでのFetch API
+### 13.1 Fetch API in Node.js
 
 ```javascript
-// Node.js 18+ でのネイティブfetch
+// Native fetch in Node.js 18+
 const response = await fetch('https://api.example.com/data');
 const data = await response.json();
 
-// Node.js固有の設定
-// ★ keepalive はNode.jsではデフォルトでfalse
+// Node.js-specific configuration
+// ★ keepalive defaults to false in Node.js
 const response = await fetch('https://api.example.com/data', {
   keepalive: true,
 });
 
-// ★ Node.jsではHTTPSの証明書検証をカスタマイズ可能（undici使用時）
+// ★ In Node.js, HTTPS certificate validation can be customized (when using undici)
 import { Agent, fetch } from 'undici';
 
 const agent = new Agent({
   connect: {
-    rejectUnauthorized: false, // 開発環境のみ
+    rejectUnauthorized: false, // Development environment only
   },
 });
 
@@ -3001,7 +3001,7 @@ const response = await fetch('https://self-signed.example.com/api', {
   dispatcher: agent,
 });
 
-// プロキシの設定（undici使用時）
+// Proxy configuration (when using undici)
 import { ProxyAgent, fetch } from 'undici';
 
 const proxyAgent = new ProxyAgent('http://proxy.example.com:8080');
@@ -3010,37 +3010,37 @@ const response = await fetch('https://api.example.com/data', {
 });
 ```
 
-### 13.2 Next.js のfetch拡張
+### 13.2 Next.js fetch Extensions
 
 ```typescript
-// Next.js App Router のfetch拡張
-// サーバーコンポーネントでのデータ取得
+// fetch extensions in Next.js App Router
+// Data fetching in Server Components
 
-// 静的レンダリング（ビルド時に実行、キャッシュ）
+// Static rendering (executed at build time, cached)
 const data = await fetch('https://api.example.com/posts', {
-  cache: 'force-cache', // デフォルト（Next.js 14以前）
+  cache: 'force-cache', // Default (prior to Next.js 14)
 });
 
-// 動的レンダリング（リクエスト毎に実行）
+// Dynamic rendering (executed per request)
 const data = await fetch('https://api.example.com/posts', {
   cache: 'no-store',
 });
 
-// ISR（Incremental Static Regeneration）
+// ISR (Incremental Static Regeneration)
 const data = await fetch('https://api.example.com/posts', {
   next: {
-    revalidate: 60, // 60秒ごとに再検証
+    revalidate: 60, // Revalidate every 60 seconds
   },
 });
 
-// タグベースの再検証
+// Tag-based revalidation
 const data = await fetch('https://api.example.com/posts', {
   next: {
-    tags: ['posts'], // revalidateTag('posts') で無効化
+    tags: ['posts'], // Invalidate with revalidateTag('posts')
   },
 });
 
-// Server Action からの再検証
+// Revalidation from a Server Action
 'use server';
 import { revalidateTag, revalidatePath } from 'next/cache';
 
@@ -3057,20 +3057,20 @@ async function createPost(formData: FormData) {
 
 ---
 
-## 14. デバッグとトラブルシューティング
+## 14. Debugging and Troubleshooting
 
-### 14.1 DevToolsでの調査
+### 14.1 Investigation with DevTools
 
 ```javascript
-// DevTools の Network タブで確認できる情報
-// - リクエスト/レスポンスヘッダー
-// - リクエストボディ
-// - レスポンスボディ
-// - タイミング（DNS, TCP, TLS, TTFB, コンテンツダウンロード）
-// - CORSヘッダー（プリフライトリクエスト含む）
+// Information available in the DevTools Network tab
+// - Request/response headers
+// - Request body
+// - Response body
+// - Timing (DNS, TCP, TLS, TTFB, content download)
+// - CORS headers (including preflight requests)
 
-// コンソールでのfetchデバッグ
-// 全てのfetchリクエストをインターセプト
+// Debugging fetch in the console
+// Intercept all fetch requests
 const originalFetch = window.fetch;
 window.fetch = async function (...args) {
   const [url, options] = args;
@@ -3097,7 +3097,7 @@ window.fetch = async function (...args) {
   }
 };
 
-// Resource Timing API でパフォーマンス測定
+// Performance measurement with the Resource Timing API
 const entries = performance.getEntriesByType('resource');
 const fetchEntries = entries.filter(e => e.initiatorType === 'fetch');
 
@@ -3114,11 +3114,11 @@ for (const entry of fetchEntries) {
 }
 ```
 
-### 14.2 よくある問題と解決策
+### 14.2 Common Problems and Solutions
 
 ```javascript
-// 問題1: JSONのパースエラー
-// → レスポンスがJSONでない場合（HTML、エラーページ等）
+// Problem 1: JSON parse error
+// → When the response is not JSON (HTML, error page, etc.)
 try {
   const data = await response.json();
 } catch (err) {
@@ -3128,31 +3128,31 @@ try {
   }
 }
 
-// 問題2: メモリリーク（レスポンスの未消費）
-// → レスポンスボディを読まないとメモリに残り続ける
+// Problem 2: Memory leak (unconsumed response)
+// → If the response body is not read, it stays in memory
 const response = await fetch('/api/data');
 if (!response.ok) {
-  // ★ エラー時もボディを消費する
-  await response.text(); // または response.body?.cancel()
+  // ★ Also consume the body on error
+  await response.text(); // or response.body?.cancel()
   throw new Error(`HTTP ${response.status}`);
 }
 
-// 問題3: 同時リクエスト制限
-// → ブラウザはドメインあたり6-8並行接続まで
-// → 多数のリクエストを送る場合は並行数を制限する
+// Problem 3: Simultaneous request limit
+// → Browsers allow up to 6-8 parallel connections per domain
+// → Limit concurrency when sending many requests
 
-// 問題4: fetchが完了しない
-// → タイムアウトを必ず設定する
-// → AbortSignal.timeout() を使用する
+// Problem 4: fetch does not complete
+// → Always set a timeout
+// → Use AbortSignal.timeout()
 
-// 問題5: Service Worker内でのfetch
-// → 無限ループに注意（fetchイベント内でfetchを呼ぶ）
+// Problem 5: fetch inside a Service Worker
+// → Watch out for infinite loops (calling fetch within a fetch event)
 self.addEventListener('fetch', (event) => {
-  // ★ 同じURLへのfetchを避ける
+  // ★ Avoid fetching the same URL
   if (event.request.url.includes('/api/')) {
     event.respondWith(
       caches.match(event.request).then(cached => {
-        return cached || fetch(event.request); // Service Workerのfetchは別コンテキスト
+        return cached || fetch(event.request); // Service Worker fetch is in a separate context
       })
     );
   }
@@ -3163,20 +3163,20 @@ self.addEventListener('fetch', (event) => {
 
 ## FAQ
 
-### Q1: fetchとXMLHttpRequestの違いは?
+### Q1: What is the difference between fetch and XMLHttpRequest?
 
-**回答:** FetchとXMLHttpRequest（XHR）の主な違いは以下の通り。**(1) APIの設計思想**: FetchはPromiseベースでモダンな非同期パターン（`async`/`await`）を採用し、XHRはコールバックベース。**(2) ストリーミング対応**: FetchはStreams APIと統合されており、レスポンスボディを段階的に読み取れるが、XHRは全体をメモリに読み込む。**(3) リクエストのキャンセル**: FetchはAbortControllerによる標準的なキャンセル機構を持ち、XHRは`xhr.abort()`を使用。**(4) CORSとクレデンシャル**: Fetchは`mode`と`credentials`オプションで明示的に制御でき、XHRは`withCredentials`プロパティを使用。**(5) プログレスイベント**: XHRは`progress`イベントで進捗を取得しやすいが、FetchではStreams APIのReaderで手動実装が必要。総じて、新規開発ではFetchを使い、レガシーコードの保守やプログレス表示が重要な場面でのみXHRを検討する。
+**Answer:** The main differences between Fetch and XMLHttpRequest (XHR) are as follows. **(1) API design philosophy**: Fetch adopts a Promise-based modern async pattern (`async`/`await`), while XHR is callback-based. **(2) Streaming support**: Fetch is integrated with the Streams API and can read the response body incrementally, but XHR loads the entire response into memory. **(3) Request cancellation**: Fetch has a standard cancellation mechanism via AbortController, while XHR uses `xhr.abort()`. **(4) CORS and credentials**: Fetch allows explicit control with `mode` and `credentials` options, while XHR uses the `withCredentials` property. **(5) Progress events**: XHR makes it easy to get progress via `progress` events, but Fetch requires manual implementation with the Streams API Reader. In general, use Fetch for new development and only consider XHR for maintaining legacy code or situations where progress display is critical.
 
-### Q2: Streams APIの実用的なユースケースは?
+### Q2: What are practical use cases for the Streams API?
 
-**回答:** Streams APIは以下のような実用的なユースケースで威力を発揮する。**(1) 大容量ファイルのダウンロード**: 数百MB〜数GBのファイルをメモリに一度に読み込まず、チャンク単位で処理しながらディスクに書き込むことで、メモリ使用量を抑えられる。進捗表示も容易に実装できる。**(2) リアルタイムデータストリーム**: Server-Sent EventsやNDJSON形式のストリーミングレスポンスを段階的にパースし、到着したデータから順次UIを更新する。チャットアプリやダッシュボードに最適。**(3) データの変換パイプライン**: TransformStreamを使い、ダウンロード → 解凍 → パース → 表示というパイプラインを構築し、バックプレッシャー制御により効率的に処理できる。**(4) CSV/JSONLの段階的パース**: 数百万行のCSVやJSON Linesファイルを一度にメモリに読み込まず、行単位で処理することで、ブラウザのメモリ制限を回避できる。**(5) 動画/音声のストリーミング再生**: メディアストリームとして段階的にデコードし、再生開始までの待ち時間を最小化する（Media Source Extensions との組み合わせ）。
+**Answer:** The Streams API excels in the following practical use cases. **(1) Downloading large files**: Files hundreds of MB to GB can be written to disk in chunks without loading them into memory at once, reducing memory usage. Progress display is also easy to implement. **(2) Real-time data streams**: Server-Sent Events or NDJSON-format streaming responses can be parsed incrementally, updating the UI as data arrives. Ideal for chat apps and dashboards. **(3) Data transformation pipelines**: Using TransformStream, you can build a pipeline of download → decompress → parse → display, processing efficiently with backpressure control. **(4) Incremental parsing of CSV/JSONL**: Files with millions of rows of CSV or JSON Lines can be processed line by line without loading them into memory at once, avoiding browser memory limits. **(5) Streaming playback of video/audio**: Incrementally decode as a media stream, minimizing wait time until playback starts (in combination with Media Source Extensions).
 
-### Q3: fetch中断（AbortController）の使い方は?
+### Q3: How do I use fetch cancellation (AbortController)?
 
-**回答:** AbortControllerは以下のパターンで使用する。
+**Answer:** AbortController is used in the following patterns.
 
 ```javascript
-// 基本パターン: 手動キャンセル
+// Basic pattern: manual cancellation
 const controller = new AbortController();
 const signal = controller.signal;
 
@@ -3184,22 +3184,22 @@ fetch('/api/data', { signal })
   .then(response => response.json())
   .catch(err => {
     if (err.name === 'AbortError') {
-      console.log('リクエストがキャンセルされました');
+      console.log('Request was cancelled');
     } else {
       throw err;
     }
   });
 
-// ユーザー操作でキャンセル
+// Cancel on user action
 cancelButton.addEventListener('click', () => {
-  controller.abort(); // fetchを即座に中断
+  controller.abort(); // Immediately abort the fetch
 });
 
-// タイムアウト設定（モダンブラウザ）
-const signal = AbortSignal.timeout(5000); // 5秒でタイムアウト
+// Timeout configuration (modern browsers)
+const signal = AbortSignal.timeout(5000); // 5-second timeout
 fetch('/api/slow', { signal });
 
-// 複数条件の組み合わせ（ユーザーキャンセル OR タイムアウト）
+// Combining multiple conditions (user cancel OR timeout)
 const userController = new AbortController();
 const combinedSignal = AbortSignal.any([
   userController.signal,
@@ -3207,48 +3207,48 @@ const combinedSignal = AbortSignal.any([
 ]);
 fetch('/api/data', { signal: combinedSignal });
 
-// React等での自動クリーンアップ
+// Automatic cleanup in React etc.
 useEffect(() => {
   const controller = new AbortController();
   fetch('/api/data', { signal: controller.signal })
     .then(/* ... */);
 
-  return () => controller.abort(); // コンポーネントアンマウント時に自動中断
+  return () => controller.abort(); // Automatically abort on component unmount
 }, []);
 ```
 
-**注意点**: `abort()`後のfetchはすぐに`AbortError`で拒否されるが、サーバー側の処理は継続される（HTTPリクエスト自体はキャンセルできない）。クライアント側でレスポンスを無視するだけである。
+**Note**: After `abort()`, the fetch is immediately rejected with `AbortError`, but server-side processing continues (the HTTP request itself cannot be cancelled). On the client side, only the response is ignored.
 
 ---
 
-## まとめ
+## Summary
 
-| 概念 | ポイント |
-|------|---------|
-| Fetch API | XMLHttpRequestの後継、Promiseベース、response.okの確認必須 |
-| Request / Response | イミュータブル、clone()で複製、1回のみボディ読み取り可能 |
-| AbortController | リクエストキャンセル、タイムアウト、AbortSignal.any()で合成 |
-| ReadableStream | レスポンスの段階的処理、バックプレッシャー制御 |
-| TransformStream | ストリームデータの変換パイプライン |
-| WritableStream | データの書き込み先、pipeTo()で接続 |
-| SSE | Server-Sent Events、EventSourceまたはFetch+Streamsで処理 |
-| リトライ | 指数バックオフ、Retry-Afterヘッダー、ジッター |
-| キャッシュ | ETag / Last-Modified条件付きリクエスト、Cache API |
-| CORS | プリフライト、credentials、mode設定 |
-| セキュリティ | CSRF対策、XSS防止、トークンの安全な送信 |
-| テスト | MSWによるモック、インテグレーションテスト |
-
----
-
-## 次に読むべきガイド
-
-- [02-intersection-resize-observer.md](./02-intersection-resize-observer.md) -- Observer API（IntersectionObserver, ResizeObserver, MutationObserver）
-- [../04-storage-and-caching/00-web-storage.md](../04-storage-and-caching/00-web-storage.md) -- Web Storage API（localStorage, sessionStorage, IndexedDB）
-- [../04-storage-and-caching/01-service-worker-cache.md](../04-storage-and-caching/01-service-worker-cache.md) -- Service Worker と Cache API
+| Concept | Key Points |
+|---------|-----------|
+| Fetch API | Successor to XMLHttpRequest, Promise-based, must check response.ok |
+| Request / Response | Immutable, clone() to duplicate, body can only be read once |
+| AbortController | Request cancellation, timeout, combine with AbortSignal.any() |
+| ReadableStream | Incremental response processing, backpressure control |
+| TransformStream | Transformation pipeline for stream data |
+| WritableStream | Data write destination, connect with pipeTo() |
+| SSE | Server-Sent Events, process with EventSource or Fetch+Streams |
+| Retry | Exponential backoff, Retry-After header, jitter |
+| Cache | ETag / Last-Modified conditional requests, Cache API |
+| CORS | Preflight, credentials, mode configuration |
+| Security | CSRF prevention, XSS protection, safe token transmission |
+| Testing | Mocking with MSW, integration testing |
 
 ---
 
-## 参考文献
+## Next Guides to Read
+
+- [02-intersection-resize-observer.md](./02-intersection-resize-observer.md) -- Observer APIs (IntersectionObserver, ResizeObserver, MutationObserver)
+- [../04-storage-and-caching/00-web-storage.md](../04-storage-and-caching/00-web-storage.md) -- Web Storage API (localStorage, sessionStorage, IndexedDB)
+- [../04-storage-and-caching/01-service-worker-cache.md](../04-storage-and-caching/01-service-worker-cache.md) -- Service Worker and Cache API
+
+---
+
+## References
 
 1. Fetch Living Standard. WHATWG, 2024. https://fetch.spec.whatwg.org/
 2. MDN Web Docs. "Fetch API." Mozilla, 2024. https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
