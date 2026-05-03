@@ -1,184 +1,184 @@
-# レート制限
+# Rate Limiting
 
-> レート制限はAPIの安定性とフェアネスを守る防衛線。Token Bucket、Sliding Window、分散レート制限のアルゴリズム、実装パターン、クライアント側の対応まで、プロダクション品質のレート制限を設計する。
+> Rate limiting is the defensive line that protects API stability and fairness. Design production-quality rate limiting by understanding algorithms such as Token Bucket, Sliding Window, and distributed rate limiting, as well as implementation patterns and client-side handling.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] レート制限アルゴリズムの種類と特性を理解する
-- [ ] Redis を使った分散レート制限の実装を把握する
-- [ ] レート制限のレスポンス設計とクライアント対応を学ぶ
-- [ ] 多層レート制限の設計パターンを理解する
-- [ ] 分散環境でのレート制限の課題と解決策を学ぶ
-- [ ] レート制限のテスト手法とモニタリングを把握する
-
----
-
-## 前提知識
-
-- API認証パターンの理解 → 参照: [認証パターン](./00-authentication-patterns.md)
-- HTTPステータスコード（429 Too Many Requests等） → 参照: HTTPの基礎
-- 分散システムの基本概念（複数サーバー環境でのレート制限）
+- [ ] Understand the types and characteristics of rate limiting algorithms
+- [ ] Understand how to implement distributed rate limiting using Redis
+- [ ] Learn rate limit response design and client-side handling
+- [ ] Understand multi-layer rate limiting design patterns
+- [ ] Learn the challenges and solutions for rate limiting in distributed environments
+- [ ] Understand rate limiting testing techniques and monitoring
 
 ---
 
-## 1. レート制限の目的と基本概念
+## Prerequisites
 
-### 1.1 なぜレート制限が必要か
+- Understanding of API authentication patterns → See: [Authentication Patterns](./00-authentication-patterns.md)
+- HTTP status codes (429 Too Many Requests, etc.) → See: HTTP Basics
+- Basic concepts of distributed systems (rate limiting in multi-server environments)
 
-```
-レート制限が必要な4つの理由:
+---
 
-  ① サービスの安定性:
-     → 1クライアントの大量リクエストで他のクライアントに影響しない
-     → サーバーリソース（CPU、メモリ、DB接続）の保護
-     → カスケード障害の防止
-     → バックエンドサービスの過負荷防止
+## 1. Purpose and Basic Concepts of Rate Limiting
 
-  ② フェアネス:
-     → 全クライアントに公平なリソース配分
-     → 無料/有料プランの差別化
-     → SLA に基づくリソース保証
-     → テナント間の影響の分離（ノイジーネイバー問題）
-
-  ③ セキュリティ:
-     → ブルートフォース攻撃の防止
-     → DDoS の軽減
-     → スクレイピングの抑制
-     → 認証エンドポイントへの攻撃防御
-     → API キーの不正利用検出
-
-  ④ コスト管理:
-     → 外部API呼び出しのコスト制御
-     → インフラコストの予測可能性
-     → データベース負荷の制御
-     → ネットワーク帯域の保護
-```
-
-### 1.2 レート制限の粒度
+### 1.1 Why Rate Limiting Is Necessary
 
 ```
-レート制限を適用する単位（粒度）:
+Four Reasons Rate Limiting Is Necessary:
+
+  ① Service stability:
+     → Prevents one client's high request volume from affecting others
+     → Protects server resources (CPU, memory, DB connections)
+     → Prevents cascading failures
+     → Prevents overload on backend services
+
+  ② Fairness:
+     → Fair resource allocation for all clients
+     → Differentiation between free/paid plans
+     → Resource guarantees based on SLA
+     → Isolation of impact between tenants (noisy neighbor problem)
+
+  ③ Security:
+     → Prevents brute-force attacks
+     → Mitigates DDoS
+     → Suppresses scraping
+     → Defends against attacks on authentication endpoints
+     → Detects unauthorized use of API keys
+
+  ④ Cost control:
+     → Controls costs of external API calls
+     → Predictability of infrastructure costs
+     → Controls database load
+     → Protects network bandwidth
+```
+
+### 1.2 Rate Limiting Granularity
+
+```
+Units (Granularity) for Applying Rate Limits:
 
   ┌─────────────────────────────────────────────────────┐
-  │               レート制限の粒度ピラミッド              │
+  │           Rate Limiting Granularity Pyramid          │
   │                                                     │
   │                    ┌───────┐                        │
-  │                    │ Global│  ← サービス全体          │
+  │                    │Global │  ← Entire service       │
   │                   ┌┴───────┴┐                       │
-  │                   │  Tenant │  ← テナント単位         │
+  │                   │ Tenant  │  ← Per tenant          │
   │                  ┌┴─────────┴┐                      │
-  │                  │   User    │  ← ユーザー単位        │
+  │                  │   User    │  ← Per user           │
   │                 ┌┴───────────┴┐                     │
-  │                 │  API Key    │  ← APIキー単位       │
+  │                 │  API Key    │  ← Per API key       │
   │                ┌┴─────────────┴┐                    │
-  │                │   IP Address  │  ← IPアドレス単位   │
+  │                │   IP Address  │  ← Per IP address  │
   │               ┌┴───────────────┴┐                   │
-  │               │   Endpoint      │  ← エンドポイント  │
+  │               │    Endpoint     │  ← Per endpoint   │
   │              ┌┴─────────────────┴┐                  │
-  │              │   Resource + Action│  ← リソース操作  │
+  │              │  Resource + Action│  ← Resource op.  │
   │              └───────────────────┘                  │
   └─────────────────────────────────────────────────────┘
 
-  各粒度の使い分け:
+  When to Use Each Granularity:
 
-  ① ユーザー単位 (user_id):
-     → 認証済みリクエスト
-     → ユーザーごとの公平性保証
-     → 例: 1ユーザー 100req/分
+  ① Per user (user_id):
+     → Authenticated requests
+     → Fairness guarantee per user
+     → Example: 100 req/min per user
 
-  ② API Key 単位 (api_key):
-     → サービス間通信
-     → プランベースの制限
-     → 例: Free=100req/分, Pro=1000req/分
+  ② Per API Key (api_key):
+     → Service-to-service communication
+     → Plan-based restrictions
+     → Example: Free=100 req/min, Pro=1000 req/min
 
-  ③ IP 単位 (ip_address):
-     → 未認証リクエスト
-     → ブルートフォース防止
-     → 例: 1IP 60req/分
+  ③ Per IP (ip_address):
+     → Unauthenticated requests
+     → Brute-force prevention
+     → Example: 60 req/min per IP
 
-  ④ エンドポイント単位:
-     → /users と /orders で別制限
-     → 重い処理のエンドポイントを厳しく制限
-     → 例: /search=10req/分, /users=100req/分
+  ④ Per endpoint:
+     → Different limits for /users vs /orders
+     → Stricter limits for heavy processing endpoints
+     → Example: /search=10 req/min, /users=100 req/min
 
-  ⑤ プラン単位:
-     → SaaS のティア制御
-     → 例: Free=100req/分, Pro=1000req/分, Enterprise=10000req/分
+  ⑤ Per plan:
+     → SaaS tier control
+     → Example: Free=100 req/min, Pro=1000 req/min, Enterprise=10000 req/min
 
-  ⑥ 複合キー:
-     → user_id + endpoint の組み合わせ
+  ⑥ Composite key:
+     → Combination of user_id + endpoint
      → tenant_id + resource_type
-     → 例: ユーザーAは /upload に対して 10req/時間
+     → Example: User A can make 10 req/hour against /upload
 ```
 
-### 1.3 レート制限の設計原則
+### 1.3 Rate Limiting Design Principles
 
 ```
-実務で重要な設計原則:
+Design Principles Important in Practice:
 
-  ① 透明性:
-     → レスポンスヘッダーで残りリクエスト数を通知
-     → ドキュメントに制限値を明記
-     → 制限超過時に明確なエラーメッセージ
+  ① Transparency:
+     → Notify remaining request count via response headers
+     → Document limit values explicitly
+     → Clear error messages when limit is exceeded
 
-  ② 段階的制限:
-     → いきなり完全ブロックではなく段階的に制限
-     → Warning → Throttle → Block の3段階
-     → 異常検知による動的制限
+  ② Gradual limiting:
+     → Apply limits gradually rather than blocking immediately
+     → Three stages: Warning → Throttle → Block
+     → Dynamic limiting based on anomaly detection
 
-  ③ グレースフル・デグラデーション:
-     → レート制限システム自体がダウンした場合のフォールバック
+  ③ Graceful degradation:
+     → Fallback for when the rate limiting system itself goes down
      → Allow-by-default vs Deny-by-default
-     → ローカルキャッシュによるフォールバック
+     → Local cache-based fallback
 
-  ④ 柔軟性:
-     → プランアップグレードで即時に制限緩和
-     → 一時的な制限緩和（バースト許可）
-     → ホワイトリスト対応
+  ④ Flexibility:
+     → Immediately relax limits on plan upgrade
+     → Temporary limit relaxation (burst allowance)
+     → Whitelist support
 
-  ⑤ モニタリング:
-     → レート制限の発動頻度の監視
-     → 誤検知の検出と対応
-     → 容量計画へのフィードバック
+  ⑤ Monitoring:
+     → Monitor how often rate limits are triggered
+     → Detect and respond to false positives
+     → Feed into capacity planning
 ```
 
 ---
 
-## 2. レート制限アルゴリズム
+## 2. Rate Limiting Algorithms
 
-### 2.1 Fixed Window（固定ウィンドウ）
+### 2.1 Fixed Window
 
 ```
-① Fixed Window（固定ウィンドウ）:
+① Fixed Window:
 
-  時間窓を固定（例: 毎分0秒〜59秒）
-  窓内のリクエスト数をカウント
+  Fix the time window (e.g., every minute from :00 to :59)
+  Count requests within the window
 
   |--- window 1 ---|--- window 2 ---|--- window 3 ---|
   |  ■■■■■■■■■     |  ■■            |  ■■■■■         |
   |  9 requests     |  2 requests    |  5 requests    |
-  limit = 10/分
+  limit = 10/min
 
-  メリット:
-  → 実装がシンプル
-  → メモリ効率が良い（各ウィンドウ1カウンタ）
-  → 計算コストが低い
+  Advantages:
+  → Simple to implement
+  → Memory efficient (one counter per window)
+  → Low computational cost
 
-  デメリット:
-  → ウィンドウ境界でバースト
-  → 0:59に10リクエスト + 1:00に10リクエスト
-  → 2秒間に20リクエスト（制限の2倍）
+  Disadvantages:
+  → Burst at window boundaries
+  → 10 requests at :59 + 10 requests at 1:00
+  → 20 requests in 2 seconds (double the limit)
 
-  ┌────────────┬────────────┐
-  │  Window 1  │  Window 2  │
-  │        ■■■■│■■■■        │
-  │    10 req  │  10 req    │
-  └────────────┴────────────┘
-       ↑ 境界付近で20req/2秒 ↑
+  ┌────────────────┬────────────────┐
+  │   Window 1     │   Window 2     │
+  │          ■■■■  │  ■■■■          │
+  │   10 req       │  10 req        │
+  └────────────────┴────────────────┘
+       ↑ 20 req/2s near boundary ↑
 ```
 
 ```javascript
-// Fixed Window の実装
+// Fixed Window implementation
 class FixedWindowRateLimiter {
   constructor(limit, windowMs) {
     this.limit = limit;
@@ -193,7 +193,7 @@ class FixedWindowRateLimiter {
     const entry = this.windows.get(key);
 
     if (!entry || entry.windowStart !== windowStart) {
-      // 新しいウィンドウ
+      // New window
       this.windows.set(key, { count: 1, windowStart });
       return {
         allowed: true,
@@ -219,7 +219,7 @@ class FixedWindowRateLimiter {
     };
   }
 
-  // 古いウィンドウのクリーンアップ
+  // Clean up old windows
   cleanup() {
     const now = Date.now();
     for (const [key, entry] of this.windows.entries()) {
@@ -230,8 +230,8 @@ class FixedWindowRateLimiter {
   }
 }
 
-// 使用例
-const limiter = new FixedWindowRateLimiter(100, 60000); // 100req/分
+// Usage example
+const limiter = new FixedWindowRateLimiter(100, 60000); // 100 req/min
 
 function handleRequest(req) {
   const key = `rate:${req.ip}`;
@@ -245,35 +245,35 @@ function handleRequest(req) {
 }
 ```
 
-### 2.2 Sliding Window Log（スライディングウィンドウログ）
+### 2.2 Sliding Window Log
 
 ```
-② Sliding Window Log（スライディングウィンドウログ）:
+② Sliding Window Log:
 
-  各リクエストのタイムスタンプを記録
-  現在時刻から遡ったウィンドウ内のリクエスト数をカウント
+  Records a timestamp for each request
+  Counts requests within a window looking back from the current time
 
-  時刻の流れ →
+  Time flows →
   ─────────────────────────────────────────────
   t1  t2    t3  t4 t5   t6  t7    t8  t9  t10
   ■   ■     ■   ■  ■    ■   ■     ■   ■   ■
-  |←────── 60秒のウィンドウ ───────→|
-                                   ↑ 現在時刻
+  |←──────── 60-second window ──────────→|
+                                         ↑ current time
 
-  古いタイムスタンプ（t1, t2）はウィンドウ外なので除外
+  Old timestamps (t1, t2) are outside the window and excluded
 
-  メリット:
-  → 正確なレート制限（境界バースト問題なし）
-  → どの時点でもウィンドウ内のリクエスト数が正確
+  Advantages:
+  → Accurate rate limiting (no boundary burst problem)
+  → Count of requests within window is always accurate
 
-  デメリット:
-  → メモリ消費が大きい（各リクエストのタイムスタンプを保持）
-  → ウィンドウ内のリクエスト数に比例するメモリ使用
-  → クリーンアップ処理が必要
+  Disadvantages:
+  → High memory consumption (stores timestamps for each request)
+  → Memory usage proportional to number of requests in window
+  → Cleanup processing required
 ```
 
 ```javascript
-// Sliding Window Log の実装
+// Sliding Window Log implementation
 class SlidingWindowLogLimiter {
   constructor(limit, windowMs) {
     this.limit = limit;
@@ -285,10 +285,10 @@ class SlidingWindowLogLimiter {
     const now = Date.now();
     const windowStart = now - this.windowMs;
 
-    // 既存のログを取得、なければ初期化
+    // Get existing log, or initialize
     let timestamps = this.logs.get(key) || [];
 
-    // ウィンドウ外のタイムスタンプを削除
+    // Remove timestamps outside the window
     timestamps = timestamps.filter(ts => ts > windowStart);
 
     if (timestamps.length < this.limit) {
@@ -302,7 +302,7 @@ class SlidingWindowLogLimiter {
       };
     }
 
-    // 最も古いタイムスタンプから次にスロットが空く時間を計算
+    // Calculate when the next slot opens from the oldest timestamp
     const oldestInWindow = timestamps[0];
     const retryAfter = Math.ceil((oldestInWindow + this.windowMs - now) / 1000);
 
@@ -317,23 +317,23 @@ class SlidingWindowLogLimiter {
   }
 }
 
-// Redis を使った Sliding Window Log
+// Sliding Window Log with Redis
 async function slidingWindowLogRedis(redis, key, limit, windowMs) {
   const now = Date.now();
   const windowStart = now - windowMs;
 
   const pipeline = redis.pipeline();
 
-  // 古いエントリを削除
+  // Remove old entries
   pipeline.zremrangebyscore(key, '-inf', windowStart);
-  // 現在のカウントを取得
+  // Get current count
   pipeline.zcard(key);
 
   const results = await pipeline.exec();
   const count = results[1][1];
 
   if (count < limit) {
-    // 新しいエントリを追加（ユニークなメンバー名が必要）
+    // Add new entry (unique member name required)
     const member = `${now}:${Math.random().toString(36).substr(2, 9)}`;
     await redis.zadd(key, now, member);
     await redis.pexpire(key, windowMs);
@@ -341,7 +341,7 @@ async function slidingWindowLogRedis(redis, key, limit, windowMs) {
     return { allowed: true, remaining: limit - count - 1 };
   }
 
-  // 最も古いエントリの時間を取得
+  // Get time of the oldest entry
   const oldest = await redis.zrange(key, 0, 0, 'WITHSCORES');
   const retryAfter = oldest.length >= 2
     ? Math.ceil((parseFloat(oldest[1]) + windowMs - now) / 1000)
@@ -351,40 +351,40 @@ async function slidingWindowLogRedis(redis, key, limit, windowMs) {
 }
 ```
 
-### 2.3 Sliding Window Counter（スライディングウィンドウカウンター）
+### 2.3 Sliding Window Counter
 
 ```
-③ Sliding Window Counter（スライディングウィンドウカウンター）:
+③ Sliding Window Counter:
 
-  Fixed Window のメモリ効率 + Sliding Window の精度を両立
-  前の窓と現在の窓のカウントを重み付けで推定
+  Combines the memory efficiency of Fixed Window with the accuracy of Sliding Window
+  Estimates count using a weighted combination of the previous and current window
 
-  |--- 前のウィンドウ ---|--- 現在のウィンドウ ---|
-  |  8 requests         |  3 requests           |
-  |                     |←── 40%経過 ──→|       |
+  |--- Previous Window ---|--- Current Window ---|
+  |  8 requests           |  3 requests          |
+  |                       |←── 40% elapsed ──→|  |
 
-  前のウィンドウ: 8リクエスト
-  現在のウィンドウ: 3リクエスト
-  現在のウィンドウ経過率: 40%
-  前のウィンドウの残存率: 100% - 40% = 60%
+  Previous window: 8 requests
+  Current window: 3 requests
+  Elapsed percentage of current window: 40%
+  Remaining weight of previous window: 100% - 40% = 60%
 
-  推定リクエスト数 = 前のウィンドウ × 残存率 + 現在のウィンドウ
-                   = 8 × 0.6 + 3
-                   = 4.8 + 3
-                   = 7.8 → 制限(10)内 → 許可
+  Estimated request count = previous window × remaining weight + current window
+                          = 8 × 0.6 + 3
+                          = 4.8 + 3
+                          = 7.8 → Within limit (10) → Allowed
 
-  メリット:
-  → 精度とメモリのバランスが良い
-  → 各ウィンドウ2カウンタのみ（メモリ効率）
-  → 境界バースト問題を大幅に軽減
+  Advantages:
+  → Good balance between accuracy and memory
+  → Only 2 counters per window (memory efficient)
+  → Significantly reduces boundary burst problem
 
-  デメリット:
-  → 推定値であり完全に正確ではない
-  → 実際のリクエスト分布が均一でない場合に誤差
+  Disadvantages:
+  → Is an estimate and not perfectly accurate
+  → Errors arise when actual request distribution is not uniform
 ```
 
 ```javascript
-// Sliding Window Counter の実装
+// Sliding Window Counter implementation
 class SlidingWindowCounter {
   constructor(limit, windowMs) {
     this.limit = limit;
@@ -406,18 +406,18 @@ class SlidingWindowCounter {
     const currentCount = data.windows[currentWindow] || 0;
     const previousCount = data.windows[previousWindow] || 0;
 
-    // 現在のウィンドウ内の経過率
+    // Elapsed fraction of current window
     const elapsed = (now - currentWindow) / this.windowMs;
-    // 前のウィンドウの重み
+    // Weight of previous window
     const previousWeight = 1 - elapsed;
 
-    // 推定リクエスト数
+    // Estimated request count
     const estimatedCount = previousCount * previousWeight + currentCount;
 
     if (estimatedCount < this.limit) {
       data.windows[currentWindow] = currentCount + 1;
 
-      // 古いウィンドウを削除
+      // Remove old windows
       for (const w of Object.keys(data.windows)) {
         if (parseInt(w) < previousWindow) {
           delete data.windows[w];
@@ -440,60 +440,60 @@ class SlidingWindowCounter {
 }
 ```
 
-### 2.4 Token Bucket（トークンバケット）
+### 2.4 Token Bucket
 
 ```
-④ Token Bucket（トークンバケット）:
+④ Token Bucket:
 
-  バケットに一定速度でトークンを追加
-  リクエスト1回 = トークン1個消費
-  トークンがない = リクエスト拒否
+  Add tokens to a bucket at a constant rate
+  1 request = consume 1 token
+  No tokens = request denied
 
-  パラメータ:
-  → capacity: バケットの最大トークン数（バースト許容量）
-  → refill_rate: トークン補充速度（トークン/秒）
+  Parameters:
+  → capacity: Maximum number of tokens in the bucket (burst tolerance)
+  → refill_rate: Token refill rate (tokens/second)
 
   ┌──────────────────────────────────┐
   │         Token Bucket             │
   │                                  │
   │  capacity = 10                   │
-  │  refill_rate = 2/秒             │
+  │  refill_rate = 2/sec             │
   │                                  │
   │  ┌────────────────────┐          │
-  │  │ ● ● ● ● ● ○ ○ ○ ○ ○│ ←トークン │
+  │  │ ● ● ● ● ● ○ ○ ○ ○ ○│ ←tokens  │
   │  │ 5/10 tokens         │          │
   │  └────────────────────┘          │
-  │       ↑ 2トークン/秒で補充       │
-  │       ↓ リクエストでトークン消費  │
+  │       ↑ Refill at 2 tokens/sec   │
+  │       ↓ Tokens consumed by req.  │
   │                                  │
-  │  最大10リクエストのバースト       │
-  │  定常状態では2リクエスト/秒       │
+  │  Max 10 request burst            │
+  │  Steady state: 2 requests/sec    │
   └──────────────────────────────────┘
 
-  時間経過のシミュレーション:
-  t=0   : tokens=10 (満タン)
-  t=0   : 5リクエスト → tokens=5
-  t=1   : +2トークン → tokens=7
-  t=1   : 3リクエスト → tokens=4
-  t=2   : +2トークン → tokens=6
-  t=5   : +6トークン → tokens=10 (上限で頭打ち)
+  Time simulation:
+  t=0   : tokens=10 (full)
+  t=0   : 5 requests → tokens=5
+  t=1   : +2 tokens → tokens=7
+  t=1   : 3 requests → tokens=4
+  t=2   : +2 tokens → tokens=6
+  t=5   : +6 tokens → tokens=10 (capped at max)
 
-  メリット:
-  → バーストを許容しつつ長期的な制限を維持
-  → パラメータが直感的
-  → AWS API Gateway, Nginx, GitHub API が採用
+  Advantages:
+  → Allows bursts while maintaining long-term limits
+  → Intuitive parameters
+  → Used by AWS API Gateway, Nginx, and GitHub API
 
-  デメリット:
-  → 2つのパラメータの調整が必要
-  → 短期間のバーストがバックエンドに負荷を与える可能性
+  Disadvantages:
+  → Requires tuning two parameters
+  → Short-term bursts may put load on backend
 ```
 
 ```javascript
-// Token Bucket の実装（メモリ内）
+// Token Bucket implementation (in-memory)
 class TokenBucket {
   constructor(capacity, refillRate) {
-    this.capacity = capacity;       // 最大トークン数
-    this.refillRate = refillRate;   // トークン/秒
+    this.capacity = capacity;       // Maximum token count
+    this.refillRate = refillRate;   // Tokens/second
     this.buckets = new Map();
   }
 
@@ -506,7 +506,7 @@ class TokenBucket {
       this.buckets.set(key, bucket);
     }
 
-    // トークンを補充
+    // Refill tokens
     const elapsed = (now - bucket.lastRefill) / 1000;
     bucket.tokens = Math.min(
       this.capacity,
@@ -523,7 +523,7 @@ class TokenBucket {
       };
     }
 
-    // トークンが足りない場合、次にトークンが利用可能になる時間
+    // If insufficient tokens, calculate when next token will be available
     const deficit = tokensRequired - bucket.tokens;
     const retryAfter = Math.ceil(deficit / this.refillRate);
 
@@ -535,7 +535,7 @@ class TokenBucket {
   }
 }
 
-// リクエストサイズに応じたトークン消費
+// Token consumption based on request size
 class WeightedTokenBucket extends TokenBucket {
   constructor(capacity, refillRate, weightFn) {
     super(capacity, refillRate);
@@ -548,12 +548,12 @@ class WeightedTokenBucket extends TokenBucket {
   }
 }
 
-// 使用例: エンドポイントの重さに応じた消費
+// Usage example: consumption based on endpoint weight
 const weightedLimiter = new WeightedTokenBucket(
   100, // capacity
   10,  // refill_rate: 10 tokens/sec
   (req) => {
-    // GETは1トークン、POSTは5トークン、ファイルアップロードは20トークン
+    // GET costs 1 token, POST costs 5, file upload costs 20
     const weights = {
       'GET': 1,
       'POST': 5,
@@ -566,49 +566,49 @@ const weightedLimiter = new WeightedTokenBucket(
 );
 ```
 
-### 2.5 Leaky Bucket（漏れバケット）
+### 2.5 Leaky Bucket
 
 ```
-⑤ Leaky Bucket（漏れバケット）:
+⑤ Leaky Bucket:
 
-  リクエストをキューに入れ、一定速度で処理
-  キューが満杯 = リクエスト拒否
+  Enqueue requests and process at a constant rate
+  Full queue = request denied
 
   ┌──────────────────────────────────┐
   │         Leaky Bucket             │
   │                                  │
   │  ┌─────────┐                     │
-  │  │ req req  │ ← リクエスト流入    │
-  │  │ req req  │   （不規則）        │
+  │  │ req req  │ ← requests flowing in │
+  │  │ req req  │   (irregular)       │
   │  │ req req  │                     │
   │  │ req req  │  queue_size = 10    │
   │  └────┬─────┘                     │
   │       │                           │
-  │       ▼  一定速度で流出            │
+  │       ▼  drain at constant rate   │
   │    ● ● ● ● ●                     │
-  │    leak_rate = 2/秒               │
+  │    leak_rate = 2/sec              │
   │                                  │
-  │  → 出力レートが一定（スムーズ）    │
-  │  → バーストを平滑化               │
+  │  → Output rate is constant (smooth) │
+  │  → Smooths out bursts             │
   └──────────────────────────────────┘
 
-  Token Bucket との違い:
+  Differences from Token Bucket:
   ┌─────────────────┬─────────────────┐
   │   Token Bucket  │  Leaky Bucket   │
   ├─────────────────┼─────────────────┤
-  │ バースト許容    │ バースト平滑化   │
-  │ 入力側で制御    │ 出力側で制御     │
-  │ トークン消費    │ キューで管理     │
-  │ 即座にレスポンス │ キュー待ち発生  │
+  │ Allows burst    │ Smooths burst   │
+  │ Controls input  │ Controls output │
+  │ Token consumption│ Queue mgmt.    │
+  │ Immediate resp. │ Queue wait      │
   └─────────────────┴─────────────────┘
 ```
 
 ```javascript
-// Leaky Bucket の実装
+// Leaky Bucket implementation
 class LeakyBucket {
   constructor(capacity, leakRate) {
-    this.capacity = capacity;     // キューの最大サイズ
-    this.leakRate = leakRate;     // 処理速度（リクエスト/秒）
+    this.capacity = capacity;     // Maximum queue size
+    this.leakRate = leakRate;     // Processing rate (requests/second)
     this.buckets = new Map();
   }
 
@@ -621,7 +621,7 @@ class LeakyBucket {
       this.buckets.set(key, bucket);
     }
 
-    // 経過時間に応じてキューを排出
+    // Drain the queue based on elapsed time
     const elapsed = (now - bucket.lastLeak) / 1000;
     bucket.water = Math.max(0, bucket.water - elapsed * this.leakRate);
     bucket.lastLeak = now;
@@ -642,11 +642,11 @@ class LeakyBucket {
   }
 }
 
-// Leaky Bucket をキューとして使う場合
+// Using Leaky Bucket as a queue
 class LeakyBucketQueue {
   constructor(capacity, processRate) {
     this.capacity = capacity;
-    this.processRate = processRate; // 1秒あたりの処理数
+    this.processRate = processRate; // Number of items to process per second
     this.queue = [];
     this.processing = false;
   }
@@ -686,22 +686,23 @@ class LeakyBucketQueue {
 }
 ```
 
-### 2.6 アルゴリズム比較
+### 2.6 Algorithm Comparison
 
 ```
-各アルゴリズムの総合比較:
+Comprehensive Comparison of Algorithms:
 
-┌──────────────────┬────────┬────────┬────────┬──────────┬──────────┐
-│                  │ 精度   │ メモリ │ 実装   │ バースト │ 適用場面  │
-├──────────────────┼────────┼────────┼────────┼──────────┼──────────┤
-│ Fixed Window     │ 低     │ 最小   │ 最易   │ 境界問題 │ 簡易制限  │
-│ Sliding Log      │ 最高   │ 大     │ 中     │ なし     │ 厳密制限  │
-│ Sliding Counter  │ 高     │ 小     │ 中     │ ほぼなし │ 一般API  │
-│ Token Bucket     │ 高     │ 小     │ 中     │ 許容     │ API GW   │
-│ Leaky Bucket     │ 高     │ 中     │ やや難 │ 平滑化   │ キュー   │
-└──────────────────┴────────┴────────┴────────┴──────────┴──────────┘
+┌──────────────────┬──────────┬──────────┬──────────┬──────────┬──────────┐
+│                  │ Accuracy │ Memory   │ Impl.    │ Burst    │ Use Case │
+├──────────────────┼──────────┼──────────┼──────────┼──────────┼──────────┤
+│ Fixed Window     │ Low      │ Minimum  │ Easiest  │ Boundary │ Simple   │
+│                  │          │          │          │ problem  │ limits   │
+│ Sliding Log      │ Highest  │ Large    │ Medium   │ None     │ Strict   │
+│ Sliding Counter  │ High     │ Small    │ Medium   │ Minimal  │ General  │
+│ Token Bucket     │ High     │ Small    │ Medium   │ Allowed  │ API GW   │
+│ Leaky Bucket     │ High     │ Medium   │ Moderate │ Smoothed │ Queue    │
+└──────────────────┴──────────┴──────────┴──────────┴──────────┴──────────┘
 
-主要サービスの採用アルゴリズム:
+Algorithms used by major services:
   → AWS API Gateway: Token Bucket
   → Nginx: Leaky Bucket (limit_req)
   → GitHub API: Sliding Window
@@ -712,12 +713,12 @@ class LeakyBucketQueue {
 
 ---
 
-## 3. Redis を使った分散レート制限
+## 3. Distributed Rate Limiting with Redis
 
-### 3.1 Sliding Window Counter の Redis 実装
+### 3.1 Redis Implementation of Sliding Window Counter
 
 ```javascript
-// Sliding Window Counter の Redis 実装
+// Redis implementation of Sliding Window Counter
 
 const Redis = require('ioredis');
 const redis = new Redis();
@@ -726,7 +727,7 @@ async function slidingWindowRateLimit(key, limit, windowSizeMs) {
   const now = Date.now();
   const windowStart = now - windowSizeMs;
 
-  // Lua スクリプト（アトミック操作）
+  // Lua script (atomic operation)
   const script = `
     local key = KEYS[1]
     local now = tonumber(ARGV[1])
@@ -734,19 +735,19 @@ async function slidingWindowRateLimit(key, limit, windowSizeMs) {
     local limit = tonumber(ARGV[3])
     local window_ms = tonumber(ARGV[4])
 
-    -- 期限切れのエントリを削除
+    -- Remove expired entries
     redis.call('ZREMRANGEBYSCORE', key, '-inf', window_start)
 
-    -- 現在のカウント
+    -- Current count
     local count = redis.call('ZCARD', key)
 
     if count < limit then
-      -- リクエストを記録
+      -- Record the request
       redis.call('ZADD', key, now, now .. ':' .. math.random(100000))
       redis.call('PEXPIRE', key, window_ms)
       return {1, limit - count - 1, 0}  -- allowed, remaining, retryAfter
     else
-      -- 最も古いエントリの時刻
+      -- Time of the oldest entry
       local oldest = redis.call('ZRANGE', key, 0, 0, 'WITHSCORES')
       local retry_after = oldest[2] + window_ms - now
       return {0, 0, retry_after}  -- denied, remaining, retryAfter
@@ -767,10 +768,10 @@ async function slidingWindowRateLimit(key, limit, windowSizeMs) {
 }
 ```
 
-### 3.2 Token Bucket の Redis 実装
+### 3.2 Redis Implementation of Token Bucket
 
 ```javascript
-// Token Bucket の Redis 実装
+// Redis implementation of Token Bucket
 async function tokenBucketRateLimit(key, capacity, refillRate) {
   const script = `
     local key = KEYS[1]
@@ -782,7 +783,7 @@ async function tokenBucketRateLimit(key, capacity, refillRate) {
     local tokens = tonumber(bucket[1]) or capacity
     local last_refill = tonumber(bucket[2]) or now
 
-    -- トークン補充
+    -- Refill tokens
     local elapsed = (now - last_refill) / 1000
     tokens = math.min(capacity, tokens + elapsed * refill_rate)
 
@@ -804,10 +805,10 @@ async function tokenBucketRateLimit(key, capacity, refillRate) {
 }
 ```
 
-### 3.3 分散レート制限の課題と解決
+### 3.3 Challenges and Solutions for Distributed Rate Limiting
 
 ```
-分散環境でのレート制限の課題:
+Rate Limiting Challenges in Distributed Environments:
 
   ┌──────────┐  ┌──────────┐  ┌──────────┐
   │ Server 1 │  │ Server 2 │  │ Server 3 │
@@ -819,31 +820,31 @@ async function tokenBucketRateLimit(key, capacity, refillRate) {
                      │
               ┌──────┴──────┐
               │    Redis    │
-              │ count = 9   │  ← 一元管理
+              │ count = 9   │  ← Centralized management
               └─────────────┘
 
-  課題1: Redis の単一障害点（SPOF）
-  → 解決: Redis Cluster / Redis Sentinel
-  → フォールバック: ローカルメモリでの制限
+  Challenge 1: Redis as single point of failure (SPOF)
+  → Solution: Redis Cluster / Redis Sentinel
+  → Fallback: Local memory-based limiting
 
-  課題2: ネットワーク遅延
-  → 解決: ローカルバッファ + 定期的な同期
-  → トレードオフ: 精度 vs レイテンシ
+  Challenge 2: Network latency
+  → Solution: Local buffer + periodic sync
+  → Trade-off: Accuracy vs latency
 
-  課題3: Redis の一貫性
-  → 解決: Lua スクリプトによるアトミック操作
-  → WATCH/MULTI/EXEC は使わない（Cluster非対応）
+  Challenge 3: Redis consistency
+  → Solution: Atomic operations via Lua scripts
+  → Do not use WATCH/MULTI/EXEC (not compatible with Cluster)
 ```
 
 ```javascript
-// Redis Cluster 対応のレート制限
+// Rate limiter with Redis Cluster support
 class DistributedRateLimiter {
   constructor(redisCluster, options) {
     this.redis = redisCluster;
     this.options = options;
-    this.localCache = new Map(); // ローカルフォールバック
+    this.localCache = new Map(); // Local fallback
     this.localLimiter = new SlidingWindowCounter(
-      options.limit * 1.2, // ローカルは少し緩めに
+      options.limit * 1.2, // Local limit is slightly looser
       options.windowMs
     );
   }
@@ -871,7 +872,7 @@ class DistributedRateLimiter {
   }
 }
 
-// Redis Sentinel を使った高可用性レート制限
+// High-availability rate limiting using Redis Sentinel
 const redis = new Redis({
   sentinels: [
     { host: 'sentinel-1', port: 26379 },
@@ -885,17 +886,17 @@ const redis = new Redis({
 });
 ```
 
-### 3.4 ローカルバッファ付き分散レート制限
+### 3.4 Distributed Rate Limiting with Local Buffer
 
 ```javascript
-// ローカルバッファで Redis アクセスを最小化
+// Minimize Redis access with local buffer
 class BufferedRateLimiter {
   constructor(redis, options) {
     this.redis = redis;
     this.limit = options.limit;
     this.windowMs = options.windowMs;
-    this.batchSize = options.batchSize || 10;   // 10リクエスト分をローカルバッファ
-    this.syncInterval = options.syncInterval || 1000; // 1秒ごとに同期
+    this.batchSize = options.batchSize || 10;   // Buffer 10 requests locally
+    this.syncInterval = options.syncInterval || 1000; // Sync every 1 second
 
     this.localCounters = new Map();
     this.startSync();
@@ -906,7 +907,7 @@ class BufferedRateLimiter {
     if (!local) {
       local = { count: 0, quota: this.batchSize, synced: 0 };
       this.localCounters.set(key, local);
-      // 初回は Redis からクオータを取得
+      // First time: fetch quota from Redis
       await this.fetchQuota(key, local);
     }
 
@@ -915,7 +916,7 @@ class BufferedRateLimiter {
       return { allowed: true, remaining: local.quota - local.count };
     }
 
-    // ローカルクオータ使い切り → Redis に同期して追加取得
+    // Local quota exhausted → sync to Redis and fetch more
     await this.syncToRedis(key, local);
     await this.fetchQuota(key, local);
 
@@ -962,7 +963,7 @@ class BufferedRateLimiter {
   }
 
   async syncToRedis(key, local) {
-    // 使い切れなかったクオータを戻す
+    // Return unused quota
     const unused = local.quota - local.count;
     if (unused > 0) {
       await this.redis.decrby(`rate:${key}`, unused);
@@ -984,12 +985,12 @@ class BufferedRateLimiter {
 
 ---
 
-## 4. ミドルウェア実装
+## 4. Middleware Implementation
 
-### 4.1 Express ミドルウェア
+### 4.1 Express Middleware
 
 ```javascript
-// Express ミドルウェア - プロダクション品質
+// Express middleware - production quality
 function rateLimitMiddleware(options) {
   const {
     limit = 100,
@@ -1003,7 +1004,7 @@ function rateLimitMiddleware(options) {
   } = options;
 
   return async (req, res, next) => {
-    // スキップ条件
+    // Skip conditions
     if (skip && await skip(req)) {
       return next();
     }
@@ -1015,7 +1016,7 @@ function rateLimitMiddleware(options) {
     try {
       const result = await slidingWindowRateLimit(key, limit, windowMs);
 
-      // レスポンスヘッダーに制限情報を設定
+      // Set limit information in response headers
       if (headers) {
         res.set({
           'X-RateLimit-Limit': result.limit,
@@ -1024,7 +1025,7 @@ function rateLimitMiddleware(options) {
         });
       }
 
-      // IETF draft-7 ヘッダー
+      // IETF draft-7 headers
       if (draft7Headers) {
         res.set({
           'RateLimit-Limit': result.limit,
@@ -1036,7 +1037,7 @@ function rateLimitMiddleware(options) {
       if (!result.allowed) {
         res.set('Retry-After', result.retryAfter);
 
-        // カスタムハンドラー
+        // Custom handler
         if (onLimitReached) {
           onLimitReached(req, res, result);
         }
@@ -1056,17 +1057,17 @@ function rateLimitMiddleware(options) {
 
       next();
     } catch (error) {
-      // レート制限システムのエラー時はリクエストを許可
+      // Allow request when rate limiting system errors
       console.error('Rate limit error:', error);
       next();
     }
   };
 }
 
-// 使用例: エンドポイントごとに異なる制限
+// Usage example: different limits per endpoint
 const app = require('express')();
 
-// グローバル制限
+// Global limit
 app.use('/api/v1/',
   rateLimitMiddleware({
     limit: 100,
@@ -1075,14 +1076,14 @@ app.use('/api/v1/',
   })
 );
 
-// ログインエンドポイント: 厳しく制限
+// Login endpoint: strict limit
 app.use('/api/v1/auth/login',
   rateLimitMiddleware({
     limit: 5,
-    windowMs: 300000,  // 5分間
+    windowMs: 300000,  // 5 minutes
     keyGenerator: (req) => `rate:login:${req.ip}`,
     onLimitReached: (req, res, result) => {
-      // セキュリティチームに通知
+      // Notify security team
       securityAlert('login_rate_limit', {
         ip: req.ip,
         userAgent: req.headers['user-agent'],
@@ -1091,39 +1092,39 @@ app.use('/api/v1/auth/login',
   })
 );
 
-// パスワードリセット: さらに厳しく
+// Password reset: even stricter
 app.use('/api/v1/auth/reset-password',
   rateLimitMiddleware({
     limit: 3,
-    windowMs: 3600000,  // 1時間
+    windowMs: 3600000,  // 1 hour
     keyGenerator: (req) => `rate:reset:${req.body?.email || req.ip}`,
   })
 );
 
-// ファイルアップロード: リソース消費が大きいので制限
+// File upload: limited due to high resource consumption
 app.use('/api/v1/upload',
   rateLimitMiddleware({
     limit: 10,
-    windowMs: 3600000,  // 1時間に10ファイル
+    windowMs: 3600000,  // 10 files per hour
     keyGenerator: (req) => `rate:upload:${req.userId}`,
   })
 );
 
-// 検索エンドポイント: 中程度の制限
+// Search endpoint: moderate limit
 app.use('/api/v1/search',
   rateLimitMiddleware({
     limit: 30,
     windowMs: 60000,
     keyGenerator: (req) => `rate:search:${req.userId || req.ip}`,
-    skip: (req) => req.user?.plan === 'enterprise', // Enterpriseはスキップ
+    skip: (req) => req.user?.plan === 'enterprise', // Skip for Enterprise
   })
 );
 ```
 
-### 4.2 プランベースのレート制限
+### 4.2 Plan-Based Rate Limiting
 
 ```javascript
-// プランに応じた動的レート制限
+// Dynamic rate limiting based on plan
 class PlanBasedRateLimiter {
   constructor(redis) {
     this.redis = redis;
@@ -1182,9 +1183,9 @@ class PlanBasedRateLimiter {
     };
   }
 
-  // プランの動的更新（アップグレード時に即座に反映）
+  // Dynamic plan updates (reflected immediately on upgrade)
   async updatePlan(userId, newPlan) {
-    // キャッシュされたレート制限情報をリセット
+    // Reset cached rate limit information
     const keys = await this.redis.keys(`rate:*:*:${userId}`);
     if (keys.length > 0) {
       await this.redis.del(...keys);
@@ -1192,7 +1193,7 @@ class PlanBasedRateLimiter {
   }
 }
 
-// 使用例
+// Usage example
 const planLimiter = new PlanBasedRateLimiter(redis);
 app.use('/api/v1/', planLimiter.middleware('global'));
 app.use('/api/v1/search', planLimiter.middleware('search'));
@@ -1200,14 +1201,14 @@ app.use('/api/v1/upload', planLimiter.middleware('upload'));
 app.use('/api/v1/ai', planLimiter.middleware('ai'));
 ```
 
-### 4.3 NestJS でのレート制限
+### 4.3 Rate Limiting in NestJS
 
 ```typescript
-// NestJS デコレータベースのレート制限
+// NestJS decorator-based rate limiting
 import { SetMetadata, UseGuards, Injectable, CanActivate } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
-// カスタムデコレータ
+// Custom decorator
 export const RATE_LIMIT_KEY = 'rateLimit';
 
 export interface RateLimitOptions {
@@ -1219,7 +1220,7 @@ export interface RateLimitOptions {
 export const RateLimit = (options: RateLimitOptions) =>
   SetMetadata(RATE_LIMIT_KEY, options);
 
-// レート制限ガード
+// Rate limit guard
 @Injectable()
 export class RateLimitGuard implements CanActivate {
   constructor(
@@ -1263,7 +1264,7 @@ export class RateLimitGuard implements CanActivate {
   }
 }
 
-// コントローラでの使用
+// Usage in controller
 @Controller('users')
 @UseGuards(RateLimitGuard)
 export class UsersController {
@@ -1287,7 +1288,7 @@ export class UsersController {
 }
 ```
 
-### 4.4 Go でのレート制限ミドルウェア
+### 4.4 Rate Limiting Middleware in Go
 
 ```go
 package ratelimit
@@ -1302,14 +1303,14 @@ import (
     "github.com/go-redis/redis/v8"
 )
 
-// RateLimiter はレート制限の設定を保持する
+// RateLimiter holds rate limiting configuration
 type RateLimiter struct {
     redis    *redis.Client
     limit    int
     windowMs int64
 }
 
-// Result はレート制限チェックの結果
+// Result holds the result of a rate limit check
 type Result struct {
     Allowed    bool
     Remaining  int
@@ -1317,7 +1318,7 @@ type Result struct {
     Reset      int64
 }
 
-// NewRateLimiter は新しいレート制限インスタンスを生成する
+// NewRateLimiter creates a new rate limiter instance
 func NewRateLimiter(rdb *redis.Client, limit int, windowMs int64) *RateLimiter {
     return &RateLimiter{
         redis:    rdb,
@@ -1326,7 +1327,7 @@ func NewRateLimiter(rdb *redis.Client, limit int, windowMs int64) *RateLimiter {
     }
 }
 
-// Check はレート制限をチェックする
+// Check performs the rate limit check
 func (rl *RateLimiter) Check(ctx context.Context, key string) (*Result, error) {
     now := time.Now().UnixMilli()
     windowStart := now - rl.windowMs
@@ -1369,14 +1370,14 @@ func (rl *RateLimiter) Check(ctx context.Context, key string) (*Result, error) {
     }, nil
 }
 
-// Middleware はHTTPミドルウェアとしてレート制限を適用する
+// Middleware applies rate limiting as HTTP middleware
 func (rl *RateLimiter) Middleware(keyFn func(*http.Request) string) func(http.Handler) http.Handler {
     return func(next http.Handler) http.Handler {
         return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
             key := keyFn(r)
             result, err := rl.Check(r.Context(), key)
             if err != nil {
-                // レート制限システムエラー時はリクエストを許可
+                // Allow request when rate limiting system errors
                 next.ServeHTTP(w, r)
                 return
             }
@@ -1399,7 +1400,7 @@ func (rl *RateLimiter) Middleware(keyFn func(*http.Request) string) func(http.Ha
     }
 }
 
-// 使用例
+// Usage example
 func setupRoutes() {
     rdb := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
     limiter := NewRateLimiter(rdb, 100, 60000) // 100 req/min
@@ -1415,35 +1416,35 @@ func setupRoutes() {
 
 ---
 
-## 5. レスポンスヘッダーとエラー設計
+## 5. Response Headers and Error Design
 
-### 5.1 標準レスポンスヘッダー
+### 5.1 Standard Response Headers
 
 ```
-標準的なレート制限ヘッダー（de facto 標準）:
+Standard Rate Limit Headers (de facto standard):
 
-  X-RateLimit-Limit: 100        ← ウィンドウ内の上限
-  X-RateLimit-Remaining: 42     ← 残りリクエスト数
-  X-RateLimit-Reset: 1640000000 ← リセット時刻（UNIX秒）
-  Retry-After: 30               ← 再試行までの秒数（429時）
+  X-RateLimit-Limit: 100        ← Limit within window
+  X-RateLimit-Remaining: 42     ← Remaining requests
+  X-RateLimit-Reset: 1640000000 ← Reset time (Unix seconds)
+  Retry-After: 30               ← Seconds until retry (on 429)
 
-IETF標準（RFC 9110 / draft-ietf-httpapi-ratelimit-headers）:
+IETF Standard (RFC 9110 / draft-ietf-httpapi-ratelimit-headers):
   RateLimit-Limit: 100
   RateLimit-Remaining: 42
-  RateLimit-Reset: 30           ← リセットまでの秒数（UNIX秒ではない）
+  RateLimit-Reset: 30           ← Seconds until reset (not Unix epoch)
 
-  注意: IETF標準の RateLimit-Reset は「リセットまでの残り秒数」
-  de facto 標準の X-RateLimit-Reset は「リセット時刻（UNIX epoch秒）」
+  Note: IETF standard RateLimit-Reset is "seconds remaining until reset"
+  De facto standard X-RateLimit-Reset is "reset time (Unix epoch seconds)"
 
-複数ポリシーの表現:
+Expressing multiple policies:
   RateLimit-Limit: 100, 100;w=60, 1000;w=3600
-  → 60秒間に100リクエスト AND 3600秒間に1000リクエスト
+  → 100 requests per 60 seconds AND 1000 requests per 3600 seconds
 ```
 
-### 5.2 429 Too Many Requests レスポンス
+### 5.2 429 Too Many Requests Response
 
 ```
-429 Too Many Requests レスポンス例:
+429 Too Many Requests Response Example:
 
   HTTP/1.1 429 Too Many Requests
   Content-Type: application/problem+json
@@ -1471,7 +1472,7 @@ IETF標準（RFC 9110 / draft-ietf-httpapi-ratelimit-headers）:
     }
   }
 
-プラン別の制限情報を含むレスポンス例:
+Response example with per-plan limit information:
 
   {
     "type": "rate_limit_exceeded",
@@ -1496,10 +1497,10 @@ IETF標準（RFC 9110 / draft-ietf-httpapi-ratelimit-headers）:
   }
 ```
 
-### 5.3 レスポンスヘッダーの実装ヘルパー
+### 5.3 Response Header Helper
 
 ```javascript
-// レスポンスヘッダーの設定ヘルパー
+// Response header helper
 class RateLimitHeaders {
   static set(res, result, options = {}) {
     const {
@@ -1509,14 +1510,14 @@ class RateLimitHeaders {
       plan = null,
     } = options;
 
-    // de facto 標準ヘッダー
+    // De facto standard headers
     res.set({
       [`${prefix}-Limit`]: result.limit.toString(),
       [`${prefix}-Remaining`]: Math.max(0, result.remaining).toString(),
       [`${prefix}-Reset`]: result.reset.toString(),
     });
 
-    // IETF draft ヘッダー
+    // IETF draft headers
     if (includeIetf) {
       const resetInSeconds = Math.max(0, result.reset - Math.floor(Date.now() / 1000));
       res.set({
@@ -1526,12 +1527,12 @@ class RateLimitHeaders {
       });
     }
 
-    // プラン情報
+    // Plan information
     if (includePlan && plan) {
       res.set(`${prefix}-Plan`, plan);
     }
 
-    // 429 の場合
+    // For 429
     if (!result.allowed && result.retryAfter > 0) {
       res.set('Retry-After', result.retryAfter.toString());
     }
@@ -1554,12 +1555,12 @@ class RateLimitHeaders {
 
 ---
 
-## 6. クライアント側の対応
+## 6. Client-Side Handling
 
-### 6.1 リトライ戦略
+### 6.1 Retry Strategy
 
 ```javascript
-// SDK内でのレート制限対応
+// Rate limit handling inside an SDK
 
 async function requestWithRateLimit(fn, maxRetries = 3) {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -1571,7 +1572,7 @@ async function requestWithRateLimit(fn, maxRetries = 3) {
           ? parseInt(error.headers['retry-after']) * 1000
           : Math.min(1000 * 2 ** attempt, 30000);
 
-        // ジッターを追加（全クライアントが同時にリトライしないように）
+        // Add jitter so all clients don't retry at the same time
         const jitter = Math.random() * 1000;
         const delay = retryAfter + jitter;
 
@@ -1617,7 +1618,7 @@ class RetryWithBackoff {
   }
 
   calculateDelay(attempt, error) {
-    // Retry-After ヘッダーがあれば優先
+    // Prefer Retry-After header if present
     if (error.headers?.['retry-after']) {
       const retryAfter = parseInt(error.headers['retry-after']);
       if (!isNaN(retryAfter)) {
@@ -1637,16 +1638,16 @@ class RetryWithBackoff {
   }
 }
 
-// 使用例
+// Usage example
 const retrier = new RetryWithBackoff({ maxRetries: 5, baseDelay: 1000 });
 const result = await retrier.execute(() => fetch('/api/data'));
 ```
 
-### 6.2 プロアクティブなレート制限対応
+### 6.2 Proactive Rate Limit Handling
 
 ```javascript
-// プロアクティブなレート制限
-// → レスポンスヘッダーを監視し、残り少ない場合にスロットリング
+// Proactive rate limiting
+// → Monitor response headers and throttle when remaining count is low
 class RateLimitAwareClient {
   constructor(options = {}) {
     this.baseUrl = options.baseUrl || '';
@@ -1654,27 +1655,27 @@ class RateLimitAwareClient {
     this.resetAt = 0;
     this.limit = 0;
 
-    // プロアクティブスロットリング設定
-    this.throttleThreshold = options.throttleThreshold || 0.1; // 残り10%でスロットリング
+    // Proactive throttle settings
+    this.throttleThreshold = options.throttleThreshold || 0.1; // Throttle when 10% remaining
     this.requestQueue = [];
     this.processing = false;
   }
 
   async request(url, options = {}) {
-    // 残りが少ない場合はプロアクティブにウェイト
+    // Proactively wait if remaining count is low
     if (this.shouldThrottle()) {
       await this.waitForReset();
     }
 
     const response = await fetch(this.baseUrl + url, options);
 
-    // ヘッダーからレート制限情報を更新
+    // Update rate limit information from headers
     this.updateLimits(response);
 
     if (response.status === 429) {
       const retryAfter = parseInt(response.headers.get('Retry-After') || '1');
       await new Promise(r => setTimeout(r, retryAfter * 1000));
-      return this.request(url, options); // リトライ
+      return this.request(url, options); // Retry
     }
 
     return response;
@@ -1687,7 +1688,7 @@ class RateLimitAwareClient {
 
   async waitForReset() {
     if (this.remaining <= 0 && Date.now() < this.resetAt) {
-      const waitMs = this.resetAt - Date.now() + 100; // 100ms のバッファ
+      const waitMs = this.resetAt - Date.now() + 100; // 100ms buffer
       console.warn(`Proactive throttle: waiting ${waitMs}ms for rate limit reset`);
       await new Promise(r => setTimeout(r, waitMs));
     }
@@ -1704,7 +1705,7 @@ class RateLimitAwareClient {
   }
 }
 
-// バッチリクエストでレート制限を最適化
+// Optimize batch requests for rate limits
 class BatchRequestClient extends RateLimitAwareClient {
   constructor(options = {}) {
     super(options);
@@ -1724,9 +1725,9 @@ class BatchRequestClient extends RateLimitAwareClient {
 
       results.push(...batchResults);
 
-      // バッチ間にディレイ
+      // Add delay between batches
       if (i + this.batchSize < urls.length) {
-        // 残りリクエスト数に基づいて動的にディレイを調整
+        // Dynamically adjust delay based on remaining requests
         const delay = this.calculateBatchDelay();
         await new Promise(r => setTimeout(r, delay));
       }
@@ -1737,7 +1738,7 @@ class BatchRequestClient extends RateLimitAwareClient {
 
   calculateBatchDelay() {
     if (this.remaining <= this.batchSize * 2) {
-      // 残りが少ない場合は長いディレイ
+      // Long delay when remaining is low
       return this.batchDelay * 5;
     }
     if (this.remaining <= this.batchSize * 5) {
@@ -1748,7 +1749,7 @@ class BatchRequestClient extends RateLimitAwareClient {
 }
 ```
 
-### 6.3 Python クライアントでの対応
+### 6.3 Python Client Handling
 
 ```python
 import time
@@ -1761,7 +1762,7 @@ from typing import Optional, Callable
 
 @dataclass
 class RateLimitInfo:
-    """レート制限情報"""
+    """Rate limit information"""
     limit: int = 0
     remaining: int = float('inf')
     reset_at: float = 0
@@ -1769,7 +1770,7 @@ class RateLimitInfo:
 
 
 class RateLimitedClient:
-    """レート制限対応のHTTPクライアント"""
+    """HTTP client with rate limit handling"""
 
     def __init__(self, base_url: str, max_retries: int = 3):
         self.base_url = base_url
@@ -1787,7 +1788,7 @@ class RateLimitedClient:
         url = f"{self.base_url}{path}"
 
         for attempt in range(self.max_retries + 1):
-            # プロアクティブなウェイト
+            # Proactive wait
             self._proactive_wait()
 
             try:
@@ -1814,7 +1815,7 @@ class RateLimitedClient:
         raise RateLimitError("Max retries exceeded")
 
     def _proactive_wait(self):
-        """残りリクエスト数が少ない場合にプロアクティブにウェイト"""
+        """Proactively wait when remaining requests are low"""
         if self.rate_info.remaining <= 1:
             wait_time = self.rate_info.reset_at - time.time()
             if wait_time > 0:
@@ -1822,7 +1823,7 @@ class RateLimitedClient:
                 time.sleep(wait_time + 0.1)
 
     def _update_rate_info(self, response: requests.Response):
-        """レスポンスヘッダーからレート制限情報を更新"""
+        """Update rate limit information from response headers"""
         headers = response.headers
         self.rate_info = RateLimitInfo(
             limit=int(headers.get('X-RateLimit-Limit', 0)),
@@ -1832,7 +1833,7 @@ class RateLimitedClient:
         )
 
     def _calculate_delay(self, attempt: int, response: requests.Response) -> float:
-        """リトライまでの遅延を計算"""
+        """Calculate delay before retry"""
         retry_after = response.headers.get('Retry-After')
         if retry_after:
             return float(retry_after) + random.uniform(0, 1)
@@ -1844,7 +1845,7 @@ class RateLimitedClient:
 
 
 class RateLimitError(Exception):
-    """レート制限エラー"""
+    """Rate limit error"""
     def __init__(self, response_or_message):
         if isinstance(response_or_message, requests.Response):
             self.response = response_or_message
@@ -1858,9 +1859,9 @@ class RateLimitError(Exception):
             super().__init__(str(response_or_message))
 
 
-# デコレータとしての使用
+# Usage as a decorator
 def rate_limited(max_retries=3, base_delay=1.0):
-    """レート制限対応デコレータ"""
+    """Rate limit handling decorator"""
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -1878,7 +1879,7 @@ def rate_limited(max_retries=3, base_delay=1.0):
     return decorator
 
 
-# 使用例
+# Usage example
 client = RateLimitedClient("https://api.example.com", max_retries=3)
 
 @rate_limited(max_retries=5)
@@ -1890,51 +1891,51 @@ users = fetch_users()
 
 ---
 
-## 7. 多層レート制限
+## 7. Multi-Layer Rate Limiting
 
-### 7.1 多層レート制限の設計
+### 7.1 Multi-Layer Rate Limiting Design
 
 ```
-多層レート制限アーキテクチャ:
+Multi-Layer Rate Limiting Architecture:
 
-  リクエスト
+  Request
   ↓
   ┌──────────────────────────────────────┐
   │  Layer 1: CDN / Edge Rate Limiting   │ ← Cloudflare, AWS WAF
-  │  → IP ベース: 1000 req/min           │
-  │  → DDoS 防御                         │
+  │  → IP-based: 1000 req/min            │
+  │  → DDoS protection                   │
   └────────────────┬─────────────────────┘
                    ↓
   ┌──────────────────────────────────────┐
   │  Layer 2: API Gateway Rate Limiting  │ ← Kong, AWS API GW
-  │  → API Key ベース: 500 req/min       │
-  │  → プランベースの制限                 │
+  │  → API Key-based: 500 req/min        │
+  │  → Plan-based limits                 │
   └────────────────┬─────────────────────┘
                    ↓
   ┌──────────────────────────────────────┐
-  │  Layer 3: Application Rate Limiting  │ ← アプリ内ミドルウェア
-  │  → ユーザー単位: 100 req/min         │
-  │  → エンドポイント単位: 10 req/min     │
-  │  → リソース操作単位: 5 req/hour       │
+  │  Layer 3: Application Rate Limiting  │ ← In-app middleware
+  │  → Per user: 100 req/min             │
+  │  → Per endpoint: 10 req/min          │
+  │  → Per resource operation: 5 req/hr  │
   └────────────────┬─────────────────────┘
                    ↓
   ┌──────────────────────────────────────┐
-  │  Layer 4: Service Rate Limiting      │ ← サービス間通信
+  │  Layer 4: Service Rate Limiting      │ ← Service-to-service
   │  → Circuit Breaker                   │
-  │  → Bulkhead パターン                 │
+  │  → Bulkhead pattern                  │
   └──────────────────────────────────────┘
 
-  各レイヤーの役割:
-  Layer 1: 大規模攻撃の防御（雑なフィルタリング）
-  Layer 2: APIキー/プランベースの制限（ビジネスロジック）
-  Layer 3: きめ細かいリソース保護（アプリケーションレベル）
-  Layer 4: 内部サービスの保護（サービスメッシュ）
+  Role of each layer:
+  Layer 1: Defense against large-scale attacks (coarse filtering)
+  Layer 2: API key/plan-based limits (business logic)
+  Layer 3: Fine-grained resource protection (application level)
+  Layer 4: Internal service protection (service mesh)
 ```
 
-### 7.2 複合レート制限の実装
+### 7.2 Composite Rate Limiting Implementation
 
 ```javascript
-// 複数のレート制限を組み合わせる
+// Combine multiple rate limiters
 class CompositeRateLimiter {
   constructor(limiters) {
     this.limiters = limiters; // { name, limiter, key, limit, windowMs }[]
@@ -1967,7 +1968,7 @@ class CompositeRateLimiter {
   }
 }
 
-// 使用例: 3層のレート制限
+// Usage example: 3-layer rate limiting
 const compositeLimiter = new CompositeRateLimiter([
   {
     name: 'global',
@@ -1986,11 +1987,11 @@ const compositeLimiter = new CompositeRateLimiter([
   },
 ]);
 
-// ミドルウェアとして使用
+// Use as middleware
 app.use(async (req, res, next) => {
   const result = await compositeLimiter.isAllowed(req);
 
-  // 最も厳しい制限の情報をヘッダーに設定
+  // Set headers with the most restrictive limit info
   const globalResult = result.results.find(r => r.name === 'global');
   res.set({
     'X-RateLimit-Limit': globalResult.limit || 1000,
@@ -2011,10 +2012,10 @@ app.use(async (req, res, next) => {
 });
 ```
 
-### 7.3 動的レート制限
+### 7.3 Dynamic Rate Limiting
 
 ```javascript
-// サーバー負荷に応じた動的レート制限
+// Dynamic rate limiting based on server load
 class AdaptiveRateLimiter {
   constructor(redis, options) {
     this.redis = redis;
@@ -2022,7 +2023,7 @@ class AdaptiveRateLimiter {
     this.windowMs = options.windowMs;
     this.currentMultiplier = 1.0;
 
-    // 定期的にサーバー負荷をチェック
+    // Periodically check server load
     this.startHealthCheck(options.healthCheckInterval || 10000);
   }
 
@@ -2039,12 +2040,12 @@ class AdaptiveRateLimiter {
   }
 
   async checkServerHealth() {
-    // サーバーメトリクスを収集
+    // Collect server metrics
     const os = require('os');
     const cpuUsage = os.loadavg()[0] / os.cpus().length;
     const memUsage = 1 - os.freemem() / os.totalmem();
 
-    // 外部メトリクス（例: DB接続プール使用率）
+    // External metrics (e.g., DB connection pool usage)
     const dbPoolUsage = await this.getDbPoolUsage();
 
     return { cpuUsage, memUsage, dbPoolUsage };
@@ -2055,24 +2056,24 @@ class AdaptiveRateLimiter {
     const maxUsage = Math.max(cpuUsage, memUsage, dbPoolUsage);
 
     if (maxUsage > 0.9) {
-      // 危険水準: 制限を大幅に強化
+      // Critical level: significantly reduce limit
       this.currentMultiplier = 0.3;
       console.warn('CRITICAL: Rate limit reduced to 30%');
     } else if (maxUsage > 0.8) {
-      // 高負荷: 制限を強化
+      // High load: reduce limit
       this.currentMultiplier = 0.5;
       console.warn('HIGH LOAD: Rate limit reduced to 50%');
     } else if (maxUsage > 0.6) {
-      // やや高い: 少し制限
+      // Slightly high: reduce slightly
       this.currentMultiplier = 0.8;
     } else {
-      // 正常: フル制限
+      // Normal: full limit
       this.currentMultiplier = 1.0;
     }
   }
 
   async getDbPoolUsage() {
-    // DB接続プールの使用率を取得（例）
+    // Get DB connection pool usage (example)
     try {
       const result = await this.redis.get('metrics:db_pool_usage');
       return parseFloat(result) || 0;
@@ -2085,66 +2086,66 @@ class AdaptiveRateLimiter {
 
 ---
 
-## 8. Nginx / API Gateway でのレート制限
+## 8. Rate Limiting in Nginx / API Gateway
 
-### 8.1 Nginx でのレート制限設定
+### 8.1 Nginx Rate Limiting Configuration
 
 ```nginx
-# Nginx レート制限設定
+# Nginx rate limiting configuration
 
-# レート制限ゾーンの定義
+# Define rate limiting zones
 http {
-    # IP ベースのレート制限
-    # binary_remote_addr: クライアントIPのバイナリ表現
-    # zone=api_limit:10m: 共有メモリゾーン（10MB ≈ 160,000 IPアドレス）
-    # rate=10r/s: 1秒あたり10リクエスト
+    # IP-based rate limiting
+    # binary_remote_addr: binary representation of client IP
+    # zone=api_limit:10m: shared memory zone (10MB ≈ 160,000 IP addresses)
+    # rate=10r/s: 10 requests per second
     limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
 
-    # API Key ベースのレート制限
+    # API Key-based rate limiting
     map $http_x_api_key $api_key {
         default $http_x_api_key;
         "" $binary_remote_addr;
     }
     limit_req_zone $api_key zone=api_key_limit:10m rate=100r/s;
 
-    # エンドポイント × IP の複合制限
+    # Composite limit by endpoint × IP
     limit_req_zone $binary_remote_addr zone=login_limit:5m rate=1r/s;
     limit_req_zone $binary_remote_addr zone=search_limit:5m rate=5r/s;
 
-    # レート制限超過時のステータスコード
+    # Status code when rate limit is exceeded
     limit_req_status 429;
 
-    # レート制限ログレベル
+    # Rate limit log level
     limit_req_log_level warn;
 
     server {
         listen 80;
 
-        # グローバルレート制限
+        # Global rate limit
         location /api/ {
             limit_req zone=api_limit burst=20 nodelay;
-            # burst=20: 最大20リクエストのバーストを許可
-            # nodelay: バーストリクエストを即座に処理（キューイングしない）
+            # burst=20: allow burst of up to 20 requests
+            # nodelay: process burst requests immediately (no queuing)
 
             proxy_pass http://backend;
         }
 
-        # ログインエンドポイント: 厳しい制限
+        # Login endpoint: strict limit
         location /api/auth/login {
             limit_req zone=login_limit burst=5;
-            # burst=5: 5リクエストまでキューイング
-            # nodelay なし: キューに入れて順番に処理
+            # burst=5: queue up to 5 requests
+            # no nodelay: queue and process in order
 
             proxy_pass http://backend;
         }
 
-        # 検索エンドポイント
+        # Search endpoint
         location /api/search {
             limit_req zone=search_limit burst=10 nodelay;
             proxy_pass http://backend;
         }
 
-        # 429 レスポンスのカスタマイズ
+        # Customize 429 response
         error_page 429 = @rate_limited;
         location @rate_limited {
             default_type application/json;
@@ -2154,12 +2155,12 @@ http {
 }
 ```
 
-### 8.2 AWS API Gateway のレート制限
+### 8.2 AWS API Gateway Rate Limiting
 
 ```
-AWS API Gateway のレート制限:
+AWS API Gateway Rate Limiting:
 
-  Usage Plan で制御:
+  Controlled via Usage Plans:
   ┌────────────────────────────────────────┐
   │           Usage Plan: Free             │
   │                                        │
@@ -2170,7 +2171,7 @@ AWS API Gateway のレート制限:
   │  Quota:                                │
   │    Limit: 10,000 requests              │
   │    Period: MONTH                        │
-  │    Offset: 0 (月初リセット)             │
+  │    Offset: 0 (reset at month start)    │
   │                                        │
   │  API Keys: [key-001, key-002, ...]     │
   └────────────────────────────────────────┘
@@ -2191,7 +2192,7 @@ AWS API Gateway のレート制限:
 ```
 
 ```yaml
-# AWS SAM テンプレートでのレート制限設定
+# Rate limiting configuration in AWS SAM template
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 
@@ -2200,7 +2201,7 @@ Resources:
     Type: AWS::Serverless::Api
     Properties:
       StageName: prod
-      # メソッドレベルのスロットリング
+      # Method-level throttling
       MethodSettings:
         - HttpMethod: '*'
           ResourcePath: '/*'
@@ -2241,34 +2242,34 @@ Resources:
           Stage: prod
 ```
 
-### 8.3 Kong でのレート制限プラグイン
+### 8.3 Kong Rate Limiting Plugin
 
 ```yaml
-# Kong レート制限プラグイン設定
+# Kong rate limiting plugin configuration
 plugins:
   - name: rate-limiting
     config:
-      # ポリシー: local, cluster, redis
+      # Policy: local, cluster, redis
       policy: redis
       redis_host: redis-host
       redis_port: 6379
       redis_database: 0
       redis_timeout: 2000
 
-      # 制限値（複数の時間窓を同時に設定可能）
+      # Limit values (multiple time windows can be configured simultaneously)
       second: 10        # 10 req/sec
       minute: 100       # 100 req/min
       hour: 5000        # 5000 req/hour
       day: 100000       # 100000 req/day
 
-      # ヘッダー設定
-      hide_client_headers: false  # X-RateLimit-* ヘッダーを返す
+      # Header settings
+      hide_client_headers: false  # Return X-RateLimit-* headers
 
-      # 制限超過時のレスポンス
+      # Response when limit is exceeded
       error_code: 429
       error_message: "Rate limit exceeded"
 
-  # エンドポイント固有の制限
+  # Endpoint-specific limits
   - name: rate-limiting
     route: login-route
     config:
@@ -2278,7 +2279,7 @@ plugins:
       hour: 50
       error_message: "Too many login attempts"
 
-  # コンシューマーごとの制限
+  # Per-consumer limits
   - name: rate-limiting
     consumer: free-tier
     config:
@@ -2298,12 +2299,12 @@ plugins:
 
 ---
 
-## 9. テストとモニタリング
+## 9. Testing and Monitoring
 
-### 9.1 レート制限のテスト
+### 9.1 Testing Rate Limits
 
 ```javascript
-// Jest でのレート制限テスト
+// Rate limit testing with Jest
 const { describe, it, expect, beforeEach } = require('@jest/globals');
 
 describe('SlidingWindowCounter', () => {
@@ -2323,11 +2324,11 @@ describe('SlidingWindowCounter', () => {
 
   it('should deny requests exceeding the limit', () => {
     const key = 'test-user';
-    // 制限まで消費
+    // Exhaust the limit
     for (let i = 0; i < 10; i++) {
       limiter.isAllowed(key);
     }
-    // 11番目は拒否
+    // 11th should be denied
     const result = limiter.isAllowed(key);
     expect(result.allowed).toBe(false);
     expect(result.remaining).toBe(0);
@@ -2346,14 +2347,14 @@ describe('SlidingWindowCounter', () => {
     for (let i = 0; i < 10; i++) {
       limiter.isAllowed('user-a');
     }
-    // user-b は影響を受けない
+    // user-b should not be affected
     const result = limiter.isAllowed('user-b');
     expect(result.allowed).toBe(true);
     expect(result.remaining).toBe(9);
   });
 });
 
-// 統合テスト: Redis を使ったレート制限
+// Integration test: rate limiting with Redis
 describe('Redis Rate Limiting Integration', () => {
   let redis;
 
@@ -2372,13 +2373,13 @@ describe('Redis Rate Limiting Integration', () => {
     const limit = 5;
     const windowMs = 10000;
 
-    // 5リクエストは許可
+    // 5 requests are allowed
     for (let i = 0; i < limit; i++) {
       const result = await slidingWindowRateLimit(key, limit, windowMs);
       expect(result.allowed).toBe(true);
     }
 
-    // 6番目は拒否
+    // 6th is denied
     const result = await slidingWindowRateLimit(key, limit, windowMs);
     expect(result.allowed).toBe(false);
     expect(result.retryAfter).toBeGreaterThan(0);
@@ -2387,23 +2388,23 @@ describe('Redis Rate Limiting Integration', () => {
   it('should reset after window expires', async () => {
     const key = 'test:integration:user2';
     const limit = 3;
-    const windowMs = 2000; // 2秒ウィンドウ
+    const windowMs = 2000; // 2-second window
 
-    // 制限まで消費
+    // Exhaust the limit
     for (let i = 0; i < limit; i++) {
       await slidingWindowRateLimit(key, limit, windowMs);
     }
 
-    // ウィンドウが過ぎるまで待機
+    // Wait for the window to expire
     await new Promise(r => setTimeout(r, 2100));
 
-    // リセット後は許可
+    // Allowed after reset
     const result = await slidingWindowRateLimit(key, limit, windowMs);
     expect(result.allowed).toBe(true);
   });
 });
 
-// 負荷テスト: レート制限の動作確認
+// Load test: verify rate limiting behavior
 describe('Rate Limit Load Test', () => {
   it('should handle concurrent requests correctly', async () => {
     const key = 'test:concurrent';
@@ -2426,11 +2427,11 @@ describe('Rate Limit Load Test', () => {
 });
 ```
 
-### 9.2 負荷テストスクリプト
+### 9.2 Load Test Script
 
 ```bash
 #!/bin/bash
-# レート制限の負荷テスト
+# Rate limiting load test
 
 API_URL="http://localhost:3000/api/v1/users"
 API_KEY="test-api-key"
@@ -2443,7 +2444,7 @@ echo "Total Requests: $REQUESTS"
 echo "Concurrency: $CONCURRENT"
 echo ""
 
-# Apache Bench を使用
+# Using Apache Bench
 ab -n $REQUESTS -c $CONCURRENT \
    -H "X-API-Key: $API_KEY" \
    -H "Accept: application/json" \
@@ -2461,7 +2462,7 @@ done
 ```
 
 ```python
-# Python 負荷テスト（asyncio ベース）
+# Python load test (asyncio-based)
 import asyncio
 import aiohttp
 import time
@@ -2474,7 +2475,7 @@ async def rate_limit_load_test(
     concurrency: int = 20,
     api_key: str = None,
 ):
-    """レート制限の負荷テスト"""
+    """Rate limiting load test"""
     results = Counter()
     headers = {}
     if api_key:
@@ -2489,7 +2490,7 @@ async def rate_limit_load_test(
                 async with session.get(url, headers=headers) as resp:
                     results[resp.status] += 1
 
-                    # レート制限ヘッダーを記録
+                    # Record rate limit headers
                     remaining = resp.headers.get('X-RateLimit-Remaining')
                     if remaining:
                         rate_limit_info['last_remaining'] = remaining
@@ -2531,7 +2532,7 @@ async def rate_limit_load_test(
         print(f"  Retry-After: {results['retry_after']}s")
 
 
-# 実行
+# Run
 asyncio.run(rate_limit_load_test(
     url="http://localhost:3000/api/v1/users",
     total_requests=200,
@@ -2540,10 +2541,10 @@ asyncio.run(rate_limit_load_test(
 ))
 ```
 
-### 9.3 モニタリングとアラート
+### 9.3 Monitoring and Alerts
 
 ```javascript
-// レート制限のモニタリング
+// Rate limit monitoring
 class RateLimitMonitor {
   constructor(redis, metricsClient) {
     this.redis = redis;
@@ -2553,7 +2554,7 @@ class RateLimitMonitor {
   async recordResult(key, result, metadata = {}) {
     const { endpoint, userId, plan, ip } = metadata;
 
-    // メトリクスを記録
+    // Record metrics
     if (result.allowed) {
       this.metrics.increment('rate_limit.allowed', {
         endpoint,
@@ -2565,12 +2566,12 @@ class RateLimitMonitor {
         plan,
       });
 
-      // 拒否回数をRedisに記録（アラート用）
+      // Record denial count in Redis (for alerts)
       const denyKey = `rate_limit:denied:${key}`;
       const denyCount = await this.redis.incr(denyKey);
-      await this.redis.expire(denyKey, 300); // 5分間
+      await this.redis.expire(denyKey, 300); // 5 minutes
 
-      // 短時間に大量の拒否 → アラート
+      // High denial rate in short time → alert
       if (denyCount >= 50) {
         this.alert({
           level: 'warning',
@@ -2586,7 +2587,7 @@ class RateLimitMonitor {
       }
     }
 
-    // 残りリクエスト数のゲージ
+    // Gauge for remaining requests
     this.metrics.gauge('rate_limit.remaining', result.remaining, {
       endpoint,
       plan,
@@ -2596,12 +2597,12 @@ class RateLimitMonitor {
   alert(alertData) {
     console.warn('RATE LIMIT ALERT:', JSON.stringify(alertData));
 
-    // Slack, PagerDuty, etc. に通知
+    // Notify Slack, PagerDuty, etc.
     // this.notifier.send(alertData);
   }
 }
 
-// Prometheus メトリクス
+// Prometheus metrics
 const promClient = require('prom-client');
 
 const rateLimitAllowed = new promClient.Counter({
@@ -2622,28 +2623,28 @@ const rateLimitRemaining = new promClient.Gauge({
   labelNames: ['endpoint', 'plan', 'user_id'],
 });
 
-// Grafana ダッシュボード用クエリ（PromQL）
+// Queries for Grafana dashboard (PromQL)
 /*
-  # レート制限拒否率
+  # Rate limit denial rate
   rate(api_rate_limit_denied_total[5m])
   / (rate(api_rate_limit_allowed_total[5m]) + rate(api_rate_limit_denied_total[5m]))
 
-  # エンドポイント別拒否率
+  # Denial rate per endpoint
   rate(api_rate_limit_denied_total{endpoint=~".*"}[5m])
 
-  # プラン別の制限到達率
+  # Limit-reached rate per plan
   api_rate_limit_remaining{plan="free"} == 0
 */
 ```
 
 ---
 
-## 10. 実務パターンとベストプラクティス
+## 10. Practical Patterns and Best Practices
 
-### 10.1 ホワイトリスト/ブラックリスト
+### 10.1 Whitelist/Blacklist
 
 ```javascript
-// ホワイトリスト/ブラックリスト対応
+// Whitelist/Blacklist support
 class RateLimiterWithACL {
   constructor(redis, options) {
     this.redis = redis;
@@ -2653,21 +2654,21 @@ class RateLimiterWithACL {
   }
 
   async isAllowed(key, metadata = {}) {
-    // ブラックリスト: 即座に拒否
+    // Blacklist: immediately denied
     if (this.blacklist.has(key) || this.blacklist.has(metadata.ip)) {
       return { allowed: false, reason: 'blacklisted', retryAfter: -1 };
     }
 
-    // ホワイトリスト: レート制限をスキップ
+    // Whitelist: skip rate limiting
     if (this.whitelist.has(key) || this.whitelist.has(metadata.ip)) {
       return { allowed: true, reason: 'whitelisted', remaining: Infinity };
     }
 
-    // 通常のレート制限チェック
+    // Normal rate limit check
     return this.limiter.isAllowed(key);
   }
 
-  // 動的にホワイトリスト/ブラックリストを更新
+  // Dynamically update whitelist/blacklist
   async refreshACL() {
     const whitelistKeys = await this.redis.smembers('rate_limit:whitelist');
     const blacklistKeys = await this.redis.smembers('rate_limit:blacklist');
@@ -2679,7 +2680,7 @@ class RateLimiterWithACL {
   async addToBlacklist(key, ttlSeconds = 3600) {
     await this.redis.sadd('rate_limit:blacklist', key);
     if (ttlSeconds > 0) {
-      // 一定時間後に自動解除
+      // Auto-remove after a set duration
       setTimeout(() => {
         this.redis.srem('rate_limit:blacklist', key);
         this.blacklist.delete(key);
@@ -2690,15 +2691,15 @@ class RateLimiterWithACL {
 }
 ```
 
-### 10.2 グレースフル・デグラデーション
+### 10.2 Graceful Degradation
 
 ```javascript
-// Redis ダウン時のフォールバック戦略
+// Fallback strategy when Redis is down
 class ResilientRateLimiter {
   constructor(options) {
     this.redis = options.redis;
     this.localLimiter = new SlidingWindowCounter(
-      options.limit * 1.5, // ローカルは少し緩く
+      options.limit * 1.5, // Local limit is slightly looser
       options.windowMs
     );
     this.redisLimiter = null;
@@ -2744,72 +2745,72 @@ class ResilientRateLimiter {
 }
 ```
 
-### 10.3 レート制限のバイパス防止
+### 10.3 Preventing Rate Limit Bypass
 
 ```
-レート制限バイパスの攻撃手法と対策:
+Attack Methods and Countermeasures for Bypassing Rate Limits:
 
-  ① IP ローテーション:
-     攻撃: 多数のIPアドレスからリクエスト
-     対策:
-     → IP単位だけでなく、ユーザー/API Key単位でも制限
-     → 異常な振る舞いパターンの検出
-     → CAPTCHA の導入
+  ① IP rotation:
+     Attack: Requests from a large number of IP addresses
+     Countermeasures:
+     → Limit not only per IP but also per user/API key
+     → Detect abnormal behavior patterns
+     → Introduce CAPTCHA
 
-  ② ヘッダー偽装:
-     攻撃: X-Forwarded-For ヘッダーの偽装
-     対策:
-     → 信頼できるプロキシからの X-Forwarded-For のみ採用
-     → 接続元IPを優先
+  ② Header spoofing:
+     Attack: Spoofing the X-Forwarded-For header
+     Countermeasures:
+     → Only use X-Forwarded-For from trusted proxies
+     → Prioritize the direct connection IP
 
-  ③ アカウント作成ボット:
-     攻撃: 大量のアカウントを作成してレート制限を分散
-     対策:
-     → アカウント作成にCAPTCHA
-     → 新規アカウントに厳しい制限
-     → デバイスフィンガープリンティング
+  ③ Account creation bots:
+     Attack: Create many accounts to distribute rate limits
+     Countermeasures:
+     → CAPTCHA for account creation
+     → Strict limits on new accounts
+     → Device fingerprinting
 
   ④ Slow Rate Attack:
-     攻撃: ギリギリの速度でリクエストし続ける
-     対策:
-     → 複数の時間窓で制限（秒/分/時/日）
-     → 異常パターンの検出
+     Attack: Continue requests at just below the limit
+     Countermeasures:
+     → Limit across multiple time windows (second/minute/hour/day)
+     → Detect abnormal patterns
 
-  ⑤ API Key の共有:
-     攻撃: 複数のクライアントで同じAPI Keyを使い回し
-     対策:
-     → API Key ごとの同時接続数制限
-     → 使用パターンの異常検知
+  ⑤ API Key sharing:
+     Attack: Multiple clients reuse the same API key
+     Countermeasures:
+     → Limit concurrent connections per API key
+     → Detect anomalies in usage patterns
 ```
 
 ```javascript
-// IP偽装対策: 信頼できるIPの取得
+// IP spoofing countermeasure: get the real client IP
 function getClientIp(req) {
-  // 信頼できるプロキシのIPリスト
+  // List of trusted proxy IPs
   const trustedProxies = new Set([
     '10.0.0.0/8',
     '172.16.0.0/12',
     '192.168.0.0/16',
   ]);
 
-  // X-Forwarded-For が信頼できるプロキシからの場合のみ使用
+  // Use X-Forwarded-For only if it comes from a trusted proxy
   if (req.headers['x-forwarded-for'] && isTrustedProxy(req.socket.remoteAddress, trustedProxies)) {
     const forwardedFor = req.headers['x-forwarded-for'].split(',');
-    // 最も左のIPが元のクライアントIP
+    // The leftmost IP is the original client IP
     return forwardedFor[0].trim();
   }
 
-  // それ以外は接続元IPを使用
+  // Otherwise use the direct connection IP
   return req.socket.remoteAddress;
 }
 
-// デバイスフィンガープリント対応のレート制限
+// Rate limit key with device fingerprint
 function generateRateLimitKey(req) {
   const ip = getClientIp(req);
   const userAgent = req.headers['user-agent'] || '';
   const acceptLanguage = req.headers['accept-language'] || '';
 
-  // フィンガープリントの生成
+  // Generate fingerprint
   const fingerprint = crypto
     .createHash('sha256')
     .update(`${ip}:${userAgent}:${acceptLanguage}`)
@@ -2820,15 +2821,15 @@ function generateRateLimitKey(req) {
 }
 ```
 
-### 10.4 コスト制御のためのレート制限
+### 10.4 Rate Limiting for Cost Control
 
 ```javascript
-// 外部API呼び出しのコスト制御
+// Cost control for external API calls
 class CostAwareRateLimiter {
   constructor(redis, options) {
     this.redis = redis;
     this.costLimits = options.costLimits;
-    // 例: { daily: 100.00, monthly: 2000.00 } (USD)
+    // Example: { daily: 100.00, monthly: 2000.00 } (USD)
   }
 
   async isAllowed(key, estimatedCost) {
@@ -2836,7 +2837,7 @@ class CostAwareRateLimiter {
     const dayKey = `cost:daily:${key}:${now.toISOString().split('T')[0]}`;
     const monthKey = `cost:monthly:${key}:${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-    // 日次コストチェック
+    // Check daily cost
     const dailyCost = parseFloat(await this.redis.get(dayKey) || '0');
     if (dailyCost + estimatedCost > this.costLimits.daily) {
       return {
@@ -2847,7 +2848,7 @@ class CostAwareRateLimiter {
       };
     }
 
-    // 月次コストチェック
+    // Check monthly cost
     const monthlyCost = parseFloat(await this.redis.get(monthKey) || '0');
     if (monthlyCost + estimatedCost > this.costLimits.monthly) {
       return {
@@ -2858,11 +2859,11 @@ class CostAwareRateLimiter {
       };
     }
 
-    // コストを記録
+    // Record cost
     await this.redis.incrbyfloat(dayKey, estimatedCost);
-    await this.redis.expire(dayKey, 86400 * 2); // 2日後に期限切れ
+    await this.redis.expire(dayKey, 86400 * 2); // Expire after 2 days
     await this.redis.incrbyfloat(monthKey, estimatedCost);
-    await this.redis.expire(monthKey, 86400 * 35); // 35日後に期限切れ
+    await this.redis.expire(monthKey, 86400 * 35); // Expire after 35 days
 
     return {
       allowed: true,
@@ -2874,7 +2875,7 @@ class CostAwareRateLimiter {
   }
 }
 
-// 使用例: OpenAI API のコスト制御
+// Usage example: cost control for OpenAI API
 const costLimiter = new CostAwareRateLimiter(redis, {
   costLimits: { daily: 50.00, monthly: 1000.00 },
 });
@@ -2894,10 +2895,10 @@ app.post('/api/ai/generate', async (req, res) => {
     });
   }
 
-  // AI API呼び出し
+  // Call AI API
   const aiResult = await callOpenAI(req.body.prompt);
 
-  // 実際のコストを更新（推定と異なる場合）
+  // Update with actual cost (if different from estimate)
   const actualCost = aiResult.usage.total_tokens * 0.00002;
   if (actualCost !== estimatedCost) {
     const diff = actualCost - estimatedCost;
@@ -2913,44 +2914,44 @@ app.post('/api/ai/generate', async (req, res) => {
 
 ## FAQ
 
-### Q1: レート制限の適切なしきい値の決め方は?
+### Q1: How do I determine appropriate rate limit thresholds?
 
-**A:** しきい値は以下の要素を総合的に考慮して決定します。
+**A:** Thresholds are determined by comprehensively considering the following factors.
 
 ```
-しきい値決定のアプローチ:
+Approaches to Determining Thresholds:
 
-  ① データ分析ベース:
-     → 過去のアクセスログから95パーセンタイルの使用量を算出
-     → 正常な使用パターンの最大値に20-30%のバッファを追加
-     → 時間帯や曜日による変動を考慮
+  ① Data analysis-based:
+     → Calculate 95th percentile usage from past access logs
+     → Add 20–30% buffer to the maximum value of normal usage patterns
+     → Account for variation by time of day and day of week
 
-  ② リソースベース:
-     → サーバーの処理能力（CPU、メモリ、DB接続数）から逆算
-     → 負荷テストで実際の限界値を測定
-     → バックエンドサービスの制限を考慮
+  ② Resource-based:
+     → Back-calculate from server capacity (CPU, memory, DB connections)
+     → Measure actual limits through load testing
+     → Consider backend service limits
 
-  ③ ビジネス要件ベース:
-     → 無料プラン: 1000 req/hour（基本的な利用）
-     → スタンダードプラン: 10000 req/hour（通常利用）
-     → プレミアムプラン: 100000 req/hour（大規模利用）
-     → エンタープライズ: カスタム制限
+  ③ Business requirement-based:
+     → Free plan: 1000 req/hour (basic usage)
+     → Standard plan: 10000 req/hour (normal usage)
+     → Premium plan: 100000 req/hour (large-scale usage)
+     → Enterprise: custom limits
 
-  ④ 段階的調整:
-     → 緩めのしきい値から開始（警告のみ）
-     → メトリクスを監視しながら徐々に最適化
-     → A/Bテストで影響を測定
+  ④ Gradual adjustment:
+     → Start with lenient thresholds (warnings only)
+     → Gradually optimize while monitoring metrics
+     → Measure impact with A/B testing
 ```
 
-実務での例:
+Practical example:
 ```javascript
-// プランベースのレート制限設定例
+// Plan-based rate limit configuration example
 const rateLimits = {
   free: {
-    perSecond: 1,    // バーストを抑制
-    perMinute: 20,   // 短期的な制限
-    perHour: 1000,   // 1時間の総量
-    perDay: 10000    // 1日の総量
+    perSecond: 1,    // Suppress bursts
+    perMinute: 20,   // Short-term limit
+    perHour: 1000,   // Total per hour
+    perDay: 10000    // Total per day
   },
   standard: {
     perSecond: 10,
@@ -2967,30 +2968,30 @@ const rateLimits = {
 };
 ```
 
-### Q2: 分散環境でのレート制限の実装方法（Redis等）は?
+### Q2: How do I implement rate limiting in a distributed environment (Redis, etc.)?
 
-**A:** 分散環境では共有ステートストアを使用する必要があります。
+**A:** A shared state store must be used in distributed environments.
 
 ```
-分散レート制限の実装パターン:
+Implementation Patterns for Distributed Rate Limiting:
 
-  ① Redis ベース（最も一般的）:
-     → INCR + EXPIRE でカウンター管理
-     → Lua スクリプトでアトミック操作
-     → クラスター構成で高可用性確保
+  ① Redis-based (most common):
+     → Counter management with INCR + EXPIRE
+     → Atomic operations with Lua scripts
+     → High availability with cluster configuration
 
-  ② ローカルキャッシュ + Redis（ハイブリッド）:
-     → 短期制限はローカルメモリで高速処理
-     → 長期制限はRedisで集約
-     → Redis障害時のフォールバック機能
+  ② Local cache + Redis (hybrid):
+     → Fast processing of short-term limits in local memory
+     → Aggregation of long-term limits in Redis
+     → Fallback functionality when Redis fails
 
-  ③ API Gateway（マネージドサービス）:
-     → AWS API Gateway の使用量プラン
-     → Google Cloud Endpoints のクォータ
-     → Kong、Tyk等のOSS API Gateway
+  ③ API Gateway (managed service):
+     → AWS API Gateway usage plans
+     → Google Cloud Endpoints quotas
+     → OSS API Gateways like Kong, Tyk
 ```
 
-Redisを使った実装例:
+Redis implementation example:
 ```javascript
 // Redis + Sliding Window Counter
 const rateLimiter = {
@@ -2999,7 +3000,7 @@ const rateLimiter = {
     const windowStart = now - (windowSeconds * 1000);
     const key = `ratelimit:${userId}:${windowSeconds}`;
 
-    // Luaスクリプトでアトミックに実行
+    // Execute atomically with Lua script
     const script = `
       local current = redis.call('ZCOUNT', KEYS[1], ARGV[1], ARGV[2])
       if current < tonumber(ARGV[3]) then
@@ -3025,7 +3026,7 @@ const rateLimiter = {
   }
 };
 
-// Redis Cluster対応版
+// Redis Cluster-compatible version
 const Redis = require('ioredis');
 const cluster = new Redis.Cluster([
   { host: 'redis-node-1', port: 6379 },
@@ -3038,29 +3039,29 @@ const cluster = new Redis.Cluster([
 });
 ```
 
-ローカルキャッシュとの組み合わせ:
+Combining with local cache:
 ```javascript
 class HybridRateLimiter {
   constructor() {
-    this.localCache = new Map(); // 短期制限（秒単位）
-    this.redis = new Redis(redisConfig); // 長期制限（分・時間単位）
+    this.localCache = new Map(); // Short-term limits (per second)
+    this.redis = new Redis(redisConfig); // Long-term limits (per minute/hour)
   }
 
   async checkLimit(userId, limits) {
-    // ローカルで秒単位の制限をチェック（高速）
+    // Check per-second limit locally (fast)
     const localKey = `${userId}:second`;
     const localCount = this.localCache.get(localKey) || 0;
     if (localCount >= limits.perSecond) {
       return { allowed: false, reason: 'second_limit' };
     }
 
-    // Redisで分・時間単位の制限をチェック
+    // Check per-minute/hour limits in Redis
     const redisAllowed = await this.checkRedisLimits(userId, limits);
     if (!redisAllowed.allowed) {
       return redisAllowed;
     }
 
-    // 両方OKならカウントを増やす
+    // If both pass, increment count
     this.localCache.set(localKey, localCount + 1);
     setTimeout(() => this.localCache.delete(localKey), 1000);
 
@@ -3069,39 +3070,39 @@ class HybridRateLimiter {
 }
 ```
 
-### Q3: レート制限に引っかかったクライアントへの適切なレスポンスは?
+### Q3: What is the appropriate response to a rate-limited client?
 
-**A:** クライアントが適切に対応できる情報を返すことが重要です。
+**A:** It is important to return information that allows the client to respond appropriately.
 
 ```
-適切なレスポンス設計:
+Appropriate Response Design:
 
-  ① HTTPステータスコード:
-     → 429 Too Many Requests（必須）
-     → 503 Service Unavailable（サーバー過負荷時）
+  ① HTTP status code:
+     → 429 Too Many Requests (required)
+     → 503 Service Unavailable (when server is overloaded)
 
-  ② レスポンスヘッダー（標準化されつつある）:
+  ② Response headers (becoming standardized):
      → X-RateLimit-Limit: 1000
      → X-RateLimit-Remaining: 0
-     → X-RateLimit-Reset: 1677649200（UNIX timestamp）
-     → Retry-After: 60（秒数またはHTTP日付）
+     → X-RateLimit-Reset: 1677649200 (Unix timestamp)
+     → Retry-After: 60 (seconds or HTTP date)
 
-  ③ エラーメッセージ:
-     → 明確な理由説明
-     → いつリトライすべきかの情報
-     → サポートへの連絡先（必要に応じて）
+  ③ Error message:
+     → Clear explanation of the reason
+     → Information on when to retry
+     → Support contact (if necessary)
 ```
 
-実装例:
+Implementation example:
 ```javascript
-// Express ミドルウェア
+// Express middleware
 app.use(async (req, res, next) => {
   const userId = req.user?.id || req.ip;
   const limit = getUserLimit(req.user);
 
   const result = await rateLimiter.check(userId, limit);
 
-  // ヘッダーを常に追加
+  // Always add headers
   res.set({
     'X-RateLimit-Limit': limit.perHour,
     'X-RateLimit-Remaining': result.remaining,
@@ -3115,7 +3116,7 @@ app.use(async (req, res, next) => {
       .set('Retry-After', retryAfter)
       .json({
         error: 'rate_limit_exceeded',
-        message: `レート制限を超過しました。${retryAfter}秒後に再試行してください。`,
+        message: `Rate limit exceeded. Please retry after ${retryAfter} seconds.`,
         limit: limit.perHour,
         remaining: 0,
         resetTime: new Date(result.resetTime).toISOString(),
@@ -3128,9 +3129,9 @@ app.use(async (req, res, next) => {
 });
 ```
 
-クライアント側の対応例:
+Client-side handling example:
 ```javascript
-// クライアント側のリトライロジック
+// Client-side retry logic
 async function apiCallWithRetry(url, options = {}) {
   const maxRetries = 3;
   let retries = 0;
@@ -3139,7 +3140,7 @@ async function apiCallWithRetry(url, options = {}) {
     try {
       const response = await fetch(url, options);
 
-      // レート制限ヘッダーをログ
+      // Log rate limit headers
       console.log('Rate limit remaining:',
         response.headers.get('X-RateLimit-Remaining'));
 
@@ -3163,10 +3164,10 @@ async function apiCallWithRetry(url, options = {}) {
   throw new Error('Max retries exceeded');
 }
 
-// Exponential Backoff（指数バックオフ）版
+// Exponential Backoff version
 async function apiCallWithBackoff(url, options = {}) {
-  let delay = 1000; // 初期待機時間
-  const maxDelay = 32000; // 最大待機時間
+  let delay = 1000; // Initial wait time
+  const maxDelay = 32000; // Maximum wait time
 
   while (true) {
     const response = await fetch(url, options);
@@ -3175,61 +3176,61 @@ async function apiCallWithBackoff(url, options = {}) {
       return await response.json();
     }
 
-    // Retry-After ヘッダーがあればそれを優先
+    // Prefer Retry-After header if present
     const retryAfter = response.headers.get('Retry-After');
     if (retryAfter) {
       delay = parseInt(retryAfter) * 1000;
     } else {
-      delay = Math.min(delay * 2, maxDelay); // 指数的に増加
+      delay = Math.min(delay * 2, maxDelay); // Increase exponentially
     }
 
-    await sleep(delay + Math.random() * 1000); // ジッター追加
+    await sleep(delay + Math.random() * 1000); // Add jitter
   }
 }
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| アルゴリズム | 特徴 | メモリ | 精度 | 用途 |
-|------------|------|--------|------|------|
-| Fixed Window | シンプル、境界バースト問題 | 最小 | 低 | 簡易な制限 |
-| Sliding Window Log | 正確だがメモリ消費大 | 大 | 最高 | 厳密な制限 |
-| Sliding Window Counter | 精度とメモリのバランス | 小 | 高 | 一般的なAPI |
-| Token Bucket | バースト許容、柔軟 | 小 | 高 | API GW, Nginx |
-| Leaky Bucket | 出力一定、平滑化 | 中 | 高 | キュー処理 |
+| Algorithm | Characteristics | Memory | Accuracy | Use Case |
+|-----------|----------------|--------|----------|----------|
+| Fixed Window | Simple, boundary burst problem | Minimum | Low | Simple limits |
+| Sliding Window Log | Accurate but high memory use | Large | Highest | Strict limits |
+| Sliding Window Counter | Balance of accuracy and memory | Small | High | General API |
+| Token Bucket | Allows burst, flexible | Small | High | API GW, Nginx |
+| Leaky Bucket | Constant output, smoothing | Medium | High | Queue processing |
 
 ```
-実務での推奨構成:
+Recommended Configuration in Practice:
 
-  ① 小規模API（<1000 req/min）:
-     → メモリ内 Fixed Window で十分
-     → 単一サーバーならRedis不要
+  ① Small-scale API (< 1000 req/min):
+     → In-memory Fixed Window is sufficient
+     → Redis not needed for a single server
 
-  ② 中規模API（1000-10000 req/min）:
+  ② Mid-scale API (1000–10000 req/min):
      → Redis + Sliding Window Counter
-     → プランベースのレート制限
+     → Plan-based rate limiting
 
-  ③ 大規模API（>10000 req/min）:
-     → 多層レート制限（CDN + API GW + App）
-     → ローカルバッファ付き分散レート制限
-     → 動的レート制限（負荷適応型）
+  ③ Large-scale API (> 10000 req/min):
+     → Multi-layer rate limiting (CDN + API GW + App)
+     → Distributed rate limiting with local buffer
+     → Dynamic rate limiting (load-adaptive)
 
-  ④ マイクロサービス:
-     → サービスメッシュのレート制限（Istio, Envoy）
-     → Circuit Breaker との連携
-     → 各サービスのローカル制限 + グローバル制限
+  ④ Microservices:
+     → Service mesh rate limiting (Istio, Envoy)
+     → Integration with Circuit Breaker
+     → Local limit per service + global limit
 ```
 
 ---
 
-## 次に読むべきガイド
-→ [入力バリデーション](./02-input-validation.md)
+## Next Guide to Read
+→ [Input Validation](./02-input-validation.md)
 
 ---
 
-## 参考文献
+## References
 1. Stripe. "Rate Limiting." stripe.com/docs, 2024.
 2. Cloudflare. "Rate Limiting Best Practices." blog.cloudflare.com, 2024.
 3. draft-ietf-httpapi-ratelimit-headers. IETF, 2024.
