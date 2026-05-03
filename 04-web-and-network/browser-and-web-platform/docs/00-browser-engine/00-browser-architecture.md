@@ -1,192 +1,192 @@
-# ブラウザアーキテクチャ
+# Browser Architecture
 
-> モダンブラウザはマルチプロセスアーキテクチャで動作する。ブラウザプロセス、レンダラープロセス、GPUプロセス等の役割分担と、タブごとの分離がセキュリティとパフォーマンスにもたらす利点を理解する。Chromium のソースコード構造から IPC メカニズム、Site Isolation、さらにはレンダリングパイプラインの最適化手法まで、ブラウザ内部を体系的に解説する。
+> Modern browsers operate with a multi-process architecture. Understanding the roles of the browser process, renderer process, GPU process, and how per-tab isolation benefits security and performance is essential. This guide systematically explains browser internals — from the Chromium source code structure and IPC mechanisms to Site Isolation and rendering pipeline optimization techniques.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] ブラウザのマルチプロセスアーキテクチャを理解する
-- [ ] 各プロセスの役割と連携を把握する
-- [ ] ブラウザエンジンの主要コンポーネントを学ぶ
-- [ ] Chromium のソースコード構造とビルドシステムを理解する
-- [ ] IPC（プロセス間通信）の仕組みと Mojo を把握する
-- [ ] Site Isolation のセキュリティモデルを理解する
-- [ ] レンダリングパイプラインの各段階を詳細に理解する
-- [ ] パフォーマンス最適化のための設計原則を習得する
+- [ ] Understand the browser's multi-process architecture
+- [ ] Grasp the role and interaction of each process
+- [ ] Learn the major components of the browser engine
+- [ ] Understand the Chromium source code structure and build system
+- [ ] Understand IPC (Inter-Process Communication) and Mojo
+- [ ] Understand the Site Isolation security model
+- [ ] Learn each stage of the rendering pipeline in detail
+- [ ] Acquire design principles for performance optimization
 
-## 前提知識
+## Prerequisites
 
-- HTTPプロトコルの基礎 → 参照: HTTPの基礎
-- HTML/CSSの基本的な構造の理解
-- プロセスとスレッドの概念 → 参照: OS基礎
+- HTTP protocol fundamentals → Reference: HTTP Basics
+- Basic understanding of HTML/CSS structure
+- Concepts of processes and threads → Reference: OS Fundamentals
 
 ---
 
-## 1. マルチプロセスアーキテクチャの全体像
+## 1. Overview of the Multi-Process Architecture
 
-### 1.1 なぜマルチプロセスなのか
+### 1.1 Why Multi-Process?
 
-1990年代のブラウザは単一プロセスで動作していた。Internet Explorer 6 では、1つのタブがクラッシュするとブラウザ全体が落ちるという致命的な問題があった。2008年に Google Chrome がリリースされた際、最大の革新はマルチプロセスアーキテクチャの採用であった。
+Browsers in the 1990s ran as a single process. In Internet Explorer 6, if one tab crashed the entire browser went down — a fatal problem. When Google Chrome launched in 2008, its biggest innovation was the adoption of a multi-process architecture.
 
-マルチプロセスにすることで得られる3つの利点:
+Three benefits of going multi-process:
 
-1. **安定性（Stability）**: 1つのタブがクラッシュしても他のタブには影響しない
-2. **セキュリティ（Security）**: サンドボックスにより各タブのアクセスを制限できる
-3. **パフォーマンス（Performance）**: マルチコアCPUを活用してタスクを並列処理できる
+1. **Stability**: If one tab crashes, other tabs are not affected
+2. **Security**: Sandboxing restricts each tab's access
+3. **Performance**: Multi-core CPUs can be leveraged to process tasks in parallel
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │                                                                  │
-│  シングルプロセスモデル（旧来のブラウザ）                        │
+│  Single-Process Model (legacy browsers)                          │
 │                                                                  │
 │  ┌────────────────────────────────────────────────────────────┐  │
-│  │  プロセス                                                  │  │
+│  │  Process                                                   │  │
 │  │  ┌────────┐ ┌────────┐ ┌────────┐ ┌─────────────────────┐│  │
-│  │  │ タブ1  │ │ タブ2  │ │ タブ3  │ │ ブラウザUI         ││  │
+│  │  │ Tab 1  │ │ Tab 2  │ │ Tab 3  │ │ Browser UI          ││  │
 │  │  │        │ │        │ │        │ │                     ││  │
-│  │  │ HTML   │ │ HTML   │ │ HTML   │ │ アドレスバー        ││  │
-│  │  │ CSS    │ │ CSS    │ │ CSS    │ │ ブックマーク        ││  │
-│  │  │ JS     │ │ JS     │ │ JS     │ │ メニュー            ││  │
+│  │  │ HTML   │ │ HTML   │ │ HTML   │ │ Address Bar         ││  │
+│  │  │ CSS    │ │ CSS    │ │ CSS    │ │ Bookmarks           ││  │
+│  │  │ JS     │ │ JS     │ │ JS     │ │ Menu                ││  │
 │  │  └────────┘ └────────┘ └────────┘ └─────────────────────┘│  │
 │  │                                                            │  │
-│  │  問題: タブ2 でクラッシュ → プロセス全体が終了             │  │
-│  │        タブ1, タブ3, ブラウザUI も巻き添えで消失           │  │
+│  │  Problem: Tab 2 crashes → entire process terminates        │  │
+│  │           Tab 1, Tab 3, and Browser UI are all lost        │  │
 │  └────────────────────────────────────────────────────────────┘  │
 │                                                                  │
-│  マルチプロセスモデル（Chrome / Chromium）                       │
+│  Multi-Process Model (Chrome / Chromium)                         │
 │                                                                  │
 │  ┌──────────────────────────────────────────────────────────┐    │
-│  │  ブラウザプロセス（Browser Process）                      │    │
-│  │  UI / ネットワーク / ストレージ / デバイス管理            │    │
+│  │  Browser Process                                          │    │
+│  │  UI / Network / Storage / Device Management              │    │
 │  └──────┬──────────────┬──────────────┬─────────────────────┘    │
 │         │              │              │                          │
 │  ┌──────▼──────┐ ┌─────▼──────┐ ┌────▼───────┐                 │
-│  │ レンダラー  │ │ レンダラー │ │ レンダラー │                 │
-│  │ プロセス    │ │ プロセス   │ │ プロセス   │                 │
-│  │ (タブ1)    │ │ (タブ2)   │ │ (タブ3)   │                 │
-│  │ サンドボックス│ │ サンドボックス│ │ サンドボックス│              │
+│  │ Renderer    │ │ Renderer   │ │ Renderer   │                 │
+│  │ Process     │ │ Process    │ │ Process    │                 │
+│  │ (Tab 1)     │ │ (Tab 2)    │ │ (Tab 3)    │                 │
+│  │ Sandbox     │ │ Sandbox    │ │ Sandbox    │                 │
 │  └─────────────┘ └────────────┘ └────────────┘                 │
 │         │              │              │                          │
 │  ┌──────▼──────────────▼──────────────▼─────────────────────┐   │
-│  │  GPU プロセス（GPU Process）                              │   │
-│  │  画面描画 / ハードウェアアクセラレーション                │   │
+│  │  GPU Process                                              │   │
+│  │  Screen rendering / Hardware acceleration                 │   │
 │  └──────────────────────────────────────────────────────────┘   │
 │                                                                  │
-│  利点: タブ2 がクラッシュ → タブ2 のプロセスだけ終了           │
-│        タブ1, タブ3 は影響なし                                 │
-│        ブラウザUI も正常に動作                                  │
+│  Benefit: Tab 2 crashes → only Tab 2's process terminates        │
+│           Tab 1 and Tab 3 are unaffected                         │
+│           Browser UI continues to work normally                  │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 プロセスの種類と役割
+### 1.2 Types and Roles of Processes
 
-Chromium では以下のプロセスが協調して動作する。
+In Chromium, the following processes work together.
 
 ```
-Chromium プロセス構成の詳細:
+Chromium Process Configuration (detailed):
 
   ┌─────────────────────────────────────────────────────────────┐
-  │              ブラウザプロセス（Browser Process）             │
+  │              Browser Process                                 │
   │                                                             │
   │  ┌─────────────┐ ┌──────────────┐ ┌───────────────────┐   │
-  │  │ UI スレッド  │ │ IO スレッド  │ │ Storage スレッド  │   │
+  │  │ UI Thread   │ │ IO Thread    │ │ Storage Thread    │   │
   │  │             │ │              │ │                   │   │
-  │  │ ・タブ管理  │ │ ・IPC処理    │ │ ・ファイルI/O     │   │
-  │  │ ・ナビゲーション│ │ ・ネットワーク│ │ ・DB操作         │   │
-  │  │ ・ウィンドウ │ │  ディスパッチ│ │ ・キャッシュ      │   │
+  │  │ ・Tab mgmt  │ │ ・IPC proc.  │ │ ・File I/O        │   │
+  │  │ ・Navigation│ │ ・Network    │ │ ・DB operations   │   │
+  │  │ ・Window    │ │  dispatch    │ │ ・Cache           │   │
   │  └─────────────┘ └──────────────┘ └───────────────────┘   │
   └────────────────────────┬────────────────────────────────────┘
                            │ Mojo IPC
          ┌─────────────────┼─────────────────┐
          │                 │                 │
   ┌──────▼──────┐  ┌──────▼──────┐  ┌──────▼──────┐
-  │ レンダラー  │  │ GPU         │  │ ユーティリティ│
-  │ プロセス    │  │ プロセス    │  │ プロセス     │
-  │             │  │             │  │              │
-  │ ・Blink     │  │ ・Skia      │  │ ・ネットワーク│
-  │ ・V8        │  │ ・GL/Vulkan │  │  サービス    │
-  │ ・CC (合成) │  │ ・ビデオ    │  │ ・オーディオ  │
-  │             │  │  デコード   │  │  サービス    │
-  │ サンドボックス│  │             │  │ ・データデコーダ│
-  │ 内で実行    │  │             │  │              │
+  │ Renderer    │  │ GPU         │  │ Utility     │
+  │ Process     │  │ Process     │  │ Process     │
+  │             │  │             │  │             │
+  │ ・Blink     │  │ ・Skia      │  │ ・Network   │
+  │ ・V8        │  │ ・GL/Vulkan │  │  service    │
+  │ ・CC (comp.)│  │ ・Video     │  │ ・Audio     │
+  │             │  │  decode     │  │  service    │
+  │ Runs inside │  │             │  │ ・Data dec. │
+  │ sandbox     │  │             │  │             │
   └─────────────┘  └─────────────┘  └──────────────┘
 
   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-  │ 拡張機能     │  │ プラグイン   │  │ Crashpad     │
-  │ プロセス     │  │ プロセス     │  │ ハンドラ     │
-  │              │  │ (レガシー)   │  │              │
-  │ 各拡張機能ごと│  │ PPAPI等     │  │ クラッシュ   │
-  │ に独立       │  │              │  │ レポート     │
+  │ Extension    │  │ Plugin       │  │ Crashpad     │
+  │ Process      │  │ Process      │  │ Handler      │
+  │              │  │ (legacy)     │  │              │
+  │ Isolated per │  │ PPAPI, etc.  │  │ Crash        │
+  │ extension    │  │              │  │ reporting    │
   └──────────────┘  └──────────────┘  └──────────────┘
 ```
 
-各プロセスの詳細な役割は以下のとおりである。
+Detailed roles for each process:
 
-| プロセス | 役割 | サンドボックス | メモリ使用量の目安 |
-|---------|------|---------------|-------------------|
-| ブラウザプロセス | UI制御、ナビゲーション、全体管理 | なし（特権プロセス） | 100-200MB |
-| レンダラープロセス | HTML/CSS/JS の処理、DOM構築 | あり（最も厳格） | 50-300MB/タブ |
-| GPUプロセス | 画面描画、ビデオデコード | あり | 100-500MB |
-| ネットワークサービス | HTTP/HTTPS通信 | あり | 20-50MB |
-| ストレージサービス | IndexedDB、Cache API | あり | 10-30MB |
-| オーディオサービス | 音声の入出力 | あり | 10-20MB |
-| 拡張機能プロセス | Chrome拡張の実行 | 部分的 | 20-100MB/拡張 |
+| Process | Role | Sandbox | Estimated Memory Usage |
+|---------|------|---------|----------------------|
+| Browser Process | UI control, navigation, overall management | None (privileged process) | 100–200 MB |
+| Renderer Process | HTML/CSS/JS processing, DOM construction | Yes (strictest) | 50–300 MB/tab |
+| GPU Process | Screen rendering, video decoding | Yes | 100–500 MB |
+| Network Service | HTTP/HTTPS communication | Yes | 20–50 MB |
+| Storage Service | IndexedDB, Cache API | Yes | 10–30 MB |
+| Audio Service | Audio input/output | Yes | 10–20 MB |
+| Extension Process | Chrome extension execution | Partial | 20–100 MB/extension |
 
-### 1.3 プロセスモデルの選択戦略
+### 1.3 Process Model Selection Strategy
 
-Chromium はメモリ状況に応じてプロセスモデルを動的に切り替える。
+Chromium dynamically switches process models based on memory availability.
 
 ```
-プロセスモデルの戦略:
+Process Model Strategies:
 
-  ① Process-per-Site-Instance（デフォルト）
-     → 同一サイトの同一インスタンスを1プロセスにまとめる
-     → example.com のタブA と example.com のタブB → 同一プロセス
-     → example.com と other.com → 別プロセス
+  ① Process-per-Site-Instance (default)
+     → Groups the same instance of the same site into one process
+     → Tab A and Tab B on example.com → same process
+     → example.com and other.com → separate processes
 
   ② Process-per-Site
-     → 同一サイトの全タブを1プロセスにまとめる
-     → メモリ節約モード（低メモリデバイス向け）
+     → Groups all tabs of the same site into one process
+     → Memory-saving mode (for low-memory devices)
 
   ③ Process-per-Tab
-     → タブごとに1プロセス（分離度が最も高い）
-     → --process-per-tab フラグで有効化
+     → One process per tab (highest isolation)
+     → Enable with --process-per-tab flag
 
   ④ Single Process
-     → 全てを1プロセスで実行（デバッグ用途のみ）
-     → --single-process フラグで有効化
+     → Runs everything in one process (for debugging only)
+     → Enable with --single-process flag
 
-  メモリ制約時の動作:
+  Behavior under memory constraints:
   ┌────────────────────────────────────────────────────────┐
-  │ メモリ残量  │ 動作                                     │
-  ├────────────┼──────────────────────────────────────────┤
-  │ 十分       │ Process-per-Site-Instance（通常）         │
-  │ やや不足   │ 既存プロセスの再利用を積極化              │
-  │ 不足       │ バックグラウンドタブのプロセスを解放       │
-  │ 深刻       │ タブの破棄（Tab Discarding）              │
+  │ Memory Available │ Behavior                            │
+  ├──────────────────┼─────────────────────────────────────┤
+  │ Sufficient       │ Process-per-Site-Instance (normal)  │
+  │ Slightly low     │ Aggressively reuse existing processes│
+  │ Low              │ Release background tab processes     │
+  │ Critical         │ Tab Discarding                       │
   └────────────────────────────────────────────────────────┘
 ```
 
-### 1.4 コード例: Chrome プロセスの確認
+### 1.4 Code Example: Inspecting Chrome Processes
 
-**コード例 1: chrome.processes API によるプロセス情報取得**
+**Code Example 1: Retrieving Process Information via chrome.processes API**
 
 ```javascript
-// Chrome 拡張機能（manifest V3）でプロセス情報を取得する例
-// manifest.json に "permissions": ["processes"] が必要
+// Example of retrieving process information in a Chrome extension (Manifest V3)
+// Requires "permissions": ["processes"] in manifest.json
 
-// プロセス一覧の取得
+// Get list of all processes
 chrome.processes.getProcessInfo(
-  [], // 空配列 = 全プロセス
-  true, // メモリ情報を含める
+  [], // empty array = all processes
+  true, // include memory info
   (processes) => {
     for (const [pid, info] of Object.entries(processes)) {
       console.log(`PID: ${pid}`);
       console.log(`  Type: ${info.type}`);
-      // type: "browser", "renderer", "gpu", "utility", "extension" 等
+      // type: "browser", "renderer", "gpu", "utility", "extension", etc.
       console.log(`  CPU Usage: ${info.cpu.toFixed(2)}%`);
       console.log(`  Private Memory: ${(info.privateMemory / 1024 / 1024).toFixed(1)}MB`);
 
-      // タブに関連付けられたプロセスの場合
+      // For processes associated with a tab
       if (info.tasks) {
         info.tasks.forEach(task => {
           console.log(`  Task: ${task.title} (Tab ID: ${task.tabId})`);
@@ -196,7 +196,7 @@ chrome.processes.getProcessInfo(
   }
 );
 
-// 特定のプロセスを監視（メモリリークの検出など）
+// Monitor specific processes (e.g., detect memory leaks)
 function monitorRendererProcesses(intervalMs = 5000) {
   const history = new Map();
 
@@ -214,7 +214,7 @@ function monitorRendererProcesses(intervalMs = 5000) {
           memory: memoryMB
         });
 
-        // 直近10回分で50MB以上増加していたら警告
+        // Warn if memory increased by more than 50MB over the last 10 samples
         const records = history.get(pid);
         if (records.length >= 10) {
           const oldest = records[records.length - 10].memory;
@@ -233,12 +233,12 @@ function monitorRendererProcesses(intervalMs = 5000) {
 }
 ```
 
-**コード例 2: Performance API によるメインスレッド監視**
+**Code Example 2: Monitoring the Main Thread with the Performance API**
 
 ```javascript
-// レンダラープロセス内のメインスレッドのパフォーマンスを監視する
+// Monitor the performance of the main thread inside a renderer process
 
-// Long Task の検出 (50ms以上のタスクを検出)
+// Detect Long Tasks (tasks lasting 50ms or more)
 const longTaskObserver = new PerformanceObserver((entryList) => {
   for (const entry of entryList.getEntries()) {
     console.log(`[Long Task Detected]`);
@@ -246,7 +246,7 @@ const longTaskObserver = new PerformanceObserver((entryList) => {
     console.log(`  Start: ${entry.startTime.toFixed(2)}ms`);
     console.log(`  Name: ${entry.name}`);
 
-    // 100ms以上のタスクは深刻なUI遅延の原因
+    // Tasks over 100ms are a serious cause of UI jank
     if (entry.duration > 100) {
       console.error(
         `CRITICAL: Task took ${entry.duration.toFixed(0)}ms. ` +
@@ -254,7 +254,7 @@ const longTaskObserver = new PerformanceObserver((entryList) => {
       );
     }
 
-    // 50-100ms のタスクは改善の余地がある
+    // Tasks between 50–100ms have room for improvement
     if (entry.duration > 50 && entry.duration <= 100) {
       console.warn(
         `WARNING: Task took ${entry.duration.toFixed(0)}ms. ` +
@@ -266,7 +266,7 @@ const longTaskObserver = new PerformanceObserver((entryList) => {
 
 longTaskObserver.observe({ type: 'longtask', buffered: true });
 
-// フレームレートの監視
+// Monitor frame rate
 function monitorFrameRate() {
   let lastTime = performance.now();
   let frameCount = 0;
@@ -311,108 +311,108 @@ const fpsMonitor = monitorFrameRate();
 
 ---
 
-## 2. レンダラープロセスの内部構造
+## 2. Internal Structure of the Renderer Process
 
-### 2.1 レンダリングパイプラインの全段階
+### 2.1 All Stages of the Rendering Pipeline
 
-レンダラープロセスの内部では、HTML がピクセルに変換されるまでに複数の段階を経る。この一連の流れをレンダリングパイプラインと呼ぶ。
+Inside the renderer process, HTML goes through multiple stages before it becomes pixels. This sequence is called the rendering pipeline.
 
 ```
-レンダリングパイプライン（Rendering Pipeline）:
+Rendering Pipeline:
 
   HTML / CSS / JS
        │
        ▼
   ┌─────────────────────────────────────────────────────────┐
-  │ 1. Parse（パース）                                      │
-  │    HTML → DOM ツリー                                    │
-  │    CSS  → CSSOM（CSS Object Model）                     │
+  │ 1. Parse                                                │
+  │    HTML → DOM tree                                      │
+  │    CSS  → CSSOM (CSS Object Model)                      │
   │                                                         │
-  │    ・HTMLパーサーはインクリメンタル（逐次的）に動作       │
-  │    ・<script> に遭遇するとパースを中断してJS実行         │
-  │    ・defer / async 属性でブロッキングを回避可能          │
+  │    ・HTML parser works incrementally                    │
+  │    ・Parsing halts when <script> is encountered         │
+  │    ・defer / async attributes avoid blocking            │
   └──────────────────────────┬──────────────────────────────┘
                              │
                              ▼
   ┌─────────────────────────────────────────────────────────┐
-  │ 2. Style（スタイル計算）                                 │
-  │    DOM + CSSOM → Computed Style                          │
+  │ 2. Style (Style Calculation)                            │
+  │    DOM + CSSOM → Computed Style                         │
   │                                                         │
-  │    ・カスケーディングルールの適用                         │
-  │    ・継承プロパティの解決                                 │
-  │    ・相対値（em, %, vh）の絶対値への変換                 │
-  │    ・各DOMノードに最終的なスタイルが割り当てられる        │
+  │    ・Apply cascading rules                              │
+  │    ・Resolve inherited properties                       │
+  │    ・Convert relative values (em, %, vh) to absolute    │
+  │    ・Each DOM node is assigned its final style          │
   └──────────────────────────┬──────────────────────────────┘
                              │
                              ▼
   ┌─────────────────────────────────────────────────────────┐
-  │ 3. Layout（レイアウト）                                  │
-  │    Computed Style → Layout Tree（位置とサイズ）          │
+  │ 3. Layout                                               │
+  │    Computed Style → Layout Tree (position and size)     │
   │                                                         │
-  │    ・display:none の要素は Layout Tree に含まれない      │
-  │    ・::before, ::after 疑似要素は Layout Tree に追加     │
-  │    ・フレキシブルボックス、グリッドの計算                 │
-  │    ・テキストの改行位置の決定                             │
+  │    ・Elements with display:none are not in Layout Tree  │
+  │    ・::before, ::after pseudo-elements are added        │
+  │    ・Flexbox and grid calculations                      │
+  │    ・Determine text line-break positions                │
   └──────────────────────────┬──────────────────────────────┘
                              │
                              ▼
   ┌─────────────────────────────────────────────────────────┐
-  │ 4. Pre-Paint / Paint（ペイント命令の生成）               │
-  │    Layout Tree → Paint Records（描画命令のリスト）       │
+  │ 4. Pre-Paint / Paint (Generating Paint Instructions)    │
+  │    Layout Tree → Paint Records (list of draw commands)  │
   │                                                         │
-  │    ・描画順序の決定（z-index、スタッキングコンテキスト） │
-  │    ・背景色 → ボーダー → テキスト → 子要素の順           │
-  │    ・各レイヤーごとにPaint Recordsを生成                 │
+  │    ・Determine paint order (z-index, stacking contexts) │
+  │    ・Background → border → text → child elements        │
+  │    ・Generate Paint Records per layer                   │
   └──────────────────────────┬──────────────────────────────┘
                              │
                              ▼
   ┌─────────────────────────────────────────────────────────┐
-  │ 5. Layerize（レイヤー化）                                │
-  │    Paint Records → Compositing Layers                    │
+  │ 5. Layerize                                             │
+  │    Paint Records → Compositing Layers                   │
   │                                                         │
-  │    ・will-change, transform, opacity で昇格             │
-  │    ・overflow:scroll の要素は専用レイヤー                │
-  │    ・<video>, <canvas> は専用レイヤー                    │
+  │    ・will-change, transform, opacity promote to layer   │
+  │    ・overflow:scroll elements get dedicated layers      │
+  │    ・<video>, <canvas> get dedicated layers             │
   └──────────────────────────┬──────────────────────────────┘
                              │
                              ▼
   ┌─────────────────────────────────────────────────────────┐
-  │ 6. Commit → Compositor Thread                            │
-  │    メインスレッドからコンポジタースレッドへ引き渡し       │
+  │ 6. Commit → Compositor Thread                           │
+  │    Hand off from main thread to compositor thread       │
   │                                                         │
-  │    ※ ここから先はメインスレッドをブロックしない          │
+  │    ※ From this point on, the main thread is not blocked │
   └──────────────────────────┬──────────────────────────────┘
                              │
                              ▼
   ┌─────────────────────────────────────────────────────────┐
-  │ 7. Tiling & Raster（タイリングとラスタライズ）           │
-  │    レイヤーをタイルに分割 → ピクセルに変換               │
+  │ 7. Tiling & Raster                                      │
+  │    Split layers into tiles → convert to pixels          │
   │                                                         │
-  │    ・ラスタースレッド（複数）で並列処理                   │
-  │    ・GPU ラスタライゼーション（OOP-R）の活用             │
-  │    ・ビューポート付近のタイルを優先的に処理              │
+  │    ・Multiple raster threads work in parallel           │
+  │    ・GPU rasterization (OOP-R) is used                  │
+  │    ・Tiles near the viewport are prioritized            │
   └──────────────────────────┬──────────────────────────────┘
                              │
                              ▼
   ┌─────────────────────────────────────────────────────────┐
-  │ 8. Draw / Display（表示）                                │
-  │    コンポジターフレームを GPU プロセスへ送信              │
-  │    → 最終的な画面への合成と表示                          │
+  │ 8. Draw / Display                                       │
+  │    Send compositor frame to the GPU process             │
+  │    → Final compositing and display on screen            │
   └─────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 メインスレッドとコンポジタースレッドの分離
+### 2.2 Separation of the Main Thread and Compositor Thread
 
-レンダラープロセスの中でも、メインスレッドとコンポジタースレッドの分離は非常に重要な設計判断である。
+Within the renderer process, separating the main thread and compositor thread is a critically important design decision.
 
 ```
-レンダラープロセス内のスレッド構成:
+Thread configuration inside a renderer process:
 
   ┌───────────────────────────────────────────────────────────────┐
-  │                   レンダラープロセス                          │
+  │                   Renderer Process                            │
   │                                                               │
   │  ┌───────────────────────────────────────────────────────┐   │
-  │  │ メインスレッド（Main Thread）                          │   │
+  │  │ Main Thread                                            │   │
   │  │                                                       │   │
   │  │  ┌─────┐ ┌──────┐ ┌────┐ ┌────────┐ ┌──────┐       │   │
   │  │  │Parse│→│Style │→│Layout│→│Pre-Paint│→│Paint │       │   │
@@ -420,119 +420,119 @@ const fpsMonitor = monitorFrameRate();
   │  │                                         │            │   │
   │  │  ┌──────────────────────────────────┐   │            │   │
   │  │  │ JavaScript Engine (V8)           │   │            │   │
-  │  │  │ ・スクリプト実行                 │   │            │   │
-  │  │  │ ・イベントハンドラ               │   │            │   │
+  │  │  │ ・Script execution               │   │            │   │
+  │  │  │ ・Event handlers                 │   │            │   │
   │  │  │ ・requestAnimationFrame          │   │            │   │
-  │  │  │ ・GC（ガベージコレクション）     │   │            │   │
+  │  │  │ ・GC (Garbage Collection)        │   │            │   │
   │  │  └──────────────────────────────────┘   │            │   │
   │  └─────────────────────────────────────────┼────────────┘   │
   │                                     Commit │                 │
   │  ┌─────────────────────────────────────────▼────────────┐   │
-  │  │ コンポジタースレッド（Compositor Thread）             │   │
+  │  │ Compositor Thread                                     │   │
   │  │                                                       │   │
-  │  │  ・入力イベントの初期処理                             │   │
-  │  │  ・スクロール処理（JS ハンドラなしの場合）            │   │
-  │  │  ・CSS アニメーション / transition の処理             │   │
-  │  │  ・レイヤーの合成                                     │   │
-  │  │  ・タイリングの管理                                   │   │
-  │  └──────────────────────────────┬────────────────────────┘   │
-  │                                 │                             │
-  │  ┌──────────────────────────────▼────────────────────────┐   │
-  │  │ ラスタースレッド（Raster Threads）× 複数              │   │
+  │  │  ・Initial handling of input events                   │   │
+  │  │  ・Scroll handling (when no JS handlers)              │   │
+  │  │  ・CSS animation / transition processing              │   │
+  │  │  ・Layer compositing                                  │   │
+  │  │  ・Tile management                                    │   │
+  │  └──────────────────────────┬────────────────────────────┘   │
+  │                             │                               │
+  │  ┌──────────────────────────▼────────────────────────────┐   │
+  │  │ Raster Threads (multiple)                             │   │
   │  │                                                       │   │
-  │  │  ・タイルのピクセル化                                 │   │
-  │  │  ・GPU ラスタライゼーション                           │   │
+  │  │  ・Rasterize tiles to pixels                          │   │
+  │  │  ・GPU rasterization                                  │   │
   │  └───────────────────────────────────────────────────────┘   │
   │                                                               │
   │  ┌───────────────────────────────────────────────────────┐   │
-  │  │ Worker スレッド（オプショナル）                        │   │
+  │  │ Worker Threads (optional)                             │   │
   │  │                                                       │   │
   │  │  ・Web Worker                                         │   │
   │  │  ・Service Worker                                     │   │
-  │  │  ・Worklet (Paint Worklet, Audio Worklet等)           │   │
+  │  │  ・Worklets (Paint Worklet, Audio Worklet, etc.)      │   │
   │  └───────────────────────────────────────────────────────┘   │
   └───────────────────────────────────────────────────────────────┘
 
-  コンポジタースレッドの利点:
-  ・メインスレッドが JS でビジー → スクロールは滑らか
-  ・transform / opacity アニメーション → メインスレッド不要
-  ・60fps の維持が容易
+  Benefits of the compositor thread:
+  ・Main thread is busy with JS → scrolling remains smooth
+  ・transform / opacity animations → no main thread needed
+  ・Easier to maintain 60 fps
 ```
 
-### 2.3 コンポジターのみで処理できるプロパティ
+### 2.3 Properties Handled Entirely by the Compositor
 
-パフォーマンス最適化において、コンポジターのみで処理できるCSSプロパティを使うことは極めて重要である。
+In performance optimization, using CSS properties that can be handled solely by the compositor is critically important.
 
-| CSSプロパティ | レイアウト再計算 | ペイント再実行 | コンポジットのみ |
-|-------------|---------------|--------------|----------------|
-| `width`, `height` | 必要 | 必要 | --- |
-| `margin`, `padding` | 必要 | 必要 | --- |
-| `top`, `left` (position) | 必要 | 必要 | --- |
-| `color`, `background-color` | --- | 必要 | --- |
-| `box-shadow` | --- | 必要 | --- |
-| `border-radius` | --- | 必要 | --- |
-| `transform` | --- | --- | コンポジットのみ |
-| `opacity` | --- | --- | コンポジットのみ |
-| `filter` | --- | --- | コンポジットのみ |
-| `will-change` | --- | --- | レイヤー昇格のヒント |
+| CSS Property | Layout Recalc | Repaint | Composite Only |
+|-------------|--------------|---------|----------------|
+| `width`, `height` | Required | Required | --- |
+| `margin`, `padding` | Required | Required | --- |
+| `top`, `left` (position) | Required | Required | --- |
+| `color`, `background-color` | --- | Required | --- |
+| `box-shadow` | --- | Required | --- |
+| `border-radius` | --- | Required | --- |
+| `transform` | --- | --- | Composite only |
+| `opacity` | --- | --- | Composite only |
+| `filter` | --- | --- | Composite only |
+| `will-change` | --- | --- | Hint for layer promotion |
 
-**コード例 3: コンポジターフレンドリーなアニメーション**
+**Code Example 3: Compositor-Friendly Animations**
 
 ```css
-/* アンチパターン: left を使ったアニメーション
-   → 毎フレームでレイアウト再計算が発生する */
+/* Anti-pattern: animating with left
+   → triggers layout recalculation every frame */
 .slide-bad {
   position: absolute;
   left: 0;
   transition: left 0.3s ease;
 }
 .slide-bad.active {
-  left: 200px;  /* レイアウト → ペイント → コンポジット の全段階が実行される */
+  left: 200px;  /* All stages — layout → paint → composite — are executed */
 }
 
-/* 推奨パターン: transform を使ったアニメーション
-   → コンポジタースレッドのみで処理可能 */
+/* Recommended: animating with transform
+   → handled entirely by the compositor thread */
 .slide-good {
   transform: translateX(0);
   transition: transform 0.3s ease;
-  will-change: transform;  /* レイヤー昇格のヒント */
+  will-change: transform;  /* Hint for layer promotion */
 }
 .slide-good.active {
-  transform: translateX(200px);  /* コンポジットのみ → 高速 */
+  transform: translateX(200px);  /* Composite only → fast */
 }
 
-/* アンチパターン: background-color のアニメーション
-   → 毎フレームでペイントが発生する */
+/* Anti-pattern: animating background-color
+   → triggers repaint every frame */
 .fade-bad {
   background-color: #ffffff;
   transition: background-color 0.3s ease;
 }
 .fade-bad:hover {
-  background-color: #f0f0f0;  /* ペイント → コンポジット が毎フレーム実行 */
+  background-color: #f0f0f0;  /* Paint → composite runs every frame */
 }
 
-/* 推奨パターン: opacity を使ったフェード
-   → コンポジタースレッドのみで処理可能 */
+/* Recommended: fading with opacity
+   → handled entirely by the compositor thread */
 .fade-good {
   opacity: 1;
   transition: opacity 0.3s ease;
 }
 .fade-good:hover {
-  opacity: 0.8;  /* コンポジットのみ → 高速 */
+  opacity: 0.8;  /* Composite only → fast */
 }
 ```
 
 ```javascript
-// JavaScript でもコンポジターフレンドリーなアニメーションを書く
+// Write compositor-friendly animations in JavaScript too
 
-// アンチパターン: style.left による直接操作
+// Anti-pattern: direct manipulation via style.left
 function animateBad(element, targetX) {
   let current = 0;
   const step = 2;
 
   function frame() {
     current += step;
-    element.style.left = current + 'px'; // レイアウトスラッシング
+    element.style.left = current + 'px'; // layout thrashing
     if (current < targetX) {
       requestAnimationFrame(frame);
     }
@@ -540,7 +540,7 @@ function animateBad(element, targetX) {
   requestAnimationFrame(frame);
 }
 
-// 推奨パターン: Web Animations API + transform
+// Recommended: Web Animations API + transform
 function animateGood(element, targetX) {
   element.animate(
     [
@@ -551,37 +551,37 @@ function animateGood(element, targetX) {
       duration: 300,
       easing: 'ease-out',
       fill: 'forwards',
-      // composite: 'accumulate' // 既存のtransformと合成
+      // composite: 'accumulate' // compose with existing transform
     }
   );
 }
 
-// 推奨パターン: CSS Custom Properties + transition
+// Recommended: CSS Custom Properties + transition
 function animateWithCustomProps(element, targetX) {
   element.style.setProperty('--translate-x', `${targetX}px`);
-  // CSS で: transform: translateX(var(--translate-x));
+  // In CSS: transform: translateX(var(--translate-x));
   //         transition: transform 0.3s ease;
 }
 ```
 
 ---
 
-## 3. ブラウザエンジンの比較と歴史
+## 3. Browser Engine Comparison and History
 
-### 3.1 主要エンジンの系譜
+### 3.1 Engine Genealogy
 
 ```
-ブラウザエンジンの系譜（1998-2025）:
+Browser Engine Genealogy (1998–2025):
 
   1998  KHTML (KDE Project)
         │
-        ├──── 2001  KHTML → WebKit にフォーク (Apple)
+        ├──── 2001  KHTML → WebKit fork (Apple)
         │            │
         │            ├──── 2003  Safari 1.0 (WebKit)
         │            │
         │            ├──── 2008  Chrome 1.0 (WebKit + V8)
         │            │     │
-        │            │     └──── 2013  Blink にフォーク (Google)
+        │            │     └──── 2013  Blink fork (Google)
         │            │            │
         │            │            ├── Chrome (2013~)
         │            │            ├── Opera (2013~)
@@ -590,113 +590,113 @@ function animateWithCustomProps(element, targetX) {
         │            │            ├── Vivaldi (2016~)
         │            │            └── Samsung Internet
         │            │
-        │            └──── WebKit (Apple が継続開発)
+        │            └──── WebKit (continued by Apple)
         │                  ├── Safari (macOS / iOS)
         │                  ├── GNOME Web (Epiphany)
-        │                  └── iOS上の全ブラウザ
+        │                  └── All browsers on iOS
         │
   1998  Gecko (Netscape → Mozilla)
         ├── Firefox (2004~)
         ├── Thunderbird
-        └── Servo (実験的並列エンジン, 2012~)
+        └── Servo (experimental parallel engine, 2012~)
 
   1997  Trident (Microsoft)
-        ├── Internet Explorer (1997-2022)
-        └── EdgeHTML (2015-2020)
-             └── 廃止 → Chromium ベースへ移行
+        ├── Internet Explorer (1997–2022)
+        └── EdgeHTML (2015–2020)
+             └── Discontinued → migrated to Chromium-based
 ```
 
-### 3.2 エンジン比較詳細表
+### 3.2 Detailed Engine Comparison
 
-| 特性 | Blink (Chromium) | WebKit (Safari) | Gecko (Firefox) |
-|------|-----------------|----------------|-----------------|
-| 開発元 | Google主導 | Apple主導 | Mozilla Foundation |
-| 初リリース | 2013年 | 2003年 | 1998年 |
-| レンダリング言語 | C++ | C++ | C++ / Rust (Stylo) |
-| JSエンジン | V8 (C++) | JavaScriptCore (C++) | SpiderMonkey (C++ / Rust) |
-| プロセスモデル | マルチプロセス | マルチプロセス (限定的) | マルチプロセス (Fission) |
-| CSS Grid | 完全対応 | 完全対応 | 完全対応 |
-| Web Components | 完全対応 | 完全対応 | 完全対応 |
-| WASM | 完全対応 | 完全対応 | 完全対応 |
-| 市場シェア (2024) | 約65-70% | 約18-20% | 約3-4% |
-| モバイルシェア | 約65% | 約25% (iOS) | 約1% |
-| 特徴的技術 | OilPan GC, LayoutNG | Intelligent Tracking Prevention | Stylo (Rust CSS), Fission |
+| Feature | Blink (Chromium) | WebKit (Safari) | Gecko (Firefox) |
+|---------|-----------------|----------------|-----------------|
+| Developed by | Google-led | Apple-led | Mozilla Foundation |
+| Initial release | 2013 | 2003 | 1998 |
+| Rendering language | C++ | C++ | C++ / Rust (Stylo) |
+| JS engine | V8 (C++) | JavaScriptCore (C++) | SpiderMonkey (C++ / Rust) |
+| Process model | Multi-process | Multi-process (limited) | Multi-process (Fission) |
+| CSS Grid | Full support | Full support | Full support |
+| Web Components | Full support | Full support | Full support |
+| WASM | Full support | Full support | Full support |
+| Market share (2024) | ~65–70% | ~18–20% | ~3–4% |
+| Mobile share | ~65% | ~25% (iOS) | ~1% |
+| Notable technology | OilPan GC, LayoutNG | Intelligent Tracking Prevention | Stylo (Rust CSS), Fission |
 
-### 3.3 JavaScriptエンジンの比較
+### 3.3 JavaScript Engine Comparison
 
-| 特性 | V8 (Chrome) | JavaScriptCore (Safari) | SpiderMonkey (Firefox) |
-|------|------------|------------------------|----------------------|
-| JIT階層 | Sparkplug → Maglev → Turbofan | LLInt → Baseline → DFG → FTL | Baseline → IC → Warp |
-| GC方式 | Generational + Incremental + Concurrent | Generational + Concurrent | Generational + Incremental + Concurrent |
-| WASM実装 | Liftoff (baseline) + TurboFan (optimizing) | BBQ (baseline) + OMG (optimizing) | Baseline + Ion (optimizing) |
-| 組み込み用途 | Node.js, Deno, Bun | React Native (Hermes) | --- |
-| 最適化手法 | Hidden Classes, Inline Caches | Structure Chain | Shape + IC |
+| Feature | V8 (Chrome) | JavaScriptCore (Safari) | SpiderMonkey (Firefox) |
+|---------|------------|------------------------|----------------------|
+| JIT tiers | Sparkplug → Maglev → Turbofan | LLInt → Baseline → DFG → FTL | Baseline → IC → Warp |
+| GC approach | Generational + Incremental + Concurrent | Generational + Concurrent | Generational + Incremental + Concurrent |
+| WASM implementation | Liftoff (baseline) + TurboFan (optimizing) | BBQ (baseline) + OMG (optimizing) | Baseline + Ion (optimizing) |
+| Embedded use | Node.js, Deno, Bun | React Native (Hermes) | --- |
+| Optimization techniques | Hidden Classes, Inline Caches | Structure Chain | Shape + IC |
 
 ---
 
-## 4. Chromium のソースコード構造
+## 4. Chromium Source Code Structure
 
-### 4.1 ディレクトリ構成
+### 4.1 Directory Layout
 
-Chromium のソースコードは約3,500万行を超える巨大なコードベースである。主要なディレクトリ構成を理解することは、ブラウザアーキテクチャの理解を深めるために重要である。
+The Chromium source code is a massive codebase exceeding about 35 million lines. Understanding the major directory structure is important for deepening your understanding of browser architecture.
 
 ```
 chromium/src/
-├── chrome/              # Chrome ブラウザ固有のコード
-│   ├── browser/         #   ブラウザプロセスのUI/ロジック
-│   ├── renderer/        #   レンダラープロセスのChrome固有部分
-│   ├── common/          #   プロセス間で共有するコード
-│   └── test/            #   Chrome固有のテスト
+├── chrome/              # Chrome browser-specific code
+│   ├── browser/         #   Browser process UI/logic
+│   ├── renderer/        #   Chrome-specific renderer process code
+│   ├── common/          #   Code shared between processes
+│   └── test/            #   Chrome-specific tests
 │
-├── content/             # ブラウザのコアコンテンツ処理
-│   ├── browser/         #   コンテンツ層のブラウザプロセス側
-│   ├── renderer/        #   コンテンツ層のレンダラープロセス側
-│   ├── gpu/             #   GPUプロセスの実装
-│   ├── common/          #   プロセス間で共有
-│   └── public/          #   公開API（embedder向け）
+├── content/             # Core browser content processing
+│   ├── browser/         #   Content layer browser process side
+│   ├── renderer/        #   Content layer renderer process side
+│   ├── gpu/             #   GPU process implementation
+│   ├── common/          #   Shared between processes
+│   └── public/          #   Public API (for embedders)
 │
 ├── third_party/
-│   └── blink/           # Blink レンダリングエンジン
+│   └── blink/           # Blink rendering engine
 │       ├── renderer/
 │       │   ├── core/    #     DOM, CSS, Layout, Paint
-│       │   ├── modules/ #     Web API (Fetch, WebGL, etc.)
-│       │   ├── platform/#     プラットフォーム抽象化層
-│       │   └── bindings/#     V8 バインディング
-│       └── web/         #   Blink の公開インターフェース
+│       │   ├── modules/ #     Web APIs (Fetch, WebGL, etc.)
+│       │   ├── platform/#     Platform abstraction layer
+│       │   └── bindings/#     V8 bindings
+│       └── web/         #   Blink public interface
 │
-├── v8/                  # V8 JavaScript エンジン
+├── v8/                  # V8 JavaScript engine
 │   ├── src/
-│   │   ├── compiler/    #   JIT コンパイラ
-│   │   ├── heap/        #   ガベージコレクタ
-│   │   ├── interpreter/ #   Ignition インタプリタ
-│   │   └── wasm/        #   WebAssembly 実装
+│   │   ├── compiler/    #   JIT compiler
+│   │   ├── heap/        #   Garbage collector
+│   │   ├── interpreter/ #   Ignition interpreter
+│   │   └── wasm/        #   WebAssembly implementation
 │   └── test/
 │
-├── gpu/                 # GPU コマンドバッファ
+├── gpu/                 # GPU command buffer
 ├── cc/                  # Chromium Compositor
-├── viz/                 # Visual (表示サービス)
-├── ui/                  # UI フレームワーク
-├── net/                 # ネットワークスタック
-├── mojo/                # Mojo IPC フレームワーク
-├── ipc/                 # レガシー IPC
-├── base/                # 基礎ライブラリ（スレッド、ファイル等）
-├── services/            # サービス化コンポーネント
-│   ├── network/         #   ネットワークサービス
-│   ├── device/          #   デバイスサービス
-│   └── data_decoder/    #   データデコーダサービス
-├── components/          # 再利用可能なコンポーネント
-└── build/               # ビルドシステム（GN + Ninja）
+├── viz/                 # Viz (display service)
+├── ui/                  # UI framework
+├── net/                 # Network stack
+├── mojo/                # Mojo IPC framework
+├── ipc/                 # Legacy IPC
+├── base/                # Base libraries (threads, files, etc.)
+├── services/            # Servicified components
+│   ├── network/         #   Network service
+│   ├── device/          #   Device service
+│   └── data_decoder/    #   Data decoder service
+├── components/          # Reusable components
+└── build/               # Build system (GN + Ninja)
 ```
 
-### 4.2 Blink の内部構造
+### 4.2 Blink Internal Structure
 
-Blink はレンダリングエンジンの心臓部であり、DOM からピクセルへの変換を担当する。
+Blink is the heart of the rendering engine, responsible for converting DOM to pixels.
 
-**コード例 4: Blink の DOM ノード実装（簡略化）**
+**Code Example 4: Blink DOM Node Implementation (simplified)**
 
 ```cpp
-// third_party/blink/renderer/core/dom/node.h (簡略化)
-// Blink の DOM ノードの基本構造
+// third_party/blink/renderer/core/dom/node.h (simplified)
+// Basic structure of a DOM node in Blink
 
 namespace blink {
 
@@ -711,28 +711,28 @@ class Node : public EventTarget {
     kDocumentFragmentNode = 11,
   };
 
-  // ツリー構造の走査
+  // Tree traversal
   Node* parentNode() const { return parent_; }
   Node* firstChild() const { return first_child_; }
   Node* lastChild() const { return last_child_; }
   Node* nextSibling() const { return next_; }
   Node* previousSibling() const { return previous_; }
 
-  // DOM 操作
+  // DOM manipulation
   Node* appendChild(Node* new_child);
   Node* removeChild(Node* old_child);
   Node* insertBefore(Node* new_child, Node* ref_child);
   Node* replaceChild(Node* new_child, Node* old_child);
 
-  // レイアウト関連
+  // Layout-related
   LayoutObject* GetLayoutObject() const { return layout_object_; }
   void SetLayoutObject(LayoutObject*);
 
-  // スタイル関連
+  // Style-related
   const ComputedStyle* GetComputedStyle() const;
   void SetNeedsStyleRecalc(StyleChangeType);
 
-  // ガベージコレクション（Oilpan）
+  // Garbage collection (Oilpan)
   void Trace(Visitor*) const override;
 
  private:
@@ -745,27 +745,27 @@ class Node : public EventTarget {
   NodeFlags node_flags_;
 };
 
-// Oilpan GC によるメモリ管理
-// Blink は独自の GC（Oilpan）を使用する
-// V8 の GC とは別に動作し、DOM オブジェクトのライフサイクルを管理
-// Member<T> はマネージドポインタで、GC がトレースに使用する
+// Memory management via Oilpan GC
+// Blink uses its own GC (Oilpan)
+// It runs separately from V8's GC and manages the lifecycle of DOM objects
+// Member<T> is a managed pointer used by the GC for tracing
 
 }  // namespace blink
 ```
 
 ---
 
-## 5. プロセス間通信（IPC）と Mojo
+## 5. Inter-Process Communication (IPC) and Mojo
 
-### 5.1 Mojo IPC フレームワーク
+### 5.1 Mojo IPC Framework
 
-Chromium のプロセス間通信は Mojo というフレームワークで実装されている。Mojo は型安全なメッセージパッシングシステムで、プロセス間の通信を抽象化する。
+Inter-process communication in Chromium is implemented through a framework called Mojo. Mojo is a type-safe message-passing system that abstracts communication between processes.
 
 ```
-Mojo IPC の構成:
+Mojo IPC Configuration:
 
   ┌─────────────────────────────────────────────────────────────┐
-  │                    Mojom IDL ファイル                        │
+  │                    Mojom IDL File                            │
   │                                                             │
   │  // example.mojom                                           │
   │  interface PageHandler {                                    │
@@ -773,7 +773,7 @@ Mojo IPC の構成:
   │    SetTitle(string new_title);                              │
   │  };                                                         │
   └────────────────────────┬────────────────────────────────────┘
-                           │ コード生成
+                           │ Code generation
          ┌─────────────────┼─────────────────┐
          │                 │                 │
          ▼                 ▼                 ▼
@@ -786,122 +786,122 @@ Mojo IPC の構成:
          │
          ▼
   ┌─────────────────────────────────────────────────────────────┐
-  │              Mojo メッセージパイプ                           │
+  │              Mojo Message Pipe                               │
   │                                                             │
-  │  プロセスA                     プロセスB                    │
-  │  ┌──────────┐    パイプ       ┌──────────┐                │
-  │  │ Remote   │ ═══════════════ │ Receiver │                │
-  │  │ (送信側) │  メッセージ →  │ (受信側) │                │
+  │  Process A                     Process B                    │
+  │  ┌──────────┐    Pipe          ┌──────────┐                │
+  │  │ Remote   │ ═══════════════  │ Receiver │                │
+  │  │ (sender) │  message →       │ (receiver│                │
   │  └──────────┘                 └──────────┘                │
   │                                                             │
-  │  特性:                                                      │
-  │  ・非同期メッセージパッシング                                │
-  │  ・型安全（Mojom IDL から自動生成）                         │
-  │  ・プロセス内・プロセス間の両方で動作                       │
-  │  ・ハンドルの受け渡しが可能                                 │
+  │  Characteristics:                                           │
+  │  ・Asynchronous message passing                             │
+  │  ・Type-safe (auto-generated from Mojom IDL)               │
+  │  ・Works both within and between processes                  │
+  │  ・Handles can be passed                                    │
   └─────────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 IPC の具体例: URL ナビゲーション
+### 5.2 IPC in Practice: URL Navigation
 
-ユーザーがアドレスバーにURLを入力してからページが表示されるまでの、プロセス間の通信フローを詳細に見てみよう。
+Let's look in detail at the inter-process communication flow from when the user types a URL in the address bar until the page is displayed.
 
 ```
-URL ナビゲーションの IPC フロー:
+IPC Flow for URL Navigation:
 
-  ユーザー操作  ブラウザプロセス    ネットワーク     レンダラー     GPU
-  (入力)       (Browser)          サービス         プロセス       プロセス
+  User Input    Browser Process    Network          Renderer       GPU
+  (input)       (Browser)          Service          Process        Process
      │              │                │               │              │
-     │ URL入力      │                │               │              │
+     │ URL input    │                │               │              │
      ├─────────────→│                │               │              │
      │              │                │               │              │
-     │              │ BeginNavigation │               │              │
+     │              │ BeginNavigation│               │              │
      │              │───────────────→│               │              │
      │              │                │               │              │
-     │              │                │ DNS解決        │              │
-     │              │                │ TCP接続        │              │
-     │              │                │ TLSハンドシェイク│             │
-     │              │                │ HTTP要求       │              │
+     │              │                │ DNS resolve    │              │
+     │              │                │ TCP connect    │              │
+     │              │                │ TLS handshake │              │
+     │              │                │ HTTP request   │              │
      │              │                │               │              │
-     │              │                │ レスポンス     │              │
-     │              │ ヘッダー受信   │ ヘッダー       │              │
+     │              │                │ Response       │              │
+     │              │ Header recv.   │ Headers        │              │
      │              │←───────────────│               │              │
      │              │                │               │              │
-     │              │ Content-Type 判定               │              │
-     │              │ (text/html → レンダラー起動)    │              │
+     │              │ Determine Content-Type          │              │
+     │              │ (text/html → launch renderer)  │              │
      │              │                │               │              │
      │              │ CommitNavigation│               │              │
      │              │────────────────────────────────→│              │
      │              │                │               │              │
-     │              │                │  ボディ転送    │              │
+     │              │                │  Body transfer │              │
      │              │                │──────────────→│              │
      │              │                │               │              │
      │              │                │               │ HTML Parse   │
-     │              │                │               │ DOM構築      │
-     │              │                │               │ Style計算    │
+     │              │                │               │ DOM build    │
+     │              │                │               │ Style calc.  │
      │              │                │               │ Layout       │
      │              │                │               │ Paint        │
      │              │                │               │              │
-     │              │                │               │ 描画コマンド │
+     │              │                │               │ Draw cmds    │
      │              │                │               │─────────────→│
      │              │                │               │              │
-     │              │                │               │          画面表示
+     │              │                │               │         Display
      │              │                │               │              │
      │              │ DidFinishLoad  │               │              │
      │              │←───────────────────────────────│              │
      │              │                │               │              │
-     │  ページ表示  │                │               │              │
+     │  Page shown  │                │               │              │
      │←─────────────│                │               │              │
 ```
 
-**コード例 5: Mojo インターフェース定義と使用例**
+**Code Example 5: Mojo Interface Definition and Usage**
 
 ```cpp
-// --- Mojom IDL 定義 ---
-// services/network/public/mojom/url_loader.mojom (簡略化)
+// --- Mojom IDL Definition ---
+// services/network/public/mojom/url_loader.mojom (simplified)
 
 module network.mojom;
 
-// URL ローダーのインターフェース
+// URL loader interface
 interface URLLoader {
-  // リダイレクトの追跡
+  // Track redirects
   FollowRedirect(
     array<string> removed_headers,
     map<string, string> modified_headers
   );
 
-  // 優先度の変更
+  // Change priority
   SetPriority(RequestPriority priority, int32 intra_priority_value);
 };
 
-// URL ローダークライアントのインターフェース
+// URL loader client interface
 interface URLLoaderClient {
-  // レスポンスの受信
+  // Receive response
   OnReceiveResponse(URLResponseHead head,
                     handle<data_pipe_consumer>? body);
 
-  // リダイレクトの通知
+  // Notify of redirect
   OnReceiveRedirect(URLRequestRedirectInfo redirect_info,
                     URLResponseHead head);
 
-  // 完了の通知
+  // Notify of completion
   OnComplete(URLLoaderCompletionStatus status);
 };
 
-// --- C++ での使用例 ---
-// content/browser/loader/navigation_url_loader.cc (簡略化)
+// --- C++ Usage Example ---
+// content/browser/loader/navigation_url_loader.cc (simplified)
 
 #include "services/network/public/mojom/url_loader.mojom.h"
 
 class NavigationURLLoader {
  public:
   void Start(const GURL& url) {
-    // ネットワークサービスへの接続
+    // Connect to the network service
     mojo::Remote<network::mojom::URLLoaderFactory> factory;
     GetNetworkService()->CreateURLLoaderFactory(
         factory.BindNewPipeAndPassReceiver());
 
-    // URLLoader の作成とリクエスト送信
+    // Create URLLoader and send request
     mojo::Remote<network::mojom::URLLoader> loader;
     mojo::PendingRemote<network::mojom::URLLoaderClient> client;
     auto client_receiver = client.InitWithNewPipeAndPassReceiver();
@@ -924,50 +924,50 @@ class NavigationURLLoader {
 
 ---
 
-## 6. Site Isolation（サイト分離）
+## 6. Site Isolation
 
-### 6.1 Site Isolation の背景と目的
+### 6.1 Background and Purpose of Site Isolation
 
-2018年に発見された Spectre / Meltdown 脆弱性は、プロセスのメモリ空間を超えてデータを読み取ることが理論上可能であることを示した。これを受け、Chromium は Site Isolation を全面的に導入した。
+The Spectre/Meltdown vulnerabilities discovered in 2018 demonstrated that it is theoretically possible to read data across process memory boundaries. In response, Chromium fully adopted Site Isolation.
 
-Site Isolation とは、異なるサイト（origin ではなく site 単位）のコンテンツを必ず別のプロセスで実行する仕組みである。これにより、たとえ Spectre 攻撃が成功しても、攻撃者のプロセスには自サイトのデータしか存在しないため、他サイトのデータは読み取れない。
+Site Isolation is a mechanism that ensures content from different sites (grouped by site, not origin) always runs in separate processes. This means that even if a Spectre attack succeeds, the attacker's process only contains data from their own site, making it impossible to read data from other sites.
 
 ```
-Site Isolation の動作:
+How Site Isolation Works:
 
   ┌──────────────────────────────────────────────────────────────┐
-  │ Site Isolation なし（旧来のモデル）                          │
+  │ Without Site Isolation (legacy model)                        │
   │                                                              │
   │  ┌──────────────────────────────────────────────────────┐   │
-  │  │ レンダラープロセス（1つのプロセス内）                 │   │
+  │  │ Renderer Process (single process)                     │   │
   │  │                                                      │   │
   │  │  ┌──────────────┐  ┌──────────────────────────────┐ │   │
-  │  │  │ example.com  │  │ <iframe src="evil.com">     │ │   │
+  │  │  │ example.com  │  │ <iframe src="evil.com">      │ │   │
   │  │  │              │  │                              │ │   │
-  │  │  │ ユーザーの   │  │ Spectre 攻撃で              │ │   │
-  │  │  │ 個人情報     │  │ example.com のメモリを       │ │   │
-  │  │  │ Cookie等    │  │ 読み取り可能!               │ │   │
+  │  │  │ User's       │  │ Spectre attack can           │ │   │
+  │  │  │ personal     │  │ read example.com's memory!   │ │   │
+  │  │  │ data, Cookies│  │                              │ │   │
   │  │  └──────────────┘  └──────────────────────────────┘ │   │
   │  └──────────────────────────────────────────────────────┘   │
   │                                                              │
-  │ Site Isolation あり（現在のモデル）                          │
+  │ With Site Isolation (current model)                          │
   │                                                              │
   │  ┌────────────────────┐  ┌────────────────────────────┐    │
-  │  │ レンダラープロセス A│  │ レンダラープロセス B       │    │
+  │  │ Renderer Process A │  │ Renderer Process B         │    │
   │  │                    │  │                            │    │
   │  │  ┌──────────────┐ │  │  ┌──────────────────────┐ │    │
   │  │  │ example.com  │ │  │  │ evil.com (iframe)    │ │    │
   │  │  │              │ │  │  │                      │ │    │
-  │  │  │ ユーザーの   │ │  │  │ 別プロセスなので     │ │    │
-  │  │  │ 個人情報     │ │  │  │ Spectre でも         │ │    │
-  │  │  │ Cookie等    │ │  │  │ 読み取り不可能       │ │    │
+  │  │  │ User's       │ │  │  │ Separate process →   │ │    │
+  │  │  │ personal data│ │  │  │ cannot read with     │ │    │
+  │  │  │ Cookies      │ │  │  │ Spectre either       │ │    │
   │  │  └──────────────┘ │  │  └──────────────────────┘ │    │
   │  └────────────────────┘  └────────────────────────────┘    │
   │                                                              │
-  │  プロセス境界 = セキュリティ境界                             │
+  │  Process boundary = security boundary                        │
   └──────────────────────────────────────────────────────────────┘
 
-  Site と Origin の違い:
+  Difference between Site and Origin:
   ┌───────────────────────────────────────────────────────┐
   │ URL                         │ Site         │ Origin  │
   ├────────────────────────────┼──────────────┼─────────┤
@@ -977,146 +977,146 @@ Site Isolation の動作:
   │ https://other.com          │ other.com    │ other.com:443     │
   └───────────────────────────────────────────────────────┘
 
-  → a.example.com と b.example.com は同じ Site → 同一プロセス可
-  → example.com と other.com は異なる Site → 必ず別プロセス
+  → a.example.com and b.example.com share the same Site → same process allowed
+  → example.com and other.com are different Sites → always separate processes
 ```
 
-### 6.2 Site Isolation のメモリコスト
+### 6.2 Memory Cost of Site Isolation
 
-Site Isolation はセキュリティを大幅に向上させるが、プロセス数の増加によりメモリ消費が増大する。
+Site Isolation greatly improves security but increases memory consumption due to more processes.
 
-| シナリオ | Site Isolation なし | Site Isolation あり | 増加量 |
-|---------|-------------------|-------------------|--------|
-| タブ5個（全て同一サイト） | プロセス1個 | プロセス1個 | 増加なし |
-| タブ5個（全て異なるサイト） | プロセス1-5個 | プロセス5個 | 0-400% |
-| 1ページ内に異なるサイトのiframe 3個 | プロセス1個 | プロセス4個 | 300% |
-| 一般的なWeb閲覧 | --- | --- | 約10-15%増 |
+| Scenario | Without Site Isolation | With Site Isolation | Increase |
+|----------|----------------------|---------------------|----------|
+| 5 tabs (all same site) | 1 process | 1 process | No increase |
+| 5 tabs (all different sites) | 1–5 processes | 5 processes | 0–400% |
+| 1 page with 3 iframes from different sites | 1 process | 4 processes | 300% |
+| Typical web browsing | --- | --- | ~10–15% increase |
 
-### 6.3 Cross-Origin Read Blocking (CORB) と CORP
+### 6.3 Cross-Origin Read Blocking (CORB) and CORP
 
-Site Isolation を補完するセキュリティ機構として、CORB と CORP がある。
+CORB and CORP are security mechanisms that complement Site Isolation.
 
 ```javascript
 // CORB (Cross-Origin Read Blocking)
-// ブラウザが自動的にクロスオリジンの機密データを保護
+// The browser automatically protects sensitive cross-origin data
 
-// 例: 攻撃者が <img> タグで JSON データを読み取ろうとする
-// <img src="https://bank.example/api/account"> ← CORB がブロック
+// Example: attacker tries to read JSON data via an <img> tag
+// <img src="https://bank.example/api/account"> ← CORB blocks this
 
-// CORB がブロックする Content-Type:
+// Content-Types blocked by CORB:
 // - text/html
 // - application/json
 // - text/xml / application/xml
 
 // CORP (Cross-Origin-Resource-Policy)
-// サーバー側でリソースの読み込みを制限するヘッダー
+// A server-side header that restricts who can load a resource
 
-// サーバー側の設定例
-// 同一オリジンからのみ読み込み可能
+// Server-side configuration examples
+// Only loadable from the same origin
 // Cross-Origin-Resource-Policy: same-origin
 
-// 同一サイトからのみ読み込み可能
+// Only loadable from the same site
 // Cross-Origin-Resource-Policy: same-site
 
-// どのオリジンからも読み込み可能
+// Loadable from any origin
 // Cross-Origin-Resource-Policy: cross-origin
 
-// --- 関連: COOP と COEP ---
+// --- Related: COOP and COEP ---
 
 // COOP (Cross-Origin-Opener-Policy)
-// window.opener の参照をクロスオリジン間で遮断
+// Cuts off window.opener references across origins
 // Cross-Origin-Opener-Policy: same-origin
 
 // COEP (Cross-Origin-Embedder-Policy)
-// クロスオリジンリソースの読み込みに明示的な許可を要求
+// Requires explicit permission for cross-origin resource loading
 // Cross-Origin-Embedder-Policy: require-corp
 
-// COOP + COEP の設定で SharedArrayBuffer が利用可能に
-// （Spectre 対策として、デフォルトでは無効化されている）
+// Setting both COOP + COEP enables SharedArrayBuffer
+// (disabled by default as a Spectre mitigation)
 
-// 確認方法
+// How to check
 if (crossOriginIsolated) {
-  // SharedArrayBuffer が利用可能
+  // SharedArrayBuffer is available
   const sab = new SharedArrayBuffer(1024);
   console.log('Cross-origin isolated:', crossOriginIsolated);
 } else {
-  console.log('SharedArrayBuffer は使用不可');
-  console.log('COOP と COEP ヘッダーを設定してください');
+  console.log('SharedArrayBuffer is not available');
+  console.log('Please set COOP and COEP headers');
 }
 ```
 
 ---
 
-## 7. サンドボックスとセキュリティモデル
+## 7. Sandbox and Security Model
 
-### 7.1 レンダラーサンドボックス
+### 7.1 Renderer Sandbox
 
-レンダラープロセスのサンドボックスは、Chromium のセキュリティの基盤である。たとえレンダラープロセスが悪意あるコードに侵害されても、サンドボックスにより OS レベルの操作が制限される。
+The renderer process sandbox is the foundation of Chromium's security. Even if the renderer process is compromised by malicious code, the sandbox restricts OS-level operations.
 
 ```
-サンドボックスの制限（OS 別）:
+Sandbox Restrictions (per OS):
 
   ┌───────────────────────────────────────────────────────────┐
-  │ レンダラーサンドボックスの制限                             │
+  │ Renderer Sandbox Restrictions                             │
   │                                                           │
   │ ┌─────────────────────────────────────────────────┐      │
-  │ │ 禁止される操作                                   │      │
+  │ │ Prohibited Operations                            │      │
   │ │                                                   │      │
-  │ │ - ファイルシステムへの直接アクセス               │      │
-  │ │ - ネットワークソケットの直接作成                 │      │
-  │ │ - 他プロセスへの直接アクセス                     │      │
-  │ │ - デバイス（カメラ、マイク）への直接アクセス     │      │
-  │ │ - クリップボードへの直接アクセス                 │      │
-  │ │ - ディスプレイサーバーへの直接接続               │      │
+  │ │ - Direct access to the file system               │      │
+  │ │ - Direct creation of network sockets             │      │
+  │ │ - Direct access to other processes               │      │
+  │ │ - Direct access to devices (camera, microphone)  │      │
+  │ │ - Direct access to clipboard                     │      │
+  │ │ - Direct connection to display server            │      │
   │ └─────────────────────────────────────────────────┘      │
   │                                                           │
   │ ┌─────────────────────────────────────────────────┐      │
-  │ │ 許可される操作（IPC 経由で間接的に）             │      │
+  │ │ Permitted Operations (indirectly via IPC)        │      │
   │ │                                                   │      │
-  │ │ + ブラウザプロセスへの IPC メッセージ送信        │      │
-  │ │ + GPU プロセスへの描画コマンド送信              │      │
-  │ │ + 共有メモリの読み書き（限定的）                │      │
-  │ │ + CPU 演算（V8 JIT コンパイル含む）             │      │
+  │ │ + Send IPC messages to the browser process       │      │
+  │ │ + Send draw commands to the GPU process          │      │
+  │ │ + Read/write shared memory (limited)             │      │
+  │ │ + CPU computation (including V8 JIT compilation) │      │
   │ └─────────────────────────────────────────────────┘      │
   │                                                           │
-  │ OS 固有の実装:                                            │
+  │ OS-specific implementations:                              │
   │                                                           │
   │ Windows: Restricted Token + Job Object + Desktop Isolation│
-  │ macOS:   Seatbelt (sandbox-exec) プロファイル             │
+  │ macOS:   Seatbelt (sandbox-exec) profile                  │
   │ Linux:   seccomp-bpf + Namespaces + AppArmor              │
   │ Android: SELinux + seccomp-bpf (isolatedProcess)          │
   │ ChromeOS: Minijail + seccomp-bpf + Namespaces            │
   └───────────────────────────────────────────────────────────┘
 ```
 
-### 7.2 ブラウザプロセスのセキュリティチェック
+### 7.2 Security Checks in the Browser Process
 
-ブラウザプロセスは「信頼されたプロセス」として、レンダラープロセスからのリクエストを検証する。
+The browser process acts as the "trusted process" and validates requests from renderer processes.
 
 ```javascript
-// レンダラープロセスからの IPC メッセージの検証（概念的なコード）
+// Validation logic for IPC messages from renderer processes (conceptual code)
 
-// ブラウザプロセス側での検証ロジック
+// Validation logic on the browser process side
 class SecurityChecker {
 
-  // ファイルアクセス要求の検証
+  // Validate file access requests
   validateFileAccess(rendererProcessId, filePath) {
-    // 1. レンダラーが要求したファイルパスの正規化
+    // 1. Normalize the file path requested by the renderer
     const normalizedPath = this.normalizePath(filePath);
 
-    // 2. パストラバーサル攻撃の検出
+    // 2. Detect path traversal attacks
     if (normalizedPath.includes('..') || normalizedPath.includes('~')) {
       this.killRenderer(rendererProcessId, 'PATH_TRAVERSAL_ATTEMPT');
       return false;
     }
 
-    // 3. ダウンロードディレクトリ外へのアクセスを拒否
+    // 3. Deny access outside the download directory
     if (!normalizedPath.startsWith(this.allowedBasePath)) {
       this.killRenderer(rendererProcessId, 'UNAUTHORIZED_FILE_ACCESS');
       return false;
     }
 
-    // 4. 機密ファイルへのアクセスを拒否
+    // 4. Deny access to sensitive files
     const sensitivePatterns = ['/etc/passwd', '/etc/shadow', '.ssh/'];
     for (const pattern of sensitivePatterns) {
       if (normalizedPath.includes(pattern)) {
@@ -1128,16 +1128,16 @@ class SecurityChecker {
     return true;
   }
 
-  // ナビゲーション要求の検証
+  // Validate navigation requests
   validateNavigation(rendererProcessId, sourceOrigin, targetURL) {
-    // レンダラーが自身のオリジンを詐称していないか確認
+    // Verify the renderer is not spoofing its own origin
     const expectedOrigin = this.getOriginForProcess(rendererProcessId);
     if (sourceOrigin !== expectedOrigin) {
       this.killRenderer(rendererProcessId, 'ORIGIN_SPOOFING');
       return false;
     }
 
-    // chrome:// や file:// への不正なナビゲーションを拒否
+    // Deny unauthorized navigation to chrome:// or file://
     const scheme = new URL(targetURL).protocol;
     if (['chrome:', 'file:', 'chrome-extension:'].includes(scheme)) {
       if (!this.isSchemeAllowed(rendererProcessId, scheme)) {
@@ -1148,10 +1148,10 @@ class SecurityChecker {
     return true;
   }
 
-  // 不正なレンダラーを強制終了
+  // Force-terminate a bad renderer
   killRenderer(processId, reason) {
     console.error(`Killing renderer ${processId}: ${reason}`);
-    // chrome://kills で確認可能
+    // Visible at chrome://kills
     process.kill(processId);
     this.reportBadMessage(processId, reason);
   }
@@ -1160,92 +1160,92 @@ class SecurityChecker {
 
 ---
 
-## 8. GPU プロセスとハードウェアアクセラレーション
+## 8. GPU Process and Hardware Acceleration
 
-### 8.1 GPU プロセスの役割
+### 8.1 Role of the GPU Process
 
-GPUプロセスは全てのレンダラープロセスからの描画コマンドを受け取り、GPUハードウェアを使って画面を描画する。
+The GPU process receives draw commands from all renderer processes and uses GPU hardware to render the screen.
 
 ```
-GPU プロセスの構成:
+GPU Process Configuration:
 
-  レンダラープロセス群                  GPU プロセス
+  Renderer Processes                     GPU Process
   ┌──────────────┐                    ┌──────────────────────────┐
   │ Renderer A   │                    │                          │
-  │ ┌──────────┐ │   コマンドバッファ   │  ┌────────────────────┐│
-  │ │Compositor│─│────────────────────│──│ コマンドデコーダ   ││
+  │ ┌──────────┐ │   Command buffer    │  ┌────────────────────┐│
+  │ │Compositor│─│────────────────────│──│ Command Decoder    ││
   │ └──────────┘ │                    │  └────────┬───────────┘│
   └──────────────┘                    │           │            │
                                       │           ▼            │
   ┌──────────────┐                    │  ┌────────────────────┐│
   │ Renderer B   │                    │  │ Skia (GPU Backend) ││
-  │ ┌──────────┐ │   コマンドバッファ   │  │                    ││
+  │ ┌──────────┐ │   Command buffer    │  │                    ││
   │ │Compositor│─│────────────────────│──│ ┌───────┐ ┌──────┐││
   │ └──────────┘ │                    │  │ │OpenGL │ │Vulkan│││
   └──────────────┘                    │  │ └───────┘ └──────┘││
                                       │  │ ┌───────┐ ┌──────┐││
   ┌──────────────┐                    │  │ │Metal  │ │D3D12 │││
   │ Renderer C   │                    │  │ │(macOS)│ │(Win) │││
-  │ ┌──────────┐ │   コマンドバッファ   │  │ └───────┘ └──────┘││
+  │ ┌──────────┐ │   Command buffer    │  │ └───────┘ └──────┘││
   │ │Compositor│─│────────────────────│──│                    ││
   │ └──────────┘ │                    │  └────────┬───────────┘│
   └──────────────┘                    │           │            │
                                       │           ▼            │
                                       │  ┌────────────────────┐│
-                                      │  │ ディスプレイ出力   ││
-                                      │  │ (VSync 同期)       ││
+                                      │  │ Display Output     ││
+                                      │  │ (VSync sync)       ││
                                       │  └────────────────────┘│
                                       └──────────────────────────┘
 
-  GPU プロセスを分離する理由:
-  (1) GPU ドライバのクラッシュがブラウザ全体に影響しない
-  (2) GPU リソースの一元管理（VRAM の効率的利用）
-  (3) サンドボックスの境界として機能
-  (4) GPUドライバは OS カーネルに近い特権的な操作が必要
+  Reasons for isolating the GPU process:
+  (1) A GPU driver crash does not affect the entire browser
+  (2) Centralized management of GPU resources (efficient VRAM use)
+  (3) Acts as a sandbox boundary
+  (4) GPU drivers require privileged operations close to the OS kernel
 ```
 
-### 8.2 ハードウェアアクセラレーション対象
+### 8.2 Hardware Acceleration Targets
 
 ```
-ハードウェアアクセラレーションの対象と確認方法:
+Hardware Acceleration Targets and How to Check:
 
   ┌───────────────────────────────────────────────────────────┐
-  │ 機能                     │ GPU 利用 │ 確認場所            │
-  ├──────────────────────────┼─────────┼────────────────────┤
-  │ ページ合成               │ Yes     │ chrome://gpu        │
-  │ CSS 3D Transform         │ Yes     │ chrome://gpu        │
-  │ CSS Animation            │ Yes     │ DevTools > Layers   │
-  │ WebGL / WebGL2           │ Yes     │ chrome://gpu        │
-  │ WebGPU                   │ Yes     │ chrome://flags      │
-  │ ビデオデコード           │ Yes     │ chrome://media-internals │
-  │ ビデオエンコード         │ Yes     │ chrome://gpu        │
-  │ Canvas 2D                │ 部分的  │ chrome://flags      │
-  │ SVG レンダリング         │ 部分的  │ ---                 │
-  │ テキストレンダリング     │ No      │ CPU で処理          │
-  │ JavaScript 実行          │ No      │ CPU で処理          │
-  │ DOM 操作                 │ No      │ CPU で処理          │
+  │ Feature                    │ GPU Use │ Where to Check      │
+  ├────────────────────────────┼─────────┼────────────────────┤
+  │ Page compositing           │ Yes     │ chrome://gpu        │
+  │ CSS 3D Transform           │ Yes     │ chrome://gpu        │
+  │ CSS Animation              │ Yes     │ DevTools > Layers   │
+  │ WebGL / WebGL2             │ Yes     │ chrome://gpu        │
+  │ WebGPU                     │ Yes     │ chrome://flags      │
+  │ Video decoding             │ Yes     │ chrome://media-internals │
+  │ Video encoding             │ Yes     │ chrome://gpu        │
+  │ Canvas 2D                  │ Partial │ chrome://flags      │
+  │ SVG rendering              │ Partial │ ---                 │
+  │ Text rendering             │ No      │ Handled by CPU      │
+  │ JavaScript execution       │ No      │ Handled by CPU      │
+  │ DOM manipulation           │ No      │ Handled by CPU      │
   └───────────────────────────────────────────────────────────┘
 
-  chrome://gpu で確認できる情報:
-  ・Graphics Feature Status（各機能の有効/無効状態）
-  ・Driver Information（GPU ドライバ情報）
-  ・Compositor Information（コンポジター設定）
-  ・GpuMemoryBuffers Status（GPU メモリバッファ状態）
+  Information available at chrome://gpu:
+  ・Graphics Feature Status (enabled/disabled state of each feature)
+  ・Driver Information (GPU driver details)
+  ・Compositor Information (compositor settings)
+  ・GpuMemoryBuffers Status (GPU memory buffer state)
 ```
 
 ---
 
-## 9. DevTools によるプロセス・パフォーマンス分析
+## 9. Process and Performance Analysis with DevTools
 
-### 9.1 Chrome タスクマネージャの活用
+### 9.1 Using the Chrome Task Manager
 
 ```
-Chrome タスクマネージャの起動と読み方:
+Launching and Reading the Chrome Task Manager:
 
-  起動方法:
+  How to launch:
   ・Windows / Linux: Shift + Esc
-  ・macOS: Window メニュー → Task Manager
-  ・全OS共通: More tools → Task Manager
+  ・macOS: Window menu → Task Manager
+  ・All OS: More tools → Task Manager
 
   ┌────────────────────────────────────────────────────────────┐
   │ Chrome Task Manager                                        │
@@ -1264,19 +1264,19 @@ Chrome タスクマネージャの起動と読み方:
   │ Service Worker: PWA │ 22MB   │ 0.0%  │ 0      │ 12355     │
   └─────────────────────┴────────┴───────┴────────┴───────────┘
 
-  注目ポイント:
-  ・「Subframe: ads.com」→ Site Isolation により別プロセス化された iframe
-  ・YouTube の高いCPU使用率 → 動画デコード + JS処理
-  ・Memory が異常に高いタブ → メモリリークの可能性
-  ・右クリックで列を追加可能: JavaScript Memory, Image Cache 等
+  Key points:
+  ・"Subframe: ads.com" → an iframe isolated to a separate process by Site Isolation
+  ・YouTube's high CPU usage → video decoding + JS processing
+  ・A tab with abnormally high Memory → possible memory leak
+  ・Right-click to add columns: JavaScript Memory, Image Cache, etc.
 ```
 
-### 9.2 Performance パネルの活用
+### 9.2 Using the Performance Panel
 
-**コード例 6: Performance API を使ったボトルネック特定**
+**Code Example 6: Identifying Bottlenecks with the Performance API**
 
 ```javascript
-// パフォーマンス計測のユーティリティクラス
+// Utility class for performance measurement
 class BrowserPerformanceAnalyzer {
 
   constructor() {
@@ -1284,25 +1284,25 @@ class BrowserPerformanceAnalyzer {
     this.measures = [];
   }
 
-  // レンダリングパイプラインの各段階を計測
+  // Measure each stage of the rendering pipeline
   measureRenderingPipeline() {
-    // スタイル再計算のコスト測定
+    // Measure style recalculation cost
     performance.mark('style-start');
-    // ... DOM操作やクラス変更 ...
+    // ... DOM manipulation or class changes ...
     requestAnimationFrame(() => {
       performance.mark('style-end');
       performance.measure('Style Recalculation', 'style-start', 'style-end');
     });
   }
 
-  // Layout Thrashing の検出
+  // Detect Layout Thrashing
   detectLayoutThrashing() {
     const originalGetComputedStyle = window.getComputedStyle;
     let readCount = 0;
     let writeCount = 0;
     let thrashingDetected = false;
 
-    // getComputedStyle の呼び出しを監視
+    // Monitor calls to getComputedStyle
     window.getComputedStyle = function(...args) {
       readCount++;
       if (writeCount > 0 && readCount > 1) {
@@ -1315,7 +1315,7 @@ class BrowserPerformanceAnalyzer {
       return originalGetComputedStyle.apply(this, args);
     };
 
-    // 一定時間後にリセット
+    // Reset after a period of time
     requestAnimationFrame(() => {
       window.getComputedStyle = originalGetComputedStyle;
       readCount = 0;
@@ -1325,18 +1325,18 @@ class BrowserPerformanceAnalyzer {
     return { isThrashing: () => thrashingDetected };
   }
 
-  // Navigation Timing の詳細分析
+  // Detailed analysis of Navigation Timing
   analyzeNavigationTiming() {
     const timing = performance.getEntriesByType('navigation')[0];
     if (!timing) return null;
 
     return {
-      // DNS ルックアップ
+      // DNS lookup
       dns: {
         duration: timing.domainLookupEnd - timing.domainLookupStart,
         label: 'DNS Lookup'
       },
-      // TCP 接続（TLS 含む）
+      // TCP connection (including TLS)
       connection: {
         duration: timing.connectEnd - timing.connectStart,
         label: 'TCP + TLS'
@@ -1346,12 +1346,12 @@ class BrowserPerformanceAnalyzer {
         duration: timing.responseStart - timing.requestStart,
         label: 'TTFB'
       },
-      // レスポンスダウンロード
+      // Response download
       download: {
         duration: timing.responseEnd - timing.responseStart,
         label: 'Download'
       },
-      // DOM パース
+      // DOM parsing
       domParse: {
         duration: timing.domInteractive - timing.responseEnd,
         label: 'DOM Parse'
@@ -1362,7 +1362,7 @@ class BrowserPerformanceAnalyzer {
           - timing.domContentLoadedEventStart,
         label: 'DOMContentLoaded handlers'
       },
-      // 全体のロード時間
+      // Total load time
       totalLoad: {
         duration: timing.loadEventEnd - timing.navigationStart,
         label: 'Total Load'
@@ -1370,7 +1370,7 @@ class BrowserPerformanceAnalyzer {
     };
   }
 
-  // Resource Timing の分析
+  // Analyze Resource Timing
   analyzeResourceTiming() {
     const resources = performance.getEntriesByType('resource');
 
@@ -1400,10 +1400,10 @@ class BrowserPerformanceAnalyzer {
   }
 }
 
-// 使用例
+// Usage example
 const analyzer = new BrowserPerformanceAnalyzer();
 
-// ページロード後に分析を実行
+// Run analysis after page load
 window.addEventListener('load', () => {
   setTimeout(() => {
     const navTiming = analyzer.analyzeNavigationTiming();
@@ -1421,95 +1421,95 @@ window.addEventListener('load', () => {
 });
 ```
 
-### 9.3 chrome://tracing の活用
+### 9.3 Using chrome://tracing
 
 ```
-chrome://tracing（Perfetto UI）の使い方:
+Using chrome://tracing (Perfetto UI):
 
-  1. chrome://tracing にアクセス
-  2. 「Record」ボタンをクリック
-  3. カテゴリを選択:
-     ・blink    → レンダリングエンジンの内部
-     ・cc       → コンポジター
-     ・gpu      → GPU コマンド
-     ・v8       → JavaScript エンジン
-     ・netlog   → ネットワーク
-     ・loading  → リソースローディング
+  1. Navigate to chrome://tracing
+  2. Click the "Record" button
+  3. Select categories:
+     ・blink    → rendering engine internals
+     ・cc       → compositor
+     ・gpu      → GPU commands
+     ・v8       → JavaScript engine
+     ・netlog   → network
+     ・loading  → resource loading
 
-  4. 操作を行い「Stop」で記録終了
-  5. タイムラインで各プロセス/スレッドの動作を確認
+  4. Perform actions, then click "Stop" to end recording
+  5. Inspect behavior of each process/thread on the timeline
 
-  代替: Perfetto UI（https://ui.perfetto.dev/）
-  → より高機能な分析ツール
-  → SQL クエリでのデータ分析が可能
-  → chrome://tracing のデータをインポート可能
+  Alternative: Perfetto UI (https://ui.perfetto.dev/)
+  → More powerful analysis tool
+  → Supports SQL queries for data analysis
+  → Can import chrome://tracing data
 
-  主要なトレースイベント:
+  Key trace events:
   ┌──────────────────────┬──────────────────────────────────┐
-  │ イベント名            │ 意味                             │
+  │ Event Name            │ Meaning                          │
   ├──────────────────────┼──────────────────────────────────┤
-  │ ParseHTML            │ HTML パース                       │
-  │ UpdateLayoutTree     │ スタイル計算                      │
-  │ Layout               │ レイアウト計算                    │
-  │ PrePaint             │ ペイント準備                      │
-  │ Paint                │ ペイント命令生成                  │
-  │ CompositeLayers      │ レイヤー合成                      │
-  │ V8.Execute           │ JavaScript 実行                   │
-  │ V8.GCScavenge        │ マイナー GC                       │
-  │ V8.GCMarkCompact     │ メジャー GC                       │
-  │ ResourceReceivedData │ ネットワークデータ受信            │
-  │ DecodeImage          │ 画像デコード                      │
-  │ Rasterize            │ ラスタライズ                      │
+  │ ParseHTML            │ HTML parsing                      │
+  │ UpdateLayoutTree     │ Style calculation                 │
+  │ Layout               │ Layout calculation                │
+  │ PrePaint             │ Pre-paint preparation             │
+  │ Paint                │ Paint command generation          │
+  │ CompositeLayers      │ Layer compositing                 │
+  │ V8.Execute           │ JavaScript execution              │
+  │ V8.GCScavenge        │ Minor GC                          │
+  │ V8.GCMarkCompact     │ Major GC                          │
+  │ ResourceReceivedData │ Network data received             │
+  │ DecodeImage          │ Image decoding                    │
+  │ Rasterize            │ Rasterization                     │
   └──────────────────────┴──────────────────────────────────┘
 ```
 
 ---
 
-## 10. アンチパターンと回避策
+## 10. Anti-Patterns and How to Avoid Them
 
-### 10.1 アンチパターン 1: Layout Thrashing（レイアウトスラッシング）
+### 10.1 Anti-Pattern 1: Layout Thrashing
 
-Layout Thrashing とは、JavaScript でスタイルの読み取りと書き込みを交互に行うことで、ブラウザが毎回レイアウトを強制的に再計算する現象である。これはパフォーマンスを著しく低下させる。
+Layout Thrashing is a phenomenon where JavaScript alternates between reading and writing styles, forcing the browser to recalculate layout repeatedly every time. This significantly degrades performance.
 
 ```javascript
-// ===== アンチパターン: Layout Thrashing =====
+// ===== Anti-pattern: Layout Thrashing =====
 
-// 悪い例: 読み取りと書き込みの交互実行
+// Bad: alternating reads and writes
 function resizeAllBoxesBad(boxes) {
   for (const box of boxes) {
-    // 読み取り → 強制レイアウト発生
+    // Read → forces layout recalculation
     const width = box.offsetWidth;
 
-    // 書き込み → レイアウトが無効化される
+    // Write → invalidates the layout
     box.style.width = (width * 1.1) + 'px';
 
-    // 次のループで再び読み取り → 再度強制レイアウト!
-    // N個のボックスに対して N回のレイアウト計算 → O(N) 回のレイアウト
+    // Next iteration reads again → forces layout again!
+    // N boxes → N layout calculations → O(N) layouts
   }
-  // 100個のボックスで約 100回のレイアウト再計算
-  // → 数十ms～数百ms のブロッキング
+  // With 100 boxes → ~100 layout recalculations
+  // → Blocking for tens to hundreds of milliseconds
 }
 
-// ===== 推奨パターン: バッチ読み取り + バッチ書き込み =====
+// ===== Recommended: Batch reads + batch writes =====
 
-// 良い例: 読み取りを先にまとめ、その後書き込みをまとめる
+// Good: batch all reads first, then batch all writes
 function resizeAllBoxesGood(boxes) {
-  // Phase 1: 全ての読み取りをバッチ処理（レイアウト計算は1回だけ）
+  // Phase 1: batch all reads (layout is calculated only once)
   const widths = boxes.map(box => box.offsetWidth);
 
-  // Phase 2: 全ての書き込みをバッチ処理
+  // Phase 2: batch all writes
   boxes.forEach((box, i) => {
     box.style.width = (widths[i] * 1.1) + 'px';
   });
-  // レイアウト計算は最初の1回 + 書き込み後の1回 = 合計2回のみ
+  // Layout: 1 calculation on first read + 1 after writes = 2 total
 }
 
-// さらに良い例: requestAnimationFrame を使用
+// Even better: use requestAnimationFrame
 function resizeAllBoxesBest(boxes) {
-  // 読み取りは現在のフレームで実行
+  // Reads happen in the current frame
   const widths = boxes.map(box => box.offsetWidth);
 
-  // 書き込みは次のフレームで実行
+  // Writes happen in the next frame
   requestAnimationFrame(() => {
     boxes.forEach((box, i) => {
       box.style.width = (widths[i] * 1.1) + 'px';
@@ -1517,7 +1517,7 @@ function resizeAllBoxesBest(boxes) {
   });
 }
 
-// 強制レイアウト（Forced Synchronous Layout）を引き起こすプロパティ:
+// Properties that trigger Forced Synchronous Layout:
 // offsetTop, offsetLeft, offsetWidth, offsetHeight
 // scrollTop, scrollLeft, scrollWidth, scrollHeight
 // clientTop, clientLeft, clientWidth, clientHeight
@@ -1526,32 +1526,32 @@ function resizeAllBoxesBest(boxes) {
 // innerText
 ```
 
-### 10.2 アンチパターン 2: 過剰なレイヤー昇格
+### 10.2 Anti-Pattern 2: Excessive Layer Promotion
 
 ```css
-/* ===== アンチパターン: 全要素に will-change を設定 ===== */
+/* ===== Anti-pattern: applying will-change to every element ===== */
 
-/* 悪い例: 全要素をレイヤー昇格させる */
+/* Bad: promoting every element to its own layer */
 * {
   will-change: transform;
-  /* 全要素が独立レイヤーになる
-     → GPU メモリを大量消費
-     → レイヤー管理のオーバーヘッド増大
-     → 逆にパフォーマンス低下 */
+  /* Every element becomes an independent layer
+     → Consumes massive amounts of GPU memory
+     → Increases layer management overhead
+     → Actually degrades performance */
 }
 
-/* 悪い例: 多数のリストアイテムに will-change */
+/* Bad: will-change on many list items */
 .list-item {
   will-change: transform, opacity;
-  /* 1000個のリストアイテムがあれば1000レイヤー
-     → GPU メモリ枯渇 → ソフトウェアフォールバック */
+  /* 1000 list items → 1000 layers
+     → GPU memory exhaustion → software fallback */
 }
 ```
 
 ```css
-/* ===== 推奨パターン: 必要な要素にだけ、必要なタイミングで ===== */
+/* ===== Recommended: apply only to elements that need it, only when needed ===== */
 
-/* 良い例: hover 時のみ will-change を有効化 */
+/* Good: enable will-change only on hover */
 .card {
   transition: transform 0.3s ease;
 }
@@ -1562,7 +1562,7 @@ function resizeAllBoxesBest(boxes) {
   transform: scale(1.05);
 }
 
-/* 良い例: JavaScript で動的に管理 */
+/* Good: manage dynamically with JavaScript */
 /*
   element.addEventListener('mouseenter', () => {
     element.style.willChange = 'transform';
@@ -1572,32 +1572,32 @@ function resizeAllBoxesBest(boxes) {
   });
 */
 
-/* 良い例: アニメーション対象の少数要素にだけ適用 */
+/* Good: apply only to the few elements being animated */
 .modal-overlay {
   will-change: opacity;
 }
 .slide-panel {
   will-change: transform;
 }
-/* その他の要素には will-change を設定しない */
+/* Do not set will-change on other elements */
 ```
 
-### 10.3 アンチパターン 3: メインスレッドの過負荷
+### 10.3 Anti-Pattern 3: Overloading the Main Thread
 
 ```javascript
-// ===== アンチパターン: メインスレッドで重い計算 =====
+// ===== Anti-pattern: heavy computation on the main thread =====
 
-// 悪い例: 大量データのソートをメインスレッドで実行
+// Bad: sorting a large dataset on the main thread
 function sortLargeDatasetBad(data) {
-  // 100万件のデータソート → メインスレッドが数秒間ブロック
-  // → スクロール不可、クリック不応答、アニメーション停止
+  // Sorting 1 million records → blocks the main thread for seconds
+  // → no scrolling, no click response, animations stop
   return data.sort((a, b) => {
-    // 複雑な比較ロジック
+    // complex comparison logic
     return complexComparison(a, b);
   });
 }
 
-// ===== 推奨パターン: Web Worker にオフロード =====
+// ===== Recommended: offload to a Web Worker =====
 
 // worker.js
 // self.addEventListener('message', (e) => {
@@ -1606,7 +1606,7 @@ function sortLargeDatasetBad(data) {
 //   self.postMessage({ sorted });
 // });
 
-// メインスレッド側
+// Main thread side
 function sortLargeDatasetGood(data, sortKey) {
   return new Promise((resolve) => {
     const worker = new Worker('worker.js');
@@ -1618,9 +1618,9 @@ function sortLargeDatasetGood(data, sortKey) {
   });
 }
 
-// ===== 推奨パターン: タスク分割 (Time Slicing) =====
+// ===== Recommended: Task splitting (Time Slicing) =====
 
-// チャンクに分割して処理し、メインスレッドに呼吸させる
+// Process in chunks, yielding to the main thread between each
 async function processInChunks(items, processFn, chunkSize = 100) {
   const results = [];
 
@@ -1629,11 +1629,11 @@ async function processInChunks(items, processFn, chunkSize = 100) {
     const chunkResults = chunk.map(processFn);
     results.push(...chunkResults);
 
-    // 各チャンク後にメインスレッドに制御を戻す
-    // → レンダリングやイベント処理が割り込み可能
+    // Return control to the main thread after each chunk
+    // → rendering and event handling can interleave
     if (i + chunkSize < items.length) {
       await new Promise(resolve => {
-        // scheduler.yield() が利用可能なら使用
+        // Use scheduler.yield() if available
         if ('scheduler' in globalThis && 'yield' in scheduler) {
           scheduler.yield().then(resolve);
         } else {
@@ -1646,7 +1646,7 @@ async function processInChunks(items, processFn, chunkSize = 100) {
   return results;
 }
 
-// 使用例
+// Usage example
 // const processed = await processInChunks(largeArray, item => {
 //   return expensiveTransform(item);
 // }, 50);
@@ -1656,115 +1656,114 @@ async function processInChunks(items, processFn, chunkSize = 100) {
 
 ## FAQ
 
-### Q1: マルチプロセスアーキテクチャのメリットは何ですか？
+### Q1: What are the benefits of a multi-process architecture?
 
-**A:** マルチプロセスアーキテクチャには3つの主要なメリットがあります。
+**A:** The multi-process architecture has three main benefits.
 
-1. **安定性（Stability）**: 1つのタブやプラグインがクラッシュしても、他のタブやブラウザ本体には影響しません。レンダラープロセスが異常終了しても、ブラウザプロセスが生きているため「タブがクラッシュしました」と表示してリロードを促すことができます。
+1. **Stability**: If one tab or plugin crashes, other tabs and the browser itself are unaffected. Even if a renderer process terminates abnormally, the browser process remains alive and can show "Tab crashed" with an option to reload.
 
-2. **セキュリティ（Security）**: 各レンダラープロセスはサンドボックス内で実行されるため、悪意のあるWebサイトがファイルシステムやネットワークに直接アクセスすることを防げます。特権操作はブラウザプロセスを経由する必要があり、権限チェックが行われます。
+2. **Security**: Each renderer process runs inside a sandbox, preventing malicious websites from directly accessing the file system or network. Privileged operations must go through the browser process, where permission checks are enforced.
 
-3. **パフォーマンス（Performance）**: マルチコアCPUを活用して複数のタブを並列処理できます。また、タブごとにプロセスを分離することで、メモリリークが発生してもタブを閉じればプロセスごとメモリが解放されます。
+3. **Performance**: Multi-core CPUs can be leveraged to process multiple tabs in parallel. Also, by isolating each tab in its own process, closing a tab frees all of that process's memory, even if it had a memory leak.
 
-ただし、プロセス数が増えるとメモリオーバーヘッドも増大するため、Chromeは適宜プロセスを統合する最適化も行っています（プロセスモデルの項を参照）。
+However, more processes also means more memory overhead, so Chrome also performs optimizations to merge processes when appropriate (see the process model section).
 
-### Q2: ChromeとFirefoxのアーキテクチャの違いは何ですか？
+### Q2: What are the differences between Chrome and Firefox architectures?
 
-**A:** 主な違いは以下の通りです。
+**A:** The main differences are as follows.
 
-**Chrome（Chromium）**:
-- **タブごとにレンダラープロセス**を分離するマルチプロセスモデル（ただし、同一サイトは統合される場合もある）
-- **Site Isolation**: セキュリティを強化するため、クロスサイトiframeも別プロセスで実行（Spectre攻撃対策）
-- **GPU プロセス**: 全タブで共有する単一のGPUプロセス
-- **Blink レンダリングエンジン** + **V8 JavaScript エンジン**
+**Chrome (Chromium)**:
+- **Renderer process per tab** multi-process model (same-site tabs may be merged)
+- **Site Isolation**: cross-site iframes also run in separate processes for stronger security (Spectre mitigation)
+- **GPU process**: single GPU process shared by all tabs
+- **Blink rendering engine** + **V8 JavaScript engine**
 
 **Firefox**:
-- **Quantum（Electrolysis/e10s）**: タブごとにコンテンツプロセスを分離（Chrome類似）
-- **Fission**: Site Isolation相当の機能（iframe分離）を段階的に導入中
-- **GPUプロセス**: Chromeと同様に単一のGPUプロセス
-- **Gecko レンダリングエンジン** + **SpiderMonkey JavaScript エンジン**
+- **Quantum (Electrolysis/e10s)**: isolates a content process per tab (similar to Chrome)
+- **Fission**: Site Isolation equivalent (iframe isolation) being introduced gradually
+- **GPU process**: single GPU process, same as Chrome
+- **Gecko rendering engine** + **SpiderMonkey JavaScript engine**
 
-アーキテクチャの基本思想は収束していますが、エンジンの実装や最適化戦略には違いがあります。例えば、Firefoxは「WebRender」という新しいGPU駆動のレンダリングエンジンを採用しており、Chromeとは異なるアプローチでパフォーマンスを追求しています。
+The fundamental architecture philosophy is converging, but engine implementations and optimization strategies differ. For example, Firefox uses a new GPU-driven rendering engine called "WebRender," which pursues performance through a different approach than Chrome.
 
-### Q3: Site Isolationの仕組みを教えてください
+### Q3: How does Site Isolation work?
 
-**A:** Site Isolation は、クロスサイト攻撃（特にSpectre攻撃）からユーザーを守るためのセキュリティ機能です。
+**A:** Site Isolation is a security feature that protects users from cross-site attacks, especially Spectre.
 
-**基本原理**:
-- 異なるオリジン（スキーム + ドメイン + ポート）のコンテンツは**別のレンダラープロセス**で実行される
-- 例: `https://example.com` のメインフレームと `https://ad.example.net` のiframeは別プロセス
+**Basic principle**:
+- Content from different origins (scheme + domain + port) runs in **separate renderer processes**
+- Example: the main frame of `https://example.com` and an iframe from `https://ad.example.net` run in separate processes
 
-**なぜ必要か**:
-- Spectre攻撃は、同一プロセス内のメモリを読み取る脆弱性です
-- Site Isolationにより、悪意のあるiframeが親フレームのメモリ（パスワードやトークンなど）を読み取ることを防ぎます
+**Why it is necessary**:
+- Spectre attacks are vulnerabilities that read memory within the same process
+- Site Isolation prevents a malicious iframe from reading the parent frame's memory (passwords, tokens, etc.)
 
-**実装の詳細**:
-1. **OOPIF（Out-of-Process iframes）**: クロスサイトiframeは別プロセスのレンダラーで描画され、メインフレームとはIPCで通信
-2. **CORB（Cross-Origin Read Blocking）**: レンダラープロセスが不正なクロスオリジンリソース（HTML/JSON/XML）を読み込むのをブロック
-3. **メモリオーバーヘッド**: プロセス数が増えるためメモリ使用量は10-20%増加しますが、セキュリティ上の利点が上回ると判断されています
+**Implementation details**:
+1. **OOPIF (Out-of-Process iframes)**: cross-site iframes are rendered in a separate renderer process and communicate with the main frame via IPC
+2. **CORB (Cross-Origin Read Blocking)**: blocks renderer processes from loading unauthorized cross-origin resources (HTML/JSON/XML)
+3. **Memory overhead**: more processes increase memory usage by 10–20%, but the security benefits are judged to outweigh this cost
 
-**有効化状況**:
-- Chrome 67以降、デスクトップ版ではデフォルトで有効
-- Androidでは一部のハイエンドデバイスのみ有効（メモリ制約のため）
+**Activation status**:
+- Enabled by default on desktop Chrome since version 67
+- On Android, enabled only on some high-end devices (due to memory constraints)
 
-詳細は [Site Isolation Design Document](https://www.chromium.org/Home/chromium-security/site-isolation/) を参照してください。
-
----
-
-## まとめ
-
-| 項目 | 内容 |
-|------|------|
-| **マルチプロセスアーキテクチャ** | ブラウザプロセス、レンダラープロセス、GPUプロセス等に分離。安定性・セキュリティ・パフォーマンスを向上 |
-| **主要プロセス** | ブラウザ（UI・ネットワーク・ストレージ管理）、レンダラー（HTML/CSS/JSレンダリング、サンドボックス化）、GPU（描画アクセラレーション） |
-| **IPC（プロセス間通信）** | Mojoフレームワークでプロセス間メッセージング。型安全・非同期通信を実現 |
-| **Site Isolation** | クロスサイトiframeを別プロセスで実行し、Spectre攻撃から保護。OOPIF・CORBと組み合わせてセキュリティ強化 |
-| **レンダリングパイプライン** | HTML → DOM、CSS → CSSOM → Render Tree → Layout → Paint → Composite（GPU駆動）の7段階 |
-| **最適化戦略** | Layerの最小化、will-change の適切な使用、Web Workerへのオフロード、Time Slicingによるメインスレッド負荷軽減 |
-
-**キーポイント**:
-
-1. **プロセス分離がセキュリティの鍵**: サンドボックスとSite Isolationにより、悪意のあるコンテンツがシステムや他のタブに影響を与えることを防ぐ
-2. **レンダリングパイプラインの理解が最適化の第一歩**: Layout・Paint・Compositeの各段階を意識し、不要な再計算を避ける設計が重要
-3. **モダンブラウザはGPU駆動**: Compositingレイヤーを活用し、transform/opacityのアニメーションをGPUで処理することで60fpsを実現
+See the [Site Isolation Design Document](https://www.chromium.org/Home/chromium-security/site-isolation/) for details.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-ブラウザアーキテクチャの全体像を理解したら、次は実際のWebページの読み込みプロセスを深掘りしましょう。
+| Topic | Details |
+|-------|---------|
+| **Multi-process architecture** | Separated into browser process, renderer process, GPU process, etc. Improves stability, security, and performance |
+| **Key processes** | Browser (UI, network, storage management), Renderer (HTML/CSS/JS rendering, sandboxed), GPU (rendering acceleration) |
+| **IPC (Inter-Process Communication)** | Mojo framework for inter-process messaging. Achieves type-safe, asynchronous communication |
+| **Site Isolation** | Runs cross-site iframes in separate processes, protecting against Spectre attacks. Enhanced security with OOPIF and CORB |
+| **Rendering pipeline** | 7 stages: HTML → DOM, CSS → CSSOM → Render Tree → Layout → Paint → Composite (GPU-driven) |
+| **Optimization strategies** | Minimize layers, use will-change appropriately, offload to Web Workers, reduce main thread load with Time Slicing |
 
-- **[ナビゲーションとローディング](./01-navigation-and-loading.md)**: URLを入力してからページが表示されるまでの詳細なフローを解説
-  - DNS解決、TCP/TLS接続、HTTPリクエスト/レスポンス
-  - ナビゲーションタイミングAPI
-  - Critical Rendering Pathの最適化手法
+**Key points**:
 
-その他の関連ガイド:
-- **レンダリングエンジン詳説**: Blink/Geckoの内部実装とレンダリング最適化
-- **JavaScriptエンジン**: V8/SpiderMonkeyの仕組みとパフォーマンスチューニング
+1. **Process isolation is the key to security**: Sandboxing and Site Isolation prevent malicious content from affecting the system or other tabs
+2. **Understanding the rendering pipeline is the first step to optimization**: Design with awareness of the Layout, Paint, and Composite stages to avoid unnecessary recalculations
+3. **Modern browsers are GPU-driven**: Leveraging compositing layers and processing transform/opacity animations on the GPU makes 60 fps achievable
 
 ---
 
-## 参考文献
+## Guides to Read Next
+
+Once you understand the overall browser architecture, dive deeper into the actual web page loading process.
+
+- **[Navigation and Loading](./01-navigation-and-loading.md)**: Detailed flow from URL entry to page display
+  - DNS resolution, TCP/TLS connection, HTTP request/response
+  - Navigation Timing API
+  - Critical Rendering Path optimization techniques
+
+Other related guides:
+- **Rendering Engine Deep Dive**: Internal implementation of Blink/Gecko and rendering optimization
+- **JavaScript Engine**: How V8/SpiderMonkey work and performance tuning
+
+---
+
+## References
 
 1. **[Inside look at modern web browser (Google Developers)](https://developers.google.com/web/updates/2018/09/inside-browser-part1)**
-   Google Chrome チームによるブラウザアーキテクチャの公式解説。4部構成で、マルチプロセスモデルからレンダリングパイプラインまで詳細に説明。
+   Official explanation of browser architecture by the Google Chrome team. A 4-part series covering the multi-process model through the rendering pipeline in detail.
 
 2. **[The Chromium Projects - Multi-process Architecture](https://www.chromium.org/developers/design-documents/multi-process-architecture/)**
-   Chromiumの設計ドキュメント。プロセスモデルの設計思想と実装の詳細を記載。
+   Chromium design document. Describes the design philosophy and implementation details of the process model.
 
 3. **[Life of a Pixel (Chromium)](https://docs.google.com/presentation/d/1boPxbgNrTU0ddsc144rcXayGA_WF53k96imRH8Mp34Y/edit)**
-   Chromiumチームの内部プレゼンテーション。ピクセルがどのように画面に描画されるかを詳細に解説。
+   Internal Chromium team presentation. Detailed explanation of how pixels are rendered to the screen.
 
 4. **[Site Isolation Design Document](https://www.chromium.org/Home/chromium-security/site-isolation/)**
-   Site Isolationの設計文書。OOPIF、CORB、セキュリティモデルの詳細。
+   Design document for Site Isolation. Details on OOPIF, CORB, and the security model.
 
 5. **[Mojo Documentation (Chromium)](https://chromium.googlesource.com/chromium/src/+/master/mojo/README.md)**
-   MojoフレームワークのREADME。IPC（プロセス間通信）の実装とAPI。
+   Mojo framework README. IPC (inter-process communication) implementation and API.
 
 6. **[MDN Web Docs - How browsers work](https://developer.mozilla.org/en-US/docs/Web/Performance/How_browsers_work)**
-   Mozilla Developer Networkによるブラウザの仕組み解説。初学者にも分かりやすい。
+   Mozilla Developer Network explanation of how browsers work. Easy to understand even for beginners.
 
 7. **[Rendering Performance (Web Fundamentals)](https://developers.google.com/web/fundamentals/performance/rendering/)**
-   Google Developersのパフォーマンスガイド。60fpsを達成するための実践的なテクニック。
-
+   Google Developers performance guide. Practical techniques for achieving 60 fps.

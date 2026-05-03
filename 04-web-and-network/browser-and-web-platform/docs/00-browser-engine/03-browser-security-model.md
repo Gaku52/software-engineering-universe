@@ -1,167 +1,167 @@
-# ブラウザセキュリティモデル
+# Browser Security Model
 
-> ブラウザはユーザーとWeb上のコンテンツの間に立つセキュリティの要である。サンドボックス、同一オリジンポリシー、CSP、サイトアイソレーション、Cookie のセキュリティ属性など、多層防御の仕組みを体系的に理解することが、安全なWebアプリケーション開発の基盤となる。
+> The browser is the cornerstone of security standing between users and web content. Systematically understanding the multi-layered defense mechanisms — sandbox, same-origin policy, CSP, site isolation, Cookie security attributes, and more — forms the foundation for developing secure web applications.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] ブラウザのサンドボックスモデルの多層構造を理解する
-- [ ] Same-Origin Policy（同一オリジンポリシー）の原理と例外を把握する
-- [ ] CSP（Content Security Policy）の設計思想と実践的な設定方法を習得する
-- [ ] サイトアイソレーションのアーキテクチャと Spectre 対策を学ぶ
-- [ ] Cookie のセキュリティ属性を正しく設定できるようになる
-- [ ] CORS、SRI、Trusted Types 等の補助的セキュリティ機構を活用できる
-- [ ] セキュリティヘッダーの組み合わせによる多層防御を実装できる
+- [ ] Understand the multi-layer structure of the browser sandbox model
+- [ ] Grasp the principles and exceptions of the Same-Origin Policy
+- [ ] Learn the design philosophy of CSP (Content Security Policy) and practical configuration
+- [ ] Study the architecture of site isolation and Spectre mitigations
+- [ ] Be able to correctly configure Cookie security attributes
+- [ ] Utilize supplementary security mechanisms such as CORS, SRI, and Trusted Types
+- [ ] Implement defense-in-depth through a combination of security headers
 
-## 前提知識
+## Prerequisites
 
-- ブラウザのアーキテクチャ → 参照: [ブラウザアーキテクチャ](./00-browser-architecture.md)
-- HTMLパースとDOM構築 → 参照: [HTML/CSSパース](./02-parsing-html-css.md)
-- Webセキュリティの基礎（XSS, CSRF等） → 参照: セキュリティ基礎
-
----
-
-## 0. ブラウザセキュリティの全体像
-
-### 0.1 なぜブラウザセキュリティが重要なのか
-
-ブラウザは現代のコンピューティングにおいて最も広く使われるアプリケーションの一つであり、ユーザーは日常的に銀行取引、個人情報の入力、機密文書の閲覧などをブラウザ上で行う。しかしブラウザは同時に、信頼できないコンテンツ（任意のWebサイトのHTML、CSS、JavaScript）を実行する環境でもある。この「信頼できないコードを安全に実行する」という根本的な課題に対処するため、ブラウザは複数のセキュリティ層を組み合わせた多層防御（Defense in Depth）アーキテクチャを採用している。
-
-### 0.2 多層防御の概念図
-
-```
-+=====================================================================+
-|                        ユーザーの操作環境                              |
-+=====================================================================+
-|  Layer 5: UI レベルの保護                                            |
-|  ┌─────────────────────────────────────────────────────────────┐    |
-|  │ ・アドレスバーの表示（フィッシング対策）                        │    |
-|  │ ・権限プロンプト（カメラ、位置情報など）                        │    |
-|  │ ・混合コンテンツ警告                                          │    |
-|  │ ・証明書エラー表示                                            │    |
-|  └─────────────────────────────────────────────────────────────┘    |
-|  Layer 4: ネットワークレベルの保護                                    |
-|  ┌─────────────────────────────────────────────────────────────┐    |
-|  │ ・HTTPS/TLS による通信暗号化                                   │    |
-|  │ ・HSTS（HTTP Strict Transport Security）                      │    |
-|  │ ・Certificate Transparency                                    │    |
-|  │ ・DNS over HTTPS (DoH)                                        │    |
-|  └─────────────────────────────────────────────────────────────┘    |
-|  Layer 3: コンテンツレベルの保護                                      |
-|  ┌─────────────────────────────────────────────────────────────┐    |
-|  │ ・CSP（Content Security Policy）                               │    |
-|  │ ・CORS（Cross-Origin Resource Sharing）                        │    |
-|  │ ・SRI（Subresource Integrity）                                 │    |
-|  │ ・Trusted Types                                                │    |
-|  │ ・Referrer Policy                                              │    |
-|  └─────────────────────────────────────────────────────────────┘    |
-|  Layer 2: オリジンレベルの保護                                        |
-|  ┌─────────────────────────────────────────────────────────────┐    |
-|  │ ・Same-Origin Policy（同一オリジンポリシー）                    │    |
-|  │ ・Cookie の SameSite 属性                                      │    |
-|  │ ・オリジン単位のストレージ隔離                                  │    |
-|  └─────────────────────────────────────────────────────────────┘    |
-|  Layer 1: プロセスレベルの保護                                        |
-|  ┌─────────────────────────────────────────────────────────────┐    |
-|  │ ・サンドボックス（OS レベルの権限制限）                         │    |
-|  │ ・サイトアイソレーション（プロセス分離）                        │    |
-|  │ ・V8 エンジンのメモリ安全性                                    │    |
-|  └─────────────────────────────────────────────────────────────┘    |
-|  Layer 0: OS レベルの保護                                             |
-|  ┌─────────────────────────────────────────────────────────────┐    |
-|  │ ・ASLR（Address Space Layout Randomization）                   │    |
-|  │ ・DEP/NX（Data Execution Prevention）                          │    |
-|  │ ・seccomp-bpf (Linux) / Seatbelt (macOS) / LPAC (Windows)     │    |
-|  └─────────────────────────────────────────────────────────────┘    |
-+=====================================================================+
-```
-
-この図に示すとおり、ブラウザセキュリティは単一の仕組みではなく、OSレベルからUIレベルまでの6つの層が連携して動作する。どの層が突破されても、他の層が被害を最小化する設計となっている。
-
-### 0.3 主要な攻撃ベクトルとそれに対応する防御層
-
-| 攻撃手法 | 概要 | 主な防御層 |
-|----------|------|-----------|
-| XSS（Cross-Site Scripting） | 悪意あるスクリプトの注入と実行 | CSP, Trusted Types, Same-Origin Policy |
-| CSRF（Cross-Site Request Forgery） | ユーザーの認証情報を悪用した不正リクエスト | SameSite Cookie, CSRF Token, Origin ヘッダー検証 |
-| Clickjacking | 透明なiframeで意図しない操作を誘導 | X-Frame-Options, CSP frame-ancestors |
-| MITM（Man-in-the-Middle） | 通信の傍受・改ざん | HTTPS/TLS, HSTS, Certificate Pinning |
-| Spectre/Meltdown | CPUの投機的実行を悪用したメモリ読み取り | サイトアイソレーション, Cross-Origin Isolation |
-| Drive-by Download | 脆弱性を突いたマルウェアの自動ダウンロード | サンドボックス, Safe Browsing API |
-| Supply Chain Attack | CDN等の第三者リソースの改ざん | SRI, CSP |
-| DNS Rebinding | DNS応答を操作してオリジン制限を回避 | Same-Origin Policy, DNS Pinning |
+- Browser architecture → see: [Browser Architecture](./00-browser-architecture.md)
+- HTML parsing and DOM construction → see: [HTML/CSS Parsing](./02-parsing-html-css.md)
+- Basics of web security (XSS, CSRF, etc.) → see: Security Fundamentals
 
 ---
 
-## 1. サンドボックス
+## 0. Overview of Browser Security
 
-### 1.1 サンドボックスの基本概念
+### 0.1 Why Browser Security Matters
 
-サンドボックスとは、プログラムの実行環境を隔離し、そのプログラムがアクセスできるリソースを厳しく制限する仕組みである。ブラウザにおけるサンドボックスは、Webコンテンツ（HTML/CSS/JavaScript）を処理するレンダラープロセスに対して適用され、たとえレンダラープロセスが攻撃者に乗っ取られたとしても、ユーザーのシステムへの影響を最小限に抑えることを目的とする。
+The browser is one of the most widely used applications in modern computing; users routinely perform banking transactions, enter personal information, and view confidential documents within it. At the same time, the browser is also an environment that executes untrusted content (HTML, CSS, JavaScript from arbitrary websites). To address the fundamental challenge of "safely executing untrusted code," browsers adopt a Defense-in-Depth architecture that combines multiple security layers.
 
-### 1.2 Chromium のマルチプロセスアーキテクチャ
+### 0.2 Defense-in-Depth Conceptual Diagram
+
+```
++=====================================================================+
+|                        User Operating Environment                   |
++=====================================================================+
+|  Layer 5: UI-Level Protection                                       |
+|  ┌─────────────────────────────────────────────────────────────┐    |
+|  │ · Address bar display (anti-phishing)                        │    |
+|  │ · Permission prompts (camera, location, etc.)               │    |
+|  │ · Mixed content warnings                                    │    |
+|  │ · Certificate error display                                 │    |
+|  └─────────────────────────────────────────────────────────────┘    |
+|  Layer 4: Network-Level Protection                                  |
+|  ┌─────────────────────────────────────────────────────────────┐    |
+|  │ · HTTPS/TLS communication encryption                         │    |
+|  │ · HSTS (HTTP Strict Transport Security)                      │    |
+|  │ · Certificate Transparency                                   │    |
+|  │ · DNS over HTTPS (DoH)                                       │    |
+|  └─────────────────────────────────────────────────────────────┘    |
+|  Layer 3: Content-Level Protection                                  |
+|  ┌─────────────────────────────────────────────────────────────┐    |
+|  │ · CSP (Content Security Policy)                              │    |
+|  │ · CORS (Cross-Origin Resource Sharing)                       │    |
+|  │ · SRI (Subresource Integrity)                                │    |
+|  │ · Trusted Types                                              │    |
+|  │ · Referrer Policy                                            │    |
+|  └─────────────────────────────────────────────────────────────┘    |
+|  Layer 2: Origin-Level Protection                                   |
+|  ┌─────────────────────────────────────────────────────────────┐    |
+|  │ · Same-Origin Policy                                         │    |
+|  │ · Cookie SameSite attribute                                  │    |
+|  │ · Per-origin storage isolation                               │    |
+|  └─────────────────────────────────────────────────────────────┘    |
+|  Layer 1: Process-Level Protection                                  |
+|  ┌─────────────────────────────────────────────────────────────┐    |
+|  │ · Sandbox (OS-level privilege restriction)                   │    |
+|  │ · Site Isolation (process separation)                        │    |
+|  │ · V8 engine memory safety                                    │    |
+|  └─────────────────────────────────────────────────────────────┘    |
+|  Layer 0: OS-Level Protection                                       |
+|  ┌─────────────────────────────────────────────────────────────┐    |
+|  │ · ASLR (Address Space Layout Randomization)                  │    |
+|  │ · DEP/NX (Data Execution Prevention)                         │    |
+|  │ · seccomp-bpf (Linux) / Seatbelt (macOS) / LPAC (Windows)   │    |
+|  └─────────────────────────────────────────────────────────────┘    |
++=====================================================================+
+```
+
+As shown in this diagram, browser security is not a single mechanism but six layers from the OS level to the UI level working in concert. Even if any one layer is breached, the other layers are designed to minimize damage.
+
+### 0.3 Major Attack Vectors and Their Corresponding Defense Layers
+
+| Attack Method | Overview | Primary Defense Layer |
+|---------------|----------|-----------------------|
+| XSS (Cross-Site Scripting) | Injection and execution of malicious scripts | CSP, Trusted Types, Same-Origin Policy |
+| CSRF (Cross-Site Request Forgery) | Unauthorized requests exploiting user credentials | SameSite Cookie, CSRF Token, Origin header validation |
+| Clickjacking | Invisible iframe tricks users into unintended actions | X-Frame-Options, CSP frame-ancestors |
+| MITM (Man-in-the-Middle) | Eavesdropping and tampering with communications | HTTPS/TLS, HSTS, Certificate Pinning |
+| Spectre/Meltdown | Memory reading via CPU speculative execution | Site Isolation, Cross-Origin Isolation |
+| Drive-by Download | Automatic malware download exploiting vulnerabilities | Sandbox, Safe Browsing API |
+| Supply Chain Attack | Tampering of third-party resources such as CDNs | SRI, CSP |
+| DNS Rebinding | Bypassing origin restrictions by manipulating DNS responses | Same-Origin Policy, DNS Pinning |
+
+---
+
+## 1. Sandbox
+
+### 1.1 Sandbox Basics
+
+A sandbox is a mechanism that isolates a program's execution environment and strictly limits the resources it can access. In browsers, the sandbox is applied to the renderer process that handles web content (HTML/CSS/JavaScript), and its purpose is to minimize impact on the user's system even if the renderer process is compromised by an attacker.
+
+### 1.2 Chromium Multi-Process Architecture
 
 ```
 +-------------------------------------------------------------------+
-|                     Chromium プロセスモデル                          |
+|                     Chromium Process Model                         |
 +-------------------------------------------------------------------+
 |                                                                   |
 |  ┌──────────────────────────────────────────┐                     |
-|  │          ブラウザプロセス (Browser)         │  ← 高権限          |
-|  │  ・UI管理（タブ、アドレスバー）              │                     |
-|  │  ・ネットワークI/O                          │                     |
-|  │  ・ファイルシステムアクセス                   │                     |
-|  │  ・子プロセスの生成と管理                    │                     |
-|  │  ・権限管理                                │                     |
+|  │          Browser Process (Browser)        │  ← High privilege  |
+|  │  · UI management (tabs, address bar)      │                     |
+|  │  · Network I/O                            │                     |
+|  │  · File system access                     │                     |
+|  │  · Child process creation and management  │                     |
+|  │  · Permission management                  │                     |
 |  └──────────┬────────────┬──────────────────┘                     |
 |             │ IPC (Mojo) │                                        |
 |     ┌───────┴────┐  ┌────┴───────┐  ┌────────────┐               |
-|     │ レンダラー  │  │ レンダラー  │  │ レンダラー  │  ← 低権限     |
-|     │ プロセスA   │  │ プロセスB   │  │ プロセスC   │  (サンドボックス)|
+|     │ Renderer   │  │ Renderer   │  │ Renderer   │  ← Low priv.  |
+|     │ Process A  │  │ Process B  │  │ Process C  │  (sandboxed)  |
 |     │            │  │            │  │            │               |
 |     │ site-a.com │  │ site-b.com │  │ site-c.com │               |
 |     └────────────┘  └────────────┘  └────────────┘               |
 |                                                                   |
 |     ┌────────────┐  ┌────────────┐  ┌────────────┐               |
 |     │  GPU       │  │ Network    │  │ Storage    │               |
-|     │ プロセス    │  │ サービス    │  │ サービス    │               |
+|     │ Process    │  │ Service    │  │ Service    │               |
 |     └────────────┘  └────────────┘  └────────────┘               |
 +-------------------------------------------------------------------+
 ```
 
-Chromium では、各サイトのコンテンツは独立したレンダラープロセスで実行される。レンダラープロセスはサンドボックス内で動作し、以下の制限が課される。
+In Chromium, each site's content runs in an independent renderer process. The renderer process operates inside a sandbox with the following restrictions.
 
-### 1.3 OS 別のサンドボックス実装
+### 1.3 OS-Specific Sandbox Implementations
 
-サンドボックスの具体的な実装はOSごとに異なる。各OSが提供するセキュリティ機構を活用して、レンダラープロセスの権限を最小化する。
+The concrete implementation of the sandbox differs per OS. Each OS's provided security mechanisms are used to minimize renderer process privileges.
 
-| OS | サンドボックス技術 | 主な制限内容 |
-|----|--------------------|-------------|
-| Linux | seccomp-bpf + Namespaces | システムコールのフィルタリング、PID/ネットワーク名前空間による隔離 |
-| macOS | Seatbelt (sandbox_init) | プロファイルベースのリソースアクセス制御 |
-| Windows | Restricted Token + LPAC | トークンの権限削減、AppContainer による隔離 |
-| Android | SELinux + seccomp-bpf | 強制アクセス制御 + システムコール制限 |
-| ChromeOS | Minijail + Namespaces | 最小権限のジェイルプロセス |
+| OS | Sandbox Technology | Main Restrictions |
+|----|-------------------|-------------------|
+| Linux | seccomp-bpf + Namespaces | System call filtering, isolation via PID/network namespaces |
+| macOS | Seatbelt (sandbox_init) | Profile-based resource access control |
+| Windows | Restricted Token + LPAC | Token privilege reduction, AppContainer isolation |
+| Android | SELinux + seccomp-bpf | Mandatory access control + system call restrictions |
+| ChromeOS | Minijail + Namespaces | Minimum-privilege jail process |
 
-#### Linux におけるサンドボックスの詳細
+#### Sandbox Details on Linux
 
-Linux 上の Chromium では、seccomp-bpf（Secure Computing mode with Berkeley Packet Filter）を用いてシステムコールをフィルタリングする。レンダラープロセスが呼び出せるシステムコールは厳密にホワイトリスト化されており、ファイルの open()、ネットワークソケットの作成、プロセスの生成などは禁止される。
+On Linux, Chromium uses seccomp-bpf (Secure Computing mode with Berkeley Packet Filter) to filter system calls. The system calls the renderer process can invoke are strictly whitelisted; file open(), network socket creation, process spawning, and similar operations are prohibited.
 
 ```c
-// seccomp-bpf フィルタの概念的な疑似コード
-// （Chromium の実際の実装を簡略化したもの）
+// Conceptual pseudocode of a seccomp-bpf filter
+// (Simplified from Chromium's actual implementation)
 
 struct sock_filter filter[] = {
-    // アーキテクチャの検証
+    // Verify architecture
     BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
              offsetof(struct seccomp_data, arch)),
     BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, AUDIT_ARCH_X86_64, 1, 0),
     BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL),
 
-    // システムコール番号を取得
+    // Get system call number
     BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
              offsetof(struct seccomp_data, nr)),
 
-    // 許可されるシステムコール
+    // Allowed system calls
     BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_read, 0, 1),
     BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
     BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_write, 0, 1),
@@ -173,7 +173,7 @@ struct sock_filter filter[] = {
     BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_futex, 0, 1),
     BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
 
-    // 上記以外はすべて拒否（SIGSYS シグナルで通知）
+    // Deny everything else (notify via SIGSYS signal)
     BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRAP),
 };
 
@@ -182,164 +182,164 @@ struct sock_fprog prog = {
     .filter = filter,
 };
 
-// サンドボックスの適用
+// Apply the sandbox
 prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog);
 ```
 
-### 1.4 サンドボックスが制限する操作と許可する操作
+### 1.4 Operations Restricted and Permitted by the Sandbox
 
 ```
-サンドボックスによる権限分離:
+Privilege separation by sandbox:
 
   ┌──────────────────────────────────────────────────────────────┐
-  │                  レンダラープロセス（サンドボックス内）          │
+  │             Renderer Process (inside sandbox)                 │
   │                                                              │
-  │  制限される操作:                                               │
-  │  ✗ ファイルシステムへの直接アクセス（open, stat, unlink等）    │
-  │  ✗ ネットワークソケットの直接作成（socket, connect 等）        │
-  │  ✗ 新規プロセスの生成（fork, execve 等）                      │
-  │  ✗ OSのAPIへの直接アクセス                                    │
-  │  ✗ 他のプロセスメモリへのアクセス                              │
-  │  ✗ ハードウェアデバイスの直接制御                              │
-  │  ✗ カーネルモジュールのロード                                  │
+  │  Restricted operations:                                       │
+  │  ✗ Direct file system access (open, stat, unlink, etc.)      │
+  │  ✗ Direct network socket creation (socket, connect, etc.)    │
+  │  ✗ Spawning new processes (fork, execve, etc.)               │
+  │  ✗ Direct access to OS APIs                                  │
+  │  ✗ Access to other process memory                            │
+  │  ✗ Direct hardware device control                            │
+  │  ✗ Loading kernel modules                                    │
   │                                                              │
-  │  IPC経由で許可される操作:                                      │
-  │  ✓ ブラウザプロセスへのリソースリクエスト（fetch等）            │
-  │  ✓ ユーザーが許可した機能へのアクセス（Permissions API 経由）  │
-  │  ✓ 共有メモリ領域の読み書き（GPU描画用）                       │
-  │  ✓ オリジン単位で隔離されたストレージへのアクセス               │
+  │  Operations permitted via IPC:                               │
+  │  ✓ Resource requests to the browser process (fetch, etc.)    │
+  │  ✓ Access to user-permitted features (via Permissions API)   │
+  │  ✓ Read/write to shared memory regions (for GPU drawing)     │
+  │  ✓ Access to per-origin isolated storage                     │
   │                                                              │
-  │  JavaScript API 経由で許可される操作:                          │
-  │  ✓ fetch() でHTTPリクエスト（CORSの範囲内）                    │
-  │  ✓ <input type="file"> でユーザーが選択したファイル読み込み    │
-  │  ✓ Geolocation API（ユーザー許可後）                           │
-  │  ✓ Camera/Microphone（ユーザー許可後）                         │
-  │  ✓ localStorage / IndexedDB（オリジン単位で隔離）              │
-  │  ✓ Web Workers / Service Workers の生成                        │
+  │  Operations permitted via JavaScript APIs:                   │
+  │  ✓ HTTP requests with fetch() (within CORS)                  │
+  │  ✓ Reading files selected by the user via <input type="file">│
+  │  ✓ Geolocation API (after user permission)                   │
+  │  ✓ Camera/Microphone (after user permission)                 │
+  │  ✓ localStorage / IndexedDB (isolated per origin)            │
+  │  ✓ Spawning Web Workers / Service Workers                    │
   └──────────────────────────────────────────────────────────────┘
 
-  Permissions Policy（旧 Feature Policy）:
-  → Webページが使用できるブラウザ機能をHTTPヘッダーで制限
-  → iframe に対しても機能制限を適用可能
+  Permissions Policy (formerly Feature Policy):
+  → Restrict browser features a web page can use via HTTP headers
+  → Can also apply feature restrictions to iframes
 
-  例: Permissions-Policy: camera=(), microphone=(), geolocation=(self)
+  Example: Permissions-Policy: camera=(), microphone=(), geolocation=(self)
 ```
 
-### 1.5 iframe のサンドボックス属性
+### 1.5 iframe sandbox Attribute
 
-HTML の `<iframe>` 要素には `sandbox` 属性を指定でき、埋め込みコンテンツに対して追加の制限を課すことができる。
+The HTML `<iframe>` element accepts a `sandbox` attribute that imposes additional restrictions on embedded content.
 
 ```html
-<!-- 最も制限の厳しい設定（全機能をブロック） -->
+<!-- Most restrictive setting (block all features) -->
 <iframe src="https://untrusted.example.com" sandbox></iframe>
 
-<!-- 必要な機能のみ選択的に許可 -->
+<!-- Selectively allow only necessary features -->
 <iframe src="https://payment.example.com"
         sandbox="allow-scripts allow-forms allow-same-origin">
 </iframe>
 
-<!-- sandbox 属性で制御可能なフラグ一覧 -->
+<!-- List of flags controllable via the sandbox attribute -->
 <!--
-  allow-forms            : フォーム送信を許可
-  allow-modals           : alert(), confirm() 等のモーダルを許可
-  allow-orientation-lock : 画面の向きロックを許可
-  allow-pointer-lock     : Pointer Lock API を許可
-  allow-popups           : window.open() やtarget="_blank" を許可
-  allow-popups-to-escape-sandbox : ポップアップにサンドボックスを継承しない
-  allow-presentation     : Presentation API を許可
-  allow-same-origin      : 同一オリジンとして扱う（※注意が必要）
-  allow-scripts          : JavaScript の実行を許可
-  allow-top-navigation   : 親フレームのナビゲーションを許可
-  allow-downloads        : ファイルダウンロードを許可
+  allow-forms            : Permit form submission
+  allow-modals           : Permit modals such as alert(), confirm()
+  allow-orientation-lock : Permit screen orientation lock
+  allow-pointer-lock     : Permit Pointer Lock API
+  allow-popups           : Permit window.open() and target="_blank"
+  allow-popups-to-escape-sandbox : Do not inherit sandbox in popups
+  allow-presentation     : Permit Presentation API
+  allow-same-origin      : Treat as same origin (use with caution)
+  allow-scripts          : Permit JavaScript execution
+  allow-top-navigation   : Permit navigation of the parent frame
+  allow-downloads        : Permit file downloads
 -->
 ```
 
-**注意**: `allow-scripts` と `allow-same-origin` を同時に指定すると、埋め込みコンテンツが自身の sandbox 属性を JavaScript で除去できてしまうため、信頼できないコンテンツに対してはこの組み合わせを避けること。
+**Note**: Specifying both `allow-scripts` and `allow-same-origin` at the same time allows embedded content to remove its own sandbox attribute via JavaScript. Avoid this combination for untrusted content.
 
 ---
 
-## 2. Same-Origin Policy（同一オリジンポリシー）
+## 2. Same-Origin Policy
 
-### 2.1 オリジンの定義
+### 2.1 Definition of an Origin
 
-Same-Origin Policy（SOP）はブラウザセキュリティの最も基本的な仕組みであり、1995年に Netscape Navigator 2.0 で初めて導入された。SOPの核心は「オリジン」の概念にある。
+The Same-Origin Policy (SOP) is the most fundamental security mechanism in browsers, first introduced in Netscape Navigator 2.0 in 1995. The core of SOP is the concept of an "origin."
 
-**オリジン** = スキーム（プロトコル） + ホスト（ドメイン） + ポート番号
+**Origin** = scheme (protocol) + host (domain) + port number
 
 ```
-オリジンの判定例:
+Origin comparison examples:
 
-  基準URL: https://www.example.com:443/path/page.html
+  Reference URL: https://www.example.com:443/path/page.html
 
-  ┌─────────────────────────────────────────┬───────────┬──────────────────┐
-  │ 比較対象のURL                             │ 同一オリジン│ 理由              │
-  ├─────────────────────────────────────────┼───────────┼──────────────────┤
-  │ https://www.example.com:443/other.html  │ Yes       │ パスのみ異なる     │
-  │ https://www.example.com/other.html      │ Yes       │ 443は省略可能      │
-  │ http://www.example.com/page.html        │ No        │ スキームが異なる   │
-  │ https://api.example.com/page.html       │ No        │ ホストが異なる     │
-  │ https://www.example.com:8080/page.html  │ No        │ ポートが異なる     │
-  │ https://example.com/page.html           │ No        │ サブドメインが異なる│
-  └─────────────────────────────────────────┴───────────┴──────────────────┘
+  ┌─────────────────────────────────────────┬──────────────┬──────────────────┐
+  │ Comparison URL                           │ Same Origin  │ Reason           │
+  ├─────────────────────────────────────────┼──────────────┼──────────────────┤
+  │ https://www.example.com:443/other.html  │ Yes          │ Only path differs │
+  │ https://www.example.com/other.html      │ Yes          │ 443 can be omitted│
+  │ http://www.example.com/page.html        │ No           │ Scheme differs    │
+  │ https://api.example.com/page.html       │ No           │ Host differs      │
+  │ https://www.example.com:8080/page.html  │ No           │ Port differs      │
+  │ https://example.com/page.html           │ No           │ Subdomain differs │
+  └─────────────────────────────────────────┴──────────────┴──────────────────┘
 ```
 
-### 2.2 SOPが制御する対象
+### 2.2 What SOP Controls
 
-Same-Origin Policy は、異なるオリジン間でのリソースアクセスを以下のように制御する。
+The Same-Origin Policy controls cross-origin resource access as follows.
 
-| 操作カテゴリ | 具体例 | クロスオリジンでの動作 |
-|-------------|--------|----------------------|
-| 読み取り（Read） | DOM アクセス、Cookie 読み取り、AJAX レスポンス | 原則禁止 |
-| 書き込み（Write） | リンク、リダイレクト、フォーム送信 | 原則許可 |
-| 埋め込み（Embed） | `<script>`, `<img>`, `<iframe>`, `<link>` | 原則許可 |
+| Operation Category | Example | Behavior Cross-Origin |
+|--------------------|---------|----------------------|
+| Read | DOM access, Cookie reading, AJAX response | Prohibited in principle |
+| Write | Links, redirects, form submissions | Permitted in principle |
+| Embed | `<script>`, `<img>`, `<iframe>`, `<link>` | Permitted in principle |
 
 ```javascript
-// Same-Origin Policy の動作例
+// Same-Origin Policy behavior example
 
-// --- 同一オリジン（許可される）---
-// 現在のページ: https://app.example.com/dashboard
+// --- Same origin (permitted) ---
+// Current page: https://app.example.com/dashboard
 
-// DOM アクセス
+// DOM access
 const iframe = document.getElementById('settings-frame');
-// iframe のソースが同一オリジンなら DOM にアクセス可能
+// If the iframe source is same-origin, DOM access is allowed
 const innerDoc = iframe.contentDocument;  // OK
 
-// AJAX リクエスト
+// AJAX request
 const response = await fetch('https://app.example.com/api/data');
-const data = await response.json();  // OK: 同一オリジン
+const data = await response.json();  // OK: same origin
 
-// --- 異なるオリジン（制限される）---
+// --- Different origin (restricted) ---
 
-// DOM アクセスの制限
+// DOM access restriction
 const externalFrame = document.getElementById('external-frame');
-// iframe のソースが異なるオリジンの場合
+// If the iframe source is from a different origin
 try {
     const doc = externalFrame.contentDocument;  // SecurityError
 } catch (e) {
     console.error('Cross-origin DOM access blocked:', e.message);
 }
 
-// AJAX リクエストの制限（CORSなし）
+// AJAX request restriction (without CORS)
 try {
     const resp = await fetch('https://other-site.com/api/data');
-    // サーバーが適切な CORS ヘッダーを返さない場合
+    // If the server does not return appropriate CORS headers
     const data = await resp.json();  // TypeError: Failed to fetch
 } catch (e) {
     console.error('Cross-origin request blocked:', e.message);
 }
 
-// window.postMessage による安全なクロスオリジン通信
-// 送信側（親ウィンドウ）
+// Safe cross-origin communication via window.postMessage
+// Sender (parent window)
 const targetOrigin = 'https://trusted-partner.com';
 externalFrame.contentWindow.postMessage(
     { type: 'greeting', payload: 'Hello!' },
-    targetOrigin  // 必ず具体的なオリジンを指定（'*' は避ける）
+    targetOrigin  // Always specify a concrete origin (avoid '*')
 );
 
-// 受信側（iframe 内のスクリプト）
+// Receiver (script inside iframe)
 window.addEventListener('message', (event) => {
-    // オリジンの検証は必須
+    // Origin validation is mandatory
     if (event.origin !== 'https://app.example.com') {
         console.warn('Rejected message from untrusted origin:', event.origin);
         return;
@@ -348,32 +348,32 @@ window.addEventListener('message', (event) => {
 });
 ```
 
-### 2.3 SOP の例外と緩和メカニズム
+### 2.3 SOP Exceptions and Relaxation Mechanisms
 
-Same-Origin Policy には、正当なユースケースに対応するためのいくつかの例外と緩和メカニズムが存在する。
+The Same-Origin Policy has several exceptions and relaxation mechanisms to accommodate legitimate use cases.
 
-#### document.domain による緩和（非推奨）
+#### Relaxation via document.domain (deprecated)
 
 ```javascript
-// https://app.example.com のページ
+// Page at https://app.example.com
 document.domain = 'example.com';
 
-// https://api.example.com のページでも同様に設定
+// Also set this on the page at https://api.example.com
 document.domain = 'example.com';
 
-// これにより両ページが同一オリジンとして扱われる
-// ※ 注意: この機能は非推奨であり、将来的に削除予定
-// 代替手段: postMessage, CORS, Channel Messaging API
+// This causes both pages to be treated as same-origin
+// Note: This feature is deprecated and scheduled for removal
+// Alternatives: postMessage, CORS, Channel Messaging API
 ```
 
-#### CORS（Cross-Origin Resource Sharing）
+#### CORS (Cross-Origin Resource Sharing)
 
-CORS は SOP を安全に緩和するための標準メカニズムであり、サーバーが明示的に許可したクロスオリジンリクエストのみを通過させる。
+CORS is the standard mechanism for safely relaxing the SOP; it passes only cross-origin requests that the server has explicitly allowed.
 
 ```
-CORS のリクエストフロー（プリフライトあり）:
+CORS request flow (with preflight):
 
-  ブラウザ                                   サーバー
+  Browser                                    Server
     │                                          │
     │  ① OPTIONS /api/data HTTP/1.1            │
     │  Origin: https://app.example.com         │
@@ -408,14 +408,14 @@ CORS のリクエストフロー（プリフライトあり）:
 ```
 
 ```javascript
-// サーバー側の CORS 設定例（Node.js / Express）
+// Server-side CORS configuration example (Node.js / Express)
 
 const express = require('express');
 const app = express();
 
-// 方法1: 手動での CORS ヘッダー設定
+// Method 1: Manual CORS header configuration
 app.use((req, res, next) => {
-    // 許可するオリジンのホワイトリスト
+    // Whitelist of allowed origins
     const allowedOrigins = [
         'https://app.example.com',
         'https://staging.example.com'
@@ -432,7 +432,7 @@ app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Max-Age', '86400');
 
-    // プリフライトリクエストへの応答
+    // Respond to preflight requests
     if (req.method === 'OPTIONS') {
         return res.status(204).end();
     }
@@ -440,7 +440,7 @@ app.use((req, res, next) => {
     next();
 });
 
-// 方法2: cors ミドルウェアの使用
+// Method 2: Using the cors middleware
 const cors = require('cors');
 app.use(cors({
     origin: ['https://app.example.com', 'https://staging.example.com'],
@@ -451,103 +451,103 @@ app.use(cors({
 }));
 ```
 
-### 2.4 SOP とストレージの隔離
+### 2.4 SOP and Storage Isolation
 
-ブラウザのストレージ機構はオリジン単位で隔離されている。
+Browser storage mechanisms are isolated per origin.
 
-| ストレージ種別 | 隔離単位 | 容量目安 | 備考 |
-|---------------|---------|---------|------|
-| Cookie | ドメイン + パス | 4KB/cookie, 約50個/ドメイン | SameSite属性で送信制御 |
-| localStorage | オリジン | 5-10MB | 同期API、メインスレッドをブロック |
-| sessionStorage | オリジン + タブ | 5-10MB | タブを閉じると消失 |
-| IndexedDB | オリジン | 数百MB-数GB | 非同期API、大容量データ向け |
-| Cache API | オリジン | ブラウザ依存 | Service Worker で使用 |
-| Web SQL | オリジン | 5MB（初期） | 非推奨、新規使用禁止 |
+| Storage Type | Isolation Unit | Capacity Estimate | Notes |
+|--------------|----------------|-------------------|-------|
+| Cookie | Domain + Path | 4KB/cookie, ~50 per domain | SameSite attribute controls sending |
+| localStorage | Origin | 5-10MB | Synchronous API, blocks main thread |
+| sessionStorage | Origin + Tab | 5-10MB | Cleared when tab is closed |
+| IndexedDB | Origin | Hundreds of MB to GB | Asynchronous API, for large data |
+| Cache API | Origin | Browser-dependent | Used with Service Worker |
+| Web SQL | Origin | 5MB (initial) | Deprecated, no new use |
 
 ---
 
-## 3. CSP（Content Security Policy）
+## 3. CSP (Content Security Policy)
 
-### 3.1 CSP の設計思想
+### 3.1 CSP Design Philosophy
 
-CSP は、XSS（Cross-Site Scripting）攻撃の影響を緩和するために設計されたセキュリティレイヤーである。XSS 攻撃は入力バリデーションの不備によって発生するが、CSP は「たとえ XSS の脆弱性が存在しても、攻撃者が注入したスクリプトの実行を防ぐ」という二次的な防御線として機能する。
+CSP is a security layer designed to mitigate the impact of XSS (Cross-Site Scripting) attacks. XSS attacks arise from input validation failures, but CSP functions as a secondary line of defense: "even if an XSS vulnerability exists, prevent execution of scripts injected by an attacker."
 
-CSP の基本原則は、Webページがロードできるリソースの出所をホワイトリスト方式で制限することである。
+The core principle of CSP is to restrict the sources from which a web page can load resources, using a whitelist approach.
 
-### 3.2 CSP の設定方法
+### 3.2 How to Configure CSP
 
-CSP は以下の2つの方法で設定できる。
+CSP can be configured in two ways.
 
 ```
-方法 1: HTTP レスポンスヘッダー（推奨）
+Method 1: HTTP response header (recommended)
 
   Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.example.com
 
-方法 2: HTML の <meta> タグ
+Method 2: HTML <meta> tag
 
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'self'; script-src 'self' https://cdn.example.com">
 
-  ※ meta タグでは frame-ancestors, report-uri, sandbox ディレクティブは使用不可
-  ※ HTTPヘッダーのほうが早く処理されるため、HTTPヘッダー方式を推奨
+  * frame-ancestors, report-uri, and sandbox directives cannot be used with meta tags
+  * HTTP headers are processed earlier, so the HTTP header method is recommended
 ```
 
-### 3.3 CSP ディレクティブの完全リファレンス
+### 3.3 Complete CSP Directive Reference
 
 ```
-主要なCSPディレクティブ一覧:
+List of major CSP directives:
 
   ┌──────────────────┬──────────────────────────────────────────────┐
-  │ ディレクティブ     │ 制御対象                                      │
+  │ Directive         │ What it controls                             │
   ├──────────────────┼──────────────────────────────────────────────┤
-  │ default-src      │ 他のディレクティブのフォールバック              │
-  │ script-src       │ JavaScript ファイルとインラインスクリプト       │
-  │ script-src-elem  │ <script> 要素のみ（イベントハンドラ除外）      │
-  │ script-src-attr  │ インラインイベントハンドラのみ（onclick等）     │
-  │ style-src        │ CSS ファイルとインラインスタイル                │
-  │ style-src-elem   │ <style> 要素と <link rel="stylesheet">        │
-  │ style-src-attr   │ style 属性のみ                                │
-  │ img-src          │ 画像（<img>, CSS background-image 等）        │
-  │ connect-src      │ fetch, XHR, WebSocket, EventSource の接続先   │
-  │ font-src         │ Web フォント                                  │
-  │ frame-src        │ <iframe>, <frame> の読み込み元                 │
-  │ child-src        │ Web Worker と iframe（frame-src優先）          │
-  │ worker-src       │ Worker, SharedWorker, ServiceWorker            │
-  │ media-src        │ <audio>, <video> メディア                     │
+  │ default-src      │ Fallback for other directives                 │
+  │ script-src       │ JavaScript files and inline scripts           │
+  │ script-src-elem  │ <script> elements only (excludes event handlers) │
+  │ script-src-attr  │ Inline event handlers only (onclick, etc.)    │
+  │ style-src        │ CSS files and inline styles                   │
+  │ style-src-elem   │ <style> elements and <link rel="stylesheet">  │
+  │ style-src-attr   │ style attributes only                         │
+  │ img-src          │ Images (<img>, CSS background-image, etc.)    │
+  │ connect-src      │ Destinations for fetch, XHR, WebSocket, EventSource │
+  │ font-src         │ Web fonts                                     │
+  │ frame-src        │ Sources for <iframe>, <frame>                 │
+  │ child-src        │ Web Workers and iframes (frame-src takes precedence) │
+  │ worker-src       │ Worker, SharedWorker, ServiceWorker           │
+  │ media-src        │ <audio>, <video> media                        │
   │ object-src       │ <object>, <embed>, <applet>                   │
   │ manifest-src     │ Web App Manifest                              │
-  │ base-uri         │ <base> 要素の href                            │
-  │ form-action      │ <form> の action 属性（送信先）               │
-  │ frame-ancestors  │ このページを埋め込める親フレーム               │
-  │ navigate-to      │ ナビゲーション先の制限（実験的）               │
-  │ report-uri       │ 違反レポートの送信先（非推奨）                 │
-  │ report-to        │ 違反レポートの送信先グループ                   │
-  │ require-trusted-types-for │ Trusted Types の強制適用            │
-  │ trusted-types    │ 許可する Trusted Type ポリシー名               │
-  │ upgrade-insecure-requests │ HTTP を HTTPS に自動アップグレード  │
-  │ sandbox          │ iframe の sandbox と同等の制限を適用           │
+  │ base-uri         │ href of <base> element                        │
+  │ form-action      │ action attribute of <form> (submit destination) │
+  │ frame-ancestors  │ Parent frames allowed to embed this page      │
+  │ navigate-to      │ Navigation destination restriction (experimental) │
+  │ report-uri       │ Violation report destination (deprecated)     │
+  │ report-to        │ Violation report endpoint group               │
+  │ require-trusted-types-for │ Force Trusted Types enforcement     │
+  │ trusted-types    │ Allowed Trusted Type policy names             │
+  │ upgrade-insecure-requests │ Auto-upgrade HTTP to HTTPS          │
+  │ sandbox          │ Apply same restrictions as iframe sandbox     │
   └──────────────────┴──────────────────────────────────────────────┘
 
-  ソース値の指定:
+  Source value specification:
 
-  'self'             — 同一オリジンのみ許可
-  'none'             — すべてブロック
-  'unsafe-inline'    — インラインスクリプト/スタイル許可（非推奨）
-  'unsafe-eval'      — eval(), Function(), setTimeout(string) 許可（非推奨）
-  'unsafe-hashes'    — 特定のインラインイベントハンドラを許可
-  'nonce-{base64}'   — 指定 nonce を持つ要素のみ許可
-  'sha256-{hash}'    — 指定ハッシュに一致するインラインコードのみ許可
-  'strict-dynamic'   — 信頼されたスクリプトが動的にロードするスクリプトも許可
-  https:             — HTTPS スキームのリソースのみ許可
-  data:              — data: URI を許可
-  blob:              — blob: URI を許可
-  mediastream:       — mediastream: URI を許可
-  *.example.com      — ワイルドカードによるホスト指定
+  'self'             — Allow same origin only
+  'none'             — Block everything
+  'unsafe-inline'    — Allow inline scripts/styles (not recommended)
+  'unsafe-eval'      — Allow eval(), Function(), setTimeout(string) (not recommended)
+  'unsafe-hashes'    — Allow specific inline event handlers
+  'nonce-{base64}'   — Allow only elements with the specified nonce
+  'sha256-{hash}'    — Allow only inline code matching the specified hash
+  'strict-dynamic'   — Also allow scripts dynamically loaded by trusted scripts
+  https:             — Allow resources via the HTTPS scheme only
+  data:              — Allow data: URIs
+  blob:              — Allow blob: URIs
+  mediastream:       — Allow mediastream: URIs
+  *.example.com      — Wildcard host specification
 ```
 
-### 3.4 CSP のレベル別実践設定
+### 3.4 Practical CSP Configuration by Level
 
-#### レベル1: 基本的な XSS 防御
+#### Level 1: Basic XSS Defense
 
 ```
 Content-Security-Policy:
@@ -562,11 +562,11 @@ Content-Security-Policy:
     form-action 'self';
 ```
 
-#### レベル2: nonce ベースの厳格な設定（推奨）
+#### Level 2: Strict nonce-based Configuration (Recommended)
 
 ```html
-<!-- サーバーサイドでリクエストごとにランダムな nonce を生成 -->
-<!-- HTTP ヘッダー -->
+<!-- Server generates a random nonce per request -->
+<!-- HTTP header -->
 <!-- Content-Security-Policy:
     default-src 'self';
     script-src 'nonce-dGhpcyBpcyBhIHNhbXBsZQ==' 'strict-dynamic';
@@ -584,20 +584,20 @@ Content-Security-Policy:
 <!DOCTYPE html>
 <html>
 <head>
-    <!-- nonce が一致するスクリプトのみ実行される -->
+    <!-- Only scripts with a matching nonce are executed -->
     <script nonce="dGhpcyBpcyBhIHNhbXBsZQ==">
-        // このスクリプトは実行される
+        // This script executes
         console.log('Trusted script executed');
     </script>
 
-    <!-- nonce のないスクリプトはブロックされる -->
+    <!-- Scripts without a nonce are blocked -->
     <script>
-        // このスクリプトはブロックされる
+        // This script is blocked
         console.log('This will not execute');
     </script>
 
-    <!-- 攻撃者が注入したスクリプトもブロックされる -->
-    <!-- <script>alert('XSS')</script> → ブロック -->
+    <!-- Scripts injected by attackers are also blocked -->
+    <!-- <script>alert('XSS')</script> → blocked -->
 
     <style nonce="dGhpcyBpcyBhIHNhbXBsZQ==">
         body { font-family: sans-serif; }
@@ -605,16 +605,16 @@ Content-Security-Policy:
 </head>
 <body>
     <h1>CSP Nonce Example</h1>
-    <!-- strict-dynamic により、信頼されたスクリプトが動的に
-         ロードするスクリプトも自動的に許可される -->
+    <!-- With strict-dynamic, scripts dynamically loaded
+         by trusted scripts are automatically permitted -->
 </body>
 </html>
 ```
 
-#### レベル3: ハッシュベースの設定
+#### Level 3: Hash-Based Configuration
 
 ```javascript
-// Node.js でインラインスクリプトのハッシュを計算する例
+// Example of computing the hash of an inline script in Node.js
 const crypto = require('crypto');
 
 const inlineScript = `console.log('Hello, World!');`;
@@ -623,27 +623,27 @@ const hash = crypto.createHash('sha256')
     .digest('base64');
 
 console.log(`'sha256-${hash}'`);
-// 出力例: 'sha256-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+// Output example: 'sha256-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 
-// このハッシュを CSP ヘッダーに含める
+// Include this hash in the CSP header
 // Content-Security-Policy: script-src 'sha256-xxxxxxxx...'
 ```
 
-### 3.5 CSP 違反レポートの活用
+### 3.5 Using CSP Violation Reports
 
-CSP にはレポート機能があり、ポリシー違反が発生した際にサーバーへ自動的に通知を送信できる。これにより、本番環境でのセキュリティ問題を早期に発見できる。
+CSP has a reporting feature that can automatically notify the server when a policy violation occurs, allowing security issues in production to be detected early.
 
 ```javascript
-// Report-Only モードで段階的に導入する例
+// Example of gradual rollout using Report-Only mode
 
-// ステップ1: Report-Only で影響を調査（ブロックはしない）
+// Step 1: Investigate impact with Report-Only (no blocking)
 // Content-Security-Policy-Report-Only:
 //     default-src 'self';
 //     script-src 'self' 'nonce-abc123';
 //     report-uri /csp-report;
 //     report-to csp-endpoint;
 
-// ステップ2: レポートエンドポイントの実装（Express）
+// Step 2: Implement a report endpoint (Express)
 const express = require('express');
 const app = express();
 
@@ -652,372 +652,373 @@ app.post('/csp-report', express.json({ type: 'application/csp-report' }),
     const report = req.body['csp-report'];
 
     console.log('CSP Violation:', {
-        blockedUri:       report['blocked-uri'],
+        blockedUri:        report['blocked-uri'],
         violatedDirective: report['violated-directive'],
-        documentUri:      report['document-uri'],
-        sourceFile:       report['source-file'],
-        lineNumber:       report['line-number'],
-        columnNumber:     report['column-number'],
-        originalPolicy:   report['original-policy']
+        documentUri:       report['document-uri'],
+        sourceFile:        report['source-file'],
+        lineNumber:        report['line-number'],
+        columnNumber:      report['column-number'],
+        originalPolicy:    report['original-policy']
     });
 
-    // 本番環境ではログ集約サービスに送信
+    // In production, send to a log aggregation service
     // await logService.send('csp-violation', report);
 
     res.status(204).end();
 });
 
-// Reporting API v1 (新しい標準) のヘッダー設定例
+// Header configuration example for Reporting API v1 (new standard)
 // Report-To: {"group":"csp-endpoint",
 //             "max_age":86400,
 //             "endpoints":[{"url":"https://reports.example.com/csp"}]}
 // Content-Security-Policy: ... report-to csp-endpoint;
 ```
 
-### 3.6 CSP と主要フレームワークの統合
+### 3.6 CSP Integration with Major Frameworks
 
-| フレームワーク | CSP との相性 | 主な課題 | 推奨対策 |
-|--------------|-------------|---------|---------|
-| React | 良好 | dangerouslySetInnerHTML 使用時 | Trusted Types と併用 |
-| Next.js | 良好 | nonce の SSR 対応が必要 | next.config.js で CSP 設定 |
-| Vue.js | 注意が必要 | テンプレートコンパイルに eval が必要な場合あり | ランタイムのみビルドを使用 |
-| Angular | 注意が必要 | AOT コンパイルなしでは unsafe-eval が必要 | 必ず AOT コンパイルを使用 |
-| Svelte | 良好 | コンパイル済みのため eval 不要 | 標準の nonce ベース CSP で対応可 |
-| jQuery | 要注意 | .html() や .append() による DOM 操作 | jQuery を段階的に置換 |
+| Framework | CSP Compatibility | Main Challenges | Recommended Approach |
+|-----------|------------------|-----------------|----------------------|
+| React | Good | When using dangerouslySetInnerHTML | Use together with Trusted Types |
+| Next.js | Good | nonce needs SSR support | Configure CSP in next.config.js |
+| Vue.js | Needs care | Template compilation may need eval | Use runtime-only build |
+| Angular | Needs care | AOT-less builds require unsafe-eval | Always use AOT compilation |
+| Svelte | Good | No eval needed since it's compiled | Standard nonce-based CSP works |
+| jQuery | Caution | DOM manipulation via .html() or .append() | Progressively replace jQuery |
 
 ---
 
-## 4. サイトアイソレーション（Site Isolation）
+## 4. Site Isolation
 
-### 4.1 サイトアイソレーションの背景
+### 4.1 Background of Site Isolation
 
-サイトアイソレーションは、Chromium が 2018年（Chrome 67）から本格導入したセキュリティアーキテクチャである。従来のブラウザでは、複数のサイトのコンテンツが同一のレンダラープロセス内で実行される場合があったが、サイトアイソレーションでは異なるサイトのコンテンツを必ず別のプロセスで実行する。
+Site Isolation is a security architecture that Chromium fully introduced in 2018 (Chrome 67). In the traditional browser model, content from multiple sites could run inside the same renderer process. With Site Isolation, content from different sites is always executed in separate processes.
 
-この仕組みが必要になった直接的な契機は、2018年1月に公表された **Spectre** 脆弱性である。Spectre により、同一プロセス内の任意のメモリ領域を読み取ることが理論的に可能となったため、異なるサイトのデータが同一プロセス内に共存する状況が深刻なセキュリティリスクとなった。
+The direct trigger for this change was the **Spectre** vulnerability disclosed in January 2018. Because Spectre theoretically allows reading any memory region within the same process, a situation where data from different sites coexists in the same process became a severe security risk.
 
-### 4.2 サイト（Site）とオリジン（Origin）の違い
+### 4.2 Difference Between a "Site" and an "Origin"
 
 ```
-サイトアイソレーションにおける「サイト」の定義:
+Definition of "site" in site isolation:
 
-  サイト = スキーム + eTLD+1 (effective Top-Level Domain + 1)
+  Site = scheme + eTLD+1 (effective Top-Level Domain + 1)
 
-  eTLD+1 の例:
+  eTLD+1 example:
     URL: https://mail.google.com/inbox
     eTLD: com
     eTLD+1: google.com
-    サイト: https://google.com
+    Site: https://google.com
 
   ┌──────────────────────────────────┬──────────────────┬────────────┐
-  │ URL                              │ サイト             │ オリジン    │
+  │ URL                              │ Site             │ Origin     │
   ├──────────────────────────────────┼──────────────────┼────────────┤
   │ https://www.example.com/page     │ https://example.com│ https://www│
-  │                                  │                    │ .example.com│
+  │                                  │                  │ .example.com│
   │ https://app.example.com/dash     │ https://example.com│ https://app│
-  │                                  │                    │ .example.com│
-  │ https://www.example.co.uk/page   │ https://example    │ https://www│
-  │                                  │ .co.uk             │ .example   │
-  │                                  │                    │ .co.uk     │
-  │ https://user.github.io/repo      │ https://user       │ https://   │
-  │                                  │ .github.io         │ user.github│
-  │                                  │                    │ .io        │
+  │                                  │                  │ .example.com│
+  │ https://www.example.co.uk/page   │ https://example  │ https://www│
+  │                                  │ .co.uk           │ .example   │
+  │                                  │                  │ .co.uk     │
+  │ https://user.github.io/repo      │ https://user     │ https://   │
+  │                                  │ .github.io       │ user.github│
+  │                                  │                  │ .io        │
   └──────────────────────────────────┴──────────────────┴────────────┘
 
-  重要な違い:
-  ・Same-Origin Policy → オリジン単位（スキーム+ホスト+ポート）
-  ・Site Isolation     → サイト単位（スキーム+eTLD+1）
-  ・SameSite Cookie    → サイト単位（スキーム+eTLD+1）
+  Key differences:
+  · Same-Origin Policy → per origin (scheme + host + port)
+  · Site Isolation     → per site (scheme + eTLD+1)
+  · SameSite Cookie    → per site (scheme + eTLD+1)
 
-  ※ github.io のような Public Suffix では、
-    user1.github.io と user2.github.io は異なるサイトとして扱われる
+  * For public suffixes like github.io,
+    user1.github.io and user2.github.io are treated as different sites
 ```
 
-### 4.3 サイトアイソレーションのアーキテクチャ
+### 4.3 Site Isolation Architecture
 
 ```
-サイトアイソレーション有効時のプロセス配置:
+Process placement with site isolation enabled:
 
-  タブ1: https://app.example.com/dashboard
+  Tab 1: https://app.example.com/dashboard
   ┌──────────────────────────────────────────────────┐
-  │  レンダラープロセス A (サイト: example.com)         │
+  │  Renderer Process A (site: example.com)           │
   │  ┌─────────────────────────────────────────┐      │
-  │  │ メインフレーム: app.example.com          │      │
+  │  │ Main frame: app.example.com              │      │
   │  └─────────────────────────────────────────┘      │
   └──────────────────────────────────────────────────┘
 
-  タブ1内の iframe: https://ads.partner.com/banner
+  iframe inside Tab 1: https://ads.partner.com/banner
   ┌──────────────────────────────────────────────────┐
-  │  レンダラープロセス B (サイト: partner.com)         │
+  │  Renderer Process B (site: partner.com)           │
   │  ┌─────────────────────────────────────────┐      │
-  │  │ サブフレーム: ads.partner.com            │      │
+  │  │ Sub-frame: ads.partner.com               │      │
   │  └─────────────────────────────────────────┘      │
   └──────────────────────────────────────────────────┘
 
-  タブ2: https://mail.example.com/inbox
+  Tab 2: https://mail.example.com/inbox
   ┌──────────────────────────────────────────────────┐
-  │  レンダラープロセス A (サイト: example.com) ← 再利用│
+  │  Renderer Process A (site: example.com) ← reused │
   │  ┌─────────────────────────────────────────┐      │
-  │  │ メインフレーム: mail.example.com         │      │
+  │  │ Main frame: mail.example.com             │      │
   │  └─────────────────────────────────────────┘      │
   └──────────────────────────────────────────────────┘
 
-  タブ3: https://social.other-site.com
+  Tab 3: https://social.other-site.com
   ┌──────────────────────────────────────────────────┐
-  │  レンダラープロセス C (サイト: other-site.com)      │
+  │  Renderer Process C (site: other-site.com)        │
   │  ┌─────────────────────────────────────────┐      │
-  │  │ メインフレーム: social.other-site.com    │      │
+  │  │ Main frame: social.other-site.com        │      │
   │  └─────────────────────────────────────────┘      │
   └──────────────────────────────────────────────────┘
 
-  ※ 同一サイトのフレームは同一プロセスで実行されるが、
-    異なるサイトのフレームは必ず異なるプロセスで実行される
+  * Frames of the same site run in the same process,
+    but frames from different sites always run in separate processes
 ```
 
-### 4.4 Spectre 脆弱性とブラウザの対策
+### 4.4 Spectre Vulnerability and Browser Countermeasures
 
-Spectre は CPU の投機的実行（Speculative Execution）を悪用するサイドチャネル攻撃であり、攻撃者は同一プロセス内のメモリを高精度のタイマーを用いて間接的に読み取ることができる。
+Spectre is a side-channel attack that exploits CPU speculative execution, allowing attackers to indirectly read memory within the same process using a high-resolution timer.
 
-ブラウザにおける Spectre 対策は多層的に行われている。
+Browser countermeasures against Spectre are multi-layered.
 
-| 対策 | 説明 | 導入時期 |
-|------|------|---------|
-| サイトアイソレーション | 異なるサイトを別プロセスで実行 | Chrome 67 (2018) |
-| performance.now() の精度低下 | タイマーの解像度を下げてタイミング攻撃を困難化 | 2018年1月 |
-| SharedArrayBuffer の無効化 | 高精度タイマーの構築手段を除去 | 2018年1月 |
-| Cross-Origin Isolation | SharedArrayBuffer を安全に再有効化 | Chrome 91 (2021) |
-| CORB (Cross-Origin Read Blocking) | クロスオリジンレスポンスのプロセス内読み込みを防止 | Chrome 67 (2018) |
-| ORB (Opaque Response Blocking) | CORB の後継、より広範なリソースを保護 | 段階的導入中 |
+| Countermeasure | Description | Introduced |
+|----------------|-------------|------------|
+| Site Isolation | Run different sites in separate processes | Chrome 67 (2018) |
+| Reduced performance.now() precision | Lower timer resolution to make timing attacks harder | January 2018 |
+| Disabled SharedArrayBuffer | Remove means to build high-resolution timers | January 2018 |
+| Cross-Origin Isolation | Safely re-enable SharedArrayBuffer | Chrome 91 (2021) |
+| CORB (Cross-Origin Read Blocking) | Prevent cross-origin responses from being read within the process | Chrome 67 (2018) |
+| ORB (Opaque Response Blocking) | Successor to CORB, protects a broader range of resources | Gradual rollout |
 
 ### 4.5 Cross-Origin Isolation
 
-Cross-Origin Isolation は、SharedArrayBuffer や高精度タイマーなどの機能を安全に使用するための仕組みである。以下の HTTP ヘッダーを設定することで有効化される。
+Cross-Origin Isolation is a mechanism for safely using features such as SharedArrayBuffer and high-precision timers. It is enabled by setting the following HTTP headers.
 
 ```
-# Cross-Origin Isolation を有効にするためのヘッダー
+# Headers required to enable Cross-Origin Isolation
 
 # 1. Cross-Origin-Opener-Policy (COOP)
-# → 同一オリジン以外のウィンドウとの browsing context group を分離
+# → Separate the browsing context group from windows of non-same-origin
 Cross-Origin-Opener-Policy: same-origin
 
 # 2. Cross-Origin-Embedder-Policy (COEP)
-# → ページに埋め込まれるすべてのリソースが CORS または CORP で
-#    明示的に許可されていることを要求
+# → Require all resources embedded in the page to be explicitly permitted
+#    by CORS or CORP
 Cross-Origin-Embedder-Policy: require-corp
 
-# これらを両方設定すると:
-# ・self.crossOriginIsolated === true になる
-# ・SharedArrayBuffer が使用可能になる
-# ・performance.now() の精度が回復する（5マイクロ秒）
-# ・performance.measureUserAgentSpecificMemory() が使用可能になる
+# Setting both:
+# · self.crossOriginIsolated === true
+# · SharedArrayBuffer becomes available
+# · performance.now() precision recovers (5 microseconds)
+# · performance.measureUserAgentSpecificMemory() becomes available
 ```
 
 ```javascript
-// Cross-Origin Isolation の状態確認
+// Check Cross-Origin Isolation status
 if (self.crossOriginIsolated) {
-    console.log('Cross-Origin Isolated: SharedArrayBuffer 使用可能');
+    console.log('Cross-Origin Isolated: SharedArrayBuffer available');
 
-    // 高精度タイマーの使用
+    // Use high-precision timer
     const start = performance.now();
-    // ... 処理 ...
+    // ... processing ...
     const elapsed = performance.now() - start;
-    console.log(`Elapsed: ${elapsed} ms (高精度)`);
+    console.log(`Elapsed: ${elapsed} ms (high precision)`);
 
-    // SharedArrayBuffer の使用（Web Worker との共有メモリ）
+    // Use SharedArrayBuffer (shared memory with Web Worker)
     const sharedBuffer = new SharedArrayBuffer(1024);
     const view = new Int32Array(sharedBuffer);
 
     const worker = new Worker('worker.js');
     worker.postMessage({ buffer: sharedBuffer });
 } else {
-    console.warn('Cross-Origin Isolated ではありません');
-    console.warn('COOP と COEP ヘッダーを確認してください');
+    console.warn('Not Cross-Origin Isolated');
+    console.warn('Check the COOP and COEP headers');
 }
 ```
 
-### 4.6 CORB と ORB
+### 4.6 CORB and ORB
 
-Cross-Origin Read Blocking（CORB）は、レンダラープロセスに到達する前にクロスオリジンのセンシティブなリソースをブロックする仕組みである。
+Cross-Origin Read Blocking (CORB) is a mechanism that blocks sensitive cross-origin resources before they reach the renderer process.
 
 ```
-CORB の動作フロー:
+CORB operation flow:
 
-  悪意あるページ: https://evil.com
+  Malicious page: https://evil.com
     │
-    │  <img src="https://bank.com/api/account"> を試行
-    │  （画像タグを使ってAPI応答を読み取ろうとする攻撃）
-    │
-    ▼
-  ネットワークプロセス
-    │  レスポンスの Content-Type を確認
-    │  Content-Type: application/json → HTML/XML/JSON と判定
-    │
-    │  <img> タグのリクエストに JSON レスポンスは不適切
-    │  → CORB によりレスポンスボディを空に置換
+    │  Attempts: <img src="https://bank.com/api/account">
+    │  (Attack trying to read API response via image tag)
     │
     ▼
-  レンダラープロセス（evil.com）
-    │  空のレスポンスボディを受信
-    │  → 機密データはプロセスのメモリ空間に到達しない
-    │  → Spectre 攻撃でも読み取れない
+  Network Process
+    │  Check Content-Type of response
+    │  Content-Type: application/json → determined as HTML/XML/JSON
     │
-    結果: 画像の読み込み失敗（これは正常な動作）
+    │  A JSON response is inappropriate for an <img> tag request
+    │  → CORB replaces the response body with an empty one
+    │
+    ▼
+  Renderer Process (evil.com)
+    │  Receives an empty response body
+    │  → Sensitive data never reaches the process's memory space
+    │  → Cannot be read even with a Spectre attack
+    │
+    Result: Image load fails (this is the expected behavior)
 ```
 
 ---
 
-## 5. Cookie セキュリティ
+## 5. Cookie Security
 
-### 5.1 Cookie のセキュリティ属性の完全ガイド
+### 5.1 Complete Guide to Cookie Security Attributes
 
-Cookie はHTTPのステートレスな性質を補完するための仕組みだが、適切なセキュリティ属性を設定しないと攻撃の対象となりやすい。
+Cookies are a mechanism to complement HTTP's stateless nature, but without appropriate security attributes they are easily targeted by attacks.
 
 ```
-Set-Cookie ヘッダーのセキュリティ属性:
+Security attributes of the Set-Cookie header:
 
   Set-Cookie: session_id=a1b2c3d4e5f6;
-    Secure;                    ← HTTPS 接続でのみ送信
-    HttpOnly;                  ← JavaScript (document.cookie) からアクセス不可
-    SameSite=Lax;              ← クロスサイトリクエストでの送信制限
-    Path=/;                    ← Cookie の有効パス
-    Domain=.example.com;       ← Cookie の有効ドメイン
-    Max-Age=86400;             ← 有効期限（秒単位、86400秒 = 24時間）
-    Partitioned;               ← CHIPS: トップレベルサイトごとに分離
+    Secure;                    ← Send only over HTTPS connections
+    HttpOnly;                  ← Inaccessible via JavaScript (document.cookie)
+    SameSite=Lax;              ← Restrict sending in cross-site requests
+    Path=/;                    ← Effective path for the cookie
+    Domain=.example.com;       ← Effective domain for the cookie
+    Max-Age=86400;             ← Expiry (in seconds; 86400 = 24 hours)
+    Partitioned;               ← CHIPS: partition per top-level site
 
-  各属性の重要度と推奨設定:
+  Importance and recommended setting for each attribute:
 
-  ┌──────────────┬───────────┬──────────────────────────────────────┐
-  │ 属性          │ 推奨設定   │ 未設定時のリスク                      │
-  ├──────────────┼───────────┼──────────────────────────────────────┤
-  │ Secure       │ 常に設定   │ HTTP通信でCookieが平文送信される       │
-  │ HttpOnly     │ 常に設定   │ XSS でCookieが窃取される              │
-  │ SameSite     │ Lax以上   │ CSRF 攻撃のリスク                     │
-  │ Path         │ 最小範囲   │ 不要なパスにCookieが送信される         │
-  │ Domain       │ 必要最小限 │ サブドメインでCookieが共有される       │
-  │ Max-Age      │ 用途に応じ │ セッションCookieとして扱われる         │
-  │ __Host- 接頭辞│ 推奨      │ Domain属性の上書き攻撃の可能性         │
-  │ Partitioned  │ 3P用途で推奨│ トラッキングに悪用される可能性          │
-  └──────────────┴───────────┴──────────────────────────────────────┘
+  ┌──────────────┬───────────────┬──────────────────────────────────────┐
+  │ Attribute    │ Recommended   │ Risk if not set                      │
+  ├──────────────┼───────────────┼──────────────────────────────────────┤
+  │ Secure       │ Always set    │ Cookie sent in plaintext over HTTP    │
+  │ HttpOnly     │ Always set    │ Cookie stolen via XSS                 │
+  │ SameSite     │ Lax or higher │ Risk of CSRF attacks                  │
+  │ Path         │ Minimum range │ Cookie sent to unnecessary paths      │
+  │ Domain       │ Minimum needed│ Cookie shared with subdomains         │
+  │ Max-Age      │ Per use case  │ Treated as session cookie             │
+  │ __Host- prefix│ Recommended  │ Possible Domain attribute override    │
+  │ Partitioned  │ Recommended for 3P│ Potential tracking abuse         │
+  └──────────────┴───────────────┴──────────────────────────────────────┘
 ```
 
-### 5.2 SameSite 属性の詳細
+### 5.2 SameSite Attribute in Detail
 
 ```
-SameSite の値と動作の比較:
+SameSite value and behavior comparison:
 
   ┌───────────┬──────────────────────────────────────────────────────┐
-  │ 値         │ 動作                                                 │
+  │ Value     │ Behavior                                              │
   ├───────────┼──────────────────────────────────────────────────────┤
-  │ Strict    │ クロスサイトリクエストでは一切送信しない               │
-  │           │ → 外部サイトからのリンク遷移でもCookieなし             │
-  │           │ → 最も安全だが UX に影響する場合あり                   │
-  │           │                                                      │
-  │           │ 使用例: 銀行サイトの認証Cookie、管理画面               │
+  │ Strict    │ Never sent in cross-site requests                     │
+  │           │ → Cookie not sent even when following links from      │
+  │           │   external sites                                      │
+  │           │ → Most secure but may impact UX                       │
+  │           │                                                       │
+  │           │ Use case: bank site auth cookies, admin panels        │
   ├───────────┼──────────────────────────────────────────────────────┤
-  │ Lax       │ トップレベルナビゲーション（GET リンク遷移）では送信   │
-  │ (デフォルト)│ POST、iframe、AJAX、画像ロードでは送信しない          │
-  │           │ → CSRF の主要な攻撃ベクトルを防御しつつ               │
-  │           │   外部リンクからの遷移には対応                        │
-  │           │                                                      │
-  │           │ 使用例: 一般的なWebアプリのセッションCookie            │
+  │ Lax       │ Sent in top-level navigation (GET link clicks)        │
+  │ (default) │ Not sent in POST, iframe, AJAX, image loads          │
+  │           │ → Defends against primary CSRF attack vectors while   │
+  │           │   supporting transitions via external links           │
+  │           │                                                       │
+  │           │ Use case: general web app session cookies             │
   ├───────────┼──────────────────────────────────────────────────────┤
-  │ None      │ 常に送信される（Secure 属性の同時指定が必須）          │
-  │           │ → サードパーティCookieとして動作                      │
-  │           │ → ブラウザの制限強化により段階的に廃止傾向             │
-  │           │                                                      │
-  │           │ 使用例: 認証連携、埋め込みウィジェット                 │
+  │ None      │ Always sent (Secure attribute must also be specified) │
+  │           │ → Operates as a third-party cookie                    │
+  │           │ → Phasing out as browser restrictions increase        │
+  │           │                                                       │
+  │           │ Use case: auth federation, embedded widgets           │
   └───────────┴──────────────────────────────────────────────────────┘
 
-  SameSite による送信制御の具体的シナリオ:
+  Concrete scenarios for SameSite send control:
 
-  ユーザーが https://blog.com を閲覧中に、
-  https://shop.example.com へのリクエストが発生する場合:
+  User is viewing https://blog.com and a request to
+  https://shop.example.com occurs:
 
-  シナリオ                          Strict    Lax    None
+  Scenario                           Strict    Lax    None
   ─────────────────────────────────────────────────────
-  <a href="shop.example.com">       送信しない  送信   送信
-  <form method="GET" action="...">  送信しない  送信   送信
-  <form method="POST" action="..."> 送信しない  送信しない 送信
-  <img src="shop.example.com/...">  送信しない  送信しない 送信
-  fetch("shop.example.com/...")     送信しない  送信しない 送信
-  <iframe src="shop.example.com">   送信しない  送信しない 送信
+  <a href="shop.example.com">        Not sent  Sent   Sent
+  <form method="GET" action="...">   Not sent  Sent   Sent
+  <form method="POST" action="...">  Not sent  Not sent Sent
+  <img src="shop.example.com/...">   Not sent  Not sent Sent
+  fetch("shop.example.com/...")      Not sent  Not sent Sent
+  <iframe src="shop.example.com">    Not sent  Not sent Sent
 ```
 
-### 5.3 Cookie プレフィックスによる保護
+### 5.3 Cookie Prefix Protection
 
 ```javascript
-// __Host- プレフィックス: 最も厳格な Cookie
-// 要件: Secure 必須、Domain 属性なし、Path=/ 必須
-// → Cookie のスコープが確実に現在のホストに限定される
+// __Host- prefix: the most restrictive cookie
+// Requirements: Secure mandatory, no Domain attribute, Path=/ mandatory
+// → Cookie scope is guaranteed to be limited to the current host
 
-// サーバー側の設定例（Express）
+// Server-side configuration example (Express)
 app.use((req, res, next) => {
-    // セッション Cookie には __Host- プレフィックスを推奨
+    // __Host- prefix is recommended for session cookies
     res.cookie('__Host-session', sessionId, {
         secure: true,
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        maxAge: 24 * 60 * 60 * 1000  // 24時間
-        // domain を指定してはいけない（__Host- の要件）
+        maxAge: 24 * 60 * 60 * 1000  // 24 hours
+        // domain must not be specified (__Host- requirement)
     });
 
-    // __Secure- プレフィックス: Secure 属性のみ必須
-    // Domain 属性の指定は許可される
+    // __Secure- prefix: Secure attribute only is mandatory
+    // Specifying Domain attribute is allowed
     res.cookie('__Secure-preferences', prefsToken, {
         secure: true,
         httpOnly: true,
         sameSite: 'lax',
         domain: '.example.com',
         path: '/',
-        maxAge: 30 * 24 * 60 * 60 * 1000  // 30日
+        maxAge: 30 * 24 * 60 * 60 * 1000  // 30 days
     });
 
     next();
 });
 ```
 
-### 5.4 サードパーティ Cookie の廃止と代替技術
+### 5.4 Third-Party Cookie Deprecation and Alternatives
 
 ```
-サードパーティ Cookie の廃止状況:
+Third-party cookie deprecation status:
 
   ┌──────────┬──────────────────────────────────────────────────────┐
-  │ ブラウザ  │ 状況                                                 │
+  │ Browser  │ Status                                                │
   ├──────────┼──────────────────────────────────────────────────────┤
-  │ Safari   │ ITP (Intelligent Tracking Prevention) で既にブロック  │
-  │          │ 2020年以降、サードパーティ Cookie は完全ブロック       │
+  │ Safari   │ Already blocked by ITP (Intelligent Tracking Prevention) │
+  │          │ Third-party cookies fully blocked since 2020          │
   ├──────────┼──────────────────────────────────────────────────────┤
-  │ Firefox  │ ETP (Enhanced Tracking Protection) でブロック         │
-  │          │ Total Cookie Protection でストレージも分離            │
+  │ Firefox  │ Blocked by ETP (Enhanced Tracking Protection)         │
+  │          │ Storage also partitioned by Total Cookie Protection   │
   ├──────────┼──────────────────────────────────────────────────────┤
-  │ Chrome   │ Privacy Sandbox に段階的移行                         │
-  │          │ CHIPS (Cookies Having Independent Partitioned State) │
-  │          │ Topics API、Attribution Reporting API 等で代替        │
+  │ Chrome   │ Gradual migration to Privacy Sandbox                  │
+  │          │ CHIPS (Cookies Having Independent Partitioned State)  │
+  │          │ Replaced by Topics API, Attribution Reporting API, etc.│
   └──────────┴──────────────────────────────────────────────────────┘
 
-  代替技術の比較:
+  Comparison of alternative technologies:
 
   ┌─────────────────────┬────────────────────┬─────────────────────┐
-  │ 用途                 │ 従来の手法          │ 代替技術             │
+  │ Use Case            │ Previous Method     │ Alternative          │
   ├─────────────────────┼────────────────────┼─────────────────────┤
-  │ 広告ターゲティング   │ 3rd party Cookie   │ Topics API           │
-  │ コンバージョン計測   │ 3rd party Cookie   │ Attribution Reporting│
-  │ 認証連携 (SSO)      │ 3rd party Cookie   │ FedCM API            │
-  │ 埋め込みウィジェット │ 3rd party Cookie   │ CHIPS (Partitioned)  │
-  │ 不正検知            │ 3rd party Cookie   │ Private State Tokens │
+  │ Ad targeting        │ 3rd party Cookie    │ Topics API           │
+  │ Conversion tracking │ 3rd party Cookie    │ Attribution Reporting│
+  │ Auth federation (SSO)│ 3rd party Cookie   │ FedCM API            │
+  │ Embedded widgets    │ 3rd party Cookie    │ CHIPS (Partitioned)  │
+  │ Fraud detection     │ 3rd party Cookie    │ Private State Tokens │
   └─────────────────────┴────────────────────┴─────────────────────┘
 ```
 
 ---
 
-## 6. その他のセキュリティ機構
+## 6. Other Security Mechanisms
 
-### 6.1 Subresource Integrity（SRI）
+### 6.1 Subresource Integrity (SRI)
 
-SRI は、CDN 等の外部から読み込むリソースが改ざんされていないことを暗号学的に検証する仕組みである。
+SRI is a mechanism that cryptographically verifies that resources loaded from external sources such as CDNs have not been tampered with.
 
 ```html
-<!-- SRI の使用例 -->
+<!-- SRI usage example -->
 <script
     src="https://cdn.example.com/lib/react.production.min.js"
     integrity="sha384-oqVuAfXRKap7fdgcCY5uykM6+R9GqQ8K/uxy9rx7HNQlGYl1kPzQho1wx4JwY8w"
@@ -1031,51 +1032,51 @@ SRI は、CDN 等の外部から読み込むリソースが改ざんされてい
     crossorigin="anonymous">
 
 <!--
-  SRI の動作:
-  1. ブラウザがリソースをダウンロード
-  2. ダウンロードしたリソースの SHA ハッシュを計算
-  3. integrity 属性のハッシュ値と比較
-  4. 一致 → リソースを使用
-     不一致 → リソースをブロック（ネットワークエラー扱い）
+  SRI operation:
+  1. Browser downloads the resource
+  2. Compute the SHA hash of the downloaded resource
+  3. Compare with the hash value in the integrity attribute
+  4. Match → use the resource
+     Mismatch → block the resource (treated as a network error)
 
-  crossorigin="anonymous" が必要な理由:
-  → SRI はレスポンスボディのハッシュを検証するため、
-    CORS によりレスポンスにアクセスできる必要がある
+  Why crossorigin="anonymous" is required:
+  → SRI validates the hash of the response body, so
+    the response must be accessible via CORS
 -->
 ```
 
 ```bash
-# SRI ハッシュの生成方法
-# コマンドラインで sha384 ハッシュを生成
+# How to generate an SRI hash
+# Generate a sha384 hash from the command line
 cat react.production.min.js | openssl dgst -sha384 -binary | openssl base64 -A
 
-# 複数のハッシュアルゴリズムを指定可能（フォールバック）
+# Multiple hash algorithms can be specified (fallback)
 # integrity="sha256-xxx sha384-yyy sha512-zzz"
-# → ブラウザは最も強いアルゴリズムを選択
+# → Browser selects the strongest algorithm
 ```
 
 ### 6.2 Trusted Types
 
-Trusted Types は、DOM XSS を根本的に防止するための API である。innerHTML 等の危険な DOM API に対して、文字列の直接代入を禁止し、サニタイズ済みの「信頼された型」のみを受け入れるようにする。
+Trusted Types is an API that fundamentally prevents DOM XSS. It prohibits direct string assignment to dangerous DOM APIs such as innerHTML and instead accepts only sanitized "trusted type" objects.
 
 ```javascript
-// Trusted Types の設定と使用例
+// Trusted Types configuration and usage example
 
-// CSP ヘッダーで Trusted Types を強制
+// Force Trusted Types via CSP header
 // Content-Security-Policy: require-trusted-types-for 'script';
 //                          trusted-types myPolicy default;
 
-// ポリシーの作成
+// Create a policy
 const sanitizePolicy = trustedTypes.createPolicy('myPolicy', {
     createHTML: (input) => {
-        // DOMPurify 等でサニタイズ
+        // Sanitize with DOMPurify or similar
         return DOMPurify.sanitize(input, {
             ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br'],
             ALLOWED_ATTR: ['href', 'title']
         });
     },
     createScriptURL: (input) => {
-        // 許可された URL のみ返す
+        // Return only allowed URLs
         const url = new URL(input, document.baseURI);
         if (url.origin === location.origin) {
             return url.href;
@@ -1083,24 +1084,24 @@ const sanitizePolicy = trustedTypes.createPolicy('myPolicy', {
         throw new TypeError(`Untrusted script URL: ${input}`);
     },
     createScript: (input) => {
-        // スクリプトの直接生成は原則禁止
+        // Direct script creation is prohibited in principle
         throw new TypeError('Script creation is not allowed');
     }
 });
 
-// 使用例: innerHTML への代入
+// Usage example: assigning to innerHTML
 const userContent = '<p>Hello <b>World</b></p><script>alert("XSS")</script>';
 const trustedHTML = sanitizePolicy.createHTML(userContent);
-// → <p>Hello <b>World</b></p> （scriptタグは除去される）
+// → <p>Hello <b>World</b></p> (script tag is removed)
 
 document.getElementById('content').innerHTML = trustedHTML;  // OK
 
-// Trusted Types なしでの直接代入はブロックされる
+// Direct assignment without Trusted Types is blocked
 // document.getElementById('content').innerHTML = userContent;
 // → TypeError: Failed to set 'innerHTML': This document requires
 //   'TrustedHTML' assignment.
 
-// デフォルトポリシー（フォールバック用）
+// Default policy (for fallback)
 trustedTypes.createPolicy('default', {
     createHTML: (input) => {
         console.warn('Uncontrolled innerHTML usage detected:', input);
@@ -1112,75 +1113,75 @@ trustedTypes.createPolicy('default', {
 ### 6.3 Referrer Policy
 
 ```
-Referrer-Policy の値と動作:
+Referrer-Policy values and behavior:
 
   ┌─────────────────────────────────┬──────────────────────────────────┐
-  │ ポリシー                         │ 送信されるリファラー              │
+  │ Policy                          │ Referrer sent                     │
   ├─────────────────────────────────┼──────────────────────────────────┤
-  │ no-referrer                     │ リファラーを一切送信しない        │
-  │ no-referrer-when-downgrade      │ HTTPS→HTTP では送信しない         │
-  │ origin                          │ オリジンのみ送信                  │
+  │ no-referrer                     │ No referrer sent at all          │
+  │ no-referrer-when-downgrade      │ Not sent on HTTPS→HTTP           │
+  │ origin                          │ Origin only                       │
   │                                 │ (https://example.com/)            │
-  │ origin-when-cross-origin        │ 同一オリジン: フルURL             │
-  │                                 │ クロスオリジン: オリジンのみ      │
-  │ same-origin                     │ 同一オリジン: フルURL             │
-  │                                 │ クロスオリジン: 送信しない        │
-  │ strict-origin                   │ HTTPS→HTTPS: オリジンのみ        │
-  │                                 │ HTTPS→HTTP: 送信しない           │
-  │ strict-origin-when-cross-origin │ 同一オリジン: フルURL             │
-  │ (デフォルト)                     │ クロスオリジン: オリジンのみ      │
-  │                                 │ HTTPS→HTTP: 送信しない           │
-  │ unsafe-url                      │ 常にフルURLを送信（非推奨）       │
+  │ origin-when-cross-origin        │ Same origin: full URL            │
+  │                                 │ Cross-origin: origin only         │
+  │ same-origin                     │ Same origin: full URL            │
+  │                                 │ Cross-origin: not sent            │
+  │ strict-origin                   │ HTTPS→HTTPS: origin only         │
+  │                                 │ HTTPS→HTTP: not sent             │
+  │ strict-origin-when-cross-origin │ Same origin: full URL            │
+  │ (default)                       │ Cross-origin: origin only         │
+  │                                 │ HTTPS→HTTP: not sent             │
+  │ unsafe-url                      │ Always sends full URL (not recommended) │
   └─────────────────────────────────┴──────────────────────────────────┘
 
-  推奨設定: strict-origin-when-cross-origin（多くのブラウザのデフォルト）
-  機密情報を含むURL（トークン等）がある場合: no-referrer
+  Recommended: strict-origin-when-cross-origin (default in most browsers)
+  When URLs contain sensitive information (tokens, etc.): no-referrer
 ```
 
-### 6.4 セキュリティヘッダーの総合設定例
+### 6.4 Comprehensive Security Header Configuration Example
 
 ```nginx
-# Nginx での推奨セキュリティヘッダー設定
+# Recommended security header configuration in Nginx
 
 server {
     listen 443 ssl http2;
     server_name example.com;
 
-    # --- TLS 設定 ---
+    # --- TLS Configuration ---
     ssl_certificate     /etc/ssl/certs/example.com.pem;
     ssl_certificate_key /etc/ssl/private/example.com.key;
     ssl_protocols       TLSv1.2 TLSv1.3;
     ssl_ciphers         HIGH:!aNULL:!MD5;
 
-    # --- セキュリティヘッダー ---
+    # --- Security Headers ---
 
-    # HSTS: HTTPS の強制（max-age=2年、サブドメイン含む）
+    # HSTS: Force HTTPS (max-age=2 years, including subdomains)
     add_header Strict-Transport-Security
         "max-age=63072000; includeSubDomains; preload" always;
 
-    # CSP: リソース読み込みの制限
-    # ※ nonce はアプリケーション側で動的に生成
+    # CSP: Restrict resource loading
+    # * nonce is dynamically generated by the application per request
     add_header Content-Security-Policy
         "default-src 'self'; script-src 'self' 'strict-dynamic'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.example.com; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests;"
         always;
 
-    # X-Content-Type-Options: MIME スニッフィング防止
+    # X-Content-Type-Options: Prevent MIME sniffing
     add_header X-Content-Type-Options "nosniff" always;
 
-    # X-Frame-Options: クリックジャッキング防止
-    # （CSP frame-ancestors と併用推奨）
+    # X-Frame-Options: Prevent clickjacking
+    # (recommended to use together with CSP frame-ancestors)
     add_header X-Frame-Options "DENY" always;
 
     # Referrer Policy
     add_header Referrer-Policy
         "strict-origin-when-cross-origin" always;
 
-    # Permissions Policy: 不要な機能の無効化
+    # Permissions Policy: Disable unnecessary features
     add_header Permissions-Policy
         "camera=(), microphone=(), geolocation=(self), payment=(self)"
         always;
 
-    # Cross-Origin Isolation（必要な場合）
+    # Cross-Origin Isolation (when needed)
     # add_header Cross-Origin-Opener-Policy "same-origin" always;
     # add_header Cross-Origin-Embedder-Policy "require-corp" always;
 
@@ -1191,11 +1192,11 @@ server {
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### 7.1 アンチパターン 1: CSP に `unsafe-inline` と `unsafe-eval` を安易に使用する
+### 7.1 Anti-Pattern 1: Carelessly Using `unsafe-inline` and `unsafe-eval` in CSP
 
-**問題のあるコード:**
+**Problematic code:**
 
 ```
 Content-Security-Policy:
@@ -1204,13 +1205,13 @@ Content-Security-Policy:
     style-src 'self' 'unsafe-inline';
 ```
 
-**なぜ問題か:**
+**Why this is a problem:**
 
-`unsafe-inline` を `script-src` に指定すると、CSP による XSS 防御がほぼ無効化される。攻撃者が HTML インジェクションに成功した場合、`<script>alert(document.cookie)</script>` のようなインラインスクリプトがそのまま実行されてしまう。同様に `unsafe-eval` を指定すると、`eval()` や `Function()` コンストラクタ、`setTimeout('string')` といった文字列からコードを生成する API が許可され、攻撃面が大幅に広がる。
+Specifying `unsafe-inline` in `script-src` almost completely disables CSP's XSS protection. If an attacker succeeds in HTML injection, inline scripts like `<script>alert(document.cookie)</script>` execute as-is. Similarly, specifying `unsafe-eval` permits APIs that generate code from strings, such as `eval()`, the `Function()` constructor, and `setTimeout('string')`, greatly expanding the attack surface.
 
-CSP を導入する主目的は XSS の影響緩和であり、`unsafe-inline` と `unsafe-eval` の使用はその目的を損なう。特に `script-src` にこれらを指定することは、鍵のかからないドアに防犯カメラだけ設置するようなもので、根本的な防御にならない。
+The primary purpose of introducing CSP is to mitigate the impact of XSS, and using `unsafe-inline` and `unsafe-eval` undermines that purpose. Specifying these in `script-src` is like installing a surveillance camera on a door without a lock — it provides no fundamental defense.
 
-**正しいアプローチ:**
+**Correct approach:**
 
 ```
 Content-Security-Policy:
@@ -1219,36 +1220,36 @@ Content-Security-Policy:
     style-src 'self' 'nonce-{server-generated-random}';
 ```
 
-nonce ベースの CSP を使用し、サーバーサイドでリクエストごとにランダムな nonce を生成して、正規のスクリプト要素にのみ付与する。`strict-dynamic` を併用することで、信頼されたスクリプトが動的にロードするスクリプトも自動的に許可される。
+Use a nonce-based CSP, generate a random nonce per request on the server side, and attach it only to legitimate script elements. Combining with `strict-dynamic` automatically permits scripts dynamically loaded by trusted scripts.
 
-### 7.2 アンチパターン 2: CORS で `Access-Control-Allow-Origin: *` と `credentials: true` を併用しようとする
+### 7.2 Anti-Pattern 2: Attempting to Combine `Access-Control-Allow-Origin: *` with `credentials: true` in CORS
 
-**問題のあるコード:**
+**Problematic code:**
 
 ```javascript
-// サーバー側
+// Server side
 app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     next();
 });
 
-// クライアント側
+// Client side
 fetch('https://api.example.com/user/profile', {
-    credentials: 'include'  // Cookie を含めたクロスオリジンリクエスト
+    credentials: 'include'  // Cross-origin request including cookies
 });
 ```
 
-**なぜ問題か:**
+**Why this is a problem:**
 
-ブラウザは仕様上、`Access-Control-Allow-Origin: *` と `Access-Control-Allow-Credentials: true` の組み合わせを拒否する。`credentials: true` を使用する場合、`Access-Control-Allow-Origin` には具体的なオリジンを指定しなければならない。
+By specification, browsers reject the combination of `Access-Control-Allow-Origin: *` and `Access-Control-Allow-Credentials: true`. When using `credentials: true`, `Access-Control-Allow-Origin` must specify a concrete origin.
 
-しかし、この制約を回避しようとして「リクエストの Origin ヘッダーをそのまま `Access-Control-Allow-Origin` にエコーバックする」というパターンが散見される。これは事実上すべてのオリジンを許可するのと同じであり、CSRF 攻撃に対して脆弱になる。
+However, in an attempt to work around this constraint, a pattern of "echoing back the request's Origin header as Access-Control-Allow-Origin" is often seen. This is effectively the same as allowing all origins and makes the application vulnerable to CSRF attacks.
 
-**正しいアプローチ:**
+**Correct approach:**
 
 ```javascript
-// サーバー側: 許可するオリジンをホワイトリストで管理
+// Server side: manage allowed origins with a whitelist
 const allowedOrigins = new Set([
     'https://app.example.com',
     'https://staging.example.com',
@@ -1261,129 +1262,129 @@ app.use((req, res, next) => {
     if (allowedOrigins.has(origin)) {
         res.setHeader('Access-Control-Allow-Origin', origin);
         res.setHeader('Access-Control-Allow-Credentials', 'true');
-        res.setHeader('Vary', 'Origin');  // キャッシュの正確性のため必須
+        res.setHeader('Vary', 'Origin');  // Required for cache correctness
     }
 
     next();
 });
 ```
 
-### 7.3 アンチパターン 3: postMessage で origin を検証しない
+### 7.3 Anti-Pattern 3: Not Validating origin in postMessage
 
-**問題のあるコード:**
+**Problematic code:**
 
 ```javascript
-// 受信側: origin の検証なし
+// Receiver: no origin validation
 window.addEventListener('message', (event) => {
-    // 危険: 任意のオリジンからのメッセージを処理してしまう
+    // Dangerous: processes messages from any origin
     const data = event.data;
     document.getElementById('output').innerHTML = data.html;
 });
 ```
 
-**なぜ問題か:**
+**Why this is a problem:**
 
-`postMessage` はクロスオリジン通信のための安全な API だが、受信側で `event.origin` を検証しないと、攻撃者のページから任意のメッセージを送信できてしまう。上記の例では、さらに受信したデータを `innerHTML` に直接代入しているため、DOM XSS の脆弱性も生じている。
+`postMessage` is a safe API for cross-origin communication, but if the receiver does not validate `event.origin`, an attacker's page can send arbitrary messages. The example above also assigns received data directly to `innerHTML`, creating a DOM XSS vulnerability.
 
-**正しいアプローチ:**
+**Correct approach:**
 
 ```javascript
-// 受信側: origin の検証あり
+// Receiver: with origin validation
 window.addEventListener('message', (event) => {
-    // 送信元オリジンの検証は必須
+    // Origin validation is mandatory
     if (event.origin !== 'https://trusted-partner.com') {
         console.warn('Message from untrusted origin rejected:', event.origin);
         return;
     }
 
-    // データの型と構造も検証
+    // Also validate the type and structure of the data
     if (typeof event.data !== 'object' || event.data.type !== 'update') {
         return;
     }
 
-    // innerHTML ではなく textContent を使用（XSS 防止）
+    // Use textContent instead of innerHTML (prevent XSS)
     document.getElementById('output').textContent = event.data.text;
 });
 ```
 
 ---
 
-## 8. エッジケース分析
+## 8. Edge Case Analysis
 
-### 8.1 エッジケース 1: `blob:` URL と `data:` URL のオリジン
+### 8.1 Edge Case 1: Origin of `blob:` URLs and `data:` URLs
 
-`blob:` URL と `data:` URL は通常の HTTP URL とは異なるオリジン判定ルールを持つ。
+`blob:` URLs and `data:` URLs follow different origin determination rules than normal HTTP URLs.
 
 ```javascript
-// blob: URL のオリジン
-// → 作成元ドキュメントのオリジンを継承する
+// Origin of blob: URLs
+// → Inherits the origin of the creating document
 
 const htmlContent = '<html><body><script>alert(document.domain)</script></body></html>';
 const blob = new Blob([htmlContent], { type: 'text/html' });
 const blobUrl = URL.createObjectURL(blob);
 // blobUrl = "blob:https://example.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-// → このblob URLのオリジンは https://example.com
+// → The origin of this blob URL is https://example.com
 
-// data: URL のオリジン
-// → Opaque Origin（不透明なオリジン）として扱われる
-// → どのオリジンとも同一オリジンにならない
+// Origin of data: URLs
+// → Treated as Opaque Origin
+// → Not same-origin with any other origin
 
 const dataUrl = 'data:text/html,<script>alert(document.domain)</script>';
-// → data: URL で開いたページの document.domain は "" (空文字列)
-// → 同一オリジンポリシーの観点では、他のどのオリジンともマッチしない
+// → document.domain of a page opened with a data: URL is "" (empty string)
+// → From the same-origin policy perspective, it matches no other origin
 
-// セキュリティ上の注意点:
-// 1. CSP で data: を許可すると、data: URL からのリソース読み込みが可能になる
-//    → script-src に data: を指定するのは危険
-//       攻撃者が data:text/javascript,alert(1) を注入できる
+// Security notes:
+// 1. Allowing data: in CSP enables resource loading from data: URLs
+//    → Specifying data: in script-src is dangerous
+//       An attacker can inject data:text/javascript,alert(1)
 
-// 2. blob: URL はオリジンを継承するため、
-//    CSP の script-src 'self' で blob: からのスクリプト実行が許可される
-//    ブラウザによっては追加の制限あり
+// 2. blob: URLs inherit the origin, so
+//    blob:-based script execution is allowed by CSP script-src 'self'
+//    Some browsers impose additional restrictions
 
-// 3. iframe で data: URL を使用する場合
+// 3. When using data: URLs in iframes
 const iframe = document.createElement('iframe');
 iframe.src = 'data:text/html,<h1>Hello</h1>';
-// → iframe 内は Opaque Origin
-// → 親ページからの DOM アクセスは SecurityError になる
+// → Inside the iframe is an Opaque Origin
+// → DOM access from the parent page causes SecurityError
 ```
 
-### 8.2 エッジケース 2: Service Worker のスコープとセキュリティ境界
+### 8.2 Edge Case 2: Service Worker Scope and Security Boundaries
 
-Service Worker は強力な機能を持つが、そのスコープとセキュリティ境界には注意が必要である。
+Service Workers are powerful, but their scope and security boundaries require careful attention.
 
 ```javascript
-// Service Worker のスコープ制限
+// Service Worker scope restrictions
 
-// Service Worker のスクリプトURLがそのスコープの上限を決定する
-// /sw.js でSWを登録 → スコープは / 以下全体
-// /app/sw.js でSWを登録 → スコープは /app/ 以下
+// The Service Worker script URL determines the upper bound of its scope
+// SW registered at /sw.js → scope covers all of /
+// SW registered at /app/sw.js → scope covers all of /app/
 
-// ケース1: スコープの上限を超えようとする（エラー）
+// Case 1: Trying to exceed the scope upper bound (error)
 navigator.serviceWorker.register('/app/sw.js', {
-    scope: '/'  // エラー: /app/sw.js のスコープは /app/ まで
+    scope: '/'  // Error: scope of /app/sw.js is limited to /app/
 });
 
-// ケース2: Service-Worker-Allowed ヘッダーで上限を拡張
-// サーバーが SW スクリプトのレスポンスに以下を付与:
+// Case 2: Expand upper bound with Service-Worker-Allowed header
+// Server attaches the following to the SW script response:
 // Service-Worker-Allowed: /
-// → これにより /app/sw.js のスコープを / まで拡張可能
+// → This allows the scope of /app/sw.js to extend to /
 
-// セキュリティ上の注意点:
+// Security notes:
 
-// 1. Service Worker は HTTPS（または localhost）でのみ登録可能
-// 2. Service Worker はオリジン単位で隔離される
-// 3. importScripts() で読み込むスクリプトも同一オリジンが必要
-//    （CORS が設定された外部スクリプトは可）
+// 1. Service Workers can only be registered over HTTPS (or localhost)
+// 2. Service Workers are isolated per origin
+// 3. Scripts loaded via importScripts() must also be same-origin
+//    (external scripts with CORS configured are allowed)
 
-// 4. Service Worker がキャッシュしたレスポンスと CSP の関係
+// 4. Relationship between Service Worker cached responses and CSP
 self.addEventListener('fetch', (event) => {
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
             if (cachedResponse) {
-                // キャッシュからのレスポンスにも CSP は適用される
-                // ただし、CSP ヘッダーはキャッシュされたレスポンスの
-                // ヘッダーが使用される（元のサーバー応答時のもの）
+                // CSP is also applied to cached responses
+                // However, the CSP header from the cached response
+                // (the one from the original server response) is used
                 return cachedResponse;
             }
             return fetch(event.request);
@@ -1391,26 +1392,25 @@ self.addEventListener('fetch', (event) => {
     );
 });
 
-// 5. Navigation Preload と Service Worker
-// → Navigation Preload を使用すると、SW の起動と
-//    ネットワークリクエストが並行して実行される
-// → レスポンスのセキュリティヘッダーは
-//    ネットワークレスポンスのものが使用される
+// 5. Navigation Preload and Service Workers
+// → With Navigation Preload, SW startup and
+//    network requests run in parallel
+// → Security headers from the network response are used
 ```
 
-### 8.3 エッジケース 3: WebSocket と Same-Origin Policy
+### 8.3 Edge Case 3: WebSocket and Same-Origin Policy
 
 ```javascript
-// WebSocket は Same-Origin Policy の制約を受けない
-// → 任意のオリジンへの WebSocket 接続が可能
+// WebSocket is not subject to Same-Origin Policy restrictions
+// → WebSocket connections to any origin are possible
 
-// これは仕様上の設計判断であり、以下の理由による:
-// 1. WebSocket のハンドシェイクは HTTP で行われ、
-//    サーバー側で Origin ヘッダーを検証できる
-// 2. WebSocket はブラウザの自動的な Cookie 送信をサポートするため、
-//    サーバー側での認証チェックが可能
+// This is a deliberate design decision for the following reasons:
+// 1. The WebSocket handshake uses HTTP, so the server
+//    can validate the Origin header
+// 2. WebSocket supports automatic cookie sending by the browser,
+//    allowing server-side authentication checks
 
-// サーバー側での Origin 検証（必須）
+// Server-side Origin validation (required)
 const WebSocket = require('ws');
 const wss = new WebSocket.Server({ port: 8080 });
 
@@ -1423,34 +1423,34 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    // 接続を受け入れる
+    // Accept the connection
     ws.on('message', (message) => {
-        // メッセージ処理
+        // Handle message
     });
 });
 
-// CSP の connect-src は WebSocket にも適用される
+// CSP connect-src also applies to WebSocket
 // Content-Security-Policy: connect-src 'self' wss://ws.example.com
 ```
 
 ---
 
-## 9. 演習
+## 9. Exercises
 
-### 9.1 演習 1: 基礎 — CSP ヘッダーの設計
+### 9.1 Exercise 1: Basic — CSP Header Design
 
-以下の要件を満たす CSP ヘッダーを設計せよ。
+Design a CSP header that satisfies the following requirements.
 
-**要件:**
-- 自社ドメイン `https://app.example.com` からのみスクリプトを読み込む
-- CDN `https://cdn.jsdelivr.net` からスタイルシートとフォントを読み込む
-- API サーバー `https://api.example.com` への fetch リクエストを許可する
-- 画像は自社ドメインと HTTPS の任意のソースから読み込む
-- iframe への埋め込みは一切禁止する
-- インラインスクリプトは nonce ベースで制御する
-- フォームの送信先は自社ドメインのみ
+**Requirements:**
+- Load scripts only from your domain `https://app.example.com`
+- Load stylesheets and fonts from CDN `https://cdn.jsdelivr.net`
+- Allow fetch requests to API server `https://api.example.com`
+- Load images from your domain and any HTTPS source
+- Prohibit embedding in iframes entirely
+- Control inline scripts with a nonce
+- Form submission destination is your domain only
 
-**模範解答:**
+**Model answer:**
 
 ```
 Content-Security-Policy:
@@ -1467,19 +1467,19 @@ Content-Security-Policy:
     upgrade-insecure-requests;
 ```
 
-**解説:**
-- `default-src 'none'` で全リソースをデフォルトでブロックし、必要なものだけ個別に許可するホワイトリスト方式を採用
-- `script-src` には `'nonce-{random}'` を指定し、サーバーサイドでリクエストごとにランダムな nonce を生成
-- `'strict-dynamic'` により、nonce 付きスクリプトが動的にロードするスクリプトも許可
-- `frame-ancestors 'none'` でクリックジャッキングを防止（X-Frame-Options: DENY と同等）
-- `upgrade-insecure-requests` で HTTP リクエストを自動的に HTTPS に昇格
+**Explanation:**
+- `default-src 'none'` blocks all resources by default; individual resources are allowed using a whitelist approach
+- `script-src` specifies `'nonce-{random}'`, where a random nonce is generated per request on the server side
+- `'strict-dynamic'` automatically permits scripts dynamically loaded by nonce-bearing scripts
+- `frame-ancestors 'none'` prevents clickjacking (equivalent to X-Frame-Options: DENY)
+- `upgrade-insecure-requests` automatically upgrades HTTP requests to HTTPS
 
-### 9.2 演習 2: 中級 — CORS の設定とデバッグ
+### 9.2 Exercise 2: Intermediate — CORS Configuration and Debugging
 
-以下のエラーメッセージが発生した場合の原因と対策を述べよ。
+Describe the cause and remedy when the following error message occurs.
 
-**シナリオ:**
-`https://app.example.com` のフロントエンドから `https://api.example.com/users` に POST リクエストを送信したところ、以下のエラーが発生した。
+**Scenario:**
+A frontend at `https://app.example.com` sent a POST request to `https://api.example.com/users` and the following error occurred.
 
 ```
 Access to fetch at 'https://api.example.com/users' from origin
@@ -1488,16 +1488,16 @@ Response to preflight request doesn't pass access control check:
 No 'Access-Control-Allow-Origin' header is present on the requested resource.
 ```
 
-**模範解答:**
+**Model answer:**
 
-原因: `https://api.example.com` のサーバーが、プリフライトリクエスト（OPTIONS メソッド）に対して適切な CORS ヘッダーを返していない。POST リクエストで `Content-Type: application/json` や Authorization ヘッダーを使用している場合、単純リクエスト（Simple Request）の条件を満たさないため、ブラウザは本リクエストの前にプリフライトリクエストを送信する。
+Cause: The server at `https://api.example.com` is not returning appropriate CORS headers in response to the preflight request (OPTIONS method). When a POST request uses `Content-Type: application/json` or an Authorization header, it does not meet the conditions for a Simple Request, so the browser sends a preflight request before the actual request.
 
-対策:
+Remedy:
 
 ```javascript
-// サーバー側（Express）の修正
+// Fix on the server side (Express)
 app.options('/users', (req, res) => {
-    // プリフライトリクエストへの応答
+    // Respond to preflight request
     res.setHeader('Access-Control-Allow-Origin', 'https://app.example.com');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
     res.setHeader('Access-Control-Allow-Headers',
@@ -1508,20 +1508,20 @@ app.options('/users', (req, res) => {
 
 app.post('/users', (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', 'https://app.example.com');
-    // ... ビジネスロジック
+    // ... business logic
     res.json({ success: true });
 });
 ```
 
-デバッグのポイント:
-1. ブラウザの DevTools の Network タブで OPTIONS リクエストの有無を確認
-2. OPTIONS レスポンスのステータスコードが 2xx であることを確認
-3. レスポンスヘッダーに必要な `Access-Control-Allow-*` が含まれていることを確認
-4. `Vary: Origin` ヘッダーが設定されていることを確認（CDN/プロキシのキャッシュ対策）
+Debugging points:
+1. Check for the presence of an OPTIONS request in the Network tab of the browser DevTools
+2. Verify that the OPTIONS response status code is 2xx
+3. Verify that the response headers contain the required `Access-Control-Allow-*` headers
+4. Verify that the `Vary: Origin` header is set (for CDN/proxy cache correctness)
 
-### 9.3 演習 3: 上級 — セキュリティヘッダーの総合監査
+### 9.3 Exercise 3: Advanced — Comprehensive Security Header Audit
 
-以下の HTTP レスポンスヘッダーを監査し、セキュリティ上の問題点をすべて指摘し、改善案を提示せよ。
+Audit the following HTTP response headers, identify all security issues, and suggest improvements.
 
 ```
 HTTP/1.1 200 OK
@@ -1531,24 +1531,24 @@ X-Powered-By: Express 4.18.2
 Server: nginx/1.24.0
 ```
 
-**模範解答:**
+**Model answer:**
 
-| # | 問題点 | リスク | 改善案 |
-|---|--------|--------|--------|
-| 1 | CSP ヘッダーがない | XSS 攻撃の影響が最大化される | `Content-Security-Policy` を追加 |
-| 2 | HSTS ヘッダーがない | ダウングレード攻撃（HTTP接続）のリスク | `Strict-Transport-Security` を追加 |
-| 3 | Cookie に Secure 属性がない | HTTP 通信でセッション Cookie が平文送信される | `Secure` を追加 |
-| 4 | Cookie に HttpOnly 属性がない | XSS でセッション Cookie が窃取される | `HttpOnly` を追加 |
-| 5 | Cookie に SameSite 属性がない | CSRF 攻撃のリスク（ブラウザデフォルトは Lax だが明示推奨） | `SameSite=Lax` を追加 |
-| 6 | X-Powered-By ヘッダーが露出 | フレームワークのバージョン情報が攻撃者に漏洩 | `X-Powered-By` を削除 |
-| 7 | Server ヘッダーにバージョン情報 | サーバーソフトウェアの脆弱性を特定される | バージョン番号を非表示に |
-| 8 | X-Content-Type-Options がない | MIME スニッフィング攻撃のリスク | `X-Content-Type-Options: nosniff` を追加 |
-| 9 | X-Frame-Options がない | クリックジャッキング攻撃のリスク | `X-Frame-Options: DENY` を追加 |
-| 10 | Referrer-Policy がない | 機密パス情報がリファラーで漏洩する可能性 | `Referrer-Policy: strict-origin-when-cross-origin` を追加 |
-| 11 | Permissions-Policy がない | 不要なブラウザ機能が悪用される可能性 | `Permissions-Policy` で不要な機能を無効化 |
-| 12 | Cookie に __Host- プレフィックスがない | Cookie のスコープが広すぎる可能性 | `__Host-session` に変更 |
+| # | Issue | Risk | Improvement |
+|---|-------|------|-------------|
+| 1 | No CSP header | XSS attack impact is maximized | Add `Content-Security-Policy` |
+| 2 | No HSTS header | Risk of downgrade attacks (HTTP connection) | Add `Strict-Transport-Security` |
+| 3 | Cookie has no Secure attribute | Session cookie sent in plaintext over HTTP | Add `Secure` |
+| 4 | Cookie has no HttpOnly attribute | Session cookie stolen via XSS | Add `HttpOnly` |
+| 5 | Cookie has no SameSite attribute | CSRF attack risk (browser default is Lax but explicit is recommended) | Add `SameSite=Lax` |
+| 6 | X-Powered-By header exposed | Framework version info leaks to attackers | Remove `X-Powered-By` |
+| 7 | Server header contains version info | Server software vulnerabilities can be identified | Hide the version number |
+| 8 | No X-Content-Type-Options | Risk of MIME sniffing attacks | Add `X-Content-Type-Options: nosniff` |
+| 9 | No X-Frame-Options | Risk of clickjacking attacks | Add `X-Frame-Options: DENY` |
+| 10 | No Referrer-Policy | Sensitive path info may leak via referrer | Add `Referrer-Policy: strict-origin-when-cross-origin` |
+| 11 | No Permissions-Policy | Unnecessary browser features may be abused | Disable unnecessary features with `Permissions-Policy` |
+| 12 | Cookie has no __Host- prefix | Cookie scope may be too broad | Change to `__Host-session` |
 
-改善後のレスポンスヘッダー:
+Improved response headers:
 
 ```
 HTTP/1.1 200 OK
@@ -1566,27 +1566,27 @@ Permissions-Policy: camera=(), microphone=(), geolocation=(self)
 
 ## 10. FAQ
 
-### Q1: CSP を導入したら既存のサイトが壊れてしまいます。段階的に導入するにはどうすればよいですか？
+### Q1: My existing site breaks when I introduce CSP. How do I roll it out gradually?
 
-CSP の段階的な導入には `Content-Security-Policy-Report-Only` ヘッダーを活用する。このヘッダーを使用すると、ポリシー違反はレポートされるがリソースのブロックは行われない。
+Use the `Content-Security-Policy-Report-Only` header for a gradual CSP rollout. With this header, policy violations are reported but resources are not blocked.
 
-推奨される導入手順:
+Recommended rollout procedure:
 
-1. **調査フェーズ**: `Content-Security-Policy-Report-Only` を緩めのポリシーで設定し、`report-uri` でレポートを収集する。これにより、サイトが読み込んでいるすべてのリソースの出所を把握できる。
+1. **Investigation phase**: Set `Content-Security-Policy-Report-Only` with a relaxed policy and collect reports with `report-uri`. This gives you visibility into all resource sources loaded by the site.
 
-2. **分析フェーズ**: 収集したレポートを分析し、正規のリソースと不要なリソースを区別する。インラインスクリプトやインラインスタイルの使用箇所を特定し、nonce やハッシュへの移行計画を立てる。
+2. **Analysis phase**: Analyze the collected reports to distinguish legitimate resources from unnecessary ones. Identify locations of inline scripts and inline styles, and plan migration to nonces or hashes.
 
-3. **段階的適用**: まず影響の少ないディレクティブ（`object-src 'none'`, `base-uri 'self'`）から本番の CSP ヘッダーに移行し、徐々にスコープを広げていく。
+3. **Gradual application**: Start migrating low-impact directives (`object-src 'none'`, `base-uri 'self'`) to the production CSP header first, then gradually expand the scope.
 
-4. **本番適用**: すべてのディレクティブを `Content-Security-Policy` ヘッダーに移行し、`Report-Only` は次のポリシー変更のテスト用に残しておく。
+4. **Production application**: Migrate all directives to the `Content-Security-Policy` header and keep `Report-Only` for testing future policy changes.
 
-### Q2: Same-Origin Policy があるのに、なぜ CSRF 攻撃が成立するのですか？
+### Q2: If Same-Origin Policy exists, why do CSRF attacks succeed?
 
-Same-Origin Policy は「レスポンスの読み取り」を制限するが、「リクエストの送信」自体は制限しない。フォーム送信（`<form method="POST">`）やイメージタグ（`<img src="...">`）によるリクエストは、クロスオリジンであっても送信される。このとき、ブラウザはターゲットサイトの Cookie を自動的に付与する。
+The Same-Origin Policy restricts "reading responses" but does not restrict "sending requests" themselves. Form submissions (`<form method="POST">`) and image tag requests (`<img src="...">`) are sent even cross-origin. The browser automatically attaches the target site's cookies to these requests.
 
-攻撃者のページ:
+Attacker's page:
 ```html
-<!-- 攻撃者が evil.com に設置したページ -->
+<!-- Page set up by the attacker on evil.com -->
 <form id="csrf-form"
       action="https://bank.example.com/transfer"
       method="POST">
@@ -1596,79 +1596,79 @@ Same-Origin Policy は「レスポンスの読み取り」を制限するが、�
 <script>document.getElementById('csrf-form').submit();</script>
 ```
 
-この場合:
-- ブラウザは `bank.example.com` への POST リクエストを送信する
-- ユーザーが `bank.example.com` にログイン中であれば、Cookie が自動的に付与される
-- サーバーは正規のリクエストと区別できない
+In this case:
+- The browser sends a POST request to `bank.example.com`
+- If the user is logged in to `bank.example.com`, cookies are automatically attached
+- The server cannot distinguish it from a legitimate request
 
-**対策:**
-- `SameSite=Lax` または `SameSite=Strict` の Cookie 属性
-- CSRF トークン（サーバーサイドで生成したランダムなトークンをフォームに埋め込む）
-- Origin ヘッダーの検証
-- カスタムヘッダーの要求（`X-Requested-With` 等。プリフライトが発生するため CSRF が困難になる）
+**Countermeasures:**
+- `SameSite=Lax` or `SameSite=Strict` Cookie attribute
+- CSRF token (embed a random server-generated token in the form)
+- Origin header validation
+- Require a custom header (`X-Requested-With`, etc.; a preflight occurs, making CSRF harder)
 
-### Q3: Content-Security-Policy の `strict-dynamic` はどのように動作しますか？
+### Q3: How does `strict-dynamic` in Content-Security-Policy work?
 
-`strict-dynamic` は CSP Level 3 で導入されたソース式であり、nonce またはハッシュで信頼されたスクリプトが動的に生成・読み込みするスクリプトにも信頼を伝播させる仕組みである。
+`strict-dynamic` is a source expression introduced in CSP Level 3 that propagates trust to scripts dynamically generated or loaded by scripts already trusted via a nonce or hash.
 
 ```javascript
-// CSP ヘッダー:
+// CSP header:
 // Content-Security-Policy: script-src 'nonce-abc123' 'strict-dynamic'
 
-// 以下の nonce 付きスクリプトは実行される
+// The following nonce-bearing script executes
 // <script nonce="abc123">
-//     // このスクリプト内で動的にロードするスクリプトも許可される
+//     // Scripts dynamically loaded by this script are also permitted
 //     const script = document.createElement('script');
 //     script.src = 'https://any-cdn.com/library.js';
 //     document.head.appendChild(script);
-//     // → 'strict-dynamic' により、このスクリプトは実行される
-//     //   （ホワイトリストに any-cdn.com がなくても）
+//     // → This script executes via 'strict-dynamic'
+//     //   (even without any-cdn.com in the whitelist)
 // </script>
 ```
 
-`strict-dynamic` が有効な場合の動作:
-- nonce/ハッシュで直接信頼されたスクリプトから `createElement('script')` で追加されたスクリプトは自動的に許可される
-- `document.write()` で挿入されたスクリプトはブロックされる（パーサー挿入型は危険なため）
-- `https:` や `http:` 等の URL ベースのソース式は無視される（`strict-dynamic` が優先）
-- `'self'` や具体的なホスト名も無視される
+Behavior when `strict-dynamic` is enabled:
+- Scripts added via `createElement('script')` from scripts directly trusted by nonce/hash are automatically permitted
+- Scripts inserted via `document.write()` are blocked (parser-inserted scripts are dangerous)
+- URL-based source expressions like `https:` or `http:` are ignored (`strict-dynamic` takes precedence)
+- `'self'` and specific hostnames are also ignored
 
-これにより、既存のスクリプトローダーやモジュールバンドラーとの互換性を維持しつつ、攻撃者が直接注入したインラインスクリプトはブロックされる。
+This maintains compatibility with existing script loaders and module bundlers while blocking inline scripts directly injected by attackers.
 
-### Q4: なぜ `X-Frame-Options` と CSP の `frame-ancestors` を両方設定する必要がありますか？
+### Q4: Why is it necessary to set both `X-Frame-Options` and CSP's `frame-ancestors`?
 
-`X-Frame-Options` は古いヘッダーであり、`DENY` と `SAMEORIGIN` の2つの値のみサポートする。CSP の `frame-ancestors` はより柔軟であり、特定のオリジンを指定できる。両方を設定する理由は、古いブラウザが CSP の `frame-ancestors` をサポートしていない場合のフォールバックとしてである。
+`X-Frame-Options` is an older header that supports only two values: `DENY` and `SAMEORIGIN`. CSP's `frame-ancestors` is more flexible and can specify particular origins. The reason to set both is as a fallback for older browsers that do not support CSP's `frame-ancestors`.
 
-ただし、両方が設定されている場合、CSP `frame-ancestors` が優先される（CSP 仕様による）。そのため、CSP をサポートするモダンブラウザでは `frame-ancestors` の値が使用され、CSP をサポートしないレガシーブラウザでは `X-Frame-Options` が使用される。
+However, when both are set, CSP `frame-ancestors` takes precedence (per the CSP spec). Therefore, modern browsers that support CSP use the `frame-ancestors` value, while legacy browsers that do not support CSP use `X-Frame-Options`.
 
-### Q5: ブラウザのセキュリティモデルにおいて、拡張機能（Extension）はどのような位置づけですか？
+### Q5: What is the role of browser extensions in the browser security model?
 
-ブラウザ拡張機能は通常のWebページよりも高い権限を持ち、セキュリティモデルの特殊な位置にある。
+Browser extensions have higher privileges than normal web pages and occupy a special position in the security model.
 
-- 拡張機能は `manifest.json` で宣言した権限に基づいて動作する
-- `content_scripts` はWebページのDOMにアクセスできるが、独立した JavaScript 実行環境（isolated world）で動作する
-- `background` スクリプト（Service Worker）はブラウザAPIへの特権アクセスを持つ
-- CSP はWebページに対して適用されるが、拡張機能自体には拡張機能用の CSP が適用される
-- 拡張機能は `webRequest` API でネットワークリクエストを傍受・変更できる（Manifest V3 では `declarativeNetRequest` に移行）
+- Extensions operate based on the permissions declared in `manifest.json`
+- `content_scripts` can access web page DOM but operate in an isolated JavaScript execution environment (isolated world)
+- `background` scripts (Service Worker) have privileged access to browser APIs
+- CSP applies to web pages; extensions have their own CSP applied
+- Extensions can intercept and modify network requests via the `webRequest` API (migrated to `declarativeNetRequest` in Manifest V3)
 
-拡張機能のインストールはユーザーの明示的な操作が必要であり、ストアの審査プロセスを経るため、一定の信頼性が担保されている。しかし、悪意ある拡張機能はブラウザのセキュリティモデルを迂回できるため、インストールする拡張機能の選別は重要である。
+Extension installation requires an explicit user action and goes through a store review process, providing a certain level of trustworthiness. However, malicious extensions can bypass the browser security model, so choosing extensions carefully is important.
 
-### Q6: CSP の設定ベストプラクティスを教えてください
+### Q6: What are the best practices for CSP configuration?
 
-本番環境で推奨される CSP 設定のベストプラクティスは以下のとおり:
+Recommended best practices for CSP in production:
 
-**1. nonce ベースの CSP を採用する**
+**1. Adopt nonce-based CSP**
 ```http
 Content-Security-Policy:
-  script-src 'nonce-{ランダム値}' 'strict-dynamic';
+  script-src 'nonce-{random}' 'strict-dynamic';
   object-src 'none';
   base-uri 'none';
 ```
 
-- リクエストごとに異なる nonce を生成し、信頼するスクリプトタグに付与する
-- `'strict-dynamic'` により、nonce 付きスクリプトから動的にロードされるスクリプトも許可される
-- `'unsafe-inline'` や `'unsafe-eval'` は避ける（攻撃者がインラインスクリプトを注入できる）
+- Generate a different nonce per request and attach it to trusted script tags
+- `'strict-dynamic'` also permits scripts dynamically loaded by nonce-bearing scripts
+- Avoid `'unsafe-inline'` and `'unsafe-eval'` (allow attackers to inject inline scripts)
 
-**2. すべての重要なディレクティブを明示的に設定する**
+**2. Explicitly set all important directives**
 ```http
 Content-Security-Policy:
   default-src 'self';
@@ -1685,72 +1685,72 @@ Content-Security-Policy:
   upgrade-insecure-requests;
 ```
 
-**3. Report-Only モードでテストする**
-本番適用前に `Content-Security-Policy-Report-Only` で違反をモニタリングし、誤検知を防ぐ。
+**3. Test with Report-Only mode**
+Before applying to production, monitor violations with `Content-Security-Policy-Report-Only` to prevent false positives.
 
-**4. レポート収集エンドポイントを設定する**
+**4. Configure a report collection endpoint**
 ```http
 Content-Security-Policy: ...; report-uri /csp-violation-report;
 ```
-CSP 違反を収集・分析することで、攻撃の試みや設定ミスを検知できる。
+Collecting and analyzing CSP violations detects attack attempts and configuration errors.
 
-**5. 段階的に厳格化する**
-最初は `default-src 'self'` から始め、徐々に `'unsafe-inline'` を排除し、nonce/ハッシュベースに移行する。
+**5. Harden gradually**
+Start with `default-src 'self'` and gradually eliminate `'unsafe-inline'`, migrating to nonce/hash-based approaches.
 
-### Q7: ブラウザのサンドボックス化の仕組みを詳しく教えてください
+### Q7: Please explain the browser sandbox mechanism in detail.
 
-ブラウザのサンドボックスは、OSレベルの権限制限メカニズムを利用して、レンダラープロセスが実行できる操作を厳しく制限する仕組みである。
+The browser sandbox uses OS-level privilege restriction mechanisms to strictly limit the operations a renderer process can perform.
 
-**Windows でのサンドボックス実装:**
-- **Job Objects**: プロセスグループに対してリソース制限を適用
-- **Integrity Levels**: プロセスに「Low Integrity」ラベルを付与し、より高い Integrity Level のリソースへのアクセスを禁止
-- **Restricted Tokens**: プロセスのアクセストークンから多くの権限を削除
-- **AppContainer**: Windows 8 以降で導入された、UWP アプリと同様のサンドボックス環境
+**Sandbox implementation on Windows:**
+- **Job Objects**: Apply resource restrictions to process groups
+- **Integrity Levels**: Assign a "Low Integrity" label to the process, prohibiting access to resources at higher Integrity Levels
+- **Restricted Tokens**: Remove many privileges from the process's access token
+- **AppContainer**: Sandbox environment introduced in Windows 8, similar to UWP apps
 
-**macOS でのサンドボックス実装:**
-- **Seatbelt (sandbox-exec)**: Apple 独自のサンドボックスフレームワーク
-- プロファイルベースでアクセス可能なリソースを定義（ファイルシステム、ネットワーク、IPC など）
-- レンダラープロセスは極めて制限されたプロファイルで起動される
+**Sandbox implementation on macOS:**
+- **Seatbelt (sandbox-exec)**: Apple's proprietary sandbox framework
+- Define accessible resources (file system, network, IPC, etc.) in a profile
+- The renderer process starts with a heavily restricted profile
 
-**Linux でのサンドボックス実装:**
-- **namespaces**: プロセスから見えるリソース（PID、ネットワーク、マウントポイント等）を分離
-- **seccomp-bpf**: システムコールをフィルタリングし、許可されたシステムコールのみ実行可能にする
-- **cgroups**: リソース使用量（CPU、メモリ等）を制限
+**Sandbox implementation on Linux:**
+- **namespaces**: Isolate resources visible to the process (PID, network, mount points, etc.)
+- **seccomp-bpf**: Filter system calls so only allowed ones can execute
+- **cgroups**: Restrict resource usage (CPU, memory, etc.)
 
-**サンドボックスの制限内容:**
-- ファイルシステムへの直接アクセス禁止（ブラウザプロセス経由でのみアクセス可能）
-- ネットワークソケットの直接作成禁止
-- デバイスドライバーへのアクセス禁止
-- 他のプロセスへのアクセス禁止
-- ウィンドウシステムへの直接アクセス制限
+**What the sandbox restricts:**
+- Direct file system access is prohibited (accessible only via the browser process)
+- Direct network socket creation is prohibited
+- Device driver access is prohibited
+- Access to other processes is prohibited
+- Direct access to the window system is restricted
 
-これにより、たとえレンダラープロセスが攻撃者に乗っ取られても、ユーザーのファイルを読み取ったり、マルウェアをインストールしたりすることはできない。攻撃者がさらにシステムを侵害するには、サンドボックスをエスケープする脆弱性を発見する必要がある（サンドボックスエスケープは高度な攻撃であり、通常は報奨金プログラムで高額の報酬が支払われる）。
+As a result, even if a renderer process is compromised by an attacker, they cannot read the user's files or install malware. For an attacker to further compromise the system, they would need to find a vulnerability to escape the sandbox (sandbox escape is an advanced attack and typically commands high bounties in bug bounty programs).
 
 ---
 
-## 11. ブラウザセキュリティの進化と将来展望
+## 11. Evolution of Browser Security and Future Outlook
 
 ### 11.1 Privacy Sandbox
 
-Google が推進する Privacy Sandbox は、サードパーティ Cookie に依存しないWeb エコシステムの構築を目指すイニシアチブである。以下の主要 API で構成される。
+Privacy Sandbox, promoted by Google, is an initiative aimed at building a web ecosystem that does not rely on third-party cookies. It consists of the following major APIs.
 
-| API 名 | 用途 | サードパーティ Cookie の代替 |
-|--------|------|---------------------------|
-| Topics API | 興味関心ベースの広告 | Cookie ベースのユーザープロファイリング |
-| Protected Audience (FLEDGE) | リターゲティング広告 | サードパーティ Cookie によるリターゲティング |
-| Attribution Reporting | コンバージョン計測 | Cookie ベースのアトリビューション |
-| Private State Tokens | 不正防止（Bot検知） | サードパーティ Cookie による信頼性判定 |
-| FedCM | 認証連携（SSO） | サードパーティ Cookie による SSO |
-| CHIPS | パーティション化 Cookie | 無制限のサードパーティ Cookie |
-| Fenced Frames | 広告表示の分離 | iframe + サードパーティ Cookie |
-| Shared Storage | 制限付きクロスサイトストレージ | サードパーティ Cookie による状態共有 |
+| API Name | Purpose | Replaces Third-Party Cookie For |
+|----------|----------|---------------------------------|
+| Topics API | Interest-based advertising | Cookie-based user profiling |
+| Protected Audience (FLEDGE) | Retargeting advertising | Third-party cookie retargeting |
+| Attribution Reporting | Conversion measurement | Cookie-based attribution |
+| Private State Tokens | Fraud prevention (bot detection) | Third-party cookie trust evaluation |
+| FedCM | Auth federation (SSO) | Third-party cookie SSO |
+| CHIPS | Partitioned cookies | Unrestricted third-party cookies |
+| Fenced Frames | Ad display isolation | iframe + third-party cookies |
+| Shared Storage | Limited cross-site storage | Third-party cookie state sharing |
 
-### 11.2 Speculation Rules API とセキュリティ
+### 11.2 Speculation Rules API and Security
 
-Speculation Rules API は、ページのプリレンダリングやプリフェッチを宣言的に制御する仕組みである。セキュリティ面では以下の点に注意が必要である。
+The Speculation Rules API declaratively controls page pre-rendering and prefetching. From a security standpoint, the following considerations are important.
 
 ```html
-<!-- Speculation Rules の記述例 -->
+<!-- Speculation Rules example -->
 <script type="speculationrules">
 {
     "prerender": [
@@ -1771,13 +1771,13 @@ Speculation Rules API は、ページのプリレンダリングやプリフェ�
 </script>
 
 <!--
-  セキュリティ上の考慮事項:
-  1. プリレンダリングされたページは、ユーザーが実際にナビゲーションする前に
-     副作用（API呼び出し、アナリティクス等）を発生させる可能性がある
-  2. クロスオリジンのプリフェッチでは、ユーザーのIPアドレスが
-     プリフェッチ先に漏洩する可能性がある
-     → "requires": ["anonymous-client-ip-when-cross-origin"] で対策
-  3. CSP はプリレンダリングされたページにも適用される
+  Security considerations:
+  1. Pre-rendered pages may produce side effects (API calls, analytics, etc.)
+     before the user actually navigates
+  2. Cross-origin prefetches may expose the user's IP address
+     to the prefetch target
+     → Mitigated by "requires": ["anonymous-client-ip-when-cross-origin"]
+  3. CSP is also applied to pre-rendered pages
 -->
 ```
 
@@ -1785,61 +1785,61 @@ Speculation Rules API は、ページのプリレンダリングやプリフェ�
 
 ## FAQ
 
-### Q1: CSPを導入する際に、既存のインラインスクリプトが動作しなくなるのを防ぐにはどうすればよいですか?
-CSPを段階的に導入するには、まず `Content-Security-Policy-Report-Only` ヘッダーを使って違反レポートのみを収集し、影響範囲を把握します。その後、インラインスクリプトには `nonce` 属性（サーバー側で毎回ランダム生成する値）を付与し、CSPヘッダーに `'nonce-<値>'` を指定することで、正当なインラインスクリプトのみ実行を許可できます。`'unsafe-inline'` の使用は最終手段とし、可能な限り `nonce` + `strict-dynamic` の組み合わせを推奨します。
+### Q1: How do I prevent existing inline scripts from breaking when introducing CSP?
+To roll out CSP gradually, first use the `Content-Security-Policy-Report-Only` header to collect only violation reports and understand the scope of impact. Then attach a `nonce` attribute to inline scripts (a value randomly generated server-side for each request) and specify `'nonce-<value>'` in the CSP header, which allows only legitimate inline scripts to execute. Use `'unsafe-inline'` as a last resort; wherever possible, the combination of `nonce` + `strict-dynamic` is recommended.
 
-### Q2: Same-Origin PolicyとCORSの関係はどのように整理すればよいですか?
-Same-Origin Policy（SOP）はブラウザのデフォルトのセキュリティポリシーで、異なるオリジン間のリソースアクセスを制限します。CORS（Cross-Origin Resource Sharing）はSOPの例外を安全に設けるための仕組みです。サーバーが `Access-Control-Allow-Origin` ヘッダーで許可するオリジンを明示することで、ブラウザはクロスオリジンリクエストのレスポンスをJavaScriptに公開します。SOPが「デフォルトで拒否」、CORSが「明示的に許可」という関係にあります。
+### Q2: How should I think about the relationship between Same-Origin Policy and CORS?
+The Same-Origin Policy (SOP) is the browser's default security policy that restricts cross-origin resource access. CORS (Cross-Origin Resource Sharing) is a mechanism to safely introduce exceptions to SOP. When a server explicitly specifies an allowed origin in the `Access-Control-Allow-Origin` header, the browser exposes the cross-origin request response to JavaScript. SOP is "deny by default," and CORS is "explicitly allow."
 
-### Q3: SameSite Cookie属性のLax、Strict、Noneの使い分けはどうすべきですか?
-`SameSite=Lax`（デフォルト）は、トップレベルナビゲーション（リンクのクリック）ではCookieが送信されますが、iframe内やAJAXリクエストではクロスサイトCookieが送信されません。これが最も汎用的な選択肢です。`SameSite=Strict` はクロスサイトリクエストでは一切Cookieを送信しないため、外部サイトからのリンク経由でもログイン状態が維持されません。`SameSite=None; Secure` はクロスサイトでもCookieを送信しますが、HTTPS必須で、サードパーティCookie廃止の動きにより今後制約が強まります。認証Cookieには `Lax` を、埋め込みウィジェット用には `None` を使用するのが一般的です。
-
----
-
-## まとめ
-
-### セキュリティ機構の対応表
-
-| 概念 | 防御対象 | 設定場所 | ポイント |
-|------|---------|---------|---------|
-| サンドボックス | プロセス権限昇格 | OS/ブラウザ内部 | レンダラーの権限制限、OS隔離 |
-| Same-Origin Policy | クロスオリジンデータ窃取 | ブラウザ内部（自動） | スキーム+ホスト+ポートで判定 |
-| CSP | XSS の影響緩和 | HTTP ヘッダー | nonce + strict-dynamic を推奨 |
-| サイトアイソレーション | Spectre 等のサイドチャネル | ブラウザ内部（自動） | 異なるサイトを別プロセスで実行 |
-| Cookie セキュリティ | セッション窃取、CSRF | Set-Cookie ヘッダー | Secure + HttpOnly + SameSite=Lax |
-| SRI | CDN リソースの改ざん | HTML の integrity 属性 | sha384 以上のハッシュを推奨 |
-| CORS | 安全なクロスオリジン通信 | HTTP レスポンスヘッダー | ホワイトリスト + Vary: Origin |
-| Trusted Types | DOM XSS | CSP + JavaScript API | innerHTML 等への文字列代入を禁止 |
-| HSTS | ダウングレード攻撃 | HTTP レスポンスヘッダー | preload リストへの登録を推奨 |
-| Permissions Policy | 不要な機能の悪用 | HTTP ヘッダー / iframe 属性 | 使わない機能は明示的に無効化 |
-
-### セキュリティチェックリスト
-
-本番環境にデプロイする前に、以下の項目を確認することを推奨する。
-
-- [ ] HTTPS が有効であり、HTTP からのリダイレクトが設定されている
-- [ ] HSTS ヘッダーが設定されている（`max-age` は十分に長い値）
-- [ ] CSP ヘッダーが設定され、`unsafe-inline` / `unsafe-eval` を使用していない
-- [ ] Cookie に Secure, HttpOnly, SameSite 属性が設定されている
-- [ ] X-Content-Type-Options: nosniff が設定されている
-- [ ] X-Frame-Options または CSP frame-ancestors が設定されている
-- [ ] CDN のリソースに SRI（integrity 属性）が付与されている
-- [ ] CORS の設定がホワイトリスト方式になっている
-- [ ] Server / X-Powered-By ヘッダーのバージョン情報が非表示になっている
-- [ ] Referrer-Policy が適切に設定されている
-- [ ] Permissions-Policy で不要な機能が無効化されている
+### Q3: How should I choose between Lax, Strict, and None for the SameSite Cookie attribute?
+`SameSite=Lax` (default) sends cookies on top-level navigation (link clicks) but does not send cross-site cookies in iframes or AJAX requests. This is the most versatile choice. `SameSite=Strict` never sends cookies in cross-site requests, meaning the logged-in state is not maintained even when arriving via a link from an external site. `SameSite=None; Secure` sends cookies cross-site but requires HTTPS, and will face increasing restrictions as third-party cookies are phased out. Using `Lax` for authentication cookies and `None` for embedded widgets is common practice.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [レンダリングパイプライン](../01-rendering/00-rendering-pipeline.md)
-- ブラウザストレージ（Cookie, localStorage, IndexedDB の詳細）
-- Fetch API と CORS の実践
+### Security Mechanism Reference Table
+
+| Concept | Protected Against | Configured At | Key Point |
+|---------|-------------------|---------------|-----------|
+| Sandbox | Process privilege escalation | OS/browser internals | Renderer privilege restriction, OS isolation |
+| Same-Origin Policy | Cross-origin data theft | Browser internals (automatic) | Determined by scheme + host + port |
+| CSP | XSS impact mitigation | HTTP header | nonce + strict-dynamic recommended |
+| Site Isolation | Spectre and side-channel attacks | Browser internals (automatic) | Run different sites in separate processes |
+| Cookie security | Session hijacking, CSRF | Set-Cookie header | Secure + HttpOnly + SameSite=Lax |
+| SRI | CDN resource tampering | HTML integrity attribute | sha384 or stronger hash recommended |
+| CORS | Safe cross-origin communication | HTTP response headers | Whitelist + Vary: Origin |
+| Trusted Types | DOM XSS | CSP + JavaScript API | Prohibit direct string assignment to innerHTML etc. |
+| HSTS | Downgrade attacks | HTTP response header | Adding to preload list is recommended |
+| Permissions Policy | Misuse of unnecessary features | HTTP header / iframe attribute | Explicitly disable features you don't use |
+
+### Security Checklist
+
+Before deploying to production, it is recommended to verify the following items.
+
+- [ ] HTTPS is enabled and HTTP redirect is configured
+- [ ] HSTS header is set (with a sufficiently long `max-age`)
+- [ ] CSP header is set without `unsafe-inline` / `unsafe-eval`
+- [ ] Cookies have Secure, HttpOnly, and SameSite attributes
+- [ ] X-Content-Type-Options: nosniff is set
+- [ ] X-Frame-Options or CSP frame-ancestors is set
+- [ ] CDN resources have SRI (integrity attribute)
+- [ ] CORS configuration uses a whitelist approach
+- [ ] Version information in Server / X-Powered-By headers is hidden
+- [ ] Referrer-Policy is appropriately configured
+- [ ] Unnecessary features are disabled with Permissions-Policy
 
 ---
 
-## 参考文献
+## Next Guides to Read
+
+- [Rendering Pipeline](../01-rendering/00-rendering-pipeline.md)
+- Browser Storage (Cookie, localStorage, IndexedDB in detail)
+- Fetch API and CORS in practice
+
+---
+
+## References
 
 1. Chromium Project. "Site Isolation Design Document." The Chromium Projects, 2018. https://www.chromium.org/Home/chromium-security/site-isolation/
 2. MDN Web Docs. "Content Security Policy (CSP)." Mozilla, 2024. https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP
@@ -1851,4 +1851,3 @@ Same-Origin Policy（SOP）はブラウザのデフォルトのセキュリテ�
 8. Barth, A. "The Web Origin Concept." RFC 6454, IETF, 2011.
 9. West, M. "Incrementally Better Cookies." RFC 6265bis, IETF, 2024.
 10. W3C. "Trusted Types." W3C Working Draft, 2023. https://www.w3.org/TR/trusted-types/
-```
