@@ -1,138 +1,141 @@
-# APIドキュメンテーション
+# API Documentation
 
-> APIドキュメントはAPIの「顔」であり、開発者が最初に触れるインターフェースである。OpenAPI/Swagger、Redoc、Scalar、自動生成ツール、インタラクティブドキュメント、コード例の設計、ドキュメント駆動開発（Design-First）まで、開発者に愛されるドキュメント作成の全技法を体系的に習得する。
+> API documentation is the "face" of an API and the first interface developers encounter. This chapter provides a systematic understanding of all techniques for creating developer-loved documentation — from OpenAPI/Swagger, Redoc, Scalar, auto-generation tools, and interactive documentation, to code example design and documentation-driven development (Design-First).
 
-## 前提知識
+## Prerequisites
 
-- API First設計の概念 → 参照: [API First設計](../00-api-design-principles/00-api-first-design.md)
-- OpenAPI仕様の基本 → 参照: [API First設計](../00-api-design-principles/00-api-first-design.md)
-- Markdownの記法
-- RESTful APIの基礎知識
-- HTTP ステータスコードの理解
-- JSONフォーマットの基本
+- Concept of API First design → See: [API First Design](../00-api-design-principles/00-api-first-design.md)
+- Basics of OpenAPI specification → See: [API First Design](../00-api-design-principles/00-api-first-design.md)
+- Markdown syntax
+- Fundamentals of RESTful APIs
+- Understanding of HTTP status codes
+- Basics of JSON format
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] OpenAPI 3.0/3.1 仕様の詳細構造とドキュメント自動生成の仕組みを理解する
-- [ ] Swagger UI、Redoc、Scalar 等の主要レンダリングツールの特性と使い分けを把握する
-- [ ] ドキュメント駆動開発（Design-First）のワークフローを実践できるようになる
-- [ ] インタラクティブドキュメントの構築方法とカスタマイズ手法を学ぶ
-- [ ] 良いドキュメントの構成要素・設計原則・品質メトリクスを体得する
-- [ ] コード例の設計原則と多言語対応のベストプラクティスを実装できるようになる
+- [ ] Understand the detailed structure of OpenAPI 3.0/3.1 specifications and how automatic documentation generation works
+- [ ] Grasp the characteristics and appropriate use cases for major rendering tools such as Swagger UI, Redoc, and Scalar
+- [ ] Be able to practice the documentation-driven development (Design-First) workflow
+- [ ] Learn how to build and customize interactive documentation
+- [ ] Master the components, design principles, and quality metrics of good documentation
+- [ ] Be able to implement the design principles of code examples and multi-language best practices
 
 ---
 
-## 1. APIドキュメンテーションの全体像
+## 1. Overview of API Documentation
 
-### 1.1 なぜAPIドキュメントが重要なのか
+### 1.1 Why API Documentation Matters
 
-APIドキュメントは、API提供者と利用者の間の「契約書」であると同時に「ユーザーマニュアル」でもある。Postmanの2023年度調査によると、API選定時に「ドキュメントの質」を最重要視する開発者は全体の52%に達し、「APIの機能」(48%)を上回った。つまり、どれほど優れた機能を持つAPIであっても、ドキュメントが貧弱であれば採用されないのが現実である。
+API documentation serves as both a "contract" and a "user manual" between the API provider and consumers. According to Postman's 2023 survey, 52% of developers — more than the 48% who cited "API features" — ranked "documentation quality" as the most important factor when selecting an API. In other words, no matter how capable an API is, the reality is that it won't be adopted if its documentation is poor.
 
 ```
-APIドキュメントの価値チェーン:
+API Documentation Value Chain:
 
   +------------------+     +-------------------+     +------------------+
-  |  ドキュメント品質  | --> |  開発者体験 (DX)   | --> |  API採用率向上    |
+  |  Documentation   | --> |  Developer        | --> |  API Adoption    |
+  |  Quality         |     |  Experience (DX)  |     |  Rate Increase   |
   +------------------+     +-------------------+     +------------------+
           |                         |                         |
           v                         v                         v
   +------------------+     +-------------------+     +------------------+
-  | サポート問い合わせ  | --> |  オンボーディング   | --> |  ビジネス成長     |
-  | コスト削減        |     |  時間の短縮        |     |  パートナー拡大   |
-  +------------------+     +-------------------+     +------------------+
+  | Support Ticket   | --> |  Onboarding       | --> |  Business        |
+  | Cost Reduction   |     |  Time Reduction   |     |  Growth &        |
+  +------------------+     +-------------------+     |  Partner Growth  |
+                                                      +------------------+
 
-  ドキュメント品質が高い API:
-    - Time to First Call (TTFC): 平均 5分以下
-    - サポートチケット: 40% 削減
-    - 開発者離脱率: 60% 改善
-    - SDK 利用開始率: 3倍向上
+  APIs with high documentation quality:
+    - Time to First Call (TTFC): under 5 minutes on average
+    - Support tickets: 40% reduction
+    - Developer churn rate: 60% improvement
+    - SDK adoption rate: 3x increase
 ```
 
-### 1.2 ドキュメントの4層モデル
+### 1.2 The 4-Layer Documentation Model
 
-APIドキュメントは単一の文書ではなく、利用者の習熟度とユースケースに応じた複数の層で構成される。
+API documentation is not a single document, but is composed of multiple layers suited to the user's level of expertise and use case.
 
 ```
-APIドキュメントの4層構造:
+4-Layer Structure of API Documentation:
 
   ┌─────────────────────────────────────────────────┐
-  │  Layer 4: コンセプト（Concept）                    │
-  │  ・アーキテクチャ設計思想                           │
-  │  ・Webhook の仕組み、レート制限の考え方             │
-  │  ・セキュリティモデル、データモデル                  │
-  │  対象: 設計者・アーキテクト                         │
+  │  Layer 4: Concept                               │
+  │  · Architecture design philosophy               │
+  │  · How Webhooks work, rate limiting concepts    │
+  │  · Security model, data model                  │
+  │  Audience: architects and system designers      │
   ├─────────────────────────────────────────────────┤
-  │  Layer 3: チュートリアル（Tutorial）                │
-  │  ・「決済システムを作ろう」等の実装ガイド            │
-  │  ・ステップバイステップの手順書                     │
-  │  ・完成品のソースコード付き                         │
-  │  対象: 初級〜中級の開発者                          │
+  │  Layer 3: Tutorial                              │
+  │  · Implementation guides like "Build a payment  │
+  │    system"                                      │
+  │  · Step-by-step procedures                      │
+  │  · Complete source code of the finished product │
+  │  Audience: beginner to intermediate developers  │
   ├─────────────────────────────────────────────────┤
-  │  Layer 2: ガイド（Guide）                          │
-  │  ・Quick Start、認証方法、ページネーション          │
-  │  ・「○○をするには」の How-to ドキュメント          │
-  │  ・ベストプラクティス集                             │
-  │  対象: 中級の開発者                                │
+  │  Layer 2: Guide                                 │
+  │  · Quick Start, authentication, pagination      │
+  │  · How-to documents for "how to do X"           │
+  │  · Best practices collection                    │
+  │  Audience: intermediate developers              │
   ├─────────────────────────────────────────────────┤
-  │  Layer 1: リファレンス（Reference）                 │
-  │  ・全エンドポイント一覧                             │
-  │  ・パラメータ、レスポンス、エラーコード              │
-  │  ・OpenAPI から自動生成が可能                       │
-  │  対象: 全ての開発者（最頻利用層）                   │
+  │  Layer 1: Reference                             │
+  │  · Complete list of all endpoints               │
+  │  · Parameters, responses, error codes           │
+  │  · Can be auto-generated from OpenAPI           │
+  │  Audience: all developers (most frequent users) │
   └─────────────────────────────────────────────────┘
 
-  良いドキュメント = 4層全てが揃っている
-  優れたドキュメント = 4層が相互にリンクされている
+  Good documentation = all 4 layers are present
+  Great documentation = all 4 layers are cross-linked
 ```
 
-各層の代表例と特徴を比較する。
+Comparing the representative examples and characteristics of each layer:
 
-| 層 | 目的 | 代表例 | 更新頻度 | 自動生成 |
+| Layer | Purpose | Representative Example | Update Frequency | Auto-generation |
 |---|---|---|---|---|
-| リファレンス | エンドポイントの仕様把握 | Stripe API Reference | API変更時 | OpenAPI から可能 |
-| ガイド | 特定タスクの実現方法 | Stripe Docs の "Accept a payment" | 機能追加時 | 一部テンプレート化可能 |
-| チュートリアル | 学習目的の段階的実装 | Twilio Quest, Plaid Quickstart | 定期的 | サンプルコードの自動テスト可能 |
-| コンセプト | 設計思想・アーキテクチャ理解 | Stripe のアーキテクチャ解説 | 大規模変更時 | 手動執筆が主体 |
+| Reference | Understanding endpoint specifications | Stripe API Reference | On API change | Possible from OpenAPI |
+| Guide | How to accomplish a specific task | Stripe Docs "Accept a payment" | On feature addition | Partially templateable |
+| Tutorial | Step-by-step implementation for learning | Twilio Quest, Plaid Quickstart | Periodically | Auto-testing of sample code possible |
+| Concept | Design philosophy and architecture understanding | Stripe architecture overview | On major changes | Manual writing is primary |
 
-### 1.3 ドキュメント駆動開発（Design-First / Documentation-Driven Development）
+### 1.3 Documentation-Driven Development (Design-First / Documentation-Driven Development)
 
-従来の「Code-First」アプローチでは、実装後にドキュメントを作成するため、仕様とドキュメントの乖離が生じやすい。「Design-First」アプローチでは、OpenAPI 仕様書をまず設計し、それを基にコード生成とドキュメント生成を同時に行う。
+The traditional "Code-First" approach creates documentation after implementation, which easily leads to divergence between the specification and the documentation. The "Design-First" approach first designs the OpenAPI specification, then simultaneously generates both code and documentation from it.
 
 ```
-Code-First vs Design-First の比較:
+Code-First vs Design-First Comparison:
 
   === Code-First ===
 
-  実装 --> テスト --> OpenAPI 生成 --> ドキュメント生成
-    ↑                                       |
-    |          仕様とドキュメントの乖離       |
-    +---------------------------------------+
+  Implement --> Test --> Generate OpenAPI --> Generate Docs
+       ↑                                            |
+       |       Spec and doc divergence grows        |
+       +--------------------------------------------+
 
-  問題点:
-  - ドキュメントが後回しになり、陳腐化しやすい
-  - API設計のレビューが実装後になる
-  - 破壊的変更に気づきにくい
+  Problems:
+  - Documentation gets pushed back and becomes stale
+  - API design review happens after implementation
+  - Breaking changes are hard to notice
 
-  === Design-First（推奨） ===
+  === Design-First (Recommended) ===
 
-                  ┌─→ サーバースタブ生成
-  OpenAPI 設計 ──┼─→ クライアントSDK生成
-                  ├─→ ドキュメント自動生成
-                  ├─→ モックサーバー起動
-                  └─→ テスト自動生成
+                  ┌─→ Generate server stub
+  Design OpenAPI ─┼─→ Generate client SDK
+                  ├─→ Auto-generate documentation
+                  ├─→ Start mock server
+                  └─→ Auto-generate tests
 
-  利点:
-  - 仕様が Single Source of Truth
-  - フロントエンド・バックエンド並行開発が可能
-  - 破壊的変更の早期検出
-  - ドキュメントが常に最新
+  Benefits:
+  - Specification is Single Source of Truth
+  - Frontend and backend can develop in parallel
+  - Early detection of breaking changes
+  - Documentation is always up to date
 ```
 
-Design-First のワークフロー実装例を以下に示す。
+An example implementation of the Design-First workflow:
 
 ```yaml
 # .github/workflows/api-design-first.yml
-# Design-First ワークフローの CI/CD パイプライン
+# CI/CD pipeline for the Design-First workflow
 name: API Design-First Pipeline
 on:
   push:
@@ -146,11 +149,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # OpenAPI 仕様の構文チェック
+      # Syntax check for OpenAPI specification
       - name: Validate OpenAPI spec
         run: npx @redocly/cli lint api/openapi.yaml
 
-      # 破壊的変更の検出
+      # Detect breaking changes
       - name: Check breaking changes
         run: npx oasdiff breaking api/openapi.yaml --base origin/main
 
@@ -160,7 +163,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # サーバースタブ生成
+      # Generate server stub
       - name: Generate server stub
         run: |
           npx @openapitools/openapi-generator-cli generate \
@@ -168,7 +171,7 @@ jobs:
             -g typescript-express-server \
             -o generated/server
 
-      # クライアントSDK生成
+      # Generate TypeScript client SDK
       - name: Generate TypeScript SDK
         run: |
           npx @openapitools/openapi-generator-cli generate \
@@ -176,7 +179,7 @@ jobs:
             -g typescript-axios \
             -o generated/sdk-typescript
 
-      # Python SDK 生成
+      # Generate Python SDK
       - name: Generate Python SDK
         run: |
           npx @openapitools/openapi-generator-cli generate \
@@ -190,11 +193,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Redoc でドキュメント生成
+      # Generate documentation with Redoc
       - name: Build API docs
         run: npx @redocly/cli build-docs api/openapi.yaml -o docs/index.html
 
-      # GitHub Pages にデプロイ
+      # Deploy to GitHub Pages
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
@@ -204,36 +207,36 @@ jobs:
 
 ---
 
-## 2. OpenAPI 仕様の詳細
+## 2. OpenAPI Specification in Depth
 
-### 2.1 OpenAPI 3.0 と 3.1 の違い
+### 2.1 Differences Between OpenAPI 3.0 and 3.1
 
-OpenAPI は REST API の仕様を記述するための標準フォーマットである。バージョン 3.1 は JSON Schema Draft 2020-12 との完全互換を実現した重要なアップデートである。
+OpenAPI is the standard format for describing REST API specifications. Version 3.1 is a significant update that achieves full compatibility with JSON Schema Draft 2020-12.
 
-| 特徴 | OpenAPI 3.0 | OpenAPI 3.1 |
+| Feature | OpenAPI 3.0 | OpenAPI 3.1 |
 |---|---|---|
-| JSON Schema 互換性 | 部分的（独自拡張あり） | 完全互換（Draft 2020-12） |
-| nullable の扱い | `nullable: true` | `type: ["string", "null"]` |
-| 排他的キーワード | `exclusiveMinimum: true` + `minimum` | `exclusiveMinimum: 値` |
-| Webhook 定義 | paths で代用 | `webhooks` キーワード追加 |
-| $ref と他キーワードの併用 | 不可 | 可能 |
-| if/then/else | 非対応 | 対応 |
-| ライセンス identifier | 非対応 | `identifier` フィールド追加 |
-| ツールサポート | 広範 | 拡大中（2024年時点で主要ツール対応済み） |
+| JSON Schema compatibility | Partial (with proprietary extensions) | Full compatibility (Draft 2020-12) |
+| Handling of nullable | `nullable: true` | `type: ["string", "null"]` |
+| Exclusive keywords | `exclusiveMinimum: true` + `minimum` | `exclusiveMinimum: value` |
+| Webhook definition | Substitute via paths | `webhooks` keyword added |
+| Using $ref with other keywords | Not possible | Possible |
+| if/then/else | Not supported | Supported |
+| License identifier | Not supported | `identifier` field added |
+| Tool support | Broad | Growing (major tools supported as of 2024) |
 
-### 2.2 OpenAPI 仕様の構造化設計
+### 2.2 Structured Design of OpenAPI Specifications
 
-大規模なAPIでは、単一の YAML ファイルに全ての仕様を書くとメンテナンスが困難になる。$ref を活用したマルチファイル構成が推奨される。
+For large-scale APIs, maintaining all specifications in a single YAML file becomes difficult. A multi-file structure using $ref is recommended.
 
 ```yaml
-# ディレクトリ構成例
+# Example directory structure
 # api/
-# ├── openapi.yaml           # ルートファイル
-# ├── info.yaml               # API基本情報
+# ├── openapi.yaml           # Root file
+# ├── info.yaml              # API basic information
 # ├── paths/
-# │   ├── users.yaml          # /users エンドポイント
-# │   ├── orders.yaml         # /orders エンドポイント
-# │   └── products.yaml       # /products エンドポイント
+# │   ├── users.yaml         # /users endpoint
+# │   ├── orders.yaml        # /orders endpoint
+# │   └── products.yaml      # /products endpoint
 # ├── components/
 # │   ├── schemas/
 # │   │   ├── User.yaml
@@ -251,28 +254,28 @@ OpenAPI は REST API の仕様を記述するための標準フォーマット�
 #     ├── user-create.yaml
 #     └── user-list.yaml
 
-# --- openapi.yaml（ルートファイル） ---
+# --- openapi.yaml (Root file) ---
 openapi: '3.1.0'
 info:
   title: Example Commerce API
   version: '2.0.0'
   description: |
-    Example Commerce API は EC プラットフォームの中核機能を提供します。
+    The Example Commerce API provides the core functionality of an e-commerce platform.
 
-    ## 認証
-    全てのリクエストに Bearer トークンが必要です。
-    トークンは [ダッシュボード](https://dashboard.example.com) から取得できます。
+    ## Authentication
+    All requests require a Bearer token.
+    Tokens can be obtained from the [Dashboard](https://dashboard.example.com).
 
-    ## レート制限
-    | プラン     | リクエスト/分 | バースト上限 |
-    |-----------|-------------|------------|
-    | Free      | 60          | 10         |
-    | Pro       | 600         | 50         |
-    | Enterprise| 6000        | 200        |
+    ## Rate Limiting
+    | Plan       | Requests/min | Burst limit |
+    |------------|-------------|-------------|
+    | Free       | 60          | 10          |
+    | Pro        | 600         | 50          |
+    | Enterprise | 6000        | 200         |
 
-    ## エラーハンドリング
-    全てのエラーは統一された形式で返されます。
-    詳細は [エラーリファレンス](#tag/Errors) を参照してください。
+    ## Error Handling
+    All errors are returned in a unified format.
+    See [Error Reference](#tag/Errors) for details.
   contact:
     name: API Support
     email: api-support@example.com
@@ -286,26 +289,26 @@ info:
 
 servers:
   - url: https://api.example.com/v2
-    description: 本番環境
+    description: Production environment
   - url: https://sandbox.api.example.com/v2
-    description: サンドボックス環境（テスト用）
+    description: Sandbox environment (for testing)
   - url: http://localhost:3000/v2
-    description: ローカル開発環境
+    description: Local development environment
 
 tags:
   - name: Users
     description: |
-      ユーザーの作成・取得・更新・削除を行います。
-      ユーザーは全てのリソースの所有者となる基本エンティティです。
+      Create, retrieve, update, and delete users.
+      Users are the basic entity that owns all resources.
     externalDocs:
-      description: ユーザー管理ガイド
+      description: User Management Guide
       url: https://docs.example.com/guides/users
   - name: Orders
     description: |
-      注文の作成・取得・管理を行います。
-      注文ライフサイクルの詳細はコンセプトガイドを参照してください。
+      Create, retrieve, and manage orders.
+      See the concept guide for details on the order lifecycle.
   - name: Products
-    description: 商品の作成・取得・管理を行います。
+    description: Create, retrieve, and manage products.
 
 security:
   - bearerAuth: []
@@ -321,8 +324,8 @@ paths:
 webhooks:
   orderCompleted:
     post:
-      summary: 注文完了通知
-      description: 注文が完了した際に送信される Webhook イベント
+      summary: Order completion notification
+      description: Webhook event sent when an order is completed
       operationId: onOrderCompleted
       tags: [Webhooks]
       requestBody:
@@ -333,7 +336,7 @@ webhooks:
               $ref: './components/schemas/OrderCompletedEvent.yaml'
       responses:
         '200':
-          description: Webhook の受信確認
+          description: Acknowledgement of Webhook receipt
 
 components:
   securitySchemes:
@@ -341,18 +344,18 @@ components:
       $ref: './components/securitySchemes/bearerAuth.yaml'
 ```
 
-### 2.3 スキーマ設計のベストプラクティス
+### 2.3 Best Practices for Schema Design
 
-OpenAPI のスキーマ定義は、ドキュメントの品質に直結する。以下に充実したスキーマ定義の例を示す。
+OpenAPI schema definitions directly affect documentation quality. The following is an example of a comprehensive schema definition.
 
 ```yaml
 # components/schemas/User.yaml
-# ユーザースキーマの詳細定義
+# Detailed definition of the User schema
 type: object
 title: User
 description: |
-  ユーザーはシステムの基本エンティティです。
-  全てのリソース（注文、レビュー等）はユーザーに紐づきます。
+  A user is the fundamental entity in the system.
+  All resources (orders, reviews, etc.) are associated with a user.
 required:
   - id
   - email
@@ -363,27 +366,27 @@ properties:
   id:
     type: string
     format: uuid
-    description: ユーザーの一意識別子（UUID v4）
+    description: Unique identifier for the user (UUID v4)
     example: "550e8400-e29b-41d4-a716-446655440000"
     readOnly: true
   email:
     type: string
     format: email
     description: |
-      ユーザーのメールアドレス。
-      システム全体で一意である必要があります。
-      変更後は確認メールが送信されます。
+      The user's email address.
+      Must be unique across the system.
+      A confirmation email will be sent after a change.
     example: "taro.yamada@example.com"
     maxLength: 254
   name:
     type: string
-    description: ユーザーの表示名（2〜100文字）
+    description: The user's display name (2-100 characters)
     example: "Taro Yamada"
     minLength: 2
     maxLength: 100
   status:
     type: string
-    description: ユーザーのアカウント状態
+    description: The user's account status
     enum:
       - active
       - inactive
@@ -391,13 +394,13 @@ properties:
       - pending_verification
     example: "active"
     x-enum-descriptions:
-      active: 有効なアカウント
-      inactive: 無効化されたアカウント
-      suspended: 利用規約違反等で停止されたアカウント
-      pending_verification: メールアドレス確認待ち
+      active: Active account
+      inactive: Deactivated account
+      suspended: Account suspended due to terms of service violation
+      pending_verification: Awaiting email address verification
   role:
     type: string
-    description: ユーザーの権限レベル
+    description: The user's permission level
     enum:
       - admin
       - manager
@@ -409,13 +412,13 @@ properties:
       - string
       - "null"
     format: uri
-    description: プロフィール画像の URL（未設定の場合は null）
+    description: Profile image URL (null if not set)
     example: "https://cdn.example.com/avatars/550e8400.jpg"
   metadata:
     type: object
     description: |
-      任意のキー・バリューペアを格納できるメタデータ。
-      最大 50 個のキーを設定可能。各キーは 40 文字以内、値は 500 文字以内。
+      Metadata that can store arbitrary key-value pairs.
+      Up to 50 keys can be set. Each key is up to 40 characters; each value is up to 500 characters.
     additionalProperties:
       type: string
       maxLength: 500
@@ -426,57 +429,57 @@ properties:
   createdAt:
     type: string
     format: date-time
-    description: アカウント作成日時（ISO 8601 形式、UTC）
+    description: Account creation timestamp (ISO 8601 format, UTC)
     example: "2024-01-15T09:30:00Z"
     readOnly: true
   updatedAt:
     type: string
     format: date-time
-    description: 最終更新日時（ISO 8601 形式、UTC）
+    description: Last update timestamp (ISO 8601 format, UTC)
     example: "2024-06-20T14:22:00Z"
     readOnly: true
 ```
 
-### 2.4 エンドポイント定義の充実化
+### 2.4 Enriching Endpoint Definitions
 
-ドキュメント品質を左右するのは、エンドポイント定義の詳細さである。
+The detail of endpoint definitions determines documentation quality.
 
 ```yaml
-# paths/users.yaml - ユーザーエンドポイントの完全な定義例
+# paths/users.yaml - Complete definition example for user endpoints
 get:
-  summary: ユーザー一覧の取得
+  summary: List users
   description: |
-    登録済みユーザーの一覧を取得します。
-    Cursor ベースのページネーションに対応しています。
+    Retrieves a list of registered users.
+    Supports cursor-based pagination.
 
-    ### 権限
-    - `users:read` スコープが必要
+    ### Permissions
+    - Requires `users:read` scope
 
-    ### レート制限
-    - 100 リクエスト/分
+    ### Rate Limiting
+    - 100 requests/minute
 
-    ### ソート
-    `sort` パラメータで並び順を指定できます。
-    `-` プレフィックスで降順になります（例: `-createdAt`）。
+    ### Sorting
+    Use the `sort` parameter to specify order.
+    A `-` prefix for descending order (e.g., `-createdAt`).
 
-    ### フィルタリング
-    `status` パラメータで特定の状態のユーザーのみ取得できます。
-    複数指定する場合はカンマ区切りにします（例: `status=active,inactive`）。
+    ### Filtering
+    Use the `status` parameter to retrieve only users in a specific state.
+    Comma-separate multiple values (e.g., `status=active,inactive`).
   operationId: listUsers
   tags: [Users]
   parameters:
     - name: cursor
       in: query
       description: |
-        ページネーションカーソル。
-        前回のレスポンスの `meta.nextCursor` の値を指定してください。
-        初回リクエスト時は省略します。
+        Pagination cursor.
+        Provide the value of `meta.nextCursor` from the previous response.
+        Omit on the first request.
       schema:
         type: string
       example: "eyJpZCI6MTAwfQ"
     - name: limit
       in: query
-      description: 1ページあたりの取得件数
+      description: Number of items per page
       schema:
         type: integer
         minimum: 1
@@ -486,9 +489,9 @@ get:
     - name: sort
       in: query
       description: |
-        ソート順を指定します。
-        利用可能なフィールド: `name`, `email`, `createdAt`, `updatedAt`
-        降順の場合は `-` をプレフィックスにします。
+        Specifies sort order.
+        Available fields: `name`, `email`, `createdAt`, `updatedAt`
+        Prefix with `-` for descending order.
       schema:
         type: string
         enum:
@@ -503,33 +506,33 @@ get:
         default: -createdAt
     - name: status
       in: query
-      description: ユーザー状態によるフィルタリング（カンマ区切りで複数指定可能）
+      description: Filter by user status (comma-separated for multiple values)
       schema:
         type: string
       example: "active,inactive"
     - name: search
       in: query
-      description: 名前またはメールアドレスによる部分一致検索
+      description: Partial match search by name or email address
       schema:
         type: string
         minLength: 2
       example: "yamada"
   responses:
     '200':
-      description: ユーザー一覧の取得に成功
+      description: Successfully retrieved user list
       headers:
         X-RateLimit-Limit:
-          description: レート制限の上限値
+          description: Rate limit ceiling
           schema:
             type: integer
           example: 100
         X-RateLimit-Remaining:
-          description: 残りリクエスト数
+          description: Remaining requests
           schema:
             type: integer
           example: 95
         X-RateLimit-Reset:
-          description: レート制限リセット日時（Unix タイムスタンプ）
+          description: Rate limit reset time (Unix timestamp)
           schema:
             type: integer
           example: 1719900000
@@ -539,7 +542,7 @@ get:
             $ref: '#/components/schemas/UserListResponse'
           examples:
             default:
-              summary: 基本的なレスポンス
+              summary: Basic response
               value:
                 data:
                   - id: "550e8400-e29b-41d4-a716-446655440000"
@@ -559,7 +562,7 @@ get:
                   hasNextPage: true
                   nextCursor: "eyJpZCI6MTIwfQ"
             empty:
-              summary: 検索結果が空の場合
+              summary: Empty search results
               value:
                 data: []
                 meta:
@@ -567,7 +570,7 @@ get:
                   hasNextPage: false
                   nextCursor: null
     '400':
-      description: リクエストパラメータが不正
+      description: Invalid request parameters
       content:
         application/json:
           schema:
@@ -575,7 +578,7 @@ get:
           example:
             error:
               code: "INVALID_PARAMETER"
-              message: "limit は 1 以上 100 以下で指定してください"
+              message: "limit must be between 1 and 100"
               details:
                 - field: "limit"
                   value: 200
@@ -586,26 +589,26 @@ get:
       $ref: '#/components/responses/RateLimited'
 
 post:
-  summary: ユーザーの作成
+  summary: Create a user
   description: |
-    新しいユーザーを作成します。
-    作成後、確認メールが送信されます。
+    Creates a new user.
+    A confirmation email will be sent after creation.
 
-    ### 権限
-    - `users:write` スコープが必要
+    ### Permissions
+    - Requires `users:write` scope
 
-    ### 冪等性
-    `Idempotency-Key` ヘッダーを指定することで、
-    ネットワークエラー時の重複作成を防止できます。
+    ### Idempotency
+    Specifying the `Idempotency-Key` header prevents
+    duplicate creation on network errors.
   operationId: createUser
   tags: [Users]
   parameters:
     - name: Idempotency-Key
       in: header
       description: |
-        冪等性キー（UUID v4 を推奨）。
-        同一キーで 24 時間以内に再リクエストした場合、
-        最初のリクエストの結果が返されます。
+        Idempotency key (UUID v4 recommended).
+        If re-requested with the same key within 24 hours,
+        the result of the first request is returned.
       schema:
         type: string
         format: uuid
@@ -618,12 +621,12 @@ post:
           $ref: '#/components/schemas/CreateUserRequest'
         examples:
           basic:
-            summary: 基本的なユーザー作成
+            summary: Basic user creation
             value:
               name: "Taro Yamada"
               email: "taro@example.com"
           with_metadata:
-            summary: メタデータ付きユーザー作成
+            summary: User creation with metadata
             value:
               name: "Taro Yamada"
               email: "taro@example.com"
@@ -633,13 +636,13 @@ post:
                 employee_id: "EMP-12345"
   responses:
     '201':
-      description: ユーザーの作成に成功
+      description: User created successfully
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/User'
     '409':
-      description: メールアドレスが既に使用されている
+      description: Email address is already in use
       content:
         application/json:
           schema:
@@ -647,9 +650,9 @@ post:
           example:
             error:
               code: "DUPLICATE_EMAIL"
-              message: "指定されたメールアドレスは既に登録されています"
+              message: "The specified email address is already registered"
     '422':
-      description: バリデーションエラー
+      description: Validation error
       content:
         application/json:
           schema:
@@ -657,51 +660,51 @@ post:
           example:
             error:
               code: "VALIDATION_ERROR"
-              message: "入力値に誤りがあります"
+              message: "There are errors in the input values"
               details:
                 - field: "email"
                   code: "INVALID_FORMAT"
-                  message: "有効なメールアドレスを入力してください"
+                  message: "Please enter a valid email address"
                 - field: "name"
                   code: "TOO_SHORT"
-                  message: "名前は2文字以上で入力してください"
+                  message: "Name must be at least 2 characters"
 ```
 
 ---
 
-## 3. ドキュメント生成ツール比較
+## 3. Comparing Documentation Generation Tools
 
-### 3.1 主要ツールの詳細比較
+### 3.1 Detailed Comparison of Major Tools
 
-OpenAPI 仕様からドキュメントを生成するツールは複数存在する。プロジェクトの要件に応じた適切な選択が重要である。
+Multiple tools exist for generating documentation from OpenAPI specifications. Choosing the right one based on project requirements is important.
 
-| 特性 | Swagger UI | Redoc | Scalar | Stoplight Elements |
+| Feature | Swagger UI | Redoc | Scalar | Stoplight Elements |
 |---|---|---|---|---|
-| レイアウト | 1カラム | 3カラム | 3カラム | 3カラム |
-| Try it out 機能 | 標準搭載 | 有料プラン | 標準搭載 | 標準搭載 |
-| ダークモード | プラグイン必要 | 対応 | 標準搭載 | 対応 |
-| SEO 対応 | 弱い（SPA） | 強い（SSR可） | 強い | 普通 |
-| バンドルサイズ | 約 1.5MB | 約 500KB | 約 300KB | 約 700KB |
-| カスタマイズ性 | CSS/プラグイン | 限定的 | テーマシステム | React コンポーネント |
-| コード例自動生成 | なし | なし | 多言語対応 | なし |
-| React 統合 | @swagger-api/swagger-ui-react | redoc の React ラッパー | @scalar/api-reference-react | @stoplight/elements |
-| 料金 | 無料（OSS） | 基本無料/Pro有料 | 無料（OSS） | 基本無料/Pro有料 |
+| Layout | 1-column | 3-column | 3-column | 3-column |
+| Try it out | Standard | Paid plan | Standard | Standard |
+| Dark mode | Plugin required | Supported | Standard | Supported |
+| SEO support | Weak (SPA) | Strong (SSR capable) | Strong | Moderate |
+| Bundle size | ~1.5MB | ~500KB | ~300KB | ~700KB |
+| Customizability | CSS/plugins | Limited | Theme system | React components |
+| Auto code example generation | None | None | Multi-language | None |
+| React integration | @swagger-api/swagger-ui-react | Redoc React wrapper | @scalar/api-reference-react | @stoplight/elements |
+| Pricing | Free (OSS) | Freemium/Pro paid | Free (OSS) | Freemium/Pro paid |
 | GitHub Stars (2024) | 25k+ | 22k+ | 8k+ | 4k+ |
 
-### 3.2 Swagger UI の設定と拡張
+### 3.2 Configuring and Extending Swagger UI
 
 ```html
-<!-- Swagger UI の基本セットアップ -->
+<!-- Basic Swagger UI setup -->
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>API Documentation - Swagger UI</title>
   <link rel="stylesheet"
     href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
   <style>
-    /* カスタムスタイル */
-    .swagger-ui .topbar { display: none; } /* ヘッダーバーを非表示 */
+    /* Custom styles */
+    .swagger-ui .topbar { display: none; } /* Hide the header bar */
     .swagger-ui .info .title {
       font-size: 2rem;
       color: #1a1a2e;
@@ -718,7 +721,7 @@ OpenAPI 仕様からドキュメントを生成するツールは複数存在す
       border-color: #f93e3e;
       background: rgba(249, 62, 62, 0.05);
     }
-    /* レスポンシブ対応 */
+    /* Responsive support */
     @media (max-width: 768px) {
       .swagger-ui .wrapper { padding: 0 10px; }
     }
@@ -732,25 +735,25 @@ OpenAPI 仕様からドキュメントを生成するツールは複数存在す
       url: '/api/openapi.yaml',
       dom_id: '#swagger-ui',
       deepLinking: true,
-      // 認証情報のプリセット（開発環境用）
+      // Pre-set auth credentials (for development environment)
       onComplete: function() {
-        // テスト用トークンを自動設定
+        // Automatically set test token
         if (window.location.hostname === 'localhost') {
           ui.preauthorizeApiKey('bearerAuth', 'sk_test_abc123');
         }
       },
-      // レイアウト設定
+      // Layout settings
       layout: 'BaseLayout',
-      // フィルタ機能を有効化
+      // Enable filter feature
       filter: true,
-      // Try it out をデフォルトで有効化
+      // Enable Try it out by default
       tryItOutEnabled: true,
-      // リクエスト/レスポンスの表示形式
+      // Request/response display format
       defaultModelsExpandDepth: 2,
       defaultModelExpandDepth: 2,
-      // バリデーション
-      validatorUrl: null, // 外部バリデータを無効化
-      // 操作のソート
+      // Validation
+      validatorUrl: null, // Disable external validator
+      // Operation sorting
       operationsSorter: 'alpha',
       tagsSorter: 'alpha',
     });
@@ -759,12 +762,12 @@ OpenAPI 仕様からドキュメントを生成するツールは複数存在す
 </html>
 ```
 
-### 3.3 Redoc の設定とカスタマイズ
+### 3.3 Configuring and Customizing Redoc
 
 ```html
-<!-- Redoc の高度なセットアップ -->
+<!-- Advanced Redoc setup -->
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>API Documentation - Redoc</title>
@@ -778,14 +781,14 @@ OpenAPI 仕様からドキュメントを生成するツールは複数存在す
   <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
   <script>
     Redoc.init('/api/openapi.yaml', {
-      // テーマのカスタマイズ
+      // Theme customization
       theme: {
         colors: {
-          primary: { main: '#5B21B6' },        // メインカラー
-          success: { main: '#059669' },         // 成功色
-          warning: { main: '#D97706' },         // 警告色
-          error: { main: '#DC2626' },           // エラー色
-          text: { primary: '#1F2937' },         // テキスト色
+          primary: { main: '#5B21B6' },        // Main color
+          success: { main: '#059669' },         // Success color
+          warning: { main: '#D97706' },         // Warning color
+          error: { main: '#DC2626' },           // Error color
+          text: { primary: '#1F2937' },         // Text color
         },
         typography: {
           fontSize: '15px',
@@ -810,7 +813,7 @@ OpenAPI 仕様からドキュメントを生成するツールは複数存在す
           textColor: '#F3F4F6',
         },
       },
-      // 機能設定
+      // Feature settings
       scrollYOffset: 0,
       hideDownloadButton: false,
       hideHostname: false,
@@ -821,7 +824,7 @@ OpenAPI 仕様からドキュメントを生成するツールは複数存在す
       sortPropsAlphabetically: false,
       expandResponses: '200',
       jsonSampleExpandLevel: 3,
-      // SEO 設定
+      // SEO settings
       generateTagDescriptions: true,
     }, document.getElementById('redoc-container'));
   </script>
@@ -829,50 +832,50 @@ OpenAPI 仕様からドキュメントを生成するツールは複数存在す
 </html>
 ```
 
-### 3.4 Scalar の設定（モダンな選択肢）
+### 3.4 Configuring Scalar (Modern Alternative)
 
 ```typescript
-// Express.js での Scalar 統合例
+// Example: Scalar integration with Express.js
 import express from 'express';
 import { apiReference } from '@scalar/express-api-reference';
 
 const app = express();
 
-// OpenAPI 仕様の配信
+// Serve OpenAPI specification
 app.get('/api/openapi.json', (req, res) => {
   res.sendFile('./api/openapi.json', { root: __dirname });
 });
 
-// Scalar API Reference の設定
+// Configure Scalar API Reference
 app.use(
   '/docs',
   apiReference({
     spec: {
       url: '/api/openapi.json',
     },
-    theme: 'purple',          // テーマ: default, alternate, moon, purple, solarized
-    layout: 'modern',         // レイアウト: modern, classic
-    darkMode: true,            // ダークモード初期状態
-    hideModels: false,         // スキーマモデルの表示
-    hideDownloadButton: false, // ダウンロードボタン
+    theme: 'purple',          // Themes: default, alternate, moon, purple, solarized
+    layout: 'modern',         // Layouts: modern, classic
+    darkMode: true,            // Initial dark mode state
+    hideModels: false,         // Show schema models
+    hideDownloadButton: false, // Download button
     hideTestRequestButton: false,
-    // 認証設定
+    // Authentication settings
     authentication: {
       preferredSecurityScheme: 'bearerAuth',
-      // テスト用トークン（開発環境のみ）
+      // Test token (development only)
       apiKey: {
         token: process.env.NODE_ENV === 'development'
           ? 'sk_test_abc123'
           : '',
       },
     },
-    // メタデータ
+    // Metadata
     metaData: {
       title: 'Example Commerce API',
-      description: 'EC プラットフォーム API リファレンス',
-      ogDescription: 'Example Commerce API の開発者向けドキュメント',
+      description: 'E-commerce Platform API Reference',
+      ogDescription: 'Developer documentation for the Example Commerce API',
     },
-    // カスタム CSS
+    // Custom CSS
     customCss: `
       .scalar-app {
         --scalar-font: 'Noto Sans JP', sans-serif;
@@ -888,47 +891,47 @@ app.listen(3000, () => {
 
 ---
 
-## 4. コード例の設計原則
+## 4. Design Principles for Code Examples
 
-### 4.1 良いコード例の要件
+### 4.1 Requirements for Good Code Examples
 
-APIドキュメントにおけるコード例は、開発者が最も参照する部分である。以下の原則を厳守する。
+Code examples in API documentation are the sections developers reference most. The following principles must be strictly followed.
 
 ```
-コード例の6原則:
+6 Principles for Code Examples:
 
   ┌─────────────────────────────────────────────────────┐
-  │ 1. 即座に実行可能                                     │
-  │    コピー&ペーストでそのまま動作すること               │
-  │    必要な import / require を省略しない               │
+  │ 1. Immediately runnable                             │
+  │    Must work as-is with copy & paste                │
+  │    Never omit required import / require             │
   ├─────────────────────────────────────────────────────┤
-  │ 2. 現実的な値を使用                                   │
-  │    foo, bar, test ではなく具体的な値                  │
-  │    "Taro Yamada", "taro@example.com" 等              │
+  │ 2. Use realistic values                             │
+  │    Use specific values, not foo, bar, test          │
+  │    e.g., "Taro Yamada", "taro@example.com"          │
   ├─────────────────────────────────────────────────────┤
-  │ 3. エラーハンドリングを含む                            │
-  │    成功パスだけでなく失敗パスも示す                    │
-  │    try-catch / error callback を含める               │
+  │ 3. Include error handling                           │
+  │    Show both success and failure paths              │
+  │    Include try-catch / error callbacks              │
   ├─────────────────────────────────────────────────────┤
-  │ 4. 多言語対応                                         │
-  │    最低限: curl + JavaScript + Python                │
-  │    理想: + Go + Ruby + Java + PHP                    │
+  │ 4. Multi-language support                           │
+  │    Minimum: curl + JavaScript + Python              │
+  │    Ideal: + Go + Ruby + Java + PHP                  │
   ├─────────────────────────────────────────────────────┤
-  │ 5. プログレッシブ・ディスクロージャー                  │
-  │    基本例 → 詳細例 → 高度な例の段階的開示             │
-  │    初心者が圧倒されないよう配慮する                    │
+  │ 5. Progressive Disclosure                           │
+  │    Step-by-step: basic → detailed → advanced        │
+  │    Be mindful not to overwhelm beginners            │
   ├─────────────────────────────────────────────────────┤
-  │ 6. 出力結果を含む                                     │
-  │    実行結果のレスポンス例を添える                      │
-  │    ステータスコード、ヘッダーも示す                    │
+  │ 6. Include output results                           │
+  │    Provide a response example of execution results  │
+  │    Show status codes and headers too                │
   └─────────────────────────────────────────────────────┘
 ```
 
-### 4.2 多言語コード例の実装
+### 4.2 Implementing Multi-Language Code Examples
 
 ```bash
 # === curl ===
-# ユーザーの作成
+# Create a user
 curl -X POST https://api.example.com/v2/users \
   -H "Authorization: Bearer sk_test_abc123" \
   -H "Content-Type: application/json" \
@@ -942,7 +945,7 @@ curl -X POST https://api.example.com/v2/users \
     }
   }'
 
-# レスポンス例（HTTP 201 Created）
+# Example response (HTTP 201 Created)
 # {
 #   "id": "550e8400-e29b-41d4-a716-446655440000",
 #   "name": "Taro Yamada",
@@ -962,13 +965,13 @@ import { ExampleClient, ValidationError, RateLimitError } from '@example/sdk';
 
 const client = new ExampleClient({
   apiKey: process.env.EXAMPLE_API_KEY,
-  // オプション: カスタム設定
-  timeout: 30000,          // タイムアウト: 30秒
-  maxRetries: 3,           // 最大リトライ回数
+  // Optional: custom settings
+  timeout: 30000,          // Timeout: 30 seconds
+  maxRetries: 3,           // Maximum retry count
   baseURL: 'https://api.example.com/v2',
 });
 
-// ユーザーの作成
+// Create a user
 async function createUser() {
   try {
     const user = await client.users.create({
@@ -988,14 +991,14 @@ async function createUser() {
 
   } catch (error) {
     if (error instanceof ValidationError) {
-      // バリデーションエラー（422）
+      // Validation error (422)
       console.error('Validation failed:', error.errors);
       // => [{ field: "email", code: "INVALID_FORMAT", message: "..." }]
     } else if (error instanceof RateLimitError) {
-      // レート制限（429）
+      // Rate limit (429)
       console.error(`Rate limited. Retry after ${error.retryAfter}s`);
     } else {
-      // その他のエラー
+      // Other errors
       console.error('Unexpected error:', error.message);
     }
     throw error;
@@ -1012,11 +1015,11 @@ from example_sdk.errors import ValidationError, RateLimitError
 
 client = ExampleClient(
     api_key=os.environ["EXAMPLE_API_KEY"],
-    timeout=30.0,        # タイムアウト: 30秒
-    max_retries=3,       # 最大リトライ回数
+    timeout=30.0,        # Timeout: 30 seconds
+    max_retries=3,       # Maximum retry count
 )
 
-# ユーザーの作成
+# Create a user
 def create_user():
     try:
         user = client.users.create(
@@ -1033,11 +1036,11 @@ def create_user():
         return user
 
     except ValidationError as e:
-        # バリデーションエラー（422）
+        # Validation error (422)
         print(f"Validation failed: {e.errors}")
         raise
     except RateLimitError as e:
-        # レート制限（429）
+        # Rate limit (429)
         print(f"Rate limited. Retry after {e.retry_after}s")
         raise
     except Exception as e:
@@ -1072,7 +1075,7 @@ func main() {
 
     ctx := context.Background()
 
-    // ユーザーの作成
+    // Create a user
     user, err := client.Users.Create(ctx, &example.CreateUserParams{
         Name:  "Taro Yamada",
         Email: "taro@example.com",
@@ -1104,38 +1107,38 @@ func main() {
 
 ---
 
-## 5. Quick Start ガイドの設計
+## 5. Designing Quick Start Guides
 
-### 5.1 効果的な Quick Start の構造
+### 5.1 Structure of an Effective Quick Start
 
-Quick Start ガイドは「5分以内に最初のAPIコールを成功させる」ことを目標とする。以下に完全な Quick Start の例を示す。
+A Quick Start guide aims to get developers to "successfully make their first API call within 5 minutes." The following is a complete Quick Start example.
 
 ```markdown
 # Quick Start
 
-## 前提条件
-- Node.js 18 以上
-- Example アカウント（[無料登録](https://dashboard.example.com/signup)）
+## Prerequisites
+- Node.js 18 or later
+- An Example account ([Free sign-up](https://dashboard.example.com/signup))
 
-## ステップ 1: API キーの取得（1分）
+## Step 1: Get Your API Key (1 minute)
 
-[ダッシュボード](https://dashboard.example.com/api-keys) にログインし、
-テスト用 API キーを取得します。
+Log in to the [Dashboard](https://dashboard.example.com/api-keys)
+and obtain a test API key.
 
-テスト用キーは `sk_test_` から始まります。
-本番用キーは `sk_live_` から始まります。
+Test keys start with `sk_test_`.
+Production keys start with `sk_live_`.
 
-> **注意**: テスト用キーで作成されたデータは本番環境には影響しません。
+> **Note**: Data created with test keys does not affect the production environment.
 
-## ステップ 2: SDK のインストール（30秒）
+## Step 2: Install the SDK (30 seconds)
 
 npm install @example/sdk
-# または
+# or
 yarn add @example/sdk
-# または
+# or
 pnpm add @example/sdk
 
-## ステップ 3: 最初の API コール（2分）
+## Step 3: Your First API Call (2 minutes)
 
 import { ExampleClient } from '@example/sdk';
 
@@ -1143,22 +1146,22 @@ const client = new ExampleClient({
   apiKey: process.env.EXAMPLE_API_KEY, // sk_test_abc123
 });
 
-// ユーザーの作成
+// Create a user
 const user = await client.users.create({
   name: 'Taro Yamada',
   email: 'taro@example.com',
 });
 console.log('Created:', user.id);
 
-// ユーザーの取得
+// Get a user
 const fetched = await client.users.get(user.id);
 console.log('Name:', fetched.name); // => "Taro Yamada"
 
-// ユーザー一覧の取得
+// List users
 const { data: users } = await client.users.list({ limit: 10 });
 console.log('Total users:', users.length);
 
-## ステップ 4: エラーハンドリング（1分）
+## Step 4: Error Handling (1 minute)
 
 import { ExampleClient, ExampleError, ValidationError } from '@example/sdk';
 
@@ -1166,7 +1169,7 @@ try {
   await client.users.create({ name: '', email: 'invalid' });
 } catch (error) {
   if (error instanceof ValidationError) {
-    // フィールドごとのエラー内容を確認
+    // Check the error for each field
     for (const detail of error.errors) {
       console.error(`${detail.field}: ${detail.message}`);
     }
@@ -1175,35 +1178,35 @@ try {
   }
 }
 
-## 次のステップ
-- 認証ガイド - OAuth 2.0 の設定
-- ページネーション - 大量データの取得
-- Webhook - リアルタイム通知の設定
-- API リファレンス - 全エンドポイントの詳細
+## Next Steps
+- Authentication Guide - Setting up OAuth 2.0
+- Pagination - Fetching large datasets
+- Webhooks - Setting up real-time notifications
+- API Reference - Details on all endpoints
 ```
 
 ---
 
-## 6. Changelog と Migration Guide
+## 6. Changelog and Migration Guide
 
-### 6.1 効果的な Changelog の構成
+### 6.1 Structure of an Effective Changelog
 
-Changelog は単なる変更履歴ではなく、開発者がバージョンアップの影響範囲と対応方法を判断するための重要文書である。Keep a Changelog フォーマットを基盤とし、API 固有の要素を追加する。
+A Changelog is not just a record of changes — it is an important document that helps developers assess the scope of impact and how to handle version upgrades. Use the Keep a Changelog format as a base and add API-specific elements.
 
 ```markdown
 # Changelog
 
-全ての注目すべき変更はこのファイルに記録されます。
-形式は [Keep a Changelog](https://keepachangelog.com/) に準拠しています。
+All notable changes to this project will be documented in this file.
+The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [2.0.0] - 2024-07-01 — メジャーアップデート
+## [2.0.0] - 2024-07-01 — Major Update
 
-### 破壊的変更 (BREAKING CHANGES)
+### Breaking Changes (BREAKING CHANGES)
 
-#### メソッド名の変更
-リソースベースの命名規則に統一しました。
+#### Method name changes
+Unified to resource-based naming convention.
 
-| v1.x (旧) | v2.x (新) |
+| v1.x (old) | v2.x (new) |
 |---|---|
 | `client.getUser(id)` | `client.users.get(id)` |
 | `client.listUsers(params)` | `client.users.list(params)` |
@@ -1211,69 +1214,69 @@ Changelog は単なる変更履歴ではなく、開発者がバージョンア�
 | `client.updateUser(id, data)` | `client.users.update(id, data)` |
 | `client.deleteUser(id)` | `client.users.delete(id)` |
 
-#### エラー型のリネーム
+#### Error type renames
 - `ApiError` → `ExampleError`
 - `HttpError` → `ExampleHttpError`
 - `TimeoutError` → `ExampleTimeoutError`
 
-#### ランタイム要件
-- Node.js 16 のサポートを終了（Node.js 18+ が必要）
-- Python 3.8 のサポートを終了（Python 3.9+ が必要）
+#### Runtime requirements
+- Dropped support for Node.js 16 (Node.js 18+ required)
+- Dropped support for Python 3.8 (Python 3.9+ required)
 
-### 追加 (Added)
-- `client.users.listAll()` で自動ページネーション（AsyncIterator）
-- リトライ設定のカスタマイズ（`maxRetries`, `retryDelay`）
-- Webhook 署名検証ヘルパー `client.webhooks.verify(payload, signature)`
-- TypeScript: 全レスポンス型のエクスポート
+### Added
+- `client.users.listAll()` for automatic pagination (AsyncIterator)
+- Customizable retry settings (`maxRetries`, `retryDelay`)
+- Webhook signature verification helper `client.webhooks.verify(payload, signature)`
+- TypeScript: export all response types
 
-### 変更 (Changed)
-- デフォルトタイムアウトを 10秒 → 30秒に変更
-- ページネーションのデフォルト件数を 10 → 20に変更
+### Changed
+- Default timeout changed from 10s → 30s
+- Default pagination count changed from 10 → 20
 
-### 修正 (Fixed)
-- タイムアウト時のメモリリーク (#234)
-- 大量の並行リクエスト時のコネクションプール枯渇 (#256)
-- 日本語文字列のエンコーディング問題 (#271)
+### Fixed
+- Memory leak on timeout (#234)
+- Connection pool exhaustion on heavy concurrent requests (#256)
+- Multi-byte character string encoding issue (#271)
 
-### 非推奨 (Deprecated)
-- `client.users.find(query)` は v3.0 で削除予定
-  → `client.users.list({ search: query })` を使用してください
+### Deprecated
+- `client.users.find(query)` is scheduled for removal in v3.0
+  → Use `client.users.list({ search: query })` instead
 
 ## [1.5.0] - 2024-04-15
 
-### 追加
-- `client.orders.refund(orderId, params)` メソッド
-- リクエストログのカスタムハンドラ設定
+### Added
+- `client.orders.refund(orderId, params)` method
+- Custom handler configuration for request logging
 ```
 
-### 6.2 Migration Guide の設計
+### 6.2 Designing a Migration Guide
 
-バージョン間の移行ガイドは、機械的な差分だけでなく、移行戦略と検証手順を含めるべきである。
+A migration guide between versions should include not just mechanical diffs, but also migration strategies and verification procedures.
 
 ```markdown
-# v1.x から v2.x への移行ガイド
+# Migration Guide: v1.x to v2.x
 
-## 移行の概要
+## Migration Overview
 
-| 項目 | 詳細 |
+| Item | Details |
 |---|---|
-| 推定作業時間 | 小規模プロジェクト: 30分、大規模: 2時間 |
-| 破壊的変更の数 | 8 件 |
-| 自動移行ツール | あり（`npx @example/migrate v1-to-v2`） |
-| v1.x のサポート期限 | 2025-01-01（セキュリティパッチのみ） |
+| Estimated effort | Small project: 30 min, Large: 2 hours |
+| Number of breaking changes | 8 |
+| Automated migration tool | Available (`npx @example/migrate v1-to-v2`) |
+| v1.x support end date | 2025-01-01 (security patches only) |
 
-## 自動移行ツール
+## Automated Migration Tool
 
-npx @example/migrate v1-to-v2 --dry-run  # プレビュー
-npx @example/migrate v1-to-v2            # 実行
+npx @example/migrate v1-to-v2 --dry-run  # Preview
+npx @example/migrate v1-to-v2            # Execute
 
-## 手動移行手順
+## Manual Migration Steps
 
-### ステップ 1: SDK のアップデート
+### Step 1: Update the SDK
 
 npm install @example/sdk@2
 
-### ステップ 2: メソッド呼び出しの更新
+### Step 2: Update method calls
 
 // Before (v1.x)
 const user = await client.getUser('user_123');
@@ -1283,7 +1286,7 @@ const users = await client.listUsers({ page: 1 });
 const user = await client.users.get('user_123');
 const users = await client.users.list({ cursor: null });
 
-### ステップ 3: エラーハンドリングの更新
+### Step 3: Update error handling
 
 // Before (v1.x)
 import { ApiError } from '@example/sdk';
@@ -1297,190 +1300,191 @@ try { ... } catch (e) {
   if (e instanceof ExampleError) { ... }
 }
 
-### ステップ 4: ページネーションの更新
+### Step 4: Update pagination
 
-// Before (v1.x) - オフセットベース
+// Before (v1.x) - offset-based
 const page1 = await client.listUsers({ page: 1, perPage: 20 });
 const page2 = await client.listUsers({ page: 2, perPage: 20 });
 
-// After (v2.x) - カーソルベース
+// After (v2.x) - cursor-based
 const page1 = await client.users.list({ limit: 20 });
 const page2 = await client.users.list({
   limit: 20,
   cursor: page1.meta.nextCursor,
 });
 
-// v2.x 推奨: 自動ページネーション
+// v2.x recommended: automatic pagination
 for await (const user of client.users.listAll()) {
   console.log(user.name);
 }
 
-## 検証チェックリスト
-- [ ] 全てのAPIコールが正常に動作する
-- [ ] エラーハンドリングが正しく機能する
-- [ ] ページネーションが期待通り動作する
-- [ ] Webhook の受信が正常に処理される
-- [ ] TypeScript の型エラーがない
+## Verification Checklist
+- [ ] All API calls work correctly
+- [ ] Error handling works as expected
+- [ ] Pagination behaves as expected
+- [ ] Webhook reception is handled correctly
+- [ ] No TypeScript type errors
 ```
 
 ---
 
-## 7. ドキュメント品質メトリクスと評価
+## 7. Documentation Quality Metrics and Evaluation
 
-### 7.1 定量的品質指標
+### 7.1 Quantitative Quality Indicators
 
-ドキュメントの品質を主観的な評価に頼らず、定量的に計測するためのフレームワークを導入する。
+Introduce a framework for measuring documentation quality quantitatively, rather than relying on subjective assessments.
 
 ```
-ドキュメント品質スコアカード:
+Documentation Quality Scorecard:
 
   ┌─────────────────────────────────────────────────┐
-  │  カテゴリ A: 完全性（Completeness）  配点: 30   │
+  │  Category A: Completeness          Score: 30    │
   ├─────────────────────────────────────────────────┤
-  │  □ 全エンドポイントが文書化されている     (5)    │
-  │  □ 全パラメータに説明がある               (5)    │
-  │  □ 全レスポンスコードが説明されている      (5)    │
-  │  □ 認証方法が説明されている                (5)    │
-  │  □ エラーコード一覧がある                  (5)    │
-  │  □ Quick Start ガイドがある                (5)    │
+  │  □ All endpoints are documented           (5)   │
+  │  □ All parameters have descriptions       (5)   │
+  │  □ All response codes are described       (5)   │
+  │  □ Authentication method is described     (5)   │
+  │  □ Error code list is present             (5)   │
+  │  □ Quick Start guide is present           (5)   │
   ├─────────────────────────────────────────────────┤
-  │  カテゴリ B: 正確性（Accuracy）      配点: 25   │
+  │  Category B: Accuracy              Score: 25    │
   ├─────────────────────────────────────────────────┤
-  │  □ コード例が実際に動作する               (10)    │
-  │  □ レスポンス例が実API出力と一致する       (5)    │
-  │  □ パラメータ制約が正確                    (5)    │
-  │  □ 最終更新日が6ヶ月以内                   (5)    │
+  │  □ Code examples actually work           (10)   │
+  │  □ Response examples match real output    (5)   │
+  │  □ Parameter constraints are accurate     (5)   │
+  │  □ Last updated within 6 months           (5)   │
   ├─────────────────────────────────────────────────┤
-  │  カテゴリ C: 利便性（Usability）     配点: 25   │
+  │  Category C: Usability             Score: 25    │
   ├─────────────────────────────────────────────────┤
-  │  □ 検索機能がある                          (5)    │
-  │  □ Try it out 機能がある                   (5)    │
-  │  □ 多言語コード例がある                    (5)    │
-  │  □ モバイル対応                            (5)    │
-  │  □ ダークモード対応                        (5)    │
+  │  □ Search functionality is available      (5)   │
+  │  □ Try it out is available                (5)   │
+  │  □ Multi-language code examples exist     (5)   │
+  │  □ Mobile-responsive                      (5)   │
+  │  □ Dark mode support                      (5)   │
   ├─────────────────────────────────────────────────┤
-  │  カテゴリ D: 開発者体験（DX）        配点: 20   │
+  │  Category D: Developer Experience  Score: 20    │
   ├─────────────────────────────────────────────────┤
-  │  □ TTFC が 5分以内                         (5)    │
-  │  □ SDK のインストール手順がある             (5)    │
-  │  □ Changelog が維持されている               (5)    │
-  │  □ 移行ガイドがある                        (5)    │
+  │  □ TTFC under 5 minutes                   (5)   │
+  │  □ SDK installation instructions exist    (5)   │
+  │  □ Changelog is maintained                (5)   │
+  │  □ Migration guide is available           (5)   │
   └─────────────────────────────────────────────────┘
 
-  評価基準:
-    90-100: 優秀（Stripe, Twilio レベル）
-    70-89:  良好（多くの商用APIのレベル）
-    50-69:  改善必要
-    0-49:   重大な問題あり
+  Rating criteria:
+    90-100: Excellent (Stripe, Twilio level)
+    70-89:  Good (level of most commercial APIs)
+    50-69:  Needs improvement
+    0-49:   Critical issues
 ```
 
-### 7.2 ドキュメント品質チェックリスト
+### 7.2 Documentation Quality Checklist
 
 ```
-API ドキュメント出荷前チェックリスト:
+API Documentation Pre-release Checklist:
 
-  === 必須要素 ===
-  □ Quick Start（5分以内に最初のAPIコール成功）
-  □ 認証方法の説明（APIキー取得方法を含む）
-  □ 全エンドポイントのリファレンス
-  □ 各エンドポイントのリクエスト/レスポンス例
-  □ エラーコードの一覧と対処法
-  □ レート制限の説明（プランごとの上限値）
-  □ SDK のインストールと初期化手順
-  □ ページネーションの使い方
-  □ Webhook の設定方法（該当する場合）
-  □ Changelog（Keep a Changelog 形式）
+  === Required Elements ===
+  □ Quick Start (first API call successful within 5 minutes)
+  □ Authentication method description (including how to obtain API keys)
+  □ Reference for all endpoints
+  □ Request/response examples for each endpoint
+  □ Error code list with remediation steps
+  □ Rate limiting explanation (limits per plan)
+  □ SDK installation and initialization instructions
+  □ How to use pagination
+  □ Webhook setup guide (if applicable)
+  □ Changelog (Keep a Changelog format)
 
-  === 品質基準 ===
-  □ コード例がコピー&ペーストで動作する
-  □ 全てのパラメータに説明・型・制約がある
-  □ 成功/エラーの両方のレスポンス例がある
-  □ 複数言語のコード例（最低 curl + 1 SDK）
-  □ 検索機能がある
-  □ レスポンシブデザイン（モバイル対応）
-  □ ダークモード対応
-  □ 定期的に更新されている（最終更新日が明記）
+  === Quality Standards ===
+  □ Code examples work with copy & paste
+  □ All parameters have descriptions, types, and constraints
+  □ Response examples for both success and error cases
+  □ Multi-language code examples (minimum curl + 1 SDK)
+  □ Search functionality is available
+  □ Responsive design (mobile-friendly)
+  □ Dark mode support
+  □ Regularly updated (last updated date is stated)
 
-  === 高度な要素（推奨） ===
-  □ インタラクティブな Try it out 機能
-  □ サンドボックス環境の提供
-  □ OpenAPI 仕様ファイルのダウンロード
-  □ SDK の自動生成設定
-  □ Postman Collection の提供
-  □ GraphQL Playground（GraphQL の場合）
-  □ 変更通知の仕組み（RSS, メール等）
+  === Advanced Elements (Recommended) ===
+  □ Interactive Try it out feature
+  □ Sandbox environment provided
+  □ OpenAPI spec file available for download
+  □ SDK auto-generation configuration
+  □ Postman Collection provided
+  □ GraphQL Playground (for GraphQL APIs)
+  □ Change notification mechanism (RSS, email, etc.)
 ```
 
 ---
 
-## 8. インタラクティブドキュメントの実装
+## 8. Implementing Interactive Documentation
 
-### 8.1 Try it out 機能の設計
+### 8.1 Designing the Try it Out Feature
 
-インタラクティブドキュメントの核心は「Try it out」機能である。開発者がブラウザ上で直接APIを呼び出して動作を確認できるこの機能は、ドキュメントの理解を飛躍的に向上させる。
+The core of interactive documentation is the "Try it out" feature. This feature, which allows developers to call the API directly from a browser and verify its behavior, dramatically improves documentation comprehension.
 
 ```
-Try it out 機能のアーキテクチャ:
+Try it out Feature Architecture:
 
   ┌──────────────────────────────────────────────────┐
-  │                   ブラウザ                        │
+  │                   Browser                        │
   │                                                   │
   │  ┌─────────────┐  ┌──────────────────────────┐   │
-  │  │ パラメータ    │  │  レスポンス表示           │   │
-  │  │ 入力フォーム  │  │  - ステータスコード       │   │
-  │  │              │  │  - ヘッダー              │   │
-  │  │  name: [...] │  │  - ボディ (JSON)         │   │
-  │  │  email:[...] │  │  - レスポンス時間         │   │
-  │  │              │  │                          │   │
-  │  │ [Execute]    │  │  200 OK  (142ms)         │   │
-  │  └──────┬───────┘  │  { "id": "user_123", ... │   │
-  │         │          │  }                        │   │
-  │         v          └──────────────────────────┘   │
+  │  │ Parameter   │  │  Response Display         │   │
+  │  │ Input Form  │  │  - Status code            │   │
+  │  │             │  │  - Headers                │   │
+  │  │  name: [...] │  │  - Body (JSON)            │   │
+  │  │  email:[...] │  │  - Response time          │   │
+  │  │             │  │                           │   │
+  │  │ [Execute]   │  │  200 OK  (142ms)          │   │
+  │  └──────┬──────┘  │  { "id": "user_123", ...  │   │
+  │         │         │  }                        │   │
+  │         v         └──────────────────────────┘   │
   │  ┌──────────────┐                                 │
-  │  │ CORS Proxy   │  ← 本番APIへの直接アクセスが     │
-  │  │ (必要に応じて) │    不可能な場合に必要            │
-  │  └──────┬───────┘                                 │
+  │  │ CORS Proxy   │  ← Needed when direct access    │
+  │  │ (if needed)  │    to production API is         │
+  │  └──────┬───────┘    not possible                 │
   └─────────┼─────────────────────────────────────────┘
             │
             v
   ┌──────────────────┐
-  │  API サーバー      │
-  │  (sandbox 環境)   │
-  │                   │
-  │  重要: Try it out │
-  │  は sandbox に    │
-  │  接続すること      │
+  │  API Server      │
+  │  (sandbox env)   │
+  │                  │
+  │  Important:      │
+  │  Try it out must │
+  │  connect to      │
+  │  sandbox         │
   └──────────────────┘
 ```
 
-### 8.2 サンドボックス環境の設計
+### 8.2 Designing the Sandbox Environment
 
-Try it out 機能を安全に提供するには、本番環境とは分離されたサンドボックス環境が不可欠である。
+To safely provide the Try it out feature, a sandbox environment separated from production is essential.
 
 ```typescript
-// サンドボックス環境のミドルウェア実装例
+// Example: sandbox environment middleware implementation
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 
 const sandboxApp = express();
 
-// サンドボックス固有のミドルウェア
+// Sandbox-specific middleware
 sandboxApp.use((req, res, next) => {
-  // サンドボックスであることを明示するヘッダー
+  // Header to indicate this is a sandbox environment
   res.setHeader('X-Environment', 'sandbox');
   res.setHeader('X-Sandbox-Warning',
     'This is a test environment. Data is reset daily.');
   next();
 });
 
-// サンドボックス用の厳格なレート制限
+// Strict rate limiting for the sandbox
 const sandboxLimiter = rateLimit({
-  windowMs: 60 * 1000,    // 1分
-  max: 30,                  // 30リクエスト/分
+  windowMs: 60 * 1000,    // 1 minute
+  max: 30,                  // 30 requests/minute
   message: {
     error: {
       code: 'SANDBOX_RATE_LIMIT',
-      message: 'サンドボックス環境のレート制限に達しました（30リクエスト/分）',
+      message: 'Sandbox environment rate limit reached (30 requests/minute)',
       retryAfter: 60,
     },
   },
@@ -1490,7 +1494,7 @@ const sandboxLimiter = rateLimit({
 
 sandboxApp.use(sandboxLimiter);
 
-// サンドボックスデータの自動リセット（毎日 UTC 0:00）
+// Automatic sandbox data reset (daily at UTC 0:00)
 import cron from 'node-cron';
 
 cron.schedule('0 0 * * *', async () => {
@@ -1499,7 +1503,7 @@ cron.schedule('0 0 * * *', async () => {
   console.log('Sandbox data reset complete');
 });
 
-// テスト用APIキーの自動発行
+// Automatic issuance of test API keys
 sandboxApp.post('/sandbox/api-keys', async (req, res) => {
   const key = generateSandboxApiKey();
   res.json({
@@ -1509,17 +1513,17 @@ sandboxApp.post('/sandbox/api-keys', async (req, res) => {
       requestsPerMinute: 30,
       dataRetention: '24 hours',
     },
-    note: 'このキーはサンドボックス環境専用です。本番環境では使用できません。',
+    note: 'This key is for the sandbox environment only. It cannot be used in production.',
   });
 });
 ```
 
-### 8.3 Postman Collection の自動生成
+### 8.3 Auto-Generating Postman Collections
 
-多くの開発者は Postman を日常的に使用しているため、Postman Collection の提供は有効である。
+Many developers use Postman daily, so providing a Postman Collection is effective.
 
 ```javascript
-// OpenAPI から Postman Collection を生成するスクリプト
+// Script to generate a Postman Collection from OpenAPI
 // scripts/generate-postman-collection.js
 import { readFileSync, writeFileSync } from 'fs';
 import Converter from 'openapi-to-postmanv2';
@@ -1551,7 +1555,7 @@ Converter.convert(
 
     const collection = result.output[0].data;
 
-    // 環境変数の追加
+    // Add environment variables
     collection.variable = [
       { key: 'baseUrl', value: 'https://sandbox.api.example.com/v2' },
       { key: 'apiKey', value: 'sk_test_your_key_here' },
@@ -1569,19 +1573,19 @@ Converter.convert(
 
 ---
 
-## 9. エラードキュメンテーション
+## 9. Error Documentation
 
-### 9.1 エラーレスポンスの設計と文書化
+### 9.1 Designing and Documenting Error Responses
 
-エラードキュメントは、開発者がトラブルシューティングを行う際の最重要リソースである。全てのエラーコードに対して、原因と対処法を明確に記載する。
+Error documentation is the most critical resource developers use when troubleshooting. Clearly document the cause and remediation for every error code.
 
 ```yaml
 # components/schemas/ErrorResponse.yaml
 type: object
 title: ErrorResponse
 description: |
-  全ての API エラーは統一された形式で返されます。
-  `error.code` でエラーの種類を判別できます。
+  All API errors are returned in a unified format.
+  Use `error.code` to identify the type of error.
 required:
   - error
 properties:
@@ -1594,8 +1598,8 @@ properties:
       code:
         type: string
         description: |
-          機械可読なエラーコード。
-          アプリケーション内での分岐処理に使用してください。
+          Machine-readable error code.
+          Use this for branching logic in your application.
         enum:
           - INVALID_PARAMETER
           - VALIDATION_ERROR
@@ -1608,54 +1612,54 @@ properties:
           - SERVICE_UNAVAILABLE
       message:
         type: string
-        description: 人間可読なエラーメッセージ（日本語または英語）
+        description: Human-readable error message (English)
       details:
         type: array
-        description: エラーの詳細情報（バリデーションエラー時に使用）
+        description: Detailed error information (used for validation errors)
         items:
           type: object
           properties:
             field:
               type: string
-              description: エラーが発生したフィールド名
+              description: The field name where the error occurred
             code:
               type: string
-              description: フィールド固有のエラーコード
+              description: Field-specific error code
             message:
               type: string
-              description: フィールド固有のエラーメッセージ
+              description: Field-specific error message
       requestId:
         type: string
         description: |
-          リクエスト追跡用の一意識別子。
-          サポートへの問い合わせ時にこの ID を共有してください。
+          Unique identifier for request tracking.
+          Share this ID when contacting support.
         example: "req_a1b2c3d4e5f6"
 ```
 
-### 9.2 エラーコード一覧と対処法
+### 9.2 Error Code Reference and Remediation
 
 ```
-エラーコードリファレンス:
+Error Code Reference:
 
-  ┌────────────────────────────┬──────┬────────────────────────────┐
-  │ コード                      │ HTTP │ 対処法                      │
-  ├────────────────────────────┼──────┼────────────────────────────┤
-  │ INVALID_PARAMETER          │ 400  │ パラメータの値・型を確認     │
-  │ VALIDATION_ERROR           │ 422  │ details[] で各フィールド確認 │
-  │ AUTHENTICATION_REQUIRED    │ 401  │ Authorization ヘッダーを確認 │
-  │ INSUFFICIENT_PERMISSIONS   │ 403  │ API キーのスコープを確認     │
-  │ RESOURCE_NOT_FOUND         │ 404  │ リソース ID の存在を確認     │
-  │ DUPLICATE_RESOURCE         │ 409  │ 一意制約に違反するフィールド確認│
-  │ RATE_LIMIT_EXCEEDED        │ 429  │ Retry-After ヘッダーに従う   │
-  │ INTERNAL_ERROR             │ 500  │ リトライ、サポートに連絡      │
-  │ SERVICE_UNAVAILABLE        │ 503  │ ステータスページを確認        │
-  └────────────────────────────┴──────┴────────────────────────────┘
+  ┌────────────────────────────┬──────┬──────────────────────────────────────┐
+  │ Code                       │ HTTP │ Remediation                          │
+  ├────────────────────────────┼──────┼──────────────────────────────────────┤
+  │ INVALID_PARAMETER          │ 400  │ Check parameter value and type       │
+  │ VALIDATION_ERROR           │ 422  │ Check each field via details[]       │
+  │ AUTHENTICATION_REQUIRED    │ 401  │ Check Authorization header           │
+  │ INSUFFICIENT_PERMISSIONS   │ 403  │ Check API key scope                  │
+  │ RESOURCE_NOT_FOUND         │ 404  │ Verify the resource ID exists        │
+  │ DUPLICATE_RESOURCE         │ 409  │ Check the field violating uniqueness │
+  │ RATE_LIMIT_EXCEEDED        │ 429  │ Follow the Retry-After header        │
+  │ INTERNAL_ERROR             │ 500  │ Retry, contact support               │
+  │ SERVICE_UNAVAILABLE        │ 503  │ Check the status page                │
+  └────────────────────────────┴──────┴──────────────────────────────────────┘
 ```
 
-### 9.3 エラーハンドリングのベストプラクティス
+### 9.3 Error Handling Best Practices
 
 ```typescript
-// 包括的なエラーハンドリング実装例
+// Comprehensive error handling implementation example
 import {
   ExampleClient,
   ExampleError,
@@ -1669,7 +1673,7 @@ import {
 const client = new ExampleClient({
   apiKey: process.env.EXAMPLE_API_KEY,
   maxRetries: 3,
-  // リトライ可能なエラーの自動リトライ設定
+  // Auto-retry configuration for retryable errors
   retryOn: [429, 500, 503],
   retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30000),
 });
@@ -1682,20 +1686,20 @@ async function robustApiCall<T>(
     return await operation();
   } catch (error) {
     if (error instanceof ValidationError) {
-      // 422: 入力値の修正が必要
+      // 422: Input correction required
       console.error(`[${context}] Validation errors:`);
       for (const detail of error.errors) {
         console.error(`  - ${detail.field}: ${detail.message}`);
       }
-      throw error; // リトライ不要
+      throw error; // No retry needed
 
     } else if (error instanceof AuthenticationError) {
-      // 401: API キーの確認が必要
+      // 401: API key needs to be checked
       console.error(`[${context}] Authentication failed. Check your API key.`);
-      throw error; // リトライ不要
+      throw error; // No retry needed
 
     } else if (error instanceof RateLimitError) {
-      // 429: SDK の自動リトライに任せる（maxRetries 超過時のみここに到達）
+      // 429: Leave to SDK's automatic retry (only reached after maxRetries exceeded)
       console.error(
         `[${context}] Rate limit exceeded after ${client.maxRetries} retries. ` +
         `Retry after ${error.retryAfter}s`
@@ -1703,12 +1707,12 @@ async function robustApiCall<T>(
       throw error;
 
     } else if (error instanceof NotFoundError) {
-      // 404: リソースが存在しない
+      // 404: Resource does not exist
       console.warn(`[${context}] Resource not found: ${error.message}`);
-      return null as T; // アプリケーション要件に応じて null を返す
+      return null as T; // Return null depending on application requirements
 
     } else if (error instanceof InternalError) {
-      // 500: サーバー側の問題（SDK 自動リトライ超過時）
+      // 500: Server-side issue (after SDK auto-retry exceeded)
       console.error(
         `[${context}] Internal server error (requestId: ${error.requestId}). ` +
         `Please contact support with this request ID.`
@@ -1716,7 +1720,7 @@ async function robustApiCall<T>(
       throw error;
 
     } else if (error instanceof ExampleError) {
-      // その他の API エラー
+      // Other API errors
       console.error(
         `[${context}] API Error [${error.code}]: ${error.message} ` +
         `(requestId: ${error.requestId})`
@@ -1724,14 +1728,14 @@ async function robustApiCall<T>(
       throw error;
 
     } else {
-      // ネットワークエラー等の非 API エラー
+      // Non-API errors such as network errors
       console.error(`[${context}] Unexpected error:`, error);
       throw error;
     }
   }
 }
 
-// 使用例
+// Usage example
 const user = await robustApiCall(
   () => client.users.create({
     name: 'Taro Yamada',
@@ -1743,15 +1747,15 @@ const user = await robustApiCall(
 
 ---
 
-## 10. ドキュメントのテスト自動化
+## 10. Automating Documentation Testing
 
-### 10.1 コード例の自動テスト
+### 10.1 Automated Testing of Code Examples
 
-ドキュメント内のコード例が実際に動作することを保証するために、自動テストを導入する。
+Introduce automated tests to guarantee that the code examples in documentation actually work.
 
 ```typescript
 // tests/docs-examples.test.ts
-// ドキュメント内コード例の動作確認テスト
+// Operational verification tests for code examples in documentation
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { ExampleClient, ValidationError } from '@example/sdk';
 
@@ -1760,11 +1764,11 @@ const client = new ExampleClient({
   baseURL: 'https://sandbox.api.example.com/v2',
 });
 
-describe('Quick Start ガイドのコード例', () => {
+describe('Quick Start guide code examples', () => {
   let createdUserId: string;
 
-  it('ステップ 3: ユーザーの作成', async () => {
-    // ドキュメントのコード例と同一
+  it('Step 3: Create a user', async () => {
+    // Same as documentation code example
     const user = await client.users.create({
       name: 'Taro Yamada',
       email: `test-${Date.now()}@example.com`,
@@ -1775,18 +1779,18 @@ describe('Quick Start ガイドのコード例', () => {
     createdUserId = user.id;
   });
 
-  it('ステップ 3: ユーザーの取得', async () => {
+  it('Step 3: Get a user', async () => {
     const fetched = await client.users.get(createdUserId);
     expect(fetched.name).toBe('Taro Yamada');
   });
 
-  it('ステップ 3: ユーザー一覧の取得', async () => {
+  it('Step 3: List users', async () => {
     const { data: users } = await client.users.list({ limit: 10 });
     expect(Array.isArray(users)).toBe(true);
     expect(users.length).toBeLessThanOrEqual(10);
   });
 
-  it('ステップ 4: バリデーションエラー', async () => {
+  it('Step 4: Validation error', async () => {
     try {
       await client.users.create({ name: '', email: 'invalid' });
       expect.unreachable('Should have thrown');
@@ -1797,15 +1801,15 @@ describe('Quick Start ガイドのコード例', () => {
   });
 
   afterAll(async () => {
-    // テストデータのクリーンアップ
+    // Clean up test data
     if (createdUserId) {
       await client.users.delete(createdUserId);
     }
   });
 });
 
-describe('エラーハンドリングガイドのコード例', () => {
-  it('認証エラー', async () => {
+describe('Error handling guide code examples', () => {
+  it('Authentication error', async () => {
     const badClient = new ExampleClient({ apiKey: 'invalid_key' });
     try {
       await badClient.users.list();
@@ -1815,7 +1819,7 @@ describe('エラーハンドリングガイドのコード例', () => {
     }
   });
 
-  it('404 エラー', async () => {
+  it('404 error', async () => {
     try {
       await client.users.get('nonexistent_id');
       expect.unreachable('Should have thrown');
@@ -1826,11 +1830,11 @@ describe('エラーハンドリングガイドのコード例', () => {
 });
 ```
 
-### 10.2 OpenAPI 仕様の検証自動化
+### 10.2 Automated Validation of OpenAPI Specifications
 
 ```yaml
 # .github/workflows/api-docs-ci.yml
-# ドキュメント品質の CI チェック
+# CI checks for documentation quality
 name: API Documentation CI
 on:
   pull_request:
@@ -1893,11 +1897,11 @@ jobs:
           npx cspell "docs/**/*.md" --config .cspell.json
 ```
 
-### 10.3 ドキュメントカバレッジの計測
+### 10.3 Measuring Documentation Coverage
 
 ```typescript
 // scripts/check-doc-coverage.ts
-// OpenAPI 仕様のドキュメントカバレッジを計測
+// Measure documentation coverage of the OpenAPI specification
 import { readFileSync } from 'fs';
 import yaml from 'js-yaml';
 
@@ -1911,7 +1915,7 @@ interface CoverageReport {
 function checkCoverage(spec: any): Record<string, CoverageReport> {
   const reports: Record<string, CoverageReport> = {};
 
-  // エンドポイント記述のカバレッジ
+  // Coverage of endpoint descriptions
   const endpoints: CoverageReport = {
     total: 0, documented: 0, missing: [], coverage: 0
   };
@@ -1934,7 +1938,7 @@ function checkCoverage(spec: any): Record<string, CoverageReport> {
   );
   reports['endpoints'] = endpoints;
 
-  // パラメータ記述のカバレッジ
+  // Coverage of parameter descriptions
   const params: CoverageReport = {
     total: 0, documented: 0, missing: [], coverage: 0
   };
@@ -1959,7 +1963,7 @@ function checkCoverage(spec: any): Record<string, CoverageReport> {
   );
   reports['parameters'] = params;
 
-  // レスポンス例のカバレッジ
+  // Coverage of response examples
   const examples: CoverageReport = {
     total: 0, documented: 0, missing: [], coverage: 0
   };
@@ -1990,7 +1994,7 @@ function checkCoverage(spec: any): Record<string, CoverageReport> {
   return reports;
 }
 
-// 実行
+// Execute
 const spec = yaml.load(readFileSync('./api/openapi.yaml', 'utf-8'));
 const reports = checkCoverage(spec);
 
@@ -2010,36 +2014,36 @@ for (const [category, report] of Object.entries(reports)) {
 
 ## FAQ
 
-### Q1: APIドキュメントの自動生成と手動記述はどう使い分けるか?
+### Q1: How should I decide between automatically generated and manually written API documentation?
 
-**A:** 以下の基準で使い分けるのが効果的です。
+**A:** The following criteria are effective for deciding.
 
-**自動生成が適している領域:**
-- **APIリファレンス（Layer 1）**: エンドポイント一覧、パラメータ定義、レスポンススキーマは OpenAPI 仕様から自動生成し、Single Source of Truth を維持します
-- **基本的なコード例**: SDK のメソッドシグネチャや基本的な呼び出しパターンは自動生成可能です
-- **型定義とスキーマ**: TypeScript の型定義、JSON Schema 等は OpenAPI から機械的に生成できます
+**Areas suitable for auto-generation:**
+- **API Reference (Layer 1)**: Endpoint lists, parameter definitions, and response schemas should be auto-generated from the OpenAPI specification to maintain a Single Source of Truth
+- **Basic code examples**: SDK method signatures and basic call patterns can be auto-generated
+- **Type definitions and schemas**: TypeScript type definitions, JSON Schema, etc. can be mechanically generated from OpenAPI
 
-**手動記述が必要な領域:**
-- **概念説明（Layer 4）**: アーキテクチャ設計思想、セキュリティモデル、データモデルの背景等は人間による執筆が不可欠です
-- **チュートリアル（Layer 3）**: 段階的な学習体験を設計し、初心者が挫折しないような構成は人間の判断が必要です
-- **ベストプラクティス**: 実践的な使用パターン、パフォーマンス最適化のヒント、アンチパターンの解説は経験に基づく手動執筆が重要です
-- **コンテキストに応じたガイド**: 「決済システムの構築」等の特定ユースケースは、ビジネスロジックの理解が必要で自動生成には不向きです
+**Areas requiring manual writing:**
+- **Concept explanation (Layer 4)**: Architecture design philosophy, security model, and the background of data models are areas where human authorship is indispensable
+- **Tutorials (Layer 3)**: Designing a step-by-step learning experience that prevents beginners from giving up requires human judgment
+- **Best practices**: Practical usage patterns, performance optimization tips, and anti-pattern explanations require manual writing based on experience
+- **Context-specific guides**: Specific use cases like "building a payment system" require understanding business logic and are not suitable for auto-generation
 
-**推奨アプローチ:**
-1. OpenAPI 仕様を Design-First で設計（詳細な description と examples を含む）
-2. Redoc/Scalar 等でリファレンスを自動生成
-3. 手動でコンセプトガイド、チュートリアル、Quick Start を執筆
-4. CI/CD で仕様とドキュメントの乖離を検出（Breaking Change チェック）
+**Recommended approach:**
+1. Design OpenAPI specification Design-First (with detailed descriptions and examples)
+2. Auto-generate references with Redoc/Scalar, etc.
+3. Manually write concept guides, tutorials, and Quick Start
+4. Use CI/CD to detect divergence between spec and documentation (breaking change checks)
 
-### Q2: APIドキュメントを常に最新に保つ方法は?
+### Q2: How do I keep API documentation always up to date?
 
-**A:** ドキュメントの陳腐化を防ぐには、組織的な仕組みと技術的な自動化の両面が必要です。
+**A:** Preventing documentation staleness requires both organizational mechanisms and technical automation.
 
-**技術的対策:**
+**Technical measures:**
 
-1. **Design-First アプローチの採用**
-   - OpenAPI 仕様を Single Source of Truth とし、実装とドキュメントを同時生成します
-   - 仕様変更時に CI/CD で自動的にドキュメントを再生成・デプロイします
+1. **Adopt the Design-First approach**
+   - Make the OpenAPI specification the Single Source of Truth and simultaneously generate implementation and documentation
+   - Automatically regenerate and deploy documentation in CI/CD when the spec changes
 
    ```yaml
    # .github/workflows/docs-deploy.yml
@@ -2052,162 +2056,162 @@ for (const [category, report] of Object.entries(reports)) {
        - uses: peaceiris/actions-gh-pages@v3
    ```
 
-2. **Breaking Change の自動検出**
-   - Pull Request 時に `oasdiff` 等で破壊的変更を検出し、Migration Guide の更新を促します
+2. **Automatic breaking change detection**
+   - Detect breaking changes with `oasdiff` on Pull Requests and prompt updating the Migration Guide
 
-3. **ドキュメント内コード例の自動テスト**
-   - CI でドキュメント内のコード例を実際に実行し、動作を保証します（本章 10.1 参照）
+3. **Automated testing of code examples in documentation**
+   - Guarantee behavior by actually running code examples in documentation in CI (see Section 10.1)
 
-4. **カバレッジ計測**
-   - エンドポイント、パラメータ、レスポンス例のドキュメント記述率を計測し、90% 以上を維持します（本章 10.3 参照）
+4. **Coverage measurement**
+   - Measure the documentation coverage rate for endpoints, parameters, and response examples, and maintain above 90% (see Section 10.3)
 
-**組織的対策:**
+**Organizational measures:**
 
-1. **Definition of Done にドキュメント更新を含める**
-   - API 変更を含む Pull Request は、OpenAPI 仕様の更新と Migration Guide の記載が完了するまでマージしません
+1. **Include documentation updates in the Definition of Done**
+   - Pull Requests containing API changes are not merged until the OpenAPI specification update and Migration Guide entry are complete
 
-2. **ドキュメント担当者の設置**
-   - チームに「Doc Champion」ロールを設け、ドキュメント品質のレビュー責任者を明確にします
+2. **Assign documentation owners**
+   - Set a "Doc Champion" role in the team to clearly define the reviewer responsible for documentation quality
 
-3. **定期的なドキュメントレビュー**
-   - 四半期ごとに全ドキュメントをレビューし、古い情報や壊れたリンクを修正します
+3. **Regular documentation reviews**
+   - Review all documentation quarterly and fix outdated information and broken links
 
-4. **フィードバックループの構築**
-   - ドキュメントページにフィードバックボタンを設置し、開発者からの改善提案を収集します
-   - サポート問い合わせから頻出質問を抽出し、FAQ に反映します
+4. **Build feedback loops**
+   - Place feedback buttons on documentation pages to collect improvement suggestions from developers
+   - Extract frequently asked questions from support inquiries and reflect them in the FAQ
 
-### Q3: インタラクティブなAPIドキュメント（Swagger UI等）の導入メリットは?
+### Q3: What are the benefits of introducing interactive API documentation (Swagger UI, etc.)?
 
-**A:** インタラクティブドキュメントは開発者体験（DX）を飛躍的に向上させます。
+**A:** Interactive documentation dramatically improves the developer experience (DX).
 
-**具体的なメリット:**
+**Specific benefits:**
 
-1. **Time to First Call（TTFC）の短縮**
-   - 従来: SDK インストール → 環境構築 → コード記述 → 実行（平均 15〜30分）
-   - Try it out: ブラウザ上でパラメータ入力 → Execute クリック（平均 2〜5分）
-   - Postman の調査によると、Try it out 機能により TTFC が 80% 短縮されたというデータがあります
+1. **Shortening Time to First Call (TTFC)**
+   - Conventional: SDK install → environment setup → write code → execute (average 15-30 minutes)
+   - Try it out: enter parameters in browser → click Execute (average 2-5 minutes)
+   - According to Postman research, data shows that the Try it out feature reduced TTFC by 80%
 
-2. **学習曲線の緩和**
-   - 初心者がいきなりコードを書く必要がなく、UI 上でパラメータの意味や効果を試行錯誤できます
-   - レスポンスを即座に確認でき、「この API が本当に自分のユースケースに合うか」を素早く判断できます
+2. **Easing the learning curve**
+   - Beginners don't need to write code immediately; they can try out the meaning and effects of parameters through trial and error in the UI
+   - Being able to confirm responses instantly allows quick judgment of "whether this API really suits my use case"
 
-3. **サポートコストの削減**
-   - 開発者が自己解決できる問い合わせが増加します（「このパラメータは何を指定すればいい?」等）
-   - Stripe は Try it out 機能導入後、基本的な使い方に関する問い合わせが 40% 減少したと報告しています
+3. **Reducing support costs**
+   - The number of issues developers can self-resolve increases (e.g., "what should I specify for this parameter?")
+   - Stripe reported a 40% reduction in inquiries about basic usage after introducing the Try it out feature
 
-4. **API 設計のフィードバック早期化**
-   - 社内レビューや β テスト段階で、実際に API を試してもらうことで設計の問題点を早期発見できます
-   - コードを書かずに試せるため、非エンジニアのステークホルダー（PM、営業等）もレビューに参加できます
+4. **Faster API design feedback**
+   - Problems with the design can be identified early by having people try the API during internal reviews and beta testing
+   - Since it can be tried without writing code, non-engineer stakeholders (PMs, sales, etc.) can also participate in reviews
 
-**導入時の注意点:**
+**Important notes for implementation:**
 
-1. **サンドボックス環境の必須化**
-   - Try it out は必ず本番とは分離された sandbox 環境に接続します
-   - 本番環境への直接アクセスを許すと、誤操作でデータ破損や課金が発生するリスクがあります
+1. **Mandatory sandbox environment**
+   - Try it out must connect to a sandbox environment separated from production
+   - Allowing direct access to the production environment risks data corruption and billing due to accidental operations
 
-2. **レート制限の厳格化**
-   - 匿名ユーザーによる過剰リクエストを防ぐため、sandbox 環境のレート制限は本番より厳しく設定します（例: 30リクエスト/分）
+2. **Stricter rate limiting**
+   - To prevent excessive requests from anonymous users, set stricter rate limits in the sandbox environment than in production (e.g., 30 requests/minute)
 
-3. **CORS 設定の適切化**
-   - ドキュメントページのドメインから API を呼び出せるよう CORS を設定しますが、本番環境は慎重に制限します
+3. **Appropriate CORS configuration**
+   - Configure CORS to allow API calls from the documentation page's domain, but carefully restrict the production environment
 
-4. **ツール選定**
-   - **Swagger UI**: 最も普及しており、プラグインエコシステムが充実
-   - **Redoc**: UI が洗練されているが、Try it out は有料プラン
-   - **Scalar**: モダンで高速、Try it out 標準搭載、多言語コード生成も可能（推奨）
+4. **Tool selection**
+   - **Swagger UI**: Most widely adopted, with a rich plugin ecosystem
+   - **Redoc**: Polished UI, but Try it out is a paid plan feature
+   - **Scalar**: Modern and fast, standard Try it out, multi-language code generation also available (recommended)
 
-**ROI（投資対効果）:**
-- 初期構築: 1〜2 日（OpenAPI 仕様が整備されていれば）
-- 保守コスト: ほぼゼロ（OpenAPI から自動生成のため）
-- 効果: TTFC 短縮、サポートコスト削減、開発者満足度向上
-- 結論: **費用対効果が非常に高く、API を提供する全ての組織に推奨**
+**ROI (Return on Investment):**
+- Initial setup: 1-2 days (if OpenAPI specification is already in place)
+- Maintenance cost: Nearly zero (since it's auto-generated from OpenAPI)
+- Benefits: TTFC reduction, support cost reduction, improved developer satisfaction
+- Conclusion: **Extremely cost-effective and recommended for all organizations providing APIs**
 
 ---
 
-## まとめ
+## Summary
 
-### APIドキュメンテーションの全体像
+### Overview of API Documentation
 
-| カテゴリ | 要点 | 実装優先度 |
+| Category | Key Points | Implementation Priority |
 |---|---|---|
-| **ドキュメント構成** | 4層モデル（リファレンス、ガイド、チュートリアル、コンセプト）を全て揃える | 高 |
-| **Design-First** | OpenAPI 仕様を先に設計し、コード・ドキュメント・テストを自動生成 | 高 |
-| **ツール選定** | Swagger UI（普及率）、Redoc（UI）、Scalar（モダン）を要件に応じて選択 | 高 |
-| **コード例** | 即座に実行可能、現実的な値、エラーハンドリング含む、多言語対応 | 高 |
-| **Quick Start** | 5分以内に最初の API コールを成功させることを目標 | 高 |
-| **Changelog** | Keep a Changelog 形式で破壊的変更を明示、Migration Guide も提供 | 中 |
-| **品質メトリクス** | カバレッジ 90% 以上、コード例の自動テスト、Breaking Change 検出 | 中 |
-| **Try it out** | サンドボックス環境で安全に提供、TTFC を劇的に短縮 | 中 |
-| **エラー文書化** | 全エラーコードに原因と対処法を記載、requestId でサポート連携 | 中 |
+| **Documentation structure** | Prepare all 4 layers (Reference, Guide, Tutorial, Concept) | High |
+| **Design-First** | Design OpenAPI specification first, auto-generate code, documentation, and tests | High |
+| **Tool selection** | Choose from Swagger UI (adoption), Redoc (UI), Scalar (modern) based on requirements | High |
+| **Code examples** | Immediately runnable, realistic values, includes error handling, multi-language | High |
+| **Quick Start** | Aim for the first API call to succeed within 5 minutes | High |
+| **Changelog** | Use Keep a Changelog format with clear breaking changes; provide Migration Guide | Medium |
+| **Quality metrics** | Coverage above 90%, automated code example testing, breaking change detection | Medium |
+| **Try it out** | Safely provide in a sandbox environment, dramatically reduce TTFC | Medium |
+| **Error documentation** | Document cause and remediation for all error codes, link requestId to support | Medium |
 
-### 重要ポイント
+### Key Points
 
-1. **ドキュメントは API の価値を決定づける**
-   - Postman 調査: 開発者の 52% が「ドキュメント品質」を最重要視（機能よりも優先）
-   - 優れたドキュメントは採用率を 3 倍向上させ、サポートコストを 40% 削減します
+1. **Documentation determines the value of an API**
+   - Postman survey: 52% of developers prioritize "documentation quality" above features
+   - Excellent documentation increases adoption rates 3x and reduces support costs by 40%
 
-2. **Single Source of Truth を維持する**
-   - OpenAPI 仕様を Design-First で設計し、実装とドキュメントを同時生成することで、仕様とドキュメントの乖離を根本的に防ぎます
+2. **Maintain a Single Source of Truth**
+   - By designing the OpenAPI specification Design-First and simultaneously generating implementation and documentation, you fundamentally prevent divergence between spec and documentation
 
-3. **開発者の学習段階に合わせた構成**
-   - 初心者: Quick Start（5分で成功体験）
-   - 中級者: ガイド（特定タスクの実現方法）
-   - 上級者: リファレンス（詳細仕様）、コンセプト（設計思想）
+3. **Structure documentation for the developer's learning stage**
+   - Beginner: Quick Start (success in 5 minutes)
+   - Intermediate: Guides (how to achieve a specific task)
+   - Advanced: Reference (detailed specification), Concept (design philosophy)
 
-4. **ドキュメントは継続的に改善する**
-   - コード例の自動テスト、カバレッジ計測、フィードバック収集を仕組み化し、品質を維持・向上させます
+4. **Continuously improve documentation**
+   - Systematize automated testing of code examples, coverage measurement, and feedback collection to maintain and improve quality
 
-5. **インタラクティブ性が開発者体験を変える**
-   - Try it out 機能により Time to First Call が 80% 短縮され、開発者の離脱率が大幅に改善します
+5. **Interactivity transforms the developer experience**
+   - The Try it out feature reduces Time to First Call by 80% and dramatically improves developer retention
 
 ---
 
-## 参考文献
+## References
 
-### 公式ドキュメント・仕様
+### Official Documentation and Specifications
 
 1. **OpenAPI Initiative**
    [OpenAPI Specification v3.1.0](https://spec.openapis.org/oas/v3.1.0)
-   OpenAPI 3.1 の公式仕様。JSON Schema との完全互換性、Webhook 定義、新しい拡張機能の詳細が記載されています。
+   Official OpenAPI 3.1 specification. Details full JSON Schema compatibility, Webhook definitions, and new extensions.
 
 2. **Redocly Documentation**
    [Redoc - OpenAPI/Swagger-generated API Documentation](https://redocly.com/docs/redoc/)
-   Redoc の公式ドキュメント。テーマカスタマイズ、React 統合、SSR 対応の実装方法が詳しく解説されています。
+   Official Redoc documentation. Detailed explanations of theme customization, React integration, and SSR support.
 
 3. **Swagger Official Documentation**
    [Swagger UI Documentation](https://swagger.io/docs/open-source-tools/swagger-ui/)
-   Swagger UI の公式ガイド。プラグイン開発、OAuth 2.0 統合、カスタムバリデータの設定方法等が記載されています。
+   Official Swagger UI guide. Covers plugin development, OAuth 2.0 integration, and custom validator configuration.
 
-### ツール・ライブラリ
+### Tools and Libraries
 
 4. **Scalar API Reference**
    [Scalar - Beautiful API References](https://github.com/scalar/scalar)
-   モダンで高速な OpenAPI ドキュメント生成ツール。多言語コード例の自動生成、Try it out 機能が標準搭載されています。
+   Modern, fast OpenAPI documentation generation tool. Features automatic multi-language code generation and built-in Try it out.
 
 5. **Stoplight Elements**
    [Stoplight Elements](https://stoplight.io/open-source/elements)
-   React ベースの OpenAPI UI コンポーネント。既存 Web アプリに埋め込み可能で、高度なカスタマイズに対応します。
+   React-based OpenAPI UI component. Embeddable in existing web apps with advanced customization.
 
 6. **OpenAPI Generator**
    [OpenAPI Generator](https://openapi-generator.tech/)
-   OpenAPI 仕様から 50 以上の言語でサーバースタブ・クライアント SDK を自動生成するツール。Design-First 開発の中核です。
+   Tool that auto-generates server stubs and client SDKs in 50+ languages from OpenAPI specs. The core of Design-First development.
 
-### ベストプラクティス・ガイド
+### Best Practices and Guides
 
 7. **Stripe API Documentation Best Practices**
    [Stripe API Documentation](https://stripe.com/docs/api)
-   開発者体験の最高峰とされる Stripe の API ドキュメント。4層構造、インタラクティブ性、コード例の質の高さが参考になります。
+   Stripe's API documentation, considered the pinnacle of developer experience. The 4-layer structure, interactivity, and high quality of code examples are a great reference.
 
 8. **Keep a Changelog**
    [Keep a Changelog v1.1.0](https://keepachangelog.com/)
-   Changelog の標準フォーマット。セマンティックバージョニングと組み合わせた変更管理の方法論が記載されています。
+   Standard Changelog format. Covers change management methodology combined with semantic versioning.
 
 9. **Documentation System by Divio**
    [The Documentation System](https://documentation.divio.com/)
-   ドキュメントを Tutorial、How-to Guide、Reference、Explanation の 4 種類に分類する体系的なフレームワーク。本章の 4 層モデルの理論的基盤です。
+   A systematic framework classifying documentation into Tutorial, How-to Guide, Reference, and Explanation. The theoretical foundation for this chapter's 4-layer model.
 
-### 調査・レポート
+### Research and Reports
 
 10. **Postman State of the API Report 2023**
     [State of the API Report](https://www.postman.com/state-of-api/)
-    15,000 人以上の開発者を対象とした API に関する大規模調査。ドキュメント品質の重要性、Try it out 機能の効果等のデータが掲載されています。
+    Large-scale survey on APIs targeting 15,000+ developers. Contains data on the importance of documentation quality and the effectiveness of the Try it out feature.
