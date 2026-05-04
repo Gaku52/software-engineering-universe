@@ -1,71 +1,71 @@
-# インターネットの仕組み
+# How the Internet Works
 
-> インターネットは「ネットワークのネットワーク」である。データがあなたの PC からサーバーまでどのように届くのか――パケット通信、ISP の階層構造、海底ケーブル、ルーティングプロトコルを体系的に理解することで、ネットワークトラブルシューティングからアーキテクチャ設計まで、あらゆる場面での判断力が飛躍的に向上する。
+> The Internet is a "network of networks." By systematically understanding how data travels from your PC to a server — packet communication, ISP hierarchy, submarine cables, and routing protocols — your ability to make decisions in any context, from network troubleshooting to architecture design, improves dramatically.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- [ ] インターネットの物理的構造（海底ケーブル、IX、データセンター）を理解する
-- [ ] パケット通信の仕組みと回線交換との違いを把握する
-- [ ] ルーティングの原理と BGP の役割を説明できるようになる
-- [ ] ISP の階層構造（Tier 1 / Tier 2 / Tier 3）を理解する
-- [ ] traceroute、ping、tcpdump 等のツールで通信経路を解析できる
-- [ ] DNS 解決から Web ページ表示までの全工程を追跡できる
-- [ ] ネットワーク設計におけるアンチパターンを認識し、回避できる
+- [ ] Understand the physical structure of the Internet (submarine cables, IXs, data centers)
+- [ ] Grasp how packet communication works and how it differs from circuit switching
+- [ ] Explain the principles of routing and the role of BGP
+- [ ] Understand the ISP hierarchy (Tier 1 / Tier 2 / Tier 3)
+- [ ] Analyze communication paths using tools such as traceroute, ping, and tcpdump
+- [ ] Trace the entire process from DNS resolution to Web page display
+- [ ] Recognize and avoid anti-patterns in network design
 
-## 前提知識
+## Prerequisites
 
-- コマンドライン（ターミナル）の基本操作
-- IP アドレスの基礎概念（IPv4 / IPv6 の表記方法）
-- TCP/UDP の存在を知っている程度で十分
+- Basic command-line (terminal) operation
+- Basic concept of IP addresses (IPv4 / IPv6 notation)
+- Familiarity with the existence of TCP/UDP at a high level is sufficient
 
 ---
 
-## 1. インターネットとは何か
+## 1. What Is the Internet?
 
-### 1.1 歴史的背景
+### 1.1 Historical Background
 
-インターネットの起源は 1969 年の ARPANET に遡る。米国国防総省の高等研究計画局（DARPA）が資金提供し、カリフォルニア大学ロサンゼルス校（UCLA）、スタンフォード研究所（SRI）、カリフォルニア大学サンタバーバラ校（UCSB）、ユタ大学の 4 つのノードを接続したのが始まりである。
-
-```
-ARPANET の発展タイムライン:
-
-1969年  ARPANET 開始（4ノード）
-  │
-1973年  TCP/IP の原型が提案（Vint Cerf & Bob Kahn）
-  │
-1983年  ARPANET が NCP から TCP/IP に移行（"Flag Day"）
-  │      → この日がインターネットの「誕生日」とされる
-  │
-1986年  NSFNET 稼働開始（学術ネットワークのバックボーン）
-  │
-1991年  CERN で WWW 公開（Tim Berners-Lee）
-  │
-1993年  Mosaic ブラウザ登場 → 一般ユーザーの利用拡大
-  │
-1995年  NSFNET 廃止 → 商用インターネットへ完全移行
-  │
-1998年  Google 設立 / ICANN 設立
-  │
-2004年  Web 2.0 時代（SNS、UGC の爆発的増加）
-  │
-2010年代 モバイルインターネットが主流に
-  │
-2020年代 5G / エッジコンピューティング / IoT の時代
-```
-
-ARPANET の設計思想で特筆すべきは「分散型」というコンセプトである。冷戦下、中央集権的な通信システムは核攻撃に対して脆弱であった。一箇所が破壊されても通信が継続できるネットワーク――これがパケット交換方式の採用につながり、現在のインターネットの根幹を成している。
-
-### 1.2 インターネットの定義
-
-インターネットは、技術的には以下の要素の組み合わせとして定義される。
-
-1. **プロトコルスイート**: TCP/IP を共通言語として使用する
-2. **相互接続**: 独立したネットワーク（AS: Autonomous System）が互いに接続する
-3. **分散管理**: 単一の管理者は存在せず、ICANN、IETF、各国 NIC 等が役割を分担する
-4. **エンドツーエンド原則**: ネットワークの知性はエッジ（端末）に置き、コアネットワークはシンプルに保つ
+The origins of the Internet trace back to ARPANET in 1969. Funded by the Advanced Research Projects Agency (DARPA) of the U.S. Department of Defense, it began by connecting four nodes: UCLA, Stanford Research Institute (SRI), UC Santa Barbara (UCSB), and the University of Utah.
 
 ```
-インターネットの概念モデル:
+ARPANET Development Timeline:
+
+1969  ARPANET launched (4 nodes)
+  │
+1973  Prototype of TCP/IP proposed (Vint Cerf & Bob Kahn)
+  │
+1983  ARPANET migrates from NCP to TCP/IP ("Flag Day")
+  │      → This day is considered the Internet's "birthday"
+  │
+1986  NSFNET launched (backbone of academic networks)
+  │
+1991  WWW published at CERN (Tim Berners-Lee)
+  │
+1993  Mosaic browser released → Internet use expands to general public
+  │
+1995  NSFNET decommissioned → Full transition to commercial Internet
+  │
+1998  Google founded / ICANN established
+  │
+2004  Web 2.0 era (explosive growth of SNS, UGC)
+  │
+2010s Mobile Internet becomes mainstream
+  │
+2020s Era of 5G / edge computing / IoT
+```
+
+A particularly notable design philosophy of ARPANET was its "distributed" concept. During the Cold War, centralized communication systems were vulnerable to nuclear attack. A network that could continue communicating even if one location was destroyed — this led to the adoption of packet switching and forms the backbone of today's Internet.
+
+### 1.2 Definition of the Internet
+
+Technically, the Internet is defined as a combination of the following elements:
+
+1. **Protocol suite**: Uses TCP/IP as a common language
+2. **Interconnection**: Independent networks (AS: Autonomous Systems) connect with each other
+3. **Distributed management**: There is no single administrator; ICANN, IETF, each country's NIC, and others share responsibilities
+4. **End-to-end principle**: Intelligence is placed at the network edges (terminals), keeping the core network simple
+
+```
+Conceptual Model of the Internet:
 
    ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
    │  AS 65001   │     │  AS 65002   │     │  AS 65003   │
@@ -84,40 +84,40 @@ ARPANET の設計思想で特筆すべきは「分散型」というコンセプ
                        │                    │
                   ┌────┴─────┐        ┌─────┴────┐
                   │   IX     │        │   IX     │
-                  │ (東京)   │        │ (大阪)   │
+                  │ (Tokyo)  │        │ (Osaka)  │
                   └──────────┘        └──────────┘
 
-   AS = Autonomous System（自律システム）
-   各 AS は独自のルーティングポリシーを持つ
-   BGP で AS 間の経路情報を交換する
+   AS = Autonomous System
+   Each AS has its own routing policy
+   BGP is used to exchange routing information between ASes
 ```
 
-### 1.3 数字で見るインターネットの規模
+### 1.3 The Scale of the Internet in Numbers
 
-| 指標 | 数値（2024年時点） | 備考 |
-|------|-------------------|------|
-| インターネットユーザー数 | 約 54 億人 | 世界人口の約 67% |
-| 接続デバイス数 | 約 170 億台 | IoT デバイスを含む |
-| AS（自律システム）数 | 約 75,000 | BGP で経路交換を行う単位 |
-| 海底ケーブル本数 | 約 550 本 | 総延長 140 万 km 以上 |
-| IX（相互接続拠点）数 | 約 900 拠点 | 世界各地に分布 |
-| 1日のトラフィック量 | 約 5 エクサバイト | 1 EB = 10^18 bytes |
-| ドメイン名登録数 | 約 3.6 億 | .com が最大シェア |
+| Metric | Value (as of 2024) | Notes |
+|--------|-------------------|-------|
+| Internet users | Approx. 5.4 billion | ~67% of world population |
+| Connected devices | Approx. 17 billion | Including IoT devices |
+| Number of ASes (Autonomous Systems) | Approx. 75,000 | Unit for BGP route exchange |
+| Submarine cables | Approx. 550 | Total length over 1.4 million km |
+| IXs (Internet Exchange Points) | Approx. 900 locations | Distributed worldwide |
+| Daily traffic volume | Approx. 5 exabytes | 1 EB = 10^18 bytes |
+| Registered domain names | Approx. 360 million | .com has the largest share |
 
 ---
 
-## 2. インターネットの物理構造
+## 2. Physical Structure of the Internet
 
-### 2.1 階層的なネットワーク接続
+### 2.1 Hierarchical Network Connectivity
 
-インターネットは論理的にも物理的にも階層構造を持っている。この階層を理解することは、遅延の原因特定やネットワーク設計において極めて重要である。
+The Internet has a hierarchical structure both logically and physically. Understanding this hierarchy is critically important for identifying the causes of latency and for network design.
 
 ```
-ISP 階層構造（ASCII 図解）:
+ISP Hierarchy (ASCII diagram):
 
                     ┌─────────────────────┐
                     │     Tier 1 ISP      │
-                    │  (グローバル規模)    │
+                    │  (Global scale)     │
                     │  NTT Communications │
                     │  Lumen / GTT / Telia│
                     └──────┬──────┬───────┘
@@ -126,183 +126,184 @@ ISP 階層構造（ASCII 図解）:
               │                                │
     ┌─────────┴──────────┐          ┌──────────┴─────────┐
     │    Tier 2 ISP      │          │    Tier 2 ISP      │
-    │   (地域規模)       │          │   (地域規模)       │
+    │   (Regional)       │          │   (Regional)       │
     │  KDDI / SoftBank   │          │  IIJ / BIGLOBE     │
     └────┬─────────┬─────┘          └──────┬──────┬──────┘
          │         │                       │      │
     ┌────┴───┐ ┌───┴────┐           ┌─────┴──┐ ┌─┴──────┐
     │Tier 3  │ │Tier 3  │           │Tier 3  │ │Tier 3  │
-    │(地域)  │ │(地域)  │           │(地域)  │ │(地域)  │
-    │ローカル│ │ローカル│           │ローカル│ │ローカル│
+    │(Local) │ │(Local) │           │(Local) │ │(Local) │
+    │ Local  │ │ Local  │           │ Local  │ │ Local  │
     │  ISP   │ │  ISP   │           │  ISP   │ │  ISP   │
     └────┬───┘ └───┬────┘           └────┬───┘ └───┬────┘
          │         │                     │         │
-      [家庭]    [企業]               [家庭]     [企業]
+      [Home]   [Business]           [Home]     [Business]
 
-Tier 1: トランジット料金を一切支払わない
-        → ピアリング（相互接続）のみで全インターネットに到達可能
-        → 世界に約15社程度
+Tier 1: Pays no transit fees at all
+        → Can reach the entire Internet through peering (mutual interconnection) only
+        → Approximately 15 companies worldwide
 
-Tier 2: Tier 1 にトランジット料金を支払う
-        → 一部のネットワークとはピアリング
-        → 地域的なカバレッジを持つ
+Tier 2: Pays transit fees to Tier 1
+        → Peers with some networks
+        → Has regional coverage
 
-Tier 3: Tier 2 にトランジット料金を支払う
-        → エンドユーザーに直接サービスを提供
-        → 地域密着型のプロバイダ
+Tier 3: Pays transit fees to Tier 2
+        → Provides services directly to end users
+        → Locally-oriented providers
 ```
 
-### 2.2 トランジットとピアリング
+### 2.2 Transit and Peering
 
-ISP 間の接続形態は大きく2つに分類される。
+There are two main types of connections between ISPs.
 
-**トランジット（Transit）**: 上位 ISP に料金を支払い、その ISP を経由してインターネット全体にアクセスする関係。顧客-プロバイダの関係。
+**Transit**: A relationship in which a lower-tier ISP pays fees to a higher-tier ISP and accesses the entire Internet through that ISP. A customer-provider relationship.
 
-**ピアリング（Peering）**: 同等の規模を持つ ISP 同士が、相互のトラフィックを無償で交換する関係。通常、IX（Internet Exchange Point）で物理的に接続する。
+**Peering**: A relationship in which ISPs of similar scale exchange each other's traffic without charge. Typically connected physically at an IX (Internet Exchange Point).
 
-| 項目 | トランジット | ピアリング |
-|------|-------------|-----------|
-| 費用 | 有料（従量課金 or 定額） | 通常無料（セトルメントフリー） |
-| 経路 | 全インターネットへの到達性 | 相手 AS とその顧客のみ |
-| 関係性 | 上下関係（顧客-プロバイダ） | 対等関係 |
-| 接続場所 | 専用回線 or IX | 主に IX |
-| トラフィック比率 | 制限なし | 概ね均等であることが条件 |
-| 契約 | SLA（サービスレベル保証）付き | 最善努力型が多い |
-| 利用例 | 小規模 ISP が大手 ISP から購入 | 大手 ISP 同士が相互接続 |
+| Item | Transit | Peering |
+|------|---------|---------|
+| Cost | Paid (usage-based or flat-rate) | Usually free (settlement-free) |
+| Route | Reachability to the entire Internet | Only to the peer AS and its customers |
+| Relationship | Hierarchical (customer-provider) | Equal |
+| Connection location | Dedicated line or IX | Mainly at IX |
+| Traffic ratio | Unrestricted | Roughly balanced as a condition |
+| Contract | With SLA (Service Level Agreement) | Often best-effort |
+| Usage example | Small ISP purchases from large ISP | Large ISPs interconnect with each other |
 
-### 2.3 IX（Internet Exchange Point）
+### 2.3 IX (Internet Exchange Point)
 
-IX は複数の ISP が一箇所に集まり、トラフィックを直接交換する施設である。IX が存在しなければ、同じ都市内にあるサーバー同士の通信であっても、遠方の上位 ISP を経由する必要があり、遅延とコストが増大する。
+An IX is a facility where multiple ISPs gather in one place to directly exchange traffic. Without IXs, even communications between servers in the same city would need to go through a distant upstream ISP, increasing latency and cost.
 
-日本における主要な IX:
+Major IXs in Japan:
 
-- **JPIX（Japan Internet Exchange）**: 東京を拠点とする日本最大級の IX
-- **JPNAP（Japan Network Access Point）**: インターネットマルチフィード社が運営
-- **BBIX**: ソフトバンクグループが運営
-- **Equinix IX Tokyo**: グローバル企業 Equinix が運営
+- **JPIX (Japan Internet Exchange)**: One of Japan's largest IXs, based in Tokyo
+- **JPNAP (Japan Network Access Point)**: Operated by Internet Multifeed Co.
+- **BBIX**: Operated by the SoftBank Group
+- **Equinix IX Tokyo**: Operated by global company Equinix
 
 ```
-IX における接続の仕組み:
+How Connectivity Works at an IX:
 
    ISP-A ──┐                    ┌── ISP-D
             │    ┌──────────┐   │
    ISP-B ──┼────┤  IX      ├───┼── ISP-E
-            │    │ スイッチ  │   │
+            │    │ Switch   │   │
    ISP-C ──┘    └──────────┘   └── ISP-F
 
-   IX 内部のスイッチ（L2スイッチ）で全ISPが相互に接続可能
-   各 ISP は IX のポートに自社のルーターを接続する
-   BGP セッションを確立し、経路情報を交換する
+   An L2 switch inside the IX enables mutual connectivity among all ISPs
+   Each ISP connects its own router to the IX port
+   BGP sessions are established to exchange routing information
 
-   IX がない場合:
-   ISP-A のユーザー → ISP-A → Tier1 → ISP-B → ISP-B のユーザー
-                     （遠回り、高コスト、高遅延）
+   Without an IX:
+   ISP-A user → ISP-A → Tier 1 → ISP-B → ISP-B user
+                     (roundabout, high cost, high latency)
 
-   IX がある場合:
-   ISP-A のユーザー → ISP-A → IX → ISP-B → ISP-B のユーザー
-                     （直接接続、低コスト、低遅延）
+   With an IX:
+   ISP-A user → ISP-A → IX → ISP-B → ISP-B user
+                     (direct connection, low cost, low latency)
 ```
 
-### 2.4 海底ケーブル
+### 2.4 Submarine Cables
 
-国際通信の 99% 以上は海底ケーブルによって運ばれている。衛星通信のイメージが強いかもしれないが、帯域幅と遅延の両面で海底ケーブルが圧倒的に優れている。
+More than 99% of international communications are carried by submarine cables. Although satellite communications may come to mind, submarine cables are overwhelmingly superior in both bandwidth and latency.
 
-#### 海底ケーブルの構造
+#### Structure of Submarine Cables
 
 ```
-海底ケーブルの断面図:
+Cross-section of a Submarine Cable:
 
         ┌─────────────────────────────┐
-        │   ポリエチレン外装           │ ← 最外層（保護）
+        │   Polyethylene outer jacket │ ← Outermost layer (protection)
         │  ┌─────────────────────┐    │
-        │  │   鋼線アーマー       │    │ ← 鋼線による補強
+        │  │   Steel wire armor  │    │ ← Reinforcement by steel wires
         │  │  ┌───────────────┐  │    │
-        │  │  │  銅チューブ    │  │    │ ← 給電用（リピーター用）
+        │  │  │  Copper tube  │  │    │ ← For power supply (to repeaters)
         │  │  │  ┌─────────┐  │  │    │
-        │  │  │  │ 光ファイ │  │  │    │ ← 数対〜数十対の
-        │  │  │  │ バー束   │  │  │    │   光ファイバー
+        │  │  │  │ Optical │  │  │    │ ← Several to tens of
+        │  │  │  │ fiber   │  │  │    │   optical fiber pairs
+        │  │  │  │ bundle  │  │  │    │
         │  │  │  └─────────┘  │  │    │
         │  │  └───────────────┘  │    │
         │  └─────────────────────┘    │
         └─────────────────────────────┘
 
-        直径: 深海部で約17mm（浅瀬部はより太い）
-        光ファイバー対数: 8〜24対が一般的
-        リピーター間隔: 約60〜100km
-        設計寿命: 25年
-        敷設コスト: 1km あたり数万〜数十万ドル
+        Diameter: ~17mm in deep sea (thicker in shallow areas)
+        Number of fiber pairs: typically 8–24 pairs
+        Repeater spacing: ~60–100 km
+        Design life: 25 years
+        Installation cost: tens of thousands to hundreds of thousands of dollars per km
 ```
 
-#### 海底ケーブル vs 衛星通信
+#### Submarine Cable vs. Satellite Communication
 
-| 項目 | 海底ケーブル | 静止衛星 | 低軌道衛星（LEO） |
-|------|-------------|---------|-------------------|
-| 遅延（片道） | 数十 ms | 約 270 ms | 約 20-40 ms |
-| 帯域幅 | 数百 Tbps/本 | 数十 Gbps | 数十 Gbps（コンステレーション全体） |
-| 信頼性 | 高い（冗長経路あり） | 高い | 発展途上 |
-| コスト/Gbps | 低い | 高い | 中程度 |
-| 敷設期間 | 数年 | 数年（打ち上げまで） | 数年（コンステレーション完成まで） |
-| 地理的制約 | 海底地形に依存 | 赤道上空に限定 | 制約少ない |
-| 国際通信シェア | 99% 以上 | 1% 未満 | 急速に拡大中 |
+| Item | Submarine Cable | Geostationary Satellite | Low Earth Orbit (LEO) Satellite |
+|------|----------------|------------------------|--------------------------------|
+| Latency (one-way) | Tens of ms | ~270 ms | ~20–40 ms |
+| Bandwidth | Hundreds of Tbps/cable | Tens of Gbps | Tens of Gbps (entire constellation) |
+| Reliability | High (redundant routes) | High | Still developing |
+| Cost/Gbps | Low | High | Medium |
+| Deployment period | Several years | Several years (until launch) | Several years (until constellation complete) |
+| Geographic constraints | Depends on seafloor terrain | Limited to above the equator | Few constraints |
+| Share of international traffic | Over 99% | Less than 1% | Rapidly growing |
 
-#### 主要な海底ケーブル（太平洋）
+#### Major Submarine Cables (Pacific)
 
-- **FASTER**: Google 等が出資。日本-米国間。容量 60 Tbps
-- **JUPITER**: 日本-米国間。Amazon / Facebook 等が参加
-- **SJC2（Southeast Asia-Japan Cable 2）**: 東南アジア-日本間
-- **APG（Asia Pacific Gateway）**: アジア太平洋地域を結ぶ
-- **Unity**: 日本-米国間。Google / KDDI 等
+- **FASTER**: Funded by Google and others. Japan–US. Capacity: 60 Tbps
+- **JUPITER**: Japan–US. Participated by Amazon / Facebook and others
+- **SJC2 (Southeast Asia-Japan Cable 2)**: Southeast Asia–Japan
+- **APG (Asia Pacific Gateway)**: Connects the Asia-Pacific region
+- **Unity**: Japan–US. Google / KDDI and others
 
-### 2.5 データセンターとクラウド
+### 2.5 Data Centers and the Cloud
 
-現代のインターネットにおいて、トラフィックの大部分はデータセンター間、またはデータセンターとエンドユーザー間で発生している。主要なクラウドプロバイダー（AWS、Google Cloud、Microsoft Azure）は世界中にデータセンターを展開し、それぞれが独自のバックボーンネットワークを持っている。
+In the modern Internet, the majority of traffic occurs between data centers, or between data centers and end users. Major cloud providers (AWS, Google Cloud, Microsoft Azure) have deployed data centers worldwide, each with its own backbone network.
 
 ```
-クラウドプロバイダーのネットワーク構成（概念図）:
+Network Configuration of a Cloud Provider (conceptual diagram):
 
-   ユーザー
+   User
      │
      ▼
    ISP ── IX ──┐
                │
      ┌─────────┴───────────────────────────────────┐
-     │           クラウドプロバイダーの              │
-     │           プライベートネットワーク            │
+     │           Cloud Provider's                   │
+     │           Private Network                    │
      │                                              │
-     │  [東京 DC] ──── [大阪 DC] ──── [シンガポール] │
+     │  [Tokyo DC] ──── [Osaka DC] ──── [Singapore]│
      │      │              │              │          │
      │      └──────────────┼──────────────┘          │
      │                     │                         │
-     │  [US 西海岸] ────── [US 東海岸] ── [EU]      │
+     │  [US West] ──────── [US East] ── [EU]        │
      │                                               │
      └───────────────────────────────────────────────┘
 
-   クラウドプロバイダーは:
-   - 自社専用の海底ケーブルを保有/リース
-   - IX に直接接続して遅延を最小化
-   - 各リージョン間を専用回線で結ぶ
-   - CDN エッジサーバーを ISP 内に配置（PNI: Private Network Interconnect）
+   Cloud providers:
+   - Own/lease their own submarine cables
+   - Connect directly to IXs to minimize latency
+   - Link each region with dedicated circuits
+   - Place CDN edge servers inside ISPs (PNI: Private Network Interconnect)
 ```
 
 ---
 
-## 3. パケット通信の詳細
+## 3. Details of Packet Communication
 
-### 3.1 回線交換 vs パケット交換
+### 3.1 Circuit Switching vs. Packet Switching
 
-インターネット以前の電話網は「回線交換（Circuit Switching）」方式を採用していた。これは通話の間、発信者から受信者まで専用の物理回線を確保する方式である。一方、インターネットは「パケット交換（Packet Switching）」方式を採用している。
+The telephone network before the Internet used "circuit switching." This method reserved a dedicated physical line between the caller and the receiver for the duration of the call. In contrast, the Internet uses "packet switching."
 
 ```
-回線交換（Circuit Switching）:
+Circuit Switching:
 
-   電話A ═══════════════════════════ 電話B
-          （通話中は専用回線を占有）
-          （無言の時間も回線は使用中）
+   Phone A ═══════════════════════════ Phone B
+           (Dedicated line occupied during the call)
+           (Line is in use even during silence)
 
-   利点: 一定の品質保証、遅延が安定
-   欠点: 回線の無駄遣い、スケールしにくい
+   Advantages: Guaranteed quality, stable latency
+   Disadvantages: Wasteful use of lines, hard to scale
 
-パケット交換（Packet Switching）:
+Packet Switching:
 
    PC-A ──┐  [pkt1] [pkt3]          ┌── PC-B
           │    ↓      ↓             │
@@ -310,104 +311,104 @@ IX における接続の仕組み:
           │    ↑                     │
    PC-C ──┘  [pkt2]                 └── PC-D
 
-   利点: 回線の効率的共有、スケーラブル、障害耐性
-   欠点: 遅延が変動（ジッター）、パケットロスの可能性
+   Advantages: Efficient sharing of lines, scalable, fault-tolerant
+   Disadvantages: Variable latency (jitter), possibility of packet loss
 ```
 
-### 3.2 パケットの構造
+### 3.2 Packet Structure
 
-パケットはヘッダーとペイロード（データ本体）で構成される。TCP/IP モデルにおいて、各層がそれぞれのヘッダーを追加する。これを「カプセル化（Encapsulation）」と呼ぶ。
+A packet consists of a header and a payload (the actual data). In the TCP/IP model, each layer adds its own header. This is called "encapsulation."
 
 ```
-カプセル化の過程:
+Encapsulation Process:
 
-アプリケーション層:
-  [HTTP データ: "GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"]
+Application layer:
+  [HTTP data: "GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"]
 
-  ↓ TCP がヘッダーを追加
+  ↓ TCP adds a header
 
-トランスポート層:
-  [TCP ヘッダー][HTTP データ]
-  ├─ 送信元ポート: 54321
-  ├─ 宛先ポート: 80
-  ├─ シーケンス番号: 1000
-  ├─ ACK 番号: 0
-  ├─ フラグ: SYN
-  └─ ウィンドウサイズ: 65535
+Transport layer:
+  [TCP Header][HTTP data]
+  ├─ Source port: 54321
+  ├─ Destination port: 80
+  ├─ Sequence number: 1000
+  ├─ ACK number: 0
+  ├─ Flags: SYN
+  └─ Window size: 65535
 
-  ↓ IP がヘッダーを追加
+  ↓ IP adds a header
 
-ネットワーク層:
-  [IP ヘッダー][TCP ヘッダー][HTTP データ]
-  ├─ バージョン: 4 (IPv4)
-  ├─ ヘッダー長: 20 bytes
-  ├─ 全長: 60 bytes
+Network layer:
+  [IP Header][TCP Header][HTTP data]
+  ├─ Version: 4 (IPv4)
+  ├─ Header length: 20 bytes
+  ├─ Total length: 60 bytes
   ├─ TTL: 64
-  ├─ プロトコル: 6 (TCP)
-  ├─ 送信元IP: 192.168.1.100
-  └─ 宛先IP: 93.184.216.34
+  ├─ Protocol: 6 (TCP)
+  ├─ Source IP: 192.168.1.100
+  └─ Destination IP: 93.184.216.34
 
-  ↓ イーサネットがヘッダーとトレーラーを追加
+  ↓ Ethernet adds a header and trailer
 
-データリンク層:
-  [Ethernet ヘッダー][IP ヘッダー][TCP ヘッダー][HTTP データ][FCS]
-  ├─ 宛先MAC: AA:BB:CC:DD:EE:FF
-  ├─ 送信元MAC: 11:22:33:44:55:66
-  ├─ タイプ: 0x0800 (IPv4)
-  └─ FCS: フレームチェックシーケンス（誤り検出用）
+Data link layer:
+  [Ethernet Header][IP Header][TCP Header][HTTP data][FCS]
+  ├─ Destination MAC: AA:BB:CC:DD:EE:FF
+  ├─ Source MAC: 11:22:33:44:55:66
+  ├─ Type: 0x0800 (IPv4)
+  └─ FCS: Frame Check Sequence (for error detection)
 
-最終的なフレームサイズ:
-  Ethernet ヘッダー: 14 bytes
-  IP ヘッダー:       20 bytes
-  TCP ヘッダー:      20 bytes
-  HTTP データ:       可変（MTU 1500 の場合、最大 1460 bytes）
-  FCS:              4 bytes
+Final frame size:
+  Ethernet header: 14 bytes
+  IP header:       20 bytes
+  TCP header:      20 bytes
+  HTTP data:       variable (up to 1460 bytes when MTU is 1500)
+  FCS:             4 bytes
 ```
 
-### 3.3 MTU とフラグメンテーション
+### 3.3 MTU and Fragmentation
 
-MTU（Maximum Transmission Unit）は、1つのフレームで送信できるデータの最大サイズである。イーサネットの標準 MTU は 1500 バイトだが、経路上に MTU が小さいリンクがあると、パケットが分割（フラグメンテーション）される。
+MTU (Maximum Transmission Unit) is the maximum size of data that can be sent in a single frame. The standard MTU for Ethernet is 1500 bytes, but if there is a link along the path with a smaller MTU, packets will be split (fragmented).
 
 ```
-フラグメンテーションの例:
+Example of Fragmentation:
 
-送信側が 3000 バイトの IP パケットを送信
-MTU = 1500 のリンクに到達
+Sender transmits a 3000-byte IP packet
+Arrives at a link with MTU = 1500
 
-  元のパケット:
-  [IP ヘッダー(20)][データ(2980)]  = 3000 bytes
+  Original packet:
+  [IP Header(20)][Data(2980)]  = 3000 bytes
 
-  フラグメント1:
-  [IP ヘッダー(20)][データ(1480)]  = 1500 bytes
-  ├─ MF (More Fragments) フラグ: 1
+  Fragment 1:
+  [IP Header(20)][Data(1480)]  = 1500 bytes
+  ├─ MF (More Fragments) flag: 1
   └─ Fragment Offset: 0
 
-  フラグメント2:
-  [IP ヘッダー(20)][データ(1480)]  = 1500 bytes
-  ├─ MF フラグ: 1
+  Fragment 2:
+  [IP Header(20)][Data(1480)]  = 1500 bytes
+  ├─ MF flag: 1
   └─ Fragment Offset: 185 (= 1480/8)
 
-  フラグメント3:
-  [IP ヘッダー(20)][データ(20)]    = 40 bytes
-  ├─ MF フラグ: 0 (最後のフラグメント)
+  Fragment 3:
+  [IP Header(20)][Data(20)]    = 40 bytes
+  ├─ MF flag: 0 (last fragment)
   └─ Fragment Offset: 370 (= 2960/8)
 
-  受信側で再組み立て（Identification フィールドで識別）
+  Reassembled at the receiver (identified by the Identification field)
 ```
 
-> **注意**: IPv6 では中間ルーターによるフラグメンテーションが禁止されている。送信元で Path MTU Discovery を行い、適切なサイズでパケットを送信する必要がある。
+> **Note**: In IPv6, fragmentation by intermediate routers is prohibited. The source must perform Path MTU Discovery and send packets of the appropriate size.
 
-### 3.4 パケット解析の実践（コード例1: tcpdump）
+### 3.4 Practical Packet Analysis (Code Example 1: tcpdump)
 
-tcpdump は、ネットワークインターフェースを流れるパケットをキャプチャするコマンドラインツールである。パケットの中身を直接観察することで、通信の仕組みを深く理解できる。
+tcpdump is a command-line tool that captures packets flowing through a network interface. By directly observing packet contents, you can deeply understand how communication works.
 
 ```bash
-# コード例1: tcpdump による HTTP パケットキャプチャ
+# Code Example 1: HTTP packet capture with tcpdump
 
-# 基本的な使い方: TCP ポート 80 のパケットをキャプチャ
+# Basic usage: capture packets on TCP port 80
 $ sudo tcpdump -i eth0 -n port 80
 
-# 出力例:
+# Example output:
 # 14:23:01.123456 IP 192.168.1.100.54321 > 93.184.216.34.80:
 #   Flags [S], seq 1000, win 65535, options [mss 1460,sackOK,TS val 123 ecr 0],
 #   length 0
@@ -417,19 +418,19 @@ $ sudo tcpdump -i eth0 -n port 80
 # 14:23:01.234789 IP 192.168.1.100.54321 > 93.184.216.34.80:
 #   Flags [.], ack 2001, win 65535, length 0
 
-# フラグの意味:
-# [S]  = SYN（接続要求）
-# [S.] = SYN-ACK（接続応答）
-# [.]  = ACK（確認応答）
-# [P.] = PSH-ACK（データ送信+確認）
-# [F.] = FIN-ACK（接続終了）
-# [R]  = RST（接続リセット）
+# Flag meanings:
+# [S]  = SYN (connection request)
+# [S.] = SYN-ACK (connection response)
+# [.]  = ACK (acknowledgment)
+# [P.] = PSH-ACK (data send + acknowledgment)
+# [F.] = FIN-ACK (connection termination)
+# [R]  = RST (connection reset)
 
-# より詳細なオプション:
-# -X: パケットの中身を16進数とASCIIで表示
+# More detailed options:
+# -X: display packet contents in hex and ASCII
 $ sudo tcpdump -i eth0 -n -X port 80
 
-# 出力例（HTTP GET リクエスト）:
+# Example output (HTTP GET request):
 # 14:23:01.345678 IP 192.168.1.100.54321 > 93.184.216.34.80:
 #   Flags [P.], seq 1001:1078, ack 2001, win 65535, length 77
 #   0x0000:  4500 0075 1234 4000 4006 abcd c0a8 0164
@@ -440,154 +441,154 @@ $ sudo tcpdump -i eth0 -n -X port 80
 #            G  E  T     /     H  T  T  P  /  1  .  1
 #            H  o  s  t  :     e  x  a  m  p  l  e  .  c  o  m
 
-# pcap ファイルに保存して後から Wireshark で解析
+# Save to a pcap file for later analysis with Wireshark
 $ sudo tcpdump -i eth0 -n -w capture.pcap port 80
-# → Wireshark で capture.pcap を開くと GUI で詳細分析が可能
+# → Open capture.pcap in Wireshark for detailed GUI analysis
 ```
 
-### 3.5 パケットの一生: 送信から受信まで
+### 3.5 The Life of a Packet: From Sending to Receiving
 
-あるユーザーが `https://example.com` にアクセスしたとき、パケットがどのような旅をするのかを追跡する。
+We trace the journey a packet takes when a user accesses `https://example.com`.
 
 ```
-パケットの旅路（詳細版）:
+Packet Journey (detailed):
 
-Step 1: アプリケーション（ブラウザ）
-  ├─ URL を解析: プロトコル=HTTPS, ホスト=example.com, パス=/
-  ├─ DNS 解決を要求（後述のセクション 5 で詳細解説）
-  └─ TCP 接続を開始
+Step 1: Application (browser)
+  ├─ Parse URL: protocol=HTTPS, host=example.com, path=/
+  ├─ Request DNS resolution (detailed in Section 5)
+  └─ Initiate TCP connection
 
-Step 2: OS のネットワークスタック
-  ├─ ソケット API 経由でデータを受け取る
-  ├─ TCP セグメントを生成（ポート番号、シーケンス番号を付与）
-  ├─ IP パケットを生成（送信元/宛先 IP を付与）
-  ├─ ルーティングテーブルを参照 → 次のホップを決定
-  ├─ ARP で次のホップの MAC アドレスを解決
-  └─ イーサネットフレームを生成
+Step 2: OS network stack
+  ├─ Receive data via socket API
+  ├─ Generate TCP segment (assign port number, sequence number)
+  ├─ Generate IP packet (assign source/destination IP)
+  ├─ Consult routing table → determine next hop
+  ├─ Resolve MAC address of next hop via ARP
+  └─ Generate Ethernet frame
 
-Step 3: NIC（ネットワークインターフェースカード）
-  ├─ フレームを電気信号（有線）or 電波（無線）に変換
-  └─ 物理媒体に送出
+Step 3: NIC (Network Interface Card)
+  ├─ Convert frame to electrical signal (wired) or radio waves (wireless)
+  └─ Transmit to physical medium
 
-Step 4: 家庭用ルーター
-  ├─ フレームを受信 → IP パケットを取り出す
-  ├─ NAT テーブルを参照（プライベート IP → グローバル IP に変換）
-  ├─ 新しい IP パケットを生成
-  └─ ISP 向けインターフェースから送出
+Step 4: Home router
+  ├─ Receive frame → extract IP packet
+  ├─ Consult NAT table (translate private IP → global IP)
+  ├─ Generate new IP packet
+  └─ Send out via ISP-facing interface
 
-Step 5: ISP のネットワーク
-  ├─ 複数のルーターを経由
-  ├─ 各ルーターでルーティングテーブルを参照
-  ├─ BGP によって決定された最適経路を選択
-  └─ 次の ISP または IX へ転送
+Step 5: ISP network
+  ├─ Pass through multiple routers
+  ├─ Each router consults routing table
+  ├─ Select the optimal path determined by BGP
+  └─ Forward to next ISP or IX
 
-Step 6: IX（Internet Exchange Point）
-  ├─ L2 スイッチでフレームを転送
-  └─ 宛先の AS に所属するルーターへ到達
+Step 6: IX (Internet Exchange Point)
+  ├─ Forward frame via L2 switch
+  └─ Reach router belonging to the destination AS
 
-Step 7: 宛先ネットワーク
-  ├─ ファイアウォールで検査（許可/拒否）
-  ├─ ロードバランサーで適切なサーバーに振り分け
-  └─ サーバーの NIC に到達
+Step 7: Destination network
+  ├─ Inspect at firewall (allow/deny)
+  ├─ Distribute to appropriate server via load balancer
+  └─ Reach server's NIC
 
-Step 8: サーバーの OS
-  ├─ フレームから IP パケットを取り出す
-  ├─ IP パケットから TCP セグメントを取り出す
-  ├─ TCP セグメントからアプリケーションデータを取り出す
-  └─ アプリケーション（Web サーバー）にデータを渡す
+Step 8: Server OS
+  ├─ Extract IP packet from frame
+  ├─ Extract TCP segment from IP packet
+  ├─ Extract application data from TCP segment
+  └─ Pass data to application (Web server)
 
-Step 9: アプリケーション（Web サーバー）
-  ├─ HTTP リクエストを解釈
-  ├─ HTML コンテンツを生成
-  └─ レスポンスを返す（逆の経路をたどる）
+Step 9: Application (Web server)
+  ├─ Interpret HTTP request
+  ├─ Generate HTML content
+  └─ Return response (follows the reverse path)
 ```
 
 ---
 
-## 4. ルーティングの原理
+## 4. Principles of Routing
 
-### 4.1 ルーティングとは
+### 4.1 What Is Routing?
 
-ルーティングとは、パケットを送信元から宛先へ届けるための経路選択プロセスである。各ルーターは「ルーティングテーブル」と呼ばれる経路情報のデータベースを保持し、パケットが到着するたびにテーブルを参照して次のホップ（転送先）を決定する。
+Routing is the process of selecting a path to deliver a packet from its source to its destination. Each router maintains a database of routing information called a "routing table," and each time a packet arrives, it consults the table to determine the next hop (the next destination to forward to).
 
-### 4.2 スタティックルーティング vs ダイナミックルーティング
+### 4.2 Static Routing vs. Dynamic Routing
 
 ```
-スタティックルーティング:
-  → 管理者が手動で経路を設定
-  → 小規模ネットワーク向け
-  → 設定例:
+Static Routing:
+  → Administrator manually configures routes
+  → Suitable for small networks
+  → Configuration example:
     ip route 10.0.0.0/8 via 192.168.1.1
     ip route 172.16.0.0/12 via 192.168.1.2
-    ip route 0.0.0.0/0 via 192.168.1.254  (デフォルトルート)
+    ip route 0.0.0.0/0 via 192.168.1.254  (default route)
 
-ダイナミックルーティング:
-  → ルーティングプロトコルが自動で経路を学習・更新
-  → 大規模ネットワーク向け
-  → 障害時に自動で経路を切り替え（コンバージェンス）
+Dynamic Routing:
+  → Routing protocol automatically learns and updates routes
+  → Suitable for large networks
+  → Automatically switches routes on failure (convergence)
 ```
 
-### 4.3 ルーティングプロトコルの分類
+### 4.3 Classification of Routing Protocols
 
-| 分類 | プロトコル | 用途 | アルゴリズム | 特徴 |
-|------|----------|------|------------|------|
-| IGP（内部） | RIP | 小規模 LAN | 距離ベクトル | ホップ数で経路選択。最大15ホップ |
-| IGP（内部） | OSPF | 中〜大規模 | リンクステート | コスト（帯域幅）で経路選択。高速コンバージェンス |
-| IGP（内部） | IS-IS | 大規模 ISP | リンクステート | OSPF に類似。ISP バックボーンで人気 |
-| IGP（内部） | EIGRP | Cisco 環境 | ハイブリッド | Cisco 独自（現在は公開仕様）。帯域+遅延で経路選択 |
-| EGP（外部） | BGP | AS 間 | パスベクトル | インターネットの基盤。ポリシーベースの経路選択 |
+| Category | Protocol | Use | Algorithm | Characteristics |
+|----------|---------|-----|-----------|----------------|
+| IGP (Interior) | RIP | Small LAN | Distance vector | Route selection by hop count. Max 15 hops |
+| IGP (Interior) | OSPF | Medium to large | Link state | Route selection by cost (bandwidth). Fast convergence |
+| IGP (Interior) | IS-IS | Large ISP | Link state | Similar to OSPF. Popular in ISP backbones |
+| IGP (Interior) | EIGRP | Cisco environments | Hybrid | Cisco proprietary (now open spec). Route selection by bandwidth + delay |
+| EGP (Exterior) | BGP | Between ASes | Path vector | Foundation of the Internet. Policy-based route selection |
 
-### 4.4 BGP（Border Gateway Protocol）の詳細
+### 4.4 BGP (Border Gateway Protocol) in Detail
 
-BGP はインターネットのルーティングを支える最も重要なプロトコルである。約 75,000 の AS がBGP を使って経路情報を交換し、インターネット全体の到達性を維持している。
+BGP is the most important protocol supporting Internet routing. Approximately 75,000 ASes use BGP to exchange routing information, maintaining reachability across the entire Internet.
 
 ```
-BGP の動作原理:
+How BGP Works:
 
-1. BGP ピアリングの確立
-   AS 65001 のルーター ←── TCP port 179 ──→ AS 65002 のルーター
+1. Establishing BGP Peering
+   Router in AS 65001 ←── TCP port 179 ──→ Router in AS 65002
    │                                         │
-   ├─ OPEN メッセージ交換                     │
-   ├─ KEEPALIVE で生存確認（60秒間隔）        │
-   └─ UPDATE メッセージで経路情報を交換        │
+   ├─ Exchange OPEN messages                 │
+   ├─ KEEPALIVE for liveness checks (every 60 seconds)
+   └─ Exchange routing information via UPDATE messages
 
-2. 経路情報の伝播
-   AS 65001 が 10.1.0.0/16 を広告:
+2. Route Propagation
+   AS 65001 advertises 10.1.0.0/16:
 
    AS 65001 ──→ AS 65002 ──→ AS 65003
    "10.1.0.0/16   "10.1.0.0/16   "10.1.0.0/16
     AS_PATH:       AS_PATH:        AS_PATH:
     65001"         65002,65001"    65003,65002,65001"
 
-   → AS_PATH が長くなるほど「遠い」と判断される
-   → ループ検出: 自分の AS 番号が AS_PATH にあれば破棄
+   → The longer the AS_PATH, the "farther" it is considered
+   → Loop detection: if own AS number appears in AS_PATH, discard
 
-3. 最適経路の選択（BGP ベストパス選択アルゴリズム）:
-   ① LOCAL_PREF が最大（ローカルポリシー優先）
-   ② AS_PATH が最短
-   ③ ORIGIN タイプ（IGP > EGP > Incomplete）
-   ④ MED（Multi-Exit Discriminator）が最小
+3. Best Path Selection (BGP Best Path Selection Algorithm):
+   ① Highest LOCAL_PREF (local policy priority)
+   ② Shortest AS_PATH
+   ③ ORIGIN type (IGP > EGP > Incomplete)
+   ④ Lowest MED (Multi-Exit Discriminator)
    ⑤ eBGP > iBGP
-   ⑥ IGP メトリックが最小（ネクストホップへの距離）
-   ⑦ ルーター ID が最小
+   ⑥ Lowest IGP metric (distance to next hop)
+   ⑦ Lowest router ID
 ```
 
-### 4.5 コード例2: ルーティングテーブルの確認
+### 4.5 Code Example 2: Checking the Routing Table
 
 ```bash
-# コード例2: ルーティングテーブルの確認と解析
+# Code Example 2: Checking and analyzing the routing table
 
-# Linux でルーティングテーブルを表示
+# Display routing table on Linux
 $ ip route show
-# 出力例:
+# Example output:
 # default via 192.168.1.1 dev eth0 proto dhcp metric 100
 # 10.0.0.0/8 via 192.168.1.254 dev eth0 proto static metric 50
 # 172.16.0.0/12 via 192.168.1.253 dev eth0 proto static metric 50
 # 192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.100
 
-# macOS でルーティングテーブルを表示
+# Display routing table on macOS
 $ netstat -rn
-# 出力例:
+# Example output:
 # Routing tables
 #
 # Internet:
@@ -599,89 +600,89 @@ $ netstat -rn
 # 192.168.1.1        aa:bb:cc:dd:ee:ff  UHLWIir  en0
 # 192.168.1.100      127.0.0.1          UHS      lo0
 
-# 各フィールドの意味:
-# Destination: 宛先ネットワーク
-# Gateway:     次のホップ（転送先のルーター）
+# Field meanings:
+# Destination: destination network
+# Gateway:     next hop (the router to forward to)
 # Flags:
-#   U = Up（有効）
-#   G = Gateway（ルーター経由）
-#   S = Static（静的ルート）
-#   H = Host（ホストルート）
-#   C = Clone（新しい接続時にクローン）
-# Netif: 使用するネットワークインターフェース
+#   U = Up (active)
+#   G = Gateway (via router)
+#   S = Static (static route)
+#   H = Host (host route)
+#   C = Clone (cloned for new connections)
+# Netif: network interface to use
 
-# 特定の宛先への経路を確認
+# Check the route to a specific destination
 $ ip route get 8.8.8.8
-# 出力例:
+# Example output:
 # 8.8.8.8 via 192.168.1.1 dev eth0 src 192.168.1.100 uid 1000
 #     cache
 ```
 
 ---
 
-## 5. DNS 解決の仕組み
+## 5. How DNS Resolution Works
 
-### 5.1 DNS とは
+### 5.1 What Is DNS?
 
-DNS（Domain Name System）は、人間が読みやすいドメイン名（例: example.com）を IP アドレス（例: 93.184.216.34）に変換するシステムである。「インターネットの電話帳」とも呼ばれる。
+DNS (Domain Name System) is a system that translates human-readable domain names (e.g., example.com) into IP addresses (e.g., 93.184.216.34). It is sometimes called the "phone book of the Internet."
 
-### 5.2 DNS の階層構造
+### 5.2 DNS Hierarchy
 
 ```
-DNS の階層構造:
+DNS Hierarchy:
 
                     ┌──────────────┐
-                    │  ルート DNS  │  ← 全 13 クラスタ（a〜m.root-servers.net）
-                    │  サーバー    │     Anycast で世界中に数百台が分散
+                    │  Root DNS    │  ← 13 clusters total (a–m.root-servers.net)
+                    │  Servers     │     Hundreds of servers distributed worldwide via Anycast
                     └──────┬───────┘
                            │
            ┌───────────────┼───────────────┐
            │               │               │
     ┌──────┴───────┐┌──────┴───────┐┌──────┴───────┐
     │ .com TLD     ││ .jp TLD      ││ .org TLD     │
-    │ DNS サーバー ││ DNS サーバー ││ DNS サーバー │
+    │ DNS servers  ││ DNS servers  ││ DNS servers  │
     └──────┬───────┘└──────┬───────┘└──────────────┘
            │               │
     ┌──────┴───────┐┌──────┴───────┐
     │ example.com  ││ example.jp   │
-    │ 権威 DNS     ││ 権威 DNS     │
-    │ サーバー     ││ サーバー     │
+    │ Authoritative││ Authoritative│
+    │ DNS servers  ││ DNS servers  │
     └──────────────┘└──────────────┘
 
-DNS 解決の手順（再帰クエリ）:
+DNS Resolution Steps (recursive query):
 
-  ブラウザ → OS のリゾルバ → ISP のキャッシュ DNS
+  Browser → OS resolver → ISP's caching DNS
                                     │
-                         キャッシュヒット？
+                         Cache hit?
                             │          │
                            Yes         No
                             │          │
-                         即座に応答    ルート DNS に問い合わせ
+                         Respond      Query root DNS
+                         immediately  │
+                                    Responds ".com is here"
                                        │
-                                    ".com はここ" と応答
+                                    Query .com TLD DNS
                                        │
-                                    .com TLD DNS に問い合わせ
+                                    Responds "example.com is here"
                                        │
-                                    "example.com はここ" と応答
+                                    Query authoritative DNS
                                        │
-                                    権威 DNS に問い合わせ
+                                    Responds "93.184.216.34"
                                        │
-                                    "93.184.216.34" と応答
+                                    Store in cache (for TTL duration)
                                        │
-                                    キャッシュに保存（TTL 期間）
-                                       │
-                                    クライアントに応答
+                                    Respond to client
 ```
 
-### 5.3 コード例3: DNS 解決の確認
+### 5.3 Code Example 3: Verifying DNS Resolution
 
 ```bash
-# コード例3: DNS 解決の詳細確認
+# Code Example 3: Detailed DNS resolution verification
 
-# dig コマンドで DNS クエリを実行
+# Execute a DNS query with dig
 $ dig example.com
 
-# 出力例:
+# Example output:
 # ;; QUESTION SECTION:
 # ;example.com.                   IN      A
 #
@@ -691,10 +692,10 @@ $ dig example.com
 # ;; Query time: 23 msec
 # ;; SERVER: 192.168.1.1#53(192.168.1.1) (UDP)
 
-# トレース付きで DNS 解決の全過程を確認
+# Check the entire DNS resolution process with trace
 $ dig +trace example.com
 
-# 出力例:
+# Example output:
 # .                       518400  IN      NS      a.root-servers.net.
 # .                       518400  IN      NS      b.root-servers.net.
 # ...
@@ -706,15 +707,15 @@ $ dig +trace example.com
 # ...
 # example.com.            86400   IN      A       93.184.216.34
 
-# 各レコードタイプの確認
-$ dig example.com A        # IPv4 アドレス
-$ dig example.com AAAA     # IPv6 アドレス
-$ dig example.com MX       # メールサーバー
-$ dig example.com NS       # ネームサーバー
-$ dig example.com TXT      # テキストレコード（SPF, DKIM 等）
-$ dig example.com CNAME    # 別名
+# Check each record type
+$ dig example.com A        # IPv4 address
+$ dig example.com AAAA     # IPv6 address
+$ dig example.com MX       # Mail server
+$ dig example.com NS       # Name server
+$ dig example.com TXT      # Text record (SPF, DKIM, etc.)
+$ dig example.com CNAME    # Alias
 
-# nslookup でも同等の情報が取得可能
+# nslookup can also retrieve equivalent information
 $ nslookup example.com
 # Server:   192.168.1.1
 # Address:  192.168.1.1#53
@@ -723,29 +724,29 @@ $ nslookup example.com
 # Name: example.com
 # Address: 93.184.216.34
 
-# DNS キャッシュの確認（macOS）
+# Check DNS cache (macOS)
 $ sudo dscacheutil -statistics
-# → キャッシュヒット率を確認可能
+# → Can check cache hit rate
 
-# DNS キャッシュのクリア（macOS）
+# Clear DNS cache (macOS)
 $ sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder
 ```
 
 ---
 
-## 6. 通信経路の可視化と解析
+## 6. Visualizing and Analyzing Communication Paths
 
-### 6.1 コード例4: traceroute による経路追跡
+### 6.1 Code Example 4: Path Tracing with traceroute
 
-traceroute は、パケットが宛先に到達するまでに経由するルーター（ホップ）を一覧表示するツールである。TTL（Time To Live）を 1 から順に増やしながら ICMP パケット（または UDP パケット）を送信し、各ルーターから返される ICMP Time Exceeded メッセージを利用して経路を特定する。
+traceroute is a tool that lists the routers (hops) a packet passes through before reaching its destination. It sends ICMP packets (or UDP packets) with TTL (Time To Live) incrementally starting from 1, and uses ICMP Time Exceeded messages returned by each router to identify the path.
 
 ```bash
-# コード例4: traceroute の実行と解析
+# Code Example 4: Running and analyzing traceroute
 
-# 基本的な使い方（Linux/macOS）
+# Basic usage (Linux/macOS)
 $ traceroute example.com
 
-# 出力例:
+# Example output:
 # traceroute to example.com (93.184.216.34), 30 hops max, 60 byte packets
 #  1  router.local (192.168.1.1)  1.234 ms  0.987 ms  1.123 ms
 #  2  gw-001.isp.example.net (203.0.113.1)  5.678 ms  5.432 ms  5.891 ms
@@ -754,29 +755,29 @@ $ traceroute example.com
 #  5  edge-r01.datacenter.net (192.0.2.100)  15.789 ms  15.432 ms  15.678 ms
 #  6  cdn-node.example.com (93.184.216.34)  18.012 ms  17.890 ms  18.123 ms
 
-# 各列の意味:
-# ホップ番号  ホスト名 (IPアドレス)  RTT1  RTT2  RTT3
-# → 3回の RTT（Round Trip Time）が表示される
-# → ばらつきが大きい場合、そのルーターが混雑している可能性
+# Meaning of each column:
+# Hop number  Hostname (IP address)  RTT1  RTT2  RTT3
+# → Three RTT (Round Trip Time) values are shown
+# → Large variance may indicate that router is congested
 
-# * * * が表示される場合:
-# → そのルーターが ICMP に応答しない設定（セキュリティポリシー）
-# → パケットフィルタリングされている
-# → 必ずしも問題があるわけではない
+# When * * * is displayed:
+# → That router is configured not to respond to ICMP (security policy)
+# → Packet is being filtered
+# → Does not necessarily indicate a problem
 
-# TCP SYN を使った traceroute（ファイアウォール透過に有効）
+# traceroute using TCP SYN (effective for firewall traversal)
 $ sudo traceroute -T -p 443 example.com
 
-# ICMP Echo を使った traceroute
+# traceroute using ICMP Echo
 $ sudo traceroute -I example.com
 
-# Windows の場合は tracert コマンド
+# On Windows, use the tracert command
 # > tracert example.com
 
-# mtr（My Traceroute）: traceroute + ping のリアルタイム版
+# mtr (My Traceroute): real-time combination of traceroute + ping
 $ mtr example.com
 
-# mtr の出力例:
+# Example mtr output:
 #                              My traceroute  [v0.95]
 # Host:                                Loss%   Snt   Last   Avg  Best  Wrst StDev
 #  1. router.local                      0.0%    50    1.2   1.3   0.8   2.1   0.3
@@ -785,48 +786,48 @@ $ mtr example.com
 #  4. ix-peer.jpix.ad.jp                0.0%    50   10.3  10.5  10.0  11.8   0.4
 #  5. cdn-node.example.com              0.0%    50   18.0  18.2  17.5  19.1   0.4
 
-# mtr の利点:
-# - リアルタイムで統計情報が更新される
-# - パケットロス率が可視化される
-# - 遅延の変動（ジッター）が分かる
-# - -r オプションでレポートモード（非対話型）
+# Advantages of mtr:
+# - Statistics are updated in real time
+# - Packet loss rate is visualized
+# - Latency variation (jitter) is visible
+# - -r option for report mode (non-interactive)
 $ mtr -r -c 100 example.com
 ```
 
-#### traceroute の動作原理
+#### How traceroute Works
 
 ```
-traceroute の内部動作:
+Internal Operation of traceroute:
 
-Step 1: TTL=1 のパケットを送信
-  PC ──[TTL=1]──→ Router-A ──X（TTL が 0 になり破棄）
+Step 1: Send a packet with TTL=1
+  PC ──[TTL=1]──→ Router-A ──X (TTL reaches 0, packet discarded)
                    │
-                   └── ICMP Time Exceeded を返送
-                       → Router-A の IP アドレスと RTT が判明
+                   └── ICMP Time Exceeded is returned
+                       → IP address and RTT of Router-A become known
 
-Step 2: TTL=2 のパケットを送信
+Step 2: Send a packet with TTL=2
   PC ──[TTL=2]──→ Router-A ──[TTL=1]──→ Router-B ──X
                                           │
-                                          └── ICMP Time Exceeded を返送
-                                              → Router-B の IP と RTT が判明
+                                          └── ICMP Time Exceeded is returned
+                                              → IP and RTT of Router-B become known
 
-Step 3: TTL=3 のパケットを送信
+Step 3: Send a packet with TTL=3
   PC ──[TTL=3]──→ Router-A ──[TTL=2]──→ Router-B ──[TTL=1]──→ Server
                                                                 │
                                                                 └── ICMP Port Unreachable
-                                                                    (or TCP RST) を返送
-                                                                    → 宛先に到達したことを確認
+                                                                    (or TCP RST) is returned
+                                                                    → Destination reached
 
-  → TTL を 1 ずつ増やすことで、各ホップのルーターを順番に特定する
-  → 最大ホップ数（デフォルト 30）に達しても応答がなければ終了
+  → By incrementing TTL by 1, each hop's router is identified in order
+  → Ends when the maximum number of hops (default 30) is reached without a response
 ```
 
-### 6.2 コード例5: ping による疎通確認と統計解析
+### 6.2 Code Example 5: Connectivity Verification and Statistical Analysis with ping
 
 ```bash
-# コード例5: ping の高度な使い方
+# Code Example 5: Advanced ping usage
 
-# 基本的な ping（4回送信）
+# Basic ping (4 packets)
 $ ping -c 4 example.com
 # PING example.com (93.184.216.34): 56 data bytes
 # 64 bytes from 93.184.216.34: icmp_seq=0 ttl=56 time=95.123 ms
@@ -838,178 +839,178 @@ $ ping -c 4 example.com
 # 4 packets transmitted, 4 packets received, 0.0% packet loss
 # round-trip min/avg/max/stddev = 94.876/95.055/95.234/0.131 ms
 
-# 統計情報の読み方:
-# min:    最小 RTT（ネットワークが空いているときの遅延）
-# avg:    平均 RTT（通常の遅延の目安）
-# max:    最大 RTT（混雑時の遅延）
-# stddev: 標準偏差（ジッター: 値が大きいほど遅延が不安定）
+# How to read the statistics:
+# min:    minimum RTT (latency when network is idle)
+# avg:    average RTT (typical latency benchmark)
+# max:    maximum RTT (latency during congestion)
+# stddev: standard deviation (jitter: higher values mean unstable latency)
 
-# パケットサイズを指定して MTU 問題を診断
+# Specify packet size to diagnose MTU issues
 $ ping -c 4 -s 1472 example.com          # 1472 + 28 (IP+ICMP header) = 1500
-$ ping -c 4 -s 1473 -D example.com       # DF ビットを設定（フラグメント禁止）
-# → "Message too long" が返れば、経路上の MTU が 1500 未満
+$ ping -c 4 -s 1473 -D example.com       # Set DF bit (no fragmentation allowed)
+# → "Message too long" means path MTU is less than 1500
 
-# フラッド ping（高負荷テスト: root 権限が必要）
+# Flood ping (high-load test: requires root privileges)
 $ sudo ping -f -c 1000 example.com
-# → 大量のパケットを高速送信し、パケットロス率を計測
-# → 本番環境では絶対に実行しないこと
+# → Sends a large number of packets rapidly to measure packet loss rate
+# → Never run in production environments
 
-# 送信間隔を指定（0.2秒間隔で10回）
+# Specify send interval (10 times at 0.2-second intervals)
 $ ping -c 10 -i 0.2 example.com
 
-# タイムスタンプ付き（障害の時刻特定に有用）
+# With timestamps (useful for identifying failure times)
 $ ping -c 100 example.com | while read line; do
 >   echo "$(date '+%Y-%m-%d %H:%M:%S') $line"
 > done
 
-# 複数ホストへの同時 ping（fping）
+# Simultaneous ping to multiple hosts (fping)
 $ fping -c 5 8.8.8.8 1.1.1.1 208.67.222.222
 # 8.8.8.8     : [0], 84 bytes, 5.12 ms
 # 1.1.1.1     : [0], 84 bytes, 3.45 ms
 # 208.67.222.222 : [0], 84 bytes, 12.34 ms
 ```
 
-### 6.3 ネットワーク遅延の構成要素
+### 6.3 Components of Network Latency
 
-ネットワーク遅延は複数の要素から構成される。それぞれの寄与を理解することで、問題の切り分けが容易になる。
+Network latency consists of multiple components. Understanding each contribution makes it easier to isolate problems.
 
-| 遅延の種類 | 原因 | 典型的な値 | 改善方法 |
-|-----------|------|-----------|---------|
-| 伝搬遅延 | 光速の限界（媒体中で約 20 万 km/s） | 東京-LA 間: 約 50 ms（片道） | CDN の利用、エッジサーバー配置 |
-| 処理遅延 | ルーターでのヘッダー検査、ルーティング決定 | 数 μs 〜 数 ms | 高性能ルーターの導入 |
-| キューイング遅延 | ルーターのバッファでの待機時間 | 0 〜 数百 ms（トラフィックに依存） | QoS 設定、帯域増強 |
-| 伝送遅延 | パケットをリンクに送出する時間 | 1 Gbps で 1500B: 12 μs | 回線帯域の増強 |
-| シリアライゼーション遅延 | パケットの先頭から末尾までの送出時間 | 小さいパケットでは無視可能 | パケットサイズの最適化 |
+| Type of Latency | Cause | Typical Value | How to Improve |
+|----------------|-------|--------------|---------------|
+| Propagation delay | Speed of light limit (~200,000 km/s in medium) | Tokyo–LA: ~50 ms (one-way) | Use CDN, place edge servers |
+| Processing delay | Header inspection, routing decisions at routers | A few μs to a few ms | Deploy high-performance routers |
+| Queuing delay | Wait time in router buffers | 0 to hundreds of ms (traffic-dependent) | QoS configuration, bandwidth expansion |
+| Transmission delay | Time to put a packet onto the link | 1500B at 1 Gbps: 12 μs | Increase line bandwidth |
+| Serialization delay | Time from first to last bit transmitted | Negligible for small packets | Optimize packet size |
 
 ```
-遅延の計算例:
+Latency Calculation Example:
 
-東京のクライアント → ロサンゼルスのサーバー
+Tokyo client → Los Angeles server
 
-伝搬遅延（片道）:
-  距離: 約 8,800 km（海底ケーブル経由）
-  光ファイバー中の光速: 約 200,000 km/s
-  伝搬遅延 = 8,800 / 200,000 = 44 ms
+Propagation delay (one-way):
+  Distance: ~8,800 km (via submarine cable)
+  Speed of light in optical fiber: ~200,000 km/s
+  Propagation delay = 8,800 / 200,000 = 44 ms
 
-RTT（往復遅延）:
-  理論最小値 = 44 ms × 2 = 88 ms
+RTT (round-trip delay):
+  Theoretical minimum = 44 ms × 2 = 88 ms
 
-  実際の値（ルーター処理等を含む）:
-  → 約 100〜120 ms が典型的
-  → 理論値との差分（12〜32 ms）がルーター処理+キューイング遅延
+  Actual value (including router processing, etc.):
+  → ~100–120 ms is typical
+  → Difference from theoretical (12–32 ms) = router processing + queuing delay
 ```
 
 ---
 
-## 7. Web ページ表示の全工程
+## 7. Complete Flow of Web Page Display
 
-### 7.1 URL 入力からレンダリングまで
+### 7.1 From URL Entry to Rendering
 
-ブラウザで `https://example.com` にアクセスしたとき、以下の一連のプロセスが実行される。
+When you access `https://example.com` in a browser, the following sequence of processes is executed.
 
 ```
-Web ページ表示の全工程タイムライン:
+Web Page Display Timeline:
 
-    時間(ms)  イベント
+    Time(ms)  Event
     ─────────────────────────────────────────────────
-    0         ユーザーが Enter キーを押す
+    0         User presses Enter
     │
-    ├── 1. ブラウザキャッシュ確認 (< 1 ms)
-    │   └── キャッシュヒットならここで終了
+    ├── 1. Check browser cache (< 1 ms)
+    │   └── If cache hit, process ends here
     │
-    ├── 2. DNS 解決 (20-100 ms)
-    │   ├── ブラウザ DNS キャッシュ
-    │   ├── OS DNS キャッシュ
-    │   ├── ルーター DNS キャッシュ
-    │   └── ISP DNS リゾルバ → 権威 DNS
+    ├── 2. DNS resolution (20–100 ms)
+    │   ├── Browser DNS cache
+    │   ├── OS DNS cache
+    │   ├── Router DNS cache
+    │   └── ISP DNS resolver → authoritative DNS
     │
-    ├── 3. TCP 3-way ハンドシェイク (1 RTT = 30-100 ms)
+    ├── 3. TCP 3-way handshake (1 RTT = 30–100 ms)
     │   ├── Client → Server: SYN
     │   ├── Server → Client: SYN-ACK
     │   └── Client → Server: ACK
     │
-    ├── 4. TLS ハンドシェイク (1-2 RTT = 30-200 ms)
-    │   ├── ClientHello（対応する暗号スイートの提示）
-    │   ├── ServerHello（暗号スイートの選択+証明書送信）
-    │   ├── 証明書検証（CA チェーンの確認）
-    │   ├── 鍵交換（ECDHE 等で共有秘密を確立）
-    │   └── Finished（暗号化通信の開始）
-    │   ※ TLS 1.3 では 1-RTT（再接続時は 0-RTT も可能）
+    ├── 4. TLS handshake (1–2 RTT = 30–200 ms)
+    │   ├── ClientHello (present supported cipher suites)
+    │   ├── ServerHello (select cipher suite + send certificate)
+    │   ├── Certificate verification (verify CA chain)
+    │   ├── Key exchange (establish shared secret via ECDHE, etc.)
+    │   └── Finished (encrypted communication begins)
+    │   * TLS 1.3 completes in 1-RTT (0-RTT also possible for reconnections)
     │
-    ├── 5. HTTP リクエスト送信
+    ├── 5. Send HTTP request
     │   GET / HTTP/2
     │   Host: example.com
     │   Accept: text/html
     │   Accept-Encoding: gzip, br
     │
-    ├── 6. サーバー処理 (10-500 ms)
-    │   ├── リクエストのパース
-    │   ├── ルーティング
-    │   ├── ビジネスロジック実行
-    │   ├── DB クエリ（必要に応じて）
-    │   └── レスポンス生成
+    ├── 6. Server processing (10–500 ms)
+    │   ├── Parse request
+    │   ├── Routing
+    │   ├── Execute business logic
+    │   ├── DB query (if needed)
+    │   └── Generate response
     │
-    ├── 7. HTTP レスポンス受信
+    ├── 7. Receive HTTP response
     │   HTTP/2 200 OK
     │   Content-Type: text/html; charset=utf-8
     │   Content-Encoding: br
     │   Cache-Control: max-age=3600
     │
-    ├── 8. HTML パース & DOM 構築 (50-200 ms)
-    │   ├── HTML トークナイズ
-    │   ├── DOM ツリー構築
-    │   ├── サブリソースの発見（CSS, JS, 画像）
-    │   └── プリロードスキャナーが並行してリソースを取得開始
+    ├── 8. Parse HTML & build DOM (50–200 ms)
+    │   ├── HTML tokenizing
+    │   ├── Build DOM tree
+    │   ├── Discover sub-resources (CSS, JS, images)
+    │   └── Preload scanner starts fetching resources in parallel
     │
-    ├── 9. CSS パース & CSSOM 構築
-    │   ├── CSS ファイルのダウンロード
-    │   ├── CSSOM ツリー構築
+    ├── 9. Parse CSS & build CSSOM
+    │   ├── Download CSS files
+    │   ├── Build CSSOM tree
     │   └── Render Tree = DOM + CSSOM
     │
-    ├── 10. JavaScript 実行
-    │    ├── JS ファイルのダウンロード
-    │    ├── パース & コンパイル
-    │    ├── 実行（DOM 操作、イベントリスナー登録等）
-    │    └── defer/async 属性による実行タイミングの制御
+    ├── 10. Execute JavaScript
+    │    ├── Download JS files
+    │    ├── Parse & compile
+    │    ├── Execute (DOM manipulation, register event listeners, etc.)
+    │    └── Control execution timing via defer/async attributes
     │
-    ├── 11. レイアウト計算 (Layout/Reflow)
-    │    ├── 各要素の位置とサイズを計算
-    │    └── ビューポートに基づくレイアウト
+    ├── 11. Layout calculation (Layout/Reflow)
+    │    ├── Calculate position and size of each element
+    │    └── Layout based on viewport
     │
-    ├── 12. ペイント & コンポジット
-    │    ├── レイヤーごとにピクセルを描画
-    │    ├── GPU によるコンポジット
-    │    └── 画面に表示
+    ├── 12. Paint & composite
+    │    ├── Draw pixels per layer
+    │    ├── Composite via GPU
+    │    └── Display on screen
     │
     ─────────────────────────────────────────────────
-    合計: 200 ms 〜 数秒（ネットワーク環境とページ複雑度に依存）
+    Total: 200 ms to several seconds (depending on network environment and page complexity)
 ```
 
 ### 7.2 HTTP/1.1 vs HTTP/2 vs HTTP/3
 
-| 項目 | HTTP/1.1 | HTTP/2 | HTTP/3 |
+| Item | HTTP/1.1 | HTTP/2 | HTTP/3 |
 |------|---------|--------|--------|
-| プロトコル | TCP | TCP | QUIC（UDP ベース） |
-| 多重化 | なし（1接続1リクエスト） | ストリーム多重化 | ストリーム多重化 |
-| ヘッダー圧縮 | なし | HPACK | QPACK |
-| サーバープッシュ | なし | あり | あり |
-| 接続確立 | TCP: 1 RTT + TLS: 1-2 RTT | TCP: 1 RTT + TLS: 1-2 RTT | QUIC: 1 RTT（0-RTT 再接続） |
-| Head-of-Line ブロッキング | あり（TCP レベル） | あり（TCP レベル） | なし（ストリーム独立） |
-| 暗号化 | オプション | 事実上必須 | 必須（QUIC に内蔵） |
-| 標準化年 | 1997 (RFC 2068) | 2015 (RFC 7540) | 2022 (RFC 9114) |
+| Protocol | TCP | TCP | QUIC (UDP-based) |
+| Multiplexing | None (1 request per connection) | Stream multiplexing | Stream multiplexing |
+| Header compression | None | HPACK | QPACK |
+| Server push | None | Yes | Yes |
+| Connection establishment | TCP: 1 RTT + TLS: 1–2 RTT | TCP: 1 RTT + TLS: 1–2 RTT | QUIC: 1 RTT (0-RTT for reconnections) |
+| Head-of-Line blocking | Yes (TCP level) | Yes (TCP level) | None (independent streams) |
+| Encryption | Optional | Effectively required | Required (built into QUIC) |
+| Year standardized | 1997 (RFC 2068) | 2015 (RFC 7540) | 2022 (RFC 9114) |
 
 ---
 
-## 8. NAT（Network Address Translation）
+## 8. NAT (Network Address Translation)
 
-### 8.1 NAT の仕組み
+### 8.1 How NAT Works
 
-NAT は、プライベート IP アドレスとグローバル IP アドレスを変換する技術である。IPv4 アドレスの枯渇に対する最も広く普及した対策として、ほぼすべての家庭用ルーターに実装されている。
+NAT is a technology that translates between private IP addresses and global IP addresses. It is implemented in virtually all home routers as the most widely adopted countermeasure against IPv4 address exhaustion.
 
 ```
-NAT の動作:
+NAT Operation:
 
-  プライベートネットワーク           インターネット
+  Private network             Internet
   192.168.1.0/24
 
   PC-A (192.168.1.100)  ──┐
@@ -1018,10 +1019,10 @@ NAT の動作:
                           │   │  203.0.113.1 │      │ 93.184.216.34│
   PC-C (192.168.1.102)  ──┘   └──────────────┘      └──────────────┘
 
-NAT テーブルの例:
+NAT Table Example:
 
 ┌──────────────────────┬──────────────────────┬──────────────────────┐
-│ 内部アドレス          │ 外部アドレス          │ 宛先                  │
+│ Internal address     │ External address     │ Destination          │
 ├──────────────────────┼──────────────────────┼──────────────────────┤
 │ 192.168.1.100:54321  │ 203.0.113.1:10001    │ 93.184.216.34:443    │
 │ 192.168.1.101:54322  │ 203.0.113.1:10002    │ 93.184.216.34:443    │
@@ -1029,349 +1030,348 @@ NAT テーブルの例:
 │ 192.168.1.102:54324  │ 203.0.113.1:10004    │ 151.101.1.69:443     │
 └──────────────────────┴──────────────────────┴──────────────────────┘
 
-動作の流れ:
-1. PC-A が 93.184.216.34:443 にパケットを送信
-   送信元: 192.168.1.100:54321 → 宛先: 93.184.216.34:443
+How it works:
+1. PC-A sends a packet to 93.184.216.34:443
+   Source: 192.168.1.100:54321 → Destination: 93.184.216.34:443
 
-2. NAT ルーターがテーブルにエントリを作成
-   送信元を 203.0.113.1:10001 に書き換え
+2. NAT router creates an entry in the table
+   Rewrites source to 203.0.113.1:10001
 
-3. サーバーがレスポンスを返送
-   送信元: 93.184.216.34:443 → 宛先: 203.0.113.1:10001
+3. Server sends a response
+   Source: 93.184.216.34:443 → Destination: 203.0.113.1:10001
 
-4. NAT ルーターがテーブルを参照して宛先を書き換え
-   宛先を 192.168.1.100:54321 に復元
+4. NAT router looks up the table and rewrites the destination
+   Restores destination to 192.168.1.100:54321
 
-5. PC-A にパケットが到着
+5. Packet arrives at PC-A
 ```
 
-### 8.2 NAT の種類
+### 8.2 Types of NAT
 
-| 種類 | 説明 | 用途 |
-|------|------|------|
-| SNAT（Source NAT） | 送信元アドレスを変換 | 内部→外部通信 |
-| DNAT（Destination NAT） | 宛先アドレスを変換 | ポートフォワーディング |
-| PAT / NAPT | ポート番号も変換（1対多） | 家庭用ルーター |
-| Full Cone NAT | 一度マッピングすると外部から自由にアクセス可能 | ゲーム、P2P |
-| Symmetric NAT | 宛先ごとに異なるマッピング | 企業ファイアウォール |
+| Type | Description | Use |
+|------|-------------|-----|
+| SNAT (Source NAT) | Translates source address | Internal → External communication |
+| DNAT (Destination NAT) | Translates destination address | Port forwarding |
+| PAT / NAPT | Also translates port numbers (many-to-one) | Home routers |
+| Full Cone NAT | Once mapped, external access is freely possible | Gaming, P2P |
+| Symmetric NAT | Different mapping per destination | Corporate firewalls |
 
-### 8.3 NAT と IPv6
+### 8.3 NAT and IPv6
 
-IPv6 の本来の設計では、すべてのデバイスにグローバルユニキャストアドレスを割り当てることで NAT を不要にする意図がある。しかし、セキュリティポリシーの慣習やプライバシー上の理由から、IPv6 環境でもステートフルファイアウォールやプライバシーアドレス（RFC 4941）が利用される。
+IPv6's original design intended to eliminate the need for NAT by assigning a global unicast address to every device. However, due to security policy conventions and privacy reasons, stateful firewalls and privacy addresses (RFC 4941) are also used in IPv6 environments.
 
 ```
-IPv4 vs IPv6 のアドレス空間:
+IPv4 vs IPv6 Address Space:
 
-IPv4: 32 ビット = 約 43 億アドレス
-  → 90年代後半に枯渇が予測され、NAT + CIDR で延命
-  → 2011年に IANA が最後の /8 ブロックを配布
+IPv4: 32 bits = ~4.3 billion addresses
+  → Exhaustion predicted in the late 1990s, extended by NAT + CIDR
+  → IANA distributed the last /8 block in 2011
 
-IPv6: 128 ビット = 約 3.4 × 10^38 アドレス
-  → 地球上の全砂粒（約 7.5 × 10^18 個）の一粒一粒に
-     数千万個のアドレスを割り当てても余る
-  → NAT なしで全デバイスにグローバルアドレスを付与可能
+IPv6: 128 bits = ~3.4 × 10^38 addresses
+  → Even assigning tens of millions of addresses to every grain of sand
+     on Earth (~7.5 × 10^18 grains) would leave plenty to spare
+  → Can assign global addresses to all devices without NAT
 
-IPv6 アドレスの例:
+Example IPv6 address:
   2001:0db8:85a3:0000:0000:8a2e:0370:7334
-  → 省略表記: 2001:db8:85a3::8a2e:370:7334
+  → Abbreviated: 2001:db8:85a3::8a2e:370:7334
 ```
 
 ---
 
-## 9. CDN（Content Delivery Network）
+## 9. CDN (Content Delivery Network)
 
-### 9.1 CDN の仕組み
+### 9.1 How CDNs Work
 
-CDN は、コンテンツをユーザーに物理的に近いエッジサーバーから配信することで、遅延を短縮し、オリジンサーバーの負荷を軽減する技術である。
+A CDN is a technology that reduces latency and lightens the load on origin servers by delivering content from edge servers physically close to the user.
 
 ```
-CDN なしの場合:
+Without CDN:
 
-  東京のユーザー ──────────── 米国のオリジンサーバー
+  Tokyo user ──────────── Origin server in the US
                   RTT: 100ms
-                  全リクエストがオリジンに到達
+                  All requests reach the origin
 
-CDN ありの場合:
+With CDN:
 
-  東京のユーザー ── 東京の CDN エッジ ──── 米国のオリジン
-                   RTT: 5ms              （キャッシュミス時のみ）
+  Tokyo user ── Tokyo CDN edge ──── US origin
+                   RTT: 5ms              (only on cache miss)
 
-CDN の配置:
+CDN placement:
 
                       ┌─────────────────┐
-                      │   オリジン       │
-                      │   サーバー       │
+                      │   Origin        │
+                      │   server        │
                       └────────┬────────┘
                                │
                ┌───────────────┼───────────────┐
                │               │               │
         ┌──────┴──────┐ ┌─────┴──────┐ ┌──────┴──────┐
-        │ エッジ      │ │ エッジ     │ │ エッジ      │
-        │ (東京)      │ │ (US西)     │ │ (EU)        │
+        │ Edge        │ │ Edge       │ │ Edge        │
+        │ (Tokyo)     │ │ (US West)  │ │ (EU)        │
         └──────┬──────┘ └─────┬──────┘ └──────┬──────┘
                │              │               │
-         [東京の       [US西海岸の      [欧州の
-          ユーザー]     ユーザー]        ユーザー]
+         [Tokyo         [US West         [European
+          users]         users]           users]
 ```
 
-### 9.2 CDN のリクエスト処理フロー
+### 9.2 CDN Request Processing Flow
 
-1. ユーザーが `www.example.com` を DNS 解決
-2. CDN の DNS が地理的に最も近いエッジサーバーの IP を返す（GeoDNS / Anycast）
-3. ユーザーのリクエストがエッジサーバーに到達
-4. エッジサーバーがキャッシュを確認:
-   - **キャッシュヒット**: 即座にレスポンスを返す（数 ms）
-   - **キャッシュミス**: オリジンサーバーにリクエストを転送し、レスポンスをキャッシュしてから返す
+1. User resolves DNS for `www.example.com`
+2. The CDN's DNS returns the IP of the geographically nearest edge server (GeoDNS / Anycast)
+3. User's request reaches the edge server
+4. Edge server checks its cache:
+   - **Cache hit**: Immediately returns a response (a few ms)
+   - **Cache miss**: Forwards the request to the origin server, caches the response, then returns it
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### 10.1 アンチパターン1: 単一障害点（SPOF）を持つネットワーク設計
+### 10.1 Anti-Pattern 1: Network Design with a Single Point of Failure (SPOF)
 
 ```
-アンチパターン: 単一の ISP 接続
+Anti-pattern: Single ISP connection
 
-  [全社ネットワーク]
+  [Company-wide network]
          │
     ┌────┴────┐
-    │ Router  │  ← 単一のルーター
+    │ Router  │  ← Single router
     └────┬────┘
          │
-    [ISP-A のみ]  ← 単一の ISP 接続
+    [ISP-A only]  ← Single ISP connection
          │
-    [インターネット]
+    [Internet]
 
-問題点:
-  - ISP-A に障害が発生すると全通信が停止
-  - ルーターが故障しても全通信が停止
-  - メンテナンスウィンドウでの計画停止が必要
+Problems:
+  - All communications stop if ISP-A fails
+  - All communications stop if the router breaks down
+  - Requires planned downtime for maintenance windows
 
-推奨パターン: マルチホーミング + 冗長構成
+Recommended pattern: Multi-homing + redundant configuration
 
-  [全社ネットワーク]
+  [Company-wide network]
        │       │
   ┌────┴──┐ ┌──┴────┐
-  │Router │ │Router │  ← 冗長ルーター（VRRP/HSRP）
+  │Router │ │Router │  ← Redundant routers (VRRP/HSRP)
   │  #1   │ │  #2   │
   └───┬───┘ └───┬───┘
       │         │
-  [ISP-A]   [ISP-B]   ← マルチホーミング
+  [ISP-A]   [ISP-B]   ← Multi-homing
       │         │
-  [インターネット]
+  [Internet]
 
-利点:
-  - ISP-A の障害時に ISP-B が自動引き継ぎ
-  - ルーター故障時にもう一方が引き継ぎ
-  - 無停止メンテナンスが可能
-  - トラフィック分散による性能向上
+Advantages:
+  - ISP-B automatically takes over if ISP-A fails
+  - Other router takes over if one fails
+  - Maintenance without downtime
+  - Performance improvement through traffic distribution
 ```
 
-#### なぜ危険か
+#### Why It Is Dangerous
 
-大規模な事例として、2021 年の Fastly CDN 障害では、設定ミスにより広範囲のWebサイト（Reddit、GitHub、Amazon 等）が約 1 時間ダウンした。2023 年の KDDI 障害では、設備故障から約 86 時間にわたりモバイル通信に影響が出た。単一障害点の排除は、システム設計における最優先事項の一つである。
+A notable large-scale example: in the 2021 Fastly CDN outage, a configuration error took down a wide range of websites (Reddit, GitHub, Amazon, etc.) for about an hour. In the 2023 KDDI outage, equipment failure affected mobile communications for approximately 86 hours. Eliminating single points of failure is one of the highest priorities in system design.
 
-### 10.2 アンチパターン2: DNS の TTL を極端に短くする（または長くする）
+### 10.2 Anti-Pattern 2: Extremely Short (or Long) DNS TTL
 
 ```
-アンチパターン: TTL = 0 または TTL = 30 秒
+Anti-pattern: TTL = 0 or TTL = 30 seconds
 
-問題点:
-  - 全てのリクエストで DNS 解決が発生
-  - DNS サーバーへの負荷が急増
-  - DNS サーバーがダウンすると即座に名前解決不能
-  - 初回アクセスの遅延が毎回発生
+Problems:
+  - DNS resolution occurs for every single request
+  - Load on DNS servers spikes dramatically
+  - If the DNS server goes down, name resolution immediately fails
+  - Initial access latency occurs every time
 
-  1リクエストあたりの DNS 解決コスト:
-  → キャッシュヒット: < 1 ms
-  → フルリゾルブ:   50-200 ms
-  → TTL=0 の場合、毎回 50-200 ms のオーバーヘッド
+  DNS resolution cost per request:
+  → Cache hit:   < 1 ms
+  → Full resolve: 50–200 ms
+  → With TTL=0, 50–200 ms overhead on every request
 
-アンチパターン: TTL = 86400（24時間）以上
+Anti-pattern: TTL = 86400 (24 hours) or longer
 
-問題点:
-  - IP アドレス変更時の反映が遅延
-  - フェイルオーバーに最大 24 時間かかる
-  - CDN 切り替えやサーバー移行が困難
+Problems:
+  - Delay in reflecting IP address changes
+  - Failover can take up to 24 hours
+  - Difficult to switch CDN or migrate servers
 
-推奨: TTL = 300〜3600 秒（5分〜1時間）
+Recommended: TTL = 300–3600 seconds (5 minutes–1 hour)
 
-  用途に応じた推奨値:
+  Recommended values by use case:
   ┌──────────────────┬────────────┬────────────────────────┐
-  │ ユースケース      │ 推奨 TTL   │ 理由                    │
+  │ Use case         │ Rec. TTL   │ Reason                 │
   ├──────────────────┼────────────┼────────────────────────┤
-  │ 一般的な Web     │ 300-3600   │ 変更頻度と性能のバランス │
-  │ フェイルオーバー │ 30-60      │ 障害時の迅速な切り替え   │
-  │ 静的コンテンツ   │ 3600-86400 │ 変更がほぼない           │
-  │ ロードバランス   │ 60-300     │ 適度な分散              │
+  │ General Web      │ 300–3600   │ Balance between change frequency and performance │
+  │ Failover         │ 30–60      │ Quick switching during failures │
+  │ Static content   │ 3600–86400 │ Almost never changes   │
+  │ Load balancing   │ 60–300     │ Adequate distribution  │
   └──────────────────┴────────────┴────────────────────────┘
 ```
 
-#### なぜ危険か
+#### Why It Is Dangerous
 
-TTL が短すぎると、DNS サーバーの負荷だけでなく、DNS プロバイダーの障害がサービス全体の障害に直結する。逆に TTL が長すぎると、緊急時のフェイルオーバーが機能しない。DDoS 攻撃を受けた際に IP アドレスを変更して回避する「IP ローテーション」も、TTL が長いと効果が薄れる。
+When the TTL is too short, not only does DNS server load increase, but an outage of the DNS provider directly causes an outage of the entire service. Conversely, when the TTL is too long, emergency failover does not function. "IP rotation" — changing IP addresses to evade DDoS attacks — is also less effective when the TTL is long.
 
 ---
 
-## 11. エッジケース分析
+## 11. Edge Case Analysis
 
-### 11.1 エッジケース1: BGP ハイジャック
+### 11.1 Edge Case 1: BGP Hijacking
 
-BGP は本質的に「信頼ベース」のプロトコルであり、受信した経路広告の正当性を検証する仕組みが弱い。悪意のある（または設定ミスによる）AS が、本来自分のものではないプレフィックスを広告すると、インターネットトラフィックが不正な経路に誘導される。
+BGP is fundamentally a "trust-based" protocol with weak mechanisms for verifying the legitimacy of received route advertisements. If a malicious (or misconfigured) AS advertises a prefix that does not belong to it, Internet traffic is diverted to an unauthorized path.
 
 ```
-BGP ハイジャックの例:
+Example of BGP Hijacking:
 
-正常な状態:
-  AS 65001 が 10.1.0.0/16 を広告
-  → インターネット全体が 10.1.0.0/16 → AS 65001 と認識
+Normal state:
+  AS 65001 advertises 10.1.0.0/16
+  → The entire Internet recognizes 10.1.0.0/16 → AS 65001
 
-ハイジャック発生:
-  AS 99999（攻撃者）が 10.1.0.0/24 を広告
-  → 10.1.0.0/24 はより具体的なプレフィックス（/24 > /16）
-  → ロンゲストマッチルールにより、10.1.0.0/24 宛のトラフィックが
-     AS 99999 に吸い込まれる
+Hijacking occurs:
+  AS 99999 (attacker) advertises 10.1.0.0/24
+  → 10.1.0.0/24 is a more specific prefix (/24 > /16)
+  → By the longest-match rule, traffic to 10.1.0.0/24 is absorbed by AS 99999
 
-  正常: ユーザー → ISP → AS 65001（正規のサーバー）
-  異常: ユーザー → ISP → AS 99999（攻撃者のネットワーク）
+  Normal: User → ISP → AS 65001 (legitimate server)
+  Abnormal: User → ISP → AS 99999 (attacker's network)
 
-対策:
-  - RPKI（Resource Public Key Infrastructure）
-    → プレフィックスと AS の対応を暗号的に検証
-    → ROA（Route Origin Authorization）を登録
+Countermeasures:
+  - RPKI (Resource Public Key Infrastructure)
+    → Cryptographically verifies the correspondence between prefixes and ASes
+    → Register ROA (Route Origin Authorization)
   - BGPsec
-    → 経路の各ホップを暗号的に検証（普及途上）
-  - IRR（Internet Routing Registry）フィルタリング
-    → 登録された経路情報に基づくフィルタリング
+    → Cryptographically verifies each hop of the path (still being adopted)
+  - IRR (Internet Routing Registry) filtering
+    → Filtering based on registered routing information
 
-現実の事例:
-  - 2008年: パキスタンテレコムが YouTube のプレフィックスを誤広告
-    → 約2時間、世界中で YouTube がアクセス不能に
-  - 2018年: 仮想通貨 MyEtherWallet の BGP ハイジャック
-    → DNS サーバーのトラフィックを乗っ取り、フィッシングサイトに誘導
-  - 2019年: China Telecom による大規模な経路リーク
-    → 欧州のトラフィックが中国経由に
+Real-world incidents:
+  - 2008: Pakistan Telecom mistakenly advertised YouTube's prefix
+    → YouTube was inaccessible worldwide for ~2 hours
+  - 2018: BGP hijacking of MyEtherWallet cryptocurrency
+    → DNS server traffic was hijacked and redirected to a phishing site
+  - 2019: Large-scale route leak by China Telecom
+    → European traffic routed through China
 ```
 
-### 11.2 エッジケース2: 海底ケーブルの切断
+### 11.2 Edge Case 2: Submarine Cable Cuts
 
-海底ケーブルは、錨（アンカー）による損傷、地震、海底地滑り、鮫の噛みつき等で物理的に切断されることがある。国際通信の 99% 以上を担う海底ケーブルが切断された場合の影響は甚大である。
+Submarine cables can be physically severed by anchor damage, earthquakes, underwater landslides, shark bites, etc. The impact of a cut to submarine cables — which carry more than 99% of international communications — is enormous.
 
 ```
-海底ケーブル切断時の影響と対応:
+Impact and Response when Submarine Cables Are Cut:
 
-切断パターン1: 単一ケーブルの切断
-  ┌─────────┐    ×切断×    ┌─────────┐
-  │ 日本    ├──── Cable A ────┤ 米国    │
-  │         ├──── Cable B ────┤         │ ← Cable B が自動引き継ぎ
-  │         ├──── Cable C ────┤         │ ← Cable C も利用可能
+Cut pattern 1: Single cable cut
+  ┌─────────┐    x CUT x    ┌─────────┐
+  │ Japan   ├──── Cable A ────┤ US      │
+  │         ├──── Cable B ────┤         │ ← Cable B automatically takes over
+  │         ├──── Cable C ────┤         │ ← Cable C also available
   └─────────┘               └─────────┘
-  → 影響: 帯域の減少、一時的な遅延増加
-  → 冗長経路により通信は継続
+  → Impact: Reduced bandwidth, temporary increase in latency
+  → Communication continues via redundant paths
 
-切断パターン2: 同一海域の複数ケーブル切断（大地震等）
-  ┌─────────┐    ×切断×    ┌─────────┐
-  │ 日本    ├──── Cable A ────┤ 米国    │
-  │         ├──── Cable B ×切断× ────┤         │
-  │         ├──── Cable C ────┤         │ ← 残存ケーブルに負荷集中
+Cut pattern 2: Multiple cable cuts in the same sea area (major earthquake, etc.)
+  ┌─────────┐    x CUT x    ┌─────────┐
+  │ Japan   ├──── Cable A ────┤ US      │
+  │         ├──── Cable B x CUT x ────┤         │
+  │         ├──── Cable C ────┤         │ ← Load concentrates on remaining cable
   └─────────┘               └─────────┘
-  → 影響: 深刻な帯域不足、通信速度の大幅低下
-  → 衛星回線等のバックアップが必要になる場合も
+  → Impact: Severe bandwidth shortage, major slowdown in communications
+  → May require backup via satellite circuits
 
-復旧プロセス:
-  1. ケーブル敷設船の手配（数日〜数週間）
-  2. 切断箇所の特定（OTDR: 光時間領域反射計測）
-  3. ケーブルの引き揚げ
-  4. 修復接続（融着接続）
-  5. テストと復旧
-  → 全体で 2 週間〜数ヶ月を要する
+Recovery process:
+  1. Arrange a cable-laying ship (days to weeks)
+  2. Identify the cut location (OTDR: Optical Time Domain Reflectometry)
+  3. Raise the cable
+  4. Repair connection (fusion splicing)
+  5. Test and restore
+  → Entire process takes 2 weeks to several months
 
-現実の事例:
-  - 2006年: 台湾南部地震で太平洋の複数ケーブルが切断
-    → 東南アジア各国のインターネットが数週間にわたり不安定化
-  - 2011年: 東日本大震災で太平洋側のケーブルに被害
-    → 冗長経路と日本海側ケーブルにより大規模断絶は回避
-  - 2024年: 紅海でフーシ派による海底ケーブル損傷の報告
-    → 中東-欧州間の通信に影響
+Real-world incidents:
+  - 2006: Earthquake in southern Taiwan cut multiple Pacific cables
+    → Internet in Southeast Asian countries destabilized for weeks
+  - 2011: Great East Japan Earthquake damaged cables on the Pacific side
+    → Large-scale disconnection avoided thanks to redundant paths and Sea of Japan cables
+  - 2024: Reports of Houthi damage to submarine cables in the Red Sea
+    → Impact on communications between Middle East and Europe
 ```
 
 ---
 
-## 12. IPv4 と IPv6 の詳細比較
+## 12. Detailed Comparison: IPv4 vs IPv6
 
-インターネットプロトコルの最も基本的なバージョンである IPv4 は、1981 年に RFC 791 として標準化された。約 43 億個のアドレス空間は、インターネットの爆発的な普及により枯渇が避けられなくなり、1998 年に RFC 2460 として IPv6 が標準化された。
+IPv4, the most fundamental version of the Internet protocol, was standardized in 1981 as RFC 791. The ~4.3 billion address space was destined to be exhausted by the explosive growth of the Internet, and in 1998, IPv6 was standardized as RFC 2460.
 
-### 12.1 IPv4 vs IPv6 の比較表
+### 12.1 IPv4 vs IPv6 Comparison Table
 
-| 項目 | IPv4 | IPv6 |
+| Item | IPv4 | IPv6 |
 |------|------|------|
-| アドレス長 | 32 ビット | 128 ビット |
-| アドレス数 | 約 43 億（4.3 × 10^9） | 約 3.4 × 10^38 |
-| 表記法 | ドット区切り10進数（192.168.1.1） | コロン区切り16進数（2001:db8::1） |
-| ヘッダーサイズ | 可変（20-60 バイト） | 固定 40 バイト |
-| チェックサム | あり（ヘッダーチェックサム） | なし（上位層に委譲） |
-| フラグメンテーション | ルーターでも可能 | 送信元のみ（Path MTU Discovery 必須） |
-| ブロードキャスト | あり | なし（マルチキャストで代替） |
-| ARP | あり（MAC アドレス解決） | NDP（Neighbor Discovery Protocol）で代替 |
-| DHCP | 必須（DHCP v4） | オプション（SLAAC による自動設定が可能） |
-| IPsec | オプション | 仕様上は必須（実装は任意） |
-| NAT | 広く利用 | 基本的に不要（全デバイスにグローバルアドレス） |
-| 移行状況 | 依然として主流 | Google 利用者の約 45%（2024年時点） |
+| Address length | 32 bits | 128 bits |
+| Number of addresses | ~4.3 billion (4.3 × 10^9) | ~3.4 × 10^38 |
+| Notation | Dotted decimal (192.168.1.1) | Colon-separated hex (2001:db8::1) |
+| Header size | Variable (20–60 bytes) | Fixed 40 bytes |
+| Checksum | Yes (header checksum) | None (delegated to upper layers) |
+| Fragmentation | Possible by routers too | Source only (Path MTU Discovery required) |
+| Broadcast | Yes | None (replaced by multicast) |
+| ARP | Yes (MAC address resolution) | Replaced by NDP (Neighbor Discovery Protocol) |
+| DHCP | Required (DHCP v4) | Optional (SLAAC automatic configuration available) |
+| IPsec | Optional | Required in spec (implementation optional) |
+| NAT | Widely used | Basically unnecessary (global address for all devices) |
+| Adoption | Still mainstream | ~45% of Google users (as of 2024) |
 
-### 12.2 IPv6 アドレスの種類
+### 12.2 Types of IPv6 Addresses
 
 ```
-IPv6 アドレスの種類と用途:
+Types and Uses of IPv6 Addresses:
 
-1. グローバルユニキャスト（2000::/3）
-   → インターネット上でルーティング可能
-   → IPv4 のグローバル IP に相当
-   例: 2001:db8:85a3::8a2e:370:7334
+1. Global Unicast (2000::/3)
+   → Routable on the Internet
+   → Equivalent to IPv4 global IP
+   Example: 2001:db8:85a3::8a2e:370:7334
 
-2. リンクローカル（fe80::/10）
-   → 同一リンク（セグメント）内のみで有効
-   → 全ての IPv6 インターフェースに自動設定
-   例: fe80::1%eth0
+2. Link-Local (fe80::/10)
+   → Valid only within the same link (segment)
+   → Automatically configured on all IPv6 interfaces
+   Example: fe80::1%eth0
 
-3. ユニークローカル（fc00::/7, 実質 fd00::/8）
-   → プライベートネットワーク内で利用
-   → IPv4 の RFC 1918 アドレスに相当
-   例: fd12:3456:789a::1
+3. Unique Local (fc00::/7, effectively fd00::/8)
+   → Used within private networks
+   → Equivalent to IPv4 RFC 1918 addresses
+   Example: fd12:3456:789a::1
 
-4. マルチキャスト（ff00::/8）
-   → 複数のホストに同時送信
-   例: ff02::1 (全ノード), ff02::2 (全ルーター)
+4. Multicast (ff00::/8)
+   → Sent simultaneously to multiple hosts
+   Example: ff02::1 (all nodes), ff02::2 (all routers)
 
-5. ループバック（::1/128）
-   → 自分自身を指す
-   → IPv4 の 127.0.0.1 に相当
+5. Loopback (::1/128)
+   → Points to itself
+   → Equivalent to IPv4's 127.0.0.1
 
-6. 未指定（::/128）
-   → アドレス未設定状態を示す
-   → IPv4 の 0.0.0.0 に相当
+6. Unspecified (::/128)
+   → Indicates an unassigned address state
+   → Equivalent to IPv4's 0.0.0.0
 ```
 
 ---
 
-## 13. ネットワークセキュリティの基礎
+## 13. Network Security Fundamentals
 
-### 13.1 通信の暗号化
+### 13.1 Encrypting Communications
 
-インターネット上の通信は、暗号化しない限り途中経路で盗聴される危険性がある。TLS（Transport Layer Security）は、TCP 上で暗号化通信を提供するプロトコルである。
+Communications on the Internet are at risk of interception along the path if not encrypted. TLS (Transport Layer Security) is a protocol that provides encrypted communication over TCP.
 
 ```
-TLS 1.3 ハンドシェイクの流れ:
+TLS 1.3 Handshake Flow:
 
 Client                                          Server
   │                                               │
   │  ClientHello                                  │
   │  + supported_versions: TLS 1.3               │
-  │  + key_share: ECDHE パラメータ                │
+  │  + key_share: ECDHE parameters               │
   │  + signature_algorithms: RSA-PSS, ECDSA      │
   │  ──────────────────────────────────────────►  │
   │                                               │
   │                          ServerHello          │
-  │                + key_share: ECDHE パラメータ  │
+  │                + key_share: ECDHE parameters  │
   │        {EncryptedExtensions}                  │
   │        {Certificate}                          │
   │        {CertificateVerify}                    │
@@ -1381,483 +1381,479 @@ Client                                          Server
   │  {Finished}                                   │
   │  ──────────────────────────────────────────►  │
   │                                               │
-  │  ◄═══════ 暗号化されたアプリケーションデータ ═══►  │
+  │  ◄═══════ Encrypted application data ══════►  │
   │                                               │
 
-  ※ {} = 暗号化されたメッセージ
-  ※ TLS 1.3 では 1-RTT で完了（TLS 1.2 は 2-RTT）
-  ※ 0-RTT 再接続: 以前接続済みのサーバーに対して、
-     最初のメッセージからデータを送信可能（リプレイ攻撃のリスクあり）
+  * {} = encrypted message
+  * TLS 1.3 completes in 1-RTT (TLS 1.2 requires 2-RTT)
+  * 0-RTT reconnection: For previously connected servers,
+     data can be sent from the first message (risk of replay attacks)
 ```
 
-### 13.2 DDoS 攻撃の種類
+### 13.2 Types of DDoS Attacks
 
-| 攻撃タイプ | レイヤー | 手法 | 典型的な規模 | 対策 |
-|-----------|---------|------|-------------|------|
-| ボリューム型 | L3/L4 | UDP フラッド、DNS アンプリフィケーション | 数百 Gbps 〜 数 Tbps | CDN/クラウド型 DDoS 対策、ブラックホールルーティング |
-| プロトコル型 | L3/L4 | SYN フラッド、Ping of Death | 数百万 pps | SYN Cookie、レートリミティング |
-| アプリケーション型 | L7 | HTTP フラッド、Slowloris | 数万〜数十万 rps | WAF、レートリミティング、CAPTCHA |
+| Attack type | Layer | Method | Typical scale | Countermeasure |
+|-------------|-------|--------|--------------|---------------|
+| Volumetric | L3/L4 | UDP flood, DNS amplification | Hundreds of Gbps to Tbps | CDN/cloud DDoS protection, blackhole routing |
+| Protocol | L3/L4 | SYN flood, Ping of Death | Millions of pps | SYN cookies, rate limiting |
+| Application | L7 | HTTP flood, Slowloris | Tens of thousands to hundreds of thousands of rps | WAF, rate limiting, CAPTCHA |
 
 ```
-DDoS 攻撃の規模の推移:
+Growth in DDoS Attack Scale:
 
-2013年: Spamhaus 攻撃 → 300 Gbps（当時最大）
-2016年: Dyn DNS 攻撃（Mirai ボットネット）→ 1.2 Tbps
-2017年: Google への攻撃 → 2.54 Tbps（2020年に公表）
-2020年: AWS への攻撃 → 2.3 Tbps
-2023年: Google / Cloudflare への HTTP/2 攻撃 → 398 Mrps（リクエスト/秒）
-→ 攻撃規模は年々増大し、防御側の対策も進化し続けている
+2013: Spamhaus attack → 300 Gbps (largest at the time)
+2016: Dyn DNS attack (Mirai botnet) → 1.2 Tbps
+2017: Attack on Google → 2.54 Tbps (disclosed in 2020)
+2020: Attack on AWS → 2.3 Tbps
+2023: HTTP/2 attack on Google / Cloudflare → 398 Mrps (requests/sec)
+→ Attack scale continues to grow each year, and defensive measures keep evolving
 ```
 
 ---
 
-## 14. 演習問題
+## 14. Exercises
 
-### 14.1 基礎演習
+### 14.1 Basic Exercises
 
-以下の演習を順番に実行し、インターネットの基本的な仕組みを体験的に理解する。
+Execute the following exercises in order to gain hands-on understanding of how the Internet fundamentally works.
 
-**演習 B-1: ping による遅延計測**
+**Exercise B-1: Measuring Latency with ping**
 
 ```bash
-# 異なる地理的距離のサーバーに ping を送信し、遅延を比較する
+# Send ping to servers at different geographic distances and compare latency
 
-# ステップ1: 近隣サーバーへの ping
+# Step 1: Ping a nearby server
 $ ping -c 10 www.google.co.jp
-# RTT を記録: _____ ms
+# Record RTT: _____ ms
 
-# ステップ2: 太平洋を跨ぐサーバーへの ping
+# Step 2: Ping a server across the Pacific
 $ ping -c 10 www.google.com
-# RTT を記録: _____ ms
+# Record RTT: _____ ms
 
-# ステップ3: 大西洋を跨ぐサーバーへの ping
+# Step 3: Ping a server across the Atlantic
 $ ping -c 10 www.bbc.co.uk
-# RTT を記録: _____ ms
+# Record RTT: _____ ms
 
-# 考察:
-# 1. 各サーバーへの RTT の違いを物理的距離で説明せよ
-# 2. 光速（光ファイバー中: 約 20 万 km/s）から理論最小 RTT を計算し、
-#    観測値との差分の原因を考察せよ
-# 3. 時間帯を変えて（朝/昼/夜）計測した場合、違いが出るか予測せよ
+# Discussion:
+# 1. Explain the differences in RTT to each server in terms of physical distance
+# 2. Calculate the theoretical minimum RTT from the speed of light
+#    (~200,000 km/s in optical fiber) and discuss the causes of the difference
+#    from the observed values
+# 3. Predict whether measurements at different times of day (morning/noon/night)
+#    would show differences
 ```
 
-**演習 B-2: DNS 解決の追跡**
+**Exercise B-2: Tracing DNS Resolution**
 
 ```bash
-# ステップ1: 通常の DNS 解決
+# Step 1: Normal DNS resolution
 $ dig example.com
 
-# ステップ2: トレース付き DNS 解決
+# Step 2: DNS resolution with trace
 $ dig +trace example.com
 
-# ステップ3: 異なる DNS サーバーを使って解決
+# Step 3: Resolve using different DNS servers
 $ dig @8.8.8.8 example.com       # Google Public DNS
 $ dig @1.1.1.1 example.com       # Cloudflare DNS
 $ dig @208.67.222.222 example.com # OpenDNS
 
-# 考察:
-# 1. 各 DNS サーバーの応答時間を比較せよ
-# 2. dig +trace で表示される各ステップ（ルート → TLD → 権威）の
-#    所要時間を記録し、どこに最も時間がかかるか分析せよ
-# 3. 同じクエリを2回実行した場合の応答時間の変化を説明せよ
-#    （キャッシュの効果を確認する）
+# Discussion:
+# 1. Compare the response times of each DNS server
+# 2. Record the time for each step shown in dig +trace
+#    (root → TLD → authoritative) and analyze where the most time is spent
+# 3. Explain the change in response time when the same query is run twice
+#    (verify the effect of caching)
 ```
 
-**演習 B-3: ルーティングテーブルの理解**
+**Exercise B-3: Understanding Routing Tables**
 
 ```bash
-# ステップ1: 自分のマシンのルーティングテーブルを表示
+# Step 1: Display the routing table of your machine
 # Linux:
 $ ip route show
 # macOS:
 $ netstat -rn
 
-# ステップ2: デフォルトゲートウェイを特定
-# → default または 0.0.0.0/0 のエントリを探す
+# Step 2: Identify the default gateway
+# → Look for the entry marked as "default" or "0.0.0.0/0"
 
-# ステップ3: 特定の IP アドレスへの経路を確認
+# Step 3: Check the route to specific IP addresses
 $ ip route get 8.8.8.8
 $ ip route get 192.168.1.1
 
-# 考察:
-# 1. デフォルトゲートウェイの IP アドレスは何か？
-#    それはどのデバイス（ルーター）を指しているか？
-# 2. 直接接続されたネットワーク（"scope link"）のエントリを特定せよ
-# 3. 192.168.1.1 と 8.8.8.8 への経路はどう異なるか説明せよ
+# Discussion:
+# 1. What is the IP address of the default gateway?
+#    Which device (router) does it point to?
+# 2. Identify the entries for directly connected networks ("scope link")
+# 3. Explain how the routes to 192.168.1.1 and 8.8.8.8 differ
 ```
 
-### 14.2 応用演習
+### 14.2 Applied Exercises
 
-基礎を理解した上で、より深い分析を行う演習である。
+More in-depth analysis building on a solid understanding of the fundamentals.
 
-**演習 A-1: traceroute の比較分析**
+**Exercise A-1: Comparative Analysis of traceroute**
 
 ```bash
-# 異なる宛先への traceroute を実行し、経路の違いを分析する
+# Run traceroute to different destinations and analyze the differences in paths
 
-# ステップ1: 国内サーバーへの traceroute
+# Step 1: traceroute to a domestic server
 $ traceroute www.yahoo.co.jp
-# ホップ数を記録: _____ ホップ
-# 最終 RTT を記録: _____ ms
+# Record hop count: _____ hops
+# Record final RTT: _____ ms
 
-# ステップ2: 海外サーバーへの traceroute
+# Step 2: traceroute to an overseas server
 $ traceroute www.google.com
-# ホップ数を記録: _____ ホップ
-# 最終 RTT を記録: _____ ms
+# Record hop count: _____ hops
+# Record final RTT: _____ ms
 
-# ステップ3: 別の海外サーバーへの traceroute
+# Step 3: traceroute to another overseas server
 $ traceroute www.bbc.co.uk
-# ホップ数を記録: _____ ホップ
-# 最終 RTT を記録: _____ ms
+# Record hop count: _____ hops
+# Record final RTT: _____ ms
 
-# ステップ4: 経路上の各ルーターの所属を確認
-# → IP アドレスを whois で調べる
+# Step 4: Check which organization each router on the path belongs to
+# → Look up IP addresses with whois
 $ whois 203.0.113.1 | grep -i "org-name\|netname\|descr"
 
-# 分析項目:
-# 1. 各 traceroute で、ISP の境界（AS 境界）がどこにあるか特定せよ
-# 2. IX を通過しているホップを特定せよ（ホスト名のヒント: ix, peer, exchange 等）
-# 3. 海底ケーブルを通過していると推測されるホップを特定せよ
-#    （RTT が急増するポイント）
-# 4. 同じ宛先に対して時間を空けて再度実行し、経路が変わるか確認せよ
+# Analysis items:
+# 1. In each traceroute, identify where the ISP boundary (AS boundary) is
+# 2. Identify the hop that passes through the IX
+#    (hostname hints: ix, peer, exchange, etc.)
+# 3. Identify hops that are likely going through submarine cables
+#    (points where RTT increases significantly)
+# 4. Run again after some time and check whether the path changes
 ```
 
-**演習 A-2: tcpdump によるパケット解析**
+**Exercise A-2: Packet Analysis with tcpdump**
 
 ```bash
-# TCP 3-way ハンドシェイクをキャプチャし、パケットの中身を解析する
+# Capture the TCP 3-way handshake and analyze the packet contents
 
-# ステップ1: tcpdump でキャプチャ開始（別ターミナルで実行）
+# Step 1: Start tcpdump capture (run in a separate terminal)
 $ sudo tcpdump -i any -n -v port 80 -w /tmp/capture.pcap &
 
-# ステップ2: HTTP リクエストを送信
+# Step 2: Send an HTTP request
 $ curl -v http://example.com
 
-# ステップ3: キャプチャ停止
+# Step 3: Stop capture
 $ sudo kill %1
 
-# ステップ4: キャプチャファイルの解析
+# Step 4: Analyze the capture file
 $ tcpdump -r /tmp/capture.pcap -n -v
 
-# 分析項目:
-# 1. SYN パケットを特定し、以下の情報を抽出せよ:
-#    - 送信元/宛先 IP アドレス
-#    - 送信元/宛先ポート番号
-#    - シーケンス番号
-#    - ウィンドウサイズ
-#    - TCP オプション（MSS, SACK, Window Scale 等）
-# 2. SYN-ACK パケットから、サーバー側のシーケンス番号と
-#    ウィンドウサイズを確認せよ
-# 3. HTTP GET リクエストと HTTP レスポンスのサイズを確認せよ
-# 4. FIN パケットによる接続終了プロセスを追跡せよ
+# Analysis items:
+# 1. Identify the SYN packet and extract the following information:
+#    - Source/destination IP addresses
+#    - Source/destination port numbers
+#    - Sequence number
+#    - Window size
+#    - TCP options (MSS, SACK, Window Scale, etc.)
+# 2. Check the server-side sequence number and window size from the SYN-ACK packet
+# 3. Check the sizes of the HTTP GET request and HTTP response
+# 4. Trace the connection termination process via FIN packets
 ```
 
-**演習 A-3: MTU 問題の診断**
+**Exercise A-3: Diagnosing MTU Issues**
 
 ```bash
-# Path MTU Discovery を手動で実行する
+# Manually perform Path MTU Discovery
 
-# ステップ1: DF ビット付きで段階的にパケットサイズを変えて ping
-$ ping -c 1 -s 1472 -D example.com    # 1472 + 28 = 1500 (標準 MTU)
-$ ping -c 1 -s 1473 -D example.com    # 1501 → フラグメント必要
-$ ping -c 1 -s 8972 -D example.com    # 9000 (ジャンボフレーム用)
+# Step 1: Send ping with DF bit set, varying packet size
+$ ping -c 1 -s 1472 -D example.com    # 1472 + 28 = 1500 (standard MTU)
+$ ping -c 1 -s 1473 -D example.com    # 1501 → fragmentation required
+$ ping -c 1 -s 8972 -D example.com    # 9000 (for jumbo frames)
 
-# ステップ2: バイナリサーチで正確な Path MTU を特定
-# → 1472 で OK、1473 で NG の場合、Path MTU = 1500
+# Step 2: Use binary search to find the exact Path MTU
+# → If 1472 succeeds and 1473 fails, Path MTU = 1500
 
-# ステップ3: VPN やトンネル環境での MTU を確認
-# → VPN 接続中に同じテストを実行
-# → IPsec/GRE ヘッダーにより MTU が小さくなることを確認
+# Step 3: Check MTU in VPN or tunnel environments
+# → Run the same test while VPN is connected
+# → Verify that MTU is smaller due to IPsec/GRE headers
 
-# 考察:
-# 1. 自分のネットワークの Path MTU はいくつか？
-# 2. VPN 接続時とそうでない時で MTU は異なるか？
-# 3. MTU 不一致が引き起こす症状（小さいパケットは通るが大きいパケットが
-#    通らない: "黒い穴" 問題）を説明せよ
+# Discussion:
+# 1. What is your network's Path MTU?
+# 2. Does the MTU differ between VPN-connected and non-VPN states?
+# 3. Explain the symptoms caused by MTU mismatch (small packets pass
+#    but large packets do not: the "black hole" problem)
 ```
 
-### 14.3 発展演習
+### 14.3 Advanced Exercises
 
-ネットワークの設計や運用に踏み込んだ高度な演習である。
+Advanced exercises diving into network design and operations.
 
-**演習 D-1: BGP 経路情報の分析**
+**Exercise D-1: Analyzing BGP Routing Information**
 
 ```bash
-# 公開 BGP データを使って、インターネットのルーティング構造を分析する
+# Analyze the routing structure of the Internet using public BGP data
 
-# ステップ1: RIPE RIS Looking Glass で BGP 経路を確認
-# https://stat.ripe.net/ にアクセス
+# Step 1: Check BGP routes via RIPE RIS Looking Glass
+# Access https://stat.ripe.net/
 
-# ステップ2: コマンドラインから BGP 情報を取得
-# bgpview.io の API を利用
+# Step 2: Retrieve BGP information from the command line
+# Use the bgpview.io API
 $ curl -s "https://api.bgpview.io/ip/8.8.8.8" | python3 -m json.tool
-# → Google (AS 15169) が広告しているプレフィックスを確認
+# → Check the prefixes advertised by Google (AS 15169)
 
 $ curl -s "https://api.bgpview.io/asn/15169/prefixes" | python3 -m json.tool
-# → AS 15169 が広告している全プレフィックスを確認
+# → Check all prefixes advertised by AS 15169
 
 $ curl -s "https://api.bgpview.io/asn/15169/peers" | python3 -m json.tool
-# → AS 15169 のピアリング相手を確認
+# → Check the peering partners of AS 15169
 
-# ステップ3: AS パスの分析
+# Step 3: AS path analysis
 $ curl -s "https://api.bgpview.io/prefix/8.8.8.0/24" | python3 -m json.tool
-# → 複数の視点からの AS パスを比較
+# → Compare AS paths from multiple perspectives
 
-# 分析項目:
-# 1. Google (AS 15169) はどの AS とピアリングしているか？
-# 2. 8.8.8.8 への AS パスは視点（観測地点）によってどう異なるか？
-# 3. 自分が利用している ISP の AS 番号を特定し、その AS の
-#    ピアリング関係を調査せよ
-# 4. Tier 1 ISP の特徴（トランジット関係がない）を AS パスから確認せよ
+# Analysis items:
+# 1. Which ASes does Google (AS 15169) peer with?
+# 2. How does the AS path to 8.8.8.8 differ by vantage point?
+# 3. Identify the AS number of your ISP and investigate its peering relationships
+# 4. Confirm the characteristics of a Tier 1 ISP (no transit relationships)
+#    from AS paths
 ```
 
-**演習 D-2: ネットワーク冗長設計の検討**
+**Exercise D-2: Considering Redundant Network Design**
 
 ```
-以下のシナリオで、ネットワークの冗長設計を考案せよ。
+Design a redundant network for the following scenario.
 
-シナリオ:
-  - 東京と大阪にオフィスがある企業
-  - 東京に主データセンター、大阪にDRサイト
-  - インターネットへの接続は 1 Gbps が必要
-  - 可用性目標: 99.99%（年間ダウンタイム 52 分以内）
+Scenario:
+  - A company with offices in Tokyo and Osaka
+  - Main data center in Tokyo, DR site in Osaka
+  - 1 Gbps Internet connection required
+  - Availability target: 99.99% (annual downtime under 52 minutes)
 
-検討事項:
-  1. ISP の選択（何社契約するか、Tier はどうするか）
-  2. 回線種別（専用線、広域イーサネット、インターネット VPN）
-  3. ルーティングプロトコル（静的 vs BGP）
-  4. フェイルオーバー方式（自動 vs 手動）
-  5. DNS の冗長化（プライマリ/セカンダリ DNS、GeoDNS）
-  6. CDN の利用（どのコンテンツを CDN にオフロードするか）
+Considerations:
+  1. ISP selection (how many ISPs to contract, which tier)
+  2. Circuit type (dedicated line, wide-area Ethernet, Internet VPN)
+  3. Routing protocol (static vs BGP)
+  4. Failover method (automatic vs manual)
+  5. DNS redundancy (primary/secondary DNS, GeoDNS)
+  6. CDN usage (which content to offload to CDN)
 
-成果物:
-  - ネットワーク構成図（ASCII でもツールでも可）
-  - 各コンポーネントの障害シナリオと対応策の一覧表
-  - コスト見積もり（概算）
+Deliverables:
+  - Network diagram (ASCII or tool-drawn)
+  - List of failure scenarios and countermeasures for each component
+  - Cost estimate (approximate)
 ```
 
-**演習 D-3: パケットキャプチャによる TLS ハンドシェイクの解析**
+**Exercise D-3: Analyzing TLS Handshake via Packet Capture**
 
 ```bash
-# TLS 1.3 のハンドシェイクをキャプチャし、暗号化の確立過程を追跡する
+# Capture the TLS 1.3 handshake and trace the process of establishing encryption
 
-# ステップ1: キャプチャ開始
+# Step 1: Start capture
 $ sudo tcpdump -i any -n -v -w /tmp/tls_capture.pcap port 443 &
 
-# ステップ2: HTTPS リクエストを送信
+# Step 2: Send HTTPS request
 $ curl -v https://example.com
 
-# ステップ3: キャプチャ停止
+# Step 3: Stop capture
 $ sudo kill %1
 
-# ステップ4: tshark（Wireshark CLI 版）で TLS ハンドシェイクを解析
+# Step 4: Analyze TLS handshake with tshark (Wireshark CLI version)
 $ tshark -r /tmp/tls_capture.pcap -Y "tls.handshake" \
     -T fields -e frame.number -e ip.src -e ip.dst \
     -e tls.handshake.type -e tls.handshake.extensions.supported_version
 
-# 出力例:
+# Example output:
 # 1  192.168.1.100  93.184.216.34  1  0x0304   (ClientHello, TLS 1.3)
 # 2  93.184.216.34  192.168.1.100  2  0x0304   (ServerHello, TLS 1.3)
 
-# ステップ5: 証明書チェーンの確認
+# Step 5: Check the certificate chain
 $ openssl s_client -connect example.com:443 -showcerts 2>/dev/null | \
     openssl x509 -noout -text | head -30
 
-# ステップ6: 使用されている暗号スイートの確認
+# Step 6: Check the cipher suite in use
 $ openssl s_client -connect example.com:443 2>/dev/null | \
     grep -E "Protocol|Cipher"
 
-# 分析項目:
-# 1. ClientHello で提示された暗号スイートの一覧を確認せよ
-# 2. サーバーが選択した暗号スイートは何か？
-# 3. 鍵交換に使用されたアルゴリズム（ECDHE 等）を特定せよ
-# 4. 証明書チェーンの構造（エンドエンティティ → 中間 CA → ルート CA）を
-#    追跡せよ
-# 5. TLS 1.3 と TLS 1.2 のハンドシェイクの往復回数の違いを
-#    パケットキャプチャから確認せよ
+# Analysis items:
+# 1. Check the list of cipher suites presented in ClientHello
+# 2. Which cipher suite did the server select?
+# 3. Identify the algorithm used for key exchange (ECDHE, etc.)
+# 4. Trace the structure of the certificate chain
+#    (end entity → intermediate CA → root CA)
+# 5. Confirm the difference in the number of round trips between
+#    TLS 1.3 and TLS 1.2 handshakes from the packet capture
 ```
 
 ---
 
-## 15. インターネットの未来と新技術
+## 15. The Future of the Internet and Emerging Technologies
 
-### 15.1 QUIC プロトコル
+### 15.1 QUIC Protocol
 
-QUIC（Quick UDP Internet Connections）は Google が開発し、IETF で標準化されたトランスポートプロトコルである。HTTP/3 の基盤として採用されている。
+QUIC (Quick UDP Internet Connections) is a transport protocol developed by Google and standardized by the IETF. It has been adopted as the foundation of HTTP/3.
 
 ```
-QUIC の主な特徴:
+Key Features of QUIC:
 
-1. 接続確立の高速化
-   TCP + TLS: 2-3 RTT → QUIC: 1 RTT（0-RTT 再接続も可能）
+1. Faster Connection Establishment
+   TCP + TLS: 2–3 RTT → QUIC: 1 RTT (0-RTT reconnection also possible)
 
    TCP + TLS 1.3:
    Client ──SYN──────────► Server     ]
    Client ◄──SYN-ACK──── Server      ] 1 RTT (TCP)
    Client ──ACK+ClientHello──► Server ]
    Client ◄──ServerHello── Server     ] 1 RTT (TLS)
-   Client ──Finished+Data──► Server   → 合計 2 RTT
+   Client ──Finished+Data──► Server   → Total 2 RTT
 
    QUIC:
    Client ──Initial(ClientHello+Data)──► Server ]
    Client ◄──Initial(ServerHello)────── Server  ] 1 RTT
-   Client ──Handshake(Finished)──────► Server   → 合計 1 RTT
+   Client ──Handshake(Finished)──────► Server   → Total 1 RTT
 
-2. Head-of-Line ブロッキングの解消
-   TCP: 1つのパケットロスが全ストリームをブロック
-   QUIC: パケットロスは該当ストリームのみに影響
+2. Elimination of Head-of-Line Blocking
+   TCP: A single packet loss blocks all streams
+   QUIC: Packet loss only affects the relevant stream
 
-3. コネクションマイグレーション
-   TCP: IP アドレスが変わると接続が切れる（WiFi → モバイル切替時）
-   QUIC: Connection ID で接続を識別するため、IP 変更でも接続継続
+3. Connection Migration
+   TCP: Connection drops if IP address changes (e.g., switching from WiFi to mobile)
+   QUIC: Connection identified by Connection ID, so IP changes do not break the connection
 ```
 
-### 15.2 今後注目すべき技術
+### 15.2 Technologies to Watch
 
-- **Segment Routing（SR / SRv6）**: MPLS に代わるネットワークプログラマビリティ技術
-- **SD-WAN**: ソフトウェア定義による WAN の最適化と管理
-- **Network Slicing（5G）**: 物理ネットワークを仮想的に分割して用途別に最適化
-- **RPKI の普及**: BGP セキュリティの強化に向けた PKI インフラ
-- **Post-Quantum Cryptography**: 量子コンピュータ耐性のある暗号アルゴリズムへの移行
+- **Segment Routing (SR / SRv6)**: Network programmability technology to replace MPLS
+- **SD-WAN**: Software-defined WAN optimization and management
+- **Network Slicing (5G)**: Virtualizing the physical network and optimizing it for different purposes
+- **RPKI adoption**: PKI infrastructure for strengthening BGP security
+- **Post-Quantum Cryptography**: Migration to cryptographic algorithms resistant to quantum computers
 
 ---
 
-## 16. FAQ（よくある質問）
+## 16. FAQ
 
-### FAQ 1: インターネットに「中央管理者」は存在するのか？
+### FAQ 1: Is there a "central administrator" for the Internet?
 
-**回答**: 厳密には存在しない。ただし、いくつかの組織がインターネットの重要な側面を調整・管理している。
+**Answer**: Strictly speaking, no. However, several organizations coordinate and manage important aspects of the Internet.
 
-- **ICANN（Internet Corporation for Assigned Names and Numbers）**: ドメイン名と IP アドレスの割り当てを調整する非営利組織。ルート DNS サーバーの管理も担う。
-- **IETF（Internet Engineering Task Force）**: インターネットの技術標準（RFC）を策定するオープンな標準化団体。誰でも参加可能。
-- **各国 NIC / RIR**: IP アドレスの地域割り当てを管理。APNIC（アジア太平洋）、ARIN（北米）、RIPE NCC（欧州）等。
-- **各 ISP / AS 運用者**: 自分の管轄ネットワーク内のルーティングとポリシーを独自に管理。
+- **ICANN (Internet Corporation for Assigned Names and Numbers)**: A non-profit organization that coordinates the assignment of domain names and IP addresses. Also manages root DNS servers.
+- **IETF (Internet Engineering Task Force)**: An open standards body that develops Internet technical standards (RFCs). Anyone can participate.
+- **Country NICs / RIRs**: Manage regional allocation of IP addresses. APNIC (Asia-Pacific), ARIN (North America), RIPE NCC (Europe), etc.
+- **ISPs / AS operators**: Independently manage routing and policies within their own networks.
 
-インターネットは本質的に「合意に基づく分散システム」であり、全参加者が TCP/IP という共通プロトコルを使用することで相互接続が成立している。
+The Internet is essentially a "consensus-based distributed system," where interoperability is achieved because all participants use the common protocol TCP/IP.
 
-### FAQ 2: 自分のパケットが具体的にどの海底ケーブルを通っているか調べられるか？
+### FAQ 2: Can I find out which specific submarine cable my packets are traveling through?
 
-**回答**: 直接的には困難だが、間接的に推測することは可能である。
+**Answer**: Directly, it is difficult, but it is possible to infer indirectly.
 
-1. **traceroute で経路上のルーターを特定**: ルーターのホスト名や IP アドレスから、所属する ISP やデータセンターの地理的位置を推測できる。
-2. **RTT の急増ポイントを探す**: 太平洋横断のホップでは RTT が 50-100 ms 程度急増する。この急増が海底ケーブル区間に対応する。
-3. **公開情報の活用**: TeleGeography の Submarine Cable Map（submarinecablemap.com）で、自分の ISP が利用している海底ケーブルを調査できる。
-4. **PeeringDB の参照**: peeringdb.com で ISP 間の接続関係やコロケーション施設を確認できる。
+1. **Identify routers along the path with traceroute**: From router hostnames or IP addresses, you can infer the geographic location of the ISP or data center.
+2. **Look for points where RTT increases sharply**: At a transpacific hop, the RTT typically jumps by about 50–100 ms. This jump corresponds to the submarine cable section.
+3. **Use public information**: TeleGeography's Submarine Cable Map (submarinecablemap.com) lets you research which submarine cables your ISP uses.
+4. **Consult PeeringDB**: peeringdb.com lets you check interconnection relationships and colocation facilities between ISPs.
 
-ただし、ISP はトラフィックエンジニアリングにより動的に経路を変更するため、「常にこのケーブルを通る」とは断言できない。
+However, because ISPs dynamically change paths through traffic engineering, you cannot definitively say "it always goes through this cable."
 
-### FAQ 3: なぜ IPv6 への完全移行は進まないのか？
+### FAQ 3: Why is the full migration to IPv6 progressing slowly?
 
-**回答**: 技術的には IPv6 は十分に成熟しているが、以下の理由から移行が緩やかである。
+**Answer**: Technically, IPv6 is mature enough, but migration is slow for the following reasons.
 
-1. **NAT の成功**: IPv4 アドレスの枯渇に対して NAT が効果的に機能したため、移行の緊急性が低下した。多くの組織にとって NAT で「十分に動く」状態が続いている。
-2. **デュアルスタックの複雑さ**: 移行期間中は IPv4 と IPv6 の両方を運用する必要があり、運用コストと複雑性が増大する。
-3. **レガシーシステムの存在**: IPv6 に対応していない古い機器やソフトウェアが依然として多く存在する。特に組み込みシステムや IoT デバイスで顕著。
-4. **投資対効果の不透明さ**: IPv6 移行に必要な投資（機器更新、スタッフ教育、テスト）に対して、即座に得られるビジネス上のメリットが見えにくい。
-5. **コンテンツプロバイダーの対応**: Google、Facebook 等の大手は IPv6 対応済みだが、中小規模のコンテンツプロバイダーの対応が遅れている。
+1. **NAT's success**: NAT has functioned effectively as a countermeasure against IPv4 address exhaustion, reducing the urgency of migration. Many organizations continue in a state where NAT "works well enough."
+2. **Complexity of dual-stack**: During the transition period, both IPv4 and IPv6 must be operated simultaneously, increasing operational cost and complexity.
+3. **Existence of legacy systems**: Many older devices and software that do not support IPv6 still exist. This is particularly pronounced in embedded systems and IoT devices.
+4. **Unclear ROI**: The business benefits gained immediately from the investment required for IPv6 migration (equipment upgrades, staff training, testing) are difficult to quantify.
+5. **Content provider support**: Major players like Google and Facebook have IPv6 support, but small-to-mid-scale content providers are lagging behind.
 
-しかし、IPv4 アドレスの取引価格の上昇（1 アドレスあたり数十ドル）や、IoT デバイスの爆発的増加により、IPv6 移行は着実に進行している。2024 年時点で Google へのアクセスの約 45% が IPv6 経由である。
+However, with rising IPv4 address trading prices (tens of dollars per address) and the explosive growth of IoT devices, IPv6 migration is steadily progressing. As of 2024, approximately 45% of access to Google is via IPv6.
 
-### FAQ 4: VPN を使うとインターネットの経路はどう変わるのか？
+### FAQ 4: How does using a VPN change Internet routing?
 
-**回答**: VPN（Virtual Private Network）は、ユーザーのトラフィックを暗号化して VPN サーバーを経由させる技術である。
+**Answer**: A VPN (Virtual Private Network) is a technology that encrypts user traffic and routes it through a VPN server.
 
 ```
-VPN なしの経路:
-  ユーザー → ISP → IX → 宛先サーバー
-  (ISP はユーザーの通信先を把握可能)
+Path without VPN:
+  User → ISP → IX → destination server
+  (ISP can see the user's communication destinations)
 
-VPN ありの経路:
-  ユーザー → ISP ──[暗号化トンネル]──→ VPN サーバー → 宛先サーバー
-  (ISP は VPN サーバーへの通信しか把握できない)
-  (宛先サーバーは VPN サーバーの IP を見る)
+Path with VPN:
+  User → ISP ──[encrypted tunnel]──→ VPN server → destination server
+  (ISP can only see communication to the VPN server)
+  (destination server sees the VPN server's IP)
 ```
 
-VPN を使用すると:
-- ISP から見た通信先は VPN サーバーのみとなり、プライバシーが向上する
-- 通信経路が VPN サーバーを経由するため、遅延が増加する場合がある
-- VPN サーバーの所在地によっては、地理的に遠回りになることもある
-- 一方で、VPN サーバーが宛先に近い場合は遅延が減少する場合もある
+When using a VPN:
+- From the ISP's perspective, the only destination is the VPN server, improving privacy
+- Latency may increase because the communication path goes through the VPN server
+- Depending on the VPN server's location, the route may be geographically longer
+- On the other hand, if the VPN server is close to the destination, latency may decrease
 
-### FAQ 5: 光ファイバーの速度限界はどこにあるのか？
+### FAQ 5: Where is the speed limit of optical fiber?
 
-**回答**: 現在の光ファイバー通信技術には、いくつかの物理的・技術的限界がある。
+**Answer**: Current optical fiber communication technology has several physical and technical limits.
 
-- **伝搬速度の限界**: 光ファイバー中の光速は真空中の約 2/3（約 20 万 km/s）であり、これは物理法則により改善できない。したがって、遅延の下限は距離によって決定される。
-- **帯域幅の限界**: シャノンの定理により、光ファイバー 1 本あたりの理論的な帯域幅の上限は約 100 Tbps とされている。現在のシステムは数十 Tbps に達しており、理論限界に近づきつつある。
-- **非線形効果**: 光パワーを上げすぎると、光ファイバー中の非線形光学効果（四光波混合、自己位相変調等）により信号品質が劣化する。
-- **空間分割多重（SDM）**: 次世代技術として、マルチコアファイバーやマルチモードファイバーを使った空間分割多重が研究されており、従来の 10 倍以上の帯域拡張が期待されている。
+- **Propagation speed limit**: The speed of light in optical fiber is about 2/3 of its speed in a vacuum (~200,000 km/s), which cannot be improved by physical laws. Therefore, the lower bound on latency is determined by distance.
+- **Bandwidth limit**: By Shannon's theorem, the theoretical maximum bandwidth per optical fiber is about 100 Tbps. Current systems are approaching tens of Tbps, getting close to the theoretical limit.
+- **Nonlinear effects**: Increasing optical power too much causes signal quality degradation due to nonlinear optical effects in the fiber (four-wave mixing, self-phase modulation, etc.).
+- **Space Division Multiplexing (SDM)**: As a next-generation technology, SDM using multi-core or multi-mode fibers is being researched, with expectations of more than 10× bandwidth expansion over conventional methods.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Rather than theory alone, actually writing code and verifying its behavior deepens understanding.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## 17. まとめ
-
-| 概念 | 要点 | 関連技術/プロトコル |
-|------|------|-------------------|
-| 物理構造 | ケーブル + ルーター + ISP + IX で構成される階層的ネットワーク | 光ファイバー、海底ケーブル、Anycast |
-| ISP 階層 | Tier 1（グローバル）→ Tier 2（地域）→ Tier 3（ローカル）のピラミッド構造 | トランジット、ピアリング、IX |
-| パケット通信 | データを小単位に分割し、独立にルーティングする方式 | TCP/IP、UDP、MTU、フラグメンテーション |
-| ルーティング | ルーティングテーブルと BGP により最適経路を動的に決定 | BGP、OSPF、IS-IS、EIGRP |
-| DNS | ドメイン名を IP アドレスに変換する分散データベース | DNS、DNSSEC、DoH、DoT |
-| NAT | プライベート IP とグローバル IP の変換。IPv4 枯渇の対策 | NAPT、CGNAT、IPv6 移行 |
-| セキュリティ | TLS による暗号化、DDoS 対策、BGP セキュリティ | TLS 1.3、RPKI、WAF |
-| Web 表示 | DNS → TCP → TLS → HTTP → レンダリングの全工程 | HTTP/2、HTTP/3（QUIC） |
-| CDN | エッジサーバーによるコンテンツ配信の最適化 | GeoDNS、Anycast、キャッシュ |
-| 将来技術 | QUIC、SRv6、Network Slicing で更なる進化 | QUIC、SRv6、5G |
-
-### キーポイント
-
-1. **インターネットは階層構造である**: Tier 1/2/3 ISP と IX によるピラミッド型の構成で、約 75,000 の AS が BGP で経路情報を交換することで成り立っている
-2. **パケット交換方式が通信の基盤**: データを小単位に分割して独立にルーティングすることで、回線の効率的共有と障害耐性の高い通信を実現している
-3. **ISP と IX の役割が重要**: トランジット契約とピアリング契約により AS 間の接続が決定され、IX が経路集約とコスト削減に寄与している
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architectural design.
 
 ---
 
-## まとめ
+## 17. Summary
 
-このガイドでは以下を学びました:
+| Concept | Key Points | Related Technologies/Protocols |
+|---------|-----------|-------------------------------|
+| Physical structure | Hierarchical network composed of cables + routers + ISPs + IXs | Optical fiber, submarine cables, Anycast |
+| ISP hierarchy | Pyramid structure: Tier 1 (global) → Tier 2 (regional) → Tier 3 (local) | Transit, peering, IX |
+| Packet communication | Method of splitting data into small units and routing them independently | TCP/IP, UDP, MTU, fragmentation |
+| Routing | Optimal path dynamically determined by routing tables and BGP | BGP, OSPF, IS-IS, EIGRP |
+| DNS | Distributed database that translates domain names to IP addresses | DNS, DNSSEC, DoH, DoT |
+| NAT | Translation between private IP and global IP. Countermeasure for IPv4 exhaustion | NAPT, CGNAT, IPv6 migration |
+| Security | TLS encryption, DDoS countermeasures, BGP security | TLS 1.3, RPKI, WAF |
+| Web display | Full process: DNS → TCP → TLS → HTTP → rendering | HTTP/2, HTTP/3 (QUIC) |
+| CDN | Optimized content delivery via edge servers | GeoDNS, Anycast, caching |
+| Future technologies | Further evolution with QUIC, SRv6, Network Slicing | QUIC, SRv6, 5G |
 
-- インターネットは ARPANET を起源とし、パケット交換方式に基づく「ネットワークのネットワーク」であること
-- データはパケットに分割され、BGP によるルーティングで約 75,000 の AS 間を経由して宛先に届くこと
-- ISP は Tier 1 / Tier 2 / Tier 3 の階層構造を持ち、IX（Internet Exchange）がピアリングの要所となること
-- 海底ケーブルが大陸間通信の物理的基盤であり、その帯域・冗長性がインターネット全体の信頼性を支えていること
-- DNS 解決から TCP 接続、TLS ハンドシェイク、HTTP リクエスト、レンダリングまで、Web ページ表示の全工程を追跡できること
+### Key Points
 
----
-
-## 次に読むべきガイド
-
-
----
-
-## 参考文献
-
-1. Kurose, J. F., Ross, K. W. "Computer Networking: A Top-Down Approach." 8th Edition, Pearson, 2021. -- ネットワーク工学の定番教科書。パケット通信、ルーティング、トランスポート層を体系的に解説している。
-2. Peterson, L., Davie, B. "Computer Networks: A Systems Approach." 6th Edition, Morgan Kaufmann, 2021. -- システム設計の視点からネットワークを解説する名著。MIT OCW でも推薦されている。
-3. TeleGeography. "Submarine Cable Map." https://submarinecablemap.com/ -- 世界中の海底ケーブルの位置、容量、所有者を視覚的に確認できるインタラクティブマップ。
-4. RFC 791 - Internet Protocol (IPv4), September 1981. https://www.rfc-editor.org/rfc/rfc791 -- IPv4 の仕様を定義した原典 RFC。
-5. RFC 8200 - Internet Protocol, Version 6 (IPv6) Specification, July 2017. https://www.rfc-editor.org/rfc/rfc8200 -- IPv6 の仕様を定義した RFC。RFC 2460 の改訂版。
-6. RFC 4271 - A Border Gateway Protocol 4 (BGP-4), January 2006. https://www.rfc-editor.org/rfc/rfc4271 -- BGP-4 の仕様を定義した RFC。インターネットルーティングの基盤。
-7. RFC 9114 - HTTP/3, June 2022. https://www.rfc-editor.org/rfc/rfc9114 -- HTTP/3 の仕様を定義した RFC。QUIC プロトコル上で動作する。
-8. Clark, D. "The Design Philosophy of the DARPA Internet Protocols." ACM SIGCOMM Computer Communication Review, 1988. -- エンドツーエンド原則を含むインターネット設計思想の古典論文。
+1. **The Internet is hierarchical**: Built from Tier 1/2/3 ISPs and IXs in a pyramid structure, where approximately 75,000 ASes exchange routing information via BGP
+2. **Packet switching is the foundation of communication**: By splitting data into small units and routing them independently, efficient sharing of lines and highly fault-tolerant communication are achieved
+3. **The roles of ISPs and IXs are critical**: Connections between ASes are determined by transit and peering agreements, and IXs contribute to route aggregation and cost reduction
 
 ---
 
-*最終更新: 2025-01-15*
+## Summary
+
+In this guide, we learned:
+
+- The Internet originated from ARPANET and is a "network of networks" based on packet switching
+- Data is split into packets and delivered to its destination by passing through approximately 75,000 ASes via BGP routing
+- ISPs have a hierarchical structure of Tier 1 / Tier 2 / Tier 3, with IXs serving as key nodes for peering
+- Submarine cables are the physical foundation of intercontinental communications, and their bandwidth and redundancy support the reliability of the entire Internet
+- We can trace the entire process of Web page display from DNS resolution, TCP connection, TLS handshake, and HTTP request to rendering
+
+---
+
+## Next Guides to Read
+
+
+---
+
+## References
+
+1. Kurose, J. F., Ross, K. W. "Computer Networking: A Top-Down Approach." 8th Edition, Pearson, 2021. -- The standard textbook of network engineering. Systematically explains packet communication, routing, and the transport layer.
+2. Peterson, L., Davie, B. "Computer Networks: A Systems Approach." 6th Edition, Morgan Kaufmann, 2021. -- A classic that explains networks from a systems design perspective. Also recommended by MIT OCW.
+3. TeleGeography. "Submarine Cable Map." https://submarinecablemap.com/ -- An interactive map where you can visually check the location, capacity, and owners of submarine cables worldwide.
+4. RFC 791 - Internet Protocol (IPv4), September 1981. https://www.rfc-editor.org/rfc/rfc791 -- The original RFC defining IPv4 specifications.
+5. RFC 8200 - Internet Protocol, Version 6 (IPv6) Specification, July 2017. https://www.rfc-editor.org/rfc/rfc8200 -- The RFC defining IPv6 specifications. Revision of RFC 2460.
+6. RFC 4271 - A Border Gateway Protocol 4 (BGP-4), January 2006. https://www.rfc-editor.org/rfc/rfc4271 -- The RFC defining BGP-4 specifications. The foundation of Internet routing.

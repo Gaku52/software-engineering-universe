@@ -1,269 +1,271 @@
-# HTTPキャッシュ
+# HTTP Caching
 
-> HTTPキャッシュはWebパフォーマンスの要。Cache-Control、ETag、CDNの仕組みを理解し、「何を」「どこで」「どれくらい」キャッシュするかの戦略を設計する。
+> HTTP caching is the backbone of web performance. Understand Cache-Control, ETags, and CDN mechanics, and design strategies for "what," "where," and "how long" to cache.
 
-## 前提知識
+## Prerequisites
 
-- HTTPヘッダーの理解 — Cache-Control、ETag、Last-Modified、Vary、Ageなどのキャッシュ関連ヘッダー
+- Understanding of HTTP headers — Cache-Control, ETag, Last-Modified, Vary, Age, and other cache-related headers
 
-HTTPキャッシュはHTTPヘッダーによって制御される。特にCache-Controlディレクティブ、条件付きリクエスト（If-None-Match、If-Modified-Since）、Varyヘッダーの意味を理解していることが、キャッシュ戦略を正しく設計する上で不可欠である。
-
----
-
-## この章で学ぶこと
-
-- [ ] HTTPキャッシュの基本原理と種類を体系的に理解する
-- [ ] Cache-Controlディレクティブを状況に応じて正しく設定できる
-- [ ] ETagとLast-Modifiedによる条件付きリクエストの仕組みを把握する
-- [ ] CDNキャッシュの構成と運用を設計できる
-- [ ] キャッシュ無効化とキャッシュバスティング戦略を使い分けられる
-- [ ] stale-while-revalidateなど先進的パターンを適用できる
+HTTP caching is controlled by HTTP headers. Understanding Cache-Control directives, conditional requests (If-None-Match, If-Modified-Since), and the Vary header is essential for designing correct caching strategies.
 
 ---
 
-## 1. HTTPキャッシュの基本原理
+## What You Will Learn
 
-### 1.1 なぜキャッシュが必要か
+- [ ] Understand the fundamental principles and types of HTTP caching systematically
+- [ ] Configure Cache-Control directives correctly for each situation
+- [ ] Understand how conditional requests work with ETag and Last-Modified
+- [ ] Design CDN cache configuration and operations
+- [ ] Distinguish between cache invalidation and cache busting strategies
+- [ ] Apply advanced patterns such as stale-while-revalidate
 
-Webアプリケーションにおいて、すべてのリクエストがオリジンサーバーまで到達する設計は、以下の問題を引き起こす。
+---
 
-1. **レイテンシの増大**: 地理的に離れたサーバーへの往復時間（RTT）が応答速度を支配する
-2. **帯域幅の浪費**: 同一リソースを繰り返し転送することでネットワーク帯域を消費する
-3. **サーバー負荷**: リクエスト数に比例してCPU・メモリ・I/O負荷が増大する
-4. **コスト増**: クラウド環境では転送量とリクエスト数が直接的に課金される
-5. **可用性リスク**: オリジンサーバー障害時にサービスが完全停止する
+## 1. Basic Principles of HTTP Caching
 
-HTTPキャッシュは、一度取得したリソースのコピーを中間地点（ブラウザ、プロキシ、CDN）に保存し、同一リソースへの後続リクエストに対してそのコピーを返すことで、これらの問題を包括的に解決する仕組みである。
+### 1.1 Why Caching Is Necessary
 
-### 1.2 キャッシュの階層構造
+In web applications, a design where every request reaches the origin server causes the following problems.
+
+1. **Increased latency**: Round-trip time (RTT) to geographically distant servers dominates response speed
+2. **Bandwidth waste**: Repeatedly transferring the same resource consumes network bandwidth
+3. **Server load**: CPU, memory, and I/O load increase proportionally to the number of requests
+4. **Higher costs**: In cloud environments, transfer volume and request count are billed directly
+5. **Availability risk**: Service completely stops when the origin server fails
+
+HTTP caching solves these problems comprehensively by storing copies of previously fetched resources at intermediate points (browsers, proxies, CDNs) and returning those copies for subsequent requests to the same resource.
+
+### 1.2 Cache Hierarchy
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                  HTTPキャッシュの階層構造                         │
+│                  HTTP Cache Hierarchy                           │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  ユーザーA    ユーザーB    ユーザーC                              │
+│  User A       User B       User C                               │
 │    │            │            │                                  │
 │    ▼            ▼            ▼                                  │
-│  ┌──────┐   ┌──────┐   ┌──────┐      Layer 1: ブラウザ         │
-│  │Browser│   │Browser│   │Browser│      プライベートキャッシュ    │
-│  │Cache  │   │Cache  │   │Cache  │      (各ユーザー専用)         │
+│  ┌──────┐   ┌──────┐   ┌──────┐      Layer 1: Browser         │
+│  │Browser│   │Browser│   │Browser│      Private cache          │
+│  │Cache  │   │Cache  │   │Cache  │      (per user)             │
 │  └──┬───┘   └──┬───┘   └──┬───┘                               │
 │     │  miss     │  miss     │  miss                             │
 │     ▼           ▼           ▼                                   │
-│  ┌─────────────────────────────┐       Layer 2: フォワード      │
-│  │   Forward Proxy Cache       │       プロキシキャッシュ        │
-│  │   (企業内プロキシ等)         │       (組織内共有)              │
+│  ┌─────────────────────────────┐       Layer 2: Forward        │
+│  │   Forward Proxy Cache       │       proxy cache              │
+│  │   (corporate proxy, etc.)   │       (shared within org)      │
 │  └──────────┬──────────────────┘                                │
 │             │  miss                                             │
 │             ▼                                                   │
 │  ┌─────────────────────────────┐       Layer 3: CDN Edge        │
-│  │   CDN Edge Server           │       エッジキャッシュ          │
-│  │   (CloudFront/Cloudflare)   │       (地理的に分散)            │
+│  │   CDN Edge Server           │       Edge cache               │
+│  │   (CloudFront/Cloudflare)   │       (geographically dist.)   │
 │  └──────────┬──────────────────┘                                │
 │             │  miss                                             │
 │             ▼                                                   │
 │  ┌─────────────────────────────┐       Layer 4: CDN Shield      │
-│  │   CDN Origin Shield         │       オリジンシールド          │
-│  │   (中間キャッシュ層)         │       (オリジン保護)            │
+│  │   CDN Origin Shield         │       Origin shield             │
+│  │   (intermediate cache)      │       (origin protection)      │
 │  └──────────┬──────────────────┘                                │
 │             │  miss                                             │
 │             ▼                                                   │
-│  ┌─────────────────────────────┐       Layer 5: リバースプロキシ │
-│  │   Reverse Proxy (nginx)     │       サーバー前段              │
+│  ┌─────────────────────────────┐       Layer 5: Reverse proxy   │
+│  │   Reverse Proxy (nginx)     │       in front of server       │
 │  └──────────┬──────────────────┘                                │
 │             │  miss                                             │
 │             ▼                                                   │
-│  ┌─────────────────────────────┐       Layer 6: アプリケーション │
-│  │   Application Cache         │       Redis/Memcached等        │
+│  ┌─────────────────────────────┐       Layer 6: Application     │
+│  │   Application Cache         │       Redis/Memcached, etc.    │
 │  │   (Redis / Memcached)       │                                │
 │  └──────────┬──────────────────┘                                │
 │             │  miss                                             │
 │             ▼                                                   │
-│  ┌─────────────────────────────┐       Layer 7: データベース     │
-│  │   Database                  │       永続ストレージ            │
+│  ┌─────────────────────────────┐       Layer 7: Database        │
+│  │   Database                  │       Persistent storage       │
 │  └─────────────────────────────┘                                │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.3 プライベートキャッシュと共有キャッシュ
+### 1.3 Private Cache vs Shared Cache
 
-HTTPキャッシュは大別して「プライベートキャッシュ」と「共有キャッシュ」に分類される。この区別はセキュリティとパフォーマンスの両面で極めて重要である。
+HTTP caches are broadly classified into "private caches" and "shared caches." This distinction is critically important from both security and performance perspectives.
 
-| 特性 | プライベートキャッシュ | 共有キャッシュ |
-|------|----------------------|---------------|
-| 格納場所 | ブラウザ | CDN、プロキシ |
-| 利用者 | 単一ユーザー | 複数ユーザー |
-| ユーザー固有データ | キャッシュ可能 | キャッシュ不可（情報漏洩リスク） |
-| Cache-Control指定 | `private` | `public` |
-| 容量 | 数百MB〜数GB | 数TB〜数PB（分散合計） |
-| 効果範囲 | 同一ユーザーの再訪問 | 全ユーザーへの初回配信高速化 |
-| 無効化の容易さ | ブラウザ操作で即座に可能 | パージAPI等で伝搬に時間がかかる |
+| Property | Private Cache | Shared Cache |
+|----------|---------------|--------------|
+| Storage location | Browser | CDN, proxy |
+| Users | Single user | Multiple users |
+| User-specific data | Cacheable | Not cacheable (risk of information leakage) |
+| Cache-Control directive | `private` | `public` |
+| Capacity | Hundreds of MB to a few GB | Tens of TB to PB (distributed total) |
+| Scope of effect | Return visits by same user | Accelerates first-time delivery to all users |
+| Ease of invalidation | Instantly via browser operation | Propagation takes time via purge API, etc. |
 
-**重要な設計原則**: ユーザーのセッション情報、個人データ、認証トークンを含むレスポンスには必ず `Cache-Control: private` または `Cache-Control: no-store` を設定する。`public` を設定するとCDNにキャッシュされ、他のユーザーに配信される可能性がある。
+**Important design principle**: Always set `Cache-Control: private` or `Cache-Control: no-store` on responses that include session information, personal data, or authentication tokens. Setting `public` may cause the CDN to cache the response and serve it to other users.
 
-### 1.4 キャッシュの鮮度モデル
+### 1.4 Cache Freshness Model
 
-HTTPキャッシュは「鮮度（Freshness）」という概念に基づいて動作する。キャッシュされたレスポンスは一定期間「新鮮（fresh）」であり、その期間が過ぎると「古い（stale）」とみなされる。
+HTTP caching operates on the concept of "freshness." A cached response is "fresh" for a certain period, after which it is considered "stale."
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│              キャッシュの鮮度ライフサイクル                       │
+│              Cache Freshness Lifecycle                         │
 ├────────────────────────────────────────────────────────────────┤
 │                                                                │
-│  時刻 0          max-age (60s)                                 │
+│  Time 0          max-age (60s)                                 │
 │  │                    │                                        │
 │  ▼                    ▼                                        │
 │  ├────── fresh ───────┼──── stale ────────────────────────▶    │
-│  │  (キャッシュを即返却) │  (検証が必要)                         │
+│  │  (return cache     │  (validation required)                 │
+│  │   immediately)     │                                        │
 │  │                    │                                        │
-│  │  HTTP 200 受信      │  If-None-Match / If-Modified-Since    │
-│  │  キャッシュに保存    │  を送信して検証                        │
+│  │  HTTP 200 received │  Send If-None-Match / If-Modified-Since│
+│  │  Saved to cache    │  to validate                           │
 │  │                    │                                        │
 │  │  age = 0           │  age > max-age                         │
 │  │                    │                                        │
-│  │  Cache-Control:    │  304 Not Modified → キャッシュ再利用     │
-│  │  max-age=60        │  200 OK → 新しいレスポンスで更新         │
+│  │  Cache-Control:    │  304 Not Modified → reuse cache        │
+│  │  max-age=60        │  200 OK → update with new response     │
 │  │                    │                                        │
 │  └────────────────────┴───────────────────────────────────────│
 │                                                                │
-│  鮮度計算:                                                      │
+│  Freshness calculation:                                        │
 │  response_is_fresh = (age < max-age)                           │
 │  age = now - date_header_value                                 │
 │                                                                │
-│  ヒューリスティックキャッシュ:                                    │
-│  Cache-Control / Expires がない場合、ブラウザは                  │
-│  Last-Modified から独自に鮮度を推定する                           │
+│  Heuristic caching:                                            │
+│  When Cache-Control / Expires are absent, the browser          │
+│  independently estimates freshness from Last-Modified          │
 │  heuristic_freshness = (now - last_modified) * 0.1             │
 │                                                                │
 └────────────────────────────────────────────────────────────────┘
 ```
 
-**ヒューリスティックキャッシュの注意点**: Cache-Controlヘッダーが設定されていないレスポンスに対し、ブラウザはLast-Modifiedヘッダーの値から独自に鮮度を推定する。これは意図しないキャッシュを引き起こす原因となるため、すべてのレスポンスに明示的なCache-Controlヘッダーを設定することが推奨される。
+**Note on heuristic caching**: For responses without a Cache-Control header, browsers independently estimate freshness from the Last-Modified header value. This can cause unintentional caching, so it is recommended to set explicit Cache-Control headers on all responses.
 
 ---
 
-## 2. Cache-Control ヘッダー詳解
+## 2. Cache-Control Header In Depth
 
-### 2.1 ディレクティブ一覧と意味
+### 2.1 Directives and Their Meanings
 
-Cache-Controlヘッダーは、HTTPキャッシュの振る舞いを制御するための最も重要なメカニズムである。RFC 9111で標準化されており、リクエストとレスポンスの両方で使用できる。
+The Cache-Control header is the most important mechanism for controlling HTTP cache behavior. Standardized in RFC 9111, it can be used in both requests and responses.
 
-**レスポンスディレクティブ一覧**:
+**Response directives**:
 
-| ディレクティブ | 意味 | 用途 |
-|--------------|------|------|
-| `max-age=N` | N秒間キャッシュが有効（新鮮） | 基本的なTTL設定 |
-| `s-maxage=N` | 共有キャッシュでのN秒間の有効期限 | CDN向けTTL設定 |
-| `no-cache` | キャッシュは保存するが使用前に必ずサーバーで検証 | HTML等の常に最新を保ちたいリソース |
-| `no-store` | 一切キャッシュに保存しない | 機密データ |
-| `private` | プライベートキャッシュ（ブラウザ）のみ保存可能 | ユーザー固有データ |
-| `public` | 共有キャッシュでも保存可能 | 全ユーザー共通の公開データ |
-| `must-revalidate` | キャッシュ期限切れ後は必ずサーバーで検証（stale提供禁止） | 重要なリソース |
-| `proxy-revalidate` | 共有キャッシュ限定の`must-revalidate` | CDN/プロキシ向け |
-| `immutable` | リソースが変更されないことを宣言 | ハッシュ付きファイル名のアセット |
-| `no-transform` | 中間キャッシュによるコンテンツ変換を禁止 | 画像圧縮等の変換を防止 |
-| `stale-while-revalidate=N` | 期限切れ後N秒間は古いキャッシュを返しつつバックグラウンドで更新 | UX向上 |
-| `stale-if-error=N` | オリジンエラー時にN秒間は古いキャッシュを返す | 可用性向上 |
+| Directive | Meaning | Use case |
+|-----------|---------|----------|
+| `max-age=N` | Cache is valid (fresh) for N seconds | Basic TTL setting |
+| `s-maxage=N` | Expiration time for shared caches in N seconds | CDN-specific TTL |
+| `no-cache` | Store in cache but always validate with server before use | Resources like HTML that must always be up to date |
+| `no-store` | Do not store in cache at all | Sensitive data |
+| `private` | Can only be stored in private cache (browser) | User-specific data |
+| `public` | Can be stored in shared caches | Publicly shared data common to all users |
+| `must-revalidate` | Must validate with server after expiry (prohibits serving stale) | Critical resources |
+| `proxy-revalidate` | `must-revalidate` limited to shared caches | For CDN/proxy |
+| `immutable` | Declares that resource will not change | Assets with hashed filenames |
+| `no-transform` | Prohibits content transformation by intermediate caches | Prevent transformations like image compression |
+| `stale-while-revalidate=N` | Return stale cache for N seconds after expiry while updating in background | Better UX |
+| `stale-if-error=N` | Return stale cache for N seconds on origin error | Better availability |
 
-**リクエストディレクティブ一覧**:
+**Request directives**:
 
-| ディレクティブ | 意味 | 用途 |
-|--------------|------|------|
-| `no-cache` | キャッシュを使用せずオリジンに問い合わせ | 強制リフレッシュ |
-| `no-store` | レスポンスをキャッシュに保存しない | 一時的な秘匿通信 |
-| `max-age=0` | キャッシュの鮮度を0とみなす（検証を強制） | 再検証の強制 |
-| `max-stale=N` | 期限切れ後N秒以内のキャッシュも受け入れる | オフライン耐性 |
-| `min-fresh=N` | 少なくともN秒間は新鮮なキャッシュのみ受け入れる | 厳密な鮮度要求 |
-| `only-if-cached` | キャッシュにある場合のみ応答（なければ504） | オフラインモード |
+| Directive | Meaning | Use case |
+|-----------|---------|----------|
+| `no-cache` | Query origin without using cache | Force refresh |
+| `no-store` | Do not store response in cache | Temporary confidential communication |
+| `max-age=0` | Treat cache freshness as 0 (force validation) | Force revalidation |
+| `max-stale=N` | Accept cache up to N seconds past expiry | Offline tolerance |
+| `min-fresh=N` | Accept only cache that will remain fresh for at least N seconds | Strict freshness requirement |
+| `only-if-cached` | Respond only if in cache (504 if not) | Offline mode |
 
-### 2.2 よくある誤解の解消
+### 2.2 Clearing Up Common Misconceptions
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│             no-cache と no-store の違い（頻出の誤解）              │
+│             Difference Between no-cache and no-store             │
+│                    (frequently misunderstood)                    │
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  ■ no-cache の動作:                                              │
+│  ■ How no-cache works:                                           │
 │                                                                  │
 │  Client          Cache            Origin                         │
 │    │── GET ───────▶│                │                            │
-│    │               │ キャッシュあり   │                            │
+│    │               │ Cache exists   │                            │
 │    │               │── If-None-Match ▶│                          │
-│    │               │◀── 304 ─────────│  変更なし                  │
-│    │◀── cached ────│                │  → キャッシュを返す          │
+│    │               │◀── 304 ─────────│  No change               │
+│    │◀── cached ────│                │  → return cached           │
 │    │               │                │                            │
 │    │── GET ───────▶│                │                            │
-│    │               │ キャッシュあり   │                            │
+│    │               │ Cache exists   │                            │
 │    │               │── If-None-Match ▶│                          │
-│    │               │◀── 200 ─────────│  変更あり                  │
-│    │◀── new ───────│ 更新           │  → 新レスポンスを返す       │
+│    │               │◀── 200 ─────────│  Changed                 │
+│    │◀── new ───────│ Updated        │  → return new response     │
 │                                                                  │
-│  → キャッシュに保存する。使用前に毎回サーバーで検証する。            │
-│  → 変更がなければ 304 で帯域を節約できる。                         │
+│  → Stores in cache. Validates with server every time before use. │
+│  → Saves bandwidth with 304 when unchanged.                      │
 │                                                                  │
-│  ■ no-store の動作:                                              │
+│  ■ How no-store works:                                           │
 │                                                                  │
 │  Client          Cache            Origin                         │
 │    │── GET ───────▶│                │                            │
 │    │               │── GET ─────────▶│                           │
 │    │               │◀── 200 ─────────│                           │
-│    │◀── 200 ───────│ 保存しない     │                            │
+│    │◀── 200 ───────│ Not saved      │                            │
 │    │               │                │                            │
 │    │── GET ───────▶│                │                            │
-│    │               │── GET ─────────▶│  毎回フルレスポンス        │
+│    │               │── GET ─────────▶│  Full response every time │
 │    │               │◀── 200 ─────────│                           │
-│    │◀── 200 ───────│ 保存しない     │                            │
+│    │◀── 200 ───────│ Not saved      │                            │
 │                                                                  │
-│  → キャッシュに一切保存しない。毎回フルレスポンスが必要。           │
-│  → 帯域の節約効果はない。                                         │
+│  → Never stores in cache. Full response required every time.     │
+│  → No bandwidth savings.                                         │
 │                                                                  │
-│  結論: "キャッシュ禁止" = no-store                                │
-│        "検証付きキャッシュ" = no-cache                             │
+│  Conclusion: "No caching" = no-store                             │
+│              "Cache with validation" = no-cache                  │
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.3 実践的なCache-Control設定パターン
+### 2.3 Practical Cache-Control Configuration Patterns
 
-#### パターン1: 静的アセット（ハッシュ付きファイル名）
+#### Pattern 1: Static Assets (Hashed Filenames)
 
 ```nginx
-# nginx設定例: ハッシュ付き静的ファイル
-# ファイル例: app.a1b2c3d4.js, style.e5f6g7h8.css
+# nginx config example: static files with hash
+# File examples: app.a1b2c3d4.js, style.e5f6g7h8.css
 location ~* \.[0-9a-f]{8,}\.(js|css|woff2?|png|jpg|webp|avif|svg)$ {
     expires 365d;
     add_header Cache-Control "public, max-age=31536000, immutable";
     add_header X-Cache-Strategy "immutable-asset";
 
-    # gzip/brotli 圧縮
+    # gzip/brotli compression
     gzip_static on;
     brotli_static on;
 }
 ```
 
-このパターンでは、ファイル名にコンテンツハッシュが含まれるため、ファイル内容が変更されるとファイル名自体が変わる。したがって、既存のURLに対するキャッシュは永久に有効と宣言できる。`immutable` ディレクティブにより、ブラウザは期限内の再検証リクエスト（条件付きGET）すら送信しない。
+In this pattern, filenames embed a content hash, so when file contents change, the filename itself changes. Therefore, the cache for the existing URL can be declared permanently valid. With the `immutable` directive, the browser will not even send conditional GET requests (revalidation requests) within the expiry period.
 
-#### パターン2: HTMLドキュメント
+#### Pattern 2: HTML Documents
 
 ```nginx
-# nginx設定例: HTMLファイル
+# nginx config example: HTML files
 location ~* \.html$ {
     add_header Cache-Control "no-cache";
     add_header X-Cache-Strategy "always-validate";
 
-    # ETagを有効化（nginx はデフォルトで有効）
+    # Enable ETag (nginx enables it by default)
     etag on;
 }
 ```
 
-HTMLファイルは静的アセットへの参照を含むため、常に最新版を提供する必要がある。`no-cache` により、ブラウザはキャッシュを保持するが、使用前に必ずサーバーで検証する。ETagが一致すれば304応答となり帯域を節約できる。
+HTML files include references to static assets, so they must always serve the latest version. With `no-cache`, the browser retains the cache but always validates with the server before use. If the ETag matches, a 304 response is returned, saving bandwidth.
 
-#### パターン3: パブリックAPIレスポンス
+#### Pattern 3: Public API Responses
 
 ```python
-# FastAPI の例: パブリックAPIレスポンスのキャッシュ設定
+# FastAPI example: caching configuration for public API responses
 from fastapi import FastAPI, Response
 from fastapi.responses import JSONResponse
 import hashlib
@@ -275,7 +277,7 @@ app = FastAPI()
 async def get_products(response: Response):
     products = await fetch_products_from_db()
 
-    # レスポンスボディのETagを生成
+    # Generate ETag from response body
     body = json.dumps(products, sort_keys=True)
     etag = hashlib.md5(body.encode()).hexdigest()
 
@@ -293,7 +295,7 @@ async def get_product(product_id: int, response: Response):
     body = json.dumps(product, sort_keys=True)
     etag = hashlib.md5(body.encode()).hexdigest()
 
-    # 個別商品は短めのキャッシュ
+    # Individual product: shorter cache
     response.headers["Cache-Control"] = "public, max-age=30, s-maxage=120"
     response.headers["ETag"] = f'"{etag}"'
     response.headers["Vary"] = "Accept-Encoding"
@@ -301,10 +303,10 @@ async def get_product(product_id: int, response: Response):
     return product
 ```
 
-#### パターン4: ユーザー固有のAPIレスポンス
+#### Pattern 4: User-Specific API Responses
 
 ```python
-# FastAPI の例: ユーザー固有データのキャッシュ設定
+# FastAPI example: caching configuration for user-specific data
 from fastapi import FastAPI, Response, Depends
 
 @app.get("/api/me/profile")
@@ -314,7 +316,7 @@ async def get_my_profile(
 ):
     profile = await fetch_user_profile(current_user.id)
 
-    # private: ブラウザのみキャッシュ可。CDNには保存されない
+    # private: only browser can cache. Not stored in CDN
     response.headers["Cache-Control"] = "private, max-age=0, must-revalidate"
     response.headers["ETag"] = f'"{profile.version}"'
 
@@ -328,17 +330,17 @@ async def get_my_settings(
 ):
     settings = await fetch_user_settings(current_user.id)
 
-    # 設定変更はリアルタイム反映が必要
+    # Settings changes must be reflected in real time
     response.headers["Cache-Control"] = "private, no-cache"
     response.headers["ETag"] = f'"{settings.updated_at.isoformat()}"'
 
     return settings
 ```
 
-#### パターン5: 機密データ
+#### Pattern 5: Sensitive Data
 
 ```python
-# 機密データは一切キャッシュしない
+# Do not cache sensitive data at all
 @app.get("/api/me/payment-methods")
 async def get_payment_methods(
     response: Response,
@@ -346,69 +348,69 @@ async def get_payment_methods(
 ):
     methods = await fetch_payment_methods(current_user.id)
 
-    # no-store: メモリにもディスクにも保存しない
+    # no-store: do not save to memory or disk
     response.headers["Cache-Control"] = "no-store"
-    response.headers["Pragma"] = "no-cache"  # HTTP/1.0 後方互換
+    response.headers["Pragma"] = "no-cache"  # HTTP/1.0 backward compatibility
 
     return methods
 ```
 
-### 2.4 Varyヘッダーとキャッシュキー
+### 2.4 Vary Header and Cache Keys
 
-`Vary` ヘッダーは、キャッシュのキーにどのリクエストヘッダーを含めるかを指定する。同一URLでもリクエストヘッダーの値が異なれば、別のキャッシュエントリとして扱われる。
+The `Vary` header specifies which request headers to include in the cache key. Even for the same URL, if request header values differ, they are treated as separate cache entries.
 
 ```
-Vary ヘッダーの動作:
+How the Vary header works:
 
-  レスポンス: Vary: Accept-Encoding, Accept-Language
+  Response: Vary: Accept-Encoding, Accept-Language
 
-  キャッシュキー = URL + Accept-Encoding + Accept-Language
+  Cache key = URL + Accept-Encoding + Accept-Language
 
-  リクエスト1: Accept-Encoding: gzip, Accept-Language: ja
-    → キャッシュエントリ A に保存
+  Request 1: Accept-Encoding: gzip, Accept-Language: ja
+    → Stored in cache entry A
 
-  リクエスト2: Accept-Encoding: br, Accept-Language: ja
-    → キャッシュエントリ B に保存（Accept-Encoding が異なる）
+  Request 2: Accept-Encoding: br, Accept-Language: ja
+    → Stored in cache entry B (different Accept-Encoding)
 
-  リクエスト3: Accept-Encoding: gzip, Accept-Language: en
-    → キャッシュエントリ C に保存（Accept-Language が異なる）
+  Request 3: Accept-Encoding: gzip, Accept-Language: en
+    → Stored in cache entry C (different Accept-Language)
 
-  リクエスト4: Accept-Encoding: gzip, Accept-Language: ja
-    → キャッシュエントリ A にヒット
+  Request 4: Accept-Encoding: gzip, Accept-Language: ja
+    → Hit cache entry A
 
-  注意: Vary: * を指定すると、事実上キャッシュ不可になる
-  （すべてのリクエストが一意とみなされるため）
+  Note: Specifying Vary: * effectively makes the resource uncacheable
+  (since every request is considered unique)
 ```
 
-**Varyの設計ガイドライン**:
+**Vary design guidelines**:
 
-| シナリオ | Vary設定 | 理由 |
-|---------|---------|------|
-| 通常のAPI | `Vary: Accept-Encoding` | 圧縮形式ごとに別キャッシュ |
-| 多言語サイト | `Vary: Accept-Language` | 言語ごとに別コンテンツ |
-| コンテンツネゴシエーション | `Vary: Accept` | JSON/XML等で別レスポンス |
-| 認証付きAPI | `Vary: Authorization` | ユーザーごとに別レスポンス（非推奨、privateを使うべき） |
+| Scenario | Vary setting | Reason |
+|----------|-------------|--------|
+| Typical API | `Vary: Accept-Encoding` | Separate cache per compression format |
+| Multi-language site | `Vary: Accept-Language` | Separate content per language |
+| Content negotiation | `Vary: Accept` | Separate responses for JSON/XML, etc. |
+| Authenticated API | `Vary: Authorization` | Separate responses per user (not recommended; use private instead) |
 
 ---
 
-## 3. 条件付きリクエスト（ETag / Last-Modified）
+## 3. Conditional Requests (ETag / Last-Modified)
 
-### 3.1 ETag（Entity Tag）の仕組み
+### 3.1 How ETag (Entity Tag) Works
 
-ETagはリソースの特定バージョンを識別するための不透明な文字列である。サーバーがレスポンスに付与し、クライアントは後続のリクエストで条件付きヘッダーとして送信する。
+An ETag is an opaque string that identifies a specific version of a resource. The server attaches it to responses, and the client sends it as a conditional header in subsequent requests.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    ETag 検証フロー詳細                               │
+│                    ETag Validation Flow                             │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
-│  === 初回リクエスト ===                                              │
+│  === First Request ===                                              │
 │                                                                     │
 │  Client                    Server                                   │
 │    │                         │                                      │
 │    │── GET /api/users/42 ──▶│                                      │
-│    │                         │  リソースを取得                       │
-│    │                         │  ETag を計算: "v1-abc123"            │
+│    │                         │  Fetch resource                      │
+│    │                         │  Calculate ETag: "v1-abc123"         │
 │    │                         │                                      │
 │    │◀── 200 OK ─────────────│                                      │
 │    │   ETag: "v1-abc123"     │                                      │
@@ -416,72 +418,72 @@ ETagはリソースの特定バージョンを識別するための不透明な�
 │    │   Content-Length: 245   │                                      │
 │    │   Body: {"id":42,...}   │                                      │
 │    │                         │                                      │
-│    │  ブラウザがレスポンスと                                          │
-│    │  ETag をキャッシュに保存                                        │
+│    │  Browser saves response │                                      │
+│    │  and ETag to cache      │                                      │
 │    │                         │                                      │
-│  === 2回目のリクエスト（変更なし） ===                                │
+│  === Second Request (No Change) ===                                 │
 │    │                         │                                      │
 │    │── GET /api/users/42 ──▶│                                      │
 │    │   If-None-Match:        │                                      │
 │    │   "v1-abc123"           │                                      │
-│    │                         │  リソースを取得                       │
-│    │                         │  ETag を計算: "v1-abc123"            │
-│    │                         │  → 一致! 変更なし                     │
+│    │                         │  Fetch resource                      │
+│    │                         │  Calculate ETag: "v1-abc123"         │
+│    │                         │  → Match! No change                  │
 │    │                         │                                      │
 │    │◀── 304 Not Modified ───│                                      │
 │    │   ETag: "v1-abc123"     │                                      │
-│    │   (ボディなし)           │  ★ 帯域を節約                       │
+│    │   (no body)             │  ★ Bandwidth saved                   │
 │    │                         │                                      │
-│    │  キャッシュから                                                  │
-│    │  レスポンスボディを復元                                          │
+│    │  Restore response body  │                                      │
+│    │  from cache             │                                      │
 │    │                         │                                      │
-│  === 3回目のリクエスト（変更あり） ===                                │
+│  === Third Request (Changed) ===                                    │
 │    │                         │                                      │
 │    │── GET /api/users/42 ──▶│                                      │
 │    │   If-None-Match:        │                                      │
 │    │   "v1-abc123"           │                                      │
-│    │                         │  リソースを取得                       │
-│    │                         │  ETag を計算: "v2-def456"            │
-│    │                         │  → 不一致! 変更あり                   │
+│    │                         │  Fetch resource                      │
+│    │                         │  Calculate ETag: "v2-def456"         │
+│    │                         │  → Mismatch! Changed                 │
 │    │                         │                                      │
 │    │◀── 200 OK ─────────────│                                      │
 │    │   ETag: "v2-def456"     │                                      │
 │    │   Content-Length: 260   │                                      │
-│    │   Body: {"id":42,...}   │  ★ 新しいレスポンスを返す             │
+│    │   Body: {"id":42,...}   │  ★ Return new response               │
 │    │                         │                                      │
-│    │  キャッシュを新しい                                              │
-│    │  レスポンスで更新                                               │
+│    │  Update cache with new  │                                      │
+│    │  response               │                                      │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 強いETag と 弱いETag
+### 3.2 Strong ETag vs Weak ETag
 
-ETagには「強い検証」と「弱い検証」の2種類がある。
+ETags come in two types: "strong validation" and "weak validation."
 
 ```
-強いETag:
+Strong ETag:
   ETag: "abc123"
-  → バイト単位で完全に一致することを保証
-  → Range リクエスト（部分ダウンロード）に使用可能
-  → コンテンツのハッシュ値（MD5, SHA-256等）から生成するのが一般的
+  → Guarantees byte-for-byte exact match
+  → Can be used for Range requests (partial downloads)
+  → Typically generated from content hash (MD5, SHA-256, etc.)
 
-弱いETag:
+Weak ETag:
   ETag: W/"abc123"
-  → 意味的に同等であることを示す（バイト単位の一致は保証しない）
-  → マイナーな差異（空白、コメント、日付フォーマット等）は無視
-  → Range リクエストには使用不可
+  → Indicates semantic equivalence (does not guarantee byte-for-byte match)
+  → Ignores minor differences (whitespace, comments, date formats, etc.)
+  → Cannot be used for Range requests
 
-使い分け:
-  静的ファイル → 強いETag（ファイルハッシュ）
-  動的コンテンツ → 弱いETag（セマンティックバージョン）
-  HTMLテンプレート → 弱いETag（レンダリング結果の微細な差異を許容）
+Usage:
+  Static files → Strong ETag (file hash)
+  Dynamic content → Weak ETag (semantic version)
+  HTML templates → Weak ETag (tolerates minor differences in rendered output)
 ```
 
-### 3.3 ETagの生成戦略
+### 3.3 ETag Generation Strategies
 
 ```python
-# ETag生成の実装例
+# ETag generation implementation example
 import hashlib
 import json
 from datetime import datetime
@@ -489,26 +491,26 @@ from datetime import datetime
 class ETagGenerator:
     @staticmethod
     def from_content(content: bytes) -> str:
-        """コンテンツのハッシュからETagを生成（強いETag）"""
+        """Generate ETag from content hash (strong ETag)"""
         hash_value = hashlib.sha256(content).hexdigest()[:16]
         return f'"{hash_value}"'
 
     @staticmethod
     def from_version(version: int, updated_at: datetime) -> str:
-        """バージョン番号と更新日時からETagを生成（弱いETag）"""
+        """Generate ETag from version number and updated timestamp (weak ETag)"""
         raw = f"{version}-{updated_at.isoformat()}"
         hash_value = hashlib.md5(raw.encode()).hexdigest()[:12]
         return f'W/"{hash_value}"'
 
     @staticmethod
     def from_db_row(row: dict, fields: list[str]) -> str:
-        """データベース行の特定フィールドからETagを生成"""
+        """Generate ETag from specific fields in a database row"""
         subset = {k: row[k] for k in fields if k in row}
         raw = json.dumps(subset, sort_keys=True, default=str)
         hash_value = hashlib.sha256(raw.encode()).hexdigest()[:16]
         return f'"{hash_value}"'
 
-# 使用例
+# Usage examples
 etag1 = ETagGenerator.from_content(b'{"name": "Taro"}')
 # → '"a1b2c3d4e5f6g7h8"'
 
@@ -517,32 +519,32 @@ etag2 = ETagGenerator.from_version(3, datetime(2025, 1, 15, 10, 30))
 
 etag3 = ETagGenerator.from_db_row(
     {"id": 42, "name": "Taro", "email": "taro@example.com", "internal_flag": True},
-    ["id", "name", "email"]  # internal_flag は除外
+    ["id", "name", "email"]  # exclude internal_flag
 )
 # → '"9f8e7d6c5b4a3210"'
 ```
 
-### 3.4 Last-Modifiedとの比較
+### 3.4 Comparison with Last-Modified
 
-| 特性 | ETag | Last-Modified |
-|------|------|---------------|
-| 精度 | 任意の粒度（バイト単位可） | 秒単位（1秒以内の変更を検出できない） |
-| 対応ヘッダー | `If-None-Match` | `If-Modified-Since` |
-| 複数バリアント | 可能（カンマ区切り） | 不可（単一の日時のみ） |
-| 弱い比較 | `W/"..."` で可能 | 本質的に弱い比較 |
-| サーバー負荷 | ハッシュ計算が必要 | ファイルシステムのmtimeを使用可能 |
-| 分散環境 | コンテンツベースで安定 | サーバー間でmtimeが異なる可能性あり |
-| Range対応 | 強いETagのみ対応 | 非対応 |
-| 推奨度 | 優先的に使用 | 補助的に使用 |
+| Property | ETag | Last-Modified |
+|----------|------|---------------|
+| Precision | Any granularity (down to bytes) | Second-level (cannot detect changes within 1 second) |
+| Corresponding header | `If-None-Match` | `If-Modified-Since` |
+| Multiple variants | Possible (comma-separated) | Not possible (single timestamp only) |
+| Weak comparison | Possible with `W/"..."` | Inherently weak comparison |
+| Server load | Requires hash computation | Can use filesystem mtime |
+| Distributed environments | Stable with content-based approach | mtime may differ between servers |
+| Range support | Strong ETag only | Not supported |
+| Recommendation | Use preferentially | Use as supplementary |
 
-**推奨**: ETagを主とし、Last-Modifiedを補助的に併用する。両方が存在する場合、HTTPの仕様ではETagが優先される。
+**Recommendation**: Use ETags as the primary method and Last-Modified as supplementary. When both are present, ETag takes precedence per the HTTP specification.
 
-### 3.5 条件付きリクエストによる更新の競合防止
+### 3.5 Using Conditional Requests to Prevent Update Conflicts
 
-ETagは読み取りキャッシュだけでなく、更新操作の競合防止（楽観的ロック）にも活用できる。
+ETags can be used not only for read caching, but also for preventing conflicts in update operations (optimistic locking).
 
 ```python
-# PUT/PATCH での楽観的ロック実装例
+# Optimistic locking implementation for PUT/PATCH
 from fastapi import FastAPI, Response, Request, HTTPException
 
 @app.put("/api/users/{user_id}")
@@ -552,13 +554,13 @@ async def update_user(
     response: Response,
     body: UserUpdate
 ):
-    # 現在のリソースを取得
+    # Fetch current resource
     current = await fetch_user(user_id)
     current_etag = ETagGenerator.from_version(
         current.version, current.updated_at
     )
 
-    # If-Match ヘッダーの検証
+    # Validate If-Match header
     if_match = request.headers.get("If-Match")
     if if_match is None:
         raise HTTPException(
@@ -572,7 +574,7 @@ async def update_user(
             detail="Resource has been modified by another request"
         )
 
-    # 更新を実行
+    # Execute update
     updated = await update_user_in_db(user_id, body, current.version)
     new_etag = ETagGenerator.from_version(
         updated.version, updated.updated_at
@@ -586,28 +588,28 @@ async def update_user(
 
 ---
 
-## 4. キャッシュ無効化とキャッシュバスティング
+## 4. Cache Invalidation and Cache Busting
 
-### 4.1 キャッシュ無効化の2つの課題
+### 4.1 Two Challenges of Cache Invalidation
 
-Phil Karltonの名言「コンピュータサイエンスで難しいことは2つだけ。キャッシュの無効化と命名」が示す通り、キャッシュの無効化はソフトウェア工学における根本的な課題の一つである。
+As Phil Karlton's famous quote goes — "There are only two hard things in Computer Science: cache invalidation and naming things" — cache invalidation is one of the fundamental challenges in software engineering.
 
-**課題1: 伝搬遅延**
-CDNのエッジサーバーは世界中に分散しており、パージ命令が全ノードに伝搬するまでにタイムラグがある。
+**Challenge 1: Propagation delay**
+CDN edge servers are distributed worldwide, and there is a time lag before a purge command propagates to all nodes.
 
-**課題2: ブラウザキャッシュの制御不能性**
-一度ブラウザにキャッシュされたリソースは、サーバー側から強制的に無効化する手段がない。`max-age=31536000` で配信されたリソースは、ユーザーがブラウザキャッシュをクリアするか、異なるURLでアクセスしない限り更新されない。
+**Challenge 2: Inability to control browser cache**
+Once a resource is cached in the browser, there is no way to forcibly invalidate it from the server side. A resource delivered with `max-age=31536000` will not be updated unless the user clears the browser cache or accesses a different URL.
 
-### 4.2 キャッシュバスティング戦略
+### 4.2 Cache Busting Strategies
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│             キャッシュバスティング戦略の比較                       │
+│             Comparison of Cache Busting Strategies             │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  ■ 戦略1: コンテンツハッシュ（推奨）                              │
+│  ■ Strategy 1: Content Hash (Recommended)                       │
 │                                                                 │
-│    ビルド時にファイル内容のハッシュをファイル名に埋め込む            │
+│    Embed a hash of file content in the filename at build time   │
 │                                                                 │
 │    app.js  →  app.a1b2c3d4.js                                   │
 │    style.css → style.e5f6g7h8.css                               │
@@ -615,107 +617,108 @@ CDNのエッジサーバーは世界中に分散しており、パージ命令�
 │                                                                 │
 │    HTML: <script src="/assets/app.a1b2c3d4.js">                 │
 │                                                                 │
-│    長所: 内容が変わらない限り同一URL → キャッシュ効率が最大         │
-│          内容が変わるとURL自体が変わる → 確実に新版を取得           │
-│    短所: ビルドツール（Vite, webpack）の設定が必要                 │
+│    Pros: Same URL as long as content unchanged → max cache eff. │
+│          When content changes, URL itself changes → new version  │
+│    Cons: Requires build tool configuration (Vite, webpack)      │
 │                                                                 │
-│  ■ 戦略2: バージョンクエリパラメータ                              │
+│  ■ Strategy 2: Version Query Parameter                          │
 │                                                                 │
 │    app.js?v=1.2.3                                               │
 │    style.css?v=20250115                                         │
 │                                                                 │
-│    長所: 実装が簡単、ビルドツール不要                              │
-│    短所: 一部のCDN/プロキシがクエリパラメータを                    │
-│          キャッシュキーに含めない場合がある                        │
-│          全ファイルを一括無効化してしまうリスク                     │
+│    Pros: Simple to implement, no build tool needed              │
+│    Cons: Some CDN/proxies may not include query params          │
+│          in the cache key                                       │
+│          Risk of bulk-invalidating all files at once            │
 │                                                                 │
-│  ■ 戦略3: ディレクトリベースのバージョニング                      │
+│  ■ Strategy 3: Directory-Based Versioning                       │
 │                                                                 │
 │    /v1/app.js → /v2/app.js                                      │
 │    /assets/1.2.3/style.css                                      │
 │                                                                 │
-│    長所: すべてのキャッシュで確実に動作                            │
-│    短所: ディレクトリ管理が煩雑、旧版の残留                       │
+│    Pros: Works reliably across all caches                       │
+│    Cons: Directory management is cumbersome, old versions linger│
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 4.3 ビルドツールによるキャッシュバスティング設定
+### 4.3 Cache Busting Configuration with Build Tools
 
 ```javascript
-// vite.config.ts — Viteのキャッシュバスティング設定
+// vite.config.ts — Cache busting configuration for Vite
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
   build: {
-    // コンテンツハッシュをファイル名に含める（デフォルトで有効）
+    // Include content hash in filenames (enabled by default)
     rollupOptions: {
       output: {
-        // エントリーポイント: app.[hash].js
+        // Entry point: app.[hash].js
         entryFileNames: 'assets/[name].[hash].js',
-        // コード分割チャンク: chunk-[name].[hash].js
+        // Code-split chunks: chunk-[name].[hash].js
         chunkFileNames: 'assets/chunk-[name].[hash].js',
-        // アセット: [name].[hash].[ext]
+        // Assets: [name].[hash].[ext]
         assetFileNames: 'assets/[name].[hash].[ext]',
       },
     },
-    // ソースマップの生成（本番環境ではhiddenを推奨）
+    // Source map generation (hidden recommended for production)
     sourcemap: 'hidden',
   },
 });
 ```
 
-### 4.4 stale-while-revalidate パターン
+### 4.4 stale-while-revalidate Pattern
 
-stale-while-revalidate（SWR）は、キャッシュの鮮度とユーザー体験を両立させるための強力なパターンである。
+stale-while-revalidate (SWR) is a powerful pattern that balances cache freshness with user experience.
 
 ```
-stale-while-revalidate の動作タイムライン:
+stale-while-revalidate behavior timeline:
 
   Cache-Control: max-age=60, stale-while-revalidate=300
 
-  時刻(秒)  0         60                    360
+  Time(s)   0         60                    360
             │          │                      │
             ▼          ▼                      ▼
   ┌─────────┼──────────┼──────────────────────┼──────────────▶
   │  Phase  │  FRESH   │  STALE-WHILE-        │  STALE
-  │         │          │  REVALIDATE          │  (検証必須)
+  │         │          │  REVALIDATE          │  (must validate)
   ├─────────┼──────────┼──────────────────────┼──────────────
-  │  動作   │キャッシュ │キャッシュを即返却     │サーバーに
-  │         │を即返却   │+ バックグラウンドで   │問い合わせて
-  │         │          │サーバーに問い合わせ    │から返却
-  │         │          │→ 次回から新版を返却   │
+  │  Action │Return    │Return cache          │Query server
+  │         │cache     │immediately           │before returning
+  │         │immed.    │+ query server in     │
+  │         │          │background            │
+  │         │          │→ next req gets new   │
   ├─────────┼──────────┼──────────────────────┼──────────────
-  │  体感   │ 即座     │ 即座                 │ 遅延あり
-  │  速度   │ (<5ms)   │ (<5ms)               │ (RTT分)
+  │Perceived│Instant   │Instant               │Delayed
+  │  speed  │ (<5ms)   │ (<5ms)               │ (RTT)
   └─────────┴──────────┴──────────────────────┴──────────────
 
-  特徴:
-  - ユーザーは0-360秒の間、常に即座にレスポンスを得る
-  - 60-360秒の間は「少し古い」データが返る可能性がある
-  - バックグラウンド更新後、次のリクエストからは最新データが返る
-  - 「速度」と「鮮度」のトレードオフを柔軟に調整可能
+  Characteristics:
+  - Users always get an instant response from 0 to 360 seconds
+  - Between 60 and 360 seconds, slightly stale data may be returned
+  - After the background update, the next request returns the latest data
+  - Flexibly adjusts the trade-off between "speed" and "freshness"
 ```
 
-### 4.5 CDNキャッシュパージの実装
+### 4.5 CDN Cache Purge Implementation
 
 ```python
-# CDNキャッシュパージの実装例
+# CDN cache purge implementation example
 
 import boto3
 import time
 
 class CDNCachePurger:
-    """CDNキャッシュのパージを実行するユーティリティ"""
+    """Utility for executing CDN cache purges"""
 
     def __init__(self, distribution_id: str):
         self.client = boto3.client('cloudfront')
         self.distribution_id = distribution_id
 
     def purge_paths(self, paths: list[str]) -> dict:
-        """指定パスのキャッシュをパージする"""
+        """Purge cache for the specified paths"""
         response = self.client.create_invalidation(
             DistributionId=self.distribution_id,
             InvalidationBatch={
@@ -733,138 +736,138 @@ class CDNCachePurger:
         }
 
     def purge_all(self) -> dict:
-        """全キャッシュをパージする（コスト注意）"""
+        """Purge all cache (be mindful of cost)"""
         return self.purge_paths(['/*'])
 
 
-# 使用例
+# Usage
 purger = CDNCachePurger(distribution_id='E1A2B3C4D5E6F7')
 
-# 特定パスのパージ
+# Purge specific paths
 result = purger.purge_paths([
     '/api/products/*',
     '/images/hero.webp'
 ])
 print(f"Invalidation ID: {result['invalidation_id']}")
 
-# デプロイ時の全パージ
+# Full purge during deployment
 result = purger.purge_all()
 ```
 
 ---
 
-## 5. CDNキャッシュの設計と運用
+## 5. CDN Cache Design and Operations
 
-### 5.1 CDNの基本アーキテクチャ
+### 5.1 Basic CDN Architecture
 
-CDN（Content Delivery Network）は、世界中に分散配置されたエッジサーバー群によって、コンテンツをユーザーに近い地点から配信するインフラストラクチャである。
+A CDN (Content Delivery Network) is infrastructure consisting of edge servers distributed worldwide that delivers content from a point close to the user.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│                    CDN アーキテクチャ詳細図                           │
+│                    CDN Architecture Detailed Diagram                 │
 ├──────────────────────────────────────────────────────────────────────┤
 │                                                                      │
 │                     ┌──────────────┐                                 │
 │                     │  Origin      │                                 │
 │                     │  Server      │                                 │
-│                     │  (東京DC)    │                                 │
+│                     │  (Tokyo DC)  │                                 │
 │                     └──────┬───────┘                                 │
 │                            │                                         │
 │                     ┌──────┴───────┐                                 │
-│                     │  Origin      │  ← 全エッジからのリクエストを集約  │
-│                     │  Shield      │    オリジンへの負荷を軽減         │
-│                     │  (東京)      │                                 │
+│                     │  Origin      │  ← Aggregates requests from     │
+│                     │  Shield      │    all edges. Reduces load on   │
+│                     │  (Tokyo)     │    origin.                      │
 │                     └──────┬───────┘                                 │
 │                            │                                         │
 │            ┌───────────────┼───────────────┐                         │
 │            │               │               │                         │
 │     ┌──────┴──────┐ ┌──────┴──────┐ ┌──────┴──────┐                 │
 │     │  Edge POP   │ │  Edge POP   │ │  Edge POP   │  ← PoP:        │
-│     │  東京       │ │  シンガポール│ │  ロンドン   │    Point of     │
+│     │  Tokyo      │ │  Singapore  │ │  London     │    Point of     │
 │     │  (10+ nodes)│ │  (10+ nodes)│ │  (10+ nodes)│    Presence     │
 │     └──────┬──────┘ └──────┬──────┘ └──────┬──────┘                 │
 │            │               │               │                         │
 │     ┌──────┴──────┐ ┌──────┴──────┐ ┌──────┴──────┐                 │
-│     │  日本の     │ │  ASEANの   │ │  欧州の     │                 │
-│     │  ユーザー   │ │  ユーザー   │ │  ユーザー   │                 │
+│     │  Users in   │ │  Users in   │ │  Users in   │                 │
+│     │  Japan      │ │  ASEAN      │ │  Europe     │                 │
 │     └─────────────┘ └─────────────┘ └─────────────┘                 │
 │                                                                      │
-│  リクエストフロー:                                                    │
-│  1. DNS解決 → 最寄りのEdge PoPのIPアドレスを返す                      │
-│  2. Edge POP にキャッシュあり → 即座に返却（Cache HIT）              │
-│  3. Edge POP にキャッシュなし → Origin Shield に問い合わせ            │
-│  4. Origin Shield にキャッシュあり → Edge に返却・キャッシュ          │
-│  5. Origin Shield にキャッシュなし → Origin Server に問い合わせ       │
-│  6. Origin Server がレスポンス → Shield → Edge → ユーザー           │
+│  Request flow:                                                       │
+│  1. DNS resolution → returns IP of nearest Edge PoP                  │
+│  2. Cache found at Edge PoP → return immediately (Cache HIT)         │
+│  3. No cache at Edge PoP → query Origin Shield                       │
+│  4. Cache found at Origin Shield → return to Edge and cache          │
+│  5. No cache at Origin Shield → query Origin Server                  │
+│  6. Origin Server responds → Shield → Edge → User                    │
 │                                                                      │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 CDNキャッシュ制御ヘッダーの使い分け
+### 5.2 Choosing CDN Cache Control Headers
 
-CDNに対するキャッシュ制御には複数のヘッダーが存在し、それぞれ適用範囲が異なる。
+Multiple headers exist for CDN cache control, each with different scopes.
 
-| ヘッダー | 適用対象 | 標準化状況 | 用途 |
-|---------|---------|-----------|------|
-| `Cache-Control: s-maxage` | 全ての共有キャッシュ（CDN含む） | RFC 9111 | CDNとプロキシ共通のTTL |
-| `CDN-Cache-Control` | CDNのみ（プロキシには適用されない） | RFC 9213 | CDN専用のTTL |
-| `Surrogate-Control` | 対応CDNのみ（Fastly等） | W3C TR | CDN固有の高度な制御 |
-| `Cloudflare-CDN-Cache-Control` | Cloudflareのみ | 独自仕様 | Cloudflare専用制御 |
+| Header | Target | Standardization | Use case |
+|--------|--------|-----------------|----------|
+| `Cache-Control: s-maxage` | All shared caches (including CDN) | RFC 9111 | TTL common to CDN and proxies |
+| `CDN-Cache-Control` | CDN only (not applied to proxies) | RFC 9213 | CDN-specific TTL |
+| `Surrogate-Control` | Supported CDNs only (Fastly, etc.) | W3C TR | Advanced CDN-specific control |
+| `Cloudflare-CDN-Cache-Control` | Cloudflare only | Proprietary | Cloudflare-specific control |
 
 ```
-ヘッダーの優先順位（CDN側の解釈）:
+Header priority (CDN interpretation):
 
-  CDN固有ヘッダー (Surrogate-Control等)
-    ↓ なければ
+  CDN-specific header (Surrogate-Control, etc.)
+    ↓ if absent
   CDN-Cache-Control
-    ↓ なければ
+    ↓ if absent
   Cache-Control: s-maxage
-    ↓ なければ
+    ↓ if absent
   Cache-Control: max-age
-    ↓ なければ
-  Expires ヘッダー
-    ↓ なければ
-  ヒューリスティックキャッシュ or キャッシュなし
+    ↓ if absent
+  Expires header
+    ↓ if absent
+  Heuristic caching or no caching
 
-  推奨: Cache-Control の s-maxage を基本とし、
-  CDN固有の要件がある場合のみ CDN-Cache-Control を併用する。
+  Recommendation: Use Cache-Control s-maxage as the base,
+  and add CDN-Cache-Control only for CDN-specific requirements.
 ```
 
-### 5.3 CloudFront 設定例
+### 5.3 CloudFront Configuration Example
 
 ```yaml
-# AWS CloudFormation による CloudFront 設定例
+# AWS CloudFormation CloudFront configuration example
 AWSTemplateFormatVersion: '2010-09-09'
 Description: CloudFront distribution with optimized caching
 
 Resources:
-  # キャッシュポリシー: 静的アセット用
+  # Cache policy: for static assets
   StaticAssetsCachePolicy:
     Type: AWS::CloudFront::CachePolicy
     Properties:
       CachePolicyConfig:
         Name: StaticAssets-1Year
-        DefaultTTL: 86400        # 1日（Cache-Controlがない場合）
-        MaxTTL: 31536000         # 1年（上限）
-        MinTTL: 0                # 0秒（最小）
+        DefaultTTL: 86400        # 1 day (when Cache-Control is absent)
+        MaxTTL: 31536000         # 1 year (upper limit)
+        MinTTL: 0                # 0 seconds (minimum)
         ParametersInCacheKeyAndForwardedToOrigin:
           CookiesConfig:
-            CookieBehavior: none   # Cookie をキャッシュキーに含めない
+            CookieBehavior: none   # Do not include cookies in cache key
           HeadersConfig:
-            HeaderBehavior: none   # ヘッダーをキャッシュキーに含めない
+            HeaderBehavior: none   # Do not include headers in cache key
           QueryStringsConfig:
-            QueryStringBehavior: none  # クエリパラメータを含めない
+            QueryStringBehavior: none  # Do not include query params
           EnableAcceptEncodingGzip: true
           EnableAcceptEncodingBrotli: true
 
-  # キャッシュポリシー: API用
+  # Cache policy: for API
   APICachePolicy:
     Type: AWS::CloudFront::CachePolicy
     Properties:
       CachePolicyConfig:
         Name: API-ShortTTL
-        DefaultTTL: 60           # 1分
-        MaxTTL: 300              # 5分
+        DefaultTTL: 60           # 1 minute
+        MaxTTL: 300              # 5 minutes
         MinTTL: 0
         ParametersInCacheKeyAndForwardedToOrigin:
           CookiesConfig:
@@ -875,18 +878,18 @@ Resources:
               - Accept
               - Accept-Language
           QueryStringsConfig:
-            QueryStringBehavior: all  # 全クエリパラメータをキーに含める
+            QueryStringBehavior: all  # Include all query params in key
           EnableAcceptEncodingGzip: true
           EnableAcceptEncodingBrotli: true
 
-  # CloudFront ディストリビューション
+  # CloudFront distribution
   Distribution:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
         Enabled: true
         HttpVersion: http2and3
-        PriceClass: PriceClass_200  # アジア・欧米
+        PriceClass: PriceClass_200  # Asia + Americas & Europe
         Origins:
           - Id: AppOrigin
             DomainName: app.example.com
@@ -894,13 +897,13 @@ Resources:
               OriginProtocolPolicy: https-only
               OriginSSLProtocols: [TLSv1.2]
         DefaultCacheBehavior:
-          # HTML: 常に検証
+          # HTML: always validate
           TargetOriginId: AppOrigin
           ViewerProtocolPolicy: redirect-to-https
           CachePolicyId: !Ref APICachePolicy
           Compress: true
         CacheBehaviors:
-          # 静的アセット
+          # Static assets
           - PathPattern: '/assets/*'
             TargetOriginId: AppOrigin
             ViewerProtocolPolicy: redirect-to-https
@@ -914,78 +917,78 @@ Resources:
             Compress: true
 ```
 
-### 5.4 主要CDNサービスの比較
+### 5.4 Comparison of Major CDN Services
 
-| 特性 | CloudFront (AWS) | Cloudflare | Fastly | Akamai |
-|------|-----------------|------------|--------|--------|
-| PoP数 | 600+ | 300+ | 70+ | 4,000+ |
-| 無料枠 | 1TB/月 | 無制限（Free plan） | なし | なし |
-| パージ速度 | 数分 | 約30秒 | 約150ms | 約5秒 |
-| エッジコンピューティング | Lambda@Edge, Functions | Workers | Compute@Edge | EdgeWorkers |
-| HTTP/3対応 | あり | あり | あり | あり |
-| WebSocket対応 | あり | あり | あり | あり |
-| DDoS防御 | AWS Shield | 標準搭載 | 標準搭載 | Kona Site Defender |
-| 価格モデル | 従量課金 | プランベース | 従量課金 | 契約ベース |
-| 強み | AWSエコシステム統合 | 設定の簡便さ | パージ速度 | 大規模配信 |
+| Property | CloudFront (AWS) | Cloudflare | Fastly | Akamai |
+|----------|-----------------|------------|--------|--------|
+| PoPs | 600+ | 300+ | 70+ | 4,000+ |
+| Free tier | 1TB/month | Unlimited (Free plan) | None | None |
+| Purge speed | Several minutes | ~30 seconds | ~150ms | ~5 seconds |
+| Edge computing | Lambda@Edge, Functions | Workers | Compute@Edge | EdgeWorkers |
+| HTTP/3 support | Yes | Yes | Yes | Yes |
+| WebSocket support | Yes | Yes | Yes | Yes |
+| DDoS protection | AWS Shield | Included | Included | Kona Site Defender |
+| Pricing model | Pay-per-use | Plan-based | Pay-per-use | Contract-based |
+| Strength | AWS ecosystem integration | Ease of configuration | Purge speed | Large-scale delivery |
 
 ---
 
-## 6. 実践的なキャッシュ戦略の設計
+## 6. Practical Cache Strategy Design
 
-### 6.1 リソースタイプ別キャッシュ戦略マトリクス
+### 6.1 Cache Strategy Matrix by Resource Type
 
-| リソースタイプ | Cache-Control | ETag | CDN | バスティング | 備考 |
-|--------------|---------------|------|-----|-------------|------|
-| HTML | `no-cache` | あり | 短TTL (60s) | 不要（常に検証） | 最新のアセット参照を保証 |
-| JS/CSS（ハッシュ付き） | `public, max-age=31536000, immutable` | 不要 | 長TTL (1年) | ファイル名ハッシュ | 変更時はURLが変わる |
-| 画像（ハッシュ付き） | `public, max-age=31536000, immutable` | 不要 | 長TTL (1年) | ファイル名ハッシュ | WebP/AVIF変換はCDNエッジで |
-| フォント | `public, max-age=31536000, immutable` | 不要 | 長TTL (1年) | ファイル名ハッシュ | CORS設定が必要な場合あり |
-| パブリックAPI | `public, max-age=60, s-maxage=300` | あり | 中TTL | 不要 | Varyヘッダーに注意 |
-| ユーザー固有API | `private, no-cache` | あり | なし | 不要 | CDNにキャッシュしない |
-| 機密データ | `no-store` | なし | なし | 不要 | 一切キャッシュ禁止 |
-| Service Worker | `no-cache, max-age=0` | あり | 短TTL | 不要 | 24時間上限（ブラウザ仕様） |
-| favicon.ico | `public, max-age=86400` | あり | 1日 | クエリパラメータ | 頻繁には変更しない |
-| robots.txt | `public, max-age=86400` | あり | 1日 | 不要 | クロール設定 |
-| sitemap.xml | `public, max-age=3600` | あり | 1時間 | 不要 | SEO関連 |
+| Resource type | Cache-Control | ETag | CDN | Busting | Notes |
+|--------------|---------------|------|-----|---------|-------|
+| HTML | `no-cache` | Yes | Short TTL (60s) | Not needed (always validates) | Ensures reference to latest assets |
+| JS/CSS (hashed) | `public, max-age=31536000, immutable` | Not needed | Long TTL (1 year) | Filename hash | URL changes when content changes |
+| Images (hashed) | `public, max-age=31536000, immutable` | Not needed | Long TTL (1 year) | Filename hash | WebP/AVIF conversion at CDN edge |
+| Fonts | `public, max-age=31536000, immutable` | Not needed | Long TTL (1 year) | Filename hash | May need CORS configuration |
+| Public API | `public, max-age=60, s-maxage=300` | Yes | Medium TTL | Not needed | Pay attention to Vary header |
+| User-specific API | `private, no-cache` | Yes | None | Not needed | Do not cache in CDN |
+| Sensitive data | `no-store` | None | None | Not needed | No caching at all |
+| Service Worker | `no-cache, max-age=0` | Yes | Short TTL | Not needed | 24-hour limit (browser spec) |
+| favicon.ico | `public, max-age=86400` | Yes | 1 day | Query parameter | Not changed frequently |
+| robots.txt | `public, max-age=86400` | Yes | 1 day | Not needed | Crawling configuration |
+| sitemap.xml | `public, max-age=3600` | Yes | 1 hour | Not needed | SEO-related |
 
-### 6.2 nginx による包括的キャッシュ設定
+### 6.2 Comprehensive Cache Configuration with nginx
 
 ```nginx
 # /etc/nginx/conf.d/cache.conf
-# 包括的なキャッシュ設定
+# Comprehensive caching configuration
 
-# ── 共通設定 ──
+# ── Common settings ──
 
-# プロキシキャッシュの定義
+# Define proxy cache
 proxy_cache_path /var/cache/nginx levels=1:2
-    keys_zone=app_cache:100m    # キャッシュキーのメタデータ領域
-    max_size=10g                # ディスク上の最大サイズ
-    inactive=60m                # 60分アクセスがなければ削除
-    use_temp_path=off;          # 一時ファイルを使わない（性能向上）
+    keys_zone=app_cache:100m    # Metadata area for cache keys
+    max_size=10g                # Maximum size on disk
+    inactive=60m                # Delete after 60 minutes without access
+    use_temp_path=off;          # Do not use temp files (performance improvement)
 
-# キャッシュキーの定義
+# Cache key definition
 proxy_cache_key "$scheme$request_method$host$request_uri";
 
 server {
     listen 443 ssl http2;
     server_name example.com;
 
-    # ── 静的アセット（ハッシュ付き） ──
+    # ── Static assets (hashed) ──
     location ~* /assets/.*\.[0-9a-f]{8,}\.(js|css|woff2?|png|jpg|webp|avif|svg)$ {
         root /var/www/app/dist;
 
-        # 1年間キャッシュ、変更なしを宣言
+        # Cache for 1 year, declare as immutable
         add_header Cache-Control "public, max-age=31536000, immutable";
         add_header X-Cache-Strategy "immutable-hashed-asset";
 
-        # 圧縮済みファイルがあれば使用
+        # Use pre-compressed files if available
         gzip_static on;
 
-        # アクセスログを抑制（大量のアセットリクエスト）
+        # Suppress access log (large volume of asset requests)
         access_log off;
     }
 
-    # ── 静的アセット（ハッシュなし） ──
+    # ── Static assets (no hash) ──
     location ~* \.(ico|png|jpg|jpeg|gif|svg|webp)$ {
         root /var/www/app/dist;
         add_header Cache-Control "public, max-age=86400";
@@ -1001,7 +1004,7 @@ server {
         etag on;
     }
 
-    # ── SPA のフォールバック ──
+    # ── SPA fallback ──
     location / {
         root /var/www/app/dist;
         try_files $uri $uri/ /index.html;
@@ -1009,35 +1012,35 @@ server {
         etag on;
     }
 
-    # ── パブリック API ──
+    # ── Public API ──
     location /api/public/ {
         proxy_pass http://backend;
         proxy_cache app_cache;
         proxy_cache_valid 200 5m;
         proxy_cache_valid 404 1m;
 
-        # キャッシュヒット状況をレスポンスヘッダーに表示
+        # Show cache hit status in response header
         add_header X-Cache-Status $upstream_cache_status;
 
-        # stale-while-revalidate の実装
+        # Implement stale-while-revalidate
         proxy_cache_use_stale updating error timeout http_500 http_502;
         proxy_cache_background_update on;
         proxy_cache_lock on;
 
-        # Vary ヘッダーの適切な処理
+        # Handle Vary header appropriately
         proxy_ignore_headers Vary;
         proxy_cache_key "$scheme$request_method$host$request_uri$http_accept";
     }
 
-    # ── プライベート API ──
+    # ── Private API ──
     location /api/me/ {
         proxy_pass http://backend;
-        proxy_no_cache 1;         # キャッシュしない
-        proxy_cache_bypass 1;     # キャッシュをバイパス
+        proxy_no_cache 1;         # Do not cache
+        proxy_cache_bypass 1;     # Bypass cache
         add_header Cache-Control "private, no-cache";
     }
 
-    # ── 機密 API ──
+    # ── Sensitive API ──
     location /api/secure/ {
         proxy_pass http://backend;
         proxy_no_cache 1;
@@ -1048,36 +1051,36 @@ server {
 }
 ```
 
-### 6.3 Service Worker によるキャッシュ戦略
+### 6.3 Cache Strategies with Service Worker
 
-Service Workerを活用すると、ブラウザ側でより細かいキャッシュ制御が可能になる。代表的な戦略は以下の通りである。
+Using a Service Worker allows for more granular cache control on the browser side. The representative strategies are as follows.
 
 ```
-Service Worker キャッシュ戦略:
+Service Worker cache strategies:
 
-  ■ Cache First（キャッシュ優先）
-    → キャッシュにあればそれを返す。なければネットワークから取得
-    → 用途: 静的アセット、フォント
+  ■ Cache First
+    → Return from cache if available. Fetch from network if not.
+    → Use case: static assets, fonts
 
-  ■ Network First（ネットワーク優先）
-    → ネットワークから取得を試み、失敗したらキャッシュを返す
-    → 用途: API、HTML
+  ■ Network First
+    → Try to fetch from network; return cache on failure
+    → Use case: API, HTML
 
   ■ Stale While Revalidate
-    → キャッシュを即返しつつ、バックグラウンドでネットワーク更新
-    → 用途: ニュースフィード、SNSタイムライン
+    → Return cache immediately while updating from network in background
+    → Use case: news feeds, social media timelines
 
   ■ Cache Only
-    → キャッシュのみ参照（オフライン専用アセット）
-    → 用途: プリキャッシュされたアプリシェル
+    → Access cache only (for offline-only assets)
+    → Use case: pre-cached app shell
 
   ■ Network Only
-    → ネットワークのみ（キャッシュを一切使わない）
-    → 用途: 決済処理、リアルタイムデータ
+    → Network only (never use cache)
+    → Use case: payment processing, real-time data
 ```
 
 ```javascript
-// Service Worker のキャッシュ戦略実装例
+// Service Worker cache strategy implementation example
 // sw.js
 
 const CACHE_NAME = 'app-cache-v1';
@@ -1088,7 +1091,7 @@ const STATIC_ASSETS = [
   '/assets/style.css',
 ];
 
-// インストール時にアプリシェルをプリキャッシュ
+// Pre-cache app shell at install time
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -1097,11 +1100,11 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// フェッチイベントの処理
+// Handle fetch events
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // 静的アセット: Cache First
+  // Static assets: Cache First
   if (url.pathname.startsWith('/assets/')) {
     event.respondWith(cacheFirst(event.request));
     return;
@@ -1161,304 +1164,304 @@ async function staleWhileRevalidate(request) {
 
 ---
 
-## 7. アンチパターンとエッジケース
+## 7. Anti-Patterns and Edge Cases
 
-### 7.1 アンチパターン1: max-age のみで immutable を忘れる
+### 7.1 Anti-Pattern 1: Using max-age Without immutable
 
 ```
-■ アンチパターン:
+■ Anti-pattern:
   Cache-Control: public, max-age=31536000
 
-  問題:
-  - ブラウザが「条件付きリクエスト」を送信する場合がある
-  - ページ遷移やリロード時に 304 往復が発生
-  - 特に Safari は積極的に再検証を行う傾向がある
+  Problem:
+  - The browser may send "conditional requests"
+  - 304 round-trips occur during page transitions and reloads
+  - Safari in particular tends to aggressively revalidate
 
   ┌─────────────────────────────────────────────────────┐
-  │  ブラウザ                        サーバー            │
+  │  Browser                         Server             │
   │    │                               │               │
   │    │── GET /app.a1b2.js ──────────▶│               │
   │    │   If-None-Match: "xyz"        │               │
   │    │                               │               │
   │    │◀── 304 Not Modified ──────────│               │
   │    │                               │               │
-  │    │  ★ この往復が無駄!             │               │
-  │    │  ファイル名にハッシュがあるので │               │
-  │    │  内容は絶対に変わらない         │               │
+  │    │  ★ This round-trip is wasted! │               │
+  │    │  The filename has a hash, so  │               │
+  │    │  content will never change    │               │
   └─────────────────────────────────────────────────────┘
 
-■ 正しいパターン:
+■ Correct pattern:
   Cache-Control: public, max-age=31536000, immutable
 
-  → immutable を付けることで、ブラウザは期限内の
-    条件付きリクエストを送信しなくなる
-  → ページ遷移時のパフォーマンスが向上
-  → 特にモバイル環境（低帯域・高レイテンシ）で効果が大きい
+  → With immutable, the browser will not send conditional
+    requests within the expiry period
+  → Improves performance during page transitions
+  → Particularly effective in mobile environments (low bandwidth, high latency)
 ```
 
-**影響の程度**: 高トラフィックサイトでは、不要な304リクエストが毎秒数千〜数万回発生する可能性がある。各リクエストのRTTが50ms程度だとしても、ユーザー体験への累積的な影響は無視できない。
+**Magnitude of impact**: On high-traffic sites, unnecessary 304 requests can occur thousands to tens of thousands of times per second. Even with an RTT of ~50ms per request, the cumulative impact on user experience is non-negligible.
 
-### 7.2 アンチパターン2: Vary: * の使用
+### 7.2 Anti-Pattern 2: Using Vary: *
 
 ```
-■ アンチパターン:
+■ Anti-pattern:
   Vary: *
 
-  問題:
-  - すべてのリクエストが一意のキャッシュキーを持つことになる
-  - 事実上、キャッシュが完全に無効化される
-  - CDN/プロキシでのキャッシュヒット率が 0% になる
-  - 意図せずこうなるケースが多い（フレームワークのデフォルト設定等）
+  Problem:
+  - Every request gets a unique cache key
+  - The cache is effectively completely disabled
+  - CDN/proxy cache hit rate becomes 0%
+  - Often occurs unintentionally (framework default settings, etc.)
 
-■ よくある原因:
-  1. フレームワークが自動的に Vary: * を付与している
-  2. ミドルウェアが過剰な Vary ヘッダーを追加している
-  3. CORS ミドルウェアが Vary: Origin を追加し、
-     他のミドルウェアが Vary: Accept-Encoding を追加し、
-     最終的に結合されて Vary: * に変換されるケースがある
+■ Common causes:
+  1. Framework automatically adds Vary: *
+  2. Middleware adds excessive Vary headers
+  3. CORS middleware adds Vary: Origin and
+     other middleware adds Vary: Accept-Encoding,
+     which can be merged into Vary: * in some implementations
 
-■ 正しいパターン:
-  必要最小限のヘッダーのみを Vary に指定する
+■ Correct pattern:
+  Specify only the minimum necessary headers in Vary
   Vary: Accept-Encoding
   Vary: Accept-Encoding, Accept-Language
 
-■ デバッグ方法:
+■ Debugging:
   curl -I https://example.com/api/data
-  → レスポンスの Vary ヘッダーを確認
-  → * が含まれていないか、過剰なヘッダーが含まれていないかチェック
+  → Check the Vary header in the response
+  → Check whether * is included or excessive headers are present
 ```
 
-### 7.3 アンチパターン3: Set-Cookie と Cache-Control の競合
+### 7.3 Anti-Pattern 3: Conflict Between Set-Cookie and Cache-Control
 
 ```
-■ アンチパターン:
+■ Anti-pattern:
   HTTP/1.1 200 OK
   Cache-Control: public, max-age=3600
   Set-Cookie: session=abc123; HttpOnly; Secure
 
-  問題:
-  - Set-Cookie を含むレスポンスが CDN にキャッシュされる
-  - 他のユーザーに対してそのセッションCookieが配信される
-  - セッションハイジャック等の深刻なセキュリティ脆弱性
+  Problem:
+  - A response containing Set-Cookie gets cached by the CDN
+  - That session cookie is delivered to other users
+  - Serious security vulnerability such as session hijacking
 
-■ 正しいパターン:
-  選択肢A: キャッシュ不可にする
+■ Correct pattern:
+  Option A: Make it uncacheable
     Cache-Control: private, no-cache
     Set-Cookie: session=abc123; HttpOnly; Secure
 
-  選択肢B: Set-Cookie を含まないようにする
+  Option B: Avoid including Set-Cookie
     Cache-Control: public, max-age=3600
-    (Set-Cookie なし — セッション管理は別のエンドポイントで)
+    (No Set-Cookie — handle session management at a separate endpoint)
 
-  選択肢C: CDN側で Set-Cookie を除去する設定
-    (CloudFront の Response Headers Policy 等)
+  Option C: Configure CDN to remove Set-Cookie
+    (e.g., CloudFront Response Headers Policy)
 ```
 
-### 7.4 エッジケース1: クロックスキューによるキャッシュ異常
+### 7.4 Edge Case 1: Cache Anomalies Due to Clock Skew
 
 ```
-■ 状況:
-  クライアントとサーバーの時計がずれている場合
+■ Situation:
+  When the client and server clocks are out of sync
 
-  サーバー時刻: 2025-01-15 10:00:00
-  クライアント時刻: 2025-01-15 09:55:00 (5分遅れ)
+  Server time: 2025-01-15 10:00:00
+  Client time: 2025-01-15 09:55:00 (5 minutes behind)
 
-  レスポンス:
+  Response:
     Date: Wed, 15 Jan 2025 10:00:00 GMT
     Cache-Control: max-age=300
 
-  クライアントの計算:
-    age = client_now - date = -300秒（負の値!）
-    → 実装によって挙動が異なる
+  Client calculation:
+    age = client_now - date = -300 seconds (negative!)
+    → Behavior varies depending on implementation
 
-  ■ 発生しうる問題:
-    - キャッシュが期待より長く/短く有効になる
-    - Age ヘッダーが負の値になりパースエラーが発生する
-    - CDN間でキャッシュの鮮度判定が不整合になる
+  ■ Possible problems:
+    - Cache may be valid longer/shorter than expected
+    - Age header becomes negative, causing parse errors
+    - Freshness evaluation becomes inconsistent between CDN nodes
 
-  ■ 対策:
-    - サーバー側: NTP で時刻を正確に同期する
-    - アプリ側: Age ヘッダーも活用し、相対的な鮮度を計算する
+  ■ Countermeasures:
+    - Server side: Synchronize time accurately with NTP
+    - Application side: Also use Age header to calculate relative freshness
       response_age = max(0, age_header_value)
       freshness_lifetime = max_age - response_age
-    - CDN側: 多くのCDNはAge ヘッダーを自動付与し、
-      クロックスキューの影響を軽減する
+    - CDN side: Many CDNs automatically append the Age header,
+      reducing the impact of clock skew
 ```
 
-### 7.5 エッジケース2: POST/PUT/DELETE によるキャッシュの暗黙的無効化
+### 7.5 Edge Case 2: Implicit Cache Invalidation by POST/PUT/DELETE
 
 ```
-■ HTTP仕様の規定（RFC 9111 Section 4.4）:
+■ HTTP specification (RFC 9111 Section 4.4):
 
-  安全でないメソッド（POST, PUT, DELETE, PATCH）の
-  成功レスポンス（2xx）を受信したとき、キャッシュは
-  同一URIの保存済みレスポンスを無効化しなければならない（MUST）。
+  When a successful response (2xx) to an unsafe method
+  (POST, PUT, DELETE, PATCH) is received, the cache
+  MUST invalidate any stored responses for the same URI.
 
-  また、Content-Location または Location ヘッダーの
-  URIのキャッシュも無効化しなければならない。
+  Also, caches for URIs in Content-Location or Location
+  headers MUST be invalidated.
 
-  ■ 例:
-    1. GET /api/users/42 → 200 (キャッシュに保存)
-    2. PUT /api/users/42 → 200 (成功)
-    3. /api/users/42 のキャッシュが自動的に無効化される
-    4. 次の GET /api/users/42 → サーバーに問い合わせ
+  ■ Example:
+    1. GET /api/users/42 → 200 (stored in cache)
+    2. PUT /api/users/42 → 200 (success)
+    3. Cache for /api/users/42 is automatically invalidated
+    4. Next GET /api/users/42 → queries the server
 
-  ■ 注意点:
-    - この無効化はローカルキャッシュのみに適用される
-    - CDN のキャッシュは自動的には無効化されない
-    - CDN のキャッシュ無効化には明示的なパージが必要
+  ■ Notes:
+    - This invalidation only applies to the local cache
+    - CDN cache is not automatically invalidated
+    - Explicit purge is required for CDN cache invalidation
 
-  ■ CDN でのベストプラクティス:
-    POST /api/users/42 の成功後に:
-    1. アプリケーションが CDN パージ API を呼ぶ
-    2. または、s-maxage を短く設定して自然な有効期限切れを待つ
-    3. または、CDN の「オリジンリクエスト時に更新」機能を使う
+  ■ CDN best practices:
+    After POST /api/users/42 succeeds:
+    1. Application calls the CDN purge API
+    2. Or, set a short s-maxage and wait for natural expiry
+    3. Or, use the CDN "update on origin request" feature
 ```
 
-### 7.6 エッジケース3: Range リクエストとキャッシュ
+### 7.6 Edge Case 3: Range Requests and Caching
 
 ```
-■ 状況:
-  大きなファイル（動画等）の部分ダウンロード時
+■ Situation:
+  Partial download of a large file (e.g., video)
 
-  リクエスト:
+  Request:
     GET /video/lecture.mp4 HTTP/1.1
     Range: bytes=0-1048575
 
-  レスポンス:
+  Response:
     HTTP/1.1 206 Partial Content
     Content-Range: bytes 0-1048575/104857600
     ETag: "abc123"
     Cache-Control: public, max-age=3600
 
-  ■ キャッシュの課題:
-    - 部分レスポンス（206）もキャッシュ可能だが、
-      キャッシュの実装が複雑になる
-    - 同一URLに対して異なる Range のリクエストが来る
-    - 一部のCDN は 206 をキャッシュしない設定がデフォルト
+  ■ Cache challenges:
+    - Partial responses (206) can be cached, but
+      cache implementation becomes complex
+    - Requests with different Range values come for the same URL
+    - Some CDNs do not cache 206 by default
 
-  ■ ベストプラクティス:
-    - CDN に全体のファイルをキャッシュさせ、
-      エッジで Range リクエストに対応させる
-    - 強い ETag を使用する（弱い ETag は Range 非対応）
-    - CloudFront: 自動的に Range をサポート
-    - Cloudflare: Enterprise プランで Range キャッシュ最適化
+  ■ Best practices:
+    - Have the CDN cache the full file and
+      handle Range requests at the edge
+    - Use strong ETags (weak ETags do not support Range)
+    - CloudFront: automatically supports Range
+    - Cloudflare: Range cache optimization on Enterprise plan
 ```
 
 ---
 
-## 8. キャッシュのモニタリングとデバッグ
+## 8. Cache Monitoring and Debugging
 
-### 8.1 キャッシュヒット率の計測
+### 8.1 Measuring Cache Hit Rate
 
-キャッシュの効果を定量的に把握するには、キャッシュヒット率の継続的な計測が不可欠である。
+Continuously measuring the cache hit rate is essential to quantitatively understand the effectiveness of caching.
 
 ```
-キャッシュヒット率の計算:
+Cache hit rate calculation:
 
   hit_rate = cache_hits / (cache_hits + cache_misses) * 100
 
-  目安:
+  Benchmarks:
   ┌──────────────────┬────────────┬─────────────────────────────┐
-  │ ヒット率          │ 評価       │ 対応                        │
+  │ Hit rate         │ Rating     │ Action                      │
   ├──────────────────┼────────────┼─────────────────────────────┤
-  │ 95%+             │ 優秀       │ 現状維持                    │
-  │ 80-95%           │ 良好       │ 微調整で改善可能            │
-  │ 50-80%           │ 改善必要   │ TTL、キャッシュキーを見直す  │
-  │ 50%未満          │ 要対応     │ 戦略の根本的な見直し        │
+  │ 95%+             │ Excellent  │ Maintain current state      │
+  │ 80-95%           │ Good       │ Fine-tuning can improve     │
+  │ 50-80%           │ Needs work │ Review TTL, cache keys      │
+  │ Below 50%        │ Critical   │ Fundamental strategy review │
   └──────────────────┴────────────┴─────────────────────────────┘
 ```
 
-### 8.2 デバッグ用ヘッダーの活用
+### 8.2 Using Debug Headers
 
 ```bash
-# curl でキャッシュヘッダーを確認
+# Check cache headers with curl
 curl -I https://example.com/assets/app.a1b2c3.js
 
-# 期待されるレスポンスヘッダー:
+# Expected response headers:
 # HTTP/2 200
 # cache-control: public, max-age=31536000, immutable
 # etag: "abc123"
-# x-cache: Hit from cloudfront           ← CloudFront のキャッシュ状態
-# age: 12345                             ← キャッシュに入ってからの経過秒数
-# cf-cache-status: HIT                   ← Cloudflare のキャッシュ状態
-# x-cache-status: HIT                    ← nginx のキャッシュ状態
+# x-cache: Hit from cloudfront           ← CloudFront cache status
+# age: 12345                             ← Seconds elapsed since cached
+# cf-cache-status: HIT                   ← Cloudflare cache status
+# x-cache-status: HIT                    ← nginx cache status
 
-# CDN別のキャッシュ状態ヘッダー:
+# Cache status headers by CDN:
 #
 # CloudFront:
 #   X-Cache: Hit from cloudfront
 #   X-Cache: Miss from cloudfront
-#   X-Cache: RefreshHit from cloudfront  ← SWRで返却
+#   X-Cache: RefreshHit from cloudfront  ← Returned via SWR
 #
 # Cloudflare:
 #   CF-Cache-Status: HIT
 #   CF-Cache-Status: MISS
 #   CF-Cache-Status: EXPIRED
 #   CF-Cache-Status: STALE
-#   CF-Cache-Status: DYNAMIC             ← キャッシュ対象外
+#   CF-Cache-Status: DYNAMIC             ← Not eligible for caching
 #   CF-Cache-Status: BYPASS
 #
 # Fastly:
 #   X-Cache: HIT
 #   X-Cache: MISS
-#   X-Cache-Hits: 5                      ← ヒット回数
-#   X-Served-By: cache-tyo...            ← 応答したエッジサーバー
+#   X-Cache-Hits: 5                      ← Number of hits
+#   X-Served-By: cache-tyo...            ← Edge server that responded
 ```
 
-### 8.3 ブラウザDevToolsによるキャッシュ確認
+### 8.3 Checking Cache with Browser DevTools
 
 ```
-Chrome DevTools での確認手順:
+Steps to verify in Chrome DevTools:
 
-  1. Network タブを開く
-  2. 「Disable cache」のチェックを外す（通常のキャッシュ動作を確認）
-  3. ページを読み込む
-  4. 各リソースの以下を確認:
+  1. Open the Network tab
+  2. Uncheck "Disable cache" (to observe normal cache behavior)
+  3. Load the page
+  4. For each resource, check:
 
-     Size 列:
-       - (disk cache) → ディスクキャッシュから取得
-       - (memory cache) → メモリキャッシュから取得
-       - (ServiceWorker) → Service Worker から取得
-       - 数値 → ネットワークから取得
+     Size column:
+       - (disk cache) → fetched from disk cache
+       - (memory cache) → fetched from memory cache
+       - (ServiceWorker) → fetched from Service Worker
+       - numeric → fetched from network
 
-     Status 列:
-       - 200 → 新規取得 or キャッシュから復元
-       - 304 → サーバーで検証済み（変更なし）
+     Status column:
+       - 200 → new fetch or restored from cache
+       - 304 → validated with server (no change)
 
-     Headers タブ:
-       - Response Headers の Cache-Control, ETag, Age を確認
-       - Request Headers の If-None-Match, If-Modified-Since を確認
+     Headers tab:
+       - Check Cache-Control, ETag, Age in Response Headers
+       - Check If-None-Match, If-Modified-Since in Request Headers
 
-  5. 「Disable cache」にチェックを入れると:
-     → Cache-Control: no-cache がリクエストに追加される
-     → すべてのリソースがネットワークから取得される
-     → デバッグ時に有用
+  5. Checking "Disable cache":
+     → Cache-Control: no-cache is added to requests
+     → All resources are fetched from network
+     → Useful during debugging
 ```
 
-### 8.4 キャッシュ関連の主要メトリクス
+### 8.4 Key Cache-Related Metrics
 
-| メトリクス | 計測方法 | 目標値 | 意味 |
-|-----------|---------|--------|------|
-| CDN ヒット率 | CDNダッシュボード | 90%+ | CDNでの応答割合 |
-| 304 レスポンス率 | アクセスログ解析 | HTML: 60%+ | 帯域節約の効果 |
-| TTFB（Time To First Byte） | RUM / Synthetic | <200ms | 最初のバイトまでの時間 |
-| バイト節約量 | CDNダッシュボード | - | 転送量削減効果 |
-| パージ成功率 | CDN API ログ | 99.9%+ | パージの信頼性 |
-| stale 配信率 | カスタムヘッダー | <5% | 古いコンテンツ配信の割合 |
+| Metric | Measurement method | Target | Meaning |
+|--------|-------------------|--------|---------|
+| CDN hit rate | CDN dashboard | 90%+ | Proportion of responses served by CDN |
+| 304 response rate | Access log analysis | HTML: 60%+ | Effectiveness of bandwidth savings |
+| TTFB (Time To First Byte) | RUM / Synthetic | <200ms | Time to first byte |
+| Bytes saved | CDN dashboard | — | Transfer volume reduction effect |
+| Purge success rate | CDN API logs | 99.9%+ | Reliability of purges |
+| Stale delivery rate | Custom header | <5% | Proportion of stale content delivered |
 
 ---
 
-## 9. 高度なキャッシュパターン
+## 9. Advanced Cache Patterns
 
-### 9.1 Surrogate Keys によるタグベースパージ
+### 9.1 Tag-Based Purging with Surrogate Keys
 
-従来のパスベースのパージでは、関連するすべてのURLを列挙する必要がある。Surrogate Keys（タグベースパージ）を使うと、リソースにタグを付与し、タグ単位でパージできる。
+Traditional path-based purging requires enumerating all related URLs. Surrogate Keys (tag-based purging) allows attaching tags to resources and purging by tag.
 
 ```
-Surrogate Keys の仕組み（Fastly の例）:
+How Surrogate Keys work (Fastly example):
 
-  ■ レスポンスにタグを付与:
+  ■ Attach tags to responses:
     GET /api/products/42
 
     HTTP/1.1 200 OK
@@ -1471,41 +1474,41 @@ Surrogate Keys の仕組み（Fastly の例）:
     Surrogate-Key: category-electronics all-categories
     Cache-Control: public, s-maxage=3600
 
-  ■ 商品42を更新した場合:
+  ■ When product 42 is updated:
     PURGE tag: product-42
 
-    → /api/products/42 がパージされる
-    → /api/products/42 を参照する他のURLもパージ可能
+    → /api/products/42 is purged
+    → Other URLs referencing /api/products/42 can also be purged
 
-  ■ 全商品を更新した場合:
+  ■ When all products are updated:
     PURGE tag: all-products
 
-    → all-products タグを持つ全URLが一括パージされる
+    → All URLs with the all-products tag are bulk-purged
 
-  利点:
-  - パージ対象のURL列挙が不要
-  - コンテンツの論理的な関係に基づいた無効化が可能
-  - 数千URLの一括パージも高速（Fastly: 150ms以内）
+  Benefits:
+  - No need to enumerate URLs to purge
+  - Invalidation based on logical relationships between content
+  - Bulk purge of thousands of URLs is fast (Fastly: within 150ms)
 ```
 
 ### 9.2 Edge Side Includes (ESI)
 
-ESI は、ページの一部を動的に組み立てるためのマークアップ言語である。CDNエッジで処理され、ページの各部分に異なるキャッシュポリシーを適用できる。
+ESI is a markup language for dynamically assembling parts of a page. Processed at the CDN edge, it allows applying different cache policies to each part of a page.
 
 ```html
-<!-- ESI の例: ページ構成 -->
-<!-- ヘッダー: ユーザー固有、キャッシュ短め -->
+<!-- ESI example: page composition -->
+<!-- Header: user-specific, shorter cache -->
 <esi:include src="/fragments/header"
   onerror="continue"
   maxwait="500" />
 
-<!-- メインコンテンツ: パブリック、キャッシュ長め -->
+<!-- Main content: public, longer cache -->
 <esi:include src="/fragments/product/42" />
 
-<!-- サイドバー: パブリック、中程度のキャッシュ -->
+<!-- Sidebar: public, moderate cache -->
 <esi:include src="/fragments/sidebar/recommendations" />
 
-<!-- フッター: パブリック、長期キャッシュ -->
+<!-- Footer: public, long-term cache -->
 <esi:include src="/fragments/footer" />
 
 <!--
@@ -1514,126 +1517,126 @@ ESI は、ページの一部を動的に組み立てるためのマークアッ�
   /fragments/sidebar/...  → Cache-Control: public, s-maxage=600
   /fragments/footer       → Cache-Control: public, s-maxage=86400
 
-  → ページ全体をキャッシュ不可にする必要がない
-  → パブリックな部分は CDN にキャッシュされる
-  → ユーザー固有部分だけが毎回取得される
+  → No need to make the entire page uncacheable
+  → Public parts are cached at the CDN
+  → Only user-specific parts are fetched every time
 -->
 ```
 
-### 9.3 Cache Stampede（キャッシュスタンピード）対策
+### 9.3 Cache Stampede Prevention
 
 ```
-■ Cache Stampede とは:
-  キャッシュの有効期限が切れた瞬間に、多数のリクエストが
-  同時にオリジンサーバーに到達する現象。
-  「Thundering Herd」問題とも呼ばれる。
+■ What is Cache Stampede:
+  A phenomenon where a large number of requests
+  simultaneously reach the origin server the moment
+  a cache entry expires.
+  Also known as the "Thundering Herd" problem.
 
-  タイムライン:
+  Timeline:
 
   ─────────────────────────────┬───────────────────────────
-  ◀── キャッシュ有効 ──────────│──── キャッシュ期限切れ ──▶
+  ◀── Cache valid ─────────────│──── Cache expired ──────▶
                                │
-                    Request 1 ─┼──▶ Origin ──▶ 応答
-                    Request 2 ─┼──▶ Origin ──▶ 応答
-                    Request 3 ─┼──▶ Origin ──▶ 応答
+                    Request 1 ─┼──▶ Origin ──▶ Response
+                    Request 2 ─┼──▶ Origin ──▶ Response
+                    Request 3 ─┼──▶ Origin ──▶ Response
                     ...        │
-                    Request N ─┼──▶ Origin ──▶ 応答
+                    Request N ─┼──▶ Origin ──▶ Response
                                │
-                    ★ N個のリクエストが同時にオリジンに殺到
-                    ★ オリジンが過負荷になる可能性
+                    ★ N requests hit origin simultaneously
+                    ★ Origin may become overloaded
 
-■ 対策1: Request Coalescing（リクエスト結合）
-  同一キーのリクエストを1つにまとめ、
-  結果を全リクエストに配信する。
+■ Solution 1: Request Coalescing
+  Combine requests for the same key into one and
+  deliver the result to all requests.
 
   ─────────────────────────────┬───────────────────────────
                                │
                     Request 1 ─┤
-                    Request 2 ─┼──▶ 1つだけ Origin へ
+                    Request 2 ─┼──▶ Only one goes to Origin
                     Request 3 ─┤
                                │
-                    全リクエストに同じ結果を返す
+                    Same result returned to all requests
 
   nginx: proxy_cache_lock on;
-  Varnish: coalescing はデフォルトで有効
+  Varnish: coalescing is enabled by default
 
-■ 対策2: Probabilistic Early Expiration
-  キャッシュの期限切れより少し前に、確率的に更新を開始する。
+■ Solution 2: Probabilistic Early Expiration
+  Start probabilistic updates slightly before cache expiry.
 
-  計算式:
+  Formula:
     should_refresh = (random() < beta * log(random()))
                      && (now > expiry - delta)
 
-  → 期限切れ前に1つのリクエストだけが更新を実行
-  → 残りのリクエストは既存キャッシュを使い続ける
+  → Only one request triggers the update before expiry
+  → Remaining requests continue using existing cache
 
-■ 対策3: stale-while-revalidate
+■ Solution 3: stale-while-revalidate
   Cache-Control: max-age=60, stale-while-revalidate=300
-  → 期限切れ後も古いキャッシュを返しつつ、
-    バックグラウンドで1つだけ更新リクエストを送信
+  → Return stale cache after expiry while sending
+    only one update request in the background
 ```
 
-### 9.4 マルチテナント環境でのキャッシュ分離
+### 9.4 Cache Isolation in Multi-Tenant Environments
 
 ```
-■ 課題:
-  SaaS アプリケーションで、テナントごとに異なるコンテンツを
-  提供する場合、キャッシュキーにテナント識別子を含める必要がある。
+■ Challenge:
+  In SaaS applications that serve different content per tenant,
+  the cache key must include a tenant identifier.
 
-■ 方法1: サブドメインベース
-  tenant-a.app.example.com → キャッシュキーにホスト名を含む
-  tenant-b.app.example.com → 自然にテナント分離される
+■ Method 1: Subdomain-based
+  tenant-a.app.example.com → hostname included in cache key
+  tenant-b.app.example.com → naturally isolated per tenant
 
-■ 方法2: パスベース
+■ Method 2: Path-based
   app.example.com/tenant-a/api/data
   app.example.com/tenant-b/api/data
-  → URLが異なるため自然に分離される
+  → Naturally isolated because URLs differ
 
-■ 方法3: ヘッダーベース
+■ Method 3: Header-based
   app.example.com/api/data
   X-Tenant-ID: tenant-a
 
   Vary: X-Tenant-ID
-  → ヘッダー値ごとに別キャッシュエントリ
+  → Separate cache entry per header value
 
-  注意: CDN のキャッシュキーに X-Tenant-ID を含める設定が必要
-  CloudFront: Cache Policy の Headers に追加
-  Cloudflare: Cache Key の Custom Headers に追加
+  Note: CDN cache key must be configured to include X-Tenant-ID
+  CloudFront: Add to Headers in Cache Policy
+  Cloudflare: Add to Custom Headers in Cache Key
 
-■ セキュリティ上の注意:
-  - テナントAのキャッシュがテナントBに配信されないことを
-    厳密にテストする
-  - Vary ヘッダーの設定漏れは深刻なデータ漏洩になる
-  - CDN の設定とアプリケーションの設定を二重にチェックする
+■ Security notes:
+  - Rigorously test that tenant A's cache is not delivered to tenant B
+  - Missing Vary header configuration can cause serious data leakage
+  - Double-check both CDN settings and application settings
 ```
 
 ---
 
-## 10. HTTP/2 および HTTP/3 におけるキャッシュの考慮事項
+## 10. Cache Considerations in HTTP/2 and HTTP/3
 
-### 10.1 HTTP/2 Server Push とキャッシュ
+### 10.1 HTTP/2 Server Push and Caching
 
 ```
-■ HTTP/2 Server Push の基本:
-  サーバーがHTMLレスポンスと一緒に、必要になるであろう
-  リソース（CSS, JS等）を先行して送信する機能。
+■ Basics of HTTP/2 Server Push:
+  A feature where the server proactively sends resources
+  (CSS, JS, etc.) that will be needed along with the HTML response.
 
   GET /index.html HTTP/2
 
-  レスポンス:
+  Response:
     PUSH_PROMISE: /assets/style.a1b2.css
     PUSH_PROMISE: /assets/app.c3d4.js
 
     DATA: <html>...</html>
-    DATA: /* style.a1b2.css の内容 */
-    DATA: /* app.c3d4.js の内容 */
+    DATA: /* content of style.a1b2.css */
+    DATA: /* content of app.c3d4.js */
 
-■ キャッシュとの問題:
-  - ブラウザに既にキャッシュがあっても Push される
-  - 帯域の浪費になる
-  - Chrome 106 以降、Server Push のサポートが削除された
+■ Problems with caching:
+  - Resources are pushed even when the browser already has them cached
+  - Results in bandwidth waste
+  - Chrome 106 and later removed Server Push support
 
-■ 代替手段: 103 Early Hints
+■ Alternative: 103 Early Hints
   HTTP/1.1 103 Early Hints
   Link: </assets/style.a1b2.css>; rel=preload; as=style
   Link: </assets/app.c3d4.js>; rel=preload; as=script
@@ -1642,341 +1645,346 @@ ESI は、ページの一部を動的に組み立てるためのマークアッ�
   Content-Type: text/html
   ...
 
-  → ブラウザはキャッシュを確認してから取得を開始する
-  → 不要な転送を回避できる
-  → CloudFront, Cloudflare が対応済み
+  → Browser checks cache before starting to fetch
+  → Avoids unnecessary transfers
+  → CloudFront and Cloudflare both support this
 ```
 
-### 10.2 HTTP/3 (QUIC) とキャッシュ
+### 10.2 HTTP/3 (QUIC) and Caching
 
 ```
-■ HTTP/3 固有のキャッシュ考慮事項:
+■ HTTP/3-specific cache considerations:
 
-  1. 接続の復元（0-RTT）:
-     QUIC の 0-RTT ハンドシェイクでは、前回の接続情報を
-     キャッシュして再利用する。
-     → 接続確立が高速化されるが、リプレイ攻撃のリスクがある
-     → 安全でないメソッド（POST等）は 0-RTT で送信すべきでない
+  1. Connection resumption (0-RTT):
+     QUIC's 0-RTT handshake caches previous connection
+     information and reuses it.
+     → Faster connection establishment, but risks replay attacks
+     → Unsafe methods (POST, etc.) should not be sent with 0-RTT
 
-  2. サーバー証明書のキャッシュ:
-     QUIC は TLS 1.3 を使用し、セッションチケットを
-     キャッシュすることで再接続を高速化する
+  2. Server certificate caching:
+     QUIC uses TLS 1.3 and caches session tickets
+     to speed up reconnection
 
-  3. HTTPヘッダー圧縮（QPACK）:
-     HTTP/3 では QPACK によるヘッダー圧縮が行われる
-     Cache-Control 等の頻出ヘッダーは効率的に圧縮される
-     → キャッシュの動作自体は HTTP/2 と同じ
+  3. HTTP header compression (QPACK):
+     HTTP/3 uses QPACK for header compression
+     Frequently appearing headers like Cache-Control are
+     compressed efficiently
+     → Cache behavior itself is the same as HTTP/2
 
-  4. コネクションマイグレーション:
-     ネットワーク切り替え（Wi-Fi → モバイル）時にも
-     接続が維持されるため、キャッシュの一貫性が保たれる
+  4. Connection migration:
+     Connections are maintained even during network switching
+     (Wi-Fi → mobile), preserving cache consistency
 ```
 
 ---
 
-## 11. セキュリティとキャッシュ
+## 11. Security and Caching
 
-### 11.1 キャッシュポイズニング攻撃
+### 11.1 Cache Poisoning Attacks
 
 ```
 ■ Web Cache Poisoning:
-  攻撃者がキャッシュに悪意のあるレスポンスを格納させ、
-  他のユーザーにそれを配信させる攻撃。
+  An attack where the attacker causes malicious responses
+  to be stored in the cache and served to other users.
 
-  攻撃手法:
-  1. キャッシュキーに含まれないヘッダー（Unkeyed Input）を発見
-  2. そのヘッダーがレスポンスに反映されることを確認
-  3. 悪意のある値を含むリクエストを送信
-  4. CDN がそのレスポンスをキャッシュ
-  5. 他のユーザーに悪意のあるレスポンスが配信される
+  Attack method:
+  1. Discover a header not included in the cache key (Unkeyed Input)
+  2. Confirm that the header is reflected in the response
+  3. Send a request with a malicious value
+  4. The CDN caches that response
+  5. The malicious response is served to other users
 
-  例:
+  Example:
     GET /page HTTP/1.1
     Host: example.com
     X-Forwarded-Host: evil.com     ← Unkeyed Input
 
-    レスポンス:
+    Response:
     <link href="https://evil.com/style.css" rel="stylesheet">
-    → このレスポンスがキャッシュされると、
-      全ユーザーに evil.com の CSS が配信される
+    → If this response is cached,
+      evil.com's CSS is delivered to all users
 
-■ 対策:
-  1. Unkeyed Input を排除する
-     → レスポンスに反映するヘッダーはすべて Vary に追加
-     → 不要なヘッダーの処理をアプリから除去
+■ Countermeasures:
+  1. Eliminate Unkeyed Inputs
+     → Add to Vary all headers that are reflected in responses
+     → Remove handling of unnecessary headers from the application
 
-  2. CDN のキャッシュキーを適切に設定する
-     → 必要なヘッダーをキャッシュキーに含める
+  2. Configure CDN cache keys appropriately
+     → Include necessary headers in the cache key
 
-  3. レスポンスの入力検証を徹底する
-     → ヘッダー値を無条件にレスポンスに埋め込まない
+  3. Thoroughly validate response inputs
+     → Do not unconditionally embed header values in responses
 
-  4. Cache-Control: private をデフォルトにする
-     → 明示的に public にするリソースのみ CDN キャッシュ
+  4. Use Cache-Control: private as the default
+     → Only explicitly mark resources as public for CDN caching
 ```
 
-### 11.2 Cache Deception 攻撃
+### 11.2 Cache Deception Attacks
 
 ```
 ■ Web Cache Deception:
-  攻撃者が被害者に特殊なURLにアクセスさせ、
-  被害者の個人データを CDN にキャッシュさせる攻撃。
+  An attack where the attacker causes the victim to access
+  a specially crafted URL, causing the victim's personal
+  data to be cached by the CDN.
 
-  攻撃手法:
-  1. 攻撃者が被害者に以下のURLを踏ませる:
+  Attack method:
+  1. Attacker tricks victim into accessing:
      https://example.com/api/me/profile/nonexistent.css
 
-  2. サーバーは /api/me/profile のレスポンスを返す
-     (パスの末尾を無視するフレームワークの場合)
+  2. Server returns the /api/me/profile response
+     (for frameworks that ignore trailing path segments)
 
-  3. CDN は .css 拡張子を見て静的ファイルとしてキャッシュ
+  3. CDN sees the .css extension and caches it as a static file
      Cache-Control: public, max-age=31536000
 
-  4. 攻撃者が同じURLにアクセスし、被害者のプロフィールを取得
+  4. Attacker accesses the same URL and retrieves the victim's profile
 
-■ 対策:
-  1. パスの正規化を厳密に行う
-     → /api/me/profile/xxx.css は 404 を返す
+■ Countermeasures:
+  1. Strictly normalize paths
+     → /api/me/profile/xxx.css returns 404
 
-  2. コンテンツタイプに基づくキャッシュ制御
-     → application/json は CDN でキャッシュしない
+  2. Content-type-based cache control
+     → Do not cache application/json at the CDN
 
-  3. 拡張子に基づくキャッシュルールを避ける
-     → パスパターンではなく、レスポンスヘッダーに基づいてキャッシュ
+  3. Avoid extension-based cache rules
+     → Cache based on response headers, not path patterns
 
-  4. ユーザー固有レスポンスには必ず Cache-Control: private
+  4. Always set Cache-Control: private on user-specific responses
 ```
 
 ---
 
-## FAQ（よくある質問）
+## FAQ (Frequently Asked Questions)
 
-### Q1: Cache-Controlディレクティブの使い分け — max-age、no-cache、no-storeの違いは何か
+### Q1: How to distinguish Cache-Control directives — what is the difference between max-age, no-cache, and no-store?
 
 ```
-主要なCache-Controlディレクティブ:
+Key Cache-Control directives:
 
 ┌──────────────────┬───────────────────────────────────────────┐
-│ ディレクティブ   │ 意味と用途                                 │
+│ Directive        │ Meaning and use case                      │
 ├──────────────────┼───────────────────────────────────────────┤
-│ max-age=秒数     │ キャッシュの有効期限（秒単位）             │
-│                  │ → 静的リソースに最適（max-age=31536000）  │
-│ no-cache         │ 毎回サーバーに検証（条件付きリクエスト）   │
-│                  │ → ETagと組み合わせて使用                  │
-│                  │ → 304 Not Modifiedでキャッシュ利用可能    │
-│ no-store         │ 一切キャッシュしない（メモリにも保存禁止） │
-│                  │ → 機密情報、個人データに使用               │
-│ private          │ ブラウザのみキャッシュ（CDN不可）          │
-│                  │ → ユーザー固有データに必須                 │
-│ public           │ CDN含め全階層でキャッシュ可能              │
-│                  │ → 静的リソース、公開APIレスポンス          │
-│ must-revalidate  │ 期限切れ後は必ず再検証（stale配信禁止）    │
-│ immutable        │ 絶対に変更されないリソース                 │
-│                  │ → /assets/app.abc123.js（ハッシュ付き）   │
+│ max-age=seconds  │ Cache expiry time (in seconds)            │
+│                  │ → Best for static resources (max-age=31536000) │
+│ no-cache         │ Validate with server every time           │
+│                  │   (conditional requests)                  │
+│                  │ → Use together with ETag                  │
+│                  │ → Can reuse cache with 304 Not Modified   │
+│ no-store         │ Never cache (do not save to memory)       │
+│                  │ → Use for confidential data, personal info│
+│ private          │ Cache only in browser (CDN not allowed)   │
+│                  │ → Required for user-specific data         │
+│ public           │ Can cache at all layers including CDN     │
+│                  │ → Static resources, public API responses  │
+│ must-revalidate  │ Must revalidate after expiry (no stale)   │
+│ immutable        │ Resource that will absolutely never change │
+│                  │ → /assets/app.abc123.js (with hash)       │
 └──────────────────┴───────────────────────────────────────────┘
 
-実務での使い分け:
+Practical usage:
 
-  静的リソース（JS/CSS/画像、ハッシュ付きURL）:
+  Static resources (JS/CSS/images, hashed URL):
   Cache-Control: public, max-age=31536000, immutable
-  → 1年間キャッシュ、CDN配信可能、変更時はURL自体を変える
+  → Cache for 1 year, CDN-deliverable, change the URL itself when content changes
 
-  HTML（頻繁に更新）:
+  HTML (frequently updated):
   Cache-Control: no-cache
   ETag: "abc123"
-  → 毎回検証、変更なければ304 Not Modified
+  → Validate every time, 304 Not Modified if unchanged
 
-  ユーザー固有データ（ダッシュボード等）:
+  User-specific data (dashboard, etc.):
   Cache-Control: private, no-cache
   ETag: "user-123-version-5"
-  → ブラウザのみキャッシュ、毎回検証
+  → Browser-only cache, validate every time
 
-  機密情報（クレジットカード情報等）:
+  Sensitive information (credit card info, etc.):
   Cache-Control: private, no-store, must-revalidate
-  → 一切キャッシュしない
+  → No caching at all
 
-  APIレスポンス（ユーザー固有）:
+  API response (user-specific):
   Cache-Control: private, max-age=300
-  → 5分間ブラウザキャッシュ（CDN不可）
+  → 5-minute browser cache (CDN not allowed)
 
-  APIレスポンス（公開データ）:
+  API response (public data):
   Cache-Control: public, max-age=600, stale-while-revalidate=86400
-  → 10分間キャッシュ、期限切れ後も24時間は古いデータを返しながら裏で更新
+  → Cache for 10 minutes, return stale data for 24 hours while updating in background
 
-注意点:
-  → no-cache ≠ キャッシュしない（検証付きでキャッシュする）
-  → no-store = 真の「キャッシュしない」
-  → must-revalidate は期限切れ後のstale配信を禁止
+Notes:
+  → no-cache ≠ no caching (caches with validation)
+  → no-store = the true "no caching"
+  → must-revalidate prohibits serving stale after expiry
 ```
 
-### Q2: CDNキャッシュとブラウザキャッシュの違い — どう使い分けるか
+### Q2: Difference between CDN cache and browser cache — how to use them
 
 ```
-■ CDNキャッシュ vs ブラウザキャッシュ:
+■ CDN cache vs browser cache:
 
 ┌────────────────┬──────────────────┬──────────────────┐
-│ 観点           │ CDNキャッシュ    │ ブラウザキャッシュ│
+│ Aspect         │ CDN cache        │ Browser cache    │
 ├────────────────┼──────────────────┼──────────────────┤
-│ 保存場所       │ エッジサーバー   │ ユーザー端末     │
-│ 共有範囲       │ 全ユーザー共有   │ 個人専用         │
-│ 制御方法       │ public           │ private          │
-│ ヒット時の効果 │ オリジン負荷削減 │ ネットワーク不要 │
-│ 無効化方法     │ Purge API        │ ユーザー依存     │
-│ 適用リソース   │ 静的ファイル     │ 全リソース       │
-│ セキュリティ   │ 機密情報NG       │ 機密情報も可     │
+│ Storage        │ Edge server      │ User device      │
+│ Sharing        │ Shared by all    │ Per individual   │
+│ Control        │ public           │ private          │
+│ On HIT         │ Reduce origin load│ No network needed│
+│ Invalidation   │ Purge API        │ User-dependent   │
+│ Resources      │ Static files     │ All resources    │
+│ Security       │ Sensitive data NG│ Sensitive OK     │
 └────────────────┴──────────────────┴──────────────────┘
 
-使い分け戦略:
+Usage strategy:
 
-  公開静的リソース（JS/CSS/画像）:
+  Public static resources (JS/CSS/images):
   Cache-Control: public, max-age=31536000, immutable
-  → CDNで長期キャッシュ、ブラウザでも長期キャッシュ
-  → URL変更（/app.v2.js）でキャッシュ更新
+  → Long-term cache at CDN and browser
+  → Update cache by changing URL (/app.v2.js)
 
-  HTMLファイル:
+  HTML files:
   Cache-Control: public, max-age=0, must-revalidate
-  → CDNでキャッシュ、ただし毎回検証
-  → ETagで変更検知、未変更なら304返却
+  → CDN caches, but validates every time
+  → ETag detects changes, 304 returned if unchanged
 
-  ユーザー固有データ:
+  User-specific data:
   Cache-Control: private, max-age=300
-  → ブラウザのみ5分間キャッシュ
-  → CDNはキャッシュしない（privateディレクティブ）
+  → Browser-only 5-minute cache
+  → CDN does not cache (private directive)
 
-  API公開データ（天気情報等）:
+  Public API data (weather info, etc.):
   Cache-Control: public, max-age=600, s-maxage=3600
-  → ブラウザ: 10分間キャッシュ
-  → CDN: 1時間キャッシュ（s-maxage優先）
+  → Browser: 10-minute cache
+  → CDN: 1-hour cache (s-maxage takes priority)
 
-  API認証が必要なデータ:
+  API requiring authentication:
   Cache-Control: private, no-store
-  → CDNキャッシュ禁止、ブラウザもキャッシュしない
+  → CDN caching prohibited, browser also does not cache
 
-CDN固有のヘッダー:
-  s-maxage=秒数 — CDN専用のmax-age（max-ageより優先）
-  stale-while-revalidate — 期限切れ後も古いキャッシュを返しながら裏で更新
-  stale-if-error — オリジンエラー時に古いキャッシュを返す
+CDN-specific headers:
+  s-maxage=seconds — CDN-specific max-age (takes priority over max-age)
+  stale-while-revalidate — return stale cache while updating in background after expiry
+  stale-if-error — return stale cache when origin error occurs
 
-Cloudflareの例:
+Cloudflare example:
   Cache-Control: public, max-age=300, s-maxage=3600, stale-while-revalidate=86400
-  → ブラウザ: 5分キャッシュ
-  → CDN: 1時間キャッシュ
-  → 期限切れ後も24時間は古いデータを返しながら裏で更新
+  → Browser: 5-minute cache
+  → CDN: 1-hour cache
+  → Return stale data for 24 hours after expiry while updating in background
 ```
 
-### Q3: キャッシュ無効化（Cache Busting）の方法 — URL変更 vs Purge API
+### Q3: Cache invalidation (Cache Busting) methods — URL change vs Purge API
 
 ```
-■ キャッシュバスティング戦略:
+■ Cache busting strategies:
 
 ┌──────────────────┬─────────────────────────────────────┐
-│ 方法             │ 詳細                                 │
+│ Method           │ Details                             │
 ├──────────────────┼─────────────────────────────────────┤
-│ ① URL変更        │ /app.v1.js → /app.v2.js              │
-│ （推奨）         │ /app.abc123.js（ハッシュ埋め込み）   │
-│                  │ → 確実、CDN・ブラウザ両方で有効      │
-│                  │ → webpack/Vite等のビルドツールで自動 │
-│                  │                                      │
-│ ② クエリ文字列   │ /app.js?v=2                          │
-│                  │ → 簡易的だが一部のCDNで無視される    │
-│                  │ → プロキシによってはクエリを除外     │
-│                  │                                      │
-│ ③ CDN Purge API  │ Cloudflare/Fastly等のAPI経由で削除   │
-│                  │ → 即座に反映                         │
-│                  │ → 全エッジサーバーへの伝播に時間     │
-│                  │                                      │
-│ ④ Cache-Control  │ Cache-Control: no-cache              │
-│   ヘッダー変更   │ → 毎回検証、ETagで変更検知           │
-│                  │ → 304応答でトラフィック削減          │
+│ ① URL change     │ /app.v1.js → /app.v2.js              │
+│ (recommended)    │ /app.abc123.js (hash embedded)       │
+│                  │ → Reliable, effective for both CDN  │
+│                  │   and browser                       │
+│                  │ → Automated by webpack/Vite etc.    │
+│                  │                                     │
+│ ② Query string   │ /app.js?v=2                          │
+│                  │ → Simple but ignored by some CDNs   │
+│                  │ → Some proxies strip query params   │
+│                  │                                     │
+│ ③ CDN Purge API  │ Delete via Cloudflare/Fastly API    │
+│                  │ → Immediate effect                  │
+│                  │ → Takes time to propagate to all    │
+│                  │   edge servers                      │
+│                  │                                     │
+│ ④ Cache-Control  │ Cache-Control: no-cache             │
+│   header change  │ → Validate every time, ETag detects │
+│                  │ → Reduce traffic with 304 responses │
 └──────────────────┴─────────────────────────────────────┘
 
-推奨パターン:
+Recommended patterns:
 
-  静的リソース（JS/CSS/画像）:
-  → URL変更（ハッシュ埋め込み）
+  Static resources (JS/CSS/images):
+  → URL change (hash embedded)
   → /assets/app.abc123.js
   → max-age=31536000, immutable
 
-  webpack/Viteの設定:
+  webpack/Vite configuration:
   output: {
     filename: '[name].[contenthash].js',
     chunkFilename: '[name].[contenthash].js',
   }
-  → ファイル内容が変わればハッシュも変わる
-  → HTMLから新しいURLを参照
+  → Hash changes when file content changes
+  → HTML references the new URL
 
-  HTMLファイル:
+  HTML files:
   → Cache-Control: no-cache + ETag
-  → 毎回検証、変更なければ304
+  → Validate every time, 304 if unchanged
 
-  緊急時のキャッシュクリア:
+  Emergency cache clear:
   → CDN Purge API
   curl -X POST https://api.cloudflare.com/client/v4/zones/{zone}/purge_cache \
     -H "Authorization: Bearer {token}" \
     -d '{"files":["https://example.com/app.js"]}'
 
-避けるべきパターン:
-  ✗ /app.js?v=random() — 毎回異なるURLでキャッシュヒット率0%
-  ✗ Cache-Control: no-store を全リソースに — パフォーマンス悪化
-  ✗ 短すぎるmax-age（1秒等） — 検証リクエスト多発
+Patterns to avoid:
+  ✗ /app.js?v=random() — different URL every time, 0% cache hit rate
+  ✗ Cache-Control: no-store on all resources — performance degradation
+  ✗ Too short max-age (1 second, etc.) — excessive validation requests
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 概念 | キーポイント |
-|------|-------------|
-| **キャッシュの階層** | ブラウザ → フォワードプロキシ → CDN → リバースプロキシ → オリジン |
-| **Cache-Control** | max-age（期限）、private/public（範囲）、no-cache（検証）、no-store（禁止） |
-| **条件付きリクエスト** | ETag（バージョン識別）、Last-Modified（日時ベース）、304 Not Modified |
-| **CDN戦略** | s-maxage（CDN専用）、stale-while-revalidate（非同期更新）、Purge API |
-| **キャッシュバスティング** | URL変更（ハッシュ埋め込み）が最も確実、クエリ文字列は補助的 |
-| **セキュリティ** | 機密情報はno-store、ユーザー固有データはprivate、Vary検証は慎重に |
+| Concept | Key point |
+|---------|-----------|
+| **Cache hierarchy** | Browser → Forward proxy → CDN → Reverse proxy → Origin |
+| **Cache-Control** | max-age (expiry), private/public (scope), no-cache (validate), no-store (prohibit) |
+| **Conditional requests** | ETag (version identification), Last-Modified (timestamp-based), 304 Not Modified |
+| **CDN strategy** | s-maxage (CDN-specific), stale-while-revalidate (async update), Purge API |
+| **Cache busting** | URL change (hash embedded) is most reliable; query string is supplementary |
+| **Security** | no-store for sensitive data, private for user-specific data, handle Vary carefully |
 
-### キーポイント
+### Key Points
 
-1. **キャッシュは階層構造で考える**: ブラウザ、フォワードプロキシ、CDN、リバースプロキシのそれぞれに異なる戦略を適用。privateディレクティブでブラウザのみキャッシュ、publicでCDN含め全階層でキャッシュ可能に。
+1. **Think of caching as a layered structure**: Apply different strategies to each of the browser, forward proxy, CDN, and reverse proxy. Use the private directive to cache only in the browser, and public to enable caching at all layers including the CDN.
 
-2. **静的リソースは長期キャッシュ + URL変更**: JS/CSS/画像等はmax-age=31536000（1年）+ immutableで長期キャッシュし、内容変更時はURL自体を変える（ハッシュ埋め込み）。HTMLはno-cache + ETagで毎回検証。
+2. **Long-term cache + URL change for static resources**: Cache JS/CSS/images with max-age=31536000 (1 year) + immutable, and change the URL itself (hash embedded) when content changes. Use no-cache + ETag to validate HTML every time.
 
-3. **stale-while-revalidateで可用性とパフォーマンスを両立**: 期限切れ後も古いキャッシュを返しながら裏で非同期更新することで、ユーザーは常に高速レスポンスを得られ、同時に最新データも取得できる。オリジン障害時の耐性も向上。
-
----
-
-## 次に読むべきガイド
-
+3. **Balance availability and performance with stale-while-revalidate**: By returning stale cache after expiry while asynchronously updating in the background, users always get fast responses while also receiving the latest data. Resistance to origin failures also improves.
 
 ---
 
-## 参考文献
+## Next Guides to Read
+
+
+---
+
+## References
 
 1. RFC 9111. "HTTP Caching." IETF, 2022.
    https://www.rfc-editor.org/rfc/rfc9111
-   HTTPキャッシュの正式仕様。Cache-Control、条件付きリクエスト、
-   キャッシュの階層構造を定義。RFC 7234の後継。
+   Official specification for HTTP caching. Defines Cache-Control, conditional requests,
+   and cache hierarchy. Successor to RFC 7234.
 
 2. RFC 5861. "HTTP Cache-Control Extensions for Stale Content." IETF, 2010.
    https://www.rfc-editor.org/rfc/rfc5861
-   stale-while-revalidateとstale-if-errorの仕様。オリジン障害時の
-   キャッシュ配信戦略を定義。
+   Specification for stale-while-revalidate and stale-if-error. Defines cache delivery
+   strategies for origin failure scenarios.
 
 3. MDN Web Docs. "HTTP Caching." Mozilla, 2024.
    https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching
-   HTTPキャッシュの実践的ガイド。ブラウザのキャッシュ挙動、
-   Cache-Controlディレクティブの詳細解説。
+   Practical guide to HTTP caching. Detailed explanations of browser cache behavior
+   and Cache-Control directives.
 
 4. web.dev. "HTTP Cache." Google, 2024.
    https://web.dev/http-cache/
-   Googleのベストプラクティス。キャッシュ戦略、パフォーマンス計測、
-   Cache-Control設定例。
+   Google best practices. Cache strategies, performance measurement,
+   and Cache-Control configuration examples.
 
 5. Cloudflare Docs. "Cache." Cloudflare, 2024.
    https://developers.cloudflare.com/cache/
-   CDNキャッシュの実装詳細。Purge API、Cache Rules、
-   カスタムキャッシュキーの設定方法。
+   CDN cache implementation details. Purge API, Cache Rules,
+   and custom cache key configuration.
 
 6. Fastly Developer Hub. "Cache Control Tutorial." Fastly, 2024.
    https://developer.fastly.com/learning/concepts/cache-control/
-   エッジキャッシュのベストプラクティス。VCL（Varnish Configuration Language）
-   によるキャッシュ制御の詳細。
+   Edge cache best practices. Details of cache control using VCL
+   (Varnish Configuration Language).
