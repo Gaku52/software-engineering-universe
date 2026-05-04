@@ -1,119 +1,119 @@
-# HTTP基礎
+# HTTP Basics
 
-> HTTPはWebの基盤プロトコル。リクエスト/レスポンスモデル、メソッド、ステータスコード、ヘッダーの仕組みを理解し、Web開発に必須の知識を固める。
+> HTTP is the foundational protocol of the Web. Understand the request/response model, methods, status codes, and headers to build the essential knowledge required for web development.
 
-## 前提知識
+## Prerequisites
 
 
-HTTPはTCP（またはHTTP/3ではQUIC）の上で動作し、ホスト名の解決にはDNSを使用する。これらの基礎知識があることで、HTTPの動作をより深く理解できる。
-
----
-
-## この章で学ぶこと
-
-- [ ] HTTPのリクエスト/レスポンス構造を理解する
-- [ ] HTTPメソッドの意味と使い分けを把握する
-- [ ] ステータスコードの分類と主要なコードを学ぶ
-- [ ] HTTPヘッダーの種類と役割を把握する
-- [ ] コネクション管理とパフォーマンスの関係を理解する
-- [ ] HTTPSとセキュリティの基礎を学ぶ
-- [ ] 実務でのHTTPデバッグ手法を習得する
+HTTP operates on top of TCP (or QUIC for HTTP/3) and uses DNS to resolve host names. Having this foundational knowledge allows you to understand how HTTP works at a deeper level.
 
 ---
 
-## 1. HTTPの基本
+## What You Will Learn
+
+- [ ] Understand the structure of HTTP requests and responses
+- [ ] Learn the meaning of each HTTP method and when to use them
+- [ ] Study status code categories and key codes
+- [ ] Understand the types and roles of HTTP headers
+- [ ] Understand the relationship between connection management and performance
+- [ ] Learn the basics of HTTPS and security
+- [ ] Acquire HTTP debugging techniques for practical use
+
+---
+
+## 1. HTTP Fundamentals
 
 ```
-HTTP（HyperText Transfer Protocol）:
-  → Web上でデータを転送するためのプロトコル
-  → ステートレス（各リクエストは独立）
-  → テキストベース（HTTP/1.1）→ バイナリ（HTTP/2以降）
-  → TCP（HTTP/1.1, HTTP/2）またはUDP（HTTP/3）上で動作
+HTTP (HyperText Transfer Protocol):
+  → Protocol for transferring data over the Web
+  → Stateless (each request is independent)
+  → Text-based (HTTP/1.1) → Binary (HTTP/2 onward)
+  → Runs on TCP (HTTP/1.1, HTTP/2) or UDP (HTTP/3)
 
-バージョンの歴史:
-  HTTP/0.9 (1991): GETのみ、HTML のみ、ヘッダーなし
-  HTTP/1.0 (1996): ヘッダー、POST、ステータスコード追加
-                    1リクエストごとにTCP接続を切断
-  HTTP/1.1 (1997): Keep-Alive、チャンク転送、Host ヘッダー必須
-                    パイプライン（ほぼ使われず）
+Version history:
+  HTTP/0.9 (1991): GET only, HTML only, no headers
+  HTTP/1.0 (1996): Added headers, POST, status codes
+                    TCP connection closed after each request
+  HTTP/1.1 (1997): Keep-Alive, chunked transfer, Host header required
+                    Pipelining (rarely used)
                     RFC 2616 → RFC 7230-7235 → RFC 9110-9112
-  HTTP/2   (2015): バイナリ、多重化、サーバープッシュ、HPACK
+  HTTP/2   (2015): Binary, multiplexing, server push, HPACK
                     RFC 7540 → RFC 9113
-  HTTP/3   (2022): QUIC ベース、UDP 上で動作、QPACK
+  HTTP/3   (2022): QUIC-based, runs over UDP, QPACK
                     RFC 9114
 
-リクエスト/レスポンスモデル:
-  クライアント                    サーバー
+Request/Response model:
+  Client                          Server
   ┌──────────┐                 ┌──────────┐
-  │ ブラウザ  │── リクエスト ──→│ Webサーバー│
-  │          │←── レスポンス ──│          │
+  │ Browser  │── Request ─────→│ Web Server│
+  │          │←── Response ────│          │
   └──────────┘                 └──────────┘
 
-  通信の流れ（HTTP/1.1 + TLS）:
-  ① TCP 3-way ハンドシェイク（SYN → SYN-ACK → ACK）
-  ② TLS ハンドシェイク（ClientHello → ServerHello → ...）
-  ③ HTTPリクエスト送信
-  ④ HTTPレスポンス受信
-  ⑤ Keep-Alive: 同じTCP接続で次のリクエストを送信
-  ⑥ アイドルタイムアウト後に接続を切断
+  Communication flow (HTTP/1.1 + TLS):
+  ① TCP 3-way handshake (SYN → SYN-ACK → ACK)
+  ② TLS handshake (ClientHello → ServerHello → ...)
+  ③ Send HTTP request
+  ④ Receive HTTP response
+  ⑤ Keep-Alive: send next request on the same TCP connection
+  ⑥ Disconnect after idle timeout
 
-ステートレスの意味:
-  → 各リクエストは前のリクエストの情報を持たない
-  → サーバーはクライアントの状態を記憶しない
-  → 状態管理が必要な場合:
-     ・Cookie（セッションID）
-     ・Token（JWT等）
-     ・クエリパラメータ
-     ・ローカルストレージ
+What "stateless" means:
+  → Each request carries no information from previous requests
+  → The server does not remember client state
+  → When state management is needed:
+     · Cookie (session ID)
+     · Token (JWT etc.)
+     · Query parameters
+     · Local storage
 
-ステートレスのメリット:
-  → サーバーの水平スケーリングが容易
-  → 任意のサーバーがリクエストを処理可能
-  → 障害時のリカバリが簡単
-  → キャッシュが効きやすい
+Benefits of stateless:
+  → Easy horizontal scaling of servers
+  → Any server can handle any request
+  → Simple recovery on failure
+  → Caching is effective
 
-ステートレスのデメリット:
-  → 毎回認証情報を送信する必要がある
-  → リクエストサイズが大きくなりがち
-  → セッション管理に別の仕組みが必要
+Drawbacks of stateless:
+  → Authentication credentials must be sent every time
+  → Requests tend to be large
+  → A separate mechanism is needed for session management
 ```
 
 ---
 
-## 2. HTTPリクエスト
+## 2. HTTP Requests
 
 ```
-リクエスト構造:
+Request structure:
 
   ┌─────────────────────────────────────────┐
-  │ GET /api/users?page=1 HTTP/1.1          │ ← リクエストライン
+  │ GET /api/users?page=1 HTTP/1.1          │ ← Request line
   ├─────────────────────────────────────────┤
-  │ Host: api.example.com                   │ ← ヘッダー
+  │ Host: api.example.com                   │ ← Headers
   │ Accept: application/json                │
   │ Authorization: Bearer eyJhbG...         │
   │ User-Agent: Mozilla/5.0                 │
   │ Accept-Encoding: gzip, deflate          │
   │ Connection: keep-alive                  │
   ├─────────────────────────────────────────┤
-  │                                         │ ← 空行（ヘッダー終了）
+  │                                         │ ← Blank line (end of headers)
   ├─────────────────────────────────────────┤
-  │ （ボディ — GET の場合は通常なし）         │
+  │ (Body — usually absent for GET)         │
   └─────────────────────────────────────────┘
 
-リクエストラインの構造:
-  メソッド SP リクエストターゲット SP HTTPバージョン CRLF
+Request-line structure:
+  Method SP Request-Target SP HTTP-Version CRLF
 
   GET /api/users?page=1&sort=name HTTP/1.1\r\n
   ↑   ↑                          ↑
-  メソッド リクエストターゲット    HTTPバージョン
+  Method  Request-Target         HTTP-Version
 
-  リクエストターゲットの形式:
-  ① origin-form:   /api/users?page=1（最も一般的）
-  ② absolute-form: http://example.com/api/users（プロキシ経由）
-  ③ authority-form: example.com:443（CONNECT メソッド用）
-  ④ asterisk-form: *（OPTIONS メソッド用）
+  Request-target forms:
+  ① origin-form:   /api/users?page=1 (most common)
+  ② absolute-form: http://example.com/api/users (via proxy)
+  ③ authority-form: example.com:443 (for CONNECT method)
+  ④ asterisk-form: * (for OPTIONS method)
 
-POST リクエストの例:
+POST request example:
   POST /api/users HTTP/1.1
   Host: api.example.com
   Content-Type: application/json
@@ -124,7 +124,7 @@ POST リクエストの例:
 
   {"name": "Taro", "email": "taro@example.com"}
 
-フォームデータの例:
+Form data example:
   POST /login HTTP/1.1
   Host: example.com
   Content-Type: application/x-www-form-urlencoded
@@ -132,7 +132,7 @@ POST リクエストの例:
 
   username=taro&password=secret123
 
-マルチパートフォームデータの例（ファイルアップロード）:
+Multipart form data example (file upload):
   POST /api/files HTTP/1.1
   Host: api.example.com
   Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
@@ -141,109 +141,109 @@ POST リクエストの例:
   ------WebKitFormBoundary
   Content-Disposition: form-data; name="description"
 
-  プロフィール画像
+  Profile image
   ------WebKitFormBoundary
   Content-Disposition: form-data; name="file"; filename="avatar.png"
   Content-Type: image/png
 
-  [バイナリデータ]
+  [binary data]
   ------WebKitFormBoundary--
 ```
 
 ---
 
-## 3. HTTPメソッド
+## 3. HTTP Methods
 
 ```
-┌────────┬──────────────────────────┬──────┬──────┬──────┐
-│ メソッド│ 用途                     │冪等性│安全性│ボディ│
-├────────┼──────────────────────────┼──────┼──────┼──────┤
-│ GET    │ リソースの取得            │ ✓    │ ✓    │ なし │
-│ POST   │ リソースの作成            │ ✗    │ ✗    │ あり │
-│ PUT    │ リソースの完全置換        │ ✓    │ ✗    │ あり │
-│ PATCH  │ リソースの部分更新        │ ✗    │ ✗    │ あり │
-│ DELETE │ リソースの削除            │ ✓    │ ✗    │ 任意 │
-│ HEAD   │ レスポンスヘッダーのみ取得│ ✓    │ ✓    │ なし │
-│ OPTIONS│ 対応メソッドの確認(CORS)  │ ✓    │ ✓    │ なし │
-│ TRACE  │ ループバックテスト        │ ✓    │ ✓    │ なし │
-│ CONNECT│ トンネル確立(HTTPS)       │ ✗    │ ✗    │ なし │
-└────────┴──────────────────────────┴──────┴──────┴──────┘
+┌────────┬──────────────────────────┬────────┬────────┬──────┐
+│ Method │ Purpose                  │Idempot.│ Safe   │ Body │
+├────────┼──────────────────────────┼────────┼────────┼──────┤
+│ GET    │ Retrieve a resource      │ ✓      │ ✓      │ None │
+│ POST   │ Create a resource        │ ✗      │ ✗      │ Yes  │
+│ PUT    │ Replace a resource fully │ ✓      │ ✗      │ Yes  │
+│ PATCH  │ Partially update         │ ✗      │ ✗      │ Yes  │
+│ DELETE │ Delete a resource        │ ✓      │ ✗      │ Opt. │
+│ HEAD   │ Retrieve headers only    │ ✓      │ ✓      │ None │
+│ OPTIONS│ Check supported methods  │ ✓      │ ✓      │ None │
+│ TRACE  │ Loopback test            │ ✓      │ ✓      │ None │
+│ CONNECT│ Establish tunnel (HTTPS) │ ✗      │ ✗      │ None │
+└────────┴──────────────────────────┴────────┴────────┴──────┘
 
-冪等性（Idempotent）:
-  → 同じリクエストを何度送っても結果が同じ
-  → GET, PUT, DELETE は冪等
-  → POST は冪等ではない（毎回新しいリソースが作成される）
-  → PATCH は冪等ではない（相対的な変更の可能性）
+Idempotency:
+  → Sending the same request multiple times yields the same result
+  → GET, PUT, DELETE are idempotent
+  → POST is not idempotent (creates a new resource each time)
+  → PATCH is not idempotent (relative changes may accumulate)
 
-  冪等性の実務的意味:
-  → ネットワークエラーでリクエストが届いたか不明な場合
-  → 冪等なメソッドは安全にリトライできる
-  → 非冪等なメソッドは冪等性キー（Idempotency-Key）で対応
+  Practical significance of idempotency:
+  → When a network error makes it unclear whether a request was received
+  → Idempotent methods can be safely retried
+  → Non-idempotent methods use an Idempotency-Key header
 
-  例: 決済API
+  Example: payment API
   POST /api/payments
   Idempotency-Key: unique-key-12345
-  → 同じキーで再送しても二重決済にならない
+  → Re-sending with the same key prevents double charging
 
-安全性（Safe）:
-  → サーバーの状態を変更しない
-  → GET, HEAD, OPTIONS は安全
-  → 安全なメソッドはプリフェッチ・キャッシュが可能
-  → Webクローラーは安全なメソッドのみ使用すべき
+Safety:
+  → Does not modify server state
+  → GET, HEAD, OPTIONS are safe
+  → Safe methods can be prefetched and cached
+  → Web crawlers should use only safe methods
 
-実務での使い分け:
-  一覧取得:  GET  /api/users
-  詳細取得:  GET  /api/users/123
-  作成:      POST /api/users
-  完全更新:  PUT  /api/users/123
-  部分更新:  PATCH /api/users/123
-  削除:      DELETE /api/users/123
-  存在確認:  HEAD /api/users/123
-  CORS確認:  OPTIONS /api/users
+Practical usage:
+  List:         GET  /api/users
+  Detail:       GET  /api/users/123
+  Create:       POST /api/users
+  Full update:  PUT  /api/users/123
+  Partial update: PATCH /api/users/123
+  Delete:       DELETE /api/users/123
+  Check exists: HEAD /api/users/123
+  CORS check:   OPTIONS /api/users
 
-各メソッドの詳細:
+Details of each method:
 
   GET:
-  → リソースの取得に使用
-  → ボディを含めるべきではない（RFC 9110）
-  → クエリパラメータでフィルタリング・ページネーション
-  → キャッシュの対象
-  → ブックマーク可能
-  → ブラウザの戻るボタンで再送安全
+  → Used to retrieve resources
+  → Should not include a body (RFC 9110)
+  → Use query parameters for filtering and pagination
+  → Subject to caching
+  → Bookmarkable
+  → Safe to re-send with browser back button
 
   POST:
-  → リソースの作成、処理の実行に使用
-  → ボディにデータを含める
-  → 成功時は 201 Created + Location ヘッダー
-  → キャッシュの対象外（通常）
-  → 同じリクエストで異なる結果が返る可能性
+  → Used to create resources or trigger processing
+  → Include data in the body
+  → On success: 201 Created + Location header
+  → Not cached (in general)
+  → Same request may return different results
 
   PUT:
-  → リソースの完全置換に使用
-  → 存在しない場合は作成（実装による）
-  → 送信データがリソースの完全な表現
-  → 省略したフィールドはnull/デフォルトになる
-  → 部分更新には使わない → PATCHを使用
+  → Used to fully replace a resource
+  → Creates the resource if it does not exist (implementation-specific)
+  → The sent data is the complete representation of the resource
+  → Omitted fields become null/default values
+  → Do not use for partial updates → use PATCH instead
 
   PATCH:
-  → リソースの部分更新に使用
-  → 変更するフィールドのみ送信
-  → JSON Merge Patch（RFC 7396）:
-    {"name": "Updated Name"}  ← nameだけ更新
-  → JSON Patch（RFC 6902）:
+  → Used for partial updates
+  → Send only the fields to change
+  → JSON Merge Patch (RFC 7396):
+    {"name": "Updated Name"}  ← updates only the name field
+  → JSON Patch (RFC 6902):
     [{"op": "replace", "path": "/name", "value": "Updated Name"}]
 
   DELETE:
-  → リソースの削除に使用
-  → 成功時は 204 No Content または 200 OK
-  → 既に削除済みでも 204（冪等性）
-  → ソフトデリート vs ハードデリート
+  → Used to delete a resource
+  → On success: 204 No Content or 200 OK
+  → Returns 204 even if already deleted (idempotency)
+  → Soft delete vs. hard delete
 ```
 
 ```typescript
-// TypeScript での各メソッドの実装例
+// TypeScript implementation examples for each method
 
-// GET — リソースの取得
+// GET — retrieve a resource
 async function getUsers(page: number = 1, perPage: number = 20): Promise<User[]> {
   const response = await fetch(
     `https://api.example.com/api/users?page=${page}&per_page=${perPage}`,
@@ -264,7 +264,7 @@ async function getUsers(page: number = 1, perPage: number = 20): Promise<User[]>
   return data.users;
 }
 
-// POST — リソースの作成
+// POST — create a resource
 async function createUser(userData: CreateUserInput): Promise<User> {
   const response = await fetch('https://api.example.com/api/users', {
     method: 'POST',
@@ -282,14 +282,14 @@ async function createUser(userData: CreateUserInput): Promise<User> {
     throw new HttpError(response.status, error.message);
   }
 
-  // Location ヘッダーから作成されたリソースのURLを取得
+  // Get the URL of the created resource from the Location header
   const location = response.headers.get('Location');
   console.log(`Created at: ${location}`);
 
   return response.json();
 }
 
-// PUT — リソースの完全置換
+// PUT — fully replace a resource
 async function replaceUser(id: string, userData: User): Promise<User> {
   const response = await fetch(`https://api.example.com/api/users/${id}`, {
     method: 'PUT',
@@ -308,7 +308,7 @@ async function replaceUser(id: string, userData: User): Promise<User> {
   return response.json();
 }
 
-// PATCH — リソースの部分更新
+// PATCH — partially update a resource
 async function updateUser(
   id: string,
   updates: Partial<User>,
@@ -319,7 +319,7 @@ async function updateUser(
       'Content-Type': 'application/merge-patch+json',
       'Accept': 'application/json',
       'Authorization': `Bearer ${token}`,
-      'If-Match': currentETag,  // 楽観的ロック
+      'If-Match': currentETag,  // optimistic locking
     },
     body: JSON.stringify(updates),
   });
@@ -335,7 +335,7 @@ async function updateUser(
   return response.json();
 }
 
-// DELETE — リソースの削除
+// DELETE — delete a resource
 async function deleteUser(id: string): Promise<void> {
   const response = await fetch(`https://api.example.com/api/users/${id}`, {
     method: 'DELETE',
@@ -345,7 +345,7 @@ async function deleteUser(id: string): Promise<void> {
   });
 
   if (response.status === 404) {
-    // 既に削除済み — 冪等性の観点から成功扱いにする場合もある
+    // Already deleted — may be treated as success from an idempotency standpoint
     console.warn(`User ${id} already deleted`);
     return;
   }
@@ -355,7 +355,7 @@ async function deleteUser(id: string): Promise<void> {
   }
 }
 
-// HEAD — 存在確認・メタデータ取得
+// HEAD — check existence / retrieve metadata
 async function checkUserExists(id: string): Promise<boolean> {
   const response = await fetch(`https://api.example.com/api/users/${id}`, {
     method: 'HEAD',
@@ -367,7 +367,7 @@ async function checkUserExists(id: string): Promise<boolean> {
   return response.status === 200;
 }
 
-// ファイルアップロード（multipart/form-data）
+// File upload (multipart/form-data)
 async function uploadFile(file: File, description: string): Promise<string> {
   const formData = new FormData();
   formData.append('file', file);
@@ -377,7 +377,7 @@ async function uploadFile(file: File, description: string): Promise<string> {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
-      // Content-Type は FormData の場合、ブラウザが自動設定
+      // Content-Type is set automatically by the browser for FormData
     },
     body: formData,
   });
@@ -393,415 +393,414 @@ async function uploadFile(file: File, description: string): Promise<string> {
 
 ---
 
-## 4. ステータスコード
+## 4. Status Codes
 
 ```
-ステータスコードの分類:
-  1xx: 情報（処理継続中）
-  2xx: 成功
-  3xx: リダイレクト
-  4xx: クライアントエラー
-  5xx: サーバーエラー
+Status code categories:
+  1xx: Informational (processing in progress)
+  2xx: Success
+  3xx: Redirection
+  4xx: Client error
+  5xx: Server error
 
-1xx 情報:
+1xx Informational:
   ┌─────┬──────────────────────────────────────────────┐
-  │ 100 │ Continue — ボディの送信を続行してよい          │
-  │     │ → 大きなボディ送信前にサーバーが受け入れ可能か │
-  │     │   確認（Expect: 100-continue ヘッダー使用）    │
-  │ 101 │ Switching Protocols — プロトコル変更          │
-  │     │ → WebSocket へのアップグレード時に使用         │
-  │ 102 │ Processing — 処理中（WebDAV）                 │
-  │ 103 │ Early Hints — リソースの先読みヒント           │
+  │ 100 │ Continue — safe to continue sending body      │
+  │     │ → Confirm server can accept before sending     │
+  │     │   a large body (use Expect: 100-continue)     │
+  │ 101 │ Switching Protocols — protocol upgrade         │
+  │     │ → Used when upgrading to WebSocket            │
+  │ 102 │ Processing — in progress (WebDAV)             │
+  │ 103 │ Early Hints — resource preload hints          │
   │     │ → Link: </style.css>; rel=preload             │
-  │     │ → HTTP/2 サーバープッシュの代替                │
+  │     │ → Alternative to HTTP/2 server push           │
   └─────┴──────────────────────────────────────────────┘
 
-2xx 成功:
+2xx Success:
   ┌─────┬──────────────────────────────────────────────┐
-  │ 200 │ OK — 成功（最も一般的）                       │
-  │ 201 │ Created — リソース作成成功                    │
-  │     │ → POSTの成功レスポンス                        │
-  │     │ → Location ヘッダーで作成先URLを返す          │
-  │ 202 │ Accepted — リクエスト受理（処理は未完了）     │
-  │     │ → 非同期処理の開始を通知                      │
-  │     │ → ポーリング用URLを返すことが多い             │
-  │ 204 │ No Content — 成功（ボディなし）               │
-  │     │ → DELETE の成功レスポンス                     │
-  │     │ → PUT/PATCH でボディを返さない場合            │
-  │ 206 │ Partial Content — 部分的なコンテンツ          │
-  │     │ → Range リクエストへのレスポンス              │
-  │     │ → 動画ストリーミング、大きなファイルの分割DL  │
+  │ 200 │ OK — success (most common)                    │
+  │ 201 │ Created — resource creation succeeded         │
+  │     │ → Success response for POST                   │
+  │     │ → Return the created URL via Location header  │
+  │ 202 │ Accepted — request received (not yet done)   │
+  │     │ → Notify that async processing has started    │
+  │     │ → Often returns a URL for polling             │
+  │ 204 │ No Content — success (no body)                │
+  │     │ → Success response for DELETE                 │
+  │     │ → PUT/PATCH when no body is returned          │
+  │ 206 │ Partial Content — partial content             │
+  │     │ → Response to a Range request                 │
+  │     │ → Video streaming, split download of large files│
   └─────┴──────────────────────────────────────────────┘
 
-3xx リダイレクト:
+3xx Redirection:
   ┌─────┬──────────────────────────────────────────────┐
-  │ 301 │ Moved Permanently — 恒久移転                 │
-  │     │ → メソッドがGETに変更される可能性がある       │
-  │     │ → SEO: 検索エンジンが新URLをインデックス      │
-  │ 302 │ Found — 一時移転                             │
-  │     │ → メソッドがGETに変更される可能性がある       │
-  │     │ → 実装が曖昧なため、307/308 推奨             │
-  │ 303 │ See Other — 別のURIを参照                    │
-  │     │ → POST後にGETでリダイレクト（PRGパターン）    │
-  │ 304 │ Not Modified — キャッシュ有効                 │
-  │     │ → 条件付きリクエスト（If-None-Match等）の結果│
-  │     │ → ボディなし（キャッシュを使用）             │
-  │ 307 │ Temporary Redirect — 一時移転                │
-  │     │ → メソッドを維持（推奨）                     │
-  │ 308 │ Permanent Redirect — 恒久移転                │
-  │     │ → メソッドを維持（推奨）                     │
+  │ 301 │ Moved Permanently — permanent redirect        │
+  │     │ → Method may change to GET                    │
+  │     │ → SEO: search engines index the new URL       │
+  │ 302 │ Found — temporary redirect                    │
+  │     │ → Method may change to GET                    │
+  │     │ → Implementation is ambiguous; prefer 307/308 │
+  │ 303 │ See Other — refer to another URI              │
+  │     │ → Redirect to GET after POST (PRG pattern)    │
+  │ 304 │ Not Modified — cache is valid                 │
+  │     │ → Result of a conditional request (If-None-Match etc.)│
+  │     │ → No body (use cache)                         │
+  │ 307 │ Temporary Redirect — temporary redirect       │
+  │     │ → Method is preserved (recommended)           │
+  │ 308 │ Permanent Redirect — permanent redirect       │
+  │     │ → Method is preserved (recommended)           │
   └─────┴──────────────────────────────────────────────┘
 
-  301 vs 302 vs 307 vs 308 の選択:
-  ┌────────────┬──────────────┬──────────────┐
-  │            │ 恒久（永続）  │ 一時         │
-  ├────────────┼──────────────┼──────────────┤
-  │ メソッド変更│ 301          │ 302          │
-  │ メソッド維持│ 308（推奨）   │ 307（推奨）  │
-  └────────────┴──────────────┴──────────────┘
+  Choosing between 301, 302, 307, and 308:
+  ┌────────────────┬──────────────┬──────────────┐
+  │                │ Permanent    │ Temporary    │
+  ├────────────────┼──────────────┼──────────────┤
+  │ Method changes │ 301          │ 302          │
+  │ Method kept    │ 308 (pref.)  │ 307 (pref.)  │
+  └────────────────┴──────────────┴──────────────┘
 
-  PRG（Post-Redirect-Get）パターン:
-  ① クライアント: POST /order（注文送信）
-  ② サーバー: 303 See Other → /order/123
-  ③ クライアント: GET /order/123（注文確認ページ）
-  → ブラウザの更新ボタンで二重注文を防止
+  PRG (Post-Redirect-Get) pattern:
+  ① Client: POST /order (submit order)
+  ② Server: 303 See Other → /order/123
+  ③ Client: GET /order/123 (order confirmation page)
+  → Prevents double orders when browser refresh button is pressed
 
-4xx クライアントエラー:
+4xx Client errors:
   ┌─────┬──────────────────────────────────────────────┐
-  │ 400 │ Bad Request — リクエスト不正                  │
-  │     │ → JSON構文エラー、必須パラメータ欠如          │
-  │ 401 │ Unauthorized — 未認証                        │
-  │     │ → 認証が必要（ログインしていない）            │
-  │     │ → WWW-Authenticate ヘッダーを含めるべき      │
-  │ 403 │ Forbidden — アクセス禁止                     │
-  │     │ → 認証済みだが権限がない                     │
-  │     │ → 管理者専用ページへの一般ユーザーアクセス    │
-  │ 404 │ Not Found — リソースが存在しない             │
-  │     │ → URLが間違っている、またはリソースが削除済み │
-  │ 405 │ Method Not Allowed — メソッド非対応          │
-  │     │ → Allow ヘッダーで許可メソッドを通知         │
+  │ 400 │ Bad Request — malformed request               │
+  │     │ → JSON syntax error, missing required params  │
+  │ 401 │ Unauthorized — not authenticated              │
+  │     │ → Authentication required (not logged in)     │
+  │     │ → Should include WWW-Authenticate header      │
+  │ 403 │ Forbidden — access denied                     │
+  │     │ → Authenticated but lacks permission          │
+  │     │ → General user accessing an admin-only page   │
+  │ 404 │ Not Found — resource does not exist           │
+  │     │ → Wrong URL or resource has been deleted      │
+  │ 405 │ Method Not Allowed — method not supported     │
+  │     │ → Notify allowed methods via Allow header     │
   │     │ → Allow: GET, POST, HEAD                    │
-  │ 406 │ Not Acceptable — Accept ヘッダーと不一致    │
-  │ 408 │ Request Timeout — リクエストタイムアウト     │
-  │ 409 │ Conflict — 競合                              │
-  │     │ → 楽観的ロックの失敗                         │
-  │     │ → リソースの状態遷移が不正                   │
-  │ 410 │ Gone — 恒久的に削除                          │
-  │     │ → 404 と異なり「以前は存在した」ことを示す   │
-  │ 411 │ Length Required — Content-Length が必要      │
-  │ 413 │ Content Too Large — ボディが大きすぎる       │
-  │ 414 │ URI Too Long — URIが長すぎる                │
-  │ 415 │ Unsupported Media Type — Content-Type非対応 │
-  │ 422 │ Unprocessable Content — バリデーションエラー │
-  │     │ → JSONの構文は正しいがデータが不正           │
-  │ 429 │ Too Many Requests — レート制限               │
-  │     │ → Retry-After ヘッダーで再試行時間を通知     │
-  │ 451 │ Unavailable For Legal Reasons — 法的理由    │
+  │ 406 │ Not Acceptable — mismatch with Accept header │
+  │ 408 │ Request Timeout — request timed out          │
+  │ 409 │ Conflict — conflict                          │
+  │     │ → Optimistic lock failure                    │
+  │     │ → Invalid resource state transition          │
+  │ 410 │ Gone — permanently deleted                   │
+  │     │ → Unlike 404, indicates it once existed      │
+  │ 411 │ Length Required — Content-Length is required │
+  │ 413 │ Content Too Large — body is too large        │
+  │ 414 │ URI Too Long — URI is too long               │
+  │ 415 │ Unsupported Media Type — Content-Type unsupported│
+  │ 422 │ Unprocessable Content — validation error      │
+  │     │ → JSON syntax is valid but data is invalid    │
+  │ 429 │ Too Many Requests — rate limited              │
+  │     │ → Notify retry time via Retry-After header    │
+  │ 451 │ Unavailable For Legal Reasons — legal reason │
   └─────┴──────────────────────────────────────────────┘
 
   401 vs 403:
-  → 401: 「誰ですか？」（認証が必要）
-  → 403: 「あなたは入れません」（認証済みだが権限なし）
-  → 未ログイン → 401
-  → ログイン済み＋権限なし → 403
-  → セキュリティ上、404 を返す場合もある
-     （リソースの存在を隠す）
+  → 401: "Who are you?" (authentication required)
+  → 403: "You cannot enter" (authenticated but lacks permission)
+  → Not logged in → 401
+  → Logged in + insufficient permission → 403
+  → For security, sometimes 404 is returned to hide resource existence
 
   400 vs 422:
-  → 400: リクエストの構文が不正（JSON parse error 等）
-  → 422: 構文は正しいが意味的に不正（バリデーション失敗）
-  → 実務では 400 で統一する場合も多い
+  → 400: Request syntax is invalid (JSON parse error etc.)
+  → 422: Syntax is valid but semantically invalid (validation failure)
+  → In practice, using 400 uniformly is also common
 
-5xx サーバーエラー:
+5xx Server errors:
   ┌─────┬──────────────────────────────────────────────┐
-  │ 500 │ Internal Server Error — 内部エラー            │
-  │     │ → サーバー側の未処理例外、バグ                │
-  │     │ → クライアントに詳細を返さない（セキュリティ）│
-  │ 502 │ Bad Gateway — 上流サーバーエラー              │
-  │     │ → プロキシ/ゲートウェイが上流サーバーから     │
-  │     │   不正なレスポンスを受信                      │
-  │ 503 │ Service Unavailable — サービス停止            │
-  │     │ → メンテナンス中、過負荷                     │
-  │     │ → Retry-After ヘッダーで復旧予定時刻を通知   │
-  │ 504 │ Gateway Timeout — 上流タイムアウト            │
-  │     │ → プロキシが上流サーバーの応答を待ちきれず   │
+  │ 500 │ Internal Server Error — internal error        │
+  │     │ → Unhandled exception or bug on server side   │
+  │     │ → Do not return details to client (security)  │
+  │ 502 │ Bad Gateway — upstream server error           │
+  │     │ → Proxy/gateway received invalid response     │
+  │     │   from upstream server                        │
+  │ 503 │ Service Unavailable — service down            │
+  │     │ → Under maintenance or overloaded             │
+  │     │ → Notify recovery time via Retry-After header │
+  │ 504 │ Gateway Timeout — upstream timeout            │
+  │     │ → Proxy could not get a response from upstream│
   └─────┴──────────────────────────────────────────────┘
 
-  5xx エラーのリトライ戦略:
-  → 500: リトライしても同じ結果になる可能性が高い
-  → 502: 上流の一時的な問題の可能性 → リトライ推奨
-  → 503: 一時的な過負荷 → バックオフ付きリトライ
-  → 504: タイムアウト → リトライ推奨
-  → リトライ時は指数バックオフ + ジッターを使用
+  Retry strategy for 5xx errors:
+  → 500: Retrying is likely to yield the same result
+  → 502: Possible temporary upstream issue → retry recommended
+  → 503: Temporary overload → retry with backoff
+  → 504: Timeout → retry recommended
+  → Use exponential backoff + jitter when retrying
 ```
 
 ---
 
-## 5. HTTPヘッダー
+## 5. HTTP Headers
 
 ```
-ヘッダーの分類:
+Header categories:
 
-  ① リクエストヘッダー（クライアント → サーバー）
-  ② レスポンスヘッダー（サーバー → クライアント）
-  ③ 表現ヘッダー（リソースの表現に関する情報）
-  ④ ペイロードヘッダー（ボディの情報）
+  ① Request headers (client → server)
+  ② Response headers (server → client)
+  ③ Representation headers (information about resource representation)
+  ④ Payload headers (information about the body)
 
-主要なリクエストヘッダー:
+Key request headers:
   ┌───────────────────────┬────────────────────────────────┐
-  │ ヘッダー              │ 説明                           │
+  │ Header                │ Description                    │
   ├───────────────────────┼────────────────────────────────┤
-  │ Host                  │ 接続先ホスト（HTTP/1.1で必須） │
-  │ Accept                │ 受け入れ可能なメディアタイプ   │
-  │ Accept-Charset        │ 受け入れ可能な文字セット       │
-  │ Accept-Encoding       │ 受け入れ可能な圧縮形式         │
-  │ Accept-Language       │ 希望言語                       │
-  │ Authorization         │ 認証情報                       │
-  │ Cookie                │ クッキー                       │
-  │ Content-Type          │ ボディのメディアタイプ         │
-  │ Content-Length        │ ボディのサイズ（バイト）       │
-  │ User-Agent            │ クライアント情報               │
-  │ Referer               │ 参照元URL                      │
-  │ Origin                │ リクエスト元オリジン（CORS）   │
-  │ If-None-Match         │ 条件付きリクエスト（ETag）     │
-  │ If-Modified-Since     │ 条件付きリクエスト（日時）     │
-  │ Range                 │ 部分的なリソース要求           │
-  │ Cache-Control         │ キャッシュ制御（リクエスト側） │
-  │ X-Forwarded-For       │ プロキシ経由時の元クライアントIP│
-  │ X-Request-Id          │ リクエスト追跡用ID             │
+  │ Host                  │ Target host (required in HTTP/1.1)│
+  │ Accept                │ Acceptable media types         │
+  │ Accept-Charset        │ Acceptable character sets      │
+  │ Accept-Encoding       │ Acceptable compression formats │
+  │ Accept-Language       │ Preferred language             │
+  │ Authorization         │ Authentication credentials     │
+  │ Cookie                │ Cookies                        │
+  │ Content-Type          │ Media type of the body         │
+  │ Content-Length        │ Size of the body (bytes)       │
+  │ User-Agent            │ Client information             │
+  │ Referer               │ Referring URL                  │
+  │ Origin                │ Request origin (CORS)          │
+  │ If-None-Match         │ Conditional request (ETag)     │
+  │ If-Modified-Since     │ Conditional request (date/time)│
+  │ Range                 │ Request for partial resource   │
+  │ Cache-Control         │ Cache control (request side)   │
+  │ X-Forwarded-For       │ Original client IP via proxy   │
+  │ X-Request-Id          │ Request tracking ID            │
   └───────────────────────┴────────────────────────────────┘
 
-主要なレスポンスヘッダー:
+Key response headers:
   ┌───────────────────────────┬────────────────────────────────┐
-  │ ヘッダー                  │ 説明                           │
+  │ Header                    │ Description                    │
   ├───────────────────────────┼────────────────────────────────┤
-  │ Content-Type              │ ボディのメディアタイプ         │
-  │ Content-Length            │ ボディのサイズ（バイト）       │
-  │ Content-Encoding          │ ボディの圧縮形式               │
-  │ Content-Disposition       │ ダウンロード時のファイル名     │
-  │ Set-Cookie                │ クッキー設定                   │
-  │ Cache-Control             │ キャッシュ制御                 │
-  │ ETag                      │ リソースのバージョン           │
-  │ Last-Modified             │ リソースの最終更新日時         │
-  │ Location                  │ リダイレクト先/作成先URI       │
-  │ WWW-Authenticate          │ 認証方式の指定（401時）        │
-  │ Allow                     │ 対応メソッド一覧（405時）      │
-  │ Retry-After               │ リトライ可能時間（429/503時）  │
-  │ Access-Control-Allow-*    │ CORSヘッダー群                 │
-  │ Strict-Transport-Security │ HSTS（HTTPS強制）              │
-  │ X-Content-Type-Options    │ MIMEスニッフィング防止         │
-  │ X-Frame-Options           │ クリックジャッキング防止       │
-  │ Content-Security-Policy   │ CSP（XSS防止）                 │
-  │ X-Request-Id              │ リクエスト追跡用（カスタム）   │
+  │ Content-Type              │ Media type of the body         │
+  │ Content-Length            │ Size of the body (bytes)       │
+  │ Content-Encoding          │ Compression format of the body │
+  │ Content-Disposition       │ Filename on download           │
+  │ Set-Cookie                │ Cookie settings                │
+  │ Cache-Control             │ Cache control                  │
+  │ ETag                      │ Resource version               │
+  │ Last-Modified             │ Resource last modified time    │
+  │ Location                  │ Redirect or created URI        │
+  │ WWW-Authenticate          │ Specify auth method (on 401)   │
+  │ Allow                     │ List of allowed methods (on 405)│
+  │ Retry-After               │ Retry time (on 429/503)        │
+  │ Access-Control-Allow-*    │ CORS headers                   │
+  │ Strict-Transport-Security │ HSTS (enforce HTTPS)           │
+  │ X-Content-Type-Options    │ Prevent MIME sniffing          │
+  │ X-Frame-Options           │ Prevent clickjacking           │
+  │ Content-Security-Policy   │ CSP (prevent XSS)             │
+  │ X-Request-Id              │ Request tracking (custom)      │
   └───────────────────────────┴────────────────────────────────┘
 
-Content-Type の主要な値:
+Common values for Content-Type:
   ┌─────────────────────────────────────┬──────────────────────┐
-  │ Content-Type                        │ 用途                 │
+  │ Content-Type                        │ Use case             │
   ├─────────────────────────────────────┼──────────────────────┤
   │ application/json                    │ JSON                 │
-  │ application/json; charset=utf-8     │ JSON（文字コード指定）│
-  │ application/x-www-form-urlencoded   │ フォームデータ       │
-  │ multipart/form-data                 │ ファイルアップロード │
+  │ application/json; charset=utf-8     │ JSON (with charset)  │
+  │ application/x-www-form-urlencoded   │ Form data            │
+  │ multipart/form-data                 │ File upload          │
   │ text/html; charset=utf-8            │ HTML                 │
-  │ text/plain                          │ プレーンテキスト     │
+  │ text/plain                          │ Plain text           │
   │ text/css                            │ CSS                  │
   │ text/javascript                     │ JavaScript           │
-  │ application/javascript              │ JavaScript（推奨）   │
+  │ application/javascript              │ JavaScript (preferred)│
   │ application/xml                     │ XML                  │
-  │ application/octet-stream            │ バイナリデータ       │
-  │ image/png                           │ PNG画像              │
-  │ image/jpeg                          │ JPEG画像             │
+  │ application/octet-stream            │ Binary data          │
+  │ image/png                           │ PNG image            │
+  │ image/jpeg                          │ JPEG image           │
   │ image/svg+xml                       │ SVG                  │
   │ application/pdf                     │ PDF                  │
   │ application/zip                     │ ZIP                  │
   │ application/graphql+json            │ GraphQL              │
-  │ application/problem+json            │ RFC 7807 エラー      │
+  │ application/problem+json            │ RFC 7807 error       │
   │ application/merge-patch+json        │ JSON Merge Patch     │
   │ application/json-patch+json         │ JSON Patch           │
   └─────────────────────────────────────┴──────────────────────┘
 
-Accept ヘッダーのコンテントネゴシエーション:
+Content negotiation with the Accept header:
   Accept: application/json, text/html;q=0.9, */*;q=0.8
 
-  → q値（品質値）で優先度を指定
-  → q=1.0 がデフォルト（最高優先度）
-  → サーバーは最も適切な形式で返す
+  → Use q-value (quality value) to set preference
+  → q=1.0 is the default (highest priority)
+  → Server returns the most appropriate format
 
   Accept-Language: ja, en-US;q=0.9, en;q=0.8
-  → 日本語優先、次に米国英語、最後に英語全般
+  → Japanese first, then US English, then English in general
 
   Accept-Encoding: gzip, deflate, br
-  → gzip, deflate, Brotli の順で圧縮を受け入れ
+  → Accept compression in order: gzip, deflate, Brotli
 ```
 
 ---
 
-## 6. HTTPレスポンス
+## 6. HTTP Responses
 
 ```
-レスポンス構造:
+Response structure:
 
   ┌─────────────────────────────────────────┐
-  │ HTTP/1.1 200 OK                         │ ← ステータスライン
+  │ HTTP/1.1 200 OK                         │ ← Status line
   ├─────────────────────────────────────────┤
-  │ Content-Type: application/json          │ ← ヘッダー
+  │ Content-Type: application/json          │ ← Headers
   │ Content-Length: 85                      │
   │ Cache-Control: no-cache                 │
   │ ETag: "abc123"                          │
   │ X-Request-Id: 550e8400-e29b-...        │
   │ Strict-Transport-Security: max-age=...  │
   ├─────────────────────────────────────────┤
-  │                                         │ ← 空行
+  │                                         │ ← Blank line
   ├─────────────────────────────────────────┤
-  │ {                                       │ ← ボディ
+  │ {                                       │ ← Body
   │   "id": "123",                          │
   │   "name": "Taro",                       │
   │   "email": "taro@example.com"           │
   │ }                                       │
   └─────────────────────────────────────────┘
 
-ステータスラインの構造:
-  HTTPバージョン SP ステータスコード SP 理由フレーズ CRLF
+Status-line structure:
+  HTTP-Version SP Status-Code SP Reason-Phrase CRLF
 
   HTTP/1.1 200 OK\r\n
   ↑        ↑   ↑
-  バージョン コード 理由フレーズ
+  Version  Code  Reason phrase
 
-  注意: HTTP/2以降、理由フレーズは送信されない
+  Note: HTTP/2 and later do not send a reason phrase
 
-チャンク転送エンコーディング（HTTP/1.1）:
+Chunked transfer encoding (HTTP/1.1):
   HTTP/1.1 200 OK
   Transfer-Encoding: chunked
   Content-Type: text/html
 
-  4\r\n          ← チャンクサイズ（16進数）
-  Wiki\r\n       ← チャンクデータ
+  4\r\n          ← chunk size (hexadecimal)
+  Wiki\r\n       ← chunk data
   6\r\n
   pedia \r\n
-  0\r\n          ← 終了チャンク（サイズ0）
-  \r\n           ← トレーラー終了
+  0\r\n          ← terminal chunk (size 0)
+  \r\n           ← end of trailers
 
-  → Content-Length が不明な場合に使用
-  → サーバーが生成中のデータを段階的に送信
-  → HTTP/2 以降はフレーム単位でデータを送るため不要
+  → Used when Content-Length is unknown
+  → Server sends data incrementally as it is generated
+  → Not needed in HTTP/2+ since data is sent in frames
 
-圧縮レスポンス:
+Compressed response:
   HTTP/1.1 200 OK
   Content-Encoding: gzip
   Content-Type: application/json
   Vary: Accept-Encoding
 
-  [gzip圧縮されたバイナリデータ]
+  [gzip-compressed binary data]
 
-  圧縮形式の比較:
+  Comparison of compression formats:
   ┌──────────┬────────────┬────────────────────┐
-  │ 形式     │ 圧縮率     │ 対応ブラウザ        │
+  │ Format   │ Ratio      │ Browser support    │
   ├──────────┼────────────┼────────────────────┤
-  │ gzip     │ 良好       │ 全ブラウザ          │
-  │ deflate  │ 良好       │ 全ブラウザ          │
-  │ br       │ 最も優秀   │ 主要ブラウザ全対応  │
-  │ zstd     │ 優秀       │ 対応拡大中          │
+  │ gzip     │ Good       │ All browsers       │
+  │ deflate  │ Good       │ All browsers       │
+  │ br       │ Best       │ All major browsers │
+  │ zstd     │ Excellent  │ Growing support    │
   └──────────┴────────────┴────────────────────┘
 
-  Brotli（br）の効果:
-  → テキストデータで gzip より 15-25% 小さい
-  → 圧縮速度は gzip よりやや遅い
-  → HTTPS 必須（HTTP では使用不可）
-  → 静的ファイルは事前圧縮で速度問題を回避
+  Brotli (br) benefits:
+  → 15–25% smaller than gzip for text data
+  → Slightly slower compression than gzip
+  → Requires HTTPS (not available over HTTP)
+  → Pre-compress static files to avoid speed issues
 ```
 
 ---
 
-## 7. コネクション管理
+## 7. Connection Management
 
 ```
 HTTP/1.0:
-  → 1リクエストごとにTCP接続を確立・切断
-  → 非効率（毎回3-wayハンドシェイク）
+  → Establishes and closes TCP connection for each request
+  → Inefficient (3-way handshake every time)
 
-  接続 ── リクエスト ── レスポンス ── 切断
-  接続 ── リクエスト ── レスポンス ── 切断
-  接続 ── リクエスト ── レスポンス ── 切断
+  Connect ── Request ── Response ── Disconnect
+  Connect ── Request ── Response ── Disconnect
+  Connect ── Request ── Response ── Disconnect
 
 HTTP/1.1 Keep-Alive:
-  → 1つのTCP接続で複数リクエストを送信
-  → Connection: keep-alive（HTTP/1.1ではデフォルト）
-  → Connection: close で明示的に切断
+  → Send multiple requests over a single TCP connection
+  → Connection: keep-alive (default in HTTP/1.1)
+  → Connection: close to explicitly close
 
-  接続 ── リクエスト1 ── レスポンス1
-       ── リクエスト2 ── レスポンス2
-       ── リクエスト3 ── レスポンス3 ── 切断
+  Connect ── Request 1 ── Response 1
+          ── Request 2 ── Response 2
+          ── Request 3 ── Response 3 ── Disconnect
 
-  Keep-Alive の設定（サーバー側）:
-  → タイムアウト: アイドル時間の上限
-  → 最大リクエスト数: 1接続で処理する最大リクエスト数
+  Keep-Alive settings (server side):
+  → Timeout: maximum idle time
+  → Max requests: maximum number of requests per connection
 
   Nginx:
-  keepalive_timeout 65;    # 65秒
-  keepalive_requests 100;  # 最大100リクエスト
+  keepalive_timeout 65;    # 65 seconds
+  keepalive_requests 100;  # up to 100 requests
 
-HTTP/1.1 パイプライン:
-  → 前のレスポンスを待たずに次のリクエストを送信
-  → レスポンスはリクエスト順に返す必要がある
-  → Head-of-Line Blocking の問題
-  → 実際にはほぼ使われていない（ブラウザも無効化）
+HTTP/1.1 Pipelining:
+  → Send the next request without waiting for the previous response
+  → Responses must be returned in the same order as requests
+  → Head-of-Line Blocking problem
+  → Rarely used in practice (disabled in browsers too)
 
-  リクエスト1 ── リクエスト2 ── リクエスト3
-  レスポンス1 ── レスポンス2 ── レスポンス3
-  （レスポンス1が遅いと全て待ち）
+  Request 1 ── Request 2 ── Request 3
+  Response 1 ── Response 2 ── Response 3
+  (If Response 1 is slow, everything waits)
 
-HTTP/1.1 での同時接続:
-  → ブラウザは同一ドメインに最大6接続（実装依存）
-  → つまり最大6リクエストを並列処理
-  → ドメインシャーディング: 複数ドメインで接続数を増やす
-     → HTTP/2 では逆効果（1接続で多重化できるため）
+Concurrent connections in HTTP/1.1:
+  → Browser opens up to 6 connections to the same domain (implementation-specific)
+  → This allows a maximum of 6 requests in parallel
+  → Domain sharding: increase connection count by using multiple domains
+     → Counterproductive in HTTP/2 (one connection can multiplex)
 
-HTTP/2 多重化:
-  → 1つのTCP接続で複数のストリームを並列処理
-  → Head-of-Line Blocking 解消（HTTP層では）
-  → 接続数の削減 → リソース効率が向上
+HTTP/2 multiplexing:
+  → Handle multiple streams in parallel over a single TCP connection
+  → Eliminates Head-of-Line Blocking (at the HTTP layer)
+  → Fewer connections → better resource efficiency
 
-  ストリーム1: ── リクエスト ── レスポンス ──
-  ストリーム2: ── リクエスト ──── レスポンス ──
-  ストリーム3: ── リクエスト ── レスポンス ──
-  （全て1つのTCP接続上で並列）
+  Stream 1: ── Request ── Response ──
+  Stream 2: ── Request ──── Response ──
+  Stream 3: ── Request ── Response ──
+  (All in parallel over a single TCP connection)
 ```
 
 ---
 
-## 8. Cookie
+## 8. Cookies
 
 ```
-Cookie の仕組み:
+How cookies work:
 
-  サーバー → クライアント:
+  Server → Client:
   Set-Cookie: session_id=abc123; Path=/; HttpOnly; Secure; SameSite=Lax
 
-  クライアント → サーバー（以降のリクエスト）:
+  Client → Server (subsequent requests):
   Cookie: session_id=abc123
 
-Set-Cookie の属性:
+Set-Cookie attributes:
   ┌───────────────┬───────────────────────────────────────────┐
-  │ 属性          │ 説明                                       │
+  │ Attribute     │ Description                                │
   ├───────────────┼───────────────────────────────────────────┤
-  │ Name=Value    │ Cookie名と値                               │
-  │ Domain        │ 送信先ドメイン（サブドメイン含む）         │
-  │ Path          │ 送信先パス                                 │
-  │ Expires       │ 有効期限（日時指定）                       │
-  │ Max-Age       │ 有効期限（秒数指定、Expiresより優先）      │
-  │ HttpOnly      │ JavaScriptからアクセス不可（XSS対策）      │
-  │ Secure        │ HTTPS接続時のみ送信                        │
-  │ SameSite      │ クロスサイトリクエストでの送信制御         │
-  │               │ Strict: 完全に送信しない                   │
-  │               │ Lax: ナビゲーション時のみ送信（デフォルト）│
-  │               │ None: 常に送信（Secure必須）               │
-  │ Partitioned   │ CHIPS（サードパーティCookie分離）          │
-  │ __Host-prefix │ Secure, Path=/, Domain未指定を強制         │
-  │ __Secure-prefix│ Secure を強制                             │
+  │ Name=Value    │ Cookie name and value                      │
+  │ Domain        │ Domain to send to (including subdomains)   │
+  │ Path          │ Path to send to                            │
+  │ Expires       │ Expiry (specific date/time)                │
+  │ Max-Age       │ Expiry (seconds; takes precedence over Expires)│
+  │ HttpOnly      │ Not accessible via JavaScript (XSS defense)│
+  │ Secure        │ Send only over HTTPS connections           │
+  │ SameSite      │ Controls sending in cross-site requests    │
+  │               │ Strict: never send cross-site              │
+  │               │ Lax: send only on top-level navigation (default)│
+  │               │ None: always send (Secure required)        │
+  │ Partitioned   │ CHIPS (third-party cookie isolation)       │
+  │ __Host-prefix │ Enforces Secure, Path=/, no Domain         │
+  │ __Secure-prefix│ Enforces Secure                           │
   └───────────────┴───────────────────────────────────────────┘
 
-Cookie のセキュリティ設定（推奨）:
+Recommended secure cookie settings:
   Set-Cookie: __Host-session=abc123;
     Path=/;
     Secure;
@@ -809,40 +808,40 @@ Cookie のセキュリティ設定（推奨）:
     SameSite=Lax;
     Max-Age=3600
 
-  → __Host- プレフィックス: ドメイン固定、Secure必須
-  → HttpOnly: XSS攻撃でのCookie窃取を防止
-  → Secure: HTTPS以外での送信を防止
-  → SameSite=Lax: CSRF攻撃を防止
-  → Max-Age: セッションの有効期限を設定
+  → __Host- prefix: locks to domain, requires Secure
+  → HttpOnly: prevents cookie theft via XSS attacks
+  → Secure: prevents sending over non-HTTPS
+  → SameSite=Lax: prevents CSRF attacks
+  → Max-Age: sets session expiry
 
-Cookie vs Token（JWT）:
-  ┌────────────┬──────────────┬──────────────┐
-  │            │ Cookie       │ JWT          │
-  ├────────────┼──────────────┼──────────────┤
-  │ 保存場所   │ ブラウザ自動 │ JS管理       │
-  │ 送信方法   │ 自動         │ 手動         │
-  │ CSRF対策   │ 必要         │ 不要         │
-  │ XSS対策   │ HttpOnly     │ 困難         │
-  │ サイズ     │ 4KB制限      │ 制限緩い     │
-  │ サーバー状態│ セッション   │ ステートレス │
-  │ ログアウト │ セッション破棄│ トークン無効化│
-  │ クロスドメイン│ SameSite制限│ 自由       │
-  └────────────┴──────────────┴──────────────┘
+Cookie vs Token (JWT):
+  ┌────────────────┬──────────────┬──────────────┐
+  │                │ Cookie       │ JWT          │
+  ├────────────────┼──────────────┼──────────────┤
+  │ Storage        │ Browser auto │ JS-managed   │
+  │ Sending        │ Automatic    │ Manual       │
+  │ CSRF defense   │ Required     │ Not needed   │
+  │ XSS defense    │ HttpOnly     │ Difficult    │
+  │ Size           │ 4KB limit    │ Less limited │
+  │ Server state   │ Session      │ Stateless    │
+  │ Logout         │ Destroy sess.│ Invalidate token│
+  │ Cross-domain   │ SameSite limit│ Flexible    │
+  └────────────────┴──────────────┴──────────────┘
 ```
 
 ---
 
-## 9. セキュリティヘッダー
+## 9. Security Headers
 
 ```
-推奨するセキュリティヘッダー:
+Recommended security headers:
 
   ① Strict-Transport-Security (HSTS):
      Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-     → HTTPS の強制（HTTP接続を自動でHTTPSにリダイレクト）
-     → max-age: ブラウザが記憶する期間（1年）
-     → includeSubDomains: サブドメインも対象
-     → preload: ブラウザのプリロードリストに登録
+     → Enforce HTTPS (automatically redirect HTTP to HTTPS)
+     → max-age: duration the browser remembers (1 year)
+     → includeSubDomains: also applies to subdomains
+     → preload: register in browser preload list
 
   ② Content-Security-Policy (CSP):
      Content-Security-Policy:
@@ -853,25 +852,25 @@ Cookie vs Token（JWT）:
        connect-src 'self' https://api.example.com;
        font-src 'self' https://fonts.googleapis.com;
        frame-ancestors 'none';
-     → XSS攻撃の防止
-     → リソースの読み込み元を制限
+     → Prevent XSS attacks
+     → Restrict allowed resource origins
 
   ③ X-Content-Type-Options:
      X-Content-Type-Options: nosniff
-     → MIMEタイプスニッフィングを無効化
-     → Content-Type を厳密に解釈
+     → Disable MIME type sniffing
+     → Strictly interpret Content-Type
 
   ④ X-Frame-Options:
      X-Frame-Options: DENY
-     → iframe での埋め込みを禁止
-     → クリックジャッキング防止
-     → CSP の frame-ancestors が後継
+     → Prohibit embedding in iframes
+     → Prevent clickjacking
+     → Superseded by CSP frame-ancestors
 
   ⑤ Referrer-Policy:
      Referrer-Policy: strict-origin-when-cross-origin
-     → リファラー情報の送信を制御
-     → 同一オリジン: フルURL
-     → クロスオリジン: オリジンのみ
+     → Control referrer information sent
+     → Same origin: full URL
+     → Cross origin: origin only
 
   ⑥ Permissions-Policy:
      Permissions-Policy:
@@ -879,21 +878,21 @@ Cookie vs Token（JWT）:
        microphone=(),
        geolocation=(self),
        payment=(self "https://pay.example.com")
-     → ブラウザ機能の使用許可を制御
+     → Control browser feature permissions
 
-  ⑦ X-XSS-Protection（非推奨だが互換性のため）:
+  ⑦ X-XSS-Protection (deprecated but kept for compatibility):
      X-XSS-Protection: 0
-     → ブラウザのXSSフィルタを無効化
-     → CSPが推奨される代替策
+     → Disable browser XSS filter
+     → CSP is the recommended alternative
 ```
 
 ```typescript
-// Express.js でのセキュリティヘッダー設定
+// Security header configuration in Express.js
 import helmet from 'helmet';
 
 app.use(helmet());
 
-// カスタム設定
+// Custom configuration
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -914,7 +913,7 @@ app.use(helmet({
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
 }));
 
-// Nginx でのセキュリティヘッダー設定
+// Security header configuration in Nginx
 // add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
 // add_header X-Content-Type-Options "nosniff" always;
 // add_header X-Frame-Options "DENY" always;
@@ -925,37 +924,37 @@ app.use(helmet({
 
 ---
 
-## 10. HTTPデバッグ
+## 10. HTTP Debugging
 
 ```bash
-# === curl でHTTPを確認 ===
+# === Inspecting HTTP with curl ===
 
-# リクエストとレスポンスの詳細表示
+# Show request and response details
 curl -v https://api.example.com/users/123
 
-# レスポンスヘッダーのみ
+# Response headers only
 curl -I https://api.example.com/users/123
 
-# POSTリクエスト
+# POST request
 curl -X POST https://api.example.com/users \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer my-token" \
   -d '{"name": "Taro", "email": "taro@example.com"}'
 
-# PATCHリクエスト
+# PATCH request
 curl -X PATCH https://api.example.com/users/123 \
   -H "Content-Type: application/merge-patch+json" \
   -H "Authorization: Bearer my-token" \
   -d '{"name": "Updated Taro"}'
 
-# DELETEリクエスト
+# DELETE request
 curl -X DELETE https://api.example.com/users/123 \
   -H "Authorization: Bearer my-token"
 
-# レスポンスボディ + HTTPステータス
+# Response body + HTTP status code
 curl -s -o /dev/null -w "%{http_code}" https://api.example.com/health
 
-# タイミング情報の表示
+# Display timing information
 curl -s -o /dev/null -w "
 DNS Lookup:    %{time_namelookup}s
 TCP Connect:   %{time_connect}s
@@ -964,29 +963,29 @@ TTFB:          %{time_starttransfer}s
 Total Time:    %{time_total}s
 " https://api.example.com/users
 
-# リダイレクトを追跡
+# Follow redirects
 curl -L -v https://example.com/old-page
 
-# ファイルアップロード
+# File upload
 curl -X POST https://api.example.com/files \
   -H "Authorization: Bearer my-token" \
   -F "file=@/path/to/image.png" \
   -F "description=Profile image"
 
-# Cookie を保存・送信
+# Save and send cookies
 curl -c cookies.txt https://example.com/login
 curl -b cookies.txt https://example.com/dashboard
 
-# HTTP/2 で接続
+# Connect using HTTP/2
 curl --http2 -v https://api.example.com/users
 
-# プロキシ経由
+# Via proxy
 curl -x http://proxy.example.com:8080 https://api.example.com/users
 
-# 条件付きリクエスト（ETag）
+# Conditional request (ETag)
 curl -H "If-None-Match: \"abc123\"" https://api.example.com/users/123
 
-# HTTPie（curl の代替、より人間に優しい）
+# HTTPie (curl alternative, more human-friendly)
 # GET
 http GET https://api.example.com/users Authorization:"Bearer my-token"
 
@@ -995,14 +994,14 @@ http POST https://api.example.com/users \
   name=Taro email=taro@example.com \
   Authorization:"Bearer my-token"
 
-# レスポンスのみ
+# Response body only
 http --body GET https://api.example.com/users
 ```
 
 ```typescript
-// === ブラウザでのHTTPデバッグ ===
+// === HTTP debugging in the browser ===
 
-// Fetch API でのデバッグ
+// Debugging with Fetch API
 async function debugRequest(url: string): Promise<void> {
   console.time('Request Duration');
 
@@ -1015,25 +1014,25 @@ async function debugRequest(url: string): Promise<void> {
 
   console.timeEnd('Request Duration');
 
-  // ステータス情報
+  // Status information
   console.log('Status:', response.status, response.statusText);
   console.log('OK:', response.ok);
   console.log('Redirected:', response.redirected);
   console.log('Type:', response.type);
   console.log('URL:', response.url);
 
-  // レスポンスヘッダー
+  // Response headers
   console.log('Headers:');
   response.headers.forEach((value, key) => {
     console.log(`  ${key}: ${value}`);
   });
 
-  // ボディ
+  // Body
   const data = await response.json();
   console.log('Body:', data);
 }
 
-// Performance API での計測
+// Measurement with Performance API
 const observer = new PerformanceObserver((list) => {
   for (const entry of list.getEntries()) {
     if (entry.entryType === 'resource') {
@@ -1056,118 +1055,119 @@ observer.observe({ type: 'resource', buffered: true });
 
 ---
 
-## 11. HTTPSとTLS
+## 11. HTTPS and TLS
 
 ```
-HTTPS = HTTP + TLS（Transport Layer Security）
+HTTPS = HTTP + TLS (Transport Layer Security)
 
-  HTTP:   http://example.com（ポート80）
-  HTTPS:  https://example.com（ポート443）
+  HTTP:   http://example.com (port 80)
+  HTTPS:  https://example.com (port 443)
 
-TLSハンドシェイク（TLS 1.3）:
-  クライアント                 サーバー
-  │── ClientHello ──→        │
-  │   (暗号スイート候補、     │
-  │    鍵共有パラメータ)      │
-  │                           │
-  │←── ServerHello ───       │
-  │   (選択した暗号スイート、 │
-  │    鍵共有パラメータ、     │
-  │    証明書、Finished)      │
-  │                           │
-  │── Finished ──→           │
-  │                           │
-  │←→ 暗号化通信開始 ←→      │
+TLS handshake (TLS 1.3):
+  Client                   Server
+  │── ClientHello ──→      │
+  │   (cipher suite list,  │
+  │    key share params)   │
+  │                        │
+  │←── ServerHello ───     │
+  │   (selected cipher,    │
+  │    key share params,   │
+  │    certificate,        │
+  │    Finished)           │
+  │                        │
+  │── Finished ──→         │
+  │                        │
+  │←→ Encrypted comms ←→  │
 
-  TLS 1.2: 2 RTT で接続確立
-  TLS 1.3: 1 RTT で接続確立（0-RTT再接続も可能）
+  TLS 1.2: connection established in 2 RTT
+  TLS 1.3: connection established in 1 RTT (0-RTT reconnect also possible)
 
-証明書の種類:
+Certificate types:
   ┌────────┬──────────────────────────────────┐
-  │ 種類   │ 説明                              │
+  │ Type   │ Description                       │
   ├────────┼──────────────────────────────────┤
-  │ DV     │ ドメイン検証（自動取得可能）       │
-  │ OV     │ 組織検証（企業の実在確認）         │
-  │ EV     │ 拡張検証（厳格な審査）             │
+  │ DV     │ Domain Validated (auto-issuable)  │
+  │ OV     │ Organization Validated (confirms company existence)│
+  │ EV     │ Extended Validation (strict review)│
   └────────┴──────────────────────────────────┘
 
-  Let's Encrypt: 無料のDV証明書（自動更新可能）
+  Let's Encrypt: free DV certificate (auto-renewable)
 
-HTTPSが必要な理由:
-  ① 盗聴防止: 通信内容の暗号化
-  ② 改ざん防止: データの整合性保証
-  ③ なりすまし防止: サーバーの認証
-  ④ SEO: Google は HTTPS を優遇
-  ⑤ HTTP/2: 事実上 HTTPS が必須
-  ⑥ Brotli圧縮: HTTPS のみで使用可能
-  ⑦ Service Worker: HTTPS のみで動作
-  ⑧ Geolocation API 等: HTTPS のみで動作
+Why HTTPS is necessary:
+  ① Eavesdropping prevention: encrypts communication content
+  ② Tampering prevention: ensures data integrity
+  ③ Impersonation prevention: authenticates the server
+  ④ SEO: Google favors HTTPS
+  ⑤ HTTP/2: de facto requires HTTPS
+  ⑥ Brotli compression: only available over HTTPS
+  ⑦ Service Worker: only works over HTTPS
+  ⑧ Geolocation API etc.: only work over HTTPS
 
-混在コンテンツ（Mixed Content）:
-  → HTTPS ページ内の HTTP リソース
-  → ブラウザがブロックまたは警告
-  → 画像等の「パッシブ」混在: 警告のみ
-  → スクリプト等の「アクティブ」混在: ブロック
-  → 解決: 全リソースを HTTPS に統一
+Mixed Content:
+  → HTTP resources on an HTTPS page
+  → Browser blocks or warns
+  → "Passive" mixed content (images etc.): warning only
+  → "Active" mixed content (scripts etc.): blocked
+  → Solution: unify all resources to HTTPS
 ```
 
 ---
 
-## 12. URL/URIの構造
+## 12. URL/URI Structure
 
 ```
-URI（Uniform Resource Identifier）の構造:
+URI (Uniform Resource Identifier) structure:
 
   https://user:pass@api.example.com:443/v1/users?page=1&sort=name#section1
   ├──┤   ├───────┤ ├───────────────┤├──┤├────────┤├──────────────┤├───────┤
   scheme authority   host           port path      query           fragment
 
-  各部分の説明:
+  Description of each part:
   ┌───────────┬─────────────────────────────────────────┐
-  │ 部分      │ 説明                                     │
+  │ Part      │ Description                              │
   ├───────────┼─────────────────────────────────────────┤
-  │ scheme    │ プロトコル（http, https, ftp等）          │
-  │ userinfo  │ 認証情報（非推奨、セキュリティリスク）   │
-  │ host      │ ホスト名またはIPアドレス                 │
-  │ port      │ ポート番号（省略時はデフォルト）         │
-  │ path      │ リソースのパス                           │
-  │ query     │ クエリパラメータ（?key=value&...）       │
-  │ fragment  │ ページ内の位置（#section）               │
+  │ scheme    │ Protocol (http, https, ftp, etc.)        │
+  │ userinfo  │ Credentials (deprecated, security risk)  │
+  │ host      │ Hostname or IP address                   │
+  │ port      │ Port number (default if omitted)         │
+  │ path      │ Resource path                            │
+  │ query     │ Query parameters (?key=value&...)        │
+  │ fragment  │ In-page position (#section)              │
   └───────────┴─────────────────────────────────────────┘
 
   URI vs URL vs URN:
-  → URI: リソースの識別子（上位概念）
-  → URL: リソースの場所を示す（https://example.com/page）
-  → URN: リソースの名前を示す（urn:isbn:0451450523）
-  → 実務では URI と URL はほぼ同義で使われる
+  → URI: identifier for a resource (superordinate concept)
+  → URL: indicates where a resource is (https://example.com/page)
+  → URN: indicates the name of a resource (urn:isbn:0451450523)
+  → In practice, URI and URL are used almost interchangeably
 
-URLエンコーディング:
-  → URIで使用できない文字をパーセントエンコード
-  → スペース → %20（またはクエリ内では +）
-  → 日本語 → %E6%97%A5%E6%9C%AC（UTF-8バイト列を16進数）
+URL encoding:
+  → Percent-encode characters that cannot be used in a URI
+  → Space → %20 (or + in query strings)
+  → Japanese → %E6%97%A5%E6%9C%AC (hex-encoded UTF-8 bytes)
 
-  安全な文字（エンコード不要）:
+  Safe characters (no encoding needed):
   A-Z, a-z, 0-9, - _ . ~
 
-  予約文字（用途に応じてエンコード）:
+  Reserved characters (encode as needed based on usage):
   : / ? # [ ] @ ! $ & ' ( ) * + , ; =
 ```
 
 ```typescript
-// URL操作（JavaScript/TypeScript）
+// URL manipulation (JavaScript/TypeScript)
 
-// URL オブジェクト
+// URL object
 const url = new URL('https://api.example.com/v1/users?page=1&sort=name');
 
 console.log(url.protocol);   // "https:"
 console.log(url.hostname);   // "api.example.com"
-console.log(url.port);       // "" (デフォルトポート)
+console.log(url.port);       // "" (default port)
 console.log(url.pathname);   // "/v1/users"
 console.log(url.search);     // "?page=1&sort=name"
 console.log(url.hash);       // ""
 console.log(url.origin);     // "https://api.example.com"
 
-// クエリパラメータ操作
+// Query parameter manipulation
 const params = url.searchParams;
 console.log(params.get('page'));    // "1"
 console.log(params.get('sort'));    // "name"
@@ -1176,7 +1176,7 @@ params.append('filter', 'active');
 console.log(url.toString());
 // "https://api.example.com/v1/users?page=2&sort=name&filter=active"
 
-// URLSearchParams の活用
+// Using URLSearchParams
 const searchParams = new URLSearchParams({
   page: '1',
   per_page: '20',
@@ -1186,25 +1186,25 @@ const searchParams = new URLSearchParams({
 const apiUrl = `https://api.example.com/users?${searchParams}`;
 // "https://api.example.com/users?page=1&per_page=20&sort=-created_at&status=active"
 
-// エンコーディング
+// Encoding
 encodeURIComponent('Hello World');    // "Hello%20World"
-encodeURIComponent('名前=太郎');      // "%E5%90%8D%E5%89%8D%3D%E5%A4%AA%E9%83%8E"
-decodeURIComponent('%E5%90%8D%E5%89%8D');  // "名前"
+encodeURIComponent('name=Taro');      // "name%3DTaro"
+decodeURIComponent('%E5%90%8D%E5%89%8D');  // "name" (Japanese: 名前)
 
 // encodeURI vs encodeURIComponent
 encodeURI('https://example.com/path?q=hello world');
 // "https://example.com/path?q=hello%20world"
 encodeURIComponent('https://example.com/path?q=hello world');
 // "https%3A%2F%2Fexample.com%2Fpath%3Fq%3Dhello%20world"
-// → encodeURIComponent は予約文字もエンコード
+// → encodeURIComponent also encodes reserved characters
 ```
 
 ---
 
-## 13. サーバー実装例
+## 13. Server Implementation Example
 
 ```typescript
-// Express.js でのHTTPサーバー実装
+// HTTP server implementation with Express.js
 
 import express from 'express';
 import helmet from 'helmet';
@@ -1214,12 +1214,12 @@ import { v4 as uuidv4 } from 'uuid';
 
 const app = express();
 
-// === ミドルウェア ===
+// === Middleware ===
 
-// セキュリティヘッダー
+// Security headers
 app.use(helmet());
 
-// レスポンス圧縮
+// Response compression
 app.use(compression({
   filter: (req, res) => {
     if (req.headers['x-no-compression']) {
@@ -1227,11 +1227,11 @@ app.use(compression({
     }
     return compression.filter(req, res);
   },
-  level: 6,  // 圧縮レベル（1-9）
-  threshold: 1024,  // 1KB未満は圧縮しない
+  level: 6,  // compression level (1-9)
+  threshold: 1024,  // do not compress below 1KB
 }));
 
-// リクエストID付与
+// Assign request ID
 app.use((req, res, next) => {
   const requestId = req.headers['x-request-id'] as string || uuidv4();
   req.headers['x-request-id'] = requestId;
@@ -1239,16 +1239,16 @@ app.use((req, res, next) => {
   next();
 });
 
-// アクセスログ
+// Access logging
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms'));
 
-// JSONボディパース
+// Parse JSON body
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// === ルーティング ===
+// === Routing ===
 
-// GET — 一覧取得
+// GET — list
 app.get('/api/users', async (req, res) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
@@ -1271,7 +1271,7 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
-// GET — 詳細取得（条件付きリクエスト対応）
+// GET — detail (with conditional request support)
 app.get('/api/users/:id', async (req, res) => {
   try {
     const user = await getUserById(req.params.id);
@@ -1285,13 +1285,13 @@ app.get('/api/users/:id', async (req, res) => {
       });
     }
 
-    // ETag生成
+    // Generate ETag
     const etag = generateETag(user);
     res.setHeader('ETag', etag);
     res.setHeader('Cache-Control', 'private, no-cache');
     res.setHeader('Last-Modified', user.updated_at.toUTCString());
 
-    // 条件付きリクエストチェック
+    // Check conditional request
     if (req.headers['if-none-match'] === etag) {
       return res.status(304).end();
     }
@@ -1307,10 +1307,10 @@ app.get('/api/users/:id', async (req, res) => {
   }
 });
 
-// POST — リソース作成
+// POST — create resource
 app.post('/api/users', async (req, res) => {
   try {
-    // バリデーション
+    // Validation
     const errors = validateCreateUser(req.body);
     if (errors.length > 0) {
       return res.status(422).json({
@@ -1341,7 +1341,7 @@ app.post('/api/users', async (req, res) => {
   }
 });
 
-// PATCH — 部分更新（楽観的ロック付き）
+// PATCH — partial update (with optimistic locking)
 app.patch('/api/users/:id', async (req, res) => {
   try {
     const user = await getUserById(req.params.id);
@@ -1355,7 +1355,7 @@ app.patch('/api/users/:id', async (req, res) => {
       });
     }
 
-    // 楽観的ロック: If-Match ヘッダーでETagを検証
+    // Optimistic locking: validate ETag with If-Match header
     const ifMatch = req.headers['if-match'];
     if (ifMatch && ifMatch !== generateETag(user)) {
       return res.status(412).json({
@@ -1378,13 +1378,13 @@ app.patch('/api/users/:id', async (req, res) => {
   }
 });
 
-// DELETE — リソース削除
+// DELETE — delete resource
 app.delete('/api/users/:id', async (req, res) => {
   try {
     const deleted = await deleteUser(req.params.id);
 
     if (!deleted) {
-      // 冪等性: 既に削除済みでも 204 を返す
+      // Idempotency: return 204 even if already deleted
       return res.status(204).end();
     }
 
@@ -1394,7 +1394,7 @@ app.delete('/api/users/:id', async (req, res) => {
   }
 });
 
-// HEAD — 存在確認（GETと同じロジック、ボディなし）
+// HEAD — check existence (same logic as GET, no body)
 app.head('/api/users/:id', async (req, res) => {
   try {
     const user = await getUserById(req.params.id);
@@ -1411,14 +1411,14 @@ app.head('/api/users/:id', async (req, res) => {
   }
 });
 
-// OPTIONS — CORS対応は cors ミドルウェアが自動処理
+// OPTIONS — CORS is handled automatically by the cors middleware
 
-// ヘルスチェック
+// Health check
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// エラーハンドリング
+// Error handling
 function handleError(res: express.Response, error: unknown): void {
   console.error('Internal error:', error);
 
@@ -1430,7 +1430,7 @@ function handleError(res: express.Response, error: unknown): void {
   });
 }
 
-// サーバー起動
+// Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
@@ -1439,38 +1439,38 @@ app.listen(PORT, () => {
 
 ---
 
-## 14. Fetch APIとHTTPクライアント
+## 14. Fetch API and HTTP Clients
 
 ```typescript
-// === Fetch API の詳細 ===
+// === Fetch API in detail ===
 
-// 基本的なオプション
+// Basic options
 const response = await fetch(url, {
-  method: 'GET',                    // HTTPメソッド
-  headers: new Headers({            // ヘッダー
+  method: 'GET',                    // HTTP method
+  headers: new Headers({            // Headers
     'Content-Type': 'application/json',
     'Authorization': 'Bearer token',
   }),
-  body: JSON.stringify(data),       // ボディ（GET/HEADでは不可）
-  mode: 'cors',                     // CORS モード
-  credentials: 'include',           // Cookie送信
-  cache: 'no-cache',                // キャッシュ制御
-  redirect: 'follow',               // リダイレクト制御
+  body: JSON.stringify(data),       // Body (not allowed for GET/HEAD)
+  mode: 'cors',                     // CORS mode
+  credentials: 'include',           // Send cookies
+  cache: 'no-cache',                // Cache control
+  redirect: 'follow',               // Redirect handling
   referrerPolicy: 'strict-origin-when-cross-origin',
-  signal: AbortSignal.timeout(5000), // タイムアウト（5秒）
-  keepalive: true,                   // ページ離脱後も送信
-  priority: 'high',                  // 優先度（high/low/auto）
+  signal: AbortSignal.timeout(5000), // Timeout (5 seconds)
+  keepalive: true,                   // Send even after page unload
+  priority: 'high',                  // Priority (high/low/auto)
 });
 
-// === レスポンスの読み取り ===
-// response.json()   — JSON
-// response.text()   — テキスト
-// response.blob()   — バイナリ（Blob）
-// response.arrayBuffer() — バイナリ（ArrayBuffer）
-// response.formData() — FormData
-// response.body     — ReadableStream（ストリーミング）
+// === Reading the response ===
+// response.json()        — JSON
+// response.text()        — text
+// response.blob()        — binary (Blob)
+// response.arrayBuffer() — binary (ArrayBuffer)
+// response.formData()    — FormData
+// response.body          — ReadableStream (streaming)
 
-// ストリーミングレスポンスの読み取り
+// Reading a streaming response
 async function streamResponse(url: string): Promise<string> {
   const response = await fetch(url);
   const reader = response.body!.getReader();
@@ -1487,7 +1487,7 @@ async function streamResponse(url: string): Promise<string> {
   return result;
 }
 
-// タイムアウトとキャンセル
+// Timeout and cancellation
 async function fetchWithTimeout(
   url: string,
   timeoutMs: number = 5000,
@@ -1510,7 +1510,7 @@ async function fetchWithTimeout(
   }
 }
 
-// リトライ付きfetch
+// Fetch with retry
 async function fetchWithRetry(
   url: string,
   options: RequestInit = {},
@@ -1522,10 +1522,10 @@ async function fetchWithRetry(
     try {
       const response = await fetch(url, options);
 
-      // 5xx エラーはリトライ
+      // Retry on 5xx errors
       if (response.status >= 500 && attempt < maxRetries) {
-        const delay = Math.pow(2, attempt) * 1000;  // 指数バックオフ
-        const jitter = Math.random() * 1000;          // ジッター
+        const delay = Math.pow(2, attempt) * 1000;  // exponential backoff
+        const jitter = Math.random() * 1000;          // jitter
         await new Promise(resolve => setTimeout(resolve, delay + jitter));
         continue;
       }
@@ -1547,153 +1547,153 @@ async function fetchWithRetry(
 
 ---
 
-## FAQ（よくある質問）
+## FAQ
 
-### Q1: HTTPメソッドの冪等性とは何か、なぜ重要なのか
+### Q1: What is HTTP method idempotency and why does it matter?
 
 ```
-冪等性（Idempotent）:
-  → 同じリクエストを何度送っても結果（副作用）が同じになる性質
-  → 1回目と2回目以降で状態変化が起きないこと
+Idempotency:
+  → The property that sending the same request multiple times yields the same result (side effects)
+  → No state changes occur from the second request onward
 
-冪等なメソッド:
-  GET    — 何度読んでも状態は変わらない
-  PUT    — 同じデータで何度更新しても同じ状態
-  DELETE — 既に削除済みでも冪等（404ではなく204を返す実装が多い）
-  HEAD   — GET同様、状態を変更しない
+Idempotent methods:
+  GET    — Reading any number of times does not change state
+  PUT    — Updating with the same data multiple times results in the same state
+  DELETE — Idempotent even if already deleted (many implementations return 204, not 404)
+  HEAD   — Like GET, does not modify state
 
-非冪等なメソッド:
-  POST   — 毎回新しいリソースが作成される
-  PATCH  — 相対的な変更（+1等）の場合、繰り返すと累積する
+Non-idempotent methods:
+  POST   — Creates a new resource every time
+  PATCH  — If changes are relative (+1 etc.), repeating accumulates them
 
-実務的な重要性:
-  1. ネットワークエラー時のリトライ戦略
-     → 冪等なメソッドは安全にリトライできる
-     → 非冪等なメソッドは Idempotency-Key で対応
+Practical importance:
+  1. Retry strategy on network errors
+     → Idempotent methods can be safely retried
+     → Non-idempotent methods use Idempotency-Key
 
-  2. ブラウザの「戻る」ボタン
-     → GETは安全に再送、POSTは警告表示
+  2. Browser "Back" button
+     → GET is safely re-sent; POST shows a warning
 
-  3. プロキシ・CDNのキャッシュ
-     → 冪等なメソッドのみキャッシュ可能
+  3. Proxy/CDN caching
+     → Only idempotent methods can be cached
 
-冪等性を保証する実装例:
+Implementation example guaranteeing idempotency:
   POST /api/payments
   Idempotency-Key: unique-key-12345
-  → 同じキーでの再送は二重決済を防止
+  → Re-sending with the same key prevents double charging
 ```
 
-### Q2: HTTPヘッダーの役割と主要なヘッダーは何か
+### Q2: What are the roles and key HTTP headers?
 
 ```
-HTTPヘッダーの役割:
-  ① メタデータの伝達
-     → Content-Type（データ形式）、Content-Length（サイズ）
-  ② コンテンツネゴシエーション
-     → Accept（希望形式）、Accept-Language（希望言語）
-  ③ 認証・認可
-     → Authorization（認証情報）、Cookie（セッション）
-  ④ キャッシュ制御
-     → Cache-Control、ETag、Last-Modified
-  ⑤ セキュリティ
-     → HSTS、CSP、X-Content-Type-Options
-  ⑥ デバッグ・トレース
-     → X-Request-Id（リクエスト追跡）
+Roles of HTTP headers:
+  ① Transmit metadata
+     → Content-Type (data format), Content-Length (size)
+  ② Content negotiation
+     → Accept (preferred format), Accept-Language (preferred language)
+  ③ Authentication and authorization
+     → Authorization (credentials), Cookie (session)
+  ④ Cache control
+     → Cache-Control, ETag, Last-Modified
+  ⑤ Security
+     → HSTS, CSP, X-Content-Type-Options
+  ⑥ Debugging and tracing
+     → X-Request-Id (request tracking)
 
-主要なリクエストヘッダー:
+Key request headers:
   ┌─────────────────────┬───────────────────────────────┐
-  │ Host                │ 接続先ホスト（HTTP/1.1必須）   │
-  │ Accept              │ 受け入れ可能なメディアタイプ   │
-  │ Authorization       │ 認証情報（Bearer token等）     │
-  │ Content-Type        │ ボディのメディアタイプ         │
-  │ User-Agent          │ クライアント情報               │
-  │ Origin              │ CORS用オリジン情報             │
-  │ If-None-Match       │ 条件付きリクエスト（ETag）     │
+  │ Host                │ Target host (required in HTTP/1.1)│
+  │ Accept              │ Acceptable media types         │
+  │ Authorization       │ Auth credentials (Bearer token etc.)│
+  │ Content-Type        │ Media type of the body         │
+  │ User-Agent          │ Client information             │
+  │ Origin              │ Origin info for CORS           │
+  │ If-None-Match       │ Conditional request (ETag)     │
   └─────────────────────┴───────────────────────────────┘
 
-主要なレスポンスヘッダー:
+Key response headers:
   ┌─────────────────────┬───────────────────────────────┐
-  │ Content-Type        │ ボディのメディアタイプ         │
-  │ Cache-Control       │ キャッシュ制御                 │
-  │ ETag                │ リソースのバージョン識別子     │
-  │ Location            │ リダイレクト先/作成先URI       │
-  │ Set-Cookie          │ Cookieの設定                   │
-  │ Access-Control-*    │ CORSヘッダー群                 │
-  │ Strict-Transport-   │ HTTPS強制（HSTS）              │
+  │ Content-Type        │ Media type of the body         │
+  │ Cache-Control       │ Cache control                  │
+  │ ETag                │ Resource version identifier    │
+  │ Location            │ Redirect or created URI        │
+  │ Set-Cookie          │ Cookie settings                │
+  │ Access-Control-*    │ CORS headers                   │
+  │ Strict-Transport-   │ Enforce HTTPS (HSTS)           │
   │   Security          │                                │
   └─────────────────────┴───────────────────────────────┘
 ```
 
-### Q3: HTTP/1.1のKeep-Aliveの仕組みと利点は何か
+### Q3: How does HTTP/1.1 Keep-Alive work and what are its benefits?
 
 ```
-Keep-Alive（持続的接続）:
-  → 1つのTCP接続で複数のHTTPリクエストを送信する仕組み
-  → HTTP/1.1ではデフォルトで有効（Connection: keep-alive）
+Keep-Alive (persistent connection):
+  → A mechanism for sending multiple HTTP requests over a single TCP connection
+  → Enabled by default in HTTP/1.1 (Connection: keep-alive)
 
-HTTP/1.0（Keep-Alive なし）:
-  接続 ── GET /page.html ── レスポンス ── 切断
-  接続 ── GET /style.css ── レスポンス ── 切断
-  接続 ── GET /app.js    ── レスポンス ── 切断
+HTTP/1.0 (without Keep-Alive):
+  Connect ── GET /page.html ── Response ── Disconnect
+  Connect ── GET /style.css ── Response ── Disconnect
+  Connect ── GET /app.js    ── Response ── Disconnect
 
-  → 毎回TCP 3-wayハンドシェイク + TLSハンドシェイクが必要
-  → RTT × 3 の無駄（TCP + TLS + HTTP）
+  → Each request requires TCP 3-way handshake + TLS handshake
+  → Wastes RTT × 3 (TCP + TLS + HTTP)
 
-HTTP/1.1（Keep-Alive あり）:
-  接続 ── GET /page.html ── レスポンス
-       ── GET /style.css ── レスポンス
-       ── GET /app.js    ── レスポンス ── 切断（タイムアウト後）
+HTTP/1.1 (with Keep-Alive):
+  Connect ── GET /page.html ── Response
+          ── GET /style.css ── Response
+          ── GET /app.js    ── Response ── Disconnect (after timeout)
 
-  → 最初のハンドシェイクのみ、以降はリクエストを連続送信
+  → Only the first handshake is needed; subsequent requests are sent continuously
 
-Keep-Aliveの設定（サーバー側）:
-  レスポンスヘッダー:
+Keep-Alive settings (server side):
+  Response headers:
   Connection: keep-alive
   Keep-Alive: timeout=65, max=100
 
-  → timeout: アイドル時間の上限（秒）
-  → max: 1接続で処理する最大リクエスト数
+  → timeout: maximum idle time (seconds)
+  → max: maximum number of requests per connection
 
-  Nginxの設定例:
-  keepalive_timeout 65;    # 65秒
-  keepalive_requests 100;  # 最大100リクエスト
+  Nginx configuration example:
+  keepalive_timeout 65;    # 65 seconds
+  keepalive_requests 100;  # up to 100 requests
 
-利点:
-  ① レイテンシ削減
-     → ハンドシェイクの繰り返しを排除
-  ② サーバーリソース削減
-     → ソケット生成/破棄のオーバーヘッド削減
-  ③ 輻輳制御の効率化
-     → TCPの輻輳ウィンドウが成長した状態を維持
+Benefits:
+  ① Reduced latency
+     → Eliminates repeated handshakes
+  ② Reduced server resources
+     → Less overhead from creating/destroying sockets
+  ③ More efficient congestion control
+     → TCP congestion window remains grown
 
-注意点:
-  → タイムアウト設定が長すぎるとサーバーのソケット枯渇
-  → HTTP/2ではさらに進化（多重化により複数ストリームを並列処理）
+Caveats:
+  → Too long a timeout setting can exhaust server sockets
+  → HTTP/2 goes further (handles multiple streams in parallel via multiplexing)
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 概念 | ポイント |
-|------|---------|
-| HTTP | ステートレスなリクエスト/レスポンスプロトコル |
-| メソッド | GET(取得), POST(作成), PUT(更新), PATCH(部分更新), DELETE(削除) |
-| 冪等性 | GET, PUT, DELETE は冪等、POST, PATCH は非冪等 |
-| ステータス | 2xx(成功), 3xx(リダイレクト), 4xx(クライアントエラー), 5xx(サーバーエラー) |
-| ヘッダー | Content-Type, Authorization, Cache-Control, ETag 等 |
-| Cookie | HttpOnly, Secure, SameSite でセキュア設定 |
-| HTTPS | TLS による暗号化・認証・改ざん防止 |
-| セキュリティ | HSTS, CSP, X-Content-Type-Options 等 |
-| デバッグ | curl, HTTPie, ブラウザDevTools |
-
----
-
-## 次に読むべきガイド
+| Concept | Key Point |
+|---------|-----------|
+| HTTP | Stateless request/response protocol |
+| Methods | GET (retrieve), POST (create), PUT (update), PATCH (partial update), DELETE (delete) |
+| Idempotency | GET, PUT, DELETE are idempotent; POST, PATCH are not |
+| Status codes | 2xx (success), 3xx (redirect), 4xx (client error), 5xx (server error) |
+| Headers | Content-Type, Authorization, Cache-Control, ETag, etc. |
+| Cookie | Secure settings with HttpOnly, Secure, SameSite |
+| HTTPS | Encryption, authentication, and integrity via TLS |
+| Security | HSTS, CSP, X-Content-Type-Options, etc. |
+| Debugging | curl, HTTPie, browser DevTools |
 
 ---
 
-## 参考文献
+## Further Reading
+
+---
+
+## References
 1. RFC 9110. "HTTP Semantics." IETF, 2022.
 2. RFC 9111. "HTTP Caching." IETF, 2022.
 3. RFC 9112. "HTTP/1.1." IETF, 2022.
