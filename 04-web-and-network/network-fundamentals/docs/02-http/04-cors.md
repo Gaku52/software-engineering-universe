@@ -1,116 +1,115 @@
-# CORS（Cross-Origin Resource Sharing）
+# CORS (Cross-Origin Resource Sharing)
 
-> CORSはブラウザのセキュリティ機構「同一オリジンポリシー」を安全に緩和する仕組み。プリフライトリクエスト、許可ヘッダー、Credentialsの設定を理解し、正しくCORSを構成する。
+> CORS is a mechanism for safely relaxing the browser's security feature known as the Same-Origin Policy. Understand preflight requests, allowed headers, and credentials configuration to set up CORS correctly.
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge will deepen your understanding before reading this guide:
 
-- [HTTP基礎](./00-http-basics.md) — リクエスト/レスポンス、ヘッダー、ステータスコードの仕組み
-- ブラウザのセキュリティモデル — Same-Origin Policy、サンドボックス、セキュリティ境界
-- [TLS/SSL](../03-security/00-tls-ssl.md) — HTTPS通信の暗号化と証明書の基礎
+- [HTTP Basics](./00-http-basics.md) — how requests/responses, headers, and status codes work
+- Browser security model — Same-Origin Policy, sandboxing, and security boundaries
+- [TLS/SSL](../03-security/00-tls-ssl.md) — basics of HTTPS encryption and certificates
 
-CORSは同一オリジンポリシー（Same-Origin Policy）という根本的なWebセキュリティ機構を理解していないと本質を掴めない。ブラウザがなぜクロスオリジンリクエストを制限するのか、どのような攻撃を防いでいるのかを知ることで、CORSの設計意図と正しい設定方法が明確になる。
-
----
-
-## この章で学ぶこと
-
-- [ ] 同一オリジンポリシーの起源と目的を理解する
-- [ ] CORSの仕組みとブラウザの挙動を把握する
-- [ ] シンプルリクエストとプリフライトの違いを明確に区別する
-- [ ] サーバー側のCORS設定方法（Express, nginx, 各種フレームワーク）を学ぶ
-- [ ] Credentials（Cookie/認証情報）を伴うCORSの注意点を理解する
-- [ ] 開発環境と本番環境それぞれでのCORS戦略を習得する
-- [ ] CORSに関するセキュリティリスクとベストプラクティスを把握する
+Without understanding the Same-Origin Policy (SOP), the fundamental web security mechanism, you cannot grasp the essence of CORS. Knowing why browsers restrict cross-origin requests and what attacks they prevent clarifies the design intent of CORS and how to configure it correctly.
 
 ---
 
-## 1. 同一オリジンポリシー（Same-Origin Policy）
+## What You Will Learn
 
-### 1.1 オリジンの定義
+- [ ] Understand the origin and purpose of the Same-Origin Policy
+- [ ] Understand how CORS works and how browsers behave
+- [ ] Clearly distinguish between simple requests and preflight requests
+- [ ] Learn server-side CORS configuration (Express, nginx, various frameworks)
+- [ ] Understand the caveats of CORS with credentials (Cookie/authentication information)
+- [ ] Master CORS strategies for both development and production environments
+- [ ] Understand security risks and best practices related to CORS
 
-同一オリジンポリシーを理解するには、まず「オリジン」の定義を正確に把握する必要がある。オリジンは以下の3要素の組み合わせで決定される。
+---
+
+## 1. Same-Origin Policy (SOP)
+
+### 1.1 Definition of Origin
+
+To understand the Same-Origin Policy, you first need to understand the exact definition of "origin." An origin is determined by a combination of three elements.
 
 ```
-オリジン = スキーム + ホスト + ポート
+Origin = scheme + host + port
 
   https://example.com:443/path/to/resource?query=value#fragment
   ↑        ↑            ↑    ↑                ↑         ↑
-  スキーム   ホスト       ポート パス            クエリ     フラグメント
-  (scheme)  (host)      (port) (path)         (query)   (fragment)
+  scheme   host         port path             query     fragment
 
-  ※ オリジンの判定に使われるのはスキーム・ホスト・ポートの3要素のみ
-  ※ パス、クエリ、フラグメントはオリジンの判定に含まれない
+  * Only scheme, host, and port are used to determine the origin
+  * Path, query, and fragment are not included in origin determination
 ```
 
-### 1.2 同一オリジン判定の具体例
+### 1.2 Concrete Examples of Same-Origin Determination
 
 ```
-基準URL: https://www.example.com/page
+Reference URL: https://www.example.com/page
 
-比較対象                                結果      理由
+Comparison target                           Result    Reason
 ───────────────────────────────────────────────────────────────
-https://www.example.com/other          同一 ○    パスのみ異なる
-https://www.example.com/page?q=1       同一 ○    クエリのみ異なる
-https://www.example.com:443/page       同一 ○    HTTPSのデフォルトポート
-http://www.example.com/page            異なる ✗  スキームが異なる
-https://api.example.com/page           異なる ✗  ホスト（サブドメイン）が異なる
-https://example.com/page               異なる ✗  ホスト（wwwの有無）が異なる
-https://www.example.com:8443/page      異なる ✗  ポートが異なる
-https://www.example.org/page           異なる ✗  ドメインが異なる
+https://www.example.com/other               Same ○    Only path differs
+https://www.example.com/page?q=1            Same ○    Only query differs
+https://www.example.com:443/page            Same ○    Default port for HTTPS
+http://www.example.com/page                 Diff ✗    Scheme differs
+https://api.example.com/page                Diff ✗    Host (subdomain) differs
+https://example.com/page                    Diff ✗    Host (www presence) differs
+https://www.example.com:8443/page           Diff ✗    Port differs
+https://www.example.org/page                Diff ✗    Domain differs
 
-※ 重要: サブドメインが異なるだけでも別オリジンとなる
-   www.example.com と api.example.com は別オリジン
+* Important: Even a different subdomain means a different origin
+   www.example.com and api.example.com are different origins
 ```
 
-### 1.3 同一オリジンポリシーの歴史的背景
+### 1.3 Historical Background of the Same-Origin Policy
 
-同一オリジンポリシーは1995年にNetscape Navigator 2.02で初めて導入されたセキュリティモデルである。Webが発展するにつれ、異なるWebサイト間でのデータ窃取を防ぐ根本的なセキュリティ境界として機能してきた。
+The Same-Origin Policy was a security model first introduced in Netscape Navigator 2.02 in 1995. As the Web evolved, it has served as a fundamental security boundary to prevent data theft between different websites.
 
 ```
-同一オリジンポリシーの保護モデル:
+Same-Origin Policy protection model:
 
-  攻撃シナリオ（SOPがない場合）:
+  Attack scenario (without SOP):
   ┌──────────────────────────────────────────────────┐
-  │ ユーザーが evil.com を閲覧中                      │
-  │                                                    │
-  │  evil.com のJS                                     │
-  │    │                                               │
-  │    │── fetch("https://bank.com/api/balance") ──→  │
-  │    │   （ユーザーのCookieが自動送信される）         │
-  │    │                                               │
-  │    │←── { balance: 1000000 } ───────────────────  │
-  │    │                                               │
-  │    │── evil.com のサーバーに送信 ──→               │
-  │    │   （ユーザーの残高情報が盗まれる）             │
-  │                                                    │
-  │  ※ SOPがあるため、このレスポンスの読み取りは       │
-  │    ブラウザによってブロックされる                   │
+  │ User is browsing evil.com                        │
+  │                                                  │
+  │  evil.com JS                                     │
+  │    │                                             │
+  │    │── fetch("https://bank.com/api/balance") ──→ │
+  │    │   (User's cookie is automatically sent)     │
+  │    │                                             │
+  │    │←── { balance: 1000000 } ──────────────────  │
+  │    │                                             │
+  │    │── Send to evil.com server ──→               │
+  │    │   (User's balance information is stolen)    │
+  │                                                  │
+  │  * Because of SOP, reading this response is      │
+  │    blocked by the browser                        │
   └──────────────────────────────────────────────────┘
 ```
 
-### 1.4 SOPの適用範囲
+### 1.4 Scope of SOP
 
-同一オリジンポリシーは全てのリソースに一律に適用されるわけではない。歴史的な理由から、以下のように適用範囲が異なる。
+The Same-Origin Policy does not apply uniformly to all resources. For historical reasons, the scope differs as follows.
 
 ```
-SOPの適用対象と非適用対象:
+What SOP restricts vs. does not restrict:
 
   ┌─────────────────────────────────┐
-  │     SOP が制限するもの          │
+  │     What SOP restricts          │
   ├─────────────────────────────────┤
   │ ・fetch / XMLHttpRequest        │
-  │ ・Canvas への他オリジン画像描画 │
-  │   （tainted canvas）            │
-  │ ・Web Storage（localStorage等） │
+  │ ・Drawing cross-origin images   │
+  │   onto Canvas (tainted canvas)  │
+  │ ・Web Storage (localStorage,etc)│
   │ ・IndexedDB                     │
-  │ ・Cookie（別途ルールあり）      │
-  │ ・iframe の DOM アクセス        │
+  │ ・Cookie (separate rules apply) │
+  │ ・DOM access of iframe          │
   └─────────────────────────────────┘
 
   ┌─────────────────────────────────┐
-  │     SOP が制限しないもの        │
+  │     What SOP does NOT restrict  │
   ├─────────────────────────────────┤
   │ ・<img src="...">               │
   │ ・<script src="...">            │
@@ -118,89 +117,90 @@ SOPの適用対象と非適用対象:
   │ ・<video> / <audio>             │
   │ ・<form action="...">           │
   │ ・@font-face                    │
-  │ ・<iframe>（表示は可、DOM不可） │
+  │ ・<iframe> (display OK, DOM no) │
   └─────────────────────────────────┘
 
-  ※ <script> や <img> がSOPの制限を受けないのは、
-    Web初期からクロスオリジンでの利用が一般的だったため
-  ※ ただし、これがJSONPやCSRF等の攻撃手法の温床にもなった
+  * <script> and <img> are not restricted by SOP because
+    cross-origin usage has been common since the early Web
+  * However, this has also become a breeding ground for
+    attacks like JSONP and CSRF
 ```
 
 ---
 
-## 2. CORSの仕組み
+## 2. How CORS Works
 
-### 2.1 CORSの全体像
+### 2.1 Overview of CORS
 
-CORS（Cross-Origin Resource Sharing）は、同一オリジンポリシーを安全に緩和するためのHTTPヘッダーベースの仕組みである。サーバーが「このオリジンからのアクセスを許可する」と明示的に宣言することで、ブラウザがクロスオリジンリクエストのレスポンスへのアクセスを許可する。
+CORS (Cross-Origin Resource Sharing) is an HTTP header-based mechanism for safely relaxing the Same-Origin Policy. When a server explicitly declares "I allow access from this origin," the browser permits access to the response from cross-origin requests.
 
 ```
-CORSの基本概念図:
+CORS conceptual diagram:
 
   ┌───────────────┐                        ┌───────────────┐
-  │   ブラウザ     │                        │   サーバー     │
+  │   Browser     │                        │   Server      │
   │               │                        │               │
   │ https://app   │                        │ https://api   │
   │ .example.com  │                        │ .example.com  │
   │               │                        │               │
-  │  フロントエンド │                        │  バックエンド   │
-  │  (React等)    │                        │  (Express等)  │
+  │  Frontend     │                        │  Backend      │
+  │  (React, etc) │                        │  (Express,etc)│
   │               │                        │               │
-  │  ①リクエスト   │── HTTP Request ──→    │               │
-  │   送信        │   Origin: https://     │  ②オリジン     │
-  │               │   app.example.com      │    検証        │
+  │  ① Send       │── HTTP Request ──→    │               │
+  │    request    │   Origin: https://     │  ② Verify     │
+  │               │   app.example.com      │    origin     │
   │               │                        │               │
-  │  ④レスポンス   │←── HTTP Response ──   │  ③CORSヘッダ   │
-  │   利用可否    │   Access-Control-      │    付与        │
-  │   判定        │   Allow-Origin:        │               │
+  │  ④ Determine  │←── HTTP Response ──   │  ③ Add CORS   │
+  │    if response│   Access-Control-      │    headers    │
+  │    can be used│   Allow-Origin:        │               │
   │               │   https://app...       │               │
   └───────────────┘                        └───────────────┘
 
-  重要: CORSはブラウザのセキュリティ機構
-  → サーバー間通信（curl, サーバーサイドHTTPクライアント）には適用されない
-  → ブラウザが「レスポンスをJSに渡すかどうか」を判断する仕組み
-  → リクエスト自体はサーバーに到達する（※プリフライトを除く）
+  Important: CORS is a browser security mechanism
+  → Does not apply to server-to-server communication (curl, server-side HTTP clients)
+  → It is the mechanism by which the browser decides "whether to pass the response to JS"
+  → The request itself does reach the server (except for preflight)
 ```
 
-### 2.2 シンプルリクエスト（Simple Request）
+### 2.2 Simple Request
 
-シンプルリクエストは、プリフライトなしで直接サーバーに送信されるリクエストである。以下の全ての条件を満たす場合にシンプルリクエストとして扱われる。
+A simple request is sent directly to the server without a preflight. It is treated as a simple request when all of the following conditions are met.
 
 ```
-シンプルリクエストの条件（全て満たす必要がある）:
+Conditions for a simple request (all must be satisfied):
 
   ┌────────────────────────────────────────────────────┐
-  │ 条件1: HTTPメソッド                                │
-  │   GET, HEAD, POST のいずれか                       │
+  │ Condition 1: HTTP method                           │
+  │   One of: GET, HEAD, POST                         │
   ├────────────────────────────────────────────────────┤
-  │ 条件2: ヘッダー（以下のみ許可）                     │
+  │ Condition 2: Headers (only the following allowed)  │
   │   ・Accept                                         │
   │   ・Accept-Language                                │
   │   ・Content-Language                               │
-  │   ・Content-Type（条件3を参照）                     │
-  │   ・Range（単純な範囲指定のみ）                     │
+  │   ・Content-Type (see Condition 3)                 │
+  │   ・Range (simple range specification only)        │
   ├────────────────────────────────────────────────────┤
-  │ 条件3: Content-Type（以下のいずれか）               │
+  │ Condition 3: Content-Type (one of the following)   │
   │   ・application/x-www-form-urlencoded              │
   │   ・multipart/form-data                            │
   │   ・text/plain                                     │
   ├────────────────────────────────────────────────────┤
-  │ 条件4: ReadableStream を使用していない              │
+  │ Condition 4: ReadableStream is not used            │
   ├────────────────────────────────────────────────────┤
-  │ 条件5: XMLHttpRequestUpload にイベントリスナーが    │
-  │        設定されていない                             │
+  │ Condition 5: No event listeners attached to        │
+  │              XMLHttpRequestUpload                  │
   └────────────────────────────────────────────────────┘
 
-  シンプルリクエストのフロー:
+  Simple request flow:
 
-     ブラウザ                              サーバー
+     Browser                              Server
      │                                     │
      │── GET /api/public/data ──────→     │
      │   Host: api.example.com             │
      │   Origin: https://app.example.com   │
      │                                     │
-     │                              ┌──────┤ オリジンを検証し
-     │                              │      │ CORSヘッダーを付与
+     │                              ┌──────┤ Validates origin
+     │                              │      │ and adds CORS headers
      │                              └──────┤
      │                                     │
      │←── 200 OK ──────────────────       │
@@ -211,31 +211,31 @@ CORSの基本概念図:
      │   {"data": "public info"}           │
      │                                     │
 
-  ブラウザの判定:
-  ・Allow-Origin がリクエストの Origin と一致 → JSにレスポンスを渡す
-  ・Allow-Origin がない or 不一致 → CORSエラー（レスポンスを破棄）
+  Browser determination:
+  ・Allow-Origin matches the request's Origin → passes response to JS
+  ・Allow-Origin is absent or mismatches → CORS error (response discarded)
 ```
 
-### 2.3 プリフライトリクエスト（Preflight Request）
+### 2.3 Preflight Request
 
-シンプルリクエストの条件を満たさない場合、ブラウザは実際のリクエストを送信する前に、OPTIONSメソッドによるプリフライトリクエストを送信して、サーバーの許可を確認する。
+When simple request conditions are not met, the browser sends a preflight request using the OPTIONS method before the actual request to confirm the server's permission.
 
 ```
-プリフライトが発生する典型的なケース:
+Typical cases where preflight occurs:
 
-  ① HTTPメソッドが PUT / DELETE / PATCH
-  ② Content-Type が application/json
-  ③ カスタムヘッダーを使用（Authorization, X-Custom-Header 等）
-  ④ 上記の組み合わせ
+  ① HTTP method is PUT / DELETE / PATCH
+  ② Content-Type is application/json
+  ③ Custom headers are used (Authorization, X-Custom-Header, etc.)
+  ④ Combination of the above
 
-プリフライトの詳細シーケンス:
+Detailed preflight sequence:
 
-     ブラウザ                              サーバー
+     Browser                              Server
      │                                     │
-     │  ※ fetch() でPUTリクエストを         │
-     │    発行しようとする                   │
+     │  * About to issue a PUT request     │
+     │    via fetch()                      │
      │                                     │
-     │  [Phase 1: プリフライト]             │
+     │  [Phase 1: Preflight]               │
      │                                     │
      │── OPTIONS /api/users/123 ────→     │
      │   Host: api.example.com             │
@@ -246,8 +246,8 @@ CORSの基本概念図:
      │     Content-Type, Authorization     │
      │                                     │
      │                              ┌──────┤
-     │                              │ 許可  │
-     │                              │ 判定  │
+     │                              │ Check │
+     │                              │ perm. │
      │                              └──────┤
      │                                     │
      │←── 204 No Content ──────────       │
@@ -259,10 +259,10 @@ CORSの基本概念図:
      │     Content-Type, Authorization     │
      │   Access-Control-Max-Age: 86400     │
      │                                     │
-     │  ※ プリフライト成功                  │
-     │  ※ Max-Ageの間はキャッシュされる     │
+     │  * Preflight succeeded              │
+     │  * Cached for Max-Age duration      │
      │                                     │
-     │  [Phase 2: 実際のリクエスト]         │
+     │  [Phase 2: Actual request]          │
      │                                     │
      │── PUT /api/users/123 ────────→     │
      │   Host: api.example.com             │
@@ -280,176 +280,177 @@ CORSの基本概念図:
      │   {"id": 123, "name": "Updated"}    │
      │                                     │
 
-  注意: プリフライトが失敗した場合、実際のリクエストは送信されない
-  → サーバー側でOPTIONSリクエストのハンドリングが必須
+  Note: If preflight fails, the actual request is not sent
+  → The server must handle OPTIONS requests
 ```
 
-### 2.4 プリフライトキャッシュ
+### 2.4 Preflight Caching
 
-プリフライトリクエストは毎回のリクエストごとに送信されると、パフォーマンスに影響を与える。`Access-Control-Max-Age` ヘッダーにより、プリフライト結果をキャッシュできる。
+If preflight requests are sent with every request, they impact performance. The `Access-Control-Max-Age` header allows caching of preflight results.
 
 ```
-プリフライトキャッシュの仕組み:
+How preflight caching works:
 
-  Max-Age: 86400（24時間）の場合
+  With Max-Age: 86400 (24 hours)
 
-  時刻 00:00  最初のリクエスト
-  ├── OPTIONS /api/data ──→ （プリフライト送信）
-  ├── 204 応答 ←──
-  ├── PUT /api/data ──→ （実際のリクエスト）
-  └── 200 応答 ←──
+  Time 00:00  First request
+  ├── OPTIONS /api/data ──→ (preflight sent)
+  ├── 204 response ←──
+  ├── PUT /api/data ──→ (actual request)
+  └── 200 response ←──
 
-  時刻 01:00  2回目のリクエスト
-  ├── （プリフライトはキャッシュヒット → 送信不要）
-  ├── PUT /api/data ──→ （直接送信）
-  └── 200 応答 ←──
+  Time 01:00  Second request
+  ├── (preflight is cache hit → no need to send)
+  ├── PUT /api/data ──→ (sent directly)
+  └── 200 response ←──
 
-  時刻 12:00  3回目のリクエスト
-  ├── （まだキャッシュ有効）
+  Time 12:00  Third request
+  ├── (cache still valid)
   ├── DELETE /api/data ──→
-  └── 200 応答 ←──
+  └── 200 response ←──
 
-  時刻 24:01  キャッシュ期限切れ後
-  ├── OPTIONS /api/data ──→ （再度プリフライト送信）
-  ├── 204 応答 ←──
+  Time 24:01  After cache expires
+  ├── OPTIONS /api/data ──→ (preflight sent again)
+  ├── 204 response ←──
   ├── PUT /api/data ──→
-  └── 200 応答 ←──
+  └── 200 response ←──
 
-  ブラウザごとの Max-Age 上限:
+  Max-Age limit per browser:
   ┌──────────────────────┬────────────────┐
-  │ ブラウザ              │ 上限値          │
+  │ Browser              │ Limit          │
   ├──────────────────────┼────────────────┤
-  │ Chrome/Edge          │ 7200秒（2時間） │
-  │ Firefox              │ 86400秒（24h）  │
-  │ Safari               │ 604800秒（7日） │
+  │ Chrome/Edge          │ 7200s (2h)     │
+  │ Firefox              │ 86400s (24h)   │
+  │ Safari               │ 604800s (7d)   │
   └──────────────────────┴────────────────┘
 
-  ※ サーバーが Max-Age: 86400 を返しても、Chromeでは
-    7200秒に切り詰められる
-  ※ Max-Age を省略した場合、デフォルトは5秒
+  * Even if the server returns Max-Age: 86400, Chrome truncates it to 7200 seconds
+  * Default is 5 seconds when Max-Age is omitted
 ```
 
 ---
 
-## 3. CORSヘッダー詳細
+## 3. CORS Headers in Detail
 
-### 3.1 レスポンスヘッダー一覧
+### 3.1 Response Headers Reference
 
 ```
-CORSレスポンスヘッダー完全リファレンス:
+Complete CORS response header reference:
 
   ┌───────────────────────────────┬──────────────────────────────────┐
-  │ ヘッダー                      │ 説明・用途                       │
+  │ Header                        │ Description / Use case           │
   ├───────────────────────────────┼──────────────────────────────────┤
-  │ Access-Control-Allow-Origin   │ 許可するオリジンを指定           │
-  │                               │ 値: 特定オリジン or *            │
-  │                               │ 例: https://app.example.com     │
-  │                               │ ※ 複数オリジンは直接指定不可     │
+  │ Access-Control-Allow-Origin   │ Specifies the allowed origin     │
+  │                               │ Value: specific origin or *      │
+  │                               │ Ex: https://app.example.com      │
+  │                               │ * Multiple origins not directly  │
+  │                               │   specifiable                    │
   ├───────────────────────────────┼──────────────────────────────────┤
-  │ Access-Control-Allow-Methods  │ 許可するHTTPメソッドを列挙       │
-  │                               │ プリフライトレスポンスで使用     │
-  │                               │ 例: GET, POST, PUT, DELETE      │
+  │ Access-Control-Allow-Methods  │ Lists allowed HTTP methods       │
+  │                               │ Used in preflight response       │
+  │                               │ Ex: GET, POST, PUT, DELETE       │
   ├───────────────────────────────┼──────────────────────────────────┤
-  │ Access-Control-Allow-Headers  │ 許可するリクエストヘッダーを列挙 │
-  │                               │ プリフライトレスポンスで使用     │
-  │                               │ 例: Content-Type, Authorization │
+  │ Access-Control-Allow-Headers  │ Lists allowed request headers    │
+  │                               │ Used in preflight response       │
+  │                               │ Ex: Content-Type, Authorization  │
   ├───────────────────────────────┼──────────────────────────────────┤
-  │ Access-Control-Expose-Headers │ JSからアクセス可能なレスポンス   │
-  │                               │ ヘッダーを指定                   │
-  │                               │ デフォルトで公開: Content-Type,  │
-  │                               │ Cache-Control, Expires 等        │
-  │                               │ 例: X-Request-Id, X-Total-Count │
+  │ Access-Control-Expose-Headers │ Specifies response headers       │
+  │                               │ accessible from JS               │
+  │                               │ Exposed by default: Content-Type,│
+  │                               │ Cache-Control, Expires, etc.     │
+  │                               │ Ex: X-Request-Id, X-Total-Count  │
   ├───────────────────────────────┼──────────────────────────────────┤
-  │ Access-Control-Allow-         │ Credentials（Cookie、認証情報）  │
-  │ Credentials                   │ の送信を許可するか               │
-  │                               │ 値: true のみ（falseは省略）     │
-  │                               │ ※ Allow-Origin: * との併用不可   │
+  │ Access-Control-Allow-         │ Whether to allow sending         │
+  │ Credentials                   │ credentials (Cookie, auth info)  │
+  │                               │ Value: true only (false=omit)    │
+  │                               │ * Cannot be combined with        │
+  │                               │   Allow-Origin: *                │
   ├───────────────────────────────┼──────────────────────────────────┤
-  │ Access-Control-Max-Age        │ プリフライト結果のキャッシュ秒数 │
-  │                               │ 値: 秒数（整数）                 │
-  │                               │ 例: 86400（24時間）              │
-  │                               │ ※ ブラウザごとに上限あり         │
+  │ Access-Control-Max-Age        │ Seconds to cache preflight result│
+  │                               │ Value: integer (seconds)         │
+  │                               │ Ex: 86400 (24 hours)             │
+  │                               │ * Upper limit varies per browser │
   └───────────────────────────────┴──────────────────────────────────┘
 ```
 
-### 3.2 リクエストヘッダー一覧
+### 3.2 Request Headers Reference
 
 ```
-CORSリクエストヘッダー（ブラウザが自動付与）:
+CORS request headers (automatically added by browser):
 
   ┌────────────────────────────────┬─────────────────────────────────┐
-  │ ヘッダー                       │ 説明・用途                      │
+  │ Header                         │ Description / Use case          │
   ├────────────────────────────────┼─────────────────────────────────┤
-  │ Origin                         │ リクエスト元のオリジン          │
-  │                                │ ブラウザが自動的に付与          │
-  │                                │ JSから変更不可                  │
-  │                                │ 例: https://app.example.com    │
+  │ Origin                         │ Origin of the request           │
+  │                                │ Automatically added by browser  │
+  │                                │ Cannot be changed by JS         │
+  │                                │ Ex: https://app.example.com     │
   ├────────────────────────────────┼─────────────────────────────────┤
-  │ Access-Control-Request-Method  │ 実際に使用するHTTPメソッド      │
-  │                                │ プリフライト（OPTIONS）で使用   │
-  │                                │ 例: PUT                        │
+  │ Access-Control-Request-Method  │ HTTP method to actually use     │
+  │                                │ Used in preflight (OPTIONS)     │
+  │                                │ Ex: PUT                         │
   ├────────────────────────────────┼─────────────────────────────────┤
-  │ Access-Control-Request-Headers │ 実際に使用するヘッダー一覧      │
-  │                                │ プリフライト（OPTIONS）で使用   │
-  │                                │ 例: Content-Type, Authorization│
+  │ Access-Control-Request-Headers │ List of headers to actually use │
+  │                                │ Used in preflight (OPTIONS)     │
+  │                                │ Ex: Content-Type, Authorization │
   └────────────────────────────────┴─────────────────────────────────┘
 
-  ※ これらのヘッダーはブラウザが自動で設定する
-  ※ JavaScript（fetch API等）からこれらを手動設定することはできない
-  ※ Origin ヘッダーの偽装は通常のブラウザでは不可能
+  * These headers are automatically set by the browser
+  * They cannot be manually set from JavaScript (fetch API, etc.)
+  * Spoofing the Origin header is not possible in normal browsers
 ```
 
-### 3.3 Credentials（資格情報）とCORS
+### 3.3 Credentials and CORS
 
-Cookie、Authorization ヘッダー、TLSクライアント証明書などの資格情報を伴うクロスオリジンリクエストには特別なルールが適用される。
+Special rules apply to cross-origin requests that include credentials such as cookies, Authorization headers, or TLS client certificates.
 
 ```
-Credentialsモードの設定:
+Credentials mode settings:
 
-  fetch APIの場合:
+  For fetch API:
   ┌───────────────────────┬──────────────────────────────────────┐
-  │ credentials 値         │ 動作                                │
+  │ credentials value     │ Behavior                             │
   ├───────────────────────┼──────────────────────────────────────┤
-  │ "omit"                │ Cookieを一切送信しない               │
-  │                       │ レスポンスのCookieも無視             │
+  │ "omit"                │ Never sends cookies                  │
+  │                       │ Also ignores cookies in response     │
   ├───────────────────────┼──────────────────────────────────────┤
-  │ "same-origin"（既定） │ 同一オリジンのみCookieを送信         │
-  │                       │ クロスオリジンでは送信しない         │
+  │ "same-origin"(default)│ Sends cookies only for same-origin  │
+  │                       │ Does not send for cross-origin       │
   ├───────────────────────┼──────────────────────────────────────┤
-  │ "include"             │ クロスオリジンでもCookieを送信       │
-  │                       │ サーバー側の許可が必須               │
+  │ "include"             │ Sends cookies even cross-origin      │
+  │                       │ Server must explicitly allow it      │
   └───────────────────────┴──────────────────────────────────────┘
 
-  Credentials使用時の制約:
+  Constraints when using credentials:
   ┌──────────────────────────────────────────────────────┐
-  │ credentials: "include" を使用する場合                 │
+  │ When using credentials: "include"                    │
   │                                                      │
-  │ サーバーは以下を全て満たす必要がある:                 │
+  │ Server must satisfy ALL of the following:            │
   │                                                      │
   │ 1. Access-Control-Allow-Credentials: true            │
-  │ 2. Access-Control-Allow-Origin: （特定のオリジン）    │
-  │    ※ ワイルドカード "*" は使用不可                    │
-  │ 3. Access-Control-Allow-Headers: （特定のヘッダー）   │
-  │    ※ ワイルドカード "*" は使用不可                    │
-  │ 4. Access-Control-Allow-Methods: （特定のメソッド）   │
-  │    ※ ワイルドカード "*" は使用不可                    │
-  │ 5. Access-Control-Expose-Headers: （特定のヘッダー）  │
-  │    ※ ワイルドカード "*" は使用不可                    │
+  │ 2. Access-Control-Allow-Origin: (specific origin)    │
+  │    * Wildcard "*" cannot be used                     │
+  │ 3. Access-Control-Allow-Headers: (specific headers)  │
+  │    * Wildcard "*" cannot be used                     │
+  │ 4. Access-Control-Allow-Methods: (specific methods)  │
+  │    * Wildcard "*" cannot be used                     │
+  │ 5. Access-Control-Expose-Headers: (specific headers) │
+  │    * Wildcard "*" cannot be used                     │
   └──────────────────────────────────────────────────────┘
 
-  ※ Credentials モードでは全てのワイルドカード指定が無効になる
-  ※ これはセキュリティ上の重要な制約
+  * In credentials mode, all wildcard specifications become invalid
+  * This is an important security constraint
 ```
 
 ---
 
-## 4. サーバー側の設定
+## 4. Server-Side Configuration
 
-### 4.1 Express.js での CORS 設定
+### 4.1 CORS Configuration in Express.js
 
 ```typescript
 // ============================================================
-// Express.js CORS設定 - 完全版
+// Express.js CORS configuration - Complete version
 // ============================================================
 
 import express from 'express';
@@ -458,53 +459,53 @@ import cors from 'cors';
 const app = express();
 
 // --------------------------------------------------
-// 方法1: cors ミドルウェア（推奨）
+// Method 1: cors middleware (recommended)
 // --------------------------------------------------
 
-// 基本設定
+// Basic configuration
 app.use(cors({
-  // 許可するオリジンのリスト
+  // List of allowed origins
   origin: [
     'https://app.example.com',
     'https://admin.example.com',
     'https://staging.example.com',
   ],
-  // 許可するHTTPメソッド
+  // Allowed HTTP methods
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  // 許可するリクエストヘッダー
+  // Allowed request headers
   allowedHeaders: [
     'Content-Type',
     'Authorization',
     'X-Requested-With',
     'X-Request-Id',
   ],
-  // JSからアクセス可能にするレスポンスヘッダー
+  // Response headers accessible from JS
   exposedHeaders: [
     'X-Total-Count',
     'X-Request-Id',
     'X-RateLimit-Remaining',
   ],
-  // Credentials（Cookie等）を許可
+  // Allow credentials (cookies, etc.)
   credentials: true,
-  // プリフライト結果のキャッシュ時間（秒）
+  // Cache duration for preflight results (seconds)
   maxAge: 86400,
-  // OPTIONSリクエストに対して204を返す（デフォルト: 204）
+  // Return 204 for OPTIONS requests (default: 204)
   optionsSuccessStatus: 204,
 }));
 
 // --------------------------------------------------
-// 方法2: 動的オリジン検証（パターンマッチング）
+// Method 2: Dynamic origin validation (pattern matching)
 // --------------------------------------------------
 
 const corsOptionsWithDynamicOrigin = cors({
   origin: (origin, callback) => {
-    // origin が undefined の場合は同一オリジンリクエスト
-    // （またはサーバー間通信）
+    // origin is undefined for same-origin requests
+    // (or server-to-server communication)
     if (!origin) {
       return callback(null, true);
     }
 
-    // ホワイトリスト方式
+    // Whitelist approach
     const whitelist = [
       'https://app.example.com',
       'https://admin.example.com',
@@ -514,13 +515,13 @@ const corsOptionsWithDynamicOrigin = cors({
       return callback(null, true);
     }
 
-    // サブドメインのパターンマッチ
+    // Subdomain pattern matching
     const subdomainPattern = /^https:\/\/[\w-]+\.example\.com$/;
     if (subdomainPattern.test(origin)) {
       return callback(null, true);
     }
 
-    // 開発環境のlocalhostを許可
+    // Allow localhost in development environment
     if (process.env.NODE_ENV === 'development') {
       const localhostPattern = /^http:\/\/localhost:\d+$/;
       if (localhostPattern.test(origin)) {
@@ -528,7 +529,7 @@ const corsOptionsWithDynamicOrigin = cors({
       }
     }
 
-    // 許可されないオリジン
+    // Origin not allowed
     callback(new Error(`Origin ${origin} is not allowed by CORS`));
   },
   credentials: true,
@@ -538,15 +539,15 @@ const corsOptionsWithDynamicOrigin = cors({
 app.use(corsOptionsWithDynamicOrigin);
 
 // --------------------------------------------------
-// 方法3: ルート単位でのCORS設定
+// Method 3: Per-route CORS configuration
 // --------------------------------------------------
 
-// 公開APIはワイルドカード許可
+// Public API allows wildcard
 app.get('/api/public/*', cors({ origin: '*' }), (req, res) => {
   res.json({ data: 'public data' });
 });
 
-// プライベートAPIは特定オリジンのみ
+// Private API allows only specific origin
 const privateCors = cors({
   origin: 'https://app.example.com',
   credentials: true,
@@ -557,7 +558,7 @@ app.get('/api/private/*', privateCors, (req, res) => {
 });
 
 // --------------------------------------------------
-// 方法4: 手動実装（ミドルウェアを使わない場合）
+// Method 4: Manual implementation (without middleware)
 // --------------------------------------------------
 
 app.use((req, res, next) => {
@@ -567,10 +568,10 @@ app.use((req, res, next) => {
   ];
   const origin = req.headers.origin;
 
-  // オリジンの検証
+  // Validate origin
   if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
-    // Vary ヘッダーを設定（CDNキャッシュ対策）
+    // Set Vary header (for CDN cache)
     res.setHeader('Vary', 'Origin');
   }
 
@@ -589,7 +590,7 @@ app.use((req, res, next) => {
     'X-Total-Count, X-Request-Id'
   );
 
-  // プリフライトリクエストへの応答
+  // Respond to preflight request
   if (req.method === 'OPTIONS') {
     return res.sendStatus(204);
   }
@@ -598,20 +599,20 @@ app.use((req, res, next) => {
 });
 ```
 
-### 4.2 nginx での CORS 設定
+### 4.2 CORS Configuration in nginx
 
 ```nginx
 # ============================================================
-# nginx CORS設定 - 本番環境向け完全版
+# nginx CORS configuration - Complete version for production
 # ============================================================
 
-# オリジンのホワイトリストを map で定義
+# Define origin whitelist using map
 map $http_origin $cors_origin {
     default "";
     "https://app.example.com"     "https://app.example.com";
     "https://admin.example.com"   "https://admin.example.com";
     "https://staging.example.com" "https://staging.example.com";
-    # 正規表現も使用可能
+    # Regex can also be used
     ~^https://[\w-]+\.example\.com$  $http_origin;
 }
 
@@ -620,7 +621,7 @@ server {
     server_name api.example.com;
 
     location /api/ {
-        # プリフライトリクエスト（OPTIONS）の処理
+        # Handle preflight request (OPTIONS)
         if ($request_method = 'OPTIONS') {
             add_header 'Access-Control-Allow-Origin'
                        $cors_origin always;
@@ -638,7 +639,7 @@ server {
             return 204;
         }
 
-        # 通常リクエストへのCORSヘッダー付与
+        # Add CORS headers to normal requests
         add_header 'Access-Control-Allow-Origin'
                    $cors_origin always;
         add_header 'Access-Control-Allow-Credentials'
@@ -654,7 +655,7 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # 公開アセット（CORSヘッダーなし or ワイルドカード）
+    # Public assets (no CORS headers or wildcard)
     location /static/ {
         add_header 'Access-Control-Allow-Origin' '*' always;
         add_header 'Cache-Control' 'public, max-age=31536000';
@@ -663,20 +664,20 @@ server {
 }
 ```
 
-### 4.3 fetch API によるクロスオリジンリクエスト
+### 4.3 Cross-Origin Requests with fetch API
 
 ```typescript
 // ============================================================
-// fetch API CORS リクエスト例
+// fetch API CORS request examples
 // ============================================================
 
-// --- 例1: シンプルリクエスト（GETでJSONを取得） ---
+// --- Example 1: Simple request (GET to fetch JSON) ---
 async function fetchPublicData(): Promise<void> {
   try {
     const response = await fetch('https://api.example.com/api/public/data', {
       method: 'GET',
-      // シンプルリクエストの条件を満たすため
-      // プリフライトは発生しない
+      // Satisfies simple request conditions,
+      // so no preflight occurs
     });
 
     if (!response.ok) {
@@ -684,57 +685,57 @@ async function fetchPublicData(): Promise<void> {
     }
 
     const data = await response.json();
-    console.log('取得成功:', data);
+    console.log('Fetch succeeded:', data);
   } catch (error) {
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      // CORSエラーの場合、TypeError が発生する
-      console.error('CORSエラーまたはネットワークエラー');
+      // TypeError occurs in case of CORS error
+      console.error('CORS error or network error');
     } else {
-      console.error('その他のエラー:', error);
+      console.error('Other error:', error);
     }
   }
 }
 
-// --- 例2: Credentials付きリクエスト（Cookie送信） ---
+// --- Example 2: Request with credentials (send Cookie) ---
 async function fetchWithCredentials(): Promise<void> {
   const response = await fetch('https://api.example.com/api/user/profile', {
     method: 'GET',
-    credentials: 'include', // Cookie を送信
-    // credentials: 'include' を指定した場合、
-    // サーバーは Access-Control-Allow-Credentials: true を返す必要がある
-    // かつ Allow-Origin に * は使用不可
+    credentials: 'include', // Send cookies
+    // When credentials: 'include' is specified,
+    // server must return Access-Control-Allow-Credentials: true
+    // and * cannot be used for Allow-Origin
   });
 
   const profile = await response.json();
-  console.log('プロフィール:', profile);
+  console.log('Profile:', profile);
 }
 
-// --- 例3: プリフライトが発生するリクエスト ---
+// --- Example 3: Request that triggers preflight ---
 async function updateUser(userId: number, data: object): Promise<void> {
   const response = await fetch(
     `https://api.example.com/api/users/${userId}`,
     {
-      method: 'PUT',                      // → プリフライト発生（シンプルでない）
+      method: 'PUT',                      // → triggers preflight (not simple)
       headers: {
-        'Content-Type': 'application/json', // → プリフライト発生
-        'Authorization': 'Bearer eyJhbG...', // → プリフライト発生
-        'X-Request-Id': crypto.randomUUID(), // → プリフライト発生
+        'Content-Type': 'application/json', // → triggers preflight
+        'Authorization': 'Bearer eyJhbG...', // → triggers preflight
+        'X-Request-Id': crypto.randomUUID(), // → triggers preflight
       },
       credentials: 'include',
       body: JSON.stringify(data),
     }
   );
 
-  // レスポンスヘッダーへのアクセス
-  // ※ Expose-Headers に含まれるヘッダーのみ取得可能
+  // Access to response headers
+  // * Only headers included in Expose-Headers can be retrieved
   const requestId = response.headers.get('X-Request-Id');
   const totalCount = response.headers.get('X-Total-Count');
 
   const result = await response.json();
-  console.log('更新結果:', result);
+  console.log('Update result:', result);
 }
 
-// --- 例4: AbortController によるタイムアウト付きCORSリクエスト ---
+// --- Example 4: CORS request with timeout using AbortController ---
 async function fetchWithTimeout(
   url: string,
   timeoutMs: number = 5000
@@ -760,162 +761,161 @@ async function fetchWithTimeout(
 
 ---
 
-## 5. よくあるCORSエラーと対処法
+## 5. Common CORS Errors and How to Fix Them
 
-### 5.1 エラーパターン一覧
+### 5.1 Error Pattern Reference
 
-CORSエラーはブラウザのコンソールに表示されるが、セキュリティ上の理由から詳細なエラー情報はJavaScriptからは取得できない。以下に代表的なエラーパターンと対処法を網羅する。
+CORS errors are displayed in the browser console, but for security reasons, detailed error information cannot be obtained from JavaScript. Below is a comprehensive list of representative error patterns and their fixes.
 
 ```
-エラーパターン比較表:
+Error pattern comparison table:
 
   ┌───┬──────────────────────────────┬──────────────────────┬─────────────────────────────┐
-  │ # │ コンソールメッセージ（要約）  │ 原因                 │ 対処法                      │
+  │ # │ Console message (summary)    │ Cause                │ Fix                         │
   ├───┼──────────────────────────────┼──────────────────────┼─────────────────────────────┤
-  │ 1 │ No 'Access-Control-Allow-    │ サーバーが CORS      │ サーバーに Allow-Origin      │
-  │   │ Origin' header is present    │ ヘッダーを返して     │ ヘッダーを設定する           │
-  │   │                              │ いない               │                             │
+  │ 1 │ No 'Access-Control-Allow-    │ Server is not        │ Configure Allow-Origin      │
+  │   │ Origin' header is present    │ returning CORS       │ header on server            │
+  │   │                              │ headers              │                             │
   ├───┼──────────────────────────────┼──────────────────────┼─────────────────────────────┤
-  │ 2 │ The value of the 'Access-    │ Allow-Origin の値が  │ Origin と完全一致する値を    │
-  │   │ Control-Allow-Origin' header │ リクエストの Origin  │ 返す、またはホワイトリスト   │
-  │   │ must not be the wildcard '*' │ と一致しない、       │ で動的に設定                │
-  │   │ when credentials mode is     │ credentials使用時に  │                             │
-  │   │ 'include'                    │ * を使用している     │                             │
+  │ 2 │ The value of the 'Access-    │ Allow-Origin value   │ Return a value that exactly │
+  │   │ Control-Allow-Origin' header │ does not match the   │ matches Origin, or set it   │
+  │   │ must not be the wildcard '*' │ request's Origin, or │ dynamically via whitelist   │
+  │   │ when credentials mode is     │ * is used with       │                             │
+  │   │ 'include'                    │ credentials          │                             │
   ├───┼──────────────────────────────┼──────────────────────┼─────────────────────────────┤
-  │ 3 │ Response to preflight        │ OPTIONS リクエスト   │ OPTIONS メソッドの           │
-  │   │ request doesn't pass access  │ に対する応答が不正   │ ハンドラーを実装する         │
+  │ 3 │ Response to preflight        │ Response to OPTIONS  │ Implement a handler for     │
+  │   │ request doesn't pass access  │ request is invalid   │ OPTIONS method              │
   │   │ control check                │                      │                             │
   ├───┼──────────────────────────────┼──────────────────────┼─────────────────────────────┤
-  │ 4 │ Method PUT is not allowed by │ Allow-Methods に     │ 使用するメソッドを           │
-  │   │ Access-Control-Allow-Methods │ 必要なメソッドが     │ Allow-Methods に追加         │
-  │   │                              │ 含まれていない       │                             │
+  │ 4 │ Method PUT is not allowed by │ Required method is   │ Add the method you need     │
+  │   │ Access-Control-Allow-Methods │ not in Allow-Methods │ to Allow-Methods            │
   ├───┼──────────────────────────────┼──────────────────────┼─────────────────────────────┤
-  │ 5 │ Request header field         │ Allow-Headers に     │ 使用するヘッダーを           │
-  │   │ Authorization is not allowed │ 必要なヘッダーが     │ Allow-Headers に追加         │
-  │   │ by Access-Control-Allow-     │ 含まれていない       │                             │
+  │ 5 │ Request header field         │ Required header is   │ Add the header you need     │
+  │   │ Authorization is not allowed │ not in Allow-Headers │ to Allow-Headers            │
+  │   │ by Access-Control-Allow-     │                      │                             │
   │   │ Headers                      │                      │                             │
   ├───┼──────────────────────────────┼──────────────────────┼─────────────────────────────┤
-  │ 6 │ Redirect is not allowed for  │ プリフライトの応答   │ OPTIONS に対して直接         │
-  │   │ a preflight request          │ がリダイレクト       │ 応答する（リダイレクト不可） │
-  │   │                              │ (301/302) を返した   │                             │
+  │ 6 │ Redirect is not allowed for  │ Preflight response   │ Respond to OPTIONS directly │
+  │   │ a preflight request          │ is a redirect        │ (redirects not allowed)     │
+  │   │                              │ (301/302)            │                             │
   └───┴──────────────────────────────┴──────────────────────┴─────────────────────────────┘
 ```
 
-### 5.2 デバッグ手順
+### 5.2 Debugging Steps
 
-CORSエラーが発生した場合の体系的なデバッグ手順を示す。
+Below are systematic debugging steps when a CORS error occurs.
 
 ```
-CORSエラーのデバッグフローチャート:
+CORS error debugging flowchart:
 
-  START: CORSエラーがコンソールに表示された
+  START: CORS error displayed in console
     │
-    ├── Step 1: ブラウザのDevToolsでNetworkタブを確認
+    ├── Step 1: Check the Network tab in browser DevTools
     │   │
-    │   ├── OPTIONSリクエストがあるか？
-    │   │   ├── YES → プリフライトの応答を確認（Step 2a）
-    │   │   └── NO  → シンプルリクエストの応答を確認（Step 2b）
+    │   ├── Is there an OPTIONS request?
+    │   │   ├── YES → Check the preflight response (Step 2a)
+    │   │   └── NO  → Check the simple request response (Step 2b)
     │   │
-    │   Step 2a: プリフライト応答の確認
-    │   ├── ステータスコードは 200 or 204 か？
-    │   │   ├── NO → OPTIONSハンドラーを実装/修正
-    │   │   └── YES → レスポンスヘッダーを確認
-    │   │       ├── Allow-Origin は正しいか？
-    │   │       ├── Allow-Methods に必要なメソッドがあるか？
-    │   │       └── Allow-Headers に必要なヘッダーがあるか？
+    │   Step 2a: Check preflight response
+    │   ├── Is the status code 200 or 204?
+    │   │   ├── NO → Implement/fix the OPTIONS handler
+    │   │   └── YES → Check response headers
+    │   │       ├── Is Allow-Origin correct?
+    │   │       ├── Does Allow-Methods include the required method?
+    │   │       └── Does Allow-Headers include the required headers?
     │   │
-    │   Step 2b: レスポンスヘッダーの確認
-    │   ├── Allow-Origin ヘッダーが存在するか？
-    │   │   ├── NO → サーバーにCORS設定を追加
-    │   │   └── YES → 値がリクエストのOriginと一致するか確認
+    │   Step 2b: Check response headers
+    │   ├── Does Allow-Origin header exist?
+    │   │   ├── NO → Add CORS configuration to server
+    │   │   └── YES → Confirm value matches request's Origin
     │   │
-    │   Step 3: Credentials関連の確認
-    │   ├── credentials: 'include' を使用しているか？
-    │   │   ├── YES → Allow-Origin が * になっていないか確認
-    │   │   │         Allow-Credentials: true があるか確認
-    │   │   └── NO → Step 4 へ
+    │   Step 3: Check Credentials-related issues
+    │   ├── Are you using credentials: 'include'?
+    │   │   ├── YES → Check Allow-Origin is not *
+    │   │   │         Check Allow-Credentials: true is present
+    │   │   └── NO → Proceed to Step 4
     │   │
-    │   Step 4: curl で直接サーバーの応答を確認
+    │   Step 4: Directly check server response with curl
     │       $ curl -v -X OPTIONS \
     │         -H "Origin: https://app.example.com" \
     │         -H "Access-Control-Request-Method: PUT" \
     │         https://api.example.com/api/data
     │
-    └── END: 原因特定 → 修正 → ブラウザキャッシュクリア → 再検証
+    └── END: Identify cause → Fix → Clear browser cache → Revalidate
 ```
 
-### 5.3 curl によるCORSデバッグコマンド
+### 5.3 CORS Debugging Commands with curl
 
 ```bash
 # ============================================================
-# curl を使った CORS デバッグ
+# CORS debugging with curl
 # ============================================================
 
-# --- プリフライトリクエストのシミュレーション ---
+# --- Simulate a preflight request ---
 curl -v -X OPTIONS \
   -H "Origin: https://app.example.com" \
   -H "Access-Control-Request-Method: PUT" \
   -H "Access-Control-Request-Headers: Content-Type, Authorization" \
   https://api.example.com/api/users
 
-# 期待される応答ヘッダー:
+# Expected response headers:
 # < HTTP/2 204
 # < access-control-allow-origin: https://app.example.com
 # < access-control-allow-methods: GET, POST, PUT, DELETE
 # < access-control-allow-headers: Content-Type, Authorization
 # < access-control-max-age: 86400
 
-# --- シンプルリクエストのシミュレーション ---
+# --- Simulate a simple request ---
 curl -v \
   -H "Origin: https://app.example.com" \
   https://api.example.com/api/public/data
 
-# --- Credentials付きリクエストのシミュレーション ---
+# --- Simulate a request with credentials ---
 curl -v \
   -H "Origin: https://app.example.com" \
   -H "Cookie: session=abc123" \
   https://api.example.com/api/user/profile
 
-# 期待される応答ヘッダー:
+# Expected response headers:
 # < access-control-allow-origin: https://app.example.com
 # < access-control-allow-credentials: true
-# （Allow-Origin が * だとブラウザではエラーになる）
+# (If Allow-Origin is *, it will be a browser error)
 ```
 
 ---
 
-## 6. 開発環境でのCORS対策
+## 6. Handling CORS in Development Environment
 
-### 6.1 プロキシによる回避（推奨）
+### 6.1 Bypass via Proxy (Recommended)
 
-開発環境では、CORS自体を回避するアプローチが最もトラブルが少ない。フロントエンドの開発サーバーにプロキシを設定し、APIリクエストを中継させることで同一オリジンとなり、CORSが不要になる。
+In development environments, avoiding CORS altogether is the least troublesome approach. By configuring a proxy on the frontend development server to relay API requests, all requests appear to be same-origin and CORS becomes unnecessary.
 
 ```
-プロキシの仕組み:
+How the proxy works:
 
-  従来（CORS必要）:
+  Traditional (CORS required):
   ┌─────────────────┐                    ┌─────────────────┐
-  │ ブラウザ         │──── 直接通信 ───→│ APIサーバー      │
-  │ localhost:5173  │     異なるオリジン  │ localhost:8080  │
-  │                 │←── CORSエラー ──  │                 │
+  │ Browser         │──── direct comm ──→│ API server      │
+  │ localhost:5173  │     different origin│ localhost:8080  │
+  │                 │←── CORS error ──   │                 │
   └─────────────────┘                    └─────────────────┘
 
-  プロキシ使用（CORS不要）:
+  With proxy (CORS not needed):
   ┌─────────────────┐    ┌──────────────┐    ┌─────────────────┐
-  │ ブラウザ         │──→│ Vite Dev     │──→│ APIサーバー      │
+  │ Browser         │──→│ Vite Dev     │──→│ API server      │
   │ localhost:5173  │    │ Server       │    │ localhost:8080  │
   │                 │    │ /api → proxy │    │                 │
-  │ /api/users      │    │              │    │ /api/users      │
-  │ は同一オリジン   │←──│              │←──│                 │
+  │ /api/users is   │    │              │    │ /api/users      │
+  │ same-origin     │←──│              │←──│                 │
   └─────────────────┘    └──────────────┘    └─────────────────┘
 
-  ブラウザから見ると /api/users は localhost:5173 への
-  リクエストなので、同一オリジン → CORSは発生しない
+  From the browser's perspective, /api/users is a request to
+  localhost:5173 → same-origin → no CORS
 ```
 
 ```typescript
 // ============================================================
-// Vite のプロキシ設定（vite.config.ts）
+// Vite proxy configuration (vite.config.ts)
 // ============================================================
 
 import { defineConfig } from 'vite';
@@ -924,21 +924,21 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // /api で始まるリクエストをバックエンドに転送
+      // Forward requests starting with /api to backend
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
-        // リクエストパスの書き換え（必要な場合）
+        // Rewrite request path (if needed)
         // rewrite: (path) => path.replace(/^\/api/, ''),
       },
 
-      // WebSocket のプロキシ
+      // WebSocket proxy
       '/ws': {
         target: 'ws://localhost:8080',
         ws: true,
       },
 
-      // 複数のバックエンドへの振り分け
+      // Route to multiple backends
       '/auth': {
         target: 'http://localhost:9000',
         changeOrigin: true,
@@ -950,7 +950,7 @@ export default defineConfig({
 
 ```typescript
 // ============================================================
-// webpack-dev-server のプロキシ設定（webpack.config.js）
+// webpack-dev-server proxy configuration (webpack.config.js)
 // ============================================================
 
 module.exports = {
@@ -961,7 +961,7 @@ module.exports = {
         target: 'http://localhost:8080',
         changeOrigin: true,
         pathRewrite: { '^/api': '/api' },
-        // エラーハンドリング
+        // Error handling
         onError: (err, req, res) => {
           console.error('Proxy error:', err);
           res.writeHead(502, { 'Content-Type': 'text/plain' });
@@ -975,7 +975,7 @@ module.exports = {
 
 ```typescript
 // ============================================================
-// Next.js のリライト設定（next.config.js）
+// Next.js rewrite configuration (next.config.js)
 // ============================================================
 
 /** @type {import('next').NextConfig} */
@@ -993,11 +993,11 @@ const nextConfig = {
 module.exports = nextConfig;
 ```
 
-### 6.2 環境別CORS設定パターン
+### 6.2 Per-Environment CORS Configuration Pattern
 
 ```typescript
 // ============================================================
-// 環境別CORS設定（Express.js）
+// Per-environment CORS configuration (Express.js)
 // ============================================================
 
 import cors from 'cors';
@@ -1029,7 +1029,7 @@ function getCorsOptions(): cors.CorsOptions {
     case 'development':
       return {
         origin: (origin, callback) => {
-          // 開発環境では localhost の任意のポートを許可
+          // Allow any port of localhost in development
           if (!origin || /^http:\/\/localhost:\d+$/.test(origin)) {
             callback(null, true);
           } else {
@@ -1037,18 +1037,18 @@ function getCorsOptions(): cors.CorsOptions {
           }
         },
         credentials: true,
-        maxAge: 0, // キャッシュなし（デバッグ容易性のため）
+        maxAge: 0, // No cache (for easier debugging)
       };
 
     case 'test':
       return {
-        origin: '*', // テスト環境では全オリジン許可
+        origin: '*', // Allow all origins in test environment
         credentials: false,
       };
 
     default:
       return {
-        origin: false, // CORS無効（安全側に倒す）
+        origin: false, // Disable CORS (fail safe)
       };
   }
 }
@@ -1058,50 +1058,52 @@ app.use(cors(getCorsOptions()));
 
 ---
 
-## 7. フレームワーク別CORS設定
+## 7. CORS Configuration by Framework
 
-### 7.1 主要フレームワーク比較表
+### 7.1 Comparison Table by Major Framework
 
 ```
-フレームワーク別CORS設定方法の比較:
+Comparison of CORS configuration methods by framework:
 
   ┌────────────────┬──────────────────────┬──────────────────────────────┐
-  │ フレームワーク  │ 設定方法              │ 特徴                         │
+  │ Framework      │ Configuration method  │ Characteristics              │
   ├────────────────┼──────────────────────┼──────────────────────────────┤
-  │ Express.js     │ cors ミドルウェア     │ 最も柔軟、動的オリジン対応   │
-  │                │ or 手動ミドルウェア   │ npm: cors パッケージ          │
+  │ Express.js     │ cors middleware       │ Most flexible, dynamic       │
+  │                │ or manual middleware  │ origin support               │
+  │                │                      │ npm: cors package            │
   ├────────────────┼──────────────────────┼──────────────────────────────┤
-  │ Fastify        │ @fastify/cors        │ Express cors と類似のAPI     │
-  │                │ プラグイン            │ スキーマバリデーション対応   │
+  │ Fastify        │ @fastify/cors        │ Similar API to Express cors  │
+  │                │ plugin               │ Schema validation support    │
   ├────────────────┼──────────────────────┼──────────────────────────────┤
-  │ Hono           │ cors() ミドルウェア   │ 軽量、Edge Runtime対応       │
-  │                │ (hono/cors)          │ Cloudflare Workers等で利用   │
+  │ Hono           │ cors() middleware    │ Lightweight, Edge Runtime    │
+  │                │ (hono/cors)          │ support (Cloudflare Workers) │
   ├────────────────┼──────────────────────┼──────────────────────────────┤
-  │ Django         │ django-cors-headers  │ settings.py で一括設定       │
-  │                │ パッケージ            │ CORS_ALLOWED_ORIGINS等       │
+  │ Django         │ django-cors-headers  │ Centrally configured in      │
+  │                │ package              │ settings.py                  │
+  │                │                      │ CORS_ALLOWED_ORIGINS, etc.   │
   ├────────────────┼──────────────────────┼──────────────────────────────┤
-  │ Flask          │ flask-cors 拡張      │ デコレータ or アプリ全体設定  │
-  │                │                      │ リソース単位での設定可能     │
+  │ Flask          │ flask-cors extension │ Decorator or app-wide config │
+  │                │                      │ Per-resource configuration   │
   ├────────────────┼──────────────────────┼──────────────────────────────┤
-  │ Spring Boot    │ @CrossOrigin         │ アノテーションベース          │
-  │                │ WebMvcConfigurer     │ グローバル or コントローラ単位│
+  │ Spring Boot    │ @CrossOrigin         │ Annotation-based             │
+  │                │ WebMvcConfigurer     │ Global or per-controller     │
   ├────────────────┼──────────────────────┼──────────────────────────────┤
-  │ ASP.NET Core   │ services.AddCors()   │ ポリシーベース                │
-  │                │ app.UseCors()        │ 名前付きポリシー対応         │
+  │ ASP.NET Core   │ services.AddCors()   │ Policy-based                 │
+  │                │ app.UseCors()        │ Named policy support         │
   ├────────────────┼──────────────────────┼──────────────────────────────┤
-  │ Go (net/http)  │ 手動実装 or          │ rs/cors パッケージが一般的    │
-  │                │ rs/cors パッケージ    │ ミドルウェアパターン         │
+  │ Go (net/http)  │ Manual or            │ rs/cors package is common    │
+  │                │ rs/cors package      │ Middleware pattern           │
   ├────────────────┼──────────────────────┼──────────────────────────────┤
-  │ Rust (Actix)   │ actix-cors クレート   │ ビルダーパターンで設定       │
-  │                │                      │ tower-http でも利用可能      │
+  │ Rust (Actix)   │ actix-cors crate     │ Builder pattern              │
+  │                │                      │ Also available via tower-http│
   └────────────────┴──────────────────────┴──────────────────────────────┘
 ```
 
-### 7.2 Hono（Edge Runtime向け）
+### 7.2 Hono (for Edge Runtime)
 
 ```typescript
 // ============================================================
-// Hono CORS設定（Cloudflare Workers / Deno Deploy 等）
+// Hono CORS configuration (Cloudflare Workers / Deno Deploy, etc.)
 // ============================================================
 
 import { Hono } from 'hono';
@@ -1109,7 +1111,7 @@ import { cors } from 'hono/cors';
 
 const app = new Hono();
 
-// グローバルCORS設定
+// Global CORS configuration
 app.use('/api/*', cors({
   origin: [
     'https://app.example.com',
@@ -1126,19 +1128,19 @@ app.use('/api/*', cors({
   maxAge: 86400,
 }));
 
-// 動的オリジン検証
+// Dynamic origin validation
 app.use('/api/v2/*', cors({
   origin: (origin) => {
-    // サブドメインパターンマッチ
+    // Subdomain pattern matching
     if (/^https:\/\/[\w-]+\.example\.com$/.test(origin)) {
       return origin;
     }
-    return null; // 許可しない
+    return null; // Not allowed
   },
   credentials: true,
 }));
 
-// 公開APIはワイルドカード
+// Public API uses wildcard
 app.use('/api/public/*', cors({
   origin: '*',
   maxAge: 3600,
@@ -1151,11 +1153,11 @@ app.get('/api/data', (c) => {
 export default app;
 ```
 
-### 7.3 Django での CORS 設定
+### 7.3 CORS Configuration in Django
 
 ```python
 # ============================================================
-# Django CORS設定（django-cors-headers）
+# Django CORS configuration (django-cors-headers)
 # ============================================================
 
 # settings.py
@@ -1167,25 +1169,25 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    # CORSミドルウェアは可能な限り上位に配置
-    # （他のミドルウェアがレスポンスを変更する前にCORSヘッダーを付与するため）
+    # CORS middleware should be placed as high as possible
+    # (to add CORS headers before other middleware modifies the response)
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     # ...
 ]
 
-# --- 許可するオリジン ---
+# --- Allowed origins ---
 CORS_ALLOWED_ORIGINS = [
     'https://app.example.com',
     'https://admin.example.com',
 ]
 
-# 正規表現による許可（サブドメイン対応）
+# Regex-based allow (for subdomain support)
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r'^https://[\w-]+\.example\.com$',
 ]
 
-# --- 許可するメソッド ---
+# --- Allowed methods ---
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
@@ -1195,7 +1197,7 @@ CORS_ALLOW_METHODS = [
     'PUT',
 ]
 
-# --- 許可するヘッダー ---
+# --- Allowed headers ---
 CORS_ALLOW_HEADERS = [
     'accept',
     'authorization',
@@ -1207,7 +1209,7 @@ CORS_ALLOW_HEADERS = [
 # --- Credentials ---
 CORS_ALLOW_CREDENTIALS = True
 
-# --- プリフライトキャッシュ ---
+# --- Preflight cache ---
 CORS_PREFLIGHT_MAX_AGE = 86400
 
 # --- Expose Headers ---
@@ -1217,11 +1219,11 @@ CORS_EXPOSE_HEADERS = [
 ]
 ```
 
-### 7.4 Go（net/http + rs/cors）
+### 7.4 Go (net/http + rs/cors)
 
 ```go
 // ============================================================
-// Go CORS設定（github.com/rs/cors）
+// Go CORS configuration (github.com/rs/cors)
 // ============================================================
 
 package main
@@ -1238,7 +1240,7 @@ func main() {
     mux.HandleFunc("/api/data", handleData)
     mux.HandleFunc("/api/users", handleUsers)
 
-    // CORS設定
+    // CORS configuration
     c := cors.New(cors.Options{
         AllowedOrigins: []string{
             "https://app.example.com",
@@ -1258,7 +1260,7 @@ func main() {
         },
         AllowCredentials: true,
         MaxAge:           86400,
-        // デバッグモード（開発時のみ有効にする）
+        // Debug mode (enable only during development)
         Debug: false,
     })
 
@@ -1282,38 +1284,39 @@ func handleUsers(w http.ResponseWriter, r *http.Request) {
 
 ---
 
-## 8. セキュリティ上の考慮事項
+## 8. Security Considerations
 
-### 8.1 アンチパターン
+### 8.1 Anti-Patterns
 
-CORS設定における代表的なアンチパターンを理解し、セキュリティリスクを回避する。
+Understand representative anti-patterns in CORS configuration to avoid security risks.
 
 ```
-アンチパターン1: Origin をそのまま反射（Origin Reflection）
+Anti-pattern 1: Reflecting Origin directly (Origin Reflection)
 
-  ✗ 危険な実装:
+  ✗ Dangerous implementation:
 
   app.use((req, res, next) => {
-    // リクエストの Origin をそのまま Allow-Origin に返す
+    // Return the request's Origin directly in Allow-Origin
     res.setHeader(
       'Access-Control-Allow-Origin',
-      req.headers.origin  // ← 検証なし！
+      req.headers.origin  // ← No validation!
     );
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     next();
   });
 
-  問題点:
+  Problems:
   ┌──────────────────────────────────────────────────────┐
-  │ 1. 任意のオリジンからのリクエストが許可される         │
-  │ 2. Credentials: true との組み合わせで致命的            │
-  │    → 攻撃者のサイトからユーザーのCookieを使って      │
-  │      APIにアクセスし、レスポンスを読み取れる          │
-  │ 3. Allow-Origin: * と同等だが、Credentials も許可    │
-  │    されるため、実質的に * より危険                    │
+  │ 1. Requests from any origin are allowed              │
+  │ 2. Combined with Credentials: true, this is fatal    │
+  │    → Attacker's site can use user's cookies to       │
+  │      access the API and read the response            │
+  │ 3. Equivalent to Allow-Origin: * but also allows     │
+  │    Credentials, making it effectively more dangerous │
+  │    than *                                            │
   └──────────────────────────────────────────────────────┘
 
-  ✓ 正しい実装:
+  ✓ Correct implementation:
 
   const ALLOWED_ORIGINS = new Set([
     'https://app.example.com',
@@ -1331,60 +1334,60 @@ CORS設定における代表的なアンチパターンを理解し、セキュ�
 ```
 
 ```
-アンチパターン2: 本番環境での Access-Control-Allow-Origin: *
+Anti-pattern 2: Access-Control-Allow-Origin: * in production
 
-  ✗ 危険な使用例:
+  ✗ Dangerous usage:
 
-  // 本番環境の認証付きAPIで * を使用
+  // Using * on an authenticated API in production
   app.use(cors({
     origin: '*',
-    // credentials: true は * と併用できないため
-    // Cookie送信は不可だが、以下の問題がある
+    // credentials: true cannot be combined with *,
+    // so Cookie sending is not possible, but has these problems:
   }));
 
-  問題点:
+  Problems:
   ┌──────────────────────────────────────────────────────┐
-  │ 1. 意図しないオリジンからデータを取得される可能性     │
-  │ 2. Bearer トークン認証の場合、トークンをヘッダーで    │
-  │    送信すれば任意のオリジンからアクセス可能           │
-  │ 3. 内部APIが外部から叩かれるリスク                   │
-  │ 4. レート制限やIP制限をバイパスされる可能性           │
+  │ 1. Data may be retrieved from unintended origins     │
+  │ 2. With Bearer token auth, any origin can access     │
+  │    the API by sending the token in headers           │
+  │ 3. Risk of internal API being called externally      │
+  │ 4. Rate limiting and IP restrictions may be bypassed │
   └──────────────────────────────────────────────────────┘
 
-  ✓ * が許容されるケース:
+  ✓ Cases where * is acceptable:
   ┌──────────────────────────────────────────────────────┐
-  │ ・完全に公開のAPI（認証なし、機密データなし）         │
-  │ ・CDNで配信する静的アセット（画像、フォント等）       │
-  │ ・公開データセットのAPI（政府オープンデータ等）       │
-  │ ・OEmbed等の埋め込み用エンドポイント                  │
+  │ ・Fully public API (no auth, no sensitive data)      │
+  │ ・Static assets delivered via CDN (images, fonts)    │
+  │ ・Public dataset APIs (government open data, etc.)   │
+  │ ・Embeddable endpoints like oEmbed                   │
   └──────────────────────────────────────────────────────┘
 ```
 
-### 8.2 Vary ヘッダーの重要性
+### 8.2 Importance of the Vary Header
 
 ```
-CDNキャッシュとCORSの落とし穴:
+CDN caching pitfall with CORS:
 
-  シナリオ: CDNがCORSレスポンスをキャッシュする場合
+  Scenario: CDN caches a CORS response
 
-  ① https://app-a.example.com がリクエスト
-     → サーバーが Allow-Origin: https://app-a.example.com を返す
-     → CDNがこのレスポンスをキャッシュ
+  ① https://app-a.example.com makes a request
+     → Server returns Allow-Origin: https://app-a.example.com
+     → CDN caches this response
 
-  ② https://app-b.example.com が同じURLにリクエスト
-     → CDNがキャッシュを返す
-     → Allow-Origin: https://app-a.example.com（app-aのまま！）
-     → app-b ではCORSエラーになる
+  ② https://app-b.example.com makes a request to the same URL
+     → CDN returns the cached response
+     → Allow-Origin: https://app-a.example.com (still app-a!)
+     → CORS error for app-b
 
-  対策: Vary: Origin ヘッダーを設定
+  Fix: Set Vary: Origin header
 
   res.setHeader('Vary', 'Origin');
-  // → CDNはOriginヘッダーの値ごとに異なるキャッシュを保持
-  // → app-a用とapp-b用で別々のキャッシュが作られる
+  // → CDN maintains separate caches per value of Origin header
+  // → Separate caches are created for app-a and app-b
 
-  Varyヘッダーのフロー:
+  Vary header flow:
   ┌──────────────────┐
-  │ CDN キャッシュ    │
+  │ CDN cache        │
   │                  │
   │ Key: URL + Origin│
   │                  │
@@ -1395,36 +1398,36 @@ CDNキャッシュとCORSの落とし穴:
   │ + Origin: app-b  │──→ Allow-Origin: app-b
   │                  │
   │ /api/data        │
-  │ + Origin: (none) │──→ Allow-Origin なし
+  │ + Origin: (none) │──→ no Allow-Origin
   └──────────────────┘
 ```
 
-### 8.3 null オリジンの危険性
+### 8.3 Danger of null Origin
 
 ```
-null オリジンの注意点:
+Notes on null origin:
 
-  Origin: null が送信されるケース:
+  Cases where Origin: null is sent:
   ┌──────────────────────────────────────────────────────┐
-  │ ・file:// プロトコルからのリクエスト                  │
-  │ ・data: URI からのリクエスト                          │
-  │ ・サンドボックス化された iframe                       │
-  │ ・リダイレクトチェーン中のリクエスト                  │
-  │ ・ブラウザのプライバシー保護機能による匿名化          │
+  │ ・Requests from file:// protocol                     │
+  │ ・Requests from data: URI                            │
+  │ ・Sandboxed iframes                                  │
+  │ ・Requests during redirect chains                    │
+  │ ・Anonymization by browser privacy protection        │
   └──────────────────────────────────────────────────────┘
 
-  ✗ 危険な実装:
+  ✗ Dangerous implementation:
 
-  // null オリジンを許可してしまう
+  // Allowing null origin
   if (allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
-  // allowedOrigins に 'null'（文字列）が含まれている場合、
-  // data: URI や sandboxed iframe からのアクセスが可能になる
+  // If allowedOrigins contains 'null' (the string),
+  // access from data: URI or sandboxed iframe becomes possible
 
-  ✓ 安全な実装:
+  ✓ Safe implementation:
 
-  // null オリジンは明示的に拒否
+  // Explicitly reject null origin
   if (origin && origin !== 'null' && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
@@ -1432,18 +1435,18 @@ null オリジンの注意点:
 
 ---
 
-## FAQ（よくある質問）
+## FAQ (Frequently Asked Questions)
 
-### Q1: CORSエラーの一般的な解決方法 — エラーメッセージから原因を特定する
+### Q1: Common ways to resolve CORS errors — identifying the cause from the error message
 
 ```
-■ 代表的なCORSエラーと解決策:
+■ Representative CORS errors and solutions:
 
-エラー1: "has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header"
+Error 1: "has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header"
 
-  原因: サーバーがAccess-Control-Allow-Originヘッダーを返していない
+  Cause: Server is not returning the Access-Control-Allow-Origin header
 
-  解決策:
+  Solution:
   // Express.js
   app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', 'https://app.example.com');
@@ -1453,27 +1456,27 @@ null オリジンの注意点:
   // nginx
   add_header Access-Control-Allow-Origin https://app.example.com;
 
-  // 開発環境のみ（本番環境では禁止）
+  // Development only (forbidden in production)
   res.setHeader('Access-Control-Allow-Origin', '*');
 
-エラー2: "The value of the 'Access-Control-Allow-Origin' header must not be '*' when credentials mode is 'include'"
+Error 2: "The value of the 'Access-Control-Allow-Origin' header must not be '*' when credentials mode is 'include'"
 
-  原因: credentials: 'include'（Cookie送信）を使用している場合、
-        ワイルドカード（*）は使用不可
+  Cause: When using credentials: 'include' (cookie sending),
+         wildcard (*) cannot be used
 
-  解決策:
-  // 特定のオリジンを明示
+  Solution:
+  // Explicitly specify a specific origin
   const origin = req.headers.origin;
   if (allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
 
-エラー3: "has been blocked by CORS policy: Method POST is not allowed by Access-Control-Allow-Methods"
+Error 3: "has been blocked by CORS policy: Method POST is not allowed by Access-Control-Allow-Methods"
 
-  原因: プリフライトリクエストで許可メソッドが返されていない
+  Cause: Allowed methods are not returned in the preflight request
 
-  解決策:
+  Solution:
   app.options('/api/*', (req, res) => {
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -1481,156 +1484,157 @@ null オリジンの注意点:
     res.status(204).send();
   });
 
-エラー4: "Request header field authorization is not allowed by Access-Control-Allow-Headers"
+Error 4: "Request header field authorization is not allowed by Access-Control-Allow-Headers"
 
-  原因: カスタムヘッダー（Authorization等）が許可されていない
+  Cause: Custom headers (Authorization, etc.) are not allowed
 
-  解決策:
+  Solution:
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Request-Id');
 
-エラー5: "CORS policy: Response to preflight request doesn't pass access control check: status is 401"
+Error 5: "CORS policy: Response to preflight request doesn't pass access control check: status is 401"
 
-  原因: プリフライトリクエスト（OPTIONS）に認証を要求している
+  Cause: Authentication is required for the preflight request (OPTIONS)
 
-  解決策:
-  // OPTIONSリクエストは認証不要にする
+  Solution:
+  // Make OPTIONS requests not require authentication
   app.options('/api/*', (req, res) => {
-    // 認証チェックをスキップ
+    // Skip authentication check
     res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.status(204).send();
   });
 
-デバッグ手順:
-  1. ブラウザのDevToolsでNetworkタブを開く
-  2. プリフライト（OPTIONS）が成功しているか確認
-  3. レスポンスヘッダーを確認:
-     ・Access-Control-Allow-Origin が正しいか
-     ・Access-Control-Allow-Methods が含まれているか
-     ・Access-Control-Allow-Headers が含まれているか
-  4. curlで直接確認:
+Debugging steps:
+  1. Open the Network tab in browser DevTools
+  2. Confirm that preflight (OPTIONS) is succeeding
+  3. Check response headers:
+     ・Is Access-Control-Allow-Origin correct?
+     ・Is Access-Control-Allow-Methods included?
+     ・Is Access-Control-Allow-Headers included?
+  4. Verify directly with curl:
      curl -I -X OPTIONS https://api.example.com/users \
        -H "Origin: https://app.example.com" \
        -H "Access-Control-Request-Method: POST"
 ```
 
-### Q2: プリフライトリクエストの発生条件 — いつOPTIONSが送られるのか
+### Q2: When preflight requests occur — when OPTIONS is sent
 
 ```
-■ シンプルリクエスト vs プリフライトリクエスト:
+■ Simple request vs. preflight request:
 
-シンプルリクエスト（プリフライトなし）:
-  以下の条件を全て満たす場合、プリフライトは発生しない
+Simple request (no preflight):
+  When all of the following conditions are met, no preflight occurs
 
-  ① メソッドが以下のいずれか:
+  ① Method is one of:
      GET, HEAD, POST
 
-  ② 自動設定されるヘッダー以外に、以下のヘッダーのみを使用:
+  ② Only the following headers are used (besides auto-set ones):
      Accept
      Accept-Language
      Content-Language
-     Content-Type（下記の値のみ）
+     Content-Type (only the following values)
        ・application/x-www-form-urlencoded
        ・multipart/form-data
        ・text/plain
 
-  ③ リクエストにReadableStreamを使用していない
+  ③ ReadableStream is not used in the request
 
-  ④ XMLHttpRequestでevent listenerを登録していない
+  ④ No event listeners registered on XMLHttpRequest
 
-プリフライトが発生するケース:
+Cases that trigger preflight:
 
-  ✓ カスタムヘッダーを使用（Authorization, X-Request-Id等）
+  ✓ Using custom headers (Authorization, X-Request-Id, etc.)
   fetch('https://api.example.com/users', {
     headers: {
-      'Authorization': 'Bearer token',  // ← プリフライト発生
+      'Authorization': 'Bearer token',  // ← triggers preflight
     },
   });
 
-  ✓ Content-Typeがapplication/json
+  ✓ Content-Type is application/json
   fetch('https://api.example.com/users', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',  // ← プリフライト発生
+      'Content-Type': 'application/json',  // ← triggers preflight
     },
     body: JSON.stringify({ name: 'Taro' }),
   });
 
-  ✓ PUT, DELETE, PATCHメソッド
+  ✓ PUT, DELETE, PATCH methods
   fetch('https://api.example.com/users/123', {
-    method: 'DELETE',  // ← プリフライト発生
+    method: 'DELETE',  // ← triggers preflight
   });
 
-プリフライトの流れ:
+Preflight flow:
 
-  1. ブラウザがOPTIONSリクエストを送信:
+  1. Browser sends OPTIONS request:
      OPTIONS /api/users HTTP/1.1
      Origin: https://app.example.com
      Access-Control-Request-Method: POST
      Access-Control-Request-Headers: content-type, authorization
 
-  2. サーバーが許可情報を返す:
+  2. Server returns permission information:
      HTTP/1.1 204 No Content
      Access-Control-Allow-Origin: https://app.example.com
      Access-Control-Allow-Methods: GET, POST, PUT, DELETE
      Access-Control-Allow-Headers: content-type, authorization
      Access-Control-Max-Age: 86400
 
-  3. ブラウザが実際のPOSTリクエストを送信
+  3. Browser sends the actual POST request
      POST /api/users HTTP/1.1
      Content-Type: application/json
      Authorization: Bearer token
 
-プリフライトのキャッシュ:
-  Access-Control-Max-Age: 86400（秒）
-  → 24時間はプリフライトをスキップして直接リクエスト送信
-  → ブラウザによって上限あり（Chromeは2時間）
+Preflight caching:
+  Access-Control-Max-Age: 86400 (seconds)
+  → Skip preflight for 24 hours and send requests directly
+  → Each browser has an upper limit (Chrome: 2 hours)
 ```
 
-### Q3: credentialsモードの設定 — CookieやAuthorizationヘッダーを送る方法
+### Q3: Credentials mode configuration — how to send Cookies or Authorization headers
 
 ```
-■ credentials モードの種類:
+■ Types of credentials mode:
 
 ┌─────────────┬────────────────────────────────────────┐
-│ モード      │ 挙動                                    │
+│ Mode        │ Behavior                               │
 ├─────────────┼────────────────────────────────────────┤
-│ omit        │ 認証情報を送信しない（デフォルト）      │
-│             │ → Cookieなし、Authorizationなし         │
+│ omit        │ Do not send credentials (default)      │
+│             │ → No cookies, no Authorization         │
 │             │                                        │
-│ same-origin │ 同一オリジンの場合のみ送信              │
-│             │ → クロスオリジンでは送信しない          │
+│ same-origin │ Send only for same-origin              │
+│             │ → Not sent cross-origin                │
 │             │                                        │
-│ include     │ 常に送信（クロスオリジンでも）          │
-│             │ → CookieとAuthorizationを送信           │
-│             │ → サーバー側で特別な設定が必要          │
+│ include     │ Always send (even cross-origin)        │
+│             │ → Sends cookies and Authorization      │
+│             │ → Requires special configuration       │
+│             │   on the server side                   │
 └─────────────┴────────────────────────────────────────┘
 
-クライアント側の設定:
+Client-side configuration:
 
   fetch('https://api.example.com/users', {
-    credentials: 'include',  // ← Cookie/Authorizationを送信
+    credentials: 'include',  // ← Send Cookie/Authorization
     headers: {
       'Authorization': 'Bearer token',
     },
   });
 
-サーバー側の必須設定（credentials: 'include'の場合）:
+Required server-side configuration (when credentials: 'include'):
 
-  ✓ Access-Control-Allow-Origin に具体的なオリジンを指定（*は不可）
+  ✓ Specify a concrete origin in Access-Control-Allow-Origin (* not allowed)
   res.setHeader('Access-Control-Allow-Origin', 'https://app.example.com');
 
-  ✓ Access-Control-Allow-Credentials: true を返す
+  ✓ Return Access-Control-Allow-Credentials: true
   res.setHeader('Access-Control-Allow-Credentials', 'true');
 
-  ✗ 間違った例（エラーになる）:
-  res.setHeader('Access-Control-Allow-Origin', '*');  // ← 不可
+  ✗ Incorrect example (will cause an error):
+  res.setHeader('Access-Control-Allow-Origin', '*');  // ← Not allowed
   res.setHeader('Access-Control-Allow-Credentials', 'true');
-  // エラー: "The value of the 'Access-Control-Allow-Origin' header
+  // Error: "The value of the 'Access-Control-Allow-Origin' header
   //         must not be '*' when credentials mode is 'include'"
 
-動的にオリジンを返す実装:
+Dynamic origin implementation:
 
   // Express.js
   const allowedOrigins = [
@@ -1647,87 +1651,86 @@ null オリジンの注意点:
     next();
   });
 
-Cookieの設定（クロスオリジンで送信する場合）:
+Cookie configuration (when sending cross-origin):
 
   Set-Cookie: session_id=abc123;
-    SameSite=None;   ← クロスサイトで送信を許可
-    Secure;          ← HTTPS必須
-    HttpOnly;        ← XSS対策
+    SameSite=None;   ← Allow cross-site sending
+    Secure;          ← HTTPS required
+    HttpOnly;        ← XSS protection
     Path=/;
     Domain=.example.com
 
-  注意:
-  → SameSite=None を使用する場合、Secure属性が必須
-  → HTTP接続ではSameSite=Noneが機能しない
-  → Chromeは2020年からSameSite=Laxがデフォルト
+  Notes:
+  → When using SameSite=None, the Secure attribute is required
+  → SameSite=None does not work over HTTP connections
+  → Chrome uses SameSite=Lax as default since 2020
 
-セキュリティ上の注意:
-  → credentials: 'include' は CSRF攻撃のリスクを高める
-  → CSRF対策（CSRFトークン）を必ず実装
-  → 信頼できるオリジンのみを許可
-  → Cookieには SameSite=Lax or Strict を推奨（可能な限り）
+Security notes:
+  → credentials: 'include' increases the risk of CSRF attacks
+  → Always implement CSRF protection (CSRF tokens)
+  → Only allow trusted origins
+  → SameSite=Lax or Strict is recommended for cookies (where possible)
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 概念 | キーポイント |
-|------|-------------|
-| **同一オリジンポリシー** | スキーム + ホスト + ポート が全て一致する場合のみ同一オリジン |
-| **CORS** | クロスオリジンリクエストを安全に許可する仕組み（サーバー側で制御） |
-| **シンプルリクエスト** | GET/HEAD/POST + 限定ヘッダー → プリフライトなし |
-| **プリフライトリクエスト** | OPTIONS → 許可確認 → 実際のリクエスト（カスタムヘッダー、PUT/DELETE等） |
-| **Credentials** | credentials: 'include' + Allow-Origin（*不可）+ Allow-Credentials: true |
-| **セキュリティ** | ワイルドカード（*）は最小限に、null オリジン拒否、Vary: Originで検証 |
+| Concept | Key point |
+|---------|-----------|
+| **Same-Origin Policy** | Same origin only when scheme + host + port all match |
+| **CORS** | Mechanism for safely allowing cross-origin requests (controlled server-side) |
+| **Simple request** | GET/HEAD/POST + limited headers → no preflight |
+| **Preflight request** | OPTIONS → permission check → actual request (custom headers, PUT/DELETE, etc.) |
+| **Credentials** | credentials: 'include' + Allow-Origin (not *) + Allow-Credentials: true |
+| **Security** | Minimize wildcards (*), reject null origin, validate with Vary: Origin |
 
-### キーポイント
+### Key Points
 
-1. **CORSはサーバー側で制御**: ブラウザはクロスオリジンリクエストを自動的にブロックし、サーバーが明示的に許可した場合のみ通す。クライアント側（JavaScript）だけでCORSエラーは解決できない。
+1. **CORS is controlled server-side**: Browsers automatically block cross-origin requests and only allow them through when the server explicitly permits. CORS errors cannot be resolved from the client side (JavaScript) alone.
 
-2. **プリフライトリクエスト（OPTIONS）の理解が鍵**: カスタムヘッダー（Authorization等）やapplication/jsonを使う場合、ブラウザは実際のリクエスト前にOPTIONSリクエストを送信。サーバーは認証不要で204を返し、Access-Control-Allow-*ヘッダーで許可情報を通知する必要がある。
+2. **Understanding preflight requests (OPTIONS) is key**: When using custom headers (Authorization, etc.) or application/json, the browser sends an OPTIONS request before the actual request. The server must return 204 without requiring authentication, and use Access-Control-Allow-* headers to communicate permission.
 
-3. **credentials: 'include'は慎重に**: Cookie/Authorizationを送る場合、Allow-Originにワイルドカード（*）は使用不可。具体的なオリジンを動的に返す実装にし、CSRF対策（CSRFトークン）を必ず組み合わせる。
-
----
-
-## 次に読むべきガイド
-
-- [TLS/SSL](../03-security/00-tls-ssl.md) - HTTPS通信の暗号化、証明書、暗号スイートの仕組みを学ぶ
-- [認証方式](../03-security/01-authentication.md) - OAuth 2.0、JWT、セッション管理などCredentials付きCORSに必要な認証の基礎を学ぶ
-- [ネットワーク攻撃と対策](../03-security/02-common-attacks.md) - CORS設定の不備を悪用する攻撃パターンと防御策を学ぶ
+3. **Use credentials: 'include' carefully**: When sending Cookies/Authorization, wildcards (*) cannot be used in Allow-Origin. Implement a dynamic origin response that returns specific origins, and always combine with CSRF protection (CSRF tokens).
 
 ---
 
-## 参考文献
+## Next Guides to Read
+
+- [TLS/SSL](../03-security/00-tls-ssl.md) - Learn about HTTPS encryption, certificates, and cipher suite mechanics
+- [Authentication methods](../03-security/01-authentication.md) - Learn about OAuth 2.0, JWT, session management, and other auth fundamentals needed for CORS with credentials
+- [Network attacks and defenses](../03-security/02-common-attacks.md) - Learn about attack patterns that exploit misconfigured CORS and how to defend against them
+
+---
+
+## References
 
 1. Fetch Living Standard. "CORS Protocol." WHATWG, 2024.
    https://fetch.spec.whatwg.org/#http-cors-protocol
-   CORSの正式仕様。Same-Origin Policy、プリフライトリクエスト、
-   Credentialsモードの詳細を定義。
+   Official CORS specification. Defines Same-Origin Policy, preflight requests,
+   and credentials mode in detail.
 
 2. MDN Web Docs. "Cross-Origin Resource Sharing (CORS)." Mozilla, 2024.
    https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
-   CORSの実践的ガイド。エラーメッセージの意味、設定例、
-   デバッグ方法を詳細に解説。
+   Practical guide to CORS. Detailed explanations of error messages,
+   configuration examples, and debugging methods.
 
 3. web.dev. "Cross-Origin Resource Sharing (CORS)." Google, 2024.
    https://web.dev/cross-origin-resource-sharing/
-   Googleのベストプラクティス。セキュアなCORS設定、
-   パフォーマンス最適化（プリフライトキャッシュ）。
+   Google best practices. Secure CORS configuration,
+   performance optimization (preflight caching).
 
 4. OWASP. "CORS Security Cheat Sheet." OWASP, 2024.
    https://cheatsheetseries.owasp.org/cheatsheets/CORS_Security_Cheat_Sheet.html
-   セキュリティ観点でのCORS設定。一般的な脆弱性、
-   安全な実装パターン、攻撃シナリオ。
+   CORS configuration from a security perspective. Common vulnerabilities,
+   secure implementation patterns, and attack scenarios.
 
 5. RFC 6454. "The Web Origin Concept." IETF, 2011.
    https://www.rfc-editor.org/rfc/rfc6454
-   オリジンの定義、Same-Origin Policyの正式仕様。
-   セキュリティ境界の概念を定義。
+   Definition of origin and official specification of Same-Origin Policy.
+   Defines the concept of security boundaries.
 
 6. "Understanding CORS and Dealing with CORS Errors in Angular." Bitovi, 2023.
    https://www.bitovi.com/blog/understanding-cors-and-dealing-with-cors-errors-in-angular
-   実装例とトラブルシューティング。Angular/React/Vue.jsでの
-   CORS対応パターン。
-
+   Implementation examples and troubleshooting. CORS handling patterns
+   in Angular/React/Vue.js.

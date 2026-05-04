@@ -1,282 +1,282 @@
-# TCP（Transmission Control Protocol）
+# TCP (Transmission Control Protocol)
 
-> TCPは信頼性のある通信を実現するプロトコル。3-wayハンドシェイク、シーケンス番号、フロー制御、輻輳制御の仕組みを理解し、なぜWebの通信基盤なのかを学ぶ。本ガイドでは、RFC 9293 に基づく最新のTCP仕様を網羅的に解説し、tcpdump・Wireshark・ソケットプログラミングを用いた実践的な分析手法を身につける。
+> TCP is the protocol that delivers reliable communication. Learn the mechanics of the 3-way handshake, sequence numbers, flow control, and congestion control, and understand why it is the backbone of Web communication. This guide provides a comprehensive explanation of the latest TCP specification based on RFC 9293, and develops practical analysis skills using tcpdump, Wireshark, and socket programming.
 
-## 前提知識
+## Prerequisites
 
-このガイドを最大限に活用するには、以下の知識が必要です。
+To get the most out of this guide, the following knowledge is required.
 
-**必須**
+**Required**
 
-**推奨**
-- ネットワークインターフェース（Ethernet、Wi-Fi）の基本的な理解
-- コマンドライン操作の基礎知識（tcpdump、Wireshark等のツールを使用）
-
----
-
-## この章で学ぶこと
-
-- [ ] TCPの3-wayハンドシェイクの各ステップと状態遷移を理解する
-- [ ] フロー制御（スライディングウィンドウ）の動作原理を把握する
-- [ ] 輻輳制御アルゴリズム（Reno, CUBIC, BBR）の違いを説明できる
-- [ ] tcpdumpとWiresharkを用いてTCPパケットを解析できる
-- [ ] ソケットプログラミングでTCP通信を実装できる
-- [ ] TCPヘッダーの各フィールドの役割を把握する
-- [ ] TIME_WAIT問題やNagleアルゴリズムなどの実運用上の課題を理解する
+**Recommended**
+- Basic understanding of network interfaces (Ethernet, Wi-Fi)
+- Basic command-line skills (for tools such as tcpdump and Wireshark)
 
 ---
 
-## 1. TCPの基本特性と位置づけ
+## What You Will Learn
 
-### 1.1 OSI参照モデルにおけるTCPの位置
+- [ ] Understand each step and state transitions of the TCP 3-way handshake
+- [ ] Grasp the operating principle of flow control (sliding window)
+- [ ] Explain the differences among congestion control algorithms (Reno, CUBIC, BBR)
+- [ ] Analyze TCP packets using tcpdump and Wireshark
+- [ ] Implement TCP communication via socket programming
+- [ ] Understand the role of each field in the TCP header
+- [ ] Understand real-world operational issues such as the TIME_WAIT problem and the Nagle algorithm
+
+---
+
+## 1. Basic Characteristics and Role of TCP
+
+### 1.1 TCP's Position in the OSI Reference Model
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  OSI参照モデルにおけるTCPの位置                            │
+│  TCP's Position in the OSI Reference Model              │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
-│   Layer 7  アプリケーション層  HTTP, FTP, SMTP, SSH      │
+│   Layer 7  Application Layer   HTTP, FTP, SMTP, SSH     │
 │            ─────────────────────────────────────────    │
-│   Layer 6  プレゼンテーション層  TLS/SSL                  │
+│   Layer 6  Presentation Layer  TLS/SSL                  │
 │            ─────────────────────────────────────────    │
-│   Layer 5  セッション層                                   │
+│   Layer 5  Session Layer                                │
 │            ─────────────────────────────────────────    │
-│   Layer 4  トランスポート層   ★ TCP / UDP ★              │
+│   Layer 4  Transport Layer    ★ TCP / UDP ★             │
 │            ─────────────────────────────────────────    │
-│   Layer 3  ネットワーク層     IP (IPv4, IPv6)             │
+│   Layer 3  Network Layer      IP (IPv4, IPv6)            │
 │            ─────────────────────────────────────────    │
-│   Layer 2  データリンク層     Ethernet, Wi-Fi             │
+│   Layer 2  Data Link Layer    Ethernet, Wi-Fi            │
 │            ─────────────────────────────────────────    │
-│   Layer 1  物理層             銅線, 光ファイバー            │
+│   Layer 1  Physical Layer     Copper wire, Optical fiber │
 │                                                         │
-│   TCP/IPモデル（4層）:                                    │
-│     アプリケーション層 → HTTP, FTP, SMTP                  │
-│     トランスポート層   → TCP, UDP                         │
-│     インターネット層   → IP                               │
-│     ネットワークIF層   → Ethernet                         │
+│   TCP/IP Model (4 layers):                              │
+│     Application Layer  → HTTP, FTP, SMTP               │
+│     Transport Layer    → TCP, UDP                       │
+│     Internet Layer     → IP                             │
+│     Network IF Layer   → Ethernet                       │
 │                                                         │
 └─────────────────────────────────────────────────────────┘
 ```
 
-TCPはトランスポート層（Layer 4）に位置し、アプリケーション層のプロトコル（HTTP, FTP, SMTP等）に対して信頼性のあるバイトストリーム通信を提供する。IPプロトコルが「ベストエフォート」で配送するパケットに対して、TCPは到達保証・順序保証・エラー検出の機能を付加する。
+TCP resides at the Transport Layer (Layer 4) and provides reliable byte-stream communication to application-layer protocols (HTTP, FTP, SMTP, etc.). On top of IP's "best-effort" packet delivery, TCP adds guaranteed delivery, ordering guarantees, and error detection.
 
-### 1.2 TCPの特性一覧
+### 1.2 TCP Characteristics Summary
 
 ```
-TCP = コネクション指向の信頼性あるプロトコル
+TCP = A connection-oriented, reliable protocol
 
-利点:
-  [1] 信頼性（Reliability）
-      データの到達を保証する。ACKが返らなければ再送する。
-      アプリケーション側でデータの欠損を心配する必要がない。
+Advantages:
+  [1] Reliability
+      Guarantees data delivery. Retransmits if no ACK is returned.
+      Applications do not need to worry about data loss.
 
-  [2] 順序保証（Ordering）
-      送信順に受信側で再構成する。
-      シーケンス番号により、到着順が入れ替わっても正しく並べ替える。
+  [2] Ordering
+      Reassembles data at the receiver in the order it was sent.
+      Sequence numbers allow correct reordering even if packets arrive out of order.
 
-  [3] エラー検出（Error Detection）
-      TCPヘッダーとペイロードのチェックサム（16ビット）で破損を検知する。
-      ただし暗号学的な完全性保証ではないため、TLSとの併用が一般的。
+  [3] Error Detection
+      Detects corruption via a 16-bit checksum over the TCP header and payload.
+      Note: this is not a cryptographic integrity guarantee; TLS is typically used alongside TCP.
 
-  [4] フロー制御（Flow Control）
-      受信側の処理能力に合わせて送信速度を調整する。
-      受信ウィンドウ（rwnd）によりバッファオーバーフローを防止する。
+  [4] Flow Control
+      Adjusts the sending rate to match the receiver's processing capacity.
+      The receive window (rwnd) prevents receive-buffer overflow.
 
-  [5] 輻輳制御（Congestion Control）
-      ネットワークの混雑状態を推測し、送信レートを動的に調整する。
-      ネットワーク全体の安定性に貢献する協調的なメカニズム。
+  [5] Congestion Control
+      Infers network congestion and dynamically adjusts the sending rate.
+      A cooperative mechanism that contributes to overall network stability.
 
-  [6] 全二重通信（Full-Duplex）
-      双方向に同時にデータを送受信できる。
-      各方向で独立したシーケンス番号を管理する。
+  [6] Full-Duplex Communication
+      Data can be sent and received simultaneously in both directions.
+      Each direction maintains independent sequence numbers.
 
-欠点:
-  [1] オーバーヘッド
-      ヘッダーが最小20バイト（オプション含めると最大60バイト）。
-      UDPの8バイトヘッダーと比較して大きい。
+Disadvantages:
+  [1] Overhead
+      Header is at least 20 bytes (up to 60 bytes with options).
+      Larger than UDP's fixed 8-byte header.
 
-  [2] 接続確立の遅延
-      3-wayハンドシェイクに1.5 RTT（Round Trip Time）が必要。
-      TLSを加えると最大3 RTT（TCP 1.5 + TLS 1.5）。
-      TLS 1.3 + TCP Fast Openで改善可能。
+  [2] Connection Establishment Latency
+      The 3-way handshake requires 1.5 RTT (Round Trip Time).
+      With TLS, up to 3 RTT (TCP 1.5 + TLS 1.5).
+      Can be improved with TLS 1.3 + TCP Fast Open.
 
-  [3] Head-of-Line Blocking（HoL Blocking）
-      1つのパケットがロストすると、後続パケットの配信が全てブロックされる。
-      HTTP/2の多重化でも、TCP層でのHoL Blockingは回避できない。
-      → HTTP/3がQUIC（UDP上の独自プロトコル）を採用した主な理由。
+  [3] Head-of-Line Blocking (HoL Blocking)
+      A lost packet blocks delivery of all subsequent packets.
+      Even with HTTP/2 multiplexing, HoL blocking at the TCP layer cannot be avoided.
+      → The main reason HTTP/3 adopted QUIC (a custom protocol over UDP).
 
-  [4] NAT/ファイアウォールの状態管理コスト
-      コネクション指向のため、中間機器が状態テーブルを維持する必要がある。
-      大量の短寿命接続はNATテーブルを圧迫する。
+  [4] State Management Cost in NAT/Firewalls
+      Being connection-oriented, intermediate devices must maintain state tables.
+      Large numbers of short-lived connections put pressure on NAT tables.
 
-主な用途:
-  HTTP/HTTPS   → Webブラウジング
-  FTP          → ファイル転送
-  SMTP/IMAP    → メール送受信
-  SSH          → リモート管理
-  データベース  → MySQL(3306), PostgreSQL(5432)
-  → 「データの欠損が許されない通信」全般で使用する
+Common use cases:
+  HTTP/HTTPS   → Web browsing
+  FTP          → File transfer
+  SMTP/IMAP    → Email sending and receiving
+  SSH          → Remote management
+  Databases    → MySQL (3306), PostgreSQL (5432)
+  → Used generally for "communication where data loss is unacceptable"
 ```
 
-### 1.3 TCP vs UDP 比較表
+### 1.3 TCP vs UDP Comparison Table
 
-| 特性 | TCP | UDP |
-|------|-----|-----|
-| コネクション | コネクション指向（3-way handshake） | コネクションレス |
-| 信頼性 | あり（ACK + 再送） | なし（ベストエフォート） |
-| 順序保証 | あり（シーケンス番号） | なし |
-| フロー制御 | あり（ウィンドウ制御） | なし |
-| 輻輳制御 | あり（Reno, CUBIC, BBR等） | なし（アプリケーション側で実装可能） |
-| ヘッダーサイズ | 20〜60バイト | 8バイト固定 |
-| 通信方式 | 全二重 | 単方向でも双方向でも可能 |
-| ブロードキャスト | 不可（1対1のみ） | 可能 |
-| 遅延 | 大（接続確立 + 再送待ち） | 小（即座に送信） |
-| 適用例 | HTTP, FTP, SSH, DB接続 | DNS, NTP, VoIP, 動画ストリーミング |
-| HoL Blocking | あり | なし |
-| 状態管理 | サーバー側で接続状態を保持 | ステートレス |
+| Property | TCP | UDP |
+|----------|-----|-----|
+| Connection | Connection-oriented (3-way handshake) | Connectionless |
+| Reliability | Yes (ACK + retransmission) | No (best-effort) |
+| Ordering | Yes (sequence numbers) | No |
+| Flow Control | Yes (window control) | No |
+| Congestion Control | Yes (Reno, CUBIC, BBR, etc.) | No (can be implemented at the application layer) |
+| Header Size | 20–60 bytes | Fixed 8 bytes |
+| Communication Mode | Full-duplex | Unidirectional or bidirectional |
+| Broadcast | Not supported (1-to-1 only) | Supported |
+| Latency | High (connection setup + retransmission wait) | Low (send immediately) |
+| Use Cases | HTTP, FTP, SSH, DB connections | DNS, NTP, VoIP, video streaming |
+| HoL Blocking | Yes | No |
+| State Management | Server maintains connection state | Stateless |
 
-### 1.4 TCP vs QUIC 比較表
+### 1.4 TCP vs QUIC Comparison Table
 
-| 特性 | TCP | QUIC |
-|------|-----|------|
-| トランスポート層 | OS カーネル内実装 | ユーザースペース実装（UDP上） |
-| 暗号化 | オプション（TLS併用） | 必須（TLS 1.3統合） |
-| 接続確立 | 1.5 RTT（+ TLS 1.5 RTT） | 1 RTT（0-RTT再接続可能） |
-| HoL Blocking | あり（ストリーム単位で影響） | なし（ストリームが独立） |
-| 多重化 | なし（HTTP/2で追加） | ネイティブサポート |
-| 接続マイグレーション | IPアドレス変更で切断 | Connection IDで継続可能 |
-| 輻輳制御 | カーネル実装に依存 | アプリケーション側で柔軟に選択 |
-| パケットロス回復 | 全ストリームがブロック | ロストしたストリームのみ影響 |
-| 標準化 | RFC 9293（2022年） | RFC 9000（2021年） |
-| 普及状況 | ほぼ全てのインターネット通信 | Google, CloudFlare, Meta等で採用拡大中 |
+| Property | TCP | QUIC |
+|----------|-----|------|
+| Transport Layer | Implemented in the OS kernel | User-space implementation (over UDP) |
+| Encryption | Optional (use TLS alongside) | Mandatory (TLS 1.3 integrated) |
+| Connection Establishment | 1.5 RTT (+ TLS 1.5 RTT) | 1 RTT (0-RTT reconnection possible) |
+| HoL Blocking | Yes (affects at the stream level) | No (streams are independent) |
+| Multiplexing | No (added by HTTP/2) | Native support |
+| Connection Migration | Disconnects on IP address change | Continues via Connection ID |
+| Congestion Control | Depends on kernel implementation | Flexibly chosen at the application layer |
+| Packet Loss Recovery | All streams blocked | Only the affected stream is impacted |
+| Standardization | RFC 9293 (2022) | RFC 9000 (2021) |
+| Adoption | Nearly all Internet communication | Expanding adoption at Google, Cloudflare, Meta, etc. |
 
 ---
 
-## 2. TCPヘッダー構造の詳細
+## 2. TCP Header Structure in Detail
 
-### 2.1 ヘッダーフォーマット
+### 2.1 Header Format
 
 ```
-TCP ヘッダー構造（20バイト〜60バイト）:
+TCP Header Structure (20–60 bytes):
 
   0                   1                   2                   3
   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
   ┌───────────────────────────┬───────────────────────────┐
-  │      送信元ポート (16bit)   │      宛先ポート (16bit)    │  0-3 byte
+  │   Source Port (16 bit)    │ Destination Port (16 bit) │  0-3 byte
   ├─────────────────────────────────────────────────────────┤
-  │                   シーケンス番号 (32bit)                  │  4-7 byte
+  │                  Sequence Number (32 bit)               │  4-7 byte
   ├─────────────────────────────────────────────────────────┤
-  │                    ACK番号 (32bit)                       │  8-11 byte
+  │                Acknowledgment Number (32 bit)           │  8-11 byte
   ├──────┬────────┬─┬─┬─┬─┬─┬─┬───────────────────────────┤
-  │データ │  予約   │U│A│P│R│S│F│                           │
-  │オフセ │  (4bit) │R│C│S│S│Y│I│  ウィンドウサイズ (16bit)  │ 12-15 byte
-  │ット   │        │G│K│H│T│N│N│                           │
-  │(4bit) │        │ │ │ │ │ │ │                           │
+  │Data  │Reserved│U│A│P│R│S│F│                           │
+  │Offset│ (4bit) │R│C│S│S│Y│I│  Window Size (16 bit)     │ 12-15 byte
+  │(4bit)│        │G│K│H│T│N│N│                           │
+  │      │        │ │ │ │ │ │ │                           │
   ├───────────────────────────┬───────────────────────────┤
-  │   チェックサム (16bit)      │   緊急ポインタ (16bit)     │ 16-19 byte
+  │  Checksum (16 bit)        │  Urgent Pointer (16 bit)  │ 16-19 byte
   ├───────────────────────────┴───────────────────────────┤
-  │              オプション（0〜40バイト）                    │ 20-59 byte
+  │           Options (0–40 bytes)                         │ 20-59 byte
   ├─────────────────────────────────────────────────────────┤
-  │                   ペイロード（データ）                    │
+  │                   Payload (Data)                        │
   └─────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 各フィールドの詳細
+### 2.2 Field Details
 
 ```
-■ 送信元ポート / 宛先ポート（各16ビット）
-  範囲: 0〜65535
-  ウェルノウンポート: 0〜1023（HTTP=80, HTTPS=443, SSH=22）
-  登録ポート: 1024〜49151
-  エフェメラルポート: 49152〜65535（クライアント側で自動割当）
+■ Source Port / Destination Port (16 bits each)
+  Range: 0–65535
+  Well-known ports: 0–1023 (HTTP=80, HTTPS=443, SSH=22)
+  Registered ports: 1024–49151
+  Ephemeral ports: 49152–65535 (automatically assigned on the client side)
 
-■ シーケンス番号（32ビット）
-  送信するデータの先頭バイトの番号。
-  初期値（ISN: Initial Sequence Number）はランダムに決定される。
-  → 予測可能だとTCPシーケンス番号攻撃に脆弱になるため。
-  32ビットで約4.3GB分のバイト番号空間を持つ。
-  → 高速回線（10Gbps）では約3.4秒で一巡（ラップアラウンド）する。
-  → PAWS（Protection Against Wrapped Sequences）で対処。
+■ Sequence Number (32 bits)
+  The byte number of the first byte of data being sent.
+  The initial value (ISN: Initial Sequence Number) is chosen randomly.
+  → Predictable ISNs would make TCP vulnerable to sequence number attacks.
+  32 bits provides a byte number space of approximately 4.3 GB.
+  → At high speeds (10 Gbps) the sequence space wraps around in about 3.4 seconds.
+  → Addressed by PAWS (Protection Against Wrapped Sequences).
 
-■ ACK番号（32ビット）
-  次に受信を期待するバイト番号。
-  累積的確認応答（Cumulative ACK）：この番号未満は全て受信済みを意味する。
+■ Acknowledgment Number (32 bits)
+  The byte number of the next byte expected to be received.
+  Cumulative acknowledgment: means all bytes below this number have been received.
 
-■ データオフセット（4ビット）
-  TCPヘッダーの長さを4バイト単位で表す。
-  最小値: 5（20バイト = オプションなし）
-  最大値: 15（60バイト = オプション40バイト）
+■ Data Offset (4 bits)
+  The length of the TCP header expressed in 4-byte units.
+  Minimum: 5 (20 bytes = no options)
+  Maximum: 15 (60 bytes = 40 bytes of options)
 
-■ フラグフィールド（6ビット）
-  SYN（Synchronize）: 接続開始。ISNの同期に使用。
-  ACK（Acknowledge）: ACK番号フィールドが有効であることを示す。
-  FIN（Finish）: 接続終了。これ以上送信するデータがないことを示す。
-  RST（Reset）: 接続を即座に切断。異常終了やポートスキャン検出で使用。
-  PSH（Push）: バッファリングせず即座にアプリケーションに配信。
-  URG（Urgent）: 緊急データの存在を示す（現在はほぼ使用されない）。
+■ Flag Fields (6 bits)
+  SYN (Synchronize): Initiates a connection. Used to synchronize ISNs.
+  ACK (Acknowledge): Indicates the Acknowledgment Number field is valid.
+  FIN (Finish): Closes a connection. Indicates no more data to send.
+  RST (Reset): Immediately terminates a connection. Used for abnormal termination or port scan detection.
+  PSH (Push): Deliver to the application immediately without buffering.
+  URG (Urgent): Indicates the presence of urgent data (almost never used today).
 
-  追加フラグ（RFC 3168, RFC 3540）:
-  ECE（ECN-Echo）: 輻輳通知（ECN）の応答。
-  CWR（Congestion Window Reduced）: 輻輳ウィンドウ縮小の通知。
-  NS（ECN-Nonce Sum）: ECNのセキュリティ強化（実験的）。
+  Additional flags (RFC 3168, RFC 3540):
+  ECE (ECN-Echo): Response to Explicit Congestion Notification (ECN).
+  CWR (Congestion Window Reduced): Notifies that the congestion window has been reduced.
+  NS (ECN-Nonce Sum): Security enhancement for ECN (experimental).
 
-■ ウィンドウサイズ（16ビット）
-  受信可能なバイト数を通知する。
-  最大値: 65535バイト（約64KB）。
-  → Window Scaleオプションで最大1GBまで拡張可能。
+■ Window Size (16 bits)
+  Notifies the number of bytes the receiver can accept.
+  Maximum: 65535 bytes (approximately 64 KB).
+  → Can be extended up to 1 GB with the Window Scale option.
 
-■ チェックサム（16ビット）
-  TCPヘッダー + ペイロード + 擬似ヘッダーの整合性を検証。
-  擬似ヘッダーには送信元IP・宛先IP・プロトコル番号・TCPセグメント長を含む。
-  → IP層の情報もチェック対象に含めることで、誤配送を検出する。
+■ Checksum (16 bits)
+  Verifies the integrity of the TCP header + payload + pseudo-header.
+  The pseudo-header includes the source IP, destination IP, protocol number, and TCP segment length.
+  → Including IP-layer information in the check allows detection of misdelivery.
 
-■ 緊急ポインタ（16ビット）
-  URGフラグがセットされている場合のみ有効。
-  緊急データの末尾位置を示す。実際にはほとんど使用されない。
+■ Urgent Pointer (16 bits)
+  Valid only when the URG flag is set.
+  Indicates the end position of urgent data. Rarely used in practice.
 ```
 
-### 2.3 重要なTCPオプション
+### 2.3 Important TCP Options
 
 ```
-■ MSS（Maximum Segment Size）— Kind=2, Length=4
-  1セグメントで送れるペイロードの最大サイズ。
-  SYNパケットでのみ交渉される。
-  通常の計算: MSS = MTU - IPヘッダ(20) - TCPヘッダ(20) = 1500 - 40 = 1460
-  VPN/トンネル環境: MTUが小さくなるためMSSも小さくなる。
+■ MSS (Maximum Segment Size) — Kind=2, Length=4
+  The maximum payload size that can be sent in one segment.
+  Negotiated only in SYN packets.
+  Typical calculation: MSS = MTU - IP header (20) - TCP header (20) = 1500 - 40 = 1460
+  VPN/tunnel environments: MTU is smaller, so MSS is also smaller.
 
 ■ Window Scale — Kind=3, Length=3
-  ウィンドウサイズフィールドを左シフトするビット数を指定。
-  シフト値: 0〜14（最大スケールファクター = 2^14 = 16384）
-  最大ウィンドウサイズ: 65535 × 16384 = 約1GB
-  SYNパケットでのみ交渉される。
+  Specifies the number of bits to left-shift the Window Size field.
+  Shift value: 0–14 (maximum scale factor = 2^14 = 16384)
+  Maximum window size: 65535 × 16384 ≈ 1 GB
+  Negotiated only in SYN packets.
 
 ■ SACK Permitted — Kind=4, Length=2
-  Selective ACK（SACK）の使用可否をSYNで交渉。
-  SACKにより、連続していないデータブロックの受信状況を通知できる。
-  → 不必要な再送を削減し、回復速度を向上させる。
+  Negotiates use of Selective ACK (SACK) in the SYN.
+  SACK allows the receiver to report the status of non-contiguous data blocks.
+  → Reduces unnecessary retransmissions and improves recovery speed.
 
-■ SACK — Kind=5, Length=可変
-  受信済みだが連続していないブロックの範囲（左端, 右端）を通知。
-  最大4ブロックまで報告可能（オプション領域の制約）。
+■ SACK — Kind=5, Length=variable
+  Reports ranges (left edge, right edge) of received but non-contiguous blocks.
+  Up to 4 blocks can be reported (limited by options field space).
 
 ■ Timestamp — Kind=8, Length=10
-  TSval: 送信側のタイムスタンプ
-  TSecr: 受信したTSvalのエコー
-  用途1: RTTの正確な測定（RTTM: Round-Trip Time Measurement）
-  用途2: PAWS（Protection Against Wrapped Sequences）
-         → シーケンス番号がラップアラウンドしても区別可能にする。
+  TSval: Timestamp of the sender
+  TSecr: Echo of the received TSval
+  Use 1: Accurate RTT measurement (RTTM: Round-Trip Time Measurement)
+  Use 2: PAWS (Protection Against Wrapped Sequences)
+         → Allows distinguishing between sequence numbers even after wrap-around.
 ```
 
 ---
 
-## 3. 3-wayハンドシェイクの詳細
+## 3. 3-Way Handshake in Detail
 
-### 3.1 接続確立の全体像
+### 3.1 Overview of Connection Establishment
 
 ```
-TCP接続の確立（3-way Handshake）:
+TCP Connection Establishment (3-Way Handshake):
 
-  クライアント                              サーバー
+  Client                                    Server
   [CLOSED]                                 [LISTEN]
        │                                      │
        │── SYN ─────────────────────────────→ │
@@ -293,114 +293,114 @@ TCP接続の確立（3-way Handshake）:
        │   seq=1001, ack=5001, win=65535       │
        │   [ESTABLISHED]              [ESTABLISHED]
        │                                      │
-       │ ←════════ データ転送開始 ═══════════→ │
+       │ ←════════ Data Transfer Begins ════→ │
 
-  各ステップの詳細:
+  Details of each step:
 
-  [Step 1] SYN（クライアント → サーバー）
-    - クライアントが接続を要求する
-    - ISN（Initial Sequence Number）をランダムに選択（例: 1000）
-    - TCPオプションで MSS, Window Scale, SACK, Timestamp を交渉
-    - クライアントの状態: CLOSED → SYN_SENT
+  [Step 1] SYN (Client → Server)
+    - Client requests a connection
+    - Randomly selects ISN (Initial Sequence Number) (e.g., 1000)
+    - Negotiates MSS, Window Scale, SACK, and Timestamp in TCP options
+    - Client state: CLOSED → SYN_SENT
 
-  [Step 2] SYN-ACK（サーバー → クライアント）
-    - サーバーが接続を許可する
-    - サーバー側のISNをランダムに選択（例: 5000）
-    - ack = クライアントのISN + 1（1001）で「次に1001を期待する」と通知
-    - サーバーの状態: LISTEN → SYN_RCVD
+  [Step 2] SYN-ACK (Server → Client)
+    - Server accepts the connection
+    - Randomly selects the server-side ISN (e.g., 5000)
+    - ack = Client ISN + 1 (1001), notifying "expecting 1001 next"
+    - Server state: LISTEN → SYN_RCVD
 
-  [Step 3] ACK（クライアント → サーバー）
-    - クライアントがサーバーのSYNを確認する
-    - ack = サーバーのISN + 1（5001）
-    - このACKにデータを含めることも可能（ピギーバック）
-    - 双方の状態: ESTABLISHED
+  [Step 3] ACK (Client → Server)
+    - Client confirms the server's SYN
+    - ack = Server ISN + 1 (5001)
+    - This ACK can carry data (piggybacking)
+    - Both sides' state: ESTABLISHED
 
-  所要時間: 1.5 RTT（Round Trip Time）
-    東京 ↔ 大阪:     約 5ms  → 接続確立 約 7.5ms
-    東京 ↔ US西海岸:  約100ms → 接続確立 約150ms
-    東京 ↔ EU:       約250ms → 接続確立 約375ms
+  Time required: 1.5 RTT (Round Trip Time)
+    Tokyo ↔ Osaka:       approx. 5ms   → connection established in approx. 7.5ms
+    Tokyo ↔ US West Coast: approx. 100ms → connection established in approx. 150ms
+    Tokyo ↔ EU:          approx. 250ms  → connection established in approx. 375ms
 ```
 
-### 3.2 なぜ3-wayなのか
+### 3.2 Why 3-Way (Not 2-Way)?
 
 ```
-2-wayハンドシェイクの問題:
+Problem with a 2-way handshake:
 
-  シナリオ: 古いSYNパケットが遅延して到着する場合
+  Scenario: an old SYN packet arrives late
 
-  クライアント                         サーバー
+  Client                               Server
        │                                 │
-       │── SYN(seq=100) ──→ [遅延]       │  古い接続試行
-       │── SYN(seq=200) ─────────────→   │  新しい接続試行
+       │── SYN(seq=100) ──→ [delayed]    │  Old connection attempt
+       │── SYN(seq=200) ─────────────→   │  New connection attempt
        │                                 │
-       │←─── ACK(ack=201) ─────────── │  新しいSYNへの応答
-       │   [接続確立]                      │  [接続確立]
+       │←─── ACK(ack=201) ─────────── │  Response to the new SYN
+       │   [Connection established]       │  [Connection established]
        │                                 │
-       │            [遅延したSYN到着]       │
-       │              SYN(seq=100) ──→   │  古いSYN到着!
+       │            [Delayed SYN arrives] │
+       │              SYN(seq=100) ──→   │  Old SYN arrives!
        │                                 │
-       │←─── ACK(ack=101) ─────────── │  古いSYNへの応答
-       │                                 │  [偽の接続確立!!]
+       │←─── ACK(ack=101) ─────────── │  Response to old SYN
+       │                                 │  [False connection established!!]
 
-  → 2-wayでは古いSYNに対して誤った接続を確立してしまう
-  → 3-wayならクライアントが最後のACKで「正しい接続か」を確認できる
-  → 古いSYN-ACKを受け取ったクライアントはRSTを返して拒否する
+  → With 2-way, a false connection is established for the old SYN
+  → With 3-way, the client can verify "is this the right connection?" with the final ACK
+  → A client that receives an old SYN-ACK returns RST to reject it
 
-4-wayにしない理由:
-  → 3-wayで十分に双方のISNを同期できる
-  → ステップ数を増やすと接続確立の遅延が増える
-  → セキュリティ上の利点もない
+Why not 4-way?
+  → 3-way is sufficient to synchronize both sides' ISNs
+  → Adding more steps increases connection establishment latency
+  → No security advantage either
 ```
 
-### 3.3 TCP Fast Open（TFO）
+### 3.3 TCP Fast Open (TFO)
 
 ```
-TCP Fast Open（RFC 7413）:
+TCP Fast Open (RFC 7413):
 
-  通常のTCP:  SYN → SYN-ACK → ACK → データ = 2 RTT で最初のデータ到達
-  TFO:       SYN+データ → SYN-ACK+データ = 1 RTT で最初のデータ到達
+  Regular TCP:  SYN → SYN-ACK → ACK → Data = first data arrives in 2 RTT
+  TFO:          SYN+Data → SYN-ACK+Data = first data arrives in 1 RTT
 
-  仕組み:
-  [初回接続]
-    クライアント                        サーバー
-         │── SYN + TFO Cookie要求 ──→  │
-         │←── SYN-ACK + TFO Cookie ── │
-         │── ACK ──→                   │
-         │  (通常の3-way handshake)      │
+  Mechanism:
+  [First connection]
+    Client                              Server
+         │── SYN + TFO Cookie request ──→  │
+         │←── SYN-ACK + TFO Cookie ──────  │
+         │── ACK ──→                        │
+         │  (normal 3-way handshake)         │
 
-  [2回目以降]
-    クライアント                        サーバー
-         │── SYN + Cookie + データ ──→  │  ★ SYNにデータを含める
-         │                              │  サーバーはCookieを検証
-         │                              │  → 有効ならデータを即処理
-         │←── SYN-ACK + データ ──────  │  ★ 応答もすぐ返せる
-         │── ACK ──→                   │
-         │                              │
+  [Second connection onward]
+    Client                              Server
+         │── SYN + Cookie + Data ──→        │  ★ SYN includes data
+         │                                   │  Server validates the Cookie
+         │                                   │  → Processes data immediately if valid
+         │←── SYN-ACK + Data ─────────────  │  ★ Response sent right away
+         │── ACK ──→                        │
+         │                                   │
 
-  利点:
-  - 接続確立とデータ送信を同時に行える
-  - Webページの初期表示時間を短縮（特にDNSやAPI呼び出し）
+  Advantages:
+  - Connection establishment and data transmission happen simultaneously
+  - Reduces initial page load time (especially for DNS or API calls)
 
-  制限事項:
-  - 冪等なリクエスト（GET等）にのみ適用すべき
-  - 初回接続ではCookie取得のため通常の3-wayが必要
-  - 一部のミドルボックス（ファイアウォール等）で問題が発生する場合がある
+  Limitations:
+  - Should only be applied to idempotent requests (e.g., GET)
+  - The first connection still requires a normal 3-way handshake to obtain the Cookie
+  - Some middleboxes (firewalls, etc.) may cause issues
 ```
 
-### 3.4 コード例1: tcpdumpで3-wayハンドシェイクを観察する
+### 3.4 Code Example 1: Observing the 3-Way Handshake with tcpdump
 
 ```bash
-# ターミナル1: tcpdumpでキャプチャ開始
-# -i any: 全インターフェースを監視
-# -nn: ホスト名・ポート番号を解決しない
-# -S: シーケンス番号を絶対値で表示（相対値ではなく）
-# port 80: HTTPポートのみフィルタ
+# Terminal 1: Start tcpdump capture
+# -i any: monitor all interfaces
+# -nn: do not resolve hostnames or port numbers
+# -S: display sequence numbers as absolute values (not relative)
+# port 80: filter HTTP port only
 sudo tcpdump -i any -nn -S port 80
 
-# ターミナル2: HTTP接続を発生させる
+# Terminal 2: Generate an HTTP connection
 curl http://example.com
 
-# tcpdump の出力例:
+# Example tcpdump output:
 # [Step 1] SYN
 # 14:23:01.123456 IP 192.168.1.100.54321 > 93.184.216.34.80:
 #   Flags [S], seq 2847291038, win 65535,
@@ -418,186 +418,186 @@ curl http://example.com
 #   Flags [.], seq 2847291039, ack 1428573921, win 1024,
 #   options [nop,nop,TS val 123457 ecr 789012], length 0
 
-# フラグの読み方:
+# Reading flags:
 #   [S]  = SYN
-#   [S.] = SYN-ACK（SYN + ACK）
+#   [S.] = SYN-ACK (SYN + ACK)
 #   [.]  = ACK
-#   [P.] = PSH + ACK（データ送信）
-#   [F.] = FIN + ACK（接続終了）
-#   [R]  = RST（リセット）
+#   [P.] = PSH + ACK (data transmission)
+#   [F.] = FIN + ACK (connection termination)
+#   [R]  = RST (reset)
 #   [R.] = RST + ACK
 
-# より詳細な表示:
-# -X: パケット内容を16進数 + ASCII で表示
-# -v: 詳細表示（TTL, ID, フラグメント情報等を含む）
+# More detailed display:
+# -X: display packet contents in hex + ASCII
+# -v: verbose output (includes TTL, ID, fragmentation info, etc.)
 sudo tcpdump -i any -nn -S -X -v port 80
 
-# 特定ホストとの通信のみ表示:
+# Display only traffic with a specific host:
 sudo tcpdump -i any -nn -S host 93.184.216.34 and port 80
 
-# SYNパケットのみフィルタ（ポートスキャン検出に有用）:
+# Filter only SYN packets (useful for port scan detection):
 sudo tcpdump -i any -nn 'tcp[tcpflags] & (tcp-syn) != 0'
 
-# pcapファイルに保存して後でWiresharkで分析:
+# Save to a pcap file for later analysis in Wireshark:
 sudo tcpdump -i any -nn -w /tmp/tcp_capture.pcap port 80
 ```
 
-### 3.5 TCP状態遷移図
+### 3.5 TCP State Transition Diagram
 
 ```
-TCP状態遷移の全体像:
+Overview of TCP state transitions:
 
                               ┌──────────┐
                               │  CLOSED  │
                               └────┬─────┘
                        ┌──────────┤├──────────────┐
-                 パッシブオープン  ││  アクティブオープン  │
+                 Passive Open    ││  Active Open      │
                   (listen())     ││   (connect())      │
                        │         ││         │          │
                        ▼         ││         ▼          │
                   ┌────────┐    ││   ┌──────────┐    │
                   │ LISTEN │    ││   │ SYN_SENT │    │
                   └───┬────┘    ││   └────┬─────┘    │
-             SYN受信  │         ││        │ SYN-ACK   │
-            SYN-ACK送信│        ││        │ 受信       │
-                       │         ││        │ ACK送信    │
+             Recv SYN │         ││        │ Recv      │
+            Send SYN-ACK│       ││        │ SYN-ACK   │
+                       │         ││        │ Send ACK  │
                        ▼         ││        ▼          │
                   ┌──────────┐  ││  ┌─────────────┐  │
                   │ SYN_RCVD │──┘│  │ ESTABLISHED │  │
                   └────┬─────┘   │  └──────┬──────┘  │
-               ACK受信 │          │         │         │
+               Recv ACK│         │         │         │
                        ▼          │   close() │        │
-                  ┌─────────────┐│    FIN送信 │        │
+                  ┌─────────────┐│    Send FIN│        │
                   │ ESTABLISHED ││         ▼         │
                   └──────┬──────┘│  ┌──────────┐     │
                    close()│       │  │ FIN_WAIT1│     │
-                   FIN送信 │       │  └────┬─────┘     │
-                          │       │  ACK受信│  FIN+ACK  │
-                          │       │        ▼  受信     │
+                   Send FIN│      │  └────┬─────┘     │
+                          │       │  Recv ACK│  Recv   │
+                          │       │        ▼  FIN+ACK  │
                           │       │  ┌──────────┐     │
                           │       │  │ FIN_WAIT2│     │
                           │       │  └────┬─────┘     │
-                   FIN受信 │       │  FIN受信│          │
-                   ACK送信 │       │  ACK送信│          │
+                   Recv FIN│      │  Recv FIN│         │
+                   Send ACK│      │  Send ACK│         │
                           ▼       │        ▼          │
                   ┌──────────┐   │  ┌──────────┐     │
                   │CLOSE_WAIT│   │  │TIME_WAIT │     │
                   └────┬─────┘   │  └────┬─────┘     │
-               close() │         │  2MSL待機│          │
-               FIN送信  │         │        ▼          │
+               close() │         │  2MSL wait│         │
+               Send FIN│         │        ▼          │
                         ▼         │  ┌──────────┐     │
                   ┌──────────┐   │  │  CLOSED  │     │
                   │ LAST_ACK │   │  └──────────┘     │
                   └────┬─────┘   │                    │
-               ACK受信 │          │                    │
+               Recv ACK│         │                    │
                         ▼         │                    │
                   ┌──────────┐   │                    │
                   │  CLOSED  │   │                    │
                   └──────────┘   │                    │
                                   └────────────────────┘
 
-  各状態の説明:
-    CLOSED:      初期状態 / 最終状態
-    LISTEN:      接続待機中（サーバー）
-    SYN_SENT:    SYN送信済み、SYN-ACK待ち（クライアント）
-    SYN_RCVD:    SYN-ACK送信済み、ACK待ち（サーバー）
-    ESTABLISHED: 接続確立済み、データ送受信可能
-    FIN_WAIT_1:  FIN送信済み、ACK待ち
-    FIN_WAIT_2:  FINのACK受信済み、相手のFIN待ち
-    TIME_WAIT:   相手のFIN受信済み、2MSL待機中
-    CLOSE_WAIT:  相手のFIN受信済み、自分のclose()待ち
-    LAST_ACK:    FIN送信済み、最後のACK待ち
-    CLOSING:     同時クローズ時の特殊状態
+  Description of each state:
+    CLOSED:      Initial state / final state
+    LISTEN:      Waiting for connections (server)
+    SYN_SENT:    SYN sent, waiting for SYN-ACK (client)
+    SYN_RCVD:    SYN-ACK sent, waiting for ACK (server)
+    ESTABLISHED: Connection established, data transfer possible
+    FIN_WAIT_1:  FIN sent, waiting for ACK
+    FIN_WAIT_2:  ACK for FIN received, waiting for peer's FIN
+    TIME_WAIT:   Peer's FIN received, waiting for 2MSL
+    CLOSE_WAIT:  Peer's FIN received, waiting for own close()
+    LAST_ACK:    FIN sent, waiting for the final ACK
+    CLOSING:     Special state for simultaneous close
 ```
 
 ---
 
-## 4. データ転送メカニズム
+## 4. Data Transfer Mechanism
 
-### 4.1 シーケンス番号とACKの動作
+### 4.1 Operation of Sequence Numbers and ACKs
 
 ```
-データ転送の基本フロー:
+Basic data transfer flow:
 
-  クライアント                           サーバー
+  Client                                 Server
   [ESTABLISHED]                         [ESTABLISHED]
        │                                    │
-       │── DATA (seq=1001, len=500) ──────→│  500バイトのデータ送信
+       │── DATA (seq=1001, len=500) ──────→│  Send 500 bytes of data
        │                                    │
-       │←──── ACK (ack=1501) ─────────── │  「次は1501を期待する」
+       │←──── ACK (ack=1501) ─────────── │  "Expecting 1501 next"
        │                                    │
-       │── DATA (seq=1501, len=500) ──────→│  次の500バイト
+       │── DATA (seq=1501, len=500) ──────→│  Next 500 bytes
        │                                    │
-       │←──── ACK (ack=2001) ─────────── │  「次は2001を期待する」
+       │←──── ACK (ack=2001) ─────────── │  "Expecting 2001 next"
        │                                    │
 
-  ポイント:
-  - seq: このセグメントの先頭バイトの番号
-  - len: ペイロードのバイト数
-  - ack: 次に受信を期待するバイト番号 = seq + len
-  - ACKは累積的: ack=2001 は「2000バイト目までは全て受信済み」を意味する
+  Key points:
+  - seq: the byte number of the first byte in this segment
+  - len: the number of payload bytes
+  - ack: the next byte number expected = seq + len
+  - ACK is cumulative: ack=2001 means "all bytes up to 2000 have been received"
 ```
 
-### 4.2 再送メカニズムの詳細
+### 4.2 Retransmission Mechanism in Detail
 
 ```
-■ タイムアウト再送（RTO: Retransmission Timeout）
+■ Timeout Retransmission (RTO: Retransmission Timeout)
 
-  RTOの計算（RFC 6298）:
-    SRTT = Smoothed RTT（RTTの指数移動平均）
-    RTTVAR = RTTの分散
-    RTO = SRTT + max(G, 4 × RTTVAR)
-      ※ G = クロック粒度（通常1ms）
+  RTO calculation (RFC 6298):
+    SRTT   = Smoothed RTT (exponential moving average of RTT)
+    RTTVAR = RTT variance
+    RTO    = SRTT + max(G, 4 × RTTVAR)
+      ※ G = clock granularity (usually 1ms)
 
-  初期値:
-    RTO = 1秒（RFC 6298推奨）
-    最小RTO = 1秒（RFC推奨）、Linux実装では200ms
-    最大RTO = 60秒（Linux実装）
+  Initial values:
+    RTO     = 1 second (recommended by RFC 6298)
+    Minimum RTO = 1 second (RFC recommended), 200ms in Linux implementation
+    Maximum RTO = 60 seconds (Linux implementation)
 
-  バックオフ:
-    タイムアウト発生ごとに RTO = RTO × 2（指数バックオフ）
-    最大再送回数: Linuxデフォルトは15回（tcp_retries2）
+  Backoff:
+    RTO doubles on each timeout (exponential backoff): RTO = RTO × 2
+    Maximum retransmissions: Linux default is 15 (tcp_retries2)
 
-■ 高速再送（Fast Retransmit）
+■ Fast Retransmit
 
-  クライアント                           サーバー
-       │── seq=1, len=100 ──→             │  ✓ 受信
-       │── seq=101, len=100 ──→  ✗ ロスト │
-       │── seq=201, len=100 ──→           │  受信するが穴がある
+  Client                                 Server
+       │── seq=1, len=100 ──→             │  ✓ Received
+       │── seq=101, len=100 ──→  ✗ Lost  │
+       │── seq=201, len=100 ──→           │  Received but gap exists
        │←─ ack=101 ──────────────────── │  DupACK #1
-       │── seq=301, len=100 ──→           │  受信するが穴がある
+       │── seq=301, len=100 ──→           │  Received but gap exists
        │←─ ack=101 ──────────────────── │  DupACK #2
-       │── seq=401, len=100 ──→           │  受信するが穴がある
-       │←─ ack=101 ──────────────────── │  DupACK #3 → 高速再送!
+       │── seq=401, len=100 ──→           │  Received but gap exists
+       │←─ ack=101 ──────────────────── │  DupACK #3 → Fast Retransmit!
        │                                    │
-       │── seq=101, len=100 ──→（再送）    │  ✓ 再送成功
-       │←─ ack=501 ──────────────────── │  穴が埋まり全て受信済み
+       │── seq=101, len=100 ──→ (retx)    │  ✓ Retransmission successful
+       │←─ ack=501 ──────────────────── │  Gap filled, all received
 
-  条件: 3つの重複ACK（Duplicate ACK）を受信した時点で即座に再送
-  利点: RTO を待たずに素早くロストセグメントを回復できる
-  前提: パケットの順序入れ替え（reordering）と区別する必要がある
+  Condition: immediately retransmit upon receiving 3 duplicate ACKs (Duplicate ACKs)
+  Advantage: can recover a lost segment quickly without waiting for RTO
+  Prerequisite: must be distinguished from packet reordering
 
-■ SACK（Selective ACK）による効率的な再送
+■ Efficient Retransmission with SACK (Selective ACK)
 
-  SACKがない場合:
-    受信側は累積ACKしか返せないため、どのセグメントがロストしたか
-    送信側は正確に知ることができない → 不必要な再送が発生する
+  Without SACK:
+    The receiver can only send cumulative ACKs, so the sender cannot
+    know exactly which segment was lost → unnecessary retransmissions occur
 
-  SACKがある場合:
-    受信側が「受信済みブロック」の範囲を明示的に通知する
+  With SACK:
+    The receiver explicitly reports the ranges of "received blocks"
 
-    例: seq=101 がロスト、seq=201〜500 は受信済み
+    Example: seq=101 lost, seq=201–500 received
     ACK: ack=101, SACK=[201-301, 301-401, 401-501]
-    → 送信側は seq=101 だけを再送すればよいと判断できる
+    → The sender can determine that only seq=101 needs to be retransmitted
 ```
 
-### 4.3 コード例2: PythonによるTCPソケットプログラミング
+### 4.3 Code Example 2: TCP Socket Programming in Python
 
 ```python
 #!/usr/bin/env python3
 """
-TCP エコーサーバーとクライアントの実装例
-ソケットプログラミングの基本パターンを示す
+Example implementation of a TCP echo server and client
+Demonstrates the basic patterns of socket programming
 """
 
 import socket
@@ -606,12 +606,12 @@ import time
 import struct
 
 # ============================================================
-# TCPエコーサーバー
+# TCP Echo Server
 # ============================================================
 class TCPEchoServer:
     """
-    マルチスレッド対応のTCPエコーサーバー。
-    受信したデータをそのまま送り返す。
+    A multi-threaded TCP echo server.
+    Sends received data back as-is.
     """
 
     def __init__(self, host='127.0.0.1', port=8080, backlog=5):
@@ -622,47 +622,47 @@ class TCPEchoServer:
         self.running = False
 
     def start(self):
-        """サーバーを起動する"""
+        """Start the server"""
         # AF_INET: IPv4, SOCK_STREAM: TCP
         self.server_socket = socket.socket(
             socket.AF_INET,
             socket.SOCK_STREAM
         )
 
-        # SO_REUSEADDR: TIME_WAIT 状態のポートを再利用可能にする
-        # サーバー再起動時に "Address already in use" エラーを回避
+        # SO_REUSEADDR: allows reuse of a port in TIME_WAIT state
+        # Prevents "Address already in use" error when restarting the server
         self.server_socket.setsockopt(
             socket.SOL_SOCKET,
             socket.SO_REUSEADDR,
             1
         )
 
-        # TCP_NODELAY: Nagle アルゴリズムを無効化
-        # 小さなパケットを即座に送信する（低遅延が必要な場合）
+        # TCP_NODELAY: disables the Nagle algorithm
+        # Sends small packets immediately (use when low latency is required)
         self.server_socket.setsockopt(
             socket.IPPROTO_TCP,
             socket.TCP_NODELAY,
             1
         )
 
-        # バインドとリッスン
+        # Bind and listen
         self.server_socket.bind((self.host, self.port))
         self.server_socket.listen(self.backlog)
         self.running = True
         print(f"[SERVER] Listening on {self.host}:{self.port}")
         print(f"[SERVER] Backlog (SYN Queue + Accept Queue): {self.backlog}")
 
-        # 接続ソケットのオプションを表示
+        # Display options of the connection socket
         self._print_socket_options()
 
         while self.running:
             try:
-                # accept() は3-wayハンドシェイク完了済みの接続を取り出す
-                # ブロッキング呼び出し: 接続が来るまで待機する
+                # accept() retrieves a connection that has completed the 3-way handshake
+                # Blocking call: waits until a connection arrives
                 client_socket, client_addr = self.server_socket.accept()
                 print(f"[SERVER] Connection from {client_addr}")
 
-                # クライアントごとにスレッドを作成
+                # Create a thread for each client
                 thread = threading.Thread(
                     target=self._handle_client,
                     args=(client_socket, client_addr),
@@ -674,9 +674,9 @@ class TCPEchoServer:
                 break
 
     def _handle_client(self, client_socket, client_addr):
-        """個々のクライアント接続を処理する"""
+        """Handle an individual client connection"""
         try:
-            # TCP Keep-Alive を有効にする
+            # Enable TCP Keep-Alive
             client_socket.setsockopt(
                 socket.SOL_SOCKET,
                 socket.SO_KEEPALIVE,
@@ -684,52 +684,52 @@ class TCPEchoServer:
             )
 
             while True:
-                # recv() はTCPの受信バッファからデータを読み取る
-                # 4096: 一度に読み取る最大バイト数
-                # TCPはバイトストリームなので、送信側の send() 呼び出しと
-                # 受信側の recv() 呼び出しは 1対1 に対応しない
+                # recv() reads data from the TCP receive buffer
+                # 4096: maximum bytes to read at once
+                # Since TCP is a byte stream, send() calls on the sender side and
+                # recv() calls on the receiver side do not correspond 1-to-1
                 data = client_socket.recv(4096)
 
                 if not data:
-                    # 相手が接続を閉じた（FINを受信）
+                    # The peer closed the connection (FIN received)
                     print(f"[SERVER] {client_addr} disconnected")
                     break
 
                 print(f"[SERVER] Received {len(data)} bytes from {client_addr}")
-                # エコーバック: 受信データをそのまま返す
+                # Echo back: return received data as-is
                 client_socket.sendall(data)
 
         except ConnectionResetError:
-            # 相手がRSTを送信した場合
+            # The peer sent RST
             print(f"[SERVER] Connection reset by {client_addr}")
         except BrokenPipeError:
-            # 切断済みの接続に書き込もうとした場合
+            # Tried to write to a closed connection
             print(f"[SERVER] Broken pipe for {client_addr}")
         finally:
             client_socket.close()
 
     def _print_socket_options(self):
-        """ソケットオプションの現在値を表示する"""
+        """Display the current values of socket options"""
         sock = self.server_socket
         print(f"[SERVER] SO_REUSEADDR: "
               f"{sock.getsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR)}")
-        print(f"[SERVER] SO_RCVBUF (受信バッファ): "
+        print(f"[SERVER] SO_RCVBUF (receive buffer): "
               f"{sock.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)} bytes")
-        print(f"[SERVER] SO_SNDBUF (送信バッファ): "
+        print(f"[SERVER] SO_SNDBUF (send buffer): "
               f"{sock.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF)} bytes")
 
     def stop(self):
-        """サーバーを停止する"""
+        """Stop the server"""
         self.running = False
         if self.server_socket:
             self.server_socket.close()
 
 
 # ============================================================
-# TCPクライアント
+# TCP Client
 # ============================================================
 class TCPEchoClient:
-    """TCPエコークライアント"""
+    """TCP echo client"""
 
     def __init__(self, host='127.0.0.1', port=8080, timeout=10.0):
         self.host = host
@@ -737,10 +737,10 @@ class TCPEchoClient:
         self.timeout = timeout
 
     def send_and_receive(self, message: str) -> str:
-        """メッセージを送信し、エコーバックを受信する"""
+        """Send a message and receive the echo response"""
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            # connect() で3-wayハンドシェイクが実行される
-            # タイムアウトを設定して無限待機を防止
+            # connect() executes the 3-way handshake
+            # Set a timeout to prevent indefinite waiting
             sock.settimeout(self.timeout)
 
             start_time = time.time()
@@ -749,33 +749,33 @@ class TCPEchoClient:
             print(f"[CLIENT] Connected in {connect_time*1000:.2f}ms "
                   f"(≈ 1.5 RTT)")
 
-            # データ送信
+            # Send data
             data = message.encode('utf-8')
             sock.sendall(data)
             print(f"[CLIENT] Sent {len(data)} bytes")
 
-            # エコーバック受信
+            # Receive echo response
             response = sock.recv(4096)
             rtt = time.time() - start_time
             print(f"[CLIENT] Received {len(response)} bytes "
                   f"(total RTT: {rtt*1000:.2f}ms)")
 
             return response.decode('utf-8')
-            # with ブロック終了時に close() が呼ばれる
-            # → 4-way handshake でTCP接続が切断される
+            # close() is called when the with block exits
+            # → TCP connection is terminated via the 4-way handshake
 
 
 # ============================================================
-# 使用例
+# Usage Example
 # ============================================================
 if __name__ == '__main__':
-    # サーバーをバックグラウンドスレッドで起動
+    # Start the server in a background thread
     server = TCPEchoServer()
     server_thread = threading.Thread(target=server.start, daemon=True)
     server_thread.start()
-    time.sleep(0.5)  # サーバー起動待ち
+    time.sleep(0.5)  # Wait for server to start
 
-    # クライアントからメッセージを送信
+    # Send a message from the client
     client = TCPEchoClient()
     response = client.send_and_receive("Hello, TCP!")
     print(f"[RESULT] Echo response: {response}")
@@ -785,208 +785,207 @@ if __name__ == '__main__':
 
 ---
 
-## 5. フロー制御（Flow Control）の詳細
+## 5. Flow Control in Detail
 
-### 5.1 スライディングウィンドウの動作原理
+### 5.1 Operating Principle of the Sliding Window
 
 ```
-フロー制御 = 受信側のバッファ溢れを防ぐメカニズム
+Flow Control = A mechanism to prevent the receiver's buffer from overflowing
 
-■ スライディングウィンドウの概念
+■ Concept of the Sliding Window
 
-  送信側のバッファ状態:
+  Sender buffer state:
   ┌─────────────────────────────────────────────────────────────────┐
-  │ ACK済み │ 送信済み未ACK │  送信可能  │     送信不可           │
-  │ (解放)  │  (in-flight)  │ (ウィンドウ)│  (ウィンドウ外)       │
+  │  ACKed  │ Sent, unACKed │  Sendable  │     Not sendable        │
+  │(released)│  (in-flight)  │  (window)  │  (outside window)       │
   └─────────────────────────────────────────────────────────────────┘
              ↑               ↑            ↑
           SND.UNA          SND.NXT     SND.UNA+SND.WND
 
-  SND.UNA:   最古の未確認シーケンス番号（Unacknowledged）
-  SND.NXT:   次に送信するシーケンス番号
-  SND.WND:   送信ウィンドウサイズ（= min(rwnd, cwnd)）
+  SND.UNA:   Oldest unacknowledged sequence number
+  SND.NXT:   Next sequence number to send
+  SND.WND:   Send window size (= min(rwnd, cwnd))
 
-  送信可能量 = SND.WND - (SND.NXT - SND.UNA)
-             = ウィンドウサイズ - インフライト量
+  Sendable amount = SND.WND - (SND.NXT - SND.UNA)
+                  = Window size - in-flight amount
 
-  受信側のバッファ状態:
+  Receiver buffer state:
   ┌─────────────────────────────────────────────────────────────────┐
-  │ 処理済み  │  受信済み未処理  │     空き領域（rwnd）             │
-  │ (解放)   │  (バッファ内)     │     ← ウィンドウサイズ →        │
+  │ Processed │ Received, unprocessed │  Free space (rwnd)          │
+  │(released) │   (in buffer)         │  ← window size →           │
   └─────────────────────────────────────────────────────────────────┘
               ↑                  ↑                                 ↑
            RCV.NXT            RCV.NXT              RCV.NXT + RCV.WND
-          (次に期待する        + 受信済み
-           シーケンス番号)
+          (next expected      + received
+           sequence number)
 
-■ ウィンドウの変化（具体例）
+■ Window Changes (Concrete Example)
 
-  受信バッファサイズ = 10KB、アプリケーション処理速度 = 2KB/s の場合:
+  Receive buffer size = 10 KB, application processing speed = 2 KB/s:
 
-  時刻0: rwnd = 10KB  →  「10KBまで送ってOK」
+  Time 0: rwnd = 10KB  →  "OK to send up to 10KB"
          ┌─────────────────────────────────┐
-         │             空き: 10KB           │
+         │             Free: 10KB          │
          └─────────────────────────────────┘
 
-  時刻1: 送信側が 4KB 送信 → rwnd = 6KB
+  Time 1: Sender sends 4KB → rwnd = 6KB
          ┌──────────┬──────────────────────┐
-         │受信済 4KB │     空き: 6KB        │
+         │Recv 4KB  │     Free: 6KB        │
          └──────────┴──────────────────────┘
 
-  時刻2: さらに 4KB 送信 → rwnd = 2KB
+  Time 2: Send another 4KB → rwnd = 2KB
          ┌──────────────────────┬──────────┐
-         │  受信済 8KB          │空き: 2KB │
+         │  Recv 8KB            │Free: 2KB │
          └──────────────────────┴──────────┘
 
-  時刻3: アプリが 6KB 処理 → rwnd = 8KB（Window Update送信）
+  Time 3: Application processes 6KB → rwnd = 8KB (Window Update sent)
          ┌──────────┬──────────────────────────────┐
-         │残り 2KB  │          空き: 8KB            │
+         │Remain 2KB│          Free: 8KB            │
          └──────────┴──────────────────────────────┘
 ```
 
-### 5.2 ゼロウィンドウとSilly Window Syndrome
+### 5.2 Zero Window and Silly Window Syndrome
 
 ```
-■ ゼロウィンドウ（Zero Window）
+■ Zero Window
 
-  受信バッファが一杯になると rwnd = 0 を通知 → 送信停止
+  When the receive buffer is full, rwnd = 0 is notified → sending stops
 
-  クライアント                           サーバー
+  Client                                 Server
        │── DATA ──→                       │
-       │←── ACK (rwnd=0) ───────────── │  バッファ満杯!
+       │←── ACK (rwnd=0) ───────────── │  Buffer full!
        │                                    │
-       │  [送信停止]                          │
+       │  [Sending stopped]                  │
        │                                    │
-       │── Zero Window Probe ──→           │  「まだ rwnd=0 ?」
-       │←── ACK (rwnd=0) ───────────── │  「まだ一杯」
+       │── Zero Window Probe ──→           │  "Is rwnd still 0?"
+       │←── ACK (rwnd=0) ───────────── │  "Still full"
        │                                    │
-       │   ... 待機 ...                      │
+       │   ... waiting ...                   │
        │                                    │
-       │── Zero Window Probe ──→           │  再度確認
-       │←── ACK (rwnd=4096) ──────────  │  「空きができた!」
+       │── Zero Window Probe ──→           │  Check again
+       │←── ACK (rwnd=4096) ──────────  │  "Space available!"
        │                                    │
-       │── DATA ──→                       │  送信再開
+       │── DATA ──→                       │  Sending resumes
        │                                    │
 
   Zero Window Probe:
-  - 送信側が定期的に1バイトのプローブを送信する
-  - 受信側が rwnd > 0 を返すまで繰り返す
-  - プローブ間隔はRTOに基づき指数バックオフする
-  - Linuxでは tcp_probe_interval（デフォルト:75秒）で設定可能
+  - The sender periodically sends a 1-byte probe
+  - Repeats until the receiver returns rwnd > 0
+  - Probe interval uses exponential backoff based on RTO
+  - Configurable on Linux with tcp_probe_interval (default: 75 seconds)
 
-■ Silly Window Syndrome（SWS）
+■ Silly Window Syndrome (SWS)
 
-  問題: 受信側が極小のウィンドウ（数バイト）を通知
-       → 送信側が極小セグメントを送信
-       → ヘッダーのオーバーヘッド比率が極端に高くなる
+  Problem: The receiver advertises a very small window (a few bytes)
+           → The sender transmits very small segments
+           → Header overhead ratio becomes extremely high
 
-  例: 1バイトのペイロード + 40バイトのヘッダー
-      → 効率 = 1/41 = 2.4%（大半がオーバーヘッド）
+  Example: 1-byte payload + 40-byte header
+           → Efficiency = 1/41 = 2.4% (mostly overhead)
 
-  対策（受信側 - Clark のアルゴリズム）:
-  - rwnd が MSS 以上、またはバッファの 50% 以上空くまで
-    ウィンドウ更新を通知しない
-  - 小さなウィンドウ更新を抑制する
+  Countermeasure (receiver side — Clark's algorithm):
+  - Do not advertise a window update until rwnd >= MSS or >= 50% of buffer is free
+  - Suppress small window updates
 
-  対策（送信側 - Nagle アルゴリズム）:
-  → 次のセクションで詳述
+  Countermeasure (sender side — Nagle algorithm):
+  → Detailed in the next section
 ```
 
-### 5.3 Nagleアルゴリズム
+### 5.3 Nagle Algorithm
 
 ```
-■ Nagle アルゴリズム（RFC 896）
+■ Nagle Algorithm (RFC 896)
 
-  目的: 小さなパケットの大量送信（Tinygram Problem）を防ぐ
+  Purpose: Prevent mass transmission of small packets (Tinygram Problem)
 
-  ルール:
-  if (未確認データが存在する) {
-      送信データをバッファに蓄積する
-      ACKが返るか、MSS分溜まったら送信する
+  Rule:
+  if (unacknowledged data exists) {
+      Buffer the data to send
+      Send when ACK is received or MSS worth of data accumulates
   } else {
-      即座に送信する
+      Send immediately
   }
 
-  効果:
-  - キーストロークを1文字ずつ送信するような場合、
-    複数文字を1セグメントにまとめて送信する
-  - ネットワーク上の小パケットを削減する
+  Effect:
+  - When sending one character at a time (e.g., keystrokes),
+    multiple characters are bundled into a single segment
+  - Reduces small packets on the network
 
-  問題:
-  - リアルタイム性が求められるアプリケーションでは遅延が発生する
-  - 特にTelnet, SSH, ゲームのマウス入力、APIレスポンスなど
-  - Delayed ACK と組み合わさると最大 200ms の遅延が発生する
+  Problems:
+  - Causes latency in applications requiring real-time responsiveness
+  - Particularly with Telnet, SSH, game mouse input, API responses, etc.
+  - Combined with Delayed ACK, can cause up to 200ms of latency
 
-  無効化:
-  - TCP_NODELAY ソケットオプションを設定する
-  - 低遅延を優先する場合に使用する
+  Disabling:
+  - Set the TCP_NODELAY socket option
+  - Use when low latency is the priority
 ```
 
-### 5.4 コード例3: ソケットオプションの確認と設定
+### 5.4 Code Example 3: Checking and Configuring Socket Options
 
 ```python
 #!/usr/bin/env python3
 """
-TCP ソケットオプションの確認と設定
-フロー制御・バッファサイズ関連のパラメータを操作する
+Checking and configuring TCP socket options
+Manipulate parameters related to flow control and buffer size
 """
 
 import socket
 import sys
 
 def inspect_tcp_socket_options():
-    """TCPソケットの主要オプションを確認する"""
+    """Check major options of a TCP socket"""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     print("=" * 60)
-    print("TCP ソケットオプション一覧")
+    print("TCP Socket Options List")
     print("=" * 60)
 
-    # ── 汎用ソケットオプション ──
-    print("\n■ 汎用ソケットオプション (SOL_SOCKET)")
-    print(f"  SO_RCVBUF   (受信バッファサイズ): "
+    # ── Generic socket options ──
+    print("\n■ Generic socket options (SOL_SOCKET)")
+    print(f"  SO_RCVBUF   (receive buffer size): "
           f"{sock.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF):,} bytes")
-    print(f"  SO_SNDBUF   (送信バッファサイズ): "
+    print(f"  SO_SNDBUF   (send buffer size):    "
           f"{sock.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF):,} bytes")
-    print(f"  SO_REUSEADDR(アドレス再利用)    : "
+    print(f"  SO_REUSEADDR(address reuse):       "
           f"{sock.getsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR)}")
-    print(f"  SO_KEEPALIVE(キープアライブ)    : "
+    print(f"  SO_KEEPALIVE(keep-alive):          "
           f"{sock.getsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE)}")
 
-    # ── TCP固有オプション ──
-    print("\n■ TCP固有オプション (IPPROTO_TCP)")
-    print(f"  TCP_NODELAY (Nagle無効化)       : "
+    # ── TCP-specific options ──
+    print("\n■ TCP-specific options (IPPROTO_TCP)")
+    print(f"  TCP_NODELAY (disable Nagle):       "
           f"{sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY)}")
 
-    # Linux固有オプション（macOSでは一部未対応）
+    # Linux-specific options (some not supported on macOS)
     if sys.platform == 'linux':
-        print(f"  TCP_MAXSEG  (MSS)               : "
+        print(f"  TCP_MAXSEG  (MSS):               "
               f"{sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_MAXSEG)}")
-        print(f"  TCP_WINDOW_CLAMP(最大ウィンドウ) : "
+        print(f"  TCP_WINDOW_CLAMP(max window):    "
               f"{sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_WINDOW_CLAMP)}")
 
-    # ── バッファサイズの変更例 ──
-    print("\n■ バッファサイズ変更")
+    # ── Example of changing buffer size ──
+    print("\n■ Changing Buffer Size")
     new_rcvbuf = 256 * 1024  # 256KB
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, new_rcvbuf)
     actual = sock.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)
-    print(f"  設定値: {new_rcvbuf:,} bytes → 実際の値: {actual:,} bytes")
-    print(f"  ※ カーネルが設定値を2倍にする実装がある (Linux)")
+    print(f"  Set value: {new_rcvbuf:,} bytes → Actual value: {actual:,} bytes")
+    print(f"  Note: Some kernel implementations double the set value (Linux)")
 
-    # ── Keep-Alive の詳細設定（Linux） ──
+    # ── Detailed Keep-Alive settings (Linux) ──
     if sys.platform == 'linux':
-        print("\n■ TCP Keep-Alive 設定 (Linux)")
+        print("\n■ TCP Keep-Alive settings (Linux)")
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-        # Keep-Aliveの開始までの時間（秒）
+        # Time before Keep-Alive starts (seconds)
         sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60)
-        # Keep-Aliveプローブの間隔（秒）
+        # Interval between Keep-Alive probes (seconds)
         sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 10)
-        # Keep-Aliveプローブの最大回数
+        # Maximum number of Keep-Alive probes
         sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 5)
-        print(f"  TCP_KEEPIDLE  : 60秒（最初のプローブまでの待機時間）")
-        print(f"  TCP_KEEPINTVL : 10秒（プローブ間隔）")
-        print(f"  TCP_KEEPCNT   :  5回（最大プローブ回数）")
-        print(f"  → 60 + 10 × 5 = 110秒で接続断判定")
+        print(f"  TCP_KEEPIDLE  : 60s (idle time before first probe)")
+        print(f"  TCP_KEEPINTVL : 10s (probe interval)")
+        print(f"  TCP_KEEPCNT   :  5  (maximum number of probes)")
+        print(f"  → 60 + 10 × 5 = 110 seconds to declare connection dead")
 
     sock.close()
 
@@ -996,479 +995,479 @@ if __name__ == '__main__':
 
 ---
 
-## 6. 輻輳制御（Congestion Control）の詳細
+## 6. Congestion Control in Detail
 
-### 6.1 輻輳制御の目的とフロー制御との違い
+### 6.1 Purpose of Congestion Control and Its Difference from Flow Control
 
 ```
-■ フロー制御 vs 輻輳制御
+■ Flow Control vs Congestion Control
 
-  フロー制御（Flow Control）:
-  - 目的: 受信側のバッファオーバーフローを防ぐ
-  - 制御対象: エンドツーエンド（送信者 ←→ 受信者）
-  - 制御変数: rwnd（受信ウィンドウ）
-  - 通知方法: TCPヘッダーのウィンドウサイズフィールド
-  - 受信側が明示的に通知する
+  Flow Control:
+  - Purpose: Prevent receive-buffer overflow at the receiver
+  - Scope: End-to-end (sender ↔ receiver)
+  - Control variable: rwnd (receive window)
+  - Notification method: Window Size field in TCP header
+  - The receiver explicitly notifies the sender
 
-  輻輳制御（Congestion Control）:
-  - 目的: ネットワーク全体の混雑を回避する
-  - 制御対象: ネットワーク全体（ルーター、スイッチの負荷）
-  - 制御変数: cwnd（輻輳ウィンドウ）
-  - 推測方法: パケットロス、RTTの変動から推測する
-  - 送信側が暗黙的に推測する
+  Congestion Control:
+  - Purpose: Avoid congestion across the entire network
+  - Scope: The whole network (load on routers and switches)
+  - Control variable: cwnd (congestion window)
+  - Inference method: Inferred from packet loss and RTT variation
+  - The sender infers implicitly
 
-  実際の送信ウィンドウ:
+  Effective send window:
   effective_window = min(rwnd, cwnd)
-  → フロー制御と輻輳制御の両方を満たす範囲でのみ送信する
+  → Send only within the range that satisfies both flow control and congestion control
 ```
 
-### 6.2 輻輳制御の4フェーズ
+### 6.2 The Four Phases of Congestion Control
 
 ```
-■ 輻輳制御アルゴリズム（TCP Reno）の詳細
+■ Congestion Control Algorithm (TCP Reno) in Detail
 
-[Phase 1] スロースタート（Slow Start）
-  目的: ネットワークの利用可能帯域を素早く見つける
-  動作:
-  - 初期値: cwnd = 1 MSS（または IW = 10 MSS: RFC 6928）
-  - ACKを受信するたびに cwnd += 1 MSS
-  - 1 RTT あたり cwnd が2倍になる（指数的増加）
-  - ssthresh（スロースタート閾値）に達したら Phase 2 へ
-  - パケットロスを検出したら Phase 3/4 へ
+[Phase 1] Slow Start
+  Purpose: Quickly find the available bandwidth of the network
+  Operation:
+  - Initial value: cwnd = 1 MSS (or IW = 10 MSS: RFC 6928)
+  - cwnd += 1 MSS for each ACK received
+  - cwnd doubles every RTT (exponential increase)
+  - Move to Phase 2 when ssthresh (slow start threshold) is reached
+  - Move to Phase 3/4 when packet loss is detected
 
-  cwnd の変化（RTTごと）:
-    RTT 0:  cwnd = 1 MSS  → 1セグメント送信
-    RTT 1:  cwnd = 2 MSS  → 2セグメント送信
-    RTT 2:  cwnd = 4 MSS  → 4セグメント送信
-    RTT 3:  cwnd = 8 MSS  → 8セグメント送信
-    RTT 4:  cwnd = 16 MSS → 16セグメント送信
+  cwnd change (per RTT):
+    RTT 0:  cwnd = 1 MSS  → 1 segment sent
+    RTT 1:  cwnd = 2 MSS  → 2 segments sent
+    RTT 2:  cwnd = 4 MSS  → 4 segments sent
+    RTT 3:  cwnd = 8 MSS  → 8 segments sent
+    RTT 4:  cwnd = 16 MSS → 16 segments sent
     ...
-    → 約 log2(N) RTT で N MSS に到達する
+    → Reaches N MSS in approximately log2(N) RTTs
 
-[Phase 2] 輻輳回避（Congestion Avoidance）
-  目的: 輻輳を起こさないよう慎重にレートを上げる
-  動作:
-  - cwnd >= ssthresh のとき適用
-  - ACKを受信するたびに cwnd += MSS × (MSS / cwnd)
-  - 1 RTT あたり cwnd が約1 MSS増える（線形増加: AIMD の AI 部分）
+[Phase 2] Congestion Avoidance
+  Purpose: Carefully increase the rate without causing congestion
+  Operation:
+  - Applied when cwnd >= ssthresh
+  - cwnd += MSS × (MSS / cwnd) for each ACK received
+  - cwnd increases by approximately 1 MSS per RTT (linear increase: the AI part of AIMD)
 
-[Phase 3] 高速再送（Fast Retransmit）
-  トリガー: 3つの重複ACK（Duplicate ACK）を受信
-  動作:
-  - タイムアウトを待たずに即座にロストセグメントを再送
-  - ssthresh = cwnd / 2 に設定
+[Phase 3] Fast Retransmit
+  Trigger: Receiving 3 duplicate ACKs
+  Operation:
+  - Immediately retransmit the lost segment without waiting for timeout
+  - Set ssthresh = cwnd / 2
 
-[Phase 4] 高速回復（Fast Recovery）
-  目的: 輻輳後の回復を高速化する
-  動作（TCP Reno）:
+[Phase 4] Fast Recovery
+  Purpose: Speed up recovery after congestion
+  Operation (TCP Reno):
   - ssthresh = cwnd / 2
-  - cwnd = ssthresh + 3 MSS（3つのDupACK分）
-  - さらにDupACKを受信するたびに cwnd += 1 MSS
-  - 新しいACK（元のデータのACK）を受信したら cwnd = ssthresh
-  - 輻輳回避フェーズに移行
+  - cwnd = ssthresh + 3 MSS (for the 3 DupACKs)
+  - cwnd += 1 MSS for each additional DupACK received
+  - When a new ACK (ACK for the original data) is received, cwnd = ssthresh
+  - Transition to congestion avoidance phase
 
-  タイムアウト発生時（最も深刻な輻輳シグナル）:
+  On timeout (most serious congestion signal):
   - ssthresh = cwnd / 2
-  - cwnd = 1 MSS（スロースタートに戻る）
-  - Phase 1 から再開
+  - cwnd = 1 MSS (return to slow start)
+  - Restart from Phase 1
 ```
 
-### 6.3 輻輳制御アルゴリズムの推移図
+### 6.3 Congestion Control Algorithm Timeline
 
 ```
-cwnd の変化を時系列で表示:
+cwnd changes over time:
 
 cwnd (MSS)
   ^
   |
 32|                          *
-  |                        * | パケットロス（DupACK×3）
+  |                        * | Packet loss (DupACK x3)
   |                      *   |
   |                    *     | ssthresh = 32/2 = 16
   |                  *       |
   |               *          ↓
 16|─ ─ ─ ─ ─ ─*─ ─ ─ ─ ─ ─ ─ ─ ─ ─ * ─ ─ ─ ─ ─ ─ ─ ─ *
-  |           *  (1)スロースタート     *                   *
-  |         *    (指数増加)          *  (2)輻輳回避        *
-  |       *                        *    (線形増加)        *
-  |     *                        *                      *
-  |   *                        *                       *
-  |  *                       *                  タイムアウト!
+  |           *  (1) Slow Start       *                   *
+  |         *    (exponential)       *  (2) Congestion    *
+  |       *                        *    Avoidance        *
+  |     *                        *    (linear)           *
+  |   *                        *                      *
+  |  *                       *                  Timeout!
   | *                      *                     ↓ cwnd=1
 1 |*─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─*
-  |                                              | (1)再度
-  +──────────────────────────────────────────────→ 時間 (RTT)
+  |                                              | (1) Restart
+  +──────────────────────────────────────────────→ Time (RTT)
 
-  凡例:
-  --- Phase 1: スロースタート（指数増加）
-  --- Phase 2: 輻輳回避（線形増加: AIMD）
-  ↓   Phase 3+4: 高速再送 + 高速回復（cwnd半減）
-  ↓↓  タイムアウト: cwnd = 1（スロースタートに戻る）
+  Legend:
+  --- Phase 1: Slow Start (exponential increase)
+  --- Phase 2: Congestion Avoidance (linear increase: AIMD)
+  ↓   Phase 3+4: Fast Retransmit + Fast Recovery (cwnd halved)
+  ↓↓  Timeout: cwnd = 1 (return to slow start)
 
   AIMD = Additive Increase, Multiplicative Decrease
-    Additive Increase:    1 RTTごとに cwnd += 1 MSS
-    Multiplicative Decrease: パケットロス時に cwnd = cwnd / 2
-    → ネットワーク公平性を確保するための重要な特性
+    Additive Increase:     cwnd += 1 MSS per RTT
+    Multiplicative Decrease: cwnd = cwnd / 2 on packet loss
+    → An important property that ensures network fairness
 ```
 
-### 6.4 主要な輻輳制御アルゴリズム比較
+### 6.4 Comparison of Major Congestion Control Algorithms
 
-| 特性 | TCP Reno | TCP CUBIC | BBR |
-|------|----------|-----------|-----|
-| 年代 | 1990年 | 2006年 | 2016年 |
-| RFC | RFC 5681 | RFC 9438 | 実験的 |
-| ロス検知方式 | パケットロスベース | パケットロスベース | 帯域×遅延モデル |
-| cwnd増加方式 | AIMD（線形） | 3次関数（BIC曲線） | BDP推定に基づく |
-| 高帯域×高遅延 | 性能低い | 性能良好 | 非常に良好 |
-| 公平性 | 基準 | Renoと概ね公平 | 異種アルゴリズムとの公平性に課題 |
-| OS採用 | BSD, 旧Linux | Linux標準（3.x〜） | Google内部, Linux 4.9+ |
-| 適用環境 | 低遅延LAN | 一般的なインターネット | 高BDP環境, 動画配信 |
-| バッファ溢れ耐性 | 弱い | 中程度 | 浅いバッファに適応 |
+| Property | TCP Reno | TCP CUBIC | BBR |
+|----------|----------|-----------|-----|
+| Year | 1990 | 2006 | 2016 |
+| RFC | RFC 5681 | RFC 9438 | Experimental |
+| Loss detection | Packet-loss-based | Packet-loss-based | Bandwidth × delay model |
+| cwnd increase | AIMD (linear) | Cubic function (BIC curve) | Based on BDP estimation |
+| High bandwidth × high delay | Poor | Good | Very good |
+| Fairness | Baseline | Mostly fair with Reno | Fairness issues with other algorithms |
+| OS adoption | BSD, older Linux | Linux default (3.x+) | Google internally, Linux 4.9+ |
+| Target environment | Low-latency LAN | General Internet | High-BDP environments, video delivery |
+| Buffer overflow tolerance | Weak | Moderate | Adapts to shallow buffers |
 
-### 6.5 CUBIC アルゴリズムの詳細
+### 6.5 CUBIC Algorithm in Detail
 
 ```
-■ TCP CUBIC（RFC 9438）
+■ TCP CUBIC (RFC 9438)
 
-  Linuxのデフォルト輻輳制御アルゴリズム（カーネル 2.6.19 以降）
+  Linux's default congestion control algorithm (since kernel 2.6.19)
 
-  核心アイデア:
-  - cwndの増加を時間ベースの3次関数（cubic function）で制御する
-  - ロス発生前のcwndに素早く戻り、その付近で慎重に探索する
+  Core idea:
+  - Controls cwnd increase with a time-based cubic function
+  - Quickly returns to the cwnd before the loss, then carefully probes around it
 
-  3次関数:
+  Cubic function:
     W(t) = C * (t - K)^3 + W_max
 
-    C:     定数（0.4）
-    t:     最後のパケットロスからの経過時間
-    K:     W(t) = W_max / 2 から W_max に到達する推定時間
+    C:     Constant (0.4)
+    t:     Time elapsed since the last packet loss
+    K:     Estimated time to reach W_max from W_max / 2
            K = (W_max * beta / C) ^ (1/3)
-    W_max: ロス発生前のcwnd
-    beta:  削減係数（0.7: Renoの0.5より緩やか）
+    W_max: cwnd before the loss occurred
+    beta:  Reduction coefficient (0.7: more gradual than Reno's 0.5)
 
-  cwnd の変化パターン:
+  cwnd change pattern:
   cwnd
    ^
    |        W_max
-   |  ------*-----------------*---- <- ロス前のcwnd
+   |  ------*-----------------*---- <- cwnd before loss
    |       /|*               *|
    |      / |  *           *  |
    |     /  |    *       *    |
-   |    /   |      * * *      |    <- 凸部: 慎重な探索
-   |   /    |    凹部: 急速回復|
+   |    /   |      * * *      |    <- Convex: careful probing
+   |   /    |    Concave: fast recovery
    |  /     |                 |
    | /      |                 |
    |/       |                 |
-   +--------+-----------------+---> 時間
-         ロス発生            新たなロス
+   +--------+-----------------+---> Time
+         Loss occurs      New loss
 
-  CUBICの利点:
-  1. 高BDP（Bandwidth-Delay Product）環境に適応
-     - Renoは線形増加のため、高帯域リンクの活用に時間がかかる
-     - CUBICは3次関数で素早くW_maxに接近する
-  2. RTTに対する公平性
-     - Renoは短いRTTの接続が有利（ACKが速く返るため）
-     - CUBICは時間ベースのため、RTTの影響が小さい
+  Advantages of CUBIC:
+  1. Adapts to high-BDP (Bandwidth-Delay Product) environments
+     - Reno takes a long time to utilize high-bandwidth links due to linear increase
+     - CUBIC quickly approaches W_max with a cubic function
+  2. RTT fairness
+     - Reno favors connections with shorter RTT (ACKs return faster)
+     - CUBIC is time-based, so it is less affected by RTT
 ```
 
-### 6.6 BBR（Bottleneck Bandwidth and Round-trip propagation time）
+### 6.6 BBR (Bottleneck Bandwidth and Round-trip propagation time)
 
 ```
-■ BBR（Google, 2016年〜）
+■ BBR (Google, 2016+)
 
-  従来のアプローチ: パケットロスを輻輳のシグナルとして利用
-  BBRのアプローチ:  ネットワークの物理特性（帯域と遅延）を直接推定
+  Traditional approach: Uses packet loss as a congestion signal
+  BBR's approach:       Directly estimates the network's physical properties (bandwidth and delay)
 
-  2つの指標:
-    BtlBw:  ボトルネック帯域幅（最大スループット）
-    RTprop: 最小RTT（伝搬遅延のみ、キューイング遅延を除く）
+  Two metrics:
+    BtlBw:  Bottleneck bandwidth (maximum throughput)
+    RTprop: Minimum RTT (propagation delay only, excluding queuing delay)
 
-    最適動作点 = BtlBw * RTprop（BDP: Bandwidth-Delay Product）
+    Optimal operating point = BtlBw * RTprop (BDP: Bandwidth-Delay Product)
 
-  状態マシン:
+  State machine:
   +-----------------------------------------------------+
   |                                                     |
   |  [STARTUP]                                          |
-  |    cwnd を指数的に増加                                 |
-  |    BtlBw が3RTT連続で増加しなくなるまで                |
+  |    Increase cwnd exponentially                      |
+  |    Until BtlBw stops increasing for 3 consecutive   |
+  |    RTTs                                             |
   |         |                                           |
   |         v                                           |
   |  [DRAIN]                                            |
-  |    過剰にバッファに溜めたデータを排出                  |
-  |    inflight を BDP まで減少させる                      |
+  |    Drain data excessively buffered in queues        |
+  |    Reduce inflight to BDP                           |
   |         |                                           |
   |         v                                           |
-  |  [PROBE_BW]   <- 大部分の時間をここで過ごす            |
-  |    BtlBwを定期的に探索する                            |
-  |    8RTTサイクル: 1.25 -> 0.75 -> 1.0 x 6             |
-  |    （帯域増加を探索 -> 過剰分を排出 -> 安定運転）      |
+  |  [PROBE_BW]   <- Spends most of the time here       |
+  |    Periodically probes for BtlBw                    |
+  |    8 RTT cycle: 1.25 -> 0.75 -> 1.0 x 6            |
+  |    (probe for bandwidth increase -> drain excess     |
+  |     -> steady operation)                            |
   |         |                                           |
-  |         v（200ms以上RTpropが更新されない場合）         |
+  |         v (if RTprop not updated for 200ms+)        |
   |  [PROBE_RTT]                                        |
-  |    cwnd = 4 MSS に一時的に縮小                        |
-  |    キューを空にして最小RTTを再測定                      |
-  |    200ms後にPROBE_BWに戻る                           |
+  |    Temporarily reduce cwnd to 4 MSS                 |
+  |    Empty queue and re-measure minimum RTT           |
+  |    Return to PROBE_BW after 200ms                   |
   |                                                     |
   +-----------------------------------------------------+
 
-  BBRの利点:
-  1. バッファ肥大化（Bufferbloat）を回避
-     - キューを溜めずに帯域を最大活用する
-  2. パケットロスに過剰反応しない
-     - ランダムロスでcwndを半減しない
-  3. 高BDP環境で優れた性能
-     - 大陸間通信やデータセンター間で効果的
+  Advantages of BBR:
+  1. Avoids Bufferbloat
+     - Maximizes bandwidth utilization without filling queues
+  2. Does not overreact to packet loss
+     - Does not halve cwnd on random loss
+  3. Excellent performance in high-BDP environments
+     - Effective for intercontinental communication and datacenter interconnects
 
-  BBRの課題:
-  1. 公平性問題
-     - CUBICとの共存時にBBRが帯域を過剰に占有する場合がある
-  2. 高パケットロス環境での性能
-     - ロスを輻輳シグナルと見なさないため、実際の輻輳を見逃す可能性
-  3. BBRv2 で改善中
-     - ECN（Explicit Congestion Notification）の活用
-     - パケットロスにも一定の反応を行う
+  BBR challenges:
+  1. Fairness issues
+     - BBR may overly dominate bandwidth when coexisting with CUBIC
+  2. Performance in high packet loss environments
+     - Since it does not treat loss as a congestion signal, it may miss actual congestion
+  3. Being improved in BBRv2
+     - Leveraging ECN (Explicit Congestion Notification)
+     - Also reacts to packet loss to some degree
 ```
 
-### 6.7 コード例4: Linuxでの輻輳制御アルゴリズムの確認と変更
+### 6.7 Code Example 4: Checking and Changing the Congestion Control Algorithm on Linux
 
 ```bash
-# ── 現在の輻輳制御アルゴリズムを確認 ──
+# ── Check the current congestion control algorithm ──
 sysctl net.ipv4.tcp_congestion_control
-# 出力例: net.ipv4.tcp_congestion_control = cubic
+# Example output: net.ipv4.tcp_congestion_control = cubic
 
-# ── 利用可能なアルゴリズム一覧 ──
+# ── List available algorithms ──
 sysctl net.ipv4.tcp_available_congestion_control
-# 出力例: net.ipv4.tcp_available_congestion_control = reno cubic
+# Example output: net.ipv4.tcp_available_congestion_control = reno cubic
 
-# ── BBR モジュールのロードと有効化 ──
+# ── Load and enable the BBR module ──
 sudo modprobe tcp_bbr
 echo "tcp_bbr" | sudo tee -a /etc/modules-load.d/modules.conf
 
-# BBR を有効化
+# Enable BBR
 sudo sysctl -w net.ipv4.tcp_congestion_control=bbr
-# 確認
+# Verify
 sysctl net.ipv4.tcp_congestion_control
-# 出力: net.ipv4.tcp_congestion_control = bbr
+# Output: net.ipv4.tcp_congestion_control = bbr
 
-# ── 永続化（/etc/sysctl.conf に追記） ──
+# ── Make persistent (append to /etc/sysctl.conf) ──
 echo "net.ipv4.tcp_congestion_control=bbr" | sudo tee -a /etc/sysctl.conf
 echo "net.core.default_qdisc=fq" | sudo tee -a /etc/sysctl.conf
-# ※ BBRは fq (Fair Queue) qdisc との組み合わせが推奨される
+# Note: BBR is recommended to be used with fq (Fair Queue) qdisc
 
-# ── TCP関連のカーネルパラメータ一覧 ──
+# ── List TCP-related kernel parameters ──
 sysctl -a | grep "^net.ipv4.tcp"
 
-# 重要なパラメータ:
+# Important parameters:
 # net.ipv4.tcp_rmem = 4096 131072 6291456
-#   → 受信バッファ: 最小 / デフォルト / 最大
+#   → Receive buffer: min / default / max
 # net.ipv4.tcp_wmem = 4096 16384 4194304
-#   → 送信バッファ: 最小 / デフォルト / 最大
+#   → Send buffer: min / default / max
 # net.ipv4.tcp_window_scaling = 1
-#   → Window Scale オプションの有効/無効
+#   → Window Scale option enabled/disabled
 # net.ipv4.tcp_sack = 1
-#   → SACK の有効/無効
+#   → SACK enabled/disabled
 # net.ipv4.tcp_timestamps = 1
-#   → Timestamp オプションの有効/無効
+#   → Timestamp option enabled/disabled
 # net.ipv4.tcp_max_syn_backlog = 4096
-#   → SYN キューの最大サイズ
+#   → Maximum SYN queue size
 # net.ipv4.tcp_fin_timeout = 60
-#   → FIN_WAIT_2 状態のタイムアウト
+#   → FIN_WAIT_2 state timeout
 # net.ipv4.tcp_tw_reuse = 2
-#   → TIME_WAIT ソケットの再利用
+#   → TIME_WAIT socket reuse
 
-# ── 接続ごとに輻輳制御を指定する（Python） ──
+# ── Specify congestion control per connection (Python) ──
 # import socket
 # sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 # sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_CONGESTION,
 #                 b'bbr')
 ```
 
-### 6.8 ECN（Explicit Congestion Notification）
+### 6.8 ECN (Explicit Congestion Notification)
 
 ```
-■ ECN（RFC 3168）
+■ ECN (RFC 3168)
 
-  従来: パケットロスで輻輳を検知 → 遅い、データ損失を伴う
-  ECN:  ルーターが「輻輳しているよ」と明示的にマーク → ロス前に対処可能
+  Traditional: Detect congestion by packet loss → slow, involves data loss
+  ECN:         Router explicitly marks "congestion occurring" → can act before loss
 
-  仕組み:
-  1. 送信側と受信側がTCPハンドシェイクでECN対応を交渉
-     （SYNに ECE + CWR フラグを設定）
-  2. ルーターがキューが溢れそうになったら、
-     IPヘッダーのECNフィールド（2ビット）にCE（Congestion Experienced）をマーク
-  3. 受信側がCEマークを検出し、TCPのECEフラグで送信側に通知
-  4. 送信側がcwndを縮小し、CWRフラグで受信側に「対処した」と通知
+  Mechanism:
+  1. Sender and receiver negotiate ECN support in the TCP handshake
+     (Set ECE + CWR flags in SYN)
+  2. When a router's queue is about to overflow, it marks
+     the ECN field (2 bits) in the IP header as CE (Congestion Experienced)
+  3. The receiver detects the CE mark and notifies the sender via the TCP ECE flag
+  4. The sender reduces cwnd and notifies the receiver with the CWR flag that it has responded
 
-  IPヘッダーのECNフィールド:
+  ECN field in the IP header:
     00: Non ECN-Capable Transport (Not-ECT)
     01: ECN Capable Transport (ECT(1))
     10: ECN Capable Transport (ECT(0))
     11: Congestion Experienced (CE)
 
-  利点:
-  - パケットを落とさずに輻輳を通知できる
-  - 特にショートフロー（Webリクエスト等）で効果的
-  - BBRv2 はECNを積極的に活用する
+  Advantages:
+  - Can notify congestion without dropping packets
+  - Particularly effective for short flows (Web requests, etc.)
+  - BBRv2 actively leverages ECN
 
-  現状:
-  - 多くのOSで対応済み（デフォルト無効の場合が多い）
-  - Apple（iOS/macOS）は積極的に有効化
-  - 一部のミドルボックスがECNマークを除去する問題あり
+  Current status:
+  - Supported by most operating systems (often disabled by default)
+  - Apple (iOS/macOS) enables it proactively
+  - Some middleboxes strip ECN marks, which is a known issue
 ```
 
 ---
 
-## 7. TCP接続の切断（4-way Handshake）
+## 7. TCP Connection Termination (4-Way Handshake)
 
-### 7.1 正常な切断手順
+### 7.1 Normal Termination Procedure
 
 ```
-TCP切断（4-way Handshake）:
+TCP Termination (4-Way Handshake):
 
-  クライアント                         サーバー
+  Client                               Server
   [ESTABLISHED]                       [ESTABLISHED]
        |                                  |
-       |-- FIN (seq=1000) ------------>   |  (1) close() 呼び出し
+       |-- FIN (seq=1000) ------------>   |  (1) close() called
        |   [FIN_WAIT_1]                    |
        |                                  |
-       |<----- ACK (ack=1001) ---------- |  (2) FINのACK
+       |<----- ACK (ack=1001) ---------- |  (2) ACK for FIN
        |   [FIN_WAIT_2]                    |  [CLOSE_WAIT]
        |                                  |
-       |      （サーバーが残りのデータを送信）   |
+       |      (Server sends remaining data)|
        |                                  |
-       |<----- FIN (seq=5000) ---------- |  (3) サーバーもclose()
+       |<----- FIN (seq=5000) ---------- |  (3) Server also calls close()
        |                                  |  [LAST_ACK]
        |                                  |
-       |-- ACK (ack=5001) ------------>   |  (4) FINのACK
+       |-- ACK (ack=5001) ------------>   |  (4) ACK for FIN
        |   [TIME_WAIT]                     |  [CLOSED]
        |                                  |
-       |   2MSL 待機                        |
-       |   (通常 60秒〜120秒)               |
+       |   2MSL wait                       |
+       |   (typically 60–120 seconds)      |
        |                                  |
        |   [CLOSED]                        |
        |                                  |
 
-  なぜ4-wayか（3-wayにしない理由）:
-  - 片方がFINを送っても、もう片方にはまだ送るデータがあるかもしれない
-  - ハーフクローズ（半二重クローズ）を実現するために、
-    各方向で独立にFIN-ACKが必要
-  - 接続の確立（SYN + SYN-ACK）と異なり、切断のFINとACKは
-    同時に送れない場合がある
+  Why 4-way (not 3-way)?
+  - Even when one side sends FIN, the other side may still have data to send
+  - To achieve a half-close, each direction needs an independent FIN-ACK
+  - Unlike connection establishment (SYN + SYN-ACK), the FIN and ACK for
+    termination may not be sendable simultaneously
 
-  同時クローズ（Simultaneous Close）:
-  - 双方が同時にFINを送信した場合の特殊なケース
-  - 双方がFIN_WAIT_1 → CLOSING → TIME_WAIT → CLOSED と遷移
+  Simultaneous Close:
+  - A special case where both sides send FIN at the same time
+  - Both sides transition: FIN_WAIT_1 → CLOSING → TIME_WAIT → CLOSED
 ```
 
-### 7.2 TIME_WAITの詳細と問題
+### 7.2 TIME_WAIT in Detail and Its Problems
 
 ```
-■ TIME_WAIT 状態
+■ TIME_WAIT State
 
-  目的1: 最後のACKが失われた場合のリカバリ
-    - 相手のFINに対するACKが失われた場合、
-      相手はFINを再送する
-    - TIME_WAIT中であれば再度ACKを返せる
+  Purpose 1: Recovery when the final ACK is lost
+    - If the ACK for the peer's FIN is lost, the peer retransmits the FIN
+    - While in TIME_WAIT, another ACK can be returned
 
-  目的2: 古いセグメントの消滅を保証
-    - 同じ4-tuple（src IP, src port, dst IP, dst port）で
-      新しい接続を開始する前に、ネットワーク上の古いセグメントが
-      全て消滅するのを待つ
-    - MSL（Maximum Segment Lifetime）= パケットがネットワーク上で
-      生存できる最大時間
+  Purpose 2: Guarantee that old segments have expired
+    - Before starting a new connection with the same 4-tuple
+      (src IP, src port, dst IP, dst port), wait for old segments
+      still in the network to fully expire
+    - MSL (Maximum Segment Lifetime) = the maximum time a packet can
+      exist on the network
 
-  TIME_WAIT の待機時間:
-    2 * MSL = 2 * 60秒 = 120秒（Linux）
-    ※ MSLの値はOS実装により異なる
+  TIME_WAIT waiting period:
+    2 * MSL = 2 * 60 seconds = 120 seconds (Linux)
+    Note: The MSL value varies by OS implementation
 
-  問題: 大量のTIME_WAIT蓄積
+  Problem: Large accumulation of TIME_WAIT entries
   ─────────────────────────────────────────
-  原因:
-  - 高頻度の短寿命TCP接続（HTTPリクエスト等）
-  - 各接続が120秒間TIME_WAIT状態を維持
-  - 利用可能なエフェメラルポート（約16,000個）を圧迫
+  Cause:
+  - High-frequency short-lived TCP connections (HTTP requests, etc.)
+  - Each connection maintains TIME_WAIT state for 120 seconds
+  - Puts pressure on available ephemeral ports (approximately 16,000)
 
-  確認コマンド:
+  Verification commands:
   $ ss -tan state time-wait | wc -l
   $ netstat -an | grep TIME_WAIT | wc -l
 
-  対策:
-  1. SO_REUSEADDR: TIME_WAIT状態のアドレスを再利用
+  Countermeasures:
+  1. SO_REUSEADDR: Reuse addresses in TIME_WAIT state
      sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-  2. tcp_tw_reuse（Linux）: クライアント側でTIME_WAITを再利用
+  2. tcp_tw_reuse (Linux): Reuse TIME_WAIT on the client side
      sysctl -w net.ipv4.tcp_tw_reuse=1
 
-  3. HTTP Keep-Alive: 接続を再利用して短寿命接続を削減
+  3. HTTP Keep-Alive: Reuse connections to reduce short-lived connections
      Connection: keep-alive
 
-  4. 接続プーリング: データベース接続等で接続を使い回す
+  4. Connection pooling: Reuse connections for database connections, etc.
 
-  5. エフェメラルポート範囲の拡大:
+  5. Expand the ephemeral port range:
      sysctl -w net.ipv4.ip_local_port_range="1024 65535"
 ```
 
 ---
 
-## 8. コード例5: Wiresharkによるパケット解析
+## 8. Code Example 5: Packet Analysis with Wireshark
 
 ```
-■ Wireshark でTCP通信を解析する手順
+■ Procedure for analyzing TCP communication with Wireshark
 
-[Step 1] キャプチャの開始
-  - Wireshark を起動
-  - 適切なネットワークインターフェースを選択
-  - キャプチャフィルタを設定: "tcp port 443"
+[Step 1] Start capture
+  - Launch Wireshark
+  - Select the appropriate network interface
+  - Set a capture filter: "tcp port 443"
 
-[Step 2] フィルタ式の活用
+[Step 2] Use display filter expressions
 
-  表示フィルタ（Display Filter）:
+  Display Filters:
   ─────────────────────────────────────────────────────
-  目的                    フィルタ式
+  Purpose                   Filter Expression
   ─────────────────────────────────────────────────────
-  SYNパケットのみ          tcp.flags.syn == 1 && tcp.flags.ack == 0
-  SYN-ACKパケットのみ      tcp.flags.syn == 1 && tcp.flags.ack == 1
-  RSTパケットのみ          tcp.flags.reset == 1
-  FINパケットのみ          tcp.flags.fin == 1
-  再送パケット             tcp.analysis.retransmission
-  重複ACK                 tcp.analysis.duplicate_ack
-  ゼロウィンドウ           tcp.analysis.zero_window
-  ウィンドウ更新           tcp.analysis.window_update
-  特定のストリーム         tcp.stream eq 5
-  ペイロードあり           tcp.len > 0
-  特定ポート              tcp.port == 80
-  特定のフラグ組み合わせ    tcp.flags == 0x12  (SYN-ACK)
-  RTTが100ms以上          tcp.analysis.ack_rtt > 0.1
+  SYN packets only          tcp.flags.syn == 1 && tcp.flags.ack == 0
+  SYN-ACK packets only      tcp.flags.syn == 1 && tcp.flags.ack == 1
+  RST packets only          tcp.flags.reset == 1
+  FIN packets only          tcp.flags.fin == 1
+  Retransmitted packets     tcp.analysis.retransmission
+  Duplicate ACKs            tcp.analysis.duplicate_ack
+  Zero window               tcp.analysis.zero_window
+  Window updates            tcp.analysis.window_update
+  Specific stream           tcp.stream eq 5
+  With payload              tcp.len > 0
+  Specific port             tcp.port == 80
+  Specific flag combination tcp.flags == 0x12  (SYN-ACK)
+  ACK RTT > 100ms           tcp.analysis.ack_rtt > 0.1
   ─────────────────────────────────────────────────────
 
-[Step 3] TCP Stream の追跡
-  - パケットを右クリック → 「Follow → TCP Stream」
-  - クライアント→サーバーのデータが赤、逆が青で表示される
-  - HTTP通信の場合、リクエストとレスポンスが見える
+[Step 3] Follow a TCP Stream
+  - Right-click a packet → "Follow → TCP Stream"
+  - Data from client→server appears in red, reverse in blue
+  - For HTTP traffic, requests and responses are visible
 
-[Step 4] TCP統計情報の確認
+[Step 4] Check TCP statistics
   - Statistics → TCP Stream Graphs → Time-Sequence (tcptrace)
-    → シーケンス番号の推移をグラフで表示
-    → 再送やスループットの変化を視覚的に確認
+    → Display sequence number progression as a graph
+    → Visually check retransmissions and throughput changes
   - Statistics → TCP Stream Graphs → Window Scaling
-    → ウィンドウサイズの変化を確認
+    → Check window size changes
   - Statistics → TCP Stream Graphs → Round Trip Time
-    → RTTの変動を確認
+    → Check RTT variation
   - Statistics → Flow Graph
-    → シーケンス図（ラダーダイアグラム）を表示
+    → Display sequence diagram (ladder diagram)
 
-[Step 5] tshark（コマンドライン版Wireshark）でのフィルタリング
+[Step 5] Filtering with tshark (command-line Wireshark)
 
-  # 3-way handshake のみ抽出
+  # Extract only the 3-way handshake
   tshark -r capture.pcap -Y "tcp.flags.syn == 1" \
     -T fields -e frame.time -e ip.src -e ip.dst \
     -e tcp.srcport -e tcp.dstport -e tcp.flags
 
-  # 再送パケットを抽出
+  # Extract retransmitted packets
   tshark -r capture.pcap -Y "tcp.analysis.retransmission" \
     -T fields -e frame.time -e ip.src -e tcp.seq -e tcp.len
 
-  # RTTの統計を取得
+  # Obtain RTT statistics
   tshark -r capture.pcap -Y "tcp.analysis.ack_rtt" \
     -T fields -e tcp.analysis.ack_rtt | \
     awk '{ sum+=$1; count++; if($1>max)max=$1 }
@@ -1476,7 +1475,7 @@ TCP切断（4-way Handshake）:
                 "Max:", max*1000, "ms",
                 "Count:", count }'
 
-  # ウィンドウサイズの推移を CSV で出力
+  # Output window size progression as CSV
   tshark -r capture.pcap \
     -Y "tcp.stream eq 0" \
     -T fields -e frame.time_relative -e tcp.window_size_value \
@@ -1485,217 +1484,216 @@ TCP切断（4-way Handshake）:
 
 ---
 
-## 9. FAQ（よくある質問）
+## 9. FAQ
 
-### Q1: TCP と UDP、どちらを選ぶべきか？
+### Q1: When should I choose TCP vs UDP?
 
-**判断基準**
+**Decision criteria**
 
-| 要件 | 選択 | 理由 |
-|------|------|------|
-| データの完全性が最重要 | **TCP** | 再送・順序保証により、データ欠損・破損を防ぐ |
-| リアルタイム性が最重要 | **UDP** | 接続確立・再送待ちがなく、遅延を最小化できる |
-| 小さなリクエスト・レスポンス | **UDP** | DNS、NTPのように1往復で完結する通信に適する |
-| 長時間のストリーミング | **TCP** | HTTP/2、WebSocketで安定した配信が可能 |
-| パケットロスが多い環境 | **TCP** | 自動再送により、ロス耐性が高い |
-| ブロードキャスト・マルチキャスト | **UDP** | TCPは1対1通信のみ対応 |
+| Requirement | Choice | Reason |
+|-------------|--------|--------|
+| Data integrity is paramount | **TCP** | Retransmission and ordering guarantees prevent data loss/corruption |
+| Real-time responsiveness is paramount | **UDP** | No connection setup or retransmission wait; minimizes latency |
+| Small request-response | **UDP** | Suitable for one-round-trip communication like DNS and NTP |
+| Long-duration streaming | **TCP** | Stable delivery via HTTP/2 and WebSocket |
+| High packet loss environment | **TCP** | Automatic retransmission provides high loss tolerance |
+| Broadcast/multicast | **UDP** | TCP supports only 1-to-1 communication |
 
-**ハイブリッドアプローチ**
-- QUIC（HTTP/3の基盤）: UDP上に独自の再送・輻輳制御を実装
-- WebRTC: 映像（UDP）と制御信号（TCP/WebSocket）を併用
+**Hybrid approach**
+- QUIC (the foundation of HTTP/3): Implements custom retransmission and congestion control over UDP
+- WebRTC: Uses UDP for video and TCP/WebSocket for control signals
 
-### Q2: TIME_WAIT問題をどう対処すべきか？
+### Q2: How should I handle the TIME_WAIT problem?
 
-**問題の本質**
+**The root of the problem**
 ```bash
-# TIME_WAIT 状態のソケット数を確認
+# Check the number of sockets in TIME_WAIT state
 $ ss -tan state time-wait | wc -l
-12845  # 大量のTIME_WAITソケットが蓄積
+12845  # Large number of TIME_WAIT sockets accumulated
 ```
 
-**対策の優先順位**
+**Prioritized countermeasures**
 
-**1. 接続の再利用（最も推奨）**
+**1. Reuse connections (most recommended)**
 ```python
-# HTTP Keep-Alive: 同じTCPコネクションで複数リクエストを送信
+# HTTP Keep-Alive: send multiple requests over the same TCP connection
 import requests
 
 session = requests.Session()
-session.get('http://example.com/api/1')  # 接続確立
-session.get('http://example.com/api/2')  # 同じ接続を再利用
-session.get('http://example.com/api/3')  # 同じ接続を再利用
+session.get('http://example.com/api/1')  # Connection established
+session.get('http://example.com/api/2')  # Reuse the same connection
+session.get('http://example.com/api/3')  # Reuse the same connection
 ```
 
-**2. SO_REUSEADDR オプションの活用**
+**2. Use the SO_REUSEADDR option**
 ```python
 import socket
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-# TIME_WAIT状態のアドレスを即座に再バインド可能にする
+# Allows immediate rebinding of an address in TIME_WAIT state
 ```
 
-**3. tcp_tw_reuse の有効化（Linuxクライアント側のみ）**
+**3. Enable tcp_tw_reuse (Linux client side only)**
 ```bash
-# TIME_WAITソケットを新しい接続に再利用
+# Reuse TIME_WAIT sockets for new connections
 sudo sysctl -w net.ipv4.tcp_tw_reuse=1
 ```
 
-**4. エフェメラルポート範囲の拡大**
+**4. Expand the ephemeral port range**
 ```bash
-# デフォルト: 32768〜60999（約28,000ポート）
-# 拡大: 1024〜65535（約64,000ポート）
+# Default: 32768–60999 (about 28,000 ports)
+# Expanded: 1024–65535 (about 64,000 ports)
 sudo sysctl -w net.ipv4.ip_local_port_range="1024 65535"
 ```
 
-**やってはいけない対策**
-- ❌ `tcp_tw_recycle=1`: RFC違反で接続失敗の原因になる（カーネル4.12で削除済み）
-- ❌ `tcp_fin_timeout` の過度な短縮: 古いパケットの誤配送リスクが高まる
+**Countermeasures to avoid**
+- `tcp_tw_recycle=1`: Violates RFC and causes connection failures (removed in kernel 4.12)
+- Excessively shortening `tcp_fin_timeout`: Increases risk of misdelivery of old packets
 
-### Q3: TCPのウィンドウサイズはどう調整すべきか？
+### Q3: How should I tune TCP window size?
 
-**BDP（Bandwidth-Delay Product）の計算**
+**BDP (Bandwidth-Delay Product) calculation**
 ```
-最適バッファサイズ = 帯域幅 × RTT
+Optimal buffer size = Bandwidth × RTT
 
-例1: 東京 ↔ 大阪（100Mbps、5ms RTT）
-  BDP = 100Mbps × 5ms = 500Kb ÷ 8 = 62.5KB
+Example 1: Tokyo ↔ Osaka (100 Mbps, 5ms RTT)
+  BDP = 100 Mbps × 5ms = 500 Kb ÷ 8 = 62.5 KB
 
-例2: 東京 ↔ US西海岸（1Gbps、100ms RTT）
-  BDP = 1Gbps × 100ms = 100Mb ÷ 8 = 12.5MB
+Example 2: Tokyo ↔ US West Coast (1 Gbps, 100ms RTT)
+  BDP = 1 Gbps × 100ms = 100 Mb ÷ 8 = 12.5 MB
 ```
 
-**Linuxでの設定**
+**Linux settings**
 ```bash
-# 受信バッファ: 最小 / デフォルト / 最大
+# Receive buffer: min / default / max
 sudo sysctl -w net.ipv4.tcp_rmem="4096 131072 16777216"
 
-# 送信バッファ: 最小 / デフォルト / 最大
+# Send buffer: min / default / max
 sudo sysctl -w net.ipv4.tcp_wmem="4096 65536 16777216"
 
-# 自動チューニングを有効化（推奨）
+# Enable auto-tuning (recommended)
 sudo sysctl -w net.ipv4.tcp_window_scaling=1
 sudo sysctl -w net.ipv4.tcp_moderate_rcvbuf=1
 ```
 
-**アプリケーション側での設定**
+**Application-side settings**
 ```python
 import socket
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-# 受信バッファを 1MB に設定
+# Set receive buffer to 1MB
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1024 * 1024)
 ```
 
-**注意点**
-- カーネルの自動チューニングに任せるのが基本的に最適
-- 手動設定は計測結果に基づいて慎重に行う
-- バッファを大きくしすぎると Bufferbloat（遅延増大）を引き起こす
+**Notes**
+- Leaving it to the kernel's auto-tuning is generally optimal
+- Manual tuning should be done carefully based on measurement results
+- Setting buffers too large can cause Bufferbloat (increased latency)
 
 ---
 
 ## FAQ
 
-### Q1: TCPとUDPはどう使い分けるべき?
-信頼性が必要な通信（Webブラウジング、ファイル転送、メール、データベース接続等）にはTCPを使います。一方、リアルタイム性が最優先で多少のパケットロスが許容される用途（ゲーム、音声・映像ストリーミング、DNS問い合わせ等）にはUDPが適しています。HTTP/3はQUIC（UDP上に構築）を採用しており、TCPのHead-of-Line Blocking問題を回避しつつ信頼性も確保しています。
+### Q1: How should I choose between TCP and UDP?
+Use TCP for communication where reliability is required (Web browsing, file transfer, email, database connections, etc.). Use UDP when real-time responsiveness is the top priority and some packet loss is acceptable (games, audio/video streaming, DNS queries, etc.). HTTP/3 adopts QUIC (built over UDP), which avoids TCP's Head-of-Line Blocking problem while also ensuring reliability.
 
-### Q2: TIME_WAIT状態のコネクションが大量に発生するのはなぜ?
-TIME_WAITはTCPの正常な動作です。接続を能動的に閉じた側が2MSL（通常60秒〜120秒）の間この状態を維持し、遅延パケットが新しいコネクションに混入することを防いでいます。高トラフィック環境ではTIME_WAIT状態のコネクションが蓄積しポート枯渇を起こすことがあります。対策としては `SO_REUSEADDR` の設定、コネクションプーリングの活用、Keep-Aliveによる接続再利用が有効です。
+### Q2: Why do large numbers of TIME_WAIT connections appear?
+TIME_WAIT is a normal TCP behavior. The side that actively closes the connection maintains this state for 2MSL (typically 60–120 seconds) to prevent delayed packets from leaking into new connections. In high-traffic environments, accumulated TIME_WAIT connections can exhaust available ports. Effective countermeasures include setting `SO_REUSEADDR`, using connection pooling, and reusing connections with Keep-Alive.
 
-### Q3: BBRとCUBICの違いは何? どちらを選ぶべき?
-CUBICはパケットロスを輻輳シグナルとして利用する損失ベースのアルゴリズムで、Linux標準として広く使われています。BBR（Bottleneck Bandwidth and Round-trip propagation time）はGoogleが開発した帯域×遅延モデルに基づくアルゴリズムで、パケットロスに依存せずに最適な送信レートを推定します。BBRはバッファの大きいネットワーク（Bufferbloat環境）で高い性能を発揮しますが、フェアネスの問題も指摘されています。サーバーのカーネルバージョンと用途に応じて選択してください。
-
----
-
-## まとめ
-
-### TCP の核心理解
-
-| 要素 | 内容 | 重要度 |
-|------|------|--------|
-| **信頼性保証** | シーケンス番号・ACK・再送により、データの到達・順序を保証する | ★★★ |
-| **3-wayハンドシェイク** | SYN → SYN-ACK → ACK で接続を確立（1.5 RTT） | ★★★ |
-| **フロー制御** | スライディングウィンドウ（rwnd）で受信側のバッファ溢れを防ぐ | ★★★ |
-| **輻輳制御** | cwnd を動的調整してネットワーク全体の安定性に貢献（Reno, CUBIC, BBR） | ★★★ |
-| **4-wayハンドシェイク** | FIN → ACK → FIN → ACK で接続を終了、TIME_WAIT で古いパケットを排除 | ★★☆ |
-| **HoL Blocking** | 1つのパケットロストが全体をブロックする問題（QUIC/HTTP/3 で解決） | ★★☆ |
-
-### キーポイント
-
-1. **TCP = 信頼性と引き換えに遅延を許容するプロトコル**
-   - 接続確立に 1.5 RTT、TLS併用で最大 3 RTT
-   - パケットロス時の再送待ちで遅延が増大
-   - HTTP/3（QUIC）はこれらの課題を UDP ベースで解決
-
-2. **フロー制御と輻輳制御は別物**
-   - フロー制御（rwnd）: 受信側の処理能力に合わせる（エンドツーエンド）
-   - 輻輳制御（cwnd）: ネットワークの混雑状況を推測する（送信側が自律的に実施）
-   - 実効ウィンドウ = min(rwnd, cwnd)
-
-3. **TCP は進化し続けている**
-   - RFC 9293（2022年）: 最新の TCP 仕様
-   - CUBIC（2006年〜）: Linux 標準の輻輳制御アルゴリズム
-   - BBR（2016年〜）: Google が推進する帯域×遅延モデル
-   - ECN（Explicit Congestion Notification）: ルーターからの明示的な輻輳通知
+### Q3: What is the difference between BBR and CUBIC? Which should I choose?
+CUBIC is a loss-based algorithm that uses packet loss as a congestion signal and is widely used as the Linux standard. BBR (Bottleneck Bandwidth and Round-trip propagation time), developed by Google, is based on a bandwidth × delay model and estimates the optimal sending rate without relying on packet loss. BBR delivers high performance in networks with large buffers (Bufferbloat environments), but fairness issues have also been noted. Choose based on your server's kernel version and use case.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-**プロトコルの理解を深める**
+### Core Understanding of TCP
 
-**実践的なスキル**
+| Element | Content | Importance |
+|---------|---------|------------|
+| **Reliability guarantee** | Guarantees data delivery and ordering via sequence numbers, ACKs, and retransmission | ★★★ |
+| **3-way handshake** | Establishes a connection with SYN → SYN-ACK → ACK (1.5 RTT) | ★★★ |
+| **Flow control** | Prevents receive-buffer overflow with sliding window (rwnd) | ★★★ |
+| **Congestion control** | Dynamically adjusts cwnd to contribute to overall network stability (Reno, CUBIC, BBR) | ★★★ |
+| **4-way handshake** | Terminates a connection with FIN → ACK → FIN → ACK; TIME_WAIT eliminates old packets | ★★☆ |
+| **HoL Blocking** | A single lost packet blocks everything (resolved by QUIC/HTTP/3) | ★★☆ |
+
+### Key Points
+
+1. **TCP = A protocol that accepts latency in exchange for reliability**
+   - Connection establishment takes 1.5 RTT; up to 3 RTT with TLS
+   - Latency increases while waiting for retransmission after packet loss
+   - HTTP/3 (QUIC) resolves these issues with a UDP-based approach
+
+2. **Flow control and congestion control are different things**
+   - Flow control (rwnd): Matches the receiver's processing capacity (end-to-end)
+   - Congestion control (cwnd): Infers network congestion state (sender acts autonomously)
+   - Effective window = min(rwnd, cwnd)
+
+3. **TCP continues to evolve**
+   - RFC 9293 (2022): Latest TCP specification
+   - CUBIC (2006+): Linux's standard congestion control algorithm
+   - BBR (2016+): Google's bandwidth × delay model
+   - ECN (Explicit Congestion Notification): Explicit congestion notification from routers
 
 ---
 
-## 参考文献
+## Further Reading
 
-### RFC（標準仕様）
+**Deepen your understanding of protocols**
+
+**Practical skills**
+
+---
+
+## References
+
+### RFCs (Standards)
 
 1. **RFC 9293 - Transmission Control Protocol (TCP)**
    https://www.rfc-editor.org/rfc/rfc9293.html
-   2022年8月発行。TCPの最新の標準仕様。RFC 793（1981年）の後継で、40年分の更新を統合。
+   Published August 2022. The latest TCP standard. Successor to RFC 793 (1981), integrating 40 years of updates.
 
 2. **RFC 5681 - TCP Congestion Control**
    https://www.rfc-editor.org/rfc/rfc5681.html
-   スロースタート、輻輳回避、高速再送・高速回復を規定。TCP Renoの基盤。
+   Specifies slow start, congestion avoidance, fast retransmit, and fast recovery. The foundation of TCP Reno.
 
 3. **RFC 7413 - TCP Fast Open**
    https://www.rfc-editor.org/rfc/rfc7413.html
-   SYNパケットにデータを含めることで接続確立を1 RTTに短縮する仕組み。
+   Shortens connection establishment to 1 RTT by including data in SYN packets.
 
 4. **RFC 6298 - Computing TCP's Retransmission Timer**
    https://www.rfc-editor.org/rfc/rfc6298.html
-   RTO（再送タイムアウト）の計算方法を規定。Karn's Algorithm、Jacobson's Algorithm を含む。
+   Specifies the calculation method for RTO (Retransmission Timeout). Includes Karn's Algorithm and Jacobson's Algorithm.
 
 5. **RFC 3168 - The Addition of Explicit Congestion Notification (ECN) to IP**
    https://www.rfc-editor.org/rfc/rfc3168.html
-   パケットロスなしに輻輳を通知する仕組み。BBRv2で活用される。
+   Mechanism to notify congestion without packet loss. Used by BBRv2.
 
 6. **RFC 9438 - CUBIC for Fast Long-Distance Networks**
    https://www.rfc-editor.org/rfc/rfc9438.html
-   2023年8月発行。Linux標準の輻輳制御アルゴリズムCUBICの仕様。
+   Published August 2023. Specification of CUBIC, Linux's standard congestion control algorithm.
 
-### 書籍
+### Books
 
 7. **Stevens, W. Richard. "TCP/IP Illustrated, Volume 1: The Protocols, 2nd Edition." Addison-Wesley, 2011.**
-   TCPの動作を詳細に解説した定番書。パケットキャプチャと図解で理解が深まる。
+   A classic book explaining TCP operations in detail. Understanding deepens through packet captures and diagrams.
 
 8. **Fall, Kevin R. and Stevens, W. Richard. "TCP/IP Illustrated, Volume 2: The Implementation." Addison-Wesley, 1995.**
-   BSD TCPの実装を詳細に解説。カーネルレベルの理解に最適。
+   Explains the BSD TCP implementation in detail. Ideal for kernel-level understanding.
 
 9. **Grigorik, Ilya. "High Performance Browser Networking." O'Reilly Media, 2013.**
-   Chapter 2: Building Blocks of TCP でTCPの性能最適化を実践的に解説。無料公開版: https://hpbn.co/
+   Chapter 2: Building Blocks of TCP explains TCP performance optimization practically. Free online version: https://hpbn.co/
 
-### 論文・技術記事
+### Papers and Technical Articles
 
 10. **Cardwell, Neal et al. "BBR: Congestion-Based Congestion Control." ACM Queue, Vol. 14 No. 5, 2016.**
     https://queue.acm.org/detail.cfm?id=3022184
-    Google開発のBBRアルゴリズムの設計思想と評価。
+    Design philosophy and evaluation of the BBR algorithm developed by Google.
 
 11. **Ha, Sangtae et al. "CUBIC: A New TCP-Friendly High-Speed TCP Variant." ACM SIGOPS Operating Systems Review, 2008.**
-    CUBICの原論文。高BDP環境での性能向上を実証。
+    The original CUBIC paper. Demonstrates performance improvements in high-BDP environments.
 
 12. **Jacobson, Van. "Congestion Avoidance and Control." ACM SIGCOMM, 1988.**
-    TCP輻輳制御の基礎を築いた歴史的論文。スロースタート、輻輳回避の原典。
-
+    The historic paper that laid the foundations of TCP congestion control. The original source of slow start and congestion avoidance.
