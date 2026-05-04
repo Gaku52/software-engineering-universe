@@ -1,163 +1,163 @@
-# ネットワークデバッグ
+# Network Debugging
 
-> ネットワーク問題の切り分けと解決に必要なツールと手法を体系的に学ぶ。tcpdump、Wireshark、Chrome DevTools、curl、ss/netstat をはじめとする主要ツールを使いこなし、再現性のある効率的なトラブルシューティング手法を身につける。
-
----
-
-## この章で学ぶこと
-
-- [ ] 主要なネットワークデバッグツール（curl, dig, tcpdump, Wireshark, Chrome DevTools）の使い方を理解する
-- [ ] OSI 参照モデルの各レイヤーに対応した問題の切り分け手法を把握する
-- [ ] パケットキャプチャの取得・解析・レポーティング手順を習得する
-- [ ] Chrome DevTools の Network タブを活用してフロントエンドの通信問題を特定する
-- [ ] 体系的なトラブルシューティング決定木に従って問題を迅速に解決する
-- [ ] デバッグにおけるアンチパターンを認識し、回避する
+> Systematically learn the tools and techniques needed to isolate and resolve network issues. Master major tools including tcpdump, Wireshark, Chrome DevTools, curl, and ss/netstat, and develop reproducible and efficient troubleshooting methods.
 
 ---
 
-## 前提知識
+## What You Will Learn
 
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- [TCP](../01-protocols/00-tcp.md) — 3ウェイハンドシェイク、ウィンドウサイズ、再送制御の仕組み
-- [HTTP基礎](../02-http/00-http-basics.md) — HTTPメソッド、ステータスコード、ヘッダーの基本
-- [DNS](../00-introduction/03-dns.md) — 名前解決の流れ、レコードタイプ、キャッシュ
-- [TLS/SSL](../03-security/00-tls-ssl.md) — TLSハンドシェイク、証明書チェーン、暗号スイート
-- [IPアドレッシング](../00-introduction/02-ip-addressing.md) — IPv4/IPv6、サブネット、NATの基礎
+- [ ] Understand how to use major network debugging tools (curl, dig, tcpdump, Wireshark, Chrome DevTools)
+- [ ] Grasp problem isolation techniques corresponding to each layer of the OSI reference model
+- [ ] Master the procedure for capturing, analyzing, and reporting packet captures
+- [ ] Use Chrome DevTools Network tab to identify frontend communication issues
+- [ ] Rapidly resolve problems by following a systematic troubleshooting decision tree
+- [ ] Recognize and avoid anti-patterns in debugging
 
 ---
 
-## 1. ネットワークデバッグの全体像
+## Prerequisites
 
-ネットワークの問題は多層的であり、レイヤーごとに適切なツールを選択することが重要である。以下の ASCII 図はデバッグの全体的な流れを示している。
+Having the following knowledge before reading this guide will deepen your understanding:
 
-### 図1: ネットワークデバッグの全体フロー
+- [TCP](../01-protocols/00-tcp.md) — 3-way handshake, window size, retransmission control mechanism
+- [HTTP Basics](../02-http/00-http-basics.md) — HTTP methods, status codes, header basics
+- [DNS](../00-introduction/03-dns.md) — Name resolution flow, record types, caching
+- [TLS/SSL](../03-security/00-tls-ssl.md) — TLS handshake, certificate chain, cipher suites
+- [IP Addressing](../00-introduction/02-ip-addressing.md) — IPv4/IPv6, subnets, NAT basics
+
+---
+
+## 1. Network Debugging Overview
+
+Network problems are multi-layered, and it is important to select the appropriate tool for each layer. The following ASCII diagram shows the overall debugging flow.
+
+### Figure 1: Overall Network Debugging Flow
 
 ```
 +================================================================+
-|              ネットワークデバッグ 全体フロー                        |
+|              Network Debugging - Overall Flow                   |
 +================================================================+
 |                                                                |
-|  [問題発生]                                                     |
+|  [Problem Occurs]                                              |
 |      |                                                         |
 |      v                                                         |
 |  +--------------------+                                        |
-|  | 1. 症状の整理      |  何が起きているか？                       |
-|  |    - エラーメッセージ|  いつから？ 影響範囲は？                  |
-|  |    - 発生頻度       |  再現手順は？                           |
-|  |    - 影響範囲       |                                        |
+|  | 1. Clarify Symptoms|  What is happening?                    |
+|  |    - Error messages |  Since when? What is the impact?      |
+|  |    - Frequency      |  Steps to reproduce?                  |
+|  |    - Affected scope |                                        |
 |  +--------+-----------+                                        |
 |           |                                                    |
 |           v                                                    |
 |  +--------------------+     +---------------------------+      |
-|  | 2. レイヤー特定     |---->| L1-L2: 物理/データリンク   |      |
-|  |    OSIモデルに沿って |     | ツール: ip link, ethtool  |      |
-|  |    上位から順に確認  |     +---------------------------+      |
+|  | 2. Identify Layer  |---->| L1-L2: Physical/Data Link  |      |
+|  |    Follow OSI model|     | Tools: ip link, ethtool   |      |
+|  |    Check from top  |     +---------------------------+      |
 |  +--------+-----------+     +---------------------------+      |
-|           |            |--->| L3: ネットワーク層         |      |
-|           |                 | ツール: ping, traceroute   |      |
+|           |            |--->| L3: Network Layer          |      |
+|           |                 | Tools: ping, traceroute    |      |
 |           |                 +---------------------------+      |
 |           |                 +---------------------------+      |
-|           |            |--->| L4: トランスポート層       |      |
-|           |                 | ツール: ss, netstat, nc    |      |
+|           |            |--->| L4: Transport Layer        |      |
+|           |                 | Tools: ss, netstat, nc     |      |
 |           |                 +---------------------------+      |
 |           |                 +---------------------------+      |
-|           |            |--->| L5-L7: アプリケーション層   |      |
-|           |                 | ツール: curl, DevTools     |      |
+|           |            |--->| L5-L7: Application Layer   |      |
+|           |                 | Tools: curl, DevTools      |      |
 |           |                 +---------------------------+      |
 |           v                                                    |
 |  +--------------------+                                        |
-|  | 3. 仮説の立案      |  収集した情報から原因の仮説を立てる        |
+|  | 3. Form Hypothesis |  Build hypothesis of cause from info   |
 |  +--------+-----------+                                        |
 |           |                                                    |
 |           v                                                    |
 |  +--------------------+                                        |
-|  | 4. 検証・再現      |  tcpdump / Wireshark で証拠を集める      |
+|  | 4. Verify/Reproduce|  Gather evidence with tcpdump/Wireshark |
 |  +--------+-----------+                                        |
 |           |                                                    |
 |           v                                                    |
 |  +--------------------+                                        |
-|  | 5. 修正・確認      |  修正を適用し、問題が解消されたことを確認   |
+|  | 5. Fix/Confirm     |  Apply fix and confirm problem resolved |
 |  +--------+-----------+                                        |
 |           |                                                    |
 |           v                                                    |
 |  +--------------------+                                        |
-|  | 6. 文書化          |  原因・対処・再発防止策を記録              |
+|  | 6. Document        |  Record cause, fix, and prevention     |
 |  +--------------------+                                        |
 |                                                                |
 +================================================================+
 ```
 
-### デバッグツールとOSIレイヤーの対応関係
+### Mapping of Debug Tools to OSI Layers
 
-| OSIレイヤー | レイヤー名 | 主要デバッグツール | 確認できる問題 |
+| OSI Layer | Layer Name | Major Debug Tools | Problems Detectable |
 |:-----------:|:----------:|:------------------:|:-------------|
-| L1 | 物理層 | `ethtool`, `ip link` | ケーブル断線、NIC障害、リンクダウン |
-| L2 | データリンク層 | `arp`, `ip neigh`, `bridge` | MACアドレス解決失敗、VLAN設定ミス |
-| L3 | ネットワーク層 | `ping`, `traceroute`, `mtr` | ルーティング問題、IP到達不能 |
-| L4 | トランスポート層 | `ss`, `netstat`, `nc`, `tcpdump` | ポート未開放、接続タイムアウト、再送多発 |
-| L5-L7 | セッション〜アプリケーション層 | `curl`, `openssl`, `Chrome DevTools` | TLSエラー、HTTPエラー、アプリケーションバグ |
+| L1 | Physical | `ethtool`, `ip link` | Cable break, NIC failure, link down |
+| L2 | Data Link | `arp`, `ip neigh`, `bridge` | MAC address resolution failure, VLAN misconfiguration |
+| L3 | Network | `ping`, `traceroute`, `mtr` | Routing issues, IP unreachable |
+| L4 | Transport | `ss`, `netstat`, `nc`, `tcpdump` | Port not open, connection timeout, excessive retransmissions |
+| L5-L7 | Session to Application | `curl`, `openssl`, `Chrome DevTools` | TLS errors, HTTP errors, application bugs |
 
 ---
 
-## 2. curl によるHTTPデバッグ
+## 2. HTTP Debugging with curl
 
-curl は HTTP/HTTPS の通信をコマンドラインから直接テストできる万能ツールである。サーバーのレスポンス内容、ヘッダー、タイミング、TLS 情報などを詳細に確認できる。
+curl is a versatile tool that can directly test HTTP/HTTPS communication from the command line. It can show detailed information about server response content, headers, timing, and TLS information.
 
-### 2.1 基本的な使い方
+### 2.1 Basic Usage
 
 ```bash
-# 基本的なGETリクエスト
+# Basic GET request
 $ curl https://api.example.com/users
 
-# レスポンスヘッダーのみを表示（HEADリクエスト）
+# Display response headers only (HEAD request)
 $ curl -I https://api.example.com/users
 
-# リクエスト/レスポンスの詳細表示（-v: verbose）
+# Detailed display of request/response (-v: verbose)
 $ curl -v https://api.example.com/users
 
-# POSTリクエスト（JSONペイロード）
+# POST request (JSON payload)
 $ curl -X POST https://api.example.com/users \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer token123" \
   -d '{"name": "Taro", "email": "taro@example.com"}'
 
-# PUTリクエスト（既存リソースの更新）
+# PUT request (update existing resource)
 $ curl -X PUT https://api.example.com/users/42 \
   -H "Content-Type: application/json" \
   -d '{"name": "Taro Updated"}'
 
-# DELETEリクエスト
+# DELETE request
 $ curl -X DELETE https://api.example.com/users/42 \
   -H "Authorization: Bearer token123"
 
-# リダイレクトを自動追跡（-L: location）
+# Automatically follow redirects (-L: location)
 $ curl -L -v https://example.com
 
-# レスポンスボディをファイルに保存
+# Save response body to file
 $ curl -o response.json https://api.example.com/data
 
-# HTTP/2で接続
+# Connect using HTTP/2
 $ curl --http2 -v https://api.example.com/users
 
-# HTTP/3 (QUIC) で接続（curl 7.66+）
+# Connect using HTTP/3 (QUIC) (curl 7.66+)
 $ curl --http3 -v https://api.example.com/users
 
-# 特定のIPアドレスに対してリクエスト（DNS回避）
+# Request to a specific IP address (bypass DNS)
 $ curl --resolve api.example.com:443:203.0.113.10 \
   https://api.example.com/users
 
-# クライアント証明書を指定
+# Specify client certificate
 $ curl --cert client.crt --key client.key \
   https://secure.example.com/api
 ```
 
-### 2.2 タイミング計測（コード例1）
+### 2.2 Timing Measurement (Code Example 1)
 
-curl の `-w` オプションを使うと、接続の各フェーズにかかった時間を詳細に計測できる。パフォーマンスのボトルネック特定に非常に有用である。
+Using curl's `-w` option, you can measure the time taken at each phase of the connection in detail. This is very useful for identifying performance bottlenecks.
 
 ```bash
-# タイミング情報の詳細表示
+# Detailed timing information display
 $ curl -o /dev/null -s -w "\
   DNS Lookup:      %{time_namelookup}s\n\
   TCP Connect:     %{time_connect}s\n\
@@ -179,15 +179,15 @@ $ curl -o /dev/null -s -w "\
   https://api.example.com/users
 ```
 
-**出力例と各フェーズの解説:**
+**Sample Output and Explanation of Each Phase:**
 
 ```
-  DNS Lookup:      0.012345s    ← 名前解決にかかった時間
-  TCP Connect:     0.034567s    ← TCP 3ウェイハンドシェイク完了まで
-  TLS Handshake:   0.089012s    ← TLSハンドシェイク完了まで
-  Start Transfer:  0.123456s    ← 最初の1バイト受信まで（TTFB）
-  Redirect:        0.000000s    ← リダイレクト処理の合計時間
-  Total:           0.156789s    ← 全体の所要時間
+  DNS Lookup:      0.012345s    ← Time taken for name resolution
+  TCP Connect:     0.034567s    ← Until TCP 3-way handshake completes
+  TLS Handshake:   0.089012s    ← Until TLS handshake completes
+  Start Transfer:  0.123456s    ← Until first byte received (TTFB)
+  Redirect:        0.000000s    ← Total time for redirect processing
+  Total:           0.156789s    ← Overall elapsed time
 
   HTTP Status:     200
   Download Size:   4523 bytes
@@ -196,39 +196,39 @@ $ curl -o /dev/null -s -w "\
   Speed Upload:    0 bytes/s
   Num Connects:    1
   Num Redirects:   0
-  SSL Verify:      0            ← 0 = 検証成功
+  SSL Verify:      0            ← 0 = verification successful
   Remote IP:       203.0.113.10
   Remote Port:     443
 ```
 
-**タイミング値の読み方:**
+**How to Read Timing Values:**
 
 ```
 0                  time_namelookup
-|---DNS解決--------|
+|---DNS resolution--|
                    time_connect
-|---DNS+TCP--------|
+|---DNS+TCP---------|
                    time_appconnect
-|---DNS+TCP+TLS----|
+|---DNS+TCP+TLS-----|
                    time_starttransfer
-|---DNS+TCP+TLS+サーバー処理---|
+|---DNS+TCP+TLS+server processing---|
                                 time_total
-|---全体の処理時間--------------|
+|---total processing time------------|
 
-各フェーズの所要時間の計算:
-  DNS解決時間      = time_namelookup
-  TCP接続時間      = time_connect - time_namelookup
-  TLS時間          = time_appconnect - time_connect
-  サーバー処理時間  = time_starttransfer - time_appconnect
-  コンテンツ転送時間 = time_total - time_starttransfer
+Calculating elapsed time per phase:
+  DNS resolution time  = time_namelookup
+  TCP connect time     = time_connect - time_namelookup
+  TLS time             = time_appconnect - time_connect
+  Server processing    = time_starttransfer - time_appconnect
+  Content transfer     = time_total - time_starttransfer
 ```
 
-### 2.3 curlでの連続テストスクリプト
+### 2.3 Continuous Testing Script with curl
 
 ```bash
 #!/bin/bash
 # endpoint_health_check.sh
-# 複数エンドポイントの応答時間を連続計測するスクリプト
+# Script to continuously measure response times for multiple endpoints
 
 ENDPOINTS=(
   "https://api.example.com/health"
@@ -252,86 +252,86 @@ done
 
 ---
 
-## 3. DNS デバッグ
+## 3. DNS Debugging
 
-DNS の問題は「名前が引けない」「間違った IP が返る」「解決に時間がかかる」の 3 パターンに大別できる。
+DNS problems can be broadly classified into three patterns: "name cannot be resolved," "wrong IP is returned," and "resolution takes too long."
 
-### 3.1 dig による詳細な DNS 調査
+### 3.1 Detailed DNS Investigation with dig
 
 ```bash
-# Aレコード（IPv4アドレス）の問い合わせ
+# Query A record (IPv4 address)
 $ dig example.com
 
-# 特定レコードタイプの問い合わせ
-$ dig example.com A          # IPv4アドレス
-$ dig example.com AAAA       # IPv6アドレス
-$ dig example.com MX         # メールサーバー
-$ dig example.com NS         # ネームサーバー
-$ dig example.com TXT        # テキストレコード（SPF等）
-$ dig example.com CNAME      # 別名
-$ dig example.com SOA        # 権威情報
+# Query specific record types
+$ dig example.com A          # IPv4 address
+$ dig example.com AAAA       # IPv6 address
+$ dig example.com MX         # Mail server
+$ dig example.com NS         # Name server
+$ dig example.com TXT        # Text record (SPF etc.)
+$ dig example.com CNAME      # Alias
+$ dig example.com SOA        # Authoritative information
 
-# 短縮出力（結果のみ）
+# Short output (results only)
 $ dig example.com +short
 
-# 特定のDNSサーバーに問い合わせ
+# Query a specific DNS server
 $ dig @8.8.8.8 example.com           # Google Public DNS
 $ dig @1.1.1.1 example.com           # Cloudflare DNS
 $ dig @208.67.222.222 example.com    # OpenDNS
 
-# 名前解決の全過程を追跡
+# Trace the entire name resolution process
 $ dig +trace example.com
 
-# 逆引き（IPアドレスからホスト名）
+# Reverse lookup (hostname from IP address)
 $ dig -x 203.0.113.10
 
-# DNSSEC検証情報の表示
+# Display DNSSEC validation information
 $ dig +dnssec example.com
 
-# 応答時間の確認（Query time に注目）
+# Check response time (focus on Query time)
 $ dig example.com | grep "Query time"
 ;; Query time: 12 msec
 ```
 
-### 3.2 nslookup と host
+### 3.2 nslookup and host
 
 ```bash
-# nslookup — インタラクティブ/非インタラクティブ
+# nslookup — interactive/non-interactive
 $ nslookup example.com
 $ nslookup -type=CNAME www.example.com
 $ nslookup -type=MX example.com 8.8.8.8
 
-# host — 最も簡潔な出力
+# host — most concise output
 $ host example.com
 $ host -t MX example.com
 $ host -t AAAA example.com
 ```
 
-### 3.3 DNS キャッシュ管理
+### 3.3 DNS Cache Management
 
 ```bash
-# macOS: DNSキャッシュのクリア
+# macOS: Clear DNS cache
 $ sudo dscacheutil -flushcache
 $ sudo killall -HUP mDNSResponder
 
 # Linux (systemd-resolved):
 $ sudo systemd-resolve --flush-caches
-$ sudo systemd-resolve --statistics   # キャッシュ統計
+$ sudo systemd-resolve --statistics   # Cache statistics
 
 # Linux (nscd):
 $ sudo systemctl restart nscd
 
-# /etc/hosts の確認（ローカルオーバーライド）
+# Check /etc/hosts (local overrides)
 $ cat /etc/hosts
 
-# /etc/resolv.conf の確認（使用中のDNSサーバー）
+# Check /etc/resolv.conf (DNS server in use)
 $ cat /etc/resolv.conf
 ```
 
-### 3.4 DNS 問題の切り分けフロー
+### 3.4 DNS Problem Isolation Flow
 
 ```
-  [DNSの問題が疑われる]
+  [DNS problem suspected]
         |
         v
   dig +short example.com
@@ -339,487 +339,488 @@ $ cat /etc/resolv.conf
    +---------+----------+
    |                     |
    v                     v
-  IPが返る             IPが返らない
+  IP returned         No IP returned
    |                     |
    v                     v
-  正しいIPか？         dig @8.8.8.8 example.com
+  Is IP correct?      dig @8.8.8.8 example.com
    |                     |
   +---+---+          +---+---+
   |       |          |       |
   v       v          v       v
- 正しい  間違い     返る    返らない
+ Correct Wrong    Returns  No return
   |       |          |       |
   v       v          v       v
- DNS以外  キャッシュ  ローカル  ドメイン
- の問題   またはCDN   DNS設定  自体の問題
-          の問題      の問題   (NXDOMAIN)
+ Non-DNS  Cache    Local   Domain
+ problem  or CDN   DNS     itself is the
+          issue    config  problem (NXDOMAIN)
+                   issue
 ```
 
 ---
 
-## 4. ネットワーク接続デバッグ
+## 4. Network Connectivity Debugging
 
-### 4.1 ping による疎通確認
+### 4.1 Connectivity Check with ping
 
 ```bash
-# 基本的な疎通確認
+# Basic connectivity check
 $ ping example.com
-$ ping -c 5 example.com        # 5回だけ送信
-$ ping -c 10 -i 0.5 example.com  # 0.5秒間隔で10回
+$ ping -c 5 example.com        # Send only 5 times
+$ ping -c 10 -i 0.5 example.com  # 10 times at 0.5 second intervals
 
-# IPv6での疎通確認
+# IPv6 connectivity check
 $ ping6 example.com
 
-# パケットサイズを指定（MTU問題の調査）
-$ ping -s 1472 -M do example.com  # Don't Fragment フラグ付き
-# 応答があれば MTU 1500 (1472 + 28 = 1500) で問題なし
-# "Frag needed" が返れば MTU が小さい経路がある
+# Specify packet size (investigate MTU issues)
+$ ping -s 1472 -M do example.com  # With Don't Fragment flag
+# If response arrives, no problem with MTU 1500 (1472 + 28 = 1500)
+# If "Frag needed" is returned, there is a path with a smaller MTU
 
-# タイムスタンプ付き
+# With timestamps
 $ ping -D example.com            # Linux
 ```
 
-### 4.2 traceroute / mtr による経路調査
+### 4.2 Route Investigation with traceroute / mtr
 
 ```bash
-# traceroute — 経路の各ホップを表示
+# traceroute — display each hop in the route
 $ traceroute example.com
-$ traceroute -T example.com      # TCP traceroute（ICMP がブロックされる場合）
-$ traceroute -p 443 example.com  # ポート443で経路確認
-$ traceroute -n example.com      # 逆引きなし（高速）
+$ traceroute -T example.com      # TCP traceroute (when ICMP is blocked)
+$ traceroute -p 443 example.com  # Check route on port 443
+$ traceroute -n example.com      # Without reverse lookup (faster)
 
-# mtr — ping + traceroute の統合リアルタイム表示
+# mtr — integrated real-time display of ping + traceroute
 $ mtr example.com
-$ mtr --report -c 100 example.com    # レポートモード（100回計測）
-$ mtr --tcp --port 443 example.com   # TCP/443での計測
+$ mtr --report -c 100 example.com    # Report mode (100 measurements)
+$ mtr --tcp --port 443 example.com   # Measurement on TCP/443
 ```
 
-### 4.3 nc (netcat) によるポート接続テスト
+### 4.3 Port Connectivity Test with nc (netcat)
 
 ```bash
-# TCPポートが開いているか確認
+# Check if TCP port is open
 $ nc -zv example.com 80       # HTTP
 $ nc -zv example.com 443      # HTTPS
 $ nc -zv example.com 22       # SSH
 $ nc -zv example.com 3306     # MySQL
 
-# UDPポートの確認
+# Check UDP port
 $ nc -zuv example.com 53      # DNS
 
-# ポート範囲のスキャン
+# Scan port range
 $ nc -zv example.com 80-100
 
-# 簡易HTTPリクエスト
+# Simple HTTP request
 $ echo -e "GET / HTTP/1.1\r\nHost: example.com\r\n\r\n" | nc example.com 80
 
-# TCPプロキシ/リレー（デバッグ用）
+# TCP proxy/relay (for debugging)
 $ nc -l -p 8080 | tee capture.txt | nc target.example.com 80
 ```
 
-### 4.4 ss / netstat によるソケット状態の確認（コード例2）
+### 4.4 Socket State Check with ss / netstat (Code Example 2)
 
-ss は netstat の後継コマンドであり、カーネルのソケット情報をより高速かつ詳細に表示できる。
+ss is the successor to netstat and can display kernel socket information faster and in more detail.
 
 ```bash
 # ============================================
-# ss コマンド（推奨: netstatの後継）
+# ss command (recommended: successor to netstat)
 # ============================================
 
-# リッスン中のTCPポート一覧（プロセス名付き）
+# List of listening TCP ports (with process names)
 $ ss -tlnp
 # State  Recv-Q Send-Q  Local Address:Port  Peer Address:Port  Process
 # LISTEN 0      128     0.0.0.0:80          0.0.0.0:*          users:(("nginx",pid=1234))
 # LISTEN 0      128     0.0.0.0:443         0.0.0.0:*          users:(("nginx",pid=1234))
 # LISTEN 0      511     127.0.0.1:3000      0.0.0.0:*          users:(("node",pid=5678))
 
-# オプション解説:
-#   -t : TCPのみ
-#   -l : LISTENINGのみ
-#   -n : ポート番号を数値で表示（名前解決しない）
-#   -p : プロセス情報を表示
+# Option explanation:
+#   -t : TCP only
+#   -l : LISTENING only
+#   -n : Show port numbers as digits (no name resolution)
+#   -p : Show process information
 
-# UDPソケットの一覧
+# List UDP sockets
 $ ss -ulnp
 
-# 全ソケットの統計サマリ
+# Statistics summary of all sockets
 $ ss -s
 # Total: 342
 # TCP:   120 (estab 45, closed 20, orphaned 3, timewait 15)
 # UDP:   12
 
-# 特定の状態の接続を表示
-$ ss -t state established          # 確立済み接続
-$ ss -t state time-wait            # TIME_WAIT状態
-$ ss -t state close-wait           # CLOSE_WAIT状態
-$ ss -t state syn-sent             # SYN送信済み（接続試行中）
+# Display connections in a specific state
+$ ss -t state established          # Established connections
+$ ss -t state time-wait            # TIME_WAIT state
+$ ss -t state close-wait           # CLOSE_WAIT state
+$ ss -t state syn-sent             # SYN sent (connection attempt in progress)
 
-# 特定ポートの接続を表示
-$ ss -t dst :443                   # 宛先ポート443の接続
-$ ss -t src :8080                  # 送信元ポート8080の接続
+# Display connections on a specific port
+$ ss -t dst :443                   # Connections with destination port 443
+$ ss -t src :8080                  # Connections with source port 8080
 
-# 特定ホストへの接続を表示
+# Display connections to a specific host
 $ ss -t dst 203.0.113.10
 
-# CLOSE_WAIT が大量にある場合の調査
+# Investigate when there are a large number of CLOSE_WAIT
 $ ss -t state close-wait -p | awk '{print $NF}' | sort | uniq -c | sort -rn
-#   150 users:(("java",pid=9876))  ← このプロセスが接続を閉じていない
+#   150 users:(("java",pid=9876))  ← This process is not closing connections
 #    23 users:(("python",pid=5432))
 
-# TIME_WAIT の数を監視
+# Monitor the number of TIME_WAIT
 $ watch -n 1 'ss -s | grep -i time'
 
 # ============================================
-# netstat コマンド（レガシー、一部環境で利用）
+# netstat command (legacy, used in some environments)
 # ============================================
 
-$ netstat -tlnp                    # ss -tlnp と同等
-$ netstat -an | grep ESTABLISHED   # 確立済み接続
-$ netstat -s                       # プロトコル別統計
+$ netstat -tlnp                    # Equivalent to ss -tlnp
+$ netstat -an | grep ESTABLISHED   # Established connections
+$ netstat -s                       # Statistics by protocol
 
 # ============================================
-# lsof によるポート調査
+# Port investigation with lsof
 # ============================================
 
-# 特定ポートを使用しているプロセス
+# Processes using a specific port
 $ lsof -i :8080
-$ lsof -i :80 -i :443             # 複数ポート
+$ lsof -i :80 -i :443             # Multiple ports
 
-# 全ネットワーク接続をリスト
+# List all network connections
 $ lsof -i -P -n
 
-# 特定プロセスのネットワーク接続
+# Network connections of a specific process
 $ lsof -i -a -p 1234
 ```
 
-### TCP 接続状態とその意味
+### TCP Connection States and Their Meaning
 
-| 状態 | 意味 | 問題の可能性 |
+| State | Meaning | Possible Problem |
 |:-----|:-----|:------------|
-| ESTABLISHED | 接続確立済み、通信中 | 正常（大量の場合はリソース枯渇に注意） |
-| TIME_WAIT | 接続終了後の待機中（通常 60秒） | 大量蓄積は短時間に多数の接続を開閉している兆候 |
-| CLOSE_WAIT | 相手が FIN を送信済み、こちらが close() していない | アプリケーションのバグ（ソケットリーク）の可能性大 |
-| SYN_SENT | SYN を送信済み、応答待ち | 相手が到達不能、またはファイアウォールでブロック |
-| SYN_RECV | SYN を受信し SYN+ACK を返した、ACK 待ち | SYN Flood 攻撃の可能性 |
-| FIN_WAIT1 | こちらが FIN を送信済み、ACK 待ち | 相手側のレスポンスが遅い |
-| FIN_WAIT2 | FIN の ACK を受信済み、相手の FIN 待ち | 相手側アプリケーションが close() していない |
-| LAST_ACK | こちらが FIN を送信済み、最後の ACK 待ち | 通常は一時的な状態 |
+| ESTABLISHED | Connection established, communicating | Normal (watch for resource exhaustion if there are too many) |
+| TIME_WAIT | Waiting after connection close (normally 60 seconds) | Large accumulation indicates many connections being opened and closed in a short time |
+| CLOSE_WAIT | Remote sent FIN, but local has not called close() | Likely application bug (socket leak) |
+| SYN_SENT | SYN sent, waiting for response | Remote is unreachable or blocked by firewall |
+| SYN_RECV | SYN received, SYN+ACK sent, waiting for ACK | Possible SYN Flood attack |
+| FIN_WAIT1 | Local FIN sent, waiting for ACK | Remote response is slow |
+| FIN_WAIT2 | ACK for FIN received, waiting for remote FIN | Remote application has not called close() |
+| LAST_ACK | Local FIN sent, waiting for final ACK | Normally a transient state |
 
 ---
 
-## 5. tcpdump によるパケットキャプチャ（コード例3）
+## 5. Packet Capture with tcpdump (Code Example 3)
 
-tcpdump はコマンドラインで動作するパケットキャプチャツールであり、ネットワークインタフェースを流れるパケットをリアルタイムで取得・表示できる。サーバー上でのデバッグやスクリプトによる自動化に適している。
+tcpdump is a command-line packet capture tool that can capture and display packets flowing through a network interface in real time. It is suitable for debugging on servers and automation via scripts.
 
-### 5.1 基本的な使い方
+### 5.1 Basic Usage
 
 ```bash
-# 全トラフィックをキャプチャ（Ctrl+C で停止）
+# Capture all traffic (stop with Ctrl+C)
 $ sudo tcpdump -i eth0
 
-# 特定ホストのトラフィック
+# Traffic for a specific host
 $ sudo tcpdump host 203.0.113.10
 $ sudo tcpdump host example.com
 
-# 送信元または宛先を限定
+# Limit to source or destination
 $ sudo tcpdump src host 203.0.113.10
 $ sudo tcpdump dst host 203.0.113.10
 
-# 特定ポートのトラフィック
+# Traffic on a specific port
 $ sudo tcpdump port 443
 $ sudo tcpdump port 80 or port 443
 
-# 特定のネットワーク範囲
+# A specific network range
 $ sudo tcpdump net 192.168.1.0/24
 
-# プロトコル指定
+# Specify protocol
 $ sudo tcpdump tcp
 $ sudo tcpdump udp
 $ sudo tcpdump icmp
 
-# 複合フィルタ
+# Compound filters
 $ sudo tcpdump 'host 203.0.113.10 and port 443 and tcp'
 $ sudo tcpdump 'src net 192.168.1.0/24 and dst port 80'
 ```
 
-### 5.2 詳細表示とファイル保存
+### 5.2 Detailed Display and File Saving
 
 ```bash
-# ASCII表示（HTTPの内容が読める）
+# ASCII display (HTTP content can be read)
 $ sudo tcpdump -A port 80
 
-# HEX + ASCII 表示
+# HEX + ASCII display
 $ sudo tcpdump -X port 80
 
-# タイムスタンプの形式を指定
-$ sudo tcpdump -tttt port 443    # 人間が読みやすい日時形式
+# Specify timestamp format
+$ sudo tcpdump -tttt port 443    # Human-readable date/time format
 
-# パケット数を制限
-$ sudo tcpdump -c 100 port 443   # 100パケットで停止
+# Limit packet count
+$ sudo tcpdump -c 100 port 443   # Stop after 100 packets
 
-# pcapファイルに保存（Wiresharkで開ける）
+# Save to pcap file (can be opened with Wireshark)
 $ sudo tcpdump -w capture.pcap -c 1000 port 443
 
-# pcapファイルの読み込み
+# Read pcap file
 $ sudo tcpdump -r capture.pcap
 
-# ファイルに保存しつつ画面にも表示
+# Save to file while also displaying on screen
 $ sudo tcpdump -w capture.pcap -c 500 port 443 &
-$ sudo tcpdump -r capture.pcap   # 別ターミナルで随時確認
+$ sudo tcpdump -r capture.pcap   # Check periodically in another terminal
 
-# スナップショットサイズの指定（パケット全体をキャプチャ）
+# Specify snapshot size (capture full packet)
 $ sudo tcpdump -s 0 -w full_capture.pcap
 
-# ローテーションキャプチャ（100MBごとにファイル分割、最大10ファイル保持）
+# Rotation capture (split file every 100MB, keep max 10 files)
 $ sudo tcpdump -w capture_%Y%m%d_%H%M%S.pcap -G 3600 -W 10 -C 100
 ```
 
-### 5.3 TCP フラグを使ったフィルタリング
+### 5.3 Filtering Using TCP Flags
 
 ```bash
-# SYNパケットのみ（接続開始）
+# Only SYN packets (connection start)
 $ sudo tcpdump 'tcp[tcpflags] & tcp-syn != 0'
 
-# SYN+ACK パケット（接続応答）
+# SYN+ACK packets (connection response)
 $ sudo tcpdump 'tcp[tcpflags] & (tcp-syn|tcp-ack) == (tcp-syn|tcp-ack)'
 
-# FINパケット（接続終了）
+# FIN packets (connection termination)
 $ sudo tcpdump 'tcp[tcpflags] & tcp-fin != 0'
 
-# RSTパケット（接続リセット — 異常終了の兆候）
+# RST packets (connection reset — sign of abnormal termination)
 $ sudo tcpdump 'tcp[tcpflags] & tcp-rst != 0'
 
-# PSHパケット（データ送信）
+# PSH packets (data transmission)
 $ sudo tcpdump 'tcp[tcpflags] & tcp-push != 0'
 ```
 
-### 5.4 実用的な tcpdump ワンライナー集
+### 5.4 Practical tcpdump One-Liners
 
 ```bash
-# DNS問い合わせの監視
+# Monitor DNS queries
 $ sudo tcpdump -i any port 53 -l | grep -i 'A?'
 
-# HTTP GETリクエストの監視
+# Monitor HTTP GET requests
 $ sudo tcpdump -A -s 0 'tcp port 80 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)' | grep -i 'GET\|Host'
 
-# TLSハンドシェイクの監視（Client Hello）
+# Monitor TLS handshake (Client Hello)
 $ sudo tcpdump -i any 'tcp port 443 and (tcp[((tcp[12]&0xf0)>>2)]=22)' -c 20
 
-# 再送パケットの検出
+# Detect retransmission packets
 $ sudo tcpdump -i eth0 'tcp[tcpflags] & tcp-syn != 0' -c 1000 -w syn_analysis.pcap
 
-# 特定のHTTPステータスコードを含むレスポンス
+# Responses containing a specific HTTP status code
 $ sudo tcpdump -A -s 0 'tcp port 80' | grep -E 'HTTP/1\.[01] [45][0-9]{2}'
 ```
 
 ---
 
-## 6. Wireshark によるパケット解析
+## 6. Packet Analysis with Wireshark
 
-Wireshark は GUI ベースのパケット解析ツールであり、tcpdump で取得した pcap ファイルの詳細解析に適している。
+Wireshark is a GUI-based packet analysis tool, suitable for detailed analysis of pcap files captured with tcpdump.
 
-### 6.1 Wireshark 表示フィルタ（コード例4）
+### 6.1 Wireshark Display Filters (Code Example 4)
 
-Wireshark の表示フィルタ（Display Filter）はキャプチャ済みパケットから条件に合致するものを絞り込む。BPF（tcpdump のフィルタ構文）とは異なる独自の構文を持つ。
+Wireshark's Display Filters narrow down captured packets to those matching conditions. It has its own syntax that differs from BPF (tcpdump filter syntax).
 
 ```
 # ============================================
-# IPアドレスによるフィルタ
+# Filters by IP address
 # ============================================
-ip.addr == 192.168.1.100           # 送信元 or 宛先が指定IP
-ip.src == 192.168.1.100            # 送信元のみ
-ip.dst == 203.0.113.10             # 宛先のみ
-ip.addr == 192.168.1.0/24          # サブネットで指定
+ip.addr == 192.168.1.100           # Source or destination is specified IP
+ip.src == 192.168.1.100            # Source only
+ip.dst == 203.0.113.10             # Destination only
+ip.addr == 192.168.1.0/24          # Specified by subnet
 
 # ============================================
-# ポートによるフィルタ
+# Filters by port
 # ============================================
-tcp.port == 443                     # TCPポート443（送信元 or 宛先）
-tcp.dstport == 80                   # 宛先ポート80
-tcp.srcport >= 1024                 # エフェメラルポート
+tcp.port == 443                     # TCP port 443 (source or destination)
+tcp.dstport == 80                   # Destination port 80
+tcp.srcport >= 1024                 # Ephemeral ports
 udp.port == 53                      # DNS
 
 # ============================================
-# プロトコルフィルタ
+# Protocol filters
 # ============================================
-http                                # HTTPトラフィック全体
-http.request                        # HTTPリクエストのみ
-http.response                       # HTTPレスポンスのみ
-http.request.method == "GET"        # GETリクエスト
-http.request.method == "POST"       # POSTリクエスト
-http.response.code == 200           # ステータス200
-http.response.code >= 400           # エラーレスポンス
-http.host == "api.example.com"      # 特定ホストへのリクエスト
-http.request.uri contains "/api/"   # URIに"/api/"を含む
+http                                # All HTTP traffic
+http.request                        # HTTP requests only
+http.response                       # HTTP responses only
+http.request.method == "GET"        # GET requests
+http.request.method == "POST"       # POST requests
+http.response.code == 200           # Status 200
+http.response.code >= 400           # Error responses
+http.host == "api.example.com"      # Requests to a specific host
+http.request.uri contains "/api/"   # URI containing "/api/"
 
-dns                                 # DNSトラフィック
-dns.qry.name == "example.com"       # 特定ドメインのDNSクエリ
-dns.flags.rcode != 0                # DNSエラーレスポンス
+dns                                 # DNS traffic
+dns.qry.name == "example.com"       # DNS query for a specific domain
+dns.flags.rcode != 0                # DNS error response
 
-tls                                 # TLSトラフィック
+tls                                 # TLS traffic
 tls.handshake.type == 1             # Client Hello
 tls.handshake.type == 2             # Server Hello
-tls.handshake.extensions.supported_versions  # TLSバージョン情報
+tls.handshake.extensions.supported_versions  # TLS version information
 
 # ============================================
-# TCP解析フィルタ
+# TCP analysis filters
 # ============================================
-tcp.analysis.retransmission         # TCP再送パケット
-tcp.analysis.duplicate_ack          # 重複ACK
-tcp.analysis.zero_window            # ゼロウィンドウ
-tcp.analysis.window_full            # ウィンドウフル
-tcp.analysis.fast_retransmission    # 高速再送
-tcp.analysis.lost_segment           # ロストセグメント
-tcp.analysis.out_of_order           # 順序逆転パケット
+tcp.analysis.retransmission         # TCP retransmission packets
+tcp.analysis.duplicate_ack          # Duplicate ACK
+tcp.analysis.zero_window            # Zero window
+tcp.analysis.window_full            # Window full
+tcp.analysis.fast_retransmission    # Fast retransmission
+tcp.analysis.lost_segment           # Lost segment
+tcp.analysis.out_of_order           # Out-of-order packets
 
-tcp.flags.syn == 1 && tcp.flags.ack == 0   # SYN（接続開始）
-tcp.flags.reset == 1                        # RST（リセット）
-tcp.flags.fin == 1                          # FIN（接続終了）
+tcp.flags.syn == 1 && tcp.flags.ack == 0   # SYN (connection start)
+tcp.flags.reset == 1                        # RST (reset)
+tcp.flags.fin == 1                          # FIN (connection termination)
 
 # ============================================
-# 複合フィルタ（AND / OR / NOT）
+# Compound filters (AND / OR / NOT)
 # ============================================
 ip.addr == 192.168.1.100 && tcp.port == 443
 http.request || http.response
-!(arp || dns || icmp)               # ARP, DNS, ICMP を除外
+!(arp || dns || icmp)               # Exclude ARP, DNS, ICMP
 tcp.analysis.retransmission && ip.dst == 203.0.113.10
 
 # ============================================
-# 時間ベースのフィルタ
+# Time-based filters
 # ============================================
 frame.time >= "2024-01-15 10:00:00" && frame.time <= "2024-01-15 10:05:00"
 
 # ============================================
-# パケットサイズのフィルタ
+# Packet size filters
 # ============================================
-frame.len > 1400                    # MTUに近いサイズのパケット
-tcp.len == 0                        # データなしのTCPパケット（ACKのみ等）
+frame.len > 1400                    # Packets close to MTU size
+tcp.len == 0                        # TCP packets without data (ACK only, etc.)
 ```
 
-### 6.2 Wireshark の便利な機能
+### 6.2 Useful Wireshark Features
 
 ```
-Wireshark の解析機能:
+Wireshark Analysis Features:
 
-1. Follow TCP Stream（TCP ストリーム追跡）
-   → 特定の TCP 接続の会話全体をまとめて表示
-   → HTTP のリクエスト/レスポンスの内容を確認するのに便利
-   → 右クリック → Follow → TCP Stream
+1. Follow TCP Stream
+   → Display the entire conversation of a specific TCP connection together
+   → Convenient for checking the content of HTTP requests/responses
+   → Right-click → Follow → TCP Stream
 
 2. Follow TLS Stream
-   → TLS 復号キーが設定されている場合、暗号化された内容を表示
+   → If TLS decryption key is configured, display encrypted content
    → Edit → Preferences → Protocols → TLS → (Pre)-Master-Secret log filename
 
-3. Statistics メニュー
-   → Conversations: ホスト間の通信量サマリ
-   → Endpoints: 各ホストの通信量
-   → Protocol Hierarchy: プロトコル別のトラフィック割合
-   → I/O Graphs: トラフィック量の時系列グラフ
-   → Flow Graph: TCP の接続フロー図
+3. Statistics menu
+   → Conversations: Communication volume summary between hosts
+   → Endpoints: Communication volume per host
+   → Protocol Hierarchy: Traffic percentage by protocol
+   → I/O Graphs: Time-series graph of traffic volume
+   → Flow Graph: TCP connection flow diagram
 
-4. Expert Information（エキスパート情報）
+4. Expert Information
    → Analyze → Expert Information
-   → 警告やエラーを自動検出して一覧表示
-   → 再送、ゼロウィンドウ、リセットなどを即座に把握
+   → Automatically detect warnings and errors and display as a list
+   → Immediately grasp retransmissions, zero windows, resets, etc.
 
-5. Coloring Rules（色分けルール）
-   → TCP再送: 赤色
-   → HTTPエラー: 赤色
-   → TCPリセット: 赤色
-   → DNS: 青色
-   → カスタムルールの追加も可能
+5. Coloring Rules
+   → TCP retransmission: Red
+   → HTTP errors: Red
+   → TCP reset: Red
+   → DNS: Blue
+   → Custom rules can also be added
 ```
 
 ---
 
-## 7. Chrome DevTools によるブラウザレベルのデバッグ
+## 7. Browser-Level Debugging with Chrome DevTools
 
-Chrome DevTools の Network タブは、ブラウザから発生する全ての HTTP リクエスト/レスポンスをリアルタイムで監視できるツールである。フロントエンド開発者にとって最も身近なネットワークデバッグ手段である。
+Chrome DevTools Network tab is a tool that monitors all HTTP requests/responses from the browser in real time. It is the most familiar network debugging method for frontend developers.
 
-### 7.1 Network タブの基本操作
+### 7.1 Basic Network Tab Operations
 
 ```
-Chrome DevTools の開き方:
-  - F12 キー
+How to open Chrome DevTools:
+  - F12 key
   - Cmd + Opt + I (macOS) / Ctrl + Shift + I (Windows/Linux)
-  - 右クリック → 検証(Inspect) → Network タブ
+  - Right-click → Inspect → Network tab
 
-Network タブの主要機能:
+Main features of the Network tab:
 
-  [1] リクエスト一覧
-      各リクエストについて以下の情報が表示される:
-      - Name:       リソース名（URL パス）
-      - Status:     HTTP ステータスコード
-      - Type:       リソースタイプ（document, script, stylesheet, fetch 等）
-      - Initiator:  リクエストの発行元（スクリプト、パーサー等）
-      - Size:       転送サイズ / リソースサイズ
-      - Time:       総所要時間
-      - Waterfall:  タイムラインバー
+  [1] Request list
+      The following information is displayed for each request:
+      - Name:       Resource name (URL path)
+      - Status:     HTTP status code
+      - Type:       Resource type (document, script, stylesheet, fetch, etc.)
+      - Initiator:  Source of the request (script, parser, etc.)
+      - Size:       Transfer size / resource size
+      - Time:       Total elapsed time
+      - Waterfall:  Timeline bar
 
-  [2] フィルタバー
-      リソースタイプ別の絞り込み:
-      - All:    全リクエスト
-      - Fetch/XHR: API呼び出し（Ajax/Fetch）
-      - JS:     JavaScriptファイル
-      - CSS:    スタイルシート
-      - Img:    画像
-      - Media:  動画/音声
-      - Font:   フォントファイル
-      - Doc:    HTMLドキュメント
-      - WS:     WebSocket
-      - Wasm:   WebAssembly
+  [2] Filter bar
+      Filter by resource type:
+      - All:       All requests
+      - Fetch/XHR: API calls (Ajax/Fetch)
+      - JS:        JavaScript files
+      - CSS:       Stylesheets
+      - Img:       Images
+      - Media:     Video/audio
+      - Font:      Font files
+      - Doc:       HTML documents
+      - WS:        WebSocket
+      - Wasm:      WebAssembly
 
-      テキストフィルタ:
-      - "api" と入力 → URLに "api" を含むリクエストのみ表示
-      - "-status-code:200" → ステータス200以外を表示
-      - "larger-than:100k" → 100KB以上のリソース
-      - "method:POST" → POSTリクエストのみ
-      - "domain:api.example.com" → 特定ドメインのみ
-      - "has-response-header:set-cookie" → Cookie設定あり
+      Text filters:
+      - Type "api" → Display only requests with "api" in URL
+      - "-status-code:200" → Display those other than status 200
+      - "larger-than:100k" → Resources over 100KB
+      - "method:POST" → POST requests only
+      - "domain:api.example.com" → Specific domain only
+      - "has-response-header:set-cookie" → Responses that set cookies
 ```
 
-### 7.2 Timing（タイミング）分析
+### 7.2 Timing Analysis
 
 ```
-各リクエストをクリック → Timing タブで詳細が見える:
+Click each request → Details visible in Timing tab:
 
 +------------------------------------------------------------------+
-| Queueing        |  ブラウザのリクエストキューで待機中                  |
-|                  |  （優先度が低い、接続数上限に達している等）           |
+| Queueing        |  Waiting in browser request queue              |
+|                  |  (low priority, connection limit reached, etc.) |
 +------------------------------------------------------------------+
-| Stalled          |  接続プールの空き待ち / プロキシネゴシエーション中    |
-|                  |  → 長い場合: 同一オリジンへの同時接続数上限           |
-|                  |    (HTTP/1.1は6接続/オリジンが一般的)                |
+| Stalled          |  Waiting for connection pool slot / proxy negotiation |
+|                  |  → If long: same-origin concurrent connection limit  |
+|                  |    (HTTP/1.1 typically allows 6 connections/origin)   |
 +------------------------------------------------------------------+
-| DNS Lookup       |  DNS名前解決の所要時間                              |
-|                  |  → 長い場合: DNSサーバーの応答が遅い                 |
-|                  |    dns-prefetch の導入を検討                         |
+| DNS Lookup       |  Time taken for DNS name resolution            |
+|                  |  → If long: DNS server is slow                 |
+|                  |    Consider using dns-prefetch                  |
 +------------------------------------------------------------------+
-| Initial Conn.    |  TCP 3ウェイハンドシェイク + TLSハンドシェイク        |
-|                  |  → 長い場合: ネットワーク遅延が大きい                 |
-|                  |    HTTP/2やHTTP/3で接続を多重化                      |
+| Initial Conn.    |  TCP 3-way handshake + TLS handshake           |
+|                  |  → If long: High network latency               |
+|                  |    Multiplex connections with HTTP/2 or HTTP/3  |
 +------------------------------------------------------------------+
-| SSL              |  TLSハンドシェイクのみの時間                         |
-|                  |  → 長い場合: 証明書チェーンが長い、OCSPが遅い         |
+| SSL              |  TLS handshake time only                       |
+|                  |  → If long: Certificate chain is long, OCSP is slow |
 +------------------------------------------------------------------+
-| Request Sent     |  リクエスト送信にかかった時間（通常は極めて短い）      |
+| Request Sent     |  Time to send request (normally very short)    |
 +------------------------------------------------------------------+
-| Waiting (TTFB)   |  最初のレスポンスバイト受信まで                       |
-|  Time to First   |  ← サーバーの処理時間を直接反映                       |
-|  Byte            |  → 長い場合: サーバー側の最適化が必要                  |
-|                  |    DB クエリ、キャッシュ、アプリケーションロジック     |
+| Waiting (TTFB)   |  Until first response byte received            |
+|  Time to First   |  ← Directly reflects server processing time    |
+|  Byte            |  → If long: Server-side optimization needed    |
+|                  |    DB queries, caching, application logic       |
 +------------------------------------------------------------------+
-| Content Download |  レスポンスボディの受信時間                           |
-|                  |  → 長い場合: レスポンスが大きい or 帯域が狭い          |
-|                  |    圧縮(gzip/brotli)、ページネーション等を検討        |
+| Content Download |  Time to receive response body                 |
+|                  |  → If long: Large response or narrow bandwidth  |
+|                  |    Consider compression (gzip/brotli), pagination |
 +------------------------------------------------------------------+
 ```
 
-### 7.3 Waterfall（ウォーターフォール）の読み方
+### 7.3 How to Read the Waterfall
 
-Waterfall はすべてのリクエストの時系列を横棒グラフで表示する機能であり、リソース読み込みのボトルネックを視覚的に把握できる。
+Waterfall is a feature that displays the time series of all requests as horizontal bar charts, allowing you to visually identify bottlenecks in resource loading.
 
 ```
-Waterfall の読み方:
+How to read the Waterfall:
 
   Time →
   |  0ms        100ms       200ms       300ms       400ms       500ms
@@ -828,40 +829,40 @@ Waterfall の読み方:
   |  index.html
   |  [==DNS==][=Conn=][=TLS=][===TTFB===][==DL==]
   |
-  |  style.css                    (パーサーが発見次第ロード)
+  |  style.css                    (loaded when parser discovers it)
   |                          [=Conn=][TLS][=TTFB=][DL]
   |
-  |  app.js                      (パーサーが発見次第ロード)
+  |  app.js                      (loaded when parser discovers it)
   |                          [=Conn=][TLS][==TTFB==][===DL===]
   |
-  |  api/users                   (JSの実行後にfetch)
+  |  api/users                   (fetched after JS execution)
   |                                              [C][T][====TTFB====][DL]
   |
-  |  avatar.png                  (APIレスポンス後に描画)
+  |  avatar.png                  (rendered after API response)
   |                                                              [C][TTFB][DL]
   |
-  凡例:
-    DNS   = DNS Lookup (緑色)
-    Conn  = Initial Connection (オレンジ色)
-    TLS   = SSL/TLS (紫色)
-    TTFB  = Waiting / Time to First Byte (緑色)
-    DL    = Content Download (青色)
+  Legend:
+    DNS   = DNS Lookup (green)
+    Conn  = Initial Connection (orange)
+    TLS   = SSL/TLS (purple)
+    TTFB  = Waiting / Time to First Byte (green)
+    DL    = Content Download (blue)
 
-  読み取りポイント:
-    - 縦に長い空白 → リソース間の依存関係（ウォーターフォール）
-    - 横に長いバー → 個別のリソース読み込みが遅い
-    - 多数のリクエストが同時開始 → HTTP/2多重化が機能
-    - 6本ずつ段階的に開始 → HTTP/1.1の接続数制限
+  Reading points:
+    - Long vertical gap → Dependencies between resources (waterfall)
+    - Long horizontal bar → Individual resource loading is slow
+    - Many requests starting simultaneously → HTTP/2 multiplexing working
+    - Starting 6 at a time in stages → HTTP/1.1 connection limit
 ```
 
-### 7.4 Chrome DevTools の高度な使い方（コード例5）
+### 7.4 Advanced Chrome DevTools Usage (Code Example 5)
 
 ```javascript
 // ============================================
-// Console タブからのネットワークデバッグ
+// Network debugging from the Console tab
 // ============================================
 
-// Performance API でリソースタイミングを取得
+// Get resource timing via Performance API
 const resources = performance.getEntriesByType('resource');
 resources.forEach(r => {
   console.log(`${r.name}: DNS=${r.domainLookupEnd - r.domainLookupStart}ms, ` +
@@ -871,7 +872,7 @@ resources.forEach(r => {
               `Total=${r.duration}ms`);
 });
 
-// Navigation Timing API でページ全体のタイミング
+// Overall page timing via Navigation Timing API
 const nav = performance.getEntriesByType('navigation')[0];
 console.table({
   'DNS Lookup':       `${nav.domainLookupEnd - nav.domainLookupStart}ms`,
@@ -885,7 +886,7 @@ console.table({
   'Load Event':       `${nav.loadEventEnd - nav.fetchStart}ms`,
 });
 
-// 遅いリクエストのみをフィルタ（500ms以上）
+// Filter only slow requests (500ms or more)
 const slowResources = performance.getEntriesByType('resource')
   .filter(r => r.duration > 500)
   .sort((a, b) => b.duration - a.duration);
@@ -896,7 +897,7 @@ console.table(slowResources.map(r => ({
   size: `${r.transferSize} bytes`,
 })));
 
-// Service Worker の状態確認
+// Check Service Worker status
 navigator.serviceWorker.getRegistrations().then(registrations => {
   registrations.forEach(reg => {
     console.log('Scope:', reg.scope);
@@ -904,7 +905,7 @@ navigator.serviceWorker.getRegistrations().then(registrations => {
   });
 });
 
-// WebSocket 接続のモニタリング
+// Monitor WebSocket connections
 const originalWS = window.WebSocket;
 window.WebSocket = function(...args) {
   const ws = new originalWS(...args);
@@ -917,568 +918,568 @@ window.WebSocket = function(...args) {
 };
 ```
 
-### 7.5 DevTools のネットワーク設定
+### 7.5 DevTools Network Settings
 
 ```
-重要な設定項目:
+Important settings:
 
   [Preserve log]
-    チェック → ページ遷移やリロード時にログが消えない
-    リダイレクト問題のデバッグに必須
+    Checked → Log is not cleared on page navigation or reload
+    Essential for debugging redirect issues
 
   [Disable cache]
-    チェック → ブラウザキャッシュを無効化
-    キャッシュの影響を排除した純粋なネットワーク計測が可能
+    Checked → Disable browser cache
+    Enables pure network measurement without cache influence
 
   [Throttling]
-    ネットワーク速度のシミュレーション:
-    - No throttling:  制限なし（デフォルト）
+    Network speed simulation:
+    - No throttling:  No limit (default)
     - Fast 3G:        1.6 Mbps down, 768 Kbps up, 562ms RTT
     - Slow 3G:        400 Kbps down, 400 Kbps up, 2000ms RTT
-    - Offline:        完全オフライン
-    - Custom:         任意の帯域幅/遅延を設定可能
+    - Offline:        Completely offline
+    - Custom:         Set any bandwidth/latency
 
   [Request Blocking]
-    Cmd+Shift+P → "Show Request Blocking" で有効化
-    特定のURL パターンをブロックして動作確認:
-    例: *.analytics.com  → アナリティクスをブロック
-    例: */api/v2/*       → 特定APIをブロック
+    Cmd+Shift+P → "Show Request Blocking" to enable
+    Block specific URL patterns to check behavior:
+    Example: *.analytics.com  → Block analytics
+    Example: */api/v2/*       → Block specific API
 
-  [HAR (HTTP Archive) エクスポート]
-    → 全リクエスト/レスポンスを JSON 形式で記録
-    → 問題の再現・共有に使用
-    → ネットワークログを右クリック → "Save all as HAR with content"
-    → https://toolbox.googleapps.com/apps/har_analyzer/ で解析可能
+  [HAR (HTTP Archive) export]
+    → Records all requests/responses in JSON format
+    → Used for reproducing and sharing problems
+    → Right-click network log → "Save all as HAR with content"
+    → Can be analyzed at https://toolbox.googleapps.com/apps/har_analyzer/
 ```
 
 ---
 
-## 8. TLS/SSL デバッグ
+## 8. TLS/SSL Debugging
 
-HTTPS 関連の問題は、証明書の期限切れ、チェーンの不備、プロトコルバージョンの不一致など多岐にわたる。
+HTTPS-related problems span many areas including certificate expiry, missing chain links, and protocol version mismatches.
 
-### 8.1 openssl による TLS 接続テスト
+### 8.1 TLS Connection Testing with openssl
 
 ```bash
-# TLS接続テスト（証明書情報の表示）
+# TLS connection test (display certificate information)
 $ openssl s_client -connect example.com:443 -servername example.com
 
-# 証明書の有効期限確認
+# Check certificate expiry
 $ openssl s_client -connect example.com:443 -servername example.com 2>/dev/null \
   | openssl x509 -noout -dates
 # notBefore=Jan  1 00:00:00 2024 GMT
 # notAfter=Dec 31 23:59:59 2024 GMT
 
-# 証明書チェーン全体の表示
+# Display the entire certificate chain
 $ openssl s_client -connect example.com:443 -servername example.com -showcerts
 
-# 特定のTLSバージョンで接続
+# Connect with a specific TLS version
 $ openssl s_client -connect example.com:443 -tls1_2
 $ openssl s_client -connect example.com:443 -tls1_3
 
-# 対応している暗号スイートの確認
+# Check supported cipher suites
 $ openssl s_client -connect example.com:443 -cipher 'ECDHE-RSA-AES256-GCM-SHA384'
 
-# 証明書の詳細情報（Subject, Issuer, SAN 等）
+# Detailed certificate information (Subject, Issuer, SAN, etc.)
 $ openssl s_client -connect example.com:443 2>/dev/null \
   | openssl x509 -noout -text | head -30
 
-# OCSP Stapling の確認
+# Check OCSP Stapling
 $ openssl s_client -connect example.com:443 -status 2>/dev/null \
   | grep -A 5 "OCSP Response"
 
-# ALPN（Application-Layer Protocol Negotiation）の確認
+# Check ALPN (Application-Layer Protocol Negotiation)
 $ openssl s_client -connect example.com:443 -alpn h2,http/1.1 2>/dev/null \
   | grep "ALPN"
 ```
 
-### 8.2 TLS 問題の判断基準
+### 8.2 TLS Problem Criteria
 
-| 症状 | 考えられる原因 | 確認方法 |
+| Symptom | Possible Cause | How to Check |
 |:-----|:-------------|:---------|
-| `certificate has expired` | 証明書の有効期限切れ | `openssl x509 -noout -dates` |
-| `unable to verify the first certificate` | 中間証明書の欠落 | `-showcerts` で証明書チェーンを確認 |
-| `certificate verify failed` | ルートCA不信任 / 自己署名 | CA証明書の確認 |
-| `wrong version number` | 非TLSポートにTLS接続 | ポート番号の確認 |
-| `handshake failure` | 暗号スイートの不一致 | `-cipher` で個別にテスト |
-| `tlsv1 alert protocol version` | TLSバージョン非対応 | `-tls1_2` `-tls1_3` で個別テスト |
-| `sslv3 alert handshake failure` | SNIが必要 | `-servername` を指定 |
+| `certificate has expired` | Certificate has expired | `openssl x509 -noout -dates` |
+| `unable to verify the first certificate` | Missing intermediate certificate | Check certificate chain with `-showcerts` |
+| `certificate verify failed` | Root CA not trusted / self-signed | Check CA certificate |
+| `wrong version number` | TLS connection to non-TLS port | Check port number |
+| `handshake failure` | Cipher suite mismatch | Test individually with `-cipher` |
+| `tlsv1 alert protocol version` | TLS version not supported | Test individually with `-tls1_2` `-tls1_3` |
+| `sslv3 alert handshake failure` | SNI is required | Specify `-servername` |
 
 ---
 
-## 9. トラブルシューティング体系
+## 9. Systematic Troubleshooting
 
-### 9.1 問題の分類
+### 9.1 Problem Classification
 
-ネットワーク問題は大きく以下の 4 カテゴリに分類できる。
+Network problems can be broadly classified into the following 4 categories.
 
 ```
 +========================+========================+
-|    接続不能            |    間欠的障害           |
-|    (Connection Failed) |    (Intermittent)       |
+|    Connection Failed   |    Intermittent         |
 |                        |                         |
-|  - DNS解決失敗         |  - 時々タイムアウト      |
-|  - ポート未開放        |  - パケットロス          |
-|  - ファイアウォール    |  - 負荷依存の障害        |
-|  - ルーティング異常    |  - DNS TTL問題          |
+|  - DNS resolution fail |  - Occasional timeout   |
+|  - Port not open       |  - Packet loss           |
+|  - Firewall            |  - Load-dependent fault  |
+|  - Routing anomaly     |  - DNS TTL issues        |
 |                        |                         |
 +========================+========================+
-|    パフォーマンス低下   |    アプリケーション      |
-|    (Slow Performance)  |    エラー                |
-|                        |    (Application Error)   |
-|  - 高レイテンシ        |  - HTTP 4xx/5xx         |
-|  - 低スループット      |  - TLS/SSL エラー        |
-|  - TCP再送多発         |  - CORS問題              |
-|  - MTU問題             |  - WebSocket切断         |
-|                        |                         |
+|    Slow Performance    |    Application           |
+|                        |    Error                 |
+|                        |                          |
+|  - High latency        |  - HTTP 4xx/5xx          |
+|  - Low throughput      |  - TLS/SSL errors        |
+|  - Many TCP retrans.   |  - CORS issues           |
+|  - MTU issues          |  - WebSocket disconnect  |
+|                        |                          |
 +========================+========================+
 ```
 
-### 図2: トラブルシューティング決定木
+### Figure 2: Troubleshooting Decision Tree
 
 ```
 +================================================================+
-|            トラブルシューティング決定木                            |
+|            Troubleshooting Decision Tree                        |
 +================================================================+
 
-  [Webページが表示されない / APIが応答しない]
+  [Web page not displayed / API not responding]
       |
       v
-  (1) ping <host> は通るか？
+  (1) Does ping <host> work?
       |
-      +--- NO ---> (A) IPアドレスは正しいか？
+      +--- NO ---> (A) Is the IP address correct?
       |                 |
-      |                 +--- dig +short <host> で確認
+      |                 +--- Check with dig +short <host>
       |                 |
-      |                 +--- IP が返らない
-      |                 |     → DNS問題: /etc/resolv.conf, DNSサーバー確認
+      |                 +--- No IP returned
+      |                 |     → DNS issue: Check /etc/resolv.conf, DNS server
       |                 |
-      |                 +--- IP は返るが ping が通らない
-      |                       → traceroute でどのホップで止まるか確認
-      |                       → ファイアウォールで ICMP がブロック？
-      |                       → ルーティング問題？
+      |                 +--- IP is returned but ping fails
+      |                       → Check which hop traceroute stops at
+      |                       → Is ICMP blocked by firewall?
+      |                       → Routing issue?
       |
-      +--- YES --> (2) nc -zv <host> <port> は通るか？
+      +--- YES --> (2) Does nc -zv <host> <port> work?
                        |
-                       +--- NO ---> ポートが閉じている
-                       |            → サービスが起動しているか確認
-                       |            → ss -tlnp でリッスン状態を確認
-                       |            → ファイアウォールルールを確認
-                       |            → Security Group / ACL を確認
+                       +--- NO ---> Port is closed
+                       |            → Check if service is running
+                       |            → Check listening state with ss -tlnp
+                       |            → Check firewall rules
+                       |            → Check Security Group / ACL
                        |
-                       +--- YES --> (3) curl -v <URL> の結果は？
+                       +--- YES --> (3) What is the result of curl -v <URL>?
                                        |
-                                       +--- TLSエラー
-                                       |    → openssl s_client で証明書確認
-                                       |    → 有効期限、チェーン、SNI
+                                       +--- TLS error
+                                       |    → Check certificate with openssl s_client
+                                       |    → Expiry, chain, SNI
                                        |
                                        +--- HTTP 3xx
-                                       |    → リダイレクト先の確認
-                                       |    → curl -L で追跡
-                                       |    → 無限リダイレクトでないか
+                                       |    → Check redirect destination
+                                       |    → Track with curl -L
+                                       |    → Check for infinite redirect
                                        |
                                        +--- HTTP 4xx
-                                       |    → 401: 認証情報の確認
-                                       |    → 403: 権限/IP制限の確認
-                                       |    → 404: URLパスの確認
-                                       |    → 429: レート制限の確認
+                                       |    → 401: Check credentials
+                                       |    → 403: Check permissions/IP restriction
+                                       |    → 404: Check URL path
+                                       |    → 429: Check rate limit
                                        |
                                        +--- HTTP 5xx
-                                       |    → サーバーログを確認
-                                       |    → 502: バックエンドの死活確認
-                                       |    → 503: 過負荷/メンテナンス
-                                       |    → 504: バックエンドのタイムアウト
+                                       |    → Check server logs
+                                       |    → 502: Check backend liveness
+                                       |    → 503: Overload/maintenance
+                                       |    → 504: Backend timeout
                                        |
-                                       +--- タイムアウト
-                                       |    → TTFB が遅いか？
-                                       |    → サーバー処理が遅いか？
-                                       |    → DB やキャッシュの確認
+                                       +--- Timeout
+                                       |    → Is TTFB slow?
+                                       |    → Is server processing slow?
+                                       |    → Check DB and cache
                                        |
-                                       +--- 正常 (200) だがページが壊れている
-                                            → DevToolsでJSエラー確認
-                                            → APIレスポンスの内容確認
-                                            → CORSエラーの確認
+                                       +--- Normal (200) but page is broken
+                                            → Check JS errors in DevTools
+                                            → Check API response content
+                                            → Check for CORS errors
 ```
 
-### 9.2 レイヤー別デバッグコマンド一覧
+### 9.2 Debug Commands by Layer
 
 ```bash
 # ============================================
-# L1-L2: 物理層 / データリンク層
+# L1-L2: Physical / Data Link Layer
 # ============================================
-$ ip link show                     # インタフェースの状態
-$ ethtool eth0                     # NICの詳細情報
-$ ip neigh show                    # ARPテーブル
-$ arp -a                           # ARPテーブル（レガシー）
+$ ip link show                     # Interface status
+$ ethtool eth0                     # Detailed NIC information
+$ ip neigh show                    # ARP table
+$ arp -a                           # ARP table (legacy)
 
 # ============================================
-# L3: ネットワーク層
+# L3: Network Layer
 # ============================================
-$ ip addr show                     # IPアドレスの確認
-$ ip route show                    # ルーティングテーブル
-$ ip route get 203.0.113.10        # 特定IPへのルート
-$ ping -c 5 example.com            # 疎通確認
-$ traceroute example.com           # 経路確認
-$ mtr --report example.com         # 経路+パケットロス
+$ ip addr show                     # Check IP addresses
+$ ip route show                    # Routing table
+$ ip route get 203.0.113.10        # Route to a specific IP
+$ ping -c 5 example.com            # Connectivity check
+$ traceroute example.com           # Route check
+$ mtr --report example.com         # Route + packet loss
 
 # ============================================
-# L4: トランスポート層
+# L4: Transport Layer
 # ============================================
-$ ss -tlnp                         # TCP LISTENポート
-$ ss -t state established          # 確立済みTCP接続
-$ nc -zv example.com 443           # ポート疎通確認
-$ sudo tcpdump -i eth0 port 443    # パケットキャプチャ
+$ ss -tlnp                         # TCP LISTEN ports
+$ ss -t state established          # Established TCP connections
+$ nc -zv example.com 443           # Port connectivity check
+$ sudo tcpdump -i eth0 port 443    # Packet capture
 
 # ============================================
-# L5-L7: アプリケーション層
+# L5-L7: Application Layer
 # ============================================
-$ dig +short example.com           # DNS解決
-$ curl -v https://example.com      # HTTP通信テスト
-$ openssl s_client -connect example.com:443   # TLS確認
-# Chrome DevTools → Network タブ    # ブラウザレベル
+$ dig +short example.com           # DNS resolution
+$ curl -v https://example.com      # HTTP communication test
+$ openssl s_client -connect example.com:443   # TLS check
+# Chrome DevTools → Network tab    # Browser level
 ```
 
-### 9.3 よくある問題と対処法
+### 9.3 Common Problems and Solutions
 
-#### 問題1: CLOSE_WAIT の大量蓄積
+#### Problem 1: Large Accumulation of CLOSE_WAIT
 
 ```bash
-# 症状: CLOSE_WAIT 状態の接続が数百〜数千蓄積している
+# Symptom: Hundreds to thousands of CLOSE_WAIT connections accumulated
 $ ss -t state close-wait | wc -l
 523
 
-# 原因の特定: どのプロセスが CLOSE_WAIT を持っているか
+# Identify cause: Which process has CLOSE_WAIT
 $ ss -t state close-wait -p | awk '{print $NF}' | sort | uniq -c | sort -rn
   489 users:(("java",pid=12345,fd=892))
    34 users:(("python3",pid=6789,fd=45))
 
-# 解説:
-# CLOSE_WAIT は「相手が FIN を送ったが、こちらが close() していない」状態
-# アプリケーションにソケットリーク（接続を閉じ忘れるバグ）がある
+# Explanation:
+# CLOSE_WAIT is a state where "the remote sent a FIN, but local has not called close()"
+# There is a socket leak (bug where connections are not closed) in the application
 #
-# 対処:
-# 1. アプリケーションのコードを修正（try-with-resources, finally で close）
-# 2. HTTP クライアントのコネクションプール設定を見直す
-# 3. keepalive タイムアウトの設定を確認
+# Solutions:
+# 1. Fix the application code (close in try-with-resources or finally)
+# 2. Review HTTP client connection pool settings
+# 3. Check keepalive timeout settings
 ```
 
-#### 問題2: TIME_WAIT の大量蓄積
+#### Problem 2: Large Accumulation of TIME_WAIT
 
 ```bash
-# 症状: TIME_WAIT が数万に達し、エフェメラルポートが枯渇
+# Symptom: TIME_WAIT reaches tens of thousands, ephemeral ports are exhausted
 $ ss -t state time-wait | wc -l
 28456
 
-# エフェメラルポート範囲の確認
+# Check ephemeral port range
 $ cat /proc/sys/net/ipv4/ip_local_port_range
 32768   60999
-# 利用可能ポート数: 60999 - 32768 = 28231
-# → TIME_WAIT が 28231 を超えると新規接続不可
+# Available ports: 60999 - 32768 = 28231
+# → New connections fail when TIME_WAIT exceeds 28231
 
-# 対処（根本的）:
-# 1. HTTP keep-alive を有効にして接続の再利用を促進
-# 2. コネクションプーリングを導入
-# 3. HTTP/2 で接続の多重化
+# Solution (fundamental):
+# 1. Enable HTTP keep-alive to promote connection reuse
+# 2. Introduce connection pooling
+# 3. Multiplex connections with HTTP/2
 
-# 対処（一時的、副作用に注意）:
-$ sudo sysctl -w net.ipv4.tcp_tw_reuse=1        # TIME_WAIT の再利用を許可
-$ sudo sysctl -w net.ipv4.ip_local_port_range="1024 65535"  # ポート範囲拡大
+# Solution (temporary, note side effects):
+$ sudo sysctl -w net.ipv4.tcp_tw_reuse=1        # Allow TIME_WAIT reuse
+$ sudo sysctl -w net.ipv4.ip_local_port_range="1024 65535"  # Expand port range
 ```
 
-#### 問題3: CORS エラー
+#### Problem 3: CORS Error
 
 ```
-# Chrome DevTools Console で表示されるエラー:
+# Error displayed in Chrome DevTools Console:
 # Access to fetch at 'https://api.example.com/data'
 # from origin 'https://www.example.com' has been blocked by CORS policy:
 # No 'Access-Control-Allow-Origin' header is present on the requested resource.
 
-# 確認方法:
+# How to check:
 $ curl -v -X OPTIONS https://api.example.com/data \
   -H "Origin: https://www.example.com" \
   -H "Access-Control-Request-Method: GET" \
   -H "Access-Control-Request-Headers: Authorization"
 
-# 期待されるレスポンスヘッダー:
+# Expected response headers:
 # Access-Control-Allow-Origin: https://www.example.com
 # Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
 # Access-Control-Allow-Headers: Authorization, Content-Type
 # Access-Control-Max-Age: 86400
 
-# よくある原因:
-# 1. サーバー側で CORS ヘッダーが設定されていない
-# 2. ワイルドカード (*) は認証付きリクエストで使用不可
-# 3. プリフライトリクエスト (OPTIONS) が 200 以外を返している
-# 4. レスポンスに必要なヘッダーが含まれていない
+# Common causes:
+# 1. CORS headers are not configured on the server side
+# 2. Wildcard (*) cannot be used with authenticated requests
+# 3. Preflight request (OPTIONS) is returning something other than 200
+# 4. Response does not include the required headers
 ```
 
 ---
 
-## 10. デバッグツール比較表
+## 10. Debug Tool Comparison Tables
 
-### 比較表1: パケットキャプチャツールの比較
+### Comparison Table 1: Packet Capture Tool Comparison
 
-| 特性 | tcpdump | Wireshark | tshark | ngrep |
+| Characteristic | tcpdump | Wireshark | tshark | ngrep |
 |:-----|:--------|:----------|:-------|:------|
-| インタフェース | CLI | GUI | CLI | CLI |
-| リアルタイム表示 | 可 | 可 | 可 | 可 |
-| pcap保存 | 可 | 可 | 可 | 可 |
-| pcap読み込み | 可 | 可 | 可 | 可 |
-| フィルタ構文 | BPF | Display Filter | Display Filter | 正規表現 |
-| プロトコル解析深度 | 基本的 | 非常に詳細 | 非常に詳細 | 基本的 |
-| SSH経由の利用 | 容易 | 不可（X転送除く） | 容易 | 容易 |
-| サーバーでの利用 | 最適 | 不向き | 最適 | 適 |
-| メモリ使用量 | 少 | 多 | 中 | 少 |
-| 学習コスト | 中 | 中〜高 | 高 | 低 |
-| 推奨用途 | サーバー上でのキャプチャ | GUIでの詳細解析 | スクリプト連携 | テキスト検索 |
+| Interface | CLI | GUI | CLI | CLI |
+| Real-time display | Yes | Yes | Yes | Yes |
+| pcap save | Yes | Yes | Yes | Yes |
+| pcap read | Yes | Yes | Yes | Yes |
+| Filter syntax | BPF | Display Filter | Display Filter | Regex |
+| Protocol analysis depth | Basic | Very detailed | Very detailed | Basic |
+| Use via SSH | Easy | Not possible (except X forwarding) | Easy | Easy |
+| Use on servers | Optimal | Not suitable | Optimal | Suitable |
+| Memory usage | Low | High | Medium | Low |
+| Learning cost | Medium | Medium to high | High | Low |
+| Recommended use | Capture on server | Detailed GUI analysis | Script integration | Text search |
 
-### 比較表2: HTTP デバッグツールの比較
+### Comparison Table 2: HTTP Debug Tool Comparison
 
-| 特性 | curl | HTTPie | wget | Postman | DevTools |
+| Characteristic | curl | HTTPie | wget | Postman | DevTools |
 |:-----|:-----|:-------|:-----|:--------|:---------|
-| インタフェース | CLI | CLI | CLI | GUI | ブラウザ内蔵 |
-| JSON整形出力 | jq併用 | 組み込み | 不可 | 組み込み | 組み込み |
-| リクエスト保存 | スクリプト化 | スクリプト化 | 不可 | コレクション | HAR |
-| タイミング計測 | `-w` オプション | `--print=h` | 不可 | 組み込み | Timing タブ |
-| TLS詳細 | `-v` で表示 | 限定的 | 不可 | 限定的 | Security タブ |
-| HTTP/2対応 | `--http2` | 対応 | 非対応 | 対応 | 対応 |
-| HTTP/3対応 | `--http3` | 未対応 | 非対応 | 未対応 | 対応 |
-| WebSocket | `--ws` (7.86+) | 未対応 | 非対応 | 対応 | WS フレーム表示 |
-| 自動化適性 | 高 | 高 | 高 | 中（Newman） | 低 |
-| Cookie管理 | `-b/-c` | `--session` | 組み込み | 自動 | 自動 |
-| 認証サポート | 多種 | 多種 | Basic | 多種 | ブラウザ依存 |
-| 学習コスト | 中 | 低 | 低 | 低 | 低 |
+| Interface | CLI | CLI | CLI | GUI | Built into browser |
+| JSON formatted output | Use jq | Built-in | Not possible | Built-in | Built-in |
+| Save requests | Scriptable | Scriptable | Not possible | Collections | HAR |
+| Timing measurement | `-w` option | `--print=h` | Not possible | Built-in | Timing tab |
+| TLS details | Shown with `-v` | Limited | Not possible | Limited | Security tab |
+| HTTP/2 support | `--http2` | Supported | Not supported | Supported | Supported |
+| HTTP/3 support | `--http3` | Not supported | Not supported | Not supported | Supported |
+| WebSocket | `--ws` (7.86+) | Not supported | Not supported | Supported | WS frame display |
+| Automation suitability | High | High | High | Medium (Newman) | Low |
+| Cookie management | `-b/-c` | `--session` | Built-in | Automatic | Automatic |
+| Auth support | Many types | Many types | Basic | Many types | Browser-dependent |
+| Learning cost | Medium | Low | Low | Low | Low |
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-Patterns
 
-### アンチパターン1: 「とりあえず再起動」症候群
+### Anti-Pattern 1: "Just Restart It" Syndrome
 
 ```
 +================================================================+
-|  アンチパターン: 原因を調べずにサービスを再起動する               |
+|  Anti-pattern: Restarting the service without investigating    |
 +================================================================+
 
-  問題発生
+  Problem occurs
       |
       v
-  「とりあえず再起動しよう」          ← ここが問題
+  "Let's just restart it"          ← This is the problem
       |
       v
-  サービス再起動
+  Service restart
       |
-      +--- 一時的に直る --------> 安心してしまう
+      +--- Temporarily fixed --------> Feeling reassured
       |                                |
       |                                v
-      |                          再発する（数時間〜数日後）
+      |                          Recurs (a few hours to days later)
       |                                |
       |                                v
-      |                          「また再起動すればいいか」
+      |                          "I'll just restart again"
       |                                |
       |                                v
-      |                          根本原因が不明のまま繰り返す
-      |                          → 信頼性の低いシステムになる
+      |                          Root cause remains unknown, repeats
+      |                          → System with low reliability
       |
-      +--- 直らない ------------> さらに混乱する
-                                  → ログが消えて調査困難に
+      +--- Not fixed ------------> More confusion
+                                  → Logs disappear making investigation difficult
 
-  正しいアプローチ:
+  Correct approach:
   +---------------------------------------------------------+
-  | 1. まずログを確認する（再起動前に！）                      |
-  |    $ journalctl -u myservice --since "1 hour ago"        |
-  |    $ tail -100 /var/log/myservice/error.log              |
+  | 1. Check logs first (before restarting!)               |
+  |    $ journalctl -u myservice --since "1 hour ago"      |
+  |    $ tail -100 /var/log/myservice/error.log            |
   |                                                         |
-  | 2. 現在の状態を記録する                                   |
-  |    $ ss -tlnp > /tmp/socket_state.txt                    |
-  |    $ ps auxf > /tmp/process_state.txt                    |
-  |    $ top -b -n 1 > /tmp/resource_state.txt               |
-  |    $ sudo tcpdump -w /tmp/before_restart.pcap -c 1000 &  |
+  | 2. Record the current state                             |
+  |    $ ss -tlnp > /tmp/socket_state.txt                  |
+  |    $ ps auxf > /tmp/process_state.txt                  |
+  |    $ top -b -n 1 > /tmp/resource_state.txt             |
+  |    $ sudo tcpdump -w /tmp/before_restart.pcap -c 1000 &|
   |                                                         |
-  | 3. 原因の仮説を立てる                                     |
+  | 3. Form a hypothesis about the cause                    |
   |                                                         |
-  | 4. 仮説を検証する                                         |
+  | 4. Verify the hypothesis                                |
   |                                                         |
-  | 5. 根本原因を修正する                                     |
+  | 5. Fix the root cause                                   |
   |                                                         |
-  | 6. 修正できない場合のみ、記録を残して再起動する             |
+  | 6. Only restart with records if the cause cannot be     |
+  |    fixed                                                |
   +---------------------------------------------------------+
 ```
 
-### アンチパターン2: 本番環境での無差別パケットキャプチャ
+### Anti-Pattern 2: Indiscriminate Packet Capture in Production
 
 ```
 +================================================================+
-|  アンチパターン: 本番環境で無制限にtcpdumpを実行する              |
+|  Anti-pattern: Running tcpdump without limits in production    |
 +================================================================+
 
-  やりがちなミス:
+  Common mistake:
     $ sudo tcpdump -i eth0 -w capture.pcap
-    → フィルタなし、パケット数制限なし、ファイルサイズ制限なし
+    → No filter, no packet count limit, no file size limit
 
-  何が起こるか:
-    1. ディスクが急速に消費される（1Gbpsなら約100MB/秒）
-    2. CPU負荷が増加する（特にASCII表示 -A オプション時）
-    3. 機密データ（パスワード、トークン）がキャプチャされる
-    4. pcapファイルが巨大すぎて解析困難になる
+  What happens:
+    1. Disk is rapidly consumed (about 100MB/second at 1Gbps)
+    2. CPU load increases (especially with -A ASCII display option)
+    3. Confidential data (passwords, tokens) is captured
+    4. pcap file becomes too large to analyze
 
-  正しいアプローチ:
+  Correct approach:
   +---------------------------------------------------------+
-  | 1. フィルタを必ず指定する                                 |
-  |    $ sudo tcpdump host 203.0.113.10 and port 443         |
+  | 1. Always specify a filter                              |
+  |    $ sudo tcpdump host 203.0.113.10 and port 443        |
   |                                                         |
-  | 2. パケット数を制限する                                   |
-  |    $ sudo tcpdump -c 1000 ...                            |
+  | 2. Limit packet count                                   |
+  |    $ sudo tcpdump -c 1000 ...                           |
   |                                                         |
-  | 3. ファイルサイズを制限する                                |
-  |    $ sudo tcpdump -C 100 -W 5 ...                        |
-  |    (100MBごとにローテーション、最大5ファイル)               |
+  | 3. Limit file size                                      |
+  |    $ sudo tcpdump -C 100 -W 5 ...                       |
+  |    (Rotate every 100MB, max 5 files)                    |
   |                                                         |
-  | 4. キャプチャ時間を制限する                                |
-  |    $ timeout 60 sudo tcpdump ...                         |
-  |    (60秒で自動停止)                                       |
+  | 4. Limit capture time                                   |
+  |    $ timeout 60 sudo tcpdump ...                        |
+  |    (Automatically stop after 60 seconds)                |
   |                                                         |
-  | 5. 機密データへの配慮                                     |
-  |    - スナップショットサイズを制限: -s 96                   |
-  |      (ヘッダーのみキャプチャ、ペイロードは含まない)          |
-  |    - キャプチャファイルのアクセス権を制限                    |
-  |    - 解析後は速やかに削除                                  |
+  | 5. Consideration for confidential data                  |
+  |    - Limit snapshot size: -s 96                         |
+  |      (Capture headers only, not payload)                |
+  |    - Restrict access permissions to capture files       |
+  |    - Delete promptly after analysis                     |
   +---------------------------------------------------------+
 ```
 
 ---
 
-## FAQ（よくある質問）
+## FAQ (Frequently Asked Questions)
 
-### Q1: tcpdump と Wireshark はどのように使い分けるべきか？
+### Q1: How should tcpdump and Wireshark be used differently?
 
-**A:** 使用環境と目的に応じて使い分ける。
+**A:** Use them based on the environment and purpose.
 
-**tcpdump を使うべきケース:**
-- **サーバー上でのキャプチャ**: SSH 経由でリモートサーバーにアクセスし、その場でパケットをキャプチャする場合（GUI 不要）
-- **自動化・スクリプト化**: cron や監視スクリプトからパケットキャプチャを定期実行する場合
-- **リアルタイム監視**: ログをリアルタイムで流し見する場合（`tcpdump -A port 80 | grep "GET"`）
-- **軽量な環境**: メモリやディスク容量が限られたサーバー、組み込み機器
-- **フィルタリング重視**: BPF フィルタで高速にパケットを絞り込む場合
+**Cases where tcpdump should be used:**
+- **Capture on server**: When accessing a remote server via SSH and capturing packets there (GUI not required)
+- **Automation / scripting**: When periodically running packet captures from cron or monitoring scripts
+- **Real-time monitoring**: When streaming logs in real time (`tcpdump -A port 80 | grep "GET"`)
+- **Lightweight environments**: Servers with limited memory or disk, embedded devices
+- **Emphasis on filtering**: When quickly narrowing down packets with BPF filters
 
-**Wireshark を使うべきケース:**
-- **詳細なプロトコル解析**: HTTP/2, TLS, DNS, TCP の詳細なフィールドを確認する場合
-- **視覚的な分析**: ストリーム追跡、フローグラフ、I/O グラフなどの可視化機能を使う場合
-- **エキスパート情報の活用**: 再送、ゼロウィンドウ、重複 ACK などの問題を自動検出する場合
-- **pcap ファイルの解析**: tcpdump で取得した pcap ファイルを後からじっくり解析する場合
-- **初学者向け**: CLI に慣れていない場合、GUI の方が直感的
+**Cases where Wireshark should be used:**
+- **Detailed protocol analysis**: When checking detailed fields of HTTP/2, TLS, DNS, TCP
+- **Visual analysis**: When using visualization features like stream tracking, flow graphs, I/O graphs
+- **Using expert information**: When automatically detecting problems like retransmissions, zero windows, duplicate ACKs
+- **Analyzing pcap files**: When thoroughly analyzing pcap files captured with tcpdump later
+- **For beginners**: When not familiar with CLI, GUI is more intuitive
 
-**推奨ワークフロー:**
-1. **サーバー上で tcpdump でキャプチャ**: `sudo tcpdump -w capture.pcap -c 1000 port 443`
-2. **ローカルに pcap ファイルを転送**: `scp server:/tmp/capture.pcap .`
-3. **Wireshark で詳細解析**: GUI で Follow TCP Stream, Expert Information を活用
+**Recommended workflow:**
+1. **Capture with tcpdump on server**: `sudo tcpdump -w capture.pcap -c 1000 port 443`
+2. **Transfer pcap file to local**: `scp server:/tmp/capture.pcap .`
+3. **Detailed analysis with Wireshark**: Use Follow TCP Stream, Expert Information in GUI
 
-**tshark（Wireshark の CLI 版）という選択肢:**
-- Wireshark の表示フィルタを CLI で使える
-- サーバー上でも Wireshark の高度な解析機能を利用可能
-- 例: `tshark -r capture.pcap -Y "http.response.code == 500"`
+**tshark (CLI version of Wireshark) as an option:**
+- Can use Wireshark display filters from CLI
+- Wireshark's advanced analysis features can be used on servers too
+- Example: `tshark -r capture.pcap -Y "http.response.code == 500"`
 
-### Q2: DNS のトラブルシューティング手順は？
+### Q2: What is the DNS troubleshooting procedure?
 
-**A:** DNS 問題は以下のフローで体系的に切り分ける。
+**A:** DNS problems can be systematically isolated using the following flow.
 
-**Step 1: 名前解決が可能か確認**
+**Step 1: Check if name resolution is possible**
 
 ```bash
-# 基本的な名前解決テスト
+# Basic name resolution test
 $ dig +short example.com
 203.0.113.10
 ```
 
-**結果が返らない場合:**
+**If no result is returned:**
 
 ```bash
-# Step 1-1: 別の DNS サーバーで試す
+# Step 1-1: Try a different DNS server
 $ dig @8.8.8.8 +short example.com       # Google Public DNS
 $ dig @1.1.1.1 +short example.com       # Cloudflare DNS
 $ dig @208.67.222.222 +short example.com # OpenDNS
 
-# 返る場合 → ローカル DNS サーバーの問題
-#   - /etc/resolv.conf の nameserver 設定を確認
-#   - 社内 DNS サーバーの障害を確認
-#   - DNS キャッシュをクリア: sudo systemd-resolve --flush-caches
+# If returned → Local DNS server issue
+#   - Check nameserver settings in /etc/resolv.conf
+#   - Check for internal DNS server failure
+#   - Clear DNS cache: sudo systemd-resolve --flush-caches
 
-# 返らない場合 → ドメイン自体の問題
-#   - ドメインの登録状況を確認: whois example.com
-#   - 権威 DNS サーバーを確認: dig +trace example.com
+# If not returned → Problem with the domain itself
+#   - Check domain registration status: whois example.com
+#   - Check authoritative DNS server: dig +trace example.com
 ```
 
-**Step 2: 返ってきた IP は正しいか確認**
+**Step 2: Check if the returned IP is correct**
 
 ```bash
-# 期待する IP と実際の IP を比較
+# Compare expected IP with actual IP
 $ dig +short example.com
-192.0.2.1  # これは期待通りか？
+192.0.2.1  # Is this as expected?
 
-# 別の DNS サーバーとも比較
+# Compare with another DNS server too
 $ dig @8.8.8.8 +short example.com
-203.0.113.10  # ローカル DNS と値が異なる！
+203.0.113.10  # Different from local DNS!
 
-# → DNS キャッシュポイズニング or 古いキャッシュの可能性
+# → Possible DNS cache poisoning or stale cache
 ```
 
-**Step 3: DNS 解決時間が遅い場合**
+**Step 3: When DNS resolution time is slow**
 
 ```bash
-# DNS 解決時間を計測
+# Measure DNS resolution time
 $ dig example.com | grep "Query time"
-;; Query time: 523 msec  # 500ms 以上は遅い
+;; Query time: 523 msec  # Over 500ms is slow
 
-# 原因の切り分け:
-# 1. DNS サーバーが遠い → 近いパブリック DNS に変更
-# 2. DNS サーバーが過負荷 → 別の DNS サーバーを試す
-# 3. DNS リゾルバの障害 → systemd-resolved / dnsmasq の再起動
+# Isolating the cause:
+# 1. DNS server is far away → Switch to a closer public DNS
+# 2. DNS server is overloaded → Try a different DNS server
+# 3. DNS resolver failure → Restart systemd-resolved / dnsmasq
 
-# traceroute で DNS サーバーまでの経路確認
+# Check route to DNS server with traceroute
 $ traceroute 8.8.8.8
 ```
 
-**Step 4: /etc/hosts による上書き確認**
+**Step 4: Check for /etc/hosts override**
 
 ```bash
-# /etc/hosts でローカルオーバーライドされていないか確認
+# Check if locally overridden in /etc/hosts
 $ grep example.com /etc/hosts
-127.0.0.1  example.com  # ← これが原因でローカルホストに接続していた!
+127.0.0.1  example.com  # ← This caused connection to localhost!
 
-# /etc/hosts は DNS より優先されるため、意図しない設定が残っている場合がある
+# /etc/hosts takes priority over DNS, so unintended settings may remain
 ```
 
-**Step 5: DNS の伝播待ち（DNS 変更直後の場合）**
+**Step 5: Wait for DNS propagation (immediately after DNS change)**
 
 ```bash
-# 権威 DNS サーバーに直接問い合わせ
+# Query authoritative DNS server directly
 $ dig @ns1.example-dns.com example.com
 
-# 権威サーバーでは新しい IP、キャッシュサーバーでは古い IP が返る場合:
-# → TTL が経過するまで待つ（通常 300-3600 秒）
+# If authoritative server returns new IP but cache server returns old IP:
+# → Wait until TTL expires (normally 300-3600 seconds)
 
-# 複数地域の DNS サーバーで確認
-# - https://www.whatsmydns.net/ で全世界の DNS 伝播状況を確認可能
+# Check DNS propagation in multiple regions
+# - https://www.whatsmydns.net/ can check worldwide DNS propagation status
 ```
 
-**よくある DNS 問題と対処:**
+**Common DNS Problems and Solutions:**
 
-| 症状 | 原因 | 対処 |
+| Symptom | Cause | Solution |
 |------|------|------|
-| `NXDOMAIN` | ドメインが存在しない | ドメイン名のタイポ確認、whois で登録状況確認 |
-| `SERVFAIL` | DNS サーバーの障害 | 別の DNS サーバーを試す（8.8.8.8 等） |
-| `connection timed out` | DNS サーバーに到達不能 | ファイアウォール、ルーティング確認 |
-| 古い IP が返る | DNS キャッシュ | キャッシュクリア、TTL 経過待ち |
-| 名前解決が遅い | 遠隔 DNS サーバー | ローカル DNS キャッシュサーバー導入 |
+| `NXDOMAIN` | Domain does not exist | Check for typos in domain name, check registration with whois |
+| `SERVFAIL` | DNS server failure | Try a different DNS server (8.8.8.8, etc.) |
+| `connection timed out` | Cannot reach DNS server | Check firewall, routing |
+| Old IP returned | DNS cache | Clear cache, wait for TTL expiry |
+| Name resolution is slow | Distant DNS server | Introduce local DNS cache server |
 
-### Q3: ネットワークレイテンシの問題はどう特定するか？
+### Q3: How do you identify network latency issues?
 
-**A:** レイテンシ問題は以下の手順で切り分ける。
+**A:** Latency problems can be isolated using the following procedure.
 
-**Step 1: 全体のレイテンシを計測**
+**Step 1: Measure overall latency**
 
 ```bash
-# curl でフェーズごとの時間を計測
+# Measure time per phase with curl
 $ curl -o /dev/null -s -w "\
   DNS:      %{time_namelookup}s\n\
   Connect:  %{time_connect}s\n\
@@ -1487,113 +1488,113 @@ $ curl -o /dev/null -s -w "\
   Total:    %{time_total}s\n" \
   https://api.example.com/data
 
-# 出力例:
-# DNS:      0.015s  ← DNS 解決は高速
-# Connect:  0.045s  ← TCP 接続は正常
-# TLS:      0.089s  ← TLS ハンドシェイクは正常
-# TTFB:     1.234s  ← サーバー処理が遅い！
+# Sample output:
+# DNS:      0.015s  ← DNS resolution is fast
+# Connect:  0.045s  ← TCP connection is normal
+# TLS:      0.089s  ← TLS handshake is normal
+# TTFB:     1.234s  ← Server processing is slow!
 # Total:    1.456s
 ```
 
-**各フェーズの判断基準:**
+**Criteria for Each Phase:**
 
-| フェーズ | 正常範囲 | 遅い場合の原因 | 対処 |
+| Phase | Normal Range | Cause if Slow | Solution |
 |---------|---------|--------------|------|
-| DNS | < 50ms | DNS サーバーが遅い、遠い | 近いパブリック DNS、DNS プリフェッチ |
-| Connect | < 100ms | ネットワーク遅延が大きい | CDN 導入、サーバーの地理的分散 |
-| TLS | < 150ms | 証明書チェーンが長い、OCSP 遅い | OCSP Stapling、証明書チェーン最適化 |
-| TTFB | < 500ms | サーバー処理が遅い | DB 最適化、キャッシュ導入、インデックス追加 |
-| Download | 帯域依存 | 大きなレスポンス、狭い帯域 | gzip/Brotli 圧縮、レスポンスサイズ削減 |
+| DNS | < 50ms | DNS server is slow, far away | Nearby public DNS, DNS prefetch |
+| Connect | < 100ms | High network latency | Introduce CDN, geographic distribution of servers |
+| TLS | < 150ms | Certificate chain is long, OCSP is slow | OCSP Stapling, certificate chain optimization |
+| TTFB | < 500ms | Server processing is slow | DB optimization, introduce caching, add indexes |
+| Download | Depends on bandwidth | Large response, narrow bandwidth | gzip/Brotli compression, reduce response size |
 
-**Step 2: ネットワーク経路の遅延を特定**
+**Step 2: Identify delay in network route**
 
 ```bash
-# mtr でリアルタイム経路監視
+# Monitor route in real time with mtr
 $ mtr --report -c 100 api.example.com
 
-# 出力例:
+# Sample output:
 # HOST: myhost                Loss%   Snt   Last   Avg  Best  Wrst StDev
 #   1. gateway                 0.0%   100    1.2   1.3   1.0   2.5   0.2
 #   2. isp-router              0.0%   100   15.2  16.1  14.5  25.3   2.1
-#   3. isp-core                2.0%   100   45.3  46.8  44.2  78.5   5.3  ← パケットロス!
+#   3. isp-core                2.0%   100   45.3  46.8  44.2  78.5   5.3  ← Packet loss!
 #   4. peering-point           0.0%   100   48.1  49.2  47.5  55.1   1.8
 #   5. api.example.com         0.0%   100   50.2  51.3  49.8  58.2   2.0
 
-# ホップ 3 でパケットロス 2% → この区間に問題がある
-# → ISP に問い合わせ or 別経路（VPN 等）を検討
+# 2% packet loss at hop 3 → there is a problem in this segment
+# → Contact ISP or consider alternate route (VPN, etc.)
 ```
 
-**Step 3: サーバー処理時間の内訳を特定**
+**Step 3: Identify breakdown of server processing time**
 
 ```bash
-# Chrome DevTools の Network タブで確認:
-# - Waiting (TTFB) が長い → サーバー側の問題
-#   - DB クエリが遅い → EXPLAIN ANALYZE で実行計画確認
-#   - 外部 API 呼び出しが遅い → タイムアウト設定、キャッシュ導入
-#   - CPU 使用率が高い → プロファイリング（pprof, py-spy 等）
+# Check in Chrome DevTools Network tab:
+# - Long Waiting (TTFB) → Server-side issue
+#   - Slow DB query → Check execution plan with EXPLAIN ANALYZE
+#   - Slow external API call → Timeout settings, introduce caching
+#   - High CPU usage → Profiling (pprof, py-spy, etc.)
 
-# サーバーログで処理時間を記録
-# Nginx の例:
+# Record processing time in server log
+# Nginx example:
 log_format timed_combined '$remote_addr - $remote_user [$time_local] '
                           '"$request" $status $body_bytes_sent '
                           '"$http_referer" "$http_user_agent" '
                           'rt=$request_time uct=$upstream_connect_time '
                           'uht=$upstream_header_time urt=$upstream_response_time';
 
-# request_time が大きい → アプリケーション処理が遅い
-# upstream_*_time が大きい → バックエンドサーバーが遅い
+# Large request_time → Application processing is slow
+# Large upstream_*_time → Backend server is slow
 ```
 
-**Step 4: 間欠的な遅延の場合**
+**Step 4: For intermittent latency**
 
 ```bash
-# 連続計測して統計を取る
+# Take continuous measurements for statistics
 $ for i in {1..100}; do
     curl -o /dev/null -s -w "%{time_total}\n" https://api.example.com/data
   done | awk '{sum+=$1; if($1>max) max=$1; if(NR==1 || $1<min) min=$1} END {print "Avg:", sum/NR, "Min:", min, "Max:", max}'
 
-# 出力例:
+# Sample output:
 # Avg: 0.234s  Min: 0.189s  Max: 2.345s
-# → Max が異常に大きい = 間欠的な遅延が発生
+# → Max is abnormally large = intermittent latency is occurring
 
-# 原因:
-# - GC（ガベージコレクション）による一時停止
-# - DB コネクションプールの枯渇
-# - キャッシュミス時のスロークエリ
-# - サーバーのスワップ発生
+# Causes:
+# - Pause due to GC (garbage collection)
+# - DB connection pool exhaustion
+# - Slow query on cache miss
+# - Server swap occurring
 ```
 
-**結論: レイテンシ問題は curl の時間計測 → mtr で経路確認 → サーバーログ/APM で内訳特定、の順で切り分ける。**
+**Conclusion: Isolate latency problems in the order of curl time measurement → route check with mtr → breakdown identification with server logs/APM.**
 
 ---
 
-## まとめ
+## Summary
 
-| 概念 | ポイント |
+| Concept | Key Points |
 |------|---------|
-| デバッグフロー | 症状整理 → レイヤー特定（OSI モデル）→ 仮説立案 → 検証 → 修正 → 文書化 |
-| curl | HTTP デバッグの万能ツール、`-w` でタイミング計測、`-v` で詳細表示 |
-| DNS | dig が最も詳細、+trace で全経路追跡、@8.8.8.8 で代替 DNS 確認 |
-| 疎通確認 | ping → traceroute/mtr → nc でポート確認の順 |
-| ソケット | ss（推奨）or netstat、CLOSE_WAIT/TIME_WAIT の蓄積に注意 |
-| パケットキャプチャ | tcpdump（サーバー）+ Wireshark（詳細解析）の組み合わせ |
-| TLS | openssl s_client で証明書確認、-showcerts でチェーン表示 |
-| ブラウザ | Chrome DevTools の Network タブ、Timing/Waterfall/HAR エクスポート |
-| トラブルシューティング | レイヤー別に上から順に確認、ログは再起動前に必ず保存 |
+| Debug flow | Clarify symptoms → Identify layer (OSI model) → Form hypothesis → Verify → Fix → Document |
+| curl | All-purpose HTTP debug tool, timing measurement with `-w`, detailed display with `-v` |
+| DNS | dig is most detailed, +trace to track full route, @8.8.8.8 to check alternate DNS |
+| Connectivity check | ping → traceroute/mtr → nc to check ports, in that order |
+| Sockets | ss (recommended) or netstat, watch for accumulation of CLOSE_WAIT/TIME_WAIT |
+| Packet capture | Combination of tcpdump (server) + Wireshark (detailed analysis) |
+| TLS | Check certificate with openssl s_client, display chain with -showcerts |
+| Browser | Chrome DevTools Network tab, Timing/Waterfall/HAR export |
+| Troubleshooting | Check layer by layer from top, always save logs before restarting |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-ネットワークデバッグの手法を習得したら、次は以下のトピックに進むことを推奨する。
+After mastering network debugging techniques, it is recommended to proceed to the following topics.
 
-- **[パフォーマンス最適化](./03-performance.md)**: デバッグで特定したボトルネックを解消するための総合的なネットワークパフォーマンスチューニング手法を学ぶ
-- **[HTTP の詳細](../02-http/)**: HTTP プロトコルの仕様、キャッシュ制御、セキュリティヘッダーを深く理解してデバッグ精度を向上させる
-- **[TCP/IP プロトコル](../01-protocols/)**: パケットレベルのデバッグをより深く行うために、TCP の再送制御、フロー制御、輻輳制御を学ぶ
+- **[Performance Optimization](./03-performance.md)**: Learn comprehensive network performance tuning techniques to resolve bottlenecks identified through debugging
+- **[HTTP Details](../02-http/)**: Deepen understanding of HTTP protocol specifications, cache control, and security headers to improve debugging precision
+- **[TCP/IP Protocols](../01-protocols/)**: Learn TCP retransmission control, flow control, and congestion control for deeper packet-level debugging
 
 ---
 
-## 参考文献
+## References
 
 1. Stevens, W. R. "TCP/IP Illustrated, Volume 1: The Protocols." Addison-Wesley, 2011.
 2. tcpdump.org. "tcpdump Manual." tcpdump.org, 2024.

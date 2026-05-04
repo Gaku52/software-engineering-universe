@@ -1,152 +1,153 @@
-# 認証方式
+# Authentication Methods
 
-> Web APIの認証方式を体系的に理解する。Basic認証、Bearer Token、OAuth 2.0、JWTの仕組みと使い分けを学び、安全な認証システムを設計する。
+> Systematically understand Web API authentication methods. Learn how Basic authentication, Bearer Token, OAuth 2.0, and JWT work and when to use each, and design secure authentication systems.
 
-## 前提知識
+## Prerequisites
 
-このガイドを理解するには以下の知識が必要です:
-- ハッシュ関数の基礎 — SHA-256等の一方向性関数の役割
-
----
-
-## この章で学ぶこと
-
-- [ ] 主要な認証方式の仕組みと違いを理解する
-- [ ] OAuth 2.0のフローを把握する
-- [ ] JWTの構造とセキュリティ上の注意点を学ぶ
-- [ ] OpenID Connectによる認証の実装パターンを習得する
-- [ ] パスキー・多要素認証など最新の認証技術を理解する
+The following knowledge is required to understand this guide:
+- Hash function basics — the role of one-way functions such as SHA-256
 
 ---
 
-## 1. 認証と認可
+## What You Will Learn in This Chapter
+
+- [ ] Understand how major authentication methods work and their differences
+- [ ] Grasp the OAuth 2.0 flow
+- [ ] Learn the structure of JWT and security considerations
+- [ ] Master implementation patterns for authentication with OpenID Connect
+- [ ] Understand modern authentication technologies such as passkeys and multi-factor authentication
+
+---
+
+## 1. Authentication and Authorization
 
 ```
-認証（Authentication）:
-  → 「あなたは誰？」
-  → ユーザーの本人確認
-  → ログイン処理
+Authentication:
+  → "Who are you?"
+  → Verifying the user's identity
+  → Login process
 
-認可（Authorization）:
-  → 「あなたは何ができる？」
-  → アクセス権限の確認
-  → ロールベースアクセス制御（RBAC）
+Authorization:
+  → "What can you do?"
+  → Checking access permissions
+  → Role-Based Access Control (RBAC)
 
-  例:
-  認証: ログインして「Taroさん」であることを確認
-  認可: 「Taroさん」は管理者なので全データにアクセス可能
+  Example:
+  Authentication: Log in and confirm the identity is "Taro"
+  Authorization:  "Taro" is an admin, so full data access is permitted
 
-認証と認可の関係:
+Relationship between Authentication and Authorization:
   ┌─────────────────────────────────────────┐
-  │  リクエスト                              │
+  │  Request                                 │
   │    │                                     │
   │    ▼                                     │
-  │  認証（Authentication）                  │
-  │    → ユーザーを特定                      │
-  │    → 失敗 → 401 Unauthorized            │
+  │  Authentication                          │
+  │    → Identify the user                   │
+  │    → Failure → 401 Unauthorized         │
   │    │                                     │
   │    ▼                                     │
-  │  認可（Authorization）                   │
-  │    → 権限を確認                          │
-  │    → 失敗 → 403 Forbidden              │
+  │  Authorization                           │
+  │    → Check permissions                   │
+  │    → Failure → 403 Forbidden            │
   │    │                                     │
   │    ▼                                     │
-  │  リソースアクセス                        │
+  │  Resource Access                         │
   └─────────────────────────────────────────┘
 
-認証の3要素（Authentication Factors）:
-  ① 知識要素（Something you know）: パスワード、PIN
-  ② 所持要素（Something you have）: スマホ、セキュリティキー
-  ③ 生体要素（Something you are）: 指紋、顔認証
+Authentication Factors:
+  ① Knowledge factor (Something you know): password, PIN
+  ② Possession factor (Something you have): smartphone, security key
+  ③ Inherence factor (Something you are): fingerprint, face recognition
 
-  多要素認証（MFA）= 2つ以上の要素の組み合わせ
-  二要素認証（2FA）= 2つの要素の組み合わせ
+  Multi-Factor Authentication (MFA) = combination of 2 or more factors
+  Two-Factor Authentication (2FA)   = combination of exactly 2 factors
 ```
 
-### 1.1 認可モデル
+### 1.1 Authorization Models
 
 ```
-主要な認可モデル:
+Major authorization models:
 
-① RBAC（Role-Based Access Control）:
-  → ロール（役割）に権限を割り当て
-  → ユーザーにロールを付与
+① RBAC (Role-Based Access Control):
+  → Assign permissions to roles
+  → Assign roles to users
 
-  ロール定義:
+  Role definitions:
   admin:  read, write, delete, manage_users
   editor: read, write
   viewer: read
 
-  ユーザー → ロール → 権限:
-  Taro  → admin  → 全操作可能
-  Hanako → editor → 読み書き可能
-  Jiro  → viewer → 読み取りのみ
+  User → Role → Permission:
+  Taro   → admin  → all operations allowed
+  Hanako → editor → read and write allowed
+  Jiro   → viewer → read only
 
-② ABAC（Attribute-Based Access Control）:
-  → 属性（ユーザー属性、リソース属性、環境属性）で判定
-  → より柔軟だが複雑
+② ABAC (Attribute-Based Access Control):
+  → Decisions based on attributes (user, resource, environment)
+  → More flexible but more complex
 
-  例: 「所属部署が営業部で、勤務時間内で、社内ネットワークから
-       アクセスした場合のみ、顧客データの読み取りを許可」
+  Example: "Allow reading customer data only when the user belongs to the
+            sales department, is within working hours, and is on the
+            internal network"
 
-③ ReBAC（Relationship-Based Access Control）:
-  → エンティティ間の関係で権限を判定
+③ ReBAC (Relationship-Based Access Control):
+  → Permissions based on relationships between entities
   → Google Zanzibar / OpenFGA
 
-  例: 「ドキュメントのオーナーまたは共有されたユーザーのみ閲覧可能」
-  → user:taro → owner → document:123
+  Example: "Viewable only by the document owner or users it has been shared with"
+  → user:taro   → owner  → document:123
   → user:hanako → viewer → document:123
 
-④ ACL（Access Control List）:
-  → リソースごとにアクセス許可リスト
-  → シンプルだがスケールしにくい
+④ ACL (Access Control List):
+  → Per-resource access permission lists
+  → Simple but does not scale well
 
-実務での選択:
-  小規模アプリ → RBAC（シンプルで十分）
-  複雑な権限要件 → ABAC
-  ソーシャル/コラボレーション → ReBAC
-  ファイルシステム → ACL
+Practical selection guide:
+  Small-scale app   → RBAC (simple and sufficient)
+  Complex permission requirements → ABAC
+  Social/collaboration → ReBAC
+  File system       → ACL
 ```
 
 ---
 
-## 2. Basic認証
+## 2. Basic Authentication
 
 ```
-Basic認証:
-  → ユーザー名:パスワードをBase64エンコード
-  → リクエストごとに送信
+Basic Authentication:
+  → Encodes username:password in Base64
+  → Sent with every request
 
   Authorization: Basic dGFybzpwYXNzd29yZA==
-                       ↑ "taro:password" のBase64
+                       ↑ Base64 of "taro:password"
 
-  リクエスト/レスポンスの流れ:
-  1. クライアント → サーバー: 認証なしでリクエスト
-  2. サーバー → クライアント: 401 + WWW-Authenticate: Basic realm="API"
-  3. クライアント → サーバー: Authorization: Basic <credentials>
-  4. サーバー → クライアント: 200 OK
+  Request/Response flow:
+  1. Client → Server: Request without authentication
+  2. Server → Client: 401 + WWW-Authenticate: Basic realm="API"
+  3. Client → Server: Authorization: Basic <credentials>
+  4. Server → Client: 200 OK
 
-  利点:
-  ✓ 実装が極めてシンプル
-  ✓ サーバー側の状態管理不要
-  ✓ HTTP標準仕様（RFC 7617）
+  Advantages:
+  ✓ Extremely simple to implement
+  ✓ No server-side state management required
+  ✓ HTTP standard spec (RFC 7617)
 
-  欠点:
-  ✗ パスワードが毎回送信される（Base64は暗号化ではない）
-  ✗ HTTPS必須（平文で流れる）
-  ✗ ログアウト機能がない
-  ✗ ブルートフォース攻撃に弱い
-  ✗ パスワード変更時の対応が困難
+  Disadvantages:
+  ✗ Password is sent every request (Base64 is not encryption)
+  ✗ HTTPS required (transmitted in plaintext)
+  ✗ No logout functionality
+  ✗ Vulnerable to brute-force attacks
+  ✗ Difficult to handle password changes
 
-  用途:
-  → 内部ツール、CI/CDのAPI認証
-  → 本番APIには非推奨
-  → Docker Registry の認証（内部用）
-  → 開発環境のアクセス制限
+  Use cases:
+  → Internal tools, CI/CD API authentication
+  → Not recommended for production APIs
+  → Docker Registry authentication (internal use)
+  → Development environment access restriction
 ```
 
 ```python
-# Basic認証の実装例（Python/FastAPI）
+# Basic authentication implementation example (Python/FastAPI)
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import secrets
@@ -154,7 +155,7 @@ import secrets
 app = FastAPI()
 security = HTTPBasic()
 
-# 安全な比較（タイミング攻撃対策）
+# Secure comparison (timing attack countermeasure)
 def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
     correct_username = secrets.compare_digest(
         credentials.username.encode("utf8"),
@@ -185,190 +186,191 @@ def read_data(username: str = Depends(verify_credentials)):
 Bearer Token:
   Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 
-  → サーバーが発行したトークンをヘッダーに含める
-  → トークンの形式は自由（JWT、ランダム文字列等）
-  → RFC 6750で規定
+  → Include a server-issued token in the header
+  → Token format is flexible (JWT, random string, etc.)
+  → Specified in RFC 6750
 
 API Key:
   X-API-Key: sk_live_abcdef123456
-  または
+  or
   ?api_key=sk_live_abcdef123456
 
-  → サービス間連携でよく使用
-  → ユーザーではなくアプリケーションの認証
-  → プレフィックスで種類を区別:
-     sk_live_  → 本番用シークレットキー
-     sk_test_  → テスト用シークレットキー
-     pk_live_  → 本番用公開キー
+  → Commonly used for service-to-service integration
+  → Authentication for applications, not individual users
+  → Prefix distinguishes the key type:
+     sk_live_  → Production secret key
+     sk_test_  → Test secret key
+     pk_live_  → Production public key
 
-  API Keyのベストプラクティス:
-  ✓ ヘッダーで送信（URLに含めない）
-  ✓ 環境変数で管理（コードにハードコードしない）
-  ✓ ローテーション可能な設計
-  ✓ スコープ/権限の制限
-  ✓ レート制限の適用
-  ✓ 監査ログの記録
+  API Key best practices:
+  ✓ Send via header (not in URL)
+  ✓ Manage via environment variables (do not hardcode in code)
+  ✓ Design for key rotation
+  ✓ Restrict scopes/permissions
+  ✓ Apply rate limiting
+  ✓ Record audit logs
 ```
 
-### 3.1 セッションベース vs トークンベース
+### 3.1 Session-Based vs Token-Based
 
 ```
-セッションベース vs トークンベース:
+Session-Based vs Token-Based:
   ┌──────────────┬──────────────────┬──────────────────┐
-  │              │ セッション        │ トークン          │
+  │              │ Session          │ Token            │
   ├──────────────┼──────────────────┼──────────────────┤
-  │ 状態管理     │ サーバー側        │ クライアント側    │
-  │ スケーラビリティ│ 低い（共有必要）│ 高い（ステートレス）│
-  │ 無効化       │ 容易             │ 困難              │
-  │ ストレージ   │ サーバーメモリ/DB│ クライアント       │
-  │ CSRF        │ 脆弱             │ 安全              │
-  │ XSS         │ HttpOnly Cookie  │ 注意が必要        │
-  │ モバイル対応 │ Cookie管理が複雑 │ 容易              │
-  │ マイクロサービス│ セッション共有問題│ 各サービスで検証可│
+  │ State        │ Server-side      │ Client-side      │
+  │ Scalability  │ Low (sharing req)│ High (stateless) │
+  │ Revocation   │ Easy             │ Difficult        │
+  │ Storage      │ Server memory/DB │ Client           │
+  │ CSRF         │ Vulnerable       │ Safe             │
+  │ XSS          │ HttpOnly Cookie  │ Requires care    │
+  │ Mobile       │ Complex Cookie   │ Easy             │
+  │ Microservices│ Session sharing  │ Verifiable per   │
+  │              │ issues           │ service          │
   └──────────────┴──────────────────┴──────────────────┘
 
-セッションベース認証のフロー:
+Session-based authentication flow:
   1. POST /login { username, password }
-  2. サーバー: セッション生成 → Redis/DB等に保存
+  2. Server: Create session → Store in Redis/DB, etc.
   3. Set-Cookie: session_id=abc123; HttpOnly; Secure; SameSite=Lax
-  4. クライアント: 以降のリクエストにCookieが自動送信
-  5. サーバー: Cookieからセッションを復元、ユーザーを特定
+  4. Client: Cookie is automatically sent with subsequent requests
+  5. Server: Restore session from Cookie, identify user
 
-トークンベース認証のフロー:
+Token-based authentication flow:
   1. POST /login { username, password }
-  2. サーバー: JWT生成 → レスポンスボディで返却
-  3. クライアント: トークンをメモリ/ローカルストレージに保存
-  4. クライアント: Authorization: Bearer <token> を付与
-  5. サーバー: トークンの署名を検証、ユーザーを特定
+  2. Server: Generate JWT → Return in response body
+  3. Client: Store token in memory/local storage
+  4. Client: Add Authorization: Bearer <token>
+  5. Server: Verify token signature, identify user
 
-ハイブリッドアプローチ（推奨）:
-  → JWTをHttpOnly Cookieに格納
-  → CSRF対策: SameSite=Strict + CSRFトークン
-  → XSS対策: HttpOnly（JSからアクセス不可）
-  → セッション管理: Refresh TokenをDBで管理（無効化可能）
+Hybrid approach (recommended):
+  → Store JWT in HttpOnly Cookie
+  → CSRF countermeasure: SameSite=Strict + CSRF token
+  → XSS countermeasure: HttpOnly (not accessible from JS)
+  → Session management: Manage Refresh Token in DB (revocable)
 ```
 
 ---
 
-## 4. JWT（JSON Web Token）
+## 4. JWT (JSON Web Token)
 
 ```
-JWTの構造:
+JWT structure:
   eyJhbGciOiJIUzI1NiIs.eyJzdWIiOiIxMjM0NTY3.SflKxwRJSMeKKF2QT4
-  ↑ ヘッダー               ↑ ペイロード          ↑ 署名
+  ↑ Header                ↑ Payload              ↑ Signature
 
-  ヘッダー（Base64URL）:
+  Header (Base64URL):
   {
-    "alg": "RS256",     // 署名アルゴリズム
+    "alg": "RS256",     // Signing algorithm
     "typ": "JWT",
-    "kid": "key-2024-01" // Key ID（鍵のローテーション用）
+    "kid": "key-2024-01" // Key ID (for key rotation)
   }
 
-  ペイロード（Base64URL）:
+  Payload (Base64URL):
   {
-    "sub": "user_123",        // Subject（ユーザーID）
+    "sub": "user_123",        // Subject (user ID)
     "name": "Taro",
     "role": "admin",
-    "iat": 1704067200,        // Issued At（発行時刻）
-    "exp": 1704070800,        // Expiration（有効期限）
-    "nbf": 1704067200,        // Not Before（有効開始時刻）
-    "iss": "api.example.com", // Issuer（発行者）
-    "aud": "web.example.com", // Audience（対象者）
-    "jti": "unique-id-123"   // JWT ID（一意識別子）
+    "iat": 1704067200,        // Issued At
+    "exp": 1704070800,        // Expiration
+    "nbf": 1704067200,        // Not Before
+    "iss": "api.example.com", // Issuer
+    "aud": "web.example.com", // Audience
+    "jti": "unique-id-123"   // JWT ID (unique identifier)
   }
 
-  署名:
+  Signature:
   HMACSHA256(
     base64UrlEncode(header) + "." + base64UrlEncode(payload),
     secret
   )
 
-  重要: ペイロードは暗号化されていない（Base64デコードで読める）
-  → 機密情報（パスワード等）を含めてはいけない
-  → 署名は改ざん検知のため（暗号化ではない）
+  Important: The payload is NOT encrypted (readable by Base64 decoding)
+  → Do not include sensitive information (passwords, etc.)
+  → The signature is for tamper detection (not encryption)
 ```
 
-### 4.1 JWTの署名アルゴリズム
+### 4.1 JWT Signing Algorithms
 
 ```
-署名アルゴリズムの選択:
+Signing algorithm selection:
 
-① HS256（HMAC-SHA256）:
-  → 共通鍵（対称鍵）で署名・検証
-  → 署名者と検証者が同じシークレットを共有
-  → シンプルだが鍵の配布が課題
-  → 単一サービス向け
+① HS256 (HMAC-SHA256):
+  → Sign and verify with shared key (symmetric key)
+  → Signer and verifier share the same secret
+  → Simple but key distribution is a challenge
+  → Suited for single-service use
 
-② RS256（RSA-SHA256）:
-  → 秘密鍵で署名、公開鍵で検証
-  → 署名者と検証者で鍵が異なる
-  → マイクロサービス向け（認証サーバーが署名、各サービスが検証）
-  → 鍵サイズが大きい（2048bit以上）
+② RS256 (RSA-SHA256):
+  → Sign with private key, verify with public key
+  → Signer and verifier use different keys
+  → Suited for microservices (auth server signs, each service verifies)
+  → Large key size required (2048 bits or more)
 
-③ ES256（ECDSA-SHA256）:
-  → 楕円曲線暗号（P-256）
-  → RSAより小さい鍵サイズで同等のセキュリティ
-  → 署名サイズも小さい
-  → 推奨
+③ ES256 (ECDSA-SHA256):
+  → Elliptic curve cryptography (P-256)
+  → Equivalent security to RSA with smaller key size
+  → Smaller signature size
+  → Recommended
 
-④ EdDSA（Ed25519）:
-  → 最新の楕円曲線署名
-  → 高速、安全
-  → まだ一部ライブラリでサポート限定
+④ EdDSA (Ed25519):
+  → Latest elliptic curve signature
+  → Fast and secure
+  → Library support still limited in some environments
 
-比較:
+Comparison:
   ┌──────────┬────────────┬────────────┬──────────┐
-  │ アルゴリズム│ 鍵の種類   │ 署名サイズ  │ 推奨度   │
+  │ Algorithm│ Key type   │ Sig size   │Recommended│
   ├──────────┼────────────┼────────────┼──────────┤
-  │ HS256    │ 共通鍵     │ 32バイト    │ 単一サービス│
-  │ RS256    │ 公開鍵/秘密鍵│ 256バイト  │ 広くサポート│
-  │ ES256    │ 公開鍵/秘密鍵│ 64バイト   │ 推奨     │
-  │ EdDSA    │ 公開鍵/秘密鍵│ 64バイト   │ 最新推奨 │
+  │ HS256    │ Shared     │ 32 bytes   │ Single service│
+  │ RS256    │ Public/Private│ 256 bytes│ Wide support│
+  │ ES256    │ Public/Private│ 64 bytes │ Recommended│
+  │ EdDSA    │ Public/Private│ 64 bytes │ Latest rec.│
   └──────────┴────────────┴────────────┴──────────┘
 ```
 
-### 4.2 Access Token と Refresh Token
+### 4.2 Access Token and Refresh Token
 
 ```
-トークンの種類:
+Token types:
   Access Token:
-    → 短い有効期限（15分〜1時間）
-    → APIアクセスに使用
-    → ステートレス検証（署名検証のみ）
-    → 漏洩時の影響を最小限に
+    → Short expiry (15 minutes to 1 hour)
+    → Used for API access
+    → Stateless verification (signature verification only)
+    → Minimize impact in case of leakage
 
   Refresh Token:
-    → 長い有効期限（7日〜30日）
-    → Access Token の再発行に使用
-    → サーバー側で管理（無効化可能）
-    → ローテーション推奨
+    → Long expiry (7 to 30 days)
+    → Used to reissue Access Tokens
+    → Managed server-side (revocable)
+    → Rotation recommended
 
-フロー:
-  1. ログイン → Access Token + Refresh Token を取得
-  2. API呼び出し → Access Token をヘッダーに付与
-  3. Access Token 期限切れ → 401 Unauthorized
-  4. Refresh Token で新しい Access Token を取得
-  5. Refresh Token 期限切れ → 再ログイン
+Flow:
+  1. Login → Obtain Access Token + Refresh Token
+  2. API call → Include Access Token in header
+  3. Access Token expires → 401 Unauthorized
+  4. Use Refresh Token to obtain new Access Token
+  5. Refresh Token expires → Re-login required
 
 Refresh Token Rotation:
-  → Refresh Token使用時に新しいRefresh Tokenも発行
-  → 古いRefresh Tokenは無効化
-  → 漏洩検知: 無効化済みTokenが使用された → 全Token無効化
+  → Issue a new Refresh Token each time one is used
+  → Invalidate the old Refresh Token
+  → Leak detection: If an invalidated token is used → invalidate all tokens
 
   1. POST /token/refresh { refresh_token: "rt_old" }
-  2. レスポンス: { access_token: "at_new", refresh_token: "rt_new" }
-  3. rt_old は無効化（DB/Redisから削除）
-  4. もしrt_oldが再度使用 → 不正検知 → 全Token無効化
+  2. Response: { access_token: "at_new", refresh_token: "rt_new" }
+  3. rt_old is invalidated (deleted from DB/Redis)
+  4. If rt_old is used again → detect fraud → invalidate all tokens
 ```
 
 ```typescript
-// JWT実装例（TypeScript / jose ライブラリ）
+// JWT implementation example (TypeScript / jose library)
 import { SignJWT, jwtVerify, generateKeyPair } from 'jose';
 
-// 鍵ペアの生成（ES256）
+// Generate key pair (ES256)
 const { publicKey, privateKey } = await generateKeyPair('ES256');
 
-// Access Token の生成
+// Generate Access Token
 async function createAccessToken(userId: string, role: string): Promise<string> {
   return new SignJWT({
     sub: userId,
@@ -384,7 +386,7 @@ async function createAccessToken(userId: string, role: string): Promise<string> 
     .sign(privateKey);
 }
 
-// Refresh Token の生成
+// Generate Refresh Token
 async function createRefreshToken(userId: string): Promise<string> {
   const token = new SignJWT({
     sub: userId,
@@ -397,12 +399,12 @@ async function createRefreshToken(userId: string): Promise<string> {
     .setJti(crypto.randomUUID())
     .sign(privateKey);
 
-  // Refresh Token をDBに保存（無効化のため）
+  // Store Refresh Token in DB (for revocation)
   // await db.refreshTokens.create({ token, userId, expiresAt: ... });
   return token;
 }
 
-// トークンの検証
+// Verify token
 async function verifyToken(token: string): Promise<any> {
   try {
     const { payload } = await jwtVerify(token, publicKey, {
@@ -418,7 +420,7 @@ async function verifyToken(token: string): Promise<any> {
   }
 }
 
-// トークンリフレッシュ
+// Token refresh
 async function refreshTokens(refreshToken: string) {
   const payload = await verifyToken(refreshToken);
 
@@ -426,14 +428,14 @@ async function refreshTokens(refreshToken: string) {
     throw new Error('Invalid token type');
   }
 
-  // DBでRefresh Tokenの有効性を確認
+  // Verify Refresh Token validity in DB
   // const stored = await db.refreshTokens.findByToken(refreshToken);
   // if (!stored) throw new Error('Token revoked');
 
-  // 古いRefresh Tokenを無効化
+  // Invalidate old Refresh Token
   // await db.refreshTokens.delete(refreshToken);
 
-  // 新しいトークンペアを発行
+  // Issue new token pair
   const accessToken = await createAccessToken(payload.sub, payload.role);
   const newRefreshToken = await createRefreshToken(payload.sub);
 
@@ -441,52 +443,52 @@ async function refreshTokens(refreshToken: string) {
 }
 ```
 
-### 4.3 JWTのセキュリティ注意事項
+### 4.3 JWT Security Considerations
 
 ```
-JWTのセキュリティ注意:
+JWT security notes:
 
-① alg: "none" 攻撃:
-  → アルゴリズムを"none"に変更して署名なしのJWTを送信
-  → 対策: サーバー側で許可するアルゴリズムを明示的に指定
+① alg: "none" attack:
+  → Change the algorithm to "none" and send an unsigned JWT
+  → Countermeasure: Explicitly specify the allowed algorithms server-side
 
-② アルゴリズム混同攻撃:
-  → RS256の公開鍵をHS256のシークレットとして使用
-  → 対策: トークン内のalgヘッダーを信用しない
+② Algorithm confusion attack:
+  → Use the RS256 public key as the HS256 secret
+  → Countermeasure: Do not trust the alg header in the token
 
-③ ペイロードへの機密情報格納:
-  → Base64デコードで誰でも読める
-  → 対策: パスワード、個人情報を含めない
+③ Storing sensitive information in payload:
+  → Anyone can read it via Base64 decoding
+  → Countermeasure: Do not include passwords or personal information
 
-④ 有効期限の設定:
-  → 長すぎる有効期限はリスク
-  → Access Token: 15分〜1時間
-  → Refresh Token: 7日〜30日
+④ Expiry configuration:
+  → Excessively long expiry is a risk
+  → Access Token: 15 minutes to 1 hour
+  → Refresh Token: 7 to 30 days
 
-⑤ トークンの保存場所:
+⑤ Token storage location:
   ┌─────────────────┬────────────┬────────────┬────────────┐
-  │ 保存場所         │ XSS耐性   │ CSRF耐性   │ 推奨度     │
+  │ Storage         │ XSS resist │ CSRF resist│ Recommended│
   ├─────────────────┼────────────┼────────────┼────────────┤
-  │ LocalStorage    │ ✗ 脆弱    │ ✓ 安全    │ △ 非推奨  │
-  │ SessionStorage  │ ✗ 脆弱    │ ✓ 安全    │ △ 非推奨  │
-  │ HttpOnly Cookie │ ✓ 安全    │ ✗ 要対策  │ ○ 推奨   │
-  │ メモリ          │ ✓ 安全    │ ✓ 安全    │ ○ 推奨   │
+  │ LocalStorage    │ ✗ Weak     │ ✓ Safe     │ △ Not rec. │
+  │ SessionStorage  │ ✗ Weak     │ ✓ Safe     │ △ Not rec. │
+  │ HttpOnly Cookie │ ✓ Safe     │ ✗ Required │ ○ Rec.    │
+  │ Memory          │ ✓ Safe     │ ✓ Safe     │ ○ Rec.    │
   └─────────────────┴────────────┴────────────┴────────────┘
 
-  推奨パターン:
-  → Access Token: メモリ（変数）に保持
+  Recommended pattern:
+  → Access Token: Hold in memory (variable)
   → Refresh Token: HttpOnly Cookie
-  → CSRF対策: SameSite=Strict + CSRFトークン
+  → CSRF countermeasure: SameSite=Strict + CSRF token
 
-⑥ トークン失効（ブラックリスト）:
-  → JWTはステートレスなので本来失効できない
-  → 対策: 短い有効期限 + Refresh Token での管理
-  → または: Redis等にブラックリストを保持
+⑥ Token revocation (blacklist):
+  → JWT is stateless so it cannot inherently be revoked
+  → Countermeasure: Short expiry + Refresh Token management
+  → Or: Maintain a blacklist in Redis, etc.
 
-⑦ JWE（JSON Web Encryption）:
-  → ペイロードを暗号化したい場合
-  → JWS（署名）+ JWE（暗号化）= 完全な保護
-  → ただし複雑になるため、本当に必要か検討
+⑦ JWE (JSON Web Encryption):
+  → When you need to encrypt the payload
+  → JWS (signature) + JWE (encryption) = full protection
+  → However, adds complexity — consider whether it is truly necessary
 ```
 
 ---
@@ -494,52 +496,52 @@ JWTのセキュリティ注意:
 ## 5. OAuth 2.0
 
 ```
-OAuth 2.0 = 認可のフレームワーク（認証ではない）
-  → 第三者アプリにリソースへのアクセス権を委譲
+OAuth 2.0 = Authorization framework (not authentication)
+  → Delegate resource access permissions to third-party apps
 
-登場人物:
-  Resource Owner:  ユーザー
-  Client:          アプリ（アクセスを要求する側）
-  Authorization Server: 認可サーバー（Google, GitHub等）
-  Resource Server: リソースサーバー（API）
+Parties involved:
+  Resource Owner:       User
+  Client:               App (the party requesting access)
+  Authorization Server: Authorization server (Google, GitHub, etc.)
+  Resource Server:      Resource server (API)
 ```
 
-### 5.1 Authorization Code Flow（推奨）
+### 5.1 Authorization Code Flow (Recommended)
 
 ```
 Authorization Code Flow:
 
-  ユーザー     アプリ       認可サーバー    リソースサーバー
+  User       App          Auth Server     Resource Server
     │           │              │                │
-    │──ログイン→│              │                │
-    │           │──認可リクエスト→│              │
-    │←───── ログイン画面 ────│                │
-    │── 同意 ──→│              │                │
-    │           │←── 認可コード──│              │
-    │           │── コード + シークレット →│    │
-    │           │←── Access Token ────│        │
-    │           │── API呼び出し + Token ──────→│
-    │           │←── リソースデータ ───────── │
+    │──Login───►│              │                │
+    │           │──Auth req───►│                │
+    │◄────── Login screen ─────│                │
+    │── Consent ──►│           │                │
+    │           │◄── Auth code─│                │
+    │           │── Code + Secret ─────────────►│
+    │           │◄── Access Token ──────────────│
+    │           │── API call + Token ───────────►│
+    │           │◄── Resource data ─────────────│
 
-詳細なリクエスト/レスポンス:
+Detailed request/response:
 
-Step 1: 認可リクエスト（ブラウザリダイレクト）
+Step 1: Authorization request (browser redirect)
   GET https://auth.example.com/authorize
     ?response_type=code
     &client_id=my-app-id
     &redirect_uri=https://myapp.com/callback
     &scope=openid profile email
-    &state=random-csrf-token   ← CSRF対策
-    &nonce=random-nonce         ← リプレイ攻撃対策
+    &state=random-csrf-token   ← CSRF countermeasure
+    &nonce=random-nonce         ← Replay attack countermeasure
 
-Step 2: 認可コードの受信（コールバック）
+Step 2: Receive authorization code (callback)
   GET https://myapp.com/callback
     ?code=AUTH_CODE_HERE
     &state=random-csrf-token
 
-  → stateパラメータの一致を確認（CSRF対策）
+  → Verify that the state parameter matches (CSRF countermeasure)
 
-Step 3: トークンの取得（サーバー間通信）
+Step 3: Obtain token (server-to-server communication)
   POST https://auth.example.com/token
   Content-Type: application/x-www-form-urlencoded
 
@@ -549,33 +551,33 @@ Step 3: トークンの取得（サーバー間通信）
   &client_id=my-app-id
   &client_secret=my-app-secret
 
-  レスポンス:
+  Response:
   {
     "access_token": "eyJ...",
     "token_type": "Bearer",
     "expires_in": 3600,
     "refresh_token": "dGhpcyBpcyBhIHJlZnJlc2g...",
     "scope": "openid profile email",
-    "id_token": "eyJ..."  ← OIDC使用時
+    "id_token": "eyJ..."  ← When OIDC is used
   }
 ```
 
 ### 5.2 Authorization Code + PKCE
 
 ```
-PKCE（Proof Key for Code Exchange）:
-  → SPAやモバイルアプリ向けの拡張
-  → クライアントシークレットが不要
-  → 認可コード横取り攻撃を防止
+PKCE (Proof Key for Code Exchange):
+  → Extension for SPAs and mobile apps
+  → No client secret required
+  → Prevents authorization code interception attacks
 
-  フロー:
-  1. クライアントがcode_verifier（ランダム文字列）を生成
-  2. code_challenge = SHA256(code_verifier) をBase64URL
-  3. 認可リクエストにcode_challengeを含める
-  4. トークンリクエストにcode_verifierを含める
-  5. サーバーがcode_verifier → SHA256 → code_challengeと照合
+  Flow:
+  1. Client generates code_verifier (random string)
+  2. code_challenge = Base64URL(SHA256(code_verifier))
+  3. Include code_challenge in authorization request
+  4. Include code_verifier in token request
+  5. Server computes SHA256(code_verifier) and compares with code_challenge
 
-  Step 1: 認可リクエスト
+  Step 1: Authorization request
   GET https://auth.example.com/authorize
     ?response_type=code
     &client_id=my-spa-id
@@ -585,7 +587,7 @@ PKCE（Proof Key for Code Exchange）:
     &code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM
     &code_challenge_method=S256
 
-  Step 3: トークンリクエスト（client_secret不要）
+  Step 3: Token request (no client_secret needed)
   POST https://auth.example.com/token
 
   grant_type=authorization_code
@@ -596,7 +598,7 @@ PKCE（Proof Key for Code Exchange）:
 ```
 
 ```typescript
-// PKCE実装例（TypeScript）
+// PKCE implementation example (TypeScript)
 function generateCodeVerifier(): string {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
@@ -617,15 +619,15 @@ function base64UrlEncode(bytes: Uint8Array): string {
     .replace(/=/g, '');
 }
 
-// 使用例
+// Usage example
 async function startOAuthFlow() {
   const codeVerifier = generateCodeVerifier();
   const codeChallenge = await generateCodeChallenge(codeVerifier);
 
-  // code_verifierをセッションに保存
+  // Store code_verifier in session
   sessionStorage.setItem('code_verifier', codeVerifier);
 
-  // 認可リクエスト
+  // Authorization request
   const authUrl = new URL('https://auth.example.com/authorize');
   authUrl.searchParams.set('response_type', 'code');
   authUrl.searchParams.set('client_id', 'my-spa-id');
@@ -638,7 +640,7 @@ async function startOAuthFlow() {
   window.location.href = authUrl.toString();
 }
 
-// コールバック処理
+// Callback handling
 async function handleCallback(code: string) {
   const codeVerifier = sessionStorage.getItem('code_verifier');
 
@@ -659,51 +661,51 @@ async function handleCallback(code: string) {
 }
 ```
 
-### 5.3 その他のグラントタイプ
+### 5.3 Other Grant Types
 
 ```
-主要なグラントタイプ:
+Major grant types:
   ┌─────────────────────┬──────────────────────────────┐
-  │ グラントタイプ       │ 用途                          │
+  │ Grant type          │ Use case                      │
   ├─────────────────────┼──────────────────────────────┤
-  │ Authorization Code  │ サーバーサイドアプリ（推奨）  │
-  │ Auth Code + PKCE    │ SPA/モバイル（推奨）          │
-  │ Client Credentials  │ マシン間通信（サーバー間）    │
-  │ Device Code         │ TV/IoT等の入力制限デバイス    │
+  │ Authorization Code  │ Server-side apps (recommended)│
+  │ Auth Code + PKCE    │ SPA/Mobile (recommended)      │
+  │ Client Credentials  │ Machine-to-machine (server)   │
+  │ Device Code         │ TV/IoT with limited input      │
   └─────────────────────┴──────────────────────────────┘
 
-  廃止されたグラント:
-  ✗ Implicit: セキュリティ上の問題で非推奨
-    → Access Tokenがフラグメントに露出
-    → Refresh Tokenが使えない
-  ✗ Resource Owner Password: 非推奨
-    → ユーザーのパスワードをアプリに直接渡す
+  Deprecated grants:
+  ✗ Implicit: Deprecated due to security issues
+    → Access Token exposed in fragment
+    → Cannot use Refresh Token
+  ✗ Resource Owner Password: Deprecated
+    → Passes user password directly to the app
 
 Client Credentials Flow:
-  → マシン間通信（バッチ処理、マイクロサービス間）
-  → ユーザーの介在なし
+  → Machine-to-machine communication (batch processing, microservices)
+  → No user involvement
 
   POST https://auth.example.com/token
   Content-Type: application/x-www-form-urlencoded
-  Authorization: Basic <client_id:client_secret のBase64>
+  Authorization: Basic <Base64 of client_id:client_secret>
 
   grant_type=client_credentials
   &scope=api:read api:write
 
-  レスポンス:
+  Response:
   {
     "access_token": "eyJ...",
     "token_type": "Bearer",
     "expires_in": 3600
   }
-  → Refresh Tokenは発行されない
+  → No Refresh Token is issued
 
 Device Authorization Flow:
-  → TV、ゲーム機、CLIツール等
-  → ユーザーが別デバイスで認証
+  → TVs, game consoles, CLI tools, etc.
+  → User authenticates on a separate device
 
-  1. デバイス → 認可サーバー: POST /device/code
-  2. レスポンス:
+  1. Device → Auth server: POST /device/code
+  2. Response:
      {
        "device_code": "...",
        "user_code": "ABCD-EFGH",
@@ -711,36 +713,36 @@ Device Authorization Flow:
        "expires_in": 900,
        "interval": 5
      }
-  3. デバイス画面: 「https://auth.example.com/device でコード ABCD-EFGH を入力」
-  4. ユーザー: スマホでURLにアクセス → コードを入力 → ログイン → 承認
-  5. デバイス: 5秒間隔でトークンをポーリング
+  3. Device screen: "Go to https://auth.example.com/device and enter ABCD-EFGH"
+  4. User: Access URL on smartphone → Enter code → Login → Approve
+  5. Device: Poll for token every 5 seconds
      POST /token { grant_type: "urn:ietf:params:oauth:grant-type:device_code", device_code: "..." }
-  6. 承認完了後: Access Token を受信
+  6. After approval: Receive Access Token
 ```
 
 ---
 
-## 6. OpenID Connect（OIDC）
+## 6. OpenID Connect (OIDC)
 
 ```
-OIDC = OAuth 2.0 + 認証レイヤー
-  → OAuth 2.0は認可のみ、OIDCは認証も提供
+OIDC = OAuth 2.0 + Authentication layer
+  → OAuth 2.0 provides only authorization; OIDC also provides authentication
 
-  OAuth 2.0: 「このアプリにGoogleドライブへのアクセスを許可」
-  OIDC:      「このアプリにGoogleアカウントでログイン」
+  OAuth 2.0: "Allow this app to access Google Drive"
+  OIDC:      "Log in to this app with your Google account"
 
-  Access Token: リソースへのアクセス権
-  ID Token:     ユーザーの認証情報（JWT形式）
+  Access Token: Permission to access resources
+  ID Token:     User authentication information (JWT format)
 ```
 
 ### 6.1 ID Token
 
 ```
-ID Token の中身:
+ID Token contents:
   {
-    "iss": "https://accounts.google.com",       // 発行者
-    "sub": "110169484474386276334",              // ユーザー固有ID
-    "aud": "my-app-client-id",                   // 対象アプリ
+    "iss": "https://accounts.google.com",       // Issuer
+    "sub": "110169484474386276334",              // User's unique ID
+    "aud": "my-app-client-id",                   // Target app
     "email": "user@gmail.com",
     "email_verified": true,
     "name": "Taro Yamada",
@@ -748,26 +750,26 @@ ID Token の中身:
     "given_name": "Taro",
     "family_name": "Yamada",
     "locale": "ja",
-    "iat": 1704067200,                           // 発行時刻
-    "exp": 1704070800,                           // 有効期限
-    "nonce": "random-nonce",                     // リプレイ攻撃対策
-    "at_hash": "HK6E_P6Dh8Y93mRNtsDB1Q"         // Access Tokenのハッシュ
+    "iat": 1704067200,                           // Issued at
+    "exp": 1704070800,                           // Expiry
+    "nonce": "random-nonce",                     // Replay attack countermeasure
+    "at_hash": "HK6E_P6Dh8Y93mRNtsDB1Q"         // Hash of Access Token
   }
 
-ID Tokenの検証:
-  1. 署名の検証（公開鍵/JWKSで検証）
-  2. iss（発行者）の確認
-  3. aud（対象アプリ）の確認
-  4. exp（有効期限）の確認
-  5. nonce の一致確認
-  6. at_hash の検証（optional）
+ID Token validation:
+  1. Verify signature (validate with public key/JWKS)
+  2. Verify iss (issuer)
+  3. Verify aud (target app)
+  4. Verify exp (expiry)
+  5. Verify nonce matches
+  6. Verify at_hash (optional)
 
-UserInfoエンドポイント:
-  → ID Tokenの情報が不足する場合に追加取得
+UserInfo endpoint:
+  → Retrieve additional information when ID Token is insufficient
   GET https://accounts.google.com/userinfo
   Authorization: Bearer <access_token>
 
-  レスポンス:
+  Response:
   {
     "sub": "110169484474386276334",
     "name": "Taro Yamada",
@@ -776,16 +778,16 @@ UserInfoエンドポイント:
   }
 ```
 
-### 6.2 OIDCディスカバリー
+### 6.2 OIDC Discovery
 
 ```
 OpenID Connect Discovery:
-  → 認可サーバーの設定情報を自動取得
+  → Automatically retrieve configuration information from the authorization server
   → /.well-known/openid-configuration
 
   GET https://accounts.google.com/.well-known/openid-configuration
 
-  レスポンス:
+  Response:
   {
     "issuer": "https://accounts.google.com",
     "authorization_endpoint": "https://accounts.google.com/o/oauth2/v2/auth",
@@ -800,8 +802,8 @@ OpenID Connect Discovery:
     "token_endpoint_auth_methods_supported": ["client_secret_post", "client_secret_basic"]
   }
 
-JWKS（JSON Web Key Set）:
-  → 公開鍵を配布するエンドポイント
+JWKS (JSON Web Key Set):
+  → Endpoint for distributing public keys
   GET https://www.googleapis.com/oauth2/v3/certs
 
   {
@@ -817,64 +819,64 @@ JWKS（JSON Web Key Set）:
     ]
   }
 
-  → ID Token の kid ヘッダーと照合して正しい公開鍵を選択
-  → 公開鍵のキャッシュと定期更新
+  → Match against the kid header in the ID Token to select the correct public key
+  → Cache public keys and refresh periodically
 
-主要なOIDCプロバイダー:
+Major OIDC providers:
   Google, Microsoft, Apple, Auth0, Okta, Keycloak, AWS Cognito
 ```
 
 ---
 
-## 7. パスキー（Passkeys）/ WebAuthn / FIDO2
+## 7. Passkeys / WebAuthn / FIDO2
 
 ```
-パスキー = パスワード不要の認証
-  → 公開鍵暗号ベース
-  → フィッシング耐性
-  → FIDO2 / WebAuthn 標準
+Passkeys = Passwordless authentication
+  → Based on public-key cryptography
+  → Phishing resistant
+  → FIDO2 / WebAuthn standard
 
-仕組み:
-  登録（Registration）:
-  1. サーバー → チャレンジを送信
-  2. デバイス → 鍵ペアを生成（公開鍵 + 秘密鍵）
-  3. 秘密鍵はデバイスに安全に保存（Secure Enclave / TPM）
-  4. 公開鍵をサーバーに送信
-  5. ユーザーは生体認証（指紋/顔）またはPINで承認
+How it works:
+  Registration:
+  1. Server → Send challenge
+  2. Device → Generate key pair (public key + private key)
+  3. Private key is securely stored on the device (Secure Enclave / TPM)
+  4. Send public key to server
+  5. User approves with biometrics (fingerprint/face) or PIN
 
-  認証（Authentication）:
-  1. サーバー → チャレンジを送信
-  2. デバイス → 秘密鍵でチャレンジに署名
-  3. ユーザーは生体認証で承認
-  4. 署名をサーバーに送信
-  5. サーバー → 公開鍵で署名を検証
+  Authentication:
+  1. Server → Send challenge
+  2. Device → Sign challenge with private key
+  3. User approves with biometrics
+  4. Send signature to server
+  5. Server → Verify signature with public key
 
-  セキュリティ上の利点:
-  ✓ パスワード不要（漏洩リスクなし）
-  ✓ フィッシング耐性（オリジンにバインド）
-  ✓ リプレイ攻撃耐性（チャレンジベース）
-  ✓ サーバーに秘密鍵が保存されない
+  Security advantages:
+  ✓ No password required (no leakage risk)
+  ✓ Phishing resistant (bound to origin)
+  ✓ Replay attack resistant (challenge-based)
+  ✓ Private key is never stored on the server
 
-パスキーの同期:
-  → iCloud Keychain / Google Password Manager で同期
-  → デバイス間でパスキーを共有
-  → バックアップと復元が可能
+Passkey sync:
+  → Synced via iCloud Keychain / Google Password Manager
+  → Share passkeys across devices
+  → Backup and restore possible
 
-  従来のFIDO2:
-  → デバイスバウンド（デバイス紛失 = アクセス不能）
-  パスキー:
-  → クラウド同期（利便性向上、セキュリティはやや低下）
+  Traditional FIDO2:
+  → Device-bound (device loss = no access)
+  Passkeys:
+  → Cloud-synced (improved convenience, slightly lower security)
 ```
 
 ```javascript
-// WebAuthn登録（Registration）のフロントエンド実装
+// WebAuthn Registration frontend implementation
 async function registerPasskey() {
-  // サーバーからチャレンジを取得
+  // Get challenge from server
   const options = await fetch('/api/webauthn/register/options', {
     method: 'POST',
   }).then(r => r.json());
 
-  // ブラウザのWebAuthn APIを呼び出し
+  // Call browser's WebAuthn API
   const credential = await navigator.credentials.create({
     publicKey: {
       challenge: base64ToBuffer(options.challenge),
@@ -892,15 +894,15 @@ async function registerPasskey() {
         { alg: -257, type: 'public-key' },  // RS256
       ],
       authenticatorSelection: {
-        authenticatorAttachment: 'platform', // プラットフォーム認証器
-        residentKey: 'required',             // パスキー必須
-        userVerification: 'required',        // 生体認証必須
+        authenticatorAttachment: 'platform', // Platform authenticator
+        residentKey: 'required',             // Passkey required
+        userVerification: 'required',        // Biometrics required
       },
       timeout: 60000,
     },
   });
 
-  // サーバーに公開鍵を送信
+  // Send public key to server
   await fetch('/api/webauthn/register/verify', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -920,7 +922,7 @@ async function registerPasskey() {
   });
 }
 
-// WebAuthn認証（Authentication）のフロントエンド実装
+// WebAuthn Authentication frontend implementation
 async function authenticatePasskey() {
   const options = await fetch('/api/webauthn/authenticate/options', {
     method: 'POST',
@@ -930,7 +932,7 @@ async function authenticatePasskey() {
     publicKey: {
       challenge: base64ToBuffer(options.challenge),
       rpId: 'myapp.com',
-      allowCredentials: [], // 空配列 = パスキー一覧から選択
+      allowCredentials: [], // Empty array = select from passkey list
       userVerification: 'required',
       timeout: 60000,
     },
@@ -961,72 +963,72 @@ async function authenticatePasskey() {
 
 ---
 
-## 8. 多要素認証（MFA）
+## 8. Multi-Factor Authentication (MFA)
 
 ```
-多要素認証の実装パターン:
+MFA implementation patterns:
 
-① TOTP（Time-based One-Time Password）:
-  → Google Authenticator, Authy等
+① TOTP (Time-based One-Time Password):
+  → Google Authenticator, Authy, etc.
   → RFC 6238
-  → 30秒ごとに変わる6桁コード
-  → シークレットキーとタイムスタンプからHMACで生成
+  → 6-digit code that changes every 30 seconds
+  → Generated via HMAC from a secret key and timestamp
 
-  セットアップ:
-  1. サーバーがシークレットキーを生成
-  2. QRコードでユーザーのアプリに登録
-  3. ユーザーがアプリの6桁コードを入力して確認
+  Setup:
+  1. Server generates a secret key
+  2. Register to user's app via QR code
+  3. User enters the 6-digit code from the app to confirm
 
-  検証:
-  → 現在の30秒ウィンドウ ± 1ウィンドウを許容
-  → 同じコードの再利用を防止（リプレイ攻撃対策）
+  Verification:
+  → Accept current 30-second window ± 1 window
+  → Prevent reuse of the same code (replay attack countermeasure)
 
 ② SMS OTP:
-  → SMSで6桁コードを送信
-  → 実装は簡単だがセキュリティが低い
-  → SIMスワッピング攻撃のリスク
-  → SS7プロトコルの脆弱性
-  → NIST SP 800-63B で「制限付き」に分類
+  → Send a 6-digit code via SMS
+  → Easy to implement but lower security
+  → Risk of SIM swapping attacks
+  → SS7 protocol vulnerabilities
+  → Classified as "restricted" in NIST SP 800-63B
 
-③ セキュリティキー（FIDO U2F / FIDO2）:
-  → YubiKey等のハードウェアトークン
-  → 最も安全な2FA
-  → フィッシング耐性
-  → 企業での採用が増加
+③ Security Key (FIDO U2F / FIDO2):
+  → Hardware tokens such as YubiKey
+  → Most secure 2FA
+  → Phishing resistant
+  → Increasing adoption in enterprises
 
-④ プッシュ通知:
-  → スマホアプリに承認リクエストを送信
-  → 「ログインを承認しますか？」
-  → MFA疲労攻撃に注意
-    → 対策: 数字マッチング（画面の数字を選択）
+④ Push notification:
+  → Send approval request to smartphone app
+  → "Approve this login?"
+  → Beware of MFA fatigue attacks
+    → Countermeasure: Number matching (select the number shown on screen)
 
-リカバリーコード:
-  → MFAデバイス紛失時の救済手段
-  → 8〜10個のワンタイムコード
-  → 安全な場所に保管（パスワードマネージャー等）
-  → ハッシュ化してDBに保存
+Recovery codes:
+  → Fallback when MFA device is lost
+  → 8–10 one-time codes
+  → Store in a safe place (password manager, etc.)
+  → Store as hashed values in DB
 ```
 
 ```python
-# TOTP実装例（Python / pyotp）
+# TOTP implementation example (Python / pyotp)
 import pyotp
 import qrcode
 import io
 
 class TOTPManager:
     def generate_secret(self) -> str:
-        """新しいTOTPシークレットを生成"""
+        """Generate a new TOTP secret"""
         return pyotp.random_base32()
 
     def get_provisioning_uri(
         self, secret: str, email: str, issuer: str = "MyApp"
     ) -> str:
-        """QRコード用のURIを生成"""
+        """Generate URI for QR code"""
         totp = pyotp.TOTP(secret)
         return totp.provisioning_uri(name=email, issuer_name=issuer)
 
     def generate_qr_code(self, uri: str) -> bytes:
-        """QRコード画像を生成"""
+        """Generate QR code image"""
         qr = qrcode.QRCode(version=1, box_size=10, border=5)
         qr.add_data(uri)
         qr.make(fit=True)
@@ -1036,174 +1038,174 @@ class TOTPManager:
         return buffer.getvalue()
 
     def verify_code(self, secret: str, code: str, window: int = 1) -> bool:
-        """TOTPコードを検証（前後1ウィンドウを許容）"""
+        """Verify TOTP code (allow 1 window before and after)"""
         totp = pyotp.TOTP(secret)
         return totp.verify(code, valid_window=window)
 
     def generate_recovery_codes(self, count: int = 10) -> list[str]:
-        """リカバリーコードを生成"""
+        """Generate recovery codes"""
         import secrets
         codes = []
         for _ in range(count):
-            code = secrets.token_hex(4)  # 8文字の16進数
+            code = secrets.token_hex(4)  # 8-character hexadecimal
             codes.append(f"{code[:4]}-{code[4:]}")
         return codes
 
-# 使用例
+# Usage example
 totp = TOTPManager()
 
-# セットアップ
+# Setup
 secret = totp.generate_secret()  # "JBSWY3DPEHPK3PXP"
 uri = totp.get_provisioning_uri(secret, "user@example.com")
 qr_image = totp.generate_qr_code(uri)
 recovery_codes = totp.generate_recovery_codes()
 
-# 検証
+# Verification
 is_valid = totp.verify_code(secret, "123456")
 ```
 
 ---
 
-## 9. セッション管理のベストプラクティス
+## 9. Session Management Best Practices
 
 ```
-セッション管理のセキュリティ:
+Session management security:
 
-① セッションIDの生成:
-  → 暗号学的に安全な乱数生成器を使用
-  → 十分な長さ（128ビット以上）
-  → 推測不可能
+① Session ID generation:
+  → Use a cryptographically secure random number generator
+  → Sufficient length (128 bits or more)
+  → Unpredictable
 
-② Cookie属性:
+② Cookie attributes:
   Set-Cookie: session_id=abc123;
-    HttpOnly;         ← JavaScriptからアクセス不可
-    Secure;           ← HTTPS接続時のみ送信
-    SameSite=Lax;     ← クロスサイトリクエストを制限
-    Path=/;           ← 適切なパス制限
-    Max-Age=86400;    ← 有効期限（1日）
+    HttpOnly;         ← Not accessible from JavaScript
+    Secure;           ← Sent only over HTTPS
+    SameSite=Lax;     ← Restrict cross-site requests
+    Path=/;           ← Appropriate path restriction
+    Max-Age=86400;    ← Expiry (1 day)
     Domain=.example.com;
 
-③ セッション固定攻撃の対策:
-  → ログイン成功時にセッションIDを再生成
-  → 古いセッションIDを無効化
+③ Countermeasure for session fixation attacks:
+  → Regenerate session ID upon successful login
+  → Invalidate old session ID
 
-④ セッションの無効化:
-  → ログアウト時にサーバー側でセッション削除
-  → パスワード変更時に全セッション無効化
-  → 管理者による強制ログアウト
+④ Session invalidation:
+  → Delete session server-side on logout
+  → Invalidate all sessions on password change
+  → Forced logout by administrator
 
-⑤ セッションタイムアウト:
-  → アイドルタイムアウト: 30分〜1時間
-  → 絶対タイムアウト: 8時間〜24時間
-  → 重要操作時の再認証
+⑤ Session timeout:
+  → Idle timeout: 30 minutes to 1 hour
+  → Absolute timeout: 8 to 24 hours
+  → Re-authentication for critical operations
 
-⑥ 並行セッション制御:
-  → 同時ログイン数の制限
-  → 新規ログイン時に古いセッションを無効化
-  → アクティブセッション一覧の表示
+⑥ Concurrent session control:
+  → Limit the number of simultaneous logins
+  → Invalidate old sessions on new login
+  → Display active session list
 
-⑦ セッションストレージ:
-  → Redis: 高速、TTL対応、クラスタリング
-  → PostgreSQL: 永続性、既存インフラ活用
-  → メモリ: 開発用のみ（スケール不可）
+⑦ Session storage:
+  → Redis: Fast, TTL support, clustering
+  → PostgreSQL: Persistence, leverage existing infrastructure
+  → Memory: Development only (not scalable)
 ```
 
 ---
 
-## 10. 認証アーキテクチャパターン
+## 10. Authentication Architecture Patterns
 
 ```
-① BFF（Backend For Frontend）パターン:
-  → フロントエンド専用のバックエンドを配置
-  → トークン管理をBFFで行う
+① BFF (Backend For Frontend) pattern:
+  → Place a backend dedicated to the frontend
+  → Token management is done in the BFF
 
-  ブラウザ → BFF → APIサーバー
+  Browser → BFF → API Server
             ↕
-        認可サーバー
+        Auth Server
 
-  ブラウザ-BFF間: HttpOnly Cookie（セッション）
-  BFF-API間: Access Token（Bearer）
+  Browser-BFF: HttpOnly Cookie (session)
+  BFF-API: Access Token (Bearer)
 
-  利点:
-  → ブラウザにトークンが露出しない
-  → XSS攻撃でトークン窃取不可
-  → Refresh Token のセキュアな管理
+  Advantages:
+  → Token is not exposed to the browser
+  → Token cannot be stolen via XSS attack
+  → Secure management of Refresh Token
 
-② API Gatewayパターン:
-  → 認証をGatewayに集約
+② API Gateway pattern:
+  → Centralize authentication in the Gateway
 
-  クライアント → API Gateway → マイクロサービス
-                     ↕
-                認可サーバー
+  Client → API Gateway → Microservices
+               ↕
+          Auth Server
 
-  Gateway: トークン検証、レート制限
-  マイクロサービス: 認証済みリクエストのみ受信
+  Gateway: Token verification, rate limiting
+  Microservices: Receive only authenticated requests
 
-③ Token Exchange（RFC 8693）:
-  → マイクロサービス間でトークンを変換
-  → サービスAのトークン → サービスB用のトークンに交換
-  → 最小権限の原則の適用
+③ Token Exchange (RFC 8693):
+  → Convert tokens between microservices
+  → Exchange Service A's token for a token scoped for Service B
+  → Apply principle of least privilege
 
-④ Sidecar / Service Meshパターン:
-  → Istio/Envoy等でmTLS + JWT検証
-  → アプリケーションコードから認証ロジックを分離
+④ Sidecar / Service Mesh pattern:
+  → mTLS + JWT verification with Istio/Envoy, etc.
+  → Separate authentication logic from application code
 
-  Pod内:
+  Inside Pod:
   ┌──────────────────────┐
-  │ Envoy Sidecar        │ ← mTLS終端、JWT検証
+  │ Envoy Sidecar        │ ← mTLS termination, JWT verification
   │   ↕                  │
-  │ アプリケーション       │ ← 認証ロジック不要
+  │ Application          │ ← No authentication logic needed
   └──────────────────────┘
 ```
 
 ---
 
-## 11. パスワードのセキュリティ
+## 11. Password Security
 
 ```
-パスワードのハッシュ化:
+Password hashing:
 
-推奨アルゴリズム（2024年時点）:
-  1. Argon2id（推奨）: メモリハードで最もセキュア
-  2. bcrypt: 広く使われており安全
-  3. scrypt: メモリハード
-  ✗ MD5, SHA-1, SHA-256 単体は不可
-  ✗ ソルトなしは不可
+Recommended algorithms (as of 2024):
+  1. Argon2id (recommended): Memory-hard and most secure
+  2. bcrypt: Widely used and secure
+  3. scrypt: Memory-hard
+  ✗ MD5, SHA-1, SHA-256 alone are not acceptable
+  ✗ Without salt is not acceptable
 
-Argon2id パラメータ:
-  memory: 64MB（最低19MiB推奨）
+Argon2id parameters:
+  memory: 64MB (minimum 19MiB recommended)
   iterations: 3
   parallelism: 4
-  hash_length: 32バイト
+  hash_length: 32 bytes
 
 bcrypt:
-  cost factor: 12以上（2024年時点）
-  → cost 12 ≒ 250ms（攻撃者のブルートフォースを遅延）
+  cost factor: 12 or higher (as of 2024)
+  → cost 12 ≈ 250ms (slows down attacker's brute force)
 
-ソルト:
-  → ユーザーごとにランダムなソルトを付加
-  → レインボーテーブル攻撃を防止
-  → bcrypt/Argon2は自動的にソルトを含む
+Salt:
+  → Add a random salt per user
+  → Prevents rainbow table attacks
+  → bcrypt/Argon2 include salt automatically
 
-ペッパー:
-  → ソルトに加えてサーバー側の秘密値
-  → DBが漏洩してもペッパーがなければ解読困難
-  → 環境変数やHSMで管理
+Pepper:
+  → Server-side secret value added on top of salt
+  → Even if the DB leaks, it is hard to crack without the pepper
+  → Managed via environment variables or HSM
 
-パスワードポリシー:
-  推奨:
-  ✓ 最低8文字（NIST推奨: 8〜64文字）
-  ✓ 漏洩パスワードリスト（Have I Been Pwned API）でチェック
-  ✓ パスフレーズの推奨
+Password policy:
+  Recommended:
+  ✓ Minimum 8 characters (NIST recommends 8–64 characters)
+  ✓ Check against leaked password lists (Have I Been Pwned API)
+  ✓ Encourage passphrases
 
-  非推奨（NIST SP 800-63B）:
-  ✗ 複雑さの強制（大文字/数字/記号の必須化）
-  ✗ 定期的なパスワード変更の強制
-  ✗ パスワードヒントの使用
+  Not recommended (NIST SP 800-63B):
+  ✗ Forcing complexity (mandatory uppercase/numbers/symbols)
+  ✗ Forcing periodic password changes
+  ✗ Using password hints
 ```
 
 ```python
-# パスワードハッシュの実装例（Python / argon2-cffi）
+# Password hash implementation example (Python / argon2-cffi)
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
@@ -1215,95 +1217,95 @@ ph = PasswordHasher(
     salt_len=16,
 )
 
-# パスワードハッシュの生成
+# Generate password hash
 def hash_password(password: str) -> str:
     return ph.hash(password)
 
-# パスワードの検証
+# Verify password
 def verify_password(hash: str, password: str) -> bool:
     try:
         return ph.verify(hash, password)
     except VerifyMismatchError:
         return False
 
-# パラメータ更新の確認（リハッシュ）
+# Check if rehash is needed (parameter update)
 def needs_rehash(hash: str) -> bool:
     return ph.check_needs_rehash(hash)
 
-# 使用例
+# Usage example
 hashed = hash_password("my-secure-password")
 # $argon2id$v=19$m=65536,t=3,p=4$...
 
 is_valid = verify_password(hashed, "my-secure-password")  # True
 is_valid = verify_password(hashed, "wrong-password")       # False
 
-# パラメータが古い場合はリハッシュ
+# Rehash if parameters are outdated
 if needs_rehash(hashed):
     new_hash = hash_password("my-secure-password")
-    # DBを更新
+    # Update DB
 ```
 
 ---
 
-## 12. トークンセキュリティの実践
+## 12. Token Security in Practice
 
-### 12.1 JWTセキュリティの深掘り
+### 12.1 Deep Dive into JWT Security
 
 ```
-JWTに関する攻撃と防御:
+Attacks and defenses related to JWT:
 
-① Algorithm Confusion攻撃:
-  → ヘッダーのalgを改ざんし、検証を回避
+① Algorithm Confusion attack:
+  → Tamper with the alg header to bypass verification
 
-  攻撃例:
-  元のJWT:
-    ヘッダー: {"alg": "RS256", "typ": "JWT"}
-    → RSA公開鍵で検証
+  Attack example:
+  Original JWT:
+    Header: {"alg": "RS256", "typ": "JWT"}
+    → Verified with RSA public key
 
-  改ざんJWT:
-    ヘッダー: {"alg": "HS256", "typ": "JWT"}
-    → RSA公開鍵をHMACの秘密鍵として署名
-    → サーバーが公開鍵でHMAC検証 → 成功してしまう
+  Tampered JWT:
+    Header: {"alg": "HS256", "typ": "JWT"}
+    → Signed using RSA public key as HMAC secret
+    → Server verifies using public key with HMAC → succeeds unexpectedly
 
-  防御:
-  // algを明示的に指定して検証（必須）
+  Defense:
+  // Explicitly specify the algorithm for verification (required)
   const jwt = require('jsonwebtoken');
   const decoded = jwt.verify(token, publicKey, {
-    algorithms: ['RS256'],    // ← 許可アルゴリズムを明示
+    algorithms: ['RS256'],    // ← Explicitly specify allowed algorithms
     issuer: 'https://auth.example.com',
     audience: 'my-api'
   });
 
-  // NG: アルゴリズムを指定しない検証
-  const decoded = jwt.verify(token, key); // ← 危険
+  // BAD: Verification without specifying algorithm
+  const decoded = jwt.verify(token, key); // ← Dangerous
 
-② JWTの無効化（ログアウト問題）:
-  → JWTはステートレスなので、発行後に無効化できない
-  → ログアウトしてもトークンが有効なまま
+② JWT revocation (logout problem):
+  → JWT is stateless, so it cannot be invalidated after issuance
+  → Token remains valid even after logout
 
-  解決策:
+  Solutions:
   ┌────────────────────────────────────────────┐
-  │ 方式          │ 特徴                         │
+  │ Method         │ Characteristics             │
   ├───────────────┼──────────────────────────────┤
-  │ 短い有効期限   │ 5-15分、Refresh Tokenで更新  │
-  │ ブラックリスト │ Redis等に無効化トークンを保存 │
-  │ Token Version │ ユーザーにバージョン番号を持  │
-  │               │ たせ、変更時に全トークン無効化│
-  │ Token Binding │ デバイスに紐づけ              │
+  │ Short expiry   │ 5-15 min, refresh with RT   │
+  │ Blacklist      │ Store invalidated tokens in Redis, etc. │
+  │ Token Version  │ Store version per user, invalidate all  │
+  │                │ tokens when version changes             │
+  │ Token Binding  │ Bind to device               │
   └────────────────────────────────────────────┘
 ```
 
 ```javascript
-// Token Blacklist の実装例（Redis使用）
+// Token Blacklist implementation example (using Redis)
 const Redis = require('ioredis');
 const redis = new Redis();
 
-// ログアウト時: トークンをブラックリストに追加
+// On logout: add token to blacklist
 async function logout(req, res) {
   const token = req.headers.authorization?.split(' ')[1];
   const decoded = jwt.decode(token);
 
-  // トークンの残り有効期限をTTLとして設定
+  // Set TTL as the remaining validity period of the token
   const ttl = decoded.exp - Math.floor(Date.now() / 1000);
   if (ttl > 0) {
     await redis.setex(`blacklist:${token}`, ttl, '1');
@@ -1312,14 +1314,14 @@ async function logout(req, res) {
   res.json({ message: 'Logged out successfully' });
 }
 
-// 認証ミドルウェア: ブラックリストチェック
+// Authentication middleware: blacklist check
 async function authenticate(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) {
     return res.status(401).json({ error: 'Token required' });
   }
 
-  // ブラックリストチェック
+  // Blacklist check
   const isBlacklisted = await redis.get(`blacklist:${token}`);
   if (isBlacklisted) {
     return res.status(401).json({ error: 'Token has been revoked' });
@@ -1342,36 +1344,36 @@ async function authenticate(req, res, next) {
 
 ```
 Refresh Token Rotation:
-  → Refresh Token使用時に新しいRefresh Tokenを発行
-  → 古いRefresh Tokenは即座に無効化
-  → 窃取されたRefresh Tokenの使用を検知
+  → Issue a new Refresh Token each time one is used
+  → Immediately invalidate the old Refresh Token
+  → Detect use of a stolen Refresh Token
 
-  フロー:
-  1. クライアント → Access Token (5分) + Refresh Token A
-  2. Access Token期限切れ
-  3. クライアント → Refresh Token Aで更新
-  4. サーバー → 新Access Token + 新Refresh Token B
-     → Refresh Token Aは無効化
-  5. もし攻撃者がRefresh Token Aを使用:
-     → サーバーが使用済みトークンを検知
-     → Token Family全体を無効化
-     → 正規ユーザーも再ログインが必要（安全側に倒す）
+  Flow:
+  1. Client → Access Token (5 min) + Refresh Token A
+  2. Access Token expires
+  3. Client → Refresh with Refresh Token A
+  4. Server → New Access Token + New Refresh Token B
+     → Refresh Token A is invalidated
+  5. If attacker uses Refresh Token A:
+     → Server detects reuse of invalidated token
+     → Invalidate entire Token Family
+     → Legitimate user must also re-login (fail-safe)
 ```
 
 ```javascript
-// Refresh Token Rotationの実装
+// Refresh Token Rotation implementation
 async function refreshToken(req, res) {
   const { refresh_token } = req.body;
 
-  // Refresh Tokenの検証
+  // Verify Refresh Token
   const tokenRecord = await db.refreshTokens.findOne({
     token: hashToken(refresh_token),
     revoked: false
   });
 
   if (!tokenRecord) {
-    // トークンが見つからない → 窃取の可能性
-    // Token Family全体を無効化
+    // Token not found → possible theft
+    // Invalidate entire Token Family
     const familyId = await findTokenFamily(refresh_token);
     if (familyId) {
       await db.refreshTokens.updateMany(
@@ -1386,22 +1388,22 @@ async function refreshToken(req, res) {
     return res.status(401).json({ error: 'Invalid refresh token' });
   }
 
-  // 有効期限チェック
+  // Check expiry
   if (tokenRecord.expiresAt < new Date()) {
     return res.status(401).json({ error: 'Refresh token expired' });
   }
 
-  // 古いトークンを無効化
+  // Invalidate old token
   await db.refreshTokens.updateOne(
     { _id: tokenRecord._id },
     { revoked: true, revokedReason: 'rotation' }
   );
 
-  // 新しいトークンペアを生成
+  // Generate new token pair
   const newAccessToken = generateAccessToken(tokenRecord.userId);
   const newRefreshToken = generateRefreshToken();
 
-  // 新しいRefresh Tokenを保存（同じFamily）
+  // Store new Refresh Token (same Family)
   await db.refreshTokens.insertOne({
     token: hashToken(newRefreshToken),
     userId: tokenRecord.userId,
@@ -1420,49 +1422,49 @@ async function refreshToken(req, res) {
 
 ---
 
-## 13. 認証のモニタリングと異常検知
+## 13. Authentication Monitoring and Anomaly Detection
 
 ```
-認証イベントのモニタリング:
+Authentication event monitoring:
 
-① 監視すべきイベント:
-  → ログイン成功/失敗（ユーザー別、IP別、地域別）
-  → パスワードリセット要求
-  → MFA登録/変更/無効化
-  → トークン更新/無効化
-  → 権限変更
-  → 新規デバイスからのアクセス
+① Events to monitor:
+  → Login success/failure (by user, IP, region)
+  → Password reset requests
+  → MFA enrollment/change/disablement
+  → Token refresh/revocation
+  → Permission changes
+  → Access from new devices
 
-② 異常検知パターン:
+② Anomaly detection patterns:
   ┌──────────────────────────────────────────────┐
-  │ パターン              │ 検知条件              │
+  │ Pattern              │ Detection condition     │
   ├───────────────────────┼───────────────────────┤
-  │ ブルートフォース       │ 同一IPから5回/分の     │
-  │                       │ ログイン失敗           │
+  │ Brute force          │ 5+ login failures/min   │
+  │                      │ from the same IP        │
   ├───────────────────────┼───────────────────────┤
-  │ クレデンシャル         │ 異なるユーザーIDで     │
-  │ スタッフィング         │ 大量のログイン試行     │
+  │ Credential           │ Bulk login attempts     │
+  │ stuffing             │ with different user IDs │
   ├───────────────────────┼───────────────────────┤
-  │ アカウント乗っ取り     │ パスワード変更後の     │
-  │                       │ 即座のメール変更       │
+  │ Account takeover     │ Email change immediately│
+  │                      │ after password change   │
   ├───────────────────────┼───────────────────────┤
-  │ Impossible Travel     │ 短時間での異なる       │
-  │                       │ 地域からのアクセス     │
+  │ Impossible Travel    │ Access from different   │
+  │                      │ regions in short time   │
   ├───────────────────────┼───────────────────────┤
-  │ セッション固定         │ 認証前後で同じ         │
-  │                       │ セッションID           │
+  │ Session fixation     │ Same session ID before  │
+  │                      │ and after authentication│
   └──────────────────────────────────────────────┘
 
-③ 対応アクション:
-  → 自動ブロック: IPベースのレート制限
-  → CAPTCHA: 閾値超過時にチャレンジ表示
-  → アカウントロック: 連続失敗時の一時ロック
-  → 通知: 管理者/ユーザーへの異常通知
-  → 強制再認証: 疑わしいアクセス時のMFA要求
+③ Response actions:
+  → Auto-block: IP-based rate limiting
+  → CAPTCHA: Display challenge when threshold exceeded
+  → Account lockout: Temporary lock on repeated failures
+  → Notification: Alert admin/user of anomalies
+  → Forced re-authentication: Require MFA for suspicious access
 ```
 
 ```javascript
-// 認証イベントのログ記録と異常検知
+// Authentication event logging and anomaly detection
 class AuthMonitor {
   constructor(redis, logger) {
     this.redis = redis;
@@ -1480,11 +1482,11 @@ class AuthMonitor {
       deviceId: metadata.deviceId
     };
 
-    // ログ記録
+    // Log the event
     this.logger.info('auth_event', event);
 
     if (!success) {
-      // 失敗カウントの更新
+      // Update failure counts
       const ipKey = `auth:fail:ip:${ip}`;
       const userKey = `auth:fail:user:${userId}`;
 
@@ -1493,23 +1495,23 @@ class AuthMonitor {
         this.redis.incr(userKey)
       ]);
 
-      // TTL設定（初回のみ）
+      // Set TTL (first time only)
       if (ipCount === 1) await this.redis.expire(ipKey, 300);
       if (userCount === 1) await this.redis.expire(userKey, 300);
 
-      // ブルートフォース検知
+      // Brute force detection
       if (ipCount >= 10) {
         this.logger.warn('brute_force_detected', { ip, count: ipCount });
-        await this.blockIP(ip, 3600); // 1時間ブロック
+        await this.blockIP(ip, 3600); // Block for 1 hour
       }
 
-      // アカウントロック
+      // Account lockout
       if (userCount >= 5) {
         this.logger.warn('account_locked', { userId, count: userCount });
-        await this.lockAccount(userId, 900); // 15分ロック
+        await this.lockAccount(userId, 900); // Lock for 15 minutes
       }
     } else {
-      // 成功時: Impossible Travel検知
+      // On success: Impossible Travel detection
       await this.checkImpossibleTravel(userId, metadata.geoLocation);
     }
   }
@@ -1526,7 +1528,7 @@ class AuthMonitor {
         currentLocation.lat, currentLocation.lon
       );
 
-      // 移動速度が時速1000km以上は物理的に不可能
+      // Travel speed over 1000 km/h is physically impossible
       if (distanceKm / timeDiffHours > 1000) {
         this.logger.alert('impossible_travel_detected', {
           userId,
@@ -1548,112 +1550,117 @@ class AuthMonitor {
 
 ---
 
-## 14. 認証サービスの比較と選定
+## 14. Comparing and Selecting Authentication Services
 
 ```
-認証サービス/ライブラリの比較（2024年時点）:
+Comparison of authentication services/libraries (as of 2024):
 
 ┌──────────────────┬──────────────┬──────────────┬──────────────┐
-│ サービス          │ 種類          │ 特徴         │ 適用場面      │
+│ Service          │ Type         │ Features     │ Use case     │
 ├──────────────────┼──────────────┼──────────────┼──────────────┤
-│ Auth0            │ IDaaS        │ 高機能、     │ エンタープ    │
-│                  │ (SaaS)       │ カスタマイズ  │ ライズ        │
-│                  │              │ 性高い       │              │
+│ Auth0            │ IDaaS        │ Feature-rich,│ Enterprise   │
+│                  │ (SaaS)       │ highly       │              │
+│                  │              │ customizable │              │
 ├──────────────────┼──────────────┼──────────────┼──────────────┤
-│ Firebase Auth    │ BaaS         │ Google統合、  │ モバイル     │
-│                  │              │ 簡易な設定   │ アプリ        │
+│ Firebase Auth    │ BaaS         │ Google       │ Mobile apps  │
+│                  │              │ integration, │              │
+│                  │              │ easy setup   │              │
 ├──────────────────┼──────────────┼──────────────┼──────────────┤
-│ Supabase Auth    │ OSS/BaaS     │ PostgreSQL   │ フルスタック  │
-│                  │              │ 統合、Row    │ アプリ        │
-│                  │              │ Level Security│             │
+│ Supabase Auth    │ OSS/BaaS     │ PostgreSQL   │ Full-stack   │
+│                  │              │ integration, │ apps         │
+│                  │              │ Row Level    │              │
+│                  │              │ Security     │              │
 ├──────────────────┼──────────────┼──────────────┼──────────────┤
-│ Clerk            │ IDaaS        │ React/Next   │ SPA/SSR      │
-│                  │              │ 統合が秀逸   │ アプリ        │
+│ Clerk            │ IDaaS        │ Excellent    │ SPA/SSR apps │
+│                  │              │ React/Next   │              │
+│                  │              │ integration  │              │
 ├──────────────────┼──────────────┼──────────────┼──────────────┤
-│ Keycloak         │ OSS          │ セルフホスト  │ オンプレミス  │
-│                  │              │ OIDC/SAML   │ エンタープ    │
-│                  │              │ 対応         │ ライズ        │
+│ Keycloak         │ OSS          │ Self-hosted, │ On-premises  │
+│                  │              │ OIDC/SAML    │ enterprise   │
+│                  │              │ support      │              │
 ├──────────────────┼──────────────┼──────────────┼──────────────┤
-│ NextAuth.js      │ OSS          │ Next.js特化  │ Next.js      │
-│ (Auth.js)        │ ライブラリ    │ 複数プロバイダ│ プロジェクト  │
+│ NextAuth.js      │ OSS          │ Next.js-     │ Next.js      │
+│ (Auth.js)        │ Library      │ specific,    │ projects     │
+│                  │              │ multi-provid.│              │
 ├──────────────────┼──────────────┼──────────────┼──────────────┤
-│ Lucia Auth       │ OSS          │ 軽量、       │ 学習目的     │
-│                  │ ライブラリ    │ DB直接操作   │ 小規模PJ     │
+│ Lucia Auth       │ OSS          │ Lightweight, │ Learning,    │
+│                  │ Library      │ direct DB    │ small PJs    │
 ├──────────────────┼──────────────┼──────────────┼──────────────┤
-│ AWS Cognito      │ マネージド    │ AWS統合、    │ AWSベースの  │
-│                  │ サービス      │ Federation   │ システム      │
+│ AWS Cognito      │ Managed      │ AWS          │ AWS-based    │
+│                  │ Service      │ integration, │ systems      │
+│                  │              │ Federation   │              │
 └──────────────────┴──────────────┴──────────────┴──────────────┘
 
-選定フロー:
-  1. セルフホストが必要か？
+Selection flow:
+  1. Is self-hosting required?
      → Yes: Keycloak, Lucia
-     → No: 次へ
+     → No: Next
 
-  2. 対象プラットフォームは？
+  2. What is the target platform?
      → Next.js: Clerk, Auth.js, Supabase
      → React SPA: Auth0, Firebase
-     → モバイル: Firebase, Auth0
-     → マルチプラットフォーム: Auth0, Keycloak
+     → Mobile: Firebase, Auth0
+     → Multi-platform: Auth0, Keycloak
 
-  3. 予算制約は？
-     → 無料/低コスト: Firebase, Supabase, OSS
-     → 有料可: Auth0, Clerk
-     → AWS課金内: Cognito
+  3. Budget constraints?
+     → Free/low cost: Firebase, Supabase, OSS
+     → Paid acceptable: Auth0, Clerk
+     → Within AWS billing: Cognito
 
-  4. エンタープライズ要件は？
+  4. Enterprise requirements?
      → SAML/LDAP: Keycloak, Auth0, Cognito
-     → SOC2対応: Auth0, Clerk
-     → カスタムドメイン: Auth0, Clerk
+     → SOC2: Auth0, Clerk
+     → Custom domain: Auth0, Clerk
 ```
 
 ---
 
 ## FAQ
 
-### Q1: Access TokenとRefresh Tokenの有効期限はどのくらいに設定すべきか?
+### Q1: What expiry should be set for Access Tokens and Refresh Tokens?
 
-Access Tokenは5〜15分程度の短い有効期限が推奨されます。これにより、トークンが漏洩した場合の被害期間を最小化できます。Refresh Tokenは7〜30日程度で設定しますが、必ずRefresh Token Rotationを実装し、使用するたびに新しいRefresh Tokenを発行してください。金融系など高セキュリティが必要なアプリケーションでは、Access Tokenを5分、Refresh Tokenを24時間に設定し、非アクティブ時のセッションタイムアウトも併用します。重要なのは、Refresh Tokenは安全なストレージ（HttpOnly Cookie、または Secure Enclave）に保存し、フロントエンドのJavaScriptからアクセスできないようにすることです。
+A short expiry of around 5–15 minutes is recommended for Access Tokens. This minimizes the impact window if a token is leaked. Refresh Tokens should be set to around 7–30 days, but always implement Refresh Token Rotation and issue a new Refresh Token each time one is used. For high-security applications such as financial services, set the Access Token to 5 minutes and the Refresh Token to 24 hours, and also use session timeouts during inactivity. Most importantly, store the Refresh Token in secure storage (HttpOnly Cookie or Secure Enclave) so it cannot be accessed by frontend JavaScript.
 
-### Q2: パスキー（Passkeys）はパスワードを完全に置き換えられるか?
+### Q2: Can passkeys completely replace passwords?
 
-パスキーは技術的にはパスワードを完全に置き換え可能ですが、2024年時点では移行期間として共存が現実的です。パスキーの利点は、フィッシング耐性（オリジンにバインド）、記憶不要、リプレイ攻撃耐性があることです。しかし課題として、(1)全デバイスでのパスキー同期（Apple/Google/Microsoftで仕組みが異なる）、(2)共有デバイスでの利用、(3)アカウント復旧手段の確保、(4)レガシーブラウザ非対応、があります。推奨戦略は、パスキーを第一の認証手段として提供しつつ、パスワード+MFAをフォールバックとして残し、段階的にパスキーのみに移行することです。
+Technically, passkeys can completely replace passwords, but as of 2024, coexistence during the transition period is realistic. The advantages of passkeys are phishing resistance (bound to the origin), no memorization required, and replay attack resistance. However, challenges include: (1) passkey sync across all devices (Apple/Google/Microsoft have different mechanisms), (2) use on shared devices, (3) ensuring account recovery options, and (4) unsupported legacy browsers. The recommended strategy is to offer passkeys as the primary authentication method while keeping password + MFA as a fallback, and gradually transition to passkeys only.
 
-### Q3: OAuth 2.0のImplicit Flowはなぜ非推奨になったのか?
+### Q3: Why was the OAuth 2.0 Implicit Flow deprecated?
 
-Implicit Flowはトークンをフラグメント（#）経由でブラウザに返すため、以下のセキュリティリスクがあります。(1)アクセストークンがブラウザ履歴に残る。(2)HTTPリファラーでトークンが漏洩する可能性がある。(3)トークン置換攻撃（Token Substitution）に脆弱。(4)Refresh Tokenが使用できないためトークン更新のたびにユーザー操作が必要。代替として、Authorization Code Flow + PKCE（Proof Key for Code Exchange）が推奨されています。PKCEにより、認可コードの横取り攻撃を防止しつつ、パブリッククライアント（SPA、モバイルアプリ）でも安全にトークンを取得できます。
+The Implicit Flow returns tokens to the browser via the fragment (#), creating the following security risks: (1) Access token remains in browser history. (2) Token may leak via the HTTP Referer header. (3) Vulnerable to token substitution attacks. (4) Refresh Tokens cannot be used, requiring user interaction for every token renewal. The recommended alternative is Authorization Code Flow + PKCE (Proof Key for Code Exchange). PKCE prevents authorization code interception attacks while allowing public clients (SPAs, mobile apps) to obtain tokens securely.
 
-### Q4: マイクロサービス間の認証にはどの方式が最適か?
+### Q4: Which authentication method is best for inter-microservice communication?
 
-マイクロサービス間の認証は、通信パターンに応じて使い分けます。(1)同期通信（HTTP/gRPC）: mTLS（相互TLS認証）が最も推奨されます。Istio/Linkerdなどのサービスメッシュを使えば、アプリケーションコードの変更なく自動的にmTLSが適用されます。(2)イベント駆動（メッセージキュー）: メッセージに署名を付与し、コンシューマー側で検証します。(3)内部API呼び出し: JWTのToken Exchange（RFC 8693）を使い、サービスAのトークンをサービスB用のスコープに変換します。最小権限の原則に従い、各サービスが必要な権限だけを持つトークンを使用することが重要です。
+Authentication between microservices depends on the communication pattern. (1) Synchronous communication (HTTP/gRPC): mTLS (mutual TLS authentication) is most recommended. Using a service mesh such as Istio/Linkerd applies mTLS automatically without changing application code. (2) Event-driven (message queues): Sign messages and verify on the consumer side. (3) Internal API calls: Use JWT Token Exchange (RFC 8693) to convert Service A's token to a scope suitable for Service B. It is important to follow the principle of least privilege, where each service uses a token with only the permissions it needs.
 
-### Q5: セッションストレージとしてRedisとデータベース（PostgreSQL等）のどちらを選ぶべきか?
+### Q5: Should session storage use Redis or a database (PostgreSQL, etc.)?
 
-Redisが推奨される場面は、大量の同時セッション（数十万以上）、高速なセッション検索（サブミリ秒）、自動的な期限切れ（TTL）が必要な場合です。PostgreSQLが適する場面は、セッションデータの永続性が重要な場合、既存のDB基盤を活用したい場合、セッションデータに対する複雑なクエリ（監査目的等）が必要な場合です。実務では、Redisをプライマリストレージとして使いつつ、監査ログとしてPostgreSQLにもイベントを記録するハイブリッド構成が最も一般的です。Redis障害時のフォールバックとしてDBを使う設計も重要です。
-
----
-
-## まとめ
-
-| 概念 | ポイント |
-|------|---------|
-| Basic認証 | シンプルだが本番非推奨 |
-| Bearer Token | ステートレスなAPI認証 |
-| JWT | ヘッダー.ペイロード.署名、暗号化ではない |
-| OAuth 2.0 | 認可フレームワーク、Auth Code + PKCE推奨 |
-| OIDC | OAuth 2.0 + 認証（ID Token） |
-| パスキー | パスワード不要、フィッシング耐性、WebAuthn |
-| MFA | TOTP/セキュリティキー推奨、SMS非推奨 |
-| パスワード | Argon2id/bcrypt、NIST SP 800-63B準拠 |
-| BFF | フロントエンド向けトークン管理 |
-| セッション | HttpOnly + Secure + SameSite Cookie |
+Redis is recommended when: large numbers of concurrent sessions (hundreds of thousands or more), fast session lookup (sub-millisecond), and automatic expiry (TTL) are required. PostgreSQL is suitable when: session data persistence is important, you want to leverage existing DB infrastructure, or complex queries on session data (for audit purposes, etc.) are needed. In practice, using Redis as primary storage while also recording events to PostgreSQL as an audit log is the most common hybrid configuration. Designing DB as a fallback for Redis failures is also important.
 
 ---
 
-## 次に読むべきガイド
+## Summary
+
+| Concept | Key Points |
+|---------|-----------|
+| Basic Auth | Simple but not recommended for production |
+| Bearer Token | Stateless API authentication |
+| JWT | Header.Payload.Signature, not encrypted |
+| OAuth 2.0 | Authorization framework, Auth Code + PKCE recommended |
+| OIDC | OAuth 2.0 + Authentication (ID Token) |
+| Passkeys | Passwordless, phishing resistant, WebAuthn |
+| MFA | TOTP/Security key recommended, SMS not recommended |
+| Passwords | Argon2id/bcrypt, compliant with NIST SP 800-63B |
+| BFF | Token management for frontends |
+| Session | HttpOnly + Secure + SameSite Cookie |
 
 ---
 
-## 参考文献
+## Further Reading
+
+---
+
+## References
 1. RFC 7519. "JSON Web Token (JWT)." IETF, 2015.
 2. RFC 6749. "The OAuth 2.0 Authorization Framework." IETF, 2012.
 3. RFC 7636. "Proof Key for Code Exchange (PKCE)." IETF, 2015.
