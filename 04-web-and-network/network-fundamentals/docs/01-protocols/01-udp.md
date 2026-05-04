@@ -1,94 +1,94 @@
-# UDP（User Datagram Protocol）
+# UDP (User Datagram Protocol)
 
-> UDPは「速さ優先」のシンプルなプロトコル。接続確立なし、再送なし、順序保証なし。リアルタイム通信、DNS、ゲーム、そしてHTTP/3の基盤QUICを支える。本ガイドでは、UDPの内部構造からソケットプログラミング、QUICの実装詳細まで、ネットワークエンジニアリングに必要な知識を体系的に解説する。
+> UDP is a simple protocol that prioritizes speed. No connection establishment, no retransmission, no ordering guarantee. It underpins real-time communication, DNS, gaming, and QUIC — the foundation of HTTP/3. This guide systematically covers everything network engineers need to know: UDP's internal structure, socket programming, and QUIC implementation details.
 
-## 前提知識
+## Prerequisites
 
-このガイドを最大限に活用するには、以下の知識が必要です。
+To get the most out of this guide, the following knowledge is required.
 
-**必須**
+**Required**
 
-**推奨**
-- パケット構造の基本的な理解（ヘッダー、ペイロード、カプセル化）
-
----
-
-## この章で学ぶこと
-
-- [ ] UDPヘッダーの各フィールドの意味と制約を理解する
-- [ ] UDPとTCPの設計思想の違いを構造レベルで把握する
-- [ ] UDPソケットプログラミングをPython/Cで実装できる
-- [ ] QUICプロトコルのレイヤー構造と動作原理を理解する
-- [ ] UDPベースのアプリケーション設計におけるアンチパターンを回避できる
-- [ ] マルチキャスト・ブロードキャストの実装パターンを把握する
-- [ ] UDPに関連するセキュリティリスクと対策を説明できる
+**Recommended**
+- Basic understanding of packet structure (headers, payloads, encapsulation)
 
 ---
 
-## 1. UDPの設計思想と歴史的背景
+## What You Will Learn in This Chapter
 
-### 1.1 なぜUDPが生まれたか
+- [ ] Understand the meaning and constraints of each field in the UDP header
+- [ ] Grasp the difference in design philosophy between UDP and TCP at the structural level
+- [ ] Implement UDP socket programming in Python/C
+- [ ] Understand the layer structure and operating principles of the QUIC protocol
+- [ ] Avoid anti-patterns in application design based on UDP
+- [ ] Understand implementation patterns for multicast and broadcast
+- [ ] Explain security risks related to UDP and their countermeasures
 
-UDPは1980年にRFC 768として標準化された。わずか3ページのRFCであり、これはプロトコルの単純さを象徴している。TCPがコネクション指向の信頼性ある通信を提供する一方で、UDPはIPの上に「ポート番号による多重化」と「チェックサムによる最低限の整合性検査」だけを追加したプロトコルとして設計された。
+---
+
+## 1. UDP Design Philosophy and Historical Background
+
+### 1.1 Why UDP Was Created
+
+UDP was standardized in 1980 as RFC 768. The RFC is only three pages long, which symbolizes the simplicity of the protocol. While TCP provides reliable, connection-oriented communication, UDP was designed to add only "port-based multiplexing" and "minimal integrity checking via checksum" on top of IP.
 
 ```
-UDPの設計原則:
+UDP Design Principles:
 
   ┌─────────────────────────────────────────────────────────┐
-  │                 アプリケーション層                        │
-  │    「信頼性が必要なら自分で実装する」                      │
-  │    「不要なオーバーヘッドは排除する」                      │
+  │                   Application Layer                     │
+  │    "If reliability is needed, implement it yourself"    │
+  │    "Eliminate unnecessary overhead"                     │
   ├─────────────────────────────────────────────────────────┤
   │                      UDP                                │
-  │    ・ポート番号による多重化                               │
-  │    ・チェックサムによる整合性検証                          │
-  │    ・それ以外は何もしない                                 │
+  │    · Port-based multiplexing                            │
+  │    · Integrity verification via checksum                │
+  │    · Nothing else                                       │
   ├─────────────────────────────────────────────────────────┤
   │                       IP                                │
-  │    ・ベストエフォート配送                                 │
-  │    ・ルーティング                                        │
+  │    · Best-effort delivery                               │
+  │    · Routing                                            │
   └─────────────────────────────────────────────────────────┘
 
-  TCPが提供して UDPが提供しない機能:
+  Features TCP provides but UDP does not:
   ┌───────────────────────┬─────────────┐
-  │ 機能                  │ UDPでの扱い  │
+  │ Feature               │ In UDP      │
   ├───────────────────────┼─────────────┤
-  │ コネクション管理       │ なし         │
-  │ 順序保証              │ なし         │
-  │ 再送制御              │ なし         │
-  │ フロー制御            │ なし         │
-  │ 輻輳制御              │ なし         │
-  │ ウィンドウ制御         │ なし         │
-  │ 接続状態管理          │ なし         │
+  │ Connection management │ None        │
+  │ Ordering guarantee    │ None        │
+  │ Retransmission control│ None        │
+  │ Flow control          │ None        │
+  │ Congestion control    │ None        │
+  │ Window control        │ None        │
+  │ Connection state mgmt │ None        │
   └───────────────────────┴─────────────┘
 
-  → これらの「なし」の全てがUDPの利点でもある。
-    各機能が不要なアプリケーションにとって、
-    TCPのオーバーヘッドは「無駄なコスト」となる。
+  → All these "None" entries are also UDP's advantages.
+    For applications that don't need these features,
+    TCP's overhead becomes "unnecessary cost".
 ```
 
-### 1.2 End-to-End原則とUDP
+### 1.2 The End-to-End Principle and UDP
 
-UDPの設計はインターネットの基本原則である「End-to-End原則」を忠実に体現している。End-to-End原則とは、「アプリケーション固有の機能はネットワーク内部ではなく、エンドポイント（端末）に実装すべき」という考え方である。
+UDP's design faithfully embodies the fundamental Internet principle known as the "End-to-End Principle." This principle states that "application-specific functionality should be implemented at the endpoints (terminals), not within the network itself."
 
-UDPはトランスポート層のプロトコルとして最小限の機能のみを提供し、信頼性や順序制御といったアプリケーション固有の要件はアプリケーション自身に委ねる。この設計により、以下のメリットが生まれる。
+UDP provides only minimal functionality as a transport-layer protocol, leaving application-specific requirements such as reliability and ordering to the application itself. This design offers the following advantages:
 
-1. **柔軟性**: アプリケーションが自身に最適な信頼性メカニズムを選択できる
-2. **効率性**: 不要な機能のオーバーヘッドを回避できる
-3. **適応性**: 新しいプロトコル（QUICなど）をアプリケーション層で実装できる
+1. **Flexibility**: Applications can choose the reliability mechanism best suited to them
+2. **Efficiency**: Overhead from unnecessary features can be avoided
+3. **Adaptability**: New protocols (such as QUIC) can be implemented at the application layer
 
 ---
 
-## 2. UDPヘッダーの詳細構造
+## 2. Detailed Structure of the UDP Header
 
-### 2.1 ヘッダーフォーマット
+### 2.1 Header Format
 
-UDPヘッダーは8バイト固定長であり、これはTCPの最小ヘッダー（20バイト）の半分以下である。各フィールドの意味と制約を詳細に見ていく。
+The UDP header is a fixed 8 bytes, which is less than half the minimum TCP header (20 bytes). Let's look in detail at the meaning and constraints of each field.
 
 ```
-UDPヘッダー構造（8バイト / 64ビット固定）:
+UDP Header Structure (8 bytes / 64 bits, fixed):
 
-   ビット位置
+   Bit positions
    0                   1                   2                   3
    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
   ┌───────────────────────────┬───────────────────────────┐
@@ -97,37 +97,40 @@ UDPヘッダー構造（8バイト / 64ビット固定）:
   │      Length (16 bits)     │    Checksum (16 bits)     │  ← 4 bytes
   ├───────────────────────────┴───────────────────────────┤
   │                                                       │
-  │                    Data (可変長)                       │
+  │                    Data (variable length)             │
   │                                                       │
   └───────────────────────────────────────────────────────┘
 
-  各フィールドの詳細:
+  Field details:
 
   ┌──────────────┬────────┬──────────────────────────────────────┐
-  │ フィールド    │ サイズ  │ 説明                                 │
+  │ Field        │ Size   │ Description                          │
   ├──────────────┼────────┼──────────────────────────────────────┤
-  │ Source Port  │ 16 bit │ 送信元ポート番号（0-65535）            │
-  │              │        │ オプション: 応答不要なら0を設定可能     │
+  │ Source Port  │ 16 bit │ Source port number (0-65535)         │
+  │              │        │ Optional: can be set to 0 if no      │
+  │              │        │ reply is expected                    │
   ├──────────────┼────────┼──────────────────────────────────────┤
-  │ Dest Port    │ 16 bit │ 宛先ポート番号（0-65535）              │
-  │              │        │ 必須: 受信側のプロセスを識別            │
+  │ Dest Port    │ 16 bit │ Destination port number (0-65535)    │
+  │              │        │ Required: identifies the receiving   │
+  │              │        │ process                              │
   ├──────────────┼────────┼──────────────────────────────────────┤
-  │ Length       │ 16 bit │ UDPヘッダー + データの合計バイト数      │
-  │              │        │ 最小値: 8（ヘッダーのみ）              │
-  │              │        │ 最大値: 65,535（理論上限）              │
+  │ Length       │ 16 bit │ Total bytes of UDP header + data     │
+  │              │        │ Minimum: 8 (header only)             │
+  │              │        │ Maximum: 65,535 (theoretical limit)  │
   ├──────────────┼────────┼──────────────────────────────────────┤
-  │ Checksum     │ 16 bit │ 疑似ヘッダー含む整合性検証用            │
-  │              │        │ IPv4: オプション（0なら未使用）         │
-  │              │        │ IPv6: 必須                            │
+  │ Checksum     │ 16 bit │ Integrity verification incl.         │
+  │              │        │ pseudo-header                        │
+  │              │        │ IPv4: optional (0 means disabled)    │
+  │              │        │ IPv6: required                       │
   └──────────────┴────────┴──────────────────────────────────────┘
 ```
 
-### 2.2 チェックサムの計算方法
+### 2.2 Checksum Calculation
 
-UDPチェックサムはUDPヘッダーだけでなく、IPヘッダーから抽出した「疑似ヘッダー（pseudo header）」を含めて計算する。これにより、IPアドレスの誤りも検出できる。
+The UDP checksum is calculated not just from the UDP header, but also from a "pseudo header" extracted from the IP header. This allows IP address errors to be detected as well.
 
 ```
-IPv4 疑似ヘッダー構造:
+IPv4 Pseudo Header Structure:
 
   ┌───────────────────────────┬───────────────────────────┐
   │      Source IP Address (32 bits)                      │
@@ -138,44 +141,44 @@ IPv4 疑似ヘッダー構造:
   │   0x00   │    0x11        │                           │
   └──────────┴────────────────┴───────────────────────────┘
 
-  チェックサム計算手順:
-  1. 疑似ヘッダーを構築
-  2. UDPヘッダー（Checksum=0）+ データを連結
-  3. 16ビット単位で1の補数和を計算
-  4. 結果の1の補数をチェックサムフィールドに格納
+  Checksum calculation steps:
+  1. Build the pseudo header
+  2. Concatenate UDP header (Checksum=0) + data
+  3. Compute the one's complement sum in 16-bit units
+  4. Store the one's complement of the result in the Checksum field
 
-  注意:
-  - IPv4ではチェックサムはオプショナル（Checksum=0で無効化）
-  - IPv6ではチェックサムは必須（RFC 8200）
-  - IPv6にはIPヘッダーチェックサムがないため、
-    UDPチェックサムがアドレス検証の唯一の手段
+  Notes:
+  - In IPv4, the checksum is optional (disabled by Checksum=0)
+  - In IPv6, the checksum is required (RFC 8200)
+  - Since IPv6 has no IP header checksum,
+    the UDP checksum is the only means of address verification
 ```
 
-### 2.3 データグラムのサイズ制約
+### 2.3 Datagram Size Constraints
 
 ```
-UDPデータグラムのサイズ制約:
+UDP Datagram Size Constraints:
 
-  理論上の最大ペイロード:
-    65,535 (IP最大長) - 20 (IPヘッダー) - 8 (UDPヘッダー)
-    = 65,507 バイト
+  Theoretical maximum payload:
+    65,535 (IP max length) - 20 (IP header) - 8 (UDP header)
+    = 65,507 bytes
 
-  ただし実用的な制約が複数存在:
+  However, multiple practical constraints exist:
 
   ┌────────────────────┬──────────┬──────────────────────────┐
-  │ 制約               │ 上限値    │ 理由                     │
+  │ Constraint         │ Limit    │ Reason                   │
   ├────────────────────┼──────────┼──────────────────────────┤
-  │ IP最大長           │ 65,507 B │ Lengthフィールドが16bit   │
+  │ IP max length      │ 65,507 B │ Length field is 16 bit   │
   │ Ethernet MTU       │  1,472 B │ MTU 1500 - IP 20 - UDP 8│
   │ PPPoE MTU          │  1,464 B │ MTU 1492 - IP 20 - UDP 8│
-  │ IPv6 Jumbogram     │ 4GB超     │ RFC 2675拡張ヘッダー     │
-  │ ソケットバッファ     │ OS依存   │ 通常 208KB (Linux)       │
+  │ IPv6 Jumbogram     │ >4GB     │ RFC 2675 extension header│
+  │ Socket buffer      │ OS-dep.  │ Usually 208KB (Linux)    │
   └────────────────────┴──────────┴──────────────────────────┘
 
-  MTUとフラグメンテーション:
+  MTU and Fragmentation:
 
-  送信データ: 3000 バイト
-  MTU: 1500 バイト
+  Send data: 3000 bytes
+  MTU: 1500 bytes
 
   ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
   │ Fragment #1  │    │ Fragment #2  │    │ Fragment #3  │
@@ -186,302 +189,305 @@ UDPデータグラムのサイズ制約:
          │                    │                    │
          └────────────────────┼────────────────────┘
                               ▼
-                    受信側で再構築
-                    → 1フラグメントでも
-                      欠損すれば全体破棄
+                    Reassembled at receiver
+                    → If even 1 fragment is
+                      missing, the whole datagram
+                      is discarded
 
-  推奨: UDPデータグラムは MTU以下に収める
-  → Path MTU Discovery (PMTUD) で経路上の最小MTUを検出
-  → または安全値として 1200バイト以下を使用（QUICの最小MTU）
+  Recommendation: Keep UDP datagrams below MTU
+  → Use Path MTU Discovery (PMTUD) to detect the minimum MTU along the path
+  → Or use a safe value of 1200 bytes or less (QUIC's minimum MTU)
 ```
 
 ---
 
-## 3. TCPとUDPの詳細比較
+## 3. Detailed Comparison: TCP vs UDP
 
-### 3.1 プロトコルスタック上の位置づけ
+### 3.1 Position in the Protocol Stack
 
 ```
-OSI参照モデルとTCP/UDPの関係:
+OSI Reference Model and TCP/UDP:
 
-  レイヤー7  アプリケーション層    HTTP, DNS, DHCP, RTP
+  Layer 7  Application Layer     HTTP, DNS, DHCP, RTP
                │                        │
                ▼                        ▼
-  レイヤー4  トランスポート層      ┌────┬────┐
+  Layer 4  Transport Layer       ┌────┬────┐
                                   │ TCP│ UDP│
                                   └──┬─┴──┬─┘
                                      │    │
-  レイヤー3  ネットワーク層         ┌─┴────┴─┐
+  Layer 3  Network Layer          ┌─┴────┴─┐
                                   │   IP    │
                                   └────┬────┘
                                        │
-  レイヤー2  データリンク層       ┌─────┴─────┐
+  Layer 2  Data Link Layer       ┌─────┴─────┐
                                 │ Ethernet   │
                                 └─────┬──────┘
                                       │
-  レイヤー1  物理層               物理メディア
+  Layer 1  Physical Layer        Physical medium
 ```
 
-### 3.2 通信フローの比較
+### 3.2 Comparison of Communication Flows
 
 ```
-TCP通信フロー（3ウェイハンドシェイク + データ転送 + 終了）:
+TCP communication flow (3-way handshake + data transfer + teardown):
 
-  クライアント                         サーバー
+  Client                               Server
        │                                  │
        │──── SYN ─────────────────────────▶│  ┐
-       │                                   │  │ 接続確立
-       │◀─── SYN+ACK ─────────────────────│  │ (1.5 RTT)
-       │                                   │  │
+       │                                   │  │ Connection
+       │◀─── SYN+ACK ─────────────────────│  │ establishment
+       │                                   │  │ (1.5 RTT)
        │──── ACK ─────────────────────────▶│  ┘
        │                                   │
        │──── Data(seq=1) ─────────────────▶│  ┐
        │                                   │  │
-       │◀─── ACK(ack=101) ────────────────│  │ データ転送
-       │                                   │  │ (再送制御あり)
+       │◀─── ACK(ack=101) ────────────────│  │ Data transfer
+       │                                   │  │ (with retransmission)
        │──── Data(seq=101) ───────────────▶│  │
        │                                   │  │
        │◀─── ACK(ack=201) ────────────────│  ┘
        │                                   │
        │──── FIN ─────────────────────────▶│  ┐
-       │                                   │  │ 接続終了
-       │◀─── FIN+ACK ─────────────────────│  │ (2 RTT)
-       │                                   │  │
+       │                                   │  │ Connection
+       │◀─── FIN+ACK ─────────────────────│  │ teardown
+       │                                   │  │ (2 RTT)
        │──── ACK ─────────────────────────▶│  ┘
        │                                   │
 
-  合計オーバーヘッド: 最低7パケット（ハンドシェイク3 + 終了4）
-  ※ 小さなデータを1回送るだけでも7パケットの制御通信が発生
+  Total overhead: minimum 7 packets (3 handshake + 4 teardown)
+  ※ Even sending a small piece of data once incurs 7 control packets
 
 
-UDP通信フロー（コネクションレス）:
+UDP communication flow (connectionless):
 
-  クライアント                         サーバー
+  Client                               Server
        │                                  │
-       │──── Data ────────────────────────▶│  即座にデータ送信
-       │                                   │  制御パケットなし
-       │──── Data ────────────────────────▶│  到達保証なし
-       │                                   │  順序保証なし
-       │◀─── Data ────────────────────────│  双方向も可能
+       │──── Data ────────────────────────▶│  Sends data immediately
+       │                                   │  No control packets
+       │──── Data ────────────────────────▶│  No delivery guarantee
+       │                                   │  No ordering guarantee
+       │◀─── Data ────────────────────────│  Bidirectional possible
        │                                   │
 
-  合計オーバーヘッド: 0パケット
-  → 送りたいデータだけを送る
+  Total overhead: 0 packets
+  → Only sends the data you want to send
 ```
 
-### 3.3 包括的な比較表
+### 3.3 Comprehensive Comparison Table
 
-| 比較項目 | TCP | UDP |
+| Item | TCP | UDP |
 |---------|-----|-----|
-| RFC | RFC 9293（旧793） | RFC 768 |
-| ヘッダーサイズ | 20-60バイト | 8バイト固定 |
-| 接続確立 | 3ウェイハンドシェイク | 不要 |
-| 信頼性 | ACK/再送で保証 | なし |
-| 順序保証 | シーケンス番号で保証 | なし |
-| フロー制御 | スライディングウィンドウ | なし |
-| 輻輳制御 | Slow Start, AIMD等 | なし |
-| 通信形態 | ユニキャスト（1対1） | ユニキャスト/マルチキャスト/ブロードキャスト |
-| ストリーム/データグラム | バイトストリーム | データグラム（メッセージ境界保持） |
-| 状態管理 | ステートフル（11状態） | ステートレス |
-| 計算コスト | 高い（状態管理、タイマー） | 低い |
-| メモリ使用 | 接続あたり数KB | ほぼゼロ |
-| 最大同時接続 | OS制限あり（fd上限） | 制限が緩い |
-| NAT越え | 比較的容易 | UDPホールパンチング必要 |
-| ファイアウォール | 通常許可 | ブロックされやすい |
+| RFC | RFC 9293 (formerly 793) | RFC 768 |
+| Header size | 20-60 bytes | 8 bytes fixed |
+| Connection establishment | 3-way handshake | Not needed |
+| Reliability | Guaranteed via ACK/retransmit | None |
+| Ordering guarantee | Guaranteed via sequence numbers | None |
+| Flow control | Sliding window | None |
+| Congestion control | Slow Start, AIMD, etc. | None |
+| Communication mode | Unicast (1:1) | Unicast / Multicast / Broadcast |
+| Stream/Datagram | Byte stream | Datagram (message boundaries preserved) |
+| State management | Stateful (11 states) | Stateless |
+| Computational cost | High (state management, timers) | Low |
+| Memory per connection | Several KB | Nearly zero |
+| Max simultaneous connections | OS-limited (fd limit) | More permissive |
+| NAT traversal | Relatively straightforward | UDP hole punching required |
+| Firewall | Usually allowed | Prone to being blocked |
 
 ---
 
-## 4. UDPのユースケース詳細分析
+## 4. Detailed Analysis of UDP Use Cases
 
-### 4.1 DNS（Domain Name System）
+### 4.1 DNS (Domain Name System)
 
-DNSはUDPの最も代表的なユースケースの一つである。標準的なDNSクエリはUDPポート53を使用する。
+DNS is one of the most representative use cases for UDP. Standard DNS queries use UDP port 53.
 
 ```
-DNS over UDP の動作フロー:
+DNS over UDP operation flow:
 
-  クライアント             DNSリゾルバ
+  Client               DNS Resolver
        │                      │
-       │── Query ────────────▶│  "www.example.com の A レコードは？"
+       │── Query ────────────▶│  "What is the A record for www.example.com?"
        │   UDP dst:53          │
-       │   ~60バイト程度       │
+       │   ~60 bytes           │
        │                      │
        │◀── Response ─────────│  "93.184.216.34"
-       │   ~100バイト程度      │
+       │   ~100 bytes          │
        │                      │
 
-  UDPが適する理由:
-  1. クエリ/レスポンスが小さい（通常512バイト以内）
-  2. 1往復で完結する（ステートレス）
-  3. TCPのハンドシェイク(1.5 RTT)はDNS解決時間を2-3倍に増大
-  4. 応答がなければリトライするだけ（アプリ層で再送）
+  Why UDP is appropriate:
+  1. Queries/responses are small (usually within 512 bytes)
+  2. Completes in one round trip (stateless)
+  3. TCP handshake (1.5 RTT) would double or triple DNS resolution time
+  4. If no response, just retry (retransmission at app layer)
 
-  例外 - TCPへのフォールバック:
-  ・レスポンスが512バイト超（EDNS0で拡張可能だが）
-  ・ゾーン転送（AXFR/IXFR）
-  ・DNS over TLS (DoT) / DNS over HTTPS (DoH)
+  Exceptions - falling back to TCP:
+  · Response exceeds 512 bytes (extendable with EDNS0, but still)
+  · Zone transfers (AXFR/IXFR)
+  · DNS over TLS (DoT) / DNS over HTTPS (DoH)
 ```
 
-### 4.2 リアルタイムメディア（RTP/RTCP）
+### 4.2 Real-Time Media (RTP/RTCP)
 
 ```
-RTP（Real-time Transport Protocol）のスタック:
+RTP (Real-time Transport Protocol) stack:
 
   ┌────────────────────────────────┐
-  │  音声/映像コーデック            │
+  │  Audio/Video codecs            │
   │  (Opus, H.264, VP9, AV1...)    │
   ├────────────────────────────────┤
-  │  RTP (メディアデータ転送)       │  ← ペイロードタイプ、
-  │  RTCP (制御・統計情報)          │     シーケンス番号、タイムスタンプ
+  │  RTP (media data transfer)     │  ← Payload type,
+  │  RTCP (control & statistics)   │     sequence number, timestamp
   ├────────────────────────────────┤
-  │  SRTP/SRTCP (暗号化)           │  ← DTLS-SRTPで鍵交換
+  │  SRTP/SRTCP (encryption)       │  ← Key exchange via DTLS-SRTP
   ├────────────────────────────────┤
   │  UDP                           │
   ├────────────────────────────────┤
   │  IP                            │
   └────────────────────────────────┘
 
-  RTPがTCPではなくUDPを使う理由:
-  1. 再送は無意味: 300ms遅れた音声フレームは再生できない
-  2. ジッター制御: TCPの再送待ちが不規則な遅延を引き起こす
-  3. 部分的ロス許容: 音声は2-5%のパケットロスでも知覚されにくい
-  4. タイムスタンプ: RTPが独自にタイムスタンプを持ち、
-                    受信側でジッターバッファにより再生タイミングを調整
+  Why RTP uses UDP instead of TCP:
+  1. Retransmission is pointless: an audio frame delayed 300ms cannot be played
+  2. Jitter control: TCP retransmit waits cause irregular delays
+  3. Partial loss tolerance: 2-5% packet loss in audio is barely perceptible
+  4. Timestamps: RTP has its own timestamps; the receiver uses a jitter buffer
+                 to adjust playback timing
 ```
 
-### 4.3 オンラインゲーム
+### 4.3 Online Games
 
 ```
-ゲームにおけるUDP利用パターン:
+UDP usage patterns in games:
 
   ┌─────────────────────────────────────────────┐
-  │            ゲームアプリケーション              │
+  │            Game Application                 │
   ├─────────────┬───────────────────────────────┤
-  │ 信頼性必要   │ 信頼性不要（頻繁に更新）       │
-  │ (TCP的処理)  │ (最新値のみ重要)               │
+  │ Reliability │ No reliability needed          │
+  │ required    │ (only latest value matters)    │
+  │ (TCP-like)  │                               │
   ├─────────────┼───────────────────────────────┤
-  │ ・チャット   │ ・位置情報                     │
-  │ ・ログイン   │ ・回転角度                     │
-  │ ・アイテム取得│ ・アニメーション状態            │
-  │ ・ゲーム結果 │ ・カメラ方向                   │
+  │ · Chat      │ · Position                    │
+  │ · Login     │ · Rotation angle              │
+  │ · Item pickup│ · Animation state            │
+  │ · Game result│ · Camera direction           │
   ├─────────────┴───────────────────────────────┤
-  │  独自プロトコル（UDP上に実装）                 │
+  │  Custom protocol (implemented on top of UDP) │
   ├─────────────────────────────────────────────┤
   │  UDP                                        │
   └─────────────────────────────────────────────┘
 
-  典型的なゲームのネットワーク更新頻度:
-  ・FPS (Call of Duty等):    60-128 tick/秒
-  ・MOBA (LoL等):            30 tick/秒
-  ・MMO (WoW等):             10-20 tick/秒
+  Typical game network update frequencies:
+  · FPS (Call of Duty, etc.):  60-128 ticks/sec
+  · MOBA (LoL, etc.):          30 ticks/sec
+  · MMO (WoW, etc.):           10-20 ticks/sec
 
-  60 tick/秒で100プレイヤーの場合:
-  → 6,000パケット/秒をサーバーが処理
-  → TCPの接続管理は膨大なオーバーヘッド
-  → UDPならステートレスで効率的に処理可能
+  At 60 ticks/sec with 100 players:
+  → Server processes 6,000 packets/sec
+  → TCP connection management would be enormous overhead
+  → UDP allows stateless, efficient processing
 ```
 
-### 4.4 VPN（WireGuard）
+### 4.4 VPN (WireGuard)
 
 ```
-WireGuardのUDP利用:
+WireGuard's use of UDP:
 
   ┌───────────────────────────────────────────┐
-  │  アプリケーション (HTTP, SSH, etc.)         │
+  │  Application (HTTP, SSH, etc.)            │
   ├───────────────────────────────────────────┤
-  │  TCP / UDP (内部通信)                      │
+  │  TCP / UDP (inner traffic)                │
   ├───────────────────────────────────────────┤
-  │  IP (トンネル内部)                         │
+  │  IP (inside tunnel)                       │
   ├───────────────────────────────────────────┤
-  │  WireGuard (暗号化 + カプセル化)            │
+  │  WireGuard (encryption + encapsulation)   │
   ├───────────────────────────────────────────┤
-  │  UDP (ポート51820)                         │  ← なぜTCPではないのか？
+  │  UDP (port 51820)                         │  ← Why not TCP?
   ├───────────────────────────────────────────┤
-  │  IP (外部ネットワーク)                      │
+  │  IP (external network)                    │
   └───────────────────────────────────────────┘
 
-  TCP over TCP 問題:
-  外側がTCPで内側もTCPの場合、両方の層で独立した再送制御が動作する。
-  パケットロスが発生すると:
+  TCP-over-TCP problem:
+  When the outer layer is TCP and the inner is also TCP,
+  independent retransmission control runs at both layers.
+  On packet loss:
 
-  1. 内側TCP: ロスを検出 → 再送タイマー開始
-  2. 外側TCP: 同じロスを検出 → 再送タイマー開始
-  3. 外側TCPが再送に成功
-  4. 内側TCPも再送を開始（不要な再送）
-  5. 輻輳ウィンドウが両層で縮小
-  6. スループットが急激に低下（TCP meltdown）
+  1. Inner TCP: detects loss → starts retransmit timer
+  2. Outer TCP: detects same loss → starts retransmit timer
+  3. Outer TCP succeeds in retransmitting
+  4. Inner TCP also starts retransmitting (unnecessary retransmit)
+  5. Congestion window shrinks at both layers
+  6. Throughput drops sharply (TCP meltdown)
 
-  UDP上のVPNならこの問題は発生しない。
-  → WireGuard, OpenVPN(推奨設定), Tailscale は全てUDPベース
+  This problem does not occur with a UDP-based VPN.
+  → WireGuard, OpenVPN (recommended setting), and Tailscale are all UDP-based
 ```
 
 ---
 
-## 5. UDPソケットプログラミング
+## 5. UDP Socket Programming
 
-### 5.1 Python による基本的なUDPサーバー/クライアント
+### 5.1 Basic UDP Server/Client in Python
 
-UDPソケットプログラミングは、TCPと比較して非常にシンプルである。`connect()`, `accept()`, `listen()` が不要で、`sendto()` と `recvfrom()` だけでデータの送受信ができる。
+UDP socket programming is far simpler than TCP. There's no need for `connect()`, `accept()`, or `listen()` — data can be sent and received with just `sendto()` and `recvfrom()`.
 
-**コード例1: Python UDPエコーサーバー**
+**Code Example 1: Python UDP Echo Server**
 
 ```python
 #!/usr/bin/env python3
 """
-UDP エコーサーバー
-受信したメッセージをそのまま送り返す。
-TCPと異なり、accept()やlisten()は不要。
+UDP Echo Server
+Echoes back any received message.
+Unlike TCP, accept() and listen() are not needed.
 """
 
 import socket
 import struct
 import time
 
-# --- 定数 ---
+# --- Constants ---
 HOST = '0.0.0.0'
 PORT = 9999
-BUFFER_SIZE = 65535  # UDPの最大データグラムサイズ
+BUFFER_SIZE = 65535  # Maximum UDP datagram size
 
 def create_udp_server(host: str, port: int) -> None:
-    """UDPエコーサーバーを起動する"""
+    """Start a UDP echo server"""
 
-    # SOCK_DGRAM = UDPソケット（SOCK_STREAM = TCP）
+    # SOCK_DGRAM = UDP socket (SOCK_STREAM = TCP)
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-        # SO_REUSEADDR: TIME_WAIT状態のポートを再利用可能にする
+        # SO_REUSEADDR: allows reuse of ports in TIME_WAIT state
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-        # UDPではbind()のみ。listen()は不要。
+        # For UDP, only bind() is needed. listen() is not required.
         sock.bind((host, port))
         print(f"UDP Echo Server listening on {host}:{port}")
 
-        # 受信バッファサイズの確認と設定
+        # Check and set receive buffer size
         recv_buf = sock.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)
         print(f"Receive buffer size: {recv_buf} bytes")
 
         while True:
-            # recvfrom() はデータとクライアントアドレスのタプルを返す
-            # TCPの recv() と異なり、送信元情報が毎回付与される
+            # recvfrom() returns a tuple of data and client address
+            # Unlike TCP's recv(), sender info is provided with each call
             data, client_addr = sock.recvfrom(BUFFER_SIZE)
 
             timestamp = time.strftime('%H:%M:%S')
             print(f"[{timestamp}] Received {len(data)} bytes "
                   f"from {client_addr[0]}:{client_addr[1]}")
 
-            # sendto() で指定アドレスに送信（connect不要）
+            # sendto() sends to the specified address (no connect needed)
             sock.sendto(data, client_addr)
 
 if __name__ == '__main__':
     create_udp_server(HOST, PORT)
 ```
 
-**コード例2: Python UDPクライアント**
+**Code Example 2: Python UDP Client**
 
 ```python
 #!/usr/bin/env python3
 """
-UDP クライアント
-サーバーにメッセージを送信し、エコー応答を受信する。
-タイムアウトによるパケットロス検出を実装。
+UDP Client
+Sends messages to a server and receives echo responses.
+Implements packet loss detection via timeout.
 """
 
 import socket
@@ -489,32 +495,32 @@ import time
 
 SERVER_HOST = '127.0.0.1'
 SERVER_PORT = 9999
-TIMEOUT = 2.0  # 秒
+TIMEOUT = 2.0  # seconds
 
 def udp_client_with_retry(message: str, max_retries: int = 3) -> str | None:
     """
-    UDPでメッセージを送信し、応答を待つ。
-    パケットロスに備えてリトライロジックを実装。
+    Send a message over UDP and wait for a response.
+    Implements retry logic in case of packet loss.
 
     Args:
-        message: 送信するメッセージ
-        max_retries: 最大リトライ回数
+        message: The message to send
+        max_retries: Maximum number of retries
 
     Returns:
-        応答メッセージ。全リトライ失敗時はNone。
+        Response message, or None if all retries are exhausted.
     """
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-        # タイムアウト設定（UDPはACKがないため、アプリ層で検出）
+        # Set timeout (UDP has no ACK, so detection is at app layer)
         sock.settimeout(TIMEOUT)
 
         for attempt in range(max_retries):
             try:
-                # 送信
+                # Send
                 sent_time = time.monotonic()
                 sock.sendto(message.encode('utf-8'),
                            (SERVER_HOST, SERVER_PORT))
 
-                # 受信待ち（タイムアウトで例外発生）
+                # Wait for response (raises exception on timeout)
                 data, server_addr = sock.recvfrom(65535)
                 rtt = (time.monotonic() - sent_time) * 1000
 
@@ -531,7 +537,7 @@ def udp_client_with_retry(message: str, max_retries: int = 3) -> str | None:
 
 
 if __name__ == '__main__':
-    # 複数メッセージを送信してRTTとロス率を計測
+    # Send multiple messages and measure RTT and loss rate
     messages = [f"Message {i}" for i in range(10)]
     success = 0
     total_rtt = 0.0
@@ -545,15 +551,15 @@ if __name__ == '__main__':
           f"({success/len(messages)*100:.1f}%)")
 ```
 
-### 5.2 C言語によるUDPソケット
+### 5.2 UDP Socket in C
 
-**コード例3: C言語 UDPサーバー**
+**Code Example 3: UDP Server in C**
 
 ```c
 /*
- * UDP サーバー（C言語）
- * 低レベルのソケットAPIを使用した実装。
- * コンパイル: gcc -o udp_server udp_server.c -Wall -Wextra
+ * UDP Server (C language)
+ * Implementation using low-level socket API.
+ * Compile: gcc -o udp_server udp_server.c -Wall -Wextra
  */
 
 #include <stdio.h>
@@ -573,20 +579,20 @@ int main(void) {
     socklen_t client_len = sizeof(client_addr);
     char buffer[BUFFER_SIZE];
 
-    /* UDPソケットの作成 */
+    /* Create UDP socket */
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0) {
         perror("socket creation failed");
         exit(EXIT_FAILURE);
     }
 
-    /* サーバーアドレスの設定 */
+    /* Set server address */
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(PORT);
 
-    /* ソケットにアドレスをバインド */
+    /* Bind address to socket */
     if (bind(sockfd, (const struct sockaddr *)&server_addr,
              sizeof(server_addr)) < 0) {
         perror("bind failed");
@@ -596,14 +602,14 @@ int main(void) {
 
     printf("UDP Server listening on port %d\n", PORT);
 
-    /* メインループ - TCPと違いaccept()不要 */
+    /* Main loop - no accept() needed unlike TCP */
     for (;;) {
         ssize_t n = recvfrom(sockfd, buffer, BUFFER_SIZE - 1, 0,
                              (struct sockaddr *)&client_addr,
                              &client_len);
 
         if (n < 0) {
-            if (errno == EINTR) continue;  /* シグナル割り込み */
+            if (errno == EINTR) continue;  /* Signal interrupt */
             perror("recvfrom error");
             continue;
         }
@@ -617,7 +623,7 @@ int main(void) {
         printf("Received %zd bytes from %s:%d: %s\n",
                n, client_ip, ntohs(client_addr.sin_port), buffer);
 
-        /* エコーバック */
+        /* Echo back */
         sendto(sockfd, buffer, n, 0,
                (const struct sockaddr *)&client_addr, client_len);
     }
@@ -627,83 +633,83 @@ int main(void) {
 }
 ```
 
-### 5.3 netcatによるUDP通信テスト
+### 5.3 UDP Communication Testing with netcat
 
-**コード例4: netcat（nc）を使ったUDPテスト**
+**Code Example 4: UDP Testing with netcat (nc)**
 
 ```bash
 #!/bin/bash
-# netcat を使った UDP 通信テスト
+# UDP communication testing with netcat
 
-# --- サーバー側（端末1で実行） ---
-# -u: UDP モード
-# -l: リッスンモード
-# -k: 接続が切れても待ち続ける（GNU netcat）
+# --- Server side (run in terminal 1) ---
+# -u: UDP mode
+# -l: listen mode
+# -k: keep listening after connection closes (GNU netcat)
 nc -u -l -k 9999
 
-# --- クライアント側（端末2で実行） ---
-# UDP でメッセージを送信
+# --- Client side (run in terminal 2) ---
+# Send a message over UDP
 echo "Hello UDP" | nc -u -w1 127.0.0.1 9999
 
-# --- UDP ポートスキャン ---
-# -z: データを送らず接続テストのみ
-# -v: 詳細出力
-# -u: UDP モード
-# 注意: UDPポートスキャンは信頼性が低い
-#       （閉じているポートからICMP Port Unreachableが返る場合のみ検出可能）
+# --- UDP port scan ---
+# -z: test connection only, send no data
+# -v: verbose output
+# -u: UDP mode
+# Note: UDP port scanning is unreliable
+#       (detectable only if ICMP Port Unreachable is returned for closed ports)
 nc -zuv 192.168.1.1 53 67-69 123 161 500
 
-# --- UDP でファイル転送（信頼性なし） ---
-# 受信側:
+# --- File transfer over UDP (no reliability) ---
+# Receiver:
 nc -u -l 9999 > received_file.bin
 
-# 送信側:
+# Sender:
 nc -u -w1 127.0.0.1 9999 < send_file.bin
 
-# --- パケットサイズを指定した負荷テスト ---
-# 1024バイトのランダムデータを100回送信
+# --- Load test with specified packet size ---
+# Send 1024 bytes of random data 100 times
 for i in $(seq 1 100); do
     dd if=/dev/urandom bs=1024 count=1 2>/dev/null | \
         nc -u -w0 127.0.0.1 9999
 done
 
-# --- tcpdump でUDPパケットをキャプチャ ---
-# ポート9999のUDPパケットを詳細表示
+# --- Capture UDP packets with tcpdump ---
+# Display UDP packets on port 9999 in detail
 sudo tcpdump -i any -nn -vv udp port 9999
 
-# Wireshark用にキャプチャファイルを保存
+# Save capture file for Wireshark
 sudo tcpdump -i any -nn udp port 9999 -w udp_capture.pcap
 ```
 
-### 5.4 マルチキャストの実装
+### 5.4 Multicast Implementation
 
 ```python
 #!/usr/bin/env python3
 """
-UDP マルチキャスト送受信の実装例。
-1対多通信を効率的に実現する。
+Example implementation of UDP multicast send/receive.
+Efficiently realizes one-to-many communication.
 """
 
 import socket
 import struct
 
-MULTICAST_GROUP = '239.1.1.1'  # マルチキャストアドレス（239.0.0.0/8は管理用）
+MULTICAST_GROUP = '239.1.1.1'  # Multicast address (239.0.0.0/8 is admin-scoped)
 MULTICAST_PORT = 5007
-MULTICAST_TTL = 2  # マルチキャストパケットのTTL（ルーター越え回数）
+MULTICAST_TTL = 2  # TTL for multicast packets (number of router hops)
 
 
 def multicast_sender():
-    """マルチキャスト送信者"""
+    """Multicast sender"""
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM,
                          socket.IPPROTO_UDP)
 
-    # マルチキャストTTLの設定
-    # TTL=1: 同一サブネットのみ
-    # TTL=2: 1つのルーターを越える
+    # Set multicast TTL
+    # TTL=1: same subnet only
+    # TTL=2: crosses one router
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL,
                     MULTICAST_TTL)
 
-    # ループバックの設定（自分自身にも送信するか）
+    # Loopback setting (whether to send to self)
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
 
     message = b"Multicast message from sender"
@@ -713,16 +719,16 @@ def multicast_sender():
 
 
 def multicast_receiver():
-    """マルチキャスト受信者"""
+    """Multicast receiver"""
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM,
                          socket.IPPROTO_UDP)
 
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-    # 全インターフェースでバインド
+    # Bind to all interfaces
     sock.bind(('', MULTICAST_PORT))
 
-    # マルチキャストグループに参加（IGMP Joinメッセージが送信される）
+    # Join multicast group (sends IGMP Join message)
     mreq = struct.pack(
         '4sL',
         socket.inet_aton(MULTICAST_GROUP),
@@ -739,31 +745,33 @@ def multicast_receiver():
 
 ---
 
-## 6. QUIC プロトコルの詳細
+## 6. QUIC Protocol in Depth
 
-### 6.1 QUICの誕生と標準化
+### 6.1 Birth and Standardization of QUIC
 
-QUICは2012年にGoogleが開発を開始し、2021年にIETFによってRFC 9000として標準化された。当初は「Quick UDP Internet Connections」の略称であったが、IETF版では単に「QUIC」が正式名称となっている。QUICはUDP上に構築されたトランスポートプロトコルであり、TCPの機能（信頼性、順序保証、輻輳制御）とTLS 1.3の暗号化を統合したものである。
+QUIC was developed by Google starting in 2012, and standardized by the IETF as RFC 9000 in 2021. Originally an abbreviation for "Quick UDP Internet Connections," the IETF version is simply named "QUIC." QUIC is a transport protocol built on UDP that integrates the features of TCP (reliability, ordering, congestion control) with TLS 1.3 encryption.
 
-### 6.2 プロトコルスタックの比較
+### 6.2 Protocol Stack Comparison
 
 ```
-従来のHTTP/2スタック vs HTTP/3（QUIC）スタック:
+Traditional HTTP/2 stack vs HTTP/3 (QUIC) stack:
 
   HTTP/2 (TCP)                    HTTP/3 (QUIC)
   ┌───────────────────────┐      ┌───────────────────────┐
   │     HTTP/2             │      │     HTTP/3             │
-  │  (ストリーム多重化)     │      │  (ストリーム多重化)     │
+  │  (stream multiplexing) │      │  (stream multiplexing) │
   ├───────────────────────┤      ├───────────────────────┤
   │     TLS 1.3            │      │                       │
-  │  (暗号化)              │      │     QUIC               │
+  │  (encryption)          │      │     QUIC               │
   ├───────────────────────┤      │  ┌─────────────────┐  │
-  │     TCP                │      │  │ TLS 1.3 (内蔵)  │  │
-  │  (信頼性・順序保証      │      │  ├─────────────────┤  │
-  │   フロー制御            │      │  │ 信頼性・順序保証  │  │
-  │   輻輳制御)             │      │  │ フロー制御       │  │
-  │                        │      │  │ 輻輳制御         │  │
-  │                        │      │  │ 接続移行         │  │
+  │     TCP                │      │  │ TLS 1.3 (built-in)│ │
+  │  (reliability,         │      │  ├─────────────────┤  │
+  │   ordering,            │      │  │ Reliability,    │  │
+  │   flow control,        │      │  │ ordering        │  │
+  │   congestion control)  │      │  │ Flow control    │  │
+  │                        │      │  │ Congestion ctrl │  │
+  │                        │      │  │ Connection      │  │
+  │                        │      │  │ migration       │  │
   ├───────────────────────┤      │  └─────────────────┘  │
   │     IP                 │      ├───────────────────────┤
   └───────────────────────┘      │     UDP                │
@@ -771,268 +779,270 @@ QUICは2012年にGoogleが開発を開始し、2021年にIETFによってRFC 900
                                   │     IP                 │
                                   └───────────────────────┘
 
-  重要な相違点:
-  ・QUICはTLS 1.3をプロトコル内に統合（分離不可能）
-  ・QUICはUDP上で動作するが、UDP自体の機能は使わない
-    （UDPは「IPの上でポート番号を使えるようにする層」として利用）
-  ・QUICのパケットはほぼ全て暗号化されている
-    （ヘッダーの一部フィールドも暗号化対象）
+  Key differences:
+  · QUIC integrates TLS 1.3 within the protocol (inseparable)
+  · QUIC runs over UDP, but does not use UDP's own features
+    (UDP is used only as a layer that provides port numbers on top of IP)
+  · Almost all QUIC packets are encrypted
+    (even some header fields are encrypted)
 ```
 
-### 6.3 QUIC接続確立の高速化
+### 6.3 Faster Connection Establishment with QUIC
 
 ```
-TCP + TLS 1.3 の接続確立（2 RTT）:
+TCP + TLS 1.3 connection establishment (2 RTT):
 
-  クライアント                             サーバー
+  Client                                   Server
        │                                      │
        │──── TCP SYN ────────────────────────▶│  ┐
-       │◀─── TCP SYN+ACK ───────────────────│  │ TCP ハンドシェイク
+       │◀─── TCP SYN+ACK ───────────────────│  │ TCP handshake
        │──── TCP ACK ────────────────────────▶│  ┘ (1 RTT)
        │                                      │
        │──── TLS ClientHello ────────────────▶│  ┐
-       │◀─── TLS ServerHello + Finished ─────│  │ TLS ハンドシェイク
+       │◀─── TLS ServerHello + Finished ─────│  │ TLS handshake
        │──── TLS Finished ──────────────────▶│  ┘ (1 RTT)
        │                                      │
-       │──── HTTP Request ──────────────────▶│  データ送信開始
-       │◀─── HTTP Response ─────────────────│  (ここまで 2 RTT)
+       │──── HTTP Request ──────────────────▶│  Data transfer begins
+       │◀─── HTTP Response ─────────────────│  (2 RTT to reach here)
 
 
-QUIC の接続確立（1 RTT）:
+QUIC connection establishment (1 RTT):
 
-  クライアント                             サーバー
+  Client                                   Server
        │                                      │
        │──── QUIC Initial ──────────────────▶│  ┐
-       │     (ClientHello 含む)               │  │ QUIC + TLS
-       │◀─── QUIC Handshake ────────────────│  │ 同時ハンドシェイク
-       │     (ServerHello + Finished 含む)    │  ┘ (1 RTT)
+       │     (includes ClientHello)           │  │ QUIC + TLS
+       │◀─── QUIC Handshake ────────────────│  │ simultaneous handshake
+       │     (includes ServerHello + Finished)│  ┘ (1 RTT)
        │                                      │
-       │──── QUIC 1-RTT (HTTP Request) ────▶│  データ送信開始
-       │◀─── QUIC 1-RTT (HTTP Response) ───│  (ここまで 1 RTT)
+       │──── QUIC 1-RTT (HTTP Request) ────▶│  Data transfer begins
+       │◀─── QUIC 1-RTT (HTTP Response) ───│  (1 RTT to reach here)
 
 
-QUIC 0-RTT 再接続（以前に接続したサーバーへ）:
+QUIC 0-RTT reconnection (to a previously connected server):
 
-  クライアント                             サーバー
+  Client                                   Server
        │                                      │
-       │──── QUIC Initial + 0-RTT Data ────▶│  ┐ 暗号化されたデータを
-       │     (ClientHello + HTTP Request)     │  │ 最初のパケットに含む
-       │◀─── QUIC Handshake + Response ────│  ┘ (0 RTT でデータ送信)
+       │──── QUIC Initial + 0-RTT Data ────▶│  ┐ Encrypted data
+       │     (ClientHello + HTTP Request)     │  │ included in first packet
+       │◀─── QUIC Handshake + Response ────│  ┘ (data sent in 0 RTT)
        │                                      │
 
-  0-RTT の制約:
-  ・リプレイ攻撃のリスクがある（べき等でない操作は避ける）
-  ・前方秘匿性が保証されない（PSKベース）
-  ・サーバーが0-RTTを拒否する場合がある
-  ・GETリクエストなどの安全なメソッドに限定すべき
+  0-RTT constraints:
+  · Risk of replay attacks (avoid non-idempotent operations)
+  · Forward secrecy not guaranteed (PSK-based)
+  · Server may reject 0-RTT
+  · Should be limited to safe methods like GET requests
 ```
 
-### 6.4 Head-of-Line Blocking の解消
+### 6.4 Eliminating Head-of-Line Blocking
 
 ```
-TCP上のHTTP/2における Head-of-Line Blocking:
+Head-of-Line Blocking in HTTP/2 over TCP:
 
-  ストリームA: ████ ░░░░ ████     ← パケットロスで
-  ストリームB: ████ ░░░░ ████        全ストリームが停止
-  ストリームC: ████ ░░░░ ████
+  Stream A: ████ ░░░░ ████     ← All streams stall
+  Stream B: ████ ░░░░ ████        due to packet loss
+  Stream C: ████ ░░░░ ████
                      ↑
-              パケットロス発生
-              TCPが再送を待つ間
-              全ストリームがブロック
+              Packet loss occurs
+              While TCP waits for retransmit
+              all streams are blocked
 
   ┌────────────────────────────────────────────────┐
-  │ TCP バイトストリーム                             │
+  │ TCP byte stream                                 │
   │ [A1][B1][C1][A2][  lost  ][B2][C2][A3][B3][C3] │
   │                     ↑                          │
-  │              この1パケットのロスで                │
-  │              後続の全パケットが配信できない        │
+  │              This 1 lost packet prevents        │
+  │              all subsequent packets from        │
+  │              being delivered                    │
   └────────────────────────────────────────────────┘
 
 
-QUICにおけるストリームの独立性:
+Stream independence in QUIC:
 
-  ストリームA: ████ ░░░░ ████     ← Aだけが影響
-  ストリームB: ████████████████   ← Bは影響なし
-  ストリームC: ████████████████   ← Cも影響なし
+  Stream A: ████ ░░░░ ████     ← Only A is affected
+  Stream B: ████████████████   ← B is unaffected
+  Stream C: ████████████████   ← C is also unaffected
                      ↑
-              ストリームAのパケットロス
+              Packet loss on stream A
 
   ┌────────────────────────────────────────────────┐
-  │ QUIC パケット                                   │
+  │ QUIC packets                                    │
   │ [A1][B1][C1][A2 lost][B2][C2][A3][B3][C3]      │
   │                ↑                                │
-  │         A2のロスはストリームAにのみ影響            │
-  │         B, Cは独立して配信可能                    │
+  │         Loss of A2 only affects stream A        │
+  │         B and C can be delivered independently  │
   └────────────────────────────────────────────────┘
 
-  これが可能な理由:
-  ・QUICは各ストリームを独立したバッファで管理
-  ・TCPのような「単一の順序付きバイトストリーム」ではない
-  ・パケットロスの影響がストリーム単位に局所化される
+  Why this is possible:
+  · QUIC manages each stream with an independent buffer
+  · Not a "single ordered byte stream" like TCP
+  · Impact of packet loss is localized to a per-stream level
 ```
 
-### 6.5 接続移行（Connection Migration）
+### 6.5 Connection Migration
 
 ```
-TCPの場合 - ネットワーク切替で接続断:
+TCP - connection drops when network switches:
 
-  スマートフォンがWi-Fiから4Gへ切り替え:
+  Smartphone switches from Wi-Fi to 4G:
 
-  Wi-Fi接続中:    TCP接続 = (SrcIP_wifi, SrcPort, DstIP, DstPort)
+  On Wi-Fi:       TCP connection = (SrcIP_wifi, SrcPort, DstIP, DstPort)
        │
-       ▼ Wi-Fi圏外へ移動
+       ▼ Moves out of Wi-Fi range
        │
-  4G接続開始:     IPアドレスが変わる → TCPの4タプルが一致しない
-                  → 既存の接続は切断
-                  → 新規TCPハンドシェイクが必要
-                  → アプリケーション層でセッション復旧が必要
+  4G starts:      IP address changes → TCP 4-tuple no longer matches
+                  → Existing connection is dropped
+                  → New TCP handshake required
+                  → Application layer must recover session
 
-  ユーザー体験: 動画が途切れる、ダウンロードが中断する
+  User experience: video stutters, download interrupted
 
 
-QUICの場合 - Connection IDで接続を維持:
+QUIC - connection maintained via Connection ID:
 
-  Wi-Fi接続中:    QUIC接続 = Connection ID: 0xABCD1234
+  On Wi-Fi:       QUIC connection = Connection ID: 0xABCD1234
   IP: 192.168.1.100
        │
-       ▼ Wi-Fi圏外へ移動
+       ▼ Moves out of Wi-Fi range
        │
-  4G接続開始:     QUIC接続 = Connection ID: 0xABCD1234  ← 同じID
-  IP: 100.64.0.50        → IPが変わってもConnection IDで識別
-                          → サーバーは同じ接続として処理を継続
-                          → Path Validationで新経路を確認
-                          → 暗号化コンテキストはそのまま維持
+  4G starts:      QUIC connection = Connection ID: 0xABCD1234  ← same ID
+  IP: 100.64.0.50         → Even if IP changes, identified by Connection ID
+                           → Server continues treating it as the same connection
+                           → Path Validation confirms the new path
+                           → Encryption context is maintained as-is
 
-  ユーザー体験: 動画が途切れない、ダウンロードが継続する
+  User experience: video doesn't stutter, download continues
 
   Path Validation:
-  クライアント ──── PATH_CHALLENGE(random) ──────▶ サーバー
-  クライアント ◀─── PATH_RESPONSE(same random) ─── サーバー
-  → 新しい経路が有効であることを確認
-  → 第三者によるなりすまし攻撃を防止
+  Client ──── PATH_CHALLENGE(random) ──────▶ Server
+  Client ◀─── PATH_RESPONSE(same random) ─── Server
+  → Confirms the new path is valid
+  → Prevents spoofing attacks by third parties
 ```
 
-### 6.6 QUICの設定例（nginx）
+### 6.6 QUIC Configuration Example (nginx)
 
-**コード例5: nginx での HTTP/3（QUIC）設定**
+**Code Example 5: HTTP/3 (QUIC) configuration in nginx**
 
 ```nginx
 # /etc/nginx/conf.d/quic.conf
-# nginx 1.25+ で HTTP/3 (QUIC) をサポート
+# nginx 1.25+ supports HTTP/3 (QUIC)
 
 server {
     # HTTP/3 (QUIC) - UDP 443
     listen 443 quic reuseport;
 
-    # HTTP/2 + TLS 1.3 - TCP 443（フォールバック用）
+    # HTTP/2 + TLS 1.3 - TCP 443 (for fallback)
     listen 443 ssl;
 
     server_name example.com;
 
-    # TLS 証明書（HTTP/2 と QUIC で共有）
+    # TLS certificate (shared between HTTP/2 and QUIC)
     ssl_certificate     /etc/letsencrypt/live/example.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
 
-    # TLS 1.3 のみ許可（QUIC は TLS 1.3 必須）
+    # Allow TLS 1.3 only (QUIC requires TLS 1.3)
     ssl_protocols TLSv1.3;
 
-    # QUIC 固有の設定
-    # 0-RTT を有効化（注意: リプレイ攻撃のリスクあり）
+    # QUIC-specific settings
+    # Enable 0-RTT (caution: replay attack risk)
     ssl_early_data on;
 
-    # Alt-Svc ヘッダーで QUIC の利用可能性を通知
-    # ブラウザはこのヘッダーを見て次回から QUIC で接続する
+    # Alt-Svc header announces QUIC availability
+    # Browser reads this header and connects via QUIC next time
     add_header Alt-Svc 'h3=":443"; ma=86400';
 
-    # QUIC トランスポートパラメータ
-    # 初期フロー制御ウィンドウ
+    # QUIC transport parameters
+    # Initial flow control window
     quic_gso on;           # Generic Segmentation Offload
-    quic_retry on;         # アドレス検証を強制（DoS対策）
+    quic_retry on;         # Force address validation (DoS mitigation)
 
     location / {
         root /var/www/html;
         index index.html;
 
-        # 0-RTT データを使用するリクエストを識別
+        # Identify requests using 0-RTT data
         # proxy_set_header Early-Data $ssl_early_data;
 
-        # HTTP/3 利用時にレスポンスヘッダーで通知
+        # Notify protocol in response header when HTTP/3 is used
         add_header X-Protocol $server_protocol;
     }
 }
 ```
 
 ```bash
-# QUIC 対応の確認方法
+# How to verify QUIC support
 
-# curl で HTTP/3 接続テスト（curl 7.66+ かつ HTTP/3ビルドが必要）
+# Test HTTP/3 connection with curl (requires curl 7.66+ built with HTTP/3)
 curl --http3 -I https://example.com
 
-# HTTP/3 の Alt-Svc ヘッダーを確認
+# Check Alt-Svc header for HTTP/3
 curl -sI https://example.com | grep -i alt-svc
 
-# QUIC パケットのキャプチャ
+# Capture QUIC packets
 sudo tcpdump -i any -nn udp port 443
 
-# OpenSSL で QUIC 接続テスト（OpenSSL 3.2+）
+# Test QUIC connection with OpenSSL (OpenSSL 3.2+)
 openssl s_client -connect example.com:443 -quic
 
-# ブラウザの開発者ツールで確認:
-# Chrome: DevTools → Network → Protocol列 に "h3" と表示される
-# Firefox: about:networking → HTTP/3 タブ
+# Verify in browser developer tools:
+# Chrome: DevTools → Network → Protocol column shows "h3"
+# Firefox: about:networking → HTTP/3 tab
 ```
 
 ---
 
-## 7. UDP上のアプリケーション層での信頼性実装
+## 7. Implementing Reliability at the Application Layer over UDP
 
-### 7.1 信頼性パターンの分類
+### 7.1 Classification of Reliability Patterns
 
-UDPを使いながら必要な信頼性をアプリケーション層で実装するパターンは複数存在する。用途に応じて適切なパターンを選択する。
+Multiple patterns exist for implementing the necessary reliability at the application layer while using UDP. Choose the appropriate pattern for your use case.
 
 ```
-信頼性パターンの分類:
+Classification of reliability patterns:
 
   ┌────────────────────────────────────────────────────────────┐
-  │                      完全な信頼性                          │
-  │              (TCP と同等の保証が必要)                       │
+  │                      Full Reliability                      │
+  │              (same guarantees as TCP required)             │
   │                                                           │
-  │  パターン1: シーケンス番号 + ACK + 再送                    │
-  │  → QUIC, SCTP が採用                                      │
-  │  → ゲームの重要イベント（アイテム取得、チャット）            │
+  │  Pattern 1: Sequence numbers + ACK + retransmission       │
+  │  → Used by QUIC, SCTP                                      │
+  │  → Important game events (item pickup, chat)              │
   ├────────────────────────────────────────────────────────────┤
-  │                      部分的信頼性                          │
-  │              (一部のデータロスは許容)                       │
+  │                      Partial Reliability                   │
+  │              (some data loss is acceptable)                │
   │                                                           │
-  │  パターン2: 前方誤り訂正（FEC）                            │
-  │  → 冗長データで再送なしにロスを復元                        │
-  │  → WebRTC の音声通話で使用                                │
+  │  Pattern 2: Forward Error Correction (FEC)                │
+  │  → Redundant data recovers loss without retransmission    │
+  │  → Used in WebRTC voice calls                             │
   │                                                           │
-  │  パターン3: 選択的再送                                     │
-  │  → 重要メッセージのみ再送、それ以外は破棄                  │
-  │  → ゲームのハイブリッド方式                                │
+  │  Pattern 3: Selective retransmission                      │
+  │  → Only important messages are retransmitted, rest dropped│
+  │  → Hybrid approach for games                              │
   ├────────────────────────────────────────────────────────────┤
-  │                      信頼性不要                            │
-  │              (最新の値のみが重要)                           │
+  │                      No Reliability Needed                 │
+  │              (only the latest value matters)               │
   │                                                           │
-  │  パターン4: タイムスタンプ + 補間                          │
-  │  → 欠損データを前後から推定                                │
-  │  → ゲームの位置情報、IoTセンサー                           │
+  │  Pattern 4: Timestamps + interpolation                    │
+  │  → Missing data estimated from surrounding values         │
+  │  → Game position data, IoT sensors                        │
   │                                                           │
-  │  パターン5: 冪等メッセージ                                 │
-  │  → 同じメッセージを何度送っても結果が同じ                   │
-  │  → DNS クエリ、NTP                                        │
+  │  Pattern 5: Idempotent messages                           │
+  │  → Sending the same message multiple times yields same    │
+  │    result                                                 │
+  │  → DNS queries, NTP                                       │
   └────────────────────────────────────────────────────────────┘
 ```
 
-### 7.2 ゲームネットワーキングの実装例
+### 7.2 Game Networking Implementation Example
 
 ```python
 #!/usr/bin/env python3
 """
-ゲーム向けUDP信頼性レイヤーの実装例。
-重要なメッセージにはACKを要求し、
-位置情報などのリアルタイムデータはfire-and-forgetで送信する。
+Example implementation of a UDP reliability layer for games.
+Important messages request ACK;
+real-time data like position is sent fire-and-forget.
 """
 
 import struct
@@ -1044,33 +1054,33 @@ import socket
 
 
 class MessageType(IntEnum):
-    """メッセージの種別"""
-    UNRELIABLE = 0    # 信頼性不要（位置情報等）
-    RELIABLE = 1      # 信頼性必要（チャット等）
-    ACK = 2           # 受信確認
+    """Message type"""
+    UNRELIABLE = 0    # No reliability needed (position data, etc.)
+    RELIABLE = 1      # Reliability needed (chat, etc.)
+    ACK = 2           # Acknowledgment
 
 
 @dataclass
 class GamePacket:
     """
-    ゲーム用パケットフォーマット:
+    Game packet format:
     ┌──────────────────────────────────────────┐
-    │ sequence (4 bytes)  - シーケンス番号      │
-    │ ack (4 bytes)       - 最後に受信した番号  │
-    │ ack_bits (4 bytes)  - 過去32パケットのACK │
-    │ type (1 byte)       - メッセージ種別      │
-    │ timestamp (8 bytes) - 送信タイムスタンプ   │
-    │ data (可変長)       - ペイロード          │
+    │ sequence (4 bytes)  - sequence number    │
+    │ ack (4 bytes)       - last received seq  │
+    │ ack_bits (4 bytes)  - ACK for past 32    │
+    │ type (1 byte)       - message type       │
+    │ timestamp (8 bytes) - send timestamp     │
+    │ data (variable)     - payload            │
     └──────────────────────────────────────────┘
     """
     sequence: int = 0
     ack: int = 0
-    ack_bits: int = 0          # ビットマスクで32個のACKを効率的に表現
+    ack_bits: int = 0          # Bitmask efficiently encodes 32 ACKs
     msg_type: MessageType = MessageType.UNRELIABLE
     timestamp: float = 0.0
     data: bytes = b''
 
-    HEADER_FORMAT = '!IIIBd'   # ネットワークバイトオーダー
+    HEADER_FORMAT = '!IIIBd'   # Network byte order
     HEADER_SIZE = struct.calcsize(HEADER_FORMAT)  # 21 bytes
 
     def serialize(self) -> bytes:
@@ -1101,9 +1111,9 @@ class GamePacket:
 
 class ReliableUDP:
     """
-    信頼性レイヤー: 選択的ACKとリトライを実装。
-    全メッセージにシーケンス番号を付与し、
-    reliable マークされたメッセージのみ再送する。
+    Reliability layer: implements selective ACK and retry.
+    Assigns sequence numbers to all messages,
+    and retransmits only messages marked as reliable.
     """
 
     def __init__(self, sock: socket.socket):
@@ -1111,13 +1121,13 @@ class ReliableUDP:
         self.local_sequence = 0
         self.remote_sequence = 0
         self.pending_acks: dict[int, GamePacket] = {}
-        self.rtt_estimate = 0.1  # 初期RTT推定値（秒）
-        self.retry_interval = 0.2  # 再送間隔
+        self.rtt_estimate = 0.1  # Initial RTT estimate (seconds)
+        self.retry_interval = 0.2  # Retransmit interval
         self.max_retries = 5
 
     def send(self, data: bytes, addr: tuple,
              reliable: bool = False) -> None:
-        """メッセージを送信する"""
+        """Send a message"""
         packet = GamePacket(
             sequence=self.local_sequence,
             ack=self.remote_sequence,
@@ -1137,19 +1147,19 @@ class ReliableUDP:
         self.local_sequence += 1
 
     def receive(self) -> Optional[tuple[bytes, tuple]]:
-        """メッセージを受信し、ACK処理を行う"""
+        """Receive a message and process ACKs"""
         try:
             raw, addr = self.sock.recvfrom(65535)
             packet = GamePacket.deserialize(raw)
 
-            # リモートシーケンス番号の更新
+            # Update remote sequence number
             if packet.sequence > self.remote_sequence:
                 self.remote_sequence = packet.sequence
 
-            # 受信したACK情報でpending_acksをクリア
+            # Clear pending_acks based on received ACK info
             self._process_ack(packet.ack, packet.ack_bits)
 
-            # RTT の更新
+            # Update RTT
             if packet.sequence in self.pending_acks:
                 rtt = time.monotonic() - packet.timestamp
                 self.rtt_estimate = 0.9 * self.rtt_estimate + 0.1 * rtt
@@ -1159,12 +1169,12 @@ class ReliableUDP:
             return None
 
     def _calculate_ack_bits(self) -> int:
-        """過去32パケットのACK状態をビットマスクで返す"""
-        # 実装省略: 受信履歴からビットマスクを生成
+        """Return ACK state of past 32 packets as a bitmask"""
+        # Implementation omitted: generate bitmask from receive history
         return 0xFFFFFFFF
 
     def _process_ack(self, ack: int, ack_bits: int) -> None:
-        """ACK情報に基づいてpending_acksをクリア"""
+        """Clear pending_acks based on ACK info"""
         if ack in self.pending_acks:
             del self.pending_acks[ack]
         for i in range(32):
@@ -1176,40 +1186,43 @@ class ReliableUDP:
 
 ---
 
-## 8. UDPセキュリティ
+## 8. UDP Security
 
-### 8.1 UDPに対する攻撃手法
+### 8.1 Attack Methods Against UDP
 
 ```
-UDPベースの主要な攻撃手法:
+Major attack methods targeting UDP:
 
   ┌─────────────────────────────────────────────────────────────┐
   │ 1. UDP Flood (DDoS)                                        │
   │                                                             │
-  │    攻撃者 ──── 大量のUDPパケット ────▶ 被害者              │
-  │    (botnet)    ランダムポートへ送信       ↓                 │
-  │                                     ICMP Port Unreachable  │
-  │                                     の応答でCPU/帯域を消費  │
+  │    Attacker ──── large volume of UDP packets ────▶ Victim  │
+  │    (botnet)    sent to random ports               ↓        │
+  │                                             ICMP Port      │
+  │                                             Unreachable    │
+  │                                             responses      │
+  │                                             consume CPU    │
+  │                                             and bandwidth  │
   │                                                             │
-  │    対策:                                                    │
-  │    ・レートリミット（iptables -m limit）                     │
-  │    ・DDoS防御サービス（Cloudflare, AWS Shield）              │
-  │    ・不要なUDPポートの閉鎖                                  │
+  │    Countermeasures:                                         │
+  │    · Rate limiting (iptables -m limit)                     │
+  │    · DDoS protection services (Cloudflare, AWS Shield)     │
+  │    · Close unnecessary UDP ports                           │
   ├─────────────────────────────────────────────────────────────┤
-  │ 2. UDP Amplification Attack (増幅攻撃)                      │
+  │ 2. UDP Amplification Attack                                 │
   │                                                             │
-  │    攻撃者 ─── 小さなクエリ ───▶ DNSサーバー                │
-  │    (偽装IP)   (60バイト)          │                         │
-  │       ↑                           │                         │
-  │       │     大きなレスポンス ◀──┘                          │
-  │       │     (3000バイト)                                    │
+  │    Attacker ─── small query ───▶ DNS server                │
+  │    (spoofed IP)  (60 bytes)        │                        │
+  │       ↑                           │                        │
+  │       │     large response ◀──┘                           │
+  │       │     (3000 bytes)                                   │
   │       │                                                     │
-  │       └── 被害者のIPを詐称 ──▶ 被害者に50倍の                │
-  │                                トラフィックが到達            │
+  │       └── spoofing victim IP ──▶ 50x traffic reaches       │
+  │                                  victim                     │
   │                                                             │
-  │    増幅率の例:                                               │
+  │    Amplification ratio examples:                            │
   │    ┌──────────────┬──────────┐                              │
-  │    │ プロトコル    │ 増幅率    │                              │
+  │    │ Protocol     │ Ratio    │                              │
   │    ├──────────────┼──────────┤                              │
   │    │ DNS          │ 28-54x   │                              │
   │    │ NTP (monlist)│ 556.9x   │                              │
@@ -1218,93 +1231,95 @@ UDPベースの主要な攻撃手法:
   │    │ SNMP         │ 6.3x     │                              │
   │    └──────────────┴──────────┘                              │
   │                                                             │
-  │    対策:                                                    │
-  │    ・BCP 38（送信元IPの検証 / ingress filtering）            │
-  │    ・レスポンスレートリミット（DNS RRL）                      │
-  │    ・不要なサービスの無効化（NTP monlist 等）                 │
+  │    Countermeasures:                                         │
+  │    · BCP 38 (source IP validation / ingress filtering)     │
+  │    · Response Rate Limiting (DNS RRL)                      │
+  │    · Disable unnecessary services (NTP monlist, etc.)      │
   ├─────────────────────────────────────────────────────────────┤
-  │ 3. IPスプーフィング                                         │
+  │ 3. IP Spoofing                                              │
   │                                                             │
-  │    UDPはコネクションレスのため、送信元IPの偽装が容易          │
-  │    TCPでは3ウェイハンドシェイクで偽装が困難                   │
+  │    UDP is connectionless, making source IP spoofing easy    │
+  │    TCP 3-way handshake makes spoofing difficult             │
   │                                                             │
-  │    対策:                                                    │
-  │    ・アプリケーション層での認証（HMAC, トークン）             │
-  │    ・DTLS（Datagram TLS）の使用                             │
-  │    ・QUIC の Address Validation                             │
+  │    Countermeasures:                                         │
+  │    · Application-layer authentication (HMAC, tokens)       │
+  │    · Use DTLS (Datagram TLS)                               │
+  │    · QUIC Address Validation                               │
   └─────────────────────────────────────────────────────────────┘
 ```
 
-### 8.2 DTLS（Datagram Transport Layer Security）
+### 8.2 DTLS (Datagram Transport Layer Security)
 
 ```
-DTLS = TLSをUDP上で動作させるプロトコル
+DTLS = Protocol that runs TLS over UDP
 
-  TLS: TCP上で動作 → ストリーム指向、順序保証あり
-  DTLS: UDP上で動作 → データグラム指向、パケットロス/順序逆転に対応
+  TLS: runs over TCP → stream-oriented, ordering guaranteed
+  DTLS: runs over UDP → datagram-oriented, handles packet loss/reordering
 
-  DTLSがTLSと異なる点:
+  Differences between DTLS and TLS:
   ┌────────────────────────┬──────────────────────────────┐
   │ TLS                    │ DTLS                         │
   ├────────────────────────┼──────────────────────────────┤
-  │ TCPの順序保証に依存     │ レコードにシーケンス番号を付与│
-  │ TCPの再送に依存         │ 独自の再送タイマーを実装      │
-  │ ハンドシェイクは順序通り │ メッセージにフラグメント対応  │
-  │ レコード長制限なし      │ MTUに収まるサイズに制限       │
+  │ Relies on TCP ordering │ Adds sequence numbers to     │
+  │                        │ records                      │
+  │ Relies on TCP retransmit│ Implements own retransmit    │
+  │                        │ timers                       │
+  │ Handshake in order     │ Handles message fragmentation │
+  │ No record size limit   │ Limited to fit within MTU    │
   └────────────────────────┴──────────────────────────────┘
 
-  DTLSの使用例:
-  ・WebRTC（ブラウザ間のP2P通信）
-  ・OpenVPN（UDPモード）
-  ・CoAP（IoTプロトコル）
-  ・Cisco AnyConnect VPN
+  DTLS use cases:
+  · WebRTC (P2P communication between browsers)
+  · OpenVPN (UDP mode)
+  · CoAP (IoT protocol)
+  · Cisco AnyConnect VPN
 ```
 
 ---
 
-## 9. UDPホールパンチング
+## 9. UDP Hole Punching
 
-### 9.1 NATとUDPの課題
+### 9.1 NAT and UDP Challenges
 
-NAT（Network Address Translation）環境下では、外部からのUDPパケットがデフォルトでブロックされる。P2P通信を実現するためにはUDPホールパンチングが必要となる。
+In NAT (Network Address Translation) environments, incoming UDP packets are blocked by default. UDP hole punching is required to enable P2P communication.
 
 ```
-UDPホールパンチングの手順:
+UDP Hole Punching procedure:
 
-  ピアA                    サーバー(S)                   ピアB
-  NAT-A内部                (パブリックIP)                NAT-B内部
-  10.0.0.5:3000            203.0.113.1:5000             10.0.1.8:4000
+  Peer A                  Server (S)                   Peer B
+  Inside NAT-A            (Public IP)                  Inside NAT-B
+  10.0.0.5:3000           203.0.113.1:5000             10.0.1.8:4000
        │                        │                           │
   [1]  │── Register ───────────▶│                           │
-       │   (自分のアドレスを通知) │                           │
+       │   (announce own address)│                          │
        │                        │◀── Register ─────────────│ [2]
-       │                        │   (自分のアドレスを通知)    │
+       │                        │   (announce own address)  │
        │                        │                           │
-  NAT-Aが変換:                  │                  NAT-Bが変換:
-  10.0.0.5:3000                 │                  10.0.1.8:4000
-  → 198.51.100.1:12345          │                  → 198.51.100.2:54321
+  NAT-A translates:              │                  NAT-B translates:
+  10.0.0.5:3000                  │                  10.0.1.8:4000
+  → 198.51.100.1:12345           │                  → 198.51.100.2:54321
        │                        │                           │
   [3]  │◀── PeerInfo ──────────│                           │
-       │   "ピアBは                │── PeerInfo ──────────▶│ [4]
-       │    198.51.100.2:54321"  │   "ピアAは               │
+       │   "Peer B is at         │── PeerInfo ──────────▶│ [4]
+       │    198.51.100.2:54321"  │   "Peer A is at          │
        │                        │    198.51.100.1:12345"    │
        │                        │                           │
   [5]  │──── UDP ──────────────────────────────────────────▶│
-       │   → NAT-Aに「外向き」のマッピングが作成             │
-       │   → NAT-Bがブロック（まだマッピングがない場合）       │
+       │   → "outbound" mapping created in NAT-A            │
+       │   → NAT-B blocks (no mapping yet in some cases)    │
        │                                                    │
        │◀───────────────────────────────────── UDP ────────│ [6]
-       │   → NAT-Bに「外向き」のマッピングが作成             │
-       │   → NAT-Aが許可（[5]のマッピングが存在）            │
+       │   → "outbound" mapping created in NAT-B            │
+       │   → NAT-A allows (mapping from [5] exists)         │
        │                                                    │
   [7]  │──── UDP ──────────────────────────────────────────▶│
-       │   → NAT-Bが許可（[6]のマッピングが存在）            │
+       │   → NAT-B allows (mapping from [6] exists)         │
        │                                                    │
-       │◀══════════════ P2P通信確立 ═══════════════════════▶│
+       │◀══════════════ P2P connection established ════════▶│
 
-  成功率はNATの種類に依存:
+  Success rate depends on NAT type:
   ┌───────────────────┬──────────┐
-  │ NATタイプ          │ 成功率   │
+  │ NAT Type          │ Success  │
   ├───────────────────┼──────────┤
   │ Full Cone          │ ~100%   │
   │ Restricted Cone    │ ~90%    │
@@ -1313,184 +1328,185 @@ UDPホールパンチングの手順:
   │ Symmetric × Sym.   │ ~10%    │
   └───────────────────┴──────────┘
 
-  Symmetric NAT同士の場合は TURN サーバー
-  (リレーサーバー) を経由する必要がある。
+  For Symmetric NAT-to-Symmetric NAT, a TURN server
+  (relay server) is required.
 ```
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### 10.1 アンチパターン1: UDPで大きなファイルを転送する
+### 10.1 Anti-Pattern 1: Transferring Large Files over UDP
 
 ```
-アンチパターン: UDPで数MBのファイルをそのまま送信
+Anti-pattern: Sending a multi-MB file as-is over UDP
 
-  問題のあるコード:
+  Problematic code:
   ┌────────────────────────────────────────────┐
   │ with open('large_file.bin', 'rb') as f:    │
-  │     data = f.read()  # 5MB のファイル       │
+  │     data = f.read()  # 5MB file            │
   │     sock.sendto(data, (host, port))        │
   │     # → OSError: Message too long          │
-  │     # → または大量のIPフラグメント発生       │
+  │     # → or massive IP fragmentation        │
   └────────────────────────────────────────────┘
 
-  何が起こるか:
-  1. 65,507バイト超 → OSがエラーを返す
-  2. MTU超 → IPフラグメンテーションが発生
-     - 1フラグメントでもロストすると全体が破棄
-     - 3000パケットのうち1つでもロストで全データ再送が必要
-     - フラグメントの再構築にメモリを消費（DoS攻撃に悪用可能）
+  What happens:
+  1. Over 65,507 bytes → OS returns an error
+  2. Over MTU → IP fragmentation occurs
+     - Loss of even 1 fragment discards the entire datagram
+     - 1 lost packet out of 3000 requires retransmitting all data
+     - Fragment reassembly consumes memory (exploitable for DoS)
 
-  正しいアプローチ:
+  Correct approaches:
   ┌────────────────────────────────────────────┐
-  │ 方法1: TCPを使う（ファイル転送には最適）     │
-  │ 方法2: アプリ層でチャンク分割 + シーケンス   │
-  │        番号 + ACK + 再送制御を実装          │
-  │        → 事実上TCPを再発明することになる     │
-  │ 方法3: QUICを使う（UDPベースだが信頼性あり） │
-  │ 方法4: TFTP（Trivial File Transfer Protocol)│
-  │        → 512バイト単位、stop-and-wait方式   │
+  │ Option 1: Use TCP (best for file transfer)  │
+  │ Option 2: Chunk + sequence number + ACK +  │
+  │           retransmission at app layer       │
+  │           → Essentially reinventing TCP     │
+  │ Option 3: Use QUIC (UDP-based but reliable) │
+  │ Option 4: TFTP (Trivial File Transfer Proto)│
+  │           → 512-byte units, stop-and-wait   │
   └────────────────────────────────────────────┘
 
-  判断基準:
-  信頼性のある大量データ転送が必要 → TCP or QUIC
-  小さなデータの高頻度送信が必要  → UDP
-  「UDPの方が速いからファイル転送もUDPで」は誤り
+  Decision guide:
+  Need reliable large data transfer → TCP or QUIC
+  Need frequent small data sends   → UDP
+  "UDP is faster so use it for file transfer" is wrong
 ```
 
-### 10.2 アンチパターン2: UDPチェックサムを無効化する
+### 10.2 Anti-Pattern 2: Disabling the UDP Checksum
 
 ```
-アンチパターン: パフォーマンスのためにUDPチェックサムを0に設定
+Anti-pattern: Setting UDP checksum to 0 for performance
 
-  背景:
-  ・IPv4ではUDPチェックサムはオプション（0に設定で無効化可能）
-  ・「チェックサム計算のCPUコストを削減したい」という動機
+  Background:
+  · In IPv4, the UDP checksum is optional (can be disabled by setting to 0)
+  · Motivation: "reduce CPU cost of checksum calculation"
 
-  問題:
-  1. データ破損の検出ができない
-     ・メモリのビットフリップ（宇宙線による Single Event Upset）
-     ・NICのバグによるデータ化け
-     ・中間装置によるヘッダー書き換えミス
+  Problems:
+  1. Cannot detect data corruption
+     · Bit flips in memory (Single Event Upsets from cosmic rays)
+     · Data corruption from NIC bugs
+     · Header rewriting errors by intermediate devices
 
-  2. IPv6では必須
-     ・IPv6にはIPヘッダーチェックサムがない
-     ・UDPチェックサムが唯一の整合性検証手段
-     ・IPv6でChecksum=0のパケットは破棄される
+  2. Required in IPv6
+     · IPv6 has no IP header checksum
+     · UDP checksum is the only integrity verification method
+     · Packets with Checksum=0 are discarded in IPv6
 
-  3. 性能への影響は微小
-     ・最新のNICはチェックサムオフロード（ハードウェア計算）に対応
-     ・ソフトウェア計算でも数マイクロ秒程度
-     ・ネットワーク遅延（ミリ秒オーダー）と比較して無視できる
+  3. Performance impact is minimal
+     · Modern NICs support checksum offloading (hardware calculation)
+     · Software calculation takes only a few microseconds
+     · Negligible compared to network latency (millisecond order)
 
-  正しいアプローチ:
+  Correct approach:
   ┌────────────────────────────────────────────┐
-  │ ・チェックサムは常に有効にする              │
-  │ ・ハードウェアオフロードを活用する           │
-  │ ・追加の整合性検証が必要ならアプリ層で実装   │
-  │   (CRC-32, HMAC等)                         │
+  │ · Always keep checksum enabled             │
+  │ · Leverage hardware offloading             │
+  │ · If additional integrity verification is  │
+  │   needed, implement at app layer           │
+  │   (CRC-32, HMAC, etc.)                     │
   └────────────────────────────────────────────┘
 ```
 
 ---
 
-## 11. エッジケース分析
+## 11. Edge Case Analysis
 
-### 11.1 エッジケース1: UDPとPath MTU Discovery
+### 11.1 Edge Case 1: UDP and Path MTU Discovery
 
 ```
-問題: Path MTU Discovery (PMTUD) の失敗
+Problem: Path MTU Discovery (PMTUD) failure
 
-  シナリオ:
+  Scenario:
   ┌────────┐      MTU:1500     ┌────────┐      MTU:1280     ┌────────┐
-  │送信者   │──────────────────│ルーター1│──────────────────│受信者   │
+  │ Sender │──────────────────│Router 1│──────────────────│Receiver│
   │         │                  │         │                  │         │
   │1472B    │                  │ DF=1    │                  │         │
-  │UDP送信  │                  │1472B >  │                  │         │
+  │UDP send │                  │1472B >  │                  │         │
   │         │                  │1280-28  │                  │         │
   │         │                  │=1252B   │                  │         │
-  │         │                  │→破棄    │                  │         │
+  │         │                  │→ drop   │                  │         │
   │         │                  │         │                  │         │
   │         │◀─ICMP Too Big───│         │                  │         │
   │         │  MTU=1280        │         │                  │         │
   └────────┘                  └────────┘                  └────────┘
 
-  問題が発生するケース:
-  1. ファイアウォールがICMP "Packet Too Big" をブロックしている
-     → 送信者はMTUが小さいことを知らない
-     → パケットが永続的にブラックホール化
-     → 「PMTUD ブラックホール」問題
+  Cases where problems occur:
+  1. Firewall blocks ICMP "Packet Too Big"
+     → Sender doesn't know the MTU is smaller
+     → Packets are permanently blackholed
+     → "PMTUD black hole" problem
 
-  2. UDPにはTCPのMSS交渉がない
-     → TCPはSYN時にMSSを通知し合う
-     → UDPは送信者が自分でサイズを決定する必要がある
+  2. UDP has no MSS negotiation like TCP
+     → TCP negotiates MSS during SYN
+     → UDP sender must determine the size itself
 
-  対策:
+  Countermeasures:
   ┌────────────────────────────────────────────────────────┐
-  │ 1. 安全な最小MTUを使用:                                │
-  │    IPv4: 576バイト (RFC 791の最低保証)                  │
-  │    IPv6: 1280バイト (RFC 8200の最低保証)                │
-  │    UDP ペイロード: 576 - 20(IP) - 8(UDP) = 548バイト   │
+  │ 1. Use a safe minimum MTU:                             │
+  │    IPv4: 576 bytes (minimum guaranteed by RFC 791)     │
+  │    IPv6: 1280 bytes (minimum guaranteed by RFC 8200)   │
+  │    UDP payload: 576 - 20(IP) - 8(UDP) = 548 bytes      │
   │                                                        │
-  │ 2. QUICの方針: 最小1200バイトのペイロードを想定         │
-  │    → QUIC Initial パケットは1200バイト以上に             │
-  │      パディングされる（PMTUD ブラックホール対策）        │
+  │ 2. QUIC approach: assume minimum 1200-byte payload     │
+  │    → QUIC Initial packets are padded to ≥1200 bytes    │
+  │      (PMTUD black hole mitigation)                     │
   │                                                        │
   │ 3. DPLPMTUD (RFC 8899):                                │
-  │    → ICMPに依存しない能動的なMTU探索                    │
-  │    → プローブパケットを送信してMTUを測定                │
-  │    → QUIC が採用している手法                            │
+  │    → Active MTU probing without relying on ICMP        │
+  │    → Sends probe packets to measure MTU                │
+  │    → The method adopted by QUIC                        │
   └────────────────────────────────────────────────────────┘
 ```
 
-### 11.2 エッジケース2: UDPバッファオーバーフロー
+### 11.2 Edge Case 2: UDP Buffer Overflow
 
 ```
-問題: 受信側のバッファが溢れてパケットがドロップされる
+Problem: Receiver's buffer fills up, causing packet drops
 
-  シナリオ:
-  送信者が毎秒10,000パケットを送信
-  受信者の処理速度が毎秒5,000パケット
+  Scenario:
+  Sender sends 10,000 packets per second
+  Receiver processes 5,000 packets per second
 
   ┌────────────────────────────────────────────────────────┐
-  │ カーネルの受信バッファ (SO_RCVBUF)                      │
+  │ Kernel receive buffer (SO_RCVBUF)                       │
   │                                                        │
   │ [pkt][pkt][pkt][pkt][pkt][pkt][pkt][ FULL ]            │
-  │  ↑ アプリが recvfrom() で取り出す                       │
+  │  ↑ App reads via recvfrom()                             │
   │                                                        │
-  │ 新しいパケット到着 → バッファフル → サイレントにドロップ │
-  │ (エラー通知なし、送信者は気づかない)                     │
+  │ New packet arrives → buffer full → silently dropped    │
+  │ (no error notification; sender is unaware)             │
   └────────────────────────────────────────────────────────┘
 
-  Linuxでのドロップ確認:
+  Checking drops on Linux:
   $ cat /proc/net/udp
-  # rx_queue: 受信キューのバイト数（これが増え続けると危険）
-  # drops: ドロップされたパケット数
+  # rx_queue: bytes in receive queue (dangerous if increasing continuously)
+  # drops: number of dropped packets
 
   $ ss -u -a
-  # Recv-Q: 受信キューのバイト数
-  # Recv-Q が 0 でない場合、アプリの処理が追いついていない
+  # Recv-Q: bytes in receive queue
+  # Non-zero Recv-Q means app isn't keeping up with processing
 
   $ netstat -su
-  # "packet receive errors" がドロップ数
+  # "packet receive errors" shows drop count
 
-  対策:
+  Countermeasures:
   ┌────────────────────────────────────────────────────────┐
-  │ 1. 受信バッファサイズの拡大:                            │
+  │ 1. Increase receive buffer size:                        │
   │    setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &size)        │
   │    Linux: sysctl net.core.rmem_max = 26214400          │
   │                                                        │
-  │ 2. 受信処理の高速化:                                   │
-  │    ・recvmmsg() で複数パケットを一括受信                │
-  │    ・SO_REUSEPORT で複数スレッドに負荷分散              │
-  │    ・epoll + ノンブロッキングI/Oの使用                  │
+  │ 2. Speed up receive processing:                        │
+  │    · Use recvmmsg() to receive multiple packets at once│
+  │    · Use SO_REUSEPORT to distribute load across threads│
+  │    · Use epoll + non-blocking I/O                      │
   │                                                        │
-  │ 3. 送信レートの制御:                                   │
-  │    ・アプリケーション層でのフロー制御を実装             │
-  │    ・受信者からのフィードバックに基づくレート調整        │
+  │ 3. Control send rate:                                  │
+  │    · Implement flow control at the application layer   │
+  │    · Rate adjustment based on receiver feedback        │
   │                                                        │
-  │ 4. カーネルパラメータの最適化 (Linux):                  │
+  │ 4. Kernel parameter tuning (Linux):                    │
   │    net.core.rmem_default = 262144                       │
   │    net.core.rmem_max = 26214400                         │
   │    net.core.netdev_max_backlog = 10000                  │
@@ -1499,93 +1515,93 @@ UDPホールパンチングの手順:
 
 ---
 
-## 12. パフォーマンスチューニング
+## 12. Performance Tuning
 
-### 12.1 Linux カーネルパラメータの最適化
+### 12.1 Linux Kernel Parameter Optimization
 
-高スループットのUDPアプリケーション（映像配信サーバー、ゲームサーバー等）では、カーネルパラメータの調整が不可欠である。
+For high-throughput UDP applications (video streaming servers, game servers, etc.), tuning kernel parameters is essential.
 
 ```
-# /etc/sysctl.conf に追加するパラメータ
+# Parameters to add to /etc/sysctl.conf
 
-# --- 受信バッファ ---
-# デフォルト受信バッファサイズ（バイト）
-net.core.rmem_default = 262144        # 256 KB（デフォルト: 212992）
+# --- Receive buffer ---
+# Default receive buffer size (bytes)
+net.core.rmem_default = 262144        # 256 KB (default: 212992)
 
-# 最大受信バッファサイズ（バイト）
-net.core.rmem_max = 26214400          # 25 MB（デフォルト: 212992）
+# Maximum receive buffer size (bytes)
+net.core.rmem_max = 26214400          # 25 MB (default: 212992)
 
-# --- 送信バッファ ---
+# --- Send buffer ---
 net.core.wmem_default = 262144        # 256 KB
 net.core.wmem_max = 26214400          # 25 MB
 
-# --- ネットワークデバイスのバックログ ---
-# NICからカーネルへのパケットキュー長
-net.core.netdev_max_backlog = 10000   # デフォルト: 1000
-# 高トラフィック時にこのキューが溢れるとパケットドロップが発生
+# --- Network device backlog ---
+# Packet queue length from NIC to kernel
+net.core.netdev_max_backlog = 10000   # default: 1000
+# Packet drops occur when this queue fills under high traffic
 
-# --- UDP メモリ制限 ---
-# [最小, デフォルト, 最大] ページ数
+# --- UDP memory limits ---
+# [min, default, max] in pages
 net.ipv4.udp_mem = 188604 251472 377208
 
-# --- その他の最適化 ---
-# タイムスタンプを無効化（わずかなCPU節約）
+# --- Other optimizations ---
+# Disable timestamps (slight CPU saving)
 net.core.netdev_tstamp_prequeue = 0
 
-# Busy Polling（低レイテンシ用途）
-net.core.busy_poll = 50               # ポーリング時間（マイクロ秒）
+# Busy Polling (for low-latency use cases)
+net.core.busy_poll = 50               # Polling time (microseconds)
 net.core.busy_read = 50
 
-# 適用コマンド:
+# Apply with:
 # sudo sysctl -p
 ```
 
-### 12.2 ソケットオプションの最適化
+### 12.2 Socket Option Optimization
 
 ```python
 #!/usr/bin/env python3
 """
-高パフォーマンスUDPサーバーのソケット設定例。
-受信ドロップを最小化するための各種最適化を実装。
+Socket configuration example for a high-performance UDP server.
+Implements various optimizations to minimize receive drops.
 """
 
 import socket
 import os
 
 def create_optimized_udp_socket(host: str, port: int) -> socket.socket:
-    """最適化されたUDPソケットを作成する"""
+    """Create an optimized UDP socket"""
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-    # --- 基本設定 ---
+    # --- Basic settings ---
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-    # SO_REUSEPORT: 複数プロセスが同じポートでリッスン
-    # カーネルがパケットを各プロセスに分散（ロードバランシング）
+    # SO_REUSEPORT: multiple processes listen on the same port
+    # Kernel distributes packets across processes (load balancing)
     if hasattr(socket, 'SO_REUSEPORT'):
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
 
-    # --- バッファサイズ ---
-    # 受信バッファを拡大（バーストトラフィック対策）
+    # --- Buffer size ---
+    # Increase receive buffer (handles burst traffic)
     target_rcvbuf = 8 * 1024 * 1024  # 8 MB
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, target_rcvbuf)
 
-    # 実際に設定された値を確認（カーネルが2倍にする場合がある）
+    # Check the actually configured value (kernel may double it)
     actual_rcvbuf = sock.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)
     print(f"Receive buffer: requested={target_rcvbuf}, "
           f"actual={actual_rcvbuf}")
 
-    # 送信バッファ
+    # Send buffer
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF,
                     4 * 1024 * 1024)  # 4 MB
 
-    # --- タイムスタンプ ---
-    # カーネルレベルのタイムスタンプ取得（精密なレイテンシ計測用）
-    # SO_TIMESTAMPNS: ナノ秒精度のタイムスタンプ
+    # --- Timestamps ---
+    # Kernel-level timestamp (for precise latency measurement)
+    # SO_TIMESTAMPNS: nanosecond-precision timestamps
     if hasattr(socket, 'SO_TIMESTAMPNS'):
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_TIMESTAMPNS, 1)
 
-    # --- ノンブロッキング ---
+    # --- Non-blocking ---
     sock.setblocking(False)
 
     sock.bind((host, port))
@@ -1594,9 +1610,9 @@ def create_optimized_udp_socket(host: str, port: int) -> socket.socket:
 
 def receive_batch(sock: socket.socket, batch_size: int = 64):
     """
-    複数パケットの一括受信（recvmmsg相当）。
-    Pythonの標準ライブラリにはrecvmmsgがないため、
-    ノンブロッキングで連続受信する簡易実装。
+    Batch receive of multiple packets (equivalent to recvmmsg).
+    Python's standard library has no recvmmsg, so this is a
+    simple non-blocking continuous receive implementation.
     """
     messages = []
     for _ in range(batch_size):
@@ -1604,113 +1620,113 @@ def receive_batch(sock: socket.socket, batch_size: int = 64):
             data, addr = sock.recvfrom(65535)
             messages.append((data, addr))
         except BlockingIOError:
-            break  # バッファが空
+            break  # Buffer is empty
     return messages
 ```
 
-### 12.3 パフォーマンス比較表: UDP vs TCP のオーバーヘッド
+### 12.3 Performance Comparison Table: UDP vs TCP Overhead
 
-| 項目 | TCP | UDP | 差分 |
+| Item | TCP | UDP | Difference |
 |------|-----|-----|------|
-| 接続確立 | 1.5 RTT（3ウェイハンドシェイク） | 0 RTT | 1.5 RTT 削減 |
-| ヘッダーオーバーヘッド | 20-60バイト/パケット | 8バイト/パケット | 12-52バイト削減 |
-| メモリ使用（接続あたり） | ~3.5 KB（Linux TCB） | ~0 KB | ~3.5 KB 削減 |
-| CPU使用（チェックサム） | ヘッダー + データ | ヘッダー + データ（オプション） | 同等 |
-| CPU使用（状態管理） | 11状態のFSM管理 | なし | 大幅削減 |
-| 同時接続10万の場合のメモリ | ~350 MB | ~0 MB | ~350 MB 削減 |
-| 最初のデータ送信までの遅延 | 2-3 RTT（+TLS） | 0 RTT | 2-3 RTT 削減 |
-| 再送によるレイテンシ増加 | RTO（通常200ms+） | なし（アプリ層次第） | 可変 |
+| Connection establishment | 1.5 RTT (3-way handshake) | 0 RTT | 1.5 RTT saved |
+| Header overhead | 20-60 bytes/packet | 8 bytes/packet | 12-52 bytes saved |
+| Memory per connection | ~3.5 KB (Linux TCB) | ~0 KB | ~3.5 KB saved |
+| CPU (checksum) | Header + data | Header + data (optional) | Equivalent |
+| CPU (state management) | 11-state FSM | None | Significantly reduced |
+| Memory for 100K connections | ~350 MB | ~0 MB | ~350 MB saved |
+| Delay until first data send | 2-3 RTT (+TLS) | 0 RTT | 2-3 RTT saved |
+| Retransmit latency increase | RTO (usually 200ms+) | None (depends on app) | Variable |
 
 ---
 
-## 13. 演習問題
+## 13. Exercises
 
-### 13.1 基礎演習
+### 13.1 Basic Exercises
 
-**演習1: UDPエコーサーバーの構築と検証**
+**Exercise 1: Build and Verify a UDP Echo Server**
 
 ```
-目標: UDPエコーサーバーを構築し、tcpdumpでパケットを観察する
+Goal: Build a UDP echo server and observe packets with tcpdump
 
-手順:
-1. セクション5.1のPython UDPエコーサーバーを起動する
-2. 別のターミナルからクライアントで接続する
-3. tcpdump でUDPパケットをキャプチャする
+Steps:
+1. Start the Python UDP echo server from Section 5.1
+2. Connect from another terminal using the client
+3. Capture UDP packets with tcpdump
 
-実施コマンド:
-  # ターミナル1: サーバー起動
+Commands:
+  # Terminal 1: start the server
   $ python3 udp_echo_server.py
 
-  # ターミナル2: パケットキャプチャ
+  # Terminal 2: capture packets
   $ sudo tcpdump -i lo -nn -X udp port 9999
 
-  # ターミナル3: クライアント送信
+  # Terminal 3: send from client
   $ echo "Hello UDP" | nc -u -w1 127.0.0.1 9999
 
-確認項目:
-  □ UDPヘッダーの各フィールドを特定できるか
-    - 送信元ポート、宛先ポート、データ長、チェックサム
-  □ TCPとは異なりハンドシェイクが発生しないことを確認
-  □ パケットのペイロード部分にメッセージが平文で見えることを確認
-  □ 送信と受信でパケットサイズが同一であることを確認（エコーのため）
+Verification items:
+  □ Can you identify each field of the UDP header?
+    - Source port, destination port, length, checksum
+  □ Confirm that no handshake occurs unlike TCP
+  □ Confirm that the message payload appears in plaintext
+  □ Confirm that packet size is identical for send and receive (echo)
 
-発展:
-  - Wiresharkで同様のキャプチャを行い、
-    UDPヘッダーの各フィールドをGUI上で確認する
-  - IPv6アドレス（::1）でも同様に動作することを確認する
+Extension:
+  - Perform the same capture in Wireshark,
+    and verify each UDP header field in the GUI
+  - Confirm that the same behavior works with IPv6 (::1)
 ```
 
-**演習2: パケットロスのシミュレーション**
+**Exercise 2: Simulating Packet Loss**
 
 ```
-目標: ネットワーク品質の劣化がUDP通信に与える影響を体験する
+Goal: Experience the effect of network degradation on UDP communication
 
-手順（Linux環境が必要）:
+Steps (requires Linux):
 
-  # tc (traffic control) でパケットロスを設定
-  # ループバックインターフェースに30%のパケットロスを追加
+  # Set packet loss with tc (traffic control)
+  # Add 30% packet loss to the loopback interface
   $ sudo tc qdisc add dev lo root netem loss 30%
 
-  # UDPクライアントで100メッセージを送信し、受信率を計測
+  # Send 100 messages with the UDP client and measure delivery rate
   $ python3 udp_client.py
 
-  # 期待される結果: 約70%のメッセージが受信される
+  # Expected result: approximately 70% of messages are received
 
-  # パケットロスの設定を変更して実験
+  # Change packet loss setting and experiment
   $ sudo tc qdisc change dev lo root netem loss 10%
   $ sudo tc qdisc change dev lo root netem loss 50%
 
-  # 遅延とジッターの追加
+  # Add delay and jitter
   $ sudo tc qdisc change dev lo root netem delay 100ms 50ms loss 10%
-  # → 100ms ± 50ms の遅延 + 10% のパケットロス
+  # → 100ms ± 50ms delay + 10% packet loss
 
-  # 設定の削除（実験後に必ず実行）
+  # Remove settings (always run after experiment)
   $ sudo tc qdisc del dev lo root
 
-確認項目:
-  □ パケットロス率と実際の受信率が近似することを確認
-  □ 遅延がRTTにどう影響するかを計測
-  □ TCP（同条件）と比較して、UDPの挙動がどう異なるかを観察
-    - TCPは再送により100%配信するが、スループットが低下
-    - UDPはデータを失うが、遅延は増加しない
+Verification items:
+  □ Confirm that packet loss rate closely matches actual receive rate
+  □ Measure how delay affects RTT
+  □ Observe how UDP behaves differently from TCP under the same conditions
+    - TCP retransmits to achieve 100% delivery, but throughput drops
+    - UDP loses data, but latency does not increase
 ```
 
-### 13.2 応用演習
+### 13.2 Applied Exercises
 
-**演習3: 簡易チャットシステムの構築**
+**Exercise 3: Build a Simple Chat System**
 
 ```
-目標: UDPマルチキャストを使った簡易チャットシステムを実装する
+Goal: Implement a simple chat system using UDP multicast
 
-要件:
-  1. マルチキャストグループに参加した全クライアントにメッセージを配信
-  2. 各メッセージにユーザー名とタイムスタンプを付与
-  3. メッセージにシーケンス番号を付け、欠番を検出する機能を実装
-  4. 受信したメッセージのうち、欠番があれば警告を表示
+Requirements:
+  1. Deliver messages to all clients in the multicast group
+  2. Attach username and timestamp to each message
+  3. Add sequence numbers to messages and implement missing sequence detection
+  4. Display a warning when gaps are detected in received messages
 
-設計:
+Design:
   ┌─────────────────────────────────────────────────────┐
-  │ メッセージフォーマット (JSON over UDP)               │
+  │ Message format (JSON over UDP)                      │
   │ {                                                   │
   │   "seq": 42,                                        │
   │   "user": "alice",                                  │
@@ -1718,35 +1734,35 @@ def receive_batch(sock: socket.socket, batch_size: int = 64):
   │   "text": "Hello everyone!"                         │
   │ }                                                   │
   ├─────────────────────────────────────────────────────┤
-  │ マルチキャストグループ: 239.1.1.1:5007              │
-  │ プロトコル: UDP                                     │
-  │ エンコーディング: UTF-8                              │
+  │ Multicast group: 239.1.1.1:5007                     │
+  │ Protocol: UDP                                       │
+  │ Encoding: UTF-8                                     │
   └─────────────────────────────────────────────────────┘
 
-ヒント:
-  - セクション5.4のマルチキャスト実装を参考にする
-  - 各クライアントが送信者でもあり受信者でもある
-  - threading モジュールで送信と受信を並行処理する
-  - 欠番検出にはper-user のシーケンス番号追跡が必要
+Hints:
+  - Refer to the multicast implementation in Section 5.4
+  - Each client is both sender and receiver
+  - Use the threading module for concurrent send and receive
+  - Missing sequence detection requires per-user sequence number tracking
 
-評価基準:
-  □ 3台以上のクライアントでメッセージが全員に届くか
-  □ 欠番の検出と警告が正しく動作するか
-  □ tc netem でパケットロスを発生させた場合の挙動を確認
+Evaluation criteria:
+  □ Are messages delivered to all 3+ clients?
+  □ Does gap detection and warning work correctly?
+  □ Observe behavior when packet loss is induced with tc netem
 ```
 
-**演習4: UDP vs TCP のレイテンシ比較測定**
+**Exercise 4: UDP vs TCP Latency Comparison Measurement**
 
 ```
-目標: 同一条件下でUDPとTCPのレイテンシを比較測定する
+Goal: Compare and measure UDP and TCP latency under the same conditions
 
-手順:
-  1. UDPエコーサーバーとTCPエコーサーバーを同時に起動
-  2. それぞれに1000回のpingを送信し、RTTを計測
-  3. 統計値（平均、中央値、95パーセンタイル、99パーセンタイル）を算出
-  4. ヒストグラムで分布を可視化
+Steps:
+  1. Start both UDP and TCP echo servers simultaneously
+  2. Send 1000 pings to each and measure RTT
+  3. Compute statistics (mean, median, 95th percentile, 99th percentile)
+  4. Visualize distribution with a histogram
 
-測定コード（概要）:
+Measurement code (outline):
 
   import time
   import statistics
@@ -1755,7 +1771,7 @@ def receive_batch(sock: socket.socket, batch_size: int = 64):
       rtts = []
       for i in range(count):
           start = time.monotonic()
-          # 送信 + 受信
+          # Send + receive
           elapsed = (time.monotonic() - start) * 1000  # ms
           rtts.append(elapsed)
 
@@ -1766,276 +1782,272 @@ def receive_batch(sock: socket.socket, batch_size: int = 64):
       print(f"  P99:    {sorted(rtts)[int(count*0.99)]:.3f} ms")
       print(f"  StdDev: {statistics.stdev(rtts):.3f} ms")
 
-注意事項:
-  - TCP の場合、接続確立のコストは初回のみ発生する
-  - 接続確立済みのTCPとUDPでは、レイテンシの差は小さい場合がある
-  - ネットワーク品質劣化時（パケットロス）にTCPのテイルレイテンシが
-    大幅に増加するかを観察することが重要
+Notes:
+  - For TCP, connection establishment cost only occurs on the first request
+  - For an already-established TCP connection vs UDP, latency difference may be small
+  - Observing that TCP tail latency increases significantly under packet loss is key
 
-期待される結果:
-  - 正常時: UDP ≈ TCP（ほぼ同等だがUDPがわずかに速い）
-  - パケットロス時: TCPのP99レイテンシが大幅に増加
-    （再送タイムアウトの影響で数百ms〜数秒のスパイク）
-  - UDPのレイテンシは安定（ただし一部パケットが未到達）
+Expected results:
+  - Normal conditions: UDP ≈ TCP (nearly equal, UDP slightly faster)
+  - Under packet loss: TCP P99 latency spikes dramatically
+    (retransmit timeout causes spikes of hundreds of ms to seconds)
+  - UDP latency remains stable (but some packets are not delivered)
 ```
 
-### 13.3 発展演習
+### 13.3 Advanced Exercises
 
-**演習5: QUIC接続の観察と分析**
+**Exercise 5: Observing and Analyzing QUIC Connections**
 
 ```
-目標: HTTP/3 (QUIC) の接続確立過程を観察し、TCPとの違いを体験する
+Goal: Observe the QUIC connection establishment process and experience the difference from TCP
 
-手順:
+Steps:
 
-  1. QUIC対応サイトへのHTTP/3接続を確認:
+  1. Verify HTTP/3 connection to a QUIC-capable site:
 
-     # curl で HTTP/3 接続テスト
+     # Test HTTP/3 connection with curl
      $ curl --http3-only -v -o /dev/null https://cloudflare-quic.com
 
-     # 出力から以下を確認:
+     # Confirm the following in output:
      # * using HTTP/3
      # * h3 [Using HTTP/3]
      # * Connection state changed (HTTP/3)
 
-  2. Wireshark で QUIC パケットをキャプチャ:
+  2. Capture QUIC packets with Wireshark:
 
-     # キャプチャフィルタ: udp port 443
-     # 表示フィルタ: quic
+     # Capture filter: udp port 443
+     # Display filter: quic
 
-     確認すべきフィールド:
+     Fields to verify:
      □ QUIC Version (0x00000001 = QUIC v1)
-     □ Connection ID の長さと値
-     □ Initial パケット内の ClientHello
-     □ Handshake パケット内の ServerHello
-     □ 1-RTT パケット（アプリケーションデータ）
+     □ Connection ID length and value
+     □ ClientHello inside Initial packet
+     □ ServerHello inside Handshake packet
+     □ 1-RTT packets (application data)
 
-  3. QUIC の接続確立を TCP+TLS と比較:
+  3. Compare QUIC connection establishment with TCP+TLS:
 
-     # TCP + TLS の接続確立パケット数を数える:
+     # Count TCP + TLS connection establishment packets:
      $ curl -v -o /dev/null https://example.com 2>&1 | \
          grep -E "(TCP|TLS|SSL)"
 
-     # 比較:
+     # Comparison:
      ┌──────────────┬──────────────┬──────────────┐
      │              │ TCP+TLS      │ QUIC         │
      ├──────────────┼──────────────┼──────────────┤
-     │ パケット数    │ ~10          │ ~4           │
-     │ RTT数        │ 2-3          │ 1            │
-     │ 暗号化開始   │ 3パケット後  │ 最初から      │
+     │ Packet count │ ~10          │ ~4           │
+     │ RTT count    │ 2-3          │ 1            │
+     │ Encryption   │ After 3 pkts │ From the start│
      └──────────────┴──────────────┴──────────────┘
 
-  4. qlog での分析（オプション）:
+  4. Analysis with qlog (optional):
      - Chromium: chrome://flags/#enable-quic-logging
-     - Firefox: MOZ_LOG="nsHttp:5" でQUICログを出力
-     - qvis (https://qvis.quictools.info/) で可視化
+     - Firefox: MOZ_LOG="nsHttp:5" to output QUIC logs
+     - qvis (https://qvis.quictools.info/) for visualization
 
-発展課題:
-  □ 0-RTT 再接続を観察する
-    （同じサイトに2回目のアクセスで0-RTTが使われるか）
-  □ Wi-Fi とモバイルデータの切り替え時に
-    QUIC接続が維持されるかを確認する
-  □ ネットワーク品質劣化時にHTTP/2 vs HTTP/3の
-    ページロード時間を比較する
+Advanced tasks:
+  □ Observe 0-RTT reconnection
+    (is 0-RTT used on second access to the same site?)
+  □ Confirm whether QUIC connection is maintained when switching
+    between Wi-Fi and mobile data
+  □ Compare HTTP/2 vs HTTP/3 page load times under degraded network
 ```
 
 ---
 
-## 14. UDP関連プロトコルの比較表
+## 14. Comparison Table of UDP-Related Protocols
 
-### 14.1 UDPベースのプロトコル一覧
+### 14.1 List of UDP-Based Protocols
 
-| プロトコル | ポート | 用途 | 信頼性 | 暗号化 | 主な特徴 |
+| Protocol | Port | Use | Reliability | Encryption | Key Feature |
 |-----------|--------|------|--------|--------|---------|
-| DNS | 53 | 名前解決 | アプリ層リトライ | なし（DoTはTLS） | クエリ/レスポンス型 |
-| DHCP | 67/68 | IPアドレス割当 | アプリ層リトライ | なし | ブロードキャスト使用 |
-| NTP | 123 | 時刻同期 | なし | NTS（拡張） | ミリ秒精度の同期 |
-| SNMP | 161/162 | ネットワーク管理 | アプリ層リトライ | SNMPv3でAES | Get/Set/Trap操作 |
-| TFTP | 69 | ファイル転送 | Stop-and-Wait | なし | 512バイト単位 |
-| RTP | 動的 | メディア転送 | なし（RTCP監視） | SRTP | タイムスタンプ、シーケンス番号 |
-| SIP | 5060 | 呼制御 | アプリ層リトライ | TLS（SIPS） | VoIPのシグナリング |
-| QUIC | 443 | 汎用トランスポート | あり（内蔵） | TLS 1.3（内蔵） | HTTP/3の基盤 |
-| WireGuard | 51820 | VPN | なし（上位層依存） | ChaCha20-Poly1305 | 最小限の設計 |
-| mDNS | 5353 | ローカル名前解決 | なし | なし | Bonjour/Avahi |
-| SSDP | 1900 | デバイス発見 | なし | なし | UPnPで使用 |
-| CoAP | 5683 | IoT通信 | Confirmable/Non | DTLS | RESTful（GET/POST/PUT/DELETE） |
+| DNS | 53 | Name resolution | App-layer retry | None (DoT uses TLS) | Query/response model |
+| DHCP | 67/68 | IP address assignment | App-layer retry | None | Uses broadcast |
+| NTP | 123 | Time synchronization | None | NTS (extension) | Millisecond-precision sync |
+| SNMP | 161/162 | Network management | App-layer retry | AES in SNMPv3 | Get/Set/Trap operations |
+| TFTP | 69 | File transfer | Stop-and-Wait | None | 512-byte units |
+| RTP | Dynamic | Media transfer | None (RTCP monitors) | SRTP | Timestamps, sequence numbers |
+| SIP | 5060 | Call control | App-layer retry | TLS (SIPS) | VoIP signaling |
+| QUIC | 443 | General transport | Yes (built-in) | TLS 1.3 (built-in) | Foundation of HTTP/3 |
+| WireGuard | 51820 | VPN | None (upper layer) | ChaCha20-Poly1305 | Minimal design |
+| mDNS | 5353 | Local name resolution | None | None | Bonjour/Avahi |
+| SSDP | 1900 | Device discovery | None | None | Used in UPnP |
+| CoAP | 5683 | IoT communication | Confirmable/Non | DTLS | RESTful (GET/POST/PUT/DELETE) |
 
-### 14.2 トランスポートプロトコルの選択指針
+### 14.2 Transport Protocol Selection Guide
 
 ```
-プロトコル選択のフローチャート:
+Protocol selection flowchart:
 
-  データの信頼性が必要か？
-  ├── はい → レイテンシが重要か？
-  │          ├── はい → QUIC を検討
-  │          │          ・HTTP/3対応が必要 → QUIC (HTTP/3)
-  │          │          ・カスタムプロトコル → QUIC or 独自実装(UDP上)
-  │          └── いいえ → TCP
-  │                       ・Web → HTTP/2 over TCP
-  │                       ・ファイル転送 → TCP
-  │                       ・データベース → TCP
-  └── いいえ → データの順序が重要か？
-               ├── はい → 独自実装（UDP + シーケンス番号）
-               └── いいえ → 通信形態は？
-                            ├── 1対1 → UDP
-                            ├── 1対多 → UDP マルチキャスト
-                            └── ブロードキャスト → UDP ブロードキャスト
+  Is data reliability required?
+  ├── Yes → Is latency important?
+  │          ├── Yes → Consider QUIC
+  │          │          · HTTP/3 support needed → QUIC (HTTP/3)
+  │          │          · Custom protocol → QUIC or custom (over UDP)
+  │          └── No → TCP
+  │                   · Web → HTTP/2 over TCP
+  │                   · File transfer → TCP
+  │                   · Database → TCP
+  └── No → Is data ordering important?
+               ├── Yes → Custom implementation (UDP + sequence numbers)
+               └── No → What is the communication pattern?
+                            ├── 1-to-1 → UDP
+                            ├── 1-to-many → UDP multicast
+                            └── Broadcast → UDP broadcast
 ```
 
 ---
 
-## 15. FAQ（よくある質問）
+## 15. FAQ (Frequently Asked Questions)
 
-### Q1: UDPはTCPより「速い」と言われるが、具体的にどの程度速いのか？
+### Q1: UDP is said to be "faster" than TCP — how much faster exactly?
 
-「UDPが速い」という表現は正確ではない。正しくは「UDPはオーバーヘッドが少ない」である。
+The expression "UDP is fast" is not precise. More accurately, "UDP has less overhead." The specific differences are as follows:
 
-具体的な差は以下の通り:
+- **Connection establishment time**: TCP requires 1.5 RTT (+2-3 RTT with TLS). UDP requires 0. On a LAN (RTT < 1ms) the difference is minimal, but over intercontinental connections (RTT = 150ms) there's a 300-450ms difference.
+- **Header overhead**: When sending large numbers of small messages (tens of bytes), TCP's 20-60 byte header vs UDP's 8-byte header affects bandwidth efficiency. For example, sending 40-byte game updates 60 times per second, TCP headers alone generate roughly 37 GB of extra traffic per year (60 tick/s * 52B additional * 86400s/day * 365 days).
+- **Retransmit wait latency**: When packet loss occurs, TCP cannot deliver subsequent data until retransmission completes (Head-of-Line Blocking). Since the minimum RTO is usually 200ms, TCP latency suddenly jumps by 200ms or more on packet loss. UDP does not have this problem.
+- **Throughput**: For bulk data transfer, TCP's congestion control efficiently utilizes bandwidth. Achieving equivalent throughput with UDP requires implementing your own congestion control.
 
-- **接続確立時間**: TCPは1.5 RTT（+TLS で2-3 RTT）必要。UDPは0。LAN環境（RTT < 1ms）では差は微小だが、大陸間通信（RTT = 150ms）では300-450msの差が生まれる。
-- **ヘッダーオーバーヘッド**: 小さなメッセージ（数十バイト）を大量に送る場合、TCPの20-60バイトヘッダー vs UDPの8バイトヘッダーは帯域効率に影響する。例えば40バイトのゲーム更新を毎秒60回送る場合、TCPヘッダーだけで年間約37GBの追加トラフィックが発生する（60 tick/s * 52B追加 * 86400s/day * 365day）。
-- **再送待ちレイテンシ**: パケットロスが発生した場合、TCPは再送完了まで後続データを配信できない（Head-of-Line Blocking）。最小RTOは通常200msであるため、パケットロス時にTCPのレイテンシは突然200ms以上増加する。UDPはこの問題がない。
-- **スループット**: バルクデータ転送ではTCPの輻輳制御が帯域を効率的に利用する。UDPで同等のスループットを達成するには自前で輻輳制御を実装する必要がある。
+Conclusion: "UDP is always faster in every situation" is not true. The difference lies in connection establishment latency and behavior under packet loss — choose based on use case.
 
-結論: 「全ての場面でUDPが速い」わけではない。接続確立のレイテンシとパケットロス時の振る舞いが異なるのであり、用途に応じて選択すべきである。
+### Q2: QUIC runs over UDP, so why can it achieve TCP-equivalent reliability?
 
-### Q2: QUICはUDP上で動作しているのに、なぜTCPと同等の信頼性を実現できるのか？
+QUIC uses UDP because "it can be deployed without changing existing infrastructure," not because it leverages UDP's characteristics. QUIC independently implements all the features that TCP provides (reliability, ordering, flow control, congestion control) on top of UDP.
 
-QUICがUDPを使う理由は「既存のインフラを変更せずにデプロイできる」ためであり、UDPの特性を活かすためではない。QUICはUDPの上に、TCPが提供する全ての機能（信頼性、順序保証、フロー制御、輻輳制御）を独自に実装している。
+UDP is used merely as a "thin layer that provides port numbers on top of IP." QUIC packets are encapsulated as UDP payloads, but the QUIC protocol itself has all the mechanisms: ACKs, retransmission, sequence numbers, and congestion windows.
 
-UDPは単なる「IPの上でポート番号を使えるようにするための薄い層」として利用されている。QUICのパケットはUDPのペイロードとしてカプセル化されるが、QUICプロトコル自体がACK、再送、シーケンス番号、輻輳ウィンドウなどの全ての仕組みを持つ。
+The question then arises: "Why wasn't a new transport protocol built directly on top of IP?" The reasons are:
 
-では「なぜ新しいトランスポートプロトコルをIPの上に直接作らなかったのか？」という疑問が生じる。理由は以下の通り:
+1. **NAT/Firewall compatibility**: NAT devices and firewalls worldwide only understand TCP and UDP. Packets with a new IP protocol number would be dropped with near certainty.
+2. **No OS kernel changes required**: UDP sockets can be manipulated from user space, so QUIC can be deployed as an application. A new transport protocol would require kernel-level changes and OS updates.
+3. **Rapid iteration**: Because it's a user-space implementation, new features can be added via browser or server updates alone. TCP improvements require OS kernel updates, which take years to propagate.
 
-1. **NAT/ファイアウォールの互換性**: 世界中のNATデバイスやファイアウォールはTCPとUDPのみを理解する。新しいIPプロトコル番号のパケットはほぼ確実にドロップされる。
-2. **OSカーネルの変更不要**: UDPソケットはユーザースペースで操作できるため、QUICはアプリケーションとしてデプロイできる。新しいトランスポートプロトコルにはカーネルレベルの変更とOSアップデートが必要になる。
-3. **迅速なイテレーション**: ユーザースペース実装のため、ブラウザやサーバーのアップデートだけで新機能を追加できる。TCPの改善にはOSのカーネルアップデートが必要で、普及に数年かかる。
+This design is also a countermeasure against "OSSification" (hardening). Over many years, middleboxes (firewalls, NATs, load balancers) started assuming TCP's internal structure, making TCP extensions practically impossible. QUIC encrypts its payload to prevent middleboxes from interfering with the protocol's internals.
 
-この設計は「OSSification（硬直化）」への対抗策でもある。長年にわたり、中間装置（ファイアウォール、NAT、ロードバランサー）がTCPの内部構造を前提とした処理を行うようになり、TCPの拡張が事実上困難になった。QUICはペイロードを暗号化することで、中間装置がプロトコルの内部に干渉することを防いでいる。
+### Q3: Why are applications using UDP often blocked by firewalls?
 
-### Q3: UDPを使ったアプリケーションで、ファイアウォールにブロックされることが多いのはなぜか？
+There are multiple reasons UDP is prone to being blocked by firewalls:
 
-UDPがファイアウォールでブロックされやすい理由は複数ある:
+1. **Difficulty tracking connections**: TCP has clear connection start (SYN) and end (FIN), allowing firewalls to track connection state. UDP has no such state, making it hard to distinguish "legitimate response packets" from "attack packets." Many firewalls perform timeout-based pseudo-state management (UDP session tracking), but accuracy is inferior to TCP.
 
-1. **コネクション追跡の困難さ**: TCPには明確な接続の開始（SYN）と終了（FIN）があり、ファイアウォールは接続状態を追跡できる。UDPにはこのような状態がないため、「許可すべき応答パケット」と「攻撃パケット」の区別が難しい。多くのファイアウォールはタイムアウトベースの擬似的な状態管理（UDP session tracking）を行うが、精度はTCPに劣る。
+2. **Amplification attack risk**: As described in Section 8, UDP is easily exploited for amplification attacks combined with IP spoofing. As a result, many organizations adopt a security policy of "allow only necessary UDP ports, deny everything else by default."
 
-2. **増幅攻撃のリスク**: セクション8で述べたように、UDPはIPスプーフィングと組み合わせた増幅攻撃に悪用されやすい。このため、セキュリティポリシーとして「必要なUDPポートのみ許可し、その他はデフォルト拒否」とする組織が多い。
+3. **Limited protocol usage**: In enterprise networks, it is common to allow only limited UDP ports (DNS:53, DHCP:67/68, NTP:123) and block all other UDP traffic.
 
-3. **利用プロトコルの限定**: 企業ネットワークでは、DNS（53）、DHCP（67/68）、NTP（123）などの限定的なUDPポートのみを許可し、その他のUDPトラフィックをブロックすることが一般的である。
+4. **QUIC countermeasures**: Some organizations block HTTP/3 (QUIC) on UDP port 443 and force fallback to HTTP/2 over TCP. This is because TLS decryption appliances (SSL inspection) don't support QUIC.
 
-4. **QUIC対策**: 一部の組織ではHTTP/3 (QUIC) のUDPポート443をブロックし、TCPのHTTP/2にフォールバックさせている。これはTLS復号化装置（SSL inspection）がQUICに対応していないためである。
+As a countermeasure, it is recommended to design applications to fall back to TCP when UDP is blocked. QUIC similarly has a mechanism to fall back to HTTP/2 over TCP 443 when UDP 443 is blocked.
 
-対策として、UDPがブロックされた場合にTCPにフォールバックする設計を推奨する。QUICも同様に、UDP 443がブロックされた場合はTCP 443のHTTP/2にフォールバックする仕組みを持つ。
+### Q4: What should I watch out for when using UDP on IoT devices?
 
-### Q4: IoTデバイスでUDPを使う場合の注意点は？
+IoT devices have limited computing resources, so UDP's lightweight nature is advantageous. However, be aware of the following:
 
-IoTデバイスは計算リソースが限られているため、UDPの軽量さが有利である。ただし以下の点に注意が必要:
+1. **Consider CoAP**: IETF-standard CoAP (Constrained Application Protocol) is a protocol that enables RESTful communication over UDP, designed for IoT. It allows flexible reliability control by choosing between Confirmable messages (with ACK) and Non-confirmable messages (without ACK).
 
-1. **CoAPの利用検討**: IETF標準のCoAP（Constrained Application Protocol）はUDP上でRESTfulな通信を実現するプロトコルであり、IoT向けに設計されている。Confirmableメッセージ（ACK付き）とNon-confirmableメッセージ（ACKなし）を選択でき、柔軟な信頼性制御が可能。
+2. **Encryption with DTLS**: To encrypt IoT device communication, use DTLS over UDP. DTLS 1.3 (RFC 9147), compatible with TLS 1.3, has been standardized, and the number of handshake round trips has been reduced.
 
-2. **DTLSによる暗号化**: IoTデバイスの通信を暗号化する場合、UDP上ではDTLSを使用する。TLS 1.3に対応したDTLS 1.3（RFC 9147）が標準化されており、ハンドシェイクの往復回数も削減されている。
+3. **Compatibility with sleep mode**: Battery-powered IoT devices spend most of their time in sleep mode. Since UDP is connectionless, data can be sent immediately after waking (no connection re-establishment like TCP is needed).
 
-3. **スリープモードとの整合性**: バッテリー駆動のIoTデバイスは大部分の時間をスリープモードで過ごす。UDPはコネクションレスのため、スリープ復帰後すぐにデータを送信できる（TCPのようなコネクション再確立が不要）。
+### Q5: How should I choose between UDP broadcast and multicast?
 
-### Q5: UDPでブロードキャストとマルチキャストはどう使い分けるか？
+- **Broadcast**: Sends packets to all hosts on the same subnet. Destination address is the subnet broadcast address (e.g., 192.168.1.255). Does not cross routers. Used by DHCP and ARP. Scalability is limited; not recommended for large networks.
+- **Multicast**: Sends packets only to hosts that have joined a specific group. Destination address is in the 224.0.0.0/4 range. Can be delivered across routers (IGMPv2/v3 + PIM). Achieves efficient one-to-many communication. Used in IPTV, stock price distribution, and software update distribution.
 
-- **ブロードキャスト**: 同一サブネット内の全ホストにパケットを送信する。宛先アドレスはサブネットのブロードキャストアドレス（例: 192.168.1.255）。ルーターを越えない。DHCPやARPで使用される。スケーラビリティに限界があり、大規模ネットワークでは非推奨。
-- **マルチキャスト**: 特定のグループに参加したホストのみにパケットを送信する。宛先アドレスは224.0.0.0/4の範囲。ルーターを越えて配信可能（IGMPv2/v3 + PIM）。効率的な1対多通信を実現する。IPTV、株価配信、ソフトウェアアップデート配信で使用される。
+In general, broadcast should be limited to local network device discovery, and multicast should be used for scalable one-to-many communication.
 
-一般的に、ブロードキャストはローカルネットワークでのデバイス発見に限定し、スケーラブルな1対多通信にはマルチキャストを使用すべきである。
+### Q6: Why is UDP used even without reliability?
 
-### Q6: UDPが信頼性なしでも使われる理由は何か？
+**3 cases where "no reliability" is an advantage**
 
-**「信頼性なし」が利点になる3つのケース**
-
-**1. リアルタイム性が最優先**
+**1. Real-time priority**
 ```
-例: ライブ動画配信、VoIP通話、オンラインゲーム
+Example: live video streaming, VoIP calls, online games
 
-古いフレームの再送は無意味:
-  時刻0: フレーム#100 送信
-  時刻1: フレーム#101 送信
-  時刻2: フレーム#100 ロスト検出
-  時刻3: フレーム#100 再送 ← すでにフレーム#102,103が表示済み
-                              古いデータを今更受け取っても役に立たない
+Retransmitting old frames is meaningless:
+  Time 0: Frame #100 sent
+  Time 1: Frame #101 sent
+  Time 2: Frame #100 loss detected
+  Time 3: Frame #100 retransmitted ← frames #102, #103 are already displayed
+                              Receiving old data now serves no purpose
 
-UDPの対処: フレーム#100は諦め、補間・FECで画質劣化を最小化する
-TCPの問題: フレーム#100の再送完了まで#101,102の配信がブロックされる（HoL Blocking）
+UDP approach: give up on frame #100, minimize quality degradation with interpolation/FEC
+TCP problem:  #101, #102 delivery blocked until frame #100 retransmit completes (HoL Blocking)
 ```
 
-**2. 1往復で完結する通信**
+**2. Communication that completes in one round trip**
 ```
-例: DNS、NTP、DHCPリクエスト
+Example: DNS, NTP, DHCP requests
 
-DNSクエリ: 1パケット（質問）+ 1パケット（回答）= 完結
-  UDPのオーバーヘッド: 0 RTT（即座に質問を送信）
-  TCPのオーバーヘッド: 1.5 RTT（3-way handshake）+ 2 RTT（TLS）= 3.5 RTT
+DNS query: 1 packet (question) + 1 packet (answer) = done
+  UDP overhead: 0 RTT (send query immediately)
+  TCP overhead: 1.5 RTT (3-way handshake) + 2 RTT (TLS) = 3.5 RTT
 
 DNS over UDP: 1 RTT = 20ms
-DNS over TCP+TLS: 3.5 RTT = 70ms（3.5倍のレイテンシ）
+DNS over TCP+TLS: 3.5 RTT = 70ms (3.5× the latency)
 
-※ただし、DNS over QUIC（DoQ）はUDP上で暗号化しながら1-RTTを実現
+※ However, DNS over QUIC (DoQ) achieves 1-RTT with encryption over UDP
 ```
 
-**3. ブロードキャスト・マルチキャスト通信**
+**3. Broadcast/multicast communication**
 ```
-例: mDNS（ローカルサービス発見）、PTP（時刻同期）、SDP（セッション記述配布）
+Example: mDNS (local service discovery), PTP (time synchronization), SDP (session description distribution)
 
-TCPは1対1通信のみ対応:
-  100台のデバイスにデータを送るには100個のTCP接続が必要
+TCP only supports 1-to-1 communication:
+  Sending data to 100 devices requires 100 TCP connections
 
-UDPマルチキャスト:
-  1パケット送信 → スイッチ/ルーターが複製 → 100台に配信
-  ネットワーク負荷が1/100になる
+UDP multicast:
+  Send 1 packet → switch/router replicates → delivered to 100 devices
+  Network load becomes 1/100
 ```
 
-### Q7: リアルタイム通信でのUDP利用の具体例は？
+### Q7: What are specific examples of UDP in real-time communication?
 
-**WebRTC（Web Real-Time Communication）の設計**
+**WebRTC (Web Real-Time Communication) design**
 
 ```
-WebRTCの通信構成:
+WebRTC communication structure:
 ┌──────────────────────────────────────────────────────┐
-│  シグナリング（接続確立）: WebSocket/HTTP (TCP)        │
-│  → Offer/Answer交換、ICE候補交換                       │
+│  Signaling (connection setup): WebSocket/HTTP (TCP)   │
+│  → Offer/Answer exchange, ICE candidate exchange      │
 └──────────────────────────────────────────────────────┘
-                    ↓ 接続確立後
+                    ↓ After connection established
 ┌──────────────────────────────────────────────────────┐
-│  メディアストリーム: SRTP over UDP (DTLS暗号化)       │
-│  → 音声・映像データのリアルタイム配信                   │
-│  → RTCP: ネットワーク状態のフィードバック               │
+│  Media streams: SRTP over UDP (DTLS encryption)      │
+│  → Real-time delivery of audio/video data             │
+│  → RTCP: network status feedback                     │
 └──────────────────────────────────────────────────────┘
 ```
 
-**UDPを選ぶ理由**
-- 音声: 200ms以上の遅延で会話が不自然になる
-- 映像: 古いフレームの再送より、最新フレームの低遅延配信が重要
-- パケットロス対処: FEC（Forward Error Correction）で1-2%のロスを吸収
-- ジッターバッファ: 到着時刻のばらつきを平滑化
+**Why UDP is chosen**
+- Voice: delays over 200ms make conversation feel unnatural
+- Video: delivering the latest frames with low latency is more important than retransmitting old ones
+- Packet loss handling: FEC (Forward Error Correction) absorbs 1-2% loss
+- Jitter buffer: smooths out variation in packet arrival times
 
-**QoS（Quality of Service）の活用**
+**Leveraging QoS (Quality of Service)**
 ```python
-# UDPソケットにDSCPマーキングを設定
+# Set DSCP marking on UDP socket
 import socket
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-# EF (Expedited Forwarding) = 低遅延保証クラス
+# EF (Expedited Forwarding) = low-latency guaranteed class
 sock.setsockopt(socket.IPPROTO_IP, socket.IP_TOS, 0xB8)
 ```
 
-### Q8: QUICプロトコルとUDPの関係は？
+### Q8: What is the relationship between the QUIC protocol and UDP?
 
-**QUIC = "UDP上に構築された次世代TCP"**
+**QUIC = "Next-generation TCP built on UDP"**
 
 ```
-プロトコルスタック比較:
+Protocol stack comparison:
 
 HTTP/1.1, HTTP/2:                HTTP/3:
 ┌─────────────┐                ┌─────────────┐
 │   HTTP/2    │                │   HTTP/3    │
 ├─────────────┤                ├─────────────┤
 │   TLS 1.3   │                │             │
-├─────────────┤                │    QUIC     │ ← 暗号化を統合
+├─────────────┤                │    QUIC     │ ← encryption integrated
 │     TCP     │                │  (TLS 1.3)  │
 ├─────────────┤                ├─────────────┤
 │     IP      │                │     UDP     │
@@ -2044,148 +2056,148 @@ HTTP/1.1, HTTP/2:                HTTP/3:
                                └─────────────┘
 ```
 
-**QUICがUDPを使う3つの理由**
+**3 reasons QUIC uses UDP**
 
-**1. 既存インフラとの互換性**
-- 世界中のNAT、ファイアウォール、ルーターはTCP/UDPのみを理解
-- 新しいIPプロトコル（例: プロトコル番号144）は99%の確率でドロップされる
-- UDPポート443を使うことで、既存のHTTPSと同じ穴を通過できる
+**1. Compatibility with existing infrastructure**
+- NAT, firewalls, and routers worldwide only understand TCP/UDP
+- New IP protocols (e.g., protocol number 144) are dropped with 99% probability
+- By using UDP port 443, traffic passes through the same opening as existing HTTPS
 
-**2. OSカーネル不要なデプロイ**
-- UDPソケット = ユーザースペースで操作可能
-- QUICのアップデート = ブラウザ/アプリのアップデートのみ
-- TCPの改良 = カーネルアップデート必要 → 普及に数年かかる
+**2. Deployment without OS kernel changes**
+- UDP socket = operable from user space
+- QUIC update = only browser/app update required
+- TCP improvements = kernel updates required → takes years to propagate
 
-**3. 中間装置の干渉回避（OSSification対策）**
-- TCPヘッダーは平文 → 中間装置が勝手に最適化・変更する
-- QUICペイロードは完全暗号化 → 中間装置が内部構造に触れない
+**3. Avoiding middlebox interference (OSSification countermeasure)**
+- TCP headers are plaintext → middleboxes arbitrarily optimize/modify them
+- QUIC payload is fully encrypted → middleboxes cannot touch internal structure
 
-**QUICの革新的機能（UDP活用）**
+**QUIC's innovative features (leveraging UDP)**
 
-| 機能 | TCP | QUIC (UDP上) |
+| Feature | TCP | QUIC (over UDP) |
 |------|-----|--------------|
-| 接続確立 | 1.5 RTT | 1 RTT（0-RTT再接続） |
-| HoL Blocking | あり | なし（ストリーム独立） |
-| 接続移行 | 不可 | Connection IDで継続 |
-| 暗号化 | オプション（TLS併用） | 必須（TLS 1.3統合） |
-| 多重化 | HTTP/2で追加 | ネイティブ対応 |
+| Connection establishment | 1.5 RTT | 1 RTT (0-RTT reconnect) |
+| HoL Blocking | Yes | No (streams are independent) |
+| Connection migration | Not possible | Continues via Connection ID |
+| Encryption | Optional (with TLS) | Required (TLS 1.3 integrated) |
+| Multiplexing | Added in HTTP/2 | Native support |
 
-**QUICの信頼性メカニズム（UDP上で実装）**
+**QUIC reliability mechanism (implemented over UDP)**
 ```
-QUICパケット構造:
+QUIC packet structure:
 ┌──────────────────────────────────────────┐
-│  UDPヘッダー (8 bytes)                    │
+│  UDP Header (8 bytes)                    │
 ├──────────────────────────────────────────┤
-│  QUIC Header (長さ可変)                   │
+│  QUIC Header (variable length)           │
 │  - Connection ID                         │
-│  - Packet Number (シーケンス番号)         │
+│  - Packet Number (sequence number)       │
 ├──────────────────────────────────────────┤
-│  QUIC Frames (暗号化済み)                 │
-│  - STREAM: データ本体                     │
-│  - ACK: 確認応答                          │
+│  QUIC Frames (encrypted)                 │
+│  - STREAM: data payload                  │
+│  - ACK: acknowledgment                   │
 │  - CRYPTO: TLS handshake                 │
-│  - PADDING: MTU探索                      │
-│  - CONNECTION_CLOSE: 終了通知            │
+│  - PADDING: MTU probing                  │
+│  - CONNECTION_CLOSE: termination notice  │
 └──────────────────────────────────────────┘
 ```
 
-UDPは単なる「トンネル」であり、QUICが信頼性・輻輳制御・暗号化の全てを提供する。
+UDP is merely a "tunnel," while QUIC provides all of reliability, congestion control, and encryption.
 
 ---
 
-## 16. まとめ
+## 16. Summary
 
-### UDPの核心理解
+### Core Understanding of UDP
 
-| 要素 | 内容 | 重要度 |
+| Element | Content | Importance |
 |------|------|--------|
-| **最小設計思想** | IPにポート番号とチェックサムを追加しただけの8バイトヘッダー | ★★★ |
-| **コネクションレス** | 接続確立不要（0 RTT）、状態管理なし、サーバーリソース節約 | ★★★ |
-| **信頼性なし** | 再送・順序保証・フロー制御なし → アプリケーション層で実装可能 | ★★★ |
-| **速度優先** | 接続確立遅延なし、HoL Blockingなし、低オーバーヘッド | ★★★ |
-| **1対多通信** | ブロードキャスト・マルチキャスト対応（TCPは不可） | ★★☆ |
-| **QUIC基盤** | HTTP/3の基盤として、UDP上にTCP相当の機能を再実装 | ★★★ |
+| **Minimal design philosophy** | 8-byte header that adds only port numbers and checksum to IP | ★★★ |
+| **Connectionless** | No connection establishment (0 RTT), no state management, saves server resources | ★★★ |
+| **No reliability** | No retransmission, ordering, or flow control → implementable at application layer | ★★★ |
+| **Speed-first** | No connection establishment delay, no HoL Blocking, low overhead | ★★★ |
+| **One-to-many communication** | Supports broadcast and multicast (TCP cannot) | ★★☆ |
+| **QUIC foundation** | TCP-equivalent features reimplemented over UDP as the base for HTTP/3 | ★★★ |
 
-### キーポイント
+### Key Points
 
-1. **UDP = "必要最小限のトランスポート層"**
-   - ヘッダーは8バイト固定（TCP: 20-60バイト）
-   - コネクション確立 0 RTT（TCP: 1.5 RTT）
-   - アプリケーションに最大の制御権を委譲
+1. **UDP = "Minimal transport layer"**
+   - Header is fixed 8 bytes (TCP: 20-60 bytes)
+   - Connection establishment: 0 RTT (TCP: 1.5 RTT)
+   - Delegates maximum control to the application
 
-2. **「信頼性なし」は欠点ではなく設計思想**
-   - リアルタイム通信: 古いデータの再送は無意味（VoIP、ゲーム、ライブ配信）
-   - 短寿命通信: 接続確立のオーバーヘッドが本体より大きい（DNS、NTP）
-   - 必要なら QUIC、CoAP、独自プロトコルで信頼性を追加できる
+2. **"No reliability" is a design philosophy, not a defect**
+   - Real-time communication: retransmitting old data is meaningless (VoIP, gaming, live streaming)
+   - Short-lived communication: connection establishment overhead exceeds payload (DNS, NTP)
+   - Reliability can be added with QUIC, CoAP, or custom protocols if needed
 
-3. **QUICはUDPの革命的活用例**
-   - UDP = 既存インフラを通過する「トンネル」として利用
-   - QUIC自体がACK、再送、輻輳制御、暗号化を実装
-   - HTTP/3（2022年標準化）でWebの基盤に採用
+3. **QUIC is a revolutionary use of UDP**
+   - UDP = used as a "tunnel" that passes through existing infrastructure
+   - QUIC itself implements ACK, retransmission, congestion control, and encryption
+   - Adopted as the web's foundation in HTTP/3 (standardized in 2022)
 
-4. **セキュリティは後付け不可能**
-   - UDPヘッダーにセキュリティ機能はゼロ
-   - DTLS（UDP版TLS）、SRTP（暗号化RTP）、WireGuardなど上位層で実装必須
-   - 増幅攻撃対策: レート制限、送信元IP検証、応答サイズ制限
+4. **Security cannot be bolted on**
+   - UDP header has zero security features
+   - Must be implemented at higher layers: DTLS (TLS for UDP), SRTP (encrypted RTP), WireGuard, etc.
+   - Amplification attack countermeasures: rate limiting, source IP verification, response size limits
 
-5. **パフォーマンスチューニングの重要性**
-   - カーネルバッファ調整（net.core.rmem_max/wmem_max）
-   - SO_REUSEPORT: 複数プロセスで同一ポートを共有
-   - recvmmsg/sendmmsg: 複数パケットの一括送受信
+5. **Importance of performance tuning**
+   - Kernel buffer tuning (net.core.rmem_max/wmem_max)
+   - SO_REUSEPORT: share same port across multiple processes
+   - recvmmsg/sendmmsg: batch send/receive of multiple packets
 
 ---
 
 ## FAQ
 
-### Q1: UDPは信頼性がないのに、なぜ重要なプロトコルなの?
-UDPの「信頼性がない」は「不要な信頼性メカニズムを強制しない」という設計上の利点です。リアルタイム通信（VoIP、ゲーム、ライブ配信）では、古いパケットの再送を待つよりも次のデータを即座に送る方がユーザー体験が向上します。また、DNS問い合わせのような短い通信ではTCPの3-wayハンドシェイクがオーバーヘッドになります。さらにQUICのように、UDP上に独自の信頼性メカニズムを構築することで、TCPの制約を超えた最適化が可能になっています。
+### Q1: Why is UDP important even though it has no reliability?
+UDP's "no reliability" is a design advantage meaning "no unnecessary reliability mechanisms are forced." In real-time communication (VoIP, gaming, live streaming), immediately sending the next data rather than waiting for retransmission of old packets improves user experience. For short-lived communication like DNS queries, TCP's 3-way handshake becomes overhead. Furthermore, by building custom reliability mechanisms on top of UDP — like QUIC — optimizations beyond TCP's constraints become possible.
 
-### Q2: QUICはUDPベースなのに、なぜTCPより高速?
-QUICはUDP上に構築されることで、カーネル空間のTCPスタックに依存せずユーザー空間で進化できます。主な高速化要因は3つです。(1) 0-RTT接続再開: 以前の接続情報を再利用して接続確立を省略。(2) ストリーム多重化: 1つのストリームのパケットロスが他のストリームをブロックしない（Head-of-Line Blocking解消）。(3) 接続移行: IPアドレスが変わっても接続IDで識別するため、Wi-Fi/セルラー切替時も再接続不要です。
+### Q2: Why is QUIC faster than TCP if it's UDP-based?
+QUIC is built on UDP, allowing it to evolve in user space without depending on the kernel-space TCP stack. Three main speed factors: (1) 0-RTT connection resumption: reuse of prior connection info to skip connection establishment. (2) Stream multiplexing: packet loss in one stream does not block others (Head-of-Line Blocking eliminated). (3) Connection migration: connections remain alive across IP address changes, so no reconnection is needed when switching between Wi-Fi and cellular.
 
-### Q3: UDPを使ったアプリケーション開発で最も注意すべきことは?
-UDPのセキュリティリスク、特にUDP増幅攻撃への対策が最重要です。UDPはコネクションレスのため送信元IPの偽装が容易で、応答サイズが大きいプロトコル（DNS、NTP、memcached等）は増幅攻撃に悪用されます。対策としてレート制限、送信元IP検証、応答サイズの制限を実装してください。また、UDPにはフロー制御がないため、送信レートのアプリケーション側での制御も必須です。
+### Q3: What is the most important thing to watch out for in UDP application development?
+Security risks from UDP, especially countermeasures against UDP amplification attacks, are paramount. UDP is connectionless, making source IP spoofing easy. Protocols with large responses (DNS, NTP, memcached, etc.) are exploitable for amplification attacks. Implement rate limiting, source IP verification, and response size restrictions. Also, since UDP has no flow control, controlling the send rate at the application side is essential.
 
-## まとめ
+## Summary
 
-このガイドでは以下を学びました:
+In this guide, we learned:
 
-- UDPはコネクションレス型のトランスポートプロトコルで、ポート番号による多重化とチェックサムによる整合性検証のみを提供する最小限の設計であること
-- UDPヘッダーはわずか8バイトで、TCPの20バイト以上と比較して極めてシンプルであること
-- リアルタイム通信（ゲーム、VoIP、動画配信）、DNS、IoTなどの用途でUDPが選択される理由と設計上のトレードオフ
-- QUICプロトコルがUDP上に信頼性・暗号化・多重化を実現し、HTTP/3の基盤となっていること
-- マルチキャスト・ブロードキャスト、DTLS、WireGuardなどUDPベースの応用技術の仕組み
-
----
-
-## 次に読むべきガイド
+- UDP is a connectionless transport protocol that provides only port-based multiplexing and checksum integrity verification in a minimal design
+- The UDP header is just 8 bytes, extremely simple compared to TCP's 20+ bytes
+- The reasons UDP is chosen for real-time communication (gaming, VoIP, video streaming), DNS, IoT, and the design tradeoffs involved
+- How the QUIC protocol achieves reliability, encryption, and multiplexing over UDP, serving as the foundation for HTTP/3
+- The mechanisms of UDP-based applied technologies: multicast/broadcast, DTLS, WireGuard, and more
 
 ---
 
-## 参考文献
+## Next Guides to Read
+
+---
+
+## References
 
 1. Postel, J. "User Datagram Protocol." RFC 768, IETF, August 1980. https://www.rfc-editor.org/rfc/rfc768
-   - UDPの原典仕様。わずか3ページで全仕様が記述されている。ネットワークプロトコル設計の簡潔さの模範例。
+   - The original UDP specification. The entire spec is described in just 3 pages — a model of conciseness in network protocol design.
 
 2. Iyengar, J., Thomson, M. "QUIC: A UDP-Based Multiplexed and Secure Transport." RFC 9000, IETF, May 2021. https://www.rfc-editor.org/rfc/rfc9000
-   - QUIC v1の正式仕様。接続確立、ストリーム多重化、フロー制御、接続移行の全詳細が記述されている。
+   - Official specification for QUIC v1. Contains full details of connection establishment, stream multiplexing, flow control, and connection migration.
 
 3. Thomson, M., Turner, S. "Using TLS to Secure QUIC." RFC 9001, IETF, May 2021. https://www.rfc-editor.org/rfc/rfc9001
-   - QUICにおけるTLS 1.3の統合方法。ハンドシェイクの暗号化レベルとキースケジュールの詳細。
+   - How TLS 1.3 is integrated into QUIC. Details of handshake encryption levels and key scheduling.
 
 4. Iyengar, J., Swett, I. "QUIC Loss Detection and Congestion Control." RFC 9002, IETF, May 2021. https://www.rfc-editor.org/rfc/rfc9002
-   - QUICのパケットロス検出と輻輳制御アルゴリズムの仕様。Reno, CUBIC, BBR等の実装指針。
+   - Specification for QUIC's packet loss detection and congestion control algorithms. Implementation guidelines for Reno, CUBIC, BBR, etc.
 
 5. Rescorla, E., Tschofenig, H., Modadugu, N. "The Datagram Transport Layer Security (DTLS) Protocol Version 1.3." RFC 9147, IETF, April 2022. https://www.rfc-editor.org/rfc/rfc9147
-   - DTLS 1.3の仕様。UDP上でのTLS暗号化の実装方法。
+   - DTLS 1.3 specification. How to implement TLS encryption over UDP.
 
 6. Langley, A., Riddoch, A., et al. "The QUIC Transport Protocol: Design and Internet-Scale Deployment." Proceedings of the ACM SIGCOMM 2017. https://dl.acm.org/doi/10.1145/3098822.3098842
-   - GoogleによるQUICの大規模デプロイの経験と性能分析。YouTube等での導入結果が報告されている。
+   - Google's experience deploying QUIC at scale and performance analysis. Reports deployment results across YouTube and more.
 
 7. Donenfeld, J. "WireGuard: Next Generation Kernel Network Tunnel." NDSS 2017. https://www.wireguard.com/papers/wireguard.pdf
-   - WireGuard VPNの設計論文。UDPベースのVPNにおけるシンプルさとセキュリティの両立。
+   - Design paper for WireGuard VPN. Balancing simplicity and security in a UDP-based VPN.
 
 8. Fairhurst, G., Jones, T., Tuxen, M., Rungeler, I., Volker, T. "Packetization Layer Path MTU Discovery for Datagram Transports." RFC 8899, IETF, September 2020. https://www.rfc-editor.org/rfc/rfc8899
-   - DPLPMTUD: ICMPに依存しないMTU探索手法。QUICが採用するPMTU Discovery方式。
+   - DPLPMTUD: MTU probing that does not rely on ICMP. The PMTU Discovery method adopted by QUIC.
 
 ---

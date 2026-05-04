@@ -1,60 +1,59 @@
-# DNS（Domain Name System）
+# DNS (Domain Name System)
 
-> DNSはインターネットの根幹を支える分散データベースシステムである。人間が記憶しやすいドメイン名を、コンピュータが通信に使用するIPアドレスへ変換する「名前解決」を担う。本ガイドでは、再帰/反復クエリ、DNSレコードの種類、キャッシュ機構、セキュリティ拡張、そして運用上の設計判断までを体系的に解説する。
-
----
-
-## この章で学ぶこと
-
-- [ ] DNSの階層的な分散構造と名前空間の仕組みを理解する
-- [ ] 再帰クエリと反復クエリの違いを正確に説明できるようになる
-- [ ] 主要なDNSレコード（A, AAAA, CNAME, MX, TXT, NS, SOA, SRV, PTR, CAA）の用途を把握する
-- [ ] DNSキャッシュとTTLの設計判断ができるようになる
-- [ ] dig / nslookup / host コマンドで実践的なDNSデバッグができるようになる
-- [ ] DNSSEC、DoH、DoTなどのセキュリティ拡張の概要を理解する
-- [ ] DNS運用におけるアンチパターンとベストプラクティスを学ぶ
-
-## 前提知識
-
-- IPアドレスの基礎（./02-ip-addressing.md）
-- UDPプロトコルの概要（コネクションレス型のトランスポートプロトコル）
-- コマンドライン（ターミナル）の基本操作
+> DNS is the distributed database system that underpins the Internet. It is responsible for "name resolution" — converting human-readable domain names into the IP addresses that computers use for communication. This guide systematically explains recursive/iterative queries, DNS record types, caching mechanisms, security extensions, and operational design decisions.
 
 ---
 
-## 1. DNSの基本概念
+## What You Will Learn
 
-### 1.1 なぜDNSが必要なのか
+- [ ] Understand the hierarchical, distributed structure of DNS and the namespace
+- [ ] Accurately explain the difference between recursive and iterative queries
+- [ ] Understand the uses of major DNS records (A, AAAA, CNAME, MX, TXT, NS, SOA, SRV, PTR, CAA)
+- [ ] Be able to make design decisions about DNS caching and TTL
+- [ ] Perform practical DNS debugging with dig / nslookup / host commands
+- [ ] Understand the overview of security extensions such as DNSSEC, DoH, and DoT
+- [ ] Learn anti-patterns and best practices in DNS operations
 
-インターネット上のすべての通信は、最終的にIPアドレスで相手を特定する。しかし、人間が `93.184.216.34` のような数字列を記憶して使い分けることは非現実的である。DNS（Domain Name System）は、人間にとって意味のある文字列（ドメイン名）と、ネットワーク上の実体（IPアドレス）を結びつけるために設計された。
+## Prerequisites
 
-```
-DNSが存在しない世界:
-  ブラウザに 93.184.216.34 を入力 → Example社のWebサイトが表示
-  ブラウザに 142.250.196.110 を入力 → Googleの検索ページが表示
-  ブラウザに 31.13.82.36 を入力    → Facebookが表示
+- IP address fundamentals (./02-ip-addressing.md)
+- Overview of the UDP protocol (connectionless transport protocol)
+- Basic command-line (terminal) operations
 
-  → 事実上、一般ユーザーにはインターネットは使えない
+---
 
-DNSが存在する世界:
-  ブラウザに example.com を入力  → DNSが 93.184.216.34 に変換 → 表示
-  ブラウザに google.com を入力  → DNSが 142.250.196.110 に変換 → 表示
-  ブラウザに facebook.com を入力 → DNSが 31.13.82.36 に変換 → 表示
+## 1. DNS Basic Concepts
 
-  → ドメイン名という「人間向けインターフェース」がインターネットを
-    実用的なものにしている
-```
+### 1.1 Why DNS Is Necessary
 
-DNSは1983年にPaul MockapetrisがRFC 882/883として提案し、その後RFC 1034/1035で標準化された。それ以前は `HOSTS.TXT` という単一のテキストファイルで全インターネットの名前解決を行っていたが、ホスト数の爆発的増加により管理が破綻した。DNSはこの問題を「分散データベース」という設計で解決した。
-
-### 1.2 DNSの階層構造
-
-DNSの名前空間は、ファイルシステムのディレクトリ構造に似た逆ツリー型の階層を持つ。最上位にルート（`.`）があり、そこからTLD（トップレベルドメイン）、セカンドレベルドメイン、サブドメインと枝分かれしていく。
+All communication on the Internet ultimately identifies the other party by IP address. However, it is impractical for humans to memorize and use number strings like `93.184.216.34`. DNS (Domain Name System) was designed to link meaningful strings (domain names) with network entities (IP addresses).
 
 ```
-DNSの階層構造（名前空間ツリー）:
+A world without DNS:
+  Type 93.184.216.34 into a browser → Example company's website appears
+  Type 142.250.196.110 into a browser → Google search page appears
+  Type 31.13.82.36 into a browser → Facebook appears
 
-                          . (ルート)
+  → In practice, ordinary users cannot use the Internet
+
+A world with DNS:
+  Type example.com into a browser  → DNS converts to 93.184.216.34 → displayed
+  Type google.com into a browser   → DNS converts to 142.250.196.110 → displayed
+  Type facebook.com into a browser → DNS converts to 31.13.82.36 → displayed
+
+  → Domain names as a "human-oriented interface" make the Internet practical
+```
+
+DNS was proposed by Paul Mockapetris in 1983 as RFC 882/883, and later standardized in RFC 1034/1035. Before that, a single text file called `HOSTS.TXT` handled name resolution for the entire Internet, but management broke down as the number of hosts exploded. DNS solved this problem with a "distributed database" design.
+
+### 1.2 Hierarchical Structure of DNS
+
+The DNS namespace has an inverted tree-like hierarchy similar to a file system's directory structure. At the top is the root (`.`), which branches into TLDs (Top-Level Domains), second-level domains, and subdomains.
+
+```
+DNS hierarchical structure (namespace tree):
+
+                          . (root)
                           |
           +---------------+---------------+---------------+
           |               |               |               |
@@ -70,792 +69,799 @@ DNSの階層構造（名前空間ツリー）:
                            example     toyota
                             .co.jp      .co.jp
 
-各階層の呼称:
-  ルート       → . (ドット)
-  TLD         → com, org, jp, net, edu, gov, ...
-  SLD         → example, google, github, ...
-  サブドメイン → www, mail, api, blog, ...
+Naming of each layer:
+  Root       → . (dot)
+  TLD        → com, org, jp, net, edu, gov, ...
+  SLD        → example, google, github, ...
+  Subdomain  → www, mail, api, blog, ...
 ```
 
-### 1.3 FQDN（完全修飾ドメイン名）
+### 1.3 FQDN (Fully Qualified Domain Name)
 
-FQDN（Fully Qualified Domain Name）は、ルートからの完全なパスを示すドメイン名である。末尾のドット（`.`）がルートを表す。
+An FQDN (Fully Qualified Domain Name) is a domain name that indicates the complete path from the root. The trailing dot (`.`) represents the root.
 
 ```
-FQDNの構成要素:
+Components of an FQDN:
 
   www.example.com.
   ^^^  ^^^^^^^  ^^^  ^
    |      |      |   |
-   |      |      |   +--- ルート（通常は省略される）
-   |      |      +------- TLD（トップレベルドメイン）
-   |      +-------------- SLD（セカンドレベルドメイン）
-   +--------------------- ホスト名（サブドメイン）
+   |      |      |   +--- root (usually omitted)
+   |      |      +------- TLD (Top-Level Domain)
+   |      +-------------- SLD (Second-Level Domain)
+   +--------------------- hostname (subdomain)
 
-具体例:
-  FQDN                        ホスト名   ドメイン
+Examples:
+  FQDN                        Hostname   Domain
   ─────────────────────────────────────────────────
   www.example.com.             www       example.com
   mail.example.co.jp.          mail      example.co.jp
   api.v2.internal.example.com. api       v2.internal.example.com
-  example.com.                 (なし)     example.com
+  example.com.                 (none)    example.com
 
-注意: 末尾のドットの有無
-  "example.com"  → 相対名（/etc/resolv.conf の search ドメインが付与される場合がある）
-  "example.com." → 絶対名（FQDN、曖昧さがない）
+Note: presence or absence of the trailing dot
+  "example.com"  → relative name (may have the search domain from /etc/resolv.conf appended)
+  "example.com." → absolute name (FQDN, unambiguous)
 
-  DNS設定ファイル（ゾーンファイル等）では末尾ドットの有無が
-  致命的な設定ミスの原因になることがある（後述のアンチパターン参照）
+  In DNS configuration files (zone files, etc.), the presence or absence of the trailing
+  dot can cause critical configuration mistakes (see anti-patterns section below)
 ```
 
-### 1.4 DNSサーバーの種類
+### 1.4 Types of DNS Servers
 
-DNS名前解決には複数の種類のサーバーが関与する。それぞれの役割を正確に理解することが重要である。
+Multiple types of servers are involved in DNS name resolution. Understanding the role of each precisely is important.
 
 ```
-DNSサーバーの分類:
+DNS server classification:
 
 ┌─────────────────────────────────────────────────────────────────────┐
-│                     DNSサーバーの種類                                │
+│                     Types of DNS servers                            │
 ├─────────────────┬───────────────────────────────────────────────────┤
-│ ルートDNSサーバー │ ・DNSツリーの最上位（13クラスタ: a〜m）          │
-│                  │ ・TLDサーバーの情報を保持                        │
-│                  │ ・Anycastで世界中に分散配置（実体は1000台以上）  │
-│                  │ ・例: a.root-servers.net (198.41.0.4)            │
+│ Root DNS server  │ · Top of the DNS tree (13 clusters: a–m)          │
+│                  │ · Holds information about TLD servers             │
+│                  │ · Distributed worldwide via Anycast (1000+ nodes) │
+│                  │ · Example: a.root-servers.net (198.41.0.4)        │
 ├─────────────────┼───────────────────────────────────────────────────┤
-│ TLD DNSサーバー  │ ・各TLD（.com, .org, .jp等）を管理               │
-│                  │ ・権威DNSサーバーのNSレコードを返す              │
-│                  │ ・例: a.gtld-servers.net（.com担当）             │
+│ TLD DNS server   │ · Manages each TLD (.com, .org, .jp, etc.)       │
+│                  │ · Returns NS records of authoritative DNS servers │
+│                  │ · Example: a.gtld-servers.net (handles .com)      │
 ├─────────────────┼───────────────────────────────────────────────────┤
-│ 権威DNSサーバー  │ ・特定ゾーンの正式なレコードを保持               │
-│  (Authoritative) │ ・最終的な回答（Authoritative Answer）を返す     │
-│                  │ ・ゾーンの管理者が設定・運用                     │
-│                  │ ・例: ns1.example.com                            │
+│ Authoritative    │ · Holds the official records for a specific zone  │
+│ DNS server       │ · Returns the final answer (Authoritative Answer) │
+│                  │ · Configured and operated by the zone administrator│
+│                  │ · Example: ns1.example.com                        │
 ├─────────────────┼───────────────────────────────────────────────────┤
-│ フルリゾルバ     │ ・クライアントからの再帰クエリを受け付ける       │
-│ (Recursive       │ ・反復クエリで各DNSサーバーに問い合わせ          │
-│  Resolver)       │ ・結果をキャッシュして高速化                     │
-│                  │ ・ISPが提供、またはパブリックDNS（8.8.8.8等）    │
+│ Full resolver    │ · Accepts recursive queries from clients          │
+│ (Recursive       │ · Queries each DNS server iteratively            │
+│  resolver)       │ · Caches results for faster responses            │
+│                  │ · Provided by ISPs or public DNS (8.8.8.8, etc.) │
 ├─────────────────┼───────────────────────────────────────────────────┤
-│ スタブリゾルバ   │ ・クライアントOS内蔵の最小限のDNS機能            │
-│ (Stub Resolver)  │ ・設定されたフルリゾルバに再帰クエリを送る       │
-│                  │ ・自身では反復クエリを行わない                   │
-│                  │ ・/etc/resolv.conf で設定                        │
+│ Stub resolver    │ · Minimal DNS functionality built into client OS  │
+│                  │ · Sends recursive queries to the configured full  │
+│                  │   resolver                                        │
+│                  │ · Does not perform iterative queries itself       │
+│                  │ · Configured via /etc/resolv.conf                │
 ├─────────────────┼───────────────────────────────────────────────────┤
-│ フォワーダー     │ ・受け取ったクエリを別のリゾルバに転送           │
-│ (Forwarder)      │ ・企業内ネットワーク等で使用                     │
-│                  │ ・内部ゾーンは自身で解決、外部は上位に転送       │
+│ Forwarder        │ · Forwards received queries to another resolver   │
+│                  │ · Used in corporate networks, etc.               │
+│                  │ · Resolves internal zones itself, forwards       │
+│                  │   external queries upstream                      │
 └─────────────────┴───────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. 名前解決の詳細フロー
+## 2. Detailed Name Resolution Flow
 
-### 2.1 完全な名前解決の過程
+### 2.1 Complete Name Resolution Process
 
-ユーザーがブラウザに `www.example.com` を入力してからWebページが表示されるまでに、裏側では複雑なDNS問い合わせが行われている。以下にその全過程を示す。
+From when a user types `www.example.com` into a browser to when the web page is displayed, a complex DNS query process takes place behind the scenes. The complete process is shown below.
 
 ```
-DNS名前解決フロー（完全版）:
+DNS name resolution flow (complete):
 
-  ユーザー        スタブ         フル          ルート       .com TLD      権威DNS
-  (ブラウザ)     リゾルバ      リゾルバ        DNS          DNS        (example.com)
+  User          Stub          Full         Root        .com TLD    Authoritative
+  (browser)    resolver      resolver      DNS          DNS        (example.com)
      |              |             |              |            |             |
-     | ① URL入力    |             |              |            |             |
+     | ① Enter URL  |             |              |            |             |
      |------------->|             |              |            |             |
-     |  ブラウザ    |             |              |            |             |
-     |  キャッシュ  |             |              |            |             |
-     |  確認(miss)  |             |              |            |             |
+     |  Browser     |             |              |            |             |
+     |  cache       |             |              |            |             |
+     |  check(miss) |             |              |            |             |
      |              |             |              |            |             |
-     |  ② OS       |             |              |            |             |
-     |  キャッシュ  |             |              |            |             |
-     |  確認(miss)  |             |              |            |             |
+     |  ② OS        |             |              |            |             |
+     |  cache       |             |              |            |             |
+     |  check(miss) |             |              |            |             |
      |              |             |              |            |             |
      |  ③ /etc/hosts|             |              |            |             |
-     |  確認(miss)  |             |              |            |             |
+     |  check(miss) |             |              |            |             |
      |              |             |              |            |             |
-     |              | ④ 再帰クエリ |              |            |             |
+     |              | ④ Recursive |              |            |             |
+     |              |   query     |              |            |             |
      |              |------------>|              |            |             |
      |              |             |              |            |             |
-     |              |             | ⑤ 反復クエリ  |            |             |
+     |              |             | ⑤ Iterative  |            |             |
+     |              |             |   query      |            |             |
      |              |             |------------->|            |             |
-     |              |             |   ".comはここ" |            |             |
+     |              |             |  ".com is here"|          |             |
      |              |             |<-------------|            |             |
      |              |             |              |            |             |
-     |              |             | ⑥ 反復クエリ               |             |
+     |              |             | ⑥ Iterative query         |             |
      |              |             |-------------------------->|             |
-     |              |             |   "example.comはここ"      |             |
+     |              |             | "example.com is here"     |             |
      |              |             |<--------------------------|             |
      |              |             |              |            |             |
-     |              |             | ⑦ 反復クエリ                            |
+     |              |             | ⑦ Iterative query                      |
      |              |             |---------------------------------------->|
-     |              |             |   "93.184.216.34"                       |
+     |              |             | "93.184.216.34"                         |
      |              |             |<----------------------------------------|
      |              |             |              |            |             |
-     |              | ⑧ 応答      |              |            |             |
+     |              | ⑧ Response  |              |            |             |
      |              |<------------|              |            |             |
-     |              |  (キャッシュ |              |            |             |
-     |              |   に保存)   |              |            |             |
+     |              |  (stored in |              |            |             |
+     |              |   cache)    |              |            |             |
      |              |             |              |            |             |
-     | ⑨ IPアドレス  |             |              |            |             |
+     | ⑨ IP address |             |              |            |             |
      |<-------------|             |              |            |             |
      |              |             |              |            |             |
-     | ⑩ TCP接続開始（93.184.216.34:443）                                   |
+     | ⑩ Start TCP connection (93.184.216.34:443)                           |
      |------------------------------------------------------------------>  |
 ```
 
-### 2.2 各ステップの詳細
+### 2.2 Details of Each Step
 
-**ステップ1-3: ローカルキャッシュの確認**
+**Steps 1–3: Checking Local Cache**
 
-名前解決はまずローカルで完結できないかを確認する。ブラウザの内部キャッシュ、OSのDNSキャッシュ、そして `/etc/hosts` ファイルを順に検索する。
+Name resolution first checks whether it can be completed locally. It searches, in order, the browser's internal cache, the OS DNS cache, and the `/etc/hosts` file.
 
 ```
-キャッシュ確認の順序と確認コマンド:
+Cache check order and commands:
 
-1. ブラウザキャッシュ:
+1. Browser cache:
    Chrome:  chrome://net-internals/#dns
    Firefox: about:networking#dns
-   → ブラウザごとに独自のキャッシュを保持
-   → ブラウザを閉じるとクリアされることが多い
+   → Each browser maintains its own cache
+   → Often cleared when the browser is closed
 
-2. OSキャッシュ:
+2. OS cache:
    macOS:   $ sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder
-   Linux:   $ sudo systemd-resolve --flush-caches    # systemd-resolved使用時
-            $ sudo systemctl restart nscd             # nscd使用時
+   Linux:   $ sudo systemd-resolve --flush-caches    # when using systemd-resolved
+            $ sudo systemctl restart nscd             # when using nscd
    Windows: > ipconfig /flushdns
 
-3. /etc/hosts ファイル（ローカル名前解決）:
+3. /etc/hosts file (local name resolution):
    $ cat /etc/hosts
    127.0.0.1    localhost
    ::1          localhost
    192.168.1.10 myserver.local myserver
 
-   → /etc/hosts はDNSより優先される（nsswitch.conf の設定による）
-   → 開発環境でのドメインオーバーライドに使われる
+   → /etc/hosts takes priority over DNS (depends on nsswitch.conf settings)
+   → Used to override domains in development environments
 ```
 
-**ステップ4: 再帰クエリ（スタブリゾルバ → フルリゾルバ）**
+**Step 4: Recursive Query (stub resolver → full resolver)**
 
-スタブリゾルバはフルリゾルバに対して「最終的な回答」を要求する。これが再帰クエリである。フルリゾルバは回答を得るまで責任を持つ。
+The stub resolver requests a "final answer" from the full resolver. This is the recursive query. The full resolver is responsible for obtaining the answer.
 
-**ステップ5-7: 反復クエリ（フルリゾルバ → 各権威サーバー）**
+**Steps 5–7: Iterative Queries (full resolver → each authoritative server)**
 
-フルリゾルバは、ルートDNSから順に「次に問い合わせるべきサーバー」の情報（リファラル）を受け取りながら、最終的な権威サーバーにたどり着く。
+The full resolver receives referral information (the next server to query) from the root DNS in order, eventually reaching the final authoritative server.
 
-**ステップ8-9: 応答とキャッシュ**
+**Steps 8–9: Response and Caching**
 
-フルリゾルバは得られた回答をTTLに基づいてキャッシュし、クライアントに返す。次回同じ名前の問い合わせがあった場合、キャッシュから直接応答できる。
+The full resolver caches the obtained answer based on TTL and returns it to the client. The next time the same name is queried, the cache can be used to respond directly.
 
 ---
 
-## 3. 再帰クエリと反復クエリの詳細比較
+## 3. Detailed Comparison of Recursive and Iterative Queries
 
-### 3.1 再帰クエリ（Recursive Query）
+### 3.1 Recursive Query
 
-再帰クエリでは、問い合わせを受けたサーバーが完全な回答を返す責任を負う。クライアントは最終結果を待つだけでよい。
+In a recursive query, the server that receives the query bears responsibility for returning a complete answer. The client only needs to wait for the final result.
 
 ```
-再帰クエリの動作:
+Recursive query behavior:
 
-  クライアント                    フルリゾルバ
+  Client                          Full resolver
      |                               |
-     | "www.example.com のIPは？"     |
+     | "What is the IP of           |
+     |  www.example.com?"           |
      |------------------------------>|
-     |                               |  ← ここからフルリゾルバが
-     |    （クライアントは待機）       |    全ての問い合わせを代行
+     |                               |  ← The full resolver
+     |    (client waits)             |    handles all queries
      |                               |
-     |                               |  ルートDNS → .com DNS →
-     |                               |  権威DNS と順に問い合わせ
+     |                               |  Root DNS → .com DNS →
+     |                               |  authoritative DNS, queried in order
      |                               |
-     | "93.184.216.34 です"           |
+     | "It is 93.184.216.34"        |
      |<------------------------------|
      |                               |
 
-特徴:
-  ・クライアントの実装がシンプル
-  ・フルリゾルバに処理負荷が集中
-  ・一般的なクライアント ↔ リゾルバ間で使用
-  ・DNSヘッダの RD（Recursion Desired）ビット = 1
+Characteristics:
+  · Simple client implementation
+  · Processing load concentrated on the full resolver
+  · Generally used between a client and a resolver
+  · DNS header RD (Recursion Desired) bit = 1
 ```
 
-### 3.2 反復クエリ（Iterative Query）
+### 3.2 Iterative Query
 
-反復クエリでは、問い合わせを受けたサーバーは自身が知っている範囲の情報を返す。「自分では分からないが、このサーバーなら知っているかもしれない」というリファラル（紹介）を返すことが多い。
+In an iterative query, the server that receives the query returns only the information it knows. It often returns a referral — "I don't know, but this server might."
 
 ```
-反復クエリの動作:
+Iterative query behavior:
 
-  フルリゾルバ            ルートDNS          .com DNS          権威DNS
+  Full resolver          Root DNS          .com DNS         Authoritative DNS
      |                       |                  |                 |
-     | ".comのNSは？"         |                  |                 |
+     | "Who handles .com?"   |                  |                 |
      |---------------------->|                  |                 |
      | "a.gtld-servers.net"  |                  |                 |
      |<----------------------|                  |                 |
      |                       |                  |                 |
-     | "example.comのNSは？"                     |                 |
+     | "Who handles example.com?"               |                 |
      |----------------------------------------->|                 |
      | "ns1.example.com"                        |                 |
      |<-----------------------------------------|                 |
      |                       |                  |                 |
-     | "www.example.comのAは？"                                    |
+     | "What is the A record for www.example.com?"                |
      |---------------------------------------------------------->|
      | "93.184.216.34"                                            |
      |<----------------------------------------------------------|
 
-特徴:
-  ・問い合わせ先サーバーの負荷が低い
-  ・フルリゾルバが複数回の問い合わせを行う
-  ・リゾルバ ↔ 権威サーバー間で一般的に使用
-  ・DNSヘッダの RD ビット = 0
+Characteristics:
+  · Low load on the queried server
+  · The full resolver performs multiple queries
+  · Generally used between a resolver and authoritative servers
+  · DNS header RD bit = 0
 ```
 
-### 3.3 再帰クエリと反復クエリの比較表
+### 3.3 Comparison Table: Recursive vs Iterative Queries
 
-| 比較項目 | 再帰クエリ | 反復クエリ |
+| Item | Recursive query | Iterative query |
 |---------|-----------|-----------|
-| 回答責任 | 問い合わせ先が完全な回答を返す義務を負う | 自身が知っている範囲だけ返せばよい |
-| クライアント側の処理 | 結果を待つだけ | リファラルを受けて次の問い合わせを行う |
-| 主な使用場面 | スタブリゾルバ → フルリゾルバ | フルリゾルバ → 権威サーバー |
-| RDビット | 1（再帰を要求） | 0（再帰を要求しない） |
-| サーバー負荷 | 問い合わせ先に集中 | 各サーバーに分散 |
-| キャッシュ | フルリゾルバがキャッシュ | 各段階でキャッシュ可能 |
-| セキュリティリスク | DNS増幅攻撃の踏み台になりうる | リスクが限定的 |
-| 応答時間 | クライアントからは単一のRTT | 複数のRTTが発生 |
+| Answer responsibility | The queried server is obligated to return a complete answer | Only needs to return what it knows |
+| Client-side processing | Just wait for the result | Receive a referral and send the next query |
+| Main use case | Stub resolver → full resolver | Full resolver → authoritative server |
+| RD bit | 1 (requests recursion) | 0 (does not request recursion) |
+| Server load | Concentrated on the queried server | Distributed across each server |
+| Caching | Full resolver caches | Can be cached at each stage |
+| Security risk | Can be used as a stepping stone for DNS amplification attacks | Limited risk |
+| Response time | Single RTT from the client's perspective | Multiple RTTs occur |
 
 ---
 
-## 4. DNSレコードの種類と詳細
+## 4. DNS Record Types and Details
 
-### 4.1 主要レコード一覧
+### 4.1 Major Record Overview
 
-DNSレコードは、ドメイン名に紐づく様々な情報を格納するリソースレコード（RR）である。以下に主要なレコードタイプとその用途を示す。
+DNS records are resource records (RR) that store various information associated with domain names. The major record types and their uses are shown below.
 
 ```
-DNSリソースレコードの一般的な書式（ゾーンファイル形式）:
+General format of DNS resource records (zone file format):
 
-  <名前>    <TTL>   <クラス>  <タイプ>  <データ>
+  <name>    <TTL>   <class>  <type>  <data>
 
-  例:
+  Examples:
   www.example.com.  3600  IN  A      93.184.216.34
   example.com.      3600  IN  MX  10 mail.example.com.
   example.com.      3600  IN  TXT    "v=spf1 include:_spf.google.com ~all"
 
-フィールドの説明:
-  名前    → レコードが紐づくドメイン名（FQDN）
-  TTL     → キャッシュ有効期間（秒）
-  クラス  → ほぼ常に IN（Internet）
-  タイプ  → レコードの種類（A, AAAA, CNAME, MX, ...）
-  データ  → レコード固有の値
+Field descriptions:
+  Name    → Domain name (FQDN) associated with the record
+  TTL     → Cache validity period (seconds)
+  Class   → Almost always IN (Internet)
+  Type    → Record type (A, AAAA, CNAME, MX, ...)
+  Data    → Value specific to the record type
 ```
 
-### 4.2 各レコードタイプの詳細
+### 4.2 Details of Each Record Type
 
-**Aレコード（Address Record）**
+**A Record (Address Record)**
 
-ドメイン名をIPv4アドレスに対応づける最も基本的なレコード。
+The most fundamental record, mapping a domain name to an IPv4 address.
 
 ```
-Aレコードの例:
+A record examples:
 
-  ゾーンファイル:
+  Zone file:
   example.com.      300   IN  A  93.184.216.34
   www.example.com.  300   IN  A  93.184.216.34
   api.example.com.  60    IN  A  10.0.1.100
-  api.example.com.  60    IN  A  10.0.1.101    # 複数のAレコード（ラウンドロビン）
+  api.example.com.  60    IN  A  10.0.1.101    # Multiple A records (round-robin)
 
-  digコマンドで確認:
+  Checking with dig:
   $ dig example.com A +noall +answer
   example.com.    300  IN  A  93.184.216.34
 
-  複数IPの場合（DNSラウンドロビン）:
+  Multiple IPs (DNS round-robin):
   $ dig api.example.com A +noall +answer
   api.example.com.  60  IN  A  10.0.1.100
   api.example.com.  60  IN  A  10.0.1.101
-  → クライアントは返されたIPの中から1つを選択して接続
-  → 簡易的な負荷分散として機能するが、ヘルスチェックはない
+  → Client selects one of the returned IPs and connects
+  → Functions as simple load balancing, but no health check
 ```
 
-**AAAAレコード（IPv6 Address Record）**
+**AAAA Record (IPv6 Address Record)**
 
-ドメイン名をIPv6アドレスに対応づけるレコード。「クアッドA」と読む。
+A record that maps a domain name to an IPv6 address. Read as "quad-A."
 
 ```
-AAAAレコードの例:
+AAAA record examples:
 
-  ゾーンファイル:
+  Zone file:
   example.com.  3600  IN  AAAA  2606:2800:0220:0001:0248:1893:25c8:1946
 
-  digコマンドで確認:
+  Checking with dig:
   $ dig example.com AAAA +noall +answer
   example.com.  3600  IN  AAAA  2606:2800:220:1:248:1893:25c8:1946
 
-  デュアルスタック環境（IPv4 + IPv6 の両方を設定）:
+  Dual-stack environment (both IPv4 and IPv6 configured):
   example.com.  300  IN  A     93.184.216.34
   example.com.  300  IN  AAAA  2606:2800:220:1:248:1893:25c8:1946
-  → Happy Eyeballs アルゴリズムにより、速い方が優先的に使用される
+  → The Happy Eyeballs algorithm prefers whichever is faster
 ```
 
-**CNAMEレコード（Canonical Name Record）**
+**CNAME Record (Canonical Name Record)**
 
-ドメイン名の別名（エイリアス）を設定するレコード。
+A record that sets an alias (another name) for a domain name.
 
 ```
-CNAMEレコードの例:
+CNAME record examples:
 
-  ゾーンファイル:
+  Zone file:
   www.example.com.   3600  IN  CNAME  example.com.
   blog.example.com.  3600  IN  CNAME  example.github.io.
   shop.example.com.  3600  IN  CNAME  shops.myshopify.com.
 
-  digコマンドで確認:
+  Checking with dig:
   $ dig www.example.com +noall +answer
   www.example.com.  3600  IN  CNAME  example.com.
   example.com.      300   IN  A      93.184.216.34
 
-重要な制約:
-  ・CNAMEはゾーンの頂点（Zone Apex）には設定できない
-    ×  example.com.  IN  CNAME  other.example.com.  ← RFC違反
+Important restrictions:
+  · CNAME cannot be set at the zone apex (Zone Apex)
+    ×  example.com.  IN  CNAME  other.example.com.  ← RFC violation
     ○  www.example.com.  IN  CNAME  other.example.com.  ← OK
 
-  ・CNAMEと他のレコードは同じ名前に共存できない
+  · CNAME and other records cannot coexist with the same name
     ×  www  IN  CNAME  example.com.
-       www  IN  A      1.2.3.4            ← RFC違反
-    ○  www  IN  CNAME  example.com.       ← CNAMEのみ
+       www  IN  A      1.2.3.4            ← RFC violation
+    ○  www  IN  CNAME  example.com.       ← CNAME only
 
-  理由: CNAMEは「この名前に対するすべてのクエリを転送先に委譲する」
-        という意味を持つため、他のレコードとの共存は論理的に矛盾する
+  Reason: CNAME means "delegate all queries for this name to the target,"
+          which is logically contradictory to coexisting with other records
 
-  Zone Apexでの代替手段:
-  ・ALIAS / ANAMEレコード（一部DNSプロバイダ独自拡張）
-  ・AWS Route 53 のエイリアスレコード
-  ・Cloudflare のCNAME Flattening
+  Alternatives at the Zone Apex:
+  · ALIAS / ANAME records (proprietary extension of some DNS providers)
+  · AWS Route 53 alias records
+  · Cloudflare CNAME Flattening
 ```
 
-**MXレコード（Mail Exchange Record）**
+**MX Record (Mail Exchange Record)**
 
-メールの配送先サーバーを指定するレコード。優先度（preference値）を持つ。
+A record specifying the mail delivery server. Has a priority (preference) value.
 
 ```
-MXレコードの例:
+MX record examples:
 
-  ゾーンファイル:
+  Zone file:
   example.com.  3600  IN  MX  10 mail1.example.com.
   example.com.  3600  IN  MX  20 mail2.example.com.
   example.com.  3600  IN  MX  30 mail-backup.example.com.
 
-  → 数値が小さいほど優先度が高い
-  → mail1 が応答しない場合、mail2 → mail-backup の順にフォールバック
+  → Lower numbers indicate higher priority
+  → If mail1 does not respond, falls back in order: mail2 → mail-backup
 
-  Google Workspace を使用する場合:
+  Using Google Workspace:
   example.com.  3600  IN  MX  1  ASPMX.L.GOOGLE.COM.
   example.com.  3600  IN  MX  5  ALT1.ASPMX.L.GOOGLE.COM.
   example.com.  3600  IN  MX  5  ALT2.ASPMX.L.GOOGLE.COM.
   example.com.  3600  IN  MX  10 ALT3.ASPMX.L.GOOGLE.COM.
   example.com.  3600  IN  MX  10 ALT4.ASPMX.L.GOOGLE.COM.
 
-  digコマンドで確認:
+  Checking with dig:
   $ dig example.com MX +noall +answer
   example.com.  3600  IN  MX  10 mail1.example.com.
   example.com.  3600  IN  MX  20 mail2.example.com.
 
-  重要: MXレコードの値にはIPアドレスではなくFQDNを指定する
-        MXレコードの値にCNAMEは使用すべきでない（RFC 2181）
+  Important: specify an FQDN, not an IP address, as the MX record value
+             CNAME should not be used as the value of an MX record (RFC 2181)
 ```
 
-**TXTレコード（Text Record）**
+**TXT Record (Text Record)**
 
-任意のテキストデータを格納するレコード。メール認証（SPF, DKIM, DMARC）やドメイン所有権の検証に広く使用される。
+A record that stores arbitrary text data. Widely used for email authentication (SPF, DKIM, DMARC) and domain ownership verification.
 
 ```
-TXTレコードの用途と例:
+TXT record uses and examples:
 
-  1. SPF（Sender Policy Framework）:
+  1. SPF (Sender Policy Framework):
      example.com.  3600  IN  TXT  "v=spf1 ip4:192.0.2.0/24 include:_spf.google.com ~all"
-     → このドメインからメールを送信できるサーバーを宣言
-     → ~all: 上記以外からの送信はソフトフェイル（疑わしいが拒否はしない）
-     → -all: ハードフェイル（上記以外は完全拒否）
+     → Declares the servers authorized to send email from this domain
+     → ~all: sending from other sources is a soft fail (suspicious but not rejected)
+     → -all: hard fail (completely reject anything not listed)
 
-  2. DKIM（DomainKeys Identified Mail）:
+  2. DKIM (DomainKeys Identified Mail):
      selector._domainkey.example.com.  3600  IN  TXT
        "v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GN..."
-     → メールの電子署名を検証するための公開鍵
+     → Public key for verifying email digital signatures
 
-  3. DMARC（Domain-based Message Authentication）:
+  3. DMARC (Domain-based Message Authentication):
      _dmarc.example.com.  3600  IN  TXT
        "v=DMARC1; p=reject; rua=mailto:dmarc@example.com"
-     → SPFとDKIMの結果に基づくメール処理ポリシー
+     → Email handling policy based on SPF and DKIM results
 
-  4. ドメイン所有権の検証:
+  4. Domain ownership verification:
      example.com.  300  IN  TXT  "google-site-verification=abc123..."
      example.com.  300  IN  TXT  "MS=ms12345678"
-     → Google, Microsoftなどのサービスがドメイン所有者を確認
+     → Used by Google, Microsoft, and others to verify domain ownership
 
-  5. セキュリティポリシー:
+  5. Security policy:
      _mta-sts.example.com.  3600  IN  TXT  "v=STSv1; id=20240101"
-     → MTA-STS（SMTP TLSの強制）のバージョン管理
+     → Version management for MTA-STS (enforcing SMTP TLS)
 ```
 
-**NSレコード（Name Server Record）**
+**NS Record (Name Server Record)**
 
-ゾーンの権威ネームサーバーを指定するレコード。
+A record specifying the authoritative name servers for a zone.
 
 ```
-NSレコードの例:
+NS record examples:
 
-  ゾーンファイル:
+  Zone file:
   example.com.  86400  IN  NS  ns1.example.com.
   example.com.  86400  IN  NS  ns2.example.com.
   example.com.  86400  IN  NS  ns3.example-dns.net.
 
-  → 通常、最低2つのNSレコードを設定（冗長性確保）
-  → 異なるネットワーク上にNSを配置することが推奨される
-  → TTLは長めに設定されることが多い（86400秒 = 24時間）
+  → At minimum, 2 NS records are typically set (for redundancy)
+  → Placing NS servers on different networks is recommended
+  → TTL is often set long (86400 seconds = 24 hours)
 
-  グルーレコード（Glue Record）:
-  NSサーバー自体がそのゾーン内にある場合、
-  循環参照を防ぐためにTLDのゾーンにAレコードが追加される
+  Glue Records:
+  When the NS server itself is within that zone,
+  an A record is added to the TLD zone to prevent circular references
 
-  例: example.com のNSが ns1.example.com の場合
-  → ns1.example.com のIPを知るには example.com のNSに聞く必要がある
-  → しかし example.com のNSが ns1.example.com である → 循環参照
+  Example: if the NS for example.com is ns1.example.com
+  → To know the IP of ns1.example.com, you need to ask the NS of example.com
+  → But the NS of example.com is ns1.example.com → circular reference
 
-  解決: 親ゾーン（.com）にグルーレコードを登録
-  .com ゾーン内:
+  Solution: register a glue record in the parent zone (.com)
+  Within .com zone:
     example.com.      IN  NS  ns1.example.com.
-    ns1.example.com.  IN  A   198.51.100.1      ← グルーレコード
+    ns1.example.com.  IN  A   198.51.100.1      ← glue record
 ```
 
-**SOAレコード（Start of Authority Record）**
+**SOA Record (Start of Authority Record)**
 
-ゾーンの管理情報を記述するレコード。すべてのゾーンに必ず1つ存在する。
+A record describing zone management information. There is always exactly one per zone.
 
 ```
-SOAレコードの例:
+SOA record examples:
 
   example.com. 86400 IN SOA ns1.example.com. admin.example.com. (
-    2024010101  ; シリアル番号（ゾーンのバージョン）
-    3600        ; リフレッシュ間隔（セカンダリがプライマリを確認する間隔）
-    900         ; リトライ間隔（リフレッシュ失敗時の再試行間隔）
-    604800      ; 有効期限（セカンダリがゾーンデータを有効とみなす最大期間）
-    86400       ; ネガティブキャッシュTTL（NXDOMAINをキャッシュする期間）
+    2024010101  ; serial number (zone version)
+    3600        ; refresh interval (how often secondary checks primary)
+    900         ; retry interval (retry interval if refresh fails)
+    604800      ; expiry (max period secondary considers zone data valid)
+    86400       ; negative cache TTL (period to cache NXDOMAIN)
   )
 
-  各フィールドの解説:
-  ・MNAME (ns1.example.com.)   : プライマリネームサーバー
-  ・RNAME (admin.example.com.) : 管理者のメールアドレス（@を.に置換）
-                                  → 実際は admin@example.com
-  ・シリアル番号: YYYYMMDDnn 形式が一般的
-    → ゾーン変更時に必ずインクリメントする
-    → セカンダリDNSはこの値でゾーン転送の必要性を判断
+  Field explanations:
+  · MNAME (ns1.example.com.)   : primary name server
+  · RNAME (admin.example.com.) : admin email address (@ replaced with .)
+                                  → actually admin@example.com
+  · Serial number: YYYYMMDDNN format is common
+    → Must be incremented every time the zone changes
+    → Secondary DNS uses this value to determine if a zone transfer is needed
 
-  digコマンドで確認:
+  Checking with dig:
   $ dig example.com SOA +noall +answer
 ```
 
-**SRVレコード（Service Record）**
+**SRV Record (Service Record)**
 
-特定のサービスが稼働しているホストとポート番号を指定するレコード。
+A record specifying the host and port number where a specific service is running.
 
 ```
-SRVレコードの書式:
-  _サービス._プロトコル.ドメイン  TTL  IN  SRV  優先度 重み ポート ホスト
+SRV record format:
+  _service._protocol.domain  TTL  IN  SRV  priority weight port host
 
-  例:
+  Examples:
   _sip._tcp.example.com.     3600 IN SRV 10 60 5060 sipserver1.example.com.
   _sip._tcp.example.com.     3600 IN SRV 10 40 5060 sipserver2.example.com.
   _sip._tcp.example.com.     3600 IN SRV 20 0  5060 sipbackup.example.com.
 
-  → 優先度10のサーバー間で重み60:40の比率で負荷分散
-  → 優先度10が全滅した場合、優先度20にフォールバック
+  → Load balanced between priority-10 servers at a ratio of 60:40 by weight
+  → If all priority-10 servers are down, falls back to priority-20
 
-  Active Directoryでの使用例:
+  Example use in Active Directory:
   _ldap._tcp.dc._msdcs.example.com.  600 IN SRV 0 100 389 dc1.example.com.
   _kerberos._tcp.example.com.        600 IN SRV 0 100 88  kdc.example.com.
 ```
 
-**PTRレコード（Pointer Record）**
+**PTR Record (Pointer Record)**
 
-IPアドレスからドメイン名への逆引きを行うレコード。メールサーバーの信頼性検証に重要。
+A record for reverse DNS lookup (IP address to domain name). Important for mail server trust verification.
 
 ```
-PTRレコードの例:
+PTR record examples:
 
-  IPv4の逆引き（in-addr.arpa）:
+  IPv4 reverse lookup (in-addr.arpa):
   34.216.184.93.in-addr.arpa.  3600  IN  PTR  example.com.
-  → IPアドレスのオクテットを逆順にして .in-addr.arpa を付加
+  → Octets of the IP address are reversed and .in-addr.arpa is appended
 
-  IPv6の逆引き（ip6.arpa）:
+  IPv6 reverse lookup (ip6.arpa):
   6.4.9.1.8.c.5.2.3.9.8.1.8.4.2.0.1.0.0.0.0.2.2.0.0.0.8.2.6.0.6.2.ip6.arpa.
     3600  IN  PTR  example.com.
-  → 各ニブル（4ビット）を逆順にして .ip6.arpa を付加
+  → Each nibble (4 bits) is reversed and .ip6.arpa is appended
 
-  digコマンドで逆引き確認:
+  Checking reverse lookup with dig:
   $ dig -x 93.184.216.34 +noall +answer
   34.216.184.93.in-addr.arpa. 3600 IN PTR example.com.
 
-  逆引きが重要な場面:
-  ・メール送信時: 受信サーバーがPTRレコードをチェック
-    → PTRが設定されていない、または正引きと一致しないとスパム判定される
-  ・ログ解析: IPアドレスをホスト名に変換して可読性を向上
-  ・セキュリティ監査: 不審なIPアドレスの所有者を特定
+  When reverse lookup matters:
+  · When sending email: receiving server checks PTR record
+    → Marked as spam if PTR is not set or does not match forward lookup
+  · Log analysis: convert IP addresses to hostnames for readability
+  · Security audits: identify the owner of a suspicious IP address
 ```
 
-**CAAレコード（Certification Authority Authorization）**
+**CAA Record (Certification Authority Authorization)**
 
-ドメインに対してSSL/TLS証明書を発行できるCA（認証局）を制限するレコード。
+A record that restricts which CAs (Certificate Authorities) are allowed to issue SSL/TLS certificates for a domain.
 
 ```
-CAAレコードの例:
+CAA record examples:
 
   example.com.  3600  IN  CAA  0 issue "letsencrypt.org"
   example.com.  3600  IN  CAA  0 issue "digicert.com"
   example.com.  3600  IN  CAA  0 issuewild "letsencrypt.org"
   example.com.  3600  IN  CAA  0 iodef "mailto:security@example.com"
 
-  フラグとタグ:
-  ・0 issue        → 通常の証明書発行を許可するCA
-  ・0 issuewild    → ワイルドカード証明書の発行を許可するCA
-  ・0 iodef        → ポリシー違反時の通知先
-  ・128 issue      → 128 = critical flag（未知のタグを持つ場合、発行を拒否）
+  Flags and tags:
+  · 0 issue        → CA authorized to issue standard certificates
+  · 0 issuewild    → CA authorized to issue wildcard certificates
+  · 0 iodef        → Notification destination for policy violations
+  · 128 issue      → 128 = critical flag (reject issuance if unknown tag exists)
 
-  digコマンドで確認:
+  Checking with dig:
   $ dig example.com CAA +noall +answer
 
-  CAAの動作:
-  1. CAが証明書発行リクエストを受ける
-  2. 対象ドメインのCAAレコードを確認
-  3. 自身がissueに含まれていなければ発行を拒否
-  4. CAAレコードが存在しなければ制限なし（任意のCAが発行可能）
+  How CAA works:
+  1. CA receives a certificate issuance request
+  2. CA checks the CAA record for the target domain
+  3. If the CA is not listed under issue, it refuses to issue
+  4. If no CAA record exists, there is no restriction (any CA can issue)
 ```
 
-### 4.3 レコードタイプの用途別比較表
+### 4.3 Record Type Comparison by Use Case
 
-| レコード | 用途 | 値の例 | 典型的なTTL | 設定頻度 |
+| Record | Use | Value example | Typical TTL | Configuration frequency |
 |---------|------|-------|------------|---------|
-| A | ドメイン→IPv4 | 93.184.216.34 | 300-3600 | 非常に高い |
-| AAAA | ドメイン→IPv6 | 2606:2800:220:1:... | 300-3600 | 高い |
-| CNAME | エイリアス | www→example.com | 3600 | 高い |
-| MX | メール配送先 | 10 mail.example.com | 3600 | 中程度 |
-| TXT | テキスト情報 | "v=spf1 ..." | 3600 | 中程度 |
-| NS | 権威DNS指定 | ns1.example.com | 86400 | 低い |
-| SOA | ゾーン管理情報 | (複合データ) | 86400 | 低い |
-| SRV | サービス位置 | 10 60 5060 sip.ex... | 3600 | 低い |
-| PTR | 逆引き | example.com | 3600 | 低い |
-| CAA | CA制限 | 0 issue "le..." | 3600 | 低い |
+| A | Domain → IPv4 | 93.184.216.34 | 300-3600 | Very high |
+| AAAA | Domain → IPv6 | 2606:2800:220:1:... | 300-3600 | High |
+| CNAME | Alias | www→example.com | 3600 | High |
+| MX | Mail delivery | 10 mail.example.com | 3600 | Moderate |
+| TXT | Text info | "v=spf1 ..." | 3600 | Moderate |
+| NS | Authoritative DNS | ns1.example.com | 86400 | Low |
+| SOA | Zone management info | (composite data) | 86400 | Low |
+| SRV | Service location | 10 60 5060 sip.ex... | 3600 | Low |
+| PTR | Reverse lookup | example.com | 3600 | Low |
+| CAA | CA restriction | 0 issue "le..." | 3600 | Low |
 
 ---
 
-## 5. DNSキャッシュとTTL
+## 5. DNS Cache and TTL
 
-### 5.1 キャッシュの階層構造
+### 5.1 Hierarchical Cache Structure
 
-DNS名前解決は多段階のキャッシュによって高速化されている。各階層のキャッシュが連携して動作することで、DNSサーバーへの問い合わせ回数を大幅に削減している。
+DNS name resolution is accelerated by multi-level caching. The caches at each level work together to significantly reduce the number of queries to DNS servers.
 
 ```
-DNSキャッシュの階層:
+DNS cache hierarchy:
 
   ┌──────────────────────────────────────────────────────────────┐
-  │                    キャッシュ階層図                           │
+  │                    Cache hierarchy diagram                    │
   │                                                              │
-  │  ┌─────────────────────────────┐    応答速度: < 1ms          │
-  │  │  1. アプリケーションキャッシュ │    Chrome内部、curlキャッシュ等│
-  │  │     (ブラウザ等)             │    TTL: アプリ依存           │
+  │  ┌─────────────────────────────┐    Response speed: < 1ms   │
+  │  │  1. Application cache       │    Chrome internal, curl   │
+  │  │     (browser, etc.)         │    cache, etc.             │
+  │  │                             │    TTL: app-dependent      │
   │  └─────────────┬───────────────┘                             │
   │        miss    │                                              │
   │                ▼                                              │
-  │  ┌─────────────────────────────┐    応答速度: < 1ms          │
-  │  │  2. OSキャッシュ             │    systemd-resolved,        │
-  │  │     (スタブリゾルバ)         │    mDNSResponder等          │
-  │  └─────────────┬───────────────┘    TTL: レコードのTTLに従う  │
+  │  ┌─────────────────────────────┐    Response speed: < 1ms   │
+  │  │  2. OS cache                │    systemd-resolved,        │
+  │  │     (stub resolver)         │    mDNSResponder, etc.     │
+  │  └─────────────┬───────────────┘    TTL: follows record TTL  │
   │        miss    │                                              │
   │                ▼                                              │
-  │  ┌─────────────────────────────┐    応答速度: 1-5ms          │
-  │  │  3. ローカルDNSキャッシュ     │    ルーター、dnsmasq等      │
-  │  │     (ホームルーター等)       │    TTL: レコードのTTLに従う  │
+  │  ┌─────────────────────────────┐    Response speed: 1-5ms   │
+  │  │  3. Local DNS cache         │    Router, dnsmasq, etc.   │
+  │  │     (home router, etc.)     │    TTL: follows record TTL  │
   │  └─────────────┬───────────────┘                             │
   │        miss    │                                              │
   │                ▼                                              │
-  │  ┌─────────────────────────────┐    応答速度: 5-50ms         │
-  │  │  4. ISPリゾルバキャッシュ     │    ISP提供のDNSサーバー     │
-  │  │     (フルリゾルバ)           │    大量ユーザーのキャッシュ共有│
-  │  └─────────────┬───────────────┘    TTL: レコードのTTLに従う  │
+  │  ┌─────────────────────────────┐    Response speed: 5-50ms  │
+  │  │  4. ISP resolver cache      │    ISP-provided DNS server │
+  │  │     (full resolver)         │    Cache shared by many    │
+  │  └─────────────┬───────────────┘    TTL: follows record TTL  │
   │        miss    │                                              │
   │                ▼                                              │
-  │  ┌─────────────────────────────┐    応答速度: 50-200ms       │
-  │  │  5. 権威DNSサーバー          │    ルート→TLD→権威の        │
-  │  │     (反復クエリ)             │    反復クエリを実行          │
+  │  ┌─────────────────────────────┐    Response speed: 50-200ms│
+  │  │  5. Authoritative DNS server│    Executes iterative       │
+  │  │     (iterative query)       │    queries root→TLD→auth   │
   │  └─────────────────────────────┘                             │
   └──────────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 TTL（Time To Live）の設計
+### 5.2 TTL (Time To Live) Design
 
-TTLの設定はDNS運用における最も重要な設計判断の一つである。
+TTL configuration is one of the most important design decisions in DNS operations.
 
 ```
-TTL設定のガイドライン:
+TTL configuration guidelines:
 
-  短いTTL（60〜300秒）:
+  Short TTL (60–300 seconds):
   ┌────────────────────────────────────────────────────────┐
-  │ メリット                                                │
-  │ ・DNS切り替えの反映が速い                               │
-  │ ・フェイルオーバーの応答が速い                           │
-  │ ・Blue-Greenデプロイやカナリアリリースに適する            │
+  │ Advantages                                              │
+  │ · DNS changes propagate quickly                        │
+  │ · Fast failover response                               │
+  │ · Suitable for Blue-Green deployments and canary releases│
   │                                                        │
-  │ デメリット                                              │
-  │ ・DNSサーバーへの問い合わせ頻度が増加                    │
-  │ ・ネットワーク遅延の影響を受けやすい                     │
-  │ ・権威DNSサーバーの負荷が高い                            │
+  │ Disadvantages                                          │
+  │ · Increased query frequency to DNS servers             │
+  │ · More susceptible to network latency                  │
+  │ · Higher load on authoritative DNS servers             │
   │                                                        │
-  │ 推奨場面                                                │
-  │ ・CDN（CloudFront, Fastly等）の設定                     │
-  │ ・ロードバランサーのDNS設定                              │
-  │ ・インフラ移行の準備期間                                 │
-  │ ・障害時の切り替えが重要なサービス                       │
+  │ Recommended situations                                  │
+  │ · CDN (CloudFront, Fastly, etc.) configuration         │
+  │ · Load balancer DNS configuration                      │
+  │ · Infrastructure migration preparation period          │
+  │ · Services where rapid failover is critical            │
   └────────────────────────────────────────────────────────┘
 
-  長いTTL（3600〜86400秒）:
+  Long TTL (3600–86400 seconds):
   ┌────────────────────────────────────────────────────────┐
-  │ メリット                                                │
-  │ ・DNS問い合わせの回数が大幅に減少                        │
-  │ ・名前解決のレイテンシが低い（キャッシュヒット率が高い）  │
-  │ ・権威DNSサーバーの負荷が低い                            │
+  │ Advantages                                              │
+  │ · Significantly fewer DNS queries                      │
+  │ · Low name resolution latency (high cache hit rate)    │
+  │ · Lower load on authoritative DNS servers              │
   │                                                        │
-  │ デメリット                                              │
-  │ ・DNS変更の反映に時間がかかる                            │
-  │ ・障害時の切り替えが遅い                                 │
+  │ Disadvantages                                          │
+  │ · DNS changes take longer to propagate                 │
+  │ · Slower failover                                      │
   │                                                        │
-  │ 推奨場面                                                │
-  │ ・NSレコード（変更頻度が非常に低い）                     │
-  │ ・SOAレコード                                           │
-  │ ・安定運用中のサービスのAレコード                        │
-  │ ・MXレコード                                            │
+  │ Recommended situations                                  │
+  │ · NS records (very rarely changed)                     │
+  │ · SOA records                                          │
+  │ · A records of services in stable operation            │
+  │ · MX records                                           │
   └────────────────────────────────────────────────────────┘
 ```
 
-### 5.3 DNS移行時のTTL運用ベストプラクティス
+### 5.3 TTL Best Practices During DNS Migration
 
 ```
-サーバー移行時のTTL運用手順:
+TTL operation procedure during server migration:
 
-  時間軸:
+  Timeline:
   ──────┬────────────────────┬──────────────────┬──────────────────┬─────
-   T-48h │                    │ T-0（移行実施）   │ T+24h            │ T+72h
+   T-48h │                    │ T-0 (migration)  │ T+24h            │ T+72h
         │                    │                  │                  │
-   ① TTLを短縮              ② レコード変更      ③ 正常性確認      ④ TTL復元
-   (3600→300)               (旧IP→新IP)        (全リゾルバ反映)   (300→3600)
+   ① Reduce TTL             ② Change record     ③ Verify health   ④ Restore TTL
+   (3600→300)               (old IP→new IP)     (all resolvers    (300→3600)
+                                                 propagated)
 
-  詳細手順:
-  ① 移行48時間前:
-     旧設定: example.com.  3600  IN  A  198.51.100.1
-     変更後: example.com.   300  IN  A  198.51.100.1   ← TTLだけ短縮
-     → 元のTTL（3600秒 = 1時間）の2倍以上待つ
-     → すべてのキャッシュが新しいTTL（300秒）で更新される
+  Detailed steps:
+  ① 48 hours before migration:
+     Old setting: example.com.  3600  IN  A  198.51.100.1
+     After change: example.com.   300  IN  A  198.51.100.1   ← TTL only reduced
+     → Wait more than twice the original TTL (3600 seconds = 1 hour)
+     → All caches are refreshed with the new TTL (300 seconds)
 
-  ② 移行実施:
-     変更後: example.com.   300  IN  A  203.0.113.50   ← IPアドレスを変更
-     → 最大300秒（5分）で全世界に反映
+  ② Migration:
+     After change: example.com.   300  IN  A  203.0.113.50   ← Change IP address
+     → Propagated worldwide in at most 300 seconds (5 minutes)
 
-  ③ 移行24時間後:
-     監視項目:
-     ・新サーバーへのトラフィック推移
-     ・旧サーバーへのトラフィック消失確認
-     ・エラーレート、レイテンシの確認
+  ③ 24 hours after migration:
+     Monitoring items:
+     · Traffic trend to new server
+     · Confirm traffic to old server disappears
+     · Check error rate and latency
 
-  ④ 移行72時間後:
-     変更後: example.com.  3600  IN  A  203.0.113.50   ← TTLを元に戻す
-     → 安定運用に移行
+  ④ 72 hours after migration:
+     After change: example.com.  3600  IN  A  203.0.113.50   ← Restore TTL
+     → Move to stable operation
 
-  ★ よくある失敗:
-     TTLを短縮せずにいきなりIPを変更
-     → 旧TTL（例: 86400秒 = 24時間）の間、
-       古いIPにアクセスするユーザーが残る
-     → その間のリクエストは全て失敗する
+  ★ Common mistake:
+     Changing the IP without first reducing the TTL
+     → For the duration of the old TTL (e.g., 86400 seconds = 24 hours),
+       users with cached entries continue accessing the old IP
+     → All their requests fail during that period
 ```
 
-### 5.4 ネガティブキャッシュ
+### 5.4 Negative Cache
 
-存在しないドメイン（NXDOMAIN）に対する応答もキャッシュされる。これをネガティブキャッシュという。
+Responses to non-existent domains (NXDOMAIN) are also cached. This is called negative caching.
 
 ```
-ネガティブキャッシュの仕組み:
+How negative caching works:
 
   $ dig nonexistent.example.com
   ;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, ...
   ;; AUTHORITY SECTION:
   example.com.  86400  IN  SOA  ns1.example.com. admin.example.com. ...
 
-  → NXDOMAIN のキャッシュ期間は SOA レコードの最後のフィールド
-    （ネガティブキャッシュTTL）で決定される
+  → The NXDOMAIN cache duration is determined by the last field of the SOA record
+    (negative cache TTL)
 
-  影響:
-  ・新しいサブドメインを作成しても、ネガティブキャッシュの期間中は
-    「存在しない」という応答が返され続ける場合がある
-  ・SOAのネガティブキャッシュTTLが長すぎると問題になる
+  Impact:
+  · Even after creating a new subdomain, the "does not exist" response may
+    continue to be returned during the negative cache period
+  · Problems occur if the SOA's negative cache TTL is too long
 
-  推奨: ネガティブキャッシュTTLは 300〜3600 秒に設定
+  Recommendation: set negative cache TTL to 300–3600 seconds
 ```
 
 ---
 
-## 6. コード例: DNSデバッグの実践
+## 6. Code Examples: Practical DNS Debugging
 
-### 6.1 digコマンドの活用
+### 6.1 Using the dig Command
 
-`dig`（Domain Information Groper）はDNS問い合わせのための最も強力なコマンドラインツールである。
+`dig` (Domain Information Groper) is the most powerful command-line tool for DNS queries.
 
 ```bash
 # ============================================================
-# コード例1: dig の基本的な使い方
+# Code example 1: Basic usage of dig
 # ============================================================
 
-# 基本的なAレコードの問い合わせ
+# Basic A record query
 $ dig example.com
 
-# 出力の読み方:
+# How to read the output:
 # ;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 12345
-#   → status: NOERROR = 正常応答
-#   → status: NXDOMAIN = ドメインが存在しない
-#   → status: SERVFAIL = サーバーエラー
-#   → status: REFUSED = 問い合わせ拒否
+#   → status: NOERROR = normal response
+#   → status: NXDOMAIN = domain does not exist
+#   → status: SERVFAIL = server error
+#   → status: REFUSED = query refused
 #
 # ;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
-#   → qr = Query Response（応答）
-#   → rd = Recursion Desired（再帰要求あり）
-#   → ra = Recursion Available（再帰利用可能）
-#   → aa = Authoritative Answer（権威応答）← 重要
+#   → qr = Query Response
+#   → rd = Recursion Desired
+#   → ra = Recursion Available
+#   → aa = Authoritative Answer ← important
 #
 # ;; ANSWER SECTION:
 # example.com.  300  IN  A  93.184.216.34
-#   → ドメイン名  TTL  クラス  タイプ  データ
+#   → domain name  TTL  class  type  data
 
-# 特定のレコードタイプを問い合わせ
-$ dig example.com A          # IPv4アドレス
-$ dig example.com AAAA       # IPv6アドレス
-$ dig example.com MX         # メールサーバー
-$ dig example.com TXT        # テキストレコード
-$ dig example.com NS         # ネームサーバー
-$ dig example.com SOA        # ゾーン管理情報
-$ dig example.com ANY        # すべてのレコード（※多くのサーバーで制限あり）
+# Query specific record types
+$ dig example.com A          # IPv4 address
+$ dig example.com AAAA       # IPv6 address
+$ dig example.com MX         # Mail server
+$ dig example.com TXT        # Text records
+$ dig example.com NS         # Name servers
+$ dig example.com SOA        # Zone management info
+$ dig example.com ANY        # All records (restricted on many servers)
 
-# 簡潔な出力
+# Concise output
 $ dig +short example.com
 93.184.216.34
 
-# 応答セクションだけ表示
+# Show only the answer section
 $ dig +noall +answer example.com
 example.com.  300  IN  A  93.184.216.34
 
-# 特定のDNSサーバーに問い合わせ
+# Query a specific DNS server
 $ dig @8.8.8.8 example.com        # Google Public DNS
 $ dig @1.1.1.1 example.com        # Cloudflare DNS
 $ dig @9.9.9.9 example.com        # Quad9 DNS
 
-# DNSの解決過程を追跡（+trace）
+# Trace the DNS resolution process (+trace)
 $ dig +trace example.com
-# → ルートDNS → .com TLD DNS → 権威DNS の全過程が表示される
+# → Displays the complete process: root DNS → .com TLD DNS → authoritative DNS
 # . 518400 IN NS a.root-servers.net.
 # ...
 # com. 172800 IN NS a.gtld-servers.net.
@@ -863,16 +869,16 @@ $ dig +trace example.com
 # example.com. 300 IN A 93.184.216.34
 ```
 
-### 6.2 nslookupコマンド
+### 6.2 The nslookup Command
 
-`nslookup` はdigより古いが、Windows環境でも標準で使用できるツールである。
+`nslookup` is older than dig but available by default on Windows as well.
 
 ```bash
 # ============================================================
-# コード例2: nslookup の使い方
+# Code example 2: Using nslookup
 # ============================================================
 
-# 基本的な問い合わせ
+# Basic query
 $ nslookup example.com
 Server:    192.168.1.1
 Address:   192.168.1.1#53
@@ -881,15 +887,15 @@ Non-authoritative answer:
 Name:      example.com
 Address:   93.184.216.34
 
-# 特定のレコードタイプ
+# Specific record types
 $ nslookup -type=MX example.com
 $ nslookup -type=TXT example.com
 $ nslookup -type=NS example.com
 
-# 特定のDNSサーバーを指定
+# Specify a specific DNS server
 $ nslookup example.com 8.8.8.8
 
-# 対話モード
+# Interactive mode
 $ nslookup
 > server 8.8.8.8
 Default server: 8.8.8.8
@@ -899,26 +905,26 @@ Address: 8.8.8.8#53
 example.com    mail exchanger = 10 mail.example.com.
 > exit
 
-# 逆引き
+# Reverse lookup
 $ nslookup 93.184.216.34
 ```
 
-### 6.3 hostコマンド
+### 6.3 The host Command
 
-`host` はdigの簡易版で、人間に読みやすい出力を生成する。
+`host` is a simpler version of dig that produces more human-readable output.
 
 ```bash
 # ============================================================
-# コード例3: host コマンドの使い方
+# Code example 3: Using the host command
 # ============================================================
 
-# 基本的な問い合わせ
+# Basic query
 $ host example.com
 example.com has address 93.184.216.34
 example.com has IPv6 address 2606:2800:220:1:248:1893:25c8:1946
 example.com mail is handled by 0 .
 
-# 特定のレコードタイプ
+# Specific record types
 $ host -t MX example.com
 example.com mail is handled by 10 mail.example.com.
 
@@ -926,106 +932,106 @@ $ host -t NS example.com
 example.com name server ns1.example.com.
 example.com name server ns2.example.com.
 
-# 逆引き
+# Reverse lookup
 $ host 93.184.216.34
 34.216.184.93.in-addr.arpa domain name pointer example.com.
 
-# 詳細出力（digに近い形式）
+# Verbose output (closer to dig format)
 $ host -v example.com
 
-# 特定のDNSサーバーに問い合わせ
+# Query a specific DNS server
 $ host example.com 8.8.8.8
 ```
 
-### 6.4 ゾーンファイルの設定例
+### 6.4 Zone File Configuration Example
 
-BINDなどの権威DNSサーバーで使用するゾーンファイルの完全な例を示す。
+A complete example of a zone file used with authoritative DNS servers like BIND.
 
 ```bash
 # ============================================================
-# コード例4: BINDゾーンファイル（/etc/bind/zones/example.com.zone）
+# Code example 4: BIND zone file (/etc/bind/zones/example.com.zone)
 # ============================================================
 
-$TTL 3600                              ; デフォルトTTL = 1時間
-$ORIGIN example.com.                   ; ゾーンの基点
+$TTL 3600                              ; Default TTL = 1 hour
+$ORIGIN example.com.                   ; Zone origin
 
-; ── SOAレコード ──
+; ── SOA record ──
 @   IN  SOA  ns1.example.com.  admin.example.com. (
-            2024031501    ; シリアル番号（YYYYMMDDNN形式）
-            3600          ; リフレッシュ（1時間）
-            900           ; リトライ（15分）
-            604800        ; 期限切れ（7日）
-            86400         ; ネガティブキャッシュTTL（1日）
+            2024031501    ; serial number (YYYYMMDDNN format)
+            3600          ; refresh (1 hour)
+            900           ; retry (15 minutes)
+            604800        ; expire (7 days)
+            86400         ; negative cache TTL (1 day)
           )
 
-; ── NSレコード ──
+; ── NS records ──
 @           IN  NS    ns1.example.com.
 @           IN  NS    ns2.example.com.
 
-; ── Aレコード（IPv4） ──
+; ── A records (IPv4) ──
 @           IN  A     93.184.216.34
 www         IN  A     93.184.216.34
 api         IN  A     10.0.1.100
-api         IN  A     10.0.1.101         ; ラウンドロビン
+api         IN  A     10.0.1.101         ; round-robin
 staging     IN  A     10.0.2.50
 
-; ── AAAAレコード（IPv6） ──
+; ── AAAA records (IPv6) ──
 @           IN  AAAA  2606:2800:220:1:248:1893:25c8:1946
 
-; ── CNAMEレコード ──
+; ── CNAME records ──
 blog        IN  CNAME example.github.io.
 shop        IN  CNAME shops.myshopify.com.
 docs        IN  CNAME example-docs.netlify.app.
 
-; ── MXレコード ──
+; ── MX records ──
 @           IN  MX  10  mail1.example.com.
 @           IN  MX  20  mail2.example.com.
 
-; ── TXTレコード ──
+; ── TXT records ──
 @           IN  TXT   "v=spf1 ip4:93.184.216.0/24 include:_spf.google.com ~all"
 _dmarc      IN  TXT   "v=DMARC1; p=quarantine; rua=mailto:dmarc@example.com"
 
-; ── SRVレコード ──
+; ── SRV record ──
 _sip._tcp   IN  SRV   10 60 5060 sipserver.example.com.
 
-; ── CAAレコード ──
+; ── CAA records ──
 @           IN  CAA   0 issue "letsencrypt.org"
 @           IN  CAA   0 issuewild "letsencrypt.org"
 
-; ── NSサーバーのAレコード ──
+; ── NS server A records ──
 ns1         IN  A     198.51.100.1
 ns2         IN  A     198.51.100.2
 
-; ── メールサーバーのAレコード ──
+; ── Mail server A records ──
 mail1       IN  A     198.51.100.10
 mail2       IN  A     198.51.100.11
 ```
 
-### 6.5 resolv.confとsystemd-resolvedの設定
+### 6.5 resolv.conf and systemd-resolved Configuration
 
 ```bash
 # ============================================================
-# コード例5: クライアント側のDNS設定
+# Code example 5: Client-side DNS configuration
 # ============================================================
 
 # --- /etc/resolv.conf ---
-# 基本設定
-nameserver 8.8.8.8          # プライマリDNS（Google）
-nameserver 8.8.4.4          # セカンダリDNS（Google）
-nameserver 1.1.1.1          # ターシャリDNS（Cloudflare）
+# Basic configuration
+nameserver 8.8.8.8          # Primary DNS (Google)
+nameserver 8.8.4.4          # Secondary DNS (Google)
+nameserver 1.1.1.1          # Tertiary DNS (Cloudflare)
 
 search example.com internal.example.com
-# → "myhost" を検索すると以下の順に解決を試みる:
+# → Searching "myhost" tries resolution in this order:
 #    1. myhost.example.com
 #    2. myhost.internal.example.com
-#    3. myhost（FQDNとして）
+#    3. myhost (as FQDN)
 
 options timeout:2 attempts:3 rotate
-# timeout:2  → 各クエリのタイムアウト2秒
-# attempts:3 → 最大3回再試行
-# rotate     → ネームサーバーをラウンドロビンで使用
+# timeout:2  → 2-second timeout per query
+# attempts:3 → retry up to 3 times
+# rotate     → use name servers in round-robin order
 
-# --- systemd-resolved の設定 ---
+# --- systemd-resolved configuration ---
 # /etc/systemd/resolved.conf
 [Resolve]
 DNS=8.8.8.8 1.1.1.1
@@ -1036,7 +1042,7 @@ DNSOverTLS=opportunistic
 Cache=yes
 DNSStubListener=yes
 
-# systemd-resolved の状態確認
+# Check systemd-resolved status
 $ resolvectl status
 Global
        Protocols: +LLMNR +mDNS -DNSOverTLS DNSSEC=allow-downgrade/supported
@@ -1044,7 +1050,7 @@ resolv.conf mode: stub
      DNS Servers: 8.8.8.8 1.1.1.1
 Fallback DNS Servers: 8.8.4.4 9.9.9.9
 
-# キャッシュの統計確認
+# Check cache statistics
 $ resolvectl statistics
 DNSSEC supported: yes
 Current Transactions: 0
@@ -1053,607 +1059,619 @@ Current Transactions: 0
           Cache Hits: 5678
         Cache Misses: 6789
 
-# キャッシュのフラッシュ
+# Flush cache
 $ resolvectl flush-caches
 ```
 
 ---
 
-## 7. DNSセキュリティ
+## 7. DNS Security
 
-### 7.1 DNSに対する主な脅威
+### 7.1 Major Threats to DNS
 
 ```
-DNSの脅威モデル:
+DNS threat model:
 
   ┌──────────────────────────────────────────────────────────────┐
-  │                    DNS攻撃の分類                              │
+  │                    DNS attack classification                  │
   ├──────────────────┬───────────────────────────────────────────┤
-  │ DNSスプーフィング │ 偽のDNS応答を注入し、ユーザーを偽サイトへ  │
-  │ (DNSポイズニング) │ 誘導。キャッシュに偽レコードを挿入する。   │
-  │                  │ 対策: DNSSEC、ソースポートランダム化       │
+  │ DNS spoofing     │ Injects fake DNS responses to redirect     │
+  │ (DNS poisoning)  │ users to fake sites. Inserts fake records  │
+  │                  │ into the cache.                            │
+  │                  │ Countermeasures: DNSSEC, source port       │
+  │                  │ randomization                              │
   ├──────────────────┼───────────────────────────────────────────┤
-  │ DNS増幅攻撃      │ 送信元IPを偽装したDNSクエリを大量送信。    │
-  │ (DDoS)           │ 応答が被害者に集中し、帯域を圧迫。        │
-  │                  │ 対策: レートリミット、オープンリゾルバの    │
-  │                  │       排除、BCP38（送信元検証）            │
+  │ DNS amplification│ Sends a large volume of DNS queries with   │
+  │ attack (DDoS)    │ a spoofed source IP. Responses flood the   │
+  │                  │ victim, saturating bandwidth.              │
+  │                  │ Countermeasures: rate limiting, eliminate  │
+  │                  │ open resolvers, BCP38 (source validation)  │
   ├──────────────────┼───────────────────────────────────────────┤
-  │ DNSハイジャック   │ レジストラアカウントの乗っ取り、            │
-  │                  │ ゾーンファイルの不正変更。                  │
-  │                  │ 対策: レジストラロック、二要素認証          │
+  │ DNS hijacking    │ Takeover of registrar accounts,            │
+  │                  │ unauthorized modification of zone files.   │
+  │                  │ Countermeasures: registrar lock, two-factor│
+  │                  │ authentication                             │
   ├──────────────────┼───────────────────────────────────────────┤
-  │ DNS盗聴          │ 平文のDNSクエリを盗聴し、ユーザーの        │
-  │                  │ 閲覧行動を追跡。                           │
-  │                  │ 対策: DoH（DNS over HTTPS）、              │
-  │                  │       DoT（DNS over TLS）                  │
+  │ DNS eavesdropping│ Intercepts plaintext DNS queries to track  │
+  │                  │ user browsing behavior.                    │
+  │                  │ Countermeasures: DoH (DNS over HTTPS),     │
+  │                  │ DoT (DNS over TLS)                         │
   ├──────────────────┼───────────────────────────────────────────┤
-  │ NXDOMAINハイジャック│ 存在しないドメインの問い合わせを          │
-  │                  │ ISPが横取りし、広告ページへ転送。           │
-  │                  │ 対策: DNSSEC検証、パブリックDNSの使用      │
+  │ NXDOMAIN         │ ISP intercepts queries for non-existent    │
+  │ hijacking        │ domains and redirects to an ad page.       │
+  │                  │ Countermeasures: DNSSEC validation, use    │
+  │                  │ public DNS                                 │
   └──────────────────┴───────────────────────────────────────────┘
 ```
 
-### 7.2 DNSSEC（DNS Security Extensions）
+### 7.2 DNSSEC (DNS Security Extensions)
 
-DNSSECはDNS応答の真正性と完全性を暗号学的に検証する仕組みである。
+DNSSEC is a mechanism that cryptographically verifies the authenticity and integrity of DNS responses.
 
 ```
-DNSSECの仕組み:
+How DNSSEC works:
 
-  署名の流れ:
-  1. ゾーン管理者がZSK（Zone Signing Key）でレコードに署名
-  2. ZSKをKSK（Key Signing Key）で署名
-  3. KSKのハッシュ（DSレコード）を親ゾーンに登録
-  4. 親ゾーンが自身のKSKでDSレコードに署名
-  5. ルートまで信頼の連鎖（Chain of Trust）が形成される
+  Signing flow:
+  1. Zone administrator signs records with ZSK (Zone Signing Key)
+  2. ZSK is signed with KSK (Key Signing Key)
+  3. Hash of KSK (DS record) is registered in the parent zone
+  4. Parent zone signs the DS record with its own KSK
+  5. A Chain of Trust is formed all the way to the root
 
-  信頼の連鎖:
-  ルートKSK（トラストアンカー: IANAが管理）
-    ↓ DSレコードで検証
+  Chain of Trust:
+  Root KSK (trust anchor: managed by IANA)
+    ↓ verified by DS record
   .com KSK
-    ↓ DSレコードで検証
+    ↓ verified by DS record
   example.com KSK
-    ↓ ZSKで検証
-  www.example.com A  93.184.216.34  ← この応答が改竄されていないことを暗号的に保証
+    ↓ verified by ZSK
+  www.example.com A  93.184.216.34  ← Cryptographically guaranteed not to be tampered with
 
-  追加されるレコードタイプ:
-  ・RRSIG   : 各レコードセットの電子署名
-  ・DNSKEY  : ゾーンの公開鍵（ZSK, KSK）
-  ・DS      : 子ゾーンのDNSKEYのハッシュ（親ゾーンに登録）
-  ・NSEC/NSEC3 : レコードが存在しないことの証明
+  Additional record types:
+  · RRSIG   : digital signature for each record set
+  · DNSKEY  : zone's public keys (ZSK, KSK)
+  · DS      : hash of child zone's DNSKEY (registered in parent zone)
+  · NSEC/NSEC3 : proof that a record does not exist
 
-  digコマンドでDNSSEC検証:
+  DNSSEC verification with dig:
   $ dig +dnssec example.com A
-  → フラグに "ad" が含まれれば DNSSEC 検証成功
+  → If the flags include "ad," DNSSEC validation succeeded
   → ad = Authentic Data
 ```
 
-### 7.3 DoH / DoT（暗号化DNS）
+### 7.3 DoH / DoT (Encrypted DNS)
 
-従来のDNS（Do53: ポート53のUDP/TCP平文通信）に対し、暗号化されたDNSプロトコルが登場している。
+In contrast to traditional DNS (Do53: plaintext UDP/TCP on port 53), encrypted DNS protocols have emerged.
 
-| 比較項目 | Do53（従来DNS） | DoT（DNS over TLS） | DoH（DNS over HTTPS） |
+| Item | Do53 (traditional DNS) | DoT (DNS over TLS) | DoH (DNS over HTTPS) |
 |---------|----------------|---------------------|----------------------|
-| ポート | 53 (UDP/TCP) | 853 (TCP) | 443 (TCP) |
-| 暗号化 | なし | TLS | HTTPS (TLS) |
-| プライバシー | なし（盗聴可能） | 高い | 非常に高い |
-| ファイアウォール通過 | 容易 | ブロック可能 | ブロック困難（HTTPS混在） |
-| 遅延 | 最小 | TLSハンドシェイク分 | HTTPSオーバーヘッド分 |
-| 対応リゾルバ | すべて | Cloudflare, Google等 | Cloudflare, Google等 |
-| 標準規格 | RFC 1035 | RFC 7858 | RFC 8484 |
+| Port | 53 (UDP/TCP) | 853 (TCP) | 443 (TCP) |
+| Encryption | None | TLS | HTTPS (TLS) |
+| Privacy | None (eavesdropping possible) | High | Very high |
+| Firewall traversal | Easy | Can be blocked | Hard to block (mixed with HTTPS) |
+| Latency | Minimal | TLS handshake overhead | HTTPS overhead |
+| Supported resolvers | All | Cloudflare, Google, etc. | Cloudflare, Google, etc. |
+| Standard | RFC 1035 | RFC 7858 | RFC 8484 |
 
 ---
 
-## 8. クラウド環境でのDNS
+## 8. DNS in Cloud Environments
 
 ### 8.1 AWS Route 53
 
-Route 53はAWSが提供するスケーラブルなマネージドDNSサービスである。ドメイン登録、DNSホスティング、ヘルスチェックの3機能を備える。
+Route 53 is a scalable managed DNS service provided by AWS. It has three functions: domain registration, DNS hosting, and health checks.
 
 ```
-Route 53 の主要機能:
+Route 53 key features:
 
-  1. ドメイン登録
-     → .com, .net, .org, .jp 等のドメインを直接登録可能
-     → WHOISプライバシー保護が無料で付属
-     → ドメインロック機能で不正移管を防止
+  1. Domain registration
+     → Register domains such as .com, .net, .org, .jp directly
+     → WHOIS privacy protection included free
+     → Domain lock prevents unauthorized transfers
 
-  2. DNSホスティング（権威DNSサーバー）
-     → ホストゾーンを作成してレコードを管理
-     → パブリックホストゾーン: インターネット向け
-     → プライベートホストゾーン: VPC内部向け
-     → SLA 100% の可用性保証
+  2. DNS hosting (authoritative DNS server)
+     → Create hosted zones to manage records
+     → Public hosted zone: for the Internet
+     → Private hosted zone: for within a VPC
+     → 100% availability SLA guaranteed
 
-  3. ヘルスチェック + ルーティング
-     → エンドポイントのヘルスチェック（HTTP/HTTPS/TCP）
-     → 異常検知時に自動フェイルオーバー
-     → CloudWatch と統合した監視・アラート
+  3. Health check + routing
+     → Health checks for endpoints (HTTP/HTTPS/TCP)
+     → Automatic failover when anomaly detected
+     → Monitoring and alerting integrated with CloudWatch
 
-Route 53 ルーティングポリシー:
+Route 53 routing policies:
   ┌───────────────┬──────────────────────────────────────────────┐
-  │ ポリシー       │ 説明と使用場面                                │
+  │ Policy        │ Description and use case                     │
   ├───────────────┼──────────────────────────────────────────────┤
-  │ シンプル       │ 1つのリソースにルーティング。最も基本的。      │
-  │               │ 例: 単一のWebサーバー                         │
+  │ Simple        │ Route to a single resource. Most basic.      │
+  │               │ Example: single web server                   │
   ├───────────────┼──────────────────────────────────────────────┤
-  │ 加重          │ 割合ベースで振り分け。A/Bテスト、段階的移行に。│
-  │ (Weighted)    │ 例: 新バージョンに10%、旧バージョンに90%      │
+  │ Weighted      │ Distribute by percentage. For A/B testing,   │
+  │               │ gradual migration.                           │
+  │               │ Example: 10% to new version, 90% to old     │
   ├───────────────┼──────────────────────────────────────────────┤
-  │ レイテンシー   │ 最も遅延の少ないリージョンへルーティング。     │
-  │ (Latency)     │ 例: 日本ユーザー→東京、米国ユーザー→バージニア│
+  │ Latency       │ Route to the region with lowest latency.     │
+  │               │ Example: JP users→Tokyo, US users→Virginia  │
   ├───────────────┼──────────────────────────────────────────────┤
-  │ フェイルオーバー│ プライマリ障害時にセカンダリへ自動切り替え。   │
-  │ (Failover)    │ 例: EC2障害時にS3静的サイトへフォールバック    │
+  │ Failover      │ Automatically switch to secondary on primary │
+  │               │ failure.                                     │
+  │               │ Example: on EC2 failure, fall back to S3    │
+  │               │ static site                                  │
   ├───────────────┼──────────────────────────────────────────────┤
-  │ 位置情報       │ ユーザーの地理的位置に基づくルーティング。     │
-  │ (Geolocation) │ 例: 日本からのアクセスは日本語サイトへ        │
+  │ Geolocation   │ Route based on user's geographic location.   │
+  │               │ Example: access from Japan → Japanese site  │
   ├───────────────┼──────────────────────────────────────────────┤
-  │ 地理的近接性   │ リソースの地理的位置とバイアス値に基づく。     │
-  │ (Geoproximity)│ 例: Traffic Flowと組み合わせて精密制御        │
+  │ Geoproximity  │ Based on geographic position of resources    │
+  │               │ and bias values.                             │
+  │               │ Example: fine control combined with Traffic  │
+  │               │ Flow                                         │
   ├───────────────┼──────────────────────────────────────────────┤
-  │ 複数値応答     │ 最大8つの正常なIPをランダムに返す。           │
-  │ (Multivalue)  │ 例: 簡易的な負荷分散（ヘルスチェック付き）    │
+  │ Multivalue    │ Returns up to 8 healthy IPs randomly.        │
+  │               │ Example: simple load balancing (with health  │
+  │               │ check)                                       │
   ├───────────────┼──────────────────────────────────────────────┤
-  │ IPベース       │ クライアントIPの範囲に基づくルーティング。     │
-  │ (IP-based)    │ 例: 特定ISPのユーザーを最適なエンドポイントへ │
+  │ IP-based      │ Route based on client IP range.              │
+  │               │ Example: users of specific ISP → optimal    │
+  │               │ endpoint                                     │
   └───────────────┴──────────────────────────────────────────────┘
 
-エイリアスレコード（AWS固有の拡張）:
-  通常のCNAME:
-    ・ゾーンの頂点（example.com）には設定不可
-    ・DNSクエリが2回発生（CNAME解決 + A解決）
-    ・クエリ料金が発生
+Alias records (AWS-specific extension):
+  Standard CNAME:
+    · Cannot be set at the zone apex (example.com)
+    · 2 DNS queries occur (CNAME resolution + A resolution)
+    · Query charges apply
 
-  Route 53 エイリアスレコード:
-    ・ゾーンの頂点にも設定可能
-    ・AWSリソースへの問い合わせは無料
-    ・対象: CloudFront, ELB, S3, API Gateway, VPCエンドポイント等
-    ・内部的にAレコードとして解決（追加クエリ不要）
+  Route 53 alias record:
+    · Can also be set at the zone apex
+    · Queries to AWS resources are free
+    · Targets: CloudFront, ELB, S3, API Gateway, VPC endpoints, etc.
+    · Internally resolved as an A record (no additional query needed)
 ```
 
-### 8.2 パブリックDNSサービスの比較
+### 8.2 Comparison of Public DNS Services
 
-| サービス | プライマリIP | セカンダリIP | DoH | DoT | DNSSEC検証 | 特徴 |
+| Service | Primary IP | Secondary IP | DoH | DoT | DNSSEC validation | Features |
 |---------|------------|------------|-----|-----|-----------|------|
-| Google Public DNS | 8.8.8.8 | 8.8.4.4 | 対応 | 対応 | 対応 | 最も普及、安定性が高い |
-| Cloudflare DNS | 1.1.1.1 | 1.0.0.1 | 対応 | 対応 | 対応 | 低遅延、プライバシー重視 |
-| Quad9 | 9.9.9.9 | 149.112.112.112 | 対応 | 対応 | 対応 | マルウェアドメインブロック |
-| OpenDNS | 208.67.222.222 | 208.67.220.220 | 対応 | 非対応 | 対応 | フィルタリング機能 |
+| Google Public DNS | 8.8.8.8 | 8.8.4.4 | Supported | Supported | Supported | Most widely used, high stability |
+| Cloudflare DNS | 1.1.1.1 | 1.0.0.1 | Supported | Supported | Supported | Low latency, privacy-focused |
+| Quad9 | 9.9.9.9 | 149.112.112.112 | Supported | Supported | Supported | Blocks malware domains |
+| OpenDNS | 208.67.222.222 | 208.67.220.220 | Supported | Not supported | Supported | Filtering capabilities |
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### 9.1 アンチパターン1: ゾーンファイルでの末尾ドット忘れ
+### 9.1 Anti-Pattern 1: Forgetting the Trailing Dot in Zone Files
 
 ```
-アンチパターン: CNAMEやMXの値で末尾ドットを忘れる
+Anti-pattern: forgetting the trailing dot in CNAME or MX values
 
-  問題のあるゾーンファイル:
+  Problematic zone file:
   ──────────────────────────────────────────
   $ORIGIN example.com.
-  www   IN  CNAME  example.com       ← 末尾ドットなし（危険）
-  @     IN  MX  10 mail.example.com  ← 末尾ドットなし（危険）
+  www   IN  CNAME  example.com       ← no trailing dot (dangerous)
+  @     IN  MX  10 mail.example.com  ← no trailing dot (dangerous)
   ──────────────────────────────────────────
 
-  BINDの解釈:
-  ・$ORIGIN が example.com. の場合、末尾ドットがない名前には
-    自動的に $ORIGIN が付加される
-  ・上記の場合:
-    www IN CNAME example.com         → example.com.example.com. に展開される
-    @   IN MX 10 mail.example.com    → mail.example.com.example.com. に展開される
+  BIND interpretation:
+  · When $ORIGIN is example.com., names without a trailing dot automatically
+    have $ORIGIN appended
+  · In the above case:
+    www IN CNAME example.com         → expands to example.com.example.com.
+    @   IN MX 10 mail.example.com    → expands to mail.example.com.example.com.
 
-  → 意図しないドメインを参照してしまい、名前解決が失敗する
-  → 障害の原因特定が難しく、デバッグに時間がかかる
+  → References an unintended domain, causing name resolution failures
+  → Difficult to identify the cause of the problem; debugging takes time
 
-  正しいゾーンファイル:
+  Correct zone file:
   ──────────────────────────────────────────
   $ORIGIN example.com.
-  www   IN  CNAME  example.com.       ← 末尾ドットあり（正しい）
-  @     IN  MX  10 mail.example.com.  ← 末尾ドットあり（正しい）
+  www   IN  CNAME  example.com.       ← trailing dot present (correct)
+  @     IN  MX  10 mail.example.com.  ← trailing dot present (correct)
   ──────────────────────────────────────────
 
-  予防策:
-  ・ゾーンファイルの値には常にFQDN（末尾ドット付き）を使用する
-  ・named-checkzone コマンドでゾーンファイルの構文チェックを行う
+  Prevention:
+  · Always use FQDNs (with trailing dot) for values in zone files
+  · Use the named-checkzone command to syntax-check zone files
     $ named-checkzone example.com /etc/bind/zones/example.com.zone
-  ・CI/CDパイプラインにゾーンファイルの自動検証を組み込む
+  · Incorporate automatic zone file validation into your CI/CD pipeline
 ```
 
-### 9.2 アンチパターン2: TTLを考慮しないDNS変更
+### 9.2 Anti-Pattern 2: DNS Changes Without Considering TTL
 
 ```
-アンチパターン: 長いTTLのまま急なDNS変更を行う
+Anti-pattern: making a sudden DNS change with a long TTL still in effect
 
-  状況:
+  Situation:
   ──────────────────────────────────────────
-  現在の設定:
-  example.com.  86400  IN  A  198.51.100.1    ← TTL = 24時間
+  Current setting:
+  example.com.  86400  IN  A  198.51.100.1    ← TTL = 24 hours
 
-  緊急のサーバー移行が必要になった:
-  example.com.  86400  IN  A  203.0.113.50    ← IPだけ変更
+  An urgent server migration is needed:
+  example.com.  86400  IN  A  203.0.113.50    ← only the IP is changed
   ──────────────────────────────────────────
 
-  問題:
-  ・変更前のレコード（198.51.100.1）が世界中のリゾルバに最大24時間キャッシュされている
-  ・変更後も最大24時間、旧IPにアクセスするユーザーが存在する
-  ・旧サーバーが停止している場合、そのユーザーはサービスに接続できない
+  Problem:
+  · The old record (198.51.100.1) is cached in resolvers worldwide for up to 24 hours
+  · After the change, users with cached entries still access the old IP for up to 24 hours
+  · If the old server is shut down, those users cannot connect
 
-  発生する事象:
+  What happens:
   ────────────────────────────────────────────────
-  時間    キャッシュ残時間  アクセス先        結果
+  Time    Cache remaining  Access destination  Result
   ────────────────────────────────────────────────
-  T+0     23時間59分       198.51.100.1      失敗
-  T+6h    17時間59分       198.51.100.1      失敗
-  T+12h   11時間59分       198.51.100.1      失敗
-  T+18h   5時間59分        198.51.100.1      失敗
-  T+24h   0                203.0.113.50      成功
+  T+0     23h 59m          198.51.100.1       Failure
+  T+6h    17h 59m          198.51.100.1       Failure
+  T+12h   11h 59m          198.51.100.1       Failure
+  T+18h   5h 59m           198.51.100.1       Failure
+  T+24h   0                203.0.113.50       Success
   ────────────────────────────────────────────────
-  → 最悪の場合、24時間のサービス断が発生
+  → In the worst case, a 24-hour service outage occurs
 
-  正しい手順（再掲）:
-  1. TTLを短縮（300秒等）して旧TTLの2倍以上待つ
-  2. IPアドレスを変更
-  3. 安定後にTTLを戻す
+  Correct procedure (repeated):
+  1. Reduce TTL (to 300 seconds, etc.) and wait more than twice the old TTL
+  2. Change the IP address
+  3. After things stabilize, restore the TTL
 
-  緊急時の代替策:
-  ・旧IPから新IPへのリバースプロキシ設定
-  ・旧サーバーで301リダイレクトを返す
-  ・CDN経由の場合はCDN側のオリジン設定を変更
+  Emergency alternatives:
+  · Set up a reverse proxy from the old IP to the new IP
+  · Have the old server return a 301 redirect
+  · If going through a CDN, change the CDN's origin configuration
 ```
 
 ---
 
-## 10. エッジケース分析
+## 10. Edge Case Analysis
 
-### 10.1 エッジケース1: CNAMEチェーンとループ
+### 10.1 Edge Case 1: CNAME Chains and Loops
 
 ```
-エッジケース: CNAME が別のCNAMEを指す（CNAMEチェーン）
+Edge case: CNAME pointing to another CNAME (CNAME chain)
 
-  正常なCNAMEチェーン:
+  Normal CNAME chain:
   ──────────────────────────────────────────
   www.example.com.     CNAME  lb.example.com.
   lb.example.com.      CNAME  us-east-1.elb.amazonaws.com.
   us-east-1.elb.amazonaws.com.  A  54.239.28.85
   ──────────────────────────────────────────
-  → 3段階のCNAME解決が発生
-  → 各段階でDNS問い合わせが必要（キャッシュミス時）
-  → 遅延が増加する
+  → 3-level CNAME resolution occurs
+  → Each level requires a DNS query (on cache miss)
+  → Latency increases
 
-  問題になるケース:
-  1. 長すぎるCNAMEチェーン
-     → 多くのリゾルバはチェーンの深さに制限を設けている（通常8〜16段）
-     → 制限を超えるとSERVFAIL（名前解決失敗）が返される
+  Problematic cases:
+  1. CNAME chain too long
+     → Many resolvers have a limit on chain depth (typically 8–16 levels)
+     → Exceeding the limit returns SERVFAIL (name resolution failure)
 
-  2. CNAMEループ（循環参照）
+  2. CNAME loop (circular reference)
      a.example.com.  CNAME  b.example.com.
      b.example.com.  CNAME  c.example.com.
-     c.example.com.  CNAME  a.example.com.    ← ループ
-     → リゾルバがループを検出してSERVFAILを返す
-     → ループ検出までにDNSクエリが無駄に消費される
+     c.example.com.  CNAME  a.example.com.    ← loop
+     → Resolver detects the loop and returns SERVFAIL
+     → DNS queries are wasted until the loop is detected
 
-  3. 外部サービスのCNAME先が変更・削除された場合
+  3. External service's CNAME target changes or is deleted
      shop.example.com.  CNAME  shops.myshopify.com.
-     → Shopifyがドメインを変更した場合、shop.example.com が解決不能に
-     → 外部サービスのCNAME先の変更を監視する仕組みが必要
+     → If Shopify changes the domain, shop.example.com becomes unresolvable
+     → A mechanism to monitor changes to external service CNAME targets is needed
 
-  推奨事項:
-  ・CNAMEチェーンは最大2〜3段に抑える
-  ・ゾーン内のCNAMEは可能な限りAレコードに置き換える
-  ・外部サービスのCNAME先は定期的に監視する
-  ・CNAMEループを検出するテストを導入する
+  Recommendations:
+  · Keep CNAME chains to a maximum of 2–3 levels
+  · Replace CNAMEs within the zone with A records where possible
+  · Regularly monitor the CNAME targets of external services
+  · Introduce tests to detect CNAME loops
 ```
 
-### 10.2 エッジケース2: ネガティブキャッシュとサービス起動順序
+### 10.2 Edge Case 2: Negative Cache and Service Start Order
 
 ```
-エッジケース: サービスデプロイ時のネガティブキャッシュ汚染
+Edge case: negative cache poisoning during service deployment
 
-  シナリオ:
+  Scenario:
   ──────────────────────────────────────────
-  1. Kubernetesで新しいサービスをデプロイ
-  2. DNSレコード（api-v2.example.com）を作成
-  3. デプロイ完了前にヘルスチェックがDNSを問い合わせ
-  4. まだレコードが反映されていないため NXDOMAIN が返される
-  5. NXDOMAINがネガティブキャッシュされる（SOA TTLに従う）
-  6. レコードが反映されても、キャッシュ期間中は NXDOMAIN が返される
-  7. サービスが利用不能な状態が続く
+  1. Deploy a new service on Kubernetes
+  2. Create a DNS record (api-v2.example.com)
+  3. Health check queries DNS before deployment is complete
+  4. Record is not yet propagated → NXDOMAIN is returned
+  5. NXDOMAIN is cached as a negative cache (follows SOA TTL)
+  6. Even after the record propagates, NXDOMAIN is returned during the cache period
+  7. The service remains unavailable
   ──────────────────────────────────────────
 
-  時系列:
-  T+0    DNSレコード作成
-  T+10s  ヘルスチェックが問い合わせ → NXDOMAIN（まだ反映されていない）
-  T+30s  レコードが全権威サーバーに反映
-  T+30s  ヘルスチェックが再問い合わせ → まだ NXDOMAIN（キャッシュ）
+  Timeline:
+  T+0    DNS record created
+  T+10s  Health check queries → NXDOMAIN (not yet propagated)
+  T+30s  Record propagated to all authoritative servers
+  T+30s  Health check queries again → still NXDOMAIN (cached)
   ...
-  T+3600s ネガティブキャッシュ期限切れ → ようやく正常応答
+  T+3600s Negative cache expires → finally returns normal response
 
-  予防策:
-  1. DNSレコードを先に作成し、反映を確認してからサービスをデプロイ
-  2. SOAのネガティブキャッシュTTLを短く設定する（300秒推奨）
-  3. デプロイパイプラインにDNS反映確認ステップを組み込む:
+  Prevention:
+  1. Create the DNS record first, confirm propagation, then deploy the service
+  2. Set SOA's negative cache TTL short (300 seconds recommended)
+  3. Incorporate a DNS propagation check step in the deployment pipeline:
      $ until dig +short api-v2.example.com | grep -q .; do
      >   echo "Waiting for DNS propagation..."
      >   sleep 5
      > done
      $ echo "DNS record is live!"
-  4. 複数のパブリックDNSリゾルバで反映を確認:
+  4. Verify propagation with multiple public DNS resolvers:
      $ dig @8.8.8.8 api-v2.example.com +short
      $ dig @1.1.1.1 api-v2.example.com +short
 ```
 
 ---
 
-## 11. 演習問題
+## 11. Exercises
 
-### 11.1 基礎演習
+### 11.1 Basic Exercises
 
 ```
-演習1（基礎）: DNSレコードの調査
+Exercise 1 (basic): DNS record investigation
 
-目的: digコマンドを使ったDNS情報の取得に慣れる
+Objective: become comfortable obtaining DNS information using the dig command
 
-課題:
-  以下のドメインについて、指定されたレコードを dig で取得せよ。
+Tasks:
+  Obtain the specified records for the following domains using dig.
 
-  1. google.com の Aレコードを取得せよ
+  1. Get the A record for google.com
      $ dig google.com A +noall +answer
 
-  2. google.com の MXレコードを取得せよ
+  2. Get the MX record for google.com
      $ dig google.com MX +noall +answer
 
-  3. google.com の NSレコードを取得せよ
+  3. Get the NS record for google.com
      $ dig google.com NS +noall +answer
 
-  4. google.com の TXTレコード（SPF）を取得せよ
+  4. Get the TXT record (SPF) for google.com
      $ dig google.com TXT +noall +answer
 
-  5. 93.184.216.34 の逆引き（PTRレコード）を取得せよ
+  5. Get the reverse lookup (PTR record) for 93.184.216.34
      $ dig -x 93.184.216.34 +noall +answer
 
-確認ポイント:
-  ・各レコードのTTL値を記録し、その値の意味を考える
-  ・MXレコードの優先度値を確認する
-  ・NSレコードが複数返される理由を説明できるか
+Verification points:
+  · Record the TTL value of each record and consider what it means
+  · Check the priority values of the MX records
+  · Can you explain why multiple NS records are returned?
 
-期待される学習成果:
-  ・dig コマンドの基本的な使い方を習得
-  ・各レコードタイプの出力形式を理解
-  ・TTL、優先度などの付加情報の意味を把握
+Expected learning outcomes:
+  · Master basic usage of the dig command
+  · Understand the output format of each record type
+  · Understand the meaning of supplementary information such as TTL and priority
 ```
 
-### 11.2 応用演習
+### 11.2 Applied Exercises
 
 ```
-演習2（応用）: DNS解決フローのトレースと分析
+Exercise 2 (applied): Tracing and analyzing the DNS resolution flow
 
-目的: DNS名前解決の全過程を可視化し、各ステップを理解する
+Objective: visualize the complete DNS name resolution process and understand each step
 
-課題:
-  1. dig +trace で名前解決の全過程をトレースせよ
+Tasks:
+  1. Trace the complete name resolution process with dig +trace
      $ dig +trace www.example.com
 
-     出力を分析し、以下の質問に答えよ:
-     a) ルートDNSサーバーはどのサーバーが選ばれたか？
-     b) .com のTLDサーバーはどのサーバーが応答したか？
-     c) 権威DNSサーバーのFQDNは何か？
-     d) 最終的なIPアドレスとTTLは？
+     Analyze the output and answer the following questions:
+     a) Which root DNS server was selected?
+     b) Which TLD server for .com responded?
+     c) What is the FQDN of the authoritative DNS server?
+     d) What is the final IP address and TTL?
 
-  2. 異なるDNSリゾルバでの応答を比較せよ
+  2. Compare responses from different DNS resolvers
      $ dig @8.8.8.8 example.com +noall +answer +stats
      $ dig @1.1.1.1 example.com +noall +answer +stats
      $ dig @9.9.9.9 example.com +noall +answer +stats
 
-     分析:
-     a) 各リゾルバのQuery timeを比較
-     b) TTL値に差異があるか確認
-     c) 差異がある場合、その理由は何か
+     Analysis:
+     a) Compare the Query time for each resolver
+     b) Check if there are differences in the TTL values
+     c) If there are differences, what is the reason?
 
-  3. CNAMEチェーンの解決過程を確認せよ
-     CNAMEを使用しているドメイン（例: GitHub Pagesのカスタムドメイン）
-     を調べ、チェーンの各段階をトレースせよ
+  3. Examine the CNAME chain resolution process
+     Find a domain that uses CNAME (e.g., a custom domain on GitHub Pages)
+     and trace each stage of the chain
 
-確認ポイント:
-  ・トレースの各ステップでどのサーバーが応答したかを特定できるか
-  ・権威応答（aa フラグ）と非権威応答の違いを見分けられるか
-  ・Query timeの差異がキャッシュの有無を反映していることを理解できるか
+Verification points:
+  · Can you identify which server responded at each step of the trace?
+  · Can you distinguish between authoritative answers (aa flag) and non-authoritative ones?
+  · Do you understand that the difference in Query time reflects cache hit/miss?
 
-期待される学習成果:
-  ・DNS解決の全過程を実際に観察し、理論と実践を結びつける
-  ・異なるリゾルバの応答特性を把握
-  ・CNAMEチェーンの実際の動作を理解
+Expected learning outcomes:
+  · Actually observe the complete DNS resolution process, connecting theory to practice
+  · Understand the response characteristics of different resolvers
+  · Understand the actual behavior of CNAME chains
 ```
 
-### 11.3 発展演習
+### 11.3 Advanced Exercises
 
 ```
-演習3（発展）: ゾーンファイルの設計とDNSSEC検証
+Exercise 3 (advanced): Zone file design and DNSSEC verification
 
-目的: 権威DNSの設計能力とセキュリティ検証スキルを養う
+Objective: develop authoritative DNS design skills and security verification skills
 
-課題A: ゾーンファイルの設計
-  以下の要件を満たすゾーンファイルを作成せよ。
+Task A: Zone file design
+  Create a zone file that meets the following requirements.
 
-  ドメイン: mycompany.example.com
-  要件:
-  ・Webサーバー（www）: 203.0.113.10 と 203.0.113.11（ラウンドロビン）
-  ・APIサーバー（api）: 203.0.113.20
-  ・ステージング（staging）: staging.herokuapp.com へのCNAME
-  ・メール: Google Workspace を使用
-  ・SPFレコード: Google と自社IP（203.0.113.0/24）を許可
-  ・DMARCレコード: quarantine ポリシー、レポート先は admin@mycompany.example.com
-  ・CAAレコード: Let's Encrypt のみ許可
-  ・TTL: Webサーバー300秒、メール関連3600秒、NS 86400秒
+  Domain: mycompany.example.com
+  Requirements:
+  · Web server (www): 203.0.113.10 and 203.0.113.11 (round-robin)
+  · API server (api): 203.0.113.20
+  · Staging (staging): CNAME to staging.herokuapp.com
+  · Email: using Google Workspace
+  · SPF record: allow Google and own IP (203.0.113.0/24)
+  · DMARC record: quarantine policy, report to admin@mycompany.example.com
+  · CAA record: allow Let's Encrypt only
+  · TTL: 300 seconds for web server, 3600 seconds for mail-related, 86400 for NS
 
-  ヒント:
-  ・Google WorkspaceのMXレコード設定はGoogleのドキュメントを参照
-  ・SPFの include 構文を使用
-  ・DMARCはサブドメイン _dmarc に設定
+  Hints:
+  · Refer to Google's documentation for Google Workspace MX record settings
+  · Use SPF's include syntax
+  · Set DMARC on subdomain _dmarc
 
-課題B: DNSSEC検証
-  1. DNSSEC に対応しているドメインを見つけ、検証せよ
+Task B: DNSSEC verification
+  1. Find a DNSSEC-enabled domain and verify it
      $ dig +dnssec +multi example.com A
-     → ad フラグの有無を確認
+     → Check for the presence of the ad flag
 
-  2. DNSKEYレコードとRRSIGレコードを取得して確認せよ
+  2. Get and examine DNSKEY and RRSIG records
      $ dig example.com DNSKEY +noall +answer
      $ dig example.com RRSIG +noall +answer
 
-  3. DSレコードを親ゾーンから取得し、信頼の連鎖を確認せよ
+  3. Get the DS record from the parent zone and verify the chain of trust
      $ dig example.com DS +noall +answer
 
-  4. delv コマンド（BINDの DNSSEC 検証ツール）で検証せよ
+  4. Verify with the delv command (BIND's DNSSEC verification tool)
      $ delv @8.8.8.8 example.com A +rtrace
-     → "fully validated" が表示されれば検証成功
+     → If "fully validated" is displayed, verification succeeded
 
-課題C: DNS障害シミュレーション
-  ローカル環境（/etc/hosts や dnsmasq）で以下のシナリオを再現し、
-  影響と対処法を検証せよ:
-  1. 権威DNSサーバーが応答しない場合のタイムアウト動作
-  2. 異なるDNSリゾルバにフォールバックする動作
-  3. ネガティブキャッシュの影響
+Task C: DNS failure simulation
+  Reproduce the following scenarios in a local environment (/etc/hosts or dnsmasq),
+  and verify the impact and remedies:
+  1. Timeout behavior when the authoritative DNS server does not respond
+  2. Fallback behavior to different DNS resolvers
+  3. Impact of negative caching
 
-確認ポイント:
-  ・ゾーンファイルの構文が正しいか（named-checkzoneで検証）
-  ・DNSSEC の信頼の連鎖が理解できているか
-  ・障害時の動作を予測し、適切な対処法を提案できるか
+Verification points:
+  · Is the zone file syntax correct (verify with named-checkzone)?
+  · Do you understand the DNSSEC chain of trust?
+  · Can you predict behavior during failures and propose appropriate remedies?
 
-期待される学習成果:
-  ・実際のゾーンファイルを設計・検証できるスキル
-  ・DNSSECの実際の検証手順の習得
-  ・DNS障害対応の基礎力
+Expected learning outcomes:
+  · Skill to design and verify real zone files
+  · Mastery of actual DNSSEC verification procedures
+  · Foundational skills for DNS failure response
 ```
 
 ---
 
-## 12. FAQ（よくある質問）
+## 12. FAQ
 
-### FAQ 1: DNSの変更が反映されるまでにどのくらいかかるか？
+### FAQ 1: How long does it take for DNS changes to propagate?
 
 ```
-Q: DNSレコードを変更したが、まだ古い値が返される。いつ反映されるのか？
+Q: I changed a DNS record but am still getting the old value. When will it propagate?
 
-A: DNS変更の反映時間は、以下の要素によって決まる。
+A: DNS change propagation time is determined by the following factors.
 
-  1. 旧レコードのTTL
-     → TTL=3600（1時間）なら、最大1時間で全キャッシュから消える
-     → TTL=86400（24時間）なら、最大24時間
+  1. TTL of the old record
+     → TTL=3600 (1 hour): disappears from all caches in at most 1 hour
+     → TTL=86400 (24 hours): at most 24 hours
 
-  2. リゾルバの実装
-     → 一部のリゾルバはTTLを厳密に守らない場合がある
-     → TTLの最小値を独自に設定していることがある（例: 最低60秒）
-     → RFC 8767 では、権威サーバーが応答しない場合に
-       期限切れキャッシュの一時利用を許容している
+  2. Resolver implementation
+     → Some resolvers may not strictly follow TTL
+     → May have a custom minimum TTL (e.g., at least 60 seconds)
+     → RFC 8767 allows temporary use of stale cache when the authoritative server
+       does not respond
 
-  3. アプリケーションのキャッシュ
-     → ブラウザ、OS、ルーターそれぞれが独自にキャッシュ
-     → Java等の一部言語ランタイムはDNSをアプリ内にキャッシュ
-       （JVMのデフォルトは正引き30秒、負引き10秒）
+  3. Application cache
+     → Browser, OS, and router each cache independently
+     → Some language runtimes (e.g., Java) cache DNS within the app
+       (JVM defaults: 30 seconds for positive, 10 seconds for negative)
 
-  確認方法:
+  How to verify:
   $ dig @8.8.8.8 example.com +short      # Google DNS
   $ dig @1.1.1.1 example.com +short      # Cloudflare DNS
-  $ dig @ns1.example.com example.com +short  # 権威DNS直接
+  $ dig @ns1.example.com example.com +short  # Query authoritative DNS directly
 
-  権威DNSに直接問い合わせて新しい値が返されるなら、
-  変更自体は完了している。リゾルバのキャッシュ期限切れを待つ必要がある。
+  If querying the authoritative DNS directly returns the new value,
+  the change itself is complete. You just need to wait for resolver caches to expire.
 
-  対策:
-  ・事前にTTLを短縮しておく（前述のベストプラクティス参照）
-  ・dig +trace で権威サーバーからの応答を直接確認する
-  ・whatsmydns.net 等のツールで世界各地の伝搬状況を確認する
+  Countermeasures:
+  · Reduce TTL in advance (refer to best practices mentioned earlier)
+  · Use dig +trace to directly check the response from the authoritative server
+  · Use tools like whatsmydns.net to check propagation status worldwide
 ```
 
-### FAQ 2: CNAMEとAレコードのどちらを使うべきか？
+### FAQ 2: Should I use CNAME or A record?
 
 ```
-Q: WebサーバーのDNS設定で、CNAMEとAレコードのどちらを使うべきか？
+Q: For DNS configuration of a web server, should I use CNAME or A record?
 
-A: 以下の判断基準で選択する。
+A: Choose based on the following criteria.
 
-  Aレコードを使うべき場合:
+  When to use A records:
   ──────────────────────────────────────
-  ・ゾーンの頂点（example.com）のレコード
-    → CNAMEはゾーン頂点に設定できない（RFC制約）
-  ・IPアドレスが固定で変更されない場合
-  ・最小のDNS問い合わせ回数が求められる場合
-  ・他のレコード（MX, TXT等）と同じ名前に共存させる場合
+  · Records at the zone apex (example.com)
+    → CNAME cannot be set at the zone apex (RFC restriction)
+  · When the IP address is fixed and not changing
+  · When the minimum number of DNS queries is required
+  · When coexisting with other records (MX, TXT, etc.) of the same name
 
-  CNAMEを使うべき場合:
+  When to use CNAME:
   ──────────────────────────────────────
-  ・外部サービス（CDN, PaaS等）を指す場合
-    例: blog.example.com → example.github.io
-    → 外部サービスのIP変更に自動的に追従
-  ・複数のサブドメインが同じ先を指す場合
-    → 変更時にCNAME先だけ更新すれば全サブドメインに反映
-  ・CloudFront、Heroku等のIPが動的に変わるサービス
+  · When pointing to an external service (CDN, PaaS, etc.)
+    Example: blog.example.com → example.github.io
+    → Automatically follows IP changes by the external service
+  · When multiple subdomains point to the same destination
+    → Only updating the CNAME target propagates to all subdomains
+  · Services with dynamic IPs such as CloudFront and Heroku
 
-  決定フローチャート:
-  ゾーンの頂点か？ → Yes → Aレコード（またはALIAS/ANAME）
-                    → No  → 外部サービスか？ → Yes → CNAME
-                                             → No  → Aレコード
+  Decision flowchart:
+  Is it the zone apex? → Yes → A record (or ALIAS/ANAME)
+                       → No  → Is it an external service? → Yes → CNAME
+                                                           → No  → A record
 ```
 
-### FAQ 3: 「DNS浸透」という表現は正しいか？
+### FAQ 3: Is the term "DNS propagation" correct?
 
 ```
-Q: 「DNSの浸透に時間がかかる」という表現をよく聞くが、これは正確か？
+Q: I often hear "DNS propagation takes time." Is this accurate?
 
-A: 「DNS浸透（propagation）」という表現は厳密には不正確であり、
-   DNS業界では誤解を招く用語とされている。
+A: The term "DNS propagation" is strictly inaccurate and is considered a
+   misleading term in the DNS industry.
 
-  誤った理解:
-  「DNSの変更が、世界中のDNSサーバーに徐々に伝わっていく」
-  → まるで水が染み込むように情報が広がるイメージ
-  → 実際にはこのようなメカニズムは存在しない
+  Incorrect understanding:
+  "DNS changes gradually spread to all DNS servers worldwide"
+  → Implies information spreading like water soaking in
+  → In reality, no such mechanism exists
 
-  正しい理解:
-  「各キャッシュのTTLが切れ、新しいレコードが取得される」
-  → DNSは「プッシュ型」ではなく「プル型」
-  → 各リゾルバが独自のタイミングでキャッシュを更新する
-  → TTLが切れた時点で新しい問い合わせが発生し、
-    最新のレコードが取得される
+  Correct understanding:
+  "Each cache's TTL expires and a new record is fetched"
+  → DNS is "pull-type," not "push-type"
+  → Each resolver updates its cache at its own timing
+  → When the TTL expires, a new query is made and
+    the latest record is obtained
 
-  なぜ「浸透」に見えるのか:
-  ・世界中のリゾルバが異なるタイミングでキャッシュを取得している
-  ・あるユーザーには新IP、別のユーザーには旧IPが返される過渡期がある
-  ・これが「徐々に浸透している」ように見える
+  Why it looks like "propagation":
+  · Resolvers worldwide each fetch the cache at different times
+  · During the transition period, some users get the new IP and others the old IP
+  · This appears as if it is "gradually spreading"
 
-  実態:
-  変更前TTL = 3600秒の場合:
-  ・変更直後にキャッシュが切れたリゾルバ → 即座に新しい値を取得
-  ・変更直前にキャッシュを取得したリゾルバ → 最大3600秒後に新しい値を取得
-  ・すべてのリゾルバが新しい値を持つのは最大3600秒後
+  Reality:
+  When the pre-change TTL = 3600 seconds:
+  · Resolvers whose cache expired immediately after the change → instantly get the new value
+  · Resolvers that fetched the cache just before the change → get the new value after at most 3600 seconds
+  · All resolvers have the new value after at most 3600 seconds
 
-  より正確な表現:
-  × 「DNSの浸透に24時間かかる」
-  ○ 「旧レコードのTTLが最大24時間であるため、
-    すべてのキャッシュが更新されるまで最大24時間を要する」
+  More accurate phrasing:
+  × "DNS propagation takes 24 hours"
+  ○ "Since the old record's TTL is at most 24 hours,
+    it takes up to 24 hours for all caches to be updated"
 ```
 
-### FAQ 4: 1つのドメインに複数のAレコードを設定するとどうなるか？
+### FAQ 4: What happens if I set multiple A records for one domain?
 
 ```
-Q: 同じドメインに複数のAレコード（異なるIP）を設定した場合の動作は？
+Q: What is the behavior when multiple A records (with different IPs) are set for the same domain?
 
-A: DNSラウンドロビンとして動作する。
+A: It operates as DNS round-robin.
 
-  設定例:
+  Configuration example:
   api.example.com.  300  IN  A  10.0.1.100
   api.example.com.  300  IN  A  10.0.1.101
   api.example.com.  300  IN  A  10.0.1.102
 
-  動作:
-  ・リゾルバは全てのAレコードを返す（順序はランダムまたはラウンドロビン）
-  ・クライアントは通常、リスト内の最初のIPに接続を試みる
-  ・最初のIPに接続できない場合、次のIPを試す（アプリ依存）
+  Behavior:
+  · The resolver returns all A records (order is random or round-robin)
+  · The client typically tries to connect to the first IP in the list
+  · If the first IP cannot be connected, the next IP is tried (app-dependent)
 
-  注意点:
-  ・ヘルスチェック機能がない → 障害サーバーにもトラフィックが向く
-  ・均等な負荷分散は保証されない → クライアント実装に依存
-  ・セッションの固定（スティッキー）がない
-  ・本格的な負荷分散にはロードバランサー（ALB, NLB等）を使用すべき
+  Caveats:
+  · No health check function → traffic is directed to failed servers too
+  · Equal load distribution is not guaranteed → depends on client implementation
+  · No session stickiness
+  · For serious load balancing, use a load balancer (ALB, NLB, etc.)
 ```
 
 ---
@@ -1661,70 +1679,70 @@ A: DNSラウンドロビンとして動作する。
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 13. まとめ
+## 13. Summary
 
-### 主要概念の整理
+### Key Concepts
 
-| 概念 | ポイント |
+| Concept | Key point |
 |------|---------|
-| DNS | ドメイン名をIPアドレスに変換する分散データベースシステム |
-| FQDN | ルートからの完全なドメイン名（末尾ドット付き） |
-| 再帰クエリ | クライアント→リゾルバ間。リゾルバが完全な回答を返す |
-| 反復クエリ | リゾルバ→権威サーバー間。リファラルを返す |
-| TTL | キャッシュの有効期間。設計判断が運用品質を左右する |
-| Aレコード | ドメイン→IPv4アドレスの対応 |
-| CNAMEレコード | エイリアス。ゾーン頂点には使用不可 |
-| MXレコード | メール配送先。優先度値を持つ |
-| TXTレコード | SPF, DKIM, DMARC等のメール認証に使用 |
-| NSレコード | ゾーンの権威ネームサーバーを指定 |
-| SOAレコード | ゾーンの管理情報。ネガティブキャッシュTTLを含む |
-| DNSSEC | DNS応答の真正性を暗号的に検証する拡張 |
-| DoH / DoT | DNSクエリの暗号化プロトコル |
-| ネガティブキャッシュ | NXDOMAINのキャッシュ。新規レコード作成時に注意 |
+| DNS | A distributed database system that converts domain names to IP addresses |
+| FQDN | Complete domain name from the root (with trailing dot) |
+| Recursive query | Client → resolver. The resolver returns a complete answer |
+| Iterative query | Resolver → authoritative server. Returns a referral |
+| TTL | Cache validity period. Design decisions determine operational quality |
+| A record | Domain → IPv4 address mapping |
+| CNAME record | Alias. Cannot be used at the zone apex |
+| MX record | Mail delivery destination. Has a priority value |
+| TXT record | Used for email authentication such as SPF, DKIM, DMARC |
+| NS record | Specifies the authoritative name servers for a zone |
+| SOA record | Zone management information. Includes negative cache TTL |
+| DNSSEC | Extension that cryptographically verifies the authenticity of DNS responses |
+| DoH / DoT | Encrypted DNS query protocols |
+| Negative cache | Cache for NXDOMAIN. Pay attention when creating new records |
 
-### キーポイント
+### Key Points
 
-1. **DNSは分散階層データベースである**: ルートサーバーからTLD、権威サーバーへと階層的に名前解決を行い、単一障害点を回避している
-2. **再帰クエリと反復クエリの違いを理解する**: クライアント→リゾルバ間は再帰クエリ、リゾルバ→権威サーバー間は反復クエリで、それぞれ異なる責務を持つ
-3. **TTLとキャッシュが性能とレジリエンスを支える**: 適切なTTL設定により、DNSクエリ負荷を削減し、応答速度を向上させつつ、変更時の柔軟性も確保できる
-
----
-
-## まとめ
-
-このガイドでは以下を学びました:
-
-- DNSは分散階層データベースとして設計されており、ルートサーバー、TLDサーバー、権威サーバーの3層構造で名前解決を行うこと
-- 再帰クエリ（クライアント→リゾルバ）と反復クエリ（リゾルバ→権威サーバー）の違いと、それぞれの責務分担
-- A、AAAA、CNAME、MX、TXT、NS、SOA、SRV、PTR、CAAなど主要DNSレコードの用途と設定方法
-- TTLの設計がキャッシュ効率とレコード変更時の反映速度のトレードオフであること
-- DNSSEC、DoH（DNS over HTTPS）、DoT（DNS over TLS）によるDNSセキュリティ拡張の仕組み
+1. **DNS is a distributed hierarchical database**: Name resolution proceeds hierarchically from root servers to TLD and authoritative servers, avoiding single points of failure
+2. **Understand the difference between recursive and iterative queries**: Client → resolver is a recursive query; resolver → authoritative server is an iterative query, each with different responsibilities
+3. **TTL and caching support performance and resilience**: Appropriate TTL settings reduce DNS query load, improve response speed, and maintain flexibility when making changes
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- ../01-protocols/00-tcp.md -- TCP（トランスポート層プロトコル）
-- ../01-protocols/01-tls.md -- TLS（トランスポート層セキュリティ）
-- ../01-protocols/02-http.md -- HTTP（アプリケーション層プロトコル）
+In this guide, you learned:
+
+- DNS is designed as a distributed hierarchical database, performing name resolution through a three-tier structure: root servers, TLD servers, and authoritative servers
+- The difference between recursive queries (client → resolver) and iterative queries (resolver → authoritative server), and their respective responsibilities
+- The purposes and configuration methods of major DNS records: A, AAAA, CNAME, MX, TXT, NS, SOA, SRV, PTR, CAA
+- TTL design involves a trade-off between cache efficiency and how quickly record changes propagate
+- How DNS security extensions work: DNSSEC, DoH (DNS over HTTPS), and DoT (DNS over TLS)
 
 ---
 
-## 参考文献
+## Next Guides to Read
+
+- ../01-protocols/00-tcp.md -- TCP (transport layer protocol)
+- ../01-protocols/01-tls.md -- TLS (transport layer security)
+- ../01-protocols/02-http.md -- HTTP (application layer protocol)
+
+---
+
+## References
 
 1. Mockapetris, P. "Domain Names - Concepts and Facilities." RFC 1034, IETF, November 1987. https://www.rfc-editor.org/rfc/rfc1034
 2. Mockapetris, P. "Domain Names - Implementation and Specification." RFC 1035, IETF, November 1987. https://www.rfc-editor.org/rfc/rfc1035

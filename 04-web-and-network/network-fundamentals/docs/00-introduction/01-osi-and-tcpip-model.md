@@ -1,1331 +1,1331 @@
-# OSI参照モデルとTCP/IPモデル
+# OSI Reference Model and TCP/IP Model
 
-> ネットワーク通信を「層」に分けて理解するモデル。OSI 7層モデルは理論、TCP/IP 4層モデルは実践。各層の役割とプロトコルの対応関係を把握する。
+> A model for understanding network communication in "layers." The OSI 7-layer model is theoretical; the TCP/IP 4-layer model is practical. Learn the roles of each layer and how they map to protocols.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] OSI 7層モデルの各層の役割を理解する
-- [ ] TCP/IP 4層モデルとの対応関係を把握する
-- [ ] 各層の代表的なプロトコルを学ぶ
-- [ ] カプセル化と非カプセル化のプロセスを把握する
-- [ ] 各層のヘッダー構造を詳細に理解する
-- [ ] ポート番号の体系と実務での使い方を学ぶ
-- [ ] パケットキャプチャによる実践的な分析手法を習得する
-- [ ] トラブルシューティングにおける層別アプローチを学ぶ
+- [ ] Understand the role of each layer in the OSI 7-layer model
+- [ ] Understand the mapping between the OSI and TCP/IP 4-layer models
+- [ ] Learn the representative protocols at each layer
+- [ ] Understand the encapsulation and decapsulation process
+- [ ] Understand the header structure of each layer in detail
+- [ ] Learn the port number system and how it is used in practice
+- [ ] Acquire practical analysis techniques using packet capture
+- [ ] Learn the layer-by-layer approach to troubleshooting
 
-## 前提知識
+## Prerequisites
 
-- インターネットの仕組み（./00-how-internet-works.md）
-- ネットワークの基本用語（パケット、プロトコル、サーバー、クライアント）
-- コマンドライン（ターミナル）の基本操作
+- How the Internet works (./00-how-internet-works.md)
+- Basic network terminology (packet, protocol, server, client)
+- Basic command-line (terminal) operations
 
 ---
 
-## 1. ネットワークモデルの歴史と背景
+## 1. History and Background of Network Models
 
-### 1.1 なぜ階層モデルが必要なのか
+### 1.1 Why Layered Models Are Necessary
 
 ```
-ネットワーク通信の複雑さ:
-  アプリケーションが直接ハードウェアを制御する世界を想像してみる:
+The complexity of network communication:
+  Imagine a world where applications directly control hardware:
 
-  1. メールアプリが自分でイーサネットフレームを組み立てる
-  2. Webブラウザが電気信号のタイミングを制御する
-  3. ゲームが光ファイバーの変調方式を意識する
+  1. An email app assembles Ethernet frames itself
+  2. A web browser controls the timing of electrical signals
+  3. A game is aware of the modulation scheme of optical fiber
 
-  → これでは開発が不可能に近い
-  → 各層を分離し、インターフェースだけを定義すれば
-    上位層は下位層の実装を意識しなくて済む
+  → Development becomes nearly impossible
+  → By separating layers and defining only interfaces,
+    upper layers need not be aware of lower-layer implementations
 
-階層化のメリット:
-  ① 責務の分離: 各層が特定の機能に集中
-  ② 交換可能性: 同じ層のプロトコルを差し替え可能
-     例: Ethernet → Wi-Fi に変えてもTCP/IPは変わらない
-  ③ 標準化: 異なるベンダーの機器が相互に通信可能
-  ④ トラブルシューティング: 問題の層を特定して対処
-  ⑤ 独立した進化: 各層が独自に発展可能
-     例: HTTP/1.1 → HTTP/2 に変えてもTCPは変わらない
+Benefits of layering:
+  ① Separation of concerns: each layer focuses on a specific function
+  ② Replaceability: protocols at the same layer can be swapped
+     Example: switching Ethernet → Wi-Fi does not change TCP/IP
+  ③ Standardization: devices from different vendors can communicate
+  ④ Troubleshooting: identify and address the problematic layer
+  ⑤ Independent evolution: each layer can evolve on its own
+     Example: switching HTTP/1.1 → HTTP/2 does not change TCP
 
-具体例で理解する階層化:
-  郵便システムとの類比:
+Understanding layering through a concrete example:
+  Analogy with the postal system:
   ┌──────────────────────┬─────────────────────────────┐
-  │ ネットワーク層       │ 郵便の対応                  │
+  │ Network layer        │ Postal equivalent           │
   ├──────────────────────┼─────────────────────────────┤
-  │ アプリケーション層   │ 手紙の内容を書く            │
-  │ プレゼンテーション層 │ 言語・文字コードを選ぶ      │
-  │ セッション層         │ やり取りの順序を管理する    │
-  │ トランスポート層     │ 書留にするか普通郵便にするか│
-  │ ネットワーク層       │ 宛先住所を書く              │
-  │ データリンク層       │ 配達員が次の中継所へ運ぶ    │
-  │ 物理層               │ トラック・飛行機で物理的に運ぶ│
+  │ Application layer    │ Write the letter content    │
+  │ Presentation layer   │ Choose language / encoding  │
+  │ Session layer        │ Manage the order of exchange│
+  │ Transport layer      │ Decide registered vs. normal│
+  │ Network layer        │ Write the destination address│
+  │ Data link layer      │ Courier delivers to next hub│
+  │ Physical layer       │ Physically transported by truck / plane│
   └──────────────────────┴─────────────────────────────┘
 ```
 
-### 1.2 OSIモデルの誕生
+### 1.2 Birth of the OSI Model
 
 ```
-歴史的経緯:
-  1970年代: 各社が独自のネットワークプロトコルを開発
+Historical background:
+  1970s: Each company developed its own network protocols
     - IBM: SNA (Systems Network Architecture)
     - DEC: DECnet
     - Xerox: XNS
-    → 異なるメーカーの機器間で通信不可能
+    → Devices from different vendors could not communicate
 
-  1977年: ISO（国際標準化機構）がOSI参照モデルの策定を開始
-  1984年: OSI参照モデル（ISO 7498）として公式発行
-    → 7層の参照モデルとして定義
-    → 「参照」モデル = 具体的な実装ではなく概念的な枠組み
+  1977: ISO (International Organization for Standardization) began drafting the OSI reference model
+  1984: Published as OSI reference model (ISO 7498)
+    → Defined as a 7-layer reference model
+    → "Reference" model = a conceptual framework, not a concrete implementation
 
-  しかし:
-    - OSIプロトコルスイート自体は複雑すぎて普及せず
-    - 代わりにTCP/IPが事実上の標準（de facto standard）に
-    - OSIモデルは教育・設計の参照フレームワークとして現在も使用
+  However:
+    - The OSI protocol suite itself was too complex to gain widespread adoption
+    - Instead, TCP/IP became the de facto standard
+    - The OSI model is still used today as an educational and design reference framework
 
-TCP/IPの勝利:
-  1969年: ARPANET（インターネットの前身）で実験開始
-  1974年: Vint Cerf & Bob Kahn がTCP/IPの概念を発表
-  1983年: ARPANETがNCP → TCP/IPに切り替え（Flag Day）
-  1990年代: WWWの爆発的普及でTCP/IPが事実上の標準に
+The victory of TCP/IP:
+  1969: Experimentation began on ARPANET (predecessor to the Internet)
+  1974: Vint Cerf & Bob Kahn published the concept of TCP/IP
+  1983: ARPANET switched from NCP → TCP/IP (Flag Day)
+  1990s: With the explosive spread of the WWW, TCP/IP became the de facto standard
 
-  なぜTCP/IPが勝ったか:
-    ① シンプル: 4層で十分実用的
-    ② 実装先行: 実際に動くものが先にあった
-    ③ 無料: BSDに実装が含まれ、誰でも利用可能
-    ④ スケーラビリティ: インターネットの成長に対応できた
+  Why TCP/IP won:
+    ① Simple: 4 layers are practically sufficient
+    ② Implementation-first: working implementations came first
+    ③ Free: included in BSD, available to anyone
+    ④ Scalability: capable of keeping up with Internet growth
 ```
 
 ---
 
-## 2. OSI参照モデル（7層）の詳細
+## 2. OSI Reference Model (7 Layers) in Detail
 
-### 2.1 モデル全体像
+### 2.1 Overall Model
 
 ```
 ┌─────┬──────────────────┬──────────────────────────────────┐
-│ 層  │ 名称             │ 役割                             │
+│ Layer│ Name            │ Role                             │
 ├─────┼──────────────────┼──────────────────────────────────┤
-│  7  │ アプリケーション │ ユーザーに直接サービスを提供     │
+│  7  │ Application      │ Provides services directly to users│
 │     │                  │ HTTP, FTP, SMTP, DNS             │
 ├─────┼──────────────────┼──────────────────────────────────┤
-│  6  │ プレゼンテーション│ データの表現形式（暗号化/圧縮）  │
+│  6  │ Presentation     │ Data representation (encryption/compression)│
 │     │                  │ TLS/SSL, JPEG, UTF-8             │
 ├─────┼──────────────────┼──────────────────────────────────┤
-│  5  │ セッション       │ 通信の開始/終了/管理             │
+│  5  │ Session          │ Establish/maintain/terminate sessions│
 │     │                  │ NetBIOS, RPC                     │
 ├─────┼──────────────────┼──────────────────────────────────┤
-│  4  │ トランスポート   │ 端末間の信頼性ある通信           │
+│  4  │ Transport        │ Reliable end-to-end communication│
 │     │                  │ TCP, UDP                         │
 ├─────┼──────────────────┼──────────────────────────────────┤
-│  3  │ ネットワーク     │ ルーティング（経路選択）         │
+│  3  │ Network          │ Routing (path selection)         │
 │     │                  │ IP, ICMP, ARP                    │
 ├─────┼──────────────────┼──────────────────────────────────┤
-│  2  │ データリンク     │ 隣接ノード間の通信               │
+│  2  │ Data Link        │ Communication between adjacent nodes│
 │     │                  │ Ethernet, Wi-Fi, PPP             │
 ├─────┼──────────────────┼──────────────────────────────────┤
-│  1  │ 物理             │ 電気/光信号の伝送               │
-│     │                  │ ケーブル, 光ファイバー, 無線     │
+│  1  │ Physical         │ Transmission of electrical/optical signals│
+│     │                  │ Cable, optical fiber, wireless   │
 └─────┴──────────────────┴──────────────────────────────────┘
 
-覚え方（上から）:
-  日本語: 「あぷせとねでぶ」（ア プ セ ト ネ デ ブ）
-  英語:   "All People Seem To Need Data Processing"
-  英語:   "Please Do Not Throw Sausage Pizza Away"（下から）
+Mnemonic (top to bottom):
+  English: "All People Seem To Need Data Processing"
+  English: "Please Do Not Throw Sausage Pizza Away" (bottom to top)
 ```
 
-### 2.2 第7層: アプリケーション層
+### 2.2 Layer 7: Application Layer
 
 ```
-役割:
-  ユーザーが直接利用するアプリケーションにネットワーク機能を提供
-  → ネットワーク透過なサービスの提供
+Role:
+  Provides network capabilities to applications used directly by users
+  → Delivers network-transparent services
 
-代表的なプロトコル:
+Representative protocols:
 
-  HTTP/HTTPS（ポート80/443）:
-    Webページの取得・API通信
-    → ブラウザ、REST API、GraphQL
+  HTTP/HTTPS (ports 80/443):
+    Retrieval of web pages and API communication
+    → Browser, REST API, GraphQL
 
-  FTP/SFTP（ポート20-21/22）:
-    ファイル転送
-    → サーバーへのファイルアップロード・ダウンロード
+  FTP/SFTP (ports 20-21/22):
+    File transfer
+    → Upload/download files to/from servers
 
-  SMTP（ポート25/587）:
-    メール送信
-    → メールサーバー間の通信
+  SMTP (ports 25/587):
+    Email sending
+    → Communication between mail servers
 
-  POP3/IMAP（ポート110/143）:
-    メール受信
-    → メールクライアントがサーバーからメールを取得
+  POP3/IMAP (ports 110/143):
+    Email receiving
+    → Mail client retrieves email from server
 
-  DNS（ポート53）:
-    名前解決（ドメイン名 → IPアドレス）
-    → ほぼ全てのインターネット通信の前段階
+  DNS (port 53):
+    Name resolution (domain name → IP address)
+    → Precedes almost all Internet communication
 
-  SSH（ポート22）:
-    セキュアなリモートアクセス
-    → サーバー管理、ポートフォワーディング
+  SSH (port 22):
+    Secure remote access
+    → Server management, port forwarding
 
-  SNMP（ポート161/162）:
-    ネットワーク機器の監視・管理
-    → ルーター、スイッチの状態監視
+  SNMP (ports 161/162):
+    Monitoring and management of network devices
+    → Status monitoring of routers and switches
 
-  NTP（ポート123）:
-    時刻同期
-    → 全デバイスの時計を合わせる
+  NTP (port 123):
+    Time synchronization
+    → Synchronizes clocks across all devices
 
-  DHCP（ポート67/68）:
-    IPアドレスの自動割り当て
-    → ネットワーク接続時の自動設定
+  DHCP (ports 67/68):
+    Automatic IP address assignment
+    → Automatic configuration when connecting to a network
 
-  LDAP（ポート389/636）:
-    ディレクトリサービス
-    → Active Directory、ユーザー認証
+  LDAP (ports 389/636):
+    Directory services
+    → Active Directory, user authentication
 
-実務での位置づけ:
-  ほとんどのアプリケーション開発者が直接扱う層
-  → API設計、WebSocket実装、メール送信機能など
+Practical significance:
+  The layer most application developers directly work with
+  → API design, WebSocket implementation, email sending features, etc.
 ```
 
-### 2.3 第6層: プレゼンテーション層
+### 2.3 Layer 6: Presentation Layer
 
 ```
-役割:
-  データの表現形式の変換、暗号化、圧縮
-  → アプリケーション層が扱いやすい形にデータを整形
+Role:
+  Converts data representation formats, encryption, and compression
+  → Formats data into a form the application layer can handle easily
 
-主な機能:
+Key functions:
 
-  ① データ形式変換:
-     文字コード: UTF-8, ASCII, Shift-JIS, EUC-JP
-     データ形式: JSON, XML, ASN.1, Protocol Buffers
-     画像形式:   JPEG, PNG, GIF, WebP
-     音声形式:   MP3, AAC, Opus
-     動画形式:   H.264, H.265, VP9, AV1
+  ① Data format conversion:
+     Character encoding: UTF-8, ASCII, Shift-JIS, EUC-JP
+     Data formats:   JSON, XML, ASN.1, Protocol Buffers
+     Image formats:   JPEG, PNG, GIF, WebP
+     Audio formats:   MP3, AAC, Opus
+     Video formats:   H.264, H.265, VP9, AV1
 
-  ② 暗号化/復号:
-     TLS/SSL: HTTPS通信の暗号化
-       → AES-256-GCM（データ暗号化）
-       → RSA/ECDHE（鍵交換）
-       → SHA-256（ハッシュ）
+  ② Encryption/decryption:
+     TLS/SSL: Encryption of HTTPS communication
+       → AES-256-GCM (data encryption)
+       → RSA/ECDHE (key exchange)
+       → SHA-256 (hashing)
 
-  ③ 圧縮/展開:
+  ③ Compression/decompression:
      gzip, brotli, zstd
-     → HTTPレスポンスの圧縮
-     → 帯域幅の節約
+     → Compression of HTTP responses
+     → Bandwidth savings
 
-  実務例:
+  Practical example:
     Content-Type: application/json; charset=utf-8
     Content-Encoding: gzip
-    → データ形式（JSON）、文字コード（UTF-8）、圧縮（gzip）を指定
+    → Specifies data format (JSON), character encoding (UTF-8), and compression (gzip)
 
-  TCP/IPモデルでは:
-    プレゼンテーション層はアプリケーション層に統合される
-    → TLS はトランスポート層とアプリケーション層の間に位置
-    → データ形式はアプリケーションが自分で処理
+  In the TCP/IP model:
+    The presentation layer is merged into the application layer
+    → TLS sits between the transport and application layers
+    → Data format is handled by the application itself
 ```
 
-### 2.4 第5層: セッション層
+### 2.4 Layer 5: Session Layer
 
 ```
-役割:
-  通信のセッション（対話）を確立・維持・終了する
-  → いつ通信を開始し、いつ終了するかの管理
+Role:
+  Establish, maintain, and terminate communication sessions (dialogues)
+  → Manages when communication begins and ends
 
-主な機能:
+Key functions:
 
-  ① セッション確立:
-     → 認証情報の交換
-     → 通信パラメータの合意
+  ① Session establishment:
+     → Exchange of authentication information
+     → Agreement on communication parameters
 
-  ② セッション維持:
-     → チェックポイント: 長時間転送の途中経過を保存
-     → 同期ポイント: 障害時にどこから再開するかを記録
+  ② Session maintenance:
+     → Checkpoints: save progress during long transfers
+     → Synchronization points: record where to resume after a failure
 
-  ③ セッション終了:
-     → グレースフルクローズ: 両者が合意して終了
-     → アボート: 異常時の強制終了
+  ③ Session termination:
+     → Graceful close: both parties agree to end
+     → Abort: forced termination in case of error
 
-  代表的なプロトコル/技術:
-    NetBIOS: Windows のファイル共有
-    RPC（Remote Procedure Call）: リモート関数呼び出し
-    SIP（Session Initiation Protocol）: VoIP通話の確立
-    PPTP: VPNトンネリング
+  Representative protocols/technologies:
+    NetBIOS: Windows file sharing
+    RPC (Remote Procedure Call): remote function invocation
+    SIP (Session Initiation Protocol): VoIP call establishment
+    PPTP: VPN tunneling
 
-  実務例:
-    Webアプリケーションのセッション管理:
-      → HTTPは本来ステートレス
-      → Cookieやトークンでセッションを実現
-      → サーバーサイドのセッションストア（Redis等）
+  Practical example:
+    Session management in web applications:
+      → HTTP is inherently stateless
+      → Sessions implemented via cookies or tokens
+      → Server-side session store (e.g., Redis)
 
-  TCP/IPモデルでは:
-    セッション層もアプリケーション層に統合される
-    → セッション管理はアプリケーションの責務
+  In the TCP/IP model:
+    The session layer is also merged into the application layer
+    → Session management is the application's responsibility
 ```
 
-### 2.5 第4層: トランスポート層
+### 2.5 Layer 4: Transport Layer
 
 ```
-役割:
-  エンドツーエンド（端末間）の通信を管理
-  → プロセス間通信のためのポート番号の概念を提供
+Role:
+  Manages end-to-end communication between hosts
+  → Provides the concept of port numbers for inter-process communication
 
-主な機能:
+Key functions:
 
-  ① 信頼性の提供（TCP）:
-     → データの到達保証
-     → 順序保証
-     → エラー検出と再送
-     → フロー制御と輻輳制御
+  ① Reliability (TCP):
+     → Guaranteed delivery of data
+     → Ordering guarantee
+     → Error detection and retransmission
+     → Flow control and congestion control
 
-  ② 軽量な通信（UDP）:
-     → コネクションレス
-     → 低レイテンシ
-     → ブロードキャスト/マルチキャスト対応
+  ② Lightweight communication (UDP):
+     → Connectionless
+     → Low latency
+     → Broadcast/multicast support
 
-  ③ ポート番号によるプロセス識別:
-     → 送信元ポート + 宛先ポート でプロセスを特定
-     → 1つのIPアドレスで複数のサービスを提供
+  ③ Process identification by port number:
+     → Identifies a process by source port + destination port
+     → Allows multiple services on a single IP address
 
-  PDU（Protocol Data Unit）: セグメント（TCP）/ データグラム（UDP）
+  PDU (Protocol Data Unit): segment (TCP) / datagram (UDP)
 
-  代表的なプロトコル:
-    TCP: 信頼性重視（HTTP, SSH, FTP等）
-    UDP: 速度重視（DNS, 動画配信, ゲーム等）
-    SCTP: マルチストリーム対応（電話網のシグナリング等）
-    QUIC: UDP上のモダンプロトコル（HTTP/3の基盤）
+  Representative protocols:
+    TCP: reliability-focused (HTTP, SSH, FTP, etc.)
+    UDP: speed-focused (DNS, video streaming, games, etc.)
+    SCTP: multi-stream support (phone network signaling, etc.)
+    QUIC: modern protocol over UDP (foundation of HTTP/3)
 
-  実務での重要性:
-    → ソケットプログラミングの基盤
-    → ファイアウォールのルール設定（ポート制御）
-    → ロードバランサーのL4バランシング
-    → コンテナのポートマッピング
+  Practical importance:
+    → Foundation of socket programming
+    → Firewall rule configuration (port control)
+    → L4 load balancing by load balancers
+    → Port mapping in containers
 ```
 
-### 2.6 第3層: ネットワーク層
+### 2.6 Layer 3: Network Layer
 
 ```
-役割:
-  異なるネットワーク間のルーティング（経路選択）
-  → 送信元から宛先までの最適な経路を決定
+Role:
+  Routing (path selection) between different networks
+  → Determines the optimal path from source to destination
 
-主な機能:
+Key functions:
 
-  ① 論理アドレッシング（IPアドレス）:
-     → 全デバイスに一意のアドレスを付与
-     → ネットワーク部とホスト部に分割
+  ① Logical addressing (IP addresses):
+     → Assigns a unique address to every device
+     → Divided into network part and host part
 
-  ② ルーティング:
-     → パケットを宛先に向けて転送
-     → ルーティングテーブルに基づく経路選択
-     → 動的ルーティング: OSPF, BGP, RIP
-     → 静的ルーティング: 手動設定
+  ② Routing:
+     → Forwards packets toward the destination
+     → Path selection based on routing table
+     → Dynamic routing: OSPF, BGP, RIP
+     → Static routing: manually configured
 
-  ③ パケットのフラグメンテーション:
-     → MTU（Maximum Transmission Unit）を超えるパケットの分割
-     → 受信側で再組み立て
+  ③ Packet fragmentation:
+     → Splits packets exceeding the MTU (Maximum Transmission Unit)
+     → Reassembled at the receiver
 
-  PDU: パケット
+  PDU: packet
 
-  代表的なプロトコル:
-    IPv4: 32ビットアドレス（現在の主流）
-    IPv6: 128ビットアドレス（次世代）
-    ICMP: 制御メッセージ（ping, traceroute）
-    ARP:  IPアドレス → MACアドレス解決
-    OSPF: 内部ルーティングプロトコル
-    BGP:  外部ルーティングプロトコル（インターネットの骨格）
+  Representative protocols:
+    IPv4: 32-bit addresses (current mainstream)
+    IPv6: 128-bit addresses (next generation)
+    ICMP: control messages (ping, traceroute)
+    ARP:  IP address → MAC address resolution
+    OSPF: interior routing protocol
+    BGP:  exterior routing protocol (backbone of the Internet)
 
-  ネットワーク機器:
-    ルーター: L3で動作、パケットを転送
-    L3スイッチ: ルーティング機能付きスイッチ
+  Network devices:
+    Router: operates at L3, forwards packets
+    L3 switch: switch with routing capability
 
-  実務例:
-    $ ip route show          # ルーティングテーブル表示（Linux）
-    $ netstat -rn            # ルーティングテーブル表示（汎用）
-    $ traceroute example.com # 経路追跡
-    $ ping example.com       # ICMP疎通確認
+  Practical examples:
+    $ ip route show          # Show routing table (Linux)
+    $ netstat -rn            # Show routing table (general)
+    $ traceroute example.com # Trace route
+    $ ping example.com       # ICMP connectivity check
 ```
 
-### 2.7 第2層: データリンク層
+### 2.7 Layer 2: Data Link Layer
 
 ```
-役割:
-  物理的に接続された隣接ノード間の信頼性ある通信
-  → 同一ネットワークセグメント内でのフレーム転送
+Role:
+  Reliable communication between physically adjacent nodes
+  → Frame transfer within the same network segment
 
-主な機能:
+Key functions:
 
-  ① フレーミング:
-     → ビット列をフレーム単位に区切る
-     → フレームの開始/終了を識別
+  ① Framing:
+     → Divides bit streams into frame units
+     → Identifies the start/end of a frame
 
-  ② 物理アドレッシング（MACアドレス）:
-     → 48ビット（6バイト）のハードウェアアドレス
-     → 例: 00:1A:2B:3C:4D:5E
-     → 前半24ビット: OUI（製造元識別子）
-     → 後半24ビット: デバイス固有ID
+  ② Physical addressing (MAC address):
+     → 48-bit (6-byte) hardware address
+     → Example: 00:1A:2B:3C:4D:5E
+     → First 24 bits: OUI (Organizationally Unique Identifier)
+     → Last 24 bits: device-specific ID
 
-  ③ エラー検出:
-     → FCS（Frame Check Sequence）による誤り検出
-     → CRC-32アルゴリズム
-     → 誤りの訂正は行わず、フレームを破棄
+  ③ Error detection:
+     → Error detection via FCS (Frame Check Sequence)
+     → CRC-32 algorithm
+     → Does not correct errors; discards the frame
 
-  ④ メディアアクセス制御（MAC副層）:
-     → CSMA/CD（Ethernet）: 衝突検出して再送
-     → CSMA/CA（Wi-Fi）: 衝突回避
-     → トークンパッシング: トークンを持つ端末だけが送信
+  ④ Media access control (MAC sublayer):
+     → CSMA/CD (Ethernet): detect collision and retransmit
+     → CSMA/CA (Wi-Fi): avoid collisions
+     → Token passing: only the station holding the token transmits
 
-  PDU: フレーム
+  PDU: frame
 
-  サブ層:
-    LLC（Logical Link Control）:
-      → ネットワーク層プロトコルの識別
-      → フロー制御
+  Sublayers:
+    LLC (Logical Link Control):
+      → Identifies the network-layer protocol
+      → Flow control
 
-    MAC（Media Access Control）:
-      → メディアへのアクセス制御
-      → MACアドレスによるフレーム配信
+    MAC (Media Access Control):
+      → Controls access to the medium
+      → Delivers frames using MAC addresses
 
-  代表的なプロトコル/技術:
-    Ethernet（IEEE 802.3）: 有線LAN
-    Wi-Fi（IEEE 802.11）: 無線LAN
-    PPP: ポイントツーポイント接続
-    VLAN（IEEE 802.1Q）: 仮想LAN
+  Representative protocols/technologies:
+    Ethernet (IEEE 802.3): wired LAN
+    Wi-Fi (IEEE 802.11): wireless LAN
+    PPP: point-to-point connections
+    VLAN (IEEE 802.1Q): virtual LAN
 
-  ネットワーク機器:
-    スイッチ（L2スイッチ）: MACアドレステーブルに基づくフレーム転送
-    ブリッジ: ネットワークセグメントの接続
+  Network devices:
+    Switch (L2 switch): frame forwarding based on MAC address table
+    Bridge: connects network segments
 
-  実務例:
-    $ arp -a                # ARPテーブル表示
-    $ ip link show          # インターフェース情報
-    $ ethtool eth0          # Ethernetインターフェース詳細
-    $ iwconfig wlan0        # Wi-Fiインターフェース詳細
+  Practical examples:
+    $ arp -a                # Show ARP table
+    $ ip link show          # Interface information
+    $ ethtool eth0          # Ethernet interface details
+    $ iwconfig wlan0        # Wi-Fi interface details
 ```
 
-### 2.8 第1層: 物理層
+### 2.8 Layer 1: Physical Layer
 
 ```
-役割:
-  ビット列を物理的な信号（電気・光・電波）に変換して伝送
-  → 0と1を実際の信号として送受信する
+Role:
+  Converts bit streams into physical signals (electrical, optical, radio) for transmission
+  → Sends and receives 0s and 1s as actual signals
 
-主な機能:
+Key functions:
 
-  ① 信号変換:
-     → デジタル信号 ↔ 電気信号（銅線）
-     → デジタル信号 ↔ 光信号（光ファイバー）
-     → デジタル信号 ↔ 電波（無線）
+  ① Signal conversion:
+     → Digital signal ↔ electrical signal (copper wire)
+     → Digital signal ↔ optical signal (optical fiber)
+     → Digital signal ↔ radio wave (wireless)
 
-  ② 伝送媒体の特性定義:
-     → ケーブルの種類、コネクタの形状
-     → 伝送速度、帯域幅
-     → 最大伝送距離
+  ② Defining transmission medium characteristics:
+     → Cable type, connector shape
+     → Transmission speed, bandwidth
+     → Maximum transmission distance
 
-  ③ 信号の同期:
-     → ビット同期: クロック信号の共有
-     → 基準電圧の定義
+  ③ Signal synchronization:
+     → Bit synchronization: sharing a clock signal
+     → Reference voltage definition
 
-  伝送媒体の比較:
+  Comparison of transmission media:
   ┌──────────────┬───────────┬────────────┬──────────────┐
-  │ 媒体         │ 速度      │ 最大距離   │ 用途         │
+  │ Medium       │ Speed     │ Max distance│ Use case     │
   ├──────────────┼───────────┼────────────┼──────────────┤
-  │ Cat5e        │ 1Gbps     │ 100m       │ オフィスLAN  │
-  │ Cat6         │ 10Gbps    │ 55m        │ データセンタ │
-  │ Cat6a        │ 10Gbps    │ 100m       │ データセンタ │
-  │ Cat7         │ 10Gbps    │ 100m       │ 高性能LAN    │
-  │ Cat8         │ 25/40Gbps │ 30m        │ DC接続       │
+  │ Cat5e        │ 1Gbps     │ 100m       │ Office LAN   │
+  │ Cat6         │ 10Gbps    │ 55m        │ Data center  │
+  │ Cat6a        │ 10Gbps    │ 100m       │ Data center  │
+  │ Cat7         │ 10Gbps    │ 100m       │ High-perf LAN│
+  │ Cat8         │ 25/40Gbps │ 30m        │ DC connection│
   ├──────────────┼───────────┼────────────┼──────────────┤
-  │ マルチモード │ 10Gbps    │ 300m-2km   │ DC内接続     │
-  │ シングルモード│ 100Gbps+  │ 数十km     │ 長距離接続   │
+  │ Multimode    │ 10Gbps    │ 300m-2km   │ Intra-DC     │
+  │ Single-mode  │ 100Gbps+  │ Tens of km │ Long-distance│
   ├──────────────┼───────────┼────────────┼──────────────┤
-  │ Wi-Fi 5      │ 3.5Gbps   │ 数十m      │ 屋内無線     │
-  │ Wi-Fi 6      │ 9.6Gbps   │ 数十m      │ 高密度環境   │
-  │ Wi-Fi 6E     │ 9.6Gbps   │ 数十m      │ 6GHz帯追加   │
-  │ Wi-Fi 7      │ 46Gbps    │ 数十m      │ 次世代無線   │
+  │ Wi-Fi 5      │ 3.5Gbps   │ Tens of m  │ Indoor wireless│
+  │ Wi-Fi 6      │ 9.6Gbps   │ Tens of m  │ High-density │
+  │ Wi-Fi 6E     │ 9.6Gbps   │ Tens of m  │ Added 6GHz band│
+  │ Wi-Fi 7      │ 46Gbps    │ Tens of m  │ Next-gen wireless│
   └──────────────┴───────────┴────────────┴──────────────┘
 
-  ネットワーク機器:
-    ハブ: 受信した信号を全ポートに転送（現在はほぼ使われない）
-    リピーター: 信号を増幅・再生
-    メディアコンバーター: 銅線 ↔ 光ファイバーの変換
+  Network devices:
+    Hub: forwards received signals to all ports (rarely used today)
+    Repeater: amplifies and regenerates signals
+    Media converter: converts between copper wire ↔ optical fiber
 
-  コネクタ:
-    RJ-45: Ethernetケーブル（UTPケーブル）
-    LC, SC: 光ファイバーコネクタ
-    SFP/SFP+/QSFP: モジュール式光トランシーバー
+  Connectors:
+    RJ-45: Ethernet cable (UTP cable)
+    LC, SC: optical fiber connectors
+    SFP/SFP+/QSFP: modular optical transceivers
 ```
 
 ---
 
-## 3. TCP/IP モデル（4層）の詳細
+## 3. TCP/IP Model (4 Layers) in Detail
 
-### 3.1 モデル全体像
+### 3.1 Overall Model
 
 ```
 ┌────────────────────┬─────────────────┬──────────────────┐
-│ TCP/IP モデル      │ OSI 対応        │ プロトコル例     │
+│ TCP/IP Model       │ OSI equivalent  │ Protocol examples│
 ├────────────────────┼─────────────────┼──────────────────┤
-│ アプリケーション層 │ 7 + 6 + 5       │ HTTP, DNS, SMTP  │
+│ Application layer  │ 7 + 6 + 5       │ HTTP, DNS, SMTP  │
 │                    │                 │ FTP, SSH, TLS    │
 ├────────────────────┼─────────────────┼──────────────────┤
-│ トランスポート層   │ 4               │ TCP, UDP         │
+│ Transport layer    │ 4               │ TCP, UDP         │
 ├────────────────────┼─────────────────┼──────────────────┤
-│ インターネット層   │ 3               │ IP, ICMP, ARP    │
+│ Internet layer     │ 3               │ IP, ICMP, ARP    │
 ├────────────────────┼─────────────────┼──────────────────┤
-│ ネットワーク       │ 2 + 1           │ Ethernet, Wi-Fi  │
-│ インターフェース層 │                 │                  │
+│ Network            │ 2 + 1           │ Ethernet, Wi-Fi  │
+│ Interface layer    │                 │                  │
 └────────────────────┴─────────────────┴──────────────────┘
 
-実務では TCP/IP モデルが主流:
-  → OSI は理論的な参照モデル
-  → TCP/IP は実際のインターネットの構造
-  → 5層モデル（ハイブリッドモデル）を使う教科書も多い
+The TCP/IP model is mainstream in practice:
+  → OSI is a theoretical reference model
+  → TCP/IP reflects the actual structure of the Internet
+  → Some textbooks use a 5-layer model (hybrid model)
 ```
 
-### 3.2 OSIモデルとの対応比較
+### 3.2 Comparison with the OSI Model
 
 ```
-7層モデル vs 4層モデル の詳細対応:
+Detailed mapping between 7-layer and 4-layer models:
 
-  OSI 7層                TCP/IP 4層           5層モデル
+  OSI 7 layers           TCP/IP 4 layers      5-layer model
   ─────────────         ────────────         ────────────
-  L7 アプリケーション ─┐
-  L6 プレゼンテーション┼→ アプリケーション → L5 アプリケーション
-  L5 セッション ───────┘
-  L4 トランスポート ───→ トランスポート   → L4 トランスポート
-  L3 ネットワーク ─────→ インターネット   → L3 ネットワーク
-  L2 データリンク ─────┐
-  L1 物理 ─────────────┼→ ネットワーク     → L2 データリンク
-                        │  インターフェース → L1 物理
-                        └─────────────────
+  L7 Application  ───┐
+  L6 Presentation ───┼→ Application      → L5 Application
+  L5 Session      ───┘
+  L4 Transport    ───→ Transport         → L4 Transport
+  L3 Network      ───→ Internet          → L3 Network
+  L2 Data Link    ───┐
+  L1 Physical     ───┼→ Network           → L2 Data Link
+                     │  Interface         → L1 Physical
+                     └─────────────────
 
-なぜ5層モデルが使われることがあるか:
-  TCP/IP 4層モデルでは物理層とデータリンク層を区別しない
-  → しかし実務ではこの2つは全く異なる技術領域
-  → 5層モデルはOSIの下位2層の区別を維持しつつ、
-    上位3層を統合した実用的な妥協案
+Why the 5-layer model is sometimes used:
+  The TCP/IP 4-layer model does not distinguish the physical layer from the data link layer
+  → However, in practice these two are entirely different technical domains
+  → The 5-layer model is a practical compromise that retains the distinction between
+    the lower two OSI layers while consolidating the upper three
 
-各モデルの使い分け:
-  OSI 7層: 教育、資格試験（CCNA, CompTIA Network+）、設計文書
-  TCP/IP 4層: プロトコル仕様書（RFC）、実装
-  5層モデル: 大学の教科書、実務的な議論
+When to use each model:
+  OSI 7-layer: education, certification exams (CCNA, CompTIA Network+), design documents
+  TCP/IP 4-layer: protocol specifications (RFC), implementation
+  5-layer model: university textbooks, practical discussions
 ```
 
-### 3.3 TCP/IP各層の実務における役割
+### 3.3 Practical Role of Each TCP/IP Layer
 
 ```
-① アプリケーション層の実務:
-  開発者が最も関わる層
-  → REST API の設計（HTTP）
-  → WebSocket によるリアルタイム通信
-  → gRPC によるマイクロサービス通信
-  → メール機能の実装（SMTP/IMAP）
-  → DNS設定とトラブルシューティング
-  → TLS/SSL証明書の管理
+① Application layer in practice:
+  The layer developers interact with most
+  → REST API design (HTTP)
+  → Real-time communication via WebSocket
+  → Microservice communication via gRPC
+  → Implementing email features (SMTP/IMAP)
+  → DNS configuration and troubleshooting
+  → TLS/SSL certificate management
 
-  実務でよく扱うツール:
-    curl: HTTPリクエストの送信
-    Postman: API テスト
-    openssl: TLS/SSL のデバッグ
-    dig/nslookup: DNS 問い合わせ
+  Commonly used tools in practice:
+    curl: sending HTTP requests
+    Postman: API testing
+    openssl: debugging TLS/SSL
+    dig/nslookup: DNS queries
 
-② トランスポート層の実務:
-  → ソケットプログラミング
-  → ポート番号の管理（ファイアウォール設定）
-  → ロードバランサーの設定（L4 vs L7）
-  → TCPチューニング（カーネルパラメータ）
+② Transport layer in practice:
+  → Socket programming
+  → Port number management (firewall configuration)
+  → Load balancer configuration (L4 vs L7)
+  → TCP tuning (kernel parameters)
 
-  実務でよく扱うツール:
-    netstat/ss: ソケットの状態確認
-    tcpdump: パケットキャプチャ
-    iptables/nftables: ファイアウォール
+  Commonly used tools in practice:
+    netstat/ss: checking socket state
+    tcpdump: packet capture
+    iptables/nftables: firewall
 
-③ インターネット層の実務:
-  → IPアドレス設計（VPC, サブネット）
-  → ルーティング設定
-  → NAT設定
-  → VPN構築
+③ Internet layer in practice:
+  → IP address design (VPC, subnets)
+  → Routing configuration
+  → NAT configuration
+  → VPN construction
 
-  実務でよく扱うツール:
-    ip: ネットワーク設定（Linux）
-    traceroute: 経路追跡
-    ping: 疎通確認
+  Commonly used tools in practice:
+    ip: network configuration (Linux)
+    traceroute: route tracing
+    ping: connectivity check
 
-④ ネットワークインターフェース層の実務:
-  → VLAN設定
-  → Wi-Fi設定
-  → ネットワークインターフェースの設定
-  → MTUの調整
+④ Network interface layer in practice:
+  → VLAN configuration
+  → Wi-Fi configuration
+  → Network interface configuration
+  → MTU adjustment
 
-  実務でよく扱うツール:
-    ethtool: Ethernet設定
-    iwconfig: Wi-Fi設定
-    ifconfig/ip link: インターフェース管理
+  Commonly used tools in practice:
+    ethtool: Ethernet configuration
+    iwconfig: Wi-Fi configuration
+    ifconfig/ip link: interface management
 ```
 
 ---
 
-## 4. カプセル化と非カプセル化
+## 4. Encapsulation and Decapsulation
 
-### 4.1 カプセル化の基本プロセス
-
-```
-データが各層を通過する際の変化:
-
-  アプリケーション層:
-    [HTTP データ]
-
-  トランスポート層:
-    [TCP ヘッダー][HTTP データ]  ← セグメント
-
-  インターネット層:
-    [IP ヘッダー][TCP ヘッダー][HTTP データ]  ← パケット
-
-  ネットワーク層:
-    [Eth ヘッダー][IP][TCP][HTTP データ][Eth FCS]  ← フレーム
-
-  物理層:
-    01101001 10110010 ...  ← ビット列
-
-  送信側: データにヘッダーを追加（カプセル化）
-  受信側: ヘッダーを除去して上位層に渡す（非カプセル化）
-```
-
-### 4.2 各層のPDU（Protocol Data Unit）
+### 4.1 Basic Encapsulation Process
 
 ```
-PDU = 各層でデータを呼ぶ際の単位名
+Changes as data passes through each layer:
+
+  Application layer:
+    [HTTP data]
+
+  Transport layer:
+    [TCP header][HTTP data]  ← segment
+
+  Internet layer:
+    [IP header][TCP header][HTTP data]  ← packet
+
+  Network layer:
+    [Eth header][IP][TCP][HTTP data][Eth FCS]  ← frame
+
+  Physical layer:
+    01101001 10110010 ...  ← bit stream
+
+  Sender: adds headers to data (encapsulation)
+  Receiver: removes headers and passes data to upper layer (decapsulation)
+```
+
+### 4.2 PDU (Protocol Data Unit) at Each Layer
+
+```
+PDU = the unit name used to refer to data at each layer
 
   ┌──────────────────┬───────────────┬─────────────────────┐
-  │ 層               │ PDU名         │ 主なヘッダー情報    │
+  │ Layer            │ PDU name      │ Main header info    │
   ├──────────────────┼───────────────┼─────────────────────┤
-  │ アプリケーション │ メッセージ/   │ HTTPヘッダー等      │
-  │                  │ データ        │                     │
+  │ Application      │ Message /     │ HTTP headers, etc.  │
+  │                  │ Data          │                     │
   ├──────────────────┼───────────────┼─────────────────────┤
-  │ トランスポート   │ セグメント    │ ポート番号          │
-  │                  │ (TCP)         │ シーケンス番号      │
-  │                  │ データグラム  │ ACK番号             │
-  │                  │ (UDP)         │ ウィンドウサイズ    │
+  │ Transport        │ Segment       │ Port number         │
+  │                  │ (TCP)         │ Sequence number     │
+  │                  │ Datagram      │ ACK number          │
+  │                  │ (UDP)         │ Window size         │
   ├──────────────────┼───────────────┼─────────────────────┤
-  │ ネットワーク     │ パケット      │ 送信元IP            │
-  │                  │               │ 宛先IP              │
+  │ Network          │ Packet        │ Source IP           │
+  │                  │               │ Destination IP      │
   │                  │               │ TTL                 │
   ├──────────────────┼───────────────┼─────────────────────┤
-  │ データリンク     │ フレーム      │ 送信元MAC           │
-  │                  │               │ 宛先MAC             │
-  │                  │               │ タイプ/長さ         │
+  │ Data Link        │ Frame         │ Source MAC          │
+  │                  │               │ Destination MAC     │
+  │                  │               │ Type/Length         │
   ├──────────────────┼───────────────┼─────────────────────┤
-  │ 物理             │ ビット        │ （ヘッダーなし）    │
+  │ Physical         │ Bit           │ (no header)         │
   └──────────────────┴───────────────┴─────────────────────┘
 ```
 
-### 4.3 カプセル化の具体例
+### 4.3 Concrete Example of Encapsulation
 
 ```
-HTTPリクエストが送信されるまでの完全な流れ:
+Complete flow until an HTTP request is sent:
 
-ステップ1: アプリケーション層
-  ブラウザが HTTP GET リクエストを生成:
+Step 1: Application layer
+  Browser generates an HTTP GET request:
   GET /index.html HTTP/1.1
   Host: www.example.com
   Accept: text/html
-  → データサイズ: 約200バイト
+  → Data size: approx. 200 bytes
 
-ステップ2: トランスポート層（TCP）
-  TCPヘッダー（20バイト）を追加:
+Step 2: Transport layer (TCP)
+  TCP header (20 bytes) is added:
   ┌─────────────────────────────────────────────────┐
-  │ 送信元ポート: 52431                              │
-  │ 宛先ポート: 80                                   │
-  │ シーケンス番号: 1000                             │
-  │ ACK番号: 0                                       │
-  │ フラグ: PSH, ACK                                 │
-  │ ウィンドウ: 65535                                │
-  │ チェックサム: 0x1234                             │
+  │ Source port: 52431                               │
+  │ Destination port: 80                             │
+  │ Sequence number: 1000                            │
+  │ ACK number: 0                                    │
+  │ Flags: PSH, ACK                                  │
+  │ Window: 65535                                    │
+  │ Checksum: 0x1234                                 │
   ├─────────────────────────────────────────────────┤
-  │ [HTTP GET リクエスト 200バイト]                   │
+  │ [HTTP GET request 200 bytes]                      │
   └─────────────────────────────────────────────────┘
-  → セグメントサイズ: 220バイト
+  → Segment size: 220 bytes
 
-ステップ3: インターネット層（IPv4）
-  IPヘッダー（20バイト）を追加:
+Step 3: Internet layer (IPv4)
+  IP header (20 bytes) is added:
   ┌─────────────────────────────────────────────────┐
-  │ バージョン: 4                                    │
-  │ ヘッダー長: 20バイト                             │
-  │ 全長: 240バイト                                  │
+  │ Version: 4                                       │
+  │ Header length: 20 bytes                          │
+  │ Total length: 240 bytes                          │
   │ TTL: 64                                          │
-  │ プロトコル: 6（TCP）                             │
-  │ 送信元IP: 192.168.1.100                          │
-  │ 宛先IP: 93.184.216.34                            │
+  │ Protocol: 6 (TCP)                                │
+  │ Source IP: 192.168.1.100                         │
+  │ Destination IP: 93.184.216.34                    │
   ├─────────────────────────────────────────────────┤
-  │ [TCP セグメント 220バイト]                        │
+  │ [TCP segment 220 bytes]                           │
   └─────────────────────────────────────────────────┘
-  → パケットサイズ: 240バイト
+  → Packet size: 240 bytes
 
-ステップ4: データリンク層（Ethernet）
-  Ethernetヘッダー（14バイト）+ FCS（4バイト）を追加:
+Step 4: Data link layer (Ethernet)
+  Ethernet header (14 bytes) + FCS (4 bytes) are added:
   ┌─────────────────────────────────────────────────┐
-  │ 宛先MAC: 00:1A:2B:3C:4D:5E（ゲートウェイ）     │
-  │ 送信元MAC: AA:BB:CC:DD:EE:FF（自分）            │
-  │ タイプ: 0x0800（IPv4）                           │
+  │ Destination MAC: 00:1A:2B:3C:4D:5E (gateway)   │
+  │ Source MAC: AA:BB:CC:DD:EE:FF (self)            │
+  │ Type: 0x0800 (IPv4)                              │
   ├─────────────────────────────────────────────────┤
-  │ [IP パケット 240バイト]                           │
+  │ [IP packet 240 bytes]                             │
   ├─────────────────────────────────────────────────┤
   │ FCS: 0xABCDEF01                                  │
   └─────────────────────────────────────────────────┘
-  → フレームサイズ: 258バイト
+  → Frame size: 258 bytes
 
-ステップ5: 物理層
-  フレームをビット列に変換:
-  → 258 × 8 = 2064ビット の電気信号/光信号
-  → プリアンブル（8バイト）+ フレーム + IFG（12バイト）
-  → 合計: 278バイト がワイヤー上を流れる
+Step 5: Physical layer
+  Convert frame to bit stream:
+  → 258 × 8 = 2064 bits of electrical/optical signals
+  → Preamble (8 bytes) + frame + IFG (12 bytes)
+  → Total: 278 bytes flow over the wire
 ```
 
-### 4.4 ルーターでの非カプセル化と再カプセル化
+### 4.4 Decapsulation and Re-encapsulation at a Router
 
 ```
-パケットがルーターを通過する際の処理:
+Processing when a packet passes through a router:
 
-  送信元PC ──→ ルーターA ──→ ルーターB ──→ 宛先サーバー
+  Source PC → Router A → Router B → Destination server
 
-  ルーターAでの処理:
-  1. 物理層: 電気信号 → ビット列
-  2. データリンク層: フレームを受信、FCSを検証
-     → 自分のMACアドレス宛か確認
-     → Ethernetヘッダーを除去（非カプセル化）
-  3. ネットワーク層: IPヘッダーを読む
-     → 宛先IPを確認
-     → ルーティングテーブルで次ホップを決定
-     → TTLを1減算
-     → 必要ならフラグメンテーション
-  4. データリンク層: 新しいEthernetヘッダーを付加（再カプセル化）
-     → 宛先MAC = ルーターBのMACアドレス
-     → 送信元MAC = ルーターAの出力インターフェースのMAC
-  5. 物理層: ビット列 → 電気信号
+  Processing at Router A:
+  1. Physical layer: electrical signals → bit stream
+  2. Data link layer: receive frame, verify FCS
+     → Check if addressed to self (MAC address)
+     → Remove Ethernet header (decapsulation)
+  3. Network layer: read IP header
+     → Check destination IP
+     → Determine next hop from routing table
+     → Decrement TTL by 1
+     → Fragment if necessary
+  4. Data link layer: attach new Ethernet header (re-encapsulation)
+     → Destination MAC = MAC address of Router B
+     → Source MAC = MAC of Router A's outgoing interface
+  5. Physical layer: bit stream → electrical signals
 
-  重要なポイント:
-    → L2ヘッダー（MAC）はホップごとに書き換わる
-    → L3ヘッダー（IP）は基本的に変わらない（NATを除く）
-    → L4ヘッダー（TCP/UDP）も変わらない（NAPTを除く）
+  Key points:
+    → L2 header (MAC) is rewritten at each hop
+    → L3 header (IP) basically does not change (except with NAT)
+    → L4 header (TCP/UDP) also does not change (except with NAPT)
 
-  図解:
-  PC → ルーターA → ルーターB → サーバー
+  Diagram:
+  PC → Router A → Router B → Server
 
-  PC→ルーターA:
+  PC → Router A:
     SrcMAC=PC   DstMAC=RA   SrcIP=PC   DstIP=Srv
 
-  ルーターA→ルーターB:
-    SrcMAC=RA   DstMAC=RB   SrcIP=PC   DstIP=Srv  ← MACだけ変化
+  Router A → Router B:
+    SrcMAC=RA   DstMAC=RB   SrcIP=PC   DstIP=Srv  ← only MAC changes
 
-  ルーターB→サーバー:
-    SrcMAC=RB   DstMAC=Srv  SrcIP=PC   DstIP=Srv  ← MACだけ変化
+  Router B → Server:
+    SrcMAC=RB   DstMAC=Srv  SrcIP=PC   DstIP=Srv  ← only MAC changes
 ```
 
 ---
 
-## 5. 各層のヘッダー詳細
+## 5. Header Details for Each Layer
 
-### 5.1 Ethernetフレームヘッダー（L2）
+### 5.1 Ethernet Frame Header (L2)
 
 ```
-Ethernet II フレーム（DIX形式、最も一般的）:
+Ethernet II frame (DIX format, most common):
 
-  ┌──────────┬──────────┬──────┬─────────┬─────┐
-  │Preamble  │SFD       │宛先  │送信元   │Type │
-  │(7B)      │(1B)      │MAC   │MAC      │(2B) │
-  │          │          │(6B)  │(6B)     │     │
-  ├──────────┴──────────┴──────┴─────────┴─────┤
-  │ ペイロード（46〜1500バイト）                 │
+  ┌──────────┬──────────┬──────┬─────────┬──────┐
+  │Preamble  │SFD       │Dest  │Source   │Type  │
+  │(7B)      │(1B)      │MAC   │MAC      │(2B)  │
+  │          │          │(6B)  │(6B)     │      │
+  ├──────────┴──────────┴──────┴─────────┴──────┤
+  │ Payload (46–1500 bytes)                      │
   ├─────────────────────────────────────────────┤
   │ FCS (4B)                                     │
   └─────────────────────────────────────────────┘
 
-  各フィールドの説明:
-    Preamble（7バイト）: 0xAAAAAA... 受信側のクロック同期用
-    SFD（1バイト）: 0xAB フレーム開始デリミタ
-    宛先MAC（6バイト）: 宛先の物理アドレス
-      例: 00:1A:2B:3C:4D:5E
-      FF:FF:FF:FF:FF:FF = ブロードキャスト
-    送信元MAC（6バイト）: 送信元の物理アドレス
-    Type（2バイト）: 上位プロトコルの識別
+  Field descriptions:
+    Preamble (7 bytes): 0xAAAAAA... for clock synchronization at the receiver
+    SFD (1 byte): 0xAB Start Frame Delimiter
+    Destination MAC (6 bytes): physical address of the destination
+      Example: 00:1A:2B:3C:4D:5E
+      FF:FF:FF:FF:FF:FF = broadcast
+    Source MAC (6 bytes): physical address of the sender
+    Type (2 bytes): identifies the upper-layer protocol
       0x0800 = IPv4
       0x0806 = ARP
       0x86DD = IPv6
-      0x8100 = 802.1Q VLAN タグ
-    FCS（4バイト）: CRC-32によるエラー検出
+      0x8100 = 802.1Q VLAN tag
+    FCS (4 bytes): error detection using CRC-32
 
-  802.1Q VLANタグ付きフレーム:
+  802.1Q VLAN-tagged frame:
     ┌──────┬──────┬──────┬──────┬──────┬─────────┬─────┐
     │DstMAC│SrcMAC│0x8100│VLAN  │Type  │Payload  │FCS  │
     │(6B)  │(6B)  │(2B)  │Tag   │(2B)  │(46-1500)│(4B) │
     │      │      │      │(2B)  │      │         │     │
     └──────┴──────┴──────┴──────┴──────┴─────────┴─────┘
 
-    VLANタグ:
-      PCP（3ビット）: 優先度（QoS）
-      DEI（1ビット）: 破棄適格性
-      VID（12ビット）: VLAN ID（0-4095）
-      → 最大4094個のVLANを定義可能（0と4095は予約）
+    VLAN tag:
+      PCP (3 bits): priority (QoS)
+      DEI (1 bit): Drop Eligible Indicator
+      VID (12 bits): VLAN ID (0–4095)
+      → Up to 4094 VLANs can be defined (0 and 4095 are reserved)
 
-  MTU（Maximum Transmission Unit）:
-    標準: 1500バイト（ペイロードの最大サイズ）
-    ジャンボフレーム: 9000バイト（データセンター内で使用）
-    → MTUを超えるとIPフラグメンテーションが発生
-    → パフォーマンス低下の原因になるため、Path MTU Discoveryが重要
+  MTU (Maximum Transmission Unit):
+    Standard: 1500 bytes (maximum payload size)
+    Jumbo frame: 9000 bytes (used within data centers)
+    → Packets exceeding MTU cause IP fragmentation
+    → Path MTU Discovery is important to avoid performance degradation
 ```
 
-### 5.2 IPパケットヘッダー（L3）
+### 5.2 IP Packet Header (L3)
 
 ```
-IPv4 ヘッダー（20バイト〜60バイト）:
+IPv4 header (20–60 bytes):
 
   0                   1                   2                   3
   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
   ┌───┬───┬───────┬────────────────────────────────────────────┐
-  │Ver│IHL│ToS/   │         全長（Total Length）(16)            │
+  │Ver│IHL│ToS/   │         Total Length (16)                   │
   │(4)│(4)│DSCP(8)│                                            │
   ├───┴───┴───────┼───┬────────────────────────────────────────┤
-  │ 識別子(16)     │Flg│  フラグメントオフセット(13)             │
+  │ Identification(16) │Flg│  Fragment Offset (13)              │
   ├───────┬───────┼───┴────────────────────────────────────────┤
-  │TTL(8) │Proto  │         ヘッダーチェックサム(16)            │
+  │TTL(8) │Proto  │         Header Checksum (16)                │
   │       │(8)    │                                            │
   ├───────┴───────┴────────────────────────────────────────────┤
-  │                 送信元IPアドレス(32)                         │
+  │                 Source IP Address (32)                       │
   ├────────────────────────────────────────────────────────────┤
-  │                 宛先IPアドレス(32)                           │
+  │                 Destination IP Address (32)                  │
   ├────────────────────────────────────────────────────────────┤
-  │                 オプション（0〜40バイト）                    │
+  │                 Options (0–40 bytes)                         │
   └────────────────────────────────────────────────────────────┘
 
-  主要フィールド:
-    Version（4ビット）: 4（IPv4）
-    IHL（4ビット）: ヘッダー長（32ビット単位）、通常5（=20バイト）
-    ToS/DSCP（8ビット）: サービス品質（QoS）
-      DSCP（6ビット）: 差別化サービス
-      ECN（2ビット）: 輻輳通知
-    全長（16ビット）: パケット全体のバイト数（最大65535）
-    識別子（16ビット）: フラグメントの再組み立て用
-    フラグ（3ビット）:
-      DF（Don't Fragment）: フラグメント禁止
-      MF（More Fragments）: 後続フラグメントあり
-    TTL（8ビット）: Time To Live（ホップ数制限）
-      初期値: 64（Linux）、128（Windows）、255（ネットワーク機器）
-      ルーター通過ごとに1減算、0になったらパケット破棄 + ICMP Time Exceeded
-      → tracerouteの仕組みはTTLを利用
-    プロトコル（8ビット）:
+  Key fields:
+    Version (4 bits): 4 (IPv4)
+    IHL (4 bits): header length (in 32-bit units), usually 5 (= 20 bytes)
+    ToS/DSCP (8 bits): Quality of Service (QoS)
+      DSCP (6 bits): Differentiated Services
+      ECN (2 bits): Explicit Congestion Notification
+    Total Length (16 bits): total byte count of the packet (max 65535)
+    Identification (16 bits): used for fragment reassembly
+    Flags (3 bits):
+      DF (Don't Fragment): fragmentation prohibited
+      MF (More Fragments): more fragments follow
+    TTL (8 bits): Time To Live (hop count limit)
+      Initial value: 64 (Linux), 128 (Windows), 255 (network devices)
+      Decremented by 1 at each router; packet discarded when 0 + ICMP Time Exceeded
+      → traceroute works by exploiting TTL
+    Protocol (8 bits):
       1 = ICMP
       6 = TCP
       17 = UDP
       47 = GRE
-      50 = ESP（IPsec）
+      50 = ESP (IPsec)
 ```
 
-### 5.3 TCPセグメントヘッダー（L4）
+### 5.3 TCP Segment Header (L4)
 
 ```
-TCP ヘッダー構造（20バイト〜60バイト）:
+TCP header structure (20–60 bytes):
 
   0                   1                   2                   3
   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
   ┌─────────────────────────┬─────────────────────────┐
-  │     送信元ポート (16)    │     宛先ポート (16)      │
+  │     Source Port (16)     │     Destination Port (16)│
   ├─────────────────────────────────────────────────────┤
-  │                シーケンス番号 (32)                    │
+  │                Sequence Number (32)                   │
   ├─────────────────────────────────────────────────────┤
-  │                 ACK番号 (32)                          │
+  │                 ACK Number (32)                       │
   ├────┬──────┬─┬─┬─┬─┬─┬─┬─────────────────────────┤
-  │オフ│予約  │U│A│P│R│S│F│   ウィンドウサイズ (16)  │
+  │Off │Rsvd  │U│A│P│R│S│F│   Window Size (16)        │
   │(4) │(6)   │R│C│S│S│Y│I│                          │
   │    │      │G│K│H│T│N│N│                          │
   ├─────────────────────────┬─────────────────────────┤
-  │   チェックサム (16)      │   緊急ポインタ (16)      │
+  │   Checksum (16)          │   Urgent Pointer (16)    │
   ├─────────────────────────┴─────────────────────────┤
-  │              オプション（0〜40バイト）               │
+  │              Options (0–40 bytes)                    │
   └─────────────────────────────────────────────────────┘
 
-  主要フラグ:
-  SYN: 接続開始
-  ACK: 確認応答
-  FIN: 接続終了
-  RST: 接続リセット（異常終了）
-  PSH: バッファリングせず即座に配信
-  URG: 緊急データあり
-  ECE: ECN-Echo（輻輳通知受信）
-  CWR: Congestion Window Reduced（輻輳ウィンドウ縮小済み）
+  Key flags:
+  SYN: connection initiation
+  ACK: acknowledgment
+  FIN: connection termination
+  RST: connection reset (abnormal termination)
+  PSH: deliver immediately without buffering
+  URG: urgent data present
+  ECE: ECN-Echo (congestion notification received)
+  CWR: Congestion Window Reduced
 
-  重要なオプション:
-  MSS: Maximum Segment Size（通常1460バイト）
-    → MTU(1500) - IPヘッダー(20) - TCPヘッダー(20) = 1460
-  Window Scale: ウィンドウサイズの拡張（最大1GB）
-    → 16ビット × 2^14 = 最大1GBウィンドウ
-  SACK: Selective ACK（部分的な再送を可能に）
-  Timestamp: RTT測定用、PAWS（Protection Against Wrapped Sequences）
+  Important options:
+  MSS: Maximum Segment Size (typically 1460 bytes)
+    → MTU(1500) - IP header(20) - TCP header(20) = 1460
+  Window Scale: extends window size (up to 1 GB)
+    → 16 bits × 2^14 = up to 1 GB window
+  SACK: Selective ACK (allows partial retransmission)
+  Timestamp: RTT measurement, PAWS (Protection Against Wrapped Sequences)
 ```
 
-### 5.4 UDPデータグラムヘッダー（L4）
+### 5.4 UDP Datagram Header (L4)
 
 ```
-UDP ヘッダー構造（8バイト固定）:
+UDP header structure (fixed 8 bytes):
 
   0                   1                   2                   3
   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
   ┌─────────────────────────┬─────────────────────────┐
-  │     送信元ポート (16)    │     宛先ポート (16)      │
+  │     Source Port (16)     │     Destination Port (16)│
   ├─────────────────────────┬─────────────────────────┤
-  │     データ長 (16)        │     チェックサム (16)    │
+  │     Length (16)          │     Checksum (16)        │
   └─────────────────────────┴─────────────────────────┘
 
-  特徴:
-    → TCPの20-60バイトに対してわずか8バイト
-    → シーケンス番号なし、ACKなし、ウィンドウサイズなし
-    → 最小限の情報だけ → 高速処理が可能
-    → チェックサムはIPv4ではオプション、IPv6では必須
+  Characteristics:
+    → Only 8 bytes compared to TCP's 20–60 bytes
+    → No sequence number, no ACK, no window size
+    → Minimal information only → enables fast processing
+    → Checksum is optional in IPv4, mandatory in IPv6
 ```
 
 ---
 
-## 6. ポート番号の体系
+## 6. Port Number System
 
-### 6.1 よく使うポート番号
+### 6.1 Commonly Used Port Numbers
 
 ```
 ┌────────┬──────────────────┬─────────────────┐
-│ ポート │ プロトコル       │ 用途            │
+│ Port   │ Protocol         │ Purpose         │
 ├────────┼──────────────────┼─────────────────┤
-│ 20, 21 │ FTP              │ ファイル転送    │
-│ 22     │ SSH              │ セキュアシェル  │
-│ 23     │ Telnet           │ リモートログイン│
-│ 25     │ SMTP             │ メール送信      │
-│ 53     │ DNS              │ 名前解決        │
-│ 67, 68 │ DHCP             │ IPアドレス配布  │
-│ 80     │ HTTP             │ Web（非暗号化） │
-│ 110    │ POP3             │ メール受信      │
-│ 123    │ NTP              │ 時刻同期        │
-│ 143    │ IMAP             │ メール受信      │
-│ 161    │ SNMP             │ ネットワーク監視│
-│ 389    │ LDAP             │ ディレクトリ    │
-│ 443    │ HTTPS            │ Web（暗号化）   │
-│ 465    │ SMTPS            │ メール送信(暗号)│
-│ 514    │ Syslog           │ ログ転送        │
-│ 587    │ SMTP Submission  │ メール送信      │
-│ 636    │ LDAPS            │ LDAP暗号化      │
-│ 993    │ IMAPS            │ IMAP暗号化      │
-│ 995    │ POP3S            │ POP3暗号化      │
-│ 1433   │ MS SQL Server    │ データベース    │
-│ 1521   │ Oracle DB        │ データベース    │
-│ 2049   │ NFS              │ ファイル共有    │
-│ 3000   │ 開発サーバー     │ Node.js等       │
-│ 3306   │ MySQL            │ データベース    │
-│ 3389   │ RDP              │ リモートデスクトップ│
-│ 5432   │ PostgreSQL       │ データベース    │
-│ 5672   │ AMQP             │ メッセージキュー│
-│ 6379   │ Redis            │ キャッシュ      │
-│ 8080   │ HTTP代替         │ プロキシ/開発   │
-│ 8443   │ HTTPS代替        │ 管理画面等      │
-│ 9090   │ Prometheus       │ 監視            │
-│ 9200   │ Elasticsearch    │ 検索エンジン    │
-│ 27017  │ MongoDB          │ データベース    │
+│ 20, 21 │ FTP              │ File transfer   │
+│ 22     │ SSH              │ Secure shell    │
+│ 23     │ Telnet           │ Remote login    │
+│ 25     │ SMTP             │ Email sending   │
+│ 53     │ DNS              │ Name resolution │
+│ 67, 68 │ DHCP             │ IP address assignment│
+│ 80     │ HTTP             │ Web (unencrypted)│
+│ 110    │ POP3             │ Email receiving │
+│ 123    │ NTP              │ Time sync       │
+│ 143    │ IMAP             │ Email receiving │
+│ 161    │ SNMP             │ Network monitoring│
+│ 389    │ LDAP             │ Directory       │
+│ 443    │ HTTPS            │ Web (encrypted) │
+│ 465    │ SMTPS            │ Email sending (encrypted)│
+│ 514    │ Syslog           │ Log forwarding  │
+│ 587    │ SMTP Submission  │ Email sending   │
+│ 636    │ LDAPS            │ LDAP encrypted  │
+│ 993    │ IMAPS            │ IMAP encrypted  │
+│ 995    │ POP3S            │ POP3 encrypted  │
+│ 1433   │ MS SQL Server    │ Database        │
+│ 1521   │ Oracle DB        │ Database        │
+│ 2049   │ NFS              │ File sharing    │
+│ 3000   │ Dev server       │ Node.js, etc.   │
+│ 3306   │ MySQL            │ Database        │
+│ 3389   │ RDP              │ Remote desktop  │
+│ 5432   │ PostgreSQL       │ Database        │
+│ 5672   │ AMQP             │ Message queue   │
+│ 6379   │ Redis            │ Cache           │
+│ 8080   │ HTTP alternative │ Proxy/dev       │
+│ 8443   │ HTTPS alternative│ Admin UI, etc.  │
+│ 9090   │ Prometheus       │ Monitoring      │
+│ 9200   │ Elasticsearch    │ Search engine   │
+│ 27017  │ MongoDB          │ Database        │
 └────────┴──────────────────┴─────────────────┘
 ```
 
-### 6.2 ポート番号の範囲と分類
+### 6.2 Port Number Ranges and Classification
 
 ```
-ポート番号の範囲:
-  0-1023:     ウェルノウンポート（Well-known Ports）
-    → root権限/管理者権限が必要
-    → IANAが管理する公式割り当て
-    → 例: 80(HTTP), 443(HTTPS), 22(SSH), 53(DNS)
+Port number ranges:
+  0-1023:     Well-known Ports
+    → Requires root/administrator privileges
+    → Officially assigned by IANA
+    → Examples: 80 (HTTP), 443 (HTTPS), 22 (SSH), 53 (DNS)
 
-  1024-49151: レジスタードポート（Registered Ports）
-    → 一般ユーザーでも使用可能
-    → IANAに登録されたアプリケーション用
-    → 例: 3306(MySQL), 5432(PostgreSQL), 8080(HTTP代替)
+  1024-49151: Registered Ports
+    → Usable by regular users
+    → Registered with IANA for specific applications
+    → Examples: 3306 (MySQL), 5432 (PostgreSQL), 8080 (HTTP alternative)
 
-  49152-65535: ダイナミック/エフェメラルポート（Dynamic/Ephemeral Ports）
-    → クライアント側の一時的なポート
-    → OSが自動的に割り当て
-    → 接続ごとに異なるポートを使用
+  49152-65535: Dynamic/Ephemeral Ports
+    → Temporary ports on the client side
+    → Automatically assigned by the OS
+    → A different port is used for each connection
 
-  エフェメラルポートの範囲（OS別）:
-    Linux:   32768-60999（/proc/sys/net/ipv4/ip_local_port_range）
+  Ephemeral port ranges (by OS):
+    Linux:   32768-60999 (/proc/sys/net/ipv4/ip_local_port_range)
     Windows: 49152-65535
     macOS:   49152-65535
 
-  実務例: ファイアウォール設定
-    # インバウンド（サーバー側）
-    ポート 80/443 を許可（Webサーバー）
-    ポート 22 を特定IPからのみ許可（SSH）
+  Practical example: firewall configuration
+    # Inbound (server side)
+    Allow port 80/443 (web server)
+    Allow port 22 from specific IPs only (SSH)
 
-    # アウトバウンド（クライアント側）
-    通常は全ポート許可（エフェメラルポートを制限すると通信不可）
+    # Outbound (client side)
+    Usually allow all ports (restricting ephemeral ports would break communication)
 ```
 
-### 6.3 ソケットとポートの関係
+### 6.3 Relationship Between Sockets and Ports
 
 ```
-ソケット = IPアドレス + ポート番号の組み合わせ
+Socket = combination of IP address + port number
 
-  TCP接続の識別（5タプル）:
-    ① プロトコル: TCP
-    ② 送信元IP:   192.168.1.100
-    ③ 送信元ポート: 54321
-    ④ 宛先IP:     93.184.216.34
-    ⑤ 宛先ポート:  443
+  TCP connection identification (5-tuple):
+    ① Protocol: TCP
+    ② Source IP:   192.168.1.100
+    ③ Source port: 54321
+    ④ Destination IP: 93.184.216.34
+    ⑤ Destination port: 443
 
-  → 5タプルが異なれば別々の接続として識別
-  → 1つのサーバーポートに複数のクライアントが接続可能
+  → Different 5-tuples are treated as separate connections
+  → Multiple clients can connect to a single server port
 
-  例: Webサーバー（ポート443）への複数接続
-    接続1: (TCP, 192.168.1.10:50001, 93.184.216.34:443)
-    接続2: (TCP, 192.168.1.10:50002, 93.184.216.34:443)
-    接続3: (TCP, 192.168.1.11:50001, 93.184.216.34:443)
-    → 全て別々の接続として管理される
+  Example: multiple connections to a web server (port 443)
+    Connection 1: (TCP, 192.168.1.10:50001, 93.184.216.34:443)
+    Connection 2: (TCP, 192.168.1.10:50002, 93.184.216.34:443)
+    Connection 3: (TCP, 192.168.1.11:50001, 93.184.216.34:443)
+    → All managed as separate connections
 
-  最大接続数の理論値:
-    1つのサーバーポートに対して:
-    → 2^32（IP）× 2^16（ポート）= 約2.8×10^14 接続
-    → 実際はメモリやファイルディスクリプタで制限される
-    → Linux: ulimit -n で確認（デフォルト1024、設定可能）
+  Theoretical maximum connections:
+    For a single server port:
+    → 2^32 (IP) × 2^16 (port) = approx. 2.8×10^14 connections
+    → In practice, limited by memory and file descriptors
+    → Linux: check with ulimit -n (default 1024, configurable)
 
-  ポート確認コマンド:
-    $ ss -tlnp              # TCP LISTENポート一覧
-    $ ss -tunp              # 全アクティブ接続
-    $ lsof -i :8080         # 特定ポートを使用中のプロセス
-    $ netstat -tlnp         # TCP LISTENポート一覧（レガシー）
+  Port inspection commands:
+    $ ss -tlnp              # List TCP LISTEN ports
+    $ ss -tunp              # All active connections
+    $ lsof -i :8080         # Process using a specific port
+    $ netstat -tlnp         # List TCP LISTEN ports (legacy)
 ```
 
 ---
 
-## 7. パケットキャプチャによる実践分析
+## 7. Practical Analysis with Packet Capture
 
-### 7.1 tcpdumpによるキャプチャ
+### 7.1 Capturing with tcpdump
 
 ```bash
-# 基本的なキャプチャ
+# Basic capture
 sudo tcpdump -i eth0
 
-# 特定ホストへの通信
+# Traffic to a specific host
 sudo tcpdump -i eth0 host 192.168.1.100
 
-# 特定ポートの通信
+# Traffic on a specific port
 sudo tcpdump -i eth0 port 80
 
-# TCPフラグでフィルタ（SYNパケットのみ）
+# Filter by TCP flag (SYN packets only)
 sudo tcpdump -i eth0 'tcp[tcpflags] & (tcp-syn) != 0'
 
-# ファイルに保存（後でWiresharkで分析）
+# Save to file (analyze later with Wireshark)
 sudo tcpdump -i eth0 -w capture.pcap
 
-# パケットの中身を表示（16進ダンプ）
+# Display packet contents (hex dump)
 sudo tcpdump -i eth0 -X port 80
 
-# 最初の10パケットだけキャプチャ
+# Capture only the first 10 packets
 sudo tcpdump -i eth0 -c 10
 ```
 
-### 7.2 Wiresharkでの分析
+### 7.2 Analysis with Wireshark
 
 ```
-Wireshark = GUIパケット分析ツール（ネットワークエンジニア必須）
+Wireshark = GUI packet analysis tool (essential for network engineers)
 
-主要な表示フィルタ:
-  http                          # HTTPトラフィック
-  tcp.port == 443               # ポート443の通信
-  ip.addr == 192.168.1.100      # 特定IPの通信
-  tcp.flags.syn == 1            # SYNパケット
-  tcp.analysis.retransmission   # 再送パケット
-  dns                           # DNS通信
-  tcp.analysis.zero_window      # ゼロウィンドウ
+Key display filters:
+  http                          # HTTP traffic
+  tcp.port == 443               # Traffic on port 443
+  ip.addr == 192.168.1.100      # Traffic from/to a specific IP
+  tcp.flags.syn == 1            # SYN packets
+  tcp.analysis.retransmission   # Retransmitted packets
+  dns                           # DNS traffic
+  tcp.analysis.zero_window      # Zero-window packets
 
-分析のポイント:
-  ① TCP 3-way Handshake の確認:
-     SYN → SYN-ACK → ACK の流れを追跡
-     → RTT（Round Trip Time）を計測
+Analysis points:
+  ① Verifying TCP 3-way handshake:
+     Track the flow: SYN → SYN-ACK → ACK
+     → Measure RTT (Round Trip Time)
 
-  ② HTTP リクエスト/レスポンスの確認:
-     → リクエストヘッダー、ボディの内容
-     → レスポンスのステータスコード
+  ② Checking HTTP request/response:
+     → Request headers and body content
+     → Response status code
      → Content-Length, Transfer-Encoding
 
-  ③ TCP再送の検出:
-     → [TCP Retransmission] マークのパケット
-     → 再送頻度が高い = ネットワーク品質の問題
+  ③ Detecting TCP retransmissions:
+     → Packets marked [TCP Retransmission]
+     → Frequent retransmissions = network quality issue
 
-  ④ DNSクエリの確認:
-     → クエリタイプ（A, AAAA, MX等）
-     → 応答時間
-     → レスポンスのIPアドレス
+  ④ Checking DNS queries:
+     → Query type (A, AAAA, MX, etc.)
+     → Response time
+     → IP address in the response
 
-  ⑤ TLSハンドシェイクの分析:
-     → Client Hello: 対応する暗号スイート一覧
-     → Server Hello: 選択された暗号スイート
-     → 証明書の確認
+  ⑤ Analyzing TLS handshake:
+     → Client Hello: list of supported cipher suites
+     → Server Hello: selected cipher suite
+     → Certificate verification
 ```
 
-### 7.3 実務的なキャプチャシナリオ
+### 7.3 Practical Capture Scenarios
 
 ```
-シナリオ1: Webアプリのレスポンスが遅い
+Scenario 1: Web application response is slow
 
-  キャプチャポイント:
-  クライアント ──→ ロードバランサー ──→ Webサーバー ──→ DB
+  Capture points:
+  Client → Load Balancer → Web Server → DB
 
-  分析手順:
-  1. DNS解決時間を確認（dns.time > 0.1 は問題）
-  2. TCP接続確立時間を確認（SYN → SYN-ACK の間隔）
-  3. TLSハンドシェイク時間を確認
-  4. HTTPリクエスト→レスポンスの時間を確認
-  5. 再送パケットの有無を確認
+  Analysis procedure:
+  1. Check DNS resolution time (dns.time > 0.1 is a problem)
+  2. Check TCP connection establishment time (interval between SYN → SYN-ACK)
+  3. Check TLS handshake time
+  4. Check time between HTTP request → response
+  5. Check for retransmitted packets
 
-  → 遅延がどの層で発生しているかを特定
+  → Identify which layer the delay is occurring at
 
-シナリオ2: 接続が突然切れる
+Scenario 2: Connection suddenly drops
 
-  確認ポイント:
-  1. RST パケットが送られているか
-     → アプリケーションが異常終了した可能性
-  2. FIN が送られているか
-     → 正常なクローズの可能性
-  3. パケットが消えているか（片方だけ送信）
-     → ネットワーク機器の問題
+  Points to check:
+  1. Is an RST packet being sent?
+     → Possible abnormal application termination
+  2. Is FIN being sent?
+     → Possible normal close
+  3. Are packets disappearing (only sent from one side)?
+     → Network device issue
 
-シナリオ3: TCPウィンドウサイズの問題
+Scenario 3: TCP window size issue
 
-  確認ポイント:
-  1. tcp.analysis.zero_window でフィルタ
-  2. ウィンドウサイズの推移を確認
-  3. Window Scale オプションが設定されているか
-  → 受信側の処理が追いつかない場合に発生
+  Points to check:
+  1. Filter with tcp.analysis.zero_window
+  2. Check the trend in window size
+  3. Check if the Window Scale option is set
+  → Occurs when the receiver cannot keep up with processing
 ```
 
 ---
 
-## 8. ネットワーク機器と動作する層
+## 8. Network Devices and the Layer They Operate At
 
 ```
-各機器がどの層で動作するかの理解:
+Understanding which layer each device operates at:
 
 ┌────────────────────┬──────┬──────────────────────────────┐
-│ 機器               │ 動作層│ 機能                         │
+│ Device             │ Layer│ Function                     │
 ├────────────────────┼──────┼──────────────────────────────┤
-│ ハブ               │ L1   │ 信号をすべてのポートに転送   │
-│ リピーター         │ L1   │ 信号の増幅・再生             │
+│ Hub                │ L1   │ Forwards signals to all ports│
+│ Repeater           │ L1   │ Amplifies and regenerates signals│
 ├────────────────────┼──────┼──────────────────────────────┤
-│ L2スイッチ         │ L2   │ MACアドレスでフレーム転送    │
-│ ブリッジ           │ L2   │ セグメントの接続             │
-│ アクセスポイント   │ L2   │ 無線LANの基地局              │
+│ L2 switch          │ L2   │ Forwards frames by MAC address│
+│ Bridge             │ L2   │ Connects network segments    │
+│ Access point       │ L2   │ Wireless LAN base station    │
 ├────────────────────┼──────┼──────────────────────────────┤
-│ ルーター           │ L3   │ IPアドレスでパケット転送     │
-│ L3スイッチ         │ L3   │ ルーティング機能付きスイッチ │
-│ ファイアウォール   │L3-L4 │ パケットフィルタリング       │
+│ Router             │ L3   │ Forwards packets by IP address│
+│ L3 switch          │ L3   │ Switch with routing capability│
+│ Firewall           │L3-L4 │ Packet filtering             │
 ├────────────────────┼──────┼──────────────────────────────┤
-│ L4ロードバランサー │ L4   │ ポート番号ベースの負荷分散   │
+│ L4 load balancer   │ L4   │ Port number-based load balancing│
 ├────────────────────┼──────┼──────────────────────────────┤
-│ L7ロードバランサー │ L7   │ HTTPコンテンツベースの負荷分散│
-│ WAF                │ L7   │ Webアプリケーションの保護    │
-│ プロキシサーバー   │ L7   │ リクエストの中継             │
-│ リバースプロキシ   │ L7   │ バックエンドの代理応答       │
+│ L7 load balancer   │ L7   │ HTTP content-based load balancing│
+│ WAF                │ L7   │ Web application protection   │
+│ Proxy server       │ L7   │ Request relay                │
+│ Reverse proxy      │ L7   │ Backend response proxy       │
 └────────────────────┴──────┴──────────────────────────────┘
 
-L4ロードバランサー vs L7ロードバランサー:
+L4 load balancer vs L7 load balancer:
   L4:
-    → TCPコネクションレベルで振り分け
-    → 高速（ヘッダーだけ見る）
-    → DSR（Direct Server Return）が可能
-    → 例: AWS NLB, HAProxy(TCPモード)
+    → Distributes at the TCP connection level
+    → Fast (only looks at headers)
+    → DSR (Direct Server Return) is possible
+    → Examples: AWS NLB, HAProxy (TCP mode)
 
   L7:
-    → HTTPリクエストの中身で振り分け
-    → URL パス、ホスト名、Cookie で制御可能
-    → SSL/TLS 終端が可能
-    → 例: AWS ALB, nginx, HAProxy(HTTPモード)
+    → Distributes based on HTTP request content
+    → Controllable by URL path, hostname, Cookie
+    → SSL/TLS termination possible
+    → Examples: AWS ALB, nginx, HAProxy (HTTP mode)
 
-クラウドでの対応（AWS）:
+Cloud equivalents (AWS):
   ┌───────────────────┬───────────────────┐
-  │ オンプレミス機器   │ AWSサービス       │
+  │ On-premises device │ AWS service       │
   ├───────────────────┼───────────────────┤
-  │ ルーター           │ VPC ルートテーブル│
-  │ L3スイッチ         │ VPC サブネット    │
-  │ ファイアウォール   │ Security Group    │
+  │ Router             │ VPC route table   │
+  │ L3 switch          │ VPC subnet        │
+  │ Firewall           │ Security Group    │
   │                   │ Network ACL       │
-  │ L4ロードバランサー │ NLB               │
-  │ L7ロードバランサー │ ALB               │
+  │ L4 load balancer   │ NLB               │
+  │ L7 load balancer   │ ALB               │
   │ WAF                │ AWS WAF           │
-  │ VPN装置            │ VPN Gateway       │
-  │ 専用線接続         │ Direct Connect    │
+  │ VPN device         │ VPN Gateway       │
+  │ Dedicated line     │ Direct Connect    │
   └───────────────────┴───────────────────┘
 ```
 
 ---
 
-## 9. トラブルシューティングの層別アプローチ
+## 9. Layer-by-Layer Approach to Troubleshooting
 
-### 9.1 ボトムアップアプローチ
+### 9.1 Bottom-Up Approach
 
 ```
-問題が発生したとき、下位層から順に確認する:
+When a problem occurs, check from the lowest layer upward:
 
-Step 1: 物理層（L1）の確認
-  □ ケーブルは正しく接続されているか
-  □ リンクLEDは点灯しているか
-  □ Wi-Fiの電波強度は十分か
+Step 1: Physical layer (L1) check
+  □ Is the cable properly connected?
+  □ Is the link LED lit?
+  □ Is the Wi-Fi signal strength sufficient?
 
-  コマンド:
-    $ ip link show                 # インターフェース状態
-    $ ethtool eth0                 # リンク状態、速度
-    $ iwconfig wlan0               # Wi-Fi信号強度
+  Commands:
+    $ ip link show                 # Interface status
+    $ ethtool eth0                 # Link status, speed
+    $ iwconfig wlan0               # Wi-Fi signal strength
 
-Step 2: データリンク層（L2）の確認
-  □ MACアドレスは正しく取得されているか
-  □ ARPテーブルに対向のエントリがあるか
-  □ VLANの設定は正しいか
+Step 2: Data link layer (L2) check
+  □ Is the MAC address correctly obtained?
+  □ Is there an entry for the peer in the ARP table?
+  □ Is the VLAN configuration correct?
 
-  コマンド:
-    $ arp -a                       # ARPテーブル
-    $ ip neigh show                # 近隣テーブル
-    $ bridge vlan show             # VLAN設定
+  Commands:
+    $ arp -a                       # ARP table
+    $ ip neigh show                # Neighbor table
+    $ bridge vlan show             # VLAN configuration
 
-Step 3: ネットワーク層（L3）の確認
-  □ IPアドレスは正しく設定されているか
-  □ デフォルトゲートウェイに到達可能か
-  □ ルーティングは正しいか
-  □ 宛先にpingが通るか
+Step 3: Network layer (L3) check
+  □ Is the IP address correctly configured?
+  □ Is the default gateway reachable?
+  □ Is the routing correct?
+  □ Does ping reach the destination?
 
-  コマンド:
-    $ ip addr show                 # IPアドレス確認
-    $ ip route show                # ルーティングテーブル
-    $ ping -c 3 192.168.1.1       # ゲートウェイへの疎通
-    $ ping -c 3 8.8.8.8           # インターネットへの疎通
-    $ traceroute example.com       # 経路追跡
+  Commands:
+    $ ip addr show                 # Check IP address
+    $ ip route show                # Routing table
+    $ ping -c 3 192.168.1.1       # Connectivity to gateway
+    $ ping -c 3 8.8.8.8           # Connectivity to the Internet
+    $ traceroute example.com       # Route tracing
 
-Step 4: トランスポート層（L4）の確認
-  □ 宛先ポートは開いているか
-  □ ファイアウォールでブロックされていないか
-  □ TCPハンドシェイクは完了するか
+Step 4: Transport layer (L4) check
+  □ Is the destination port open?
+  □ Is it blocked by a firewall?
+  □ Does the TCP handshake complete?
 
-  コマンド:
-    $ telnet example.com 80        # ポート到達確認
-    $ nc -zv example.com 443       # ポートスキャン
-    $ ss -tlnp                     # LISTEN中のポート
-    $ iptables -L -n               # ファイアウォールルール
+  Commands:
+    $ telnet example.com 80        # Port reachability check
+    $ nc -zv example.com 443       # Port scan
+    $ ss -tlnp                     # Ports in LISTEN state
+    $ iptables -L -n               # Firewall rules
 
-Step 5: アプリケーション層（L5-L7）の確認
-  □ DNSは正しく解決されるか
-  □ HTTPレスポンスは返ってくるか
-  □ TLS/SSL証明書は有効か
-  □ アプリケーションログにエラーはないか
+Step 5: Application layer (L5–L7) check
+  □ Is DNS resolving correctly?
+  □ Is an HTTP response returned?
+  □ Is the TLS/SSL certificate valid?
+  □ Are there errors in the application log?
 
-  コマンド:
-    $ dig example.com              # DNS解決
-    $ curl -v https://example.com  # HTTP通信の詳細
-    $ openssl s_client -connect example.com:443  # TLS確認
+  Commands:
+    $ dig example.com              # DNS resolution
+    $ curl -v https://example.com  # HTTP communication details
+    $ openssl s_client -connect example.com:443  # TLS check
 ```
 
-### 9.2 よくある問題と層の対応
+### 9.2 Common Problems and Their Corresponding Layers
 
 ```
 ┌──────────────────────────────────┬──────┬─────────────────────────────┐
-│ 症状                             │ 層   │ 原因と対策                  │
+│ Symptom                          │ Layer│ Cause and remedy            │
 ├──────────────────────────────────┼──────┼─────────────────────────────┤
-│ 全く通信できない                 │ L1   │ ケーブル断線、インターフェース│
-│                                  │      │ ダウン                      │
+│ No communication at all          │ L1   │ Cable disconnection, interface│
+│                                  │      │ down                        │
 ├──────────────────────────────────┼──────┼─────────────────────────────┤
-│ 同一セグメント内のみ通信不可     │ L2   │ MACアドレス重複、VLAN設定   │
-│                                  │      │ ミス、STPのブロッキング     │
+│ Cannot communicate within same   │ L2   │ Duplicate MAC address, VLAN │
+│ segment only                     │      │ misconfiguration, STP block │
 ├──────────────────────────────────┼──────┼─────────────────────────────┤
-│ pingは通るがHTTPは通らない       │ L4   │ ファイアウォール、ポート     │
-│                                  │      │ ブロック                    │
+│ ping works but HTTP does not     │ L4   │ Firewall, port block        │
 ├──────────────────────────────────┼──────┼─────────────────────────────┤
-│ 特定サイトだけ接続できない       │ L7   │ DNS問題、証明書期限切れ     │
-│                                  │      │ アプリケーション障害        │
+│ Cannot connect to a specific site│ L7   │ DNS problem, expired cert,  │
+│                                  │      │ application failure         │
 ├──────────────────────────────────┼──────┼─────────────────────────────┤
-│ 通信は可能だが遅い               │ 複数 │ 帯域不足(L1)、パケットロス  │
-│                                  │      │ (L2-L3)、輻輳(L4)、        │
-│                                  │      │ アプリ処理遅延(L7)          │
+│ Communication works but is slow  │ Multi│ Bandwidth shortage (L1),    │
+│                                  │      │ packet loss (L2-L3),        │
+│                                  │      │ congestion (L4),            │
+│                                  │      │ application delay (L7)      │
 ├──────────────────────────────────┼──────┼─────────────────────────────┤
-│ 間欠的に接続が切れる             │ 複数 │ 電波干渉(L1)、STP再計算(L2)│
-│                                  │      │ ルーティング不安定(L3)     │
+│ Connection intermittently drops  │ Multi│ Radio interference (L1),    │
+│                                  │      │ STP recalculation (L2),     │
+│                                  │      │ routing instability (L3)    │
 ├──────────────────────────────────┼──────┼─────────────────────────────┤
-│ Name resolution failed           │ L7   │ DNSサーバー障害、設定ミス   │
-│                                  │      │ /etc/resolv.conf 確認       │
+│ Name resolution failed           │ L7   │ DNS server failure, misconfiguration│
+│                                  │      │ Check /etc/resolv.conf      │
 ├──────────────────────────────────┼──────┼─────────────────────────────┤
-│ Connection refused               │ L4   │ サービス未起動、ポート未LISTEN│
+│ Connection refused               │ L4   │ Service not running, port not in LISTEN│
 ├──────────────────────────────────┼──────┼─────────────────────────────┤
-│ Connection timed out             │ L3-4 │ ファイアウォール、ルーティング│
-│                                  │      │ 問題、サーバーダウン        │
+│ Connection timed out             │ L3-4 │ Firewall, routing issue,    │
+│                                  │      │ server down                 │
 ├──────────────────────────────────┼──────┼─────────────────────────────┤
-│ SSL handshake failed             │ L6-7 │ 証明書不一致、TLSバージョン │
-│                                  │      │ 暗号スイートの不一致        │
+│ SSL handshake failed             │ L6-7 │ Certificate mismatch, TLS   │
+│                                  │      │ version or cipher suite mismatch│
 └──────────────────────────────────┴──────┴─────────────────────────────┘
 ```
 
 ---
 
-## 10. 実務でのネットワークモデルの適用
+## 10. Applying the Network Model in Practice
 
-### 10.1 Webアプリケーションの通信フロー
+### 10.1 Web Application Communication Flow
 
 ```
-ブラウザで https://api.example.com/users にアクセスする場合の
-完全な通信フロー:
+Complete communication flow when accessing https://api.example.com/users
+from a browser:
 
-Phase 1: DNS解決（アプリケーション層）
-  ① ブラウザDNSキャッシュ → ミス
-  ② OS DNSキャッシュ → ミス
-  ③ リゾルバに問い合わせ（UDP:53）
-  ④ api.example.com → 203.0.113.50 を取得
-  → 所要時間: 5-50ms
+Phase 1: DNS resolution (Application layer)
+  ① Browser DNS cache → miss
+  ② OS DNS cache → miss
+  ③ Query resolver (UDP:53)
+  ④ Obtain api.example.com → 203.0.113.50
+  → Time required: 5–50 ms
 
-Phase 2: TCP接続確立（トランスポート層）
-  ① SYN（クライアント → サーバー）
-  ② SYN-ACK（サーバー → クライアント）
-  ③ ACK（クライアント → サーバー）
-  → 所要時間: 1.5 RTT（東京-US間: 約150ms）
+Phase 2: TCP connection establishment (Transport layer)
+  ① SYN (client → server)
+  ② SYN-ACK (server → client)
+  ③ ACK (client → server)
+  → Time required: 1.5 RTT (Tokyo–US: approx. 150 ms)
 
-Phase 3: TLSハンドシェイク（プレゼンテーション/アプリケーション層）
-  ① Client Hello（対応暗号スイート一覧）
-  ② Server Hello（選択暗号スイート + 証明書）
-  ③ 鍵交換（ECDHE）
-  ④ Finished（暗号化通信開始）
-  → TLS 1.3: 1 RTT（TLS 1.2は2 RTT）
-  → 所要時間: 約100ms
+Phase 3: TLS handshake (Presentation/Application layer)
+  ① Client Hello (list of supported cipher suites)
+  ② Server Hello (selected cipher suite + certificate)
+  ③ Key exchange (ECDHE)
+  ④ Finished (encrypted communication begins)
+  → TLS 1.3: 1 RTT (TLS 1.2 requires 2 RTTs)
+  → Time required: approx. 100 ms
 
-Phase 4: HTTPリクエスト送信（アプリケーション層）
+Phase 4: HTTP request sent (Application layer)
   GET /users HTTP/2
   Host: api.example.com
   Authorization: Bearer eyJhbGciOiJSUzI1NiI...
   Accept: application/json
 
-Phase 5: レスポンス受信
+Phase 5: Response received
   HTTP/2 200 OK
   Content-Type: application/json
   Content-Encoding: br
   Content-Length: 2048
 
-  [JSON データ]
+  [JSON data]
 
-Phase 6: TCP接続維持（Keep-Alive）
-  → HTTP/2: 1つのTCP接続で複数リクエストを多重化
-  → 次のリクエストはPhase 2-3をスキップ
+Phase 6: TCP connection kept alive (Keep-Alive)
+  → HTTP/2: multiplexes multiple requests over a single TCP connection
+  → Subsequent requests skip Phases 2–3
 
-合計レイテンシ（初回リクエスト）:
-  DNS:        50ms
-  TCP:       150ms
-  TLS:       100ms
-  HTTP往復:  100ms
+Total latency (first request):
+  DNS:        50 ms
+  TCP:       150 ms
+  TLS:       100 ms
+  HTTP round-trip: 100 ms
   ──────────────
-  合計:      約400ms（東京-US間）
+  Total:     approx. 400 ms (Tokyo–US)
 ```
 
-### 10.2 コンテナネットワーキングとOSIモデル
+### 10.2 Container Networking and the OSI Model
 
 ```
-Docker/Kubernetesでのネットワークモデルの適用:
+Applying the network model in Docker/Kubernetes:
 
-Dockerの場合:
+Docker:
   ┌─────────────────────────────────────────┐
-  │ ホストOS                                │
+  │ Host OS                                 │
   │                                         │
   │  ┌──────────┐  ┌──────────┐            │
   │  │Container1│  │Container2│            │
@@ -1333,165 +1333,165 @@ Dockerの場合:
   │  └────┬─────┘  └────┬─────┘            │
   │       │              │                  │
   │  ┌────┴──────────────┴─────┐            │
-  │  │  docker0 bridge          │ ← L2ブリッジ│
+  │  │  docker0 bridge          │ ← L2 bridge│
   │  │  172.17.0.1              │            │
   │  └────────────┬─────────────┘            │
   │               │                          │
   │  ┌────────────┴─────────────┐            │
-  │  │  eth0 (ホスト)           │ ← NAT      │
+  │  │  eth0 (host)             │ ← NAT      │
   │  │  192.168.1.100           │ (iptables) │
   │  └──────────────────────────┘            │
   └─────────────────────────────────────────┘
 
-  層の対応:
-    L2: docker0 ブリッジ（仮想スイッチ）
-    L3: IPアドレスの割り当て、NAT
-    L4: ポートマッピング（-p 8080:80）
-    L7: コンテナ内のアプリケーション
+  Layer mapping:
+    L2: docker0 bridge (virtual switch)
+    L3: IP address assignment, NAT
+    L4: port mapping (-p 8080:80)
+    L7: application inside the container
 
-Kubernetesの場合:
-  Pod間通信:
-    → CNI（Container Network Interface）プラグインが制御
-    → Calico: L3ルーティングベース（BGP使用）
-    → Cilium: eBPFベース（カーネルレベルで高速処理）
-    → Flannel: VXLAN オーバーレイ
+Kubernetes:
+  Pod-to-pod communication:
+    → Controlled by CNI (Container Network Interface) plugins
+    → Calico: L3 routing-based (uses BGP)
+    → Cilium: eBPF-based (fast processing at kernel level)
+    → Flannel: VXLAN overlay
 
   Service:
-    → ClusterIP: L4ロードバランシング（kube-proxy/iptables）
-    → NodePort: 全ノードの特定ポートを公開
-    → LoadBalancer: クラウドのL4/L7 LBと統合
+    → ClusterIP: L4 load balancing (kube-proxy/iptables)
+    → NodePort: exposes a specific port on all nodes
+    → LoadBalancer: integrates with cloud L4/L7 LB
 
   Ingress:
-    → L7ロードバランシング
-    → URL パスベースのルーティング
-    → TLS 終端
-    → 例: nginx-ingress, traefik, istio-gateway
+    → L7 load balancing
+    → URL path-based routing
+    → TLS termination
+    → Examples: nginx-ingress, traefik, istio-gateway
 ```
 
-### 10.3 マイクロサービスにおけるネットワーク
+### 10.3 Networking in Microservices
 
 ```
-マイクロサービスアーキテクチャでの各層の関わり:
+Involvement of each layer in a microservices architecture:
 
-サービスメッシュ（Istio/Linkerd）:
+Service mesh (Istio/Linkerd):
   ┌─────────────────────────────────────────┐
   │ Pod                                     │
   │  ┌───────────┐  ┌───────────────────┐  │
-  │  │ アプリ     │──│ サイドカー        │  │
-  │  │ コンテナ   │  │ プロキシ（Envoy） │  │
+  │  │ App        │──│ Sidecar           │  │
+  │  │ container  │  │ proxy (Envoy)     │  │
   │  │ (L7)      │  │ (L4-L7)          │  │
   │  └───────────┘  └───────────────────┘  │
   └─────────────────────────────────────────┘
 
-  サイドカーが提供する機能:
-    L4: TCP接続の管理、接続プーリング
-    L7: リトライ、タイムアウト、サーキットブレーカー
-    L7: mTLS（サービス間のTLS認証）
-    L7: トレーシング（分散トレーシングのヘッダー伝播）
-    L7: メトリクス収集（リクエスト数、レイテンシ）
+  Functions provided by the sidecar:
+    L4: TCP connection management, connection pooling
+    L7: retry, timeout, circuit breaker
+    L7: mTLS (TLS authentication between services)
+    L7: tracing (distributed tracing header propagation)
+    L7: metrics collection (request count, latency)
 
-通信パターンと層:
-  同期通信:
-    gRPC (L7/HTTP/2): マイクロサービス間RPC
-    REST (L7/HTTP): 外部API公開
+Communication patterns and layers:
+  Synchronous communication:
+    gRPC (L7/HTTP/2): inter-microservice RPC
+    REST (L7/HTTP): external API exposure
 
-  非同期通信:
-    Kafka (L7/TCP): イベント駆動
-    RabbitMQ (L7/AMQP): メッセージキュー
-    NATS (L7/TCP): 軽量メッセージング
+  Asynchronous communication:
+    Kafka (L7/TCP): event-driven
+    RabbitMQ (L7/AMQP): message queue
+    NATS (L7/TCP): lightweight messaging
 ```
 
 ---
 
-## 11. プロトコルスタックの実装
+## 11. Protocol Stack Implementation
 
-### 11.1 Linuxカーネルのネットワークスタック
+### 11.1 Linux Kernel Network Stack
 
 ```
-Linuxでのパケット処理フロー（受信時）:
+Packet processing flow in Linux (on receive):
 
-  NIC（物理層/L1）
-    ↓ DMA でパケットをメモリにコピー
-  デバイスドライバ（データリンク層/L2）
-    ↓ sk_buff 構造体を作成
-    ↓ NAPI（割り込みの最適化）
-  netfilter/iptables（L3-L4）
-    ↓ PREROUTING チェーン
-  IPレイヤー（ネットワーク層/L3）
-    ↓ ルーティング判断（ローカル配信 or フォワード）
-    ↓ INPUT チェーン（ローカル宛の場合）
-  TCPレイヤー（トランスポート層/L4）
-    ↓ ソケットバッファにデータを格納
-  アプリケーション（アプリケーション層/L7）
-    ↓ read()/recv() でデータを取得
+  NIC (physical layer/L1)
+    ↓ Copy packet to memory via DMA
+  Device driver (data link layer/L2)
+    ↓ Create sk_buff structure
+    ↓ NAPI (interrupt optimization)
+  netfilter/iptables (L3–L4)
+    ↓ PREROUTING chain
+  IP layer (network layer/L3)
+    ↓ Routing decision (local delivery or forward)
+    ↓ INPUT chain (for locally addressed packets)
+  TCP layer (transport layer/L4)
+    ↓ Store data in socket buffer
+  Application (application layer/L7)
+    ↓ Retrieve data with read()/recv()
 
-  カーネルパラメータ（チューニング可能なポイント）:
-    # TCP バッファサイズ
-    net.core.rmem_max = 16777216        # 受信バッファ最大値
-    net.core.wmem_max = 16777216        # 送信バッファ最大値
-    net.ipv4.tcp_rmem = 4096 87380 16777216  # TCP受信バッファ
-    net.ipv4.tcp_wmem = 4096 65536 16777216  # TCP送信バッファ
+  Kernel parameters (tunable points):
+    # TCP buffer sizes
+    net.core.rmem_max = 16777216        # Max receive buffer
+    net.core.wmem_max = 16777216        # Max send buffer
+    net.ipv4.tcp_rmem = 4096 87380 16777216  # TCP receive buffer
+    net.ipv4.tcp_wmem = 4096 65536 16777216  # TCP send buffer
 
-    # TCP接続管理
-    net.ipv4.tcp_max_syn_backlog = 4096  # SYNキューサイズ
-    net.core.somaxconn = 4096            # LISTENバックログ
-    net.ipv4.tcp_fin_timeout = 30        # FIN_WAIT_2タイムアウト
-    net.ipv4.tcp_tw_reuse = 1            # TIME_WAITソケットの再利用
+    # TCP connection management
+    net.ipv4.tcp_max_syn_backlog = 4096  # SYN queue size
+    net.core.somaxconn = 4096            # LISTEN backlog
+    net.ipv4.tcp_fin_timeout = 30        # FIN_WAIT_2 timeout
+    net.ipv4.tcp_tw_reuse = 1            # Reuse TIME_WAIT sockets
 
-    # 輻輳制御
-    net.ipv4.tcp_congestion_control = bbr  # BBRアルゴリズム
+    # Congestion control
+    net.ipv4.tcp_congestion_control = bbr  # BBR algorithm
     net.core.default_qdisc = fq            # Fair Queueing
 
-確認方法:
-  $ sysctl -a | grep tcp          # TCP関連パラメータ一覧
-  $ cat /proc/net/tcp             # TCP接続一覧
-  $ cat /proc/net/sockstat        # ソケット統計
+How to check:
+  $ sysctl -a | grep tcp          # List TCP-related parameters
+  $ cat /proc/net/tcp             # List TCP connections
+  $ cat /proc/net/sockstat        # Socket statistics
 ```
 
-### 11.2 ソケットプログラミングとOSIモデル
+### 11.2 Socket Programming and the OSI Model
 
 ```python
-# Pythonでの簡単なTCPサーバー実装
-# 各行がどの層に対応するかをコメントで示す
+# Simple TCP server implementation in Python
+# Comments show which layer each line corresponds to
 
 import socket
 
-# L4: TCPソケットを作成
+# L4: Create a TCP socket
 server = socket.socket(
     socket.AF_INET,      # L3: IPv4
-    socket.SOCK_STREAM   # L4: TCP（SOCK_DGRAM ならUDP）
+    socket.SOCK_STREAM   # L4: TCP (SOCK_DGRAM for UDP)
 )
 
-# L4: ポート番号をバインド
+# L4: Bind to a port number
 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-server.bind(('0.0.0.0', 8080))  # L3: IPアドレス + L4: ポート
+server.bind(('0.0.0.0', 8080))  # L3: IP address + L4: port
 
-# L4: 接続待ちキューのサイズを設定
+# L4: Set the size of the connection waiting queue
 server.listen(128)
 
 while True:
-    # L4: TCP 3-way Handshake が完了した接続を受け入れ
+    # L4: Accept a connection after TCP 3-way handshake completes
     client, addr = server.accept()
-    print(f"Connection from {addr}")  # (IPアドレス, ポート)
+    print(f"Connection from {addr}")  # (IP address, port)
 
-    # L7: アプリケーションデータの送受信
-    data = client.recv(4096)  # 受信
+    # L7: Send and receive application data
+    data = client.recv(4096)  # receive
 
-    # L7: HTTPレスポンスの構築
+    # L7: Build HTTP response
     response = (
         "HTTP/1.1 200 OK\r\n"
         "Content-Type: text/plain\r\n"
         "\r\n"
         "Hello, World!"
     )
-    client.send(response.encode())  # 送信
+    client.send(response.encode())  # send
 
-    # L4: TCP接続の切断（4-way Handshake）
+    # L4: Disconnect TCP connection (4-way handshake)
     client.close()
 ```
 
 ```go
-// Goでの簡単なTCPサーバー実装
+// Simple TCP server implementation in Go
 
 package main
 
@@ -1502,7 +1502,7 @@ import (
 )
 
 func main() {
-    // L3+L4: TCP/IPv4でLISTEN
+    // L3+L4: Listen on TCP/IPv4
     listener, err := net.Listen("tcp", ":8080")
     if err != nil {
         panic(err)
@@ -1510,13 +1510,13 @@ func main() {
     defer listener.Close()
 
     for {
-        // L4: 接続受け入れ
+        // L4: Accept connection
         conn, err := listener.Accept()
         if err != nil {
             continue
         }
 
-        // 並行処理
+        // Concurrent processing
         go handleConnection(conn)
     }
 }
@@ -1524,7 +1524,7 @@ func main() {
 func handleConnection(conn net.Conn) {
     defer conn.Close()
 
-    // L7: データの読み取り
+    // L7: Read data
     buf := make([]byte, 4096)
     n, err := conn.Read(buf)
     if err != nil && err != io.EOF {
@@ -1533,7 +1533,7 @@ func handleConnection(conn net.Conn) {
 
     fmt.Printf("Received: %s\n", buf[:n])
 
-    // L7: レスポンス送信
+    // L7: Send response
     response := "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nHello from Go!"
     conn.Write([]byte(response))
 }
@@ -1541,227 +1541,227 @@ func handleConnection(conn net.Conn) {
 
 ---
 
-## 12. 現代のプロトコルとモデルの進化
+## 12. Evolution of Modern Protocols and the Model
 
-### 12.1 従来のモデルに収まらないプロトコル
+### 12.1 Protocols That Do Not Fit the Traditional Model
 
 ```
-QUIC（HTTP/3の基盤）:
-  従来: HTTP/2 → TLS → TCP → IP
-  QUIC:  HTTP/3 → QUIC(TLS内蔵) → UDP → IP
+QUIC (foundation of HTTP/3):
+  Traditional: HTTP/2 → TLS → TCP → IP
+  QUIC:        HTTP/3 → QUIC (TLS built-in) → UDP → IP
 
-  OSIモデルでの位置づけが曖昧:
-    → UDPの上に構築（L4の上のL4？）
-    → TLSを内蔵（L6の機能をL4に統合？）
-    → ストリーム多重化（L5の機能？）
-  → 厳密な層分けが困難 = モデルの限界
+  Its position in the OSI model is ambiguous:
+    → Built on top of UDP (L4 on top of L4?)
+    → TLS built-in (L6 functionality integrated into L4?)
+    → Stream multiplexing (L5 functionality?)
+  → Strict layering becomes difficult = limits of the model
 
 WebRTC:
-  ブラウザ間のP2P通信
-  → STUN/TURN（NAT越え）
-  → DTLS（暗号化）
-  → SRTP（メディア転送）
-  → SCTP（データチャネル）
-  → 複数の層にまたがる複合プロトコル
+  P2P communication between browsers
+  → STUN/TURN (NAT traversal)
+  → DTLS (encryption)
+  → SRTP (media transfer)
+  → SCTP (data channel)
+  → A composite protocol spanning multiple layers
 
 eBPF/XDP:
-  Linuxカーネル内でパケットを超高速処理
-  → NICドライバレベル（L1-L2）でパケットをフィルタ
-  → カーネルのネットワークスタックをバイパス
-  → 従来の層構造とは異なるアプローチ
-  → Cilium（Kubernetes CNI）で実用化
+  Ultra-fast packet processing inside the Linux kernel
+  → Filters packets at the NIC driver level (L1–L2)
+  → Bypasses the kernel network stack
+  → A different approach from the traditional layered structure
+  → Used in production with Cilium (Kubernetes CNI)
 
-Service Mesh（Istio/Envoy）:
-  L7プロキシがL4-L7の機能を提供
-  → 従来のOSIモデルでは整理しきれない
-  → 「レイヤー7.5」と呼ぶ人もいる
+Service Mesh (Istio/Envoy):
+  L7 proxies providing L4–L7 functionality
+  → Cannot be fully organized within the traditional OSI model
+  → Some call it "Layer 7.5"
 ```
 
-### 12.2 ゼロトラストネットワーキング
+### 12.2 Zero-Trust Networking
 
 ```
-従来のネットワークセキュリティ:
-  「境界型防御」= ファイアウォールの内側は信頼
-  → L3/L4のアクセス制御が中心
+Traditional network security:
+  "Perimeter defense" = trust everything inside the firewall
+  → Centered on L3/L4 access control
 
-ゼロトラストの考え方:
-  「何も信頼しない」= 全通信を検証
-  → L7レベルでの認証・認可が必須
+Zero-trust philosophy:
+  "Trust nothing" = verify all communication
+  → Authentication and authorization at the L7 level are mandatory
 
-  実装のポイント:
-    ① アイデンティティベースのアクセス制御
-       → IPアドレスではなくユーザー/サービスIDで認証
-    ② マイクロセグメンテーション
-       → ワークロード単位でのネットワーク分離
-    ③ 暗号化の徹底
-       → 社内ネットワークでもTLS必須（mTLS）
-    ④ 継続的な検証
-       → 接続後も定期的に認証を再実行
+  Key implementation points:
+    ① Identity-based access control
+       → Authenticate by user/service ID, not IP address
+    ② Micro-segmentation
+       → Network isolation at the workload level
+    ③ Thorough encryption
+       → TLS required even on internal networks (mTLS)
+    ④ Continuous verification
+       → Re-authenticate periodically even after connection
 
-  技術スタック:
-    BeyondCorp（Google）: L7アクセスプロキシ
-    Tailscale/WireGuard: L3暗号化VPN
-    Istio/Linkerd: L7サービスメッシュ（mTLS）
-    SPIFFE/SPIRE: ワークロードアイデンティティ
+  Technology stack:
+    BeyondCorp (Google): L7 access proxy
+    Tailscale/WireGuard: L3 encrypted VPN
+    Istio/Linkerd: L7 service mesh (mTLS)
+    SPIFFE/SPIRE: workload identity
 ```
 
 ---
 
-## 13. 資格試験で問われるポイント
+## 13. Points Tested in Certification Exams
 
 ```
-CCNA（Cisco Certified Network Associate）:
-  OSIモデルの各層の役割と代表プロトコル
-  カプセル化/非カプセル化のプロセス
-  各層のPDU名称
-  ネットワーク機器と動作する層
-  ルーターとスイッチの違い（L3 vs L2）
+CCNA (Cisco Certified Network Associate):
+  Role of each OSI layer and representative protocols
+  Encapsulation/decapsulation process
+  PDU names at each layer
+  Network devices and the layer they operate at
+  Difference between router and switch (L3 vs L2)
 
 CompTIA Network+:
-  OSI 7層モデルとTCP/IP 4層モデルの比較
-  各層のプロトコルとポート番号
-  トラブルシューティングの層別アプローチ
+  Comparison of OSI 7-layer model and TCP/IP 4-layer model
+  Protocols and port numbers at each layer
+  Layer-by-layer approach to troubleshooting
 
 AWS Solutions Architect:
-  VPCの設計（L3: サブネット、ルーティング）
-  Security GroupとNetwork ACL（L3-L4）
-  ALB vs NLB（L7 vs L4ロードバランシング）
-  CloudFront（L7: CDN）
+  VPC design (L3: subnets, routing)
+  Security Group and Network ACL (L3–L4)
+  ALB vs NLB (L7 vs L4 load balancing)
+  CloudFront (L7: CDN)
 
-よくある試験問題例:
-  Q: データリンク層で使用されるアドレスは？
-  A: MACアドレス
+Common exam question examples:
+  Q: What address is used at the data link layer?
+  A: MAC address
 
-  Q: ルーターが動作する層は？
-  A: ネットワーク層（L3）
+  Q: What layer does a router operate at?
+  A: Network layer (L3)
 
-  Q: HTTPが属する層は？
-  A: アプリケーション層（L7）
+  Q: What layer does HTTP belong to?
+  A: Application layer (L7)
 
-  Q: TCPのPDUは？
-  A: セグメント
+  Q: What is the PDU for TCP?
+  A: Segment
 
-  Q: カプセル化でヘッダーが追加される順序は？
-  A: L7→L4（TCPヘッダー）→L3（IPヘッダー）→L2（Ethernetヘッダー）
+  Q: What is the order in which headers are added during encapsulation?
+  A: L7 → L4 (TCP header) → L3 (IP header) → L2 (Ethernet header)
 ```
 
 ---
 
-## 14. FAQ（よくある質問）
+## 14. FAQ
 
-### FAQ 1: OSI 7層モデルとTCP/IP 4層モデルの対応関係は？
+### FAQ 1: How do the OSI 7-layer model and TCP/IP 4-layer model correspond?
 
 ```
-Q: OSI 7層モデルとTCP/IP 4層モデルはどのように対応しているのか？
+Q: How do the OSI 7-layer model and TCP/IP 4-layer model correspond?
 
-A: TCP/IPモデルはOSIモデルを簡略化した実用モデルである。
+A: The TCP/IP model is a simplified, practical version of the OSI model.
 
-対応関係:
+Correspondence:
   ┌─────────────────────┬────────────────────────┐
-  │ OSI 7層モデル       │ TCP/IP 4層モデル       │
+  │ OSI 7-layer model   │ TCP/IP 4-layer model   │
   ├─────────────────────┼────────────────────────┤
-  │ L7 アプリケーション │                        │
-  │ L6 プレゼンテーション│ アプリケーション層     │
-  │ L5 セッション       │                        │
+  │ L7 Application      │                        │
+  │ L6 Presentation     │ Application layer      │
+  │ L5 Session          │                        │
   ├─────────────────────┼────────────────────────┤
-  │ L4 トランスポート   │ トランスポート層       │
+  │ L4 Transport        │ Transport layer        │
   ├─────────────────────┼────────────────────────┤
-  │ L3 ネットワーク     │ インターネット層       │
+  │ L3 Network          │ Internet layer         │
   ├─────────────────────┼────────────────────────┤
-  │ L2 データリンク     │ ネットワーク           │
-  │ L1 物理             │ インターフェース層     │
+  │ L2 Data Link        │ Network                │
+  │ L1 Physical         │ Interface layer        │
   └─────────────────────┴────────────────────────┘
 
-重要な違い:
-  ・OSI: 理論モデル（ISO標準）
-  ・TCP/IP: 実装モデル（インターネット標準）
-  ・TCP/IPではL5-L7を明確に分離せず、アプリケーションに任せる
-  ・実務ではOSIの層番号でL3/L4/L7と呼ぶことが多い
+Key differences:
+  · OSI: theoretical model (ISO standard)
+  · TCP/IP: implementation model (Internet standard)
+  · TCP/IP does not clearly separate L5–L7; leaves it to the application
+  · In practice, OSI layer numbers (L3/L4/L7) are often used as shorthand
 ```
 
-### FAQ 2: なぜOSIモデルを学ぶ必要があるのか？
+### FAQ 2: Why do we need to learn the OSI model?
 
 ```
-Q: 実際にはTCP/IPが使われているのに、なぜOSIモデルを学ぶのか？
+Q: Since TCP/IP is what is actually used, why learn the OSI model?
 
-A: 以下の理由により、OSIモデルは依然として重要である。
+A: The OSI model remains important for the following reasons.
 
-1. 共通言語としての価値:
-   ・「L3スイッチ」「L7ロードバランサー」など、
-     業界全体でOSIの層番号を使って機器や機能を分類する
-   ・ネットワークエンジニア間の意思疎通に不可欠
+1. Value as a common language:
+   · Terms like "L3 switch" and "L7 load balancer" are used throughout
+     the industry to classify devices and functions by OSI layer number
+   · Indispensable for communication among network engineers
 
-2. トラブルシューティングの枠組み:
-   ・問題を層別に切り分けることで、原因特定が容易になる
-   ・「L1の問題（ケーブル断線）」「L3の問題（ルーティング）」
-     「L7の問題（アプリケーションエラー）」など
+2. Framework for troubleshooting:
+   · Breaking problems down by layer makes root cause identification easier
+   · "L1 problem (cable disconnection)," "L3 problem (routing),"
+     "L7 problem (application error)," etc.
 
-3. 技術の理解:
-   ・各層の責務を理解することで、新しいプロトコルや技術の
-     位置付けが把握しやすくなる
-   ・「QUICはL4とL7の中間的な存在」といった議論が可能に
+3. Understanding technology:
+   · Understanding the responsibilities of each layer makes it easier to
+     grasp the position of new protocols and technologies
+   · Enables discussions such as "QUIC sits between L4 and L7"
 
-4. 資格試験での必須知識:
-   ・CCNA、CompTIA Network+などの資格試験で必須
-   ・ベンダー中立的な理論として出題される
+4. Required knowledge for certification exams:
+   · Essential for certifications like CCNA and CompTIA Network+
+   · Tested as vendor-neutral theory
 
-実務的アドバイス:
-  ・OSIモデルで概念を理解し、
-    TCP/IPモデルで実装を理解する
-  ・両方のモデルを使い分けられるようになることが理想
+Practical advice:
+  · Use the OSI model to understand concepts,
+    and the TCP/IP model to understand implementation
+  · The ideal is to be able to use both models appropriately
 ```
 
-### FAQ 3: カプセル化の仕組みを具体的に教えてほしい
+### FAQ 3: Can you explain the encapsulation mechanism in detail?
 
 ```
-Q: データがネットワークを通る際のカプセル化とは何か？
+Q: What is encapsulation when data travels through a network?
 
-A: カプセル化とは、上位層のデータに下位層のヘッダーを
-   順次追加していくプロセスである。
+A: Encapsulation is the process of sequentially adding lower-layer headers
+   to the data from the upper layer.
 
-具体例（HTTPリクエストの送信）:
+Concrete example (sending an HTTP request):
 
-  L7（アプリケーション層）:
-    HTTPリクエスト:
+  L7 (Application layer):
+    HTTP request:
       GET /index.html HTTP/1.1
       Host: example.com
-    → これが「データ」
+    → This is the "data"
 
-  L4（トランスポート層）:
-    TCPヘッダーを追加:
-      [TCPヘッダー | HTTPリクエスト]
+  L4 (Transport layer):
+    TCP header added:
+      [TCP header | HTTP request]
       ↑
-      送信元ポート: 54321
-      宛先ポート: 80
-      シーケンス番号: 1000
-      など
+      Source port: 54321
+      Destination port: 80
+      Sequence number: 1000
+      etc.
 
-  L3（ネットワーク層）:
-    IPヘッダーを追加:
-      [IPヘッダー | TCPヘッダー | HTTPリクエスト]
+  L3 (Network layer):
+    IP header added:
+      [IP header | TCP header | HTTP request]
       ↑
-      送信元IP: 192.168.1.100
-      宛先IP: 93.184.216.34
+      Source IP: 192.168.1.100
+      Destination IP: 93.184.216.34
       TTL: 64
-      など
+      etc.
 
-  L2（データリンク層）:
-    Ethernetヘッダーとトレーラーを追加:
-      [Ethヘッダー | IPヘッダー | TCPヘッダー | HTTPリクエスト | FCS]
-      ↑                                                        ↑
-      送信元MAC: aa:bb:cc:dd:ee:ff                           誤り検出
-      宛先MAC: 11:22:33:44:55:66
+  L2 (Data link layer):
+    Ethernet header and trailer added:
+      [Eth header | IP header | TCP header | HTTP request | FCS]
+      ↑                                                    ↑
+      Source MAC: aa:bb:cc:dd:ee:ff                     error detection
+      Destination MAC: 11:22:33:44:55:66
 
-  L1（物理層）:
-    電気信号/光信号に変換して送信
+  L1 (Physical layer):
+    Converted to electrical/optical signals and sent
 
-受信側では逆のプロセス（非カプセル化）:
-  L1 → L2（FCS検証）→ L3（TTL減算、宛先IP確認）
-  → L4（ポート確認、ACK送信）→ L7（HTTPリクエスト処理）
+The reverse process on the receiving side (decapsulation):
+  L1 → L2 (FCS verification) → L3 (TTL decrement, destination IP check)
+  → L4 (port check, send ACK) → L7 (HTTP request processing)
 
-各層は自分の層のヘッダーのみを解釈し、
-上位層のデータは「中身を見ないペイロード」として扱う。
-これが階層化の利点である。
+Each layer interprets only its own layer's header,
+and treats the upper-layer data as a "payload whose contents it does not inspect."
+This is the advantage of layering.
 ```
 
 ---
@@ -1769,53 +1769,43 @@ A: カプセル化とは、上位層のデータに下位層のヘッダーを
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 層 | 役割 | 代表プロトコル | PDU | 機器 |
+| Layer | Role | Representative protocols | PDU | Device |
 |----|------|---------------|-----|------|
-| L7 アプリケーション | サービス提供 | HTTP, DNS, TLS | メッセージ | L7 LB, WAF |
-| L6 プレゼンテーション | データ表現 | TLS, JPEG, gzip | メッセージ | - |
-| L5 セッション | 対話管理 | NetBIOS, RPC | メッセージ | - |
-| L4 トランスポート | 端末間通信 | TCP, UDP | セグメント | L4 LB |
-| L3 ネットワーク | ルーティング | IP, ICMP | パケット | ルーター |
-| L2 データリンク | 隣接ノード | Ethernet, Wi-Fi | フレーム | スイッチ |
-| L1 物理 | 信号伝送 | 電気/光/無線 | ビット | ハブ |
+| L7 Application | Service delivery | HTTP, DNS, TLS | Message | L7 LB, WAF |
+| L6 Presentation | Data representation | TLS, JPEG, gzip | Message | - |
+| L5 Session | Session management | NetBIOS, RPC | Message | - |
+| L4 Transport | End-to-end communication | TCP, UDP | Segment | L4 LB |
+| L3 Network | Routing | IP, ICMP | Packet | Router |
+| L2 Data Link | Adjacent node communication | Ethernet, Wi-Fi | Frame | Switch |
+| L1 Physical | Signal transmission | Electrical/optical/wireless | Bit | Hub |
 
-TCP/IPモデルとの対応:
+Mapping to the TCP/IP model:
 
-| TCP/IP層 | OSI対応 | 主な役割 |
+| TCP/IP layer | OSI equivalent | Main role |
 |----------|---------|---------|
-| アプリケーション | L7+L6+L5 | アプリケーションが直接扱う |
-| トランスポート | L4 | TCP/UDPで端末間通信 |
-| インターネット | L3 | IPアドレスでルーティング |
-| ネットワークインターフェース | L2+L1 | 物理的な通信 |
+| Application | L7+L6+L5 | Handled directly by the application |
+| Transport | L4 | End-to-end communication via TCP/UDP |
+| Internet | L3 | Routing by IP address |
+| Network Interface | L2+L1 | Physical communication |
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
 ---
-
-## 参考文献
-1. Tanenbaum, A. "Computer Networks." 6th Ed, Pearson, 2021.
-2. RFC 1122. "Requirements for Internet Hosts." IETF, 1989.
-3. Kurose, J. & Ross, K. "Computer Networking: A Top-Down Approach." 8th Ed, Pearson, 2021.
-4. Stevens, W. R. "TCP/IP Illustrated, Volume 1." 2nd Ed, Addison-Wesley, 2011.
-5. RFC 9293. "Transmission Control Protocol (TCP)." IETF, 2022.
-6. ISO/IEC 7498-1. "Information technology — Open Systems Interconnection — Basic Reference Model." ISO, 1994.
-7. Comer, D. "Internetworking with TCP/IP, Volume 1." 6th Ed, Pearson, 2015.
-8. Fall, K. & Stevens, W. R. "TCP/IP Illustrated, Volume 1: The Protocols." 2nd Ed, Addison-Wesley, 2011.
