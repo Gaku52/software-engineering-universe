@@ -1,99 +1,99 @@
-# HTTP/2とHTTP/3
+# HTTP/2 and HTTP/3
 
-> HTTP/2はバイナリフレーミングと多重化でHTTP/1.1の性能問題を解決。HTTP/3はQUICベースでさらに高速化。Webパフォーマンスを左右するプロトコルの進化を理解する。
+> HTTP/2 solves HTTP/1.1 performance problems with binary framing and multiplexing. HTTP/3 goes further with QUIC-based speed improvements. Understand the protocol evolution that drives web performance.
 
-## 前提知識
+## Prerequisites
 
 
-HTTP/2とHTTP/3の設計思想を理解するには、HTTP/1.1の制約（特にTCPレベルのHead-of-Line Blocking）とTLSの仕組みを知っておく必要がある。
-
----
-
-## この章で学ぶこと
-
-- [ ] HTTP/1.1の問題点とHTTP/2が解決した課題を理解する
-- [ ] HTTP/2の主要機能（多重化、HPACK、サーバープッシュ等）を把握する
-- [ ] HTTP/3とQUICプロトコルの設計思想と利点を学ぶ
-- [ ] 各プロトコルのサーバー設定と検証方法を習得する
-- [ ] パフォーマンス計測ツール（h2load、curl）を使いこなす
-- [ ] 本番環境へのHTTP/2・HTTP/3導入の判断基準を理解する
+To understand the design philosophy of HTTP/2 and HTTP/3, you need to know the limitations of HTTP/1.1 (especially TCP-level Head-of-Line Blocking) and how TLS works.
 
 ---
 
-## 1. HTTP/1.1の問題点 -- なぜHTTP/2が必要だったか
+## What You Will Learn
+
+- [ ] Understand the problems with HTTP/1.1 and the issues HTTP/2 solved
+- [ ] Grasp the main HTTP/2 features (multiplexing, HPACK, server push, etc.)
+- [ ] Learn the design philosophy and benefits of HTTP/3 and the QUIC protocol
+- [ ] Master server configuration and verification methods for each protocol
+- [ ] Use performance measurement tools (h2load, curl)
+- [ ] Understand the criteria for adopting HTTP/2 and HTTP/3 in production
+
+---
+
+## 1. Problems with HTTP/1.1 -- Why HTTP/2 Was Needed
 
 ### 1.1 Head-of-Line Blocking (HoL Blocking)
 
-HTTP/1.1の最も深刻な問題は Head-of-Line Blocking である。1つのTCP接続上で
-リクエストとレスポンスは厳密に順番に処理される。前のレスポンスが完了するまで
-次のリクエストの処理に取りかかれない。
+The most serious problem with HTTP/1.1 is Head-of-Line Blocking. On a single TCP connection,
+requests and responses are processed strictly in order. The next request cannot be processed
+until the previous response completes.
 
 ```
-HTTP/1.1 の Head-of-Line Blocking:
+HTTP/1.1 Head-of-Line Blocking:
 
   Client                          Server
     │                               │
     │──── GET /page.html ──────────→│
-    │                               │ (処理中...)
+    │                               │ (processing...)
     │←── 200 OK + HTML ────────────│
     │                               │
-    │──── GET /style.css ──────────→│  ← HTML完了後にしか送れない
-    │                               │ (処理中...)
+    │──── GET /style.css ──────────→│  ← Can only send after HTML completes
+    │                               │ (processing...)
     │←── 200 OK + CSS ─────────────│
     │                               │
-    │──── GET /app.js ─────────────→│  ← CSS完了後にしか送れない
-    │                               │ (処理中...)
+    │──── GET /app.js ─────────────→│  ← Can only send after CSS completes
+    │                               │ (processing...)
     │←── 200 OK + JS ──────────────│
     │                               │
 
-  合計時間 = RTT × 3 + 各処理時間の合計
-  → リソースが多いページほど深刻
+  Total time = RTT × 3 + sum of each processing time
+  → The more resources a page has, the more severe this becomes
 ```
 
-HTTP/1.1にはパイプライニング (Pipelining) という仕組みが仕様として存在するが、
-実際にはほとんどのサーバーとプロキシで正しく実装されておらず、ブラウザ側でも
-デフォルト無効になっている。パイプライニングはレスポンスの順序を保証する必要が
-あるため、根本的なHoL Blocking解消にはならなかった。
+HTTP/1.1 has a mechanism called Pipelining in its specification,
+but in practice it was not correctly implemented in most servers and proxies, and browsers
+also disable it by default. Pipelining still needed to guarantee response order,
+so it did not fundamentally solve HoL Blocking.
 
-### 1.2 多数のTCP接続によるリソース消費
+### 1.2 Resource Consumption from Multiple TCP Connections
 
-ブラウザはHoL Blockingを緩和するために、同一オリジンに対して最大6本の
-TCP接続を同時に張る。しかしこれには次のコストが伴う。
+Browsers open up to 6 simultaneous TCP connections to the same origin to mitigate HoL Blocking.
+However, this comes with the following costs.
 
 ```
-同一ドメインへの6接続（HTTP/1.1）:
+6 connections to the same domain (HTTP/1.1):
 
   ┌────────────────────────────────────────────────┐
-  │ ブラウザ (example.com へ 6本)                    │
+  │ Browser (6 connections to example.com)           │
   │                                                  │
-  │  接続1: ─── 3-way HS ─── TLS HS ─── req/res ───│
-  │  接続2: ─── 3-way HS ─── TLS HS ─── req/res ───│
-  │  接続3: ─── 3-way HS ─── TLS HS ─── req/res ───│
-  │  接続4: ─── 3-way HS ─── TLS HS ─── req/res ───│
-  │  接続5: ─── 3-way HS ─── TLS HS ─── req/res ───│
-  │  接続6: ─── 3-way HS ─── TLS HS ─── req/res ───│
+  │  Conn 1: ─── 3-way HS ─── TLS HS ─── req/res ───│
+  │  Conn 2: ─── 3-way HS ─── TLS HS ─── req/res ───│
+  │  Conn 3: ─── 3-way HS ─── TLS HS ─── req/res ───│
+  │  Conn 4: ─── 3-way HS ─── TLS HS ─── req/res ───│
+  │  Conn 5: ─── 3-way HS ─── TLS HS ─── req/res ───│
+  │  Conn 6: ─── 3-way HS ─── TLS HS ─── req/res ───│
   │                                                  │
-  │  各接続ごとに:                                    │
+  │  Per connection:                                  │
   │    TCP 3-way HS: 1 RTT                           │
   │    TLS 1.2 HS:   2 RTT                           │
-  │    合計:         3 RTT × 6接続 = 18 RTT の       │
-  │                  ハンドシェイクオーバーヘッド       │
+  │    Total:        3 RTT × 6 connections = 18 RTT  │
+  │                  handshake overhead               │
   │                                                  │
-  │  サーバー側の影響:                                 │
-  │    ・ソケットリソース × 6（メモリ、FD消費）         │
-  │    ・TCPスロースタート × 6（帯域の非効率利用）     │
-  │    ・10,000クライアント → 60,000接続              │
+  │  Server-side impact:                              │
+  │    · Socket resources × 6 (memory, FD usage)     │
+  │    · TCP slow start × 6 (inefficient bandwidth)  │
+  │    · 10,000 clients → 60,000 connections         │
   └────────────────────────────────────────────────┘
 ```
 
-### 1.3 ヘッダーの冗長性
+### 1.3 Header Redundancy
 
-HTTP/1.1ではヘッダーが圧縮されずにテキストとして送信される。
-同一サイト内のページ遷移では、Cookie、User-Agent、Accept-Language など
-ほぼ同一のヘッダーが何度も繰り返し送られる。
+In HTTP/1.1, headers are sent uncompressed as plain text.
+During navigation within a site, nearly identical headers such as Cookie,
+User-Agent, and Accept-Language are sent repeatedly with every request.
 
 ```
-典型的なHTTP/1.1リクエストヘッダー（約700バイト）:
+Typical HTTP/1.1 request headers (~700 bytes):
 
 GET /api/users HTTP/1.1
 Host: api.example.com
@@ -106,114 +106,119 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIx...
 Referer: https://example.com/dashboard
 Connection: keep-alive
 
-→ 100リクエストで約70KBのヘッダーだけが通信される
-→ モバイル回線では無視できないオーバーヘッド
+→ 100 requests = ~70KB of headers alone transmitted
+→ Non-negligible overhead on mobile connections
 ```
 
-### 1.4 HTTP/1.1時代の最適化テクニック（HTTP/2で不要になったもの）
+### 1.4 HTTP/1.1-Era Optimization Techniques (Made Unnecessary by HTTP/2)
 
-HTTP/1.1の制約を回避するために開発者が用いていた手法と、HTTP/2でそれらが
-不要になった理由を整理する。
+A summary of techniques developers used to work around HTTP/1.1 limitations, and why HTTP/2
+made them unnecessary.
 
 ```
 ┌─────────────────┬─────────────────────┬──────────────────────┐
-│ 手法             │ HTTP/1.1 での目的    │ HTTP/2 での扱い       │
+│ Technique        │ Purpose in HTTP/1.1  │ Treatment in HTTP/2   │
 ├─────────────────┼─────────────────────┼──────────────────────┤
-│ ドメインシャーディ│ 6接続制限の回避      │ 不要（1接続で多重化） │
-│ ング             │ (cdn1, cdn2...)     │ 逆にTLSコスト増加     │
+│ Domain sharding  │ Bypass 6-conn limit  │ Unnecessary (1-conn  │
+│                  │ (cdn1, cdn2...)      │ mux); increases TLS  │
+│                  │                     │ cost instead          │
 ├─────────────────┼─────────────────────┼──────────────────────┤
-│ スプライト画像    │ リクエスト数削減     │ 不要（多重化で並列取得）│
-│                  │ 複数画像→1枚に結合  │ キャッシュ効率が悪化   │
+│ Sprite images    │ Reduce request count │ Unnecessary (parallel│
+│                  │ Combine into 1 image │ fetch via mux);      │
+│                  │                     │ hurts cache efficiency│
 ├─────────────────┼─────────────────────┼──────────────────────┤
-│ CSSインライン化   │ 外部リクエスト削減   │ 不要（並列取得可能）   │
-│                  │ HTML内に<style>埋込  │ キャッシュ不可になる   │
+│ CSS inlining     │ Reduce external reqs │ Unnecessary (parallel│
+│                  │ Embed <style> in HTML│ fetch possible);     │
+│                  │                     │ prevents caching      │
 ├─────────────────┼─────────────────────┼──────────────────────┤
-│ ファイル結合       │ JS/CSSを1ファイルに │ 不要（多重化で並列取得）│
-│ (Bundling)       │ リクエスト数を削減   │ 差分キャッシュ不可     │
+│ File bundling    │ Combine JS/CSS into  │ Unnecessary (parallel│
+│ (Bundling)       │ 1 file; reduce reqs  │ fetch via mux);      │
+│                  │                     │ breaks diff caching   │
 ├─────────────────┼─────────────────────┼──────────────────────┤
-│ データURIスキーム  │ 小画像をBase64で埋込 │ 不要（小ファイルも     │
-│                  │ リクエスト数削減     │ 効率よく多重化取得）   │
+│ Data URI scheme  │ Embed small images   │ Unnecessary (small   │
+│                  │ as Base64; reduce    │ files fetched         │
+│                  │ request count        │ efficiently via mux) │
 └─────────────────┴─────────────────────┴──────────────────────┘
 
-注意: HTTP/2環境でもバンドルは依然として有用な場合がある。
-      ファイル数が非常に多い場合（数百のモジュール）は、
-      適度なバンドルで初回ロードを最適化できる。
+Note: Bundling may still be useful in HTTP/2 environments.
+      When there are very many files (hundreds of modules),
+      moderate bundling can optimize the initial load.
 ```
 
 ---
 
-## 2. HTTP/2の主要機能
+## 2. HTTP/2 Key Features
 
-### 2.1 バイナリフレーミング層
+### 2.1 Binary Framing Layer
 
-HTTP/2はHTTP/1.1のテキストベースプロトコルから、バイナリベースの
-フレーミング層を導入した。すべてのHTTP通信はフレーム単位に分割され、
-ストリームという論理チャネル上を流れる。
+HTTP/2 introduced a binary-based framing layer, moving away from the text-based
+protocol of HTTP/1.1. All HTTP communication is split into frames that flow
+over logical channels called streams.
 
 ```
-HTTP/2 フレーム構造:
+HTTP/2 Frame Structure:
 
   ┌─────────────────────────────────────────────┐
-  │  Length (24ビット)                            │  フレームペイロードのバイト数
+  │  Length (24 bits)                             │  Bytes in frame payload
   ├──────────────────────┬──────────────────────┤
-  │  Type (8ビット)       │  Flags (8ビット)      │  フレーム種別とフラグ
+  │  Type (8 bits)        │  Flags (8 bits)       │  Frame type and flags
   ├──────────────────────┴──────────────────────┤
-  │  R │  Stream Identifier (31ビット)           │  所属ストリームID
+  │  R │  Stream Identifier (31 bits)            │  Owning stream ID
   ├─────────────────────────────────────────────┤
   │                                               │
-  │  Frame Payload (可変長)                       │  実際のデータ
+  │  Frame Payload (variable length)              │  Actual data
   │                                               │
   └─────────────────────────────────────────────┘
 
-  フレームの最小ヘッダー: 9バイト
-  最大ペイロードサイズ: 16,384バイト（デフォルト）
-                       最大 16,777,215バイト（約16MB）
+  Minimum frame header: 9 bytes
+  Maximum payload size: 16,384 bytes (default)
+                        up to 16,777,215 bytes (~16MB)
 
-主要なフレームタイプ:
+Major frame types:
 
   ┌────────────┬──────┬─────────────────────────────────┐
-  │ タイプ      │ 値   │ 説明                             │
+  │ Type        │ Val  │ Description                     │
   ├────────────┼──────┼─────────────────────────────────┤
-  │ DATA       │ 0x00 │ HTTPボディデータ                  │
-  │ HEADERS    │ 0x01 │ HTTPヘッダー（HPACK圧縮済み）     │
-  │ PRIORITY   │ 0x02 │ ストリーム優先度（非推奨）         │
-  │ RST_STREAM │ 0x03 │ ストリームの中止                  │
-  │ SETTINGS   │ 0x04 │ 接続パラメータの交渉              │
-  │ PUSH_PROMISE│0x05 │ サーバープッシュの予告             │
-  │ PING       │ 0x06 │ 接続のヘルスチェック              │
-  │ GOAWAY     │ 0x07 │ 接続の終了通知                    │
-  │ WINDOW_UPDATE│0x08│ フロー制御ウィンドウの更新         │
-  │ CONTINUATION│0x09 │ ヘッダーブロックの継続             │
+  │ DATA       │ 0x00 │ HTTP body data                   │
+  │ HEADERS    │ 0x01 │ HTTP headers (HPACK compressed)  │
+  │ PRIORITY   │ 0x02 │ Stream priority (deprecated)     │
+  │ RST_STREAM │ 0x03 │ Abort a stream                   │
+  │ SETTINGS   │ 0x04 │ Negotiate connection parameters  │
+  │ PUSH_PROMISE│0x05 │ Announce a server push           │
+  │ PING       │ 0x06 │ Connection health check          │
+  │ GOAWAY     │ 0x07 │ Notify connection close          │
+  │ WINDOW_UPDATE│0x08│ Update flow-control window       │
+  │ CONTINUATION│0x09 │ Continue a header block          │
   └────────────┴──────┴─────────────────────────────────┘
 ```
 
-### 2.2 ストリームとマルチプレキシング（多重化）
+### 2.2 Streams and Multiplexing
 
-HTTP/2の最も重要な機能がマルチプレキシング（多重化）である。
-1つのTCP接続上に複数の論理ストリームを確立し、各ストリームが独立して
-リクエスト・レスポンスを運ぶ。
+The most important feature of HTTP/2 is multiplexing.
+Multiple logical streams are established over a single TCP connection, and each stream
+independently carries a request/response pair.
 
 ```
-HTTP/1.1 vs HTTP/2 のリソース読み込みフロー:
+HTTP/1.1 vs HTTP/2 Resource Loading Flow:
 
-  === HTTP/1.1（6接続、12リソース） ===
+  === HTTP/1.1 (6 connections, 12 resources) ===
 
-  時間 ──────────────────────────────────────→
+  Time ──────────────────────────────────────→
 
-  接続1: [──HTML──]                [──img3──]
-  接続2:     [──CSS──]             [──img4──]
-  接続3:     [──JS1──]             [──img5──]
-  接続4:         [──JS2──]         [──img6──]
-  接続5:             [──img1──]
-  接続6:             [──img2──]
+  Conn 1: [──HTML──]                [──img3──]
+  Conn 2:     [──CSS──]             [──img4──]
+  Conn 3:     [──JS1──]             [──img5──]
+  Conn 4:         [──JS2──]         [──img6──]
+  Conn 5:             [──img1──]
+  Conn 6:             [──img2──]
 
-  → 6接続で最大6並列、接続確立コスト大
-  → 1つの接続が遅いと他に影響なし（良い点）
-  → 接続管理のオーバーヘッドが大きい
+  → 6 connections, max 6 parallel; high connection setup cost
+  → A slow connection doesn't affect others (upside)
+  → Large connection management overhead
 
-  === HTTP/2（1接続、12リソース） ===
+  === HTTP/2 (1 connection, 12 resources) ===
 
-  時間 ──────────────────────────────────→
+  Time ──────────────────────────────────→
 
   Stream 1:  [──HTML──]
   Stream 3:  [───CSS───]
@@ -228,46 +233,46 @@ HTTP/1.1 vs HTTP/2 のリソース読み込みフロー:
   Stream 21:           [font1]
   Stream 23:           [font2]
 
-  → 1接続で全リソースを並列取得
-  → 接続確立は1回のみ
-  → ストリームIDで識別（クライアント発は奇数）
-  → フレーム単位でインターリーブされる
+  → All resources fetched in parallel over 1 connection
+  → Connection established only once
+  → Streams identified by ID (client-initiated = odd numbers)
+  → Interleaved at the frame level
 ```
 
-マルチプレキシングの内部動作をさらに詳しく見る。
+A closer look at the internal mechanics of multiplexing.
 
 ```
-1つのTCP接続上でフレームがインターリーブされる様子:
+Frames interleaved on a single TCP connection:
 
-  TCP接続 ─────────────────────────────────────────→
+  TCP connection ─────────────────────────────────────────→
 
   │H1│D1│H3│D3│D1│H5│D5│D3│D1│D5│D3│D5│
 
-  H = HEADERS フレーム  D = DATA フレーム
-  数字 = ストリームID
+  H = HEADERS frame  D = DATA frame
+  Number = stream ID
 
-  展開すると:
+  Expanded:
     Stream 1 (HTML):  [H1][D1]   [D1]   [D1]
     Stream 3 (CSS):      [H3][D3]   [D3]   [D3]
     Stream 5 (JS):            [H5][D5]   [D5][D5]
 
-  → 各ストリームのフレームが時分割で混在
-  → 受信側でストリームIDごとに再構成
-  → 大きなレスポンスが小さなレスポンスをブロックしない
+  → Frames from each stream are time-multiplexed
+  → Receiver reassembles per stream ID
+  → Large responses do not block small ones
 ```
 
-### 2.3 HPACK（ヘッダー圧縮）
+### 2.3 HPACK (Header Compression)
 
-HTTP/2はHPACK (RFC 7541) という専用のヘッダー圧縮方式を採用している。
-HPACK は静的テーブル、動的テーブル、ハフマン符号の3つの要素で構成される。
+HTTP/2 uses a dedicated header compression format called HPACK (RFC 7541).
+HPACK consists of three components: a static table, a dynamic table, and Huffman coding.
 
 ```
-HPACK 圧縮の仕組み:
+How HPACK compression works:
 
   ┌────────────────────────────────────────────────┐
-  │                 HPACK エンコーダ                 │
+  │                 HPACK Encoder                   │
   │                                                  │
-  │  1. 静的テーブル（61エントリ、RFC定義）            │
+  │  1. Static table (61 entries, defined in RFC)    │
   │     ┌───────┬────────────────┬──────────────┐   │
   │     │ Index │ Header Name    │ Header Value │   │
   │     ├───────┼────────────────┼──────────────┤   │
@@ -282,156 +287,158 @@ HPACK 圧縮の仕組み:
   │     │ 61    │ www-authenticate│             │   │
   │     └───────┴────────────────┴──────────────┘   │
   │                                                  │
-  │  2. 動的テーブル（FIFO、接続ごとに管理）           │
+  │  2. Dynamic table (FIFO, managed per connection) │
   │     ┌───────┬────────────────┬──────────────┐   │
   │     │ 62    │ host           │ api.example  │   │
   │     │ 63    │ authorization  │ Bearer xxx   │   │
   │     │ 64    │ custom-header  │ value123     │   │
   │     └───────┴────────────────┴──────────────┘   │
   │                                                  │
-  │  3. ハフマン符号化                                │
-  │     → 頻出文字に短いビット列を割り当て            │
-  │     → 英数字は5-7ビット（ASCIIの8ビットより短い） │
-  │     → ヘッダー値をさらに15-20%圧縮               │
+  │  3. Huffman coding                               │
+  │     → Assign shorter bit sequences to frequent  │
+  │       characters                                 │
+  │     → Alphanumerics: 5-7 bits (less than ASCII's │
+  │       8 bits)                                    │
+  │     → Further compresses header values by 15-20% │
   └────────────────────────────────────────────────┘
 
-  効果の例:
-    1回目のリクエスト:
-      :method: GET             → 静的テーブル Index 2（1バイト）
-      :path: /api/users        → 名前は静的 Index 4、値はリテラル
-      host: api.example.com    → リテラル（動的テーブルに追加）
-      authorization: Bearer... → リテラル（動的テーブルに追加）
-      合計: 約120バイト（元800バイトから85%削減）
+  Example of effect:
+    1st request:
+      :method: GET             → Static table Index 2 (1 byte)
+      :path: /api/users        → Name from static Index 4, value literal
+      host: api.example.com    → Literal (added to dynamic table)
+      authorization: Bearer... → Literal (added to dynamic table)
+      Total: ~120 bytes (85% reduction from 800 bytes)
 
-    2回目のリクエスト:
-      :method: GET             → 静的テーブル Index 2（1バイト）
-      :path: /api/users/123    → 名前は静的、値のみリテラル
-      host: api.example.com    → 動的テーブル Index 62（1バイト）
-      authorization: Bearer... → 動的テーブル Index 63（1バイト）
-      合計: 約30バイト（元800バイトから96%削減）
+    2nd request:
+      :method: GET             → Static table Index 2 (1 byte)
+      :path: /api/users/123    → Name from static, only value literal
+      host: api.example.com    → Dynamic table Index 62 (1 byte)
+      authorization: Bearer... → Dynamic table Index 63 (1 byte)
+      Total: ~30 bytes (96% reduction from 800 bytes)
 ```
 
-### 2.4 サーバープッシュ
+### 2.4 Server Push
 
-サーバープッシュは、クライアントがリクエストする前にサーバーがリソースを
-先行送信する機能である。HTMLを解析してCSS/JSのリクエストが来ると予測し、
-先にPUSH_PROMISEフレームで予告してから送信する。
+Server push is a feature that allows the server to preemptively send resources before
+the client requests them. When it predicts that a CSS/JS request will follow HTML parsing,
+it announces the push with a PUSH_PROMISE frame and then sends the resource.
 
 ```
-サーバープッシュのフロー:
+Server push flow:
 
   Client                              Server
     │                                   │
     │──── HEADERS (GET /index.html) ───→│
     │                                   │
-    │←── PUSH_PROMISE (Stream 2)  ─────│  「/style.css を送るよ」
-    │←── PUSH_PROMISE (Stream 4)  ─────│  「/app.js を送るよ」
+    │←── PUSH_PROMISE (Stream 2)  ─────│  "Sending /style.css"
+    │←── PUSH_PROMISE (Stream 4)  ─────│  "Sending /app.js"
     │                                   │
-    │←── HEADERS (Stream 1, 200 OK) ───│  index.html のヘッダー
-    │←── DATA (Stream 1, HTML body) ───│  index.html のボディ
+    │←── HEADERS (Stream 1, 200 OK) ───│  index.html headers
+    │←── DATA (Stream 1, HTML body) ───│  index.html body
     │                                   │
-    │←── HEADERS (Stream 2, 200 OK) ───│  style.css のヘッダー
-    │←── DATA (Stream 2, CSS body) ────│  style.css のボディ
+    │←── HEADERS (Stream 2, 200 OK) ───│  style.css headers
+    │←── DATA (Stream 2, CSS body) ────│  style.css body
     │                                   │
-    │←── HEADERS (Stream 4, 200 OK) ───│  app.js のヘッダー
-    │←── DATA (Stream 4, JS body)  ────│  app.js のボディ
+    │←── HEADERS (Stream 4, 200 OK) ───│  app.js headers
+    │←── DATA (Stream 4, JS body)  ────│  app.js body
     │                                   │
 
-  クライアントは RST_STREAM で不要なプッシュを拒否可能
+  Client can reject unwanted pushes with RST_STREAM
 
-  重要な経緯:
-    Chrome 106（2022年10月）でサーバープッシュを廃止
-    理由:
-      - プッシュされたリソースがキャッシュ済みの場合は帯域の浪費
-      - 正確なプッシュ対象の判断が難しい
-      - 103 Early Hints の方が柔軟で効果的
-      - CDN経由ではプッシュがオリジンの意図通りに動作しない
+  Important history:
+    Chrome 106 (October 2022) removed server push support
+    Reasons:
+      - Pushed resources waste bandwidth if already cached
+      - Difficult to accurately determine what to push
+      - 103 Early Hints is more flexible and effective
+      - Push doesn't work as intended through CDNs
 
-  代替技術:
+  Alternative technologies:
     103 Early Hints:
-      サーバーが最終レスポンス（200）の前にヒントを送る
-      → ブラウザは先に preload / preconnect を開始
-      → サーバープッシュと違い、ブラウザが取得判断する
+      Server sends hints before the final response (200)
+      → Browser starts preload / preconnect early
+      → Unlike server push, the browser decides what to fetch
 
     <link rel="preload">:
-      HTMLの<head>でリソースの先読みを宣言
-      → ブラウザの優先度制御に委ねる
+      Declare resource prefetching in HTML <head>
+      → Delegate priority control to the browser
 ```
 
-### 2.5 フロー制御
+### 2.5 Flow Control
 
-HTTP/2はストリームレベルと接続レベルの2段階でフロー制御を行う。
-これはTCPのフロー制御とは独立した、アプリケーション層の制御である。
+HTTP/2 performs flow control at two levels: stream level and connection level.
+This is application-layer control, independent of TCP flow control.
 
 ```
-HTTP/2 フロー制御の仕組み:
+How HTTP/2 flow control works:
 
-  初期ウィンドウサイズ: 65,535バイト（SETTINGS で変更可能）
+  Initial window size: 65,535 bytes (changeable via SETTINGS)
 
   ┌──────────────────────────────────────────┐
-  │ 接続レベルのフロー制御                      │
-  │   全ストリームの合計送信量を制御             │
-  │   WINDOW_UPDATE(Stream 0) で更新           │
+  │ Connection-level flow control              │
+  │   Controls total send volume across streams│
+  │   Updated with WINDOW_UPDATE(Stream 0)    │
   │                                            │
   │  ┌────────────────────────────────────┐   │
-  │  │ Stream 1 のフロー制御               │   │
-  │  │   このストリームの送信量を制御        │   │
-  │  │   WINDOW_UPDATE(Stream 1) で更新    │   │
+  │  │ Stream 1 flow control               │   │
+  │  │   Controls send volume on this stream│  │
+  │  │   Updated with WINDOW_UPDATE(Str 1) │   │
   │  └────────────────────────────────────┘   │
   │  ┌────────────────────────────────────┐   │
-  │  │ Stream 3 のフロー制御               │   │
-  │  │   このストリームの送信量を制御        │   │
-  │  │   WINDOW_UPDATE(Stream 3) で更新    │   │
+  │  │ Stream 3 flow control               │   │
+  │  │   Controls send volume on this stream│  │
+  │  │   Updated with WINDOW_UPDATE(Str 3) │   │
   │  └────────────────────────────────────┘   │
   └──────────────────────────────────────────┘
 
-  送信側:
-    DATA フレーム送信 → ウィンドウサイズ減少
-    ウィンドウ = 0 になったら送信停止
+  Sender:
+    Sending DATA frame → window size decreases
+    Window = 0 → stop sending
 
-  受信側:
-    DATA 受信・処理 → WINDOW_UPDATE 送信
-    → 送信側のウィンドウ回復 → 送信再開
+  Receiver:
+    DATA received and processed → send WINDOW_UPDATE
+    → Sender's window recovers → resume sending
 ```
 
-### 2.6 ストリーム優先度
+### 2.6 Stream Priority
 
-HTTP/2では各ストリームに重みと依存関係を設定できる。
-これにより重要なリソース（CSS、フォント）を画像より先に配信できる。
+HTTP/2 lets you assign weights and dependency relationships to streams.
+This allows important resources (CSS, fonts) to be delivered before images.
 
 ```
-HTTP/2 ストリーム優先度の依存関係ツリー:
+HTTP/2 stream priority dependency tree:
 
           Root (Stream 0)
-          ├── Stream 1 (HTML)    重み: 256
-          │   ├── Stream 3 (CSS) 重み: 256   ← CSSを最優先
-          │   │   └── Stream 5 (JS) 重み: 220
-          │   └── Stream 7 (Font) 重み: 183
-          └── Stream 9 (Image)   重み: 110   ← 画像は後回し
+          ├── Stream 1 (HTML)    weight: 256
+          │   ├── Stream 3 (CSS) weight: 256   ← CSS gets top priority
+          │   │   └── Stream 5 (JS) weight: 220
+          │   └── Stream 7 (Font) weight: 183
+          └── Stream 9 (Image)   weight: 110   ← Images are deferred
 
-  帯域配分の例（親ストリーム完了後）:
-    CSS:  256/(256+183) = 58% の帯域
-    Font: 183/(256+183) = 42% の帯域
-    → CSS完了後に JS が 100% の帯域を獲得
+  Bandwidth allocation example (after parent stream completes):
+    CSS:  256/(256+183) = 58% of bandwidth
+    Font: 183/(256+183) = 42% of bandwidth
+    → After CSS completes, JS gets 100% of bandwidth
 
-  注意:
-    RFC 9218 (Extensible Priorities) で HTTP/2・HTTP/3 共通の
-    新しい優先度方式が標準化された。
-    → Priority ヘッダーフィールドを使用
-    → urgency (u=0..7) と incremental (i=true/false) の2パラメータ
-    → 依存関係ツリーよりシンプルで実装しやすい
+  Note:
+    RFC 9218 (Extensible Priorities) standardized a new priority
+    scheme shared by HTTP/2 and HTTP/3.
+    → Uses the Priority header field
+    → Two parameters: urgency (u=0..7) and incremental (i=true/false)
+    → Simpler and easier to implement than dependency trees
 ```
 
 ---
 
-## 3. HTTP/2の検証と計測
+## 3. Verifying and Measuring HTTP/2
 
-### 3.1 curlでHTTP/2接続を確認する
+### 3.1 Confirming HTTP/2 Connections with curl
 
 ```bash
-# コード例1: curl で HTTP/2 を使用して接続を確認する
-# --http2 フラグで HTTP/2 を要求
-# -v (verbose) で接続の詳細を表示
+# Example 1: Verify HTTP/2 connection with curl
+# --http2 flag requests HTTP/2
+# -v (verbose) shows connection details
 
 $ curl -v --http2 https://www.google.com/ -o /dev/null 2>&1 | head -30
 
@@ -440,26 +447,26 @@ $ curl -v --http2 https://www.google.com/ -o /dev/null 2>&1 | head -30
 * TLSv1.3 (OUT), TLS handshake, Client hello
 * TLSv1.3 (IN), TLS handshake, Server hello
 * SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384
-* ALPN: server accepted h2          ← HTTP/2 が選択された
+* ALPN: server accepted h2          ← HTTP/2 selected
 * using HTTP/2
 * [HTTP/2] [1] OPENED stream for https://www.google.com/
 * [HTTP/2] [1] [:method: GET]
 * [HTTP/2] [1] [:scheme: https]
 * [HTTP/2] [1] [:authority: www.google.com]
 * [HTTP/2] [1] [:path: /]
-> GET / HTTP/2                       ← HTTP/2 でリクエスト
+> GET / HTTP/2                       ← Request via HTTP/2
 > Host: www.google.com
 > User-Agent: curl/8.x.x
 > Accept: */*
 >
-< HTTP/2 200                         ← HTTP/2 でレスポンス
+< HTTP/2 200                         ← Response via HTTP/2
 < content-type: text/html; charset=UTF-8
 < date: Thu, 01 Jan 2026 00:00:00 GMT
 ```
 
 ```bash
-# コード例2: HTTP/2 の詳細フレーム情報を表示
-# nghttp コマンドを使用（nghttp2 パッケージ）
+# Example 2: Show detailed HTTP/2 frame info
+# Using the nghttp command (from nghttp2 package)
 
 $ nghttp -nv https://www.example.com/
 
@@ -488,16 +495,16 @@ $ nghttp -nv https://www.example.com/
           ; END_STREAM
 ```
 
-### 3.2 h2load によるベンチマーク
+### 3.2 Benchmarking with h2load
 
-h2load は nghttp2 に含まれるHTTP/2対応のベンチマークツールである。
-HTTP/1.1、HTTP/2、HTTP/3の性能を比較計測できる。
+h2load is an HTTP/2-capable benchmarking tool included with nghttp2.
+It can compare performance across HTTP/1.1, HTTP/2, and HTTP/3.
 
 ```bash
-# コード例3: h2load によるHTTP/2ベンチマーク
+# Example 3: HTTP/2 benchmark with h2load
 
-# 基本的な使い方
-# -n: 総リクエスト数  -c: 同時接続数  -m: 1接続あたりの最大ストリーム数
+# Basic usage
+# -n: total requests  -c: concurrent connections  -m: max streams per connection
 $ h2load -n 10000 -c 100 -m 10 https://www.example.com/
 
 starting benchmark...
@@ -505,7 +512,7 @@ spawning thread #0: 100 total client(s). 10000 total requests
 TLS Protocol: TLSv1.3
 Cipher: TLS_AES_256_GCM_SHA384
 Server Temp Key: X25519 253 bits
-Application protocol: h2                 ← HTTP/2 で接続
+Application protocol: h2                 ← Connected via HTTP/2
 
 finished in 2.35s, 4255.32 req/s, 6.23MB/s
 requests: 10000 total, 10000 started, 10000 done, 10000 succeeded, 0 failed
@@ -517,51 +524,51 @@ time for connect:    45.20ms    185.30ms     98.45ms     35.20ms    65.00%
 time to 1st byte:    48.30ms    210.50ms    115.20ms     40.10ms    62.00%
 req/s           :      42.55       52.30       45.12        3.20    70.00%
 
-# HTTP/1.1 との比較計測
+# Comparative measurement against HTTP/1.1
 $ h2load -n 10000 -c 100 --h1 https://www.example.com/
-# → HTTP/1.1 では 1接続1リクエストのため req/s が大幅に低下
+# → HTTP/1.1 req/s drops significantly due to 1 request per connection
 
-# HTTP/3 での計測（h2load が対応している場合）
+# Measurement with HTTP/3 (if h2load supports it)
 $ h2load -n 10000 -c 100 --npn-list h3 https://www.example.com/
 ```
 
-### 3.3 ブラウザ開発者ツールでの確認
+### 3.3 Checking in Browser Developer Tools
 
 ```
-Chrome DevTools での HTTP/2 確認方法:
+How to verify HTTP/2 in Chrome DevTools:
 
-  1. Network タブを開く
-  2. 任意のリクエストを選択
-  3. Headers タブで以下を確認:
-     - "Protocol: h2" と表示されていれば HTTP/2
-     - "Protocol: h3" と表示されていれば HTTP/3
+  1. Open the Network tab
+  2. Select any request
+  3. Check the Headers tab:
+     - "Protocol: h2" means HTTP/2
+     - "Protocol: h3" means HTTP/3
 
-  4. Protocol 列の表示（デフォルトでは非表示）:
-     - Network タブのヘッダー行を右クリック
-     - "Protocol" にチェック
-     - 全リクエストのプロトコルを一覧確認
+  4. Showing the Protocol column (hidden by default):
+     - Right-click the header row in the Network tab
+     - Check "Protocol"
+     - View the protocol for all requests at a glance
 
-  5. Connection ID 列:
-     - 同じ Connection ID = 同じTCP接続を共有
-     - HTTP/2 では多くのリクエストが同じ ID
-     - HTTP/1.1 では異なる ID が散在
+  5. Connection ID column:
+     - Same Connection ID = sharing the same TCP connection
+     - HTTP/2: many requests share the same ID
+     - HTTP/1.1: different IDs scattered throughout
 
-  Waterfall の見方:
-    HTTP/1.1: 階段状（順次ロード）
-    HTTP/2:   並列（多数のリクエストが同時開始）
+  Reading the Waterfall:
+    HTTP/1.1: Staircase pattern (sequential loading)
+    HTTP/2:   Parallel (many requests start simultaneously)
 ```
 
 ---
 
-## 4. HTTP/3（QUIC）の設計と仕組み
+## 4. HTTP/3 (QUIC) Design and Mechanics
 
-### 4.1 QUICプロトコルの全体像
+### 4.1 Overview of the QUIC Protocol
 
-HTTP/3はQUICプロトコル上に構築されたHTTPの第3世代である。
-QUICはGoogleが2012年に開発を開始し、2021年にRFC 9000として標準化された。
+HTTP/3 is the third generation of HTTP, built on the QUIC protocol.
+QUIC was originally developed by Google starting in 2012 and was standardized as RFC 9000 in 2021.
 
 ```
-プロトコルスタックの比較:
+Protocol stack comparison:
 
   HTTP/1.1          HTTP/2           HTTP/3
   ┌──────────┐   ┌──────────┐    ┌──────────┐
@@ -570,30 +577,30 @@ QUICはGoogleが2012年に開発を開始し、2021年にRFC 9000として標準
   │          │   │  TLS 1.2+│    │          │
   │  TCP     │   ├──────────┤    │  QUIC    │
   │          │   │  TCP     │    │(TLS 1.3  │
-  ├──────────┤   ├──────────┤    │ 内蔵)    │
+  ├──────────┤   ├──────────┤    │ built-in)│
   │  IP      │   │  IP      │    ├──────────┤
   └──────────┘   └──────────┘    │  UDP     │
                                   ├──────────┤
                                   │  IP      │
                                   └──────────┘
 
-  QUIC の特徴:
-    ・UDP 上に構築（カーネル変更不要）
-    ・TLS 1.3 を統合（暗号化が必須）
-    ・ストリームがトランスポート層で実装
-    ・Connection ID による接続識別
-    ・ユーザー空間で実装（OSカーネル非依存）
+  QUIC characteristics:
+    · Built on UDP (no kernel changes needed)
+    · Integrates TLS 1.3 (encryption is mandatory)
+    · Streams implemented at the transport layer
+    · Connection identified by Connection ID
+    · Implemented in user space (OS kernel-independent)
 ```
 
-### 4.2 QUICの接続確立（0-RTT / 1-RTT）
+### 4.2 QUIC Connection Establishment (0-RTT / 1-RTT)
 
-QUICの最大の利点の1つが接続確立の高速化である。TCP+TLSでは2-3 RTTかかる
-ハンドシェイクを、QUICでは1 RTT、再接続時は0 RTTで完了できる。
+One of the biggest benefits of QUIC is faster connection establishment. The handshake that
+requires 2-3 RTTs with TCP+TLS completes in 1 RTT with QUIC, or 0 RTT on reconnection.
 
 ```
-接続確立の比較:
+Connection establishment comparison:
 
-  === TCP + TLS 1.2 (HTTP/2) === 合計 3 RTT ===
+  === TCP + TLS 1.2 (HTTP/2) === Total 3 RTT ===
 
   Client                          Server
     │──── SYN ─────────────────→│        ┐
@@ -603,10 +610,10 @@ QUICの最大の利点の1つが接続確立の高速化である。TCP+TLSで�
     │←── ServerHello + Cert ───│        │ TLS 1.2: 2 RTT
     │──── Key Exchange ────────→│        │
     │←── Finished ─────────────│        ┘
-    │──── HTTP Request ────────→│   ← ここでやっとデータ送信
+    │──── HTTP Request ────────→│   ← Data can finally be sent here
     │←── HTTP Response ────────│
 
-  === TCP + TLS 1.3 (HTTP/2) === 合計 2 RTT ===
+  === TCP + TLS 1.3 (HTTP/2) === Total 2 RTT ===
 
   Client                          Server
     │──── SYN ─────────────────→│        ┐
@@ -618,158 +625,159 @@ QUICの最大の利点の1つが接続確立の高速化である。TCP+TLSで�
     │──── HTTP Request ────────→│
     │←── HTTP Response ────────│
 
-  === QUIC (HTTP/3) === 初回接続 1 RTT ===
+  === QUIC (HTTP/3) === First connection: 1 RTT ===
 
   Client                          Server
     │──── Initial(ClientHello) ─→│       ┐
     │←── Initial(ServerHello)  ──│       │ QUIC+TLS: 1 RTT
     │←── Handshake(Finished)   ──│       │
     │──── Handshake(Finished)  ──→│       ┘
-    │──── HTTP Request ──────────→│  ← TCPハンドシェイク不要
+    │──── HTTP Request ──────────→│  ← No TCP handshake needed
     │←── HTTP Response ──────────│
 
-  === QUIC 0-RTT 再接続 === 合計 0 RTT ===
+  === QUIC 0-RTT reconnection === Total 0 RTT ===
 
   Client                          Server
-    │──── Initial + 0-RTT Data ──→│  ← 前回のセッション情報を使い
-    │←── Handshake + Response  ──│    即座にデータを送信
+    │──── Initial + 0-RTT Data ──→│  ← Using previous session info,
+    │←── Handshake + Response  ──│    send data immediately
     │                              │
-    ※ リプレイ攻撃のリスクがあるため
-      冪等なリクエスト（GET等）のみ 0-RTT が推奨
+    * Due to replay attack risk,
+      only idempotent requests (GET, etc.) are recommended for 0-RTT
 ```
 
-### 4.3 ストリーム独立性（TCP HoL Blockingの解消）
+### 4.3 Stream Independence (Resolving TCP HoL Blocking)
 
-HTTP/2はアプリケーション層でのHoL Blockingを解消したが、TCP層での
-HoL Blockingが依然として残っていた。QUICはこれを根本的に解決する。
+HTTP/2 resolved application-layer HoL Blocking but TCP-layer HoL Blocking remained.
+QUIC fundamentally solves this.
 
 ```
-TCP層 HoL Blocking（HTTP/2の問題）:
+TCP-layer HoL Blocking (HTTP/2 problem):
 
-  TCP接続上の1つのパケットがロストすると、
-  全ストリームが再送待ちになる
+  When a single packet is lost on a TCP connection,
+  all streams must wait for retransmission
 
-  TCP接続: ──[S1][S3][S5][S3][✗ S1 ロスト][S5]──
+  TCP connection: ──[S1][S3][S5][S3][✗ S1 lost][S5]──
                                   ↑
-                         パケットロスト
+                         Packet lost
                          ↓
-  Stream 1: ──[data]─────────────[再送待ち...]──→
-  Stream 3: ──[data][data]───────[ブロック]──→  ← 無関係なのに停止
-  Stream 5: ──[data]────[data]───[ブロック]──→  ← 無関係なのに停止
+  Stream 1: ──[data]─────────────[waiting for retransmit...]──→
+  Stream 3: ──[data][data]───────[blocked]──→  ← Unrelated, yet stopped
+  Stream 5: ──[data]────[data]───[blocked]──→  ← Unrelated, yet stopped
 
-  TCPは順序保証があるため、ロストパケットの前のデータまで
-  アプリケーションに渡せない。
+  TCP guarantees order, so data before the lost packet
+  cannot be delivered to the application.
 
-QUIC のストリーム独立性:
+QUIC stream independence:
 
-  QUIC接続: ──[S1][S3][S5][S3][✗ S1 ロスト][S5]──
+  QUIC connection: ──[S1][S3][S5][S3][✗ S1 lost][S5]──
                                     ↑
-                           パケットロスト
+                           Packet lost
                            ↓
-  Stream 1: ──[data]─────────────[再送待ち...]──→ ← 影響あり
-  Stream 3: ──[data][data]───────[data]──→        ← 影響なし!
-  Stream 5: ──[data]────[data]───[data]──→        ← 影響なし!
+  Stream 1: ──[data]─────────────[waiting for retransmit...]──→ ← Affected
+  Stream 3: ──[data][data]───────[data]──→        ← Unaffected!
+  Stream 5: ──[data]────[data]───[data]──→        ← Unaffected!
 
-  QUICは各ストリームが独立した順序保証を持つため、
-  1つのストリームのロスが他に波及しない。
+  QUIC gives each stream independent ordering guarantees,
+  so a loss on one stream does not affect others.
 ```
 
-### 4.4 接続移行 (Connection Migration)
+### 4.4 Connection Migration
 
-TCPは接続を「送信元IP:ポート + 宛先IP:ポート」の4タプルで識別する。
-そのためIPアドレスが変わると接続が切れる。QUICはConnection IDで
-接続を識別するため、ネットワーク切り替え時も接続を維持できる。
+TCP identifies connections by a 4-tuple: source IP:port + destination IP:port.
+So when the IP address changes, the connection drops. QUIC identifies connections
+by Connection ID, allowing connections to survive network switches.
 
 ```
-接続移行のシナリオ:
+Connection migration scenarios:
 
-  === TCP（HTTP/2）: Wi-Fi → モバイル切り替え ===
+  === TCP (HTTP/2): Wi-Fi → Mobile switch ===
 
-  Wi-Fi接続中:
+  On Wi-Fi:
     Client 192.168.1.10:54321 ←→ Server 203.0.113.1:443
-    [TCP接続確立済み、データ通信中]
+    [TCP connection established, data in flight]
 
-  モバイルに切り替え:
-    Client IPが 100.64.0.50 に変わる
-    → TCP 4タプルが変わる → 接続断
-    → 新たにTCPハンドシェイク (1 RTT)
-    → 新たにTLSハンドシェイク (1-2 RTT)
-    → 合計 2-3 RTT のダウンタイム + セッション再構築
+  Switch to mobile:
+    Client IP changes to 100.64.0.50
+    → TCP 4-tuple changes → connection drops
+    → New TCP handshake (1 RTT)
+    → New TLS handshake (1-2 RTT)
+    → Total 2-3 RTT downtime + session rebuild
 
-  === QUIC（HTTP/3）: Wi-Fi → モバイル切り替え ===
+  === QUIC (HTTP/3): Wi-Fi → Mobile switch ===
 
-  Wi-Fi接続中:
+  On Wi-Fi:
     Client 192.168.1.10 ←→ Server 203.0.113.1
     Connection ID: 0xABCD1234
-    [QUIC接続確立済み、データ通信中]
+    [QUIC connection established, data in flight]
 
-  モバイルに切り替え:
-    Client IPが 100.64.0.50 に変わる
-    → Connection ID は 0xABCD1234 のまま
-    → Path Validation（到達性確認）のみ
-    → 0.5 RTT 程度で通信再開
-    → ストリームの状態もそのまま維持
+  Switch to mobile:
+    Client IP changes to 100.64.0.50
+    → Connection ID remains 0xABCD1234
+    → Path Validation (reachability check) only
+    → Communication resumes in ~0.5 RTT
+    → Stream state is preserved
 
-  ユースケース:
-    ・電車内での Wi-Fi ↔ モバイル切り替え
-    ・カフェから屋外への移動
-    ・VPN接続時のネットワーク変更
-    ・IoTデバイスのネットワーク遷移
+  Use cases:
+    · Wi-Fi ↔ mobile switch on the train
+    · Moving from a café to outdoors
+    · Network change during VPN connection
+    · IoT device network transitions
 ```
 
 ---
 
-## 5. QPACK（HTTP/3のヘッダー圧縮）
+## 5. QPACK (Header Compression for HTTP/3)
 
-HTTP/3ではHPACKの代わりにQPACKを使用する。
-HPACKはストリーム間の順序依存があったが、QPACKはQUICのストリーム独立性に
-合わせて設計されている。
+HTTP/3 uses QPACK instead of HPACK.
+HPACK had inter-stream ordering dependencies, but QPACK is designed to match
+QUIC's stream independence.
 
 ```
-HPACK vs QPACK の違い:
+Differences between HPACK and QPACK:
 
-  HPACK（HTTP/2）:
-    ・動的テーブルの更新はストリーム順に処理
-    ・ストリームAの参照がストリームBの更新に依存する可能性
-    → QUICのストリーム独立性と矛盾
+  HPACK (HTTP/2):
+    · Dynamic table updates are processed in stream order
+    · Stream A's reference may depend on Stream B's update
+    → Conflicts with QUIC's stream independence
 
-  QPACK（HTTP/3）:
-    ・エンコーダストリームとデコーダストリームを分離
-    ・動的テーブルの更新は専用の単方向ストリームで管理
-    ・参照可能なエントリの範囲を明示的に管理
+  QPACK (HTTP/3):
+    · Encoder stream and decoder stream are separate
+    · Dynamic table updates are managed via dedicated unidirectional streams
+    · Explicitly manages the range of accessible entries
 
   ┌──────────────────────────────────────────┐
-  │ QPACK のストリーム構成                      │
+  │ QPACK stream structure                      │
   │                                            │
-  │  エンコーダストリーム（単方向）              │
+  │  Encoder stream (unidirectional)           │
   │    Client → Server                         │
-  │    動的テーブルへのエントリ追加を通知        │
+  │    Notifies server of new dynamic table    │
+  │    entries                                 │
   │                                            │
-  │  デコーダストリーム（単方向）                │
+  │  Decoder stream (unidirectional)           │
   │    Server → Client                         │
-  │    エントリの処理完了を通知（ACK）           │
+  │    Acknowledges processed entries (ACK)    │
   │                                            │
-  │  リクエストストリーム（双方向、複数）        │
-  │    ヘッダーブロックを送信                    │
-  │    必要なエントリが利用可能になるまで待機    │
+  │  Request streams (bidirectional, multiple) │
+  │    Send header blocks                       │
+  │    Wait until required entries are ready   │
   └──────────────────────────────────────────┘
 
-  圧縮効率はHPACKとほぼ同等だが、
-  ストリーム間のブロッキングを最小化している。
+  Compression efficiency is roughly equivalent to HPACK,
+  but inter-stream blocking is minimized.
 ```
 
 ---
 
-## 6. サーバー設定の実践
+## 6. Server Configuration in Practice
 
-### 6.1 Nginx でのHTTP/2・HTTP/3設定
+### 6.1 Nginx Configuration for HTTP/2 and HTTP/3
 
 ```nginx
-# コード例4: Nginx で HTTP/2 と HTTP/3 を同時に有効化する完全設定
+# Example 4: Complete Nginx configuration enabling both HTTP/2 and HTTP/3
 
 # /etc/nginx/conf.d/http2-http3.conf
 
-# HTTP → HTTPS リダイレクト
+# HTTP → HTTPS redirect
 server {
     listen 80;
     listen [::]:80;
@@ -791,35 +799,35 @@ server {
 
     server_name example.com www.example.com;
 
-    # TLS 証明書
+    # TLS certificate
     ssl_certificate     /etc/letsencrypt/live/example.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
 
-    # TLS設定（HTTP/3にはTLS 1.3が必須）
+    # TLS settings (HTTP/3 requires TLS 1.3)
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;
     ssl_prefer_server_ciphers off;
 
-    # QUIC用の設定
-    ssl_early_data on;          # 0-RTT を有効化
-    quic_retry on;              # アドレス検証を有効化（DoS対策）
+    # QUIC settings
+    ssl_early_data on;          # Enable 0-RTT
+    quic_retry on;              # Enable address validation (DoS protection)
     quic_gso on;                # Generic Segmentation Offload
 
-    # Alt-Svc ヘッダーでHTTP/3の利用可能性を通知
-    # ブラウザは次回以降の接続でHTTP/3を使用する
+    # Announce HTTP/3 availability via Alt-Svc header
+    # Browser will use HTTP/3 on subsequent connections
     add_header Alt-Svc 'h3=":443"; ma=86400' always;
 
-    # HTTP/2 サーバープッシュ（非推奨だが参考用）
+    # HTTP/2 server push (deprecated, shown for reference)
     # http2_push /style.css;
     # http2_push /app.js;
 
-    # 代わりに 103 Early Hints を使用
+    # Use 103 Early Hints instead
     # add_header Link "</style.css>; rel=preload; as=style" always;
 
-    # HTTP/2の同時ストリーム数制限
+    # HTTP/2 concurrent stream limit
     http2_max_concurrent_streams 128;
 
-    # コンテンツ配信
+    # Content delivery
     root /var/www/example.com;
     index index.html;
 
@@ -827,7 +835,7 @@ server {
         try_files $uri $uri/ =404;
     }
 
-    # API プロキシ
+    # API proxy
     location /api/ {
         proxy_pass http://backend:3000;
         proxy_http_version 1.1;
@@ -839,32 +847,32 @@ server {
 }
 ```
 
-### 6.2 Node.js でのHTTP/2サーバー実装
+### 6.2 HTTP/2 Server Implementation in Node.js
 
 ```javascript
-// コード例5: Node.js HTTP/2 サーバーの実装（サーバープッシュ付き）
+// Example 5: Node.js HTTP/2 server implementation (with server push)
 
 const http2 = require('node:http2');
 const fs = require('node:fs');
 const path = require('node:path');
 
-// HTTP/2 セキュアサーバーを作成
+// Create HTTP/2 secure server
 const server = http2.createSecureServer({
     key: fs.readFileSync(path.join(__dirname, 'certs/server.key')),
     cert: fs.readFileSync(path.join(__dirname, 'certs/server.crt')),
-    // HTTP/2 固有の設定
+    // HTTP/2 specific settings
     settings: {
-        maxConcurrentStreams: 100,     // 最大同時ストリーム数
-        initialWindowSize: 65535,      // 初期ウィンドウサイズ
-        maxHeaderListSize: 65535,      // 最大ヘッダーリストサイズ
+        maxConcurrentStreams: 100,     // Max concurrent streams
+        initialWindowSize: 65535,      // Initial window size
+        maxHeaderListSize: 65535,      // Max header list size
         enableConnectProtocol: false,  // WebSocket over HTTP/2
     },
-    // TLS 1.3 を優先
+    // Prefer TLS 1.3
     minVersion: 'TLSv1.2',
     maxVersion: 'TLSv1.3',
 });
 
-// ストリームハンドラ（HTTP/2特有のイベント）
+// Stream handler (HTTP/2-specific event)
 server.on('stream', (stream, headers) => {
     const reqPath = headers[':path'];
     const method = headers[':method'];
@@ -872,16 +880,16 @@ server.on('stream', (stream, headers) => {
     console.log(`${method} ${reqPath} (Stream ID: ${stream.id})`);
 
     if (reqPath === '/') {
-        // メインHTML返却
+        // Return main HTML
         stream.respond({
             ':status': 200,
             'content-type': 'text/html; charset=utf-8',
             'cache-control': 'public, max-age=3600',
         });
 
-        // 103 Early Hints の代替としてリンクヘッダーを使用
+        // Use Link header as alternative to 103 Early Hints
         const html = `<!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>HTTP/2 Demo</title>
@@ -889,7 +897,7 @@ server.on('stream', (stream, headers) => {
     <script src="/app.js" defer></script>
 </head>
 <body>
-    <h1>HTTP/2 サーバー動作中</h1>
+    <h1>HTTP/2 Server Running</h1>
     <p>Stream ID: ${stream.id}</p>
     <p>Protocol: HTTP/2</p>
 </body>
@@ -934,7 +942,7 @@ server.on('stream', (stream, headers) => {
     }
 });
 
-// エラーハンドリング
+// Error handling
 server.on('error', (err) => {
     console.error('Server error:', err);
 });
@@ -943,7 +951,7 @@ server.on('sessionError', (err) => {
     console.error('Session error:', err);
 });
 
-// セッションイベント（デバッグ用）
+// Session events (for debugging)
 server.on('session', (session) => {
     console.log('New HTTP/2 session established');
 
@@ -951,7 +959,7 @@ server.on('session', (session) => {
         console.log('HTTP/2 session closed');
     });
 
-    // フロー制御の監視
+    // Monitor flow control
     session.on('localSettings', (settings) => {
         console.log('Local settings:', settings);
     });
@@ -967,45 +975,45 @@ server.listen(PORT, () => {
 });
 ```
 
-### 6.3 HTTP/3（QUIC）サーバー設定
+### 6.3 HTTP/3 (QUIC) Server Configuration
 
 ```
-HTTP/3 対応のサーバーソフトウェア一覧:
+HTTP/3-capable server software:
 
   ┌─────────────────┬──────────────┬────────────────────────┐
-  │ サーバー          │ QUIC ライブラリ │ 対応状況             │
+  │ Server           │ QUIC library  │ Status                 │
   ├─────────────────┼──────────────┼────────────────────────┤
-  │ Nginx 1.25+     │ quictls     │ 正式対応               │
-  │ Caddy 2.x       │ quic-go     │ デフォルト有効          │
-  │ LiteSpeed       │ lsquic      │ 正式対応（最速級）      │
-  │ Apache (実験的)  │ mod_http3   │ 実験的サポート          │
-  │ H2O             │ quicly      │ 正式対応               │
-  │ Cloudflare      │ quiche      │ CDN全体で有効           │
-  │ Node.js (実験的) │ ngtcp2      │ --experimental-quic    │
+  │ Nginx 1.25+     │ quictls     │ Official support        │
+  │ Caddy 2.x       │ quic-go     │ Enabled by default      │
+  │ LiteSpeed       │ lsquic      │ Official (fastest tier) │
+  │ Apache (exp.)   │ mod_http3   │ Experimental support    │
+  │ H2O             │ quicly      │ Official support        │
+  │ Cloudflare      │ quiche      │ Enabled across CDN      │
+  │ Node.js (exp.)  │ ngtcp2      │ --experimental-quic     │
   └─────────────────┴──────────────┴────────────────────────┘
 ```
 
 ```
-# Caddy でのHTTP/3自動設定
-# Caddyfile（Caddyは自動でHTTP/3を有効化）
+# HTTP/3 auto-configuration with Caddy
+# Caddyfile (Caddy enables HTTP/3 automatically)
 
 example.com {
     root * /var/www/example.com
     file_server
 
-    # TLS は自動取得・自動更新（Let's Encrypt）
-    # HTTP/3 はデフォルトで有効
+    # TLS is obtained and renewed automatically (Let's Encrypt)
+    # HTTP/3 is enabled by default
 
-    # HTTPSへのリダイレクトも自動
+    # HTTPS redirect is also automatic
     encode gzip zstd
 
     header {
-        # セキュリティヘッダー
+        # Security headers
         Strict-Transport-Security "max-age=31536000; includeSubDomains"
         X-Content-Type-Options "nosniff"
     }
 
-    # API のリバースプロキシ
+    # API reverse proxy
     handle /api/* {
         reverse_proxy localhost:3000
     }
@@ -1014,595 +1022,601 @@ example.com {
 
 ---
 
-## 7. プロトコルバージョン間の詳細比較
+## 7. Detailed Protocol Version Comparison
 
-### 7.1 機能比較表
+### 7.1 Feature Comparison Table
 
 ```
 ┌─────────────────────┬────────────┬─────────────┬─────────────┐
-│ 機能                 │ HTTP/1.1   │ HTTP/2      │ HTTP/3      │
+│ Feature              │ HTTP/1.1   │ HTTP/2      │ HTTP/3      │
 ├─────────────────────┼────────────┼─────────────┼─────────────┤
-│ リリース年            │ 1997(RFC)  │ 2015(RFC)   │ 2022(RFC)   │
-│ RFCドキュメント       │ RFC 9110   │ RFC 9113    │ RFC 9114    │
-│ トランスポート層      │ TCP        │ TCP         │ QUIC (UDP)  │
-│ メッセージ形式        │ テキスト    │ バイナリ     │ バイナリ     │
-│ 多重化               │ なし       │ あり         │ あり         │
-│ ヘッダー圧縮          │ なし       │ HPACK       │ QPACK       │
-│ サーバープッシュ      │ なし       │ あり(廃止傾向)│ あり(非推奨) │
-│ 暗号化               │ 任意(HTTPS)│ 事実上必須   │ 必須         │
-│ 接続確立RTT          │ 1-3 RTT   │ 2-3 RTT     │ 1 RTT(0-RTT)│
-│ HoL Blocking        │ HTTP層+TCP層│ TCP層のみ   │ なし         │
-│ フロー制御           │ TCP依存    │ 2段階        │ 2段階        │
-│ 接続移行             │ 不可       │ 不可         │ 可能         │
-│ 優先度制御           │ なし       │ 依存関係ツリー│ Priority    │
-│                     │            │              │ ヘッダー     │
-│ TLSバージョン        │ 1.0+      │ 1.2+         │ 1.3のみ     │
+│ Release year         │ 1997(RFC)  │ 2015(RFC)   │ 2022(RFC)   │
+│ RFC document         │ RFC 9110   │ RFC 9113    │ RFC 9114    │
+│ Transport layer      │ TCP        │ TCP         │ QUIC (UDP)  │
+│ Message format       │ Text       │ Binary      │ Binary      │
+│ Multiplexing         │ None       │ Yes         │ Yes         │
+│ Header compression   │ None       │ HPACK       │ QPACK       │
+│ Server push          │ None       │ Yes (fading)│ Yes (deprec)│
+│ Encryption           │ Optional   │ De facto    │ Mandatory   │
+│ Connection RTT       │ 1-3 RTT   │ 2-3 RTT     │ 1 RTT(0-RTT)│
+│ HoL Blocking         │ HTTP+TCP   │ TCP only    │ None        │
+│ Flow control         │ TCP only   │ 2-level     │ 2-level     │
+│ Connection migration │ No         │ No          │ Yes         │
+│ Priority control     │ None       │ Dependency  │ Priority    │
+│                     │            │ tree        │ header      │
+│ TLS version          │ 1.0+      │ 1.2+        │ 1.3 only    │
 └─────────────────────┴────────────┴─────────────┴─────────────┘
 ```
 
-### 7.2 パフォーマンス特性比較表
+### 7.2 Performance Characteristics Comparison
 
 ```
 ┌──────────────────────┬────────────┬────────────┬────────────┐
-│ シナリオ              │ HTTP/1.1   │ HTTP/2     │ HTTP/3     │
+│ Scenario              │ HTTP/1.1   │ HTTP/2     │ HTTP/3     │
 ├──────────────────────┼────────────┼────────────┼────────────┤
-│ 低レイテンシ環境       │ 良好       │ 最良       │ 良好       │
-│ (LAN, 同一DC)        │            │            │            │
+│ Low-latency env.      │ Good       │ Best       │ Good       │
+│ (LAN, same DC)        │            │            │            │
 ├──────────────────────┼────────────┼────────────┼────────────┤
-│ 高レイテンシ環境       │ 悪い       │ 改善       │ 最良       │
-│ (海外サーバー等)      │ HoL深刻   │ TCP HoL残  │ HoLなし    │
+│ High-latency env.     │ Poor       │ Improved   │ Best       │
+│ (overseas server)     │ HoL severe │ TCP HoL    │ No HoL     │
+│                      │            │ remains    │            │
 ├──────────────────────┼────────────┼────────────┼────────────┤
-│ パケットロスあり       │ 悪い       │ 悪い       │ 最良       │
-│ (モバイル回線)        │ 全停止     │ 全停止     │ 部分停止   │
+│ With packet loss      │ Poor       │ Poor       │ Best       │
+│ (mobile network)      │ Full stop  │ Full stop  │ Partial    │
 ├──────────────────────┼────────────┼────────────┼────────────┤
-│ 少数の大ファイル       │ 普通       │ 改善少     │ 改善少     │
-│ (動画DL等)           │            │ 多重化不要  │ 多重化不要  │
+│ Few large files       │ Normal     │ Little     │ Little     │
+│ (video download)      │            │ improvement│ improvement│
 ├──────────────────────┼────────────┼────────────┼────────────┤
-│ 多数の小ファイル       │ 非常に悪い  │ 最良       │ 最良       │
-│ (SPA, API通信)       │ 接続制限   │ 多重化効果大│ 多重化効果大│
+│ Many small files      │ Very poor  │ Best       │ Best       │
+│ (SPA, API calls)      │ Conn limit │ Mux effect │ Mux effect │
 ├──────────────────────┼────────────┼────────────┼────────────┤
-│ ネットワーク切替       │ 接続断     │ 接続断     │ 継続       │
-│ (Wi-Fi↔モバイル)     │ 再接続要   │ 再接続要   │ 移行可能   │
+│ Network switch        │ Drop       │ Drop       │ Continues  │
+│ (Wi-Fi↔Mobile)        │ Reconnect  │ Reconnect  │ Migration  │
 ├──────────────────────┼────────────┼────────────┼────────────┤
-│ 初回接続速度           │ 1 RTT     │ 2-3 RTT   │ 1 RTT     │
+│ First connection      │ 1 RTT     │ 2-3 RTT   │ 1 RTT     │
 │                      │ (TCP only) │ (TCP+TLS)  │ (QUIC)    │
 ├──────────────────────┼────────────┼────────────┼────────────┤
-│ 再接続速度            │ 1 RTT     │ 1-2 RTT   │ 0 RTT     │
+│ Reconnection speed    │ 1 RTT     │ 1-2 RTT   │ 0 RTT     │
 │                      │ (TCP)      │(TLS resume)│(0-RTT)    │
 ├──────────────────────┼────────────┼────────────┼────────────┤
-│ サーバーリソース消費   │ 高い       │ 低い       │ 中程度     │
-│                      │ 多接続     │ 1接続      │ UDP処理    │
+│ Server resource use   │ High       │ Low        │ Moderate   │
+│                      │ Many conns │ 1 conn     │ UDP proc.  │
 ├──────────────────────┼────────────┼────────────┼────────────┤
-│ ファイアウォール通過   │ 問題なし   │ 問題なし   │ UDPブロック│
-│                      │            │            │ の場合あり  │
+│ Firewall traversal    │ Fine       │ Fine       │ UDP block  │
+│                      │            │            │ possible   │
 └──────────────────────┴────────────┴────────────┴────────────┘
 ```
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### 8.1 アンチパターン1: HTTP/2環境でのドメインシャーディング継続
+### 8.1 Anti-Pattern 1: Continuing Domain Sharding in HTTP/2 Environments
 
 ```
-誤った構成:
+Incorrect configuration:
 
-  HTTP/2サイトで以下のように複数ドメインを使い続ける:
+  Continuing to use multiple domains on an HTTP/2 site:
 
   <link rel="stylesheet" href="https://static1.example.com/style.css">
   <script src="https://static2.example.com/app.js"></script>
   <img src="https://static3.example.com/hero.jpg">
   <img src="https://cdn.example.com/logo.png">
 
-  問題点:
+  Problems:
   ┌────────────────────────────────────────────────────┐
-  │  HTTP/2 + ドメインシャーディング = 逆効果           │
+  │  HTTP/2 + domain sharding = counterproductive       │
   │                                                    │
-  │  ・各ドメインごとにTLS接続が必要                     │
+  │  · A TLS connection is needed per domain           │
   │    static1: TCP HS (1 RTT) + TLS HS (1-2 RTT)     │
   │    static2: TCP HS (1 RTT) + TLS HS (1-2 RTT)     │
   │    static3: TCP HS (1 RTT) + TLS HS (1-2 RTT)     │
   │    cdn:     TCP HS (1 RTT) + TLS HS (1-2 RTT)     │
-  │    → 合計 8-12 RTT の接続オーバーヘッド             │
+  │    → Total 8-12 RTT connection overhead            │
   │                                                    │
-  │  ・各接続で独立したTCPスロースタート                  │
-  │    → 帯域利用効率の低下                             │
+  │  · Independent TCP slow start per connection        │
+  │    → Reduced bandwidth efficiency                  │
   │                                                    │
-  │  ・HPACKの動的テーブルが接続ごとに独立               │
-  │    → ヘッダー圧縮効率が悪化                         │
+  │  · HPACK dynamic table is independent per connection│
+  │    → Degraded header compression efficiency        │
   │                                                    │
-  │  ・HTTP/2のストリーム優先度が接続間で調整不可         │
-  │    → 重要リソースの優先配信ができない                │
+  │  · HTTP/2 stream priority cannot be coordinated    │
+  │    across connections                              │
+  │    → Cannot prioritize delivery of critical        │
+  │      resources                                     │
   └────────────────────────────────────────────────────┘
 
-  正しいアプローチ:
-    ・1つのドメイン（または最小限のドメイン）に集約
-    ・HTTP/2の多重化で十分な並列性を確保
-    ・CDNを使う場合もHTTP/2対応CDN 1つに統一
+  Correct approach:
+    · Consolidate to one domain (or the minimum needed)
+    · HTTP/2 multiplexing provides sufficient parallelism
+    · If using a CDN, consolidate to a single HTTP/2-capable CDN
 ```
 
-### 8.2 アンチパターン2: HTTP/3への安易な全面移行
+### 8.2 Anti-Pattern 2: Premature Full Migration to HTTP/3
 
 ```
-誤った判断:
+Incorrect decision:
 
-  「HTTP/3が最新だからHTTP/2を廃止してHTTP/3だけにしよう」
+  "HTTP/3 is the latest, so let's drop HTTP/2 and use only HTTP/3"
 
-  問題点:
+  Problems:
   ┌────────────────────────────────────────────────────┐
-  │  HTTP/3 のみ = 多くのクライアントが接続不可          │
+  │  HTTP/3 only = many clients unable to connect       │
   │                                                    │
-  │  1. 企業ファイアウォール                             │
-  │     ・多くの企業がUDP 443をブロック                  │
-  │     ・HTTP/3（QUIC）はUDP上で動作                   │
-  │     ・TCP 443（HTTPS）のみ許可が一般的              │
+  │  1. Corporate firewalls                             │
+  │     · Many enterprises block UDP 443               │
+  │     · HTTP/3 (QUIC) runs over UDP                  │
+  │     · TCP 443 (HTTPS) only is common               │
   │                                                    │
-  │  2. 古いクライアント                                │
-  │     ・HTTP/3非対応ブラウザ（IE、古いSafari等）       │
-  │     ・HTTP/3非対応のHTTPライブラリ                   │
-  │     ・社内ツール、スクリプト、bot                    │
+  │  2. Older clients                                   │
+  │     · Browsers without HTTP/3 (IE, old Safari)     │
+  │     · HTTP libraries without HTTP/3 support        │
+  │     · Internal tools, scripts, bots                │
   │                                                    │
-  │  3. 一部のISP/ネットワーク                          │
-  │     ・UDP通信のQoS優先度が低い場合がある            │
-  │     ・UDP帯域制限をかけているISPが存在              │
+  │  3. Some ISPs/networks                              │
+  │     · UDP traffic may have lower QoS priority       │
+  │     · Some ISPs throttle UDP bandwidth              │
   │                                                    │
-  │  4. デバッグの難しさ                                │
-  │     ・QUIC通信は暗号化されており中間機器で観察困難   │
-  │     ・tcpdumpでの解析がTCPより複雑                  │
-  │     ・Wiresharkの対応もTCPほど成熟していない        │
+  │  4. Difficulty debugging                            │
+  │     · QUIC is encrypted; hard to observe at        │
+  │       intermediary devices                         │
+  │     · tcpdump analysis is harder than TCP           │
+  │     · Wireshark support is less mature than TCP     │
   └────────────────────────────────────────────────────┘
 
-  正しいアプローチ:
-    ・HTTP/2 をベースラインとして維持
-    ・HTTP/3 を追加の選択肢として提供（Alt-Svc ヘッダー）
-    ・ブラウザが自動的に最適なプロトコルを選択
-    ・フォールバック: HTTP/3 → HTTP/2 → HTTP/1.1
+  Correct approach:
+    · Keep HTTP/2 as the baseline
+    · Offer HTTP/3 as an additional option (Alt-Svc header)
+    · Browser automatically selects the best protocol
+    · Fallback: HTTP/3 → HTTP/2 → HTTP/1.1
 
-  Alt-Svc ヘッダーによる段階的アップグレード:
-    1. クライアントが HTTP/2 で接続
-    2. サーバーが Alt-Svc: h3=":443"; ma=86400 を返す
-    3. クライアントは次回からHTTP/3を試行
-    4. HTTP/3が使えなければHTTP/2にフォールバック
+  Gradual upgrade via Alt-Svc header:
+    1. Client connects via HTTP/2
+    2. Server returns Alt-Svc: h3=":443"; ma=86400
+    3. Client tries HTTP/3 on next connection
+    4. Falls back to HTTP/2 if HTTP/3 is unavailable
 ```
 
-### 8.3 アンチパターン3: HTTP/2のSETTINGSパラメータ無調整
+### 8.3 Anti-Pattern 3: Leaving HTTP/2 SETTINGS Parameters Untuned
 
 ```
-誤った設定（デフォルトのまま放置）:
+Incorrect configuration (left at defaults):
 
-  問題のある状況:
-    ・大量のAPIリクエストを処理するマイクロサービス
-    ・デフォルトの SETTINGS_MAX_CONCURRENT_STREAMS = 100
-    ・初期ウィンドウサイズが小さすぎる
+  Problematic situations:
+    · Microservices handling a large volume of API requests
+    · Default SETTINGS_MAX_CONCURRENT_STREAMS = 100
+    · Initial window size too small
 
   ┌────────────────────────────────────────────────────┐
-  │  調整すべきSETTINGSパラメータ                       │
+  │  SETTINGS parameters to tune                         │
   │                                                    │
   │  SETTINGS_MAX_CONCURRENT_STREAMS                   │
-  │    デフォルト: 100                                  │
-  │    API集中型: 256-1000 に増加                       │
-  │    リソース制限型: 32-64 に減少                      │
+  │    Default: 100                                     │
+  │    API-intensive: increase to 256-1000              │
+  │    Resource-constrained: decrease to 32-64          │
   │                                                    │
   │  SETTINGS_INITIAL_WINDOW_SIZE                       │
-  │    デフォルト: 65,535 (64KB)                        │
-  │    高帯域環境: 1,048,576 (1MB) 以上                 │
-  │    低帯域環境: 16,384 (16KB) に縮小                 │
+  │    Default: 65,535 (64KB)                           │
+  │    High-bandwidth env.: 1,048,576 (1MB) or more    │
+  │    Low-bandwidth env.: reduce to 16,384 (16KB)      │
   │                                                    │
   │  SETTINGS_MAX_FRAME_SIZE                            │
-  │    デフォルト: 16,384 (16KB)                        │
-  │    大ファイル配信: 65,536 (64KB) に拡大              │
-  │    フレームの分割オーバーヘッドを削減                │
+  │    Default: 16,384 (16KB)                           │
+  │    Large file delivery: expand to 65,536 (64KB)     │
+  │    Reduces frame-splitting overhead                  │
   │                                                    │
   │  SETTINGS_HEADER_TABLE_SIZE                         │
-  │    デフォルト: 4,096 (4KB)                          │
-  │    ヘッダーの種類が多い場合: 8,192-16,384 に拡大    │
-  │    メモリ制約環境: 2,048 に縮小                     │
+  │    Default: 4,096 (4KB)                             │
+  │    Many header types: expand to 8,192-16,384        │
+  │    Memory-constrained: reduce to 2,048              │
   └────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 9. エッジケース分析
+## 9. Edge Case Analysis
 
-### 9.1 エッジケース1: QUIC接続とUDPブロック
+### 9.1 Edge Case 1: QUIC Connections and UDP Blocking
 
 ```
-シナリオ:
-  企業ネットワークやホテルWi-FiでUDP 443がブロックされている環境
+Scenario:
+  Environment where UDP 443 is blocked (corporate network, hotel Wi-Fi)
 
   ┌──────────────────────────────────────────────────┐
   │                                                    │
   │  Client ──── Firewall ──── Internet ──── Server   │
   │                  │                                  │
-  │                  ├── TCP 443: 許可 (HTTPS)         │
-  │                  ├── TCP 80:  許可 (HTTP)          │
-  │                  └── UDP 443: ブロック              │
+  │                  ├── TCP 443: allowed (HTTPS)      │
+  │                  ├── TCP 80:  allowed (HTTP)       │
+  │                  └── UDP 443: blocked              │
   │                                                    │
   └──────────────────────────────────────────────────┘
 
-  影響:
-    1. ブラウザがHTTP/3で接続試行 → タイムアウト
-    2. フォールバック待ち時間が発生（300ms-数秒）
-    3. HTTP/2にフォールバック → 正常動作
+  Impact:
+    1. Browser attempts HTTP/3 → timeout
+    2. Fallback delay occurs (300ms to several seconds)
+    3. Falls back to HTTP/2 → normal operation
 
-  ブラウザの動作:
-    Chrome の Happy Eyeballs v2 実装:
-      ・HTTP/3 と HTTP/2 を同時に試行
-      ・先に成功した方を使用
-      ・HTTP/3が一定時間応答しなければHTTP/2を選択
-      ・次回以降のHTTP/3試行を一定期間スキップ
+  Browser behavior:
+    Chrome's Happy Eyeballs v2 implementation:
+      · Tries HTTP/3 and HTTP/2 simultaneously
+      · Uses whichever succeeds first
+      · Selects HTTP/2 if HTTP/3 doesn't respond within a timeout
+      · Skips HTTP/3 attempts for a period afterward
 
-  サーバー側の対策:
-    # Alt-Svc の max-age を適切に設定
-    # 長すぎるとUDPブロック環境のクライアントが毎回タイムアウト
+  Server-side mitigation:
+    # Set Alt-Svc max-age appropriately
+    # Too long means clients in UDP-blocked environments time out repeatedly
     add_header Alt-Svc 'h3=":443"; ma=3600' always;
-    # ma=86400（24時間）ではなく ma=3600（1時間）程度に
-    # UDPブロック環境のクライアントのフォールバック頻度を下げる
+    # Use ma=3600 (1 hour) rather than ma=86400 (24 hours)
+    # Reduces fallback frequency for UDP-blocked clients
 
-  クライアント側の対策:
-    # curlでHTTP/3を無効化
-    curl --http2 https://example.com/  # HTTP/2を強制
+  Client-side mitigation:
+    # Disable HTTP/3 in curl
+    curl --http2 https://example.com/  # Force HTTP/2
 
-    # ブラウザでHTTP/3を無効化（デバッグ用）
+    # Disable HTTP/3 in browser (for debugging)
     # Chrome: chrome://flags/#enable-quic → Disabled
     # Firefox: about:config → network.http.http3.enable → false
 ```
 
-### 9.2 エッジケース2: HTTP/2のTCP HoL Blockingが顕在化する場面
+### 9.2 Edge Case 2: When HTTP/2 TCP HoL Blocking Becomes a Problem
 
 ```
-シナリオ:
-  パケットロス率が高いモバイルネットワーク（3G/不安定なWi-Fi）で
-  HTTP/2のマルチプレキシングが逆効果になるケース
+Scenario:
+  A case where HTTP/2 multiplexing backfires on
+  high-packet-loss mobile networks (3G / unstable Wi-Fi)
 
-  パケットロス率 2%の環境:
+  2% packet loss environment:
 
-  === HTTP/1.1（6接続）===
-    接続1: [Stream A]─────[ロスト]─再送─[完了]
-    接続2: [Stream B]────────────────[完了]  ← 影響なし
-    接続3: [Stream C]────────────────[完了]  ← 影響なし
-    接続4: [Stream D]─[ロスト]─再送──[完了]
-    接続5: [Stream E]────────────────[完了]  ← 影響なし
-    接続6: [Stream F]────────────────[完了]  ← 影響なし
+  === HTTP/1.1 (6 connections) ===
+    Conn 1: [Stream A]─────[lost]─retransmit─[done]
+    Conn 2: [Stream B]────────────────[done]  ← Unaffected
+    Conn 3: [Stream C]────────────────[done]  ← Unaffected
+    Conn 4: [Stream D]─[lost]─retransmit──[done]
+    Conn 5: [Stream E]────────────────[done]  ← Unaffected
+    Conn 6: [Stream F]────────────────[done]  ← Unaffected
 
-    → 6接続中2接続が影響、4接続は正常
-    → パケットロスの影響が分散される
+    → 2 of 6 connections affected, 4 normal
+    → Packet loss impact is spread out
 
-  === HTTP/2（1接続）===
-    TCP接続: [A][B][C][D][ロスト][E][F]
+  === HTTP/2 (1 connection) ===
+    TCP conn: [A][B][C][D][lost][E][F]
                             ↑
-                     このパケットのロスで
-                     A-F 全ストリームが停止
+                     Loss of this packet
+                     stops all streams A-F
 
-    → 1接続なのでロスが全ストリームに波及
-    → HTTP/1.1の6接続より遅くなるケースがある
+    → With 1 connection, a loss affects all streams
+    → Can be slower than HTTP/1.1's 6 connections
 
-  === HTTP/3（QUIC）===
-    QUIC接続: [A][B][C][D][ロスト][E][F]
+  === HTTP/3 (QUIC) ===
+    QUIC conn: [A][B][C][D][lost][E][F]
                             ↑
-                     Stream Dのロス
-    Stream A: ──────────[完了]  ← 影響なし
-    Stream B: ──────────[完了]  ← 影響なし
-    Stream C: ──────────[完了]  ← 影響なし
-    Stream D: ──[再送待ち]────  ← 影響あり
-    Stream E: ──────────[完了]  ← 影響なし
-    Stream F: ──────────[完了]  ← 影響なし
+                     Stream D loss
+    Stream A: ──────────[done]  ← Unaffected
+    Stream B: ──────────[done]  ← Unaffected
+    Stream C: ──────────[done]  ← Unaffected
+    Stream D: ──[waiting retransmit]────  ← Affected
+    Stream E: ──────────[done]  ← Unaffected
+    Stream F: ──────────[done]  ← Unaffected
 
-    → ストリームDのみ影響、他は正常
+    → Only Stream D affected, others normal
 
-  観測データの傾向:
-    パケットロス率 0%:   HTTP/2 ≈ HTTP/3 > HTTP/1.1
-    パケットロス率 1%:   HTTP/3 > HTTP/2 > HTTP/1.1
-    パケットロス率 2%+:  HTTP/3 >> HTTP/1.1 > HTTP/2
-    → パケットロスが増えるとHTTP/2はHTTP/1.1より悪化しうる
+  Observed data trends:
+    Packet loss 0%:   HTTP/2 ≈ HTTP/3 > HTTP/1.1
+    Packet loss 1%:   HTTP/3 > HTTP/2 > HTTP/1.1
+    Packet loss 2%+:  HTTP/3 >> HTTP/1.1 > HTTP/2
+    → As packet loss increases, HTTP/2 can become worse than HTTP/1.1
 ```
 
-### 9.3 エッジケース3: HTTP/2の大量ストリーム時のメモリ問題
+### 9.3 Edge Case 3: Memory Issues with Large Numbers of HTTP/2 Streams
 
 ```
-シナリオ:
-  マイクロサービス間通信でHTTP/2 gRPCを使用。
-  1つの接続上に数千のストリームが同時に存在する場合。
+Scenario:
+  Using HTTP/2 gRPC for microservice communication.
+  Thousands of streams existing simultaneously on one connection.
 
   ┌────────────────────────────────────────────────┐
-  │  gRPC over HTTP/2 の問題パターン                │
+  │  Problematic pattern: gRPC over HTTP/2          │
   │                                                │
-  │  サービスA → サービスB（gRPC）                   │
-  │  同時リクエスト: 5,000ストリーム                 │
+  │  Service A → Service B (gRPC)                  │
+  │  Concurrent requests: 5,000 streams             │
   │                                                │
-  │  メモリ消費:                                    │
-  │    ストリームごとの状態管理:                     │
-  │      ・HPACKの動的テーブル: 4KB/接続             │
-  │      ・フロー制御ウィンドウ: 管理構造体          │
-  │      ・ストリームバッファ: 可変                  │
-  │      ・優先度ツリーのノード: 各ストリーム        │
+  │  Memory consumption:                            │
+  │    State management per stream:                 │
+  │      · HPACK dynamic table: 4KB/connection      │
+  │      · Flow control window: management struct   │
+  │      · Stream buffer: variable                  │
+  │      · Priority tree node: per stream           │
   │                                                │
-  │  5,000ストリーム × 管理構造 ≈ 数十MB/接続       │
-  │  100接続 × 数十MB = 数GB のメモリ消費           │
+  │  5,000 streams × management struct ≈ tens of MB │
+  │  per connection                                 │
+  │  100 connections × tens of MB = several GB of   │
+  │  memory consumption                             │
   │                                                │
-  │  対策:                                          │
-  │    1. MAX_CONCURRENT_STREAMS を適切に制限        │
-  │       (サーバー側で 100-500 に設定)              │
-  │    2. 接続プーリングで接続数を制御               │
-  │    3. ストリームのタイムアウトを設定              │
-  │    4. GOAWAY で定期的に接続をリフレッシュ        │
+  │  Mitigation:                                    │
+  │    1. Limit MAX_CONCURRENT_STREAMS appropriately │
+  │       (set to 100-500 on server side)           │
+  │    2. Control connection count with pooling      │
+  │    3. Set stream timeouts                        │
+  │    4. Periodically refresh connections via GOAWAY│
   └────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 10. 演習
+## 10. Exercises
 
-### 10.1 基礎演習: HTTP/2接続の確認と解析
+### 10.1 Basic Exercise: Verifying and Analyzing HTTP/2 Connections
 
 ```
-目的:
-  HTTP/2接続の確立プロセスを理解し、実際の通信を観察する
+Objective:
+  Understand the HTTP/2 connection establishment process and observe actual traffic
 
-課題1: curl による HTTP/2 接続の確認
-  1. 以下のコマンドで HTTP/2 接続を確認せよ
+Task 1: Verify HTTP/2 connection with curl
+  1. Confirm HTTP/2 connection with the following command
      $ curl -v --http2 https://www.google.com/ -o /dev/null 2>&1
 
-  確認ポイント:
-    a. ALPN ネゴシエーションで "h2" が選択されているか
-    b. レスポンスのプロトコルバージョンは何か
-    c. TLS のバージョンと暗号スイートは何か
+  Check points:
+    a. Is "h2" selected in the ALPN negotiation?
+    b. What is the protocol version in the response?
+    c. What is the TLS version and cipher suite?
 
-  2. HTTP/1.1 で強制接続して違いを比較せよ
+  2. Force HTTP/1.1 and compare
      $ curl -v --http1.1 https://www.google.com/ -o /dev/null 2>&1
 
-  確認ポイント:
-    a. 接続確立の手順に違いはあるか
-    b. ヘッダーの表示形式に違いはあるか
-    c. レスポンスのステータス行の形式の違いは何か
+  Check points:
+    a. Is there a difference in the connection establishment steps?
+    b. Is there a difference in how headers are displayed?
+    c. What is the difference in the format of the response status line?
 
-課題2: nghttp による HTTP/2 フレーム解析
-  1. nghttp2 をインストールし、以下を実行せよ
+Task 2: HTTP/2 frame analysis with nghttp
+  1. Install nghttp2 and run the following
      # macOS
      $ brew install nghttp2
 
      # Ubuntu/Debian
      $ sudo apt install nghttp2-client
 
-  2. フレームの詳細を確認せよ
+  2. Check frame details
      $ nghttp -nv https://www.example.com/
 
-  確認ポイント:
-    a. SETTINGS フレームの内容は何か
-    b. MAX_CONCURRENT_STREAMS の値は何か
-    c. HEADERS フレームと DATA フレームの関係を図示せよ
+  Check points:
+    a. What does the SETTINGS frame contain?
+    b. What is the MAX_CONCURRENT_STREAMS value?
+    c. Diagram the relationship between HEADERS and DATA frames
 
-課題3: Chrome DevTools での確認
-  1. Chrome DevTools の Network タブを開く
-  2. Protocol 列を表示する
-  3. 以下のサイトにアクセスし、プロトコルを確認せよ
+Task 3: Verification in Chrome DevTools
+  1. Open the Network tab in Chrome DevTools
+  2. Display the Protocol column
+  3. Access the following sites and check the protocol
      - https://www.google.com/
      - https://www.cloudflare.com/
      - https://www.facebook.com/
-  4. 各サイトの Connection ID を確認し、
-     1つの接続で複数リソースが取得されていることを確認せよ
+  4. Check each site's Connection ID and confirm that
+     multiple resources are retrieved over the same connection
 
-期待される成果物:
-  ・各コマンドの出力結果のキャプチャ
-  ・HTTP/1.1 と HTTP/2 の接続手順の違いをまとめた表
-  ・Chrome DevTools のスクリーンショットと解説
+Expected deliverables:
+  · Screenshots of each command's output
+  · Summary table of differences in connection steps between HTTP/1.1 and HTTP/2
+  · Chrome DevTools screenshot with explanation
 ```
 
-### 10.2 応用演習: HTTP/2サーバーの構築とベンチマーク
+### 10.2 Applied Exercise: Building and Benchmarking an HTTP/2 Server
 
 ```
-目的:
-  HTTP/2サーバーを構築し、HTTP/1.1との性能差を計測する
+Objective:
+  Build an HTTP/2 server and measure the performance difference vs HTTP/1.1
 
-課題1: Node.js HTTP/2 サーバーの構築
-  1. 自己署名証明書を作成せよ
+Task 1: Build a Node.js HTTP/2 server
+  1. Create a self-signed certificate
      $ openssl req -x509 -newkey rsa:2048 -keyout server.key \
        -out server.crt -days 365 -nodes \
        -subj "/CN=localhost"
 
-  2. 本ガイドのコード例5を参考にHTTP/2サーバーを実装せよ
-  3. 以下の機能を追加せよ:
-     a. /api/data エンドポイント（JSONレスポンス）
-     b. 静的ファイル配信（画像、CSS、JS）
-     c. レスポンスヘッダーにストリームIDを含める
+  2. Implement an HTTP/2 server referencing Example 5 in this guide
+  3. Add the following features:
+     a. /api/data endpoint (JSON response)
+     b. Static file serving (images, CSS, JS)
+     c. Include the stream ID in response headers
 
-課題2: Nginx HTTP/2 サーバーの構築
-  1. Docker を使用して Nginx HTTP/2 サーバーを構築せよ
+Task 2: Build a Nginx HTTP/2 server
+  1. Build a Nginx HTTP/2 server using Docker
      # Dockerfile
      FROM nginx:latest
      COPY nginx.conf /etc/nginx/conf.d/default.conf
      COPY certs/ /etc/nginx/certs/
      COPY html/ /var/www/html/
 
-  2. 本ガイドのコード例4を参考に nginx.conf を作成せよ
-  3. 100個の小さな画像ファイルを配置し、
-     一覧ページから全画像を読み込むHTMLを作成せよ
+  2. Create nginx.conf referencing Example 4 in this guide
+  3. Place 100 small image files and create an HTML page
+     that loads all images from a list page
 
-課題3: ベンチマーク比較
-  1. h2load を使用してHTTP/2の性能を計測せよ
+Task 3: Benchmark comparison
+  1. Measure HTTP/2 performance with h2load
      $ h2load -n 10000 -c 50 -m 10 https://localhost:8443/
 
-  2. HTTP/1.1 の性能を計測せよ
+  2. Measure HTTP/1.1 performance
      $ h2load -n 10000 -c 50 --h1 https://localhost:8443/
 
-  3. 以下の観点で比較せよ:
-     a. 秒間リクエスト数 (req/s)
-     b. 平均レスポンス時間
-     c. 接続確立時間
-     d. 同時接続数を変えた場合の変化（10, 50, 100, 500）
+  3. Compare on the following dimensions:
+     a. Requests per second (req/s)
+     b. Average response time
+     c. Connection establishment time
+     d. How results change with different concurrency (10, 50, 100, 500)
 
-  4. 結果をグラフ化し、考察をまとめよ
+  4. Graph the results and write up analysis
 
-期待される成果物:
-  ・動作するHTTP/2サーバーのソースコード
-  ・Nginx設定ファイル
-  ・ベンチマーク結果の比較表とグラフ
-  ・HTTP/1.1とHTTP/2の性能差に関する考察レポート
+Expected deliverables:
+  · Source code for a working HTTP/2 server
+  · Nginx configuration file
+  · Benchmark comparison table and graph
+  · Analysis report on the performance difference between HTTP/1.1 and HTTP/2
 ```
 
-### 10.3 発展演習: HTTP/3（QUIC）の検証とプロトコル選択戦略
+### 10.3 Advanced Exercise: HTTP/3 (QUIC) Verification and Protocol Selection Strategy
 
 ```
-目的:
-  HTTP/3を実際に検証し、プロダクション環境でのプロトコル選択
-  戦略を策定する
+Objective:
+  Verify HTTP/3 in practice and define a protocol selection strategy
+  for production environments
 
-課題1: HTTP/3 サーバーの構築
-  1. Caddy を使用してHTTP/3サーバーを構築せよ
+Task 1: Build an HTTP/3 server
+  1. Build an HTTP/3 server using Caddy
      $ brew install caddy   # macOS
-     # または
+     # or
      $ sudo apt install caddy   # Ubuntu
 
-  2. 以下の Caddyfile を作成せよ
+  2. Create the following Caddyfile
      localhost {
          root * /path/to/html
          file_server
-         # CaddyはデフォルトでHTTP/3対応
+         # Caddy supports HTTP/3 by default
      }
 
-  3. サーバーを起動し、HTTP/3接続を確認せよ
+  3. Start the server and verify HTTP/3 connection
      $ caddy run --config Caddyfile
 
-  4. curl で HTTP/3 接続を確認せよ（curl 7.66+ が必要）
+  4. Verify HTTP/3 connection with curl (requires curl 7.66+)
      $ curl -v --http3-only https://localhost/
-     # もしくは
+     # or
      $ curl -v --http3 https://localhost/
 
-課題2: パケットロス環境でのプロトコル比較
-  1. tc（traffic control）を使用して擬似的なネットワーク劣化環境を
-     作成せよ（Linux環境が必要）
-     # 2% パケットロスの追加
+Task 2: Protocol comparison under packet loss
+  1. Create a simulated degraded network environment using tc (traffic control)
+     (requires Linux environment)
+     # Add 2% packet loss
      $ sudo tc qdisc add dev lo root netem loss 2%
 
-  2. 以下の条件で各プロトコルの性能を計測せよ:
-     a. パケットロス 0%
-     b. パケットロス 1%
-     c. パケットロス 2%
-     d. パケットロス 5%
+  2. Measure each protocol's performance under the following conditions:
+     a. Packet loss 0%
+     b. Packet loss 1%
+     c. Packet loss 2%
+     d. Packet loss 5%
 
-  3. 計測方法:
+  3. Measurement method:
      $ h2load -n 1000 -c 10 --h1 https://localhost:8443/     # HTTP/1.1
      $ h2load -n 1000 -c 10 https://localhost:8443/           # HTTP/2
      $ h2load -n 1000 -c 10 --npn-list h3 https://localhost:8443/  # HTTP/3
 
-  4. パケットロス率ごとの性能推移をグラフ化せよ
+  4. Graph performance vs packet loss rate
 
-  テスト後の後片付け:
+  Cleanup after testing:
      $ sudo tc qdisc del dev lo root
 
-課題3: プロトコル選択戦略の策定
-  以下のシナリオについて、最適なプロトコル構成を提案せよ。
-  各提案には根拠と設定例を含めること。
+Task 3: Define a protocol selection strategy
+  Propose an optimal protocol configuration for each scenario below.
+  Each proposal must include rationale and a configuration example.
 
-  シナリオA: ECサイト（グローバル展開）
-    ・ユーザー: 全世界のブラウザユーザー
-    ・コンテンツ: 大量の商品画像、SPA
-    ・要件: 低レイテンシ、高可用性
-    ・制約: CDN使用、企業ネットワークからのアクセスあり
+  Scenario A: E-commerce site (global deployment)
+    · Users: Browser users worldwide
+    · Content: Large number of product images, SPA
+    · Requirements: Low latency, high availability
+    · Constraints: Uses CDN, accessed from corporate networks
 
-  シナリオB: 社内マイクロサービス基盤
-    ・通信: サービス間のgRPC
-    ・環境: Kubernetes クラスタ内
-    ・要件: 高スループット、低レイテンシ
-    ・制約: ファイアウォール内、ネットワーク安定
+  Scenario B: Internal microservice platform
+    · Communication: gRPC between services
+    · Environment: Kubernetes cluster
+    · Requirements: High throughput, low latency
+    · Constraints: Behind firewall, stable network
 
-  シナリオC: モバイルゲームのリアルタイム通信
-    ・ユーザー: モバイルデバイス（4G/5G/Wi-Fi）
-    ・通信: API呼び出し + リアルタイムデータ
-    ・要件: 接続切断時の高速復帰
-    ・制約: モバイルネットワーク、ローミング
+  Scenario C: Real-time mobile game communication
+    · Users: Mobile devices (4G/5G/Wi-Fi)
+    · Communication: API calls + real-time data
+    · Requirements: Fast recovery from connection drops
+    · Constraints: Mobile network, roaming
 
-期待される成果物:
-  ・HTTP/3サーバーの構築手順書
-  ・パケットロス環境での計測結果と分析レポート
-  ・各シナリオに対するプロトコル選択提案書
-    （プロトコル構成、設定例、フォールバック戦略を含む）
+Expected deliverables:
+  · Setup guide for the HTTP/3 server
+  · Measurement results and analysis report under packet loss
+  · Protocol selection proposal for each scenario
+    (including protocol config, configuration example, and fallback strategy)
 ```
 
 ---
 
-## 11. 実践的なトラブルシューティング
+## 11. Practical Troubleshooting
 
-### 11.1 HTTP/2への移行時によくある問題
+### 11.1 Common Issues When Migrating to HTTP/2
 
 ```
-問題1: ALPN ネゴシエーション失敗
-  症状: HTTP/2対応を設定したのに HTTP/1.1 で通信されている
-  原因: TLS ライブラリが ALPN をサポートしていない
+Problem 1: ALPN negotiation failure
+  Symptom: HTTP/1.1 is used even after configuring HTTP/2 support
+  Cause: TLS library does not support ALPN
 
-  診断:
+  Diagnose:
     $ openssl s_client -alpn h2 -connect example.com:443
 
-  対策:
-    ・OpenSSL 1.0.2 以上にアップデート
-    ・Nginx の場合: OpenSSL 付きでビルドされているか確認
+  Fix:
+    · Upgrade to OpenSSL 1.0.2 or later
+    · For Nginx: confirm it was built with OpenSSL
       $ nginx -V 2>&1 | grep -o 'openssl-[^ ]*'
 
-問題2: HTTP/2 接続で大量の RST_STREAM
-  症状: Chrome DevTools で多数のリクエストが失敗
-  原因: MAX_CONCURRENT_STREAMS が小さすぎる
+Problem 2: Large number of RST_STREAM with HTTP/2 connections
+  Symptom: Many requests failing in Chrome DevTools
+  Cause: MAX_CONCURRENT_STREAMS is too low
 
-  診断:
+  Diagnose:
     $ nghttp -nv https://example.com/ 2>&1 | grep SETTINGS
 
-  対策:
+  Fix:
     # Nginx
     http2_max_concurrent_streams 256;
 
-問題3: HTTP/2 使用時にWAFが誤検知
-  症状: WAF（Web Application Firewall）が正常リクエストをブロック
-  原因: WAFがHTTP/2のバイナリフレームを正しく解析できていない
+Problem 3: WAF false positives with HTTP/2
+  Symptom: WAF (Web Application Firewall) blocking legitimate requests
+  Cause: WAF not correctly parsing HTTP/2 binary frames
 
-  対策:
-    ・WAFのHTTP/2対応バージョンにアップデート
-    ・WAFをHTTP/2終端の後段に配置
-    ・CDN → WAF → オリジン の構成では
-      CDN-WAF間をHTTP/1.1にダウングレードする場合あり
+  Fix:
+    · Update WAF to an HTTP/2-compatible version
+    · Place WAF after HTTP/2 termination
+    · In a CDN → WAF → Origin setup, sometimes
+      downgrade CDN-WAF leg to HTTP/1.1
 ```
 
-### 11.2 HTTP/3導入時の確認事項チェックリスト
+### 11.2 HTTP/3 Deployment Checklist
 
 ```
-HTTP/3 導入チェックリスト:
+HTTP/3 Deployment Checklist:
 
-  サーバー側:
-    □ Nginx 1.25+ / Caddy 2.x / LiteSpeed がインストール済み
-    □ QUIC対応のTLSライブラリ（quictls, BoringSSL等）
-    □ UDP 443 ポートがファイアウォールで開放済み
-    □ Alt-Svc ヘッダーが正しく設定済み
-    □ HTTP/2 へのフォールバックが設定済み
-    □ TLS 1.3 の証明書設定が正しい
-    □ QUIC のバージョンネゴシエーション設定
-    □ 0-RTT の有効化とセキュリティリスクの検討
+  Server side:
+    □ Nginx 1.25+ / Caddy 2.x / LiteSpeed installed
+    □ QUIC-capable TLS library (quictls, BoringSSL, etc.)
+    □ UDP 443 port opened in firewall
+    □ Alt-Svc header configured correctly
+    □ HTTP/2 fallback configured
+    □ TLS 1.3 certificate configuration is correct
+    □ QUIC version negotiation configured
+    □ 0-RTT enablement and security risk considered
 
-  ネットワーク側:
-    □ ロードバランサーがUDP対応（L4 LBの場合）
-    □ CDNがHTTP/3対応（Cloudflare, Fastly, AWS CloudFront等）
-    □ UDPのレート制限が適切に設定
-    □ DDoS対策でUDPフラッディングを考慮
+  Network side:
+    □ Load balancer supports UDP (for L4 LB)
+    □ CDN supports HTTP/3 (Cloudflare, Fastly, AWS CloudFront, etc.)
+    □ UDP rate limiting is set appropriately
+    □ UDP flooding considered in DDoS protection
 
-  クライアント側:
-    □ 対象ブラウザのHTTP/3対応状況を確認
-    □ HTTP/3非対応クライアントへのフォールバック確認
-    □ モバイルアプリのHTTPライブラリがHTTP/3対応か確認
-    □ プロキシ経由の接続でHTTP/3が使えるか確認
+  Client side:
+    □ HTTP/3 support verified for target browsers
+    □ Fallback for HTTP/3-unsupported clients confirmed
+    □ HTTP library in mobile app supports HTTP/3
+    □ HTTP/3 works through proxy connections
 
-  監視:
-    □ HTTP/3 と HTTP/2 のトラフィック比率の監視
-    □ フォールバック率の監視
-    □ QUICの接続エラー率の監視
-    □ 0-RTT の利用率とリプレイ攻撃検知
+  Monitoring:
+    □ Monitoring HTTP/3 vs HTTP/2 traffic ratio
+    □ Monitoring fallback rate
+    □ Monitoring QUIC connection error rate
+    □ 0-RTT usage rate and replay attack detection
 ```
 
 ---
 
-## 12. 103 Early Hints -- サーバープッシュの代替
+## 12. 103 Early Hints -- Alternative to Server Push
 
-HTTP/2のサーバープッシュが非推奨となった後、代替として注目されているのが
-103 Early Hints（RFC 8297）である。
+After HTTP/2 server push was deprecated, 103 Early Hints (RFC 8297) has drawn
+attention as an alternative.
 
 ```
-103 Early Hints の動作フロー:
+103 Early Hints flow:
 
   Client                              Server
     │                                   │
@@ -1612,49 +1626,50 @@ HTTP/2のサーバープッシュが非推奨となった後、代替として�
     │    Link: </style.css>; rel=preload; as=style
     │    Link: </app.js>; rel=preload; as=script
     │                                   │
-    │   （ブラウザが style.css と app.js の取得を開始）
+    │   (Browser starts fetching style.css and app.js)
     │                                   │
-    │                                   │ (HTML生成処理中...)
+    │                                   │ (generating HTML...)
     │                                   │
     │←── 200 OK ───────────────────────│
     │    Content-Type: text/html        │
     │    <html>...</html>               │
     │                                   │
 
-  サーバープッシュとの違い:
+  Differences from server push:
 
   ┌──────────────────┬──────────────────┬──────────────────┐
   │                  │ Server Push      │ 103 Early Hints  │
   ├──────────────────┼──────────────────┼──────────────────┤
-  │ リソース取得の    │ サーバー         │ ブラウザ          │
-  │ 判断主体          │ （強制的に送信） │ （ヒントを元に    │
-  │                  │                  │  自律的に判断）   │
+  │ Who decides      │ Server           │ Browser          │
+  │ to fetch         │ (force-sends)    │ (decides based   │
+  │                  │                  │ on hints)         │
   ├──────────────────┼──────────────────┼──────────────────┤
-  │ キャッシュ考慮    │ なし（常に送信） │ あり（キャッシュ済│
-  │                  │ → 帯域浪費の恐れ │ なら取得しない）  │
+  │ Cache awareness  │ No (always sends)│ Yes (skips if    │
+  │                  │ → bandwidth waste│ already cached)  │
   ├──────────────────┼──────────────────┼──────────────────┤
-  │ CDN対応          │ 複雑             │ 容易              │
-  │                  │ （CDNの挙動依存）│ （CDNが転送可能） │
+  │ CDN support      │ Complex          │ Simple           │
+  │                  │ (CDN-dependent)  │ (CDN can forward)│
   ├──────────────────┼──────────────────┼──────────────────┤
-  │ ブラウザ対応      │ Chrome 106で廃止│ 主要ブラウザ対応  │
+  │ Browser support  │ Removed in       │ Supported by     │
+  │                  │ Chrome 106       │ major browsers   │
   ├──────────────────┼──────────────────┼──────────────────┤
-  │ HTTP/1.1対応      │ なし             │ あり              │
+  │ HTTP/1.1 support │ No               │ Yes              │
   └──────────────────┴──────────────────┴──────────────────┘
 ```
 
-### Nginx での 103 Early Hints 設定
+### 103 Early Hints Configuration in Nginx
 
 ```nginx
-# 103 Early Hints を Nginx で設定する例
+# Example of configuring 103 Early Hints in Nginx
 
 server {
     listen 443 ssl;
     http2 on;
     server_name example.com;
 
-    # メインページで Early Hints を送信
+    # Send Early Hints on the main page
     location / {
-        # 103 レスポンスを先に送信
+        # Send 103 response first
         add_header Link "</style.css>; rel=preload; as=style" early;
         add_header Link "</app.js>; rel=preload; as=script" early;
         add_header Link "</fonts/main.woff2>; rel=preload; as=font; crossorigin" early;
@@ -1666,244 +1681,244 @@ server {
 
 ---
 
-## 13. 採用状況と今後の展望
+## 13. Adoption Status and Outlook
 
 ```
-HTTP/2 と HTTP/3 の普及状況（2025年時点の推計）:
+HTTP/2 and HTTP/3 adoption (estimated as of 2025):
 
   ┌──────────────────────────────────────────────────┐
-  │  Web全体のプロトコル分布                           │
+  │  Protocol distribution across the web             │
   │                                                    │
-  │  HTTP/1.1: ████████████████████  約 55%            │
-  │  HTTP/2:   ████████████          約 33%            │
-  │  HTTP/3:   ████                  約 12%            │
+  │  HTTP/1.1: ████████████████████  ~55%             │
+  │  HTTP/2:   ████████████          ~33%             │
+  │  HTTP/3:   ████                  ~12%             │
   │                                                    │
-  │  主要サービスの対応状況:                             │
-  │    Google:     HTTP/3 全面展開                      │
-  │    Facebook:   HTTP/3 全面展開                      │
-  │    Cloudflare: HTTP/3 デフォルト有効                │
-  │    AWS:        CloudFront で HTTP/3 対応             │
-  │    Akamai:     HTTP/3 対応                          │
-  │    Fastly:     HTTP/3 対応                          │
+  │  Major service support:                            │
+  │    Google:     HTTP/3 fully deployed              │
+  │    Facebook:   HTTP/3 fully deployed              │
+  │    Cloudflare: HTTP/3 enabled by default          │
+  │    AWS:        HTTP/3 supported on CloudFront     │
+  │    Akamai:     HTTP/3 supported                   │
+  │    Fastly:     HTTP/3 supported                   │
   │                                                    │
-  │  ブラウザ対応状況:                                  │
-  │    Chrome:    HTTP/3 対応（Chrome 87+）             │
-  │    Firefox:   HTTP/3 対応（Firefox 88+）            │
-  │    Safari:    HTTP/3 対応（Safari 14+）             │
-  │    Edge:      HTTP/3 対応（Chromiumベース）          │
+  │  Browser support:                                  │
+  │    Chrome:    HTTP/3 (Chrome 87+)                 │
+  │    Firefox:   HTTP/3 (Firefox 88+)                │
+  │    Safari:    HTTP/3 (Safari 14+)                 │
+  │    Edge:      HTTP/3 (Chromium-based)             │
   └──────────────────────────────────────────────────┘
 
-  今後の展望:
-    1. HTTP/3 の普及加速
-       → CDNのデフォルト対応が進み、自動的にHTTP/3が使われる
-       → 管理者が意識しなくてもHTTP/3で通信されるケースが増加
+  Outlook:
+    1. Accelerated HTTP/3 adoption
+       → CDNs enabling it by default means HTTP/3 is used automatically
+       → Increasingly common without administrators noticing
 
     2. QUIC v2 (RFC 9369)
-       → QUIC の改良版が標準化
-       → 暗号化の強化、パフォーマンス改善
+       → Improved version of QUIC standardized
+       → Stronger encryption, performance improvements
 
     3. WebTransport
-       → QUIC/HTTP/3 上の新しい双方向通信プロトコル
-       → WebSocket の後継として期待
-       → 低レイテンシのリアルタイム通信に最適化
+       → New bidirectional communication protocol over QUIC/HTTP/3
+       → Expected as the successor to WebSocket
+       → Optimized for low-latency real-time communication
 
     4. Multipath QUIC
-       → 複数のネットワークパスを同時使用
-       → Wi-Fi + モバイルの同時利用で帯域倍増
-       → ネットワーク切り替え時のシームレスな移行
+       → Simultaneously uses multiple network paths
+       → Double bandwidth with simultaneous Wi-Fi + mobile
+       → Seamless migration during network switches
 ```
 
 ---
 
 ## 14. FAQ
 
-### FAQ 1: HTTP/2とHTTP/3はどちらを優先すべきか
+### FAQ 1: Which should be prioritized, HTTP/2 or HTTP/3?
 
 ```
-Q: 新規サービスを構築する場合、HTTP/2とHTTP/3のどちらを
-   優先的に導入すべきか?
+Q: When building a new service, should HTTP/2 or HTTP/3
+   be prioritized?
 
-A: HTTP/2をまず確実に導入し、HTTP/3を追加のオプションとして
-   設定するのが最善のアプローチである。
+A: The best approach is to first ensure solid HTTP/2 adoption,
+   then configure HTTP/3 as an additional option.
 
-  理由:
-    1. HTTP/2 は事実上の標準
-       → ほぼ全てのブラウザ、サーバー、CDNが対応
-       → HTTP/1.1からの移行効果が最も大きい
-       → 多重化だけで大幅な性能向上が見込める
+  Reasons:
+    1. HTTP/2 is the de facto standard
+       → Supported by virtually all browsers, servers, and CDNs
+       → Migration from HTTP/1.1 has the biggest impact
+       → Multiplexing alone promises significant performance gains
 
-    2. HTTP/3 はフォールバックが必要
-       → UDP がブロックされる環境が存在
-       → HTTP/3 のみでは一部クライアントが接続不可
-       → Alt-Svc による段階的アップグレードが標準手法
+    2. HTTP/3 requires fallback
+       → Environments that block UDP exist
+       → HTTP/3 only means some clients cannot connect
+       → Gradual upgrade via Alt-Svc is the standard approach
 
-    3. 導入の容易さ
-       → HTTP/2: Nginx の設定変更のみで有効化
-       → HTTP/3: UDPポート開放、対応サーバー、
-         ファイアウォール設定の変更が必要
+    3. Ease of adoption
+       → HTTP/2: just change Nginx configuration
+       → HTTP/3: requires opening UDP port, compatible server,
+         and firewall configuration changes
 
-  推奨構成:
-    Phase 1: HTTP/2 を全面導入
-    Phase 2: CDN経由でHTTP/3を自動的に提供
-    Phase 3: オリジンサーバーでもHTTP/3を有効化
+  Recommended phases:
+    Phase 1: Fully deploy HTTP/2
+    Phase 2: Automatically serve HTTP/3 via CDN
+    Phase 3: Enable HTTP/3 on origin servers
 ```
 
-### FAQ 2: gRPC と HTTP/2 の関係は
+### FAQ 2: What is the relationship between gRPC and HTTP/2?
 
 ```
-Q: gRPC はなぜ HTTP/2 を採用しているのか?
-   HTTP/3 への移行は予定されているのか?
+Q: Why did gRPC choose HTTP/2?
+   Is migration to HTTP/3 planned?
 
-A: gRPC が HTTP/2 を選択した理由と HTTP/3 移行の見通し
+A: Why gRPC chose HTTP/2 and the outlook for HTTP/3 migration
 
-  HTTP/2 を選択した理由:
-    1. 双方向ストリーミング
-       → HTTP/2 のストリームを活用
-       → クライアント → サーバー、サーバー → クライアントの
-         同時通信が可能
+  Why HTTP/2 was chosen:
+    1. Bidirectional streaming
+       → Leverages HTTP/2 streams
+       → Simultaneous client → server and server → client
+         communication is possible
 
-    2. 多重化
-       → 1つの接続で多数のRPC呼び出しを同時実行
-       → マイクロサービス間の接続数を削減
+    2. Multiplexing
+       → Multiple concurrent RPC calls on one connection
+       → Reduces connection count between microservices
 
-    3. ヘッダー圧縮
-       → gRPCメタデータの効率的な送受信
-       → HPACKで繰り返しメタデータを圧縮
+    3. Header compression
+       → Efficient transmission of gRPC metadata
+       → Repeated metadata compressed with HPACK
 
-    4. フロー制御
-       → ストリーム単位のバックプレッシャー
-       → 受信側の処理能力に合わせた送信制御
+    4. Flow control
+       → Per-stream backpressure
+       → Send control matched to receiver's processing capacity
 
-  HTTP/3 (gRPC over QUIC) の状況:
-    → gRPC の公式仕様では HTTP/3 対応が進行中
-    → Connect プロトコル（Buf社）は HTTP/3 対応
-    → データセンター内ではTCP HoL Blockingの影響が小さいため
-      HTTP/2 のままで十分なケースが多い
-    → インターネット越しの gRPC-Web では HTTP/3 の恩恵が大きい
+  Status of HTTP/3 (gRPC over QUIC):
+    → HTTP/3 support in gRPC's official spec is in progress
+    → Connect protocol (Buf) supports HTTP/3
+    → Inside data centers, TCP HoL Blocking has little impact,
+      so HTTP/2 is sufficient in many cases
+    → For gRPC-Web over the internet, HTTP/3 offers bigger benefits
 
-  現状の推奨:
-    データセンター内: HTTP/2 で十分
-    インターネット越し: HTTP/3 対応を検討
+  Current recommendation:
+    Inside data center: HTTP/2 is sufficient
+    Over the internet: Consider HTTP/3 support
 ```
 
-### FAQ 3: HTTP/2を使っているのにページが遅い原因は
+### FAQ 3: Why is my page slow even when using HTTP/2?
 
 ```
-Q: HTTP/2 に移行したのにページの読み込み速度が改善しない。
-   考えられる原因は何か?
+Q: I migrated to HTTP/2 but page load speed hasn't improved.
+   What are the possible causes?
 
-A: HTTP/2 だけではページ速度の全ての問題は解決しない。
-   以下の原因を調査する必要がある。
+A: HTTP/2 alone doesn't solve all page speed problems.
+   The following causes need to be investigated.
 
-  1. サーバー処理時間（TTFB）が遅い
-     → HTTP/2 は通信プロトコルの最適化
-     → サーバーサイドのDB クエリや処理遅延は改善しない
-     → 対策: APMツールでサーバー処理を計測・最適化
+  1. Slow server processing time (TTFB)
+     → HTTP/2 optimizes the communication protocol
+     → Does not improve server-side DB queries or processing delays
+     → Fix: Measure and optimize server processing with an APM tool
 
-  2. サードパーティリソースの遅延
-     → 外部ドメインの広告、アナリティクス、フォント等
-     → 各ドメインへの接続確立が別途必要
-     → 対策: dns-prefetch、preconnect の使用
+  2. Third-party resource delays
+     → Ads, analytics, fonts from external domains
+     → Connection establishment needed per domain
+     → Fix: Use dns-prefetch and preconnect
 
-  3. レンダリングブロッキング
-     → 大きなCSSやJSがレンダリングを阻害
-     → HTTP/2 で高速に取得しても、解析・実行に時間がかかる
-     → 対策: Critical CSS、Code Splitting、defer/async
+  3. Render-blocking resources
+     → Large CSS or JS blocking rendering
+     → Fast retrieval via HTTP/2 doesn't eliminate parse/execution time
+     → Fix: Critical CSS, Code Splitting, defer/async
 
-  4. 画像の最適化不足
-     → 非圧縮の巨大画像はHTTP/2でも重い
-     → 対策: WebP/AVIF、適切なサイズ、lazy loading
+  4. Insufficient image optimization
+     → Uncompressed large images are heavy even with HTTP/2
+     → Fix: WebP/AVIF, appropriate sizing, lazy loading
 
-  5. HTTP/2 の優先度が効いていない
-     → ブラウザとサーバーで優先度の解釈が異なる場合がある
-     → 対策: fetchpriority 属性の使用
+  5. HTTP/2 priority not taking effect
+     → Browser and server may interpret priority differently
+     → Fix: Use the fetchpriority attribute
        <img src="hero.jpg" fetchpriority="high">
        <img src="below-fold.jpg" fetchpriority="low">
 
-  6. 過度なドメインシャーディングの残存
-     → アンチパターン1で説明した通り
-     → 対策: 可能な限りドメインを統合
+  6. Remaining excessive domain sharding
+     → As explained in Anti-Pattern 1
+     → Fix: Consolidate domains as much as possible
 
-  診断手順:
-    1. Chrome DevTools → Performance タブで
-       Largest Contentful Paint (LCP) を確認
-    2. Network タブでウォーターフォールを確認
-    3. Lighthouse でボトルネックの指摘を確認
-    4. WebPageTest で詳細な分析を実行
+  Diagnosis steps:
+    1. Chrome DevTools → Performance tab,
+       check Largest Contentful Paint (LCP)
+    2. Check the waterfall in the Network tab
+    3. Use Lighthouse for bottleneck suggestions
+    4. Run detailed analysis with WebPageTest
 ```
 
-### FAQ 4: HTTP/2のストリーム数の上限はいくつが適切か
+### FAQ 4: What is the right MAX_CONCURRENT_STREAMS for HTTP/2?
 
 ```
-Q: HTTP/2 の MAX_CONCURRENT_STREAMS は何に設定すべきか?
+Q: What should HTTP/2 MAX_CONCURRENT_STREAMS be set to?
 
-A: ワークロードによって最適値が異なる。
+A: The optimal value varies by workload.
 
-  一般的なWebサイト:
-    推奨値: 100-128
-    理由: 通常のページは100未満のリクエストで構成される
-    Nginx デフォルト: 128
+  General website:
+    Recommended: 100-128
+    Reason: Normal pages consist of fewer than 100 requests
+    Nginx default: 128
 
-  SPA/重量級Webアプリ:
-    推奨値: 256
-    理由: API呼び出しとリソース取得を合わせると100を超えることがある
+  SPA / heavy web apps:
+    Recommended: 256
+    Reason: API calls + resource fetches can exceed 100
 
-  マイクロサービス間通信 (gRPC):
-    推奨値: 100-1000（負荷テストで決定）
-    理由: 多数のRPC呼び出しを同時実行する可能性がある
-    注意: 値を大きくしすぎるとメモリ消費が増大
+  Microservice communication (gRPC):
+    Recommended: 100-1000 (determine via load testing)
+    Reason: Many RPC calls may run concurrently
+    Note: Too large a value increases memory consumption
 
-  CDN/リバースプロキシ:
-    推奨値: 100-256
-    理由: 多数のオリジンリクエストを並列処理
+  CDN / reverse proxy:
+    Recommended: 100-256
+    Reason: Many origin requests processed in parallel
     Cloudflare: 256
     AWS ALB: 128
 
-  計算の目安:
-    想定ピーク同時リクエスト数 × 1.5 = 推奨値
-    例: ピーク時に150リクエスト → 225 → 切り上げて256
+  Rough calculation:
+    Expected peak concurrent requests × 1.5 = recommended value
+    Example: 150 peak requests → 225 → round up to 256
 ```
 
-### FAQ 5: 0-RTT再接続にセキュリティリスクはあるか
+### FAQ 5: Are there security risks with 0-RTT reconnection?
 
 ```
-Q: QUIC の 0-RTT 再接続は安全か? リプレイ攻撃のリスクは?
+Q: Is QUIC's 0-RTT reconnection safe? Is there a replay attack risk?
 
-A: 0-RTT にはリプレイ攻撃のリスクが存在する。
-   適切な対策を講じた上で使用する必要がある。
+A: 0-RTT has a replay attack risk.
+   It must be used with appropriate countermeasures.
 
-  リプレイ攻撃のシナリオ:
-    1. クライアントが 0-RTT で GET /api/balance を送信
-    2. 攻撃者がそのパケットをキャプチャ
-    3. 攻撃者が同じパケットをサーバーに再送
-    4. サーバーは正規のリクエストとして処理してしまう
+  Replay attack scenario:
+    1. Client sends GET /api/balance via 0-RTT
+    2. Attacker captures that packet
+    3. Attacker resends the same packet to server
+    4. Server processes it as a legitimate request
 
-  対策:
-    1. 冪等なリクエストのみ 0-RTT で許可
-       → GET は安全（副作用なし）
-       → POST、PUT、DELETE は 1-RTT を要求
+  Countermeasures:
+    1. Allow 0-RTT only for idempotent requests
+       → GET is safe (no side effects)
+       → POST, PUT, DELETE require 1-RTT
 
-    2. サーバー側でリプレイ検知
-       → リプレイトークンの管理
-       → 同一トークンの二重処理を拒否
+    2. Server-side replay detection
+       → Manage replay tokens
+       → Reject duplicate processing of the same token
 
-    3. Anti-Replay メカニズム（RFC 8446 Section 8）
-       → タイムスタンプベースの検証
-       → 一定期間内の重複リクエストを拒否
+    3. Anti-Replay mechanism (RFC 8446 Section 8)
+       → Timestamp-based validation
+       → Reject duplicate requests within a time window
 
-  Nginx での設定:
-    ssl_early_data on;      # 0-RTT を有効化
+  Nginx configuration:
+    ssl_early_data on;      # Enable 0-RTT
 
-    # アプリケーション側で Early-Data ヘッダーを確認
+    # Check Early-Data header on application side
     proxy_set_header Early-Data $ssl_early_data;
-    # $ssl_early_data が "1" の場合、0-RTT リクエスト
-    # → 副作用のある処理は 425 Too Early を返す
+    # If $ssl_early_data is "1", it's a 0-RTT request
+    # → Return 425 Too Early for side-effectful operations
 
-  推奨:
-    ・静的コンテンツ: 0-RTT 有効（リスク低）
-    ・API（GET）: 0-RTT 有効（冪等性を確認）
-    ・API（POST等）: 0-RTT 無効（リプレイリスク）
-    ・決済処理: 0-RTT 無効（絶対にリプレイ不可）
+  Recommendation:
+    · Static content: 0-RTT enabled (low risk)
+    · API (GET): 0-RTT enabled (verify idempotency)
+    · API (POST, etc.): 0-RTT disabled (replay risk)
+    · Payment processing: 0-RTT disabled (replay absolutely unacceptable)
 ```
 
 ---
@@ -1911,129 +1926,130 @@ A: 0-RTT にはリプレイ攻撃のリスクが存在する。
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just from theory but from writing actual code and observing its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this knowledge applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in day-to-day development work. It is particularly important during code reviews and architecture design.
 
 ---
 
-## 15. まとめ
+## 15. Summary
 
 ```
-HTTP プロトコルの進化と選択基準:
+HTTP protocol evolution and selection criteria:
 
   ┌─────────────────────────────────────────────────────┐
   │                                                       │
   │  HTTP/1.1 (1997)                                     │
-  │    ・テキストベース、シンプルで広く普及                 │
-  │    ・HoL Blocking、ヘッダー冗長性が問題               │
-  │    ・レガシーシステムでは依然として現役                 │
+  │    · Text-based, simple, widely adopted              │
+  │    · HoL Blocking and header redundancy are issues   │
+  │    · Still active in legacy systems                  │
   │                                                       │
-  │          ↓ 多重化、ヘッダー圧縮、バイナリ化            │
+  │          ↓ Multiplexing, header compression, binary  │
   │                                                       │
   │  HTTP/2 (2015)                                       │
-  │    ・1接続でのマルチプレキシング                       │
-  │    ・HPACK ヘッダー圧縮                               │
-  │    ・TCP層のHoL Blockingが残存                        │
-  │    ・現在のWeb標準として必須級                         │
+  │    · Multiplexing on a single connection             │
+  │    · HPACK header compression                        │
+  │    · TCP-layer HoL Blocking persists                 │
+  │    · Now required as modern web standard             │
   │                                                       │
-  │          ↓ QUIC（UDP）、ストリーム独立、接続移行       │
+  │          ↓ QUIC (UDP), stream independence,          │
+  │            connection migration                       │
   │                                                       │
   │  HTTP/3 (2022)                                       │
-  │    ・QUIC上で動作、HoL Blocking完全解消               │
-  │    ・1 RTT接続、0-RTT再接続                           │
-  │    ・接続移行（ネットワーク切り替え対応）               │
-  │    ・普及拡大中、CDN経由での利用が増加                 │
+  │    · Runs on QUIC, HoL Blocking fully eliminated     │
+  │    · 1 RTT connection, 0-RTT reconnection            │
+  │    · Connection migration (network switch support)   │
+  │    · Adoption growing, increasingly used via CDN    │
   │                                                       │
   └─────────────────────────────────────────────────────┘
 
-  プロトコル選択のフローチャート:
+  Protocol selection flowchart:
 
-    新規サービス構築?
-    ├── はい → HTTP/2 を基本構成として導入
-    │         ├── CDN使用? → CDN経由でHTTP/3も自動提供
-    │         └── モバイル重視? → HTTP/3のオリジン対応も検討
-    └── 既存サービス?
-        ├── HTTP/1.1のみ → HTTP/2への移行を優先
-        └── HTTP/2導入済み → HTTP/3の追加を検討
-            ├── CDN使用 → CDN側でHTTP/3を有効化
-            └── CDN未使用 → サーバーのHTTP/3対応を検討
+    Building a new service?
+    ├── Yes → Deploy HTTP/2 as baseline
+    │         ├── Using CDN? → Also serve HTTP/3 automatically via CDN
+    │         └── Mobile-focused? → Consider HTTP/3 on origin too
+    └── Existing service?
+        ├── HTTP/1.1 only → Prioritize migration to HTTP/2
+        └── HTTP/2 in place → Consider adding HTTP/3
+            ├── Using CDN → Enable HTTP/3 on CDN side
+            └── No CDN → Consider HTTP/3 support on server
 
-  覚えておくべきポイント:
-    1. HTTP/2 は現代のWeb開発において必須
-    2. HTTP/3 は追加のオプションとして段階的に導入
-    3. フォールバック構成（HTTP/3 → HTTP/2 → HTTP/1.1）が重要
-    4. ドメインシャーディング等のHTTP/1.1最適化はHTTP/2で不要
-    5. サーバープッシュは非推奨、103 Early Hints を使用
-    6. パケットロスの多い環境ではHTTP/3の優位性が顕著
-    7. 0-RTT は便利だがリプレイ攻撃リスクを理解して使用
+  Key points to remember:
+    1. HTTP/2 is essential in modern web development
+    2. HTTP/3 is introduced incrementally as an added option
+    3. Fallback configuration (HTTP/3 → HTTP/2 → HTTP/1.1) is important
+    4. HTTP/1.1 optimizations like domain sharding are unnecessary with HTTP/2
+    5. Server push is deprecated; use 103 Early Hints
+    6. HTTP/3's advantage is pronounced in high-packet-loss environments
+    7. 0-RTT is convenient but understand and mitigate replay attack risk
 ```
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
 ---
 
-## 参考文献
+## References
 
 1. RFC 9113. "HTTP/2." IETF, 2022.
    https://www.rfc-editor.org/rfc/rfc9113
-   HTTP/2プロトコルの正式仕様。バイナリフレーミング、マルチプレキシング、
-   HPACK、サーバープッシュ、フロー制御、ストリーム優先度の全仕様を定義。
+   Official HTTP/2 specification. Defines binary framing, multiplexing,
+   HPACK, server push, flow control, and stream priority in full.
 
 2. RFC 9114. "HTTP/3." IETF, 2022.
    https://www.rfc-editor.org/rfc/rfc9114
-   HTTP/3プロトコルの正式仕様。QUIC上でのHTTPセマンティクスの
-   マッピング、QPACK、ストリーム管理を定義。
+   Official HTTP/3 specification. Defines HTTP semantics mapping over QUIC,
+   QPACK, and stream management.
 
 3. RFC 9000. "QUIC: A UDP-Based Multiplexed and Secure Transport." IETF, 2021.
    https://www.rfc-editor.org/rfc/rfc9000
-   QUICトランスポートプロトコルの正式仕様。接続確立、ストリーム、
-   フロー制御、接続移行、パケット保護を定義。
+   Official QUIC transport protocol specification. Defines connection establishment,
+   streams, flow control, connection migration, and packet protection.
 
 4. RFC 7541. "HPACK: Header Compression for HTTP/2." IETF, 2015.
    https://www.rfc-editor.org/rfc/rfc7541
-   HTTP/2のヘッダー圧縮方式HPACKの仕様。静的テーブル、動的テーブル、
-   ハフマン符号の詳細を定義。
+   Specification for HPACK, HTTP/2's header compression format. Defines the
+   static table, dynamic table, and Huffman coding in detail.
 
 5. RFC 9204. "QPACK: Field Compression for HTTP/3." IETF, 2022.
    https://www.rfc-editor.org/rfc/rfc9204
-   HTTP/3のヘッダー圧縮方式QPACKの仕様。HPACKをQUICの
-   ストリーム独立性に適合させた設計。
+   Specification for QPACK, HTTP/3's header compression format. Adapts HPACK
+   to QUIC's stream independence design.
 
 6. RFC 8297. "An HTTP Status Code for Indicating Hints." IETF, 2017.
    https://www.rfc-editor.org/rfc/rfc8297
-   103 Early Hints ステータスコードの仕様。サーバープッシュの
-   代替として推奨される技術。
+   Specification for the 103 Early Hints status code. A recommended technique
+   as an alternative to server push.
 
 7. RFC 9218. "Extensible Prioritization Scheme for HTTP." IETF, 2022.
    https://www.rfc-editor.org/rfc/rfc9218
-   HTTP/2とHTTP/3共通の新しい優先度方式。urgencyとincrementalの
-   2パラメータによるシンプルな優先度制御を定義。
+   New priority scheme shared by HTTP/2 and HTTP/3. Defines simple priority
+   control with two parameters: urgency and incremental.
 
 ---
 
-## まとめ
+## Summary
 
-| プロトコル | 主要な改善点 | トランスポート | 主な利点 | 主な課題 |
-|-----------|-------------|---------------|---------|---------|
-| **HTTP/1.1** | Keep-Alive | TCP | シンプル、広範な対応 | Head-of-Line Blocking、接続数制限 |
-| **HTTP/2** | バイナリフレーミング、多重化、HPACK、サーバープッシュ | TCP（TLS推奨） | 1接続で多数リクエスト並列処理、ヘッダー圧縮 | TCPレベルのHoL Blocking残存 |
-| **HTTP/3** | QUIC、QPACK、0-RTT、接続移行 | UDP（QUIC） | TCPのHoL Blocking解消、高速ハンドシェイク、モバイル最適化 | UDPファイアウォール問題、CPU負荷 |
+| Protocol | Key Improvements | Transport | Main Benefits | Main Challenges |
+|----------|-----------------|-----------|--------------|-----------------|
+| **HTTP/1.1** | Keep-Alive | TCP | Simple, widely supported | Head-of-Line Blocking, connection count limit |
+| **HTTP/2** | Binary framing, multiplexing, HPACK, server push | TCP (TLS recommended) | Parallel processing of many requests on 1 connection, header compression | TCP-level HoL Blocking persists |
+| **HTTP/3** | QUIC, QPACK, 0-RTT, connection migration | UDP (QUIC) | TCP HoL Blocking eliminated, fast handshake, mobile-optimized | UDP firewall issues, CPU load |
 
-### キーポイント
+### Key Points
 
-1. **HTTP/2の核心は多重化**: 1つのTCP接続上で複数のストリームを並列処理することで、HTTP/1.1のパイプライン問題とHead-of-Line Blockingを解消。ただしTCPレベルのパケットロスによるHoL Blockingは残存。
+1. **The core of HTTP/2 is multiplexing**: Processing multiple streams in parallel over a single TCP connection resolves HTTP/1.1's pipelining problem and application-layer Head-of-Line Blocking. However, HoL Blocking from TCP-level packet loss persists.
 
-2. **HTTP/3はトランスポート層から刷新**: QUICプロトコル（UDP上のストリーム多重化）により、パケットロスが1つのストリームのみに影響する設計。TLS 1.3統合で1-RTTハンドシェイク、0-RTT再接続、接続移行によりモバイル環境で真価を発揮。
+2. **HTTP/3 renovates from the transport layer up**: The QUIC protocol (stream multiplexing over UDP) ensures packet loss affects only the impacted stream. TLS 1.3 integration provides 1-RTT handshake, 0-RTT reconnection, and connection migration, delivering real value in mobile environments.
 
-3. **段階的な導入が推奨**: HTTP/2は広く対応済みで導入リスク低。HTTP/3はフォールバック（Alt-Svcヘッダー）付きで導入し、モニタリングしながら効果を検証。UDPブロックやCPU負荷増に注意し、CDN活用で負荷を分散。
+3. **Incremental adoption is recommended**: HTTP/2 is widely supported and has low adoption risk. Introduce HTTP/3 with fallback (Alt-Svc header), verify effectiveness while monitoring. Watch out for UDP blocking and increased CPU load, and use CDNs to spread the load.

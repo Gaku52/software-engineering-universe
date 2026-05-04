@@ -1,329 +1,340 @@
-# REST API設計
+# REST API Design
 
-> RESTはWeb APIの設計原則。リソース指向のURI設計、適切なHTTPメソッドの使用、ステータスコードの活用で、直感的で保守性の高いAPIを設計する。Roy Fieldingが2000年の博士論文で提唱したアーキテクチャスタイルであり、Webの成功を支えた根幹技術を体系化したものである。
+> REST is an architectural principle for Web APIs. By designing resource-oriented URIs, using appropriate HTTP methods, and leveraging status codes, you can create intuitive, maintainable APIs. It is the architectural style proposed by Roy Fielding in his 2000 doctoral dissertation — a systematic formulation of the fundamental techniques that made the Web successful.
 
-## 前提知識
+## Prerequisites
 
-- JSONフォーマットの理解 — REST APIで最も一般的に使われるデータ形式
+- Understanding of the JSON format — the most commonly used data format in REST APIs
 
-RESTはHTTPプロトコルの特性を最大限活用した設計原則である。HTTPメソッドの意味論、ステータスコードの使い分け、ヘッダーによるメタデータ管理を理解していることで、RESTful APIの設計意図を正確に把握できる。
-
----
-
-## この章で学ぶこと
-
-- [ ] RESTの6原則とRichardson成熟度モデルを理解する
-- [ ] リソース指向のURI設計を把握し、適切なHTTPメソッドを選択できる
-- [ ] 実践的なAPI設計パターン（ページネーション、フィルタリング、バージョニング）を学ぶ
-- [ ] HATEOASの概念と適用場面を理解する
-- [ ] OpenAPI仕様でAPIを文書化する方法を習得する
-- [ ] Express/FastAPIでのREST API実装パターンを把握する
+REST is a design principle that takes full advantage of the characteristics of the HTTP protocol. Understanding the semantics of HTTP methods, the appropriate use of status codes, and header-based metadata management allows you to accurately grasp the design intent of RESTful APIs.
 
 ---
 
-## 1. RESTの原則
+## What You Will Learn
 
-### 1.1 RESTとは何か
+- [ ] Understand the 6 REST constraints and the Richardson Maturity Model
+- [ ] Grasp resource-oriented URI design and choose appropriate HTTP methods
+- [ ] Learn practical API design patterns (pagination, filtering, versioning)
+- [ ] Understand the concept of HATEOAS and when to apply it
+- [ ] Learn how to document APIs with the OpenAPI specification
+- [ ] Understand REST API implementation patterns with Express/FastAPI
 
-REST（Representational State Transfer）はRoy Fieldingが2000年の博士論文で提唱したアーキテクチャスタイルである。HTTPプロトコルの主要な設計者の一人であるFieldingが、Webがなぜ成功したのかを分析し、その設計原則を体系化したものがRESTである。
+---
 
-RESTはプロトコルやフレームワークではなく、あくまで「制約の集合」として定義される。これらの制約を満たすシステムを「RESTful」と呼ぶ。
+## 1. REST Principles
 
-```
-REST（Representational State Transfer）:
-  → Roy Fieldingの2000年の博士論文で提唱
-  → Web の既存技術（HTTP, URI）を活用したアーキテクチャスタイル
-  → プロトコルではなく「制約の集合」
+### 1.1 What is REST?
 
-6つの制約:
-  +-------------------------------------------------------+
-  |              REST アーキテクチャ制約                      |
-  +-------------------------------------------------------+
-  |                                                       |
-  |  ① クライアント・サーバー分離                            |
-  |     → UIとデータ処理を分離                              |
-  |     → 独立して進化可能                                  |
-  |     → 関心の分離（Separation of Concerns）              |
-  |                                                       |
-  |  ② ステートレス                                        |
-  |     → 各リクエストが完結                                |
-  |     → サーバーはセッション状態を持たない                   |
-  |     → スケーラビリティが向上                             |
-  |     → リクエスト単位でロードバランシング可能               |
-  |                                                       |
-  |  ③ キャッシュ可能                                      |
-  |     → レスポンスにキャッシュ可否を明示                    |
-  |     → Cache-Control, ETag, Last-Modified               |
-  |     → ネットワーク効率とレイテンシの改善                   |
-  |                                                       |
-  |  ④ 統一インターフェース                                 |
-  |     → リソースの識別（URI）                             |
-  |     → 表現を通じたリソース操作（JSON/XML）               |
-  |     → 自己記述メッセージ（Content-Type等）               |
-  |     → HATEOAS（ハイパーメディア駆動）                    |
-  |                                                       |
-  |  ⑤ 階層化システム                                      |
-  |     → ロードバランサー、プロキシ、ゲートウェイを挟める     |
-  |     → クライアントは中間層を意識しない                    |
-  |     → セキュリティポリシーの集中管理が可能                 |
-  |                                                       |
-  |  ⑥ コードオンデマンド（任意）                            |
-  |     → サーバーからクライアントに実行コードを送信           |
-  |     → JavaScript等                                     |
-  |     → 唯一のオプショナルな制約                           |
-  +-------------------------------------------------------+
-```
+REST (Representational State Transfer) is an architectural style proposed by Roy Fielding in his 2000 doctoral dissertation. Fielding, one of the principal designers of the HTTP protocol, analyzed why the Web was successful and systematized its design principles into what became REST.
 
-### 1.2 Richardson成熟度モデル
-
-Leonard Richardsonが提唱した成熟度モデルは、APIがどの程度RESTfulであるかを4段階で評価する。
+REST is not a protocol or a framework — it is defined as a "set of constraints." Systems that satisfy these constraints are called "RESTful."
 
 ```
-Richardson Maturity Model（REST成熟度モデル）:
+REST (Representational State Transfer):
+  → Proposed in Roy Fielding's 2000 doctoral dissertation
+  → An architectural style that leverages existing Web technologies (HTTP, URI)
+  → Not a protocol but a "set of constraints"
 
-  Level 3 ──── HATEOAS（ハイパーメディア制御）          ← 完全なREST
-     ▲         レスポンスに次の操作リンクを含む
+6 Constraints:
+  +-------------------------------------------------------+
+  |              REST Architectural Constraints            |
+  +-------------------------------------------------------+
+  |                                                       |
+  |  ① Client-Server Separation                          |
+  |     → Separate UI from data processing               |
+  |     → Each can evolve independently                  |
+  |     → Separation of Concerns                         |
+  |                                                       |
+  |  ② Stateless                                         |
+  |     → Each request is self-contained                 |
+  |     → Server holds no session state                  |
+  |     → Improved scalability                           |
+  |     → Load balancing per request is possible         |
+  |                                                       |
+  |  ③ Cacheable                                         |
+  |     → Responses explicitly declare cacheability      |
+  |     → Cache-Control, ETag, Last-Modified             |
+  |     → Improved network efficiency and latency        |
+  |                                                       |
+  |  ④ Uniform Interface                                 |
+  |     → Resource identification (URI)                  |
+  |     → Resource manipulation through representations  |
+  |       (JSON/XML)                                     |
+  |     → Self-descriptive messages (Content-Type, etc.) |
+  |     → HATEOAS (hypermedia-driven)                    |
+  |                                                       |
+  |  ⑤ Layered System                                    |
+  |     → Load balancers, proxies, gateways can be added |
+  |     → Client is unaware of intermediate layers       |
+  |     → Centralized management of security policies    |
+  |                                                       |
+  |  ⑥ Code on Demand (optional)                         |
+  |     → Server can send executable code to client      |
+  |     → JavaScript, etc.                               |
+  |     → The only optional constraint                   |
+  +-------------------------------------------------------+
+```
+
+### 1.2 Richardson Maturity Model
+
+The maturity model proposed by Leonard Richardson evaluates how RESTful an API is across four levels.
+
+```
+Richardson Maturity Model:
+
+  Level 3 ──── HATEOAS (Hypermedia controls)          ← True REST
+     ▲         Responses include links for next actions
      │
-  Level 2 ──── HTTPメソッド + ステータスコードの活用     ← 大半のAPIはここ
-     ▲         GET/POST/PUT/DELETE + 200/201/404 等
+  Level 2 ──── HTTP Methods + Status Codes             ← Most APIs are here
+     ▲         GET/POST/PUT/DELETE + 200/201/404, etc.
      │
-  Level 1 ──── リソースの導入
-     ▲         個別のURIでリソースを識別
+  Level 1 ──── Introduction of Resources
+     ▲         Resources identified by individual URIs
      │          /users/123, /orders/456
      │
-  Level 0 ──── 単一エンドポイント（POX: Plain Old XML）
-               全操作を1つのURIに POST
-               SOAP的なアプローチ
+  Level 0 ──── Single Endpoint (POX: Plain Old XML)
+               All operations POSTed to one URI
+               SOAP-style approach
 
   ┌─────────┬──────────────────────────┬───────────────────┐
-  │ Level   │ 特徴                      │ 例                │
+  │ Level   │ Characteristics          │ Example           │
   ├─────────┼──────────────────────────┼───────────────────┤
-  │ Level 0 │ 1つのエンドポイント        │ POST /api         │
-  │         │ すべてPOST                │ body: {action:    │
+  │ Level 0 │ Single endpoint          │ POST /api         │
+  │         │ Everything is POST       │ body: {action:    │
   │         │                          │  "getUser"}       │
   ├─────────┼──────────────────────────┼───────────────────┤
-  │ Level 1 │ リソースごとにURI          │ POST /api/users   │
-  │         │ まだPOSTのみ              │ POST /api/orders  │
+  │ Level 1 │ Separate URI per resource│ POST /api/users   │
+  │         │ Still POST only          │ POST /api/orders  │
   ├─────────┼──────────────────────────┼───────────────────┤
-  │ Level 2 │ HTTPメソッドを活用         │ GET /api/users    │
-  │         │ ステータスコードも適切      │ POST /api/users   │
+  │ Level 2 │ HTTP methods used        │ GET /api/users    │
+  │         │ Status codes appropriate │ POST /api/users   │
   │         │                          │ → 201 Created     │
   ├─────────┼──────────────────────────┼───────────────────┤
-  │ Level 3 │ HATEOASを導入             │ レスポンスにリンク  │
-  │         │ 自己発見可能なAPI          │ を含む             │
+  │ Level 3 │ HATEOAS introduced       │ Response includes │
+  │         │ Self-discoverable API    │ links             │
   └─────────┴──────────────────────────┴───────────────────┘
 
-  現実的には Level 2 を達成していれば実用上十分。
-  Level 3 は理想だが、クライアント側の対応コストが高い。
+  In practice, reaching Level 2 is sufficient for most use cases.
+  Level 3 is ideal, but the client-side implementation cost is high.
 ```
 
-### 1.3 RESTと他のAPIスタイルの比較
+### 1.3 REST vs. Other API Styles
 
 ```
 ┌──────────┬──────────────┬──────────────┬──────────────┬──────────────┐
-│ 観点     │ REST         │ GraphQL      │ gRPC         │ SOAP         │
+│ Aspect   │ REST         │ GraphQL      │ gRPC         │ SOAP         │
 ├──────────┼──────────────┼──────────────┼──────────────┼──────────────┤
-│ プロトコル│ HTTP         │ HTTP         │ HTTP/2       │ HTTP/SMTP等  │
-│ データ形式│ JSON（主流） │ JSON         │ Protocol     │ XML          │
+│ Protocol │ HTTP         │ HTTP         │ HTTP/2       │ HTTP/SMTP/etc│
+│ Format   │ JSON (main)  │ JSON         │ Protocol     │ XML          │
 │          │              │              │ Buffers      │              │
-│ 型定義   │ OpenAPI      │ Schema       │ .proto       │ WSDL         │
-│ 過剰取得 │ 起こりうる   │ 起こらない   │ 起こらない   │ 起こりうる   │
-│ 過少取得 │ 起こりうる   │ 起こらない   │ 起こらない   │ 起こりうる   │
-│ リアルタイム│ WebSocket    │ Subscription │ Streaming    │ なし         │
-│ 学習コスト│ 低い         │ 中程度       │ 高い         │ 高い         │
-│ ツール   │ 豊富         │ 増加中       │ 限定的       │ 成熟         │
-│ キャッシュ│ HTTP標準     │ 独自実装必要 │ 独自実装必要 │ 困難         │
-│ 適用場面 │ 公開API      │ モバイル     │ マイクロ     │ エンタープ   │
-│          │ Web全般      │ 複雑なUI     │ サービス間   │ ライズ       │
+│ Schema   │ OpenAPI      │ Schema       │ .proto       │ WSDL         │
+│ Over-    │ Can occur    │ No           │ No           │ Can occur    │
+│ fetching │              │              │              │              │
+│ Under-   │ Can occur    │ No           │ No           │ Can occur    │
+│ fetching │              │              │              │              │
+│ Realtime │ WebSocket    │ Subscription │ Streaming    │ None         │
+│ Learning │ Low          │ Medium       │ High         │ High         │
+│ cost     │              │              │              │              │
+│ Tooling  │ Abundant     │ Growing      │ Limited      │ Mature       │
+│ Caching  │ HTTP native  │ Custom impl  │ Custom impl  │ Difficult    │
+│ Use case │ Public APIs  │ Mobile       │ Microservice │ Enterprise   │
+│          │ Web general  │ Complex UI   │ internal     │              │
 └──────────┴──────────────┴──────────────┴──────────────┴──────────────┘
 ```
 
-RESTの最大の強みは「Webの標準技術をそのまま活用する」点にある。HTTPキャッシュ、CDN、プロキシ、ロードバランサーといった既存のWebインフラがそのまま機能する。公開APIや外部開発者向けのAPIでは、RESTが最も広く採用されている。
+REST's greatest strength is "leveraging standard Web technologies as-is." Existing Web infrastructure — HTTP caching, CDNs, proxies, and load balancers — all work natively. For public APIs and APIs intended for external developers, REST is the most widely adopted choice.
 
 ---
 
-## 2. URI設計
+## 2. URI Design
 
-### 2.1 リソース指向のURI
+### 2.1 Resource-Oriented URIs
 
-REST APIの核心は「リソース」という概念にある。すべてのデータをリソースとして捉え、URIで一意に識別する。
+The core of a REST API is the concept of "resources." All data is treated as a resource and uniquely identified by a URI.
 
 ```
-リソース指向のURI設計:
+Resource-Oriented URI Design:
 
   ┌─────────────────────────────────────────────┐
-  │           リソース階層の設計例                  │
+  │       Example Resource Hierarchy Design      │
   ├─────────────────────────────────────────────┤
   │                                             │
   │  /api/v1                                    │
-  │    ├── /users                   コレクション  │
-  │    │   ├── /users/{id}          個別リソース  │
-  │    │   ├── /users/{id}/profile  サブリソース  │
-  │    │   ├── /users/{id}/orders   関連コレクション│
-  │    │   └── /users/{id}/orders/{oid}          │
-  │    ├── /products                             │
-  │    │   ├── /products/{id}                    │
-  │    │   ├── /products/{id}/reviews            │
-  │    │   └── /products/{id}/variants           │
-  │    ├── /orders                               │
-  │    │   ├── /orders/{id}                      │
-  │    │   ├── /orders/{id}/items                │
-  │    │   └── /orders/{id}/payments             │
-  │    └── /categories                           │
-  │        ├── /categories/{id}                  │
-  │        └── /categories/{id}/products         │
+  │    ├── /users                   Collection  │
+  │    │   ├── /users/{id}          Document    │
+  │    │   ├── /users/{id}/profile  Sub-resource│
+  │    │   ├── /users/{id}/orders   Related     │
+  │    │   │                        collection  │
+  │    │   └── /users/{id}/orders/{oid}         │
+  │    ├── /products                            │
+  │    │   ├── /products/{id}                   │
+  │    │   ├── /products/{id}/reviews           │
+  │    │   └── /products/{id}/variants          │
+  │    ├── /orders                              │
+  │    │   ├── /orders/{id}                     │
+  │    │   ├── /orders/{id}/items               │
+  │    │   └── /orders/{id}/payments            │
+  │    └── /categories                          │
+  │        ├── /categories/{id}                 │
+  │        └── /categories/{id}/products        │
   │                                             │
   └─────────────────────────────────────────────┘
 
-  リソースの種類:
+  Resource types:
   ┌─────────────┬─────────────────────┬──────────────────┐
-  │ 種類        │ 説明                 │ 例               │
+  │ Type        │ Description         │ Example          │
   ├─────────────┼─────────────────────┼──────────────────┤
-  │ コレクション │ リソースの集合        │ /users           │
-  │ ドキュメント │ 個別のリソース        │ /users/123       │
-  │ サブコレクション│ 親に属するコレクション │ /users/123/orders│
-  │ コントローラ │ 手続き的操作（例外）   │ /users/123/ban   │
+  │ Collection  │ Set of resources    │ /users           │
+  │ Document    │ Individual resource │ /users/123       │
+  │ Sub-        │ Collection owned by │ /users/123/orders│
+  │ collection  │ a parent            │                  │
+  │ Controller  │ Procedural ops      │ /users/123/ban   │
+  │             │ (exception)         │                  │
   └─────────────┴─────────────────────┴──────────────────┘
 ```
 
-### 2.2 HTTPメソッドとCRUD操作のマッピング
+### 2.2 Mapping HTTP Methods to CRUD Operations
 
 ```
-HTTPメソッドとリソース操作の対応:
+HTTP Methods and Resource Operation Mapping:
 
-  ✓ 良い設計:
-  GET    /api/v1/users              — ユーザー一覧取得
-  GET    /api/v1/users/123          — ユーザー詳細取得
-  POST   /api/v1/users              — ユーザー作成
-  PUT    /api/v1/users/123          — ユーザー全体更新
-  PATCH  /api/v1/users/123          — ユーザー部分更新
-  DELETE /api/v1/users/123          — ユーザー削除
-  GET    /api/v1/users/123/orders   — ユーザーの注文一覧
-  GET    /api/v1/users/123/orders/456 — 注文詳細
+  ✓ Good design:
+  GET    /api/v1/users              — Retrieve user list
+  GET    /api/v1/users/123          — Retrieve user detail
+  POST   /api/v1/users              — Create user
+  PUT    /api/v1/users/123          — Replace entire user
+  PATCH  /api/v1/users/123          — Partial update of user
+  DELETE /api/v1/users/123          — Delete user
+  GET    /api/v1/users/123/orders   — List orders for a user
+  GET    /api/v1/users/123/orders/456 — Order detail
 
-  ✗ 悪い設計:
-  GET    /api/getUsers              — 動詞を使わない
-  POST   /api/createUser            — メソッドに役割を持たせる
-  GET    /api/user/delete/123       — GETで副作用を起こさない
-  GET    /api/Users                 — 大文字を使わない
-  POST   /api/users/123/update      — URIに動詞を入れない
+  ✗ Bad design:
+  GET    /api/getUsers              — Do not use verbs
+  POST   /api/createUser            — Let the method carry the role
+  GET    /api/user/delete/123       — Do not cause side effects with GET
+  GET    /api/Users                 — Do not use uppercase
+  POST   /api/users/123/update      — Do not put verbs in the URI
 
-  メソッドの安全性と冪等性:
-  ┌─────────┬────────┬────────┬───────────────────────┐
-  │ メソッド │ 安全性 │ 冪等性 │ 用途                   │
-  ├─────────┼────────┼────────┼───────────────────────┤
-  │ GET     │ ○     │ ○     │ リソースの取得          │
-  │ HEAD    │ ○     │ ○     │ ヘッダーのみ取得        │
-  │ OPTIONS │ ○     │ ○     │ 対応メソッドの確認      │
-  │ POST    │ ×     │ ×     │ リソースの作成          │
-  │ PUT     │ ×     │ ○     │ リソースの全体置換      │
-  │ PATCH   │ ×     │ △     │ リソースの部分更新      │
-  │ DELETE  │ ×     │ ○     │ リソースの削除          │
-  └─────────┴────────┴────────┴───────────────────────┘
+  Method safety and idempotency:
+  ┌─────────┬────────┬─────────────┬───────────────────────┐
+  │ Method  │ Safe   │ Idempotent  │ Purpose               │
+  ├─────────┼────────┼─────────────┼───────────────────────┤
+  │ GET     │ Yes    │ Yes         │ Retrieve resource     │
+  │ HEAD    │ Yes    │ Yes         │ Retrieve headers only │
+  │ OPTIONS │ Yes    │ Yes         │ Discover methods      │
+  │ POST    │ No     │ No          │ Create resource       │
+  │ PUT     │ No     │ Yes         │ Replace entire resource│
+  │ PATCH   │ No     │ Conditional │ Partial update        │
+  │ DELETE  │ No     │ Yes         │ Delete resource       │
+  └─────────┴────────┴─────────────┴───────────────────────┘
 
-  安全性: リクエストがサーバーの状態を変更しない
-  冪等性: 同じリクエストを何度実行しても結果が同じ
-  △: 実装依存（冪等に実装すべき）
+  Safe: The request does not change server state
+  Idempotent: The same request can be executed any number of times with the same result
+  Conditional: Implementation-dependent (should be implemented idempotently)
 ```
 
-### 2.3 命名規則
+### 2.3 Naming Conventions
 
 ```
-URI命名規則:
+URI Naming Conventions:
 
-  → 名詞・複数形: /users, /orders, /products
-  → ケバブケース: /user-profiles（スネークケースも許容）
-  → 小文字のみ: /users（/Users ではない）
-  → 末尾スラッシュなし: /users（/users/ ではない）
-  → ファイル拡張子なし: /users（/users.json ではない）
+  → Nouns, plural: /users, /orders, /products
+  → Kebab-case: /user-profiles (snake_case is also acceptable)
+  → Lowercase only: /users (not /Users)
+  → No trailing slash: /users (not /users/)
+  → No file extensions: /users (not /users.json)
 
-  ネスト vs フラット:
-    ネスト:  GET /users/123/orders/456
-    フラット: GET /orders/456
+  Nested vs. Flat:
+    Nested:  GET /users/123/orders/456
+    Flat:    GET /orders/456
 
-    → ネストは2階層まで（/resource/{id}/sub-resource）
-    → 3階層以上はフラットにする
-    → リソースに一意のIDがあればフラットが良い
+    → Limit nesting to 2 levels (/resource/{id}/sub-resource)
+    → Flatten anything deeper than 3 levels
+    → If a sub-resource has a unique ID, flat is preferred
 
-  特殊な操作（アクション）:
-    → 標準CRUDに収まらない操作はコントローラリソースとして設計
-    → POST /api/v1/users/123/activate  （アカウント有効化）
-    → POST /api/v1/orders/456/cancel    （注文キャンセル）
-    → POST /api/v1/reports/generate      （レポート生成）
-    → これらは例外的にPOST + 動詞を使ってよい
+  Special operations (actions):
+    → Operations that don't fit standard CRUD: design as controller resources
+    → POST /api/v1/users/123/activate      (activate account)
+    → POST /api/v1/orders/456/cancel       (cancel order)
+    → POST /api/v1/reports/generate        (generate report)
+    → These may exceptionally use POST + verb
 ```
 
 ---
 
-## 3. クエリパラメータ
+## 3. Query Parameters
 
-### 3.1 ページネーション
+### 3.1 Pagination
 
 ```
-一覧取得のページネーション:
+Pagination for list endpoints:
 
-  ① オフセットベース:
+  ① Offset-based:
   GET /api/users?page=2&per_page=20
   GET /api/users?offset=20&limit=20
 
-  ② カーソルベース（推奨）:
+  ② Cursor-based (recommended):
   GET /api/users?cursor=eyJpZCI6MTIzfQ==&limit=20
-  → レスポンスに次のカーソルを含む
+  → Response includes the next cursor
 
-  ③ キーセットベース:
+  ③ Keyset-based:
   GET /api/users?after_id=123&limit=20
-  → 特定カラムの値を基準にする
+  → Based on the value of a specific column
 
-ページネーション方式の詳細比較:
+Detailed comparison of pagination methods:
   ┌────────────┬─────────────────┬─────────────────────────┬───────────┐
-  │ 方式       │ メリット         │ デメリット               │ 推奨場面  │
+  │ Method     │ Pros            │ Cons                    │ Best for  │
   ├────────────┼─────────────────┼─────────────────────────┼───────────┤
-  │ offset     │ 実装が簡単       │ 大量データで性能劣化     │ 管理画面  │
-  │            │ ページ番号指定可 │ データ追加で重複/欠損    │ 少量データ│
+  │ offset     │ Easy to         │ Performance degrades    │ Admin     │
+  │            │ implement       │ with large data         │ panels    │
+  │            │ Page number     │ Duplicates/gaps when    │ Small data│
+  │            │ navigation      │ data is added           │           │
   ├────────────┼─────────────────┼─────────────────────────┼───────────┤
-  │ cursor     │ 一貫した結果     │ 任意ページに飛べない     │ 無限      │
-  │            │ 高速で安定       │ カーソル値が不透明       │ スクロール│
+  │ cursor     │ Consistent      │ Cannot jump to arbitrary│ Infinite  │
+  │            │ results         │ page                    │ scroll    │
+  │            │ Fast and stable │ Cursor value is opaque  │           │
   ├────────────┼─────────────────┼─────────────────────────┼───────────┤
-  │ keyset     │ 最も高速         │ 実装がやや複雑           │ 大規模    │
-  │            │ インデックス活用 │ ソートキーが必要         │ データセット│
+  │ keyset     │ Fastest         │ Slightly complex to     │ Large     │
+  │            │ Index-friendly  │ implement               │ datasets  │
+  │            │                 │ Requires sort key       │           │
   └────────────┴─────────────────┴─────────────────────────┴───────────┘
 ```
 
-### 3.2 ソート・フィルタリング・検索
+### 3.2 Sorting, Filtering, and Search
 
 ```
-  ソート:
+  Sorting:
   GET /api/users?sort=created_at&order=desc
-  GET /api/users?sort=-created_at               （-プレフィックスは降順）
-  GET /api/users?sort=last_name,-created_at      （複数キー）
+  GET /api/users?sort=-created_at               (- prefix = descending)
+  GET /api/users?sort=last_name,-created_at      (multiple keys)
 
-  フィルタリング:
+  Filtering:
   GET /api/users?status=active&role=admin
   GET /api/users?created_after=2024-01-01
-  GET /api/users?age[gte]=18&age[lte]=65         （範囲指定）
-  GET /api/users?status[in]=active,pending        （複数値）
+  GET /api/users?age[gte]=18&age[lte]=65         (range)
+  GET /api/users?status[in]=active,pending        (multiple values)
 
-  フィールド選択（Sparse Fieldsets）:
+  Field selection (Sparse Fieldsets):
   GET /api/users?fields=id,name,email
   GET /api/users?fields[users]=id,name&fields[company]=name
-  → レスポンスサイズ削減によるパフォーマンス向上
+  → Reduces response size for improved performance
 
-  検索:
+  Search:
   GET /api/users?q=taro
   GET /api/users/search?q=taro&fields=name,email
 
-  組み合わせ例:
+  Combined example:
   GET /api/users?status=active&sort=-created_at&page=1&per_page=20&fields=id,name
 ```
 
 ---
 
-## 4. レスポンス設計
+## 4. Response Design
 
-### 4.1 成功レスポンス
+### 4.1 Success Responses
 
 ```
-一覧（GET /api/users → 200 OK）:
+List (GET /api/users → 200 OK):
 {
   "data": [
     {
@@ -358,7 +369,7 @@ URI命名規則:
   }
 }
 
-詳細（GET /api/users/1 → 200 OK）:
+Detail (GET /api/users/1 → 200 OK):
 {
   "data": {
     "id": "1",
@@ -385,7 +396,7 @@ URI命名規則:
   }
 }
 
-作成成功（POST /api/users → 201 Created）:
+Create success (POST /api/users → 201 Created):
 HTTP/1.1 201 Created
 Location: /api/v1/users/3
 Content-Type: application/json
@@ -402,17 +413,17 @@ Content-Type: application/json
   }
 }
 
-削除成功（DELETE /api/users/3 → 204 No Content）:
+Delete success (DELETE /api/users/3 → 204 No Content):
 HTTP/1.1 204 No Content
-（ボディなし）
+(No body)
 ```
 
-### 4.2 エラーレスポンス
+### 4.2 Error Responses
 
 ```
-RFC 7807 Problem Details 形式:
+RFC 7807 Problem Details format:
 
-バリデーションエラー（422 Unprocessable Entity）:
+Validation error (422 Unprocessable Entity):
 {
   "type": "https://api.example.com/errors/validation",
   "title": "Validation Error",
@@ -433,7 +444,7 @@ RFC 7807 Problem Details 形式:
   ]
 }
 
-認証エラー（401 Unauthorized）:
+Authentication error (401 Unauthorized):
 {
   "type": "https://api.example.com/errors/unauthorized",
   "title": "Unauthorized",
@@ -441,7 +452,7 @@ RFC 7807 Problem Details 形式:
   "detail": "The access token is expired or invalid."
 }
 
-権限エラー（403 Forbidden）:
+Authorization error (403 Forbidden):
 {
   "type": "https://api.example.com/errors/forbidden",
   "title": "Forbidden",
@@ -449,7 +460,7 @@ RFC 7807 Problem Details 形式:
   "detail": "You do not have permission to access this resource."
 }
 
-リソース未検出（404 Not Found）:
+Resource not found (404 Not Found):
 {
   "type": "https://api.example.com/errors/not-found",
   "title": "Not Found",
@@ -457,7 +468,7 @@ RFC 7807 Problem Details 形式:
   "detail": "User with ID '999' was not found."
 }
 
-競合エラー（409 Conflict）:
+Conflict error (409 Conflict):
 {
   "type": "https://api.example.com/errors/conflict",
   "title": "Conflict",
@@ -465,128 +476,128 @@ RFC 7807 Problem Details 形式:
   "detail": "A user with this email already exists."
 }
 
-主要ステータスコードの使い分け:
+Key status code usage guide:
   ┌──────┬─────────────────────────┬──────────────────────────┐
-  │ コード│ 名前                     │ 使用場面                  │
+  │ Code │ Name                    │ When to use              │
   ├──────┼─────────────────────────┼──────────────────────────┤
-  │ 200  │ OK                      │ 取得・更新成功             │
-  │ 201  │ Created                 │ 作成成功                   │
-  │ 204  │ No Content              │ 削除成功（ボディなし）      │
-  │ 301  │ Moved Permanently       │ リソースの恒久的移動       │
-  │ 304  │ Not Modified            │ キャッシュ有効             │
-  │ 400  │ Bad Request             │ リクエスト構文エラー        │
-  │ 401  │ Unauthorized            │ 認証が必要                 │
-  │ 403  │ Forbidden               │ 権限不足                   │
-  │ 404  │ Not Found               │ リソースが存在しない        │
-  │ 405  │ Method Not Allowed      │ 許可されていないメソッド    │
-  │ 409  │ Conflict                │ リソースの競合             │
-  │ 422  │ Unprocessable Entity    │ バリデーションエラー        │
-  │ 429  │ Too Many Requests       │ レート制限超過             │
-  │ 500  │ Internal Server Error   │ サーバー内部エラー         │
-  │ 503  │ Service Unavailable     │ サービス一時停止           │
+  │ 200  │ OK                      │ Fetch/update success     │
+  │ 201  │ Created                 │ Create success           │
+  │ 204  │ No Content              │ Delete success (no body) │
+  │ 301  │ Moved Permanently       │ Resource permanently moved│
+  │ 304  │ Not Modified            │ Cache is valid           │
+  │ 400  │ Bad Request             │ Request syntax error     │
+  │ 401  │ Unauthorized            │ Authentication required  │
+  │ 403  │ Forbidden               │ Insufficient permissions │
+  │ 404  │ Not Found               │ Resource does not exist  │
+  │ 405  │ Method Not Allowed      │ Method not permitted     │
+  │ 409  │ Conflict                │ Resource conflict        │
+  │ 422  │ Unprocessable Entity    │ Validation error         │
+  │ 429  │ Too Many Requests       │ Rate limit exceeded      │
+  │ 500  │ Internal Server Error   │ Server-side error        │
+  │ 503  │ Service Unavailable     │ Service temporarily down │
   └──────┴─────────────────────────┴──────────────────────────┘
 ```
 
 ---
 
-## 5. バージョニング
+## 5. Versioning
 
-### 5.1 バージョニング戦略
+### 5.1 Versioning Strategies
 
 ```
-APIバージョニング戦略:
+API Versioning Strategies:
 
-  ① URIバージョニング（最も一般的）:
+  ① URI versioning (most common):
      GET /api/v1/users
      GET /api/v2/users
-     → メリット: わかりやすい、キャッシュしやすい、ルーティングが簡単
-     → デメリット: URIが変わるためリンクが壊れる
-     → 採用: GitHub, Twitter, Stripe
+     → Pros: Clear, easy to cache, simple routing
+     → Cons: URI changes break existing links
+     → Adopted by: GitHub, Twitter, Stripe
 
-  ② ヘッダーバージョニング:
+  ② Header versioning:
      GET /api/users
      Accept: application/vnd.example.v2+json
-     → メリット: URIがクリーン、コンテントネゴシエーション
-     → デメリット: テストしにくい、ブラウザで直接確認できない
-     → 採用: GitHub（併用）
+     → Pros: Clean URI, content negotiation
+     → Cons: Hard to test, cannot verify in browser directly
+     → Adopted by: GitHub (in combination)
 
-  ③ クエリパラメータバージョニング:
+  ③ Query parameter versioning:
      GET /api/users?version=2
-     → メリット: 実装が簡単、切り替えが容易
-     → デメリット: キャッシュキーが増える、オプショナルに見える
-     → 採用: Google, Amazon（一部）
+     → Pros: Easy to implement, easy to switch
+     → Cons: Increases cache key space, looks optional
+     → Adopted by: Google, Amazon (some services)
 
-  ④ カスタムヘッダー:
+  ④ Custom header:
      GET /api/users
      X-API-Version: 2
-     → メリット: Acceptヘッダーより明確
-     → デメリット: 標準的ではない
+     → Pros: More explicit than Accept header
+     → Cons: Non-standard
 
-  推奨: URIバージョニング（/api/v1/）が最も広く理解されている
+  Recommendation: URI versioning (/api/v1/) is most widely understood
 ```
 
-### 5.2 バージョンアップの判断基準
+### 5.2 Criteria for Version Upgrades
 
 ```
-破壊的変更（メジャーバージョンアップが必要）:
-  → フィールドの削除
-  → フィールドの型変更（string → number など）
-  → 必須パラメータの追加
-  → レスポンス構造の変更
-  → エンドポイントの削除やパス変更
-  → ステータスコードの意味変更
+Breaking changes (major version bump required):
+  → Removing a field
+  → Changing a field's type (string → number, etc.)
+  → Adding a required parameter
+  → Changing response structure
+  → Removing or changing the path of an endpoint
+  → Changing the meaning of a status code
 
-非破壊的変更（バージョンアップ不要）:
-  → オプショナルなフィールドの追加
-  → 新しいエンドポイントの追加
-  → オプショナルなクエリパラメータの追加
-  → エラーメッセージの文言変更
-  → パフォーマンス改善
+Non-breaking changes (no version bump needed):
+  → Adding optional fields
+  → Adding new endpoints
+  → Adding optional query parameters
+  → Changing error message wording
+  → Performance improvements
 
-バージョン管理のベストプラクティス:
-  → 旧バージョンは最低12ヶ月サポート
-  → 非推奨化（Deprecation）をヘッダーで通知:
+Version management best practices:
+  → Support old versions for at least 12 months
+  → Notify deprecation via headers:
      Deprecation: true
      Sunset: Sat, 01 Jan 2026 00:00:00 GMT
      Link: </api/v2/users>; rel="successor-version"
-  → 新バージョンリリース時にマイグレーションガイドを提供
-  → APIの変更履歴（Changelog）を公開する
+  → Provide a migration guide when releasing a new version
+  → Publish a public API changelog
 ```
 
 ---
 
 ## 6. HATEOAS
 
-### 6.1 HATEOASとは
+### 6.1 What is HATEOAS?
 
-HATEOAS（Hypermedia As The Engine Of Application State）はREST制約のうち「統一インターフェース」に含まれる概念である。APIレスポンスに、クライアントが次に取りうるアクションへのリンクを含めることで、APIを「自己発見可能」にする。
+HATEOAS (Hypermedia As The Engine Of Application State) is a concept within the "Uniform Interface" REST constraint. By including links to the next possible actions in API responses, the API becomes "self-discoverable."
 
 ```
-HATEOASの概念図:
+HATEOAS concept diagram:
 
-  従来のAPI（リンクなし）:
+  Traditional API (no links):
   ┌─────────────┐                    ┌─────────────┐
-  │  クライアント │───GET /users/1──→│   サーバー    │
+  │   Client    │───GET /users/1──→  │   Server    │
   │             │←── { id: 1,    ───│             │
-  │  URIを事前に│     name: "Taro"} │             │
-  │  知っている  │                    │             │
-  │  必要がある  │───GET /users/1/ ─→│             │
-  │             │   orders          │             │
+  │  Must know  │     name: "Taro"} │             │
+  │  URIs in    │                    │             │
+  │  advance    │───GET /users/1/ ─→ │             │
+  │             │   orders           │             │
   └─────────────┘                    └─────────────┘
 
-  HATEOASを適用したAPI（リンクあり）:
+  HATEOAS-enabled API (with links):
   ┌─────────────┐                    ┌─────────────┐
-  │  クライアント │───GET /users/1──→│   サーバー    │
+  │   Client    │───GET /users/1──→  │   Server    │
   │             │←── { id: 1,    ───│             │
-  │  レスポンス  │     name: "Taro", │             │
-  │  のリンクを  │     _links: {     │             │
-  │  辿るだけ    │       orders:     │             │
+  │  Just       │     name: "Taro", │             │
+  │  follow     │     _links: {     │             │
+  │  the links  │       orders:     │             │
   │             │       "/users/1/  │             │
   │             │        orders"}}  │             │
   └─────────────┘                    └─────────────┘
 ```
 
-### 6.2 HATEOASレスポンスの例
+### 6.2 HATEOAS Response Examples
 
 ```json
 {
@@ -626,7 +637,7 @@ HATEOASの概念図:
 }
 ```
 
-注文が「shipped」に変わると、`cancel`リンクは消え、代わりに`track`リンクが出現する。これにより、クライアントは状態に応じて利用可能な操作を動的に知ることができる。
+When the order transitions to "shipped," the `cancel` link disappears and a `track` link appears instead. This allows the client to dynamically discover the operations available based on the current state.
 
 ```json
 {
@@ -656,48 +667,48 @@ HATEOASの概念図:
 
 ---
 
-## 7. 認証とレート制限
+## 7. Authentication and Rate Limiting
 
-### 7.1 認証方式
+### 7.1 Authentication Methods
 
 ```
-主要な認証方式:
+Common authentication methods:
 
-  ① Bearer Token（JWT）:
+  ① Bearer Token (JWT):
   Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
-  → ステートレス、スケーラブル
-  → トークンの失効管理が課題
+  → Stateless, scalable
+  → Token revocation management is a challenge
 
   ② API Key:
   X-API-Key: your-api-key-here
-  （またはクエリパラメータ: ?api_key=xxx）
-  → シンプル、サーバー間通信向き
-  → キーの漏洩リスク
+  (or as query parameter: ?api_key=xxx)
+  → Simple, suitable for server-to-server communication
+  → Risk of key leakage
 
   ③ OAuth 2.0:
-  → 第三者アプリへの権限委譲
-  → Authorization Code Flow が推奨
-  → スコープで権限を細分化
+  → Delegating authorization to third-party apps
+  → Authorization Code Flow is recommended
+  → Granular permissions via scopes
 
-  ④ Basic認証:
+  ④ Basic Authentication:
   Authorization: Basic base64(username:password)
-  → 開発・テスト用途のみ
-  → 本番ではHTTPS必須
+  → For development/testing only
+  → HTTPS is mandatory in production
 
-  → 公開APIにはOAuth 2.0 + API Key の組み合わせが一般的
-  → 内部APIにはJWT Bearer Tokenが効率的
+  → Public APIs commonly use OAuth 2.0 + API Key
+  → Internal APIs benefit from JWT Bearer Token for efficiency
 ```
 
-### 7.2 レート制限
+### 7.2 Rate Limiting
 
 ```
-レスポンスヘッダーで制限情報を通知:
+Notify limits via response headers:
 
-  X-RateLimit-Limit: 100       — 制限数（/分 等）
-  X-RateLimit-Remaining: 42    — 残り回数
-  X-RateLimit-Reset: 1640000000 — リセット時刻（Unix秒）
+  X-RateLimit-Limit: 100       — Limit (per minute, etc.)
+  X-RateLimit-Remaining: 42    — Remaining count
+  X-RateLimit-Reset: 1640000000 — Reset timestamp (Unix seconds)
 
-  制限超過時:
+  When limit is exceeded:
   HTTP/1.1 429 Too Many Requests
   Retry-After: 60
   Content-Type: application/json
@@ -710,37 +721,37 @@ HATEOASの概念図:
     "retry_after": 60
   }
 
-  一般的な制限例:
+  Typical rate limit tiers:
   ┌────────────────────┬──────────────────┐
-  │ ティア             │ レート制限         │
+  │ Tier               │ Rate Limit       │
   ├────────────────────┼──────────────────┤
-  │ 未認証             │ 20 req/分         │
-  │ 認証済み（無料）    │ 100 req/分        │
-  │ 認証済み（有料）    │ 1,000 req/分      │
-  │ エンタープライズ    │ 10,000 req/分     │
-  │ 書き込み操作       │ 読み取りの1/5     │
+  │ Unauthenticated    │ 20 req/min       │
+  │ Authenticated (free)│ 100 req/min     │
+  │ Authenticated (paid)│ 1,000 req/min   │
+  │ Enterprise         │ 10,000 req/min   │
+  │ Write operations   │ 1/5 of reads     │
   └────────────────────┴──────────────────┘
 
-  レート制限の実装アルゴリズム:
-  → Token Bucket: バースト対応、最も一般的
-  → Sliding Window: 精度が高い、計算コストがやや高い
-  → Fixed Window: 実装が最も簡単、境界で2倍のリクエストが通る問題
+  Rate limiting algorithms:
+  → Token Bucket: burst-friendly, most common
+  → Sliding Window: higher precision, slightly more compute
+  → Fixed Window: simplest to implement, 2x spike at window boundaries
 ```
 
 ---
 
-## 8. 実装例
+## 8. Implementation Examples
 
-### 8.1 Express.js（Node.js）によるREST API実装
+### 8.1 REST API with Express.js (Node.js)
 
 ```javascript
-// app.js - Express REST API 基本構成
+// app.js - Express REST API basic setup
 const express = require('express');
 const app = express();
 
 app.use(express.json());
 
-// ─── インメモリデータストア（デモ用） ───
+// ─── In-memory data store (for demo) ───
 let users = [
   { id: '1', name: 'Taro Yamada', email: 'taro@example.com', role: 'admin',
     created_at: '2024-01-15T10:30:00Z' },
@@ -749,7 +760,7 @@ let users = [
 ];
 let nextId = 3;
 
-// ─── ミドルウェア: レート制限ヘッダー ───
+// ─── Middleware: rate limit headers ───
 const rateLimitMiddleware = (req, res, next) => {
   res.set({
     'X-RateLimit-Limit': '100',
@@ -760,20 +771,20 @@ const rateLimitMiddleware = (req, res, next) => {
 };
 app.use('/api', rateLimitMiddleware);
 
-// ─── ユーザー一覧取得 ───
+// ─── List users ───
 // GET /api/v1/users?page=1&per_page=20&sort=-created_at&status=active
 app.get('/api/v1/users', (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const perPage = Math.min(parseInt(req.query.per_page) || 20, 100);
   const offset = (page - 1) * perPage;
 
-  // フィルタリング
+  // Filtering
   let filtered = [...users];
   if (req.query.role) {
     filtered = filtered.filter(u => u.role === req.query.role);
   }
 
-  // ソート
+  // Sorting
   if (req.query.sort) {
     const desc = req.query.sort.startsWith('-');
     const field = desc ? req.query.sort.slice(1) : req.query.sort;
@@ -807,7 +818,7 @@ app.get('/api/v1/users', (req, res) => {
   });
 });
 
-// ─── ユーザー詳細取得 ───
+// ─── Get user detail ───
 // GET /api/v1/users/:id
 app.get('/api/v1/users/:id', (req, res) => {
   const user = users.find(u => u.id === req.params.id);
@@ -831,12 +842,12 @@ app.get('/api/v1/users/:id', (req, res) => {
   });
 });
 
-// ─── ユーザー作成 ───
+// ─── Create user ───
 // POST /api/v1/users
 app.post('/api/v1/users', (req, res) => {
   const { name, email, role } = req.body;
 
-  // バリデーション
+  // Validation
   const errors = [];
   if (!name) errors.push({ field: 'name', message: 'Name is required' });
   if (!email) errors.push({ field: 'email', message: 'Email is required' });
@@ -868,7 +879,7 @@ app.post('/api/v1/users', (req, res) => {
     .json({ data: newUser });
 });
 
-// ─── ユーザー更新（全体置換） ───
+// ─── Update user (full replacement) ───
 // PUT /api/v1/users/:id
 app.put('/api/v1/users/:id', (req, res) => {
   const index = users.findIndex(u => u.id === req.params.id);
@@ -893,7 +904,7 @@ app.put('/api/v1/users/:id', (req, res) => {
   res.json({ data: users[index] });
 });
 
-// ─── ユーザー部分更新 ───
+// ─── Partial update of user ───
 // PATCH /api/v1/users/:id
 app.patch('/api/v1/users/:id', (req, res) => {
   const index = users.findIndex(u => u.id === req.params.id);
@@ -909,14 +920,14 @@ app.patch('/api/v1/users/:id', (req, res) => {
   users[index] = {
     ...users[index],
     ...req.body,
-    id: users[index].id, // IDは変更不可
+    id: users[index].id, // ID is immutable
     updated_at: new Date().toISOString(),
   };
 
   res.json({ data: users[index] });
 });
 
-// ─── ユーザー削除 ───
+// ─── Delete user ───
 // DELETE /api/v1/users/:id
 app.delete('/api/v1/users/:id', (req, res) => {
   const index = users.findIndex(u => u.id === req.params.id);
@@ -938,10 +949,10 @@ app.listen(3000, () => {
 });
 ```
 
-### 8.2 FastAPI（Python）によるREST API実装
+### 8.2 REST API with FastAPI (Python)
 
 ```python
-# main.py - FastAPI REST API 基本構成
+# main.py - FastAPI REST API basic setup
 from fastapi import FastAPI, HTTPException, Query, Response
 from pydantic import BaseModel, EmailStr
 from typing import Optional
@@ -954,7 +965,7 @@ app = FastAPI(
     description="RESTful API for user management",
 )
 
-# ─── モデル定義 ───
+# ─── Model definitions ───
 class UserCreate(BaseModel):
     name: str
     email: EmailStr
@@ -994,10 +1005,10 @@ class ErrorResponse(BaseModel):
     detail: str
     errors: Optional[list[ErrorDetail]] = None
 
-# ─── インメモリストア ───
+# ─── In-memory store ───
 users_db: dict[str, dict] = {}
 
-# ─── エンドポイント ───
+# ─── Endpoints ───
 @app.get("/api/v1/users", response_model=UserListResponse)
 async def list_users(
     page: int = Query(1, ge=1),
@@ -1005,14 +1016,14 @@ async def list_users(
     role: Optional[str] = None,
     sort: Optional[str] = None,
 ):
-    """ユーザー一覧取得: ページネーション、フィルタ、ソート対応"""
+    """List users: supports pagination, filtering, and sorting"""
     all_users = list(users_db.values())
 
-    # フィルタリング
+    # Filtering
     if role:
         all_users = [u for u in all_users if u["role"] == role]
 
-    # ソート
+    # Sorting
     if sort:
         desc = sort.startswith("-")
         key = sort.lstrip("-")
@@ -1034,7 +1045,7 @@ async def list_users(
 
 @app.get("/api/v1/users/{user_id}", response_model=dict)
 async def get_user(user_id: str):
-    """ユーザー詳細取得"""
+    """Get user detail"""
     if user_id not in users_db:
         raise HTTPException(
             status_code=404,
@@ -1055,8 +1066,8 @@ async def get_user(user_id: str):
 
 @app.post("/api/v1/users", status_code=201)
 async def create_user(user: UserCreate, response: Response):
-    """ユーザー作成"""
-    # メール重複チェック
+    """Create user"""
+    # Check for duplicate email
     for existing in users_db.values():
         if existing["email"] == user.email:
             raise HTTPException(
@@ -1083,7 +1094,7 @@ async def create_user(user: UserCreate, response: Response):
 
 @app.patch("/api/v1/users/{user_id}")
 async def update_user(user_id: str, updates: UserUpdate):
-    """ユーザー部分更新"""
+    """Partial update of user"""
     if user_id not in users_db:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -1094,25 +1105,25 @@ async def update_user(user_id: str, updates: UserUpdate):
 
 @app.delete("/api/v1/users/{user_id}", status_code=204)
 async def delete_user(user_id: str):
-    """ユーザー削除"""
+    """Delete user"""
     if user_id not in users_db:
         raise HTTPException(status_code=404, detail="User not found")
     del users_db[user_id]
 ```
 
-### 8.3 curlによるAPI操作例
+### 8.3 API Operations with curl
 
 ```bash
-# ─── ユーザー一覧取得 ───
+# ─── List users ───
 curl -s -X GET "http://localhost:3000/api/v1/users?page=1&per_page=10" \
   -H "Accept: application/json" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." | jq .
 
-# ─── ユーザー詳細取得 ───
+# ─── Get user detail ───
 curl -s -X GET "http://localhost:3000/api/v1/users/1" \
   -H "Accept: application/json" | jq .
 
-# ─── ユーザー作成 ───
+# ─── Create user ───
 curl -s -X POST "http://localhost:3000/api/v1/users" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
@@ -1124,7 +1135,7 @@ curl -s -X POST "http://localhost:3000/api/v1/users" \
 # → HTTP 201 Created
 # → Location: /api/v1/users/3
 
-# ─── ユーザー部分更新 ───
+# ─── Partial update of user ───
 curl -s -X PATCH "http://localhost:3000/api/v1/users/1" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
@@ -1133,18 +1144,18 @@ curl -s -X PATCH "http://localhost:3000/api/v1/users/1" \
   }' | jq .
 # → HTTP 200 OK
 
-# ─── ユーザー削除 ───
+# ─── Delete user ───
 curl -s -X DELETE "http://localhost:3000/api/v1/users/3" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
   -v
 # → HTTP 204 No Content
 
-# ─── フィルタリング + ソート + ページネーション ───
+# ─── Filtering + sorting + pagination ───
 curl -s -X GET \
   "http://localhost:3000/api/v1/users?role=admin&sort=-created_at&page=1&per_page=5" \
   -H "Accept: application/json" | jq .
 
-# ─── レート制限ヘッダーの確認 ───
+# ─── Check rate limit headers ───
 curl -s -D - "http://localhost:3000/api/v1/users" \
   -H "Accept: application/json" -o /dev/null 2>&1 | grep -i "x-ratelimit"
 # X-RateLimit-Limit: 100
@@ -1152,10 +1163,10 @@ curl -s -D - "http://localhost:3000/api/v1/users" \
 # X-RateLimit-Reset: 1720000060
 ```
 
-### 8.4 OpenAPI（Swagger）仕様定義例
+### 8.4 OpenAPI (Swagger) Specification Example
 
 ```yaml
-# openapi.yaml - OpenAPI 3.0 仕様書
+# openapi.yaml - OpenAPI 3.0 specification
 openapi: "3.0.3"
 info:
   title: User Management API
@@ -1176,7 +1187,7 @@ servers:
 paths:
   /users:
     get:
-      summary: ユーザー一覧取得
+      summary: List users
       operationId: listUsers
       tags:
         - Users
@@ -1201,13 +1212,13 @@ paths:
             enum: [admin, user, moderator]
         - name: sort
           in: query
-          description: "ソートキー（-で降順）"
+          description: "Sort key (- prefix for descending)"
           schema:
             type: string
             example: "-created_at"
       responses:
         "200":
-          description: ユーザー一覧
+          description: User list
           content:
             application/json:
               schema:
@@ -1216,7 +1227,7 @@ paths:
           $ref: "#/components/responses/Unauthorized"
 
     post:
-      summary: ユーザー作成
+      summary: Create user
       operationId: createUser
       tags:
         - Users
@@ -1228,12 +1239,12 @@ paths:
               $ref: "#/components/schemas/UserCreate"
       responses:
         "201":
-          description: 作成成功
+          description: Create success
           headers:
             Location:
               schema:
                 type: string
-              description: 作成されたリソースのURI
+              description: URI of the created resource
           content:
             application/json:
               schema:
@@ -1245,7 +1256,7 @@ paths:
 
   /users/{userId}:
     get:
-      summary: ユーザー詳細取得
+      summary: Get user detail
       operationId: getUser
       tags:
         - Users
@@ -1257,7 +1268,7 @@ paths:
             type: string
       responses:
         "200":
-          description: ユーザー詳細
+          description: User detail
           content:
             application/json:
               schema:
@@ -1266,7 +1277,7 @@ paths:
           $ref: "#/components/responses/NotFound"
 
     patch:
-      summary: ユーザー部分更新
+      summary: Partial update of user
       operationId: updateUser
       tags:
         - Users
@@ -1283,12 +1294,12 @@ paths:
               $ref: "#/components/schemas/UserUpdate"
       responses:
         "200":
-          description: 更新成功
+          description: Update success
         "404":
           $ref: "#/components/responses/NotFound"
 
     delete:
-      summary: ユーザー削除
+      summary: Delete user
       operationId: deleteUser
       tags:
         - Users
@@ -1300,7 +1311,7 @@ paths:
             type: string
       responses:
         "204":
-          description: 削除成功
+          description: Delete success
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -1391,28 +1402,28 @@ components:
 
   responses:
     Unauthorized:
-      description: 認証エラー
+      description: Authentication error
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/ProblemDetail"
 
     NotFound:
-      description: リソース未検出
+      description: Resource not found
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/ProblemDetail"
 
     Conflict:
-      description: 競合エラー
+      description: Conflict error
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/ProblemDetail"
 
     ValidationError:
-      description: バリデーションエラー
+      description: Validation error
       content:
         application/json:
           schema:
@@ -1430,143 +1441,143 @@ security:
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### 9.1 アンチパターン 1: 動詞ベースのエンドポイント設計
+### 9.1 Anti-Pattern 1: Verb-Based Endpoint Design
 
-REST APIの最も一般的なアンチパターンは、URIに動詞を含めてしまうことである。これはRPCスタイルの名残であり、HTTPメソッドの意味を無視した設計になる。
+The most common anti-pattern in REST APIs is including verbs in URIs. This is a holdover from RPC-style design and ignores the semantics of HTTP methods.
 
 ```
-アンチパターン: 動詞ベースのURI
+Anti-pattern: Verb-based URIs
 
-  ✗ 悪い設計（RPC風）:
-  POST   /api/getUsers               ← GETで取得すべき
-  POST   /api/createUser              ← POST /users に統一
+  ✗ Bad design (RPC style):
+  POST   /api/getUsers               ← Should use GET
+  POST   /api/createUser              ← Consolidate to POST /users
   POST   /api/updateUser              ← PUT/PATCH /users/:id
   POST   /api/deleteUser              ← DELETE /users/:id
   GET    /api/getUserOrders?userId=1  ← GET /users/1/orders
   POST   /api/searchUsers             ← GET /users?q=xxx
 
-  問題点:
-  → エンドポイント数が爆発する（リソース x 操作 の数だけ必要）
-  → HTTPメソッドの意味が失われる（すべてPOST）
-  → キャッシュが効かない（POSTはデフォルトでキャッシュされない）
-  → 統一的なインターフェースが崩壊する
-  → 新規開発者がAPIの構造を理解しにくい
+  Problems:
+  → Endpoint count explodes (resources × operations)
+  → HTTP method semantics are lost (everything is POST)
+  → Caching is ineffective (POST is not cached by default)
+  → Uniform interface is broken
+  → New developers struggle to understand the API structure
 
-  ✓ 正しい設計（リソース指向）:
-  GET    /api/v1/users                ← コレクション取得
-  POST   /api/v1/users                ← リソース作成
-  GET    /api/v1/users/1              ← 個別リソース取得
-  PUT    /api/v1/users/1              ← 全体更新
-  PATCH  /api/v1/users/1              ← 部分更新
-  DELETE /api/v1/users/1              ← 削除
-  GET    /api/v1/users/1/orders       ← 関連リソース取得
-  GET    /api/v1/users?q=taro         ← 検索
+  ✓ Correct design (resource-oriented):
+  GET    /api/v1/users                ← Retrieve collection
+  POST   /api/v1/users                ← Create resource
+  GET    /api/v1/users/1              ← Retrieve individual resource
+  PUT    /api/v1/users/1              ← Full replacement
+  PATCH  /api/v1/users/1              ← Partial update
+  DELETE /api/v1/users/1              ← Delete
+  GET    /api/v1/users/1/orders       ← Retrieve related resource
+  GET    /api/v1/users?q=taro         ← Search
 
-  例外（コントローラリソース）:
-  → CRUDに収まらないビジネス操作は動詞を含めてよい
-  POST   /api/v1/users/1/activate     ← アカウント有効化
-  POST   /api/v1/orders/5/cancel      ← 注文キャンセル
-  POST   /api/v1/carts/checkout       ← カート決済
-  → これらは「コントローラリソース」として例外的に許容される
+  Exception (controller resources):
+  → Business operations that don't fit CRUD may include verbs
+  POST   /api/v1/users/1/activate     ← Activate account
+  POST   /api/v1/orders/5/cancel      ← Cancel order
+  POST   /api/v1/carts/checkout       ← Checkout cart
+  → These are exceptionally allowed as "controller resources"
 ```
 
-### 9.2 アンチパターン 2: レスポンス構造の不統一
+### 9.2 Anti-Pattern 2: Inconsistent Response Structure
 
 ```
-アンチパターン: エンドポイントごとにレスポンス形式がバラバラ
+Anti-pattern: Different response formats per endpoint
 
-  ✗ 一覧取得: 配列をそのまま返す
+  ✗ List: returns a raw array
   GET /api/users →
   [
     { "id": 1, "name": "Taro" },
     { "id": 2, "name": "Hanako" }
   ]
-  → メタ情報を追加できない（ページング情報等）
-  → 将来の拡張に対応できない
+  → Cannot include metadata (pagination info, etc.)
+  → Cannot accommodate future extensions
 
-  ✗ 詳細取得: オブジェクトをそのまま返す
+  ✗ Detail: returns a raw object
   GET /api/users/1 →
   { "id": 1, "name": "Taro" }
-  → エンベロープがないため一覧と形式が異なる
+  → Without an envelope, the format differs from the list response
 
-  ✗ エラー: エンドポイントごとに形式が違う
+  ✗ Errors: different format per endpoint
   POST /api/users →
-  { "error": "validation failed" }          ← 文字列
+  { "error": "validation failed" }          ← string
   DELETE /api/users/1 →
-  { "errors": [{ "code": 404 }] }          ← オブジェクト配列
+  { "errors": [{ "code": 404 }] }          ← array of objects
   PATCH /api/users/1 →
-  { "message": "not found", "code": 404 }  ← 別の形式
+  { "message": "not found", "code": 404 }  ← different format again
 
-  ✓ 正しい設計: 統一的なエンベロープ
+  ✓ Correct design: consistent envelope
 
-  成功レスポンス（常に data キーを使用）:
-  一覧: { "data": [...], "meta": {...}, "links": {...} }
-  詳細: { "data": {...}, "_links": {...} }
-  作成: { "data": {...} } + Location ヘッダー
-  削除: 204 No Content（ボディなし）
+  Success responses (always use the data key):
+  List:   { "data": [...], "meta": {...}, "links": {...} }
+  Detail: { "data": {...}, "_links": {...} }
+  Create: { "data": {...} } + Location header
+  Delete: 204 No Content (no body)
 
-  エラーレスポンス（常に RFC 7807 形式）:
+  Error responses (always RFC 7807 format):
   {
     "type": "https://...",
     "title": "Error Title",
     "status": 4xx,
     "detail": "Human-readable description",
-    "errors": [...]  // バリデーション時のみ
+    "errors": [...]  // only for validation errors
   }
 ```
 
-### 9.3 アンチパターン 3: 過度なネスト
+### 9.3 Anti-Pattern 3: Excessive Nesting
 
 ```
-アンチパターン: 深すぎるURIネスト
+Anti-pattern: Deeply nested URIs
 
-  ✗ 悪い設計:
+  ✗ Bad design:
   GET /api/v1/companies/1/departments/5/teams/3/members/42/tasks/99
 
-  問題点:
-  → URIが長く読みにくい
-  → 各階層のIDがすべて必要（冗長）
-  → ルーティングの実装が複雑化
-  → task に一意なIDがあれば直接アクセス可能
+  Problems:
+  → URI is long and hard to read
+  → All ancestor IDs are required (redundant)
+  → Routing implementation becomes complex
+  → If task has a unique ID, direct access is possible
 
-  ✓ 改善案:
-  GET /api/v1/tasks/99                  ← 一意のIDで直接取得
-  GET /api/v1/teams/3/members           ← 必要な関連のみネスト
-  GET /api/v1/members/42/tasks          ← 2階層までに収める
+  ✓ Improvements:
+  GET /api/v1/tasks/99                  ← Direct access by unique ID
+  GET /api/v1/teams/3/members           ← Nest only necessary relationships
+  GET /api/v1/members/42/tasks          ← Keep to 2 levels
 
-  ガイドライン:
-  → ネストは2階層まで: /resource/{id}/sub-resource
-  → 3階層以上はフラットなエンドポイントに分割
-  → サブリソースに一意のIDがあればフラットアクセスを提供
-  → 両方のアクセスパスを提供するのがベストプラクティス
+  Guidelines:
+  → Limit nesting to 2 levels: /resource/{id}/sub-resource
+  → Split anything deeper into flat endpoints
+  → Provide flat access when sub-resources have unique IDs
+  → Providing both access paths is a best practice
 ```
 
 ---
 
-## 10. エッジケース分析
+## 10. Edge Case Analysis
 
-### 10.1 エッジケース 1: 同時更新の競合（楽観的ロック）
+### 10.1 Edge Case 1: Concurrent Update Conflicts (Optimistic Locking)
 
-複数のクライアントが同じリソースを同時に更新しようとした場合、後から更新したクライアントが先の変更を上書きしてしまう「ロストアップデート問題」が発生する。
+When multiple clients attempt to update the same resource simultaneously, a "lost update problem" occurs where the later client overwrites the earlier client's changes.
 
 ```
-問題シナリオ:
+Problem scenario:
 
-  時刻 T1: クライアントA が GET /users/1 → { name: "Taro", role: "user" }
-  時刻 T2: クライアントB が GET /users/1 → { name: "Taro", role: "user" }
-  時刻 T3: クライアントA が PATCH /users/1 → { name: "TARO" }
-  時刻 T4: クライアントB が PATCH /users/1 → { role: "admin" }
+  Time T1: Client A does GET /users/1 → { name: "Taro", role: "user" }
+  Time T2: Client B does GET /users/1 → { name: "Taro", role: "user" }
+  Time T3: Client A does PATCH /users/1 → { name: "TARO" }
+  Time T4: Client B does PATCH /users/1 → { role: "admin" }
 
-  → クライアントBはname="Taro"を前提に更新したが、
-    T3でname="TARO"に変わっていることを知らない
-  → PUT（全体置換）の場合はさらに深刻で、Bの更新でAの変更が消える
+  → Client B assumed name="Taro" when updating, but
+    it was changed to name="TARO" at T3 without B's knowledge
+  → With PUT (full replacement), B's update would erase A's change entirely
 
-解決策: ETagによる楽観的ロック
+Solution: Optimistic locking with ETag
 
   ┌──────────────┐                         ┌──────────────┐
-  │ クライアント   │                         │   サーバー    │
+  │   Client     │                         │   Server     │
   └──────┬───────┘                         └──────┬───────┘
          │  GET /users/1                          │
          │ ──────────────────────────────────────→ │
@@ -1580,43 +1591,43 @@ REST APIの最も一般的なアンチパターンは、URIに動詞を含めて
          │  { name: "TARO" }                      │
          │ ──────────────────────────────────────→ │
          │                                        │
-         │  ── ETagが一致 → 更新成功 ──            │
+         │  ── ETag matches → update succeeds ──  │
          │  200 OK                                │
          │  ETag: "def456"                        │
          │ ←────────────────────────────────────── │
          │                                        │
          │  PUT /users/1                          │
-         │  If-Match: "abc123"  ← 古いETag        │
+         │  If-Match: "abc123"  ← stale ETag      │
          │  { role: "admin" }                     │
          │ ──────────────────────────────────────→ │
          │                                        │
-         │  ── ETag不一致 → 更新拒否 ──            │
+         │  ── ETag mismatch → update rejected ── │
          │  412 Precondition Failed               │
          │ ←────────────────────────────────────── │
          │                                        │
 
-  実装のポイント:
-  → GETレスポンスにETagヘッダーを含める
-  → 更新リクエストにIf-Matchヘッダーを要求する
-  → ETag不一致時は 412 Precondition Failed を返す
-  → クライアントは最新データを再取得してリトライする
+  Implementation notes:
+  → Include ETag header in GET responses
+  → Require If-Match header on update requests
+  → Return 412 Precondition Failed when ETag does not match
+  → Client re-fetches the latest data and retries
 ```
 
-### 10.2 エッジケース 2: 大量データの一括操作（バルクAPI）
+### 10.2 Edge Case 2: Bulk Operations on Large Data Sets
 
-標準的なREST APIは個別リソースの操作を前提としているが、数百件のリソースを一度に作成・更新・削除したい場合がある。
+Standard REST APIs assume operations on individual resources, but sometimes you need to create, update, or delete hundreds of resources at once.
 
 ```
-問題: 100件のユーザーを作成したい場合
+Problem: creating 100 users at once
 
-  ✗ 個別リクエスト:
+  ✗ Individual requests:
   POST /api/v1/users  → { name: "User 1" }
   POST /api/v1/users  → { name: "User 2" }
-  ...（100回繰り返し）
-  → ネットワークオーバーヘッドが大きい
-  → トランザクション制御が困難
+  ...repeated 100 times
+  → High network overhead
+  → Difficult to control as a transaction
 
-解決策 1: バルクエンドポイント
+Solution 1: Bulk endpoint
   POST /api/v1/users/bulk
   Content-Type: application/json
 
@@ -1628,7 +1639,7 @@ REST APIの最も一般的なアンチパターンは、URIに動詞を含めて
     ]
   }
 
-  レスポンス（207 Multi-Status）:
+  Response (207 Multi-Status):
   {
     "results": [
       { "status": 201, "data": { "id": "10", "name": "User 1" } },
@@ -1642,7 +1653,7 @@ REST APIの最も一般的なアンチパターンは、URIに動詞を含めて
     }
   }
 
-解決策 2: 非同期ジョブ
+Solution 2: Asynchronous job
   POST /api/v1/import-jobs
   Content-Type: application/json
 
@@ -1651,7 +1662,7 @@ REST APIの最も一般的なアンチパターンは、URIに動詞を含めて
     "data": [...]
   }
 
-  レスポンス:
+  Response:
   HTTP/1.1 202 Accepted
   Location: /api/v1/import-jobs/job-789
 
@@ -1667,36 +1678,36 @@ REST APIの最も一般的なアンチパターンは、URIに動詞を含めて
     }
   }
 
-  → 大量データは非同期処理が適切
-  → ポーリングまたはWebhookで完了を通知
-  → 進捗状況をGETで確認可能にする
+  → Asynchronous processing is appropriate for large data sets
+  → Notify completion via polling or webhook
+  → Allow progress to be checked via GET
 ```
 
-### 10.3 エッジケース 3: ソフトデリートとリソースの復元
+### 10.3 Edge Case 3: Soft Delete and Resource Restoration
 
 ```
-問題: DELETE /users/1 でリソースを物理削除すると復元できない
+Problem: DELETE /users/1 permanently deletes the resource with no way to restore it
 
-解決策: ソフトデリートパターン
+Solution: Soft delete pattern
 
   DELETE /api/v1/users/1
-  → 内部的に deleted_at タイムスタンプを設定
-  → 通常のGETでは表示されなくなる
+  → Internally sets a deleted_at timestamp
+  → Resource no longer appears in regular GET requests
 
-  復元:
+  Restore:
   POST /api/v1/users/1/restore
-  → deleted_at を null に戻す
+  → Sets deleted_at back to null
 
-  削除済みリソースの取得:
+  Fetch deleted resources:
   GET /api/v1/users?include_deleted=true
   GET /api/v1/users/1?include_deleted=true
 
-  完全削除（パージ）:
+  Hard delete (purge):
   DELETE /api/v1/users/1/permanently
-  → 本当に物理削除する（管理者のみ）
+  → Physically deletes (admin only)
 
-  レスポンス例:
-  GET /api/v1/users/1 → 404 Not Found（ソフトデリート済み）
+  Response example:
+  GET /api/v1/users/1 → 404 Not Found (soft-deleted)
   GET /api/v1/users/1?include_deleted=true → 200 OK
   {
     "data": {
@@ -1712,119 +1723,120 @@ REST APIの最も一般的なアンチパターンは、URIに動詞を含めて
 
 ---
 
-## 11. リクエスト/レスポンスフローの全体像
+## 11. Full Request/Response Flow
 
 ```
-REST API リクエスト/レスポンス フロー:
+REST API Request/Response Flow:
 
   ┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐
-  │クライアント│     │API Gateway│     │ アプリ    │     │ データ   │
-  │(Browser/ │     │/LB       │     │ サーバー  │     │ ストア   │
+  │  Client  │     │API Gateway│    │   App    │     │  Data    │
+  │(Browser/ │     │/LB       │     │  Server  │     │  Store   │
   │ Mobile)  │     │          │     │          │     │(DB/Cache)│
   └────┬─────┘     └────┬─────┘     └────┬─────┘     └────┬─────┘
        │                │                │                │
-       │ 1. HTTPリクエスト│                │                │
+       │ 1. HTTP request│                │                │
        │───────────────→│                │                │
        │                │                │                │
-       │                │ 2. 認証チェック  │                │
-       │                │  (JWT検証)      │                │
+       │                │ 2. Auth check  │                │
+       │                │  (JWT verify)  │                │
        │                │                │                │
-       │                │ 3. レート制限    │                │
-       │                │  チェック       │                │
+       │                │ 3. Rate limit  │                │
+       │                │  check         │                │
        │                │                │                │
-       │                │ 4. ルーティング  │                │
+       │                │ 4. Routing     │                │
        │                │───────────────→│                │
        │                │                │                │
-       │                │                │ 5. バリデーション│
+       │                │                │ 5. Validation  │
        │                │                │                │
-       │                │                │ 6. ビジネス     │
-       │                │                │    ロジック     │
+       │                │                │ 6. Business    │
+       │                │                │    logic       │
        │                │                │                │
-       │                │                │ 7. DBクエリ     │
+       │                │                │ 7. DB query    │
        │                │                │───────────────→│
        │                │                │                │
-       │                │                │ 8. データ取得   │
+       │                │                │ 8. Fetch data  │
        │                │                │←───────────────│
        │                │                │                │
-       │                │                │ 9. レスポンス   │
-       │                │                │    シリアライズ  │
+       │                │                │ 9. Serialize   │
+       │                │                │    response    │
        │                │                │                │
-       │                │ 10. レスポンス  │                │
+       │                │ 10. Response   │                │
        │                │←───────────────│                │
        │                │                │                │
-       │                │ 11. ヘッダー追加│                │
-       │                │  (RateLimit等)  │                │
+       │                │ 11. Add headers│                │
+       │                │  (RateLimit,   │                │
+       │                │   etc.)        │                │
        │                │                │                │
-       │ 12. HTTPレスポンス                │                │
+       │ 12. HTTP response               │                │
        │←───────────────│                │                │
        │                │                │                │
 ```
 
 ---
 
-## 12. 演習
+## 12. Exercises
 
-### 演習 1（基礎）: ブックストアAPIの設計
+### Exercise 1 (Basic): Design a Bookstore API
 
-以下の要件を満たすREST APIのエンドポイント一覧を設計せよ。
-
-```
-要件:
-  - 書籍（Book）のCRUD操作
-  - 著者（Author）のCRUD操作
-  - 書籍にはカテゴリ（Category）が紐づく
-  - 書籍のレビュー（Review）を投稿・取得できる
-  - 書籍の検索ができる（タイトル、著者名、ISBN）
-  - ページネーション、ソート、フィルタリングに対応する
-
-解答例:
-  # 書籍
-  GET    /api/v1/books                       書籍一覧（?page=1&per_page=20）
-  GET    /api/v1/books/:id                   書籍詳細
-  POST   /api/v1/books                       書籍作成
-  PUT    /api/v1/books/:id                   書籍全体更新
-  PATCH  /api/v1/books/:id                   書籍部分更新
-  DELETE /api/v1/books/:id                   書籍削除
-  GET    /api/v1/books?q=REST&sort=-rating   書籍検索
-
-  # 著者
-  GET    /api/v1/authors                     著者一覧
-  GET    /api/v1/authors/:id                 著者詳細
-  POST   /api/v1/authors                     著者作成
-  PATCH  /api/v1/authors/:id                 著者更新
-  DELETE /api/v1/authors/:id                 著者削除
-  GET    /api/v1/authors/:id/books           著者の書籍一覧
-
-  # カテゴリ
-  GET    /api/v1/categories                  カテゴリ一覧
-  GET    /api/v1/categories/:id              カテゴリ詳細
-  GET    /api/v1/categories/:id/books        カテゴリの書籍一覧
-
-  # レビュー
-  GET    /api/v1/books/:id/reviews           書籍のレビュー一覧
-  POST   /api/v1/books/:id/reviews           レビュー投稿
-  PATCH  /api/v1/reviews/:id                 レビュー編集
-  DELETE /api/v1/reviews/:id                 レビュー削除
-
-  設計ポイント:
-  → 書籍のレビューはサブリソースとしてネスト（POST, GET）
-  → レビューの編集・削除はフラットアクセス（一意IDがあるため）
-  → 著者の書籍一覧はサブリソース（2階層まで）
-```
-
-### 演習 2（応用）: エラーハンドリングの統一実装
-
-以下のシナリオに対して、RFC 7807準拠のエラーレスポンスを設計せよ。
+Design a list of REST API endpoints that satisfy the following requirements.
 
 ```
-シナリオ:
-  1. 存在しないユーザーIDへのアクセス
-  2. メールアドレスのフォーマットエラー + 名前の未入力
-  3. すでに存在するメールアドレスでのユーザー登録
-  4. 認証トークンの有効期限切れ
-  5. 管理者権限が必要なエンドポイントへの一般ユーザーのアクセス
+Requirements:
+  - CRUD operations for Books
+  - CRUD operations for Authors
+  - Books belong to Categories
+  - Book reviews can be posted and retrieved
+  - Books can be searched (by title, author name, ISBN)
+  - Supports pagination, sorting, and filtering
 
-解答例:
+Example answer:
+  # Books
+  GET    /api/v1/books                       List books (?page=1&per_page=20)
+  GET    /api/v1/books/:id                   Book detail
+  POST   /api/v1/books                       Create book
+  PUT    /api/v1/books/:id                   Replace entire book
+  PATCH  /api/v1/books/:id                   Partial update of book
+  DELETE /api/v1/books/:id                   Delete book
+  GET    /api/v1/books?q=REST&sort=-rating   Search books
+
+  # Authors
+  GET    /api/v1/authors                     List authors
+  GET    /api/v1/authors/:id                 Author detail
+  POST   /api/v1/authors                     Create author
+  PATCH  /api/v1/authors/:id                 Update author
+  DELETE /api/v1/authors/:id                 Delete author
+  GET    /api/v1/authors/:id/books           Books by author
+
+  # Categories
+  GET    /api/v1/categories                  List categories
+  GET    /api/v1/categories/:id              Category detail
+  GET    /api/v1/categories/:id/books        Books in category
+
+  # Reviews
+  GET    /api/v1/books/:id/reviews           List reviews for a book
+  POST   /api/v1/books/:id/reviews           Post a review
+  PATCH  /api/v1/reviews/:id                 Edit review
+  DELETE /api/v1/reviews/:id                 Delete review
+
+  Design notes:
+  → Book reviews are nested as a sub-resource (POST, GET)
+  → Editing/deleting reviews uses flat access (unique ID exists)
+  → Author's book list is a sub-resource (max 2 levels)
+```
+
+### Exercise 2 (Intermediate): Unified Error Handling Implementation
+
+Design RFC 7807-compliant error responses for the following scenarios.
+
+```
+Scenarios:
+  1. Accessing a non-existent user ID
+  2. Invalid email format + missing name field
+  3. Registering a user with an already-existing email address
+  4. Expired authentication token
+  5. A regular user accessing an admin-only endpoint
+
+Example answers:
 
   1. 404 Not Found:
   {
@@ -1835,7 +1847,7 @@ REST API リクエスト/レスポンス フロー:
     "instance": "/api/v1/users/999"
   }
 
-  2. 422 Unprocessable Entity（複数フィールドのバリデーション）:
+  2. 422 Unprocessable Entity (multiple field validation):
   {
     "type": "https://api.example.com/errors/validation",
     "title": "Validation Error",
@@ -1884,24 +1896,24 @@ REST API リクエスト/レスポンス フロー:
   }
 ```
 
-### 演習 3（発展）: HATEOASを適用した注文管理APIの設計
+### Exercise 3 (Advanced): Design an Order Management API with HATEOAS
 
-EC サイトの注文管理APIを設計せよ。注文には以下の状態遷移がある。注文の状態に応じてレスポンスに含むHATEOASリンクが動的に変わるように設計すること。
+Design an order management API for an e-commerce site. The order has the following state transitions. Design the API so that the HATEOAS links in the response change dynamically based on the current order state.
 
 ```
-注文の状態遷移:
+Order state transitions:
 
-  ┌────────┐   確認    ┌──────────┐  発送   ┌─────────┐  受取   ┌──────────┐
-  │ pending │ ───────→ │ confirmed │ ─────→ │ shipped │ ─────→ │ delivered│
-  └────┬───┘          └─────┬────┘         └────┬────┘        └──────────┘
-       │                    │                   │
-       │ キャンセル          │ キャンセル          │ 返品
-       ▼                    ▼                   ▼
-  ┌──────────┐        ┌──────────┐        ┌──────────┐
-  │ cancelled│        │ cancelled│        │ returned │
-  └──────────┘        └──────────┘        └──────────┘
+  ┌────────┐  confirm  ┌──────────┐  ship   ┌─────────┐  deliver ┌──────────┐
+  │ pending │ ────────→ │ confirmed │ ──────→ │ shipped │ ───────→ │ delivered│
+  └────┬───┘           └─────┬────┘          └────┬────┘          └──────────┘
+       │                     │                    │
+       │ cancel              │ cancel             │ return
+       ▼                     ▼                    ▼
+  ┌──────────┐         ┌──────────┐         ┌──────────┐
+  │ cancelled│         │ cancelled│         │ returned │
+  └──────────┘         └──────────┘         └──────────┘
 
-解答例:
+Example answers:
 
   GET /api/v1/orders/123 → status: "pending"
   {
@@ -1933,8 +1945,8 @@ EC サイトの注文管理APIを設計せよ。注文には以下の状態遷�
       "return": { "href": "/api/v1/orders/123/returns", "method": "POST" }
     }
   }
-  → "confirm" と "cancel" は消え、"track" と "return" が出現
-  → クライアントは _links の存在有無で利用可能なアクションを判断
+  → "confirm" and "cancel" are gone; "track" and "return" appear
+  → Client determines available actions from the presence of _links
 
   GET /api/v1/orders/123 → status: "delivered"
   {
@@ -1949,7 +1961,7 @@ EC サイトの注文管理APIを設計せよ。注文には以下の状態遷�
       "review": { "href": "/api/v1/orders/123/reviews", "method": "POST" }
     }
   }
-  → 配達完了後は "return"（返品）と "review"（レビュー）が可能
+  → After delivery, "return" and "review" are available
 
   GET /api/v1/orders/123 → status: "cancelled"
   {
@@ -1963,89 +1975,94 @@ EC サイトの注文管理APIを設計せよ。注文には以下の状態遷�
       "self": { "href": "/api/v1/orders/123" }
     }
   }
-  → キャンセル済みはself以外のアクションリンクなし
+  → Cancelled orders have no action links beyond self
 ```
 
 ---
 
-## 13. API設計チェックリスト
+## 13. API Design Checklist
 
 ```
-REST API設計チェックリスト:
+REST API Design Checklist:
 
-  URI設計:
-  [ ] リソースは名詞・複数形で命名しているか
-  [ ] URIは小文字・ケバブケースか
-  [ ] ネストは2階層以内に収まっているか
-  [ ] バージョンプレフィックスがあるか（/api/v1/）
-  [ ] 末尾スラッシュは統一されているか
+  URI Design:
+  [ ] Are resources named as nouns in plural form?
+  [ ] Are URIs lowercase and kebab-case?
+  [ ] Is nesting limited to 2 levels?
+  [ ] Is there a version prefix? (/api/v1/)
+  [ ] Are trailing slashes consistent?
 
-  HTTPメソッド:
-  [ ] GET は安全（副作用なし）か
-  [ ] PUT/DELETE は冪等か
-  [ ] POST は適切な場面でのみ使用しているか
-  [ ] PATCH で部分更新をサポートしているか
+  HTTP Methods:
+  [ ] Is GET safe (no side effects)?
+  [ ] Are PUT/DELETE idempotent?
+  [ ] Is POST used only where appropriate?
+  [ ] Is PATCH supported for partial updates?
 
-  レスポンス:
-  [ ] 成功/エラーレスポンスの構造は統一されているか
-  [ ] 適切なHTTPステータスコードを使用しているか
-  [ ] 一覧レスポンスにはメタ情報（total, page等）が含まれるか
-  [ ] 作成成功時にLocationヘッダーを返しているか
-  [ ] エラーレスポンスはRFC 7807に準拠しているか
+  Responses:
+  [ ] Are success/error response structures consistent?
+  [ ] Are appropriate HTTP status codes used?
+  [ ] Do list responses include metadata (total, page, etc.)?
+  [ ] Is the Location header returned on successful creation?
+  [ ] Are error responses RFC 7807-compliant?
 
-  ページネーション・フィルタリング:
-  [ ] ページネーション方式は決定しているか
-  [ ] per_page の上限値は設定されているか
-  [ ] ソートパラメータの形式は統一されているか
+  Pagination & Filtering:
+  [ ] Is the pagination method decided?
+  [ ] Is there a maximum value for per_page?
+  [ ] Is the sort parameter format consistent?
 
-  セキュリティ:
-  [ ] 認証方式は決定しているか
-  [ ] レート制限は設定されているか
-  [ ] CORS設定は適切か
-  [ ] 入力のバリデーションは行っているか
+  Security:
+  [ ] Is the authentication method decided?
+  [ ] Is rate limiting configured?
+  [ ] Are CORS settings appropriate?
+  [ ] Is input validation performed?
 
-  運用:
-  [ ] OpenAPI/Swagger 仕様書は作成されているか
-  [ ] APIのバージョニング戦略は決定しているか
-  [ ] 非推奨化（Deprecation）のポリシーはあるか
-  [ ] ログとモニタリングは設計されているか
+  Operations:
+  [ ] Is an OpenAPI/Swagger specification created?
+  [ ] Is the API versioning strategy decided?
+  [ ] Is there a deprecation policy?
+  [ ] Are logging and monitoring designed?
 ```
 
 ---
 
-## まとめ
+## Summary
 
 ```
-REST API設計の要点:
+Key Points in REST API Design:
 
   ┌─────────────────┬─────────────────────────────────────┐
-  │ 概念            │ ポイント                             │
+  │ Concept         │ Key Points                          │
   ├─────────────────┼─────────────────────────────────────┤
-  │ RESTの原則      │ 6制約: ステートレス、統一IF、         │
-  │                 │ キャッシュ、階層化、C/S分離、CoD      │
+  │ REST Principles │ 6 constraints: Stateless, Uniform   │
+  │                 │ IF, Cacheable, Layered, C/S,        │
+  │                 │ Code on Demand                      │
   ├─────────────────┼─────────────────────────────────────┤
-  │ 成熟度モデル     │ Level 2（HTTP活用）が現実的目標       │
-  │                 │ Level 3（HATEOAS）は理想             │
+  │ Maturity Model  │ Level 2 (HTTP usage) is the         │
+  │                 │ practical target                    │
+  │                 │ Level 3 (HATEOAS) is the ideal      │
   ├─────────────────┼─────────────────────────────────────┤
-  │ URI設計         │ 名詞・複数形、2階層まで、ケバブケース  │
+  │ URI Design      │ Nouns, plural, max 2 levels,        │
+  │                 │ kebab-case                          │
   ├─────────────────┼─────────────────────────────────────┤
-  │ ページネーション │ cursor方式が高速で安定               │
-  │                 │ offsetは小規模向き                   │
+  │ Pagination      │ Cursor-based is fast and stable     │
+  │                 │ Offset-based suits small datasets   │
   ├─────────────────┼─────────────────────────────────────┤
-  │ バージョニング   │ URIベース（/api/v1/）が最も一般的     │
-  │                 │ 破壊的変更のみバージョンアップ         │
+  │ Versioning      │ URI-based (/api/v1/) is most common │
+  │                 │ Version bump only for breaking      │
+  │                 │ changes                             │
   ├─────────────────┼─────────────────────────────────────┤
-  │ エラー          │ RFC 7807 Problem Details形式         │
-  │                 │ 統一的な構造が重要                    │
+  │ Errors          │ RFC 7807 Problem Details format     │
+  │                 │ Consistent structure is critical    │
   ├─────────────────┼─────────────────────────────────────┤
-  │ HATEOAS         │ レスポンスにリンクを含め自己発見可能に  │
-  │                 │ 状態に応じたリンクの動的変更           │
+  │ HATEOAS         │ Include links in responses for      │
+  │                 │ self-discoverability                │
+  │                 │ Links change dynamically with state │
   ├─────────────────┼─────────────────────────────────────┤
-  │ 認証            │ 公開API: OAuth 2.0 + API Key         │
-  │                 │ 内部API: JWT Bearer Token             │
+  │ Authentication  │ Public API: OAuth 2.0 + API Key     │
+  │                 │ Internal API: JWT Bearer Token      │
   ├─────────────────┼─────────────────────────────────────┤
-  │ レート制限      │ ヘッダーで通知、429で拒否             │
-  │                 │ Token Bucketが一般的                  │
+  │ Rate Limiting   │ Notify via headers, reject with 429 │
+  │                 │ Token Bucket is common              │
   └─────────────────┴─────────────────────────────────────┘
 ```
 
@@ -2053,99 +2070,105 @@ REST API設計の要点:
 
 ## FAQ
 
-### Q1: PUTとPATCHはどちらを使うべきか
+### Q1: Should I use PUT or PATCH?
 
-PUTはリソースの「全体置換」、PATCHは「部分更新」に使う。PUTではリクエストボディにリソースの全フィールドを含める必要があり、含まれていないフィールドはデフォルト値にリセットされる。PATCHではリクエストボディに変更したいフィールドのみを含める。
+Use PUT for "full replacement" of a resource, and PATCH for "partial update." With PUT, the request body must include all fields of the resource — any fields not included will be reset to their default values. With PATCH, only the fields you want to change need to be included.
 
-一般的なWebアプリケーションでは、フォームの一部だけを更新することが多いため、PATCHの方が実用的である。PUTを提供する場合は、PATCHも併せて提供することを推奨する。
+In typical web applications, updating only a subset of form fields is common, making PATCH more practical. When offering PUT, it is recommended to also provide PATCH.
 
 ```
 PUT /api/v1/users/1
-→ ボディに全フィールドが必要:
+→ All fields required in body:
   { "name": "Taro", "email": "taro@example.com", "role": "admin" }
-→ emailを省略すると、emailがnull/デフォルトにリセットされうる
+→ If email is omitted, email may be reset to null/default
 
 PATCH /api/v1/users/1
-→ 変更部分だけでよい:
+→ Only the changed portion is needed:
   { "role": "admin" }
-→ nameとemailは変更されない
+→ name and email remain unchanged
 ```
 
-### Q2: IDはUUIDと連番のどちらが良いか
+### Q2: Should IDs be UUIDs or auto-incremented integers?
 
 ```
 ┌────────────┬─────────────────┬─────────────────────┐
-│ 方式       │ メリット         │ デメリット           │
+│ Method     │ Pros            │ Cons                │
 ├────────────┼─────────────────┼─────────────────────┤
-│ 連番(auto  │ 短くて読みやすい │ 推測されやすい       │
-│ increment) │ ソート順が明確   │ レコード数が推測可能 │
-│            │ インデックス効率 │ 分散環境で衝突       │
+│ Auto-      │ Short and       │ Easily guessable    │
+│ increment  │ readable        │ Record count        │
+│            │ Sort order clear│ is inferrable       │
+│            │ Index efficient │ Collisions in       │
+│            │                 │ distributed systems │
 ├────────────┼─────────────────┼─────────────────────┤
-│ UUID v4    │ 推測不可能       │ 36文字と長い         │
-│            │ 分散環境で安全   │ インデックス効率低下 │
-│            │                 │ ソート順が不定       │
+│ UUID v4    │ Unpredictable   │ 36 characters long  │
+│            │ Safe for        │ Index efficiency    │
+│            │ distributed     │ lower               │
+│            │ systems         │ Sort order undefined│
 ├────────────┼─────────────────┼─────────────────────┤
-│ ULID       │ ソート可能       │ 26文字とやや長い     │
-│            │ 推測不可能       │ 普及度がUUIDより低い │
-│            │ 分散環境で安全   │                     │
+│ ULID       │ Sortable        │ 26 characters       │
+│            │ Unpredictable   │ Less common than    │
+│            │ Safe for        │ UUID                │
+│            │ distributed     │                     │
+│            │ systems         │                     │
 ├────────────┼─────────────────┼─────────────────────┤
-│ nanoid     │ 短くカスタマイズ可│ 衝突確率の計算が必要 │
-│            │ URL-safe         │ 標準化されていない   │
+│ nanoid     │ Short,          │ Collision probability│
+│            │ customizable    │ must be calculated  │
+│            │ URL-safe        │ Not standardized    │
 └────────────┴─────────────────┴─────────────────────┘
 
-推奨:
-→ 公開API: UUID v4 または ULID（セキュリティ上安全）
-→ 内部API: 連番でも可（ただしIDの連番推測に注意）
-→ URL短縮が必要: nanoid（21文字がデフォルト）
+Recommendation:
+→ Public API: UUID v4 or ULID (safe from a security standpoint)
+→ Internal API: Auto-increment is acceptable (watch for ID enumeration)
+→ When short URLs are needed: nanoid (21 characters by default)
 ```
 
-### Q3: ネストしたリソースの作成時、親リソースの存在チェックはどうするか
+### Q3: How should I check for parent resource existence when creating nested resources?
 
-ネストしたリソースを作成する際（例: POST /users/123/orders）、親リソース（user 123）が存在しない場合の挙動は以下のパターンがある。
+When creating nested resources (e.g., POST /users/123/orders), there are several patterns to handle the case where the parent resource (user 123) does not exist.
 
 ```
-パターン 1: 404 Not Found を返す（推奨）
+Pattern 1: Return 404 Not Found (recommended)
   POST /api/v1/users/999/orders
   → 404 Not Found: "User with ID '999' was not found."
-  → 親リソースが存在しない場合、子の作成を拒否
+  → Refuse to create the child if the parent does not exist
 
-パターン 2: 422 Unprocessable Entity を返す
+Pattern 2: Return 422 Unprocessable Entity
   POST /api/v1/orders
   { "user_id": "999", ... }
   → 422: "Referenced user '999' does not exist."
-  → フラットエンドポイントでバリデーションエラーとして扱う
+  → Handle as a validation error on a flat endpoint
 
-推奨:
-→ ネストURLの場合は 404（パスの一部が存在しない）
-→ フラットURLでbodyにID指定の場合は 422（バリデーションエラー）
-→ いずれの場合も明確なエラーメッセージを提供する
+Recommendation:
+→ For nested URLs: return 404 (part of the path does not exist)
+→ For flat URLs with ID in body: return 422 (validation error)
+→ In either case, provide a clear error message
 ```
 
-### Q4: 日時のフォーマットはどうすべきか
+### Q4: What format should dates and times use?
 
 ```
-推奨: ISO 8601（RFC 3339）形式
+Recommended: ISO 8601 (RFC 3339) format
 
-  UTC表記:  "2024-07-15T10:30:00Z"
-  オフセット: "2024-07-15T19:30:00+09:00"
+  UTC:      "2024-07-15T10:30:00Z"
+  Offset:   "2024-07-15T19:30:00+09:00"
 
-  → サーバーはUTC（Z表記）で保存・返却
-  → クライアント側でローカルタイムゾーンに変換
-  → Unix Timestamp は人間が読みにくいため非推奨
-     （ただしレート制限ヘッダー等では慣例的に使用）
+  → Server stores and returns in UTC (Z notation)
+  → Client converts to local timezone
+  → Unix Timestamp is not recommended as it is not human-readable
+     (though it is conventionally used in rate limit headers, etc.)
 ```
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
 
 ---
 
-## 参考文献
+## References
 
-1. Fielding, R. "Architectural Styles and the Design of Network-based Software Architectures." University of California, Irvine, 2000. -- RESTの原典。HTTPプロトコルの主要設計者による博士論文。
-2. RFC 7807. "Problem Details for HTTP APIs." Nottingham, M., Wilde, E., IETF, 2016. -- APIエラーレスポンスの標準フォーマット。後継のRFC 9457（2023年）も参照。
-3. Richardson, L., Amundsen, M., Ruby, S. "RESTful Web APIs." O'Reilly Media, 2013. -- Richardson成熟度モデルの提唱者による実践ガイド。HATEOASの詳細な解説を含む。
-4. OpenAPI Specification 3.1.0. OpenAPI Initiative, 2021. https://spec.openapis.org/oas/v3.1.0 -- REST APIの仕様記述標準。Swagger UIとの連携で対話的なドキュメントを生成可能。
-5. Masse, M. "REST API Design Rulebook." O'Reilly Media, 2011. -- URI設計、HTTPメソッドの使い方、エラーハンドリングに関するルール集。
+1. Fielding, R. "Architectural Styles and the Design of Network-based Software Architectures." University of California, Irvine, 2000. -- The original REST dissertation, written by one of the principal designers of the HTTP protocol.
+2. RFC 7807. "Problem Details for HTTP APIs." Nottingham, M., Wilde, E., IETF, 2016. -- The standard format for API error responses. See also its successor RFC 9457 (2023).
+3. Richardson, L., Amundsen, M., Ruby, S. "RESTful Web APIs." O'Reilly Media, 2013. -- A practical guide by the originator of the Richardson Maturity Model, including detailed coverage of HATEOAS.
+4. OpenAPI Specification 3.1.0. OpenAPI Initiative, 2021. https://spec.openapis.org/oas/v3.1.0 -- The standard for describing REST API specifications. Can generate interactive documentation via Swagger UI.
+5. Masse, M. "REST API Design Rulebook." O'Reilly Media, 2011. -- A rule compendium covering URI design, HTTP method usage, and error handling.
