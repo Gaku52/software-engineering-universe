@@ -1,178 +1,179 @@
 # WebSocket
 
-> WebSocketはHTTP上で確立される双方向リアルタイム通信プロトコル。チャット、リアルタイム通知、ゲーム、金融データ配信など、サーバーからのプッシュが必要なアプリケーションの基盤。RFC 6455で標準化されたこのプロトコルは、従来のHTTPポーリングの限界を克服し、クライアントとサーバー間の真の全二重通信を実現する。
+> WebSocket is a bidirectional real-time communication protocol established over HTTP. It is the foundation for applications that require server-side push — such as chat, real-time notifications, games, and financial data streams. Standardized in RFC 6455, this protocol overcomes the limitations of traditional HTTP polling and enables true full-duplex communication between client and server.
 
-## 前提知識
+## Prerequisites
 
-このガイドを最大限に活用するには、以下の知識が必要です。
+To get the most out of this guide, the following knowledge is required.
 
-**必須**
+**Required**
 
-**推奨**
-- JavaScriptの基礎知識（ブラウザAPI、非同期処理）
-- Node.jsの基本（サーバーサイド実装で必要）
-
----
-
-## この章で学ぶこと
-
-- [ ] WebSocketのハンドシェイクと通信の仕組みを理解する
-- [ ] HTTPとの違いとWebSocketが解決する課題を把握する
-- [ ] フレーム構造とプロトコルの内部動作を理解する
-- [ ] サーバーサイド・クライアントサイド両方の実装パターンを習得する
-- [ ] Socket.IOなどのライブラリを用いた実践的な開発手法を学ぶ
-- [ ] スケーリング、セキュリティ、パフォーマンス最適化の知識を身につける
-- [ ] アンチパターンを把握し、本番環境での問題を未然に防ぐ
+**Recommended**
+- Basic JavaScript knowledge (browser APIs, asynchronous processing)
+- Node.js basics (needed for server-side implementation)
 
 ---
 
-## 1. なぜWebSocketが必要か
+## What You Will Learn in This Chapter
 
-### 1.1 HTTPの根本的な制約
+- [ ] Understand the WebSocket handshake and how communication works
+- [ ] Understand the differences from HTTP and the problems WebSocket solves
+- [ ] Understand the frame structure and internal protocol behavior
+- [ ] Learn implementation patterns for both server-side and client-side
+- [ ] Learn practical development techniques using libraries such as Socket.IO
+- [ ] Gain knowledge of scaling, security, and performance optimization
+- [ ] Understand anti-patterns to prevent production issues before they happen
 
-HTTPはリクエスト/レスポンスモデルに基づいている。通信は常にクライアント起点であり、サーバーがクライアントに対して能動的にデータを送信する手段を持たない。この制約はWebの初期においては問題にならなかった。静的ページの配信や、フォーム送信のような単発のやりとりにはリクエスト/レスポンスモデルで十分だったためである。
+---
 
-しかし、Webアプリケーションが高度化するにつれ、リアルタイム性の要求が急速に高まった。チャットアプリケーション、株価ティッカー、オンラインゲーム、共同編集ツールなど、サーバーからクライアントへの即時データ配信が不可欠なユースケースが増加した。
+## 1. Why WebSocket Is Needed
 
-### 1.2 従来の回避策とその限界
+### 1.1 Fundamental Limitations of HTTP
+
+HTTP is based on a request/response model. Communication always originates from the client, and the server has no means to proactively send data to the client. This limitation was not a problem in the early Web — the request/response model was sufficient for serving static pages or handling one-off interactions like form submissions.
+
+However, as web applications became more sophisticated, the demand for real-time capability increased rapidly. Use cases requiring instant data delivery from server to client — such as chat applications, stock tickers, online games, and collaborative editing tools — multiplied.
+
+### 1.2 Traditional Workarounds and Their Limitations
 
 ```
-HTTPの限界を回避するための技術の変遷:
+Evolution of techniques to work around HTTP's limitations:
 
-  ① ポーリング（Polling）:
+  ① Polling:
      ┌─────────┐         ┌─────────┐
-     │ Client  │ ──GET──→│ Server  │    クライアントが一定間隔で
-     │         │ ←─200── │         │    サーバーに問い合わせる
+     │ Client  │ ──GET──→│ Server  │    Client queries the server
+     │         │ ←─200── │         │    at regular intervals
      │         │         │         │
-     │         │ ──GET──→│         │    データがなくても毎回リクエスト
-     │         │ ←─204── │         │    が発生し、帯域幅を浪費する
-     │         │         │         │
-     │         │ ──GET──→│         │    インターバルが長いと遅延が大きく
-     │         │ ←─200── │         │    短いとサーバー負荷が増大する
+     │         │ ──GET──→│         │    A request is made every interval
+     │         │ ←─204── │         │    even when there is no data,
+     │         │         │         │    wasting bandwidth
+     │         │ ──GET──→│         │    Long intervals mean high latency;
+     │         │ ←─200── │         │    short intervals increase server load
      └─────────┘         └─────────┘
 
-     問題点:
-     - 無駄なリクエストが大量に発生（データがない場合も含む）
-     - リアルタイム性がインターバル間隔に依存
-     - HTTPヘッダーのオーバーヘッドが毎回発生（約800バイト/リクエスト）
-     - サーバーのCPU・メモリリソースを不必要に消費
+     Problems:
+     - Large numbers of wasteful requests (including when there is no data)
+     - Real-time responsiveness depends on the interval
+     - HTTP header overhead on every request (~800 bytes/request)
+     - Unnecessary consumption of server CPU and memory
 
-  ② ロングポーリング（Long Polling）:
+  ② Long Polling:
      ┌─────────┐         ┌─────────┐
-     │ Client  │ ──GET──→│ Server  │    サーバーはデータが利用可能に
-     │         │         │ (待機)  │    なるまでレスポンスを保留する
+     │ Client  │ ──GET──→│ Server  │    Server holds the response
+     │         │         │ (wait)  │    until data is available
      │         │         │  ...    │
-     │         │         │  ...    │    タイムアウトまでデータがなければ
-     │         │ ←─200── │ (送信)  │    空レスポンスを返す
+     │         │         │  ...    │    If no data by timeout,
+     │         │ ←─200── │ (send)  │    returns an empty response
      │         │ ──GET──→│         │
-     │         │         │ (待機)  │    即座に次のリクエストを送信し
-     └─────────┘         └─────────┘    擬似的なプッシュを実現
+     │         │         │ (wait)  │    Immediately sends next request
+     └─────────┘         └─────────┘    to simulate push behavior
 
-     問題点:
-     - サーバー側で接続を長時間保持するためリソース消費が大きい
-     - 接続の再確立コスト（TCP/TLSハンドシェイク）が毎回発生
-     - 高頻度のメッセージでは結局ポーリングと同等の負荷になる
-     - HTTP/1.1ではブラウザの同時接続数制限（6接続/ドメイン）の影響を受ける
+     Problems:
+     - High resource consumption from holding connections on the server
+     - Connection re-establishment cost (TCP/TLS handshake) on every request
+     - At high message frequency, the load becomes equivalent to polling
+     - Under HTTP/1.1, affected by browser concurrent connection limits
+       (6 connections per domain)
 
-  ③ Server-Sent Events（SSE）:
+  ③ Server-Sent Events (SSE):
      ┌─────────┐         ┌─────────┐
-     │ Client  │ ──GET──→│ Server  │    HTTPコネクション上で
-     │         │ ←─data──│         │    サーバーからクライアントへの
-     │         │ ←─data──│         │    一方向ストリーミング
+     │ Client  │ ──GET──→│ Server  │    One-way streaming from server
+     │         │ ←─data──│         │    to client over an HTTP connection
+     │         │ ←─data──│         │
      │         │ ←─data──│         │
      └─────────┘         └─────────┘
 
-     利点: 自動再接続、イベントID管理が組み込み
-     問題点:
-     - サーバー→クライアントの一方向のみ
-     - テキストデータ（UTF-8）のみ対応
-     - HTTP/1.1では同時接続数制限の影響を受ける
-     - バイナリデータの送信には別途HTTPリクエストが必要
+     Advantages: built-in automatic reconnection and event ID management
+     Problems:
+     - One-way only: server → client
+     - Only text data (UTF-8) is supported
+     - Under HTTP/1.1, affected by concurrent connection limits
+     - Sending binary data requires a separate HTTP request
 ```
 
-### 1.3 WebSocketが提供するソリューション
+### 1.3 The Solution WebSocket Provides
 
-WebSocketは上記すべての問題を根本的に解決する。初回のHTTPハンドシェイク後、TCPコネクション上でプロトコルを切り替え、双方向の全二重通信チャネルを確立する。これにより以下の利点が得られる。
+WebSocket fundamentally solves all of the above problems. After the initial HTTP handshake, it switches protocols over the TCP connection and establishes a bidirectional full-duplex communication channel. This provides the following advantages:
 
-1. **真の双方向通信**: クライアントとサーバーが対等にメッセージを送受信できる
-2. **低レイテンシ**: 常時接続のため、接続確立のオーバーヘッドがない
-3. **低オーバーヘッド**: フレームヘッダーはわずか2〜14バイト（HTTPヘッダーの数百分の1）
-4. **バイナリデータ対応**: テキストとバイナリの両方を効率的に転送可能
-5. **プロトコルレベルのKeep-Alive**: Ping/Pongフレームによる接続状態の監視
+1. **True bidirectional communication**: Client and server can send and receive messages on equal footing
+2. **Low latency**: Always-on connection means no connection-establishment overhead
+3. **Low overhead**: Frame headers are just 2–14 bytes (a fraction of HTTP header size)
+4. **Binary data support**: Both text and binary can be efficiently transferred
+5. **Protocol-level keep-alive**: Connection state monitored via Ping/Pong frames
 
-### 1.4 リアルタイム通信技術の比較表
+### 1.4 Comparison Table of Real-Time Communication Technologies
 
 ```
   ┌────────────────┬───────────┬───────────┬───────────┬───────────┐
-  │ 特性           │ Polling   │ Long Poll │ SSE       │ WebSocket │
+  │ Property       │ Polling   │ Long Poll │ SSE       │ WebSocket │
   ├────────────────┼───────────┼───────────┼───────────┼───────────┤
-  │ 通信方向       │ 単方向    │ 単方向    │ 単方向    │ 双方向    │
+  │ Direction      │ One-way   │ One-way   │ One-way   │ Two-way   │
   │                │ C→S       │ C→S       │ S→C       │ C↔S       │
   ├────────────────┼───────────┼───────────┼───────────┼───────────┤
-  │ レイテンシ     │ 高        │ 中        │ 低        │ 最低      │
-  │ (平均)         │ interval/2│ ~100ms    │ ~50ms     │ ~10ms     │
+  │ Latency        │ High      │ Medium    │ Low       │ Lowest    │
+  │ (average)      │ interval/2│ ~100ms    │ ~50ms     │ ~10ms     │
   ├────────────────┼───────────┼───────────┼───────────┼───────────┤
-  │ サーバー負荷   │ 高        │ 中〜高    │ 低        │ 低〜中    │
-  │ (1万接続時)    │           │           │           │           │
+  │ Server load    │ High      │ Med–High  │ Low       │ Low–Med   │
+  │ (10K connections)│         │           │           │           │
   ├────────────────┼───────────┼───────────┼───────────┼───────────┤
-  │ 帯域効率       │ 低        │ 低〜中    │ 高        │ 最高      │
-  │ (ヘッダー)     │ ~800B/req │ ~800B/req │ ~50B/msg  │ ~6B/msg   │
+  │ Bandwidth eff. │ Low       │ Low–Med   │ High      │ Highest   │
+  │ (headers)      │ ~800B/req │ ~800B/req │ ~50B/msg  │ ~6B/msg   │
   ├────────────────┼───────────┼───────────┼───────────┼───────────┤
-  │ バイナリ対応   │ 可能      │ 可能      │ 不可      │ 可能      │
+  │ Binary support │ Possible  │ Possible  │ No        │ Possible  │
   ├────────────────┼───────────┼───────────┼───────────┼───────────┤
-  │ 自動再接続     │ 手動実装  │ 手動実装  │ 組み込み  │ 手動実装  │
+  │ Auto-reconnect │ Manual    │ Manual    │ Built-in  │ Manual    │
   ├────────────────┼───────────┼───────────┼───────────┼───────────┤
-  │ HTTP/2互換性   │ 完全      │ 完全      │ 改善      │ 限定的    │
+  │ HTTP/2 compat. │ Full      │ Full      │ Improved  │ Limited   │
   ├────────────────┼───────────┼───────────┼───────────┼───────────┤
-  │ ファイアウォール│ 問題なし  │ 問題なし  │ 問題なし  │ 要注意    │
-  │ 透過性         │           │           │           │           │
+  │ Firewall       │ No issue  │ No issue  │ No issue  │ Caution   │
+  │ transparency   │           │           │           │ needed    │
   ├────────────────┼───────────┼───────────┼───────────┼───────────┤
-  │ 実装複雑度     │ 低        │ 中        │ 低        │ 高        │
+  │ Impl. complexity│ Low      │ Medium    │ Low       │ High      │
   ├────────────────┼───────────┼───────────┼───────────┼───────────┤
-  │ 推奨ユースケース│ 低頻度    │ 中頻度    │ 通知系    │ リアル    │
-  │                │ 更新      │ 更新      │ フィード  │ タイム    │
+  │ Recommended    │ Low-freq  │ Med-freq  │ Notif.    │ Real-     │
+  │ use cases      │ updates   │ updates   │ feeds     │ time      │
   └────────────────┴───────────┴───────────┴───────────┴───────────┘
 ```
 
-### 1.5 WebSocketが適しているユースケース
+### 1.5 Use Cases Where WebSocket Is a Good Fit
 
-WebSocketは万能ではない。以下に適性の高いケースと低いケースを整理する。
+WebSocket is not a universal solution. Below is a summary of cases with high and low suitability.
 
-**適性が高いケース:**
-- チャットアプリケーション（1対1、グループ）
-- リアルタイム共同編集（Google Docs型）
-- 金融データのストリーミング（株価、為替レート）
-- オンラインゲーム（マルチプレイヤー）
-- IoTデバイスのリアルタイム監視ダッシュボード
-- ライブスポーツのスコア更新
-- リアルタイム通知システム
+**High suitability:**
+- Chat applications (1-on-1, group)
+- Real-time collaborative editing (Google Docs-style)
+- Financial data streaming (stock prices, exchange rates)
+- Online games (multiplayer)
+- Real-time monitoring dashboards for IoT devices
+- Live sports score updates
+- Real-time notification systems
 
-**適性が低いケース:**
-- 単純なCRUD操作（REST APIで十分）
-- 低頻度の更新（5分以上の間隔ならポーリングで十分）
-- 一方向のイベント通知のみ（SSEで十分）
-- SEOが重要なコンテンツ配信（HTTPが適切）
-- ファイルアップロード/ダウンロード（HTTPの方が効率的）
+**Low suitability:**
+- Simple CRUD operations (REST API is sufficient)
+- Low-frequency updates (polling is sufficient if intervals exceed 5 minutes)
+- One-directional event notifications only (SSE is sufficient)
+- Content distribution where SEO is important (HTTP is appropriate)
+- File upload/download (HTTP is more efficient)
 
 ---
 
-## 2. WebSocketハンドシェイク
+## 2. WebSocket Handshake
 
-### 2.1 ハンドシェイクの全体フロー
+### 2.1 Overall Handshake Flow
 
-WebSocket接続はHTTPアップグレード機構を利用して確立される。このプロセスは「オープニングハンドシェイク」と呼ばれ、クライアントがHTTP GETリクエストにWebSocketアップグレードヘッダーを含めて送信し、サーバーが101 Switching Protocolsで応答することで完了する。
+A WebSocket connection is established using the HTTP Upgrade mechanism. This process is called the "opening handshake." The client sends an HTTP GET request including WebSocket upgrade headers, and the server responds with 101 Switching Protocols to complete the process.
 
 ```
-WebSocketハンドシェイクの詳細フロー:
+Detailed WebSocket handshake flow:
 
-  クライアント                    サーバー
+  Client                          Server
       │                              │
       │  ① TCP 3-way handshake       │
       │  ─────── SYN ──────────────→ │
       │  ←────── SYN+ACK ─────────── │
       │  ─────── ACK ──────────────→ │
       │                              │
-      │  ② TLS handshake (wss://の場合) │
+      │  ② TLS handshake (for wss://)│
       │  ─────── ClientHello ──────→ │
       │  ←────── ServerHello ─────── │
       │  ←────── Certificate ─────── │
@@ -193,21 +194,21 @@ WebSocketハンドシェイクの詳細フロー:
       │      Connection: Upgrade     │
       │      Sec-WebSocket-Accept: yyy│
       │                              │
-      │  ⑤ WebSocket通信開始         │
-      │  ←════ WebSocketフレーム ════→│
-      │  ←════ WebSocketフレーム ════→│
+      │  ⑤ WebSocket communication   │
+      │  ←════ WebSocket frame ════→ │
+      │  ←════ WebSocket frame ════→ │
       │                              │
-      │  ⑥ クローズハンドシェイク    │
+      │  ⑥ Closing handshake         │
       │  ─── Close Frame ──────────→ │
       │  ←── Close Frame ─────────── │
       │  ─── TCP FIN ──────────────→ │
       │                              │
 ```
 
-### 2.2 ハンドシェイクリクエストの詳細
+### 2.2 Handshake Request in Detail
 
 ```
-クライアント → サーバー（HTTPリクエスト）:
+Client → Server (HTTP request):
 
   GET /chat HTTP/1.1
   Host: example.com
@@ -220,35 +221,35 @@ WebSocketハンドシェイクの詳細フロー:
   Origin: https://example.com
   Cookie: session=abc123
 
-各ヘッダーの役割:
+Role of each header:
   ┌───────────────────────────┬─────────────────────────────────────────┐
-  │ ヘッダー                  │ 説明                                    │
+  │ Header                    │ Description                             │
   ├───────────────────────────┼─────────────────────────────────────────┤
-  │ Upgrade: websocket        │ WebSocketへのプロトコル切替を要求       │
-  │                           │ （必須）                                │
+  │ Upgrade: websocket        │ Request protocol switch to WebSocket    │
+  │                           │ (required)                              │
   ├───────────────────────────┼─────────────────────────────────────────┤
-  │ Connection: Upgrade       │ Upgradeヘッダーがホップバイホップで     │
-  │                           │ あることを示す（必須）                  │
+  │ Connection: Upgrade       │ Indicates that the Upgrade header is    │
+  │                           │ hop-by-hop (required)                   │
   ├───────────────────────────┼─────────────────────────────────────────┤
-  │ Sec-WebSocket-Key         │ 16バイトのランダム値をBase64エンコード  │
-  │                           │ したもの。サーバー検証用（必須）        │
+  │ Sec-WebSocket-Key         │ 16 random bytes Base64-encoded.         │
+  │                           │ Used for server verification (required) │
   ├───────────────────────────┼─────────────────────────────────────────┤
-  │ Sec-WebSocket-Version     │ プロトコルバージョン。現行は13（必須）  │
+  │ Sec-WebSocket-Version     │ Protocol version. Currently 13 (reqd.)  │
   ├───────────────────────────┼─────────────────────────────────────────┤
-  │ Sec-WebSocket-Protocol    │ サブプロトコルの候補リスト（任意）      │
+  │ Sec-WebSocket-Protocol    │ List of candidate sub-protocols (opt.)  │
   ├───────────────────────────┼─────────────────────────────────────────┤
-  │ Sec-WebSocket-Extensions  │ 使用したい拡張機能（任意）              │
+  │ Sec-WebSocket-Extensions  │ Desired extensions (optional)           │
   ├───────────────────────────┼─────────────────────────────────────────┤
-  │ Origin                    │ ブラウザクライアントの起源（CORS的検証）│
+  │ Origin                    │ Browser client origin (CORS-style check)│
   ├───────────────────────────┼─────────────────────────────────────────┤
-  │ Cookie                    │ 認証情報（既存セッション利用時）        │
+  │ Cookie                    │ Auth credentials (when reusing session) │
   └───────────────────────────┴─────────────────────────────────────────┘
 ```
 
-### 2.3 ハンドシェイクレスポンスの詳細
+### 2.3 Handshake Response in Detail
 
 ```
-サーバー → クライアント（HTTPレスポンス）:
+Server → Client (HTTP response):
 
   HTTP/1.1 101 Switching Protocols
   Upgrade: websocket
@@ -258,55 +259,55 @@ WebSocketハンドシェイクの詳細フロー:
   Sec-WebSocket-Extensions: permessage-deflate
 
   101 Switching Protocols:
-  → このレスポンス以降、同じTCP接続がWebSocketプロトコルに切り替わる
-  → HTTPのセマンティクスは適用されなくなる
-  → 以降はWebSocketフレーム単位で通信が行われる
+  → After this response, the same TCP connection switches to WebSocket protocol
+  → HTTP semantics no longer apply
+  → Communication is subsequently done in WebSocket frames
 ```
 
-### 2.4 Sec-WebSocket-Accept の計算過程
+### 2.4 Computation of Sec-WebSocket-Accept
 
-Sec-WebSocket-Accept値は、クライアントが送信したSec-WebSocket-KeyとRFC 6455で定義されたGUID（マジックストリング）を結合し、SHA-1ハッシュを計算してBase64エンコードすることで生成される。この仕組みはクロスプロトコル攻撃を防ぐために設計されている。
+The Sec-WebSocket-Accept value is generated by concatenating the Sec-WebSocket-Key sent by the client with the GUID (magic string) defined in RFC 6455, computing a SHA-1 hash, and Base64-encoding the result. This mechanism is designed to prevent cross-protocol attacks.
 
 ```typescript
-// Sec-WebSocket-Accept の計算実装
+// Implementation of Sec-WebSocket-Accept computation
 import { createHash } from 'crypto';
 
 function computeAcceptKey(clientKey: string): string {
-  // RFC 6455で規定されたマジックストリング（GUID）
+  // Magic string (GUID) defined in RFC 6455
   const MAGIC_STRING = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 
-  // Step 1: クライアントキーとGUIDを結合
+  // Step 1: Concatenate client key with GUID
   const combined = clientKey + MAGIC_STRING;
-  // 例: "dGhlIHNhbXBsZSBub25jZQ==" + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+  // e.g.: "dGhlIHNhbXBsZSBub25jZQ==" + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
-  // Step 2: SHA-1ハッシュを計算
+  // Step 2: Compute SHA-1 hash
   const hash = createHash('sha1').update(combined).digest();
 
-  // Step 3: Base64エンコード
+  // Step 3: Base64-encode
   const acceptKey = hash.toString('base64');
-  // 結果: "s3pPLMBiTxaQ9kYGzzhZRbK+xOo="
+  // Result: "s3pPLMBiTxaQ9kYGzzhZRbK+xOo="
 
   return acceptKey;
 }
 
-// 使用例
+// Usage example
 const clientKey = 'dGhlIHNhbXBsZSBub25jZQ==';
 console.log(computeAcceptKey(clientKey));
 // → "s3pPLMBiTxaQ9kYGzzhZRbK+xOo="
 ```
 
-このメカニズムの目的は、サーバーがWebSocketプロトコルを理解していることの証明である。HTTPサーバーが誤ってWebSocket接続を受け入れることを防ぎ、プロキシがキャッシュを汚染する攻撃（Cache Poisoning）も防止する。ただし、これは暗号学的な認証ではなく、あくまでプロトコル互換性の確認であることに注意が必要である。
+The purpose of this mechanism is to prove that the server understands the WebSocket protocol. It prevents an HTTP server from accidentally accepting a WebSocket connection, and also prevents proxies from performing cache poisoning attacks. Note, however, that this is not cryptographic authentication — it is simply a protocol compatibility check.
 
 ---
 
-## 3. WebSocketフレーム構造
+## 3. WebSocket Frame Structure
 
-### 3.1 フレームフォーマットの詳細
+### 3.1 Frame Format in Detail
 
-WebSocketプロトコルはフレーム単位でデータを送受信する。各フレームは2バイト以上のヘッダーとペイロードで構成される。
+The WebSocket protocol sends and receives data in units called frames. Each frame consists of a header of 2 bytes or more and a payload.
 
 ```
-WebSocketフレームの詳細構造（RFC 6455 Section 5.2）:
+WebSocket frame detailed structure (RFC 6455 Section 5.2):
 
    0                   1                   2                   3
    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -325,64 +326,64 @@ WebSocketフレームの詳細構造（RFC 6455 Section 5.2）:
   │ ...                                                            │
   └─────────────────────────────────────────────────────────────────┘
 
-  各フィールドの説明:
+  Field descriptions:
   ┌──────────────┬──────┬──────────────────────────────────────────┐
-  │ フィールド   │ ビット│ 説明                                     │
+  │ Field        │ Bits │ Description                              │
   ├──────────────┼──────┼──────────────────────────────────────────┤
-  │ FIN          │ 1    │ 1=最終フレーム、0=継続フレームが後続     │
+  │ FIN          │ 1    │ 1=final frame, 0=more continuation frames│
   ├──────────────┼──────┼──────────────────────────────────────────┤
-  │ RSV1-3       │ 各1  │ 拡張用。通常は0。permessage-deflateで   │
-  │              │      │ RSV1=1を使用                             │
+  │ RSV1-3       │ 1 ea.│ For extensions. Usually 0.              │
+  │              │      │ RSV1=1 used by permessage-deflate        │
   ├──────────────┼──────┼──────────────────────────────────────────┤
-  │ Opcode       │ 4    │ フレーム種別（下記参照）                 │
+  │ Opcode       │ 4    │ Frame type (see below)                   │
   ├──────────────┼──────┼──────────────────────────────────────────┤
-  │ MASK         │ 1    │ 1=マスクキーあり（C→S必須）             │
+  │ MASK         │ 1    │ 1=mask key present (required for C→S)   │
   ├──────────────┼──────┼──────────────────────────────────────────┤
-  │ Payload len  │ 7    │ 0-125: そのままの長さ                    │
-  │              │      │ 126: 次の2バイトが実際の長さ             │
-  │              │      │ 127: 次の8バイトが実際の長さ             │
+  │ Payload len  │ 7    │ 0-125: actual length                     │
+  │              │      │ 126: next 2 bytes are actual length      │
+  │              │      │ 127: next 8 bytes are actual length      │
   ├──────────────┼──────┼──────────────────────────────────────────┤
-  │ Masking-key  │ 32   │ ペイロードのXORマスクキー                │
+  │ Masking-key  │ 32   │ XOR mask key for payload                 │
   ├──────────────┼──────┼──────────────────────────────────────────┤
-  │ Payload      │ 可変 │ 実際のデータ                             │
+  │ Payload      │ var. │ Actual data                              │
   └──────────────┴──────┴──────────────────────────────────────────┘
 
-  Opcode一覧:
+  Opcode list:
   ┌──────┬────────────┬──────────────────────────────────────────┐
-  │ 値   │ 名称       │ 説明                                     │
+  │ Val  │ Name       │ Description                              │
   ├──────┼────────────┼──────────────────────────────────────────┤
-  │ 0x0  │ Continuation│ 分割メッセージの継続フレーム             │
-  │ 0x1  │ Text       │ テキストデータ（UTF-8エンコード）        │
-  │ 0x2  │ Binary     │ バイナリデータ                           │
-  │ 0x3-7│ Reserved   │ 将来の非制御フレーム用に予約             │
-  │ 0x8  │ Close      │ 接続クローズ要求                         │
-  │ 0x9  │ Ping       │ ヘルスチェック要求                       │
-  │ 0xA  │ Pong       │ Pingへの応答                             │
-  │ 0xB-F│ Reserved   │ 将来の制御フレーム用に予約               │
+  │ 0x0  │ Continuation│ Continuation frame for fragmented msg.  │
+  │ 0x1  │ Text       │ Text data (UTF-8 encoded)                │
+  │ 0x2  │ Binary     │ Binary data                              │
+  │ 0x3-7│ Reserved   │ Reserved for future non-control frames   │
+  │ 0x8  │ Close      │ Connection close request                 │
+  │ 0x9  │ Ping       │ Health check request                     │
+  │ 0xA  │ Pong       │ Response to Ping                         │
+  │ 0xB-F│ Reserved   │ Reserved for future control frames       │
   └──────┴────────────┴──────────────────────────────────────────┘
 ```
 
-### 3.2 フレームのマスキング
+### 3.2 Frame Masking
 
-マスキングは、クライアントからサーバーへ送信されるすべてのフレームに対して適用される。これはセキュリティ上の理由から必須であり、プロキシキャッシュ汚染攻撃を防ぐために導入された。
+Masking is applied to all frames sent from client to server. This is required for security reasons and was introduced to prevent proxy cache poisoning attacks.
 
 ```typescript
-// マスキングアルゴリズムの実装
+// Implementation of the masking algorithm
 function maskPayload(payload: Buffer, maskKey: Buffer): Buffer {
   const masked = Buffer.alloc(payload.length);
   for (let i = 0; i < payload.length; i++) {
-    // 各バイトをマスクキーの対応するバイトとXOR
+    // XOR each byte with the corresponding byte of the mask key
     masked[i] = payload[i] ^ maskKey[i % 4];
   }
   return masked;
 }
 
-// アンマスキングも同じアルゴリズム（XORの性質: A ^ B ^ B = A）
+// Unmasking uses the same algorithm (XOR property: A ^ B ^ B = A)
 function unmaskPayload(masked: Buffer, maskKey: Buffer): Buffer {
-  return maskPayload(masked, maskKey); // 同一処理
+  return maskPayload(masked, maskKey); // same operation
 }
 
-// 使用例
+// Usage example
 const maskKey = Buffer.from([0x37, 0xfa, 0x21, 0x3d]);
 const original = Buffer.from('Hello');
 const masked = maskPayload(original, maskKey);
@@ -390,80 +391,80 @@ const restored = unmaskPayload(masked, maskKey);
 console.log(restored.toString()); // → "Hello"
 ```
 
-### 3.3 メッセージの分割（フラグメンテーション）
+### 3.3 Message Fragmentation
 
-大きなメッセージは複数のフレームに分割して送信できる。これによりメモリ使用量を抑えつつ、ストリーミング的にデータを送信することが可能になる。
-
-```
-メッセージフラグメンテーションの例:
-
-  "Hello, World! This is a long message." を3フレームに分割:
-
-  フレーム1: FIN=0, Opcode=0x1 (Text), Payload="Hello, "
-    → 最初のフレーム（FIN=0は「まだ続きがある」の意味）
-    → Opcodeはメッセージ全体の型を示す
-
-  フレーム2: FIN=0, Opcode=0x0 (Continuation), Payload="World! This "
-    → 中間フレーム（FIN=0, Opcode=0x0で継続を示す）
-
-  フレーム3: FIN=1, Opcode=0x0 (Continuation), Payload="is a long message."
-    → 最終フレーム（FIN=1で「これが最後」を示す）
-
-  重要な制約:
-  - 制御フレーム（Ping/Pong/Close）はフラグメンテーション不可
-  - 制御フレームは分割されたメッセージの途中に挿入可能
-  - 制御フレームのペイロードは125バイト以下でなければならない
-```
-
-### 3.4 クローズハンドシェイク
-
-WebSocket接続の終了は双方合意のクローズハンドシェイクによって行われる。
+Large messages can be split into multiple frames for transmission. This allows data to be sent in a streaming fashion while keeping memory usage low.
 
 ```
-クローズハンドシェイクの流れ:
+Example of message fragmentation:
+
+  Splitting "Hello, World! This is a long message." into 3 frames:
+
+  Frame 1: FIN=0, Opcode=0x1 (Text), Payload="Hello, "
+    → First frame (FIN=0 means "more to come")
+    → Opcode indicates the type of the whole message
+
+  Frame 2: FIN=0, Opcode=0x0 (Continuation), Payload="World! This "
+    → Middle frame (FIN=0, Opcode=0x0 indicates continuation)
+
+  Frame 3: FIN=1, Opcode=0x0 (Continuation), Payload="is a long message."
+    → Final frame (FIN=1 means "this is the last one")
+
+  Important constraints:
+  - Control frames (Ping/Pong/Close) cannot be fragmented
+  - Control frames can be inserted in the middle of a fragmented message
+  - Control frame payload must be 125 bytes or fewer
+```
+
+### 3.4 Closing Handshake
+
+A WebSocket connection is terminated through a mutually agreed closing handshake.
+
+```
+Closing handshake flow:
 
   ┌─────────┐                      ┌─────────┐
   │ Client  │                      │ Server  │
-  │         │ ── Close(1000) ────→ │         │  1. 一方がCloseフレームを送信
-  │         │                      │         │     ステータスコード + 理由
-  │         │ ←── Close(1000) ──── │         │  2. 相手もCloseフレームで応答
+  │         │ ── Close(1000) ────→ │         │  1. One side sends a Close frame
+  │         │                      │         │     Status code + reason
+  │         │ ←── Close(1000) ──── │         │  2. Other side responds with Close
   │         │                      │         │
-  │         │ ── TCP FIN ────────→ │         │  3. TCP接続を切断
+  │         │ ── TCP FIN ────────→ │         │  3. TCP connection is terminated
   └─────────┘                      └─────────┘
 
-  ステータスコード一覧:
+  Status code list:
   ┌──────┬──────────────────┬───────────────────────────────────────┐
-  │ コード│ 名称              │ 説明                                 │
+  │ Code │ Name             │ Description                          │
   ├──────┼──────────────────┼───────────────────────────────────────┤
-  │ 1000 │ Normal Closure   │ 正常終了                             │
-  │ 1001 │ Going Away       │ サーバーシャットダウン/ページ遷移    │
-  │ 1002 │ Protocol Error   │ プロトコル違反                       │
-  │ 1003 │ Unsupported Data │ 未対応のデータ型を受信               │
-  │ 1005 │ No Status Rcvd   │ ステータスコードなし（内部用）       │
-  │ 1006 │ Abnormal Closure │ 異常切断（内部用、送信不可）         │
-  │ 1007 │ Invalid Payload  │ 不正なペイロード（例: 不正UTF-8）    │
-  │ 1008 │ Policy Violation │ ポリシー違反                         │
-  │ 1009 │ Message Too Big  │ メッセージサイズ超過                 │
-  │ 1010 │ Mandatory Ext.   │ 必要な拡張機能が未対応               │
-  │ 1011 │ Internal Error   │ サーバー内部エラー                   │
-  │ 1015 │ TLS Handshake    │ TLSハンドシェイク失敗（内部用）      │
+  │ 1000 │ Normal Closure   │ Normal closure                       │
+  │ 1001 │ Going Away       │ Server shutdown / page navigation    │
+  │ 1002 │ Protocol Error   │ Protocol violation                   │
+  │ 1003 │ Unsupported Data │ Received unsupported data type       │
+  │ 1005 │ No Status Rcvd   │ No status code (internal use)        │
+  │ 1006 │ Abnormal Closure │ Abnormal closure (internal, not sent)│
+  │ 1007 │ Invalid Payload  │ Invalid payload (e.g., bad UTF-8)    │
+  │ 1008 │ Policy Violation │ Policy violation                     │
+  │ 1009 │ Message Too Big  │ Message size exceeded                │
+  │ 1010 │ Mandatory Ext.   │ Required extension not supported     │
+  │ 1011 │ Internal Error   │ Server internal error                │
+  │ 1015 │ TLS Handshake    │ TLS handshake failure (internal)     │
   └──────┴──────────────────┴───────────────────────────────────────┘
 ```
 
 ---
 
-## 4. サーバー実装パターン
+## 4. Server Implementation Patterns
 
-### 4.1 Node.js + ws ライブラリによる本格実装
+### 4.1 Full Implementation with Node.js + ws Library
 
 ```typescript
-// server.ts - 本格的なWebSocketサーバー実装
+// server.ts - Full-featured WebSocket server implementation
 import { WebSocketServer, WebSocket, RawData } from 'ws';
 import { createServer, IncomingMessage } from 'http';
 import { parse as parseUrl } from 'url';
 
 // =============================================================
-// 型定義
+// Type definitions
 // =============================================================
 interface ClientInfo {
   id: string;
@@ -483,7 +484,7 @@ interface Message {
 }
 
 // =============================================================
-// WebSocketサーバークラス
+// WebSocket server class
 // =============================================================
 class RealtimeServer {
   private wss: WebSocketServer;
@@ -494,7 +495,7 @@ class RealtimeServer {
 
   constructor(port: number) {
     const server = createServer((req, res) => {
-      // HTTPエンドポイント（ヘルスチェック等）
+      // HTTP endpoint (health check, etc.)
       if (req.url === '/health') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
@@ -510,7 +511,7 @@ class RealtimeServer {
 
     this.wss = new WebSocketServer({
       server,
-      // ハンドシェイク時の認証
+      // Authentication during handshake
       verifyClient: (info, callback) => {
         const token = this.extractToken(info.req);
         if (!token || !this.validateToken(token)) {
@@ -519,9 +520,9 @@ class RealtimeServer {
         }
         callback(true);
       },
-      // 最大ペイロードサイズ（1MB）
+      // Maximum payload size (1MB)
       maxPayload: 1024 * 1024,
-      // permessage-deflate 圧縮
+      // permessage-deflate compression
       perMessageDeflate: {
         zlibDeflateOptions: { chunkSize: 1024, memLevel: 7, level: 3 },
         zlibInflateOptions: { chunkSize: 10 * 1024 },
@@ -529,11 +530,11 @@ class RealtimeServer {
         serverNoContextTakeover: true,
         serverMaxWindowBits: 10,
         concurrencyLimit: 10,
-        threshold: 1024, // 1KB以上のメッセージのみ圧縮
+        threshold: 1024, // Compress only messages >= 1KB
       },
     });
 
-    // メッセージハンドラーの登録
+    // Register message handlers
     this.messageHandlers = new Map([
       ['join', this.handleJoin.bind(this)],
       ['leave', this.handleLeave.bind(this)],
@@ -551,7 +552,7 @@ class RealtimeServer {
   }
 
   // ---------------------------------------------------------
-  // 接続ハンドラー
+  // Connection handler
   // ---------------------------------------------------------
   private setupConnectionHandler(): void {
     this.wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
@@ -572,14 +573,14 @@ class RealtimeServer {
       this.clients.set(clientId, clientInfo);
       console.log(`Client connected: ${clientId} (total: ${this.clients.size})`);
 
-      // ウェルカムメッセージ
+      // Welcome message
       this.sendTo(ws, {
         type: 'welcome',
         data: { clientId, serverTime: Date.now() },
         timestamp: Date.now(),
       });
 
-      // メッセージ受信
+      // Receive messages
       ws.on('message', (raw: RawData) => {
         try {
           clientInfo.lastActivity = Date.now();
@@ -594,22 +595,22 @@ class RealtimeServer {
         }
       });
 
-      // Pong応答
+      // Pong response
       ws.on('pong', () => {
         clientInfo.isAlive = true;
       });
 
-      // 切断処理
+      // Disconnect handler
       ws.on('close', (code: number, reason: Buffer) => {
         console.log(`Client disconnected: ${clientId} (code: ${code})`);
-        // 所属ルームから退出
+        // Leave all rooms
         for (const room of clientInfo.rooms) {
           this.leaveRoom(clientId, room);
         }
         this.clients.delete(clientId);
       });
 
-      // エラー処理
+      // Error handler
       ws.on('error', (error: Error) => {
         console.error(`WebSocket error for ${clientId}: ${error.message}`);
       });
@@ -617,7 +618,7 @@ class RealtimeServer {
   }
 
   // ---------------------------------------------------------
-  // メッセージルーティング
+  // Message routing
   // ---------------------------------------------------------
   private routeMessage(client: ClientInfo, message: Message): void {
     const handler = this.messageHandlers.get(message.type);
@@ -633,7 +634,7 @@ class RealtimeServer {
   }
 
   // ---------------------------------------------------------
-  // メッセージハンドラー
+  // Message handlers
   // ---------------------------------------------------------
   private handleJoin(client: ClientInfo, msg: Message): void {
     const room = msg.room;
@@ -685,7 +686,7 @@ class RealtimeServer {
   }
 
   // ---------------------------------------------------------
-  // ルーム管理
+  // Room management
   // ---------------------------------------------------------
   private joinRoom(clientId: string, room: string): void {
     if (!this.rooms.has(room)) {
@@ -708,7 +709,7 @@ class RealtimeServer {
   }
 
   // ---------------------------------------------------------
-  // 送信ユーティリティ
+  // Send utilities
   // ---------------------------------------------------------
   private sendTo(ws: WebSocket, message: Message): void {
     if (ws.readyState === WebSocket.OPEN) {
@@ -739,7 +740,7 @@ class RealtimeServer {
   }
 
   // ---------------------------------------------------------
-  // ハートビート
+  // Heartbeat
   // ---------------------------------------------------------
   private startHeartbeat(): ReturnType<typeof setInterval> {
     return setInterval(() => {
@@ -757,7 +758,7 @@ class RealtimeServer {
   }
 
   // ---------------------------------------------------------
-  // 認証ユーティリティ
+  // Auth utilities
   // ---------------------------------------------------------
   private extractToken(req: IncomingMessage): string | null {
     const url = parseUrl(req.url || '', true);
@@ -765,12 +766,12 @@ class RealtimeServer {
   }
 
   private validateToken(token: string): boolean {
-    // 実際のアプリケーションではJWT検証等を行う
+    // In a real application, perform JWT verification etc.
     return token.length > 0;
   }
 
   // ---------------------------------------------------------
-  // シャットダウン
+  // Shutdown
   // ---------------------------------------------------------
   shutdown(): void {
     clearInterval(this.heartbeatInterval);
@@ -781,10 +782,10 @@ class RealtimeServer {
   }
 }
 
-// サーバー起動
+// Start server
 const server = new RealtimeServer(8080);
 
-// グレースフルシャットダウン
+// Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down...');
   server.shutdown();
@@ -792,10 +793,10 @@ process.on('SIGTERM', () => {
 });
 ```
 
-### 4.2 Go言語によるWebSocketサーバー
+### 4.2 WebSocket Server in Go
 
 ```go
-// main.go - Go + gorilla/websocket による実装
+// main.go - Implementation with Go + gorilla/websocket
 package main
 
 import (
@@ -812,7 +813,7 @@ var upgrader = websocket.Upgrader{
     ReadBufferSize:  1024,
     WriteBufferSize: 1024,
     CheckOrigin: func(r *http.Request) bool {
-        // 本番環境では適切なオリジン検証を行うこと
+        // In production, perform proper origin validation
         origin := r.Header.Get("Origin")
         return origin == "https://example.com"
     },
@@ -945,14 +946,14 @@ func main() {
 
 ---
 
-## 5. クライアント実装パターン
+## 5. Client Implementation Patterns
 
-### 5.1 堅牢なブラウザクライアント
+### 5.1 Robust Browser Client
 
-実用的なWebSocketクライアントには、再接続ロジック、メッセージキューイング、イベントエミッターパターンが不可欠である。以下は本番環境を想定した実装例である。
+A practical WebSocket client requires reconnection logic, message queuing, and an event emitter pattern. The following is an implementation designed for production use.
 
 ```typescript
-// websocket-client.ts - 本番向けWebSocketクライアント
+// websocket-client.ts - Production-ready WebSocket client
 type MessageHandler = (data: unknown) => void;
 type ConnectionState = 'connecting' | 'connected' | 'disconnecting' | 'disconnected';
 
@@ -991,7 +992,7 @@ class RobustWebSocketClient {
   }
 
   // ---------------------------------------------------
-  // 接続管理
+  // Connection management
   // ---------------------------------------------------
   connect(): void {
     if (this.state === 'connecting' || this.state === 'connected') {
@@ -1022,13 +1023,13 @@ class RobustWebSocketClient {
       try {
         const message = JSON.parse(event.data);
         if (message.type === 'pong') {
-          // ハートビート応答処理
+          // Handle heartbeat response
           return;
         }
         this.emit(message.type, message.data);
         this.emit('message', message);
       } catch {
-        // JSONでないメッセージ
+        // Non-JSON message
         this.emit('rawMessage', event.data);
       }
     };
@@ -1044,7 +1045,7 @@ class RobustWebSocketClient {
         wasClean: event.wasClean,
       });
 
-      // 意図しない切断で再接続が有効な場合
+      // If unexpectedly disconnected and reconnect is enabled
       if (wasConnected && !event.wasClean && this.options.reconnect) {
         this.scheduleReconnect();
       }
@@ -1056,7 +1057,7 @@ class RobustWebSocketClient {
   }
 
   // ---------------------------------------------------
-  // 再接続（指数バックオフ + ジッター）
+  // Reconnection (exponential backoff + jitter)
   // ---------------------------------------------------
   private scheduleReconnect(): void {
     if (this.reconnectAttempts >= this.options.maxReconnectAttempts) {
@@ -1066,14 +1067,14 @@ class RobustWebSocketClient {
       return;
     }
 
-    // 指数バックオフ: baseDelay * 2^attempts
+    // Exponential backoff: baseDelay * 2^attempts
     const exponentialDelay =
       this.options.reconnectBaseDelay * Math.pow(2, this.reconnectAttempts);
 
-    // 最大遅延でキャップ
+    // Cap at max delay
     const cappedDelay = Math.min(exponentialDelay, this.options.reconnectMaxDelay);
 
-    // ジッター: 0.5〜1.5倍のランダム係数
+    // Jitter: random factor between 0.5 and 1.5
     const jitter = 0.5 + Math.random();
     const delay = Math.floor(cappedDelay * jitter);
 
@@ -1089,7 +1090,7 @@ class RobustWebSocketClient {
   }
 
   // ---------------------------------------------------
-  // メッセージ送信（キュー付き）
+  // Message sending (with queue)
   // ---------------------------------------------------
   send(type: string, data: unknown = {}): boolean {
     const message = JSON.stringify({ type, data, timestamp: Date.now() });
@@ -1099,7 +1100,7 @@ class RobustWebSocketClient {
       return true;
     }
 
-    // 接続中はキューに追加
+    // Add to queue while connecting
     if (this.messageQueue.length < this.options.messageQueueSize) {
       this.messageQueue.push(message);
       return false;
@@ -1117,7 +1118,7 @@ class RobustWebSocketClient {
   }
 
   // ---------------------------------------------------
-  // ハートビート
+  // Heartbeat
   // ---------------------------------------------------
   private startHeartbeat(): void {
     this.heartbeatTimer = setInterval(() => {
@@ -1135,7 +1136,7 @@ class RobustWebSocketClient {
   }
 
   // ---------------------------------------------------
-  // イベントエミッター
+  // Event emitter
   // ---------------------------------------------------
   on(event: string, handler: MessageHandler): () => void {
     if (!this.handlers.has(event)) {
@@ -1143,7 +1144,7 @@ class RobustWebSocketClient {
     }
     this.handlers.get(event)!.add(handler);
 
-    // アンサブスクライブ関数を返す
+    // Return unsubscribe function
     return () => {
       this.handlers.get(event)?.delete(handler);
     };
@@ -1160,11 +1161,11 @@ class RobustWebSocketClient {
   }
 
   // ---------------------------------------------------
-  // 切断
+  // Disconnect
   // ---------------------------------------------------
   disconnect(code = 1000, reason = 'Normal closure'): void {
     this.state = 'disconnecting';
-    this.options.reconnect = false; // 再接続を無効化
+    this.options.reconnect = false; // Disable reconnection
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
     }
@@ -1173,7 +1174,7 @@ class RobustWebSocketClient {
   }
 
   // ---------------------------------------------------
-  // ステート取得
+  // State accessors
   // ---------------------------------------------------
   getState(): ConnectionState {
     return this.state;
@@ -1184,7 +1185,7 @@ class RobustWebSocketClient {
   }
 }
 
-// 使用例
+// Usage example
 const client = new RobustWebSocketClient({
   url: 'wss://api.example.com/ws',
   reconnect: true,
@@ -1193,7 +1194,7 @@ const client = new RobustWebSocketClient({
   heartbeatInterval: 25000,
 });
 
-// イベントリスナー登録
+// Register event listeners
 client.on('connected', () => {
   console.log('WebSocket connected');
   client.send('join', { room: 'general' });
@@ -1210,10 +1211,10 @@ client.on('reconnecting', (info) => {
 client.connect();
 ```
 
-### 5.2 React Hooks による WebSocket統合
+### 5.2 WebSocket Integration with React Hooks
 
 ```typescript
-// useWebSocket.ts - React用カスタムフック
+// useWebSocket.ts - Custom hook for React
 import { useRef, useState, useEffect, useCallback } from 'react';
 
 interface UseWebSocketOptions {
@@ -1270,7 +1271,7 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
     };
 
     ws.onerror = () => {
-      // エラー処理（oncloseが後続する）
+      // Error handling (onclose follows)
     };
 
     wsRef.current = ws;
@@ -1302,7 +1303,7 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
   return { send, isConnected, lastMessage, disconnect };
 }
 
-// コンポーネントでの使用例
+// Usage in a component:
 // function ChatRoom() {
 //   const { send, isConnected, lastMessage } = useWebSocket({
 //     url: 'wss://api.example.com/ws',
@@ -1322,54 +1323,54 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
 
 ---
 
-## 6. Socket.IO による高レベル抽象化
+## 6. High-Level Abstraction with Socket.IO
 
-### 6.1 Socket.IO の概要
+### 6.1 Overview of Socket.IO
 
-Socket.IOはWebSocket上に構築されたリアルタイム通信ライブラリであり、WebSocket生APIに対して多くの付加価値を提供する。
+Socket.IO is a real-time communication library built on top of WebSocket that provides many added values over the raw WebSocket API.
 
 ```
-Socket.IO と 生WebSocket の比較:
+Comparison of raw WebSocket vs Socket.IO:
 
   ┌──────────────────────┬──────────────┬──────────────────────────┐
-  │ 機能                 │ 生WebSocket  │ Socket.IO                │
+  │ Feature              │ Raw WebSocket│ Socket.IO                │
   ├──────────────────────┼──────────────┼──────────────────────────┤
-  │ 自動再接続           │ 手動実装     │ 組み込み                 │
+  │ Auto-reconnect       │ Manual impl. │ Built-in                 │
   ├──────────────────────┼──────────────┼──────────────────────────┤
-  │ フォールバック       │ なし         │ Long Polling → WebSocket │
-  │ (WebSocket非対応時)  │              │                          │
+  │ Fallback             │ None         │ Long Polling → WebSocket │
+  │ (if WS unsupported)  │              │                          │
   ├──────────────────────┼──────────────┼──────────────────────────┤
-  │ ルーム機能           │ 手動実装     │ 組み込み                 │
+  │ Room feature         │ Manual impl. │ Built-in                 │
   ├──────────────────────┼──────────────┼──────────────────────────┤
-  │ 名前空間             │ なし         │ 組み込み                 │
+  │ Namespaces           │ None         │ Built-in                 │
   ├──────────────────────┼──────────────┼──────────────────────────┤
-  │ ACK(送達確認)        │ 手動実装     │ 組み込み                 │
+  │ ACK (delivery confirm)│ Manual impl.│ Built-in                 │
   ├──────────────────────┼──────────────┼──────────────────────────┤
-  │ バイナリサポート     │ 手動管理     │ 自動検出・分離           │
+  │ Binary support       │ Manual mgmt  │ Auto-detect & separate   │
   ├──────────────────────┼──────────────┼──────────────────────────┤
-  │ ブロードキャスト     │ 手動実装     │ 組み込み（ルーム対応）   │
+  │ Broadcast            │ Manual impl. │ Built-in (room-aware)    │
   ├──────────────────────┼──────────────┼──────────────────────────┤
-  │ ミドルウェア         │ なし         │ 組み込み                 │
+  │ Middleware           │ None         │ Built-in                 │
   ├──────────────────────┼──────────────┼──────────────────────────┤
-  │ マルチサーバー対応   │ 手動実装     │ Adapterで対応            │
-  │ (Redis等)            │              │                          │
+  │ Multi-server support │ Manual impl. │ Via Adapter (Redis etc.) │
+  │ (Redis, etc.)        │              │                          │
   ├──────────────────────┼──────────────┼──────────────────────────┤
-  │ プロトコル           │ 標準準拠     │ 独自プロトコル           │
-  │ 互換性               │              │ （生WSクライアント不可） │
+  │ Protocol             │ Standards    │ Custom protocol          │
+  │ compatibility        │ compliant    │ (raw WS client won't work)│
   ├──────────────────────┼──────────────┼──────────────────────────┤
-  │ オーバーヘッド       │ 最小         │ やや大きい               │
+  │ Overhead             │ Minimal      │ Slightly larger          │
   ├──────────────────────┼──────────────┼──────────────────────────┤
-  │ 学習コスト           │ 中〜高       │ 低〜中                   │
+  │ Learning curve       │ Med–High     │ Low–Med                  │
   └──────────────────────┴──────────────┴──────────────────────────┘
 
-  重要な注意: Socket.IOクライアントは生WebSocketサーバーに接続できず、
-  逆もまた然り。Socket.IOは独自のプロトコルレイヤーを使用している。
+  Important note: A Socket.IO client cannot connect to a raw WebSocket server,
+  and vice versa. Socket.IO uses its own protocol layer.
 ```
 
-### 6.2 Socket.IO サーバー実装
+### 6.2 Socket.IO Server Implementation
 
 ```typescript
-// socket-io-server.ts - Socket.IO による実装
+// socket-io-server.ts - Implementation using Socket.IO
 import { Server, Socket } from 'socket.io';
 import { createServer } from 'http';
 import { createAdapter } from '@socket.io/redis-adapter';
@@ -1383,14 +1384,14 @@ const io = new Server(httpServer, {
     methods: ['GET', 'POST'],
     credentials: true,
   },
-  pingInterval: 25000,    // Pingを送信する間隔
-  pingTimeout: 20000,     // Pong応答を待つタイムアウト
-  maxHttpBufferSize: 1e6, // 最大1MB
-  transports: ['websocket', 'polling'], // トランスポート優先順位
+  pingInterval: 25000,    // Interval to send Ping
+  pingTimeout: 20000,     // Timeout waiting for Pong response
+  maxHttpBufferSize: 1e6, // Max 1MB
+  transports: ['websocket', 'polling'], // Transport priority
 });
 
 // ---------------------------------------------------
-// Redis Adapter（マルチサーバー対応）
+// Redis Adapter (multi-server support)
 // ---------------------------------------------------
 async function setupRedisAdapter(): Promise<void> {
   const pubClient = createClient({ url: 'redis://localhost:6379' });
@@ -1401,7 +1402,7 @@ async function setupRedisAdapter(): Promise<void> {
 }
 
 // ---------------------------------------------------
-// ミドルウェア（認証）
+// Middleware (authentication)
 // ---------------------------------------------------
 io.use((socket: Socket, next) => {
   const token = socket.handshake.auth.token;
@@ -1409,7 +1410,7 @@ io.use((socket: Socket, next) => {
     return next(new Error('Authentication required'));
   }
   try {
-    // JWT検証（例示のため簡略化）
+    // JWT verification (simplified for illustration)
     const decoded = verifyJWT(token);
     (socket as any).userId = decoded.userId;
     (socket as any).username = decoded.username;
@@ -1420,7 +1421,7 @@ io.use((socket: Socket, next) => {
 });
 
 // ---------------------------------------------------
-// 名前空間: チャット
+// Namespace: chat
 // ---------------------------------------------------
 const chatNamespace = io.of('/chat');
 
@@ -1429,11 +1430,11 @@ chatNamespace.on('connection', (socket: Socket) => {
   const username = (socket as any).username;
   console.log(`User connected: ${username} (${userId})`);
 
-  // ルームに参加
+  // Join a room
   socket.on('joinRoom', async (roomName: string) => {
     await socket.join(roomName);
     socket.to(roomName).emit('userJoined', { userId, username, roomName });
-    // ルームの参加者数を取得
+    // Get number of members in room
     const members = await chatNamespace.in(roomName).fetchSockets();
     socket.emit('roomInfo', {
       roomName,
@@ -1441,13 +1442,13 @@ chatNamespace.on('connection', (socket: Socket) => {
     });
   });
 
-  // ルームから退出
+  // Leave a room
   socket.on('leaveRoom', async (roomName: string) => {
     await socket.leave(roomName);
     socket.to(roomName).emit('userLeft', { userId, username, roomName });
   });
 
-  // メッセージ送信（ACK付き）
+  // Send message (with ACK)
   socket.on('sendMessage', (data: { room: string; text: string }, ack) => {
     const message = {
       id: crypto.randomUUID(),
@@ -1456,47 +1457,47 @@ chatNamespace.on('connection', (socket: Socket) => {
       timestamp: Date.now(),
     };
     socket.to(data.room).emit('newMessage', message);
-    // 送達確認を返す
+    // Return delivery confirmation
     ack?.({ status: 'ok', messageId: message.id });
   });
 
-  // タイピングインジケーター
+  // Typing indicator
   socket.on('typing', (roomName: string) => {
     socket.to(roomName).volatile.emit('userTyping', { userId, username });
   });
 
-  // 切断処理
+  // Disconnect handler
   socket.on('disconnect', (reason: string) => {
     console.log(`User disconnected: ${username} (reason: ${reason})`);
   });
 });
 
 // ---------------------------------------------------
-// 名前空間: 通知
+// Namespace: notifications
 // ---------------------------------------------------
 const notificationNamespace = io.of('/notifications');
 
 notificationNamespace.on('connection', (socket: Socket) => {
   const userId = (socket as any).userId;
-  // ユーザー固有のルームに参加（個別通知用）
+  // Join user-specific room (for individual notifications)
   socket.join(`user:${userId}`);
 });
 
-// 外部から通知を送信する関数
+// Function to send notification from outside
 function sendNotification(userId: string, notification: object): void {
   notificationNamespace.to(`user:${userId}`).emit('notification', notification);
 }
 
 // ---------------------------------------------------
-// JWT検証（簡略化）
+// JWT verification (simplified)
 // ---------------------------------------------------
 function verifyJWT(token: string): { userId: string; username: string } {
-  // 実際のアプリケーションではjsonwebtokenライブラリ等を使用
+  // In a real application, use the jsonwebtoken library etc.
   return { userId: 'user-1', username: 'demo' };
 }
 
 // ---------------------------------------------------
-// サーバー起動
+// Start server
 // ---------------------------------------------------
 async function main(): Promise<void> {
   await setupRedisAdapter();
@@ -1508,10 +1509,10 @@ async function main(): Promise<void> {
 main().catch(console.error);
 ```
 
-### 6.3 Socket.IO クライアント実装
+### 6.3 Socket.IO Client Implementation
 
 ```typescript
-// socket-io-client.ts - Socket.IO クライアント
+// socket-io-client.ts - Socket.IO client
 import { io, Socket } from 'socket.io-client';
 
 class ChatService {
@@ -1520,12 +1521,12 @@ class ChatService {
   constructor(serverUrl: string, authToken: string) {
     this.socket = io(`${serverUrl}/chat`, {
       auth: { token: authToken },
-      transports: ['websocket'],          // WebSocketを優先
-      reconnection: true,                 // 自動再接続を有効化
-      reconnectionAttempts: 10,           // 最大再接続試行回数
-      reconnectionDelay: 1000,            // 初回再接続遅延
-      reconnectionDelayMax: 10000,        // 最大再接続遅延
-      timeout: 5000,                      // 接続タイムアウト
+      transports: ['websocket'],          // Prefer WebSocket
+      reconnection: true,                 // Enable auto-reconnect
+      reconnectionAttempts: 10,           // Max reconnection attempts
+      reconnectionDelay: 1000,            // Initial reconnection delay
+      reconnectionDelayMax: 10000,        // Max reconnection delay
+      timeout: 5000,                      // Connection timeout
     });
 
     this.setupEventListeners();
@@ -1543,12 +1544,12 @@ class ChatService {
     this.socket.on('disconnect', (reason: string) => {
       console.log('Disconnected:', reason);
       if (reason === 'io server disconnect') {
-        // サーバーが明示的に切断した場合、手動で再接続
+        // If server explicitly disconnected, reconnect manually
         this.socket.connect();
       }
     });
 
-    // 受信イベント
+    // Receive events
     this.socket.on('newMessage', (message) => {
       console.log('New message:', message);
     });
@@ -1568,7 +1569,7 @@ class ChatService {
 
   sendMessage(room: string, text: string): Promise<{ status: string; messageId: string }> {
     return new Promise((resolve) => {
-      // ACK付きのemit
+      // emit with ACK
       this.socket.emit('sendMessage', { room, text }, (response: any) => {
         resolve(response);
       });
@@ -1587,58 +1588,58 @@ class ChatService {
 
 ---
 
-## 7. スケーリングとアーキテクチャ
+## 7. Scaling and Architecture
 
-### 7.1 WebSocketスケーリングの課題
+### 7.1 WebSocket Scaling Challenges
 
-WebSocket接続はステートフルである。HTTPのようにリクエスト単位で任意のサーバーに振り分けることができないため、スケーリングには特別な考慮が必要になる。
+WebSocket connections are stateful. Unlike HTTP, where requests can be routed to any server, scaling requires special consideration.
 
 ```
-WebSocketスケーリングアーキテクチャ:
+WebSocket scaling architecture:
 
   ┌──────────────────────────────────────────────────────────────┐
-  │                       ロードバランサー                       │
+  │                       Load Balancer                          │
   │                    (Sticky Sessions/IP Hash)                 │
   │  ┌──────────┐     ┌──────────┐     ┌──────────┐            │
-  │  │ WS要求 A │     │ WS要求 B │     │ WS要求 C │            │
+  │  │ WS req A │     │ WS req B │     │ WS req C │            │
   └──┼──────────┼─────┼──────────┼─────┼──────────┼────────────┘
      │          │     │          │     │          │
      ▼          │     ▼          │     ▼          │
   ┌─────────┐  │  ┌─────────┐  │  ┌─────────┐  │
   │ WS      │  │  │ WS      │  │  │ WS      │  │
   │ Server 1│  │  │ Server 2│  │  │ Server 3│  │
-  │ (100接続)│  │  │ (100接続)│  │  │ (100接続)│  │
+  │(100 conn)│  │  │(100 conn)│  │  │(100 conn)│  │
   └────┬────┘  │  └────┬────┘  │  └────┬────┘  │
        │       │       │       │       │       │
        ▼       │       ▼       │       ▼       │
   ┌────────────┴───────────────┴───────────────┴───────────┐
   │                    Redis Pub/Sub                        │
-  │              (サーバー間メッセージ連携)                  │
+  │              (inter-server message relay)              │
   │                                                        │
-  │  Server1のクライアントAがServer2のクライアントBに        │
-  │  メッセージを送る場合:                                  │
+  │  When client A on Server1 sends a message to client B  │
+  │  on Server2:                                           │
   │    A → Server1 → Redis(publish) → Server2 → B          │
   └────────────────────────────────────────────────────────┘
 
-  単一サーバーの接続数目安（一般的なハードウェアの場合）:
+  Approximate max connections per server (typical hardware):
   ┌───────────────────┬──────────────────┬───────────────────┐
-  │ メモリ            │ アイドル接続     │ アクティブ接続    │
+  │ Memory            │ Idle connections │ Active connections│
   ├───────────────────┼──────────────────┼───────────────────┤
   │ 1 GB              │ ~50,000          │ ~10,000           │
   │ 4 GB              │ ~200,000         │ ~50,000           │
   │ 16 GB             │ ~500,000+        │ ~150,000          │
   └───────────────────┴──────────────────┴───────────────────┘
-  ※ アクティブ接続はメッセージ処理のCPUコストを含む
+  ※ Active connections include CPU cost of message processing
 ```
 
-### 7.2 ロードバランサーの設定
+### 7.2 Load Balancer Configuration
 
-WebSocket接続に対応するロードバランサーの設定例を示す。
+Configuration example for a load balancer supporting WebSocket connections.
 
 ```nginx
-# nginx.conf - WebSocket対応のリバースプロキシ設定
+# nginx.conf - Reverse proxy configuration with WebSocket support
 upstream websocket_backend {
-    # IPハッシュによるSticky Session
+    # Sticky Session via IP hash
     ip_hash;
 
     server ws-server-1:8080;
@@ -1656,41 +1657,41 @@ server {
     location /ws {
         proxy_pass http://websocket_backend;
 
-        # WebSocketアップグレードに必要な設定
+        # Settings required for WebSocket upgrade
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
 
-        # クライアント情報の転送
+        # Forward client information
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
-        # タイムアウト設定（WebSocketの長時間接続に対応）
-        proxy_read_timeout 86400s;  # 24時間
+        # Timeout settings (accommodate long-lived WebSocket connections)
+        proxy_read_timeout 86400s;  # 24 hours
         proxy_send_timeout 86400s;
     }
 }
 ```
 
-### 7.3 セキュリティの考慮事項
+### 7.3 Security Considerations
 
-WebSocket通信におけるセキュリティは、初回のHTTPハンドシェイクでの認証と、通信中のメッセージ検証の両面で対策が必要である。
+WebSocket security requires countermeasures on two fronts: authentication during the initial HTTP handshake, and message validation during ongoing communication.
 
-**認証戦略:**
+**Authentication strategies:**
 
-1. **ハンドシェイク時のトークン認証**: クエリパラメータまたはCookieでJWTを送信し、サーバーのverifyClientフックで検証する
-2. **最初のメッセージでの認証**: 接続確立後、最初のメッセージとして認証情報を送信する（WebSocket APIではカスタムヘッダーが送れないため）
-3. **定期的なトークンリフレッシュ**: 長時間接続ではトークンの有効期限が切れるため、WebSocket上でリフレッシュメカニズムを実装する
+1. **Token authentication during handshake**: Send JWT via query parameter or Cookie, and verify in the server's verifyClient hook
+2. **Authentication via first message**: After connection is established, send credentials as the first message (since the WebSocket API cannot send custom headers)
+3. **Periodic token refresh**: For long-lived connections where tokens may expire, implement a refresh mechanism over WebSocket
 
-**入力検証:**
+**Input validation:**
 
 ```typescript
-// メッセージバリデーションの実装例
+// Example implementation of message validation
 import { z } from 'zod';
 
-// メッセージスキーマの定義
+// Define message schemas
 const ChatMessageSchema = z.object({
   type: z.literal('chat'),
   room: z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/),
@@ -1707,13 +1708,13 @@ const MessageSchema = z.discriminatedUnion('type', [
   JoinRoomSchema,
 ]);
 
-// メッセージ受信時のバリデーション
+// Validation on message receipt
 function handleIncomingMessage(rawData: string): void {
   let parsed: unknown;
   try {
     parsed = JSON.parse(rawData);
   } catch {
-    // 不正なJSONは即座に拒否
+    // Reject invalid JSON immediately
     return;
   }
 
@@ -1723,7 +1724,7 @@ function handleIncomingMessage(rawData: string): void {
     return;
   }
 
-  // バリデーション済みのメッセージを処理
+  // Process the validated message
   const message = result.data;
   switch (message.type) {
     case 'chat':
@@ -1735,7 +1736,7 @@ function handleIncomingMessage(rawData: string): void {
   }
 }
 
-// レート制限の実装
+// Rate limiter implementation
 class RateLimiter {
   private counters: Map<string, { count: number; resetAt: number }> = new Map();
 
@@ -1762,49 +1763,49 @@ class RateLimiter {
   }
 }
 
-// 1秒間に最大10メッセージ
+// Max 10 messages per second
 const rateLimiter = new RateLimiter(10, 1000);
 
 function processChatMessage(message: z.infer<typeof ChatMessageSchema>): void {
-  // メッセージ処理ロジック
+  // Message processing logic
 }
 
 function processJoinRoom(message: z.infer<typeof JoinRoomSchema>): void {
-  // ルーム参加ロジック
+  // Room join logic
 }
 ```
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### 8.1 アンチパターン1: 無制限のブロードキャスト
+### 8.1 Anti-Pattern 1: Unbounded Broadcast
 
-全クライアントに対して無差別にブロードキャストを行うと、接続数の増加に比例してサーバーの送信負荷が爆発的に増大する。これは「ブロードキャストストーム」と呼ばれ、本番環境で最も頻繁に見られる障害原因の一つである。
+Broadcasting indiscriminately to all clients causes the server's send load to explode in proportion to the number of connections. This is called a "broadcast storm" and is one of the most common causes of failures in production.
 
 ```typescript
-// ダメな例: 全クライアントへの無制限ブロードキャスト
-// 1,000接続 × 1,000メッセージ/秒 = 1,000,000メッセージ/秒の送信負荷
+// Bad example: unbounded broadcast to all clients
+// 1,000 connections × 1,000 messages/sec = 1,000,000 messages/sec send load
 
 wss.on('connection', (ws) => {
   ws.on('message', (data) => {
-    // 全クライアントに転送 → N^2問題が発生
+    // Forward to all clients → N^2 problem
     wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(data);  // 送信バッファが溢れる危険
+        client.send(data);  // Risk of overflowing the send buffer
       }
     });
   });
 });
 
-// 改善例: ルームベースの配信 + レート制限
+// Improved example: room-based distribution + rate limiting
 wss.on('connection', (ws) => {
   const clientRooms = new Set<string>();
   const messageRateLimit = new RateLimiter(10, 1000);
   const clientId = crypto.randomUUID();
 
   ws.on('message', (raw) => {
-    // レート制限チェック
+    // Check rate limit
     if (!messageRateLimit.isAllowed(clientId)) {
       ws.send(JSON.stringify({ type: 'error', data: 'Rate limit exceeded' }));
       return;
@@ -1812,7 +1813,7 @@ wss.on('connection', (ws) => {
 
     const message = JSON.parse(raw.toString());
 
-    // ルーム内のメンバーのみに送信
+    // Send only to members in the room
     if (message.room && clientRooms.has(message.room)) {
       const roomMembers = rooms.get(message.room);
       if (roomMembers) {
@@ -1821,7 +1822,7 @@ wss.on('connection', (ws) => {
           if (memberId === clientId) continue;
           const member = clients.get(memberId);
           if (member && member.readyState === WebSocket.OPEN) {
-            // バッファリングされたメッセージ量をチェック
+            // Check amount of buffered messages
             if (member.bufferedAmount < 1024 * 1024) {
               member.send(payload);
             }
@@ -1833,45 +1834,45 @@ wss.on('connection', (ws) => {
 });
 ```
 
-**問題点の整理:**
-- 接続数Nに対して、1メッセージの送信コストがO(N)になる
-- 全員がメッセージを送信すると、トータルのコストはO(N^2)
-- `bufferedAmount`の確認なしに送信すると、送信バッファのメモリが際限なく増大
-- サーバーのCPU使用率が100%に張り付き、新規接続を受け付けられなくなる
+**Summary of problems:**
+- The cost of sending 1 message is O(N) for N connections
+- If everyone sends messages, the total cost is O(N^2)
+- Sending without checking `bufferedAmount` causes unbounded memory growth in the send buffer
+- Server CPU usage locks at 100%, unable to accept new connections
 
-**対策:**
-1. ルームベースの配信スコープ制限
-2. メッセージのレート制限（クライアント単位、ルーム単位）
-3. `bufferedAmount`の監視と閾値超過時のスキップ
-4. メッセージの集約（バッチ送信）
+**Countermeasures:**
+1. Limit distribution scope to room-based routing
+2. Message rate limiting (per client, per room)
+3. Monitor `bufferedAmount` and skip when threshold is exceeded
+4. Message aggregation (batch sending)
 
-### 8.2 アンチパターン2: 再接続戦略の欠如
+### 8.2 Anti-Pattern 2: No Reconnection Strategy
 
-WebSocket接続は様々な理由で予期せず切断される。ネットワーク障害、サーバーの再起動、ロードバランサーのタイムアウトなどが代表的な原因である。再接続戦略を持たないクライアントは、ユーザー体験を著しく損なう。
+WebSocket connections can unexpectedly disconnect for various reasons — network failures, server restarts, load balancer timeouts. A client without a reconnection strategy severely degrades user experience.
 
 ```typescript
-// ダメな例: 再接続ロジックがない
+// Bad example: no reconnection logic
 const ws = new WebSocket('wss://api.example.com/ws');
 ws.onclose = () => {
-  console.log('Connection lost');  // ここで終わり。ユーザーは手動リロードが必要
+  console.log('Connection lost');  // That's it. User must manually reload.
 };
 
-// さらにダメな例: 固定間隔での即座再接続
+// Even worse: immediate reconnect at fixed intervals
 ws.onclose = () => {
   setTimeout(() => {
     new WebSocket('wss://api.example.com/ws');
-    // 問題1: サーバーダウン中に全クライアントが同時に再接続を試みる
-    // 問題2: 「サンダリングハード」問題 → サーバー復旧直後に接続殺到
-    // 問題3: 固定間隔のため負荷が分散されない
+    // Problem 1: All clients attempt reconnect simultaneously when server is down
+    // Problem 2: "Thundering herd" — connection flood right after server recovers
+    // Problem 3: Fixed interval means load is not distributed
   }, 1000);
 };
 
-// 改善例: 指数バックオフ + ジッター + 最大試行回数
+// Improved example: exponential backoff + jitter + max attempts
 class ReconnectionStrategy {
   private attempt = 0;
   private maxAttempts = 10;
-  private baseDelay = 1000;    // 1秒
-  private maxDelay = 60000;    // 60秒
+  private baseDelay = 1000;    // 1 second
+  private maxDelay = 60000;    // 60 seconds
   private timer: ReturnType<typeof setTimeout> | null = null;
 
   reset(): void {
@@ -1887,12 +1888,12 @@ class ReconnectionStrategy {
   }
 
   getNextDelay(): number {
-    // 指数バックオフ
+    // Exponential backoff
     const exponential = this.baseDelay * Math.pow(2, this.attempt);
-    // 最大値でキャップ
+    // Cap at max
     const capped = Math.min(exponential, this.maxDelay);
-    // フルジッター（0〜cappedの範囲でランダム）
-    // これにより、複数クライアントの再接続タイミングが分散される
+    // Full jitter (random in range 0 to capped)
+    // Distributes reconnect timing across multiple clients
     const jittered = Math.random() * capped;
 
     this.attempt++;
@@ -1911,47 +1912,47 @@ class ReconnectionStrategy {
 }
 ```
 
-再接続戦略の比較:
+Reconnection strategy comparison:
 
 ```
   ┌─────────────────┬──────────────┬──────────────┬──────────────────┐
-  │ 戦略            │ 遅延パターン │ サーバー負荷 │ 回復速度         │
+  │ Strategy        │ Delay pattern│ Server load  │ Recovery speed   │
   ├─────────────────┼──────────────┼──────────────┼──────────────────┤
-  │ 固定間隔        │ 1s,1s,1s,... │ 非常に高い   │ 速い（過負荷）   │
-  │ 指数バックオフ  │ 1s,2s,4s,8s  │ 中           │ 初回は速い       │
-  │ +ジッター       │ ランダム     │ 低           │ 平均的           │
-  │ +ジッター+上限  │ ランダム     │ 最低         │ 最適なバランス   │
+  │ Fixed interval  │ 1s,1s,1s,... │ Very high    │ Fast (overload)  │
+  │ Exponential BO  │ 1s,2s,4s,8s  │ Medium       │ Fast at first    │
+  │ +Jitter         │ Random       │ Low          │ Average          │
+  │ +Jitter+Cap     │ Random       │ Lowest       │ Optimal balance  │
   └─────────────────┴──────────────┴──────────────┴──────────────────┘
 ```
 
-### 8.3 アンチパターン3: メモリリークを伴うイベントリスナー管理
+### 8.3 Anti-Pattern 3: Event Listener Management with Memory Leaks
 
-WebSocket接続のライフサイクル管理を怠ると、イベントリスナーやタイマーのメモリリークが蓄積し、長期運用でサーバーが不安定になる。
+Neglecting the lifecycle management of WebSocket connections causes accumulating memory leaks from event listeners and timers, destabilizing the server over the long term.
 
 ```typescript
-// ダメな例: クリーンアップが不十分
+// Bad example: insufficient cleanup
 wss.on('connection', (ws) => {
-  // タイマーを設定するが、切断時にクリアしない
+  // Sets timer but doesn't clear it on disconnect
   setInterval(() => {
-    ws.ping();  // 切断後もタイマーが残り続ける
+    ws.ping();  // Timer keeps running even after disconnect
   }, 30000);
 
-  // 外部イベントリスナーを追加するが、削除しない
+  // Adds external event listener but never removes it
   eventEmitter.on('globalUpdate', (data) => {
-    ws.send(JSON.stringify(data));  // 切断後にエラーが発生
+    ws.send(JSON.stringify(data));  // Causes error after disconnect
   });
 });
 
-// 改善例: 完全なクリーンアップ
+// Improved example: complete cleanup
 wss.on('connection', (ws) => {
-  // タイマーの参照を保持
+  // Keep reference to timer
   const heartbeat = setInterval(() => {
     if (ws.readyState === WebSocket.OPEN) {
       ws.ping();
     }
   }, 30000);
 
-  // イベントリスナーの参照を保持
+  // Keep reference to event listener
   const globalUpdateHandler = (data: unknown) => {
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(data));
@@ -1959,49 +1960,49 @@ wss.on('connection', (ws) => {
   };
   eventEmitter.on('globalUpdate', globalUpdateHandler);
 
-  // 切断時に全リソースを解放
+  // Release all resources on disconnect
   ws.on('close', () => {
     clearInterval(heartbeat);
     eventEmitter.off('globalUpdate', globalUpdateHandler);
-    // その他のクリーンアップ処理
+    // Other cleanup
   });
 });
 ```
 
 ---
 
-## 9. エッジケース分析
+## 9. Edge Case Analysis
 
-### 9.1 エッジケース1: 中間プロキシによる接続断
+### 9.1 Edge Case 1: Connection Drops by Intermediate Proxies
 
-企業ネットワークやモバイル通信では、透過プロキシやロードバランサーがWebSocket接続を予期せず切断する場合がある。特に問題となるのは以下のケースである。
+In corporate networks or mobile communications, transparent proxies or load balancers may unexpectedly disconnect WebSocket connections. The following cases are particularly problematic.
 
 ```
-中間プロキシによる接続断のパターン:
+Patterns of connection drops by intermediate proxies:
 
-  ケース1: アイドルタイムアウト
+  Case 1: Idle timeout
   ┌─────────┐    ┌───────────┐    ┌─────────┐
   │ Client  │────│ Proxy/LB  │────│ Server  │
-  │         │    │ (60秒で   │    │         │
-  │         │    │  切断)    │    │         │
+  │         │    │ (closes   │    │         │
+  │         │    │  after 60s)│    │         │
   └─────────┘    └───────────┘    └─────────┘
 
-  → プロキシが一定時間データ転送がない接続をクローズする
-  → 対策: 30秒間隔でPing/Pongを送信し、アイドル状態を防ぐ
+  → Proxy closes connections with no data transfer for a set period
+  → Countermeasure: send Ping/Pong every 30 seconds to prevent idle state
 
-  ケース2: TLSインスペクション
-  → 企業のファイアウォールがWSS接続を解析しようとして失敗
-  → 対策: WSSを使用しつつ、フォールバックとしてHTTPSロングポーリングを用意
+  Case 2: TLS inspection
+  → Corporate firewall fails to analyze WSS connections
+  → Countermeasure: use WSS and prepare HTTPS long polling as fallback
 
-  ケース3: プロキシのバッファリング
-  → 一部のプロキシがWebSocketフレームをバッファリングし、
-     リアルタイム性が失われる
-  → 対策: X-Accel-Buffering: no ヘッダーの設定、
-     またはプロキシのバッファリング無効化
+  Case 3: Proxy buffering
+  → Some proxies buffer WebSocket frames,
+     causing loss of real-time characteristics
+  → Countermeasure: set X-Accel-Buffering: no header,
+     or disable proxy buffering
 ```
 
 ```typescript
-// 中間プロキシ対策を組み込んだ堅牢な接続管理
+// Robust connection management with proxy awareness
 class ProxyAwareWebSocket {
   private ws: WebSocket | null = null;
   private pingTimer: ReturnType<typeof setInterval> | null = null;
@@ -2023,7 +2024,7 @@ class ProxyAwareWebSocket {
         this.missedPongs = 0;
         return;
       }
-      // 通常のメッセージ処理
+      // Normal message processing
     };
 
     this.ws.onclose = () => {
@@ -2032,12 +2033,12 @@ class ProxyAwareWebSocket {
   }
 
   private startPingPong(): void {
-    // 25秒間隔（多くのプロキシの60秒タイムアウトの半分以下）
+    // 25-second interval (less than half of most proxy 60-second timeouts)
     this.pingTimer = setInterval(() => {
       if (!this.pongReceived) {
         this.missedPongs++;
         if (this.missedPongs >= this.MAX_MISSED_PONGS) {
-          // プロキシが接続を静かに切断した可能性
+          // Proxy may have silently closed the connection
           console.warn('Connection appears dead, reconnecting...');
           this.ws?.close(4000, 'Pong timeout');
           return;
@@ -2057,20 +2058,20 @@ class ProxyAwareWebSocket {
 }
 ```
 
-### 9.2 エッジケース2: メッセージ順序の保証と欠落
+### 9.2 Edge Case 2: Message Ordering Guarantee and Loss
 
-WebSocket over TCPは順序保証を持つが、アプリケーションレベルでは以下の場合にメッセージの順序問題や欠落が発生する。
+WebSocket over TCP guarantees ordering, but at the application level, message ordering problems and loss can occur in the following situations.
 
-**発生パターン:**
+**Occurrence patterns:**
 
-1. **再接続中のメッセージ欠落**: 切断から再接続完了までの間にサーバーが送信したメッセージは失われる
-2. **マルチサーバー環境での順序逆転**: Redis Pub/Subを経由するメッセージと直接送信のメッセージで到着順が変わる可能性がある
-3. **クライアント側のバッファオーバーフロー**: 処理速度を超えるメッセージが到着した場合、ブラウザのメモリが枯渇する
+1. **Message loss during reconnection**: Messages sent by the server while the client is disconnected and before reconnection is complete are lost
+2. **Order reversal in multi-server environments**: Messages routed via Redis Pub/Sub and direct sends may arrive out of order
+3. **Client-side buffer overflow**: If messages arrive faster than the application can process, browser memory may be exhausted
 
 ```typescript
-// メッセージ順序保証と欠落検出の実装
+// Implementation of message order guarantee and gap detection
 interface SequencedMessage {
-  seq: number;         // シーケンス番号
+  seq: number;         // Sequence number
   type: string;
   data: unknown;
   timestamp: number;
@@ -2082,23 +2083,23 @@ class OrderedMessageHandler {
   private maxBufferSize = 1000;
   private lastProcessedSeq = -1;
 
-  // メッセージ受信時の処理
+  // Process on message receipt
   receive(message: SequencedMessage): SequencedMessage[] {
     const processed: SequencedMessage[] = [];
 
-    // 重複チェック
+    // Duplicate check
     if (message.seq <= this.lastProcessedSeq) {
       console.warn(`Duplicate message detected: seq=${message.seq}`);
       return processed;
     }
 
-    // 期待通りの順序であれば即座に処理
+    // Process immediately if in expected order
     if (message.seq === this.expectedSeq) {
       processed.push(message);
       this.lastProcessedSeq = message.seq;
       this.expectedSeq++;
 
-      // バッファ内の連続するメッセージも処理
+      // Also process consecutive messages in the buffer
       while (this.buffer.has(this.expectedSeq)) {
         const buffered = this.buffer.get(this.expectedSeq)!;
         this.buffer.delete(this.expectedSeq);
@@ -2107,7 +2108,7 @@ class OrderedMessageHandler {
         this.expectedSeq++;
       }
     } else if (message.seq > this.expectedSeq) {
-      // 先行するメッセージが欠落 → バッファに保存
+      // Preceding message missing → save to buffer
       if (this.buffer.size < this.maxBufferSize) {
         this.buffer.set(message.seq, message);
       }
@@ -2120,28 +2121,28 @@ class OrderedMessageHandler {
     return processed;
   }
 
-  // 再接続時にサーバーに欠落範囲を通知
+  // Notify server of missing range on reconnect
   getMissingRange(): { from: number; to: number } | null {
     if (this.buffer.size === 0) return null;
     const minBuffered = Math.min(...this.buffer.keys());
     return { from: this.expectedSeq, to: minBuffered - 1 };
   }
 
-  // 再接続時のリセット（最後に処理したシーケンス番号は保持）
+  // Reset for reconnection (preserving last processed sequence number)
   resetForReconnect(): number {
     this.buffer.clear();
     return this.lastProcessedSeq;
   }
 }
 
-// サーバー側: 再接続時の欠落メッセージ再送
+// Server side: resend missing messages on reconnect
 class MessageHistory {
   private history: SequencedMessage[] = [];
   private maxHistory = 10000;
 
   store(message: SequencedMessage): void {
     this.history.push(message);
-    // 古いメッセージを削除
+    // Remove old messages
     if (this.history.length > this.maxHistory) {
       this.history = this.history.slice(-this.maxHistory);
     }
@@ -2153,19 +2154,19 @@ class MessageHistory {
 }
 ```
 
-### 9.3 エッジケース3: ブラウザのバックグラウンドタブ制限
+### 9.3 Edge Case 3: Browser Background Tab Restrictions
 
-モダンブラウザは、バックグラウンドタブのリソース消費を制限するために、タイマーのスロットリングや接続のサスペンドを行う場合がある。
+Modern browsers may throttle timers or suspend connections in background tabs to limit resource consumption.
 
 ```typescript
-// バックグラウンドタブ対策
+// Background tab countermeasures
 class VisibilityAwareConnection {
   private ws: WebSocket | null = null;
   private isBackgrounded = false;
   private lastServerMessage = Date.now();
 
   constructor() {
-    // Page Visibility APIで状態を監視
+    // Monitor state with Page Visibility API
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         this.onBackground();
@@ -2177,7 +2178,7 @@ class VisibilityAwareConnection {
 
   private onBackground(): void {
     this.isBackgrounded = true;
-    // バックグラウンドではPing間隔を延長し、不要なメッセージ受信を減らす
+    // In background, extend ping interval to reduce unnecessary messages
     this.ws?.send(JSON.stringify({
       type: 'presence',
       status: 'background',
@@ -2186,15 +2187,15 @@ class VisibilityAwareConnection {
 
   private onForeground(): void {
     this.isBackgrounded = false;
-    // フォアグラウンド復帰時に接続状態を確認
+    // Check connection state on returning to foreground
     const timeSinceLastMessage = Date.now() - this.lastServerMessage;
 
     if (timeSinceLastMessage > 60000) {
-      // 60秒以上メッセージがない場合、接続が死んでいる可能性
+      // If no messages for 60+ seconds, connection may be dead
       this.ws?.close(4001, 'Stale connection');
-      // 再接続ロジックが発動する
+      // Reconnection logic kicks in
     } else {
-      // 接続は生きている → 最新データを要求
+      // Connection is alive → request latest data
       this.ws?.send(JSON.stringify({
         type: 'presence',
         status: 'foreground',
@@ -2204,56 +2205,56 @@ class VisibilityAwareConnection {
   }
 
   private getLastProcessedSeq(): number {
-    // 最後に処理したシーケンス番号を返す
-    return 0; // 実装省略
+    // Return last processed sequence number
+    return 0; // Implementation omitted
   }
 }
 ```
 
 ---
 
-## 10. パフォーマンス最適化
+## 10. Performance Optimization
 
-### 10.1 メッセージ圧縮
+### 10.1 Message Compression
 
-WebSocketにはpermessage-deflate拡張（RFC 7692）が定義されており、メッセージ単位でのzlib圧縮が可能である。
+WebSocket has a permessage-deflate extension (RFC 7692) defined, which enables per-message zlib compression.
 
 ```
-permessage-deflate の動作:
+How permessage-deflate works:
 
-  圧縮なし:
-    クライアント → [JSONテキスト 2KB] → サーバー
+  Without compression:
+    Client → [JSON text 2KB] → Server
 
-  圧縮あり:
-    クライアント → [deflate圧縮 ~400B] → サーバー
+  With compression:
+    Client → [deflate compressed ~400B] → Server
 
-  圧縮率の目安（JSONデータの場合）:
+  Typical compression ratios (for JSON data):
   ┌──────────────────┬───────────┬──────────┬───────────┐
-  │ データサイズ     │ 圧縮前    │ 圧縮後   │ 圧縮率    │
+  │ Data size        │ Before    │ After    │ Ratio     │
   ├──────────────────┼───────────┼──────────┼───────────┤
-  │ 小さいJSON       │ 100 B     │ ~90 B    │ 10%       │
-  │ (圧縮非推奨)     │           │          │           │
+  │ Small JSON       │ 100 B     │ ~90 B    │ 10%       │
+  │ (not recommended)│           │          │           │
   ├──────────────────┼───────────┼──────────┼───────────┤
-  │ 中規模JSON       │ 1 KB      │ ~300 B   │ 70%       │
+  │ Medium JSON      │ 1 KB      │ ~300 B   │ 70%       │
   ├──────────────────┼───────────┼──────────┼───────────┤
-  │ 大規模JSON       │ 10 KB     │ ~2 KB    │ 80%       │
+  │ Large JSON       │ 10 KB     │ ~2 KB    │ 80%       │
   ├──────────────────┼───────────┼──────────┼───────────┤
-  │ 繰り返し構造     │ 50 KB     │ ~5 KB    │ 90%       │
+  │ Repetitive data  │ 50 KB     │ ~5 KB    │ 90%       │
   └──────────────────┴───────────┴──────────┴───────────┘
 
-  注意: 小さなメッセージの圧縮はCPUオーバーヘッドが利点を上回る
-  → 一般的にはthreshold（1024バイト等）を設定し、それ以上のみ圧縮する
+  Note: Compression of small messages has CPU overhead that outweighs benefits
+  → Generally set a threshold (e.g., 1024 bytes) and only compress above it
 ```
 
-### 10.2 バイナリプロトコルの活用
+### 10.2 Leveraging Binary Protocols
 
-JSON over WebSocketは可読性に優れるが、高頻度通信ではオーバーヘッドが問題になる。Protocol BuffersやMessagePackなどのバイナリシリアライゼーションを活用することで、帯域幅とパース速度を大幅に改善できる。
+JSON over WebSocket has excellent readability, but its overhead becomes a problem in high-frequency communication. Using binary serialization formats such as Protocol Buffers or MessagePack can significantly improve bandwidth usage and parsing speed.
 
 ```typescript
-// MessagePack を使ったバイナリ通信の例
+// Example of binary communication using MessagePack
 import { encode, decode } from '@msgpack/msgpack';
 
-// JSON vs MessagePack のサイズ比較
+// JSON vs MessagePack size comparison
 const chatMessage = {
   type: 'chat',
   room: 'general',
@@ -2262,17 +2263,17 @@ const chatMessage = {
   timestamp: 1709712000000,
 };
 
-// JSON: 約120バイト
+// JSON: approximately 120 bytes
 const jsonSize = JSON.stringify(chatMessage).length;
 
-// MessagePack: 約80バイト（約33%削減）
+// MessagePack: approximately 80 bytes (~33% smaller)
 const msgpackData = encode(chatMessage);
 const msgpackSize = msgpackData.byteLength;
 
-// WebSocketでの使用
+// Usage with WebSocket
 function sendBinary(ws: WebSocket, data: object): void {
   const encoded = encode(data);
-  ws.send(encoded); // バイナリフレーム（opcode 0x2）として送信
+  ws.send(encoded); // Sent as binary frame (opcode 0x2)
 }
 
 function receiveBinary(event: MessageEvent): object {
@@ -2285,89 +2286,89 @@ function receiveBinary(event: MessageEvent): object {
 
 ---
 
-## 11. 演習問題
+## 11. Exercises
 
-### 11.1 基礎演習: エコーサーバーの実装
+### 11.1 Basic Exercise: Implementing an Echo Server
 
-**目標:** WebSocketの基本的な送受信を理解する
-
-```
-課題:
-  1. Node.js + ws ライブラリでWebSocketサーバーを作成する
-  2. クライアントから受信したメッセージをそのまま返す（エコー）
-  3. 接続時にウェルカムメッセージを送信する
-  4. 切断時にログを出力する
-  5. ブラウザのコンソールからWebSocket APIで接続テストを行う
-
-期待される動作:
-  クライアント → "Hello" → サーバー
-  クライアント ← "Echo: Hello" ← サーバー
-
-ヒント:
-  - WebSocketServer のインスタンスを作成する
-  - 'connection' イベントでクライアントを受け付ける
-  - 'message' イベントでメッセージを受信し、加工して返す
-  - ws.send() でメッセージを送信する
-
-拡張課題:
-  - メッセージに受信時刻のタイムスタンプを付与する
-  - 累計メッセージ数をカウントし、レスポンスに含める
-  - 接続中のクライアント数をウェルカムメッセージに含める
-```
-
-### 11.2 応用演習: チャットルームの実装
-
-**目標:** ルーム管理、ブロードキャスト、メッセージ形式の設計を実践する
+**Goal:** Understand the basic send/receive mechanics of WebSocket
 
 ```
-課題:
-  1. 複数のチャットルームをサポートするWebSocketサーバーを実装する
-  2. 以下のメッセージタイプを実装する:
-     - join: ルームに参加
-     - leave: ルームから退出
-     - message: ルーム内にメッセージ送信
-     - list_rooms: 存在するルーム一覧を取得
-     - list_members: ルームのメンバー一覧を取得
-  3. メッセージはJSON形式とし、typeフィールドで種別を識別する
-  4. ルーム参加/退出時に、同じルームの他のメンバーに通知する
-  5. 30秒間隔のPing/Pongヘルスチェックを実装する
+Tasks:
+  1. Create a WebSocket server with Node.js + ws library
+  2. Echo received messages back to the client unchanged
+  3. Send a welcome message on connection
+  4. Output a log on disconnect
+  5. Test the connection using the WebSocket API from the browser console
 
-メッセージプロトコル例:
-  送信: { "type": "join", "room": "general" }
-  受信: { "type": "joined", "room": "general", "members": 3 }
+Expected behavior:
+  Client → "Hello" → Server
+  Client ← "Echo: Hello" ← Server
 
-  送信: { "type": "message", "room": "general", "text": "Hi!" }
-  受信: { "type": "message", "room": "general",
-          "from": "user-abc", "text": "Hi!",
-          "timestamp": 1709712000000 }
+Hints:
+  - Create an instance of WebSocketServer
+  - Accept clients via the 'connection' event
+  - Receive messages via the 'message' event, process, and return them
+  - Use ws.send() to send messages
 
-拡張課題:
-  - ニックネーム機能の追加
-  - メッセージ履歴の保持（最新50件）
-  - タイピングインジケーターの実装
-  - ダイレクトメッセージ機能の追加
+Extension tasks:
+  - Attach a receive timestamp to each message
+  - Count total messages and include in the response
+  - Include the number of connected clients in the welcome message
 ```
 
-### 11.3 発展演習: リアルタイムコラボレーション
+### 11.2 Applied Exercise: Implementing a Chat Room
 
-**目標:** OT（Operational Transformation）やCRDTの基本概念を理解し、同時編集の課題に取り組む
+**Goal:** Practice room management, broadcasting, and message format design
 
 ```
-課題:
-  1. 複数ユーザーが同時にテキストを編集できるリアルタイムエディタを実装する
-  2. 以下の要素を含むアーキテクチャを設計する:
-     - WebSocketサーバー（操作の中継と競合解決）
-     - クライアント（テキストエリアとWebSocket通信）
-     - 操作ログ（編集履歴の記録）
-  3. 操作は以下の形式で送受信する:
+Tasks:
+  1. Implement a WebSocket server supporting multiple chat rooms
+  2. Implement the following message types:
+     - join: join a room
+     - leave: leave a room
+     - message: send a message within a room
+     - list_rooms: get list of existing rooms
+     - list_members: get list of room members
+  3. Use JSON format with a 'type' field to identify message types
+  4. Notify other members in the room when someone joins or leaves
+  5. Implement Ping/Pong health checks at 30-second intervals
+
+Message protocol example:
+  Send:    { "type": "join", "room": "general" }
+  Receive: { "type": "joined", "room": "general", "members": 3 }
+
+  Send:    { "type": "message", "room": "general", "text": "Hi!" }
+  Receive: { "type": "message", "room": "general",
+             "from": "user-abc", "text": "Hi!",
+             "timestamp": 1709712000000 }
+
+Extension tasks:
+  - Add nickname functionality
+  - Retain message history (latest 50 messages)
+  - Implement typing indicator
+  - Add direct message functionality
+```
+
+### 11.3 Advanced Exercise: Real-Time Collaboration
+
+**Goal:** Understand the basic concepts of OT (Operational Transformation) or CRDT, and tackle the challenges of concurrent editing
+
+```
+Tasks:
+  1. Implement a real-time editor where multiple users can edit text simultaneously
+  2. Design an architecture including:
+     - WebSocket server (relaying operations and resolving conflicts)
+     - Client (textarea and WebSocket communication)
+     - Operation log (recording edit history)
+  3. Send/receive operations in the following format:
      - insert: { type: "insert", pos: 5, text: "hello" }
      - delete: { type: "delete", pos: 5, len: 3 }
-  4. 基本的な競合解決を実装する:
-     - 同じ位置への同時挿入 → クライアントIDで順序決定
-     - 削除範囲と挿入位置の重複 → 位置の調整
-  5. undo/redo機能を実装する
+  4. Implement basic conflict resolution:
+     - Simultaneous inserts at same position → determine order by client ID
+     - Overlap between delete range and insert position → adjust position
+  5. Implement undo/redo functionality
 
-アーキテクチャ:
+Architecture:
   ┌──────────┐      ┌──────────┐      ┌──────────┐
   │ Editor A │ ←──→ │  Server  │ ←──→ │ Editor B │
   │ (Browser)│      │ (Node.js)│      │ (Browser)│
@@ -2379,73 +2380,74 @@ function receiveBinary(event: MessageEvent): object {
                     │ (In-mem) │
                     └──────────┘
 
-  ヒント:
-  - 最初はシンプルな「最後の書き込みが勝つ」方式で実装する
-  - 次にシーケンス番号ベースの競合検出を追加する
-  - 最終的にOTアルゴリズムの基本形を実装する
+  Hints:
+  - Start with a simple "last write wins" approach
+  - Then add sequence-number-based conflict detection
+  - Finally implement the basic form of the OT algorithm
 
-  参考アルゴリズム:
-  - OT (Operational Transformation): Google Docsで使用
-  - CRDT (Conflict-free Replicated Data Type): Figma、Notionで使用
+  Reference algorithms:
+  - OT (Operational Transformation): used in Google Docs
+  - CRDT (Conflict-free Replicated Data Type): used in Figma, Notion
 
-拡張課題:
-  - カーソル位置のリアルタイム共有
-  - ユーザーごとのカーソル色の割り当て
-  - オフライン編集とオンライン復帰時の同期
-  - 操作履歴の永続化（データベースへの保存）
+Extension tasks:
+  - Real-time sharing of cursor position
+  - Assign per-user cursor colors
+  - Offline editing and synchronization on reconnect
+  - Persist operation history (save to database)
 ```
 
 ---
 
-## 12. WebSocket と HTTP/2、HTTP/3 の関係
+## 12. WebSocket, HTTP/2, and HTTP/3
 
-### 12.1 HTTP/2 における WebSocket
+### 12.1 WebSocket in HTTP/2
 
-HTTP/2にはServer PushやストリームMultiplexingが組み込まれているが、これらはWebSocketの代替にはならない。HTTP/2のServer Pushはリソースの先読みを目的としたものであり、任意のタイミングでのデータ送信はできない。
+HTTP/2 has Server Push and stream multiplexing built in, but these are not replacements for WebSocket. HTTP/2 Server Push is intended for prefetching resources and cannot send data at arbitrary times.
 
-RFC 8441（Bootstrapping WebSockets with HTTP/2）により、HTTP/2接続上でWebSocketを確立する仕組みが標準化された。これにより、HTTP/2のマルチプレキシングの恩恵を受けつつWebSocket通信が可能になる。
+RFC 8441 (Bootstrapping WebSockets with HTTP/2) standardized a mechanism for establishing WebSocket over an HTTP/2 connection. This allows WebSocket communication while benefiting from HTTP/2's multiplexing.
 
-### 12.2 HTTP/3 (QUIC) と WebSocket
+### 12.2 HTTP/3 (QUIC) and WebSocket
 
-HTTP/3はUDP上のQUICプロトコルをベースとしている。RFC 9220（Bootstrapping WebSockets with HTTP/3）によりHTTP/3上でのWebSocket接続も標準化されている。QUICのHead-of-line Blocking回避やコネクションマイグレーション（WiFi→モバイル回線の切り替え時に接続維持）は、WebSocket通信にも利点をもたらす。
+HTTP/3 is based on the QUIC protocol over UDP. RFC 9220 (Bootstrapping WebSockets with HTTP/3) has also standardized WebSocket connections over HTTP/3. QUIC's Head-of-line blocking avoidance and connection migration (maintaining the connection when switching from Wi-Fi to mobile) also benefit WebSocket communication.
 
 ### 12.3 WebTransport
 
-WebTransportはHTTP/3上に構築された新しいAPIであり、WebSocketの代替候補として注目されている。
+WebTransport is a new API built on top of HTTP/3, attracting attention as a candidate replacement for WebSocket.
 
 ```
-WebTransport と WebSocket の比較:
+Comparison of WebTransport and WebSocket:
   ┌──────────────────┬───────────────────┬────────────────────────┐
-  │ 特性             │ WebSocket         │ WebTransport           │
+  │ Property         │ WebSocket         │ WebTransport           │
   ├──────────────────┼───────────────────┼────────────────────────┤
-  │ トランスポート   │ TCP               │ QUIC (UDP)             │
+  │ Transport        │ TCP               │ QUIC (UDP)             │
   ├──────────────────┼───────────────────┼────────────────────────┤
-  │ HOL Blocking     │ あり              │ なし                   │
+  │ HOL Blocking     │ Yes               │ No                     │
   ├──────────────────┼───────────────────┼────────────────────────┤
-  │ 信頼性           │ 完全保証          │ 信頼性あり/なし選択可  │
+  │ Reliability      │ Fully guaranteed  │ Reliable/unreliable    │
+  │                  │                   │ selectable             │
   ├──────────────────┼───────────────────┼────────────────────────┤
-  │ 複数ストリーム   │ 1接続1ストリーム  │ 複数ストリーム対応     │
+  │ Multiple streams │ 1 stream/conn.    │ Multiple streams       │
   ├──────────────────┼───────────────────┼────────────────────────┤
-  │ コネクション     │ 不可              │ 対応                   │
-  │ マイグレーション │                   │ (QUIC機能)             │
+  │ Connection       │ Not supported     │ Supported              │
+  │ migration        │                   │ (QUIC feature)         │
   ├──────────────────┼───────────────────┼────────────────────────┤
-  │ 0-RTT接続確立    │ 不可              │ 対応                   │
+  │ 0-RTT connection │ Not supported     │ Supported              │
   ├──────────────────┼───────────────────┼────────────────────────┤
-  │ ブラウザ対応     │ ほぼ全て          │ Chrome系のみ           │
-  │ (2025年時点)     │                   │ (拡大中)               │
+  │ Browser support  │ Almost all        │ Chromium-based only    │
+  │ (as of 2025)     │                   │ (expanding)            │
   ├──────────────────┼───────────────────┼────────────────────────┤
-  │ 成熟度           │ 高い              │ 発展中                 │
+  │ Maturity         │ High              │ Evolving               │
   └──────────────────┴───────────────────┴────────────────────────┘
 ```
 
 ---
 
-## 13. テストとデバッグ
+## 13. Testing and Debugging
 
-### 13.1 WebSocketのテスト手法
+### 13.1 WebSocket Testing Methods
 
 ```typescript
-// Jest + ws を使ったWebSocketサーバーのテスト例
+// Example WebSocket server test using Jest + ws
 import { WebSocketServer, WebSocket } from 'ws';
 
 describe('WebSocket Server', () => {
@@ -2495,7 +2497,6 @@ describe('WebSocket Server', () => {
 
   test('should handle multiple concurrent connections', (done) => {
     const clientCount = 10;
-    let completedCount = 0;
 
     for (let i = 0; i < clientCount; i++) {
       const client = new WebSocket(`ws://localhost:${serverPort}`);
@@ -2516,27 +2517,27 @@ describe('WebSocket Server', () => {
 });
 ```
 
-### 13.2 デバッグツール
+### 13.2 Debugging Tools
 
-WebSocket通信のデバッグには以下のツールが有用である。
+The following tools are useful for debugging WebSocket communication.
 
-1. **Chrome DevTools**: Network タブ → WS フィルター → メッセージの送受信をリアルタイム確認
-2. **wscat**: コマンドラインからWebSocket接続をテストするツール
-3. **Postman**: WebSocketリクエストの送受信に対応
-4. **Wireshark**: WebSocketフレームをパケットレベルで解析
+1. **Chrome DevTools**: Network tab → WS filter → real-time view of sent/received messages
+2. **wscat**: Tool for testing WebSocket connections from the command line
+3. **Postman**: Supports WebSocket request send/receive
+4. **Wireshark**: Analyzes WebSocket frames at the packet level
 
 ```bash
-# wscat を使ったテスト
-# インストール
+# Testing with wscat
+# Install
 npm install -g wscat
 
-# サーバーに接続
+# Connect to server
 wscat -c ws://localhost:8080
 
-# サブプロトコル指定で接続
+# Connect with sub-protocol
 wscat -c ws://localhost:8080 -s chat
 
-# ヘッダー付きで接続
+# Connect with custom headers
 wscat -c ws://localhost:8080 -H "Authorization: Bearer token123"
 ```
 
@@ -2544,114 +2545,114 @@ wscat -c ws://localhost:8080 -H "Authorization: Bearer token123"
 
 ## 14. FAQ
 
-### Q1: WebSocket接続は何本まで維持できるか？
+### Q1: How many WebSocket connections can be maintained?
 
-**A:** 単一サーバーにおける最大接続数は主にメモリとファイルディスクリプタの制限に依存する。Linuxの場合、デフォルトのファイルディスクリプタ上限は1024だが、`ulimit -n`で引き上げることができる。1接続あたりのメモリ消費はアイドル状態で約20〜50KBであり、4GBのメモリを持つサーバーであれば理論上10万接続以上を維持できる。ただし、メッセージ処理のCPU負荷やアプリケーション固有のメモリ使用量を加味すると、実用的な上限はそれより低くなる。C10K問題（1万同時接続）は現代のサーバーでは容易に解決可能であり、C100K（10万接続）やそれ以上も適切なチューニングとアーキテクチャ設計で達成できる。
+**A:** The maximum number of connections on a single server depends primarily on memory and file descriptor limits. On Linux, the default file descriptor limit is 1024, but it can be raised with `ulimit -n`. Memory consumption per connection is approximately 20–50 KB in idle state, so a server with 4 GB of memory can theoretically maintain over 100,000 connections. However, factoring in CPU load from message processing and application-specific memory usage, the practical limit is lower. The C10K problem (10,000 simultaneous connections) is easily solved on modern servers, and C100K (100,000 connections) and beyond are achievable with proper tuning and architecture design.
 
-### Q2: WebSocketとSSE（Server-Sent Events）はどちらを選ぶべきか？
+### Q2: Should I choose WebSocket or SSE (Server-Sent Events)?
 
-**A:** 選択基準は通信の方向性と要件に依存する。サーバーからクライアントへの一方向通知（ニュースフィード、株価更新、進捗通知）であればSSEが適している。SSEはHTTP上で動作するため、既存のインフラとの互換性が高く、自動再接続やイベントID管理が組み込みで提供される。HTTP/2環境ではSSEのパフォーマンスも優れている。一方、クライアントからサーバーへのリアルタイム送信も必要な場合（チャット、ゲーム、共同編集）はWebSocketが適している。「サーバーからのプッシュ」だけが目的であれば、WebSocketの複雑さを引き受ける必要はなく、SSEを第一候補とすべきである。
+**A:** The choice depends on the directionality and requirements of the communication. For one-directional notifications from server to client (news feeds, stock price updates, progress notifications), SSE is appropriate. SSE operates over HTTP, making it highly compatible with existing infrastructure, and provides auto-reconnect and event ID management as built-in features. SSE also performs well in HTTP/2 environments. On the other hand, if real-time sends from client to server are also needed (chat, games, collaborative editing), WebSocket is appropriate. If "push from server" is the only goal, there's no need to take on WebSocket's complexity — SSE should be the first candidate.
 
-### Q3: WebSocket接続にCORS制限は適用されるか？
+### Q3: Are CORS restrictions applied to WebSocket connections?
 
-**A:** WebSocket接続自体にはCORSポリシーは適用されない。ブラウザはWebSocket接続のプリフライトリクエスト（OPTIONS）を送信しない。ただし、ブラウザはハンドシェイクリクエストに`Origin`ヘッダーを自動的に付与するため、サーバー側で`Origin`ヘッダーを検証することでオリジンベースのアクセス制御を実装できる。wsライブラリでは`verifyClient`オプション、Socket.IOでは`cors`オプションで設定する。Originヘッダーはブラウザが自動設定するものであり、ブラウザ以外のクライアント（curlやNode.js）では任意の値を設定できるため、Origin検証だけでは完全なセキュリティは担保できない。トークンベースの認証と組み合わせることが推奨される。
+**A:** CORS policy is not applied to WebSocket connections themselves. Browsers do not send preflight requests (OPTIONS) for WebSocket connections. However, browsers automatically include an `Origin` header in the handshake request, allowing origin-based access control to be implemented by validating the `Origin` header on the server side. This is configured via the `verifyClient` option in the ws library, and the `cors` option in Socket.IO. Since the Origin header is set automatically by the browser, non-browser clients (like curl or Node.js) can set any arbitrary value — so Origin validation alone cannot ensure complete security. Combining it with token-based authentication is recommended.
 
-### Q4: WebSocketの通信をTLS（WSS）で保護すべきか？
+### Q4: Should WebSocket communication be protected with TLS (WSS)?
 
-**A:** 本番環境では必ずWSS（WebSocket over TLS）を使用すべきである。理由は三つある。第一に、平文のWebSocket通信は中間者攻撃やパケットスニッフィングに脆弱である。第二に、多くの企業ネットワークやISPの透過プロキシは、暗号化されていないWebSocket接続を正しく処理できず、接続が失敗することがある。WSSを使用することで、プロキシを透過できる可能性が大幅に向上する。第三に、HTTP/2環境ではTLSが実質的に必須であり、WSS接続もHTTP/2のマルチプレキシングの恩恵を受けられる。パフォーマンスへの影響は、TLS 1.3のハンドシェイクが1-RTTで完了するため、初回接続時のわずかなオーバーヘッドを除いて無視できる水準である。
+**A:** In production, always use WSS (WebSocket over TLS). There are three reasons. First, plaintext WebSocket communication is vulnerable to man-in-the-middle attacks and packet sniffing. Second, many corporate network and ISP transparent proxies cannot correctly handle unencrypted WebSocket connections, causing connection failures. Using WSS significantly improves the chance of passing through proxies. Third, in HTTP/2 environments TLS is effectively required, and WSS connections can also benefit from HTTP/2 multiplexing. The performance impact is negligible except for a slight overhead on initial connection, since TLS 1.3 handshakes complete in 1 RTT.
 
-### Q5: WebSocket接続が頻繁に切断される場合、どう対処すべきか？
+### Q5: What should I do if WebSocket connections disconnect frequently?
 
-**A:** 頻繁な切断の原因は複数考えられる。(1) ロードバランサーやプロキシのアイドルタイムアウト: Ping/Pongフレームを定期的に送信してアイドル状態を防ぐ（推奨間隔は25〜30秒）。(2) ネットワークの不安定さ: 指数バックオフ付きの自動再接続を実装し、ジッターを加えてサーバーへの負荷集中を避ける。(3) サーバー側のリソース不足: メモリ使用量とファイルディスクリプタ数を監視し、適切なリソース制限を設定する。(4) クライアントのバックグラウンド化: Page Visibility APIを活用し、バックグラウンドタブでの通信頻度を下げる。また、切断イベントのcloseコードとreasonを分析することで、切断原因の特定に役立つ。
+**A:** Frequent disconnections can have multiple causes. (1) Load balancer or proxy idle timeout: periodically send Ping/Pong frames to prevent idle state (recommended interval: 25–30 seconds). (2) Network instability: implement auto-reconnect with exponential backoff, adding jitter to avoid load concentration on the server. (3) Insufficient server-side resources: monitor memory usage and file descriptor counts, and configure appropriate resource limits. (4) Client tab goes to background: use the Page Visibility API to reduce communication frequency in background tabs. Additionally, analyzing the close code and reason in disconnect events helps identify the cause of disconnection.
 
-### Q6: WebSocketとSSE（Server-Sent Events）はどう使い分けるべきか？
+### Q6: How should I differentiate between WebSocket and SSE?
 
-**比較表**
+**Comparison Table**
 
-| 特性 | WebSocket | SSE (Server-Sent Events) |
+| Property | WebSocket | SSE (Server-Sent Events) |
 |------|-----------|--------------------------|
-| 通信方向 | **双方向**（全二重） | **一方向**（サーバー→クライアント） |
-| プロトコル | 専用プロトコル（ws://, wss://） | HTTP/HTTPS上のストリーム |
-| 自動再接続 | 実装必要（Socket.IOは標準搭載） | **ブラウザ標準機能** |
-| イベントID | 実装必要 | **標準サポート**（last-event-id） |
-| バイナリ | サポート | テキストのみ（Base64エンコード必要） |
-| ブラウザサポート | 全モダンブラウザ | IE/Edgeレガシー版は非対応 |
-| HTTP/2最適化 | 限定的 | **優れた性能**（1接続で多重化） |
-| CORS | Origin検証が必要 | 標準のCORSポリシー適用 |
+| Direction | **Bidirectional** (full-duplex) | **One-way** (server → client) |
+| Protocol | Dedicated protocol (ws://, wss://) | Stream over HTTP/HTTPS |
+| Auto-reconnect | Implementation required (Socket.IO standard) | **Browser built-in** |
+| Event ID | Implementation required | **Standard support** (last-event-id) |
+| Binary | Supported | Text only (Base64 encoding required) |
+| Browser support | All modern browsers | Legacy IE/Edge not supported |
+| HTTP/2 optimization | Limited | **Excellent performance** (multiplexed over 1 conn.) |
+| CORS | Origin validation required | Standard CORS policy applies |
 
-**使い分けの判断基準**
+**Decision criteria**
 
-**SSEを選ぶべきケース**
+**Cases to choose SSE:**
 ```
-✅ サーバーからのプッシュのみ（クライアント→サーバーはHTTP POST）
-   例: ニュースフィード、株価更新、進捗通知、ダッシュボード
+✅ Server push only (client → server via HTTP POST)
+   Example: news feed, stock price updates, progress notifications, dashboards
 
-✅ 自動再接続・イベントID管理が必要
-   → SSEは標準機能として提供
+✅ Auto-reconnect and event ID management needed
+   → SSE provides these as standard features
 
-✅ HTTP/2環境での効率的な通信
-   → SSEは1つのHTTP/2接続で複数ストリームを多重化
+✅ Efficient communication in HTTP/2 environments
+   → SSE multiplexes multiple streams over a single HTTP/2 connection
 
-✅ シンプルな実装
-   → クライアント: new EventSource(url)
-   → サーバー: Content-Type: text/event-stream
-```
-
-**WebSocketを選ぶべきケース**
-```
-✅ 双方向リアルタイム通信が必要
-   例: チャット、ゲーム、共同編集、リモート制御
-
-✅ バイナリデータの送受信
-   例: 画像・動画のストリーミング、ファイル転送
-
-✅ 低遅延が最優先
-   → WebSocketはフレームオーバーヘッドが小さい
-
-✅ カスタムプロトコルの実装
-   → サブプロトコル（Sec-WebSocket-Protocol）で拡張可能
+✅ Simple implementation
+   → Client: new EventSource(url)
+   → Server: Content-Type: text/event-stream
 ```
 
-**実装例の比較**
+**Cases to choose WebSocket:**
+```
+✅ Bidirectional real-time communication needed
+   Example: chat, games, collaborative editing, remote control
+
+✅ Binary data send/receive
+   Example: image/video streaming, file transfer
+
+✅ Low latency is top priority
+   → WebSocket has minimal frame overhead
+
+✅ Custom protocol implementation
+   → Extensible via sub-protocol (Sec-WebSocket-Protocol)
+```
+
+**Implementation comparison**
 
 ```javascript
-// SSE（サーバー → クライアント）
+// SSE (server → client)
 const eventSource = new EventSource('/api/updates');
 eventSource.addEventListener('message', (event) => {
   console.log('Received:', event.data);
 });
-// 自動再接続: ブラウザが自動処理
+// Auto-reconnect: browser handles automatically
 
-// WebSocket（双方向）
+// WebSocket (bidirectional)
 const ws = new WebSocket('wss://example.com/socket');
 ws.addEventListener('message', (event) => {
   console.log('Received:', event.data);
 });
 ws.send(JSON.stringify({ type: 'chat', message: 'Hello' }));
-// 再接続: 自分で実装必要（Socket.IOは自動）
+// Reconnect: must implement yourself (Socket.IO does it automatically)
 ```
 
-### Q7: WebSocketのセキュリティ対策（WSS、認証、Origin検証）は？
+### Q7: What are the WebSocket security measures (WSS, auth, Origin validation)?
 
-**1. WSS（WebSocket Secure）の必須化**
+**1. Making WSS (WebSocket Secure) mandatory**
 
 ```javascript
-// ❌ 本番環境で絶対NG
+// ❌ Absolutely not acceptable in production
 const ws = new WebSocket('ws://example.com/socket');
 
-// ✅ 常にWSS（TLS暗号化）を使用
+// ✅ Always use WSS (TLS encryption)
 const ws = new WebSocket('wss://example.com/socket');
 ```
 
-**WSSを使う理由**
-- 中間者攻撃（MITM）の防止: 通信内容の盗聴・改ざんを防ぐ
-- プロキシ透過性: 企業ネットワークの透過プロキシがWSを誤処理することを防ぐ
-- Cookie保護: Secure属性のCookieはWSSでのみ送信される
+**Why use WSS:**
+- Prevent MITM (Man-in-the-Middle) attacks: prevents eavesdropping and tampering
+- Proxy transparency: prevents transparent proxies in corporate networks from mishandling WS
+- Cookie protection: Cookies with the Secure attribute are only sent over WSS
 
-**2. Origin検証（CSRFに類似の攻撃を防ぐ）**
+**2. Origin validation (prevents CSRF-like attacks)**
 
 ```javascript
-// サーバーサイド（Node.js + ws）
+// Server side (Node.js + ws)
 const WebSocket = require('ws');
 const wss = new WebSocket.Server({
   verifyClient: (info) => {
@@ -2660,28 +2661,28 @@ const wss = new WebSocket.Server({
 
     if (!allowedOrigins.includes(origin)) {
       console.warn(`Rejected connection from: ${origin}`);
-      return false; // 接続拒否
+      return false; // Reject connection
     }
-    return true; // 接続許可
+    return true; // Allow connection
   }
 });
 ```
 
-**注意**: Originヘッダーはブラウザ以外のクライアント（curl等）では偽装可能。トークン認証と併用必須。
+**Note**: The Origin header can be forged by non-browser clients (curl, etc.). Must be combined with token authentication.
 
-**3. トークンベース認証**
+**3. Token-based authentication**
 
 ```javascript
-// クライアント: 接続URLにトークンを含める
+// Client: include token in connection URL
 const token = localStorage.getItem('authToken');
 const ws = new WebSocket(`wss://example.com/socket?token=${token}`);
 
-// または、接続後に認証メッセージを送信
+// Or, send auth message after connection
 ws.addEventListener('open', () => {
   ws.send(JSON.stringify({ type: 'auth', token: token }));
 });
 
-// サーバー: トークンを検証
+// Server: verify token
 wss.on('connection', (ws, req) => {
   const url = new URL(req.url, 'wss://example.com');
   const token = url.searchParams.get('token');
@@ -2691,12 +2692,12 @@ wss.on('connection', (ws, req) => {
     return;
   }
 
-  // 認証済みユーザーとして処理
+  // Process as authenticated user
   ws.userId = getUserIdFromToken(token);
 });
 ```
 
-**4. レート制限（DoS対策）**
+**4. Rate limiting (DoS countermeasure)**
 
 ```javascript
 const clients = new Map(); // userId -> { ws, messageCount, lastReset }
@@ -2714,7 +2715,7 @@ wss.on('connection', (ws, req) => {
     const client = clients.get(userId);
     const now = Date.now();
 
-    // 1分ごとにカウントリセット
+    // Reset count every minute
     if (now - client.lastReset > 60000) {
       client.messageCount = 0;
       client.lastReset = now;
@@ -2722,19 +2723,19 @@ wss.on('connection', (ws, req) => {
 
     client.messageCount++;
 
-    // レート制限: 1分あたり100メッセージ
+    // Rate limit: 100 messages per minute
     if (client.messageCount > 100) {
       ws.close(1008, 'Rate limit exceeded');
       return;
     }
 
-    // 通常の処理
+    // Normal processing
     handleMessage(ws, data);
   });
 });
 ```
 
-**5. 入力検証とサニタイゼーション**
+**5. Input validation and sanitization**
 
 ```javascript
 ws.on('message', (data) => {
@@ -2746,7 +2747,7 @@ ws.on('message', (data) => {
     return;
   }
 
-  // スキーマ検証（Joi、Zod等を使用）
+  // Schema validation (using Joi, Zod, etc.)
   const schema = Joi.object({
     type: Joi.string().valid('chat', 'typing', 'presence').required(),
     content: Joi.string().max(1000),
@@ -2758,31 +2759,31 @@ ws.on('message', (data) => {
     return;
   }
 
-  // XSS対策: HTMLエスケープ
+  // XSS countermeasure: HTML escaping
   const sanitizedContent = escapeHtml(message.content);
   broadcastToRoom(ws.roomId, { ...message, content: sanitizedContent });
 });
 ```
 
-### Q8: WebSocketのスケーリング戦略（水平スケール、Sticky Session）は？
+### Q8: What is the WebSocket scaling strategy (horizontal scaling, Sticky Session)?
 
-**問題: WebSocketは状態を持つプロトコル**
+**Problem: WebSocket is a stateful protocol**
 
 ```
-クライアント1 ── [Load Balancer] ── サーバーA（接続保持）
-クライアント2 ──                  ─ サーバーB（接続保持）
-クライアント3 ──                  ─ サーバーC（接続保持）
+Client 1 ── [Load Balancer] ── Server A (holds connection)
+Client 2 ──                  ─ Server B (holds connection)
+Client 3 ──                  ─ Server C (holds connection)
 
-課題: クライアント1がサーバーAに接続している状態で、
-     クライアント2のメッセージをクライアント1に届けるには？
+Challenge: When client 1 is connected to Server A,
+           how to deliver client 2's message to client 1?
 ```
 
-**解決策1: Sticky Session（セッション固定）**
+**Solution 1: Sticky Session**
 
 ```nginx
-# Nginx設定例
+# Nginx configuration example
 upstream websocket_backend {
-    ip_hash; # 同じIPアドレスは同じサーバーに振り分け
+    ip_hash; # Same IP address routes to same server
     server 192.168.1.101:3000;
     server 192.168.1.102:3000;
     server 192.168.1.103:3000;
@@ -2798,25 +2799,25 @@ server {
 }
 ```
 
-**問題点**
-- ユーザーAとユーザーBが別サーバーに接続していると、メッセージ配信ができない
-- → Redis Pub/Subで解決
+**Problem:**
+- If user A and user B are on different servers, message delivery fails
+- → Solve with Redis Pub/Sub
 
-**解決策2: Redis Pub/Sub（サーバー間メッセージング）**
+**Solution 2: Redis Pub/Sub (inter-server messaging)**
 
 ```javascript
 const redis = require('redis');
 const publisher = redis.createClient();
 const subscriber = redis.createClient();
 
-// サーバーA: メッセージを受信 → Redis経由で全サーバーにブロードキャスト
+// Server A: receives message → broadcasts to all servers via Redis
 wss.on('connection', (ws, req) => {
   const userId = authenticateUser(req);
 
   ws.on('message', (data) => {
     const message = JSON.parse(data);
 
-    // Redis経由で全サーバーに配信
+    // Deliver to all servers via Redis
     publisher.publish('chat:room:123', JSON.stringify({
       userId: userId,
       content: message.content,
@@ -2825,12 +2826,12 @@ wss.on('connection', (ws, req) => {
   });
 });
 
-// 全サーバー: Redisからメッセージを受信 → 接続中のクライアントに配信
+// All servers: receive message from Redis → deliver to connected clients
 subscriber.subscribe('chat:room:123');
 subscriber.on('message', (channel, data) => {
   const message = JSON.parse(data);
 
-  // このサーバーに接続している全クライアントに配信
+  // Deliver to all clients connected to this server
   wss.clients.forEach(client => {
     if (client.roomId === 'room:123' && client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify(message));
@@ -2839,17 +2840,17 @@ subscriber.on('message', (channel, data) => {
 });
 ```
 
-**アーキテクチャ図**
+**Architecture diagram:**
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
 │  Server A   │     │  Server B   │     │  Server C   │
-│  (ws接続3個)│     │  (ws接続2個)│     │  (ws接続4個)│
+│ (3 ws conn) │     │ (2 ws conn) │     │ (4 ws conn) │
 └──────┬──────┘     └──────┬──────┘     └──────┬──────┘
        │                   │                   │
        └───────────────────┼───────────────────┘
                            │
                   ┌────────▼────────┐
-                  │  Redis Pub/Sub  │ ← メッセージハブ
+                  │  Redis Pub/Sub  │ ← Message hub
                   │  (chat:room:*)  │
                   └─────────────────┘
 ```
@@ -2858,44 +2859,41 @@ subscriber.on('message', (channel, data) => {
 
 ## FAQ
 
-### Q1: WebSocketとSSE（Server-Sent Events）はどう使い分ける?
-SSEはサーバーからクライアントへの一方向ストリーミングに特化しており、HTTPの上で動作するためプロキシやファイアウォールとの互換性が高く、自動再接続も内蔵しています。通知、ニュースフィード、ダッシュボードの更新など、サーバー→クライアント方向のみのデータ配信にはSSEが適しています。一方、チャット、ゲーム、共同編集など双方向のリアルタイム通信が必要な場合はWebSocketを選択してください。コスト面でもSSEの方がインフラ構成がシンプルです。
+### Q1: How should I choose between WebSocket and SSE?
+SSE is specialized for one-directional streaming from server to client. Since it operates over HTTP, it has high compatibility with proxies and firewalls, and includes built-in automatic reconnection. SSE is suitable for server-to-client-only data delivery such as notifications, news feeds, and dashboard updates. For bidirectional real-time communication such as chat, games, and collaborative editing, choose WebSocket. SSE is also simpler from an infrastructure perspective.
 
-### Q2: WebSocketのスケーリングで最も重要な考慮事項は?
-Sticky Session（セッションアフィニティ）とメッセージブロードキャストの仕組みです。WebSocketはステートフルなコネクションのため、クライアントは常に同一のサーバーインスタンスに接続する必要があります。ロードバランサーでSticky Sessionを設定し、複数サーバー間のメッセージ配信にはRedis Pub/SubやNATS等のメッセージブローカーを使用します。さらに、コネクション数の上限（OSのファイルディスクリプタ制限）と心拍監視（Ping/Pong）の設計も重要です。
+### Q2: What are the most important considerations for scaling WebSocket?
+Sticky Session (session affinity) and the message broadcast mechanism. Since WebSocket is a stateful connection, clients must always connect to the same server instance. Configure Sticky Session on the load balancer, and use a message broker such as Redis Pub/Sub or NATS for message delivery across multiple servers. Additionally, designing for connection count limits (OS file descriptor limits) and heartbeat monitoring (Ping/Pong) is important.
 
-### Q3: Socket.IOと素のWebSocket API、どちらを使うべき?
-プロダクション環境ではSocket.IOが推奨されます。自動再接続（指数バックオフ）、ルーム機能、名前空間、バイナリ転送、フォールバック（WebSocket非対応環境でのHTTPロングポーリング）など、本番運用に必要な機能が内蔵されています。一方、シンプルなユースケースで最小限のオーバーヘッドを求める場合や、独自のプロトコル設計が必要な場合は素のWebSocket APIが適しています。Socket.IOは独自プロトコルのため、素のWebSocketクライアントとは通信できない点に注意してください。
+### Q3: Should I use Socket.IO or the raw WebSocket API?
+Socket.IO is recommended for production environments. It includes built-in functionality needed for production: automatic reconnection (with exponential backoff), room features, namespaces, binary transfer, and fallback (HTTP long polling for environments that don't support WebSocket). On the other hand, the raw WebSocket API is appropriate for simple use cases requiring minimal overhead, or when custom protocol design is needed. Note that Socket.IO uses its own protocol and cannot communicate with raw WebSocket clients.
 
 ---
 
-## まとめ
+## Summary
 
-| 概念 | ポイント |
+| Concept | Key points |
 |------|---------|
-| WebSocket | HTTP上の双方向リアルタイム通信プロトコル（RFC 6455） |
-| ハンドシェイク | HTTP 101 Switching Protocols によるプロトコル切替 |
-| フレーム | 2〜14バイトのヘッダー、テキスト/バイナリ対応 |
-| マスキング | クライアント→サーバーは必須、XORベースの難読化 |
-| 接続管理 | Ping/Pong（30秒間隔）、指数バックオフ再接続 |
-| スケーリング | Sticky Session + Redis Pub/Sub による水平展開 |
-| Socket.IO | 自動再接続、ルーム、名前空間等の高レベル抽象化 |
-| セキュリティ | WSS必須、Origin検証、トークン認証、入力検証 |
-| 代替手段 | SSE（一方向通知）、WebTransport（次世代） |
-| アンチパターン | 無制限ブロードキャスト、再接続戦略欠如、メモリリーク |
+| WebSocket | Bidirectional real-time communication protocol over HTTP (RFC 6455) |
+| Handshake | Protocol switch via HTTP 101 Switching Protocols |
+| Frame | 2–14 byte header, supports text/binary |
+| Masking | Required for client→server; XOR-based obfuscation |
+| Connection management | Ping/Pong (30-second interval), exponential backoff reconnect |
+| Scaling | Horizontal scaling via Sticky Session + Redis Pub/Sub |
+| Socket.IO | High-level abstraction: auto-reconnect, rooms, namespaces, etc. |
+| Security | WSS required, Origin validation, token auth, input validation |
+| Alternatives | SSE (one-directional notifications), WebTransport (next-gen) |
+| Anti-patterns | Unbounded broadcast, no reconnection strategy, memory leaks |
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
 ---
 
-## 参考文献
+## References
 
 1. Fette, I. and Melnikov, A. "The WebSocket Protocol." RFC 6455, IETF, December 2011. https://datatracker.ietf.org/doc/html/rfc6455
 2. Yoshino, T. "Compression Extensions for WebSocket." RFC 7692, IETF, December 2015. https://datatracker.ietf.org/doc/html/rfc7692
 3. McManus, P. "Bootstrapping WebSockets with HTTP/2." RFC 8441, IETF, September 2018. https://datatracker.ietf.org/doc/html/rfc8441
 4. Hamilton, R. "Bootstrapping WebSockets with HTTP/3." RFC 9220, IETF, June 2022. https://datatracker.ietf.org/doc/html/rfc9220
-5. Grigorik, I. "High Performance Browser Networking." O'Reilly Media, 2013. Chapter 17: WebSocket.
-6. Socket.IO Documentation. "Socket.IO Server API." https://socket.io/docs/v4/server-api/
-7. MDN Web Docs. "WebSocket API." Mozilla Developer Network. https://developer.mozilla.org/en-US/docs/Web/API/WebSocket

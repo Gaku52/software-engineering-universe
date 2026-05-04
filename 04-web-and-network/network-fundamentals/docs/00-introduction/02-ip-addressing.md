@@ -1,304 +1,304 @@
-# IPアドレッシング
+# IP Addressing
 
-> IPアドレスはインターネット上の「住所」。IPv4/IPv6、サブネット、CIDR、NAT、DHCPを理解して、ネットワーク設計の基盤を固める。
+> IP addresses are the "addresses" of the Internet. Understand IPv4/IPv6, subnets, CIDR, NAT, and DHCP to build a solid foundation for network design.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] IPv4とIPv6の仕組みと違いを理解する
-- [ ] サブネットとCIDR表記を把握する
-- [ ] NATとDHCPの役割を学ぶ
-- [ ] サブネット計算を実務レベルで行えるようにする
-- [ ] VPCネットワーク設計のベストプラクティスを学ぶ
-- [ ] IPv6移行戦略を理解する
-- [ ] IPアドレスに関連するトラブルシューティングを習得する
+- [ ] Understand how IPv4 and IPv6 work and their differences
+- [ ] Understand subnets and CIDR notation
+- [ ] Learn the roles of NAT and DHCP
+- [ ] Perform subnet calculations at a practical level
+- [ ] Learn best practices for VPC network design
+- [ ] Understand IPv6 migration strategies
+- [ ] Master troubleshooting related to IP addressing
 
-## 前提知識
+## Prerequisites
 
-- OSI参照モデルとTCP/IPモデル（./01-osi-and-tcpip-model.md）
-- 2進数と16進数の変換方法
-- ネットワーク層（L3）の基礎概念
+- OSI Reference Model and TCP/IP Model (./01-osi-and-tcpip-model.md)
+- How to convert between binary and hexadecimal
+- Basic concepts of the network layer (L3)
 
 ---
 
 ## 1. IPv4
 
-### 1.1 基本構造
+### 1.1 Basic Structure
 
 ```
-IPv4 アドレス:
-  → 32ビット（4バイト）
-  → ドット区切り10進表記: 192.168.1.100
-  → 約43億個（2^32 = 4,294,967,296）→ 枯渇問題
+IPv4 address:
+  → 32 bits (4 bytes)
+  → Dotted-decimal notation: 192.168.1.100
+  → Approximately 4.3 billion (2^32 = 4,294,967,296) → exhaustion problem
 
   192   . 168   . 1     . 100
   11000000.10101000.00000001.01100100
 
-  各オクテット: 0〜255 の範囲
-  → 0.0.0.0 〜 255.255.255.255
+  Each octet: range 0–255
+  → 0.0.0.0 to 255.255.255.255
 ```
 
-### 1.2 IPアドレスのクラス（歴史的分類）
+### 1.2 IP Address Classes (Historical Classification)
 
 ```
-クラスフルアドレッシング（現在は使われないが知識として重要）:
+Classful addressing (no longer used, but important as background knowledge):
 
   ┌────────┬──────────────────┬───────────────┬────────────────┐
-  │ クラス │ 先頭ビット       │ 範囲          │ ネットワーク数 │
+  │ Class  │ Leading bits     │ Range         │ # of networks  │
   ├────────┼──────────────────┼───────────────┼────────────────┤
-  │ A      │ 0xxxxxxx         │ 1.0.0.0 〜    │ 128 ネット     │
-  │        │ /8               │ 126.255.255.255│ 各16,777,214台│
+  │ A      │ 0xxxxxxx         │ 1.0.0.0 –     │ 128 networks   │
+  │        │ /8               │ 126.255.255.255│ 16,777,214 hosts each│
   ├────────┼──────────────────┼───────────────┼────────────────┤
-  │ B      │ 10xxxxxx         │ 128.0.0.0 〜  │ 16,384 ネット  │
-  │        │ /16              │ 191.255.255.255│ 各65,534台    │
+  │ B      │ 10xxxxxx         │ 128.0.0.0 –   │ 16,384 networks│
+  │        │ /16              │ 191.255.255.255│ 65,534 hosts each│
   ├────────┼──────────────────┼───────────────┼────────────────┤
-  │ C      │ 110xxxxx         │ 192.0.0.0 〜  │ 2,097,152 ネット│
-  │        │ /24              │ 223.255.255.255│ 各254台       │
+  │ C      │ 110xxxxx         │ 192.0.0.0 –   │ 2,097,152 networks│
+  │        │ /24              │ 223.255.255.255│ 254 hosts each │
   ├────────┼──────────────────┼───────────────┼────────────────┤
-  │ D      │ 1110xxxx         │ 224.0.0.0 〜  │ マルチキャスト │
+  │ D      │ 1110xxxx         │ 224.0.0.0 –   │ Multicast      │
   │        │                  │ 239.255.255.255│              │
   ├────────┼──────────────────┼───────────────┼────────────────┤
-  │ E      │ 1111xxxx         │ 240.0.0.0 〜  │ 実験用/予約    │
+  │ E      │ 1111xxxx         │ 240.0.0.0 –   │ Experimental/reserved│
   │        │                  │ 255.255.255.255│              │
   └────────┴──────────────────┴───────────────┴────────────────┘
 
-  クラスフルの問題点:
-    Class A: 16,777,214台分 → 大きすぎて無駄
-    Class C: 254台分 → 小さすぎて足りない
-    → IPアドレスの大幅な無駄遣い
-    → これを解決するのがCIDR（後述）
+  Problems with classful addressing:
+    Class A: 16,777,214 host slots → too large, very wasteful
+    Class C: 254 host slots → too small, often insufficient
+    → Massive waste of IP address space
+    → CIDR (described later) solves this problem
 ```
 
-### 1.3 特殊なIPアドレス
+### 1.3 Special IP Addresses
 
 ```
-特殊なアドレス:
+Special addresses:
   ┌──────────────────────┬────────────────────────────────────┐
-  │ アドレス              │ 用途                               │
+  │ Address              │ Purpose                            │
   ├──────────────────────┼────────────────────────────────────┤
-  │ 0.0.0.0              │ 「このネットワーク上のこのホスト」 │
-  │                      │ サーバーバインド時 = 全IF でLISTEN │
+  │ 0.0.0.0              │ "This host on this network"        │
+  │                      │ When binding a server = LISTEN on all IFs│
   ├──────────────────────┼────────────────────────────────────┤
-  │ 127.0.0.0/8          │ ループバック（localhost）           │
-  │ 127.0.0.1            │ 最も一般的なループバックアドレス   │
+  │ 127.0.0.0/8          │ Loopback (localhost)                │
+  │ 127.0.0.1            │ Most common loopback address       │
   ├──────────────────────┼────────────────────────────────────┤
-  │ 255.255.255.255      │ 限定ブロードキャスト               │
-  │                      │ 同一ネットワーク内の全ホストに送信 │
+  │ 255.255.255.255      │ Limited broadcast                  │
+  │                      │ Sent to all hosts on the same network│
   ├──────────────────────┼────────────────────────────────────┤
-  │ 169.254.0.0/16       │ リンクローカル（APIPA）            │
-  │                      │ DHCP取得失敗時に自動割り当て       │
+  │ 169.254.0.0/16       │ Link-local (APIPA)                 │
+  │                      │ Auto-assigned when DHCP fails      │
   ├──────────────────────┼────────────────────────────────────┤
-  │ 100.64.0.0/10        │ CGN（Carrier-Grade NAT）用         │
-  │                      │ ISPのNAT用プライベート空間         │
+  │ 100.64.0.0/10        │ For CGN (Carrier-Grade NAT)        │
+  │                      │ Private space for ISP NAT          │
   ├──────────────────────┼────────────────────────────────────┤
-  │ 198.51.100.0/24      │ ドキュメント用（TEST-NET-2）       │
-  │ 203.0.113.0/24       │ ドキュメント用（TEST-NET-3）       │
-  │ 192.0.2.0/24         │ ドキュメント用（TEST-NET-1）       │
+  │ 198.51.100.0/24      │ Documentation (TEST-NET-2)         │
+  │ 203.0.113.0/24       │ Documentation (TEST-NET-3)         │
+  │ 192.0.2.0/24         │ Documentation (TEST-NET-1)         │
   └──────────────────────┴────────────────────────────────────┘
 
-プライベートIPアドレス（RFC 1918）:
+Private IP addresses (RFC 1918):
   ┌──────────────────────┬───────────────────────┬──────────────┐
-  │ 範囲                 │ CIDR                  │ アドレス数   │
+  │ Range                │ CIDR                  │ # of addresses│
   ├──────────────────────┼───────────────────────┼──────────────┤
-  │ 10.0.0.0 〜          │ 10.0.0.0/8            │ 16,777,216   │
-  │ 10.255.255.255       │ (Class A相当)         │              │
+  │ 10.0.0.0 –           │ 10.0.0.0/8            │ 16,777,216   │
+  │ 10.255.255.255       │ (equivalent to Class A)│              │
   ├──────────────────────┼───────────────────────┼──────────────┤
-  │ 172.16.0.0 〜        │ 172.16.0.0/12         │ 1,048,576    │
-  │ 172.31.255.255       │ (Class B相当)         │              │
+  │ 172.16.0.0 –         │ 172.16.0.0/12         │ 1,048,576    │
+  │ 172.31.255.255       │ (equivalent to Class B)│              │
   ├──────────────────────┼───────────────────────┼──────────────┤
-  │ 192.168.0.0 〜       │ 192.168.0.0/16        │ 65,536       │
-  │ 192.168.255.255      │ (Class C相当)         │              │
+  │ 192.168.0.0 –        │ 192.168.0.0/16        │ 65,536       │
+  │ 192.168.255.255      │ (equivalent to Class C)│              │
   └──────────────────────┴───────────────────────┴──────────────┘
 
-  なぜプライベートIPが必要か:
-    → IPv4アドレスは約43億個（全人口に1つも配れない）
-    → 社内ネットワークでは同じプライベートIPを再利用可能
-    → NATを使ってグローバルIPに変換してインターネットに出る
-    → 外部から直接アクセスされないため、セキュリティ上も有利
+  Why private IPs are necessary:
+    → IPv4 has approximately 4.3 billion addresses (not enough for every person)
+    → Internal networks can reuse the same private IPs
+    → NAT is used to translate them to a global IP when going out to the Internet
+    → Cannot be directly accessed from outside, which is also beneficial for security
 
-  実務での使い分け:
+  Practical usage:
     10.0.0.0/8:
-      → 大規模企業ネットワーク
-      → AWS VPC のデフォルト推奨レンジ
-      → クラウドで最も一般的
+      → Large-scale enterprise networks
+      → Recommended default range for AWS VPCs
+      → Most common in cloud environments
 
     172.16.0.0/12:
-      → Docker のデフォルト（172.17.0.0/16）
-      → 中規模ネットワーク
+      → Docker default (172.17.0.0/16)
+      → Mid-scale networks
 
     192.168.0.0/16:
-      → 家庭用ルーター（192.168.0.0/24 や 192.168.1.0/24）
-      → 小規模オフィス
+      → Home routers (192.168.0.0/24 or 192.168.1.0/24)
+      → Small offices
 ```
 
-### 1.4 IPv4ヘッダーの詳細
+### 1.4 IPv4 Header Details
 
 ```
-IPv4 ヘッダー構造（20バイト〜60バイト）:
+IPv4 header structure (20–60 bytes):
 
   0                   1                   2                   3
   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
   ┌───┬───┬───────┬────────────────────────────────────────────┐
-  │Ver│IHL│DSCP/  │         全長（Total Length）(16)            │
+  │Ver│IHL│DSCP/  │         Total Length (16)                   │
   │(4)│(4)│ECN(8) │                                            │
   ├───┴───┴───────┼───┬────────────────────────────────────────┤
-  │ 識別子(16)     │Flg│  フラグメントオフセット(13)             │
+  │ Identification(16)│Flg│  Fragment Offset (13)               │
   ├───────┬───────┼───┴────────────────────────────────────────┤
-  │TTL(8) │Proto  │         ヘッダーチェックサム(16)            │
+  │TTL(8) │Proto  │         Header Checksum (16)                │
   │       │(8)    │                                            │
   ├───────┴───────┴────────────────────────────────────────────┤
-  │                 送信元IPアドレス(32)                         │
+  │                 Source IP Address (32)                       │
   ├────────────────────────────────────────────────────────────┤
-  │                 宛先IPアドレス(32)                           │
+  │                 Destination IP Address (32)                  │
   ├────────────────────────────────────────────────────────────┤
-  │                 オプション（0〜40バイト）                    │
+  │                 Options (0–40 bytes)                         │
   └────────────────────────────────────────────────────────────┘
 
-  各フィールドの詳細:
-    Version（4ビット）: 4（IPv4を示す）
-    IHL（4ビット）: ヘッダー長（32ビットワード単位）
-      最小: 5（= 20バイト、オプションなし）
-      最大: 15（= 60バイト、オプション40バイト）
+  Field details:
+    Version (4 bits): 4 (indicates IPv4)
+    IHL (4 bits): header length (in 32-bit word units)
+      Minimum: 5 (= 20 bytes, no options)
+      Maximum: 15 (= 60 bytes, 40 bytes of options)
 
-    DSCP（6ビット）: Differentiated Services Code Point
-      → QoS（サービス品質）の制御に使用
-      → EF（Expedited Forwarding）= 音声トラフィック優先
-      → AF（Assured Forwarding）= 確実な転送
-      → BE（Best Effort）= 通常のトラフィック
+    DSCP (6 bits): Differentiated Services Code Point
+      → Used to control QoS (Quality of Service)
+      → EF (Expedited Forwarding) = prioritize voice traffic
+      → AF (Assured Forwarding) = assured delivery
+      → BE (Best Effort) = normal traffic
 
-    ECN（2ビット）: Explicit Congestion Notification
-      → ルーターがパケットを落とさずに輻輳を通知
+    ECN (2 bits): Explicit Congestion Notification
+      → Router notifies of congestion without dropping packets
 
-    TTL（8ビット）: Time To Live
-      → ルーターを通過するたびに1減算
-      → 0になったらパケットを破棄 + ICMP Time Exceeded を返す
-      → ループ防止の仕組み
-      → 初期値: Linux=64, Windows=128, Cisco=255
+    TTL (8 bits): Time To Live
+      → Decremented by 1 each time a router is traversed
+      → Packet is discarded when it reaches 0 + ICMP Time Exceeded is returned
+      → Loop prevention mechanism
+      → Initial values: Linux=64, Windows=128, Cisco=255
 
-    プロトコル（8ビット）:
+    Protocol (8 bits):
       1  = ICMP
       6  = TCP
       17 = UDP
       47 = GRE
-      50 = ESP（IPsec暗号化ペイロード）
-      51 = AH（IPsec認証ヘッダー）
+      50 = ESP (IPsec Encapsulating Security Payload)
+      51 = AH (IPsec Authentication Header)
       89 = OSPF
 ```
 
 ---
 
-## 2. サブネットとCIDR
+## 2. Subnets and CIDR
 
-### 2.1 CIDR（Classless Inter-Domain Routing）の基本
-
-```
-CIDR（Classless Inter-Domain Routing）:
-  1993年にRFC 1519で導入
-  → クラスフルアドレッシングの無駄を排除
-  → 任意の位置でネットワーク部とホスト部を分割
-
-  表記: IPアドレス/プレフィックス長
-  例: 192.168.1.0/24
-    → /24 = 最初の24ビットがネットワーク部
-    → 残り8ビットがホスト部
-    → 使用可能ホスト数: 2^8 - 2 = 254
-    → -2 の理由: ネットワークアドレスとブロードキャストアドレスを除く
-```
-
-### 2.2 サブネットマスクの計算
+### 2.1 CIDR (Classless Inter-Domain Routing) Basics
 
 ```
-サブネットマスクの一覧:
+CIDR (Classless Inter-Domain Routing):
+  Introduced in 1993 with RFC 1519
+  → Eliminates the waste of classful addressing
+  → Splits the network and host portions at any bit boundary
+
+  Notation: IP address/prefix length
+  Example: 192.168.1.0/24
+    → /24 = the first 24 bits are the network portion
+    → The remaining 8 bits are the host portion
+    → Usable host count: 2^8 - 2 = 254
+    → The -2 is because the network address and broadcast address are excluded
+```
+
+### 2.2 Subnet Mask Calculation
+
+```
+Subnet mask reference table:
 
   ┌────────┬─────────────────────┬──────────────┬─────────────┐
-  │ CIDR   │ サブネットマスク    │ ホスト数     │ 用途例      │
+  │ CIDR   │ Subnet mask         │ # of hosts   │ Use case    │
   ├────────┼─────────────────────┼──────────────┼─────────────┤
-  │ /32    │ 255.255.255.255     │ 1            │ ホストルート│
-  │ /31    │ 255.255.255.254     │ 2 (P2P)     │ P2Pリンク   │
-  │ /30    │ 255.255.255.252     │ 2            │ P2Pリンク   │
-  │ /29    │ 255.255.255.248     │ 6            │ 小規模      │
-  │ /28    │ 255.255.255.240     │ 14           │ 小規模      │
-  │ /27    │ 255.255.255.224     │ 30           │ 小〜中規模  │
-  │ /26    │ 255.255.255.192     │ 62           │ 中規模      │
-  │ /25    │ 255.255.255.128     │ 126          │ 中規模      │
-  │ /24    │ 255.255.255.0       │ 254          │ 標準的LAN   │
-  │ /23    │ 255.255.254.0       │ 510          │ 大きめLAN   │
-  │ /22    │ 255.255.252.0       │ 1,022        │ 大規模      │
-  │ /21    │ 255.255.248.0       │ 2,046        │ 大規模      │
-  │ /20    │ 255.255.240.0       │ 4,094        │ 大規模      │
-  │ /16    │ 255.255.0.0         │ 65,534       │ VPC全体     │
-  │ /8     │ 255.0.0.0           │ 16,777,214   │ クラスA     │
+  │ /32    │ 255.255.255.255     │ 1            │ Host route  │
+  │ /31    │ 255.255.255.254     │ 2 (P2P)     │ P2P link    │
+  │ /30    │ 255.255.255.252     │ 2            │ P2P link    │
+  │ /29    │ 255.255.255.248     │ 6            │ Small scale │
+  │ /28    │ 255.255.255.240     │ 14           │ Small scale │
+  │ /27    │ 255.255.255.224     │ 30           │ Small–medium│
+  │ /26    │ 255.255.255.192     │ 62           │ Medium scale│
+  │ /25    │ 255.255.255.128     │ 126          │ Medium scale│
+  │ /24    │ 255.255.255.0       │ 254          │ Standard LAN│
+  │ /23    │ 255.255.254.0       │ 510          │ Larger LAN  │
+  │ /22    │ 255.255.252.0       │ 1,022        │ Large scale │
+  │ /21    │ 255.255.248.0       │ 2,046        │ Large scale │
+  │ /20    │ 255.255.240.0       │ 4,094        │ Large scale │
+  │ /16    │ 255.255.0.0         │ 65,534       │ Entire VPC  │
+  │ /8     │ 255.0.0.0           │ 16,777,214   │ Class A     │
   └────────┴─────────────────────┴──────────────┴─────────────┘
 
-  計算方法:
-  使用可能ホスト数 = 2^(32 - プレフィックス長) - 2
+  Calculation method:
+  Usable host count = 2^(32 - prefix length) - 2
 
-  例: /24 の場合
-    ホスト部: 32 - 24 = 8ビット
-    ホスト数: 2^8 - 2 = 254
+  Example: for /24
+    Host bits: 32 - 24 = 8 bits
+    Host count: 2^8 - 2 = 254
 
-  例: /27 の場合
-    ホスト部: 32 - 27 = 5ビット
-    ホスト数: 2^5 - 2 = 30
+  Example: for /27
+    Host bits: 32 - 27 = 5 bits
+    Host count: 2^5 - 2 = 30
 ```
 
-### 2.3 サブネット分割の実践
+### 2.3 Practical Subnet Division
 
 ```
-問題: 192.168.10.0/24 を4つのサブネットに分割せよ
+Problem: divide 192.168.10.0/24 into 4 subnets
 
-  ステップ1: 必要なビット数を計算
-    4サブネット → 2^n >= 4 → n=2（2ビット借りる）
-    新しいプレフィックス: /24 + 2 = /26
+  Step 1: Calculate the number of bits needed
+    4 subnets → 2^n >= 4 → n=2 (borrow 2 bits)
+    New prefix: /24 + 2 = /26
 
-  ステップ2: 各サブネットの計算
-    /26 → ホスト部 = 6ビット → ホスト数 = 62
+  Step 2: Calculate each subnet
+    /26 → host bits = 6 → host count = 62
 
-    サブネット1: 192.168.10.0/26
-      ネットワーク: 192.168.10.0
-      最初のホスト: 192.168.10.1
-      最後のホスト: 192.168.10.62
-      ブロードキャスト: 192.168.10.63
+    Subnet 1: 192.168.10.0/26
+      Network:      192.168.10.0
+      First host:   192.168.10.1
+      Last host:    192.168.10.62
+      Broadcast:    192.168.10.63
 
-    サブネット2: 192.168.10.64/26
-      ネットワーク: 192.168.10.64
-      最初のホスト: 192.168.10.65
-      最後のホスト: 192.168.10.126
-      ブロードキャスト: 192.168.10.127
+    Subnet 2: 192.168.10.64/26
+      Network:      192.168.10.64
+      First host:   192.168.10.65
+      Last host:    192.168.10.126
+      Broadcast:    192.168.10.127
 
-    サブネット3: 192.168.10.128/26
-      ネットワーク: 192.168.10.128
-      最初のホスト: 192.168.10.129
-      最後のホスト: 192.168.10.190
-      ブロードキャスト: 192.168.10.191
+    Subnet 3: 192.168.10.128/26
+      Network:      192.168.10.128
+      First host:   192.168.10.129
+      Last host:    192.168.10.190
+      Broadcast:    192.168.10.191
 
-    サブネット4: 192.168.10.192/26
-      ネットワーク: 192.168.10.192
-      最初のホスト: 192.168.10.193
-      最後のホスト: 192.168.10.254
-      ブロードキャスト: 192.168.10.255
+    Subnet 4: 192.168.10.192/26
+      Network:      192.168.10.192
+      First host:   192.168.10.193
+      Last host:    192.168.10.254
+      Broadcast:    192.168.10.255
 
-VLSM（Variable Length Subnet Mask）:
-  サブネットごとに異なるマスク長を使う技法
+VLSM (Variable Length Subnet Mask):
+  A technique that uses different mask lengths for each subnet
 
-  例: 以下のネットワーク要件を 10.1.0.0/16 で実現
-    部署A: 500台 → /23（510ホスト）
-    部署B: 200台 → /24（254ホスト）
-    部署C: 50台  → /26（62ホスト）
-    部署D: 10台  → /28（14ホスト）
-    P2Pリンク: 2台 → /30（2ホスト）
+  Example: satisfy the following network requirements with 10.1.0.0/16
+    Department A: 500 hosts → /23 (510 hosts)
+    Department B: 200 hosts → /24 (254 hosts)
+    Department C: 50 hosts  → /26 (62 hosts)
+    Department D: 10 hosts  → /28 (14 hosts)
+    P2P link: 2 hosts       → /30 (2 hosts)
 
-  大きなサブネットから順に割り当てるのがベストプラクティス:
-    部署A: 10.1.0.0/23   (10.1.0.1 〜 10.1.1.254)
-    部署B: 10.1.2.0/24   (10.1.2.1 〜 10.1.2.254)
-    部署C: 10.1.3.0/26   (10.1.3.1 〜 10.1.3.62)
-    部署D: 10.1.3.64/28  (10.1.3.65 〜 10.1.3.78)
-    P2P:   10.1.3.80/30  (10.1.3.81 〜 10.1.3.82)
+  Best practice: assign larger subnets first
+    Department A: 10.1.0.0/23   (10.1.0.1 – 10.1.1.254)
+    Department B: 10.1.2.0/24   (10.1.2.1 – 10.1.2.254)
+    Department C: 10.1.3.0/26   (10.1.3.1 – 10.1.3.62)
+    Department D: 10.1.3.64/28  (10.1.3.65 – 10.1.3.78)
+    P2P:          10.1.3.80/30  (10.1.3.81 – 10.1.3.82)
 ```
 
-### 2.4 サブネット計算の実務ツール
+### 2.4 Practical Subnet Calculation Tools
 
 ```bash
-# ipcalc コマンド（Linux）
+# ipcalc command (Linux)
 $ ipcalc 192.168.1.0/24
 Address:   192.168.1.0          11000000.10101000.00000001. 00000000
 Netmask:   255.255.255.0 = 24   11111111.11111111.11111111. 00000000
@@ -310,7 +310,7 @@ HostMax:   192.168.1.254        11000000.10101000.00000001. 11111110
 Broadcast: 192.168.1.255        11000000.10101000.00000001. 11111111
 Hosts/Net: 254                   Class C, Private Internet
 
-# sipcalc コマンド（より詳細な情報）
+# sipcalc command (more detailed information)
 $ sipcalc 10.0.0.0/16
 -[ipv4 : 10.0.0.0/16] - 0
 
@@ -325,28 +325,28 @@ Usable range            - 10.0.0.1 - 10.0.255.254
 ```
 
 ```python
-# Pythonでのサブネット計算
+# Subnet calculation in Python
 import ipaddress
 
-# ネットワーク情報
+# Network information
 network = ipaddress.IPv4Network('192.168.1.0/24')
-print(f"ネットワーク: {network}")
-print(f"ネットマスク: {network.netmask}")
-print(f"ホスト数: {network.num_addresses - 2}")
-print(f"ブロードキャスト: {network.broadcast_address}")
-print(f"最初のホスト: {list(network.hosts())[0]}")
-print(f"最後のホスト: {list(network.hosts())[-1]}")
+print(f"Network: {network}")
+print(f"Netmask: {network.netmask}")
+print(f"Host count: {network.num_addresses - 2}")
+print(f"Broadcast: {network.broadcast_address}")
+print(f"First host: {list(network.hosts())[0]}")
+print(f"Last host: {list(network.hosts())[-1]}")
 
-# サブネット分割
-print("\n/24 を /26 に分割:")
+# Subnet division
+print("\nSplitting /24 into /26:")
 for subnet in network.subnets(prefixlen_diff=2):
-    print(f"  {subnet} (ホスト数: {subnet.num_addresses - 2})")
+    print(f"  {subnet} (hosts: {subnet.num_addresses - 2})")
 
-# IPアドレスがサブネットに含まれるか確認
+# Check if an IP address is in a subnet
 ip = ipaddress.IPv4Address('192.168.1.100')
-print(f"\n{ip} は {network} に含まれる: {ip in network}")
+print(f"\n{ip} is in {network}: {ip in network}")
 
-# CIDRの集約（スーパーネッティング）
+# CIDR aggregation (supernetting)
 networks = [
     ipaddress.IPv4Network('192.168.0.0/24'),
     ipaddress.IPv4Network('192.168.1.0/24'),
@@ -354,7 +354,7 @@ networks = [
     ipaddress.IPv4Network('192.168.3.0/24'),
 ]
 collapsed = list(ipaddress.collapse_addresses(networks))
-print(f"\n集約結果: {collapsed}")
+print(f"\nAggregated result: {collapsed}")
 # → [IPv4Network('192.168.0.0/22')]
 ```
 
@@ -362,238 +362,240 @@ print(f"\n集約結果: {collapsed}")
 
 ## 3. IPv6
 
-### 3.1 基本構造
+### 3.1 Basic Structure
 
 ```
-IPv6 アドレス:
-  → 128ビット（16バイト）
-  → コロン区切り16進表記: 2001:0db8:85a3:0000:0000:8a2e:0370:7334
-  → 8グループ × 16ビット = 128ビット
-  → 約3.4×10^38個 → 地球上の砂粒1つ1つにIPアドレスを割り当てても余る
+IPv6 address:
+  → 128 bits (16 bytes)
+  → Colon-separated hexadecimal notation: 2001:0db8:85a3:0000:0000:8a2e:0370:7334
+  → 8 groups × 16 bits = 128 bits
+  → Approximately 3.4×10^38 → More than enough to assign an IP address to every grain of sand on Earth
 
-省略ルール:
-  ルール1: 各グループの先頭の0を省略
+Abbreviation rules:
+  Rule 1: Omit leading zeros in each group
     2001:0db8:0000:0000:0000:0000:0000:0001
     → 2001:db8:0:0:0:0:0:1
 
-  ルール2: 連続する0のグループを :: で省略（1回のみ使用可）
+  Rule 2: Replace consecutive groups of zeros with :: (can only be used once)
     2001:db8:0:0:0:0:0:1
     → 2001:db8::1
 
-  省略の例:
+  Examples of abbreviation:
     2001:0db8:0000:0000:0000:0000:0000:0001 → 2001:db8::1
     fe80:0000:0000:0000:0000:0000:0000:0001 → fe80::1
-    0000:0000:0000:0000:0000:0000:0000:0001 → ::1（ループバック）
-    0000:0000:0000:0000:0000:0000:0000:0000 → ::（未指定アドレス）
+    0000:0000:0000:0000:0000:0000:0000:0001 → ::1 (loopback)
+    0000:0000:0000:0000:0000:0000:0000:0000 → :: (unspecified address)
 ```
 
-### 3.2 IPv6アドレスの種類
+### 3.2 Types of IPv6 Addresses
 
 ```
 ┌────────────────────┬────────────────┬──────────────────────────┐
-│ 種類               │ プレフィックス │ 説明                     │
+│ Type               │ Prefix         │ Description              │
 ├────────────────────┼────────────────┼──────────────────────────┤
-│ グローバルユニ     │ 2000::/3       │ インターネット上の一意   │
-│ キャスト           │                │ アドレス（パブリックIP相当│
+│ Global unicast     │ 2000::/3       │ Unique address on the    │
+│                    │                │ Internet (equivalent to  │
+│                    │                │ a public IP)             │
 ├────────────────────┼────────────────┼──────────────────────────┤
-│ リンクローカル     │ fe80::/10      │ 同一リンク内のみ有効     │
-│                    │                │ 全インターフェースに自動付与│
+│ Link-local         │ fe80::/10      │ Valid only within the    │
+│                    │                │ same link; auto-assigned │
+│                    │                │ to all interfaces        │
 ├────────────────────┼────────────────┼──────────────────────────┤
-│ ユニークローカル   │ fc00::/7       │ プライベートIP相当       │
-│ (ULA)              │ (実質fd00::/8) │ インターネットでルーティング│
-│                    │                │ されない                 │
+│ Unique local (ULA) │ fc00::/7       │ Equivalent to private IP │
+│                    │ (effectively   │ Not routed on the        │
+│                    │ fd00::/8)      │ Internet                 │
 ├────────────────────┼────────────────┼──────────────────────────┤
-│ マルチキャスト     │ ff00::/8       │ 1対多通信                │
-│                    │                │ IPv6にブロードキャストはない│
+│ Multicast          │ ff00::/8       │ One-to-many communication│
+│                    │                │ IPv6 has no broadcast    │
 ├────────────────────┼────────────────┼──────────────────────────┤
-│ ループバック       │ ::1/128        │ 自分自身（localhost）    │
+│ Loopback           │ ::1/128        │ Self (localhost)         │
 ├────────────────────┼────────────────┼──────────────────────────┤
-│ 未指定             │ ::/128         │ アドレス未設定時         │
+│ Unspecified        │ ::/128         │ When no address is set   │
 ├────────────────────┼────────────────┼──────────────────────────┤
-│ IPv4マッピング     │ ::ffff:0:0/96  │ IPv4アドレスの埋め込み   │
+│ IPv4-mapped        │ ::ffff:0:0/96  │ Embeds an IPv4 address   │
 │                    │                │ ::ffff:192.168.1.1       │
 └────────────────────┴────────────────┴──────────────────────────┘
 
-マルチキャストの重要なアドレス:
-  ff02::1   → 全ノード（リンクローカル）
-  ff02::2   → 全ルーター（リンクローカル）
+Important multicast addresses:
+  ff02::1   → All nodes (link-local)
+  ff02::2   → All routers (link-local)
   ff02::fb  → mDNS
-  ff02::1:ff00:0/104 → Solicited-Node（近隣探索用）
+  ff02::1:ff00:0/104 → Solicited-Node (for neighbor discovery)
 ```
 
-### 3.3 IPv6ヘッダー
+### 3.3 IPv6 Header
 
 ```
-IPv6 ヘッダー（固定40バイト）:
+IPv6 header (fixed 40 bytes):
 
   0                   1                   2                   3
   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
   ┌───┬──────┬────────────────────────────────────────────────┐
-  │Ver│Traffic│         フローラベル(20)                       │
+  │Ver│Traffic│         Flow Label (20)                        │
   │(4)│Class  │                                                │
   │   │(8)   │                                                │
   ├───┴──────┼───────────────┬──────────────────────────────────┤
-  │ペイロード長(16)          │ 次ヘッダー(8) │ ホップリミット(8)│
+  │ Payload Length (16)      │ Next Header (8)│ Hop Limit (8)   │
   ├──────────────────────────┴───────────────┴──────────────────┤
   │                                                             │
-  │                 送信元アドレス（128ビット）                   │
+  │                 Source Address (128 bits)                    │
   │                                                             │
   │                                                             │
   ├─────────────────────────────────────────────────────────────┤
   │                                                             │
-  │                 宛先アドレス（128ビット）                     │
+  │                 Destination Address (128 bits)               │
   │                                                             │
   │                                                             │
   └─────────────────────────────────────────────────────────────┘
 
-IPv4 vs IPv6 ヘッダーの比較:
+IPv4 vs IPv6 header comparison:
   ┌──────────────────┬──────────┬──────────┐
-  │ 項目             │ IPv4     │ IPv6     │
+  │ Item             │ IPv4     │ IPv6     │
   ├──────────────────┼──────────┼──────────┤
-  │ ヘッダー長       │ 20-60B   │ 固定40B  │
-  │ フィールド数     │ 12       │ 8        │
-  │ チェックサム     │ あり     │ なし     │
-  │ フラグメンテーション│ ルーターが行う│ 送信元のみ│
-  │ オプション       │ ヘッダー内│ 拡張ヘッダー│
-  │ ブロードキャスト │ あり     │ なし     │
+  │ Header length    │ 20-60B   │ Fixed 40B│
+  │ Number of fields │ 12       │ 8        │
+  │ Checksum         │ Present  │ Absent   │
+  │ Fragmentation    │ Done by routers│ Source only│
+  │ Options          │ Within header│ Extension headers│
+  │ Broadcast        │ Present  │ Absent   │
   └──────────────────┴──────────┴──────────┘
 
-  IPv6の改善点:
-    ① ヘッダーが固定長 → ルーターの処理が高速
-    ② チェックサム廃止 → L2/L4でチェックするので不要
-    ③ フラグメンテーション → 送信元でのみ行う（ルーターの負荷軽減）
-    ④ 拡張ヘッダー → 必要な機能だけチェーン接続
+  IPv6 improvements:
+    ① Fixed-length header → faster router processing
+    ② Checksum removed → not needed since L2/L4 handle it
+    ③ Fragmentation → done only at the source (reduces router load)
+    ④ Extension headers → chain only the features needed
 ```
 
-### 3.4 IPv6の自動設定（SLAAC）
+### 3.4 IPv6 Auto-Configuration (SLAAC)
 
 ```
-SLAAC（Stateless Address Autoconfiguration）:
-  → DHCPサーバーなしでIPv6アドレスを自動設定
-  → RFC 4862で定義
+SLAAC (Stateless Address Autoconfiguration):
+  → Automatically configures an IPv6 address without a DHCP server
+  → Defined in RFC 4862
 
-  手順:
-  1. インターフェース起動時:
-     → リンクローカルアドレスを生成
-     → fe80:: + インターフェースID（EUI-64 or ランダム）
+  Procedure:
+  1. When an interface starts up:
+     → Generate a link-local address
+     → fe80:: + interface ID (EUI-64 or random)
 
-  2. DAD（Duplicate Address Detection）:
-     → 生成したアドレスが重複していないか確認
-     → Neighbor Solicitation を送信
+  2. DAD (Duplicate Address Detection):
+     → Check if the generated address is already in use
+     → Send a Neighbor Solicitation
 
-  3. Router Solicitation（RS）を送信:
-     → 「ルーターさん、プレフィックスを教えて」
+  3. Send Router Solicitation (RS):
+     → "Router, please tell me the prefix"
 
-  4. ルーターからRouter Advertisement（RA）を受信:
-     → プレフィックス: 2001:db8:1::/64
-     → デフォルトゲートウェイ
-     → DNS情報（RDNSS）
+  4. Receive Router Advertisement (RA) from the router:
+     → Prefix: 2001:db8:1::/64
+     → Default gateway
+     → DNS information (RDNSS)
 
-  5. グローバルアドレスを生成:
-     → プレフィックス + インターフェースID
+  5. Generate a global address:
+     → Prefix + interface ID
      → 2001:db8:1::a1b2:c3d4:e5f6:7890
 
-  EUI-64 vs プライバシー拡張:
-    EUI-64: MACアドレスからインターフェースIDを生成
+  EUI-64 vs Privacy Extension:
+    EUI-64: Generates the interface ID from the MAC address
       → 00:1A:2B:3C:4D:5E → 021A:2BFF:FE3C:4D5E
-      → プライバシーの問題（MACアドレスが推測可能）
+      → Privacy concern (MAC address can be inferred)
 
-    プライバシー拡張（RFC 8981）:
-      → ランダムなインターフェースIDを使用
-      → 定期的にアドレスを変更
-      → 追跡が困難
-      → 現在のOS標準（Windows, macOS, Linux）
+    Privacy Extension (RFC 8981):
+      → Uses a random interface ID
+      → Periodically changes the address
+      → Harder to track
+      → Now the standard in OSes (Windows, macOS, Linux)
 ```
 
-### 3.5 IPv4 → IPv6 移行技術
+### 3.5 IPv4 → IPv6 Migration Technologies
 
 ```
-移行技術の全体像:
+Overview of migration technologies:
 
-  ① デュアルスタック:
-     → IPv4とIPv6を同時に運用
-     → 最もシンプルで推奨される方法
-     → 全ての機器がIPv4/IPv6両方に対応する必要あり
+  ① Dual stack:
+     → Run IPv4 and IPv6 simultaneously
+     → The simplest and most recommended approach
+     → All devices must support both IPv4 and IPv6
 
-     アプリケーションの接続順序（Happy Eyeballs / RFC 8305）:
-       1. DNS でAレコード（IPv4）とAAAAレコード（IPv6）を同時に問い合わせ
-       2. IPv6接続を先に試行（250ms先行開始）
-       3. IPv6が遅ければIPv4にフォールバック
-       → ユーザーに遅延を感じさせない
+     Application connection order (Happy Eyeballs / RFC 8305):
+       1. Query DNS for A record (IPv4) and AAAA record (IPv6) simultaneously
+       2. Try IPv6 connection first (start 250 ms ahead)
+       3. Fall back to IPv4 if IPv6 is slow
+       → No noticeable delay for the user
 
-  ② トンネリング:
-     → IPv6パケットをIPv4パケットに包んで転送
-     → IPv4しかないネットワークを通過
+  ② Tunneling:
+     → Wrap IPv6 packets inside IPv4 packets for forwarding
+     → Used to pass through IPv4-only networks
 
-     6in4: 手動トンネル（固定エンドポイント）
-     6to4: 自動トンネル（2002::/16 使用、非推奨）
-     6rd:  ISP向け自動トンネル
-     Teredo: NAT越えトンネル（UDP使用）
-     DS-Lite: IPv4 over IPv6（ISP向け）
+     6in4: manual tunnel (fixed endpoints)
+     6to4: automatic tunnel (uses 2002::/16, deprecated)
+     6rd:  automatic tunnel for ISPs
+     Teredo: NAT-traversal tunnel (uses UDP)
+     DS-Lite: IPv4 over IPv6 (for ISPs)
 
   ③ NAT64/DNS64:
-     → IPv6オンリー環境からIPv4サイトにアクセス
-     → DNS64: AAAAレコードがないドメインに合成AAAAを返す
-     → NAT64: IPv6 → IPv4 のアドレス変換
+     → Access IPv4 sites from an IPv6-only environment
+     → DNS64: returns a synthesized AAAA for domains without an AAAA record
+     → NAT64: address translation from IPv6 → IPv4
 
-     例:
-       IPv6クライアント → DNS64 → 64:ff9b::93.184.216.34
-       → NAT64ゲートウェイ → 93.184.216.34（IPv4サーバー）
+     Example:
+       IPv6 client → DNS64 → 64:ff9b::93.184.216.34
+       → NAT64 gateway → 93.184.216.34 (IPv4 server)
 
   ④ 464XLAT:
-     → スマートフォンで広く使用
-     → CLAT（クライアント側NAT46）+ PLAT（プロバイダ側NAT64）
-     → IPv4アプリがIPv6ネットワーク上で動作可能
+     → Widely used on smartphones
+     → CLAT (client-side NAT46) + PLAT (provider-side NAT64)
+     → Allows IPv4 apps to operate on an IPv6 network
 
-移行の現状（2025年時点）:
-  Google IPv6統計: 全世界で約45%のユーザーがIPv6
-  日本: 約50%以上がIPv6対応
-  米国: 約50%以上がIPv6対応
-  → モバイルネットワークではIPv6が主流になりつつある
-  → T-Mobile, Reliance Jio はIPv6オンリー
+Migration status (as of 2025):
+  Google IPv6 statistics: approximately 45% of users worldwide are on IPv6
+  Japan: over approximately 50% are IPv6-capable
+  United States: over approximately 50% are IPv6-capable
+  → IPv6 is becoming mainstream on mobile networks
+  → T-Mobile and Reliance Jio are IPv6-only
 ```
 
 ---
 
-## 4. NAT（Network Address Translation）
+## 4. NAT (Network Address Translation)
 
-### 4.1 NATの基本
+### 4.1 NAT Basics
 
 ```
-NAT = プライベートIPとグローバルIPの変換
+NAT = translation between private IP and global IP
 
-  プライベートネットワーク              インターネット
+  Private network                     Internet
   ┌──────────────┐                    ┌──────────────┐
   │ PC1: 192.168.1.10 │               │              │
   │ PC2: 192.168.1.11 │──→ [NAT] ──→ │ 203.0.113.1  │
-  │ PC3: 192.168.1.12 │    ルーター   │ (グローバルIP)│
+  │ PC3: 192.168.1.12 │    Router     │ (global IP)  │
   └──────────────┘                    └──────────────┘
 ```
 
-### 4.2 NATの種類
+### 4.2 Types of NAT
 
 ```
-① 静的NAT（Static NAT / 1対1 NAT）:
-  → 1つのプライベートIP ↔ 1つのグローバルIP
-  → 固定的な対応付け
-  → サーバー公開時に使用
+① Static NAT (1-to-1 NAT):
+  → One private IP ↔ one global IP
+  → Fixed mapping
+  → Used when publishing servers
 
-  例:
+  Example:
   192.168.1.10 ←→ 203.0.113.10
   192.168.1.11 ←→ 203.0.113.11
 
-② 動的NAT（Dynamic NAT）:
-  → プライベートIP → グローバルIPプールから動的に割り当て
-  → グローバルIPが足りないと接続不可
+② Dynamic NAT:
+  → Private IP → dynamically assigned from a global IP pool
+  → Connection is not possible if global IPs are exhausted
 
-③ NAPT / PAT（Network Address Port Translation / Port Address Translation）:
-  → 最も一般的なNAT
-  → 複数のプライベートIP → 1つのグローバルIP
-  → ポート番号で識別
+③ NAPT / PAT (Network Address Port Translation / Port Address Translation):
+  → The most common NAT
+  → Multiple private IPs → one global IP
+  → Identified by port number
 
-  NAT変換テーブル:
+  NAT translation table:
   ┌────────────────────────┬──────────────────────────┐
-  │ 内部（プライベート）   │ 外部（グローバル）       │
+  │ Internal (private)     │ External (global)        │
   ├────────────────────────┼──────────────────────────┤
   │ 192.168.1.10:54321     │ 203.0.113.1:10001        │
   │ 192.168.1.10:54322     │ 203.0.113.1:10002        │
@@ -601,91 +603,91 @@ NAT = プライベートIPとグローバルIPの変換
   │ 192.168.1.12:80        │ 203.0.113.1:10004        │
   └────────────────────────┴──────────────────────────┘
 
-  → 同じ内部IPでもポートが異なれば別の変換エントリ
-  → 理論上65535個の同時接続が可能（実際はもっと少ない）
+  → Even the same internal IP creates different entries if ports differ
+  → Theoretically up to 65,535 simultaneous connections (in practice, fewer)
 
-④ CGN / CGNAT（Carrier-Grade NAT）:
-  → ISPレベルでの大規模NAT
-  → 100.64.0.0/10 を使用
-  → IPv4アドレスの枯渇対策として導入
-  → 問題点:
-    - ログの保存が困難（誰がどのアドレスを使ったか）
-    - P2P通信がさらに困難に
-    - ゲームやVoIPの品質低下
+④ CGN / CGNAT (Carrier-Grade NAT):
+  → Large-scale NAT at the ISP level
+  → Uses 100.64.0.0/10
+  → Introduced as a countermeasure for IPv4 address exhaustion
+  → Problems:
+    - Difficult to retain logs (who used which address)
+    - P2P communication becomes even harder
+    - Degraded quality for gaming and VoIP
 ```
 
-### 4.3 NATのメリット・デメリット
+### 4.3 NAT Advantages and Disadvantages
 
 ```
-メリット:
-  ✓ IPv4アドレスの節約（1つのグローバルIPで多数のデバイスがインターネット接続）
-  ✓ 内部ネットワークの隠蔽（外部から内部構造が見えない）
-  ✓ セキュリティの向上（外部からの直接アクセスをブロック）
-  ✓ 内部ネットワーク変更の自由度（ISP変更時にグローバルIPだけ変更）
+Advantages:
+  ✓ Conserves IPv4 addresses (many devices share one global IP for Internet access)
+  ✓ Hides the internal network (internal structure is not visible from outside)
+  ✓ Improved security (blocks direct access from outside)
+  ✓ Flexibility for internal network changes (only the global IP needs to change when switching ISPs)
 
-デメリット:
-  ✗ P2P通信が困難（NATトラバーサルが必要）
-  ✗ 外部からの接続開始が不可（ポートフォワーディング/UPnP必要）
-  ✗ アプリケーション層プロトコルとの相性問題
-    → FTPアクティブモード（データ接続が外部→内部）
-    → SIP/RTP（VoIP）
-  ✗ エンドツーエンドの原則を破壊
-  ✗ IPsec との相性問題（ESP暗号化でポート番号が見えない）
-  ✗ ログの追跡が困難（同じグローバルIPを共有）
+Disadvantages:
+  ✗ P2P communication is difficult (NAT traversal is required)
+  ✗ Cannot initiate connections from outside (port forwarding / UPnP required)
+  ✗ Compatibility issues with application-layer protocols
+    → FTP active mode (data connection goes from external to internal)
+    → SIP/RTP (VoIP)
+  ✗ Breaks the end-to-end principle
+  ✗ Compatibility issues with IPsec (port numbers are hidden by ESP encryption)
+  ✗ Difficult to trace logs (shared global IP)
 ```
 
-### 4.4 NATトラバーサル
+### 4.4 NAT Traversal
 
 ```
-NAT越えの技術:
+NAT traversal technologies:
 
-  ① STUN（Session Traversal Utilities for NAT）:
-     → 自分のパブリックIPとポートを知る
-     → STUNサーバーに問い合わせ
-     → WebRTCで使用
+  ① STUN (Session Traversal Utilities for NAT):
+     → Discovers your own public IP and port
+     → Queries a STUN server
+     → Used in WebRTC
 
-     クライアント ─→ STUNサーバー
-       「私のパブリックアドレスは？」
+     Client ─→ STUN server
+       "What is my public address?"
      ← 203.0.113.1:10001
 
-  ② TURN（Traversal Using Relays around NAT）:
-     → STUNが失敗した場合のフォールバック
-     → リレーサーバーを経由して通信
-     → 帯域を消費するが確実
+  ② TURN (Traversal Using Relays around NAT):
+     → Fallback when STUN fails
+     → Communicates via a relay server
+     → Consumes bandwidth but is reliable
 
-  ③ ICE（Interactive Connectivity Establishment）:
-     → STUN + TURN を組み合わせた接続確立フレームワーク
-     → WebRTC の標準
-     → 最も効率的な経路を自動選択
+  ③ ICE (Interactive Connectivity Establishment):
+     → A connection establishment framework combining STUN + TURN
+     → Standard for WebRTC
+     → Automatically selects the most efficient path
 
-  ④ UPnP（Universal Plug and Play）:
-     → アプリケーションがルーターにポートフォワーディングを依頼
-     → セキュリティ上の懸念あり（悪意のあるソフトが穴を開ける）
+  ④ UPnP (Universal Plug and Play):
+     → Application requests port forwarding from the router
+     → Security concerns (malicious software can open holes)
 
-  ⑤ ポートフォワーディング:
-     → ルーターの特定ポートを内部ホストに転送
-     → 手動設定が必要
-     → サーバー公開時の基本テクニック
+  ⑤ Port forwarding:
+     → Forwards a specific router port to an internal host
+     → Requires manual configuration
+     → Basic technique for publishing servers
 
-  NATタイプ（RFC 3489 / RFC 5780）:
-    Full Cone NAT: 最も緩い（一度マッピングされれば誰でもアクセス可能）
-    Restricted Cone NAT: 内部から送信した相手のみ応答可能
-    Port Restricted Cone NAT: 相手のIPとポートの両方を確認
-    Symmetric NAT: 宛先ごとに異なるマッピング（最も厳しい）
+  NAT types (RFC 3489 / RFC 5780):
+    Full Cone NAT: most permissive (once mapped, anyone can access)
+    Restricted Cone NAT: only hosts previously sent to can respond
+    Port Restricted Cone NAT: checks both the remote IP and port
+    Symmetric NAT: different mapping per destination (most restrictive)
 ```
 
-### 4.5 AWSでのNAT
+### 4.5 NAT in AWS
 
 ```
-AWS VPC における NAT:
+NAT in AWS VPC:
 
   ① NAT Gateway:
-     → マネージドサービス
-     → プライベートサブネットからインターネットへのアウトバウンド通信
-     → 自動スケーリング、高可用性
-     → 料金: 時間課金 + データ処理課金
+     → Managed service
+     → Outbound Internet access from private subnets
+     → Auto-scaling, high availability
+     → Pricing: hourly charge + data processing charge
 
-     構成例:
+     Configuration example:
      ┌─────────────────────────────────────────────┐
      │ VPC: 10.0.0.0/16                            │
      │                                             │
@@ -698,20 +700,20 @@ AWS VPC における NAT:
      │  Private Subnet: 10.0.2.0/24                │
      │  ┌──────────────┴──────────────────┐        │
      │  │ EC2 Instance: 10.0.2.10         │        │
-     │  │ → 外部へは52.x.x.xとして通信    │        │
+     │  │ → Communicates externally as 52.x.x.x    │
      │  └─────────────────────────────────┘        │
      └─────────────────────────────────────────────┘
 
-  ② NAT Instance（EC2ベース、レガシー）:
-     → EC2インスタンスでNATを実装
-     → 低コストだが管理が必要
-     → Source/Dest Checkを無効にする必要がある
+  ② NAT Instance (EC2-based, legacy):
+     → NAT implemented on an EC2 instance
+     → Low cost but requires management
+     → Source/Dest Check must be disabled
 
-  ルートテーブル:
-    パブリックサブネット:
+  Route tables:
+    Public subnet:
       0.0.0.0/0 → Internet Gateway
 
-    プライベートサブネット:
+    Private subnet:
       0.0.0.0/0 → NAT Gateway
 ```
 
@@ -719,112 +721,112 @@ AWS VPC における NAT:
 
 ## 5. DHCP
 
-### 5.1 DHCPの基本動作
+### 5.1 Basic DHCP Operation
 
 ```
-DHCP（Dynamic Host Configuration Protocol）:
-  → IPアドレスを自動的に割り当てる
-  → RFC 2131で定義
-  → ポート: サーバー 67/UDP、クライアント 68/UDP
+DHCP (Dynamic Host Configuration Protocol):
+  → Automatically assigns IP addresses
+  → Defined in RFC 2131
+  → Ports: server 67/UDP, client 68/UDP
 
-  DORA プロセス:
+  DORA process:
   ┌────────────┐                              ┌────────────┐
-  │ クライアント│                              │ DHCPサーバー│
+  │ Client     │                              │ DHCP server│
   └──────┬─────┘                              └──────┬─────┘
          │                                           │
-         │── ① Discover（ブロードキャスト） ──────→  │
+         │── ① Discover (broadcast) ─────────────→  │
          │   src: 0.0.0.0:68                         │
          │   dst: 255.255.255.255:67                 │
-         │   「IPアドレスください」                    │
+         │   "Please give me an IP address"           │
          │                                           │
          │←── ② Offer ──────────────────────────── │
-         │   「192.168.1.100 を使っていいよ」        │
-         │   サブネット: 255.255.255.0               │
-         │   ゲートウェイ: 192.168.1.1               │
+         │   "You may use 192.168.1.100"              │
+         │   Subnet: 255.255.255.0                   │
+         │   Gateway: 192.168.1.1                    │
          │   DNS: 8.8.8.8                            │
-         │   リース: 86400秒（24時間）               │
+         │   Lease: 86400 seconds (24 hours)         │
          │                                           │
-         │── ③ Request（ブロードキャスト） ──────→   │
-         │   「192.168.1.100 を使います」             │
-         │   （複数DHCPサーバーがある場合の選択通知） │
+         │── ③ Request (broadcast) ──────────────→   │
+         │   "I will use 192.168.1.100"               │
+         │   (notification of selection when multiple DHCP servers exist)│
          │                                           │
          │←── ④ Acknowledge ─────────────────────  │
-         │   「了解。リース開始」                     │
+         │   "Confirmed. Lease started"              │
          │                                           │
 
-  なぜRequestもブロードキャストか:
-    → 複数のDHCPサーバーが存在する場合
-    → 選ばれなかったサーバーに「別のサーバーを選びました」と通知
-    → 選ばれなかったサーバーはOfferしたアドレスを解放
+  Why is Request also a broadcast?
+    → When multiple DHCP servers exist
+    → Notifies unselected servers "I chose a different server"
+    → Unselected servers release the offered address
 ```
 
-### 5.2 DHCPの詳細な動作
+### 5.2 Detailed DHCP Operation
 
 ```
-割り当て情報（DHCPオプション）:
+Assigned information (DHCP options):
   ┌─────────────────────────┬────────────────────────────┐
-  │ オプション               │ 説明                       │
+  │ Option                  │ Description                │
   ├─────────────────────────┼────────────────────────────┤
-  │ Option 1: サブネットマスク│ 255.255.255.0             │
-  │ Option 3: ルーター       │ デフォルトゲートウェイ     │
-  │ Option 6: DNS サーバー   │ 8.8.8.8, 8.8.4.4         │
-  │ Option 12: ホスト名      │ client-pc                 │
-  │ Option 15: ドメイン名    │ example.local              │
-  │ Option 42: NTP サーバー  │ 時刻同期サーバー          │
-  │ Option 51: リース期間    │ 86400秒（24時間）         │
-  │ Option 119: ドメイン検索 │ 検索ドメインリスト        │
-  │ Option 121: 静的ルート   │ クラスレス静的ルート      │
-  │ Option 150: TFTP サーバー│ IP電話の設定ファイル用    │
+  │ Option 1: Subnet mask   │ 255.255.255.0              │
+  │ Option 3: Router        │ Default gateway            │
+  │ Option 6: DNS server    │ 8.8.8.8, 8.8.4.4          │
+  │ Option 12: Hostname     │ client-pc                  │
+  │ Option 15: Domain name  │ example.local              │
+  │ Option 42: NTP server   │ Time synchronization server│
+  │ Option 51: Lease time   │ 86400 seconds (24 hours)   │
+  │ Option 119: Domain search│ Search domain list        │
+  │ Option 121: Static routes│ Classless static routes   │
+  │ Option 150: TFTP server │ For IP phone config files  │
   └─────────────────────────┴────────────────────────────┘
 
-リース更新プロセス:
-  リース期間: T（例: 24時間）
+Lease renewal process:
+  Lease period: T (e.g., 24 hours)
 
-  T/2（12時間）: Renewal（更新）
-    → クライアントがDHCPサーバーにユニキャストで更新要求
-    → サーバーがACKを返せばリース延長
+  T/2 (12 hours): Renewal
+    → Client unicasts a renewal request to the DHCP server
+    → Lease is extended if the server sends an ACK
 
-  7T/8（21時間）: Rebinding（再バインド）
-    → Renewalが失敗した場合
-    → ブロードキャストで任意のDHCPサーバーに要求
+  7T/8 (21 hours): Rebinding
+    → If Renewal fails
+    → Broadcasts a request to any DHCP server
 
-  T（24時間）: リース期限切れ
-    → IPアドレスを解放
-    → DORAプロセスをやり直し
+  T (24 hours): Lease expiration
+    → IP address is released
+    → DORA process restarts
 
-DHCPリレーエージェント:
-  問題: DHCPはブロードキャストベース → ルーターを越えない
+DHCP relay agent:
+  Problem: DHCP is broadcast-based → cannot cross routers
 
-  解決策: DHCPリレーエージェント（ip helper-address）
-    → ルーターがブロードキャストを受信
-    → ユニキャストでDHCPサーバーに転送
-    → 異なるサブネットのDHCPサーバーを使用可能
+  Solution: DHCP relay agent (ip helper-address)
+    → Router receives the broadcast
+    → Forwards it as unicast to the DHCP server
+    → Allows using a DHCP server on a different subnet
 
-  Cisco IOS設定例:
+  Cisco IOS configuration example:
     interface GigabitEthernet0/1
-      ip helper-address 10.0.0.5   ← DHCPサーバーのIP
+      ip helper-address 10.0.0.5   ← DHCP server IP
 ```
 
-### 5.3 DHCP設定の実務
+### 5.3 Practical DHCP Configuration
 
 ```bash
-# Linux: dhcpd.conf の設定例
+# Linux: dhcpd.conf configuration example
 # /etc/dhcp/dhcpd.conf
 
-# グローバル設定
-default-lease-time 86400;     # 24時間
-max-lease-time 172800;        # 48時間（最大）
+# Global settings
+default-lease-time 86400;     # 24 hours
+max-lease-time 172800;        # 48 hours (maximum)
 option domain-name "example.local";
 option domain-name-servers 8.8.8.8, 8.8.4.4;
 
-# サブネット定義
+# Subnet definition
 subnet 192.168.1.0 netmask 255.255.255.0 {
-    range 192.168.1.100 192.168.1.200;  # 動的割り当て範囲
-    option routers 192.168.1.1;          # デフォルトゲートウェイ
+    range 192.168.1.100 192.168.1.200;  # Dynamic assignment range
+    option routers 192.168.1.1;          # Default gateway
     option subnet-mask 255.255.255.0;
 }
 
-# 固定割り当て（MACアドレスベース）
+# Fixed assignment (MAC address-based)
 host webserver {
     hardware ethernet 00:1A:2B:3C:4D:5E;
     fixed-address 192.168.1.10;
@@ -837,461 +839,462 @@ host dbserver {
 ```
 
 ```bash
-# DHCP関連のトラブルシューティングコマンド
+# DHCP-related troubleshooting commands
 
-# 現在のDHCPリース情報を確認
+# Check current DHCP lease information
 $ cat /var/lib/dhclient/dhclient.leases
 
-# DHCPリースの解放と再取得（Linux）
-$ sudo dhclient -r eth0           # リース解放
-$ sudo dhclient eth0              # リース再取得
+# Release and re-obtain DHCP lease (Linux)
+$ sudo dhclient -r eth0           # Release lease
+$ sudo dhclient eth0              # Obtain lease
 
 # Windows
-> ipconfig /release               # リース解放
-> ipconfig /renew                 # リース再取得
-> ipconfig /all                   # 詳細情報表示
+> ipconfig /release               # Release lease
+> ipconfig /renew                 # Renew lease
+> ipconfig /all                   # Show detailed info
 
 # macOS
-$ sudo ipconfig set en0 DHCP      # DHCPリース更新
-$ ipconfig getpacket en0           # DHCP情報表示
+$ sudo ipconfig set en0 DHCP      # Renew DHCP lease
+$ ipconfig getpacket en0           # Show DHCP info
 ```
 
 ---
 
-## 6. ルーティングの基礎
+## 6. Routing Basics
 
-### 6.1 ルーティングテーブル
+### 6.1 Routing Table
 
 ```
-ルーティングテーブル = パケットの宛先に応じた転送先の一覧
+Routing table = a list of forwarding destinations based on packet destination
 
-  例（Linux）:
+  Example (Linux):
   $ ip route show
   default via 192.168.1.1 dev eth0 proto dhcp metric 100
   10.0.0.0/8 via 10.1.1.1 dev tun0
   172.17.0.0/16 dev docker0 proto kernel scope link src 172.17.0.1
   192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.100
 
-  各エントリの意味:
+  Meaning of each entry:
     default via 192.168.1.1:
-      → デフォルトルート（他のルートに一致しない宛先はここへ）
-      → 一般的にインターネットへの出口
+      → Default route (destinations not matching any other route go here)
+      → Typically the gateway to the Internet
 
     10.0.0.0/8 via 10.1.1.1:
-      → 10.x.x.x 宛はVPNトンネル経由
+      → Traffic to 10.x.x.x goes through the VPN tunnel
 
     172.17.0.0/16 dev docker0:
-      → Dockerコンテナへのルート
+      → Route to Docker containers
 
     192.168.1.0/24 dev eth0:
-      → ローカルネットワーク（直接接続）
+      → Local network (directly connected)
 
-ルーティングの決定方法（ロンゲストマッチ）:
-  宛先: 10.0.1.50
+Routing decision method (longest match):
+  Destination: 10.0.1.50
 
-  ルートテーブル:
-    10.0.0.0/8     → ルートA
-    10.0.1.0/24    → ルートB
-    10.0.1.48/28   → ルートC
-    default        → ルートD
+  Route table:
+    10.0.0.0/8     → Route A
+    10.0.1.0/24    → Route B
+    10.0.1.48/28   → Route C
+    default        → Route D
 
-  → ルートC が選択される（最も長いプレフィックスが一致）
-  → これが「ロンゲストプレフィックスマッチ」
+  → Route C is selected (the longest prefix match)
+  → This is called "longest prefix match"
 ```
 
-### 6.2 静的ルーティングと動的ルーティング
+### 6.2 Static Routing and Dynamic Routing
 
 ```
-静的ルーティング:
-  → 管理者が手動でルートを設定
-  → 小規模ネットワークで使用
-  → 設定が簡単だが、障害時の自動切り替えなし
+Static routing:
+  → Administrator manually configures routes
+  → Used in small-scale networks
+  → Simple to configure but no automatic failover
 
-  設定例（Linux）:
+  Configuration example (Linux):
   $ sudo ip route add 10.0.0.0/8 via 192.168.1.254
   $ sudo ip route del 10.0.0.0/8
 
-動的ルーティング:
-  → ルーティングプロトコルが自動的にルートを学習・更新
-  → 大規模ネットワークで使用
-  → 障害時に自動で経路変更
+Dynamic routing:
+  → Routing protocols automatically learn and update routes
+  → Used in large-scale networks
+  → Automatically changes paths on failure
 
-  主なルーティングプロトコル:
+  Major routing protocols:
   ┌───────┬──────────┬───────────────────────────────────┐
-  │ 名前  │ 種類     │ 特徴                              │
+  │ Name  │ Type     │ Characteristics                   │
   ├───────┼──────────┼───────────────────────────────────┤
-  │ RIP   │ IGP/DV   │ ホップ数ベース、最大15ホップ      │
-  │       │          │ 小規模向け、収束が遅い            │
+  │ RIP   │ IGP/DV   │ Hop count-based, max 15 hops      │
+  │       │          │ For small networks, slow convergence│
   ├───────┼──────────┼───────────────────────────────────┤
-  │ OSPF  │ IGP/LS   │ コストベース、高速収束            │
-  │       │          │ エリアによる階層化                │
-  │       │          │ 企業ネットワークの標準            │
+  │ OSPF  │ IGP/LS   │ Cost-based, fast convergence      │
+  │       │          │ Hierarchical areas                │
+  │       │          │ Standard for enterprise networks  │
   ├───────┼──────────┼───────────────────────────────────┤
-  │ EIGRP │ IGP/     │ Cisco独自→標準化                  │
-  │       │ Advanced │ 高速収束、帯域効率が良い          │
+  │ EIGRP │ IGP/     │ Cisco-proprietary → standardized  │
+  │       │ Advanced │ Fast convergence, bandwidth-efficient│
   ├───────┼──────────┼───────────────────────────────────┤
-  │ BGP   │ EGP/PV   │ インターネットの骨格              │
-  │       │          │ AS（自律システム）間のルーティング│
-  │       │          │ ポリシーベース                    │
-  │       │          │ 約100万ルートを管理              │
+  │ BGP   │ EGP/PV   │ Backbone of the Internet          │
+  │       │          │ Routing between ASes (Autonomous Systems)│
+  │       │          │ Policy-based                      │
+  │       │          │ Manages approximately 1 million routes│
   └───────┴──────────┴───────────────────────────────────┘
 
-  IGP: Interior Gateway Protocol（組織内）
-  EGP: Exterior Gateway Protocol（組織間）
-  DV:  Distance Vector（距離ベクトル型）
-  LS:  Link State（リンク状態型）
-  PV:  Path Vector（パスベクトル型）
+  IGP: Interior Gateway Protocol (within an organization)
+  EGP: Exterior Gateway Protocol (between organizations)
+  DV:  Distance Vector
+  LS:  Link State
+  PV:  Path Vector
 ```
 
-### 6.3 BGPの基礎
+### 6.3 BGP Basics
 
 ```
-BGP（Border Gateway Protocol）:
-  → インターネットのルーティングを支える最重要プロトコル
-  → AS（Autonomous System）間の経路交換
-  → ポート179/TCP
+BGP (Border Gateway Protocol):
+  → The most important protocol supporting Internet routing
+  → Exchanges routes between ASes (Autonomous Systems)
+  → Port 179/TCP
 
-  AS（自律システム）:
-    → 単一の管理下にあるネットワークの集合
-    → AS番号（ASN）で識別: AS7500（東京大学）、AS15169（Google）
-    → 2バイトASN: 1〜65534
-    → 4バイトASN: 65536〜4294967294
+  AS (Autonomous System):
+    → A collection of networks under a single administration
+    → Identified by AS number (ASN): AS7500 (University of Tokyo), AS15169 (Google)
+    → 2-byte ASN: 1–65534
+    → 4-byte ASN: 65536–4294967294
 
-  BGPの仕組み:
-    ① eBGP（External BGP）: 異なるAS間の経路交換
-    ② iBGP（Internal BGP）: 同じAS内の経路共有
+  How BGP works:
+    ① eBGP (External BGP): route exchange between different ASes
+    ② iBGP (Internal BGP): route sharing within the same AS
 
-  実務での重要性:
-    → ISP のネットワーク運用
-    → マルチホーミング（複数ISPとの接続）
-    → CDN のエニーキャスト（同じIPを複数拠点で広告）
-    → クラウドとオンプレミスの接続（AWS Direct Connect + BGP）
+  Practical importance:
+    → ISP network operations
+    → Multihoming (connecting to multiple ISPs)
+    → CDN anycast (advertising the same IP from multiple locations)
+    → Connecting cloud and on-premises (AWS Direct Connect + BGP)
 
-  BGP障害の実例:
-    2017年: Google が日本のトラフィックをインドネシア経由にする誤経路広告
-    2019年: Cloudflare がBGPリークにより一部地域で到達不能に
-    2021年: Facebook が自社のBGP経路を撤回し、全サービス約6時間停止
-    → BGPの誤設定はインターネット全体に影響を及ぼしうる
+  Real BGP incidents:
+    2017: Google incorrectly advertised routes for Japan's traffic via Indonesia
+    2019: Cloudflare became unreachable in some regions due to a BGP leak
+    2021: Facebook withdrew its own BGP routes, causing all services to be down for ~6 hours
+    → BGP misconfigurations can affect the entire Internet
 ```
 
 ---
 
-## 7. VPCネットワーク設計
+## 7. VPC Network Design
 
-### 7.1 AWS VPC設計のベストプラクティス
+### 7.1 AWS VPC Design Best Practices
 
 ```
-VPC CIDR設計の原則:
+VPC CIDR design principles:
 
-  ① 将来の拡張を考慮
-     → /16 を推奨（65,536アドレス）
-     → /24 では254台で足りなくなる可能性大
+  ① Account for future growth
+     → /16 is recommended (65,536 addresses)
+     → /24 risks running out with only 254 hosts
 
-  ② 他のVPC/オンプレミスとの重複を避ける
-     → VPCピアリングやVPN接続時に重複するとルーティング不可
-     → 事前にIPアドレス計画を作成
+  ② Avoid overlap with other VPCs / on-premises
+     → Overlapping CIDRs prevent routing during VPC peering or VPN connections
+     → Create an IP address plan in advance
 
-  ③ 予約アドレスを考慮
-     → AWSは各サブネットで5つのIPアドレスを予約
-       .0: ネットワークアドレス
-       .1: VPCルーター
-       .2: AWSが予約（DNS）
-       .3: AWSが予約（将来用）
-       .255: ブロードキャスト
+  ③ Account for reserved addresses
+     → AWS reserves 5 IP addresses in each subnet
+       .0: Network address
+       .1: VPC router
+       .2: Reserved by AWS (DNS)
+       .3: Reserved by AWS (future use)
+       .255: Broadcast
 
-  推奨VPC設計例:
+  Recommended VPC design example:
 
-  VPC: 10.0.0.0/16 （65,536アドレス）
+  VPC: 10.0.0.0/16 (65,536 addresses)
   │
   ├── AZ-a
-  │   ├── Public:  10.0.1.0/24   （251使用可能）
-  │   ├── Private: 10.0.11.0/24  （251使用可能）
-  │   └── DB:      10.0.21.0/24  （251使用可能）
+  │   ├── Public:  10.0.1.0/24   (251 usable)
+  │   ├── Private: 10.0.11.0/24  (251 usable)
+  │   └── DB:      10.0.21.0/24  (251 usable)
   │
   ├── AZ-c
-  │   ├── Public:  10.0.2.0/24   （251使用可能）
-  │   ├── Private: 10.0.12.0/24  （251使用可能）
-  │   └── DB:      10.0.22.0/24  （251使用可能）
+  │   ├── Public:  10.0.2.0/24   (251 usable)
+  │   ├── Private: 10.0.12.0/24  (251 usable)
+  │   └── DB:      10.0.22.0/24  (251 usable)
   │
-  └── AZ-d（将来の拡張用）
+  └── AZ-d (for future expansion)
       ├── Public:  10.0.3.0/24
       ├── Private: 10.0.13.0/24
       └── DB:      10.0.23.0/24
 
-  サブネットの役割:
+  Subnet roles:
     Public:  ALB, NAT Gateway, Bastion Host
-    Private: ECS/EKS, Lambda, アプリケーションサーバー
-    DB:      RDS, ElastiCache, データベース関連
+    Private: ECS/EKS, Lambda, application servers
+    DB:      RDS, ElastiCache, database-related resources
 ```
 
-### 7.2 マルチアカウント・マルチVPC設計
+### 7.2 Multi-Account and Multi-VPC Design
 
 ```
-AWS Organization + Transit Gateway:
+AWS Organizations + Transit Gateway:
 
   ┌──────────────────────────────────────────────┐
   │                Transit Gateway                │
   │                                              │
-  │  ┌──────────┐ ┌──────────┐ ┌──────────────┐│
-  │  │ 本番VPC  │ │ 開発VPC  │ │ 共有サービスVPC││
-  │  │10.1.0/16 │ │10.2.0/16 │ │10.0.0.0/16   ││
-  │  │          │ │          │ │(DNS, AD, 監視)││
-  │  └──────────┘ └──────────┘ └──────────────┘│
+  │  ┌──────────┐ ┌──────────┐ ┌──────────────┐ │
+  │  │ Prod VPC │ │ Dev VPC  │ │ Shared Svc   │ │
+  │  │10.1.0/16 │ │10.2.0/16 │ │ VPC          │ │
+  │  │          │ │          │ │10.0.0.0/16   │ │
+  │  │          │ │          │ │(DNS,AD,Monitor)│ │
+  │  └──────────┘ └──────────┘ └──────────────┘ │
   │                                              │
   │  ┌──────────┐ ┌──────────────────────────┐  │
-  │  │ ステージ │ │ オンプレミス             │  │
+  │  │ Staging  │ │ On-premises              │  │
   │  │ VPC      │ │ (VPN / Direct Connect)   │  │
   │  │10.3.0/16 │ │ 172.16.0.0/12           │  │
   │  └──────────┘ └──────────────────────────┘  │
   └──────────────────────────────────────────────┘
 
-  IPアドレス計画（重複なし）:
-    10.0.0.0/16 → 共有サービス
-    10.1.0.0/16 → 本番
-    10.2.0.0/16 → 開発
-    10.3.0.0/16 → ステージング
-    10.4.0.0/16 → DR（ディザスタリカバリ）
-    172.16.0.0/12 → オンプレミス
+  IP address plan (no overlap):
+    10.0.0.0/16 → Shared services
+    10.1.0.0/16 → Production
+    10.2.0.0/16 → Development
+    10.3.0.0/16 → Staging
+    10.4.0.0/16 → DR (Disaster Recovery)
+    172.16.0.0/12 → On-premises
 
   Transit Gateway vs VPC Peering:
     ┌───────────────────┬───────────────┬──────────────────┐
     │                   │ VPC Peering   │ Transit Gateway  │
     ├───────────────────┼───────────────┼──────────────────┤
-    │ 接続形態          │ 1対1          │ ハブ&スポーク    │
-    │ 推移的ルーティング│ 不可          │ 可能             │
-    │ VPC数が増えた場合 │ O(n^2) 接続   │ O(n) 接続        │
-    │ コスト            │ データ転送のみ│ 時間+データ転送  │
-    │ オンプレ接続      │ 個別VPN       │ 一括VPN          │
+    │ Connection type   │ 1-to-1        │ Hub & spoke      │
+    │ Transitive routing│ Not possible  │ Possible         │
+    │ As VPC count grows│ O(n^2) connections│ O(n) connections│
+    │ Cost              │ Data transfer only│ Hourly + data transfer│
+    │ On-premises conn. │ Individual VPN│ Centralized VPN  │
     └───────────────────┴───────────────┴──────────────────┘
 ```
 
-### 7.3 Kubernetesのネットワーク設計
+### 7.3 Kubernetes Network Design
 
 ```
-Kubernetesでは3つのIPアドレスレンジが必要:
+Kubernetes requires 3 IP address ranges:
 
-  ① ノードネットワーク: ノード（EC2等）のIPアドレス
-     → VPCサブネットのCIDRを使用
-     → 例: 10.0.0.0/16
+  ① Node network: IP addresses of nodes (EC2, etc.)
+     → Uses the VPC subnet CIDR
+     → Example: 10.0.0.0/16
 
-  ② PodネットワークCIDR: Pod のIPアドレス
-     → ノードネットワークとは別のレンジ
-     → 例: 10.244.0.0/16（Flannel のデフォルト）
-     → 各ノードに /24 が割り当てられる → 最大254 Pod/ノード
+  ② Pod network CIDR: IP addresses for Pods
+     → A different range from the node network
+     → Example: 10.244.0.0/16 (Flannel default)
+     → Each node is assigned a /24 → up to 254 Pods per node
 
-  ③ Service CIDR: Kubernetes Service のClusterIP
-     → 例: 10.96.0.0/12
-     → 仮想IPアドレス（kube-proxy が管理）
+  ③ Service CIDR: ClusterIP for Kubernetes Services
+     → Example: 10.96.0.0/12
+     → Virtual IP address (managed by kube-proxy)
 
-  AWS EKS の場合:
-    VPC CNI プラグインを使用
-    → Pod にVPCのIPアドレスを直接割り当て
-    → 別途Pod CIDRが不要
-    → VPCのIPアドレスを消費するため、サブネットは大きめに
+  In the case of AWS EKS:
+    Uses the VPC CNI plugin
+    → Assigns VPC IP addresses directly to Pods
+    → No separate Pod CIDR required
+    → Consumes VPC IP addresses, so make subnets larger
 
-    ノード1台あたりのPod数:
-      ENI（Elastic Network Interface）の数 × ENIあたりのIPアドレス数
-      例: m5.large → 3 ENI × 10 IP = 29 Pod（+1はノード自身）
+    Number of Pods per node:
+      Number of ENIs (Elastic Network Interfaces) × IPs per ENI
+      Example: m5.large → 3 ENIs × 10 IPs = 29 Pods (+1 for the node itself)
 
-    IPアドレス枯渇対策:
-      → /19 サブネット（8,190アドレス）を推奨
-      → prefix delegation を有効化（ENIにプレフィックスを割り当て）
-      → セカンダリCIDRの追加（100.64.0.0/16等）
+    Measures against IP address exhaustion:
+      → /19 subnets (8,190 addresses) are recommended
+      → Enable prefix delegation (assign prefixes to ENIs)
+      → Add a secondary CIDR (e.g., 100.64.0.0/16)
 ```
 
 ---
 
-## 8. IPアドレス関連のトラブルシューティング
+## 8. IP Address Troubleshooting
 
-### 8.1 よくある問題と対処法
+### 8.1 Common Problems and Solutions
 
 ```
-問題1: IPアドレスが取得できない
+Problem 1: Cannot obtain an IP address
 
-  症状: 169.254.x.x のアドレスが割り当てられる（APIPA）
+  Symptom: A 169.254.x.x address is assigned (APIPA)
 
-  原因と対処:
-    ① DHCPサーバーが起動していない
-       → systemctl status dhcpd で確認
-    ② DHCPサーバーに到達できない
-       → スイッチ/ケーブルの問題
-       → DHCPリレーエージェントの設定確認
-    ③ DHCPプールが枯渇
-       → リース情報を確認: cat /var/lib/dhcpd/dhcpd.leases
-       → リース期間を短くする or プールを拡大
+  Causes and remedies:
+    ① DHCP server is not running
+       → Check with: systemctl status dhcpd
+    ② Cannot reach the DHCP server
+       → Switch/cable issue
+       → Check DHCP relay agent configuration
+    ③ DHCP pool is exhausted
+       → Check lease info: cat /var/lib/dhcpd/dhcpd.leases
+       → Shorten lease time or expand the pool
 
-問題2: IPアドレスの重複
+Problem 2: Duplicate IP address
 
-  症状: 通信が断続的に切れる、ARPフラッピング
+  Symptom: Communication intermittently drops, ARP flapping
 
-  原因と対処:
-    ① 静的IP設定がDHCPの範囲と重複
-       → DHCPの動的範囲と静的割り当てを分離
-    ② 複数DHCPサーバーが異なる設定で動作
-       → 不要なDHCPサーバーを停止
-    ③ VMの複製でIPアドレスが重複
-       → VM複製後にIPアドレスを変更
+  Causes and remedies:
+    ① Static IP configuration overlaps with DHCP range
+       → Separate the DHCP dynamic range from static assignments
+    ② Multiple DHCP servers running with different configurations
+       → Stop unnecessary DHCP servers
+    ③ IP address duplication from VM cloning
+       → Change the IP address after cloning the VM
 
-  検出方法:
-    $ arping -D -I eth0 192.168.1.100  # 重複検出
-    $ arp -a | sort                      # ARPテーブルで重複MAC確認
+  Detection:
+    $ arping -D -I eth0 192.168.1.100  # Duplicate detection
+    $ arp -a | sort                      # Check for duplicate MACs in ARP table
 
-問題3: サブネット間で通信できない
+Problem 3: Cannot communicate between subnets
 
-  原因と対処:
-    ① ルーティングが設定されていない
-       → ip route show で確認
-       → 必要なルートを追加
-    ② ファイアウォールでブロック
-       → iptables -L -n で確認
-       → Security Group（AWS）を確認
-    ③ IP転送が無効
+  Causes and remedies:
+    ① Routing is not configured
+       → Check with: ip route show
+       → Add the required route
+    ② Blocked by a firewall
+       → Check with: iptables -L -n
+       → Check Security Group (AWS)
+    ③ IP forwarding is disabled
        → cat /proc/sys/net/ipv4/ip_forward
        → echo 1 > /proc/sys/net/ipv4/ip_forward
 
-問題4: NATが正しく動作しない
+Problem 4: NAT is not working correctly
 
-  症状: プライベートIPのホストからインターネットに出られない
+  Symptom: Hosts on the private IP cannot access the Internet
 
-  原因と対処:
-    ① NAT Gateway/Instanceのルートテーブル設定漏れ
-       → プライベートサブネットのルートテーブルに 0.0.0.0/0 → NAT を追加
-    ② Security Group の設定漏れ
-       → アウトバウンドルールを確認
-    ③ NAT Gateway が正しいサブネットにない
-       → NAT Gateway はパブリックサブネットに配置する必要がある
+  Causes and remedies:
+    ① Missing route table entry for NAT Gateway/Instance
+       → Add 0.0.0.0/0 → NAT to the private subnet route table
+    ② Missing Security Group setting
+       → Check outbound rules
+    ③ NAT Gateway is in the wrong subnet
+       → NAT Gateway must be placed in a public subnet
 ```
 
-### 8.2 ネットワーク診断コマンド集
+### 8.2 Network Diagnostic Command Reference
 
 ```bash
-# IPアドレスの確認
-$ ip addr show                    # 全インターフェースのIP確認
-$ ip addr show eth0               # 特定インターフェース
+# Check IP addresses
+$ ip addr show                    # Check IPs on all interfaces
+$ ip addr show eth0               # Specific interface
 
-# ルーティングテーブル
-$ ip route show                   # ルーティングテーブル表示
-$ ip route get 8.8.8.8            # 特定宛先への経路確認
+# Routing table
+$ ip route show                   # Display routing table
+$ ip route get 8.8.8.8            # Check route to specific destination
 
-# ARP テーブル
-$ ip neigh show                   # 近隣テーブル（ARP）
-$ arp -a                          # ARP テーブル表示
+# ARP table
+$ ip neigh show                   # Neighbor table (ARP)
+$ arp -a                          # Display ARP table
 
-# 疎通確認
-$ ping -c 3 192.168.1.1          # ICMP疎通確認
-$ ping6 -c 3 ::1                 # IPv6 疎通確認
+# Connectivity check
+$ ping -c 3 192.168.1.1          # ICMP connectivity check
+$ ping6 -c 3 ::1                 # IPv6 connectivity check
 
-# 経路追跡
-$ traceroute 8.8.8.8             # 経路追跡（UDP）
-$ traceroute -T 8.8.8.8          # 経路追跡（TCP）
-$ mtr 8.8.8.8                    # 継続的な経路追跡
+# Route tracing
+$ traceroute 8.8.8.8             # Route trace (UDP)
+$ traceroute -T 8.8.8.8          # Route trace (TCP)
+$ mtr 8.8.8.8                    # Continuous route tracing
 
-# ポート確認
-$ ss -tlnp                        # TCP LISTEN ポート
-$ ss -tunp                        # 全アクティブ接続
-$ lsof -i :80                     # 特定ポートを使用中のプロセス
+# Port check
+$ ss -tlnp                        # TCP LISTEN ports
+$ ss -tunp                        # All active connections
+$ lsof -i :80                     # Process using a specific port
 
-# DNS確認
-$ dig example.com                 # DNS問い合わせ
-$ nslookup example.com            # DNS問い合わせ（レガシー）
-$ host example.com                # DNS問い合わせ（簡易）
+# DNS check
+$ dig example.com                 # DNS query
+$ nslookup example.com            # DNS query (legacy)
+$ host example.com                # DNS query (simple)
 
-# パケットキャプチャ
-$ sudo tcpdump -i eth0 -n         # パケットキャプチャ
-$ sudo tcpdump -i eth0 port 80    # 特定ポートのキャプチャ
+# Packet capture
+$ sudo tcpdump -i eth0 -n         # Packet capture
+$ sudo tcpdump -i eth0 port 80    # Capture specific port
 
-# ネットワーク統計
-$ netstat -s                      # プロトコル統計
-$ ss -s                           # ソケット統計
-$ cat /proc/net/snmp              # SNMP統計
+# Network statistics
+$ netstat -s                      # Protocol statistics
+$ ss -s                           # Socket statistics
+$ cat /proc/net/snmp              # SNMP statistics
 ```
 
 ---
 
-## 9. IPアドレスのセキュリティ
+## 9. IP Address Security
 
-### 9.1 IPスプーフィングと対策
-
-```
-IPスプーフィング:
-  → 送信元IPアドレスを偽装する攻撃
-  → DDoS攻撃の増幅に使用
-
-  対策:
-    ① BCP38 / RFC 2827（Ingress Filtering）:
-       → ISPがソースアドレス検証を実施
-       → 自社のIPレンジ以外のソースアドレスをブロック
-
-    ② uRPF（unicast Reverse Path Forwarding）:
-       → ルーターで受信パケットのソースアドレスを検証
-       → ルーティングテーブルの逆引きで正当性確認
-
-    ③ ACL（Access Control List）:
-       → プライベートIPアドレスの外部流出をブロック
-       → ボガン（未割り当てIP）のフィルタリング
-```
-
-### 9.2 IPアドレスのプライバシー
+### 9.1 IP Spoofing and Countermeasures
 
 ```
-IPアドレスとプライバシー:
-  → IPアドレスからおおよその地理的位置が特定可能
-  → GeoIP データベース（MaxMind等）
-  → ISP情報の特定
+IP spoofing:
+  → An attack that forges the source IP address
+  → Used for amplification in DDoS attacks
 
-  プライバシー保護:
-    ① VPN: トラフィックを暗号化し、VPNサーバーのIPで通信
-    ② Tor: 複数のリレーを経由して匿名化
-    ③ プロキシ: 代理サーバー経由で通信
-    ④ IPv6プライバシー拡張: ランダムなインターフェースID
+  Countermeasures:
+    ① BCP38 / RFC 2827 (Ingress Filtering):
+       → ISPs perform source address validation
+       → Block source addresses outside their own IP range
 
-  IPアドレスと法規制:
-    → GDPR: IPアドレスは個人情報として扱われる
-    → 日本の個人情報保護法: 「個人関連情報」に該当しうる
-    → ログにIPアドレスを記録する際は適切な管理が必要
+    ② uRPF (unicast Reverse Path Forwarding):
+       → Router validates the source address of received packets
+       → Checks legitimacy by reverse-lookup in the routing table
+
+    ③ ACL (Access Control List):
+       → Block private IP addresses from leaking externally
+       → Filter bogons (unallocated IPs)
 ```
 
-### 9.3 IPアドレスベースのアクセス制御
+### 9.2 IP Address Privacy
 
 ```
-IPベースのアクセス制御パターン:
+IP addresses and privacy:
+  → The approximate geographic location can be identified from an IP address
+  → GeoIP databases (MaxMind, etc.)
+  → Identifying the ISP
 
-① ファイアウォールACL:
-  → ステートフルインスペクション
-  → ソース/宛先IPとポートの組み合わせで制御
+  Privacy protection:
+    ① VPN: encrypts traffic and communicates using the VPN server's IP
+    ② Tor: anonymizes via multiple relays
+    ③ Proxy: communicates via a proxy server
+    ④ IPv6 Privacy Extension: random interface ID
 
-  iptables 設定例（Linux）:
-  # 特定IPからのSSHのみ許可
+  IP addresses and legal regulations:
+    → GDPR: IP addresses are treated as personal data
+    → Japan's Act on the Protection of Personal Information: may qualify as "personally-related information"
+    → Appropriate management is required when recording IP addresses in logs
+```
+
+### 9.3 IP Address-Based Access Control
+
+```
+IP-based access control patterns:
+
+① Firewall ACL:
+  → Stateful inspection
+  → Controlled by combinations of source/destination IP and port
+
+  iptables configuration example (Linux):
+  # Allow SSH only from a specific IP
   iptables -A INPUT -p tcp --dport 22 -s 203.0.113.10 -j ACCEPT
   iptables -A INPUT -p tcp --dport 22 -j DROP
 
-  # 特定サブネットからのHTTPSを許可
+  # Allow HTTPS from a specific subnet
   iptables -A INPUT -p tcp --dport 443 -s 10.0.0.0/8 -j ACCEPT
 
-  nftables 設定例（新しいLinux）:
+  nftables configuration example (newer Linux):
   nft add rule inet filter input tcp dport 22 ip saddr 203.0.113.10 accept
   nft add rule inet filter input tcp dport 22 drop
 
-② クラウドセキュリティグループ:
+② Cloud security groups:
   AWS Security Group:
-  → ステートフル（戻りトラフィックは自動許可）
-  → インバウンド/アウトバウンドルール
+  → Stateful (return traffic is automatically allowed)
+  → Inbound/outbound rules
 
-  設定例:
+  Configuration example:
   ┌────────────────────────────────────────────────┐
   │ Security Group: web-server-sg                  │
   ├──────┬──────┬────────────────┬─────────────────┤
-  │ 方向  │ポート│ ソース         │ 説明            │
+  │ Dir  │ Port │ Source         │ Description     │
   ├──────┼──────┼────────────────┼─────────────────┤
-  │ IN   │ 443  │ 0.0.0.0/0      │ HTTPS（全世界）  │
-  │ IN   │ 22   │ 10.0.0.0/16    │ SSH（VPC内のみ） │
-  │ OUT  │ 443  │ 0.0.0.0/0      │ 外部API呼び出し  │
-  │ OUT  │ 5432 │ sg-db-xxxx     │ RDS接続          │
+  │ IN   │ 443  │ 0.0.0.0/0      │ HTTPS (worldwide)│
+  │ IN   │ 22   │ 10.0.0.0/16    │ SSH (VPC only)   │
+  │ OUT  │ 443  │ 0.0.0.0/0      │ External API call│
+  │ OUT  │ 5432 │ sg-db-xxxx     │ RDS connection   │
   └──────┴──────┴────────────────┴─────────────────┘
 
-③ GeoIPフィルタリング:
-  → IPアドレスから地理的位置を判定
-  → 特定国からのアクセスをブロック/許可
+③ GeoIP filtering:
+  → Determine geographic location from IP address
+  → Block/allow access from specific countries
 
   Nginx + GeoIP2:
   geoip2 /etc/nginx/GeoLite2-Country.mmdb {
@@ -1305,223 +1308,223 @@ IPベースのアクセス制御パターン:
     }
   }
 
-  注意点:
-  → VPN/プロキシ使用者には効果なし
-  → 正規ユーザーのブロックリスク
-  → CDNを介する場合はX-Forwarded-Forヘッダーを参照
+  Caveats:
+  → No effect on users using VPN/proxy
+  → Risk of blocking legitimate users
+  → When going through a CDN, refer to the X-Forwarded-For header
 ```
 
-### 9.4 IPv6セキュリティの考慮事項
+### 9.4 IPv6 Security Considerations
 
 ```
-IPv6特有のセキュリティ課題:
+IPv6-specific security challenges:
 
-① アドレス空間の広さによるスキャン耐性:
-  → /64サブネットには2^64個のアドレス
-  → 総当たりスキャンは事実上不可能
-  → ただし予測可能なアドレス（::1, ::dead:beef等）は狙われる
+① Resistance to scanning due to large address space:
+  → A /64 subnet has 2^64 addresses
+  → Brute-force scanning is practically impossible
+  → However, predictable addresses (::1, ::dead:beef, etc.) may be targeted
 
-② NDP（Neighbor Discovery Protocol）の脆弱性:
-  → IPv4のARPスプーフィングに相当する攻撃
-  → RA（Router Advertisement）スプーフィング
-  → 偽のルーターを広告してトラフィックを乗っ取り
+② NDP (Neighbor Discovery Protocol) vulnerabilities:
+  → Equivalent to ARP spoofing in IPv4
+  → RA (Router Advertisement) spoofing
+  → Advertise a fake router to hijack traffic
 
-  対策:
-  → RA Guard: スイッチでRA送信を制限
-  → SEND（SEcure Neighbor Discovery）: NDPメッセージに署名
+  Countermeasures:
+  → RA Guard: restrict RA transmission at the switch
+  → SEND (SEcure Neighbor Discovery): sign NDP messages
 
-③ デュアルスタック環境のリスク:
-  → IPv4ファイアウォールは設定済みだがIPv6は未設定
-  → IPv6経由でファイアウォールをバイパス
-  → 必ず両プロトコルのセキュリティ設定を統一する
+③ Risks in dual-stack environments:
+  → IPv4 firewall is configured but IPv6 is not
+  → Bypass firewall via IPv6
+  → Always unify security settings for both protocols
 
-④ IPv6拡張ヘッダーの悪用:
-  → 多数の拡張ヘッダーでファイアウォールを回避
-  → フラグメンテーション攻撃
-  → 対策: 不要な拡張ヘッダーをフィルタリング
+④ Abuse of IPv6 extension headers:
+  → Bypass firewalls with many extension headers
+  → Fragmentation attacks
+  → Countermeasure: filter unnecessary extension headers
 
-⑤ トンネリングのリスク:
-  → 6to4, Teredo等のトンネルが意図しない経路を作成
-  → 対策: 不要なトンネリングプロトコルを無効化
+⑤ Tunneling risks:
+  → Tunnels like 6to4 and Teredo create unintended paths
+  → Countermeasure: disable unnecessary tunneling protocols
 ```
 
 ---
 
-## 10. FAQ（よくある質問）
+## 10. FAQ
 
-### FAQ 1: IPv4アドレス枯渇問題の現状と対策は？
+### FAQ 1: What is the current state of IPv4 address exhaustion and its countermeasures?
 
 ```
-Q: IPv4アドレスの枯渇は本当に深刻なのか？現在の対策は？
+Q: Is IPv4 address exhaustion really serious? What are the current countermeasures?
 
-A: IPv4アドレスは2011年にIANAで枯渇し、2019年にはRIPE NCC（欧州）で
-   完全に枯渇した。しかし、以下の対策により運用は継続している。
+A: IPv4 addresses were exhausted at IANA in 2011, and in 2019 RIPE NCC (Europe)
+   was completely exhausted. However, operations continue thanks to the following measures.
 
-現状:
-  ・2011年2月: IANAがRIRへの割り当てを停止
-  ・2015年9月: ARIN（北米）が枯渇
-  ・2019年11月: RIPE NCC（欧州）が枯渇
-  ・現在: 新規割り当てはほぼ不可能
+Current situation:
+  · February 2011: IANA stopped allocations to RIRs
+  · September 2015: ARIN (North America) exhausted
+  · November 2019: RIPE NCC (Europe) exhausted
+  · Currently: new allocations are almost impossible
 
-主な対策:
+Main countermeasures:
 
 1. NAT/NAPT:
-   → プライベートIPアドレス（10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16）
-     を使用し、グローバルIPを節約
-   → 家庭用ルーターやファイアウォールで広く使用
-   → 「1つのグローバルIP」で数百台のデバイスがインターネット接続可能
+   → Use private IP addresses (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
+     to conserve global IPs
+   → Widely used in home routers and firewalls
+   → "One global IP" allows hundreds of devices to access the Internet
 
-2. CGNAT（キャリアグレードNAT）:
-   → ISPレベルでのNAT
-   → RFC 6598の共用アドレス空間（100.64.0.0/10）を使用
-   → 複数の契約者が1つのグローバルIPを共有
-   → 一部のP2P通信やポート開放に問題が生じる
+2. CGNAT (Carrier-Grade NAT):
+   → NAT at the ISP level
+   → Uses the shared address space of RFC 6598 (100.64.0.0/10)
+   → Multiple subscribers share one global IP
+   → Causes problems with some P2P communications and port forwarding
 
-3. IPv6への移行:
-   → 128ビットアドレス = 事実上無限（3.4×10^38個）
-   → デュアルスタック運用（IPv4とIPv6を同時運用）
-   → Google統計（2024年）: 約45%のトラフィックがIPv6
+3. Migration to IPv6:
+   → 128-bit addresses = effectively unlimited (3.4×10^38)
+   → Dual-stack operation (running IPv4 and IPv6 simultaneously)
+   → Google statistics (2024): approximately 45% of traffic is IPv6
 
-4. IPv4アドレスの取引市場:
-   → 使われていないIPv4アドレスブロックを売買
-   → 価格は1アドレスあたり30-50ドル程度
-   → AWS、Microsoft等の大手が大量に購入
+4. IPv4 address trading market:
+   → Buying and selling unused IPv4 address blocks
+   → Price is approximately $30–50 per address
+   → Major companies such as AWS and Microsoft are buying in bulk
 
-実務的な判断:
-  ・新規システムは必ずIPv6対応を前提に設計
-  ・当面はデュアルスタック運用が必須
-  ・パブリッククラウド（AWS、GCP、Azure）はIPv6を積極的にサポート
+Practical judgment:
+  · Design new systems with IPv6 support from the start
+  · Dual-stack operation is essential for the foreseeable future
+  · Public clouds (AWS, GCP, Azure) actively support IPv6
 ```
 
-### FAQ 2: サブネットマスクの計算方法を教えてほしい
+### FAQ 2: How do I calculate subnet masks?
 
 ```
-Q: サブネット計算を手早く行う方法は？
+Q: What is a quick way to perform subnet calculations?
 
-A: CIDR表記とビット演算の理解があれば、暗算でも可能。
+A: With an understanding of CIDR notation and bitwise operations, mental calculation is possible.
 
-基本公式:
-  ホスト数 = 2^(32 - プレフィックス長) - 2
-             ↑
-             ネットワークアドレスとブロードキャストアドレスを引く
+Basic formula:
+  Host count = 2^(32 - prefix length) - 2
+               ↑
+               Subtract the network address and broadcast address
 
-よく使うサブネット早見表:
+Quick subnet reference table:
 
-  /24 → 256アドレス（254ホスト）← 最もよく使う
-  /25 → 128アドレス（126ホスト）
-  /26 → 64アドレス（62ホスト）
-  /27 → 32アドレス（30ホスト）
-  /28 → 16アドレス（14ホスト）
-  /29 → 8アドレス（6ホスト）
-  /30 → 4アドレス（2ホスト）← ルーター間接続で使用
-  /31 → 2アドレス（RFC 3021: P2Pリンク専用）
-  /32 → 1アドレス（ホストアドレス）
+  /24 → 256 addresses (254 hosts) ← most commonly used
+  /25 → 128 addresses (126 hosts)
+  /26 → 64 addresses (62 hosts)
+  /27 → 32 addresses (30 hosts)
+  /28 → 16 addresses (14 hosts)
+  /29 → 8 addresses (6 hosts)
+  /30 → 4 addresses (2 hosts) ← used for router-to-router links
+  /31 → 2 addresses (RFC 3021: dedicated P2P links)
+  /32 → 1 address (host address)
 
-計算例: 192.168.1.64/26 のネットワーク情報を求める
+Calculation example: find the network information for 192.168.1.64/26
 
   1. /26 = 11111111.11111111.11111111.11000000
          = 255.255.255.192
 
-  2. ホスト部のビット数 = 32 - 26 = 6ビット
-     → 2^6 = 64アドレス
+  2. Host bits = 32 - 26 = 6 bits
+     → 2^6 = 64 addresses
 
-  3. ネットワークアドレス:
+  3. Network address:
      192.168.1.64
-     （64は64の倍数なので、そのまま）
+     (64 is a multiple of 64, so it stays as-is)
 
-  4. ブロードキャストアドレス:
+  4. Broadcast address:
      192.168.1.64 + 63 = 192.168.1.127
 
-  5. 利用可能なホスト範囲:
-     192.168.1.65 〜 192.168.1.126
-     （最初と最後を除く62個）
+  5. Usable host range:
+     192.168.1.65 – 192.168.1.126
+     (62 addresses, excluding the first and last)
 
-暗算のコツ:
-  ・/24より大きい場合（/25〜/32）は第4オクテットに着目
-  ・/16より大きく/24より小さい場合（/17〜/23）は第3オクテットに着目
-  ・「256からサブネットマスクの値を引く」= ブロックサイズ
-    例: /26 → 256 - 192 = 64 → 64個ずつのブロック
+Mental calculation tips:
+  · For prefixes larger than /24 (/25–/32), focus on the 4th octet
+  · For prefixes between /16 and /24 (/17–/23), focus on the 3rd octet
+  · "256 minus the subnet mask value" = block size
+    Example: /26 → 256 - 192 = 64 → blocks of 64
 ```
 
-### FAQ 3: プライベートIPとNATの仕組みを詳しく教えてほしい
+### FAQ 3: Can you explain private IPs and NAT in detail?
 
 ```
-Q: プライベートIPアドレスとNATはどのように動作するのか？
+Q: How do private IP addresses and NAT work?
 
-A: プライベートIPアドレスは組織内部でのみ使用され、
-   インターネット上にはルーティングされない。
-   NAT（Network Address Translation）がこれらをグローバルIPに変換する。
+A: Private IP addresses are used only within an organization
+   and are not routed on the Internet.
+   NAT (Network Address Translation) converts them to global IPs.
 
-プライベートIPアドレスの範囲（RFC 1918）:
+Private IP address ranges (RFC 1918):
 
-  10.0.0.0/8        → 10.0.0.0 〜 10.255.255.255
-                       約1677万個（クラスA相当）
-                       大規模組織、VPCで使用
+  10.0.0.0/8        → 10.0.0.0 – 10.255.255.255
+                       Approximately 16.77 million addresses (equivalent to Class A)
+                       Used by large organizations and VPCs
 
-  172.16.0.0/12     → 172.16.0.0 〜 172.31.255.255
-                       約104万個（クラスB相当×16）
-                       中規模組織で使用
+  172.16.0.0/12     → 172.16.0.0 – 172.31.255.255
+                       Approximately 1.04 million addresses (equivalent to Class B × 16)
+                       Used by mid-sized organizations
 
-  192.168.0.0/16    → 192.168.0.0 〜 192.168.255.255
-                       約65,000個（クラスC相当×256）
-                       家庭用ルーター、小規模組織で使用
+  192.168.0.0/16    → 192.168.0.0 – 192.168.255.255
+                       Approximately 65,000 addresses (equivalent to Class C × 256)
+                       Used by home routers and small organizations
 
-NAT/NAPTの動作（家庭用ルーターの例）:
+NAT/NAPT operation (home router example):
 
-  内部ネットワーク:
+  Internal network:
     PC-A: 192.168.1.100
     PC-B: 192.168.1.101
     PC-C: 192.168.1.102
-    ルーター内部IF: 192.168.1.1
-    ルーター外部IF: 203.0.113.50（グローバルIP）
+    Router internal IF: 192.168.1.1
+    Router external IF: 203.0.113.50 (global IP)
 
-  PC-Aがgoogle.com（142.250.196.110:80）にアクセス:
+  PC-A accesses google.com (142.250.196.110:80):
 
-    [内部] PC-A送信:
-      送信元: 192.168.1.100:54321
-      宛先: 142.250.196.110:80
+    [Internal] PC-A sends:
+      Source: 192.168.1.100:54321
+      Destination: 142.250.196.110:80
 
-    [ルーター] NAT変換:
-      NATテーブルに記録:
-        内部 192.168.1.100:54321 ←→ 外部 203.0.113.50:12345
+    [Router] NAT translation:
+      Record in NAT table:
+        Internal 192.168.1.100:54321 ←→ External 203.0.113.50:12345
 
-      パケット書き換え:
-        送信元: 203.0.113.50:12345 （変換後）
-        宛先: 142.250.196.110:80
+      Rewrite packet:
+        Source: 203.0.113.50:12345 (after translation)
+        Destination: 142.250.196.110:80
 
-    [外部] Googleへ送信
+    [External] Sent to Google
 
-    [Google] 応答:
-      送信元: 142.250.196.110:80
-      宛先: 203.0.113.50:12345
+    [Google] Response:
+      Source: 142.250.196.110:80
+      Destination: 203.0.113.50:12345
 
-    [ルーター] NAT逆変換:
-      NATテーブルを参照:
+    [Router] NAT reverse translation:
+      Look up NAT table:
         203.0.113.50:12345 → 192.168.1.100:54321
 
-      パケット書き換え:
-        送信元: 142.250.196.110:80
-        宛先: 192.168.1.100:54321 （変換後）
+      Rewrite packet:
+        Source: 142.250.196.110:80
+        Destination: 192.168.1.100:54321 (after translation)
 
-    [内部] PC-Aが受信
+    [Internal] PC-A receives
 
-重要なポイント:
-  ・外部からはルーターのグローバルIP（203.0.113.50）しか見えない
-  ・ポート番号で内部の複数デバイスを識別（NAPT = PAT）
-  ・内部から外部への通信で動的にマッピングを作成
-  ・外部から内部への新規接続は不可（ポートフォワード設定が必要）
+Key points:
+  · Only the router's global IP (203.0.113.50) is visible from outside
+  · Port numbers identify multiple internal devices (NAPT = PAT)
+  · Mappings are created dynamically for outbound connections
+  · New inbound connections from outside are not possible (port forwarding is required)
 
-NATの利点:
-  ① IPv4アドレス節約: 1つのグローバルIPで多数のデバイスが利用可能
-  ② セキュリティ: 内部ネットワークの隠蔽
-  ③ IPアドレス管理の簡素化: ISP変更時も内部は変更不要
+NAT advantages:
+  ① IPv4 address conservation: many devices share one global IP
+  ② Security: internal network is hidden
+  ③ Simplified IP address management: no internal changes needed when switching ISPs
 
-NATの欠点:
-  ① エンドツーエンド原則の破壊: 中間でアドレス書き換えが発生
-  ② P2P通信の困難さ: 両端がNAT内部だと直接通信不可
-  ③ プロトコルによっては動作しない: FTP（Active Mode）、SIP等
-  ④ パフォーマンス: 変換処理のオーバーヘッド
-  ⑤ トレーサビリティ: CGNATでは複数ユーザーが同一IPを共有
+NAT disadvantages:
+  ① Breaks the end-to-end principle: address rewriting occurs in the middle
+  ② P2P communication is difficult: cannot communicate directly if both ends are behind NAT
+  ③ Does not work with some protocols: FTP (Active Mode), SIP, etc.
+  ④ Performance: overhead from translation processing
+  ⑤ Traceability: with CGNAT, multiple users share the same IP
 ```
 
 ---
@@ -1529,47 +1532,33 @@ NATの欠点:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 概念 | ポイント |
+| Concept | Key points |
 |------|---------|
-| IPv4 | 32ビット、約43億個、枯渇問題あり |
-| IPv6 | 128ビット、事実上無限、NATが不要 |
-| CIDR | /24 = 254ホスト、柔軟なサブネット分割 |
-| VLSM | サブネットごとに異なるマスク長 |
-| NAT | プライベート ↔ グローバル変換、NAPT が最も一般的 |
-| DHCP | DORA プロセスでIPアドレスを自動割り当て |
-| ルーティング | ロンゲストプレフィックスマッチで転送先決定 |
-| VPC設計 | /16推奨、AZ×役割でサブネット分割 |
+| IPv4 | 32-bit, approximately 4.3 billion addresses, exhaustion problem |
+| IPv6 | 128-bit, effectively unlimited, no NAT required |
+| CIDR | /24 = 254 hosts, flexible subnet division |
+| VLSM | Different mask length per subnet |
+| NAT | Private ↔ global translation, NAPT is most common |
+| DHCP | Automatically assigns IP addresses via the DORA process |
+| Routing | Forwarding destination determined by longest prefix match |
+| VPC design | /16 recommended, subnets divided by AZ × role |
 
 ---
 
-## 次に読むべきガイド
-
----
-
-## 参考文献
-1. RFC 791. "Internet Protocol." IETF, 1981.
-2. RFC 8200. "Internet Protocol, Version 6." IETF, 2017.
-3. RFC 1918. "Address Allocation for Private Internets." IETF, 1996.
-4. RFC 4632. "Classless Inter-domain Routing (CIDR)." IETF, 2006.
-5. RFC 2131. "Dynamic Host Configuration Protocol." IETF, 1997.
-6. RFC 4862. "IPv6 Stateless Address Autoconfiguration." IETF, 2007.
-7. RFC 8305. "Happy Eyeballs Version 2." IETF, 2017.
-8. RFC 6598. "IANA-Reserved IPv4 Prefix for Shared Address Space." IETF, 2012.
-9. RFC 5737. "IPv4 Address Blocks Reserved for Documentation." IETF, 2010.
-10. Doyle, J. & Carroll, J. "Routing TCP/IP, Volume 1." 2nd Ed, Cisco Press, 2005.
+## Next Guides to Read
