@@ -1,146 +1,146 @@
-# フォーム設計
+# Form Design
 
-> フォームはユーザーとの主要なインタラクションポイント。React Hook Form、制御/非制御コンポーネント、パフォーマンス最適化、アクセシビリティまで、使いやすく保守しやすいフォーム設計のベストプラクティスを習得する。
+> Forms are the primary interaction point between users and applications. Master best practices for usable and maintainable form design — from React Hook Form basics, controlled/uncontrolled components, and performance optimization, all the way to accessibility.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] React Hook Formの基本パターンと応用テクニックを理解する
-- [ ] 制御/非制御コンポーネントの使い分けと実装パターンを把握する
-- [ ] フォームのUXとアクセシビリティのベストプラクティスを学ぶ
-- [ ] Server Actionsとの統合パターンを実装できるようになる
-- [ ] 複雑なフォーム（マルチステップ、動的フィールド）を設計できる
-- [ ] フォームのパフォーマンス最適化手法を理解する
-- [ ] テスト戦略とデバッグ手法を身につける
-
----
-
-## 前提知識
-
-この章を最大限活用するために、以下の知識を事前に習得しておくことを推奨する:
-
-- **コンポーネントアーキテクチャ**: `../00-architecture/02-component-architecture.md` で学ぶ、Reactコンポーネントの設計原則と再利用可能なコンポーネントの構築方法を理解していること
-- **React Hooksの基礎**: `useState`, `useRef`, `useEffect` などの基本的なHooksの使い方と、カスタムフックの設計パターンを把握していること
-- **HTMLフォーム要素**: `<form>`, `<input>`, `<select>`, `<textarea>` といったネイティブHTML要素の動作、属性、イベントハンドリングの基礎知識を持っていること
+- [ ] Understand core patterns and advanced techniques in React Hook Form
+- [ ] Know when to use controlled vs. uncontrolled components and how to implement each
+- [ ] Learn best practices for form UX and accessibility
+- [ ] Be able to implement integration patterns with Server Actions
+- [ ] Design complex forms (multi-step, dynamic fields)
+- [ ] Understand form performance optimization techniques
+- [ ] Acquire testing strategies and debugging approaches
 
 ---
 
-## 1. フォーム設計の基本原則
+## Prerequisites
 
-フォーム設計において最も重要なのは、ユーザーが目的を最小限の摩擦で達成できるようにすることである。技術的な実装の前に、設計原則を理解しておく必要がある。
+To get the most out of this chapter, it is recommended that you have prior knowledge of the following:
 
-### 1.1 フォーム設計の3つの柱
+- **Component Architecture**: Understand the React component design principles and how to build reusable components, as covered in `../00-architecture/02-component-architecture.md`
+- **React Hooks Fundamentals**: Be familiar with basic hooks such as `useState`, `useRef`, and `useEffect`, and understand custom hook design patterns
+- **HTML Form Elements**: Have foundational knowledge of native HTML elements like `<form>`, `<input>`, `<select>`, and `<textarea>`, including their behavior, attributes, and event handling
+
+---
+
+## 1. Core Principles of Form Design
+
+The most important goal in form design is enabling users to accomplish their objectives with minimal friction. Before diving into technical implementation, it is essential to understand the underlying design principles.
+
+### 1.1 The Three Pillars of Form Design
 
 ```
-フォーム設計の3つの柱:
+The Three Pillars of Form Design:
 
-1. ユーザビリティ (Usability)
-   - 直感的なレイアウトとフロー
-   - 明確なラベルとプレースホルダー
-   - 適切なエラーメッセージとフィードバック
-   - モバイルフレンドリーな入力体験
+1. Usability
+   - Intuitive layout and flow
+   - Clear labels and placeholders
+   - Meaningful error messages and feedback
+   - Mobile-friendly input experience
 
-2. アクセシビリティ (Accessibility)
-   - スクリーンリーダー対応
-   - キーボードナビゲーション
-   - 十分なコントラスト比
-   - ARIA属性の適切な使用
+2. Accessibility
+   - Screen reader support
+   - Keyboard navigation
+   - Sufficient color contrast ratios
+   - Proper use of ARIA attributes
 
-3. パフォーマンス (Performance)
-   - 最小限の再レンダリング
-   - 遅延バリデーション
-   - 効率的な状態管理
-   - バンドルサイズの最適化
+3. Performance
+   - Minimal re-renders
+   - Deferred validation
+   - Efficient state management
+   - Bundle size optimization
 ```
 
-### 1.2 フォームライブラリの比較
+### 1.2 Comparing Form Libraries
 
-Reactエコシステムにおける主要なフォームライブラリを比較する。
+A comparison of the major form libraries in the React ecosystem.
 
-| 特性 | React Hook Form | Formik | React Final Form | 標準useState |
-|------|----------------|--------|-----------------|-------------|
-| バンドルサイズ | ~9KB | ~13KB | ~5KB | 0KB |
-| 再レンダリング | 最小限（非制御ベース） | フィールド変更ごと | 最小限 | フィールド変更ごと |
-| TypeScript対応 | 優秀（推論が効く） | 良好 | 良好 | 完全（手動定義） |
-| バリデーション | Zod/Yup統合 | Yup統合 | 独自 | 手動実装 |
-| 学習コスト | 低〜中 | 中 | 中 | 低 |
-| エコシステム | 豊富（DevTools等） | 成熟 | 限定的 | なし |
-| メンテナンス状況 | 活発 | やや停滞 | 安定 | - |
-| パフォーマンス | 最高 | 普通 | 良好 | 実装次第 |
+| Characteristic | React Hook Form | Formik | React Final Form | Native useState |
+|----------------|----------------|--------|-----------------|-----------------|
+| Bundle size | ~9KB | ~13KB | ~5KB | 0KB |
+| Re-renders | Minimal (uncontrolled-based) | On every field change | Minimal | On every field change |
+| TypeScript support | Excellent (strong inference) | Good | Good | Full (manual definitions) |
+| Validation | Zod/Yup integration | Yup integration | Custom | Manual implementation |
+| Learning curve | Low–Medium | Medium | Medium | Low |
+| Ecosystem | Rich (DevTools, etc.) | Mature | Limited | None |
+| Maintenance status | Active | Somewhat stalled | Stable | — |
+| Performance | Best | Average | Good | Depends on implementation |
 
-### 1.3 なぜ React Hook Form を選ぶのか
+### 1.3 Why Choose React Hook Form
 
 ```typescript
-// React Hook Form を選ぶ理由:
+// Reasons to choose React Hook Form:
 
-// 1. パフォーマンス: 非制御コンポーネントベースで再レンダリングが最小限
-//    → フォームフィールドが多いページでも高速
+// 1. Performance: Uncontrolled component-based, minimal re-renders
+//    → Fast even on pages with many form fields
 
-// 2. DX（開発者体験）: register() で簡単にフィールド登録
-//    → ボイラープレートコードが少ない
+// 2. DX (Developer Experience): Easy field registration with register()
+//    → Less boilerplate code
 
-// 3. バリデーション統合: Zod, Yup, Joi など主要なバリデーションライブラリと統合
-//    → スキーマファーストのバリデーション
+// 3. Validation integration: Works with Zod, Yup, Joi, and other major validation libraries
+//    → Schema-first validation
 
-// 4. TypeScript推論: スキーマから型が自動推論される
-//    → 型安全なフォーム開発
+// 4. TypeScript inference: Types are automatically inferred from schemas
+//    → Type-safe form development
 
-// 5. DevTools: React Hook Form DevToolsで状態をリアルタイム確認
-//    → デバッグが容易
+// 5. DevTools: View form state in real time with React Hook Form DevTools
+//    → Easier debugging
 
-// 6. 軽量: gzipで約9KB
-//    → バンドルサイズへの影響が小さい
+// 6. Lightweight: ~9KB gzipped
+//    → Minimal impact on bundle size
 ```
 
 ---
 
-## 2. React Hook Form 基本パターン
+## 2. React Hook Form Basic Patterns
 
-### 2.1 インストールとセットアップ
+### 2.1 Installation and Setup
 
 ```bash
-# 基本インストール
+# Basic installation
 npm install react-hook-form
 
-# Zodバリデーション統合
+# Zod validation integration
 npm install zod @hookform/resolvers
 
-# DevTools（開発環境のみ）
+# DevTools (development only)
 npm install -D @hookform/devtools
 ```
 
-### 2.2 基本的なフォーム実装
+### 2.2 Basic Form Implementation
 
 ```typescript
-// React Hook Form: パフォーマンス最適化されたフォームライブラリ
+// React Hook Form: a performance-optimized form library
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
 // ========================================
-// Step 1: Zodスキーマ定義
+// Step 1: Define the Zod schema
 // ========================================
 const userSchema = z.object({
   name: z.string()
-    .min(1, '名前は必須です')
-    .max(100, '名前は100文字以内で入力してください'),
+    .min(1, 'Name is required')
+    .max(100, 'Name must be 100 characters or fewer'),
   email: z.string()
-    .email('有効なメールアドレスを入力してください'),
+    .email('Please enter a valid email address'),
   age: z.coerce
     .number()
-    .min(0, '年齢は0以上で入力してください')
-    .max(150, '年齢は150以下で入力してください')
+    .min(0, 'Age must be 0 or greater')
+    .max(150, 'Age must be 150 or less')
     .optional(),
   role: z.enum(['user', 'admin', 'editor'], {
-    errorMap: () => ({ message: '有効なロールを選択してください' }),
+    errorMap: () => ({ message: 'Please select a valid role' }),
   }),
   agreed: z.literal(true, {
-    errorMap: () => ({ message: '利用規約に同意してください' }),
+    errorMap: () => ({ message: 'You must agree to the terms of service' }),
   }),
 });
 
-// Step 2: 型の自動推論
+// Step 2: Automatic type inference
 type UserFormData = z.infer<typeof userSchema>;
-// 推論される型:
+// Inferred type:
 // {
 //   name: string;
 //   email: string;
@@ -150,27 +150,27 @@ type UserFormData = z.infer<typeof userSchema>;
 // }
 
 // ========================================
-// Step 3: フォームコンポーネント
+// Step 3: Form component
 // ========================================
 function CreateUserForm() {
   const {
-    register,       // input を非制御コンポーネントとして登録
-    handleSubmit,   // フォーム送信ハンドラ（バリデーション込み）
+    register,       // Register inputs as uncontrolled components
+    handleSubmit,   // Form submission handler (with validation)
     formState: {
-      errors,        // バリデーションエラーオブジェクト
-      isSubmitting,  // 送信中フラグ
-      isDirty,       // フォームが変更されたか
-      isValid,       // フォームが有効か
-      dirtyFields,   // 変更されたフィールド
-      touchedFields, // タッチされたフィールド
+      errors,        // Validation error object
+      isSubmitting,  // Submission in-progress flag
+      isDirty,       // Whether the form has been modified
+      isValid,       // Whether the form is valid
+      dirtyFields,   // Fields that have been modified
+      touchedFields, // Fields that have been touched
     },
-    reset,          // フォームリセット
-    watch,          // 値の監視（再レンダリングを引き起こす）
-    setValue,       // プログラマティックに値を設定
-    getValues,      // 再レンダリングなしで値を取得
-    setError,       // 手動でエラーを設定
-    clearErrors,    // エラーをクリア
-    trigger,        // バリデーションを手動トリガー
+    reset,          // Reset the form
+    watch,          // Watch values (triggers re-renders)
+    setValue,       // Set a value programmatically
+    getValues,      // Get values without triggering re-renders
+    setError,       // Set an error manually
+    clearErrors,    // Clear errors
+    trigger,        // Manually trigger validation
   } = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
     defaultValues: {
@@ -179,38 +179,38 @@ function CreateUserForm() {
       role: 'user',
       agreed: false as any,
     },
-    mode: 'onBlur',           // バリデーションタイミング
-    reValidateMode: 'onChange', // 再バリデーションタイミング
+    mode: 'onBlur',           // Validation timing
+    reValidateMode: 'onChange', // Re-validation timing
   });
 
-  // 送信ハンドラ
+  // Submission handler
   const onSubmit = async (data: UserFormData) => {
     try {
       await api.users.create(data);
-      reset(); // フォームリセット
-      toast.success('ユーザーを作成しました');
+      reset(); // Reset the form
+      toast.success('User created successfully');
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
         setError('email', {
-          message: 'このメールアドレスは既に登録されています',
+          message: 'This email address is already registered',
         });
       } else {
-        toast.error('ユーザーの作成に失敗しました');
+        toast.error('Failed to create user');
       }
     }
   };
 
-  // エラーハンドラ（バリデーション失敗時）
+  // Error handler (called when validation fails)
   const onError = (errors: FieldErrors<UserFormData>) => {
     console.error('Validation errors:', errors);
-    // 最初のエラーフィールドにフォーカス（自動で行われる）
+    // Focus the first error field automatically
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit, onError)} noValidate>
-      {/* 名前フィールド */}
+      {/* Name field */}
       <div className="form-group">
-        <label htmlFor="name">名前 *</label>
+        <label htmlFor="name">Name *</label>
         <input
           id="name"
           type="text"
@@ -219,7 +219,7 @@ function CreateUserForm() {
           aria-describedby={errors.name ? 'name-error' : undefined}
           aria-required="true"
           autoComplete="name"
-          placeholder="山田太郎"
+          placeholder="Jane Doe"
         />
         {errors.name && (
           <p id="name-error" className="error-message" role="alert">
@@ -228,9 +228,9 @@ function CreateUserForm() {
         )}
       </div>
 
-      {/* メールフィールド */}
+      {/* Email field */}
       <div className="form-group">
-        <label htmlFor="email">メールアドレス *</label>
+        <label htmlFor="email">Email Address *</label>
         <input
           id="email"
           type="email"
@@ -248,9 +248,9 @@ function CreateUserForm() {
         )}
       </div>
 
-      {/* 年齢フィールド（オプション） */}
+      {/* Age field (optional) */}
       <div className="form-group">
-        <label htmlFor="age">年齢</label>
+        <label htmlFor="age">Age</label>
         <input
           id="age"
           type="number"
@@ -261,7 +261,7 @@ function CreateUserForm() {
           max={150}
         />
         <p id="age-hint" className="hint-text">
-          任意項目です
+          This field is optional
         </p>
         {errors.age && (
           <p id="age-error" className="error-message" role="alert">
@@ -270,17 +270,17 @@ function CreateUserForm() {
         )}
       </div>
 
-      {/* ロール選択 */}
+      {/* Role selection */}
       <div className="form-group">
-        <label htmlFor="role">ロール *</label>
+        <label htmlFor="role">Role *</label>
         <select
           id="role"
           {...register('role')}
           aria-invalid={!!errors.role}
         >
-          <option value="user">一般ユーザー</option>
-          <option value="editor">編集者</option>
-          <option value="admin">管理者</option>
+          <option value="user">General User</option>
+          <option value="editor">Editor</option>
+          <option value="admin">Admin</option>
         </select>
         {errors.role && (
           <p className="error-message" role="alert">
@@ -289,7 +289,7 @@ function CreateUserForm() {
         )}
       </div>
 
-      {/* 利用規約同意 */}
+      {/* Terms of service agreement */}
       <div className="form-group">
         <label className="checkbox-label">
           <input
@@ -297,7 +297,7 @@ function CreateUserForm() {
             {...register('agreed')}
             aria-invalid={!!errors.agreed}
           />
-          <span>利用規約に同意します *</span>
+          <span>I agree to the Terms of Service *</span>
         </label>
         {errors.agreed && (
           <p className="error-message" role="alert">
@@ -306,136 +306,136 @@ function CreateUserForm() {
         )}
       </div>
 
-      {/* 送信ボタン */}
+      {/* Submit button */}
       <button
         type="submit"
         disabled={isSubmitting}
         aria-busy={isSubmitting}
       >
-        {isSubmitting ? '作成中...' : 'ユーザーを作成'}
+        {isSubmitting ? 'Creating...' : 'Create User'}
       </button>
     </form>
   );
 }
 ```
 
-### 2.3 useForm のオプション詳細
+### 2.3 useForm Options in Detail
 
 ```typescript
-// useForm の全オプション解説
+// Full options reference for useForm
 const form = useForm<FormData>({
-  // バリデーションリゾルバー
+  // Validation resolver
   resolver: zodResolver(schema),
 
-  // デフォルト値（非同期も可能）
+  // Default values (can be async)
   defaultValues: {
     name: '',
     email: '',
   },
-  // または非同期でデフォルト値を取得
+  // Or fetch default values asynchronously:
   // defaultValues: async () => {
   //   const user = await fetchUser(userId);
   //   return user;
   // },
 
-  // バリデーションモード
+  // Validation mode
   mode: 'onBlur',
-  // 'onSubmit'  - 送信時のみ（デフォルト）
-  // 'onBlur'    - フォーカスを外した時
-  // 'onChange'  - 値が変わるたび
-  // 'onTouched' - 最初のBlur後はonChange
+  // 'onSubmit'  - Only on submission (default)
+  // 'onBlur'    - When a field loses focus
+  // 'onChange'  - On every value change
+  // 'onTouched' - onChange after the first blur
   // 'all'       - onBlur + onChange
 
-  // 再バリデーションモード（最初のエラー後）
+  // Re-validation mode (after the first error)
   reValidateMode: 'onChange',
-  // 'onBlur'    - フォーカスを外した時
-  // 'onChange'  - 値が変わるたび（デフォルト）
-  // 'onSubmit'  - 送信時のみ
+  // 'onBlur'    - When a field loses focus
+  // 'onChange'  - On every value change (default)
+  // 'onSubmit'  - Only on submission
 
-  // 送信時にフォーカスをエラーフィールドに移動
+  // Move focus to error field on submit
   shouldFocusError: true,
 
-  // フォーム値の比較基準
+  // How to collect validation errors
   criteriaMode: 'firstError',
-  // 'firstError' - 最初のエラーのみ（デフォルト）
-  // 'all'        - すべてのエラーを収集
+  // 'firstError' - Only the first error (default)
+  // 'all'        - Collect all errors
 
-  // アンマウント時にフィールドを保持するか
+  // Whether to keep fields registered after unmounting
   shouldUnregister: false,
 
-  // ネイティブバリデーションを使用するか
+  // Whether to use native browser validation
   shouldUseNativeValidation: false,
 
-  // デフォルト値の変更を監視
+  // Options for resetting when defaultValues change
   resetOptions: {
-    keepDirtyValues: true,  // ユーザーが変更した値を保持
+    keepDirtyValues: true,  // Keep values the user has changed
     keepErrors: false,
   },
 });
 ```
 
-### 2.4 register の詳細オプション
+### 2.4 register Options in Detail
 
 ```typescript
-// register() のオプション
+// Options for register()
 <input
   {...register('fieldName', {
-    // React Hook Form ネイティブバリデーション（Zod不使用時）
-    required: '必須項目です',
-    minLength: { value: 3, message: '3文字以上で入力してください' },
-    maxLength: { value: 100, message: '100文字以内で入力してください' },
-    min: { value: 0, message: '0以上の値を入力してください' },
-    max: { value: 150, message: '150以下の値を入力してください' },
+    // Native React Hook Form validation (when not using Zod)
+    required: 'This field is required',
+    minLength: { value: 3, message: 'Must be at least 3 characters' },
+    maxLength: { value: 100, message: 'Must be 100 characters or fewer' },
+    min: { value: 0, message: 'Must be 0 or greater' },
+    max: { value: 150, message: 'Must be 150 or less' },
     pattern: {
       value: /^[A-Za-z]+$/,
-      message: '英字のみ入力可能です',
+      message: 'Only alphabetic characters are allowed',
     },
     validate: {
-      // カスタムバリデーション（複数定義可能）
-      notAdmin: (v) => v !== 'admin' || '管理者名は使用できません',
+      // Custom validators (multiple can be defined)
+      notAdmin: (v) => v !== 'admin' || 'The name "admin" cannot be used',
       unique: async (v) => {
         const exists = await checkUsername(v);
-        return !exists || 'このユーザー名は使用されています';
+        return !exists || 'This username is already taken';
       },
     },
-    // フィールド値の変換
+    // Transform field value
     setValueAs: (v) => v.trim(),
-    // または数値変換
+    // Or convert to number:
     // valueAsNumber: true,
-    // または日付変換
+    // Or convert to date:
     // valueAsDate: true,
 
-    // フィールドが非表示の場合
+    // Disable field
     disabled: false,
 
-    // onChange / onBlur イベントハンドラ
+    // onChange / onBlur event handlers
     onChange: (e) => console.log('Changed:', e.target.value),
     onBlur: (e) => console.log('Blurred:', e.target.value),
 
-    // 依存フィールドのバリデーション
-    deps: ['otherField'], // otherField変更時にこのフィールドも再バリデーション
+    // Re-validate dependent fields
+    deps: ['otherField'], // Re-validates this field when otherField changes
   })}
 />
 ```
 
-### 2.5 watch の使い方と注意点
+### 2.5 Using watch and Caveats
 
 ```typescript
-// watch: フィールドの値をリアクティブに監視
+// watch: reactively observe field values
 function ConditionalForm() {
   const { register, watch, control } = useForm<FormData>();
 
-  // 1. 特定のフィールドを監視（再レンダリングが発生する）
+  // 1. Watch a specific field (causes re-renders)
   const role = watch('role');
 
-  // 2. 複数フィールドを監視
+  // 2. Watch multiple fields
   const [firstName, lastName] = watch(['firstName', 'lastName']);
 
-  // 3. 全フィールドを監視（パフォーマンス注意）
+  // 3. Watch all fields (use with caution — performance impact)
   // const allValues = watch();
 
-  // 4. useWatch: コンポーネントレベルで分離（推奨）
-  // → 監視対象のフィールドが変更された時だけ該当コンポーネントが再レンダリング
+  // 4. useWatch: isolated at the component level (recommended)
+  // → Only the component watching the field re-renders when it changes
   return (
     <form>
       <select {...register('role')}>
@@ -443,24 +443,24 @@ function ConditionalForm() {
         <option value="admin">Admin</option>
       </select>
 
-      {/* 条件付きフィールド表示 */}
+      {/* Conditionally show field */}
       {role === 'admin' && (
         <div>
-          <label htmlFor="adminCode">管理者コード</label>
+          <label htmlFor="adminCode">Admin Code</label>
           <input
             id="adminCode"
-            {...register('adminCode', { required: '管理者コードは必須です' })}
+            {...register('adminCode', { required: 'Admin code is required' })}
           />
         </div>
       )}
 
-      {/* useWatch を使った分離された監視コンポーネント */}
+      {/* Isolated watch component using useWatch */}
       <PriceDisplay control={control} />
     </form>
   );
 }
 
-// useWatch: 特定コンポーネントだけが再レンダリングされる
+// useWatch: only this component re-renders when the watched field changes
 import { useWatch } from 'react-hook-form';
 
 function PriceDisplay({ control }: { control: Control<FormData> }) {
@@ -473,13 +473,13 @@ function PriceDisplay({ control }: { control: Control<FormData> }) {
 
   return (
     <div className="price-display">
-      合計金額: {total.toLocaleString()}円
+      Total: {total.toLocaleString()}
     </div>
   );
 }
 ```
 
-### 2.6 DevTools の活用
+### 2.6 Using DevTools
 
 ```typescript
 // React Hook Form DevTools
@@ -496,7 +496,7 @@ function FormWithDevTools() {
         <button type="submit">Submit</button>
       </form>
 
-      {/* 開発環境でのみ表示 */}
+      {/* Show only in development */}
       {process.env.NODE_ENV === 'development' && (
         <DevTool control={control} placement="top-right" />
       )}
@@ -504,28 +504,28 @@ function FormWithDevTools() {
   );
 }
 
-// DevTools で確認できる情報:
-// - フォームの現在値
-// - バリデーションエラー
-// - touched / dirty / valid の状態
-// - フィールドの登録状態
-// - 送信回数と成否
+// Information available in DevTools:
+// - Current form values
+// - Validation errors
+// - touched / dirty / valid state
+// - Field registration status
+// - Submission count and result
 ```
 
 ---
 
-## 3. 制御 / 非制御コンポーネント
+## 3. Controlled / Uncontrolled Components
 
-### 3.1 概念の理解
+### 3.1 Understanding the Concepts
 
 ```
-非制御コンポーネント (Uncontrolled):
+Uncontrolled Components:
   ┌────────────────────────────────────────┐
-  │ DOM が値を管理                          │
-  │ register() で ref を登録               │
-  │ パフォーマンスが良い（再レンダリングなし）│
+  │ The DOM manages the value              │
+  │ register() attaches a ref              │
+  │ Better performance (no re-renders)     │
   │                                        │
-  │ 適用: ネイティブ HTML要素              │
+  │ Used with: native HTML elements        │
   │   - <input type="text" />              │
   │   - <input type="email" />             │
   │   - <input type="number" />            │
@@ -535,26 +535,26 @@ function FormWithDevTools() {
   │   - <textarea />                       │
   └────────────────────────────────────────┘
 
-制御コンポーネント (Controlled):
+Controlled Components:
   ┌────────────────────────────────────────┐
-  │ React が値を管理                        │
-  │ Controller で React Hook Form と統合   │
-  │ カスタムUIコンポーネントに必要          │
+  │ React manages the value                │
+  │ Controller integrates with React HF    │
+  │ Required for custom UI components      │
   │                                        │
-  │ 適用: カスタム / サードパーティUI       │
+  │ Used with: custom / third-party UI     │
   │   - DatePicker                         │
   │   - Autocomplete                       │
   │   - Rich Text Editor                   │
-  │   - shadcn/ui コンポーネント           │
-  │   - Material UI コンポーネント         │
+  │   - shadcn/ui components               │
+  │   - Material UI components             │
   │   - Radix UI Primitives               │
   └────────────────────────────────────────┘
 ```
 
-### 3.2 非制御コンポーネントのパターン
+### 3.2 Uncontrolled Component Pattern
 
 ```typescript
-// 非制御コンポーネント: register() を使用
+// Uncontrolled components: using register()
 function UncontrolledExample() {
   const { register, handleSubmit, formState: { errors } } = useForm({
     defaultValues: {
@@ -568,52 +568,52 @@ function UncontrolledExample() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
-      {/* テキスト入力 */}
+      {/* Text input */}
       <input type="text" {...register('username')} />
 
-      {/* テキストエリア */}
+      {/* Textarea */}
       <textarea {...register('bio')} rows={5} />
 
-      {/* チェックボックス */}
+      {/* Checkbox */}
       <label>
         <input type="checkbox" {...register('newsletter')} />
-        ニュースレターを購読する
+        Subscribe to newsletter
       </label>
 
-      {/* セレクトボックス */}
+      {/* Select box */}
       <select {...register('category')}>
-        <option value="general">一般</option>
-        <option value="tech">テクノロジー</option>
-        <option value="design">デザイン</option>
+        <option value="general">General</option>
+        <option value="tech">Technology</option>
+        <option value="design">Design</option>
       </select>
 
-      {/* ラジオボタン */}
+      {/* Radio buttons */}
       <fieldset>
-        <legend>優先度</legend>
+        <legend>Priority</legend>
         <label>
           <input type="radio" value="low" {...register('priority')} />
-          低
+          Low
         </label>
         <label>
           <input type="radio" value="medium" {...register('priority')} />
-          中
+          Medium
         </label>
         <label>
           <input type="radio" value="high" {...register('priority')} />
-          高
+          High
         </label>
       </fieldset>
 
-      <button type="submit">送信</button>
+      <button type="submit">Submit</button>
     </form>
   );
 }
 ```
 
-### 3.3 制御コンポーネントのパターン
+### 3.3 Controlled Component Pattern
 
 ```typescript
-// Controller の使用例: カスタムUIコンポーネント統合
+// Using Controller: integrating custom UI components
 import { Controller, useForm } from 'react-hook-form';
 import {
   Select,
@@ -655,14 +655,14 @@ function ProjectForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
-      {/* 非制御: ネイティブinput */}
+      {/* Uncontrolled: native input */}
       <input {...register('projectName')} />
 
-      {/* 制御: shadcn/ui Select */}
+      {/* Controlled: shadcn/ui Select */}
       <Controller
         name="category"
         control={control}
-        rules={{ required: 'カテゴリを選択してください' }}
+        rules={{ required: 'Please select a category' }}
         render={({ field, fieldState: { error } }) => (
           <div>
             <Select
@@ -670,13 +670,13 @@ function ProjectForm() {
               defaultValue={field.value}
             >
               <SelectTrigger aria-invalid={!!error}>
-                <SelectValue placeholder="カテゴリを選択" />
+                <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="web">Web開発</SelectItem>
-                <SelectItem value="mobile">モバイル開発</SelectItem>
-                <SelectItem value="design">デザイン</SelectItem>
-                <SelectItem value="marketing">マーケティング</SelectItem>
+                <SelectItem value="web">Web Development</SelectItem>
+                <SelectItem value="mobile">Mobile Development</SelectItem>
+                <SelectItem value="design">Design</SelectItem>
+                <SelectItem value="marketing">Marketing</SelectItem>
               </SelectContent>
             </Select>
             {error && (
@@ -688,11 +688,11 @@ function ProjectForm() {
         )}
       />
 
-      {/* 制御: DatePicker */}
+      {/* Controlled: DatePicker */}
       <Controller
         name="startDate"
         control={control}
-        rules={{ required: '開始日を選択してください' }}
+        rules={{ required: 'Please select a start date' }}
         render={({ field, fieldState: { error } }) => (
           <div>
             <DatePicker
@@ -710,13 +710,13 @@ function ProjectForm() {
         )}
       />
 
-      {/* 制御: Slider */}
+      {/* Controlled: Slider */}
       <Controller
         name="budget"
         control={control}
         render={({ field }) => (
           <div>
-            <label>予算: {field.value}%</label>
+            <label>Budget: {field.value}%</label>
             <Slider
               value={[field.value]}
               onValueChange={(vals) => field.onChange(vals[0])}
@@ -728,7 +728,7 @@ function ProjectForm() {
         )}
       />
 
-      {/* 制御: Switch */}
+      {/* Controlled: Switch */}
       <Controller
         name="isPublic"
         control={control}
@@ -739,12 +739,12 @@ function ProjectForm() {
               onCheckedChange={field.onChange}
               id="is-public"
             />
-            <label htmlFor="is-public">公開プロジェクト</label>
+            <label htmlFor="is-public">Public Project</label>
           </div>
         )}
       />
 
-      {/* 制御: Combobox（検索付きセレクト） */}
+      {/* Controlled: Combobox (select with search) */}
       <Controller
         name="assignee"
         control={control}
@@ -754,118 +754,118 @@ function ProjectForm() {
             onChange={field.onChange}
             onBlur={field.onBlur}
             options={members}
-            placeholder="担当者を検索..."
+            placeholder="Search assignee..."
             displayValue={(item) => item?.name || ''}
           />
         )}
       />
 
-      <button type="submit">作成</button>
+      <button type="submit">Create</button>
     </form>
   );
 }
 ```
 
-### 3.4 制御/非制御の使い分け判断フロー
+### 3.4 Decision Flow for Controlled vs. Uncontrolled
 
 ```
-フィールドの種類は？
+What type of field is it?
 │
-├─ ネイティブHTML要素（input, select, textarea）
+├─ Native HTML element (input, select, textarea)
 │  │
-│  ├─ 値のリアルタイム表示が必要？
-│  │  ├─ YES → watch() または useWatch() を使用（非制御のまま）
-│  │  └─ NO  → register() のみ（非制御）
+│  ├─ Need to display value in real time?
+│  │  ├─ YES → Use watch() or useWatch() (remains uncontrolled)
+│  │  └─ NO  → Use register() only (uncontrolled)
 │  │
-│  └─ → 非制御コンポーネント: register()
+│  └─ → Uncontrolled component: register()
 │
-├─ サードパーティUIコンポーネント
+├─ Third-party UI component
 │  │
-│  ├─ ref をサポートしている？
-│  │  ├─ YES → register() を試す（非制御で動く場合あり）
-│  │  └─ NO  → Controller が必須
+│  ├─ Does it support ref?
+│  │  ├─ YES → Try register() (may work as uncontrolled)
+│  │  └─ NO  → Controller is required
 │  │
-│  └─ → 制御コンポーネント: Controller
+│  └─ → Controlled component: Controller
 │
-└─ カスタムコンポーネント
+└─ Custom component
    │
-   ├─ forwardRef で ref を転送している？
-   │  ├─ YES → register() が使える
-   │  └─ NO  → Controller が必要
+   ├─ Does it forward ref with forwardRef?
+   │  ├─ YES → register() can be used
+   │  └─ NO  → Controller is required
    │
-   └─ → 通常は制御コンポーネント: Controller
+   └─ → Typically a controlled component: Controller
 ```
 
-### 3.5 パフォーマンス比較
+### 3.5 Performance Comparison
 
 ```typescript
-// 非制御コンポーネントのレンダリング挙動
-// input に "hello" と入力した場合:
+// Render behavior of uncontrolled vs. controlled components
+// When typing "hello" into an input:
 //
-// 非制御（register）:
-//   初回レンダリング: 1回
-//   入力中: 0回（DOM が直接値を管理）
-//   送信時: 1回
-//   合計: 2回
+// Uncontrolled (register):
+//   Initial render: 1
+//   While typing: 0 (DOM manages the value directly)
+//   On submit: 1
+//   Total: 2
 //
-// 制御（Controller + onChange）:
-//   初回レンダリング: 1回
-//   入力中: 5回（"h", "he", "hel", "hell", "hello"）
-//   送信時: 1回
-//   合計: 7回
+// Controlled (Controller + onChange):
+//   Initial render: 1
+//   While typing: 5 ("h", "he", "hel", "hell", "hello")
+//   On submit: 1
+//   Total: 7
 
-// → フィールド数が多い場合、非制御の方が圧倒的に有利
-// → ただし制御コンポーネントでも React.memo で最適化可能
+// → With many fields, uncontrolled is significantly faster
+// → That said, controlled components can be optimized with React.memo
 
-// パフォーマンス最適化: useWatch をコンポーネント分離で使う
+// Performance optimization: isolate useWatch into a separate component
 function OptimizedForm() {
   const { register, control, handleSubmit } = useForm();
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
-      {/* これらは再レンダリングされない */}
+      {/* These do not re-render */}
       <input {...register('field1')} />
       <input {...register('field2')} />
       <input {...register('field3')} />
       <input {...register('field4')} />
 
-      {/* この子コンポーネントだけが再レンダリングされる */}
+      {/* Only this child component re-renders */}
       <WatchedFieldDisplay control={control} />
 
-      <button type="submit">送信</button>
+      <button type="submit">Submit</button>
     </form>
   );
 }
 
 function WatchedFieldDisplay({ control }: { control: Control }) {
-  // field1 が変更された時だけこのコンポーネントが再レンダリング
+  // Only this component re-renders when field1 changes
   const field1Value = useWatch({ control, name: 'field1' });
-  return <div>Field 1 の値: {field1Value}</div>;
+  return <div>Field 1 value: {field1Value}</div>;
 }
 ```
 
 ---
 
-## 4. 高度なフォームパターン
+## 4. Advanced Form Patterns
 
-### 4.1 動的フィールド配列（useFieldArray）
+### 4.1 Dynamic Field Arrays (useFieldArray)
 
 ```typescript
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
-// スキーマ定義
+// Schema definition
 const orderSchema = z.object({
-  customerName: z.string().min(1, '顧客名は必須です'),
+  customerName: z.string().min(1, 'Customer name is required'),
   items: z.array(
     z.object({
-      productId: z.string().min(1, '商品を選択してください'),
-      quantity: z.coerce.number().min(1, '1以上を入力してください'),
-      price: z.coerce.number().min(0, '0以上を入力してください'),
+      productId: z.string().min(1, 'Please select a product'),
+      quantity: z.coerce.number().min(1, 'Must be at least 1'),
+      price: z.coerce.number().min(0, 'Must be 0 or greater'),
       note: z.string().optional(),
     })
-  ).min(1, '1つ以上の商品を追加してください'),
+  ).min(1, 'Please add at least one item'),
   discount: z.coerce.number().min(0).max(100).default(0),
 });
 
@@ -898,7 +898,7 @@ function OrderForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <div>
-        <label htmlFor="customerName">顧客名</label>
+        <label htmlFor="customerName">Customer Name</label>
         <input id="customerName" {...register('customerName')} />
         {errors.customerName && (
           <p className="error-message" role="alert">
@@ -907,18 +907,18 @@ function OrderForm() {
         )}
       </div>
 
-      <h3>注文商品</h3>
+      <h3>Order Items</h3>
 
       {fields.map((field, index) => (
         <div key={field.id} className="item-row">
-          {/* field.id をキーに使う（indexは不可） */}
+          {/* Use field.id as the key (not index) */}
           <div>
-            <label>商品</label>
+            <label>Product</label>
             <select {...register(`items.${index}.productId`)}>
-              <option value="">選択してください</option>
-              <option value="prod-1">商品A - ¥1,000</option>
-              <option value="prod-2">商品B - ¥2,000</option>
-              <option value="prod-3">商品C - ¥3,000</option>
+              <option value="">Please select</option>
+              <option value="prod-1">Product A - $10.00</option>
+              <option value="prod-2">Product B - $20.00</option>
+              <option value="prod-3">Product C - $30.00</option>
             </select>
             {errors.items?.[index]?.productId && (
               <p className="error-message" role="alert">
@@ -928,7 +928,7 @@ function OrderForm() {
           </div>
 
           <div>
-            <label>数量</label>
+            <label>Quantity</label>
             <input
               type="number"
               min={1}
@@ -937,7 +937,7 @@ function OrderForm() {
           </div>
 
           <div>
-            <label>単価</label>
+            <label>Unit Price</label>
             <input
               type="number"
               min={0}
@@ -946,7 +946,7 @@ function OrderForm() {
           </div>
 
           <div>
-            <label>備考</label>
+            <label>Note</label>
             <input {...register(`items.${index}.note`)} />
           </div>
 
@@ -954,32 +954,32 @@ function OrderForm() {
             type="button"
             onClick={() => remove(index)}
             disabled={fields.length <= 1}
-            aria-label={`商品 ${index + 1} を削除`}
+            aria-label={`Remove item ${index + 1}`}
           >
-            削除
+            Remove
           </button>
 
-          {/* 並び替えボタン */}
+          {/* Reorder buttons */}
           <button
             type="button"
             onClick={() => move(index, Math.max(0, index - 1))}
             disabled={index === 0}
-            aria-label="上へ移動"
+            aria-label="Move up"
           >
-            上へ
+            Up
           </button>
           <button
             type="button"
             onClick={() => move(index, Math.min(fields.length - 1, index + 1))}
             disabled={index === fields.length - 1}
-            aria-label="下へ移動"
+            aria-label="Move down"
           >
-            下へ
+            Down
           </button>
         </div>
       ))}
 
-      {/* 配列レベルのエラー */}
+      {/* Array-level error */}
       {errors.items?.root && (
         <p className="error-message" role="alert">
           {errors.items.root.message}
@@ -990,18 +990,18 @@ function OrderForm() {
         type="button"
         onClick={() => append({ productId: '', quantity: 1, price: 0, note: '' })}
       >
-        商品を追加
+        Add Item
       </button>
 
-      {/* 合計表示 */}
+      {/* Order total display */}
       <OrderTotal control={control} />
 
-      <button type="submit">注文確定</button>
+      <button type="submit">Place Order</button>
     </form>
   );
 }
 
-// 合計金額コンポーネント（useWatch で分離）
+// Order total component (isolated with useWatch)
 function OrderTotal({ control }: { control: Control<OrderFormData> }) {
   const items = useWatch({ control, name: 'items' });
   const discount = useWatch({ control, name: 'discount' });
@@ -1014,15 +1014,15 @@ function OrderTotal({ control }: { control: Control<OrderFormData> }) {
 
   return (
     <div className="order-total">
-      <p>小計: ¥{subtotal.toLocaleString()}</p>
-      <p>割引: {discount}%</p>
-      <p className="total">合計: ¥{Math.floor(total).toLocaleString()}</p>
+      <p>Subtotal: ${subtotal.toLocaleString()}</p>
+      <p>Discount: {discount}%</p>
+      <p className="total">Total: ${Math.floor(total).toLocaleString()}</p>
     </div>
   );
 }
 ```
 
-### 4.2 マルチステップフォーム
+### 4.2 Multi-Step Form
 
 ```typescript
 import { useForm, FormProvider, useFormContext } from 'react-hook-form';
@@ -1030,16 +1030,16 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useState } from 'react';
 
-// 各ステップのスキーマ
+// Schema for each step
 const step1Schema = z.object({
-  firstName: z.string().min(1, '姓は必須です'),
-  lastName: z.string().min(1, '名は必須です'),
-  email: z.string().email('有効なメールアドレスを入力してください'),
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
+  email: z.string().email('Please enter a valid email address'),
 });
 
 const step2Schema = z.object({
-  company: z.string().min(1, '会社名は必須です'),
-  position: z.string().min(1, '役職は必須です'),
+  company: z.string().min(1, 'Company name is required'),
+  position: z.string().min(1, 'Position is required'),
   department: z.string().optional(),
 });
 
@@ -1047,18 +1047,18 @@ const step3Schema = z.object({
   plan: z.enum(['free', 'pro', 'enterprise']),
   paymentMethod: z.enum(['credit', 'invoice']).optional(),
   agreeToTerms: z.literal(true, {
-    errorMap: () => ({ message: '利用規約に同意してください' }),
+    errorMap: () => ({ message: 'You must agree to the terms of service' }),
   }),
 });
 
-// 全体のスキーマ
+// Combined schema
 const fullSchema = step1Schema.merge(step2Schema).merge(step3Schema);
 type FullFormData = z.infer<typeof fullSchema>;
 
-// ステップごとのバリデーションスキーマ
+// Validation schemas per step
 const stepSchemas = [step1Schema, step2Schema, step3Schema];
 
-// ステップごとのフィールド名
+// Field names per step
 const stepFields: (keyof FullFormData)[][] = [
   ['firstName', 'lastName', 'email'],
   ['company', 'position', 'department'],
@@ -1086,9 +1086,9 @@ function MultiStepForm() {
 
   const { trigger, handleSubmit, formState: { isSubmitting } } = methods;
 
-  // 次のステップへ進む
+  // Advance to the next step
   const handleNext = async () => {
-    // 現在のステップのフィールドのみバリデーション
+    // Validate only the fields in the current step
     const fieldsToValidate = stepFields[currentStep];
     const isValid = await trigger(fieldsToValidate);
 
@@ -1097,7 +1097,7 @@ function MultiStepForm() {
     }
   };
 
-  // 前のステップに戻る
+  // Go back to the previous step
   const handlePrev = () => {
     setCurrentStep((prev) => Math.max(prev - 1, 0));
   };
@@ -1105,16 +1105,16 @@ function MultiStepForm() {
   const onSubmit = async (data: FullFormData) => {
     try {
       await api.registration.submit(data);
-      toast.success('登録が完了しました');
+      toast.success('Registration complete');
     } catch (error) {
-      toast.error('登録に失敗しました');
+      toast.error('Registration failed');
     }
   };
 
   return (
     <FormProvider {...methods}>
       <form onSubmit={handleSubmit(onSubmit)}>
-        {/* プログレスバー */}
+        {/* Progress bar */}
         <div className="progress-bar" role="progressbar"
           aria-valuenow={currentStep + 1}
           aria-valuemin={1}
@@ -1128,36 +1128,36 @@ function MultiStepForm() {
             >
               <span className="step-number">{i + 1}</span>
               <span className="step-label">
-                {['基本情報', '会社情報', 'プラン選択'][i]}
+                {['Basic Info', 'Company Info', 'Plan Selection'][i]}
               </span>
             </div>
           ))}
         </div>
 
-        {/* ステップコンテンツ */}
+        {/* Step content */}
         <div className="step-content">
           {currentStep === 0 && <Step1BasicInfo />}
           {currentStep === 1 && <Step2CompanyInfo />}
           {currentStep === 2 && <Step3PlanSelection />}
         </div>
 
-        {/* ナビゲーションボタン */}
+        {/* Navigation buttons */}
         <div className="step-navigation">
           <button
             type="button"
             onClick={handlePrev}
             disabled={currentStep === 0}
           >
-            戻る
+            Back
           </button>
 
           {currentStep < totalSteps - 1 ? (
             <button type="button" onClick={handleNext}>
-              次へ
+              Next
             </button>
           ) : (
             <button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? '送信中...' : '登録する'}
+              {isSubmitting ? 'Submitting...' : 'Register'}
             </button>
           )}
         </div>
@@ -1166,15 +1166,15 @@ function MultiStepForm() {
   );
 }
 
-// Step 1: 基本情報
+// Step 1: Basic Info
 function Step1BasicInfo() {
   const { register, formState: { errors } } = useFormContext<FullFormData>();
 
   return (
     <div>
-      <h2>基本情報</h2>
+      <h2>Basic Info</h2>
       <div>
-        <label htmlFor="firstName">姓 *</label>
+        <label htmlFor="firstName">First Name *</label>
         <input id="firstName" {...register('firstName')} />
         {errors.firstName && (
           <p className="error-message" role="alert">
@@ -1183,7 +1183,7 @@ function Step1BasicInfo() {
         )}
       </div>
       <div>
-        <label htmlFor="lastName">名 *</label>
+        <label htmlFor="lastName">Last Name *</label>
         <input id="lastName" {...register('lastName')} />
         {errors.lastName && (
           <p className="error-message" role="alert">
@@ -1192,7 +1192,7 @@ function Step1BasicInfo() {
         )}
       </div>
       <div>
-        <label htmlFor="email">メールアドレス *</label>
+        <label htmlFor="email">Email Address *</label>
         <input id="email" type="email" {...register('email')} />
         {errors.email && (
           <p className="error-message" role="alert">
@@ -1204,15 +1204,15 @@ function Step1BasicInfo() {
   );
 }
 
-// Step 2: 会社情報
+// Step 2: Company Info
 function Step2CompanyInfo() {
   const { register, formState: { errors } } = useFormContext<FullFormData>();
 
   return (
     <div>
-      <h2>会社情報</h2>
+      <h2>Company Info</h2>
       <div>
-        <label htmlFor="company">会社名 *</label>
+        <label htmlFor="company">Company Name *</label>
         <input id="company" {...register('company')} />
         {errors.company && (
           <p className="error-message" role="alert">
@@ -1221,7 +1221,7 @@ function Step2CompanyInfo() {
         )}
       </div>
       <div>
-        <label htmlFor="position">役職 *</label>
+        <label htmlFor="position">Position *</label>
         <input id="position" {...register('position')} />
         {errors.position && (
           <p className="error-message" role="alert">
@@ -1230,50 +1230,50 @@ function Step2CompanyInfo() {
         )}
       </div>
       <div>
-        <label htmlFor="department">部署</label>
+        <label htmlFor="department">Department</label>
         <input id="department" {...register('department')} />
       </div>
     </div>
   );
 }
 
-// Step 3: プラン選択
+// Step 3: Plan Selection
 function Step3PlanSelection() {
   const { register, watch, formState: { errors } } = useFormContext<FullFormData>();
   const plan = watch('plan');
 
   return (
     <div>
-      <h2>プラン選択</h2>
+      <h2>Plan Selection</h2>
       <fieldset>
-        <legend>プランを選択 *</legend>
+        <legend>Select a Plan *</legend>
         <label className="plan-option">
           <input type="radio" value="free" {...register('plan')} />
-          <span>Free - 無料</span>
+          <span>Free - $0/month</span>
         </label>
         <label className="plan-option">
           <input type="radio" value="pro" {...register('plan')} />
-          <span>Pro - ¥980/月</span>
+          <span>Pro - $9.80/month</span>
         </label>
         <label className="plan-option">
           <input type="radio" value="enterprise" {...register('plan')} />
-          <span>Enterprise - お問い合わせ</span>
+          <span>Enterprise - Contact us</span>
         </label>
       </fieldset>
 
       {plan !== 'free' && (
         <div>
-          <label htmlFor="paymentMethod">支払い方法</label>
+          <label htmlFor="paymentMethod">Payment Method</label>
           <select id="paymentMethod" {...register('paymentMethod')}>
-            <option value="credit">クレジットカード</option>
-            <option value="invoice">請求書払い</option>
+            <option value="credit">Credit Card</option>
+            <option value="invoice">Invoice</option>
           </select>
         </div>
       )}
 
       <label className="checkbox-label">
         <input type="checkbox" {...register('agreeToTerms')} />
-        <span>利用規約に同意します *</span>
+        <span>I agree to the Terms of Service *</span>
       </label>
       {errors.agreeToTerms && (
         <p className="error-message" role="alert">
@@ -1285,20 +1285,20 @@ function Step3PlanSelection() {
 }
 ```
 
-### 4.3 ネストされたフォーム（FormProvider）
+### 4.3 Nested Forms (FormProvider)
 
 ```typescript
-// FormProvider を使ったコンポーネント分割
+// Splitting components with FormProvider
 import { FormProvider, useForm, useFormContext } from 'react-hook-form';
 
-// 親コンポーネント
+// Parent component
 function ParentForm() {
   const methods = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       personal: { name: '', email: '' },
       address: { zip: '', prefecture: '', city: '', street: '' },
-      preferences: { theme: 'light', language: 'ja', notifications: true },
+      preferences: { theme: 'light', language: 'en', notifications: true },
     },
   });
 
@@ -1308,19 +1308,19 @@ function ParentForm() {
         <PersonalInfoSection />
         <AddressSection />
         <PreferencesSection />
-        <button type="submit">保存</button>
+        <button type="submit">Save</button>
       </form>
     </FormProvider>
   );
 }
 
-// 子コンポーネント: useFormContext で親のフォームにアクセス
+// Child component: access the parent form via useFormContext
 function PersonalInfoSection() {
   const { register, formState: { errors } } = useFormContext<ProfileFormData>();
 
   return (
     <fieldset>
-      <legend>個人情報</legend>
+      <legend>Personal Info</legend>
       <input {...register('personal.name')} />
       {errors.personal?.name && (
         <p className="error-message">{errors.personal.name.message}</p>
@@ -1333,7 +1333,7 @@ function PersonalInfoSection() {
   );
 }
 
-// 住所セクション（郵便番号から住所自動入力の例）
+// Address section (with auto-fill from postal code)
 function AddressSection() {
   const { register, setValue, formState: { errors } } = useFormContext<ProfileFormData>();
 
@@ -1345,26 +1345,26 @@ function AddressSection() {
         setValue('address.prefecture', address.prefecture, { shouldValidate: true });
         setValue('address.city', address.city, { shouldValidate: true });
       } catch {
-        // 住所取得失敗 - ユーザーに手動入力を促す
+        // Failed to fetch address — prompt user to enter manually
       }
     }
   };
 
   return (
     <fieldset>
-      <legend>住所</legend>
+      <legend>Address</legend>
       <input
         {...register('address.zip')}
         onChange={(e) => {
-          register('address.zip').onChange(e); // RHF のイベントも発火
+          register('address.zip').onChange(e); // Also fire RHF's event
           handleZipCodeChange(e);
         }}
         placeholder="1234567"
         inputMode="numeric"
       />
-      <input {...register('address.prefecture')} placeholder="東京都" />
-      <input {...register('address.city')} placeholder="渋谷区" />
-      <input {...register('address.street')} placeholder="1-2-3" />
+      <input {...register('address.prefecture')} placeholder="State / Province" />
+      <input {...register('address.city')} placeholder="City" />
+      <input {...register('address.street')} placeholder="Street address" />
     </fieldset>
   );
 }
@@ -1372,9 +1372,9 @@ function AddressSection() {
 
 ---
 
-## 5. Server Actions との統合
+## 5. Integration with Server Actions
 
-### 5.1 基本的な Server Actions 統合
+### 5.1 Basic Server Actions Integration
 
 ```typescript
 // React Hook Form + Server Actions
@@ -1384,7 +1384,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { createUser } from './actions';
 import { useTransition } from 'react';
 
-// Server Action 側（actions.ts）
+// Server Action side (actions.ts)
 // 'use server';
 // import { z } from 'zod';
 // import { userSchema } from './schema';
@@ -1406,7 +1406,7 @@ import { useTransition } from 'react';
 //   } catch (error) {
 //     return {
 //       success: false,
-//       errors: { _form: ['ユーザーの作成に失敗しました'] },
+//       errors: { _form: ['Failed to create user'] },
 //     };
 //   }
 // }
@@ -1425,19 +1425,19 @@ function CreateUserForm() {
   return (
     <form
       action={async (formData) => {
-        // Step 1: クライアントサイドバリデーション
+        // Step 1: Client-side validation
         const valid = await form.trigger();
         if (!valid) return;
 
-        // Step 2: Server Action 実行
+        // Step 2: Execute Server Action
         startTransition(async () => {
           const result = await createUser(formData);
 
           if (result?.errors) {
-            // Step 3: サーバーサイドエラーをフォームに反映
+            // Step 3: Reflect server-side errors in the form
             for (const [field, messages] of Object.entries(result.errors)) {
               if (field === '_form') {
-                // フォーム全体のエラー
+                // Form-level error
                 toast.error(messages[0]);
               } else {
                 form.setError(field as any, { message: messages[0] });
@@ -1445,13 +1445,13 @@ function CreateUserForm() {
             }
           } else if (result?.success) {
             form.reset();
-            toast.success('ユーザーを作成しました');
+            toast.success('User created successfully');
           }
         });
       }}
     >
       <div>
-        <label htmlFor="name">名前 *</label>
+        <label htmlFor="name">Name *</label>
         <input
           id="name"
           {...form.register('name')}
@@ -1465,7 +1465,7 @@ function CreateUserForm() {
       </div>
 
       <div>
-        <label htmlFor="email">メールアドレス *</label>
+        <label htmlFor="email">Email Address *</label>
         <input
           id="email"
           type="email"
@@ -1480,23 +1480,23 @@ function CreateUserForm() {
       </div>
 
       <button type="submit" disabled={isPending}>
-        {isPending ? '作成中...' : 'ユーザーを作成'}
+        {isPending ? 'Creating...' : 'Create User'}
       </button>
     </form>
   );
 }
 ```
 
-### 5.2 useActionState との統合（React 19）
+### 5.2 Integration with useActionState (React 19)
 
 ```typescript
-// React 19 の useActionState を使ったパターン
+// Pattern using React 19's useActionState
 'use client';
 import { useActionState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-// Server Action の戻り値型
+// Return type for Server Action
 interface ActionState {
   success: boolean;
   errors?: Record<string, string[]>;
@@ -1508,20 +1508,20 @@ function CreateUserFormWithActionState() {
     resolver: zodResolver(userSchema),
   });
 
-  // useActionState でサーバーアクションの状態を管理
+  // Manage server action state with useActionState
   const [state, formAction, isPending] = useActionState<ActionState, FormData>(
     async (prevState, formData) => {
-      // クライアントバリデーション
+      // Client-side validation
       const valid = await form.trigger();
       if (!valid) {
-        return { success: false, message: 'バリデーションエラー' };
+        return { success: false, message: 'Validation error' };
       }
 
-      // Server Action 呼び出し
+      // Call Server Action
       const result = await createUser(formData);
 
       if (!result.success && result.errors) {
-        // サーバーエラーをフォームに反映
+        // Reflect server errors in the form
         for (const [field, messages] of Object.entries(result.errors)) {
           form.setError(field as keyof UserFormData, {
             message: messages[0],
@@ -1536,38 +1536,38 @@ function CreateUserFormWithActionState() {
 
   return (
     <form action={formAction}>
-      {/* フォームフィールド */}
+      {/* Form fields */}
       <input {...form.register('name')} />
       <input {...form.register('email')} />
 
-      {/* サーバーからの成功メッセージ */}
+      {/* Success message from server */}
       {state.success && (
         <div className="success-message" role="status">
-          {state.message || 'ユーザーを作成しました'}
+          {state.message || 'User created successfully'}
         </div>
       )}
 
       <button type="submit" disabled={isPending}>
-        {isPending ? '作成中...' : '作成'}
+        {isPending ? 'Creating...' : 'Create'}
       </button>
     </form>
   );
 }
 ```
 
-### 5.3 プログレッシブエンハンスメント
+### 5.3 Progressive Enhancement
 
 ```typescript
-// JavaScript が無効でも動作するフォーム設計
-// Server Actions はプログレッシブエンハンスメントをネイティブにサポート
+// Form design that works even without JavaScript
+// Server Actions natively support progressive enhancement
 
-// Pattern 1: Server Action のみ（JS不要で動作）
+// Pattern 1: Server Action only (works without JS)
 async function submitForm(formData: FormData) {
   'use server';
   const name = formData.get('name') as string;
   const email = formData.get('email') as string;
 
-  // サーバーサイドバリデーション
+  // Server-side validation
   if (!name || !email) {
     redirect('/form?error=validation');
   }
@@ -1576,7 +1576,7 @@ async function submitForm(formData: FormData) {
   redirect('/users');
 }
 
-// Pattern 2: React Hook Form + Server Actions（JS有効時はクライアントバリデーション付き）
+// Pattern 2: React Hook Form + Server Actions (client validation when JS is enabled)
 function ProgressiveForm() {
   const form = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
@@ -1584,8 +1584,8 @@ function ProgressiveForm() {
 
   return (
     <form
-      action={submitForm}                    // JS無効時: Server Action直接実行
-      onSubmit={form.handleSubmit(           // JS有効時: クライアントバリデーション
+      action={submitForm}                    // When JS is disabled: Server Action runs directly
+      onSubmit={form.handleSubmit(           // When JS is enabled: client-side validation runs first
         async (data) => {
           const formData = new FormData();
           Object.entries(data).forEach(([key, value]) => {
@@ -1598,23 +1598,23 @@ function ProgressiveForm() {
       <input name="name" {...form.register('name')} />
       <input name="email" type="email" {...form.register('email')} />
 
-      {/* JS無効時はnoscriptでメッセージを表示 */}
+      {/* Show message when JS is disabled */}
       <noscript>
         <p className="info-text">
-          JavaScriptが無効の場合、サーバーサイドでバリデーションが行われます。
+          When JavaScript is disabled, validation is handled server-side.
         </p>
       </noscript>
 
-      <button type="submit">送信</button>
+      <button type="submit">Submit</button>
     </form>
   );
 }
 ```
 
-### 5.4 Optimistic Updates パターン
+### 5.4 Optimistic Updates Pattern
 
 ```typescript
-// useOptimistic を使った楽観的更新
+// Optimistic updates using useOptimistic
 'use client';
 import { useOptimistic } from 'react';
 import { useForm } from 'react-hook-form';
@@ -1642,23 +1642,23 @@ function CommentForm({ comments }: { comments: Comment[] }) {
 
   return (
     <div>
-      {/* コメント一覧 */}
+      {/* Comment list */}
       <ul>
         {optimisticComments.map((comment) => (
           <li key={comment.id} className={comment.isPending ? 'opacity-50' : ''}>
             <p>{comment.text}</p>
             <span>{comment.author}</span>
-            {comment.isPending && <span className="badge">送信中...</span>}
+            {comment.isPending && <span className="badge">Sending...</span>}
           </li>
         ))}
       </ul>
 
-      {/* コメント投稿フォーム */}
+      {/* Comment submission form */}
       <form
         action={async (formData) => {
           const text = formData.get('text') as string;
 
-          // 楽観的にUIを更新（即座に表示）
+          // Optimistically update UI (shown immediately)
           addOptimisticComment({
             id: `temp-${Date.now()}`,
             text,
@@ -1669,12 +1669,12 @@ function CommentForm({ comments }: { comments: Comment[] }) {
 
           form.reset();
 
-          // Server Action で実際に保存
+          // Actually save via Server Action
           await addComment(formData);
         }}
       >
         <textarea {...form.register('text')} name="text" required />
-        <button type="submit">コメントを投稿</button>
+        <button type="submit">Post Comment</button>
       </form>
     </div>
   );
@@ -1683,66 +1683,66 @@ function CommentForm({ comments }: { comments: Comment[] }) {
 
 ---
 
-## 6. フォームUXのベストプラクティス
+## 6. Form UX Best Practices
 
-### 6.1 バリデーションタイミングの設計
+### 6.1 Validation Timing Strategy
 
 ```
-バリデーションタイミング戦略:
+Validation Timing Strategy:
 
-推奨パターン: 「送信時 → 以降リアルタイム」
+Recommended pattern: "On submit → real-time thereafter"
 
-1. 初回入力時:
-   ✗ エラーを表示しない
-   ✗ フォームを開いた瞬間にバリデーションしない
-   → ユーザーがまだ入力を完了していない
+1. On initial input:
+   ✗ Do not show errors
+   ✗ Do not validate as soon as the form opens
+   → The user has not finished entering input yet
 
-2. 最初の送信時:
-   ✓ 全フィールドをバリデーション
-   ✓ エラーがあれば該当フィールドにフォーカス
-   → ユーザーに入力完了の意思がある
+2. On first submission:
+   ✓ Validate all fields
+   ✓ If there are errors, focus the relevant field
+   → The user has indicated intent to complete the form
 
-3. 送信後の入力中:
-   ✓ onChange / onBlur でリアルタイムバリデーション
-   ✓ エラー修正時は即座にエラー表示を消す
-   → ユーザーがエラーを修正する際のフィードバック
+3. While editing after submission:
+   ✓ Real-time validation on onChange / onBlur
+   ✓ Remove error message immediately when corrected
+   → Feedback while the user is fixing errors
 
-React Hook Form での設定:
-  mode: 'onSubmit'         → 送信時のみバリデーション
-  reValidateMode: 'onChange' → 送信後はリアルタイムバリデーション
-  または
-  mode: 'onBlur'           → フォーカスを外した時にバリデーション
-  reValidateMode: 'onChange' → エラー後はリアルタイムバリデーション
+React Hook Form configuration:
+  mode: 'onSubmit'         → Validate only on submission
+  reValidateMode: 'onChange' → Real-time validation after first submission
+  or
+  mode: 'onBlur'           → Validate when a field loses focus
+  reValidateMode: 'onChange' → Real-time validation after an error appears
 ```
 
-### 6.2 エラーメッセージの設計
+### 6.2 Designing Error Messages
 
 ```typescript
-// エラーメッセージの設計原則
+// Principles for error message design
 
-// 良いエラーメッセージ:
-// 1. 何が問題かを具体的に説明する
-// 2. どうすれば解決できるかを示す
-// 3. ユーザーを責めない
+// Good error messages:
+// 1. Specifically describe what is wrong
+// 2. Tell the user how to fix it
+// 3. Do not blame the user
 
 const goodMessages = {
-  required: '名前を入力してください',           // 何をすべきか
-  email: '有効なメールアドレスの形式で入力してください（例: user@example.com）',
-  minLength: '8文字以上のパスワードを入力してください',
-  pattern: '半角英数字のみ使用できます',
-  unique: 'このメールアドレスは既に登録されています。ログインしますか？',
+  required: 'Please enter your name',              // What to do
+  email: 'Please enter a valid email address (e.g., user@example.com)',
+  minLength: 'Password must be at least 8 characters',
+  pattern: 'Only alphanumeric characters are allowed',
+  unique: 'This email is already registered. Would you like to log in?',
 };
 
-// 悪いエラーメッセージ:
+// Bad error messages:
 const badMessages = {
-  required: '入力エラー',            // 何が問題か不明
-  email: 'Invalid email',           // 英語のまま / 解決方法不明
-  minLength: 'Error: too short',    // 技術的すぎる
-  pattern: '不正な入力です',         // 漠然としている
-  unique: 'エラー: 409 Conflict',   // HTTP ステータスコードをそのまま表示
+  required: 'Input error',             // Unclear what is wrong
+  email: 'Invalid email',              // Not localized / no guidance
+  minLength: 'Error: too short',       // Too technical
+  pattern: 'Invalid input',            // Too vague
+  unique: 'Error: 409 Conflict',       // Raw HTTP status code
 };
 
-// エラーメッセージコンポーネント
+// Error message component
 function FieldError({ error }: { error?: FieldError }) {
   if (!error) return null;
 
@@ -1755,15 +1755,15 @@ function FieldError({ error }: { error?: FieldError }) {
 }
 ```
 
-### 6.3 送信状態の管理
+### 6.3 Managing Submission State
 
 ```typescript
-// ダブルサブミット防止とローディング表示
+// Preventing double submission and showing a loading state
 function SubmitButton({
   isSubmitting,
   isDirty,
   isValid,
-  label = '送信',
+  label = 'Submit',
 }: {
   isSubmitting: boolean;
   isDirty: boolean;
@@ -1785,7 +1785,7 @@ function SubmitButton({
       {isSubmitting ? (
         <>
           <Spinner aria-hidden="true" />
-          <span>送信中...</span>
+          <span>Submitting...</span>
         </>
       ) : (
         label
@@ -1795,10 +1795,10 @@ function SubmitButton({
 }
 ```
 
-### 6.4 未保存変更の警告
+### 6.4 Warning About Unsaved Changes
 
 ```typescript
-// ページ離脱時の警告
+// Warn on page navigation with unsaved changes
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -1806,7 +1806,7 @@ function useUnsavedChangesWarning(isDirty: boolean) {
   const router = useRouter();
 
   useEffect(() => {
-    // ブラウザのネイティブ離脱警告
+    // Native browser beforeunload warning
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isDirty) {
         e.preventDefault();
@@ -1820,7 +1820,7 @@ function useUnsavedChangesWarning(isDirty: boolean) {
     };
   }, [isDirty]);
 
-  // Next.js App Router でのページ遷移警告
+  // Navigation warning for Next.js App Router
   useEffect(() => {
     if (!isDirty) return;
 
@@ -1828,7 +1828,7 @@ function useUnsavedChangesWarning(isDirty: boolean) {
 
     router.push = (...args) => {
       const confirmed = window.confirm(
-        '未保存の変更があります。ページを離れますか？'
+        'You have unsaved changes. Are you sure you want to leave?'
       );
       if (confirmed) {
         originalPush.apply(router, args);
@@ -1841,60 +1841,60 @@ function useUnsavedChangesWarning(isDirty: boolean) {
   }, [isDirty, router]);
 }
 
-// フォームでの使用
+// Usage in a form
 function EditForm() {
   const { register, handleSubmit, formState: { isDirty } } = useForm();
 
-  // ページ離脱警告を有効化
+  // Enable unsaved changes warning
   useUnsavedChangesWarning(isDirty);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       {isDirty && (
         <div className="unsaved-banner" role="status">
-          未保存の変更があります
+          You have unsaved changes
         </div>
       )}
-      {/* フォームフィールド */}
+      {/* Form fields */}
     </form>
   );
 }
 ```
 
-### 6.5 フォームレイアウトのベストプラクティス
+### 6.5 Form Layout Best Practices
 
 ```
-フォームレイアウト原則:
+Form Layout Principles:
 
-1. 単一カラムレイアウトを基本とする
-   ✓ 上から下への自然な視線の流れ
-   ✓ モバイルでもそのまま表示可能
-   ✗ 2カラムは関連フィールドのみ（姓名、市区町村など）
+1. Use a single-column layout as the default
+   ✓ Natural top-to-bottom reading flow
+   ✓ Works on mobile without changes
+   ✗ Two columns only for related fields (first/last name, city/state, etc.)
 
-2. ラベルの配置
-   ✓ フィールドの上（推奨）: 読みやすく、モバイル対応しやすい
-   △ フィールドの左: デスクトップでは整列されるが、モバイルで崩れやすい
-   ✗ フィールドの中（プレースホルダーのみ）: 入力後に消える
+2. Label placement
+   ✓ Above the field (recommended): readable and easy to adapt for mobile
+   △ Left of the field: aligned on desktop, but may break on mobile
+   ✗ Inside the field (placeholder only): disappears after the user types
 
-3. 必須/任意の表示
-   ✓ 必須フィールドが多い場合: 任意フィールドに「(任意)」と表示
-   ✓ 任意フィールドが多い場合: 必須フィールドに「*」をつける
-   ✗ 「*」だけで意味が不明
+3. Indicating required / optional
+   ✓ When most fields are required: mark optional fields with "(optional)"
+   ✓ When most fields are optional: mark required fields with "*"
+   ✗ Using "*" alone without explanation
 
-4. グルーピング
-   ✓ 関連フィールドを fieldset + legend でグループ化
-   ✓ 視覚的にも余白やボーダーで分離
-   ✓ セクション見出しを付ける
+4. Grouping
+   ✓ Group related fields with fieldset + legend
+   ✓ Visually separate sections with spacing or borders
+   ✓ Include section headings
 
-5. モバイル対応
-   ✓ inputMode を適切に設定（numeric, tel, email, url）
-   ✓ autoComplete を設定（ブラウザの自動入力サポート）
-   ✓ タッチターゲットのサイズは最低44x44px
-   ✓ ズーム防止: font-size を16px以上にする
+5. Mobile optimization
+   ✓ Set inputMode appropriately (numeric, tel, email, url)
+   ✓ Set autoComplete (to support browser autofill)
+   ✓ Minimum touch target size of 44x44px
+   ✓ Prevent zoom: keep font-size at 16px or larger
 ```
 
 ```css
-/* モバイルフレンドリーなフォームCSS */
+/* Mobile-friendly form CSS */
 .form-group {
   margin-bottom: 1.5rem;
 }
@@ -1911,7 +1911,7 @@ function EditForm() {
 .form-group textarea {
   width: 100%;
   padding: 0.75rem 1rem;
-  font-size: 1rem; /* 16px以上でiOSのズーム防止 */
+  font-size: 1rem; /* 16px or larger to prevent iOS zoom */
   border: 1px solid #d1d5db;
   border-radius: 0.375rem;
   transition: border-color 0.2s, box-shadow 0.2s;
@@ -1948,7 +1948,7 @@ function EditForm() {
   color: #6b7280;
 }
 
-/* タッチターゲットの最小サイズ */
+/* Minimum touch target size */
 .checkbox-label,
 .radio-label {
   display: flex;
@@ -1958,7 +1958,7 @@ function EditForm() {
   cursor: pointer;
 }
 
-/* モバイル最適化 */
+/* Mobile optimization */
 @media (max-width: 640px) {
   .form-group input,
   .form-group select,
@@ -1970,12 +1970,12 @@ function EditForm() {
 
 ---
 
-## 7. アクセシビリティ（a11y）
+## 7. Accessibility (a11y)
 
-### 7.1 ARIA属性の正しい使い方
+### 7.1 Correct Use of ARIA Attributes
 
 ```typescript
-// アクセシブルなフォームフィールドコンポーネント
+// Accessible form field component
 interface FormFieldProps {
   name: string;
   label: string;
@@ -1999,7 +1999,7 @@ function FormField({
   const errorId = `${fieldId}-error`;
   const hintId = `${fieldId}-hint`;
 
-  // aria-describedby の値を構築
+  // Build aria-describedby value
   const describedBy = [
     hint ? hintId : null,
     error ? errorId : null,
@@ -2007,21 +2007,21 @@ function FormField({
 
   return (
     <div className="form-field">
-      {/* ラベル */}
+      {/* Label */}
       <label htmlFor={fieldId}>
         {label}
         {required && <span className="required-mark" aria-hidden="true"> *</span>}
-        {required && <span className="sr-only">（必須）</span>}
+        {required && <span className="sr-only">(required)</span>}
       </label>
 
-      {/* ヒントテキスト */}
+      {/* Hint text */}
       {hint && (
         <p id={hintId} className="hint-text">
           {hint}
         </p>
       )}
 
-      {/* 入力フィールド */}
+      {/* Input field */}
       <input
         id={fieldId}
         type={type}
@@ -2031,7 +2031,7 @@ function FormField({
         aria-describedby={describedBy}
       />
 
-      {/* エラーメッセージ */}
+      {/* Error message */}
       {error && (
         <p id={errorId} className="error-message" role="alert" aria-live="assertive">
           {error}
@@ -2042,30 +2042,30 @@ function FormField({
 }
 ```
 
-### 7.2 キーボードナビゲーション
+### 7.2 Keyboard Navigation
 
 ```typescript
-// キーボードナビゲーション対応
-// 重要な原則:
-// 1. Tab キーで全フィールドにアクセス可能
-// 2. Enter キーでフォーム送信
-// 3. Escape キーでモーダルフォームを閉じる
-// 4. Space キーでチェックボックス/ラジオボタンを切り替え
+// Keyboard navigation support
+// Key principles:
+// 1. All fields reachable via Tab key
+// 2. Form submission via Enter key
+// 3. Close modal forms via Escape key
+// 4. Toggle checkboxes/radio buttons via Space key
 
 function AccessibleForm() {
   const formRef = useRef<HTMLFormElement>(null);
 
-  // カスタムキーボードイベント
+  // Custom keyboard event handling
   const handleKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
-    // Ctrl+Enter で送信（テキストエリアがある場合に便利）
+    // Ctrl+Enter to submit (useful when there is a textarea)
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       formRef.current?.requestSubmit();
     }
 
-    // Escape でフォームリセット
+    // Escape to reset the form
     if (e.key === 'Escape') {
-      const confirmed = window.confirm('入力内容をリセットしますか？');
+      const confirmed = window.confirm('Reset all entered content?');
       if (confirmed) {
         form.reset();
       }
@@ -2078,20 +2078,20 @@ function AccessibleForm() {
       onKeyDown={handleKeyDown}
       onSubmit={form.handleSubmit(onSubmit)}
     >
-      {/* tabIndex の順序に注意 */}
+      {/* Be mindful of tabIndex order */}
       <input {...form.register('name')} tabIndex={1} />
       <input {...form.register('email')} tabIndex={2} />
       <textarea {...form.register('message')} tabIndex={3} />
 
-      {/* スキップリンク: 長いフォームの場合 */}
+      {/* Skip link for long forms */}
       <a href="#form-actions" className="sr-only focus:not-sr-only">
-        送信ボタンへスキップ
+        Skip to submit button
       </a>
 
       <div id="form-actions">
-        <button type="submit" tabIndex={4}>送信</button>
+        <button type="submit" tabIndex={4}>Submit</button>
         <button type="button" tabIndex={5} onClick={() => form.reset()}>
-          リセット
+          Reset
         </button>
       </div>
     </form>
@@ -2099,12 +2099,12 @@ function AccessibleForm() {
 }
 ```
 
-### 7.3 スクリーンリーダー対応
+### 7.3 Screen Reader Support
 
 ```typescript
-// スクリーンリーダー向けの最適化
+// Optimizations for screen readers
 
-// 1. ライブリージョン: エラーメッセージの動的通知
+// 1. Live region: announce dynamic error messages
 function LiveErrorSummary({ errors }: { errors: FieldErrors }) {
   const errorMessages = Object.entries(errors)
     .map(([field, error]) => `${field}: ${error?.message}`)
@@ -2117,12 +2117,12 @@ function LiveErrorSummary({ errors }: { errors: FieldErrors }) {
       aria-atomic="true"
       className="sr-only"
     >
-      {errorMessages && `フォームに${Object.keys(errors).length}件のエラーがあります。${errorMessages}`}
+      {errorMessages && `The form has ${Object.keys(errors).length} error(s). ${errorMessages}`}
     </div>
   );
 }
 
-// 2. エラーサマリー: フォーム上部にエラー一覧を表示
+// 2. Error summary: display a list of errors at the top of the form
 function ErrorSummary({ errors }: { errors: FieldErrors }) {
   const errorList = Object.entries(errors);
   if (errorList.length === 0) return null;
@@ -2133,10 +2133,10 @@ function ErrorSummary({ errors }: { errors: FieldErrors }) {
       aria-labelledby="error-summary-title"
       className="error-summary"
       tabIndex={-1}
-      ref={(el) => el?.focus()} // エラー発生時にフォーカス
+      ref={(el) => el?.focus()} // Focus when errors appear
     >
       <h3 id="error-summary-title">
-        {errorList.length}件の入力エラーがあります
+        {errorList.length} input error(s) found
       </h3>
       <ul>
         {errorList.map(([field, error]) => (
@@ -2151,7 +2151,7 @@ function ErrorSummary({ errors }: { errors: FieldErrors }) {
   );
 }
 
-// 3. フォーム完了通知
+// 3. Form completion notification
 function FormSuccessMessage({ show }: { show: boolean }) {
   if (!show) return null;
 
@@ -2163,137 +2163,137 @@ function FormSuccessMessage({ show }: { show: boolean }) {
       tabIndex={-1}
       ref={(el) => el?.focus()}
     >
-      フォームが正常に送信されました
+      The form was submitted successfully
     </div>
   );
 }
 ```
 
-### 7.4 autoComplete 属性の完全ガイド
+### 7.4 Complete Guide to the autoComplete Attribute
 
 ```html
-<!-- autoComplete 属性一覧 -->
-<!-- ブラウザの自動入力を正しく動作させるために重要 -->
+<!-- autoComplete attribute reference -->
+<!-- Important for correct browser autofill behavior -->
 
-<!-- 名前 -->
-<input autoComplete="name" />           <!-- フルネーム -->
-<input autoComplete="given-name" />     <!-- 名 -->
-<input autoComplete="family-name" />    <!-- 姓 -->
-<input autoComplete="honorific-prefix" /> <!-- 敬称 -->
+<!-- Name -->
+<input autoComplete="name" />           <!-- Full name -->
+<input autoComplete="given-name" />     <!-- First name -->
+<input autoComplete="family-name" />    <!-- Last name -->
+<input autoComplete="honorific-prefix" /> <!-- Title/prefix -->
 
-<!-- 連絡先 -->
+<!-- Contact -->
 <input autoComplete="email" />
-<input autoComplete="tel" />            <!-- 電話番号 -->
-<input autoComplete="tel-national" />   <!-- 国内電話番号 -->
+<input autoComplete="tel" />            <!-- Phone number -->
+<input autoComplete="tel-national" />   <!-- National phone number -->
 
-<!-- 住所 -->
-<input autoComplete="postal-code" />    <!-- 郵便番号 -->
-<input autoComplete="address-level1" /> <!-- 都道府県 -->
-<input autoComplete="address-level2" /> <!-- 市区町村 -->
-<input autoComplete="street-address" /> <!-- 番地 -->
-<input autoComplete="country" />        <!-- 国 -->
+<!-- Address -->
+<input autoComplete="postal-code" />    <!-- Postal / ZIP code -->
+<input autoComplete="address-level1" /> <!-- State / Province -->
+<input autoComplete="address-level2" /> <!-- City -->
+<input autoComplete="street-address" /> <!-- Street address -->
+<input autoComplete="country" />        <!-- Country -->
 
-<!-- アカウント -->
+<!-- Account -->
 <input autoComplete="username" />
-<input autoComplete="new-password" />   <!-- 新しいパスワード -->
-<input autoComplete="current-password" /> <!-- 現在のパスワード -->
+<input autoComplete="new-password" />   <!-- New password -->
+<input autoComplete="current-password" /> <!-- Current password -->
 
-<!-- 支払い -->
-<input autoComplete="cc-name" />        <!-- カード名義 -->
-<input autoComplete="cc-number" />      <!-- カード番号 -->
-<input autoComplete="cc-exp" />         <!-- 有効期限 -->
-<input autoComplete="cc-csc" />         <!-- セキュリティコード -->
+<!-- Payment -->
+<input autoComplete="cc-name" />        <!-- Cardholder name -->
+<input autoComplete="cc-number" />      <!-- Card number -->
+<input autoComplete="cc-exp" />         <!-- Expiration date -->
+<input autoComplete="cc-csc" />         <!-- Security code -->
 
-<!-- その他 -->
-<input autoComplete="organization" />   <!-- 組織名 -->
-<input autoComplete="organization-title" /> <!-- 役職 -->
-<input autoComplete="bday" />           <!-- 生年月日 -->
-<input autoComplete="sex" />            <!-- 性別 -->
+<!-- Other -->
+<input autoComplete="organization" />   <!-- Organization name -->
+<input autoComplete="organization-title" /> <!-- Job title -->
+<input autoComplete="bday" />           <!-- Date of birth -->
+<input autoComplete="sex" />            <!-- Gender -->
 <input autoComplete="url" />            <!-- URL -->
 
-<!-- 自動入力を無効化 -->
-<input autoComplete="off" />            <!-- 標準的な方法 -->
-<!-- 注意: ブラウザによっては "off" が無視される場合がある -->
-<!-- その場合は一意な値を使う: -->
+<!-- Disable autofill -->
+<input autoComplete="off" />            <!-- Standard approach -->
+<!-- Note: Some browsers may ignore "off" -->
+<!-- In that case, use a unique value: -->
 <input autoComplete="nope" />
 ```
 
-### 7.5 WCAG 2.1 準拠チェックリスト
+### 7.5 WCAG 2.1 Compliance Checklist
 
 ```
-フォームの WCAG 2.1 準拠チェックリスト:
+Form WCAG 2.1 Compliance Checklist:
 
-レベル A（必須）:
-  [x] 全フォームコントロールにラベルが紐付いている (1.3.1)
-  [x] エラーが発生した場合テキストで説明される (3.3.1)
-  [x] フォームコントロールの目的が特定できる (1.3.5)
-  [x] キーボードだけで全操作が可能 (2.1.1)
-  [x] フォーカスが見える (2.4.7)
-  [x] コンテキストの変化は予測可能 (3.2.1, 3.2.2)
+Level A (Required):
+  [x] All form controls have associated labels (1.3.1)
+  [x] Errors are described in text when they occur (3.3.1)
+  [x] The purpose of form controls can be determined (1.3.5)
+  [x] All functionality is operable via keyboard (2.1.1)
+  [x] Focus is visible (2.4.7)
+  [x] Context changes are predictable (3.2.1, 3.2.2)
 
-レベル AA（推奨）:
-  [x] エラーの修正方法が提案される (3.3.3)
-  [x] 法的・金銭的データは確認/取消可能 (3.3.4)
-  [x] テキストのコントラスト比が4.5:1以上 (1.4.3)
-  [x] ターゲットサイズが24x24px以上 (2.5.8)
-  [x] フォーカス表示が十分に目立つ (2.4.11)
+Level AA (Recommended):
+  [x] Error correction suggestions are provided (3.3.3)
+  [x] Legal/financial data can be confirmed or reversed (3.3.4)
+  [x] Text contrast ratio of at least 4.5:1 (1.4.3)
+  [x] Target size of at least 24x24px (2.5.8)
+  [x] Focus indicator is sufficiently visible (2.4.11)
 
-レベル AAA（理想）:
-  [x] ヘルプが利用可能 (3.3.5)
-  [x] ターゲットサイズが44x44px以上 (2.5.5)
-  [x] テキストのコントラスト比が7:1以上 (1.4.6)
+Level AAA (Ideal):
+  [x] Help is available (3.3.5)
+  [x] Target size of at least 44x44px (2.5.5)
+  [x] Text contrast ratio of at least 7:1 (1.4.6)
 ```
 
 ---
 
-## 8. パフォーマンス最適化
+## 8. Performance Optimization
 
-### 8.1 再レンダリングの最小化
+### 8.1 Minimizing Re-renders
 
 ```typescript
-// パフォーマンス最適化パターン集
+// Collection of performance optimization patterns
 
-// Pattern 1: useWatch でコンポーネントを分離
-// → 監視対象のフィールドが変更された時だけ該当コンポーネントが再レンダリング
+// Pattern 1: Isolate components with useWatch
+// → Only the component watching the field re-renders when it changes
 import { useWatch } from 'react-hook-form';
 
-// 悪い例: 親コンポーネント全体が再レンダリング
+// Bad: the entire parent component re-renders
 function BadForm() {
   const { register, watch, handleSubmit } = useForm();
-  const name = watch('name'); // 親全体が再レンダリング
+  const name = watch('name'); // Causes the entire parent to re-render
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <input {...register('name')} />
-      <input {...register('email')} />    {/* name変更でこれも再レンダリング */}
-      <input {...register('phone')} />    {/* name変更でこれも再レンダリング */}
-      <input {...register('address')} />  {/* name変更でこれも再レンダリング */}
-      <p>プレビュー: {name}</p>
+      <input {...register('email')} />    {/* Also re-renders when name changes */}
+      <input {...register('phone')} />    {/* Also re-renders when name changes */}
+      <input {...register('address')} />  {/* Also re-renders when name changes */}
+      <p>Preview: {name}</p>
     </form>
   );
 }
 
-// 良い例: 子コンポーネントだけが再レンダリング
+// Good: only the child component re-renders
 function GoodForm() {
   const { register, control, handleSubmit } = useForm();
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <input {...register('name')} />
-      <input {...register('email')} />    {/* name変更で再レンダリングされない */}
-      <input {...register('phone')} />    {/* name変更で再レンダリングされない */}
-      <input {...register('address')} />  {/* name変更で再レンダリングされない */}
-      <NamePreview control={control} />   {/* これだけが再レンダリング */}
+      <input {...register('email')} />    {/* Does not re-render when name changes */}
+      <input {...register('phone')} />    {/* Does not re-render when name changes */}
+      <input {...register('address')} />  {/* Does not re-render when name changes */}
+      <NamePreview control={control} />   {/* Only this re-renders */}
     </form>
   );
 }
 
 function NamePreview({ control }: { control: Control }) {
   const name = useWatch({ control, name: 'name' });
-  return <p>プレビュー: {name}</p>;
+  return <p>Preview: {name}</p>;
 }
 
-// Pattern 2: React.memo でフィールドコンポーネントをメモ化
+// Pattern 2: Memoize field components with React.memo
 const MemoizedField = React.memo(function MemoizedField({
   name,
   register,
@@ -2303,7 +2303,7 @@ const MemoizedField = React.memo(function MemoizedField({
   register: UseFormRegister<any>;
   error?: FieldError;
 }) {
-  console.log(`${name} rendered`); // デバッグ用
+  console.log(`${name} rendered`); // For debugging
 
   return (
     <div>
@@ -2314,31 +2314,31 @@ const MemoizedField = React.memo(function MemoizedField({
   );
 });
 
-// Pattern 3: useFormState で必要な状態だけを購読
+// Pattern 3: Subscribe only to needed state with useFormState
 import { useFormState } from 'react-hook-form';
 
 function SubmitButtonOptimized({ control }: { control: Control }) {
-  // isSubmitting が変わった時だけ再レンダリング
+  // Re-renders only when isSubmitting changes
   const { isSubmitting, isDirty } = useFormState({
     control,
-    name: ['isSubmitting', 'isDirty'], // 購読する状態を限定
+    name: ['isSubmitting', 'isDirty'], // Limit subscribed state
   });
 
   return (
     <button type="submit" disabled={isSubmitting || !isDirty}>
-      {isSubmitting ? '送信中...' : '送信'}
+      {isSubmitting ? 'Submitting...' : 'Submit'}
     </button>
   );
 }
 ```
 
-### 8.2 大量フィールドの最適化
+### 8.2 Optimizing Large Numbers of Fields
 
 ```typescript
-// 大量のフィールドがある場合の最適化戦略
+// Optimization strategies for forms with many fields
 
-// Strategy 1: 仮想化（Virtualization）
-// → 画面に表示されているフィールドだけをレンダリング
+// Strategy 1: Virtualization
+// → Only render the fields currently visible on screen
 import { useVirtualizer } from '@tanstack/react-virtual';
 
 function VirtualizedFieldList() {
@@ -2350,8 +2350,8 @@ function VirtualizedFieldList() {
   const virtualizer = useVirtualizer({
     count: fieldNames.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 60, // 各フィールドの推定高さ
-    overscan: 5, // 画面外に5フィールド分を先読み
+    estimateSize: () => 60, // Estimated height per field
+    overscan: 5, // Pre-render 5 fields outside the viewport
   });
 
   return (
@@ -2380,7 +2380,7 @@ function VirtualizedFieldList() {
   );
 }
 
-// Strategy 2: セクション分割と遅延ロード
+// Strategy 2: Section splitting and lazy loading
 function SectionedForm() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(['basic'])
@@ -2400,27 +2400,27 @@ function SectionedForm() {
 
   return (
     <form>
-      {/* 各セクションは折りたたみ可能 */}
+      {/* Each section is collapsible */}
       <details open={expandedSections.has('basic')}>
-        <summary onClick={() => toggleSection('basic')}>基本情報</summary>
+        <summary onClick={() => toggleSection('basic')}>Basic Info</summary>
         <BasicInfoFields />
       </details>
 
       <details open={expandedSections.has('contact')}>
-        <summary onClick={() => toggleSection('contact')}>連絡先</summary>
-        {/* 展開時のみレンダリング */}
+        <summary onClick={() => toggleSection('contact')}>Contact</summary>
+        {/* Only render when expanded */}
         {expandedSections.has('contact') && <ContactFields />}
       </details>
 
       <details open={expandedSections.has('preferences')}>
-        <summary onClick={() => toggleSection('preferences')}>設定</summary>
+        <summary onClick={() => toggleSection('preferences')}>Preferences</summary>
         {expandedSections.has('preferences') && <PreferenceFields />}
       </details>
     </form>
   );
 }
 
-// Strategy 3: デバウンスバリデーション
+// Strategy 3: Debounced validation
 function DebouncedValidation() {
   const { register, trigger } = useForm({
     mode: 'onChange',
@@ -2446,12 +2446,12 @@ function DebouncedValidation() {
 }
 ```
 
-### 8.3 バンドルサイズの最適化
+### 8.3 Bundle Size Optimization
 
 ```typescript
-// バンドルサイズ最適化
+// Bundle size optimization
 
-// 1. 動的インポートでフォームを遅延ロード
+// 1. Lazy-load forms with dynamic imports
 const EditProfileForm = lazy(() => import('./EditProfileForm'));
 
 function ProfilePage() {
@@ -2470,8 +2470,8 @@ function ProfilePage() {
   );
 }
 
-// 2. Zodスキーマの分割
-// 大きなスキーマを分割してツリーシェイキングを効かせる
+// 2. Split Zod schemas
+// Splitting large schemas to enable tree-shaking
 // schema/user.ts
 export const userBasicSchema = z.object({
   name: z.string().min(1),
@@ -2479,13 +2479,13 @@ export const userBasicSchema = z.object({
 });
 
 // schema/user-extended.ts
-// 必要な時だけインポート
+// Import only when needed
 export const userExtendedSchema = userBasicSchema.extend({
   address: addressSchema,
   preferences: preferencesSchema,
 });
 
-// 3. resolver の動的インポート
+// 3. Dynamically import resolver
 async function loadResolver() {
   const { zodResolver } = await import('@hookform/resolvers/zod');
   return zodResolver;
@@ -2494,12 +2494,12 @@ async function loadResolver() {
 
 ---
 
-## 9. テスト戦略
+## 9. Testing Strategy
 
-### 9.1 React Testing Library でのフォームテスト
+### 9.1 Form Testing with React Testing Library
 
 ```typescript
-// フォームのユニットテスト
+// Unit testing forms
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CreateUserForm } from './CreateUserForm';
@@ -2507,115 +2507,115 @@ import { CreateUserForm } from './CreateUserForm';
 describe('CreateUserForm', () => {
   const user = userEvent.setup();
 
-  it('正常にフォームを送信できる', async () => {
+  it('can submit the form successfully', async () => {
     const onSubmit = vi.fn();
     render(<CreateUserForm onSubmit={onSubmit} />);
 
-    // フィールドに値を入力
-    await user.type(screen.getByLabelText('名前 *'), '山田太郎');
-    await user.type(screen.getByLabelText('メールアドレス *'), 'yamada@example.com');
-    await user.selectOptions(screen.getByLabelText('ロール *'), 'admin');
-    await user.click(screen.getByLabelText('利用規約に同意します *'));
+    // Enter values into fields
+    await user.type(screen.getByLabelText('Name *'), 'Jane Doe');
+    await user.type(screen.getByLabelText('Email Address *'), 'jane@example.com');
+    await user.selectOptions(screen.getByLabelText('Role *'), 'admin');
+    await user.click(screen.getByLabelText('I agree to the Terms of Service *'));
 
-    // 送信
-    await user.click(screen.getByRole('button', { name: /ユーザーを作成/ }));
+    // Submit
+    await user.click(screen.getByRole('button', { name: /Create User/ }));
 
-    // onSubmit が正しい値で呼ばれたことを確認
+    // Verify onSubmit was called with the correct values
     await waitFor(() => {
       expect(onSubmit).toHaveBeenCalledWith({
-        name: '山田太郎',
-        email: 'yamada@example.com',
+        name: 'Jane Doe',
+        email: 'jane@example.com',
         role: 'admin',
         agreed: true,
       });
     });
   });
 
-  it('必須フィールドが空の場合エラーが表示される', async () => {
+  it('shows errors when required fields are empty', async () => {
     render(<CreateUserForm />);
 
-    // 何も入力せずに送信
-    await user.click(screen.getByRole('button', { name: /ユーザーを作成/ }));
+    // Submit without filling in anything
+    await user.click(screen.getByRole('button', { name: /Create User/ }));
 
-    // エラーメッセージが表示されることを確認
+    // Verify error messages are shown
     await waitFor(() => {
-      expect(screen.getByText('名前は必須です')).toBeInTheDocument();
-      expect(screen.getByText('有効なメールアドレスを入力してください')).toBeInTheDocument();
+      expect(screen.getByText('Name is required')).toBeInTheDocument();
+      expect(screen.getByText('Please enter a valid email address')).toBeInTheDocument();
     });
   });
 
-  it('メールアドレスが不正な場合エラーが表示される', async () => {
+  it('shows an error when email address is invalid', async () => {
     render(<CreateUserForm />);
 
-    await user.type(screen.getByLabelText('メールアドレス *'), 'invalid-email');
-    await user.tab(); // フォーカスを外す（onBlur バリデーション）
+    await user.type(screen.getByLabelText('Email Address *'), 'invalid-email');
+    await user.tab(); // Remove focus (onBlur validation)
 
     await waitFor(() => {
-      expect(screen.getByText('有効なメールアドレスを入力してください')).toBeInTheDocument();
+      expect(screen.getByText('Please enter a valid email address')).toBeInTheDocument();
     });
   });
 
-  it('送信中はボタンが無効になる', async () => {
+  it('disables the button while submitting', async () => {
     const onSubmit = vi.fn(() => new Promise((resolve) => setTimeout(resolve, 1000)));
     render(<CreateUserForm onSubmit={onSubmit} />);
 
-    // フォームを埋める
-    await user.type(screen.getByLabelText('名前 *'), '山田太郎');
-    await user.type(screen.getByLabelText('メールアドレス *'), 'yamada@example.com');
-    await user.click(screen.getByLabelText('利用規約に同意します *'));
+    // Fill in the form
+    await user.type(screen.getByLabelText('Name *'), 'Jane Doe');
+    await user.type(screen.getByLabelText('Email Address *'), 'jane@example.com');
+    await user.click(screen.getByLabelText('I agree to the Terms of Service *'));
 
-    // 送信
-    await user.click(screen.getByRole('button', { name: /ユーザーを作成/ }));
+    // Submit
+    await user.click(screen.getByRole('button', { name: /Create User/ }));
 
-    // ボタンが無効になっている
-    expect(screen.getByRole('button', { name: /作成中/ })).toBeDisabled();
+    // Button should be disabled
+    expect(screen.getByRole('button', { name: /Creating/ })).toBeDisabled();
   });
 
-  it('エラー修正後にエラーメッセージが消える', async () => {
+  it('clears the error message after correction', async () => {
     render(<CreateUserForm />);
 
-    // 不正なメールを入力して送信
-    await user.type(screen.getByLabelText('メールアドレス *'), 'invalid');
-    await user.click(screen.getByRole('button', { name: /ユーザーを作成/ }));
+    // Enter an invalid email and submit
+    await user.type(screen.getByLabelText('Email Address *'), 'invalid');
+    await user.click(screen.getByRole('button', { name: /Create User/ }));
 
     await waitFor(() => {
-      expect(screen.getByText('有効なメールアドレスを入力してください')).toBeInTheDocument();
+      expect(screen.getByText('Please enter a valid email address')).toBeInTheDocument();
     });
 
-    // 正しいメールに修正
-    const emailInput = screen.getByLabelText('メールアドレス *');
+    // Fix with a valid email
+    const emailInput = screen.getByLabelText('Email Address *');
     await user.clear(emailInput);
     await user.type(emailInput, 'valid@example.com');
 
-    // エラーメッセージが消える（reValidateMode: 'onChange'）
+    // Error message should disappear (reValidateMode: 'onChange')
     await waitFor(() => {
-      expect(screen.queryByText('有効なメールアドレスを入力してください')).not.toBeInTheDocument();
+      expect(screen.queryByText('Please enter a valid email address')).not.toBeInTheDocument();
     });
   });
 });
 ```
 
-### 9.2 アクセシビリティテスト
+### 9.2 Accessibility Testing
 
 ```typescript
-// axe-core を使ったアクセシビリティテスト
+// Accessibility testing with axe-core
 import { axe, toHaveNoViolations } from 'jest-axe';
 
 expect.extend(toHaveNoViolations);
 
 describe('CreateUserForm Accessibility', () => {
-  it('アクセシビリティ違反がない', async () => {
+  it('has no accessibility violations', async () => {
     const { container } = render(<CreateUserForm />);
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });
 
-  it('エラー状態でもアクセシビリティ違反がない', async () => {
+  it('has no accessibility violations in error state', async () => {
     const { container } = render(<CreateUserForm />);
     const user = userEvent.setup();
 
-    // エラーを発生させる
-    await user.click(screen.getByRole('button', { name: /ユーザーを作成/ }));
+    // Trigger errors
+    await user.click(screen.getByRole('button', { name: /Create User/ }));
 
     await waitFor(async () => {
       const results = await axe(container);
@@ -2623,209 +2623,209 @@ describe('CreateUserForm Accessibility', () => {
     });
   });
 
-  it('全フィールドにラベルが紐付いている', () => {
+  it('all fields have associated labels', () => {
     render(<CreateUserForm />);
 
-    // 全inputにラベルがあることを確認
+    // Verify all inputs have labels
     const inputs = screen.getAllByRole('textbox');
     inputs.forEach((input) => {
       expect(input).toHaveAccessibleName();
     });
   });
 
-  it('キーボードでフォーカス移動できる', async () => {
+  it('focus moves between fields via keyboard', async () => {
     render(<CreateUserForm />);
     const user = userEvent.setup();
 
-    // Tab キーでフォーカス移動
+    // Move focus with Tab key
     await user.tab();
-    expect(screen.getByLabelText('名前 *')).toHaveFocus();
+    expect(screen.getByLabelText('Name *')).toHaveFocus();
 
     await user.tab();
-    expect(screen.getByLabelText('メールアドレス *')).toHaveFocus();
+    expect(screen.getByLabelText('Email Address *')).toHaveFocus();
 
     await user.tab();
-    expect(screen.getByLabelText('年齢')).toHaveFocus();
+    expect(screen.getByLabelText('Age')).toHaveFocus();
   });
 
-  it('エラーメッセージが aria-describedby で紐付いている', async () => {
+  it('error messages are linked via aria-describedby', async () => {
     render(<CreateUserForm />);
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole('button', { name: /ユーザーを作成/ }));
+    await user.click(screen.getByRole('button', { name: /Create User/ }));
 
     await waitFor(() => {
-      const nameInput = screen.getByLabelText('名前 *');
+      const nameInput = screen.getByLabelText('Name *');
       const errorId = nameInput.getAttribute('aria-describedby');
       expect(errorId).toBeTruthy();
 
       const errorElement = document.getElementById(errorId!);
-      expect(errorElement).toHaveTextContent('名前は必須です');
+      expect(errorElement).toHaveTextContent('Name is required');
     });
   });
 });
 ```
 
-### 9.3 E2E テスト（Playwright）
+### 9.3 E2E Testing (Playwright)
 
 ```typescript
-// Playwright でのフォーム E2E テスト
+// Form E2E testing with Playwright
 import { test, expect } from '@playwright/test';
 
-test.describe('ユーザー作成フォーム', () => {
+test.describe('Create User Form', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/users/new');
   });
 
-  test('正常なフォーム送信', async ({ page }) => {
-    // フィールドに入力
-    await page.getByLabel('名前').fill('山田太郎');
-    await page.getByLabel('メールアドレス').fill('yamada@example.com');
-    await page.getByLabel('ロール').selectOption('admin');
-    await page.getByLabel('利用規約に同意します').check();
+  test('successful form submission', async ({ page }) => {
+    // Fill in fields
+    await page.getByLabel('Name').fill('Jane Doe');
+    await page.getByLabel('Email Address').fill('jane@example.com');
+    await page.getByLabel('Role').selectOption('admin');
+    await page.getByLabel('I agree to the Terms of Service').check();
 
-    // API レスポンスを待機
+    // Wait for API response
     const responsePromise = page.waitForResponse(
       (response) => response.url().includes('/api/users') && response.status() === 201
     );
 
-    // 送信
-    await page.getByRole('button', { name: 'ユーザーを作成' }).click();
+    // Submit
+    await page.getByRole('button', { name: 'Create User' }).click();
 
-    // API レスポンスを確認
+    // Verify API response
     const response = await responsePromise;
     expect(response.status()).toBe(201);
 
-    // 成功メッセージの確認
-    await expect(page.getByText('ユーザーを作成しました')).toBeVisible();
+    // Verify success message
+    await expect(page.getByText('User created successfully')).toBeVisible();
 
-    // フォームがリセットされていることを確認
-    await expect(page.getByLabel('名前')).toHaveValue('');
+    // Verify form was reset
+    await expect(page.getByLabel('Name')).toHaveValue('');
   });
 
-  test('バリデーションエラーの表示と修正', async ({ page }) => {
-    // 空のまま送信
-    await page.getByRole('button', { name: 'ユーザーを作成' }).click();
+  test('display and fix validation errors', async ({ page }) => {
+    // Submit without filling in anything
+    await page.getByRole('button', { name: 'Create User' }).click();
 
-    // エラーメッセージの確認
-    await expect(page.getByText('名前は必須です')).toBeVisible();
-    await expect(page.getByText('有効なメールアドレスを入力してください')).toBeVisible();
+    // Verify error messages
+    await expect(page.getByText('Name is required')).toBeVisible();
+    await expect(page.getByText('Please enter a valid email address')).toBeVisible();
 
-    // 最初のエラーフィールドにフォーカスが移動している
-    await expect(page.getByLabel('名前')).toBeFocused();
+    // Focus should have moved to the first error field
+    await expect(page.getByLabel('Name')).toBeFocused();
 
-    // エラーを修正
-    await page.getByLabel('名前').fill('山田太郎');
+    // Fix the error
+    await page.getByLabel('Name').fill('Jane Doe');
 
-    // エラーメッセージが消える
-    await expect(page.getByText('名前は必須です')).not.toBeVisible();
+    // Error message should disappear
+    await expect(page.getByText('Name is required')).not.toBeVisible();
   });
 
-  test('重複メールアドレスのサーバーエラー', async ({ page }) => {
-    // サーバーエラーをモック
+  test('server error on duplicate email', async ({ page }) => {
+    // Mock server error
     await page.route('**/api/users', (route) => {
       route.fulfill({
         status: 409,
         contentType: 'application/json',
         body: JSON.stringify({
           errors: {
-            email: ['このメールアドレスは既に登録されています'],
+            email: ['This email address is already registered'],
           },
         }),
       });
     });
 
-    // フォームを入力して送信
-    await page.getByLabel('名前').fill('山田太郎');
-    await page.getByLabel('メールアドレス').fill('existing@example.com');
-    await page.getByLabel('利用規約に同意します').check();
-    await page.getByRole('button', { name: 'ユーザーを作成' }).click();
+    // Fill in and submit the form
+    await page.getByLabel('Name').fill('Jane Doe');
+    await page.getByLabel('Email Address').fill('existing@example.com');
+    await page.getByLabel('I agree to the Terms of Service').check();
+    await page.getByRole('button', { name: 'Create User' }).click();
 
-    // サーバーエラーメッセージの表示
-    await expect(page.getByText('このメールアドレスは既に登録されています')).toBeVisible();
+    // Verify server error message is displayed
+    await expect(page.getByText('This email address is already registered')).toBeVisible();
   });
 
-  test('モバイルでのフォーム操作', async ({ page }) => {
-    // モバイルビューポートに変更
+  test('form interaction on mobile', async ({ page }) => {
+    // Switch to mobile viewport
     await page.setViewportSize({ width: 375, height: 812 });
 
-    // タッチ操作でフォームを入力
-    await page.getByLabel('名前').tap();
-    await page.getByLabel('名前').fill('山田太郎');
+    // Fill in the form with touch
+    await page.getByLabel('Name').tap();
+    await page.getByLabel('Name').fill('Jane Doe');
 
-    // 画面下部の送信ボタンまでスクロール
-    await page.getByRole('button', { name: 'ユーザーを作成' }).scrollIntoViewIfNeeded();
-    await page.getByRole('button', { name: 'ユーザーを作成' }).tap();
+    // Scroll to the submit button at the bottom
+    await page.getByRole('button', { name: 'Create User' }).scrollIntoViewIfNeeded();
+    await page.getByRole('button', { name: 'Create User' }).tap();
   });
 });
 ```
 
 ---
 
-## 10. アンチパターンとトラブルシューティング
+## 10. Anti-Patterns and Troubleshooting
 
-### 10.1 よくあるアンチパターン
+### 10.1 Common Anti-Patterns
 
 ```typescript
-// アンチパターン 1: register と state の二重管理
-// Bad: React Hook Form と useState で二重管理
+// Anti-pattern 1: Double-managing state with both register and useState
+// Bad: managing state with both React Hook Form and useState
 function BadDoubleState() {
   const { register } = useForm();
-  const [name, setName] = useState(''); // 不要！
+  const [name, setName] = useState(''); // Unnecessary!
 
   return (
     <input
       {...register('name')}
-      value={name}                       // register の値を上書きしてしまう
-      onChange={(e) => setName(e.target.value)} // register の onChange を上書き
+      value={name}                       // Overrides register's value
+      onChange={(e) => setName(e.target.value)} // Overrides register's onChange
     />
   );
 }
 
-// Good: React Hook Form に任せる
+// Good: let React Hook Form handle it
 function GoodSingleSource() {
   const { register, watch } = useForm();
-  const name = watch('name'); // 必要な時だけ watch で値を取得
+  const name = watch('name'); // Use watch only when you need the value
 
   return <input {...register('name')} />;
 }
 
 
-// アンチパターン 2: useFieldArray で index を key に使用
-// Bad: index を key に使うと削除・並び替えでバグ
+// Anti-pattern 2: Using index as key in useFieldArray
+// Bad: using index as key causes bugs on delete / reorder
 function BadFieldArray() {
   const { fields } = useFieldArray({ control, name: 'items' });
 
   return fields.map((field, index) => (
-    <div key={index}>  {/* 削除時にフィールドの値がずれる */}
+    <div key={index}>  {/* Values shift when an item is deleted */}
       <input {...register(`items.${index}.name`)} />
     </div>
   ));
 }
 
-// Good: field.id を key に使う
+// Good: use field.id as key
 function GoodFieldArray() {
   const { fields } = useFieldArray({ control, name: 'items' });
 
   return fields.map((field, index) => (
-    <div key={field.id}>  {/* 安定したキー */}
+    <div key={field.id}>  {/* Stable key */}
       <input {...register(`items.${index}.name`)} />
     </div>
   ));
 }
 
 
-// アンチパターン 3: defaultValues の参照が変わる
-// Bad: レンダリングごとに新しいオブジェクトが作られる
+// Anti-pattern 3: defaultValues reference changes on every render
+// Bad: a new object is created on every render
 function BadDefaultValues() {
   const form = useForm({
-    defaultValues: {  // レンダリングごとに新しい参照
+    defaultValues: {  // New reference on every render
       items: [],
     },
   });
 }
 
-// Good: コンポーネント外に定義するか useMemo を使う
+// Good: define outside the component or use useMemo
 const defaultValues = { items: [] };
 
 function GoodDefaultValues() {
@@ -2833,29 +2833,29 @@ function GoodDefaultValues() {
 }
 
 
-// アンチパターン 4: バリデーションモードの選択ミス
-// Bad: mode: 'onChange' + 重い非同期バリデーション
+// Anti-pattern 4: Wrong validation mode for async validation
+// Bad: mode: 'onChange' + heavy async validation
 function BadValidationMode() {
   const form = useForm({
-    mode: 'onChange', // キー入力ごとにAPIコール！
+    mode: 'onChange', // API call on every keystroke!
   });
 
   return (
     <input
       {...form.register('username', {
         validate: async (value) => {
-          const exists = await checkUsername(value); // 毎キー入力で実行
-          return !exists || 'このユーザー名は使用されています';
+          const exists = await checkUsername(value); // Runs on every keystroke
+          return !exists || 'This username is already taken';
         },
       })}
     />
   );
 }
 
-// Good: mode: 'onBlur' + デバウンス
+// Good: mode: 'onBlur' + debounce
 function GoodValidationMode() {
   const form = useForm({
-    mode: 'onBlur', // フォーカスを外した時だけバリデーション
+    mode: 'onBlur', // Validate only when the field loses focus
   });
 
   return (
@@ -2863,7 +2863,7 @@ function GoodValidationMode() {
       {...form.register('username', {
         validate: async (value) => {
           const exists = await checkUsername(value);
-          return !exists || 'このユーザー名は使用されています';
+          return !exists || 'This username is already taken';
         },
       })}
     />
@@ -2871,25 +2871,25 @@ function GoodValidationMode() {
 }
 
 
-// アンチパターン 5: エラー表示のタイミングミス
-// Bad: フォーム初期表示でエラーを出す
+// Anti-pattern 5: Showing errors on initial render
+// Bad: showing errors when the form first loads
 function BadInitialErrors() {
   const { register, formState: { errors } } = useForm({
-    mode: 'all',       // 全モードでバリデーション
+    mode: 'all',       // Validate on all events
     defaultValues: {
-      name: '',        // 初期値が空 → 即座にエラー表示
+      name: '',        // Initial value is empty → error shown immediately
     },
   });
 
   return (
     <div>
-      <input {...register('name', { required: '名前は必須です' })} />
-      {errors.name && <p>{errors.name.message}</p>} {/* 初回表示でエラー！ */}
+      <input {...register('name', { required: 'Name is required' })} />
+      {errors.name && <p>{errors.name.message}</p>} {/* Error shown on first render! */}
     </div>
   );
 }
 
-// Good: touchedFields を考慮
+// Good: account for touchedFields
 function GoodInitialDisplay() {
   const { register, formState: { errors, touchedFields } } = useForm({
     mode: 'onTouched',
@@ -2897,7 +2897,7 @@ function GoodInitialDisplay() {
 
   return (
     <div>
-      <input {...register('name', { required: '名前は必須です' })} />
+      <input {...register('name', { required: 'Name is required' })} />
       {touchedFields.name && errors.name && (
         <p>{errors.name.message}</p>
       )}
@@ -2906,77 +2906,77 @@ function GoodInitialDisplay() {
 }
 ```
 
-### 10.2 トラブルシューティングガイド
+### 10.2 Troubleshooting Guide
 
 ```
-トラブルシューティング:
+Troubleshooting:
 
-Q: register した input の値が取得できない
-A: 考えられる原因:
-   1. defaultValues を設定していない
+Q: Cannot get the value from a registered input
+A: Possible causes:
+   1. defaultValues not set
       → useForm({ defaultValues: { fieldName: '' } })
-   2. Controller を使うべきカスタムコンポーネントに register を使用
-      → Controller に切り替える
-   3. コンポーネントのアンマウント/リマウント
-      → shouldUnregister: false を設定
+   2. Using register on a custom component that requires Controller
+      → Switch to Controller
+   3. Component is unmounting and remounting
+      → Set shouldUnregister: false
 
-Q: バリデーションが実行されない
-A: 考えられる原因:
-   1. resolver のインポートが間違っている
+Q: Validation is not running
+A: Possible causes:
+   1. Wrong resolver import
       → import { zodResolver } from '@hookform/resolvers/zod'
-   2. スキーマとフィールド名が一致していない
-      → register('name') なら schema に name プロパティが必要
-   3. mode の設定
-      → mode: 'onSubmit'（デフォルト）は送信時のみ実行
+   2. Schema property name does not match field name
+      → If register('name') is used, the schema must have a 'name' property
+   3. Validation mode setting
+      → mode: 'onSubmit' (default) only runs on submission
 
-Q: TypeScript の型エラー
-A: 考えられる原因:
-   1. z.infer の型とフォームの型が不一致
-      → type FormData = z.infer<typeof schema> を使用
-   2. register の名前がスキーマに存在しない
-      → スキーマのプロパティ名と一致させる
-   3. optional フィールドの型
-      → z.coerce.number().optional() で undefined を許容
+Q: TypeScript type errors
+A: Possible causes:
+   1. Mismatch between z.infer type and form type
+      → Use type FormData = z.infer<typeof schema>
+   2. Register name does not exist in the schema
+      → Match the property name to the schema
+   3. Type of optional fields
+      → Use z.coerce.number().optional() to allow undefined
 
-Q: useFieldArray で削除後に値がおかしくなる
-A: 考えられる原因:
-   1. key に index を使用している
-      → key={field.id} に変更
-   2. defaultValues にフィールドが含まれていない
+Q: Values are wrong after deleting from useFieldArray
+A: Possible causes:
+   1. Using index as the key
+      → Change to key={field.id}
+   2. defaultValues does not include the field
       → defaultValues: { items: [{ name: '' }] }
 
-Q: フォームリセット後も値が残る
-A: 考えられる原因:
-   1. reset() にオプションを渡していない
-      → reset({ name: '', email: '' }) で明示的にリセット
-   2. Controller のコンポーネントが内部状態を持っている
-      → key を変更して強制リマウント
+Q: Values remain after form reset
+A: Possible causes:
+   1. Not passing options to reset()
+      → reset({ name: '', email: '' }) to reset explicitly
+   2. Controller component has internal state
+      → Force remount by changing the key
 
-Q: Server Action で formData が空
-A: 考えられる原因:
-   1. input に name 属性がない
-      → register('name') は自動で name を設定するが、
-         handleSubmit を使う場合は FormData ではなく parsed data が渡される
-   2. action と onSubmit を同時に使っている
-      → どちらか一方に統一する
+Q: formData is empty in a Server Action
+A: Possible causes:
+   1. Input has no name attribute
+      → register('name') sets name automatically, but
+         when using handleSubmit, parsed data is passed, not FormData
+   2. Using action and onSubmit at the same time
+      → Standardize on one approach
 
-Q: 大量のフィールドでパフォーマンスが悪い
-A: 対策:
-   1. watch の使用を最小限にする → useWatch で分離
-   2. mode: 'onChange' を避ける → mode: 'onBlur' に変更
-   3. 仮想スクロールを導入する → @tanstack/react-virtual
-   4. フォームをセクションに分割する
-   5. React.memo でフィールドコンポーネントをメモ化
+Q: Poor performance with a large number of fields
+A: Solutions:
+   1. Minimize use of watch → isolate with useWatch
+   2. Avoid mode: 'onChange' → switch to mode: 'onBlur'
+   3. Introduce virtual scrolling → @tanstack/react-virtual
+   4. Split the form into sections
+   5. Memoize field components with React.memo
 ```
 
-### 10.3 エラーハンドリングの完全パターン
+### 10.3 Complete Error Handling Pattern
 
 ```typescript
-// エラーハンドリングの包括的実装
+// Comprehensive error handling implementation
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-// カスタムエラークラス
+// Custom error class
 class FormSubmitError extends Error {
   constructor(
     message: string,
@@ -2988,7 +2988,7 @@ class FormSubmitError extends Error {
   }
 }
 
-// エラーハンドリング付きフォーム
+// Form with error handling
 function RobustForm() {
   const [globalError, setGlobalError] = useState<string | null>(null);
 
@@ -3012,7 +3012,7 @@ function RobustForm() {
 
         switch (response.status) {
           case 400:
-            // バリデーションエラー: フィールドごとにエラーを設定
+            // Validation error: set errors per field
             if (errorBody?.fieldErrors) {
               for (const [field, messages] of Object.entries(errorBody.fieldErrors)) {
                 form.setError(field as keyof UserFormData, {
@@ -3024,77 +3024,77 @@ function RobustForm() {
             break;
 
           case 409:
-            // 重複エラー
+            // Duplicate error
             form.setError('email', {
               type: 'server',
-              message: 'このメールアドレスは既に使用されています',
+              message: 'This email address is already in use',
             });
             break;
 
           case 422:
-            // 処理不能エンティティ
-            setGlobalError('入力データの処理に失敗しました。内容を確認してください。');
+            // Unprocessable entity
+            setGlobalError('Failed to process the input data. Please review your entries.');
             break;
 
           case 429:
-            // レート制限
-            setGlobalError('リクエストが多すぎます。しばらく待ってから再度お試しください。');
+            // Rate limit
+            setGlobalError('Too many requests. Please wait a moment and try again.');
             break;
 
           case 500:
-            // サーバーエラー
-            setGlobalError('サーバーエラーが発生しました。時間をおいて再度お試しください。');
+            // Server error
+            setGlobalError('A server error occurred. Please try again later.');
             break;
 
           default:
-            setGlobalError(`エラーが発生しました（${response.status}）`);
+            setGlobalError(`An error occurred (${response.status})`);
         }
         return;
       }
 
-      // 成功
+      // Success
       form.reset();
-      toast.success('ユーザーを作成しました');
+      toast.success('User created successfully');
 
     } catch (error) {
       if (error instanceof TypeError && error.message === 'Failed to fetch') {
-        // ネットワークエラー
-        setGlobalError('ネットワークエラー: インターネット接続を確認してください。');
+        // Network error
+        setGlobalError('Network error: please check your internet connection.');
       } else if (error instanceof DOMException && error.name === 'AbortError') {
-        // リクエストタイムアウト
-        setGlobalError('リクエストがタイムアウトしました。再度お試しください。');
+        // Request timeout
+        setGlobalError('The request timed out. Please try again.');
       } else {
-        // 予期しないエラー
+        // Unexpected error
         console.error('Unexpected error:', error);
-        setGlobalError('予期しないエラーが発生しました。');
+        setGlobalError('An unexpected error occurred.');
       }
     }
   };
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)}>
-      {/* グローバルエラー表示 */}
+      {/* Global error display */}
       {globalError && (
         <div className="global-error" role="alert" aria-live="assertive">
           <p>{globalError}</p>
           <button
             type="button"
             onClick={() => setGlobalError(null)}
-            aria-label="エラーメッセージを閉じる"
+            aria-label="Dismiss error message"
           >
-            閉じる
+            Dismiss
           </button>
         </div>
       )}
 
-      {/* エラーサマリー */}
+      {/* Error summary */}
       {Object.keys(form.formState.errors).length > 0 && (
         <ErrorSummary errors={form.formState.errors} />
       )}
 
-      {/* フォームフィールド */}
+      {/* Form fields */}
       <div>
-        <label htmlFor="name">名前 *</label>
+        <label htmlFor="name">Name *</label>
         <input id="name" {...form.register('name')} />
         {form.formState.errors.name && (
           <p className="error-message" role="alert">
@@ -3104,7 +3104,7 @@ function RobustForm() {
       </div>
 
       <div>
-        <label htmlFor="email">メールアドレス *</label>
+        <label htmlFor="email">Email Address *</label>
         <input id="email" type="email" {...form.register('email')} />
         {form.formState.errors.email && (
           <p className="error-message" role="alert">
@@ -3118,7 +3118,7 @@ function RobustForm() {
         disabled={form.formState.isSubmitting}
         aria-busy={form.formState.isSubmitting}
       >
-        {form.formState.isSubmitting ? '送信中...' : 'ユーザーを作成'}
+        {form.formState.isSubmitting ? 'Submitting...' : 'Create User'}
       </button>
     </form>
   );
@@ -3127,12 +3127,12 @@ function RobustForm() {
 
 ---
 
-## 11. 再利用可能なフォームコンポーネント設計
+## 11. Reusable Form Component Design
 
-### 11.1 汎用フォームフィールドコンポーネント
+### 11.1 Generic Form Field Component
 
 ```typescript
-// 再利用可能なフォームフィールドコンポーネント
+// Reusable form field component
 import { type FieldValues, type Path, type UseFormReturn } from 'react-hook-form';
 
 interface FormInputProps<T extends FieldValues> {
@@ -3199,7 +3199,7 @@ function FormInput<T extends FieldValues>({
   );
 }
 
-// 使用例
+// Usage example
 function UserForm() {
   const form = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
@@ -3210,15 +3210,15 @@ function UserForm() {
       <FormInput
         form={form}
         name="name"
-        label="名前"
+        label="Name"
         required
         autoComplete="name"
-        placeholder="山田太郎"
+        placeholder="Jane Doe"
       />
       <FormInput
         form={form}
         name="email"
-        label="メールアドレス"
+        label="Email Address"
         type="email"
         required
         autoComplete="email"
@@ -3227,20 +3227,20 @@ function UserForm() {
       <FormInput
         form={form}
         name="age"
-        label="年齢"
+        label="Age"
         type="number"
-        hint="任意項目です"
+        hint="This field is optional"
       />
-      <button type="submit">送信</button>
+      <button type="submit">Submit</button>
     </form>
   );
 }
 ```
 
-### 11.2 フォームラッパーコンポーネント
+### 11.2 Form Wrapper Component
 
 ```typescript
-// 汎用フォームラッパー
+// Generic form wrapper
 import { type FieldValues, type DefaultValues, FormProvider, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { type ZodSchema } from 'zod';
@@ -3279,7 +3279,7 @@ function FormWrapper<T extends FieldValues>({
       if (error instanceof Error) {
         setGlobalError(error.message);
       } else {
-        setGlobalError('予期しないエラーが発生しました');
+        setGlobalError('An unexpected error occurred');
       }
     }
   };
@@ -3302,7 +3302,7 @@ function FormWrapper<T extends FieldValues>({
   );
 }
 
-// 使用例
+// Usage example
 function CreateUserPage() {
   return (
     <FormWrapper
@@ -3313,9 +3313,9 @@ function CreateUserPage() {
         router.push('/users');
       }}
     >
-      <FormInput name="name" label="名前" required />
-      <FormInput name="email" label="メールアドレス" type="email" required />
-      <SubmitButton label="ユーザーを作成" />
+      <FormInput name="name" label="Name" required />
+      <FormInput name="email" label="Email Address" type="email" required />
+      <SubmitButton label="Create User" />
     </FormWrapper>
   );
 }
@@ -3323,75 +3323,75 @@ function CreateUserPage() {
 
 ---
 
-## まとめ
+## Summary
 
-| 概念 | ポイント |
-|------|---------|
-| React Hook Form | register + zodResolver で型安全かつ高パフォーマンスなフォームを実現 |
-| 非制御コンポーネント | ネイティブHTML要素に使用、再レンダリングなしで最高パフォーマンス |
-| 制御コンポーネント | Controller を使ってカスタムUI/サードパーティコンポーネントと統合 |
-| useFieldArray | 動的フィールド配列を効率的に管理、key には必ず field.id を使用 |
-| マルチステップ | FormProvider + trigger で部分バリデーション、状態を一元管理 |
-| Server Actions | プログレッシブエンハンスメント対応、楽観的更新パターン |
-| UX | 送信後リアルタイム検証、ダブルサブミット防止、未保存警告 |
-| アクセシビリティ | ARIA属性、キーボードナビゲーション、スクリーンリーダー対応 |
-| パフォーマンス | useWatch で分離、React.memo、仮想化、デバウンス |
-| テスト | RTL でユーザー操作をテスト、axe で a11y テスト、Playwright で E2E |
-| エラーハンドリング | クライアント/サーバーエラーの統合、グローバルエラー表示 |
-| 再利用性 | ジェネリック型でフォームフィールドとラッパーを汎用化 |
+| Concept | Key Points |
+|---------|-----------|
+| React Hook Form | Achieve type-safe, high-performance forms with register + zodResolver |
+| Uncontrolled Components | Use for native HTML elements; best performance with no re-renders |
+| Controlled Components | Use Controller to integrate with custom UI / third-party components |
+| useFieldArray | Efficiently manage dynamic field arrays; always use field.id as the key |
+| Multi-step | Partial validation with FormProvider + trigger; centralized state management |
+| Server Actions | Progressive enhancement support; optimistic update patterns |
+| UX | Real-time validation after submit, double-submission prevention, unsaved changes warning |
+| Accessibility | ARIA attributes, keyboard navigation, screen reader support |
+| Performance | Isolate with useWatch, React.memo, virtualization, debounce |
+| Testing | Test user interactions with RTL, accessibility with axe, end-to-end with Playwright |
+| Error Handling | Integrate client/server errors; global error display |
+| Reusability | Generics for form fields and wrappers |
 
 ---
 
-## よくある質問（FAQ）
+## Frequently Asked Questions (FAQ)
 
-### Q1. Controlled Components と Uncontrolled Components はどう使い分けるべきですか？
+### Q1. How should I decide between Controlled and Uncontrolled Components?
 
-**A:** 基本的には **Controlled Components を優先** する。理由は以下の通り:
+**A:** In general, prefer **Controlled Components** for the following reasons:
 
-- **即座のバリデーション**: 入力値の変化をリアルタイムで検証できる
-- **条件付きUI**: 入力内容に応じて動的にフォームを変更できる
-- **デバッグのしやすさ**: 状態がReactの管理下にあるため、開発ツールでの追跡が容易
+- **Immediate validation**: Input changes can be validated in real time
+- **Conditional UI**: The form can change dynamically based on user input
+- **Easier debugging**: State is managed by React, making it easy to track in developer tools
 
-ただし、以下の場合は **Uncontrolled Components の方が適している**:
+However, **Uncontrolled Components are more appropriate** in these cases:
 
-- **大量のフォームフィールド**: 数百個のフィールドがあり、パフォーマンスが懸念される場合
-- **レガシーコードとの統合**: 既存の非Reactコードとの互換性が必要な場合
-- **ファイル入力**: `<input type="file">` は常にUncontrolledである必要がある
+- **Large numbers of form fields**: When there are hundreds of fields and performance is a concern
+- **Integration with legacy code**: When compatibility with existing non-React code is required
+- **File inputs**: `<input type="file">` must always be uncontrolled
 
-React Hook Form は内部的にUncontrolledな仕組みを使いつつ、Controlledライクなインターフェースを提供しているため、パフォーマンスとDXを両立できる。
+React Hook Form uses an uncontrolled mechanism internally while providing a controlled-like interface, achieving both performance and developer experience.
 
-### Q2. React Hook Form と Formik、どちらを選ぶべきですか？
+### Q2. Should I choose React Hook Form or Formik?
 
-**A:** 現在のプロジェクトでは **React Hook Form を推奨** する:
+**A:** For current projects, **React Hook Form is recommended**:
 
-| 項目 | React Hook Form | Formik |
+| Item | React Hook Form | Formik |
 |------|----------------|---------|
-| パフォーマンス | 優秀（Uncontrolled方式で再レンダリング最小） | 可（Controlled方式で再レンダリング多） |
-| バンドルサイズ | 8.5KB（gzip） | 15KB（gzip） |
-| TypeScript対応 | 完全対応、型推論が強力 | 対応しているが弱め |
-| エコシステム | Zod/Yup統合が簡単 | Yup推奨 |
-| 学習曲線 | やや急（useForm APIに慣れが必要） | 緩やか（Formikコンポーネントが直感的） |
-| メンテナンス | 活発 | やや減速傾向 |
+| Performance | Excellent (uncontrolled, minimal re-renders) | Acceptable (controlled, more re-renders) |
+| Bundle size | 8.5KB (gzip) | 15KB (gzip) |
+| TypeScript support | Full support, powerful type inference | Supported but weaker |
+| Ecosystem | Easy Zod/Yup integration | Yup recommended |
+| Learning curve | Somewhat steep (requires familiarity with useForm API) | Gentle (Formik components are intuitive) |
+| Maintenance | Active | Slowing down |
 
-Formikが優れている点:
+Where Formik excels:
 
-- **直感的なAPI**: `<Formik>`, `<Field>` コンポーネントでReactらしく書ける
-- **ドキュメントが豊富**: 歴史が長く、学習リソースが充実
+- **Intuitive API**: Write in a React-like style with `<Formik>` and `<Field>` components
+- **Rich documentation**: Long history and abundant learning resources
 
-React Hook Formが優れている点:
+Where React Hook Form excels:
 
-- **パフォーマンス**: 大規模フォームでも高速
-- **TypeScript統合**: Zodスキーマから型を自動推論
-- **最新のReact哲学**: HooksベースでモダンなReact開発に適合
+- **Performance**: Fast even with large forms
+- **TypeScript integration**: Types automatically inferred from Zod schemas
+- **Modern React philosophy**: Hooks-based, aligned with modern React development
 
-### Q3. マルチステップフォームはどのように設計すべきですか？
+### Q3. How should I design a multi-step form?
 
-**A:** マルチステップフォームの設計では、以下の4つのアプローチがある:
+**A:** There are four approaches to designing multi-step forms:
 
-**1. ステップごとに独立したフォーム（推奨）**
+**1. Independent form per step (recommended)**
 
 ```typescript
-// 各ステップで独自のuseFormを持つ
+// Each step has its own useForm
 const Step1 = () => {
   const { register, handleSubmit } = useForm<Step1Data>();
   const onSubmit = (data) => saveToContext(data);
@@ -3399,23 +3399,23 @@ const Step1 = () => {
 };
 ```
 
-利点: 各ステップが独立、バリデーションが分離、戻るボタンの実装が簡単
-欠点: ステップ間のデータ共有に Context か状態管理ライブラリが必要
+Advantages: Each step is independent, validation is isolated, back navigation is easy to implement
+Disadvantages: Sharing data between steps requires Context or a state management library
 
-**2. 単一フォームで条件付き表示**
+**2. Single form with conditional display**
 
 ```typescript
 const MultiStepForm = () => {
   const { register, handleSubmit } = useForm<AllStepsData>();
   const [currentStep, setCurrentStep] = useState(1);
-  // 全フィールドを保持しつつ、表示だけ切り替え
+  // Keep all fields; only toggle which ones are displayed
 };
 ```
 
-利点: 実装がシンプル、全データが1つのフォームに統合
-欠点: 大規模になると管理が複雑、バリデーションの制御が難しい
+Advantages: Simple implementation; all data is in one form
+Disadvantages: Can become complex at scale; validation control is harder
 
-**3. ステップごとのスキーマ + マージ戦略**
+**3. Per-step schema + merge strategy**
 
 ```typescript
 const step1Schema = z.object({ name: z.string() });
@@ -3423,29 +3423,29 @@ const step2Schema = z.object({ email: z.string().email() });
 const finalSchema = step1Schema.merge(step2Schema);
 ```
 
-利点: Zodの型推論を活用、各ステップで段階的にバリデーション
-欠点: スキーママージの複雑さ
+Advantages: Leverages Zod type inference; step-by-step progressive validation
+Disadvantages: Complexity of schema merging
 
-**推奨する設計パターン:**
+**Recommended design pattern:**
 
-- ステップが3〜5個程度: **ステップごとに独立したフォーム + Contextで状態共有**
-- ステップが2個: **単一フォームで条件付き表示**
-- ステップが6個以上: **フォームビルダーライブラリ**（react-multi-step-form）の導入を検討
+- 3–5 steps: **Independent form per step + Context for state sharing**
+- 2 steps: **Single form with conditional display**
+- 6+ steps: Consider adopting a **form builder library** (e.g., react-multi-step-form)
 
-**UXの考慮事項:**
+**UX considerations:**
 
-- プログレスバーを常に表示
-- 前のステップに戻れること
-- 各ステップ完了時にlocalStorageに保存（離脱対策）
-- 最終確認画面で全入力内容を表示
-
----
-
-## 次に読むべきガイド
+- Always show a progress bar
+- Allow navigation back to previous steps
+- Save to localStorage on each step completion (in case the user leaves)
+- Show a final confirmation screen with all entered data
 
 ---
 
-## 参考文献
+## Further Reading
+
+---
+
+## References
 1. React Hook Form. "Documentation." react-hook-form.com, 2024.
 2. shadcn/ui. "Form." ui.shadcn.com, 2024.
 3. web.dev. "Form Best Practices." web.dev, 2024.
