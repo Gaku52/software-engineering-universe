@@ -1,48 +1,48 @@
-# S3 基礎
+# S3 Basics
 
-> AWS のオブジェクトストレージ S3 の基本概念 — バケット、オブジェクト、アクセス制御、ライフサイクル、静的ホスティング
+> Fundamental concepts of AWS object storage S3 — Buckets, objects, access control, lifecycle, and static hosting
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. S3 のバケットとオブジェクトの概念を理解し、基本的な CRUD 操作ができる
-2. バケットポリシー、ACL、パブリックアクセスブロックを使った適切なアクセス制御を設計できる
-3. ライフサイクルルールによるコスト最適化と静的 Web サイトホスティングを設定できる
-4. ストレージクラスの特性を理解し、ユースケースに応じた選択ができる
-5. サーバーサイド暗号化とデータ保護の実装方法を習得する
-6. S3 イベント通知やメトリクスを活用した運用監視ができる
+1. Understand S3 bucket and object concepts and perform basic CRUD operations
+2. Design appropriate access control using bucket policies, ACLs, and public access block
+3. Configure cost optimization with lifecycle rules and static website hosting
+4. Understand storage class characteristics and choose appropriately based on use cases
+5. Master server-side encryption and data protection implementation methods
+6. Leverage S3 event notifications and metrics for operational monitoring
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related fundamental concepts
 
 ---
 
-## 1. S3 とは
+## 1. What is S3?
 
-Amazon Simple Storage Service (S3) は、99.999999999% (イレブンナイン) の耐久性を持つオブジェクトストレージサービスである。2006年のサービス開始以来、AWS の中核サービスとして数兆のオブジェクトを保管し、毎秒数百万のリクエストを処理している。
+Amazon Simple Storage Service (S3) is an object storage service with 99.999999999% (eleven nines) durability. Since its launch in 2006, it has been a core AWS service, storing trillions of objects and processing millions of requests per second.
 
-### 1.1 S3 の基本構造
+### 1.1 S3 Basic Structure
 
 ```
-S3 のデータモデル
+S3 Data Model
 
   +------------------------------------------+
   |  AWS Account                              |
   |                                           |
   |  +------------------------------------+   |
   |  |  Bucket: my-app-images             |   |
-  |  |  (グローバルに一意な名前)             |   |
+  |  |  (Globally unique name)              |   |
   |  |                                    |   |
   |  |  +------------------------------+  |   |
   |  |  | Object                       |  |   |
   |  |  | Key: photos/2024/cat.jpg     |  |   |
-  |  |  | Value: (バイナリデータ)        |  |   |
+  |  |  | Value: (binary data)          |  |   |
   |  |  | Metadata: Content-Type, etc.  |  |   |
-  |  |  | Size: 最大 5TB               |  |   |
+  |  |  | Size: up to 5TB              |  |   |
   |  |  +------------------------------+  |   |
   |  |                                    |   |
   |  |  +------------------------------+  |   |
@@ -52,177 +52,177 @@ S3 のデータモデル
   |  +------------------------------------+   |
   +------------------------------------------+
 
-  ※ S3 にディレクトリの概念はない
-    "photos/2024/cat.jpg" はフラットなキー名
-    コンソールではプレフィックスをフォルダとして表示
+  * S3 has no concept of directories
+    "photos/2024/cat.jpg" is a flat key name
+    The console displays prefixes as folders
 ```
 
-### 1.2 S3 の主要特性
+### 1.2 Key Characteristics of S3
 
 ```
 +--------------------------------------------------+
-|              S3 の主要特性                          |
+|          Key Characteristics of S3                 |
 +--------------------------------------------------+
-| 耐久性:  99.999999999% (11 nines)                 |
-| 可用性:  99.99% (Standard)                        |
-| 容量:    無制限（オブジェクトあたり最大 5TB）          |
-| 整合性:  強い読み取り整合性 (2020年12月~)            |
-| 暗号化:  サーバーサイド/クライアントサイド対応          |
-| バージョニング: オブジェクト単位で全バージョン保持     |
-| リージョン: バケットは特定リージョンに作成            |
-| スケーリング: 自動スケーリング、プロビジョニング不要   |
+| Durability:  99.999999999% (11 nines)             |
+| Availability:  99.99% (Standard)                  |
+| Capacity:    Unlimited (up to 5TB per object)     |
+| Consistency:  Strong read consistency (Dec 2020~) |
+| Encryption:  Server-side/Client-side supported    |
+| Versioning: All versions retained per object      |
+| Region: Buckets are created in a specific region  |
+| Scaling: Auto-scaling, no provisioning required   |
 +--------------------------------------------------+
 ```
 
-### 1.3 S3 の整合性モデル
+### 1.3 S3 Consistency Model
 
-2020年12月以降、S3 は強い読み取り整合性（Strong Read-After-Write Consistency）を提供している。これにより、PUT/DELETE 直後の GET リクエストで最新のデータが返される。
+Since December 2020, S3 provides Strong Read-After-Write Consistency. This means that GET requests immediately after PUT/DELETE return the latest data.
 
 ```
-S3 の整合性モデル（2020年12月以降）
+S3 Consistency Model (Since December 2020)
 
-  PUT Object (新規作成)
-    → 直後の GET で新しいオブジェクトが返る ✓
+  PUT Object (new creation)
+    -> Subsequent GET returns the new object ✓
 
-  PUT Object (上書き)
-    → 直後の GET で更新後のデータが返る ✓
+  PUT Object (overwrite)
+    -> Subsequent GET returns the updated data ✓
 
   DELETE Object
-    → 直後の GET で 404 が返る ✓
+    -> Subsequent GET returns 404 ✓
 
   LIST Objects
-    → PUT/DELETE 直後の LIST に反映される ✓
+    -> LIST reflects changes immediately after PUT/DELETE ✓
 
-  ※ 以前の「結果整合性」の問題は解消された
-  ※ パフォーマンスへの影響もなし
+  * The previous "eventual consistency" issue has been resolved
+  * No impact on performance
 ```
 
-### 1.4 S3 のリクエスト処理とパフォーマンス
+### 1.4 S3 Request Processing and Performance
 
-S3 は、プレフィックスごとに毎秒 3,500 の PUT/COPY/POST/DELETE リクエストと 5,500 の GET/HEAD リクエストを処理できる。
+S3 can process 3,500 PUT/COPY/POST/DELETE requests and 5,500 GET/HEAD requests per second per prefix.
 
 ```
-パフォーマンスの考え方
+Performance Considerations
 
-  ■ プレフィックスの分散（パフォーマンス最適化）
+  ■ Prefix Distribution (Performance Optimization)
 
-  悪い例: すべてのキーが同じプレフィックス
+  Bad example: All keys share the same prefix
     logs/2024-01-01.json
     logs/2024-01-02.json
     logs/2024-01-03.json
-    → logs/ プレフィックスに負荷集中
+    -> Load concentrated on the logs/ prefix
 
-  良い例: ハッシュプレフィックスで分散
+  Good example: Distribute with hash prefixes
     a1b2/logs/2024-01-01.json
     c3d4/logs/2024-01-02.json
     e5f6/logs/2024-01-03.json
-    → 異なるパーティションに分散
+    -> Distributed across different partitions
 
-  ※ 現在の S3 は内部的にキー名でパーティションを
-    自動最適化するため、多くの場合この対策は不要
-    （2018年以降のパフォーマンス改善による）
+  * Current S3 internally auto-optimizes partitions based on
+    key names, so this countermeasure is often unnecessary
+    (due to performance improvements since 2018)
 ```
 
 ---
 
-## 2. バケットとオブジェクトの操作
+## 2. Bucket and Object Operations
 
-### 2.1 バケットの命名規則
+### 2.1 Bucket Naming Rules
 
 ```
-バケット名のルール
-├── 長さ: 3-63文字
-├── 使用可能文字: 小文字、数字、ハイフン
-├── 先頭: 小文字または数字
-├── ピリオド: 使用可能だが SSL で問題あり（非推奨）
-├── 一意性: グローバルに一意（全 AWS アカウント共通）
-└── 予約名: "xn--" プレフィックスは使用不可
+Bucket Name Rules
+├── Length: 3-63 characters
+├── Allowed characters: lowercase letters, numbers, hyphens
+├── Start: lowercase letter or number
+├── Period: allowed but causes SSL issues (not recommended)
+├── Uniqueness: globally unique (shared across all AWS accounts)
+└── Reserved names: "xn--" prefix not allowed
 
-命名規則のベストプラクティス
-├── {会社名}-{環境}-{用途}-{リージョン}
-│   例: acme-prod-assets-ap-northeast-1
-├── {プロジェクト}-{環境}-{サービス}
-│   例: myapp-staging-uploads
-└── 避けるべき名前
-    ├── 汎用的な名前 (data, backup, files)
-    ├── 個人情報を含む名前
-    └── AWS アカウントIDを含む名前
+Naming Best Practices
+├── {company}-{environment}-{purpose}-{region}
+│   Example: acme-prod-assets-ap-northeast-1
+├── {project}-{environment}-{service}
+│   Example: myapp-staging-uploads
+└── Names to avoid
+    ├── Generic names (data, backup, files)
+    ├── Names containing personal information
+    └── Names containing AWS account IDs
 ```
 
-### 2.2 AWS CLI での基本操作
+### 2.2 Basic Operations with AWS CLI
 
 ```bash
-# バケットの作成
+# Create a bucket
 aws s3 mb s3://my-app-bucket-2024 --region ap-northeast-1
 
-# バケットの一覧表示
+# List buckets
 aws s3 ls
 
-# ファイルのアップロード
+# Upload a file
 aws s3 cp ./index.html s3://my-app-bucket-2024/
 aws s3 cp ./images/ s3://my-app-bucket-2024/images/ --recursive
 
-# Content-Type を指定してアップロード
+# Upload with Content-Type specified
 aws s3 cp ./data.json s3://my-app-bucket-2024/data/ \
   --content-type "application/json" \
   --content-encoding "utf-8"
 
-# メタデータ付きでアップロード
+# Upload with metadata
 aws s3 cp ./report.pdf s3://my-app-bucket-2024/reports/ \
   --metadata '{"author":"tanaka","version":"2.0"}'
 
-# ファイルの同期（差分のみ転送）
+# Sync files (transfer only differences)
 aws s3 sync ./dist/ s3://my-app-bucket-2024/ --delete
 
-# 特定のファイルを除外して同期
+# Sync excluding specific files
 aws s3 sync ./dist/ s3://my-app-bucket-2024/ \
   --exclude "*.log" \
   --exclude ".git/*" \
   --exclude "node_modules/*" \
   --delete
 
-# ドライラン（実際にはコピーしない）
+# Dry run (does not actually copy)
 aws s3 sync ./dist/ s3://my-app-bucket-2024/ --dryrun
 
-# ファイルのダウンロード
+# Download a file
 aws s3 cp s3://my-app-bucket-2024/report.pdf ./
 aws s3 cp s3://my-app-bucket-2024/images/ ./local-images/ --recursive
 
-# オブジェクトの一覧
+# List objects
 aws s3 ls s3://my-app-bucket-2024/
 aws s3 ls s3://my-app-bucket-2024/ --recursive --summarize
 aws s3 ls s3://my-app-bucket-2024/ --recursive --human-readable --summarize
 
-# 特定のプレフィックス配下を一覧
+# List objects under a specific prefix
 aws s3 ls s3://my-app-bucket-2024/logs/2024/01/
 
-# オブジェクトの削除
+# Delete an object
 aws s3 rm s3://my-app-bucket-2024/old-file.txt
 aws s3 rm s3://my-app-bucket-2024/temp/ --recursive
 
-# バケットの削除（空の場合のみ）
+# Delete a bucket (only if empty)
 aws s3 rb s3://my-app-bucket-2024
 
-# バケットの強制削除（中身ごと削除）
+# Force delete a bucket (including contents)
 aws s3 rb s3://my-app-bucket-2024 --force
 
-# オブジェクトのメタデータ確認
+# Check object metadata
 aws s3api head-object --bucket my-app-bucket-2024 --key report.pdf
 
-# プレサインドURL の生成（1時間有効）
+# Generate a presigned URL (valid for 1 hour)
 aws s3 presign s3://my-app-bucket-2024/private/report.pdf --expires-in 3600
 ```
 
-### 2.3 s3api コマンドによる詳細操作
+### 2.3 Detailed Operations with s3api Commands
 
 ```bash
-# バケット作成（s3api は低レベル API）
+# Create a bucket (s3api is a low-level API)
 aws s3api create-bucket \
   --bucket my-app-bucket-2024 \
   --region ap-northeast-1 \
   --create-bucket-configuration LocationConstraint=ap-northeast-1
 
-# オブジェクトのアップロード（詳細パラメータ指定）
+# Upload an object (with detailed parameters)
 aws s3api put-object \
   --bucket my-app-bucket-2024 \
   --key config/settings.json \
@@ -232,20 +232,20 @@ aws s3api put-object \
   --metadata '{"environment":"production"}' \
   --tagging "project=myapp&env=prod"
 
-# オブジェクトの取得
+# Get an object
 aws s3api get-object \
   --bucket my-app-bucket-2024 \
   --key config/settings.json \
   ./downloaded-settings.json
 
-# 条件付き取得（変更されていなければダウンロードしない）
+# Conditional get (skip download if not modified)
 aws s3api get-object \
   --bucket my-app-bucket-2024 \
   --key config/settings.json \
   --if-modified-since "2024-01-01T00:00:00Z" \
   ./downloaded-settings.json
 
-# オブジェクトのタグ設定
+# Set object tags
 aws s3api put-object-tagging \
   --bucket my-app-bucket-2024 \
   --key reports/monthly.pdf \
@@ -256,28 +256,28 @@ aws s3api put-object-tagging \
     ]
   }'
 
-# タグの取得
+# Get tags
 aws s3api get-object-tagging \
   --bucket my-app-bucket-2024 \
   --key reports/monthly.pdf
 
-# オブジェクト一覧（ページネーション対応、最大1000件ずつ）
+# List objects (with pagination, up to 1000 at a time)
 aws s3api list-objects-v2 \
   --bucket my-app-bucket-2024 \
   --prefix logs/ \
   --max-keys 100
 
-# 続きを取得（ContinuationToken を使用）
+# Get the next page (using ContinuationToken)
 aws s3api list-objects-v2 \
   --bucket my-app-bucket-2024 \
   --prefix logs/ \
   --continuation-token "TOKEN_FROM_PREVIOUS_RESPONSE"
 
-# バケットのリージョン確認
+# Check bucket region
 aws s3api get-bucket-location --bucket my-app-bucket-2024
 ```
 
-### 2.4 Python (boto3) での操作
+### 2.4 Operations with Python (boto3)
 
 ```python
 import boto3
@@ -286,34 +286,34 @@ import os
 from botocore.exceptions import ClientError
 from datetime import datetime
 
-# S3 クライアントの作成
+# Create S3 client
 s3_client = boto3.client('s3', region_name='ap-northeast-1')
 s3_resource = boto3.resource('s3', region_name='ap-northeast-1')
 
 # ===========================================
-# バケット操作
+# Bucket Operations
 # ===========================================
 
-# バケット作成
+# Create a bucket
 def create_bucket(bucket_name: str, region: str = 'ap-northeast-1') -> bool:
-    """S3 バケットを作成する"""
+    """Create an S3 bucket"""
     try:
         s3_client.create_bucket(
             Bucket=bucket_name,
             CreateBucketConfiguration={'LocationConstraint': region}
         )
-        print(f"バケット '{bucket_name}' を作成しました")
+        print(f"Bucket '{bucket_name}' created")
         return True
     except ClientError as e:
         if e.response['Error']['Code'] == 'BucketAlreadyOwnedByYou':
-            print(f"バケット '{bucket_name}' は既に存在します")
+            print(f"Bucket '{bucket_name}' already exists")
             return True
-        print(f"エラー: {e}")
+        print(f"Error: {e}")
         return False
 
-# バケット一覧
+# List buckets
 def list_buckets() -> list:
-    """全バケットの一覧を取得する"""
+    """Get a list of all buckets"""
     response = s3_client.list_buckets()
     buckets = []
     for bucket in response['Buckets']:
@@ -324,13 +324,13 @@ def list_buckets() -> list:
     return buckets
 
 # ===========================================
-# ファイルアップロード
+# File Upload
 # ===========================================
 
-# 基本的なファイルアップロード
+# Basic file upload
 def upload_file(file_path: str, bucket: str, key: str,
                 content_type: str = None, metadata: dict = None) -> bool:
-    """ファイルをS3にアップロードする"""
+    """Upload a file to S3"""
     extra_args = {
         'ServerSideEncryption': 'AES256',
     }
@@ -346,15 +346,15 @@ def upload_file(file_path: str, bucket: str, key: str,
             Key=key,
             ExtraArgs=extra_args
         )
-        print(f"アップロード完了: {key}")
+        print(f"Upload complete: {key}")
         return True
     except ClientError as e:
-        print(f"アップロードエラー: {e}")
+        print(f"Upload error: {e}")
         return False
 
-# JSON データの直接書き込み
+# Write JSON data directly
 def put_json(bucket: str, key: str, data: dict) -> bool:
-    """JSON データを S3 に直接書き込む"""
+    """Write JSON data directly to S3"""
     try:
         s3_client.put_object(
             Bucket=bucket,
@@ -365,12 +365,12 @@ def put_json(bucket: str, key: str, data: dict) -> bool:
         )
         return True
     except ClientError as e:
-        print(f"書き込みエラー: {e}")
+        print(f"Write error: {e}")
         return False
 
-# バイナリデータのアップロード
+# Upload binary data
 def upload_with_progress(file_path: str, bucket: str, key: str) -> bool:
-    """プログレスバー付きでアップロードする"""
+    """Upload with a progress bar"""
     file_size = os.path.getsize(file_path)
     uploaded = 0
 
@@ -378,7 +378,7 @@ def upload_with_progress(file_path: str, bucket: str, key: str) -> bool:
         nonlocal uploaded
         uploaded += bytes_transferred
         percentage = (uploaded / file_size) * 100
-        print(f"\r進捗: {percentage:.1f}% ({uploaded}/{file_size} bytes)", end='')
+        print(f"\rProgress: {percentage:.1f}% ({uploaded}/{file_size} bytes)", end='')
 
     try:
         s3_client.upload_file(
@@ -386,48 +386,48 @@ def upload_with_progress(file_path: str, bucket: str, key: str) -> bool:
             Callback=progress_callback,
             ExtraArgs={'ServerSideEncryption': 'AES256'}
         )
-        print(f"\n完了: {key}")
+        print(f"\nComplete: {key}")
         return True
     except ClientError as e:
-        print(f"\nエラー: {e}")
+        print(f"\nError: {e}")
         return False
 
 # ===========================================
-# ファイルダウンロード
+# File Download
 # ===========================================
 
 def download_file(bucket: str, key: str, local_path: str) -> bool:
-    """S3 からファイルをダウンロードする"""
+    """Download a file from S3"""
     try:
-        # ディレクトリが存在しなければ作成
+        # Create directory if it doesn't exist
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
         s3_client.download_file(bucket, key, local_path)
-        print(f"ダウンロード完了: {local_path}")
+        print(f"Download complete: {local_path}")
         return True
     except ClientError as e:
         if e.response['Error']['Code'] == '404':
-            print(f"オブジェクトが見つかりません: {key}")
+            print(f"Object not found: {key}")
         else:
-            print(f"エラー: {e}")
+            print(f"Error: {e}")
         return False
 
 def get_json(bucket: str, key: str) -> dict:
-    """S3 から JSON を読み込む"""
+    """Read JSON from S3"""
     try:
         response = s3_client.get_object(Bucket=bucket, Key=key)
         content = response['Body'].read().decode('utf-8')
         return json.loads(content)
     except ClientError as e:
-        print(f"読み込みエラー: {e}")
+        print(f"Read error: {e}")
         return None
 
 # ===========================================
-# オブジェクト一覧（ページネーション対応）
+# Object Listing (with Pagination)
 # ===========================================
 
 def list_objects(bucket: str, prefix: str = '',
                 max_keys: int = None) -> list:
-    """オブジェクト一覧を取得する（ページネーション自動処理）"""
+    """Get object list (automatic pagination handling)"""
     paginator = s3_client.get_paginator('list_objects_v2')
     params = {'Bucket': bucket, 'Prefix': prefix}
 
@@ -445,7 +445,7 @@ def list_objects(bucket: str, prefix: str = '',
     return objects
 
 def get_total_size(bucket: str, prefix: str = '') -> dict:
-    """特定プレフィックス配下の合計サイズとオブジェクト数を算出する"""
+    """Calculate total size and object count under a specific prefix"""
     paginator = s3_client.get_paginator('list_objects_v2')
     total_size = 0
     total_count = 0
@@ -463,11 +463,11 @@ def get_total_size(bucket: str, prefix: str = '') -> dict:
     }
 
 # ===========================================
-# オブジェクトの存在確認と情報取得
+# Object Existence Check and Info Retrieval
 # ===========================================
 
 def object_exists(bucket: str, key: str) -> bool:
-    """オブジェクトの存在を確認する"""
+    """Check if an object exists"""
     try:
         s3_client.head_object(Bucket=bucket, Key=key)
         return True
@@ -477,7 +477,7 @@ def object_exists(bucket: str, key: str) -> bool:
         raise
 
 def get_object_info(bucket: str, key: str) -> dict:
-    """オブジェクトのメタデータを取得する"""
+    """Get object metadata"""
     try:
         response = s3_client.head_object(Bucket=bucket, Key=key)
         return {
@@ -490,20 +490,20 @@ def get_object_info(bucket: str, key: str) -> dict:
             'storage_class': response.get('StorageClass', 'STANDARD')
         }
     except ClientError as e:
-        print(f"情報取得エラー: {e}")
+        print(f"Info retrieval error: {e}")
         return None
 
 # ===========================================
-# 使用例
+# Usage Example
 # ===========================================
 
 if __name__ == '__main__':
     BUCKET = 'my-app-bucket-2024'
 
-    # バケット作成
+    # Create bucket
     create_bucket(BUCKET)
 
-    # JSON データの保存
+    # Save JSON data
     config = {
         'app_name': 'MyApp',
         'version': '2.0',
@@ -511,21 +511,21 @@ if __name__ == '__main__':
     }
     put_json(BUCKET, 'config/app-settings.json', config)
 
-    # 読み込み
+    # Read
     loaded = get_json(BUCKET, 'config/app-settings.json')
-    print(f"読み込んだ設定: {loaded}")
+    print(f"Loaded settings: {loaded}")
 
-    # オブジェクト一覧
+    # Object list
     objects = list_objects(BUCKET, prefix='config/')
     for obj in objects:
         print(f"  {obj['key']} ({obj['size']} bytes)")
 
-    # 合計サイズ
+    # Total size
     stats = get_total_size(BUCKET)
-    print(f"合計: {stats['total_count']} ファイル, {stats['total_size_mb']} MB")
+    print(f"Total: {stats['total_count']} files, {stats['total_size_mb']} MB")
 ```
 
-### 2.5 JavaScript (SDK v3) での操作
+### 2.5 Operations with JavaScript (SDK v3)
 
 ```javascript
 import {
@@ -547,10 +547,10 @@ import path from 'path';
 const s3 = new S3Client({ region: 'ap-northeast-1' });
 
 // ====================================
-// ファイルアップロード
+// File Upload
 // ====================================
 
-/** 小さなファイルのアップロード */
+/** Upload a small file */
 async function uploadFile(bucket, key, filePath, contentType) {
   const body = await readFile(filePath);
   await s3.send(new PutObjectCommand({
@@ -560,10 +560,10 @@ async function uploadFile(bucket, key, filePath, contentType) {
     ContentType: contentType || 'application/octet-stream',
     ServerSideEncryption: 'AES256',
   }));
-  console.log(`アップロード完了: ${key}`);
+  console.log(`Upload complete: ${key}`);
 }
 
-/** JSON データの直接書き込み */
+/** Write JSON data directly */
 async function putJson(bucket, key, data) {
   await s3.send(new PutObjectCommand({
     Bucket: bucket,
@@ -574,7 +574,7 @@ async function putJson(bucket, key, data) {
   }));
 }
 
-/** 大きなファイルのマルチパートアップロード（プログレス付き） */
+/** Multipart upload for large files (with progress) */
 async function uploadLargeFile(bucket, key, filePath) {
   const stream = createReadStream(filePath);
 
@@ -586,42 +586,42 @@ async function uploadLargeFile(bucket, key, filePath) {
       Body: stream,
       ServerSideEncryption: 'AES256',
     },
-    // 5MB パートサイズ（最小値）
+    // 5MB part size (minimum)
     partSize: 5 * 1024 * 1024,
-    // 並行アップロード数
+    // Number of concurrent uploads
     queueSize: 4,
   });
 
   upload.on('httpUploadProgress', (progress) => {
     const percentage = ((progress.loaded / progress.total) * 100).toFixed(1);
-    process.stdout.write(`\r進捗: ${percentage}%`);
+    process.stdout.write(`\rProgress: ${percentage}%`);
   });
 
   await upload.done();
-  console.log(`\n完了: ${key}`);
+  console.log(`\nComplete: ${key}`);
 }
 
 // ====================================
-// ファイルダウンロード
+// File Download
 // ====================================
 
-/** ファイルのダウンロード */
+/** Download a file */
 async function downloadFile(bucket, key, localPath) {
   const response = await s3.send(new GetObjectCommand({
     Bucket: bucket,
     Key: key,
   }));
 
-  // ディレクトリ作成
+  // Create directory
   await mkdir(path.dirname(localPath), { recursive: true });
 
-  // ストリームで保存
+  // Save via stream
   const writeStream = createWriteStream(localPath);
   await pipeline(response.Body, writeStream);
-  console.log(`ダウンロード完了: ${localPath}`);
+  console.log(`Download complete: ${localPath}`);
 }
 
-/** JSON の読み込み */
+/** Read JSON */
 async function getJson(bucket, key) {
   const response = await s3.send(new GetObjectCommand({
     Bucket: bucket,
@@ -632,16 +632,16 @@ async function getJson(bucket, key) {
 }
 
 // ====================================
-// Presigned URL の生成
+// Presigned URL Generation
 // ====================================
 
-/** ダウンロード用 Presigned URL */
+/** Presigned URL for download */
 async function getDownloadUrl(bucket, key, expiresIn = 3600) {
   const command = new GetObjectCommand({ Bucket: bucket, Key: key });
   return await getSignedUrl(s3, command, { expiresIn });
 }
 
-/** アップロード用 Presigned URL */
+/** Presigned URL for upload */
 async function getUploadUrl(bucket, key, contentType, expiresIn = 3600) {
   const command = new PutObjectCommand({
     Bucket: bucket,
@@ -653,10 +653,10 @@ async function getUploadUrl(bucket, key, contentType, expiresIn = 3600) {
 }
 
 // ====================================
-// オブジェクト一覧
+// Object Listing
 // ====================================
 
-/** 全オブジェクト一覧（ページネーション自動処理） */
+/** List all objects (automatic pagination handling) */
 async function listAllObjects(bucket, prefix = '') {
   const objects = [];
   let continuationToken;
@@ -678,10 +678,10 @@ async function listAllObjects(bucket, prefix = '') {
 }
 
 // ====================================
-// オブジェクトのコピーと移動
+// Object Copy and Move
 // ====================================
 
-/** オブジェクトのコピー */
+/** Copy an object */
 async function copyObject(bucket, sourceKey, destKey) {
   await s3.send(new CopyObjectCommand({
     Bucket: bucket,
@@ -689,38 +689,38 @@ async function copyObject(bucket, sourceKey, destKey) {
     Key: destKey,
     ServerSideEncryption: 'AES256',
   }));
-  console.log(`コピー完了: ${sourceKey} → ${destKey}`);
+  console.log(`Copy complete: ${sourceKey} -> ${destKey}`);
 }
 
-/** オブジェクトの移動（コピー＋削除） */
+/** Move an object (copy + delete) */
 async function moveObject(bucket, sourceKey, destKey) {
   await copyObject(bucket, sourceKey, destKey);
   await s3.send(new DeleteObjectCommand({
     Bucket: bucket,
     Key: sourceKey,
   }));
-  console.log(`移動完了: ${sourceKey} → ${destKey}`);
+  console.log(`Move complete: ${sourceKey} -> ${destKey}`);
 }
 
 // ====================================
-// 使用例
+// Usage Example
 // ====================================
 
 async function main() {
   const bucket = 'my-app-bucket-2024';
 
-  // JSON 保存・読み込み
+  // Save and load JSON
   await putJson(bucket, 'config/settings.json', {
     theme: 'dark',
     language: 'ja',
   });
 
   const settings = await getJson(bucket, 'config/settings.json');
-  console.log('設定:', settings);
+  console.log('Settings:', settings);
 
-  // Presigned URL 生成
+  // Generate Presigned URL
   const url = await getDownloadUrl(bucket, 'private/report.pdf');
-  console.log('ダウンロードURL:', url);
+  console.log('Download URL:', url);
 }
 
 main().catch(console.error);
@@ -728,27 +728,27 @@ main().catch(console.error);
 
 ---
 
-## 3. ストレージクラス
+## 3. Storage Classes
 
-### 3.1 ストレージクラス比較
+### 3.1 Storage Class Comparison
 
-| クラス | 可用性 | 最小保存期間 | 取り出し料金 | ユースケース |
+| Class | Availability | Minimum Storage Duration | Retrieval Fee | Use Case |
 |--------|--------|------------|------------|------------|
-| Standard | 99.99% | なし | なし | 頻繁なアクセス |
-| Intelligent-Tiering | 99.9% | なし | なし | アクセスパターン不明 |
-| Standard-IA | 99.9% | 30日 | あり | 低頻度アクセス |
-| One Zone-IA | 99.5% | 30日 | あり | 再作成可能なデータ |
-| Glacier Instant Retrieval | 99.9% | 90日 | あり | 四半期に1回アクセス |
-| Glacier Flexible Retrieval | 99.99% | 90日 | あり | 年に1-2回アクセス |
-| Glacier Deep Archive | 99.99% | 180日 | あり | コンプライアンス保管 |
-| Express One Zone | 99.95% | なし | なし | 超低レイテンシ |
+| Standard | 99.99% | None | None | Frequent access |
+| Intelligent-Tiering | 99.9% | None | None | Unknown access pattern |
+| Standard-IA | 99.9% | 30 days | Yes | Infrequent access |
+| One Zone-IA | 99.5% | 30 days | Yes | Recreatable data |
+| Glacier Instant Retrieval | 99.9% | 90 days | Yes | Quarterly access |
+| Glacier Flexible Retrieval | 99.99% | 90 days | Yes | 1-2 times per year access |
+| Glacier Deep Archive | 99.99% | 180 days | Yes | Compliance storage |
+| Express One Zone | 99.95% | None | None | Ultra-low latency |
 
-### 3.2 料金比較 (東京リージョン概算)
+### 3.2 Pricing Comparison (Tokyo Region Estimates)
 
-| クラス | 保存料金 (GB/月) | 取り出し (GB) | 最小課金サイズ |
+| Class | Storage (GB/month) | Retrieval (GB) | Minimum Billable Size |
 |--------|-----------------|-------------|-------------|
-| Standard | $0.025 | 無料 | なし |
-| Intelligent-Tiering | $0.025 (高頻度) | 無料 | なし |
+| Standard | $0.025 | Free | None |
+| Intelligent-Tiering | $0.025 (frequent) | Free | None |
 | Standard-IA | $0.019 | $0.01 | 128KB |
 | One Zone-IA | $0.015 | $0.01 | 128KB |
 | Glacier Instant | $0.005 | $0.03 | 128KB |
@@ -756,64 +756,64 @@ main().catch(console.error);
 | Deep Archive | $0.002 | $0.02-$0.05 | 40KB |
 
 ```
-ストレージクラス選択フロー
+Storage Class Selection Flow
 
-  アクセス頻度は？
-  ├── ミリ秒レイテンシ必須 → Express One Zone
-  ├── 毎日/毎週 → Standard
-  ├── 不明 → Intelligent-Tiering
-  ├── 月に数回 → Standard-IA
-  ├── 四半期に1回 → Glacier Instant Retrieval
-  ├── 年に1-2回 → Glacier Flexible Retrieval
-  └── ほぼアクセスしない → Glacier Deep Archive
+  How frequent is access?
+  ├── Millisecond latency required -> Express One Zone
+  ├── Daily/weekly -> Standard
+  ├── Unknown -> Intelligent-Tiering
+  ├── A few times per month -> Standard-IA
+  ├── Once per quarter -> Glacier Instant Retrieval
+  ├── 1-2 times per year -> Glacier Flexible Retrieval
+  └── Almost never accessed -> Glacier Deep Archive
 
-  再作成可能？
-  ├── Yes → One Zone-IA (IA より安い)
-  └── No  → Standard-IA (マルチ AZ)
+  Can it be recreated?
+  ├── Yes -> One Zone-IA (cheaper than IA)
+  └── No  -> Standard-IA (multi-AZ)
 ```
 
-### 3.3 Intelligent-Tiering 詳細
+### 3.3 Intelligent-Tiering Details
 
-S3 Intelligent-Tiering は、アクセスパターンに基づいてオブジェクトを自動的に最適なアクセス層に移動するストレージクラスである。
+S3 Intelligent-Tiering is a storage class that automatically moves objects to the optimal access tier based on access patterns.
 
 ```
-Intelligent-Tiering のアクセス層
+Intelligent-Tiering Access Tiers
 
   +--------------------------------------+
-  | 高頻度アクセス層 (Frequent Access)      |
-  | → Standard と同じ料金                  |
-  | → アクセス直後にここに移動             |
+  | Frequent Access Tier                   |
+  | -> Same pricing as Standard            |
+  | -> Moved here immediately on access    |
   +--------------------------------------+
          |
-         | 30日間アクセスなし
+         | 30 days without access
          v
   +--------------------------------------+
-  | 低頻度アクセス層 (Infrequent Access)    |
-  | → Standard-IA と同じ料金               |
+  | Infrequent Access Tier                 |
+  | -> Same pricing as Standard-IA         |
   +--------------------------------------+
          |
-         | 90日間アクセスなし（オプトイン）
+         | 90 days without access (opt-in)
          v
   +--------------------------------------+
-  | アーカイブアクセス層 (Archive Access)    |
-  | → Glacier Flexible と同じ料金          |
+  | Archive Access Tier                    |
+  | -> Same pricing as Glacier Flexible    |
   +--------------------------------------+
          |
-         | 180日間アクセスなし（オプトイン）
+         | 180 days without access (opt-in)
          v
   +--------------------------------------+
-  | ディープアーカイブアクセス層              |
-  | → Deep Archive と同じ料金              |
+  | Deep Archive Access Tier               |
+  | -> Same pricing as Deep Archive        |
   +--------------------------------------+
 
-  ※ 監視・自動階層化料金: オブジェクトあたり $0.0025/月
-  ※ 128KB 未満のオブジェクトは常に高頻度アクセス層
-  ※ 取り出し料金なし（アーカイブ層からの取得を除く）
+  * Monitoring/auto-tiering fee: $0.0025/month per object
+  * Objects smaller than 128KB always stay in the Frequent Access tier
+  * No retrieval fee (except for retrievals from archive tiers)
 ```
 
 ```bash
-# Intelligent-Tiering の設定
-# アーカイブアクセス層を有効化
+# Intelligent-Tiering configuration
+# Enable Archive Access tier
 aws s3api put-bucket-intelligent-tiering-configuration \
   --bucket my-app-bucket-2024 \
   --id "ArchiveConfig" \
@@ -835,16 +835,16 @@ aws s3api put-bucket-intelligent-tiering-configuration \
     }
   }'
 
-# ストレージクラスを指定してアップロード
+# Upload with storage class specified
 aws s3 cp ./file.txt s3://my-app-bucket-2024/ \
   --storage-class INTELLIGENT_TIERING
 ```
 
-### 3.4 Glacier からのデータ復元
+### 3.4 Restoring Data from Glacier
 
 ```bash
-# Glacier Flexible Retrieval からの復元
-# Standard (3-5時間)
+# Restore from Glacier Flexible Retrieval
+# Standard (3-5 hours)
 aws s3api restore-object \
   --bucket my-app-bucket-2024 \
   --key archives/old-data.tar.gz \
@@ -855,7 +855,7 @@ aws s3api restore-object \
     }
   }'
 
-# Expedited (1-5分、追加料金あり)
+# Expedited (1-5 minutes, additional charges)
 aws s3api restore-object \
   --bucket my-app-bucket-2024 \
   --key archives/urgent-data.tar.gz \
@@ -866,7 +866,7 @@ aws s3api restore-object \
     }
   }'
 
-# Bulk (5-12時間、最安)
+# Bulk (5-12 hours, cheapest)
 aws s3api restore-object \
   --bucket my-app-bucket-2024 \
   --key archives/bulk-data.tar.gz \
@@ -877,16 +877,16 @@ aws s3api restore-object \
     }
   }'
 
-# 復元状態の確認
+# Check restore status
 aws s3api head-object \
   --bucket my-app-bucket-2024 \
   --key archives/old-data.tar.gz \
   --query 'Restore'
-# 出力例: "ongoing-request=\"false\", expiry-date=\"Sun, 01 Jan 2025 00:00:00 GMT\""
+# Output example: "ongoing-request=\"false\", expiry-date=\"Sun, 01 Jan 2025 00:00:00 GMT\""
 ```
 
 ```python
-# Python での Glacier 復元と状態監視
+# Glacier restore and status monitoring with Python
 import boto3
 import time
 from datetime import datetime
@@ -895,7 +895,7 @@ s3 = boto3.client('s3', region_name='ap-northeast-1')
 
 def restore_from_glacier(bucket: str, key: str, days: int = 7,
                          tier: str = 'Standard') -> dict:
-    """Glacier からオブジェクトを復元する"""
+    """Restore an object from Glacier"""
     try:
         s3.restore_object(
             Bucket=bucket,
@@ -912,7 +912,7 @@ def restore_from_glacier(bucket: str, key: str, days: int = 7,
         raise
 
 def check_restore_status(bucket: str, key: str) -> dict:
-    """復元の進捗を確認する"""
+    """Check restore progress"""
     response = s3.head_object(Bucket=bucket, Key=key)
     restore = response.get('Restore', '')
 
@@ -926,65 +926,65 @@ def check_restore_status(bucket: str, key: str) -> dict:
 
 def wait_for_restore(bucket: str, key: str,
                      check_interval: int = 300, max_wait: int = 43200):
-    """復元完了まで待機する（デフォルト最大12時間）"""
+    """Wait for restore completion (default max 12 hours)"""
     start_time = time.time()
     while time.time() - start_time < max_wait:
         status = check_restore_status(bucket, key)
-        print(f"[{datetime.now().isoformat()}] 状態: {status['status']}")
+        print(f"[{datetime.now().isoformat()}] Status: {status['status']}")
 
         if status['status'] == 'completed':
             return status
         elif status['status'] == 'not_restored':
-            raise Exception(f"復元が開始されていません: {key}")
+            raise Exception(f"Restore has not been initiated: {key}")
 
         time.sleep(check_interval)
 
-    raise TimeoutError(f"復元がタイムアウトしました: {key}")
+    raise TimeoutError(f"Restore timed out: {key}")
 ```
 
 ---
 
-## 4. アクセス制御
+## 4. Access Control
 
-### 4.1 アクセス制御の層
+### 4.1 Access Control Layers
 
 ```
-S3 アクセス制御の4層
+4 Layers of S3 Access Control
 
   +------------------------------------------+
-  | 1. パブリックアクセスブロック (最優先)       |
-  |    アカウント/バケットレベルで公開を防止     |
+  | 1. Public Access Block (highest priority)  |
+  |    Prevent public access at account/bucket |
   +------------------------------------------+
               ↓
   +------------------------------------------+
-  | 2. バケットポリシー (リソースベース)         |
-  |    JSON で許可/拒否ルールを定義            |
+  | 2. Bucket Policy (resource-based)          |
+  |    Define allow/deny rules in JSON         |
   +------------------------------------------+
               ↓
   +------------------------------------------+
-  | 3. IAM ポリシー (ID ベース)                |
-  |    ユーザー/ロールに S3 権限を付与          |
+  | 3. IAM Policy (identity-based)             |
+  |    Grant S3 permissions to users/roles     |
   +------------------------------------------+
               ↓
   +------------------------------------------+
-  | 4. ACL (レガシー、非推奨)                   |
-  |    オブジェクト単位の読み書き権限            |
+  | 4. ACL (legacy, not recommended)           |
+  |    Per-object read/write permissions       |
   +------------------------------------------+
 
-  アクセス判定フロー:
-  1. パブリックアクセスブロックでブロックされるか？
-     → Yes: アクセス拒否
-  2. 明示的な Deny があるか？
-     → Yes: アクセス拒否
-  3. 明示的な Allow があるか？
-     → Yes: アクセス許可
-  4. デフォルト: アクセス拒否（暗黙の Deny）
+  Access Evaluation Flow:
+  1. Is it blocked by Public Access Block?
+     -> Yes: Access denied
+  2. Is there an explicit Deny?
+     -> Yes: Access denied
+  3. Is there an explicit Allow?
+     -> Yes: Access allowed
+  4. Default: Access denied (implicit Deny)
 ```
 
-### 4.2 パブリックアクセスブロック
+### 4.2 Public Access Block
 
 ```bash
-# アカウントレベルでパブリックアクセスをブロック（推奨）
+# Block public access at account level (recommended)
 aws s3control put-public-access-block \
   --account-id 123456789012 \
   --public-access-block-configuration '{
@@ -994,7 +994,7 @@ aws s3control put-public-access-block \
     "RestrictPublicBuckets": true
   }'
 
-# バケットレベルでパブリックアクセスをブロック
+# Block public access at bucket level
 aws s3api put-public-access-block \
   --bucket my-app-bucket-2024 \
   --public-access-block-configuration '{
@@ -1004,34 +1004,34 @@ aws s3api put-public-access-block \
     "RestrictPublicBuckets": true
   }'
 
-# 設定の確認
+# Check the configuration
 aws s3api get-public-access-block --bucket my-app-bucket-2024
 ```
 
 ```
-パブリックアクセスブロックの4つの設定
+4 Settings of Public Access Block
 
   BlockPublicAcls:
-    → 新しいパブリック ACL の設定をブロック
-    → PUT Object で public-read ACL を指定するとエラー
+    -> Blocks setting new public ACLs
+    -> Returns error when specifying public-read ACL in PUT Object
 
   IgnorePublicAcls:
-    → 既存のパブリック ACL を無視
-    → すでに設定済みの public-read ACL が無効になる
+    -> Ignores existing public ACLs
+    -> Already configured public-read ACLs become ineffective
 
   BlockPublicPolicy:
-    → パブリックアクセスを許可するバケットポリシーの設定をブロック
-    → Principal: "*" のポリシーを PUT するとエラー
+    -> Blocks setting bucket policies that allow public access
+    -> Returns error when PUT-ing a policy with Principal: "*"
 
   RestrictPublicBuckets:
-    → パブリックポリシーが設定されたバケットへの
-      クロスアカウントアクセスを制限
+    -> Restricts cross-account access to buckets
+      with public policies configured
 ```
 
-### 4.3 バケットポリシーの実践パターン
+### 4.3 Practical Bucket Policy Patterns
 
 ```bash
-# パターン1: 特定 IAM ロールからのみアクセス可能
+# Pattern 1: Allow access only from a specific IAM role
 aws s3api put-bucket-policy --bucket my-app-bucket-2024 --policy '{
   "Version": "2012-10-17",
   "Statement": [
@@ -1054,7 +1054,7 @@ aws s3api put-bucket-policy --bucket my-app-bucket-2024 --policy '{
   ]
 }'
 
-# パターン2: 暗号化されていないアップロードを拒否
+# Pattern 2: Deny unencrypted uploads
 aws s3api put-bucket-policy --bucket my-app-bucket-2024 --policy '{
   "Version": "2012-10-17",
   "Statement": [
@@ -1073,7 +1073,7 @@ aws s3api put-bucket-policy --bucket my-app-bucket-2024 --policy '{
   ]
 }'
 
-# パターン3: HTTPS のみ許可
+# Pattern 3: Allow HTTPS only
 aws s3api put-bucket-policy --bucket my-app-bucket-2024 --policy '{
   "Version": "2012-10-17",
   "Statement": [
@@ -1095,7 +1095,7 @@ aws s3api put-bucket-policy --bucket my-app-bucket-2024 --policy '{
   ]
 }'
 
-# パターン4: 特定 VPC エンドポイントからのみアクセス許可
+# Pattern 4: Allow access only from a specific VPC endpoint
 aws s3api put-bucket-policy --bucket my-app-bucket-2024 --policy '{
   "Version": "2012-10-17",
   "Statement": [
@@ -1117,7 +1117,7 @@ aws s3api put-bucket-policy --bucket my-app-bucket-2024 --policy '{
   ]
 }'
 
-# パターン5: IP アドレスによる制限
+# Pattern 5: IP address restriction
 aws s3api put-bucket-policy --bucket my-app-bucket-2024 --policy '{
   "Version": "2012-10-17",
   "Statement": [
@@ -1142,7 +1142,7 @@ aws s3api put-bucket-policy --bucket my-app-bucket-2024 --policy '{
   ]
 }'
 
-# パターン6: クロスアカウントアクセス
+# Pattern 6: Cross-account access
 aws s3api put-bucket-policy --bucket my-app-bucket-2024 --policy '{
   "Version": "2012-10-17",
   "Statement": [
@@ -1165,10 +1165,10 @@ aws s3api put-bucket-policy --bucket my-app-bucket-2024 --policy '{
 }'
 ```
 
-### 4.4 CORS 設定
+### 4.4 CORS Configuration
 
 ```bash
-# CORS の設定（Web アプリからの直接アクセス用）
+# CORS configuration (for direct access from web apps)
 aws s3api put-bucket-cors --bucket my-app-bucket-2024 --cors-configuration '{
   "CORSRules": [
     {
@@ -1181,15 +1181,15 @@ aws s3api put-bucket-cors --bucket my-app-bucket-2024 --cors-configuration '{
   ]
 }'
 
-# CORS 確認
+# Check CORS
 aws s3api get-bucket-cors --bucket my-app-bucket-2024
 ```
 
-### 4.5 ACL の無効化（推奨設定）
+### 4.5 Disabling ACL (Recommended Setting)
 
 ```bash
-# オブジェクト所有権を BucketOwnerEnforced に設定
-# → ACL が無効化され、バケット所有者が全オブジェクトを所有
+# Set object ownership to BucketOwnerEnforced
+# -> ACLs are disabled, bucket owner owns all objects
 aws s3api put-bucket-ownership-controls \
   --bucket my-app-bucket-2024 \
   --ownership-controls '{
@@ -1199,46 +1199,46 @@ aws s3api put-bucket-ownership-controls \
 
 ---
 
-## 5. ライフサイクルルール
+## 5. Lifecycle Rules
 
-### 5.1 ライフサイクルの遷移パス
+### 5.1 Lifecycle Transition Paths
 
 ```
-オブジェクトのライフサイクル遷移
+Object Lifecycle Transitions
 
   Standard
      |
-     | 30日後
+     | After 30 days
      v
   Standard-IA / Intelligent-Tiering
      |
-     | 60日後
+     | After 60 days
      v
   Glacier Instant Retrieval
      |
-     | 90日後
+     | After 90 days
      v
   Glacier Flexible Retrieval
      |
-     | 180日後
+     | After 180 days
      v
   Glacier Deep Archive
      |
-     | 365日後
+     | After 365 days
      v
-  削除 (Expiration)
+  Deletion (Expiration)
 
-  ※ 遷移の制約:
-    - Standard-IA: 最低30日経過後
-    - Glacier: 最低90日経過後
-    - 最小オブジェクトサイズ: 128KB（IA系）/ 40KB（Glacier系）
-    - One Zone-IA への遷移後、他の IA への遷移は不可
+  * Transition constraints:
+    - Standard-IA: minimum 30 days elapsed
+    - Glacier: minimum 90 days elapsed
+    - Minimum object size: 128KB (IA types) / 40KB (Glacier types)
+    - After transitioning to One Zone-IA, cannot transition to other IA classes
 ```
 
-### 5.2 ライフサイクルルールの設定例
+### 5.2 Lifecycle Rule Configuration Examples
 
 ```bash
-# 実践的なライフサイクル設定
+# Practical lifecycle configuration
 aws s3api put-bucket-lifecycle-configuration \
   --bucket my-app-bucket-2024 \
   --lifecycle-configuration '{
@@ -1317,20 +1317,20 @@ aws s3api put-bucket-lifecycle-configuration \
   ]
 }'
 
-# ライフサイクル設定の確認
+# Check lifecycle configuration
 aws s3api get-bucket-lifecycle-configuration --bucket my-app-bucket-2024
 ```
 
-### 5.3 コスト最適化シミュレーション
+### 5.3 Cost Optimization Simulation
 
 ```python
-# ライフサイクルルールによるコスト削減シミュレーション
+# Cost reduction simulation with lifecycle rules
 def calculate_storage_cost(
     total_gb: float,
     access_pattern: str = 'standard',
     months: int = 12
 ) -> dict:
-    """ストレージコストを概算する（東京リージョン）"""
+    """Estimate storage costs (Tokyo region)"""
     prices = {
         'STANDARD':     0.025,
         'STANDARD_IA':  0.019,
@@ -1340,10 +1340,10 @@ def calculate_storage_cost(
         'DEEP_ARCHIVE': 0.002,
     }
 
-    # ライフサイクルなし（全期間 Standard）
+    # Without lifecycle (Standard for the entire period)
     cost_no_lifecycle = total_gb * prices['STANDARD'] * months
 
-    # ライフサイクルあり
+    # With lifecycle
     cost_with_lifecycle = 0
     for month in range(1, months + 1):
         if month <= 1:
@@ -1367,35 +1367,35 @@ def calculate_storage_cost(
         'savings_percentage': round(savings_pct, 1),
     }
 
-# 使用例
+# Usage example
 result = calculate_storage_cost(total_gb=1000, months=12)
-print(f"ライフサイクルなし: ${result['without_lifecycle']}")
-print(f"ライフサイクルあり: ${result['with_lifecycle']}")
-print(f"削減額: ${result['savings']} ({result['savings_percentage']}%)")
-# ライフサイクルなし: $300.00
-# ライフサイクルあり: $83.50
-# 削減額: $216.50 (72.2%)
+print(f"Without lifecycle: ${result['without_lifecycle']}")
+print(f"With lifecycle: ${result['with_lifecycle']}")
+print(f"Savings: ${result['savings']} ({result['savings_percentage']}%)")
+# Without lifecycle: $300.00
+# With lifecycle: $83.50
+# Savings: $216.50 (72.2%)
 ```
 
 ---
 
-## 6. 静的 Web サイトホスティング
+## 6. Static Website Hosting
 
-### 6.1 アーキテクチャ
+### 6.1 Architecture
 
 ```
-S3 静的ホスティング構成（推奨）
+S3 Static Hosting Configuration (Recommended)
 
-  ユーザー
+  User
     |
     v
   Route 53 (DNS)
-    |  example.com → CloudFront
+    |  example.com -> CloudFront
     v
   CloudFront (CDN, HTTPS)
-    |  キャッシュ、圧縮、WAF 統合
+    |  Cache, compression, WAF integration
     v
-  S3 Bucket (OAC 経由、非公開)
+  S3 Bucket (via OAC, private)
   ├── index.html
   ├── error.html
   ├── css/
@@ -1408,23 +1408,23 @@ S3 静的ホスティング構成（推奨）
       ├── logo.png
       └── hero.webp
 
-  ※ S3 のバケットは非公開のまま
-  ※ CloudFront OAC 経由でのみアクセス可能
-  ※ バケットの静的ホスティング機能は不要
-    （CloudFront がオリジンとして直接 S3 API を使用）
+  * The S3 bucket remains private
+  * Accessible only via CloudFront OAC
+  * S3 static hosting feature is not needed
+    (CloudFront uses the S3 API directly as origin)
 ```
 
-### 6.2 静的ホスティングの設定
+### 6.2 Static Hosting Configuration
 
 ```bash
-# === 方法1: S3 単体での静的ホスティング（開発環境向け） ===
+# === Method 1: S3 standalone static hosting (for development environments) ===
 
-# バケットの静的ホスティングを有効化
+# Enable static hosting on the bucket
 aws s3 website s3://my-website-bucket \
   --index-document index.html \
   --error-document error.html
 
-# SPA (Single Page Application) 用のリダイレクトルール
+# Redirect rules for SPA (Single Page Application)
 aws s3api put-bucket-website \
   --bucket my-website-bucket \
   --website-configuration '{
@@ -1443,31 +1443,31 @@ aws s3api put-bucket-website \
     ]
   }'
 
-# ファイルのアップロード（キャッシュ戦略付き）
-# ハッシュ付きアセット（長期キャッシュ）
+# Upload files (with cache strategy)
+# Hashed assets (long-term cache)
 aws s3 sync ./build/static/ s3://my-website-bucket/static/ \
   --cache-control "public, max-age=31536000, immutable" \
   --exclude "*.map"
 
-# index.html（キャッシュなし）
+# index.html (no cache)
 aws s3 cp ./build/index.html s3://my-website-bucket/ \
   --cache-control "no-cache, no-store, must-revalidate" \
   --content-type "text/html; charset=utf-8"
 
-# その他の HTML ファイル
+# Other HTML files
 aws s3 sync ./build/ s3://my-website-bucket/ \
   --exclude "static/*" \
   --exclude "*.map" \
   --cache-control "public, max-age=0, must-revalidate"
 
-# エンドポイント確認
+# Check endpoint
 echo "http://my-website-bucket.s3-website-ap-northeast-1.amazonaws.com"
 ```
 
-### 6.3 CloudFront + OAC 構成（本番推奨）
+### 6.3 CloudFront + OAC Configuration (Recommended for Production)
 
 ```bash
-# Step 1: OAC (Origin Access Control) を作成
+# Step 1: Create OAC (Origin Access Control)
 OAC_ID=$(aws cloudfront create-origin-access-control \
   --origin-access-control-config '{
     "Name": "S3-Website-OAC",
@@ -1479,7 +1479,7 @@ OAC_ID=$(aws cloudfront create-origin-access-control \
 
 echo "OAC ID: ${OAC_ID}"
 
-# Step 2: CloudFront ディストリビューション作成
+# Step 2: Create CloudFront distribution
 DIST_ID=$(aws cloudfront create-distribution \
   --distribution-config '{
     "CallerReference": "my-website-2024",
@@ -1521,7 +1521,7 @@ DIST_ID=$(aws cloudfront create-distribution \
 
 echo "Distribution ID: ${DIST_ID}"
 
-# Step 3: バケットポリシーで CloudFront からのアクセスのみ許可
+# Step 3: Bucket policy to allow access only from CloudFront
 aws s3api put-bucket-policy --bucket my-website-bucket --policy '{
   "Version": "2012-10-17",
   "Statement": [{
@@ -1538,22 +1538,22 @@ aws s3api put-bucket-policy --bucket my-website-bucket --policy '{
   }]
 }'
 
-# Step 4: キャッシュの無効化（デプロイ後）
+# Step 4: Cache invalidation (after deployment)
 aws cloudfront create-invalidation \
   --distribution-id ${DIST_ID} \
   --paths "/*"
 
-# 特定パスのみ無効化（コスト削減）
+# Invalidate specific paths only (cost reduction)
 aws cloudfront create-invalidation \
   --distribution-id ${DIST_ID} \
   --paths "/index.html" "/manifest.json"
 ```
 
-### 6.4 デプロイスクリプト（実践例）
+### 6.4 Deployment Script (Practical Example)
 
 ```bash
 #!/bin/bash
-# deploy-static-site.sh - S3 + CloudFront への静的サイトデプロイ
+# deploy-static-site.sh - Deploy static site to S3 + CloudFront
 
 set -euo pipefail
 
@@ -1561,73 +1561,73 @@ BUCKET="my-website-bucket"
 DIST_ID="E1234567890ABC"
 BUILD_DIR="./build"
 
-echo "=== ビルド ==="
+echo "=== Build ==="
 npm run build
 
-echo "=== ハッシュ付きアセットのアップロード（長期キャッシュ） ==="
+echo "=== Upload hashed assets (long-term cache) ==="
 aws s3 sync "${BUILD_DIR}/static/" "s3://${BUCKET}/static/" \
   --cache-control "public, max-age=31536000, immutable" \
   --exclude "*.map" \
   --size-only
 
-echo "=== HTML ファイルのアップロード（キャッシュなし） ==="
+echo "=== Upload HTML files (no cache) ==="
 aws s3 cp "${BUILD_DIR}/index.html" "s3://${BUCKET}/index.html" \
   --cache-control "no-cache, no-store, must-revalidate" \
   --content-type "text/html; charset=utf-8"
 
-echo "=== その他ファイルのアップロード ==="
+echo "=== Upload other files ==="
 aws s3 sync "${BUILD_DIR}/" "s3://${BUCKET}/" \
   --exclude "static/*" \
   --exclude "*.map" \
   --exclude "index.html" \
   --cache-control "public, max-age=3600"
 
-echo "=== CloudFront キャッシュ無効化 ==="
+echo "=== CloudFront cache invalidation ==="
 INVALIDATION_ID=$(aws cloudfront create-invalidation \
   --distribution-id "${DIST_ID}" \
   --paths "/index.html" "/manifest.json" "/service-worker.js" \
   --query 'Invalidation.Id' --output text)
 
-echo "無効化ID: ${INVALIDATION_ID}"
+echo "Invalidation ID: ${INVALIDATION_ID}"
 
-echo "=== 無効化完了を待機 ==="
+echo "=== Waiting for invalidation to complete ==="
 aws cloudfront wait invalidation-completed \
   --distribution-id "${DIST_ID}" \
   --id "${INVALIDATION_ID}"
 
-echo "=== デプロイ完了 ==="
+echo "=== Deployment complete ==="
 ```
 
 ---
 
-## 7. サーバーサイド暗号化
+## 7. Server-Side Encryption
 
-### 7.1 暗号化方式の比較
+### 7.1 Encryption Method Comparison
 
-| 方式 | キー管理 | コスト | ユースケース | API 呼び出し制限 |
+| Method | Key Management | Cost | Use Case | API Call Limits |
 |------|---------|--------|------------|----------------|
-| SSE-S3 (AES256) | AWS 管理 | 無料 | デフォルト推奨 | なし |
-| SSE-KMS (aws/s3) | AWS 管理 KMS キー | KMS 料金 | 監査ログ必要時 | KMS クォータ |
-| SSE-KMS (CMK) | ユーザー管理キー | KMS 料金 | クロスアカウント | KMS クォータ |
-| SSE-C | ユーザー提供キー | 無料 | 独自キー管理 | HTTPS 必須 |
-| CSE | クライアント側 | なし | 完全制御 | なし |
+| SSE-S3 (AES256) | AWS managed | Free | Default recommended | None |
+| SSE-KMS (aws/s3) | AWS managed KMS key | KMS charges | When audit logs needed | KMS quotas |
+| SSE-KMS (CMK) | User-managed key | KMS charges | Cross-account | KMS quotas |
+| SSE-C | User-provided key | Free | Custom key management | HTTPS required |
+| CSE | Client-side | None | Full control | None |
 
 ```
-暗号化方式の選択フロー
+Encryption Method Selection Flow
 
-  暗号化が必要？
-  ├── デフォルトで暗号化したい → SSE-S3 (AES256)
-  ├── キーの利用を監査したい → SSE-KMS (aws/s3)
-  ├── キーのローテーションを制御したい → SSE-KMS (CMK)
-  ├── クロスアカウントでキーを共有したい → SSE-KMS (CMK)
-  ├── AWS にキーを預けたくない → SSE-C
-  └── データをアップロード前に暗号化したい → CSE
+  Need encryption?
+  ├── Want default encryption -> SSE-S3 (AES256)
+  ├── Need to audit key usage -> SSE-KMS (aws/s3)
+  ├── Want to control key rotation -> SSE-KMS (CMK)
+  ├── Want to share keys cross-account -> SSE-KMS (CMK)
+  ├── Don't want to entrust keys to AWS -> SSE-C
+  └── Want to encrypt data before upload -> CSE
 ```
 
-### 7.2 暗号化の設定
+### 7.2 Encryption Configuration
 
 ```bash
-# デフォルト暗号化を SSE-S3 (AES256) に設定
+# Set default encryption to SSE-S3 (AES256)
 aws s3api put-bucket-encryption --bucket my-app-bucket-2024 \
   --server-side-encryption-configuration '{
     "Rules": [{
@@ -1638,7 +1638,7 @@ aws s3api put-bucket-encryption --bucket my-app-bucket-2024 \
     }]
   }'
 
-# デフォルト暗号化を SSE-KMS に設定
+# Set default encryption to SSE-KMS
 aws s3api put-bucket-encryption --bucket my-app-bucket-2024 \
   --server-side-encryption-configuration '{
     "Rules": [{
@@ -1650,17 +1650,17 @@ aws s3api put-bucket-encryption --bucket my-app-bucket-2024 \
     }]
   }'
 
-# 暗号化設定の確認
+# Check encryption configuration
 aws s3api get-bucket-encryption --bucket my-app-bucket-2024
 
-# KMS キーでアップロード
+# Upload with KMS key
 aws s3 cp ./sensitive-data.csv s3://my-app-bucket-2024/data/ \
   --sse aws:kms \
   --sse-kms-key-id "arn:aws:kms:ap-northeast-1:123456789012:key/12345678-1234-1234-1234-123456789012"
 ```
 
 ```python
-# Python での SSE-C（クライアント提供キー）によるアップロード/ダウンロード
+# SSE-C (Customer-Provided Key) upload/download with Python
 import boto3
 import hashlib
 import base64
@@ -1668,14 +1668,14 @@ import os
 
 s3 = boto3.client('s3', region_name='ap-northeast-1')
 
-# 256ビットの暗号化キーを生成
+# Generate a 256-bit encryption key
 encryption_key = os.urandom(32)
 key_b64 = base64.b64encode(encryption_key).decode('utf-8')
 key_md5 = base64.b64encode(
     hashlib.md5(encryption_key).digest()
 ).decode('utf-8')
 
-# SSE-C でアップロード
+# Upload with SSE-C
 s3.put_object(
     Bucket='my-app-bucket-2024',
     Key='encrypted/secret-data.bin',
@@ -1685,7 +1685,7 @@ s3.put_object(
     SSECustomerKeyMD5=key_md5
 )
 
-# SSE-C でダウンロード（同じキーが必要）
+# Download with SSE-C (same key required)
 response = s3.get_object(
     Bucket='my-app-bucket-2024',
     Key='encrypted/secret-data.bin',
@@ -1694,28 +1694,28 @@ response = s3.get_object(
     SSECustomerKeyMD5=key_md5
 )
 data = response['Body'].read()
-print(f"復号データ: {data}")
+print(f"Decrypted data: {data}")
 ```
 
 ---
 
-## 8. S3 イベント通知
+## 8. S3 Event Notifications
 
-### 8.1 イベント通知のアーキテクチャ
+### 8.1 Event Notification Architecture
 
 ```
-S3 イベント通知の宛先
+S3 Event Notification Destinations
 
-  S3 バケット
+  S3 Bucket
     |
-    | イベント発生（PUT, DELETE, etc.）
+    | Event occurs (PUT, DELETE, etc.)
     |
-    ├── → SNS トピック → Email, SMS, HTTP
-    ├── → SQS キュー → バッチ処理
-    ├── → Lambda 関数 → リアルタイム処理
-    └── → EventBridge → 複雑なルーティング
+    ├── -> SNS Topic -> Email, SMS, HTTP
+    ├── -> SQS Queue -> Batch processing
+    ├── -> Lambda Function -> Real-time processing
+    └── -> EventBridge -> Complex routing
 
-  主要なイベントタイプ:
+  Major Event Types:
   ├── s3:ObjectCreated:* (Put, Post, Copy, CompleteMultipartUpload)
   ├── s3:ObjectRemoved:* (Delete, DeleteMarkerCreated)
   ├── s3:ObjectRestore:* (Post, Completed)
@@ -1724,10 +1724,10 @@ S3 イベント通知の宛先
   └── s3:LifecycleTransition
 ```
 
-### 8.2 イベント通知の設定
+### 8.2 Event Notification Configuration
 
 ```bash
-# Lambda 関数へのイベント通知設定
+# Event notification configuration for Lambda function
 aws s3api put-bucket-notification-configuration \
   --bucket my-app-bucket-2024 \
   --notification-configuration '{
@@ -1766,7 +1766,7 @@ aws s3api put-bucket-notification-configuration \
 ```
 
 ```python
-# Lambda 関数でのイベント処理例
+# Lambda function event processing example
 import boto3
 import json
 import urllib.parse
@@ -1774,84 +1774,84 @@ import urllib.parse
 s3 = boto3.client('s3')
 
 def lambda_handler(event, context):
-    """S3 イベントを処理する Lambda 関数"""
+    """Lambda function to process S3 events"""
     for record in event['Records']:
-        # イベント情報の取得
+        # Get event information
         bucket = record['s3']['bucket']['name']
         key = urllib.parse.unquote_plus(record['s3']['object']['key'])
         size = record['s3']['object']['size']
         event_name = record['eventName']
         event_time = record['eventTime']
 
-        print(f"イベント: {event_name}")
-        print(f"バケット: {bucket}")
-        print(f"キー: {key}")
-        print(f"サイズ: {size} bytes")
-        print(f"時刻: {event_time}")
+        print(f"Event: {event_name}")
+        print(f"Bucket: {bucket}")
+        print(f"Key: {key}")
+        print(f"Size: {size} bytes")
+        print(f"Time: {event_time}")
 
-        # オブジェクトの処理
+        # Process the object
         if event_name.startswith('ObjectCreated'):
             process_new_object(bucket, key)
         elif event_name.startswith('ObjectRemoved'):
             handle_deletion(bucket, key)
 
 def process_new_object(bucket: str, key: str):
-    """新しいオブジェクトを処理する"""
-    # メタデータの取得
+    """Process a new object"""
+    # Get metadata
     response = s3.head_object(Bucket=bucket, Key=key)
     content_type = response['ContentType']
 
-    # 画像の場合はサムネイル生成
+    # Generate thumbnail for images
     if content_type.startswith('image/'):
         generate_thumbnail(bucket, key)
 
-    # ログファイルの場合は解析
+    # Analyze log files
     elif key.endswith('.log') or key.endswith('.gz'):
         analyze_log(bucket, key)
 
 def generate_thumbnail(bucket: str, key: str):
-    """サムネイルを生成する（簡略化）"""
-    print(f"サムネイル生成: {key}")
-    # Pillow 等を使ったサムネイル生成処理
+    """Generate a thumbnail (simplified)"""
+    print(f"Generating thumbnail: {key}")
+    # Thumbnail generation using Pillow, etc.
     # ...
 
 def handle_deletion(bucket: str, key: str):
-    """削除イベントを処理する"""
-    print(f"オブジェクト削除を検知: {key}")
-    # 関連データのクリーンアップ等
+    """Handle deletion event"""
+    print(f"Object deletion detected: {key}")
+    # Cleanup of related data, etc.
 ```
 
 ---
 
-## 9. S3 のモニタリングとメトリクス
+## 9. S3 Monitoring and Metrics
 
-### 9.1 CloudWatch メトリクス
+### 9.1 CloudWatch Metrics
 
 ```
-S3 の標準メトリクス（無料）
+S3 Standard Metrics (Free)
 
-  ├── BucketSizeBytes: バケットの合計サイズ
-  ├── NumberOfObjects: オブジェクト数
-  └── ※ 日次で更新（リアルタイムではない）
+  ├── BucketSizeBytes: Total bucket size
+  ├── NumberOfObjects: Object count
+  └── * Updated daily (not real-time)
 
-S3 リクエストメトリクス（有料、フィルタ設定が必要）
+S3 Request Metrics (Paid, filter configuration required)
 
-  ├── AllRequests: 全リクエスト数
-  ├── GetRequests: GET リクエスト数
-  ├── PutRequests: PUT リクエスト数
-  ├── DeleteRequests: DELETE リクエスト数
-  ├── HeadRequests: HEAD リクエスト数
-  ├── ListRequests: LIST リクエスト数
-  ├── 4xxErrors: クライアントエラー数
-  ├── 5xxErrors: サーバーエラー数
-  ├── FirstByteLatency: 最初のバイトまでのレイテンシ
-  ├── TotalRequestLatency: 合計リクエストレイテンシ
-  ├── BytesDownloaded: ダウンロードバイト数
-  └── BytesUploaded: アップロードバイト数
+  ├── AllRequests: Total request count
+  ├── GetRequests: GET request count
+  ├── PutRequests: PUT request count
+  ├── DeleteRequests: DELETE request count
+  ├── HeadRequests: HEAD request count
+  ├── ListRequests: LIST request count
+  ├── 4xxErrors: Client error count
+  ├── 5xxErrors: Server error count
+  ├── FirstByteLatency: Latency to first byte
+  ├── TotalRequestLatency: Total request latency
+  ├── BytesDownloaded: Downloaded bytes
+  └── BytesUploaded: Uploaded bytes
 ```
 
 ```bash
-# リクエストメトリクスの有効化
+# Enable request metrics
 aws s3api put-bucket-metrics-configuration \
   --bucket my-app-bucket-2024 \
   --id AllRequests \
@@ -1860,7 +1860,7 @@ aws s3api put-bucket-metrics-configuration \
     "Filter": {}
   }'
 
-# 特定プレフィックスのメトリクス
+# Metrics for a specific prefix
 aws s3api put-bucket-metrics-configuration \
   --bucket my-app-bucket-2024 \
   --id ApiRequests \
@@ -1871,7 +1871,7 @@ aws s3api put-bucket-metrics-configuration \
     }
   }'
 
-# CloudWatch でメトリクスを取得
+# Get metrics from CloudWatch
 aws cloudwatch get-metric-statistics \
   --namespace AWS/S3 \
   --metric-name BucketSizeBytes \
@@ -1883,11 +1883,11 @@ aws cloudwatch get-metric-statistics \
   --statistics Average
 ```
 
-### 9.2 S3 アクセスログ
+### 9.2 S3 Access Logs
 
 ```bash
-# アクセスログの有効化
-# まずログ保存先バケットのポリシーを設定
+# Enable access logs
+# First, set up the policy for the log destination bucket
 aws s3api put-bucket-policy --bucket my-s3-access-logs --policy '{
   "Version": "2012-10-17",
   "Statement": [{
@@ -1904,7 +1904,7 @@ aws s3api put-bucket-policy --bucket my-s3-access-logs --policy '{
   }]
 }'
 
-# アクセスログを有効化
+# Enable access logs
 aws s3api put-bucket-logging --bucket my-app-bucket-2024 --bucket-logging-status '{
   "LoggingEnabled": {
     "TargetBucket": "my-s3-access-logs",
@@ -1916,7 +1916,7 @@ aws s3api put-bucket-logging --bucket my-app-bucket-2024 --bucket-logging-status
 ### 9.3 S3 Storage Lens
 
 ```bash
-# Storage Lens ダッシュボードの作成
+# Create a Storage Lens dashboard
 aws s3control put-storage-lens-configuration \
   --account-id 123456789012 \
   --config-id my-storage-lens \
@@ -1944,39 +1944,39 @@ aws s3control put-storage-lens-configuration \
 
 ---
 
-## 10. マルチパートアップロード
+## 10. Multipart Upload
 
-### 10.1 マルチパートアップロードの仕組み
+### 10.1 How Multipart Upload Works
 
 ```
-マルチパートアップロードのフロー
+Multipart Upload Flow
 
-  ファイル (100MB)
+  File (100MB)
     |
-    | 分割
+    | Split
     v
   +--------+--------+--------+--------+
   | Part 1 | Part 2 | Part 3 | ... N  |
   | 10MB   | 10MB   | 10MB   |        |
   +--------+--------+--------+--------+
     |         |         |         |
-    | 並行     | 並行     | 並行     | 並行
+    | Parallel | Parallel | Parallel | Parallel
     v         v         v         v
-  S3 (一時パート保管)
+  S3 (temporary part storage)
     |
     | Complete Multipart Upload
     v
-  完成したオブジェクト (100MB)
+  Completed object (100MB)
 
-  制約:
-  ├── 最小パートサイズ: 5MB（最後のパートを除く）
-  ├── 最大パートサイズ: 5GB
-  ├── 最大パート数: 10,000
-  ├── 最大オブジェクトサイズ: 5TB
-  └── 推奨: 100MB 以上のファイルでマルチパート使用
+  Constraints:
+  ├── Minimum part size: 5MB (except the last part)
+  ├── Maximum part size: 5GB
+  ├── Maximum number of parts: 10,000
+  ├── Maximum object size: 5TB
+  └── Recommendation: Use multipart for files over 100MB
 ```
 
-### 10.2 Python でのマルチパートアップロード
+### 10.2 Multipart Upload with Python
 
 ```python
 import boto3
@@ -1988,14 +1988,14 @@ s3 = boto3.client('s3', region_name='ap-northeast-1')
 
 def multipart_upload(file_path: str, bucket: str, key: str,
                      part_size: int = 50 * 1024 * 1024):
-    """マルチパートアップロードを実行する"""
+    """Execute a multipart upload"""
     file_size = os.path.getsize(file_path)
     total_parts = math.ceil(file_size / part_size)
 
-    print(f"ファイルサイズ: {file_size / (1024*1024):.1f} MB")
-    print(f"パート数: {total_parts}")
+    print(f"File size: {file_size / (1024*1024):.1f} MB")
+    print(f"Number of parts: {total_parts}")
 
-    # Step 1: マルチパートアップロードの開始
+    # Step 1: Initiate multipart upload
     response = s3.create_multipart_upload(
         Bucket=bucket,
         Key=key,
@@ -2006,7 +2006,7 @@ def multipart_upload(file_path: str, bucket: str, key: str,
 
     parts = []
     try:
-        # Step 2: パートの並行アップロード
+        # Step 2: Upload parts in parallel
         def upload_part(part_number, start, end):
             with open(file_path, 'rb') as f:
                 f.seek(start)
@@ -2036,33 +2036,33 @@ def multipart_upload(file_path: str, bucket: str, key: str,
             for future in as_completed(futures):
                 part = future.result()
                 parts.append(part)
-                print(f"  パート {part['PartNumber']}/{total_parts} 完了")
+                print(f"  Part {part['PartNumber']}/{total_parts} complete")
 
-        # パート番号順にソート
+        # Sort by part number
         parts.sort(key=lambda x: x['PartNumber'])
 
-        # Step 3: マルチパートアップロードの完了
+        # Step 3: Complete multipart upload
         s3.complete_multipart_upload(
             Bucket=bucket,
             Key=key,
             UploadId=upload_id,
             MultipartUpload={'Parts': parts}
         )
-        print(f"アップロード完了: {key}")
+        print(f"Upload complete: {key}")
 
     except Exception as e:
-        # エラー時はアップロードを中止
+        # Abort upload on error
         s3.abort_multipart_upload(
             Bucket=bucket,
             Key=key,
             UploadId=upload_id
         )
-        print(f"アップロード中止: {e}")
+        print(f"Upload aborted: {e}")
         raise
 
-# 未完了のマルチパートアップロードを一覧・クリーンアップ
+# List and cleanup incomplete multipart uploads
 def cleanup_incomplete_uploads(bucket: str):
-    """未完了のマルチパートアップロードを削除する"""
+    """Delete incomplete multipart uploads"""
     response = s3.list_multipart_uploads(Bucket=bucket)
     uploads = response.get('Uploads', [])
 
@@ -2071,52 +2071,52 @@ def cleanup_incomplete_uploads(bucket: str):
         upload_id = upload['UploadId']
         initiated = upload['Initiated']
 
-        print(f"未完了: {key} (開始: {initiated})")
+        print(f"Incomplete: {key} (started: {initiated})")
 
         s3.abort_multipart_upload(
             Bucket=bucket,
             Key=key,
             UploadId=upload_id
         )
-        print(f"  → 中止しました")
+        print(f"  -> Aborted")
 
-    print(f"合計 {len(uploads)} 件の未完了アップロードをクリーンアップしました")
+    print(f"Cleaned up {len(uploads)} incomplete uploads in total")
 ```
 
 ---
 
-## 11. S3 バージョニング
+## 11. S3 Versioning
 
-### 11.1 バージョニングの基本
+### 11.1 Versioning Basics
 
 ```bash
-# バージョニングの有効化
+# Enable versioning
 aws s3api put-bucket-versioning \
   --bucket my-app-bucket-2024 \
   --versioning-configuration Status=Enabled
 
-# バージョニングの状態確認
+# Check versioning status
 aws s3api get-bucket-versioning --bucket my-app-bucket-2024
 
-# 全バージョンの一覧
+# List all versions
 aws s3api list-object-versions \
   --bucket my-app-bucket-2024 \
   --prefix config/settings.json
 
-# 特定バージョンの取得
+# Get a specific version
 aws s3api get-object \
   --bucket my-app-bucket-2024 \
   --key config/settings.json \
   --version-id "abc123def456" \
   ./settings-old.json
 
-# 特定バージョンの削除
+# Delete a specific version
 aws s3api delete-object \
   --bucket my-app-bucket-2024 \
   --key config/settings.json \
   --version-id "abc123def456"
 
-# 削除マーカーの削除（オブジェクトの復元）
+# Delete a delete marker (restore the object)
 aws s3api delete-object \
   --bucket my-app-bucket-2024 \
   --key config/settings.json \
@@ -2124,63 +2124,63 @@ aws s3api delete-object \
 ```
 
 ```
-バージョニングの動作
+How Versioning Works
 
-  バージョニング有効時の PUT:
-  settings.json v1 (最初のアップロード)
-  settings.json v2 (上書きアップロード → v1 は保持)
-  settings.json v3 (上書きアップロード → v1, v2 は保持)
+  PUT with versioning enabled:
+  settings.json v1 (first upload)
+  settings.json v2 (overwrite upload -> v1 is retained)
+  settings.json v3 (overwrite upload -> v1, v2 are retained)
 
-  バージョニング有効時の DELETE:
-  settings.json に削除マーカーが付与
-  → GET すると 404 が返る
-  → 削除マーカーを削除すると v3 が最新に戻る
-  → 全バージョンは保持されたまま
+  DELETE with versioning enabled:
+  A delete marker is added to settings.json
+  -> GET returns 404
+  -> Deleting the delete marker restores v3 as the latest
+  -> All versions are retained
 
-  注意:
-  ├── バージョニングは一度有効にすると無効化できない
-  │   （Suspended にはできるが、既存バージョンは残る）
-  ├── 全バージョンがストレージ料金の対象
-  └── ライフサイクルルールで古いバージョンを自動削除推奨
+  Notes:
+  ├── Once enabled, versioning cannot be disabled
+  │   (It can be suspended, but existing versions remain)
+  ├── All versions are subject to storage charges
+  └── Use lifecycle rules to automatically delete old versions (recommended)
 ```
 
 ---
 
-## 12. Presigned URL（署名付き URL）
+## 12. Presigned URL
 
-### 12.1 Presigned URL の用途と仕組み
+### 12.1 Purpose and Mechanism of Presigned URLs
 
 ```
-Presigned URL のフロー
+Presigned URL Flow
 
-  ■ ダウンロード用
-  クライアント → API サーバー → S3 (Presigned URL 生成)
+  ■ For Download
+  Client -> API Server -> S3 (Generate Presigned URL)
        ↑                              |
-       +--- Presigned URL を返す ------+
+       +--- Return Presigned URL -----+
        |
-       +--- URL で直接 S3 からダウンロード --------→ S3
+       +--- Download directly from S3 via URL ---------> S3
 
-  ■ アップロード用
-  クライアント → API サーバー → S3 (Presigned URL 生成)
+  ■ For Upload
+  Client -> API Server -> S3 (Generate Presigned URL)
        ↑                              |
-       +--- Presigned URL を返す ------+
+       +--- Return Presigned URL -----+
        |
-       +--- URL で直接 S3 にアップロード ---------→ S3
+       +--- Upload directly to S3 via URL -----------> S3
 
-  メリット:
-  ├── クライアントに AWS 認証情報を渡す必要がない
-  ├── サーバーを経由せず直接 S3 にアクセスできる
-  ├── 有効期限を設定できる（最大7日間）
-  └── 特定のオブジェクトのみアクセスを許可できる
+  Benefits:
+  ├── No need to pass AWS credentials to the client
+  ├── Direct S3 access without going through the server
+  ├── Configurable expiration time (up to 7 days)
+  └── Can restrict access to specific objects only
 ```
 
-### 12.2 Presigned URL の実装
+### 12.2 Presigned URL Implementation
 
 ```python
 import boto3
 from botocore.config import Config
 
-# Presigned URL 用のクライアント（署名バージョン指定）
+# Client for Presigned URLs (with signature version specified)
 s3 = boto3.client(
     's3',
     region_name='ap-northeast-1',
@@ -2190,12 +2190,12 @@ s3 = boto3.client(
 def generate_download_url(bucket: str, key: str,
                           expires_in: int = 3600,
                           filename: str = None) -> str:
-    """ダウンロード用 Presigned URL を生成する"""
+    """Generate a Presigned URL for download"""
     params = {
         'Bucket': bucket,
         'Key': key,
     }
-    # ダウンロード時のファイル名を指定
+    # Specify filename for download
     if filename:
         params['ResponseContentDisposition'] = f'attachment; filename="{filename}"'
 
@@ -2210,7 +2210,7 @@ def generate_upload_url(bucket: str, key: str,
                         content_type: str = 'application/octet-stream',
                         max_size: int = None,
                         expires_in: int = 3600) -> dict:
-    """アップロード用 Presigned URL を生成する"""
+    """Generate a Presigned URL for upload"""
     params = {
         'Bucket': bucket,
         'Key': key,
@@ -2236,7 +2236,7 @@ def generate_presigned_post(bucket: str, key_prefix: str,
                             content_type: str = 'image/jpeg',
                             max_size_mb: int = 10,
                             expires_in: int = 3600) -> dict:
-    """POST 用の Presigned URL（フォームアップロード向け）"""
+    """Presigned URL for POST (for form uploads)"""
     conditions = [
         {'bucket': bucket},
         ['starts-with', '$key', key_prefix],
@@ -2260,25 +2260,25 @@ def generate_presigned_post(bucket: str, key_prefix: str,
 
     return response
 
-# 使用例
+# Usage example
 if __name__ == '__main__':
     BUCKET = 'my-app-bucket-2024'
 
-    # ダウンロード URL
+    # Download URL
     download_url = generate_download_url(
         BUCKET, 'reports/monthly.pdf',
-        filename='月次レポート.pdf'
+        filename='monthly-report.pdf'
     )
-    print(f"ダウンロード URL: {download_url}")
+    print(f"Download URL: {download_url}")
 
-    # アップロード URL
+    # Upload URL
     upload_info = generate_upload_url(
         BUCKET, 'uploads/images/photo.jpg',
         content_type='image/jpeg'
     )
-    print(f"アップロード URL: {upload_info['url']}")
+    print(f"Upload URL: {upload_info['url']}")
 
-    # POST 用 URL
+    # POST URL
     post_info = generate_presigned_post(
         BUCKET, 'uploads/avatars',
         max_size_mb=5
@@ -2288,9 +2288,9 @@ if __name__ == '__main__':
 ```
 
 ```javascript
-// フロントエンドからの Presigned URL 利用例
+// Frontend usage example with Presigned URLs
 
-// ダウンロード
+// Download
 async function downloadFile(presignedUrl, filename) {
   const response = await fetch(presignedUrl);
   const blob = await response.blob();
@@ -2302,7 +2302,7 @@ async function downloadFile(presignedUrl, filename) {
   URL.revokeObjectURL(link.href);
 }
 
-// PUT によるアップロード
+// Upload via PUT
 async function uploadFile(presignedUrl, file, contentType) {
   const response = await fetch(presignedUrl, {
     method: 'PUT',
@@ -2314,21 +2314,21 @@ async function uploadFile(presignedUrl, file, contentType) {
   });
 
   if (!response.ok) {
-    throw new Error(`アップロード失敗: ${response.status}`);
+    throw new Error(`Upload failed: ${response.status}`);
   }
-  console.log('アップロード完了');
+  console.log('Upload complete');
 }
 
-// POST によるアップロード（フォームデータ）
+// Upload via POST (form data)
 async function uploadWithPost(presignedPost, file) {
   const formData = new FormData();
 
-  // Presigned POST のフィールドを追加
+  // Add Presigned POST fields
   Object.entries(presignedPost.fields).forEach(([key, value]) => {
     formData.append(key, value);
   });
 
-  // ファイルは最後に追加（重要）
+  // File must be added last (important)
   formData.append('file', file);
 
   const response = await fetch(presignedPost.url, {
@@ -2337,39 +2337,39 @@ async function uploadWithPost(presignedPost, file) {
   });
 
   if (!response.ok) {
-    throw new Error(`アップロード失敗: ${response.status}`);
+    throw new Error(`Upload failed: ${response.status}`);
   }
-  console.log('アップロード完了');
+  console.log('Upload complete');
 }
 ```
 
 ---
 
-## 13. アンチパターン
+## 13. Anti-Patterns
 
-### アンチパターン 1: バケットを公開設定のままにする
+### Anti-Pattern 1: Leaving Buckets with Public Access Settings
 
-S3 バケットの公開設定は過去に大規模なデータ漏洩を引き起こしてきた。パブリックアクセスブロックを必ず有効にし、公開が必要な場合は CloudFront + OAC 経由とすべきである。
+Public S3 bucket configurations have caused large-scale data breaches in the past. Always enable Public Access Block, and when public access is needed, use CloudFront + OAC.
 
 ```bash
-# 悪い例 — パブリック読み取りを許可
+# Bad example - Allow public read
 aws s3api put-bucket-acl --bucket my-bucket --acl public-read
 
-# 良い例 — パブリックアクセスをブロックし、CloudFront 経由で配信
+# Good example - Block public access and serve via CloudFront
 aws s3api put-public-access-block --bucket my-bucket \
   --public-access-block-configuration \
   BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
 ```
 
-### アンチパターン 2: マルチパートアップロードの未完了を放置する
+### Anti-Pattern 2: Leaving Incomplete Multipart Uploads
 
-失敗したマルチパートアップロードの断片が残り続けると、ストレージコストが無駄に発生する。ライフサイクルルールで自動クリーンアップすべきである。
+Fragments from failed multipart uploads continue to accumulate and incur unnecessary storage costs. Use lifecycle rules for automatic cleanup.
 
 ```bash
-# 未完了のマルチパートアップロードの確認
+# Check incomplete multipart uploads
 aws s3api list-multipart-uploads --bucket my-app-bucket-2024
 
-# ライフサイクルルールで7日後に自動削除
+# Auto-delete after 7 days with lifecycle rule
 aws s3api put-bucket-lifecycle-configuration \
   --bucket my-app-bucket-2024 \
   --lifecycle-configuration '{
@@ -2382,110 +2382,110 @@ aws s3api put-bucket-lifecycle-configuration \
   }'
 ```
 
-### アンチパターン 3: バージョニングなしで本番データを保管する
+### Anti-Pattern 3: Storing Production Data Without Versioning
 
-バージョニングが無効な場合、誤った上書きや削除が復元不可能になる。本番環境のバケットでは必ずバージョニングを有効にすべきである。
+Without versioning, accidental overwrites or deletions become irrecoverable. Always enable versioning on production environment buckets.
 
-### アンチパターン 4: ライフサイクルルールなしで大量データを保管する
+### Anti-Pattern 4: Storing Large Amounts of Data Without Lifecycle Rules
 
-すべてのデータを Standard ストレージクラスに保持し続けると、不要なコストが発生する。アクセスパターンに応じたライフサイクルルールを設定すべきである。
+Keeping all data in the Standard storage class incurs unnecessary costs. Configure lifecycle rules according to access patterns.
 
-### アンチパターン 5: バケットポリシーとIAMポリシーの二重管理
+### Anti-Pattern 5: Dual Management of Bucket Policies and IAM Policies
 
-アクセス制御をバケットポリシーと IAM ポリシーの両方で管理すると、意図しないアクセス許可や拒否が発生しやすくなる。原則として IAM ポリシーで管理し、クロスアカウントアクセスなど IAM だけでは実現できないケースでのみバケットポリシーを使用すべきである。
+Managing access control with both bucket policies and IAM policies makes unintended access grants or denials more likely. As a rule, manage with IAM policies and use bucket policies only for cases that IAM alone cannot handle, such as cross-account access.
 
-### アンチパターン 6: 暗号化設定の漏れ
+### Anti-Pattern 6: Missing Encryption Settings
 
-デフォルト暗号化を設定せず、個別のアップロード時に暗号化を指定する運用はヒューマンエラーのリスクが高い。バケットレベルでデフォルト暗号化を有効にし、暗号化されていないアップロードを拒否するバケットポリシーも併用すべきである。
+Operating without default encryption and specifying encryption on individual uploads carries a high risk of human error. Enable default encryption at the bucket level and also use a bucket policy to deny unencrypted uploads.
 
 ---
 
 ## 14. FAQ
 
-### Q1. S3 のバケット名に制約はあるか？
+### Q1. Are there constraints on S3 bucket names?
 
-グローバルに一意である必要があり、3-63文字、小文字・数字・ハイフンのみ使用可能。ピリオドは SSL 証明書の問題を起こすため避けるべきである。`my-company-app-prod` のような命名規則が推奨される。
+They must be globally unique, 3-63 characters, and only lowercase letters, numbers, and hyphens are allowed. Periods should be avoided as they cause SSL certificate issues. A naming convention like `my-company-app-prod` is recommended.
 
-### Q2. 5GB 以上のファイルをアップロードするには？
+### Q2. How do I upload files larger than 5GB?
 
-マルチパートアップロードを使用する。AWS CLI の `aws s3 cp` は自動的にマルチパートアップロードを行う（閾値はデフォルト 8MB）。SDK でも `upload` メソッドが自動分割する。最大 5TB まで対応。
+Use multipart upload. The AWS CLI's `aws s3 cp` automatically performs multipart uploads (default threshold is 8MB). SDKs also auto-split with the `upload` method. Supports up to 5TB.
 
-### Q3. S3 のコストを削減するには？
+### Q3. How can I reduce S3 costs?
 
-(1) Intelligent-Tiering でアクセスパターンに応じた自動階層化、(2) ライフサイクルルールで古いデータを Glacier に移行、(3) 不完全なマルチパートアップロードの削除、(4) S3 Storage Lens でコスト分析を実施する。
+(1) Use Intelligent-Tiering for automatic tiering based on access patterns, (2) Use lifecycle rules to transition old data to Glacier, (3) Delete incomplete multipart uploads, (4) Perform cost analysis with S3 Storage Lens.
 
-### Q4. S3 Select と Athena の違いは？
+### Q4. What is the difference between S3 Select and Athena?
 
-S3 Select は単一オブジェクト内の CSV/JSON/Parquet データから特定のカラムや行をフィルタリングして取得する機能。Athena は複数オブジェクトにまたがる SQL クエリを実行するサーバーレス分析サービス。小規模な単一ファイルの検索には S3 Select、大規模なデータ分析には Athena が適している。
+S3 Select filters and retrieves specific columns and rows from CSV/JSON/Parquet data within a single object. Athena is a serverless analytics service that executes SQL queries across multiple objects. S3 Select is suitable for searching small single files, while Athena is suited for large-scale data analytics.
 
-### Q5. S3 のデータ転送料金はどうなっているか？
+### Q5. How does S3 data transfer pricing work?
 
-インバウンド（S3 へのアップロード）は無料。アウトバウンド（S3 からのダウンロード）は最初の 100GB/月が無料、それ以降は $0.114/GB（東京リージョン）。同一リージョン内の EC2 からのアクセスは無料。CloudFront 経由のアクセスは S3 からの転送料は無料（CloudFront の転送料がかかる）。
+Inbound (upload to S3) is free. Outbound (download from S3) is free for the first 100GB/month, then $0.114/GB (Tokyo region). Access from EC2 in the same region is free. Access via CloudFront has no S3 transfer charges (CloudFront transfer charges apply instead).
 
-### Q6. S3 のリクエスト料金はどれくらいか？
+### Q6. How much are S3 request charges?
 
-Standard の場合、PUT/COPY/POST/LIST リクエストは $0.0047/1,000リクエスト、GET/SELECT/HEAD リクエストは $0.00037/1,000リクエスト。大量のリクエストが発生するアプリケーションでは、CloudFront でキャッシュすることでリクエスト数とコストを削減できる。
+For Standard, PUT/COPY/POST/LIST requests cost $0.0047/1,000 requests, and GET/SELECT/HEAD requests cost $0.00037/1,000 requests. For applications with high request volumes, caching with CloudFront can reduce both request count and costs.
 
-### Q7. バケットを別のリージョンに移動できるか？
+### Q7. Can I move a bucket to another region?
 
-バケットのリージョンは変更できない。別リージョンにデータを移動するには、新しいバケットを作成して S3 クロスリージョンレプリケーション（CRR）を設定するか、`aws s3 sync` でコピーする。
+A bucket's region cannot be changed. To move data to another region, create a new bucket and set up S3 Cross-Region Replication (CRR), or copy with `aws s3 sync`.
 
-### Q8. S3 オブジェクトロックとは何か？
+### Q8. What is S3 Object Lock?
 
-WORM（Write Once Read Many）モデルでオブジェクトの削除や上書きを防止する機能。コンプライアンス要件（SEC Rule 17a-4、FINRA など）で必要になることが多い。Governance モード（特権ユーザーは解除可能）と Compliance モード（誰も解除不可）がある。
+A feature that prevents object deletion or overwriting using the WORM (Write Once Read Many) model. It is often required for compliance requirements (SEC Rule 17a-4, FINRA, etc.). There are two modes: Governance mode (privileged users can override) and Compliance mode (no one can override).
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in daily development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## 15. まとめ
+## 15. Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| データモデル | バケット（名前空間）+ オブジェクト（キー + 値） |
-| 耐久性 | 99.999999999% (イレブンナイン) |
-| 整合性 | 強い読み取り整合性（Read-After-Write） |
-| ストレージクラス | アクセス頻度に応じて Standard → IA → Glacier |
-| アクセス制御 | パブリックアクセスブロック + バケットポリシー + IAM |
-| 暗号化 | SSE-S3 をデフォルトで有効化 |
-| ライフサイクル | 自動遷移 + 自動削除でコスト最適化 |
-| バージョニング | 本番環境では必ず有効化 |
-| 静的ホスティング | CloudFront + OAC が推奨構成 |
-| イベント通知 | Lambda/SQS/SNS/EventBridge と連携 |
-| マルチパートアップロード | 100MB 以上のファイルで推奨 |
-| Presigned URL | クライアントへの一時的なアクセス権付与 |
-| モニタリング | CloudWatch メトリクス + S3 Storage Lens |
+| Data Model | Bucket (namespace) + Object (key + value) |
+| Durability | 99.999999999% (eleven nines) |
+| Consistency | Strong Read-After-Write consistency |
+| Storage Classes | Standard -> IA -> Glacier based on access frequency |
+| Access Control | Public Access Block + Bucket Policy + IAM |
+| Encryption | Enable SSE-S3 by default |
+| Lifecycle | Auto-transition + auto-deletion for cost optimization |
+| Versioning | Always enable in production environments |
+| Static Hosting | CloudFront + OAC is the recommended configuration |
+| Event Notifications | Integration with Lambda/SQS/SNS/EventBridge |
+| Multipart Upload | Recommended for files over 100MB |
+| Presigned URL | Granting temporary access to clients |
+| Monitoring | CloudWatch Metrics + S3 Storage Lens |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Reads
 
-- [01-s3-advanced.md](./01-s3-advanced.md) — バージョニング、レプリケーション、S3 Select
-- [02-cloudfront.md](./02-cloudfront.md) — CloudFront CDN 設定
+- [01-s3-advanced.md](./01-s3-advanced.md) — Versioning, replication, S3 Select
+- [02-cloudfront.md](./02-cloudfront.md) — CloudFront CDN configuration
 
 ---
 
-## 参考文献
+## References
 
-1. Amazon S3 ユーザーガイド — https://docs.aws.amazon.com/AmazonS3/latest/userguide/
-2. S3 セキュリティベストプラクティス — https://docs.aws.amazon.com/AmazonS3/latest/userguide/security-best-practices.html
-3. S3 料金 — https://aws.amazon.com/s3/pricing/
-4. S3 ストレージクラス — https://aws.amazon.com/s3/storage-classes/
-5. S3 パフォーマンス最適化 — https://docs.aws.amazon.com/AmazonS3/latest/userguide/optimizing-performance.html
-6. S3 暗号化ガイド — https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingEncryption.html
-7. S3 ライフサイクルルール — https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html
+1. Amazon S3 User Guide — https://docs.aws.amazon.com/AmazonS3/latest/userguide/
+2. S3 Security Best Practices — https://docs.aws.amazon.com/AmazonS3/latest/userguide/security-best-practices.html
+3. S3 Pricing — https://aws.amazon.com/s3/pricing/
+4. S3 Storage Classes — https://aws.amazon.com/s3/storage-classes/
+5. S3 Performance Optimization — https://docs.aws.amazon.com/AmazonS3/latest/userguide/optimizing-performance.html
+6. S3 Encryption Guide — https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingEncryption.html
+7. S3 Lifecycle Rules — https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html
